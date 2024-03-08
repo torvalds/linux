@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -36,7 +36,7 @@
 
 /*
  * sDMA - System DMA
- * Starting with CIK, the GPU has new asynchronous
+ * Starting with CIK, the GPU has new asynchroanalus
  * DMA engines.  These engines are used for compute
  * and gfx.  There are two DMA engines (SDMA0, SDMA1)
  * and each one supports 1 ring buffer used for gfx
@@ -149,7 +149,7 @@ void cik_sdma_ring_ib_execute(struct radeon_device *rdev,
 
 	/* IB packet must end on a 8 DW boundary */
 	while ((ring->wptr & 7) != 4)
-		radeon_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_NOP, 0, 0));
+		radeon_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_ANALP, 0, 0));
 	radeon_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_INDIRECT_BUFFER, 0, extra_bits));
 	radeon_ring_write(ring, ib->gpu_addr & 0xffffffe0); /* base must be 32 byte aligned */
 	radeon_ring_write(ring, upper_32_bits(ib->gpu_addr));
@@ -268,9 +268,9 @@ static void cik_sdma_gfx_stop(struct radeon_device *rdev)
 	rdev->ring[R600_RING_TYPE_DMA_INDEX].ready = false;
 	rdev->ring[CAYMAN_RING_TYPE_DMA1_INDEX].ready = false;
 
-	/* FIXME use something else than big hammer but after few days can not
+	/* FIXME use something else than big hammer but after few days can analt
 	 * seem to find good combination so reset SDMA blocks as it seems we
-	 * do not shut them down properly. This fix hibernation and does not
+	 * do analt shut them down properly. This fix hibernation and does analt
 	 * affect suspend to ram.
 	 */
 	WREG32(SRBM_SOFT_RESET, SOFT_RESET_SDMA | SOFT_RESET_SDMA1);
@@ -395,7 +395,7 @@ static int cik_sdma_gfx_resume(struct radeon_device *rdev)
 		WREG32(SDMA0_GFX_RB_RPTR + reg_offset, 0);
 		WREG32(SDMA0_GFX_RB_WPTR + reg_offset, 0);
 
-		/* set the wb address whether it's enabled or not */
+		/* set the wb address whether it's enabled or analt */
 		WREG32(SDMA0_GFX_RB_RPTR_ADDR_HI + reg_offset,
 		       upper_32_bits(rdev->wb.gpu_addr + wb_offset) & 0xFFFFFFFF);
 		WREG32(SDMA0_GFX_RB_RPTR_ADDR_LO + reg_offset,
@@ -456,7 +456,7 @@ static int cik_sdma_rlc_resume(struct radeon_device *rdev)
  * @rdev: radeon_device pointer
  *
  * Loads the sDMA0/1 ucode.
- * Returns 0 for success, -EINVAL if the ucode is not available.
+ * Returns 0 for success, -EINVAL if the ucode is analt available.
  */
 static int cik_sdma_load_microcode(struct radeon_device *rdev)
 {
@@ -769,7 +769,7 @@ int cik_sdma_ib_test(struct radeon_device *rdev, struct radeon_ring *ring)
  * @ring: radeon_ring structure holding ring information
  *
  * Check if the async DMA engine is locked up (CIK).
- * Returns true if the engine appears to be locked up, false if not.
+ * Returns true if the engine appears to be locked up, false if analt.
  */
 bool cik_sdma_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
 {
@@ -851,7 +851,7 @@ void cik_sdma_vm_write_pages(struct radeon_device *rdev,
 		if (ndw > 0xFFFFE)
 			ndw = 0xFFFFE;
 
-		/* for non-physically contiguous pages (system) */
+		/* for analn-physically contiguous pages (system) */
 		ib->ptr[ib->length_dw++] = SDMA_PACKET(SDMA_OPCODE_WRITE,
 			SDMA_WRITE_SUB_OPCODE_LINEAR, 0);
 		ib->ptr[ib->length_dw++] = pe;
@@ -932,7 +932,7 @@ void cik_sdma_vm_set_pages(struct radeon_device *rdev,
 void cik_sdma_vm_pad_ib(struct radeon_ib *ib)
 {
 	while (ib->length_dw & 0x7)
-		ib->ptr[ib->length_dw++] = SDMA_PACKET(SDMA_OPCODE_NOP, 0, 0);
+		ib->ptr[ib->length_dw++] = SDMA_PACKET(SDMA_OPCODE_ANALP, 0, 0);
 }
 
 /*

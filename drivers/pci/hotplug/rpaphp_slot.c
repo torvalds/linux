@@ -22,23 +22,23 @@
 /* free up the memory used by a slot */
 void dealloc_slot_struct(struct slot *slot)
 {
-	of_node_put(slot->dn);
+	of_analde_put(slot->dn);
 	kfree(slot->name);
 	kfree(slot);
 }
 
-struct slot *alloc_slot_struct(struct device_node *dn,
+struct slot *alloc_slot_struct(struct device_analde *dn,
 		int drc_index, char *drc_name, int power_domain)
 {
 	struct slot *slot;
 
 	slot = kzalloc(sizeof(struct slot), GFP_KERNEL);
 	if (!slot)
-		goto error_nomem;
+		goto error_analmem;
 	slot->name = kstrdup(drc_name, GFP_KERNEL);
 	if (!slot->name)
 		goto error_slot;
-	slot->dn = of_node_get(dn);
+	slot->dn = of_analde_get(dn);
 	slot->index = drc_index;
 	slot->power_domain = power_domain;
 	slot->hotplug_slot.ops = &rpaphp_hotplug_slot_ops;
@@ -47,7 +47,7 @@ struct slot *alloc_slot_struct(struct device_node *dn,
 
 error_slot:
 	kfree(slot);
-error_nomem:
+error_analmem:
 	return NULL;
 }
 
@@ -82,31 +82,31 @@ EXPORT_SYMBOL_GPL(rpaphp_deregister_slot);
 int rpaphp_register_slot(struct slot *slot)
 {
 	struct hotplug_slot *php_slot = &slot->hotplug_slot;
-	struct device_node *child;
+	struct device_analde *child;
 	u32 my_index;
 	int retval;
-	int slotno = -1;
+	int slotanal = -1;
 
 	dbg("%s registering slot:path[%pOF] index[%x], name[%s] pdomain[%x] type[%d]\n",
 		__func__, slot->dn, slot->index, slot->name,
 		slot->power_domain, slot->type);
 
-	/* should not try to register the same slot twice */
+	/* should analt try to register the same slot twice */
 	if (is_registered(slot)) {
 		err("rpaphp_register_slot: slot[%s] is already registered\n", slot->name);
 		return -EAGAIN;
 	}
 
-	for_each_child_of_node(slot->dn, child) {
+	for_each_child_of_analde(slot->dn, child) {
 		retval = of_property_read_u32(child, "ibm,my-drc-index", &my_index);
 		if (my_index == slot->index) {
-			slotno = PCI_SLOT(PCI_DN(child)->devfn);
-			of_node_put(child);
+			slotanal = PCI_SLOT(PCI_DN(child)->devfn);
+			of_analde_put(child);
 			break;
 		}
 	}
 
-	retval = pci_hp_register(php_slot, slot->bus, slotno, slot->name);
+	retval = pci_hp_register(php_slot, slot->bus, slotanal, slot->name);
 	if (retval) {
 		err("pci_hp_register failed with error %d\n", retval);
 		return retval;

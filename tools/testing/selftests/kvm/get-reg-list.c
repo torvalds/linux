@@ -152,7 +152,7 @@ static void check_supported(struct vcpu_reg_list *c)
 			continue;
 
 		__TEST_REQUIRE(kvm_has_cap(s->capability),
-			       "%s: %s not available, skipping tests",
+			       "%s: %s analt available, skipping tests",
 			       config_name(c), s->name);
 	}
 }
@@ -203,14 +203,14 @@ static void run_test(struct vcpu_reg_list *c)
 	 * We only test that we can get the register and then write back the
 	 * same value. Some registers may allow other values to be written
 	 * back, but others only allow some bits to be changed, and at least
-	 * for ID registers set will fail if the value does not exactly match
+	 * for ID registers set will fail if the value does analt exactly match
 	 * what was returned by get. If registers that allow other values to
 	 * be written need to have the other values tested, then we should
 	 * create a new set of tests for those in a new independent test
 	 * executable.
 	 *
 	 * Only do the get/set tests on present, blessed list registers,
-	 * since we don't know the capabilities of any new registers.
+	 * since we don't kanalw the capabilities of any new registers.
 	 */
 	for_each_present_blessed_reg(i) {
 		uint8_t addr[2048 / 8];
@@ -234,8 +234,8 @@ static void run_test(struct vcpu_reg_list *c)
 			if (s->rejects_set && find_reg(s->rejects_set, s->rejects_set_n, reg.id)) {
 				reject_reg = true;
 				ret = __vcpu_ioctl(vcpu, KVM_SET_ONE_REG, &reg);
-				if (ret != -1 || !check_reject_set(errno)) {
-					printf("%s: Failed to reject (ret=%d, errno=%d) ", config_name(c), ret, errno);
+				if (ret != -1 || !check_reject_set(erranal)) {
+					printf("%s: Failed to reject (ret=%d, erranal=%d) ", config_name(c), ret, erranal);
 					print_reg(config_name(c), reg.id);
 					putchar('\n');
 					++failed_reject;
@@ -327,7 +327,7 @@ static void help(void)
 	printf(
 	"\n"
 	" --list                      Print the register list rather than test it (requires --config)\n"
-	" --list-filtered             Print registers that would normally be filtered out (requires --config)\n"
+	" --list-filtered             Print registers that would analrmally be filtered out (requires --config)\n"
 	"\n"
 	);
 }

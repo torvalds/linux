@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Synopsys DWC Ethernet Quality-of-Service v4.10a linux driver
+ * Syanalpsys DWC Ethernet Quality-of-Service v4.10a linux driver
  *
- * Copyright (C) 2016 Joao Pinto <jpinto@synopsys.com>
+ * Copyright (C) 2016 Joao Pinto <jpinto@syanalpsys.com>
  */
 
 #include <linux/clk.h>
@@ -49,7 +49,7 @@ static int dwc_eth_dwmac_config_dt(struct platform_device *pdev,
 		plat_dat->axi = kzalloc(sizeof(struct stmmac_axi), GFP_KERNEL);
 
 		if (!plat_dat->axi)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	plat_dat->axi->axi_lpi_en = device_property_read_bool(dev,
@@ -127,7 +127,7 @@ static int dwc_qos_probe(struct platform_device *pdev,
 
 	plat_dat->stmmac_clk = devm_clk_get(&pdev->dev, "apb_pclk");
 	if (IS_ERR(plat_dat->stmmac_clk)) {
-		dev_err(&pdev->dev, "apb_pclk clock not found.\n");
+		dev_err(&pdev->dev, "apb_pclk clock analt found.\n");
 		return PTR_ERR(plat_dat->stmmac_clk);
 	}
 
@@ -140,7 +140,7 @@ static int dwc_qos_probe(struct platform_device *pdev,
 
 	plat_dat->pclk = devm_clk_get(&pdev->dev, "phy_ref_clk");
 	if (IS_ERR(plat_dat->pclk)) {
-		dev_err(&pdev->dev, "phy_ref_clk clock not found.\n");
+		dev_err(&pdev->dev, "phy_ref_clk clock analt found.\n");
 		err = PTR_ERR(plat_dat->pclk);
 		goto disable;
 	}
@@ -223,7 +223,7 @@ static void tegra_eqos_fix_speed(void *priv, unsigned int speed, unsigned int mo
 						value & AUTO_CAL_STATUS_ACTIVE,
 						1, 10);
 		if (err < 0) {
-			dev_err(eqos->dev, "calibration did not start\n");
+			dev_err(eqos->dev, "calibration did analt start\n");
 			goto failed;
 		}
 
@@ -275,12 +275,12 @@ static int tegra_eqos_probe(struct platform_device *pdev,
 
 	eqos = devm_kzalloc(&pdev->dev, sizeof(*eqos), GFP_KERNEL);
 	if (!eqos)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	eqos->dev = &pdev->dev;
 	eqos->regs = res->addr;
 
-	if (!is_of_node(dev->fwnode))
+	if (!is_of_analde(dev->fwanalde))
 		goto bypass_clk_reset_gpio;
 
 	eqos->clk_master = devm_clk_get(&pdev->dev, "master_bus");
@@ -488,6 +488,6 @@ static struct platform_driver dwc_eth_dwmac_driver = {
 };
 module_platform_driver(dwc_eth_dwmac_driver);
 
-MODULE_AUTHOR("Joao Pinto <jpinto@synopsys.com>");
-MODULE_DESCRIPTION("Synopsys DWC Ethernet Quality-of-Service v4.10a driver");
+MODULE_AUTHOR("Joao Pinto <jpinto@syanalpsys.com>");
+MODULE_DESCRIPTION("Syanalpsys DWC Ethernet Quality-of-Service v4.10a driver");
 MODULE_LICENSE("GPL v2");

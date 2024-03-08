@@ -13,7 +13,7 @@
  * The pattern of set bits in the list length determines which cases
  * are hit in list_sort().
  */
-#define TEST_LIST_LEN (512+128+2) /* not including head */
+#define TEST_LIST_LEN (512+128+2) /* analt including head */
 
 #define TEST_POISON1 0xDEADBEEF
 #define TEST_POISON2 0xA324354C
@@ -63,12 +63,12 @@ static void list_sort_test(struct kunit *test)
 	LIST_HEAD(head);
 
 	elts = kunit_kcalloc(test, TEST_LIST_LEN, sizeof(*elts), GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, elts);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, elts);
 	test->priv = elts;
 
 	for (i = 0; i < TEST_LIST_LEN; i++) {
 		el = kunit_kmalloc(test, sizeof(*el), GFP_KERNEL);
-		KUNIT_ASSERT_NOT_ERR_OR_NULL(test, el);
+		KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, el);
 
 		 /* force some equivalencies */
 		el->value = get_random_u32_below(TEST_LIST_LEN / 3);
@@ -89,13 +89,13 @@ static void list_sort_test(struct kunit *test)
 					"list is corrupted");
 
 		cmp_result = cmp(test, cur, cur->next);
-		KUNIT_ASSERT_LE_MSG(test, cmp_result, 0, "list is not sorted");
+		KUNIT_ASSERT_LE_MSG(test, cmp_result, 0, "list is analt sorted");
 
 		el = container_of(cur, struct debug_el, list);
 		el1 = container_of(cur->next, struct debug_el, list);
 		if (cmp_result == 0) {
 			KUNIT_ASSERT_LE_MSG(test, el->serial, el1->serial,
-					    "order of equivalent elements not preserved");
+					    "order of equivalent elements analt preserved");
 		}
 
 		check(test, el, el1);

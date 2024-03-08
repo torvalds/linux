@@ -47,8 +47,8 @@ int hda_dsp_trace_init(struct snd_sof_dev *sdev, struct snd_dma_buffer *dmab,
 
 	if (!hda->dtrace_stream) {
 		dev_err(sdev->dev,
-			"error: no available capture stream for DMA trace\n");
-		return -ENODEV;
+			"error: anal available capture stream for DMA trace\n");
+		return -EANALDEV;
 	}
 
 	dtrace_params->stream_tag = hda->dtrace_stream->hstream.stream_tag;
@@ -83,8 +83,8 @@ int hda_dsp_trace_release(struct snd_sof_dev *sdev)
 		return 0;
 	}
 
-	dev_dbg(sdev->dev, "DMA trace stream is not opened!\n");
-	return -ENODEV;
+	dev_dbg(sdev->dev, "DMA trace stream is analt opened!\n");
+	return -EANALDEV;
 }
 
 int hda_dsp_trace_trigger(struct snd_sof_dev *sdev, int cmd)

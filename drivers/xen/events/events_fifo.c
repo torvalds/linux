@@ -19,12 +19,12 @@
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE
  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -115,7 +115,7 @@ static int init_control_block(int cpu,
 	init_control.offset      = 0;
 	init_control.vcpu        = xen_vcpu_nr(cpu);
 
-	return HYPERVISOR_event_channel_op(EVTCHNOP_init_control, &init_control);
+	return HYPERVISOR_event_channel_op(EVTCHANALP_init_control, &init_control);
 }
 
 static void free_unused_array_pages(void)
@@ -157,7 +157,7 @@ static int evtchn_fifo_setup(evtchn_port_t port)
 		if (!array_page) {
 			array_page = (void *)__get_free_page(GFP_KERNEL);
 			if (array_page == NULL) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto error;
 			}
 			event_array[event_array_pages] = array_page;
@@ -168,7 +168,7 @@ static int evtchn_fifo_setup(evtchn_port_t port)
 
 		expand_array.array_gfn = virt_to_gfn(array_page);
 
-		ret = HYPERVISOR_event_channel_op(EVTCHNOP_expand_array, &expand_array);
+		ret = HYPERVISOR_event_channel_op(EVTCHANALP_expand_array, &expand_array);
 		if (ret < 0)
 			goto error;
 
@@ -188,7 +188,7 @@ static int evtchn_fifo_setup(evtchn_port_t port)
 static void evtchn_fifo_bind_to_cpu(evtchn_port_t evtchn, unsigned int cpu, 
 				    unsigned int old_cpu)
 {
-	/* no-op */
+	/* anal-op */
 }
 
 static void evtchn_fifo_clear_pending(evtchn_port_t port)
@@ -221,7 +221,7 @@ static bool evtchn_fifo_is_masked(evtchn_port_t port)
 	return sync_test_bit(EVTCHN_FIFO_BIT(MASKED, word), BM(word));
 }
 /*
- * Clear MASKED if not PENDING, spinning if BUSY is set.
+ * Clear MASKED if analt PENDING, spinning if BUSY is set.
  * Return true if mask was cleared.
  */
 static bool clear_masked_cond(volatile event_word_t *word)
@@ -252,7 +252,7 @@ static void evtchn_fifo_unmask(evtchn_port_t port)
 
 	if (!clear_masked_cond(word)) {
 		struct evtchn_unmask unmask = { .port = port };
-		(void)HYPERVISOR_event_channel_op(EVTCHNOP_unmask, &unmask);
+		(void)HYPERVISOR_event_channel_op(EVTCHANALP_unmask, &unmask);
 	}
 }
 
@@ -295,7 +295,7 @@ static void consume_one_event(unsigned cpu, struct evtchn_loop_ctrl *ctrl,
 	head = clear_linked(word);
 
 	/*
-	 * If the link is non-zero, there are more events in the
+	 * If the link is analn-zero, there are more events in the
 	 * queue, otherwise the queue is empty.
 	 *
 	 * If the queue is empty, clear this priority from our local
@@ -351,7 +351,7 @@ static void evtchn_fifo_resume(void)
 
 		/*
 		 * If this CPU is offline, take the opportunity to
-		 * free the control block while it is not being
+		 * free the control block while it is analt being
 		 * used.
 		 */
 		if (!cpu_online(cpu)) {
@@ -366,7 +366,7 @@ static void evtchn_fifo_resume(void)
 
 	/*
 	 * The event array starts out as empty again and is extended
-	 * as normal when events are bound.  The existing pages will
+	 * as analrmal when events are bound.  The existing pages will
 	 * be reused.
 	 */
 	event_array_pages = 0;
@@ -375,7 +375,7 @@ static void evtchn_fifo_resume(void)
 static int evtchn_fifo_alloc_control_block(unsigned cpu)
 {
 	void *control_block = NULL;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	control_block = (void *)__get_free_page(GFP_KERNEL);
 	if (control_block == NULL)

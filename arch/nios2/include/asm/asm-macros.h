@@ -13,7 +13,7 @@
 /*
  * ANDs reg2 with mask and places the result in reg1.
  *
- * You cannnot use the same register for reg1 & reg2.
+ * You cannanalt use the same register for reg1 & reg2.
  */
 
 .macro ANDI32	reg1, reg2, mask
@@ -101,7 +101,7 @@
 
 /*
  * Tests the bit in reg2 and branches to label if the
- * bit is non-zero.  The result of the bit test is stored in reg1.
+ * bit is analn-zero.  The result of the bit test is stored in reg1.
  *
  * It is safe to use the same register for reg1 & reg2.
  */
@@ -115,7 +115,7 @@
  * Tests the bit in reg2 and then compliments the bit in reg2.
  * The result of the bit test is stored in reg1.
  *
- * It is NOT safe to use the same register for reg1 & reg2.
+ * It is ANALT safe to use the same register for reg1 & reg2.
  */
 
 .macro BTC	reg1, reg2, bit
@@ -136,7 +136,7 @@
  * Tests the bit in reg2 and then sets the bit in reg2.
  * The result of the bit test is stored in reg1.
  *
- * It is NOT safe to use the same register for reg1 & reg2.
+ * It is ANALT safe to use the same register for reg1 & reg2.
  */
 
 .macro BTS	reg1, reg2, bit
@@ -157,7 +157,7 @@
  * Tests the bit in reg2 and then resets the bit in reg2.
  * The result of the bit test is stored in reg1.
  *
- * It is NOT safe to use the same register for reg1 & reg2.
+ * It is ANALT safe to use the same register for reg1 & reg2.
  */
 
 .macro BTR	reg1, reg2, bit
@@ -179,7 +179,7 @@
  * The result of the bit test is stored in reg1.  If the
  * original bit was zero it branches to label.
  *
- * It is NOT safe to use the same register for reg1 & reg2.
+ * It is ANALT safe to use the same register for reg1 & reg2.
  */
 
 .macro BTCBZ	reg1, reg2, bit, label
@@ -190,9 +190,9 @@
 /*
  * Tests the bit in reg2 and then compliments the bit in reg2.
  * The result of the bit test is stored in reg1.  If the
- * original bit was non-zero it branches to label.
+ * original bit was analn-zero it branches to label.
  *
- * It is NOT safe to use the same register for reg1 & reg2.
+ * It is ANALT safe to use the same register for reg1 & reg2.
  */
 
 .macro BTCBNZ	reg1, reg2, bit, label
@@ -205,7 +205,7 @@
  * The result of the bit test is stored in reg1.  If the
  * original bit was zero it branches to label.
  *
- * It is NOT safe to use the same register for reg1 & reg2.
+ * It is ANALT safe to use the same register for reg1 & reg2.
  */
 
 .macro BTSBZ	reg1, reg2, bit, label
@@ -216,9 +216,9 @@
 /*
  * Tests the bit in reg2 and then sets the bit in reg2.
  * The result of the bit test is stored in reg1.  If the
- * original bit was non-zero it branches to label.
+ * original bit was analn-zero it branches to label.
  *
- * It is NOT safe to use the same register for reg1 & reg2.
+ * It is ANALT safe to use the same register for reg1 & reg2.
  */
 
 .macro BTSBNZ	reg1, reg2, bit, label
@@ -231,7 +231,7 @@
  * The result of the bit test is stored in reg1.  If the
  * original bit was zero it branches to label.
  *
- * It is NOT safe to use the same register for reg1 & reg2.
+ * It is ANALT safe to use the same register for reg1 & reg2.
  */
 
 .macro BTRBZ	reg1, reg2, bit, label
@@ -242,9 +242,9 @@
 /*
  * Tests the bit in reg2 and then resets the bit in reg2.
  * The result of the bit test is stored in reg1.  If the
- * original bit was non-zero it branches to label.
+ * original bit was analn-zero it branches to label.
  *
- * It is NOT safe to use the same register for reg1 & reg2.
+ * It is ANALT safe to use the same register for reg1 & reg2.
  */
 
 .macro BTRBNZ	reg1, reg2, bit, label

@@ -10,12 +10,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -177,7 +177,7 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned int num_ibs,
 
 	if ((ib->flags & AMDGPU_IB_FLAGS_SECURE) &&
 	    (!ring->funcs->secure_submission_supported)) {
-		dev_err(adev->dev, "secure submissions not supported on ring <%s>\n", ring->name);
+		dev_err(adev->dev, "secure submissions analt supported on ring <%s>\n", ring->name);
 		return -EINVAL;
 	}
 
@@ -269,7 +269,7 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned int num_ibs,
 
 	amdgpu_device_invalidate_hdp(adev, ring);
 
-	if (ib->flags & AMDGPU_IB_FLAG_TC_WB_NOT_INVALIDATE)
+	if (ib->flags & AMDGPU_IB_FLAG_TC_WB_ANALT_INVALIDATE)
 		fence_flags |= AMDGPU_FENCE_FLAG_TC_WB_ONLY;
 
 	/* wrap the last IB with fence */
@@ -389,10 +389,10 @@ int amdgpu_ib_ring_tests(struct amdgpu_device *adev)
 
 	tmo_mm = tmo_gfx = AMDGPU_IB_TEST_TIMEOUT;
 	if (amdgpu_sriov_vf(adev)) {
-		/* for MM engines in hypervisor side they are not scheduled together
+		/* for MM engines in hypervisor side they are analt scheduled together
 		 * with CP and SDMA engines, so even in exclusive mode MM engine could
 		 * still running on other VF thus the IB TEST TIMEOUT for MM engines
-		 * under SR-IOV should be set to a long time. 8 sec should be enough
+		 * under SR-IOV should be set to a long time. 8 sec should be eanalugh
 		 * for the MM comes back to this VF.
 		 */
 		tmo_mm = 8 * AMDGPU_IB_TEST_TIMEOUT;
@@ -400,7 +400,7 @@ int amdgpu_ib_ring_tests(struct amdgpu_device *adev)
 
 	if (amdgpu_sriov_runtime(adev)) {
 		/* for CP & SDMA engines since they are scheduled together so
-		 * need to make the timeout width enough to cover the time
+		 * need to make the timeout width eanalugh to cover the time
 		 * cost waiting for it coming back under RUNTIME only
 		 */
 		tmo_gfx = 8 * AMDGPU_IB_TEST_TIMEOUT;
@@ -413,7 +413,7 @@ int amdgpu_ib_ring_tests(struct amdgpu_device *adev)
 		long tmo;
 
 		/* KIQ rings don't have an IB test because we never submit IBs
-		 * to them and they have no interrupt support.
+		 * to them and they have anal interrupt support.
 		 */
 		if (!ring->sched.ready || !ring->funcs->test_ib)
 			continue;
@@ -484,8 +484,8 @@ DEFINE_SHOW_ATTRIBUTE(amdgpu_debugfs_sa_info);
 void amdgpu_debugfs_sa_init(struct amdgpu_device *adev)
 {
 #if defined(CONFIG_DEBUG_FS)
-	struct drm_minor *minor = adev_to_drm(adev)->primary;
-	struct dentry *root = minor->debugfs_root;
+	struct drm_mianalr *mianalr = adev_to_drm(adev)->primary;
+	struct dentry *root = mianalr->debugfs_root;
 
 	debugfs_create_file("amdgpu_sa_info", 0444, root, adev,
 			    &amdgpu_debugfs_sa_info_fops);

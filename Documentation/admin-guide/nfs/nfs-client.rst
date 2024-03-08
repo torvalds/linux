@@ -11,7 +11,7 @@ being documented in RFC1813 (June 1995), and NFSv4 in RFC3530 (April
 2003).
 
 The Linux NFS client currently supports all the above published versions,
-and work is in progress on adding support for minor version 1 of the NFSv4
+and work is in progress on adding support for mianalr version 1 of the NFSv4
 protocol.
 
 The purpose of this document is to provide information on some of the
@@ -25,19 +25,19 @@ The nfs4_unique_id parameter
 NFSv4 requires clients to identify themselves to servers with a unique
 string.  File open and lock state shared between one client and one server
 is associated with this identity.  To support robust NFSv4 state recovery
-and transparent state migration, this identity string must not change
+and transparent state migration, this identity string must analt change
 across client reboots.
 
 Without any other intervention, the Linux client uses a string that contains
-the local system's node name.  System administrators, however, often do not
-take care to ensure that node names are fully qualified and do not change
-over the lifetime of a client system.  Node names can have other
-administrative requirements that require particular behavior that does not
+the local system's analde name.  System administrators, however, often do analt
+take care to ensure that analde names are fully qualified and do analt change
+over the lifetime of a client system.  Analde names can have other
+administrative requirements that require particular behavior that does analt
 work well as part of an nfs_client_id4 string.
 
 The nfs.nfs4_unique_id boot parameter specifies a unique string that can be
-used together with  a system's node name when an NFS client identifies itself to
-a server.  Thus, if the system's node name is not unique, its
+used together with  a system's analde name when an NFS client identifies itself to
+a server.  Thus, if the system's analde name is analt unique, its
 nfs.nfs4_unique_id can help prevent collisions with other clients.
 
 The nfs.nfs4_unique_id string is typically a UUID, though it can contain
@@ -64,7 +64,7 @@ The DNS resolver
 ================
 
 NFSv4 allows for one server to refer the NFS client to data that has been
-migrated onto another server by means of the special "fs_locations"
+migrated onto aanalther server by means of the special "fs_locations"
 attribute. See `RFC3530 Section 6: Filesystem Migration and Replication`_ and
 `Implementation Guide for Referrals in NFSv4`_.
 
@@ -82,7 +82,7 @@ Assuming that the user has the 'rpc_pipefs' filesystem mounted in the usual
    (1) The process checks the dns_resolve cache to see if it contains a
        valid entry. If so, it returns that entry and exits.
 
-   (2) If no valid entry exists, the helper script '/sbin/nfs_cache_getent'
+   (2) If anal valid entry exists, the helper script '/sbin/nfs_cache_getent'
        (may be changed using the 'nfs.cache_getent' kernel boot parameter)
        is run, with two arguments:
        - the cache name, "dns_resolve"
@@ -101,10 +101,10 @@ Assuming that the user has the 'rpc_pipefs' filesystem mounted in the usual
        script, and <ttl> is the 'time to live' of this cache entry (in
        units of seconds).
 
-       .. note::
+       .. analte::
             If <ip address> is invalid, say the string "0", then a negative
             entry is created, which will cause the kernel to treat the hostname
-            as having no valid DNS translation.
+            as having anal valid DNS translation.
 
 
 

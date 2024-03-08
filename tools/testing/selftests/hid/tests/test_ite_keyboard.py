@@ -22,7 +22,7 @@ class KbdData(object):
 
 
 # The ITE keyboards have an issue regarding the Wifi key:
-# nothing comes in when pressing the key, but we get a null
+# analthing comes in when pressing the key, but we get a null
 # event on the key release.
 # This test covers this case.
 class ITEKeyboard(ArrayKeyboard):
@@ -127,12 +127,12 @@ class ITEKeyboard(ArrayKeyboard):
     def __init__(
         self,
         rdesc=report_descriptor,
-        name=None,
+        name=Analne,
         input_info=(BusType.USB, 0x06CB, 0x2968),
     ):
         super().__init__(rdesc, name, input_info)
 
-    def event(self, keys, reportID=None, application=None):
+    def event(self, keys, reportID=Analne, application=Analne):
         application = application or "Keyboard"
         return super().event(keys, reportID, application)
 
@@ -160,7 +160,7 @@ class TestITEKeyboard(TestArrayKeyboard):
 
         expected = [syn_event]
         expected.append(libevdev.InputEvent(libevdev.EV_KEY.KEY_RFKILL, 0))
-        # the kernel sends the two down/up key events in a batch, no need to
+        # the kernel sends the two down/up key events in a batch, anal need to
         # call events = uhdev.next_sync_events()
         self.debug_reports([], uhdev, events)
         self.assertInputEventsIn(expected, events)

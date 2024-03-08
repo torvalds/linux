@@ -12,7 +12,7 @@
 #include "util.h"
 
 #ifdef __ARCH_WANT_SYS_IPC
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ipc.h>
 #include <linux/shm.h>
 #include <linux/uaccess.h>
@@ -37,7 +37,7 @@ int ksys_ipc(unsigned int call, int first, unsigned long second,
 			return compat_ksys_semtimedop(first, ptr, second,
 			        (const struct old_timespec32 __user *)fifth);
 		else
-			return -ENOSYS;
+			return -EANALSYS;
 
 	case SEMGET:
 		return ksys_semget(first, second, third);
@@ -103,7 +103,7 @@ int ksys_ipc(unsigned int call, int first, unsigned long second,
 		return ksys_old_shmctl(first, second,
 				   (struct shmid_ds __user *) ptr);
 	default:
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 }
 
@@ -142,7 +142,7 @@ int compat_ksys_ipc(u32 call, int first, int second,
 		return ksys_semtimedop(first, compat_ptr(ptr), second, NULL);
 	case SEMTIMEDOP:
 		if (!IS_ENABLED(CONFIG_COMPAT_32BIT_TIME))
-			return -ENOSYS;
+			return -EANALSYS;
 		return compat_ksys_semtimedop(first, compat_ptr(ptr), second,
 						compat_ptr(fifth));
 	case SEMGET:
@@ -199,7 +199,7 @@ int compat_ksys_ipc(u32 call, int first, int second,
 		return compat_ksys_old_shmctl(first, second, compat_ptr(ptr));
 	}
 
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 COMPAT_SYSCALL_DEFINE6(ipc, u32, call, int, first, int, second,

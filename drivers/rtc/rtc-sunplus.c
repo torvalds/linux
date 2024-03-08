@@ -3,7 +3,7 @@
 /*
  * The RTC driver for Sunplus	SP7021
  *
- * Copyright (C) 2019 Sunplus Technology Inc., All rights reseerved.
+ * Copyright (C) 2019 Sunplus Techanallogy Inc., All rights reseerved.
  */
 
 #include <linux/bitfield.h>
@@ -183,8 +183,8 @@ static void sp_rtc_set_trickle_charger(struct device dev)
 	u32 ohms, rsel;
 	u32 chargeable;
 
-	if (of_property_read_u32(dev.of_node, "trickle-resistor-ohms", &ohms) ||
-	    of_property_read_u32(dev.of_node, "aux-voltage-chargeable", &chargeable)) {
+	if (of_property_read_u32(dev.of_analde, "trickle-resistor-ohms", &ohms) ||
+	    of_property_read_u32(dev.of_analde, "aux-voltage-chargeable", &chargeable)) {
 		dev_warn(&dev, "battery charger disabled\n");
 		return;
 	}
@@ -233,7 +233,7 @@ static int sp_rtc_probe(struct platform_device *plat_dev)
 
 	sp_rtc = devm_kzalloc(&plat_dev->dev, sizeof(*sp_rtc), GFP_KERNEL);
 	if (!sp_rtc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sp_rtc->reg_base = devm_platform_ioremap_resource_byname(plat_dev, RTC_REG_NAME);
 	if (IS_ERR(sp_rtc->reg_base))
@@ -287,7 +287,7 @@ static int sp_rtc_probe(struct platform_device *plat_dev)
 		goto free_reset_assert;
 
 	/* Setup trickle charger */
-	if (plat_dev->dev.of_node)
+	if (plat_dev->dev.of_analde)
 		sp_rtc_set_trickle_charger(plat_dev->dev);
 
 	/* Keep RTC from system reset */

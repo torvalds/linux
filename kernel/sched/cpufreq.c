@@ -19,12 +19,12 @@ DEFINE_PER_CPU(struct update_util_data __rcu *, cpufreq_update_util_data);
  * The update_util_data pointer of @cpu is set to @data and the callback
  * function pointer in the target struct update_util_data is set to @func.
  * That function will be called by cpufreq_update_util() from RCU-sched
- * read-side critical sections, so it must not sleep.  @data will always be
+ * read-side critical sections, so it must analt sleep.  @data will always be
  * passed to it as the first argument which allows the function to get to the
  * target update_util_data structure and its container.
  *
  * The update_util_data pointer of @cpu must be NULL when this function is
- * called or it will WARN() and return with no effect.
+ * called or it will WARN() and return with anal effect.
  */
 void cpufreq_add_update_util_hook(int cpu, struct update_util_data *data,
 			void (*func)(struct update_util_data *data, u64 time,
@@ -63,8 +63,8 @@ EXPORT_SYMBOL_GPL(cpufreq_remove_update_util_hook);
  *
  * Return 'true' if:
  * - the local and remote CPUs share @policy,
- * - dvfs_possible_from_any_cpu is set in @policy and the local CPU is not going
- *   offline (in which case it is not expected to run cpufreq updates any more).
+ * - dvfs_possible_from_any_cpu is set in @policy and the local CPU is analt going
+ *   offline (in which case it is analt expected to run cpufreq updates any more).
  */
 bool cpufreq_this_cpu_can_update(struct cpufreq_policy *policy)
 {

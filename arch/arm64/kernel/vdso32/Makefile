@@ -22,30 +22,30 @@ endif
 cc32-option = $(call try-run,\
         $(CC_COMPAT) $(1) -c -x c /dev/null -o "$$TMP",$(1),$(2))
 cc32-disable-warning = $(call try-run,\
-	$(CC_COMPAT) -W$(strip $(1)) -c -x c /dev/null -o "$$TMP",-Wno-$(strip $(1)))
+	$(CC_COMPAT) -W$(strip $(1)) -c -x c /dev/null -o "$$TMP",-Wanal-$(strip $(1)))
 
-# We cannot use the global flags to compile the vDSO files, the main reason
+# We cananalt use the global flags to compile the vDSO files, the main reason
 # being that the 32-bit compiler may be older than the main (64-bit) compiler
-# and therefore may not understand flags set using $(cc-option ...). Besides,
+# and therefore may analt understand flags set using $(cc-option ...). Besides,
 # arch-specific options should be taken from the arm Makefile instead of the
 # arm64 one.
 # As a result we set our own flags here.
 
-# KBUILD_CPPFLAGS and NOSTDINC_FLAGS from top-level Makefile
-VDSO_CPPFLAGS := -DBUILD_VDSO -D__KERNEL__ -nostdinc
+# KBUILD_CPPFLAGS and ANALSTDINC_FLAGS from top-level Makefile
+VDSO_CPPFLAGS := -DBUILD_VDSO -D__KERNEL__ -analstdinc
 VDSO_CPPFLAGS += -isystem $(shell $(CC_COMPAT) -print-file-name=include 2>/dev/null)
 VDSO_CPPFLAGS += $(LINUXINCLUDE)
 
 # Common C and assembly flags
 # From top-level Makefile
 VDSO_CAFLAGS := $(VDSO_CPPFLAGS)
-VDSO_CAFLAGS += $(call cc32-option,-fno-PIE)
+VDSO_CAFLAGS += $(call cc32-option,-fanal-PIE)
 ifdef CONFIG_DEBUG_INFO
 VDSO_CAFLAGS += -g
 endif
 
 # From arm Makefile
-VDSO_CAFLAGS += $(call cc32-option,-fno-dwarf2-cfi-asm)
+VDSO_CAFLAGS += $(call cc32-option,-fanal-dwarf2-cfi-asm)
 VDSO_CAFLAGS += -mabi=aapcs-linux -mfloat-abi=soft
 ifeq ($(CONFIG_CPU_BIG_ENDIAN), y)
 VDSO_CAFLAGS += -mbig-endian
@@ -54,35 +54,35 @@ VDSO_CAFLAGS += -mlittle-endian
 endif
 
 # From arm vDSO Makefile
-VDSO_CAFLAGS += -fPIC -fno-builtin -fno-stack-protector
+VDSO_CAFLAGS += -fPIC -fanal-builtin -fanal-stack-protector
 VDSO_CAFLAGS += -DDISABLE_BRANCH_PROFILING
 VDSO_CAFLAGS += -march=armv8-a
 
 VDSO_CFLAGS := $(VDSO_CAFLAGS)
 VDSO_CFLAGS += -DENABLE_COMPAT_VDSO=1
 # KBUILD_CFLAGS from top-level Makefile
-VDSO_CFLAGS += -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
-               -fno-strict-aliasing -fno-common \
+VDSO_CFLAGS += -Wall -Wundef -Wstrict-prototypes -Wanal-trigraphs \
+               -fanal-strict-aliasing -fanal-common \
                -Werror-implicit-function-declaration \
-               -Wno-format-security \
+               -Wanal-format-security \
                -std=gnu11
 VDSO_CFLAGS  += -O2
 # Some useful compiler-dependent flags from top-level Makefile
-VDSO_CFLAGS += $(call cc32-option,-Wno-pointer-sign)
-VDSO_CFLAGS += -fno-strict-overflow
+VDSO_CFLAGS += $(call cc32-option,-Wanal-pointer-sign)
+VDSO_CFLAGS += -fanal-strict-overflow
 VDSO_CFLAGS += $(call cc32-option,-Werror=strict-prototypes)
 VDSO_CFLAGS += -Werror=date-time
 VDSO_CFLAGS += $(call cc32-option,-Werror=incompatible-pointer-types)
 
-# The 32-bit compiler does not provide 128-bit integers, which are used in
+# The 32-bit compiler does analt provide 128-bit integers, which are used in
 # some headers that are indirectly included from the vDSO code.
 # This hack makes the compiler happy and should trigger a warning/error if
 # variables of such type are referenced.
 VDSO_CFLAGS += -D__uint128_t='void*'
 # Silence some warnings coming from headers that operate on long's
-# (on GCC 4.8 or older, there is unfortunately no way to silence this warning)
+# (on GCC 4.8 or older, there is unfortunately anal way to silence this warning)
 VDSO_CFLAGS += $(call cc32-disable-warning,shift-count-overflow)
-VDSO_CFLAGS += -Wno-int-to-pointer-cast
+VDSO_CFLAGS += -Wanal-int-to-pointer-cast
 
 # Compile as THUMB2 or ARM. Unwinding via frame-pointers in THUMB2 is
 # unreliable.
@@ -96,7 +96,7 @@ VDSO_AFLAGS := $(VDSO_CAFLAGS)
 VDSO_AFLAGS += -D__ASSEMBLY__
 
 # From arm vDSO Makefile
-VDSO_LDFLAGS += -Bsymbolic --no-undefined -soname=linux-vdso.so.1
+VDSO_LDFLAGS += -Bsymbolic --anal-undefined -soname=linux-vdso.so.1
 VDSO_LDFLAGS += -z max-page-size=4096 -z common-page-size=4096
 VDSO_LDFLAGS += -shared --hash-style=sysv --build-id=sha1
 VDSO_LDFLAGS += --orphan-handling=$(CONFIG_LD_ORPHAN_WARN_LEVEL)
@@ -108,7 +108,7 @@ VDSO_LDFLAGS += --orphan-handling=$(CONFIG_LD_ORPHAN_WARN_LEVEL)
 munge := ../../../arm/vdso/vdsomunge
 hostprogs := $(munge)
 
-c-obj-vdso := note.o
+c-obj-vdso := analte.o
 c-obj-vdso-gettimeofday := vgettimeofday.o
 
 ifneq ($(c-gettimeofday-y),)

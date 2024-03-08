@@ -69,7 +69,7 @@ static void prestera_counter_block_unlock(struct prestera_counter_block *block)
 
 static bool prestera_counter_block_incref(struct prestera_counter_block *block)
 {
-	return refcount_inc_not_zero(&block->refcnt);
+	return refcount_inc_analt_zero(&block->refcnt);
 }
 
 static bool prestera_counter_block_decref(struct prestera_counter_block *block)
@@ -86,7 +86,7 @@ static void prestera_counter_stats_clear(struct prestera_counter_block *block,
 }
 
 static struct prestera_counter_block *
-prestera_counter_block_lookup_not_full(struct prestera_counter *counter,
+prestera_counter_block_lookup_analt_full(struct prestera_counter *counter,
 				       u32 client)
 {
 	u32 i;
@@ -127,7 +127,7 @@ static int prestera_counter_block_list_add(struct prestera_counter *counter,
 		       sizeof(*counter->block_list), GFP_KERNEL);
 	if (!arr) {
 		prestera_counter_unlock(counter);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	counter->block_list = arr;
@@ -143,13 +143,13 @@ prestera_counter_block_get(struct prestera_counter *counter, u32 client)
 	struct prestera_counter_block *block;
 	int err;
 
-	block = prestera_counter_block_lookup_not_full(counter, client);
+	block = prestera_counter_block_lookup_analt_full(counter, client);
 	if (block)
 		return block;
 
 	block = kzalloc(sizeof(*block), GFP_KERNEL);
 	if (!block)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	err = prestera_hw_counter_block_get(counter->sw, client,
 					    &block->id, &block->offset,
@@ -160,7 +160,7 @@ prestera_counter_block_get(struct prestera_counter *counter, u32 client)
 	block->stats = kcalloc(block->num_counters,
 			       sizeof(*block->stats), GFP_KERNEL);
 	if (!block->stats) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_stats;
 	}
 
@@ -168,7 +168,7 @@ prestera_counter_block_get(struct prestera_counter *counter, u32 client)
 				      sizeof(*block->counter_flag),
 				      GFP_KERNEL);
 	if (!block->counter_flag) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_flag;
 	}
 
@@ -229,14 +229,14 @@ static int prestera_counter_get_vacant(struct prestera_counter_block *block,
 	int free_id;
 
 	if (block->full)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	prestera_counter_block_lock(block);
 	free_id = idr_alloc_cyclic(&block->counter_idr, NULL, block->offset,
 				   block->offset + block->num_counters,
 				   GFP_KERNEL);
 	if (free_id < 0) {
-		if (free_id == -ENOSPC)
+		if (free_id == -EANALSPC)
 			block->full = true;
 
 		prestera_counter_block_unlock(block);
@@ -264,7 +264,7 @@ get_next_block:
 	if (err) {
 		prestera_counter_block_put(counter, block);
 
-		if (err == -ENOSPC)
+		if (err == -EANALSPC)
 			goto get_next_block;
 
 		return err;
@@ -440,12 +440,12 @@ int prestera_counter_init(struct prestera_switch *sw)
 
 	counter = kzalloc(sizeof(*counter), GFP_KERNEL);
 	if (!counter)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	counter->block_list = kzalloc(sizeof(*counter->block_list), GFP_KERNEL);
 	if (!counter->block_list) {
 		kfree(counter);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	mutex_init(&counter->mtx);

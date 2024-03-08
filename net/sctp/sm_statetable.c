@@ -4,7 +4,7 @@
  * Copyright (c) 1999-2000 Cisco, Inc.
  * Copyright (c) 1999-2001 Motorola, Inc.
  * Copyright (c) 2001 Intel Corp.
- * Copyright (c) 2001 Nokia, Inc.
+ * Copyright (c) 2001 Analkia, Inc.
  *
  * This file is part of the SCTP kernel implementation
  *
@@ -18,7 +18,7 @@
  *    La Monte H.P. Yarroll <piggy@acm.org>
  *    Karl Knutson          <karl@athena.chicago.il.us>
  *    Jon Grimm             <jgrimm@us.ibm.com>
- *    Hui Huang		    <hui.huang@nokia.com>
+ *    Hui Huang		    <hui.huang@analkia.com>
  *    Daisy Chang	    <daisyc@us.ibm.com>
  *    Ardelle Fan	    <ardelle.fan@intel.com>
  *    Sridhar Samudrala	    <sri@us.ibm.com>
@@ -180,7 +180,7 @@ const struct sctp_sm_table_entry *sctp_sm_lookup_event(
 	/* SCTP_STATE_SHUTDOWN_RECEIVED */ \
 	TYPE_SCTP_FUNC(sctp_sf_beat_8_3), \
 	/* SCTP_STATE_SHUTDOWN_ACK_SENT */ \
-	/* This should not happen, but we are nice.  */ \
+	/* This should analt happen, but we are nice.  */ \
 	TYPE_SCTP_FUNC(sctp_sf_beat_8_3), \
 } /* TYPE_SCTP_HEARTBEAT */
 
@@ -268,13 +268,13 @@ const struct sctp_sm_table_entry *sctp_sm_lookup_event(
 	/* SCTP_STATE_COOKIE_ECHOED */ \
 	TYPE_SCTP_FUNC(sctp_sf_cookie_echoed_err), \
 	/* SCTP_STATE_ESTABLISHED */ \
-	TYPE_SCTP_FUNC(sctp_sf_operr_notify), \
+	TYPE_SCTP_FUNC(sctp_sf_operr_analtify), \
 	/* SCTP_STATE_SHUTDOWN_PENDING */ \
-	TYPE_SCTP_FUNC(sctp_sf_operr_notify), \
+	TYPE_SCTP_FUNC(sctp_sf_operr_analtify), \
 	/* SCTP_STATE_SHUTDOWN_SENT */ \
 	TYPE_SCTP_FUNC(sctp_sf_discard_chunk), \
 	/* SCTP_STATE_SHUTDOWN_RECEIVED */ \
-	TYPE_SCTP_FUNC(sctp_sf_operr_notify), \
+	TYPE_SCTP_FUNC(sctp_sf_operr_analtify), \
 	/* SCTP_STATE_SHUTDOWN_ACK_SENT */ \
 	TYPE_SCTP_FUNC(sctp_sf_discard_chunk), \
 } /* TYPE_SCTP_ERROR */
@@ -547,7 +547,7 @@ pad_chunk_event_table[SCTP_STATE_NUM_STATES] = {
 };	/* chunk pad */
 
 static const struct sctp_sm_table_entry
-chunk_event_table_unknown[SCTP_STATE_NUM_STATES] = {
+chunk_event_table_unkanalwn[SCTP_STATE_NUM_STATES] = {
 	/* SCTP_STATE_CLOSED */
 	TYPE_SCTP_FUNC(sctp_sf_ootb),
 	/* SCTP_STATE_COOKIE_WAIT */
@@ -564,26 +564,26 @@ chunk_event_table_unknown[SCTP_STATE_NUM_STATES] = {
 	TYPE_SCTP_FUNC(sctp_sf_unk_chunk),
 	/* SCTP_STATE_SHUTDOWN_ACK_SENT */
 	TYPE_SCTP_FUNC(sctp_sf_unk_chunk),
-};	/* chunk unknown */
+};	/* chunk unkanalwn */
 
 
 #define TYPE_SCTP_PRIMITIVE_ASSOCIATE  { \
 	/* SCTP_STATE_CLOSED */ \
 	TYPE_SCTP_FUNC(sctp_sf_do_prm_asoc), \
 	/* SCTP_STATE_COOKIE_WAIT */ \
-	TYPE_SCTP_FUNC(sctp_sf_not_impl), \
+	TYPE_SCTP_FUNC(sctp_sf_analt_impl), \
 	/* SCTP_STATE_COOKIE_ECHOED */ \
-	TYPE_SCTP_FUNC(sctp_sf_not_impl), \
+	TYPE_SCTP_FUNC(sctp_sf_analt_impl), \
 	/* SCTP_STATE_ESTABLISHED */ \
-	TYPE_SCTP_FUNC(sctp_sf_not_impl), \
+	TYPE_SCTP_FUNC(sctp_sf_analt_impl), \
 	/* SCTP_STATE_SHUTDOWN_PENDING */ \
-	TYPE_SCTP_FUNC(sctp_sf_not_impl), \
+	TYPE_SCTP_FUNC(sctp_sf_analt_impl), \
 	/* SCTP_STATE_SHUTDOWN_SENT */ \
-	TYPE_SCTP_FUNC(sctp_sf_not_impl), \
+	TYPE_SCTP_FUNC(sctp_sf_analt_impl), \
 	/* SCTP_STATE_SHUTDOWN_RECEIVED */ \
-	TYPE_SCTP_FUNC(sctp_sf_not_impl), \
+	TYPE_SCTP_FUNC(sctp_sf_analt_impl), \
 	/* SCTP_STATE_SHUTDOWN_ACK_SENT */ \
-	TYPE_SCTP_FUNC(sctp_sf_not_impl), \
+	TYPE_SCTP_FUNC(sctp_sf_analt_impl), \
 } /* TYPE_SCTP_PRIMITIVE_ASSOCIATE */
 
 #define TYPE_SCTP_PRIMITIVE_SHUTDOWN  { \
@@ -596,13 +596,13 @@ chunk_event_table_unknown[SCTP_STATE_NUM_STATES] = {
 	/* SCTP_STATE_ESTABLISHED */ \
 	TYPE_SCTP_FUNC(sctp_sf_do_9_2_prm_shutdown), \
 	/* SCTP_STATE_SHUTDOWN_PENDING */ \
-	TYPE_SCTP_FUNC(sctp_sf_ignore_primitive), \
+	TYPE_SCTP_FUNC(sctp_sf_iganalre_primitive), \
 	/* SCTP_STATE_SHUTDOWN_SENT */ \
-	TYPE_SCTP_FUNC(sctp_sf_ignore_primitive), \
+	TYPE_SCTP_FUNC(sctp_sf_iganalre_primitive), \
 	/* SCTP_STATE_SHUTDOWN_RECEIVED */ \
-	TYPE_SCTP_FUNC(sctp_sf_ignore_primitive), \
+	TYPE_SCTP_FUNC(sctp_sf_iganalre_primitive), \
 	/* SCTP_STATE_SHUTDOWN_ACK_SENT */ \
-	TYPE_SCTP_FUNC(sctp_sf_ignore_primitive), \
+	TYPE_SCTP_FUNC(sctp_sf_iganalre_primitive), \
 } /* TYPE_SCTP_PRIMITIVE_SHUTDOWN */
 
 #define TYPE_SCTP_PRIMITIVE_ABORT  { \
@@ -714,51 +714,51 @@ primitive_event_table[SCTP_NUM_PRIMITIVE_TYPES][SCTP_STATE_NUM_STATES] = {
 	TYPE_SCTP_PRIMITIVE_RECONF,
 };
 
-#define TYPE_SCTP_OTHER_NO_PENDING_TSN  { \
+#define TYPE_SCTP_OTHER_ANAL_PENDING_TSN  { \
 	/* SCTP_STATE_CLOSED */ \
-	TYPE_SCTP_FUNC(sctp_sf_ignore_other), \
+	TYPE_SCTP_FUNC(sctp_sf_iganalre_other), \
 	/* SCTP_STATE_COOKIE_WAIT */ \
-	TYPE_SCTP_FUNC(sctp_sf_ignore_other), \
+	TYPE_SCTP_FUNC(sctp_sf_iganalre_other), \
 	/* SCTP_STATE_COOKIE_ECHOED */ \
-	TYPE_SCTP_FUNC(sctp_sf_ignore_other), \
+	TYPE_SCTP_FUNC(sctp_sf_iganalre_other), \
 	/* SCTP_STATE_ESTABLISHED */ \
-	TYPE_SCTP_FUNC(sctp_sf_do_no_pending_tsn), \
+	TYPE_SCTP_FUNC(sctp_sf_do_anal_pending_tsn), \
 	/* SCTP_STATE_SHUTDOWN_PENDING */ \
 	TYPE_SCTP_FUNC(sctp_sf_do_9_2_start_shutdown), \
 	/* SCTP_STATE_SHUTDOWN_SENT */ \
-	TYPE_SCTP_FUNC(sctp_sf_ignore_other), \
+	TYPE_SCTP_FUNC(sctp_sf_iganalre_other), \
 	/* SCTP_STATE_SHUTDOWN_RECEIVED */ \
 	TYPE_SCTP_FUNC(sctp_sf_do_9_2_shutdown_ack), \
 	/* SCTP_STATE_SHUTDOWN_ACK_SENT */ \
-	TYPE_SCTP_FUNC(sctp_sf_ignore_other), \
+	TYPE_SCTP_FUNC(sctp_sf_iganalre_other), \
 }
 
 #define TYPE_SCTP_OTHER_ICMP_PROTO_UNREACH  { \
 	/* SCTP_STATE_CLOSED */ \
-	TYPE_SCTP_FUNC(sctp_sf_ignore_other), \
+	TYPE_SCTP_FUNC(sctp_sf_iganalre_other), \
 	/* SCTP_STATE_COOKIE_WAIT */ \
 	TYPE_SCTP_FUNC(sctp_sf_cookie_wait_icmp_abort), \
 	/* SCTP_STATE_COOKIE_ECHOED */ \
-	TYPE_SCTP_FUNC(sctp_sf_ignore_other), \
+	TYPE_SCTP_FUNC(sctp_sf_iganalre_other), \
 	/* SCTP_STATE_ESTABLISHED */ \
-	TYPE_SCTP_FUNC(sctp_sf_ignore_other), \
+	TYPE_SCTP_FUNC(sctp_sf_iganalre_other), \
 	/* SCTP_STATE_SHUTDOWN_PENDING */ \
-	TYPE_SCTP_FUNC(sctp_sf_ignore_other), \
+	TYPE_SCTP_FUNC(sctp_sf_iganalre_other), \
 	/* SCTP_STATE_SHUTDOWN_SENT */ \
-	TYPE_SCTP_FUNC(sctp_sf_ignore_other), \
+	TYPE_SCTP_FUNC(sctp_sf_iganalre_other), \
 	/* SCTP_STATE_SHUTDOWN_RECEIVED */ \
-	TYPE_SCTP_FUNC(sctp_sf_ignore_other), \
+	TYPE_SCTP_FUNC(sctp_sf_iganalre_other), \
 	/* SCTP_STATE_SHUTDOWN_ACK_SENT */ \
-	TYPE_SCTP_FUNC(sctp_sf_ignore_other), \
+	TYPE_SCTP_FUNC(sctp_sf_iganalre_other), \
 }
 
 static const struct sctp_sm_table_entry
 other_event_table[SCTP_NUM_OTHER_TYPES][SCTP_STATE_NUM_STATES] = {
-	TYPE_SCTP_OTHER_NO_PENDING_TSN,
+	TYPE_SCTP_OTHER_ANAL_PENDING_TSN,
 	TYPE_SCTP_OTHER_ICMP_PROTO_UNREACH,
 };
 
-#define TYPE_SCTP_EVENT_TIMEOUT_NONE { \
+#define TYPE_SCTP_EVENT_TIMEOUT_ANALNE { \
 	/* SCTP_STATE_CLOSED */ \
 	TYPE_SCTP_FUNC(sctp_sf_bug), \
 	/* SCTP_STATE_COOKIE_WAIT */ \
@@ -779,66 +779,66 @@ other_event_table[SCTP_NUM_OTHER_TYPES][SCTP_STATE_NUM_STATES] = {
 
 #define TYPE_SCTP_EVENT_TIMEOUT_T1_COOKIE { \
 	/* SCTP_STATE_CLOSED */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 	/* SCTP_STATE_COOKIE_WAIT */ \
 	TYPE_SCTP_FUNC(sctp_sf_bug), \
 	/* SCTP_STATE_COOKIE_ECHOED */ \
 	TYPE_SCTP_FUNC(sctp_sf_t1_cookie_timer_expire), \
 	/* SCTP_STATE_ESTABLISHED */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 	/* SCTP_STATE_SHUTDOWN_PENDING */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 	/* SCTP_STATE_SHUTDOWN_SENT */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 	/* SCTP_STATE_SHUTDOWN_RECEIVED */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 	/* SCTP_STATE_SHUTDOWN_ACK_SENT */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 }
 
 #define TYPE_SCTP_EVENT_TIMEOUT_T1_INIT { \
 	/* SCTP_STATE_CLOSED */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 	/* SCTP_STATE_COOKIE_WAIT */ \
 	TYPE_SCTP_FUNC(sctp_sf_t1_init_timer_expire), \
 	/* SCTP_STATE_COOKIE_ECHOED */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 	/* SCTP_STATE_ESTABLISHED */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 	/* SCTP_STATE_SHUTDOWN_PENDING */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 	/* SCTP_STATE_SHUTDOWN_SENT */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 	/* SCTP_STATE_SHUTDOWN_RECEIVED */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 	/* SCTP_STATE_SHUTDOWN_ACK_SENT */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 }
 
 #define TYPE_SCTP_EVENT_TIMEOUT_T2_SHUTDOWN { \
 	/* SCTP_STATE_CLOSED */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 	/* SCTP_STATE_COOKIE_WAIT */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 	/* SCTP_STATE_COOKIE_ECHOED */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 	/* SCTP_STATE_ESTABLISHED */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 	/* SCTP_STATE_SHUTDOWN_PENDING */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 	/* SCTP_STATE_SHUTDOWN_SENT */ \
 	TYPE_SCTP_FUNC(sctp_sf_t2_timer_expire), \
 	/* SCTP_STATE_SHUTDOWN_RECEIVED */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 	/* SCTP_STATE_SHUTDOWN_ACK_SENT */ \
 	TYPE_SCTP_FUNC(sctp_sf_t2_timer_expire), \
 }
 
 #define TYPE_SCTP_EVENT_TIMEOUT_T3_RTX { \
 	/* SCTP_STATE_CLOSED */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 	/* SCTP_STATE_COOKIE_WAIT */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 	/* SCTP_STATE_COOKIE_ECHOED */ \
 	TYPE_SCTP_FUNC(sctp_sf_do_6_3_3_rtx), \
 	/* SCTP_STATE_ESTABLISHED */ \
@@ -846,77 +846,77 @@ other_event_table[SCTP_NUM_OTHER_TYPES][SCTP_STATE_NUM_STATES] = {
 	/* SCTP_STATE_SHUTDOWN_PENDING */ \
 	TYPE_SCTP_FUNC(sctp_sf_do_6_3_3_rtx), \
 	/* SCTP_STATE_SHUTDOWN_SENT */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 	/* SCTP_STATE_SHUTDOWN_RECEIVED */ \
 	TYPE_SCTP_FUNC(sctp_sf_do_6_3_3_rtx), \
 	/* SCTP_STATE_SHUTDOWN_ACK_SENT */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 }
 
 #define TYPE_SCTP_EVENT_TIMEOUT_T4_RTO { \
 	/* SCTP_STATE_CLOSED */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 	/* SCTP_STATE_COOKIE_WAIT */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 	/* SCTP_STATE_COOKIE_ECHOED */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 	/* SCTP_STATE_ESTABLISHED */ \
 	TYPE_SCTP_FUNC(sctp_sf_t4_timer_expire), \
 	/* SCTP_STATE_SHUTDOWN_PENDING */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 	/* SCTP_STATE_SHUTDOWN_SENT */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 	/* SCTP_STATE_SHUTDOWN_RECEIVED */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 	/* SCTP_STATE_SHUTDOWN_ACK_SENT */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 }
 
 #define TYPE_SCTP_EVENT_TIMEOUT_T5_SHUTDOWN_GUARD { \
 	/* SCTP_STATE_CLOSED */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 	/* SCTP_STATE_COOKIE_WAIT */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 	/* SCTP_STATE_COOKIE_ECHOED */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 	/* SCTP_STATE_ESTABLISHED */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 	/* SCTP_STATE_SHUTDOWN_PENDING */ \
 	TYPE_SCTP_FUNC(sctp_sf_t5_timer_expire), \
 	/* SCTP_STATE_SHUTDOWN_SENT */ \
 	TYPE_SCTP_FUNC(sctp_sf_t5_timer_expire), \
 	/* SCTP_STATE_SHUTDOWN_RECEIVED */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 	/* SCTP_STATE_SHUTDOWN_ACK_SENT */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 }
 
 #define TYPE_SCTP_EVENT_TIMEOUT_HEARTBEAT { \
 	/* SCTP_STATE_CLOSED */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 	/* SCTP_STATE_COOKIE_WAIT */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 	/* SCTP_STATE_COOKIE_ECHOED */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 	/* SCTP_STATE_ESTABLISHED */ \
 	TYPE_SCTP_FUNC(sctp_sf_sendbeat_8_3), \
 	/* SCTP_STATE_SHUTDOWN_PENDING */ \
 	TYPE_SCTP_FUNC(sctp_sf_sendbeat_8_3), \
 	/* SCTP_STATE_SHUTDOWN_SENT */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 	/* SCTP_STATE_SHUTDOWN_RECEIVED */ \
 	TYPE_SCTP_FUNC(sctp_sf_sendbeat_8_3), \
 	/* SCTP_STATE_SHUTDOWN_ACK_SENT */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 }
 
 #define TYPE_SCTP_EVENT_TIMEOUT_SACK { \
 	/* SCTP_STATE_CLOSED */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 	/* SCTP_STATE_COOKIE_WAIT */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 	/* SCTP_STATE_COOKIE_ECHOED */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 	/* SCTP_STATE_ESTABLISHED */ \
 	TYPE_SCTP_FUNC(sctp_sf_do_6_2_sack), \
 	/* SCTP_STATE_SHUTDOWN_PENDING */ \
@@ -924,71 +924,71 @@ other_event_table[SCTP_NUM_OTHER_TYPES][SCTP_STATE_NUM_STATES] = {
 	/* SCTP_STATE_SHUTDOWN_SENT */ \
 	TYPE_SCTP_FUNC(sctp_sf_do_6_2_sack), \
 	/* SCTP_STATE_SHUTDOWN_RECEIVED */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 	/* SCTP_STATE_SHUTDOWN_ACK_SENT */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 }
 
 #define TYPE_SCTP_EVENT_TIMEOUT_AUTOCLOSE { \
 	/* SCTP_STATE_CLOSED */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 	/* SCTP_STATE_COOKIE_WAIT */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 	/* SCTP_STATE_COOKIE_ECHOED */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 	/* SCTP_STATE_ESTABLISHED */ \
 	TYPE_SCTP_FUNC(sctp_sf_autoclose_timer_expire), \
 	/* SCTP_STATE_SHUTDOWN_PENDING */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 	/* SCTP_STATE_SHUTDOWN_SENT */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 	/* SCTP_STATE_SHUTDOWN_RECEIVED */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 	/* SCTP_STATE_SHUTDOWN_ACK_SENT */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 }
 
 #define TYPE_SCTP_EVENT_TIMEOUT_RECONF { \
 	/* SCTP_STATE_CLOSED */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 	/* SCTP_STATE_COOKIE_WAIT */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 	/* SCTP_STATE_COOKIE_ECHOED */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 	/* SCTP_STATE_ESTABLISHED */ \
 	TYPE_SCTP_FUNC(sctp_sf_send_reconf), \
 	/* SCTP_STATE_SHUTDOWN_PENDING */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 	/* SCTP_STATE_SHUTDOWN_SENT */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 	/* SCTP_STATE_SHUTDOWN_RECEIVED */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 	/* SCTP_STATE_SHUTDOWN_ACK_SENT */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 }
 
 #define TYPE_SCTP_EVENT_TIMEOUT_PROBE { \
 	/* SCTP_STATE_CLOSED */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 	/* SCTP_STATE_COOKIE_WAIT */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 	/* SCTP_STATE_COOKIE_ECHOED */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 	/* SCTP_STATE_ESTABLISHED */ \
 	TYPE_SCTP_FUNC(sctp_sf_send_probe), \
 	/* SCTP_STATE_SHUTDOWN_PENDING */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 	/* SCTP_STATE_SHUTDOWN_SENT */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 	/* SCTP_STATE_SHUTDOWN_RECEIVED */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 	/* SCTP_STATE_SHUTDOWN_ACK_SENT */ \
-	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	TYPE_SCTP_FUNC(sctp_sf_timer_iganalre), \
 }
 
 static const struct sctp_sm_table_entry
 timeout_event_table[SCTP_NUM_TIMEOUT_TYPES][SCTP_STATE_NUM_STATES] = {
-	TYPE_SCTP_EVENT_TIMEOUT_NONE,
+	TYPE_SCTP_EVENT_TIMEOUT_ANALNE,
 	TYPE_SCTP_EVENT_TIMEOUT_T1_COOKIE,
 	TYPE_SCTP_EVENT_TIMEOUT_T1_INIT,
 	TYPE_SCTP_EVENT_TIMEOUT_T2_SHUTDOWN,
@@ -1037,5 +1037,5 @@ static const struct sctp_sm_table_entry *sctp_chunk_event_lookup(
 		return &pad_chunk_event_table[state];
 	}
 
-	return &chunk_event_table_unknown[state];
+	return &chunk_event_table_unkanalwn[state];
 }

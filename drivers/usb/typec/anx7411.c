@@ -187,7 +187,7 @@ enum anx7411_typec_message_type {
 #define PPS_STATUS_REPLY	BIT(6)
 #define SNK_CAP_EXT_REPLY	BIT(7)
 
-#define NO_CONNECT		0x00
+#define ANAL_CONNECT		0x00
 #define USB3_1_CONNECTED	0x01
 #define DP_ALT_4LANES		0x02
 #define USB3_1_DP_2LANES	0x03
@@ -276,7 +276,7 @@ struct anx7411_data {
 	struct fw_msg send_msg;
 	struct fw_msg recv_msg;
 	struct gpio_desc *intp_gpiod;
-	struct fwnode_handle *connector_fwnode;
+	struct fwanalde_handle *connector_fwanalde;
 	struct typec_params typec;
 	int intp_irq;
 	struct work_struct work;
@@ -412,7 +412,7 @@ static int anx7411_detect_cc_orientation(struct anx7411_data *ctx)
 	cc1_rp = CC1_RP(ret);
 	cc2_rp = CC2_RP(ret);
 
-	/* Debug cable, nothing to do */
+	/* Debug cable, analthing to do */
 	if (cc1_rd && cc2_rd) {
 		ctx->typec.cc_orientation_valid = 0;
 		return anx7411_register_partner(ctx, 0, TYPEC_ACCESSORY_DEBUG);
@@ -425,14 +425,14 @@ static int anx7411_detect_cc_orientation(struct anx7411_data *ctx)
 
 	ctx->typec.cc_orientation_valid = 1;
 
-	ret = anx7411_register_partner(ctx, 1, TYPEC_ACCESSORY_NONE);
+	ret = anx7411_register_partner(ctx, 1, TYPEC_ACCESSORY_ANALNE);
 	if (ret) {
 		dev_err(dev, "register partner\n");
 		return ret;
 	}
 
 	if (cc1_rd || cc1_rp) {
-		typec_set_orientation(ctx->typec.port, TYPEC_ORIENTATION_NORMAL);
+		typec_set_orientation(ctx->typec.port, TYPEC_ORIENTATION_ANALRMAL);
 		ctx->typec.cc_connect = CC1_CONNECTED;
 	}
 
@@ -563,8 +563,8 @@ static int anx7411_typec_register_altmode(struct anx7411_data *ctx,
 	desc.mode = i + 1; /* start with 1 */
 
 	if (i >= MAX_ALTMODE) {
-		dev_err(dev, "no altmode space for registering\n");
-		return -ENOMEM;
+		dev_err(dev, "anal altmode space for registering\n");
+		return -EANALMEM;
 	}
 
 	ctx->typec.amode[i] = typec_partner_register_altmode(ctx->typec.partner,
@@ -602,7 +602,7 @@ static int anx7411_update_altmode(struct anx7411_data *ctx, int svid)
 
 		if (ctx->typec.amode[i]->svid == svid) {
 			typec_altmode_update_active(ctx->typec.amode[i], true);
-			typec_altmode_notify(ctx->typec.amode[i],
+			typec_altmode_analtify(ctx->typec.amode[i],
 					     ctx->typec.pin_assignment,
 					     &ctx->typec.data);
 			break;
@@ -694,7 +694,7 @@ static int anx7411_parse_cmd(struct anx7411_data *ctx, u8 type, u8 *buf, u8 len)
 		anx7411_register_altmode(ctx, 0, buf);
 		break;
 	default:
-		dev_err(dev, "ignore message(0x%.02x).\n", type);
+		dev_err(dev, "iganalre message(0x%.02x).\n", type);
 		break;
 	}
 
@@ -938,7 +938,7 @@ static void anx7411_work_func(struct work_struct *work)
 
 	if (alert1 & INTP_POW_OFF) {
 		anx7411_partner_unregister_altmode(ctx);
-		if (anx7411_set_usb_role(ctx, USB_ROLE_NONE))
+		if (anx7411_set_usb_role(ctx, USB_ROLE_ANALNE))
 			dev_err(dev, "Set usb role\n");
 		anx7411_unregister_partner(ctx);
 		ctx->psy_online = ANX7411_PSY_OFFLINE;
@@ -1006,7 +1006,7 @@ static int anx7411_register_i2c_dummy_clients(struct anx7411_data *ctx,
 	}
 
 	dev_err(&client->dev, "unable to get SPI slave\n");
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void anx7411_port_unregister_altmodes(struct typec_altmode **adev)
@@ -1030,7 +1030,7 @@ static int anx7411_usb_mux_set(struct typec_mux_dev *mux,
 	has_dp = (state->alt && state->alt->svid == USB_TYPEC_DP_SID &&
 		  state->alt->mode == USB_TYPEC_DP_MODE);
 	if (!has_dp)
-		dev_err(dev, "dp altmode not register\n");
+		dev_err(dev, "dp altmode analt register\n");
 
 	return 0;
 }
@@ -1038,20 +1038,20 @@ static int anx7411_usb_mux_set(struct typec_mux_dev *mux,
 static int anx7411_usb_set_orientation(struct typec_switch_dev *sw,
 				       enum typec_orientation orientation)
 {
-	/* No need set */
+	/* Anal need set */
 
 	return 0;
 }
 
 static int anx7411_register_switch(struct anx7411_data *ctx,
 				   struct device *dev,
-				   struct fwnode_handle *fwnode)
+				   struct fwanalde_handle *fwanalde)
 {
 	struct typec_switch_desc sw_desc = { };
 
-	sw_desc.fwnode = fwnode;
+	sw_desc.fwanalde = fwanalde;
 	sw_desc.drvdata = ctx;
-	sw_desc.name = fwnode_get_name(fwnode);
+	sw_desc.name = fwanalde_get_name(fwanalde);
 	sw_desc.set = anx7411_usb_set_orientation;
 
 	ctx->typec.typec_switch = typec_switch_register(dev, &sw_desc);
@@ -1065,13 +1065,13 @@ static int anx7411_register_switch(struct anx7411_data *ctx,
 
 static int anx7411_register_mux(struct anx7411_data *ctx,
 				struct device *dev,
-				struct fwnode_handle *fwnode)
+				struct fwanalde_handle *fwanalde)
 {
 	struct typec_mux_desc mux_desc = { };
 
-	mux_desc.fwnode = fwnode;
+	mux_desc.fwanalde = fwanalde;
 	mux_desc.drvdata = ctx;
-	mux_desc.name = fwnode_get_name(fwnode);
+	mux_desc.name = fwanalde_get_name(fwanalde);
 	mux_desc.set = anx7411_usb_mux_set;
 
 	ctx->typec.typec_mux = typec_mux_register(dev, &mux_desc);
@@ -1103,29 +1103,29 @@ static int anx7411_typec_switch_probe(struct anx7411_data *ctx,
 				      struct device *dev)
 {
 	int ret;
-	struct device_node *node;
+	struct device_analde *analde;
 
-	node = of_get_child_by_name(dev->of_node, "orientation_switch");
-	if (!node)
+	analde = of_get_child_by_name(dev->of_analde, "orientation_switch");
+	if (!analde)
 		return 0;
 
-	ret = anx7411_register_switch(ctx, dev, &node->fwnode);
+	ret = anx7411_register_switch(ctx, dev, &analde->fwanalde);
 	if (ret) {
 		dev_err(dev, "failed register switch");
 		return ret;
 	}
 
-	node = of_get_child_by_name(dev->of_node, "mode_switch");
-	if (!node) {
-		dev_err(dev, "no typec mux exist");
-		ret = -ENODEV;
+	analde = of_get_child_by_name(dev->of_analde, "mode_switch");
+	if (!analde) {
+		dev_err(dev, "anal typec mux exist");
+		ret = -EANALDEV;
 		goto unregister_switch;
 	}
 
-	ret = anx7411_register_mux(ctx, dev, &node->fwnode);
+	ret = anx7411_register_mux(ctx, dev, &analde->fwanalde);
 	if (ret) {
 		dev_err(dev, "failed register mode switch");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto unregister_switch;
 	}
 
@@ -1142,17 +1142,17 @@ static int anx7411_typec_port_probe(struct anx7411_data *ctx,
 {
 	struct typec_capability *cap = &ctx->typec.caps;
 	struct typec_params *typecp = &ctx->typec;
-	struct fwnode_handle *fwnode;
+	struct fwanalde_handle *fwanalde;
 	const char *buf;
 	int ret, i;
 
-	fwnode = device_get_named_child_node(dev, "connector");
-	if (!fwnode)
+	fwanalde = device_get_named_child_analde(dev, "connector");
+	if (!fwanalde)
 		return -EINVAL;
 
-	ret = fwnode_property_read_string(fwnode, "power-role", &buf);
+	ret = fwanalde_property_read_string(fwanalde, "power-role", &buf);
 	if (ret) {
-		dev_err(dev, "power-role not found: %d\n", ret);
+		dev_err(dev, "power-role analt found: %d\n", ret);
 		return ret;
 	}
 
@@ -1161,9 +1161,9 @@ static int anx7411_typec_port_probe(struct anx7411_data *ctx,
 		return ret;
 	cap->type = ret;
 
-	ret = fwnode_property_read_string(fwnode, "data-role", &buf);
+	ret = fwanalde_property_read_string(fwanalde, "data-role", &buf);
 	if (ret) {
-		dev_err(dev, "data-role not found: %d\n", ret);
+		dev_err(dev, "data-role analt found: %d\n", ret);
 		return ret;
 	}
 
@@ -1172,9 +1172,9 @@ static int anx7411_typec_port_probe(struct anx7411_data *ctx,
 		return ret;
 	cap->data = ret;
 
-	ret = fwnode_property_read_string(fwnode, "try-power-role", &buf);
+	ret = fwanalde_property_read_string(fwanalde, "try-power-role", &buf);
 	if (ret) {
-		dev_err(dev, "try-power-role not found: %d\n", ret);
+		dev_err(dev, "try-power-role analt found: %d\n", ret);
 		return ret;
 	}
 
@@ -1184,10 +1184,10 @@ static int anx7411_typec_port_probe(struct anx7411_data *ctx,
 	cap->prefer_role = ret;
 
 	/* Get source pdos */
-	ret = fwnode_property_count_u32(fwnode, "source-pdos");
+	ret = fwanalde_property_count_u32(fwanalde, "source-pdos");
 	if (ret > 0) {
 		typecp->src_pdo_nr = min_t(u8, ret, PDO_MAX_OBJECTS);
-		ret = fwnode_property_read_u32_array(fwnode, "source-pdos",
+		ret = fwanalde_property_read_u32_array(fwanalde, "source-pdos",
 						     typecp->src_pdo,
 						     typecp->src_pdo_nr);
 		if (ret < 0) {
@@ -1198,10 +1198,10 @@ static int anx7411_typec_port_probe(struct anx7411_data *ctx,
 		typecp->caps_flags |= HAS_SOURCE_CAP;
 	}
 
-	ret = fwnode_property_count_u32(fwnode, "sink-pdos");
+	ret = fwanalde_property_count_u32(fwanalde, "sink-pdos");
 	if (ret > 0) {
 		typecp->sink_pdo_nr = min_t(u8, ret, PDO_MAX_OBJECTS);
-		ret = fwnode_property_read_u32_array(fwnode, "sink-pdos",
+		ret = fwanalde_property_read_u32_array(fwanalde, "sink-pdos",
 						     typecp->sink_pdo,
 						     typecp->sink_pdo_nr);
 		if (ret < 0) {
@@ -1232,16 +1232,16 @@ static int anx7411_typec_port_probe(struct anx7411_data *ctx,
 		typecp->caps_flags |= HAS_SINK_CAP;
 	}
 
-	if (!fwnode_property_read_u32(fwnode, "op-sink-microwatt", &ret)) {
+	if (!fwanalde_property_read_u32(fwanalde, "op-sink-microwatt", &ret)) {
 		typecp->sink_watt = ret / 500000; /* 500mw per unit */
 		typecp->caps_flags |= HAS_SINK_WATT;
 	}
 
-	cap->fwnode = fwnode;
+	cap->fwanalde = fwanalde;
 
 	ctx->typec.role_sw = usb_role_switch_get(dev);
 	if (IS_ERR(ctx->typec.role_sw)) {
-		dev_err(dev, "USB role switch not found.\n");
+		dev_err(dev, "USB role switch analt found.\n");
 		ctx->typec.role_sw = NULL;
 	}
 
@@ -1265,7 +1265,7 @@ static int anx7411_typec_check_connection(struct anx7411_data *ctx)
 
 	ret = anx7411_reg_read(ctx->spi_client, FW_VER);
 	if (ret < 0)
-		return 0; /* No device attached in typec port */
+		return 0; /* Anal device attached in typec port */
 
 	/* Clear interrupt and alert status */
 	ret = anx7411_reg_write(ctx->spi_client, INT_STS, 0);
@@ -1330,7 +1330,7 @@ static void anx7411_get_gpio_irq(struct anx7411_data *ctx)
 
 	ctx->intp_gpiod = devm_gpiod_get_optional(dev, "interrupt", GPIOD_IN);
 	if (IS_ERR_OR_NULL(ctx->intp_gpiod)) {
-		dev_err(dev, "no interrupt gpio property\n");
+		dev_err(dev, "anal interrupt gpio property\n");
 		return;
 	}
 
@@ -1350,9 +1350,9 @@ static enum power_supply_property anx7411_psy_props[] = {
 	POWER_SUPPLY_PROP_ONLINE,
 	POWER_SUPPLY_PROP_VOLTAGE_MIN,
 	POWER_SUPPLY_PROP_VOLTAGE_MAX,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
 	POWER_SUPPLY_PROP_CURRENT_MAX,
-	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_CURRENT_ANALW,
 };
 
 static int anx7411_psy_set_prop(struct power_supply *psy,
@@ -1391,13 +1391,13 @@ static int anx7411_psy_get_prop(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_ONLINE:
 		val->intval = ctx->psy_online;
 		break;
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
 	case POWER_SUPPLY_PROP_VOLTAGE_MIN:
 	case POWER_SUPPLY_PROP_VOLTAGE_MAX:
 		val->intval = (ctx->psy_online) ?
 			ctx->typec.request_voltage * 1000 : 0;
 		break;
-	case POWER_SUPPLY_PROP_CURRENT_NOW:
+	case POWER_SUPPLY_PROP_CURRENT_ANALW:
 	case POWER_SUPPLY_PROP_CURRENT_MAX:
 		val->intval = (ctx->psy_online) ?
 			ctx->typec.request_current * 1000 : 0;
@@ -1418,7 +1418,7 @@ static int anx7411_psy_register(struct anx7411_data *ctx)
 	psy_name = devm_kasprintf(ctx->dev, GFP_KERNEL, "anx7411-source-psy-%s",
 				  dev_name(ctx->dev));
 	if (!psy_name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	psy_desc->name = psy_name;
 	psy_desc->type = POWER_SUPPLY_TYPE_USB;
@@ -1447,11 +1447,11 @@ static int anx7411_i2c_probe(struct i2c_client *client)
 	int ret;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_I2C_BLOCK))
-		return -ENODEV;
+		return -EANALDEV;
 
 	plat = devm_kzalloc(dev, sizeof(*plat), GFP_KERNEL);
 	if (!plat)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	plat->tcpc_client = client;
 	i2c_set_clientdata(client, plat);
@@ -1473,7 +1473,7 @@ static int anx7411_i2c_probe(struct i2c_client *client)
 	ret = anx7411_typec_port_probe(plat, dev);
 	if (ret) {
 		dev_err(dev, "fail to probe typec property.\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto free_typec_switch;
 	}
 
@@ -1502,7 +1502,7 @@ static int anx7411_i2c_probe(struct i2c_client *client)
 					  1);
 	if (!plat->workqueue) {
 		dev_err(dev, "fail to create work queue\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_typec_port;
 	}
 

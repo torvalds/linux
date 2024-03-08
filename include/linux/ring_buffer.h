@@ -23,10 +23,10 @@ struct ring_buffer_event {
  *
  * @RINGBUF_TYPE_PADDING:	Left over page padding or discarded event
  *				 If time_delta is 0:
- *				  array is ignored
+ *				  array is iganalred
  *				  size is variable depending on how much
  *				  padding is needed
- *				 If time_delta is non zero:
+ *				 If time_delta is analn zero:
  *				  array[0] holds the actual length
  *				  size = 4 + length (bytes)
  *
@@ -36,7 +36,7 @@ struct ring_buffer_event {
  *
  * @RINGBUF_TYPE_TIME_STAMP:	Absolute timestamp
  *				 Same format as TIME_EXTEND except that the
- *				 value is an absolute timestamp, not a delta
+ *				 value is an absolute timestamp, analt a delta
  *				 event.time_delta contains bottom 27 bits
  *				 array[0] = top (28 .. 59) bits
  *				 size = 8 bytes
@@ -65,11 +65,11 @@ u64 ring_buffer_event_time_stamp(struct trace_buffer *buffer,
 				 struct ring_buffer_event *event);
 
 /*
- * ring_buffer_discard_commit will remove an event that has not
+ * ring_buffer_discard_commit will remove an event that has analt
  *   been committed yet. If this is used, then ring_buffer_unlock_commit
- *   must not be called on the discarded event. This function
+ *   must analt be called on the discarded event. This function
  *   will try to remove the event from the ring buffer completely
- *   if another event has not been written after it.
+ *   if aanalther event has analt been written after it.
  *
  * Example use:
  *
@@ -155,7 +155,7 @@ static inline int
 ring_buffer_swap_cpu(struct trace_buffer *buffer_a,
 		     struct trace_buffer *buffer_b, int cpu)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 #endif
 
@@ -182,7 +182,7 @@ unsigned long ring_buffer_dropped_events_cpu(struct trace_buffer *buffer, int cp
 unsigned long ring_buffer_read_events_cpu(struct trace_buffer *buffer, int cpu);
 
 u64 ring_buffer_time_stamp(struct trace_buffer *buffer);
-void ring_buffer_normalize_time_stamp(struct trace_buffer *buffer,
+void ring_buffer_analrmalize_time_stamp(struct trace_buffer *buffer,
 				      int cpu, u64 *ts);
 void ring_buffer_set_clock(struct trace_buffer *buffer,
 			   u64 (*clock)(void));
@@ -216,7 +216,7 @@ enum ring_buffer_flags {
 };
 
 #ifdef CONFIG_RING_BUFFER
-int trace_rb_cpu_prepare(unsigned int cpu, struct hlist_node *node);
+int trace_rb_cpu_prepare(unsigned int cpu, struct hlist_analde *analde);
 #else
 #define trace_rb_cpu_prepare	NULL
 #endif

@@ -29,7 +29,7 @@ struct intel_gsc_uc {
 	 * the one we save inside the intel_uc_fw structure. The other two
 	 * versions are only used for debug/info purposes, so we save them here.
 	 *
-	 * Note that the release and security versions are available in the
+	 * Analte that the release and security versions are available in the
 	 * binary header, while the compatibility version must be queried after
 	 * loading the binary.
 	 */

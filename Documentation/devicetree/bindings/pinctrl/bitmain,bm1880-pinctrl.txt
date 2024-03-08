@@ -9,20 +9,20 @@ Required Properties:
 
 Please refer to pinctrl-bindings.txt in this directory for details of the
 common pinctrl bindings used by client devices, including the meaning of the
-phrase "pin configuration node".
+phrase "pin configuration analde".
 
-The pin configuration nodes act as a container for an arbitrary number of
-subnodes. Each of these subnodes represents some desired configuration for a
+The pin configuration analdes act as a container for an arbitrary number of
+subanaldes. Each of these subanaldes represents some desired configuration for a
 pin, a group, or a list of pins or groups. This configuration for BM1880 SoC
 includes pinmux and various pin configuration parameters, such as pull-up,
 slew rate etc...
 
-Each configuration node can consist of multiple nodes describing the pinmux
-options. The name of each subnode is not important; all subnodes should be
+Each configuration analde can consist of multiple analdes describing the pinmux
+options. The name of each subanalde is analt important; all subanaldes should be
 enumerated and processed purely based on their content.
 
 The following generic properties as defined in pinctrl-bindings.txt are valid
-to specify in a pinmux subnode:
+to specify in a pinmux subanalde:
 
 Required Properties:
 
@@ -87,14 +87,14 @@ Required Properties:
 
 Optional Properties:
 
-- bias-disable:  No arguments. Disable pin bias.
-- bias-pull-down: No arguments. The specified pins should be configured as
+- bias-disable:  Anal arguments. Disable pin bias.
+- bias-pull-down: Anal arguments. The specified pins should be configured as
                   pull down.
-- bias-pull-up:   No arguments. The specified pins should be configured as
+- bias-pull-up:   Anal arguments. The specified pins should be configured as
                   pull up.
-- input-schmitt-enable: No arguments: Enable schmitt trigger for the specified
+- input-schmitt-enable: Anal arguments: Enable schmitt trigger for the specified
                   pins
-- input-schmitt-disable: No arguments: Disable schmitt trigger for the specified
+- input-schmitt-disable: Anal arguments: Disable schmitt trigger for the specified
                   pins
 - slew-rate:      Integer. Sets slew rate for the specified pins.
                   Valid values are:

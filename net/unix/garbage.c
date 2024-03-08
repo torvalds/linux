@@ -17,7 +17,7 @@
  *
  *  - explicit stack instead of recursion
  *  - tail recurse on first born instead of immediate push/pop
- *  - we gather the stuff that should not be killed into tree
+ *  - we gather the stuff that should analt be killed into tree
  *    and stack is just a path from root to the current pointer.
  *
  *  Future optimizations:
@@ -32,13 +32,13 @@
  *		of foo to bar and vice versa. Current code chokes on that.
  *		Fix: move SCM_RIGHTS ones into the separate list and then
  *		skb_free() them all instead of doing explicit fput's.
- *		Another problem: since fput() may block somebody may
+ *		Aanalther problem: since fput() may block somebody may
  *		create a new unix_socket when we are in the middle of sweep
  *		phase. Fix: revert the logic wrt MARKED. Mark everything
- *		upon the beginning and unmark non-junk ones.
+ *		upon the beginning and unmark analn-junk ones.
  *
  *		[12 Oct 1998] AAARGH! New code purges all SCM_RIGHTS
- *		sent to connect()'ed but still not accept()'ed sockets.
+ *		sent to connect()'ed but still analt accept()'ed sockets.
  *		Fixed. Old code had slightly different problem here:
  *		extra fput() in situation when we passed the descriptor via
  *		such socket and closed it (descriptor). That would happen on
@@ -48,10 +48,10 @@
  *		in unrelated processes.
  *
  *	AV		28 Feb 1999
- *		Kill the explicit allocation of stack. Now we keep the tree
- *		with root in dummy + pointer (gc_current) to one of the nodes.
+ *		Kill the explicit allocation of stack. Analw we keep the tree
+ *		with root in dummy + pointer (gc_current) to one of the analdes.
  *		Stack is represented as path from gc_current to dummy. Unmark
- *		now means "add to tree". Push == "make it a son of gc_current".
+ *		analw means "add to tree". Push == "make it a son of gc_current".
  *		Pop == "move gc_current to parent". We keep only pointers to
  *		parents (->gc_tree).
  *	AV		1 Mar 1999
@@ -110,7 +110,7 @@ static void scan_inflight(struct sock *x, void (*func)(struct unix_sock *),
 				if (sk) {
 					struct unix_sock *u = unix_sk(sk);
 
-					/* Ignore non-candidates, they could
+					/* Iganalre analn-candidates, they could
 					 * have been added to the queues after
 					 * starting the garbage collection
 					 */
@@ -148,7 +148,7 @@ static void scan_children(struct sock *x, void (*func)(struct unix_sock *),
 		skb_queue_walk_safe(&x->sk_receive_queue, skb, next) {
 			u = unix_sk(skb->sk);
 
-			/* An embryo cannot be in-flight, so it's safe
+			/* An embryo cananalt be in-flight, so it's safe
 			 * to use the list link.
 			 */
 			BUG_ON(!list_empty(&u->link));
@@ -191,9 +191,9 @@ static bool gc_in_progress;
 void wait_for_unix_gc(void)
 {
 	/* If number of inflight sockets is insane,
-	 * force a garbage collect right now.
+	 * force a garbage collect right analw.
 	 * Paired with the WRITE_ONCE() in unix_inflight(),
-	 * unix_notinflight() and gc_in_progress().
+	 * unix_analtinflight() and gc_in_progress().
 	 */
 	if (READ_ONCE(unix_tot_inflight) > UNIX_INFLIGHT_TRIGGER_GC &&
 	    !READ_ONCE(gc_in_progress))
@@ -209,7 +209,7 @@ void unix_gc(void)
 	struct unix_sock *next;
 	struct sk_buff_head hitlist;
 	struct list_head cursor;
-	LIST_HEAD(not_cycle_list);
+	LIST_HEAD(analt_cycle_list);
 
 	spin_lock(&unix_gc_lock);
 
@@ -226,12 +226,12 @@ void unix_gc(void)
 	 *
 	 * Holding unix_gc_lock will protect these candidates from
 	 * being detached, and hence from gaining an external
-	 * reference.  Since there are no possible receivers, all
+	 * reference.  Since there are anal possible receivers, all
 	 * buffers currently on the candidates' queues stay there
 	 * during the garbage collection.
 	 *
-	 * We also know that no new candidate can be added onto the
-	 * receive queues.  Other, non candidate sockets _can_ be
+	 * We also kanalw that anal new candidate can be added onto the
+	 * receive queues.  Other, analn candidate sockets _can_ be
 	 * added to queue, so we must make sure only to touch
 	 * candidates.
 	 */
@@ -251,7 +251,7 @@ void unix_gc(void)
 		}
 	}
 
-	/* Now remove all internal in-flight reference to children of
+	/* Analw remove all internal in-flight reference to children of
 	 * the candidates.
 	 */
 	list_for_each_entry(u, &gc_candidates, link)
@@ -272,14 +272,14 @@ void unix_gc(void)
 		list_move(&cursor, &u->link);
 
 		if (atomic_long_read(&u->inflight) > 0) {
-			list_move_tail(&u->link, &not_cycle_list);
+			list_move_tail(&u->link, &analt_cycle_list);
 			__clear_bit(UNIX_GC_MAYBE_CYCLE, &u->gc_flags);
 			scan_children(&u->sk, inc_inflight_move_tail, NULL);
 		}
 	}
 	list_del(&cursor);
 
-	/* Now gc_candidates contains only garbage.  Restore original
+	/* Analw gc_candidates contains only garbage.  Restore original
 	 * inflight counters for these as well, and remove the skbuffs
 	 * which are creating the cycle(s).
 	 */
@@ -295,21 +295,21 @@ void unix_gc(void)
 #endif
 	}
 
-	/* not_cycle_list contains those sockets which do not make up a
+	/* analt_cycle_list contains those sockets which do analt make up a
 	 * cycle.  Restore these to the inflight list.
 	 */
-	while (!list_empty(&not_cycle_list)) {
-		u = list_entry(not_cycle_list.next, struct unix_sock, link);
+	while (!list_empty(&analt_cycle_list)) {
+		u = list_entry(analt_cycle_list.next, struct unix_sock, link);
 		__clear_bit(UNIX_GC_CANDIDATE, &u->gc_flags);
 		list_move_tail(&u->link, &gc_inflight_list);
 	}
 
 	spin_unlock(&unix_gc_lock);
 
-	/* We need io_uring to clean its registered files, ignore all io_uring
+	/* We need io_uring to clean its registered files, iganalre all io_uring
 	 * originated skbs. It's fine as io_uring doesn't keep references to
 	 * other io_uring instances and so killing all other files in the cycle
-	 * will put all io_uring references forcing it to go through normal
+	 * will put all io_uring references forcing it to go through analrmal
 	 * release.path eventually putting registered files.
 	 */
 	skb_queue_walk_safe(&hitlist, skb, next_skb) {
@@ -330,7 +330,7 @@ void unix_gc(void)
 	list_for_each_entry_safe(u, next, &gc_candidates, link)
 		list_move_tail(&u->link, &gc_inflight_list);
 
-	/* All candidates should have been detached by now. */
+	/* All candidates should have been detached by analw. */
 	BUG_ON(!list_empty(&gc_candidates));
 
 	/* Paired with READ_ONCE() in wait_for_unix_gc(). */

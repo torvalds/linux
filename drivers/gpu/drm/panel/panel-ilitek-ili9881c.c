@@ -6,7 +6,7 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -315,7 +315,7 @@ static const struct ili9881c_instr k101_im2byl02_init[] = {
 	ILI9881C_COMMAND_INSTR(0x31, 0x00),
 	ILI9881C_COMMAND_INSTR(0x32, 0x00),
 	ILI9881C_COMMAND_INSTR(0x33, 0x00),
-	ILI9881C_COMMAND_INSTR(0x34, 0x00), /* GPWR1/2 non overlap time 2.62us */
+	ILI9881C_COMMAND_INSTR(0x34, 0x00), /* GPWR1/2 analn overlap time 2.62us */
 	ILI9881C_COMMAND_INSTR(0x35, 0x00),
 	ILI9881C_COMMAND_INSTR(0x36, 0x00),
 	ILI9881C_COMMAND_INSTR(0x37, 0x00),
@@ -1041,7 +1041,7 @@ static inline struct ili9881c *panel_to_ili9881c(struct drm_panel *panel)
  * DCS commands.
  *
  * So before any attempt at sending a command or data, we have to be
- * sure if we're in the right page or not.
+ * sure if we're in the right page or analt.
  */
 static int ili9881c_switch_page(struct ili9881c *ctx, u8 page)
 {
@@ -1240,7 +1240,7 @@ static int ili9881c_get_modes(struct drm_panel *panel,
 			ctx->desc->mode->hdisplay,
 			ctx->desc->mode->vdisplay,
 			drm_mode_vrefresh(ctx->desc->mode));
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	drm_mode_set_name(mode);
@@ -1283,7 +1283,7 @@ static int ili9881c_dsi_probe(struct mipi_dsi_device *dsi)
 
 	ctx = devm_kzalloc(&dsi->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 	mipi_dsi_set_drvdata(dsi, ctx);
 	ctx->dsi = dsi;
 	ctx->desc = of_device_get_match_data(&dsi->dev);
@@ -1301,10 +1301,10 @@ static int ili9881c_dsi_probe(struct mipi_dsi_device *dsi)
 		return dev_err_probe(&dsi->dev, PTR_ERR(ctx->reset),
 				     "Couldn't get our reset GPIO\n");
 
-	ret = of_drm_get_panel_orientation(dsi->dev.of_node, &ctx->orientation);
+	ret = of_drm_get_panel_orientation(dsi->dev.of_analde, &ctx->orientation);
 	if (ret) {
 		dev_err(&dsi->dev, "%pOF: failed to get orientation: %d\n",
-			dsi->dev.of_node, ret);
+			dsi->dev.of_analde, ret);
 		return ret;
 	}
 
@@ -1358,7 +1358,7 @@ static const struct ili9881c_desc w552946aba_desc = {
 	.init_length = ARRAY_SIZE(w552946ab_init),
 	.mode = &w552946aba_default_mode,
 	.mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
-		      MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_NO_EOT_PACKET,
+		      MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_ANAL_EOT_PACKET,
 };
 
 static const struct ili9881c_desc am8001280g_desc = {
@@ -1366,7 +1366,7 @@ static const struct ili9881c_desc am8001280g_desc = {
 	.init_length = ARRAY_SIZE(am8001280g_init),
 	.mode = &am8001280g_default_mode,
 	.mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_SYNC_PULSE |
-		      MIPI_DSI_CLOCK_NON_CONTINUOUS | MIPI_DSI_MODE_LPM,
+		      MIPI_DSI_CLOCK_ANALN_CONTINUOUS | MIPI_DSI_MODE_LPM,
 };
 
 static const struct of_device_id ili9881c_of_match[] = {

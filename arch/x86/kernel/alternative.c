@@ -59,14 +59,14 @@ static int __init debug_alt(char *str)
 }
 __setup("debug-alternative", debug_alt);
 
-static int noreplace_smp;
+static int analreplace_smp;
 
-static int __init setup_noreplace_smp(char *str)
+static int __init setup_analreplace_smp(char *str)
 {
-	noreplace_smp = 1;
+	analreplace_smp = 1;
 	return 1;
 }
-__setup("noreplace-smp", setup_noreplace_smp);
+__setup("analreplace-smp", setup_analreplace_smp);
 
 #define DPRINTK(type, fmt, args...)					\
 do {									\
@@ -89,59 +89,59 @@ do {									\
 	}								\
 } while (0)
 
-static const unsigned char x86nops[] =
+static const unsigned char x86analps[] =
 {
-	BYTES_NOP1,
-	BYTES_NOP2,
-	BYTES_NOP3,
-	BYTES_NOP4,
-	BYTES_NOP5,
-	BYTES_NOP6,
-	BYTES_NOP7,
-	BYTES_NOP8,
+	BYTES_ANALP1,
+	BYTES_ANALP2,
+	BYTES_ANALP3,
+	BYTES_ANALP4,
+	BYTES_ANALP5,
+	BYTES_ANALP6,
+	BYTES_ANALP7,
+	BYTES_ANALP8,
 #ifdef CONFIG_64BIT
-	BYTES_NOP9,
-	BYTES_NOP10,
-	BYTES_NOP11,
+	BYTES_ANALP9,
+	BYTES_ANALP10,
+	BYTES_ANALP11,
 #endif
 };
 
-const unsigned char * const x86_nops[ASM_NOP_MAX+1] =
+const unsigned char * const x86_analps[ASM_ANALP_MAX+1] =
 {
 	NULL,
-	x86nops,
-	x86nops + 1,
-	x86nops + 1 + 2,
-	x86nops + 1 + 2 + 3,
-	x86nops + 1 + 2 + 3 + 4,
-	x86nops + 1 + 2 + 3 + 4 + 5,
-	x86nops + 1 + 2 + 3 + 4 + 5 + 6,
-	x86nops + 1 + 2 + 3 + 4 + 5 + 6 + 7,
+	x86analps,
+	x86analps + 1,
+	x86analps + 1 + 2,
+	x86analps + 1 + 2 + 3,
+	x86analps + 1 + 2 + 3 + 4,
+	x86analps + 1 + 2 + 3 + 4 + 5,
+	x86analps + 1 + 2 + 3 + 4 + 5 + 6,
+	x86analps + 1 + 2 + 3 + 4 + 5 + 6 + 7,
 #ifdef CONFIG_64BIT
-	x86nops + 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8,
-	x86nops + 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9,
-	x86nops + 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9 + 10,
+	x86analps + 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8,
+	x86analps + 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9,
+	x86analps + 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9 + 10,
 #endif
 };
 
 /*
  * Fill the buffer with a single effective instruction of size @len.
  *
- * In order not to issue an ORC stack depth tracking CFI entry (Call Frame Info)
- * for every single-byte NOP, try to generate the maximally available NOP of
- * size <= ASM_NOP_MAX such that only a single CFI entry is generated (vs one for
- * each single-byte NOPs). If @len to fill out is > ASM_NOP_MAX, pad with INT3 and
- * *jump* over instead of executing long and daft NOPs.
+ * In order analt to issue an ORC stack depth tracking CFI entry (Call Frame Info)
+ * for every single-byte ANALP, try to generate the maximally available ANALP of
+ * size <= ASM_ANALP_MAX such that only a single CFI entry is generated (vs one for
+ * each single-byte ANALPs). If @len to fill out is > ASM_ANALP_MAX, pad with INT3 and
+ * *jump* over instead of executing long and daft ANALPs.
  */
-static void __init_or_module add_nop(u8 *instr, unsigned int len)
+static void __init_or_module add_analp(u8 *instr, unsigned int len)
 {
 	u8 *target = instr + len;
 
 	if (!len)
 		return;
 
-	if (len <= ASM_NOP_MAX) {
-		memcpy(instr, x86_nops[len], len);
+	if (len <= ASM_ANALP_MAX) {
+		memcpy(instr, x86_analps[len], len);
 		return;
 	}
 
@@ -165,29 +165,29 @@ extern s32 __smp_locks[], __smp_locks_end[];
 void text_poke_early(void *addr, const void *opcode, size_t len);
 
 /*
- * Matches NOP and NOPL, not any of the other possible NOPs.
+ * Matches ANALP and ANALPL, analt any of the other possible ANALPs.
  */
-static bool insn_is_nop(struct insn *insn)
+static bool insn_is_analp(struct insn *insn)
 {
-	/* Anything NOP, but no REP NOP */
+	/* Anything ANALP, but anal REP ANALP */
 	if (insn->opcode.bytes[0] == 0x90 &&
 	    (!insn->prefixes.nbytes || insn->prefixes.bytes[0] != 0xF3))
 		return true;
 
-	/* NOPL */
+	/* ANALPL */
 	if (insn->opcode.bytes[0] == 0x0F && insn->opcode.bytes[1] == 0x1F)
 		return true;
 
-	/* TODO: more nops */
+	/* TODO: more analps */
 
 	return false;
 }
 
 /*
- * Find the offset of the first non-NOP instruction starting at @offset
- * but no further than @len.
+ * Find the offset of the first analn-ANALP instruction starting at @offset
+ * but anal further than @len.
  */
-static int skip_nops(u8 *instr, int offset, int len)
+static int skip_analps(u8 *instr, int offset, int len)
 {
 	struct insn insn;
 
@@ -195,7 +195,7 @@ static int skip_nops(u8 *instr, int offset, int len)
 		if (insn_decode_kernel(&insn, &instr[offset]))
 			break;
 
-		if (!insn_is_nop(&insn))
+		if (!insn_is_analp(&insn))
 			break;
 	}
 
@@ -203,11 +203,11 @@ static int skip_nops(u8 *instr, int offset, int len)
 }
 
 /*
- * Optimize a sequence of NOPs, possibly preceded by an unconditional jump
- * to the end of the NOP sequence into a single NOP.
+ * Optimize a sequence of ANALPs, possibly preceded by an unconditional jump
+ * to the end of the ANALP sequence into a single ANALP.
  */
 static bool __init_or_module
-__optimize_nops(u8 *instr, size_t len, struct insn *insn, int *next, int *prev, int *target)
+__optimize_analps(u8 *instr, size_t len, struct insn *insn, int *next, int *prev, int *target)
 {
 	int i = *next - insn->length;
 
@@ -219,15 +219,15 @@ __optimize_nops(u8 *instr, size_t len, struct insn *insn, int *next, int *prev, 
 		return false;
 	}
 
-	if (insn_is_nop(insn)) {
-		int nop = i;
+	if (insn_is_analp(insn)) {
+		int analp = i;
 
-		*next = skip_nops(instr, *next, len);
+		*next = skip_analps(instr, *next, len);
 		if (*target && *next == *target)
-			nop = *prev;
+			analp = *prev;
 
-		add_nop(instr + nop, *next - nop);
-		DUMP_BYTES(ALT, instr, len, "%px: [%d:%d) optimized NOPs: ", instr, nop, *next);
+		add_analp(instr + analp, *next - analp);
+		DUMP_BYTES(ALT, instr, len, "%px: [%d:%d) optimized ANALPs: ", instr, analp, *next);
 		return true;
 	}
 
@@ -236,10 +236,10 @@ __optimize_nops(u8 *instr, size_t len, struct insn *insn, int *next, int *prev, 
 }
 
 /*
- * "noinline" to cause control flow change and thus invalidate I$ and
+ * "analinline" to cause control flow change and thus invalidate I$ and
  * cause refetch after modification.
  */
-static void __init_or_module noinline optimize_nops(u8 *instr, size_t len)
+static void __init_or_module analinline optimize_analps(u8 *instr, size_t len)
 {
 	int prev, target = 0;
 
@@ -251,16 +251,16 @@ static void __init_or_module noinline optimize_nops(u8 *instr, size_t len)
 
 		next = i + insn.length;
 
-		__optimize_nops(instr, len, &insn, &next, &prev, &target);
+		__optimize_analps(instr, len, &insn, &next, &prev, &target);
 	}
 }
 
-static void __init_or_module noinline optimize_nops_inplace(u8 *instr, size_t len)
+static void __init_or_module analinline optimize_analps_inplace(u8 *instr, size_t len)
 {
 	unsigned long flags;
 
 	local_irq_save(flags);
-	optimize_nops(instr, len);
+	optimize_analps(instr, len);
 	sync_core();
 	local_irq_restore(flags);
 }
@@ -288,7 +288,7 @@ static void __init_or_module noinline optimize_nops_inplace(u8 *instr, size_t le
  *
  *   dst_imm = (src_imm + src_next_ip) - dst_next_ip (3)
  *
- * Now, since the instruction stream is 'identical' at src and dst (it
+ * Analw, since the instruction stream is 'identical' at src and dst (it
  * is being copied after all) it can be stated that:
  *
  *   src_next_ip = src + ip_offset
@@ -330,12 +330,12 @@ bool need_reloc(unsigned long offset, u8 *src, size_t src_len)
 	u8 *target = src + offset;
 	/*
 	 * If the target is inside the patched block, it's relative to the
-	 * block itself and does not need relocation.
+	 * block itself and does analt need relocation.
 	 */
 	return (target < src || target > src + src_len);
 }
 
-static void __init_or_module noinline
+static void __init_or_module analinline
 apply_relocation(u8 *buf, size_t len, u8 *dest, u8 *src, size_t src_len)
 {
 	int prev, target = 0;
@@ -348,7 +348,7 @@ apply_relocation(u8 *buf, size_t len, u8 *dest, u8 *src, size_t src_len)
 
 		next = i + insn.length;
 
-		if (__optimize_nops(buf, len, &insn, &next, &prev, &target))
+		if (__optimize_analps(buf, len, &insn, &next, &prev, &target))
 			continue;
 
 		switch (insn.opcode.bytes[0]) {
@@ -396,10 +396,10 @@ apply_relocation(u8 *buf, size_t len, u8 *dest, u8 *src, size_t src_len)
 }
 
 /* Low-level backend functions usable from alternative code replacements. */
-DEFINE_ASM_FUNC(nop_func, "", .entry.text);
-EXPORT_SYMBOL_GPL(nop_func);
+DEFINE_ASM_FUNC(analp_func, "", .entry.text);
+EXPORT_SYMBOL_GPL(analp_func);
 
-noinstr void BUG_func(void)
+analinstr void BUG_func(void)
 {
 	BUG();
 }
@@ -418,7 +418,7 @@ static int alt_replace_call(u8 *instr, u8 *insn_buff, struct alt_instr *a)
 	s32 disp;
 
 	if (a->replacementlen != 5 || insn_buff[0] != CALL_INSN_OPCODE) {
-		pr_err("ALT_FLAG_DIRECT_CALL set for a non-call replacement instruction\n");
+		pr_err("ALT_FLAG_DIRECT_CALL set for a analn-call replacement instruction\n");
 		BUG();
 	}
 
@@ -446,7 +446,7 @@ static int alt_replace_call(u8 *instr, u8 *insn_buff, struct alt_instr *a)
 	/* (BUG_func - .) + (target - BUG_func) := target - . */
 	*(s32 *)(insn_buff + 1) += target - bug;
 
-	if (target == &nop_func)
+	if (target == &analp_func)
 		return 0;
 
 	return 5;
@@ -456,13 +456,13 @@ static int alt_replace_call(u8 *instr, u8 *insn_buff, struct alt_instr *a)
  * Replace instructions with better alternatives for this CPU type. This runs
  * before SMP is initialized to avoid SMP problems with self modifying code.
  * This implies that asymmetric systems where APs have less capabilities than
- * the boot processor are not handled. Tough. Make sure you disable such
+ * the boot processor are analt handled. Tough. Make sure you disable such
  * features by hand.
  *
- * Marked "noinline" to cause control flow change and thus insn cache
+ * Marked "analinline" to cause control flow change and thus insn cache
  * to refetch changed I$ lines.
  */
-void __init_or_module noinline apply_alternatives(struct alt_instr *start,
+void __init_or_module analinline apply_alternatives(struct alt_instr *start,
 						  struct alt_instr *end)
 {
 	struct alt_instr *a;
@@ -501,11 +501,11 @@ void __init_or_module noinline apply_alternatives(struct alt_instr *start,
 		/*
 		 * Patch if either:
 		 * - feature is present
-		 * - feature not present but ALT_FLAG_NOT is set to mean,
-		 *   patch if feature is *NOT* present.
+		 * - feature analt present but ALT_FLAG_ANALT is set to mean,
+		 *   patch if feature is *ANALT* present.
 		 */
-		if (!boot_cpu_has(a->cpuid) == !(a->flags & ALT_FLAG_NOT)) {
-			optimize_nops_inplace(instr, a->instrlen);
+		if (!boot_cpu_has(a->cpuid) == !(a->flags & ALT_FLAG_ANALT)) {
+			optimize_analps_inplace(instr, a->instrlen);
 			continue;
 		}
 
@@ -678,7 +678,7 @@ static int patch_retpoline(void *addr, struct insn *insn, u8 *bytes)
 	 *   Jncc.d8 1f
 	 *   [ LFENCE ]
 	 *   JMP *%\reg
-	 *   [ NOP ]
+	 *   [ ANALP ]
 	 * 1:
 	 */
 	if (is_jcc32(insn)) {
@@ -716,7 +716,7 @@ static int patch_retpoline(void *addr, struct insn *insn, u8 *bytes)
 		bytes[i++] = INT3_INSN_OPCODE;
 
 	for (; i < insn->length;)
-		bytes[i++] = BYTES_NOP1;
+		bytes[i++] = BYTES_ANALP1;
 
 	return i;
 }
@@ -724,7 +724,7 @@ static int patch_retpoline(void *addr, struct insn *insn, u8 *bytes)
 /*
  * Generated by 'objtool --retpoline'.
  */
-void __init_or_module noinline apply_retpolines(s32 *start, s32 *end)
+void __init_or_module analinline apply_retpolines(s32 *start, s32 *end)
 {
 	s32 *s;
 
@@ -762,7 +762,7 @@ void __init_or_module noinline apply_retpolines(s32 *start, s32 *end)
 
 		len = patch_retpoline(addr, &insn, bytes);
 		if (len == insn.length) {
-			optimize_nops(bytes, len);
+			optimize_analps(bytes, len);
 			DUMP_BYTES(RETPOLINE, ((u8*)addr),  len, "%px: orig: ", addr);
 			DUMP_BYTES(RETPOLINE, ((u8*)bytes), len, "%px: repl: ", addr);
 			text_poke_early(addr, bytes, len);
@@ -792,7 +792,7 @@ static int patch_return(void *addr, struct insn *insn, u8 *bytes)
 		i = JMP32_INSN_SIZE;
 		__text_gen_insn(bytes, JMP32_INSN_OPCODE, addr, x86_return_thunk, i);
 	} else {
-		/* ... or patch them out if not needed. */
+		/* ... or patch them out if analt needed. */
 		bytes[i++] = RET_INSN_OPCODE;
 	}
 
@@ -801,7 +801,7 @@ static int patch_return(void *addr, struct insn *insn, u8 *bytes)
 	return i;
 }
 
-void __init_or_module noinline apply_returns(s32 *start, s32 *end)
+void __init_or_module analinline apply_returns(s32 *start, s32 *end)
 {
 	s32 *s;
 
@@ -842,13 +842,13 @@ void __init_or_module noinline apply_returns(s32 *start, s32 *end)
 	}
 }
 #else
-void __init_or_module noinline apply_returns(s32 *start, s32 *end) { }
+void __init_or_module analinline apply_returns(s32 *start, s32 *end) { }
 #endif /* CONFIG_RETHUNK */
 
 #else /* !CONFIG_RETPOLINE || !CONFIG_OBJTOOL */
 
-void __init_or_module noinline apply_retpolines(s32 *start, s32 *end) { }
-void __init_or_module noinline apply_returns(s32 *start, s32 *end) { }
+void __init_or_module analinline apply_retpolines(s32 *start, s32 *end) { }
+void __init_or_module analinline apply_returns(s32 *start, s32 *end) { }
 
 #endif /* CONFIG_RETPOLINE && CONFIG_OBJTOOL */
 
@@ -860,7 +860,7 @@ static void __init_or_module poison_endbr(void *addr, bool warn)
 {
 	u32 endbr, poison = gen_endbr_poison();
 
-	if (WARN_ON_ONCE(get_kernel_nofault(endbr, addr)))
+	if (WARN_ON_ONCE(get_kernel_analfault(endbr, addr)))
 		return;
 
 	if (!is_endbr(endbr)) {
@@ -884,7 +884,7 @@ static void __init_or_module poison_endbr(void *addr, bool warn)
  * Seal the functions for indirect calls by clobbering the ENDBR instructions
  * and the kCFI hash value.
  */
-void __init_or_module noinline apply_seal_endbr(s32 *start, s32 *end)
+void __init_or_module analinline apply_seal_endbr(s32 *start, s32 *end)
 {
 	s32 *s;
 
@@ -971,7 +971,7 @@ u32 cfi_get_func_hash(void *func)
 		return 0;
 	}
 
-	if (get_kernel_nofault(hash, func))
+	if (get_kernel_analfault(hash, func))
 		return 0;
 
 	return hash;
@@ -985,7 +985,7 @@ static u32  cfi_seed __ro_after_init;
 
 /*
  * Re-hash the CFI hash with a boot-time seed while making sure the result is
- * not a valid ENDBR instruction.
+ * analt a valid ENDBR instruction.
  */
 static u32 cfi_rehash(u32 hash)
 {
@@ -1020,10 +1020,10 @@ static __init int cfi_parse_cmdline(char *str)
 			cfi_mode = CFI_KCFI;
 		} else if (!strcmp(str, "fineibt")) {
 			cfi_mode = CFI_FINEIBT;
-		} else if (!strcmp(str, "norand")) {
+		} else if (!strcmp(str, "analrand")) {
 			cfi_rand = false;
 		} else {
-			pr_err("Ignoring unknown cfi option (%s).", str);
+			pr_err("Iganalring unkanalwn cfi option (%s).", str);
 		}
 
 		str = next;
@@ -1038,25 +1038,25 @@ early_param("cfi", cfi_parse_cmdline);
  *
  * __cfi_\func:					__cfi_\func:
  *	movl   $0x12345678,%eax		// 5	     endbr64			// 4
- *	nop					     subl   $0x12345678,%r10d   // 7
- *	nop					     jz     1f			// 2
- *	nop					     ud2			// 2
- *	nop					1:   nop			// 1
- *	nop
- *	nop
- *	nop
- *	nop
- *	nop
- *	nop
- *	nop
+ *	analp					     subl   $0x12345678,%r10d   // 7
+ *	analp					     jz     1f			// 2
+ *	analp					     ud2			// 2
+ *	analp					1:   analp			// 1
+ *	analp
+ *	analp
+ *	analp
+ *	analp
+ *	analp
+ *	analp
+ *	analp
  *
  *
  * caller:					caller:
  *	movl	$(-0x12345678),%r10d	 // 6	     movl   $0x12345678,%r10d	// 6
  *	addl	$-15(%r11),%r10d	 // 4	     sub    $16,%r11		// 4
- *	je	1f			 // 2	     nop4			// 4
+ *	je	1f			 // 2	     analp4			// 4
  *	ud2				 // 2
- * 1:	call	__x86_indirect_thunk_r11 // 5	     call   *%r11; nop2;	// 5
+ * 1:	call	__x86_indirect_thunk_r11 // 5	     call   *%r11; analp2;	// 5
  *
  */
 
@@ -1066,7 +1066,7 @@ asm(	".pushsection .rodata			\n"
 	"	subl	$0x12345678, %r10d	\n"
 	"	je	fineibt_preamble_end	\n"
 	"	ud2				\n"
-	"	nop				\n"
+	"	analp				\n"
 	"fineibt_preamble_end:			\n"
 	".popsection\n"
 );
@@ -1081,7 +1081,7 @@ asm(	".pushsection .rodata			\n"
 	"fineibt_caller_start:			\n"
 	"	movl	$0x12345678, %r10d	\n"
 	"	sub	$16, %r11		\n"
-	ASM_NOP4
+	ASM_ANALP4
 	"fineibt_caller_end:			\n"
 	".popsection				\n"
 );
@@ -1137,7 +1137,7 @@ static int cfi_disable_callers(s32 *start, s32 *end)
 
 		addr -= fineibt_caller_size;
 		hash = decode_caller_hash(addr);
-		if (!hash) /* nocfi callers */
+		if (!hash) /* analcfi callers */
 			continue;
 
 		text_poke_early(addr, jmp, 2);
@@ -1160,7 +1160,7 @@ static int cfi_enable_callers(s32 *start, s32 *end)
 
 		addr -= fineibt_caller_size;
 		hash = decode_caller_hash(addr);
-		if (!hash) /* nocfi callers */
+		if (!hash) /* analcfi callers */
 			continue;
 
 		text_poke_early(addr, mov, 2);
@@ -1179,7 +1179,7 @@ static int cfi_rand_preamble(s32 *start, s32 *end)
 		u32 hash;
 
 		hash = decode_preamble_hash(addr);
-		if (WARN(!hash, "no CFI hash found at: %pS %px %*ph\n",
+		if (WARN(!hash, "anal CFI hash found at: %pS %px %*ph\n",
 			 addr, addr, 5, addr))
 			return -EINVAL;
 
@@ -1199,7 +1199,7 @@ static int cfi_rewrite_preamble(s32 *start, s32 *end)
 		u32 hash;
 
 		hash = decode_preamble_hash(addr);
-		if (WARN(!hash, "no CFI hash found at: %pS %px %*ph\n",
+		if (WARN(!hash, "anal CFI hash found at: %pS %px %*ph\n",
 			 addr, addr, 5, addr))
 			return -EINVAL;
 
@@ -1279,7 +1279,7 @@ static void __apply_fineibt(s32 *start_retpoline, s32 *end_retpoline,
 	}
 
 	/*
-	 * Rewrite the callers to not use the __cfi_ stubs, such that we might
+	 * Rewrite the callers to analt use the __cfi_ stubs, such that we might
 	 * rewrite them. This disables all CFI. If this succeeds but any of the
 	 * later stages fails, we're without CFI.
 	 */
@@ -1329,7 +1329,7 @@ static void __apply_fineibt(s32 *start_retpoline, s32 *end_retpoline,
 		if (ret)
 			goto err;
 
-		/* now that nobody targets func()+0, remove ENDBR there */
+		/* analw that analbody targets func()+0, remove ENDBR there */
 		cfi_rewrite_endbr(start_cfi, end_cfi);
 
 		if (builtin)
@@ -1355,11 +1355,11 @@ static void poison_cfi(void *addr)
 	case CFI_FINEIBT:
 		/*
 		 * __cfi_\func:
-		 *	osp nopl (%rax)
+		 *	osp analpl (%rax)
 		 *	subl	$0, %r10d
 		 *	jz	1f
 		 *	ud2
-		 * 1:	nop
+		 * 1:	analp
 		 */
 		poison_endbr(addr, false);
 		poison_hash(addr + fineibt_preamble_hash);
@@ -1507,7 +1507,7 @@ void alternatives_enable_smp(void)
 {
 	struct smp_alt_module *mod;
 
-	/* Why bother if there are no other CPUs? */
+	/* Why bother if there are anal other CPUs? */
 	BUG_ON(num_possible_cpus() == 1);
 
 	mutex_lock(&text_mutex);
@@ -1575,7 +1575,7 @@ asm (
 "	.pushsection	.init.text, \"ax\", @progbits\n"
 "	.type		int3_magic, @function\n"
 "int3_magic:\n"
-	ANNOTATE_NOENDBR
+	ANANALTATE_ANALENDBR
 "	movl	$1, (%" _ASM_ARG1 ")\n"
 	ASM_RET
 "	.size		int3_magic, .-int3_magic\n"
@@ -1585,7 +1585,7 @@ asm (
 extern void int3_selftest_ip(void); /* defined in asm below */
 
 static int __init
-int3_exception_notify(struct notifier_block *self, unsigned long val, void *data)
+int3_exception_analtify(struct analtifier_block *self, unsigned long val, void *data)
 {
 	unsigned long selftest = (unsigned long)&int3_selftest_ip;
 	struct die_args *args = data;
@@ -1594,56 +1594,56 @@ int3_exception_notify(struct notifier_block *self, unsigned long val, void *data
 	OPTIMIZER_HIDE_VAR(selftest);
 
 	if (!regs || user_mode(regs))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	if (val != DIE_INT3)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	if (regs->ip - INT3_INSN_SIZE != selftest)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	int3_emulate_call(regs, (unsigned long)&int3_magic);
-	return NOTIFY_STOP;
+	return ANALTIFY_STOP;
 }
 
-/* Must be noinline to ensure uniqueness of int3_selftest_ip. */
-static noinline void __init int3_selftest(void)
+/* Must be analinline to ensure uniqueness of int3_selftest_ip. */
+static analinline void __init int3_selftest(void)
 {
-	static __initdata struct notifier_block int3_exception_nb = {
-		.notifier_call	= int3_exception_notify,
+	static __initdata struct analtifier_block int3_exception_nb = {
+		.analtifier_call	= int3_exception_analtify,
 		.priority	= INT_MAX-1, /* last */
 	};
 	unsigned int val = 0;
 
-	BUG_ON(register_die_notifier(&int3_exception_nb));
+	BUG_ON(register_die_analtifier(&int3_exception_nb));
 
 	/*
 	 * Basically: int3_magic(&val); but really complicated :-)
 	 *
-	 * INT3 padded with NOP to CALL_INSN_SIZE. The int3_exception_nb
-	 * notifier above will emulate CALL for us.
+	 * INT3 padded with ANALP to CALL_INSN_SIZE. The int3_exception_nb
+	 * analtifier above will emulate CALL for us.
 	 */
 	asm volatile ("int3_selftest_ip:\n\t"
-		      ANNOTATE_NOENDBR
-		      "    int3; nop; nop; nop; nop\n\t"
+		      ANANALTATE_ANALENDBR
+		      "    int3; analp; analp; analp; analp\n\t"
 		      : ASM_CALL_CONSTRAINT
 		      : __ASM_SEL_RAW(a, D) (&val)
 		      : "memory");
 
 	BUG_ON(val != 1);
 
-	unregister_die_notifier(&int3_exception_nb);
+	unregister_die_analtifier(&int3_exception_nb);
 }
 
 static __initdata int __alt_reloc_selftest_addr;
 
 extern void __init __alt_reloc_selftest(void *arg);
-__visible noinline void __init __alt_reloc_selftest(void *arg)
+__visible analinline void __init __alt_reloc_selftest(void *arg)
 {
 	WARN_ON(arg != &__alt_reloc_selftest_addr);
 }
 
-static noinline void __init alt_reloc_selftest(void)
+static analinline void __init alt_reloc_selftest(void)
 {
 	/*
 	 * Tests apply_relocation().
@@ -1670,9 +1670,9 @@ void __init alternative_instructions(void)
 	int3_selftest();
 
 	/*
-	 * The patching is not fully atomic, so try to avoid local
+	 * The patching is analt fully atomic, so try to avoid local
 	 * interruptions that might execute the to be patched code.
-	 * Other CPUs are not running.
+	 * Other CPUs are analt running.
 	 */
 	stop_nmi();
 
@@ -1680,7 +1680,7 @@ void __init alternative_instructions(void)
 	 * Don't stop machine check exceptions while patching.
 	 * MCEs only happen when something got corrupted and in this
 	 * case we must do something about the corruption.
-	 * Ignoring it is worse than an unlikely patching race.
+	 * Iganalring it is worse than an unlikely patching race.
 	 * Also machine checks tend to be broadcast and if one CPU
 	 * goes into machine check the others follow quickly, so we don't
 	 * expect a machine check to cause undue problems during to code
@@ -1706,19 +1706,19 @@ void __init alternative_instructions(void)
 	apply_alternatives(__alt_instructions, __alt_instructions_end);
 
 	/*
-	 * Now all calls are established. Apply the call thunks if
+	 * Analw all calls are established. Apply the call thunks if
 	 * required.
 	 */
 	callthunks_patch_builtin_calls();
 
 	/*
-	 * Seal all functions that do not have their address taken.
+	 * Seal all functions that do analt have their address taken.
 	 */
 	apply_seal_endbr(__ibt_endbr_seal, __ibt_endbr_seal_end);
 
 #ifdef CONFIG_SMP
-	/* Patch to UP if other cpus not imminent. */
-	if (!noreplace_smp && (num_present_cpus() == 1 || setup_max_cpus <= 1)) {
+	/* Patch to UP if other cpus analt imminent. */
+	if (!analreplace_smp && (num_present_cpus() == 1 || setup_max_cpus <= 1)) {
 		uniproc_patched = true;
 		alternatives_smp_module_add(NULL, "core kernel",
 					    __smp_locks, __smp_locks_end,
@@ -1745,8 +1745,8 @@ void __init alternative_instructions(void)
  * @len: length to copy
  *
  * When you use this code to patch more than one byte of an instruction
- * you need to make sure that other CPUs cannot execute this code in parallel.
- * Also no thread must be currently preempted in the middle of these
+ * you need to make sure that other CPUs cananalt execute this code in parallel.
+ * Also anal thread must be currently preempted in the middle of these
  * instructions. And on the local CPU you need to be protected against NMI or
  * MCE handlers seeing an inconsistent instruction while you patch.
  */
@@ -1758,8 +1758,8 @@ void __init_or_module text_poke_early(void *addr, const void *opcode,
 	if (boot_cpu_has(X86_FEATURE_NX) &&
 	    is_module_text_address((unsigned long)addr)) {
 		/*
-		 * Modules text is marked initially as non-executable, so the
-		 * code cannot be running and speculative code-fetches are
+		 * Modules text is marked initially as analn-executable, so the
+		 * code cananalt be running and speculative code-fetches are
 		 * prevented. Just change the code.
 		 */
 		memcpy(addr, opcode, len);
@@ -1781,7 +1781,7 @@ typedef struct {
 } temp_mm_state_t;
 
 /*
- * Using a temporary mm allows to set temporary mappings that are not accessible
+ * Using a temporary mm allows to set temporary mappings that are analt accessible
  * by other CPUs. Such mappings are needed to perform sensitive memory writes
  * that override the kernel memory protections (e.g., W^X), without exposing the
  * temporary page-table mappings that are required for these write operations to
@@ -1800,7 +1800,7 @@ static inline temp_mm_state_t use_temporary_mm(struct mm_struct *mm)
 	lockdep_assert_irqs_disabled();
 
 	/*
-	 * Make sure not to be in TLB lazy mode, as otherwise we'll end up
+	 * Make sure analt to be in TLB lazy mode, as otherwise we'll end up
 	 * with a stale address space WITHOUT being in lazy mode after
 	 * restoring the previous mm.
 	 */
@@ -1816,7 +1816,7 @@ static inline temp_mm_state_t use_temporary_mm(struct mm_struct *mm)
 	 * in the temporary mm, which would lead to wrong signals being sent or
 	 * crashes.
 	 *
-	 * Note that breakpoints are not disabled selectively, which also causes
+	 * Analte that breakpoints are analt disabled selectively, which also causes
 	 * kernel breakpoints (e.g., perf's) to be disabled. This might be
 	 * undesirable, but still seems reasonable as the code that runs in the
 	 * temporary mm should be short.
@@ -1868,8 +1868,8 @@ static void *__text_poke(text_poke_f func, void *addr, const void *src, size_t l
 	pgprot_t pgprot;
 
 	/*
-	 * While boot memory allocator is running we cannot use struct pages as
-	 * they are not yet initialized. There is no way to recover.
+	 * While boot memory allocator is running we cananalt use struct pages as
+	 * they are analt yet initialized. There is anal way to recover.
 	 */
 	BUG_ON(!after_bootmem);
 
@@ -1884,24 +1884,24 @@ static void *__text_poke(text_poke_f func, void *addr, const void *src, size_t l
 			pages[1] = virt_to_page(addr + PAGE_SIZE);
 	}
 	/*
-	 * If something went wrong, crash and burn since recovery paths are not
+	 * If something went wrong, crash and burn since recovery paths are analt
 	 * implemented.
 	 */
 	BUG_ON(!pages[0] || (cross_page_boundary && !pages[1]));
 
 	/*
 	 * Map the page without the global bit, as TLB flushing is done with
-	 * flush_tlb_mm_range(), which is intended for non-global PTEs.
+	 * flush_tlb_mm_range(), which is intended for analn-global PTEs.
 	 */
 	pgprot = __pgprot(pgprot_val(PAGE_KERNEL) & ~_PAGE_GLOBAL);
 
 	/*
-	 * The lock is not really needed, but this allows to avoid open-coding.
+	 * The lock is analt really needed, but this allows to avoid open-coding.
 	 */
 	ptep = get_locked_pte(poking_mm, poking_addr, &ptl);
 
 	/*
-	 * This must not fail; preallocated in poking_init().
+	 * This must analt fail; preallocated in poking_init().
 	 */
 	VM_BUG_ON(!ptep);
 
@@ -1944,7 +1944,7 @@ static void *__text_poke(text_poke_f func, void *addr, const void *src, size_t l
 
 	/*
 	 * Flushing the TLB might involve IPIs, which would require enabled
-	 * IRQs, but not if the mm is not used, as it is in this point.
+	 * IRQs, but analt if the mm is analt used, as it is in this point.
 	 */
 	flush_tlb_mm_range(poking_mm, poking_addr, poking_addr +
 			   (cross_page_boundary ? 2 : 1) * PAGE_SIZE,
@@ -1952,8 +1952,8 @@ static void *__text_poke(text_poke_f func, void *addr, const void *src, size_t l
 
 	if (func == text_poke_memcpy) {
 		/*
-		 * If the text does not match what we just wrote then something is
-		 * fundamentally screwy; there's nothing we can really do about that.
+		 * If the text does analt match what we just wrote then something is
+		 * fundamentally screwy; there's analthing we can really do about that.
 		 */
 		BUG_ON(memcmp(addr, src, len));
 	}
@@ -1969,14 +1969,14 @@ static void *__text_poke(text_poke_f func, void *addr, const void *src, size_t l
  * @opcode: source of the copy
  * @len: length to copy
  *
- * Only atomic text poke/set should be allowed when not doing early patching.
+ * Only atomic text poke/set should be allowed when analt doing early patching.
  * It means the size must be writable atomically and the address must be aligned
  * in a way that permits an atomic write. It also makes sure we fit on a single
  * page.
  *
- * Note that the caller must ensure that if the modified code is part of a
- * module, the module would not be removed during poking. This can be achieved
- * by registering a module notifier, and ordering module removal and patching
+ * Analte that the caller must ensure that if the modified code is part of a
+ * module, the module would analt be removed during poking. This can be achieved
+ * by registering a module analtifier, and ordering module removal and patching
  * through a mutex.
  */
 void *text_poke(void *addr, const void *opcode, size_t len)
@@ -1992,13 +1992,13 @@ void *text_poke(void *addr, const void *opcode, size_t len)
  * @opcode: source of the copy
  * @len: length to copy
  *
- * Only atomic text poke/set should be allowed when not doing early patching.
+ * Only atomic text poke/set should be allowed when analt doing early patching.
  * It means the size must be writable atomically and the address must be aligned
  * in a way that permits an atomic write. It also makes sure we fit on a single
  * page.
  *
- * Context: should only be used by kgdb, which ensures no other core is running,
- *	    despite the fact it does not hold the text_mutex.
+ * Context: should only be used by kgdb, which ensures anal other core is running,
+ *	    despite the fact it does analt hold the text_mutex.
  */
 void *text_poke_kgdb(void *addr, const void *opcode, size_t len)
 {
@@ -2032,10 +2032,10 @@ void *text_poke_copy_locked(void *addr, const void *opcode, size_t len,
  * @opcode: source of the copy
  * @len: length to copy, could be more than 2x PAGE_SIZE
  *
- * Not safe against concurrent execution; useful for JITs to dump
+ * Analt safe against concurrent execution; useful for JITs to dump
  * new code blocks into unused regions of RX memory. Can be used in
  * conjunction with synchronize_rcu_tasks() to wait for existing
- * execution to quiesce after having made sure no existing functions
+ * execution to quiesce after having made sure anal existing functions
  * pointers are live.
  */
 void *text_poke_copy(void *addr, const void *opcode, size_t len)
@@ -2088,7 +2088,7 @@ void text_poke_sync(void)
 }
 
 /*
- * NOTE: crazy scheme to allow patching Jcc.d32 but not increase the size of
+ * ANALTE: crazy scheme to allow patching Jcc.d32 but analt increase the size of
  * this thing. When len == 6 everything is prefixed with 0x0f and we map
  * opcode to Jcc.d8, using len to distinguish.
  */
@@ -2116,7 +2116,7 @@ struct bp_patching_desc *try_get_desc(void)
 {
 	struct bp_patching_desc *desc = &bp_desc;
 
-	if (!raw_atomic_inc_not_zero(&desc->refs))
+	if (!raw_atomic_inc_analt_zero(&desc->refs))
 		return NULL;
 
 	return desc;
@@ -2146,7 +2146,7 @@ static __always_inline int patch_cmp(const void *key, const void *elt)
 	return 0;
 }
 
-noinstr int poke_int3_handler(struct pt_regs *regs)
+analinstr int poke_int3_handler(struct pt_regs *regs)
 {
 	struct bp_patching_desc *desc;
 	struct text_poke_loc *tp;
@@ -2157,8 +2157,8 @@ noinstr int poke_int3_handler(struct pt_regs *regs)
 		return 0;
 
 	/*
-	 * Having observed our INT3 instruction, we now must observe
-	 * bp_desc with non-zero refcount:
+	 * Having observed our INT3 instruction, we analw must observe
+	 * bp_desc with analn-zero refcount:
 	 *
 	 *	bp_desc.refs = 1		INT3
 	 *	WMB				RMB
@@ -2196,7 +2196,7 @@ noinstr int poke_int3_handler(struct pt_regs *regs)
 	case INT3_INSN_OPCODE:
 		/*
 		 * Someone poked an explicit INT3, they'll want to handle it,
-		 * do not consume.
+		 * do analt consume.
 		 */
 		goto out_put;
 
@@ -2266,7 +2266,7 @@ static void text_poke_bp_batch(struct text_poke_loc *tp, unsigned int nr_entries
 
 	/*
 	 * Corresponds to the implicit memory barrier in try_get_desc() to
-	 * ensure reading a non-zero refcount provides up to date bp_desc data.
+	 * ensure reading a analn-zero refcount provides up to date bp_desc data.
 	 */
 	atomic_set_release(&bp_desc.refs, 1);
 
@@ -2281,7 +2281,7 @@ static void text_poke_bp_batch(struct text_poke_loc *tp, unsigned int nr_entries
 	cond_resched();
 
 	/*
-	 * Corresponding read barrier in int3 notifier for making sure the
+	 * Corresponding read barrier in int3 analtifier for making sure the
 	 * nr_entries and handler are correctly ordered wrt. patching.
 	 */
 	smp_wmb();
@@ -2331,7 +2331,7 @@ static void text_poke_bp_batch(struct text_poke_loc *tp, unsigned int nr_entries
 		 *   - IPI-SYNC
 		 *   - write instruction tail
 		 * At this point the actual control flow will be through the
-		 * INT3 and handler and not hit the old or new instruction.
+		 * INT3 and handler and analt hit the old or new instruction.
 		 * Intel PT outputs FUP/TIP packets for the INT3, so the flow
 		 * can still be decoded. Subsequently:
 		 *   - emit RECORD_TEXT_POKE with the new instruction
@@ -2353,8 +2353,8 @@ static void text_poke_bp_batch(struct text_poke_loc *tp, unsigned int nr_entries
 	if (do_sync) {
 		/*
 		 * According to Intel, this core syncing is very likely
-		 * not necessary and we'd be safe even without it. But
-		 * better safe than sorry (plus there's not only Intel).
+		 * analt necessary and we'd be safe even without it. But
+		 * better safe than sorry (plus there's analt only Intel).
 		 */
 		text_poke_sync();
 	}
@@ -2440,21 +2440,21 @@ static void text_poke_loc_init(struct text_poke_loc *tp, void *addr,
 		tp->disp = insn.immediate.value;
 		break;
 
-	default: /* assume NOP */
+	default: /* assume ANALP */
 		switch (len) {
-		case 2: /* NOP2 -- emulate as JMP8+0 */
-			BUG_ON(memcmp(emulate, x86_nops[len], len));
+		case 2: /* ANALP2 -- emulate as JMP8+0 */
+			BUG_ON(memcmp(emulate, x86_analps[len], len));
 			tp->opcode = JMP8_INSN_OPCODE;
 			tp->disp = 0;
 			break;
 
-		case 5: /* NOP5 -- emulate as JMP32+0 */
-			BUG_ON(memcmp(emulate, x86_nops[len], len));
+		case 5: /* ANALP5 -- emulate as JMP32+0 */
+			BUG_ON(memcmp(emulate, x86_analps[len], len));
 			tp->opcode = JMP32_INSN_OPCODE;
 			tp->disp = 0;
 			break;
 
-		default: /* unknown instruction */
+		default: /* unkanalwn instruction */
 			BUG();
 		}
 		break;
@@ -2514,7 +2514,7 @@ void __ref text_poke_queue(void *addr, const void *opcode, size_t len, const voi
  *
  * Update a single instruction with the vector in the stack, avoiding
  * dynamically allocated memory. This function should be used when it is
- * not possible to allocate memory.
+ * analt possible to allocate memory.
  */
 void __ref text_poke_bp(void *addr, const void *opcode, size_t len, const void *emulate)
 {

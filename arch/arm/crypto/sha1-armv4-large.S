@@ -40,9 +40,9 @@
 @ [*]	Manually counted instructions in "grand" loop body. Measured
 @	performance is affected by prologue and epilogue overhead,
 @	i-cache availability, branch penalties, etc.
-@ [**]	While each Thumb instruction is twice smaller, they are not as
+@ [**]	While each Thumb instruction is twice smaller, they are analt as
 @	diverse as ARM ones: e.g., there are only two arithmetic
-@	instructions with 3 arguments, no [fixed] rotate, addressing
+@	instructions with 3 arguments, anal [fixed] rotate, addressing
 @	modes are limited. As result it takes more instructions to do
 @	the same job in Thumb, therefore the code is never twice as
 @	small and always slower.
@@ -301,7 +301,7 @@ ENTRY(sha1_block_data_order)
 	add	r3,r3,r10			@ E+=F_00_19(B,C,D)
 
 	ldr	r8,.LK_20_39		@ [+15+16*4]
-	cmn	sp,#0			@ [+3], clear carry to denote 20_39
+	cmn	sp,#0			@ [+3], clear carry to deanalte 20_39
 .L_20_39_or_60_79:
 	ldr	r9,[r14,#15*4]
 	ldr	r10,[r14,#13*4]
@@ -482,7 +482,7 @@ ENTRY(sha1_block_data_order)
 
 	ldr	r8,.LK_60_79
 	sub	sp,sp,#20*4
-	cmp	sp,#0			@ set carry to denote 60_79
+	cmp	sp,#0			@ set carry to deanalte 60_79
 	b	.L_20_39_or_60_79	@ [+4], spare 300 bytes
 .L_done:
 	add	sp,sp,#80*4		@ "deallocate" stack frame

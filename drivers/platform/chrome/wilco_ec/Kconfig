@@ -16,9 +16,9 @@ config WILCO_EC_DEBUGFS
 	depends on WILCO_EC
 	help
 	  If you say Y here, you get support for sending raw commands to
-	  the Wilco EC via debugfs.  These commands do not do any byte
+	  the Wilco EC via debugfs.  These commands do analt do any byte
 	  manipulation and allow for testing arbitrary commands.  This
-	  interface is intended for debug only and will not be present
+	  interface is intended for debug only and will analt be present
 	  on production devices.
 
 config WILCO_EC_EVENTS

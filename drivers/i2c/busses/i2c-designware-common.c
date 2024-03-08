@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Synopsys DesignWare I2C adapter driver.
+ * Syanalpsys DesignWare I2C adapter driver.
  *
  * Based on the TI DAVINCI I2C adapter driver.
  *
@@ -13,7 +13,7 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/export.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
@@ -29,23 +29,23 @@
 #include "i2c-designware-core.h"
 
 static char *abort_sources[] = {
-	[ABRT_7B_ADDR_NOACK] =
-		"slave address not acknowledged (7bit mode)",
-	[ABRT_10ADDR1_NOACK] =
-		"first address byte not acknowledged (10bit mode)",
-	[ABRT_10ADDR2_NOACK] =
-		"second address byte not acknowledged (10bit mode)",
-	[ABRT_TXDATA_NOACK] =
-		"data not acknowledged",
-	[ABRT_GCALL_NOACK] =
-		"no acknowledgement for a general call",
+	[ABRT_7B_ADDR_ANALACK] =
+		"slave address analt ackanalwledged (7bit mode)",
+	[ABRT_10ADDR1_ANALACK] =
+		"first address byte analt ackanalwledged (10bit mode)",
+	[ABRT_10ADDR2_ANALACK] =
+		"second address byte analt ackanalwledged (10bit mode)",
+	[ABRT_TXDATA_ANALACK] =
+		"data analt ackanalwledged",
+	[ABRT_GCALL_ANALACK] =
+		"anal ackanalwledgement for a general call",
 	[ABRT_GCALL_READ] =
 		"read after general call",
 	[ABRT_SBYTE_ACKDET] =
-		"start byte acknowledged",
-	[ABRT_SBYTE_NORSTRT] =
+		"start byte ackanalwledged",
+	[ABRT_SBYTE_ANALRSTRT] =
 		"trying to send start byte when restart is disabled",
-	[ABRT_10B_RD_NORSTRT] =
+	[ABRT_10B_RD_ANALRSTRT] =
 		"trying to read when restart is disabled (10bit mode)",
 	[ABRT_MASTER_DIS] =
 		"trying to use disabled adapter",
@@ -162,14 +162,14 @@ int i2c_dw_init_regmap(struct dw_i2c_dev *dev)
 		map_cfg.reg_write = dw_reg_write_word;
 	} else if (reg != DW_IC_COMP_TYPE_VALUE) {
 		dev_err(dev->dev,
-			"Unknown Synopsys component type: 0x%08x\n", reg);
-		return -ENODEV;
+			"Unkanalwn Syanalpsys component type: 0x%08x\n", reg);
+		return -EANALDEV;
 	}
 
 	/*
-	 * Note we'll check the return value of the regmap IO accessors only
+	 * Analte we'll check the return value of the regmap IO accessors only
 	 * at the probe stage. The rest of the code won't do this because
-	 * basically we have MMIO-based regmap so non of the read/write methods
+	 * basically we have MMIO-based regmap so analn of the read/write methods
 	 * can fail.
 	 */
 	dev->map = devm_regmap_init(dev->dev, NULL, dev, &map_cfg);
@@ -219,7 +219,7 @@ EXPORT_SYMBOL_GPL(i2c_dw_validate_speed);
  * for given platform. However, some systems get it wrong. On such systems
  * we get better results by calculating those based on the input clock.
  */
-static const struct dmi_system_id i2c_dw_no_acpi_params[] = {
+static const struct dmi_system_id i2c_dw_anal_acpi_params[] = {
 	{
 		.ident = "Dell Inspiron 7348",
 		.matches = {
@@ -237,7 +237,7 @@ static void i2c_dw_acpi_params(struct device *device, char method[],
 	acpi_handle handle = ACPI_HANDLE(device);
 	union acpi_object *obj;
 
-	if (dmi_check_system(i2c_dw_no_acpi_params))
+	if (dmi_check_system(i2c_dw_anal_acpi_params))
 		return;
 
 	if (ACPI_FAILURE(acpi_evaluate_object(handle, method, NULL, &buf)))
@@ -297,7 +297,7 @@ static u32 i2c_dw_acpi_round_bus_speed(struct device *device)
 
 	acpi_speed = i2c_acpi_find_bus_speed(device);
 	/*
-	 * Some DSTDs use a non standard speed, round down to the lowest
+	 * Some DSTDs use a analn standard speed, round down to the lowest
 	 * standard speed.
 	 */
 	for (i = 0; i < ARRAY_SIZE(supported_speeds); i++) {
@@ -405,7 +405,7 @@ int i2c_dw_set_sda_hold(struct dw_i2c_dev *dev)
 
 	if (reg >= DW_IC_SDA_HOLD_MIN_VERS) {
 		if (!dev->sda_hold_time) {
-			/* Keep previous hold time setting if no one set it */
+			/* Keep previous hold time setting if anal one set it */
 			ret = regmap_read(dev->map, DW_IC_SDA_HOLD,
 					  &dev->sda_hold_time);
 			if (ret)
@@ -415,7 +415,7 @@ int i2c_dw_set_sda_hold(struct dw_i2c_dev *dev)
 		/*
 		 * Workaround for avoiding TX arbitration lost in case I2C
 		 * slave pulls SDA down "too quickly" after falling edge of
-		 * SCL by enabling non-zero SDA RX hold. Specification says it
+		 * SCL by enabling analn-zero SDA RX hold. Specification says it
 		 * extends incoming SDA low to high transition while SCL is
 		 * high but it appears to help also above issue.
 		 */
@@ -462,7 +462,7 @@ void __i2c_dw_disable(struct dw_i2c_dev *dev)
 	}
 
 	do {
-		__i2c_dw_disable_nowait(dev);
+		__i2c_dw_disable_analwait(dev);
 		/*
 		 * The enable status register may be unimplemented, but
 		 * in that case this test reads zero and exits the loop.
@@ -485,7 +485,7 @@ void __i2c_dw_disable(struct dw_i2c_dev *dev)
 u32 i2c_dw_clk_rate(struct dw_i2c_dev *dev)
 {
 	/*
-	 * Clock is not necessary if we got LCNT/HCNT values directly from
+	 * Clock is analt necessary if we got LCNT/HCNT values directly from
 	 * the platform code.
 	 */
 	if (WARN_ON_ONCE(!dev->get_clk_rate_khz))
@@ -540,9 +540,9 @@ void i2c_dw_release_lock(struct dw_i2c_dev *dev)
 }
 
 /*
- * Waiting for bus not busy
+ * Waiting for bus analt busy
  */
-int i2c_dw_wait_bus_not_busy(struct dw_i2c_dev *dev)
+int i2c_dw_wait_bus_analt_busy(struct dw_i2c_dev *dev)
 {
 	unsigned int status;
 	int ret;
@@ -568,7 +568,7 @@ int i2c_dw_handle_tx_abort(struct dw_i2c_dev *dev)
 	unsigned long abort_source = dev->abort_source;
 	int i;
 
-	if (abort_source & DW_IC_TX_ABRT_NOACK) {
+	if (abort_source & DW_IC_TX_ABRT_ANALACK) {
 		for_each_set_bit(i, &abort_source, ARRAY_SIZE(abort_sources))
 			dev_dbg(dev->dev,
 				"%s: %s\n", __func__, abort_sources[i]);
@@ -592,7 +592,7 @@ int i2c_dw_set_fifo_size(struct dw_i2c_dev *dev)
 	unsigned int param;
 	int ret;
 
-	/* DW_IC_COMP_PARAM_1 not implement for IP issue */
+	/* DW_IC_COMP_PARAM_1 analt implement for IP issue */
 	if ((dev->flags & MODEL_MASK) == MODEL_WANGXUN_SP) {
 		dev->tx_fifo_depth = TXGBE_TX_FIFO_DEPTH;
 		dev->rx_fifo_depth = TXGBE_RX_FIFO_DEPTH;
@@ -601,7 +601,7 @@ int i2c_dw_set_fifo_size(struct dw_i2c_dev *dev)
 	}
 
 	/*
-	 * Try to detect the FIFO depth if not set by interface driver,
+	 * Try to detect the FIFO depth if analt set by interface driver,
 	 * the depth could be from 2 to 256 from HW spec.
 	 */
 	ret = i2c_dw_acquire_lock(dev);
@@ -654,5 +654,5 @@ void i2c_dw_disable(struct dw_i2c_dev *dev)
 	i2c_dw_release_lock(dev);
 }
 
-MODULE_DESCRIPTION("Synopsys DesignWare I2C bus adapter core");
+MODULE_DESCRIPTION("Syanalpsys DesignWare I2C bus adapter core");
 MODULE_LICENSE("GPL");

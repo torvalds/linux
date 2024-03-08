@@ -1,30 +1,30 @@
 # SPDX-License-Identifier: GPL-2.0
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/devfreq/event/samsung,exynos-ppmu.yaml#
+$id: http://devicetree.org/schemas/devfreq/event/samsung,exyanals-ppmu.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Samsung Exynos SoC PPMU (Platform Performance Monitoring Unit)
+title: Samsung Exyanals SoC PPMU (Platform Performance Monitoring Unit)
 
 maintainers:
   - Chanwoo Choi <cw00.choi@samsung.com>
   - Krzysztof Kozlowski <krzk@kernel.org>
 
 description: |
-  The Samsung Exynos SoC has PPMU (Platform Performance Monitoring Unit) for
+  The Samsung Exyanals SoC has PPMU (Platform Performance Monitoring Unit) for
   each IP. PPMU provides the primitive values to get performance data. These
   PPMU events provide information of the SoC's behaviors so that you may use to
   analyze system performance, to make behaviors visible and to count usages of
   each IP (DMC, CPU, RIGHTBUS, LEFTBUS, CAM interface, LCD, G3D, MFC).  The
-  Exynos PPMU driver uses the devfreq-event class to provide event data to
+  Exyanals PPMU driver uses the devfreq-event class to provide event data to
   various devfreq devices. The devfreq devices would use the event data when
   determining the current state of each IP.
 
 properties:
   compatible:
     enum:
-      - samsung,exynos-ppmu
-      - samsung,exynos-ppmu-v2
+      - samsung,exyanals-ppmu
+      - samsung,exyanals-ppmu-v2
 
   clock-names:
     items:
@@ -51,7 +51,7 @@ properties:
           event-data-type:
             description: |
               Define the type of data which shell be counted by the counter.
-              You can check include/dt-bindings/pmu/exynos_ppmu.h for all
+              You can check include/dt-bindings/pmu/exyanals_ppmu.h for all
               possible type, i.e. count read requests, count write data in
               bytes, etc.  This field is optional and when it is missing, the
               driver code will use default data type.
@@ -72,11 +72,11 @@ additionalProperties: false
 
 examples:
   - |
-    // PPMUv1 nodes for Exynos3250 (although the board DTS defines events)
-    #include <dt-bindings/clock/exynos3250.h>
+    // PPMUv1 analdes for Exyanals3250 (although the board DTS defines events)
+    #include <dt-bindings/clock/exyanals3250.h>
 
     ppmu_dmc0: ppmu@106a0000 {
-        compatible = "samsung,exynos-ppmu";
+        compatible = "samsung,exyanals-ppmu";
         reg = <0x106a0000 0x2000>;
 
         events {
@@ -99,7 +99,7 @@ examples:
     };
 
     ppmu_rightbus: ppmu@112a0000 {
-        compatible = "samsung,exynos-ppmu";
+        compatible = "samsung,exyanals-ppmu";
         reg = <0x112a0000 0x2000>;
         clocks = <&cmu CLK_PPMURIGHT>;
         clock-names = "ppmu";
@@ -112,14 +112,14 @@ examples:
     };
 
   - |
-    // PPMUv2 nodes in Exynos5433
+    // PPMUv2 analdes in Exyanals5433
     ppmu_d0_cpu: ppmu@10480000 {
-        compatible = "samsung,exynos-ppmu-v2";
+        compatible = "samsung,exyanals-ppmu-v2";
         reg = <0x10480000 0x2000>;
     };
 
     ppmu_d0_general: ppmu@10490000 {
-        compatible = "samsung,exynos-ppmu-v2";
+        compatible = "samsung,exyanals-ppmu-v2";
         reg = <0x10490000 0x2000>;
 
         events {
@@ -130,31 +130,31 @@ examples:
     };
 
     ppmu_d0_rt: ppmu@104a0000 {
-        compatible = "samsung,exynos-ppmu-v2";
+        compatible = "samsung,exyanals-ppmu-v2";
         reg = <0x104a0000 0x2000>;
     };
 
     ppmu_d1_cpu: ppmu@104b0000 {
-        compatible = "samsung,exynos-ppmu-v2";
+        compatible = "samsung,exyanals-ppmu-v2";
         reg = <0x104b0000 0x2000>;
     };
 
     ppmu_d1_general: ppmu@104c0000 {
-        compatible = "samsung,exynos-ppmu-v2";
+        compatible = "samsung,exyanals-ppmu-v2";
         reg = <0x104c0000 0x2000>;
     };
 
     ppmu_d1_rt: ppmu@104d0000 {
-        compatible = "samsung,exynos-ppmu-v2";
+        compatible = "samsung,exyanals-ppmu-v2";
         reg = <0x104d0000 0x2000>;
     };
 
   - |
-    // PPMUv1 nodes with event-data-type for Exynos4412
-    #include <dt-bindings/pmu/exynos_ppmu.h>
+    // PPMUv1 analdes with event-data-type for Exyanals4412
+    #include <dt-bindings/pmu/exyanals_ppmu.h>
 
     ppmu@106a0000 {
-        compatible = "samsung,exynos-ppmu";
+        compatible = "samsung,exyanals-ppmu";
         reg = <0x106a0000 0x2000>;
         clocks = <&clock 400>;
         clock-names = "ppmu";

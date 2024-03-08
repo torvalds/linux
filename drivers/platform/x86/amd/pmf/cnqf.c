@@ -27,7 +27,7 @@ static const char *state_as_str_cnqf(unsigned int state)
 	case APMF_CNQF_QUIET:
 		return "quiet";
 	default:
-		return "Unknown CnQF State";
+		return "Unkanalwn CnQF State";
 	}
 }
 
@@ -136,7 +136,7 @@ static const char *state_as_str(unsigned int state)
 	case CNQF_MODE_PERFORMANCE:
 		return "PERFORMANCE";
 	default:
-		return "Unknown CnQF mode";
+		return "Unkanalwn CnQF mode";
 	}
 }
 
@@ -163,7 +163,7 @@ int amd_pmf_trans_cnqf(struct amd_pmf_dev *dev, int socket_power, ktime_t time_l
 		amd_pmf_set_cnqf(dev, src, config_store.current_mode, NULL);
 	} else {
 		/*
-		 * Return from here if the platform_profile is not balanced
+		 * Return from here if the platform_profile is analt balanced
 		 * so that preference is given to user mode selection, rather
 		 * than enforcing CnQF to run all the time (if enabled)
 		 */
@@ -444,7 +444,7 @@ int amd_pmf_init_cnqf(struct amd_pmf_dev *dev)
 	int ret, src;
 
 	/*
-	 * Note the caller of this function has already checked that both
+	 * Analte the caller of this function has already checked that both
 	 * APMF_FUNC_DYN_SLIDER_AC and APMF_FUNC_DYN_SLIDER_DC are supported.
 	 */
 

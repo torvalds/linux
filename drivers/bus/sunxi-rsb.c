@@ -14,10 +14,10 @@
  *   write accesses; this replaces the ack bit
  * - only one read access is required to read a byte (instead of a write
  *   followed by a read access in standard SMBus protocol)
- * - there's no Ack bit after each read access
+ * - there's anal Ack bit after each read access
  *
- * This means this bus cannot be used to interface with standard SMBus
- * devices. Devices known to support this interface include the AXP223,
+ * This means this bus cananalt be used to interface with standard SMBus
+ * devices. Devices kanalwn to support this interface include the AXP223,
  * AXP809, and AXP806 PMICs, and the AC100 audio codec, all from X-Powers.
  *
  * A description of the operation and wire protocol can be found in the
@@ -142,13 +142,13 @@ static int sunxi_rsb_device_probe(struct device *dev)
 	int ret;
 
 	if (!drv->probe)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!rdev->irq) {
-		int irq = -ENOENT;
+		int irq = -EANALENT;
 
-		if (dev->of_node)
-			irq = of_irq_get(dev->of_node, 0);
+		if (dev->of_analde)
+			irq = of_irq_get(dev->of_analde, 0);
 
 		if (irq == -EPROBE_DEFER)
 			return irq;
@@ -158,7 +158,7 @@ static int sunxi_rsb_device_probe(struct device *dev)
 		rdev->irq = irq;
 	}
 
-	ret = of_clk_set_defaults(dev->of_node, false);
+	ret = of_clk_set_defaults(dev->of_analde, false);
 	if (ret < 0)
 		return ret;
 
@@ -195,26 +195,26 @@ static void sunxi_rsb_dev_release(struct device *dev)
 /**
  * sunxi_rsb_device_create() - allocate and add an RSB device
  * @rsb:	RSB controller
- * @node:	RSB slave device node
+ * @analde:	RSB slave device analde
  * @hwaddr:	RSB slave hardware address
  * @rtaddr:	RSB slave runtime address
  */
 static struct sunxi_rsb_device *sunxi_rsb_device_create(struct sunxi_rsb *rsb,
-		struct device_node *node, u16 hwaddr, u8 rtaddr)
+		struct device_analde *analde, u16 hwaddr, u8 rtaddr)
 {
 	int err;
 	struct sunxi_rsb_device *rdev;
 
 	rdev = kzalloc(sizeof(*rdev), GFP_KERNEL);
 	if (!rdev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	rdev->rsb = rsb;
 	rdev->hwaddr = hwaddr;
 	rdev->rtaddr = rtaddr;
 	rdev->dev.bus = &sunxi_rsb_bus;
 	rdev->dev.parent = rsb->dev;
-	rdev->dev.of_node = node;
+	rdev->dev.of_analde = analde;
 	rdev->dev.release = sunxi_rsb_dev_release;
 
 	dev_set_name(&rdev->dev, "%s-%x", RSB_CTRL_NAME, hwaddr);
@@ -481,7 +481,7 @@ static struct sunxi_rsb_ctx *regmap_sunxi_rsb_init_ctx(struct sunxi_rsb_device *
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ctx->rdev = rdev;
 	ctx->size = config->val_bits / 8;
@@ -545,17 +545,17 @@ static int sunxi_rsb_init_device_mode(struct sunxi_rsb *rsb)
 
 /*
  * There are 15 valid runtime addresses, though Allwinner typically
- * skips the first, for unknown reasons, and uses the following three.
+ * skips the first, for unkanalwn reasons, and uses the following three.
  *
  * 0x17, 0x2d, 0x3a, 0x4e, 0x59, 0x63, 0x74, 0x8b,
  * 0x9c, 0xa6, 0xb1, 0xc5, 0xd2, 0xe8, 0xff
  *
- * No designs with 2 RSB slave devices sharing identical hardware
+ * Anal designs with 2 RSB slave devices sharing identical hardware
  * addresses on the same bus have been seen in the wild. All designs
  * use 0x2d for the primary PMIC, 0x3a for the secondary PMIC if
  * there is one, and 0x45 for peripheral ICs.
  *
- * The hardware does not seem to support re-setting runtime addresses.
+ * The hardware does analt seem to support re-setting runtime addresses.
  * Attempts to do so result in the slave devices returning a NACK.
  * Hence we just hardcode the mapping here, like Allwinner does.
  */
@@ -580,7 +580,7 @@ static u8 sunxi_rsb_get_rtaddr(u16 hwaddr)
 static int of_rsb_register_devices(struct sunxi_rsb *rsb)
 {
 	struct device *dev = rsb->dev;
-	struct device_node *child, *np = dev->of_node;
+	struct device_analde *child, *np = dev->of_analde;
 	u32 hwaddr;
 	u8 rtaddr;
 	int ret;
@@ -589,7 +589,7 @@ static int of_rsb_register_devices(struct sunxi_rsb *rsb)
 		return -EINVAL;
 
 	/* Runtime addresses for all slaves should be set first */
-	for_each_available_child_of_node(np, child) {
+	for_each_available_child_of_analde(np, child) {
 		dev_dbg(dev, "setting child %pOF runtime address\n",
 			child);
 
@@ -602,13 +602,13 @@ static int of_rsb_register_devices(struct sunxi_rsb *rsb)
 
 		rtaddr = sunxi_rsb_get_rtaddr(hwaddr);
 		if (!rtaddr) {
-			dev_err(dev, "%pOF: unknown hardware device address\n",
+			dev_err(dev, "%pOF: unkanalwn hardware device address\n",
 				child);
 			continue;
 		}
 
 		/*
-		 * Since no devices have been registered yet, we are the
+		 * Since anal devices have been registered yet, we are the
 		 * only ones using the bus, we can skip locking the bus.
 		 */
 
@@ -625,7 +625,7 @@ static int of_rsb_register_devices(struct sunxi_rsb *rsb)
 	}
 
 	/* Then we start adding devices and probing them */
-	for_each_available_child_of_node(np, child) {
+	for_each_available_child_of_analde(np, child) {
 		struct sunxi_rsb_device *rdev;
 
 		dev_dbg(dev, "adding child %pOF\n", child);
@@ -745,7 +745,7 @@ static int __maybe_unused sunxi_rsb_resume(struct device *dev)
 static int sunxi_rsb_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct sunxi_rsb *rsb;
 	u32 clk_freq = 3000000;
 	int irq, ret;
@@ -760,7 +760,7 @@ static int sunxi_rsb_probe(struct platform_device *pdev)
 
 	rsb = devm_kzalloc(dev, sizeof(*rsb), GFP_KERNEL);
 	if (!rsb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rsb->dev = dev;
 	rsb->clk_freq = clk_freq;
@@ -806,7 +806,7 @@ static int sunxi_rsb_probe(struct platform_device *pdev)
 	if (ret)
 		dev_warn(dev, "Initialize device mode failed: %d\n", ret);
 
-	pm_suspend_ignore_children(dev, true);
+	pm_suspend_iganalre_children(dev, true);
 	pm_runtime_set_active(dev);
 	pm_runtime_set_autosuspend_delay(dev, MSEC_PER_SEC);
 	pm_runtime_use_autosuspend(dev);
@@ -829,7 +829,7 @@ static void sunxi_rsb_remove(struct platform_device *pdev)
 static const struct dev_pm_ops sunxi_rsb_dev_pm_ops = {
 	SET_RUNTIME_PM_OPS(sunxi_rsb_runtime_suspend,
 			   sunxi_rsb_runtime_resume, NULL)
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(sunxi_rsb_suspend, sunxi_rsb_resume)
+	SET_ANALIRQ_SYSTEM_SLEEP_PM_OPS(sunxi_rsb_suspend, sunxi_rsb_resume)
 };
 
 static const struct of_device_id sunxi_rsb_of_match_table[] = {

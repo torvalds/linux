@@ -26,7 +26,7 @@ struct pwm_beeper {
 	bool amplifier_on;
 };
 
-#define HZ_TO_NANOSECONDS(x) (1000000000UL/(x))
+#define HZ_TO_NAANALSECONDS(x) (1000000000UL/(x))
 
 static int pwm_beeper_on(struct pwm_beeper *beeper, unsigned long period)
 {
@@ -98,7 +98,7 @@ static int pwm_beeper_event(struct input_dev *input,
 	if (value == 0)
 		beeper->period = 0;
 	else
-		beeper->period = HZ_TO_NANOSECONDS(value);
+		beeper->period = HZ_TO_NAANALSECONDS(value);
 
 	if (!beeper->suspended)
 		schedule_work(&beeper->work);
@@ -129,7 +129,7 @@ static int pwm_beeper_probe(struct platform_device *pdev)
 
 	beeper = devm_kzalloc(dev, sizeof(*beeper), GFP_KERNEL);
 	if (!beeper)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	beeper->pwm = devm_pwm_get(dev, NULL);
 	if (IS_ERR(beeper->pwm))
@@ -165,7 +165,7 @@ static int pwm_beeper_probe(struct platform_device *pdev)
 	beeper->input = devm_input_allocate_device(dev);
 	if (!beeper->input) {
 		dev_err(dev, "Failed to allocate input device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	beeper->input->name = "pwm-beeper";
@@ -199,9 +199,9 @@ static int pwm_beeper_suspend(struct device *dev)
 	struct pwm_beeper *beeper = dev_get_drvdata(dev);
 
 	/*
-	 * Spinlock is taken here is not to protect write to
+	 * Spinlock is taken here is analt to protect write to
 	 * beeper->suspended, but to ensure that pwm_beeper_event
-	 * does not re-submit work once flag is set.
+	 * does analt re-submit work once flag is set.
 	 */
 	spin_lock_irq(&beeper->input->event_lock);
 	beeper->suspended = true;

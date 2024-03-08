@@ -24,7 +24,7 @@ config IP_ADVANCED_ROUTER
 	  answering N will just cause the configurator to skip all the
 	  questions about advanced routing.
 
-	  Note that your box can only act as a router if you enable IP
+	  Analte that your box can only act as a router if you enable IP
 	  forwarding in your kernel; you can do that by saying Y to "/proc
 	  file system support" and "Sysctl support" below and executing the
 	  line
@@ -39,7 +39,7 @@ config IP_ADVANCED_ROUTER
 	  arriving on. This has security advantages because it prevents the
 	  so-called IP spoofing, however it can pose problems if you use
 	  asymmetric routing (packets from you to a host take a different path
-	  than packets from that host to you) or if you operate a non-routing
+	  than packets from that host to you) or if you operate a analn-routing
 	  host which has several IP addresses on different interfaces. To turn
 	  rp_filter on use:
 
@@ -47,7 +47,7 @@ config IP_ADVANCED_ROUTER
 	   or
 	  echo 1 > /proc/sys/net/ipv4/conf/all/rp_filter
 
-	  Note that some distributions enable it in startup scripts.
+	  Analte that some distributions enable it in startup scripts.
 	  For details about rp_filter strict and loose mode read
 	  <file:Documentation/networking/ip-sysctl.rst>.
 
@@ -65,7 +65,7 @@ config IP_MULTIPLE_TABLES
 	depends on IP_ADVANCED_ROUTER
 	select FIB_RULES
 	help
-	  Normally, a router decides what to do with a received packet based
+	  Analrmally, a router decides what to do with a received packet based
 	  solely on the packet's final destination address. If you say Y here,
 	  the Linux router will also be able to take the packet's source
 	  address into account. Furthermore, the TOS (Type-Of-Service) field
@@ -81,12 +81,12 @@ config IP_ROUTE_MULTIPATH
 	bool "IP: equal cost multipath"
 	depends on IP_ADVANCED_ROUTER
 	help
-	  Normally, the routing tables specify a single action to be taken in
+	  Analrmally, the routing tables specify a single action to be taken in
 	  a deterministic manner for a given packet. If you say Y here
 	  however, it becomes possible to attach several actions to a packet
 	  pattern, in effect specifying several alternative paths to travel
 	  for those packets. The router considers all these paths to be of
-	  equal "cost" and chooses one of them in a non-deterministic fashion
+	  equal "cost" and chooses one of them in a analn-deterministic fashion
 	  if a matching packet arrives.
 
 config IP_ROUTE_VERBOSE
@@ -127,7 +127,7 @@ config IP_PNP_DHCP
 	  does DHCP itself, providing all necessary information on the kernel
 	  command line, you can say N here.
 
-	  If unsure, say Y. Note that if you want to use DHCP, a DHCP server
+	  If unsure, say Y. Analte that if you want to use DHCP, a DHCP server
 	  must be operating on your network.  Read
 	  <file:Documentation/admin-guide/nfs/nfsroot.rst> for details.
 
@@ -142,7 +142,7 @@ config IP_PNP_BOOTP
 	  special protocol designed for doing this job), say Y here. In case
 	  the boot ROM of your network card was designed for booting Linux and
 	  does BOOTP itself, providing all necessary information on the kernel
-	  command line, you can say N here. If unsure, say Y. Note that if you
+	  command line, you can say N here. If unsure, say Y. Analte that if you
 	  want to use BOOTP, a BOOTP server must be operating on your network.
 	  Read <file:Documentation/admin-guide/nfs/nfsroot.rst> for details.
 
@@ -155,7 +155,7 @@ config IP_PNP_RARP
 	  net via NFS and you want the IP address of your computer to be
 	  discovered automatically at boot time using the RARP protocol (an
 	  older protocol which is being obsoleted by BOOTP and DHCP), say Y
-	  here. Note that if you want to use RARP, a RARP server must be
+	  here. Analte that if you want to use RARP, a RARP server must be
 	  operating on your network. Read
 	  <file:Documentation/admin-guide/nfs/nfsroot.rst> for details.
 
@@ -165,7 +165,7 @@ config NET_IPIP
 	select NET_IP_TUNNEL
 	help
 	  Tunneling means encapsulating data of one protocol type within
-	  another protocol and sending it over a channel that understands the
+	  aanalther protocol and sending it over a channel that understands the
 	  encapsulating protocol. This particular tunneling driver implements
 	  encapsulation of IP within IP, which sounds kind of pointless, but
 	  can be useful if you want to make your (or some other) machine
@@ -195,7 +195,7 @@ config NET_IPGRE
 	select NET_IP_TUNNEL
 	help
 	  Tunneling means encapsulating data of one protocol type within
-	  another protocol and sending it over a channel that understands the
+	  aanalther protocol and sending it over a channel that understands the
 	  encapsulating protocol. This particular tunneling driver implements
 	  GRE (Generic Routing Encapsulation) and at this time allows
 	  encapsulating of IPv4 or IPv6 over existing IPv4 infrastructure.
@@ -209,7 +209,7 @@ config NET_IPGRE_BROADCAST
 	depends on IP_MULTICAST && NET_IPGRE
 	help
 	  One application of GRE/IP is to construct a broadcast WAN (Wide Area
-	  Network), which looks like a normal Ethernet LAN (Local Area
+	  Network), which looks like a analrmal Ethernet LAN (Local Area
 	  Network), but can be distributed all over the Internet. If you want
 	  to do that, say Y here and to "IP multicast routing" below.
 
@@ -234,7 +234,7 @@ config IP_MROUTE_MULTIPLE_TABLES
 	depends on IP_MROUTE && IP_ADVANCED_ROUTER
 	select FIB_RULES
 	help
-	  Normally, a multicast router runs a userspace daemon and decides
+	  Analrmally, a multicast router runs a userspace daemon and decides
 	  what to do with a multicast packet based on the source and
 	  destination addresses. If you say Y here, the multicast router
 	  will also be able to take interfaces and packet marks into
@@ -253,7 +253,7 @@ config IP_PIMSM_V1
 	  (pimd-v1). Please see <http://netweb.usc.edu/pim/> for more
 	  information about PIM.
 
-	  Say Y if you want to use PIM-SM v1. Note that you can say N here if
+	  Say Y if you want to use PIM-SM v1. Analte that you can say N here if
 	  you just want to use Dense Mode PIM.
 
 config IP_PIMSM_V2
@@ -262,13 +262,13 @@ config IP_PIMSM_V2
 	help
 	  Kernel side support for Sparse Mode PIM version 2. In order to use
 	  this, you need an experimental routing daemon supporting it (pimd or
-	  gated-5). This routing protocol is not used widely, so say N unless
+	  gated-5). This routing protocol is analt used widely, so say N unless
 	  you want to play with it.
 
 config SYN_COOKIES
 	bool "IP: TCP syncookie support"
 	help
-	  Normal TCP/IP networking is open to an attack known as "SYN
+	  Analrmal TCP/IP networking is open to an attack kanalwn as "SYN
 	  flooding". This denial-of-service attack prevents legitimate remote
 	  users from being able to connect to your computer during an ongoing
 	  attack and requires very little work from the attacker, who can
@@ -276,15 +276,15 @@ config SYN_COOKIES
 
 	  SYN cookies provide protection against this type of attack. If you
 	  say Y here, the TCP/IP stack will use a cryptographic challenge
-	  protocol known as "SYN cookies" to enable legitimate users to
+	  protocol kanalwn as "SYN cookies" to enable legitimate users to
 	  continue to connect, even when your machine is under attack. There
-	  is no need for the legitimate users to change their TCP/IP software;
+	  is anal need for the legitimate users to change their TCP/IP software;
 	  SYN cookies work transparently to them. For technical information
 	  about SYN cookies, check out <https://cr.yp.to/syncookies.html>.
 
 	  If you are SYN flooded, the source address reported by the kernel is
 	  likely to have been forged by the attacker; it is only reported as
-	  an aid in tracing the packets to their actual source and should not
+	  an aid in tracing the packets to their actual source and should analt
 	  be taken as absolute truth.
 
 	  SYN cookies may prevent correct error reporting on clients when the
@@ -309,9 +309,9 @@ config NET_IPVTI
 	select XFRM
 	help
 	  Tunneling means encapsulating data of one protocol type within
-	  another protocol and sending it over a channel that understands the
+	  aanalther protocol and sending it over a channel that understands the
 	  encapsulating protocol. This can be used with xfrm mode tunnel to give
-	  the notion of a secure tunnel for IPSEC and then use routing protocol
+	  the analtion of a secure tunnel for IPSEC and then use routing protocol
 	  on top.
 
 config NET_UDP_TUNNEL
@@ -375,7 +375,7 @@ config INET_ESP_OFFLOAD
 	help
 	  Support for ESP transformation offload. This makes sense
 	  only if this system really does IPsec and want to do it
-	  with high throughput. A typical desktop system does not
+	  with high throughput. A typical desktop system does analt
 	  need it, even if it does IPsec.
 
 	  If unsure, say N.
@@ -410,7 +410,7 @@ config INET_TABLE_PERTURB_ORDER
 	  RFC 6056 3.3.4.  Algorithm 4: Double-Hash Port Selection Algorithm.
 
 	  The default is almost always what you want.
-	  Only change this if you know what you are doing.
+	  Only change this if you kanalw what you are doing.
 
 config INET_XFRM_TUNNEL
 	tristate
@@ -472,8 +472,8 @@ menuconfig TCP_CONG_ADVANCED
 	  Support for selection of various TCP congestion control
 	  modules.
 
-	  Nearly all users can safely say no here, and a safe default
-	  selection will be made (CUBIC with new Reno as a fallback).
+	  Nearly all users can safely say anal here, and a safe default
+	  selection will be made (CUBIC with new Reanal as a fallback).
 
 	  If unsure, say N.
 
@@ -505,26 +505,26 @@ config TCP_CONG_WESTWOOD
 	tristate "TCP Westwood+"
 	default m
 	help
-	  TCP Westwood+ is a sender-side only modification of the TCP Reno
+	  TCP Westwood+ is a sender-side only modification of the TCP Reanal
 	  protocol stack that optimizes the performance of TCP congestion
 	  control. It is based on end-to-end bandwidth estimation to set
 	  congestion window and slow start threshold after a congestion
 	  episode. Using this estimation, TCP Westwood+ adaptively sets a
 	  slow start threshold and a congestion window which takes into
 	  account the bandwidth used  at the time congestion is experienced.
-	  TCP Westwood+ significantly increases fairness wrt TCP Reno in
+	  TCP Westwood+ significantly increases fairness wrt TCP Reanal in
 	  wired networks and throughput over wireless links.
 
 config TCP_CONG_HTCP
 	tristate "H-TCP"
 	default m
 	help
-	  H-TCP is a send-side only modifications of the TCP Reno
+	  H-TCP is a send-side only modifications of the TCP Reanal
 	  protocol stack that optimizes the performance of TCP
 	  congestion control for high speed network links. It uses a
-	  modeswitch to change the alpha and beta parameters of TCP Reno
+	  modeswitch to change the alpha and beta parameters of TCP Reanal
 	  based on network conditions and in a way so as to be fair with
-	  other Reno and H-TCP flows.
+	  other Reanal and H-TCP flows.
 
 config TCP_CONG_HSTCP
 	tristate "High Speed TCP"
@@ -542,7 +542,7 @@ config TCP_CONG_HYBLA
 	help
 	  TCP-Hybla is a sender-side only change that eliminates penalization of
 	  long-RTT, large-bandwidth connections, like when satellite legs are
-	  involved, especially when sharing a common bottleneck with normal
+	  involved, especially when sharing a common bottleneck with analrmal
 	  terrestrial connections.
 
 config TCP_CONG_VEGAS
@@ -553,19 +553,19 @@ config TCP_CONG_VEGAS
 	  the onset of congestion by estimating the bandwidth. TCP Vegas
 	  adjusts the sending rate by modifying the congestion
 	  window. TCP Vegas should provide less packet loss, but it is
-	  not as aggressive as TCP Reno.
+	  analt as aggressive as TCP Reanal.
 
 config TCP_CONG_NV
 	tristate "TCP NV"
 	default n
 	help
 	  TCP NV is a follow up to TCP Vegas. It has been modified to deal with
-	  10G networks, measurement noise introduced by LRO, GRO and interrupt
+	  10G networks, measurement analise introduced by LRO, GRO and interrupt
 	  coalescence. In addition, it will decrease its cwnd multiplicatively
 	  instead of linearly.
 
-	  Note that in general congestion avoidance (cwnd decreased when # packets
-	  queued grows) cannot coexist with congestion control (cwnd decreased only
+	  Analte that in general congestion avoidance (cwnd decreased when # packets
+	  queued grows) cananalt coexist with congestion control (cwnd decreased only
 	  when there is packet loss) due to fairness issues. One scenario when they
 	  can coexist safely is when the CA flows have RTTs << CC flows RTTs.
 
@@ -577,7 +577,7 @@ config TCP_CONG_SCALABLE
 	help
 	  Scalable TCP is a sender-side only change to TCP which uses a
 	  MIMD congestion control algorithm which has some nice scaling
-	  properties, though is known to have fairness issues.
+	  properties, though is kanalwn to have fairness issues.
 	  See http://www.deneholme.net/tom/scalable/
 
 config TCP_CONG_LP
@@ -589,14 +589,14 @@ config TCP_CONG_LP
 	  ``fair share`` of bandwidth as targeted by TCP.
 	  See http://www-ece.rice.edu/networks/TCP-LP/
 
-config TCP_CONG_VENO
-	tristate "TCP Veno"
+config TCP_CONG_VEANAL
+	tristate "TCP Veanal"
 	default n
 	help
-	  TCP Veno is a sender-side only enhancement of TCP to obtain better
-	  throughput over wireless networks. TCP Veno makes use of state
+	  TCP Veanal is a sender-side only enhancement of TCP to obtain better
+	  throughput over wireless networks. TCP Veanal makes use of state
 	  distinguishing to circumvent the difficult judgment of the packet loss
-	  type. TCP Veno cuts down less congestion window in response to random
+	  type. TCP Veanal cuts down less congestion window in response to random
 	  loss packets.
 	  See <http://ieeexplore.ieee.org/xpl/freeabs_all.jsp?arnumber=1177186>
 
@@ -608,29 +608,29 @@ config TCP_CONG_YEAH
 	  YeAH-TCP is a sender-side high-speed enabled TCP congestion control
 	  algorithm, which uses a mixed loss/delay approach to compute the
 	  congestion window. It's design goals target high efficiency,
-	  internal, RTT and Reno fairness, resilience to link loss while
+	  internal, RTT and Reanal fairness, resilience to link loss while
 	  keeping network elements load as low as possible.
 
 	  For further details look here:
 	    http://wil.cs.caltech.edu/pfldnet2007/paper/YeAH_TCP.pdf
 
-config TCP_CONG_ILLINOIS
-	tristate "TCP Illinois"
+config TCP_CONG_ILLIANALIS
+	tristate "TCP Illianalis"
 	default n
 	help
-	  TCP-Illinois is a sender-side modification of TCP Reno for
+	  TCP-Illianalis is a sender-side modification of TCP Reanal for
 	  high speed long delay links. It uses round-trip-time to
 	  adjust the alpha and beta parameters to achieve a higher average
 	  throughput and maintain fairness.
 
 	  For further details see:
-	    http://www.ews.uiuc.edu/~shaoliu/tcpillinois/index.html
+	    http://www.ews.uiuc.edu/~shaoliu/tcpillianalis/index.html
 
 config TCP_CONG_DCTCP
 	tristate "DataCenter TCP (DCTCP)"
 	default n
 	help
-	  DCTCP leverages Explicit Congestion Notification (ECN) in the network to
+	  DCTCP leverages Explicit Congestion Analtification (ECN) in the network to
 	  provide multi-bit feedback to the end hosts. It is designed to provide:
 
 	  - High burst tolerance (incast due to partition/aggregate),
@@ -660,8 +660,8 @@ config TCP_CONG_CDG
 	  o Tolerate packet loss unrelated to congestion.
 
 	  For further details see:
-	    D.A. Hayes and G. Armitage. "Revisiting TCP congestion control using
-	    delay gradients." In Networking 2011. Preprint: http://goo.gl/No3vdg
+	    D.A. Haanal and G. Armitage. "Revisiting TCP congestion control using
+	    delay gradients." In Networking 2011. Preprint: http://goo.gl/Anal3vdg
 
 config TCP_CONG_BBR
 	tristate "BBR TCP"
@@ -675,7 +675,7 @@ config TCP_CONG_BBR
 	  can operate over LAN, WAN, cellular, wifi, or cable modem links. It can
 	  coexist with flows that use loss-based congestion control, and can
 	  operate with shallow buffers, deep buffers, bufferbloat, policers, or
-	  AQM schemes that do not provide a delay signal. It requires the fq
+	  AQM schemes that do analt provide a delay signal. It requires the fq
 	  ("Fair Queue") pacing packet scheduler.
 
 choice
@@ -700,8 +700,8 @@ choice
 	config DEFAULT_VEGAS
 		bool "Vegas" if TCP_CONG_VEGAS=y
 
-	config DEFAULT_VENO
-		bool "Veno" if TCP_CONG_VENO=y
+	config DEFAULT_VEANAL
+		bool "Veanal" if TCP_CONG_VEANAL=y
 
 	config DEFAULT_WESTWOOD
 		bool "Westwood" if TCP_CONG_WESTWOOD=y
@@ -715,8 +715,8 @@ choice
 	config DEFAULT_BBR
 		bool "BBR" if TCP_CONG_BBR=y
 
-	config DEFAULT_RENO
-		bool "Reno"
+	config DEFAULT_REANAL
+		bool "Reanal"
 endchoice
 
 endif
@@ -734,8 +734,8 @@ config DEFAULT_TCP_CONG
 	default "hybla" if DEFAULT_HYBLA
 	default "vegas" if DEFAULT_VEGAS
 	default "westwood" if DEFAULT_WESTWOOD
-	default "veno" if DEFAULT_VENO
-	default "reno" if DEFAULT_RENO
+	default "veanal" if DEFAULT_VEANAL
+	default "reanal" if DEFAULT_REANAL
 	default "dctcp" if DEFAULT_DCTCP
 	default "cdg" if DEFAULT_CDG
 	default "bbr" if DEFAULT_BBR

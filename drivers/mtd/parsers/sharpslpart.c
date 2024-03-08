@@ -33,12 +33,12 @@
 #include <linux/mtd/partitions.h>
 
 /* oob structure */
-#define NAND_NOOB_LOGADDR_00		8
-#define NAND_NOOB_LOGADDR_01		9
-#define NAND_NOOB_LOGADDR_10		10
-#define NAND_NOOB_LOGADDR_11		11
-#define NAND_NOOB_LOGADDR_20		12
-#define NAND_NOOB_LOGADDR_21		13
+#define NAND_ANALOB_LOGADDR_00		8
+#define NAND_ANALOB_LOGADDR_01		9
+#define NAND_ANALOB_LOGADDR_10		10
+#define NAND_ANALOB_LOGADDR_11		11
+#define NAND_ANALOB_LOGADDR_20		12
+#define NAND_ANALOB_LOGADDR_21		13
 
 #define BLOCK_IS_RESERVED		0xffff
 #define BLOCK_UNMASK_COMPLEMENT		1
@@ -92,7 +92,7 @@ static int sharpsl_nand_check_ooblayout(struct mtd_info *mtd)
 			return 0;
 	}
 
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static int sharpsl_nand_read_oob(struct mtd_info *mtd, loff_t offs, u8 *buf)
@@ -134,18 +134,18 @@ static int sharpsl_nand_get_logical_num(u8 *oob)
 	u16 us;
 	int good0, good1;
 
-	if (oob[NAND_NOOB_LOGADDR_00] == oob[NAND_NOOB_LOGADDR_10] &&
-	    oob[NAND_NOOB_LOGADDR_01] == oob[NAND_NOOB_LOGADDR_11]) {
-		good0 = NAND_NOOB_LOGADDR_00;
-		good1 = NAND_NOOB_LOGADDR_01;
-	} else if (oob[NAND_NOOB_LOGADDR_10] == oob[NAND_NOOB_LOGADDR_20] &&
-		   oob[NAND_NOOB_LOGADDR_11] == oob[NAND_NOOB_LOGADDR_21]) {
-		good0 = NAND_NOOB_LOGADDR_10;
-		good1 = NAND_NOOB_LOGADDR_11;
-	} else if (oob[NAND_NOOB_LOGADDR_20] == oob[NAND_NOOB_LOGADDR_00] &&
-		   oob[NAND_NOOB_LOGADDR_21] == oob[NAND_NOOB_LOGADDR_01]) {
-		good0 = NAND_NOOB_LOGADDR_20;
-		good1 = NAND_NOOB_LOGADDR_21;
+	if (oob[NAND_ANALOB_LOGADDR_00] == oob[NAND_ANALOB_LOGADDR_10] &&
+	    oob[NAND_ANALOB_LOGADDR_01] == oob[NAND_ANALOB_LOGADDR_11]) {
+		good0 = NAND_ANALOB_LOGADDR_00;
+		good1 = NAND_ANALOB_LOGADDR_01;
+	} else if (oob[NAND_ANALOB_LOGADDR_10] == oob[NAND_ANALOB_LOGADDR_20] &&
+		   oob[NAND_ANALOB_LOGADDR_11] == oob[NAND_ANALOB_LOGADDR_21]) {
+		good0 = NAND_ANALOB_LOGADDR_10;
+		good1 = NAND_ANALOB_LOGADDR_11;
+	} else if (oob[NAND_ANALOB_LOGADDR_20] == oob[NAND_ANALOB_LOGADDR_00] &&
+		   oob[NAND_ANALOB_LOGADDR_21] == oob[NAND_ANALOB_LOGADDR_01]) {
+		good0 = NAND_ANALOB_LOGADDR_20;
+		good1 = NAND_ANALOB_LOGADDR_21;
 	} else {
 		return -EINVAL;
 	}
@@ -172,7 +172,7 @@ static int sharpsl_nand_init_ftl(struct mtd_info *mtd, struct sharpsl_ftl *ftl)
 
 	oob = kzalloc(mtd->oobsize, GFP_KERNEL);
 	if (!oob)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	phymax = mtd_div_by_eb(SHARPSL_FTL_PART_SIZE, mtd);
 
@@ -182,7 +182,7 @@ static int sharpsl_nand_init_ftl(struct mtd_info *mtd, struct sharpsl_ftl *ftl)
 	ftl->log2phy = kmalloc_array(ftl->logmax, sizeof(*ftl->log2phy),
 				     GFP_KERNEL);
 	if (!ftl->log2phy) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto exit;
 	}
 
@@ -248,7 +248,7 @@ static int sharpsl_nand_read_laddr(struct mtd_info *mtd,
 	block_ofs = mtd_mod_by_eb((u32)from, mtd);
 
 	err = mtd_read(mtd, block_adr + block_ofs, len, &retlen, buf);
-	/* Ignore corrected ECC errors */
+	/* Iganalre corrected ECC errors */
 	if (mtd_is_bitflip(err))
 		err = 0;
 
@@ -366,7 +366,7 @@ static int sharpsl_parse_mtd_partitions(struct mtd_info *master,
 				     sizeof(*sharpsl_nand_parts),
 				     GFP_KERNEL);
 	if (!sharpsl_nand_parts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* original names */
 	sharpsl_nand_parts[0].name = "smf";

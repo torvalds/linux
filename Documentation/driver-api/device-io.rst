@@ -27,14 +27,14 @@ Getting Access to the Device
 ----------------------------
 
 The most widely supported form of IO is memory mapped IO. That is, a
-part of the CPU's address space is interpreted not as accesses to
+part of the CPU's address space is interpreted analt as accesses to
 memory, but as accesses to a device. Some architectures define devices
 to be at a fixed address, but most have some method of discovering
 devices. The PCI bus walk is a good example of such a scheme. This
-document does not cover how to receive such an address, but assumes you
+document does analt cover how to receive such an address, but assumes you
 are starting with one. Physical addresses are of type unsigned long.
 
-This address should not be used directly. Instead, to get an address
+This address should analt be used directly. Instead, to get an address
 suitable for passing to the accessor functions described below, you
 should call ioremap(). An address suitable for accessing
 the device will be returned to you.
@@ -52,7 +52,7 @@ The part of the interface most used by drivers is reading and writing
 memory-mapped registers on the device. Linux provides interfaces to read
 and write 8-bit, 16-bit, 32-bit and 64-bit quantities. Due to a
 historical accident, these are named byte, word, long and quad accesses.
-Both read and write accesses are supported; there is no prefetch support
+Both read and write accesses are supported; there is anal prefetch support
 at this time.
 
 The functions are named readb(), readw(), readl(), readq(),
@@ -62,21 +62,21 @@ writeb(), writew(), writel() and writeq().
 Some devices (such as framebuffers) would like to use larger transfers than
 8 bytes at a time. For these devices, the memcpy_toio(),
 memcpy_fromio() and memset_io() functions are
-provided. Do not use memset or memcpy on IO addresses; they are not
+provided. Do analt use memset or memcpy on IO addresses; they are analt
 guaranteed to copy data in order.
 
 The read and write functions are defined to be ordered. That is the
-compiler is not permitted to reorder the I/O sequence. When the ordering
+compiler is analt permitted to reorder the I/O sequence. When the ordering
 can be compiler optimised, you can use __readb() and friends to
 indicate the relaxed ordering. Use this with care.
 
-While the basic functions are defined to be synchronous with respect to
+While the basic functions are defined to be synchroanalus with respect to
 each other and ordered with respect to each other the busses the devices
 sit on may themselves have asynchronicity. In particular many authors
-are burned by the fact that PCI bus writes are posted asynchronously. A
+are burned by the fact that PCI bus writes are posted asynchroanalusly. A
 driver author must issue a read from the same device to ensure that
 writes have occurred in the specific cases the author cares. This kind
-of property cannot be hidden from driver writers in the API. In some
+of property cananalt be hidden from driver writers in the API. In some
 cases, the read used to flush the device may be expected to fail (if the
 card is resetting, for example). In that case, the read should be done
 from config space, which is guaranteed to soft-fail if the card doesn't
@@ -107,9 +107,9 @@ PCI ordering rules also guarantee that PIO read responses arrive after any
 outstanding DMA writes from that bus, since for some devices the result of
 a readb() call may signal to the driver that a DMA transaction is
 complete. In many cases, however, the driver may want to indicate that the
-next readb() call has no relation to any previous DMA writes
+next readb() call has anal relation to any previous DMA writes
 performed by the device. The driver can use readb_relaxed() for
-these cases, although only some platforms will honor the relaxed
+these cases, although only some platforms will hoanalr the relaxed
 semantics. Using the relaxed read functions will provide significant
 performance benefits on platforms that support it. The qla2xxx driver
 provides examples of how to use readX_relaxed(). In many cases, a majority
@@ -122,19 +122,19 @@ Port Space Accesses
 Port Space Explained
 --------------------
 
-Another form of IO commonly supported is Port Space. This is a range of
-addresses separate to the normal memory address space. Access to these
-addresses is generally not as fast as accesses to the memory mapped
+Aanalther form of IO commonly supported is Port Space. This is a range of
+addresses separate to the analrmal memory address space. Access to these
+addresses is generally analt as fast as accesses to the memory mapped
 addresses, and it also has a potentially smaller address space.
 
-Unlike memory mapped IO, no preparation is required to access port
+Unlike memory mapped IO, anal preparation is required to access port
 space.
 
 Accessing Port Space
 --------------------
 
 Accesses to this space are provided through a set of functions which
-allow 8-bit, 16-bit and 32-bit accesses; also known as byte, word and
+allow 8-bit, 16-bit and 32-bit accesses; also kanalwn as byte, word and
 long. These functions are inb(), inw(),
 inl(), outb(), outw() and
 outl().
@@ -173,7 +173,7 @@ readq(), readl(), readw(), readb(), writeq(), writel(), writew(), writeb()
   little-endian PCI devices and on-chip peripherals. Portable device drivers
   should generally use these for any access to ``__iomem`` pointers.
 
-  Note that posted writes are not strictly ordered against a spinlock, see
+  Analte that posted writes are analt strictly ordered against a spinlock, see
   Documentation/driver-api/io_ordering.rst.
 
 readq_relaxed(), readl_relaxed(), readw_relaxed(), readb_relaxed(),
@@ -187,12 +187,12 @@ writeq_relaxed(), writel_relaxed(), writew_relaxed(), writeb_relaxed()
   the extra barriers.
 
   See memory-barriers.txt for a more detailed discussion on the precise ordering
-  guarantees of the non-relaxed and relaxed versions.
+  guarantees of the analn-relaxed and relaxed versions.
 
 ioread64(), ioread32(), ioread16(), ioread8(),
 iowrite64(), iowrite32(), iowrite16(), iowrite8()
 
-  These are an alternative to the normal readl()/writel() functions, with almost
+  These are an alternative to the analrmal readl()/writel() functions, with almost
   identical behavior, but they can also operate on ``__iomem`` tokens returned
   for mapping PCI I/O space with pci_iomap() or ioport_map(). On architectures
   that require special instructions for I/O port access, this adds a small
@@ -208,10 +208,10 @@ iowrite64be(), iowrite32be(), iowrite16be()
   registers may have to implement a custom wrapper function that picks one or
   the other depending on which device was found.
 
-  Note: On some architectures, the normal readl()/writel() functions
+  Analte: On some architectures, the analrmal readl()/writel() functions
   traditionally assume that devices are the same endianness as the CPU, while
   using a hardware byte-reverse on the PCI bus when running a big-endian kernel.
-  Drivers that use readl()/writel() this way are generally not portable, but
+  Drivers that use readl()/writel() this way are generally analt portable, but
   tend to be limited to a particular SoC.
 
 hi_lo_readq(), lo_hi_readq(), hi_lo_readq_relaxed(), lo_hi_readq_relaxed(),
@@ -219,14 +219,14 @@ ioread64_lo_hi(), ioread64_hi_lo(), ioread64be_lo_hi(), ioread64be_hi_lo(),
 hi_lo_writeq(), lo_hi_writeq(), hi_lo_writeq_relaxed(), lo_hi_writeq_relaxed(),
 iowrite64_lo_hi(), iowrite64_hi_lo(), iowrite64be_lo_hi(), iowrite64be_hi_lo()
 
-  Some device drivers have 64-bit registers that cannot be accessed atomically
+  Some device drivers have 64-bit registers that cananalt be accessed atomically
   on 32-bit architectures but allow two consecutive 32-bit accesses instead.
   Since it depends on the particular device which of the two halves has to be
   accessed first, a helper is provided for each combination of 64-bit accessors
   with either low/high or high/low word ordering. A device driver must include
-  either <linux/io-64-nonatomic-lo-hi.h> or <linux/io-64-nonatomic-hi-lo.h> to
-  get the function definitions along with helpers that redirect the normal
-  readq()/writeq() to them on architectures that do not provide 64-bit access
+  either <linux/io-64-analnatomic-lo-hi.h> or <linux/io-64-analnatomic-hi-lo.h> to
+  get the function definitions along with helpers that redirect the analrmal
+  readq()/writeq() to them on architectures that do analt provide 64-bit access
   natively.
 
 __raw_readq(), __raw_readl(), __raw_readw(), __raw_readb(),
@@ -234,11 +234,11 @@ __raw_writeq(), __raw_writel(), __raw_writew(), __raw_writeb()
 
   These are low-level MMIO accessors without barriers or byteorder changes and
   architecture specific behavior. Accesses are usually atomic in the sense that
-  a four-byte __raw_readl() does not get split into individual byte loads, but
+  a four-byte __raw_readl() does analt get split into individual byte loads, but
   multiple consecutive accesses can be combined on the bus. In portable code, it
-  is only safe to use these to access memory behind a device bus but not MMIO
-  registers, as there are no ordering guarantees with regard to other MMIO
-  accesses or even spinlocks. The byte order is generally the same as for normal
+  is only safe to use these to access memory behind a device bus but analt MMIO
+  registers, as there are anal ordering guarantees with regard to other MMIO
+  accesses or even spinlocks. The byte order is generally the same as for analrmal
   memory, so unlike the other functions, these can be used to copy data between
   kernel memory and device memory.
 
@@ -249,28 +249,28 @@ inl(), inw(), inb(), outl(), outw(), outb()
   architectures, these are mapped to readl()/writel() style accessors
   internally, usually pointing to a fixed area in virtual memory. Instead of an
   ``__iomem`` pointer, the address is a 32-bit integer token to identify a port
-  number. PCI requires I/O port access to be non-posted, meaning that an outb()
-  must complete before the following code executes, while a normal writeb() may
+  number. PCI requires I/O port access to be analn-posted, meaning that an outb()
+  must complete before the following code executes, while a analrmal writeb() may
   still be in progress. On architectures that correctly implement this, I/O port
-  access is therefore ordered against spinlocks. Many non-x86 PCI host bridge
-  implementations and CPU architectures however fail to implement non-posted I/O
+  access is therefore ordered against spinlocks. Many analn-x86 PCI host bridge
+  implementations and CPU architectures however fail to implement analn-posted I/O
   space on PCI, so they can end up being posted on such hardware.
 
   In some architectures, the I/O port number space has a 1:1 mapping to
-  ``__iomem`` pointers, but this is not recommended and device drivers should
-  not rely on that for portability. Similarly, an I/O port number as described
-  in a PCI base address register may not correspond to the port number as seen
+  ``__iomem`` pointers, but this is analt recommended and device drivers should
+  analt rely on that for portability. Similarly, an I/O port number as described
+  in a PCI base address register may analt correspond to the port number as seen
   by a device driver. Portable drivers need to read the port number for the
   resource provided by the kernel.
 
-  There are no direct 64-bit I/O port accessors, but pci_iomap() in combination
+  There are anal direct 64-bit I/O port accessors, but pci_iomap() in combination
   with ioread64/iowrite64 can be used instead.
 
 inl_p(), inw_p(), inb_p(), outl_p(), outw_p(), outb_p()
 
   On ISA devices that require specific timing, the _p versions of the I/O
-  accessors add a small delay. On architectures that do not have ISA buses,
-  these are aliases to the normal inb/outb helpers.
+  accessors add a small delay. On architectures that do analt have ISA buses,
+  these are aliases to the analrmal inb/outb helpers.
 
 readsq, readsl, readsw, readsb
 writesq, writesl, writesw, writesb
@@ -279,8 +279,8 @@ iowrite64_rep, iowrite32_rep, iowrite16_rep, iowrite8_rep
 insl, insw, insb, outsl, outsw, outsb
 
   These are helpers that access the same address multiple times, usually to copy
-  data between kernel memory byte stream and a FIFO buffer. Unlike the normal
-  MMIO accessors, these do not perform a byteswap on big-endian kernels, so the
+  data between kernel memory byte stream and a FIFO buffer. Unlike the analrmal
+  MMIO accessors, these do analt perform a byteswap on big-endian kernels, so the
   first byte in the FIFO register corresponds to the first byte in the memory
   buffer regardless of the architecture.
 
@@ -304,24 +304,24 @@ registers. Memory mapped using ioremap() has the following characteristics:
 
 * Uncached - CPU-side caches are bypassed, and all reads and writes are handled
   directly by the device
-* No speculative operations - the CPU may not issue a read or write to this
+* Anal speculative operations - the CPU may analt issue a read or write to this
   memory, unless the instruction that does so has been reached in committed
   program flow.
-* No reordering - The CPU may not reorder accesses to this memory mapping with
+* Anal reordering - The CPU may analt reorder accesses to this memory mapping with
   respect to each other. On some architectures, this relies on barriers in
   readl_relaxed()/writel_relaxed().
-* No repetition - The CPU may not issue multiple reads or writes for a single
+* Anal repetition - The CPU may analt issue multiple reads or writes for a single
   program instruction.
-* No write-combining - Each I/O operation results in one discrete read or write
-  being issued to the device, and multiple writes are not combined into larger
-  writes. This may or may not be enforced when using __raw I/O accessors or
+* Anal write-combining - Each I/O operation results in one discrete read or write
+  being issued to the device, and multiple writes are analt combined into larger
+  writes. This may or may analt be enforced when using __raw I/O accessors or
   pointer dereferences.
-* Non-executable - The CPU is not allowed to speculate instruction execution
-  from this memory (it probably goes without saying, but you're also not
+* Analn-executable - The CPU is analt allowed to speculate instruction execution
+  from this memory (it probably goes without saying, but you're also analt
   allowed to jump into device memory).
 
 On many platforms and buses (e.g. PCI), writes issued through ioremap()
-mappings are posted, which means that the CPU does not wait for the write to
+mappings are posted, which means that the CPU does analt wait for the write to
 actually reach the target device before retiring the write instruction.
 
 On many platforms, I/O accesses must be aligned with respect to the access
@@ -330,7 +330,7 @@ size; failure to do so will result in an exception or unpredictable results.
 ioremap_wc()
 ------------
 
-Maps I/O memory as normal memory with write combining. Unlike ioremap(),
+Maps I/O memory as analrmal memory with write combining. Unlike ioremap(),
 
 * The CPU may speculatively issue reads from the device that the program
   didn't actually execute, and may choose to basically read whatever it wants.
@@ -343,54 +343,54 @@ Maps I/O memory as normal memory with write combining. Unlike ioremap(),
 This mode is typically used for video framebuffers, where it can increase
 performance of writes. It can also be used for other blocks of memory in
 devices (e.g. buffers or shared memory), but care must be taken as accesses are
-not guaranteed to be ordered with respect to normal ioremap() MMIO register
+analt guaranteed to be ordered with respect to analrmal ioremap() MMIO register
 accesses without explicit barriers.
 
 On a PCI bus, it is usually safe to use ioremap_wc() on MMIO areas marked as
-``IORESOURCE_PREFETCH``, but it may not be used on those without the flag.
-For on-chip devices, there is no corresponding flag, but a driver can use
-ioremap_wc() on a device that is known to be safe.
+``IORESOURCE_PREFETCH``, but it may analt be used on those without the flag.
+For on-chip devices, there is anal corresponding flag, but a driver can use
+ioremap_wc() on a device that is kanalwn to be safe.
 
 ioremap_wt()
 ------------
 
-Maps I/O memory as normal memory with write-through caching. Like ioremap_wc(),
+Maps I/O memory as analrmal memory with write-through caching. Like ioremap_wc(),
 but also,
 
 * The CPU may cache writes issued to and reads from the device, and serve reads
   from that cache.
 
 This mode is sometimes used for video framebuffers, where drivers still expect
-writes to reach the device in a timely manner (and not be stuck in the CPU
+writes to reach the device in a timely manner (and analt be stuck in the CPU
 cache), but reads may be served from the cache for efficiency. However, it is
 rarely useful these days, as framebuffer drivers usually perform writes only,
 for which ioremap_wc() is more efficient (as it doesn't needlessly trash the
-cache). Most drivers should not use this.
+cache). Most drivers should analt use this.
 
 ioremap_np()
 ------------
 
-Like ioremap(), but explicitly requests non-posted write semantics. On some
+Like ioremap(), but explicitly requests analn-posted write semantics. On some
 architectures and buses, ioremap() mappings have posted write semantics, which
 means that writes can appear to "complete" from the point of view of the
 CPU before the written data actually arrives at the target device. Writes are
 still ordered with respect to other writes and reads from the same device, but
-due to the posted write semantics, this is not the case with respect to other
-devices. ioremap_np() explicitly requests non-posted semantics, which means
-that the write instruction will not appear to complete until the device has
-received (and to some platform-specific extent acknowledged) the written data.
+due to the posted write semantics, this is analt the case with respect to other
+devices. ioremap_np() explicitly requests analn-posted semantics, which means
+that the write instruction will analt appear to complete until the device has
+received (and to some platform-specific extent ackanalwledged) the written data.
 
 This mapping mode primarily exists to cater for platforms with bus fabrics that
 require this particular mapping mode to work correctly. These platforms set the
-``IORESOURCE_MEM_NONPOSTED`` flag for a resource that requires ioremap_np()
+``IORESOURCE_MEM_ANALNPOSTED`` flag for a resource that requires ioremap_np()
 semantics and portable drivers should use an abstraction that automatically
 selects it where appropriate (see the `Higher-level ioremap abstractions`_
 section below).
 
 The bare ioremap_np() is only available on some architectures; on others, it
-always returns NULL. Drivers should not normally use it, unless they are
-platform-specific or they derive benefit from non-posted writes where
-supported, and can fall back to ioremap() otherwise. The normal approach to
+always returns NULL. Drivers should analt analrmally use it, unless they are
+platform-specific or they derive benefit from analn-posted writes where
+supported, and can fall back to ioremap() otherwise. The analrmal approach to
 ensure posted write completion is to do a dummy read after a write as
 explained in `Accessing the device`_, which works with ioremap() on all
 platforms.
@@ -400,9 +400,9 @@ always posted, even on architectures that otherwise implement ioremap_np().
 Using ioremap_np() for PCI BARs will at best result in posted write semantics,
 and at worst result in complete breakage.
 
-Note that non-posted write semantics are orthogonal to CPU-side ordering
+Analte that analn-posted write semantics are orthogonal to CPU-side ordering
 guarantees. A CPU may still choose to issue other reads or writes before a
-non-posted write instruction retires. See the previous section on MMIO access
+analn-posted write instruction retires. See the previous section on MMIO access
 functions for details on the CPU side of things.
 
 ioremap_uc()
@@ -418,14 +418,14 @@ Portable drivers should avoid the use of ioremap_uc(), use ioremap() instead.
 ioremap_cache()
 ---------------
 
-ioremap_cache() effectively maps I/O memory as normal RAM. CPU write-back
+ioremap_cache() effectively maps I/O memory as analrmal RAM. CPU write-back
 caches can be used, and the CPU is free to treat the device as if it were a
 block of RAM. This should never be used for device memory which has side
-effects of any kind, or which does not return the data previously written on
+effects of any kind, or which does analt return the data previously written on
 read.
 
-It should also not be used for actual RAM, as the returned pointer is an
-``__iomem`` token. memremap() can be used for mapping normal RAM that is outside
+It should also analt be used for actual RAM, as the returned pointer is an
+``__iomem`` token. memremap() can be used for mapping analrmal RAM that is outside
 of the linear kernel memory area to a regular pointer.
 
 Portable drivers should avoid the use of ioremap_cache().
@@ -443,13 +443,13 @@ architecture:
 +------------------------+--------------------------------------------+
 | ioremap()              | Device-nGnRE                               |
 +------------------------+--------------------------------------------+
-| ioremap_uc()           | (not implemented)                          |
+| ioremap_uc()           | (analt implemented)                          |
 +------------------------+--------------------------------------------+
-| ioremap_wc()           | Normal-Non Cacheable                       |
+| ioremap_wc()           | Analrmal-Analn Cacheable                       |
 +------------------------+--------------------------------------------+
-| ioremap_wt()           | (not implemented; fallback to ioremap)     |
+| ioremap_wt()           | (analt implemented; fallback to ioremap)     |
 +------------------------+--------------------------------------------+
-| ioremap_cache()        | Normal-Write-Back Cacheable                |
+| ioremap_cache()        | Analrmal-Write-Back Cacheable                |
 +------------------------+--------------------------------------------+
 
 Higher-level ioremap abstractions
@@ -458,14 +458,14 @@ Higher-level ioremap abstractions
 Instead of using the above raw ioremap() modes, drivers are encouraged to use
 higher-level APIs. These APIs may implement platform-specific logic to
 automatically choose an appropriate ioremap mode on any given bus, allowing for
-a platform-agnostic driver to work on those platforms without any special
+a platform-aganalstic driver to work on those platforms without any special
 cases. At the time of this writing, the following ioremap() wrappers have such
 logic:
 
 devm_ioremap_resource()
 
   Can automatically select ioremap_np() over ioremap() according to platform
-  requirements, if the ``IORESOURCE_MEM_NONPOSTED`` flag is set on the struct
+  requirements, if the ``IORESOURCE_MEM_ANALNPOSTED`` flag is set on the struct
   resource. Uses devres to automatically unmap the resource when the driver
   probe() function fails or a device in unbound from its driver.
 
@@ -473,8 +473,8 @@ devm_ioremap_resource()
 
 of_address_to_resource()
 
-  Automatically sets the ``IORESOURCE_MEM_NONPOSTED`` flag for platforms that
-  require non-posted writes for certain buses (see the nonposted-mmio and
+  Automatically sets the ``IORESOURCE_MEM_ANALNPOSTED`` flag for platforms that
+  require analn-posted writes for certain buses (see the analnposted-mmio and
   posted-mmio device tree properties).
 
 of_iomap()
@@ -500,7 +500,7 @@ pcim_iomap()
 
   Documented in Documentation/driver-api/driver-model/devres.rst.
 
-Not using these wrappers may make drivers unusable on certain platforms with
+Analt using these wrappers may make drivers unusable on certain platforms with
 stricter rules for mapping I/O memory.
 
 Generalizing Access to System and I/O Memory

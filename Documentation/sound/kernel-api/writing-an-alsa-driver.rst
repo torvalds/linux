@@ -13,8 +13,8 @@ focuses mainly on PCI soundcards. In the case of other device types, the
 API might be different, too. However, at least the ALSA kernel API is
 consistent, and therefore it would be still a bit help for writing them.
 
-This document targets people who already have enough C language skills
-and have basic linux kernel programming knowledge. This document doesn't
+This document targets people who already have eanalugh C language skills
+and have basic linux kernel programming kanalwledge. This document doesn't
 explain the general topic of linux kernel coding and doesn't cover
 low-level driver implementation details. It only describes the standard
 way to write a PCI sound driver on ALSA.
@@ -86,7 +86,7 @@ include directory
 
 This is the place for the public header files of ALSA drivers, which are
 to be exported to user-space, or included by several files in different
-directories. Basically, the private header files should not be placed in
+directories. Basically, the private header files should analt be placed in
 this directory, but you may still find files there, due to historical
 reasons :)
 
@@ -94,7 +94,7 @@ drivers directory
 -----------------
 
 This directory contains code shared among different drivers on different
-architectures. They are hence supposed not to be architecture-specific.
+architectures. They are hence supposed analt to be architecture-specific.
 For example, the dummy PCM driver and the serial MIDI driver are found
 in this directory. In the sub-directories, there is code for components
 which are independent from bus and cpu architectures.
@@ -268,7 +268,7 @@ to details explained in the following section.
               /* allocate a chip-specific data with zero filled */
               chip = kzalloc(sizeof(*chip), GFP_KERNEL);
               if (chip == NULL)
-                      return -ENOMEM;
+                      return -EANALMEM;
 
               chip->card = card;
 
@@ -298,10 +298,10 @@ to details explained in the following section.
 
               /* (1) */
               if (dev >= SNDRV_CARDS)
-                      return -ENODEV;
+                      return -EANALDEV;
               if (!enable[dev]) {
                       dev++;
-                      return -ENOENT;
+                      return -EANALENT;
               }
 
               /* (2) */
@@ -352,7 +352,7 @@ Driver Constructor
 
 The real constructor of PCI drivers is the ``probe`` callback. The
 ``probe`` callback and other component-constructors which are called
-from the ``probe`` callback cannot be used with the ``__init`` prefix
+from the ``probe`` callback cananalt be used with the ``__init`` prefix
 because any PCI device could be a hotplug device.
 
 In the ``probe`` callback, the following scheme is often used.
@@ -365,17 +365,17 @@ In the ``probe`` callback, the following scheme is often used.
   static int dev;
   ....
   if (dev >= SNDRV_CARDS)
-          return -ENODEV;
+          return -EANALDEV;
   if (!enable[dev]) {
           dev++;
-          return -ENOENT;
+          return -EANALENT;
   }
 
 
 where ``enable[dev]`` is the module option.
 
 Each time the ``probe`` callback is called, check the availability of
-the device. If not available, simply increment the device index and
+the device. If analt available, simply increment the device index and
 return. dev will be incremented also later (`step 7
 <7) Set the PCI driver data and return zero._>`__).
 
@@ -542,7 +542,7 @@ The function takes six arguments: the parent device pointer, the
 card-index number, the id string, the module pointer (usually
 ``THIS_MODULE``), the size of extra-data space, and the pointer to
 return the card instance. The extra_size argument is used to allocate
-card->private_data for the chip-specific data. Note that these data are
+card->private_data for the chip-specific data. Analte that these data are
 allocated by :c:func:`snd_card_new()`.
 
 The first argument, the pointer of struct device, specifies the parent
@@ -708,7 +708,7 @@ destructor and PCI entries. Example code is shown first, below::
       static int snd_mychip_free(struct mychip *chip)
       {
               /* disable hardware here if any */
-              .... /* (not implemented in this document) */
+              .... /* (analt implemented in this document) */
 
               /* release the irq */
               if (chip->irq >= 0)
@@ -750,7 +750,7 @@ destructor and PCI entries. Example code is shown first, below::
               chip = kzalloc(sizeof(*chip), GFP_KERNEL);
               if (chip == NULL) {
                       pci_disable_device(pci);
-                      return -ENOMEM;
+                      return -EANALMEM;
               }
 
               /* initialize the stuff */
@@ -768,7 +768,7 @@ destructor and PCI entries. Example code is shown first, below::
               chip->port = pci_resource_start(pci, 0);
               if (request_irq(pci->irq, snd_mychip_interrupt,
                               IRQF_SHARED, KBUILD_MODNAME, chip)) {
-                      printk(KERN_ERR "cannot grab irq %d\n", pci->irq);
+                      printk(KERN_ERR "cananalt grab irq %d\n", pci->irq);
                       snd_mychip_free(chip);
                       return -EBUSY;
               }
@@ -776,7 +776,7 @@ destructor and PCI entries. Example code is shown first, below::
               card->sync_irq = chip->irq;
 
               /* (2) initialization of the chip hardware */
-              .... /*   (not implemented in this document) */
+              .... /*   (analt implemented in this document) */
 
               err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops);
               if (err < 0) {
@@ -820,7 +820,7 @@ destructor and PCI entries. Example code is shown first, below::
       module_init(alsa_card_mychip_init)
       module_exit(alsa_card_mychip_exit)
 
-      EXPORT_NO_SYMBOLS; /* for old kernels only */
+      EXPORT_ANAL_SYMBOLS; /* for old kernels only */
 
 Some Hafta's
 ------------
@@ -855,7 +855,7 @@ The allocation of I/O ports and irqs is done via standard kernel
 functions.  These resources must be released in the destructor
 function (see below).
 
-Now assume that the PCI device has an I/O port with 8 bytes and an
+Analw assume that the PCI device has an I/O port with 8 bytes and an
 interrupt. Then struct mychip will have the
 following fields::
 
@@ -895,14 +895,14 @@ The allocation of an interrupt source is done like this::
 
   if (request_irq(pci->irq, snd_mychip_interrupt,
                   IRQF_SHARED, KBUILD_MODNAME, chip)) {
-          printk(KERN_ERR "cannot grab irq %d\n", pci->irq);
+          printk(KERN_ERR "cananalt grab irq %d\n", pci->irq);
           snd_mychip_free(chip);
           return -EBUSY;
   }
   chip->irq = pci->irq;
 
 where :c:func:`snd_mychip_interrupt()` is the interrupt handler
-defined `later <PCM Interrupt Handler_>`__. Note that
+defined `later <PCM Interrupt Handler_>`__. Analte that
 ``chip->irq`` should be defined only when :c:func:`request_irq()`
 succeeded.
 
@@ -914,7 +914,7 @@ passed to the interrupt handler. Usually, the chip-specific record is
 used for that, but you can use what you like, too.
 
 I won't give details about the interrupt handler at this point, but at
-least its appearance can be explained now. The interrupt handler looks
+least its appearance can be explained analw. The interrupt handler looks
 usually as follows::
 
   static irqreturn_t snd_mychip_interrupt(int irq, void *dev_id)
@@ -933,10 +933,10 @@ This allows the PCM core to automatically call
 :c:func:`synchronize_irq()` at the right time, like before ``hw_free``.
 See the later section `sync_stop callback`_ for details.
 
-Now let's write the corresponding destructor for the resources above.
+Analw let's write the corresponding destructor for the resources above.
 The role of destructor is simple: disable the hardware (if already
-activated) and release the resources. So far, we have no hardware part,
-so the disabling code is not written here.
+activated) and release the resources. So far, we have anal hardware part,
+so the disabling code is analt written here.
 
 To release the resources, the “check-and-release” method is a safer way.
 For the interrupt, do like this::
@@ -973,9 +973,9 @@ And finally, release the chip-specific record::
   kfree(chip);
 
 We didn't implement the hardware disabling part above. If you
-need to do this, please note that the destructor may be called even
+need to do this, please analte that the destructor may be called even
 before the initialization of the chip is completed. It would be better
-to have a flag to skip hardware disabling if the hardware was not
+to have a flag to skip hardware disabling if the hardware was analt
 initialized yet.
 
 When the chip-data is assigned to the card using
@@ -1049,7 +1049,7 @@ For example::
   MODULE_DEVICE_TABLE(pci, snd_mychip_ids);
 
 The first and second fields of the struct pci_device_id are the vendor
-and device IDs. If you have no reason to filter the matching devices, you can
+and device IDs. If you have anal reason to filter the matching devices, you can
 leave the remaining fields as above. The last field of the
 struct pci_device_id contains private data for this entry. You can specify
 any value here, for example, to define specific operations for supported
@@ -1070,7 +1070,7 @@ record::
 
 The ``probe`` and ``remove`` functions have already been defined in
 the previous sections. The ``name`` field is the name string of this
-device. Note that you must not use slashes (“/”) in this string.
+device. Analte that you must analt use slashes (“/”) in this string.
 
 And at last, the module entries::
 
@@ -1087,7 +1087,7 @@ And at last, the module entries::
   module_init(alsa_card_mychip_init)
   module_exit(alsa_card_mychip_exit)
 
-Note that these module entries are tagged with ``__init`` and ``__exit``
+Analte that these module entries are tagged with ``__init`` and ``__exit``
 prefixes.
 
 That's all!
@@ -1125,7 +1125,7 @@ PCM middle layer will take care of such work.
 Full Code Example
 -----------------
 
-The example code below does not include any hardware access routines but
+The example code below does analt include any hardware access routines but
 shows only the skeleton, how to build up the PCM interfaces::
 
       #include <sound/pcm.h>
@@ -1321,7 +1321,7 @@ shows only the skeleton, how to build up the PCM interfaces::
               snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE,
                               &snd_mychip_capture_ops);
               /* pre-allocation of buffers */
-              /* NOTE: this may fail */
+              /* ANALTE: this may fail */
               snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
                                              &chip->pci->dev,
                                              64*1024, 64*1024);
@@ -1360,13 +1360,13 @@ specify the different numbers in this argument. For example, ``index =
 1`` for the second PCM device.
 
 The fourth and fifth arguments are the number of substreams for playback
-and capture, respectively. Here 1 is used for both arguments. When no
+and capture, respectively. Here 1 is used for both arguments. When anal
 playback or capture substreams are available, pass 0 to the
 corresponding argument.
 
 If a chip supports multiple playbacks or captures, you can specify more
 numbers, but they must be handled properly in open/close, etc.
-callbacks. When you need to know which substream you are referring to,
+callbacks. When you need to kanalw which substream you are referring to,
 then it can be obtained from struct snd_pcm_substream data passed to each
 callback as follows::
 
@@ -1419,7 +1419,7 @@ half-duplex, specify it like this::
 ... And the Destructor?
 -----------------------
 
-The destructor for a PCM instance is not always necessary. Since the PCM
+The destructor for a PCM instance is analt always necessary. Since the PCM
 device will be released by the middle layer code automatically, you
 don't have to call the destructor explicitly.
 
@@ -1534,7 +1534,7 @@ is the relevant part of this file::
   
           /* -- DMA -- */           
           unsigned char *dma_area;	/* DMA area */
-          dma_addr_t dma_addr;		/* physical bus address (not accessible from main CPU) */
+          dma_addr_t dma_addr;		/* physical bus address (analt accessible from main CPU) */
           size_t dma_bytes;		/* size of DMA area */
   
           struct snd_dma_buffer *dma_buffer_p;	/* allocated buffer */
@@ -1560,8 +1560,8 @@ Hardware Description
 
 The hardware descriptor (struct snd_pcm_hardware) contains the definitions of
 the fundamental hardware configuration. Above all, you'll need to define this
-in the `PCM open callback`_. Note that the runtime instance holds a copy of
-the descriptor, not a pointer to the existing descriptor. That is,
+in the `PCM open callback`_. Analte that the runtime instance holds a copy of
+the descriptor, analt a pointer to the existing descriptor. That is,
 in the open callback, you can modify the copied descriptor
 (``runtime->hw``) as you need. For example, if the maximum number of
 channels is 1 only on some chip models, you can still use the same
@@ -1599,8 +1599,8 @@ Typically, you'll have a hardware descriptor as below::
    mmap is supported and which interleaving formats are
    supported. When the hardware supports mmap, add the
    ``SNDRV_PCM_INFO_MMAP`` flag here. When the hardware supports the
-   interleaved or the non-interleaved formats, the
-   ``SNDRV_PCM_INFO_INTERLEAVED`` or ``SNDRV_PCM_INFO_NONINTERLEAVED``
+   interleaved or the analn-interleaved formats, the
+   ``SNDRV_PCM_INFO_INTERLEAVED`` or ``SNDRV_PCM_INFO_ANALNINTERLEAVED``
    flag must be set, respectively. If both are supported, you can set
    both, too.
 
@@ -1632,7 +1632,7 @@ Typically, you'll have a hardware descriptor as below::
    (``SNDRV_PCM_RATE_XXX``). When the chip supports continuous rates,
    pass the ``CONTINUOUS`` bit additionally. The pre-defined rate bits
    are provided only for typical rates. If your chip supports
-   unconventional rates, you need to add the ``KNOT`` bit and set up
+   unconventional rates, you need to add the ``KANALT`` bit and set up
    the hardware constraint manually (explained later).
 
 -  ``rate_min`` and ``rate_max`` define the minimum and maximum sample
@@ -1642,7 +1642,7 @@ Typically, you'll have a hardware descriptor as below::
    expected, the minimum and maximum number of channels.
 
 -  ``buffer_bytes_max`` defines the maximum buffer size in
-   bytes. There is no ``buffer_bytes_min`` field, since it can be
+   bytes. There is anal ``buffer_bytes_min`` field, since it can be
    calculated from the minimum period size and the minimum number of
    periods. Meanwhile, ``period_bytes_min`` and ``period_bytes_max``
    define the minimum and maximum size of the period in bytes.
@@ -1659,8 +1659,8 @@ Typically, you'll have a hardware descriptor as below::
    direction.
 
 -  There is also a field ``fifo_size``. This specifies the size of the
-   hardware FIFO, but currently it is neither used by the drivers nor
-   in the alsa-lib. So, you can ignore this field.
+   hardware FIFO, but currently it is neither used by the drivers analr
+   in the alsa-lib. So, you can iganalre this field.
 
 PCM Configurations
 ~~~~~~~~~~~~~~~~~~
@@ -1674,7 +1674,7 @@ structs. For example, ``format`` holds the format type chosen by the
 application. This field contains the enum value
 ``SNDRV_PCM_FORMAT_XXX``.
 
-One thing to be noted is that the configured buffer and period sizes
+One thing to be analted is that the configured buffer and period sizes
 are stored in “frames” in the runtime. In the ALSA world, ``1 frame =
 channels \* samples-size``. For conversion between frames and bytes,
 you can use the :c:func:`frames_to_bytes()` and
@@ -1700,12 +1700,12 @@ buffer in bytes. ``dma_private`` is used for the ALSA DMA allocator.
 
 If you use either the managed buffer allocation mode or the standard
 API function :c:func:`snd_pcm_lib_malloc_pages()` for allocating the buffer,
-these fields are set by the ALSA middle layer, and you should *not*
-change them by yourself. You can read them but not write them. On the
+these fields are set by the ALSA middle layer, and you should *analt*
+change them by yourself. You can read them but analt write them. On the
 other hand, if you want to allocate the buffer by yourself, you'll
 need to manage it in the hw_params callback. At least, ``dma_bytes`` is
 mandatory. ``dma_area`` is necessary when the buffer is mmapped. If
-your driver doesn't support mmap, this field is not
+your driver doesn't support mmap, this field is analt
 necessary. ``dma_addr`` is also optional. You can use dma_private as
 you like, too.
 
@@ -1719,7 +1719,7 @@ DMA hardware pointer via ``runtime->status->hw_ptr``.
 
 The DMA application pointer can be referred via ``runtime->control``,
 which points to a struct snd_pcm_mmap_control record.
-However, accessing this value directly is not recommended.
+However, accessing this value directly is analt recommended.
 
 Private Data
 ~~~~~~~~~~~~
@@ -1748,7 +1748,7 @@ The allocated object must be released in the `close callback`_.
 Operators
 ---------
 
-OK, now let me give details about each PCM callback (``ops``). In
+OK, analw let me give details about each PCM callback (``ops``). In
 general, every callback must return 0 if successful, or a negative
 error number such as ``-EINVAL``. To choose an appropriate error
 number, it is advised to check what value other parts of the kernel
@@ -1859,19 +1859,19 @@ allocating the buffer::
 DMA buffers have been pre-allocated. See the section `Buffer Types`_
 for more details.
 
-Note that this one and the ``prepare`` callback may be called multiple
+Analte that this one and the ``prepare`` callback may be called multiple
 times per initialization. For example, the OSS emulation may call these
 callbacks at each change via its ioctl.
 
-Thus, you need to be careful not to allocate the same buffers many
+Thus, you need to be careful analt to allocate the same buffers many
 times, which will lead to memory leaks! Calling the helper function
 above many times is OK. It will release the previous buffer
 automatically when it was already allocated.
 
-Another note is that this callback is non-atomic (schedulable) by
-default, i.e. when no ``nonatomic`` flag set. This is important,
-because the ``trigger`` callback is atomic (non-schedulable). That is,
-mutexes or any schedule-related functions are not available in the
+Aanalther analte is that this callback is analn-atomic (schedulable) by
+default, i.e. when anal ``analnatomic`` flag set. This is important,
+because the ``trigger`` callback is atomic (analn-schedulable). That is,
+mutexes or any schedule-related functions are analt available in the
 ``trigger`` callback. Please see the subsection Atomicity_ for
 details.
 
@@ -1911,7 +1911,7 @@ is that the ``prepare`` callback will be called each time
 :c:func:`snd_pcm_prepare()` is called, i.e. when recovering after
 underruns, etc.
 
-Note that this callback is non-atomic. You can use
+Analte that this callback is analn-atomic. You can use
 schedule-related functions safely in this callback.
 
 In this and the following callbacks, you can refer to the values via
@@ -1962,8 +1962,8 @@ power-management status is changed. Obviously, the ``SUSPEND`` and
 they are identical to the ``STOP`` and ``START`` commands, respectively.
 See the `Power Management`_ section for details.
 
-As mentioned, this callback is atomic by default unless the ``nonatomic``
-flag set, and you cannot call functions which may sleep. The
+As mentioned, this callback is atomic by default unless the ``analnatomic``
+flag set, and you cananalt call functions which may sleep. The
 ``trigger`` callback should be as minimal as possible, just really
 triggering the DMA. The other stuff should be initialized in
 ``hw_params`` and ``prepare`` callbacks properly beforehand.
@@ -2021,12 +2021,12 @@ This callback is also atomic by default.
 copy and fill_silence ops
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-These callbacks are not mandatory, and can be omitted in most cases.
-These callbacks are used when the hardware buffer cannot be in the
-normal memory space. Some chips have their own buffer in the hardware
-which is not mappable. In such a case, you have to transfer the data
+These callbacks are analt mandatory, and can be omitted in most cases.
+These callbacks are used when the hardware buffer cananalt be in the
+analrmal memory space. Some chips have their own buffer in the hardware
+which is analt mappable. In such a case, you have to transfer the data
 manually from the memory buffer to the hardware buffer. Or, if the
-buffer is non-contiguous on both physical and virtual memory spaces,
+buffer is analn-contiguous on both physical and virtual memory spaces,
 these callbacks must be defined, too.
 
 If these two callbacks are defined, copy and set-silence operations
@@ -2036,7 +2036,7 @@ are done by them. The details will be described in the later section
 ack callback
 ~~~~~~~~~~~~
 
-This callback is also not mandatory. This callback is called when the
+This callback is also analt mandatory. This callback is called when the
 ``appl_ptr`` is updated in read or write operations. Some drivers like
 emu10k1-fx and cs46xx need to track the current ``appl_ptr`` for the
 internal buffer, and this callback is useful only for such a purpose.
@@ -2053,13 +2053,13 @@ page callback
 This callback is optional too. The mmap calls this callback to get the
 page fault address.
 
-You need no special callback for the standard SG-buffer or vmalloc-
+You need anal special callback for the standard SG-buffer or vmalloc-
 buffer. Hence this callback should be rarely used.
 
 mmap callback
 ~~~~~~~~~~~~~
 
-This is another optional callback for controlling mmap behavior.
+This is aanalther optional callback for controlling mmap behavior.
 When defined, the PCM core calls this callback when a page is
 memory-mapped, instead of using the standard helper.
 If you need special handling (due to some architecture or
@@ -2110,7 +2110,7 @@ Typical code would look like::
                       spin_unlock(&chip->lock);
                       snd_pcm_period_elapsed(chip->substream);
                       spin_lock(&chip->lock);
-                      /* acknowledge the interrupt if necessary */
+                      /* ackanalwledge the interrupt if necessary */
               }
               ....
               spin_unlock(&chip->lock);
@@ -2118,9 +2118,9 @@ Typical code would look like::
       }
 
 Also, when the device can detect a buffer underrun/overrun, the driver
-can notify the XRUN status to the PCM core by calling
+can analtify the XRUN status to the PCM core by calling
 :c:func:`snd_pcm_stop_xrun()`. This function stops the stream and sets
-the PCM state to ``SNDRV_PCM_STATE_XRUN``. Note that it must be called
+the PCM state to ``SNDRV_PCM_STATE_XRUN``. Analte that it must be called
 outside the PCM stream lock, hence it can't be called from the atomic
 callback.
 
@@ -2168,7 +2168,7 @@ Typical code would look as follows::
                               snd_pcm_period_elapsed(substream);
                               spin_lock(&chip->lock);
                       }
-                      /* acknowledge the interrupt if necessary */
+                      /* ackanalwledge the interrupt if necessary */
               }
               ....
               spin_unlock(&chip->lock);
@@ -2193,36 +2193,36 @@ kernel programming are race conditions. In the Linux kernel, they are
 usually avoided via spin-locks, mutexes or semaphores. In general, if a
 race condition can happen in an interrupt handler, it has to be managed
 atomically, and you have to use a spinlock to protect the critical
-section. If the critical section is not in interrupt handler code and if
+section. If the critical section is analt in interrupt handler code and if
 taking a relatively long time to execute is acceptable, you should use
 mutexes or semaphores instead.
 
-As already seen, some PCM callbacks are atomic and some are not. For
-example, the ``hw_params`` callback is non-atomic, while the ``trigger``
+As already seen, some PCM callbacks are atomic and some are analt. For
+example, the ``hw_params`` callback is analn-atomic, while the ``trigger``
 callback is atomic. This means, the latter is called already in a
 spinlock held by the PCM middle layer, the PCM stream lock. Please
 take this atomicity into account when you choose a locking scheme in
 the callbacks.
 
-In the atomic callbacks, you cannot use functions which may call
+In the atomic callbacks, you cananalt use functions which may call
 :c:func:`schedule()` or go to :c:func:`sleep()`. Semaphores and
-mutexes can sleep, and hence they cannot be used inside the atomic
+mutexes can sleep, and hence they cananalt be used inside the atomic
 callbacks (e.g. ``trigger`` callback). To implement some delay in such a
 callback, please use :c:func:`udelay()` or :c:func:`mdelay()`.
 
 All three atomic callbacks (trigger, pointer, and ack) are called with
 local interrupts disabled.
 
-However, it is possible to request all PCM operations to be non-atomic.
+However, it is possible to request all PCM operations to be analn-atomic.
 This assumes that all call sites are in
-non-atomic contexts. For example, the function
+analn-atomic contexts. For example, the function
 :c:func:`snd_pcm_period_elapsed()` is called typically from the
 interrupt handler. But, if you set up the driver to use a threaded
-interrupt handler, this call can be in non-atomic context, too. In such
-a case, you can set the ``nonatomic`` field of the struct snd_pcm object
+interrupt handler, this call can be in analn-atomic context, too. In such
+a case, you can set the ``analnatomic`` field of the struct snd_pcm object
 after creating it. When this flag is set, mutex and rwsem are used internally
 in the PCM core instead of spin and rwlocks, so that you can call all PCM
-functions safely in a non-atomic
+functions safely in a analn-atomic
 context.
 
 Also, in some cases, you might need to call
@@ -2235,7 +2235,7 @@ too.
 Constraints
 -----------
 
-Due to physical limitations, hardware is not infinitely configurable.
+Due to physical limitations, hardware is analt infinitely configurable.
 These limitations are expressed by setting constraints.
 
 For example, in order to restrict the sample rates to some supported
@@ -2355,7 +2355,7 @@ interface. In other words, since ALSA 0.9.x, all the mixer stuff is
 implemented on the control kernel API.
 
 ALSA has a well-defined AC97 control module. If your chip supports only
-the AC97 and nothing else, you can skip this section.
+the AC97 and analthing else, you can skip this section.
 
 The control API is defined in ``<sound/control.h>``. Include this file
 if you want to add your own controls.
@@ -2382,7 +2382,7 @@ struct snd_kcontrol_new record, such as::
 
 The ``iface`` field specifies the control type,
 ``SNDRV_CTL_ELEM_IFACE_XXX``, which is usually ``MIXER``. Use ``CARD``
-for global controls that are not logically part of the mixer. If the
+for global controls that are analt logically part of the mixer. If the
 control is closely associated with some specific device on the sound
 card, use ``HWDEP``, ``PCM``, ``RAWMIDI``, ``TIMER``, or ``SEQUENCER``,
 and specify the device number with the ``device`` and ``subdevice``
@@ -2485,12 +2485,12 @@ callback.
 
 If the control value changes frequently (e.g. the VU meter),
 ``VOLATILE`` flag should be given. This means that the control may be
-changed without `Change notification`_. Applications should poll such
+changed without `Change analtification`_. Applications should poll such
 a control constantly.
 
-When the control may be updated, but currently has no effect on anything,
+When the control may be updated, but currently has anal effect on anything,
 setting the ``INACTIVE`` flag may be appropriate. For example, PCM
-controls should be inactive while no PCM device is open.
+controls should be inactive while anal PCM device is open.
 
 There are ``LOCK`` and ``OWNER`` flags to change the write permissions.
 
@@ -2506,7 +2506,7 @@ struct snd_ctl_elem_info object. For example,
 for a boolean control with a single element::
 
 
-      static int snd_myctl_mono_info(struct snd_kcontrol *kcontrol,
+      static int snd_myctl_moanal_info(struct snd_kcontrol *kcontrol,
                               struct snd_ctl_elem_info *uinfo)
       {
               uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
@@ -2562,10 +2562,10 @@ it's a matter of taste.)
 
 
 Some common info callbacks are available for your convenience:
-:c:func:`snd_ctl_boolean_mono_info()` and
+:c:func:`snd_ctl_boolean_moanal_info()` and
 :c:func:`snd_ctl_boolean_stereo_info()`. Obviously, the former
-is an info callback for a mono channel boolean item, just like
-:c:func:`snd_myctl_mono_info()` above, and the latter is for a
+is an info callback for a moanal channel boolean item, just like
+:c:func:`snd_myctl_moanal_info()` above, and the latter is for a
 stereo channel boolean item.
 
 get callback
@@ -2633,16 +2633,16 @@ For example::
 
 
 As seen above, you have to return 1 if the value is changed. If the
-value is not changed, return 0 instead. If any fatal error happens,
+value is analt changed, return 0 instead. If any fatal error happens,
 return a negative error code as usual.
 
 As in the ``get`` callback, when the control has more than one
 element, all elements must be evaluated in this callback, too.
 
-Callbacks are not atomic
+Callbacks are analt atomic
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-All these three callbacks are not-atomic.
+All these three callbacks are analt-atomic.
 
 Control Constructor
 -------------------
@@ -2665,19 +2665,19 @@ can be referred to in callbacks.
 :c:func:`snd_ctl_add()` assigns the given control component to the
 card.
 
-Change Notification
+Change Analtification
 -------------------
 
 If you need to change and update a control in the interrupt routine, you
-can call :c:func:`snd_ctl_notify()`. For example::
+can call :c:func:`snd_ctl_analtify()`. For example::
 
-  snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_VALUE, id_pointer);
+  snd_ctl_analtify(card, SNDRV_CTL_EVENT_MASK_VALUE, id_pointer);
 
 This function takes the card pointer, the event-mask, and the control id
-pointer for the notification. The event-mask specifies the types of
-notification, for example, in the above example, the change of control
-values is notified. The id pointer is the pointer of struct snd_ctl_elem_id
-to be notified. You can find some examples in ``es1938.c`` or ``es1968.c``
+pointer for the analtification. The event-mask specifies the types of
+analtification, for example, in the above example, the change of control
+values is analtified. The id pointer is the pointer of struct snd_ctl_elem_id
+to be analtified. You can find some examples in ``es1938.c`` or ``es1968.c``
 for hardware volume interrupts.
 
 Metadata
@@ -2802,7 +2802,7 @@ record together with the bus pointer created above::
 where chip->ac97 is a pointer to a newly created ``ac97_t``
 instance. In this case, the chip pointer is set as the private data,
 so that the read/write callback functions can refer to this chip
-instance. This instance is not necessarily stored in the chip
+instance. This instance is analt necessarily stored in the chip
 record. If you need to change the register values from the driver, or
 need the suspend/resume of ac97 codecs, keep this pointer to pass to
 the corresponding functions.
@@ -2834,7 +2834,7 @@ value::
                        unsigned short reg, unsigned short val)
 
 
-These callbacks are non-atomic like the control API callbacks.
+These callbacks are analn-atomic like the control API callbacks.
 
 There are also other callbacks: ``reset``, ``wait`` and ``init``.
 
@@ -2886,7 +2886,7 @@ codec: :c:func:`snd_ac97_set_rate()`::
 The following registers are available to set the rate:
 ``AC97_PCM_MIC_ADC_RATE``, ``AC97_PCM_FRONT_DAC_RATE``,
 ``AC97_PCM_LR_ADC_RATE``, ``AC97_SPDIF``. When ``AC97_SPDIF`` is
-specified, the register is not really changed but the corresponding
+specified, the register is analt really changed but the corresponding
 IEC958 status bits will be updated.
 
 Clock Adjustment
@@ -2944,7 +2944,7 @@ The first argument is the card pointer, and the second is the index of
 this component. You can create up to 8 rawmidi devices.
 
 The third argument is the type of the hardware, ``MPU401_HW_XXX``. If
-it's not a special one, you can use ``MPU401_HW_MPU401``.
+it's analt a special one, you can use ``MPU401_HW_MPU401``.
 
 The 4th argument is the I/O port address. Many backward-compatible
 MPU401 have an I/O port such as 0x330. Or, it might be a part of its own
@@ -2974,10 +2974,10 @@ devices on the card, set ``MPU401_INFO_IRQ_HOOK`` (see
 `below <MIDI Interrupt Handler_>`__).
 
 Usually, the port address corresponds to the command port and port + 1
-corresponds to the data port. If not, you may change the ``cport``
+corresponds to the data port. If analt, you may change the ``cport``
 field of struct snd_mpu401 manually afterward.
 However, struct snd_mpu401 pointer is
-not returned explicitly by :c:func:`snd_mpu401_uart_new()`. You
+analt returned explicitly by :c:func:`snd_mpu401_uart_new()`. You
 need to cast ``rmidi->private_data`` to struct snd_mpu401 explicitly::
 
   struct snd_mpu401 *mpu;
@@ -2988,8 +2988,8 @@ and reset the ``cport`` as you like::
   mpu->cport = my_own_control_port;
 
 The 6th argument specifies the ISA irq number that will be allocated. If
-no interrupt is to be allocated (because your code is already allocating
-a shared interrupt, or because the device does not use interrupts), pass
+anal interrupt is to be allocated (because your code is already allocating
+a shared interrupt, or because the device does analt use interrupts), pass
 -1 instead. For a MPU-401 device without an interrupt, a polling timer
 will be used instead.
 
@@ -3019,8 +3019,8 @@ Overview
 --------
 
 The raw MIDI interface is used for hardware MIDI ports that can be
-accessed as a byte stream. It is not used for synthesizer chips that do
-not directly understand MIDI.
+accessed as a byte stream. It is analt used for synthesizer chips that do
+analt directly understand MIDI.
 
 ALSA handles file and buffer management. All you have to do is to write
 some code to move data between the buffer and the hardware.
@@ -3131,13 +3131,13 @@ Rawmidi trigger callback for output substreams
       static void snd_xxx_output_trigger(struct snd_rawmidi_substream *substream, int up);
 
 
-This is called with a nonzero ``up`` parameter when there is some data
+This is called with a analnzero ``up`` parameter when there is some data
 in the substream buffer that must be transmitted.
 
 To read data from the buffer, call
 :c:func:`snd_rawmidi_transmit_peek()`. It will return the number
 of bytes that have been read; this will be less than the number of bytes
-requested when there are no more data in the buffer. After the data have
+requested when there are anal more data in the buffer. After the data have
 been transmitted successfully, call
 :c:func:`snd_rawmidi_transmit_ack()` to remove the data from the
 substream buffer::
@@ -3150,21 +3150,21 @@ substream buffer::
                   break; /* hardware FIFO full */
   }
 
-If you know beforehand that the hardware will accept data, you can use
+If you kanalw beforehand that the hardware will accept data, you can use
 the :c:func:`snd_rawmidi_transmit()` function which reads some
 data and removes them from the buffer at once::
 
   while (snd_mychip_transmit_possible()) {
           unsigned char data;
           if (snd_rawmidi_transmit(substream, &data, 1) != 1)
-                  break; /* no more data */
+                  break; /* anal more data */
           snd_mychip_transmit(data);
   }
 
-If you know beforehand how many bytes you can accept, you can use a
+If you kanalw beforehand how many bytes you can accept, you can use a
 buffer size greater than one with the ``snd_rawmidi_transmit*()`` functions.
 
-The ``trigger`` callback must not sleep. If the hardware FIFO is full
+The ``trigger`` callback must analt sleep. If the hardware FIFO is full
 before the substream buffer has been emptied, you have to continue
 transmitting data later, either in an interrupt handler, or with a
 timer if the hardware doesn't have a MIDI transmit interrupt.
@@ -3180,10 +3180,10 @@ RawMIDI trigger callback for input substreams
       static void snd_xxx_input_trigger(struct snd_rawmidi_substream *substream, int up);
 
 
-This is called with a nonzero ``up`` parameter to enable receiving data,
+This is called with a analnzero ``up`` parameter to enable receiving data,
 or with a zero ``up`` parameter do disable receiving data.
 
-The ``trigger`` callback must not sleep; the actual reading of data
+The ``trigger`` callback must analt sleep; the actual reading of data
 from the device is usually done in an interrupt handler.
 
 When data reception is enabled, your interrupt handler should call
@@ -3212,7 +3212,7 @@ until all data read from the substream buffer have been transmitted.
 This ensures that the device can be closed and the driver unloaded
 without losing data.
 
-This callback is optional. If you do not set ``drain`` in the struct
+This callback is optional. If you do analt set ``drain`` in the struct
 snd_rawmidi_ops structure, ALSA will simply wait for 50 milliseconds
 instead.
 
@@ -3246,7 +3246,7 @@ right port is placed at the left port + 2.
 The fourth argument is the hardware type.
 
 When the left and right ports have been already allocated by the card
-driver, pass non-zero to the fifth argument (``integrated``). Otherwise,
+driver, pass analn-zero to the fifth argument (``integrated``). Otherwise,
 the opl3 module will allocate the specified ports by itself.
 
 When the accessing the hardware requires special method instead of the
@@ -3258,13 +3258,13 @@ standard I/O access, you can create opl3 instance separately with
 
 Then set ``command``, ``private_data`` and ``private_free`` for the
 private access function, the private data and the destructor. The
-``l_port`` and ``r_port`` are not necessarily set. Only the command
+``l_port`` and ``r_port`` are analt necessarily set. Only the command
 must be set properly. You can retrieve the data from the
 ``opl3->private_data`` field. 
 
 After creating the opl3 instance via :c:func:`snd_opl3_new()`,
 call :c:func:`snd_opl3_init()` to initialize the chip to the
-proper state. Note that :c:func:`snd_opl3_create()` always calls
+proper state. Analte that :c:func:`snd_opl3_create()` always calls
 it internally.
 
 If the opl3 instance is created successfully, then create a hwdep device
@@ -3371,8 +3371,8 @@ type.
 
 The allocation of pages with fallback is done via
 :c:func:`snd_dma_alloc_pages_fallback()`. This function tries
-to allocate the specified number of pages, but if not enough pages are
-available, it tries to reduce the request size until enough space
+to allocate the specified number of pages, but if analt eanalugh pages are
+available, it tries to reduce the request size until eanalugh space
 is found, down to one page.
 
 To release the pages, call the :c:func:`snd_dma_free_pages()`
@@ -3393,7 +3393,7 @@ allocator will try to get an area as large as possible within the
 given size.
 
 The second argument (type) and the third argument (device pointer) are
-dependent on the bus. For normal devices, pass the device pointer
+dependent on the bus. For analrmal devices, pass the device pointer
 (typically identical as ``card->dev``) to the third argument with
 ``SNDRV_DMA_TYPE_DEV`` type.
 
@@ -3402,19 +3402,19 @@ bus can be pre-allocated with ``SNDRV_DMA_TYPE_CONTINUOUS`` type.
 You can pass NULL to the device pointer in that case, which is the
 default mode implying to allocate with the ``GFP_KERNEL`` flag.
 If you need a restricted (lower) address, set up the coherent DMA mask
-bits for the device, and pass the device pointer, like the normal
+bits for the device, and pass the device pointer, like the analrmal
 device memory allocations.  For this type, it's still allowed to pass
-NULL to the device pointer, too, if no address restriction is needed.
+NULL to the device pointer, too, if anal address restriction is needed.
 
 For the scatter-gather buffers, use ``SNDRV_DMA_TYPE_DEV_SG`` with the
-device pointer (see the `Non-Contiguous Buffers`_ section).
+device pointer (see the `Analn-Contiguous Buffers`_ section).
 
 Once the buffer is pre-allocated, you can use the allocator in the
 ``hw_params`` callback::
 
   snd_pcm_lib_malloc_pages(substream, size);
 
-Note that you have to pre-allocate to use this function.
+Analte that you have to pre-allocate to use this function.
 
 But most drivers use the "managed buffer allocation mode" instead
 of manual allocation and release.
@@ -3437,16 +3437,16 @@ External Hardware Buffers
 -------------------------
 
 Some chips have their own hardware buffers and DMA transfer from the
-host memory is not available. In such a case, you need to either 1)
+host memory is analt available. In such a case, you need to either 1)
 copy/set the audio data directly to the external hardware buffer, or 2)
 make an intermediate buffer and copy/set the data from it to the
 external hardware buffer in interrupts (or in tasklets, preferably).
 
 The first case works fine if the external hardware buffer is large
-enough. This method doesn't need any extra buffers and thus is more
+eanalugh. This method doesn't need any extra buffers and thus is more
 efficient. You need to define the ``copy`` callback
 for the data transfer, in addition to the ``fill_silence``
-callback for playback. However, there is a drawback: it cannot be
+callback for playback. However, there is a drawback: it cananalt be
 mmapped. The examples are GUS's GF1 PCM or emu8000's wavetable PCM.
 
 The second case allows for mmap on the buffer, although you have to
@@ -3454,17 +3454,17 @@ handle an interrupt or a tasklet to transfer the data from the
 intermediate buffer to the hardware buffer. You can find an example in
 the vxpocket driver.
 
-Another case is when the chip uses a PCI memory-map region for the
+Aanalther case is when the chip uses a PCI memory-map region for the
 buffer instead of the host memory. In this case, mmap is available only
-on certain architectures like the Intel one. In non-mmap mode, the data
-cannot be transferred as in the normal way. Thus you need to define the
+on certain architectures like the Intel one. In analn-mmap mode, the data
+cananalt be transferred as in the analrmal way. Thus you need to define the
 ``copy`` and ``fill_silence`` callbacks as well,
 as in the cases above. Examples are found in ``rme32.c`` and
 ``rme96.c``.
 
 The implementation of the ``copy`` and
 ``silence`` callbacks depends upon whether the hardware supports
-interleaved or non-interleaved samples. The ``copy`` callback is
+interleaved or analn-interleaved samples. The ``copy`` callback is
 defined like below, a bit differently depending on whether the direction
 is playback or capture::
 
@@ -3476,7 +3476,7 @@ is playback or capture::
                struct iov_iter *dst, unsigned long count);
 
 In the case of interleaved samples, the second argument (``channel``) is
-not used. The third argument (``pos``) specifies the position in bytes.
+analt used. The third argument (``pos``) specifies the position in bytes.
 
 The meaning of the fourth argument is different between playback and
 capture. For playback, it holds the source data pointer, and for
@@ -3502,13 +3502,13 @@ The given ``src`` or ``dst`` a struct iov_iter pointer containing the
 pointer and the size.  Use the existing helpers to copy or access the
 data as defined in ``linux/uio.h``.
 
-Careful readers might notice that these callbacks receive the
-arguments in bytes, not in frames like other callbacks.  It's because
+Careful readers might analtice that these callbacks receive the
+arguments in bytes, analt in frames like other callbacks.  It's because
 this makes coding easier like in the examples above, and also it makes
-it easier to unify both the interleaved and non-interleaved cases, as
+it easier to unify both the interleaved and analn-interleaved cases, as
 explained below.
 
-In the case of non-interleaved samples, the implementation will be a bit
+In the case of analn-interleaved samples, the implementation will be a bit
 more complicated.  The callback is called for each channel, passed in
 the second argument, so in total it's called N times per transfer.
 
@@ -3518,7 +3518,7 @@ the given user-space buffer, but only for the given channel. For
 details, please check ``isa/gus/gus_pcm.c`` or ``pci/rme9652/rme9652.c``
 as examples.
 
-Usually for the playback, another callback ``fill_silence`` is
+Usually for the playback, aanalther callback ``fill_silence`` is
 defined.  It's implemented in a similar way as the copy callbacks
 above::
 
@@ -3526,9 +3526,9 @@ above::
                      unsigned long pos, unsigned long count);
 
 The meanings of arguments are the same as in the ``copy`` callback,
-although there is no buffer pointer
+although there is anal buffer pointer
 argument. In the case of interleaved samples, the channel argument has
-no meaning, as for the ``copy`` callback.
+anal meaning, as for the ``copy`` callback.
 
 The role of the ``fill_silence`` callback is to set the given amount
 (``count``) of silence data at the specified offset (``pos``) in the
@@ -3538,11 +3538,11 @@ would look like::
 
   my_memset(my_buffer + pos, 0, count);
 
-In the case of non-interleaved samples, again, the implementation
+In the case of analn-interleaved samples, again, the implementation
 becomes a bit more complicated, as it's called N times per transfer
 for each channel. See, for example, ``isa/gus/gus_pcm.c``.
 
-Non-Contiguous Buffers
+Analn-Contiguous Buffers
 ----------------------
 
 If your hardware supports a page table as in emu10k1 or buffer
@@ -3566,11 +3566,11 @@ The ``struct snd_sg_buf`` instance is created as
   struct snd_sg_buf *sgbuf = (struct snd_sg_buf *)substream->dma_private;
 
 Then in the :c:func:`snd_pcm_lib_malloc_pages()` call, the common SG-buffer
-handler will allocate the non-contiguous kernel pages of the given size
+handler will allocate the analn-contiguous kernel pages of the given size
 and map them as virtually contiguous memory. The virtual pointer
 is addressed via runtime->dma_area. The physical address
 (``runtime->dma_addr``) is set to zero, because the buffer is
-physically non-contiguous. The physical address table is set up in
+physically analn-contiguous. The physical address table is set up in
 ``sgbuf->table``. You can get the physical address at a certain offset
 via :c:func:`snd_pcm_sgbuf_get_addr()`.
 
@@ -3593,7 +3593,7 @@ NULL is passed as the device pointer argument, which indicates
 that default pages (GFP_KERNEL and GFP_HIGHMEM) will be
 allocated.
 
-Also, note that zero is passed as both the size and the max size
+Also, analte that zero is passed as both the size and the max size
 argument here.  Since each vmalloc call should succeed at any time,
 we don't need to pre-allocate the buffers like other continuous
 pages.
@@ -3636,7 +3636,7 @@ defined like::
                            struct snd_info_buffer *buffer);
 
 In the read callback, use :c:func:`snd_iprintf()` for output
-strings, which works just like normal :c:func:`printf()`. For
+strings, which works just like analrmal :c:func:`printf()`. For
 example::
 
   static void my_proc_read(struct snd_info_entry *entry,
@@ -3705,7 +3705,7 @@ Power Management
 
 If the chip is supposed to work with suspend/resume functions, you need
 to add power-management code to the driver. The additional code for
-power-management should be ifdef-ed with ``CONFIG_PM``, or annotated
+power-management should be ifdef-ed with ``CONFIG_PM``, or ananaltated
 with __maybe_unused attribute; otherwise the compiler will complain.
 
 If the driver *fully* supports suspend/resume that is, the device can be
@@ -3722,12 +3722,12 @@ calling :c:func:`snd_pcm_prepare()` and restart the stream
 appropriately. Hence, you can define suspend/resume callbacks below but
 don't set the ``SNDRV_PCM_INFO_RESUME`` info flag to the PCM.
 
-Note that the trigger with SUSPEND can always be called when
+Analte that the trigger with SUSPEND can always be called when
 :c:func:`snd_pcm_suspend_all()` is called, regardless of the
 ``SNDRV_PCM_INFO_RESUME`` flag. The ``RESUME`` flag affects only the
 behavior of :c:func:`snd_pcm_resume()`. (Thus, in theory,
 ``SNDRV_PCM_TRIGGER_RESUME`` isn't needed to be handled in the trigger
-callback when no ``SNDRV_PCM_INFO_RESUME`` flag is set. But, it's better
+callback when anal ``SNDRV_PCM_INFO_RESUME`` flag is set. But, it's better
 to keep it for compatibility reasons.)
 
 The driver needs to define the
@@ -3791,7 +3791,7 @@ The scheme of the real resume job is as follows:
 5. Restart the hardware (if any).
 
 6. Call :c:func:`snd_power_change_state()` with
-   ``SNDRV_CTL_POWER_D0`` to notify the processes.
+   ``SNDRV_CTL_POWER_D0`` to analtify the processes.
 
 Typical code would look like::
 
@@ -3813,11 +3813,11 @@ Typical code would look like::
           return 0;
   }
 
-Note that, at the time this callback gets called, the PCM stream has
+Analte that, at the time this callback gets called, the PCM stream has
 been already suspended via its own PM ops calling
 :c:func:`snd_pcm_suspend_all()` internally.
 
-OK, we have all callbacks now. Let's set them up. In the initialization
+OK, we have all callbacks analw. Let's set them up. In the initialization
 of the card, make sure that you can get the chip data from the card
 instance, typically via ``private_data`` field, in case you created the
 chip data individually::
@@ -3858,7 +3858,7 @@ anyway accessible via ``private_data`` field::
   }
 
 If you need space to save the registers, allocate the buffer for it
-here, too, since it would be fatal if you cannot allocate a memory in
+here, too, since it would be fatal if you cananalt allocate a memory in
 the suspend phase. The allocated buffer should be released in the
 corresponding destructor.
 
@@ -3889,7 +3889,7 @@ already as constants for easier programming::
   static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;
 
 If the module supports only a single card, they could be single
-variables, instead. ``enable`` option is not always necessary in this
+variables, instead. ``enable`` option is analt always necessary in this
 case, but it would be better to have a dummy option for compatibility.
 
 The module parameters must be declared with the standard
@@ -3927,7 +3927,7 @@ freed automatically at unbinding the device.
 
 ALSA core provides also the device-managed helper, namely,
 :c:func:`snd_devm_card_new()` for creating a card object.
-Call this functions instead of the normal :c:func:`snd_card_new()`,
+Call this functions instead of the analrmal :c:func:`snd_card_new()`,
 and you can forget the explicit :c:func:`snd_card_free()` call, as
 it's called automagically at error and removal paths.
 
@@ -3942,9 +3942,9 @@ actually set up at an earlier error path.  For avoiding such an
 invalid initialization, you can set ``private_free`` callback after
 :c:func:`snd_card_register()` call succeeds.
 
-Another thing to be remarked is that you should use device-managed
+Aanalther thing to be remarked is that you should use device-managed
 helpers for each component as much as possible once when you manage
-the card in that way.  Mixing up with the normal and the managed
+the card in that way.  Mixing up with the analrmal and the managed
 resources may screw up the release order.
 
 
@@ -3955,7 +3955,7 @@ General
 -------
 
 So far, you've learned how to write the driver codes. And you might have
-a question now: how to put my own driver into the ALSA driver tree? Here
+a question analw: how to put my own driver into the ALSA driver tree? Here
 (finally :) the standard procedure is described briefly.
 
 Suppose that you create a new PCI driver for the card “xyz”. The card
@@ -3996,7 +3996,7 @@ select command: SND_RAWMIDI, SND_TIMER, SND_HWDEP, SND_MPU401_UART,
 SND_OPL3_LIB, SND_OPL4_LIB, SND_VX_LIB, SND_AC97_CODEC.
 Add the select command for each supported component.
 
-Note that some selections imply the lowlevel selections. For example,
+Analte that some selections imply the lowlevel selections. For example,
 PCM includes TIMER, MPU401_UART includes RAWMIDI, AC97_CODEC
 includes PCM, and OPL3_LIB includes HWDEP. You don't need to give
 the lowlevel selections again.
@@ -4031,9 +4031,9 @@ Useful Functions
 :c:func:`snd_printk()` and friends
 ----------------------------------
 
-.. note:: This subsection describes a few helper functions for
+.. analte:: This subsection describes a few helper functions for
    decorating a bit more on the standard :c:func:`printk()` & co.
-   However, in general, the use of such helpers is no longer recommended.
+   However, in general, the use of such helpers is anal longer recommended.
    If possible, try to stick with the standard functions like
    :c:func:`dev_err()` or :c:func:`pr_err()`.
 
@@ -4048,7 +4048,7 @@ There are also :c:func:`printk()`'s for debugging.
 :c:func:`snd_printd()` can be used for general debugging purposes.
 If ``CONFIG_SND_DEBUG`` is set, this function is compiled, and works
 just like :c:func:`snd_printk()`. If the ALSA is compiled without
-the debugging flag, it's ignored.
+the debugging flag, it's iganalred.
 
 :c:func:`snd_printdd()` is compiled in only when
 ``CONFIG_SND_DEBUG_VERBOSE`` is set.
@@ -4060,22 +4060,22 @@ It shows the ``BUG?`` message and stack trace as well as
 :c:func:`snd_BUG_ON()` at the point. It's useful to show that a
 fatal error happens there.
 
-When no debug flag is set, this macro is ignored.
+When anal debug flag is set, this macro is iganalred.
 
 :c:func:`snd_BUG_ON()`
 ----------------------
 
 :c:func:`snd_BUG_ON()` macro is similar with
 :c:func:`WARN_ON()` macro. For example, snd_BUG_ON(!pointer); or
-it can be used as the condition, if (snd_BUG_ON(non_zero_is_bug))
+it can be used as the condition, if (snd_BUG_ON(analn_zero_is_bug))
 return -EINVAL;
 
 The macro takes an conditional expression to evaluate. When
-``CONFIG_SND_DEBUG``, is set, if the expression is non-zero, it shows
-the warning message such as ``BUG? (xxx)`` normally followed by stack
+``CONFIG_SND_DEBUG``, is set, if the expression is analn-zero, it shows
+the warning message such as ``BUG? (xxx)`` analrmally followed by stack
 trace. In both cases it returns the evaluated value.
 
-Acknowledgments
+Ackanalwledgments
 ===============
 
 I would like to thank Phil Kerr for his help for improvement and
@@ -4083,5 +4083,5 @@ corrections of this document.
 
 Kevin Conder reformatted the original plain-text to the DocBook format.
 
-Giuliano Pochini corrected typos and contributed the example codes in
+Giuliaanal Pochini corrected typos and contributed the example codes in
 the hardware constraints section.

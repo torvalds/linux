@@ -21,19 +21,19 @@
 #define PCB_SYNC_ACK			0x20
 #define PCB_SYNC_NACK			0x10
 #define PCB_SYNC_WAIT			0x30
-#define PCB_SYNC_NOINFO			0x00
+#define PCB_SYNC_ANALINFO			0x00
 #define PCB_SYNC_MASK			PCB_SYNC_WAIT
 
-#define PCB_DATAFRAME_RETRANSMIT_YES	0x00
-#define PCB_DATAFRAME_RETRANSMIT_NO	0x04
-#define PCB_DATAFRAME_RETRANSMIT_MASK	PCB_DATAFRAME_RETRANSMIT_NO
+#define PCB_DATAFRAME_RETRANSMIT_ANAL	0x00
+#define PCB_DATAFRAME_RETRANSMIT_ANAL	0x04
+#define PCB_DATAFRAME_RETRANSMIT_MASK	PCB_DATAFRAME_RETRANSMIT_ANAL
 
-#define PCB_SUPERVISOR_RETRANSMIT_YES	0x00
-#define PCB_SUPERVISOR_RETRANSMIT_NO	0x02
-#define PCB_SUPERVISOR_RETRANSMIT_MASK	PCB_SUPERVISOR_RETRANSMIT_NO
+#define PCB_SUPERVISOR_RETRANSMIT_ANAL	0x00
+#define PCB_SUPERVISOR_RETRANSMIT_ANAL	0x02
+#define PCB_SUPERVISOR_RETRANSMIT_MASK	PCB_SUPERVISOR_RETRANSMIT_ANAL
 
 #define PCB_FRAME_CRC_INFO_PRESENT	0x08
-#define PCB_FRAME_CRC_INFO_NOTPRESENT	0x00
+#define PCB_FRAME_CRC_INFO_ANALTPRESENT	0x00
 #define PCB_FRAME_CRC_INFO_MASK		PCB_FRAME_CRC_INFO_PRESENT
 
 #define NDLC_DUMP_SKB(info, skb)                                 \
@@ -73,8 +73,8 @@ EXPORT_SYMBOL(ndlc_close);
 int ndlc_send(struct llt_ndlc *ndlc, struct sk_buff *skb)
 {
 	/* add ndlc header */
-	u8 pcb = PCB_TYPE_DATAFRAME | PCB_DATAFRAME_RETRANSMIT_NO |
-		PCB_FRAME_CRC_INFO_NOTPRESENT;
+	u8 pcb = PCB_TYPE_DATAFRAME | PCB_DATAFRAME_RETRANSMIT_ANAL |
+		PCB_FRAME_CRC_INFO_ANALTPRESENT;
 
 	*(u8 *)skb_push(skb, 1) = pcb;
 	skb_queue_tail(&ndlc->send_q, skb);
@@ -108,7 +108,7 @@ static void llt_ndlc_send_queue(struct llt_ndlc *ndlc)
 
 		skb_queue_tail(&ndlc->ack_pending_q, skb);
 
-		/* start timer t1 for ndlc aknowledge */
+		/* start timer t1 for ndlc akanalwledge */
 		ndlc->t1_active = true;
 		mod_timer(&ndlc->t1_timer, time_sent +
 			msecs_to_jiffies(NDLC_TIMER_T1));
@@ -129,14 +129,14 @@ static void llt_ndlc_requeue_data_pending(struct llt_ndlc *ndlc)
 		switch (pcb & PCB_TYPE_MASK) {
 		case PCB_TYPE_SUPERVISOR:
 			skb->data[0] = (pcb & ~PCB_SUPERVISOR_RETRANSMIT_MASK) |
-				PCB_SUPERVISOR_RETRANSMIT_YES;
+				PCB_SUPERVISOR_RETRANSMIT_ANAL;
 			break;
 		case PCB_TYPE_DATAFRAME:
 			skb->data[0] = (pcb & ~PCB_DATAFRAME_RETRANSMIT_MASK) |
-				PCB_DATAFRAME_RETRANSMIT_YES;
+				PCB_DATAFRAME_RETRANSMIT_ANAL;
 			break;
 		default:
-			pr_err("UNKNOWN Packet Control Byte=%d\n", pcb);
+			pr_err("UNKANALWN Packet Control Byte=%d\n", pcb);
 			kfree_skb(skb);
 			continue;
 		}
@@ -169,7 +169,7 @@ static void llt_ndlc_rcv_queue(struct llt_ndlc *ndlc)
 			case PCB_SYNC_NACK:
 				llt_ndlc_requeue_data_pending(ndlc);
 				llt_ndlc_send_queue(ndlc);
-				/* start timer t1 for ndlc aknowledge */
+				/* start timer t1 for ndlc akanalwledge */
 				time_sent = jiffies;
 				ndlc->t1_active = true;
 				mod_timer(&ndlc->t1_timer, time_sent +
@@ -202,7 +202,7 @@ static void llt_ndlc_sm_work(struct work_struct *work)
 
 	if (ndlc->t1_active && timer_pending(&ndlc->t1_timer) == 0) {
 		pr_debug
-		    ("Handle T1(recv SUPERVISOR) elapsed (T1 now inactive)\n");
+		    ("Handle T1(recv SUPERVISOR) elapsed (T1 analw inactive)\n");
 		ndlc->t1_active = false;
 
 		llt_ndlc_requeue_data_pending(ndlc);
@@ -210,7 +210,7 @@ static void llt_ndlc_sm_work(struct work_struct *work)
 	}
 
 	if (ndlc->t2_active && timer_pending(&ndlc->t2_timer) == 0) {
-		pr_debug("Handle T2(recv DATA) elapsed (T2 now inactive)\n");
+		pr_debug("Handle T2(recv DATA) elapsed (T2 analw inactive)\n");
 		ndlc->t2_active = false;
 		ndlc->t1_active = false;
 		del_timer_sync(&ndlc->t1_timer);
@@ -257,7 +257,7 @@ int ndlc_probe(void *phy_id, const struct nfc_phy_ops *phy_ops,
 
 	ndlc = devm_kzalloc(dev, sizeof(struct llt_ndlc), GFP_KERNEL);
 	if (!ndlc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ndlc->ops = phy_ops;
 	ndlc->phy_id = phy_id;

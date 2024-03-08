@@ -63,7 +63,7 @@ static int nvme_auth_submit(struct nvme_ctrl *ctrl, int qid,
 	int ret;
 
 	if (qid != 0) {
-		flags |= NVME_SUBMIT_NOWAIT | NVME_SUBMIT_RESERVED;
+		flags |= NVME_SUBMIT_ANALWAIT | NVME_SUBMIT_RESERVED;
 		q = ctrl->connect_q;
 	}
 
@@ -131,7 +131,7 @@ static int nvme_auth_set_dhchap_negotiate_data(struct nvme_ctrl *ctrl,
 	data->auth_type = NVME_AUTH_COMMON_MESSAGES;
 	data->auth_id = NVME_AUTH_DHCHAP_MESSAGE_NEGOTIATE;
 	data->t_id = cpu_to_le16(chap->transaction);
-	data->sc_c = 0; /* No secure channel concatenation */
+	data->sc_c = 0; /* Anal secure channel concatenation */
 	data->napd = 1;
 	data->auth_protocol[0].dhchap.authid = NVME_AUTH_DHCHAP_AUTH_ID;
 	data->auth_protocol[0].dhchap.halen = 3;
@@ -181,7 +181,7 @@ static int nvme_auth_process_dhchap_challenge(struct nvme_ctrl *ctrl,
 		goto select_kpp;
 	}
 
-	/* Reset if hash cannot be reused */
+	/* Reset if hash cananalt be reused */
 	if (chap->shash_tfm) {
 		crypto_free_shash(chap->shash_tfm);
 		chap->hash_id = 0;
@@ -195,7 +195,7 @@ static int nvme_auth_process_dhchap_challenge(struct nvme_ctrl *ctrl,
 			 chap->qid, hmac_name, PTR_ERR(chap->shash_tfm));
 		chap->shash_tfm = NULL;
 		chap->status = NVME_AUTH_DHCHAP_FAILURE_FAILED;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (crypto_shash_digestsize(chap->shash_tfm) != data->hl) {
@@ -276,7 +276,7 @@ skip_kpp:
 		chap->ctrl_key = kmalloc(dhvlen, GFP_KERNEL);
 		if (!chap->ctrl_key) {
 			chap->status = NVME_AUTH_DHCHAP_FAILURE_FAILED;
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		chap->ctrl_key_len = dhvlen;
 		memcpy(chap->ctrl_key, data->cval + chap->hash_len,
@@ -449,7 +449,7 @@ static int nvme_auth_dhchap_setup_host_response(struct nvme_ctrl *ctrl,
 	if (chap->dh_tfm) {
 		challenge = kmalloc(chap->hash_len, GFP_KERNEL);
 		if (!challenge) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
 		ret = nvme_auth_augmented_challenge(chap->hash_id,
@@ -527,7 +527,7 @@ static int nvme_auth_dhchap_setup_ctrl_response(struct nvme_ctrl *ctrl,
 	if (chap->dh_tfm) {
 		challenge = kmalloc(chap->hash_len, GFP_KERNEL);
 		if (!challenge) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
 		ret = nvme_auth_augmented_challenge(chap->hash_id,
@@ -609,7 +609,7 @@ static int nvme_auth_dhchap_exponential(struct nvme_ctrl *ctrl,
 	if (!chap->host_key) {
 		chap->host_key_len = 0;
 		chap->status = NVME_AUTH_DHCHAP_FAILURE_FAILED;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	ret = nvme_auth_gen_pubkey(chap->dh_tfm,
 				   chap->host_key, chap->host_key_len);
@@ -626,7 +626,7 @@ gen_sesskey:
 	if (!chap->sess_key) {
 		chap->sess_key_len = 0;
 		chap->status = NVME_AUTH_DHCHAP_FAILURE_FAILED;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = nvme_auth_gen_shared_secret(chap->dh_tfm,
@@ -686,12 +686,12 @@ static void nvme_queue_auth_work(struct work_struct *work)
 	int ret = 0;
 
 	/*
-	 * Allocate a large enough buffer for the entire negotiation:
-	 * 4k is enough to ffdhe8192.
+	 * Allocate a large eanalugh buffer for the entire negotiation:
+	 * 4k is eanalugh to ffdhe8192.
 	 */
 	chap->buf = mempool_alloc(nvme_chap_buf_pool, GFP_KERNEL);
 	if (!chap->buf) {
-		chap->error = -ENOMEM;
+		chap->error = -EANALMEM;
 		return;
 	}
 
@@ -844,7 +844,7 @@ fail2:
 	tl = nvme_auth_set_dhchap_failure2_data(ctrl, chap);
 	ret = nvme_auth_submit(ctrl, chap->qid, chap->buf, tl, true);
 	/*
-	 * only update error if send failure2 failed and no other
+	 * only update error if send failure2 failed and anal other
 	 * error had been set during authentication.
 	 */
 	if (ret && !chap->error)
@@ -856,13 +856,13 @@ int nvme_auth_negotiate(struct nvme_ctrl *ctrl, int qid)
 	struct nvme_dhchap_queue_context *chap;
 
 	if (!ctrl->host_key) {
-		dev_warn(ctrl->device, "qid %d: no key\n", qid);
-		return -ENOKEY;
+		dev_warn(ctrl->device, "qid %d: anal key\n", qid);
+		return -EANALKEY;
 	}
 
 	if (ctrl->opts->dhchap_ctrl_secret && !ctrl->ctrl_key) {
 		dev_warn(ctrl->device, "qid %d: invalid ctrl key\n", qid);
-		return -ENOKEY;
+		return -EANALKEY;
 	}
 
 	chap = &ctrl->dhchap_ctxs[qid];
@@ -893,7 +893,7 @@ static void nvme_ctrl_auth_work(struct work_struct *work)
 	int ret, q;
 
 	/*
-	 * If the ctrl is no connected, bail as reconnect will handle
+	 * If the ctrl is anal connected, bail as reconnect will handle
 	 * authentication.
 	 */
 	if (nvme_ctrl_state(ctrl) != NVME_CTRL_LIVE)
@@ -959,7 +959,7 @@ int nvme_auth_init_ctrl(struct nvme_ctrl *ctrl)
 	ctrl->dhchap_ctxs = kvcalloc(ctrl_max_dhchaps(ctrl),
 				sizeof(*chap), GFP_KERNEL);
 	if (!ctrl->dhchap_ctxs) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_dhchap_ctrl_secret;
 	}
 
@@ -1012,7 +1012,7 @@ int __init nvme_init_auth(void)
 	nvme_auth_wq = alloc_workqueue("nvme-auth-wq",
 			       WQ_UNBOUND | WQ_MEM_RECLAIM | WQ_SYSFS, 0);
 	if (!nvme_auth_wq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nvme_chap_buf_cache = kmem_cache_create("nvme-chap-buf-cache",
 				CHAP_BUF_SIZE, 0, SLAB_HWCACHE_ALIGN, NULL);
@@ -1029,7 +1029,7 @@ err_destroy_chap_buf_cache:
 	kmem_cache_destroy(nvme_chap_buf_cache);
 err_destroy_workqueue:
 	destroy_workqueue(nvme_auth_wq);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 void __exit nvme_exit_auth(void)

@@ -17,7 +17,7 @@ description: |+
   registers that initiate CPU frequency/voltage transitions.
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "ccplex@([0-9a-f]+)$"
 
   compatible:
@@ -31,7 +31,7 @@ properties:
   nvidia,bpmp:
     $ref: /schemas/types.yaml#/definitions/phandle
     description: |
-      Specifies the BPMP node that needs to be queried to get
+      Specifies the BPMP analde that needs to be queried to get
       operating point data for all CPUs.
 
 additionalProperties: false

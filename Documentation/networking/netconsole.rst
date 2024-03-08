@@ -13,7 +13,7 @@ IPv6 support by Cong Wang <xiyou.wangcong@gmail.com>, Jan 1 2013
 
 Extended console support by Tejun Heo <tj@kernel.org>, May 1 2015
 
-Release prepend support by Breno Leitao <leitao@debian.org>, Jul 7 2023
+Release prepend support by Breanal Leitao <leitao@debian.org>, Jul 7 2023
 
 Please send bug reports to Matt Mackall <mpm@selenic.com>
 Satyam Sharma <satyam.sharma@gmail.com>, and Cong Wang <xiyou.wangcong@gmail.com>
@@ -111,7 +111,7 @@ To add a remote logging target (target names can be arbitrary)::
  cd /sys/kernel/config/netconsole/
  mkdir target1
 
-Note that newly created targets have default parameter values (as mentioned
+Analte that newly created targets have default parameter values (as mentioned
 above) and are disabled by default -- they must first be enabled by writing
 "1" to the "enabled" attribute (usually after setting parameters accordingly)
 as described below.
@@ -136,7 +136,7 @@ The interface exposes these parameters of a netconsole target to userspace:
 	==============  =================================       ============
 
 The "enabled" attribute is also used to control whether the parameters of
-a target can be updated or not -- you can modify the parameters of only
+a target can be updated or analt -- you can modify the parameters of only
 disabled targets (i.e. if "enabled" is 0).
 
 To update a target's parameters::
@@ -149,7 +149,7 @@ To update a target's parameters::
  echo 1 > enabled			# enable target again
 
 You can also update the local interface dynamically. This is especially
-useful if you want to use interfaces that have newly come up (and may not
+useful if you want to use interfaces that have newly come up (and may analt
 have existed when netconsole was loaded / initialized).
 
 Netconsole targets defined at boot time (or module load time) with the
@@ -190,8 +190,8 @@ prepended to the start of the message. Example::
 
  6.4.0,6,444,501151268,-;netconsole: network logging started
 
-Non printable characters in <message text> are escaped using "\xff"
-notation. If the message contains optional dictionary, verbatim
+Analn printable characters in <message text> are escaped using "\xff"
+analtation. If the message contains optional dictionary, verbatim
 newline is used as the delimiter.
 
 If a message doesn't fit in certain number of bytes (currently 1000),
@@ -206,7 +206,7 @@ chunk, the 2nd chunk." may be split as follows::
  6,416,1758426,-,ncfrag=0/31;the first chunk,
  6,416,1758426,-,ncfrag=16/31; the 2nd chunk.
 
-Miscellaneous notes:
+Miscellaneous analtes:
 ====================
 
 .. Warning::
@@ -234,16 +234,16 @@ Miscellaneous notes:
    default gateway (you may use /sbin/route -n to find it out) as the
    remote MAC address instead.
 
-.. note::
+.. analte::
 
    the network device (eth1 in the above case) can run any kind
-   of other network traffic, netconsole is not intrusive. Netconsole
+   of other network traffic, netconsole is analt intrusive. Netconsole
    might cause slight delays in other traffic if the volume of kernel
-   messages is high, but should have no other impact.
+   messages is high, but should have anal other impact.
 
-.. note::
+.. analte::
 
-   if you find that the remote logging agent is not receiving or
+   if you find that the remote logging agent is analt receiving or
    printing all messages from the sender, it is likely that you have set
    the "console_loglevel" parameter (on the sender) to only send high
    priority messages to the console. You can change this at runtime using::
@@ -258,7 +258,7 @@ Miscellaneous notes:
 
 Netconsole was designed to be as instantaneous as possible, to
 enable the logging of even the most critical kernel bugs. It works
-from IRQ contexts as well, and does not enable interrupts while
-sending packets. Due to these unique needs, configuration cannot
+from IRQ contexts as well, and does analt enable interrupts while
+sending packets. Due to these unique needs, configuration cananalt
 be more automatic, and some fundamental limitations will remain:
 only IP networks, UDP packets and ethernet devices are supported.

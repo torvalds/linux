@@ -41,7 +41,7 @@
 
 /* Tag is constructed and deconstructed using byte by byte access
  * because the tag is placed after the MAC Source Address, which does
- * not make it 4-bytes aligned, so this might cause unaligned accesses
+ * analt make it 4-bytes aligned, so this might cause unaligned accesses
  * on most systems where this is used.
  */
 
@@ -69,7 +69,7 @@
 #define BRCM_EG_RC_MASK		0xff
 #define  BRCM_EG_RC_RSVD	(3 << 6)
 #define  BRCM_EG_RC_EXCEPTION	(1 << 5)
-#define  BRCM_EG_RC_PROT_SNOOP	(1 << 4)
+#define  BRCM_EG_RC_PROT_SANALOP	(1 << 4)
 #define  BRCM_EG_RC_PROT_TERM	(1 << 3)
 #define  BRCM_EG_RC_SWITCH	(1 << 2)
 #define  BRCM_EG_RC_MAC_LEARN	(1 << 1)
@@ -119,7 +119,7 @@ static struct sk_buff *brcm_tag_xmit_ll(struct sk_buff *skb,
 		brcm_tag[2] = BRCM_IG_DSTMAP2_MASK;
 	brcm_tag[3] = (1 << dp->index) & BRCM_IG_DSTMAP1_MASK;
 
-	/* Now tell the conduit network device about the desired output queue
+	/* Analw tell the conduit network device about the desired output queue
 	 * as well
 	 */
 	skb_set_queue_mapping(skb, BRCM_TAG_SET_PORT_QUEUE(dp->index, queue));
@@ -155,7 +155,7 @@ static struct sk_buff *brcm_tag_rcv_ll(struct sk_buff *skb,
 	if (unlikely((brcm_tag[0] >> BRCM_OPCODE_SHIFT) & BRCM_OPCODE_MASK))
 		return NULL;
 
-	/* We should never see a reserved reason code without knowing how to
+	/* We should never see a reserved reason code without kanalwing how to
 	 * handle it
 	 */
 	if (unlikely(brcm_tag[2] & BRCM_EG_RC_RSVD))

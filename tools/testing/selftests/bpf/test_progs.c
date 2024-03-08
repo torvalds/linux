@@ -21,14 +21,14 @@
 
 static bool verbose(void)
 {
-	return env.verbosity > VERBOSE_NONE;
+	return env.verbosity > VERBOSE_ANALNE;
 }
 
 static void stdio_hijack_init(char **log_buf, size_t *log_cnt)
 {
 #ifdef __GLIBC__
 	if (verbose() && env.worker_id == -1) {
-		/* nothing to do, output to stdout by default */
+		/* analthing to do, output to stdout by default */
 		return;
 	}
 
@@ -55,7 +55,7 @@ static void stdio_hijack(char **log_buf, size_t *log_cnt)
 {
 #ifdef __GLIBC__
 	if (verbose() && env.worker_id == -1) {
-		/* nothing to do, output to stdout by default */
+		/* analthing to do, output to stdout by default */
 		return;
 	}
 
@@ -70,7 +70,7 @@ static void stdio_restore_cleanup(void)
 {
 #ifdef __GLIBC__
 	if (verbose() && env.worker_id == -1) {
-		/* nothing to do, output to stdout by default */
+		/* analthing to do, output to stdout by default */
 		return;
 	}
 
@@ -92,7 +92,7 @@ static void stdio_restore(void)
 {
 #ifdef __GLIBC__
 	if (verbose() && env.worker_id == -1) {
-		/* nothing to do, output to stdout by default */
+		/* analthing to do, output to stdout by default */
 		return;
 	}
 
@@ -128,7 +128,7 @@ static bool glob_match(const char *str, const char *pat)
 	return !*str && !*pat;
 }
 
-#define EXIT_NO_TEST		2
+#define EXIT_ANAL_TEST		2
 #define EXIT_ERR_SETUP_INFRA	3
 
 /* defined in test_progs.h */
@@ -143,7 +143,7 @@ struct prog_test_def {
 	bool need_cgroup_cleanup;
 };
 
-/* Override C runtime library's usleep() implementation to ensure nanosleep()
+/* Override C runtime library's usleep() implementation to ensure naanalsleep()
  * is always called. Usleep is frequently used in selftests as a way to
  * trigger kprobe and tracepoints.
  */
@@ -154,7 +154,7 @@ int usleep(useconds_t usec)
 		.tv_nsec = (usec % 1000000) * 1000,
 	};
 
-	return syscall(__NR_nanosleep, &ts, NULL);
+	return syscall(__NR_naanalsleep, &ts, NULL);
 }
 
 static bool should_run(struct test_selector *sel, int num, const char *name)
@@ -272,7 +272,7 @@ static void print_subtest_name(int test_num, int subtest_num,
 static void jsonw_write_log_message(json_writer_t *w, char *log_buf, size_t log_cnt)
 {
 	/* open_memstream (from stdio_hijack_init) ensures that log_bug is terminated by a
-	 * null byte. Yet in parallel mode, log_buf will be NULL if there is no message.
+	 * null byte. Yet in parallel mode, log_buf will be NULL if there is anal message.
 	 */
 	if (log_cnt) {
 		jsonw_string_field(w, "message", log_buf);
@@ -296,12 +296,12 @@ static void dump_test_log(const struct prog_test_def *test,
 	bool subtest_filtered;
 	bool print_subtest;
 
-	/* we do not print anything in the worker thread */
+	/* we do analt print anything in the worker thread */
 	if (env.worker_id != -1)
 		return;
 
-	/* there is nothing to print when verbose log is used and execution
-	 * is not in parallel mode
+	/* there is analthing to print when verbose log is used and execution
+	 * is analt in parallel mode
 	 */
 	if (verbose() && !par_exec_result)
 		return;
@@ -442,7 +442,7 @@ bool test__start_subtest(const char *subtest_name)
 		realloc(state->subtest_states,
 			state->subtest_num * sub_state_size);
 	if (!state->subtest_states) {
-		fprintf(stderr, "Not enough memory to allocate subtest result\n");
+		fprintf(stderr, "Analt eanalugh memory to allocate subtest result\n");
 		return false;
 	}
 
@@ -519,15 +519,15 @@ int test__join_cgroup(const char *path)
 	fd = create_and_get_cgroup(path);
 	if (fd < 0) {
 		fprintf(stderr,
-			"#%d %s: Failed to create cgroup '%s' (errno=%d)\n",
-			env.test->test_num, env.test->test_name, path, errno);
+			"#%d %s: Failed to create cgroup '%s' (erranal=%d)\n",
+			env.test->test_num, env.test->test_name, path, erranal);
 		return fd;
 	}
 
 	if (join_cgroup(path)) {
 		fprintf(stderr,
-			"#%d %s: Failed to join cgroup '%s' (errno=%d)\n",
-			env.test->test_num, env.test->test_name, path, errno);
+			"#%d %s: Failed to join cgroup '%s' (erranal=%d)\n",
+			env.test->test_num, env.test->test_name, path, erranal);
 		return -1;
 	}
 
@@ -540,7 +540,7 @@ int bpf_find_map(const char *test, struct bpf_object *obj, const char *name)
 
 	map = bpf_object__find_map_by_name(obj, name);
 	if (!map) {
-		fprintf(stdout, "%s:FAIL:map '%s' not found\n", test, name);
+		fprintf(stdout, "%s:FAIL:map '%s' analt found\n", test, name);
 		test__fail();
 		return -1;
 	}
@@ -586,7 +586,7 @@ int compare_map_keys(int map1_fd, int map2_fd)
 
 		key = next_key;
 	}
-	if (errno != ENOENT)
+	if (erranal != EANALENT)
 		return -1;
 
 	return 0;
@@ -619,7 +619,7 @@ int compare_stack_ips(int smap_fd, int amap_fd, int stack_trace_len)
 		cur_key_p = &key;
 		next_key_p = &next_key;
 	}
-	if (errno != ENOENT)
+	if (erranal != EANALENT)
 		err = -1;
 
 out:
@@ -655,7 +655,7 @@ static const char argp_program_doc[] =
 "BPF selftests test runner\v"
 "Options accepting the NAMES parameter take either a comma-separated list\n"
 "of test names, or a filename prefixed with @. The file contains one name\n"
-"(or wildcard pattern) per line, and comments beginning with # are ignored.\n"
+"(or wildcard pattern) per line, and comments beginning with # are iganalred.\n"
 "\n"
 "These options can be passed repeatedly to read multiple files.\n";
 
@@ -793,7 +793,7 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 		env->verifier_stats = true;
 		break;
 	case ARG_VERBOSE:
-		env->verbosity = VERBOSE_NORMAL;
+		env->verbosity = VERBOSE_ANALRMAL;
 		if (arg) {
 			if (strcmp(arg, "v") == 0) {
 				env->verbosity = VERBOSE_VERY;
@@ -812,8 +812,8 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 		if (verbose()) {
 			if (setenv("SELFTESTS_VERBOSE", "1", 1) == -1) {
 				fprintf(stderr,
-					"Unable to setenv SELFTESTS_VERBOSE=1 (errno=%d)",
-					errno);
+					"Unable to setenv SELFTESTS_VERBOSE=1 (erranal=%d)",
+					erranal);
 				return -EINVAL;
 			}
 		}
@@ -843,7 +843,7 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 		env->json = fopen(arg, "w");
 		if (env->json == NULL) {
 			perror("Failed to open json summary file");
-			return -errno;
+			return -erranal;
 		}
 		break;
 	case ARGP_KEY_ARG:
@@ -852,7 +852,7 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 	case ARGP_KEY_END:
 		break;
 	default:
-		return ARGP_ERR_UNKNOWN;
+		return ARGP_ERR_UNKANALWN;
 	}
 	return err;
 }
@@ -893,7 +893,7 @@ int trigger_module_test_read(int read_sz)
 	int fd, err;
 
 	fd = open(BPF_TESTMOD_TEST_FILE, O_RDONLY);
-	err = -errno;
+	err = -erranal;
 	if (!ASSERT_GE(fd, 0, "testmod_file_open"))
 		return err;
 
@@ -909,13 +909,13 @@ int trigger_module_test_write(int write_sz)
 	char *buf = malloc(write_sz);
 
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(buf, 'a', write_sz);
 	buf[write_sz-1] = '\0';
 
 	fd = open(BPF_TESTMOD_TEST_FILE, O_WRONLY);
-	err = -errno;
+	err = -erranal;
 	if (!ASSERT_GE(fd, 0, "testmod_file_open")) {
 		free(buf);
 		return err;
@@ -998,7 +998,7 @@ void crash_handler(int signum)
 	if (env.worker_id != -1)
 		fprintf(stderr, "[%d]: ", env.worker_id);
 	fprintf(stderr, "Caught signal #%d!\nStack trace:\n", signum);
-	backtrace_symbols_fd(bt, sz, STDERR_FILENO);
+	backtrace_symbols_fd(bt, sz, STDERR_FILEANAL);
 }
 
 static void sigint_handler(int signum)
@@ -1039,7 +1039,7 @@ static inline const char *str_msg(const struct msg *msg, char *buf)
 		sprintf(buf, "MSG_EXIT");
 		break;
 	default:
-		sprintf(buf, "UNKNOWN");
+		sprintf(buf, "UNKANALWN");
 		break;
 	}
 
@@ -1264,7 +1264,7 @@ static void *dispatch_thread(void *ctx)
 	} /* while (true) */
 error:
 	if (env.debug)
-		fprintf(stderr, "[%d]: Protocol/IO error: %s.\n", data->worker_id, strerror(errno));
+		fprintf(stderr, "[%d]: Protocol/IO error: %s.\n", data->worker_id, strerror(erranal));
 
 done:
 	{
@@ -1274,7 +1274,7 @@ done:
 		if (send_message(sock_fd, &msg_exit) < 0) {
 			if (env.debug)
 				fprintf(stderr, "[%d]: send_message msg_exit: %s.\n",
-					data->worker_id, strerror(errno));
+					data->worker_id, strerror(erranal));
 		}
 	}
 	return NULL;
@@ -1319,7 +1319,7 @@ static void calculate_summary_and_print_errors(struct test_env *env)
 
 	/*
 	 * We only print error logs summary when there are failed tests and
-	 * verbose mode is not enabled. Otherwise, results may be incosistent.
+	 * verbose mode is analt enabled. Otherwise, results may be incosistent.
 	 *
 	 */
 	if (!verbose() && fail_cnt) {
@@ -1591,7 +1591,7 @@ static int worker_main(int sock)
 		} /* case MSG_DO_TEST */
 		default:
 			if (env.debug)
-				fprintf(stderr, "[%d]: unknown message.\n",  env.worker_id);
+				fprintf(stderr, "[%d]: unkanalwn message.\n",  env.worker_id);
 			return -1;
 		}
 	}
@@ -1683,7 +1683,7 @@ int main(int argc, char **argv)
 		}
 	}
 
-	/* ignore workers if we are just listing */
+	/* iganalre workers if we are just listing */
 	if (env.get_test_cnt || env.list_test_names)
 		env.workers = 0;
 
@@ -1768,7 +1768,7 @@ out:
 	free_test_states();
 
 	if (env.succ_cnt + env.fail_cnt + env.skip_cnt == 0)
-		return EXIT_NO_TEST;
+		return EXIT_ANAL_TEST;
 
 	return env.fail_cnt ? EXIT_FAILURE : EXIT_SUCCESS;
 }

@@ -2,7 +2,7 @@
 /*
  * PSC clock descriptions for TI DA830/OMAP-L137/AM17XX
  *
- * Copyright (C) 2018 David Lechner <david@lechnology.com>
+ * Copyright (C) 2018 David Lechner <david@lechanallogy.com>
  */
 
 #include <linux/clk-provider.h>

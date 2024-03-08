@@ -32,7 +32,7 @@ static const struct dmi_system_id fwbug_list[] = {
 		.ident = "L14 Gen2 AMD",
 		.driver_data = &quirk_s2idle_bug,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "20X5"),
 		}
 	},
@@ -40,7 +40,7 @@ static const struct dmi_system_id fwbug_list[] = {
 		.ident = "T14s Gen2 AMD",
 		.driver_data = &quirk_s2idle_bug,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "20XF"),
 		}
 	},
@@ -48,7 +48,7 @@ static const struct dmi_system_id fwbug_list[] = {
 		.ident = "X13 Gen2 AMD",
 		.driver_data = &quirk_s2idle_bug,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "20XH"),
 		}
 	},
@@ -56,7 +56,7 @@ static const struct dmi_system_id fwbug_list[] = {
 		.ident = "T14 Gen2 AMD",
 		.driver_data = &quirk_s2idle_bug,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "20XK"),
 		}
 	},
@@ -64,7 +64,7 @@ static const struct dmi_system_id fwbug_list[] = {
 		.ident = "T14 Gen1 AMD",
 		.driver_data = &quirk_s2idle_bug,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "20UD"),
 		}
 	},
@@ -72,7 +72,7 @@ static const struct dmi_system_id fwbug_list[] = {
 		.ident = "T14 Gen1 AMD",
 		.driver_data = &quirk_s2idle_bug,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "20UE"),
 		}
 	},
@@ -80,7 +80,7 @@ static const struct dmi_system_id fwbug_list[] = {
 		.ident = "T14s Gen1 AMD",
 		.driver_data = &quirk_s2idle_bug,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "20UH"),
 		}
 	},
@@ -88,7 +88,7 @@ static const struct dmi_system_id fwbug_list[] = {
 		.ident = "T14s Gen1 AMD",
 		.driver_data = &quirk_s2idle_bug,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "20UJ"),
 		}
 	},
@@ -96,7 +96,7 @@ static const struct dmi_system_id fwbug_list[] = {
 		.ident = "P14s Gen1 AMD",
 		.driver_data = &quirk_s2idle_bug,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "20Y1"),
 		}
 	},
@@ -104,7 +104,7 @@ static const struct dmi_system_id fwbug_list[] = {
 		.ident = "P14s Gen2 AMD",
 		.driver_data = &quirk_s2idle_bug,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "21A0"),
 		}
 	},
@@ -112,7 +112,7 @@ static const struct dmi_system_id fwbug_list[] = {
 		.ident = "P14s Gen2 AMD",
 		.driver_data = &quirk_s2idle_bug,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "21A1"),
 		}
 	},
@@ -121,7 +121,7 @@ static const struct dmi_system_id fwbug_list[] = {
 		.ident = "V14 G4 AMN",
 		.driver_data = &quirk_s2idle_bug,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "82YT"),
 		}
 	},
@@ -129,7 +129,7 @@ static const struct dmi_system_id fwbug_list[] = {
 		.ident = "V14 G4 AMN",
 		.driver_data = &quirk_s2idle_bug,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "83GE"),
 		}
 	},
@@ -137,7 +137,7 @@ static const struct dmi_system_id fwbug_list[] = {
 		.ident = "V15 G4 AMN",
 		.driver_data = &quirk_s2idle_bug,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "82YU"),
 		}
 	},
@@ -145,7 +145,7 @@ static const struct dmi_system_id fwbug_list[] = {
 		.ident = "V15 G4 AMN",
 		.driver_data = &quirk_s2idle_bug,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "83CQ"),
 		}
 	},
@@ -153,7 +153,7 @@ static const struct dmi_system_id fwbug_list[] = {
 		.ident = "IdeaPad 1 14AMN7",
 		.driver_data = &quirk_s2idle_bug,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "82VF"),
 		}
 	},
@@ -161,7 +161,7 @@ static const struct dmi_system_id fwbug_list[] = {
 		.ident = "IdeaPad 1 15AMN7",
 		.driver_data = &quirk_s2idle_bug,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "82VG"),
 		}
 	},
@@ -169,7 +169,7 @@ static const struct dmi_system_id fwbug_list[] = {
 		.ident = "IdeaPad 1 15AMN7",
 		.driver_data = &quirk_s2idle_bug,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "82X5"),
 		}
 	},
@@ -177,7 +177,7 @@ static const struct dmi_system_id fwbug_list[] = {
 		.ident = "IdeaPad Slim 3 14AMN8",
 		.driver_data = &quirk_s2idle_bug,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "82XN"),
 		}
 	},
@@ -185,7 +185,7 @@ static const struct dmi_system_id fwbug_list[] = {
 		.ident = "IdeaPad Slim 3 15AMN8",
 		.driver_data = &quirk_s2idle_bug,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "82XQ"),
 		}
 	},

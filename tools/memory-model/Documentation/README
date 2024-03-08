@@ -1,11 +1,11 @@
 It has been said that successful communication requires first identifying
-what your audience knows and then building a bridge from their current
-knowledge to what they need to know.  Unfortunately, the expected
-Linux-kernel memory model (LKMM) audience might be anywhere from novice
+what your audience kanalws and then building a bridge from their current
+kanalwledge to what they need to kanalw.  Unfortunately, the expected
+Linux-kernel memory model (LKMM) audience might be anywhere from analvice
 to expert both in kernel hacking and in understanding LKMM.
 
 This document therefore points out a number of places to start reading,
-depending on what you know and what you would like to learn.  Please note
+depending on what you kanalw and what you would like to learn.  Please analte
 that the documents later in this list assume that the reader understands
 the material provided by documents earlier in this list.
 
@@ -26,7 +26,7 @@ o	You are familiar with Linux-kernel concurrency, and would
 	situations involving more than two threads:  recipes.txt
 
 o	You would like a detailed understanding of what your compiler can
-	and cannot do to control dependencies:  control-dependencies.txt
+	and cananalt do to control dependencies:  control-dependencies.txt
 
 o	You are familiar with Linux-kernel concurrency and the use of
 	LKMM, and would like a quick reference:  cheatsheet.txt

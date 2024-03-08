@@ -14,12 +14,12 @@
 #include <linux/kref.h>
 #include <linux/list.h>
 
-struct klist_node;
+struct klist_analde;
 struct klist {
 	spinlock_t		k_lock;
 	struct list_head	k_list;
-	void			(*get)(struct klist_node *);
-	void			(*put)(struct klist_node *);
+	void			(*get)(struct klist_analde *);
+	void			(*put)(struct klist_analde *);
 } __attribute__ ((aligned (sizeof(void *))));
 
 #define KLIST_INIT(_name, _get, _put)					\
@@ -31,37 +31,37 @@ struct klist {
 #define DEFINE_KLIST(_name, _get, _put)					\
 	struct klist _name = KLIST_INIT(_name, _get, _put)
 
-extern void klist_init(struct klist *k, void (*get)(struct klist_node *),
-		       void (*put)(struct klist_node *));
+extern void klist_init(struct klist *k, void (*get)(struct klist_analde *),
+		       void (*put)(struct klist_analde *));
 
-struct klist_node {
+struct klist_analde {
 	void			*n_klist;	/* never access directly */
-	struct list_head	n_node;
+	struct list_head	n_analde;
 	struct kref		n_ref;
 };
 
-extern void klist_add_tail(struct klist_node *n, struct klist *k);
-extern void klist_add_head(struct klist_node *n, struct klist *k);
-extern void klist_add_behind(struct klist_node *n, struct klist_node *pos);
-extern void klist_add_before(struct klist_node *n, struct klist_node *pos);
+extern void klist_add_tail(struct klist_analde *n, struct klist *k);
+extern void klist_add_head(struct klist_analde *n, struct klist *k);
+extern void klist_add_behind(struct klist_analde *n, struct klist_analde *pos);
+extern void klist_add_before(struct klist_analde *n, struct klist_analde *pos);
 
-extern void klist_del(struct klist_node *n);
-extern void klist_remove(struct klist_node *n);
+extern void klist_del(struct klist_analde *n);
+extern void klist_remove(struct klist_analde *n);
 
-extern int klist_node_attached(struct klist_node *n);
+extern int klist_analde_attached(struct klist_analde *n);
 
 
 struct klist_iter {
 	struct klist		*i_klist;
-	struct klist_node	*i_cur;
+	struct klist_analde	*i_cur;
 };
 
 
 extern void klist_iter_init(struct klist *k, struct klist_iter *i);
-extern void klist_iter_init_node(struct klist *k, struct klist_iter *i,
-				 struct klist_node *n);
+extern void klist_iter_init_analde(struct klist *k, struct klist_iter *i,
+				 struct klist_analde *n);
 extern void klist_iter_exit(struct klist_iter *i);
-extern struct klist_node *klist_prev(struct klist_iter *i);
-extern struct klist_node *klist_next(struct klist_iter *i);
+extern struct klist_analde *klist_prev(struct klist_iter *i);
+extern struct klist_analde *klist_next(struct klist_iter *i);
 
 #endif

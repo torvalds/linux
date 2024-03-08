@@ -440,7 +440,7 @@
 		little-endian;
 	};
 
-	// One clock unit-sysclk node which bootloader require during DT fix-up
+	// One clock unit-sysclk analde which bootloader require during DT fix-up
 	sysclk: sysclk {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
@@ -472,22 +472,22 @@
 				map0 {
 					trip = <&cluster6_7_alert>;
 					cooling-device =
-						<&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						<&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						<&cpu100 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						<&cpu101 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						<&cpu200 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						<&cpu201 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						<&cpu300 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						<&cpu301 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						<&cpu400 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						<&cpu401 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						<&cpu500 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						<&cpu501 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						<&cpu600 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						<&cpu601 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						<&cpu700 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						<&cpu701 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+						<&cpu0 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+						<&cpu1 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+						<&cpu100 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+						<&cpu101 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+						<&cpu200 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+						<&cpu201 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+						<&cpu300 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+						<&cpu301 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+						<&cpu400 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+						<&cpu401 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+						<&cpu500 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+						<&cpu501 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+						<&cpu600 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+						<&cpu601 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+						<&cpu700 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+						<&cpu701 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};
@@ -1134,7 +1134,7 @@
 			apio-wins = <8>;
 			ppio-wins = <8>;
 			bus-range = <0x0 0xff>;
-			ranges = <0x82000000 0x0 0x40000000 0x80 0x40000000 0x0 0x40000000>; /* non-prefetchable memory */
+			ranges = <0x82000000 0x0 0x40000000 0x80 0x40000000 0x0 0x40000000>; /* analn-prefetchable memory */
 			msi-parent = <&its>;
 			#interrupt-cells = <1>;
 			interrupt-map-mask = <0 0 0 7>;
@@ -1162,7 +1162,7 @@
 			apio-wins = <8>;
 			ppio-wins = <8>;
 			bus-range = <0x0 0xff>;
-			ranges = <0x82000000 0x0 0x40000000 0x88 0x40000000 0x0 0x40000000>; /* non-prefetchable memory */
+			ranges = <0x82000000 0x0 0x40000000 0x88 0x40000000 0x0 0x40000000>; /* analn-prefetchable memory */
 			msi-parent = <&its>;
 			#interrupt-cells = <1>;
 			interrupt-map-mask = <0 0 0 7>;
@@ -1190,7 +1190,7 @@
 			apio-wins = <256>;
 			ppio-wins = <24>;
 			bus-range = <0x0 0xff>;
-			ranges = <0x82000000 0x0 0x40000000 0x90 0x40000000 0x0 0x40000000>; /* non-prefetchable memory */
+			ranges = <0x82000000 0x0 0x40000000 0x90 0x40000000 0x0 0x40000000>; /* analn-prefetchable memory */
 			msi-parent = <&its>;
 			#interrupt-cells = <1>;
 			interrupt-map-mask = <0 0 0 7>;
@@ -1218,7 +1218,7 @@
 			apio-wins = <8>;
 			ppio-wins = <8>;
 			bus-range = <0x0 0xff>;
-			ranges = <0x82000000 0x0 0x40000000 0x98 0x40000000 0x0 0x40000000>; /* non-prefetchable memory */
+			ranges = <0x82000000 0x0 0x40000000 0x98 0x40000000 0x0 0x40000000>; /* analn-prefetchable memory */
 			msi-parent = <&its>;
 			#interrupt-cells = <1>;
 			interrupt-map-mask = <0 0 0 7>;
@@ -1246,7 +1246,7 @@
 			apio-wins = <256>;
 			ppio-wins = <24>;
 			bus-range = <0x0 0xff>;
-			ranges = <0x82000000 0x0 0x40000000 0xa0 0x40000000 0x0 0x40000000>; /* non-prefetchable memory */
+			ranges = <0x82000000 0x0 0x40000000 0xa0 0x40000000 0x0 0x40000000>; /* analn-prefetchable memory */
 			msi-parent = <&its>;
 			#interrupt-cells = <1>;
 			interrupt-map-mask = <0 0 0 7>;
@@ -1274,7 +1274,7 @@
 			apio-wins = <8>;
 			ppio-wins = <8>;
 			bus-range = <0x0 0xff>;
-			ranges = <0x82000000 0x0 0x40000000 0xa8 0x40000000 0x0 0x40000000>; /* non-prefetchable memory */
+			ranges = <0x82000000 0x0 0x40000000 0xa8 0x40000000 0x0 0x40000000>; /* analn-prefetchable memory */
 			msi-parent = <&its>;
 			#interrupt-cells = <1>;
 			interrupt-map-mask = <0 0 0 7>;
@@ -1295,9 +1295,9 @@
 			interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>,
 				     // combined secure
 				     <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>,
-				     // global non-secure fault
+				     // global analn-secure fault
 				     <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>,
-				     // combined non-secure
+				     // combined analn-secure
 				     <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>,
 				     // performance counter interrupts 0-9
 				     <GIC_SPI 211 IRQ_TYPE_LEVEL_HIGH>,

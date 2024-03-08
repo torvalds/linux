@@ -270,10 +270,10 @@
                 255
             ]
         ],
-        "cmdUnderTest": "$TC actions add action nat ingress 1.1.1.1 1.18.2.2 another_arg index 12",
+        "cmdUnderTest": "$TC actions add action nat ingress 1.1.1.1 1.18.2.2 aanalther_arg index 12",
         "expExitCode": "255",
         "verifyCmd": "$TC actions get action nat index 12",
-        "matchPattern": "action order [0-9]+:  nat ingress 1.1.1.1/32 1.18.2.2 pass.*another_arg.*index 12 ref",
+        "matchPattern": "action order [0-9]+:  nat ingress 1.1.1.1/32 1.18.2.2 pass.*aanalther_arg.*index 12 ref",
         "matchCount": "0",
         "teardown": [
             [

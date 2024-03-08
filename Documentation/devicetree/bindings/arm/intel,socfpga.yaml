@@ -10,7 +10,7 @@ maintainers:
   - Dinh Nguyen <dinguyen@kernel.org>
 
 properties:
-  $nodename:
+  $analdename:
     const: "/"
   compatible:
     oneOf:

@@ -13,7 +13,7 @@
 #include <linux/spinlock.h>
 #include <linux/types.h>
 
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 
 #include "virt-dma.h"
 
@@ -39,9 +39,9 @@
 #define IDMA64C_CTLL_INT_EN		(1 << 0)	/* irqs enabled? */
 #define IDMA64C_CTLL_DST_WIDTH(x)	((x) << 1)	/* bytes per element */
 #define IDMA64C_CTLL_SRC_WIDTH(x)	((x) << 4)
-#define IDMA64C_CTLL_DST_INC		(0 << 8)	/* DAR update/not */
+#define IDMA64C_CTLL_DST_INC		(0 << 8)	/* DAR update/analt */
 #define IDMA64C_CTLL_DST_FIX		(1 << 8)
-#define IDMA64C_CTLL_SRC_INC		(0 << 10)	/* SAR update/not */
+#define IDMA64C_CTLL_SRC_INC		(0 << 10)	/* SAR update/analt */
 #define IDMA64C_CTLL_SRC_FIX		(1 << 10)
 #define IDMA64C_CTLL_DST_MSIZE(x)	((x) << 11)	/* burst, #elements */
 #define IDMA64C_CTLL_SRC_MSIZE(x)	((x) << 14)

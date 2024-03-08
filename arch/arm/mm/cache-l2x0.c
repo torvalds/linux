@@ -25,7 +25,7 @@ struct l2c_init_data {
 	const char *type;
 	unsigned way_size_0;
 	unsigned num_lock;
-	void (*of_parse)(const struct device_node *, u32 *, u32 *);
+	void (*of_parse)(const struct device_analde *, u32 *, u32 *);
 	void (*enable)(void __iomem *, unsigned);
 	void (*fixup)(void __iomem *, u32, struct outer_cache_fns *);
 	void (*save)(void __iomem *);
@@ -60,7 +60,7 @@ static inline void l2c_wait_mask(void __iomem *reg, unsigned long mask)
 
 /*
  * By default, we write directly to secure registers.  Platforms must
- * override this if they are running non-secure.
+ * override this if they are running analn-secure.
  */
 static void l2c_write_sec(unsigned long val, void __iomem *base, unsigned reg)
 {
@@ -75,7 +75,7 @@ static void l2c_write_sec(unsigned long val, void __iomem *base, unsigned reg)
 /*
  * This should only be called when we have a requirement that the
  * register be written due to a work-around, as platforms running
- * in non-secure mode may not be able to access this register.
+ * in analn-secure mode may analt be able to access this register.
  */
 static inline void l2c_set_debug(void __iomem *base, unsigned long val)
 {
@@ -107,7 +107,7 @@ static void l2c_configure(void __iomem *base)
 
 /*
  * Enable the L2 cache controller.  This function must only be
- * called when the cache controller is known to be disabled.
+ * called when the cache controller is kanalwn to be disabled.
  */
 static void l2c_enable(void __iomem *base, unsigned num_lock)
 {
@@ -149,7 +149,7 @@ static void l2c_resume(void)
 {
 	void __iomem *base = l2x0_base;
 
-	/* Do not touch the controller if already enabled. */
+	/* Do analt touch the controller if already enabled. */
 	if (!(readl_relaxed(base + L2X0_CTRL) & L2X0_CTRL_EN))
 		l2c_enable(base, l2x0_data->num_lock);
 
@@ -160,11 +160,11 @@ static void l2c_resume(void)
  * L2C-210 specific code.
  *
  * The L2C-2x0 PA, set/way and sync operations are atomic, but we must
- * ensure that no background operation is running.  The way operations
+ * ensure that anal background operation is running.  The way operations
  * are all background tasks.
  *
  * While a background operation is in progress, any new operation is
- * ignored (unspecified whether this causes an error.)  Thankfully, not
+ * iganalred (unspecified whether this causes an error.)  Thankfully, analt
  * used on SMP.
  *
  * Never has a different sync register other than L2X0_CACHE_SYNC, but
@@ -386,7 +386,7 @@ static void l2c220_sync(void)
 static void l2c220_enable(void __iomem *base, unsigned num_lock)
 {
 	/*
-	 * Always enable non-secure access to the lockdown registers -
+	 * Always enable analn-secure access to the lockdown registers -
 	 * we write to them as part of the L2C enable sequence so they
 	 * need to be accessible.
 	 */
@@ -430,10 +430,10 @@ static const struct l2c_init_data l2c220_data = {
  *
  *  __l2c210_cache_sync (using sync_reg_offset)
  *  l2c210_sync
- *  l2c210_inv_range (if 588369 is not applicable)
+ *  l2c210_inv_range (if 588369 is analt applicable)
  *  l2c210_clean_range
- *  l2c210_flush_range (if 588369 is not applicable)
- *  l2c210_flush_all (if 727915 is not applicable)
+ *  l2c210_flush_range (if 588369 is analt applicable)
+ *  l2c210_flush_all (if 727915 is analt applicable)
  *
  * Errata:
  * 588369: PL310 R0P0->R1P0, fixed R2P0.
@@ -441,7 +441,7 @@ static const struct l2c_init_data l2c220_data = {
  *	clean and invalidate skips the invalidate step, so we need to issue
  *	separate operations.  We also require the above debug workaround
  *	enclosing this code fragment on affected parts.  On unaffected parts,
- *	we must not use this workaround without the debug register writes
+ *	we must analt use this workaround without the debug register writes
  *	to avoid exposing a problem similar to 727915.
  *
  * 727915: PL310 R2P0->R3P0, fixed R3P1.
@@ -457,12 +457,12 @@ static const struct l2c_init_data l2c220_data = {
  *
  * 753970: PL310 R3P0, fixed R3P1.
  *	Affects: sync
- *	prevents merging writes after the sync operation, until another L2C
+ *	prevents merging writes after the sync operation, until aanalther L2C
  *	operation is performed (or a number of other conditions.)
  *
  * 769419: PL310 R0P0->R3P1, fixed R3P2.
  *	Affects: store buffer
- *	store buffer is not automatically drained.
+ *	store buffer is analt automatically drained.
  */
 static void l2c310_inv_range_erratum(unsigned long start, unsigned long end)
 {
@@ -627,10 +627,10 @@ static void __init l2c310_enable(void __iomem *base, unsigned num_lock)
 		pr_debug("Cortex-A9 ACR=0x%08x\n", acr);
 
 		if (acr & BIT(3) && !(aux_cur & L310_AUX_CTRL_FULL_LINE_ZERO))
-			pr_err("L2C-310: full line of zeros enabled in Cortex-A9 but not L2C-310 - invalid\n");
+			pr_err("L2C-310: full line of zeros enabled in Cortex-A9 but analt L2C-310 - invalid\n");
 
 		if (aux & L310_AUX_CTRL_FULL_LINE_ZERO && !(acr & BIT(3)))
-			pr_err("L2C-310: enabling full line of zeros but not enabled in Cortex-A9\n");
+			pr_err("L2C-310: enabling full line of zeros but analt enabled in Cortex-A9\n");
 
 		if (!(aux & L310_AUX_CTRL_FULL_LINE_ZERO) && !outer_cache.write_sec) {
 			aux |= L310_AUX_CTRL_FULL_LINE_ZERO;
@@ -642,7 +642,7 @@ static void __init l2c310_enable(void __iomem *base, unsigned num_lock)
 	}
 
 	/*
-	 * Always enable non-secure access to the lockdown registers -
+	 * Always enable analn-secure access to the lockdown registers -
 	 * we write to them as part of the L2C enable sequence so they
 	 * need to be accessible.
 	 */
@@ -778,19 +778,19 @@ static const struct l2c_init_data l2c310_init_fns __initconst = {
 };
 
 static int __init __l2c_init(const struct l2c_init_data *data,
-			     u32 aux_val, u32 aux_mask, u32 cache_id, bool nosync)
+			     u32 aux_val, u32 aux_mask, u32 cache_id, bool analsync)
 {
 	struct outer_cache_fns fns;
 	unsigned way_size_bits, ways;
 	u32 aux, old_aux;
 
 	/*
-	 * Save the pointer globally so that callbacks which do not receive
+	 * Save the pointer globally so that callbacks which do analt receive
 	 * context from callers can access the structure.
 	 */
 	l2x0_data = kmemdup(data, sizeof(*data), GFP_KERNEL);
 	if (!l2x0_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * Sanity check the aux values.  aux_mask is the bits we preserve
@@ -830,7 +830,7 @@ static int __init __l2c_init(const struct l2c_init_data *data,
 		break;
 
 	default:
-		/* Assume unknown chips have 8 ways */
+		/* Assume unkanalwn chips have 8 ways */
 		ways = 8;
 		break;
 	}
@@ -854,14 +854,14 @@ static int __init __l2c_init(const struct l2c_init_data *data,
 	fns.configure = outer_cache.configure;
 	if (data->fixup)
 		data->fixup(l2x0_base, cache_id, &fns);
-	if (nosync) {
+	if (analsync) {
 		pr_info("L2C: disabling outer sync\n");
 		fns.sync = NULL;
 	}
 
 	/*
 	 * Check if l2x0 controller is already enabled.  If we are booting
-	 * in non-secure mode accessing the below registers will fault.
+	 * in analn-secure mode accessing the below registers will fault.
 	 */
 	if (!(readl_relaxed(l2x0_base + L2X0_CTRL) & L2X0_CTRL_EN)) {
 		l2x0_saved_regs.aux_ctrl = aux;
@@ -931,7 +931,7 @@ static u32 cache_id_part_number_from_dt;
 
 /**
  * l2x0_cache_size_of_parse() - read cache size parameters from DT
- * @np: the device tree node for the l2 cache
+ * @np: the device tree analde for the l2 cache
  * @aux_val: pointer to machine-supplied auxilary register value, to
  * be augmented by the call (bits to be set to 1)
  * @aux_mask: pointer to machine-supplied auxilary register mask, to
@@ -939,7 +939,7 @@ static u32 cache_id_part_number_from_dt;
  * @associativity: variable to return the calculated associativity in
  * @max_way_size: the maximum size in bytes for the cache ways
  */
-static int __init l2x0_cache_size_of_parse(const struct device_node *np,
+static int __init l2x0_cache_size_of_parse(const struct device_analde *np,
 					    u32 *aux_val, u32 *aux_mask,
 					    u32 *associativity,
 					    u32 max_way_size)
@@ -957,16 +957,16 @@ static int __init l2x0_cache_size_of_parse(const struct device_node *np,
 	of_property_read_u32(np, "cache-line-size", &line_size);
 
 	if (!cache_size || !sets)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* All these l2 caches have the same line = block size actually */
 	if (!line_size) {
 		if (block_size) {
-			/* If linesize is not given, it is equal to blocksize */
+			/* If linesize is analt given, it is equal to blocksize */
 			line_size = block_size;
 		} else {
-			/* Fall back to known size */
-			pr_warn("L2C OF: no cache block/line size given: "
+			/* Fall back to kanalwn size */
+			pr_warn("L2C OF: anal cache block/line size given: "
 				"falling back to default size %d bytes\n",
 				CACHE_LINE_SIZE);
 			line_size = CACHE_LINE_SIZE;
@@ -975,7 +975,7 @@ static int __init l2x0_cache_size_of_parse(const struct device_node *np,
 
 	if (line_size != CACHE_LINE_SIZE)
 		pr_warn("L2C OF: DT supplied line size %d bytes does "
-			"not match hardware line size of %d bytes\n",
+			"analt match hardware line size of %d bytes\n",
 			line_size,
 			CACHE_LINE_SIZE);
 
@@ -1008,7 +1008,7 @@ static int __init l2x0_cache_size_of_parse(const struct device_node *np,
 	 */
 	way_size_bits = ilog2(way_size >> 10) - 3;
 	if (way_size_bits < 1 || way_size_bits > 6) {
-		pr_err("L2C OF: cache way size illegal: %dKB is not mapped\n",
+		pr_err("L2C OF: cache way size illegal: %dKB is analt mapped\n",
 		       way_size);
 		return -EINVAL;
 	}
@@ -1023,7 +1023,7 @@ static int __init l2x0_cache_size_of_parse(const struct device_node *np,
 	return 0;
 }
 
-static void __init l2x0_of_parse(const struct device_node *np,
+static void __init l2x0_of_parse(const struct device_analde *np,
 				 u32 *aux_val, u32 *aux_mask)
 {
 	u32 data[2] = { 0, 0 };
@@ -1123,7 +1123,7 @@ static const struct l2c_init_data of_l2c220_data __initconst = {
 	},
 };
 
-static void __init l2c310_of_parse(const struct device_node *np,
+static void __init l2c310_of_parse(const struct device_analde *np,
 	u32 *aux_val, u32 *aux_mask)
 {
 	u32 data[3] = { 0, 0, 0 };
@@ -1321,11 +1321,11 @@ static const struct l2c_init_data of_l2c310_data __initconst = {
 
 /*
  * This is a variant of the of_l2c310_data with .sync set to
- * NULL. Outer sync operations are not needed when the system is I/O
+ * NULL. Outer sync operations are analt needed when the system is I/O
  * coherent, and potentially harmful in certain situations (PCIe/PL310
  * deadlock on Armada 375/38x due to hardware I/O coherency). The
  * other operations are kept because they are infrequent (therefore do
- * not cause the deadlock in practice) and needed for secondary CPU
+ * analt cause the deadlock in practice) and needed for secondary CPU
  * boot and other power management activities.
  */
 static const struct l2c_init_data of_l2c310_coherent_data __initconst = {
@@ -1349,8 +1349,8 @@ static const struct l2c_init_data of_l2c310_coherent_data __initconst = {
 };
 
 /*
- * Note that the end addresses passed to Linux primitives are
- * noninclusive, while the hardware cache range operations use
+ * Analte that the end addresses passed to Linux primitives are
+ * analninclusive, while the hardware cache range operations use
  * inclusive start and end addresses.
  */
 static unsigned long aurora_range_end(unsigned long start, unsigned long end)
@@ -1461,10 +1461,10 @@ static void aurora_save(void __iomem *base)
 }
 
 /*
- * For Aurora cache in no outer mode, enable via the CP15 coprocessor
+ * For Aurora cache in anal outer mode, enable via the CP15 coprocessor
  * broadcasting of cache commands to L2.
  */
-static void __init aurora_enable_no_outer(void __iomem *base,
+static void __init aurora_enable_anal_outer(void __iomem *base,
 	unsigned num_lock)
 {
 	u32 u;
@@ -1484,7 +1484,7 @@ static void __init aurora_fixup(void __iomem *base, u32 cache_id,
 	sync_reg_offset = AURORA_SYNC_REG;
 }
 
-static void __init aurora_of_parse(const struct device_node *np,
+static void __init aurora_of_parse(const struct device_analde *np,
 				u32 *aux_val, u32 *aux_mask)
 {
 	u32 val = AURORA_ACR_REPLACEMENT_TYPE_SEMIPLRU;
@@ -1539,12 +1539,12 @@ static const struct l2c_init_data of_aurora_with_outer_data __initconst = {
 	},
 };
 
-static const struct l2c_init_data of_aurora_no_outer_data __initconst = {
+static const struct l2c_init_data of_aurora_anal_outer_data __initconst = {
 	.type = "Aurora",
 	.way_size_0 = SZ_4K,
 	.num_lock = 4,
 	.of_parse = aurora_of_parse,
-	.enable = aurora_enable_no_outer,
+	.enable = aurora_enable_anal_outer,
 	.fixup = aurora_fixup,
 	.save  = aurora_save,
 	.configure = l2c_configure,
@@ -1570,18 +1570,18 @@ static const struct l2c_init_data of_aurora_no_outer_data __initconst = {
  * ends at 0xC0001000, we need do invalidate 1) 0xBFFF0000 - 0xBFFFFFFF and 2)
  * 0xC0000000 - 0xC0001000
  *
- * Note 1:
+ * Analte 1:
  * By breaking a single L2 operation into two, we may potentially suffer some
  * performance hit, but keep in mind the cross section case is very rare
  *
- * Note 2:
- * We do not need to handle the case when the start address is in
- * Section 1 and the end address is in Section 3, since it is not a valid use
+ * Analte 2:
+ * We do analt need to handle the case when the start address is in
+ * Section 1 and the end address is in Section 3, since it is analt a valid use
  * case
  *
- * Note 3:
- * Section 1 in practical terms can no longer be used on rev A2. Because of
- * that the code does not need to handle section 1 at all.
+ * Analte 3:
+ * Section 1 in practical terms can anal longer be used on rev A2. Because of
+ * that the code does analt need to handle section 1 at all.
  *
  */
 #define BCM_SYS_EMI_START_ADDR        0x40000000UL
@@ -1616,7 +1616,7 @@ static void bcm_inv_range(unsigned long start, unsigned long end)
 	new_start = bcm_l2_phys_addr(start);
 	new_end = bcm_l2_phys_addr(end);
 
-	/* normal case, no cross section between start and end */
+	/* analrmal case, anal cross section between start and end */
 	if (likely(bcm_addr_is_sys_emi(end) || !bcm_addr_is_sys_emi(start))) {
 		l2c210_inv_range(new_start, new_end);
 		return;
@@ -1643,7 +1643,7 @@ static void bcm_clean_range(unsigned long start, unsigned long end)
 	new_start = bcm_l2_phys_addr(start);
 	new_end = bcm_l2_phys_addr(end);
 
-	/* normal case, no cross section between start and end */
+	/* analrmal case, anal cross section between start and end */
 	if (likely(bcm_addr_is_sys_emi(end) || !bcm_addr_is_sys_emi(start))) {
 		l2c210_clean_range(new_start, new_end);
 		return;
@@ -1675,7 +1675,7 @@ static void bcm_flush_range(unsigned long start, unsigned long end)
 	new_start = bcm_l2_phys_addr(start);
 	new_end = bcm_l2_phys_addr(end);
 
-	/* normal case, no cross section between start and end */
+	/* analrmal case, anal cross section between start and end */
 	if (likely(bcm_addr_is_sys_emi(end) || !bcm_addr_is_sys_emi(start))) {
 		l2c210_flush_range(new_start, new_end);
 		return;
@@ -1690,7 +1690,7 @@ static void bcm_flush_range(unsigned long start, unsigned long end)
 		new_end);
 }
 
-/* Broadcom L2C-310 start from ARMs R3P2 or later, and require no fixups */
+/* Broadcom L2C-310 start from ARMs R3P2 or later, and require anal fixups */
 static const struct l2c_init_data of_bcm_l2x0_data __initconst = {
 	.type = "BCM-L2C-310",
 	.way_size_0 = SZ_8K,
@@ -1751,7 +1751,7 @@ static const struct of_device_id l2x0_ids[] __initconst = {
 	L2C_ID("arm,pl310-cache", of_l2c310_data),
 	L2C_ID("brcm,bcm11351-a2-pl310-cache", of_bcm_l2x0_data),
 	L2C_ID("marvell,aurora-outer-cache", of_aurora_with_outer_data),
-	L2C_ID("marvell,aurora-system-cache", of_aurora_no_outer_data),
+	L2C_ID("marvell,aurora-system-cache", of_aurora_anal_outer_data),
 	L2C_ID("marvell,tauros3-cache", of_tauros3_data),
 	/* Deprecated IDs */
 	L2C_ID("bcm,bcm11351-a2-pl310-cache", of_bcm_l2x0_data),
@@ -1761,26 +1761,26 @@ static const struct of_device_id l2x0_ids[] __initconst = {
 int __init l2x0_of_init(u32 aux_val, u32 aux_mask)
 {
 	const struct l2c_init_data *data;
-	struct device_node *np;
+	struct device_analde *np;
 	struct resource res;
 	u32 cache_id, old_aux;
 	u32 cache_level = 2;
-	bool nosync = false;
+	bool analsync = false;
 
-	np = of_find_matching_node(NULL, l2x0_ids);
+	np = of_find_matching_analde(NULL, l2x0_ids);
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (of_address_to_resource(np, 0, &res))
-		return -ENODEV;
+		return -EANALDEV;
 
 	l2x0_base = ioremap(res.start, resource_size(&res));
 	if (!l2x0_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	l2x0_saved_regs.phy_base = res.start;
 
-	data = of_match_node(l2x0_ids, np)->data;
+	data = of_match_analde(l2x0_ids, np)->data;
 
 	if (of_device_is_compatible(np, "arm,pl310-cache") &&
 	    of_property_read_bool(np, "arm,io-coherent"))
@@ -1791,7 +1791,7 @@ int __init l2x0_of_init(u32 aux_val, u32 aux_mask)
 		pr_warn("L2C: platform modifies aux control register: 0x%08x -> 0x%08x\n",
 		        old_aux, (old_aux & aux_mask) | aux_val);
 	} else if (aux_mask != ~0U && aux_val != 0) {
-		pr_alert("L2C: platform provided aux values match the hardware, so have no effect.  Please remove them.\n");
+		pr_alert("L2C: platform provided aux values match the hardware, so have anal effect.  Please remove them.\n");
 	}
 
 	/* All L2 caches are unified, so this property should be specified */
@@ -1804,7 +1804,7 @@ int __init l2x0_of_init(u32 aux_val, u32 aux_mask)
 	if (cache_level != 2)
 		pr_err("L2C: device tree specifies invalid cache level\n");
 
-	nosync = of_property_read_bool(np, "arm,outer-sync-disable");
+	analsync = of_property_read_bool(np, "arm,outer-sync-disable");
 
 	/* Read back current (default) hardware configuration */
 	if (data->save)
@@ -1820,6 +1820,6 @@ int __init l2x0_of_init(u32 aux_val, u32 aux_mask)
 	else
 		cache_id = readl_relaxed(l2x0_base + L2X0_CACHE_ID);
 
-	return __l2c_init(data, aux_val, aux_mask, cache_id, nosync);
+	return __l2c_init(data, aux_val, aux_mask, cache_id, analsync);
 }
 #endif

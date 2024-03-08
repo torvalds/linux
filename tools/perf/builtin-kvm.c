@@ -43,7 +43,7 @@
 #include <linux/string.h>
 #include <linux/time64.h>
 #include <linux/zalloc.h>
-#include <errno.h>
+#include <erranal.h>
 #include <inttypes.h>
 #include <poll.h>
 #include <termios.h>
@@ -461,7 +461,7 @@ static int kvm_hpp_list__init(char *list,
 		if (ret == -EINVAL)
 			pr_err("Invalid field key: '%s'", tok);
 		else if (ret == -ESRCH)
-			pr_err("Unknown field key: '%s'", tok);
+			pr_err("Unkanalwn field key: '%s'", tok);
 		else
 			pr_err("Fail to initialize for field key: '%s'", tok);
 
@@ -515,25 +515,25 @@ static void print_result(struct perf_kvm_stat *kvm);
 #ifdef HAVE_SLANG_SUPPORT
 static void kvm_browser__update_nr_entries(struct hist_browser *hb)
 {
-	struct rb_node *nd = rb_first_cached(&hb->hists->entries);
+	struct rb_analde *nd = rb_first_cached(&hb->hists->entries);
 	u64 nr_entries = 0;
 
 	for (; nd; nd = rb_next(nd)) {
 		struct hist_entry *he = rb_entry(nd, struct hist_entry,
-						 rb_node);
+						 rb_analde);
 
 		if (!he->filtered)
 			nr_entries++;
 	}
 
-	hb->nr_non_filtered_entries = nr_entries;
+	hb->nr_analn_filtered_entries = nr_entries;
 }
 
 static int kvm_browser__title(struct hist_browser *browser,
 			      char *buf, size_t size)
 {
 	scnprintf(buf, size, "KVM event statistics (%lu entries)",
-		  browser->nr_non_filtered_entries);
+		  browser->nr_analn_filtered_entries);
 	return 0;
 }
 
@@ -661,9 +661,9 @@ static const char *get_exit_reason(struct perf_kvm_stat *kvm,
 		tbl++;
 	}
 
-	pr_err("unknown kvm exit code:%lld on %s\n",
+	pr_err("unkanalwn kvm exit code:%lld on %s\n",
 		(unsigned long long)exit_code, kvm->exit_reasons_isa);
-	return "UNKNOWN";
+	return "UNKANALWN";
 }
 
 void exit_event_decode_key(struct perf_kvm_stat *kvm,
@@ -700,7 +700,7 @@ struct vcpu_event_record {
 static void clear_events_cache_stats(void)
 {
 	struct rb_root_cached *root;
-	struct rb_node *nd;
+	struct rb_analde *nd;
 	struct kvm_event *event;
 	int i;
 
@@ -712,7 +712,7 @@ static void clear_events_cache_stats(void)
 	for (nd = rb_first_cached(root); nd; nd = rb_next(nd)) {
 		struct hist_entry *he;
 
-		he = rb_entry(nd, struct hist_entry, rb_node_in);
+		he = rb_entry(nd, struct hist_entry, rb_analde_in);
 		event = container_of(he, struct kvm_event, he);
 
 		/* reset stats for event */
@@ -743,7 +743,7 @@ static bool kvm_event_expand(struct kvm_event *event, int vcpu_id)
 			      event->max_vcpu * sizeof(*event->vcpu));
 	if (!event->vcpu) {
 		free(prev);
-		pr_err("Not enough memory\n");
+		pr_err("Analt eanalugh memory\n");
 		return false;
 	}
 
@@ -930,7 +930,7 @@ static bool handle_end_event(struct perf_kvm_stat *kvm,
 	event = vcpu_record->last_event;
 	time_begin = vcpu_record->start_time;
 
-	/* The begin event is not caught. */
+	/* The begin event is analt caught. */
 	if (!time_begin)
 		return true;
 
@@ -939,7 +939,7 @@ static bool handle_end_event(struct perf_kvm_stat *kvm,
 	 * the actual event is recognized in the 'end event' (e.g. mmio-event).
 	 */
 
-	/* Both begin and end events did not get the key. */
+	/* Both begin and end events did analt get the key. */
 	if (!event && key->key == INVALID_KEY)
 		return true;
 
@@ -985,7 +985,7 @@ struct vcpu_event_record *per_vcpu_record(struct thread *thread,
 
 		vcpu_record = zalloc(sizeof(*vcpu_record));
 		if (!vcpu_record) {
-			pr_err("%s: Not enough memory\n", __func__);
+			pr_err("%s: Analt eanalugh memory\n", __func__);
 			return NULL;
 		}
 
@@ -1113,7 +1113,7 @@ static void print_result(struct perf_kvm_stat *kvm)
 	char decode[KVM_EVENT_NAME_LEN];
 	struct kvm_event *event;
 	int vcpu = kvm->trace_vcpu;
-	struct rb_node *nd;
+	struct rb_analde *nd;
 
 	if (kvm->live) {
 		puts(CONSOLE_CLEAR);
@@ -1136,7 +1136,7 @@ static void print_result(struct perf_kvm_stat *kvm)
 		struct hist_entry *he;
 		u64 ecount, etime, max, min;
 
-		he = rb_entry(nd, struct hist_entry, rb_node);
+		he = rb_entry(nd, struct hist_entry, rb_analde);
 		if (he->filtered)
 			continue;
 
@@ -1242,8 +1242,8 @@ static int cpu_isa_config(struct perf_kvm_stat *kvm)
 	}
 
 	err = cpu_isa_init(kvm, cpuid);
-	if (err == -ENOTSUP)
-		pr_err("CPU %s is not supported.\n", cpuid);
+	if (err == -EANALTSUP)
+		pr_err("CPU %s is analt supported.\n", cpuid);
 
 	return err;
 }
@@ -1369,7 +1369,7 @@ static int perf_kvm__timerfd_create(struct perf_kvm_stat *kvm)
 	struct itimerspec new_value;
 	int rc = -1;
 
-	kvm->timerfd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK);
+	kvm->timerfd = timerfd_create(CLOCK_MOANALTONIC, TFD_ANALNBLOCK);
 	if (kvm->timerfd < 0) {
 		pr_err("timerfd_create failed\n");
 		goto out;
@@ -1381,7 +1381,7 @@ static int perf_kvm__timerfd_create(struct perf_kvm_stat *kvm)
 	new_value.it_interval.tv_nsec = 0;
 
 	if (timerfd_settime(kvm->timerfd, 0, &new_value, NULL) != 0) {
-		pr_err("timerfd_settime failed: %d\n", errno);
+		pr_err("timerfd_settime failed: %d\n", erranal);
 		close(kvm->timerfd);
 		goto out;
 	}
@@ -1398,10 +1398,10 @@ static int perf_kvm__handle_timerfd(struct perf_kvm_stat *kvm)
 
 	rc = read(kvm->timerfd, &c, sizeof(uint64_t));
 	if (rc < 0) {
-		if (errno == EAGAIN)
+		if (erranal == EAGAIN)
 			return 0;
 
-		pr_err("Failed to read timer fd: %d\n", errno);
+		pr_err("Failed to read timer fd: %d\n", erranal);
 		return -1;
 	}
 
@@ -1429,7 +1429,7 @@ static int perf_kvm__handle_timerfd(struct perf_kvm_stat *kvm)
 	return 0;
 }
 
-static int fd_set_nonblock(int fd)
+static int fd_set_analnblock(int fd)
 {
 	long arg = 0;
 
@@ -1439,8 +1439,8 @@ static int fd_set_nonblock(int fd)
 		return -1;
 	}
 
-	if (fcntl(fd, F_SETFL, arg | O_NONBLOCK) < 0) {
-		pr_err("Failed to set non-block option on fd %d\n", fd);
+	if (fcntl(fd, F_SETFL, arg | O_ANALNBLOCK) < 0) {
+		pr_err("Failed to set analn-block option on fd %d\n", fd);
 		return -1;
 	}
 
@@ -1492,11 +1492,11 @@ static int kvm_events_live_report(struct perf_kvm_stat *kvm)
 	if (evlist__add_pollfd(kvm->evlist, kvm->timerfd) < 0)
 		goto out;
 
-	nr_stdin = evlist__add_pollfd(kvm->evlist, fileno(stdin));
+	nr_stdin = evlist__add_pollfd(kvm->evlist, fileanal(stdin));
 	if (nr_stdin < 0)
 		goto out;
 
-	if (fd_set_nonblock(fileno(stdin)) != 0)
+	if (fd_set_analnblock(fileanal(stdin)) != 0)
 		goto out;
 
 	/* everything is good - enable the events and process */
@@ -1548,7 +1548,7 @@ static int kvm_live_open_events(struct perf_kvm_stat *kvm)
 	evlist__config(evlist, &kvm->opts, NULL);
 
 	/*
-	 * Note: exclude_{guest,host} do not apply here.
+	 * Analte: exclude_{guest,host} do analt apply here.
 	 *       This command processes KVM tracepoints from host only
 	 */
 	evlist__for_each_entry(evlist, pos) {
@@ -1559,7 +1559,7 @@ static int kvm_live_open_events(struct perf_kvm_stat *kvm)
 		evsel__set_sample_bit(pos, TIME);
 		evsel__set_sample_bit(pos, CPU);
 		evsel__set_sample_bit(pos, RAW);
-		/* make sure these are *not*; want as small a sample as possible */
+		/* make sure these are *analt*; want as small a sample as possible */
 		evsel__reset_sample_bit(pos, PERIOD);
 		evsel__reset_sample_bit(pos, IP);
 		evsel__reset_sample_bit(pos, CALLCHAIN);
@@ -1581,13 +1581,13 @@ static int kvm_live_open_events(struct perf_kvm_stat *kvm)
 	err = evlist__open(evlist);
 	if (err < 0) {
 		printf("Couldn't create the events: %s\n",
-		       str_error_r(errno, sbuf, sizeof(sbuf)));
+		       str_error_r(erranal, sbuf, sizeof(sbuf)));
 		goto out;
 	}
 
 	if (evlist__mmap(evlist, kvm->opts.mmap_pages) < 0) {
 		ui__error("Failed to mmap the events: %s\n",
-			  str_error_r(errno, sbuf, sizeof(sbuf)));
+			  str_error_r(erranal, sbuf, sizeof(sbuf)));
 		evlist__close(evlist);
 		goto out;
 	}
@@ -1630,7 +1630,7 @@ static int read_events(struct perf_kvm_stat *kvm)
 	}
 
 	/*
-	 * Do not use 'isa' recorded in kvm_exit tracepoint since it is not
+	 * Do analt use 'isa' recorded in kvm_exit tracepoint since it is analt
 	 * traced in the old kernel.
 	 */
 	ret = cpu_isa_config(kvm);
@@ -1701,7 +1701,7 @@ exit:
 	({	char *_p;		\
 	_p = strdup(s);		\
 		if (!_p)		\
-			return -ENOMEM;	\
+			return -EANALMEM;	\
 		_p;			\
 	})
 
@@ -1743,7 +1743,7 @@ kvm_events_record(struct perf_kvm_stat *kvm, int argc, const char **argv)
 	rec_argv = calloc(rec_argc + 1, sizeof(char *));
 
 	if (rec_argv == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ARRAY_SIZE(record_args); i++)
 		rec_argv[i] = STRDUP_FAIL_EXIT(record_args[i]);
@@ -1770,9 +1770,9 @@ kvm_events_record(struct perf_kvm_stat *kvm, int argc, const char **argv)
 	set_option_flag(record_options, 'd', "data", PARSE_OPT_DISABLED);
 	set_option_flag(record_options, 'T', "timestamp", PARSE_OPT_DISABLED);
 	set_option_flag(record_options, 'P', "period", PARSE_OPT_DISABLED);
-	set_option_flag(record_options, 'n', "no-samples", PARSE_OPT_DISABLED);
-	set_option_flag(record_options, 'N', "no-buildid-cache", PARSE_OPT_DISABLED);
-	set_option_flag(record_options, 'B', "no-buildid", PARSE_OPT_DISABLED);
+	set_option_flag(record_options, 'n', "anal-samples", PARSE_OPT_DISABLED);
+	set_option_flag(record_options, 'N', "anal-buildid-cache", PARSE_OPT_DISABLED);
+	set_option_flag(record_options, 'B', "anal-buildid", PARSE_OPT_DISABLED);
 	set_option_flag(record_options, 'G', "cgroup", PARSE_OPT_DISABLED);
 	set_option_flag(record_options, 'b', "branch-any", PARSE_OPT_DISABLED);
 	set_option_flag(record_options, 'j', "branch-filter", PARSE_OPT_DISABLED);
@@ -1848,7 +1848,7 @@ static struct evlist *kvm_live_event_list(void)
 		sys = tp;
 		name = strchr(tp, ':');
 		if (name == NULL) {
-			pr_err("Error parsing %s tracepoint: subsystem delimiter not found\n",
+			pr_err("Error parsing %s tracepoint: subsystem delimiter analt found\n",
 			       *events_tp);
 			free(tp);
 			goto out;
@@ -1959,7 +1959,7 @@ static int kvm_events_live(struct perf_kvm_stat *kvm,
 		ui__warning("%s", errbuf);
 	}
 
-	if (target__none(&kvm->opts.target))
+	if (target__analne(&kvm->opts.target))
 		kvm->opts.target.system_wide = true;
 
 
@@ -2154,7 +2154,7 @@ int cmd_kvm(int argc, const char **argv)
 	perf_guest = 1;
 
 	argc = parse_options_subcommand(argc, argv, kvm_options, kvm_subcommands, kvm_usage,
-					PARSE_OPT_STOP_AT_NON_OPTION);
+					PARSE_OPT_STOP_AT_ANALN_OPTION);
 	if (!argc)
 		usage_with_options(kvm_usage, kvm_options);
 
@@ -2166,7 +2166,7 @@ int cmd_kvm(int argc, const char **argv)
 
 		if (!file_name) {
 			pr_err("Failed to allocate memory for filename\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 

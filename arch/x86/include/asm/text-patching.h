@@ -8,7 +8,7 @@
 
 /*
  * Currently, the max observed size in the kernel code is
- * JUMP_LABEL_NOP_SIZE/RELATIVEJUMP_SIZE, which are 5.
+ * JUMP_LABEL_ANALP_SIZE/RELATIVEJUMP_SIZE, which are 5.
  * Raise it if needed.
  */
 #define POKE_MAX_OPCODE_SIZE	5
@@ -23,9 +23,9 @@ extern void text_poke_early(void *addr, const void *opcode, size_t len);
  *
  * Warning:
  * Code patching in the UP case is safe if NMIs and MCE handlers are stopped and
- * no thread can be preempted in the instructions being modified (no iret to an
+ * anal thread can be preempted in the instructions being modified (anal iret to an
  * invalid instruction possible) or if the instructions are changed from a
- * consistent state to another consistent state atomically.
+ * consistent state to aanalther consistent state atomically.
  * On the local CPU you need to be protected against NMI or MCE handlers seeing
  * an inconsistent instruction while you patch.
  */
@@ -95,8 +95,8 @@ void __text_gen_insn(void *buf, u8 opcode, const void *addr, const void *dest, i
 
 	/*
 	 * Hide the addresses to avoid the compiler folding in constants when
-	 * referencing code, these can mess up annotations like
-	 * ANNOTATE_NOENDBR.
+	 * referencing code, these can mess up ananaltations like
+	 * ANANALTATE_ANALENDBR.
 	 */
 	OPTIMIZER_HIDE_VAR(insn);
 	OPTIMIZER_HIDE_VAR(addr);

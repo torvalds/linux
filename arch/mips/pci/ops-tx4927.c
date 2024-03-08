@@ -86,7 +86,7 @@ static int check_abort(struct tx4927_pcic_reg __iomem *pcicptr)
 			     &pcicptr->pcistatus);
 		/* flush write buffer */
 		iob();
-		code = PCIBIOS_DEVICE_NOT_FOUND;
+		code = PCIBIOS_DEVICE_ANALT_FOUND;
 	}
 	return code;
 }
@@ -317,7 +317,7 @@ void __init tx4927_pcic_setup(struct tx4927_pcic_reg __iomem *pcicptr,
 		     | TX4927_PCIC_PCICCFG_ICAEN | TX4927_PCIC_PCICCFG_TCAR,
 		     &pcicptr->pciccfg);
 
-	/* Do not use MEMMUL, MEMINF: YMFPCI card causes M_ABORT. */
+	/* Do analt use MEMMUL, MEMINF: YMFPCI card causes M_ABORT. */
 	__raw_writel(0, &pcicptr->pcicfg1);
 
 	__raw_writel((__raw_readl(&pcicptr->g2ptocnt) & ~0xffff)
@@ -471,7 +471,7 @@ irqreturn_t tx4927_pcierr_interrupt(int irq, void *dev_id)
 	struct tx4927_pcic_reg __iomem *pcicptr =
 		(struct tx4927_pcic_reg __iomem *)(unsigned long)dev_id;
 
-	if (txx9_pci_err_action != TXX9_PCI_ERR_IGNORE) {
+	if (txx9_pci_err_action != TXX9_PCI_ERR_IGANALRE) {
 		printk(KERN_WARNING "PCIERR interrupt at 0x%0*lx\n",
 		       (int)(2 * sizeof(unsigned long)), regs->cp0_epc);
 		tx4927_report_pcic_status1(pcicptr);

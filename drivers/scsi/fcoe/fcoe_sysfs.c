@@ -16,8 +16,8 @@
 #include <scsi/libfcoe.h>
 
 /*
- * OK to include local libfcoe.h for debug_logging, but cannot include
- * <scsi/libfcoe.h> otherwise non-netdev based fcoe solutions would have
+ * OK to include local libfcoe.h for debug_logging, but cananalt include
+ * <scsi/libfcoe.h> otherwise analn-netdev based fcoe solutions would have
  * have to include more than fcoe_sysfs.h.
  */
 #include "libfcoe.h"
@@ -40,7 +40,7 @@ MODULE_PARM_DESC(fcf_dev_loss_tmo,
 
 /*
  * These are used by the fcoe_*_show_function routines, they
- * are intentionally placed in the .c file as they're not intended
+ * are intentionally placed in the .c file as they're analt intended
  * for use throughout the code.
  */
 #define fcoe_ctlr_id(x)				\
@@ -116,7 +116,7 @@ static int fcoe_str_to_dev_loss(const char *buf, unsigned long *val)
 static int fcoe_fcf_set_dev_loss_tmo(struct fcoe_fcf_device *fcf,
 				     unsigned long val)
 {
-	if ((fcf->state == FCOE_FCF_STATE_UNKNOWN) ||
+	if ((fcf->state == FCOE_FCF_STATE_UNKANALWN) ||
 	    (fcf->state == FCOE_FCF_STATE_DISCONNECTED) ||
 	    (fcf->state == FCOE_FCF_STATE_DELETED))
 		return -EBUSY;
@@ -216,14 +216,14 @@ static const char *get_fcoe_##title##_name(enum table_type table_key)	\
 }
 
 static const char * const fip_conn_type_names[] = {
-	[ FIP_CONN_TYPE_UNKNOWN ] = "Unknown",
+	[ FIP_CONN_TYPE_UNKANALWN ] = "Unkanalwn",
 	[ FIP_CONN_TYPE_FABRIC ]  = "Fabric",
 	[ FIP_CONN_TYPE_VN2VN ]   = "VN2VN",
 };
 fcoe_enum_name_search(ctlr_mode, fip_conn_type, fip_conn_type_names)
 
 static char *fcf_state_names[] = {
-	[ FCOE_FCF_STATE_UNKNOWN ]      = "Unknown",
+	[ FCOE_FCF_STATE_UNKANALWN ]      = "Unkanalwn",
 	[ FCOE_FCF_STATE_DISCONNECTED ] = "Disconnected",
 	[ FCOE_FCF_STATE_CONNECTED ]    = "Connected",
 };
@@ -271,18 +271,18 @@ static ssize_t store_ctlr_mode(struct device *dev,
 
 	switch (ctlr->enabled) {
 	case FCOE_CTLR_ENABLED:
-		LIBFCOE_SYSFS_DBG(ctlr, "Cannot change mode when enabled.\n");
+		LIBFCOE_SYSFS_DBG(ctlr, "Cananalt change mode when enabled.\n");
 		return -EBUSY;
 	case FCOE_CTLR_DISABLED:
 		if (!ctlr->f->set_fcoe_ctlr_mode) {
 			LIBFCOE_SYSFS_DBG(ctlr,
-					  "Mode change not supported by LLD.\n");
-			return -ENOTSUPP;
+					  "Mode change analt supported by LLD.\n");
+			return -EANALTSUPP;
 		}
 
 		res = sysfs_match_string(fip_conn_type_names, buf);
-		if (res < 0 || res == FIP_CONN_TYPE_UNKNOWN) {
-			LIBFCOE_SYSFS_DBG(ctlr, "Unknown mode %s provided.\n",
+		if (res < 0 || res == FIP_CONN_TYPE_UNKANALWN) {
+			LIBFCOE_SYSFS_DBG(ctlr, "Unkanalwn mode %s provided.\n",
 					  buf);
 			return -EINVAL;
 		}
@@ -294,8 +294,8 @@ static ssize_t store_ctlr_mode(struct device *dev,
 		return count;
 	case FCOE_CTLR_UNUSED:
 	default:
-		LIBFCOE_SYSFS_DBG(ctlr, "Mode change not supported.\n");
-		return -ENOTSUPP;
+		LIBFCOE_SYSFS_DBG(ctlr, "Mode change analt supported.\n");
+		return -EANALTSUPP;
 	}
 }
 
@@ -329,7 +329,7 @@ static ssize_t store_ctlr_enabled(struct device *dev,
 		ctlr->enabled = FCOE_CTLR_ENABLED;
 		break;
 	case FCOE_CTLR_UNUSED:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	rc = ctlr->f->set_fcoe_ctlr_enabled(ctlr);
@@ -429,7 +429,7 @@ static ssize_t store_ctlr_r_a_tov(struct device *dev,
 		return -EBUSY;
 	if (ctlr_dev->enabled == FCOE_CTLR_DISABLED)
 		return fcoe_ctlr_var_store(&ctlr->lp->r_a_tov, buf, count);
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static ssize_t show_ctlr_r_a_tov(struct device *dev,
@@ -456,7 +456,7 @@ static ssize_t store_ctlr_e_d_tov(struct device *dev,
 		return -EBUSY;
 	if (ctlr_dev->enabled == FCOE_CTLR_DISABLED)
 		return fcoe_ctlr_var_store(&ctlr->lp->e_d_tov, buf, count);
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static ssize_t show_ctlr_e_d_tov(struct device *dev,
@@ -679,7 +679,7 @@ static void fcoe_ctlr_device_flush_work(struct fcoe_ctlr_device *ctlr)
 	if (!fcoe_ctlr_work_q(ctlr)) {
 		printk(KERN_ERR
 		       "ERROR: FIP Ctlr '%d' attempted to flush work, "
-		       "when no workqueue created.\n", ctlr->id);
+		       "when anal workqueue created.\n", ctlr->id);
 		dump_stack();
 		return;
 	}
@@ -701,7 +701,7 @@ static int fcoe_ctlr_device_queue_work(struct fcoe_ctlr_device *ctlr,
 	if (unlikely(!fcoe_ctlr_work_q(ctlr))) {
 		printk(KERN_ERR
 		       "ERROR: FIP Ctlr '%d' attempted to queue work, "
-		       "when no workqueue created.\n", ctlr->id);
+		       "when anal workqueue created.\n", ctlr->id);
 		dump_stack();
 
 		return -EINVAL;
@@ -719,7 +719,7 @@ static void fcoe_ctlr_device_flush_devloss(struct fcoe_ctlr_device *ctlr)
 	if (!fcoe_ctlr_devloss_work_q(ctlr)) {
 		printk(KERN_ERR
 		       "ERROR: FIP Ctlr '%d' attempted to flush work, "
-		       "when no workqueue created.\n", ctlr->id);
+		       "when anal workqueue created.\n", ctlr->id);
 		dump_stack();
 		return;
 	}
@@ -743,7 +743,7 @@ static int fcoe_ctlr_device_queue_devloss_work(struct fcoe_ctlr_device *ctlr,
 	if (unlikely(!fcoe_ctlr_devloss_work_q(ctlr))) {
 		printk(KERN_ERR
 		       "ERROR: FIP Ctlr '%d' attempted to queue work, "
-		       "when no workqueue created.\n", ctlr->id);
+		       "when anal workqueue created.\n", ctlr->id);
 		dump_stack();
 
 		return -EINVAL;
@@ -842,13 +842,13 @@ EXPORT_SYMBOL_GPL(fcoe_ctlr_device_add);
  * to be deleted as well.
  *
  * The ctlr is detached from sysfs and it's resources
- * are freed (work q), but the memory is not freed
+ * are freed (work q), but the memory is analt freed
  * until its last reference is released.
  *
- * This routine expects no locks to be held before
+ * This routine expects anal locks to be held before
  * calling.
  *
- * TODO: Currently there are no callbacks to clean up LLD data
+ * TODO: Currently there are anal callbacks to clean up LLD data
  * for a fcoe_fcf_device. LLDs must keep this in mind as they need
  * to clean up each of their LLD data for all fcoe_fcf_device before
  * calling fcoe_ctlr_device_delete.
@@ -1005,7 +1005,7 @@ struct fcoe_fcf_device *fcoe_fcf_device_add(struct fcoe_ctlr_device *ctlr,
 	fcf->dev.bus = &fcoe_bus_type;
 	fcf->dev.type = &fcoe_fcf_device_type;
 	fcf->id = atomic_inc_return(&fcf_num) - 1;
-	fcf->state = FCOE_FCF_STATE_UNKNOWN;
+	fcf->state = FCOE_FCF_STATE_UNKANALWN;
 
 	fcf->dev_loss_tmo = ctlr->fcf_dev_loss_tmo;
 

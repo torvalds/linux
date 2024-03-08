@@ -17,8 +17,8 @@
 #endif
 
 #define XFER_TO_GUEST_MODE_WORK						\
-	(_TIF_NEED_RESCHED | _TIF_SIGPENDING | _TIF_NOTIFY_SIGNAL |	\
-	 _TIF_NOTIFY_RESUME | ARCH_XFER_TO_GUEST_MODE_WORK)
+	(_TIF_NEED_RESCHED | _TIF_SIGPENDING | _TIF_ANALTIFY_SIGNAL |	\
+	 _TIF_ANALTIFY_RESUME | ARCH_XFER_TO_GUEST_MODE_WORK)
 
 struct kvm_vcpu;
 
@@ -28,7 +28,7 @@ struct kvm_vcpu;
  * @vcpu:	Pointer to current's VCPU data
  * @ti_work:	Cached TIF flags gathered in xfer_to_guest_mode_handle_work()
  *
- * Invoked from xfer_to_guest_mode_handle_work(). Defaults to NOOP. Can be
+ * Invoked from xfer_to_guest_mode_handle_work(). Defaults to ANALOP. Can be
  * replaced by architecture specific code.
  */
 static inline int arch_xfer_to_guest_mode_handle_work(struct kvm_vcpu *vcpu,
@@ -62,7 +62,7 @@ int xfer_to_guest_mode_handle_work(struct kvm_vcpu *vcpu);
 static inline void xfer_to_guest_mode_prepare(void)
 {
 	lockdep_assert_irqs_disabled();
-	tick_nohz_user_enter_prepare();
+	tick_analhz_user_enter_prepare();
 }
 
 /**

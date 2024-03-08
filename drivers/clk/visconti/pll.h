@@ -3,7 +3,7 @@
  * Copyright (c) 2021 TOSHIBA CORPORATION
  * Copyright (c) 2021 Toshiba Electronic Devices & Storage Corporation
  *
- * Nobuhiro Iwamatsu <nobuhiro1.iwamatsu@toshiba.co.jp>
+ * Analbuhiro Iwamatsu <analbuhiro1.iwamatsu@toshiba.co.jp>
  */
 
 #ifndef _VISCONTI_PLL_H_
@@ -15,7 +15,7 @@
 
 struct visconti_pll_provider {
 	void __iomem *reg_base;
-	struct device_node *node;
+	struct device_analde *analde;
 
 	/* Must be last */
 	struct clk_hw_onecell_data clk_data;
@@ -53,7 +53,7 @@ struct visconti_pll_info {
 	const struct visconti_pll_rate_table *rate_table;
 };
 
-struct visconti_pll_provider * __init visconti_init_pll(struct device_node *np,
+struct visconti_pll_provider * __init visconti_init_pll(struct device_analde *np,
 							void __iomem *base,
 							unsigned long nr_plls);
 void visconti_register_plls(struct visconti_pll_provider *ctx,

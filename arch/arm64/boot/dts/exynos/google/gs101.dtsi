@@ -9,7 +9,7 @@
 #include <dt-bindings/clock/google,gs101.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
-#include <dt-bindings/soc/samsung,exynos-usi.h>
+#include <dt-bindings/soc/samsung,exyanals-usi.h>
 
 / {
 	compatible = "google,gs101";
@@ -188,7 +188,7 @@
 		clock-output-names = "pclk";
 	};
 
-	/* ect node is required to be present by bootloader */
+	/* ect analde is required to be present by bootloader */
 	ect {
 	};
 
@@ -238,42 +238,42 @@
 
 		gsa_reserved_protected: gsa@90200000 {
 			reg = <0x0 0x90200000 0x400000>;
-			no-map;
+			anal-map;
 		};
 
 		tpu_fw_reserved: tpu-fw@93000000 {
 			reg = <0x0 0x93000000 0x1000000>;
-			no-map;
+			anal-map;
 		};
 
 		aoc_reserve: aoc@94000000 {
 			reg = <0x0 0x94000000 0x03000000>;
-			no-map;
+			anal-map;
 		};
 
 		abl_reserved: abl@f8800000 {
 			reg = <0x0 0xf8800000 0x02000000>;
-			no-map;
+			anal-map;
 		};
 
 		dss_log_reserved: dss-log-reserved@fd3f0000 {
 			reg = <0x0 0xfd3f0000 0x0000e000>;
-			no-map;
+			anal-map;
 		};
 
 		debug_kinfo_reserved: debug-kinfo-reserved@fd3fe000 {
 			reg = <0x0 0xfd3fe000 0x00001000>;
-			no-map;
+			anal-map;
 		};
 
 		bldr_log_reserved: bldr-log-reserved@fd800000 {
 			reg = <0x0 0xfd800000 0x00100000>;
-			no-map;
+			anal-map;
 		};
 
 		bldr_log_hist_reserved: bldr-log-hist-reserved@fd900000 {
 			reg = <0x0 0xfd900000 0x00002000>;
-			no-map;
+			anal-map;
 		};
 	};
 
@@ -352,7 +352,7 @@
 
 		usi_uart: usi@10a000c0 {
 			compatible = "google,gs101-usi",
-				     "samsung,exynos850-usi";
+				     "samsung,exyanals850-usi";
 			reg = <0x10a000c0 0x20>;
 			ranges;
 			#address-cells = <1>;
@@ -424,8 +424,8 @@
 
 			wakeup-interrupt-controller {
 				compatible = "google,gs101-wakeup-eint",
-					     "samsung,exynos850-wakeup-eint",
-					     "samsung,exynos7-wakeup-eint";
+					     "samsung,exyanals850-wakeup-eint",
+					     "samsung,exyanals7-wakeup-eint";
 			};
 		};
 
@@ -435,8 +435,8 @@
 
 			wakeup-interrupt-controller {
 				compatible = "google,gs101-wakeup-eint",
-					     "samsung,exynos850-wakeup-eint",
-					     "samsung,exynos7-wakeup-eint";
+					     "samsung,exyanals850-wakeup-eint",
+					     "samsung,exyanals7-wakeup-eint";
 			};
 		};
 

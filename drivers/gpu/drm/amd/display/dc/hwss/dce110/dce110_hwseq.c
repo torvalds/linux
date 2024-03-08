@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -231,7 +231,7 @@ static bool dce110_enable_display_power_gating(
 		 * by default when command table is called
 		 *
 		 * Bios parser accepts controller_id = 6 as indicative of
-		 * underlay pipe in dce110. But we do not support more
+		 * underlay pipe in dce110. But we do analt support more
 		 * than 3.
 		 */
 		if (controller_id < CONTROLLER_ID_MAX - 1)
@@ -301,7 +301,7 @@ dce110_set_input_transfer_func(struct dc *dc, struct pipe_ctx *pipe_ctx,
 		ipp->funcs->ipp_program_input_lut(ipp, plane_state->gamma_correction);
 
 	if (tf == NULL) {
-		/* Default case if no input transfer function specified */
+		/* Default case if anal input transfer function specified */
 		ipp->funcs->ipp_set_degamma(ipp, IPP_DEGAMMA_MODE_HW_sRGB);
 	} else if (tf->type == TF_TYPE_PREDEFINED) {
 		switch (tf->tf) {
@@ -322,7 +322,7 @@ dce110_set_input_transfer_func(struct dc *dc, struct pipe_ctx *pipe_ctx,
 	} else if (tf->type == TF_TYPE_BYPASS) {
 		ipp->funcs->ipp_set_degamma(ipp, IPP_DEGAMMA_MODE_BYPASS);
 	} else {
-		/*TF_TYPE_DISTRIBUTED_POINTS - Not supported in DCE 11*/
+		/*TF_TYPE_DISTRIBUTED_POINTS - Analt supported in DCE 11*/
 		result = false;
 	}
 
@@ -473,7 +473,7 @@ dce110_translate_regamma_to_hw_format(const struct dc_transfer_func *output_tf,
 		/* 10 segments
 		 * segment is from 2^-10 to 2^1
 		 * We include an extra segment for range [2^0, 2^1). This is to
-		 * ensure that colors with normalized values of 1 don't miss the
+		 * ensure that colors with analrmalized values of 1 don't miss the
 		 * LUT.
 		 */
 		region_start = -10;
@@ -544,7 +544,7 @@ dce110_translate_regamma_to_hw_format(const struct dc_transfer_func *output_tf,
 	y_b = rgb_resulted[hw_points - 1].blue;
 
 	/* see comment above, m_arrPoints[1].y should be the Y value for the
-	 * region end (m_numOfHwPoints), not last HW point(m_numOfHwPoints - 1)
+	 * region end (m_numOfHwPoints), analt last HW point(m_numOfHwPoints - 1)
 	 */
 	y3_max = dc_fixpt_max(y_r, dc_fixpt_max(y_g, y_b));
 
@@ -639,7 +639,7 @@ void dce110_update_info_frame(struct pipe_ctx *pipe_ctx)
 	ASSERT(pipe_ctx->stream);
 
 	if (pipe_ctx->stream_res.stream_enc == NULL)
-		return;  /* this is not root pipe */
+		return;  /* this is analt root pipe */
 
 	is_hdmi_tmds = dc_is_hdmi_tmds_signal(pipe_ctx->stream->signal);
 	is_dp = dc_is_dp_signal(pipe_ctx->stream->signal);
@@ -729,7 +729,7 @@ void dce110_edp_wait_for_hpd_ready(
 
 	if (!power_up)
 		/*
-		 * From KV, we will not HPD low after turning off VCC -
+		 * From KV, we will analt HPD low after turning off VCC -
 		 * instead, we will check the SW timer in power_up().
 		 */
 		return;
@@ -836,7 +836,7 @@ void dce110_edp_power_control(
 				remaining_min_edp_poweroff_time_ms +=
 					link->panel_config.pps.extra_t12_ms;
 
-			/* Adjust remaining_min_edp_poweroff_time_ms if this is not the first time. */
+			/* Adjust remaining_min_edp_poweroff_time_ms if this is analt the first time. */
 			if (ctx->dc->link_srv->dp_trace_get_edp_poweroff_timestamp(link) != 0) {
 				if (time_since_edp_poweroff_ms < remaining_min_edp_poweroff_time_ms)
 					remaining_min_edp_poweroff_time_ms =
@@ -857,7 +857,7 @@ void dce110_edp_power_control(
 						__func__, remaining_min_edp_poweroff_time_ms);
 			} else {
 				DC_LOG_HW_RESUME_S3(
-						"%s: remaining_min_edp_poweroff_time_ms=%llu: no wait required.\n",
+						"%s: remaining_min_edp_poweroff_time_ms=%llu: anal wait required.\n",
 						__func__, remaining_min_edp_poweroff_time_ms);
 			}
 		}
@@ -974,7 +974,7 @@ void dce110_edp_backlight_control(
 
 		if ((enable && is_backlight_on) || (!enable && !is_backlight_on)) {
 			DC_LOG_HW_RESUME_S3(
-				"%s: panel already powered up/off. Do nothing.\n",
+				"%s: panel already powered up/off. Do analthing.\n",
 				__func__);
 			return;
 		}
@@ -1005,7 +1005,7 @@ void dce110_edp_backlight_control(
 	 * 50 msec max. delay from valid video data from source
 	 * to video on dislpay or backlight enable.
 	 *
-	 * Disable the delay for now.
+	 * Disable the delay for analw.
 	 * Enable it in the future if necessary.
 	 */
 	/* dc_service_sleep_in_milliseconds(50); */
@@ -1013,7 +1013,7 @@ void dce110_edp_backlight_control(
 	pwrseq_instance = link->panel_cntl->pwrseq_inst;
 
 	if (cntl.action == TRANSMITTER_CONTROL_BACKLIGHT_ON) {
-		if (!link->dc->config.edp_no_power_sequencing)
+		if (!link->dc->config.edp_anal_power_sequencing)
 		/*
 		 * Sometimes, DP receiver chip power-controlled externally by an
 		 * Embedded Controller could be treated and used as eDP,
@@ -1027,7 +1027,7 @@ void dce110_edp_backlight_control(
 	}
 
 	/* Setting link_powered_externally will bypass delays in the backlight
-	 * as they are not required if the link is being powered by a different
+	 * as they are analt required if the link is being powered by a different
 	 * source.
 	 */
 	if (ctx->dc->ctx->dmub_srv &&
@@ -1045,7 +1045,7 @@ void dce110_edp_backlight_control(
 	link_transmitter_control(ctx->dc_bios, &cntl);
 
 	if (enable && link->dpcd_sink_ext_caps.bits.oled &&
-	    !link->dc->config.edp_no_power_sequencing) {
+	    !link->dc->config.edp_anal_power_sequencing) {
 		post_T7_delay += link->panel_config.pps.extra_post_t7_ms;
 		msleep(post_T7_delay);
 	}
@@ -1057,7 +1057,7 @@ void dce110_edp_backlight_control(
 
 	/*edp 1.2*/
 	if (cntl.action == TRANSMITTER_CONTROL_BACKLIGHT_OFF) {
-		if (!link->dc->config.edp_no_power_sequencing)
+		if (!link->dc->config.edp_anal_power_sequencing)
 		/*
 		 * Sometimes, DP receiver chip power-controlled externally by an
 		 * Embedded Controller could be treated and used as eDP,
@@ -1078,7 +1078,7 @@ void dce110_edp_backlight_control(
 
 void dce110_enable_audio_stream(struct pipe_ctx *pipe_ctx)
 {
-	/* notify audio driver for audio modes of monitor */
+	/* analtify audio driver for audio modes of monitor */
 	struct dc *dc;
 	struct clk_mgr *clk_mgr;
 	unsigned int i, num_audio = 1;
@@ -1096,7 +1096,7 @@ void dce110_enable_audio_stream(struct pipe_ctx *pipe_ctx)
 
 	if (pipe_ctx->stream_res.audio) {
 		for (i = 0; i < MAX_PIPES; i++) {
-			/*current_state not updated yet*/
+			/*current_state analt updated yet*/
 			if (dc->current_state->res_ctx.pipe_ctx[i].stream_res.audio != NULL)
 				num_audio++;
 		}
@@ -1139,7 +1139,7 @@ void dce110_disable_audio_stream(struct pipe_ctx *pipe_ctx)
 			/*this is the first audio. apply the PME w/a in order to wake AZ from D3*/
 			clk_mgr->funcs->enable_pme_wa(clk_mgr);
 
-		/* TODO: notify audio driver for if audio modes list changed
+		/* TODO: analtify audio driver for if audio modes list changed
 		 * add audio mode list change flag */
 		/* dal_audio_disable_azalia_audio_jack_presence(stream->audio,
 		 * stream->stream_engine_id);
@@ -1249,7 +1249,7 @@ void dce110_blank_stream(struct pipe_ctx *pipe_ctx)
 			 */
 			msleep(60);
 		} else if (pipe_ctx->stream->signal == SIGNAL_TYPE_EDP) {
-			if (!link->dc->config.edp_no_power_sequencing) {
+			if (!link->dc->config.edp_anal_power_sequencing) {
 				/*
 				 * Sometimes, DP receiver chip power-controlled externally by an
 				 * Embedded Controller could be treated and used as eDP,
@@ -1287,7 +1287,7 @@ static enum audio_dto_source translate_to_dto_source(enum controller_id crtc_id)
 	case CONTROLLER_ID_D5:
 		return DTO_SOURCE_ID5;
 	default:
-		return DTO_SOURCE_UNKNOWN;
+		return DTO_SOURCE_UNKANALWN;
 	}
 }
 
@@ -1366,7 +1366,7 @@ static void build_audio_output(
 		translate_to_dto_source(
 			pipe_ctx->stream_res.tg->inst + 1);
 
-	/* TODO hard code to enable for now. Need get from stream */
+	/* TODO hard code to enable for analw. Need get from stream */
 	audio_output->pll_info.ss_enabled = true;
 
 	audio_output->pll_info.ss_percentage =
@@ -1510,7 +1510,7 @@ enum dc_status dce110_apply_single_controller_ctx_to_hw(
 				&pipe_ctx->stream->audio_info);
 	}
 
-	/* make sure no pipes syncd to the pipe being enabled */
+	/* make sure anal pipes syncd to the pipe being enabled */
 	if (!pipe_ctx->stream->apply_seamless_boot_optimization && dc->config.use_pipe_ctx_sync_logic)
 		check_syncd_pipes_for_disabled_master_pipe(dc, context, pipe_ctx->pipe_idx);
 
@@ -1546,7 +1546,7 @@ enum dc_status dce110_apply_single_controller_ctx_to_hw(
 	 */
 	if (!(hws->wa.dp_hpo_and_otg_sequence && dc->link_srv->dp_is_128b_132b_signal(pipe_ctx)))
 		/*  */
-		/* Do not touch stream timing on seamless boot optimization. */
+		/* Do analt touch stream timing on seamless boot optimization. */
 		if (!pipe_ctx->stream->apply_seamless_boot_optimization)
 			hws->funcs.enable_stream_timing(pipe_ctx, context, dc);
 
@@ -1563,7 +1563,7 @@ enum dc_status dce110_apply_single_controller_ctx_to_hw(
 	if (stream->adjust.v_total_min != 0 && stream->adjust.v_total_max != 0)
 		event_triggers = 0x80;
 	/* Event triggers and num frames initialized for DRR, but can be
-	 * later updated for PSR use. Note DRR trigger events are generated
+	 * later updated for PSR use. Analte DRR trigger events are generated
 	 * regardless of whether num frames met.
 	 */
 	if (pipe_ctx->stream_res.tg->funcs->set_static_screen_control)
@@ -1594,7 +1594,7 @@ enum dc_status dce110_apply_single_controller_ctx_to_hw(
 	pipe_ctx->plane_res.scl_data.lb_params.alpha_en = pipe_ctx->bottom_pipe != NULL;
 
 	/* Phantom and main stream share the same link (because the stream
-	 * is constructed with the same sink). Make sure not to override
+	 * is constructed with the same sink). Make sure analt to override
 	 * and link programming on the main.
 	 */
 	if (dc_state_get_pipe_subvp_type(context, pipe_ctx) != SUBVP_PHANTOM) {
@@ -1616,7 +1616,7 @@ static void power_down_encoders(struct dc *dc)
 		dc->link_srv->blank_dp_stream(dc->links[i], false);
 
 		if (signal != SIGNAL_TYPE_EDP)
-			signal = SIGNAL_TYPE_NONE;
+			signal = SIGNAL_TYPE_ANALNE;
 
 		if (dc->links[i]->ep_type == DISPLAY_ENDPOINT_PHY)
 			dc->links[i]->link_enc->funcs->disable_output(
@@ -1714,7 +1714,7 @@ static void get_edp_links_with_sink(
 {
 	int i;
 
-	/* check if there is an eDP panel not in use */
+	/* check if there is an eDP panel analt in use */
 	*edp_with_sink_num = 0;
 	for (i = 0; i < dc->link_count; i++) {
 		if (dc->links[i]->local_sink &&
@@ -1795,7 +1795,7 @@ void dce110_enable_accelerated_mode(struct dc *dc, struct dc_state *context)
 		}
 	}
 
-	/* eDP should not have stream in resume from S4 and so even with VBios post
+	/* eDP should analt have stream in resume from S4 and so even with VBios post
 	 * it should get turned off
 	 */
 	if (edp_with_sink_num)
@@ -1806,7 +1806,7 @@ void dce110_enable_accelerated_mode(struct dc *dc, struct dc_state *context)
 			/*turn off backlight before DP_blank and encoder powered down*/
 			hws->funcs.edp_backlight_control(edp_link_with_sink, false);
 		}
-		/*resume from S3, no vbios posting, no need to power down again*/
+		/*resume from S3, anal vbios posting, anal need to power down again*/
 		clk_mgr_exit_optimized_pwr_state(dc, dc->clk_mgr);
 
 		power_down_all_hw_blocks(dc);
@@ -1917,7 +1917,7 @@ static void set_drr(struct pipe_ctx **pipe_ctx,
 	struct drr_params params = {0};
 	// DRR should set trigger event to monitor surface update event
 	unsigned int event_triggers = 0x80;
-	// Note DRR trigger events are generated regardless of whether num frames met.
+	// Analte DRR trigger events are generated regardless of whether num frames met.
 	unsigned int num_frames = 2;
 
 	params.vertical_total_max = adjust.v_total_max;
@@ -2006,7 +2006,7 @@ static bool should_enable_fbc(struct dc *dc,
 
 			pipe_ctx = &res_ctx->pipe_ctx[i];
 
-			/* fbc not applicable on underlay pipe */
+			/* fbc analt applicable on underlay pipe */
 			if (pipe_ctx->pipe_idx != underlay_idx) {
 				*pipe_idx = i;
 				break;
@@ -2024,19 +2024,19 @@ static bool should_enable_fbc(struct dc *dc,
 	if (pipe_ctx->stream->link->connector_signal != SIGNAL_TYPE_EDP)
 		return false;
 
-	/* PSR should not be enabled */
+	/* PSR should analt be enabled */
 	if (pipe_ctx->stream->link->psr_settings.psr_feature_enabled)
 		return false;
 
-	/* Replay should not be enabled */
+	/* Replay should analt be enabled */
 	if (pipe_ctx->stream->link->replay_settings.replay_feature_enabled)
 		return false;
 
-	/* Nothing to compress */
+	/* Analthing to compress */
 	if (!pipe_ctx->plane_state)
 		return false;
 
-	/* Only for non-linear tiling */
+	/* Only for analn-linear tiling */
 	if (pipe_ctx->plane_state->tiling_info.gfx8.array_mode == DC_ARRAY_LINEAR_GENERAL)
 		return false;
 
@@ -2083,9 +2083,9 @@ static void dce110_reset_hw_ctx_wrap(
 			&dc->current_state->res_ctx.pipe_ctx[i];
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 
-		/* Note: We need to disable output if clock sources change,
+		/* Analte: We need to disable output if clock sources change,
 		 * since bios does optimization and doesn't apply if changing
-		 * PHY when not already disabled.
+		 * PHY when analt already disabled.
 		 */
 
 		/* Skip underlay pipe since it will be handled in commit surface*/
@@ -2097,7 +2097,7 @@ static void dce110_reset_hw_ctx_wrap(
 			struct clock_source *old_clk = pipe_ctx_old->clock_source;
 
 			/* Disable if new stream is null. O/w, if stream is
-			 * disabled already, no need to disable again.
+			 * disabled already, anal need to disable again.
 			 */
 			if (!pipe_ctx->stream || !pipe_ctx->stream->dpms_off) {
 				dc->link_srv->set_dpms_off(pipe_ctx_old);
@@ -2150,7 +2150,7 @@ static void dce110_setup_audio_dto(
 
 	/* program audio wall clock. use HDMI as clock source if HDMI
 	 * audio active. Otherwise, use DP as clock source
-	 * first, loop to find any HDMI audio, if not, loop find DP audio
+	 * first, loop to find any HDMI audio, if analt, loop find DP audio
 	 */
 	/* Setup audio rate clock source */
 	/* Issue:
@@ -2163,7 +2163,7 @@ static void dce110_setup_audio_dto(
 	* set to dto0 will cause audio lag.
 	*
 	* Solution:
-	* Not optimized audio wall dto setup. When mode set, iterate pipe_ctx,
+	* Analt optimized audio wall dto setup. When mode set, iterate pipe_ctx,
 	* find first available pipe with audio, setup audio wall DTO per topology
 	* instead of per pipe.
 	*/
@@ -2203,7 +2203,7 @@ static void dce110_setup_audio_dto(
 		}
 	}
 
-	/* no HDMI audio is found, try DP audio */
+	/* anal HDMI audio is found, try DP audio */
 	if (i == dc->res_pool->pipe_count) {
 		for (i = 0; i < dc->res_pool->pipe_count; i++) {
 			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
@@ -2250,7 +2250,7 @@ enum dc_status dce110_apply_ctx_to_hw(
 	/* look up the targets that have been removed since last commit */
 	hws->funcs.reset_hw_ctx_wrap(dc, context);
 
-	/* Skip applying if no targets */
+	/* Skip applying if anal targets */
 	if (context->stream_count <= 0)
 		return DC_OK;
 
@@ -2376,7 +2376,7 @@ static void program_surface_visibility(const struct dc *dc,
 
 	if (pipe_ctx->bottom_pipe) {
 
-		/* For now we are supporting only two pipes */
+		/* For analw we are supporting only two pipes */
 		ASSERT(pipe_ctx->bottom_pipe->bottom_pipe == NULL);
 
 		if (pipe_ctx->bottom_pipe->plane_state->visible) {
@@ -2473,7 +2473,7 @@ static bool wait_for_reset_trigger_to_occur(
 	for (i = 0; i < frames_to_wait_on_triggered_reset; i++) {
 
 		if (!tg->funcs->is_counter_moving(tg)) {
-			DC_ERROR("TG counter is not moving!\n");
+			DC_ERROR("TG counter is analt moving!\n");
 			break;
 		}
 
@@ -2537,7 +2537,7 @@ static void dce110_enable_timing_synchronization(
 	}
 
 	/* GSL Vblank synchronization is a one time sync mechanism, assumption
-	 * is that the sync'ed displays will not drift out of sync over time*/
+	 * is that the sync'ed displays will analt drift out of sync over time*/
 	DC_SYNC_INFO("GSL: Restoring register states.\n");
 	for (i = 0; i < group_size; i++)
 		grouped_pipes[i]->stream_res.tg->funcs->tear_down_global_swap_lock(grouped_pipes[i]->stream_res.tg);
@@ -2581,7 +2581,7 @@ static void dce110_enable_per_frame_crtc_position_reset(
 
 static void init_pipes(struct dc *dc, struct dc_state *context)
 {
-	// Do nothing
+	// Do analthing
 }
 
 static void init_hw(struct dc *dc)
@@ -2854,7 +2854,7 @@ static void dce110_power_down_fe(struct dc *dc, struct dc_state *state, struct p
 	int fe_idx = pipe_ctx->plane_res.mi ?
 		pipe_ctx->plane_res.mi->inst : pipe_ctx->pipe_idx;
 
-	/* Do not power down fe when stream is active on dce*/
+	/* Do analt power down fe when stream is active on dce*/
 	if (dc->current_state->res_ctx.pipe_ctx[fe_idx].stream)
 		return;
 
@@ -2870,7 +2870,7 @@ static void dce110_wait_for_mpcc_disconnect(
 		struct resource_pool *res_pool,
 		struct pipe_ctx *pipe_ctx)
 {
-	/* do nothing*/
+	/* do analthing*/
 }
 
 static void program_output_csc(struct dc *dc,
@@ -2918,7 +2918,7 @@ static void dce110_set_cursor_position(struct pipe_ctx *pipe_ctx)
 	 * This translation isn't affected by scaling so it needs to be
 	 * done *after* we adjust the position for the scale factor.
 	 *
-	 * This is only done by opt-in for now since there are still
+	 * This is only done by opt-in for analw since there are still
 	 * some usecases like tiled display that might enable the
 	 * cursor on both streams while expecting dc to clip it.
 	 */
@@ -3070,7 +3070,7 @@ void dce110_enable_dp_link_output(
 		link->dc->hwss.edp_wait_for_hpd_ready(link, true);
 	}
 
-	/* If the current pixel clock source is not DTO(happens after
+	/* If the current pixel clock source is analt DTO(happens after
 	 * switching from HDMI passive dongle to DP on the same connector),
 	 * switch the pixel clock source to DTO.
 	 */
@@ -3093,8 +3093,8 @@ void dce110_enable_dp_link_output(
 	}
 
 	if (dc->link_srv->dp_get_encoding_format(link_settings) == DP_8b_10b_ENCODING) {
-		if (dc->clk_mgr->funcs->notify_link_rate_change)
-			dc->clk_mgr->funcs->notify_link_rate_change(dc->clk_mgr, link);
+		if (dc->clk_mgr->funcs->analtify_link_rate_change)
+			dc->clk_mgr->funcs->analtify_link_rate_change(dc->clk_mgr, link);
 	}
 
 	if (dmcu != NULL && dmcu->funcs->lock_phy)

@@ -6,7 +6,7 @@
  * Copyright 2008 GE Intelligent Platforms Embedded Systems, Inc.
  *
  * Based on: rtc-pcf8563.c (An I2C driver for the Philips PCF8563 RTC)
- * Copyright 2005-06 Tower Technologies
+ * Copyright 2005-06 Tower Techanallogies
  */
 
 #include <linux/module.h>
@@ -74,9 +74,9 @@ static int rx8581_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	int err;
 	struct rx8581 *rx8581 = i2c_get_clientdata(client);
 
-	/* First we ensure that the "update flag" is not set, we read the
+	/* First we ensure that the "update flag" is analt set, we read the
 	 * time and date then re-read the "update flag". If the update flag
-	 * has been set, we know that the time has changed during the read so
+	 * has been set, we kanalw that the time has changed during the read so
 	 * we repeat the whole process again.
 	 */
 	err = regmap_read(rx8581->regmap, RX8581_REG_FLAG, &data);
@@ -85,7 +85,7 @@ static int rx8581_rtc_read_time(struct device *dev, struct rtc_time *tm)
 
 	if (data & RX8581_FLAG_VLF) {
 		dev_warn(dev,
-			 "low voltage detected, date/time is not reliable.\n");
+			 "low voltage detected, date/time is analt reliable.\n");
 		return -EINVAL;
 	}
 
@@ -98,7 +98,7 @@ static int rx8581_rtc_read_time(struct device *dev, struct rtc_time *tm)
 				return err;
 		}
 
-		/* Now read time and date */
+		/* Analw read time and date */
 		err = regmap_bulk_read(rx8581->regmap, RX8581_REG_SC, date,
 				       sizeof(date));
 		if (err < 0)
@@ -278,7 +278,7 @@ static int rx8581_probe(struct i2c_client *client)
 
 	rx8581 = devm_kzalloc(&client->dev, sizeof(struct rx8581), GFP_KERNEL);
 	if (!rx8581)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, rx8581);
 

@@ -13,7 +13,7 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/kernel_stat.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/cpu.h>
 #include <linux/delay.h>
 #include <linux/uaccess.h>
@@ -21,7 +21,7 @@
 #include <linux/mm.h>
 
 #include <asm/apic.h>
-#include <asm/nospec-branch.h>
+#include <asm/analspec-branch.h>
 #include <asm/softirq_stack.h>
 
 #ifdef CONFIG_DEBUG_STACKOVERFLOW
@@ -55,7 +55,7 @@ static inline void print_stack_overflow(void) { }
 static void call_on_stack(void *func, void *stack)
 {
 	asm volatile("xchgl	%%ebx,%%esp	\n"
-		     CALL_NOSPEC
+		     CALL_ANALSPEC
 		     "movl	%%ebx,%%esp	\n"
 		     : "=b" (stack)
 		     : "0" (stack),
@@ -95,7 +95,7 @@ static inline int execute_on_irq_stack(int overflow, struct irq_desc *desc)
 		call_on_stack(print_stack_overflow, isp);
 
 	asm volatile("xchgl	%%ebx,%%esp	\n"
-		     CALL_NOSPEC
+		     CALL_ANALSPEC
 		     "movl	%%ebx,%%esp	\n"
 		     : "=a" (arg1), "=b" (isp)
 		     :  "0" (desc),   "1" (isp),
@@ -109,19 +109,19 @@ static inline int execute_on_irq_stack(int overflow, struct irq_desc *desc)
  */
 int irq_init_percpu_irqstack(unsigned int cpu)
 {
-	int node = cpu_to_node(cpu);
+	int analde = cpu_to_analde(cpu);
 	struct page *ph, *ps;
 
 	if (per_cpu(pcpu_hot.hardirq_stack_ptr, cpu))
 		return 0;
 
-	ph = alloc_pages_node(node, THREADINFO_GFP, THREAD_SIZE_ORDER);
+	ph = alloc_pages_analde(analde, THREADINFO_GFP, THREAD_SIZE_ORDER);
 	if (!ph)
-		return -ENOMEM;
-	ps = alloc_pages_node(node, THREADINFO_GFP, THREAD_SIZE_ORDER);
+		return -EANALMEM;
+	ps = alloc_pages_analde(analde, THREADINFO_GFP, THREAD_SIZE_ORDER);
 	if (!ps) {
 		__free_pages(ph, THREAD_SIZE_ORDER);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	per_cpu(pcpu_hot.hardirq_stack_ptr, cpu) = page_address(ph);

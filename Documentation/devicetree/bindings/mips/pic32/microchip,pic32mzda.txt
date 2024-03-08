@@ -1,15 +1,15 @@
 * Microchip PIC32MZDA Platforms
 
 PIC32MZDA Starter Kit
-Required root node properties:
+Required root analde properties:
     - compatible = "microchip,pic32mzda-sk", "microchip,pic32mzda"
 
-CPU nodes:
+CPU analdes:
 ----------
-A "cpus" node is required.  Required properties:
+A "cpus" analde is required.  Required properties:
  - #address-cells: Must be 1.
  - #size-cells: Must be 0.
-A CPU sub-node is also required.  Required properties:
+A CPU sub-analde is also required.  Required properties:
  - device_type: Must be "cpu".
  - compatible: Must be "mti,mips14KEc".
 Example:

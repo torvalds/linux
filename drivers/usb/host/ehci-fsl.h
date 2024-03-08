@@ -5,7 +5,7 @@
 #ifndef _EHCI_FSL_H
 #define _EHCI_FSL_H
 
-/* offsets for the non-ehci registers in the FSL SOC USB controller */
+/* offsets for the analn-ehci registers in the FSL SOC USB controller */
 #define FSL_SOC_USB_SBUSCFG	0x90
 #define SBUSCFG_INCR8		0x02	/* INCR8, specified */
 #define FSL_SOC_USB_ULPIVP	0x170
@@ -28,15 +28,15 @@
 #define ISIPHYCTRL_PXE		(1)
 #define ISIPHYCTRL_PHYE		(1 << 4)
 
-#define FSL_SOC_USB_SNOOP1	0x400	/* NOTE: big-endian */
-#define FSL_SOC_USB_SNOOP2	0x404	/* NOTE: big-endian */
-#define FSL_SOC_USB_AGECNTTHRSH	0x408	/* NOTE: big-endian */
-#define FSL_SOC_USB_PRICTRL	0x40c	/* NOTE: big-endian */
-#define FSL_SOC_USB_SICTRL	0x410	/* NOTE: big-endian */
-#define FSL_SOC_USB_CTRL	0x500	/* NOTE: big-endian */
+#define FSL_SOC_USB_SANALOP1	0x400	/* ANALTE: big-endian */
+#define FSL_SOC_USB_SANALOP2	0x404	/* ANALTE: big-endian */
+#define FSL_SOC_USB_AGECNTTHRSH	0x408	/* ANALTE: big-endian */
+#define FSL_SOC_USB_PRICTRL	0x40c	/* ANALTE: big-endian */
+#define FSL_SOC_USB_SICTRL	0x410	/* ANALTE: big-endian */
+#define FSL_SOC_USB_CTRL	0x500	/* ANALTE: big-endian */
 #define CTRL_UTMI_PHY_EN	(1<<9)
 #define CTRL_PHY_CLK_VALID	(1 << 17)
-#define SNOOP_SIZE_2GB		0x1e
+#define SANALOP_SIZE_2GB		0x1e
 
 /* control Register Bit Masks */
 #define CONTROL_REGISTER_W1C_MASK       0x00020000  /* W1C: PHY_CLK_VALID */

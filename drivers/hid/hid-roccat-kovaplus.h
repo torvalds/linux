@@ -35,7 +35,7 @@ struct kovaplus_profile_settings {
 	uint8_t command; /* KOVAPLUS_COMMAND_PROFILE_SETTINGS */
 	uint8_t size; /* 16 */
 	uint8_t profile_index; /* range 0-4 */
-	uint8_t unknown1;
+	uint8_t unkanalwn1;
 	uint8_t sensitivity_x; /* range 1-10 */
 	uint8_t sensitivity_y; /* range 1-10 */
 	uint8_t cpi_levels_enabled;
@@ -54,7 +54,7 @@ struct kovaplus_info {
 	uint8_t command; /* KOVAPLUS_COMMAND_INFO */
 	uint8_t size; /* 6 */
 	uint8_t firmware_version;
-	uint8_t unknown[3];
+	uint8_t unkanalwn[3];
 } __packed;
 
 enum kovaplus_commands {
@@ -75,16 +75,16 @@ enum kovaplus_mouse_report_numbers {
 
 struct kovaplus_mouse_report_button {
 	uint8_t report_number; /* KOVAPLUS_MOUSE_REPORT_NUMBER_BUTTON */
-	uint8_t unknown1;
+	uint8_t unkanalwn1;
 	uint8_t type;
 	uint8_t data1;
 	uint8_t data2;
 } __packed;
 
 enum kovaplus_mouse_report_button_types {
-	/* data1 = profile_number range 1-5; no release event */
+	/* data1 = profile_number range 1-5; anal release event */
 	KOVAPLUS_MOUSE_REPORT_BUTTON_TYPE_PROFILE_1 = 0x20,
-	/* data1 = profile_number range 1-5; no release event */
+	/* data1 = profile_number range 1-5; anal release event */
 	KOVAPLUS_MOUSE_REPORT_BUTTON_TYPE_PROFILE_2 = 0x30,
 	/* data1 = button_number range 1-18; data2 = action */
 	KOVAPLUS_MOUSE_REPORT_BUTTON_TYPE_MACRO = 0x40,
@@ -94,9 +94,9 @@ enum kovaplus_mouse_report_button_types {
 	KOVAPLUS_MOUSE_REPORT_BUTTON_TYPE_QUICKLAUNCH = 0x60,
 	/* data1 = button_number range 1-18; data2 = action */
 	KOVAPLUS_MOUSE_REPORT_BUTTON_TYPE_TIMER = 0x80,
-	/* data1 = 1 = 400, 2 = 800, 4 = 1600, 7 = 3200; no release event */
+	/* data1 = 1 = 400, 2 = 800, 4 = 1600, 7 = 3200; anal release event */
 	KOVAPLUS_MOUSE_REPORT_BUTTON_TYPE_CPI = 0xb0,
-	/* data1 + data2 = sense range 1-10; no release event */
+	/* data1 + data2 = sense range 1-10; anal release event */
 	KOVAPLUS_MOUSE_REPORT_BUTTON_TYPE_SENSITIVITY = 0xc0,
 	/* data1 = type as in profile_buttons; data2 = action */
 	KOVAPLUS_MOUSE_REPORT_BUTTON_TYPE_MULTIMEDIA = 0xf0,
@@ -121,7 +121,7 @@ struct kovaplus_device {
 	int actual_x_sensitivity;
 	int actual_y_sensitivity;
 	int roccat_claimed;
-	int chrdev_minor;
+	int chrdev_mianalr;
 	struct mutex kovaplus_lock;
 	struct kovaplus_profile_settings profile_settings[5];
 	struct kovaplus_profile_buttons profile_buttons[5];

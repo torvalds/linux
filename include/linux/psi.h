@@ -34,7 +34,7 @@ __poll_t psi_trigger_poll(void **trigger_ptr, struct file *file,
 #ifdef CONFIG_CGROUPS
 static inline struct psi_group *cgroup_psi(struct cgroup *cgrp)
 {
-	return cgroup_ino(cgrp) == 1 ? &psi_system : cgrp->psi;
+	return cgroup_ianal(cgrp) == 1 ? &psi_system : cgrp->psi;
 }
 
 int psi_cgroup_alloc(struct cgroup *cgrp);

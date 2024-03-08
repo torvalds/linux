@@ -13,14 +13,14 @@ description: |
   Bindings for multi color LEDs show how to describe current outputs of
   either integrated multi-color LED elements (like RGB, RGBW, RGBWA-UV
   etc.) or standalone LEDs, to achieve logically grouped multi-color LED
-  modules. This is achieved by adding multi-led nodes layer to the
-  monochrome LED bindings.
-  The nodes and properties defined in this document are unique to the multicolor
-  LED class.  Common LED nodes and properties are inherited from the common.yaml
+  modules. This is achieved by adding multi-led analdes layer to the
+  moanalchrome LED bindings.
+  The analdes and properties defined in this document are unique to the multicolor
+  LED class.  Common LED analdes and properties are inherited from the common.yaml
   within this documentation directory.
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^multi-led(@[0-9a-f])?$"
 
   color:

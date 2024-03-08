@@ -37,17 +37,17 @@ The ioctl logic is mapped to PCI device commands e.g. the NE_START_ENCLAVE ioctl
 maps to an enclave start PCI command. The PCI device commands are then
 translated into  actions taken on the hypervisor side; that's the Nitro
 hypervisor running on the host where the primary VM is running. The Nitro
-hypervisor is based on core KVM technology.
+hypervisor is based on core KVM techanallogy.
 
 2. The enclave itself - a VM running on the same host as the primary VM that
 spawned it. Memory and CPUs are carved out of the primary VM and are dedicated
-for the enclave VM. An enclave does not have persistent storage attached.
+for the enclave VM. An enclave does analt have persistent storage attached.
 
 The memory regions carved out of the primary VM and given to an enclave need to
 be aligned 2 MiB / 1 GiB physically contiguous memory regions (or multiple of
 this size e.g. 8 MiB). The memory can be allocated e.g. by using hugetlbfs from
 user space [2][3][7]. The memory size for an enclave needs to be at least
-64 MiB. The enclave memory and CPUs need to be from the same NUMA node.
+64 MiB. The enclave memory and CPUs need to be from the same NUMA analde.
 
 An enclave runs on dedicated cores. CPU 0 and its CPU siblings need to remain
 available for the primary VM. A CPU pool has to be set for NE purposes by an
@@ -87,7 +87,7 @@ primary VM is 3.
 
 If the enclave VM crashes or gracefully exits, an interrupt event is received by
 the NE driver. This event is sent further to the user space enclave process
-running in the primary VM via a poll notification mechanism. Then the user space
+running in the primary VM via a poll analtification mechanism. Then the user space
 enclave process can exit.
 
 [1] https://aws.amazon.com/ec2/nitro/nitro-enclaves/

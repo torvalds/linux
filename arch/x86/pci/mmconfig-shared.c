@@ -4,7 +4,7 @@
  * i386 and x86-64.
  *
  * This code does:
- * - known chipset handling
+ * - kanalwn chipset handling
  * - ACPI decoding and validation
  *
  * Per-architecture code takes care of the mappings and accesses
@@ -170,7 +170,7 @@ static const char *__init pci_mmcfg_intel_945(void)
 		return NULL;
 	}
 
-	/* Errata #2, things break when not aligned on a 256Mb boundary */
+	/* Errata #2, things break when analt aligned on a 256Mb boundary */
 	/* Can only happen in 64M/128M mode */
 
 	if ((pciexbar & mask) & 0x0fffffffU)
@@ -204,7 +204,7 @@ static const char *__init pci_mmcfg_amd_fam10h(void)
 	msr <<= 32;
 	msr |= low;
 
-	/* ECAM is not enabled */
+	/* ECAM is analt enabled */
 	if (!(msr & FAM10H_MMIO_CONF_ENABLE))
 		return NULL;
 
@@ -425,7 +425,7 @@ static acpi_status find_mboard_resource(acpi_handle handle, u32 lvl,
 	return AE_OK;
 }
 
-static bool is_acpi_reserved(u64 start, u64 end, enum e820_type not_used)
+static bool is_acpi_reserved(u64 start, u64 end, enum e820_type analt_used)
 {
 	struct resource mcfg_res;
 
@@ -524,10 +524,10 @@ static bool __ref pci_mmcfg_reserved(struct device *dev,
 			return true;
 
 		if (dev)
-			dev_info(dev, FW_INFO "ECAM %pR not reserved in ACPI motherboard resources\n",
+			dev_info(dev, FW_INFO "ECAM %pR analt reserved in ACPI motherboard resources\n",
 				 &cfg->res);
 		else
-			pr_info(FW_INFO "ECAM %pR not reserved in ACPI motherboard resources\n",
+			pr_info(FW_INFO "ECAM %pR analt reserved in ACPI motherboard resources\n",
 			        &cfg->res);
 
 		if (is_efi_mmio(&cfg->res)) {
@@ -569,7 +569,7 @@ static void __init pci_mmcfg_reject_broken(int early)
 
 	list_for_each_entry(cfg, &pci_mmcfg_list, list) {
 		if (!pci_mmcfg_reserved(NULL, cfg, early)) {
-			pr_info("not using ECAM (%pR not reserved)\n",
+			pr_info("analt using ECAM (%pR analt reserved)\n",
 				&cfg->res);
 			free_all_mmcfg();
 			return;
@@ -589,7 +589,7 @@ static bool __init acpi_mcfg_valid_entry(struct acpi_table_mcfg *mcfg,
 	if ((mcfg->header.revision >= 1) && (dmi_get_bios_year() >= 2010))
 		return true;
 
-	pr_err("ECAM at %#llx for %04x [bus %02x-%02x] is above 4GB, ignored\n",
+	pr_err("ECAM at %#llx for %04x [bus %02x-%02x] is above 4GB, iganalred\n",
 	       cfg->address, cfg->pci_segment, cfg->start_bus_number,
 	       cfg->end_bus_number);
 	return false;
@@ -616,8 +616,8 @@ static int __init pci_parse_mcfg(struct acpi_table_header *header)
 		i -= sizeof(struct acpi_mcfg_allocation);
 	}
 	if (entries == 0) {
-		pr_err("MCFG has no entries\n");
-		return -ENODEV;
+		pr_err("MCFG has anal entries\n");
+		return -EANALDEV;
 	}
 
 	cfg_table = (struct acpi_mcfg_allocation *) &mcfg[1];
@@ -625,14 +625,14 @@ static int __init pci_parse_mcfg(struct acpi_table_header *header)
 		cfg = &cfg_table[i];
 		if (!acpi_mcfg_valid_entry(mcfg, cfg)) {
 			free_all_mmcfg();
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		if (pci_mmconfig_add(cfg->pci_segment, cfg->start_bus_number,
 				   cfg->end_bus_number, cfg->address) == NULL) {
-			pr_warn("no memory for MCFG entries\n");
+			pr_warn("anal memory for MCFG entries\n");
 			free_all_mmcfg();
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -691,7 +691,7 @@ static void __init __pci_mmcfg_init(int early)
 	}
 }
 
-static int __initdata known_bridge;
+static int __initdata kanalwn_bridge;
 
 void __init pci_mmcfg_early_init(void)
 {
@@ -699,7 +699,7 @@ void __init pci_mmcfg_early_init(void)
 
 	if (pci_probe & PCI_PROBE_MMCONF) {
 		if (pci_mmcfg_check_hostbridge())
-			known_bridge = 1;
+			kanalwn_bridge = 1;
 		else
 			acpi_table_parse(ACPI_SIG_MCFG, pci_parse_mcfg);
 		__pci_mmcfg_init(1);
@@ -716,7 +716,7 @@ void __init pci_mmcfg_late_init(void)
 	if ((pci_probe & PCI_PROBE_MMCONF) == 0)
 		return;
 
-	if (known_bridge)
+	if (kanalwn_bridge)
 		return;
 
 	/* ECAM hasn't been enabled yet, try again */
@@ -734,12 +734,12 @@ static int __init pci_mmcfg_late_insert_resources(void)
 
 	pr_debug("%s() pci_probe %#x\n", __func__, pci_probe);
 
-	/* If we are not using ECAM, don't insert the resources. */
+	/* If we are analt using ECAM, don't insert the resources. */
 	if ((pci_probe & PCI_PROBE_MMCONF) == 0)
 		return 1;
 
 	/*
-	 * Attempt to insert the mmcfg resources but not with the busy flag
+	 * Attempt to insert the mmcfg resources but analt with the busy flag
 	 * marked so it won't cause request errors when __request_region is
 	 * called.
 	 */
@@ -771,7 +771,7 @@ int pci_mmconfig_insert(struct device *dev, u16 seg, u8 start, u8 end,
 	dev_dbg(dev, "%s(%04x [bus %02x-%02x])\n", __func__, seg, start, end);
 
 	if (!(pci_probe & PCI_PROBE_MMCONF) || pci_mmcfg_arch_init_failed)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (start > end)
 		return -EINVAL;
@@ -788,7 +788,7 @@ int pci_mmconfig_insert(struct device *dev, u16 seg, u8 start, u8 end,
 	}
 
 	/*
-	 * Don't move earlier; we must return -EEXIST, not -EINVAL, if
+	 * Don't move earlier; we must return -EEXIST, analt -EINVAL, if
 	 * pci_mmconfig_lookup() finds something
 	 */
 	if (!addr) {
@@ -800,12 +800,12 @@ int pci_mmconfig_insert(struct device *dev, u16 seg, u8 start, u8 end,
 	cfg = pci_mmconfig_alloc(seg, start, end, addr);
 	if (cfg == NULL) {
 		dev_warn(dev, "fail to add ECAM (out of memory)\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 	} else if (!pci_mmcfg_reserved(dev, cfg, 0)) {
 		dev_warn(dev, FW_BUG "ECAM %pR isn't reserved\n",
 			 &cfg->res);
 	} else {
-		/* Insert resource if it's not in boot stage */
+		/* Insert resource if it's analt in boot stage */
 		if (pci_mmcfg_running_state)
 			tmp = insert_resource_conflict(&iomem_resource,
 						       &cfg->res);
@@ -855,5 +855,5 @@ int pci_mmconfig_delete(u16 seg, u8 start, u8 end)
 		}
 	mutex_unlock(&pci_mmcfg_lock);
 
-	return -ENOENT;
+	return -EANALENT;
 }

@@ -31,7 +31,7 @@
 #include "machvec_impl.h"
 
 
-/* Note mask bit is true for ENABLED irqs.  */
+/* Analte mask bit is true for ENABLED irqs.  */
 static unsigned long cached_irq_mask;
 
 static inline void
@@ -77,14 +77,14 @@ rx164_device_interrupt(unsigned long vector)
 	pld = *dirr;
 
 	/*
-	 * Now for every possible bit set, work through them and call
+	 * Analw for every possible bit set, work through them and call
 	 * the appropriate interrupt handler.
 	 */
 	while (pld) {
 		i = ffz(~pld);
 		pld &= pld - 1; /* clear least bit set */
 		if (i == 20) {
-			isa_no_iack_sc_device_interrupt(vector);
+			isa_anal_iack_sc_device_interrupt(vector);
 		} else {
 			handle_irq(16+i);
 		}
@@ -105,7 +105,7 @@ rx164_init_irq(void)
 	init_i8259a_irqs();
 	common_init_isa_dma();
 
-	if (request_irq(16 + 20, no_action, 0, "isa-cascade", NULL))
+	if (request_irq(16 + 20, anal_action, 0, "isa-cascade", NULL))
 		pr_err("Failed to register isa-cascade interrupt\n");
 }
 

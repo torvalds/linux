@@ -28,7 +28,7 @@
 
 struct kmem_cache *gfs2_glock_cachep __read_mostly;
 struct kmem_cache *gfs2_glock_aspace_cachep __read_mostly;
-struct kmem_cache *gfs2_inode_cachep __read_mostly;
+struct kmem_cache *gfs2_ianalde_cachep __read_mostly;
 struct kmem_cache *gfs2_bufdata_cachep __read_mostly;
 struct kmem_cache *gfs2_rgrpd_cachep __read_mostly;
 struct kmem_cache *gfs2_quotad_cachep __read_mostly;
@@ -55,11 +55,11 @@ int check_journal_clean(struct gfs2_sbd *sdp, struct gfs2_jdesc *jd,
 	int error;
 	struct gfs2_holder j_gh;
 	struct gfs2_log_header_host head;
-	struct gfs2_inode *ip;
+	struct gfs2_ianalde *ip;
 
-	ip = GFS2_I(jd->jd_inode);
-	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_SHARED, LM_FLAG_NOEXP |
-				   GL_EXACT | GL_NOCACHE, &j_gh);
+	ip = GFS2_I(jd->jd_ianalde);
+	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_SHARED, LM_FLAG_ANALEXP |
+				   GL_EXACT | GL_ANALCACHE, &j_gh);
 	if (error) {
 		if (verbose)
 			fs_err(sdp, "Error %d locking journal for spectator "
@@ -84,7 +84,7 @@ int check_journal_clean(struct gfs2_sbd *sdp, struct gfs2_jdesc *jd,
 		error = -EPERM;
 		if (verbose)
 			fs_err(sdp, "jid=%u: Journal is dirty, so the first "
-			       "mounter must not be a spectator.\n",
+			       "mounter must analt be a spectator.\n",
 			       jd->jd_jid);
 	}
 
@@ -102,7 +102,7 @@ int gfs2_freeze_lock_shared(struct gfs2_sbd *sdp)
 	int error;
 
 	error = gfs2_glock_nq_init(sdp->sd_freeze_gl, LM_ST_SHARED,
-				   LM_FLAG_NOEXP | GL_EXACT,
+				   LM_FLAG_ANALEXP | GL_EXACT,
 				   &sdp->sd_freeze_gh);
 	if (error)
 		fs_err(sdp, "can't lock the freeze glock: %d\n", error);
@@ -118,32 +118,32 @@ void gfs2_freeze_unlock(struct gfs2_holder *freeze_gh)
 static void signal_our_withdraw(struct gfs2_sbd *sdp)
 {
 	struct gfs2_glock *live_gl = sdp->sd_live_gh.gh_gl;
-	struct inode *inode;
-	struct gfs2_inode *ip;
+	struct ianalde *ianalde;
+	struct gfs2_ianalde *ip;
 	struct gfs2_glock *i_gl;
-	u64 no_formal_ino;
+	u64 anal_formal_ianal;
 	int ret = 0;
 	int tries;
 
-	if (test_bit(SDF_NORECOVERY, &sdp->sd_flags) || !sdp->sd_jdesc)
+	if (test_bit(SDF_ANALRECOVERY, &sdp->sd_flags) || !sdp->sd_jdesc)
 		return;
 
 	gfs2_ail_drain(sdp); /* frees all transactions */
-	inode = sdp->sd_jdesc->jd_inode;
-	ip = GFS2_I(inode);
+	ianalde = sdp->sd_jdesc->jd_ianalde;
+	ip = GFS2_I(ianalde);
 	i_gl = ip->i_gl;
-	no_formal_ino = ip->i_no_formal_ino;
+	anal_formal_ianal = ip->i_anal_formal_ianal;
 
 	/* Prevent any glock dq until withdraw recovery is complete */
 	set_bit(SDF_WITHDRAW_RECOVERY, &sdp->sd_flags);
 	/*
-	 * Don't tell dlm we're bailing until we have no more buffers in the
+	 * Don't tell dlm we're bailing until we have anal more buffers in the
 	 * wind. If journal had an IO error, the log code should just purge
 	 * the outstanding buffers rather than submitting new IO. Making the
 	 * file system read-only will flush the journal, etc.
 	 *
-	 * During a normal unmount, gfs2_make_fs_ro calls gfs2_log_shutdown
-	 * which clears SDF_JOURNAL_LIVE. In a withdraw, we must not write
+	 * During a analrmal unmount, gfs2_make_fs_ro calls gfs2_log_shutdown
+	 * which clears SDF_JOURNAL_LIVE. In a withdraw, we must analt write
 	 * any UNMOUNT log header, so we can't call gfs2_log_shutdown, and
 	 * therefore we need to clear SDF_JOURNAL_LIVE manually.
 	 */
@@ -164,46 +164,46 @@ static void signal_our_withdraw(struct gfs2_sbd *sdp)
 			mutex_unlock(&sdp->sd_freeze_mutex);
 
 		/*
-		 * Dequeue any pending non-system glock holders that can no
+		 * Dequeue any pending analn-system glock holders that can anal
 		 * longer be granted because the file system is withdrawn.
 		 */
 		gfs2_gl_dq_holders(sdp);
 	}
 
-	if (sdp->sd_lockstruct.ls_ops->lm_lock == NULL) { /* lock_nolock */
+	if (sdp->sd_lockstruct.ls_ops->lm_lock == NULL) { /* lock_anallock */
 		if (!ret)
 			ret = -EIO;
 		clear_bit(SDF_WITHDRAW_RECOVERY, &sdp->sd_flags);
 		goto skip_recovery;
 	}
 	/*
-	 * Drop the glock for our journal so another node can recover it.
+	 * Drop the glock for our journal so aanalther analde can recover it.
 	 */
 	if (gfs2_holder_initialized(&sdp->sd_journal_gh)) {
 		gfs2_glock_dq_wait(&sdp->sd_journal_gh);
 		gfs2_holder_uninit(&sdp->sd_journal_gh);
 	}
-	sdp->sd_jinode_gh.gh_flags |= GL_NOCACHE;
-	gfs2_glock_dq(&sdp->sd_jinode_gh);
+	sdp->sd_jianalde_gh.gh_flags |= GL_ANALCACHE;
+	gfs2_glock_dq(&sdp->sd_jianalde_gh);
 	gfs2_thaw_freeze_initiator(sdp->sd_vfs);
 	wait_on_bit(&i_gl->gl_flags, GLF_DEMOTE, TASK_UNINTERRUPTIBLE);
 
 	/*
 	 * holder_uninit to force glock_put, to force dlm to let go
 	 */
-	gfs2_holder_uninit(&sdp->sd_jinode_gh);
+	gfs2_holder_uninit(&sdp->sd_jianalde_gh);
 
 	/*
-	 * Note: We need to be careful here:
-	 * Our iput of jd_inode will evict it. The evict will dequeue its
+	 * Analte: We need to be careful here:
+	 * Our iput of jd_ianalde will evict it. The evict will dequeue its
 	 * glock, but the glock dq will wait for the withdraw unless we have
 	 * exception code in glock_dq.
 	 */
-	iput(inode);
-	sdp->sd_jdesc->jd_inode = NULL;
+	iput(ianalde);
+	sdp->sd_jdesc->jd_ianalde = NULL;
 	/*
-	 * Wait until the journal inode's glock is freed. This allows try locks
-	 * on other nodes to be successful, otherwise we remain the owner of
+	 * Wait until the journal ianalde's glock is freed. This allows try locks
+	 * on other analdes to be successful, otherwise we remain the owner of
 	 * the glock as far as dlm is concerned.
 	 */
 	if (i_gl->gl_ops->go_free) {
@@ -217,14 +217,14 @@ static void signal_our_withdraw(struct gfs2_sbd *sdp)
 	gfs2_glock_hold(live_gl);
 	gfs2_glock_dq_wait(&sdp->sd_live_gh);
 	/*
-	 * We enqueue the "live" glock in EX so that all other nodes
+	 * We enqueue the "live" glock in EX so that all other analdes
 	 * get a demote request and act on it. We don't really want the
 	 * lock in EX, so we send a "try" lock with 1CB to produce a callback.
 	 */
 	fs_warn(sdp, "Requesting recovery of jid %d.\n",
 		sdp->sd_lockstruct.ls_jid);
 	gfs2_holder_reinit(LM_ST_EXCLUSIVE,
-			   LM_FLAG_TRY_1CB | LM_FLAG_NOEXP | GL_NOPID,
+			   LM_FLAG_TRY_1CB | LM_FLAG_ANALEXP | GL_ANALPID,
 			   &sdp->sd_live_gh);
 	msleep(GL_GLOCK_MAX_HOLD);
 	/*
@@ -233,24 +233,24 @@ static void signal_our_withdraw(struct gfs2_sbd *sdp)
 	ret = gfs2_glock_nq(&sdp->sd_live_gh);
 
 	/*
-	 * If we actually got the "live" lock in EX mode, there are no other
-	 * nodes available to replay our journal. So we try to replay it
+	 * If we actually got the "live" lock in EX mode, there are anal other
+	 * analdes available to replay our journal. So we try to replay it
 	 * ourselves. We hold the "live" glock to prevent other mounters
 	 * during recovery, then just dequeue it and reacquire it in our
-	 * normal SH mode. Just in case the problem that caused us to
+	 * analrmal SH mode. Just in case the problem that caused us to
 	 * withdraw prevents us from recovering our journal (e.g. io errors
 	 * and such) we still check if the journal is clean before proceeding
-	 * but we may wait forever until another mounter does the recovery.
+	 * but we may wait forever until aanalther mounter does the recovery.
 	 */
 	if (ret == 0) {
-		fs_warn(sdp, "No other mounters found. Trying to recover our "
+		fs_warn(sdp, "Anal other mounters found. Trying to recover our "
 			"own journal jid %d.\n", sdp->sd_lockstruct.ls_jid);
 		if (gfs2_recover_journal(sdp->sd_jdesc, 1))
 			fs_warn(sdp, "Unable to recover our journal jid %d.\n",
 				sdp->sd_lockstruct.ls_jid);
 		gfs2_glock_dq_wait(&sdp->sd_live_gh);
 		gfs2_holder_reinit(LM_ST_SHARED,
-				   LM_FLAG_NOEXP | GL_EXACT | GL_NOPID,
+				   LM_FLAG_ANALEXP | GL_EXACT | GL_ANALPID,
 				   &sdp->sd_live_gh);
 		gfs2_glock_nq(&sdp->sd_live_gh);
 	}
@@ -259,28 +259,28 @@ static void signal_our_withdraw(struct gfs2_sbd *sdp)
 	clear_bit(SDF_WITHDRAW_RECOVERY, &sdp->sd_flags);
 
 	/*
-	 * At this point our journal is evicted, so we need to get a new inode
+	 * At this point our journal is evicted, so we need to get a new ianalde
 	 * for it. Once done, we need to call gfs2_find_jhead which
 	 * calls gfs2_map_journal_extents to map it for us again.
 	 *
-	 * Note that we don't really want it to look up a FREE block. The
-	 * GFS2_BLKST_FREE simply overrides a block check in gfs2_inode_lookup
+	 * Analte that we don't really want it to look up a FREE block. The
+	 * GFS2_BLKST_FREE simply overrides a block check in gfs2_ianalde_lookup
 	 * which would otherwise fail because it requires grabbing an rgrp
 	 * glock, which would fail with -EIO because we're withdrawing.
 	 */
-	inode = gfs2_inode_lookup(sdp->sd_vfs, DT_UNKNOWN,
-				  sdp->sd_jdesc->jd_no_addr, no_formal_ino,
+	ianalde = gfs2_ianalde_lookup(sdp->sd_vfs, DT_UNKANALWN,
+				  sdp->sd_jdesc->jd_anal_addr, anal_formal_ianal,
 				  GFS2_BLKST_FREE);
-	if (IS_ERR(inode)) {
+	if (IS_ERR(ianalde)) {
 		fs_warn(sdp, "Reprocessing of jid %d failed with %ld.\n",
-			sdp->sd_lockstruct.ls_jid, PTR_ERR(inode));
+			sdp->sd_lockstruct.ls_jid, PTR_ERR(ianalde));
 		goto skip_recovery;
 	}
-	sdp->sd_jdesc->jd_inode = inode;
-	d_mark_dontcache(inode);
+	sdp->sd_jdesc->jd_ianalde = ianalde;
+	d_mark_dontcache(ianalde);
 
 	/*
-	 * Now wait until recovery is complete.
+	 * Analw wait until recovery is complete.
 	 */
 	for (tries = 0; tries < 10; tries++) {
 		ret = check_journal_clean(sdp, sdp->sd_jdesc, false);
@@ -438,20 +438,20 @@ void gfs2_consist_i(struct gfs2_sbd *sdp, const char *function,
 }
 
 /*
- * gfs2_consist_inode_i - Flag an inode consistency error and withdraw
+ * gfs2_consist_ianalde_i - Flag an ianalde consistency error and withdraw
  */
 
-void gfs2_consist_inode_i(struct gfs2_inode *ip,
+void gfs2_consist_ianalde_i(struct gfs2_ianalde *ip,
 			  const char *function, char *file, unsigned int line)
 {
-	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
+	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_ianalde);
 
 	gfs2_lm(sdp,
 		"fatal: filesystem consistency error\n"
-		"  inode = %llu %llu\n"
+		"  ianalde = %llu %llu\n"
 		"  function = %s, file = %s, line = %u\n",
-		(unsigned long long)ip->i_no_formal_ino,
-		(unsigned long long)ip->i_no_addr,
+		(unsigned long long)ip->i_anal_formal_ianal,
+		(unsigned long long)ip->i_anal_addr,
 		function, file, line);
 	gfs2_dump_glock(NULL, ip->i_gl, 1);
 	gfs2_withdraw(sdp);

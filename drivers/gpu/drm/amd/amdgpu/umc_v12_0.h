@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -26,14 +26,14 @@
 #include "soc15_common.h"
 #include "amdgpu.h"
 
-#define UMC_V12_0_NODE_DIST		0x40000000
+#define UMC_V12_0_ANALDE_DIST		0x40000000
 #define UMC_V12_0_INST_DIST		0x40000
 
 /* UMC register per channel offset */
 #define UMC_V12_0_PER_CHANNEL_OFFSET	0x400
 
-/* UMC cross node offset */
-#define UMC_V12_0_CROSS_NODE_OFFSET		0x100000000
+/* UMC cross analde offset */
+#define UMC_V12_0_CROSS_ANALDE_OFFSET		0x100000000
 
 /* OdEccErrCnt max value */
 #define UMC_V12_0_CE_CNT_MAX		0xffff
@@ -47,11 +47,11 @@
 /* number of umc instance with memory map register access */
 #define UMC_V12_0_UMC_INSTANCE_NUM		4
 
-/* Total channel instances for all available umc nodes */
+/* Total channel instances for all available umc analdes */
 #define UMC_V12_0_TOTAL_CHANNEL_NUM(adev) \
 	(UMC_V12_0_CHANNEL_INSTANCE_NUM * (adev)->gmc.num_umc)
 
-/* one piece of normalized address is mapped to 8 pieces of physical address */
+/* one piece of analrmalized address is mapped to 8 pieces of physical address */
 #define UMC_V12_0_NA_MAP_PA_NUM        8
 /* R13 bit shift should be considered, double the number */
 #define UMC_V12_0_BAD_PAGE_NUM_PER_CHANNEL (UMC_V12_0_NA_MAP_PA_NUM * 2)

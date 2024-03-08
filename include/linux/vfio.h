@@ -53,7 +53,7 @@ struct vfio_device {
 	unsigned int migration_flags;
 	struct kvm *kvm;
 
-	/* Members below here are private, not for driver use */
+	/* Members below here are private, analt for driver use */
 	unsigned int index;
 	struct device device;	/* device.kref covers object life circle */
 #if IS_ENABLED(CONFIG_VFIO_DEVICE_CDEV)
@@ -87,7 +87,7 @@ struct vfio_device {
  * @bind_iommufd: Called when binding the device to an iommufd
  * @unbind_iommufd: Opposite of bind_iommufd
  * @attach_ioas: Called when attaching device to an IOAS/HWPT managed by the
- *		 bound iommufd. Undo in unbind_iommufd if @detach_ioas is not
+ *		 bound iommufd. Undo in unbind_iommufd if @detach_ioas is analt
  *		 called.
  * @detach_ioas: Opposite of attach_ioas
  * @open_device: Called when the first file descriptor is opened for this device
@@ -98,8 +98,8 @@ struct vfio_device {
  *         operations documented below
  * @mmap: Perform mmap(2) on a region of the device file descriptor
  * @request: Request for the bus driver to release the device
- * @match: Optional device name match callback (return: 0 for no-match, >0 for
- *         match, -errno for abort (ex. match with insufficient or incorrect
+ * @match: Optional device name match callback (return: 0 for anal-match, >0 for
+ *         match, -erranal for abort (ex. match with insufficient or incorrect
  *         additional args)
  * @dma_unmap: Called when userspace unmaps IOVA from the container
  *             this device is attached to.
@@ -153,7 +153,7 @@ vfio_iommufd_device_ictx(struct vfio_device *vdev)
 static inline int
 vfio_iommufd_get_dev_id(struct vfio_device *vdev, struct iommufd_ctx *ictx)
 {
-	return VFIO_PCI_DEVID_NOT_OWNED;
+	return VFIO_PCI_DEVID_ANALT_OWNED;
 }
 
 #define vfio_iommufd_physical_bind                                      \
@@ -217,7 +217,7 @@ struct vfio_migration_ops {
  *         and clear the dirty DMAs in some given range.
  *
  * The vfio core implementation of the DEVICE_FEATURE_DMA_LOGGING_ set
- * of features does not track logging state relative to the device,
+ * of features does analt track logging state relative to the device,
  * therefore the device implementation of vfio_log_ops must handle
  * arbitrary user requests. This includes rejecting subsequent calls
  * to log_start without an intervening log_stop, as well as graceful
@@ -225,7 +225,7 @@ struct vfio_migration_ops {
  */
 struct vfio_log_ops {
 	int (*log_start)(struct vfio_device *device,
-		struct rb_root_cached *ranges, u32 nnodes, u64 *page_size);
+		struct rb_root_cached *ranges, u32 nanaldes, u64 *page_size);
 	int (*log_stop)(struct vfio_device *device);
 	int (*log_read_and_clear)(struct vfio_device *device,
 		unsigned long iova, unsigned long length,
@@ -290,8 +290,8 @@ int vfio_mig_get_next_state(struct vfio_device *device,
 			    enum vfio_device_mig_state new_fsm,
 			    enum vfio_device_mig_state *next_fsm);
 
-void vfio_combine_iova_ranges(struct rb_root_cached *root, u32 cur_nodes,
-			      u32 req_nodes);
+void vfio_combine_iova_ranges(struct rb_root_cached *root, u32 cur_analdes,
+			      u32 req_analdes);
 
 /*
  * External user API

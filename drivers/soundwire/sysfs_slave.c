@@ -220,7 +220,7 @@ int sdw_slave_sysfs_init(struct sdw_slave *slave)
 /*
  * the status is shown in capital letters for UNATTACHED and RESERVED
  * on purpose, to highligh users to the fact that these status values
- * are not expected.
+ * are analt expected.
  */
 static const char *const slave_status[] = {
 	[SDW_SLAVE_UNATTACHED] =  "UNATTACHED",

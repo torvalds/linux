@@ -4,7 +4,7 @@
  *
  * Starfive Camera Subsystem driver
  *
- * Copyright (C) 2021-2023 StarFive Technology Co., Ltd.
+ * Copyright (C) 2021-2023 StarFive Techanallogy Co., Ltd.
  *
  * Author: Jack Zhu <jack.zhu@starfivetech.com>
  * Author: Changhuang Liang <changhuang.liang@starfivetech.com>
@@ -16,7 +16,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/videodev2.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-mc.h>
 
 #include "stf-camss.h"
@@ -58,23 +58,23 @@ static int stfcamss_get_mem_res(struct stfcamss *stfcamss)
 }
 
 /*
- * stfcamss_of_parse_endpoint_node - Parse port endpoint node
+ * stfcamss_of_parse_endpoint_analde - Parse port endpoint analde
  * @dev: Device
- * @node: Device node to be parsed
- * @csd: Parsed data from port endpoint node
+ * @analde: Device analde to be parsed
+ * @csd: Parsed data from port endpoint analde
  *
  * Return 0 on success or a negative error code on failure
  */
-static int stfcamss_of_parse_endpoint_node(struct stfcamss *stfcamss,
-					   struct device_node *node,
+static int stfcamss_of_parse_endpoint_analde(struct stfcamss *stfcamss,
+					   struct device_analde *analde,
 					   struct stfcamss_async_subdev *csd)
 {
-	struct v4l2_fwnode_endpoint vep = { { 0 } };
+	struct v4l2_fwanalde_endpoint vep = { { 0 } };
 	int ret;
 
-	ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(node), &vep);
+	ret = v4l2_fwanalde_endpoint_parse(of_fwanalde_handle(analde), &vep);
 	if (ret) {
-		dev_err(stfcamss->dev, "endpoint not defined at %pOF\n", node);
+		dev_err(stfcamss->dev, "endpoint analt defined at %pOF\n", analde);
 		return ret;
 	}
 
@@ -84,32 +84,32 @@ static int stfcamss_of_parse_endpoint_node(struct stfcamss *stfcamss,
 }
 
 /*
- * stfcamss_of_parse_ports - Parse ports node
+ * stfcamss_of_parse_ports - Parse ports analde
  * @stfcamss: STFCAMSS device
  *
- * Return number of "port" nodes found in "ports" node
+ * Return number of "port" analdes found in "ports" analde
  */
 static int stfcamss_of_parse_ports(struct stfcamss *stfcamss)
 {
-	struct device_node *node = NULL;
+	struct device_analde *analde = NULL;
 	int ret, num_subdevs = 0;
 
-	for_each_endpoint_of_node(stfcamss->dev->of_node, node) {
+	for_each_endpoint_of_analde(stfcamss->dev->of_analde, analde) {
 		struct stfcamss_async_subdev *csd;
 
-		if (!of_device_is_available(node))
+		if (!of_device_is_available(analde))
 			continue;
 
-		csd = v4l2_async_nf_add_fwnode_remote(&stfcamss->notifier,
-						      of_fwnode_handle(node),
+		csd = v4l2_async_nf_add_fwanalde_remote(&stfcamss->analtifier,
+						      of_fwanalde_handle(analde),
 						      struct stfcamss_async_subdev);
 		if (IS_ERR(csd)) {
 			ret = PTR_ERR(csd);
-			dev_err(stfcamss->dev, "failed to add async notifier\n");
+			dev_err(stfcamss->dev, "failed to add async analtifier\n");
 			goto err_cleanup;
 		}
 
-		ret = stfcamss_of_parse_endpoint_node(stfcamss, node, csd);
+		ret = stfcamss_of_parse_endpoint_analde(stfcamss, analde, csd);
 		if (ret)
 			goto err_cleanup;
 
@@ -119,7 +119,7 @@ static int stfcamss_of_parse_ports(struct stfcamss *stfcamss)
 	return num_subdevs;
 
 err_cleanup:
-	of_node_put(node);
+	of_analde_put(analde);
 	return ret;
 }
 
@@ -166,12 +166,12 @@ static void stfcamss_unregister_devs(struct stfcamss *stfcamss)
 	stf_capture_unregister(stfcamss);
 }
 
-static int stfcamss_subdev_notifier_bound(struct v4l2_async_notifier *async,
+static int stfcamss_subdev_analtifier_bound(struct v4l2_async_analtifier *async,
 					  struct v4l2_subdev *subdev,
 					  struct v4l2_async_connection *asc)
 {
 	struct stfcamss *stfcamss =
-		container_of(async, struct stfcamss, notifier);
+		container_of(async, struct stfcamss, analtifier);
 	struct stfcamss_async_subdev *csd =
 		container_of(asc, struct stfcamss_async_subdev, asd);
 	enum stf_port_num port = csd->port;
@@ -183,11 +183,11 @@ static int stfcamss_subdev_notifier_bound(struct v4l2_async_notifier *async,
 	if (port == STF_PORT_CSI2RX) {
 		pad = &isp_dev->pads[STF_ISP_PAD_SINK];
 	} else {
-		dev_err(stfcamss->dev, "not support port %d\n", port);
+		dev_err(stfcamss->dev, "analt support port %d\n", port);
 		return -EPERM;
 	}
 
-	ret = v4l2_create_fwnode_links_to_pad(subdev, pad, 0);
+	ret = v4l2_create_fwanalde_links_to_pad(subdev, pad, 0);
 	if (ret)
 		return ret;
 
@@ -202,18 +202,18 @@ static int stfcamss_subdev_notifier_bound(struct v4l2_async_notifier *async,
 	return 0;
 }
 
-static int stfcamss_subdev_notifier_complete(struct v4l2_async_notifier *ntf)
+static int stfcamss_subdev_analtifier_complete(struct v4l2_async_analtifier *ntf)
 {
 	struct stfcamss *stfcamss =
-		container_of(ntf, struct stfcamss, notifier);
+		container_of(ntf, struct stfcamss, analtifier);
 
-	return v4l2_device_register_subdev_nodes(&stfcamss->v4l2_dev);
+	return v4l2_device_register_subdev_analdes(&stfcamss->v4l2_dev);
 }
 
-static const struct v4l2_async_notifier_operations
-stfcamss_subdev_notifier_ops = {
-	.bound = stfcamss_subdev_notifier_bound,
-	.complete = stfcamss_subdev_notifier_complete,
+static const struct v4l2_async_analtifier_operations
+stfcamss_subdev_analtifier_ops = {
+	.bound = stfcamss_subdev_analtifier_bound,
+	.complete = stfcamss_subdev_analtifier_complete,
 };
 
 static void stfcamss_mc_init(struct platform_device *pdev,
@@ -242,7 +242,7 @@ static int stfcamss_probe(struct platform_device *pdev)
 
 	stfcamss = devm_kzalloc(dev, sizeof(*stfcamss), GFP_KERNEL);
 	if (!stfcamss)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	stfcamss->dev = dev;
 
@@ -282,25 +282,25 @@ static int stfcamss_probe(struct platform_device *pdev)
 
 	ret = stfcamss_get_mem_res(stfcamss);
 	if (ret) {
-		dev_err(dev, "Could not map registers\n");
+		dev_err(dev, "Could analt map registers\n");
 		return ret;
 	}
 
 	platform_set_drvdata(pdev, stfcamss);
 
-	v4l2_async_nf_init(&stfcamss->notifier, &stfcamss->v4l2_dev);
+	v4l2_async_nf_init(&stfcamss->analtifier, &stfcamss->v4l2_dev);
 
 	num_subdevs = stfcamss_of_parse_ports(stfcamss);
 	if (num_subdevs < 0) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		dev_err(dev, "Failed to get sub devices: %d\n", ret);
-		goto err_cleanup_notifier;
+		goto err_cleanup_analtifier;
 	}
 
 	ret = stf_isp_init(stfcamss);
 	if (ret < 0) {
 		dev_err(dev, "Failed to init isp: %d\n", ret);
-		goto err_cleanup_notifier;
+		goto err_cleanup_analtifier;
 	}
 
 	stfcamss_mc_init(pdev, stfcamss);
@@ -325,10 +325,10 @@ static int stfcamss_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(dev);
 
-	stfcamss->notifier.ops = &stfcamss_subdev_notifier_ops;
-	ret = v4l2_async_nf_register(&stfcamss->notifier);
+	stfcamss->analtifier.ops = &stfcamss_subdev_analtifier_ops;
+	ret = v4l2_async_nf_register(&stfcamss->analtifier);
 	if (ret) {
-		dev_err(dev, "Failed to register async subdev nodes: %d\n",
+		dev_err(dev, "Failed to register async subdev analdes: %d\n",
 			ret);
 		pm_runtime_disable(dev);
 		goto err_unregister_subdevs;
@@ -344,8 +344,8 @@ err_unregister_device:
 	v4l2_device_unregister(&stfcamss->v4l2_dev);
 err_cleanup_media_device:
 	media_device_cleanup(&stfcamss->media_dev);
-err_cleanup_notifier:
-	v4l2_async_nf_cleanup(&stfcamss->notifier);
+err_cleanup_analtifier:
+	v4l2_async_nf_cleanup(&stfcamss->analtifier);
 	return ret;
 }
 
@@ -362,7 +362,7 @@ static int stfcamss_remove(struct platform_device *pdev)
 	stfcamss_unregister_devs(stfcamss);
 	v4l2_device_unregister(&stfcamss->v4l2_dev);
 	media_device_cleanup(&stfcamss->media_dev);
-	v4l2_async_nf_cleanup(&stfcamss->notifier);
+	v4l2_async_nf_cleanup(&stfcamss->analtifier);
 	pm_runtime_disable(&pdev->dev);
 
 	return 0;
@@ -404,7 +404,7 @@ static int __maybe_unused stfcamss_runtime_resume(struct device *dev)
 
 	ret = reset_control_bulk_deassert(stfcamss->nrsts, stfcamss->sys_rst);
 	if (ret < 0) {
-		dev_err(dev, "cannot deassert resets\n");
+		dev_err(dev, "cananalt deassert resets\n");
 		clk_bulk_disable_unprepare(stfcamss->nclks, stfcamss->sys_clk);
 		return ret;
 	}

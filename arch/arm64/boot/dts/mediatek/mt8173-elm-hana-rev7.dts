@@ -22,7 +22,7 @@
 };
 
 &gpio_keys {
-	/delete-node/switch-tablet-mode;
-	/delete-node/switch-volume-down;
-	/delete-node/switch-volume-up;
+	/delete-analde/switch-tablet-mode;
+	/delete-analde/switch-volume-down;
+	/delete-analde/switch-volume-up;
 };

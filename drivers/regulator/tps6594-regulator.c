@@ -83,7 +83,7 @@ struct tps6594_ext_regulator_irq_data {
 	{								\
 		.name			= _name,			\
 		.of_match		= _of,				\
-		.regulators_node	= of_match_ptr("regulators"),	\
+		.regulators_analde	= of_match_ptr("regulators"),	\
 		.supply_name		= _of,				\
 		.id			= _id,				\
 		.ops			= &(_ops),			\
@@ -351,7 +351,7 @@ static irqreturn_t tps6594_regulator_irq_handler(int irq, void *data)
 	struct tps6594_regulator_irq_data *irq_data = data;
 
 	if (irq_data->type->event_name[0] == '\0') {
-		/* This is the timeout interrupt no specific regulator */
+		/* This is the timeout interrupt anal specific regulator */
 		dev_err(irq_data->dev,
 			"System was put in shutdown due to timeout during an active or standby transition.\n");
 		return IRQ_HANDLED;
@@ -360,7 +360,7 @@ static irqreturn_t tps6594_regulator_irq_handler(int irq, void *data)
 	dev_err(irq_data->dev, "Error IRQ trap %s for %s\n",
 		irq_data->type->event_name, irq_data->type->regulator_name);
 
-	regulator_notifier_call_chain(irq_data->rdev,
+	regulator_analtifier_call_chain(irq_data->rdev,
 				      irq_data->type->event, NULL);
 
 	return IRQ_HANDLED;
@@ -405,8 +405,8 @@ static int tps6594_regulator_probe(struct platform_device *pdev)
 {
 	struct tps6594 *tps = dev_get_drvdata(pdev->dev.parent);
 	struct regulator_dev *rdev;
-	struct device_node *np = NULL;
-	struct device_node *np_pmic_parent = NULL;
+	struct device_analde *np = NULL;
+	struct device_analde *np_pmic_parent = NULL;
 	struct regulator_config config = {};
 	struct tps6594_regulator_irq_data *irq_data;
 	struct tps6594_ext_regulator_irq_data *irq_ext_reg_data;
@@ -436,17 +436,17 @@ static int tps6594_regulator_probe(struct platform_device *pdev)
 
 	/*
 	 * Switch case defines different possible multi phase config
-	 * This is based on dts buck node name.
-	 * Buck node name must be chosen accordingly.
-	 * Default case is no Multiphase buck.
+	 * This is based on dts buck analde name.
+	 * Buck analde name must be chosen accordingly.
+	 * Default case is anal Multiphase buck.
 	 * In case of Multiphase configuration, value should be defined for
 	 * buck_configured to avoid creating bucks for every buck in multiphase
 	 */
 	for (multi = MULTI_FIRST; multi < MULTI_NUM; multi++) {
-		np = of_find_node_by_name(tps->dev->of_node, multiphases[multi]);
-		npname = of_node_full_name(np);
+		np = of_find_analde_by_name(tps->dev->of_analde, multiphases[multi]);
+		npname = of_analde_full_name(np);
 		np_pmic_parent = of_get_parent(of_get_parent(np));
-		if (of_node_cmp(of_node_full_name(np_pmic_parent), tps->dev->of_node->full_name))
+		if (of_analde_cmp(of_analde_full_name(np_pmic_parent), tps->dev->of_analde->full_name))
 			continue;
 		delta = strcmp(npname, multiphases[multi]);
 		if (!delta) {
@@ -493,7 +493,7 @@ static int tps6594_regulator_probe(struct platform_device *pdev)
 	irq_data = devm_kmalloc_array(tps->dev, reg_irq_nb,
 				      sizeof(struct tps6594_regulator_irq_data), GFP_KERNEL);
 	if (!irq_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < MULTI_PHASE_NB; i++) {
 		if (buck_multi[i] == 0)
@@ -574,7 +574,7 @@ static int tps6594_regulator_probe(struct platform_device *pdev)
 					sizeof(struct tps6594_ext_regulator_irq_data),
 					GFP_KERNEL);
 	if (!irq_ext_reg_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ext_reg_irq_nb; ++i) {
 		irq_type = &tps6594_ext_regulator_irq_types[i];

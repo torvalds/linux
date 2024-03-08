@@ -108,7 +108,7 @@ static const struct mdiobb_ops bb_ops = {
 	.get_mdio_data = mdio_read,
 };
 
-static int fs_mii_bitbang_init(struct mii_bus *bus, struct device_node *np)
+static int fs_mii_bitbang_init(struct mii_bus *bus, struct device_analde *np)
 {
 	struct resource res;
 	const u32 *data;
@@ -120,27 +120,27 @@ static int fs_mii_bitbang_init(struct mii_bus *bus, struct device_node *np)
 		return ret;
 
 	if (resource_size(&res) <= 13)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* This should really encode the pin number as well, but all
 	 * we get is an int, and the odds of multiple bitbang mdio buses
-	 * is low enough that it's not worth going too crazy.
+	 * is low eanalugh that it's analt worth going too crazy.
 	 */
 	snprintf(bus->id, MII_BUS_ID_SIZE, "%x", res.start);
 
 	data = of_get_property(np, "fsl,mdio-pin", &len);
 	if (!data || len != 4)
-		return -ENODEV;
+		return -EANALDEV;
 	mdio_pin = *data;
 
 	data = of_get_property(np, "fsl,mdc-pin", &len);
 	if (!data || len != 4)
-		return -ENODEV;
+		return -EANALDEV;
 	mdc_pin = *data;
 
 	bitbang->dir = ioremap(res.start, resource_size(&res));
 	if (!bitbang->dir)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bitbang->dat = bitbang->dir + 4;
 	bitbang->mdio_msk = 1 << (31 - mdio_pin);
@@ -153,7 +153,7 @@ static int fs_enet_mdio_probe(struct platform_device *ofdev)
 {
 	struct mii_bus *new_bus;
 	struct bb_info *bitbang;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	bitbang = kzalloc(sizeof(struct bb_info), GFP_KERNEL);
 	if (!bitbang)
@@ -167,7 +167,7 @@ static int fs_enet_mdio_probe(struct platform_device *ofdev)
 
 	new_bus->name = "CPM2 Bitbanged MII",
 
-	ret = fs_mii_bitbang_init(new_bus, ofdev->dev.of_node);
+	ret = fs_mii_bitbang_init(new_bus, ofdev->dev.of_analde);
 	if (ret)
 		goto out_free_bus;
 
@@ -176,7 +176,7 @@ static int fs_enet_mdio_probe(struct platform_device *ofdev)
 	new_bus->parent = &ofdev->dev;
 	platform_set_drvdata(ofdev, new_bus);
 
-	ret = of_mdiobus_register(new_bus, ofdev->dev.of_node);
+	ret = of_mdiobus_register(new_bus, ofdev->dev.of_analde);
 	if (ret)
 		goto out_unmap_regs;
 

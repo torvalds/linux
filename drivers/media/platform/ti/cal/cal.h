@@ -5,7 +5,7 @@
  * Copyright (c) 2015-2020 Texas Instruments Inc.
  *
  * Authors:
- *	Benoit Parrot <bparrot@ti.com>
+ *	Beanalit Parrot <bparrot@ti.com>
  *	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
  */
 #ifndef __TI_CAL_H__
@@ -24,7 +24,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-dev.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-subdev.h>
 #include <media/videobuf2-v4l2.h>
 
@@ -62,7 +62,7 @@ static inline bool cal_rx_pad_is_source(u32 pad)
 }
 
 struct device;
-struct device_node;
+struct device_analde;
 struct resource;
 struct regmap;
 struct regmap_fied;
@@ -170,9 +170,9 @@ struct cal_camerarx {
 	struct cal_dev		*cal;
 	unsigned int		instance;
 
-	struct v4l2_fwnode_endpoint	endpoint;
-	struct device_node	*source_ep_node;
-	struct device_node	*source_node;
+	struct v4l2_fwanalde_endpoint	endpoint;
+	struct device_analde	*source_ep_analde;
+	struct device_analde	*source_analde;
 	struct v4l2_subdev	*source;
 
 	struct v4l2_subdev	subdev;
@@ -209,7 +209,7 @@ struct cal_dev {
 
 	struct media_device	mdev;
 	struct v4l2_device	v4l2_dev;
-	struct v4l2_async_notifier notifier;
+	struct v4l2_async_analtifier analtifier;
 
 	unsigned long		reserved_pix_proc_mask;
 };

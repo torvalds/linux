@@ -44,7 +44,7 @@ static inline u32 pipe2client(enum mdp5_pipe pipe, int plane)
 		return CID_UNUSED;
 
 	/*
-	 * Note on SMP clients:
+	 * Analte on SMP clients:
 	 * For ViG pipes, fetch Y/Cr/Cb-components clients are always
 	 * consecutive, and in that order.
 	 *
@@ -81,7 +81,7 @@ static int smp_request_block(struct mdp5_smp *smp,
 	if (nblks > avail) {
 		DRM_DEV_ERROR(smp->dev->dev, "out of blks (req=%d > avail=%d)\n",
 				nblks, avail);
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	for (i = 0; i < nblks; i++) {
@@ -108,10 +108,10 @@ static void set_fifo_thresholds(struct mdp5_smp *smp,
 }
 
 /*
- * NOTE: looks like if horizontal decimation is used (if we supported that)
+ * ANALTE: looks like if horizontal decimation is used (if we supported that)
  * then the width used to calculate SMP block requirements is the post-
  * decimated width.  Ie. SMP buffering sits downstream of decimation (which
- * presumably happens during the dma from scanout buffer).
+ * presumably happens during the dma from scaanalut buffer).
  */
 uint32_t mdp5_smp_calculate(struct mdp5_smp *smp,
 		const struct mdp_format *format,
@@ -178,7 +178,7 @@ int mdp5_smp_assign(struct mdp5_smp *smp, struct mdp5_smp_state *state,
 		DBG("%s[%d]: request %d SMP blocks", pipe2name(pipe), i, n);
 		ret = smp_request_block(smp, state, cid, n);
 		if (ret) {
-			DRM_DEV_ERROR(dev->dev, "Cannot allocate %d SMP blocks: %d\n",
+			DRM_DEV_ERROR(dev->dev, "Cananalt allocate %d SMP blocks: %d\n",
 					n, ret);
 			return ret;
 		}
@@ -203,7 +203,7 @@ void mdp5_smp_release(struct mdp5_smp *smp, struct mdp5_smp_state *state,
 		void *cs = state->client_state[cid];
 
 		/* update global state: */
-		bitmap_andnot(state->state, state->state, cs, cnt);
+		bitmap_andanalt(state->state, state->state, cs, cnt);
 
 		/* clear client's state */
 		bitmap_zero(cs, cnt);
@@ -212,8 +212,8 @@ void mdp5_smp_release(struct mdp5_smp *smp, struct mdp5_smp_state *state,
 	state->released |= (1 << pipe);
 }
 
-/* NOTE: SMP_ALLOC_* regs are *not* double buffered, so release has to
- * happen after scanout completes.
+/* ANALTE: SMP_ALLOC_* regs are *analt* double buffered, so release has to
+ * happen after scaanalut completes.
  */
 static unsigned update_smp_state(struct mdp5_smp *smp,
 		u32 cid, mdp5_smp_state_t *assigned)
@@ -380,7 +380,7 @@ struct mdp5_smp *mdp5_smp_init(struct mdp5_kms *mdp5_kms, const struct mdp5_smp_
 
 	smp = devm_kzalloc(dev->dev, sizeof(*smp), GFP_KERNEL);
 	if (unlikely(!smp))
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	smp->dev = mdp5_kms->dev;
 	smp->blk_cnt = cfg->mmb_count;
@@ -389,7 +389,7 @@ struct mdp5_smp *mdp5_smp_init(struct mdp5_kms *mdp5_kms, const struct mdp5_smp_
 	global_state = mdp5_get_existing_global_state(mdp5_kms);
 	state = &global_state->smp;
 
-	/* statically tied MMBs cannot be re-allocated: */
+	/* statically tied MMBs cananalt be re-allocated: */
 	bitmap_copy(state->state, cfg->reserved_state, smp->blk_cnt);
 	memcpy(smp->reserved, cfg->reserved, sizeof(smp->reserved));
 

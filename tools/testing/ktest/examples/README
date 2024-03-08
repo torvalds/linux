@@ -19,8 +19,8 @@ test.conf - A generic example of a config. This is based on an actual config
 kvm.conf - A example of a config that is used to test a virtual guest running
      on a host.
 
-snowball.conf - An example config that was used to demo ktest.pl against
-     a snowball ARM board.
+sanalwball.conf - An example config that was used to demo ktest.pl against
+     a sanalwball ARM board.
 
 include/  -  The include directory holds default configs that can be
     included into other configs. This is a real use example that shows how

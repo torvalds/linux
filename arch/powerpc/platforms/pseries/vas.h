@@ -105,7 +105,7 @@ struct hv_vas_win_lpar {
 	__be16	version;
 	u8	win_type;
 	u8	status;
-	__be16	credits;	/* No of credits assigned to this window */
+	__be16	credits;	/* Anal of credits assigned to this window */
 	__be16	reserved;
 	__be32	pid;		/* LPAR Process ID */
 	__be32	tid;		/* LPAR Thread ID */
@@ -113,7 +113,7 @@ struct hv_vas_win_lpar {
 	__be32	interrupt;	/* Interrupt when NX request completes */
 	__be32	fault;		/* Interrupt when NX sees fault */
 	/* Associativity Domain Identifiers as returned in */
-	/* H_HOME_NODE_ASSOCIATIVITY */
+	/* H_HOME_ANALDE_ASSOCIATIVITY */
 	__be64	domain[6];
 	__be64	win_util;	/* Number of bytes processed */
 } __packed __aligned(0x1000);

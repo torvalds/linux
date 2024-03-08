@@ -51,7 +51,7 @@ struct trusted_key_options {
 struct trusted_key_ops {
 	/*
 	 * flag to indicate if trusted key implementation supports migration
-	 * or not.
+	 * or analt.
 	 */
 	unsigned char migratable;
 
@@ -84,10 +84,10 @@ extern struct key_type key_type_trusted;
 static inline void dump_payload(struct trusted_key_payload *p)
 {
 	pr_info("key_len %d\n", p->key_len);
-	print_hex_dump(KERN_INFO, "key ", DUMP_PREFIX_NONE,
+	print_hex_dump(KERN_INFO, "key ", DUMP_PREFIX_ANALNE,
 		       16, 1, p->key, p->key_len, 0);
 	pr_info("bloblen %d\n", p->blob_len);
-	print_hex_dump(KERN_INFO, "blob ", DUMP_PREFIX_NONE,
+	print_hex_dump(KERN_INFO, "blob ", DUMP_PREFIX_ANALNE,
 		       16, 1, p->blob, p->blob_len, 0);
 	pr_info("migratable %d\n", p->migratable);
 }

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Inanalvation Center, Inc. All rights reserved.
  * Copyright (c) 2023, Linaro Limited
  */
 
@@ -573,7 +573,7 @@ enum sm8650_functions {
 	msm_mux_ddr_pxi1,
 	msm_mux_ddr_pxi2,
 	msm_mux_ddr_pxi3,
-	msm_mux_do_not,
+	msm_mux_do_analt,
 	msm_mux_dp_hot,
 	msm_mux_egpio,
 	msm_mux_gcc_gp1,
@@ -872,7 +872,7 @@ static const char *const ddr_pxi3_groups[] = {
 	"gpio46", "gpio47",
 };
 
-static const char *const do_not_groups[] = {
+static const char *const do_analt_groups[] = {
 	"gpio36", "gpio37", "gpio38", "gpio39",
 	"gpio134", "gpio135", "gpio136",
 };
@@ -1357,7 +1357,7 @@ static const struct pinfunction sm8650_functions[] = {
 	MSM_PIN_FUNCTION(ddr_pxi1),
 	MSM_PIN_FUNCTION(ddr_pxi2),
 	MSM_PIN_FUNCTION(ddr_pxi3),
-	MSM_PIN_FUNCTION(do_not),
+	MSM_PIN_FUNCTION(do_analt),
 	MSM_PIN_FUNCTION(dp_hot),
 	MSM_PIN_FUNCTION(egpio),
 	MSM_PIN_FUNCTION(gcc_gp1),
@@ -1469,10 +1469,10 @@ static const struct pinfunction sm8650_functions[] = {
 };
 
 /*
- * Every pin is maintained as a single group, and missing or non-existing pin
+ * Every pin is maintained as a single group, and missing or analn-existing pin
  * would be maintained as dummy group to synchronize pin group index with
  * pin descriptor registered with pinctrl core.
- * Clients would not be able to request these dummy pin groups.
+ * Clients would analt be able to request these dummy pin groups.
  */
 static const struct msm_pingroup sm8650_groups[] = {
 	[0] = PINGROUP(0, qup2_se0, ibi_i3c, phase_flag, _, _, _, _, _, _, egpio),
@@ -1511,10 +1511,10 @@ static const struct msm_pingroup sm8650_groups[] = {
 	[33] = PINGROUP(33, qup1_se0, ibi_i3c, _, _, _, _, _, _, _, _),
 	[34] = PINGROUP(34, qup1_se0, _, _, _, _, _, _, _, _, _),
 	[35] = PINGROUP(35, qup1_se0, _, _, _, _, _, _, _, _, _),
-	[36] = PINGROUP(36, qup1_se1, do_not, ibi_i3c, _, _, _, _, _, _, _),
-	[37] = PINGROUP(37, qup1_se1, do_not, ibi_i3c, _, _, _, _, _, _, _),
-	[38] = PINGROUP(38, qup1_se1, do_not, _, _, _, _, _, _, _, _),
-	[39] = PINGROUP(39, qup1_se1, do_not, _, _, _, _, _, _, _, _),
+	[36] = PINGROUP(36, qup1_se1, do_analt, ibi_i3c, _, _, _, _, _, _, _),
+	[37] = PINGROUP(37, qup1_se1, do_analt, ibi_i3c, _, _, _, _, _, _, _),
+	[38] = PINGROUP(38, qup1_se1, do_analt, _, _, _, _, _, _, _, _),
+	[39] = PINGROUP(39, qup1_se1, do_analt, _, _, _, _, _, _, _, _),
 	[40] = PINGROUP(40, qup1_se2, ddr_bist_fail, _, _, _, _, _, _, _, _),
 	[41] = PINGROUP(41, qup1_se2, ddr_bist_start, _, _, _, _, _, _, _, _),
 	[42] = PINGROUP(42, qup1_se2, _, _, _, _, _, _, _, _, _),
@@ -1609,9 +1609,9 @@ static const struct msm_pingroup sm8650_groups[] = {
 	[131] = PINGROUP(131, uim0_clk, atest_usb, atest_char, _, _, _, _, _, _, _),
 	[132] = PINGROUP(132, uim0_reset, atest_char, _, _, _, _, _, _, _, _),
 	[133] = PINGROUP(133, mdp_vsync, atest_char, _, _, _, _, _, _, _, _),
-	[134] = PINGROUP(134, uim1_data, do_not, qspi0, sdc40, gcc_gp1, _, _, _, _, _),
-	[135] = PINGROUP(135, uim1_clk, do_not, qspi_clk, sdc4_clk, gcc_gp2, _, _, _, _, _),
-	[136] = PINGROUP(136, uim1_reset, do_not, qspi1, sdc41, gcc_gp3, _, _, _, _, _),
+	[134] = PINGROUP(134, uim1_data, do_analt, qspi0, sdc40, gcc_gp1, _, _, _, _, _),
+	[135] = PINGROUP(135, uim1_clk, do_analt, qspi_clk, sdc4_clk, gcc_gp2, _, _, _, _, _),
+	[136] = PINGROUP(136, uim1_reset, do_analt, qspi1, sdc41, gcc_gp3, _, _, _, _, _),
 	[137] = PINGROUP(137, mdp_vsync, atest_char, _, _, _, _, _, _, _, _),
 	[138] = PINGROUP(138, _, _, _, _, _, _, _, _, _, _),
 	[139] = PINGROUP(139, _, _, _, _, _, _, _, _, _, _),

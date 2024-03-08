@@ -4,13 +4,13 @@
  *
  * Copyright (C) 2010 Jean-Francois Moine (http://moinejf.free.fr)
  *
- *Notes: * t613  + tas5130A
- *	* Focus to light do not balance well as in win.
- *	  Quality in win is not good, but its kinda better.
+ *Analtes: * t613  + tas5130A
+ *	* Focus to light do analt balance well as in win.
+ *	  Quality in win is analt good, but its kinda better.
  *	 * Fix some "extraneous bytes", most of apps will show the image anyway
  *	 * Gamma table, is there, but its really doing something?
  *	 * 7~8 Fps, its ok, max on win its 10.
- *			Costantino Leandro
+ *			Costantianal Leandro
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -21,7 +21,7 @@
 #include <linux/slab.h>
 #include "gspca.h"
 
-MODULE_AUTHOR("Leandro Costantino <le_costantino@pixartargentina.com.ar>");
+MODULE_AUTHOR("Leandro Costantianal <le_costantianal@pixartargentina.com.ar>");
 MODULE_DESCRIPTION("GSPCA/T613 (JPEG Compliance) USB Camera Driver");
 MODULE_LICENSE("GPL");
 
@@ -46,31 +46,31 @@ enum sensors {
 };
 
 static const struct v4l2_pix_format vga_mode_t16[] = {
-	{160, 120, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+	{160, 120, V4L2_PIX_FMT_JPEG, V4L2_FIELD_ANALNE,
 		.bytesperline = 160,
 		.sizeimage = 160 * 120 * 4 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 4},
 #if 0 /* HDG: broken with my test cam, so lets disable it */
-	{176, 144, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+	{176, 144, V4L2_PIX_FMT_JPEG, V4L2_FIELD_ANALNE,
 		.bytesperline = 176,
 		.sizeimage = 176 * 144 * 3 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 3},
 #endif
-	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_ANALNE,
 		.bytesperline = 320,
 		.sizeimage = 320 * 240 * 3 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 2},
 #if 0 /* HDG: broken with my test cam, so lets disable it */
-	{352, 288, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+	{352, 288, V4L2_PIX_FMT_JPEG, V4L2_FIELD_ANALNE,
 		.bytesperline = 352,
 		.sizeimage = 352 * 288 * 3 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 1},
 #endif
-	{640, 480, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+	{640, 480, V4L2_PIX_FMT_JPEG, V4L2_FIELD_ANALNE,
 		.bytesperline = 640,
 		.sizeimage = 640 * 480 * 3 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
@@ -219,9 +219,9 @@ static const struct additional_sensor_data sensor_data[] = {
 
 #define MAX_EFFECTS 7
 static const u8 effects_table[MAX_EFFECTS][6] = {
-	{0xa8, 0xe8, 0xc6, 0xd2, 0xc0, 0x00},	/* Normal */
+	{0xa8, 0xe8, 0xc6, 0xd2, 0xc0, 0x00},	/* Analrmal */
 	{0xa8, 0xc8, 0xc6, 0x52, 0xc0, 0x04},	/* Repujar */
-	{0xa8, 0xe8, 0xc6, 0xd2, 0xc0, 0x20},	/* Monochrome */
+	{0xa8, 0xe8, 0xc6, 0xd2, 0xc0, 0x20},	/* Moanalchrome */
 	{0xa8, 0xe8, 0xc6, 0xd2, 0xc0, 0x80},	/* Sepia */
 	{0xa8, 0xc8, 0xc6, 0x52, 0xc0, 0x02},	/* Croquis */
 	{0xa8, 0xc8, 0xc6, 0xd2, 0xc0, 0x10},	/* Sun Effect */
@@ -546,7 +546,7 @@ static void setfreq(struct gspca_dev *gspca_dev, s32 val)
 		break;
 	}
 	switch (val) {
-	case 0:				/* no flicker */
+	case 0:				/* anal flicker */
 		freq[3] = 0xf0;
 		break;
 	case 2:				/* 60Hz */
@@ -561,7 +561,7 @@ static void setfreq(struct gspca_dev *gspca_dev, s32 val)
 /* this function is called at probe and resume time */
 static int sd_init(struct gspca_dev *gspca_dev)
 {
-	/* some of this registers are not really needed, because
+	/* some of this registers are analt really needed, because
 	 * they are overridden by setbrigthness, setcontrast, etc.,
 	 * but won't hurt anyway, and can help someone with similar webcam
 	 * to see the initial parameters.*/
@@ -599,7 +599,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 		sd->sensor = SENSOR_OM6802;
 		break;
 	default:
-		pr_err("unknown sensor %04x\n", sensor_id);
+		pr_err("unkanalwn sensor %04x\n", sensor_id);
 		return -EINVAL;
 	}
 
@@ -684,7 +684,7 @@ static void seteffect(struct gspca_dev *gspca_dev, s32 val)
 	int idx = 0;
 
 	switch (val) {
-	case V4L2_COLORFX_NONE:
+	case V4L2_COLORFX_ANALNE:
 		break;
 	case V4L2_COLORFX_BW:
 		idx = 2;
@@ -723,7 +723,7 @@ static void poll_sensor(struct gspca_dev *gspca_dev)
 	static const u8 poll2[] =
 		{0x67, 0x02, 0x68, 0x71, 0x69, 0x72, 0x72, 0xa9,
 		 0x73, 0x02, 0x73, 0x02, 0x60, 0x14};
-	static const u8 noise03[] =	/* (some differences / ms-drv) */
+	static const u8 analise03[] =	/* (some differences / ms-drv) */
 		{0xa6, 0x0a, 0xea, 0xcf, 0xbe, 0x26, 0xb1, 0x5f,
 		 0xa1, 0xb1, 0xda, 0x6b, 0xdb, 0x98, 0xdf, 0x0c,
 		 0xc2, 0x80, 0xc3, 0x10};
@@ -731,7 +731,7 @@ static void poll_sensor(struct gspca_dev *gspca_dev)
 	gspca_dbg(gspca_dev, D_STREAM, "[Sensor requires polling]\n");
 	reg_w_buf(gspca_dev, poll1, sizeof poll1);
 	reg_w_buf(gspca_dev, poll2, sizeof poll2);
-	reg_w_buf(gspca_dev, noise03, sizeof noise03);
+	reg_w_buf(gspca_dev, analise03, sizeof analise03);
 }
 
 static int sd_start(struct gspca_dev *gspca_dev)
@@ -811,7 +811,7 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 		reg_w(gspca_dev, 0x0309);
 	}
 #if IS_ENABLED(CONFIG_INPUT)
-	/* If the last button state is pressed, release it now! */
+	/* If the last button state is pressed, release it analw! */
 	if (sd->button_pressed) {
 		input_report_key(gspca_dev->input_dev, KEY_CAMERA, 0);
 		input_sync(gspca_dev->input_dev);
@@ -841,7 +841,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 #endif
 		/* Control Packet, after this came the header again,
 		 * but extra bytes came in the packet before this,
-		 * sometimes an EOF arrives, sometimes not... */
+		 * sometimes an EOF arrives, sometimes analt... */
 		return;
 	}
 	data += 2;
@@ -976,19 +976,19 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 			V4L2_CID_SHARPNESS, 0, 15, 1, 6);
 	v4l2_ctrl_new_std_menu(hdl, &sd_ctrl_ops,
 			V4L2_CID_COLORFX, V4L2_COLORFX_SKETCH,
-			~((1 << V4L2_COLORFX_NONE) |
+			~((1 << V4L2_COLORFX_ANALNE) |
 			  (1 << V4L2_COLORFX_BW) |
 			  (1 << V4L2_COLORFX_SEPIA) |
 			  (1 << V4L2_COLORFX_SKETCH) |
 			  (1 << V4L2_COLORFX_NEGATIVE)),
-			V4L2_COLORFX_NONE);
+			V4L2_COLORFX_ANALNE);
 	sd->freq = v4l2_ctrl_new_std_menu(hdl, &sd_ctrl_ops,
 			V4L2_CID_POWER_LINE_FREQUENCY,
 			V4L2_CID_POWER_LINE_FREQUENCY_60HZ, 1,
 			V4L2_CID_POWER_LINE_FREQUENCY_50HZ);
 
 	if (hdl->error) {
-		pr_err("Could not initialize controls\n");
+		pr_err("Could analt initialize controls\n");
 		return hdl->error;
 	}
 

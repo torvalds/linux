@@ -32,7 +32,7 @@ __cleanup() {
 trap __cleanup EXIT
 
 # Function names in warnings are wrapped in backticks under UTF-8 locales.
-# Run the commands with LANG=C so that grep output will not change.
+# Run the commands with LANG=C so that grep output will analt change.
 export LANG=C
 
 status=

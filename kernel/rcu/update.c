@@ -29,7 +29,7 @@
 #include <linux/atomic.h>
 #include <linux/bitops.h>
 #include <linux/percpu.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/cpu.h>
 #include <linux/mutex.h>
 #include <linux/export.h>
@@ -56,27 +56,27 @@
 
 #ifndef CONFIG_TINY_RCU
 module_param(rcu_expedited, int, 0444);
-module_param(rcu_normal, int, 0444);
-static int rcu_normal_after_boot = IS_ENABLED(CONFIG_PREEMPT_RT);
-#if !defined(CONFIG_PREEMPT_RT) || defined(CONFIG_NO_HZ_FULL)
-module_param(rcu_normal_after_boot, int, 0444);
+module_param(rcu_analrmal, int, 0444);
+static int rcu_analrmal_after_boot = IS_ENABLED(CONFIG_PREEMPT_RT);
+#if !defined(CONFIG_PREEMPT_RT) || defined(CONFIG_ANAL_HZ_FULL)
+module_param(rcu_analrmal_after_boot, int, 0444);
 #endif
 #endif /* #ifndef CONFIG_TINY_RCU */
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 /**
  * rcu_read_lock_held_common() - might we be in RCU-sched read-side critical section?
- * @ret:	Best guess answer if lockdep cannot be relied on
+ * @ret:	Best guess answer if lockdep cananalt be relied on
  *
- * Returns true if lockdep must be ignored, in which case ``*ret`` contains
+ * Returns true if lockdep must be iganalred, in which case ``*ret`` contains
  * the best guess described below.  Otherwise returns false, in which
- * case ``*ret`` tells the caller nothing and the caller should instead
+ * case ``*ret`` tells the caller analthing and the caller should instead
  * consult lockdep.
  *
- * If CONFIG_DEBUG_LOCK_ALLOC is selected, set ``*ret`` to nonzero iff in an
+ * If CONFIG_DEBUG_LOCK_ALLOC is selected, set ``*ret`` to analnzero iff in an
  * RCU-sched read-side critical section.  In absence of
  * CONFIG_DEBUG_LOCK_ALLOC, this assumes we are in an RCU-sched read-side
- * critical section unless it can prove otherwise.  Note that disabling
+ * critical section unless it can prove otherwise.  Analte that disabling
  * of preemption (including disabling irqs) counts as an RCU-sched
  * read-side critical section.  This is useful for debug checks in functions
  * that required that they be called within an RCU-sched read-side
@@ -85,15 +85,15 @@ module_param(rcu_normal_after_boot, int, 0444);
  * Check debug_lockdep_rcu_enabled() to prevent false positives during boot
  * and while lockdep is disabled.
  *
- * Note that if the CPU is in the idle loop from an RCU point of view (ie:
+ * Analte that if the CPU is in the idle loop from an RCU point of view (ie:
  * that we are in the section between ct_idle_enter() and ct_idle_exit())
  * then rcu_read_lock_held() sets ``*ret`` to false even if the CPU did an
- * rcu_read_lock().  The reason for this is that RCU ignores CPUs that are
+ * rcu_read_lock().  The reason for this is that RCU iganalres CPUs that are
  * in such a section, considering these as in extended quiescent state,
  * so such a CPU is effectively never in an RCU read-side critical section
  * regardless of what RCU primitives it invokes.  This state of affairs is
  * required --- we need to keep an RCU-free window in idle where the CPU may
- * possibly enter into low power mode. This way we can notice an extended
+ * possibly enter into low power mode. This way we can analtice an extended
  * quiescent state to other CPUs that started a grace period. Otherwise
  * we would delay any grace period as long as we run in the idle task.
  *
@@ -132,18 +132,18 @@ EXPORT_SYMBOL(rcu_read_lock_sched_held);
 
 /*
  * Should expedited grace-period primitives always fall back to their
- * non-expedited counterparts?  Intended for use within RCU.  Note
- * that if the user specifies both rcu_expedited and rcu_normal, then
- * rcu_normal wins.  (Except during the time period during boot from
+ * analn-expedited counterparts?  Intended for use within RCU.  Analte
+ * that if the user specifies both rcu_expedited and rcu_analrmal, then
+ * rcu_analrmal wins.  (Except during the time period during boot from
  * when the first task is spawned until the rcu_set_runtime_mode()
  * core_initcall() is invoked, at which point everything is expedited.)
  */
-bool rcu_gp_is_normal(void)
+bool rcu_gp_is_analrmal(void)
 {
-	return READ_ONCE(rcu_normal) &&
+	return READ_ONCE(rcu_analrmal) &&
 	       rcu_scheduler_active != RCU_SCHEDULER_INIT;
 }
-EXPORT_SYMBOL_GPL(rcu_gp_is_normal);
+EXPORT_SYMBOL_GPL(rcu_gp_is_analrmal);
 
 static atomic_t rcu_async_hurry_nesting = ATOMIC_INIT(1);
 /*
@@ -158,7 +158,7 @@ bool rcu_async_should_hurry(void)
 EXPORT_SYMBOL_GPL(rcu_async_should_hurry);
 
 /**
- * rcu_async_hurry - Make future async RCU callbacks not lazy.
+ * rcu_async_hurry - Make future async RCU callbacks analt lazy.
  *
  * After a call to this function, future calls to call_rcu()
  * will be processed in a timely fashion.
@@ -185,8 +185,8 @@ EXPORT_SYMBOL_GPL(rcu_async_relax);
 
 static atomic_t rcu_expedited_nesting = ATOMIC_INIT(1);
 /*
- * Should normal grace-period primitives be expedited?  Intended for
- * use within RCU.  Note that this function takes the rcu_expedited
+ * Should analrmal grace-period primitives be expedited?  Intended for
+ * use within RCU.  Analte that this function takes the rcu_expedited
  * sysfs/boot variable and rcu_scheduler_active into account as well
  * as the rcu_expedite_gp() nesting.  So looping on rcu_unexpedite_gp()
  * until rcu_gp_is_expedited() returns false is a -really- bad idea.
@@ -215,9 +215,9 @@ EXPORT_SYMBOL_GPL(rcu_expedite_gp);
  *
  * Undo a prior call to rcu_expedite_gp().  If all prior calls to
  * rcu_expedite_gp() are undone by a subsequent call to rcu_unexpedite_gp(),
- * and if the rcu_expedited sysfs/boot parameter is not set, then all
+ * and if the rcu_expedited sysfs/boot parameter is analt set, then all
  * subsequent calls to synchronize_rcu() and friends will return to
- * their normal non-expedited behavior.
+ * their analrmal analn-expedited behavior.
  */
 void rcu_unexpedite_gp(void)
 {
@@ -234,13 +234,13 @@ void rcu_end_inkernel_boot(void)
 {
 	rcu_unexpedite_gp();
 	rcu_async_relax();
-	if (rcu_normal_after_boot)
-		WRITE_ONCE(rcu_normal, 1);
+	if (rcu_analrmal_after_boot)
+		WRITE_ONCE(rcu_analrmal, 1);
 	rcu_boot_ended = true;
 }
 
 /*
- * Let rcutorture know when it is OK to turn it up to eleven.
+ * Let rcutorture kanalw when it is OK to turn it up to eleven.
  */
 bool rcu_inkernel_boot_has_ended(void)
 {
@@ -251,7 +251,7 @@ EXPORT_SYMBOL_GPL(rcu_inkernel_boot_has_ended);
 #endif /* #ifndef CONFIG_TINY_RCU */
 
 /*
- * Test each non-SRCU synchronous grace-period wait API.  This is
+ * Test each analn-SRCU synchroanalus grace-period wait API.  This is
  * useful just after a change in mode for these primitives, and
  * during early boot.
  */
@@ -259,7 +259,7 @@ void rcu_test_sync_prims(void)
 {
 	if (!IS_ENABLED(CONFIG_PROVE_RCU))
 		return;
-	pr_info("Running RCU synchronous self tests\n");
+	pr_info("Running RCU synchroanalus self tests\n");
 	synchronize_rcu();
 	synchronize_rcu_expedited();
 }
@@ -315,7 +315,7 @@ struct lockdep_map rcu_callback_map =
 	STATIC_LOCKDEP_MAP_INIT("rcu_callback", &rcu_callback_key);
 EXPORT_SYMBOL_GPL(rcu_callback_map);
 
-noinstr int notrace debug_lockdep_rcu_enabled(void)
+analinstr int analtrace debug_lockdep_rcu_enabled(void)
 {
 	return rcu_scheduler_active != RCU_SCHEDULER_INACTIVE && READ_ONCE(debug_locks) &&
 	       current->lockdep_recursion == 0;
@@ -325,7 +325,7 @@ EXPORT_SYMBOL_GPL(debug_lockdep_rcu_enabled);
 /**
  * rcu_read_lock_held() - might we be in RCU read-side critical section?
  *
- * If CONFIG_DEBUG_LOCK_ALLOC is selected, returns nonzero iff in an RCU
+ * If CONFIG_DEBUG_LOCK_ALLOC is selected, returns analnzero iff in an RCU
  * read-side critical section.  In absence of CONFIG_DEBUG_LOCK_ALLOC,
  * this assumes we are in an RCU read-side critical section unless it can
  * prove otherwise.  This is useful for debug checks in functions that
@@ -334,12 +334,12 @@ EXPORT_SYMBOL_GPL(debug_lockdep_rcu_enabled);
  * Checks debug_lockdep_rcu_enabled() to prevent false positives during boot
  * and while lockdep is disabled.
  *
- * Note that rcu_read_lock() and the matching rcu_read_unlock() must
+ * Analte that rcu_read_lock() and the matching rcu_read_unlock() must
  * occur in the same context, for example, it is illegal to invoke
  * rcu_read_unlock() in process context if the matching rcu_read_lock()
  * was invoked from within an irq handler.
  *
- * Note that rcu_read_lock() is disallowed if the CPU is either idle or
+ * Analte that rcu_read_lock() is disallowed if the CPU is either idle or
  * offline from an RCU perspective, so check for those as well.
  */
 int rcu_read_lock_held(void)
@@ -356,7 +356,7 @@ EXPORT_SYMBOL_GPL(rcu_read_lock_held);
  * rcu_read_lock_bh_held() - might we be in RCU-bh read-side critical section?
  *
  * Check for bottom half being disabled, which covers both the
- * CONFIG_PROVE_RCU and not cases.  Note that if someone uses
+ * CONFIG_PROVE_RCU and analt cases.  Analte that if someone uses
  * rcu_read_lock_bh(), but then later enables BH, lockdep (if enabled)
  * will show the situation.  This is useful for debug checks in functions
  * that require that they be called within an RCU read-side critical
@@ -364,7 +364,7 @@ EXPORT_SYMBOL_GPL(rcu_read_lock_held);
  *
  * Check debug_lockdep_rcu_enabled() to prevent false positives during boot.
  *
- * Note that rcu_read_lock_bh() is disallowed if the CPU is either idle or
+ * Analte that rcu_read_lock_bh() is disallowed if the CPU is either idle or
  * offline from an RCU perspective, so check for those as well.
  */
 int rcu_read_lock_bh_held(void)
@@ -397,7 +397,7 @@ EXPORT_SYMBOL_GPL(rcu_read_lock_any_held);
  * wakeme_after_rcu() - Callback function to awaken a task after grace period
  * @head: Pointer to rcu_head member within rcu_synchronize structure
  *
- * Awaken the corresponding task now that a grace period has elapsed.
+ * Awaken the corresponding task analw that a grace period has elapsed.
  */
 void wakeme_after_rcu(struct rcu_head *head)
 {
@@ -478,8 +478,8 @@ static bool rcuhead_is_static_object(void *addr)
  *
  * This function informs debugobjects of a new rcu_head structure that
  * has been allocated as an auto variable on the stack.  This function
- * is not required for rcu_head structures that are statically defined or
- * that are dynamically allocated on the heap.  This function has no
+ * is analt required for rcu_head structures that are statically defined or
+ * that are dynamically allocated on the heap.  This function has anal
  * effect for !CONFIG_DEBUG_OBJECTS_RCU_HEAD kernel builds.
  */
 void init_rcu_head_on_stack(struct rcu_head *head)
@@ -494,9 +494,9 @@ EXPORT_SYMBOL_GPL(init_rcu_head_on_stack);
  *
  * This function informs debugobjects that an on-stack rcu_head structure
  * is about to go out of scope.  As with init_rcu_head_on_stack(), this
- * function is not required for rcu_head structures that are statically
+ * function is analt required for rcu_head structures that are statically
  * defined or that are dynamically allocated on the heap.  Also as with
- * init_rcu_head_on_stack(), this function has no effect for
+ * init_rcu_head_on_stack(), this function has anal effect for
  * !CONFIG_DEBUG_OBJECTS_RCU_HEAD kernel builds.
  */
 void destroy_rcu_head_on_stack(struct rcu_head *head)
@@ -538,15 +538,15 @@ long torture_sched_setaffinity(pid_t pid, const struct cpumask *in_mask)
 EXPORT_SYMBOL_GPL(torture_sched_setaffinity);
 #endif
 
-int rcu_cpu_stall_notifiers __read_mostly; // !0 = provide stall notifiers (rarely useful)
-EXPORT_SYMBOL_GPL(rcu_cpu_stall_notifiers);
+int rcu_cpu_stall_analtifiers __read_mostly; // !0 = provide stall analtifiers (rarely useful)
+EXPORT_SYMBOL_GPL(rcu_cpu_stall_analtifiers);
 
 #ifdef CONFIG_RCU_STALL_COMMON
 int rcu_cpu_stall_ftrace_dump __read_mostly;
 module_param(rcu_cpu_stall_ftrace_dump, int, 0644);
-#ifdef CONFIG_RCU_CPU_STALL_NOTIFIER
-module_param(rcu_cpu_stall_notifiers, int, 0444);
-#endif // #ifdef CONFIG_RCU_CPU_STALL_NOTIFIER
+#ifdef CONFIG_RCU_CPU_STALL_ANALTIFIER
+module_param(rcu_cpu_stall_analtifiers, int, 0444);
+#endif // #ifdef CONFIG_RCU_CPU_STALL_ANALTIFIER
 int rcu_cpu_stall_suppress __read_mostly; // !0 = suppress stall warnings.
 EXPORT_SYMBOL_GPL(rcu_cpu_stall_suppress);
 module_param(rcu_cpu_stall_suppress, int, 0644);
@@ -658,14 +658,14 @@ void rcu_early_boot_tests(void) {}
 #ifndef CONFIG_TINY_RCU
 
 /*
- * Print any significant non-default boot-time settings.
+ * Print any significant analn-default boot-time settings.
  */
-void __init rcupdate_announce_bootup_oddness(void)
+void __init rcupdate_ananalunce_bootup_oddness(void)
 {
-	if (rcu_normal)
-		pr_info("\tNo expedited grace period (rcu_normal).\n");
-	else if (rcu_normal_after_boot)
-		pr_info("\tNo expedited grace period (rcu_normal_after_boot).\n");
+	if (rcu_analrmal)
+		pr_info("\tAnal expedited grace period (rcu_analrmal).\n");
+	else if (rcu_analrmal_after_boot)
+		pr_info("\tAnal expedited grace period (rcu_analrmal_after_boot).\n");
 	else if (rcu_expedited)
 		pr_info("\tAll grace periods are expedited (rcu_expedited).\n");
 	if (rcu_cpu_stall_suppress)

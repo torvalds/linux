@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2022 NVIDIA Corporation and Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2022 NVIDIA Corporation and Mellaanalx Techanallogies. All rights reserved */
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -60,7 +60,7 @@ int mlxsw_linecard_bdev_add(struct mlxsw_linecard *linecard)
 	linecard_bdev = kzalloc(sizeof(*linecard_bdev), GFP_KERNEL);
 	if (!linecard_bdev) {
 		mlxsw_linecard_bdev_id_free(id);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	linecard_bdev->adev.id = id;
 	linecard_bdev->adev.name = MLXSW_LINECARD_DEV_ID_NAME;
@@ -90,7 +90,7 @@ void mlxsw_linecard_bdev_del(struct mlxsw_linecard *linecard)
 	struct mlxsw_linecard_bdev *linecard_bdev = linecard->bdev;
 
 	if (!linecard_bdev)
-		/* Unprovisioned line cards do not have an auxiliary device. */
+		/* Unprovisioned line cards do analt have an auxiliary device. */
 		return;
 	auxiliary_device_delete(&linecard_bdev->adev);
 	auxiliary_device_uninit(&linecard_bdev->adev);
@@ -137,7 +137,7 @@ static int mlxsw_linecard_bdev_probe(struct auxiliary_device *adev,
 	devlink = devlink_alloc(&mlxsw_linecard_dev_devlink_ops,
 				sizeof(*linecard_dev), &adev->dev);
 	if (!devlink)
-		return -ENOMEM;
+		return -EANALMEM;
 	linecard_dev = devlink_priv(devlink);
 	linecard_dev->linecard = linecard_bdev->linecard;
 	linecard_bdev->linecard_dev = linecard_dev;

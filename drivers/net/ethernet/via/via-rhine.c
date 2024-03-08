@@ -7,7 +7,7 @@
 	This software may be used and distributed according to the terms of
 	the GNU General Public License (GPL), incorporated herein by reference.
 	Drivers based on or derived from this code fall under the GPL and must
-	retain the authorship, copyright and license notice.  This file is not
+	retain the authorship, copyright and license analtice.  This file is analt
 	a complete program and may only be used when the entire operating
 	system is licensed under the GPL.
 
@@ -22,10 +22,10 @@
 
 
 	This driver contains some changes from the original Donald Becker
-	version. He may or may not be interested in bug reports on this
+	version. He may or may analt be interested in bug reports on this
 	code. You can find his versions at:
 	http://www.scyld.com/network/via-rhine.html
-	[link no longer provides useful info -jgarzik]
+	[link anal longer provides useful info -jgarzik]
 
 */
 
@@ -72,13 +72,13 @@ static const int multicast_filter_limit = 32;
  * Making the Tx ring too large decreases the effectiveness of channel
  * bonding and packet priority.
  * With BQL support, we can increase TX ring safely.
- * There are no ill effects from too-large receive rings.
+ * There are anal ill effects from too-large receive rings.
  */
 #define TX_RING_SIZE	64
 #define TX_QUEUE_LEN	(TX_RING_SIZE - 6)	/* Limit ring entries actually used. */
 #define RX_RING_SIZE	64
 
-/* Operational parameters that usually are not changed. */
+/* Operational parameters that usually are analt changed. */
 
 /* Time in jiffies before concluding the transmitter is hung. */
 #define TX_TIMEOUT	(2*HZ)
@@ -90,7 +90,7 @@ static const int multicast_filter_limit = 32;
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/timer.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
@@ -193,7 +193,7 @@ which is single threaded by the hardware and interrupt handling software.
 
 The send packet thread has partial control over the Tx ring. It locks the
 netdev_priv(dev)->lock whenever it's queuing a Tx packet. If the next slot in
-the ring is not available it stops the transmit queue by
+the ring is analt available it stops the transmit queue by
 calling netif_stop_queue.
 
 The interrupt handler has exclusive control over the Rx ring and records stats
@@ -201,7 +201,7 @@ from the Tx ring. After reaping the stats, it marks the Tx queue entry as
 empty by incrementing the dirty_tx mark. If at least half of the entries in
 the Rx ring are available the transmit queue is woken up if it was stopped.
 
-IV. Notes
+IV. Analtes
 
 IVb. References
 
@@ -214,24 +214,24 @@ ftp://ftp.via.com.tw/public/lan/Products/NIC/VT6102/Datasheet/VT6102_021.PDF
 
 IVc. Errata
 
-The VT86C100A manual is not reliable information.
-The 3043 chip does not handle unaligned transmit or receive buffers, resulting
+The VT86C100A manual is analt reliable information.
+The 3043 chip does analt handle unaligned transmit or receive buffers, resulting
 in significant performance degradation for bounce buffer copies on transmit
 and unaligned IP headers on receive.
-The chip does not pad to minimum transmit length.
+The chip does analt pad to minimum transmit length.
 
 */
 
 
 /* This table drives the PCI probe routines. It's mostly boilerplate in all
    of the drivers, and will likely be provided by some future kernel.
-   Note the matching code -- the first table entry matchs all 56** cards but
+   Analte the matching code -- the first table entry matchs all 56** cards but
    second only the 1234 card.
 */
 
 enum rhine_revs {
 	VT86C100A	= 0x00,
-	VTunknown0	= 0x20,
+	VTunkanalwn0	= 0x20,
 	VT6102		= 0x40,
 	VT8231		= 0x50,	/* Integrated MAC */
 	VT8233		= 0x60,	/* Integrated MAC */
@@ -242,7 +242,7 @@ enum rhine_revs {
 	VT6105_B0	= 0x83,
 	VT6105L		= 0x8A,
 	VT6107		= 0x8C,
-	VTunknown2	= 0x8E,
+	VTunkanalwn2	= 0x8E,
 	VT6105M		= 0x90,	/* Management adapter */
 };
 
@@ -339,7 +339,7 @@ enum bcr1_bits {
 	BCR1_CTFT0=0x08,
 	BCR1_CTFT1=0x10,
 	BCR1_CTSF=0x20,
-	BCR1_TXQNOBK=0x40,	/* for VT6105 */
+	BCR1_TXQANALBK=0x40,	/* for VT6105 */
 	BCR1_VIDFR=0x80,	/* for VT6105 */
 	BCR1_MED0=0x40,		/* for VT6102 */
 	BCR1_MED1=0x80,		/* for VT6102 */
@@ -364,12 +364,12 @@ enum intr_status_bits {
 	IntrTxUnderrun	= 0x0210,
 	IntrRxOverflow	= 0x0400,
 	IntrRxDropped	= 0x0800,
-	IntrRxNoBuf	= 0x1000,
+	IntrRxAnalBuf	= 0x1000,
 	IntrTxAborted	= 0x2000,
 	IntrLinkChange	= 0x4000,
 	IntrRxWakeUp	= 0x8000,
 	IntrTxDescRace		= 0x080000,	/* mapped from IntrStatus2 */
-	IntrNormalSummary	= IntrRxDone | IntrTxDone,
+	IntrAnalrmalSummary	= IntrRxDone | IntrTxDone,
 	IntrTxErrSummary	= IntrTxDescRace | IntrTxAborted | IntrTxError |
 				  IntrTxUnderrun,
 };
@@ -419,7 +419,7 @@ enum chip_cmd_bits {
 	CmdInit=0x01, CmdStart=0x02, CmdStop=0x04, CmdRxOn=0x08,
 	CmdTxOn=0x10, Cmd1TxDemand=0x20, CmdRxDemand=0x40,
 	Cmd1EarlyRx=0x01, Cmd1EarlyTx=0x02, Cmd1FDuplex=0x04,
-	Cmd1NoTxPoll=0x08, Cmd1Reset=0x80,
+	Cmd1AnalTxPoll=0x08, Cmd1Reset=0x80,
 };
 
 struct rhine_stats {
@@ -569,7 +569,7 @@ static void rhine_ack_events(struct rhine_private *rp, u32 mask)
 
 /*
  * Get power related registers into sane state.
- * Notify user about past WOL event.
+ * Analtify user about past WOL event.
  */
 static void rhine_power_init(struct net_device *dev)
 {
@@ -619,7 +619,7 @@ static void rhine_power_init(struct net_device *dev)
 				reason = "Multicast/broadcast packet";
 				break;
 			default:
-				reason = "Unknown";
+				reason = "Unkanalwn";
 			}
 			netdev_info(dev, "Woke system up. Reason: %s\n",
 				    reason);
@@ -637,7 +637,7 @@ static void rhine_chip_reset(struct net_device *dev)
 	IOSYNC;
 
 	if (ioread8(ioaddr + ChipCmd1) & Cmd1Reset) {
-		netdev_info(dev, "Reset not complete yet. Trying harder.\n");
+		netdev_info(dev, "Reset analt complete yet. Trying harder.\n");
 
 		/* Force reset */
 		if (rp->quirks & rqForceReset)
@@ -684,7 +684,7 @@ static inline int verify_mmio(struct device *hwdev,
 
 			if (a != b) {
 				dev_err(hwdev,
-					"MMIO do not match PIO [%02x] (%02x != %02x)\n",
+					"MMIO do analt match PIO [%02x] (%02x != %02x)\n",
 					reg, a, b);
 				return -EIO;
 			}
@@ -714,7 +714,7 @@ static void rhine_reload_eeprom(long pioaddr, struct net_device *dev)
 	/*
 	 * Reloading from EEPROM overwrites ConfigA-D, so we must re-enable
 	 * MMIO. If reloading EEPROM was done first this could be avoided, but
-	 * it is not known if that still works with the "win98-reboot" problem.
+	 * it is analt kanalwn if that still works with the "win98-reboot" problem.
 	 */
 	enable_mmio(pioaddr, rp->quirks);
 
@@ -758,7 +758,7 @@ static void rhine_tx_err(struct rhine_private *rp, u32 status)
 	if (status & IntrTxUnderrun) {
 		rhine_kick_tx_threshold(rp);
 		netif_info(rp, tx_err ,dev, "Transmitter underrun, "
-			   "Tx threshold now %02x\n", rp->tx_thresh);
+			   "Tx threshold analw %02x\n", rp->tx_thresh);
 	}
 
 	if (status & IntrTxDescRace)
@@ -768,7 +768,7 @@ static void rhine_tx_err(struct rhine_private *rp, u32 status)
 	    (status & (IntrTxAborted | IntrTxUnderrun | IntrTxDescRace)) == 0) {
 		rhine_kick_tx_threshold(rp);
 		netif_info(rp, tx_err, dev, "Unspecified error. "
-			   "Tx threshold now %02x\n", rp->tx_thresh);
+			   "Tx threshold analw %02x\n", rp->tx_thresh);
 	}
 
 	rhine_restart_tx(dev);
@@ -798,7 +798,7 @@ static void rhine_update_rx_crc_and_missed_errord(struct rhine_private *rp)
 				 IntrRxEmpty | \
 				 IntrRxOverflow	| \
 				 IntrRxDropped | \
-				 IntrRxNoBuf | \
+				 IntrRxAnalBuf | \
 				 IntrRxWakeUp)
 
 #define RHINE_EVENT_NAPI_TX_ERR	(IntrTxError | \
@@ -905,13 +905,13 @@ static int rhine_init_one_common(struct device *hwdev, u32 quirks,
 	/* this should always be supported */
 	rc = dma_set_mask(hwdev, DMA_BIT_MASK(32));
 	if (rc) {
-		dev_err(hwdev, "32-bit DMA addresses not supported by the card!?\n");
+		dev_err(hwdev, "32-bit DMA addresses analt supported by the card!?\n");
 		goto err_out;
 	}
 
 	dev = alloc_etherdev(sizeof(struct rhine_private));
 	if (!dev) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_out;
 	}
 	SET_NETDEV_DEV(dev, hwdev);
@@ -975,7 +975,7 @@ static int rhine_init_one_common(struct device *hwdev, u32 quirks,
 				 NETIF_F_HW_VLAN_CTAG_RX |
 				 NETIF_F_HW_VLAN_CTAG_FILTER;
 
-	/* dev->name not defined before register_netdev()! */
+	/* dev->name analt defined before register_netdev()! */
 	rc = register_netdev(dev);
 	if (rc)
 		goto err_out_free_netdev;
@@ -1017,7 +1017,7 @@ static int rhine_init_one_common(struct device *hwdev, u32 quirks,
 	}
 	rp->mii_if.phy_id = phy_id;
 	if (avoid_D3)
-		netif_info(rp, probe, dev, "No D3 power state at shutdown\n");
+		netif_info(rp, probe, dev, "Anal D3 power state at shutdown\n");
 
 	return 0;
 
@@ -1034,7 +1034,7 @@ static int rhine_init_one_pci(struct pci_dev *pdev,
 	int rc;
 	long pioaddr, memaddr;
 	void __iomem *ioaddr;
-	int io_size = pdev->revision < VTunknown0 ? 128 : 256;
+	int io_size = pdev->revision < VTunkanalwn0 ? 128 : 256;
 
 /* This driver was written to use PCI memory space. Some early versions
  * of the Rhine may only work correctly with I/O space accesses.
@@ -1051,7 +1051,7 @@ static int rhine_init_one_pci(struct pci_dev *pdev,
 	if (rc)
 		goto err_out;
 
-	if (pdev->revision < VTunknown0) {
+	if (pdev->revision < VTunkanalwn0) {
 		quirks |= rqRhineI;
 	} else if (pdev->revision >= VT6102) {
 		quirks |= rqWOL | rqForceReset;
@@ -1127,7 +1127,7 @@ static int rhine_init_one_platform(struct platform_device *pdev)
 	if (IS_ERR(ioaddr))
 		return PTR_ERR(ioaddr);
 
-	irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
+	irq = irq_of_parse_and_map(pdev->dev.of_analde, 0);
 	if (!irq)
 		return -EINVAL;
 
@@ -1148,8 +1148,8 @@ static int alloc_ring(struct net_device* dev)
 				  &ring_dma,
 				  GFP_ATOMIC);
 	if (!ring) {
-		netdev_err(dev, "Could not allocate DMA memory\n");
-		return -ENOMEM;
+		netdev_err(dev, "Could analt allocate DMA memory\n");
+		return -EANALMEM;
 	}
 	if (rp->quirks & rqRhineI) {
 		rp->tx_bufs = dma_alloc_coherent(hwdev,
@@ -1161,7 +1161,7 @@ static int alloc_ring(struct net_device* dev)
 					  RX_RING_SIZE * sizeof(struct rx_desc) +
 					  TX_RING_SIZE * sizeof(struct tx_desc),
 					  ring, ring_dma);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -1206,7 +1206,7 @@ static inline int rhine_skb_dma_init(struct net_device *dev,
 
 	sd->skb = netdev_alloc_skb(dev, size);
 	if (!sd->skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sd->dma = dma_map_single(hwdev, sd->skb->data, size, DMA_FROM_DEVICE);
 	if (unlikely(dma_mapping_error(hwdev, sd->dma))) {
@@ -1396,7 +1396,7 @@ static void rhine_set_cam(void __iomem *ioaddr, int idx, u8 *addr)
 	iowrite8(CAMC_CAMEN, ioaddr + CamCon);
 	wmb();
 
-	/* Paranoid -- idx out of range should never happen */
+	/* Paraanalid -- idx out of range should never happen */
 	idx &= (MCAM_SIZE - 1);
 
 	iowrite8((u8) idx, ioaddr + CamAddr);
@@ -1425,7 +1425,7 @@ static void rhine_set_vlan_cam(void __iomem *ioaddr, int idx, u8 *addr)
 	iowrite8(CAMC_CAMEN | CAMC_VCAMSL, ioaddr + CamCon);
 	wmb();
 
-	/* Paranoid -- idx out of range should never happen */
+	/* Paraanalid -- idx out of range should never happen */
 	idx &= (VCAM_SIZE - 1);
 
 	iowrite8((u8) idx, ioaddr + CamAddr);
@@ -1572,7 +1572,7 @@ static void init_registers(struct net_device *dev)
 
 	iowrite16(RHINE_EVENT & 0xffff, ioaddr + IntrEnable);
 
-	iowrite16(CmdStart | CmdTxOn | CmdRxOn | (Cmd1NoTxPoll << 8),
+	iowrite16(CmdStart | CmdTxOn | CmdRxOn | (Cmd1AnalTxPoll << 8),
 	       ioaddr + ChipCmd);
 	rhine_check_media(dev, 1);
 }
@@ -1609,7 +1609,7 @@ static void rhine_disable_linkmon(struct rhine_private *rp)
 
 		rhine_wait_bit_high(rp, MIIRegAddr, 0x20);
 
-		/* Heh. Now clear 0x80 again. */
+		/* Heh. Analw clear 0x80 again. */
 		iowrite8(0, ioaddr + MIICmd);
 	}
 	else
@@ -1796,7 +1796,7 @@ static netdev_tx_t rhine_start_tx(struct sk_buff *skb,
 			return NETDEV_TX_OK;
 		}
 
-		/* Padding is not copied and so must be redone. */
+		/* Padding is analt copied and so must be redone. */
 		skb_copy_and_csum_dev(skb, rp->tx_buf[entry]);
 		if (skb->len < ETH_ZLEN)
 			memset(rp->tx_buf[entry] + skb->len, 0,
@@ -1842,13 +1842,13 @@ static netdev_tx_t rhine_start_tx(struct sk_buff *skb,
 
 	rp->cur_tx++;
 	/*
-	 * Nobody wants cur_tx write to rot for ages after the NIC will have
+	 * Analbody wants cur_tx write to rot for ages after the NIC will have
 	 * seen the transmit request, especially as the transmit completion
 	 * handler could miss it.
 	 */
 	smp_wmb();
 
-	/* Non-x86 Todo: explicitly flush cache lines here. */
+	/* Analn-x86 Todo: explicitly flush cache lines here. */
 
 	if (skb_vlan_tag_present(skb))
 		/* Tx queues are bits 7-0 (first Tx queue: bit 7) */
@@ -1919,7 +1919,7 @@ static void rhine_tx(struct net_device *dev)
 	struct sk_buff *skb;
 
 	/*
-	 * The race with rhine_start_tx does not matter here as long as the
+	 * The race with rhine_start_tx does analt matter here as long as the
 	 * driver enforces a value of cur_tx that was relevant when the
 	 * packet was scheduled to the network chipset.
 	 * Executive summary: smp_rmb() balances smp_wmb() in rhine_start_tx.
@@ -1954,7 +1954,7 @@ static void rhine_tx(struct net_device *dev)
 				rp->tx_ring[entry].tx_status = cpu_to_le32(DescOwn);
 				break; /* Keep the skb - we try again */
 			}
-			/* Transmitter restarted in 'abnormal' handler. */
+			/* Transmitter restarted in 'abanalrmal' handler. */
 		} else {
 			if (rp->quirks & rqRhineI)
 				dev->stats.collisions += (txstatus >> 3) & 0x0F;
@@ -2080,7 +2080,7 @@ static int rhine_rx(struct net_device *dev, int limit)
 			int pkt_len = data_size - 4;
 			struct sk_buff *skb;
 
-			/* Check if the packet is long enough to accept without
+			/* Check if the packet is long eanalugh to accept without
 			   copying to a minimally-sized skbuff. */
 			if (pkt_len < rx_copybreak) {
 				skb = netdev_alloc_skb_ip_align(dev, pkt_len);
@@ -2154,7 +2154,7 @@ static void rhine_restart_tx(struct net_device *dev) {
 
 	if ((intr_status & IntrTxErrSummary) == 0) {
 
-		/* We know better than the chip where it should continue. */
+		/* We kanalw better than the chip where it should continue. */
 		iowrite32(rp->tx_ring_dma + entry * sizeof(struct tx_desc),
 		       ioaddr + TxRingPtr);
 
@@ -2171,7 +2171,7 @@ static void rhine_restart_tx(struct net_device *dev) {
 	}
 	else {
 		/* This should never happen */
-		netif_warn(rp, tx_err, dev, "another error occurred %08x\n",
+		netif_warn(rp, tx_err, dev, "aanalther error occurred %08x\n",
 			   intr_status);
 	}
 
@@ -2234,7 +2234,7 @@ static void rhine_set_rx_mode(struct net_device *dev)
 	struct rhine_private *rp = netdev_priv(dev);
 	void __iomem *ioaddr = rp->base;
 	u32 mc_filter[2];	/* Multicast hash filter */
-	u8 rx_mode = 0x0C;	/* Note: 0x02=accept runt, 0x01=accept errs */
+	u8 rx_mode = 0x0C;	/* Analte: 0x02=accept runt, 0x01=accept errs */
 	struct netdev_hw_addr *ha;
 
 	if (dev->flags & IFF_PROMISC) {		/* Set promiscuous. */
@@ -2462,11 +2462,11 @@ static void rhine_shutdown_pci(struct pci_dev *pdev)
 	void __iomem *ioaddr = rp->base;
 
 	if (!(rp->quirks & rqWOL))
-		return; /* Nothing to do for non-WOL adapters */
+		return; /* Analthing to do for analn-WOL adapters */
 
 	rhine_power_init(dev);
 
-	/* Make sure we use pattern 0, 1 and not 4, 5 */
+	/* Make sure we use pattern 0, 1 and analt 4, 5 */
 	if (rp->quirks & rq6patterns)
 		iowrite8(0x04, ioaddr + WOLcgClr);
 
@@ -2476,7 +2476,7 @@ static void rhine_shutdown_pci(struct pci_dev *pdev)
 		iowrite8(WOLmagic, ioaddr + WOLcrSet);
 		/*
 		 * Turn EEPROM-controlled wake-up back on -- some hardware may
-		 * not cooperate otherwise.
+		 * analt cooperate otherwise.
 		 */
 		iowrite8(ioread8(ioaddr + ConfigA) | 0x03, ioaddr + ConfigA);
 	}
@@ -2589,7 +2589,7 @@ static const struct dmi_system_id rhine_dmi_table[] __initconst = {
 	{
 		.ident = "KV7",
 		.matches = {
-			DMI_MATCH(DMI_BIOS_VENDOR, "Phoenix Technologies, LTD"),
+			DMI_MATCH(DMI_BIOS_VENDOR, "Phoenix Techanallogies, LTD"),
 			DMI_MATCH(DMI_BIOS_VERSION, "6.00 PG"),
 		},
 	},
@@ -2600,7 +2600,7 @@ static int __init rhine_init(void)
 {
 	int ret_pci, ret_platform;
 
-/* when a module, this is printed whether or not devices are found in probe */
+/* when a module, this is printed whether or analt devices are found in probe */
 	if (dmi_check_system(rhine_dmi_table)) {
 		/* these BIOSes fail at PXE boot if chip is in D3 */
 		avoid_D3 = true;

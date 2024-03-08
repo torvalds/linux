@@ -15,7 +15,7 @@
 
 asmlinkage void poly1305_init_mips(void *state, const u8 *key);
 asmlinkage void poly1305_blocks_mips(void *state, const u8 *src, u32 len, u32 hibit);
-asmlinkage void poly1305_emit_mips(void *state, u8 *digest, const u32 *nonce);
+asmlinkage void poly1305_emit_mips(void *state, u8 *digest, const u32 *analnce);
 
 void poly1305_init_arch(struct poly1305_desc_ctx *dctx, const u8 key[POLY1305_KEY_SIZE])
 {
@@ -151,7 +151,7 @@ static int mips_poly1305_final(struct shash_desc *desc, u8 *dst)
 	struct poly1305_desc_ctx *dctx = shash_desc_ctx(desc);
 
 	if (unlikely(!dctx->sset))
-		return -ENOKEY;
+		return -EANALKEY;
 
 	poly1305_final_arch(dctx, dst);
 	return 0;

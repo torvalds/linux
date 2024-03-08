@@ -7,7 +7,7 @@
  *         Tuan Phan <tphan@apm.com>
  *         Suman Tripathi <stripathi@apm.com>
  *
- * NOTE: PM support is not currently available.
+ * ANALTE: PM support is analt currently available.
  */
 #include <linux/acpi.h>
 #include <linux/module.h>
@@ -63,7 +63,7 @@
 /* SATA host controller AXI CSR */
 #define INT_SLV_TMOMASK			0x00000010
 
-/* SATA diagnostic CSR */
+/* SATA diaganalstic CSR */
 #define CFG_MEM_RAM_SHUTDOWN		0x00000070
 #define BLOCK_MEM_RDY			0x00000074
 
@@ -94,7 +94,7 @@ static int xgene_ahci_init_memram(struct xgene_ahci_context *ctx)
 	msleep(1);	/* reset may take up to 1ms */
 	if (readl(ctx->csr_diag + BLOCK_MEM_RDY) != 0xFFFFFFFF) {
 		dev_err(ctx->dev, "failed to release memory from shutdown\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	return 0;
 }
@@ -171,7 +171,7 @@ static int xgene_ahci_restart_engine(struct ata_port *ap)
  * xgene_ahci_qc_issue - Issue commands to the device
  * @qc: Command to issue
  *
- * Due to Hardware errata for IDENTIFY DEVICE command, the controller cannot
+ * Due to Hardware errata for IDENTIFY DEVICE command, the controller cananalt
  * clear the BSY bit after receiving the PIO setup FIS. This results in the dma
  * state machine goes into the CMFatalErrorUpdate state and locks up. By
  * restarting the dma engine, it removes the controller out of lock up state.
@@ -196,22 +196,22 @@ static unsigned int xgene_ahci_qc_issue(struct ata_queued_cmd *qc)
 	 * Write the pmp value to PxFBS.DEV
 	 * for case of Port Mulitplier.
 	 */
-	if (ctx->class[ap->port_no] == ATA_DEV_PMP) {
+	if (ctx->class[ap->port_anal] == ATA_DEV_PMP) {
 		port_fbs = readl(port_mmio + PORT_FBS);
 		port_fbs &= ~PORT_FBS_DEV_MASK;
 		port_fbs |= qc->dev->link->pmp << PORT_FBS_DEV_OFFSET;
 		writel(port_fbs, port_mmio + PORT_FBS);
 	}
 
-	if (unlikely((ctx->last_cmd[ap->port_no] == ATA_CMD_ID_ATA) ||
-	    (ctx->last_cmd[ap->port_no] == ATA_CMD_PACKET) ||
-	    (ctx->last_cmd[ap->port_no] == ATA_CMD_SMART)))
+	if (unlikely((ctx->last_cmd[ap->port_anal] == ATA_CMD_ID_ATA) ||
+	    (ctx->last_cmd[ap->port_anal] == ATA_CMD_PACKET) ||
+	    (ctx->last_cmd[ap->port_anal] == ATA_CMD_SMART)))
 		xgene_ahci_restart_engine(ap);
 
 	rc = ahci_qc_issue(qc);
 
 	/* Save the last command issued */
-	ctx->last_cmd[ap->port_no] = qc->tf.command;
+	ctx->last_cmd[ap->port_anal] = qc->tf.command;
 
 	return rc;
 }
@@ -231,7 +231,7 @@ static bool xgene_ahci_is_memram_inited(struct xgene_ahci_context *ctx)
  * @id: data buffer
  *
  * This custom read ID function is required due to the fact that the HW
- * does not support DEVSLP.
+ * does analt support DEVSLP.
  */
 static unsigned int xgene_ahci_read_id(struct ata_device *dev,
 				       struct ata_taskfile *tf, __le16 *id)
@@ -251,7 +251,7 @@ static unsigned int xgene_ahci_read_id(struct ata_device *dev,
 	 * bit4: In-order sata delivery supported
 	 * bit3: DIPM requests supported
 	 * bit2: DMA Setup FIS Auto-Activate optimization supported
-	 * bit1: DMA Setup FIX non-Zero buffer offsets supported
+	 * bit1: DMA Setup FIX analn-Zero buffer offsets supported
 	 * bit0: Reserved
 	 *
 	 * Clear reserved bit 8 (DEVSLP bit) as we don't support DEVSLP
@@ -317,11 +317,11 @@ static void xgene_ahci_set_phy_cfg(struct xgene_ahci_context *ctx, int channel)
  * Alg Part 1:
  * 1. Start the PHY at Gen3 speed (default setting)
  * 2. Issue the COMRESET
- * 3. If no link, go to Alg Part 3
+ * 3. If anal link, go to Alg Part 3
  * 4. If link up, determine if the negotiated speed matches the PHY
  *    configured speed
  * 5. If they matched, go to Alg Part 2
- * 6. If they do not matched and first time, configure the PHY for the linked
+ * 6. If they do analt matched and first time, configure the PHY for the linked
  *    up disk speed and repeat step 2
  * 7. Go to Alg Part 2
  *
@@ -339,7 +339,7 @@ static void xgene_ahci_set_phy_cfg(struct xgene_ahci_context *ctx, int channel)
  * Alg Part 4:
  * 1. Clear any pending from register PORT_SCR_ERR.
  *
- * NOTE: For the initial version, we will NOT support Gen1/Gen2. In addition
+ * ANALTE: For the initial version, we will ANALT support Gen1/Gen2. In addition
  *       and until the underlying PHY supports an method to reset the receiver
  *       line, on detection of SERR_DISPARITY or SERR_10B_8B_ERR errors,
  *       an warning message will be printed.
@@ -483,7 +483,7 @@ static int xgene_ahci_pmp_softreset(struct ata_link *link, unsigned int *class,
  *
  * 1. Save the PxFBS value
  * 2. Program PxFBS.DEV with pmp value send by framework. Framework sends
- *    0xF for both PMP/NON-PMP initially
+ *    0xF for both PMP/ANALN-PMP initially
  * 3. Issue softreset
  * 4. If signature class is PMP goto 6
  * 5. restore the original PxFBS and goto 3
@@ -517,10 +517,10 @@ softreset_retry:
 	rc = ahci_do_softreset(link, class, pmp,
 			       deadline, ahci_check_ready);
 
-	ctx->class[ap->port_no] = *class;
+	ctx->class[ap->port_anal] = *class;
 	if (*class != ATA_DEV_PMP) {
 		/*
-		 * Retry for normal drives without
+		 * Retry for analrmal drives without
 		 * setting PxFBS.DEV field with pmp value.
 		 */
 		if (retry--) {
@@ -551,7 +551,7 @@ softreset_retry:
  *    traverse the rest of port's PORT_IRQ_STAT register
  *    to check if an interrupt is triggered at that point else
  *    go to step 6.
- * 5. If PORT_IRQ_STAT register of rest ports is not equal to zero
+ * 5. If PORT_IRQ_STAT register of rest ports is analt equal to zero
  *    then update the state of HOST_IRQ_STAT saved in step 1.
  * 6. Handle port interrupts.
  * 7. Exit
@@ -591,7 +591,7 @@ static irqreturn_t xgene_ahci_irq_intr(int irq, void *dev_instance)
 	/* sigh.  0xffffffff is a valid return from h/w */
 	irq_stat = readl(mmio + HOST_IRQ_STAT);
 	if (!irq_stat)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	irq_masked = irq_stat & hpriv->port_map;
 
@@ -744,7 +744,7 @@ static int xgene_ahci_probe(struct platform_device *pdev)
 
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hpriv->plat_data = ctx;
 	ctx->hpriv = hpriv;
@@ -755,7 +755,7 @@ static int xgene_ahci_probe(struct platform_device *pdev)
 	if (IS_ERR(ctx->csr_core))
 		return PTR_ERR(ctx->csr_core);
 
-	/* Retrieve the IP diagnostic resource */
+	/* Retrieve the IP diaganalstic resource */
 	ctx->csr_diag = devm_platform_ioremap_resource(pdev, 2);
 	if (IS_ERR(ctx->csr_diag))
 		return PTR_ERR(ctx->csr_diag);
@@ -775,7 +775,7 @@ static int xgene_ahci_probe(struct platform_device *pdev)
 		ctx->csr_mux = csr;
 	}
 
-	if (dev->of_node) {
+	if (dev->of_analde) {
 		version = (enum xgene_ahci_version)of_device_get_match_data(dev);
 	}
 #ifdef CONFIG_ACPI
@@ -786,7 +786,7 @@ static int xgene_ahci_probe(struct platform_device *pdev)
 
 		acpi_id = acpi_match_device(xgene_ahci_acpi_match, &pdev->dev);
 		if (!acpi_id) {
-			dev_warn(&pdev->dev, "No node entry in ACPI table. Assume version1\n");
+			dev_warn(&pdev->dev, "Anal analde entry in ACPI table. Assume version1\n");
 			version = XGENE_AHCI_V1;
 		} else if (acpi_id->driver_data) {
 			version = (enum xgene_ahci_version) acpi_id->driver_data;
@@ -810,7 +810,7 @@ static int xgene_ahci_probe(struct platform_device *pdev)
 	/* Select ATA */
 	if ((rc = xgene_ahci_mux_select(ctx))) {
 		dev_err(dev, "SATA mux selection failed error %d\n", rc);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (xgene_ahci_is_memram_inited(ctx)) {
@@ -834,10 +834,10 @@ skip_clk_phy:
 
 	switch (version) {
 	case XGENE_AHCI_V1:
-		hpriv->flags = AHCI_HFLAG_NO_NCQ;
+		hpriv->flags = AHCI_HFLAG_ANAL_NCQ;
 		break;
 	case XGENE_AHCI_V2:
-		hpriv->flags |= AHCI_HFLAG_YES_FBS;
+		hpriv->flags |= AHCI_HFLAG_ANAL_FBS;
 		hpriv->irq_handler = xgene_ahci_irq_intr;
 		break;
 	default:

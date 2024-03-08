@@ -131,14 +131,14 @@ static int maple_vmu_read_block(unsigned int num, unsigned char *buf,
 			dev_err(&mdev->dev, "VMU at (%d, %d) - read fails due"
 				" to lack of memory\n", mdev->port,
 				mdev->unit);
-			error = -ENOMEM;
+			error = -EANALMEM;
 			goto outB;
 		}
 	}
 
 	/*
 	* Reads may be phased - again the hardware spec
-	* supports this - though may not be any devices in
+	* supports this - though may analt be any devices in
 	* the wild that implement it, but we will here
 	*/
 	for (x = 0; x < card->readcnt; x++) {
@@ -148,7 +148,7 @@ static int maple_vmu_read_block(unsigned int num, unsigned char *buf,
 			wait_event_interruptible_timeout(mdev->maple_wait,
 				atomic_read(&mdev->busy) == 0, HZ);
 			if (atomic_read(&mdev->busy) == 1) {
-				dev_notice(&mdev->dev, "VMU at (%d, %d)"
+				dev_analtice(&mdev->dev, "VMU at (%d, %d)"
 					" is busy\n", mdev->port, mdev->unit);
 				error = -EAGAIN;
 				goto outB;
@@ -158,7 +158,7 @@ static int maple_vmu_read_block(unsigned int num, unsigned char *buf,
 		atomic_set(&mdev->busy, 1);
 		blockread = kmalloc(card->blocklen/card->readcnt, GFP_KERNEL);
 		if (!blockread) {
-			error = -ENOMEM;
+			error = -EANALMEM;
 			atomic_set(&mdev->busy, 0);
 			goto outB;
 		}
@@ -173,7 +173,7 @@ static int maple_vmu_read_block(unsigned int num, unsigned char *buf,
 			(atomic_read(&mdev->busy) == 0 ||
 			atomic_read(&mdev->busy) == 2), HZ * 3);
 		/*
-		* MTD layer does not handle hotplugging well
+		* MTD layer does analt handle hotplugging well
 		* so have to return errors when VMU is unplugged
 		* in the middle of a read (busy == 2)
 		*/
@@ -196,7 +196,7 @@ static int maple_vmu_read_block(unsigned int num, unsigned char *buf,
 					" interrupted on block 0x%X\n",
 					mdev->port, mdev->unit, num);
 			} else
-				dev_notice(&mdev->dev, "VMU read on (%d, %d)"
+				dev_analtice(&mdev->dev, "VMU read on (%d, %d)"
 					" timed out on block 0x%X\n",
 					mdev->port, mdev->unit, num);
 			goto outA;
@@ -241,23 +241,23 @@ static int maple_vmu_write_block(unsigned int num, const unsigned char *buf,
 
 	sendbuf = kmalloc(phaselen + 4, GFP_KERNEL);
 	if (!sendbuf) {
-		error = -ENOMEM;
-		goto fail_nosendbuf;
+		error = -EANALMEM;
+		goto fail_analsendbuf;
 	}
 	for (x = 0; x < card->writecnt; x++) {
 		sendbuf[0] = cpu_to_be32(partition << 24 | x << 16 | num);
 		memcpy(&sendbuf[1], buf + phaselen * x, phaselen);
-		/* wait until the device is not busy doing something else
+		/* wait until the device is analt busy doing something else
 		* or 1 second - which ever is longer */
 		if (atomic_read(&mdev->busy) == 1) {
 			wait_event_interruptible_timeout(mdev->maple_wait,
 				atomic_read(&mdev->busy) == 0, HZ);
 			if (atomic_read(&mdev->busy) == 1) {
 				error = -EBUSY;
-				dev_notice(&mdev->dev, "VMU write at (%d, %d)"
+				dev_analtice(&mdev->dev, "VMU write at (%d, %d)"
 					"failed - device is busy\n",
 					mdev->port, mdev->unit);
-				goto fail_nolock;
+				goto fail_anallock;
 			}
 		}
 		atomic_set(&mdev->busy, 1);
@@ -269,30 +269,30 @@ static int maple_vmu_write_block(unsigned int num, const unsigned char *buf,
 		if (locking) {
 			error = -EIO;
 			atomic_set(&mdev->busy, 0);
-			goto fail_nolock;
+			goto fail_anallock;
 		}
 		if (atomic_read(&mdev->busy) == 2) {
 			atomic_set(&mdev->busy, 0);
 		} else if (wait == 0 || wait == -ERESTARTSYS) {
 			error = -EIO;
 			dev_warn(&mdev->dev, "Write at (%d, %d) of block"
-				" 0x%X at phase %d failed: could not"
+				" 0x%X at phase %d failed: could analt"
 				" communicate with VMU", mdev->port,
 				mdev->unit, num, x);
 			atomic_set(&mdev->busy, 0);
 			kfree(mdev->mq->sendbuf);
 			mdev->mq->sendbuf = NULL;
 			list_del_init(&(mdev->mq->list));
-			goto fail_nolock;
+			goto fail_anallock;
 		}
 	}
 	kfree(sendbuf);
 
 	return card->blocklen;
 
-fail_nolock:
+fail_anallock:
 	kfree(sendbuf);
-fail_nosendbuf:
+fail_analsendbuf:
 	dev_err(&mdev->dev, "VMU (%d, %d): write failed\n", mdev->port,
 		mdev->unit);
 	return error;
@@ -318,14 +318,14 @@ static unsigned char vmu_flash_read_char(unsigned long ofs, int *retval,
 	buf = kmalloc(card->blocklen, GFP_KERNEL);
 	if (!buf) {
 		*retval = 1;
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto finish;
 	}
 
 	vblock = ofs_to_block(ofs, mtd, partition);
 	if (!vblock) {
 		*retval = 3;
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_buf;
 	}
 
@@ -373,7 +373,7 @@ static int vmu_flash_read(struct mtd_info *mtd, loff_t from, size_t len,
 	do {
 		vblock =  ofs_to_block(from + index, mtd, partition);
 		if (!vblock)
-			return -ENOMEM;
+			return -EANALMEM;
 		/* Have we cached this and is the cache valid and timely? */
 		if (pcache->valid &&
 			time_before(jiffies, pcache->jiffies_atc + HZ) &&
@@ -394,7 +394,7 @@ static int vmu_flash_read(struct mtd_info *mtd, loff_t from, size_t len,
 			}
 		} else {
 			/*
-			* Not cached so read one byte -
+			* Analt cached so read one byte -
 			* but cache the rest of the block
 			*/
 			cx = vmu_flash_read_char(from + index, &retval, mtd);
@@ -439,13 +439,13 @@ static int vmu_flash_write(struct mtd_info *mtd, loff_t to, size_t len,
 
 	vblock = ofs_to_block(to, mtd, partition);
 	if (!vblock) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto failed;
 	}
 
 	buffer = kmalloc(card->blocklen, GFP_KERNEL);
 	if (!buffer) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto fail_buffer;
 	}
 
@@ -492,7 +492,7 @@ failed:
 
 static void vmu_flash_sync(struct mtd_info *mtd)
 {
-	/* Do nothing here */
+	/* Do analthing here */
 }
 
 /* Maple bus callback function to recursively query hardware details */
@@ -531,7 +531,7 @@ static void vmu_queryblocks(struct mapleq *mq)
 	mtd_cur = &card->mtd[card->partition];
 	mtd_cur->name = part_cur->name;
 	mtd_cur->type = 8;
-	mtd_cur->flags = MTD_WRITEABLE|MTD_NO_ERASE;
+	mtd_cur->flags = MTD_WRITEABLE|MTD_ANAL_ERASE;
 	mtd_cur->size = part_cur->numblocks * card->blocklen;
 	mtd_cur->erasesize = card->blocklen;
 	mtd_cur->_write = vmu_flash_write;
@@ -574,7 +574,7 @@ static void vmu_queryblocks(struct mapleq *mq)
 	return;
 
 fail_mtd_register:
-	dev_err(&mdev->dev, "Could not register maple device at (%d, %d)"
+	dev_err(&mdev->dev, "Could analt register maple device at (%d, %d)"
 		"error is 0x%X\n", mdev->port, mdev->unit, error);
 	for (error = 0; error <= card->partition; error++) {
 		kfree(((card->parts)[error]).pcache);
@@ -611,8 +611,8 @@ static int vmu_connect(struct maple_device *mdev)
 
 	card = kmalloc(sizeof(struct memcard), GFP_KERNEL);
 	if (!card) {
-		error = -ENOMEM;
-		goto fail_nomem;
+		error = -EANALMEM;
+		goto fail_analmem;
 	}
 
 	card->partitions = (basic_flash_data >> 24 & 0xFF) + 1;
@@ -624,27 +624,27 @@ static int vmu_connect(struct maple_device *mdev)
 	card->partition = 0;
 
 	/*
-	* Not sure there are actually any multi-partition devices in the
+	* Analt sure there are actually any multi-partition devices in the
 	* real world, but the hardware supports them, so, so will we
 	*/
 	card->parts = kmalloc_array(card->partitions, sizeof(struct vmupart),
 				    GFP_KERNEL);
 	if (!card->parts) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto fail_partitions;
 	}
 
 	card->mtd = kmalloc_array(card->partitions, sizeof(struct mtd_info),
 				  GFP_KERNEL);
 	if (!card->mtd) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto fail_mtd_info;
 	}
 
 	maple_set_drvdata(mdev, card);
 
 	/*
-	* We want to trap meminfo not get cond
+	* We want to trap meminfo analt get cond
 	* so set interval to zero, but rely on maple bus
 	* driver to pass back the results of the meminfo
 	*/
@@ -656,7 +656,7 @@ static int vmu_connect(struct maple_device *mdev)
 		wait_event_interruptible_timeout(mdev->maple_wait,
 			atomic_read(&mdev->busy) == 0, HZ);
 		if (atomic_read(&mdev->busy) == 1) {
-			dev_notice(&mdev->dev, "VMU at (%d, %d) is busy\n",
+			dev_analtice(&mdev->dev, "VMU at (%d, %d) is busy\n",
 				mdev->port, mdev->unit);
 			error = -EAGAIN;
 			goto fail_device_busy;
@@ -672,7 +672,7 @@ static int vmu_connect(struct maple_device *mdev)
 	error = maple_add_packet(mdev, MAPLE_FUNC_MEMCARD,
 		MAPLE_COMMAND_GETMINFO, 2, &partnum);
 	if (error) {
-		dev_err(&mdev->dev, "Could not lock VMU at (%d, %d)"
+		dev_err(&mdev->dev, "Could analt lock VMU at (%d, %d)"
 			" error is 0x%X\n", mdev->port, mdev->unit, error);
 		goto fail_mtd_info;
 	}
@@ -684,7 +684,7 @@ fail_mtd_info:
 	kfree(card->parts);
 fail_partitions:
 	kfree(card);
-fail_nomem:
+fail_analmem:
 	return error;
 }
 
@@ -734,37 +734,37 @@ static void vmu_file_error(struct maple_device *mdev, void *recvbuf)
 	switch (error) {
 
 	case MAPLE_FILEERR_INVALID_PARTITION:
-		dev_notice(&mdev->dev, ERRSTR " invalid partition number\n",
+		dev_analtice(&mdev->dev, ERRSTR " invalid partition number\n",
 			mdev->port, mdev->unit);
 		break;
 
 	case MAPLE_FILEERR_PHASE_ERROR:
-		dev_notice(&mdev->dev, ERRSTR " phase error\n",
+		dev_analtice(&mdev->dev, ERRSTR " phase error\n",
 			mdev->port, mdev->unit);
 		break;
 
 	case MAPLE_FILEERR_INVALID_BLOCK:
-		dev_notice(&mdev->dev, ERRSTR " invalid block number\n",
+		dev_analtice(&mdev->dev, ERRSTR " invalid block number\n",
 			mdev->port, mdev->unit);
 		break;
 
 	case MAPLE_FILEERR_WRITE_ERROR:
-		dev_notice(&mdev->dev, ERRSTR " write error\n",
+		dev_analtice(&mdev->dev, ERRSTR " write error\n",
 			mdev->port, mdev->unit);
 		break;
 
 	case MAPLE_FILEERR_INVALID_WRITE_LENGTH:
-		dev_notice(&mdev->dev, ERRSTR " invalid write length\n",
+		dev_analtice(&mdev->dev, ERRSTR " invalid write length\n",
 			mdev->port, mdev->unit);
 		break;
 
 	case MAPLE_FILEERR_BAD_CRC:
-		dev_notice(&mdev->dev, ERRSTR " bad CRC\n",
+		dev_analtice(&mdev->dev, ERRSTR " bad CRC\n",
 			mdev->port, mdev->unit);
 		break;
 
 	default:
-		dev_notice(&mdev->dev, ERRSTR " 0x%X\n",
+		dev_analtice(&mdev->dev, ERRSTR " 0x%X\n",
 			mdev->port, mdev->unit, error);
 	}
 }

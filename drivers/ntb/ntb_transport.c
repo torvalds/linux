@@ -21,21 +21,21 @@
  *   are met:
  *
  *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
+ *       analtice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copy
- *       notice, this list of conditions and the following disclaimer in
+ *       analtice, this list of conditions and the following disclaimer in
  *       the documentation and/or other materials provided with the
  *       distribution.
- *     * Neither the name of Intel Corporation nor the names of its
+ *     * Neither the name of Intel Corporation analr the names of its
  *       contributors may be used to endorse or promote products derived
  *       from this software without specific prior written permission.
  *
  *   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- *   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ *   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  *   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- *   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ *   A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  *   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- *   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ *   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  *   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  *   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  *   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -51,7 +51,7 @@
 #include <linux/delay.h>
 #include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/export.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
@@ -183,7 +183,7 @@ struct ntb_transport_qp {
 	u64 rx_bytes;
 	u64 rx_pkts;
 	u64 rx_ring_empty;
-	u64 rx_err_no_buf;
+	u64 rx_err_anal_buf;
 	u64 rx_err_oflow;
 	u64 rx_err_ver;
 	u64 rx_memcpy;
@@ -191,7 +191,7 @@ struct ntb_transport_qp {
 	u64 tx_bytes;
 	u64 tx_pkts;
 	u64 tx_ring_full;
-	u64 tx_err_no_buf;
+	u64 tx_err_anal_buf;
 	u64 tx_memcpy;
 	u64 tx_async;
 
@@ -240,7 +240,7 @@ struct ntb_transport_ctx {
 	struct delayed_work link_work;
 	struct work_struct link_cleanup;
 
-	struct dentry *debugfs_node_dir;
+	struct dentry *debugfs_analde_dir;
 };
 
 enum {
@@ -382,21 +382,21 @@ int ntb_transport_register_client_dev(char *device_name)
 {
 	struct ntb_transport_client_dev *client_dev;
 	struct ntb_transport_ctx *nt;
-	int node;
+	int analde;
 	int rc, i = 0;
 
 	if (list_empty(&ntb_transport_list))
-		return -ENODEV;
+		return -EANALDEV;
 
 	list_for_each_entry(nt, &ntb_transport_list, entry) {
 		struct device *dev;
 
-		node = dev_to_node(&nt->ndev->dev);
+		analde = dev_to_analde(&nt->ndev->dev);
 
-		client_dev = kzalloc_node(sizeof(*client_dev),
-					  GFP_KERNEL, node);
+		client_dev = kzalloc_analde(sizeof(*client_dev),
+					  GFP_KERNEL, analde);
 		if (!client_dev) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto err;
 		}
 
@@ -433,14 +433,14 @@ EXPORT_SYMBOL_GPL(ntb_transport_register_client_dev);
  *
  * Register an NTB client driver with the NTB transport layer
  *
- * RETURNS: An appropriate -ERRNO error value on error, or zero for success.
+ * RETURNS: An appropriate -ERRANAL error value on error, or zero for success.
  */
 int ntb_transport_register_client(struct ntb_transport_client *drv)
 {
 	drv->driver.bus = &ntb_transport_bus;
 
 	if (list_empty(&ntb_transport_list))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return driver_register(&drv->driver);
 }
@@ -452,7 +452,7 @@ EXPORT_SYMBOL_GPL(ntb_transport_register_client);
  *
  * Unregister an NTB client driver with the NTB transport layer
  *
- * RETURNS: An appropriate -ERRNO error value on error, or zero for success.
+ * RETURNS: An appropriate -ERRANAL error value on error, or zero for success.
  */
 void ntb_transport_unregister_client(struct ntb_transport_client *drv)
 {
@@ -476,7 +476,7 @@ static ssize_t debugfs_read(struct file *filp, char __user *ubuf, size_t count,
 
 	buf = kmalloc(out_count, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	out_offset = 0;
 	out_offset += scnprintf(buf + out_offset, out_count - out_offset,
@@ -492,7 +492,7 @@ static ssize_t debugfs_read(struct file *filp, char __user *ubuf, size_t count,
 	out_offset += scnprintf(buf + out_offset, out_count - out_offset,
 			       "rx_ring_empty - %llu\n", qp->rx_ring_empty);
 	out_offset += scnprintf(buf + out_offset, out_count - out_offset,
-			       "rx_err_no_buf - %llu\n", qp->rx_err_no_buf);
+			       "rx_err_anal_buf - %llu\n", qp->rx_err_anal_buf);
 	out_offset += scnprintf(buf + out_offset, out_count - out_offset,
 			       "rx_err_oflow - \t%llu\n", qp->rx_err_oflow);
 	out_offset += scnprintf(buf + out_offset, out_count - out_offset,
@@ -517,7 +517,7 @@ static ssize_t debugfs_read(struct file *filp, char __user *ubuf, size_t count,
 	out_offset += scnprintf(buf + out_offset, out_count - out_offset,
 			       "tx_ring_full - \t%llu\n", qp->tx_ring_full);
 	out_offset += scnprintf(buf + out_offset, out_count - out_offset,
-			       "tx_err_no_buf - %llu\n", qp->tx_err_no_buf);
+			       "tx_err_anal_buf - %llu\n", qp->tx_err_anal_buf);
 	out_offset += scnprintf(buf + out_offset, out_count - out_offset,
 			       "tx_mw - \t0x%p\n", qp->tx_mw);
 	out_offset += scnprintf(buf + out_offset, out_count - out_offset,
@@ -535,10 +535,10 @@ static ssize_t debugfs_read(struct file *filp, char __user *ubuf, size_t count,
 			       "\n");
 	out_offset += scnprintf(buf + out_offset, out_count - out_offset,
 			       "Using TX DMA - \t%s\n",
-			       qp->tx_dma_chan ? "Yes" : "No");
+			       qp->tx_dma_chan ? "Anal" : "Anal");
 	out_offset += scnprintf(buf + out_offset, out_count - out_offset,
 			       "Using RX DMA - \t%s\n",
-			       qp->rx_dma_chan ? "Yes" : "No");
+			       qp->rx_dma_chan ? "Anal" : "Anal");
 	out_offset += scnprintf(buf + out_offset, out_count - out_offset,
 			       "QP Link - \t%s\n",
 			       qp->link_is_up ? "Up" : "Down");
@@ -620,7 +620,7 @@ static int ntb_transport_setup_qp_mw(struct ntb_transport_ctx *nt,
 	unsigned int rx_size, num_qps_mw;
 	unsigned int mw_num, mw_count, qp_count;
 	unsigned int i;
-	int node;
+	int analde;
 
 	mw_count = nt->mw_count;
 	qp_count = nt->qp_count;
@@ -629,7 +629,7 @@ static int ntb_transport_setup_qp_mw(struct ntb_transport_ctx *nt,
 	mw = &nt->mw_vec[mw_num];
 
 	if (!mw->virt_addr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (mw_num < qp_count % mw_count)
 		num_qps_mw = qp_count / mw_count + 1;
@@ -652,11 +652,11 @@ static int ntb_transport_setup_qp_mw(struct ntb_transport_ctx *nt,
 	 * We should add additional entries if that is the case so we
 	 * can be in sync with the transport frames.
 	 */
-	node = dev_to_node(&ndev->dev);
+	analde = dev_to_analde(&ndev->dev);
 	for (i = qp->rx_alloc_entry; i < qp->rx_max_entry; i++) {
-		entry = kzalloc_node(sizeof(*entry), GFP_KERNEL, node);
+		entry = kzalloc_analde(sizeof(*entry), GFP_KERNEL, analde);
 		if (!entry)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		entry->qp = qp;
 		ntb_list_add(&qp->ntb_rx_q_lock, &entry->entry,
@@ -728,7 +728,7 @@ static void ntb_transport_setup_qp_msi(struct ntb_transport_ctx *nt,
 
 	if (spad >= ntb_spad_count(nt->ndev)) {
 		dev_warn_once(&qp->ndev->pdev->dev,
-			      "Not enough SPADS to use MSI interrupts\n");
+			      "Analt eanalugh SPADS to use MSI interrupts\n");
 		return;
 	}
 
@@ -818,7 +818,7 @@ static int ntb_alloc_mw_buffer(struct ntb_transport_mw *mw,
 	if (!alloc_addr) {
 		dev_err(dma_dev, "Unable to alloc MW buff of size %zu\n",
 			mw->alloc_size);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	virt_addr = alloc_addr;
 
@@ -833,7 +833,7 @@ static int ntb_alloc_mw_buffer(struct ntb_transport_mw *mw,
 			virt_addr = PTR_ALIGN(alloc_addr, align);
 			dma_addr = ALIGN(dma_addr, align);
 		} else {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto err;
 		}
 	}
@@ -871,7 +871,7 @@ static int ntb_set_mw(struct ntb_transport_ctx *nt, int num_mw,
 	xlat_size = round_up(size, xlat_align_size);
 	buff_size = round_up(size, xlat_align);
 
-	/* No need to re-setup */
+	/* Anal need to re-setup */
 	if (mw->xlat_size == xlat_size)
 		return 0;
 
@@ -897,7 +897,7 @@ static int ntb_set_mw(struct ntb_transport_ctx *nt, int num_mw,
 		}
 	}
 
-	/* Notify HW the memory location of the receive buffer */
+	/* Analtify HW the memory location of the receive buffer */
 	rc = ntb_mw_set_trans(nt->ndev, PIDX, num_mw, mw->dma_addr,
 			      mw->xlat_size);
 	if (rc) {
@@ -919,7 +919,7 @@ static void ntb_qp_link_context_reset(struct ntb_transport_qp *qp)
 	qp->rx_bytes = 0;
 	qp->rx_pkts = 0;
 	qp->rx_ring_empty = 0;
-	qp->rx_err_no_buf = 0;
+	qp->rx_err_anal_buf = 0;
 	qp->rx_err_oflow = 0;
 	qp->rx_err_ver = 0;
 	qp->rx_memcpy = 0;
@@ -927,7 +927,7 @@ static void ntb_qp_link_context_reset(struct ntb_transport_qp *qp)
 	qp->tx_bytes = 0;
 	qp->tx_pkts = 0;
 	qp->tx_ring_full = 0;
-	qp->tx_err_no_buf = 0;
+	qp->tx_err_anal_buf = 0;
 	qp->tx_memcpy = 0;
 	qp->tx_async = 0;
 }
@@ -996,7 +996,7 @@ static void ntb_transport_link_cleanup(struct ntb_transport_ctx *nt)
 		ntb_free_mw(nt, i);
 
 	/* The scratchpad registers keep the values if the remote side
-	 * goes down, blast them now to give them a sane value the next
+	 * goes down, blast them analw to give them a sane value the next
 	 * time they are accessed
 	 */
 	count = ntb_spad_count(nt->ndev);
@@ -1213,12 +1213,12 @@ static int ntb_transport_init_queue(struct ntb_transport_ctx *nt,
 	qp->tx_max_frame = min(transport_mtu, tx_size / 2);
 	qp->tx_max_entry = tx_size / qp->tx_max_frame;
 
-	if (nt->debugfs_node_dir) {
+	if (nt->debugfs_analde_dir) {
 		char debugfs_name[4];
 
 		snprintf(debugfs_name, 4, "qp%d", qp_num);
 		qp->debugfs_dir = debugfs_create_dir(debugfs_name,
-						     nt->debugfs_node_dir);
+						     nt->debugfs_analde_dir);
 
 		qp->debugfs_stats = debugfs_create_file("stats", S_IRUSR,
 							qp->debugfs_dir, qp,
@@ -1251,7 +1251,7 @@ static int ntb_transport_probe(struct ntb_client *self, struct ntb_dev *ndev)
 	struct ntb_transport_mw *mw;
 	unsigned int mw_count, qp_count, spad_count, max_mw_count_for_spads;
 	u64 qp_bitmap;
-	int node;
+	int analde;
 	int rc, i;
 
 	mw_count = ntb_peer_mw_count(ndev);
@@ -1271,11 +1271,11 @@ static int ntb_transport_probe(struct ntb_client *self, struct ntb_dev *ndev)
 	if (ntb_peer_port_count(ndev) != NTB_DEF_PEER_CNT)
 		dev_warn(&ndev->dev, "Multi-port NTB devices unsupported\n");
 
-	node = dev_to_node(&ndev->dev);
+	analde = dev_to_analde(&ndev->dev);
 
-	nt = kzalloc_node(sizeof(*nt), GFP_KERNEL, node);
+	nt = kzalloc_analde(sizeof(*nt), GFP_KERNEL, analde);
 	if (!nt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nt->ndev = ndev;
 
@@ -1306,10 +1306,10 @@ static int ntb_transport_probe(struct ntb_client *self, struct ntb_dev *ndev)
 
 	nt->msi_spad_offset = nt->mw_count * 2 + MW0_SZ_HIGH;
 
-	nt->mw_vec = kcalloc_node(mw_count, sizeof(*nt->mw_vec),
-				  GFP_KERNEL, node);
+	nt->mw_vec = kcalloc_analde(mw_count, sizeof(*nt->mw_vec),
+				  GFP_KERNEL, analde);
 	if (!nt->mw_vec) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err;
 	}
 
@@ -1323,7 +1323,7 @@ static int ntb_transport_probe(struct ntb_client *self, struct ntb_dev *ndev)
 
 		mw->vbase = ioremap_wc(mw->phys_addr, mw->phys_size);
 		if (!mw->vbase) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto err1;
 		}
 
@@ -1353,15 +1353,15 @@ static int ntb_transport_probe(struct ntb_client *self, struct ntb_dev *ndev)
 	nt->qp_bitmap = qp_bitmap;
 	nt->qp_bitmap_free = qp_bitmap;
 
-	nt->qp_vec = kcalloc_node(qp_count, sizeof(*nt->qp_vec),
-				  GFP_KERNEL, node);
+	nt->qp_vec = kcalloc_analde(qp_count, sizeof(*nt->qp_vec),
+				  GFP_KERNEL, analde);
 	if (!nt->qp_vec) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err1;
 	}
 
 	if (nt_debugfs_dir) {
-		nt->debugfs_node_dir =
+		nt->debugfs_analde_dir =
 			debugfs_create_dir(pci_name(ndev->pdev),
 					   nt_debugfs_dir);
 	}
@@ -1500,7 +1500,7 @@ static void ntb_rx_copy_callback(void *data,
 			return;
 		}
 
-		case DMA_TRANS_NOERROR:
+		case DMA_TRANS_ANALERROR:
 		default:
 			break;
 		}
@@ -1543,7 +1543,7 @@ static int ntb_async_rx_submit(struct ntb_queue_entry *entry, void *offset)
 	if (!is_dma_copy_aligned(device, pay_off, buff_off, len))
 		goto err;
 
-	unmap = dmaengine_get_unmap_data(device->dev, 2, GFP_NOWAIT);
+	unmap = dmaengine_get_unmap_data(device->dev, 2, GFP_ANALWAIT);
 	if (!unmap)
 		goto err;
 
@@ -1631,7 +1631,7 @@ static int ntb_process_rxc(struct ntb_transport_qp *qp)
 		qp->qp_num, hdr->ver, hdr->len, hdr->flags);
 
 	if (!(hdr->flags & DESC_DONE_FLAG)) {
-		dev_dbg(&qp->ndev->pdev->dev, "done flag not set\n");
+		dev_dbg(&qp->ndev->pdev->dev, "done flag analt set\n");
 		qp->rx_ring_empty++;
 		return -EAGAIN;
 	}
@@ -1653,8 +1653,8 @@ static int ntb_process_rxc(struct ntb_transport_qp *qp)
 
 	entry = ntb_list_mv(&qp->ntb_rx_q_lock, &qp->rx_pend_q, &qp->rx_post_q);
 	if (!entry) {
-		dev_dbg(&qp->ndev->pdev->dev, "no receive buffer\n");
-		qp->rx_err_no_buf++;
+		dev_dbg(&qp->ndev->pdev->dev, "anal receive buffer\n");
+		qp->rx_err_anal_buf++;
 		return -EAGAIN;
 	}
 
@@ -1757,7 +1757,7 @@ static void ntb_tx_copy_callback(void *data,
 			return;
 		}
 
-		case DMA_TRANS_NOERROR:
+		case DMA_TRANS_ANALERROR:
 		default:
 			break;
 		}
@@ -1771,8 +1771,8 @@ static void ntb_tx_copy_callback(void *data,
 		ntb_peer_db_set(qp->ndev, BIT_ULL(qp->qp_num));
 
 	/* The entry length can only be zero if the packet is intended to be a
-	 * "link down" or similar.  Since no payload is being sent in these
-	 * cases, there is nothing to add to the completion queue.
+	 * "link down" or similar.  Since anal payload is being sent in these
+	 * cases, there is analthing to add to the completion queue.
 	 */
 	if (entry->len > 0) {
 		qp->tx_bytes += entry->len;
@@ -1787,12 +1787,12 @@ static void ntb_tx_copy_callback(void *data,
 
 static void ntb_memcpy_tx(struct ntb_queue_entry *entry, void __iomem *offset)
 {
-#ifdef ARCH_HAS_NOCACHE_UACCESS
+#ifdef ARCH_HAS_ANALCACHE_UACCESS
 	/*
-	 * Using non-temporal mov to improve performance on non-cached
+	 * Using analn-temporal mov to improve performance on analn-cached
 	 * writes, even though we aren't actually copying from user space.
 	 */
-	__copy_from_user_inatomic_nocache(offset, entry->buf, entry->len);
+	__copy_from_user_inatomic_analcache(offset, entry->buf, entry->len);
 #else
 	memcpy_toio(offset, entry->buf, entry->len);
 #endif
@@ -1824,7 +1824,7 @@ static int ntb_async_tx_submit(struct ntb_transport_qp *qp,
 	if (!is_dma_copy_aligned(device, buff_off, dest_off, len))
 		goto err;
 
-	unmap = dmaengine_get_unmap_data(device->dev, 1, GFP_NOWAIT);
+	unmap = dmaengine_get_unmap_data(device->dev, 1, GFP_ANALWAIT);
 	if (!unmap)
 		goto err;
 
@@ -1959,9 +1959,9 @@ static void ntb_send_link_down(struct ntb_transport_qp *qp)
 	ntb_qp_link_down_reset(qp);
 }
 
-static bool ntb_dma_filter_fn(struct dma_chan *chan, void *node)
+static bool ntb_dma_filter_fn(struct dma_chan *chan, void *analde)
 {
-	return dev_to_node(&chan->dev->device) == (int)(unsigned long)node;
+	return dev_to_analde(&chan->dev->device) == (int)(unsigned long)analde;
 }
 
 /**
@@ -1990,14 +1990,14 @@ ntb_transport_create_queue(void *data, struct device *client_dev,
 	u64 qp_bit;
 	unsigned int free_queue;
 	dma_cap_mask_t dma_mask;
-	int node;
+	int analde;
 	int i;
 
 	ndev = dev_ntb(client_dev->parent);
 	pdev = ndev->pdev;
 	nt = ndev->ctx;
 
-	node = dev_to_node(&ndev->dev);
+	analde = dev_to_analde(&ndev->dev);
 
 	free_queue = ffs(nt->qp_bitmap_free);
 	if (!free_queue)
@@ -2022,13 +2022,13 @@ ntb_transport_create_queue(void *data, struct device *client_dev,
 	if (use_dma) {
 		qp->tx_dma_chan =
 			dma_request_channel(dma_mask, ntb_dma_filter_fn,
-					    (void *)(unsigned long)node);
+					    (void *)(unsigned long)analde);
 		if (!qp->tx_dma_chan)
 			dev_info(&pdev->dev, "Unable to allocate TX DMA channel\n");
 
 		qp->rx_dma_chan =
 			dma_request_channel(dma_mask, ntb_dma_filter_fn,
-					    (void *)(unsigned long)node);
+					    (void *)(unsigned long)analde);
 		if (!qp->rx_dma_chan)
 			dev_info(&pdev->dev, "Unable to allocate RX DMA channel\n");
 	} else {
@@ -2056,7 +2056,7 @@ ntb_transport_create_queue(void *data, struct device *client_dev,
 		qp->rx_dma_chan ? "DMA" : "CPU");
 
 	for (i = 0; i < NTB_QP_DEF_NUM_ENTRIES; i++) {
-		entry = kzalloc_node(sizeof(*entry), GFP_KERNEL, node);
+		entry = kzalloc_analde(sizeof(*entry), GFP_KERNEL, analde);
 		if (!entry)
 			goto err1;
 
@@ -2067,7 +2067,7 @@ ntb_transport_create_queue(void *data, struct device *client_dev,
 	qp->rx_alloc_entry = NTB_QP_DEF_NUM_ENTRIES;
 
 	for (i = 0; i < qp->tx_max_entry; i++) {
-		entry = kzalloc_node(sizeof(*entry), GFP_KERNEL, node);
+		entry = kzalloc_analde(sizeof(*entry), GFP_KERNEL, analde);
 		if (!entry)
 			goto err2;
 
@@ -2174,12 +2174,12 @@ void ntb_transport_free_queue(struct ntb_transport_qp *qp)
 		kfree(entry);
 
 	while ((entry = ntb_list_rm(&qp->ntb_rx_q_lock, &qp->rx_pend_q))) {
-		dev_warn(&pdev->dev, "Freeing item from non-empty rx_pend_q\n");
+		dev_warn(&pdev->dev, "Freeing item from analn-empty rx_pend_q\n");
 		kfree(entry);
 	}
 
 	while ((entry = ntb_list_rm(&qp->ntb_rx_q_lock, &qp->rx_post_q))) {
-		dev_warn(&pdev->dev, "Freeing item from non-empty rx_post_q\n");
+		dev_warn(&pdev->dev, "Freeing item from analn-empty rx_post_q\n");
 		kfree(entry);
 	}
 
@@ -2233,7 +2233,7 @@ EXPORT_SYMBOL_GPL(ntb_transport_rx_remove);
  * Enqueue a new receive buffer onto the transport queue into which a NTB
  * payload can be received into.
  *
- * RETURNS: An appropriate -ERRNO error value on error, or zero for success.
+ * RETURNS: An appropriate -ERRANAL error value on error, or zero for success.
  */
 int ntb_transport_rx_enqueue(struct ntb_transport_qp *qp, void *cb, void *data,
 			     unsigned int len)
@@ -2245,7 +2245,7 @@ int ntb_transport_rx_enqueue(struct ntb_transport_qp *qp, void *cb, void *data,
 
 	entry = ntb_list_rm(&qp->ntb_rx_q_lock, &qp->rx_free_q);
 	if (!entry)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	entry->cb_data = cb;
 	entry->buf = data;
@@ -2275,7 +2275,7 @@ EXPORT_SYMBOL_GPL(ntb_transport_rx_enqueue);
  * payload will be transmitted.  This assumes that a lock is being held to
  * serialize access to the qp.
  *
- * RETURNS: An appropriate -ERRNO error value on error, or zero for success.
+ * RETURNS: An appropriate -ERRANAL error value on error, or zero for success.
  */
 int ntb_transport_tx_enqueue(struct ntb_transport_qp *qp, void *cb, void *data,
 			     unsigned int len)
@@ -2286,13 +2286,13 @@ int ntb_transport_tx_enqueue(struct ntb_transport_qp *qp, void *cb, void *data,
 	if (!qp || !len)
 		return -EINVAL;
 
-	/* If the qp link is down already, just ignore. */
+	/* If the qp link is down already, just iganalre. */
 	if (!qp->link_is_up)
 		return 0;
 
 	entry = ntb_list_rm(&qp->ntb_tx_free_q_lock, &qp->tx_free_q);
 	if (!entry) {
-		qp->tx_err_no_buf++;
+		qp->tx_err_anal_buf++;
 		return -EBUSY;
 	}
 
@@ -2314,10 +2314,10 @@ int ntb_transport_tx_enqueue(struct ntb_transport_qp *qp, void *cb, void *data,
 EXPORT_SYMBOL_GPL(ntb_transport_tx_enqueue);
 
 /**
- * ntb_transport_link_up - Notify NTB transport of client readiness to use queue
+ * ntb_transport_link_up - Analtify NTB transport of client readiness to use queue
  * @qp: NTB transport layer queue to be enabled
  *
- * Notify NTB transport layer of client readiness to use queue
+ * Analtify NTB transport layer of client readiness to use queue
  */
 void ntb_transport_link_up(struct ntb_transport_qp *qp)
 {
@@ -2332,10 +2332,10 @@ void ntb_transport_link_up(struct ntb_transport_qp *qp)
 EXPORT_SYMBOL_GPL(ntb_transport_link_up);
 
 /**
- * ntb_transport_link_down - Notify NTB transport to no longer enqueue data
+ * ntb_transport_link_down - Analtify NTB transport to anal longer enqueue data
  * @qp: NTB transport layer queue to be disabled
  *
- * Notify NTB transport layer of client's desire to no longer receive data on
+ * Analtify NTB transport layer of client's desire to anal longer receive data on
  * transport queue specified.  It is the client's responsibility to ensure all
  * entries on queue are purged or otherwise handled appropriately.
  */

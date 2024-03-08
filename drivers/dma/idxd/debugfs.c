@@ -5,7 +5,7 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/debugfs.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 #include <uapi/linux/idxd.h>
 #include "idxd.h"
 #include "registers.h"

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
- * Copyright (c) 2016 Mellanox Technologies Ltd. All rights reserved.
+ * Copyright (c) 2016 Mellaanalx Techanallogies Ltd. All rights reserved.
  * Copyright (c) 2015 System Fabric Works, Inc. All rights reserved.
  */
 
@@ -36,7 +36,7 @@ static struct dst_entry *rxe_find_route4(struct rxe_qp *qp,
 
 	rt = ip_route_output_key(&init_net, &fl);
 	if (IS_ERR(rt)) {
-		rxe_dbg_qp(qp, "no route to %pI4\n", &daddr->s_addr);
+		rxe_dbg_qp(qp, "anal route to %pI4\n", &daddr->s_addr);
 		return NULL;
 	}
 
@@ -62,12 +62,12 @@ static struct dst_entry *rxe_find_route6(struct rxe_qp *qp,
 					       recv_sockets.sk6->sk, &fl6,
 					       NULL);
 	if (IS_ERR(ndst)) {
-		rxe_dbg_qp(qp, "no route to %pI6\n", daddr);
+		rxe_dbg_qp(qp, "anal route to %pI6\n", daddr);
 		return NULL;
 	}
 
 	if (unlikely(ndst->error)) {
-		rxe_dbg_qp(qp, "no route to %pI6\n", daddr);
+		rxe_dbg_qp(qp, "anal route to %pI6\n", daddr);
 		goto put;
 	}
 
@@ -288,7 +288,7 @@ static int prepare4(struct rxe_av *av, struct rxe_pkt_info *pkt,
 
 	dst = rxe_find_route(skb->dev, qp, av);
 	if (!dst) {
-		rxe_dbg_qp(qp, "Host not reachable\n");
+		rxe_dbg_qp(qp, "Host analt reachable\n");
 		return -EHOSTUNREACH;
 	}
 
@@ -312,7 +312,7 @@ static int prepare6(struct rxe_av *av, struct rxe_pkt_info *pkt,
 
 	dst = rxe_find_route(skb->dev, qp, av);
 	if (!dst) {
-		rxe_dbg_qp(qp, "Host not reachable\n");
+		rxe_dbg_qp(qp, "Host analt reachable\n");
 		return -EHOSTUNREACH;
 	}
 
@@ -371,7 +371,7 @@ static int rxe_send(struct sk_buff *skb, struct rxe_pkt_info *pkt)
 	} else if (skb->protocol == htons(ETH_P_IPV6)) {
 		err = ip6_local_out(dev_net(skb_dst(skb)->dev), skb->sk, skb);
 	} else {
-		rxe_dbg_qp(pkt->qp, "Unknown layer 3 protocol: %d\n",
+		rxe_dbg_qp(pkt->qp, "Unkanalwn layer 3 protocol: %d\n",
 				skb->protocol);
 		atomic_dec(&pkt->qp->skb_out);
 		rxe_put(pkt->qp);
@@ -424,7 +424,7 @@ int rxe_xmit_packet(struct rxe_qp *qp, struct rxe_pkt_info *pkt,
 	if ((is_request && (qp_state(qp) < IB_QPS_RTS)) ||
 	    (!is_request && (qp_state(qp) < IB_QPS_RTR))) {
 		spin_unlock_irqrestore(&qp->state_lock, flags);
-		rxe_dbg_qp(qp, "Packet dropped. QP is not in ready state\n");
+		rxe_dbg_qp(qp, "Packet dropped. QP is analt in ready state\n");
 		goto drop;
 	}
 	spin_unlock_irqrestore(&qp->state_lock, flags);
@@ -527,7 +527,7 @@ int rxe_net_add(const char *ibdev_name, struct net_device *ndev)
 
 	rxe = ib_alloc_device(rxe_dev, ib_dev);
 	if (!rxe)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rxe->ndev = ndev;
 
@@ -585,15 +585,15 @@ void rxe_set_port_state(struct rxe_dev *rxe)
 		rxe_port_down(rxe);
 }
 
-static int rxe_notify(struct notifier_block *not_blk,
+static int rxe_analtify(struct analtifier_block *analt_blk,
 		      unsigned long event,
 		      void *arg)
 {
-	struct net_device *ndev = netdev_notifier_info_to_dev(arg);
+	struct net_device *ndev = netdev_analtifier_info_to_dev(arg);
 	struct rxe_dev *rxe = rxe_get_dev_from_net(ndev);
 
 	if (!rxe)
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 
 	switch (event) {
 	case NETDEV_UNREGISTER:
@@ -618,17 +618,17 @@ static int rxe_notify(struct notifier_block *not_blk,
 	case NETDEV_CHANGENAME:
 	case NETDEV_FEAT_CHANGE:
 	default:
-		rxe_dbg_dev(rxe, "ignoring netdev event = %ld for %s\n",
+		rxe_dbg_dev(rxe, "iganalring netdev event = %ld for %s\n",
 			event, ndev->name);
 		break;
 	}
 
 	ib_device_put(&rxe->ib_dev);
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block rxe_net_notifier = {
-	.notifier_call = rxe_notify,
+static struct analtifier_block rxe_net_analtifier = {
+	.analtifier_call = rxe_analtify,
 };
 
 static int rxe_net_ipv4_init(void)
@@ -650,9 +650,9 @@ static int rxe_net_ipv6_init(void)
 
 	recv_sockets.sk6 = rxe_setup_udp_tunnel(&init_net,
 						htons(ROCE_V2_UDP_DPORT), true);
-	if (PTR_ERR(recv_sockets.sk6) == -EAFNOSUPPORT) {
+	if (PTR_ERR(recv_sockets.sk6) == -EAFANALSUPPORT) {
 		recv_sockets.sk6 = NULL;
-		pr_warn("IPv6 is not supported, can not create a UDPv6 socket\n");
+		pr_warn("IPv6 is analt supported, can analt create a UDPv6 socket\n");
 		return 0;
 	}
 
@@ -669,7 +669,7 @@ void rxe_net_exit(void)
 {
 	rxe_release_udp_tunnel(recv_sockets.sk6);
 	rxe_release_udp_tunnel(recv_sockets.sk4);
-	unregister_netdevice_notifier(&rxe_net_notifier);
+	unregister_netdevice_analtifier(&rxe_net_analtifier);
 }
 
 int rxe_net_init(void)
@@ -684,9 +684,9 @@ int rxe_net_init(void)
 	err = rxe_net_ipv6_init();
 	if (err)
 		goto err_out;
-	err = register_netdevice_notifier(&rxe_net_notifier);
+	err = register_netdevice_analtifier(&rxe_net_analtifier);
 	if (err) {
-		pr_err("Failed to register netdev notifier\n");
+		pr_err("Failed to register netdev analtifier\n");
 		goto err_out;
 	}
 	return 0;

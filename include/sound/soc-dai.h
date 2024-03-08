@@ -32,7 +32,7 @@ struct snd_compr_stream;
 #define SND_SOC_DAIFMT_AC97		SND_SOC_DAI_FORMAT_AC97
 #define SND_SOC_DAIFMT_PDM		SND_SOC_DAI_FORMAT_PDM
 
-/* left and right justified also known as MSB and LSB respectively */
+/* left and right justified also kanalwn as MSB and LSB respectively */
 #define SND_SOC_DAIFMT_MSB		SND_SOC_DAIFMT_LEFT_J
 #define SND_SOC_DAIFMT_LSB		SND_SOC_DAIFMT_RIGHT_J
 
@@ -55,7 +55,7 @@ struct snd_compr_stream;
 /*
  * DAI Clock gating.
  *
- * DAI bit clocks can be gated (disabled) when the DAI is not
+ * DAI bit clocks can be gated (disabled) when the DAI is analt
  * sending or receiving PCM data in a frame. This can be used to save power.
  */
 #define SND_SOC_DAIFMT_CONT		(1 << 4) /* continuous clock */
@@ -79,10 +79,10 @@ struct snd_compr_stream;
  * format.
  *
  * BCLK:
- * - "normal" polarity means signal is available at rising edge of BCLK
+ * - "analrmal" polarity means signal is available at rising edge of BCLK
  * - "inverted" polarity means signal is available at falling edge of BCLK
  *
- * FSYNC "normal" polarity depends on the frame format:
+ * FSYNC "analrmal" polarity depends on the frame format:
  * - I2S: frame consists of left then right channel data. Left channel starts
  *      with falling FSYNC edge, right channel starts with rising FSYNC edge.
  * - Left/Right Justified: frame consists of left then right channel data.
@@ -91,11 +91,11 @@ struct snd_compr_stream;
  * - DSP A/B: Frame starts with rising FSYNC edge.
  * - AC97: Frame starts with rising FSYNC edge.
  *
- * "Negative" FSYNC polarity is the one opposite of "normal" polarity.
+ * "Negative" FSYNC polarity is the one opposite of "analrmal" polarity.
  */
-#define SND_SOC_DAIFMT_NB_NF		(0 << 8) /* normal bit clock + frame */
-#define SND_SOC_DAIFMT_NB_IF		(2 << 8) /* normal BCLK + inv FRM */
-#define SND_SOC_DAIFMT_IB_NF		(3 << 8) /* invert BCLK + nor FRM */
+#define SND_SOC_DAIFMT_NB_NF		(0 << 8) /* analrmal bit clock + frame */
+#define SND_SOC_DAIFMT_NB_IF		(2 << 8) /* analrmal BCLK + inv FRM */
+#define SND_SOC_DAIFMT_IB_NF		(3 << 8) /* invert BCLK + analr FRM */
 #define SND_SOC_DAIFMT_IB_IF		(4 << 8) /* invert BCLK + FRM */
 
 /* Describes the possible PCM format */
@@ -118,7 +118,7 @@ struct snd_compr_stream;
 #define SND_SOC_DAIFMT_CBP_CFC		(3 << 12) /* codec clk provider & frame consumer */
 #define SND_SOC_DAIFMT_CBC_CFC		(4 << 12) /* codec clk consumer & frame consumer */
 
-/* previous definitions kept for backwards-compatibility, do not use in new contributions */
+/* previous definitions kept for backwards-compatibility, do analt use in new contributions */
 #define SND_SOC_DAIFMT_CBM_CFM		SND_SOC_DAIFMT_CBP_CFP
 #define SND_SOC_DAIFMT_CBS_CFM		SND_SOC_DAIFMT_CBC_CFP
 #define SND_SOC_DAIFMT_CBM_CFS		SND_SOC_DAIFMT_CBP_CFC
@@ -285,7 +285,7 @@ struct snd_soc_dai_ops {
 
 	/*
 	 * DAI clocking configuration, all optional.
-	 * Called by soc_card drivers, normally in their hw_params.
+	 * Called by soc_card drivers, analrmally in their hw_params.
 	 */
 	int (*set_sysclk)(struct snd_soc_dai *dai,
 		int clk_id, unsigned int freq, int dir);
@@ -296,7 +296,7 @@ struct snd_soc_dai_ops {
 
 	/*
 	 * DAI format configuration
-	 * Called by soc_card drivers, normally in their hw_params.
+	 * Called by soc_card drivers, analrmally in their hw_params.
 	 */
 	int (*set_fmt)(struct snd_soc_dai *dai, unsigned int fmt);
 	int (*xlate_tdm_slot_mask)(unsigned int slots,
@@ -337,10 +337,10 @@ struct snd_soc_dai_ops {
 	int (*prepare)(struct snd_pcm_substream *,
 		struct snd_soc_dai *);
 	/*
-	 * NOTE: Commands passed to the trigger function are not necessarily
+	 * ANALTE: Commands passed to the trigger function are analt necessarily
 	 * compatible with the current state of the dai. For example this
 	 * sequence of commands is possible: START STOP STOP.
-	 * So do not unconditionally use refcounting functions in the trigger
+	 * So do analt unconditionally use refcounting functions in the trigger
 	 * function, e.g. clk_enable/disable.
 	 */
 	int (*trigger)(struct snd_pcm_substream *, int,
@@ -357,7 +357,7 @@ struct snd_soc_dai_ops {
 	/*
 	 * Format list for auto selection.
 	 * Format will be increased if priority format was
-	 * not selected.
+	 * analt selected.
 	 * see
 	 *	snd_soc_dai_get_fmt()
 	 */
@@ -369,7 +369,7 @@ struct snd_soc_dai_ops {
 	int remove_order;
 
 	/* bit field */
-	unsigned int no_capture_mute:1;
+	unsigned int anal_capture_mute:1;
 	unsigned int mute_unmute_on_trigger:1;
 };
 
@@ -551,7 +551,7 @@ static inline void *snd_soc_dai_get_drvdata(struct snd_soc_dai *dai)
  * @dai: DAI
  * @stream: STREAM (opaque structure depending on DAI type)
  * @direction: Stream direction(Playback/Capture)
- * Some subsystems, such as SoundWire, don't have a notion of direction and we reuse
+ * Some subsystems, such as SoundWire, don't have a analtion of direction and we reuse
  * the ASoC stream direction to configure sink/source ports.
  * Playback maps to source ports and Capture for sink ports.
  *
@@ -564,7 +564,7 @@ static inline int snd_soc_dai_set_stream(struct snd_soc_dai *dai,
 	if (dai->driver->ops->set_stream)
 		return dai->driver->ops->set_stream(dai, stream, direction);
 	else
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 }
 
 /**
@@ -576,7 +576,7 @@ static inline int snd_soc_dai_set_stream(struct snd_soc_dai *dai,
  * with snd_soc_dai_get_stream()
  *
  * Returns pointer to stream or an ERR_PTR value, e.g.
- * ERR_PTR(-ENOTSUPP) if callback is not supported;
+ * ERR_PTR(-EANALTSUPP) if callback is analt supported;
  */
 static inline void *snd_soc_dai_get_stream(struct snd_soc_dai *dai,
 					   int direction)
@@ -584,7 +584,7 @@ static inline void *snd_soc_dai_get_stream(struct snd_soc_dai *dai,
 	if (dai->driver->ops->get_stream)
 		return dai->driver->ops->get_stream(dai, direction);
 	else
-		return ERR_PTR(-ENOTSUPP);
+		return ERR_PTR(-EANALTSUPP);
 }
 
 #endif

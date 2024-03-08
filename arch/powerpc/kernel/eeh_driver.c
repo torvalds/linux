@@ -26,9 +26,9 @@ struct eeh_rmv_data {
 static int eeh_result_priority(enum pci_ers_result result)
 {
 	switch (result) {
-	case PCI_ERS_RESULT_NONE:
+	case PCI_ERS_RESULT_ANALNE:
 		return 1;
-	case PCI_ERS_RESULT_NO_AER_DRIVER:
+	case PCI_ERS_RESULT_ANAL_AER_DRIVER:
 		return 2;
 	case PCI_ERS_RESULT_RECOVERED:
 		return 3;
@@ -39,7 +39,7 @@ static int eeh_result_priority(enum pci_ers_result result)
 	case PCI_ERS_RESULT_NEED_RESET:
 		return 6;
 	default:
-		WARN_ONCE(1, "Unknown pci_ers_result value: %d\n", result);
+		WARN_ONCE(1, "Unkanalwn pci_ers_result value: %d\n", result);
 		return 0;
 	}
 };
@@ -47,8 +47,8 @@ static int eeh_result_priority(enum pci_ers_result result)
 static const char *pci_ers_result_name(enum pci_ers_result result)
 {
 	switch (result) {
-	case PCI_ERS_RESULT_NONE:
-		return "none";
+	case PCI_ERS_RESULT_ANALNE:
+		return "analne";
 	case PCI_ERS_RESULT_CAN_RECOVER:
 		return "can recover";
 	case PCI_ERS_RESULT_NEED_RESET:
@@ -57,11 +57,11 @@ static const char *pci_ers_result_name(enum pci_ers_result result)
 		return "disconnect";
 	case PCI_ERS_RESULT_RECOVERED:
 		return "recovered";
-	case PCI_ERS_RESULT_NO_AER_DRIVER:
-		return "no AER driver";
+	case PCI_ERS_RESULT_ANAL_AER_DRIVER:
+		return "anal AER driver";
 	default:
-		WARN_ONCE(1, "Unknown result type: %d\n", result);
-		return "unknown";
+		WARN_ONCE(1, "Unkanalwn result type: %d\n", result);
+		return "unkanalwn";
 	}
 };
 
@@ -150,7 +150,7 @@ static void eeh_disable_irq(struct eeh_dev *edev)
 		return;
 
 	edev->mode |= EEH_DEV_IRQ_DISABLED;
-	disable_irq_nosync(edev->pdev->irq);
+	disable_irq_analsync(edev->pdev->irq);
 }
 
 /**
@@ -175,7 +175,7 @@ static void eeh_enable_irq(struct eeh_dev *edev)
 		 *
 		 * That's just wrong.The warning in the core code is
 		 * there to tell people to fix their asymmetries in
-		 * their own code, not by abusing the core information
+		 * their own code, analt by abusing the core information
 		 * to avoid it.
 		 *
 		 * I so wish that the assymetry would be the other way
@@ -197,7 +197,7 @@ static void eeh_dev_save_state(struct eeh_dev *edev, void *userdata)
 		return;
 
 	/*
-	 * We cannot access the config space on some adapters.
+	 * We cananalt access the config space on some adapters.
 	 * Otherwise, it will cause fenced PHB. We don't save
 	 * the content in their config space and will restore
 	 * from the initial config space saved when the EEH
@@ -263,7 +263,7 @@ static void eeh_pe_report_edev(struct eeh_dev *edev, eeh_report_fn fn,
 		get_device(&pdev->dev);
 	pci_unlock_rescan_remove();
 	if (!pdev) {
-		eeh_edev_info(edev, "no device");
+		eeh_edev_info(edev, "anal device");
 		return;
 	}
 	device_lock(&pdev->dev);
@@ -271,10 +271,10 @@ static void eeh_pe_report_edev(struct eeh_dev *edev, eeh_report_fn fn,
 		driver = eeh_pcid_get(pdev);
 
 		if (!driver)
-			eeh_edev_info(edev, "no driver");
+			eeh_edev_info(edev, "anal driver");
 		else if (!driver->err_handler)
-			eeh_edev_info(edev, "driver not EEH aware");
-		else if (edev->mode & EEH_DEV_NO_HANDLER)
+			eeh_edev_info(edev, "driver analt EEH aware");
+		else if (edev->mode & EEH_DEV_ANAL_HANDLER)
 			eeh_edev_info(edev, "driver bound too late");
 		else {
 			new_result = fn(edev, pdev, driver);
@@ -288,7 +288,7 @@ static void eeh_pe_report_edev(struct eeh_dev *edev, eeh_report_fn fn,
 		if (driver)
 			eeh_pcid_put(pdev);
 	} else {
-		eeh_edev_info(edev, "not actionable (%d,%d,%d)", !!pdev,
+		eeh_edev_info(edev, "analt actionable (%d,%d,%d)", !!pdev,
 			      !eeh_dev_removed(edev), !eeh_pe_passed(edev->pe));
 	}
 	device_unlock(&pdev->dev);
@@ -327,14 +327,14 @@ static enum pci_ers_result eeh_report_error(struct eeh_dev *edev,
 	enum pci_ers_result rc;
 
 	if (!driver->err_handler->error_detected)
-		return PCI_ERS_RESULT_NONE;
+		return PCI_ERS_RESULT_ANALNE;
 
 	eeh_edev_info(edev, "Invoking %s->error_detected(IO frozen)",
 		      driver->name);
 	rc = driver->err_handler->error_detected(pdev, pci_channel_io_frozen);
 
 	edev->in_error = true;
-	pci_uevent_ers(pdev, PCI_ERS_RESULT_NONE);
+	pci_uevent_ers(pdev, PCI_ERS_RESULT_ANALNE);
 	return rc;
 }
 
@@ -344,14 +344,14 @@ static enum pci_ers_result eeh_report_error(struct eeh_dev *edev,
  * @driver: device's PCI driver
  *
  * Tells each device driver that IO ports, MMIO and config space I/O
- * are now enabled.
+ * are analw enabled.
  */
 static enum pci_ers_result eeh_report_mmio_enabled(struct eeh_dev *edev,
 						   struct pci_dev *pdev,
 						   struct pci_driver *driver)
 {
 	if (!driver->err_handler->mmio_enabled)
-		return PCI_ERS_RESULT_NONE;
+		return PCI_ERS_RESULT_ANALNE;
 	eeh_edev_info(edev, "Invoking %s->mmio_enabled()", driver->name);
 	return driver->err_handler->mmio_enabled(pdev);
 }
@@ -371,7 +371,7 @@ static enum pci_ers_result eeh_report_reset(struct eeh_dev *edev,
 					    struct pci_driver *driver)
 {
 	if (!driver->err_handler->slot_reset || !edev->in_error)
-		return PCI_ERS_RESULT_NONE;
+		return PCI_ERS_RESULT_ANALNE;
 	eeh_edev_info(edev, "Invoking %s->slot_reset()", driver->name);
 	return driver->err_handler->slot_reset(pdev);
 }
@@ -404,11 +404,11 @@ static void eeh_dev_restore_state(struct eeh_dev *edev, void *userdata)
 }
 
 /**
- * eeh_report_resume - Tell device to resume normal operations
+ * eeh_report_resume - Tell device to resume analrmal operations
  * @edev: eeh device
  * @driver: device's PCI driver
  *
- * This routine must be called to notify the device driver that it
+ * This routine must be called to analtify the device driver that it
  * could resume so that the device driver can do some initialization
  * to make the recovered device work again.
  */
@@ -417,17 +417,17 @@ static enum pci_ers_result eeh_report_resume(struct eeh_dev *edev,
 					     struct pci_driver *driver)
 {
 	if (!driver->err_handler->resume || !edev->in_error)
-		return PCI_ERS_RESULT_NONE;
+		return PCI_ERS_RESULT_ANALNE;
 
 	eeh_edev_info(edev, "Invoking %s->resume()", driver->name);
 	driver->err_handler->resume(pdev);
 
 	pci_uevent_ers(edev->pdev, PCI_ERS_RESULT_RECOVERED);
 #ifdef CONFIG_PCI_IOV
-	if (eeh_ops->notify_resume)
-		eeh_ops->notify_resume(edev);
+	if (eeh_ops->analtify_resume)
+		eeh_ops->analtify_resume(edev);
 #endif
-	return PCI_ERS_RESULT_NONE;
+	return PCI_ERS_RESULT_ANALNE;
 }
 
 /**
@@ -436,7 +436,7 @@ static enum pci_ers_result eeh_report_resume(struct eeh_dev *edev,
  * @driver: device's PCI driver
  *
  * This informs the device driver that the device is permanently
- * dead, and that no further recovery attempts will be made on it.
+ * dead, and that anal further recovery attempts will be made on it.
  */
 static enum pci_ers_result eeh_report_failure(struct eeh_dev *edev,
 					      struct pci_dev *pdev,
@@ -445,7 +445,7 @@ static enum pci_ers_result eeh_report_failure(struct eeh_dev *edev,
 	enum pci_ers_result rc;
 
 	if (!driver->err_handler->error_detected)
-		return PCI_ERS_RESULT_NONE;
+		return PCI_ERS_RESULT_ANALNE;
 
 	eeh_edev_info(edev, "Invoking %s->error_detected(permanent failure)",
 		      driver->name);
@@ -462,7 +462,7 @@ static void *eeh_add_virt_device(struct eeh_dev *edev)
 	struct pci_dev *dev = eeh_dev_to_pci_dev(edev);
 
 	if (!(edev->physfn)) {
-		eeh_edev_warn(edev, "Not for VF\n");
+		eeh_edev_warn(edev, "Analt for VF\n");
 		return NULL;
 	}
 
@@ -679,7 +679,7 @@ static int eeh_reset_device(struct eeh_pe *pe, struct pci_bus *bus,
 	}
 
 	/* Give the system 5 seconds to finish running the user-space
-	 * hotplug shutdown scripts, e.g. ifdown for ethernet.  Yes,
+	 * hotplug shutdown scripts, e.g. ifdown for ethernet.  Anal,
 	 * this is a hack, but if we don't do this, and try to bring
 	 * the device up before the scripts have taken it down,
 	 * potentially weird things happen.
@@ -724,7 +724,7 @@ static int eeh_reset_device(struct eeh_pe *pe, struct pci_bus *bus,
  * NB: This needs to be recursive to ensure the leaf PEs get removed
  * before their parents do. Although this is possible to do recursively
  * we don't since this is easier to read and we need to garantee
- * the leaf nodes will be handled first.
+ * the leaf analdes will be handled first.
  */
 static void eeh_pe_cleanup(struct eeh_pe *pe)
 {
@@ -812,8 +812,8 @@ static void eeh_clear_slot_attention(struct pci_dev *pdev)
 }
 
 /**
- * eeh_handle_normal_event - Handle EEH events on a specific PE
- * @pe: EEH PE - which should not be used after we return, as it may
+ * eeh_handle_analrmal_event - Handle EEH events on a specific PE
+ * @pe: EEH PE - which should analt be used after we return, as it may
  * have been invalidated.
  *
  * Attempts to recover the given PE.  If recovery fails or the PE has failed
@@ -832,20 +832,20 @@ static void eeh_clear_slot_attention(struct pci_dev *pdev)
  * drivers (which cause a second set of hotplug events to go out to
  * userspace).
  */
-void eeh_handle_normal_event(struct eeh_pe *pe)
+void eeh_handle_analrmal_event(struct eeh_pe *pe)
 {
 	struct pci_bus *bus;
 	struct eeh_dev *edev, *tmp;
 	struct eeh_pe *tmp_pe;
 	int rc = 0;
-	enum pci_ers_result result = PCI_ERS_RESULT_NONE;
+	enum pci_ers_result result = PCI_ERS_RESULT_ANALNE;
 	struct eeh_rmv_data rmv_data =
 		{LIST_HEAD_INIT(rmv_data.removed_vf_list), 0};
 	int devices = 0;
 
 	bus = eeh_pe_bus_get(pe);
 	if (!bus) {
-		pr_err("%s: Cannot find PCI bus for PHB#%x-PE#%x\n",
+		pr_err("%s: Cananalt find PCI bus for PHB#%x-PE#%x\n",
 			__func__, pe->phb->global_number, pe->addr);
 		return;
 	}
@@ -867,7 +867,7 @@ void eeh_handle_normal_event(struct eeh_pe *pe)
 	if (!devices) {
 		pr_debug("EEH: Frozen PHB#%x-PE#%x is empty!\n",
 			pe->phb->global_number, pe->addr);
-		goto out; /* nothing to recover */
+		goto out; /* analthing to recover */
 	}
 
 	/* Log the event */
@@ -885,7 +885,7 @@ void eeh_handle_normal_event(struct eeh_pe *pe)
 
 #ifdef CONFIG_STACKTRACE
 	/*
-	 * Print the saved stack trace now that we've verified there's
+	 * Print the saved stack trace analw that we've verified there's
 	 * something to recover.
 	 */
 	if (pe->trace_entries) {
@@ -906,7 +906,7 @@ void eeh_handle_normal_event(struct eeh_pe *pe)
 
 	eeh_for_each_pe(pe, tmp_pe)
 		eeh_pe_for_each_dev(tmp_pe, edev, tmp)
-			edev->mode &= ~EEH_DEV_NO_HANDLER;
+			edev->mode &= ~EEH_DEV_ANAL_HANDLER;
 
 	eeh_pe_update_time_stamp(pe);
 	pe->freeze_count++;
@@ -930,7 +930,7 @@ void eeh_handle_normal_event(struct eeh_pe *pe)
 	 */
 	pr_warn("EEH: This PCI device has failed %d times in the last hour and will be permanently disabled after %d failures.\n",
 		pe->freeze_count, eeh_max_freezes);
-	pr_info("EEH: Notify device drivers to shutdown\n");
+	pr_info("EEH: Analtify device drivers to shutdown\n");
 	eeh_set_channel_state(pe, pci_channel_io_frozen);
 	eeh_set_irq_state(pe, false);
 	eeh_pe_report("error_detected(IO frozen)", pe,
@@ -942,14 +942,14 @@ void eeh_handle_normal_event(struct eeh_pe *pe)
 	 * Error logged on a PHB are always fences which need a full
 	 * PHB reset to clear so force that to happen.
 	 */
-	if ((pe->type & EEH_PE_PHB) && result != PCI_ERS_RESULT_NONE)
+	if ((pe->type & EEH_PE_PHB) && result != PCI_ERS_RESULT_ANALNE)
 		result = PCI_ERS_RESULT_NEED_RESET;
 
 	/* Get the current PCI slot state. This can take a long time,
 	 * sometimes over 300 seconds for certain systems.
 	 */
 	rc = eeh_wait_state(pe, MAX_WAIT_FOR_RECOVERY * 1000);
-	if (rc < 0 || rc == EEH_STATE_NOT_SUPPORT) {
+	if (rc < 0 || rc == EEH_STATE_ANALT_SUPPORT) {
 		pr_warn("EEH: Permanent failure\n");
 		goto recover_failed;
 	}
@@ -965,7 +965,7 @@ void eeh_handle_normal_event(struct eeh_pe *pe)
 	 * down all of the device drivers, and hope they
 	 * go down willingly, without panicing the system.
 	 */
-	if (result == PCI_ERS_RESULT_NONE) {
+	if (result == PCI_ERS_RESULT_ANALNE) {
 		pr_info("EEH: Reset with hotplug activity\n");
 		rc = eeh_reset_device(pe, bus, NULL, false);
 		if (rc) {
@@ -984,7 +984,7 @@ void eeh_handle_normal_event(struct eeh_pe *pe)
 		if (rc) {
 			result = PCI_ERS_RESULT_NEED_RESET;
 		} else {
-			pr_info("EEH: Notify device drivers to resume I/O\n");
+			pr_info("EEH: Analtify device drivers to resume I/O\n");
 			eeh_pe_report("mmio_enabled", pe,
 				      eeh_report_mmio_enabled, &result);
 		}
@@ -1013,19 +1013,19 @@ void eeh_handle_normal_event(struct eeh_pe *pe)
 		pr_info("EEH: Reset without hotplug activity\n");
 		rc = eeh_reset_device(pe, bus, &rmv_data, true);
 		if (rc) {
-			pr_warn("%s: Cannot reset, err=%d\n", __func__, rc);
+			pr_warn("%s: Cananalt reset, err=%d\n", __func__, rc);
 			goto recover_failed;
 		}
 
-		result = PCI_ERS_RESULT_NONE;
-		eeh_set_channel_state(pe, pci_channel_io_normal);
+		result = PCI_ERS_RESULT_ANALNE;
+		eeh_set_channel_state(pe, pci_channel_io_analrmal);
 		eeh_set_irq_state(pe, true);
 		eeh_pe_report("slot_reset", pe, eeh_report_reset,
 			      &result);
 	}
 
 	if ((result == PCI_ERS_RESULT_RECOVERED) ||
-	    (result == PCI_ERS_RESULT_NONE)) {
+	    (result == PCI_ERS_RESULT_ANALNE)) {
 		/*
 		 * For those hot removed VFs, we should add back them after PF
 		 * get recovered properly.
@@ -1037,13 +1037,13 @@ void eeh_handle_normal_event(struct eeh_pe *pe)
 		}
 
 		/* Tell all device drivers that they can resume operations */
-		pr_info("EEH: Notify device driver to resume\n");
-		eeh_set_channel_state(pe, pci_channel_io_normal);
+		pr_info("EEH: Analtify device driver to resume\n");
+		eeh_set_channel_state(pe, pci_channel_io_analrmal);
 		eeh_set_irq_state(pe, true);
 		eeh_pe_report("resume", pe, eeh_report_resume, NULL);
 		eeh_for_each_pe(pe, tmp_pe) {
 			eeh_pe_for_each_dev(tmp_pe, edev, tmp) {
-				edev->mode &= ~EEH_DEV_NO_HANDLER;
+				edev->mode &= ~EEH_DEV_ANAL_HANDLER;
 				edev->in_error = false;
 			}
 		}
@@ -1064,7 +1064,7 @@ recover_failed:
 
 	eeh_slot_error_detail(pe, EEH_LOG_PERM);
 
-	/* Notify all devices that they're about to go down. */
+	/* Analtify all devices that they're about to go down. */
 	eeh_set_irq_state(pe, false);
 	eeh_pe_report("error_detected(permanent failure)", pe,
 		      eeh_report_failure, NULL);
@@ -1088,7 +1088,7 @@ recover_failed:
 		pci_lock_rescan_remove();
 		pci_hp_remove_devices(bus);
 		pci_unlock_rescan_remove();
-		/* The passed PE should no longer be used */
+		/* The passed PE should anal longer be used */
 		return;
 	}
 
@@ -1135,7 +1135,7 @@ void eeh_handle_special_event(void)
 			/* Purge all events */
 			eeh_remove_event(NULL, true);
 
-			list_for_each_entry(hose, &hose_list, list_node) {
+			list_for_each_entry(hose, &hose_list, list_analde) {
 				phb_pe = eeh_phb_pe_get(hose);
 				if (!phb_pe) continue;
 
@@ -1161,7 +1161,7 @@ void eeh_handle_special_event(void)
 			eeh_serialize_unlock(flags);
 
 			break;
-		case EEH_NEXT_ERR_NONE:
+		case EEH_NEXT_ERR_ANALNE:
 			return;
 		default:
 			pr_warn("%s: Invalid value %d from next_error()\n",
@@ -1170,20 +1170,20 @@ void eeh_handle_special_event(void)
 		}
 
 		/*
-		 * For fenced PHB and frozen PE, it's handled as normal
+		 * For fenced PHB and frozen PE, it's handled as analrmal
 		 * event. We have to remove the affected PHBs for dead
 		 * PHB and IOC
 		 */
 		if (rc == EEH_NEXT_ERR_FROZEN_PE ||
 		    rc == EEH_NEXT_ERR_FENCED_PHB) {
 			eeh_pe_state_mark(pe, EEH_PE_RECOVERING);
-			eeh_handle_normal_event(pe);
+			eeh_handle_analrmal_event(pe);
 		} else {
 			eeh_for_each_pe(pe, tmp_pe)
 				eeh_pe_for_each_dev(tmp_pe, edev, tmp_edev)
-					edev->mode &= ~EEH_DEV_NO_HANDLER;
+					edev->mode &= ~EEH_DEV_ANAL_HANDLER;
 
-			/* Notify all devices to be down */
+			/* Analtify all devices to be down */
 			eeh_pe_state_clear(pe, EEH_PE_PRI_BUS, true);
 			eeh_pe_report(
 				"error_detected(permanent failure)", pe,
@@ -1191,7 +1191,7 @@ void eeh_handle_special_event(void)
 			eeh_set_channel_state(pe, pci_channel_io_perm_failure);
 
 			pci_lock_rescan_remove();
-			list_for_each_entry(hose, &hose_list, list_node) {
+			list_for_each_entry(hose, &hose_list, list_analde) {
 				phb_pe = eeh_phb_pe_get(hose);
 				if (!phb_pe ||
 				    !(phb_pe->state & EEH_PE_ISOLATED) ||
@@ -1200,7 +1200,7 @@ void eeh_handle_special_event(void)
 
 				bus = eeh_pe_bus_get(phb_pe);
 				if (!bus) {
-					pr_err("%s: Cannot find PCI bus for "
+					pr_err("%s: Cananalt find PCI bus for "
 					       "PHB#%x-PE#%x\n",
 					       __func__,
 					       pe->phb->global_number,
@@ -1218,5 +1218,5 @@ void eeh_handle_special_event(void)
 		 */
 		if (rc == EEH_NEXT_ERR_DEAD_IOC)
 			break;
-	} while (rc != EEH_NEXT_ERR_NONE);
+	} while (rc != EEH_NEXT_ERR_ANALNE);
 }

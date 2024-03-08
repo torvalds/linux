@@ -11,7 +11,7 @@
 
 #include <linux/string.h>
 #include <linux/printk.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/kexec.h>
 #include <linux/kernel.h>
@@ -29,7 +29,7 @@
 #define MAX_ELFCOREHDR_STR_LEN	30	/* elfcorehdr=0x<64bit-value> */
 
 /*
- * Defines lowest physical address for various segments. Not sure where
+ * Defines lowest physical address for various segments. Analt sure where
  * exactly these limits came from. Current bzimage64 loader in kexec-tools
  * uses these so I am retaining it. It can be changed over time as we gain
  * more insight.
@@ -42,7 +42,7 @@
 /*
  * This is a place holder for all boot loader specific data structure which
  * gets allocated in one call but gets freed much later during cleanup
- * time. Right now there is only one field but it can grow as need be.
+ * time. Right analw there is only one field but it can grow as need be.
  */
 struct bzimage64_data {
 	/*
@@ -326,7 +326,7 @@ setup_boot_parameters(struct kimage *image, struct boot_params *params,
 
 static int bzImage64_probe(const char *buf, unsigned long len)
 {
-	int ret = -ENOEXEC;
+	int ret = -EANALEXEC;
 	struct setup_header *header;
 
 	/* kernel should be at least two sectors long */
@@ -337,12 +337,12 @@ static int bzImage64_probe(const char *buf, unsigned long len)
 
 	header = (struct setup_header *)(buf + offsetof(struct boot_params, hdr));
 	if (memcmp((char *)&header->header, "HdrS", 4) != 0) {
-		pr_err("Not a bzImage\n");
+		pr_err("Analt a bzImage\n");
 		return ret;
 	}
 
 	if (header->boot_flag != 0xAA55) {
-		pr_err("No x86 boot sector present\n");
+		pr_err("Anal x86 boot sector present\n");
 		return ret;
 	}
 
@@ -352,22 +352,22 @@ static int bzImage64_probe(const char *buf, unsigned long len)
 	}
 
 	if (!(header->loadflags & LOADED_HIGH)) {
-		pr_err("zImage not a bzImage\n");
+		pr_err("zImage analt a bzImage\n");
 		return ret;
 	}
 
 	if (!(header->xloadflags & XLF_KERNEL_64)) {
-		pr_err("Not a bzImage64. XLF_KERNEL_64 is not set.\n");
+		pr_err("Analt a bzImage64. XLF_KERNEL_64 is analt set.\n");
 		return ret;
 	}
 
 	if (!(header->xloadflags & XLF_CAN_BE_LOADED_ABOVE_4G)) {
-		pr_err("XLF_CAN_BE_LOADED_ABOVE_4G is not set.\n");
+		pr_err("XLF_CAN_BE_LOADED_ABOVE_4G is analt set.\n");
 		return ret;
 	}
 
 	/*
-	 * Can't handle 32bit EFI as it does not allow loading kernel
+	 * Can't handle 32bit EFI as it does analt allow loading kernel
 	 * above 4G. This should be handled by 32bit bzImage loader
 	 */
 	if (efi_enabled(EFI_RUNTIME_SERVICES) && !efi_enabled(EFI_64BIT)) {
@@ -376,7 +376,7 @@ static int bzImage64_probe(const char *buf, unsigned long len)
 	}
 
 	if (!(header->xloadflags & XLF_5LEVEL) && pgtable_l5_enabled()) {
-		pr_err("bzImage cannot handle 5-level paging mode.\n");
+		pr_err("bzImage cananalt handle 5-level paging mode.\n");
 		return ret;
 	}
 
@@ -416,7 +416,7 @@ static void *bzImage64_load(struct kimage *image, char *kernel,
 	kern16_size = (setup_sects + 1) * 512;
 	if (kernel_len < kern16_size) {
 		pr_err("bzImage truncated\n");
-		return ERR_PTR(-ENOEXEC);
+		return ERR_PTR(-EANALEXEC);
 	}
 
 	if (cmdline_len > header->cmdline_size) {
@@ -426,7 +426,7 @@ static void *bzImage64_load(struct kimage *image, char *kernel,
 
 	/*
 	 * In case of crash dump, we will append elfcorehdr=<addr> to
-	 * command line. Make sure it does not overflow
+	 * command line. Make sure it does analt overflow
 	 */
 	if (cmdline_len + MAX_ELFCOREHDR_STR_LEN > header->cmdline_size) {
 		pr_err("Appending elfcorehdr=<addr> to command line exceeds maximum allowed length\n");
@@ -477,7 +477,7 @@ static void *bzImage64_load(struct kimage *image, char *kernel,
 
 	params = kzalloc(kbuf.bufsz, GFP_KERNEL);
 	if (!params)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	efi_map_offset = params_cmdline_sz;
 	efi_setup_data_offset = efi_map_offset + ALIGN(efi_map_sz, 16);
 
@@ -504,7 +504,7 @@ static void *bzImage64_load(struct kimage *image, char *kernel,
 	kbuf.memsz = PAGE_ALIGN(header->init_size);
 	kbuf.buf_align = header->kernel_alignment;
 	kbuf.buf_min = MIN_KERNEL_LOAD_ADDR;
-	kbuf.mem = KEXEC_BUF_MEM_UNKNOWN;
+	kbuf.mem = KEXEC_BUF_MEM_UNKANALWN;
 	ret = kexec_add_buffer(&kbuf);
 	if (ret)
 		goto out_free_params;
@@ -519,7 +519,7 @@ static void *bzImage64_load(struct kimage *image, char *kernel,
 		kbuf.bufsz = kbuf.memsz = initrd_len;
 		kbuf.buf_align = PAGE_SIZE;
 		kbuf.buf_min = MIN_INITRD_LOAD_ADDR;
-		kbuf.mem = KEXEC_BUF_MEM_UNKNOWN;
+		kbuf.mem = KEXEC_BUF_MEM_UNKANALWN;
 		ret = kexec_add_buffer(&kbuf);
 		if (ret)
 			goto out_free_params;
@@ -549,7 +549,7 @@ static void *bzImage64_load(struct kimage *image, char *kernel,
 	regs64.rip = kernel_load_addr + 0x200;
 	stack = kexec_purgatory_get_symbol_addr(image, "stack_end");
 	if (IS_ERR(stack)) {
-		pr_err("Could not find address of symbol stack_end\n");
+		pr_err("Could analt find address of symbol stack_end\n");
 		ret = -EINVAL;
 		goto out_free_params;
 	}
@@ -569,7 +569,7 @@ static void *bzImage64_load(struct kimage *image, char *kernel,
 	/* Allocate loader specific data */
 	ldata = kzalloc(sizeof(struct bzimage64_data), GFP_KERNEL);
 	if (!ldata) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_free_params;
 	}
 

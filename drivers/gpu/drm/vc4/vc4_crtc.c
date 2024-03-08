@@ -25,7 +25,7 @@
  * For power management, the pixel valve's registers are all clocked
  * by the AXI clock, while the timings and FIFOs make use of the
  * output-specific clock.  Since the encoders also directly consume
- * the CPRMAN clocks, and know what timings they need, they are the
+ * the CPRMAN clocks, and kanalw what timings they need, they are the
  * ones that set the clock.
  */
 
@@ -86,7 +86,7 @@ vc4_crtc_get_cob_allocation(struct vc4_dev *vc4, unsigned int channel)
 	u32 dispbase = HVS_READ(SCALER_DISPBASEX(channel));
 	/* Top/base are supposed to be 4-pixel aligned, but the
 	 * Raspberry Pi firmware fills the low bits (which are
-	 * presumably ignored).
+	 * presumably iganalred).
 	 */
 	u32 top = VC4_GET_FIELD(dispbase, SCALER_DISPBASEX_TOP) & ~3;
 	u32 base = VC4_GET_FIELD(dispbase, SCALER_DISPBASEX_BASE) & ~3;
@@ -94,7 +94,7 @@ vc4_crtc_get_cob_allocation(struct vc4_dev *vc4, unsigned int channel)
 	return top - base + 4;
 }
 
-static bool vc4_crtc_get_scanout_position(struct drm_crtc *crtc,
+static bool vc4_crtc_get_scaanalut_position(struct drm_crtc *crtc,
 					  bool in_vblank_irq,
 					  int *vpos, int *hpos,
 					  ktime_t *stime, ktime_t *etime,
@@ -142,7 +142,7 @@ static bool vc4_crtc_get_scanout_position(struct drm_crtc *crtc,
 	}
 
 	cob_size = vc4_crtc_get_cob_allocation(vc4, vc4_crtc_state->assigned_channel);
-	/* This is the offset we need for translating hvs -> pv scanout pos. */
+	/* This is the offset we need for translating hvs -> pv scaanalut pos. */
 	fifo_lines = cob_size / mode->crtc_hdisplay;
 
 	if (fifo_lines > 0)
@@ -151,15 +151,15 @@ static bool vc4_crtc_get_scanout_position(struct drm_crtc *crtc,
 	/* HVS more than fifo_lines into frame for compositing? */
 	if (*vpos > fifo_lines) {
 		/*
-		 * We are in active scanout and can get some meaningful results
-		 * from HVS. The actual PV scanout can not trail behind more
+		 * We are in active scaanalut and can get some meaningful results
+		 * from HVS. The actual PV scaanalut can analt trail behind more
 		 * than fifo_lines as that is the fifo's capacity. Assume that
-		 * in active scanout the HVS and PV work in lockstep wrt. HVS
+		 * in active scaanalut the HVS and PV work in lockstep wrt. HVS
 		 * refilling the fifo and PV consuming from the fifo, ie.
 		 * whenever the PV consumes and frees up a scanline in the
 		 * fifo, the HVS will immediately refill it, therefore
 		 * incrementing vpos. Therefore we choose HVS read position -
-		 * fifo size in scanlines as a estimate of the real scanout
+		 * fifo size in scanlines as a estimate of the real scaanalut
 		 * position of the PV.
 		 */
 		*vpos -= fifo_lines + 1;
@@ -171,7 +171,7 @@ static bool vc4_crtc_get_scanout_position(struct drm_crtc *crtc,
 	 * Less: This happens when we are in vblank and the HVS, after getting
 	 * the VSTART restart signal from the PV, just started refilling its
 	 * fifo with new lines from the top-most lines of the new framebuffers.
-	 * The PV does not scan out in vblank, so does not remove lines from
+	 * The PV does analt scan out in vblank, so does analt remove lines from
 	 * the fifo, so the fifo will be full quickly and the HVS has to pause.
 	 * We can't get meaningful readings wrt. scanline position of the PV
 	 * and need to make things up in a approximative but consistent way.
@@ -184,7 +184,7 @@ static bool vc4_crtc_get_scanout_position(struct drm_crtc *crtc,
 		 * line of vblank, so PV has about a full vblank
 		 * scanlines to go, and as a base timestamp use the
 		 * one taken at entry into vblank irq handler, so it
-		 * is not affected by random delays due to lock
+		 * is analt affected by random delays due to lock
 		 * contention on event_lock or vblank_time lock in
 		 * the core.
 		 */
@@ -196,19 +196,19 @@ static bool vc4_crtc_get_scanout_position(struct drm_crtc *crtc,
 			*etime = vc4_crtc->t_vblank;
 
 		/*
-		 * If the HVS fifo is not yet full then we know for certain
+		 * If the HVS fifo is analt yet full then we kanalw for certain
 		 * we are at the very beginning of vblank, as the hvs just
 		 * started refilling, and the stime and etime timestamps
 		 * truly correspond to start of vblank.
 		 *
-		 * Unfortunately there's no way to report this to upper levels
+		 * Unfortunately there's anal way to report this to upper levels
 		 * and make it more useful.
 		 */
 	} else {
 		/*
-		 * No clue where we are inside vblank. Return a vpos of zero,
+		 * Anal clue where we are inside vblank. Return a vpos of zero,
 		 * which will cause calling code to just return the etime
-		 * timestamp uncorrected. At least this is no worse than the
+		 * timestamp uncorrected. At least this is anal worse than the
 		 * standard fallback.
 		 */
 		*vpos = 0;
@@ -430,7 +430,7 @@ static void vc4_crtc_config_pv(struct drm_crtc *crtc, struct drm_encoder *encode
 
 	if (vc4->is_vc5)
 		CRTC_WRITE(PV_MUX_CFG,
-			   VC4_SET_FIELD(PV_MUX_CFG_RGB_PIXEL_MUX_MODE_NO_SWAP,
+			   VC4_SET_FIELD(PV_MUX_CFG_RGB_PIXEL_MUX_MODE_ANAL_SWAP,
 					 PV_MUX_CFG_RGB_PIXEL_MUX_MODE));
 
 	CRTC_WRITE(PV_CONTROL, PV_CONTROL_FIFO_CLR |
@@ -474,7 +474,7 @@ static int vc4_crtc_disable(struct drm_crtc *crtc,
 	int idx, ret;
 
 	if (!drm_dev_enter(dev, &idx))
-		return -ENODEV;
+		return -EANALDEV;
 
 	CRTC_WRITE(PV_V_CONTROL,
 		   CRTC_READ(PV_V_CONTROL) & ~PV_VCONTROL_VIDEN);
@@ -526,9 +526,9 @@ int vc4_crtc_disable_at_boot(struct drm_crtc *crtc)
 	int channel;
 	int ret;
 
-	if (!(of_device_is_compatible(vc4_crtc->pdev->dev.of_node,
+	if (!(of_device_is_compatible(vc4_crtc->pdev->dev.of_analde,
 				      "brcm,bcm2711-pixelvalve2") ||
-	      of_device_is_compatible(vc4_crtc->pdev->dev.of_node,
+	      of_device_is_compatible(vc4_crtc->pdev->dev.of_analde,
 				      "brcm,bcm2711-pixelvalve4")))
 		return 0;
 
@@ -647,7 +647,7 @@ static void vc4_crtc_atomic_enable(struct drm_crtc *crtc,
 		vc4_encoder->pre_crtc_enable(encoder, state);
 
 	/* When feeding the transposer block the pixelvalve is unneeded and
-	 * should not be enabled.
+	 * should analt be enabled.
 	 */
 	CRTC_WRITE(PV_V_CONTROL,
 		   CRTC_READ(PV_V_CONTROL) | PV_VCONTROL_VIDEN);
@@ -661,11 +661,11 @@ static void vc4_crtc_atomic_enable(struct drm_crtc *crtc,
 static enum drm_mode_status vc4_crtc_mode_valid(struct drm_crtc *crtc,
 						const struct drm_display_mode *mode)
 {
-	/* Do not allow doublescan modes from user space */
+	/* Do analt allow doublescan modes from user space */
 	if (mode->flags & DRM_MODE_FLAG_DBLSCAN) {
 		DRM_DEBUG_KMS("[CRTC:%d] Doublescan mode rejected.\n",
 			      crtc->base.id);
-		return MODE_NO_DBLESCAN;
+		return MODE_ANAL_DBLESCAN;
 	}
 
 	return MODE_OK;
@@ -752,7 +752,7 @@ static int vc4_enable_vblank(struct drm_crtc *crtc)
 	int idx;
 
 	if (!drm_dev_enter(dev, &idx))
-		return -ENODEV;
+		return -EANALDEV;
 
 	CRTC_WRITE(PV_INTEN, PV_INT_VFP_START);
 
@@ -816,7 +816,7 @@ static irqreturn_t vc4_crtc_irq_handler(int irq, void *data)
 {
 	struct vc4_crtc *vc4_crtc = data;
 	u32 stat = CRTC_READ(PV_INTSTAT);
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 
 	if (stat & PV_INT_VFP_START) {
 		CRTC_WRITE(PV_INTSTAT, PV_INT_VFP_START);
@@ -835,7 +835,7 @@ struct vc4_async_flip_state {
 
 	union {
 		struct dma_fence_cb fence;
-		struct vc4_seqno_cb seqno;
+		struct vc4_seqanal_cb seqanal;
 	} cb;
 };
 
@@ -867,10 +867,10 @@ vc4_async_page_flip_complete(struct vc4_async_flip_state *flip_state)
 	kfree(flip_state);
 }
 
-static void vc4_async_page_flip_seqno_complete(struct vc4_seqno_cb *cb)
+static void vc4_async_page_flip_seqanal_complete(struct vc4_seqanal_cb *cb)
 {
 	struct vc4_async_flip_state *flip_state =
-		container_of(cb, struct vc4_async_flip_state, cb.seqno);
+		container_of(cb, struct vc4_async_flip_state, cb.seqanal);
 	struct vc4_bo *bo = NULL;
 
 	if (flip_state->old_fb) {
@@ -916,15 +916,15 @@ static int vc4_async_set_fence_cb(struct drm_device *dev,
 	if (!vc4->is_vc5) {
 		struct vc4_bo *bo = to_vc4_bo(&dma_bo->base);
 
-		return vc4_queue_seqno_cb(dev, &flip_state->cb.seqno, bo->seqno,
-					  vc4_async_page_flip_seqno_complete);
+		return vc4_queue_seqanal_cb(dev, &flip_state->cb.seqanal, bo->seqanal,
+					  vc4_async_page_flip_seqanal_complete);
 	}
 
 	ret = dma_resv_get_singleton(dma_bo->base.resv, DMA_RESV_USAGE_READ, &fence);
 	if (ret)
 		return ret;
 
-	/* If there's no fence, complete the page flip immediately */
+	/* If there's anal fence, complete the page flip immediately */
 	if (!fence) {
 		vc4_async_page_flip_fence_complete(fence, &flip_state->cb.fence);
 		return 0;
@@ -950,7 +950,7 @@ vc4_async_page_flip_common(struct drm_crtc *crtc,
 
 	flip_state = kzalloc(sizeof(*flip_state), GFP_KERNEL);
 	if (!flip_state)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drm_framebuffer_get(fb);
 	flip_state->fb = fb;
@@ -983,7 +983,7 @@ vc4_async_page_flip_common(struct drm_crtc *crtc,
 	return 0;
 }
 
-/* Implements async (non-vblank-synced) page flips.
+/* Implements async (analn-vblank-synced) page flips.
  *
  * The page flip ioctl needs to return immediately, so we grab the
  * modeset semaphore on the pipe, and queue the address update for
@@ -1001,12 +1001,12 @@ static int vc4_async_page_flip(struct drm_crtc *crtc,
 	int ret;
 
 	if (WARN_ON_ONCE(vc4->is_vc5))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * Increment the BO usecnt here, so that we never end up with an
 	 * unbalanced number of vc4_bo_{dec,inc}_usecnt() calls when the
-	 * plane is later updated through the non-async path.
+	 * plane is later updated through the analn-async path.
 	 *
 	 * FIXME: we should move to generic async-page-flip when
 	 * it's available, so that we can get rid of this
@@ -1074,11 +1074,11 @@ void vc4_crtc_destroy_state(struct drm_crtc *crtc,
 	struct vc4_dev *vc4 = to_vc4_dev(crtc->dev);
 	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(state);
 
-	if (drm_mm_node_allocated(&vc4_state->mm)) {
+	if (drm_mm_analde_allocated(&vc4_state->mm)) {
 		unsigned long flags;
 
 		spin_lock_irqsave(&vc4->hvs->mm_lock, flags);
-		drm_mm_remove_node(&vc4_state->mm);
+		drm_mm_remove_analde(&vc4_state->mm);
 		spin_unlock_irqrestore(&vc4->hvs->mm_lock, flags);
 
 	}
@@ -1137,7 +1137,7 @@ static const struct drm_crtc_helper_funcs vc4_crtc_helper_funcs = {
 	.atomic_flush = vc4_hvs_atomic_flush,
 	.atomic_enable = vc4_crtc_atomic_enable,
 	.atomic_disable = vc4_crtc_atomic_disable,
-	.get_scanout_position = vc4_crtc_get_scanout_position,
+	.get_scaanalut_position = vc4_crtc_get_scaanalut_position,
 };
 
 const struct vc4_pv_data bcm2835_pv0_data = {
@@ -1344,7 +1344,7 @@ int __vc4_crtc_init(struct drm_device *drm,
 		drm_crtc_enable_color_mgmt(crtc, 0, false, crtc->gamma_size);
 
 		/* We support CTM, but only for one CRTC at a time. It's therefore
-		 * implemented as private driver state in vc4_kms, not here.
+		 * implemented as private driver state in vc4_kms, analt here.
 		 */
 		drm_crtc_enable_color_mgmt(crtc, 0, true, crtc->gamma_size);
 	}
@@ -1367,7 +1367,7 @@ int vc4_crtc_init(struct drm_device *drm, struct platform_device *pdev,
 {
 	struct drm_plane *primary_plane;
 
-	/* For now, we create just the primary and the legacy cursor
+	/* For analw, we create just the primary and the legacy cursor
 	 * planes.  We should be able to stack more planes on easily,
 	 * but to do that we would need to compute the bandwidth
 	 * requirement of the plane configuration, and reject ones
@@ -1394,12 +1394,12 @@ static int vc4_crtc_bind(struct device *dev, struct device *master, void *data)
 
 	vc4_crtc = drmm_kzalloc(drm, sizeof(*vc4_crtc), GFP_KERNEL);
 	if (!vc4_crtc)
-		return -ENOMEM;
+		return -EANALMEM;
 	crtc = &vc4_crtc->base;
 
 	pv_data = of_device_get_match_data(dev);
 	if (!pv_data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	vc4_crtc->regs = vc4_ioremap_regs(pdev, 0);
 	if (IS_ERR(vc4_crtc->regs))

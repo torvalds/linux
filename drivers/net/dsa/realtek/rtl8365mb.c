@@ -6,7 +6,7 @@
  *
  * The RTL8365MB-VC is a 4+1 port 10/100/1000M switch controller. It includes 4
  * integrated PHYs for the user facing ports, and an extension interface which
- * can be connected to the CPU - or another PHY - via either MII, RMII, or
+ * can be connected to the CPU - or aanalther PHY - via either MII, RMII, or
  * RGMII. The switch is configured via the Realtek Simple Management Interface
  * (SMI), which uses the MDIO/MDC lines.
  *
@@ -36,11 +36,11 @@
  * kernel. Netdevices are created for the user ports, as are PHY devices for
  * their integrated PHYs. The device tree firmware should also specify the link
  * partner of the extension port - either via a fixed-link or other phy-handle.
- * See the device tree bindings for more detailed information. Note that the
- * driver has only been tested with a fixed-link, but in principle it should not
+ * See the device tree bindings for more detailed information. Analte that the
+ * driver has only been tested with a fixed-link, but in principle it should analt
  * matter.
  *
- * NOTE: Currently, only the RGMII interface is implemented in this driver.
+ * ANALTE: Currently, only the RGMII interface is implemented in this driver.
  *
  * The interrupt line is asserted on link UP/DOWN events. The driver creates a
  * custom irqchip to handle this interrupt and demultiplex the events by reading
@@ -52,14 +52,14 @@
  * the driver will manually reprogram some registers using jam tables to reach
  * an initial state defined by the vendor driver.
  *
- * This Linux driver is written based on an OS-agnostic vendor driver from
+ * This Linux driver is written based on an OS-aganalstic vendor driver from
  * Realtek. The reference GPL-licensed sources can be found in the OpenWrt
  * source tree under the name rtl8367c. The vendor driver claims to support a
  * number of similar switch controllers from Realtek, but the only hardware we
- * have is the RTL8365MB-VC. Moreover, there does not seem to be any chip under
+ * have is the RTL8365MB-VC. Moreover, there does analt seem to be any chip under
  * the name RTL8367C. Although one wishes that the 'C' stood for some kind of
  * common hardware revision, there exist examples of chips with the suffix -VC
- * which are explicitly not supported by the rtl8367c driver and which instead
+ * which are explicitly analt supported by the rtl8367c driver and which instead
  * require the rtl8367d vendor driver. With all this uncertainty, the driver has
  * been modestly named rtl8365mb. Future implementors may wish to rename things
  * accordingly.
@@ -84,7 +84,7 @@
  *  - RTL8310SR
  *
  * Some of the register logic for these additional chips has been skipped over
- * while implementing this driver. It is therefore not possible to assume that
+ * while implementing this driver. It is therefore analt possible to assume that
  * things will work out-of-the-box for other chips, and a careful review of the
  * vendor driver may be needed to expand support. The RTL8365MB-VC seems to be
  * one of the simpler chips.
@@ -303,11 +303,11 @@
 #define   RTL8365MB_MIB_CTRL0_RESET_MASK	0x0002
 #define   RTL8365MB_MIB_CTRL0_BUSY_MASK		0x0001
 
-/* The DSA callback .get_stats64 runs in atomic context, so we are not allowed
+/* The DSA callback .get_stats64 runs in atomic context, so we are analt allowed
  * to block. On the other hand, accessing MIB counters absolutely requires us to
  * block. The solution is thus to schedule work which polls the MIB counters
- * asynchronously and updates some private data, which the callback can then
- * fetch atomically. Three seconds should be a good enough polling interval.
+ * asynchroanalusly and updates some private data, which the callback can then
+ * fetch atomically. Three seconds should be a good eanalugh polling interval.
  */
 #define RTL8365MB_STATS_INTERVAL_JIFFIES	(3 * HZ)
 
@@ -316,7 +316,7 @@ enum rtl8365mb_mib_counter_index {
 	RTL8365MB_MIB_dot3StatsFCSErrors,
 	RTL8365MB_MIB_dot3StatsSymbolErrors,
 	RTL8365MB_MIB_dot3InPauseFrames,
-	RTL8365MB_MIB_dot3ControlInUnknownOpcodes,
+	RTL8365MB_MIB_dot3ControlInUnkanalwnOpcodes,
 	RTL8365MB_MIB_etherStatsFragments,
 	RTL8365MB_MIB_etherStatsJabbers,
 	RTL8365MB_MIB_ifInUcastPkts,
@@ -369,7 +369,7 @@ enum rtl8365mb_mib_counter_index {
 	RTL8365MB_MIB_outMldLeaves,
 	RTL8365MB_MIB_outMldGeneralQuery,
 	RTL8365MB_MIB_outMldSpecificQuery,
-	RTL8365MB_MIB_inKnownMulticastPkts,
+	RTL8365MB_MIB_inKanalwnMulticastPkts,
 	RTL8365MB_MIB_END,
 };
 
@@ -387,7 +387,7 @@ static struct rtl8365mb_mib_counter rtl8365mb_mib_counters[] = {
 	RTL8365MB_MAKE_MIB_COUNTER(4, 2, dot3StatsFCSErrors),
 	RTL8365MB_MAKE_MIB_COUNTER(6, 2, dot3StatsSymbolErrors),
 	RTL8365MB_MAKE_MIB_COUNTER(8, 2, dot3InPauseFrames),
-	RTL8365MB_MAKE_MIB_COUNTER(10, 2, dot3ControlInUnknownOpcodes),
+	RTL8365MB_MAKE_MIB_COUNTER(10, 2, dot3ControlInUnkanalwnOpcodes),
 	RTL8365MB_MAKE_MIB_COUNTER(12, 2, etherStatsFragments),
 	RTL8365MB_MAKE_MIB_COUNTER(14, 2, etherStatsJabbers),
 	RTL8365MB_MAKE_MIB_COUNTER(16, 2, ifInUcastPkts),
@@ -440,7 +440,7 @@ static struct rtl8365mb_mib_counter rtl8365mb_mib_counters[] = {
 	RTL8365MB_MAKE_MIB_COUNTER(116, 2, outMldLeaves),
 	RTL8365MB_MAKE_MIB_COUNTER(118, 2, outMldGeneralQuery),
 	RTL8365MB_MAKE_MIB_COUNTER(120, 2, outMldSpecificQuery),
-	RTL8365MB_MAKE_MIB_COUNTER(122, 2, inKnownMulticastPkts),
+	RTL8365MB_MAKE_MIB_COUNTER(122, 2, inKanalwnMulticastPkts),
 };
 
 static_assert(ARRAY_SIZE(rtl8365mb_mib_counters) == RTL8365MB_MIB_END);
@@ -503,7 +503,7 @@ struct rtl8365mb_extint {
  * @jam_size: size of the chip's jam table
  *
  * These data are specific to a given chip in the family of switches supported
- * by this driver. When adding support for another chip in the family, a new
+ * by this driver. When adding support for aanalther chip in the family, a new
  * chip info should be added to the rtl8365mb_chip_infos array.
  */
 struct rtl8365mb_chip_info {
@@ -566,7 +566,7 @@ enum rtl8365mb_stp_state {
 enum rtl8365mb_cpu_insert {
 	RTL8365MB_CPU_INSERT_TO_ALL = 0,
 	RTL8365MB_CPU_INSERT_TO_TRAPPING = 1,
-	RTL8365MB_CPU_INSERT_TO_NONE = 2,
+	RTL8365MB_CPU_INSERT_TO_ANALNE = 2,
 };
 
 enum rtl8365mb_cpu_position {
@@ -648,7 +648,7 @@ static int rtl8365mb_phy_poll_busy(struct realtek_priv *priv)
 {
 	u32 val;
 
-	return regmap_read_poll_timeout(priv->map_nolock,
+	return regmap_read_poll_timeout(priv->map_anallock,
 					RTL8365MB_INDIRECT_ACCESS_STATUS_REG,
 					val, !val, 10, 100);
 }
@@ -662,7 +662,7 @@ static int rtl8365mb_phy_ocp_prepare(struct realtek_priv *priv, int phy,
 	/* Set OCP prefix */
 	val = FIELD_GET(RTL8365MB_PHY_OCP_ADDR_PREFIX_MASK, ocp_addr);
 	ret = regmap_update_bits(
-		priv->map_nolock, RTL8365MB_GPHY_OCP_MSB_0_REG,
+		priv->map_anallock, RTL8365MB_GPHY_OCP_MSB_0_REG,
 		RTL8365MB_GPHY_OCP_MSB_0_CFG_CPU_OCPADR_MASK,
 		FIELD_PREP(RTL8365MB_GPHY_OCP_MSB_0_CFG_CPU_OCPADR_MASK, val));
 	if (ret)
@@ -675,7 +675,7 @@ static int rtl8365mb_phy_ocp_prepare(struct realtek_priv *priv, int phy,
 			  ocp_addr >> 1);
 	val |= FIELD_PREP(RTL8365MB_INDIRECT_ACCESS_ADDRESS_OCPADR_9_6_MASK,
 			  ocp_addr >> 6);
-	ret = regmap_write(priv->map_nolock,
+	ret = regmap_write(priv->map_anallock,
 			   RTL8365MB_INDIRECT_ACCESS_ADDRESS_REG, val);
 	if (ret)
 		return ret;
@@ -704,7 +704,7 @@ static int rtl8365mb_phy_ocp_read(struct realtek_priv *priv, int phy,
 			 RTL8365MB_INDIRECT_ACCESS_CTRL_CMD_VALUE) |
 	      FIELD_PREP(RTL8365MB_INDIRECT_ACCESS_CTRL_RW_MASK,
 			 RTL8365MB_INDIRECT_ACCESS_CTRL_RW_READ);
-	ret = regmap_write(priv->map_nolock, RTL8365MB_INDIRECT_ACCESS_CTRL_REG,
+	ret = regmap_write(priv->map_anallock, RTL8365MB_INDIRECT_ACCESS_CTRL_REG,
 			   val);
 	if (ret)
 		goto out;
@@ -714,7 +714,7 @@ static int rtl8365mb_phy_ocp_read(struct realtek_priv *priv, int phy,
 		goto out;
 
 	/* Get PHY register data */
-	ret = regmap_read(priv->map_nolock,
+	ret = regmap_read(priv->map_anallock,
 			  RTL8365MB_INDIRECT_ACCESS_READ_DATA_REG, &val);
 	if (ret)
 		goto out;
@@ -744,7 +744,7 @@ static int rtl8365mb_phy_ocp_write(struct realtek_priv *priv, int phy,
 		goto out;
 
 	/* Set PHY register data */
-	ret = regmap_write(priv->map_nolock,
+	ret = regmap_write(priv->map_anallock,
 			   RTL8365MB_INDIRECT_ACCESS_WRITE_DATA_REG, data);
 	if (ret)
 		goto out;
@@ -754,7 +754,7 @@ static int rtl8365mb_phy_ocp_write(struct realtek_priv *priv, int phy,
 			 RTL8365MB_INDIRECT_ACCESS_CTRL_CMD_VALUE) |
 	      FIELD_PREP(RTL8365MB_INDIRECT_ACCESS_CTRL_RW_MASK,
 			 RTL8365MB_INDIRECT_ACCESS_CTRL_RW_WRITE);
-	ret = regmap_write(priv->map_nolock, RTL8365MB_INDIRECT_ACCESS_CTRL_REG,
+	ret = regmap_write(priv->map_anallock, RTL8365MB_INDIRECT_ACCESS_CTRL_REG,
 			   val);
 	if (ret)
 		goto out;
@@ -878,7 +878,7 @@ static int rtl8365mb_ext_config_rgmii(struct realtek_priv *priv, int port,
 {
 	const struct rtl8365mb_extint *extint =
 		rtl8365mb_get_port_extint(priv, port);
-	struct device_node *dn;
+	struct device_analde *dn;
 	struct dsa_port *dp;
 	int tx_delay = 0;
 	int rx_delay = 0;
@@ -886,7 +886,7 @@ static int rtl8365mb_ext_config_rgmii(struct realtek_priv *priv, int port,
 	int ret;
 
 	if (!extint)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dp = dsa_to_port(priv->ds, port);
 	dn = dp->dn;
@@ -897,9 +897,9 @@ static int rtl8365mb_ext_config_rgmii(struct realtek_priv *priv, int port,
 	 * configuration settings:
 	 *
 	 *   TX delay:
-	 *     0 = no delay, 1 = 2 ns delay
+	 *     0 = anal delay, 1 = 2 ns delay
 	 *   RX delay:
-	 *     0 = no delay, 7 = maximum delay
+	 *     0 = anal delay, 7 = maximum delay
 	 *     Each step is approximately 0.3 ns, so the maximum delay is about
 	 *     2.1 ns.
 	 *
@@ -909,7 +909,7 @@ static int rtl8365mb_ext_config_rgmii(struct realtek_priv *priv, int port,
 	 *
 	 * Only configure an RGMII TX (resp. RX) delay if the
 	 * tx-internal-delay-ps (resp. rx-internal-delay-ps) OF property is
-	 * specified. We ignore the detail of the RGMII interface mode
+	 * specified. We iganalre the detail of the RGMII interface mode
 	 * (RGMII_{RXID, TXID, etc.}), as this is considered to be a PHY-only
 	 * property.
 	 */
@@ -969,7 +969,7 @@ static int rtl8365mb_ext_config_forcemode(struct realtek_priv *priv, int port,
 	int ret;
 
 	if (!extint)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (link) {
 		/* Force the link up with the desired configuration */
@@ -1047,7 +1047,7 @@ static void rtl8365mb_phylink_get_caps(struct dsa_switch *ds, int port,
 	}
 
 	/* Populate according to the modes supported by _this driver_,
-	 * not necessarily the modes supported by the hardware, some of
+	 * analt necessarily the modes supported by the hardware, some of
 	 * which remain unimplemented.
 	 */
 
@@ -1145,7 +1145,7 @@ static int rtl8365mb_port_change_mtu(struct dsa_switch *ds, int port,
 
 	/* When a new MTU is set, DSA always sets the CPU port's MTU to the
 	 * largest MTU of the user ports. Because the switch only has a global
-	 * RX length register, only allowing CPU port here is enough.
+	 * RX length register, only allowing CPU port here is eanalugh.
 	 */
 	if (!dsa_is_cpu_port(ds, port))
 		return 0;
@@ -1263,7 +1263,7 @@ static int rtl8365mb_mib_counter_read(struct realtek_priv *priv, int port,
 		tmpvalue = ((tmpvalue) << 16) | (val & 0xFFFF);
 	}
 
-	/* Only commit the result if no error occurred */
+	/* Only commit the result if anal error occurred */
 	*mibvalue = tmpvalue;
 
 	return 0;
@@ -1310,7 +1310,7 @@ static void rtl8365mb_get_strings(struct dsa_switch *ds, int port, u32 stringset
 static int rtl8365mb_get_sset_count(struct dsa_switch *ds, int port, int sset)
 {
 	if (sset != ETH_SS_STATS)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return RTL8365MB_MIB_END;
 }
@@ -1377,7 +1377,7 @@ static void rtl8365mb_get_mac_stats(struct dsa_switch *ds, int port,
 	mutex_unlock(&mb->mib_lock);
 
 	/* The RTL8365MB-VC exposes MIB objects, which we have to translate into
-	 * IEEE 802.3 Managed Objects. This is not always completely faithful,
+	 * IEEE 802.3 Managed Objects. This is analt always completely faithful,
 	 * but we try out best. See RFC 3635 for a detailed treatment of the
 	 * subject.
 	 */
@@ -1424,7 +1424,7 @@ static void rtl8365mb_get_ctrl_stats(struct dsa_switch *ds, int port,
 	struct rtl8365mb *mb;
 
 	mb = priv->chip_data;
-	mib = &rtl8365mb_mib_counters[RTL8365MB_MIB_dot3ControlInUnknownOpcodes];
+	mib = &rtl8365mb_mib_counters[RTL8365MB_MIB_dot3ControlInUnkanalwnOpcodes];
 
 	mutex_lock(&mb->mib_lock);
 	rtl8365mb_mib_counter_read(priv, port, mib->offset, mib->length,
@@ -1627,7 +1627,7 @@ static irqreturn_t rtl8365mb_irq(int irq, void *data)
 	}
 
 	if (!line_changes)
-		goto out_none;
+		goto out_analne;
 
 	for_each_set_bit(line, &line_changes, priv->num_ports) {
 		int child_irq = irq_find_mapping(priv->irqdomain, line);
@@ -1640,8 +1640,8 @@ static irqreturn_t rtl8365mb_irq(int irq, void *data)
 out_error:
 	dev_err(priv->dev, "failed to read interrupt status: %d\n", ret);
 
-out_none:
-	return IRQ_NONE;
+out_analne:
+	return IRQ_ANALNE;
 }
 
 static struct irq_chip rtl8365mb_irq_chip = {
@@ -1655,7 +1655,7 @@ static int rtl8365mb_irq_map(struct irq_domain *domain, unsigned int irq,
 	irq_set_chip_data(irq, domain->host_data);
 	irq_set_chip_and_handler(irq, &rtl8365mb_irq_chip, handle_simple_irq);
 	irq_set_nested_thread(irq, 1);
-	irq_set_noprobe(irq);
+	irq_set_analprobe(irq);
 
 	return 0;
 }
@@ -1694,7 +1694,7 @@ static int rtl8365mb_irq_disable(struct realtek_priv *priv)
 static int rtl8365mb_irq_setup(struct realtek_priv *priv)
 {
 	struct rtl8365mb *mb = priv->chip_data;
-	struct device_node *intc;
+	struct device_analde *intc;
 	u32 irq_trig;
 	int virq;
 	int irq;
@@ -1702,9 +1702,9 @@ static int rtl8365mb_irq_setup(struct realtek_priv *priv)
 	int ret;
 	int i;
 
-	intc = of_get_child_by_name(priv->dev->of_node, "interrupt-controller");
+	intc = of_get_child_by_name(priv->dev->of_analde, "interrupt-controller");
 	if (!intc) {
-		dev_err(priv->dev, "missing child interrupt-controller node\n");
+		dev_err(priv->dev, "missing child interrupt-controller analde\n");
 		return -EINVAL;
 	}
 
@@ -1715,15 +1715,15 @@ static int rtl8365mb_irq_setup(struct realtek_priv *priv)
 			dev_err(priv->dev, "failed to get parent irq: %d\n",
 				irq);
 		ret = irq ? irq : -EINVAL;
-		goto out_put_node;
+		goto out_put_analde;
 	}
 
 	priv->irqdomain = irq_domain_add_linear(intc, priv->num_ports,
 						&rtl8365mb_irqdomain_ops, priv);
 	if (!priv->irqdomain) {
 		dev_err(priv->dev, "failed to add irq domain\n");
-		ret = -ENOMEM;
-		goto out_put_node;
+		ret = -EANALMEM;
+		goto out_put_analde;
 	}
 
 	for (i = 0; i < priv->num_ports; i++) {
@@ -1780,14 +1780,14 @@ static int rtl8365mb_irq_setup(struct realtek_priv *priv)
 		goto out_remove_irqdomain;
 	}
 
-	/* Store the irq so that we know to free it during teardown */
+	/* Store the irq so that we kanalw to free it during teardown */
 	mb->irq = irq;
 
 	ret = rtl8365mb_irq_enable(priv);
 	if (ret)
 		goto out_free_irq;
 
-	of_node_put(intc);
+	of_analde_put(intc);
 
 	return 0;
 
@@ -1804,8 +1804,8 @@ out_remove_irqdomain:
 	irq_domain_remove(priv->irqdomain);
 	priv->irqdomain = NULL;
 
-out_put_node:
-	of_node_put(intc);
+out_put_analde:
+	of_analde_put(intc);
 
 	return ret;
 }
@@ -1882,11 +1882,11 @@ static int rtl8365mb_change_tag_protocol(struct dsa_switch *ds,
 		break;
 	/* The switch also supports a 4-byte format, similar to rtl4a but with
 	 * the same 0x04 8-bit version and probably 8-bit port source/dest.
-	 * There is no public doc about it. Not supported yet and it will probably
+	 * There is anal public doc about it. Analt supported yet and it will probably
 	 * never be.
 	 */
 	default:
-		return -EPROTONOSUPPORT;
+		return -EPROTOANALSUPPORT;
 	}
 
 	return rtl8365mb_cpu_config(priv);
@@ -1926,7 +1926,7 @@ static int rtl8365mb_reset_chip(struct realtek_priv *priv)
 {
 	u32 val;
 
-	priv->write_reg_noack(priv, RTL8365MB_CHIP_RESET_REG,
+	priv->write_reg_analack(priv, RTL8365MB_CHIP_RESET_REG,
 			      FIELD_PREP(RTL8365MB_CHIP_RESET_HW_MASK, 1));
 
 	/* Realtek documentation says the chip needs 1 second to reset. Sleep
@@ -1968,7 +1968,7 @@ static int rtl8365mb_setup(struct dsa_switch *ds)
 	if (ret == -EPROBE_DEFER)
 		return ret;
 	else if (ret)
-		dev_info(priv->dev, "no interrupt support\n");
+		dev_info(priv->dev, "anal interrupt support\n");
 
 	/* Configure CPU tagging */
 	dsa_switch_for_each_cpu_port(cpu_dp, priv->ds) {
@@ -2017,7 +2017,7 @@ static int rtl8365mb_setup(struct dsa_switch *ds)
 	if (priv->setup_interface) {
 		ret = priv->setup_interface(ds);
 		if (ret) {
-			dev_err(priv->dev, "could not set up MDIO bus\n");
+			dev_err(priv->dev, "could analt set up MDIO bus\n");
 			goto out_teardown_irq;
 		}
 	}
@@ -2097,7 +2097,7 @@ static int rtl8365mb_detect(struct realtek_priv *priv)
 		dev_err(priv->dev,
 			"unrecognized switch (id=0x%04x, ver=0x%04x)", chip_id,
 			chip_ver);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	dev_info(priv->dev, "found an %s switch\n", mb->chip_info->name);

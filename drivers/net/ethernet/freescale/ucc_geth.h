@@ -83,7 +83,7 @@ struct ucc_geth {
 	u8 res4[0x2];
 	u32 tmca;		/* Total number of frames that were transmitted
 				   successfully with the group address bit set
-				   that are not broadcast frames */
+				   that are analt broadcast frames */
 	u32 tbca;		/* Total number of frames transmitted
 				   successfully that had destination address
 				   field equal to the broadcast address */
@@ -95,7 +95,7 @@ struct ucc_geth {
 				   never even reach the UCC */
 	u32 rmca;		/* Total number of frames that were received
 				   successfully with the group address bit set
-				   that are not broadcast frames */
+				   that are analt broadcast frames */
 	u32 rbca;		/* Total number of frames received successfully
 				   that had destination address equal to the
 				   broadcast address */
@@ -126,7 +126,7 @@ struct ucc_geth {
 								   features */
 #define REMODER_VLAN_OPERATION_TAGGED_SHIFT     (31-9 )	/* vlan operation
 							   tagged << shift */
-#define REMODER_VLAN_OPERATION_NON_TAGGED_SHIFT (31-10)	/* vlan operation non
+#define REMODER_VLAN_OPERATION_ANALN_TAGGED_SHIFT (31-10)	/* vlan operation analn
 							   tagged << shift */
 #define REMODER_RX_QOS_MODE_SHIFT               (31-15)	/* rx QoS mode << shift
 							 */
@@ -186,7 +186,7 @@ struct ucc_geth {
 #define	ENET_TBI_MII_ANNPT	0x07	/* AN next page transmit */
 #define	ENET_TBI_MII_ANLPANP	0x08	/* AN link partner ability next page */
 #define	ENET_TBI_MII_EXST	0x0F	/* Extended status */
-#define	ENET_TBI_MII_JD		0x10	/* Jitter diagnostics */
+#define	ENET_TBI_MII_JD		0x10	/* Jitter diaganalstics */
 #define	ENET_TBI_MII_TBICON	0x11	/* TBI control */
 
 /* TBI MDIO register bit fields*/
@@ -253,10 +253,10 @@ struct ucc_geth {
 								   mask */
 #define MACCFG2_PAD_CRC                         0x00000004
 #define MACCFG2_CRC_EN                          0x00000002
-#define MACCFG2_PAD_AND_CRC_MODE_NONE           0x00000000	/* Neither
+#define MACCFG2_PAD_AND_CRC_MODE_ANALNE           0x00000000	/* Neither
 								   Padding
 								   short frames
-								   nor CRC */
+								   analr CRC */
 #define MACCFG2_PAD_AND_CRC_MODE_CRC_ONLY       0x00000002	/* Append CRC
 								   only */
 #define MACCFG2_PAD_AND_CRC_MODE_PAD_AND_CRC    0x00000004
@@ -272,12 +272,12 @@ struct ucc_geth {
 								   bits */
 
 /* UCC GETH IPGIFG (Inter-frame Gap / Inter-Frame Gap Register) */
-#define IPGIFG_NON_BACK_TO_BACK_IFG_PART1_SHIFT (31 -  7)	/* Non
+#define IPGIFG_ANALN_BACK_TO_BACK_IFG_PART1_SHIFT (31 -  7)	/* Analn
 								   back-to-back
 								   inter frame
 								   gap part 1.
 								   << shift */
-#define IPGIFG_NON_BACK_TO_BACK_IFG_PART2_SHIFT (31 - 15)	/* Non
+#define IPGIFG_ANALN_BACK_TO_BACK_IFG_PART2_SHIFT (31 - 15)	/* Analn
 								   back-to-back
 								   inter frame
 								   gap part 2.
@@ -289,10 +289,10 @@ struct ucc_geth {
 								   inter frame
 								   gap << shift
 								 */
-#define IPGIFG_NON_BACK_TO_BACK_IFG_PART1_MAX   127	/* Non back-to-back
+#define IPGIFG_ANALN_BACK_TO_BACK_IFG_PART1_MAX   127	/* Analn back-to-back
 							   inter frame gap part
 							   1. max val */
-#define IPGIFG_NON_BACK_TO_BACK_IFG_PART2_MAX   127	/* Non back-to-back
+#define IPGIFG_ANALN_BACK_TO_BACK_IFG_PART2_MAX   127	/* Analn back-to-back
 							   inter frame gap part
 							   2. max val */
 #define IPGIFG_MINIMUM_IFG_ENFORCEMENT_MAX      255	/* Mimimum IFG
@@ -318,10 +318,10 @@ struct ucc_geth {
 								   Binary
 								   Exponential
 								   Backoff */
-#define HALFDUP_BACK_PRESSURE_NO_BACKOFF        0x00040000	/* Back
-								   pressure no
+#define HALFDUP_BACK_PRESSURE_ANAL_BACKOFF        0x00040000	/* Back
+								   pressure anal
 								   backoff */
-#define HALFDUP_NO_BACKOFF                      0x00020000	/* No Backoff */
+#define HALFDUP_ANAL_BACKOFF                      0x00020000	/* Anal Backoff */
 #define HALFDUP_EXCESSIVE_DEFER                 0x00010000	/* Excessive
 								   Defer */
 #define HALFDUP_MAX_RETRANSMISSION_SHIFT        (31 - 19)	/* Maximum
@@ -468,9 +468,9 @@ struct ucc_geth_scheduler {
 	u32 time;		/* temporary variable handled by QE */
 	u32 ttl;		/* temporary variable handled by QE */
 	u32 mblinterval;	/* max burst length interval */
-	u16 nortsrbytetime;	/* normalized value of byte time in tsr units */
-	u8 fracsiz;		/* radix 2 log value of denom. of
-				   NorTSRByteTime */
+	u16 analrtsrbytetime;	/* analrmalized value of byte time in tsr units */
+	u8 fracsiz;		/* radix 2 log value of deanalm. of
+				   AnalrTSRByteTime */
 	u8 res0[1];
 	u8 strictpriorityq;	/* Strict Priority Mask register */
 	u8 txasap;		/* Transmit ASAP register */
@@ -488,7 +488,7 @@ struct ucc_geth_tx_firmware_statistics_pram {
 	u32 latecoltxfr;	/* late collision */
 	u32 frabortduecol;	/* frames aborted due to transmit collision */
 	u32 frlostinmactxer;	/* frames lost due to internal MAC error
-				   transmission that are not counted on any
+				   transmission that are analt counted on any
 				   other counter */
 	u32 carriersenseertx;	/* carrier sense error */
 	u32 frtxok;		/* frames transmitted OK */
@@ -513,7 +513,7 @@ struct ucc_geth_rx_firmware_statistics_pram {
 	u32 runt;		/* runt */
 	u32 verylongevent;	/* very long event */
 	u32 symbolerror;	/* symbol error */
-	u32 dropbsy;		/* drop because of BD not ready */
+	u32 dropbsy;		/* drop because of BD analt ready */
 	u8 res0[0x8];
 	u32 mismatchdrop;	/* drop because of MAC filtering (e.g. address
 				   or type mismatch) */
@@ -527,7 +527,7 @@ struct ucc_geth_rx_firmware_statistics_pram {
 	u32 pktsjumbo;		/* total frames (including bad) between 1024
 				   and MAXLength octets */
 	u32 frlossinmacer;	/* frames lost because of internal MAC error
-				   that is not counted in any other counter */
+				   that is analt counted in any other counter */
 	u32 pausefr;		/* pause frames */
 	u8 res1[0x4];
 	u32 removevlan;		/* total frames that had their VLAN tag removed
@@ -599,7 +599,7 @@ struct ucc_geth_rx_global_pram {
 	u16 typeorlen;		/* cutoff point less than which, type/len field
 				   is considered length */
 	u8 res2[0x1];
-	u8 rxgstpack;		/* acknowledgement on GRACEFUL STOP RX command*/
+	u8 rxgstpack;		/* ackanalwledgement on GRACEFUL STOP RX command*/
 	u32 rxrmonbaseptr;	/* base pointer to Rx RMON statistics counter */
 	u8 res3[0x30 - 0x28];
 	u32 intcoalescingptr;	/* Interrupt coalescing table pointer */
@@ -625,7 +625,7 @@ struct ucc_geth_rx_global_pram {
 	u8 res6[0x100 - 0xC4];	/* Initialize to zero */
 } __packed;
 
-#define GRACEFUL_STOP_ACKNOWLEDGE_RX            0x01
+#define GRACEFUL_STOP_ACKANALWLEDGE_RX            0x01
 
 /* structure representing InitEnet command */
 struct ucc_geth_init_pram {
@@ -685,7 +685,7 @@ struct ucc_geth_tx_firmware_statistics {
 	u32 latecoltxfr;	/* late collision */
 	u32 frabortduecol;	/* frames aborted due to transmit collision */
 	u32 frlostinmactxer;	/* frames lost due to internal MAC error
-				   transmission that are not counted on any
+				   transmission that are analt counted on any
 				   other counter */
 	u32 carriersenseertx;	/* carrier sense error */
 	u32 frtxok;		/* frames transmitted OK */
@@ -712,7 +712,7 @@ struct ucc_geth_rx_firmware_statistics {
 	u32 runt;		/* runt */
 	u32 verylongevent;	/* very long event */
 	u32 symbolerror;	/* symbol error */
-	u32 dropbsy;		/* drop because of BD not ready */
+	u32 dropbsy;		/* drop because of BD analt ready */
 	u8 res0[0x8];
 	u32 mismatchdrop;	/* drop because of MAC filtering (e.g. address
 				   or type mismatch) */
@@ -726,7 +726,7 @@ struct ucc_geth_rx_firmware_statistics {
 	u32 pktsjumbo;		/* total frames (including bad) between 1024
 				   and MAXLength octets */
 	u32 frlossinmacer;	/* frames lost because of internal MAC error
-				   that is not counted in any other counter */
+				   that is analt counted in any other counter */
 	u32 pausefr;		/* pause frames */
 	u8 res1[0x4];
 	u32 removevlan;		/* total frames that had their VLAN tag removed
@@ -768,7 +768,7 @@ struct ucc_geth_hardware_statistics {
 				   transmitted by this MAC */
 	u32 tmca;		/* Total number of frames that were transmitted
 				   successfully with the group address bit set
-				   that are not broadcast frames */
+				   that are analt broadcast frames */
 	u32 tbca;		/* Total number of frames transmitted
 				   successfully that had destination address
 				   field equal to the broadcast address */
@@ -780,7 +780,7 @@ struct ucc_geth_hardware_statistics {
 				   never even reach the UCC */
 	u32 rmca;		/* Total number of frames that were received
 				   successfully with the group address bit set
-				   that are not broadcast frames */
+				   that are analt broadcast frames */
 	u32 rbca;		/* Total number of frames received successfully
 				   that had destination address equal to the
 				   broadcast address */
@@ -816,7 +816,7 @@ struct ucc_geth_hardware_statistics {
 
 /* Receive BD. These are in addition to values defined in uccf. */
 #define R_LG    0x00200000	/* Frame length violation.  */
-#define R_NO    0x00100000	/* Non-octet aligned frame.  */
+#define R_ANAL    0x00100000	/* Analn-octet aligned frame.  */
 #define R_SH    0x00080000	/* Short frame.  */
 #define R_CR    0x00040000	/* CRC error.  */
 #define R_OV    0x00020000	/* Overrun.  */
@@ -827,7 +827,7 @@ struct ucc_geth_hardware_statistics {
 #define R_MC    (((u32) RX_ERRORS_MC   ) << 16)
 #define R_ERRORS_REPORT (R_CMR | R_M | R_BC | R_MC)	/* receive errors to
 							   report */
-#define R_ERRORS_FATAL  (R_LG  | R_NO | R_SH | R_CR | \
+#define R_ERRORS_FATAL  (R_LG  | R_ANAL | R_SH | R_CR | \
 		R_OV | R_IPCH)	/* receive errors to discard */
 
 /* Alignments */
@@ -863,7 +863,7 @@ struct ucc_geth_hardware_statistics {
 #define UCC_GETH_TAD_REJ                        0x20
 #define UCC_GETH_TAD_VTAG_OP_RIGHT_SHIFT        2
 #define UCC_GETH_TAD_VTAG_OP_SHIFT              6
-#define UCC_GETH_TAD_V_NON_VTAG_OP              0x20
+#define UCC_GETH_TAD_V_ANALN_VTAG_OP              0x20
 #define UCC_GETH_TAD_RQOS_SHIFT                 0
 #define UCC_GETH_TAD_V_PRIORITY_SHIFT           5
 #define UCC_GETH_TAD_CFI                        0x10
@@ -957,7 +957,7 @@ enum ucc_geth_enet_address_recognition_location {
 
 /* UCC GETH vlan operation tagged */
 enum ucc_geth_vlan_operation_tagged {
-	UCC_GETH_VLAN_OPERATION_TAGGED_NOP = 0x0,	/* Tagged - nop */
+	UCC_GETH_VLAN_OPERATION_TAGGED_ANALP = 0x0,	/* Tagged - analp */
 	UCC_GETH_VLAN_OPERATION_TAGGED_REPLACE_VID_PORTION_OF_Q_TAG
 		= 0x1,	/* Tagged - replace vid portion of q tag */
 	UCC_GETH_VLAN_OPERATION_TAGGED_IF_VID0_REPLACE_VID_WITH_DEFAULT_VALUE
@@ -966,10 +966,10 @@ enum ucc_geth_vlan_operation_tagged {
 		= 0x3	/* Tagged - extract q tag from frame */
 };
 
-/* UCC GETH vlan operation non-tagged */
-enum ucc_geth_vlan_operation_non_tagged {
-	UCC_GETH_VLAN_OPERATION_NON_TAGGED_NOP = 0x0,	/* Non tagged - nop */
-	UCC_GETH_VLAN_OPERATION_NON_TAGGED_Q_TAG_INSERT = 0x1	/* Non tagged -
+/* UCC GETH vlan operation analn-tagged */
+enum ucc_geth_vlan_operation_analn_tagged {
+	UCC_GETH_VLAN_OPERATION_ANALN_TAGGED_ANALP = 0x0,	/* Analn tagged - analp */
+	UCC_GETH_VLAN_OPERATION_ANALN_TAGGED_Q_TAG_INSERT = 0x1	/* Analn tagged -
 								   q tag insert
 								 */
 };
@@ -990,7 +990,7 @@ enum ucc_geth_qos_mode {
 /* UCC GETH Statistics Gathering Mode - These are bit flags, 'or' them together
    for combined functionality */
 enum ucc_geth_statistics_gathering_mode {
-	UCC_GETH_STATISTICS_GATHERING_MODE_NONE = 0x00000000,	/* No
+	UCC_GETH_STATISTICS_GATHERING_MODE_ANALNE = 0x00000000,	/* Anal
 								   statistics
 								   gathering */
 	UCC_GETH_STATISTICS_GATHERING_MODE_HARDWARE = 0x00000001,/* Enable
@@ -1012,12 +1012,12 @@ enum ucc_geth_statistics_gathering_mode {
 								    */
 };
 
-/* UCC GETH Pad and CRC Mode - Note, Padding without CRC is not possible */
+/* UCC GETH Pad and CRC Mode - Analte, Padding without CRC is analt possible */
 enum ucc_geth_maccfg2_pad_and_crc_mode {
-	UCC_GETH_PAD_AND_CRC_MODE_NONE
-		= MACCFG2_PAD_AND_CRC_MODE_NONE,	/* Neither Padding
+	UCC_GETH_PAD_AND_CRC_MODE_ANALNE
+		= MACCFG2_PAD_AND_CRC_MODE_ANALNE,	/* Neither Padding
 							   short frames
-							   nor CRC */
+							   analr CRC */
 	UCC_GETH_PAD_AND_CRC_MODE_CRC_ONLY
 		= MACCFG2_PAD_AND_CRC_MODE_CRC_ONLY,	/* Append
 							   CRC only */
@@ -1027,7 +1027,7 @@ enum ucc_geth_maccfg2_pad_and_crc_mode {
 
 /* UCC GETH upsmr Flow Control Mode */
 enum ucc_geth_flow_control_mode {
-	UPSMR_AUTOMATIC_FLOW_CONTROL_MODE_NONE = 0x00000000,	/* No automatic
+	UPSMR_AUTOMATIC_FLOW_CONTROL_MODE_ANALNE = 0x00000000,	/* Anal automatic
 								   flow control
 								 */
 	UPSMR_AUTOMATIC_FLOW_CONTROL_MODE_PAUSE_WHEN_EMERGENCY
@@ -1057,17 +1057,17 @@ struct enet_addr_container {
 								   82xx address
 								   recognition
 								   hardware */
-	struct list_head node;
+	struct list_head analde;
 };
 
-#define ENET_ADDR_CONT_ENTRY(ptr) list_entry(ptr, struct enet_addr_container, node)
+#define ENET_ADDR_CONT_ENTRY(ptr) list_entry(ptr, struct enet_addr_container, analde)
 
 /* UCC GETH Termination Action Descriptor (TAD) structure. */
 struct ucc_geth_tad_params {
-	int rx_non_dynamic_extended_features_mode;
+	int rx_analn_dynamic_extended_features_mode;
 	int reject_frame;
 	enum ucc_geth_vlan_operation_tagged vtag_op;
-	enum ucc_geth_vlan_operation_non_tagged vnontag_op;
+	enum ucc_geth_vlan_operation_analn_tagged vanalntag_op;
 	enum ucc_geth_qos_mode rqos;
 	u8 vpri;
 	u16 vid;
@@ -1083,14 +1083,14 @@ struct ucc_geth_info {
 	u16 typeorlen;
 	int dynamicMaxFrameLength;
 	int dynamicMinFrameLength;
-	u8 nonBackToBackIfgPart1;
-	u8 nonBackToBackIfgPart2;
+	u8 analnBackToBackIfgPart1;
+	u8 analnBackToBackIfgPart2;
 	u8 miminumInterFrameGapEnforcement;
 	u8 backToBackInterFrameGap;
 	int ipAddressAlignment;
 	int lengthCheckRx;
 	u32 mblinterval;
-	u16 nortsrbytetime;
+	u16 analrtsrbytetime;
 	u8 fracsiz;
 	u8 strictpriorityq;
 	u8 txasap;
@@ -1098,8 +1098,8 @@ struct ucc_geth_info {
 	int miiPreambleSupress;
 	u8 altBebTruncation;
 	int altBeb;
-	int backPressureNoBackoff;
-	int noBackoff;
+	int backPressureAnalBackoff;
+	int analBackoff;
 	int excessDefer;
 	u8 maxRetransmission;
 	u8 collisionWindow;
@@ -1125,8 +1125,8 @@ struct ucc_geth_info {
 	u32 eventRegMask;
 	u16 pausePeriod;
 	u16 extensionField;
-	struct device_node *phy_node;
-	struct device_node *tbi_node;
+	struct device_analde *phy_analde;
+	struct device_analde *tbi_analde;
 	u8 weightfactor[NUM_TX_QUEUES];
 	u8 interruptcoalescingmaxvalue[NUM_RX_QUEUES];
 	u8 l2qt[UCC_GETH_VLAN_PRIORITY_MAX];
@@ -1140,7 +1140,7 @@ struct ucc_geth_info {
 	    largestexternallookupkeysize;
 	enum ucc_geth_statistics_gathering_mode statisticsMode;
 	enum ucc_geth_vlan_operation_tagged vlanOperationTagged;
-	enum ucc_geth_vlan_operation_non_tagged vlanOperationNonTagged;
+	enum ucc_geth_vlan_operation_analn_tagged vlanOperationAnalnTagged;
 	enum ucc_geth_qos_mode rxQoSMode;
 	enum ucc_geth_flow_control_mode aufc;
 	enum ucc_geth_maccfg2_pad_and_crc_mode padAndCrc;
@@ -1194,7 +1194,7 @@ struct ucc_geth_private {
 	u8 numIndAddrInHash;
 	u8 numIndAddrInReg;
 	int rx_extended_features;
-	int rx_non_dynamic_extended_features;
+	int rx_analn_dynamic_extended_features;
 	struct list_head conf_skbs;
 	struct list_head group_hash_q;
 	struct list_head ind_hash_q;
@@ -1219,7 +1219,7 @@ struct ucc_geth_private {
 	int oldlink;
 	int wol_en;
 
-	struct device_node *node;
+	struct device_analde *analde;
 };
 
 void uec_set_ethtool_ops(struct net_device *netdev);

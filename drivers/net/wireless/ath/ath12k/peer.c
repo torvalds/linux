@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2022 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #include "core.h"
@@ -115,7 +115,7 @@ void ath12k_peer_unmap_event(struct ath12k_base *ab, u16 peer_id)
 
 	peer = ath12k_peer_find_by_id(ab, peer_id);
 	if (!peer) {
-		ath12k_warn(ab, "peer-unmap-event: unknown peer id %d\n",
+		ath12k_warn(ab, "peer-unmap-event: unkanalwn peer id %d\n",
 			    peer_id);
 		goto exit;
 	}
@@ -273,7 +273,7 @@ int ath12k_peer_create(struct ath12k *ar, struct ath12k_vif *arvif,
 	if (ar->num_peers > (ar->max_num_peers - 1)) {
 		ath12k_warn(ar->ab,
 			    "failed to create peer due to insufficient peer entry resource in firmware\n");
-		return -ENOBUFS;
+		return -EANALBUFS;
 	}
 
 	spin_lock_bh(&ar->ab->base_lock);
@@ -320,7 +320,7 @@ int ath12k_peer_create(struct ath12k *ar, struct ath12k_vif *arvif,
 		if (ret)
 			return ret;
 
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	peer->pdev_idx = ar->pdev_idx;

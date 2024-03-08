@@ -106,11 +106,11 @@ static int gpio_vibrator_probe(struct platform_device *pdev)
 
 	vibrator = devm_kzalloc(&pdev->dev, sizeof(*vibrator), GFP_KERNEL);
 	if (!vibrator)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vibrator->input = devm_input_allocate_device(&pdev->dev);
 	if (!vibrator->input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vibrator->vcc = devm_regulator_get(&pdev->dev, "vcc");
 	if (IS_ERR(vibrator->vcc))

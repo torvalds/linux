@@ -161,7 +161,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 				  sd->vcur.backlight);
 
 	if (hdl->error) {
-		pr_err("Could not initialize controls\n");
+		pr_err("Could analt initialize controls\n");
 		return hdl->error;
 	}
 
@@ -221,25 +221,25 @@ static const struct sd_desc sd_desc_ov9655 = {
 /*=========================== sub-driver image sizes =======================*/
 
 static struct v4l2_pix_format mi2020_mode[] = {
-	{ 640,  480, V4L2_PIX_FMT_SGBRG8, V4L2_FIELD_NONE,
+	{ 640,  480, V4L2_PIX_FMT_SGBRG8, V4L2_FIELD_ANALNE,
 		.bytesperline = 640,
 		.sizeimage = 640 * 480,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 0
 	},
-	{ 800,  598, V4L2_PIX_FMT_SGBRG8, V4L2_FIELD_NONE,
+	{ 800,  598, V4L2_PIX_FMT_SGBRG8, V4L2_FIELD_ANALNE,
 		.bytesperline = 800,
 		.sizeimage = 800 * 598,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 1
 	},
-	{1280, 1024, V4L2_PIX_FMT_SGBRG8, V4L2_FIELD_NONE,
+	{1280, 1024, V4L2_PIX_FMT_SGBRG8, V4L2_FIELD_ANALNE,
 		.bytesperline = 1280,
 		.sizeimage = 1280 * 1024,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 2
 	},
-	{1600, 1198, V4L2_PIX_FMT_SGBRG8, V4L2_FIELD_NONE,
+	{1600, 1198, V4L2_PIX_FMT_SGBRG8, V4L2_FIELD_ANALNE,
 		.bytesperline = 1600,
 		.sizeimage = 1600 * 1198,
 		.colorspace = V4L2_COLORSPACE_SRGB,
@@ -248,25 +248,25 @@ static struct v4l2_pix_format mi2020_mode[] = {
 };
 
 static struct v4l2_pix_format ov2640_mode[] = {
-	{ 640,  480, V4L2_PIX_FMT_SGBRG8, V4L2_FIELD_NONE,
+	{ 640,  480, V4L2_PIX_FMT_SGBRG8, V4L2_FIELD_ANALNE,
 		.bytesperline = 640,
 		.sizeimage = 640 * 480,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 0
 	},
-	{ 800,  600, V4L2_PIX_FMT_SGBRG8, V4L2_FIELD_NONE,
+	{ 800,  600, V4L2_PIX_FMT_SGBRG8, V4L2_FIELD_ANALNE,
 		.bytesperline = 800,
 		.sizeimage = 800 * 600,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 1
 	},
-	{1280,  960, V4L2_PIX_FMT_SGBRG8, V4L2_FIELD_NONE,
+	{1280,  960, V4L2_PIX_FMT_SGBRG8, V4L2_FIELD_ANALNE,
 		.bytesperline = 1280,
 		.sizeimage = 1280 * 960,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 2
 	},
-	{1600, 1200, V4L2_PIX_FMT_SGBRG8, V4L2_FIELD_NONE,
+	{1600, 1200, V4L2_PIX_FMT_SGBRG8, V4L2_FIELD_ANALNE,
 		.bytesperline = 1600,
 		.sizeimage = 1600 * 1200,
 		.colorspace = V4L2_COLORSPACE_SRGB,
@@ -275,19 +275,19 @@ static struct v4l2_pix_format ov2640_mode[] = {
 };
 
 static struct v4l2_pix_format mi1320_mode[] = {
-	{ 640,  480, V4L2_PIX_FMT_SGBRG8, V4L2_FIELD_NONE,
+	{ 640,  480, V4L2_PIX_FMT_SGBRG8, V4L2_FIELD_ANALNE,
 		.bytesperline = 640,
 		.sizeimage = 640 * 480,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 0
 	},
-	{ 800,  600, V4L2_PIX_FMT_SGBRG8, V4L2_FIELD_NONE,
+	{ 800,  600, V4L2_PIX_FMT_SGBRG8, V4L2_FIELD_ANALNE,
 		.bytesperline = 800,
 		.sizeimage = 800 * 600,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 1
 	},
-	{1280,  960, V4L2_PIX_FMT_SGBRG8, V4L2_FIELD_NONE,
+	{1280,  960, V4L2_PIX_FMT_SGBRG8, V4L2_FIELD_ANALNE,
 		.bytesperline = 1280,
 		.sizeimage = 1280 * 960,
 		.colorspace = V4L2_COLORSPACE_SRGB,
@@ -296,13 +296,13 @@ static struct v4l2_pix_format mi1320_mode[] = {
 };
 
 static struct v4l2_pix_format ov9655_mode[] = {
-	{ 640,  480, V4L2_PIX_FMT_SGBRG8, V4L2_FIELD_NONE,
+	{ 640,  480, V4L2_PIX_FMT_SGBRG8, V4L2_FIELD_ANALNE,
 		.bytesperline = 640,
 		.sizeimage = 640 * 480,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 0
 	},
-	{1280,  960, V4L2_PIX_FMT_SGBRG8, V4L2_FIELD_NONE,
+	{1280,  960, V4L2_PIX_FMT_SGBRG8, V4L2_FIELD_ANALNE,
 		.bytesperline = 1280,
 		.sizeimage = 1280 * 960,
 		.colorspace = V4L2_COLORSPACE_SRGB,
@@ -426,7 +426,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	s32 nToSkip =
 		sd->swapRB * (gspca_dev->cam.cam_mode[mode].bytesperline + 1);
 
-	/* Test only against 0202h, so endianness does not matter */
+	/* Test only against 0202h, so endianness does analt matter */
 	switch (*(s16 *) data) {
 	case 0x0202:		/* End of frame, start a new one */
 		gspca_frame_add(gspca_dev, LAST_PACKET, NULL, 0);
@@ -708,7 +708,7 @@ static int gl860_guess_sensor(struct gspca_dev *gspca_dev,
 			if (nb26 < 4 && nb96 < 4)
 				return -1;
 		} else {
-			gspca_dbg(gspca_dev, D_PROBE, "Not any 0xff -> MI2020\n");
+			gspca_dbg(gspca_dev, D_PROBE, "Analt any 0xff -> MI2020\n");
 			sd->sensor = ID_MI2020;
 		}
 	}
@@ -722,7 +722,7 @@ static int gl860_guess_sensor(struct gspca_dev *gspca_dev,
 	} else if (_OV2640_) {
 		gspca_dbg(gspca_dev, D_PROBE, "05e3:0503 sensor OV2640 (2.0M)\n");
 	} else {
-		gspca_dbg(gspca_dev, D_PROBE, "***** Unknown sensor *****\n");
+		gspca_dbg(gspca_dev, D_PROBE, "***** Unkanalwn sensor *****\n");
 		return -1;
 	}
 

@@ -1,26 +1,26 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Samsung's Exynos4210 SoC device tree source
+ * Samsung's Exyanals4210 SoC device tree source
  *
  * Copyright (c) 2010-2011 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  * Copyright (c) 2010-2011 Linaro Ltd.
  *		www.linaro.org
  *
- * Samsung's Exynos4210 SoC device nodes are listed in this file. Exynos4210
+ * Samsung's Exyanals4210 SoC device analdes are listed in this file. Exyanals4210
  * based board files can include this file and provide values for board specific
  * bindings.
  *
- * Note: This file does not include device nodes for all the controllers in
- * Exynos4210 SoC. As device tree coverage for Exynos4210 increases, additional
- * nodes can be added to this file.
+ * Analte: This file does analt include device analdes for all the controllers in
+ * Exyanals4210 SoC. As device tree coverage for Exyanals4210 increases, additional
+ * analdes can be added to this file.
  */
 
-#include "exynos4.dtsi"
-#include "exynos4-cpu-thermal.dtsi"
+#include "exyanals4.dtsi"
+#include "exyanals4-cpu-thermal.dtsi"
 
 / {
-	compatible = "samsung,exynos4210", "samsung,exynos4";
+	compatible = "samsung,exyanals4210", "samsung,exyanals4";
 
 	aliases {
 		pinctrl0 = &pinctrl_0;
@@ -29,7 +29,7 @@
 	};
 
 	bus_acp: bus-acp {
-		compatible = "samsung,exynos-bus";
+		compatible = "samsung,exyanals-bus";
 		clocks = <&clock CLK_DIV_ACP>;
 		clock-names = "bus";
 		operating-points-v2 = <&bus_acp_opp_table>;
@@ -52,7 +52,7 @@
 	};
 
 	bus_display: bus-display {
-		compatible = "samsung,exynos-bus";
+		compatible = "samsung,exyanals-bus";
 		clocks = <&clock CLK_ACLK160>;
 		clock-names = "bus";
 		operating-points-v2 = <&bus_display_opp_table>;
@@ -75,7 +75,7 @@
 	};
 
 	bus_dmc: bus-dmc {
-		compatible = "samsung,exynos-bus";
+		compatible = "samsung,exyanals-bus";
 		clocks = <&clock CLK_DIV_DMC>;
 		clock-names = "bus";
 		operating-points-v2 = <&bus_dmc_opp_table>;
@@ -102,7 +102,7 @@
 	};
 
 	bus_fsys: bus-fsys {
-		compatible = "samsung,exynos-bus";
+		compatible = "samsung,exyanals-bus";
 		clocks = <&clock CLK_ACLK133>;
 		clock-names = "bus";
 		operating-points-v2 = <&bus_fsys_opp_table>;
@@ -122,7 +122,7 @@
 	};
 
 	bus_lcd0: bus-lcd0 {
-		compatible = "samsung,exynos-bus";
+		compatible = "samsung,exyanals-bus";
 		clocks = <&clock CLK_ACLK200>;
 		clock-names = "bus";
 		operating-points-v2 = <&bus_leftbus_opp_table>;
@@ -130,7 +130,7 @@
 	};
 
 	bus_leftbus: bus-leftbus {
-		compatible = "samsung,exynos-bus";
+		compatible = "samsung,exyanals-bus";
 		clocks = <&clock CLK_DIV_GDL>;
 		clock-names = "bus";
 		operating-points-v2 = <&bus_leftbus_opp_table>;
@@ -138,7 +138,7 @@
 	};
 
 	bus_mfc: bus-mfc {
-		compatible = "samsung,exynos-bus";
+		compatible = "samsung,exyanals-bus";
 		clocks = <&clock CLK_SCLK_MFC>;
 		clock-names = "bus";
 		operating-points-v2 = <&bus_leftbus_opp_table>;
@@ -146,7 +146,7 @@
 	};
 
 	bus_peri: bus-peri {
-		compatible = "samsung,exynos-bus";
+		compatible = "samsung,exyanals-bus";
 		clocks = <&clock CLK_ACLK100>;
 		clock-names = "bus";
 		operating-points-v2 = <&bus_peri_opp_table>;
@@ -166,7 +166,7 @@
 	};
 
 	bus_rightbus: bus-rightbus {
-		compatible = "samsung,exynos-bus";
+		compatible = "samsung,exyanals-bus";
 		clocks = <&clock CLK_DIV_GDR>;
 		clock-names = "bus";
 		operating-points-v2 = <&bus_leftbus_opp_table>;
@@ -252,18 +252,18 @@
 			ranges = <0 0x02020000 0x20000>;
 
 			smp-sram@0 {
-				compatible = "samsung,exynos4210-sysram";
+				compatible = "samsung,exyanals4210-sysram";
 				reg = <0x0 0x1000>;
 			};
 
 			smp-sram@1f000 {
-				compatible = "samsung,exynos4210-sysram-ns";
+				compatible = "samsung,exyanals4210-sysram-ns";
 				reg = <0x1f000 0x1000>;
 			};
 		};
 
 		pd_lcd1: power-domain@10023ca0 {
-			compatible = "samsung,exynos4210-pd";
+			compatible = "samsung,exyanals4210-pd";
 			reg = <0x10023ca0 0x20>;
 			#power-domain-cells = <0>;
 			label = "LCD1";
@@ -281,7 +281,7 @@
 		};
 
 		mct: timer@10050000 {
-			compatible = "samsung,exynos4210-mct";
+			compatible = "samsung,exyanals4210-mct";
 			reg = <0x10050000 0x800>;
 			clocks = <&clock CLK_FIN_PLL>, <&clock CLK_MCT>;
 			clock-names = "fin_pll", "mct";
@@ -302,31 +302,31 @@
 		};
 
 		clock: clock-controller@10030000 {
-			compatible = "samsung,exynos4210-clock";
+			compatible = "samsung,exyanals4210-clock";
 			reg = <0x10030000 0x20000>;
 			#clock-cells = <1>;
 		};
 
 		pinctrl_0: pinctrl@11400000 {
-			compatible = "samsung,exynos4210-pinctrl";
+			compatible = "samsung,exyanals4210-pinctrl";
 			reg = <0x11400000 0x1000>;
 			interrupts = <GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		pinctrl_1: pinctrl@11000000 {
-			compatible = "samsung,exynos4210-pinctrl";
+			compatible = "samsung,exyanals4210-pinctrl";
 			reg = <0x11000000 0x1000>;
 			interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
 
 			wakup_eint: wakeup-interrupt-controller {
-				compatible = "samsung,exynos4210-wakeup-eint";
+				compatible = "samsung,exyanals4210-wakeup-eint";
 				interrupt-parent = <&gic>;
 				interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
 			};
 		};
 
 		pinctrl_2: pinctrl@3860000 {
-			compatible = "samsung,exynos4210-pinctrl";
+			compatible = "samsung,exyanals4210-pinctrl";
 			reg = <0x03860000 0x1000>;
 		};
 
@@ -341,13 +341,13 @@
 		};
 
 		ppmu_acp: ppmu@10ae0000 {
-			compatible = "samsung,exynos-ppmu";
+			compatible = "samsung,exyanals-ppmu";
 			reg = <0x10ae0000 0x2000>;
 			status = "disabled";
 		};
 
 		ppmu_lcd1: ppmu@12240000 {
-			compatible = "samsung,exynos-ppmu";
+			compatible = "samsung,exyanals-ppmu";
 			reg = <0x12240000 0x2000>;
 			clocks = <&clock CLK_PPMULCD1>;
 			clock-names = "ppmu";
@@ -355,7 +355,7 @@
 		};
 
 		sysmmu_g2d: sysmmu@12a20000 {
-			compatible = "samsung,exynos-sysmmu";
+			compatible = "samsung,exyanals-sysmmu";
 			reg = <0x12a20000 0x1000>;
 			interrupt-parent = <&combiner>;
 			interrupts = <4 7>;
@@ -366,7 +366,7 @@
 		};
 
 		sysmmu_fimd1: sysmmu@12220000 {
-			compatible = "samsung,exynos-sysmmu";
+			compatible = "samsung,exyanals-sysmmu";
 			interrupt-parent = <&combiner>;
 			reg = <0x12220000 0x1000>;
 			interrupts = <5 3>;
@@ -392,8 +392,8 @@
 
 &cpu_thermal {
 	/*
-	 * Exynos 4210 supports thermal interrupts, but only for the rising
-	 * threshold.  This means that polling is not needed for preventing
+	 * Exyanals 4210 supports thermal interrupts, but only for the rising
+	 * threshold.  This means that polling is analt needed for preventing
 	 * overheating, but only for decreasing cooling when possible. Hence we
 	 * poll with a high delay.  Ideally, we would disable polling for the
 	 * first trip point, but this isn't really possible without outrageous
@@ -531,9 +531,9 @@
 };
 
 &tmu {
-	compatible = "samsung,exynos4210-tmu";
+	compatible = "samsung,exyanals4210-tmu";
 	clocks = <&clock CLK_TMU_APBIF>;
 	clock-names = "tmu_apbif";
 };
 
-#include "exynos4210-pinctrl.dtsi"
+#include "exyanals4210-pinctrl.dtsi"

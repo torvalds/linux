@@ -23,7 +23,7 @@ static int hfi1_ipoib_dev_init(struct net_device *dev)
 
 	dev->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
 	if (!dev->tstats)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = priv->netdev_ops->ndo_init(dev);
 	if (ret)
@@ -246,10 +246,10 @@ int hfi1_ipoib_rn_get_params(struct ib_device *device,
 	struct hfi1_devdata *dd = dd_from_ibdev(device);
 
 	if (type != RDMA_NETDEV_IPOIB)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!HFI1_CAP_IS_KSET(AIP) || !dd->num_netdev_contexts)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!port_num || port_num > dd->num_pports)
 		return -EINVAL;

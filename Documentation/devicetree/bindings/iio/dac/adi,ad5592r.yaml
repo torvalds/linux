@@ -33,13 +33,13 @@ properties:
     const: 1
 
   vref-supply:
-    description: If not set internal 2.5V reference used.
+    description: If analt set internal 2.5V reference used.
 
   reset-gpios:
     maxItems: 1
 
   gpio-controller:
-    description: Marks the device node as a GPIO controller.
+    description: Marks the device analde as a GPIO controller.
 
   "#gpio-cells":
     const: 2
@@ -71,7 +71,7 @@ additionalProperties: false
 patternProperties:
   "^(channel@)[0-7]$":
     type: object
-    description: Child node to describe a channel
+    description: Child analde to describe a channel
     properties:
       reg:
         minimum: 0
@@ -90,7 +90,7 @@ patternProperties:
           * CH_MODE_ADC (the pin is ADC input)
           * CH_MODE_DAC (the pin is DAC output)
           * CH_MODE_DAC_AND_ADC (the pin is DAC output but can be monitored
-            by an ADC, since there is no disadvantage this should be
+            by an ADC, since there is anal disadvantage this should be
             considered as the preferred DAC mode)
           * CH_MODE_GPIO (the pin is registered with GPIOLIB)
 

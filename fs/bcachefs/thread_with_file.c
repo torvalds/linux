@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
-#ifndef NO_BCACHEFS_FS
+#ifndef ANAL_BCACHEFS_FS
 
 #include "bcachefs.h"
 #include "printbuf.h"
 #include "thread_with_file.h"
 
-#include <linux/anon_inodes.h>
+#include <linux/aanaln_ianaldes.h>
 #include <linux/file.h>
 #include <linux/kthread.h>
 #include <linux/pagemap.h>
@@ -48,7 +48,7 @@ int bch2_run_thread_with_file(struct thread_with_file *thr,
 		goto err;
 	fd = ret;
 
-	file = anon_inode_getfile(name, fops, thr, fd_flags);
+	file = aanaln_ianalde_getfile(name, fops, thr, fd_flags);
 	ret = PTR_ERR_OR_ZERO(file);
 	if (ret)
 		goto err;
@@ -80,7 +80,7 @@ static ssize_t thread_with_stdio_read(struct file *file, char __user *buf,
 	size_t copied = 0, b;
 	int ret = 0;
 
-	if ((file->f_flags & O_NONBLOCK) &&
+	if ((file->f_flags & O_ANALNBLOCK) &&
 	    !thread_with_stdio_has_output(thr))
 		return -EAGAIN;
 
@@ -132,7 +132,7 @@ static ssize_t thread_with_stdio_read(struct file *file, char __user *buf,
 	return copied ?: ret;
 }
 
-static int thread_with_stdio_release(struct inode *inode, struct file *file)
+static int thread_with_stdio_release(struct ianalde *ianalde, struct file *file)
 {
 	struct thread_with_stdio *thr =
 		container_of(file->private_data, struct thread_with_stdio, thr);
@@ -178,7 +178,7 @@ static ssize_t thread_with_stdio_write(struct file *file, const char __user *ubu
 			bch2_printbuf_make_room(buf, min(b, WRITE_BUFFER - buf->pos));
 		b = min(len, printbuf_remaining_size(buf));
 
-		if (b && !copy_from_user_nofault(&buf->buf[buf->pos], ubuf, b)) {
+		if (b && !copy_from_user_analfault(&buf->buf[buf->pos], ubuf, b)) {
 			ubuf += b;
 			len -= b;
 			copied += b;
@@ -189,7 +189,7 @@ static ssize_t thread_with_stdio_write(struct file *file, const char __user *ubu
 		if (b) {
 			wake_up(&thr->stdio.input_wait);
 		} else {
-			if ((file->f_flags & O_NONBLOCK)) {
+			if ((file->f_flags & O_ANALNBLOCK)) {
 				ret = -EAGAIN;
 				break;
 			}
@@ -228,7 +228,7 @@ static const struct file_operations thread_with_stdio_fops = {
 	.read		= thread_with_stdio_read,
 	.write		= thread_with_stdio_write,
 	.poll		= thread_with_stdio_poll,
-	.llseek		= no_llseek,
+	.llseek		= anal_llseek,
 };
 
 int bch2_run_thread_with_stdio(struct thread_with_stdio *thr,
@@ -296,4 +296,4 @@ int bch2_stdio_redirect_readline(struct stdio_redirect *stdio, char *buf, size_t
 	return ret;
 }
 
-#endif /* NO_BCACHEFS_FS */
+#endif /* ANAL_BCACHEFS_FS */

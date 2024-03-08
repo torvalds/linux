@@ -34,7 +34,7 @@ int RSEQ_TEMPLATE_IDENTIFIER(rseq_cmpeqv_storev)(intptr_t *v, intptr_t expect, i
 		"2:\n\t"
 		RSEQ_INJECT_ASM(5)
 		RSEQ_ASM_DEFINE_ABORT(4, "", abort)
-		: /* gcc asm goto does not allow outputs */
+		: /* gcc asm goto does analt allow outputs */
 		: [cpu_id]		"r" (cpu),
 		  [current_cpu_id]	"m" (rseq_get_abi()->RSEQ_TEMPLATE_CPU_ID_FIELD),
 		  [rseq_cs]		"m" (rseq_get_abi()->rseq_cs.arch.ptr),
@@ -69,11 +69,11 @@ error2:
 }
 
 /*
- * Compare @v against @expectnot. When it does _not_ match, load @v
+ * Compare @v against @expectanalt. When it does _analt_ match, load @v
  * into @load, and store the content of *@v + voffp into @v.
  */
 static inline __attribute__((always_inline))
-int RSEQ_TEMPLATE_IDENTIFIER(rseq_cmpnev_storeoffp_load)(intptr_t *v, intptr_t expectnot,
+int RSEQ_TEMPLATE_IDENTIFIER(rseq_cmpnev_storeoffp_load)(intptr_t *v, intptr_t expectanalt,
 			       long voffp, intptr_t *load, int cpu)
 {
 	RSEQ_INJECT_C(9)
@@ -90,13 +90,13 @@ int RSEQ_TEMPLATE_IDENTIFIER(rseq_cmpnev_storeoffp_load)(intptr_t *v, intptr_t e
 		RSEQ_ASM_CMP_CPU_ID(cpu_id, current_cpu_id, 4f)
 		RSEQ_INJECT_ASM(3)
 		LONG_L " %%r1, %[v]\n\t"
-		LONG_CMP_R " %%r1, %[expectnot]\n\t"
+		LONG_CMP_R " %%r1, %[expectanalt]\n\t"
 		"je %l[cmpfail]\n\t"
 		RSEQ_INJECT_ASM(4)
 #ifdef RSEQ_COMPARE_TWICE
 		RSEQ_ASM_CMP_CPU_ID(cpu_id, current_cpu_id, %l[error1])
 		LONG_L " %%r1, %[v]\n\t"
-		LONG_CMP_R " %%r1, %[expectnot]\n\t"
+		LONG_CMP_R " %%r1, %[expectanalt]\n\t"
 		"je %l[error2]\n\t"
 #endif
 		LONG_S " %%r1, %[load]\n\t"
@@ -107,13 +107,13 @@ int RSEQ_TEMPLATE_IDENTIFIER(rseq_cmpnev_storeoffp_load)(intptr_t *v, intptr_t e
 		"2:\n\t"
 		RSEQ_INJECT_ASM(5)
 		RSEQ_ASM_DEFINE_ABORT(4, "", abort)
-		: /* gcc asm goto does not allow outputs */
+		: /* gcc asm goto does analt allow outputs */
 		: [cpu_id]		"r" (cpu),
 		  [current_cpu_id]	"m" (rseq_get_abi()->RSEQ_TEMPLATE_CPU_ID_FIELD),
 		  [rseq_cs]		"m" (rseq_get_abi()->rseq_cs.arch.ptr),
 		  /* final store input */
 		  [v]			"m" (*v),
-		  [expectnot]		"r" (expectnot),
+		  [expectanalt]		"r" (expectanalt),
 		  [voffp]		"r" (voffp),
 		  [load]		"m" (*load)
 		  RSEQ_INJECT_INPUT
@@ -167,7 +167,7 @@ int RSEQ_TEMPLATE_IDENTIFIER(rseq_addv)(intptr_t *v, intptr_t count, int cpu)
 		"2:\n\t"
 		RSEQ_INJECT_ASM(4)
 		RSEQ_ASM_DEFINE_ABORT(4, "", abort)
-		: /* gcc asm goto does not allow outputs */
+		: /* gcc asm goto does analt allow outputs */
 		: [cpu_id]		"r" (cpu),
 		  [current_cpu_id]	"m" (rseq_get_abi()->RSEQ_TEMPLATE_CPU_ID_FIELD),
 		  [rseq_cs]		"m" (rseq_get_abi()->rseq_cs.arch.ptr),
@@ -232,7 +232,7 @@ int RSEQ_TEMPLATE_IDENTIFIER(rseq_cmpeqv_cmpeqv_storev)(intptr_t *v, intptr_t ex
 		"2:\n\t"
 		RSEQ_INJECT_ASM(6)
 		RSEQ_ASM_DEFINE_ABORT(4, "", abort)
-		: /* gcc asm goto does not allow outputs */
+		: /* gcc asm goto does analt allow outputs */
 		: [cpu_id]		"r" (cpu),
 		  [current_cpu_id]	"m" (rseq_get_abi()->RSEQ_TEMPLATE_CPU_ID_FIELD),
 		  [rseq_cs]		"m" (rseq_get_abi()->rseq_cs.arch.ptr),
@@ -314,7 +314,7 @@ int RSEQ_TEMPLATE_IDENTIFIER(rseq_cmpeqv_trystorev_storev)(intptr_t *v, intptr_t
 		"2:\n\t"
 		RSEQ_INJECT_ASM(6)
 		RSEQ_ASM_DEFINE_ABORT(4, "", abort)
-		: /* gcc asm goto does not allow outputs */
+		: /* gcc asm goto does analt allow outputs */
 		: [cpu_id]		"r" (cpu),
 		  [current_cpu_id]	"m" (rseq_get_abi()->RSEQ_TEMPLATE_CPU_ID_FIELD),
 		  [rseq_cs]		"m" (rseq_get_abi()->rseq_cs.arch.ptr),
@@ -426,7 +426,7 @@ int RSEQ_TEMPLATE_IDENTIFIER(rseq_cmpeqv_trymemcpy_storev)(intptr_t *v, intptr_t
 			LONG_L " %[src], %[rseq_scratch0]\n\t",
 			error2)
 #endif
-		: /* gcc asm goto does not allow outputs */
+		: /* gcc asm goto does analt allow outputs */
 		: [cpu_id]		"r" (cpu),
 		  [current_cpu_id]	"m" (rseq_get_abi()->RSEQ_TEMPLATE_CPU_ID_FIELD),
 		  [rseq_cs]		"m" (rseq_get_abi()->rseq_cs.arch.ptr),

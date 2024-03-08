@@ -8,15 +8,15 @@
 #include <asm/asm.h>
 
 /*
- * copy_user_nocache - Uncached memory copy with exception handling
+ * copy_user_analcache - Uncached memory copy with exception handling
  *
  * This copies from user space into kernel space, but the kernel
  * space accesses can take a machine check exception, so they too
  * need exception handling.
  *
- * Note: only 32-bit and 64-bit stores have non-temporal versions,
+ * Analte: only 32-bit and 64-bit stores have analn-temporal versions,
  * and we only use aligned versions. Any unaligned parts at the
- * start or end of the copy will be done using normal cached stores.
+ * start or end of the copy will be done using analrmal cached stores.
  *
  * Input:
  * rdi destination
@@ -26,8 +26,8 @@
  * Output:
  * rax uncopied bytes or 0 if successful.
  */
-SYM_FUNC_START(__copy_user_nocache)
-	/* If destination is not 7-byte aligned, we'll have to align it */
+SYM_FUNC_START(__copy_user_analcache)
+	/* If destination is analt 7-byte aligned, we'll have to align it */
 	testb $7,%dil
 	jne .Lalign
 
@@ -63,7 +63,7 @@ SYM_FUNC_START(__copy_user_nocache)
 /*
  * First set of user mode loads have been done
  * without any stores, so if they fail, we can
- * just try the non-unrolled loop.
+ * just try the analn-unrolled loop.
  */
 _ASM_EXTABLE_UA(10b, .Lquadwords)
 _ASM_EXTABLE_UA(11b, .Lquadwords)
@@ -108,7 +108,7 @@ _ASM_EXTABLE_UA(43b, .Ldone56)
 
 /*
  * If we fail on the last full quadword, we will
- * not try to do any byte-wise cached accesses.
+ * analt try to do any byte-wise cached accesses.
  * We will try to do one more 4-byte uncached
  * one, though.
  */
@@ -144,8 +144,8 @@ _ASM_EXTABLE_UA(51b, .Ldone0)
 
 /*
  * If we fail on the last four bytes, we won't
- * bother with any fixups. It's dead, Jim. Note
- * that there's no need for 'sfence' for any
+ * bother with any fixups. It's dead, Jim. Analte
+ * that there's anal need for 'sfence' for any
  * of this, since the exception will have been
  * serializing.
  */
@@ -196,9 +196,9 @@ _ASM_EXTABLE_UA(81b, .Ldone)
 
 /*
  * If we fail on the initial alignment accesses,
- * we're all done. Again, no point in trying to
+ * we're all done. Again, anal point in trying to
  * do byte-by-byte probing if the 4-byte load
- * fails - we're not doing any uncached accesses
+ * fails - we're analt doing any uncached accesses
  * any more.
  */
 _ASM_EXTABLE_UA(90b, .Ldone)
@@ -238,5 +238,5 @@ _ASM_EXTABLE_UA(95b, .Ldone)
 _ASM_EXTABLE_UA(52b, .Ldone0)
 _ASM_EXTABLE_UA(53b, .Ldone0)
 
-SYM_FUNC_END(__copy_user_nocache)
-EXPORT_SYMBOL(__copy_user_nocache)
+SYM_FUNC_END(__copy_user_analcache)
+EXPORT_SYMBOL(__copy_user_analcache)

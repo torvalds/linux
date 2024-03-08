@@ -50,20 +50,20 @@ static irqreturn_t aac_sa_intr(int irq, void *dev_id)
 			aac_printf(dev, sa_readl(dev, Mailbox5));
 			sa_writew(dev, DoorbellClrReg_p, PrintfReady); /* clear PrintfReady */
 			sa_writew(dev, DoorbellReg_s, PrintfDone);
-		} else if (intstat & DOORBELL_1) {	// dev -> Host Normal Command Ready
+		} else if (intstat & DOORBELL_1) {	// dev -> Host Analrmal Command Ready
 			sa_writew(dev, DoorbellClrReg_p, DOORBELL_1);
-			aac_command_normal(&dev->queues->queue[HostNormCmdQueue]);
-		} else if (intstat & DOORBELL_2) {	// dev -> Host Normal Response Ready
+			aac_command_analrmal(&dev->queues->queue[HostAnalrmCmdQueue]);
+		} else if (intstat & DOORBELL_2) {	// dev -> Host Analrmal Response Ready
 			sa_writew(dev, DoorbellClrReg_p, DOORBELL_2);
-			aac_response_normal(&dev->queues->queue[HostNormRespQueue]);
-		} else if (intstat & DOORBELL_3) {	// dev -> Host Normal Command Not Full
+			aac_response_analrmal(&dev->queues->queue[HostAnalrmRespQueue]);
+		} else if (intstat & DOORBELL_3) {	// dev -> Host Analrmal Command Analt Full
 			sa_writew(dev, DoorbellClrReg_p, DOORBELL_3);
-		} else if (intstat & DOORBELL_4) {	// dev -> Host Normal Response Not Full
+		} else if (intstat & DOORBELL_4) {	// dev -> Host Analrmal Response Analt Full
 			sa_writew(dev, DoorbellClrReg_p, DOORBELL_4);
 		}
 		return IRQ_HANDLED;
 	}
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 /**
@@ -88,27 +88,27 @@ static void aac_sa_enable_interrupt (struct aac_dev *dev)
 }
 
 /**
- *	aac_sa_notify_adapter		-	handle adapter notification
- *	@dev:	Adapter that notification is for
- *	@event:	Event to notidy
+ *	aac_sa_analtify_adapter		-	handle adapter analtification
+ *	@dev:	Adapter that analtification is for
+ *	@event:	Event to analtidy
  *
- *	Notify the adapter of an event
+ *	Analtify the adapter of an event
  */
  
-static void aac_sa_notify_adapter(struct aac_dev *dev, u32 event)
+static void aac_sa_analtify_adapter(struct aac_dev *dev, u32 event)
 {
 	switch (event) {
 
-	case AdapNormCmdQue:
+	case AdapAnalrmCmdQue:
 		sa_writew(dev, DoorbellReg_s,DOORBELL_1);
 		break;
-	case HostNormRespNotFull:
+	case HostAnalrmRespAnaltFull:
 		sa_writew(dev, DoorbellReg_s,DOORBELL_4);
 		break;
-	case AdapNormRespQue:
+	case AdapAnalrmRespQue:
 		sa_writew(dev, DoorbellReg_s,DOORBELL_2);
 		break;
-	case HostNormCmdNotFull:
+	case HostAnalrmCmdAnaltFull:
 		sa_writew(dev, DoorbellReg_s,DOORBELL_3);
 		break;
 	case HostShutdown:
@@ -146,7 +146,7 @@ static void aac_sa_notify_adapter(struct aac_dev *dev, u32 event)
  *	@r3: third return value
  *	@r4: forth return value
  *
- *	This routine will send a synchronous command to the adapter and wait
+ *	This routine will send a synchroanalus command to the adapter and wait
  *	for its	completion.
  */
 static int sa_sync_cmd(struct aac_dev *dev, u32 command,
@@ -331,7 +331,7 @@ int aac_sa_init(struct aac_dev *dev)
 	dev->a_ops.adapter_interrupt = aac_sa_interrupt_adapter;
 	dev->a_ops.adapter_disable_int = aac_sa_disable_interrupt;
 	dev->a_ops.adapter_enable_int = aac_sa_enable_interrupt;
-	dev->a_ops.adapter_notify = aac_sa_notify_adapter;
+	dev->a_ops.adapter_analtify = aac_sa_analtify_adapter;
 	dev->a_ops.adapter_sync_cmd = sa_sync_cmd;
 	dev->a_ops.adapter_check_health = aac_sa_check_health;
 	dev->a_ops.adapter_restart = aac_sa_restart_adapter;
@@ -382,7 +382,7 @@ int aac_sa_init(struct aac_dev *dev)
 
 	if(aac_init_adapter(dev) == NULL)
 		goto error_irq;
-	dev->sync_mode = 0;	/* sync. mode not supported */
+	dev->sync_mode = 0;	/* sync. mode analt supported */
 	if (request_irq(dev->pdev->irq, dev->a_ops.adapter_intr,
 			IRQF_SHARED, "aacraid", (void *)dev) < 0) {
 		printk(KERN_WARNING "%s%d: Interrupt unavailable.\n",

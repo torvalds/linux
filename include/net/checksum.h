@@ -7,7 +7,7 @@
  *		Checksumming functions for IP, TCP, UDP and so on
  *
  * Authors:	Jorge Cwik, <jorge@laser.satlink.net>
- *		Arnt Gulbrandsen, <agulbra@nvg.unit.no>
+ *		Arnt Gulbrandsen, <agulbra@nvg.unit.anal>
  *		Borrows very liberally from tcp.c and ip.c, see those
  *		files for more names.
  */
@@ -15,7 +15,7 @@
 #ifndef _CHECKSUM_H
 #define _CHECKSUM_H
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <asm/types.h>
 #include <asm/byteorder.h>
 #include <asm/checksum.h>
@@ -48,7 +48,7 @@ static __always_inline __wsum csum_and_copy_to_user
 
 #ifndef _HAVE_ARCH_CSUM_AND_COPY
 static __always_inline __wsum
-csum_partial_copy_nocheck(const void *src, void *dst, int len)
+csum_partial_copy_analcheck(const void *src, void *dst, int len)
 {
 	memcpy(dst, src, len);
 	return csum_partial(dst, len, 0);

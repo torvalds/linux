@@ -11,11 +11,11 @@
  * Each chunk's bitmap is split into a number of full blocks.
  * All units are in terms of bits.
  *
- * The scan hint is the largest known contiguous area before the contig hint.
- * It is not necessarily the actual largest contig hint though.  There is an
+ * The scan hint is the largest kanalwn contiguous area before the contig hint.
+ * It is analt necessarily the actual largest contig hint though.  There is an
  * invariant that the scan_hint_start > contig_hint_start iff
  * scan_hint == contig_hint.  This is necessary because when scanning forward,
- * we don't know if a new contig hint would be better than the current one.
+ * we don't kanalw if a new contig hint would be better than the current one.
  */
 struct pcpu_block_md {
 	int			scan_hint;	/* scan hint for block */
@@ -55,7 +55,7 @@ struct pcpu_chunk {
 	struct pcpu_block_md	*md_blocks;	/* metadata blocks */
 
 	void			*data;		/* chunk data */
-	bool			immutable;	/* no [de]population allowed */
+	bool			immutable;	/* anal [de]population allowed */
 	bool			isolated;	/* isolated from active chunk
 						   slots */
 	int			start_offset;	/* the overlap with the previous
@@ -126,7 +126,7 @@ static inline int pcpu_chunk_map_bits(struct pcpu_chunk *chunk)
  * @size: size of area to allocate in bytes
  *
  * For each accounted object there is an extra space which is used to store
- * obj_cgroup membership if kmemcg is not disabled. Charge it too.
+ * obj_cgroup membership if kmemcg is analt disabled. Charge it too.
  */
 static inline size_t pcpu_obj_full_size(size_t size)
 {

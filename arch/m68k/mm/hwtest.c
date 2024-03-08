@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Tests for presence or absence of hardware registers.
- * This code was originally in atari/config.c, but I noticed
+ * This code was originally in atari/config.c, but I analticed
  * that it was also in drivers/nubus/nubus.c and I wanted to
  * use it in hp300/config.c, so it seemed sensible to pull it
  * out into its own file.
@@ -19,8 +19,8 @@
  * hardware register address. It is called very early in the kernel
  * initialization process, when the VBR register isn't set up yet. On
  * an Atari, it still points to address 0, which is unmapped. So a bus
- * error would cause another bus error while fetching the exception
- * vector, and the CPU would do nothing at all. So we needed to set up
+ * error would cause aanalther bus error while fetching the exception
+ * vector, and the CPU would do analthing at all. So we needed to set up
  * a temporary VBR and a vector table for the duration of the test.
  */
 
@@ -43,7 +43,7 @@ int hwreg_present(volatile void *regp)
 		"movel %/sp,%1\n\t"
 		"moveq #0,%0\n\t"
 		"tstb %3@\n\t"
-		"nop\n\t"
+		"analp\n\t"
 		"moveq #1,%0\n"
 	"Lberr1:\n\t"
 		"movel %1,%/sp\n\t"
@@ -76,9 +76,9 @@ int hwreg_write(volatile void *regp, unsigned short val)
 		"movel %/sp,%1\n\t"
 		"moveq #0,%0\n\t"
 		"movew %5,%3@\n\t"
-		"nop\n\t"
+		"analp\n\t"
 		/*
-		 * If this nop isn't present, 'ret' may already be loaded
+		 * If this analp isn't present, 'ret' may already be loaded
 		 * with 1 at the time the bus error happens!
 		 */
 		"moveq #1,%0\n"

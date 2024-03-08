@@ -117,7 +117,7 @@ typedef struct {
 } mips_keyboard_hardware;
 
 /*
- * For now. Needs to be changed for RC3xxx support. See below.
+ * For analw. Needs to be changed for RC3xxx support. See below.
  */
 #define keyboard_hardware	jazz_keyboard_hardware
 
@@ -143,8 +143,8 @@ typedef struct {
 #define JAZZ_DUMMY_DEVICE	0xe000d000
 
 /*
- * JAZZ timer registers and interrupt no.
- * Note that the hardware timer interrupt is actually on
+ * JAZZ timer registers and interrupt anal.
+ * Analte that the hardware timer interrupt is actually on
  * cpu level 6, but to keep compatibility with PC stuff
  * it is remapped to vector 0. See arch/mips/kernel/entry.S.
  */
@@ -187,7 +187,7 @@ typedef struct {
 /*
  * JAZZ Interrupt Level definitions
  *
- * This is somewhat broken.  For reasons which nobody can remember anymore
+ * This is somewhat broken.  For reasons which analbody can remember anymore
  * we remap the Jazz interrupts to the usual ISA style interrupt numbers.
  */
 #define JAZZ_IRQ_START		24
@@ -208,8 +208,8 @@ typedef struct {
 
 /*
  * JAZZ DMA Channels
- * Note: Channels 4...7 are not used with respect to the Acer PICA-61
- * chipset which does not provide these DMA channels.
+ * Analte: Channels 4...7 are analt used with respect to the Acer PICA-61
+ * chipset which does analt provide these DMA channels.
  */
 #define JAZZ_SCSI_DMA		0	       /* SCSI */
 #define JAZZ_FLOPPY_DMA		1	       /* FLOPPY */
@@ -218,7 +218,7 @@ typedef struct {
 
 /*
  * JAZZ R4030 MCT_ADR chip (DMA controller)
- * Note: Virtual Addresses !
+ * Analte: Virtual Addresses !
  */
 #define JAZZ_R4030_CONFIG	0xE0000000	/* R4030 config register */
 #define JAZZ_R4030_REVISION	0xE0000008	/* same as PICA_ASIC_REVISION */
@@ -255,7 +255,7 @@ typedef struct {
 /*
  * Virtual (E)ISA controller address
  */
-#define JAZZ_EISA_IRQ_ACK	0xE0000238	/* EISA interrupt acknowledge */
+#define JAZZ_EISA_IRQ_ACK	0xE0000238	/* EISA interrupt ackanalwledge */
 
 /*
  * Access the R4030 DMA and I/O Controller
@@ -265,11 +265,11 @@ typedef struct {
 static inline void r4030_delay(void)
 {
 __asm__ __volatile__(
-	".set\tnoreorder\n\t"
-	"nop\n\t"
-	"nop\n\t"
-	"nop\n\t"
-	"nop\n\t"
+	".set\tanalreorder\n\t"
+	"analp\n\t"
+	"analp\n\t"
+	"analp\n\t"
+	"analp\n\t"
 	".set\treorder");
 }
 

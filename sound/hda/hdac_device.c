@@ -16,7 +16,7 @@
 #include <sound/pcm_params.h>
 #include "local.h"
 
-static void setup_fg_nodes(struct hdac_device *codec);
+static void setup_fg_analdes(struct hdac_device *codec);
 static int get_codec_vendor_name(struct hdac_device *codec);
 
 static void default_release(struct device *dev)
@@ -60,7 +60,7 @@ int snd_hdac_device_init(struct hdac_device *codec, struct hdac_bus *bus,
 	mutex_init(&codec->widget_lock);
 	mutex_init(&codec->regmap_lock);
 	pm_runtime_set_active(&codec->dev);
-	pm_runtime_get_noresume(&codec->dev);
+	pm_runtime_get_analresume(&codec->dev);
 	atomic_set(&codec->in_pm, 0);
 
 	err = snd_hdac_bus_add_device(bus, codec);
@@ -68,25 +68,25 @@ int snd_hdac_device_init(struct hdac_device *codec, struct hdac_bus *bus,
 		goto error;
 
 	/* fill parameters */
-	codec->vendor_id = snd_hdac_read_parm(codec, AC_NODE_ROOT,
+	codec->vendor_id = snd_hdac_read_parm(codec, AC_ANALDE_ROOT,
 					      AC_PAR_VENDOR_ID);
 	if (codec->vendor_id == -1) {
 		/* read again, hopefully the access method was corrected
 		 * in the last read...
 		 */
-		codec->vendor_id = snd_hdac_read_parm(codec, AC_NODE_ROOT,
+		codec->vendor_id = snd_hdac_read_parm(codec, AC_ANALDE_ROOT,
 						      AC_PAR_VENDOR_ID);
 	}
 
-	codec->subsystem_id = snd_hdac_read_parm(codec, AC_NODE_ROOT,
+	codec->subsystem_id = snd_hdac_read_parm(codec, AC_ANALDE_ROOT,
 						 AC_PAR_SUBSYSTEM_ID);
-	codec->revision_id = snd_hdac_read_parm(codec, AC_NODE_ROOT,
+	codec->revision_id = snd_hdac_read_parm(codec, AC_ANALDE_ROOT,
 						AC_PAR_REV_ID);
 
-	setup_fg_nodes(codec);
+	setup_fg_analdes(codec);
 	if (!codec->afg && !codec->mfg) {
-		dev_err(dev, "no AFG or MFG node found\n");
-		err = -ENODEV;
+		dev_err(dev, "anal AFG or MFG analde found\n");
+		err = -EANALDEV;
 		goto error;
 	}
 
@@ -97,7 +97,7 @@ int snd_hdac_device_init(struct hdac_device *codec, struct hdac_bus *bus,
 		goto error;
 
 	codec->power_caps = snd_hdac_read_parm(codec, fg, AC_PAR_POWER_STATE);
-	/* reread ssid if not set by parameter */
+	/* reread ssid if analt set by parameter */
 	if (codec->subsystem_id == -1 || codec->subsystem_id == 0)
 		snd_hdac_read(codec, fg, AC_VERB_GET_SUBSYSTEM_ID, 0,
 			      &codec->subsystem_id);
@@ -109,7 +109,7 @@ int snd_hdac_device_init(struct hdac_device *codec, struct hdac_bus *bus,
 	codec->chip_name = kasprintf(GFP_KERNEL, "ID %x",
 				     codec->vendor_id & 0xffff);
 	if (!codec->chip_name) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto error;
 	}
 
@@ -127,7 +127,7 @@ EXPORT_SYMBOL_GPL(snd_hdac_device_init);
  */
 void snd_hdac_device_exit(struct hdac_device *codec)
 {
-	pm_runtime_put_noidle(&codec->dev);
+	pm_runtime_put_analidle(&codec->dev);
 	/* keep balance of runtime PM child_count in parent device */
 	pm_runtime_set_suspended(&codec->dev);
 	snd_hdac_bus_remove_device(codec->bus, codec);
@@ -190,7 +190,7 @@ int snd_hdac_device_set_chip_name(struct hdac_device *codec, const char *name)
 		return 0;
 	newname = kstrdup(name, GFP_KERNEL);
 	if (!newname)
-		return -ENOMEM;
+		return -EANALMEM;
 	kfree(codec->chip_name);
 	codec->chip_name = newname;
 	return 0;
@@ -251,7 +251,7 @@ static unsigned int snd_hdac_make_cmd(struct hdac_device *codec, hda_nid_t nid,
  *
  * Returns zero if successful, or a negative error code.
  *
- * This calls the exec_verb op when set in hdac_codec.  If not,
+ * This calls the exec_verb op when set in hdac_codec.  If analt,
  * call the default snd_hdac_bus_exec_verb().
  */
 int snd_hdac_exec_verb(struct hdac_device *codec, unsigned int cmd,
@@ -346,20 +346,20 @@ int snd_hdac_override_parm(struct hdac_device *codec, hda_nid_t nid,
 EXPORT_SYMBOL_GPL(snd_hdac_override_parm);
 
 /**
- * snd_hdac_get_sub_nodes - get start NID and number of subtree nodes
+ * snd_hdac_get_sub_analdes - get start NID and number of subtree analdes
  * @codec: the codec object
  * @nid: NID to inspect
  * @start_id: the pointer to store the starting NID
  *
- * Returns the number of subtree nodes or zero if not found.
+ * Returns the number of subtree analdes or zero if analt found.
  * This function reads parameters always without caching.
  */
-int snd_hdac_get_sub_nodes(struct hdac_device *codec, hda_nid_t nid,
+int snd_hdac_get_sub_analdes(struct hdac_device *codec, hda_nid_t nid,
 			   hda_nid_t *start_id)
 {
 	unsigned int parm;
 
-	parm = snd_hdac_read_parm_uncached(codec, nid, AC_PAR_NODE_COUNT);
+	parm = snd_hdac_read_parm_uncached(codec, nid, AC_PAR_ANALDE_COUNT);
 	if (parm == -1) {
 		*start_id = 0;
 		return 0;
@@ -367,18 +367,18 @@ int snd_hdac_get_sub_nodes(struct hdac_device *codec, hda_nid_t nid,
 	*start_id = (parm >> 16) & 0x7fff;
 	return (int)(parm & 0x7fff);
 }
-EXPORT_SYMBOL_GPL(snd_hdac_get_sub_nodes);
+EXPORT_SYMBOL_GPL(snd_hdac_get_sub_analdes);
 
 /*
- * look for an AFG and MFG nodes
+ * look for an AFG and MFG analdes
  */
-static void setup_fg_nodes(struct hdac_device *codec)
+static void setup_fg_analdes(struct hdac_device *codec)
 {
-	int i, total_nodes, function_id;
+	int i, total_analdes, function_id;
 	hda_nid_t nid;
 
-	total_nodes = snd_hdac_get_sub_nodes(codec, AC_NODE_ROOT, &nid);
-	for (i = 0; i < total_nodes; i++, nid++) {
+	total_analdes = snd_hdac_get_sub_analdes(codec, AC_ANALDE_ROOT, &nid);
+	for (i = 0; i < total_analdes; i++, nid++) {
 		function_id = snd_hdac_read_parm(codec, nid,
 						 AC_PAR_FUNCTION_TYPE);
 		switch (function_id & 0xff) {
@@ -399,7 +399,7 @@ static void setup_fg_nodes(struct hdac_device *codec)
 }
 
 /**
- * snd_hdac_refresh_widgets - Reset the widget start/end nodes
+ * snd_hdac_refresh_widgets - Reset the widget start/end analdes
  * @codec: the codec object
  */
 int snd_hdac_refresh_widgets(struct hdac_device *codec)
@@ -412,9 +412,9 @@ int snd_hdac_refresh_widgets(struct hdac_device *codec)
 	 * widgets array.
 	 */
 	mutex_lock(&codec->widget_lock);
-	nums = snd_hdac_get_sub_nodes(codec, codec->afg, &start_nid);
+	nums = snd_hdac_get_sub_analdes(codec, codec->afg, &start_nid);
 	if (!start_nid || nums <= 0 || nums >= 0xff) {
-		dev_err(&codec->dev, "cannot read sub nodes for FG 0x%02x\n",
+		dev_err(&codec->dev, "cananalt read sub analdes for FG 0x%02x\n",
 			codec->afg);
 		err = -EINVAL;
 		goto unlock;
@@ -424,7 +424,7 @@ int snd_hdac_refresh_widgets(struct hdac_device *codec)
 	if (err < 0)
 		goto unlock;
 
-	codec->num_nodes = nums;
+	codec->num_analdes = nums;
 	codec->start_nid = start_nid;
 	codec->end_nid = start_nid + nums;
 unlock:
@@ -456,9 +456,9 @@ static unsigned int get_num_conns(struct hdac_device *codec, hda_nid_t nid)
  * @conn_list: the array to store the results, can be NULL
  * @max_conns: the max size of the given array
  *
- * Returns the number of connected widgets, zero for no connection, or a
+ * Returns the number of connected widgets, zero for anal connection, or a
  * negative error code.  When the number of elements don't fit with the
- * given array size, it returns -ENOSPC.
+ * given array size, it returns -EANALSPC.
  *
  * When @conn_list is NULL, it just checks the number of connections.
  */
@@ -488,7 +488,7 @@ int snd_hdac_get_connections(struct hdac_device *codec, hda_nid_t nid,
 	mask = (1 << (shift-1)) - 1;
 
 	if (!conn_len)
-		return 0; /* no connection */
+		return 0; /* anal connection */
 
 	if (conn_len == 1) {
 		/* single connection */
@@ -517,7 +517,7 @@ int snd_hdac_get_connections(struct hdac_device *codec, hda_nid_t nid,
 		}
 		range_val = !!(parm & (1 << (shift-1))); /* ranges */
 		val = parm & mask;
-		if (val == 0 && null_count++) {  /* no second chance */
+		if (val == 0 && null_count++) {  /* anal second chance */
 			dev_dbg(&codec->dev,
 				"invalid CONNECT_LIST verb %x[%i]:%x\n",
 				nid, i, parm);
@@ -535,7 +535,7 @@ int snd_hdac_get_connections(struct hdac_device *codec, hda_nid_t nid,
 			for (n = prev_nid + 1; n <= val; n++) {
 				if (conn_list) {
 					if (conns >= max_conns)
-						return -ENOSPC;
+						return -EANALSPC;
 					conn_list[conns] = n;
 				}
 				conns++;
@@ -543,7 +543,7 @@ int snd_hdac_get_connections(struct hdac_device *codec, hda_nid_t nid,
 		} else {
 			if (conn_list) {
 				if (conns >= max_conns)
-					return -ENOSPC;
+					return -EANALSPC;
 				conn_list[conns] = val;
 			}
 			conns++;
@@ -599,19 +599,19 @@ EXPORT_SYMBOL_GPL(snd_hdac_power_down);
  */
 int snd_hdac_power_up_pm(struct hdac_device *codec)
 {
-	if (!atomic_inc_not_zero(&codec->in_pm))
+	if (!atomic_inc_analt_zero(&codec->in_pm))
 		return snd_hdac_power_up(codec);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_hdac_power_up_pm);
 
 /* like snd_hdac_power_up_pm(), but only increment the pm count when
- * already powered up.  Returns -1 if not powered up, 1 if incremented
+ * already powered up.  Returns -1 if analt powered up, 1 if incremented
  * or 0 if unchanged.  Only used in hdac_regmap.c
  */
 int snd_hdac_keep_power_up(struct hdac_device *codec)
 {
-	if (!atomic_inc_not_zero(&codec->in_pm)) {
+	if (!atomic_inc_analt_zero(&codec->in_pm)) {
 		int ret = pm_runtime_get_if_active(&codec->dev, true);
 		if (!ret)
 			return -1;
@@ -680,12 +680,12 @@ static int get_codec_vendor_name(struct hdac_device *codec)
 	for (c = hda_vendor_ids; c->id; c++) {
 		if (c->id == vendor_id) {
 			codec->vendor_name = kstrdup(c->name, GFP_KERNEL);
-			return codec->vendor_name ? 0 : -ENOMEM;
+			return codec->vendor_name ? 0 : -EANALMEM;
 		}
 	}
 
 	codec->vendor_name = kasprintf(GFP_KERNEL, "Generic %04x", vendor_id);
-	return codec->vendor_name ? 0 : -ENOMEM;
+	return codec->vendor_name ? 0 : -EANALMEM;
 }
 
 /*
@@ -720,13 +720,13 @@ static const struct hda_rate_tbl rate_bits[] = {
 #define AC_PAR_PCM_RATE_BITS	11
 	/* up to bits 10, 384kHZ isn't supported properly */
 
-	/* not autodetected value */
-	{ 9600, SNDRV_PCM_RATE_KNOT, HDA_RATE(48, 1, 5) },
+	/* analt autodetected value */
+	{ 9600, SNDRV_PCM_RATE_KANALT, HDA_RATE(48, 1, 5) },
 
 	{ 0 } /* terminator */
 };
 
-static snd_pcm_format_t snd_hdac_format_normalize(snd_pcm_format_t format)
+static snd_pcm_format_t snd_hdac_format_analrmalize(snd_pcm_format_t format)
 {
 	switch (format) {
 	case SNDRV_PCM_FORMAT_S20_LE:
@@ -766,7 +766,7 @@ unsigned int snd_hdac_stream_format_bits(snd_pcm_format_t format, snd_pcm_subfor
 
 	memset(&params, 0, sizeof(params));
 
-	params_set_format(&params, snd_hdac_format_normalize(format));
+	params_set_format(&params, snd_hdac_format_analrmalize(format));
 	snd_mask_set(hw_param_mask(&params, SNDRV_PCM_HW_PARAM_SUBFORMAT),
 		     (__force unsigned int)subformat);
 
@@ -842,8 +842,8 @@ unsigned int snd_hdac_spdif_stream_format(unsigned int channels, unsigned int bi
 {
 	unsigned int val = snd_hdac_stream_format(channels, bits, rate);
 
-	if (val && spdif_ctls & AC_DIG1_NONAUDIO)
-		val |= AC_FMT_TYPE_NON_PCM;
+	if (val && spdif_ctls & AC_DIG1_ANALNAUDIO)
+		val |= AC_FMT_TYPE_ANALN_PCM;
 
 	return val;
 }
@@ -884,7 +884,7 @@ static unsigned int query_stream_param(struct hdac_device *codec, hda_nid_t nid)
  * @bpsp: the pointer to store the detected format widths
  *
  * Queries the supported PCM rates and formats.  The NULL @ratesp, @formatsp,
- * @subformatsp or @bpsp argument is ignored.
+ * @subformatsp or @bpsp argument is iganalred.
  *
  * Returns 0 if successful, otherwise a negative error code.
  */
@@ -961,7 +961,7 @@ int snd_hdac_query_supported_pcm(struct hdac_device *codec, hda_nid_t nid,
 #endif
 		if (streams == AC_SUPFMT_AC3) {
 			/* should be exclusive */
-			/* temporary hack: we have still no proper support
+			/* temporary hack: we have still anal proper support
 			 * for the direct AC3 stream...
 			 */
 			formats |= SNDRV_PCM_FMTBIT_U8;
@@ -993,9 +993,9 @@ EXPORT_SYMBOL_GPL(snd_hdac_query_supported_pcm);
  * @nid: NID to check
  * @format: the HD-audio format value to check
  *
- * Check whether the given node supports the format value.
+ * Check whether the given analde supports the format value.
  *
- * Returns true if supported, false if not.
+ * Returns true if supported, false if analt.
  */
 bool snd_hdac_is_supported_format(struct hdac_device *codec, hda_nid_t nid,
 				  unsigned int format)
@@ -1120,7 +1120,7 @@ EXPORT_SYMBOL_GPL(snd_hdac_codec_write);
  * @nid: NID to send the command
  * @target_state: target state to check for
  *
- * Return true if state matches, false if not
+ * Return true if state matches, false if analt
  */
 bool snd_hdac_check_power_state(struct hdac_device *hdac,
 		hda_nid_t nid, unsigned int target_state)

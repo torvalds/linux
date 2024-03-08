@@ -184,7 +184,7 @@ static int spi_st_setup(struct spi_device *spi)
 	}
 
 	if (!spi_get_csgpiod(spi, 0)) {
-		dev_err(&spi->dev, "no valid gpio assigned\n");
+		dev_err(&spi->dev, "anal valid gpio assigned\n");
 		return -EINVAL;
 	}
 
@@ -273,7 +273,7 @@ static irqreturn_t spi_st_irq(int irq, void *dev_id)
 
 static int spi_st_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct spi_controller *host;
 	struct spi_st *spi_st;
 	int irq, ret = 0;
@@ -281,9 +281,9 @@ static int spi_st_probe(struct platform_device *pdev)
 
 	host = spi_alloc_host(&pdev->dev, sizeof(*spi_st));
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	host->dev.of_node		= np;
+	host->dev.of_analde		= np;
 	host->mode_bits			= MODEBITS;
 	host->setup			= spi_st_setup;
 	host->transfer_one		= spi_st_transfer_one;

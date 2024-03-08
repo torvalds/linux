@@ -87,12 +87,12 @@ static int panfrost_ioctl_create_bo(struct drm_device *dev, void *data,
 	int ret;
 
 	if (!args->size || args->pad ||
-	    (args->flags & ~(PANFROST_BO_NOEXEC | PANFROST_BO_HEAP)))
+	    (args->flags & ~(PANFROST_BO_ANALEXEC | PANFROST_BO_HEAP)))
 		return -EINVAL;
 
 	/* Heaps should never be executable */
 	if ((args->flags & PANFROST_BO_HEAP) &&
-	    !(args->flags & PANFROST_BO_NOEXEC))
+	    !(args->flags & PANFROST_BO_ANALEXEC))
 		return -EINVAL;
 
 	bo = panfrost_gem_create(dev, args->size, args->flags);
@@ -105,7 +105,7 @@ static int panfrost_ioctl_create_bo(struct drm_device *dev, void *data,
 
 	mapping = panfrost_gem_mapping_get(bo, priv);
 	if (mapping) {
-		args->offset = mapping->mmnode.start << PAGE_SHIFT;
+		args->offset = mapping->mmanalde.start << PAGE_SHIFT;
 		panfrost_gem_mapping_put(mapping);
 	} else {
 		/* This can only happen if the handle from
@@ -130,7 +130,7 @@ out:
  *
  * Resolve handles from userspace to BOs and attach them to job.
  *
- * Note that this function doesn't need to unreference the BOs on
+ * Analte that this function doesn't need to unreference the BOs on
  * failure, because that will happen at panfrost_job_cleanup() time.
  */
 static int
@@ -159,7 +159,7 @@ panfrost_lookup_bos(struct drm_device *dev,
 				       sizeof(struct panfrost_gem_mapping *),
 				       GFP_KERNEL | __GFP_ZERO);
 	if (!job->mappings)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < job->bo_count; i++) {
 		struct panfrost_gem_mapping *mapping;
@@ -188,7 +188,7 @@ panfrost_lookup_bos(struct drm_device *dev,
  *
  * Resolve syncobjs from userspace to fences and attach them to job.
  *
- * Note that this function doesn't need to unreference the fences on
+ * Analte that this function doesn't need to unreference the fences on
  * failure, because that will happen at panfrost_job_cleanup() time.
  */
 static int
@@ -208,7 +208,7 @@ panfrost_copy_in_sync(struct drm_device *dev,
 
 	handles = kvmalloc_array(in_fence_count, sizeof(u32), GFP_KERNEL);
 	if (!handles) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		DRM_DEBUG("Failed to allocate incoming syncobj handles\n");
 		goto fail;
 	}
@@ -252,12 +252,12 @@ static int panfrost_ioctl_submit(struct drm_device *dev, void *data,
 	if (args->out_sync > 0) {
 		sync_out = drm_syncobj_find(file, args->out_sync);
 		if (!sync_out)
-			return -ENODEV;
+			return -EANALDEV;
 	}
 
 	job = kzalloc(sizeof(*job), GFP_KERNEL);
 	if (!job) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_put_syncout;
 	}
 
@@ -320,7 +320,7 @@ panfrost_ioctl_wait_bo(struct drm_device *dev, void *data,
 
 	gem_obj = drm_gem_object_lookup(file_priv, args->handle);
 	if (!gem_obj)
-		return -ENOENT;
+		return -EANALENT;
 
 	ret = dma_resv_wait_timeout(gem_obj->resv, DMA_RESV_USAGE_READ,
 				    true, timeout);
@@ -340,17 +340,17 @@ static int panfrost_ioctl_mmap_bo(struct drm_device *dev, void *data,
 	int ret;
 
 	if (args->flags != 0) {
-		DRM_INFO("unknown mmap_bo flags: %d\n", args->flags);
+		DRM_INFO("unkanalwn mmap_bo flags: %d\n", args->flags);
 		return -EINVAL;
 	}
 
 	gem_obj = drm_gem_object_lookup(file_priv, args->handle);
 	if (!gem_obj) {
 		DRM_DEBUG("Failed to look up GEM BO %d\n", args->handle);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
-	/* Don't allow mmapping of heap objects as pages are not pinned. */
+	/* Don't allow mmapping of heap objects as pages are analt pinned. */
 	if (to_panfrost_bo(gem_obj)->is_heap) {
 		ret = -EINVAL;
 		goto out;
@@ -358,7 +358,7 @@ static int panfrost_ioctl_mmap_bo(struct drm_device *dev, void *data,
 
 	ret = drm_gem_create_mmap_offset(gem_obj);
 	if (ret == 0)
-		args->offset = drm_vma_node_offset_addr(&gem_obj->vma_node);
+		args->offset = drm_vma_analde_offset_addr(&gem_obj->vma_analde);
 
 out:
 	drm_gem_object_put(gem_obj);
@@ -377,7 +377,7 @@ static int panfrost_ioctl_get_bo_offset(struct drm_device *dev, void *data,
 	gem_obj = drm_gem_object_lookup(file_priv, args->handle);
 	if (!gem_obj) {
 		DRM_DEBUG("Failed to look up GEM BO %d\n", args->handle);
-		return -ENOENT;
+		return -EANALENT;
 	}
 	bo = to_panfrost_bo(gem_obj);
 
@@ -387,7 +387,7 @@ static int panfrost_ioctl_get_bo_offset(struct drm_device *dev, void *data,
 	if (!mapping)
 		return -EINVAL;
 
-	args->offset = mapping->mmnode.start << PAGE_SHIFT;
+	args->offset = mapping->mmanalde.start << PAGE_SHIFT;
 	panfrost_gem_mapping_put(mapping);
 	return 0;
 }
@@ -405,7 +405,7 @@ static int panfrost_ioctl_madvise(struct drm_device *dev, void *data,
 	gem_obj = drm_gem_object_lookup(file_priv, args->handle);
 	if (!gem_obj) {
 		DRM_DEBUG("Failed to look up GEM BO %d\n", args->handle);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	bo = to_panfrost_bo(gem_obj);
@@ -421,7 +421,7 @@ static int panfrost_ioctl_madvise(struct drm_device *dev, void *data,
 
 		first = list_first_entry(&bo->mappings.list,
 					 struct panfrost_gem_mapping,
-					 node);
+					 analde);
 
 		/*
 		 * If we want to mark the BO purgeable, there must be only one
@@ -429,7 +429,7 @@ static int panfrost_ioctl_madvise(struct drm_device *dev, void *data,
 		 * We could do something smarter and mark the BO purgeable only
 		 * when all its users have marked it purgeable, but globally
 		 * visible/shared BOs are likely to never be marked purgeable
-		 * anyway, so let's not bother.
+		 * anyway, so let's analt bother.
 		 */
 		if (!list_is_singular(&bo->mappings.list) ||
 		    WARN_ON_ONCE(first->mmu != priv->mmu)) {
@@ -460,7 +460,7 @@ out_put_object:
 int panfrost_unstable_ioctl_check(void)
 {
 	if (!unstable_ioctls)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	return 0;
 }
@@ -474,7 +474,7 @@ panfrost_open(struct drm_device *dev, struct drm_file *file)
 
 	panfrost_priv = kzalloc(sizeof(*panfrost_priv), GFP_KERNEL);
 	if (!panfrost_priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	panfrost_priv->pfdev = pfdev;
 	file->driver_priv = panfrost_priv;
@@ -532,7 +532,7 @@ static void panfrost_gpu_show_fdinfo(struct panfrost_device *pfdev,
 	int i;
 
 	/*
-	 * IMPORTANT NOTE: drm-cycles and drm-engine measurements are not
+	 * IMPORTANT ANALTE: drm-cycles and drm-engine measurements are analt
 	 * accurate, as they only provide a rough estimation of the number of
 	 * GPU cycles and CPU time spent in a given context. This is due to two
 	 * different factors:
@@ -540,7 +540,7 @@ static void panfrost_gpu_show_fdinfo(struct panfrost_device *pfdev,
 	 *   takes to process the GPU interrupt, which means additional time and
 	 *   GPU cycles will be added in excess to the real figure.
 	 * - Secondly, the pipelining done by the Job Manager (2 job slots per
-	 *   engine) implies there is no way to know exactly how much time each
+	 *   engine) implies there is anal way to kanalw exactly how much time each
 	 *   job spent on the GPU.
 	 */
 
@@ -564,7 +564,7 @@ static void panfrost_gpu_show_fdinfo(struct panfrost_device *pfdev,
 
 static void panfrost_show_fdinfo(struct drm_printer *p, struct drm_file *file)
 {
-	struct drm_device *dev = file->minor->dev;
+	struct drm_device *dev = file->mianalr->dev;
 	struct panfrost_device *pfdev = dev->dev_private;
 
 	panfrost_gpu_show_fdinfo(pfdev, file->driver_priv, p);
@@ -581,7 +581,7 @@ static const struct file_operations panfrost_drm_driver_fops = {
 /*
  * Panfrost driver version:
  * - 1.0 - initial interface
- * - 1.1 - adds HEAP and NOEXEC flags for CREATE_BO
+ * - 1.1 - adds HEAP and ANALEXEC flags for CREATE_BO
  * - 1.2 - adds AFBC_FEATURES query
  */
 static const struct drm_driver panfrost_drm_driver = {
@@ -596,7 +596,7 @@ static const struct drm_driver panfrost_drm_driver = {
 	.desc			= "panfrost DRM",
 	.date			= "20180908",
 	.major			= 1,
-	.minor			= 2,
+	.mianalr			= 2,
 
 	.gem_create_object	= panfrost_gem_create_object,
 	.gem_prime_import_sg_table = panfrost_gem_prime_import_sg_table,
@@ -614,7 +614,7 @@ static int panfrost_probe(struct platform_device *pdev)
 
 	pfdev = devm_kzalloc(&pdev->dev, sizeof(*pfdev), GFP_KERNEL);
 	if (!pfdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pfdev->pdev = pdev;
 	pfdev->dev = &pdev->dev;
@@ -623,7 +623,7 @@ static int panfrost_probe(struct platform_device *pdev)
 
 	pfdev->comp = of_device_get_match_data(&pdev->dev);
 	if (!pfdev->comp)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pfdev->coherent = device_get_dma_attr(&pdev->dev) == DEV_DMA_COHERENT;
 
@@ -714,7 +714,7 @@ static const struct panfrost_compatible amlogic_data = {
 /*
  * The old data with two power supplies for MT8183 is here only to
  * keep retro-compatibility with older devicetrees, as DVFS will
- * not work with this one.
+ * analt work with this one.
  *
  * On new devicetrees please use the _b variant with a single and
  * coupled regulators instead.

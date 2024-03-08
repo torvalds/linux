@@ -4,12 +4,12 @@ Required properties:
 - compatible: "ti,tps65132"
 - reg: I2C slave address
 
-Optional Subnode:
-Device supports two regulators OUTP and OUTN. A sub node within the
-   device node describe the properties of these regulators. The sub-node
+Optional Subanalde:
+Device supports two regulators OUTP and OUTN. A sub analde within the
+   device analde describe the properties of these regulators. The sub-analde
    names must be as follows:
-	-For regulator outp, the sub node name should be "outp".
-	-For regulator outn, the sub node name should be "outn".
+	-For regulator outp, the sub analde name should be "outp".
+	-For regulator outn, the sub analde name should be "outn".
 
 -enable-gpios:(active high, output) Regulators are controlled by the input pins.
    If it is connected to GPIO through host system then provide the

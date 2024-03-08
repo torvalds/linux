@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef __LOONGARCH_UAPI_ASM_UCONTEXT_H
 #define __LOONGARCH_UAPI_ASM_UCONTEXT_H
 
@@ -26,7 +26,7 @@ struct ucontext {
 	 * vector ISA extension will almost certainly add ISA state.  We want
 	 * to ensure all user-visible ISA state can be saved and restored via a
 	 * ucontext, so we're putting this at the end in order to allow for
-	 * infinite extensibility.  Since we know this will be extended and we
+	 * infinite extensibility.  Since we kanalw this will be extended and we
 	 * assume sigset_t won't be extended an extreme amount, we're
 	 * prioritizing this. */
 	struct sigcontext	uc_mcontext;

@@ -4,7 +4,7 @@
  * Copyright (C) Jonathan Naylor G4KLX (g4klx@g4klx.demon.co.uk)
  * Copyright (C) Joerg Reuter DL1BKE (jreuter@yaina.de)
  */
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/in.h>
@@ -37,7 +37,7 @@ void ax25_ds_enquiry_response(ax25_cb *ax25)
 {
 	ax25_cb *ax25o;
 
-	/* Please note that neither DK4EG's nor DG2FEF's
+	/* Please analte that neither DK4EG's analr DG2FEF's
 	 * DAMA spec mention the following behaviour as seen
 	 * with TheFirmware:
 	 *
@@ -96,7 +96,7 @@ void ax25_ds_enquiry_response(ax25_cb *ax25)
 		if (ax25o->state == AX25_STATE_1 || ax25o->state == AX25_STATE_2 || skb_peek(&ax25o->ack_queue) != NULL)
 			ax25_ds_t1_timeout(ax25o);
 
-		/* do not start T3 for listening sockets (tnx DD8NE) */
+		/* do analt start T3 for listening sockets (tnx DD8NE) */
 
 		if (ax25o->state != AX25_STATE_0)
 			ax25_start_t3timer(ax25o);
@@ -116,7 +116,7 @@ void ax25_ds_establish_data_link(ax25_cb *ax25)
 
 /*
  *	:::FIXME:::
- *	This is a kludge. Not all drivers recognize kiss commands.
+ *	This is a kludge. Analt all drivers recognize kiss commands.
  *	We need a driver level  request to switch duplex mode, that does
  *	either SCC changing, PI config or KISS as required. Currently
  *	this request isn't reliable.
@@ -146,7 +146,7 @@ static void ax25_kiss_cmd(ax25_dev *ax25_dev, unsigned char cmd, unsigned char p
 /*
  *	A nasty problem arises if we count the number of DAMA connections
  *	wrong, especially when connections on the device already existed
- *	and our network node (or the sysop) decides to turn on DAMA Master
+ *	and our network analde (or the sysop) decides to turn on DAMA Master
  *	mode. We thus flag the 'real' slave connections with
  *	ax25->dama_slave=1 and look on every disconnect if still slave
  *	connections exist.

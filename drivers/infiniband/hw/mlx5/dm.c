@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
- * Copyright (c) 2021, Mellanox Technologies inc. All rights reserved.
+ * Copyright (c) 2021, Mellaanalx Techanallogies inc. All rights reserved.
  */
 
 #include <rdma/uverbs_std_types.h>
@@ -28,7 +28,7 @@ static int mlx5_cmd_alloc_memic(struct mlx5_dm *dm, phys_addr_t *addr,
 		return -EINVAL;
 
 	/* mlx5 device sets alignment as 64*2^driver_value
-	 * so normalizing is needed.
+	 * so analrmalizing is needed.
 	 */
 	mlx5_alignment = (alignment < MLX5_MEMIC_BASE_ALIGN) ? 0 :
 			 alignment - MLX5_MEMIC_BASE_ALIGN;
@@ -60,7 +60,7 @@ static int mlx5_cmd_alloc_memic(struct mlx5_dm *dm, phys_addr_t *addr,
 		MLX5_SET64(alloc_memic_in, in, range_start_addr,
 			   hw_start_addr + (page_idx * PAGE_SIZE));
 
-		ret = mlx5_cmd_exec_inout(dev, alloc_memic, in, out);
+		ret = mlx5_cmd_exec_ianalut(dev, alloc_memic, in, out);
 		if (ret) {
 			spin_lock(&dm->lock);
 			bitmap_clear(dm->memic_alloc_pages,
@@ -81,7 +81,7 @@ static int mlx5_cmd_alloc_memic(struct mlx5_dm *dm, phys_addr_t *addr,
 		return 0;
 	}
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 void mlx5_cmd_dealloc_memic(struct mlx5_dm *dm, phys_addr_t addr,
@@ -138,7 +138,7 @@ static int mlx5_cmd_alloc_memic_op(struct mlx5_dm *dm, phys_addr_t addr,
 	MLX5_SET(modify_memic_in, in, memic_operation_type, operation);
 	MLX5_SET64(modify_memic_in, in, memic_start_addr, addr - dev->bar_addr);
 
-	err = mlx5_cmd_exec_inout(dev, modify_memic, in, out);
+	err = mlx5_cmd_exec_ianalut(dev, modify_memic, in, out);
 	if (err)
 		return err;
 
@@ -196,7 +196,7 @@ static int map_existing_op(struct mlx5_ib_dm_memic *dm, u8 op,
 
 	op_entry = xa_load(&dm->ops, op);
 	if (!op_entry)
-		return -ENOENT;
+		return -EANALENT;
 
 	return copy_op_to_user(op_entry, attrs);
 }
@@ -218,14 +218,14 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DM_MAP_OP_ADDR)(
 		return err;
 
 	if (op >= BITS_PER_TYPE(u32))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!(MLX5_CAP_DEV_MEM(dev->mdev, memic_operations) & BIT(op)))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mutex_lock(&dm->ops_xa_lock);
 	err = map_existing_op(dm, op, attrs);
-	if (!err || err != -ENOENT)
+	if (!err || err != -EANALENT)
 		goto err_unlock;
 
 	op_entry = kzalloc(sizeof(*op_entry), GFP_KERNEL);
@@ -283,11 +283,11 @@ static struct ib_dm *handle_alloc_dm_memic(struct ib_ucontext *ctx,
 	u64 address;
 
 	if (!MLX5_CAP_DEV_MEM(dm_db->dev, memic))
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 
 	dm = kzalloc(sizeof(*dm), GFP_KERNEL);
 	if (!dm)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	dm->base.type = MLX5_IB_UAPI_DM_TYPE_MEMIC;
 	dm->base.size = roundup(attr->length, MLX5_MEMIC_BASE_SIZE);
@@ -371,20 +371,20 @@ static struct ib_dm *handle_alloc_dm_sw_icm(struct ib_ucontext *ctx,
 		      MLX5_CAP_FLOWTABLE_NIC_TX(dev, sw_owner) ||
 		      MLX5_CAP_FLOWTABLE_NIC_RX(dev, sw_owner_v2) ||
 		      MLX5_CAP_FLOWTABLE_NIC_TX(dev, sw_owner_v2)))
-			return ERR_PTR(-EOPNOTSUPP);
+			return ERR_PTR(-EOPANALTSUPP);
 		break;
 	case MLX5_IB_UAPI_DM_TYPE_HEADER_MODIFY_PATTERN_SW_ICM:
 		if (!MLX5_CAP_FLOWTABLE_NIC_RX(dev, sw_owner_v2) ||
 		    !MLX5_CAP_FLOWTABLE_NIC_TX(dev, sw_owner_v2))
-			return ERR_PTR(-EOPNOTSUPP);
+			return ERR_PTR(-EOPANALTSUPP);
 		break;
 	default:
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 	}
 
 	dm = kzalloc(sizeof(*dm), GFP_KERNEL);
 	if (!dm)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	dm->base.type = type;
 	dm->base.ibdm.device = ctx->device;
@@ -444,7 +444,7 @@ struct ib_dm *mlx5_ib_alloc_dm(struct ib_device *ibdev,
 	case MLX5_IB_UAPI_DM_TYPE_ENCAP_SW_ICM:
 		return handle_alloc_dm_sw_icm(context, attr, attrs, type);
 	default:
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 	}
 }
 
@@ -498,7 +498,7 @@ static int mlx5_ib_dealloc_dm(struct ib_dm *ibdm,
 	case MLX5_IB_UAPI_DM_TYPE_ENCAP_SW_ICM:
 		return mlx5_dm_icm_dealloc(ctx, to_icm(ibdm));
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -514,7 +514,7 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DM_QUERY)(
 	int err;
 
 	if (dm->type != MLX5_IB_UAPI_DM_TYPE_MEMIC)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	memic = to_memic(ibdm);
 	page_idx = memic->mentry.rdma_entry.start_pgoff & 0xFFFF;

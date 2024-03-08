@@ -3,7 +3,7 @@
  * Support for Compaq iPAQ H3100 and H3600 handheld computers (common code)
  *
  * Copyright (c) 2000,1 Compaq Computer Corporation. (Author: Jamey Hicks)
- * Copyright (c) 2009 Dmitry Artamonow <mad_soft@inbox.ru>
+ * Copyright (c) 2009 Dmitry Artamoanalw <mad_soft@inbox.ru>
  */
 
 #include <linux/kernel.h>
@@ -98,7 +98,7 @@ static void h3xxx_uart_pm(struct uart_port *port, u_int state, u_int oldstate)
 
 /*
  * Enable/Disable wake up events for this serial port.
- * Obviously, we only support this on the normal COM port.
+ * Obviously, we only support this on the analrmal COM port.
  */
 static int h3xxx_uart_set_wake(struct uart_port *port, u_int enable)
 {

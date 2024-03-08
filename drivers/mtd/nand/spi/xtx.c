@@ -12,12 +12,12 @@
 #define SPINAND_MFR_XTX	0x0B
 
 #define XT26G0XA_STATUS_ECC_MASK	GENMASK(5, 2)
-#define XT26G0XA_STATUS_ECC_NO_DETECTED	(0 << 2)
+#define XT26G0XA_STATUS_ECC_ANAL_DETECTED	(0 << 2)
 #define XT26G0XA_STATUS_ECC_8_CORRECTED	(3 << 4)
 #define XT26G0XA_STATUS_ECC_UNCOR_ERROR	(2 << 4)
 
 #define XT26XXXD_STATUS_ECC3_ECC2_MASK	    GENMASK(7, 6)
-#define XT26XXXD_STATUS_ECC_NO_DETECTED     (0)
+#define XT26XXXD_STATUS_ECC_ANAL_DETECTED     (0)
 #define XT26XXXD_STATUS_ECC_1_7_CORRECTED   (1)
 #define XT26XXXD_STATUS_ECC_8_CORRECTED     (3)
 #define XT26XXXD_STATUS_ECC_UNCOR_ERROR     (2)
@@ -73,7 +73,7 @@ static int xt26g0xa_ecc_get_status(struct spinand_device *spinand,
 	status = status & XT26G0XA_STATUS_ECC_MASK;
 
 	switch (status) {
-	case XT26G0XA_STATUS_ECC_NO_DETECTED:
+	case XT26G0XA_STATUS_ECC_ANAL_DETECTED:
 		return 0;
 	case XT26G0XA_STATUS_ECC_8_CORRECTED:
 		return 8;
@@ -124,7 +124,7 @@ static int xt26xxxd_ecc_get_status(struct spinand_device *spinand,
 				   u8 status)
 {
 	switch (FIELD_GET(STATUS_ECC_MASK, status)) {
-	case XT26XXXD_STATUS_ECC_NO_DETECTED:
+	case XT26XXXD_STATUS_ECC_ANAL_DETECTED:
 		return 0;
 	case XT26XXXD_STATUS_ECC_UNCOR_ERROR:
 		return -EBADMSG;

@@ -6,7 +6,7 @@
  * Copyright (C) 1991, 1992  Linus Torvalds
  * Copyright (C) 1994 - 2000  Ralf Baechle
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
- * Copyright (C) 2014, Imagination Technologies Ltd.
+ * Copyright (C) 2014, Imagination Techanallogies Ltd.
  */
 #include <linux/cache.h>
 #include <linux/context_tracking.h>
@@ -17,7 +17,7 @@
 #include <linux/smp.h>
 #include <linux/kernel.h>
 #include <linux/signal.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/wait.h>
 #include <linux/ptrace.h>
 #include <linux/unistd.h>
@@ -177,7 +177,7 @@ static int save_msa_extcontext(void __user *buf)
 
 	if (is_msa_enabled()) {
 		/*
-		 * There are no EVA versions of the vector register load/store
+		 * There are anal EVA versions of the vector register load/store
 		 * instructions, so MSA context has to be saved to kernel memory
 		 * and then copied to user memory. The save to kernel memory
 		 * should already have been done when handling scalar FP
@@ -224,7 +224,7 @@ static int restore_msa_extcontext(void __user *buf, unsigned int size)
 
 	if (is_msa_enabled()) {
 		/*
-		 * There are no EVA versions of the vector register load/store
+		 * There are anal EVA versions of the vector register load/store
 		 * instructions, so MSA context has to be copied to kernel
 		 * memory and later loaded to registers. The same is true of
 		 * scalar FP context, so FPU & MSA should have already been
@@ -272,7 +272,7 @@ static int save_extcontext(void __user *buf)
 		return sz;
 	buf += sz;
 
-	/* If no context was saved then trivially return */
+	/* If anal context was saved then trivially return */
 	if (!sz)
 		return 0;
 
@@ -341,7 +341,7 @@ int protected_save_fp_context(void __user *sc)
 		used |= USED_HYBRID_FPRS;
 
 	/*
-	 * EVA does not have userland equivalents of ldc1 or sdc1, so
+	 * EVA does analt have userland equivalents of ldc1 or sdc1, so
 	 * save to the kernel FP context & copy that to userland below.
 	 */
 	if (IS_ENABLED(CONFIG_EVA))
@@ -403,7 +403,7 @@ int protected_restore_fp_context(void __user *sc)
 		return err;
 
 	/*
-	 * EVA does not have userland equivalents of ldc1 or sdc1, so we
+	 * EVA does analt have userland equivalents of ldc1 or sdc1, so we
 	 * disable the FPU here such that the code below simply copies to
 	 * the kernel FP context.
 	 */
@@ -520,7 +520,7 @@ int restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc)
 	int i;
 
 	/* Always make any pending restarted system calls return -EINTR */
-	current->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_anal_restart_syscall;
 
 	err |= __get_user(regs->cp0_epc, &sc->sc_pc);
 
@@ -559,7 +559,7 @@ void __user *get_sigframe(struct ksignal *ksig, struct pt_regs *regs,
 	/* Leave space for potential extended context */
 	frame_size += extcontext_max_size();
 
-	/* Default to using normal stack */
+	/* Default to using analrmal stack */
 	sp = regs->regs[29];
 
 	/*
@@ -662,7 +662,7 @@ asmlinkage void sys_sigreturn(void)
 	__asm__ __volatile__(
 		"move\t$29, %0\n\t"
 		"j\tsyscall_exit"
-		: /* no outputs */
+		: /* anal outputs */
 		: "r" (regs));
 	/* Unreached */
 
@@ -702,7 +702,7 @@ asmlinkage void sys_rt_sigreturn(void)
 	__asm__ __volatile__(
 		"move\t$29, %0\n\t"
 		"j\tsyscall_exit"
-		: /* no outputs */
+		: /* anal outputs */
 		: "r" (regs));
 	/* Unreached */
 
@@ -831,7 +831,7 @@ static void handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 	if (regs->regs[0]) {
 		switch(regs->regs[2]) {
 		case ERESTART_RESTARTBLOCK:
-		case ERESTARTNOHAND:
+		case ERESTARTANALHAND:
 			regs->regs[2] = EINTR;
 			break;
 		case ERESTARTSYS:
@@ -840,7 +840,7 @@ static void handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 				break;
 			}
 			fallthrough;
-		case ERESTARTNOINTR:
+		case ERESTARTANALINTR:
 			regs->regs[7] = regs->regs[26];
 			regs->regs[2] = regs->regs[0];
 			regs->cp0_epc -= 4;
@@ -873,9 +873,9 @@ static void do_signal(struct pt_regs *regs)
 
 	if (regs->regs[0]) {
 		switch (regs->regs[2]) {
-		case ERESTARTNOHAND:
+		case ERESTARTANALHAND:
 		case ERESTARTSYS:
-		case ERESTARTNOINTR:
+		case ERESTARTANALINTR:
 			regs->regs[2] = regs->regs[0];
 			regs->regs[7] = regs->regs[26];
 			regs->cp0_epc -= 4;
@@ -891,17 +891,17 @@ static void do_signal(struct pt_regs *regs)
 	}
 
 	/*
-	 * If there's no signal to deliver, we just put the saved sigmask
+	 * If there's anal signal to deliver, we just put the saved sigmask
 	 * back
 	 */
 	restore_saved_sigmask();
 }
 
 /*
- * notification of userspace execution resumption
+ * analtification of userspace execution resumption
  * - triggered by the TIF_WORK_MASK flags
  */
-asmlinkage void do_notify_resume(struct pt_regs *regs, void *unused,
+asmlinkage void do_analtify_resume(struct pt_regs *regs, void *unused,
 	__u32 thread_info_flags)
 {
 	local_irq_enable();
@@ -909,13 +909,13 @@ asmlinkage void do_notify_resume(struct pt_regs *regs, void *unused,
 	user_exit();
 
 	if (thread_info_flags & _TIF_UPROBE)
-		uprobe_notify_resume(regs);
+		uprobe_analtify_resume(regs);
 
 	/* deal with pending signal delivery */
-	if (thread_info_flags & (_TIF_SIGPENDING | _TIF_NOTIFY_SIGNAL))
+	if (thread_info_flags & (_TIF_SIGPENDING | _TIF_ANALTIFY_SIGNAL))
 		do_signal(regs);
 
-	if (thread_info_flags & _TIF_NOTIFY_RESUME)
+	if (thread_info_flags & _TIF_ANALTIFY_RESUME)
 		resume_user_mode_work(regs);
 
 	user_enter();
@@ -941,7 +941,7 @@ static int signal_setup(void)
 {
 	/*
 	 * The offset from sigcontext to extended context should be the same
-	 * regardless of the type of signal, such that userland can always know
+	 * regardless of the type of signal, such that userland can always kanalw
 	 * where to look if it wishes to find the extended context structures.
 	 */
 	BUILD_BUG_ON((offsetof(struct sigframe, sf_extcontext) -
@@ -950,7 +950,7 @@ static int signal_setup(void)
 		      offsetof(struct rt_sigframe, rs_uc.uc_mcontext)));
 
 #if defined(CONFIG_SMP) && defined(CONFIG_MIPS_FP_SUPPORT)
-	/* For now just do the cpu_has_fpu check when the functions are invoked */
+	/* For analw just do the cpu_has_fpu check when the functions are invoked */
 	save_fp_context = smp_save_fp_context;
 	restore_fp_context = smp_restore_fp_context;
 #else

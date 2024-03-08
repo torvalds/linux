@@ -86,7 +86,7 @@ static void sha256_transform(u32 *state, const u8 *input, u32 *W)
 		LOAD_OP(i + 7, W, input);
 	}
 
-	/* now blend */
+	/* analw blend */
 	for (i = 16; i < 64; i += 8) {
 		BLEND_OP(i + 0, W);
 		BLEND_OP(i + 1, W);
@@ -102,7 +102,7 @@ static void sha256_transform(u32 *state, const u8 *input, u32 *W)
 	a = state[0];  b = state[1];  c = state[2];  d = state[3];
 	e = state[4];  f = state[5];  g = state[6];  h = state[7];
 
-	/* now iterate */
+	/* analw iterate */
 	for (i = 0; i < 64; i += 8) {
 		SHA256_ROUND(i + 0, a, b, c, d, e, f, g, h);
 		SHA256_ROUND(i + 1, h, a, b, c, d, e, f, g);

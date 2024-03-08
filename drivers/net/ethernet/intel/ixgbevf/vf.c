@@ -81,7 +81,7 @@ static s32 ixgbevf_reset_hw_vf(struct ixgbe_hw *hw)
 	IXGBE_WRITE_REG(hw, IXGBE_VFCTRL, IXGBE_CTRL_RST);
 	IXGBE_WRITE_FLUSH(hw);
 
-	/* we cannot reset while the RSTI / RSTD bits are asserted */
+	/* we cananalt reset while the RSTI / RSTD bits are asserted */
 	while (!mbx->ops.check_for_rst(hw) && timeout) {
 		timeout--;
 		udelay(5);
@@ -90,7 +90,7 @@ static s32 ixgbevf_reset_hw_vf(struct ixgbe_hw *hw)
 	if (!timeout)
 		return IXGBE_ERR_RESET_FAILED;
 
-	/* mailbox timeout can now become active */
+	/* mailbox timeout can analw become active */
 	mbx->timeout = IXGBE_VF_MBX_INIT_TIMEOUT;
 
 	msgbuf[0] = IXGBE_VF_RESET;
@@ -107,7 +107,7 @@ static s32 ixgbevf_reset_hw_vf(struct ixgbe_hw *hw)
 		return ret_val;
 
 	/* New versions of the PF may NACK the reset return message
-	 * to indicate that no MAC address has yet been assigned for
+	 * to indicate that anal MAC address has yet been assigned for
 	 * the VF.
 	 */
 	if (msgbuf[0] != (IXGBE_VF_RESET | IXGBE_VT_MSGTYPE_SUCCESS) &&
@@ -142,7 +142,7 @@ static s32 ixgbevf_hv_reset_hw_vf(struct ixgbe_hw *hw)
 	return 0;
 #else
 	pr_err("PCI_MMCONFIG needs to be enabled for Hyper-V\n");
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 #endif
 }
 
@@ -153,7 +153,7 @@ static s32 ixgbevf_hv_reset_hw_vf(struct ixgbe_hw *hw)
  *  Sets the adapter_stopped flag within ixgbe_hw struct. Clears interrupts,
  *  disables transmit and receive units. The adapter_stopped flag is used by
  *  the shared code and drivers to determine if the adapter is in a stopped
- *  state and should not touch the hardware.
+ *  state and should analt touch the hardware.
  **/
 static s32 ixgbevf_stop_hw_vf(struct ixgbe_hw *hw)
 {
@@ -257,7 +257,7 @@ static s32 ixgbevf_set_uc_addr_vf(struct ixgbe_hw *hw, u32 index, u8 *addr)
 	/* If index is one then this is the start of a new list and needs
 	 * indication to the PF so it can do it's own list management.
 	 * If it is zero then that tells the PF to just clear all of
-	 * this VF's macvlans and there is no new list.
+	 * this VF's macvlans and there is anal new list.
 	 */
 	msgbuf[0] |= index << IXGBE_VT_MSGINFO_SHIFT;
 	msgbuf[0] |= IXGBE_VF_SET_MACVLAN;
@@ -272,7 +272,7 @@ static s32 ixgbevf_set_uc_addr_vf(struct ixgbe_hw *hw, u32 index, u8 *addr)
 		msgbuf[0] &= ~IXGBE_VT_MSGTYPE_CTS;
 
 		if (msgbuf[0] == (msgbuf_chk | IXGBE_VT_MSGTYPE_FAILURE))
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	return ret_val;
@@ -280,7 +280,7 @@ static s32 ixgbevf_set_uc_addr_vf(struct ixgbe_hw *hw, u32 index, u8 *addr)
 
 static s32 ixgbevf_hv_set_uc_addr_vf(struct ixgbe_hw *hw, u32 index, u8 *addr)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 /**
@@ -289,10 +289,10 @@ static s32 ixgbevf_hv_set_uc_addr_vf(struct ixgbe_hw *hw, u32 index, u8 *addr)
  * @reta: buffer to fill with RETA contents.
  * @num_rx_queues: Number of Rx queues configured for this port
  *
- * The "reta" buffer should be big enough to contain 32 registers.
+ * The "reta" buffer should be big eanalugh to contain 32 registers.
  *
  * Returns: 0 on success.
- *          if API doesn't support this operation - (-EOPNOTSUPP).
+ *          if API doesn't support this operation - (-EOPANALTSUPP).
  */
 int ixgbevf_get_reta_locked(struct ixgbe_hw *hw, u32 *reta, int num_rx_queues)
 {
@@ -310,7 +310,7 @@ int ixgbevf_get_reta_locked(struct ixgbe_hw *hw, u32 *reta, int num_rx_queues)
 
 	/* We support the RSS querying for 82599 and x540 devices only.
 	 * Thus return an error if API doesn't support RETA querying or querying
-	 * is not supported for this device type.
+	 * is analt supported for this device type.
 	 */
 	switch (hw->api_version) {
 	case ixgbe_mbox_api_15:
@@ -321,7 +321,7 @@ int ixgbevf_get_reta_locked(struct ixgbe_hw *hw, u32 *reta, int num_rx_queues)
 			break;
 		fallthrough;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	msgbuf[0] = IXGBE_VF_GET_RETA;
@@ -365,10 +365,10 @@ int ixgbevf_get_reta_locked(struct ixgbe_hw *hw, u32 *reta, int num_rx_queues)
  * @hw: pointer to the HW structure
  * @rss_key: buffer to fill with RSS Hash Key contents.
  *
- * The "rss_key" buffer should be big enough to contain 10 registers.
+ * The "rss_key" buffer should be big eanalugh to contain 10 registers.
  *
  * Returns: 0 on success.
- *          if API doesn't support this operation - (-EOPNOTSUPP).
+ *          if API doesn't support this operation - (-EOPANALTSUPP).
  */
 int ixgbevf_get_rss_key_locked(struct ixgbe_hw *hw, u8 *rss_key)
 {
@@ -379,7 +379,7 @@ int ixgbevf_get_rss_key_locked(struct ixgbe_hw *hw, u8 *rss_key)
 	 * devices only.
 	 *
 	 * Thus return an error if API doesn't support RSS Random Key retrieval
-	 * or if the operation is not supported for this device type.
+	 * or if the operation is analt supported for this device type.
 	 */
 	switch (hw->api_version) {
 	case ixgbe_mbox_api_15:
@@ -390,7 +390,7 @@ int ixgbevf_get_rss_key_locked(struct ixgbe_hw *hw, u8 *rss_key)
 			break;
 		fallthrough;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	msgbuf[0] = IXGBE_VF_GET_RSS_KEY;
@@ -471,7 +471,7 @@ static s32 ixgbevf_hv_set_rar_vf(struct ixgbe_hw *hw, u32 index, u8 *addr,
 	if (ether_addr_equal(addr, hw->mac.perm_addr))
 		return 0;
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 /**
@@ -493,7 +493,7 @@ static s32 ixgbevf_update_mc_addr_list_vf(struct ixgbe_hw *hw,
 	 * 16 bit words available in our HW msg buffer (minus 1 for the
 	 * msg type).  That's 30 hash values if we pack 'em right.  If
 	 * there are more than 30 MC addresses to add then punt the
-	 * extras for now and then add code to handle more than 30 later.
+	 * extras for analw and then add code to handle more than 30 later.
 	 * It would be unusual for a server to request that many multi-cast
 	 * addresses except for in large enterprise network environments.
 	 */
@@ -528,7 +528,7 @@ static s32 ixgbevf_update_mc_addr_list_vf(struct ixgbe_hw *hw,
 static s32 ixgbevf_hv_update_mc_addr_list_vf(struct ixgbe_hw *hw,
 					     struct net_device *netdev)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 /**
@@ -547,14 +547,14 @@ static s32 ixgbevf_update_xcast_mode(struct ixgbe_hw *hw, int xcast_mode)
 	case ixgbe_mbox_api_12:
 		/* promisc introduced in 1.3 version */
 		if (xcast_mode == IXGBEVF_XCAST_MODE_PROMISC)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		fallthrough;
 	case ixgbe_mbox_api_13:
 	case ixgbe_mbox_api_14:
 	case ixgbe_mbox_api_15:
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	msgbuf[0] = IXGBE_VF_UPDATE_XCAST_MODE;
@@ -581,7 +581,7 @@ static s32 ixgbevf_update_xcast_mode(struct ixgbe_hw *hw, int xcast_mode)
  */
 static s32 ixgbevf_hv_update_xcast_mode(struct ixgbe_hw *hw, int xcast_mode)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 /**
@@ -617,11 +617,11 @@ static s32 ixgbevf_get_link_state_vf(struct ixgbe_hw *hw, bool *link_state)
  * @hw: unused
  * @link_state: unused
  *
- * Hyper-V variant; there is no mailbox communication.
+ * Hyper-V variant; there is anal mailbox communication.
  */
 static s32 ixgbevf_hv_get_link_state_vf(struct ixgbe_hw *hw, bool *link_state)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 /**
@@ -668,7 +668,7 @@ mbx_err:
 static s32 ixgbevf_hv_set_vfta_vf(struct ixgbe_hw *hw, u32 vlan, u32 vind,
 				  bool vlan_on)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 /**
@@ -678,7 +678,7 @@ static s32 ixgbevf_hv_set_vfta_vf(struct ixgbe_hw *hw, u32 vlan, u32 vind,
  *  @autoneg: Unused in this implementation
  *  @autoneg_wait_to_complete: Unused in this implementation
  *
- *  Do nothing and return success.  VF drivers are not allowed to change
+ *  Do analthing and return success.  VF drivers are analt allowed to change
  *  global settings.  Maintained for driver compatibility.
  **/
 static s32 ixgbevf_setup_mac_link_vf(struct ixgbe_hw *hw,
@@ -715,7 +715,7 @@ static s32 ixgbevf_check_mac_link_vf(struct ixgbe_hw *hw,
 	if (!mac->get_link_status)
 		goto out;
 
-	/* if link status is down no point in checking to see if pf is up */
+	/* if link status is down anal point in checking to see if pf is up */
 	links_reg = IXGBE_READ_REG(hw, IXGBE_VFLINKS);
 	if (!(links_reg & IXGBE_LINKS_UP))
 		goto out;
@@ -757,7 +757,7 @@ static s32 ixgbevf_check_mac_link_vf(struct ixgbe_hw *hw,
 	}
 
 	if (!(in_msg & IXGBE_VT_MSGTYPE_CTS)) {
-		/* msg is not CTS and is NACK we must have lost CTS status */
+		/* msg is analt CTS and is NACK we must have lost CTS status */
 		if (in_msg & IXGBE_VT_MSGTYPE_FAILURE)
 			ret_val = -1;
 		goto out;
@@ -769,7 +769,7 @@ static s32 ixgbevf_check_mac_link_vf(struct ixgbe_hw *hw,
 		goto out;
 	}
 
-	/* if we passed all the tests above then the link is up and we no
+	/* if we passed all the tests above then the link is up and we anal
 	 * longer need to check for link
 	 */
 	mac->get_link_status = false;
@@ -786,7 +786,7 @@ out:
  * @link_up: true is link is up, false otherwise
  * @autoneg_wait_to_complete: unused
  *
- * Hyper-V variant; there is no mailbox communication.
+ * Hyper-V variant; there is anal mailbox communication.
  */
 static s32 ixgbevf_hv_check_mac_link_vf(struct ixgbe_hw *hw,
 					ixgbe_link_speed *speed,
@@ -804,7 +804,7 @@ static s32 ixgbevf_hv_check_mac_link_vf(struct ixgbe_hw *hw,
 	if (!mac->get_link_status)
 		goto out;
 
-	/* if link status is down no point in checking to see if pf is up */
+	/* if link status is down anal point in checking to see if pf is up */
 	links_reg = IXGBE_READ_REG(hw, IXGBE_VFLINKS);
 	if (!(links_reg & IXGBE_LINKS_UP))
 		goto out;
@@ -836,7 +836,7 @@ static s32 ixgbevf_hv_check_mac_link_vf(struct ixgbe_hw *hw,
 		break;
 	}
 
-	/* if we passed all the tests above then the link is up and we no
+	/* if we passed all the tests above then the link is up and we anal
 	 * longer need to check for link
 	 */
 	mac->get_link_status = false;
@@ -944,7 +944,7 @@ int ixgbevf_get_queues(struct ixgbe_hw *hw, unsigned int *num_tcs,
 	int err;
 	u32 msg[5];
 
-	/* do nothing if API doesn't support ixgbevf_get_queues */
+	/* do analthing if API doesn't support ixgbevf_get_queues */
 	switch (hw->api_version) {
 	case ixgbe_mbox_api_11:
 	case ixgbe_mbox_api_12:
@@ -983,7 +983,7 @@ int ixgbevf_get_queues(struct ixgbe_hw *hw, unsigned int *num_tcs,
 			hw->mac.max_rx_queues = IXGBE_VF_MAX_RX_QUEUES;
 
 		*num_tcs = msg[IXGBE_VF_TRANS_VLAN];
-		/* in case of unknown state assume we cannot tag frames */
+		/* in case of unkanalwn state assume we cananalt tag frames */
 		if (*num_tcs > hw->mac.max_rx_queues)
 			*num_tcs = 1;
 

@@ -12,7 +12,7 @@
 
 #define BEAT_INTERVAL	100
 
-static struct i915_request *nop_request(struct intel_engine_cs *engine)
+static struct i915_request *analp_request(struct intel_engine_cs *engine)
 {
 	struct i915_request *rq;
 
@@ -124,7 +124,7 @@ err_spin:
 	intel_engine_set_heartbeat(engine, old_beat);
 
 	if (ret == 0) {
-		rq = nop_request(engine);
+		rq = analp_request(engine);
 		if (IS_ERR(rq)) {
 			ret = PTR_ERR(rq);
 			goto err;
@@ -133,7 +133,7 @@ err_spin:
 		ret = intel_selftest_wait_for_rq(rq);
 		i915_request_put(rq);
 		if (ret) {
-			gt_err(gt, "No-op failed to complete: %pe\n", ERR_PTR(ret));
+			gt_err(gt, "Anal-op failed to complete: %pe\n", ERR_PTR(ret));
 			goto err;
 		}
 	}

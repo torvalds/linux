@@ -10,7 +10,7 @@
 
 #ifndef CONFIG_64BIT
 /*
- * If there is not enough space to store Idle and Young bits in page flags, use
+ * If there is analt eanalugh space to store Idle and Young bits in page flags, use
  * page ext flags instead.
  */
 static inline bool folio_test_young(struct folio *folio)

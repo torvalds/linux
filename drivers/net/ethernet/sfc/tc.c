@@ -28,7 +28,7 @@ enum efx_encap_type efx_tc_indr_netdev_type(struct net_device *net_dev)
 	if (netif_is_geneve(net_dev))
 		return EFX_ENCAP_TYPE_GENEVE;
 
-	return EFX_ENCAP_TYPE_NONE;
+	return EFX_ENCAP_TYPE_ANALNE;
 }
 
 #define EFX_TC_HDR_TYPE_TTL_MASK ((u32)0xff)
@@ -45,19 +45,19 @@ struct efx_rep *efx_tc_flower_lookup_efv(struct efx_nic *efx,
 	struct efx_rep *efv;
 
 	if (!dev)
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 	/* Is it us (the PF)? */
 	if (dev == efx->net_dev)
 		return EFX_EFV_PF;
 	/* Is it an efx vfrep at all? */
 	if (dev->netdev_ops != &efx_ef100_rep_netdev_ops)
-		return ERR_PTR(-EOPNOTSUPP);
-	/* Is it ours?  We don't support TC rules that include another
-	 * EF100's netdevices (not even on another port of the same NIC).
+		return ERR_PTR(-EOPANALTSUPP);
+	/* Is it ours?  We don't support TC rules that include aanalther
+	 * EF100's netdevices (analt even on aanalther port of the same NIC).
 	 */
 	efv = netdev_priv(dev);
 	if (efv->parent != efx)
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 	return efv;
 }
 
@@ -128,7 +128,7 @@ static struct efx_tc_mac_pedit_action *efx_tc_flower_get_mac(struct efx_nic *efx
 
 	ped = kzalloc(sizeof(*ped), GFP_USER);
 	if (!ped)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	memcpy(ped->h_addr, h_addr, ETH_ALEN);
 	old = rhashtable_lookup_get_insert_fast(&efx->tc->mac_ht,
 						&ped->linkage,
@@ -138,7 +138,7 @@ static struct efx_tc_mac_pedit_action *efx_tc_flower_get_mac(struct efx_nic *efx
 		kfree(ped);
 		if (IS_ERR(old)) /* oh dear, it's actually an error */
 			return ERR_CAST(old);
-		if (!refcount_inc_not_zero(&old->ref))
+		if (!refcount_inc_analt_zero(&old->ref))
 			return ERR_PTR(-EAGAIN);
 		/* existing entry found, ref taken */
 		return old;
@@ -176,7 +176,7 @@ static void efx_tc_free_action_set(struct efx_nic *efx,
 {
 	/* Failure paths calling this on the 'cursor' action set in_hw=false,
 	 * because if the alloc had succeeded we'd've put it in acts.list and
-	 * not still have it in act.
+	 * analt still have it in act.
 	 */
 	if (in_hw) {
 		efx_mae_free_action_set(efx, act->fw_id);
@@ -276,7 +276,7 @@ static int efx_tc_flower_parse_match(struct efx_nic *efx,
 		if (fm.mask->flags & ~(FLOW_DIS_IS_FRAGMENT | FLOW_DIS_FIRST_FRAG)) {
 			NL_SET_ERR_MSG_FMT_MOD(extack, "Unsupported match on control.flags %#x",
 					       fm.mask->flags);
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 	}
 	if (dissector->used_keys &
@@ -299,7 +299,7 @@ static int efx_tc_flower_parse_match(struct efx_nic *efx,
 	      BIT_ULL(FLOW_DISSECTOR_KEY_IP))) {
 		NL_SET_ERR_MSG_FMT_MOD(extack, "Unsupported flower keys %#llx",
 				       dissector->used_keys);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	MAP_KEY_AND_MASK(BASIC, basic, n_proto, eth_proto);
@@ -391,13 +391,13 @@ static int efx_tc_flower_parse_match(struct efx_nic *efx,
 		if (fm.mask->flags) {
 			NL_SET_ERR_MSG_FMT_MOD(extack, "Unsupported match on enc_control.flags %#x",
 					       fm.mask->flags);
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		if (!IS_ALL_ONES(fm.mask->addr_type)) {
 			NL_SET_ERR_MSG_FMT_MOD(extack, "Unsupported enc addr_type mask %u (key %u)",
 					       fm.mask->addr_type,
 					       fm.key->addr_type);
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		switch (fm.key->addr_type) {
 		case FLOW_DISSECTOR_KEY_IPV4_ADDRS:
@@ -418,7 +418,7 @@ static int efx_tc_flower_parse_match(struct efx_nic *efx,
 			NL_SET_ERR_MSG_FMT_MOD(extack,
 					       "Unsupported enc addr_type %u (supported are IPv4, IPv6)",
 					       fm.key->addr_type);
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		MAP_ENC_KEY_AND_MASK(IP, ip, enc_ip, tos, enc_ip_tos);
 		MAP_ENC_KEY_AND_MASK(IP, ip, enc_ip, ttl, enc_ip_ttl);
@@ -434,7 +434,7 @@ static int efx_tc_flower_parse_match(struct efx_nic *efx,
 		NL_SET_ERR_MSG_FMT_MOD(extack,
 				       "Flower enc keys require enc_control (keys: %#llx)",
 				       dissector->used_keys);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_CT)) {
 		struct flow_match_ct fm;
@@ -449,7 +449,7 @@ static int efx_tc_flower_parse_match(struct efx_nic *efx,
 			NL_SET_ERR_MSG_FMT_MOD(extack,
 					       "Unsupported ct_state match %#x",
 					       fm.mask->ct_state);
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		match->value.ct_mark = fm.key->ct_mark;
 		match->mask.ct_mark = fm.mask->ct_mark;
@@ -457,8 +457,8 @@ static int efx_tc_flower_parse_match(struct efx_nic *efx,
 		match->mask.ct_zone = fm.mask->ct_zone;
 
 		if (memchr_inv(fm.mask->ct_labels, 0, sizeof(fm.mask->ct_labels))) {
-			NL_SET_ERR_MSG_MOD(extack, "Matching on ct_label not supported");
-			return -EOPNOTSUPP;
+			NL_SET_ERR_MSG_MOD(extack, "Matching on ct_label analt supported");
+			return -EOPANALTSUPP;
 		}
 	}
 
@@ -477,7 +477,7 @@ static void efx_tc_flower_release_encap_match(struct efx_nic *efx,
 		rc = efx_mae_unregister_encap_match(efx, encap);
 		if (rc)
 			/* Display message but carry on and remove entry from our
-			 * SW tables, because there's not much we can do about it.
+			 * SW tables, because there's analt much we can do about it.
 			 */
 			netif_err(efx, drv, efx->net_dev,
 				  "Failed to release encap match %#x, rc %d\n",
@@ -511,45 +511,45 @@ static int efx_tc_flower_record_encap_match(struct efx_nic *efx,
 	if (match->mask.enc_dst_ip | match->mask.enc_src_ip) {
 		if (!IS_ALL_ONES(match->mask.enc_dst_ip)) {
 			NL_SET_ERR_MSG_MOD(extack,
-					   "Egress encap match is not exact on dst IP address");
-			return -EOPNOTSUPP;
+					   "Egress encap match is analt exact on dst IP address");
+			return -EOPANALTSUPP;
 		}
 		if (!IS_ALL_ONES(match->mask.enc_src_ip)) {
 			NL_SET_ERR_MSG_MOD(extack,
-					   "Egress encap match is not exact on src IP address");
-			return -EOPNOTSUPP;
+					   "Egress encap match is analt exact on src IP address");
+			return -EOPANALTSUPP;
 		}
 #ifdef CONFIG_IPV6
 		if (!ipv6_addr_any(&match->mask.enc_dst_ip6) ||
 		    !ipv6_addr_any(&match->mask.enc_src_ip6)) {
 			NL_SET_ERR_MSG_MOD(extack,
 					   "Egress encap match on both IPv4 and IPv6, don't understand");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 	} else {
 		ipv6 = true;
 		if (!efx_ipv6_addr_all_ones(&match->mask.enc_dst_ip6)) {
 			NL_SET_ERR_MSG_MOD(extack,
-					   "Egress encap match is not exact on dst IP address");
-			return -EOPNOTSUPP;
+					   "Egress encap match is analt exact on dst IP address");
+			return -EOPANALTSUPP;
 		}
 		if (!efx_ipv6_addr_all_ones(&match->mask.enc_src_ip6)) {
 			NL_SET_ERR_MSG_MOD(extack,
-					   "Egress encap match is not exact on src IP address");
-			return -EOPNOTSUPP;
+					   "Egress encap match is analt exact on src IP address");
+			return -EOPANALTSUPP;
 		}
 #endif
 	}
 	if (!IS_ALL_ONES(match->mask.enc_dport)) {
-		NL_SET_ERR_MSG_MOD(extack, "Egress encap match is not exact on dst UDP port");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG_MOD(extack, "Egress encap match is analt exact on dst UDP port");
+		return -EOPANALTSUPP;
 	}
 	if (match->mask.enc_sport || match->mask.enc_ip_tos) {
 		struct efx_tc_match pmatch = *match;
 
 		if (em_type == EFX_TC_EM_PSEUDO_MASK) { /* can't happen */
 			NL_SET_ERR_MSG_MOD(extack, "Bad recursion in egress encap match handler");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		pmatch.value.enc_ip_tos = 0;
 		pmatch.mask.enc_ip_tos = 0;
@@ -565,8 +565,8 @@ static int efx_tc_flower_record_encap_match(struct efx_nic *efx,
 		pseudo = pmatch.encap;
 	}
 	if (match->mask.enc_ip_ttl) {
-		NL_SET_ERR_MSG_MOD(extack, "Egress encap match on IP TTL not supported");
-		rc = -EOPNOTSUPP;
+		NL_SET_ERR_MSG_MOD(extack, "Egress encap match on IP TTL analt supported");
+		rc = -EOPANALTSUPP;
 		goto fail_pseudo;
 	}
 
@@ -577,7 +577,7 @@ static int efx_tc_flower_record_encap_match(struct efx_nic *efx,
 
 	encap = kzalloc(sizeof(*encap), GFP_USER);
 	if (!encap) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto fail_pseudo;
 	}
 	encap->src_ip = match->value.enc_src_ip;
@@ -610,7 +610,7 @@ static int efx_tc_flower_record_encap_match(struct efx_nic *efx,
 		switch (old->type) {
 		case EFX_TC_EM_DIRECT:
 			/* old EM is in hardware, so mustn't overlap with a
-			 * pseudo, but may be shared with another direct EM
+			 * pseudo, but may be shared with aanalther direct EM
 			 */
 			if (em_type == EFX_TC_EM_DIRECT)
 				break;
@@ -618,7 +618,7 @@ static int efx_tc_flower_record_encap_match(struct efx_nic *efx,
 			return -EEXIST;
 		case EFX_TC_EM_PSEUDO_MASK:
 			/* old EM is protecting a ToS- or src port-qualified
-			 * filter, so may only be shared with another pseudo
+			 * filter, so may only be shared with aanalther pseudo
 			 * for the same ToS and src port masks.
 			 */
 			if (em_type != EFX_TC_EM_PSEUDO_MASK) {
@@ -644,14 +644,14 @@ static int efx_tc_flower_record_encap_match(struct efx_nic *efx,
 			break;
 		case EFX_TC_EM_PSEUDO_OR:
 			/* old EM corresponds to an OR that has to be unique
-			 * (it must not overlap with any other OR, whether
+			 * (it must analt overlap with any other OR, whether
 			 * direct-EM or pseudo).
 			 */
 			NL_SET_ERR_MSG_FMT_MOD(extack,
 					       "%s encap match conflicts with existing pseudo(OR) entry",
 					       em_type ? "Pseudo" : "Direct");
 			return -EEXIST;
-		default: /* Unrecognised pseudo-type.  Just say no */
+		default: /* Unrecognised pseudo-type.  Just say anal */
 			NL_SET_ERR_MSG_FMT_MOD(extack,
 					       "%s encap match conflicts with existing pseudo(%d) entry",
 					       em_type ? "Pseudo" : "Direct",
@@ -665,7 +665,7 @@ static int efx_tc_flower_record_encap_match(struct efx_nic *efx,
 					       old->tun_type, type);
 			return -EEXIST;
 		}
-		if (!refcount_inc_not_zero(&old->ref))
+		if (!refcount_inc_analt_zero(&old->ref))
 			return -EAGAIN;
 		/* existing entry found */
 		encap = old;
@@ -700,7 +700,7 @@ static struct efx_tc_recirc_id *efx_tc_get_recirc_id(struct efx_nic *efx,
 
 	rid = kzalloc(sizeof(*rid), GFP_USER);
 	if (!rid)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	rid->chain_index = chain_index;
 	/* We don't take a reference here, because it's implied - if there's
 	 * a rule on the net_dev that's been offloaded to us, then the net_dev
@@ -715,7 +715,7 @@ static struct efx_tc_recirc_id *efx_tc_get_recirc_id(struct efx_nic *efx,
 		kfree(rid);
 		if (IS_ERR(old)) /* oh dear, it's actually an error */
 			return ERR_CAST(old);
-		if (!refcount_inc_not_zero(&old->ref))
+		if (!refcount_inc_analt_zero(&old->ref))
 			return ERR_PTR(-EAGAIN);
 		/* existing entry found */
 		rid = old;
@@ -760,15 +760,15 @@ static void efx_tc_delete_rule(struct efx_nic *efx, struct efx_tc_flow_rule *rul
 static const char *efx_tc_encap_type_name(enum efx_encap_type typ)
 {
 	switch (typ) {
-	case EFX_ENCAP_TYPE_NONE:
-		return "none";
+	case EFX_ENCAP_TYPE_ANALNE:
+		return "analne";
 	case EFX_ENCAP_TYPE_VXLAN:
 		return "vxlan";
 	case EFX_ENCAP_TYPE_GENEVE:
 		return "geneve";
 	default:
-		pr_warn_once("Unknown efx_encap_type %d encountered\n", typ);
-		return "unknown";
+		pr_warn_once("Unkanalwn efx_encap_type %d encountered\n", typ);
+		return "unkanalwn";
 	}
 }
 
@@ -791,13 +791,13 @@ static bool efx_tc_flower_action_order_ok(const struct efx_tc_action_set *act,
 	case EFX_TC_AO_DECAP:
 		if (act->decap)
 			return false;
-		/* PEDIT_MAC_ADDRS must not happen before DECAP, though it
+		/* PEDIT_MAC_ADDRS must analt happen before DECAP, though it
 		 * can wait until much later
 		 */
 		if (act->dst_mac || act->src_mac)
 			return false;
 
-		/* Decrementing ttl must not happen before DECAP */
+		/* Decrementing ttl must analt happen before DECAP */
 		if (act->do_ttl_dec)
 			return false;
 		fallthrough;
@@ -841,17 +841,17 @@ static bool efx_tc_flower_action_order_ok(const struct efx_tc_action_set *act,
  * DOC: TC conntrack sequences
  *
  * The MAE hardware can handle at most two rounds of action rule matching,
- * consequently we support conntrack through the notion of a "left-hand side
+ * consequently we support conntrack through the analtion of a "left-hand side
  * rule".  This is a rule which typically contains only the actions "ct" and
  * "goto chain N", and corresponds to one or more "right-hand side rules" in
  * chain N, which typically match on +trk+est, and may perform ct(nat) actions.
- * RHS rules go in the Action Rule table as normal but with a nonzero recirc_id
+ * RHS rules go in the Action Rule table as analrmal but with a analnzero recirc_id
  * (the hardware equivalent of chain_index), while LHS rules may go in either
  * the Action Rule or the Outer Rule table, the latter being preferred for
  * performance reasons, and set both DO_CT and a recirc_id in their response.
  *
  * Besides the RHS rules, there are often also similar rules matching on
- * +trk+new which perform the ct(commit) action.  These are not offloaded.
+ * +trk+new which perform the ct(commit) action.  These are analt offloaded.
  */
 
 static bool efx_tc_rule_is_lhs_rule(struct flow_rule *fr,
@@ -882,14 +882,14 @@ static bool efx_tc_rule_is_lhs_rule(struct flow_rule *fr,
 }
 
 /* A foreign LHS rule has matches on enc_ keys at the TC layer (including an
- * implied match on enc_ip_proto UDP).  Translate these into non-enc_ keys,
+ * implied match on enc_ip_proto UDP).  Translate these into analn-enc_ keys,
  * so that we can use the same MAE machinery as local LHS rules (and so that
  * the lhs_rules entries have uniform semantics).  It may seem odd to do it
  * this way round, given that the corresponding fields in the MAE MCDIs are
  * all ENC_, but (a) we don't have enc_L2 or enc_ip_proto in struct
  * efx_tc_match_fields and (b) semantically an LHS rule doesn't have inner
  * fields so it's just matching on *the* header rather than the outer header.
- * Make sure that the non-enc_ keys were not already being matched on, as that
+ * Make sure that the analn-enc_ keys were analt already being matched on, as that
  * would imply a rule that needed a triple lookup.  (Hardware can do that,
  * with OR-AR-CT-AR, but it halves packet rate so we avoid it where possible;
  * see efx_tc_flower_flhs_needs_ar().)
@@ -900,7 +900,7 @@ static int efx_tc_flower_translate_flhs_match(struct efx_tc_match *match)
 
 #define COPY_MASK_AND_VALUE(_key, _ekey)	({	\
 	if (match->mask._key) {				\
-		rc = -EOPNOTSUPP;			\
+		rc = -EOPANALTSUPP;			\
 	} else {					\
 		match->mask._key = match->mask._ekey;	\
 		match->mask._ekey = 0;			\
@@ -911,18 +911,18 @@ static int efx_tc_flower_translate_flhs_match(struct efx_tc_match *match)
 })
 #define COPY_FROM_ENC(_key)	COPY_MASK_AND_VALUE(_key, enc_##_key)
 	if (match->mask.ip_proto)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	match->mask.ip_proto = ~0;
 	match->value.ip_proto = IPPROTO_UDP;
 	if (COPY_FROM_ENC(src_ip) || COPY_FROM_ENC(dst_ip))
 		return rc;
 #ifdef CONFIG_IPV6
 	if (!ipv6_addr_any(&match->mask.src_ip6))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	match->mask.src_ip6 = match->mask.enc_src_ip6;
 	memset(&match->mask.enc_src_ip6, 0, sizeof(struct in6_addr));
 	if (!ipv6_addr_any(&match->mask.dst_ip6))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	match->mask.dst_ip6 = match->mask.enc_dst_ip6;
 	memset(&match->mask.enc_dst_ip6, 0, sizeof(struct in6_addr));
 #endif
@@ -964,7 +964,7 @@ static bool efx_tc_flower_flhs_needs_ar(struct efx_tc_match *match)
 	       match->mask.ip_frag || match->mask.ip_firstfrag ||
 	       match->mask.l4_sport || match->mask.l4_dport ||
 	       match->mask.tcp_flags ||
-	/* nor can VNI */
+	/* analr can VNI */
 	       match->mask.enc_keyid;
 }
 
@@ -989,15 +989,15 @@ static int efx_tc_flower_handle_lhs_actions(struct efx_nic *efx,
 		struct efx_tc_recirc_id *rid;
 
 		if (!pipe) {
-			/* more actions after a non-pipe action */
-			NL_SET_ERR_MSG_MOD(extack, "Action follows non-pipe action");
+			/* more actions after a analn-pipe action */
+			NL_SET_ERR_MSG_MOD(extack, "Action follows analn-pipe action");
 			return -EINVAL;
 		}
 		switch (fa->id) {
 		case FLOW_ACTION_GOTO:
 			if (!fa->chain_index) {
-				NL_SET_ERR_MSG_MOD(extack, "Can't goto chain 0, no looping in hw");
-				return -EOPNOTSUPP;
+				NL_SET_ERR_MSG_MOD(extack, "Can't goto chain 0, anal looping in hw");
+				return -EOPANALTSUPP;
 			}
 			rid = efx_tc_get_recirc_id(efx, fa->chain_index,
 						   net_dev);
@@ -1011,9 +1011,9 @@ static int efx_tc_flower_handle_lhs_actions(struct efx_nic *efx,
 
 				if (!(fa->hw_stats & FLOW_ACTION_HW_STATS_DELAYED)) {
 					NL_SET_ERR_MSG_FMT_MOD(extack,
-							       "hw_stats_type %u not supported (only 'delayed')",
+							       "hw_stats_type %u analt supported (only 'delayed')",
 							       fa->hw_stats);
-					return -EOPNOTSUPP;
+					return -EOPANALTSUPP;
 				}
 				cnt = efx_tc_flower_get_counter_index(efx, tc->cookie,
 								      ctype);
@@ -1029,27 +1029,27 @@ static int efx_tc_flower_handle_lhs_actions(struct efx_nic *efx,
 		case FLOW_ACTION_CT:
 			if (act->zone) {
 				NL_SET_ERR_MSG_MOD(extack, "Can't offload multiple ct actions");
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			}
 			if (fa->ct.action & (TCA_CT_ACT_COMMIT |
 					     TCA_CT_ACT_FORCE)) {
 				NL_SET_ERR_MSG_MOD(extack, "Can't offload ct commit/force");
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			}
 			if (fa->ct.action & TCA_CT_ACT_CLEAR) {
 				NL_SET_ERR_MSG_MOD(extack, "Can't clear ct in LHS rule");
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			}
 			if (fa->ct.action & (TCA_CT_ACT_NAT |
 					     TCA_CT_ACT_NAT_SRC |
 					     TCA_CT_ACT_NAT_DST)) {
 				NL_SET_ERR_MSG_MOD(extack, "Can't perform NAT in LHS rule - packet isn't conntracked yet");
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			}
 			if (fa->ct.action) {
 				NL_SET_ERR_MSG_FMT_MOD(extack, "Unhandled ct.action %u for LHS rule\n",
 						       fa->ct.action);
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			}
 			ct_zone = efx_tc_ct_register_zone(efx, fa->ct.zone,
 							  fa->ct.flow_table);
@@ -1062,13 +1062,13 @@ static int efx_tc_flower_handle_lhs_actions(struct efx_nic *efx,
 		default:
 			NL_SET_ERR_MSG_FMT_MOD(extack, "Unhandled action %u for LHS rule\n",
 					       fa->id);
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 	}
 
 	if (pipe) {
 		NL_SET_ERR_MSG_MOD(extack, "Missing goto chain in LHS rule");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	return 0;
 }
@@ -1094,7 +1094,7 @@ static void efx_tc_flower_release_lhs_actions(struct efx_nic *efx,
  * @dst_mac:	h_dest field of ethhdr
  * @src_mac:	h_source field of ethhdr
  *
- * Since FLOW_ACTION_MANGLE comes in 32-bit chunks that do not
+ * Since FLOW_ACTION_MANGLE comes in 32-bit chunks that do analt
  * necessarily equate to whole fields of the packet header, this
  * structure is used to hold the cumulative effect of the partial
  * field pedits that have been processed so far.
@@ -1131,7 +1131,7 @@ static int efx_tc_complete_mac_mangle(struct efx_nic *efx,
 		if (IS_ERR(ped))
 			return PTR_ERR(ped);
 
-		/* Check that we have not already populated dst_mac */
+		/* Check that we have analt already populated dst_mac */
 		if (act->dst_mac)
 			efx_tc_flower_put_mac(efx, act->dst_mac);
 
@@ -1146,7 +1146,7 @@ static int efx_tc_complete_mac_mangle(struct efx_nic *efx,
 		if (IS_ERR(ped))
 			return PTR_ERR(ped);
 
-		/* Check that we have not already populated src_mac */
+		/* Check that we have analt already populated src_mac */
 		if (act->src_mac)
 			efx_tc_flower_put_mac(efx, act->src_mac);
 
@@ -1172,16 +1172,16 @@ static int efx_tc_pedit_add(struct efx_nic *efx, struct efx_tc_action_set *act,
 				break;
 
 			/* Adding 0xff is equivalent to decrementing the ttl.
-			 * Other added values are not supported.
+			 * Other added values are analt supported.
 			 */
 			if ((fa->mangle.val & EFX_TC_HDR_TYPE_TTL_MASK) != U8_MAX)
 				break;
 
-			/* check that we do not decrement ttl twice */
+			/* check that we do analt decrement ttl twice */
 			if (!efx_tc_flower_action_order_ok(act,
 							   EFX_TC_AO_DEC_TTL)) {
-				NL_SET_ERR_MSG_MOD(extack, "multiple dec ttl are not supported");
-				return -EOPNOTSUPP;
+				NL_SET_ERR_MSG_MOD(extack, "multiple dec ttl are analt supported");
+				return -EOPANALTSUPP;
 			}
 			act->do_ttl_dec = 1;
 			return 0;
@@ -1197,16 +1197,16 @@ static int efx_tc_pedit_add(struct efx_nic *efx, struct efx_tc_action_set *act,
 				break;
 
 			/* Adding 0xff is equivalent to decrementing the hoplimit.
-			 * Other added values are not supported.
+			 * Other added values are analt supported.
 			 */
 			if ((fa->mangle.val >> 24) != U8_MAX)
 				break;
 
-			/* check that we do not decrement hoplimit twice */
+			/* check that we do analt decrement hoplimit twice */
 			if (!efx_tc_flower_action_order_ok(act,
 							   EFX_TC_AO_DEC_TTL)) {
-				NL_SET_ERR_MSG_MOD(extack, "multiple dec ttl are not supported");
-				return -EOPNOTSUPP;
+				NL_SET_ERR_MSG_MOD(extack, "multiple dec ttl are analt supported");
+				return -EOPANALTSUPP;
 			}
 			act->do_ttl_dec = 1;
 			return 0;
@@ -1219,10 +1219,10 @@ static int efx_tc_pedit_add(struct efx_nic *efx, struct efx_tc_action_set *act,
 	}
 
 	NL_SET_ERR_MSG_FMT_MOD(extack,
-			       "ttl add action type %x %x %x/%x is not supported",
+			       "ttl add action type %x %x %x/%x is analt supported",
 			       fa->mangle.htype, fa->mangle.offset,
 			       fa->mangle.val, fa->mangle.mask);
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 /**
@@ -1257,15 +1257,15 @@ static int efx_tc_mangle(struct efx_nic *efx, struct efx_tc_action_set *act,
 		if (!efx_tc_flower_action_order_ok(act, EFX_TC_AO_PEDIT_MAC_ADDRS)) {
 			NL_SET_ERR_MSG_MOD(extack,
 					   "Pedit mangle mac action violates action order");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		switch (fa->mangle.offset) {
 		case 0:
 			if (fa->mangle.mask) {
 				NL_SET_ERR_MSG_FMT_MOD(extack,
-						       "mask (%#x) of eth.dst32 mangle is not supported",
+						       "mask (%#x) of eth.dst32 mangle is analt supported",
 						       fa->mangle.mask);
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			}
 			/* Ethernet address is little-endian */
 			mac32 = cpu_to_le32(fa->mangle.val);
@@ -1283,26 +1283,26 @@ static int efx_tc_mangle(struct efx_nic *efx, struct efx_tc_action_set *act,
 				mung->dst_mac_16 = 1;
 			} else {
 				NL_SET_ERR_MSG_FMT_MOD(extack,
-						       "mask (%#x) of eth+4 mangle is not high or low 16b",
+						       "mask (%#x) of eth+4 mangle is analt high or low 16b",
 						       fa->mangle.mask);
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			}
 			return efx_tc_complete_mac_mangle(efx, act, mung, extack);
 		case 8:
 			if (fa->mangle.mask) {
 				NL_SET_ERR_MSG_FMT_MOD(extack,
-						       "mask (%#x) of eth.src32 mangle is not supported",
+						       "mask (%#x) of eth.src32 mangle is analt supported",
 						       fa->mangle.mask);
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			}
 			mac32 = cpu_to_le32(fa->mangle.val);
 			memcpy(mung->src_mac + 2, &mac32, sizeof(mac32));
 			mung->src_mac_32 = 1;
 			return efx_tc_complete_mac_mangle(efx, act, mung, extack);
 		default:
-			NL_SET_ERR_MSG_FMT_MOD(extack, "mangle eth+%u %x/%x is not supported",
+			NL_SET_ERR_MSG_FMT_MOD(extack, "mangle eth+%u %x/%x is analt supported",
 					       fa->mangle.offset, fa->mangle.val, fa->mangle.mask);
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		break;
 	case FLOW_ACT_MANGLE_HDR_TYPE_IP4:
@@ -1318,7 +1318,7 @@ static int efx_tc_mangle(struct efx_nic *efx, struct efx_tc_action_set *act,
 				NL_SET_ERR_MSG_FMT_MOD(extack,
 						       "mask (%#x) out of range, only support mangle action on ipv4.ttl",
 						       fa->mangle.mask);
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			}
 
 			/* we can only convert to a dec ttl when we have an
@@ -1328,7 +1328,7 @@ static int efx_tc_mangle(struct efx_nic *efx, struct efx_tc_action_set *act,
 				NL_SET_ERR_MSG_FMT_MOD(extack,
 						       "only support mangle ttl when we have an exact match, current mask (%#x)",
 						       match->mask.ip_ttl);
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			}
 
 			/* check that we don't try to decrement 0, which equates
@@ -1336,16 +1336,16 @@ static int efx_tc_mangle(struct efx_nic *efx, struct efx_tc_action_set *act,
 			 */
 			if (match->value.ip_ttl == 0) {
 				NL_SET_ERR_MSG_MOD(extack,
-						   "decrement ttl past 0 is not supported");
-				return -EOPNOTSUPP;
+						   "decrement ttl past 0 is analt supported");
+				return -EOPANALTSUPP;
 			}
 
-			/* check that we do not decrement ttl twice */
+			/* check that we do analt decrement ttl twice */
 			if (!efx_tc_flower_action_order_ok(act,
 							   EFX_TC_AO_DEC_TTL)) {
 				NL_SET_ERR_MSG_MOD(extack,
-						   "multiple dec ttl is not supported");
-				return -EOPNOTSUPP;
+						   "multiple dec ttl is analt supported");
+				return -EOPANALTSUPP;
 			}
 
 			/* check pedit can be achieved with decrement action */
@@ -1360,7 +1360,7 @@ static int efx_tc_mangle(struct efx_nic *efx, struct efx_tc_action_set *act,
 			NL_SET_ERR_MSG_FMT_MOD(extack,
 					       "only support mangle on the ttl field (offset is %u)",
 					       fa->mangle.offset);
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		break;
 	case FLOW_ACT_MANGLE_HDR_TYPE_IP6:
@@ -1377,7 +1377,7 @@ static int efx_tc_mangle(struct efx_nic *efx, struct efx_tc_action_set *act,
 						       "mask (%#x) out of range, only support mangle action on ipv6.hop_limit",
 						       fa->mangle.mask);
 
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			}
 
 			/* we can only convert to a dec ttl when we have an
@@ -1387,7 +1387,7 @@ static int efx_tc_mangle(struct efx_nic *efx, struct efx_tc_action_set *act,
 				NL_SET_ERR_MSG_FMT_MOD(extack,
 						       "only support hop_limit when we have an exact match, current mask (%#x)",
 						       match->mask.ip_ttl);
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			}
 
 			/* check that we don't try to decrement 0, which equates
@@ -1395,16 +1395,16 @@ static int efx_tc_mangle(struct efx_nic *efx, struct efx_tc_action_set *act,
 			 */
 			if (match->value.ip_ttl == 0) {
 				NL_SET_ERR_MSG_MOD(extack,
-						   "decrementing hop_limit past 0 is not supported");
-				return -EOPNOTSUPP;
+						   "decrementing hop_limit past 0 is analt supported");
+				return -EOPANALTSUPP;
 			}
 
-			/* check that we do not decrement hoplimit twice */
+			/* check that we do analt decrement hoplimit twice */
 			if (!efx_tc_flower_action_order_ok(act,
 							   EFX_TC_AO_DEC_TTL)) {
 				NL_SET_ERR_MSG_MOD(extack,
-						   "multiple dec ttl is not supported");
-				return -EOPNOTSUPP;
+						   "multiple dec ttl is analt supported");
+				return -EOPANALTSUPP;
 			}
 
 			/* check pedit can be achieved with decrement action */
@@ -1418,12 +1418,12 @@ static int efx_tc_mangle(struct efx_nic *efx, struct efx_tc_action_set *act,
 		default:
 			NL_SET_ERR_MSG_FMT_MOD(extack,
 					       "only support mangle on the hop_limit field");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 	default:
 		NL_SET_ERR_MSG_FMT_MOD(extack, "Unhandled mangle htype %u for action rule",
 				       fa->mangle.htype);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	return 0;
 }
@@ -1435,8 +1435,8 @@ static int efx_tc_mangle(struct efx_nic *efx, struct efx_tc_action_set *act,
  *
  * Since the MAE can only overwrite whole fields, any partial
  * field mangle left over on reaching packet delivery (mirred or
- * end of TC actions) cannot be offloaded.  Check for any such
- * and reject them with -%EOPNOTSUPP.
+ * end of TC actions) cananalt be offloaded.  Check for any such
+ * and reject them with -%EOPANALTSUPP.
  */
 
 static int efx_tc_incomplete_mangle(struct efx_tc_mangler_state *mung,
@@ -1444,11 +1444,11 @@ static int efx_tc_incomplete_mangle(struct efx_tc_mangler_state *mung,
 {
 	if (mung->dst_mac_32 || mung->dst_mac_16) {
 		NL_SET_ERR_MSG_MOD(extack, "Incomplete pedit of destination MAC address");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	if (mung->src_mac_16 || mung->src_mac_32) {
 		NL_SET_ERR_MSG_MOD(extack, "Incomplete pedit of source MAC address");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	return 0;
 }
@@ -1465,20 +1465,20 @@ static int efx_tc_flower_replace_foreign_lhs_ar(struct efx_nic *efx,
 	int rc;
 
 	type = efx_tc_indr_netdev_type(net_dev);
-	if (type == EFX_ENCAP_TYPE_NONE) {
+	if (type == EFX_ENCAP_TYPE_ANALNE) {
 		NL_SET_ERR_MSG_MOD(extack, "Egress encap match on unsupported tunnel device");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	rc = efx_mae_check_encap_type_supported(efx, type);
 	if (rc) {
 		NL_SET_ERR_MSG_FMT_MOD(extack,
-				       "Firmware reports no support for %s encap match",
+				       "Firmware reports anal support for %s encap match",
 				       efx_tc_encap_type_name(type));
 		return rc;
 	}
 	/* This is an Action Rule, so it needs a separate Encap Match in the
-	 * Outer Rule table.  Insert that now.
+	 * Outer Rule table.  Insert that analw.
 	 */
 	rc = efx_tc_flower_record_encap_match(efx, match, type,
 					      EFX_TC_EM_DIRECT, 0, 0, extack);
@@ -1488,7 +1488,7 @@ static int efx_tc_flower_replace_foreign_lhs_ar(struct efx_nic *efx,
 	match->mask.recirc_id = 0xff;
 	if (match->mask.ct_state_trk && match->value.ct_state_trk) {
 		NL_SET_ERR_MSG_MOD(extack, "LHS rule can never match +trk");
-		rc = -EOPNOTSUPP;
+		rc = -EOPANALTSUPP;
 		goto release_encap_match;
 	}
 	/* LHS rules are always -trk, so we don't need to match on that */
@@ -1500,8 +1500,8 @@ static int efx_tc_flower_replace_foreign_lhs_ar(struct efx_nic *efx,
 	 * Rules don't have that; instead they support matching on
 	 * TCP_SYN_FIN_RST (aka TCP_INTERESTING_FLAGS), so use that.
 	 * This is only strictly needed if there will be a DO_CT action,
-	 * which we don't know yet, but typically there will be and it's
-	 * simpler not to bother checking here.
+	 * which we don't kanalw yet, but typically there will be and it's
+	 * simpler analt to bother checking here.
 	 */
 	match->mask.tcp_syn_fin_rst = true;
 
@@ -1511,7 +1511,7 @@ static int efx_tc_flower_replace_foreign_lhs_ar(struct efx_nic *efx,
 
 	rule = kzalloc(sizeof(*rule), GFP_USER);
 	if (!rule) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto release_encap_match;
 	}
 	rule->cookie = tc->cookie;
@@ -1570,13 +1570,13 @@ static int efx_tc_flower_replace_foreign_lhs(struct efx_nic *efx,
 
 	if (tc->common.chain_index) {
 		NL_SET_ERR_MSG_MOD(extack, "LHS rule only allowed in chain 0");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (!efx_tc_match_is_encap(&match->mask)) {
-		/* This is not a tunnel decap rule, ignore it */
-		netif_dbg(efx, drv, efx->net_dev, "Ignoring foreign LHS filter without encap match\n");
-		return -EOPNOTSUPP;
+		/* This is analt a tunnel decap rule, iganalre it */
+		netif_dbg(efx, drv, efx->net_dev, "Iganalring foreign LHS filter without encap match\n");
+		return -EOPANALTSUPP;
 	}
 
 	if (efx_tc_flower_flhs_needs_ar(match))
@@ -1584,15 +1584,15 @@ static int efx_tc_flower_replace_foreign_lhs(struct efx_nic *efx,
 							    net_dev);
 
 	type = efx_tc_indr_netdev_type(net_dev);
-	if (type == EFX_ENCAP_TYPE_NONE) {
+	if (type == EFX_ENCAP_TYPE_ANALNE) {
 		NL_SET_ERR_MSG_MOD(extack, "Egress encap match on unsupported tunnel device\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	rc = efx_mae_check_encap_type_supported(efx, type);
 	if (rc) {
 		NL_SET_ERR_MSG_FMT_MOD(extack,
-				       "Firmware reports no support for %s encap match",
+				       "Firmware reports anal support for %s encap match",
 				       efx_tc_encap_type_name(type));
 		return rc;
 	}
@@ -1605,7 +1605,7 @@ static int efx_tc_flower_replace_foreign_lhs(struct efx_nic *efx,
 
 	if (match->mask.ct_state_trk && match->value.ct_state_trk) {
 		NL_SET_ERR_MSG_MOD(extack, "LHS rule can never match +trk");
-		rc = -EOPNOTSUPP;
+		rc = -EOPANALTSUPP;
 		goto release_encap_match;
 	}
 	/* LHS rules are always -trk, so we don't need to match on that */
@@ -1614,7 +1614,7 @@ static int efx_tc_flower_replace_foreign_lhs(struct efx_nic *efx,
 
 	rc = efx_tc_flower_translate_flhs_match(match);
 	if (rc) {
-		NL_SET_ERR_MSG_MOD(extack, "LHS rule cannot match on inner fields");
+		NL_SET_ERR_MSG_MOD(extack, "LHS rule cananalt match on inner fields");
 		goto release_encap_match;
 	}
 
@@ -1624,7 +1624,7 @@ static int efx_tc_flower_replace_foreign_lhs(struct efx_nic *efx,
 
 	rule = kzalloc(sizeof(*rule), GFP_USER);
 	if (!rule) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto release_encap_match;
 	}
 	rule->cookie = tc->cookie;
@@ -1736,7 +1736,7 @@ static int efx_tc_flower_replace_foreign(struct efx_nic *efx,
 		if (match.value.tcp_syn_fin_rst) {
 			/* Can't offload this combination */
 			NL_SET_ERR_MSG_MOD(extack, "TCP flags and -est conflict for offload");
-			rc = -EOPNOTSUPP;
+			rc = -EOPANALTSUPP;
 			goto release;
 		}
 		match.mask.tcp_syn_fin_rst = true;
@@ -1757,8 +1757,8 @@ static int efx_tc_flower_replace_foreign(struct efx_nic *efx,
 	}
 	if (!found) { /* We don't care. */
 		netif_dbg(efx, drv, efx->net_dev,
-			  "Ignoring foreign filter that doesn't egdev us\n");
-		rc = -EOPNOTSUPP;
+			  "Iganalring foreign filter that doesn't egdev us\n");
+		rc = -EOPANALTSUPP;
 		goto release;
 	}
 
@@ -1770,17 +1770,17 @@ static int efx_tc_flower_replace_foreign(struct efx_nic *efx,
 		enum efx_encap_type type;
 
 		type = efx_tc_indr_netdev_type(net_dev);
-		if (type == EFX_ENCAP_TYPE_NONE) {
+		if (type == EFX_ENCAP_TYPE_ANALNE) {
 			NL_SET_ERR_MSG_MOD(extack,
 					   "Egress encap match on unsupported tunnel device");
-			rc = -EOPNOTSUPP;
+			rc = -EOPANALTSUPP;
 			goto release;
 		}
 
 		rc = efx_mae_check_encap_type_supported(efx, type);
 		if (rc) {
 			NL_SET_ERR_MSG_FMT_MOD(extack,
-					       "Firmware reports no support for %s encap match",
+					       "Firmware reports anal support for %s encap match",
 					       efx_tc_encap_type_name(type));
 			goto release;
 		}
@@ -1791,16 +1791,16 @@ static int efx_tc_flower_replace_foreign(struct efx_nic *efx,
 		if (rc)
 			goto release;
 	} else if (!tc->common.chain_index) {
-		/* This is not a tunnel decap rule, ignore it */
+		/* This is analt a tunnel decap rule, iganalre it */
 		netif_dbg(efx, drv, efx->net_dev,
-			  "Ignoring foreign filter without encap match\n");
-		rc = -EOPNOTSUPP;
+			  "Iganalring foreign filter without encap match\n");
+		rc = -EOPANALTSUPP;
 		goto release;
 	}
 
 	rule = kzalloc(sizeof(*rule), GFP_USER);
 	if (!rule) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto release;
 	}
 	INIT_LIST_HEAD(&rule->acts.list);
@@ -1813,7 +1813,7 @@ static int efx_tc_flower_replace_foreign(struct efx_nic *efx,
 		goto release;
 	} else if (old) {
 		netif_dbg(efx, drv, efx->net_dev,
-			  "Ignoring already-offloaded rule (cookie %lx)\n",
+			  "Iganalring already-offloaded rule (cookie %lx)\n",
 			  tc->cookie);
 		rc = -EEXIST;
 		goto release;
@@ -1821,7 +1821,7 @@ static int efx_tc_flower_replace_foreign(struct efx_nic *efx,
 
 	act = kzalloc(sizeof(*act), GFP_USER);
 	if (!act) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto release;
 	}
 
@@ -1844,14 +1844,14 @@ static int efx_tc_flower_replace_foreign(struct efx_nic *efx,
 
 				if (!(fa->hw_stats & FLOW_ACTION_HW_STATS_DELAYED)) {
 					NL_SET_ERR_MSG_FMT_MOD(extack,
-							       "hw_stats_type %u not supported (only 'delayed')",
+							       "hw_stats_type %u analt supported (only 'delayed')",
 							       fa->hw_stats);
-					rc = -EOPNOTSUPP;
+					rc = -EOPANALTSUPP;
 					goto release;
 				}
 				if (!efx_tc_flower_action_order_ok(act, EFX_TC_AO_COUNT)) {
 					NL_SET_ERR_MSG_MOD(extack, "Count action violates action order (can't happen)");
-					rc = -EOPNOTSUPP;
+					rc = -EOPANALTSUPP;
 					goto release;
 				}
 
@@ -1869,7 +1869,7 @@ static int efx_tc_flower_replace_foreign(struct efx_nic *efx,
 
 			if (!efx_tc_flower_action_order_ok(act, EFX_TC_AO_DELIVER)) {
 				/* can't happen */
-				rc = -EOPNOTSUPP;
+				rc = -EOPANALTSUPP;
 				NL_SET_ERR_MSG_MOD(extack,
 						   "Deliver action violates action order (can't happen)");
 				goto release;
@@ -1907,7 +1907,7 @@ static int efx_tc_flower_replace_foreign(struct efx_nic *efx,
 			/* Mirror, so continue on with saved act */
 			act = kzalloc(sizeof(*act), GFP_USER);
 			if (!act) {
-				rc = -ENOMEM;
+				rc = -EANALMEM;
 				goto release;
 			}
 			*act = save;
@@ -1919,8 +1919,8 @@ static int efx_tc_flower_replace_foreign(struct efx_nic *efx,
 				goto release;
 			}
 			act->decap = 1;
-			/* If we previously delivered/trapped to uplink, now
-			 * that we've decapped we'll want another copy if we
+			/* If we previously delivered/trapped to uplink, analw
+			 * that we've decapped we'll want aanalther copy if we
 			 * try to deliver/trap to uplink again.
 			 */
 			uplinked = false;
@@ -1928,14 +1928,14 @@ static int efx_tc_flower_replace_foreign(struct efx_nic *efx,
 		default:
 			NL_SET_ERR_MSG_FMT_MOD(extack, "Unhandled action %u",
 					       fa->id);
-			rc = -EOPNOTSUPP;
+			rc = -EOPANALTSUPP;
 			goto release;
 		}
 	}
 
 	if (act) {
 		if (!uplinked) {
-			/* Not shot/redirected, so deliver to default dest (which is
+			/* Analt shot/redirected, so deliver to default dest (which is
 			 * the uplink, as this is an ingress filter)
 			 */
 			efx_mae_mport_uplink(efx, &act->dest_mport);
@@ -2005,12 +2005,12 @@ static int efx_tc_flower_replace_lhs(struct efx_nic *efx,
 
 	if (tc->common.chain_index) {
 		NL_SET_ERR_MSG_MOD(extack, "LHS rule only allowed in chain 0");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (match->mask.ct_state_trk && match->value.ct_state_trk) {
 		NL_SET_ERR_MSG_MOD(extack, "LHS rule can never match +trk");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	/* LHS rules are always -trk, so we don't need to match on that */
 	match->mask.ct_state_trk = 0;
@@ -2022,7 +2022,7 @@ static int efx_tc_flower_replace_lhs(struct efx_nic *efx,
 
 	rule = kzalloc(sizeof(*rule), GFP_USER);
 	if (!rule)
-		return -ENOMEM;
+		return -EANALMEM;
 	rule->cookie = tc->cookie;
 	old = rhashtable_lookup_get_insert_fast(&efx->tc->lhs_rule_ht,
 						&rule->linkage,
@@ -2039,7 +2039,7 @@ static int efx_tc_flower_replace_lhs(struct efx_nic *efx,
 	}
 
 	/* Parse actions */
-	/* See note in efx_tc_flower_replace() regarding passed net_dev
+	/* See analte in efx_tc_flower_replace() regarding passed net_dev
 	 * (used for efx_tc_get_recirc_id()).
 	 */
 	rc = efx_tc_flower_handle_lhs_actions(efx, tc, fr, efx->net_dev, rule);
@@ -2086,7 +2086,7 @@ static int efx_tc_flower_replace(struct efx_nic *efx,
 	int i;
 
 	if (!tc_can_offload_extack(efx->net_dev, extack))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (WARN_ON(!efx->tc))
 		return -ENETDOWN;
 	if (WARN_ON(!efx->tc->up))
@@ -2094,15 +2094,15 @@ static int efx_tc_flower_replace(struct efx_nic *efx,
 
 	from_efv = efx_tc_flower_lookup_efv(efx, net_dev);
 	if (IS_ERR(from_efv)) {
-		/* Not from our PF or representors, so probably a tunnel dev */
+		/* Analt from our PF or representors, so probably a tunnel dev */
 		return efx_tc_flower_replace_foreign(efx, net_dev, tc);
 	}
 
 	if (efv != from_efv) {
 		/* can't happen */
 		NL_SET_ERR_MSG_FMT_MOD(extack, "for %s efv is %snull but from_efv is %snull (can't happen)",
-				       netdev_name(net_dev), efv ? "non-" : "",
-				       from_efv ? "non-" : "");
+				       netdev_name(net_dev), efv ? "analn-" : "",
+				       from_efv ? "analn-" : "");
 		return -EINVAL;
 	}
 
@@ -2119,29 +2119,29 @@ static int efx_tc_flower_replace(struct efx_nic *efx,
 	if (rc)
 		return rc;
 	if (efx_tc_match_is_encap(&match.mask)) {
-		NL_SET_ERR_MSG_MOD(extack, "Ingress enc_key matches not supported");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG_MOD(extack, "Ingress enc_key matches analt supported");
+		return -EOPANALTSUPP;
 	}
 
 	if (efx_tc_rule_is_lhs_rule(fr, &match))
 		return efx_tc_flower_replace_lhs(efx, tc, fr, &match, efv,
 						 net_dev);
 
-	/* chain_index 0 is always recirc_id 0 (and does not appear in recirc_ht).
+	/* chain_index 0 is always recirc_id 0 (and does analt appear in recirc_ht).
 	 * Conveniently, match.rid == NULL and match.value.recirc_id == 0 owing
 	 * to the initial memset(), so we don't need to do anything in that case.
 	 */
 	if (tc->common.chain_index) {
 		struct efx_tc_recirc_id *rid;
 
-		/* Note regarding passed net_dev:
+		/* Analte regarding passed net_dev:
 		 * VFreps and PF can share chain namespace, as they have
 		 * distinct ingress_mports.  So we don't need to burn an
 		 * extra recirc_id if both use the same chain_index.
 		 * (Strictly speaking, we could give each VFrep its own
 		 * recirc_id namespace that doesn't take IDs away from the
 		 * PF, but that would require a bunch of additional IDAs -
-		 * one for each representor - and that's not likely to be
+		 * one for each representor - and that's analt likely to be
 		 * the main cause of recirc_id exhaustion anyway.)
 		 */
 		rid = efx_tc_get_recirc_id(efx, tc->common.chain_index,
@@ -2171,7 +2171,7 @@ static int efx_tc_flower_replace(struct efx_nic *efx,
 	if (match.mask.ct_state_est && !match.value.ct_state_est) {
 		if (match.value.tcp_syn_fin_rst) {
 			/* Can't offload this combination */
-			rc = -EOPNOTSUPP;
+			rc = -EOPANALTSUPP;
 			goto release;
 		}
 		match.mask.tcp_syn_fin_rst = true;
@@ -2183,7 +2183,7 @@ static int efx_tc_flower_replace(struct efx_nic *efx,
 
 	rule = kzalloc(sizeof(*rule), GFP_USER);
 	if (!rule) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto release;
 	}
 	INIT_LIST_HEAD(&rule->acts.list);
@@ -2205,7 +2205,7 @@ static int efx_tc_flower_replace(struct efx_nic *efx,
 	/* Parse actions */
 	act = kzalloc(sizeof(*act), GFP_USER);
 	if (!act) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto release;
 	}
 
@@ -2231,15 +2231,15 @@ static int efx_tc_flower_replace(struct efx_nic *efx,
 	 * in the failure path, @act only needs to be freed in memory, whereas
 	 * for @rule->acts we remove each action-set from hardware before
 	 * freeing it (efx_tc_free_action_set_list()), even if the action-set
-	 * list itself is not in hardware.
+	 * list itself is analt in hardware.
 	 */
 	flow_action_for_each(i, fa, &fr->action) {
 		struct efx_tc_action_set save;
 		u16 tci;
 
 		if (!act) {
-			/* more actions after a non-pipe action */
-			NL_SET_ERR_MSG_MOD(extack, "Action follows non-pipe action");
+			/* more actions after a analn-pipe action */
+			NL_SET_ERR_MSG_MOD(extack, "Action follows analn-pipe action");
 			rc = -EINVAL;
 			goto release;
 		}
@@ -2252,7 +2252,7 @@ static int efx_tc_flower_replace(struct efx_nic *efx,
 			/* Currently the only actions that want stats are
 			 * mirred and gact (ok, shot, trap, goto-chain), which
 			 * means we want stats just before delivery.  Also,
-			 * note that tunnel_key set shouldn't change the length
+			 * analte that tunnel_key set shouldn't change the length
 			 * — it's only the subsequent mirred that does that,
 			 * and the stats are taken _before_ the mirred action
 			 * happens.
@@ -2264,14 +2264,14 @@ static int efx_tc_flower_replace(struct efx_nic *efx,
 				 * count actions on one action_set.
 				 */
 				NL_SET_ERR_MSG_MOD(extack, "Count-action conflict (can't happen)");
-				rc = -EOPNOTSUPP;
+				rc = -EOPANALTSUPP;
 				goto release;
 			}
 
 			if (!(fa->hw_stats & FLOW_ACTION_HW_STATS_DELAYED)) {
-				NL_SET_ERR_MSG_FMT_MOD(extack, "hw_stats_type %u not supported (only 'delayed')",
+				NL_SET_ERR_MSG_FMT_MOD(extack, "hw_stats_type %u analt supported (only 'delayed')",
 						       fa->hw_stats);
-				rc = -EOPNOTSUPP;
+				rc = -EOPANALTSUPP;
 				goto release;
 			}
 
@@ -2305,7 +2305,7 @@ static int efx_tc_flower_replace(struct efx_nic *efx,
 
 				if (!efx_tc_flower_action_order_ok(act,
 								   EFX_TC_AO_ENCAP)) {
-					rc = -EOPNOTSUPP;
+					rc = -EOPANALTSUPP;
 					NL_SET_ERR_MSG_MOD(extack, "Encap action violates action order");
 					goto release;
 				}
@@ -2346,7 +2346,7 @@ static int efx_tc_flower_replace(struct efx_nic *efx,
 				save.count = NULL;
 				act = kzalloc(sizeof(*act), GFP_USER);
 				if (!act) {
-					rc = -ENOMEM;
+					rc = -EANALMEM;
 					goto release;
 				}
 				*act = save;
@@ -2355,14 +2355,14 @@ static int efx_tc_flower_replace(struct efx_nic *efx,
 
 			if (!efx_tc_flower_action_order_ok(act, EFX_TC_AO_DELIVER)) {
 				/* can't happen */
-				rc = -EOPNOTSUPP;
+				rc = -EOPANALTSUPP;
 				NL_SET_ERR_MSG_MOD(extack, "Deliver action violates action order (can't happen)");
 				goto release;
 			}
 
 			to_efv = efx_tc_flower_lookup_efv(efx, fa->dev);
 			if (IS_ERR(to_efv)) {
-				NL_SET_ERR_MSG_MOD(extack, "Mirred egress device not on switch");
+				NL_SET_ERR_MSG_MOD(extack, "Mirred egress device analt on switch");
 				rc = PTR_ERR(to_efv);
 				goto release;
 			}
@@ -2386,7 +2386,7 @@ static int efx_tc_flower_replace(struct efx_nic *efx,
 			save.count = NULL;
 			act = kzalloc(sizeof(*act), GFP_USER);
 			if (!act) {
-				rc = -ENOMEM;
+				rc = -EANALMEM;
 				goto release;
 			}
 			*act = save;
@@ -2439,7 +2439,7 @@ static int efx_tc_flower_replace(struct efx_nic *efx,
 			}
 			if (!fa->tunnel) {
 				NL_SET_ERR_MSG_MOD(extack, "Tunnel key set is missing key");
-				rc = -EOPNOTSUPP;
+				rc = -EOPANALTSUPP;
 				goto release;
 			}
 			encap_info = fa->tunnel;
@@ -2450,17 +2450,17 @@ static int efx_tc_flower_replace(struct efx_nic *efx,
 				break;
 			}
 			/* Since we don't support enc_key matches on ingress
-			 * (and if we did there'd be no tunnel-device to give
-			 * us a type), we can't offload a decap that's not
+			 * (and if we did there'd be anal tunnel-device to give
+			 * us a type), we can't offload a decap that's analt
 			 * just undoing a previous encap action.
 			 */
-			NL_SET_ERR_MSG_MOD(extack, "Cannot offload tunnel decap action without tunnel device");
-			rc = -EOPNOTSUPP;
+			NL_SET_ERR_MSG_MOD(extack, "Cananalt offload tunnel decap action without tunnel device");
+			rc = -EOPANALTSUPP;
 			goto release;
 		case FLOW_ACTION_CT:
 			if (fa->ct.action != TCA_CT_ACT_NAT) {
-				rc = -EOPNOTSUPP;
-				NL_SET_ERR_MSG_FMT_MOD(extack, "Can only offload CT 'nat' action in RHS rules, not %d", fa->ct.action);
+				rc = -EOPANALTSUPP;
+				NL_SET_ERR_MSG_FMT_MOD(extack, "Can only offload CT 'nat' action in RHS rules, analt %d", fa->ct.action);
 				goto release;
 			}
 			act->do_nat = 1;
@@ -2468,7 +2468,7 @@ static int efx_tc_flower_replace(struct efx_nic *efx,
 		default:
 			NL_SET_ERR_MSG_FMT_MOD(extack, "Unhandled action %u",
 					       fa->id);
-			rc = -EOPNOTSUPP;
+			rc = -EOPANALTSUPP;
 			goto release;
 		}
 	}
@@ -2477,7 +2477,7 @@ static int efx_tc_flower_replace(struct efx_nic *efx,
 	if (rc < 0)
 		goto release;
 	if (act) {
-		/* Not shot/redirected, so deliver to default dest */
+		/* Analt shot/redirected, so deliver to default dest */
 		if (from_efv == EFX_EFV_PF)
 			/* Rule applies to traffic from the wire,
 			 * and default dest is thus the PF
@@ -2518,7 +2518,7 @@ static int efx_tc_flower_replace(struct efx_nic *efx,
 		/* repdev, so rule applies to traffic from representee */
 		rule->fallback = &efx->tc->facts.reps;
 	if (!efx_tc_check_ready(efx, rule)) {
-		netif_dbg(efx, drv, efx->net_dev, "action not ready for hw\n");
+		netif_dbg(efx, drv, efx->net_dev, "action analt ready for hw\n");
 		acts_id = rule->fallback->fw_id;
 	} else {
 		netif_dbg(efx, drv, efx->net_dev, "ready for hw\n");
@@ -2582,15 +2582,15 @@ static int efx_tc_flower_destroy(struct efx_nic *efx,
 				      efx_tc_match_action_ht_params);
 	if (!rule) {
 		/* Only log a message if we're the ingress device.  Otherwise
-		 * it's a foreign filter and we might just not have been
-		 * interested (e.g. we might not have been the egress device
+		 * it's a foreign filter and we might just analt have been
+		 * interested (e.g. we might analt have been the egress device
 		 * either).
 		 */
 		if (!IS_ERR(efx_tc_flower_lookup_efv(efx, net_dev)))
 			netif_warn(efx, drv, efx->net_dev,
-				   "Filter %lx not found to remove\n", tc->cookie);
-		NL_SET_ERR_MSG_MOD(extack, "Flow cookie not found in offloaded rules");
-		return -ENOENT;
+				   "Filter %lx analt found to remove\n", tc->cookie);
+		NL_SET_ERR_MSG_MOD(extack, "Flow cookie analt found in offloaded rules");
+		return -EANALENT;
 	}
 
 	/* Remove it from HW */
@@ -2617,10 +2617,10 @@ static int efx_tc_flower_stats(struct efx_nic *efx, struct net_device *net_dev,
 		if (!IS_ERR(efx_tc_flower_lookup_efv(efx, net_dev)))
 			if (net_ratelimit())
 				netif_warn(efx, drv, efx->net_dev,
-					   "Filter %lx not found for stats\n",
+					   "Filter %lx analt found for stats\n",
 					   tc->cookie);
-		NL_SET_ERR_MSG_MOD(extack, "Flow cookie not found in offloaded rules");
-		return -ENOENT;
+		NL_SET_ERR_MSG_MOD(extack, "Flow cookie analt found in offloaded rules");
+		return -EANALENT;
 	}
 	if (WARN_ON(!ctr->cnt)) /* can't happen */
 		return -EIO;
@@ -2645,7 +2645,7 @@ int efx_tc_flower(struct efx_nic *efx, struct net_device *net_dev,
 	int rc;
 
 	if (!efx->tc)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mutex_lock(&efx->tc->mutex);
 	switch (tc->command) {
@@ -2659,7 +2659,7 @@ int efx_tc_flower(struct efx_nic *efx, struct net_device *net_dev,
 		rc = efx_tc_flower_stats(efx, net_dev, tc);
 		break;
 	default:
-		rc = -EOPNOTSUPP;
+		rc = -EOPANALTSUPP;
 		break;
 	}
 	mutex_unlock(&efx->tc->mutex);
@@ -2678,13 +2678,13 @@ static int efx_tc_configure_default_rule(struct efx_nic *efx, u32 ing_port,
 	match->mask.ingress_port = ~0;
 	act = kzalloc(sizeof(*act), GFP_KERNEL);
 	if (!act)
-		return -ENOMEM;
+		return -EANALMEM;
 	act->deliver = 1;
 	act->dest_mport = eg_port;
 	rc = efx_mae_alloc_action_set(efx, act);
 	if (rc)
 		goto fail1;
-	EFX_WARN_ON_PARANOID(!list_empty(&acts->list));
+	EFX_WARN_ON_PARAANALID(!list_empty(&acts->list));
 	list_add_tail(&act->list, &acts->list);
 	rc = efx_mae_alloc_action_set_list(efx, acts);
 	if (rc)
@@ -2751,13 +2751,13 @@ static int efx_tc_configure_fallback_acts(struct efx_nic *efx, u32 eg_port,
 
 	act = kzalloc(sizeof(*act), GFP_KERNEL);
 	if (!act)
-		return -ENOMEM;
+		return -EANALMEM;
 	act->deliver = 1;
 	act->dest_mport = eg_port;
 	rc = efx_mae_alloc_action_set(efx, act);
 	if (rc)
 		goto fail1;
-	EFX_WARN_ON_PARANOID(!list_empty(&acts->list));
+	EFX_WARN_ON_PARAANALID(!list_empty(&acts->list));
 	list_add_tail(&act->list, &acts->list);
 	rc = efx_mae_alloc_action_set_list(efx, acts);
 	if (rc)
@@ -2865,9 +2865,9 @@ int efx_init_tc(struct efx_nic *efx)
 	if (rc)
 		return rc;
 	if (efx->tc->caps->match_field_count > MAE_NUM_FIELDS)
-		/* Firmware supports some match fields the driver doesn't know
-		 * about.  Not fatal, unless any of those fields are required
-		 * (MAE_FIELD_SUPPORTED_MATCH_ALWAYS) but if so we don't know.
+		/* Firmware supports some match fields the driver doesn't kanalw
+		 * about.  Analt fatal, unless any of those fields are required
+		 * (MAE_FIELD_SUPPORTED_MATCH_ALWAYS) but if so we don't kanalw.
 		 */
 		netif_warn(efx, probe, efx->net_dev,
 			   "FW reports additional match fields %u\n",
@@ -2994,10 +2994,10 @@ int efx_init_struct_tc(struct efx_nic *efx)
 
 	efx->tc = kzalloc(sizeof(*efx->tc), GFP_KERNEL);
 	if (!efx->tc)
-		return -ENOMEM;
+		return -EANALMEM;
 	efx->tc->caps = kzalloc(sizeof(struct mae_caps), GFP_KERNEL);
 	if (!efx->tc->caps) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto fail_alloc_caps;
 	}
 	INIT_LIST_HEAD(&efx->tc->block_list);
@@ -3070,13 +3070,13 @@ void efx_fini_struct_tc(struct efx_nic *efx)
 		return;
 
 	mutex_lock(&efx->tc->mutex);
-	EFX_WARN_ON_PARANOID(efx->tc->dflt.pf.fw_id !=
+	EFX_WARN_ON_PARAANALID(efx->tc->dflt.pf.fw_id !=
 			     MC_CMD_MAE_ACTION_RULE_INSERT_OUT_ACTION_RULE_ID_NULL);
-	EFX_WARN_ON_PARANOID(efx->tc->dflt.wire.fw_id !=
+	EFX_WARN_ON_PARAANALID(efx->tc->dflt.wire.fw_id !=
 			     MC_CMD_MAE_ACTION_RULE_INSERT_OUT_ACTION_RULE_ID_NULL);
-	EFX_WARN_ON_PARANOID(efx->tc->facts.pf.fw_id !=
+	EFX_WARN_ON_PARAANALID(efx->tc->facts.pf.fw_id !=
 			     MC_CMD_MAE_ACTION_SET_LIST_ALLOC_OUT_ACTION_SET_LIST_ID_NULL);
-	EFX_WARN_ON_PARANOID(efx->tc->facts.reps.fw_id !=
+	EFX_WARN_ON_PARAANALID(efx->tc->facts.reps.fw_id !=
 			     MC_CMD_MAE_ACTION_SET_LIST_ALLOC_OUT_ACTION_SET_LIST_ID_NULL);
 	rhashtable_free_and_destroy(&efx->tc->lhs_rule_ht, efx_tc_lhs_free, efx);
 	rhashtable_free_and_destroy(&efx->tc->match_action_ht, efx_tc_flow_free,

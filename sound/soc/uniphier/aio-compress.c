@@ -7,7 +7,7 @@
 #include <linux/bitfield.h>
 #include <linux/circ_buf.h>
 #include <linux/dma-mapping.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <sound/core.h>
@@ -36,7 +36,7 @@ static int uniphier_aio_comprdma_new(struct snd_soc_pcm_runtime *rtd)
 
 	sub->compr_area = kzalloc(size, GFP_KERNEL);
 	if (!sub->compr_area)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (sub->swm->dir == PORT_DIR_OUTPUT)
 		dma_dir = DMA_TO_DEVICE;
@@ -46,7 +46,7 @@ static int uniphier_aio_comprdma_new(struct snd_soc_pcm_runtime *rtd)
 		kfree(sub->compr_area);
 		sub->compr_area = NULL;
 
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	sub->compr_bytes = size;
@@ -141,12 +141,12 @@ static int uniphier_aio_compr_set_params(struct snd_soc_component *component,
 	struct device *dev = &aio->chip->pdev->dev;
 
 	if (params->codec.id != SND_AUDIOCODEC_IEC61937) {
-		dev_err(dev, "Codec ID is not supported(%d)\n",
+		dev_err(dev, "Codec ID is analt supported(%d)\n",
 			params->codec.id);
 		return -EINVAL;
 	}
 	if (params->codec.profile != SND_AUDIOPROFILE_IEC61937_SPDIF) {
-		dev_err(dev, "Codec profile is not supported(%d)\n",
+		dev_err(dev, "Codec profile is analt supported(%d)\n",
 			params->codec.profile);
 		return -EINVAL;
 	}
@@ -239,7 +239,7 @@ static int uniphier_aio_compr_trigger(struct snd_soc_component *component,
 
 		break;
 	default:
-		dev_warn(dev, "Unknown trigger(%d)\n", cmd);
+		dev_warn(dev, "Unkanalwn trigger(%d)\n", cmd);
 		ret = -EINVAL;
 	}
 	spin_unlock_irqrestore(&sub->lock, flags);

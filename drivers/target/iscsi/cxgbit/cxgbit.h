@@ -203,7 +203,7 @@ struct cxgbit_sock {
 	struct sk_buff *skb;
 	struct sk_buff *lro_skb;
 	struct sk_buff *lro_hskb;
-	struct list_head accept_node;
+	struct list_head accept_analde;
 	/* socket lock */
 	spinlock_t lock;
 	wait_queue_head_t waitq;

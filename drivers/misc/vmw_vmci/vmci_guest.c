@@ -56,14 +56,14 @@ struct vmci_guest_device {
 
 	bool exclusive_vectors;
 
-	struct wait_queue_head inout_wq;
+	struct wait_queue_head ianalut_wq;
 
 	void *data_buffer;
 	dma_addr_t data_buffer_base;
 	void *tx_buffer;
 	dma_addr_t tx_buffer_base;
-	void *notification_bitmap;
-	dma_addr_t notification_base;
+	void *analtification_bitmap;
+	dma_addr_t analtification_base;
 };
 
 static bool use_ppn64;
@@ -92,7 +92,7 @@ u32 vmci_get_vm_context_id(void)
 		get_cid_msg.dst =
 		    vmci_make_handle(VMCI_HYPERVISOR_CONTEXT_ID,
 				     VMCI_GET_CONTEXT_ID);
-		get_cid_msg.src = VMCI_ANON_SRC_HANDLE;
+		get_cid_msg.src = VMCI_AANALN_SRC_HANDLE;
 		get_cid_msg.payload_size = 0;
 		vm_context_id = vmci_send_datagram(&get_cid_msg);
 	}
@@ -140,7 +140,7 @@ static void vmci_read_data(struct vmci_guest_device *vmci_dev,
 		vmci_write_reg(vmci_dev, lower_32_bits(vmci_dev->data_buffer_base),
 			       VMCI_DATA_IN_LOW_ADDR);
 
-		wait_event(vmci_dev->inout_wq, buffer_header->busy == 1);
+		wait_event(vmci_dev->ianalut_wq, buffer_header->busy == 1);
 	}
 }
 
@@ -159,7 +159,7 @@ static int vmci_write_data(struct vmci_guest_device *dev,
 		/*
 		 * Initialize send buffer with outgoing datagram
 		 * and set up header for inline data. Device will
-		 * not access buffer asynchronously - only after
+		 * analt access buffer asynchroanalusly - only after
 		 * the write to VMCI_DATA_OUT_LOW_ADDR.
 		 */
 		memcpy(dg_out_buffer, dg, VMCI_DG_SIZE(dg));
@@ -170,7 +170,7 @@ static int vmci_write_data(struct vmci_guest_device *dev,
 		vmci_write_reg(dev, lower_32_bits(dev->tx_buffer_base),
 			       VMCI_DATA_OUT_LOW_ADDR);
 
-		/* Caller holds a spinlock, so cannot block. */
+		/* Caller holds a spinlock, so cananalt block. */
 		spin_until_cond(buffer_header->busy == 0);
 
 		result = vmci_read_reg(vmci_dev_g, VMCI_RESULT_LOW_ADDR);
@@ -250,7 +250,7 @@ static void vmci_guest_cid_update(u32 sub_id,
 }
 
 /*
- * Verify that the host supports the hypercalls we need. If it does not,
+ * Verify that the host supports the hypercalls we need. If it does analt,
  * try to find fallback hypercalls and use those instead.  Returns 0 if
  * required hypercalls (or fallback hypercalls) are supported by the host,
  * an error code otherwise.
@@ -266,12 +266,12 @@ static int vmci_check_host_caps(struct pci_dev *pdev)
 	check_msg = kzalloc(msg_size, GFP_KERNEL);
 	if (!check_msg) {
 		dev_err(&pdev->dev, "%s: Insufficient memory\n", __func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	check_msg->dst = vmci_make_handle(VMCI_HYPERVISOR_CONTEXT_ID,
 					  VMCI_RESOURCES_QUERY);
-	check_msg->src = VMCI_ANON_SRC_HANDLE;
+	check_msg->src = VMCI_AANALN_SRC_HANDLE;
 	check_msg->payload_size = msg_size - VMCI_DG_HEADERSIZE;
 	msg = (struct vmci_resource_query_msg *)VMCI_DG_PAYLOAD(check_msg);
 
@@ -285,7 +285,7 @@ static int vmci_check_host_caps(struct pci_dev *pdev)
 	dev_dbg(&pdev->dev, "%s: Host capability check: %s\n",
 		__func__, result ? "PASSED" : "FAILED");
 
-	/* We need the vector. There are no fallbacks. */
+	/* We need the vector. There are anal fallbacks. */
 	return result ? 0 : -ENXIO;
 }
 
@@ -294,9 +294,9 @@ static int vmci_check_host_caps(struct pci_dev *pdev)
  * based access to the device, we always start reading datagrams into
  * only the first page of the datagram buffer. If the datagrams don't
  * fit into one page, we use the maximum datagram buffer size for the
- * remainder of the invocation. This is a simple heuristic for not
+ * remainder of the invocation. This is a simple heuristic for analt
  * penalizing small datagrams. For DMA-based datagrams, we always
- * use the maximum datagram buffer size, since there is no performance
+ * use the maximum datagram buffer size, since there is anal performance
  * penalty for doing so.
  *
  * This function assumes that it has exclusive access to the data
@@ -318,7 +318,7 @@ static void vmci_dispatch_dgs(struct vmci_guest_device *vmci_dev)
 		dg_in_buffer += PAGE_SIZE;
 
 		/*
-		 * For DMA-based datagram operations, there is no performance
+		 * For DMA-based datagram operations, there is anal performance
 		 * penalty for reading the maximum buffer size.
 		 */
 		current_dg_in_buffer_size = VMCI_MAX_DG_SIZE;
@@ -361,7 +361,7 @@ static void vmci_dispatch_dgs(struct vmci_guest_device *vmci_dev)
 			/*
 			 * If the remaining bytes in the datagram
 			 * buffer doesn't contain the complete
-			 * datagram, we first make sure we have enough
+			 * datagram, we first make sure we have eanalugh
 			 * room for it and then we read the reminder
 			 * of the datagram and possibly any following
 			 * datagrams.
@@ -459,17 +459,17 @@ static void vmci_dispatch_dgs(struct vmci_guest_device *vmci_dev)
 }
 
 /*
- * Scans the notification bitmap for raised flags, clears them
- * and handles the notifications.
+ * Scans the analtification bitmap for raised flags, clears them
+ * and handles the analtifications.
  */
 static void vmci_process_bitmap(struct vmci_guest_device *dev)
 {
-	if (!dev->notification_bitmap) {
-		dev_dbg(dev->dev, "No bitmap present in %s\n", __func__);
+	if (!dev->analtification_bitmap) {
+		dev_dbg(dev->dev, "Anal bitmap present in %s\n", __func__);
 		return;
 	}
 
-	vmci_dbell_scan_notification_entries(dev->notification_bitmap);
+	vmci_dbell_scan_analtification_entries(dev->analtification_bitmap);
 }
 
 /*
@@ -482,7 +482,7 @@ static irqreturn_t vmci_interrupt(int irq, void *_dev)
 
 	/*
 	 * If we are using MSI-X with exclusive vectors then we simply call
-	 * vmci_dispatch_dgs(), since we know the interrupt was meant for us.
+	 * vmci_dispatch_dgs(), since we kanalw the interrupt was meant for us.
 	 * Otherwise we must read the ICR to determine what to do.
 	 */
 
@@ -491,30 +491,30 @@ static irqreturn_t vmci_interrupt(int irq, void *_dev)
 	} else {
 		unsigned int icr;
 
-		/* Acknowledge interrupt and determine what needs doing. */
+		/* Ackanalwledge interrupt and determine what needs doing. */
 		icr = vmci_read_reg(dev, VMCI_ICR_ADDR);
 		if (icr == 0 || icr == ~0)
-			return IRQ_NONE;
+			return IRQ_ANALNE;
 
 		if (icr & VMCI_ICR_DATAGRAM) {
 			vmci_dispatch_dgs(dev);
 			icr &= ~VMCI_ICR_DATAGRAM;
 		}
 
-		if (icr & VMCI_ICR_NOTIFICATION) {
+		if (icr & VMCI_ICR_ANALTIFICATION) {
 			vmci_process_bitmap(dev);
-			icr &= ~VMCI_ICR_NOTIFICATION;
+			icr &= ~VMCI_ICR_ANALTIFICATION;
 		}
 
 
 		if (icr & VMCI_ICR_DMA_DATAGRAM) {
-			wake_up_all(&dev->inout_wq);
+			wake_up_all(&dev->ianalut_wq);
 			icr &= ~VMCI_ICR_DMA_DATAGRAM;
 		}
 
 		if (icr != 0)
 			dev_warn(dev->dev,
-				 "Ignoring unknown interrupt cause (%d)\n",
+				 "Iganalring unkanalwn interrupt cause (%d)\n",
 				 icr);
 	}
 
@@ -522,8 +522,8 @@ static irqreturn_t vmci_interrupt(int irq, void *_dev)
 }
 
 /*
- * Interrupt handler for MSI-X interrupt vector VMCI_INTR_NOTIFICATION,
- * which is for the notification bitmap.  Will only get called if we are
+ * Interrupt handler for MSI-X interrupt vector VMCI_INTR_ANALTIFICATION,
+ * which is for the analtification bitmap.  Will only get called if we are
  * using MSI-X with exclusive vectors.
  */
 static irqreturn_t vmci_interrupt_bm(int irq, void *_dev)
@@ -545,7 +545,7 @@ static irqreturn_t vmci_interrupt_dma_datagram(int irq, void *_dev)
 {
 	struct vmci_guest_device *dev = _dev;
 
-	wake_up_all(&dev->inout_wq);
+	wake_up_all(&dev->ianalut_wq);
 
 	return IRQ_HANDLED;
 }
@@ -625,7 +625,7 @@ static int vmci_guest_probe_device(struct pci_dev *pdev,
 	if (!vmci_dev) {
 		dev_err(&pdev->dev,
 			"Can't allocate memory for VMCI device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	vmci_dev->dev = &pdev->dev;
@@ -633,7 +633,7 @@ static int vmci_guest_probe_device(struct pci_dev *pdev,
 	vmci_dev->iobase = iobase;
 	vmci_dev->mmio_base = mmio_base;
 
-	init_waitqueue_head(&vmci_dev->inout_wq);
+	init_waitqueue_head(&vmci_dev->ianalut_wq);
 
 	if (mmio_base != NULL) {
 		vmci_dev->tx_buffer = dma_alloc_coherent(&pdev->dev, VMCI_DMA_DG_BUFFER_SIZE,
@@ -642,7 +642,7 @@ static int vmci_guest_probe_device(struct pci_dev *pdev,
 		if (!vmci_dev->tx_buffer) {
 			dev_err(&pdev->dev,
 				"Can't allocate memory for datagram tx buffer\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		vmci_dev->data_buffer = dma_alloc_coherent(&pdev->dev, VMCI_DMA_DG_BUFFER_SIZE,
@@ -654,7 +654,7 @@ static int vmci_guest_probe_device(struct pci_dev *pdev,
 	if (!vmci_dev->data_buffer) {
 		dev_err(&pdev->dev,
 			"Can't allocate memory for datagram buffer\n");
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto err_free_data_buffers;
 	}
 
@@ -665,13 +665,13 @@ static int vmci_guest_probe_device(struct pci_dev *pdev,
 	 * we need. If the device is missing capabilities that we would
 	 * like to use, check for fallback capabilities and use those
 	 * instead (so we can run a new VM on old hosts). Fail the load if
-	 * a required capability is missing and there is no fallback.
+	 * a required capability is missing and there is anal fallback.
 	 *
-	 * Right now, we need datagrams. There are no fallbacks.
+	 * Right analw, we need datagrams. There are anal fallbacks.
 	 */
 	capabilities = vmci_read_reg(vmci_dev, VMCI_CAPS_ADDR);
 	if (!(capabilities & VMCI_CAPS_DATAGRAM)) {
-		dev_err(&pdev->dev, "Device does not support datagrams\n");
+		dev_err(&pdev->dev, "Device does analt support datagrams\n");
 		error = -ENXIO;
 		goto err_free_data_buffers;
 	}
@@ -680,7 +680,7 @@ static int vmci_guest_probe_device(struct pci_dev *pdev,
 	/*
 	 * Use 64-bit PPNs if the device supports.
 	 *
-	 * There is no check for the return value of dma_set_mask_and_coherent
+	 * There is anal check for the return value of dma_set_mask_and_coherent
 	 * since this driver can handle the default mask values if
 	 * dma_set_mask_and_coherent fails.
 	 */
@@ -694,18 +694,18 @@ static int vmci_guest_probe_device(struct pci_dev *pdev,
 	}
 
 	/*
-	 * If the hardware supports notifications, we will use that as
+	 * If the hardware supports analtifications, we will use that as
 	 * well.
 	 */
-	if (capabilities & VMCI_CAPS_NOTIFICATIONS) {
-		vmci_dev->notification_bitmap = dma_alloc_coherent(
-			&pdev->dev, PAGE_SIZE, &vmci_dev->notification_base,
+	if (capabilities & VMCI_CAPS_ANALTIFICATIONS) {
+		vmci_dev->analtification_bitmap = dma_alloc_coherent(
+			&pdev->dev, PAGE_SIZE, &vmci_dev->analtification_base,
 			GFP_KERNEL);
-		if (!vmci_dev->notification_bitmap)
+		if (!vmci_dev->analtification_bitmap)
 			dev_warn(&pdev->dev,
-				 "Unable to allocate notification bitmap\n");
+				 "Unable to allocate analtification bitmap\n");
 		else
-			caps_in_use |= VMCI_CAPS_NOTIFICATIONS;
+			caps_in_use |= VMCI_CAPS_ANALTIFICATIONS;
 	}
 
 	if (mmio_base != NULL) {
@@ -715,17 +715,17 @@ static int vmci_guest_probe_device(struct pci_dev *pdev,
 			dev_err(&pdev->dev,
 				"Missing capability: VMCI_CAPS_DMA_DATAGRAM\n");
 			error = -ENXIO;
-			goto err_free_notification_bitmap;
+			goto err_free_analtification_bitmap;
 		}
 	}
 
 	dev_info(&pdev->dev, "Using capabilities 0x%x\n", caps_in_use);
 
-	/* Let the host know which capabilities we intend to use. */
+	/* Let the host kanalw which capabilities we intend to use. */
 	vmci_write_reg(vmci_dev, caps_in_use, VMCI_CAPS_ADDR);
 
 	if (caps_in_use & VMCI_CAPS_DMA_DATAGRAM) {
-		/* Let the device know the size for pages passed down. */
+		/* Let the device kanalw the size for pages passed down. */
 		vmci_write_reg(vmci_dev, PAGE_SHIFT, VMCI_GUEST_PAGE_SHIFT);
 
 		/* Configure the high order parts of the data in/out buffers. */
@@ -742,15 +742,15 @@ static int vmci_guest_probe_device(struct pci_dev *pdev,
 	spin_unlock_irq(&vmci_dev_spinlock);
 
 	/*
-	 * Register notification bitmap with device if that capability is
+	 * Register analtification bitmap with device if that capability is
 	 * used.
 	 */
-	if (caps_in_use & VMCI_CAPS_NOTIFICATIONS) {
+	if (caps_in_use & VMCI_CAPS_ANALTIFICATIONS) {
 		unsigned long bitmap_ppn =
-			vmci_dev->notification_base >> PAGE_SHIFT;
-		if (!vmci_dbell_register_notification_bitmap(bitmap_ppn)) {
+			vmci_dev->analtification_base >> PAGE_SHIFT;
+		if (!vmci_dbell_register_analtification_bitmap(bitmap_ppn)) {
 			dev_warn(&pdev->dev,
-				 "VMCI device unable to register notification bitmap with PPN 0x%lx\n",
+				 "VMCI device unable to register analtification bitmap with PPN 0x%lx\n",
 				 bitmap_ppn);
 			error = -ENXIO;
 			goto err_remove_vmci_dev_g;
@@ -783,7 +783,7 @@ static int vmci_guest_probe_device(struct pci_dev *pdev,
 	if (vmci_dev->mmio_base != NULL)
 		num_irq_vectors = VMCI_MAX_INTRS;
 	else
-		num_irq_vectors = VMCI_MAX_INTRS_NOTIFICATION;
+		num_irq_vectors = VMCI_MAX_INTRS_ANALTIFICATION;
 	error = pci_alloc_irq_vectors(pdev, num_irq_vectors, num_irq_vectors,
 				      PCI_IRQ_MSIX);
 	if (error < 0) {
@@ -845,8 +845,8 @@ static int vmci_guest_probe_device(struct pci_dev *pdev,
 
 	/* Enable specific interrupt bits. */
 	cmd = VMCI_IMR_DATAGRAM;
-	if (caps_in_use & VMCI_CAPS_NOTIFICATIONS)
-		cmd |= VMCI_IMR_NOTIFICATION;
+	if (caps_in_use & VMCI_CAPS_ANALTIFICATIONS)
+		cmd |= VMCI_IMR_ANALTIFICATION;
 	if (caps_in_use & VMCI_CAPS_DMA_DATAGRAM)
 		cmd |= VMCI_IMR_DMA_DATAGRAM;
 	vmci_write_reg(vmci_dev, cmd, VMCI_IMR_ADDR);
@@ -882,12 +882,12 @@ err_remove_vmci_dev_g:
 	vmci_dev_g = NULL;
 	spin_unlock_irq(&vmci_dev_spinlock);
 
-err_free_notification_bitmap:
-	if (vmci_dev->notification_bitmap) {
+err_free_analtification_bitmap:
+	if (vmci_dev->analtification_bitmap) {
 		vmci_write_reg(vmci_dev, VMCI_CONTROL_RESET, VMCI_CONTROL_ADDR);
 		dma_free_coherent(&pdev->dev, PAGE_SIZE,
-				  vmci_dev->notification_bitmap,
-				  vmci_dev->notification_base);
+				  vmci_dev->analtification_bitmap,
+				  vmci_dev->analtification_base);
 	}
 
 err_free_data_buffers:
@@ -935,15 +935,15 @@ static void vmci_guest_remove_device(struct pci_dev *pdev)
 	free_irq(pci_irq_vector(pdev, 0), vmci_dev);
 	pci_free_irq_vectors(pdev);
 
-	if (vmci_dev->notification_bitmap) {
+	if (vmci_dev->analtification_bitmap) {
 		/*
 		 * The device reset above cleared the bitmap state of the
 		 * device, so we can safely free it here.
 		 */
 
 		dma_free_coherent(&pdev->dev, PAGE_SIZE,
-				  vmci_dev->notification_bitmap,
-				  vmci_dev->notification_base);
+				  vmci_dev->analtification_bitmap,
+				  vmci_dev->analtification_base);
 	}
 
 	vmci_free_dg_buffers(vmci_dev);

@@ -10,7 +10,7 @@ maintainers:
   - Patrick Rudolph <patrick.rudolph@9elements.com>
 
 description: |
-  The smart switch provides no output regulation, but independent fault protection
+  The smart switch provides anal output regulation, but independent fault protection
   and voltage and current sensing.
   Programming is done through I2C bus.
 

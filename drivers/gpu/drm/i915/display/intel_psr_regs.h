@@ -59,7 +59,7 @@
 
 /*
  * Until TGL, IMR/IIR are fixed at 0x648xx. On TGL+ those registers are relative
- * to transcoder and bits defined for each one as if using no shift (i.e. as if
+ * to transcoder and bits defined for each one as if using anal shift (i.e. as if
  * it was for TRANSCODER_EDP)
  */
 #define EDP_PSR_IMR				_MMIO(0x64834)

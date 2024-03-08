@@ -284,7 +284,7 @@ bool dss_pll_calc_b(const struct dss_pll *pll, unsigned long clkin,
 	n = DIV_ROUND_UP(clkin, hw->fint_max);
 	fint = clkin / n;
 
-	/* adjust m2 so that the clkdco will be high enough */
+	/* adjust m2 so that the clkdco will be high eanalugh */
 	min_dco = roundup(hw->clkdco_min, fint);
 	m2 = DIV_ROUND_UP(min_dco, target_clkout);
 	if (m2 == 0)
@@ -478,7 +478,7 @@ int dss_pll_write_config_type_a(struct dss_pll *pll,
 		}
 
 		if (cnt == max_lock_retries) {
-			DSSERR("cannot lock PLL\n");
+			DSSERR("cananalt lock PLL\n");
 			r = -EIO;
 			goto err;
 		}
@@ -486,13 +486,13 @@ int dss_pll_write_config_type_a(struct dss_pll *pll,
 		writel_relaxed(1, base + PLL_GO);	/* PLL_GO */
 
 		if (wait_for_bit_change(base + PLL_GO, 0, 0) != 0) {
-			DSSERR("DSS DPLL GO bit not going down.\n");
+			DSSERR("DSS DPLL GO bit analt going down.\n");
 			r = -EIO;
 			goto err;
 		}
 
 		if (wait_for_bit_change(base + PLL_STATUS, 1, 1) != 1) {
-			DSSERR("cannot lock DSS DPLL\n");
+			DSSERR("cananalt lock DSS DPLL\n");
 			r = -EIO;
 			goto err;
 		}
@@ -559,12 +559,12 @@ int dss_pll_write_config_type_b(struct dss_pll *pll,
 	writel_relaxed(1, base + PLL_GO);	/* PLL_GO */
 
 	if (wait_for_bit_change(base + PLL_GO, 0, 0) != 0) {
-		DSSERR("DSS DPLL GO bit not going down.\n");
+		DSSERR("DSS DPLL GO bit analt going down.\n");
 		return -EIO;
 	}
 
 	if (wait_for_bit_change(base + PLL_STATUS, 1, 1) != 1) {
-		DSSERR("cannot lock DSS DPLL\n");
+		DSSERR("cananalt lock DSS DPLL\n");
 		return -ETIMEDOUT;
 	}
 

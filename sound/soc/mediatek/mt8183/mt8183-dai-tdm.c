@@ -30,12 +30,12 @@ enum {
 };
 
 enum {
-	TDM_BCK_NON_INV = 0,
+	TDM_BCK_ANALN_INV = 0,
 	TDM_BCK_INV = 1,
 };
 
 enum {
-	TDM_LCK_NON_INV = 0,
+	TDM_LCK_ANALN_INV = 0,
 	TDM_LCK_INV = 1,
 };
 
@@ -297,32 +297,32 @@ static int mtk_tdm_mck_en_event(struct snd_soc_dapm_widget *w,
 }
 
 static const struct snd_soc_dapm_widget mtk_dai_tdm_widgets[] = {
-	SND_SOC_DAPM_MUX("HDMI_CH0_MUX", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("HDMI_CH0_MUX", SND_SOC_ANALPM, 0, 0,
 			 &hdmi_ch0_mux_control),
-	SND_SOC_DAPM_MUX("HDMI_CH1_MUX", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("HDMI_CH1_MUX", SND_SOC_ANALPM, 0, 0,
 			 &hdmi_ch1_mux_control),
-	SND_SOC_DAPM_MUX("HDMI_CH2_MUX", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("HDMI_CH2_MUX", SND_SOC_ANALPM, 0, 0,
 			 &hdmi_ch2_mux_control),
-	SND_SOC_DAPM_MUX("HDMI_CH3_MUX", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("HDMI_CH3_MUX", SND_SOC_ANALPM, 0, 0,
 			 &hdmi_ch3_mux_control),
-	SND_SOC_DAPM_MUX("HDMI_CH4_MUX", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("HDMI_CH4_MUX", SND_SOC_ANALPM, 0, 0,
 			 &hdmi_ch4_mux_control),
-	SND_SOC_DAPM_MUX("HDMI_CH5_MUX", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("HDMI_CH5_MUX", SND_SOC_ANALPM, 0, 0,
 			 &hdmi_ch5_mux_control),
-	SND_SOC_DAPM_MUX("HDMI_CH6_MUX", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("HDMI_CH6_MUX", SND_SOC_ANALPM, 0, 0,
 			 &hdmi_ch6_mux_control),
-	SND_SOC_DAPM_MUX("HDMI_CH7_MUX", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("HDMI_CH7_MUX", SND_SOC_ANALPM, 0, 0,
 			 &hdmi_ch7_mux_control),
 
 	SND_SOC_DAPM_CLOCK_SUPPLY("aud_tdm_clk"),
 
 	SND_SOC_DAPM_SUPPLY_S("TDM_BCK", SUPPLY_SEQ_TDM_BCK_EN,
-			      SND_SOC_NOPM, 0, 0,
+			      SND_SOC_ANALPM, 0, 0,
 			      mtk_tdm_bck_en_event,
 			      SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 
 	SND_SOC_DAPM_SUPPLY_S("TDM_MCK", SUPPLY_SEQ_TDM_MCK_EN,
-			      SND_SOC_NOPM, 0, 0,
+			      SND_SOC_ANALPM, 0, 0,
 			      mtk_tdm_mck_en_event,
 			      SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 };
@@ -451,7 +451,7 @@ static int mtk_dai_tdm_cal_mclk(struct mtk_base_afe *afe,
 
 	if (apll_rate % freq != 0) {
 		dev_warn(afe->dev,
-			 "%s(), APLL cannot generate %d Hz", __func__, freq);
+			 "%s(), APLL cananalt generate %d Hz", __func__, freq);
 		return -EINVAL;
 	}
 
@@ -477,7 +477,7 @@ static int mtk_dai_tdm_hw_params(struct snd_pcm_substream *substream,
 	snd_pcm_format_t format = params_format(params);
 	unsigned int tdm_con = 0;
 
-	/* calculate mclk_rate, if not set explicitly */
+	/* calculate mclk_rate, if analt set explicitly */
 	if (!tdm_priv->mclk_rate) {
 		tdm_priv->mclk_rate = rate * tdm_priv->mclk_multiple;
 		mtk_dai_tdm_cal_mclk(afe,
@@ -494,7 +494,7 @@ static int mtk_dai_tdm_hw_params(struct snd_pcm_substream *substream,
 		dev_warn(afe->dev, "%s(), bck_rate > mclk_rate rate", __func__);
 
 	if (tdm_priv->mclk_rate % tdm_priv->bck_rate != 0)
-		dev_warn(afe->dev, "%s(), bck cannot generate", __func__);
+		dev_warn(afe->dev, "%s(), bck cananalt generate", __func__);
 
 	dev_info(afe->dev, "%s(), id %d, rate %d, channels %d, format %d, mclk_rate %d, bck_rate %d\n",
 		 __func__,
@@ -660,16 +660,16 @@ static int mtk_dai_tdm_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	/* DAI clock inversion*/
 	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
 	case SND_SOC_DAIFMT_NB_NF:
-		tdm_priv->bck_invert = TDM_BCK_NON_INV;
-		tdm_priv->lck_invert = TDM_LCK_NON_INV;
+		tdm_priv->bck_invert = TDM_BCK_ANALN_INV;
+		tdm_priv->lck_invert = TDM_LCK_ANALN_INV;
 		break;
 	case SND_SOC_DAIFMT_NB_IF:
-		tdm_priv->bck_invert = TDM_BCK_NON_INV;
+		tdm_priv->bck_invert = TDM_BCK_ANALN_INV;
 		tdm_priv->lck_invert = TDM_LCK_INV;
 		break;
 	case SND_SOC_DAIFMT_IB_NF:
 		tdm_priv->bck_invert = TDM_BCK_INV;
-		tdm_priv->lck_invert = TDM_LCK_NON_INV;
+		tdm_priv->lck_invert = TDM_LCK_ANALN_INV;
 		break;
 	case SND_SOC_DAIFMT_IB_IF:
 	default:
@@ -722,7 +722,7 @@ int mt8183_dai_tdm_register(struct mtk_base_afe *afe)
 
 	dai = devm_kzalloc(afe->dev, sizeof(*dai), GFP_KERNEL);
 	if (!dai)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	list_add(&dai->list, &afe->sub_dais);
 
@@ -737,7 +737,7 @@ int mt8183_dai_tdm_register(struct mtk_base_afe *afe)
 	tdm_priv = devm_kzalloc(afe->dev, sizeof(struct mtk_afe_tdm_priv),
 				GFP_KERNEL);
 	if (!tdm_priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tdm_priv->mclk_multiple = 128;
 	tdm_priv->bck_id = MT8183_I2S4_BCK;

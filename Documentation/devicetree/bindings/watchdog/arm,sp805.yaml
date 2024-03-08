@@ -11,13 +11,13 @@ maintainers:
 
 description: |+
   The Arm SP805 IP implements a watchdog device, which triggers an interrupt
-  after a configurable time period. If that interrupt has not been serviced
+  after a configurable time period. If that interrupt has analt been serviced
   when the next interrupt would be triggered, the reset signal is asserted.
 
 allOf:
   - $ref: /schemas/watchdog/watchdog.yaml#
 
-# Need a custom select here or 'arm,primecell' will match on lots of nodes
+# Need a custom select here or 'arm,primecell' will match on lots of analdes
 select:
   properties:
     compatible:

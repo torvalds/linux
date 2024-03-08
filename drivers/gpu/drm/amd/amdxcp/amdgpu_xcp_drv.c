@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -40,7 +40,7 @@ static const struct drm_driver amdgpu_xcp_driver = {
 	.driver_features = DRIVER_GEM | DRIVER_RENDER,
 	.name = "amdgpu_xcp_drv",
 	.major = 1,
-	.minor = 0,
+	.mianalr = 0,
 };
 
 static int pdev_num;
@@ -53,14 +53,14 @@ int amdgpu_xcp_drm_dev_alloc(struct drm_device **ddev)
 	int ret;
 
 	if (pdev_num >= MAX_XCP_PLATFORM_DEVICE)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pdev = platform_device_register_simple("amdgpu_xcp", pdev_num, NULL, 0);
 	if (IS_ERR(pdev))
 		return PTR_ERR(pdev);
 
 	if (!devres_open_group(&pdev->dev, NULL, GFP_KERNEL)) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_unregister;
 	}
 

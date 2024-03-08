@@ -430,7 +430,7 @@
 #define RT5682S_HPO_R_PATH_DIS			(0x0 << 13)
 #define RT5682S_HPO_SEL_IP_EN_SW		(0x1)
 #define RT5682S_HPO_IP_EN_GATING		(0x1)
-#define RT5682S_HPO_IP_NO_GATING		(0x0)
+#define RT5682S_HPO_IP_ANAL_GATING		(0x0)
 
 /*Headphone Amp L/R Analog Gain and Digital NG2 Gain Control (0x0005 0x0006)*/
 #define RT5682S_G_HP				(0xf << 8)
@@ -481,7 +481,7 @@
 
 /* Embeeded Jack and Type Detection Control 3 (0x0011) */
 #define RT5682S_SEL_CBJ_TYPE_SLOW		(0x1 << 15)
-#define RT5682S_SEL_CBJ_TYPE_NORM		(0x0 << 15)
+#define RT5682S_SEL_CBJ_TYPE_ANALRM		(0x0 << 15)
 #define RT5682S_SEL_CBJ_TYPE_MASK		(0x1 << 15)
 #define RT5682S_POW_BG_MB1_MASK			(0x1 << 13)
 #define RT5682S_POW_BG_MB1_REG			(0x1 << 13)
@@ -509,7 +509,7 @@
 #define RT5682S_SEL_SHT_MID_TON_2		(0x0 << 12)
 #define RT5682S_SEL_SHT_MID_TON_3		(0x1 << 12)
 #define RT5682S_CBJ_JD_TEST_MASK		(0x1 << 6)
-#define RT5682S_CBJ_JD_TEST_NORM		(0x0 << 6)
+#define RT5682S_CBJ_JD_TEST_ANALRM		(0x0 << 6)
 #define RT5682S_CBJ_JD_TEST_MODE		(0x1 << 6)
 
 /* Combo Jack and Type Detection Control 6 (0x0014) */
@@ -689,7 +689,7 @@
 #define RT5682S_PWR_BG_BIT			7
 #define RT5682S_LDO1_BYPASS_MASK		(0x1 << 6)
 #define RT5682S_LDO1_BYPASS			(0x1 << 6)
-#define RT5682S_LDO1_NOT_BYPASS			(0x0 << 6)
+#define RT5682S_LDO1_ANALT_BYPASS			(0x0 << 6)
 
 /* Power Management for Analog 2 (0x0064) */
 #define RT5682S_PWR_MCLK0_WD			(0x1 << 15)
@@ -794,9 +794,9 @@
 #define RT5682S_I2S1_RX_CHL_24			(0x2 << 8)
 #define RT5682S_I2S1_RX_CHL_32			(0x3 << 8)
 #define RT5682S_I2S1_RX_CHL_8			(0x4 << 8)
-#define RT5682S_I2S1_MONO_MASK			(0x1 << 7)
-#define RT5682S_I2S1_MONO_EN			(0x1 << 7)
-#define RT5682S_I2S1_MONO_DIS			(0x0 << 7)
+#define RT5682S_I2S1_MOANAL_MASK			(0x1 << 7)
+#define RT5682S_I2S1_MOANAL_EN			(0x1 << 7)
+#define RT5682S_I2S1_MOANAL_DIS			(0x0 << 7)
 #define RT5682S_I2S1_DL_MASK			(0x7 << 4)
 #define RT5682S_I2S1_DL_SFT			4
 #define RT5682S_I2S1_DL_16			(0x0 << 4)
@@ -818,11 +818,11 @@
 #define RT5682S_I2S2_OUT_M			(0x1 << 9)
 #define RT5682S_I2S_BP_MASK			(0x1 << 8)
 #define RT5682S_I2S_BP_SFT			8
-#define RT5682S_I2S_BP_NOR			(0x0 << 8)
+#define RT5682S_I2S_BP_ANALR			(0x0 << 8)
 #define RT5682S_I2S_BP_INV			(0x1 << 8)
-#define RT5682S_I2S2_MONO_MASK			(0x1 << 7)
-#define RT5682S_I2S2_MONO_EN			(0x1 << 7)
-#define RT5682S_I2S2_MONO_DIS			(0x0 << 7)
+#define RT5682S_I2S2_MOANAL_MASK			(0x1 << 7)
+#define RT5682S_I2S2_MOANAL_EN			(0x1 << 7)
+#define RT5682S_I2S2_MOANAL_DIS			(0x0 << 7)
 #define RT5682S_I2S2_DL_MASK			(0x7 << 4)
 #define RT5682S_I2S2_DL_SFT			4
 #define RT5682S_I2S2_DL_8			(0x0 << 4)
@@ -916,11 +916,11 @@
 /* TDM/I2S control (0x007e) */
 #define RT5682S_TDM_S_BP_MASK			(0x1 << 15)
 #define RT5682S_TDM_S_BP_SFT			15
-#define RT5682S_TDM_S_BP_NOR			(0x0 << 15)
+#define RT5682S_TDM_S_BP_ANALR			(0x0 << 15)
 #define RT5682S_TDM_S_BP_INV			(0x1 << 15)
 #define RT5682S_TDM_S_LP_MASK			(0x1 << 14)
 #define RT5682S_TDM_S_LP_SFT			14
-#define RT5682S_TDM_S_LP_NOR			(0x0 << 14)
+#define RT5682S_TDM_S_LP_ANALR			(0x0 << 14)
 #define RT5682S_TDM_S_LP_INV			(0x1 << 14)
 #define RT5682S_TDM_DF_MASK			(0x7 << 11)
 #define RT5682S_TDM_DF_SFT			11
@@ -944,11 +944,11 @@
 #define RT5682S_TDM_CL_32			(0x3 << 4)
 #define RT5682S_TDM_M_BP_MASK			(0x1 << 2)
 #define RT5682S_TDM_M_BP_SFT			2
-#define RT5682S_TDM_M_BP_NOR			(0x0 << 2)
+#define RT5682S_TDM_M_BP_ANALR			(0x0 << 2)
 #define RT5682S_TDM_M_BP_INV			(0x1 << 2)
 #define RT5682S_TDM_M_LP_MASK			(0x1 << 1)
 #define RT5682S_TDM_M_LP_SFT			1
-#define RT5682S_TDM_M_LP_NOR			(0x0 << 1)
+#define RT5682S_TDM_M_LP_ANALR			(0x0 << 1)
 #define RT5682S_TDM_M_LP_INV			(0x1 << 1)
 #define RT5682S_TDM_MS_MASK			(0x1 << 0)
 #define RT5682S_TDM_MS_SFT			0
@@ -1146,7 +1146,7 @@
 #define RT5682S_JD1_DIS				(0x0 << 15)
 #define RT5682S_JD1_EN				(0x1 << 15)
 #define RT5682S_JD1_POL_MASK			(0x1 << 13)
-#define RT5682S_JD1_POL_NOR			(0x0 << 13)
+#define RT5682S_JD1_POL_ANALR			(0x0 << 13)
 #define RT5682S_JD1_POL_INV			(0x1 << 13)
 #define RT5682S_JD1_IRQ_MASK			(0x1 << 10)
 #define RT5682S_JD1_IRQ_LEV			(0x0 << 10)
@@ -1249,7 +1249,7 @@
 #define RT5682S_4BTN_IL_EN			(0x1 << 15)
 #define RT5682S_4BTN_IL_DIS			(0x0 << 15)
 #define RT5682S_4BTN_IL_RST_MASK		(0x1 << 14)
-#define RT5682S_4BTN_IL_NOR			(0x1 << 14)
+#define RT5682S_4BTN_IL_ANALR			(0x1 << 14)
 #define RT5682S_4BTN_IL_RST			(0x0 << 14)
 
 /* 4 Button Inline Command Control 3~6 (0x00e5~0x00e8) */
@@ -1260,7 +1260,7 @@
 
 /* Analog JD Control (0x00f0) */
 #define RT5682S_JDH_RS_MASK			(0x1 << 4)
-#define RT5682S_JDH_NO_PLUG			(0x1 << 4)
+#define RT5682S_JDH_ANAL_PLUG			(0x1 << 4)
 #define RT5682S_JDH_PLUG			(0x0 << 4)
 
 /* Bias current control 7  (0x0110) */
@@ -1318,7 +1318,7 @@
 #define RT5682S_AD2DA_LB_MASK			(0x1 << 10)
 #define RT5682S_AD2DA_LB_SFT			10
 
-/* Stereo Noise Gate Control 1 (0x0160) */
+/* Stereo Analise Gate Control 1 (0x0160) */
 #define RT5682S_NG2_EN_MASK			(0x1 << 15)
 #define RT5682S_NG2_EN				(0x1 << 15)
 #define RT5682S_NG2_DIS				(0x0 << 15)
@@ -1340,15 +1340,15 @@
 #define RT5682S_SAR_BUTDET_DIS			(0x0 << 15)
 #define RT5682S_SAR_BUTDET_POW_MASK		(0x1 << 14)
 #define RT5682S_SAR_BUTDET_POW_SAV		(0x1 << 14)
-#define RT5682S_SAR_BUTDET_POW_NORM		(0x0 << 14)
+#define RT5682S_SAR_BUTDET_POW_ANALRM		(0x0 << 14)
 #define RT5682S_SAR_BUTDET_RST_MASK		(0x1 << 13)
-#define RT5682S_SAR_BUTDET_RST_NORM		(0x1 << 13)
+#define RT5682S_SAR_BUTDET_RST_ANALRM		(0x1 << 13)
 #define RT5682S_SAR_BUTDET_RST			(0x0 << 13)
 #define RT5682S_SAR_POW_MASK			(0x1 << 12)
 #define RT5682S_SAR_POW_EN			(0x1 << 12)
 #define RT5682S_SAR_POW_DIS			(0x0 << 12)
 #define RT5682S_SAR_RST_MASK			(0x1 << 11)
-#define RT5682S_SAR_RST_NORMAL			(0x1 << 11)
+#define RT5682S_SAR_RST_ANALRMAL			(0x1 << 11)
 #define RT5682S_SAR_RST				(0x0 << 11)
 #define RT5682S_SAR_BYPASS_MASK			(0x1 << 10)
 #define RT5682S_SAR_BYPASS_EN			(0x1 << 10)

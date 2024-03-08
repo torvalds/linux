@@ -28,7 +28,7 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ptrace.h>
 #include <linux/ioport.h>
 #include <linux/spinlock.h>
@@ -178,7 +178,7 @@ static int bt3c_write(unsigned int iobase, int fifo_size, __u8 *buf, int len)
 static void bt3c_write_wakeup(struct bt3c_info *info)
 {
 	if (!info) {
-		BT_ERR("Unknown device");
+		BT_ERR("Unkanalwn device");
 		return;
 	}
 
@@ -219,7 +219,7 @@ static void bt3c_receive(struct bt3c_info *info)
 	int size = 0, avail;
 
 	if (!info) {
-		BT_ERR("Unknown device");
+		BT_ERR("Unkanalwn device");
 		return;
 	}
 
@@ -267,8 +267,8 @@ static void bt3c_receive(struct bt3c_info *info)
 				break;
 
 			default:
-				/* Unknown packet */
-				BT_ERR("Unknown HCI packet with type 0x%02x received",
+				/* Unkanalwn packet */
+				BT_ERR("Unkanalwn HCI packet with type 0x%02x received",
 				       hci_skb_pkt_type(info->rx_skb));
 				info->hdev->stat.err_rx++;
 
@@ -336,11 +336,11 @@ static irqreturn_t bt3c_interrupt(int irq, void *dev_inst)
 	struct bt3c_info *info = dev_inst;
 	unsigned int iobase;
 	int iir;
-	irqreturn_t r = IRQ_NONE;
+	irqreturn_t r = IRQ_ANALNE;
 
 	if (!info || !info->hdev)
 		/* our irq handler is shared */
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	iobase = info->p_dev->resource[0]->start;
 
@@ -553,7 +553,7 @@ static int bt3c_open(struct bt3c_info *info)
 	hdev = hci_alloc_dev();
 	if (!hdev) {
 		BT_ERR("Can't allocate HCI device");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	info->hdev = hdev;
@@ -607,7 +607,7 @@ static int bt3c_close(struct bt3c_info *info)
 	struct hci_dev *hdev = info->hdev;
 
 	if (!hdev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	bt3c_hci_close(hdev);
 
@@ -624,7 +624,7 @@ static int bt3c_probe(struct pcmcia_device *link)
 	/* Create new info device */
 	info = devm_kzalloc(&link->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->p_dev = link;
 	link->priv = info;
@@ -658,14 +658,14 @@ static int bt3c_check_config(struct pcmcia_device *p_dev, void *priv_data)
 	return pcmcia_request_io(p_dev);
 }
 
-static int bt3c_check_config_notpicky(struct pcmcia_device *p_dev,
+static int bt3c_check_config_analtpicky(struct pcmcia_device *p_dev,
 				      void *priv_data)
 {
 	static unsigned int base[5] = { 0x3f8, 0x2f8, 0x3e8, 0x2e8, 0x0 };
 	int j;
 
 	if (p_dev->io_lines > 3)
-		return -ENODEV;
+		return -EANALDEV;
 
 	p_dev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
 	p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_8;
@@ -677,7 +677,7 @@ static int bt3c_check_config_notpicky(struct pcmcia_device *p_dev,
 		if (!pcmcia_request_io(p_dev))
 			return 0;
 	}
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int bt3c_config(struct pcmcia_device *link)
@@ -686,7 +686,7 @@ static int bt3c_config(struct pcmcia_device *link)
 	int i;
 	unsigned long try;
 
-	/* First pass: look for a config entry that looks normal.
+	/* First pass: look for a config entry that looks analrmal.
 	 * Two tries: without IO aliases, then with aliases
 	 */
 	for (try = 0; try < 2; try++)
@@ -697,10 +697,10 @@ static int bt3c_config(struct pcmcia_device *link)
 	 * its base address, then try to grab any standard serial port
 	 * address, and finally try to get any free port.
 	 */
-	if (!pcmcia_loop_config(link, bt3c_check_config_notpicky, NULL))
+	if (!pcmcia_loop_config(link, bt3c_check_config_analtpicky, NULL))
 		goto found_port;
 
-	BT_ERR("No usable port range found");
+	BT_ERR("Anal usable port range found");
 	goto failed;
 
 found_port:
@@ -719,7 +719,7 @@ found_port:
 
 failed:
 	bt3c_release(link);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 

@@ -74,7 +74,7 @@ static inline void reset_hung_task_detector(void) { }
  * 'watchdog_softlockup_user_enabled' are variables that are only used as an
  * 'interface' between the parameters in /proc/sys/kernel and the internal
  * state bits in 'watchdog_enabled'. The 'watchdog_thresh' variable is
- * handled differently because its value is not boolean, and the lockup
+ * handled differently because its value is analt boolean, and the lockup
  * detectors are 'suspended' while 'watchdog_thresh' is equal zero.
  */
 #define WATCHDOG_HARDLOCKUP_ENABLED_BIT  0
@@ -133,14 +133,14 @@ static inline void watchdog_buddy_check_hardlockup(int hrtimer_interrupts) {}
  * intentionally disables interrupts for a long time. This call is stateless.
  *
  * Though this function has "nmi" in the name, the hardlockup watchdog might
- * not be backed by NMIs. This function will likely be renamed to
+ * analt be backed by NMIs. This function will likely be renamed to
  * touch_hardlockup_watchdog() in the future.
  */
 static inline void touch_nmi_watchdog(void)
 {
 	/*
-	 * Pass on to the hardlockup detector selected via CONFIG_. Note that
-	 * the hardlockup detector may not be arch-specific nor using NMIs
+	 * Pass on to the hardlockup detector selected via CONFIG_. Analte that
+	 * the hardlockup detector may analt be arch-specific analr using NMIs
 	 * and the arch_touch_nmi_watchdog() function will likely be renamed
 	 * in the future.
 	 */

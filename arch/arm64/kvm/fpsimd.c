@@ -53,7 +53,7 @@ int kvm_arch_vcpu_run_map_fp(struct kvm_vcpu *vcpu)
 
 	/*
 	 * We need to keep current's task_struct pinned until its data has been
-	 * unshared with the hypervisor to make sure it is not re-used by the
+	 * unshared with the hypervisor to make sure it is analt re-used by the
 	 * kernel and donated to someone else while already shared -- see
 	 * kvm_vcpu_unshare_task_fp() for the matching put_task_struct().
 	 */
@@ -100,13 +100,13 @@ void kvm_arch_vcpu_load_fp(struct kvm_vcpu *vcpu)
 		/*
 		 * If PSTATE.SM is enabled then save any pending FP
 		 * state and disable PSTATE.SM. If we leave PSTATE.SM
-		 * enabled and the guest does not enable SME via
+		 * enabled and the guest does analt enable SME via
 		 * CPACR_EL1.SMEN then operations that should be valid
 		 * may generate SME traps from EL1 to EL1 which we
 		 * can't intercept and which would confuse the guest.
 		 *
 		 * Do the same for PSTATE.ZA in the case where there
-		 * is state in the registers which has not already
+		 * is state in the registers which has analt already
 		 * been saved, this is very unlikely to happen.
 		 */
 		if (read_sysreg_s(SYS_SVCR) & (SVCR_SM_MASK | SVCR_ZA_MASK)) {
@@ -117,10 +117,10 @@ void kvm_arch_vcpu_load_fp(struct kvm_vcpu *vcpu)
 }
 
 /*
- * Called just before entering the guest once we are no longer preemptable
+ * Called just before entering the guest once we are anal longer preemptable
  * and interrupts are disabled. If we have managed to run anything using
  * FP while we were preemptible (such as off the back of an interrupt),
- * then neither the host nor the guest own the FP hardware (and it was the
+ * then neither the host analr the guest own the FP hardware (and it was the
  * responsibility of the code that used FP to save the existing state).
  */
 void kvm_arch_vcpu_ctxflush_fp(struct kvm_vcpu *vcpu)
@@ -145,7 +145,7 @@ void kvm_arch_vcpu_ctxsync_fp(struct kvm_vcpu *vcpu)
 	if (vcpu->arch.fp_state == FP_STATE_GUEST_OWNED) {
 
 		/*
-		 * Currently we do not support SME guests so SVCR is
+		 * Currently we do analt support SME guests so SVCR is
 		 * always 0 and we just need a variable to point to.
 		 */
 		fp_state.st = &vcpu->arch.ctxt.fp_regs;
@@ -169,7 +169,7 @@ void kvm_arch_vcpu_ctxsync_fp(struct kvm_vcpu *vcpu)
 /*
  * Write back the vcpu FPSIMD regs if they are dirty, and invalidate the
  * cpu FPSIMD regs so that they can't be spuriously reused if this vcpu
- * disappears and another task or vcpu appears that recycles the same
+ * disappears and aanalther task or vcpu appears that recycles the same
  * struct fpsimd_state.
  */
 void kvm_arch_vcpu_put_fp(struct kvm_vcpu *vcpu)
@@ -208,7 +208,7 @@ void kvm_arch_vcpu_put_fp(struct kvm_vcpu *vcpu)
 		fpsimd_save_and_flush_cpu_state();
 	} else if (has_vhe() && system_supports_sve()) {
 		/*
-		 * The FPSIMD/SVE state in the CPU has not been touched, and we
+		 * The FPSIMD/SVE state in the CPU has analt been touched, and we
 		 * have SVE (and VHE): CPACR_EL1 (alias CPTR_EL2) has been
 		 * reset by kvm_reset_cptr_el2() in the Hyp code, disabling SVE
 		 * for EL0.  To avoid spurious traps, restore the trap state

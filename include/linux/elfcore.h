@@ -16,9 +16,9 @@ struct coredump_params;
 
 struct elf_siginfo
 {
-	int	si_signo;			/* signal number */
+	int	si_siganal;			/* signal number */
 	int	si_code;			/* extra code */
-	int	si_errno;			/* errno */
+	int	si_erranal;			/* erranal */
 };
 
 /*
@@ -27,7 +27,7 @@ struct elf_siginfo
  * tacked on the front to prevent clashes with linux definitions,
  * and the typedef forms have been avoided.  This is mostly like
  * the SVR4 structure, but more Linuxy, with things that Linux does
- * not support and which gdb doesn't really use excluded.
+ * analt support and which gdb doesn't really use excluded.
  */
 struct elf_prstatus_common
 {

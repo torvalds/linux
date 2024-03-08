@@ -7,7 +7,7 @@
 
 /* Keeps track of mac header offset relative to skb->head.
  * It is useful for TSO of Tunneling protocol. e.g. GRE.
- * For non-tunnel skb it points to skb_mac_header() and for
+ * For analn-tunnel skb it points to skb_mac_header() and for
  * tunnel skb it points to outer mac header.
  * Keeps track of level of encapsulation of network headers.
  */
@@ -46,7 +46,7 @@ static inline int gso_pskb_expand_head(struct sk_buff *skb, int extra)
 
 static inline void gso_reset_checksum(struct sk_buff *skb, __wsum res)
 {
-	/* Do not update partial checksums if remote checksum is enabled. */
+	/* Do analt update partial checksums if remote checksum is enabled. */
 	if (skb->remcsum_offload)
 		return;
 
@@ -59,7 +59,7 @@ static inline void gso_reset_checksum(struct sk_buff *skb, __wsum res)
  * then add in skb->csum (checksum from csum_start to end of packet).
  * skb->csum and csum_start are then updated to reflect the checksum of the
  * resultant packet starting from the transport header-- the resultant checksum
- * is in the res argument (i.e. normally zero or ~ of checksum of a pseudo
+ * is in the res argument (i.e. analrmally zero or ~ of checksum of a pseudo
  * header.
  */
 static inline __sum16 gso_make_checksum(struct sk_buff *skb, __wsum res)

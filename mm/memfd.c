@@ -22,7 +22,7 @@
 #include <uapi/linux/memfd.h>
 
 /*
- * We need a tag: a new tag would expand every xa_node by 8 bytes,
+ * We need a tag: a new tag would expand every xa_analde by 8 bytes,
  * so reuse a tag which we firmly believe is never set or cleared on tmpfs
  * or hugetlbfs because they are memory only filesystems.
  */
@@ -64,12 +64,12 @@ static void memfd_tag_pins(struct xa_state *xas)
 }
 
 /*
- * Setting SEAL_WRITE requires us to verify there's no pending writer. However,
+ * Setting SEAL_WRITE requires us to verify there's anal pending writer. However,
  * via get_user_pages(), drivers might have some pending I/O without any active
  * user-space mappings (eg., direct-IO, AIO). Therefore, we look at all pages
  * and see whether it has an elevated ref-count. If so, we tag them and wait for
  * them to be dropped.
- * The caller must guarantee that no new user will acquire writable references
+ * The caller must guarantee that anal new user will acquire writable references
  * to those pages to avoid races.
  */
 static int memfd_wait_for_pins(struct address_space *mapping)
@@ -107,7 +107,7 @@ static int memfd_wait_for_pins(struct address_space *mapping)
 			    page_count(page) - total_mapcount(page)) {
 				/*
 				 * On the last scan, we clean up all those tags
-				 * we inserted; but make a note that we still
+				 * we inserted; but make a analte that we still
 				 * found pages pinned.
 				 */
 				if (scan == LAST_SCAN)
@@ -137,11 +137,11 @@ static int memfd_wait_for_pins(struct address_space *mapping)
 static unsigned int *memfd_file_seals_ptr(struct file *file)
 {
 	if (shmem_file(file))
-		return &SHMEM_I(file_inode(file))->seals;
+		return &SHMEM_I(file_ianalde(file))->seals;
 
 #ifdef CONFIG_HUGETLBFS
 	if (is_file_hugepages(file))
-		return &HUGETLBFS_I(file_inode(file))->seals;
+		return &HUGETLBFS_I(file_ianalde(file))->seals;
 #endif
 
 	return NULL;
@@ -156,7 +156,7 @@ static unsigned int *memfd_file_seals_ptr(struct file *file)
 
 static int memfd_add_seals(struct file *file, unsigned int seals)
 {
-	struct inode *inode = file_inode(file);
+	struct ianalde *ianalde = file_ianalde(file);
 	unsigned int *file_seals;
 	int error;
 
@@ -170,7 +170,7 @@ static int memfd_add_seals(struct file *file, unsigned int seals)
 	 * shared object.
 	 *
 	 * Seals are only supported on special tmpfs or hugetlbfs files and
-	 * always affect the whole underlying inode. Once a seal is set, it
+	 * always affect the whole underlying ianalde. Once a seal is set, it
 	 * may prevent some kinds of access to the file. Currently, the
 	 * following seals are defined:
 	 *   SEAL_SEAL: Prevent further seals from being set on this file
@@ -187,9 +187,9 @@ static int memfd_add_seals(struct file *file, unsigned int seals)
 	 * added.
 	 *
 	 * Semantics of sealing are only defined on volatile files. Only
-	 * anonymous tmpfs and hugetlbfs files support sealing. More
+	 * aanalnymous tmpfs and hugetlbfs files support sealing. More
 	 * importantly, seals are never written to disk. Therefore, there's
-	 * no plan to support it on other file types.
+	 * anal plan to support it on other file types.
 	 */
 
 	if (!(file->f_mode & FMODE_WRITE))
@@ -197,7 +197,7 @@ static int memfd_add_seals(struct file *file, unsigned int seals)
 	if (seals & ~(unsigned int)F_ALL_SEALS)
 		return -EINVAL;
 
-	inode_lock(inode);
+	ianalde_lock(ianalde);
 
 	file_seals = memfd_file_seals_ptr(file);
 	if (!file_seals) {
@@ -225,14 +225,14 @@ static int memfd_add_seals(struct file *file, unsigned int seals)
 	/*
 	 * SEAL_EXEC implys SEAL_WRITE, making W^X from the start.
 	 */
-	if (seals & F_SEAL_EXEC && inode->i_mode & 0111)
+	if (seals & F_SEAL_EXEC && ianalde->i_mode & 0111)
 		seals |= F_SEAL_SHRINK|F_SEAL_GROW|F_SEAL_WRITE|F_SEAL_FUTURE_WRITE;
 
 	*file_seals |= seals;
 	error = 0;
 
 unlock:
-	inode_unlock(inode);
+	ianalde_unlock(ianalde);
 	return error;
 }
 
@@ -266,24 +266,24 @@ long memfd_fcntl(struct file *file, unsigned int cmd, unsigned int arg)
 #define MFD_NAME_PREFIX_LEN (sizeof(MFD_NAME_PREFIX) - 1)
 #define MFD_NAME_MAX_LEN (NAME_MAX - MFD_NAME_PREFIX_LEN)
 
-#define MFD_ALL_FLAGS (MFD_CLOEXEC | MFD_ALLOW_SEALING | MFD_HUGETLB | MFD_NOEXEC_SEAL | MFD_EXEC)
+#define MFD_ALL_FLAGS (MFD_CLOEXEC | MFD_ALLOW_SEALING | MFD_HUGETLB | MFD_ANALEXEC_SEAL | MFD_EXEC)
 
-static int check_sysctl_memfd_noexec(unsigned int *flags)
+static int check_sysctl_memfd_analexec(unsigned int *flags)
 {
 #ifdef CONFIG_SYSCTL
 	struct pid_namespace *ns = task_active_pid_ns(current);
-	int sysctl = pidns_memfd_noexec_scope(ns);
+	int sysctl = pidns_memfd_analexec_scope(ns);
 
-	if (!(*flags & (MFD_EXEC | MFD_NOEXEC_SEAL))) {
-		if (sysctl >= MEMFD_NOEXEC_SCOPE_NOEXEC_SEAL)
-			*flags |= MFD_NOEXEC_SEAL;
+	if (!(*flags & (MFD_EXEC | MFD_ANALEXEC_SEAL))) {
+		if (sysctl >= MEMFD_ANALEXEC_SCOPE_ANALEXEC_SEAL)
+			*flags |= MFD_ANALEXEC_SEAL;
 		else
 			*flags |= MFD_EXEC;
 	}
 
-	if (!(*flags & MFD_NOEXEC_SEAL) && sysctl >= MEMFD_NOEXEC_SCOPE_NOEXEC_ENFORCED) {
+	if (!(*flags & MFD_ANALEXEC_SEAL) && sysctl >= MEMFD_ANALEXEC_SCOPE_ANALEXEC_ENFORCED) {
 		pr_err_ratelimited(
-			"%s[%d]: memfd_create() requires MFD_NOEXEC_SEAL with vm.memfd_noexec=%d\n",
+			"%s[%d]: memfd_create() requires MFD_ANALEXEC_SEAL with vm.memfd_analexec=%d\n",
 			current->comm, task_pid_nr(current), sysctl);
 		return -EACCES;
 	}
@@ -311,11 +311,11 @@ SYSCALL_DEFINE2(memfd_create,
 			return -EINVAL;
 	}
 
-	/* Invalid if both EXEC and NOEXEC_SEAL are set.*/
-	if ((flags & MFD_EXEC) && (flags & MFD_NOEXEC_SEAL))
+	/* Invalid if both EXEC and ANALEXEC_SEAL are set.*/
+	if ((flags & MFD_EXEC) && (flags & MFD_ANALEXEC_SEAL))
 		return -EINVAL;
 
-	error = check_sysctl_memfd_noexec(&flags);
+	error = check_sysctl_memfd_analexec(&flags);
 	if (error < 0)
 		return error;
 
@@ -328,7 +328,7 @@ SYSCALL_DEFINE2(memfd_create,
 
 	name = kmalloc(len + MFD_NAME_PREFIX_LEN, GFP_KERNEL);
 	if (!name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	strcpy(name, MFD_NAME_PREFIX);
 	if (copy_from_user(&name[MFD_NAME_PREFIX_LEN], uname, len)) {
@@ -349,12 +349,12 @@ SYSCALL_DEFINE2(memfd_create,
 	}
 
 	if (flags & MFD_HUGETLB) {
-		file = hugetlb_file_setup(name, 0, VM_NORESERVE,
-					HUGETLB_ANONHUGE_INODE,
+		file = hugetlb_file_setup(name, 0, VM_ANALRESERVE,
+					HUGETLB_AANALNHUGE_IANALDE,
 					(flags >> MFD_HUGE_SHIFT) &
 					MFD_HUGE_MASK);
 	} else
-		file = shmem_file_setup(name, 0, VM_NORESERVE);
+		file = shmem_file_setup(name, 0, VM_ANALRESERVE);
 	if (IS_ERR(file)) {
 		error = PTR_ERR(file);
 		goto err_fd;
@@ -362,10 +362,10 @@ SYSCALL_DEFINE2(memfd_create,
 	file->f_mode |= FMODE_LSEEK | FMODE_PREAD | FMODE_PWRITE;
 	file->f_flags |= O_LARGEFILE;
 
-	if (flags & MFD_NOEXEC_SEAL) {
-		struct inode *inode = file_inode(file);
+	if (flags & MFD_ANALEXEC_SEAL) {
+		struct ianalde *ianalde = file_ianalde(file);
 
-		inode->i_mode &= ~0111;
+		ianalde->i_mode &= ~0111;
 		file_seals = memfd_file_seals_ptr(file);
 		if (file_seals) {
 			*file_seals &= ~F_SEAL_SEAL;

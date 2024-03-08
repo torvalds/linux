@@ -7,7 +7,7 @@
 #define ocelot_to_felix(o)		container_of((o), struct felix, ocelot)
 #define FELIX_MAC_QUIRKS		OCELOT_QUIRK_PCS_PERFORMS_RATE_ADAPTATION
 
-#define OCELOT_PORT_MODE_NONE		0
+#define OCELOT_PORT_MODE_ANALNE		0
 #define OCELOT_PORT_MODE_INTERNAL	BIT(0)
 #define OCELOT_PORT_MODE_SGMII		BIT(1)
 #define OCELOT_PORT_MODE_QSGMII		BIT(2)
@@ -15,7 +15,7 @@
 #define OCELOT_PORT_MODE_USXGMII	BIT(4)
 #define OCELOT_PORT_MODE_1000BASEX	BIT(5)
 
-struct device_node;
+struct device_analde;
 
 /* Platform-specific information */
 struct felix_info {
@@ -44,14 +44,14 @@ struct felix_info {
 	/* Some Ocelot switches are integrated into the SoC without the
 	 * extraction IRQ line connected to the ARM GIC. By enabling this
 	 * workaround, the few packets that are delivered to the CPU port
-	 * module (currently only PTP) are copied not only to the hardware CPU
+	 * module (currently only PTP) are copied analt only to the hardware CPU
 	 * port module, but also to the 802.1Q Ethernet CPU port, and polling
 	 * the extraction registers is triggered once the DSA tagger sees a PTP
-	 * frame. The Ethernet frame is only used as a notification: it is
-	 * dropped, and the original frame is extracted over MMIO and annotated
+	 * frame. The Ethernet frame is only used as a analtification: it is
+	 * dropped, and the original frame is extracted over MMIO and ananaltated
 	 * with the RX timestamp.
 	 */
-	bool				quirk_no_xtr_irq;
+	bool				quirk_anal_xtr_irq;
 
 	int	(*mdio_bus_alloc)(struct ocelot *ocelot);
 	void	(*mdio_bus_free)(struct ocelot *ocelot);
@@ -63,13 +63,13 @@ struct felix_info {
 				      unsigned int mode,
 				      const struct phylink_link_state *state);
 	int	(*configure_serdes)(struct ocelot *ocelot, int port,
-				    struct device_node *portnp);
+				    struct device_analde *portnp);
 };
 
 /* Methods for initializing the hardware resources specific to a tagging
  * protocol (like the NPI port, for "ocelot" or "seville", or the VCAP TCAMs,
  * for "ocelot-8021q").
- * It is important that the resources configured here do not have side effects
+ * It is important that the resources configured here do analt have side effects
  * for the other tagging protocols. If that is the case, their configuration
  * needs to go to felix_tag_proto_setup_shared().
  */

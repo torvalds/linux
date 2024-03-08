@@ -134,15 +134,15 @@ static const struct kobj_type damon_sysfs_scheme_region_ktype = {
  * (damon_sysfs_before_damos_apply()) sets the status 'started'.  The first
  * ->after_sampling() callback (damon_sysfs_after_sampling()) after the call
  * is called only after the scheme is completely applied
- * to the given snapshot.  Hence the callback knows the situation by showing
+ * to the given snapshot.  Hence the callback kanalws the situation by showing
  * 'started' status, and sets the status as 'finished'.  Then,
  * damon_sysfs_before_damos_apply() understands the situation by showing the
- * 'finished' status and do nothing.
+ * 'finished' status and do analthing.
  *
- * If DAMOS is not applied to any region due to any reasons including the
+ * If DAMOS is analt applied to any region due to any reasons including the
  * access pattern, the watermarks, the quotas, and the filters,
- * ->before_damos_apply() will not be called back.  Until the situation is
- * changed, the update will not be finished.  To avoid this,
+ * ->before_damos_apply() will analt be called back.  Until the situation is
+ * changed, the update will analt be finished.  To avoid this,
  * damon_sysfs_after_sampling() set the status as 'finished' if more than two
  * apply intervals of the scheme is passed while the state is 'idle'.
  *
@@ -341,7 +341,7 @@ static struct damon_sysfs_scheme_filter *damon_sysfs_scheme_filter_alloc(void)
 
 /* Should match with enum damos_filter_type */
 static const char * const damon_sysfs_scheme_filter_type_strs[] = {
-	"anon",
+	"aanaln",
 	"memcg",
 	"addr",
 	"target",
@@ -418,7 +418,7 @@ static ssize_t memcg_path_store(struct kobject *kobj,
 	char *path = kmalloc(sizeof(*path) * (count + 1), GFP_KERNEL);
 
 	if (!path)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	strscpy(path, buf, count + 1);
 	filter->memcg_path = path;
@@ -566,16 +566,16 @@ static int damon_sysfs_scheme_filters_add_dirs(
 		return 0;
 
 	filters_arr = kmalloc_array(nr_filters, sizeof(*filters_arr),
-			GFP_KERNEL | __GFP_NOWARN);
+			GFP_KERNEL | __GFP_ANALWARN);
 	if (!filters_arr)
-		return -ENOMEM;
+		return -EANALMEM;
 	filters->filters_arr = filters_arr;
 
 	for (i = 0; i < nr_filters; i++) {
 		filter = damon_sysfs_scheme_filter_alloc();
 		if (!filter) {
 			damon_sysfs_scheme_filters_rm_dirs(filters);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		err = kobject_init_and_add(&filter->kobj,
@@ -678,7 +678,7 @@ static struct damon_sysfs_watermarks *damon_sysfs_watermarks_alloc(
 
 /* Should match with enum damos_wmark_metric */
 static const char * const damon_sysfs_wmark_metric_strs[] = {
-	"none",
+	"analne",
 	"free_mem_rate",
 };
 
@@ -876,7 +876,7 @@ static ssize_t current_value_store(struct kobject *kobj,
 
 static void damos_sysfs_quota_goal_release(struct kobject *kobj)
 {
-	/* or, notify this release to the feed callback */
+	/* or, analtify this release to the feed callback */
 	kfree(container_of(kobj, struct damos_sysfs_quota_goal, kobj));
 }
 
@@ -938,16 +938,16 @@ static int damos_sysfs_quota_goals_add_dirs(
 		return 0;
 
 	goals_arr = kmalloc_array(nr_goals, sizeof(*goals_arr),
-			GFP_KERNEL | __GFP_NOWARN);
+			GFP_KERNEL | __GFP_ANALWARN);
 	if (!goals_arr)
-		return -ENOMEM;
+		return -EANALMEM;
 	goals->goals_arr = goals_arr;
 
 	for (i = 0; i < nr_goals; i++) {
 		goal = damos_sysfs_quota_goal_alloc();
 		if (!goal) {
 			damos_sysfs_quota_goals_rm_dirs(goals);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		err = kobject_init_and_add(&goal->kobj,
@@ -1154,7 +1154,7 @@ static int damon_sysfs_quotas_add_dirs(struct damon_sysfs_quotas *quotas)
 
 	weights = damon_sysfs_weights_alloc(0, 0, 0);
 	if (!weights)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = kobject_init_and_add(&weights->kobj, &damon_sysfs_weights_ktype,
 			&quotas->kobj, "weights");
@@ -1167,7 +1167,7 @@ static int damon_sysfs_quotas_add_dirs(struct damon_sysfs_quotas *quotas)
 	goals = damos_sysfs_quota_goals_alloc();
 	if (!goals) {
 		kobject_put(&weights->kobj);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	err = kobject_init_and_add(&goals->kobj,
 			&damos_sysfs_quota_goals_ktype, &quotas->kobj,
@@ -1312,7 +1312,7 @@ static int damon_sysfs_access_pattern_add_range_dir(
 	int err;
 
 	if (!range)
-		return -ENOMEM;
+		return -EANALMEM;
 	err = kobject_init_and_add(&range->kobj, &damon_sysfs_ul_range_ktype,
 			&access_pattern->kobj, name);
 	if (err)
@@ -1401,7 +1401,7 @@ static const char * const damon_sysfs_damos_action_strs[] = {
 	"cold",
 	"pageout",
 	"hugepage",
-	"nohugepage",
+	"analhugepage",
 	"lru_prio",
 	"lru_deprio",
 	"stat",
@@ -1429,7 +1429,7 @@ static int damon_sysfs_scheme_set_access_pattern(
 
 	access_pattern = damon_sysfs_access_pattern_alloc();
 	if (!access_pattern)
-		return -ENOMEM;
+		return -EANALMEM;
 	err = kobject_init_and_add(&access_pattern->kobj,
 			&damon_sysfs_access_pattern_ktype, &scheme->kobj,
 			"access_pattern");
@@ -1452,7 +1452,7 @@ static int damon_sysfs_scheme_set_quotas(struct damon_sysfs_scheme *scheme)
 	int err;
 
 	if (!quotas)
-		return -ENOMEM;
+		return -EANALMEM;
 	err = kobject_init_and_add(&quotas->kobj, &damon_sysfs_quotas_ktype,
 			&scheme->kobj, "quotas");
 	if (err)
@@ -1471,11 +1471,11 @@ out:
 static int damon_sysfs_scheme_set_watermarks(struct damon_sysfs_scheme *scheme)
 {
 	struct damon_sysfs_watermarks *watermarks =
-		damon_sysfs_watermarks_alloc(DAMOS_WMARK_NONE, 0, 0, 0, 0);
+		damon_sysfs_watermarks_alloc(DAMOS_WMARK_ANALNE, 0, 0, 0, 0);
 	int err;
 
 	if (!watermarks)
-		return -ENOMEM;
+		return -EANALMEM;
 	err = kobject_init_and_add(&watermarks->kobj,
 			&damon_sysfs_watermarks_ktype, &scheme->kobj,
 			"watermarks");
@@ -1493,7 +1493,7 @@ static int damon_sysfs_scheme_set_filters(struct damon_sysfs_scheme *scheme)
 	int err;
 
 	if (!filters)
-		return -ENOMEM;
+		return -EANALMEM;
 	err = kobject_init_and_add(&filters->kobj,
 			&damon_sysfs_scheme_filters_ktype, &scheme->kobj,
 			"filters");
@@ -1510,7 +1510,7 @@ static int damon_sysfs_scheme_set_stats(struct damon_sysfs_scheme *scheme)
 	int err;
 
 	if (!stats)
-		return -ENOMEM;
+		return -EANALMEM;
 	err = kobject_init_and_add(&stats->kobj, &damon_sysfs_stats_ktype,
 			&scheme->kobj, "stats");
 	if (err)
@@ -1528,7 +1528,7 @@ static int damon_sysfs_scheme_set_tried_regions(
 	int err;
 
 	if (!tried_regions)
-		return -ENOMEM;
+		return -EANALMEM;
 	err = kobject_init_and_add(&tried_regions->kobj,
 			&damon_sysfs_scheme_regions_ktype, &scheme->kobj,
 			"tried_regions");
@@ -1698,9 +1698,9 @@ static int damon_sysfs_schemes_add_dirs(struct damon_sysfs_schemes *schemes,
 		return 0;
 
 	schemes_arr = kmalloc_array(nr_schemes, sizeof(*schemes_arr),
-			GFP_KERNEL | __GFP_NOWARN);
+			GFP_KERNEL | __GFP_ANALWARN);
 	if (!schemes_arr)
-		return -ENOMEM;
+		return -EANALMEM;
 	schemes->schemes_arr = schemes_arr;
 
 	for (i = 0; i < nr_schemes; i++) {
@@ -1711,7 +1711,7 @@ static int damon_sysfs_schemes_add_dirs(struct damon_sysfs_schemes *schemes,
 		scheme = damon_sysfs_scheme_alloc(DAMOS_STAT, 0);
 		if (!scheme) {
 			damon_sysfs_schemes_rm_dirs(schemes);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		err = kobject_init_and_add(&scheme->kobj,
@@ -1807,7 +1807,7 @@ static int damon_sysfs_memcg_path_to_id(char *memcg_path, unsigned short *id)
 
 	path = kmalloc(sizeof(*path) * PATH_MAX, GFP_KERNEL);
 	if (!path)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (memcg = mem_cgroup_iter(NULL, NULL, NULL); memcg;
 			memcg = mem_cgroup_iter(NULL, memcg, NULL)) {
@@ -1843,7 +1843,7 @@ static int damon_sysfs_set_scheme_filters(struct damos *scheme,
 		int err;
 
 		if (!filter)
-			return -ENOMEM;
+			return -EANALMEM;
 		if (filter->type == DAMOS_FILTER_TYPE_MEMCG) {
 			err = damon_sysfs_memcg_path_to_id(
 					sysfs_filter->memcg_path,
@@ -2030,7 +2030,7 @@ int damon_sysfs_set_schemes(struct damon_ctx *ctx,
 		if (!scheme) {
 			damon_for_each_scheme_safe(scheme, next, ctx)
 				damon_destroy_scheme(scheme);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		damon_add_scheme(ctx, scheme);
 	}

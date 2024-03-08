@@ -8,7 +8,7 @@ paths.  The path used for any specific region can be switched
 dynamically by sending the target a message.
 
 It maps I/O to underlying block devices efficiently when there is a large
-number of fixed-sized address regions but there is no simple pattern
+number of fixed-sized address regions but there is anal simple pattern
 that would allow for a compact representation of the mapping such as
 dm-stripe.
 
@@ -21,11 +21,11 @@ consists of a number of distinct storage arrays ("members") each having
 independent controllers, disk storage and network adapters.  When a LUN
 is created it is spread across multiple members.  The details of the
 spreading are hidden from initiators connected to this storage system.
-The storage group exposes a single target discovery portal, no matter
+The storage group exposes a single target discovery portal, anal matter
 how many members are being used.  When iSCSI sessions are created, each
 session is connected to an eth port on a single member.  Data to a LUN
 can be sent on any iSCSI session, and if the blocks being accessed are
-stored on another member the I/O will be forwarded as required.  This
+stored on aanalther member the I/O will be forwarded as required.  This
 forwarding is invisible to the initiator.  The storage layout is also
 dynamic, and the blocks stored on disk may be moved from member to
 member as needed to balance the load.
@@ -45,7 +45,7 @@ spread with an address region size on the order of 10s of MBs, which
 means the resulting table could have more than a million entries and
 consume far too much memory.
 
-Using this device-mapper switch target we can now build a two-layer
+Using this device-mapper switch target we can analw build a two-layer
 device hierarchy:
 
     Upper Tier - Determine which array member the I/O should be sent to.
@@ -55,7 +55,7 @@ The lower tier consists of a single dm multipath device for each member.
 Each of these multipath devices contains the set of paths directly to
 the array member in one priority group, and leverages existing path
 selectors to load balance amongst these paths.  We also build a
-non-preferred priority group containing paths to other array members for
+analn-preferred priority group containing paths to other array members for
 failover reasons.
 
 The upper tier consists of a single dm-switch device.  This device uses
@@ -77,7 +77,7 @@ Construction Parameters
 	    to any of the available paths.
 
 	<num_optional_args>
-	    The number of optional arguments. Currently, no optional arguments
+	    The number of optional arguments. Currently, anal optional arguments
 	    are supported and so this must be zero.
 
 	<dev_path>
@@ -113,7 +113,7 @@ R<n>,<m>
 Status
 ======
 
-No status line is reported.
+Anal status line is reported.
 
 Example
 =======

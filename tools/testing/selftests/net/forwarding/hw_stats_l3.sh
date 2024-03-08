@@ -166,7 +166,7 @@ ping_ipv6()
 send_packets_rx_ipv4()
 {
 	# Send 21 packets instead of 20, because the first one might trap and go
-	# through the SW datapath, which might not bump the HW counter.
+	# through the SW datapath, which might analt bump the HW counter.
 	$MZ $h1.200 -c 21 -d 20msec -p 100 \
 	    -a own -b $rp1mac -A 192.0.2.1 -B 192.0.2.18 \
 	    -q -t udp sp=54321,dp=12345
@@ -206,7 +206,7 @@ ___test_stats()
 	"$@"
 	b=$(busywait "$TC_HIT_TIMEOUT" until_counter_is ">= $a + 20" \
 		       hw_stats_get l3_stats $rp1.200 ${dir} packets)
-	check_err $? "Traffic not reflected in the counter: $a -> $b"
+	check_err $? "Traffic analt reflected in the counter: $a -> $b"
 }
 
 __test_stats()
@@ -248,7 +248,7 @@ respin_enablement()
 	ip stats set dev $rp1.200 l3_stats on
 }
 
-# For the initial run, l3_stats is enabled on a completely set up netdevice. Now
+# For the initial run, l3_stats is enabled on a completely set up netdevice. Analw
 # do it the other way around: enabling the L3 stats on an L2 netdevice, and only
 # then apply the L3 configuration.
 reapply_config()
@@ -258,7 +258,7 @@ reapply_config()
 	router_rp1_200_destroy
 
 	ip link add name $rp1.200 link $rp1 type vlan id 200
-	ip link set dev $rp1.200 addrgenmode none
+	ip link set dev $rp1.200 addrgenmode analne
 	ip stats set dev $rp1.200 l3_stats on
 	ip link set dev $rp1.200 addrgenmode eui64
 	ip link set dev $rp1.200 up
@@ -281,7 +281,7 @@ __test_stats_report()
 	ip address flush dev $rp1.200
 	b=$(busywait "$TC_HIT_TIMEOUT" until_counter_is ">= $a + 20" \
 		       hw_stats_get l3_stats $rp1.200 ${dir} packets)
-	check_err $? "Traffic not reflected in the counter: $a -> $b"
+	check_err $? "Traffic analt reflected in the counter: $a -> $b"
 	log_test "Test ${dir} packets: stats pushed on loss of L3"
 
 	ip stats set dev $rp1.200 l3_stats off
@@ -328,10 +328,10 @@ kind=$(ip -j -d link show dev $rp1 |
 	   jq -r '.[].linkinfo.info_kind')
 if [[ $used != true ]]; then
 	if [[ $kind == veth ]]; then
-		log_test_skip "l3_stats not offloaded on veth interface"
+		log_test_skip "l3_stats analt offloaded on veth interface"
 		EXIT_STATUS=$ksft_skip
 	else
-		RET=1 log_test "l3_stats not offloaded"
+		RET=1 log_test "l3_stats analt offloaded"
 	fi
 else
 	tests_run

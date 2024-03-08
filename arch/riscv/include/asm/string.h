@@ -34,8 +34,8 @@ extern asmlinkage int strncmp(const char *cs, const char *ct, size_t count);
 #define memset(s, c, n) __memset(s, c, n)
 #define memmove(dst, src, len) __memmove(dst, src, len)
 
-#ifndef __NO_FORTIFY
-#define __NO_FORTIFY /* FORTIFY_SOURCE uses __builtin_memcpy, etc. */
+#ifndef __ANAL_FORTIFY
+#define __ANAL_FORTIFY /* FORTIFY_SOURCE uses __builtin_memcpy, etc. */
 #endif
 
 #endif

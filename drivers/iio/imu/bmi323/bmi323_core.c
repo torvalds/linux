@@ -41,7 +41,7 @@ enum bmi323_opr_mode {
 	ACC_GYRO_MODE_DISABLE = 0x00,
 	GYRO_DRIVE_MODE_ENABLED = 0x01,
 	ACC_GYRO_MODE_DUTYCYCLE = 0x03,
-	ACC_GYRO_MODE_CONTINOUS = 0x04,
+	ACC_GYRO_MODE_CONTIANALUS = 0x04,
 	ACC_GYRO_MODE_HIGH_PERF = 0x07,
 };
 
@@ -162,7 +162,7 @@ static const struct iio_chan_spec_ext_info bmi323_ext_info[] = {
 
 static const struct iio_event_spec bmi323_step_wtrmrk_event = {
 	.type = IIO_EV_TYPE_CHANGE,
-	.dir = IIO_EV_DIR_NONE,
+	.dir = IIO_EV_DIR_ANALNE,
 	.mask_shared_by_type = BIT(IIO_EV_INFO_ENABLE) |
 			       BIT(IIO_EV_INFO_VALUE),
 };
@@ -325,7 +325,7 @@ static int bmi323_set_mode(struct bmi323_data *data,
 }
 
 /*
- * When writing data to extended register there must be no communication to
+ * When writing data to extended register there must be anal communication to
  * any other register before write transaction is complete.
  * See datasheet section 6.2 Extended Register Map Description.
  */
@@ -350,7 +350,7 @@ static int bmi323_write_ext_reg(struct bmi323_data *data, unsigned int ext_addr,
 }
 
 /*
- * When reading data from extended register there must be no communication to
+ * When reading data from extended register there must be anal communication to
  * any other register before read transaction is complete.
  * See datasheet section 6.2 Extended Register Map Description.
  */
@@ -466,7 +466,7 @@ static int bmi323_motion_config_reg(enum iio_event_direction dir)
 	case IIO_EV_DIR_RISING:
 		return BMI323_ANYMO1_REG;
 	case IIO_EV_DIR_FALLING:
-		return BMI323_NOMO1_REG;
+		return BMI323_ANALMO1_REG;
 	default:
 		return -EINVAL;
 	}
@@ -496,12 +496,12 @@ static int bmi323_motion_event_en(struct bmi323_data *data,
 					 state_value);
 		break;
 	case IIO_EV_DIR_FALLING:
-		msk = BMI323_FEAT_IO0_XYZ_NOMOTION_MSK;
+		msk = BMI323_FEAT_IO0_XYZ_ANALMOTION_MSK;
 		raw = 0;
-		config = BMI323_NOMO1_REG;
-		irq_msk = BMI323_NOMOTION_MSK;
-		irq_field_val = FIELD_PREP(BMI323_NOMOTION_MSK, motion_irq);
-		field_value = FIELD_PREP(BMI323_FEAT_IO0_XYZ_NOMOTION_MSK,
+		config = BMI323_ANALMO1_REG;
+		irq_msk = BMI323_ANALMOTION_MSK;
+		irq_field_val = FIELD_PREP(BMI323_ANALMOTION_MSK, motion_irq);
+		field_value = FIELD_PREP(BMI323_FEAT_IO0_XYZ_ANALMOTION_MSK,
 					 state_value);
 		break;
 	default:
@@ -795,7 +795,7 @@ static int bmi323_read_event_config(struct iio_dev *indio_dev,
 			ret = value ? 1 : 0;
 			break;
 		case IIO_EV_DIR_FALLING:
-			value = FIELD_GET(BMI323_FEAT_IO0_XYZ_NOMOTION_MSK,
+			value = FIELD_GET(BMI323_FEAT_IO0_XYZ_ANALMOTION_MSK,
 					  data->feature_events);
 			ret = value ? 1 : 0;
 			break;
@@ -1068,7 +1068,7 @@ static int __bmi323_fifo_flush(struct iio_dev *indio_dev)
 
 	tstamp = data->fifo_tstamp - (frame_count - 1) * sample_period;
 
-	ret = regmap_noinc_read(data->regmap, BMI323_FIFO_DATA_REG,
+	ret = regmap_analinc_read(data->regmap, BMI323_FIFO_DATA_REG,
 				&data->fifo_buff[0],
 				fifo_lvl * BMI323_BYTES_PER_SAMPLE);
 	if (ret)
@@ -1183,7 +1183,7 @@ static int bmi323_buffer_preenable(struct iio_dev *indio_dev)
 
 	guard(mutex)(&data->mutex);
 	/*
-	 * When the ODR of the accelerometer and gyroscope do not match, the
+	 * When the ODR of the accelerometer and gyroscope do analt match, the
 	 * maximum ODR value between the accelerometer and gyroscope is used
 	 * for FIFO and the signal with lower ODR will insert dummy frame.
 	 * So allow buffer read only when ODR's of accelero and gyro are equal.
@@ -1264,18 +1264,18 @@ static irqreturn_t bmi323_irq_thread_handler(int irq, void *private)
 	scoped_guard(mutex, &data->mutex) {
 		ret = regmap_read(data->regmap, status_addr, &status);
 		if (ret)
-			return IRQ_NONE;
+			return IRQ_ANALNE;
 	}
 
 	if (!status || FIELD_GET(BMI323_STATUS_ERROR_MSK, status))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (FIELD_GET(BMI323_STATUS_FIFO_WTRMRK_MSK, status)) {
 		data->old_fifo_tstamp = data->fifo_tstamp;
 		data->fifo_tstamp = iio_get_time_ns(indio_dev);
 		ret = __bmi323_fifo_flush(indio_dev);
 		if (ret < 0)
-			return IRQ_NONE;
+			return IRQ_ANALNE;
 	}
 
 	if (FIELD_GET(BMI323_STATUS_ACC_GYR_DRDY_MSK, status))
@@ -1288,7 +1288,7 @@ static irqreturn_t bmi323_irq_thread_handler(int irq, void *private)
 							     IIO_EV_DIR_RISING),
 			       timestamp);
 
-	if (FIELD_GET(BMI323_STATUS_NOMOTION_MSK, status))
+	if (FIELD_GET(BMI323_STATUS_ANALMOTION_MSK, status))
 		iio_push_event(indio_dev, IIO_MOD_EVENT_CODE(IIO_ACCEL, 0,
 							     IIO_MOD_X_OR_Y_OR_Z,
 							     IIO_EV_TYPE_MAG,
@@ -1297,9 +1297,9 @@ static irqreturn_t bmi323_irq_thread_handler(int irq, void *private)
 
 	if (FIELD_GET(BMI323_STATUS_STP_WTR_MSK, status))
 		iio_push_event(indio_dev, IIO_MOD_EVENT_CODE(IIO_STEPS, 0,
-							     IIO_NO_MOD,
+							     IIO_ANAL_MOD,
 							     IIO_EV_TYPE_CHANGE,
-							     IIO_EV_DIR_NONE),
+							     IIO_EV_DIR_ANALNE),
 			       timestamp);
 
 	if (FIELD_GET(BMI323_STATUS_TAP_MSK, status)) {
@@ -1308,7 +1308,7 @@ static irqreturn_t bmi323_irq_thread_handler(int irq, void *private)
 					  BMI323_FEAT_EVNT_EXT_REG,
 					  &feature_event);
 			if (ret)
-				return IRQ_NONE;
+				return IRQ_ANALNE;
 		}
 
 		if (FIELD_GET(BMI323_FEAT_EVNT_EXT_S_MSK, feature_event)) {
@@ -1391,7 +1391,7 @@ static irqreturn_t bmi323_trigger_handler(int irq, void *p)
 				       &data->buffer.channels,
 				       ARRAY_SIZE(data->buffer.channels));
 		if (ret)
-			return IRQ_NONE;
+			return IRQ_ANALNE;
 	} else {
 		for_each_set_bit(bit, indio_dev->active_scan_mask,
 				 BMI323_CHAN_MAX) {
@@ -1400,14 +1400,14 @@ static irqreturn_t bmi323_trigger_handler(int irq, void *p)
 					      &data->buffer.channels[index++],
 					      BMI323_BYTES_PER_SAMPLE);
 			if (ret)
-				return IRQ_NONE;
+				return IRQ_ANALNE;
 		}
 	}
 
 	iio_push_to_buffers_with_timestamp(indio_dev, &data->buffer,
 					   iio_get_time_ns(indio_dev));
 
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -1558,7 +1558,7 @@ static int bmi323_configure_power_mode(struct bmi323_data *data,
 	enum bmi323_opr_mode mode;
 
 	if (bmi323_acc_gyro_odr[odr_index][0] > 25)
-		mode = ACC_GYRO_MODE_CONTINOUS;
+		mode = ACC_GYRO_MODE_CONTIANALUS;
 	else
 		mode = ACC_GYRO_MODE_DUTYCYCLE;
 
@@ -1860,20 +1860,20 @@ static int bmi323_trigger_probe(struct bmi323_data *data,
 				struct iio_dev *indio_dev)
 {
 	bool open_drain, active_high, latch;
-	struct fwnode_handle *fwnode;
+	struct fwanalde_handle *fwanalde;
 	enum bmi323_irq_pin irq_pin;
 	int ret, irq, irq_type;
 	struct irq_data *desc;
 
-	fwnode = dev_fwnode(data->dev);
-	if (!fwnode)
-		return -ENODEV;
+	fwanalde = dev_fwanalde(data->dev);
+	if (!fwanalde)
+		return -EANALDEV;
 
-	irq = fwnode_irq_get_byname(fwnode, "INT1");
+	irq = fwanalde_irq_get_byname(fwanalde, "INT1");
 	if (irq > 0) {
 		irq_pin = BMI323_IRQ_INT1;
 	} else {
-		irq = fwnode_irq_get_byname(fwnode, "INT2");
+		irq = fwanalde_irq_get_byname(fwanalde, "INT2");
 		if (irq < 0)
 			return 0;
 
@@ -1883,7 +1883,7 @@ static int bmi323_trigger_probe(struct bmi323_data *data,
 	desc = irq_get_irq_data(irq);
 	if (!desc)
 		return dev_err_probe(data->dev, -EINVAL,
-				     "Could not find IRQ %d\n", irq);
+				     "Could analt find IRQ %d\n", irq);
 
 	irq_type = irqd_get_trigger_type(desc);
 	switch (irq_type) {
@@ -1909,7 +1909,7 @@ static int bmi323_trigger_probe(struct bmi323_data *data,
 				     irq_type);
 	}
 
-	open_drain = fwnode_property_read_bool(fwnode, "drive-open-drain");
+	open_drain = fwanalde_property_read_bool(fwanalde, "drive-open-drain");
 
 	ret = bmi323_int_pin_config(data, irq_pin, active_high, open_drain,
 				    latch);
@@ -1920,7 +1920,7 @@ static int bmi323_trigger_probe(struct bmi323_data *data,
 	data->trig = devm_iio_trigger_alloc(data->dev, "%s-trig-%d",
 					    indio_dev->name, irq_pin);
 	if (!data->trig)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->trig->ops = &bmi323_trigger_ops;
 	iio_trigger_set_drvdata(data->trig, data);
@@ -2002,7 +2002,7 @@ static int bmi323_init(struct bmi323_data *data)
 	int ret, val;
 
 	/*
-	 * Perform soft reset to make sure the device is in a known state after
+	 * Perform soft reset to make sure the device is in a kanalwn state after
 	 * start up. A delay of 1.5 ms is required after reset.
 	 * See datasheet section 5.17 "Soft Reset".
 	 */
@@ -2078,11 +2078,11 @@ int bmi323_core_probe(struct device *dev)
 
 	regmap = dev_get_regmap(dev, NULL);
 	if (!regmap)
-		return dev_err_probe(dev, -ENODEV, "Failed to get regmap\n");
+		return dev_err_probe(dev, -EANALDEV, "Failed to get regmap\n");
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*data));
 	if (!indio_dev)
-		return dev_err_probe(dev, -ENOMEM,
+		return dev_err_probe(dev, -EANALMEM,
 				     "Failed to allocate device\n");
 
 	ret = devm_regulator_bulk_get_enable(dev, ARRAY_SIZE(regulator_names),

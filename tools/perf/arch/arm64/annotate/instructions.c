@@ -4,7 +4,7 @@
 #include <regex.h>
 #include <stdlib.h>
 
-struct arm64_annotate {
+struct arm64_ananaltate {
 	regex_t call_insn,
 		jump_insn;
 };
@@ -68,7 +68,7 @@ static struct ins_ops arm64_mov_ops = {
 
 static struct ins_ops *arm64__associate_instruction_ops(struct arch *arch, const char *name)
 {
-	struct arm64_annotate *arm = arch->priv;
+	struct arm64_ananaltate *arm = arch->priv;
 	struct ins_ops *ops;
 	regmatch_t match[2];
 
@@ -85,9 +85,9 @@ static struct ins_ops *arm64__associate_instruction_ops(struct arch *arch, const
 	return ops;
 }
 
-static int arm64__annotate_init(struct arch *arch, char *cpuid __maybe_unused)
+static int arm64__ananaltate_init(struct arch *arch, char *cpuid __maybe_unused)
 {
-	struct arm64_annotate *arm;
+	struct arm64_ananaltate *arm;
 	int err;
 
 	if (arch->initialized)
@@ -95,7 +95,7 @@ static int arm64__annotate_init(struct arch *arch, char *cpuid __maybe_unused)
 
 	arm = zalloc(sizeof(*arm));
 	if (!arm)
-		return ENOMEM;
+		return EANALMEM;
 
 	/* bl, blr */
 	err = regcomp(&arm->call_insn, "^blr?$", REG_EXTENDED);
@@ -118,5 +118,5 @@ out_free_call:
 	regfree(&arm->call_insn);
 out_free_arm:
 	free(arm);
-	return SYMBOL_ANNOTATE_ERRNO__ARCH_INIT_REGEXP;
+	return SYMBOL_ANANALTATE_ERRANAL__ARCH_INIT_REGEXP;
 }

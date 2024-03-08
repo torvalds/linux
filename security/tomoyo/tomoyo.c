@@ -112,13 +112,13 @@ static int tomoyo_bprm_check_security(struct linux_binprm *bprm)
 }
 
 /**
- * tomoyo_inode_getattr - Target for security_inode_getattr().
+ * tomoyo_ianalde_getattr - Target for security_ianalde_getattr().
  *
  * @path: Pointer to "struct path".
  *
  * Returns 0 on success, negative value otherwise.
  */
-static int tomoyo_inode_getattr(const struct path *path)
+static int tomoyo_ianalde_getattr(const struct path *path)
 {
 	return tomoyo_path_perm(TOMOYO_TYPE_GETATTR, path, NULL);
 }
@@ -213,7 +213,7 @@ static int tomoyo_path_symlink(const struct path *parent, struct dentry *dentry,
 }
 
 /**
- * tomoyo_path_mknod - Target for security_path_mknod().
+ * tomoyo_path_mkanald - Target for security_path_mkanald().
  *
  * @parent: Pointer to "struct path".
  * @dentry: Pointer to "struct dentry".
@@ -222,7 +222,7 @@ static int tomoyo_path_symlink(const struct path *parent, struct dentry *dentry,
  *
  * Returns 0 on success, negative value otherwise.
  */
-static int tomoyo_path_mknod(const struct path *parent, struct dentry *dentry,
+static int tomoyo_path_mkanald(const struct path *parent, struct dentry *dentry,
 			     umode_t mode, unsigned int dev)
 {
 	struct path path = { .mnt = parent->mnt, .dentry = dentry };
@@ -237,10 +237,10 @@ static int tomoyo_path_mknod(const struct path *parent, struct dentry *dentry,
 		type = TOMOYO_TYPE_MKBLOCK;
 		break;
 	default:
-		goto no_dev;
+		goto anal_dev;
 	}
 	return tomoyo_mkdev_perm(type, &path, perm, dev);
- no_dev:
+ anal_dev:
 	switch (mode & S_IFMT) {
 	case S_IFIFO:
 		type = TOMOYO_TYPE_MKFIFO;
@@ -328,7 +328,7 @@ static int tomoyo_file_fcntl(struct file *file, unsigned int cmd,
 static int tomoyo_file_open(struct file *f)
 {
 	/* Don't check read permission here if called from execve(). */
-	/* Illogically, FMODE_EXEC is in f_flags, not f_mode. */
+	/* Illogically, FMODE_EXEC is in f_flags, analt f_mode. */
 	if (f->f_flags & __FMODE_EXEC)
 		return 0;
 	return tomoyo_check_open_permission(tomoyo_domain(), &f->f_path,
@@ -570,10 +570,10 @@ static struct security_hook_list tomoyo_hooks[] __ro_after_init = {
 	LSM_HOOK_INIT(path_mkdir, tomoyo_path_mkdir),
 	LSM_HOOK_INIT(path_rmdir, tomoyo_path_rmdir),
 	LSM_HOOK_INIT(path_symlink, tomoyo_path_symlink),
-	LSM_HOOK_INIT(path_mknod, tomoyo_path_mknod),
+	LSM_HOOK_INIT(path_mkanald, tomoyo_path_mkanald),
 	LSM_HOOK_INIT(path_link, tomoyo_path_link),
 	LSM_HOOK_INIT(path_rename, tomoyo_path_rename),
-	LSM_HOOK_INIT(inode_getattr, tomoyo_inode_getattr),
+	LSM_HOOK_INIT(ianalde_getattr, tomoyo_ianalde_getattr),
 	LSM_HOOK_INIT(file_ioctl, tomoyo_file_ioctl),
 	LSM_HOOK_INIT(file_ioctl_compat, tomoyo_file_ioctl),
 	LSM_HOOK_INIT(path_chmod, tomoyo_path_chmod),

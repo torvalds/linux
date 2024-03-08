@@ -97,7 +97,7 @@ static int sun4i_csi_setup_scratch_buffer(struct sun4i_csi *csi,
 	unsigned int plane;
 
 	dev_dbg(csi->dev,
-		"No more available buffer, using the scratch buffer\n");
+		"Anal more available buffer, using the scratch buffer\n");
 
 	for (plane = 0; plane < csi->fmt.num_planes; plane++) {
 		writel(addr, csi->regs + CSI_BUF_ADDR_REG(plane, slot));
@@ -162,7 +162,7 @@ static void sun4i_csi_buffer_mark_done(struct sun4i_csi *csi,
 	struct vb2_v4l2_buffer *v_buf;
 
 	if (!csi->current_buf[slot]) {
-		dev_dbg(csi->dev, "Scratch buffer was used, ignoring..\n");
+		dev_dbg(csi->dev, "Scratch buffer was used, iganalring..\n");
 		return;
 	}
 
@@ -180,7 +180,7 @@ static int sun4i_csi_buffer_flip(struct sun4i_csi *csi, unsigned int sequence)
 	u32 reg = readl(csi->regs + CSI_BUF_CTRL_REG);
 	unsigned int next;
 
-	/* Our next buffer is not the current buffer */
+	/* Our next buffer is analt the current buffer */
 	next = !(reg & CSI_BUF_CTRL_DBS);
 
 	/* Report the previous buffer as done */
@@ -204,10 +204,10 @@ static void sun4i_csi_buffer_queue(struct vb2_buffer *vb)
 static void return_all_buffers(struct sun4i_csi *csi,
 			       enum vb2_buffer_state state)
 {
-	struct sun4i_csi_buffer *buf, *node;
+	struct sun4i_csi_buffer *buf, *analde;
 	unsigned int slot;
 
-	list_for_each_entry_safe(buf, node, &csi->buf_list, list) {
+	list_for_each_entry_safe(buf, analde, &csi->buf_list, list) {
 		vb2_buffer_done(&buf->vb.vb2_buf, state);
 		list_del(&buf->list);
 	}
@@ -242,14 +242,14 @@ static int sun4i_csi_start_streaming(struct vb2_queue *vq, unsigned int count)
 	csi->sequence = 0;
 
 	/*
-	 * We need a scratch buffer in case where we'll not have any
+	 * We need a scratch buffer in case where we'll analt have any
 	 * more buffer queued so that we don't error out. One of those
 	 * cases is when you end up at the last frame to capture, you
 	 * don't have any buffer queued any more, and yet it doesn't
 	 * really matter since you'll never reach the next buffer.
 	 *
 	 * Since we support the multi-planar API, we need to have a
-	 * buffer for each plane. Allocating a single one large enough
+	 * buffer for each plane. Allocating a single one large eanalugh
 	 * to hold all the buffers is simpler, so let's go for that.
 	 */
 	csi->scratch.size = 0;
@@ -262,7 +262,7 @@ static int sun4i_csi_start_streaming(struct vb2_queue *vq, unsigned int count)
 						GFP_KERNEL);
 	if (!csi->scratch.vaddr) {
 		dev_err(csi->dev, "Failed to allocate scratch buffer\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_clear_dma_queue;
 	}
 
@@ -321,7 +321,7 @@ static int sun4i_csi_start_streaming(struct vb2_queue *vq, unsigned int count)
 	spin_unlock_irqrestore(&csi->qlock, flags);
 
 	ret = v4l2_subdev_call(csi->src_subdev, video, s_stream, 1);
-	if (ret < 0 && ret != -ENOIOCTLCMD)
+	if (ret < 0 && ret != -EANALIOCTLCMD)
 		goto err_disable_device;
 
 	return 0;
@@ -382,7 +382,7 @@ static irqreturn_t sun4i_csi_irq(int irq, void *data)
 
 	reg = readl(csi->regs + CSI_INT_STA_REG);
 
-	/* Acknowledge the interrupts */
+	/* Ackanalwledge the interrupts */
 	writel(reg, csi->regs + CSI_INT_STA_REG);
 
 	if (!(reg & CSI_INT_FRM_DONE))
@@ -419,7 +419,7 @@ int sun4i_csi_dma_register(struct sun4i_csi *csi, int irq)
 	q->buf_struct_size = sizeof(struct sun4i_csi_buffer);
 	q->ops = &sun4i_csi_qops;
 	q->mem_ops = &vb2_dma_contig_memops;
-	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 	q->dev = csi->dev;
 
 	ret = vb2_queue_init(q);

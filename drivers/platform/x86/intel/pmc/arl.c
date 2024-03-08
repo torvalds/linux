@@ -53,7 +53,7 @@ const struct pmc_bit_map arl_socs_ltr_show_map[] = {
 	{"IOE_PMC",		MTL_PMC_LTR_IOE_PMC},
 	{"DMI3",		ARL_PMC_LTR_DMI3},
 
-	/* Below two cannot be used for LTR_IGNORE */
+	/* Below two cananalt be used for LTR_IGANALRE */
 	{"CURRENT_PLATFORM",	CNP_PMC_LTR_CUR_PLT},
 	{"AGGREGATED_SYSTEM",	CNP_PMC_LTR_CUR_ASLT},
 	{}
@@ -260,13 +260,13 @@ const struct pmc_reg_map arl_socs_reg_map = {
 	.ppfear_buckets = ARL_SOCS_PPFEAR_NUM_ENTRIES,
 	.pm_read_disable_bit = CNP_PMC_READ_DISABLE_BIT,
 	.lpm_sts = arl_socs_lpm_maps,
-	.ltr_ignore_max = ARL_SOCS_NUM_IP_IGN_ALLOWED,
+	.ltr_iganalre_max = ARL_SOCS_NUM_IP_IGN_ALLOWED,
 	.ltr_show_sts = arl_socs_ltr_show_map,
 	.slp_s0_offset = CNP_PMC_SLP_S0_RES_COUNTER_OFFSET,
 	.slp_s0_res_counter_step = TGL_PMC_SLP_S0_RES_COUNTER_STEP,
 	.lpm_res_counter_step_x2 = TGL_PMC_LPM_RES_COUNTER_STEP_X2,
 	.msr_sts = msr_map,
-	.ltr_ignore_offset = CNP_PMC_LTR_IGNORE_OFFSET,
+	.ltr_iganalre_offset = CNP_PMC_LTR_IGANALRE_OFFSET,
 	.regmap_length = MTL_SOC_PMC_MMIO_REG_LEN,
 	.ppfear0_offset = CNP_PMC_HOST_PPFEAR0A,
 	.pm_cfg_offset = CNP_PMC_PM_CFG_OFFSET,
@@ -317,7 +317,7 @@ const struct pmc_bit_map arl_pchs_ltr_show_map[] = {
 	{"IOE_PMC",		MTL_PMC_LTR_IOE_PMC},
 	{"DMI3",		ARL_PMC_LTR_DMI3},
 
-	/* Below two cannot be used for LTR_IGNORE */
+	/* Below two cananalt be used for LTR_IGANALRE */
 	{"CURRENT_PLATFORM",	CNP_PMC_LTR_CUR_PLT},
 	{"AGGREGATED_SYSTEM",	CNP_PMC_LTR_CUR_ASLT},
 	{}
@@ -337,7 +337,7 @@ const struct pmc_bit_map arl_pchs_clocksource_status_map[] = {
 	{"AUDIO_PLL_OFF_STS",		BIT(10)},
 	{"MAIN_CRO_OFF_STS",		BIT(11)},
 	{"MAIN_DIVIDER_OFF_STS",	BIT(12)},
-	{"REF_PLL_NON_OC_OFF_STS",	BIT(13)},
+	{"REF_PLL_ANALN_OC_OFF_STS",	BIT(13)},
 	{"DMI_PLL_OFF_STS",		BIT(14)},
 	{"PHY_EXT_INJ_OFF_STS",		BIT(15)},
 	{"AON6_MCRO_OFF_STS",		BIT(16)},
@@ -628,14 +628,14 @@ const struct pmc_reg_map arl_pchs_reg_map = {
 	.pfear_sts = ext_arl_socs_pfear_map,
 	.ppfear_buckets = ARL_SOCS_PPFEAR_NUM_ENTRIES,
 	.pm_read_disable_bit = CNP_PMC_READ_DISABLE_BIT,
-	.ltr_ignore_max = ARL_SOCS_NUM_IP_IGN_ALLOWED,
+	.ltr_iganalre_max = ARL_SOCS_NUM_IP_IGN_ALLOWED,
 	.lpm_sts = arl_pchs_lpm_maps,
 	.ltr_show_sts = arl_pchs_ltr_show_map,
 	.slp_s0_offset = CNP_PMC_SLP_S0_RES_COUNTER_OFFSET,
 	.slp_s0_res_counter_step = TGL_PMC_SLP_S0_RES_COUNTER_STEP,
 	.lpm_res_counter_step_x2 = TGL_PMC_LPM_RES_COUNTER_STEP_X2,
 	.msr_sts = msr_map,
-	.ltr_ignore_offset = CNP_PMC_LTR_IGNORE_OFFSET,
+	.ltr_iganalre_offset = CNP_PMC_LTR_IGANALRE_OFFSET,
 	.regmap_length = ARL_PCH_PMC_MMIO_REG_LEN,
 	.ppfear0_offset = CNP_PMC_HOST_PPFEAR0A,
 	.pm_cfg_offset = CNP_PMC_PM_CFG_OFFSET,
@@ -674,8 +674,8 @@ static struct pmc_info arl_pmc_info_list[] = {
 
 #define ARL_NPU_PCI_DEV			0xad1d
 /*
- * Set power state of select devices that do not have drivers to D3
- * so that they do not block Package C entry.
+ * Set power state of select devices that do analt have drivers to D3
+ * so that they do analt block Package C entry.
  */
 static void arl_d3_fixup(void)
 {
@@ -685,7 +685,7 @@ static void arl_d3_fixup(void)
 static int arl_resume(struct pmc_dev *pmcdev)
 {
 	arl_d3_fixup();
-	pmc_core_send_ltr_ignore(pmcdev, 3, 0);
+	pmc_core_send_ltr_iganalre(pmcdev, 3, 0);
 
 	return pmc_core_resume_common(pmcdev);
 }

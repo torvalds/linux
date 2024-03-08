@@ -165,7 +165,7 @@ typedef struct _MSG_TARGET_CMD_BUFFER_POST_ERROR_REPLY
   MPI_POINTER PTR_MSG_TARGET_CMD_BUFFER_POST_ERROR_REPLY,
   TargetCmdBufferPostErrorReply_t, MPI_POINTER pTargetCmdBufferPostErrorReply_t;
 
-#define PRIORITY_REASON_NO_DISCONNECT           (0x00)
+#define PRIORITY_REASON_ANAL_DISCONNECT           (0x00)
 #define PRIORITY_REASON_SCSI_TASK_MANAGEMENT    (0x01)
 #define PRIORITY_REASON_CMD_PARITY_ERR          (0x02)
 #define PRIORITY_REASON_MSG_OUT_PARITY_ERR      (0x03)
@@ -175,7 +175,7 @@ typedef struct _MSG_TARGET_CMD_BUFFER_POST_ERROR_REPLY
 #define PRIORITY_REASON_DATA_OUT_PARITY_ERR     (0x07)
 #define PRIORITY_REASON_DATA_OUT_CRC_ERR        (0x08)
 #define PRIORITY_REASON_TARGET_BUSY             (0x09)
-#define PRIORITY_REASON_UNKNOWN                 (0xFF)
+#define PRIORITY_REASON_UNKANALWN                 (0xFF)
 
 
 /****************************************************************************/
@@ -422,7 +422,7 @@ typedef struct _MSG_TARGET_ASSIST_EXT_REQUEST
 
 /* defines for the EEDPFlags field */
 #define TARGET_ASSIST_EXT_EEDP_MASK_OP          (0x0007)
-#define TARGET_ASSIST_EXT_EEDP_NOOP_OP          (0x0000)
+#define TARGET_ASSIST_EXT_EEDP_ANALOP_OP          (0x0000)
 #define TARGET_ASSIST_EXT_EEDP_CHK_OP           (0x0001)
 #define TARGET_ASSIST_EXT_EEDP_STRIP_OP         (0x0002)
 #define TARGET_ASSIST_EXT_EEDP_CHKRM_OP         (0x0003)
@@ -470,7 +470,7 @@ typedef struct _MSG_TARGET_STATUS_SEND_REQUEST
 #define TARGET_STATUS_SEND_FLAGS_REPOST_CMD_BUFFER  (0x80)
 
 /*
- * NOTE: FCP_RSP data is big-endian. When used on a little-endian system, this
+ * ANALTE: FCP_RSP data is big-endian. When used on a little-endian system, this
  * structure properly orders the bytes.
  */
 typedef struct _MPI_TARGET_FCP_RSP_BUFFER
@@ -488,7 +488,7 @@ typedef struct _MPI_TARGET_FCP_RSP_BUFFER
   MpiTargetFcpRspBuffer, MPI_POINTER pMpiTargetFcpRspBuffer;
 
 /*
- * NOTE: The SPI status IU is big-endian. When used on a little-endian system,
+ * ANALTE: The SPI status IU is big-endian. When used on a little-endian system,
  * this structure properly orders the bytes.
  */
 typedef struct _MPI_TARGET_SCSI_SPI_STATUS_IU
@@ -504,7 +504,7 @@ typedef struct _MPI_TARGET_SCSI_SPI_STATUS_IU
   TargetScsiSpiStatusIU_t, MPI_POINTER pTargetScsiSpiStatusIU_t;
 
 /*
- * NOTE: The SSP status IU is big-endian. When used on a little-endian system,
+ * ANALTE: The SSP status IU is big-endian. When used on a little-endian system,
  * this structure properly orders the bytes.
  */
 typedef struct _MPI_TARGET_SSP_RSP_IU

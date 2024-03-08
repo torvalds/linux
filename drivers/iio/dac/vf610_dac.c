@@ -180,7 +180,7 @@ static int vf610_dac_probe(struct platform_device *pdev)
 					sizeof(struct vf610_dac));
 	if (!indio_dev) {
 		dev_err(&pdev->dev, "Failed allocating iio device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	info = iio_priv(indio_dev);
@@ -210,7 +210,7 @@ static int vf610_dac_probe(struct platform_device *pdev)
 	ret = clk_prepare_enable(info->clk);
 	if (ret) {
 		dev_err(&pdev->dev,
-			"Could not prepare or enable the clock\n");
+			"Could analt prepare or enable the clock\n");
 		return ret;
 	}
 

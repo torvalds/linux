@@ -1,6 +1,6 @@
 #define __INVALID_ATOMIC_ACCESS_TEST(op)				\
 	{								\
-		"atomic " #op " access through non-pointer ",		\
+		"atomic " #op " access through analn-pointer ",		\
 		.insns = {						\
 			BPF_MOV64_IMM(BPF_REG_0, 1),			\
 			BPF_MOV64_IMM(BPF_REG_1, 0),			\

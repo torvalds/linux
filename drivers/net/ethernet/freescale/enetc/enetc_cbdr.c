@@ -11,7 +11,7 @@ int enetc_setup_cbdr(struct device *dev, struct enetc_hw *hw, int bd_count,
 	cbdr->bd_base = dma_alloc_coherent(dev, size, &cbdr->bd_dma_base,
 					   GFP_KERNEL);
 	if (!cbdr->bd_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* h/w requires 128B alignment */
 	if (!IS_ALIGNED(cbdr->bd_dma_base, 128)) {
@@ -109,13 +109,13 @@ int enetc_send_cmd(struct enetc_si *si, struct enetc_cbd *cbd)
 	i = (i + 1) % ring->bd_count;
 
 	ring->next_to_use = i;
-	/* let H/W know BD ring has been updated */
+	/* let H/W kanalw BD ring has been updated */
 	enetc_wr_reg(ring->pir, i);
 
 	do {
 		if (enetc_rd_reg(ring->cir) == i)
 			break;
-		udelay(10); /* cannot sleep, rtnl_lock() */
+		udelay(10); /* cananalt sleep, rtnl_lock() */
 		timeout -= 10;
 	} while (timeout);
 
@@ -190,7 +190,7 @@ int enetc_set_fs_entry(struct enetc_si *si, struct enetc_cmd_rfse *rfse,
 	tmp = enetc_cbd_alloc_data_mem(si, &cbd, sizeof(*rfse),
 				       &dma, &tmp_align);
 	if (!tmp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(tmp_align, rfse, sizeof(*rfse));
 
@@ -220,7 +220,7 @@ static int enetc_cmd_rss_table(struct enetc_si *si, u32 *table, int count,
 	tmp = enetc_cbd_alloc_data_mem(si, &cbd, count,
 				       &dma, (void *)&tmp_align);
 	if (!tmp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!read)
 		for (i = 0; i < count; i++)

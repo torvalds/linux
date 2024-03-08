@@ -25,9 +25,9 @@ Required Board Specific Properties:
 - samsung,keypad-num-columns: Number of column lines connected to the
   keypad controller.
 
-- Keys represented as child nodes: Each key connected to the keypad
-  controller is represented as a child node to the keypad controller
-  device node and should include the following properties.
+- Keys represented as child analdes: Each key connected to the keypad
+  controller is represented as a child analde to the keypad controller
+  device analde and should include the following properties.
   - keypad,row: the row number to which the key is connected.
   - keypad,column: the column number to which the key is connected.
   - linux,code: the key-code to be reported when the key is pressed
@@ -41,7 +41,7 @@ Optional Properties:
 		 (Legacy property supported: "linux,input-wakeup")
 
 Optional Properties specific to linux:
-- linux,keypad-no-autorepeat: do no enable autorepeat feature.
+- linux,keypad-anal-autorepeat: do anal enable autorepeat feature.
 
 
 Example:
@@ -51,7 +51,7 @@ Example:
 		interrupts = <173>;
 		samsung,keypad-num-rows = <2>;
 		samsung,keypad-num-columns = <8>;
-		linux,input-no-autorepeat;
+		linux,input-anal-autorepeat;
 		wakeup-source;
 
 		pinctrl-names = "default";

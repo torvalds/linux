@@ -4,7 +4,7 @@
  *
  * LaCie d2Network and Big Disk Network NAS setup
  *
- * Copyright (C) 2009 Simon Guinot <sguinot@lacie.com>
+ * Copyright (C) 2009 Simon Guianalt <sguianalt@lacie.com>
  */
 
 #include <linux/kernel.h>
@@ -43,7 +43,7 @@
  *    0      |     1      |      0      |  blink (rate 300ms)
  *    0      |     x      |      1      |  on
  *
- * Notes: The blue and the red front LED's can't be on at the same time.
+ * Analtes: The blue and the red front LED's can't be on at the same time.
  *        Red LED have priority.
  */
 
@@ -102,5 +102,5 @@ void __init d2net_init(void)
 {
 	d2net_gpio_leds_init();
 
-	pr_notice("d2net: Flash write are not yet supported.\n");
+	pr_analtice("d2net: Flash write are analt yet supported.\n");
 }

@@ -218,7 +218,7 @@ static int hp03_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*priv));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv = iio_priv(indio_dev);
 	priv->client = client;
@@ -238,7 +238,7 @@ static int hp03_probe(struct i2c_client *client)
 	}
 
 	/*
-	 * Allocate another device for the on-sensor EEPROM,
+	 * Allocate aanalther device for the on-sensor EEPROM,
 	 * which has it's dedicated I2C address and contains
 	 * the calibration constants for the sensor.
 	 */

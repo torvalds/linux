@@ -2,7 +2,7 @@
 /*
  * USB CDC Device Management subdriver
  *
- * Copyright (c) 2012  Bjørn Mork <bjorn@mork.no>
+ * Copyright (c) 2012  Bjørn Mork <bjorn@mork.anal>
  */
 
 #ifndef __LINUX_USB_CDC_WDM_H

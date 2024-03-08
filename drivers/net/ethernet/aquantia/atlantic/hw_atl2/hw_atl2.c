@@ -323,7 +323,7 @@ static int hw_atl2_hw_init_tx_tc_rate_limit(struct aq_hw_s *self)
 		hw_atl_tps_tx_desc_rate_en_set(self, desc, en);
 
 		if (en) {
-			/* Nominal rate is always 10G */
+			/* Analminal rate is always 10G */
 			const u32 rate = 10000U * scale /
 					 nic_cfg->tc_max_rate[tc];
 			const u32 rate_int = rate >>
@@ -333,7 +333,7 @@ static int hw_atl2_hw_init_tx_tc_rate_limit(struct aq_hw_s *self)
 			hw_atl_tps_tx_desc_rate_x_set(self, desc, rate_int);
 			hw_atl_tps_tx_desc_rate_y_set(self, desc, rate_frac);
 		} else {
-			/* A value of 1 indicates the queue is not
+			/* A value of 1 indicates the queue is analt
 			 * rate controlled.
 			 */
 			hw_atl_tps_tx_desc_rate_x_set(self, desc, 1U);

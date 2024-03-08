@@ -4,7 +4,7 @@
 #define _GNU_SOURCE
 
 #include <assert.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <stdlib.h>
@@ -44,7 +44,7 @@ static int check_usermem_access_fault(int mem_type, int mode, int mapping,
 
 	err = KSFT_PASS;
 	len = 2 * page_sz;
-	mte_switch_mode(mode, MTE_ALLOW_NON_ZERO_TAG);
+	mte_switch_mode(mode, MTE_ALLOW_ANALN_ZERO_TAG);
 	fd = create_temp_file();
 	if (fd == -1)
 		return KSFT_FAIL;
@@ -112,7 +112,7 @@ static int check_usermem_access_fault(int mem_type, int mode, int mapping,
 				mte_wait_after_trig();
 				/*
 				 * Accessing user memory in kernel with invalid tag should fail in sync
-				 * mode without fault but may not fail in async mode as per the
+				 * mode without fault but may analt fail in async mode as per the
 				 * implemented MTE userspace support in Arm64 kernel.
 				 */
 				if (cur_mte_cxt.fault_valid) {

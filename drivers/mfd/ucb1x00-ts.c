@@ -7,10 +7,10 @@
  *
  * 21-Jan-2002 <jco@ict.es> :
  *
- * Added support for synchronous A/D mode. This mode is useful to
- * avoid noise induced in the touchpanel by the LCD, provided that
+ * Added support for synchroanalus A/D mode. This mode is useful to
+ * avoid analise induced in the touchpanel by the LCD, provided that
  * the UCB1x00 has a valid LCD sync signal routed to its ADCSYNC pin.
- * It is important to note that the signal connected to the ADCSYNC
+ * It is important to analte that the signal connected to the ADCSYNC
  * pin should provide pulses even when the LCD is blanked, otherwise
  * a pen touch needed to unblank the LCD will never be read.
  */
@@ -205,7 +205,7 @@ static int ucb1x00_thread(void *_ts)
 {
 	struct ucb1x00_ts *ts = _ts;
 	DECLARE_WAITQUEUE(wait, current);
-	bool frozen, ignore = false;
+	bool frozen, iganalre = false;
 	int valid = 0;
 
 	set_freezable();
@@ -215,7 +215,7 @@ static int ucb1x00_thread(void *_ts)
 		signed long timeout;
 
 		if (frozen)
-			ignore = true;
+			iganalre = true;
 
 		ucb1x00_adc_enable(ts->ucb);
 
@@ -263,7 +263,7 @@ static int ucb1x00_thread(void *_ts)
 			 * space.  We therefore leave it to user space
 			 * to do any filtering they please.
 			 */
-			if (!ignore) {
+			if (!iganalre) {
 				ucb1x00_ts_evt_add(ts, p, x, y);
 				valid = 1;
 			}
@@ -291,7 +291,7 @@ static irqreturn_t ucb1x00_ts_irq(int irq, void *id)
 
 	spin_lock(&ts->irq_lock);
 	ts->irq_disabled = 1;
-	disable_irq_nosync(ts->ucb->irq_base + UCB_IRQ_TSPX);
+	disable_irq_analsync(ts->ucb->irq_base + UCB_IRQ_TSPX);
 	spin_unlock(&ts->irq_lock);
 	wake_up(&ts->irq_wait);
 
@@ -370,13 +370,13 @@ static int ucb1x00_ts_add(struct ucb1x00_dev *dev)
 	ts = kzalloc(sizeof(struct ucb1x00_ts), GFP_KERNEL);
 	idev = input_allocate_device();
 	if (!ts || !idev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto fail;
 	}
 
 	ts->ucb = dev->ucb;
 	ts->idev = idev;
-	ts->adcsync = adcsync ? UCB_SYNC : UCB_NOSYNC;
+	ts->adcsync = adcsync ? UCB_SYNC : UCB_ANALSYNC;
 	spin_lock_init(&ts->irq_lock);
 
 	idev->name       = "Touchscreen panel";

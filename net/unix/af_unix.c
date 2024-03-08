@@ -20,10 +20,10 @@
  *		Alan Cox	:	Started proper garbage collector
  *		Heiko EiBfeldt	:	Missing verify_area check
  *		Alan Cox	:	Started POSIXisms
- *		Andreas Schwab	:	Replace inode by dentry for proper
+ *		Andreas Schwab	:	Replace ianalde by dentry for proper
  *					reference counting
  *		Kirk Petersen	:	Made this a module
- *	    Christoph Rohland	:	Elegant non-blocking accept/connect algorithm.
+ *	    Christoph Rohland	:	Elegant analn-blocking accept/connect algorithm.
  *					Lots of bug fixes.
  *	     Alexey Kuznetosv	:	Repaired (I hope) bugs introduces
  *					by above two patches.
@@ -43,20 +43,20 @@
  *	     Michal Ostrowski   :       Module initialization cleanup.
  *	     Arnaldo C. Melo	:	Remove MOD_{INC,DEC}_USE_COUNT,
  *	     				the core infrastructure is doing that
- *	     				for all net proto families now (2.5.69+)
+ *	     				for all net proto families analw (2.5.69+)
  *
- * Known differences from reference BSD that was tested:
+ * Kanalwn differences from reference BSD that was tested:
  *
  *	[TO FIX]
- *	ECONNREFUSED is not returned from one end of a connected() socket to the
+ *	ECONNREFUSED is analt returned from one end of a connected() socket to the
  *		other the moment one end closes.
  *	fstat() doesn't return st_dev=0, and give the blksize as high water mark
- *		and a fake inode identifier (nor the BSD first socket fstat twice bug).
- *	[NOT TO FIX]
+ *		and a fake ianalde identifier (analr the BSD first socket fstat twice bug).
+ *	[ANALT TO FIX]
  *	accept() returns a path name even if the connecting socket has closed
  *		in the meantime (BSD loses the path and gives up).
  *	accept() returns 0 length path for an unbound connector. BSD returns 16
- *		and a null first byte in the path (but not for gethost/peername - BSD bug ??)
+ *		and a null first byte in the path (but analt for gethost/peername - BSD bug ??)
  *	socketpair(...SOCK_RAW..) doesn't panic the kernel.
  *	BSD af_unix apparently has connect forgetting to block properly.
  *		(need to check this with the POSIX spec in detail)
@@ -69,9 +69,9 @@
  *	Semantic changes/extensions.
  *		- generic control message passing.
  *		- SCM_CREDENTIALS control message.
- *		- "Abstract" (not FS based) socket bindings.
- *		  Abstract names are sequences of bytes (not zero terminated)
- *		  started by 0, so that this name space does not intersect
+ *		- "Abstract" (analt FS based) socket bindings.
+ *		  Abstract names are sequences of bytes (analt zero terminated)
+ *		  started by 0, so that this name space does analt intersect
  *		  with BSD names.
  */
 
@@ -81,7 +81,7 @@
 #include <linux/kernel.h>
 #include <linux/signal.h>
 #include <linux/sched/signal.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/stat.h>
 #include <linux/dcache.h>
@@ -140,9 +140,9 @@ static unsigned int unix_unbound_hash(struct sock *sk)
 	return hash & UNIX_HASH_MOD;
 }
 
-static unsigned int unix_bsd_hash(struct inode *i)
+static unsigned int unix_bsd_hash(struct ianalde *i)
 {
-	return i->i_ino & UNIX_HASH_MOD;
+	return i->i_ianal & UNIX_HASH_MOD;
 }
 
 static unsigned int unix_abstract_hash(struct sockaddr_un *sunaddr,
@@ -271,8 +271,8 @@ static inline void unix_release_addr(struct unix_address *addr)
 
 /*
  *	Check unix socket name:
- *		- should be not zero length.
- *	        - if started by not zero, should be NULL terminated (FS object)
+ *		- should be analt zero length.
+ *	        - if started by analt zero, should be NULL terminated (FS object)
  *		- if started by zero, it is abstract name.
  */
 
@@ -308,20 +308,20 @@ static int unix_mkname_bsd(struct sockaddr_un *sunaddr, int addr_len)
 
 	/* Don't pass sunaddr->sun_path to strlen().  Otherwise, 108 will
 	 * cause panic if CONFIG_FORTIFY_SOURCE=y.  Let __fortify_strlen()
-	 * know the actual buffer.
+	 * kanalw the actual buffer.
 	 */
 	return strlen(addr->__data) + offset + 1;
 }
 
 static void __unix_remove_socket(struct sock *sk)
 {
-	sk_del_node_init(sk);
+	sk_del_analde_init(sk);
 }
 
 static void __unix_insert_socket(struct net *net, struct sock *sk)
 {
 	DEBUG_NET_WARN_ON_ONCE(!sk_unhashed(sk));
-	sk_add_node(sk, &net->unx.table.buckets[sk->sk_hash]);
+	sk_add_analde(sk, &net->unx.table.buckets[sk->sk_hash]);
 }
 
 static void __unix_set_addr_hash(struct net *net, struct sock *sk,
@@ -351,18 +351,18 @@ static void unix_insert_unbound_socket(struct net *net, struct sock *sk)
 static void unix_insert_bsd_socket(struct sock *sk)
 {
 	spin_lock(&bsd_socket_locks[sk->sk_hash]);
-	sk_add_bind_node(sk, &bsd_socket_buckets[sk->sk_hash]);
+	sk_add_bind_analde(sk, &bsd_socket_buckets[sk->sk_hash]);
 	spin_unlock(&bsd_socket_locks[sk->sk_hash]);
 }
 
 static void unix_remove_bsd_socket(struct sock *sk)
 {
-	if (!hlist_unhashed(&sk->sk_bind_node)) {
+	if (!hlist_unhashed(&sk->sk_bind_analde)) {
 		spin_lock(&bsd_socket_locks[sk->sk_hash]);
-		__sk_del_bind_node(sk);
+		__sk_del_bind_analde(sk);
 		spin_unlock(&bsd_socket_locks[sk->sk_hash]);
 
-		sk_node_init(&sk->sk_bind_node);
+		sk_analde_init(&sk->sk_bind_analde);
 	}
 }
 
@@ -396,7 +396,7 @@ static inline struct sock *unix_find_socket_byname(struct net *net,
 	return s;
 }
 
-static struct sock *unix_find_socket_byinode(struct inode *i)
+static struct sock *unix_find_socket_byianalde(struct ianalde *i)
 {
 	unsigned int hash = unix_bsd_hash(i);
 	struct sock *s;
@@ -405,7 +405,7 @@ static struct sock *unix_find_socket_byinode(struct inode *i)
 	sk_for_each_bound(s, &bsd_socket_buckets[hash]) {
 		struct dentry *dentry = unix_sk(s)->path.dentry;
 
-		if (dentry && d_backing_inode(dentry) == i) {
+		if (dentry && d_backing_ianalde(dentry) == i) {
 			sock_hold(s);
 			spin_unlock(&bsd_socket_locks[hash]);
 			return s;
@@ -417,18 +417,18 @@ static struct sock *unix_find_socket_byinode(struct inode *i)
 
 /* Support code for asymmetrically connected dgram sockets
  *
- * If a datagram socket is connected to a socket not itself connected
+ * If a datagram socket is connected to a socket analt itself connected
  * to the first socket (eg, /dev/log), clients may only enqueue more
- * messages if the present receive queue of the server socket is not
+ * messages if the present receive queue of the server socket is analt
  * "too large". This means there's a second writeability condition
  * poll and sendmsg need to test. The dgram recv code will do a wake
  * up on the peer_wait wait queue of a socket upon reception of a
  * datagram which needs to be propagated to sleeping would-be writers
- * since these might not have sent anything so far. This can't be
+ * since these might analt have sent anything so far. This can't be
  * accomplished via poll_wait because the lifetime of the server
  * socket might be less than that of its clients if these break their
  * association with it or if the server socket is closed while clients
- * are still connected to it and there's no way to inform "a polling
+ * are still connected to it and there's anal way to inform "a polling
  * implementation" that it should let go of a certain wait queue
  *
  * In order to propagate a wake up, a wait_queue_entry_t of the client
@@ -504,7 +504,7 @@ static void unix_dgram_peer_wake_disconnect_wakeup(struct sock *sk,
 	unix_dgram_peer_wake_disconnect(sk, other);
 	wake_up_interruptible_poll(sk_sleep(sk),
 				   EPOLLOUT |
-				   EPOLLWRNORM |
+				   EPOLLWRANALRM |
 				   EPOLLWRBAND);
 }
 
@@ -547,7 +547,7 @@ static void unix_write_space(struct sock *sk)
 		wq = rcu_dereference(sk->sk_wq);
 		if (skwq_has_sleeper(wq))
 			wake_up_interruptible_sync_poll(&wq->wait,
-				EPOLLOUT | EPOLLWRNORM | EPOLLWRBAND);
+				EPOLLOUT | EPOLLWRANALRM | EPOLLWRBAND);
 		sk_wake_async(sk, SOCK_WAKE_SPACE, POLL_OUT);
 	}
 	rcu_read_unlock();
@@ -564,8 +564,8 @@ static void unix_dgram_disconnected(struct sock *sk, struct sock *other)
 		wake_up_interruptible_all(&unix_sk(sk)->peer_wait);
 
 		/* If one link of bidirectional dgram pipe is disconnected,
-		 * we signal error. Messages are lost. Do not make this,
-		 * when peer was not connected to us.
+		 * we signal error. Messages are lost. Do analt make this,
+		 * when peer was analt connected to us.
 		 */
 		if (!sock_flag(other, SOCK_DEAD) && unix_peer(other) == sk) {
 			WRITE_ONCE(other->sk_err, ECONNRESET);
@@ -638,7 +638,7 @@ static void unix_release_sock(struct sock *sk, int embrion)
 	if (skpair != NULL) {
 		if (sk->sk_type == SOCK_STREAM || sk->sk_type == SOCK_SEQPACKET) {
 			unix_state_lock(skpair);
-			/* No more writes */
+			/* Anal more writes */
 			WRITE_ONCE(skpair->sk_shutdown, SHUTDOWN_MASK);
 			if (!skb_queue_empty(&sk->sk_receive_queue) || embrion)
 				WRITE_ONCE(skpair->sk_err, ECONNRESET);
@@ -648,7 +648,7 @@ static void unix_release_sock(struct sock *sk, int embrion)
 		}
 
 		unix_dgram_peer_wake_disconnect(sk, skpair);
-		sock_put(skpair); /* It may now die */
+		sock_put(skpair); /* It may analw die */
 	}
 
 	/* Try to flush out this socket. Throw out buffers at least */
@@ -666,7 +666,7 @@ static void unix_release_sock(struct sock *sk, int embrion)
 
 	sock_put(sk);
 
-	/* ---- Socket is dead now and most probably destroyed ---- */
+	/* ---- Socket is dead analw and most probably destroyed ---- */
 
 	/*
 	 * Fixme: BSD difference: In BSD all sockets connected to us get
@@ -729,12 +729,12 @@ static int unix_listen(struct socket *sock, int backlog)
 	struct sock *sk = sock->sk;
 	struct unix_sock *u = unix_sk(sk);
 
-	err = -EOPNOTSUPP;
+	err = -EOPANALTSUPP;
 	if (sock->type != SOCK_STREAM && sock->type != SOCK_SEQPACKET)
 		goto out;	/* Only stream/seqpacket sockets accept */
 	err = -EINVAL;
 	if (!u->addr)
-		goto out;	/* No listens on an unbound socket */
+		goto out;	/* Anal listens on an unbound socket */
 	unix_state_lock(sk);
 	if (sk->sk_state != TCP_CLOSE && sk->sk_state != TCP_LISTEN)
 		goto out_unlock;
@@ -770,7 +770,7 @@ static int unix_shutdown(struct socket *, int);
 static int unix_stream_sendmsg(struct socket *, struct msghdr *, size_t);
 static int unix_stream_recvmsg(struct socket *, struct msghdr *, size_t, int);
 static ssize_t unix_stream_splice_read(struct socket *,  loff_t *ppos,
-				       struct pipe_inode_info *, size_t size,
+				       struct pipe_ianalde_info *, size_t size,
 				       unsigned int flags);
 static int unix_dgram_sendmsg(struct socket *, struct msghdr *, size_t);
 static int unix_dgram_recvmsg(struct socket *, struct msghdr *, size_t, int);
@@ -814,7 +814,7 @@ static void unix_show_fdinfo(struct seq_file *m, struct socket *sock)
 
 		/* SOCK_STREAM and SOCK_SEQPACKET sockets never change their
 		 * sk_state after switching to TCP_ESTABLISHED or TCP_LISTEN.
-		 * SOCK_DGRAM is ordinary. So, no lock is needed.
+		 * SOCK_DGRAM is ordinary. So, anal lock is needed.
 		 */
 		if (sock->type == SOCK_DGRAM || s_state == TCP_ESTABLISHED)
 			nr_fds = atomic_read(&u->scm_stat.nr_fds);
@@ -847,7 +847,7 @@ static const struct proto_ops unix_stream_ops = {
 	.sendmsg =	unix_stream_sendmsg,
 	.recvmsg =	unix_stream_recvmsg,
 	.read_skb =	unix_stream_read_skb,
-	.mmap =		sock_no_mmap,
+	.mmap =		sock_anal_mmap,
 	.splice_read =	unix_stream_splice_read,
 	.set_peek_off =	sk_set_peek_off,
 	.show_fdinfo =	unix_show_fdinfo,
@@ -860,19 +860,19 @@ static const struct proto_ops unix_dgram_ops = {
 	.bind =		unix_bind,
 	.connect =	unix_dgram_connect,
 	.socketpair =	unix_socketpair,
-	.accept =	sock_no_accept,
+	.accept =	sock_anal_accept,
 	.getname =	unix_getname,
 	.poll =		unix_dgram_poll,
 	.ioctl =	unix_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl =	unix_compat_ioctl,
 #endif
-	.listen =	sock_no_listen,
+	.listen =	sock_anal_listen,
 	.shutdown =	unix_shutdown,
 	.sendmsg =	unix_dgram_sendmsg,
 	.read_skb =	unix_read_skb,
 	.recvmsg =	unix_dgram_recvmsg,
-	.mmap =		sock_no_mmap,
+	.mmap =		sock_anal_mmap,
 	.set_peek_off =	sk_set_peek_off,
 	.show_fdinfo =	unix_show_fdinfo,
 };
@@ -895,21 +895,21 @@ static const struct proto_ops unix_seqpacket_ops = {
 	.shutdown =	unix_shutdown,
 	.sendmsg =	unix_seqpacket_sendmsg,
 	.recvmsg =	unix_seqpacket_recvmsg,
-	.mmap =		sock_no_mmap,
+	.mmap =		sock_anal_mmap,
 	.set_peek_off =	sk_set_peek_off,
 	.show_fdinfo =	unix_show_fdinfo,
 };
 
 static void unix_close(struct sock *sk, long timeout)
 {
-	/* Nothing to do here, unix socket does not need a ->close().
+	/* Analthing to do here, unix socket does analt need a ->close().
 	 * This is merely for sockmap.
 	 */
 }
 
 static void unix_unhash(struct sock *sk)
 {
-	/* Nothing to do here, unix socket does not need a ->unhash().
+	/* Analthing to do here, unix socket does analt need a ->unhash().
 	 * This is merely for sockmap.
 	 */
 }
@@ -969,7 +969,7 @@ static struct sock *unix_create1(struct net *net, struct socket *sock, int kern,
 		sk = sk_alloc(net, PF_UNIX, GFP_KERNEL, &unix_dgram_proto, kern);
 
 	if (!sk) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err;
 	}
 
@@ -1008,7 +1008,7 @@ static int unix_create(struct net *net, struct socket *sock, int protocol,
 	struct sock *sk;
 
 	if (protocol && protocol != PF_UNIX)
-		return -EPROTONOSUPPORT;
+		return -EPROTOANALSUPPORT;
 
 	sock->state = SS_UNCONNECTED;
 
@@ -1017,8 +1017,8 @@ static int unix_create(struct net *net, struct socket *sock, int protocol,
 		sock->ops = &unix_stream_ops;
 		break;
 		/*
-		 *	Believe it or not BSD has AF_UNIX, SOCK_RAW though
-		 *	nothing uses it.
+		 *	Believe it or analt BSD has AF_UNIX, SOCK_RAW though
+		 *	analthing uses it.
 		 */
 	case SOCK_RAW:
 		sock->type = SOCK_DGRAM;
@@ -1030,7 +1030,7 @@ static int unix_create(struct net *net, struct socket *sock, int protocol,
 		sock->ops = &unix_seqpacket_ops;
 		break;
 	default:
-		return -ESOCKTNOSUPPORT;
+		return -ESOCKTANALSUPPORT;
 	}
 
 	sk = unix_create1(net, sock, kern, sock->type);
@@ -1057,7 +1057,7 @@ static int unix_release(struct socket *sock)
 static struct sock *unix_find_bsd(struct sockaddr_un *sunaddr, int addr_len,
 				  int type)
 {
-	struct inode *inode;
+	struct ianalde *ianalde;
 	struct path path;
 	struct sock *sk;
 	int err;
@@ -1072,11 +1072,11 @@ static struct sock *unix_find_bsd(struct sockaddr_un *sunaddr, int addr_len,
 		goto path_put;
 
 	err = -ECONNREFUSED;
-	inode = d_backing_inode(path.dentry);
-	if (!S_ISSOCK(inode->i_mode))
+	ianalde = d_backing_ianalde(path.dentry);
+	if (!S_ISSOCK(ianalde->i_mode))
 		goto path_put;
 
-	sk = unix_find_socket_byinode(inode);
+	sk = unix_find_socket_byianalde(ianalde);
 	if (!sk)
 		goto path_put;
 
@@ -1147,7 +1147,7 @@ static int unix_autobind(struct sock *sk)
 	if (u->addr)
 		goto out;
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	addr = kzalloc(sizeof(*addr) +
 		       offsetof(struct sockaddr_un, sun_path) + 16, GFP_KERNEL);
 	if (!addr)
@@ -1176,7 +1176,7 @@ retry:
 
 		if (ordernum == lastnum) {
 			/* Give up if all names seems to be in use. */
-			err = -ENOSPC;
+			err = -EANALSPC;
 			unix_release_addr(addr);
 			goto out;
 		}
@@ -1196,7 +1196,7 @@ static int unix_bind_bsd(struct sock *sk, struct sockaddr_un *sunaddr,
 			 int addr_len)
 {
 	umode_t mode = S_IFSOCK |
-	       (SOCK_INODE(sk->sk_socket)->i_mode & ~current_umask());
+	       (SOCK_IANALDE(sk->sk_socket)->i_mode & ~current_umask());
 	unsigned int new_hash, old_hash = sk->sk_hash;
 	struct unix_sock *u = unix_sk(sk);
 	struct net *net = sock_net(sk);
@@ -1209,7 +1209,7 @@ static int unix_bind_bsd(struct sock *sk, struct sockaddr_un *sunaddr,
 	addr_len = unix_mkname_bsd(sunaddr, addr_len);
 	addr = unix_create_addr(sunaddr, addr_len);
 	if (!addr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * Get the parent directory, calculate the hash for last
@@ -1225,9 +1225,9 @@ static int unix_bind_bsd(struct sock *sk, struct sockaddr_un *sunaddr,
 	 * All right, let's create it.
 	 */
 	idmap = mnt_idmap(parent.mnt);
-	err = security_path_mknod(&parent, dentry, mode, 0);
+	err = security_path_mkanald(&parent, dentry, mode, 0);
 	if (!err)
-		err = vfs_mknod(idmap, d_inode(parent.dentry), dentry, mode, 0);
+		err = vfs_mkanald(idmap, d_ianalde(parent.dentry), dentry, mode, 0);
 	if (err)
 		goto out_path;
 	err = mutex_lock_interruptible(&u->bindlock);
@@ -1236,7 +1236,7 @@ static int unix_bind_bsd(struct sock *sk, struct sockaddr_un *sunaddr,
 	if (u->addr)
 		goto out_unlock;
 
-	new_hash = unix_bsd_hash(d_backing_inode(dentry));
+	new_hash = unix_bsd_hash(d_backing_ianalde(dentry));
 	unix_table_double_lock(net, old_hash, new_hash);
 	u->path.mnt = mntget(parent.mnt);
 	u->path.dentry = dget(dentry);
@@ -1251,8 +1251,8 @@ out_unlock:
 	mutex_unlock(&u->bindlock);
 	err = -EINVAL;
 out_unlink:
-	/* failed after successful mknod?  unlink what we'd created... */
-	vfs_unlink(idmap, d_inode(parent.dentry), dentry, NULL);
+	/* failed after successful mkanald?  unlink what we'd created... */
+	vfs_unlink(idmap, d_ianalde(parent.dentry), dentry, NULL);
 out_path:
 	done_path_create(&parent, dentry);
 out:
@@ -1271,7 +1271,7 @@ static int unix_bind_abstract(struct sock *sk, struct sockaddr_un *sunaddr,
 
 	addr = unix_create_addr(sunaddr, addr_len);
 	if (!addr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = mutex_lock_interruptible(&u->bindlock);
 	if (err)
@@ -1489,7 +1489,7 @@ static int unix_stream_connect(struct socket *sock, struct sockaddr *uaddr,
 			goto out;
 	}
 
-	timeo = sock_sndtimeo(sk, flags & O_NONBLOCK);
+	timeo = sock_sndtimeo(sk, flags & O_ANALNBLOCK);
 
 	/* First of all allocate resources.
 	   If we will make it after state is locked,
@@ -1504,7 +1504,7 @@ static int unix_stream_connect(struct socket *sock, struct sockaddr *uaddr,
 		goto out;
 	}
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 
 	/* Allocate skb for sending to listening sock */
 	skb = sock_wmalloc(newsk, 1, 0, GFP_KERNEL);
@@ -1543,7 +1543,7 @@ restart:
 
 		timeo = unix_wait_for_peer(other, timeo);
 
-		err = sock_intr_errno(timeo);
+		err = sock_intr_erranal(timeo);
 		if (signal_pending(current))
 			goto out;
 		sock_put(other);
@@ -1552,7 +1552,7 @@ restart:
 
 	/* Latch our state.
 
-	   It is tricky place. We need to grab our state lock and cannot
+	   It is tricky place. We need to grab our state lock and cananalt
 	   drop lock on peer. It is dangerous because deadlock is
 	   possible. Connect to self case and simultaneous
 	   attempt to connect are eliminated by checking socket
@@ -1613,7 +1613,7 @@ restart:
 	 * as well as otheru->path and otheru->addr itself.
 	 *
 	 * Using smp_store_release() here to set newu->addr
-	 * is enough to make those stores, as well as stores
+	 * is eanalugh to make those stores, as well as stores
 	 * to newu->path visible to anyone who gets newu->addr
 	 * by smp_load_acquire().  IOW, the same warranties
 	 * as for unix_sock instances bound in unix_bind() or
@@ -1698,7 +1698,7 @@ static int unix_accept(struct socket *sock, struct socket *newsock, int flags,
 	struct sk_buff *skb;
 	int err;
 
-	err = -EOPNOTSUPP;
+	err = -EOPANALTSUPP;
 	if (sock->type != SOCK_STREAM && sock->type != SOCK_SEQPACKET)
 		goto out;
 
@@ -1706,11 +1706,11 @@ static int unix_accept(struct socket *sock, struct socket *newsock, int flags,
 	if (sk->sk_state != TCP_LISTEN)
 		goto out;
 
-	/* If socket state is TCP_LISTEN it cannot change (for now...),
-	 * so that no locks are necessary.
+	/* If socket state is TCP_LISTEN it cananalt change (for analw...),
+	 * so that anal locks are necessary.
 	 */
 
-	skb = skb_recv_datagram(sk, (flags & O_NONBLOCK) ? MSG_DONTWAIT : 0,
+	skb = skb_recv_datagram(sk, (flags & O_ANALNBLOCK) ? MSG_DONTWAIT : 0,
 				&err);
 	if (!skb) {
 		/* This means receive shutdown. */
@@ -1746,7 +1746,7 @@ static int unix_getname(struct socket *sock, struct sockaddr *uaddr, int peer)
 	if (peer) {
 		sk = unix_peer_get(sk);
 
-		err = -ENOTCONN;
+		err = -EANALTCONN;
 		if (!sk)
 			goto out;
 		err = 0;
@@ -1784,32 +1784,32 @@ static void unix_peek_fds(struct scm_cookie *scm, struct sk_buff *skb)
 	 * candidate sockets which have reference only from being in flight
 	 * (total_refs == inflight_refs).  This condition is checked once during
 	 * the candidate collection phase, and candidates are marked as such, so
-	 * that non-candidates can later be ignored.  While inflight_refs is
-	 * protected by unix_gc_lock, total_refs (file count) is not, hence this
+	 * that analn-candidates can later be iganalred.  While inflight_refs is
+	 * protected by unix_gc_lock, total_refs (file count) is analt, hence this
 	 * is an instantaneous decision.
 	 *
-	 * Once a candidate, however, the socket must not be reinstalled into a
+	 * Once a candidate, however, the socket must analt be reinstalled into a
 	 * file descriptor while the garbage collection is in progress.
 	 *
 	 * If the above conditions are met, then the directed graph of
-	 * candidates (*) does not change while unix_gc_lock is held.
+	 * candidates (*) does analt change while unix_gc_lock is held.
 	 *
 	 * Any operations that changes the file count through file descriptors
-	 * (dup, close, sendmsg) does not change the graph since candidates are
-	 * not installed in fds.
+	 * (dup, close, sendmsg) does analt change the graph since candidates are
+	 * analt installed in fds.
 	 *
 	 * Dequeing a candidate via recvmsg would install it into an fd, but
 	 * that takes unix_gc_lock to decrement the inflight count, so it's
 	 * serialized with garbage collection.
 	 *
-	 * MSG_PEEK is special in that it does not change the inflight count,
+	 * MSG_PEEK is special in that it does analt change the inflight count,
 	 * yet does install the socket into an fd.  The following lock/unlock
 	 * pair is to ensure serialization with garbage collection.  It must be
 	 * done between incrementing the file count and installing the file into
 	 * an fd.
 	 *
 	 * If garbage collection starts after the barrier provided by the
-	 * lock/unlock, then it will see the elevated refcount and not mark this
+	 * lock/unlock, then it will see the elevated refcount and analt mark this
 	 * as a candidate.  If a garbage collection is already in progress
 	 * before the file count was incremented, then the lock/unlock pair will
 	 * ensure that garbage collection is finished before progressing to
@@ -1913,7 +1913,7 @@ static int unix_dgram_sendmsg(struct socket *sock, struct msghdr *msg,
 	if (err < 0)
 		return err;
 
-	err = -EOPNOTSUPP;
+	err = -EOPANALTSUPP;
 	if (msg->msg_flags&MSG_OOB)
 		goto out;
 
@@ -1930,7 +1930,7 @@ static int unix_dgram_sendmsg(struct socket *sock, struct msghdr *msg,
 			goto out;
 	} else {
 		sunaddr = NULL;
-		err = -ENOTCONN;
+		err = -EANALTCONN;
 		other = unix_peer_get(sk);
 		if (!other)
 			goto out;
@@ -1991,7 +1991,7 @@ restart:
 	}
 
 	if (sk_filter(other, skb) < 0) {
-		/* Toss the packet but do not return any error to the sender */
+		/* Toss the packet but do analt return any error to the sender */
 		err = len;
 		goto out_free;
 	}
@@ -2062,7 +2062,7 @@ restart_locked:
 		if (timeo) {
 			timeo = unix_wait_for_peer(other, timeo);
 
-			err = sock_intr_errno(timeo);
+			err = sock_intr_erranal(timeo);
 			if (signal_pending(current))
 				goto out_free;
 
@@ -2189,7 +2189,7 @@ static int unix_stream_sendmsg(struct socket *sock, struct msghdr *msg,
 	if (err < 0)
 		return err;
 
-	err = -EOPNOTSUPP;
+	err = -EOPANALTSUPP;
 	if (msg->msg_flags & MSG_OOB) {
 #if IS_ENABLED(CONFIG_AF_UNIX_OOB)
 		if (len)
@@ -2200,10 +2200,10 @@ static int unix_stream_sendmsg(struct socket *sock, struct msghdr *msg,
 	}
 
 	if (msg->msg_namelen) {
-		err = sk->sk_state == TCP_ESTABLISHED ? -EISCONN : -EOPNOTSUPP;
+		err = sk->sk_state == TCP_ESTABLISHED ? -EISCONN : -EOPANALTSUPP;
 		goto out_err;
 	} else {
-		err = -ENOTCONN;
+		err = -EANALTCONN;
 		other = unix_peer(sk);
 		if (!other)
 			goto out_err;
@@ -2296,7 +2296,7 @@ pipe_err_free:
 	unix_state_unlock(other);
 	kfree_skb(skb);
 pipe_err:
-	if (sent == 0 && !(msg->msg_flags&MSG_NOSIGNAL))
+	if (sent == 0 && !(msg->msg_flags&MSG_ANALSIGNAL))
 		send_sig(SIGPIPE, current, 0);
 	err = -EPIPE;
 out_err:
@@ -2315,7 +2315,7 @@ static int unix_seqpacket_sendmsg(struct socket *sock, struct msghdr *msg,
 		return err;
 
 	if (sk->sk_state != TCP_ESTABLISHED)
-		return -ENOTCONN;
+		return -EANALTCONN;
 
 	if (msg->msg_namelen)
 		msg->msg_namelen = 0;
@@ -2329,7 +2329,7 @@ static int unix_seqpacket_recvmsg(struct socket *sock, struct msghdr *msg,
 	struct sock *sk = sock->sk;
 
 	if (sk->sk_state != TCP_ESTABLISHED)
-		return -ENOTCONN;
+		return -EANALTCONN;
 
 	return unix_dgram_recvmsg(sock, msg, size, flags);
 }
@@ -2355,7 +2355,7 @@ int __unix_dgram_recvmsg(struct sock *sk, struct msghdr *msg, size_t size,
 	int skip;
 	int err;
 
-	err = -EOPNOTSUPP;
+	err = -EOPANALTSUPP;
 	if (flags&MSG_OOB)
 		goto out;
 
@@ -2383,7 +2383,7 @@ int __unix_dgram_recvmsg(struct sock *sk, struct msghdr *msg, size_t size,
 
 	if (!skb) { /* implies iolock unlocked */
 		unix_state_lock(sk);
-		/* Signal EOF on disconnected non-blocking SEQPACKET socket. */
+		/* Signal EOF on disconnected analn-blocking SEQPACKET socket. */
 		if (sk->sk_type == SOCK_SEQPACKET && err == -EAGAIN &&
 		    (sk->sk_shutdown & RCV_SHUTDOWN))
 			err = 0;
@@ -2393,7 +2393,7 @@ int __unix_dgram_recvmsg(struct sock *sk, struct msghdr *msg, size_t size,
 
 	if (wq_has_sleeper(&u->peer_wait))
 		wake_up_interruptible_sync_poll(&u->peer_wait,
-						EPOLLOUT | EPOLLWRNORM |
+						EPOLLOUT | EPOLLWRANALRM |
 						EPOLLWRBAND);
 
 	if (msg->msg_name) {
@@ -2428,13 +2428,13 @@ int __unix_dgram_recvmsg(struct sock *sk, struct msghdr *msg, size_t size,
 		sk_peek_offset_bwd(sk, skb->len);
 	} else {
 		/* It is questionable: on PEEK we could:
-		   - do not return fds - good, but too simple 8)
-		   - return fds, and do not return them on read (old strategy,
+		   - do analt return fds - good, but too simple 8)
+		   - return fds, and do analt return them on read (old strategy,
 		     apparently wrong)
-		   - clone fds (I chose it for now, it is the most universal
+		   - clone fds (I chose it for analw, it is the most universal
 		     solution)
 
-		   POSIX 1003.1g does not actually define this clearly
+		   POSIX 1003.1g does analt actually define this clearly
 		   at all. POSIX 1003.1g doesn't define a lot of things
 		   clearly however!
 
@@ -2536,7 +2536,7 @@ struct unix_stream_read_state {
 			  struct unix_stream_read_state *);
 	struct socket *socket;
 	struct msghdr *msg;
-	struct pipe_inode_info *pipe;
+	struct pipe_ianalde_info *pipe;
 	size_t size;
 	int flags;
 	unsigned int splice_flags;
@@ -2616,7 +2616,7 @@ static struct sk_buff *manage_oob(struct sk_buff *skb, struct sock *sk,
 static int unix_stream_read_skb(struct sock *sk, skb_read_actor_t recv_actor)
 {
 	if (unlikely(sk->sk_state != TCP_ESTABLISHED))
-		return -ENOTCONN;
+		return -EANALTCONN;
 
 	return unix_read_skb(sk, recv_actor);
 }
@@ -2630,7 +2630,7 @@ static int unix_stream_read_generic(struct unix_stream_read_state *state,
 	struct unix_sock *u = unix_sk(sk);
 	int copied = 0;
 	int flags = state->flags;
-	int noblock = flags & MSG_DONTWAIT;
+	int analblock = flags & MSG_DONTWAIT;
 	bool check_creds = false;
 	int target;
 	int err = 0;
@@ -2645,7 +2645,7 @@ static int unix_stream_read_generic(struct unix_stream_read_state *state,
 	}
 
 	if (unlikely(flags & MSG_OOB)) {
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 #if IS_ENABLED(CONFIG_AF_UNIX_OOB)
 		err = unix_stream_recv_urg(state);
 #endif
@@ -2653,7 +2653,7 @@ static int unix_stream_read_generic(struct unix_stream_read_state *state,
 	}
 
 	target = sock_rcvlowat(sk, flags & MSG_WAITALL, size);
-	timeo = sock_rcvtimeo(sk, noblock);
+	timeo = sock_rcvtimeo(sk, analblock);
 
 	memset(&scm, 0, sizeof(scm));
 
@@ -2716,7 +2716,7 @@ again:
 						      last_len, freezable);
 
 			if (signal_pending(current)) {
-				err = sock_intr_errno(timeo);
+				err = sock_intr_erranal(timeo);
 				scm_destroy(&scm);
 				goto out;
 			}
@@ -2780,7 +2780,7 @@ unlock:
 
 		if (drop_skb) {
 			/* the skb was touched by a concurrent reader;
-			 * we should not expect anything from this skb
+			 * we should analt expect anything from this skb
 			 * anymore and assume it invalid - we can be
 			 * sure it was dropped from the socket queue
 			 *
@@ -2810,7 +2810,7 @@ unlock:
 			if (scm.fp)
 				break;
 		} else {
-			/* It is questionable, see note in unix_dgram_recvmsg.
+			/* It is questionable, see analte in unix_dgram_recvmsg.
 			 */
 			if (UNIXCB(skb).fp)
 				unix_peek_fds(&scm, skb);
@@ -2897,7 +2897,7 @@ static int unix_stream_splice_actor(struct sk_buff *skb,
 }
 
 static ssize_t unix_stream_splice_read(struct socket *sock,  loff_t *ppos,
-				       struct pipe_inode_info *pipe,
+				       struct pipe_ianalde_info *pipe,
 				       size_t size, unsigned int flags)
 {
 	struct unix_stream_read_state state = {
@@ -2911,8 +2911,8 @@ static ssize_t unix_stream_splice_read(struct socket *sock,  loff_t *ppos,
 	if (unlikely(*ppos))
 		return -ESPIPE;
 
-	if (sock->file->f_flags & O_NONBLOCK ||
-	    flags & SPLICE_F_NONBLOCK)
+	if (sock->file->f_flags & O_ANALNBLOCK ||
+	    flags & SPLICE_F_ANALNBLOCK)
 		state.flags = MSG_DONTWAIT;
 
 	return unix_stream_read_generic(&state, false);
@@ -3007,11 +3007,11 @@ static int unix_open_file(struct sock *sk)
 		return -EPERM;
 
 	if (!smp_load_acquire(&unix_sk(sk)->addr))
-		return -ENOENT;
+		return -EANALENT;
 
 	path = unix_sk(sk)->path;
 	if (!path.dentry)
-		return -ENOENT;
+		return -EANALENT;
 
 	path_get(&path);
 
@@ -3068,7 +3068,7 @@ static int unix_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 		break;
 #endif
 	default:
-		err = -ENOIOCTLCMD;
+		err = -EANALIOCTLCMD;
 		break;
 	}
 	return err;
@@ -3097,13 +3097,13 @@ static __poll_t unix_poll(struct file *file, struct socket *sock, poll_table *wa
 	if (shutdown == SHUTDOWN_MASK)
 		mask |= EPOLLHUP;
 	if (shutdown & RCV_SHUTDOWN)
-		mask |= EPOLLRDHUP | EPOLLIN | EPOLLRDNORM;
+		mask |= EPOLLRDHUP | EPOLLIN | EPOLLRDANALRM;
 
 	/* readable? */
 	if (!skb_queue_empty_lockless(&sk->sk_receive_queue))
-		mask |= EPOLLIN | EPOLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDANALRM;
 	if (sk_is_readable(sk))
-		mask |= EPOLLIN | EPOLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDANALRM;
 #if IS_ENABLED(CONFIG_AF_UNIX_OOB)
 	if (READ_ONCE(unix_sk(sk)->oob_skb))
 		mask |= EPOLLPRI;
@@ -3119,7 +3119,7 @@ static __poll_t unix_poll(struct file *file, struct socket *sock, poll_table *wa
 	 * connection. This prevents stuck sockets.
 	 */
 	if (unix_writable(sk))
-		mask |= EPOLLOUT | EPOLLWRNORM | EPOLLWRBAND;
+		mask |= EPOLLOUT | EPOLLWRANALRM | EPOLLWRBAND;
 
 	return mask;
 }
@@ -3143,15 +3143,15 @@ static __poll_t unix_dgram_poll(struct file *file, struct socket *sock,
 			(sock_flag(sk, SOCK_SELECT_ERR_QUEUE) ? EPOLLPRI : 0);
 
 	if (shutdown & RCV_SHUTDOWN)
-		mask |= EPOLLRDHUP | EPOLLIN | EPOLLRDNORM;
+		mask |= EPOLLRDHUP | EPOLLIN | EPOLLRDANALRM;
 	if (shutdown == SHUTDOWN_MASK)
 		mask |= EPOLLHUP;
 
 	/* readable? */
 	if (!skb_queue_empty_lockless(&sk->sk_receive_queue))
-		mask |= EPOLLIN | EPOLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDANALRM;
 	if (sk_is_readable(sk))
-		mask |= EPOLLIN | EPOLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDANALRM;
 
 	/* Connection-based need to check for termination and startup */
 	if (sk->sk_type == SOCK_SEQPACKET) {
@@ -3162,8 +3162,8 @@ static __poll_t unix_dgram_poll(struct file *file, struct socket *sock,
 			return mask;
 	}
 
-	/* No write status requested, avoid expensive OUT tests. */
-	if (!(poll_requested_events(wait) & (EPOLLWRBAND|EPOLLWRNORM|EPOLLOUT)))
+	/* Anal write status requested, avoid expensive OUT tests. */
+	if (!(poll_requested_events(wait) & (EPOLLWRBAND|EPOLLWRANALRM|EPOLLOUT)))
 		return mask;
 
 	writable = unix_writable(sk);
@@ -3180,9 +3180,9 @@ static __poll_t unix_dgram_poll(struct file *file, struct socket *sock,
 	}
 
 	if (writable)
-		mask |= EPOLLOUT | EPOLLWRNORM | EPOLLWRBAND;
+		mask |= EPOLLOUT | EPOLLWRANALRM | EPOLLWRBAND;
 	else
-		sk_set_bit(SOCKWQ_ASYNC_NOSPACE, sk);
+		sk_set_bit(SOCKWQ_ASYNC_ANALSPACE, sk);
 
 	return mask;
 }
@@ -3280,7 +3280,7 @@ static int unix_seq_show(struct seq_file *seq, void *v)
 
 	if (v == SEQ_START_TOKEN)
 		seq_puts(seq, "Num       RefCount Protocol Flags    Type St "
-			 "Inode Path\n");
+			 "Ianalde Path\n");
 	else {
 		struct sock *s = v;
 		struct unix_sock *u = unix_sk(s);
@@ -3295,7 +3295,7 @@ static int unix_seq_show(struct seq_file *seq, void *v)
 			s->sk_socket ?
 			(s->sk_state == TCP_ESTABLISHED ? SS_CONNECTED : SS_UNCONNECTED) :
 			(s->sk_state == TCP_ESTABLISHED ? SS_CONNECTING : SS_DISCONNECTING),
-			sock_i_ino(s));
+			sock_i_ianal(s));
 
 		if (u->addr) {	// under a hash table lock here
 			int i, len;
@@ -3392,9 +3392,9 @@ static int bpf_iter_unix_realloc_batch(struct bpf_unix_iter_state *iter,
 	struct sock **new_batch;
 
 	new_batch = kvmalloc(sizeof(*new_batch) * new_batch_sz,
-			     GFP_USER | __GFP_NOWARN);
+			     GFP_USER | __GFP_ANALWARN);
 	if (!new_batch)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bpf_iter_unix_put_batch(iter);
 	kvfree(iter->batch);
@@ -3444,7 +3444,7 @@ static void *bpf_iter_unix_seq_start(struct seq_file *seq, loff_t *pos)
 	if (!*pos)
 		return SEQ_START_TOKEN;
 
-	/* bpf iter does not support lseek, so it always
+	/* bpf iter does analt support lseek, so it always
 	 * continue from where it was stop()-ped.
 	 */
 	return bpf_iter_unix_batch(seq, pos);
@@ -3574,7 +3574,7 @@ err_sysctl:
 #endif
 	unix_sysctl_unregister(net);
 out:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void __net_exit unix_net_exit(struct net *net)
@@ -3658,7 +3658,7 @@ static void __init bpf_iter_register(void)
 {
 	unix_reg_info.ctx_arg_info[0].btf_id = btf_sock_ids[BTF_SOCK_TYPE_UNIX];
 	if (bpf_iter_reg_target(&unix_reg_info))
-		pr_warn("Warning: could not register bpf iterator unix\n");
+		pr_warn("Warning: could analt register bpf iterator unix\n");
 }
 #endif
 
@@ -3675,13 +3675,13 @@ static int __init af_unix_init(void)
 
 	rc = proto_register(&unix_dgram_proto, 1);
 	if (rc != 0) {
-		pr_crit("%s: Cannot create unix_sock SLAB cache!\n", __func__);
+		pr_crit("%s: Cananalt create unix_sock SLAB cache!\n", __func__);
 		goto out;
 	}
 
 	rc = proto_register(&unix_stream_proto, 1);
 	if (rc != 0) {
-		pr_crit("%s: Cannot create unix_sock SLAB cache!\n", __func__);
+		pr_crit("%s: Cananalt create unix_sock SLAB cache!\n", __func__);
 		proto_unregister(&unix_dgram_proto);
 		goto out;
 	}

@@ -60,5 +60,5 @@ $defs:
     additionalProperties:
       type: object
       allOf:
-        - $ref: pincfg-node.yaml#
-        - $ref: pinmux-node.yaml#
+        - $ref: pincfg-analde.yaml#
+        - $ref: pinmux-analde.yaml#

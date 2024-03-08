@@ -412,7 +412,7 @@ static const struct dss_param_range omap2_dss_param_range[] = {
 	[FEAT_PARAM_DOWNSCALE]			= { 1, 2 },
 	/*
 	 * Assuming the line width buffer to be 768 pixels as OMAP2 DISPC
-	 * scaler cannot scale a image with width more than 768.
+	 * scaler cananalt scale a image with width more than 768.
 	 */
 	[FEAT_PARAM_LINEWIDTH]			= { 1, 768 },
 };

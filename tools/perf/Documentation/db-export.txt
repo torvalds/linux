@@ -33,7 +33,7 @@ before using them. e.g. function IsSelectable() in exported-sql-viewer.py
 4. The export scripts themselves maintain forward compatibility (i.e. an existing
 script will continue to work with new versions of perf) by accepting a variable
 number of arguments (e.g. def call_return_table(*x)) i.e. perf can pass more
-arguments which old scripts will ignore.
+arguments which old scripts will iganalre.
 
 5. The scripting engine tests for the existence of script handler functions
 before calling them.  The scripting engine can also test for the support of new

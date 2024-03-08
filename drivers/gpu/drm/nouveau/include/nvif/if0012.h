@@ -73,9 +73,9 @@ union nvif_outp_args {
 union nvif_outp_detect_args {
 	struct nvif_outp_detect_v0 {
 		__u8 version;
-#define NVIF_OUTP_DETECT_V0_NOT_PRESENT 0x00
+#define NVIF_OUTP_DETECT_V0_ANALT_PRESENT 0x00
 #define NVIF_OUTP_DETECT_V0_PRESENT     0x01
-#define NVIF_OUTP_DETECT_V0_UNKNOWN     0x02
+#define NVIF_OUTP_DETECT_V0_UNKANALWN     0x02
 		__u8 status;
 	} v0;
 };

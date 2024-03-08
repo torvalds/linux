@@ -23,7 +23,7 @@ static int dibusb_mc_probe(struct usb_interface *intf,
 				   NULL, adapter_nr);
 }
 
-/* do not change the order of the ID table */
+/* do analt change the order of the ID table */
 enum {
 	DIBCOM_MOD3001_COLD,
 	DIBCOM_MOD3001_WARM,

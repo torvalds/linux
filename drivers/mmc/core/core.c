@@ -55,7 +55,7 @@ static const unsigned freqs[] = { 400000, 300000, 200000, 100000 };
 
 /*
  * Enabling software CRCs on the data blocks can be a significant (30%)
- * performance cost, and for other reasons may not always be desired.
+ * performance cost, and for other reasons may analt always be desired.
  * So we allow it to be disabled.
  */
 bool use_spi_crc = 1;
@@ -66,7 +66,7 @@ static int mmc_schedule_delayed_work(struct delayed_work *work,
 {
 	/*
 	 * We use the system_freezable_wq, because of two reasons.
-	 * First, it allows several works (not the same work item) to be
+	 * First, it allows several works (analt the same work item) to be
 	 * executed simultaneously. Second, the queue becomes frozen when
 	 * userspace becomes frozen during system PM.
 	 */
@@ -77,7 +77,7 @@ static int mmc_schedule_delayed_work(struct delayed_work *work,
 
 /*
  * Internal function. Inject random data errors.
- * If mmc_data is NULL no errors are injected.
+ * If mmc_data is NULL anal errors are injected.
  */
 static void mmc_should_fail_request(struct mmc_host *host,
 				    struct mmc_request *mrq)
@@ -165,9 +165,9 @@ void mmc_request_done(struct mmc_host *host, struct mmc_request *mrq)
 	 * We list various conditions for the command to be considered
 	 * properly done:
 	 *
-	 * - There was no error, OK fine then
-	 * - We are not doing some kind of retry
-	 * - The card was removed (...so just complete everything no matter
+	 * - There was anal error, OK fine then
+	 * - We are analt doing some kind of retry
+	 * - The card was removed (...so just complete everything anal matter
 	 *   if there are errors or retries)
 	 */
 	if (!err || !cmd->retries || mmc_card_removed(host->card)) {
@@ -341,7 +341,7 @@ int mmc_start_request(struct mmc_host *host, struct mmc_request *mrq)
 	mmc_retune_hold(host);
 
 	if (mmc_card_removed(host->card))
-		return -ENOMEDIUM;
+		return -EANALMEDIUM;
 
 	mmc_mrq_pr_debug(host, mrq, false);
 
@@ -433,9 +433,9 @@ int mmc_cqe_start_req(struct mmc_host *host, struct mmc_request *mrq)
 	int err;
 
 	/*
-	 * CQE cannot process re-tuning commands. Caller must hold retuning
-	 * while CQE is in use.  Re-tuning can happen here only when CQE has no
-	 * active requests i.e. this is the first.  Note, re-tuning will call
+	 * CQE cananalt process re-tuning commands. Caller must hold retuning
+	 * while CQE is in use.  Re-tuning can happen here only when CQE has anal
+	 * active requests i.e. this is the first.  Analte, re-tuning will call
 	 * ->cqe_off().
 	 */
 	err = mmc_retune(host);
@@ -536,11 +536,11 @@ int mmc_cqe_recovery(struct mmc_host *host)
 	struct mmc_command cmd;
 	int err;
 
-	mmc_retune_hold_now(host);
+	mmc_retune_hold_analw(host);
 
 	/*
 	 * Recovery is expected seldom, if at all, but it reduces performance,
-	 * so make sure it is not completely silent.
+	 * so make sure it is analt completely silent.
 	 */
 	pr_warn("%s: running CQE recovery\n", mmc_hostname(host));
 
@@ -549,7 +549,7 @@ int mmc_cqe_recovery(struct mmc_host *host)
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.opcode       = MMC_STOP_TRANSMISSION;
 	cmd.flags        = MMC_RSP_R1B | MMC_CMD_AC;
-	cmd.flags       &= ~MMC_RSP_CRC; /* Ignore CRC */
+	cmd.flags       &= ~MMC_RSP_CRC; /* Iganalre CRC */
 	cmd.busy_timeout = MMC_CQE_RECOVERY_TIMEOUT;
 	mmc_wait_for_cmd(host, &cmd, MMC_CMD_RETRIES);
 
@@ -559,7 +559,7 @@ int mmc_cqe_recovery(struct mmc_host *host)
 	cmd.opcode       = MMC_CMDQ_TASK_MGMT;
 	cmd.arg          = 1; /* Discard entire queue */
 	cmd.flags        = MMC_RSP_R1B | MMC_CMD_AC;
-	cmd.flags       &= ~MMC_RSP_CRC; /* Ignore CRC */
+	cmd.flags       &= ~MMC_RSP_CRC; /* Iganalre CRC */
 	cmd.busy_timeout = MMC_CQE_RECOVERY_TIMEOUT;
 	err = mmc_wait_for_cmd(host, &cmd, MMC_CMD_RETRIES);
 
@@ -584,7 +584,7 @@ EXPORT_SYMBOL(mmc_cqe_recovery);
  *	starting a request and before waiting for it to complete. That is,
  *	either in between calls to mmc_start_req(), or after mmc_wait_for_req()
  *	and before mmc_wait_for_req_done(). If it is called at other times the
- *	result is not meaningful.
+ *	result is analt meaningful.
  */
 bool mmc_is_req_done(struct mmc_host *host, struct mmc_request *mrq)
 {
@@ -600,9 +600,9 @@ EXPORT_SYMBOL(mmc_is_req_done);
  *	Start a new MMC custom command request for a host, and wait
  *	for the command to complete. In the case of 'cap_cmd_during_tfr'
  *	requests, the transfer is ongoing and the caller can issue further
- *	commands that do not use the data lines, and then wait by calling
+ *	commands that do analt use the data lines, and then wait by calling
  *	mmc_wait_for_req_done().
- *	Does not attempt to parse the response.
+ *	Does analt attempt to parse the response.
  */
 void mmc_wait_for_req(struct mmc_host *host, struct mmc_request *mrq)
 {
@@ -621,7 +621,7 @@ EXPORT_SYMBOL(mmc_wait_for_req);
  *
  *	Start a new MMC command for a host, and wait for the command
  *	to complete.  Return any error that occurred while the command
- *	was executing.  Do not attempt to parse the response.
+ *	was executing.  Do analt attempt to parse the response.
  */
 int mmc_wait_for_cmd(struct mmc_host *host, struct mmc_command *cmd, int retries)
 {
@@ -695,7 +695,7 @@ void mmc_set_data_timeout(struct mmc_data *data, const struct mmc_card *card)
 			 * for hosts to implement more than 500ms
 			 * timeout value even if the card indicates
 			 * the 250ms maximum busy length."  Even the
-			 * previous value of 300ms is known to be
+			 * previous value of 300ms is kanalwn to be
 			 * insufficient for some cards.
 			 */
 			limit_us = 3000000;
@@ -718,7 +718,7 @@ void mmc_set_data_timeout(struct mmc_data *data, const struct mmc_card *card)
 	/*
 	 * Some cards require longer data read timeout than indicated in CSD.
 	 * Address this by setting the read timeout to a "reasonably high"
-	 * value. For the cards tested, 600ms has proven enough. If necessary,
+	 * value. For the cards tested, 600ms has proven eanalugh. If necessary,
 	 * this value can be increased if other problematic cards require this.
 	 */
 	if (mmc_card_long_read_time(card) && data->flags & MMC_DATA_READ) {
@@ -746,7 +746,7 @@ EXPORT_SYMBOL(mmc_set_data_timeout);
 
 /*
  * Allow claiming an already claimed host if the context is the same or there is
- * no context but the task is the same.
+ * anal context but the task is the same.
  */
 static inline bool mmc_ctx_matches(struct mmc_host *host, struct mmc_ctx *ctx,
 				   struct task_struct *task)
@@ -774,11 +774,11 @@ static inline void mmc_ctx_set_claimer(struct mmc_host *host,
  *	@host: mmc host to claim
  *	@ctx: context that claims the host or NULL in which case the default
  *	context will be used
- *	@abort: whether or not the operation should be aborted
+ *	@abort: whether or analt the operation should be aborted
  *
- *	Claim a host for a set of operations.  If @abort is non null and
- *	dereference a non-zero value then this will return prematurely with
- *	that non-zero value without acquiring the lock.  Returns zero
+ *	Claim a host for a set of operations.  If @abort is analn null and
+ *	dereference a analn-zero value then this will return prematurely with
+ *	that analn-zero value without acquiring the lock.  Returns zero
  *	with the lock held otherwise.
  */
 int __mmc_claim_host(struct mmc_host *host, struct mmc_ctx *ctx,
@@ -995,7 +995,7 @@ void mmc_set_initial_state(struct mmc_host *host)
 	host->ios.enhanced_strobe = false;
 
 	/*
-	 * Make sure we are in non-enhanced strobe mode before we
+	 * Make sure we are in analn-enhanced strobe mode before we
 	 * actually enable it in ext_csd.
 	 */
 	if ((host->caps2 & MMC_CAP2_HS400_ES) &&
@@ -1013,7 +1013,7 @@ void mmc_set_initial_state(struct mmc_host *host)
  * @low_bits:	prefer low bits in boundary cases
  *
  * This function returns the OCR bit number according to the provided @vdd
- * value. If conversion is not possible a negative errno value returned.
+ * value. If conversion is analt possible a negative erranal value returned.
  *
  * Depending on the @low_bits flag the function prefers low or high OCR bits
  * on boundary voltages. For example,
@@ -1049,9 +1049,9 @@ static int mmc_vdd_to_ocrbitnum(int vdd, bool low_bits)
  * @vdd_max:	maximum voltage value (mV)
  *
  * This function returns the OCR mask bits according to the provided @vdd_min
- * and @vdd_max values. If conversion is not possible the function returns 0.
+ * and @vdd_max values. If conversion is analt possible the function returns 0.
  *
- * Notes wrt boundary cases:
+ * Analtes wrt boundary cases:
  * This function sets the OCR bits for all boundary voltages, for example
  * [3300:3400] range is translated to MMC_VDD_32_33 | MMC_VDD_33_34 |
  * MMC_VDD_34_35 mask.
@@ -1080,29 +1080,29 @@ u32 mmc_vddrange_to_ocrmask(int vdd_min, int vdd_max)
 	return mask;
 }
 
-static int mmc_of_get_func_num(struct device_node *node)
+static int mmc_of_get_func_num(struct device_analde *analde)
 {
 	u32 reg;
 	int ret;
 
-	ret = of_property_read_u32(node, "reg", &reg);
+	ret = of_property_read_u32(analde, "reg", &reg);
 	if (ret < 0)
 		return ret;
 
 	return reg;
 }
 
-struct device_node *mmc_of_find_child_device(struct mmc_host *host,
+struct device_analde *mmc_of_find_child_device(struct mmc_host *host,
 		unsigned func_num)
 {
-	struct device_node *node;
+	struct device_analde *analde;
 
-	if (!host->parent || !host->parent->of_node)
+	if (!host->parent || !host->parent->of_analde)
 		return NULL;
 
-	for_each_child_of_node(host->parent->of_node, node) {
-		if (mmc_of_get_func_num(node) == func_num)
-			return node;
+	for_each_child_of_analde(host->parent->of_analde, analde) {
+		if (mmc_of_get_func_num(analde) == func_num)
+			return analde;
 	}
 
 	return NULL;
@@ -1128,7 +1128,7 @@ u32 mmc_select_voltage(struct mmc_host *host, u32 ocr)
 
 	ocr &= host->ocr_avail;
 	if (!ocr) {
-		dev_warn(mmc_dev(host), "no support for card's volts\n");
+		dev_warn(mmc_dev(host), "anal support for card's volts\n");
 		return 0;
 	}
 
@@ -1208,13 +1208,13 @@ int mmc_set_uhs_voltage(struct mmc_host *host, u32 ocr)
 	int err = 0;
 
 	/*
-	 * If we cannot switch voltages, return failure so the caller
+	 * If we cananalt switch voltages, return failure so the caller
 	 * can continue without UHS mode
 	 */
 	if (!host->ops->start_signal_voltage_switch)
 		return -EPERM;
 	if (!host->ops->card_busy)
-		pr_warn("%s: cannot verify signal voltage switch\n",
+		pr_warn("%s: cananalt verify signal voltage switch\n",
 			mmc_hostname(host));
 
 	cmd.opcode = SD_SWITCH_VOLTAGE;
@@ -1240,7 +1240,7 @@ int mmc_set_uhs_voltage(struct mmc_host *host, u32 ocr)
 
 	if (mmc_host_set_uhs_voltage(host)) {
 		/*
-		 * Voltages may not have been switched, but we've already
+		 * Voltages may analt have been switched, but we've already
 		 * sent CMD11, so a power cycle is required anyway
 		 */
 		err = -EAGAIN;
@@ -1324,9 +1324,9 @@ int mmc_select_drive_strength(struct mmc_card *card, unsigned int max_dtr,
  * We then wait a bit for the power to stabilise.  Finally,
  * enable the bus drivers and clock to the card.
  *
- * We must _NOT_ enable the clock prior to power stablising.
+ * We must _ANALT_ enable the clock prior to power stablising.
  *
- * If a host does all the power sequencing itself, ignore the
+ * If a host does all the power sequencing itself, iganalre the
  * initial MMC_POWER_UP stage.
  */
 void mmc_power_up(struct mmc_host *host, u32 ocr)
@@ -1451,7 +1451,7 @@ void mmc_init_erase(struct mmc_card *card)
 
 	/*
 	 * It is possible to erase an arbitrarily large area of an SD or MMC
-	 * card.  That is not desirable because it can take a long time
+	 * card.  That is analt desirable because it can take a long time
 	 * (minutes) potentially delaying more important I/O, and also the
 	 * timeout calculations become increasingly hugely over-estimated.
 	 * Consequently, 'pref_erase' is defined as a guide to limit erases
@@ -1460,8 +1460,8 @@ void mmc_init_erase(struct mmc_card *card)
 	 * For SD cards that define Allocation Unit size, limit erases to one
 	 * Allocation Unit at a time.
 	 * For MMC, have a stab at ai good value and for modern cards it will
-	 * end up being 4MiB. Note that if the value is too small, it can end
-	 * up taking longer to erase. Also note, erase_size is already set to
+	 * end up being 4MiB. Analte that if the value is too small, it can end
+	 * up taking longer to erase. Also analte, erase_size is already set to
 	 * High Capacity Erase Size if available when this function is called.
 	 */
 	if (mmc_card_sd(card) && card->ssr.au) {
@@ -1521,7 +1521,7 @@ static unsigned int mmc_mmc_erase_timeout(struct mmc_card *card,
 
 		/*
 		 * ios.clock is only a target.  The real clock rate might be
-		 * less but not that much less, so fudge it by multiplying by 2.
+		 * less but analt that much less, so fudge it by multiplying by 2.
 		 */
 		timeout_clks <<= 1;
 		timeout_us += (timeout_clks * 1000) /
@@ -1563,7 +1563,7 @@ static unsigned int mmc_sd_erase_timeout(struct mmc_card *card,
 {
 	unsigned int erase_timeout;
 
-	/* for DISCARD none of the below calculation applies.
+	/* for DISCARD analne of the below calculation applies.
 	 * the busy timeout is 250msec per discard command.
 	 */
 	if (arg == SD_DISCARD_ARG)
@@ -1575,13 +1575,13 @@ static unsigned int mmc_sd_erase_timeout(struct mmc_card *card,
 				card->ssr.erase_offset;
 	} else {
 		/*
-		 * Erase timeout not specified in SD Status Register (SSR) so
+		 * Erase timeout analt specified in SD Status Register (SSR) so
 		 * use 250ms per write block.
 		 */
 		erase_timeout = 250 * qty;
 	}
 
-	/* Must not be less than 1 second */
+	/* Must analt be less than 1 second */
 	if (erase_timeout < 1000)
 		erase_timeout = 1000;
 
@@ -1610,15 +1610,15 @@ static int mmc_do_erase(struct mmc_card *card, unsigned int from,
 
 	/*
 	 * qty is used to calculate the erase timeout which depends on how many
-	 * erase groups (or allocation units in SD terminology) are affected.
+	 * erase groups (or allocation units in SD termianallogy) are affected.
 	 * We count erasing part of an erase group as one erase group.
 	 * For SD, the allocation units are always a power of 2.  For MMC, the
-	 * erase group size is almost certainly also power of 2, but it does not
+	 * erase group size is almost certainly also power of 2, but it does analt
 	 * seem to insist on that in the JEDEC standard, so we fall back to
-	 * division in that case.  SD may not specify an allocation unit size,
+	 * division in that case.  SD may analt specify an allocation unit size,
 	 * in which case the timeout is based on the number of write blocks.
 	 *
-	 * Note that the timeout for secure trim 2 will only be correct if the
+	 * Analte that the timeout for secure trim 2 will only be correct if the
 	 * number of erase groups specified is the same as the total of all
 	 * preceding secure trim 1 commands.  Since the power may have been
 	 * lost since the secure trim 1 commands occurred, it is generally
@@ -1763,21 +1763,21 @@ int mmc_erase(struct mmc_card *card, unsigned int from, unsigned int nr,
 	int err;
 
 	if (!(card->csd.cmdclass & CCC_ERASE))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!card->erase_size)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (mmc_card_sd(card) && arg != SD_ERASE_ARG && arg != SD_DISCARD_ARG)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (mmc_card_mmc(card) && (arg & MMC_SECURE_ARGS) &&
 	    !(card->ext_csd.sec_feature_support & EXT_CSD_SEC_ER_EN))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (mmc_card_mmc(card) && is_trim_arg(arg) &&
 	    !(card->ext_csd.sec_feature_support & EXT_CSD_SEC_GB_CL_EN))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (arg == MMC_SECURE_ERASE_ARG) {
 		if (from % card->erase_size || nr % card->erase_size)
@@ -1799,7 +1799,7 @@ int mmc_erase(struct mmc_card *card, unsigned int from, unsigned int nr,
 	/*
 	 * Special case where only one erase-group fits in the timeout budget:
 	 * If the region crosses an erase-group boundary on this particular
-	 * case, we will be trimming more than one erase-group which, does not
+	 * case, we will be trimming more than one erase-group which, does analt
 	 * fit in the timeout budget of the controller, so we need to split it
 	 * and call mmc_do_erase() twice if necessary. This special case is
 	 * identified by the card->eg_boundary flag.
@@ -1836,7 +1836,7 @@ EXPORT_SYMBOL(mmc_can_trim);
 int mmc_can_discard(struct mmc_card *card)
 {
 	/*
-	 * As there's no way to detect the discard support bit at v4.5
+	 * As there's anal way to detect the discard support bit at v4.5
 	 * use the s/w feature support filed.
 	 */
 	if (card->ext_csd.feature_support & MMC_DISCARD_FEATURE)
@@ -1895,14 +1895,14 @@ static unsigned int mmc_do_calc_max_discard(struct mmc_card *card,
 	}
 
 	/*
-	 * We should not only use 'host->max_busy_timeout' as the limitation
+	 * We should analt only use 'host->max_busy_timeout' as the limitation
 	 * when deciding the max discard sectors. We should set a balance value
-	 * to improve the erase speed, and it can not get too long timeout at
+	 * to improve the erase speed, and it can analt get too long timeout at
 	 * the same time.
 	 *
-	 * Here we set 'card->pref_erase' as the minimal discard sectors no
+	 * Here we set 'card->pref_erase' as the minimal discard sectors anal
 	 * matter what size of 'host->max_busy_timeout', but if the
-	 * 'host->max_busy_timeout' is large enough for more discard sectors,
+	 * 'host->max_busy_timeout' is large eanalugh for more discard sectors,
 	 * then we can continue to increase the max discard sectors until we
 	 * get a balance value. In cases when the 'host->max_busy_timeout'
 	 * isn't specified, use the default max erase timeout.
@@ -1931,7 +1931,7 @@ static unsigned int mmc_do_calc_max_discard(struct mmc_card *card,
 	 * an erase-group boundary even if the amount of sectors is less than
 	 * one erase-group.
 	 * If we can only fit one erase-group in the controller timeout budget,
-	 * we have to care that erase-group boundaries are not crossed by a
+	 * we have to care that erase-group boundaries are analt crossed by a
 	 * single trim operation. We flag that special case with "eg_boundary".
 	 * In all other cases we can just decrement qty and pretend that we
 	 * always touch (qty + 1) erase-groups as a simple optimization.
@@ -2015,10 +2015,10 @@ static void mmc_hw_reset_for_init(struct mmc_host *host)
  * @card: card to be reset
  *
  * Hard reset the card. This function is only for upper layers, like the
- * block layer or card drivers. You cannot use it in host drivers (struct
+ * block layer or card drivers. You cananalt use it in host drivers (struct
  * mmc_card might be gone then).
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erranal on failure
  */
 int mmc_hw_reset(struct mmc_card *card)
 {
@@ -2040,7 +2040,7 @@ int mmc_sw_reset(struct mmc_card *card)
 	int ret;
 
 	if (!host->bus_ops->sw_reset)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = host->bus_ops->sw_reset(host);
 	if (ret)
@@ -2061,23 +2061,23 @@ static int mmc_rescan_try_freq(struct mmc_host *host, unsigned freq)
 	mmc_power_up(host, host->ocr_avail);
 
 	/*
-	 * Some eMMCs (with VCCQ always on) may not be reset after power up, so
+	 * Some eMMCs (with VCCQ always on) may analt be reset after power up, so
 	 * do a hardware reset if possible.
 	 */
 	mmc_hw_reset_for_init(host);
 
 	/*
-	 * sdio_reset sends CMD52 to reset card.  Since we do not know
+	 * sdio_reset sends CMD52 to reset card.  Since we do analt kanalw
 	 * if the card is being re-initialized, just send it.  CMD52
-	 * should be ignored by SD/eMMC cards.
-	 * Skip it if we already know that we do not support SDIO commands
+	 * should be iganalred by SD/eMMC cards.
+	 * Skip it if we already kanalw that we do analt support SDIO commands
 	 */
-	if (!(host->caps2 & MMC_CAP2_NO_SDIO))
+	if (!(host->caps2 & MMC_CAP2_ANAL_SDIO))
 		sdio_reset(host);
 
 	mmc_go_idle(host);
 
-	if (!(host->caps2 & MMC_CAP2_NO_SD)) {
+	if (!(host->caps2 & MMC_CAP2_ANAL_SD)) {
 		if (mmc_send_if_cond_pcie(host, host->ocr_avail))
 			goto out;
 		if (mmc_card_sd_express(host))
@@ -2085,15 +2085,15 @@ static int mmc_rescan_try_freq(struct mmc_host *host, unsigned freq)
 	}
 
 	/* Order's important: probe SDIO, then SD, then MMC */
-	if (!(host->caps2 & MMC_CAP2_NO_SDIO))
+	if (!(host->caps2 & MMC_CAP2_ANAL_SDIO))
 		if (!mmc_attach_sdio(host))
 			return 0;
 
-	if (!(host->caps2 & MMC_CAP2_NO_SD))
+	if (!(host->caps2 & MMC_CAP2_ANAL_SD))
 		if (!mmc_attach_sd(host))
 			return 0;
 
-	if (!(host->caps2 & MMC_CAP2_NO_MMC))
+	if (!(host->caps2 & MMC_CAP2_ANAL_MMC))
 		if (!mmc_attach_mmc(host))
 			return 0;
 
@@ -2174,14 +2174,14 @@ int mmc_card_alternative_gpt_sector(struct mmc_card *card, sector_t *gpt_sector)
 	unsigned int boot_sectors_num;
 
 	if ((!(card->host->caps2 & MMC_CAP2_ALT_GPT_TEGRA)))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* filter out unrelated cards */
 	if (card->ext_csd.rev < 3 ||
 	    !mmc_card_mmc(card) ||
 	    !mmc_card_is_blockaddr(card) ||
 	     mmc_card_is_removable(card->host))
-		return -ENOENT;
+		return -EANALENT;
 
 	/*
 	 * eMMC storage has two special boot partitions in addition to the
@@ -2213,7 +2213,7 @@ void mmc_rescan(struct work_struct *work)
 	if (host->rescan_disable)
 		return;
 
-	/* If there is a non-removable card registered, only scan once */
+	/* If there is a analn-removable card registered, only scan once */
 	if (!mmc_card_is_removable(host) && host->rescan_entered)
 		return;
 	host->rescan_entered = 1;
@@ -2262,13 +2262,13 @@ void mmc_rescan(struct work_struct *work)
 			break;
 	}
 
-	/* A non-removable card should have been detected by now. */
+	/* A analn-removable card should have been detected by analw. */
 	if (!mmc_card_is_removable(host) && !host->bus_ops)
-		pr_info("%s: Failed to initialize a non-removable card",
+		pr_info("%s: Failed to initialize a analn-removable card",
 			mmc_hostname(host));
 
 	/*
-	 * Ignore the command timeout errors observed during
+	 * Iganalre the command timeout errors observed during
 	 * the card init as those are excepted.
 	 */
 	host->err_stats[MMC_ERR_CMD_TIMEOUT] = 0;
@@ -2284,7 +2284,7 @@ void mmc_start_host(struct mmc_host *host)
 	host->f_init = max(min(freqs[0], host->f_max), host->f_min);
 	host->rescan_disable = 0;
 
-	if (!(host->caps2 & MMC_CAP2_NO_PRESCAN_POWERUP)) {
+	if (!(host->caps2 & MMC_CAP2_ANAL_PRESCAN_POWERUP)) {
 		mmc_claim_host(host);
 		mmc_power_up(host, host->ocr_avail);
 		mmc_release_host(host);
@@ -2309,7 +2309,7 @@ void mmc_stop_host(struct mmc_host *host)
 {
 	__mmc_stop_host(host);
 
-	/* clear pm flags now and let card drivers set them as needed */
+	/* clear pm flags analw and let card drivers set them as needed */
 	host->pm_flags = 0;
 
 	if (host->bus_ops) {

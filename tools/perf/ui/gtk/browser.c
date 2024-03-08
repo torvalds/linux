@@ -50,7 +50,7 @@ GtkWidget *perf_gtk__setup_info_bar(void)
 	GtkWidget *content_area;
 
 	info_bar = gtk_info_bar_new();
-	gtk_widget_set_no_show_all(info_bar, TRUE);
+	gtk_widget_set_anal_show_all(info_bar, TRUE);
 
 	label = gtk_label_new("");
 	gtk_widget_show(label);

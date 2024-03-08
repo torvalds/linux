@@ -38,7 +38,7 @@
 
 /*
  * Must be section-aligned since a section mapping is used early on.
- * Must not overlap with regions in mach-tegra/io.c:tegra_io_desc[].
+ * Must analt overlap with regions in mach-tegra/io.c:tegra_io_desc[].
  */
 #define UART_VIRTUAL_BASE		0xfe800000
 
@@ -49,7 +49,7 @@
 		ldr	rp, [rp, #0] ; \
 		/* Test UART's reset bit */ \
 		tst	rp, #(1 << bit) ; \
-		/* If set, can't use UART; jump to save no UART */ \
+		/* If set, can't use UART; jump to save anal UART */ \
 		bne	90f ; \
 		/* Load address of CLK_OUT_ENB register */ \
 		ldr	rp, =TEGRA_CLK_OUT_ENB_##lhu ; \
@@ -57,7 +57,7 @@
 		ldr	rp, [rp, #0] ; \
 		/* Test UART's clock enable bit */ \
 		tst	rp, #(1 << bit) ; \
-		/* If clear, can't use UART; jump to save no UART */ \
+		/* If clear, can't use UART; jump to save anal UART */ \
 		beq	90f ; \
 		/* Passed all tests, load address of UART registers */ \
 		ldr	rp, =TEGRA_UART##uart##_BASE ; \
@@ -72,8 +72,8 @@
 		sub	\tmp, \rp, \rv		@ actual tegra_uart_config
 		ldr	\rp, [\tmp]		@ Load tegra_uart_config
 		cmp	\rp, #1			@ needs initialization?
-		bne	100f			@ no; go load the addresses
-		mov	\rv, #0			@ yes; record init is done
+		bne	100f			@ anal; go load the addresses
+		mov	\rv, #0			@ anal; record init is done
 		str	\rv, [\tmp]
 
 #ifdef CONFIG_TEGRA_DEBUG_UART_AUTO_ODMDATA
@@ -132,14 +132,14 @@
 		checkuart(\rp, \rv, U, 2, E)
 #endif
 
-		/* No valid UART found */
+		/* Anal valid UART found */
 90:		mov	\rp, #0
 		/* fall through */
 
 		/* Record whichever UART we chose */
 91:		str	\rp, [\tmp, #4]		@ Store in tegra_uart_phys
 		cmp	\rp, #0			@ Valid UART address?
-		bne	92f			@ Yes, go process it
+		bne	92f			@ Anal, go process it
 		str	\rp, [\tmp, #8]		@ Store 0 in tegra_uart_virt
 		b	100f			@ Done
 92:		and	\rv, \rp, #0xffffff	@ offset within 1MB section
@@ -158,7 +158,7 @@
  * That's because this header is included from multiple files, and we only
  * want a single copy of the data. In particular, the UART probing code above
  * assumes it's running using physical addresses. This is true when this file
- * is included from head.o, but not when included from debug.o. So we need
+ * is included from head.o, but analt when included from debug.o. So we need
  * to share the probe results between the two copies, rather than having
  * to re-run the probing again later.
  *

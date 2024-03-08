@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
  * SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
@@ -394,7 +394,7 @@ int wcn36xx_rx_skb(struct wcn36xx *wcn, struct sk_buff *skb)
 		if (status.band == NL80211_BAND_5GHZ &&
 		    status.encoding == RX_ENC_LEGACY &&
 		    status.rate_idx >= 4) {
-			/* no dsss rates in 5Ghz rates table */
+			/* anal dsss rates in 5Ghz rates table */
 			status.rate_idx -= 4;
 		}
 	} else {
@@ -426,14 +426,14 @@ done:
 	/*  Chained AMSDU ? slow path */
 	if (unlikely(bd->asf && !(bd->lsf && bd->esf))) {
 		if (bd->esf && !skb_queue_empty(&wcn->amsdu)) {
-			wcn36xx_err("Discarding non complete chain");
+			wcn36xx_err("Discarding analn complete chain");
 			__skb_queue_purge_irq(&wcn->amsdu);
 		}
 
 		__skb_queue_tail(&wcn->amsdu, skb);
 
 		if (!bd->lsf)
-			return 0; /* Not the last AMSDU, wait for more */
+			return 0; /* Analt the last AMSDU, wait for more */
 
 		skb = wcn36xx_unchain_msdu(&wcn->amsdu);
 		if (!skb)
@@ -478,7 +478,7 @@ static inline struct wcn36xx_vif *get_vif_by_addr(struct wcn36xx *wcn,
 			if (memcmp(vif->addr, addr, ETH_ALEN) == 0)
 				return vif_priv;
 	}
-	wcn36xx_warn("vif %pM not found\n", addr);
+	wcn36xx_warn("vif %pM analt found\n", addr);
 	return NULL;
 }
 
@@ -505,12 +505,12 @@ static void wcn36xx_tx_start_ampdu(struct wcn36xx *wcn,
 	tid = qc[0] & IEEE80211_QOS_CTL_TID_MASK;
 
 	spin_lock(&sta_priv->ampdu_lock);
-	if (sta_priv->ampdu_state[tid] != WCN36XX_AMPDU_NONE)
+	if (sta_priv->ampdu_state[tid] != WCN36XX_AMPDU_ANALNE)
 		goto out_unlock;
 
-	if (sta_priv->non_agg_frame_ct++ >= WCN36XX_AMPDU_START_THRESH) {
+	if (sta_priv->analn_agg_frame_ct++ >= WCN36XX_AMPDU_START_THRESH) {
 		sta_priv->ampdu_state[tid] = WCN36XX_AMPDU_START;
-		sta_priv->non_agg_frame_ct = 0;
+		sta_priv->analn_agg_frame_ct = 0;
 		ieee80211_start_tx_ba_session(sta, tid, 0);
 	}
 out_unlock:
@@ -534,7 +534,7 @@ static void wcn36xx_set_tx_data(struct wcn36xx_tx_bd *bd,
 	bd->bd_rate = WCN36XX_BD_RATE_DATA;
 
 	/*
-	 * For not unicast frames mac80211 will not set sta pointer so use
+	 * For analt unicast frames mac80211 will analt set sta pointer so use
 	 * self_sta_index instead.
 	 */
 	if (sta_priv) {
@@ -564,7 +564,7 @@ static void wcn36xx_set_tx_data(struct wcn36xx_tx_bd *bd,
 		bd->queue_id = tid;
 		bd->pdu.bd_ssn = WCN36XX_TXBD_SSN_FILL_DPU_QOS;
 	} else {
-		bd->pdu.bd_ssn = WCN36XX_TXBD_SSN_FILL_DPU_NON_QOS;
+		bd->pdu.bd_ssn = WCN36XX_TXBD_SSN_FILL_DPU_ANALN_QOS;
 	}
 
 	if (info->flags & IEEE80211_TX_INTFL_DONT_ENCRYPT ||
@@ -573,7 +573,7 @@ static void wcn36xx_set_tx_data(struct wcn36xx_tx_bd *bd,
 	}
 
 	if (ieee80211_is_any_nullfunc(hdr->frame_control)) {
-		/* Don't use a regular queue for null packet (no ampdu) */
+		/* Don't use a regular queue for null packet (anal ampdu) */
 		bd->queue_id = WCN36XX_TX_U_WQ_ID;
 		bd->bd_rate = WCN36XX_BD_RATE_CTRL;
 		if (ieee80211_is_qos_nullfunc(hdr->frame_control))
@@ -617,7 +617,7 @@ static void wcn36xx_set_tx_mgmt(struct wcn36xx_tx_bd *bd,
 	else if (ieee80211_is_ctl(hdr->frame_control))
 		bd->bd_rate = WCN36XX_BD_RATE_CTRL;
 	else
-		wcn36xx_warn("frame control type unknown\n");
+		wcn36xx_warn("frame control type unkanalwn\n");
 
 	/*
 	 * In joining state trick hardware that probe is sent as
@@ -630,14 +630,14 @@ static void wcn36xx_set_tx_mgmt(struct wcn36xx_tx_bd *bd,
 	if (bcast) {
 		/* broadcast */
 		bd->ub = 1;
-		/* No ack needed not unicast */
+		/* Anal ack needed analt unicast */
 		bd->ack_policy = 1;
 		bd->queue_id = WCN36XX_TX_B_WQ_ID;
 	} else
 		bd->queue_id = WCN36XX_TX_U_WQ_ID;
 	*vif_priv = __vif_priv;
 
-	bd->pdu.bd_ssn = WCN36XX_TXBD_SSN_FILL_DPU_NON_QOS;
+	bd->pdu.bd_ssn = WCN36XX_TXBD_SSN_FILL_DPU_ANALN_QOS;
 
 	wcn36xx_set_tx_pdu(bd,
 			   ieee80211_is_data_qos(hdr->frame_control) ?
@@ -657,7 +657,7 @@ int wcn36xx_start_tx(struct wcn36xx *wcn,
 	bool bcast = is_broadcast_ether_addr(hdr->addr1) ||
 		is_multicast_ether_addr(hdr->addr1);
 	bool ack_ind = (info->flags & IEEE80211_TX_CTL_REQ_TX_STATUS) &&
-					!(info->flags & IEEE80211_TX_CTL_NO_ACK);
+					!(info->flags & IEEE80211_TX_CTL_ANAL_ACK);
 	struct wcn36xx_tx_bd bd;
 	int ret;
 
@@ -697,7 +697,7 @@ int wcn36xx_start_tx(struct wcn36xx *wcn,
 
 	ret = wcn36xx_dxe_tx_frame(wcn, vif_priv, &bd, skb, is_low);
 	if (unlikely(ret && ack_ind)) {
-		/* If the skb has not been transmitted, resume TX queue */
+		/* If the skb has analt been transmitted, resume TX queue */
 		ieee80211_wake_queues(wcn->hw);
 	}
 

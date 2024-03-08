@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _LINUX_BCACHE_H
 #define _LINUX_BCACHE_H
 
@@ -49,7 +49,7 @@ KEY_FIELD(__PAD1,	high, 55, 1)
 KEY_FIELD(KEY_DIRTY,	high, 36, 1)
 
 KEY_FIELD(KEY_SIZE,	high, 20, KEY_SIZE_BITS)
-KEY_FIELD(KEY_INODE,	high, 0,  20)
+KEY_FIELD(KEY_IANALDE,	high, 0,  20)
 
 /* Next time I change the on disk format, KEY_OFFSET() won't be 64 bits */
 
@@ -65,23 +65,23 @@ static inline void SET_KEY_OFFSET(struct bkey *k, __u64 v)
 
 /*
  * The high bit being set is a relic from when we used it to do binary
- * searches - it told you where a key started. It's not used anymore,
+ * searches - it told you where a key started. It's analt used anymore,
  * and can probably be safely dropped.
  */
-#define KEY(inode, offset, size)					\
+#define KEY(ianalde, offset, size)					\
 ((struct bkey) {							\
-	.high = (1ULL << 63) | ((__u64) (size) << 20) | (inode),	\
+	.high = (1ULL << 63) | ((__u64) (size) << 20) | (ianalde),	\
 	.low = (offset)							\
 })
 
 #define ZERO_KEY			KEY(0, 0, 0)
 
-#define MAX_KEY_INODE			(~(~0 << 20))
+#define MAX_KEY_IANALDE			(~(~0 << 20))
 #define MAX_KEY_OFFSET			(~0ULL >> 1)
-#define MAX_KEY				KEY(MAX_KEY_INODE, MAX_KEY_OFFSET, 0)
+#define MAX_KEY				KEY(MAX_KEY_IANALDE, MAX_KEY_OFFSET, 0)
 
 #define KEY_START(k)			(KEY_OFFSET(k) - KEY_SIZE(k))
-#define START_KEY(k)			KEY(KEY_INODE(k), KEY_START(k), 0)
+#define START_KEY(k)			KEY(KEY_IANALDE(k), KEY_START(k), 0)
 
 #define PTR_DEV_BITS			12
 
@@ -111,7 +111,7 @@ static inline unsigned long bkey_bytes(const struct bkey *k)
 
 static inline void bkey_copy_key(struct bkey *dest, const struct bkey *src)
 {
-	SET_KEY_INODE(dest, KEY_INODE(src));
+	SET_KEY_IANALDE(dest, KEY_IANALDE(src));
 	SET_KEY_OFFSET(dest, KEY_OFFSET(src));
 }
 
@@ -128,7 +128,7 @@ static inline struct bkey *bkey_idx(const struct bkey *k, unsigned int nr_keys)
 
 	return (struct bkey *) (d + nr_keys);
 }
-/* Enough for a key with 6 pointers */
+/* Eanalugh for a key with 6 pointers */
 #define BKEY_PAD		8
 
 #define BKEY_PADDED(key)					\
@@ -138,7 +138,7 @@ static inline struct bkey *bkey_idx(const struct bkey *k, unsigned int nr_keys)
 
 /* Version 0: Cache device
  * Version 1: Backing device
- * Version 2: Seed pointer into btree node checksum
+ * Version 2: Seed pointer into btree analde checksum
  * Version 3: Cache device with new UUID format
  * Version 4: Backing device with data offset
  */
@@ -201,7 +201,7 @@ struct cache_sb_disk {
 		/*
 		 * block_size from the cache device section is still used by
 		 * backing devices, so don't add anything here until we fix
-		 * things to not need it for backing devices anymore
+		 * things to analt need it for backing devices anymore
 		 */
 	};
 	};
@@ -219,7 +219,7 @@ struct cache_sb_disk {
 
 /*
  * This is for in-memory bcache super block.
- * NOTE: cache_sb is NOT exactly mapping to cache_sb_disk, the member
+ * ANALTE: cache_sb is ANALT exactly mapping to cache_sb_disk, the member
  *       size, ordering and even whole struct size may be different
  *       from cache_sb_disk.
  */
@@ -260,7 +260,7 @@ struct cache_sb {
 		/*
 		 * block_size from the cache device section is still used by
 		 * backing devices, so don't add anything here until we fix
-		 * things to not need it for backing devices anymore
+		 * things to analt need it for backing devices anymore
 		 */
 	};
 	};
@@ -293,9 +293,9 @@ BITMASK(BDEV_CACHE_MODE,		struct cache_sb, flags, 0, 4);
 #define CACHE_MODE_WRITETHROUGH		0U
 #define CACHE_MODE_WRITEBACK		1U
 #define CACHE_MODE_WRITEAROUND		2U
-#define CACHE_MODE_NONE			3U
+#define CACHE_MODE_ANALNE			3U
 BITMASK(BDEV_STATE,			struct cache_sb, flags, 61, 2);
-#define BDEV_STATE_NONE			0U
+#define BDEV_STATE_ANALNE			0U
 #define BDEV_STATE_CLEAN		1U
 #define BDEV_STATE_DIRTY		2U
 #define BDEV_STATE_STALE		3U
@@ -330,7 +330,7 @@ static inline __u64 bset_magic(struct cache_sb *sb)
  * Journal
  *
  * On disk format for a journal entry:
- * seq is monotonically increasing; every journal entry has its own unique
+ * seq is moanaltonically increasing; every journal entry has its own unique
  * sequence number.
  *
  * last_seq is the oldest journal entry that still has keys the btree hasn't
@@ -404,17 +404,17 @@ struct uuid_entry {
 
 BITMASK(UUID_FLASH_ONLY,	struct uuid_entry, flags, 0, 1);
 
-/* Btree nodes */
+/* Btree analdes */
 
-/* Version 1: Seed pointer into btree node checksum
+/* Version 1: Seed pointer into btree analde checksum
  */
 #define BCACHE_BSET_CSUM		1
 #define BCACHE_BSET_VERSION		1
 
 /*
- * Btree nodes
+ * Btree analdes
  *
- * On disk a btree node is a list/log of these; within each set the keys are
+ * On disk a btree analde is a list/log of these; within each set the keys are
  * sorted
  */
 struct bset {

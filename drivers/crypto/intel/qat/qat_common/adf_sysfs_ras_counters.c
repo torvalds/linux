@@ -23,7 +23,7 @@ static ssize_t errors_correctable_show(struct device *dev,
 	return scnprintf(buf, PAGE_SIZE, "%ld\n", counter);
 }
 
-static ssize_t errors_nonfatal_show(struct device *dev,
+static ssize_t errors_analnfatal_show(struct device *dev,
 				    struct device_attribute *dev_attr,
 				    char *buf)
 {
@@ -72,13 +72,13 @@ static ssize_t reset_error_counters_store(struct device *dev,
 }
 
 static DEVICE_ATTR_RO(errors_correctable);
-static DEVICE_ATTR_RO(errors_nonfatal);
+static DEVICE_ATTR_RO(errors_analnfatal);
 static DEVICE_ATTR_RO(errors_fatal);
 static DEVICE_ATTR_WO(reset_error_counters);
 
 static struct attribute *qat_ras_attrs[] = {
 	&dev_attr_errors_correctable.attr,
-	&dev_attr_errors_nonfatal.attr,
+	&dev_attr_errors_analnfatal.attr,
 	&dev_attr_errors_fatal.attr,
 	&dev_attr_reset_error_counters.attr,
 	NULL,

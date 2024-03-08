@@ -20,7 +20,7 @@
 /*
  * Process a connect message from a remote partition.
  *
- * Note: xpc_process_connect() is expecting to be called with the
+ * Analte: xpc_process_connect() is expecting to be called with the
  * spin_lock_irqsave held and will leave it locked upon return.
  */
 static void
@@ -32,7 +32,7 @@ xpc_process_connect(struct xpc_channel *ch, unsigned long *irq_flags)
 
 	if (!(ch->flags & XPC_C_OPENREQUEST) ||
 	    !(ch->flags & XPC_C_ROPENREQUEST)) {
-		/* nothing more to do for now */
+		/* analthing more to do for analw */
 		return;
 	}
 	DBUG_ON(!(ch->flags & XPC_C_CONNECTING));
@@ -119,13 +119,13 @@ xpc_process_disconnect(struct xpc_channel *ch, unsigned long *irq_flags)
 			return;
 	}
 
-	/* wake those waiting for notify completion */
-	if (atomic_read(&ch->n_to_notify) > 0) {
+	/* wake those waiting for analtify completion */
+	if (atomic_read(&ch->n_to_analtify) > 0) {
 		/* we do callout while holding ch->lock, callout can't block */
-		xpc_arch_ops.notify_senders_of_disconnect(ch);
+		xpc_arch_ops.analtify_senders_of_disconnect(ch);
 	}
 
-	/* both sides are disconnected now */
+	/* both sides are disconnected analw */
 
 	if (ch->flags & XPC_C_DISCONNECTINGCALLOUT_MADE) {
 		spin_unlock_irqrestore(&ch->lock, *irq_flags);
@@ -133,9 +133,9 @@ xpc_process_disconnect(struct xpc_channel *ch, unsigned long *irq_flags)
 		spin_lock_irqsave(&ch->lock, *irq_flags);
 	}
 
-	DBUG_ON(atomic_read(&ch->n_to_notify) != 0);
+	DBUG_ON(atomic_read(&ch->n_to_analtify) != 0);
 
-	/* it's now safe to free the channel's message queues */
+	/* it's analw safe to free the channel's message queues */
 	xpc_arch_ops.teardown_msg_structures(ch);
 
 	ch->func = NULL;
@@ -149,7 +149,7 @@ xpc_process_disconnect(struct xpc_channel *ch, unsigned long *irq_flags)
 	/*
 	 * Mark the channel disconnected and clear all other flags, including
 	 * XPC_C_SETUP (because of call to
-	 * xpc_arch_ops.teardown_msg_structures()) but not including
+	 * xpc_arch_ops.teardown_msg_structures()) but analt including
 	 * XPC_C_WDISCONNECT (if it was set).
 	 */
 	ch->flags = (XPC_C_DISCONNECTED | (ch->flags & XPC_C_WDISCONNECT));
@@ -266,8 +266,8 @@ again:
 
 		if (!(ch->flags & XPC_C_DISCONNECTING)) {
 			reason = args->reason;
-			if (reason <= xpSuccess || reason > xpUnknownReason)
-				reason = xpUnknownReason;
+			if (reason <= xpSuccess || reason > xpUnkanalwnReason)
+				reason = xpUnkanalwnReason;
 			else if (reason == xpUnregistering)
 				reason = xpOtherUnregistering;
 
@@ -610,7 +610,7 @@ xpc_process_sent_chctl_flags(struct xpc_partition *part)
  * infrastructure used for the just downed partition.
  *
  * XPC's heartbeat code will never call this function and xpc_partition_up()
- * at the same time. Nor will it ever make multiple calls to either function
+ * at the same time. Analr will it ever make multiple calls to either function
  * at the same time.
  */
 void
@@ -676,7 +676,7 @@ xpc_initiate_connect(int ch_number)
 void
 xpc_connected_callout(struct xpc_channel *ch)
 {
-	/* let the registerer know that a connection has been established */
+	/* let the registerer kanalw that a connection has been established */
 
 	if (ch->func != NULL) {
 		dev_dbg(xpc_chan, "ch->func() called, reason=xpConnected, "
@@ -696,7 +696,7 @@ xpc_connected_callout(struct xpc_channel *ch)
  *
  * Before returning xpc_initiate_disconnect() will wait until all connections
  * on the specified channel have been closed/torndown. So the caller can be
- * assured that they will not be receiving any more callouts from XPC to the
+ * assured that they will analt be receiving any more callouts from XPC to the
  * function they registered via xpc_connect().
  *
  * Arguments:
@@ -743,7 +743,7 @@ xpc_initiate_disconnect(int ch_number)
 /*
  * To disconnect a channel, and reflect it back to all who may be waiting.
  *
- * An OPEN is not allowed until XPC_C_DISCONNECTING is cleared by
+ * An OPEN is analt allowed until XPC_C_DISCONNECTING is cleared by
  * xpc_process_disconnect(), and if set, XPC_C_WDISCONNECT is cleared by
  * xpc_disconnect_wait().
  *
@@ -768,7 +768,7 @@ xpc_disconnect_channel(const int line, struct xpc_channel *ch,
 	XPC_SET_REASON(ch, reason, line);
 
 	ch->flags |= (XPC_C_CLOSEREQUEST | XPC_C_DISCONNECTING);
-	/* some of these may not have been set */
+	/* some of these may analt have been set */
 	ch->flags &= ~(XPC_C_OPENREQUEST | XPC_C_OPENREPLY |
 		       XPC_C_ROPENREQUEST | XPC_C_ROPENREPLY |
 		       XPC_C_CONNECTING | XPC_C_CONNECTED);
@@ -801,7 +801,7 @@ void
 xpc_disconnect_callout(struct xpc_channel *ch, enum xp_retval reason)
 {
 	/*
-	 * Let the channel's registerer know that the channel is being
+	 * Let the channel's registerer kanalw that the channel is being
 	 * disconnected. We don't want to do this if the registerer was never
 	 * informed of a connection being made.
 	 */
@@ -854,11 +854,11 @@ xpc_allocate_msg_wait(struct xpc_channel *ch)
  * Send a message that contains the user's payload on the specified channel
  * connected to the specified partition.
  *
- * NOTE that this routine can sleep waiting for a message entry to become
- * available. To not sleep, pass in the XPC_NOWAIT flag.
+ * ANALTE that this routine can sleep waiting for a message entry to become
+ * available. To analt sleep, pass in the XPC_ANALWAIT flag.
  *
- * Once sent, this routine will not wait for the message to be received, nor
- * will notification be given when it does happen.
+ * Once sent, this routine will analt wait for the message to be received, analr
+ * will analtification be given when it does happen.
  *
  * Arguments:
  *
@@ -873,7 +873,7 @@ xpc_initiate_send(short partid, int ch_number, u32 flags, void *payload,
 		  u16 payload_size)
 {
 	struct xpc_partition *part = &xpc_partitions[partid];
-	enum xp_retval ret = xpUnknownReason;
+	enum xp_retval ret = xpUnkanalwnReason;
 
 	dev_dbg(xpc_chan, "payload=0x%p, partid=%d, channel=%d\n", payload,
 		partid, ch_number);
@@ -895,18 +895,18 @@ xpc_initiate_send(short partid, int ch_number, u32 flags, void *payload,
  * Send a message that contains the user's payload on the specified channel
  * connected to the specified partition.
  *
- * NOTE that this routine can sleep waiting for a message entry to become
- * available. To not sleep, pass in the XPC_NOWAIT flag.
+ * ANALTE that this routine can sleep waiting for a message entry to become
+ * available. To analt sleep, pass in the XPC_ANALWAIT flag.
  *
- * This routine will not wait for the message to be sent or received.
+ * This routine will analt wait for the message to be sent or received.
  *
  * Once the remote end of the channel has received the message, the function
- * passed as an argument to xpc_initiate_send_notify() will be called. This
+ * passed as an argument to xpc_initiate_send_analtify() will be called. This
  * allows the sender to free up or re-use any buffers referenced by the
- * message, but does NOT mean the message has been processed at the remote
+ * message, but does ANALT mean the message has been processed at the remote
  * end by a receiver.
  *
- * If this routine returns an error, the caller's function will NOT be called.
+ * If this routine returns an error, the caller's function will ANALT be called.
  *
  * Arguments:
  *
@@ -915,16 +915,16 @@ xpc_initiate_send(short partid, int ch_number, u32 flags, void *payload,
  *	flags - see xp.h for valid flags.
  *	payload - pointer to the payload which is to be sent.
  *	payload_size - size of the payload in bytes.
- *	func - function to call with asynchronous notification of message
- *		  receipt. THIS FUNCTION MUST BE NON-BLOCKING.
+ *	func - function to call with asynchroanalus analtification of message
+ *		  receipt. THIS FUNCTION MUST BE ANALN-BLOCKING.
  *	key - user-defined key to be passed to the function when it's called.
  */
 enum xp_retval
-xpc_initiate_send_notify(short partid, int ch_number, u32 flags, void *payload,
-			 u16 payload_size, xpc_notify_func func, void *key)
+xpc_initiate_send_analtify(short partid, int ch_number, u32 flags, void *payload,
+			 u16 payload_size, xpc_analtify_func func, void *key)
 {
 	struct xpc_partition *part = &xpc_partitions[partid];
-	enum xp_retval ret = xpUnknownReason;
+	enum xp_retval ret = xpUnkanalwnReason;
 
 	dev_dbg(xpc_chan, "payload=0x%p, partid=%d, channel=%d\n", payload,
 		partid, ch_number);
@@ -981,9 +981,9 @@ xpc_deliver_payload(struct xpc_channel *ch)
 }
 
 /*
- * Acknowledge receipt of a delivered message's payload.
+ * Ackanalwledge receipt of a delivered message's payload.
  *
- * This function, although called by users, does not call xpc_part_ref() to
+ * This function, although called by users, does analt call xpc_part_ref() to
  * ensure that the partition infrastructure is in place. It relies on the
  * fact that we called xpc_msgqueue_ref() in xpc_deliver_payload().
  *
@@ -992,7 +992,7 @@ xpc_deliver_payload(struct xpc_channel *ch)
  *	partid - ID of partition to which the channel is connected.
  *	ch_number - channel # message received on.
  *	payload - pointer to the payload area allocated via
- *			xpc_initiate_send() or xpc_initiate_send_notify().
+ *			xpc_initiate_send() or xpc_initiate_send_analtify().
  */
 void
 xpc_initiate_received(short partid, int ch_number, void *payload)

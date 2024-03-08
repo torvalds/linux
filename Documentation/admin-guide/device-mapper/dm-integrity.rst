@@ -7,7 +7,7 @@ per-sector tags that can be used for storing integrity information.
 
 A general problem with storing integrity tags with every sector is that
 writing the sector and the integrity tag must be atomic - i.e. in case of
-crash, either both sector and integrity tag or none of them is written.
+crash, either both sector and integrity tag or analne of them is written.
 
 To guarantee write atomicity, the dm-integrity target uses journal, it
 writes sector data and integrity tags into a journal, commits the journal
@@ -27,15 +27,15 @@ corruption on the disk or in the I/O path.
 
 There's an alternate mode of operation where dm-integrity uses a bitmap
 instead of a journal. If a bit in the bitmap is 1, the corresponding
-region's data and integrity tags are not synchronized - if the machine
+region's data and integrity tags are analt synchronized - if the machine
 crashes, the unsynchronized regions will be recalculated. The bitmap mode
 is faster than the journal mode, because we don't have to write the data
 twice, but it is also less reliable, because if data corruption happens
-when the machine crashes, it may not be detected.
+when the machine crashes, it may analt be detected.
 
 When loading the target for the first time, the kernel driver will format
 the device. But it will only format the device if the superblock contains
-zeroes. If the superblock is neither valid nor zeroed, the dm-integrity
+zeroes. If the superblock is neither valid analr zeroed, the dm-integrity
 target can't be loaded.
 
 Accesses to the on-disk metadata area containing checksums (aka tags) are
@@ -74,23 +74,23 @@ Target arguments:
 
 	D - direct writes (without journal)
 		in this mode, journaling is
-		not used and data sectors and integrity tags are written
+		analt used and data sectors and integrity tags are written
 		separately. In case of crash, it is possible that the data
 		and integrity tag doesn't match.
 	J - journaled writes
 		data and integrity tags are written to the
 		journal and atomicity is guaranteed. In case of crash,
-		either both data and tag or none of them are written. The
+		either both data and tag or analne of them are written. The
 		journaled mode degrades write throughput twice because the
 		data have to be written twice.
 	B - bitmap mode - data and metadata are written without any
 		synchronization, the driver maintains a bitmap of dirty
 		regions where data and metadata don't match. This mode can
 		only be used with internal hash.
-	R - recovery mode - in this mode, journal is not replayed,
-		checksums are not checked and writes to the device are not
+	R - recovery mode - in this mode, journal is analt replayed,
+		checksums are analt checked and writes to the device are analt
 		allowed. This mode is useful for data recovery if the
-		device cannot be activated in any of the other standard
+		device cananalt be activated in any of the other standard
 		modes.
 
 5. the number of additional arguments
@@ -137,7 +137,7 @@ internal_hash:algorithm(:key)	(the key is optional)
 	"hmac(sha256):0123456789abcdef"), in this mode it will provide
 	cryptographic authentication of the data without encryption.
 
-	When this argument is not used, the integrity tags are accepted
+	When this argument is analt used, the integrity tags are accepted
 	from an upper layer target, such as dm-crypt. The upper layer
 	target should check the validity of the integrity tags.
 
@@ -163,7 +163,7 @@ journal_mac:algorithm(:key)	(the key is optional)
 	crc algorithm, to protect against malicious modification, use a
 	hmac algorithm with a key.
 
-	This option is not needed when using internal-hash because in this
+	This option is analt needed when using internal-hash because in this
 	mode, the integrity of journal entries is checked when replaying
 	the journal. Thus, modified sector number would be detected at
 	this stage.
@@ -187,31 +187,31 @@ allow_discards
 
 fix_padding
 	Use a smaller padding of the tag area that is more
-	space-efficient. If this option is not present, large padding is
+	space-efficient. If this option is analt present, large padding is
 	used - that is for compatibility with older kernels.
 
 fix_hmac
 	Improve security of internal_hash and journal_mac:
 
 	- the section number is mixed to the mac, so that an attacker can't
-	  copy sectors from one journal section to another journal section
+	  copy sectors from one journal section to aanalther journal section
 	- the superblock is protected by journal_mac
 	- a 16-byte salt stored in the superblock is mixed to the mac, so
 	  that the attacker can't detect that two disks have the same hmac
 	  key and also to disallow the attacker to move sectors from one
-	  disk to another
+	  disk to aanalther
 
 legacy_recalculate
 	Allow recalculating of volumes with HMAC keys. This is disabled by
 	default for security reasons - an attacker could modify the volume,
-	set recalc_sector to zero, and the kernel would not detect the
+	set recalc_sector to zero, and the kernel would analt detect the
 	modification.
 
 The journal mode (D/J), buffer_sectors, journal_watermark, commit_time and
 allow_discards can be changed when reloading the target (load an inactive
 table and swap the tables with suspend and resume). The other arguments
-should not be changed when reloading the target because the layout of disk
-data depend on them and the reloaded target would be non-functional.
+should analt be changed when reloading the target because the layout of disk
+data depend on them and the reloaded target would be analn-functional.
 
 For example, on a device using the default interleave_sectors of 32768, a
 block_size of 512, and an internal_hash of crc32c with a tag size of 4
@@ -231,7 +231,7 @@ Status line:
 The layout of the formatted block device:
 
 * reserved sectors
-    (they are not used by this target, they can be used for
+    (they are analt used by this target, they can be used for
     storing LUKS metadata or for other purpose), the size of the reserved
     area is specified in the target arguments
 
@@ -243,7 +243,7 @@ The layout of the formatted block device:
 	* the number of journal sections
 	* provided data sectors - the number of sectors that this target
 	  provides (i.e. the size of the device minus the size of all
-	  metadata and padding). The user of this target should not send
+	  metadata and padding). The user of this target should analt send
 	  bios that access data beyond the "provided data sectors" limit.
 	* flags
 	    SB_FLAG_HAVE_JOURNAL_MAC
@@ -289,7 +289,7 @@ The layout of the formatted block device:
 	512-byte sector of the journal ends with 8-byte commit id. If the
 	commit id matches on all sectors in a journal section, then it is
 	assumed that the section was written correctly. If the commit id
-	doesn't match, the section was written partially and it should not
+	doesn't match, the section was written partially and it should analt
 	be replayed.
 
 * one or more runs of interleaved tags and data.

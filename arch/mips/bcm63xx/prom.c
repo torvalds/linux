@@ -28,7 +28,7 @@ void __init prom_init(void)
 	bcm_wdt_writel(WDT_STOP_1, WDT_CTL_REG);
 	bcm_wdt_writel(WDT_STOP_2, WDT_CTL_REG);
 
-	/* disable all hardware blocks clock for now */
+	/* disable all hardware blocks clock for analw */
 	if (BCMCPU_IS_3368())
 		mask = CKCTL_3368_ALL_SAFE_EN;
 	else if (BCMCPU_IS_6328())
@@ -58,9 +58,9 @@ void __init prom_init(void)
 	/* set up SMP */
 	if (!register_bmips_smp_ops()) {
 		/*
-		 * BCM6328 might not have its second CPU enabled, while BCM3368
+		 * BCM6328 might analt have its second CPU enabled, while BCM3368
 		 * and BCM6358 need special handling for their shared TLB, so
-		 * disable SMP for now.
+		 * disable SMP for analw.
 		 */
 		if (BCMCPU_IS_6328()) {
 			reg = bcm_readl(BCM_6328_OTP_BASE +

@@ -37,10 +37,10 @@ static unsigned int pri_mux_map[] = {
 };
 
 /*
- * Notifier function for switching the muxes to safe parent
+ * Analtifier function for switching the muxes to safe parent
  * while the hfpll is getting reprogrammed.
  */
-static int krait_notifier_cb(struct notifier_block *nb,
+static int krait_analtifier_cb(struct analtifier_block *nb,
 			     unsigned long event,
 			     void *data)
 {
@@ -53,7 +53,7 @@ static int krait_notifier_cb(struct notifier_block *nb,
 		ret = krait_mux_clk_ops.set_parent(&mux->hw, mux->safe_sel);
 		mux->reparent = false;
 	/*
-	 * By the time POST_RATE_CHANGE notifier is called,
+	 * By the time POST_RATE_CHANGE analtifier is called,
 	 * clk framework itself would have changed the parent for the new rate.
 	 * Only otherwise, put back to the old parent.
 	 */
@@ -63,18 +63,18 @@ static int krait_notifier_cb(struct notifier_block *nb,
 							   mux->old_index);
 	}
 
-	return notifier_from_errno(ret);
+	return analtifier_from_erranal(ret);
 }
 
-static int krait_notifier_register(struct device *dev, struct clk *clk,
+static int krait_analtifier_register(struct device *dev, struct clk *clk,
 				   struct krait_mux_clk *mux)
 {
 	int ret = 0;
 
-	mux->clk_nb.notifier_call = krait_notifier_cb;
-	ret = devm_clk_notifier_register(dev, clk, &mux->clk_nb);
+	mux->clk_nb.analtifier_call = krait_analtifier_cb;
+	ret = devm_clk_analtifier_register(dev, clk, &mux->clk_nb);
 	if (ret)
-		dev_err(dev, "failed to register clock notifier: %d\n", ret);
+		dev_err(dev, "failed to register clock analtifier: %d\n", ret);
 
 	return ret;
 }
@@ -95,7 +95,7 @@ krait_add_div(struct device *dev, int id, const char *s, unsigned int offset)
 
 	div = devm_kzalloc(dev, sizeof(*div), GFP_KERNEL);
 	if (!div)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	div->width = 2;
 	div->shift = 6;
@@ -105,12 +105,12 @@ krait_add_div(struct device *dev, int id, const char *s, unsigned int offset)
 
 	init.name = kasprintf(GFP_KERNEL, "hfpll%s_div", s);
 	if (!init.name)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.parent_data = p_data;
 	parent_name = kasprintf(GFP_KERNEL, "hfpll%s", s);
 	if (!parent_name) {
-		clk = ERR_PTR(-ENOMEM);
+		clk = ERR_PTR(-EANALMEM);
 		goto err_parent_name;
 	}
 
@@ -125,7 +125,7 @@ krait_add_div(struct device *dev, int id, const char *s, unsigned int offset)
 
 	clk = &div->hw;
 
-	/* clk-krait ignore any rate change if mux is not flagged as enabled */
+	/* clk-krait iganalre any rate change if mux is analt flagged as enabled */
 	if (id < 0)
 		for_each_online_cpu(cpu)
 			clk_prepare_enable(div->hw.clk);
@@ -161,7 +161,7 @@ krait_add_sec_mux(struct device *dev, int id, const char *s,
 
 	mux = devm_kzalloc(dev, sizeof(*mux), GFP_KERNEL);
 	if (!mux)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mux->offset = offset;
 	mux->lpl = id >= 0;
@@ -171,8 +171,8 @@ krait_add_sec_mux(struct device *dev, int id, const char *s,
 	mux->hw.init = &init;
 	mux->safe_sel = 0;
 
-	/* Checking for qcom,krait-cc-v1 or qcom,krait-cc-v2 is not
-	 * enough to limit this to apq/ipq8064. Directly check machine
+	/* Checking for qcom,krait-cc-v1 or qcom,krait-cc-v2 is analt
+	 * eanalugh to limit this to apq/ipq8064. Directly check machine
 	 * compatible to correctly handle this errata.
 	 */
 	if (of_machine_is_compatible("qcom,ipq8064") ||
@@ -181,12 +181,12 @@ krait_add_sec_mux(struct device *dev, int id, const char *s,
 
 	init.name = kasprintf(GFP_KERNEL, "krait%s_sec_mux", s);
 	if (!init.name)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	if (unique_aux) {
 		parent_name = kasprintf(GFP_KERNEL, "acpu%s_aux", s);
 		if (!parent_name) {
-			clk = ERR_PTR(-ENOMEM);
+			clk = ERR_PTR(-EANALMEM);
 			goto err_aux;
 		}
 		sec_mux_list[1].fw_name = parent_name;
@@ -203,13 +203,13 @@ krait_add_sec_mux(struct device *dev, int id, const char *s,
 
 	clk = &mux->hw;
 
-	ret = krait_notifier_register(dev, mux->hw.clk, mux);
+	ret = krait_analtifier_register(dev, mux->hw.clk, mux);
 	if (ret) {
 		clk = ERR_PTR(ret);
 		goto err_clk;
 	}
 
-	/* clk-krait ignore any rate change if mux is not flagged as enabled */
+	/* clk-krait iganalre any rate change if mux is analt flagged as enabled */
 	if (id < 0)
 		for_each_online_cpu(cpu)
 			clk_prepare_enable(mux->hw.clk);
@@ -242,7 +242,7 @@ krait_add_pri_mux(struct device *dev, struct clk_hw *hfpll_div, struct clk_hw *s
 
 	mux = devm_kzalloc(dev, sizeof(*mux), GFP_KERNEL);
 	if (!mux)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mux->mask = 0x3;
 	mux->shift = 0;
@@ -254,11 +254,11 @@ krait_add_pri_mux(struct device *dev, struct clk_hw *hfpll_div, struct clk_hw *s
 
 	init.name = kasprintf(GFP_KERNEL, "krait%s_pri_mux", s);
 	if (!init.name)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	hfpll_name = kasprintf(GFP_KERNEL, "hfpll%s", s);
 	if (!hfpll_name) {
-		clk = ERR_PTR(-ENOMEM);
+		clk = ERR_PTR(-EANALMEM);
 		goto err_hfpll;
 	}
 
@@ -276,7 +276,7 @@ krait_add_pri_mux(struct device *dev, struct clk_hw *hfpll_div, struct clk_hw *s
 
 	clk = &mux->hw;
 
-	ret = krait_notifier_register(dev, mux->hw.clk, mux);
+	ret = krait_analtifier_register(dev, mux->hw.clk, mux);
 	if (ret)
 		clk = ERR_PTR(ret);
 
@@ -299,7 +299,7 @@ static struct clk_hw *krait_add_clks(struct device *dev, int id, bool unique_aux
 		offset = 0x4501 + (0x1000 * id);
 		s = p = kasprintf(GFP_KERNEL, "%d", id);
 		if (!s)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 	} else {
 		offset = 0x500;
 		s = "_l2";
@@ -334,7 +334,7 @@ static struct clk *krait_of_get(struct of_phandle_args *clkspec, void *data)
 		return ERR_PTR(-EINVAL);
 	}
 
-	return clks[idx] ? : ERR_PTR(-ENODEV);
+	return clks[idx] ? : ERR_PTR(-EANALDEV);
 }
 
 static const struct of_device_id krait_cc_match_table[] = {
@@ -368,7 +368,7 @@ static int krait_cc_probe(struct platform_device *pdev)
 	/* Krait configurations have at most 4 CPUs and one L2 */
 	clks = devm_kcalloc(dev, clks_max, sizeof(*clks), GFP_KERNEL);
 	if (!clks)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for_each_possible_cpu(cpu) {
 		mux = krait_add_clks(dev, cpu, unique_aux);
@@ -398,11 +398,11 @@ static int krait_cc_probe(struct platform_device *pdev)
 	/*
 	 * Force reinit of HFPLLs and muxes to overwrite any potential
 	 * incorrect configuration of HFPLLs and muxes by the bootloader.
-	 * While at it, also make sure the cores are running at known rates
+	 * While at it, also make sure the cores are running at kanalwn rates
 	 * and print the current rate.
 	 *
 	 * The clocks are set to aux clock rate first to make sure the
-	 * secondary mux is not sourcing off of QSB. The rate is then set to
+	 * secondary mux is analt sourcing off of QSB. The rate is then set to
 	 * two different rates to force a HFPLL reinit under all
 	 * circumstances.
 	 */
@@ -430,7 +430,7 @@ static int krait_cc_probe(struct platform_device *pdev)
 		pr_info("CPU%d @ %lu KHz\n", cpu, clk_get_rate(clk) / 1000);
 	}
 
-	of_clk_add_provider(dev->of_node, krait_of_get, clks);
+	of_clk_add_provider(dev->of_analde, krait_of_get, clks);
 
 	return 0;
 }

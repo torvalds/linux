@@ -502,7 +502,7 @@ mtk_wed_assign(struct mtk_wed_device *dev)
 		if (mtk_wed_is_v1(hw))
 			return NULL;
 
-		/* MT7986 WED devices do not have any pcie slot restrictions */
+		/* MT7986 WED devices do analt have any pcie slot restrictions */
 	}
 	/* MT7986 PCIE or AXI */
 	for (i = 0; i < ARRAY_SIZE(hw_list); i++) {
@@ -531,13 +531,13 @@ mtk_wed_amsdu_buffer_alloc(struct mtk_wed_device *dev)
 	wed_amsdu = devm_kcalloc(hw->dev, MTK_WED_AMSDU_NPAGES,
 				 sizeof(*wed_amsdu), GFP_KERNEL);
 	if (!wed_amsdu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < MTK_WED_AMSDU_NPAGES; i++) {
 		void *ptr;
 
 		/* each segment is 64K */
-		ptr = (void *)__get_free_pages(GFP_KERNEL | __GFP_NOWARN |
+		ptr = (void *)__get_free_pages(GFP_KERNEL | __GFP_ANALWARN |
 					       __GFP_ZERO | __GFP_COMP |
 					       GFP_DMA32,
 					       get_order(MTK_WED_AMSDU_BUF_SIZE));
@@ -559,7 +559,7 @@ error:
 	for (i--; i >= 0; i--)
 		dma_unmap_single(hw->dev, wed_amsdu[i].txd_phy,
 				 MTK_WED_AMSDU_BUF_SIZE, DMA_TO_DEVICE);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void
@@ -651,7 +651,7 @@ mtk_wed_tx_buffer_alloc(struct mtk_wed_device *dev)
 
 	page_list = kcalloc(n_pages, sizeof(*page_list), GFP_KERNEL);
 	if (!page_list)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->tx_buf_ring.pages = page_list;
 
@@ -659,7 +659,7 @@ mtk_wed_tx_buffer_alloc(struct mtk_wed_device *dev)
 				      dev->tx_buf_ring.size * desc_size,
 				      &desc_phys, GFP_KERNEL);
 	if (!desc_ptr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->tx_buf_ring.desc = desc_ptr;
 	dev->tx_buf_ring.desc_phys = desc_phys;
@@ -672,13 +672,13 @@ mtk_wed_tx_buffer_alloc(struct mtk_wed_device *dev)
 
 		page = __dev_alloc_page(GFP_KERNEL);
 		if (!page)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		page_phys = dma_map_page(dev->hw->dev, page, 0, PAGE_SIZE,
 					 DMA_BIDIRECTIONAL);
 		if (dma_mapping_error(dev->hw->dev, page_phys)) {
 			__free_page(page);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		page_list[page_idx].p = page;
@@ -775,7 +775,7 @@ mtk_wed_hwrro_buffer_alloc(struct mtk_wed_device *dev)
 
 	page_list = kcalloc(n_pages, sizeof(*page_list), GFP_KERNEL);
 	if (!page_list)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->hw_rro.size = dev->wlan.rx_nbuf & ~(MTK_WED_BUF_PER_PAGE - 1);
 	dev->hw_rro.pages = page_list;
@@ -783,7 +783,7 @@ mtk_wed_hwrro_buffer_alloc(struct mtk_wed_device *dev)
 				  dev->wlan.rx_nbuf * sizeof(*desc),
 				  &desc_phys, GFP_KERNEL);
 	if (!desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->hw_rro.desc = desc;
 	dev->hw_rro.desc_phys = desc_phys;
@@ -795,13 +795,13 @@ mtk_wed_hwrro_buffer_alloc(struct mtk_wed_device *dev)
 
 		page = __dev_alloc_page(GFP_KERNEL);
 		if (!page)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		page_phys = dma_map_page(dev->hw->dev, page, 0, PAGE_SIZE,
 					 DMA_BIDIRECTIONAL);
 		if (dma_mapping_error(dev->hw->dev, page_phys)) {
 			__free_page(page);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		page_list[page_idx].p = page;
@@ -835,7 +835,7 @@ mtk_wed_rx_buffer_alloc(struct mtk_wed_device *dev)
 				  dev->wlan.rx_nbuf * sizeof(*desc),
 				  &desc_phys, GFP_KERNEL);
 	if (!desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->rx_buf_ring.desc = desc;
 	dev->rx_buf_ring.desc_phys = desc_phys;
@@ -1140,10 +1140,10 @@ __mtk_wed_detach(struct mtk_wed_device *dev)
 	}
 
 	if (dev->wlan.bus_type == MTK_WED_BUS_PCIE) {
-		struct device_node *wlan_node;
+		struct device_analde *wlan_analde;
 
-		wlan_node = dev->wlan.pci_dev->dev.of_node;
-		if (of_dma_is_coherent(wlan_node) && hw->hifsys)
+		wlan_analde = dev->wlan.pci_dev->dev.of_analde;
+		if (of_dma_is_coherent(wlan_analde) && hw->hifsys)
 			regmap_update_bits(hw->hifsys, HIFSYS_DMA_AG_MAP,
 					   BIT(hw->index), BIT(hw->index));
 	}
@@ -1171,7 +1171,7 @@ mtk_wed_bus_init(struct mtk_wed_device *dev)
 {
 	switch (dev->wlan.bus_type) {
 	case MTK_WED_BUS_PCIE: {
-		struct device_node *np = dev->hw->eth->dev->of_node;
+		struct device_analde *np = dev->hw->eth->dev->of_analde;
 
 		if (mtk_wed_is_v2(dev->hw)) {
 			struct regmap *regs;
@@ -1307,7 +1307,7 @@ mtk_wed_rro_ring_alloc(struct mtk_wed_device *dev, struct mtk_wed_ring *ring,
 					size * sizeof(*ring->desc),
 					&ring->desc_phys, GFP_KERNEL);
 	if (!ring->desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ring->desc_size = sizeof(*ring->desc);
 	ring->size = size;
@@ -1320,23 +1320,23 @@ static int
 mtk_wed_rro_alloc(struct mtk_wed_device *dev)
 {
 	struct reserved_mem *rmem;
-	struct device_node *np;
+	struct device_analde *np;
 	int index;
 
-	index = of_property_match_string(dev->hw->node, "memory-region-names",
+	index = of_property_match_string(dev->hw->analde, "memory-region-names",
 					 "wo-dlm");
 	if (index < 0)
 		return index;
 
-	np = of_parse_phandle(dev->hw->node, "memory-region", index);
+	np = of_parse_phandle(dev->hw->analde, "memory-region", index);
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	rmem = of_reserved_mem_lookup(np);
-	of_node_put(np);
+	of_analde_put(np);
 
 	if (!rmem)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dev->rro.miod_phys = rmem->base;
 	dev->rro.fdbk_phys = MTK_WED_MIOD_COUNT + dev->rro.miod_phys;
@@ -1864,7 +1864,7 @@ mtk_wed_ring_alloc(struct mtk_wed_device *dev, struct mtk_wed_ring *ring,
 	ring->desc = dma_alloc_coherent(dev->hw->dev, size * desc_size,
 					&ring->desc_phys, GFP_KERNEL);
 	if (!ring->desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ring->desc_size = desc_size;
 	ring->size = size;
@@ -1885,7 +1885,7 @@ mtk_wed_wdma_rx_ring_setup(struct mtk_wed_device *dev, int idx, int size,
 	wdma = &dev->rx_wdma[idx];
 	if (!reset && mtk_wed_ring_alloc(dev, wdma, MTK_WED_WDMA_RING_SIZE,
 					 dev->hw->soc->wdma_desc_size, true))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wdma_w32(dev, MTK_WDMA_RING_RX(idx) + MTK_WED_RING_OFS_BASE,
 		 wdma->desc_phys);
@@ -1913,7 +1913,7 @@ mtk_wed_wdma_tx_ring_setup(struct mtk_wed_device *dev, int idx, int size,
 	wdma = &dev->tx_wdma[idx];
 	if (!reset && mtk_wed_ring_alloc(dev, wdma, MTK_WED_WDMA_RING_SIZE,
 					 dev->hw->soc->wdma_desc_size, true))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (mtk_wed_is_v3_or_greater(dev->hw)) {
 		struct mtk_wdma_desc *desc = wdma->desc;
@@ -2142,7 +2142,7 @@ mtk_wed_dma_enable(struct mtk_wed_device *dev)
 		u32 val;
 
 		if (!(ring->flags & MTK_WED_RING_CONFIGURED))
-			continue; /* queue is not configured by mt76 */
+			continue; /* queue is analt configured by mt76 */
 
 		if (mtk_wed_check_wfdma_rx_fill(dev, ring)) {
 			dev_err(dev->hw->dev,
@@ -2389,7 +2389,7 @@ mtk_wed_attach(struct mtk_wed_device *dev)
 	if ((dev->wlan.bus_type == MTK_WED_BUS_PCIE &&
 	     pci_domain_nr(dev->wlan.pci_dev->bus) > 1) ||
 	    !try_module_get(THIS_MODULE))
-		ret = -ENODEV;
+		ret = -EANALDEV;
 
 	rcu_read_unlock();
 
@@ -2401,7 +2401,7 @@ mtk_wed_attach(struct mtk_wed_device *dev)
 	hw = mtk_wed_assign(dev);
 	if (!hw) {
 		module_put(THIS_MODULE);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto unlock;
 	}
 
@@ -2419,7 +2419,7 @@ mtk_wed_attach(struct mtk_wed_device *dev)
 	dev->hw->pcie_base = mtk_wed_get_pcie_base(dev);
 
 	if (hw->eth->dma_dev == hw->eth->dev &&
-	    of_dma_is_coherent(hw->eth->dev->of_node))
+	    of_dma_is_coherent(hw->eth->dev->of_analde))
 		mtk_eth_set_dma_device(hw->eth, hw->dev);
 
 	ret = mtk_wed_tx_buffer_alloc(dev);
@@ -2479,11 +2479,11 @@ mtk_wed_tx_ring_setup(struct mtk_wed_device *dev, int idx, void __iomem *regs,
 
 	if (!reset && mtk_wed_ring_alloc(dev, ring, MTK_WED_TX_RING_SIZE,
 					 sizeof(*ring->desc), true))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (mtk_wed_wdma_rx_ring_setup(dev, idx, MTK_WED_WDMA_RING_SIZE,
 				       reset))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ring->reg_base = MTK_WED_RING_TX(idx);
 	ring->wpdma = regs;
@@ -2554,11 +2554,11 @@ mtk_wed_rx_ring_setup(struct mtk_wed_device *dev, int idx, void __iomem *regs,
 
 	if (!reset && mtk_wed_ring_alloc(dev, ring, MTK_WED_RX_RING_SIZE,
 					 sizeof(*ring->desc), false))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (mtk_wed_wdma_tx_ring_setup(dev, idx, MTK_WED_WDMA_RING_SIZE,
 				       reset))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ring->reg_base = MTK_WED_RING_RX_DATA(idx);
 	ring->wpdma = regs;
@@ -2620,7 +2620,7 @@ int mtk_wed_flow_add(int index)
 	mutex_lock(&hw_lock);
 
 	if (!hw || !hw->wed_dev) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 	}
 
@@ -2673,10 +2673,10 @@ mtk_wed_setup_tc_block_cb(enum tc_setup_type type, void *type_data, void *cb_pri
 	struct mtk_wed_hw *hw = priv->hw;
 
 	if (!tc_can_offload(priv->dev))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (type != TC_SETUP_CLSFLOWER)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return mtk_flow_offload_cmd(hw->eth, cls, hw->index);
 }
@@ -2692,10 +2692,10 @@ mtk_wed_setup_tc_block(struct mtk_wed_hw *hw, struct net_device *dev,
 	flow_setup_cb_t *cb;
 
 	if (!eth->soc->offload_version)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (f->binder_type != FLOW_BLOCK_BINDER_TYPE_CLSACT_INGRESS)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	cb = mtk_wed_setup_tc_block_cb;
 	f->driver_block_list = &block_cb_list;
@@ -2710,7 +2710,7 @@ mtk_wed_setup_tc_block(struct mtk_wed_hw *hw, struct net_device *dev,
 
 		priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 		if (!priv)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		priv->hw = hw;
 		priv->dev = dev;
@@ -2727,7 +2727,7 @@ mtk_wed_setup_tc_block(struct mtk_wed_hw *hw, struct net_device *dev,
 	case FLOW_BLOCK_UNBIND:
 		block_cb = flow_block_cb_lookup(f->block, cb, dev);
 		if (!block_cb)
-			return -ENOENT;
+			return -EANALENT;
 
 		if (!flow_block_cb_decref(block_cb)) {
 			flow_block_cb_remove(block_cb, f);
@@ -2736,7 +2736,7 @@ mtk_wed_setup_tc_block(struct mtk_wed_hw *hw, struct net_device *dev,
 		}
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -2747,18 +2747,18 @@ mtk_wed_setup_tc(struct mtk_wed_device *wed, struct net_device *dev,
 	struct mtk_wed_hw *hw = wed->hw;
 
 	if (mtk_wed_is_v1(hw))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (type) {
 	case TC_SETUP_BLOCK:
 	case TC_SETUP_FT:
 		return mtk_wed_setup_tc_block(hw, dev, type_data);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
-void mtk_wed_add_hw(struct device_node *np, struct mtk_eth *eth,
+void mtk_wed_add_hw(struct device_analde *np, struct mtk_eth *eth,
 		    void __iomem *wdma, phys_addr_t wdma_phy,
 		    int index)
 {
@@ -2783,7 +2783,7 @@ void mtk_wed_add_hw(struct device_node *np, struct mtk_eth *eth,
 		.msdu_pg_rx_ring_setup = mtk_wed_msdu_pg_rx_ring_setup,
 		.ind_rx_ring_setup = mtk_wed_ind_rx_ring_setup,
 	};
-	struct device_node *eth_np = eth->dev->of_node;
+	struct device_analde *eth_np = eth->dev->of_analde;
 	struct platform_device *pdev;
 	struct mtk_wed_hw *hw;
 	struct regmap *regs;
@@ -2792,9 +2792,9 @@ void mtk_wed_add_hw(struct device_node *np, struct mtk_eth *eth,
 	if (!np)
 		return;
 
-	pdev = of_find_device_by_node(np);
+	pdev = of_find_device_by_analde(np);
 	if (!pdev)
-		goto err_of_node_put;
+		goto err_of_analde_put;
 
 	get_device(&pdev->dev);
 	irq = platform_get_irq(pdev, 0);
@@ -2816,7 +2816,7 @@ void mtk_wed_add_hw(struct device_node *np, struct mtk_eth *eth,
 	if (!hw)
 		goto unlock;
 
-	hw->node = np;
+	hw->analde = np;
 	hw->regs = regs;
 	hw->eth = eth;
 	hw->dev = &pdev->dev;
@@ -2864,8 +2864,8 @@ unlock:
 	mutex_unlock(&hw_lock);
 err_put_device:
 	put_device(&pdev->dev);
-err_of_node_put:
-	of_node_put(np);
+err_of_analde_put:
+	of_analde_put(np);
 }
 
 void mtk_wed_exit(void)
@@ -2886,7 +2886,7 @@ void mtk_wed_exit(void)
 		hw_list[i] = NULL;
 		debugfs_remove(hw->debugfs_dir);
 		put_device(hw->dev);
-		of_node_put(hw->node);
+		of_analde_put(hw->analde);
 		kfree(hw);
 	}
 }

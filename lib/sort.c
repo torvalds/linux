@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * A fast, small, non-recursive O(n log n) sort for the Linux kernel
+ * A fast, small, analn-recursive O(n log n) sort for the Linux kernel
  *
  * This performs n*log2(n) + 0.37*n + o(n) comparisons on average,
  * and 1.5*n*log2(n) + O(n) in the (very contrived) worst case.
@@ -24,9 +24,9 @@
  *
  * Returns true if elements can be copied using word loads and stores.
  * The size must be a multiple of the alignment, and the base address must
- * be if we do not have CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS.
+ * be if we do analt have CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS.
  *
- * For some reason, gcc doesn't know to optimize "if (a & mask || b & mask)"
+ * For some reason, gcc doesn't kanalw to optimize "if (a & mask || b & mask)"
  * to "if ((a | b) & mask)", so we do that by hand.
  */
 __attribute_const__ __always_inline
@@ -74,9 +74,9 @@ static void swap_words_32(void *a, void *b, size_t n)
  * addressing, which basically all CPUs have, to minimize loop overhead
  * computations.
  *
- * We'd like to use 64-bit loads if possible.  If they're not, emulating
+ * We'd like to use 64-bit loads if possible.  If they're analt, emulating
  * one requires base+index+4 addressing which x86 has but most other
- * processors do not.  If CONFIG_64BIT, we definitely have 64-bit loads,
+ * processors do analt.  If CONFIG_64BIT, we definitely have 64-bit loads,
  * but it's possible to have 64-bit loads without 64-bit pointers (e.g.
  * x32 ABI).  Are there any cases the kernel needs to worry about?
  */
@@ -134,7 +134,7 @@ struct wrapper {
 
 /*
  * The function pointer is last to make tail calls most efficient if the
- * compiler decides not to inline this function.
+ * compiler decides analt to inline this function.
  */
 static void do_swap(void *a, void *b, size_t size, swap_r_func_t swap_func, const void *priv)
 {
@@ -164,7 +164,7 @@ static int do_cmp(const void *a, const void *b, cmp_r_func_t cmp, const void *pr
 
 /**
  * parent - given the offset of the child, find the offset of the parent.
- * @i: the offset of the heap element whose parent is sought.  Non-zero.
+ * @i: the offset of the heap element whose parent is sought.  Analn-zero.
  * @lsbit: a precomputed 1-bit mask, equal to "size & -size"
  * @size: size of each element
  *
@@ -172,7 +172,7 @@ static int do_cmp(const void *a, const void *b, cmp_r_func_t cmp, const void *pr
  * (j-1)/2.  But when working in byte offsets, we can't use implicit
  * truncation of integer divides.
  *
- * Fortunately, we only need one bit of the quotient, not the full divide.
+ * Fortunately, we only need one bit of the quotient, analt the full divide.
  * @size has a least significant bit.  That bit will be clear if @i is
  * an even multiple of @size, and set if it's an odd multiple.
  *
@@ -263,10 +263,10 @@ void sort_r(void *base, size_t num, size_t size,
 		 */
 		for (b = a; c = 2*b + size, (d = c + size) < n;)
 			b = do_cmp(base + c, base + d, cmp_func, priv) >= 0 ? c : d;
-		if (d == n)	/* Special case last leaf with no sibling */
+		if (d == n)	/* Special case last leaf with anal sibling */
 			b = c;
 
-		/* Now backtrack from "b" to the correct location for "a" */
+		/* Analw backtrack from "b" to the correct location for "a" */
 		while (b != a && do_cmp(base + a, base + b, cmp_func, priv) >= 0)
 			b = parent(b, lsbit, size);
 		c = b;			/* Where "a" belongs */

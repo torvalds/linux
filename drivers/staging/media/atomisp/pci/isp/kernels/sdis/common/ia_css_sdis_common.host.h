@@ -40,7 +40,7 @@
  * SDIS1: Horizontal projections are calculated for each line.
  * Vertical projections are calculated for each column.
  * SDIS2: Projections are calculated for each grid cell.
- * Grid cells that do not fall completely within the image are not
+ * Grid cells that do analt fall completely within the image are analt
  * valid. The host needs to use the bigger one for the stride but
  * should only return the valid ones to the 3A. */
 #define __ISP_SDIS_HOR_PROJ_NUM_ISP(in_width, in_height, deci_factor_log2, \
@@ -60,7 +60,7 @@
 #ifndef PIPE_GENERATION
 #if defined(__ISP) || defined(MK_FIRMWARE)
 
-/* Array cannot be 2-dimensional, since driver ddr allocation does not know stride */
+/* Array cananalt be 2-dimensional, since driver ddr allocation does analt kanalw stride */
 struct sh_css_isp_sdis_hori_proj_tbl {
 	s32 tbl[ISP_DVS_NUM_COEF_TYPES * ISP_MAX_SDIS_HOR_PROJ_NUM_ISP];
 #if DVS2_PROJ_MARGIN > 0

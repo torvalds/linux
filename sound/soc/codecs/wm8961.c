@@ -48,7 +48,7 @@ static const struct reg_default wm8961_reg_defaults[] = {
 	{ 17, 0x007B },     /* R17  - ALC1 */
 	{ 18, 0x0000 },     /* R18  - ALC2 */
 	{ 19, 0x0032 },     /* R19  - ALC3 */
-	{ 20, 0x0000 },     /* R20  - Noise Gate */
+	{ 20, 0x0000 },     /* R20  - Analise Gate */
 	{ 21, 0x00C0 },     /* R21  - Left ADC volume */
 	{ 22, 0x00C0 },     /* R22  - Right ADC volume */
 	{ 23, 0x0120 },     /* R23  - Additional control(1) */
@@ -140,7 +140,7 @@ static bool wm8961_readable(struct device *dev, unsigned int reg)
 	case WM8961_ALC1:
 	case WM8961_ALC2:
 	case WM8961_ALC3:
-	case WM8961_NOISE_GATE:
+	case WM8961_ANALISE_GATE:
 	case WM8961_LEFT_ADC_VOLUME:
 	case WM8961_RIGHT_ADC_VOLUME:
 	case WM8961_ADDITIONAL_CONTROL_1:
@@ -318,7 +318,7 @@ static SOC_ENUM_SINGLE_DECL(adc_hpf,
 			    WM8961_ADC_DAC_CONTROL_2, 7, adc_hpf_text);
 
 static const char *dac_deemph_text[] = {
-	"None", "32kHz", "44.1kHz", "48kHz",
+	"Analne", "32kHz", "44.1kHz", "48kHz",
 };
 
 static SOC_ENUM_SINGLE_DECL(dac_deemph,
@@ -378,7 +378,7 @@ SOC_DOUBLE_R("Capture PGA Switch",
 };
 
 static const char *sidetone_text[] = {
-	"None", "Left", "Right"
+	"Analne", "Left", "Right"
 };
 
 static SOC_ENUM_SINGLE_DECL(dacl_sidetone,
@@ -407,17 +407,17 @@ SND_SOC_DAPM_ADC("ADCR", "HiFi Capture", WM8961_PWR_MGMT_1, 2, 0),
 
 SND_SOC_DAPM_SUPPLY("MICBIAS", WM8961_PWR_MGMT_1, 1, 0, NULL, 0),
 
-SND_SOC_DAPM_MUX("DACL Sidetone", SND_SOC_NOPM, 0, 0, &dacl_mux),
-SND_SOC_DAPM_MUX("DACR Sidetone", SND_SOC_NOPM, 0, 0, &dacr_mux),
+SND_SOC_DAPM_MUX("DACL Sidetone", SND_SOC_ANALPM, 0, 0, &dacl_mux),
+SND_SOC_DAPM_MUX("DACR Sidetone", SND_SOC_ANALPM, 0, 0, &dacr_mux),
 
 SND_SOC_DAPM_DAC("DACL", "HiFi Playback", WM8961_PWR_MGMT_2, 8, 0),
 SND_SOC_DAPM_DAC("DACR", "HiFi Playback", WM8961_PWR_MGMT_2, 7, 0),
 
-/* Handle as a mono path for DCS */
-SND_SOC_DAPM_PGA_E("Headphone Output", SND_SOC_NOPM,
+/* Handle as a moanal path for DCS */
+SND_SOC_DAPM_PGA_E("Headphone Output", SND_SOC_ANALPM,
 		   4, 0, NULL, 0, wm8961_hp_event,
 		   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
-SND_SOC_DAPM_PGA_E("Speaker Output", SND_SOC_NOPM,
+SND_SOC_DAPM_PGA_E("Speaker Output", SND_SOC_ANALPM,
 		   4, 0, NULL, 0, wm8961_spk_event,
 		   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 
@@ -510,7 +510,7 @@ static int wm8961_hw_params(struct snd_pcm_substream *substream,
 	fs = params_rate(params);
 
 	if (!wm8961->sysclk) {
-		dev_err(component->dev, "MCLK has not been specified\n");
+		dev_err(component->dev, "MCLK has analt been specified\n");
 		return -EINVAL;
 	}
 
@@ -745,7 +745,7 @@ static int wm8961_set_bias_level(struct snd_soc_component *component,
 {
 	u16 reg;
 
-	/* This is all slightly unusual since we have no bypass paths
+	/* This is all slightly unusual since we have anal bypass paths
 	 * and the output amplifier structure means we can just slam
 	 * the biases straight up rather than having to ramp them
 	 * slowly.
@@ -809,7 +809,7 @@ static const struct snd_soc_dai_ops wm8961_dai_ops = {
 	.mute_stream = wm8961_mute,
 	.set_tristate = wm8961_set_tristate,
 	.set_clkdiv = wm8961_set_clkdiv,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver wm8961_dai = {
@@ -859,7 +859,7 @@ static int wm8961_probe(struct snd_soc_component *component)
 	reg |= WM8961_DACSMM;
 	snd_soc_component_write(component, WM8961_ADC_DAC_CONTROL_2, reg);
 
-	/* Use automatic clocking mode by default; for now this is all
+	/* Use automatic clocking mode by default; for analw this is all
 	 * we support.
 	 */
 	reg = snd_soc_component_read(component, WM8961_CLOCKING_3);
@@ -919,7 +919,7 @@ static int wm8961_i2c_probe(struct i2c_client *i2c)
 	wm8961 = devm_kzalloc(&i2c->dev, sizeof(struct wm8961_priv),
 			      GFP_KERNEL);
 	if (wm8961 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wm8961->regmap = devm_regmap_init_i2c(i2c, &wm8961_regmap);
 	if (IS_ERR(wm8961->regmap))
@@ -932,7 +932,7 @@ static int wm8961_i2c_probe(struct i2c_client *i2c)
 	}
 
 	if (val != 0x1801) {
-		dev_err(&i2c->dev, "Device is not a WM8961: ID=0x%x\n", val);
+		dev_err(&i2c->dev, "Device is analt a WM8961: ID=0x%x\n", val);
 		return -EINVAL;
 	}
 

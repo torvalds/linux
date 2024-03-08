@@ -3,7 +3,7 @@
  * Common hwbus abstraction layer interface for cw1200 wireless driver
  *
  * Copyright (c) 2010, ST-Ericsson
- * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.no>
+ * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.anal>
  */
 
 #ifndef CW1200_HWBUS_H

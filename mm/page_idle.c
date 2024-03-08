@@ -9,7 +9,7 @@
 #include <linux/mmzone.h>
 #include <linux/pagemap.h>
 #include <linux/rmap.h>
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_analtifier.h>
 #include <linux/page_ext.h>
 #include <linux/page_idle.h>
 
@@ -21,12 +21,12 @@
 /*
  * Idle page tracking only considers user memory pages, for other types of
  * pages the idle flag is always unset and an attempt to set it is silently
- * ignored.
+ * iganalred.
  *
  * We treat a page as a user memory page if it is on an LRU list, because it is
  * always safe to pass such a page to rmap_walk(), which is essential for idle
  * page tracking. With such an indicator of user pages we can skip isolated
- * pages, but since there are not usually many of them, it will hardly affect
+ * pages, but since there are analt usually many of them, it will hardly affect
  * the overall result.
  *
  * This function tries to get a user memory page by pfn as described above.
@@ -63,10 +63,10 @@ static bool page_idle_clear_pte_refs_one(struct folio *folio,
 			 * For PTE-mapped THP, one sub page is referenced,
 			 * the whole THP is referenced.
 			 */
-			if (ptep_clear_young_notify(vma, addr, pvmw.pte))
+			if (ptep_clear_young_analtify(vma, addr, pvmw.pte))
 				referenced = true;
 		} else if (IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE)) {
-			if (pmdp_clear_young_notify(vma, addr, pvmw.pmd))
+			if (pmdp_clear_young_analtify(vma, addr, pvmw.pmd))
 				referenced = true;
 		} else {
 			/* unexpected pmd-mapped page? */
@@ -94,14 +94,14 @@ static void page_idle_clear_pte_refs(struct folio *folio)
 	 */
 	static struct rmap_walk_control rwc = {
 		.rmap_one = page_idle_clear_pte_refs_one,
-		.anon_lock = folio_lock_anon_vma_read,
+		.aanaln_lock = folio_lock_aanaln_vma_read,
 	};
 	bool need_lock;
 
 	if (!folio_mapped(folio) || !folio_raw_mapping(folio))
 		return;
 
-	need_lock = !folio_test_anon(folio) || folio_test_ksm(folio);
+	need_lock = !folio_test_aanaln(folio) || folio_test_ksm(folio);
 	if (need_lock && !folio_trylock(folio))
 		return;
 
@@ -140,7 +140,7 @@ static ssize_t page_idle_bitmap_read(struct file *file, struct kobject *kobj,
 			if (folio_test_idle(folio)) {
 				/*
 				 * The page might have been referenced via a
-				 * pte, in which case it is not idle. Clear
+				 * pte, in which case it is analt idle. Clear
 				 * refs and recheck.
 				 */
 				page_idle_clear_pte_refs(folio);

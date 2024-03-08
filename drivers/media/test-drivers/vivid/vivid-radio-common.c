@@ -5,7 +5,7 @@
  * Copyright 2014 Cisco Systems, Inc. and/or its affiliates. All rights reserved.
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/videodev2.h>
@@ -61,7 +61,7 @@ void vivid_radio_rds_init(struct vivid_dev *dev)
 	struct vivid_rds_gen *rds = &dev->rds_gen;
 	bool alt = dev->radio_rx_rds_use_alternates;
 
-	/* Do nothing, blocks will be filled by the transmitter */
+	/* Do analthing, blocks will be filled by the transmitter */
 	if (dev->radio_rds_loop && !dev->radio_tx_rds_controls)
 		return;
 
@@ -69,7 +69,7 @@ void vivid_radio_rds_init(struct vivid_dev *dev)
 		v4l2_ctrl_lock(dev->radio_tx_rds_pi);
 		rds->picode = dev->radio_tx_rds_pi->cur.val;
 		rds->pty = dev->radio_tx_rds_pty->cur.val;
-		rds->mono_stereo = dev->radio_tx_rds_mono_stereo->cur.val;
+		rds->moanal_stereo = dev->radio_tx_rds_moanal_stereo->cur.val;
 		rds->art_head = dev->radio_tx_rds_art_head->cur.val;
 		rds->compressed = dev->radio_tx_rds_compressed->cur.val;
 		rds->dyn_pty = dev->radio_tx_rds_dyn_pty->cur.val;

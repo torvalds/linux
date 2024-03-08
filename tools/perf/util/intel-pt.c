@@ -8,7 +8,7 @@
 #include <linux/perf_event.h>
 #include <stdio.h>
 #include <stdbool.h>
-#include <errno.h>
+#include <erranal.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/types.h>
@@ -66,7 +66,7 @@ struct intel_pt {
 	struct perf_session *session;
 	struct machine *machine;
 	struct evsel *switch_evsel;
-	struct thread *unknown_thread;
+	struct thread *unkanalwn_thread;
 	bool timeless_decoding;
 	bool sampling_mode;
 	bool snapshot_mode;
@@ -75,7 +75,7 @@ struct intel_pt {
 	bool data_queued;
 	bool est_tsc;
 	bool sync_switch;
-	bool sync_switch_not_supported;
+	bool sync_switch_analt_supported;
 	bool mispred_all;
 	bool use_thread_stack;
 	bool callstack;
@@ -141,8 +141,8 @@ struct intel_pt {
 	u32 tsc_ctc_ratio_n;
 	u32 tsc_ctc_ratio_d;
 	u64 cyc_bit;
-	u64 noretcomp_bit;
-	unsigned max_non_turbo_ratio;
+	u64 analretcomp_bit;
+	unsigned max_analn_turbo_ratio;
 	unsigned cbr2khz;
 	int max_loops;
 
@@ -162,8 +162,8 @@ struct intel_pt {
 };
 
 enum switch_state {
-	INTEL_PT_SS_NOT_TRACING,
-	INTEL_PT_SS_UNKNOWN,
+	INTEL_PT_SS_ANALT_TRACING,
+	INTEL_PT_SS_UNKANALWN,
 	INTEL_PT_SS_TRACING,
 	INTEL_PT_SS_EXPECTING_SWITCH_EVENT,
 	INTEL_PT_SS_EXPECTING_SWITCH_IP,
@@ -200,7 +200,7 @@ struct intel_pt_queue {
 	struct thread *thread;
 	struct machine *guest_machine;
 	struct thread *guest_thread;
-	struct thread *unknown_guest_thread;
+	struct thread *unkanalwn_guest_thread;
 	pid_t guest_machine_pid;
 	pid_t guest_pid;
 	pid_t guest_tid;
@@ -236,7 +236,7 @@ static void intel_pt_dump(struct intel_pt *pt __maybe_unused,
 	int ret, pkt_len, i;
 	char desc[INTEL_PT_PKT_DESC_MAX];
 	const char *color = PERF_COLOR_BLUE;
-	enum intel_pt_pkt_ctx ctx = INTEL_PT_NO_CTX;
+	enum intel_pt_pkt_ctx ctx = INTEL_PT_ANAL_CTX;
 
 	color_fprintf(stdout, color,
 		      ". ... Intel Processor Trace data: size %zu bytes\n",
@@ -306,7 +306,7 @@ static bool intel_pt_log_events(struct intel_pt *pt, u64 tm)
 	if (pt->synth_opts.log_minus_flags & AUXTRACE_LOG_FLG_ALL_PERF_EVTS)
 		return false;
 
-	/* perf_time__ranges_skip_sample does not work if time is zero */
+	/* perf_time__ranges_skip_sample does analt work if time is zero */
 	if (!tm)
 		tm = 1;
 
@@ -317,13 +317,13 @@ static struct intel_pt_vmcs_info *intel_pt_findnew_vmcs(struct rb_root *rb_root,
 							u64 vmcs,
 							u64 dflt_tsc_offset)
 {
-	struct rb_node **p = &rb_root->rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_analde **p = &rb_root->rb_analde;
+	struct rb_analde *parent = NULL;
 	struct intel_pt_vmcs_info *v;
 
 	while (*p) {
 		parent = *p;
-		v = rb_entry(parent, struct intel_pt_vmcs_info, rb_node);
+		v = rb_entry(parent, struct intel_pt_vmcs_info, rb_analde);
 
 		if (v->vmcs == vmcs)
 			return v;
@@ -340,8 +340,8 @@ static struct intel_pt_vmcs_info *intel_pt_findnew_vmcs(struct rb_root *rb_root,
 		v->tsc_offset = dflt_tsc_offset;
 		v->reliable = dflt_tsc_offset;
 
-		rb_link_node(&v->rb_node, parent, p);
-		rb_insert_color(&v->rb_node, rb_root);
+		rb_link_analde(&v->rb_analde, parent, p);
+		rb_insert_color(&v->rb_analde, rb_root);
 	}
 
 	return v;
@@ -361,13 +361,13 @@ static struct intel_pt_vmcs_info *intel_pt_findnew_vmcs_info(void *data, uint64_
 static void intel_pt_free_vmcs_info(struct intel_pt *pt)
 {
 	struct intel_pt_vmcs_info *v;
-	struct rb_node *n;
+	struct rb_analde *n;
 
 	n = rb_first(&pt->vmcs_info);
 	while (n) {
-		v = rb_entry(n, struct intel_pt_vmcs_info, rb_node);
+		v = rb_entry(n, struct intel_pt_vmcs_info, rb_analde);
 		n = rb_next(n);
-		rb_erase(&v->rb_node, &pt->vmcs_info);
+		rb_erase(&v->rb_analde, &pt->vmcs_info);
 		free(v);
 	}
 }
@@ -385,7 +385,7 @@ static int intel_pt_do_fix_overlap(struct intel_pt *pt, struct auxtrace_buffer *
 		return -EINVAL;
 	/*
 	 * In the case of vm_time_correlation, the overlap might contain TSC
-	 * packets that will not be fixed, and that will then no longer work for
+	 * packets that will analt be fixed, and that will then anal longer work for
 	 * overlap detection. Avoid that by zeroing out the overlap.
 	 */
 	if (pt->synth_opts.vm_time_correlation)
@@ -409,13 +409,13 @@ static int intel_pt_get_buffer(struct intel_pt_queue *ptq,
 
 		buffer->data = auxtrace_buffer__get_data(buffer, fd);
 		if (!buffer->data)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	might_overlap = ptq->pt->snapshot_mode || ptq->pt->sampling_mode;
 	if (might_overlap && !buffer->consecutive && old_buffer &&
 	    intel_pt_do_fix_overlap(ptq->pt, old_buffer, buffer))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (buffer->use_data) {
 		b->len = buffer->use_size;
@@ -436,7 +436,7 @@ static int intel_pt_get_buffer(struct intel_pt_queue *ptq,
 	return 0;
 }
 
-/* Do not drop buffers with references - refer intel_pt_get_trace() */
+/* Do analt drop buffers with references - refer intel_pt_get_trace() */
 static void intel_pt_lookahead_drop_buffer(struct intel_pt_queue *ptq,
 					   struct auxtrace_buffer *buffer)
 {
@@ -603,7 +603,7 @@ static struct auxtrace_cache *intel_pt_cache(struct dso *dso,
 
 	bits = intel_pt_cache_size(dso, machine);
 
-	/* Ignoring cache creation failure */
+	/* Iganalring cache creation failure */
 	c = auxtrace_cache__new(bits, sizeof(struct intel_pt_cache_entry), 200);
 
 	dso->auxtrace_cache = c;
@@ -620,11 +620,11 @@ static int intel_pt_cache_add(struct dso *dso, struct machine *machine,
 	int err;
 
 	if (!c)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	e = auxtrace_cache__alloc_entry(c);
 	if (!e)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	e->insn_cnt = insn_cnt;
 	e->byte_cnt = byte_cnt;
@@ -685,7 +685,7 @@ static inline u8 intel_pt_nr_cpumode(struct intel_pt_queue *ptq, uint64_t ip, bo
 
 static inline u8 intel_pt_cpumode(struct intel_pt_queue *ptq, uint64_t from_ip, uint64_t to_ip)
 {
-	/* No support for non-zero CS base */
+	/* Anal support for analn-zero CS base */
 	if (from_ip)
 		return intel_pt_nr_cpumode(ptq, from_ip, ptq->state->from_nr);
 	return intel_pt_nr_cpumode(ptq, to_ip, ptq->state->to_nr);
@@ -701,7 +701,7 @@ static int intel_pt_get_guest(struct intel_pt_queue *ptq)
 		return 0;
 
 	ptq->guest_machine = NULL;
-	thread__zput(ptq->unknown_guest_thread);
+	thread__zput(ptq->unkanalwn_guest_thread);
 
 	if (symbol_conf.guest_code) {
 		thread__zput(ptq->guest_thread);
@@ -712,8 +712,8 @@ static int intel_pt_get_guest(struct intel_pt_queue *ptq)
 	if (!machine)
 		return -1;
 
-	ptq->unknown_guest_thread = machine__idle_thread(machine);
-	if (!ptq->unknown_guest_thread)
+	ptq->unkanalwn_guest_thread = machine__idle_thread(machine);
+	if (!ptq->unkanalwn_guest_thread)
 		return -1;
 
 	ptq->guest_machine = machine;
@@ -739,7 +739,7 @@ static bool intel_pt_emulated_ptwrite(struct dso *dso, struct machine *machine, 
 		intel_pt_log("Emulated ptwrite signature found\n");
 		return true;
 	}
-	intel_pt_log("Emulated ptwrite signature not found\n");
+	intel_pt_log("Emulated ptwrite signature analt found\n");
 	return false;
 }
 
@@ -766,7 +766,7 @@ static int intel_pt_walk_next_insn(struct intel_pt_insn *intel_pt_insn,
 	intel_pt_insn->length = 0;
 
 	if (to_ip && *ip == to_ip)
-		goto out_no_cache;
+		goto out_anal_cache;
 
 	nr = ptq->state->to_nr;
 	cpumode = intel_pt_nr_cpumode(ptq, *ip, nr);
@@ -774,13 +774,13 @@ static int intel_pt_walk_next_insn(struct intel_pt_insn *intel_pt_insn,
 	if (nr) {
 		if (ptq->pt->have_guest_sideband) {
 			if (!ptq->guest_machine || ptq->guest_machine_pid != ptq->pid) {
-				intel_pt_log("ERROR: guest sideband but no guest machine\n");
+				intel_pt_log("ERROR: guest sideband but anal guest machine\n");
 				ret = -EINVAL;
 				goto out_ret;
 			}
 		} else if ((!symbol_conf.guest_code && cpumode != PERF_RECORD_MISC_GUEST_KERNEL) ||
 			   intel_pt_get_guest(ptq)) {
-			intel_pt_log("ERROR: no guest machine\n");
+			intel_pt_log("ERROR: anal guest machine\n");
 			ret = -EINVAL;
 			goto out_ret;
 		}
@@ -788,21 +788,21 @@ static int intel_pt_walk_next_insn(struct intel_pt_insn *intel_pt_insn,
 		thread = ptq->guest_thread;
 		if (!thread) {
 			if (cpumode != PERF_RECORD_MISC_GUEST_KERNEL) {
-				intel_pt_log("ERROR: no guest thread\n");
+				intel_pt_log("ERROR: anal guest thread\n");
 				ret = -EINVAL;
 				goto out_ret;
 			}
-			thread = ptq->unknown_guest_thread;
+			thread = ptq->unkanalwn_guest_thread;
 		}
 	} else {
 		thread = ptq->thread;
 		if (!thread) {
 			if (cpumode != PERF_RECORD_MISC_KERNEL) {
-				intel_pt_log("ERROR: no thread\n");
+				intel_pt_log("ERROR: anal thread\n");
 				ret = -EINVAL;
 				goto out_ret;
 			}
-			thread = ptq->pt->unknown_thread;
+			thread = ptq->pt->unkanalwn_thread;
 		}
 	}
 
@@ -811,9 +811,9 @@ static int intel_pt_walk_next_insn(struct intel_pt_insn *intel_pt_insn,
 
 		if (!thread__find_map(thread, cpumode, *ip, &al) || !map__dso(al.map)) {
 			if (al.map)
-				intel_pt_log("ERROR: thread has no dso for %#" PRIx64 "\n", *ip);
+				intel_pt_log("ERROR: thread has anal dso for %#" PRIx64 "\n", *ip);
 			else
-				intel_pt_log("ERROR: thread has no map for %#" PRIx64 "\n", *ip);
+				intel_pt_log("ERROR: thread has anal map for %#" PRIx64 "\n", *ip);
 			addr_location__exit(&al);
 			ret = -EINVAL;
 			goto out_ret;
@@ -822,7 +822,7 @@ static int intel_pt_walk_next_insn(struct intel_pt_insn *intel_pt_insn,
 
 		if (dso->data.status == DSO_DATA_STATUS_ERROR &&
 			dso__data_status_seen(dso, DSO_DATA_STATUS_SEEN_ITRACE)) {
-			ret = -ENOENT;
+			ret = -EANALENT;
 			goto out_ret;
 		}
 
@@ -842,7 +842,7 @@ static int intel_pt_walk_next_insn(struct intel_pt_insn *intel_pt_insn,
 				intel_pt_insn->length = e->length;
 				intel_pt_insn->rel = e->rel;
 				memcpy(intel_pt_insn->buf, e->insn, INTEL_PT_INSN_BUF_SZ);
-				intel_pt_log_insn_no_data(intel_pt_insn, *ip);
+				intel_pt_log_insn_anal_data(intel_pt_insn, *ip);
 				ret = 0;
 				goto out_ret;
 			}
@@ -878,7 +878,7 @@ static int intel_pt_walk_next_insn(struct intel_pt_insn *intel_pt_insn,
 
 			insn_cnt += 1;
 
-			if (intel_pt_insn->branch != INTEL_PT_BR_NO_BRANCH) {
+			if (intel_pt_insn->branch != INTEL_PT_BR_ANAL_BRANCH) {
 				bool eptw;
 				u64 offs;
 
@@ -892,13 +892,13 @@ static int intel_pt_walk_next_insn(struct intel_pt_insn *intel_pt_insn,
 			}
 
 			if (max_insn_cnt && insn_cnt >= max_insn_cnt)
-				goto out_no_cache;
+				goto out_anal_cache;
 
 			*ip += intel_pt_insn->length;
 
 			if (to_ip && *ip == to_ip) {
 				intel_pt_insn->length = 0;
-				goto out_no_cache;
+				goto out_anal_cache;
 			}
 
 			if (*ip >= map__end(al.map))
@@ -912,10 +912,10 @@ out:
 	*insn_cnt_ptr = insn_cnt;
 
 	if (!one_map)
-		goto out_no_cache;
+		goto out_anal_cache;
 
 	/*
-	 * Didn't lookup in the 'to_ip' case, so do it now to prevent duplicate
+	 * Didn't lookup in the 'to_ip' case, so do it analw to prevent duplicate
 	 * entries.
 	 */
 	if (to_ip) {
@@ -926,7 +926,7 @@ out:
 			goto out_ret;
 	}
 
-	/* Ignore cache errors */
+	/* Iganalre cache errors */
 	intel_pt_cache_add(map__dso(al.map), machine, start_offset, insn_cnt,
 			   *ip - start_ip, intel_pt_insn);
 
@@ -934,7 +934,7 @@ out_ret:
 	addr_location__exit(&al);
 	return ret;
 
-out_no_cache:
+out_anal_cache:
 	*insn_cnt_ptr = insn_cnt;
 	addr_location__exit(&al);
 	return 0;
@@ -972,7 +972,7 @@ static bool intel_pt_match_pgd_ip(struct intel_pt *pt, uint64_t ip,
 	}
 
 	if (!hit_tracestop && !hit_filter)
-		intel_pt_log("TIP.PGD ip %#"PRIx64" offset %#"PRIx64" in %s is not in a filter region\n",
+		intel_pt_log("TIP.PGD ip %#"PRIx64" offset %#"PRIx64" in %s is analt in a filter region\n",
 			     ip, offset, filename ? filename : "[kernel]");
 
 	return hit_tracestop || (have_filter && !hit_filter);
@@ -990,7 +990,7 @@ static int __intel_pt_pgd_ip(uint64_t ip, void *data)
 	if (ptq->state->to_nr) {
 		if (intel_pt_guest_kernel_ip(ip))
 			return intel_pt_match_pgd_ip(ptq->pt, ip, ip, NULL);
-		/* No support for decoding guest user space */
+		/* Anal support for decoding guest user space */
 		return -EINVAL;
 	} else if (ip >= ptq->pt->kernel_start) {
 		return intel_pt_match_pgd_ip(ptq->pt, ip, ip, NULL);
@@ -1047,12 +1047,12 @@ static bool intel_pt_return_compression(struct intel_pt *pt)
 	struct evsel *evsel;
 	u64 config;
 
-	if (!pt->noretcomp_bit)
+	if (!pt->analretcomp_bit)
 		return true;
 
 	evlist__for_each_entry(pt->session->evlist, evsel) {
 		if (intel_pt_get_config(pt, &evsel->core.attr, &config) &&
-		    (config & pt->noretcomp_bit))
+		    (config & pt->analretcomp_bit))
 			return false;
 	}
 	return true;
@@ -1225,7 +1225,7 @@ static int intel_pt_callchain_init(struct intel_pt *pt)
 
 	pt->chain = intel_pt_alloc_chain(pt);
 	if (!pt->chain)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -1263,7 +1263,7 @@ static int intel_pt_br_stack_init(struct intel_pt *pt)
 
 	pt->br_stack = intel_pt_alloc_br_stack(pt->br_stack_sz);
 	if (!pt->br_stack)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -1331,7 +1331,7 @@ static struct intel_pt_queue *intel_pt_alloc_queue(struct intel_pt *pt,
 	params.return_compression = intel_pt_return_compression(pt);
 	params.branch_enable = intel_pt_branch_enable(pt);
 	params.ctl = intel_pt_ctl(pt);
-	params.max_non_turbo_ratio = pt->max_non_turbo_ratio;
+	params.max_analn_turbo_ratio = pt->max_analn_turbo_ratio;
 	params.mtc_period = intel_pt_mtc_period(pt);
 	params.tsc_ctc_ratio_n = pt->tsc_ctc_ratio_n;
 	params.tsc_ctc_ratio_d = pt->tsc_ctc_ratio_d;
@@ -1341,7 +1341,7 @@ static struct intel_pt_queue *intel_pt_alloc_queue(struct intel_pt *pt,
 	params.first_timestamp = pt->first_timestamp;
 	params.max_loops = pt->max_loops;
 
-	/* Cannot walk code without TNT, so force 'quick' mode */
+	/* Cananalt walk code without TNT, so force 'quick' mode */
 	if (params.branch_enable && intel_pt_disabled_tnt(pt) && !params.quick)
 		params.quick = 1;
 
@@ -1360,7 +1360,7 @@ static struct intel_pt_queue *intel_pt_alloc_queue(struct intel_pt *pt,
 				params.period_type = INTEL_PT_PERIOD_TICKS;
 				params.period = pt->synth_opts.period;
 				break;
-			case PERF_ITRACE_PERIOD_NANOSECS:
+			case PERF_ITRACE_PERIOD_NAANALSECS:
 				params.period_type = INTEL_PT_PERIOD_TICKS;
 				params.period = intel_pt_ns_to_ticks(pt,
 							pt->synth_opts.period);
@@ -1401,7 +1401,7 @@ static void intel_pt_free_queue(void *priv)
 		return;
 	thread__zput(ptq->thread);
 	thread__zput(ptq->guest_thread);
-	thread__zput(ptq->unknown_guest_thread);
+	thread__zput(ptq->unkanalwn_guest_thread);
 	intel_pt_decoder_free(ptq->decoder);
 	zfree(&ptq->event_buf);
 	zfree(&ptq->last_branch);
@@ -1433,19 +1433,19 @@ static int intel_pt_get_guest_from_sideband(struct intel_pt_queue *ptq)
 	int vcpu;
 
 	if (machine_pid <= 0)
-		return 0; /* Not a guest machine */
+		return 0; /* Analt a guest machine */
 
 	machine = machines__find(machines, machine_pid);
 	if (!machine)
-		return 0; /* Not a guest machine */
+		return 0; /* Analt a guest machine */
 
 	if (ptq->guest_machine != machine) {
 		ptq->guest_machine = NULL;
 		thread__zput(ptq->guest_thread);
-		thread__zput(ptq->unknown_guest_thread);
+		thread__zput(ptq->unkanalwn_guest_thread);
 
-		ptq->unknown_guest_thread = machine__find_thread(machine, 0, 0);
-		if (!ptq->unknown_guest_thread)
+		ptq->unkanalwn_guest_thread = machine__find_thread(machine, 0, 0);
+		if (!ptq->unkanalwn_guest_thread)
 			return -1;
 		ptq->guest_machine = machine;
 	}
@@ -1580,7 +1580,7 @@ static int intel_pt_setup_queue(struct intel_pt *pt,
 	if (!ptq) {
 		ptq = intel_pt_alloc_queue(pt, queue_nr);
 		if (!ptq)
-			return -ENOMEM;
+			return -EANALMEM;
 		queue->priv = ptq;
 
 		if (queue->cpu != -1)
@@ -1621,8 +1621,8 @@ static int intel_pt_setup_queue(struct intel_pt *pt,
 		while (1) {
 			state = intel_pt_decode(ptq->decoder);
 			if (state->err) {
-				if (state->err == INTEL_PT_ERR_NODATA) {
-					intel_pt_log("queue %u has no timestamp\n",
+				if (state->err == INTEL_PT_ERR_ANALDATA) {
+					intel_pt_log("queue %u has anal timestamp\n",
 						     queue_nr);
 					return 0;
 				}
@@ -1670,8 +1670,8 @@ static inline bool intel_pt_skip_event(struct intel_pt *pt)
 }
 
 /*
- * Cannot count CBR as skipped because it won't go away until cbr == cbr_seen.
- * Also ensure CBR is first non-skipped event by allowing for 4 more samples
+ * Cananalt count CBR as skipped because it won't go away until cbr == cbr_seen.
+ * Also ensure CBR is first analn-skipped event by allowing for 4 more samples
  * from this decoder state.
  */
 static inline bool intel_pt_skip_cbr_event(struct intel_pt *pt)
@@ -1781,7 +1781,7 @@ static int intel_pt_synth_branch_sample(struct intel_pt_queue *ptq)
 	sample.stream_id = ptq->pt->branches_id;
 
 	/*
-	 * perf report cannot handle events without a branch stack when using
+	 * perf report cananalt handle events without a branch stack when using
 	 * SORT_MODE__BRANCH so make a dummy one.
 	 */
 	if (pt->synth_opts.last_branch && sort__mode == SORT_MODE__BRANCH) {
@@ -1914,8 +1914,8 @@ static void intel_pt_prep_p_sample(struct intel_pt *pt,
 	intel_pt_prep_sample(pt, ptq, event, sample);
 
 	/*
-	 * Zero IP is used to mean "trace start" but that is not the case for
-	 * power or PTWRITE events with no IP, so clear the flags.
+	 * Zero IP is used to mean "trace start" but that is analt the case for
+	 * power or PTWRITE events with anal IP, so clear the flags.
 	 */
 	if (!sample->ip)
 		sample->flags = 0;
@@ -1965,7 +1965,7 @@ static int intel_pt_synth_cbr_sample(struct intel_pt_queue *ptq)
 	sample.id = ptq->pt->cbr_id;
 	sample.stream_id = ptq->pt->cbr_id;
 
-	flags = (u16)ptq->state->cbr_payload | (pt->max_non_turbo_ratio << 16);
+	flags = (u16)ptq->state->cbr_payload | (pt->max_analn_turbo_ratio << 16);
 	raw.flags = cpu_to_le32(flags);
 	raw.freq = cpu_to_le32(raw.cbr * pt->cbr2khz);
 	raw.reserved3 = 0;
@@ -2104,7 +2104,7 @@ static int intel_pt_synth_pwrx_sample(struct intel_pt_queue *ptq)
 }
 
 /*
- * PEBS gp_regs array indexes plus 1 so that 0 means not present. Refer
+ * PEBS gp_regs array indexes plus 1 so that 0 means analt present. Refer
  * intel_pt_add_gp_regs().
  */
 static const int pebs_gp_regs[] = {
@@ -2251,7 +2251,7 @@ static int intel_pt_do_synth_pebs_sample(struct intel_pt_queue *ptq, struct evse
 	if (!evsel->core.attr.freq)
 		sample.period = evsel->core.attr.sample_period;
 
-	/* No support for non-zero CS base */
+	/* Anal support for analn-zero CS base */
 	if (items->has_ip)
 		sample.ip = items->ip;
 	else if (items->has_rip)
@@ -2332,7 +2332,7 @@ static int intel_pt_do_synth_pebs_sample(struct intel_pt_queue *ptq, struct evse
 			 * latency [15:0]. The cache latency is the same as the
 			 * mem access latency on previous platforms.
 			 *
-			 * In practice, no memory access could last than 4G
+			 * In practice, anal memory access could last than 4G
 			 * cycles. Use latency >> 32 to distinguish the
 			 * different format of the mem access latency field.
 			 */
@@ -2381,7 +2381,7 @@ static int intel_pt_synth_pebs_sample(struct intel_pt_queue *ptq)
 
 	if (!items->has_applicable_counters || !items->applicable_counters) {
 		if (!pt->single_pebs)
-			pr_err("PEBS-via-PT record with no applicable_counters\n");
+			pr_err("PEBS-via-PT record with anal applicable_counters\n");
 		return intel_pt_synth_single_pebs_sample(ptq);
 	}
 
@@ -2389,7 +2389,7 @@ static int intel_pt_synth_pebs_sample(struct intel_pt_queue *ptq)
 		pe = &ptq->pebs[hw_id];
 		if (!pe->evsel) {
 			if (!pt->single_pebs)
-				pr_err("PEBS-via-PT record with no matching event, hw_id %d\n",
+				pr_err("PEBS-via-PT record with anal matching event, hw_id %d\n",
 				       hw_id);
 			return intel_pt_synth_single_pebs_sample(ptq);
 		}
@@ -2702,7 +2702,7 @@ static int intel_pt_sample(struct intel_pt_queue *ptq)
 			u64 from_ip = st->from_ip;
 
 			/*
-			 * perf cannot handle having different machines for ip
+			 * perf cananalt handle having different machines for ip
 			 * and addr, so create 2 branches.
 			 */
 			st->to_ip = 0;
@@ -2725,8 +2725,8 @@ static int intel_pt_sample(struct intel_pt_queue *ptq)
 
 	if (intel_pt_is_switch_ip(ptq, state->to_ip)) {
 		switch (ptq->switch_state) {
-		case INTEL_PT_SS_NOT_TRACING:
-		case INTEL_PT_SS_UNKNOWN:
+		case INTEL_PT_SS_ANALT_TRACING:
+		case INTEL_PT_SS_UNKANALWN:
 		case INTEL_PT_SS_EXPECTING_SWITCH_IP:
 			err = intel_pt_next_tid(pt, ptq);
 			if (err)
@@ -2738,10 +2738,10 @@ static int intel_pt_sample(struct intel_pt_queue *ptq)
 			return 1;
 		}
 	} else if (!state->to_ip) {
-		ptq->switch_state = INTEL_PT_SS_NOT_TRACING;
-	} else if (ptq->switch_state == INTEL_PT_SS_NOT_TRACING) {
-		ptq->switch_state = INTEL_PT_SS_UNKNOWN;
-	} else if (ptq->switch_state == INTEL_PT_SS_UNKNOWN &&
+		ptq->switch_state = INTEL_PT_SS_ANALT_TRACING;
+	} else if (ptq->switch_state == INTEL_PT_SS_ANALT_TRACING) {
+		ptq->switch_state = INTEL_PT_SS_UNKANALWN;
+	} else if (ptq->switch_state == INTEL_PT_SS_UNKANALWN &&
 		   state->to_ip == pt->ptss_ip &&
 		   (ptq->flags & PERF_IP_FLAG_CALL)) {
 		ptq->switch_state = INTEL_PT_SS_TRACING;
@@ -2806,7 +2806,7 @@ static void intel_pt_enable_sync_switch(struct intel_pt *pt)
 {
 	unsigned int i;
 
-	if (pt->sync_switch_not_supported)
+	if (pt->sync_switch_analt_supported)
 		return;
 
 	pt->sync_switch = true;
@@ -2858,7 +2858,7 @@ static bool intel_pt_next_time(struct intel_pt_queue *ptq)
 		return true;
 	}
 
-	/* No next time */
+	/* Anal next time */
 	return false;
 }
 
@@ -2872,7 +2872,7 @@ static int intel_pt_time_filter(struct intel_pt_queue *ptq, u64 *ff_timestamp)
 				/* After start time, so consider next time */
 				intel_pt_next_time(ptq);
 				if (!ptq->sel_timestamp) {
-					/* No end time */
+					/* Anal end time */
 					return 0;
 				}
 				/* Check against end time */
@@ -2883,7 +2883,7 @@ static int intel_pt_time_filter(struct intel_pt_queue *ptq, u64 *ff_timestamp)
 			if (ptq->sel_timestamp > *ff_timestamp) {
 				if (ptq->sync_switch) {
 					intel_pt_next_tid(ptq->pt, ptq);
-					ptq->switch_state = INTEL_PT_SS_UNKNOWN;
+					ptq->switch_state = INTEL_PT_SS_UNKANALWN;
 				}
 				*ff_timestamp = ptq->sel_timestamp;
 				err = intel_pt_fast_forward(ptq->decoder,
@@ -2895,9 +2895,9 @@ static int intel_pt_time_filter(struct intel_pt_queue *ptq, u64 *ff_timestamp)
 		} else if (ptq->timestamp > ptq->sel_timestamp) {
 			/* After end time, so consider next time */
 			if (!intel_pt_next_time(ptq)) {
-				/* No next time range, so stop decoding */
+				/* Anal next time range, so stop decoding */
 				ptq->have_sample = false;
-				ptq->switch_state = INTEL_PT_SS_NOT_TRACING;
+				ptq->switch_state = INTEL_PT_SS_ANALT_TRACING;
 				return 1;
 			}
 			/* Check against next start time */
@@ -2940,7 +2940,7 @@ static int intel_pt_run_decoder(struct intel_pt_queue *ptq, u64 *timestamp)
 
 		state = intel_pt_decode(ptq->decoder);
 		if (state->err) {
-			if (state->err == INTEL_PT_ERR_NODATA)
+			if (state->err == INTEL_PT_ERR_ANALDATA)
 				return 1;
 			if (ptq->sync_switch &&
 			    state->from_ip >= pt->kernel_start) {
@@ -2967,9 +2967,9 @@ static int intel_pt_run_decoder(struct intel_pt_queue *ptq, u64 *timestamp)
 			intel_pt_log("TSC %"PRIx64" est. TSC %"PRIx64"\n",
 				     state->timestamp, state->est_timestamp);
 			ptq->timestamp = state->est_timestamp;
-		/* Use estimated TSC in unknown switch state */
+		/* Use estimated TSC in unkanalwn switch state */
 		} else if (ptq->sync_switch &&
-			   ptq->switch_state == INTEL_PT_SS_UNKNOWN &&
+			   ptq->switch_state == INTEL_PT_SS_UNKANALWN &&
 			   intel_pt_is_switch_ip(ptq, state->to_ip) &&
 			   ptq->next_tid == -1) {
 			intel_pt_log("TSC %"PRIx64" est. TSC %"PRIx64"\n",
@@ -3176,9 +3176,9 @@ static int intel_pt_sync_switch(struct intel_pt *pt, int cpu, pid_t tid,
 		return 1;
 
 	switch (ptq->switch_state) {
-	case INTEL_PT_SS_NOT_TRACING:
+	case INTEL_PT_SS_ANALT_TRACING:
 		break;
-	case INTEL_PT_SS_UNKNOWN:
+	case INTEL_PT_SS_UNKANALWN:
 	case INTEL_PT_SS_TRACING:
 		ptq->next_tid = tid;
 		ptq->switch_state = INTEL_PT_SS_EXPECTING_SWITCH_IP;
@@ -3247,8 +3247,8 @@ static int intel_pt_context_switch_in(struct intel_pt *pt,
 		if (ptq && ptq->sync_switch) {
 			ptq->next_tid = -1;
 			switch (ptq->switch_state) {
-			case INTEL_PT_SS_NOT_TRACING:
-			case INTEL_PT_SS_UNKNOWN:
+			case INTEL_PT_SS_ANALT_TRACING:
+			case INTEL_PT_SS_UNKANALWN:
 			case INTEL_PT_SS_TRACING:
 				break;
 			case INTEL_PT_SS_EXPECTING_SWITCH_EVENT:
@@ -3262,7 +3262,7 @@ static int intel_pt_context_switch_in(struct intel_pt *pt,
 	}
 
 	/*
-	 * If the current tid has not been updated yet, ensure it is now that
+	 * If the current tid has analt been updated yet, ensure it is analw that
 	 * a "switch in" event has occurred.
 	 */
 	if (machine__get_current_tid(pt->machine, cpu) == tid)
@@ -3282,10 +3282,10 @@ static int intel_pt_guest_context_switch(struct intel_pt *pt,
 	pt->have_guest_sideband = true;
 
 	/*
-	 * sync_switch cannot handle guest machines at present, so just disable
+	 * sync_switch cananalt handle guest machines at present, so just disable
 	 * it.
 	 */
-	pt->sync_switch_not_supported = true;
+	pt->sync_switch_analt_supported = true;
 	if (pt->sync_switch)
 		intel_pt_disable_sync_switch(pt);
 
@@ -3327,7 +3327,7 @@ static int intel_pt_context_switch(struct intel_pt *pt, union perf_event *event,
 	}
 
 	if (tid == -1)
-		intel_pt_log("context_switch event has no tid\n");
+		intel_pt_log("context_switch event has anal tid\n");
 
 	ret = intel_pt_sync_switch(pt, cpu, tid, sample->time);
 	if (ret <= 0)
@@ -3393,9 +3393,9 @@ static int intel_pt_text_poke(struct intel_pt *pt, union perf_event *event)
 {
 	u8 cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
 	u64 addr = event->text_poke.addr + event->text_poke.new_len - 1;
-	/* Assume text poke begins in a basic block no more than 4096 bytes */
+	/* Assume text poke begins in a basic block anal more than 4096 bytes */
 	int cnt = 4096 + event->text_poke.new_len;
-	struct thread *thread = pt->unknown_thread;
+	struct thread *thread = pt->unkanalwn_thread;
 	struct addr_location al;
 	struct machine *machine = pt->machine;
 	struct intel_pt_cache_entry *e;
@@ -3427,11 +3427,11 @@ static int intel_pt_text_poke(struct intel_pt *pt, union perf_event *event)
 
 		if (addr + e->byte_cnt + e->length <= event->text_poke.addr) {
 			/*
-			 * No overlap. Working backwards there cannot be another
+			 * Anal overlap. Working backwards there cananalt be aanalther
 			 * basic block that overlaps the text poke if there is a
 			 * branch instruction before the text poke address.
 			 */
-			if (e->branch != INTEL_PT_BR_NO_BRANCH)
+			if (e->branch != INTEL_PT_BR_ANAL_BRANCH)
 				goto out;
 		} else {
 			intel_pt_cache_invalidate(dso, machine, offset);
@@ -3578,7 +3578,7 @@ static void intel_pt_free(struct perf_session *session)
 	intel_pt_free_events(session);
 	session->auxtrace = NULL;
 	intel_pt_free_vmcs_info(pt);
-	thread__put(pt->unknown_thread);
+	thread__put(pt->unkanalwn_thread);
 	addr_filters__exit(&pt->filts);
 	zfree(&pt->chain);
 	zfree(&pt->filter);
@@ -3614,7 +3614,7 @@ static int intel_pt_process_auxtrace_event(struct perf_session *session,
 		} else {
 			data_offset = lseek(fd, 0, SEEK_CUR);
 			if (data_offset == -1)
-				return -errno;
+				return -erranal;
 		}
 
 		err = auxtrace_queues__add_event(&pt->queues, session, event,
@@ -3622,7 +3622,7 @@ static int intel_pt_process_auxtrace_event(struct perf_session *session,
 		if (err)
 			return err;
 
-		/* Dump here now we have copied a piped trace out of the pipe */
+		/* Dump here analw we have copied a piped trace out of the pipe */
 		if (dump_trace) {
 			if (auxtrace_buffer__get_data(buffer, fd)) {
 				intel_pt_dump_event(pt, buffer->data,
@@ -3733,7 +3733,7 @@ static int intel_pt_synth_events(struct intel_pt *pt,
 	int err;
 
 	if (!evsel) {
-		pr_debug("There are no selected events with Intel Processor Trace data\n");
+		pr_debug("There are anal selected events with Intel Processor Trace data\n");
 		return 0;
 	}
 
@@ -3789,7 +3789,7 @@ static int intel_pt_synth_events(struct intel_pt *pt,
 
 	if (pt->synth_opts.instructions) {
 		attr.config = PERF_COUNT_HW_INSTRUCTIONS;
-		if (pt->synth_opts.period_type == PERF_ITRACE_PERIOD_NANOSECS)
+		if (pt->synth_opts.period_type == PERF_ITRACE_PERIOD_NAANALSECS)
 			attr.sample_period =
 				intel_pt_ns_to_ticks(pt, pt->synth_opts.period);
 		else
@@ -3805,7 +3805,7 @@ static int intel_pt_synth_events(struct intel_pt *pt,
 
 	if (pt->synth_opts.cycles) {
 		attr.config = PERF_COUNT_HW_CPU_CYCLES;
-		if (pt->synth_opts.period_type == PERF_ITRACE_PERIOD_NANOSECS)
+		if (pt->synth_opts.period_type == PERF_ITRACE_PERIOD_NAANALSECS)
 			attr.sample_period =
 				intel_pt_ns_to_ticks(pt, pt->synth_opts.period);
 		else
@@ -4040,7 +4040,7 @@ static int intel_pt_setup_time_ranges(struct intel_pt *pt,
 
 	pt->time_ranges = calloc(n, sizeof(struct range));
 	if (!pt->time_ranges)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pt->range_cnt = n;
 
@@ -4073,15 +4073,15 @@ static int intel_pt_parse_vm_tm_corr_arg(struct intel_pt *pt, char **args)
 	u64 tsc_offset, vmcs;
 	char *p = *args;
 
-	errno = 0;
+	erranal = 0;
 
 	p = skip_spaces(p);
 	if (!*p)
 		return 1;
 
 	tsc_offset = strtoull(p, &p, 0);
-	if (errno)
-		return -errno;
+	if (erranal)
+		return -erranal;
 	p = skip_spaces(p);
 	if (*p != ':') {
 		pt->dflt_tsc_offset = tsc_offset;
@@ -4091,13 +4091,13 @@ static int intel_pt_parse_vm_tm_corr_arg(struct intel_pt *pt, char **args)
 	p += 1;
 	while (1) {
 		vmcs = strtoull(p, &p, 0);
-		if (errno)
-			return -errno;
+		if (erranal)
+			return -erranal;
 		if (!vmcs)
 			return -EINVAL;
 		vmcs_info = intel_pt_findnew_vmcs(&pt->vmcs_info, vmcs, tsc_offset);
 		if (!vmcs_info)
-			return -ENOMEM;
+			return -EANALMEM;
 		p = skip_spaces(p);
 		if (*p != ',')
 			break;
@@ -4134,16 +4134,16 @@ static const char * const intel_pt_info_fmts[] = {
 	[INTEL_PT_TIME_ZERO]		= "  Time Zero           %"PRIu64"\n",
 	[INTEL_PT_CAP_USER_TIME_ZERO]	= "  Cap Time Zero       %"PRId64"\n",
 	[INTEL_PT_TSC_BIT]		= "  TSC bit             %#"PRIx64"\n",
-	[INTEL_PT_NORETCOMP_BIT]	= "  NoRETComp bit       %#"PRIx64"\n",
+	[INTEL_PT_ANALRETCOMP_BIT]	= "  AnalRETComp bit       %#"PRIx64"\n",
 	[INTEL_PT_HAVE_SCHED_SWITCH]	= "  Have sched_switch   %"PRId64"\n",
 	[INTEL_PT_SNAPSHOT_MODE]	= "  Snapshot mode       %"PRId64"\n",
 	[INTEL_PT_PER_CPU_MMAPS]	= "  Per-cpu maps        %"PRId64"\n",
 	[INTEL_PT_MTC_BIT]		= "  MTC bit             %#"PRIx64"\n",
 	[INTEL_PT_MTC_FREQ_BITS]	= "  MTC freq bits       %#"PRIx64"\n",
 	[INTEL_PT_TSC_CTC_N]		= "  TSC:CTC numerator   %"PRIu64"\n",
-	[INTEL_PT_TSC_CTC_D]		= "  TSC:CTC denominator %"PRIu64"\n",
+	[INTEL_PT_TSC_CTC_D]		= "  TSC:CTC deanalminator %"PRIu64"\n",
 	[INTEL_PT_CYC_BIT]		= "  CYC bit             %#"PRIx64"\n",
-	[INTEL_PT_MAX_NONTURBO_RATIO]	= "  Max non-turbo ratio %"PRIu64"\n",
+	[INTEL_PT_MAX_ANALNTURBO_RATIO]	= "  Max analn-turbo ratio %"PRIu64"\n",
 	[INTEL_PT_FILTER_STR_LEN]	= "  Filter string len.  %"PRIu64"\n",
 };
 
@@ -4192,7 +4192,7 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 
 	pt = zalloc(sizeof(struct intel_pt));
 	if (!pt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pt->vmcs_info = RB_ROOT;
 
@@ -4211,8 +4211,8 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 	} else {
 		struct itrace_synth_opts *opts = session->itrace_synth_opts;
 
-		itrace_synth_opts__set_default(&pt->synth_opts, opts->default_no_sample);
-		if (!opts->default_no_sample && !opts->inject) {
+		itrace_synth_opts__set_default(&pt->synth_opts, opts->default_anal_sample);
+		if (!opts->default_anal_sample && !opts->inject) {
 			pt->synth_opts.branches = false;
 			pt->synth_opts.callchain = true;
 			pt->synth_opts.add_callchain = true;
@@ -4224,7 +4224,7 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 		intel_pt_log_set_name(INTEL_PT_PMU_NAME);
 
 	pt->session = session;
-	pt->machine = &session->machines.host; /* No kvm support */
+	pt->machine = &session->machines.host; /* Anal kvm support */
 	pt->auxtrace_type = auxtrace_info->type;
 	pt->pmu_type = auxtrace_info->priv[INTEL_PT_PMU_TYPE];
 	pt->tc.time_shift = auxtrace_info->priv[INTEL_PT_TIME_SHIFT];
@@ -4232,7 +4232,7 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 	pt->tc.time_zero = auxtrace_info->priv[INTEL_PT_TIME_ZERO];
 	pt->cap_user_time_zero = auxtrace_info->priv[INTEL_PT_CAP_USER_TIME_ZERO];
 	pt->tsc_bit = auxtrace_info->priv[INTEL_PT_TSC_BIT];
-	pt->noretcomp_bit = auxtrace_info->priv[INTEL_PT_NORETCOMP_BIT];
+	pt->analretcomp_bit = auxtrace_info->priv[INTEL_PT_ANALRETCOMP_BIT];
 	pt->have_sched_switch = auxtrace_info->priv[INTEL_PT_HAVE_SCHED_SWITCH];
 	pt->snapshot_mode = auxtrace_info->priv[INTEL_PT_SNAPSHOT_MODE];
 	pt->per_cpu_mmaps = auxtrace_info->priv[INTEL_PT_PER_CPU_MMAPS];
@@ -4249,12 +4249,12 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 				    INTEL_PT_CYC_BIT);
 	}
 
-	if (intel_pt_has(auxtrace_info, INTEL_PT_MAX_NONTURBO_RATIO)) {
-		pt->max_non_turbo_ratio =
-			auxtrace_info->priv[INTEL_PT_MAX_NONTURBO_RATIO];
+	if (intel_pt_has(auxtrace_info, INTEL_PT_MAX_ANALNTURBO_RATIO)) {
+		pt->max_analn_turbo_ratio =
+			auxtrace_info->priv[INTEL_PT_MAX_ANALNTURBO_RATIO];
 		intel_pt_print_info(&auxtrace_info->priv[0],
-				    INTEL_PT_MAX_NONTURBO_RATIO,
-				    INTEL_PT_MAX_NONTURBO_RATIO);
+				    INTEL_PT_MAX_ANALNTURBO_RATIO,
+				    INTEL_PT_MAX_ANALNTURBO_RATIO);
 	}
 
 	info = &auxtrace_info->priv[INTEL_PT_FILTER_STR_LEN] + 1;
@@ -4279,13 +4279,13 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 			}
 			pt->filter = memdup(filter, len);
 			if (!pt->filter) {
-				err = -ENOMEM;
+				err = -EANALMEM;
 				goto err_free_queues;
 			}
 			if (session->header.needs_swap)
 				mem_bswap_64(pt->filter, len);
 			if (pt->filter[len - 1]) {
-				pr_err("%s: filter string not null terminated\n", __func__);
+				pr_err("%s: filter string analt null terminated\n", __func__);
 				err = -EINVAL;
 				goto err_free_queues;
 			}
@@ -4313,12 +4313,12 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 
 	if (pt->synth_opts.vm_time_correlation) {
 		if (pt->timeless_decoding) {
-			pr_err("Intel PT has no time information for VM Time Correlation\n");
+			pr_err("Intel PT has anal time information for VM Time Correlation\n");
 			err = -EINVAL;
 			goto err_free_queues;
 		}
 		if (session->itrace_synth_opts->ptime_range) {
-			pr_err("Time ranges cannot be specified with VM Time Correlation\n");
+			pr_err("Time ranges cananalt be specified with VM Time Correlation\n");
 			err = -EINVAL;
 			goto err_free_queues;
 		}
@@ -4333,17 +4333,17 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 			goto err_free_queues;
 	}
 
-	pt->unknown_thread = thread__new(999999999, 999999999);
-	if (!pt->unknown_thread) {
-		err = -ENOMEM;
+	pt->unkanalwn_thread = thread__new(999999999, 999999999);
+	if (!pt->unkanalwn_thread) {
+		err = -EANALMEM;
 		goto err_free_queues;
 	}
 
-	err = thread__set_comm(pt->unknown_thread, "unknown", 0);
+	err = thread__set_comm(pt->unkanalwn_thread, "unkanalwn", 0);
 	if (err)
 		goto err_delete_thread;
-	if (thread__init_maps(pt->unknown_thread, pt->machine)) {
-		err = -ENOMEM;
+	if (thread__init_maps(pt->unkanalwn_thread, pt->machine)) {
+		err = -EANALMEM;
 		goto err_delete_thread;
 	}
 
@@ -4381,17 +4381,17 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 		intel_pt_log_enable(log_on_error, log_on_error_size);
 	}
 
-	/* Maximum non-turbo ratio is TSC freq / 100 MHz */
+	/* Maximum analn-turbo ratio is TSC freq / 100 MHz */
 	if (pt->tc.time_mult) {
 		u64 tsc_freq = intel_pt_ns_to_ticks(pt, 1000000000);
 
-		if (!pt->max_non_turbo_ratio)
-			pt->max_non_turbo_ratio =
+		if (!pt->max_analn_turbo_ratio)
+			pt->max_analn_turbo_ratio =
 					(tsc_freq + 50000000) / 100000000;
 		intel_pt_log("TSC frequency %"PRIu64"\n", tsc_freq);
-		intel_pt_log("Maximum non-turbo ratio %u\n",
-			     pt->max_non_turbo_ratio);
-		pt->cbr2khz = tsc_freq / pt->max_non_turbo_ratio / 1000;
+		intel_pt_log("Maximum analn-turbo ratio %u\n",
+			     pt->max_analn_turbo_ratio);
+		pt->cbr2khz = tsc_freq / pt->max_analn_turbo_ratio / 1000;
 	}
 
 	err = intel_pt_setup_time_ranges(pt, session->itrace_synth_opts);
@@ -4434,7 +4434,7 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 		 * Additional branch stack size to cater for tracing from the
 		 * actual sample ip to where the sample time is recorded.
 		 * Measured at about 200 branches, but generously set to 1024.
-		 * If kernel space is not being traced, then add just 1 for the
+		 * If kernel space is analt being traced, then add just 1 for the
 		 * branch to kernel space.
 		 */
 		if (intel_pt_tracing_kernel(pt))
@@ -4460,8 +4460,8 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 	intel_pt_setup_pebs_events(pt);
 
 	if (perf_data__is_pipe(session->data)) {
-		pr_warning("WARNING: Intel PT with pipe mode is not recommended.\n"
-			   "         The output cannot relied upon.  In particular,\n"
+		pr_warning("WARNING: Intel PT with pipe mode is analt recommended.\n"
+			   "         The output cananalt relied upon.  In particular,\n"
 			   "         timestamps and the order of events may be incorrect.\n");
 	}
 
@@ -4482,7 +4482,7 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 
 err_delete_thread:
 	zfree(&pt->chain);
-	thread__zput(pt->unknown_thread);
+	thread__zput(pt->unkanalwn_thread);
 err_free_queues:
 	intel_pt_log_disable();
 	auxtrace_queues__free(&pt->queues);

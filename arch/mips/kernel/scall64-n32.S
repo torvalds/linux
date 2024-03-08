@@ -5,9 +5,9 @@
  *
  * Copyright (C) 1995, 96, 97, 98, 99, 2000, 01 by Ralf Baechle
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
- * Copyright (C) 2001 MIPS Technologies, Inc.
+ * Copyright (C) 2001 MIPS Techanallogies, Inc.
  */
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <asm/asm.h>
 #include <asm/asmmacro.h>
 #include <asm/irqflags.h>
@@ -18,14 +18,14 @@
 #include <asm/unistd.h>
 
 #ifndef CONFIG_MIPS32_O32
-/* No O32, so define handle_sys here */
+/* Anal O32, so define handle_sys here */
 #define handle_sysn32 handle_sys
 #endif
 
 	.align	5
 NESTED(handle_sysn32, PT_SIZE, sp)
 #ifndef CONFIG_MIPS32_O32
-	.set	noat
+	.set	analat
 	SAVE_SOME
 	TRACE_IRQS_ON_RELOAD
 	STI
@@ -40,7 +40,7 @@ NESTED(handle_sysn32, PT_SIZE, sp)
 	daddiu	t1, 4			# skip to next instruction
 	sd	t1, PT_EPC(sp)
 #endif
-	beqz	t0, not_n32_scall
+	beqz	t0, analt_n32_scall
 
 	sd	a3, PT_R26(sp)		# save a3 for syscall restarting
 
@@ -55,7 +55,7 @@ syscall_common:
 
 	jalr	t2			# Do The Real Thing (TM)
 
-	li	t0, -EMAXERRNO - 1	# error?
+	li	t0, -EMAXERRANAL - 1	# error?
 	sltu	t0, t0, v0
 	sd	t0, PT_R7(sp)		# set error flag
 	beqz	t0, 1f
@@ -88,14 +88,14 @@ n32_syscall_trace_entry:
 
 	dsubu	t2, v0, __NR_N32_Linux	# check (new) syscall number
 	sltiu   t0, t2, __NR_N32_Linux_syscalls
-	beqz	t0, not_n32_scall
+	beqz	t0, analt_n32_scall
 
 	j	syscall_common
 
 1:	j	syscall_exit
 
-not_n32_scall:
-	/* This is not an n32 compatibility syscall, pass it on to
+analt_n32_scall:
+	/* This is analt an n32 compatibility syscall, pass it on to
 	   the n64 syscall handlers.  */
 	j	handle_sys64
 

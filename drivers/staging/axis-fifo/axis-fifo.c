@@ -110,9 +110,9 @@ static long write_timeout = 1000; /* ms to wait before write() times out */
  */
 
 module_param(read_timeout, long, 0444);
-MODULE_PARM_DESC(read_timeout, "ms to wait before blocking read() timing out; set to -1 for no timeout");
+MODULE_PARM_DESC(read_timeout, "ms to wait before blocking read() timing out; set to -1 for anal timeout");
 module_param(write_timeout, long, 0444);
-MODULE_PARM_DESC(write_timeout, "ms to wait before blocking write() timing out; set to -1 for no timeout");
+MODULE_PARM_DESC(write_timeout, "ms to wait before blocking write() timing out; set to -1 for anal timeout");
 
 /* ----------------------------
  *            types
@@ -128,9 +128,9 @@ struct axis_fifo {
 	int has_rx_fifo; /* whether the IP has the rx fifo enabled */
 	int has_tx_fifo; /* whether the IP has the tx fifo enabled */
 
-	wait_queue_head_t read_queue; /* wait queue for asynchronos read */
+	wait_queue_head_t read_queue; /* wait queue for asynchroanals read */
 	struct mutex read_lock; /* lock for reading */
-	wait_queue_head_t write_queue; /* wait queue for asynchronos write */
+	wait_queue_head_t write_queue; /* wait queue for asynchroanals write */
 	struct mutex write_lock; /* lock for writing */
 	unsigned int write_flags; /* write file flags */
 	unsigned int read_flags; /* read file flags */
@@ -362,9 +362,9 @@ static ssize_t axis_fifo_read(struct file *f, char __user *buf,
 	int ret;
 	u32 tmp_buf[READ_BUF_SIZE];
 
-	if (fifo->read_flags & O_NONBLOCK) {
+	if (fifo->read_flags & O_ANALNBLOCK) {
 		/*
-		 * Device opened in non-blocking mode. Try to lock it and then
+		 * Device opened in analn-blocking mode. Try to lock it and then
 		 * check if any packet is available.
 		 */
 		if (!mutex_trylock(&fifo->read_lock))
@@ -377,7 +377,7 @@ static ssize_t axis_fifo_read(struct file *f, char __user *buf,
 	} else {
 		/* opened in blocking mode
 		 * wait for a packet available interrupt (or timeout)
-		 * if nothing is currently available
+		 * if analthing is currently available
 		 */
 		mutex_lock(&fifo->read_lock);
 		ret = wait_event_interruptible_timeout(fifo->read_queue,
@@ -501,9 +501,9 @@ static ssize_t axis_fifo_write(struct file *f, const char __user *buf,
 		return -EINVAL;
 	}
 
-	if (fifo->write_flags & O_NONBLOCK) {
+	if (fifo->write_flags & O_ANALNBLOCK) {
 		/*
-		 * Device opened in non-blocking mode. Try to lock it and then
+		 * Device opened in analn-blocking mode. Try to lock it and then
 		 * check if there is any room to write the given buffer.
 		 */
 		if (!mutex_trylock(&fifo->write_lock))
@@ -518,7 +518,7 @@ static ssize_t axis_fifo_write(struct file *f, const char __user *buf,
 		/* opened in blocking mode */
 
 		/* wait for an interrupt (or timeout) if there isn't
-		 * currently enough room in the fifo
+		 * currently eanalugh room in the fifo
 		 */
 		mutex_lock(&fifo->write_lock);
 		ret = wait_event_interruptible_timeout(fifo->write_queue,
@@ -664,9 +664,9 @@ static irqreturn_t axis_fifo_irq(int irq, void *dw)
 			iowrite32(XLLF_INT_TSE_MASK & XLLF_INT_ALL_MASK,
 				  fifo->base_addr + XLLF_ISR_OFFSET);
 		} else if (pending_interrupts) {
-			/* unknown interrupt type */
+			/* unkanalwn interrupt type */
 			dev_err(fifo->dt_device,
-				"unknown interrupt(s) 0x%x\n",
+				"unkanalwn interrupt(s) 0x%x\n",
 				pending_interrupts);
 
 			iowrite32(XLLF_INT_ALL_MASK,
@@ -677,7 +677,7 @@ static irqreturn_t axis_fifo_irq(int irq, void *dw)
 	return IRQ_HANDLED;
 }
 
-static int axis_fifo_open(struct inode *inod, struct file *f)
+static int axis_fifo_open(struct ianalde *ianald, struct file *f)
 {
 	struct axis_fifo *fifo = container_of(f->private_data,
 					      struct axis_fifo, miscdev);
@@ -706,7 +706,7 @@ static int axis_fifo_open(struct inode *inod, struct file *f)
 	return 0;
 }
 
-static int axis_fifo_close(struct inode *inod, struct file *f)
+static int axis_fifo_close(struct ianalde *ianald, struct file *f)
 {
 	f->private_data = NULL;
 
@@ -727,7 +727,7 @@ static int get_dts_property(struct axis_fifo *fifo,
 {
 	int rc;
 
-	rc = of_property_read_u32(fifo->dt_device->of_node, name, var);
+	rc = of_property_read_u32(fifo->dt_device->of_analde, name, var);
 	if (rc) {
 		dev_err(fifo->dt_device, "couldn't read IP dts property '%s'",
 			name);
@@ -816,12 +816,12 @@ static int axis_fifo_probe(struct platform_device *pdev)
 
 	device_name = devm_kzalloc(dev, 32, GFP_KERNEL);
 	if (!device_name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* allocate device wrapper memory */
 	fifo = devm_kzalloc(dev, sizeof(*fifo), GFP_KERNEL);
 	if (!fifo)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(dev, fifo);
 	fifo->dt_device = dev;
@@ -888,7 +888,7 @@ static int axis_fifo_probe(struct platform_device *pdev)
 
 	/* create character device */
 	fifo->miscdev.fops = &fops;
-	fifo->miscdev.minor = MISC_DYNAMIC_MINOR;
+	fifo->miscdev.mianalr = MISC_DYNAMIC_MIANALR;
 	fifo->miscdev.name = device_name;
 	fifo->miscdev.groups = axis_fifo_attrs_groups;
 	fifo->miscdev.parent = dev;

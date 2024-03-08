@@ -33,14 +33,14 @@ mlx5e_tc_act_vlan_add_rewrite_action(struct mlx5e_priv *priv, int namespace,
 	if (!(MLX5_GET(fte_match_set_lyr_2_4, headers_c, cvlan_tag) &&
 	      MLX5_GET(fte_match_set_lyr_2_4, headers_v, cvlan_tag))) {
 		NL_SET_ERR_MSG_MOD(extack, "VLAN rewrite action must have VLAN protocol match");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	match_prio_mask = MLX5_GET(fte_match_set_lyr_2_4, headers_c, first_prio);
 	match_prio_val = MLX5_GET(fte_match_set_lyr_2_4, headers_v, first_prio);
 	if (act->vlan.prio != (match_prio_val & match_prio_mask)) {
-		NL_SET_ERR_MSG_MOD(extack, "Changing VLAN prio is not supported");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG_MOD(extack, "Changing VLAN prio is analt supported");
+		return -EOPANALTSUPP;
 	}
 
 	err = mlx5e_tc_act_pedit_parse_action(priv, &pedit_act, namespace, parse_attr->hdrs,

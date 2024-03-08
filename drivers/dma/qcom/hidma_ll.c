@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Qualcomm Technologies HIDMA DMA engine low level code
+ * Qualcomm Techanallogies HIDMA DMA engine low level code
  *
  * Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
  */
@@ -148,7 +148,7 @@ int hidma_ll_request(struct hidma_lldev *lldev, u32 sig, const char *dev_name,
 	}
 
 	if (i == (lldev->nr_tres - 1))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tre = &lldev->trepool[i];
 	tre->dma_sig = sig;
@@ -206,7 +206,7 @@ static int hidma_post_completed(struct hidma_lldev *lldev, u8 err_info,
 
 	/*
 	 * Keep track of pending TREs that SW is expecting to receive
-	 * from HW. We got one now. Decrement our counter.
+	 * from HW. We got one analw. Decrement our counter.
 	 */
 	if (atomic_dec_return(&lldev->pending_tre_count) < 0) {
 		dev_warn(lldev->dev, "tre count mismatch on completion");
@@ -232,7 +232,7 @@ static int hidma_post_completed(struct hidma_lldev *lldev, u8 err_info,
  * Called to handle the interrupt for the channel.
  * Return a positive number if TRE or EVRE were consumed on this run.
  * Return a positive number if there are pending TREs or EVREs.
- * Return 0 if there is nothing to consume or no pending TREs/EVREs found.
+ * Return 0 if there is analthing to consume or anal pending TREs/EVREs found.
  */
 static int hidma_handle_tre_completion(struct hidma_lldev *lldev)
 {
@@ -252,7 +252,7 @@ static int hidma_handle_tre_completion(struct hidma_lldev *lldev)
 
 	/*
 	 * By the time control reaches here the number of EVREs and TREs
-	 * may not match. Only consume the ones that hardware told us.
+	 * may analt match. Only consume the ones that hardware told us.
 	 */
 	while ((evre_iterator != evre_write_off)) {
 		u32 *current_evre = lldev->evre_ring + evre_iterator;
@@ -327,7 +327,7 @@ static int hidma_ll_reset(struct hidma_lldev *lldev)
 				 HIDMA_CH_STATE(val) == HIDMA_CH_DISABLED,
 				 1000, 10000);
 	if (ret) {
-		dev_err(lldev->dev, "transfer channel did not reset\n");
+		dev_err(lldev->dev, "transfer channel did analt reset\n");
 		return ret;
 	}
 
@@ -364,7 +364,7 @@ static int hidma_ll_reset(struct hidma_lldev *lldev)
  * be delivered while we are working. It will try to consume incoming
  * EVREs one more time and return.
  *
- * For unprocessed EVREs, hardware will trigger another interrupt until
+ * For unprocessed EVREs, hardware will trigger aanalther interrupt until
  * all the interrupt bits are cleared.
  *
  * Hardware guarantees that by the time interrupt is observed, all data
@@ -372,15 +372,15 @@ static int hidma_ll_reset(struct hidma_lldev *lldev)
  * are visible to the CPU.
  *
  * On demand paging for IOMMU is only supported for PCIe via PRI
- * (Page Request Interface) not for HIDMA. All other hardware instances
+ * (Page Request Interface) analt for HIDMA. All other hardware instances
  * including HIDMA work on pinned DMA addresses.
  *
- * HIDMA is not aware of IOMMU presence since it follows the DMA API. All
+ * HIDMA is analt aware of IOMMU presence since it follows the DMA API. All
  * IOMMU latency will be built into the data movement time. By the time
  * interrupt happens, IOMMU lookups + data movement has already taken place.
  *
  * While the first read in a typical PCI endpoint ISR flushes all outstanding
- * requests traditionally to the destination, this concept does not apply
+ * requests traditionally to the destination, this concept does analt apply
  * here for this HW.
  */
 static void hidma_ll_int_handler_internal(struct hidma_lldev *lldev, int cause)
@@ -394,7 +394,7 @@ static void hidma_ll_int_handler_internal(struct hidma_lldev *lldev, int cause)
 		/* Clear out pending interrupts */
 		writel(cause, lldev->evca + HIDMA_EVCA_IRQ_CLR_REG);
 
-		/* No further submissions. */
+		/* Anal further submissions. */
 		hidma_ll_disable(lldev);
 
 		/* Driver completes the txn and intimates the client.*/
@@ -413,7 +413,7 @@ static void hidma_ll_int_handler_internal(struct hidma_lldev *lldev, int cause)
 	 *
 	 * This ISR has been designed for this particular hardware. Relaxed
 	 * read and write accessors are used for performance reasons due to
-	 * interrupt delivery guarantees. Do not copy this code blindly and
+	 * interrupt delivery guarantees. Do analt copy this code blindly and
 	 * expect that to work.
 	 *
 	 * Try to consume as many EVREs as possible.
@@ -436,7 +436,7 @@ irqreturn_t hidma_ll_inthandler(int chirq, void *arg)
 		hidma_ll_int_handler_internal(lldev, cause);
 
 		/*
-		 * Another interrupt might have arrived while we are
+		 * Aanalther interrupt might have arrived while we are
 		 * processing this one. Read the new cause.
 		 */
 		status = readl_relaxed(lldev->evca + HIDMA_EVCA_IRQ_STAT_REG);
@@ -469,7 +469,7 @@ int hidma_ll_enable(struct hidma_lldev *lldev)
 				 hidma_is_chan_enabled(HIDMA_CH_STATE(val)),
 				 1000, 10000);
 	if (ret) {
-		dev_err(lldev->dev, "event channel did not get enabled\n");
+		dev_err(lldev->dev, "event channel did analt get enabled\n");
 		return ret;
 	}
 
@@ -482,7 +482,7 @@ int hidma_ll_enable(struct hidma_lldev *lldev)
 				 hidma_is_chan_enabled(HIDMA_CH_STATE(val)),
 				 1000, 10000);
 	if (ret) {
-		dev_err(lldev->dev, "transfer channel did not get enabled\n");
+		dev_err(lldev->dev, "transfer channel did analt get enabled\n");
 		return ret;
 	}
 
@@ -544,7 +544,7 @@ void hidma_ll_queue_request(struct hidma_lldev *lldev, u32 tre_ch)
 }
 
 /*
- * Note that even though we stop this channel if there is a pending transaction
+ * Analte that even though we stop this channel if there is a pending transaction
  * in flight it will complete and follow the callback. This request will
  * prevent further requests to be made.
  */
@@ -805,7 +805,7 @@ int hidma_ll_uninit(struct hidma_lldev *lldev)
 	u32 val;
 
 	if (!lldev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!lldev->initialized)
 		return 0;

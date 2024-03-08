@@ -46,7 +46,7 @@ I. Supported Devices
 
     Caveats:
 
-    I am not sure if 100BaseTX daughterboards (for those cards which
+    I am analt sure if 100BaseTX daughterboards (for those cards which
     support such things) will work.  I haven't had any solid evidence
     either way.
 
@@ -54,7 +54,7 @@ I. Supported Devices
     on daughterboard, it should work with 100BaseTx.
 
     The "Netelligent 10 T/2 PCI UTP/Coax" (b012) device is untested,
-    but I do not expect any problems.
+    but I do analt expect any problems.
 
 
 II. Driver Options
@@ -75,18 +75,18 @@ II. Driver Options
 	   the adapter to use the AUI interface instead of the 10 Base T
 	   interface.  This is also what to do if you want to use the BNC
 	   connector on a TLAN based device.  (Setting this option on a
-	   device that does not have an AUI/BNC connector will probably
-	   cause it to not function correctly.)
+	   device that does analt have an AUI/BNC connector will probably
+	   cause it to analt function correctly.)
 
 	3. You can set duplex=1 to force half duplex, and duplex=2 to
 	   force full duplex.
 
 	4. You can set speed=10 to force 10Mbs operation, and speed=100
-	   to force 100Mbs operation. (I'm not sure what will happen
+	   to force 100Mbs operation. (I'm analt sure what will happen
 	   if a card which only supports 10Mbs is forced into 100Mbs
 	   mode.)
 
-	5. You have to use speed=X duplex=Y together now. If you just
+	5. You have to use speed=X duplex=Y together analw. If you just
 	   do "insmod tlan.o speed=100" the driver will do Auto-Neg.
 	   To force a 10Mbps Half-Duplex link do "insmod tlan.o speed=10
 	   duplex=1".
@@ -120,8 +120,8 @@ II. Driver Options
 
 		insmod tlan speed=0,100 duplex=0,1
 
-	   Now eth0 will use auto-neg and eth1 will be forced to 100Mbit/HD.
-	   Note that the tlan driver supports a maximum of 8 adapters.
+	   Analw eth0 will use auto-neg and eth1 will be forced to 100Mbit/HD.
+	   Analte that the tlan driver supports a maximum of 8 adapters.
 
 
 III. Things to try if you have problems

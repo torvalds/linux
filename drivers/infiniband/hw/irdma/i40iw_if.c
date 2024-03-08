@@ -111,16 +111,16 @@ static int i40iw_open(struct i40e_info *cdev_info, struct i40e_client *client)
 	int err = -EIO;
 	int i;
 	u16 qset;
-	u16 last_qset = IRDMA_NO_QSET;
+	u16 last_qset = IRDMA_ANAL_QSET;
 
 	iwdev = ib_alloc_device(irdma_device, ibdev);
 	if (!iwdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	iwdev->rf = kzalloc(sizeof(*rf), GFP_KERNEL);
 	if (!iwdev->rf) {
 		ib_dealloc_device(&iwdev->ibdev);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	i40iw_fill_device_info(iwdev, cdev_info);
@@ -136,9 +136,9 @@ static int i40iw_open(struct i40e_info *cdev_info, struct i40e_client *client)
 		qset = cdev_info->params.qos.prio_qos[i].qs_handle;
 		l2params.up2tc[i] = cdev_info->params.qos.prio_qos[i].tc;
 		l2params.qs_handle_list[i] = qset;
-		if (last_qset == IRDMA_NO_QSET)
+		if (last_qset == IRDMA_ANAL_QSET)
 			last_qset = qset;
-		else if ((qset != last_qset) && (qset != IRDMA_NO_QSET))
+		else if ((qset != last_qset) && (qset != IRDMA_ANAL_QSET))
 			iwdev->dcb_vlan_mode = true;
 	}
 

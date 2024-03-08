@@ -557,7 +557,7 @@ static struct platform_device mcf_edma = {
 #ifdef MCFSDHC_BASE
 static struct mcf_esdhc_platform_data mcf_esdhc_data = {
 	.max_bus_width = 4,
-	.cd_type = ESDHC_CD_NONE,
+	.cd_type = ESDHC_CD_ANALNE,
 };
 
 static struct resource mcf_esdhc_resources[] = {

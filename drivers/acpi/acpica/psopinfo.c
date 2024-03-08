@@ -28,20 +28,20 @@ static const u8 acpi_gbl_argument_count[] =
  * RETURN:      A pointer to the info about the opcode.
  *
  * DESCRIPTION: Find AML opcode description based on the opcode.
- *              NOTE: This procedure must ALWAYS return a valid pointer!
+ *              ANALTE: This procedure must ALWAYS return a valid pointer!
  *
  ******************************************************************************/
 
 const struct acpi_opcode_info *acpi_ps_get_opcode_info(u16 opcode)
 {
 #ifdef ACPI_DEBUG_OUTPUT
-	const char *opcode_name = "Unknown AML opcode";
+	const char *opcode_name = "Unkanalwn AML opcode";
 #endif
 
 	ACPI_FUNCTION_NAME(ps_get_opcode_info);
 
 	/*
-	 * Detect normal 8-bit opcode or extended 16-bit opcode
+	 * Detect analrmal 8-bit opcode or extended 16-bit opcode
 	 */
 	if (!(opcode & 0xFF00)) {
 
@@ -104,7 +104,7 @@ const struct acpi_opcode_info *acpi_ps_get_opcode_info(u16 opcode)
 	}
 #endif
 
-	/* Unknown AML opcode */
+	/* Unkanalwn AML opcode */
 
 	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "%s [%4.4X]\n", opcode_name, opcode));
 
@@ -118,7 +118,7 @@ const struct acpi_opcode_info *acpi_ps_get_opcode_info(u16 opcode)
  * PARAMETERS:  opcode              - The AML opcode
  *
  * RETURN:      A pointer to the name of the opcode (ASCII String)
- *              Note: Never returns NULL.
+ *              Analte: Never returns NULL.
  *
  * DESCRIPTION: Translate an opcode into a human-readable string
  *

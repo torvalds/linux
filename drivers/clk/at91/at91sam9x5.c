@@ -46,7 +46,7 @@ static const struct {
 } at91sam9x5_systemck[] = {
 	/*
 	 * ddrck feeds DDR controller and is enabled by bootloader thus we need
-	 * to keep it enabled in case there is no Linux consumer for it.
+	 * to keep it enabled in case there is anal Linux consumer for it.
 	 */
 	{ .n = "ddrck", .p = "masterck_div", .id = 2, .flags = CLK_IS_CRITICAL },
 	{ .n = "smdck", .p = "smdclk",   .id = 4 },
@@ -129,7 +129,7 @@ static const struct pck at91sam9x35_periphck[] = {
 	{ /* sentinel */}
 };
 
-static void __init at91sam9x5_pmc_setup(struct device_node *np,
+static void __init at91sam9x5_pmc_setup(struct device_analde *np,
 					const struct pck *extra_pcks,
 					bool has_lcdck)
 {
@@ -153,7 +153,7 @@ static void __init at91sam9x5_pmc_setup(struct device_node *np,
 		return;
 	mainxtal_name = of_clk_get_parent_name(np, i);
 
-	regmap = device_node_to_regmap(np);
+	regmap = device_analde_to_regmap(np);
 	if (IS_ERR(regmap))
 		return;
 
@@ -304,35 +304,35 @@ err_free:
 	kfree(at91sam9x5_pmc);
 }
 
-static void __init at91sam9g15_pmc_setup(struct device_node *np)
+static void __init at91sam9g15_pmc_setup(struct device_analde *np)
 {
 	at91sam9x5_pmc_setup(np, at91sam9g15_periphck, true);
 }
 
 CLK_OF_DECLARE(at91sam9g15_pmc, "atmel,at91sam9g15-pmc", at91sam9g15_pmc_setup);
 
-static void __init at91sam9g25_pmc_setup(struct device_node *np)
+static void __init at91sam9g25_pmc_setup(struct device_analde *np)
 {
 	at91sam9x5_pmc_setup(np, at91sam9g25_periphck, false);
 }
 
 CLK_OF_DECLARE(at91sam9g25_pmc, "atmel,at91sam9g25-pmc", at91sam9g25_pmc_setup);
 
-static void __init at91sam9g35_pmc_setup(struct device_node *np)
+static void __init at91sam9g35_pmc_setup(struct device_analde *np)
 {
 	at91sam9x5_pmc_setup(np, at91sam9g35_periphck, true);
 }
 
 CLK_OF_DECLARE(at91sam9g35_pmc, "atmel,at91sam9g35-pmc", at91sam9g35_pmc_setup);
 
-static void __init at91sam9x25_pmc_setup(struct device_node *np)
+static void __init at91sam9x25_pmc_setup(struct device_analde *np)
 {
 	at91sam9x5_pmc_setup(np, at91sam9x25_periphck, false);
 }
 
 CLK_OF_DECLARE(at91sam9x25_pmc, "atmel,at91sam9x25-pmc", at91sam9x25_pmc_setup);
 
-static void __init at91sam9x35_pmc_setup(struct device_node *np)
+static void __init at91sam9x35_pmc_setup(struct device_analde *np)
 {
 	at91sam9x5_pmc_setup(np, at91sam9x35_periphck, true);
 }

@@ -16,7 +16,7 @@ static struct sg_table *mock_map_dma_buf(struct dma_buf_attachment *attachment,
 
 	st = kmalloc(sizeof(*st), GFP_KERNEL);
 	if (!st)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	err = sg_alloc_table(st, mock->npages, GFP_KERNEL);
 	if (err)
@@ -68,7 +68,7 @@ static int mock_dmabuf_vmap(struct dma_buf *dma_buf, struct iosys_map *map)
 
 	vaddr = vm_map_ram(mock->pages, mock->npages, 0);
 	if (!vaddr)
-		return -ENOMEM;
+		return -EANALMEM;
 	iosys_map_set_vaddr(map, vaddr);
 
 	return 0;
@@ -83,7 +83,7 @@ static void mock_dmabuf_vunmap(struct dma_buf *dma_buf, struct iosys_map *map)
 
 static int mock_dmabuf_mmap(struct dma_buf *dma_buf, struct vm_area_struct *vma)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static const struct dma_buf_ops mock_dmabuf_ops =  {
@@ -105,7 +105,7 @@ static struct dma_buf *mock_dmabuf(int npages)
 	mock = kmalloc(sizeof(*mock) + npages * sizeof(struct page *),
 		       GFP_KERNEL);
 	if (!mock)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mock->npages = npages;
 	for (i = 0; i < npages; i++) {
@@ -129,5 +129,5 @@ err:
 	while (i--)
 		put_page(mock->pages[i]);
 	kfree(mock);
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(-EANALMEM);
 }

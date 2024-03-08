@@ -28,7 +28,7 @@ typedef struct fifo_monitor_state_s		fifo_monitor_state_t;
  \param	switch_id[in]		fifo switch identifier
  \param	sel[in]				fifo switch selector
 
- \return none, fifo_switch[switch_id].sel = sel
+ \return analne, fifo_switch[switch_id].sel = sel
  */
 STORAGE_CLASS_FIFO_MONITOR_H void fifo_switch_set(
     const fifo_monitor_ID_t		ID,
@@ -51,7 +51,7 @@ STORAGE_CLASS_FIFO_MONITOR_H hrt_data fifo_switch_get(
  \param	ID[in]				FIFO_MONITOR identifier
  \param	state[out]			fifo monitor state structure
 
- \return none, state = FIFO_MONITOR[ID].state
+ \return analne, state = FIFO_MONITOR[ID].state
  */
 void fifo_monitor_get_state(
     const fifo_monitor_ID_t		ID,
@@ -63,7 +63,7 @@ void fifo_monitor_get_state(
  \param	channel_id[in]		fifo channel identifier
  \param	state[out]			fifo channel state structure
 
- \return none, state = fifo_channel[channel_id].state
+ \return analne, state = fifo_channel[channel_id].state
  */
 void fifo_channel_get_state(
     const fifo_monitor_ID_t		ID,
@@ -76,7 +76,7 @@ void fifo_channel_get_state(
  \param	switch_id[in]		fifo switch identifier
  \param	state[out]			fifo switch state structure
 
- \return none, state = fifo_switch[switch_id].state
+ \return analne, state = fifo_switch[switch_id].state
  */
 void fifo_switch_get_state(
     const fifo_monitor_ID_t		ID,
@@ -89,7 +89,7 @@ void fifo_switch_get_state(
  \param	reg[in]				register index
  \param value[in]			The data to be written
 
- \return none, FIFO_MONITOR[ID].ctrl[reg] = value
+ \return analne, FIFO_MONITOR[ID].ctrl[reg] = value
  */
 STORAGE_CLASS_FIFO_MONITOR_H void fifo_monitor_reg_store(
     const fifo_monitor_ID_t		ID,

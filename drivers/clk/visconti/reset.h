@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2021 TOSHIBA CORPORATION
  *
- * Nobuhiro Iwamatsu <nobuhiro1.iwamatsu@toshiba.co.jp>
+ * Analbuhiro Iwamatsu <analbuhiro1.iwamatsu@toshiba.co.jp>
  */
 
 #ifndef _VISCONTI_RESET_H_

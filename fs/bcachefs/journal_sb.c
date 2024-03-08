@@ -33,7 +33,7 @@ static int bch2_sb_journal_validate(struct bch_sb *sb,
 
 	b = kmalloc_array(nr, sizeof(u64), GFP_KERNEL);
 	if (!b)
-		return -BCH_ERR_ENOMEM_sb_journal_validate;
+		return -BCH_ERR_EANALMEM_sb_journal_validate;
 
 	for (i = 0; i < nr; i++)
 		b[i] = le64_to_cpu(journal->buckets[i]);
@@ -116,7 +116,7 @@ static int bch2_sb_journal_v2_validate(struct bch_sb *sb,
 
 	b = kmalloc_array(nr, sizeof(*b), GFP_KERNEL);
 	if (!b)
-		return -BCH_ERR_ENOMEM_sb_journal_v2_validate;
+		return -BCH_ERR_EANALMEM_sb_journal_v2_validate;
 
 	for (i = 0; i < nr; i++) {
 		b[i].start = le64_to_cpu(journal->d[i].start);
@@ -197,7 +197,7 @@ int bch2_journal_buckets_to_sb(struct bch_fs *c, struct bch_dev *ca,
 	j = bch2_sb_field_resize(&ca->disk_sb, journal_v2,
 			 (sizeof(*j) + sizeof(j->d[0]) * nr_compacted) / sizeof(u64));
 	if (!j)
-		return -BCH_ERR_ENOSPC_sb_journal;
+		return -BCH_ERR_EANALSPC_sb_journal;
 
 	bch2_sb_field_delete(&ca->disk_sb, BCH_SB_FIELD_journal);
 

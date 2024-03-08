@@ -4,7 +4,7 @@ Contact:	"Theodore Ts'o" <tytso@mit.edu>
 Description:
 		 Controls whether the multiblock allocator should
 		 collect statistics, which are shown during the unmount.
-		 1 means to collect statistics, 0 means not to collect
+		 1 means to collect statistics, 0 means analt to collect
 		 statistics
 
 What:		/sys/fs/ext4/<disk>/mb_group_prealloc
@@ -13,7 +13,7 @@ Contact:	"Theodore Ts'o" <tytso@mit.edu>
 Description:
 		The multiblock allocator will round up allocation
 		requests to a multiple of this tuning parameter if the
-		stripe size is not set in the ext4 superblock
+		stripe size is analt set in the ext4 superblock
 
 What:		/sys/fs/ext4/<disk>/mb_max_to_scan
 Date:		March 2008
@@ -48,12 +48,12 @@ Description:
 		will have its blocks allocated out of its own unique
 		preallocation pool.
 
-What:		/sys/fs/ext4/<disk>/inode_readahead_blks
+What:		/sys/fs/ext4/<disk>/ianalde_readahead_blks
 Date:		March 2008
 Contact:	"Theodore Ts'o" <tytso@mit.edu>
 Description:
 		Tuning parameter which controls the maximum number of
-		inode table blocks that ext4's inode table readahead
+		ianalde table blocks that ext4's ianalde table readahead
 		algorithm will pre-read into the buffer cache
 
 What:		/sys/fs/ext4/<disk>/delayed_allocation_blocks
@@ -61,7 +61,7 @@ Date:		March 2008
 Contact:	"Theodore Ts'o" <tytso@mit.edu>
 Description:
 		This file is read-only and shows the number of blocks
-		that are dirty in the page cache, but which do not
+		that are dirty in the page cache, but which do analt
 		have their location in the filesystem allocated yet.
 
 What:		/sys/fs/ext4/<disk>/lifetime_write_kbytes
@@ -80,12 +80,12 @@ Description:
 		kilobytes of data that have been written to this
 		filesystem since it was mounted.
 
-What:		/sys/fs/ext4/<disk>/inode_goal
+What:		/sys/fs/ext4/<disk>/ianalde_goal
 Date:		June 2008
 Contact:	"Theodore Ts'o" <tytso@mit.edu>
 Description:
-		Tuning parameter which (if non-zero) controls the goal
-		inode used by the inode allocator in preference to
+		Tuning parameter which (if analn-zero) controls the goal
+		ianalde used by the ianalde allocator in preference to
 		all other allocation heuristics.  This is intended for
 		debugging use only, and should be 0 on production
 		systems.
@@ -95,7 +95,7 @@ Date:		September 2009
 Contact:	"Theodore Ts'o" <tytso@mit.edu>
 Description:
 		The maximum number of megabytes the writeback code will
-		try to write out before move on to another inode.
+		try to write out before move on to aanalther ianalde.
 
 What:		/sys/fs/ext4/<disk>/extent_max_zeroout_kb
 Date:		August 2012
@@ -103,7 +103,7 @@ Contact:	"Theodore Ts'o" <tytso@mit.edu>
 Description:
 		The maximum number of kilobytes which will be zeroed
 		out in preference to creating a new uninitialized
-		extent when manipulating an inode's extent tree.  Note
+		extent when manipulating an ianalde's extent tree.  Analte
 		that using a larger value will increase the
 		variability of time necessary to complete a random
 		write operation (since a 4k random write might turn

@@ -126,7 +126,7 @@ static void del_sa_roce_rule(struct list_head *macsec_devices_list,
 				      &macsec_device->rx_rules_list, data->is_tx);
 }
 
-static int macsec_event(struct notifier_block *nb, unsigned long event, void *data)
+static int macsec_event(struct analtifier_block *nb, unsigned long event, void *data)
 {
 	struct mlx5_macsec *macsec = container_of(nb, struct mlx5_macsec, blocking_events_nb);
 
@@ -140,32 +140,32 @@ static int macsec_event(struct notifier_block *nb, unsigned long event, void *da
 		break;
 	default:
 		mutex_unlock(&macsec->lock);
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 	mutex_unlock(&macsec->lock);
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 void mlx5r_macsec_event_register(struct mlx5_ib_dev *dev)
 {
 	if (!mlx5_is_macsec_roce_supported(dev->mdev)) {
-		mlx5_ib_dbg(dev, "RoCE MACsec not supported due to capabilities\n");
+		mlx5_ib_dbg(dev, "RoCE MACsec analt supported due to capabilities\n");
 		return;
 	}
 
-	dev->macsec.blocking_events_nb.notifier_call = macsec_event;
-	blocking_notifier_chain_register(&dev->mdev->macsec_nh,
+	dev->macsec.blocking_events_nb.analtifier_call = macsec_event;
+	blocking_analtifier_chain_register(&dev->mdev->macsec_nh,
 					 &dev->macsec.blocking_events_nb);
 }
 
 void mlx5r_macsec_event_unregister(struct mlx5_ib_dev *dev)
 {
 	if (!mlx5_is_macsec_roce_supported(dev->mdev)) {
-		mlx5_ib_dbg(dev, "RoCE MACsec not supported due to capabilities\n");
+		mlx5_ib_dbg(dev, "RoCE MACsec analt supported due to capabilities\n");
 		return;
 	}
 
-	blocking_notifier_chain_unregister(&dev->mdev->macsec_nh,
+	blocking_analtifier_chain_unregister(&dev->mdev->macsec_nh,
 					   &dev->macsec.blocking_events_nb);
 }
 
@@ -174,7 +174,7 @@ int mlx5r_macsec_init_gids_and_devlist(struct mlx5_ib_dev *dev)
 	int i, j, max_gids;
 
 	if (!mlx5_is_macsec_roce_supported(dev->mdev)) {
-		mlx5_ib_dbg(dev, "RoCE MACsec not supported due to capabilities\n");
+		mlx5_ib_dbg(dev, "RoCE MACsec analt supported due to capabilities\n");
 		return 0;
 	}
 
@@ -199,7 +199,7 @@ err:
 		kfree(dev->port[i].reserved_gids);
 		i--;
 	}
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 void mlx5r_macsec_dealloc_gids(struct mlx5_ib_dev *dev)
@@ -207,7 +207,7 @@ void mlx5r_macsec_dealloc_gids(struct mlx5_ib_dev *dev)
 	int i;
 
 	if (!mlx5_is_macsec_roce_supported(dev->mdev))
-		mlx5_ib_dbg(dev, "RoCE MACsec not supported due to capabilities\n");
+		mlx5_ib_dbg(dev, "RoCE MACsec analt supported due to capabilities\n");
 
 	for (i = 0; i < dev->num_ports; i++)
 		kfree(dev->port[i].reserved_gids);
@@ -232,7 +232,7 @@ int mlx5r_add_gid_macsec_operations(const struct ib_gid_attr *attr)
 		return 0;
 
 	if (!mlx5_is_macsec_roce_supported(dev->mdev)) {
-		mlx5_ib_dbg(dev, "RoCE MACsec not supported due to capabilities\n");
+		mlx5_ib_dbg(dev, "RoCE MACsec analt supported due to capabilities\n");
 		return 0;
 	}
 
@@ -240,7 +240,7 @@ int mlx5r_add_gid_macsec_operations(const struct ib_gid_attr *attr)
 	ndev = rcu_dereference(attr->ndev);
 	if (!ndev) {
 		rcu_read_unlock();
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (!netif_is_macsec(ndev) || !macsec_netdev_is_offloaded(ndev)) {
@@ -253,7 +253,7 @@ int mlx5r_add_gid_macsec_operations(const struct ib_gid_attr *attr)
 	mutex_lock(&dev->macsec.lock);
 	macsec_device = get_macsec_device(ndev, &dev->macsec.macsec_devices_list);
 	if (!macsec_device) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto dev_err;
 	}
 
@@ -272,7 +272,7 @@ int mlx5r_add_gid_macsec_operations(const struct ib_gid_attr *attr)
 		mgids->physical_gid = physical_gid;
 	}
 
-	/* Proceed with adding steering rules, regardless if there was gid ambiguity or not.*/
+	/* Proceed with adding steering rules, regardless if there was gid ambiguity or analt.*/
 	rdma_gid2ip((struct sockaddr *)&addr, &attr->gid);
 	ret = mlx5_macsec_add_roce_rule(ndev, (struct sockaddr *)&addr, attr->index,
 					&macsec_device->tx_rules_list,
@@ -311,7 +311,7 @@ void mlx5r_del_gid_macsec_operations(const struct ib_gid_attr *attr)
 		return;
 
 	if (!mlx5_is_macsec_roce_supported(dev->mdev)) {
-		mlx5_ib_dbg(dev, "RoCE MACsec not supported due to capabilities\n");
+		mlx5_ib_dbg(dev, "RoCE MACsec analt supported due to capabilities\n");
 		return;
 	}
 

@@ -21,12 +21,12 @@ struct etnaviv_gem_userptr {
 };
 
 struct etnaviv_vram_mapping {
-	struct list_head obj_node;
-	struct list_head scan_node;
-	struct list_head mmu_node;
+	struct list_head obj_analde;
+	struct list_head scan_analde;
+	struct list_head mmu_analde;
 	struct etnaviv_gem_object *object;
 	struct etnaviv_iommu_context *context;
-	struct drm_mm_node vram_node;
+	struct drm_mm_analde vram_analde;
 	unsigned int use;
 	u32 iova;
 };
@@ -38,8 +38,8 @@ struct etnaviv_gem_object {
 
 	u32 flags;
 
-	struct list_head gem_node;
-	struct etnaviv_gpu *gpu;     /* non-null if active */
+	struct list_head gem_analde;
+	struct etnaviv_gpu *gpu;     /* analn-null if active */
 	atomic_t gpu_active;
 	u32 access;
 
@@ -94,7 +94,7 @@ struct etnaviv_gem_submit {
 	struct etnaviv_iommu_context *mmu_context, *prev_mmu_context;
 	struct dma_fence *out_fence;
 	int out_fence_id;
-	struct list_head node; /* GPU active submit list */
+	struct list_head analde; /* GPU active submit list */
 	struct etnaviv_cmdbuf cmdbuf;
 	struct pid *pid;       /* submitting process */
 	u32 exec_state;
@@ -103,7 +103,7 @@ struct etnaviv_gem_submit {
 	struct etnaviv_perfmon_request *pmrs;
 	unsigned int nr_bos;
 	struct etnaviv_gem_submit_bo bos[];
-	/* No new members here, the previous one is variable-length! */
+	/* Anal new members here, the previous one is variable-length! */
 };
 
 void etnaviv_submit_put(struct etnaviv_gem_submit * submit);

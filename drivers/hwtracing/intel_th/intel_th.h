@@ -115,7 +115,7 @@ intel_th_device_get_resource(struct intel_th_device *thdev, unsigned int type,
  * GTH, output ports configuration
  */
 enum {
-	GTH_NONE = 0,
+	GTH_ANALNE = 0,
 	GTH_MSU,	/* memory/usb */
 	GTH_CTP,	/* Common Trace Port */
 	GTH_LPP,	/* Low Power Path */
@@ -133,7 +133,7 @@ intel_th_output_assigned(struct intel_th_device *thdev)
 {
 	return thdev->type == INTEL_TH_OUTPUT &&
 		(thdev->output.port >= 0 ||
-		 thdev->output.type == GTH_NONE);
+		 thdev->output.type == GTH_ANALNE);
 }
 
 /**
@@ -149,7 +149,7 @@ intel_th_output_assigned(struct intel_th_device *thdev)
  * @irq:	interrupt callback
  * @activate:	enable tracing on the output's side
  * @deactivate:	disable tracing on the output's side
- * @fops:	file operations for device nodes
+ * @fops:	file operations for device analdes
  * @attr_group:	attributes provided by the driver
  *
  * Callbacks @probe and @remove are required for all device types.
@@ -178,7 +178,7 @@ struct intel_th_driver {
 	void			(*wait_empty)(struct intel_th_device *thdev);
 	int			(*activate)(struct intel_th_device *thdev);
 	void			(*deactivate)(struct intel_th_device *thdev);
-	/* file_operations for those who want a device node */
+	/* file_operations for those who want a device analde */
 	const struct file_operations *fops;
 	/* optional attributes */
 	const struct attribute_group *attr_group;
@@ -268,7 +268,7 @@ enum th_mmio_idx {
  * @irq:	irq number
  * @num_irqs:	number of IRQs is use
  * @id:		this Intel TH controller's device ID in the system
- * @major:	device node major for output devices
+ * @major:	device analde major for output devices
  */
 struct intel_th {
 	struct device		*dev;

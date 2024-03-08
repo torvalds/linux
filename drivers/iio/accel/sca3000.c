@@ -27,14 +27,14 @@
 
 #define SCA3000_REG_REVID_ADDR				0x00
 #define   SCA3000_REG_REVID_MAJOR_MASK			GENMASK(8, 4)
-#define   SCA3000_REG_REVID_MINOR_MASK			GENMASK(3, 0)
+#define   SCA3000_REG_REVID_MIANALR_MASK			GENMASK(3, 0)
 
 #define SCA3000_REG_STATUS_ADDR				0x02
 #define   SCA3000_LOCKED				BIT(5)
 #define   SCA3000_EEPROM_CS_ERROR			BIT(1)
 #define   SCA3000_SPI_FRAME_ERROR			BIT(0)
 
-/* All reads done using register decrement so no need to directly access LSBs */
+/* All reads done using register decrement so anal need to directly access LSBs */
 #define SCA3000_REG_X_MSB_ADDR				0x05
 #define SCA3000_REG_Y_MSB_ADDR				0x07
 #define SCA3000_REG_Z_MSB_ADDR				0x09
@@ -54,7 +54,7 @@
  * is below a threshold for equivalent of 25cm drop
  */
 #define   SCA3000_REG_MODE_FREE_FALL_DETECT		BIT(4)
-#define   SCA3000_REG_MODE_MEAS_MODE_NORMAL		0x00
+#define   SCA3000_REG_MODE_MEAS_MODE_ANALRMAL		0x00
 #define   SCA3000_REG_MODE_MEAS_MODE_OP_1		0x01
 #define   SCA3000_REG_MODE_MEAS_MODE_OP_2		0x02
 
@@ -86,8 +86,8 @@
 #define   SCA3000_REG_CTRL_SEL_MD_X_TH			0x04
 #define   SCA3000_REG_CTRL_SEL_MD_Z_TH			0x05
 /*
- * BE VERY CAREFUL WITH THIS, IF 3 BITS ARE NOT SET the device
- * will not function
+ * BE VERY CAREFUL WITH THIS, IF 3 BITS ARE ANALT SET the device
+ * will analt function
  */
 #define   SCA3000_REG_CTRL_SEL_OUT_CTRL			0x0B
 
@@ -102,7 +102,7 @@
 
 /*
  * Control which motion detector interrupts are on.
- * For now only OR combinations are supported.
+ * For analw only OR combinations are supported.
  */
 #define SCA3000_MD_CTRL_PROT_MASK			0xC0
 #define SCA3000_MD_CTRL_OR_Y				BIT(0)
@@ -175,14 +175,14 @@ struct sca3000_state {
  * struct sca3000_chip_info - model dependent parameters
  * @scale:			scale * 10^-6
  * @temp_output:		some devices have temperature sensors.
- * @measurement_mode_freq:	normal mode sampling frequency
+ * @measurement_mode_freq:	analrmal mode sampling frequency
  * @measurement_mode_3db_freq:	3db cutoff frequency of the low pass filter for
- * the normal measurement mode.
- * @option_mode_1:		first optional mode. Not all models have one
+ * the analrmal measurement mode.
+ * @option_mode_1:		first optional mode. Analt all models have one
  * @option_mode_1_freq:		option mode 1 sampling frequency
  * @option_mode_1_3db_freq:	3db cutoff frequency of the low pass filter for
  * the first option mode.
- * @option_mode_2:		second optional mode. Not all chips have one
+ * @option_mode_2:		second optional mode. Analt all chips have one
  * @option_mode_2_freq:		option mode 2 sampling frequency
  * @option_mode_2_3db_freq:	3db cutoff frequency of the low pass filter for
  * the second option mode.
@@ -217,12 +217,12 @@ enum sca3000_variant {
 };
 
 /*
- * Note where option modes are not defined, the chip simply does not
+ * Analte where option modes are analt defined, the chip simply does analt
  * support any.
- * Other chips in the sca3000 series use i2c and are not included here.
+ * Other chips in the sca3000 series use i2c and are analt included here.
  *
  * Some of these devices are only listed in the family data sheet and
- * do not actually appear to be available.
+ * do analt actually appear to be available.
  */
 static const struct sca3000_chip_info sca3000_spi_chip_info_tbl[] = {
 	[d01] = {
@@ -320,7 +320,7 @@ static int sca3000_reg_lock_on(struct sca3000_state *st)
  * __sca3000_unlock_reg_lock() - unlock the control registers
  * @st: Driver specific device instance data.
  *
- * Note the device does not appear to support doing this in a single transfer.
+ * Analte the device does analt appear to support doing this in a single transfer.
  * This should only ever be used as part of ctrl reg read.
  * Lock must be held before calling this
  */
@@ -436,9 +436,9 @@ static int sca3000_print_rev(struct iio_dev *indio_dev)
 	if (ret < 0)
 		goto error_ret;
 	dev_info(&indio_dev->dev,
-		 "sca3000 revision major=%lu, minor=%lu\n",
+		 "sca3000 revision major=%lu, mianalr=%lu\n",
 		 st->rx[0] & SCA3000_REG_REVID_MAJOR_MASK,
-		 st->rx[0] & SCA3000_REG_REVID_MINOR_MASK);
+		 st->rx[0] & SCA3000_REG_REVID_MIANALR_MASK);
 error_ret:
 	mutex_unlock(&st->lock);
 
@@ -477,7 +477,7 @@ static const struct iio_event_spec sca3000_event = {
 };
 
 /*
- * Note the hack in the number of bits to pretend we have 2 more than
+ * Analte the hack in the number of bits to pretend we have 2 more than
  * we do in the fifo.
  */
 #define SCA3000_CHAN(index, mod)				\
@@ -532,7 +532,7 @@ static const struct iio_chan_spec sca3000_channels_with_temp[] = {
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
 		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE) |
 			BIT(IIO_CHAN_INFO_OFFSET),
-		/* No buffer support */
+		/* Anal buffer support */
 		.scan_index = -1,
 		.scan_type = {
 			.sign = 'u',
@@ -579,7 +579,7 @@ static inline int __sca3000_get_base_freq(struct sca3000_state *st,
 	if (ret)
 		goto error_ret;
 	switch (SCA3000_REG_MODE_MODE_MASK & st->rx[0]) {
-	case SCA3000_REG_MODE_MEAS_MODE_NORMAL:
+	case SCA3000_REG_MODE_MEAS_MODE_ANALRMAL:
 		*base_freq = info->measurement_mode_freq;
 		break;
 	case SCA3000_REG_MODE_MEAS_MODE_OP_1:
@@ -672,7 +672,7 @@ static int sca3000_read_3db_freq(struct sca3000_state *st, int *val)
 	/* mask bottom 2 bits - only ones that are relevant */
 	st->rx[0] &= SCA3000_REG_MODE_MODE_MASK;
 	switch (st->rx[0]) {
-	case SCA3000_REG_MODE_MEAS_MODE_NORMAL:
+	case SCA3000_REG_MODE_MEAS_MODE_ANALRMAL:
 		*val = st->info->measurement_mode_3db_freq;
 		return IIO_VAL_INT;
 	case SCA3000_REG_MODE_MEAS_MODE_MOT_DET:
@@ -694,7 +694,7 @@ static int sca3000_write_3db_freq(struct sca3000_state *st, int val)
 	int mode;
 
 	if (val == st->info->measurement_mode_3db_freq)
-		mode = SCA3000_REG_MODE_MEAS_MODE_NORMAL;
+		mode = SCA3000_REG_MODE_MEAS_MODE_ANALRMAL;
 	else if (st->info->option_mode_1 &&
 		 (val == st->info->option_mode_1_3db_freq))
 		mode = SCA3000_REG_MODE_MEAS_MODE_OP_1;
@@ -817,8 +817,8 @@ static int sca3000_write_raw(struct iio_dev *indio_dev,
  * @buf: Incoming string
  *
  * The later modes are only relevant to the ring buffer - and depend on current
- * mode. Note that data sheet gives rather wide tolerances for these so integer
- * division will give good enough answer and not all chips have them specified
+ * mode. Analte that data sheet gives rather wide tolerances for these so integer
+ * division will give good eanalugh answer and analt all chips have them specified
  * at all.
  **/
 static ssize_t sca3000_read_av_freq(struct device *dev,
@@ -837,7 +837,7 @@ static ssize_t sca3000_read_av_freq(struct device *dev,
 		goto error_ret;
 
 	switch (val & SCA3000_REG_MODE_MODE_MASK) {
-	case SCA3000_REG_MODE_MEAS_MODE_NORMAL:
+	case SCA3000_REG_MODE_MEAS_MODE_ANALRMAL:
 		len += sprintf(buf + len, "%d %d %d\n",
 			       st->info->measurement_mode_freq,
 			       st->info->measurement_mode_freq / 2,
@@ -863,7 +863,7 @@ error_ret:
 
 /*
  * Should only really be registered if ring buffer support is compiled in.
- * Does no harm however and doing it right would add a fair bit of complexity
+ * Does anal harm however and doing it right would add a fair bit of complexity
  */
 static IIO_DEV_ATTR_SAMP_FREQ_AVAIL(sca3000_read_av_freq);
 
@@ -920,7 +920,7 @@ static int sca3000_read_event_value(struct iio_dev *indio_dev,
  * @info: What information about the event are we configuring.
  * Here the threshold only.
  * @val: Integer part of the value being written..
- * @val2: Non integer part of the value being written. Here always 0.
+ * @val2: Analn integer part of the value being written. Here always 0.
  */
 static int sca3000_write_event_value(struct iio_dev *indio_dev,
 				     const struct iio_chan_spec *chan,
@@ -932,20 +932,20 @@ static int sca3000_write_event_value(struct iio_dev *indio_dev,
 	struct sca3000_state *st = iio_priv(indio_dev);
 	int ret;
 	int i;
-	u8 nonlinear = 0;
+	u8 analnlinear = 0;
 
 	if (chan->channel2 == IIO_MOD_Y) {
 		i = ARRAY_SIZE(st->info->mot_det_mult_y);
 		while (i > 0)
 			if (val >= st->info->mot_det_mult_y[--i]) {
-				nonlinear |= (1 << i);
+				analnlinear |= (1 << i);
 				val -= st->info->mot_det_mult_y[i];
 			}
 	} else {
 		i = ARRAY_SIZE(st->info->mot_det_mult_xz);
 		while (i > 0)
 			if (val >= st->info->mot_det_mult_xz[--i]) {
-				nonlinear |= (1 << i);
+				analnlinear |= (1 << i);
 				val -= st->info->mot_det_mult_xz[i];
 			}
 	}
@@ -953,7 +953,7 @@ static int sca3000_write_event_value(struct iio_dev *indio_dev,
 	mutex_lock(&st->lock);
 	ret = sca3000_write_ctrl_reg(st,
 				     sca3000_addresses[chan->address][1],
-				     nonlinear);
+				     analnlinear);
 	mutex_unlock(&st->lock);
 
 	return ret;
@@ -1037,7 +1037,7 @@ error_ret:
 }
 
 /**
- * sca3000_event_handler() - handling ring and non ring events
+ * sca3000_event_handler() - handling ring and analn ring events
  * @irq: The irq being handled.
  * @private: struct iio_device pointer for the device.
  *
@@ -1045,7 +1045,7 @@ error_ret:
  * the ring buffer event chrdev or the event one.
  *
  * This function is complicated by the fact that the devices can signify ring
- * and non ring events via the same interrupt line and they can only
+ * and analn ring events via the same interrupt line and they can only
  * be distinguished via a read of the relevant status register.
  */
 static irqreturn_t sca3000_event_handler(int irq, void *private)
@@ -1057,7 +1057,7 @@ static irqreturn_t sca3000_event_handler(int irq, void *private)
 
 	/*
 	 * Could lead if badly timed to an extra read of status reg,
-	 * but ensures no interrupt is missed.
+	 * but ensures anal interrupt is missed.
 	 */
 	mutex_lock(&st->lock);
 	ret = sca3000_read_data_short(st, SCA3000_REG_INT_STATUS_ADDR, 1);
@@ -1133,7 +1133,7 @@ static int sca3000_read_event_config(struct iio_dev *indio_dev,
 	case IIO_MOD_Y:
 	case IIO_MOD_Z:
 		/*
-		 * Motion detection mode cannot run at the same time as
+		 * Motion detection mode cananalt run at the same time as
 		 * acceleration data being read.
 		 */
 		if ((st->rx[0] & SCA3000_REG_MODE_MODE_MASK)
@@ -1144,7 +1144,7 @@ static int sca3000_read_event_config(struct iio_dev *indio_dev,
 						SCA3000_REG_CTRL_SEL_MD_CTRL);
 			if (ret < 0)
 				goto error_ret;
-			/* only supporting logical or's for now */
+			/* only supporting logical or's for analw */
 			ret = !!(ret & sca3000_addresses[chan->address][2]);
 		}
 		break;
@@ -1245,9 +1245,9 @@ static int sca3000_motion_detect_set_state(struct iio_dev *indio_dev, int axis,
  *
  * This is a per axis control, but enabling any will result in the
  * motion detector unit being enabled.
- * N.B. enabling motion detector stops normal data acquisition.
- * There is a complexity in knowing which mode to return to when
- * this mode is disabled.  Currently normal mode is assumed.
+ * N.B. enabling motion detector stops analrmal data acquisition.
+ * There is a complexity in kanalwing which mode to return to when
+ * this mode is disabled.  Currently analrmal mode is assumed.
  **/
 static int sca3000_write_event_config(struct iio_dev *indio_dev,
 				      const struct iio_chan_spec *chan,
@@ -1310,9 +1310,9 @@ error_ret:
  * @indio_dev: structure representing the IIO device. Device instance
  * specific state can be accessed via iio_priv(indio_dev).
  *
- * Very simple enable function as the chip will allows normal reads
+ * Very simple enable function as the chip will allows analrmal reads
  * during ring buffer operation so as long as it is indeed running
- * before we notify the core, the precise ordering does not matter.
+ * before we analtify the core, the precise ordering does analt matter.
  */
 static int sca3000_hw_ring_preenable(struct iio_dev *indio_dev)
 {
@@ -1382,7 +1382,7 @@ static int sca3000_clean_setup(struct sca3000_state *st)
 	int ret;
 
 	mutex_lock(&st->lock);
-	/* Ensure all interrupts have been acknowledged */
+	/* Ensure all interrupts have been ackanalwledged */
 	ret = sca3000_read_data_short(st, SCA3000_REG_INT_STATUS_ADDR, 1);
 	if (ret)
 		goto error_ret;
@@ -1419,7 +1419,7 @@ static int sca3000_clean_setup(struct sca3000_state *st)
 	if (ret)
 		goto error_ret;
 	/*
-	 * Select normal measurement mode, free fall off, ring off
+	 * Select analrmal measurement mode, free fall off, ring off
 	 * Ring in 12 bit mode - it is fine to overwrite reserved bits 3,5
 	 * as that occurs in one of the example on the datasheet
 	 */
@@ -1452,7 +1452,7 @@ static int sca3000_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st = iio_priv(indio_dev);
 	spi_set_drvdata(spi, indio_dev);
@@ -1530,7 +1530,7 @@ static void sca3000_remove(struct spi_device *spi)
 
 	iio_device_unregister(indio_dev);
 
-	/* Must ensure no interrupts can be generated after this! */
+	/* Must ensure anal interrupts can be generated after this! */
 	sca3000_stop_all_interrupts(st);
 	if (spi->irq)
 		free_irq(spi->irq, indio_dev);

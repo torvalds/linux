@@ -55,10 +55,10 @@ static bool khadas_mcu_reg_writeable(struct device *dev, unsigned int reg)
 	case KHADAS_MCU_USID_5_REG:
 	case KHADAS_MCU_VERSION_0_REG:
 	case KHADAS_MCU_VERSION_1_REG:
-	case KHADAS_MCU_DEVICE_NO_0_REG:
-	case KHADAS_MCU_DEVICE_NO_1_REG:
+	case KHADAS_MCU_DEVICE_ANAL_0_REG:
+	case KHADAS_MCU_DEVICE_ANAL_1_REG:
 	case KHADAS_MCU_FACTORY_TEST_REG:
-	case KHADAS_MCU_SHUTDOWN_NORMAL_STATUS_REG:
+	case KHADAS_MCU_SHUTDOWN_ANALRMAL_STATUS_REG:
 		return false;
 	default:
 		return true;
@@ -92,7 +92,7 @@ static int khadas_mcu_probe(struct i2c_client *client)
 
 	ddata = devm_kzalloc(dev, sizeof(*ddata), GFP_KERNEL);
 	if (!ddata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, ddata);
 
@@ -105,15 +105,15 @@ static int khadas_mcu_probe(struct i2c_client *client)
 		return ret;
 	}
 
-	ret = devm_mfd_add_devices(dev, PLATFORM_DEVID_NONE,
+	ret = devm_mfd_add_devices(dev, PLATFORM_DEVID_ANALNE,
 				   khadas_mcu_cells,
 				   ARRAY_SIZE(khadas_mcu_cells),
 				   NULL, 0, NULL);
 	if (ret)
 		return ret;
 
-	if (of_property_present(dev->of_node, "#cooling-cells"))
-		return devm_mfd_add_devices(dev, PLATFORM_DEVID_NONE,
+	if (of_property_present(dev->of_analde, "#cooling-cells"))
+		return devm_mfd_add_devices(dev, PLATFORM_DEVID_ANALNE,
 					    khadas_mcu_fan_cells,
 					    ARRAY_SIZE(khadas_mcu_fan_cells),
 					    NULL, 0, NULL);

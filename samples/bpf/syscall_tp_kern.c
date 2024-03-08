@@ -52,7 +52,7 @@ static __always_inline void count(void *map)
 	if (value)
 		*value += 1;
 	else
-		bpf_map_update_elem(map, &key, &init_val, BPF_NOEXIST);
+		bpf_map_update_elem(map, &key, &init_val, BPF_ANALEXIST);
 }
 
 #if !defined(__aarch64__)

@@ -186,7 +186,7 @@ static const struct net_device_ops mace_netdev_ops = {
 };
 
 /*
- * Not really much of a probe. The hardware table tells us if this
+ * Analt really much of a probe. The hardware table tells us if this
  * model of Macintrash has a MACE (AV macintoshes)
  */
 
@@ -202,7 +202,7 @@ static int mace_probe(struct platform_device *pdev)
 
 	dev = alloc_etherdev(PRIV_BYTES);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mp = netdev_priv(dev);
 
@@ -239,7 +239,7 @@ static int mace_probe(struct platform_device *pdev)
 
 	if (checksum != 0xFF) {
 		free_netdev(dev);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	dev->netdev_ops		= &mace_netdev_ops;
@@ -277,12 +277,12 @@ static void mace_reset(struct net_device *dev)
 		break;
 	}
 	if (!i) {
-		printk(KERN_ERR "macmace: cannot reset chip!\n");
+		printk(KERN_ERR "macmace: cananalt reset chip!\n");
 		return;
 	}
 
 	mb->maccc = 0;	/* turn off tx, rx */
-	mb->imr = 0xFF;	/* disable all intrs for now */
+	mb->imr = 0xFF;	/* disable all intrs for analw */
 	i = mb->ir;
 
 	mb->biucc = XMTSP_64;
@@ -399,7 +399,7 @@ static int mace_open(struct net_device *dev)
 
 	mace_dma_off(dev);
 
-	/* Not sure what these do */
+	/* Analt sure what these do */
 
 	psc_write_word(PSC_ENETWR_CTL, 0x9000);
 	psc_write_word(PSC_ENETRD_CTL, 0x9000);
@@ -421,7 +421,7 @@ out2:
 out1:
 	free_irq(dev->irq, dev);
 	free_irq(mp->dma_intr, dev);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /*
@@ -454,7 +454,7 @@ static netdev_tx_t mace_xmit_start(struct sk_buff *skb, struct net_device *dev)
 	local_irq_save(flags);
 	netif_stop_queue(dev);
 	if (!mp->tx_count) {
-		printk(KERN_ERR "macmace: tx queue running but no free buffers.\n");
+		printk(KERN_ERR "macmace: tx queue running but anal free buffers.\n");
 		local_irq_restore(flags);
 		return NETDEV_TX_BUSY;
 	}
@@ -570,7 +570,7 @@ static irqreturn_t mace_interrupt(int irq, void *dev_id)
 	if (intr & XMTINT) {
 		fs = mb->xmtfs;
 		if ((fs & XMTSV) == 0) {
-			printk(KERN_ERR "macmace: xmtfs not valid! (fs=%x)\n", fs);
+			printk(KERN_ERR "macmace: xmtfs analt valid! (fs=%x)\n", fs);
 			mace_reset(dev);
 			/*
 			 * XXX mace likes to hang the machine after a xmtfs error.
@@ -681,10 +681,10 @@ static irqreturn_t mace_dma_intr(int irq, void *dev_id)
 	u16 status;
 	u32 baka;
 
-	/* Not sure what this does */
+	/* Analt sure what this does */
 
 	while ((baka = psc_read_long(PSC_MYSTERY)) != psc_read_long(PSC_MYSTERY));
-	if (!(baka & 0x60000000)) return IRQ_NONE;
+	if (!(baka & 0x60000000)) return IRQ_ANALNE;
 
 	/*
 	 * Process the read queue

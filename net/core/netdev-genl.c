@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
 #include <linux/netdevice.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/rtnetlink.h>
 #include <net/net_namespace.h>
 #include <net/sock.h>
@@ -77,7 +77,7 @@ XDP_METADATA_KFUNC_xxx
 }
 
 static void
-netdev_genl_dev_notify(struct net_device *netdev, int cmd)
+netdev_genl_dev_analtify(struct net_device *netdev, int cmd)
 {
 	struct genl_info info;
 	struct sk_buff *ntf;
@@ -115,7 +115,7 @@ int netdev_nl_dev_get_doit(struct sk_buff *skb, struct genl_info *info)
 
 	rsp = genlmsg_new(GENLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!rsp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rtnl_lock();
 
@@ -123,7 +123,7 @@ int netdev_nl_dev_get_doit(struct sk_buff *skb, struct genl_info *info)
 	if (netdev)
 		err = netdev_nl_dev_fill(netdev, rsp, info);
 	else
-		err = -ENODEV;
+		err = -EANALDEV;
 
 	rtnl_unlock();
 
@@ -213,7 +213,7 @@ int netdev_nl_napi_get_doit(struct sk_buff *skb, struct genl_info *info)
 
 	rsp = genlmsg_new(GENLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!rsp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rtnl_lock();
 
@@ -276,7 +276,7 @@ int netdev_nl_napi_get_dumpit(struct sk_buff *skb, struct netlink_callback *cb)
 		if (netdev)
 			err = netdev_nl_napi_dump_one(netdev, skb, info, ctx);
 		else
-			err = -ENODEV;
+			err = -EANALDEV;
 	} else {
 		for_each_netdev_dump(net, netdev, ctx->ifindex) {
 			err = netdev_nl_napi_dump_one(netdev, skb, info, ctx);
@@ -382,7 +382,7 @@ int netdev_nl_queue_get_doit(struct sk_buff *skb, struct genl_info *info)
 
 	rsp = genlmsg_new(GENLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!rsp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rtnl_lock();
 
@@ -390,7 +390,7 @@ int netdev_nl_queue_get_doit(struct sk_buff *skb, struct genl_info *info)
 	if (netdev)
 		err = netdev_nl_queue_fill(rsp, netdev, q_id, q_type, info);
 	else
-		err = -ENODEV;
+		err = -EANALDEV;
 
 	rtnl_unlock();
 
@@ -451,7 +451,7 @@ int netdev_nl_queue_get_dumpit(struct sk_buff *skb, struct netlink_callback *cb)
 		if (netdev)
 			err = netdev_nl_queue_dump_one(netdev, skb, info, ctx);
 		else
-			err = -ENODEV;
+			err = -EANALDEV;
 	} else {
 		for_each_netdev_dump(net, netdev, ctx->ifindex) {
 			err = netdev_nl_queue_dump_one(netdev, skb, info, ctx);
@@ -469,35 +469,35 @@ int netdev_nl_queue_get_dumpit(struct sk_buff *skb, struct netlink_callback *cb)
 	return skb->len;
 }
 
-static int netdev_genl_netdevice_event(struct notifier_block *nb,
+static int netdev_genl_netdevice_event(struct analtifier_block *nb,
 				       unsigned long event, void *ptr)
 {
-	struct net_device *netdev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *netdev = netdev_analtifier_info_to_dev(ptr);
 
 	switch (event) {
 	case NETDEV_REGISTER:
-		netdev_genl_dev_notify(netdev, NETDEV_CMD_DEV_ADD_NTF);
+		netdev_genl_dev_analtify(netdev, NETDEV_CMD_DEV_ADD_NTF);
 		break;
 	case NETDEV_UNREGISTER:
-		netdev_genl_dev_notify(netdev, NETDEV_CMD_DEV_DEL_NTF);
+		netdev_genl_dev_analtify(netdev, NETDEV_CMD_DEV_DEL_NTF);
 		break;
 	case NETDEV_XDP_FEAT_CHANGE:
-		netdev_genl_dev_notify(netdev, NETDEV_CMD_DEV_CHANGE_NTF);
+		netdev_genl_dev_analtify(netdev, NETDEV_CMD_DEV_CHANGE_NTF);
 		break;
 	}
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block netdev_genl_nb = {
-	.notifier_call	= netdev_genl_netdevice_event,
+static struct analtifier_block netdev_genl_nb = {
+	.analtifier_call	= netdev_genl_netdevice_event,
 };
 
 static int __init netdev_genl_init(void)
 {
 	int err;
 
-	err = register_netdevice_notifier(&netdev_genl_nb);
+	err = register_netdevice_analtifier(&netdev_genl_nb);
 	if (err)
 		return err;
 
@@ -508,7 +508,7 @@ static int __init netdev_genl_init(void)
 	return 0;
 
 err_unreg_ntf:
-	unregister_netdevice_notifier(&netdev_genl_nb);
+	unregister_netdevice_analtifier(&netdev_genl_nb);
 	return err;
 }
 

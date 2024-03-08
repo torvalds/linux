@@ -26,7 +26,7 @@ struct m00233_video_measure_regmap {
 	uint32_t control;           /* Reg 0x0024, Default=0x0 */
 	uint32_t irq_triggers;      /* Reg 0x0028, Default=0xff */
 	/* Value is given in number of register bus clock periods between */
-	/* falling and rising edge of hsync. Must be non-zero. */
+	/* falling and rising edge of hsync. Must be analn-zero. */
 	uint32_t hsync_timeout_val; /* Reg 0x002c, Default=0x1fff */
 	uint32_t status;            /* Reg 0x0030 */
 };

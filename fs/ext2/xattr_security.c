@@ -10,32 +10,32 @@
 
 static int
 ext2_xattr_security_get(const struct xattr_handler *handler,
-			struct dentry *unused, struct inode *inode,
+			struct dentry *unused, struct ianalde *ianalde,
 			const char *name, void *buffer, size_t size)
 {
-	return ext2_xattr_get(inode, EXT2_XATTR_INDEX_SECURITY, name,
+	return ext2_xattr_get(ianalde, EXT2_XATTR_INDEX_SECURITY, name,
 			      buffer, size);
 }
 
 static int
 ext2_xattr_security_set(const struct xattr_handler *handler,
 			struct mnt_idmap *idmap,
-			struct dentry *unused, struct inode *inode,
+			struct dentry *unused, struct ianalde *ianalde,
 			const char *name, const void *value,
 			size_t size, int flags)
 {
-	return ext2_xattr_set(inode, EXT2_XATTR_INDEX_SECURITY, name,
+	return ext2_xattr_set(ianalde, EXT2_XATTR_INDEX_SECURITY, name,
 			      value, size, flags);
 }
 
-static int ext2_initxattrs(struct inode *inode, const struct xattr *xattr_array,
+static int ext2_initxattrs(struct ianalde *ianalde, const struct xattr *xattr_array,
 			   void *fs_info)
 {
 	const struct xattr *xattr;
 	int err = 0;
 
 	for (xattr = xattr_array; xattr->name != NULL; xattr++) {
-		err = ext2_xattr_set(inode, EXT2_XATTR_INDEX_SECURITY,
+		err = ext2_xattr_set(ianalde, EXT2_XATTR_INDEX_SECURITY,
 				     xattr->name, xattr->value,
 				     xattr->value_len, 0);
 		if (err < 0)
@@ -45,10 +45,10 @@ static int ext2_initxattrs(struct inode *inode, const struct xattr *xattr_array,
 }
 
 int
-ext2_init_security(struct inode *inode, struct inode *dir,
+ext2_init_security(struct ianalde *ianalde, struct ianalde *dir,
 		   const struct qstr *qstr)
 {
-	return security_inode_init_security(inode, dir, qstr,
+	return security_ianalde_init_security(ianalde, dir, qstr,
 					    &ext2_initxattrs, NULL);
 }
 

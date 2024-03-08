@@ -51,14 +51,14 @@ struct serial_8250_men_mcb_data {
 };
 
 /*
- * The Z125 16550-compatible UART has no fixed base clock assigned
+ * The Z125 16550-compatible UART has anal fixed base clock assigned
  * So, depending on the board we're on, we need to adjust the
  * parameter in order to really set the correct baudrate, and
  * do so if possible without user interaction
  */
 static u32 men_lookup_uartclk(struct mcb_device *mdev)
 {
-	/* use default value if board is not available below */
+	/* use default value if board is analt available below */
 	u32 clkval = 1041666;
 
 	dev_info(&mdev->dev, "%s on board %s\n",
@@ -74,7 +74,7 @@ static u32 men_lookup_uartclk(struct mcb_device *mdev)
 		clkval = 1843200;
 	else
 		dev_info(&mdev->dev,
-			 "board not detected, using default uartclk\n");
+			 "board analt detected, using default uartclk\n");
 
 	clkval = clkval  << 4;
 
@@ -97,7 +97,7 @@ static int read_uarts_available_from_register(struct resource *mem_res,
 	if (!mem) {
 		release_mem_region(mem_res->start + MEN_Z025_REGISTER_OFFSET,
 				   MEM_UART_REGISTER_SIZE);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	reg_value = MEN_READ_REGISTER(mem);
@@ -153,7 +153,7 @@ static int read_serial_data(struct mcb_device *mdev,
 	if (count <= 0 || count > MAX_PORTS) {
 		dev_err(&mdev->dev, "unexpected number of ports: %u\n",
 			count);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	serial_data->num_ports = count;
@@ -174,8 +174,8 @@ static int init_serial_data(struct mcb_device *mdev,
 	case MEN_UART_ID_Z057:
 		return read_serial_data(mdev, mem_res, serial_data);
 	default:
-		dev_err(&mdev->dev, "no supported device!\n");
-		return -ENODEV;
+		dev_err(&mdev->dev, "anal supported device!\n");
+		return -EANALDEV;
 	}
 }
 
@@ -196,7 +196,7 @@ static int serial_8250_men_mcb_probe(struct mcb_device *mdev,
 			    sizeof(struct serial_8250_men_mcb_data),
 			    GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res = init_serial_data(mdev, mem, data);
 	if (res < 0)

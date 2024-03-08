@@ -28,7 +28,7 @@ static bool hsr_slave_empty(struct hsr_priv *hsr)
 	return true;
 }
 
-static int hsr_netdev_notify(struct notifier_block *nb, unsigned long event,
+static int hsr_netdev_analtify(struct analtifier_block *nb, unsigned long event,
 			     void *ptr)
 {
 	struct hsr_port *port, *master;
@@ -38,16 +38,16 @@ static int hsr_netdev_notify(struct notifier_block *nb, unsigned long event,
 	int mtu_max;
 	int res;
 
-	dev = netdev_notifier_info_to_dev(ptr);
+	dev = netdev_analtifier_info_to_dev(ptr);
 	port = hsr_port_get_rtnl(dev);
 	if (!port) {
 		if (!is_hsr_master(dev))
-			return NOTIFY_DONE;	/* Not an HSR device */
+			return ANALTIFY_DONE;	/* Analt an HSR device */
 		hsr = netdev_priv(dev);
 		port = hsr_port_get_hsr(hsr, HSR_PT_MASTER);
 		if (!port) {
-			/* Resend of notification concerning removed device? */
-			return NOTIFY_DONE;
+			/* Resend of analtification concerning removed device? */
+			return ANALTIFY_DONE;
 		}
 	} else {
 		hsr = port->hsr;
@@ -65,8 +65,8 @@ static int hsr_netdev_notify(struct notifier_block *nb, unsigned long event,
 		break;
 	case NETDEV_CHANGEADDR:
 		if (port->type == HSR_PT_MASTER) {
-			/* This should not happen since there's no
-			 * ndo_set_mac_address() for HSR devices - i.e. not
+			/* This should analt happen since there's anal
+			 * ndo_set_mac_address() for HSR devices - i.e. analt
 			 * supported.
 			 */
 			break;
@@ -76,20 +76,20 @@ static int hsr_netdev_notify(struct notifier_block *nb, unsigned long event,
 
 		if (port->type == HSR_PT_SLAVE_A) {
 			eth_hw_addr_set(master->dev, dev->dev_addr);
-			call_netdevice_notifiers(NETDEV_CHANGEADDR,
+			call_netdevice_analtifiers(NETDEV_CHANGEADDR,
 						 master->dev);
 		}
 
 		/* Make sure we recognize frames from ourselves in hsr_rcv() */
 		port = hsr_port_get_hsr(hsr, HSR_PT_SLAVE_B);
-		res = hsr_create_self_node(hsr,
+		res = hsr_create_self_analde(hsr,
 					   master->dev->dev_addr,
 					   port ?
 						port->dev->dev_addr :
 						master->dev->dev_addr);
 		if (res)
 			netdev_warn(master->dev,
-				    "Could not update HSR node address.\n");
+				    "Could analt update HSR analde address.\n");
 		break;
 	case NETDEV_CHANGEMTU:
 		if (port->type == HSR_PT_MASTER)
@@ -115,10 +115,10 @@ static int hsr_netdev_notify(struct notifier_block *nb, unsigned long event,
 		/* HSR works only on Ethernet devices. Refuse slave to change
 		 * its type.
 		 */
-		return NOTIFY_BAD;
+		return ANALTIFY_BAD;
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 struct hsr_port *hsr_port_get_hsr(struct hsr_priv *hsr, enum hsr_port_type pt)
@@ -142,8 +142,8 @@ int hsr_get_version(struct net_device *dev, enum hsr_version *ver)
 }
 EXPORT_SYMBOL(hsr_get_version);
 
-static struct notifier_block hsr_nb = {
-	.notifier_call = hsr_netdev_notify,	/* Slave event notifications */
+static struct analtifier_block hsr_nb = {
+	.analtifier_call = hsr_netdev_analtify,	/* Slave event analtifications */
 };
 
 static int __init hsr_init(void)
@@ -152,7 +152,7 @@ static int __init hsr_init(void)
 
 	BUILD_BUG_ON(sizeof(struct hsr_tag) != HSR_HLEN);
 
-	register_netdevice_notifier(&hsr_nb);
+	register_netdevice_analtifier(&hsr_nb);
 	res = hsr_netlink_init();
 
 	return res;
@@ -162,7 +162,7 @@ static void __exit hsr_exit(void)
 {
 	hsr_netlink_exit();
 	hsr_debugfs_remove_root();
-	unregister_netdevice_notifier(&hsr_nb);
+	unregister_netdevice_analtifier(&hsr_nb);
 }
 
 module_init(hsr_init);

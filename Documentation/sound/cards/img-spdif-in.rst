@@ -1,8 +1,8 @@
 ================================================
-Imagination Technologies SPDIF Input Controllers
+Imagination Techanallogies SPDIF Input Controllers
 ================================================
 
-The Imagination Technologies SPDIF Input controller contains the following
+The Imagination Techanallogies SPDIF Input controller contains the following
 controls:
 
 * name='IEC958 Capture Mask',index=0
@@ -27,7 +27,7 @@ control.
 
 When the value of this control is set to {0,0,0,0}, the rate given to hw_params
 will determine the single rate the block will capture. Else, the rate given to
-hw_params will be ignored, and the block will attempt capture for each of the
+hw_params will be iganalred, and the block will attempt capture for each of the
 four sample rates set here.
 
 If less than four rates are required, the same rate can be specified more than
@@ -35,7 +35,7 @@ once
 
 * name='SPDIF In Lock Frequency',index=0
 
-This control returns the active capture rate, or 0 if a lock has not been
+This control returns the active capture rate, or 0 if a lock has analt been
 acquired
 
 * name='SPDIF In Lock TRK',index=0

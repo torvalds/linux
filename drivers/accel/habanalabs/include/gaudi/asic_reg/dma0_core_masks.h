@@ -7,7 +7,7 @@
 
 /************************************
  ** This is an auto-generated file **
- **       DO NOT EDIT BELOW        **
+ **       DO ANALT EDIT BELOW        **
  ************************************/
 
 #ifndef ASIC_REG_DMA0_CORE_MASKS_H_
@@ -175,11 +175,11 @@
 #define DMA0_CORE_SECURE_PROPS_MMBP_SHIFT                            10
 #define DMA0_CORE_SECURE_PROPS_MMBP_MASK                             0x400
 
-/* DMA0_CORE_NON_SECURE_PROPS */
-#define DMA0_CORE_NON_SECURE_PROPS_ASID_SHIFT                        0
-#define DMA0_CORE_NON_SECURE_PROPS_ASID_MASK                         0x3FF
-#define DMA0_CORE_NON_SECURE_PROPS_MMBP_SHIFT                        10
-#define DMA0_CORE_NON_SECURE_PROPS_MMBP_MASK                         0x400
+/* DMA0_CORE_ANALN_SECURE_PROPS */
+#define DMA0_CORE_ANALN_SECURE_PROPS_ASID_SHIFT                        0
+#define DMA0_CORE_ANALN_SECURE_PROPS_ASID_MASK                         0x3FF
+#define DMA0_CORE_ANALN_SECURE_PROPS_MMBP_SHIFT                        10
+#define DMA0_CORE_ANALN_SECURE_PROPS_MMBP_MASK                         0x400
 
 /* DMA0_CORE_RD_MAX_OUTSTAND */
 #define DMA0_CORE_RD_MAX_OUTSTAND_VAL_SHIFT                          0

@@ -3,15 +3,15 @@
  * Device Tree Source for Kamstrup OMNIA Flex Concentrator.
  *
  * Copyright (C) 2020 Kamstrup A/S
- * Author: Bruno Thomsen <bruno.thomsen@gmail.com>
+ * Author: Bruanal Thomsen <bruanal.thomsen@gmail.com>
  */
 
 /dts-v1/;
 
 #include "imx7d-tqma7.dtsi"
 
-/* One I2C device on TQMa7 SoM is not mounted */
-/delete-node/ &ds1339;
+/* One I2C device on TQMa7 SoM is analt mounted */
+/delete-analde/ &ds1339;
 
 / {
 	model = "Kamstrup OMNIA Flex Concentrator";
@@ -44,7 +44,7 @@
 	/*
 	 * Human Machine Interface consists of 4 dual red/green LEDs.
 	 * hmi-a:green is controlled directly by the switch-mode power supply.
-	 * hmi-a:red is not used.
+	 * hmi-a:red is analt used.
 	 */
 	gpio-leds {
 		compatible = "gpio-leds";
@@ -147,7 +147,7 @@
 	/*
 	 * MDIO bus reset is used to generate PHY device reset before
 	 * Ethernet PHY type ID auto-detection. Otherwise this communication
-	 * fails as device does not answer when recommended reset circuit
+	 * fails as device does analt answer when recommended reset circuit
 	 * is used.
 	 */
 	mdio {
@@ -174,7 +174,7 @@
  * power-cycle and USB hub reset in case of misbehaving or crashed modules.
  *
  * SMPS - AC input monitor based on zero crossing.
- * Used for last gasp notification.
+ * Used for last gasp analtification.
  */
 &gpio3 {
 	gpio-line-names = "", "", "", "", "", "", "", "",
@@ -185,7 +185,7 @@
 
 /*
  * Tamper IRQ trigger timestamp reading.
- * Used for sealed cover opened/closed notification.
+ * Used for sealed cover opened/closed analtification.
  */
 &gpio5 {
 	gpio-line-names = "", "", "", "", "", "", "", "",

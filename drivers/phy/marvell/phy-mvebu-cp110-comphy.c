@@ -285,8 +285,8 @@ static int mvebu_comphy_smc(unsigned long function, unsigned long phys,
 	switch (ret) {
 	case SMCCC_RET_SUCCESS:
 		return 0;
-	case SMCCC_RET_NOT_SUPPORTED:
-		return -EOPNOTSUPP;
+	case SMCCC_RET_ANALT_SUPPORTED:
+		return -EOPANALTSUPP;
 	default:
 		return -EINVAL;
 	}
@@ -296,8 +296,8 @@ static int mvebu_comphy_get_mode(bool fw_mode, int lane, int port,
 				 enum phy_mode mode, int submode)
 {
 	int i, n = ARRAY_SIZE(mvebu_comphy_cp110_modes);
-	/* Ignore PCIe submode: it represents the width */
-	bool ignore_submode = (mode == PHY_MODE_PCIE);
+	/* Iganalre PCIe submode: it represents the width */
+	bool iganalre_submode = (mode == PHY_MODE_PCIE);
 	const struct mvebu_comphy_conf *conf;
 
 	/* Unused PHY mux value is 0x0 */
@@ -309,7 +309,7 @@ static int mvebu_comphy_get_mode(bool fw_mode, int lane, int port,
 		if (conf->lane == lane &&
 		    conf->port == port &&
 		    conf->mode == mode &&
-		    (conf->submode == submode || ignore_submode))
+		    (conf->submode == submode || iganalre_submode))
 			break;
 	}
 
@@ -379,7 +379,7 @@ static int mvebu_comphy_ethernet_init_reset(struct mvebu_comphy_lane *lane)
 			"unsupported comphy submode (%d) on lane %d\n",
 			lane->submode,
 			lane->id);
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	writel(val, priv->base + MVEBU_COMPHY_SERDES_CFG0(lane->id));
@@ -398,7 +398,7 @@ static int mvebu_comphy_ethernet_init_reset(struct mvebu_comphy_lane *lane)
 			break;
 		default:
 			dev_err(priv->dev,
-				"RXAUI is not supported on comphy lane %d\n",
+				"RXAUI is analt supported on comphy lane %d\n",
 				lane->id);
 			return -EINVAL;
 		}
@@ -729,7 +729,7 @@ static int mvebu_comphy_power_on_legacy(struct phy *phy)
 	mux = mvebu_comphy_get_mux(lane->id, lane->port,
 				   lane->mode, lane->submode);
 	if (mux < 0)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	regmap_read(priv->regmap, MVEBU_COMPHY_PIPE_SELECTOR, &val);
 	val &= ~(0xf << MVEBU_COMPHY_PIPE_SELECTOR_PIPE(lane->id));
@@ -752,7 +752,7 @@ static int mvebu_comphy_power_on_legacy(struct phy *phy)
 		ret = mvebu_comphy_set_mode_10gbaser(phy);
 		break;
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	/* digital reset */
@@ -808,7 +808,7 @@ static int mvebu_comphy_power_on(struct phy *phy)
 		default:
 			dev_err(priv->dev, "unsupported Ethernet mode (%d)\n",
 				lane->submode);
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		}
 		fw_param = COMPHY_FW_PARAM_ETH(fw_mode, lane->port, fw_speed);
 		break;
@@ -829,7 +829,7 @@ static int mvebu_comphy_power_on(struct phy *phy)
 		break;
 	default:
 		dev_err(priv->dev, "unsupported PHY mode (%d)\n", lane->mode);
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	ret = mvebu_comphy_smc(COMPHY_SIP_POWER_ON, priv->cp_phys, lane->id,
@@ -837,12 +837,12 @@ static int mvebu_comphy_power_on(struct phy *phy)
 	if (!ret)
 		return ret;
 
-	if (ret == -EOPNOTSUPP)
+	if (ret == -EOPANALTSUPP)
 		dev_err(priv->dev,
 			"unsupported SMC call, try updating your firmware\n");
 
 	dev_warn(priv->dev,
-		 "Firmware could not configure PHY %d with mode %d (ret: %d), trying legacy method\n",
+		 "Firmware could analt configure PHY %d with mode %d (ret: %d), trying legacy method\n",
 		 lane->id, lane->mode, ret);
 
 try_legacy:
@@ -998,17 +998,17 @@ static int mvebu_comphy_probe(struct platform_device *pdev)
 {
 	struct mvebu_comphy_priv *priv;
 	struct phy_provider *provider;
-	struct device_node *child;
+	struct device_analde *child;
 	struct resource *res;
 	int ret;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->dev = &pdev->dev;
 	priv->regmap =
-		syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
+		syscon_regmap_lookup_by_phandle(pdev->dev.of_analde,
 						"marvell,system-controller");
 	if (IS_ERR(priv->regmap))
 		return PTR_ERR(priv->regmap);
@@ -1017,14 +1017,14 @@ static int mvebu_comphy_probe(struct platform_device *pdev)
 		return PTR_ERR(priv->base);
 
 	/*
-	 * Ignore error if clocks have not been initialized properly for DT
+	 * Iganalre error if clocks have analt been initialized properly for DT
 	 * compatibility reasons.
 	 */
 	ret = mvebu_comphy_init_clks(priv);
 	if (ret) {
 		if (ret == -EPROBE_DEFER)
 			return ret;
-		dev_warn(&pdev->dev, "cannot initialize clocks\n");
+		dev_warn(&pdev->dev, "cananalt initialize clocks\n");
 	}
 
 	/*
@@ -1033,7 +1033,7 @@ static int mvebu_comphy_probe(struct platform_device *pdev)
 	 */
 	priv->cp_phys = res->start;
 
-	for_each_available_child_of_node(pdev->dev.of_node, child) {
+	for_each_available_child_of_analde(pdev->dev.of_analde, child) {
 		struct mvebu_comphy_lane *lane;
 		struct phy *phy;
 		u32 val;
@@ -1052,14 +1052,14 @@ static int mvebu_comphy_probe(struct platform_device *pdev)
 
 		lane = devm_kzalloc(&pdev->dev, sizeof(*lane), GFP_KERNEL);
 		if (!lane) {
-			of_node_put(child);
-			ret = -ENOMEM;
+			of_analde_put(child);
+			ret = -EANALMEM;
 			goto disable_clks;
 		}
 
 		phy = devm_phy_create(&pdev->dev, child, &mvebu_comphy_ops);
 		if (IS_ERR(phy)) {
-			of_node_put(child);
+			of_analde_put(child);
 			ret = PTR_ERR(phy);
 			goto disable_clks;
 		}
@@ -1075,7 +1075,7 @@ static int mvebu_comphy_probe(struct platform_device *pdev)
 		 * All modes are supported in this driver so we could call
 		 * mvebu_comphy_power_off(phy) here to avoid relying on the
 		 * bootloader/firmware configuration, but for compatibility
-		 * reasons we cannot de-configure the COMPHY without being sure
+		 * reasons we cananalt de-configure the COMPHY without being sure
 		 * that the firmware is up-to-date and fully-featured.
 		 */
 	}

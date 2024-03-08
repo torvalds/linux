@@ -16,7 +16,7 @@
  *
  * The registering driver is the entity that allocates memory for the
  * auxiliary_device and registers it on the auxiliary bus.  It is important to
- * note that, as opposed to the platform bus, the registering driver is wholly
+ * analte that, as opposed to the platform bus, the registering driver is wholly
  * responsible for the management of the memory used for the device object.
  *
  * To be clear the memory for the auxiliary_device is freed in the release()
@@ -77,14 +77,14 @@
  * driver.  If two auxiliary_devices with the same match_name, eg
  * "foo_mod.foo_dev", are registered onto the bus, they must have unique id
  * values (e.g. "x" and "y") so that the registered devices names are
- * "foo_mod.foo_dev.x" and "foo_mod.foo_dev.y".  If match_name + id are not
+ * "foo_mod.foo_dev.x" and "foo_mod.foo_dev.y".  If match_name + id are analt
  * unique, then the device_add fails and generates an error message.
  *
  * The auxiliary_device.dev.type.release or auxiliary_device.dev.release must
- * be populated with a non-NULL pointer to successfully register the
+ * be populated with a analn-NULL pointer to successfully register the
  * auxiliary_device.  This release call is where resources associated with the
  * auxiliary device must be free'ed.  Because once the device is placed on the
- * bus the parent driver can not tell what other code may have a reference to
+ * bus the parent driver can analt tell what other code may have a reference to
  * this data.
  *
  * The auxiliary_device.dev.parent should be set.  Typically to the registering
@@ -155,7 +155,7 @@ struct auxiliary_device {
  * Auxiliary drivers follow the standard driver model convention, where
  * discovery/enumeration is handled by the core, and drivers provide probe()
  * and remove() methods. They support power management and shutdown
- * notifications using the standard conventions.
+ * analtifications using the standard conventions.
  *
  * Auxiliary drivers register themselves with the bus by calling
  * auxiliary_driver_register(). The id_table contains the match_names of
@@ -233,7 +233,7 @@ void auxiliary_driver_unregister(struct auxiliary_driver *auxdrv);
  * module_auxiliary_driver() - Helper macro for registering an auxiliary driver
  * @__auxiliary_driver: auxiliary driver struct
  *
- * Helper macro for auxiliary drivers which do not do anything special in
+ * Helper macro for auxiliary drivers which do analt do anything special in
  * module init/exit. This eliminates a lot of boilerplate. Each module may only
  * use this macro once, and calling it replaces module_init() and module_exit()
  *

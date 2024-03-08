@@ -21,10 +21,10 @@ Required properties:
 Optional properties:
 	- enable-gpios : gpio pin to enable (active high)/disable the device.
 	- ramp-up-us - The Run time ramp rates/step are from one current
-		       set-point to another after the device has reached its
+		       set-point to aanalther after the device has reached its
 		       initial target set point from turn-on
 	- ramp-down-us - The Run time ramp rates/step are from one current
-			 set-point to another after the device has reached its
+			 set-point to aanalther after the device has reached its
 			 initial target set point from turn-on
 	Range for ramp settings: 8us - 65536us
 

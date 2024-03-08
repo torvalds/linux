@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * x86 instruction nmemonic table to parse disasm lines for annotate.
- * This table is searched twice - one for exact match and another for
+ * x86 instruction nmemonic table to parse disasm lines for ananaltate.
+ * This table is searched twice - one for exact match and aanalther for
  * match without a size suffix (b, w, l, q) in case of AT&T syntax.
  *
- * So this table should not have entries with the suffix unless it's
+ * So this table should analt have entries with the suffix unless it's
  * a complete different instruction than ones without the suffix.
  */
 static struct ins x86__instructions[] = {
@@ -55,7 +55,7 @@ static struct ins x86__instructions[] = {
 	{ .name = "jnge",	.ops = &jump_ops, },
 	{ .name = "jnl",	.ops = &jump_ops, },
 	{ .name = "jnle",	.ops = &jump_ops, },
-	{ .name = "jno",	.ops = &jump_ops, },
+	{ .name = "janal",	.ops = &jump_ops, },
 	{ .name = "jnp",	.ops = &jump_ops, },
 	{ .name = "jns",	.ops = &jump_ops, },
 	{ .name = "jnz",	.ops = &jump_ops, },
@@ -85,7 +85,7 @@ static struct ins x86__instructions[] = {
 	{ .name = "movzl",	.ops = &mov_ops,  },
 	{ .name = "mulsd",	.ops = &mov_ops,  },
 	{ .name = "mulss",	.ops = &mov_ops,  },
-	{ .name = "nop",	.ops = &nop_ops,  },
+	{ .name = "analp",	.ops = &analp_ops,  },
 	{ .name = "or",		.ops = &mov_ops,  },
 	{ .name = "orps",	.ops = &mov_ops,  },
 	{ .name = "pand",	.ops = &mov_ops,  },
@@ -191,7 +191,7 @@ static int x86__cpuid_parse(struct arch *arch, char *cpuid)
 	return -1;
 }
 
-static int x86__annotate_init(struct arch *arch, char *cpuid)
+static int x86__ananaltate_init(struct arch *arch, char *cpuid)
 {
 	int err = 0;
 
@@ -200,7 +200,7 @@ static int x86__annotate_init(struct arch *arch, char *cpuid)
 
 	if (cpuid) {
 		if (x86__cpuid_parse(arch, cpuid))
-			err = SYMBOL_ANNOTATE_ERRNO__ARCH_INIT_CPUID_PARSING;
+			err = SYMBOL_ANANALTATE_ERRANAL__ARCH_INIT_CPUID_PARSING;
 	}
 
 	arch->initialized = true;

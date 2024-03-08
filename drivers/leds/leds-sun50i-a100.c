@@ -103,7 +103,7 @@ static int sun50i_a100_ledc_dma_xfer(struct sun50i_a100_ledc *priv, unsigned int
 	desc = dmaengine_prep_slave_single(priv->dma_chan, priv->dma_handle,
 					   LEDS_TO_BYTES(length), DMA_MEM_TO_DEV, 0);
 	if (!desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cookie = dmaengine_submit(desc);
 	if (dma_submit_error(cookie))
@@ -190,7 +190,7 @@ static irqreturn_t sun50i_a100_ledc_irq(int irq, void *data)
 
 		spin_lock(&priv->lock);
 
-		/* If another transfer is queued, dequeue and start it. */
+		/* If aanalther transfer is queued, dequeue and start it. */
 		next_length = priv->next_length;
 		if (next_length)
 			priv->next_length = 0;
@@ -394,29 +394,29 @@ static int sun50i_a100_ledc_probe(struct platform_device *pdev)
 	struct sun50i_a100_ledc_led *led;
 	struct device *dev = &pdev->dev;
 	struct sun50i_a100_ledc *priv;
-	struct fwnode_handle *child;
+	struct fwanalde_handle *child;
 	struct resource *mem;
 	u32 max_addr = 0;
 	u32 num_leds = 0;
 	int irq, ret;
 
 	/*
-	 * The maximum LED address must be known in sun50i_a100_ledc_resume() before
-	 * class device registration, so parse and validate the subnodes up front.
+	 * The maximum LED address must be kanalwn in sun50i_a100_ledc_resume() before
+	 * class device registration, so parse and validate the subanaldes up front.
 	 */
-	device_for_each_child_node(dev, child) {
+	device_for_each_child_analde(dev, child) {
 		u32 addr, color;
 
-		ret = fwnode_property_read_u32(child, "reg", &addr);
+		ret = fwanalde_property_read_u32(child, "reg", &addr);
 		if (ret || addr >= LEDC_MAX_LEDS) {
-			fwnode_handle_put(child);
+			fwanalde_handle_put(child);
 			return dev_err_probe(dev, -EINVAL, "'reg' must be between 0 and %d\n",
 					     LEDC_MAX_LEDS - 1);
 		}
 
-		ret = fwnode_property_read_u32(child, "color", &color);
+		ret = fwanalde_property_read_u32(child, "color", &color);
 		if (ret || color != LED_COLOR_ID_RGB) {
-			fwnode_handle_put(child);
+			fwanalde_handle_put(child);
 			return dev_err_probe(dev, -EINVAL, "'color' must be LED_COLOR_ID_RGB\n");
 		}
 
@@ -425,11 +425,11 @@ static int sun50i_a100_ledc_probe(struct platform_device *pdev)
 	}
 
 	if (!num_leds)
-		return -ENODEV;
+		return -EANALDEV;
 
 	priv = devm_kzalloc(dev, struct_size(priv, leds, num_leds), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->dev = dev;
 	priv->max_addr = max_addr;
@@ -463,14 +463,14 @@ static int sun50i_a100_ledc_probe(struct platform_device *pdev)
 
 	priv->dma_chan = dma_request_chan(dev, "tx");
 	if (IS_ERR(priv->dma_chan)) {
-		if (PTR_ERR(priv->dma_chan) != -ENODEV)
+		if (PTR_ERR(priv->dma_chan) != -EANALDEV)
 			return PTR_ERR(priv->dma_chan);
 
 		priv->dma_chan = NULL;
 
 		priv->buffer = devm_kzalloc(dev, LEDS_TO_BYTES(LEDC_MAX_LEDS), GFP_KERNEL);
 		if (!priv->buffer)
-			return -ENOMEM;
+			return -EANALMEM;
 	} else {
 		ret = devm_add_action_or_reset(dev, sun50i_a100_ledc_dma_cleanup, priv);
 		if (ret)
@@ -488,7 +488,7 @@ static int sun50i_a100_ledc_probe(struct platform_device *pdev)
 						LEDS_TO_BYTES(LEDC_MAX_LEDS), &priv->dma_handle,
 						GFP_KERNEL, DMA_ATTR_WRITE_COMBINE);
 		if (!priv->buffer)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	irq = platform_get_irq(pdev, 0);
@@ -504,11 +504,11 @@ static int sun50i_a100_ledc_probe(struct platform_device *pdev)
 		return ret;
 
 	led = priv->leds;
-	device_for_each_child_node(dev, child) {
+	device_for_each_child_analde(dev, child) {
 		struct led_classdev *cdev;
 
-		/* The node was already validated above. */
-		fwnode_property_read_u32(child, "reg", &led->addr);
+		/* The analde was already validated above. */
+		fwanalde_property_read_u32(child, "reg", &led->addr);
 
 		led->subled_info[0].color_index = LED_COLOR_ID_RED;
 		led->subled_info[0].channel = 0;
@@ -524,7 +524,7 @@ static int sun50i_a100_ledc_probe(struct platform_device *pdev)
 		cdev->max_brightness = U8_MAX;
 		cdev->brightness_set = sun50i_a100_ledc_brightness_set;
 
-		init_data.fwnode = child;
+		init_data.fwanalde = child;
 
 		ret = led_classdev_multicolor_register_ext(dev, &led->mc_cdev, &init_data);
 		if (ret) {
@@ -540,7 +540,7 @@ static int sun50i_a100_ledc_probe(struct platform_device *pdev)
 	return 0;
 
 err_put_child:
-	fwnode_handle_put(child);
+	fwanalde_handle_put(child);
 	while (led-- > priv->leds)
 		led_classdev_multicolor_unregister(&led->mc_cdev);
 	sun50i_a100_ledc_suspend(&pdev->dev);

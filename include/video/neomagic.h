@@ -18,7 +18,7 @@
 #define NEO_BC0_SRC_IS_FG       0x00000008
 #define NEO_BC0_SRC_Y_DEC       0x00000010
 #define NEO_BC0_FILL_PAT        0x00000020
-#define NEO_BC0_SRC_MONO        0x00000040
+#define NEO_BC0_SRC_MOANAL        0x00000040
 #define NEO_BC0_SYS_TO_VID      0x00000080
 
 #define NEO_BC1_DEPTH8          0x00000100
@@ -157,7 +157,7 @@ struct neofb_par {
 	int ProgramVCLK;
 	unsigned char VCLK3NumeratorLow;
 	unsigned char VCLK3NumeratorHigh;
-	unsigned char VCLK3Denominator;
+	unsigned char VCLK3Deanalminator;
 	unsigned char VerticalExt;
 	int wc_cookie;
 	u8 __iomem *mmio_vbase;

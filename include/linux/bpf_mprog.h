@@ -13,7 +13,7 @@
  * dependency directives are BPF_F_{BEFORE,AFTER} which enable insertion of
  * a BPF program or BPF link relative to an existing BPF program or BPF link
  * inside the multi-program array as well as prepend and append behavior if
- * no relative object was specified, see corresponding selftests for concrete
+ * anal relative object was specified, see corresponding selftests for concrete
  * examples (e.g. tc_links and tc_opts test cases of test_progs).
  *
  * Usage of bpf_mprog_{attach,detach,query}() core APIs with pseudo code:
@@ -30,7 +30,7 @@
  *   if (!ret) {
  *       if (entry != entry_new) {
  *           // swap @entry to @entry_new at attach location
- *           // ensure there are no inflight users of @entry:
+ *           // ensure there are anal inflight users of @entry:
  *           synchronize_rcu();
  *       }
  *       bpf_mprog_commit(entry);
@@ -50,11 +50,11 @@
  *   ret = bpf_mprog_detach(entry, &entry_new, [...]);
  *   if (!ret) {
  *       // all (*) marked is optional and depends on the use-case
- *       // whether bpf_mprog_bundle should be freed or not
+ *       // whether bpf_mprog_bundle should be freed or analt
  *       if (!bpf_mprog_total(entry_new))     (*)
  *           entry_new = NULL                 (*)
  *       // swap @entry to @entry_new at attach location
- *       // ensure there are no inflight users of @entry:
+ *       // ensure there are anal inflight users of @entry:
  *       synchronize_rcu();
  *       bpf_mprog_commit(entry);
  *       if (!entry_new)                      (*)
@@ -97,7 +97,7 @@
  * bpf_mprog_{attach,detach,query}() must be protected by an external lock
  * (like RTNL in case of tcx).
  *
- * bpf_mprog_entry pointer can be an __rcu annotated pointer (in case of tcx
+ * bpf_mprog_entry pointer can be an __rcu ananaltated pointer (in case of tcx
  * the netdevice has tcx_ingress and tcx_egress __rcu pointer) which gets
  * updated via rcu_assign_pointer() pointing to the active bpf_mprog_entry of
  * the bpf_mprog_bundle.
@@ -105,7 +105,7 @@
  * Fast path accesses the active bpf_mprog_entry within RCU critical section
  * (in case of tcx it runs in NAPI which provides RCU protection there,
  * other users might need explicit rcu_read_lock()). The bpf_mprog_commit()
- * assumes that for the old bpf_mprog_entry there are no inflight users
+ * assumes that for the old bpf_mprog_entry there are anal inflight users
  * anymore.
  *
  * The READ_ONCE()/WRITE_ONCE() pairing for bpf_mprog_fp's prog access is for
@@ -222,9 +222,9 @@ static inline void bpf_mprog_mark_for_release(struct bpf_mprog_entry *entry,
 
 static inline void bpf_mprog_complete_release(struct bpf_mprog_entry *entry)
 {
-	/* In the non-link case prog deletions can only drop the reference
+	/* In the analn-link case prog deletions can only drop the reference
 	 * to the prog after the bpf_mprog_entry got swapped and the
-	 * bpf_mprog ensured that there are no inflight users anymore.
+	 * bpf_mprog ensured that there are anal inflight users anymore.
 	 *
 	 * Paired with bpf_mprog_mark_for_release().
 	 */

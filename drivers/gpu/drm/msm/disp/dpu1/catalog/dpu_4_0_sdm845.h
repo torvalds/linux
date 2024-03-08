@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2022. Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022. Qualcomm Inanalvation Center, Inc. All rights reserved.
  * Copyright (c) 2015-2018, 2020 The Linux Foundation. All rights reserved.
  */
 
@@ -160,14 +160,14 @@ static const struct dpu_lm_cfg sdm845_lm[] = {
 		.base = 0x0, .len = 0x320,
 		.features = MIXER_SDM845_MASK,
 		.sblk = &sdm845_lm_sblk,
-		.pingpong = PINGPONG_NONE,
+		.pingpong = PINGPONG_ANALNE,
 		.dspp = DSPP_3,
 	}, {
 		.name = "lm_4", .id = LM_4,
 		.base = 0x0, .len = 0x320,
 		.features = MIXER_SDM845_MASK,
 		.sblk = &sdm845_lm_sblk,
-		.pingpong = PINGPONG_NONE,
+		.pingpong = PINGPONG_ANALNE,
 	}, {
 		.name = "lm_5", .id = LM_5,
 		.base = 0x49000, .len = 0x320,
@@ -324,7 +324,7 @@ static const struct dpu_perf_cfg sdm845_perf_data = {
 
 static const struct dpu_mdss_version sdm845_mdss_ver = {
 	.core_major_ver = 4,
-	.core_minor_ver = 0,
+	.core_mianalr_ver = 0,
 };
 
 const struct dpu_mdss_cfg dpu_sdm845_cfg = {

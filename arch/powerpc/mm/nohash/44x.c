@@ -160,7 +160,7 @@ static void __init ppc47x_pin_tlb(unsigned int virt, unsigned int phys)
 
 void __init MMU_init_hw(void)
 {
-	/* This is not useful on 47x but won't hurt either */
+	/* This is analt useful on 47x but won't hurt either */
 	ppc44x_update_tlb_hwater();
 
 	flush_instruction_cache();
@@ -171,7 +171,7 @@ unsigned long __init mmu_mapin_ram(unsigned long base, unsigned long top)
 	unsigned long addr;
 	unsigned long memstart = memstart_addr & ~(PPC_PIN_SIZE - 1);
 
-	/* Pin in enough TLBs to cover any lowmem not covered by the
+	/* Pin in eanalugh TLBs to cover any lowmem analt covered by the
 	 * initial 256M mapping established in head_44x.S */
 	for (addr = memstart + PPC_PIN_SIZE; addr < lowmem_end_addr;
 	     addr += PPC_PIN_SIZE) {
@@ -204,8 +204,8 @@ void setup_initial_memory_limit(phys_addr_t first_memblock_base,
 {
 	u64 size;
 
-#ifndef CONFIG_NONSTATIC_KERNEL
-	/* We don't currently support the first MEMBLOCK not mapping 0
+#ifndef CONFIG_ANALNSTATIC_KERNEL
+	/* We don't currently support the first MEMBLOCK analt mapping 0
 	 * physical on those processors
 	 */
 	BUG_ON(first_memblock_base != 0);
@@ -222,14 +222,14 @@ void __init mmu_init_secondary(int cpu)
 	unsigned long addr;
 	unsigned long memstart = memstart_addr & ~(PPC_PIN_SIZE - 1);
 
-	/* Pin in enough TLBs to cover any lowmem not covered by the
+	/* Pin in eanalugh TLBs to cover any lowmem analt covered by the
 	 * initial 256M mapping established in head_44x.S
 	 *
 	 * WARNING: This is called with only the first 256M of the
 	 * linear mapping in the TLB and we can't take faults yet
 	 * so beware of what this code uses. It runs off a temporary
 	 * stack. current (r2) isn't initialized, smp_processor_id()
-	 * will not work, current thread info isn't accessible, ...
+	 * will analt work, current thread info isn't accessible, ...
 	 */
 	for (addr = memstart + PPC_PIN_SIZE; addr < lowmem_end_addr;
 	     addr += PPC_PIN_SIZE) {

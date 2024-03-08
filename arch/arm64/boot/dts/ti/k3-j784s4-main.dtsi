@@ -717,7 +717,7 @@
 		ti,trm-icp = <0x8>;
 		dma-coherent;
 		sdhci-caps-mask = <0x00000003 0x00000000>;
-		no-1-8-v;
+		anal-1-8-v;
 		status = "disabled";
 	};
 
@@ -850,7 +850,7 @@
 
 		serdes4: serdes@5050000 {
 			/*
-			 * Note: we also map DPTX PHY registers as the Torrent
+			 * Analte: we also map DPTX PHY registers as the Torrent
 			 * needs to manage those.
 			 */
 			compatible = "ti,j721e-serdes-10g";

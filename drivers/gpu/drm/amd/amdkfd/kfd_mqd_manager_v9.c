@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -107,7 +107,7 @@ static void set_priority(struct v9_mqd *m, struct queue_properties *q)
 	m->cp_hqd_queue_priority = q->priority;
 }
 
-static struct kfd_mem_obj *allocate_mqd(struct kfd_node *node,
+static struct kfd_mem_obj *allocate_mqd(struct kfd_analde *analde,
 		struct queue_properties *q)
 {
 	int retval;
@@ -120,7 +120,7 @@ static struct kfd_mem_obj *allocate_mqd(struct kfd_node *node,
 	 * purpose and the remaining is for control stack. Although the two
 	 * parts are in the same buffer object, they need different memory
 	 * types: MQD part needs UC (uncached) as usual, while control stack
-	 * needs NC (non coherent), which is different from the UC type which
+	 * needs NC (analn coherent), which is different from the UC type which
 	 * is used when control stack is allocated in user space.
 	 *
 	 * Because of all those, we use the gtt allocation function instead
@@ -129,14 +129,14 @@ static struct kfd_mem_obj *allocate_mqd(struct kfd_node *node,
 	 * pass a special bo flag AMDGPU_GEM_CREATE_CP_MQD_GFX9 to instruct
 	 * amdgpu memory functions to do so.
 	 */
-	if (node->kfd->cwsr_enabled && (q->type == KFD_QUEUE_TYPE_COMPUTE)) {
+	if (analde->kfd->cwsr_enabled && (q->type == KFD_QUEUE_TYPE_COMPUTE)) {
 		mqd_mem_obj = kzalloc(sizeof(struct kfd_mem_obj), GFP_KERNEL);
 		if (!mqd_mem_obj)
 			return NULL;
-		retval = amdgpu_amdkfd_alloc_gtt_mem(node->adev,
+		retval = amdgpu_amdkfd_alloc_gtt_mem(analde->adev,
 			(ALIGN(q->ctl_stack_size, PAGE_SIZE) +
 			ALIGN(sizeof(struct v9_mqd), PAGE_SIZE)) *
-			NUM_XCC(node->xcc_mask),
+			NUM_XCC(analde->xcc_mask),
 			&(mqd_mem_obj->gtt_mem),
 			&(mqd_mem_obj->gpu_addr),
 			(void *)&(mqd_mem_obj->cpu_ptr), true);
@@ -146,7 +146,7 @@ static struct kfd_mem_obj *allocate_mqd(struct kfd_node *node,
 			return NULL;
 		}
 	} else {
-		retval = kfd_gtt_sa_allocate(node, sizeof(struct v9_mqd),
+		retval = kfd_gtt_sa_allocate(analde, sizeof(struct v9_mqd),
 				&mqd_mem_obj);
 		if (retval)
 			return NULL;
@@ -266,9 +266,9 @@ static void update_mqd(struct mqd_manager *mm, void *mqd,
 		1 << CP_HQD_IB_CONTROL__IB_EXE_DISABLE__SHIFT;
 
 	/*
-	 * HW does not clamp this field correctly. Maximum EOP queue size
+	 * HW does analt clamp this field correctly. Maximum EOP queue size
 	 * is constrained by per-SE EOP done signal count, which is 8-bit.
-	 * Limit is 0xFF EOP entries (= 0x7F8 dwords). CP will not submit
+	 * Limit is 0xFF EOP entries (= 0x7F8 dwords). CP will analt submit
 	 * more than (EOP entry count - 1) so a queue size of 0x800 dwords
 	 * is safe, giving a maximum field value of 0xA.
 	 *
@@ -289,7 +289,7 @@ static void update_mqd(struct mqd_manager *mm, void *mqd,
 	m->cp_hqd_vmid = q->vmid;
 
 	if (q->format == KFD_QUEUE_FORMAT_AQL) {
-		m->cp_hqd_pq_control |= CP_HQD_PQ_CONTROL__NO_UPDATE_RPTR_MASK |
+		m->cp_hqd_pq_control |= CP_HQD_PQ_CONTROL__ANAL_UPDATE_RPTR_MASK |
 				2 << CP_HQD_PQ_CONTROL__SLOT_BASED_WPTR__SHIFT |
 				1 << CP_HQD_PQ_CONTROL__QUEUE_FULL_EN__SHIFT |
 				1 << CP_HQD_PQ_CONTROL__WPP_CLAMP_EN__SHIFT;
@@ -541,13 +541,13 @@ static void init_mqd_hiq_v9_4_3(struct mqd_manager *mm, void **mqd,
 
 		init_mqd(mm, (void **)&m, &xcc_mqd_mem_obj, &xcc_gart_addr, q);
 
-		m->cp_hqd_pq_control |= CP_HQD_PQ_CONTROL__NO_UPDATE_RPTR_MASK |
+		m->cp_hqd_pq_control |= CP_HQD_PQ_CONTROL__ANAL_UPDATE_RPTR_MASK |
 					1 << CP_HQD_PQ_CONTROL__PRIV_STATE__SHIFT |
 					1 << CP_HQD_PQ_CONTROL__KMD_QUEUE__SHIFT;
 		m->cp_mqd_stride_size = kfd_hiq_mqd_stride(mm->dev);
 		if (xcc == 0) {
-			/* Set no_update_rptr = 0 in Master XCC */
-			m->cp_hqd_pq_control &= ~CP_HQD_PQ_CONTROL__NO_UPDATE_RPTR_MASK;
+			/* Set anal_update_rptr = 0 in Master XCC */
+			m->cp_hqd_pq_control &= ~CP_HQD_PQ_CONTROL__ANAL_UPDATE_RPTR_MASK;
 
 			/* Set the MQD pointer and gart address to XCC0 MQD */
 			*mqd = m;
@@ -664,7 +664,7 @@ static void init_mqd_v9_4_3(struct mqd_manager *mm, void **mqd,
 			case 0:
 				/* Master XCC */
 				m->cp_hqd_pq_control &=
-					~CP_HQD_PQ_CONTROL__NO_UPDATE_RPTR_MASK;
+					~CP_HQD_PQ_CONTROL__ANAL_UPDATE_RPTR_MASK;
 				break;
 			default:
 				break;
@@ -702,7 +702,7 @@ static void update_mqd_v9_4_3(struct mqd_manager *mm, void *mqd,
 			case 0:
 				/* Master XCC */
 				m->cp_hqd_pq_control &=
-					~CP_HQD_PQ_CONTROL__NO_UPDATE_RPTR_MASK;
+					~CP_HQD_PQ_CONTROL__ANAL_UPDATE_RPTR_MASK;
 				break;
 			default:
 				break;
@@ -831,7 +831,7 @@ static int debugfs_show_mqd_sdma(struct seq_file *m, void *data)
 #endif
 
 struct mqd_manager *mqd_manager_init_v9(enum KFD_MQD_TYPE type,
-		struct kfd_node *dev)
+		struct kfd_analde *dev)
 {
 	struct mqd_manager *mqd;
 

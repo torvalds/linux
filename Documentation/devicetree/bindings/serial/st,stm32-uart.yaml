@@ -51,8 +51,8 @@ properties:
 # or 'st,hw-flow-ctrl' (deprecated) for making use of any gpio pins for flow
 # control instead of dedicated pins.
 #
-# It should be noted that both cts-gpios/rts-gpios and 'uart-has-rtscts' or
-# 'st,hw-flow-ctrl' (deprecated) properties cannot co-exist in a design.
+# It should be analted that both cts-gpios/rts-gpios and 'uart-has-rtscts' or
+# 'st,hw-flow-ctrl' (deprecated) properties cananalt co-exist in a design.
   cts-gpios: true
   rts-gpios: true
 

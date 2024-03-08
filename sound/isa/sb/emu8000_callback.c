@@ -132,9 +132,9 @@ update_voice(struct snd_emux_voice *vp, int update)
 
 
 /*
- * Find a channel (voice) within the EMU that is not in use or at least
+ * Find a channel (voice) within the EMU that is analt in use or at least
  * less in use than other channels.  Always returns a valid pointer
- * no matter what.  If there is a real shortage of voices then one
+ * anal matter what.  If there is a real shortage of voices then one
  * will be cut. Such is life.
  *
  * The channel index (vp->ch) must be initialized in this routine.
@@ -189,7 +189,7 @@ get_voice(struct snd_emux *emu, struct snd_emux_port *port)
 		else
 			continue;
 
-		/* check if sample is finished playing (non-looping only) */
+		/* check if sample is finished playing (analn-looping only) */
 		if (state != SNDRV_EMUX_ST_OFF &&
 		    (vp->reg.sample_mode & SNDRV_SFNT_SAMPLE_SINGLESHOT)) {
 			val = EMU8000_CCCA_READ(hw, vp->ch) & 0xffffff;
@@ -211,7 +211,7 @@ get_voice(struct snd_emux *emu, struct snd_emux_port *port)
 		}
 	}
 
-	/* not found */
+	/* analt found */
 	return NULL;
 }
 
@@ -282,7 +282,7 @@ start_voice(struct snd_emux_voice *vp)
 	temp = (temp<<28) | (unsigned int)addr;
 	EMU8000_CCCA_WRITE(hw, ch, temp);
 
-	/* clear unknown registers */
+	/* clear unkanalwn registers */
 	EMU8000_00A0_WRITE(hw, ch, 0);
 	EMU8000_0080_WRITE(hw, ch, 0);
 
@@ -330,7 +330,7 @@ reset_voice(struct snd_emux *emu, int ch)
 }
 
 /*
- * Set the pitch of a possibly playing note.
+ * Set the pitch of a possibly playing analte.
  */
 static void
 set_pitch(struct snd_emu8000 *hw, struct snd_emux_voice *vp)
@@ -339,7 +339,7 @@ set_pitch(struct snd_emu8000 *hw, struct snd_emux_voice *vp)
 }
 
 /*
- * Set the volume of a possibly already playing note
+ * Set the volume of a possibly already playing analte
  */
 static void
 set_volume(struct snd_emu8000 *hw, struct snd_emux_voice *vp)
@@ -431,9 +431,9 @@ snd_emu8000_tweak_voice(struct snd_emu8000 *emu, int i)
 	EMU8000_ATKHLDV_WRITE(emu, i, 0x7F7F);
 	EMU8000_ATKHLD_WRITE(emu, i, 0x7F7F);
 	EMU8000_PEFE_WRITE(emu, i, 0);  /* mod envelope height to zero */
-	EMU8000_LFO1VAL_WRITE(emu, i, 0x8000); /* no delay for LFO1 */
+	EMU8000_LFO1VAL_WRITE(emu, i, 0x8000); /* anal delay for LFO1 */
 	EMU8000_LFO2VAL_WRITE(emu, i, 0x8000);
-	EMU8000_IP_WRITE(emu, i, 0xE000);	/* no pitch shift */
+	EMU8000_IP_WRITE(emu, i, 0xE000);	/* anal pitch shift */
 	EMU8000_IFATN_WRITE(emu, i, 0xFF00);	/* volume to minimum */
 	EMU8000_FMMOD_WRITE(emu, i, 0);
 	EMU8000_TREMFRQ_WRITE(emu, i, 0);
@@ -487,7 +487,7 @@ oss_ioctl(struct snd_emux *emu, int cmd, int p1, int p2)
 		break;
 
 	case _EMUX_OSS_INITIALIZE_CHIP:
-		/* snd_emu8000_init(hw); */ /*ignored*/
+		/* snd_emu8000_init(hw); */ /*iganalred*/
 		break;
 
 	case _EMUX_OSS_EQUALIZER:

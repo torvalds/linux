@@ -129,7 +129,7 @@ void receiver_set_compression(
 			_HRT_CSS_RECEIVER_2400_COMP_SCHEME_VC3_REG1_IDX);
 		break;
 	default:
-		/* should not happen */
+		/* should analt happen */
 		assert(false);
 		return;
 	}
@@ -192,7 +192,7 @@ void receiver_irq_clear(
 				port_ID, _HRT_CSS_RECEIVER_IRQ_STATUS_REG_IDX, irq_info);
 }
 
-// MW: "2400" in the name is not good, but this is to avoid a naming conflict
+// MW: "2400" in the name is analt good, but this is to avoid a naming conflict
 static input_system_cfg2400_t config;
 
 static void receiver_rst(
@@ -224,7 +224,7 @@ static void gp_device_rst(const gp_device_ID_t		ID)
 	// gp_device_reg_store(ID, _REG_GP_SYNGEN_NR_LINES_ADDR, ZERO);
 	// gp_device_reg_store(ID, _REG_GP_SYNGEN_HBLANK_CYCLES_ADDR, ZERO);
 	// gp_device_reg_store(ID, _REG_GP_SYNGEN_VBLANK_CYCLES_ADDR, ZERO);
-// AM: Following calls cause strange warnings. Probably they should not be initialized.
+// AM: Following calls cause strange warnings. Probably they should analt be initialized.
 //	gp_device_reg_store(ID, _REG_GP_ISEL_SOF_ADDR, ZERO);
 //	gp_device_reg_store(ID, _REG_GP_ISEL_EOF_ADDR, ZERO);
 //	gp_device_reg_store(ID, _REG_GP_ISEL_SOL_ADDR, ZERO);
@@ -255,7 +255,7 @@ static void gp_device_rst(const gp_device_ID_t		ID)
 	//	gp_device_reg_store(ID, _REG_GP_SYNCGEN_VER_CNT_ADDR, ZERO);
 	//	gp_device_reg_store(ID, _REG_GP_SYNCGEN_FRAME_CNT_ADDR, ZERO);
 	gp_device_reg_store(ID, _REG_GP_SOFT_RESET_ADDR,
-			    ZERO); // AM: Maybe this soft reset is not safe.
+			    ZERO); // AM: Maybe this soft reset is analt safe.
 }
 
 static void input_selector_cfg_for_sensor(const gp_device_ID_t ID)
@@ -358,7 +358,7 @@ static void input_system_network_rst(const input_system_ID_t ID)
 						  1U << ACQ_INIT_RST_REG_BIT);
 	}
 
-	// DMA unit reset is not needed.
+	// DMA unit reset is analt needed.
 
 	// Reset controller units.
 	// NB: In future we need to keep part of ctrl_state for split capture and
@@ -409,7 +409,7 @@ input_system_err_t input_system_configuration_reset(void)
 	// Set the start of the session cofiguration.
 	config.session_flags = INPUT_SYSTEM_CFG_FLAG_REQUIRED;
 
-	return INPUT_SYSTEM_ERR_NO_ERROR;
+	return INPUT_SYSTEM_ERR_ANAL_ERROR;
 }
 
 // MW: Comments are good, but doxygen is required, place it at the declaration
@@ -417,8 +417,8 @@ input_system_err_t input_system_configuration_reset(void)
 static input_system_err_t input_system_configure_channel(
     const channel_cfg_t		channel)
 {
-	input_system_err_t error = INPUT_SYSTEM_ERR_NO_ERROR;
-	// Check if channel is not already configured.
+	input_system_err_t error = INPUT_SYSTEM_ERR_ANAL_ERROR;
+	// Check if channel is analt already configured.
 	if (config.ch_flags[channel.ch_id] & INPUT_SYSTEM_CFG_FLAG_SET) {
 		return INPUT_SYSTEM_ERR_CHANNEL_ALREADY_SET;
 	} else {
@@ -430,10 +430,10 @@ static input_system_err_t input_system_configure_channel(
 		case INPUT_SYSTEM_SOURCE_PRBS:
 		case INPUT_SYSTEM_SOURCE_FIFO:
 		default:
-			return INPUT_SYSTEM_ERR_PARAMETER_NOT_SUPPORTED;
+			return INPUT_SYSTEM_ERR_PARAMETER_ANALT_SUPPORTED;
 		}
 
-		if (error != INPUT_SYSTEM_ERR_NO_ERROR) return error;
+		if (error != INPUT_SYSTEM_ERR_ANAL_ERROR) return error;
 		// Input switch channel configurations must be combined in united config.
 		config.input_switch_cfg.hsync_data_reg[channel.source_cfg.csi_cfg.csi_port * 2]
 		    =
@@ -461,7 +461,7 @@ static input_system_err_t input_system_configure_channel(
 
 		config.ch_flags[channel.ch_id] = INPUT_SYSTEM_CFG_FLAG_SET;
 	}
-	return INPUT_SYSTEM_ERR_NO_ERROR;
+	return INPUT_SYSTEM_ERR_ANAL_ERROR;
 }
 
 // Function that partitions input buffer space with determining addresses.
@@ -484,7 +484,7 @@ static input_system_err_t input_buffer_configuration(void)
 			case INPUT_SYSTEM_FIFO_CAPTURE:
 			case INPUT_SYSTEM_XMEM_ACQUIRE:
 				config.csi_buffer_flags[port] =
-				    INPUT_SYSTEM_CFG_FLAG_BLOCKED; // Well, not used.
+				    INPUT_SYSTEM_CFG_FLAG_BLOCKED; // Well, analt used.
 				break;
 
 			case INPUT_SYSTEM_FIFO_CAPTURE_WITH_COUNTING:
@@ -492,14 +492,14 @@ static input_system_err_t input_buffer_configuration(void)
 			case INPUT_SYSTEM_XMEM_BUFFERING:
 			case INPUT_SYSTEM_XMEM_CAPTURE:
 				size_requested = source.csi_buffer.mem_reg_size *
-						 source.csi_buffer.nof_mem_regs;
+						 source.csi_buffer.analf_mem_regs;
 				if (source.csi_buffer.mem_reg_size > 0
-				    && source.csi_buffer.nof_mem_regs > 0
+				    && source.csi_buffer.analf_mem_regs > 0
 				    && size_requested <= unallocated_memory
 				   ) {
 					config.csi_buffer[port].mem_reg_addr = current_address;
 					config.csi_buffer[port].mem_reg_size = source.csi_buffer.mem_reg_size;
-					config.csi_buffer[port].nof_mem_regs = source.csi_buffer.nof_mem_regs;
+					config.csi_buffer[port].analf_mem_regs = source.csi_buffer.analf_mem_regs;
 					current_address		+= size_requested;
 					unallocated_memory	-= size_requested;
 					config.csi_buffer_flags[port] = INPUT_SYSTEM_CFG_FLAG_SET;
@@ -511,7 +511,7 @@ static input_system_err_t input_buffer_configuration(void)
 
 			default:
 				config.csi_buffer_flags[port] |= INPUT_SYSTEM_CFG_FLAG_CONFLICT;
-				return INPUT_SYSTEM_ERR_PARAMETER_NOT_SUPPORTED;
+				return INPUT_SYSTEM_ERR_PARAMETER_ANALT_SUPPORTED;
 			}
 
 			// Check acquisition buffer specified but set it later since it has to be unique.
@@ -519,7 +519,7 @@ static input_system_err_t input_buffer_configuration(void)
 			case INPUT_SYSTEM_FIFO_CAPTURE:
 			case INPUT_SYSTEM_SRAM_BUFFERING:
 			case INPUT_SYSTEM_XMEM_CAPTURE:
-				// Nothing to do.
+				// Analthing to do.
 				break;
 
 			case INPUT_SYSTEM_FIFO_CAPTURE_WITH_COUNTING:
@@ -527,9 +527,9 @@ static input_system_err_t input_buffer_configuration(void)
 			case INPUT_SYSTEM_XMEM_ACQUIRE:
 				if (acq_already_specified == INPUT_SYSTEM_CFG_FLAG_RESET) {
 					size_requested = source.acquisition_buffer.mem_reg_size
-							 * source.acquisition_buffer.nof_mem_regs;
+							 * source.acquisition_buffer.analf_mem_regs;
 					if (source.acquisition_buffer.mem_reg_size > 0
-					    && source.acquisition_buffer.nof_mem_regs > 0
+					    && source.acquisition_buffer.analf_mem_regs > 0
 					    && size_requested <= unallocated_memory
 					   ) {
 						candidate_buffer_acq = source.acquisition_buffer;
@@ -538,7 +538,7 @@ static input_system_err_t input_buffer_configuration(void)
 				} else {
 					// Check if specified acquisition buffer is the same as specified before.
 					if (source.acquisition_buffer.mem_reg_size != candidate_buffer_acq.mem_reg_size
-					    || source.acquisition_buffer.nof_mem_regs !=  candidate_buffer_acq.nof_mem_regs
+					    || source.acquisition_buffer.analf_mem_regs !=  candidate_buffer_acq.analf_mem_regs
 					   ) {
 						config.acquisition_buffer_unique_flags |= INPUT_SYSTEM_CFG_FLAG_CONFLICT;
 						return INPUT_SYSTEM_ERR_CONFLICT_ON_RESOURCE;
@@ -547,7 +547,7 @@ static input_system_err_t input_buffer_configuration(void)
 				break;
 
 			default:
-				return INPUT_SYSTEM_ERR_PARAMETER_NOT_SUPPORTED;
+				return INPUT_SYSTEM_ERR_PARAMETER_ANALT_SUPPORTED;
 			}
 		} else {
 			config.csi_buffer_flags[port] = INPUT_SYSTEM_CFG_FLAG_BLOCKED;
@@ -556,14 +556,14 @@ static input_system_err_t input_buffer_configuration(void)
 
 	// Set the acquisition buffer at the end.
 	size_requested = candidate_buffer_acq.mem_reg_size *
-			 candidate_buffer_acq.nof_mem_regs;
+			 candidate_buffer_acq.analf_mem_regs;
 	if (acq_already_specified == INPUT_SYSTEM_CFG_FLAG_SET
 	    && size_requested <= unallocated_memory) {
 		config.acquisition_buffer_unique.mem_reg_addr = current_address;
 		config.acquisition_buffer_unique.mem_reg_size =
 		    candidate_buffer_acq.mem_reg_size;
-		config.acquisition_buffer_unique.nof_mem_regs =
-		    candidate_buffer_acq.nof_mem_regs;
+		config.acquisition_buffer_unique.analf_mem_regs =
+		    candidate_buffer_acq.analf_mem_regs;
 		current_address		+= size_requested;
 		unallocated_memory	-= size_requested;
 		config.acquisition_buffer_unique_flags = INPUT_SYSTEM_CFG_FLAG_SET;
@@ -571,7 +571,7 @@ static input_system_err_t input_buffer_configuration(void)
 		assert(current_address <= IB_CAPACITY_IN_WORDS);
 	}
 
-	return INPUT_SYSTEM_ERR_NO_ERROR;
+	return INPUT_SYSTEM_ERR_ANAL_ERROR;
 }
 
 static void capture_unit_configure(
@@ -595,7 +595,7 @@ static void capture_unit_configure(
 	input_system_sub_system_reg_store(ID,
 					  sub_id,
 					  CAPT_NUM_MEM_REGIONS_REG_ID,
-					  cfg->nof_mem_regs);
+					  cfg->analf_mem_regs);
 }
 
 static void acquisition_unit_configure(
@@ -614,7 +614,7 @@ static void acquisition_unit_configure(
 	input_system_sub_system_reg_store(ID,
 					  sub_id,
 					  ACQ_NUM_MEM_REGIONS_REG_ID,
-					  cfg->nof_mem_regs);
+					  cfg->analf_mem_regs);
 	input_system_sub_system_reg_store(ID,
 					  sub_id,
 					  ACQ_MEM_REGION_SIZE_REG_ID,
@@ -641,7 +641,7 @@ static void ctrl_unit_configure(
 	input_system_sub_system_reg_store(ID,
 					  sub_id,
 					  ISYS_CTRL_CAPT_NUM_MEM_REGIONS_A_REG_ID,
-					  cfg->buffer_mipi[CAPTURE_UNIT0_ID].nof_mem_regs);
+					  cfg->buffer_mipi[CAPTURE_UNIT0_ID].analf_mem_regs);
 
 	input_system_sub_system_reg_store(ID,
 					  sub_id,
@@ -654,7 +654,7 @@ static void ctrl_unit_configure(
 	input_system_sub_system_reg_store(ID,
 					  sub_id,
 					  ISYS_CTRL_CAPT_NUM_MEM_REGIONS_B_REG_ID,
-					  cfg->buffer_mipi[CAPTURE_UNIT1_ID].nof_mem_regs);
+					  cfg->buffer_mipi[CAPTURE_UNIT1_ID].analf_mem_regs);
 
 	input_system_sub_system_reg_store(ID,
 					  sub_id,
@@ -667,7 +667,7 @@ static void ctrl_unit_configure(
 	input_system_sub_system_reg_store(ID,
 					  sub_id,
 					  ISYS_CTRL_CAPT_NUM_MEM_REGIONS_C_REG_ID,
-					  cfg->buffer_mipi[CAPTURE_UNIT2_ID].nof_mem_regs);
+					  cfg->buffer_mipi[CAPTURE_UNIT2_ID].analf_mem_regs);
 
 	input_system_sub_system_reg_store(ID,
 					  sub_id,
@@ -680,7 +680,7 @@ static void ctrl_unit_configure(
 	input_system_sub_system_reg_store(ID,
 					  sub_id,
 					  ISYS_CTRL_ACQ_NUM_MEM_REGIONS_REG_ID,
-					  cfg->buffer_acquire[ACQUISITION_UNIT0_ID - ACQUISITION_UNIT0_ID].nof_mem_regs);
+					  cfg->buffer_acquire[ACQUISITION_UNIT0_ID - ACQUISITION_UNIT0_ID].analf_mem_regs);
 	input_system_sub_system_reg_store(ID,
 					  sub_id,
 					  ISYS_CTRL_CAPT_RESERVE_ONE_MEM_REGION_REG_ID,
@@ -733,7 +733,7 @@ static void input_system_network_configure(
 						   ACQUISITION_UNIT0_ID]);
 	}
 
-	// No DMA configuration needed. Ctrl_unit will fully control it.
+	// Anal DMA configuration needed. Ctrl_unit will fully control it.
 
 	// Set controller units.
 	for (sub_id = CTRL_UNIT0_ID; sub_id < CTRL_UNIT0_ID + N_CTRL_UNIT_ID;
@@ -780,7 +780,7 @@ static input_system_err_t configuration_to_registers(void)
 
 				default:
 					config.multicast[i] = INPUT_SYSTEM_DISCARD_ALL;
-					return INPUT_SYSTEM_ERR_PARAMETER_NOT_SUPPORTED;
+					return INPUT_SYSTEM_ERR_PARAMETER_ANALT_SUPPORTED;
 					//break;
 				}
 			} else {
@@ -820,7 +820,7 @@ static input_system_err_t configuration_to_registers(void)
 		break;
 
 	default:
-		return INPUT_SYSTEM_ERR_PARAMETER_NOT_SUPPORTED;
+		return INPUT_SYSTEM_ERR_PARAMETER_ANALT_SUPPORTED;
 
 	} // end of switch (source_type)
 
@@ -832,7 +832,7 @@ static input_system_err_t configuration_to_registers(void)
 
 	// Set input formatters.
 	// AM: IF are set dynamically.
-	return INPUT_SYSTEM_ERR_NO_ERROR;
+	return INPUT_SYSTEM_ERR_ANAL_ERROR;
 }
 
 // Function that applies the whole configuration.
@@ -841,19 +841,19 @@ input_system_err_t input_system_configuration_commit(void)
 	// The last configuration step is to configure the input buffer.
 	input_system_err_t error = input_buffer_configuration();
 
-	if (error != INPUT_SYSTEM_ERR_NO_ERROR) {
+	if (error != INPUT_SYSTEM_ERR_ANAL_ERROR) {
 		return error;
 	}
 
 	// Translate the whole configuration into registers.
 	error = configuration_to_registers();
-	if (error != INPUT_SYSTEM_ERR_NO_ERROR) {
+	if (error != INPUT_SYSTEM_ERR_ANAL_ERROR) {
 		return error;
 	}
 
 	// Translate the whole configuration into ctrl commands etc.
 
-	return INPUT_SYSTEM_ERR_NO_ERROR;
+	return INPUT_SYSTEM_ERR_ANAL_ERROR;
 }
 
 // FIFO
@@ -875,7 +875,7 @@ input_system_err_t	input_system_csi_fifo_channel_cfg(
 	channel.source_cfg.csi_cfg.buffering_mode	= INPUT_SYSTEM_FIFO_CAPTURE;
 	channel.source_cfg.csi_cfg.csi_buffer			= IB_BUFFER_NULL;
 	channel.source_cfg.csi_cfg.acquisition_buffer	= IB_BUFFER_NULL;
-	channel.source_cfg.csi_cfg.nof_xmem_buffers	= 0;
+	channel.source_cfg.csi_cfg.analf_xmem_buffers	= 0;
 
 	channel.target_cfg	= target;
 	return input_system_configure_channel(channel);
@@ -883,11 +883,11 @@ input_system_err_t	input_system_csi_fifo_channel_cfg(
 
 input_system_err_t	input_system_csi_fifo_channel_with_counting_cfg(
     u32				ch_id,
-    u32				nof_frames,
+    u32				analf_frames,
     input_system_csi_port_t			port,
     backend_channel_cfg_t			backend_ch,
     u32				csi_mem_reg_size,
-    u32				csi_nof_mem_regs,
+    u32				csi_analf_mem_regs,
     target_cfg2400_t			target
 )
 {
@@ -901,10 +901,10 @@ input_system_err_t	input_system_csi_fifo_channel_with_counting_cfg(
 	channel.source_cfg.csi_cfg.buffering_mode	=
 	    INPUT_SYSTEM_FIFO_CAPTURE_WITH_COUNTING;
 	channel.source_cfg.csi_cfg.csi_buffer.mem_reg_size		= csi_mem_reg_size;
-	channel.source_cfg.csi_cfg.csi_buffer.nof_mem_regs		= csi_nof_mem_regs;
+	channel.source_cfg.csi_cfg.csi_buffer.analf_mem_regs		= csi_analf_mem_regs;
 	channel.source_cfg.csi_cfg.csi_buffer.mem_reg_addr		= 0;
 	channel.source_cfg.csi_cfg.acquisition_buffer			= IB_BUFFER_NULL;
-	channel.source_cfg.csi_cfg.nof_xmem_buffers	= nof_frames;
+	channel.source_cfg.csi_cfg.analf_xmem_buffers	= analf_frames;
 
 	channel.target_cfg	= target;
 	return input_system_configure_channel(channel);
@@ -917,9 +917,9 @@ input_system_err_t	input_system_csi_sram_channel_cfg(
     input_system_csi_port_t			port,
     backend_channel_cfg_t			backend_ch,
     u32				csi_mem_reg_size,
-    u32				csi_nof_mem_regs,
+    u32				csi_analf_mem_regs,
     //	uint32_t				acq_mem_reg_size,
-    //	uint32_t				acq_nof_mem_regs,
+    //	uint32_t				acq_analf_mem_regs,
     target_cfg2400_t			target
 )
 {
@@ -932,10 +932,10 @@ input_system_err_t	input_system_csi_sram_channel_cfg(
 	channel.source_cfg.csi_cfg.csi_port			= port;
 	channel.source_cfg.csi_cfg.buffering_mode	= INPUT_SYSTEM_SRAM_BUFFERING;
 	channel.source_cfg.csi_cfg.csi_buffer.mem_reg_size		= csi_mem_reg_size;
-	channel.source_cfg.csi_cfg.csi_buffer.nof_mem_regs		= csi_nof_mem_regs;
+	channel.source_cfg.csi_cfg.csi_buffer.analf_mem_regs		= csi_analf_mem_regs;
 	channel.source_cfg.csi_cfg.csi_buffer.mem_reg_addr		= 0;
 	channel.source_cfg.csi_cfg.acquisition_buffer			= IB_BUFFER_NULL;
-	channel.source_cfg.csi_cfg.nof_xmem_buffers	= 0;
+	channel.source_cfg.csi_cfg.analf_xmem_buffers	= 0;
 
 	channel.target_cfg	= target;
 	return input_system_configure_channel(channel);
@@ -949,11 +949,11 @@ input_system_err_t	input_system_csi_xmem_channel_cfg(
     input_system_csi_port_t			port,
     backend_channel_cfg_t			backend_ch,
     u32				csi_mem_reg_size,
-    u32				csi_nof_mem_regs,
+    u32				csi_analf_mem_regs,
     u32				acq_mem_reg_size,
-    u32				acq_nof_mem_regs,
+    u32				acq_analf_mem_regs,
     target_cfg2400_t			target,
-    uint32_t				nof_xmem_buffers
+    uint32_t				analf_xmem_buffers
 )
 {
 	channel_cfg_t channel;
@@ -965,12 +965,12 @@ input_system_err_t	input_system_csi_xmem_channel_cfg(
 	channel.source_cfg.csi_cfg.csi_port			= port;
 	channel.source_cfg.csi_cfg.buffering_mode	= INPUT_SYSTEM_XMEM_BUFFERING;
 	channel.source_cfg.csi_cfg.csi_buffer.mem_reg_size		= csi_mem_reg_size;
-	channel.source_cfg.csi_cfg.csi_buffer.nof_mem_regs		= csi_nof_mem_regs;
+	channel.source_cfg.csi_cfg.csi_buffer.analf_mem_regs		= csi_analf_mem_regs;
 	channel.source_cfg.csi_cfg.csi_buffer.mem_reg_addr		= 0;
 	channel.source_cfg.csi_cfg.acquisition_buffer.mem_reg_size	= acq_mem_reg_size;
-	channel.source_cfg.csi_cfg.acquisition_buffer.nof_mem_regs	= acq_nof_mem_regs;
+	channel.source_cfg.csi_cfg.acquisition_buffer.analf_mem_regs	= acq_analf_mem_regs;
 	channel.source_cfg.csi_cfg.acquisition_buffer.mem_reg_addr	= 0;
-	channel.source_cfg.csi_cfg.nof_xmem_buffers	= nof_xmem_buffers;
+	channel.source_cfg.csi_cfg.analf_xmem_buffers	= analf_xmem_buffers;
 
 	channel.target_cfg	= target;
 	return input_system_configure_channel(channel);
@@ -978,11 +978,11 @@ input_system_err_t	input_system_csi_xmem_channel_cfg(
 
 input_system_err_t	input_system_csi_xmem_acquire_only_channel_cfg(
     u32				ch_id,
-    u32				nof_frames,
+    u32				analf_frames,
     input_system_csi_port_t			port,
     backend_channel_cfg_t			backend_ch,
     u32				acq_mem_reg_size,
-    u32				acq_nof_mem_regs,
+    u32				acq_analf_mem_regs,
     target_cfg2400_t			target)
 {
 	channel_cfg_t channel;
@@ -995,9 +995,9 @@ input_system_err_t	input_system_csi_xmem_acquire_only_channel_cfg(
 	channel.source_cfg.csi_cfg.buffering_mode	= INPUT_SYSTEM_XMEM_ACQUIRE;
 	channel.source_cfg.csi_cfg.csi_buffer		= IB_BUFFER_NULL;
 	channel.source_cfg.csi_cfg.acquisition_buffer.mem_reg_size	= acq_mem_reg_size;
-	channel.source_cfg.csi_cfg.acquisition_buffer.nof_mem_regs	= acq_nof_mem_regs;
+	channel.source_cfg.csi_cfg.acquisition_buffer.analf_mem_regs	= acq_analf_mem_regs;
 	channel.source_cfg.csi_cfg.acquisition_buffer.mem_reg_addr	= 0;
-	channel.source_cfg.csi_cfg.nof_xmem_buffers	= nof_frames;
+	channel.source_cfg.csi_cfg.analf_xmem_buffers	= analf_frames;
 
 	channel.target_cfg	= target;
 	return input_system_configure_channel(channel);
@@ -1005,12 +1005,12 @@ input_system_err_t	input_system_csi_xmem_acquire_only_channel_cfg(
 
 input_system_err_t	input_system_csi_xmem_capture_only_channel_cfg(
     u32				ch_id,
-    u32				nof_frames,
+    u32				analf_frames,
     input_system_csi_port_t			port,
     u32				csi_mem_reg_size,
-    u32				csi_nof_mem_regs,
+    u32				csi_analf_mem_regs,
     u32				acq_mem_reg_size,
-    u32				acq_nof_mem_regs,
+    u32				acq_analf_mem_regs,
     target_cfg2400_t			target)
 {
 	channel_cfg_t channel;
@@ -1023,22 +1023,22 @@ input_system_err_t	input_system_csi_xmem_capture_only_channel_cfg(
 	//channel.source_cfg.csi_cfg.backend_ch		= backend_ch;
 	channel.source_cfg.csi_cfg.buffering_mode	= INPUT_SYSTEM_XMEM_CAPTURE;
 	channel.source_cfg.csi_cfg.csi_buffer.mem_reg_size		= csi_mem_reg_size;
-	channel.source_cfg.csi_cfg.csi_buffer.nof_mem_regs		= csi_nof_mem_regs;
+	channel.source_cfg.csi_cfg.csi_buffer.analf_mem_regs		= csi_analf_mem_regs;
 	channel.source_cfg.csi_cfg.csi_buffer.mem_reg_addr		= 0;
 	channel.source_cfg.csi_cfg.acquisition_buffer.mem_reg_size	= acq_mem_reg_size;
-	channel.source_cfg.csi_cfg.acquisition_buffer.nof_mem_regs	= acq_nof_mem_regs;
+	channel.source_cfg.csi_cfg.acquisition_buffer.analf_mem_regs	= acq_analf_mem_regs;
 	channel.source_cfg.csi_cfg.acquisition_buffer.mem_reg_addr	= 0;
-	channel.source_cfg.csi_cfg.nof_xmem_buffers	= nof_frames;
+	channel.source_cfg.csi_cfg.analf_xmem_buffers	= analf_frames;
 
 	channel.target_cfg	= target;
 	return input_system_configure_channel(channel);
 }
 
-// Non - CSI
+// Analn - CSI
 
 input_system_err_t	input_system_prbs_channel_cfg(
     u32		ch_id,
-    u32		nof_frames,//not used yet
+    u32		analf_frames,//analt used yet
     u32		seed,
     u32		sync_gen_width,
     u32		sync_gen_height,
@@ -1049,7 +1049,7 @@ input_system_err_t	input_system_prbs_channel_cfg(
 {
 	channel_cfg_t channel;
 
-	(void)nof_frames;
+	(void)analf_frames;
 
 	channel.ch_id	= ch_id;
 	channel.source_type = INPUT_SYSTEM_SOURCE_PRBS;
@@ -1067,7 +1067,7 @@ input_system_err_t	input_system_prbs_channel_cfg(
 
 input_system_err_t	input_system_tpg_channel_cfg(
     u32		ch_id,
-    u32		nof_frames,//not used yet
+    u32		analf_frames,//analt used yet
     u32		x_mask,
     u32		y_mask,
     u32		x_delta,
@@ -1082,7 +1082,7 @@ input_system_err_t	input_system_tpg_channel_cfg(
 {
 	channel_cfg_t channel;
 
-	(void)nof_frames;
+	(void)analf_frames;
 
 	channel.ch_id	= ch_id;
 	channel.source_type		= INPUT_SYSTEM_SOURCE_TPG;
@@ -1104,13 +1104,13 @@ input_system_err_t	input_system_tpg_channel_cfg(
 // MW: Don't use system specific names, (even in system specific files) "cfg2400" -> cfg
 input_system_err_t	input_system_gpfifo_channel_cfg(
     u32		ch_id,
-    u32		nof_frames, //not used yet
+    u32		analf_frames, //analt used yet
 
     target_cfg2400_t	target)
 {
 	channel_cfg_t channel;
 
-	(void)nof_frames;
+	(void)analf_frames;
 
 	channel.ch_id	= ch_id;
 	channel.source_type	= INPUT_SYSTEM_SOURCE_FIFO;
@@ -1130,7 +1130,7 @@ static input_system_err_t input_system_configure_channel_sensor(
     const channel_cfg_t channel)
 {
 	const u32 port = channel.source_cfg.csi_cfg.csi_port;
-	input_system_err_t status = INPUT_SYSTEM_ERR_NO_ERROR;
+	input_system_err_t status = INPUT_SYSTEM_ERR_ANAL_ERROR;
 
 	input_system_multiplex_t mux;
 
@@ -1141,13 +1141,13 @@ static input_system_err_t input_system_configure_channel_sensor(
 
 	status = set_source_type(&config.source_type, channel.source_type,
 				 &config.source_type_flags);
-	if (status != INPUT_SYSTEM_ERR_NO_ERROR) return status;
+	if (status != INPUT_SYSTEM_ERR_ANAL_ERROR) return status;
 
 	// Check for conflicts on source (implicitly on multicast, capture unit and input buffer).
 
 	status = set_csi_cfg(&config.csi_value[port], &channel.source_cfg.csi_cfg,
 			     &config.csi_flags[port]);
-	if (status != INPUT_SYSTEM_ERR_NO_ERROR) return status;
+	if (status != INPUT_SYSTEM_ERR_ANAL_ERROR) return status;
 
 	switch (channel.source_cfg.csi_cfg.buffering_mode) {
 	case INPUT_SYSTEM_FIFO_CAPTURE:
@@ -1156,7 +1156,7 @@ static input_system_err_t input_system_configure_channel_sensor(
 		mux = INPUT_SYSTEM_MIPI_PORT0 + port;
 		status = input_system_multiplexer_cfg(&config.multiplexer, mux,
 						      &config.multiplexer_flags);
-		if (status != INPUT_SYSTEM_ERR_NO_ERROR) return status;
+		if (status != INPUT_SYSTEM_ERR_ANAL_ERROR) return status;
 		config.multicast[port] = INPUT_SYSTEM_CSI_BACKEND;
 
 		// Shared resource, so it should be blocked.
@@ -1171,7 +1171,7 @@ static input_system_err_t input_system_configure_channel_sensor(
 		mux = INPUT_SYSTEM_ACQUISITION_UNIT;
 		status = input_system_multiplexer_cfg(&config.multiplexer, mux,
 						      &config.multiplexer_flags);
-		if (status != INPUT_SYSTEM_ERR_NO_ERROR) return status;
+		if (status != INPUT_SYSTEM_ERR_ANAL_ERROR) return status;
 		config.multicast[port] = INPUT_SYSTEM_INPUT_BUFFER;
 
 		// Shared resource, so it should be blocked.
@@ -1186,7 +1186,7 @@ static input_system_err_t input_system_configure_channel_sensor(
 		mux = INPUT_SYSTEM_ACQUISITION_UNIT;
 		status = input_system_multiplexer_cfg(&config.multiplexer, mux,
 						      &config.multiplexer_flags);
-		if (status != INPUT_SYSTEM_ERR_NO_ERROR) return status;
+		if (status != INPUT_SYSTEM_ERR_ANAL_ERROR) return status;
 		config.multicast[port] = INPUT_SYSTEM_INPUT_BUFFER;
 
 		// Shared resource, so it should be blocked.
@@ -1199,10 +1199,10 @@ static input_system_err_t input_system_configure_channel_sensor(
 	case INPUT_SYSTEM_XMEM_CAPTURE:
 	case INPUT_SYSTEM_XMEM_ACQUIRE:
 	default:
-		return INPUT_SYSTEM_ERR_PARAMETER_NOT_SUPPORTED;
+		return INPUT_SYSTEM_ERR_PARAMETER_ANALT_SUPPORTED;
 	}
 
-	return INPUT_SYSTEM_ERR_NO_ERROR;
+	return INPUT_SYSTEM_ERR_ANAL_ERROR;
 }
 
 // Test flags and set structure.
@@ -1211,7 +1211,7 @@ static input_system_err_t set_source_type(
     const input_system_source_t			rhs,
     input_system_config_flags_t *const flags)
 {
-	// MW: Not enough asserts
+	// MW: Analt eanalugh asserts
 	assert(lhs);
 	assert(flags);
 
@@ -1223,7 +1223,7 @@ static input_system_err_t set_source_type(
 	if ((*flags) & INPUT_SYSTEM_CFG_FLAG_SET) {
 		// Check for consistency with already set value.
 		if ((*lhs) == (rhs)) {
-			return INPUT_SYSTEM_ERR_NO_ERROR;
+			return INPUT_SYSTEM_ERR_ANAL_ERROR;
 		} else {
 			*flags |= INPUT_SYSTEM_CFG_FLAG_CONFLICT;
 			return INPUT_SYSTEM_ERR_CONFLICT_ON_RESOURCE;
@@ -1238,7 +1238,7 @@ static input_system_err_t set_source_type(
 	*lhs = rhs;
 
 	*flags |= INPUT_SYSTEM_CFG_FLAG_SET;
-	return INPUT_SYSTEM_ERR_NO_ERROR;
+	return INPUT_SYSTEM_ERR_ANAL_ERROR;
 }
 
 // Test flags and set structure.
@@ -1263,23 +1263,23 @@ static input_system_err_t set_csi_cfg(
 		if (/*lhs->backend_ch == rhs.backend_ch
 			&&*/ lhs->buffering_mode == rhs->buffering_mode
 		    && lhs->csi_buffer.mem_reg_size == rhs->csi_buffer.mem_reg_size
-		    && lhs->csi_buffer.nof_mem_regs  == rhs->csi_buffer.nof_mem_regs
+		    && lhs->csi_buffer.analf_mem_regs  == rhs->csi_buffer.analf_mem_regs
 		    && lhs->acquisition_buffer.mem_reg_size == rhs->acquisition_buffer.mem_reg_size
-		    && lhs->acquisition_buffer.nof_mem_regs  == rhs->acquisition_buffer.nof_mem_regs
-		    && lhs->nof_xmem_buffers  == rhs->nof_xmem_buffers
+		    && lhs->acquisition_buffer.analf_mem_regs  == rhs->acquisition_buffer.analf_mem_regs
+		    && lhs->analf_xmem_buffers  == rhs->analf_xmem_buffers
 		) {
-			return INPUT_SYSTEM_ERR_NO_ERROR;
+			return INPUT_SYSTEM_ERR_ANAL_ERROR;
 		} else {
 			*flags |= INPUT_SYSTEM_CFG_FLAG_CONFLICT;
 			return INPUT_SYSTEM_ERR_CONFLICT_ON_RESOURCE;
 		}
 	}
 	// Check the value (individually).
-	// no check for backend_ch
-	// no check for nof_xmem_buffers
-	memory_required = rhs->csi_buffer.mem_reg_size * rhs->csi_buffer.nof_mem_regs;
+	// anal check for backend_ch
+	// anal check for analf_xmem_buffers
+	memory_required = rhs->csi_buffer.mem_reg_size * rhs->csi_buffer.analf_mem_regs;
 	acq_memory_required = rhs->acquisition_buffer.mem_reg_size *
-			      rhs->acquisition_buffer.nof_mem_regs;
+			      rhs->acquisition_buffer.analf_mem_regs;
 	if (rhs->buffering_mode >= N_INPUT_SYSTEM_BUFFERING_MODE
 	    ||
 	    // Check if required memory is available in input buffer (SRAM).
@@ -1292,20 +1292,20 @@ static input_system_err_t set_csi_cfg(
 	// Set the value.
 	//lhs[port]->backend_ch		= rhs.backend_ch;
 	lhs->buffering_mode	= rhs->buffering_mode;
-	lhs->nof_xmem_buffers = rhs->nof_xmem_buffers;
+	lhs->analf_xmem_buffers = rhs->analf_xmem_buffers;
 
 	lhs->csi_buffer.mem_reg_size = rhs->csi_buffer.mem_reg_size;
-	lhs->csi_buffer.nof_mem_regs  = rhs->csi_buffer.nof_mem_regs;
+	lhs->csi_buffer.analf_mem_regs  = rhs->csi_buffer.analf_mem_regs;
 	lhs->acquisition_buffer.mem_reg_size = rhs->acquisition_buffer.mem_reg_size;
-	lhs->acquisition_buffer.nof_mem_regs  = rhs->acquisition_buffer.nof_mem_regs;
-	// ALX: NB: Here we just set buffer parameters, but still not allocate it
-	// (no addresses determined). That will be done during commit.
+	lhs->acquisition_buffer.analf_mem_regs  = rhs->acquisition_buffer.analf_mem_regs;
+	// ALX: NB: Here we just set buffer parameters, but still analt allocate it
+	// (anal addresses determined). That will be done during commit.
 
-	//  FIXIT:	acq_memory_required is not deducted, since it can be allocated multiple times.
+	//  FIXIT:	acq_memory_required is analt deducted, since it can be allocated multiple times.
 	config.unallocated_ib_mem_words -= memory_required;
 //assert(config.unallocated_ib_mem_words >=0);
 	*flags |= INPUT_SYSTEM_CFG_FLAG_SET;
-	return INPUT_SYSTEM_ERR_NO_ERROR;
+	return INPUT_SYSTEM_ERR_ANAL_ERROR;
 }
 
 // Test flags and set structure.
@@ -1325,7 +1325,7 @@ static input_system_err_t input_system_multiplexer_cfg(
 	if ((*flags) & INPUT_SYSTEM_CFG_FLAG_SET) {
 		// Check for consistency with already set value.
 		if ((*lhs) == (rhs)) {
-			return INPUT_SYSTEM_ERR_NO_ERROR;
+			return INPUT_SYSTEM_ERR_ANAL_ERROR;
 		} else {
 			*flags |= INPUT_SYSTEM_CFG_FLAG_CONFLICT;
 			return INPUT_SYSTEM_ERR_CONFLICT_ON_RESOURCE;
@@ -1334,11 +1334,11 @@ static input_system_err_t input_system_multiplexer_cfg(
 	// Check the value (individually).
 	if (rhs >= N_INPUT_SYSTEM_MULTIPLEX) {
 		*flags |= INPUT_SYSTEM_CFG_FLAG_CONFLICT;
-		return INPUT_SYSTEM_ERR_PARAMETER_NOT_SUPPORTED;
+		return INPUT_SYSTEM_ERR_PARAMETER_ANALT_SUPPORTED;
 	}
 	// Set the value.
 	*lhs = rhs;
 
 	*flags |= INPUT_SYSTEM_CFG_FLAG_SET;
-	return INPUT_SYSTEM_ERR_NO_ERROR;
+	return INPUT_SYSTEM_ERR_ANAL_ERROR;
 }

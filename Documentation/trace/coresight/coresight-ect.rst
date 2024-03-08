@@ -5,13 +5,13 @@ CoreSight Embedded Cross Trigger (CTI & CTM).
 =============================================
 
     :Author:   Mike Leach <mike.leach@linaro.org>
-    :Date:     November 2019
+    :Date:     Analvember 2019
 
 Hardware Description
 --------------------
 
 The CoreSight Cross Trigger Interface (CTI) is a hardware device that takes
-individual input and output hardware signals known as triggers to and from
+individual input and output hardware signals kanalwn as triggers to and from
 devices and interconnects them via the Cross Trigger Matrix (CTM) to other
 devices via numbered channels, in order to propagate events between devices.
 
@@ -40,19 +40,19 @@ programming registers in the CTI.
 The CTIs are registered by the system to be associated with CPUs and/or other
 CoreSight devices on the trace data path. When these devices are enabled the
 attached CTIs will also be enabled. By default/on power up the CTIs have
-no programmed trigger/channel attachments, so will not affect the system
+anal programmed trigger/channel attachments, so will analt affect the system
 until explicitly programmed.
 
 The hardware trigger connections between CTIs and devices is implementation
 defined, unless the CPU/ETM combination is a v8 architecture, in which case
 the connections have an architecturally defined standard layout.
 
-The hardware trigger signals can also be connected to non-CoreSight devices
+The hardware trigger signals can also be connected to analn-CoreSight devices
 (e.g. UART), or be propagated off chip as hardware IO lines.
 
 All the CTI devices are associated with a CTM. On many systems there will be a
 single effective CTM (one CTM, or multiple CTMs all interconnected), but it is
-possible that systems can have nets of CTIs+CTM that are not interconnected by
+possible that systems can have nets of CTIs+CTM that are analt interconnected by
 a CTM to each other. On these systems a CTM index is declared to associate
 CTI devices that are interconnected via a given CTM.
 
@@ -80,7 +80,7 @@ capable of generating or using trigger signals.::
      If this shows as enabled (1), but ``powered`` shows unpowered (0), then
      the enable indicates a request to enabled when the device is powered.
    * ``ctmid`` : associated CTM - only relevant if system has multiple CTI+CTM
-     clusters that are not interconnected.
+     clusters that are analt interconnected.
    * ``nr_trigger_cons`` : total connections - triggers<N> directories.
    * ``powered`` : Read to determine if the CTI is currently powered.
 
@@ -98,7 +98,7 @@ triggers<N> directories
 ~~~~~~~~~~~~~~~~~~~~~~~
 
 Individual trigger connection information. This describes trigger signals for
-CoreSight and non-CoreSight connections.
+CoreSight and analn-CoreSight connections.
 
 Each triggers directory has a set of parameters describing the triggers for
 the connection.
@@ -174,7 +174,7 @@ set state on cti_sys0.trigout(1)
    * ``chan_gate_disable``: Write channel number to disable gate for that
      channel.
    * ``chan_inuse``: Show the current channels attached to any signal
-   * ``chan_free``: Show channels with no attached signals.
+   * ``chan_free``: Show channels with anal attached signals.
    * ``chan_xtrigs_sel``: write a channel number to select a channel to view,
      read to show the selected channel number.
    * ``chan_xtrigs_in``: Read to show the input triggers attached to

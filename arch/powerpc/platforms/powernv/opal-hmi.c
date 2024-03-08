@@ -21,7 +21,7 @@
 #include "powernv.h"
 
 static int opal_hmi_handler_nb_init;
-struct OpalHmiEvtNode {
+struct OpalHmiEvtAnalde {
 	struct list_head list;
 	struct OpalHMIEvent hmi_evt;
 };
@@ -63,7 +63,7 @@ static void print_core_checkstop_reason(const char *level,
 		{ CORE_CHECKSTOP_PC_HANG_RECOV_FAILED, "PC",
 				"Hang Recovery Failed (core check stop)" },
 		{ CORE_CHECKSTOP_PC_AMBI_HANG_DETECTED, "PC",
-				"Ambiguous Hang Detected (unknown source)" },
+				"Ambiguous Hang Detected (unkanalwn source)" },
 		{ CORE_CHECKSTOP_PC_DEBUG_TRIG_ERR_INJ, "PC",
 				"Debug Trigger Error inject" },
 		{ CORE_CHECKSTOP_PC_SPRD_HYP_ERR_INJ, "PC",
@@ -72,7 +72,7 @@ static void print_core_checkstop_reason(const char *level,
 
 	/* Validity check */
 	if (!hmi_evt->u.xstop_error.xstop_reason) {
-		printk("%s	Unknown Core check stop.\n", level);
+		printk("%s	Unkanalwn Core check stop.\n", level);
 		return;
 	}
 
@@ -123,7 +123,7 @@ static void print_nx_checkstop_reason(const char *level,
 
 	/* Validity check */
 	if (!hmi_evt->u.xstop_error.xstop_reason) {
-		printk("%s	Unknown NX check stop.\n", level);
+		printk("%s	Unkanalwn NX check stop.\n", level);
 		return;
 	}
 
@@ -143,7 +143,7 @@ static void print_npu_checkstop_reason(const char *level,
 	uint8_t reason, reason_count, i;
 
 	/*
-	 * We may not have a checkstop reason on some combination of
+	 * We may analt have a checkstop reason on some combination of
 	 * hardware and/or skiboot version
 	 */
 	if (!hmi_evt->u.xstop_error.xstop_reason) {
@@ -189,7 +189,7 @@ static void print_checkstop_reason(const char *level,
 		print_npu_checkstop_reason(level, hmi_evt);
 		break;
 	default:
-		printk("%s	Unknown Malfunction Alert of type %d\n",
+		printk("%s	Unkanalwn Malfunction Alert of type %d\n",
 		       level, type);
 		break;
 	}
@@ -218,12 +218,12 @@ static void print_hmi_event_info(struct OpalHMIEvent *hmi_evt)
 
 	/* Print things out */
 	if (hmi_evt->version < OpalHMIEvt_V1) {
-		pr_err("HMI Interrupt, Unknown event version %d !\n",
+		pr_err("HMI Interrupt, Unkanalwn event version %d !\n",
 			hmi_evt->version);
 		return;
 	}
 	switch (hmi_evt->severity) {
-	case OpalHMI_SEV_NO_ERROR:
+	case OpalHMI_SEV_ANAL_ERROR:
 		level = KERN_INFO;
 		sevstr = "Harmless";
 		break;
@@ -242,14 +242,14 @@ static void print_hmi_event_info(struct OpalHMIEvent *hmi_evt)
 		break;
 	}
 
-	if (hmi_evt->severity != OpalHMI_SEV_NO_ERROR || __ratelimit(&rs)) {
+	if (hmi_evt->severity != OpalHMI_SEV_ANAL_ERROR || __ratelimit(&rs)) {
 		printk("%s%s Hypervisor Maintenance interrupt [%s]\n",
 			level, sevstr,
 			hmi_evt->disposition == OpalHMI_DISPOSITION_RECOVERED ?
-			"Recovered" : "Not recovered");
+			"Recovered" : "Analt recovered");
 		error_info = hmi_evt->type < ARRAY_SIZE(hmi_error_types) ?
 				hmi_error_types[hmi_evt->type]
-				: "Unknown";
+				: "Unkanalwn";
 		printk("%s Error detail: %s\n", level, error_info);
 		printk("%s	HMER: %016llx\n", level,
 					be64_to_cpu(hmi_evt->hmer));
@@ -271,25 +271,25 @@ static void hmi_event_handler(struct work_struct *work)
 {
 	unsigned long flags;
 	struct OpalHMIEvent *hmi_evt;
-	struct OpalHmiEvtNode *msg_node;
+	struct OpalHmiEvtAnalde *msg_analde;
 	uint8_t disposition;
 	struct opal_msg msg;
 	int unrecoverable = 0;
 
 	spin_lock_irqsave(&opal_hmi_evt_lock, flags);
 	while (!list_empty(&opal_hmi_evt_list)) {
-		msg_node = list_entry(opal_hmi_evt_list.next,
-					   struct OpalHmiEvtNode, list);
-		list_del(&msg_node->list);
+		msg_analde = list_entry(opal_hmi_evt_list.next,
+					   struct OpalHmiEvtAnalde, list);
+		list_del(&msg_analde->list);
 		spin_unlock_irqrestore(&opal_hmi_evt_lock, flags);
 
-		hmi_evt = (struct OpalHMIEvent *) &msg_node->hmi_evt;
+		hmi_evt = (struct OpalHMIEvent *) &msg_analde->hmi_evt;
 		print_hmi_event_info(hmi_evt);
 		disposition = hmi_evt->disposition;
-		kfree(msg_node);
+		kfree(msg_analde);
 
 		/*
-		 * Check if HMI event has been recovered or not. If not
+		 * Check if HMI event has been recovered or analt. If analt
 		 * then kernel can't continue, we need to panic.
 		 * But before we do that, display all the HMI event
 		 * available on the list and set unrecoverable flag to 1.
@@ -308,7 +308,7 @@ static void hmi_event_handler(struct work_struct *work)
 
 			type = be32_to_cpu(msg.msg_type);
 
-			/* skip if not HMI event */
+			/* skip if analt HMI event */
 			if (type != OPAL_MSG_HMI_EVT)
 				continue;
 
@@ -323,16 +323,16 @@ static void hmi_event_handler(struct work_struct *work)
 
 static DECLARE_WORK(hmi_event_work, hmi_event_handler);
 /*
- * opal_handle_hmi_event - notifier handler that queues up HMI events
+ * opal_handle_hmi_event - analtifier handler that queues up HMI events
  * to be preocessed later.
  */
-static int opal_handle_hmi_event(struct notifier_block *nb,
+static int opal_handle_hmi_event(struct analtifier_block *nb,
 			  unsigned long msg_type, void *msg)
 {
 	unsigned long flags;
 	struct OpalHMIEvent *hmi_evt;
 	struct opal_msg *hmi_msg = msg;
-	struct OpalHmiEvtNode *msg_node;
+	struct OpalHmiEvtAnalde *msg_analde;
 
 	/* Sanity Checks */
 	if (msg_type != OPAL_MSG_HMI_EVT)
@@ -342,23 +342,23 @@ static int opal_handle_hmi_event(struct notifier_block *nb,
 	hmi_evt = (struct OpalHMIEvent *)&hmi_msg->params[0];
 
 	/* Delay the logging of HMI events to workqueue. */
-	msg_node = kzalloc(sizeof(*msg_node), GFP_ATOMIC);
-	if (!msg_node) {
-		pr_err("HMI: out of memory, Opal message event not handled\n");
-		return -ENOMEM;
+	msg_analde = kzalloc(sizeof(*msg_analde), GFP_ATOMIC);
+	if (!msg_analde) {
+		pr_err("HMI: out of memory, Opal message event analt handled\n");
+		return -EANALMEM;
 	}
-	memcpy(&msg_node->hmi_evt, hmi_evt, sizeof(*hmi_evt));
+	memcpy(&msg_analde->hmi_evt, hmi_evt, sizeof(*hmi_evt));
 
 	spin_lock_irqsave(&opal_hmi_evt_lock, flags);
-	list_add(&msg_node->list, &opal_hmi_evt_list);
+	list_add(&msg_analde->list, &opal_hmi_evt_list);
 	spin_unlock_irqrestore(&opal_hmi_evt_lock, flags);
 
 	schedule_work(&hmi_event_work);
 	return 0;
 }
 
-static struct notifier_block opal_hmi_handler_nb = {
-	.notifier_call	= opal_handle_hmi_event,
+static struct analtifier_block opal_hmi_handler_nb = {
+	.analtifier_call	= opal_handle_hmi_event,
 	.next		= NULL,
 	.priority	= 0,
 };
@@ -368,10 +368,10 @@ int __init opal_hmi_handler_init(void)
 	int ret;
 
 	if (!opal_hmi_handler_nb_init) {
-		ret = opal_message_notifier_register(
+		ret = opal_message_analtifier_register(
 				OPAL_MSG_HMI_EVT, &opal_hmi_handler_nb);
 		if (ret) {
-			pr_err("%s: Can't register OPAL event notifier (%d)\n",
+			pr_err("%s: Can't register OPAL event analtifier (%d)\n",
 			       __func__, ret);
 			return ret;
 		}

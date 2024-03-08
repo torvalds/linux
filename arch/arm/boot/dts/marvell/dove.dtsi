@@ -63,7 +63,7 @@
 			reg = <1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			/* Requires pmx_i2c1 on i2c controller node */
+			/* Requires pmx_i2c1 on i2c controller analde */
 			status = "disabled";
 		};
 
@@ -71,7 +71,7 @@
 			reg = <2>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			/* Requires pmx_i2c2 on i2c controller node */
+			/* Requires pmx_i2c2 on i2c controller analde */
 			status = "disabled";
 		};
 	};

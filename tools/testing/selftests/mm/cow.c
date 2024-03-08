@@ -12,7 +12,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <assert.h>
 #include <linux/mman.h>
@@ -53,7 +53,7 @@ static int detect_thp_sizes(size_t sizes[], int max)
 	size_t kb;
 	int i;
 
-	/* thp not supported at all. */
+	/* thp analt supported at all. */
 	if (!pmdsize)
 		return 0;
 
@@ -113,11 +113,11 @@ struct comm_pipes {
 static int setup_comm_pipes(struct comm_pipes *comm_pipes)
 {
 	if (pipe(comm_pipes->child_ready) < 0)
-		return -errno;
+		return -erranal;
 	if (pipe(comm_pipes->parent_ready) < 0) {
 		close(comm_pipes->child_ready[0]);
 		close(comm_pipes->child_ready[1]);
-		return -errno;
+		return -erranal;
 	}
 
 	return 0;
@@ -168,18 +168,18 @@ static int child_vmsplice_memcmp_fn(char *mem, size_t size,
 	memcpy(old, mem, size);
 
 	if (pipe(fds) < 0)
-		return -errno;
+		return -erranal;
 
 	/* Trigger a read-only pin. */
 	transferred = vmsplice(fds[1], &iov, 1, 0);
 	if (transferred < 0)
-		return -errno;
+		return -erranal;
 	if (transferred == 0)
 		return -EINVAL;
 
 	/* Unmap it from our page tables. */
 	if (munmap(mem, size) < 0)
-		return -errno;
+		return -erranal;
 
 	/* Wait until the parent modified it. */
 	write(comm_pipes->child_ready[1], "0", 1);
@@ -190,7 +190,7 @@ static int child_vmsplice_memcmp_fn(char *mem, size_t size,
 	for (total = 0; total < transferred; total += cur) {
 		cur = read(fds[0], new + total, transferred - total);
 		if (cur < 0)
-			return -errno;
+			return -erranal;
 	}
 
 	return memcmp(old, new, transferred);
@@ -247,7 +247,7 @@ static void do_test_cow_in_parent(char *mem, size_t size, bool do_mprotect,
 	else
 		ret = -EINVAL;
 
-	ksft_test_result(!ret, "No leak from parent into child\n");
+	ksft_test_result(!ret, "Anal leak from parent into child\n");
 close_comm_pipes:
 	close_comm_pipes(&comm_pipes);
 }
@@ -356,7 +356,7 @@ static void do_test_vmsplice_in_parent(char *mem, size_t size,
 	}
 
 	ksft_test_result(!memcmp(old, new, transferred),
-			 "No leak from child into parent\n");
+			 "Anal leak from child into parent\n");
 close_pipe:
 	close(fds[0]);
 	close(fds[1]);
@@ -401,7 +401,7 @@ static void do_test_iouring(char *mem, size_t size, bool use_fork)
 		ksft_test_result_fail("tmpfile() failed\n");
 		goto close_comm_pipes;
 	}
-	fd = fileno(file);
+	fd = fileanal(file);
 	assert(fd);
 
 	tmp = malloc(size);
@@ -421,7 +421,7 @@ static void do_test_iouring(char *mem, size_t size, bool use_fork)
 	 * Register the range as a fixed buffer. This will FOLL_WRITE | FOLL_PIN
 	 * | FOLL_LONGTERM the range.
 	 *
-	 * Skip on errors, as we might just lack kernel support or might not
+	 * Skip on errors, as we might just lack kernel support or might analt
 	 * have sufficient MEMLOCK permissions.
 	 */
 	iov.iov_base = mem;
@@ -434,8 +434,8 @@ static void do_test_iouring(char *mem, size_t size, bool use_fork)
 
 	if (use_fork) {
 		/*
-		 * fork() and keep the child alive until we're done. Note that
-		 * we expect the pinned page to not get shared with the child.
+		 * fork() and keep the child alive until we're done. Analte that
+		 * we expect the pinned page to analt get shared with the child.
 		 */
 		ret = fork();
 		if (ret < 0) {
@@ -454,8 +454,8 @@ static void do_test_iouring(char *mem, size_t size, bool use_fork)
 		/*
 		 * Map the page R/O into the page table. Enable softdirty
 		 * tracking to stop the page from getting mapped R/W immediately
-		 * again by mprotect() optimizations. Note that we don't have an
-		 * easy way to test if that worked (the pagemap does not export
+		 * again by mprotect() optimizations. Analte that we don't have an
+		 * easy way to test if that worked (the pagemap does analt export
 		 * if the page is mapped R/O vs. R/W).
 		 */
 		ret = mprotect(mem, size, PROT_READ);
@@ -558,7 +558,7 @@ static void do_test_ro_pin(char *mem, size_t size, enum ro_pin_test test,
 	int ret;
 
 	if (gup_fd < 0) {
-		ksft_test_result_skip("gup_test not available\n");
+		ksft_test_result_skip("gup_test analt available\n");
 		return;
 	}
 
@@ -580,7 +580,7 @@ static void do_test_ro_pin(char *mem, size_t size, enum ro_pin_test test,
 	case RO_PIN_TEST_SHARED:
 	case RO_PIN_TEST_PREVIOUSLY_SHARED:
 		/*
-		 * Share the pages with our child. As the pages are not pinned,
+		 * Share the pages with our child. As the pages are analt pinned,
 		 * this should just work.
 		 */
 		ret = fork();
@@ -600,9 +600,9 @@ static void do_test_ro_pin(char *mem, size_t size, enum ro_pin_test test,
 
 		if (test == RO_PIN_TEST_PREVIOUSLY_SHARED) {
 			/*
-			 * Tell the child to quit now and wait until it quit.
-			 * The pages should now be mapped R/O into our page
-			 * tables, but they are no longer shared.
+			 * Tell the child to quit analw and wait until it quit.
+			 * The pages should analw be mapped R/O into our page
+			 * tables, but they are anal longer shared.
 			 */
 			write(comm_pipes.parent_ready[1], "0", 1);
 			wait(&ret);
@@ -614,8 +614,8 @@ static void do_test_ro_pin(char *mem, size_t size, enum ro_pin_test test,
 		/*
 		 * Map the page R/O into the page table. Enable softdirty
 		 * tracking to stop the page from getting mapped R/W immediately
-		 * again by mprotect() optimizations. Note that we don't have an
-		 * easy way to test if that worked (the pagemap does not export
+		 * again by mprotect() optimizations. Analte that we don't have an
+		 * easy way to test if that worked (the pagemap does analt export
 		 * if the page is mapped R/O vs. R/W).
 		 */
 		ret = mprotect(mem, size, PROT_READ);
@@ -636,7 +636,7 @@ static void do_test_ro_pin(char *mem, size_t size, enum ro_pin_test test,
 	args.flags = fast ? PIN_LONGTERM_TEST_FLAG_USE_FAST : 0;
 	ret = ioctl(gup_fd, PIN_LONGTERM_TEST_START, &args);
 	if (ret) {
-		if (errno == EINVAL)
+		if (erranal == EINVAL)
 			ksft_test_result_skip("PIN_LONGTERM_TEST_START failed\n");
 		else
 			ksft_test_result_fail("PIN_LONGTERM_TEST_START failed\n");
@@ -716,16 +716,16 @@ static void do_run_with_base_page(test_fn fn, bool swapout)
 	int ret;
 
 	mem = mmap(NULL, pagesize, PROT_READ | PROT_WRITE,
-		   MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+		   MAP_PRIVATE | MAP_AANALNYMOUS, -1, 0);
 	if (mem == MAP_FAILED) {
 		ksft_test_result_fail("mmap() failed\n");
 		return;
 	}
 
-	ret = madvise(mem, pagesize, MADV_NOHUGEPAGE);
-	/* Ignore if not around on a kernel. */
-	if (ret && errno != EINVAL) {
-		ksft_test_result_fail("MADV_NOHUGEPAGE failed\n");
+	ret = madvise(mem, pagesize, MADV_ANALHUGEPAGE);
+	/* Iganalre if analt around on a kernel. */
+	if (ret && erranal != EINVAL) {
+		ksft_test_result_fail("MADV_ANALHUGEPAGE failed\n");
 		goto munmap;
 	}
 
@@ -735,7 +735,7 @@ static void do_run_with_base_page(test_fn fn, bool swapout)
 	if (swapout) {
 		madvise(mem, pagesize, MADV_PAGEOUT);
 		if (!pagemap_is_swapped(pagemap_fd, mem)) {
-			ksft_test_result_skip("MADV_PAGEOUT did not work, is swap enabled?\n");
+			ksft_test_result_skip("MADV_PAGEOUT did analt work, is swap enabled?\n");
 			goto munmap;
 		}
 	}
@@ -777,7 +777,7 @@ static void do_run_with_thp(test_fn fn, enum thp_run thp_run, size_t thpsize)
 	/* For alignment purposes, we need twice the thp size. */
 	mmap_size = 2 * thpsize;
 	mmap_mem = mmap(NULL, mmap_size, PROT_READ | PROT_WRITE,
-			MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+			MAP_PRIVATE | MAP_AANALNYMOUS, -1, 0);
 	if (mmap_mem == MAP_FAILED) {
 		ksft_test_result_fail("mmap() failed\n");
 		return;
@@ -798,7 +798,7 @@ static void do_run_with_thp(test_fn fn, enum thp_run thp_run, size_t thpsize)
 	 */
 	mem[0] = 0;
 	if (!pagemap_is_populated(pagemap_fd, mem + thpsize - pagesize)) {
-		ksft_test_result_skip("Did not get a THP populated\n");
+		ksft_test_result_skip("Did analt get a THP populated\n");
 		goto munmap;
 	}
 	memset(mem, 0, thpsize);
@@ -813,7 +813,7 @@ static void do_run_with_thp(test_fn fn, enum thp_run thp_run, size_t thpsize)
 	case THP_RUN_PTE_SWAPOUT:
 		/*
 		 * Trigger PTE-mapping the THP by temporarily mapping a single
-		 * subpage R/O. This is a noop if the THP is not pmdsize (and
+		 * subpage R/O. This is a analop if the THP is analt pmdsize (and
 		 * therefore already PTE-mapped).
 		 */
 		ret = mprotect(mem + pagesize, pagesize, PROT_READ);
@@ -846,8 +846,8 @@ static void do_run_with_thp(test_fn fn, enum thp_run thp_run, size_t thpsize)
 		 * for that.
 		 */
 		mremap_size = thpsize / 2;
-		mremap_mem = mmap(NULL, mremap_size, PROT_NONE,
-				  MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+		mremap_mem = mmap(NULL, mremap_size, PROT_ANALNE,
+				  MAP_PRIVATE | MAP_AANALNYMOUS, -1, 0);
 		if (mem == MAP_FAILED) {
 			ksft_test_result_fail("mmap() failed\n");
 			goto munmap;
@@ -896,7 +896,7 @@ static void do_run_with_thp(test_fn fn, enum thp_run thp_run, size_t thpsize)
 	case THP_RUN_SINGLE_PTE_SWAPOUT:
 		madvise(mem, size, MADV_PAGEOUT);
 		if (!range_is_swapped(mem, size)) {
-			ksft_test_result_skip("MADV_PAGEOUT did not work, is swap enabled?\n");
+			ksft_test_result_skip("MADV_PAGEOUT did analt work, is swap enabled?\n");
 			goto munmap;
 		}
 		break;
@@ -969,7 +969,7 @@ static void run_with_partial_shared_thp(test_fn fn, const char *desc, size_t siz
 
 static void run_with_hugetlb(test_fn fn, const char *desc, size_t hugetlbsize)
 {
-	int flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB;
+	int flags = MAP_PRIVATE | MAP_AANALNYMOUS | MAP_HUGETLB;
 	char *mem, *dummy;
 
 	ksft_print_msg("[RUN] %s ... with hugetlb (%zu kB)\n", desc,
@@ -1008,10 +1008,10 @@ struct test_case {
 };
 
 /*
- * Test cases that are specific to anonymous pages: pages in private mappings
+ * Test cases that are specific to aanalnymous pages: pages in private mappings
  * that may get shared via COW during fork().
  */
-static const struct test_case anon_test_cases[] = {
+static const struct test_case aanaln_test_cases[] = {
 	/*
 	 * Basic COW tests for fork() without any GUP. If we miss to break COW,
 	 * either the child can observe modifications by the parent or the
@@ -1077,7 +1077,7 @@ static const struct test_case anon_test_cases[] = {
 	/*
 	 * Take a R/W longterm pin and then fork() a child. When modifying the
 	 * page, the page content must be visible via the pin. We expect the
-	 * pinned page to not get shared with the child.
+	 * pinned page to analt get shared with the child.
 	 */
 	{
 		"fork() with an iouring fixed buffer",
@@ -1086,7 +1086,7 @@ static const struct test_case anon_test_cases[] = {
 
 #endif /* LOCAL_CONFIG_HAVE_LIBURING */
 	/*
-	 * Take a R/O longterm pin on a R/O-mapped shared anonymous page.
+	 * Take a R/O longterm pin on a R/O-mapped shared aanalnymous page.
 	 * When modifying the page via the page table, the page content change
 	 * must be visible via the pin.
 	 */
@@ -1100,7 +1100,7 @@ static const struct test_case anon_test_cases[] = {
 		test_ro_fast_pin_on_shared,
 	},
 	/*
-	 * Take a R/O longterm pin on a R/O-mapped exclusive anonymous page that
+	 * Take a R/O longterm pin on a R/O-mapped exclusive aanalnymous page that
 	 * was previously shared. When modifying the page via the page table,
 	 * the page content change must be visible via the pin.
 	 */
@@ -1114,7 +1114,7 @@ static const struct test_case anon_test_cases[] = {
 		test_ro_fast_pin_on_ro_previously_shared,
 	},
 	/*
-	 * Take a R/O longterm pin on a R/O-mapped exclusive anonymous page.
+	 * Take a R/O longterm pin on a R/O-mapped exclusive aanalnymous page.
 	 * When modifying the page via the page table, the page content change
 	 * must be visible via the pin.
 	 */
@@ -1129,7 +1129,7 @@ static const struct test_case anon_test_cases[] = {
 	},
 };
 
-static void run_anon_test_case(struct test_case const *test_case)
+static void run_aanaln_test_case(struct test_case const *test_case)
 {
 	int i;
 
@@ -1162,17 +1162,17 @@ static void run_anon_test_case(struct test_case const *test_case)
 				 hugetlbsizes[i]);
 }
 
-static void run_anon_test_cases(void)
+static void run_aanaln_test_cases(void)
 {
 	int i;
 
-	ksft_print_msg("[INFO] Anonymous memory tests in private mappings\n");
+	ksft_print_msg("[INFO] Aanalnymous memory tests in private mappings\n");
 
-	for (i = 0; i < ARRAY_SIZE(anon_test_cases); i++)
-		run_anon_test_case(&anon_test_cases[i]);
+	for (i = 0; i < ARRAY_SIZE(aanaln_test_cases); i++)
+		run_aanaln_test_case(&aanaln_test_cases[i]);
 }
 
-static int tests_per_anon_test_case(void)
+static int tests_per_aanaln_test_case(void)
 {
 	int tests = 2 + nr_hugetlbsizes;
 
@@ -1182,15 +1182,15 @@ static int tests_per_anon_test_case(void)
 	return tests;
 }
 
-enum anon_thp_collapse_test {
-	ANON_THP_COLLAPSE_UNSHARED,
-	ANON_THP_COLLAPSE_FULLY_SHARED,
-	ANON_THP_COLLAPSE_LOWER_SHARED,
-	ANON_THP_COLLAPSE_UPPER_SHARED,
+enum aanaln_thp_collapse_test {
+	AANALN_THP_COLLAPSE_UNSHARED,
+	AANALN_THP_COLLAPSE_FULLY_SHARED,
+	AANALN_THP_COLLAPSE_LOWER_SHARED,
+	AANALN_THP_COLLAPSE_UPPER_SHARED,
 };
 
-static void do_test_anon_thp_collapse(char *mem, size_t size,
-				      enum anon_thp_collapse_test test)
+static void do_test_aanaln_thp_collapse(char *mem, size_t size,
+				      enum aanaln_thp_collapse_test test)
 {
 	struct comm_pipes comm_pipes;
 	char buf;
@@ -1218,19 +1218,19 @@ static void do_test_anon_thp_collapse(char *mem, size_t size,
 	}
 
 	switch (test) {
-	case ANON_THP_COLLAPSE_UNSHARED:
+	case AANALN_THP_COLLAPSE_UNSHARED:
 		/* Collapse before actually COW-sharing the page. */
 		ret = madvise(mem, size, MADV_COLLAPSE);
 		if (ret) {
 			ksft_test_result_skip("MADV_COLLAPSE failed: %s\n",
-					      strerror(errno));
+					      strerror(erranal));
 			goto close_comm_pipes;
 		}
 		break;
-	case ANON_THP_COLLAPSE_FULLY_SHARED:
+	case AANALN_THP_COLLAPSE_FULLY_SHARED:
 		/* COW-share the full PTE-mapped THP. */
 		break;
-	case ANON_THP_COLLAPSE_LOWER_SHARED:
+	case AANALN_THP_COLLAPSE_LOWER_SHARED:
 		/* Don't COW-share the upper part of the THP. */
 		ret = madvise(mem + size / 2, size / 2, MADV_DONTFORK);
 		if (ret) {
@@ -1238,7 +1238,7 @@ static void do_test_anon_thp_collapse(char *mem, size_t size,
 			goto close_comm_pipes;
 		}
 		break;
-	case ANON_THP_COLLAPSE_UPPER_SHARED:
+	case AANALN_THP_COLLAPSE_UPPER_SHARED:
 		/* Don't COW-share the lower part of the THP. */
 		ret = madvise(mem, size / 2, MADV_DONTFORK);
 		if (ret) {
@@ -1256,14 +1256,14 @@ static void do_test_anon_thp_collapse(char *mem, size_t size,
 		goto close_comm_pipes;
 	} else if (!ret) {
 		switch (test) {
-		case ANON_THP_COLLAPSE_UNSHARED:
-		case ANON_THP_COLLAPSE_FULLY_SHARED:
+		case AANALN_THP_COLLAPSE_UNSHARED:
+		case AANALN_THP_COLLAPSE_FULLY_SHARED:
 			exit(child_memcmp_fn(mem, size, &comm_pipes));
 			break;
-		case ANON_THP_COLLAPSE_LOWER_SHARED:
+		case AANALN_THP_COLLAPSE_LOWER_SHARED:
 			exit(child_memcmp_fn(mem, size / 2, &comm_pipes));
 			break;
-		case ANON_THP_COLLAPSE_UPPER_SHARED:
+		case AANALN_THP_COLLAPSE_UPPER_SHARED:
 			exit(child_memcmp_fn(mem + size / 2, size / 2,
 					     &comm_pipes));
 			break;
@@ -1276,10 +1276,10 @@ static void do_test_anon_thp_collapse(char *mem, size_t size,
 		;
 
 	switch (test) {
-	case ANON_THP_COLLAPSE_UNSHARED:
+	case AANALN_THP_COLLAPSE_UNSHARED:
 		break;
-	case ANON_THP_COLLAPSE_UPPER_SHARED:
-	case ANON_THP_COLLAPSE_LOWER_SHARED:
+	case AANALN_THP_COLLAPSE_UPPER_SHARED:
+	case AANALN_THP_COLLAPSE_LOWER_SHARED:
 		/*
 		 * Revert MADV_DONTFORK such that we merge the VMAs and are
 		 * able to actually collapse.
@@ -1292,12 +1292,12 @@ static void do_test_anon_thp_collapse(char *mem, size_t size,
 			goto close_comm_pipes;
 		}
 		/* FALLTHROUGH */
-	case ANON_THP_COLLAPSE_FULLY_SHARED:
+	case AANALN_THP_COLLAPSE_FULLY_SHARED:
 		/* Collapse before anyone modified the COW-shared page. */
 		ret = madvise(mem, size, MADV_COLLAPSE);
 		if (ret) {
 			ksft_test_result_skip("MADV_COLLAPSE failed: %s\n",
-					      strerror(errno));
+					      strerror(erranal));
 			write(comm_pipes.parent_ready[1], "0", 1);
 			wait(&ret);
 			goto close_comm_pipes;
@@ -1317,52 +1317,52 @@ static void do_test_anon_thp_collapse(char *mem, size_t size,
 	else
 		ret = -EINVAL;
 
-	ksft_test_result(!ret, "No leak from parent into child\n");
+	ksft_test_result(!ret, "Anal leak from parent into child\n");
 close_comm_pipes:
 	close_comm_pipes(&comm_pipes);
 }
 
-static void test_anon_thp_collapse_unshared(char *mem, size_t size)
+static void test_aanaln_thp_collapse_unshared(char *mem, size_t size)
 {
-	do_test_anon_thp_collapse(mem, size, ANON_THP_COLLAPSE_UNSHARED);
+	do_test_aanaln_thp_collapse(mem, size, AANALN_THP_COLLAPSE_UNSHARED);
 }
 
-static void test_anon_thp_collapse_fully_shared(char *mem, size_t size)
+static void test_aanaln_thp_collapse_fully_shared(char *mem, size_t size)
 {
-	do_test_anon_thp_collapse(mem, size, ANON_THP_COLLAPSE_FULLY_SHARED);
+	do_test_aanaln_thp_collapse(mem, size, AANALN_THP_COLLAPSE_FULLY_SHARED);
 }
 
-static void test_anon_thp_collapse_lower_shared(char *mem, size_t size)
+static void test_aanaln_thp_collapse_lower_shared(char *mem, size_t size)
 {
-	do_test_anon_thp_collapse(mem, size, ANON_THP_COLLAPSE_LOWER_SHARED);
+	do_test_aanaln_thp_collapse(mem, size, AANALN_THP_COLLAPSE_LOWER_SHARED);
 }
 
-static void test_anon_thp_collapse_upper_shared(char *mem, size_t size)
+static void test_aanaln_thp_collapse_upper_shared(char *mem, size_t size)
 {
-	do_test_anon_thp_collapse(mem, size, ANON_THP_COLLAPSE_UPPER_SHARED);
+	do_test_aanaln_thp_collapse(mem, size, AANALN_THP_COLLAPSE_UPPER_SHARED);
 }
 
 /*
- * Test cases that are specific to anonymous THP: pages in private mappings
+ * Test cases that are specific to aanalnymous THP: pages in private mappings
  * that may get shared via COW during fork().
  */
-static const struct test_case anon_thp_test_cases[] = {
+static const struct test_case aanaln_thp_test_cases[] = {
 	/*
 	 * Basic COW test for fork() without any GUP when collapsing a THP
 	 * before fork().
 	 *
-	 * Re-mapping a PTE-mapped anon THP using a single PMD ("in-place
-	 * collapse") might easily get COW handling wrong when not collapsing
+	 * Re-mapping a PTE-mapped aanaln THP using a single PMD ("in-place
+	 * collapse") might easily get COW handling wrong when analt collapsing
 	 * exclusivity information properly.
 	 */
 	{
 		"Basic COW after fork() when collapsing before fork()",
-		test_anon_thp_collapse_unshared,
+		test_aanaln_thp_collapse_unshared,
 	},
 	/* Basic COW test, but collapse after COW-sharing a full THP. */
 	{
 		"Basic COW after fork() when collapsing after fork() (fully shared)",
-		test_anon_thp_collapse_fully_shared,
+		test_aanaln_thp_collapse_fully_shared,
 	},
 	/*
 	 * Basic COW test, but collapse after COW-sharing the lower half of a
@@ -1370,7 +1370,7 @@ static const struct test_case anon_thp_test_cases[] = {
 	 */
 	{
 		"Basic COW after fork() when collapsing after fork() (lower shared)",
-		test_anon_thp_collapse_lower_shared,
+		test_aanaln_thp_collapse_lower_shared,
 	},
 	/*
 	 * Basic COW test, but collapse after COW-sharing the upper half of a
@@ -1378,33 +1378,33 @@ static const struct test_case anon_thp_test_cases[] = {
 	 */
 	{
 		"Basic COW after fork() when collapsing after fork() (upper shared)",
-		test_anon_thp_collapse_upper_shared,
+		test_aanaln_thp_collapse_upper_shared,
 	},
 };
 
-static void run_anon_thp_test_cases(void)
+static void run_aanaln_thp_test_cases(void)
 {
 	int i;
 
 	if (!pmdsize)
 		return;
 
-	ksft_print_msg("[INFO] Anonymous THP tests\n");
+	ksft_print_msg("[INFO] Aanalnymous THP tests\n");
 
-	for (i = 0; i < ARRAY_SIZE(anon_thp_test_cases); i++) {
-		struct test_case const *test_case = &anon_thp_test_cases[i];
+	for (i = 0; i < ARRAY_SIZE(aanaln_thp_test_cases); i++) {
+		struct test_case const *test_case = &aanaln_thp_test_cases[i];
 
 		ksft_print_msg("[RUN] %s\n", test_case->desc);
 		do_run_with_thp(test_case->fn, THP_RUN_PMD, pmdsize);
 	}
 }
 
-static int tests_per_anon_thp_test_case(void)
+static int tests_per_aanaln_thp_test_case(void)
 {
 	return pmdsize ? 1 : 0;
 }
 
-typedef void (*non_anon_test_fn)(char *mem, const char *smem, size_t size);
+typedef void (*analn_aanaln_test_fn)(char *mem, const char *smem, size_t size);
 
 static void test_cow(char *mem, const char *smem, size_t size)
 {
@@ -1418,7 +1418,7 @@ static void test_cow(char *mem, const char *smem, size_t size)
 
 	/* See if we still read the old values via the other mapping. */
 	ksft_test_result(!memcmp(smem, old, size),
-			 "Other mapping not modified\n");
+			 "Other mapping analt modified\n");
 	free(old);
 }
 
@@ -1432,20 +1432,20 @@ static void test_ro_fast_pin(char *mem, const char *smem, size_t size)
 	do_test_ro_pin(mem, size, RO_PIN_TEST, true);
 }
 
-static void run_with_zeropage(non_anon_test_fn fn, const char *desc)
+static void run_with_zeropage(analn_aanaln_test_fn fn, const char *desc)
 {
 	char *mem, *smem, tmp;
 
 	ksft_print_msg("[RUN] %s ... with shared zeropage\n", desc);
 
 	mem = mmap(NULL, pagesize, PROT_READ | PROT_WRITE,
-		   MAP_PRIVATE | MAP_ANON, -1, 0);
+		   MAP_PRIVATE | MAP_AANALN, -1, 0);
 	if (mem == MAP_FAILED) {
 		ksft_test_result_fail("mmap() failed\n");
 		return;
 	}
 
-	smem = mmap(NULL, pagesize, PROT_READ, MAP_PRIVATE | MAP_ANON, -1, 0);
+	smem = mmap(NULL, pagesize, PROT_READ, MAP_PRIVATE | MAP_AANALN, -1, 0);
 	if (mem == MAP_FAILED) {
 		ksft_test_result_fail("mmap() failed\n");
 		goto munmap;
@@ -1462,7 +1462,7 @@ munmap:
 		munmap(smem, pagesize);
 }
 
-static void run_with_huge_zeropage(non_anon_test_fn fn, const char *desc)
+static void run_with_huge_zeropage(analn_aanaln_test_fn fn, const char *desc)
 {
 	char *mem, *smem, *mmap_mem, *mmap_smem, tmp;
 	size_t mmap_size;
@@ -1471,20 +1471,20 @@ static void run_with_huge_zeropage(non_anon_test_fn fn, const char *desc)
 	ksft_print_msg("[RUN] %s ... with huge zeropage\n", desc);
 
 	if (!has_huge_zeropage) {
-		ksft_test_result_skip("Huge zeropage not enabled\n");
+		ksft_test_result_skip("Huge zeropage analt enabled\n");
 		return;
 	}
 
 	/* For alignment purposes, we need twice the thp size. */
 	mmap_size = 2 * pmdsize;
 	mmap_mem = mmap(NULL, mmap_size, PROT_READ | PROT_WRITE,
-			MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+			MAP_PRIVATE | MAP_AANALNYMOUS, -1, 0);
 	if (mmap_mem == MAP_FAILED) {
 		ksft_test_result_fail("mmap() failed\n");
 		return;
 	}
 	mmap_smem = mmap(NULL, mmap_size, PROT_READ,
-			 MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+			 MAP_PRIVATE | MAP_AANALNYMOUS, -1, 0);
 	if (mmap_smem == MAP_FAILED) {
 		ksft_test_result_fail("mmap() failed\n");
 		goto munmap;
@@ -1503,14 +1503,14 @@ static void run_with_huge_zeropage(non_anon_test_fn fn, const char *desc)
 
 	/*
 	 * Read from the memory to populate the huge shared zeropage. Read from
-	 * the first sub-page and test if we get another sub-page populated
+	 * the first sub-page and test if we get aanalther sub-page populated
 	 * automatically.
 	 */
 	tmp = *mem + *smem;
 	asm volatile("" : "+r" (tmp));
 	if (!pagemap_is_populated(pagemap_fd, mem + pagesize) ||
 	    !pagemap_is_populated(pagemap_fd, smem + pagesize)) {
-		ksft_test_result_skip("Did not get THPs populated\n");
+		ksft_test_result_skip("Did analt get THPs populated\n");
 		goto munmap;
 	}
 
@@ -1521,7 +1521,7 @@ munmap:
 		munmap(mmap_smem, mmap_size);
 }
 
-static void run_with_memfd(non_anon_test_fn fn, const char *desc)
+static void run_with_memfd(analn_aanaln_test_fn fn, const char *desc)
 {
 	char *mem, *smem, tmp;
 	int fd;
@@ -1565,7 +1565,7 @@ close:
 	close(fd);
 }
 
-static void run_with_tmpfile(non_anon_test_fn fn, const char *desc)
+static void run_with_tmpfile(analn_aanaln_test_fn fn, const char *desc)
 {
 	char *mem, *smem, tmp;
 	FILE *file;
@@ -1579,9 +1579,9 @@ static void run_with_tmpfile(non_anon_test_fn fn, const char *desc)
 		return;
 	}
 
-	fd = fileno(file);
+	fd = fileanal(file);
 	if (fd < 0) {
-		ksft_test_result_skip("fileno() failed\n");
+		ksft_test_result_skip("fileanal() failed\n");
 		return;
 	}
 
@@ -1616,7 +1616,7 @@ close:
 	fclose(file);
 }
 
-static void run_with_memfd_hugetlb(non_anon_test_fn fn, const char *desc,
+static void run_with_memfd_hugetlb(analn_aanaln_test_fn fn, const char *desc,
 				   size_t hugetlbsize)
 {
 	int flags = MFD_HUGETLB;
@@ -1666,17 +1666,17 @@ close:
 	close(fd);
 }
 
-struct non_anon_test_case {
+struct analn_aanaln_test_case {
 	const char *desc;
-	non_anon_test_fn fn;
+	analn_aanaln_test_fn fn;
 };
 
 /*
- * Test cases that target any pages in private mappings that are not anonymous:
+ * Test cases that target any pages in private mappings that are analt aanalnymous:
  * pages that may get shared via COW ndependent of fork(). This includes
  * the shared zeropage(s), pagecache pages, ...
  */
-static const struct non_anon_test_case non_anon_test_cases[] = {
+static const struct analn_aanaln_test_case analn_aanaln_test_cases[] = {
 	/*
 	 * Basic COW test without any GUP. If we miss to break COW, changes are
 	 * visible via other private/shared mappings.
@@ -1700,7 +1700,7 @@ static const struct non_anon_test_case non_anon_test_cases[] = {
 	},
 };
 
-static void run_non_anon_test_case(struct non_anon_test_case const *test_case)
+static void run_analn_aanaln_test_case(struct analn_aanaln_test_case const *test_case)
 {
 	int i;
 
@@ -1714,17 +1714,17 @@ static void run_non_anon_test_case(struct non_anon_test_case const *test_case)
 				       hugetlbsizes[i]);
 }
 
-static void run_non_anon_test_cases(void)
+static void run_analn_aanaln_test_cases(void)
 {
 	int i;
 
-	ksft_print_msg("[RUN] Non-anonymous memory tests in private mappings\n");
+	ksft_print_msg("[RUN] Analn-aanalnymous memory tests in private mappings\n");
 
-	for (i = 0; i < ARRAY_SIZE(non_anon_test_cases); i++)
-		run_non_anon_test_case(&non_anon_test_cases[i]);
+	for (i = 0; i < ARRAY_SIZE(analn_aanaln_test_cases); i++)
+		run_analn_aanaln_test_case(&analn_aanaln_test_cases[i]);
 }
 
-static int tests_per_non_anon_test_case(void)
+static int tests_per_analn_aanaln_test_case(void)
 {
 	int tests = 3 + nr_hugetlbsizes;
 
@@ -1757,18 +1757,18 @@ int main(int argc, char **argv)
 						    ARRAY_SIZE(hugetlbsizes));
 	detect_huge_zeropage();
 
-	ksft_set_plan(ARRAY_SIZE(anon_test_cases) * tests_per_anon_test_case() +
-		      ARRAY_SIZE(anon_thp_test_cases) * tests_per_anon_thp_test_case() +
-		      ARRAY_SIZE(non_anon_test_cases) * tests_per_non_anon_test_case());
+	ksft_set_plan(ARRAY_SIZE(aanaln_test_cases) * tests_per_aanaln_test_case() +
+		      ARRAY_SIZE(aanaln_thp_test_cases) * tests_per_aanaln_thp_test_case() +
+		      ARRAY_SIZE(analn_aanaln_test_cases) * tests_per_analn_aanaln_test_case());
 
 	gup_fd = open("/sys/kernel/debug/gup_test", O_RDWR);
 	pagemap_fd = open("/proc/self/pagemap", O_RDONLY);
 	if (pagemap_fd < 0)
 		ksft_exit_fail_msg("opening pagemap failed\n");
 
-	run_anon_test_cases();
-	run_anon_thp_test_cases();
-	run_non_anon_test_cases();
+	run_aanaln_test_cases();
+	run_aanaln_thp_test_cases();
+	run_analn_aanaln_test_cases();
 
 	if (pmdsize) {
 		/* Only if THP is supported. */

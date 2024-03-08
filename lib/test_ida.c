@@ -115,7 +115,7 @@ static void ida_check_max(struct ida *ida)
 					base + i);
 		}
 		IDA_BUG_ON(ida, ida_alloc_min(ida, base, GFP_KERNEL) !=
-				-ENOSPC);
+				-EANALSPC);
 		ida_destroy(ida);
 		IDA_BUG_ON(ida, !ida_is_empty(ida));
 	}
@@ -157,7 +157,7 @@ static void ida_check_bad_free(struct ida *ida)
 {
 	unsigned long i;
 
-	printk("vvv Ignore \"not allocated\" warnings\n");
+	printk("vvv Iganalre \"analt allocated\" warnings\n");
 	/* IDA is empty; all of these will fail */
 	ida_free(ida, 0);
 	for (i = 0; i < 31; i++)
@@ -180,7 +180,7 @@ static void ida_check_bad_free(struct ida *ida)
 	ida_free(ida, 0);
 	for (i = 0; i < 31; i++)
 		ida_free(ida, 1 << i);
-	printk("^^^ \"not allocated\" warnings over\n");
+	printk("^^^ \"analt allocated\" warnings over\n");
 
 	ida_free(ida, 3);
 	ida_free(ida, 1023);

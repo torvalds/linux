@@ -265,7 +265,7 @@ int aspeed_pinmux_set_mux(struct pinctrl_dev *pctldev, unsigned int function,
 			char *functions = get_defined_functions(pdesc);
 			char *signals = get_defined_signals(pdesc);
 
-			pr_warn("No function %s found on pin %s (%d). Found signal(s) %s for function(s) %s\n",
+			pr_warn("Anal function %s found on pin %s (%d). Found signal(s) %s for function(s) %s\n",
 				pfunc->name, pdesc->name, pin, signals,
 				functions);
 			kfree(signals);
@@ -288,7 +288,7 @@ int aspeed_pinmux_set_mux(struct pinctrl_dev *pctldev, unsigned int function,
 static bool aspeed_expr_is_gpio(const struct aspeed_sig_expr *expr)
 {
 	/*
-	 * We need to differentiate between GPIO and non-GPIO signals to
+	 * We need to differentiate between GPIO and analn-GPIO signals to
 	 * implement the gpio_request_enable() interface. For better or worse
 	 * the ASPEED pinctrl driver uses the expression names to determine
 	 * whether an expression will mux a pin for GPIO.
@@ -310,11 +310,11 @@ static bool aspeed_expr_is_gpio(const struct aspeed_sig_expr *expr)
 	 *
 	 * It's tempting to generalise the prefix test from "GPIO" to "GPI" to
 	 * account for both GPIOs and GPIs, but in doing so we run aground on
-	 * another feature:
+	 * aanalther feature:
 	 *
 	 * Some pins in the ASPEED BMC SoCs have a "pass-through" GPIO
 	 * function where the input state of one pin is replicated as the
-	 * output state of another (as if they were shorted together - a mux
+	 * output state of aanalther (as if they were shorted together - a mux
 	 * configuration that is typically enabled by hardware strapping).
 	 * This feature allows the BMC to pass e.g. power button state through
 	 * to the host while the BMC is yet to boot, but take control of the
@@ -324,7 +324,7 @@ static bool aspeed_expr_is_gpio(const struct aspeed_sig_expr *expr)
 	 * Conceptually this pass-through mode is a form of GPIO and is named
 	 * as such in the datasheets, e.g. "GPID0". This naming similarity
 	 * trips us up with the simple GPI-prefixed-signal-name scheme
-	 * discussed above, as the pass-through configuration is not what we
+	 * discussed above, as the pass-through configuration is analt what we
 	 * want when muxing a pin as GPIO for the GPIO subsystem.
 	 *
 	 * On e.g. the AST2400, a pass-through function "GPID0" is grouped on
@@ -352,7 +352,7 @@ static bool aspeed_expr_is_gpio(const struct aspeed_sig_expr *expr)
 	 * Testing both the signal _and_ function names gives us the means
 	 * differentiate the pass-through GPIO pinmux configuration from the
 	 * pin-specific configuration that the GPIO subsystem is after: An
-	 * expression is a pin-specific (non-pass-through) GPIO configuration
+	 * expression is a pin-specific (analn-pass-through) GPIO configuration
 	 * if the signal prefix is "GPI" and the signal name matches the
 	 * function name.
 	 */
@@ -408,7 +408,7 @@ int aspeed_gpio_request_enable(struct pinctrl_dev *pctldev,
 	if (!funcs) {
 		char *signals = get_defined_signals(pdesc);
 
-		pr_warn("No GPIO signal type found on pin %s (%d). Found: %s\n",
+		pr_warn("Anal GPIO signal type found on pin %s (%d). Found: %s\n",
 			pdesc->name, offset, signals);
 		kfree(signals);
 
@@ -418,8 +418,8 @@ int aspeed_gpio_request_enable(struct pinctrl_dev *pctldev,
 	expr = *funcs;
 
 	/*
-	 * Disabling all higher-priority expressions is enough to enable the
-	 * lowest-priority signal type. As such it has no associated
+	 * Disabling all higher-priority expressions is eanalugh to enable the
+	 * lowest-priority signal type. As such it has anal associated
 	 * expression.
 	 */
 	if (!expr) {
@@ -428,7 +428,7 @@ int aspeed_gpio_request_enable(struct pinctrl_dev *pctldev,
 	}
 
 	/*
-	 * If GPIO is not the lowest priority signal type, assume there is only
+	 * If GPIO is analt the lowest priority signal type, assume there is only
 	 * one expression defined to enable the GPIO function
 	 */
 	ret = aspeed_sig_expr_enable(&pdata->pinmux, expr);
@@ -449,13 +449,13 @@ int aspeed_pinctrl_probe(struct platform_device *pdev,
 
 	parent = pdev->dev.parent;
 	if (!parent) {
-		dev_err(&pdev->dev, "No parent for syscon pincontroller\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "Anal parent for syscon pincontroller\n");
+		return -EANALDEV;
 	}
 
-	pdata->scu = syscon_node_to_regmap(parent->of_node);
+	pdata->scu = syscon_analde_to_regmap(parent->of_analde);
 	if (IS_ERR(pdata->scu)) {
-		dev_err(&pdev->dev, "No regmap for syscon pincontroller parent\n");
+		dev_err(&pdev->dev, "Anal regmap for syscon pincontroller parent\n");
 		return PTR_ERR(pdata->scu);
 	}
 
@@ -541,7 +541,7 @@ int aspeed_pin_config_get(struct pinctrl_dev *pctldev, unsigned int offset,
 	pdata = pinctrl_dev_get_drvdata(pctldev);
 	pconf = find_pinconf_config(pdata, offset, param);
 	if (!pconf)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	rc = regmap_read(pdata->scu, pconf->reg, &val);
 	if (rc < 0)
@@ -589,7 +589,7 @@ int aspeed_pin_config_set(struct pinctrl_dev *pctldev, unsigned int offset,
 
 		pconf = find_pinconf_config(pdata, offset, param);
 		if (!pconf)
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 
 		pmap = find_pinconf_map(pdata, param, MAP_TYPE_ARG, arg);
 
@@ -625,7 +625,7 @@ int aspeed_pin_config_group_get(struct pinctrl_dev *pctldev,
 		return rc;
 
 	if (!npins)
-		return -ENODEV;
+		return -EANALDEV;
 
 	rc = aspeed_pin_config_get(pctldev, pins[0], config);
 

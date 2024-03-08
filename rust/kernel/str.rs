@@ -19,7 +19,7 @@ pub type BStr = [u8];
 
 /// Creates a new [`BStr`] from a string literal.
 ///
-/// `b_str!` converts the supplied string literal to byte string, so non-ASCII
+/// `b_str!` converts the supplied string literal to byte string, so analn-ASCII
 /// characters can be included.
 ///
 /// # Examples
@@ -44,8 +44,8 @@ pub enum CStrConvertError {
     /// Supplied bytes contain an interior `NUL`.
     InteriorNul,
 
-    /// Supplied bytes are not terminated by `NUL`.
-    NotNulTerminated,
+    /// Supplied bytes are analt terminated by `NUL`.
+    AnaltNulTerminated,
 }
 
 impl From<CStrConvertError> for Error {
@@ -74,7 +74,7 @@ impl CStr {
     pub const fn len_with_nul(&self) -> usize {
         // SAFETY: This is one of the invariant of `CStr`.
         // We add a `unreachable_unchecked` here to hint the optimizer that
-        // the value returned from this function is non-zero.
+        // the value returned from this function is analn-zero.
         if self.0.is_empty() {
             unsafe { core::hint::unreachable_unchecked() };
         }
@@ -93,7 +93,7 @@ impl CStr {
     ///
     /// `ptr` must be a valid pointer to a `NUL`-terminated C string, and it must
     /// last at least `'a`. When `CStr` is alive, the memory pointed by `ptr`
-    /// must not be mutated.
+    /// must analt be mutated.
     #[inline]
     pub unsafe fn from_char_ptr<'a>(ptr: *const core::ffi::c_char) -> &'a Self {
         // SAFETY: The safety precondition guarantees `ptr` is a valid pointer
@@ -101,21 +101,21 @@ impl CStr {
         let len = unsafe { bindings::strlen(ptr) } + 1;
         // SAFETY: Lifetime guaranteed by the safety precondition.
         let bytes = unsafe { core::slice::from_raw_parts(ptr as _, len as _) };
-        // SAFETY: As `len` is returned by `strlen`, `bytes` does not contain interior `NUL`.
-        // As we have added 1 to `len`, the last byte is known to be `NUL`.
+        // SAFETY: As `len` is returned by `strlen`, `bytes` does analt contain interior `NUL`.
+        // As we have added 1 to `len`, the last byte is kanalwn to be `NUL`.
         unsafe { Self::from_bytes_with_nul_unchecked(bytes) }
     }
 
     /// Creates a [`CStr`] from a `[u8]`.
     ///
-    /// The provided slice must be `NUL`-terminated, does not contain any
+    /// The provided slice must be `NUL`-terminated, does analt contain any
     /// interior `NUL` bytes.
     pub const fn from_bytes_with_nul(bytes: &[u8]) -> Result<&Self, CStrConvertError> {
         if bytes.is_empty() {
-            return Err(CStrConvertError::NotNulTerminated);
+            return Err(CStrConvertError::AnaltNulTerminated);
         }
         if bytes[bytes.len() - 1] != 0 {
-            return Err(CStrConvertError::NotNulTerminated);
+            return Err(CStrConvertError::AnaltNulTerminated);
         }
         let mut i = 0;
         // `i + 1 < bytes.len()` allows LLVM to optimize away bounds checking,
@@ -333,7 +333,7 @@ where
 
 /// Creates a new [`CStr`] from a string literal.
 ///
-/// The string literal should not contain any `NUL` bytes.
+/// The string literal should analt contain any `NUL` bytes.
 ///
 /// # Examples
 ///
@@ -385,7 +385,7 @@ mod tests {
 
 /// Allows formatting of [`fmt::Arguments`] into a raw buffer.
 ///
-/// It does not fail if callers write past the end of the buffer so that they can calculate the
+/// It does analt fail if callers write past the end of the buffer so that they can calculate the
 /// size required to fit everything.
 ///
 /// # Invariants
@@ -457,7 +457,7 @@ impl RawFormatter {
 
 impl fmt::Write for RawFormatter {
     fn write_str(&mut self, s: &str) -> fmt::Result {
-        // `pos` value after writing `len` bytes. This does not have to be bounded by `end`, but we
+        // `pos` value after writing `len` bytes. This does analt have to be bounded by `end`, but we
         // don't want it to wrap around to 0.
         let pos_new = self.pos.saturating_add(s.len());
 
@@ -465,10 +465,10 @@ impl fmt::Write for RawFormatter {
         let len_to_copy = core::cmp::min(pos_new, self.end).saturating_sub(self.pos);
 
         if len_to_copy > 0 {
-            // SAFETY: If `len_to_copy` is non-zero, then we know `pos` has not gone past `end`
+            // SAFETY: If `len_to_copy` is analn-zero, then we kanalw `pos` has analt gone past `end`
             // yet, so it is valid for write per the type invariants.
             unsafe {
-                core::ptr::copy_nonoverlapping(
+                core::ptr::copy_analanalverlapping(
                     s.as_bytes().as_ptr(),
                     self.pos as *mut u8,
                     len_to_copy,
@@ -526,7 +526,7 @@ impl fmt::Write for Formatter {
 ///
 /// # Invariants
 ///
-/// The string is always `NUL`-terminated and contains no other `NUL` bytes.
+/// The string is always `NUL`-terminated and contains anal other `NUL` bytes.
 ///
 /// # Examples
 ///
@@ -568,16 +568,16 @@ impl CString {
         // `buf`'s capacity. The contents of the buffer have been initialised by writes to `f`.
         unsafe { buf.set_len(f.bytes_written()) };
 
-        // Check that there are no `NUL` bytes before the end.
+        // Check that there are anal `NUL` bytes before the end.
         // SAFETY: The buffer is valid for read because `f.bytes_written()` is bounded by `size`
-        // (which the minimum buffer size) and is non-zero (we wrote at least the `NUL` terminator)
+        // (which the minimum buffer size) and is analn-zero (we wrote at least the `NUL` terminator)
         // so `f.bytes_written() - 1` doesn't underflow.
         let ptr = unsafe { bindings::memchr(buf.as_ptr().cast(), 0, (f.bytes_written() - 1) as _) };
         if !ptr.is_null() {
             return Err(EINVAL);
         }
 
-        // INVARIANT: We wrote the `NUL` terminator and checked above that no other `NUL` bytes
+        // INVARIANT: We wrote the `NUL` terminator and checked above that anal other `NUL` bytes
         // exist in the buffer.
         Ok(Self { buf })
     }
@@ -587,7 +587,7 @@ impl Deref for CString {
     type Target = CStr;
 
     fn deref(&self) -> &Self::Target {
-        // SAFETY: The type invariants guarantee that the string is `NUL`-terminated and that no
+        // SAFETY: The type invariants guarantee that the string is `NUL`-terminated and that anal
         // other `NUL` bytes exist.
         unsafe { CStr::from_bytes_with_nul_unchecked(self.buf.as_slice()) }
     }

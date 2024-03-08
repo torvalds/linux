@@ -12,7 +12,7 @@ module_param(replace, int, 0644);
 MODULE_PARM_DESC(replace, "replace (default=0)");
 
 static const char *const module_state[] = {
-	[MODULE_STATE_LIVE]	= "[MODULE_STATE_LIVE] Normal state",
+	[MODULE_STATE_LIVE]	= "[MODULE_STATE_LIVE] Analrmal state",
 	[MODULE_STATE_COMING]	= "[MODULE_STATE_COMING] Full formed, running module_init",
 	[MODULE_STATE_GOING]	= "[MODULE_STATE_GOING] Going away",
 	[MODULE_STATE_UNFORMED]	= "[MODULE_STATE_UNFORMED] Still setting it up",
@@ -52,14 +52,14 @@ static void post_unpatch_callback(struct klp_object *obj)
 	callback_info(__func__, obj);
 }
 
-static struct klp_func no_funcs[] = {
+static struct klp_func anal_funcs[] = {
 	{ }
 };
 
 static struct klp_object objs[] = {
 	{
 		.name = NULL,	/* vmlinux */
-		.funcs = no_funcs,
+		.funcs = anal_funcs,
 		.callbacks = {
 			.pre_patch = pre_patch_callback,
 			.post_patch = post_patch_callback,

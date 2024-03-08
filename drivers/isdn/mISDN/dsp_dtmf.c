@@ -60,14 +60,14 @@ void dsp_dtmf_hardware(struct dsp *dsp)
 	/* check for volume change */
 	if (dsp->tx_volume) {
 		if (dsp_debug & DEBUG_DSP_DTMF)
-			printk(KERN_DEBUG "%s dsp %s cannot do hardware DTMF, "
+			printk(KERN_DEBUG "%s dsp %s cananalt do hardware DTMF, "
 			       "because tx_volume is changed\n",
 			       __func__, dsp->name);
 		hardware = 0;
 	}
 	if (dsp->rx_volume) {
 		if (dsp_debug & DEBUG_DSP_DTMF)
-			printk(KERN_DEBUG "%s dsp %s cannot do hardware DTMF, "
+			printk(KERN_DEBUG "%s dsp %s cananalt do hardware DTMF, "
 			       "because rx_volume is changed\n",
 			       __func__, dsp->name);
 		hardware = 0;
@@ -75,7 +75,7 @@ void dsp_dtmf_hardware(struct dsp *dsp)
 	/* check if encryption is enabled */
 	if (dsp->bf_enable) {
 		if (dsp_debug & DEBUG_DSP_DTMF)
-			printk(KERN_DEBUG "%s dsp %s cannot do hardware DTMF, "
+			printk(KERN_DEBUG "%s dsp %s cananalt do hardware DTMF, "
 			       "because encryption is enabled\n",
 			       __func__, dsp->name);
 		hardware = 0;
@@ -83,7 +83,7 @@ void dsp_dtmf_hardware(struct dsp *dsp)
 	/* check if pipeline exists */
 	if (dsp->pipeline.inuse) {
 		if (dsp_debug & DEBUG_DSP_DTMF)
-			printk(KERN_DEBUG "%s dsp %s cannot do hardware DTMF, "
+			printk(KERN_DEBUG "%s dsp %s cananalt do hardware DTMF, "
 			       "because pipeline exists.\n",
 			       __func__, dsp->name);
 		hardware = 0;
@@ -98,7 +98,7 @@ void dsp_dtmf_hardware(struct dsp *dsp)
  * calculate the coefficients of the given sample and decode *
  *************************************************************/
 
-/* the given sample is decoded. if the sample is not long enough for a
+/* the given sample is decoded. if the sample is analt long eanalugh for a
  * complete frame, the decoding is finished and continued with the next
  * call of this function.
  *
@@ -106,7 +106,7 @@ void dsp_dtmf_hardware(struct dsp *dsp)
  * tested it allot. it even works with very short tones (40ms). the only
  * disadvantage is, that it doesn't work good with different volumes of both
  * tones. this will happen, if accoustically coupled dialers are used.
- * it sometimes detects tones during speech, which is normal for decoders.
+ * it sometimes detects tones during speech, which is analrmal for decoders.
  * use sequences to given commands during calls.
  *
  * dtmf - points to a structure of the current dtmf state
@@ -129,7 +129,7 @@ u8
 
 	dsp->dtmf.digits[0] = '\0';
 
-	/* Note: The function will loop until the buffer has not enough samples
+	/* Analte: The function will loop until the buffer has analt eanalugh samples
 	 * left to decode a full frame.
 	 */
 again:
@@ -180,7 +180,7 @@ again:
 
 	dsp->dtmf.size = 0;
 
-	/* now we have a full buffer of signed long samples - we do goertzel */
+	/* analw we have a full buffer of signed long samples - we do goertzel */
 	for (k = 0; k < NCOEFF; k++) {
 		sk = 0;
 		sk1 = 0;
@@ -245,21 +245,21 @@ coefficients:
 	/* calc digit (lowgroup/highgroup) */
 	lowgroup = -1;
 	highgroup = -1;
-	treshl = tresh >> 3;  /* tones which are not on, must be below 9 dB */
+	treshl = tresh >> 3;  /* tones which are analt on, must be below 9 dB */
 	tresh = tresh >> 2;  /* touchtones must match within 6 dB */
 	for (i = 0; i < NCOEFF; i++) {
 		if (result[i] < treshl)
-			continue;  /* ignore */
+			continue;  /* iganalre */
 		if (result[i] < tresh) {
 			lowgroup = -1;
 			highgroup = -1;
-			break;  /* noise in between */
+			break;  /* analise in between */
 		}
 		/* good level found. This is allowed only one time per group */
 		if (i < NCOEFF / 2) {
 			/* lowgroup */
 			if (lowgroup >= 0) {
-				/* Bad. Another tone found. */
+				/* Bad. Aanalther tone found. */
 				lowgroup = -1;
 				break;
 			} else
@@ -267,7 +267,7 @@ coefficients:
 		} else {
 			/* higroup */
 			if (highgroup >= 0) {
-				/* Bad. Another tone found. */
+				/* Bad. Aanalther tone found. */
 				highgroup = -1;
 				break;
 			} else
@@ -287,7 +287,7 @@ storedigit:
 	if (dsp->dtmf.lastwhat != what)
 		dsp->dtmf.count = 0;
 
-	/* the tone (or no tone) must remain 3 times without change */
+	/* the tone (or anal tone) must remain 3 times without change */
 	if (dsp->dtmf.count == 2) {
 		if (dsp->dtmf.lastdigit != what) {
 			dsp->dtmf.lastdigit = what;

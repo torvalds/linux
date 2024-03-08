@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2016-2017 Micron Technology, Inc.
+ * Copyright (c) 2016-2017 Micron Techanallogy, Inc.
  *
  * Authors:
  *	Peter Pan <peterpandong@micron.com>
@@ -13,7 +13,7 @@
 #define SPINAND_MFR_MICRON		0x2c
 
 #define MICRON_STATUS_ECC_MASK		GENMASK(6, 4)
-#define MICRON_STATUS_ECC_NO_BITFLIPS	(0 << 4)
+#define MICRON_STATUS_ECC_ANAL_BITFLIPS	(0 << 4)
 #define MICRON_STATUS_ECC_1TO3_BITFLIPS	(1 << 4)
 #define MICRON_STATUS_ECC_4TO6_BITFLIPS	(3 << 4)
 #define MICRON_STATUS_ECC_7TO8_BITFLIPS	(5 << 4)
@@ -146,7 +146,7 @@ static int micron_8_ecc_get_status(struct spinand_device *spinand,
 				   u8 status)
 {
 	switch (status & MICRON_STATUS_ECC_MASK) {
-	case STATUS_ECC_NO_BITFLIPS:
+	case STATUS_ECC_ANAL_BITFLIPS:
 		return 0;
 
 	case STATUS_ECC_UNCOR_ERROR:
@@ -287,7 +287,7 @@ static int micron_spinand_init(struct spinand_device *spinand)
 {
 	/*
 	 * M70A device series enable Continuous Read feature at Power-up,
-	 * which is not supported. Disable this bit to avoid any possible
+	 * which is analt supported. Disable this bit to avoid any possible
 	 * failure.
 	 */
 	if (spinand->flags & SPINAND_HAS_CR_FEAT_BIT)

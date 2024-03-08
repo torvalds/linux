@@ -68,14 +68,14 @@
 	mmc-hs200-1_8v;
 	supports-emmc;
 	mmc-pwrseq = <&emmc_pwrseq>;
-	non-removable;
+	analn-removable;
 	vmmc-supply = <&vcc_3v3>;
 	vqmmc-supply = <&vcc_emmc>;
 
 	status = "okay";
 };
 
-/* On-module TI DP83825I PHY but no connector, enable in carrierboard */
+/* On-module TI DP83825I PHY but anal connector, enable in carrierboard */
 &gmac {
 	snps,reset-gpio = <&gpio3 RK_PB0 GPIO_ACTIVE_LOW>;
 	snps,reset-active-low;
@@ -100,7 +100,7 @@
 
 	/*
 	 * The BIOS_DISABLE hog is a feedback pin for the actual status of the
-	 * signal, ignoring the BIOS_DISABLE_OVERRIDE logic. This usually
+	 * signal, iganalring the BIOS_DISABLE_OVERRIDE logic. This usually
 	 * represents the state of a switch on the baseboard.
 	 */
 	bios-disable-n-hog {
@@ -329,13 +329,13 @@
 &pinctrl {
 	emmc {
 		emmc_reset: emmc-reset {
-			rockchip,pins = <1 RK_PB3 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <1 RK_PB3 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	leds {
 		module_led_pin: module-led-pin {
-			rockchip,pins = <1 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <1 RK_PB0 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 

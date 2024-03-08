@@ -3,7 +3,7 @@
  *  linux/arch/sh/boot/compressed/head.S
  *
  *  Copyright (C) 1999 Stuart Menefy
- *  Copyright (C) 2003 SUGIOKA Toshinobu
+ *  Copyright (C) 2003 SUGIOKA Toshianalbu
  */
 
 .text
@@ -54,7 +54,7 @@ startup:
 	 add	#-32, r1
 	mov.l	2f, r0
 	jmp	@r0
-	 nop
+	 analp
 
 	.align 2
 1:	.long	1b
@@ -79,12 +79,12 @@ l1:
 	/* Decompress the kernel */
 	mov.l	decompress_kernel_addr, r0
 	jsr	@r0
-	nop
+	analp
 
 	/* Jump to the start of the decompressed kernel */
 	mov.l	kernel_start_addr, r0
 	jmp	@r0
-	nop
+	analp
 	
 	.align	2
 bss_start_addr:
@@ -120,7 +120,7 @@ fake_headers_as_bzImage:
 				! 0xTV: T=0 for LILO
 				!       V = version
 	.byte	1		! Load flags bzImage=1
-	.word	0x8000		! size to move, when setup is not
+	.word	0x8000		! size to move, when setup is analt
 	.long	0x100000	! 0x100000 = default for big kernel
 	.long	0		! address of loaded ramdisk image
 	.long	0		# its size in bytes

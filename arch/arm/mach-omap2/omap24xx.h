@@ -4,7 +4,7 @@
  * of the TI OMAP24XX.
  *
  * Copyright (C) 2007 Texas Instruments.
- * Copyright (C) 2007 Nokia Corporation.
+ * Copyright (C) 2007 Analkia Corporation.
  */
 
 #ifndef __ASM_ARCH_OMAP2_H
@@ -12,7 +12,7 @@
 
 /*
  * Please place only base defines here and put the rest in device
- * specific headers. Note also that some of these defines are needed
+ * specific headers. Analte also that some of these defines are needed
  * for omap1 to compile without adding ifdefs.
  */
 

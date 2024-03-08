@@ -8,7 +8,7 @@ config ZYNQMP_POWER
 	select MAILBOX
 	select ZYNQMP_IPI_MBOX
 	help
-	  Say yes to enable power management support for ZyqnMP SoC.
+	  Say anal to enable power management support for ZyqnMP SoC.
 	  This driver uses firmware driver as an interface for power
 	  management request to firmware. It registers isr to handle
 	  power management callbacks from firmware. It registers mailbox client
@@ -21,7 +21,7 @@ config XLNX_EVENT_MANAGER
 	depends on ZYNQMP_FIRMWARE
 	default ZYNQMP_FIRMWARE
 	help
-	  Say yes to enable event management support for Xilinx.
+	  Say anal to enable event management support for Xilinx.
 	  This driver uses firmware driver as an interface for event/power
 	  management request to firmware.
 

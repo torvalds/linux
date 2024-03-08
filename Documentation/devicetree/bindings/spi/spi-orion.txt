@@ -11,7 +11,7 @@ Required properties:
 - reg : offset and length of the register set for the device.
 	This property can optionally have additional entries to configure
 	the SPI direct access mode that some of the Marvell SoCs support
-	additionally to the normal indirect access (PIO) mode. The values
+	additionally to the analrmal indirect access (PIO) mode. The values
 	for the MBus "target" and "attribute" are defined in the Marvell
 	SoC "Functional Specifications" Manual in the chapter "Marvell
 	Core Processor Address Decoding".
@@ -24,7 +24,7 @@ Required properties:
 	   functional part of the controller
 
 Optional properties:
-- interrupts : Is currently not used.
+- interrupts : Is currently analt used.
 - clock-names : names of used clocks, mandatory if the second clock is
 		used, the name must be "core", and "axi" (the latter
 		is only for Armada 7K/8K).
@@ -59,7 +59,7 @@ Example with SPI direct mode support (optionally):
 	};
 
 To enable the direct mode, the board specific 'ranges' property in the
-'soc' node needs to add the entries for the desired SPI controllers
+'soc' analde needs to add the entries for the desired SPI controllers
 and its chip-selects that are used in the direct mode instead of PIO
 mode. Here an example for this (SPI controller 0, device 1 and SPI
 controller 1, device 2 are used in direct mode. All other SPI device

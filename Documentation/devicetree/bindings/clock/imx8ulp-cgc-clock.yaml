@@ -34,7 +34,7 @@ required:
 additionalProperties: false
 
 examples:
-  # Clock Generation & Control Module node:
+  # Clock Generation & Control Module analde:
   - |
     clock-controller@292c0000 {
         compatible = "fsl,imx8ulp-cgc1";

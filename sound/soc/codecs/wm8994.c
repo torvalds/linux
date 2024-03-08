@@ -35,7 +35,7 @@
 #include "wm8994.h"
 #include "wm_hubs.h"
 
-#define WM1811_JACKDET_MODE_NONE  0x0000
+#define WM1811_JACKDET_MODE_ANALNE  0x0000
 #define WM1811_JACKDET_MODE_JACK  0x0100
 #define WM1811_JACKDET_MODE_MIC   0x0080
 #define WM1811_JACKDET_MODE_AUDIO 0x0180
@@ -74,7 +74,7 @@ static struct wm8994_reg_mask wm8994_vu_bits[] = {
 	{ WM8994_DAC2_RIGHT_VOLUME, WM8994_DAC2_VU },
 };
 
-/* VU bitfields for ADC2, DAC2 not available on WM1811 */
+/* VU bitfields for ADC2, DAC2 analt available on WM1811 */
 static struct wm8994_reg_mask wm8994_adc2_dac2_vu_bits[] = {
 	{ WM8994_AIF1_DAC2_LEFT_VOLUME, WM8994_AIF1DAC2_VU },
 	{ WM8994_AIF1_DAC2_RIGHT_VOLUME, WM8994_AIF1DAC2_VU },
@@ -629,7 +629,7 @@ SOC_SINGLE("AIF2DAC 3D Stereo Switch", WM8994_AIF2_DAC_FILTERS_2,
 	   8, 1, 0),
 };
 
-/* Controls not available on WM1811 */
+/* Controls analt available on WM1811 */
 static const struct snd_kcontrol_new wm8994_snd_controls[] = {
 SOC_DOUBLE_R_TLV("AIF1ADC2 Volume", WM8994_AIF1_ADC2_LEFT_VOLUME,
 		 WM8994_AIF1_ADC2_RIGHT_VOLUME,
@@ -699,42 +699,42 @@ static const char *wm8958_ng_text[] = {
 };
 
 static SOC_ENUM_SINGLE_DECL(wm8958_aif1dac1_ng_hold,
-			    WM8958_AIF1_DAC1_NOISE_GATE,
+			    WM8958_AIF1_DAC1_ANALISE_GATE,
 			    WM8958_AIF1DAC1_NG_THR_SHIFT,
 			    wm8958_ng_text);
 
 static SOC_ENUM_SINGLE_DECL(wm8958_aif1dac2_ng_hold,
-			    WM8958_AIF1_DAC2_NOISE_GATE,
+			    WM8958_AIF1_DAC2_ANALISE_GATE,
 			    WM8958_AIF1DAC2_NG_THR_SHIFT,
 			    wm8958_ng_text);
 
 static SOC_ENUM_SINGLE_DECL(wm8958_aif2dac_ng_hold,
-			    WM8958_AIF2_DAC_NOISE_GATE,
+			    WM8958_AIF2_DAC_ANALISE_GATE,
 			    WM8958_AIF2DAC_NG_THR_SHIFT,
 			    wm8958_ng_text);
 
 static const struct snd_kcontrol_new wm8958_snd_controls[] = {
 SOC_SINGLE_TLV("AIF3 Boost Volume", WM8958_AIF3_CONTROL_2, 10, 3, 0, aif_tlv),
 
-SOC_SINGLE("AIF1DAC1 Noise Gate Switch", WM8958_AIF1_DAC1_NOISE_GATE,
+SOC_SINGLE("AIF1DAC1 Analise Gate Switch", WM8958_AIF1_DAC1_ANALISE_GATE,
 	   WM8958_AIF1DAC1_NG_ENA_SHIFT, 1, 0),
-SOC_ENUM("AIF1DAC1 Noise Gate Hold Time", wm8958_aif1dac1_ng_hold),
-SOC_SINGLE_TLV("AIF1DAC1 Noise Gate Threshold Volume",
-	       WM8958_AIF1_DAC1_NOISE_GATE, WM8958_AIF1DAC1_NG_THR_SHIFT,
+SOC_ENUM("AIF1DAC1 Analise Gate Hold Time", wm8958_aif1dac1_ng_hold),
+SOC_SINGLE_TLV("AIF1DAC1 Analise Gate Threshold Volume",
+	       WM8958_AIF1_DAC1_ANALISE_GATE, WM8958_AIF1DAC1_NG_THR_SHIFT,
 	       7, 1, ng_tlv),
 
-SOC_SINGLE("AIF1DAC2 Noise Gate Switch", WM8958_AIF1_DAC2_NOISE_GATE,
+SOC_SINGLE("AIF1DAC2 Analise Gate Switch", WM8958_AIF1_DAC2_ANALISE_GATE,
 	   WM8958_AIF1DAC2_NG_ENA_SHIFT, 1, 0),
-SOC_ENUM("AIF1DAC2 Noise Gate Hold Time", wm8958_aif1dac2_ng_hold),
-SOC_SINGLE_TLV("AIF1DAC2 Noise Gate Threshold Volume",
-	       WM8958_AIF1_DAC2_NOISE_GATE, WM8958_AIF1DAC2_NG_THR_SHIFT,
+SOC_ENUM("AIF1DAC2 Analise Gate Hold Time", wm8958_aif1dac2_ng_hold),
+SOC_SINGLE_TLV("AIF1DAC2 Analise Gate Threshold Volume",
+	       WM8958_AIF1_DAC2_ANALISE_GATE, WM8958_AIF1DAC2_NG_THR_SHIFT,
 	       7, 1, ng_tlv),
 
-SOC_SINGLE("AIF2DAC Noise Gate Switch", WM8958_AIF2_DAC_NOISE_GATE,
+SOC_SINGLE("AIF2DAC Analise Gate Switch", WM8958_AIF2_DAC_ANALISE_GATE,
 	   WM8958_AIF2DAC_NG_ENA_SHIFT, 1, 0),
-SOC_ENUM("AIF2DAC Noise Gate Hold Time", wm8958_aif2dac_ng_hold),
-SOC_SINGLE_TLV("AIF2DAC Noise Gate Threshold Volume",
-	       WM8958_AIF2_DAC_NOISE_GATE, WM8958_AIF2DAC_NG_THR_SHIFT,
+SOC_ENUM("AIF2DAC Analise Gate Hold Time", wm8958_aif2dac_ng_hold),
+SOC_SINGLE_TLV("AIF2DAC Analise Gate Threshold Volume",
+	       WM8958_AIF2_DAC_ANALISE_GATE, WM8958_AIF2DAC_NG_THR_SHIFT,
 	       7, 1, ng_tlv),
 };
 
@@ -755,7 +755,7 @@ static void wm1811_jackdet_set_mode(struct snd_soc_component *component, u16 mod
 	wm8994->jackdet_mode = mode;
 
 	/* Always use audio mode to detect while the system is active */
-	if (mode != WM1811_JACKDET_MODE_NONE)
+	if (mode != WM1811_JACKDET_MODE_ANALNE)
 		mode = WM1811_JACKDET_MODE_AUDIO;
 
 	snd_soc_component_update_bits(component, WM8994_ANTIPOP_2,
@@ -770,7 +770,7 @@ static void active_reference(struct snd_soc_component *component)
 
 	wm8994->active_refcount++;
 
-	dev_dbg(component->dev, "Active refcount incremented, now %d\n",
+	dev_dbg(component->dev, "Active refcount incremented, analw %d\n",
 		wm8994->active_refcount);
 
 	/* If we're using jack detection go into audio mode */
@@ -788,7 +788,7 @@ static void active_dereference(struct snd_soc_component *component)
 
 	wm8994->active_refcount--;
 
-	dev_dbg(component->dev, "Active refcount decremented, now %d\n",
+	dev_dbg(component->dev, "Active refcount decremented, analw %d\n",
 		wm8994->active_refcount);
 
 	if (wm8994->active_refcount == 0) {
@@ -817,9 +817,9 @@ static int clk_sys_event(struct snd_soc_dapm_widget *w,
 	case SND_SOC_DAPM_POST_PMU:
 		/*
 		 * JACKDET won't run until we start the clock and it
-		 * only reports deltas, make sure we notify the state
+		 * only reports deltas, make sure we analtify the state
 		 * up the stack on startup.  Use a *very* generous
-		 * timeout for paranoia, there's no urgency and we
+		 * timeout for paraanalia, there's anal urgency and we
 		 * don't want false reports.
 		 */
 		if (wm8994->jackdet && !wm8994->clk_has_run) {
@@ -846,7 +846,7 @@ static void vmid_reference(struct snd_soc_component *component)
 
 	wm8994->vmid_refcount++;
 
-	dev_dbg(component->dev, "Referencing VMID, refcount is now %d\n",
+	dev_dbg(component->dev, "Referencing VMID, refcount is analw %d\n",
 		wm8994->vmid_refcount);
 
 	if (wm8994->vmid_refcount == 1) {
@@ -860,7 +860,7 @@ static void vmid_reference(struct snd_soc_component *component)
 		default:
 			WARN_ON(NULL == "Invalid VMID mode");
 			fallthrough;
-		case WM8994_VMID_NORMAL:
+		case WM8994_VMID_ANALRMAL:
 			/* Startup bias, VMID ramp & buffer */
 			snd_soc_component_update_bits(component, WM8994_ANTIPOP_2,
 					    WM8994_BIAS_SRC |
@@ -923,7 +923,7 @@ static void vmid_dereference(struct snd_soc_component *component)
 
 	wm8994->vmid_refcount--;
 
-	dev_dbg(component->dev, "Dereferencing VMID, refcount is now %d\n",
+	dev_dbg(component->dev, "Dereferencing VMID, refcount is analw %d\n",
 		wm8994->vmid_refcount);
 
 	if (wm8994->vmid_refcount == 0) {
@@ -1122,7 +1122,7 @@ static int aif1clk_ev(struct snd_soc_dapm_widget *w,
 		if (ret < 0)
 			return ret;
 
-		/* Don't enable timeslot 2 if not in use */
+		/* Don't enable timeslot 2 if analt in use */
 		if (wm8994->channels[0] <= 2)
 			mask &= ~(WM8994_AIF1DAC2L_ENA | WM8994_AIF1DAC2R_ENA);
 
@@ -1572,7 +1572,7 @@ static const char *aif1dac_text[] = {
 };
 
 static const char *loopback_text[] = {
-	"None", "ADCDAT",
+	"Analne", "ADCDAT",
 };
 
 static SOC_ENUM_SINGLE_DECL(aif1_loopback_enum,
@@ -1618,7 +1618,7 @@ static const struct snd_kcontrol_new aif2adc_mux =
 	SOC_DAPM_ENUM("AIF2ADC Mux", aif2adc_enum);
 
 static const char *aif3adc_text[] = {
-	"AIF1ADCDAT", "AIF2ADCDAT", "AIF2DACDAT", "Mono PCM",
+	"AIF1ADCDAT", "AIF2ADCDAT", "AIF2DACDAT", "Moanal PCM",
 };
 
 static SOC_ENUM_SINGLE_DECL(wm8994_aif3adc_enum,
@@ -1633,21 +1633,21 @@ static SOC_ENUM_SINGLE_DECL(wm8958_aif3adc_enum,
 static const struct snd_kcontrol_new wm8958_aif3adc_mux =
 	SOC_DAPM_ENUM("AIF3ADC Mux", wm8958_aif3adc_enum);
 
-static const char *mono_pcm_out_text[] = {
-	"None", "AIF2ADCL", "AIF2ADCR",
+static const char *moanal_pcm_out_text[] = {
+	"Analne", "AIF2ADCL", "AIF2ADCR",
 };
 
-static SOC_ENUM_SINGLE_DECL(mono_pcm_out_enum,
-			    WM8994_POWER_MANAGEMENT_6, 9, mono_pcm_out_text);
+static SOC_ENUM_SINGLE_DECL(moanal_pcm_out_enum,
+			    WM8994_POWER_MANAGEMENT_6, 9, moanal_pcm_out_text);
 
-static const struct snd_kcontrol_new mono_pcm_out_mux =
-	SOC_DAPM_ENUM("Mono PCM Out Mux", mono_pcm_out_enum);
+static const struct snd_kcontrol_new moanal_pcm_out_mux =
+	SOC_DAPM_ENUM("Moanal PCM Out Mux", moanal_pcm_out_enum);
 
 static const char *aif2dac_src_text[] = {
 	"AIF2", "AIF3",
 };
 
-/* Note that these two control shouldn't be simultaneously switched to AIF3 */
+/* Analte that these two control shouldn't be simultaneously switched to AIF3 */
 static SOC_ENUM_SINGLE_DECL(aif2dacl_src_enum,
 			    WM8994_POWER_MANAGEMENT_6, 7, aif2dac_src_text);
 
@@ -1661,20 +1661,20 @@ static const struct snd_kcontrol_new aif2dacr_src_mux =
 	SOC_DAPM_ENUM("AIF2DACR Mux", aif2dacr_src_enum);
 
 static const struct snd_soc_dapm_widget wm8994_lateclk_revd_widgets[] = {
-SND_SOC_DAPM_SUPPLY("AIF1CLK", SND_SOC_NOPM, 0, 0, aif1clk_late_ev,
+SND_SOC_DAPM_SUPPLY("AIF1CLK", SND_SOC_ANALPM, 0, 0, aif1clk_late_ev,
 	SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-SND_SOC_DAPM_SUPPLY("AIF2CLK", SND_SOC_NOPM, 0, 0, aif2clk_late_ev,
+SND_SOC_DAPM_SUPPLY("AIF2CLK", SND_SOC_ANALPM, 0, 0, aif2clk_late_ev,
 	SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 
-SND_SOC_DAPM_PGA_E("Late DAC1L Enable PGA", SND_SOC_NOPM, 0, 0, NULL, 0,
+SND_SOC_DAPM_PGA_E("Late DAC1L Enable PGA", SND_SOC_ANALPM, 0, 0, NULL, 0,
 	late_enable_ev, SND_SOC_DAPM_PRE_PMU),
-SND_SOC_DAPM_PGA_E("Late DAC1R Enable PGA", SND_SOC_NOPM, 0, 0, NULL, 0,
+SND_SOC_DAPM_PGA_E("Late DAC1R Enable PGA", SND_SOC_ANALPM, 0, 0, NULL, 0,
 	late_enable_ev, SND_SOC_DAPM_PRE_PMU),
-SND_SOC_DAPM_PGA_E("Late DAC2L Enable PGA", SND_SOC_NOPM, 0, 0, NULL, 0,
+SND_SOC_DAPM_PGA_E("Late DAC2L Enable PGA", SND_SOC_ANALPM, 0, 0, NULL, 0,
 	late_enable_ev, SND_SOC_DAPM_PRE_PMU),
-SND_SOC_DAPM_PGA_E("Late DAC2R Enable PGA", SND_SOC_NOPM, 0, 0, NULL, 0,
+SND_SOC_DAPM_PGA_E("Late DAC2R Enable PGA", SND_SOC_ANALPM, 0, 0, NULL, 0,
 	late_enable_ev, SND_SOC_DAPM_PRE_PMU),
-SND_SOC_DAPM_PGA_E("Direct Voice", SND_SOC_NOPM, 0, 0, NULL, 0,
+SND_SOC_DAPM_PGA_E("Direct Voice", SND_SOC_ANALPM, 0, 0, NULL, 0,
 	late_enable_ev, SND_SOC_DAPM_PRE_PMU),
 
 SND_SOC_DAPM_MIXER_E("SPKL", WM8994_POWER_MANAGEMENT_3, 8, 0,
@@ -1683,9 +1683,9 @@ SND_SOC_DAPM_MIXER_E("SPKL", WM8994_POWER_MANAGEMENT_3, 8, 0,
 SND_SOC_DAPM_MIXER_E("SPKR", WM8994_POWER_MANAGEMENT_3, 9, 0,
 		     right_speaker_mixer, ARRAY_SIZE(right_speaker_mixer),
 		     late_enable_ev, SND_SOC_DAPM_PRE_PMU),
-SND_SOC_DAPM_MUX_E("Left Headphone Mux", SND_SOC_NOPM, 0, 0, &wm_hubs_hpl_mux,
+SND_SOC_DAPM_MUX_E("Left Headphone Mux", SND_SOC_ANALPM, 0, 0, &wm_hubs_hpl_mux,
 		   late_enable_ev, SND_SOC_DAPM_PRE_PMU),
-SND_SOC_DAPM_MUX_E("Right Headphone Mux", SND_SOC_NOPM, 0, 0, &wm_hubs_hpr_mux,
+SND_SOC_DAPM_MUX_E("Right Headphone Mux", SND_SOC_ANALPM, 0, 0, &wm_hubs_hpr_mux,
 		   late_enable_ev, SND_SOC_DAPM_PRE_PMU),
 
 SND_SOC_DAPM_POST("Late Disable PGA", late_disable_ev)
@@ -1698,23 +1698,23 @@ SND_SOC_DAPM_SUPPLY("AIF1CLK", WM8994_AIF1_CLOCKING_1, 0, 0, aif1clk_ev,
 SND_SOC_DAPM_SUPPLY("AIF2CLK", WM8994_AIF2_CLOCKING_1, 0, 0, aif2clk_ev,
 		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
 		    SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD),
-SND_SOC_DAPM_PGA("Direct Voice", SND_SOC_NOPM, 0, 0, NULL, 0),
+SND_SOC_DAPM_PGA("Direct Voice", SND_SOC_ANALPM, 0, 0, NULL, 0),
 SND_SOC_DAPM_MIXER("SPKL", WM8994_POWER_MANAGEMENT_3, 8, 0,
 		   left_speaker_mixer, ARRAY_SIZE(left_speaker_mixer)),
 SND_SOC_DAPM_MIXER("SPKR", WM8994_POWER_MANAGEMENT_3, 9, 0,
 		   right_speaker_mixer, ARRAY_SIZE(right_speaker_mixer)),
-SND_SOC_DAPM_MUX("Left Headphone Mux", SND_SOC_NOPM, 0, 0, &wm_hubs_hpl_mux),
-SND_SOC_DAPM_MUX("Right Headphone Mux", SND_SOC_NOPM, 0, 0, &wm_hubs_hpr_mux),
+SND_SOC_DAPM_MUX("Left Headphone Mux", SND_SOC_ANALPM, 0, 0, &wm_hubs_hpl_mux),
+SND_SOC_DAPM_MUX("Right Headphone Mux", SND_SOC_ANALPM, 0, 0, &wm_hubs_hpr_mux),
 };
 
 static const struct snd_soc_dapm_widget wm8994_dac_revd_widgets[] = {
-SND_SOC_DAPM_DAC_E("DAC2L", NULL, SND_SOC_NOPM, 3, 0,
+SND_SOC_DAPM_DAC_E("DAC2L", NULL, SND_SOC_ANALPM, 3, 0,
 	dac_ev, SND_SOC_DAPM_PRE_PMU),
-SND_SOC_DAPM_DAC_E("DAC2R", NULL, SND_SOC_NOPM, 2, 0,
+SND_SOC_DAPM_DAC_E("DAC2R", NULL, SND_SOC_ANALPM, 2, 0,
 	dac_ev, SND_SOC_DAPM_PRE_PMU),
-SND_SOC_DAPM_DAC_E("DAC1L", NULL, SND_SOC_NOPM, 1, 0,
+SND_SOC_DAPM_DAC_E("DAC1L", NULL, SND_SOC_ANALPM, 1, 0,
 	dac_ev, SND_SOC_DAPM_PRE_PMU),
-SND_SOC_DAPM_DAC_E("DAC1R", NULL, SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_DAC_E("DAC1R", NULL, SND_SOC_ANALPM, 0, 0,
 	dac_ev, SND_SOC_DAPM_PRE_PMU),
 };
 
@@ -1742,86 +1742,86 @@ SND_SOC_DAPM_INPUT("DMIC1DAT"),
 SND_SOC_DAPM_INPUT("DMIC2DAT"),
 SND_SOC_DAPM_INPUT("Clock"),
 
-SND_SOC_DAPM_SUPPLY_S("MICBIAS Supply", 1, SND_SOC_NOPM, 0, 0, micbias_ev,
+SND_SOC_DAPM_SUPPLY_S("MICBIAS Supply", 1, SND_SOC_ANALPM, 0, 0, micbias_ev,
 		      SND_SOC_DAPM_PRE_PMU),
-SND_SOC_DAPM_SUPPLY("VMID", SND_SOC_NOPM, 0, 0, vmid_event,
+SND_SOC_DAPM_SUPPLY("VMID", SND_SOC_ANALPM, 0, 0, vmid_event,
 		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 
-SND_SOC_DAPM_SUPPLY("CLK_SYS", SND_SOC_NOPM, 0, 0, clk_sys_event,
+SND_SOC_DAPM_SUPPLY("CLK_SYS", SND_SOC_ANALPM, 0, 0, clk_sys_event,
 		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
 		    SND_SOC_DAPM_PRE_PMD),
 
-SND_SOC_DAPM_SUPPLY("DSP1CLK", SND_SOC_NOPM, 3, 0, NULL, 0),
-SND_SOC_DAPM_SUPPLY("DSP2CLK", SND_SOC_NOPM, 2, 0, NULL, 0),
-SND_SOC_DAPM_SUPPLY("DSPINTCLK", SND_SOC_NOPM, 1, 0, NULL, 0),
+SND_SOC_DAPM_SUPPLY("DSP1CLK", SND_SOC_ANALPM, 3, 0, NULL, 0),
+SND_SOC_DAPM_SUPPLY("DSP2CLK", SND_SOC_ANALPM, 2, 0, NULL, 0),
+SND_SOC_DAPM_SUPPLY("DSPINTCLK", SND_SOC_ANALPM, 1, 0, NULL, 0),
 
 SND_SOC_DAPM_AIF_OUT("AIF1ADC1L", NULL,
-		     0, SND_SOC_NOPM, 9, 0),
+		     0, SND_SOC_ANALPM, 9, 0),
 SND_SOC_DAPM_AIF_OUT("AIF1ADC1R", NULL,
-		     0, SND_SOC_NOPM, 8, 0),
+		     0, SND_SOC_ANALPM, 8, 0),
 SND_SOC_DAPM_AIF_IN_E("AIF1DAC1L", NULL, 0,
-		      SND_SOC_NOPM, 9, 0, wm8958_aif_ev,
+		      SND_SOC_ANALPM, 9, 0, wm8958_aif_ev,
 		      SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
 SND_SOC_DAPM_AIF_IN_E("AIF1DAC1R", NULL, 0,
-		      SND_SOC_NOPM, 8, 0, wm8958_aif_ev,
+		      SND_SOC_ANALPM, 8, 0, wm8958_aif_ev,
 		      SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
 
 SND_SOC_DAPM_AIF_OUT("AIF1ADC2L", NULL,
-		     0, SND_SOC_NOPM, 11, 0),
+		     0, SND_SOC_ANALPM, 11, 0),
 SND_SOC_DAPM_AIF_OUT("AIF1ADC2R", NULL,
-		     0, SND_SOC_NOPM, 10, 0),
+		     0, SND_SOC_ANALPM, 10, 0),
 SND_SOC_DAPM_AIF_IN_E("AIF1DAC2L", NULL, 0,
-		      SND_SOC_NOPM, 11, 0, wm8958_aif_ev,
+		      SND_SOC_ANALPM, 11, 0, wm8958_aif_ev,
 		      SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
 SND_SOC_DAPM_AIF_IN_E("AIF1DAC2R", NULL, 0,
-		      SND_SOC_NOPM, 10, 0, wm8958_aif_ev,
+		      SND_SOC_ANALPM, 10, 0, wm8958_aif_ev,
 		      SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
 
-SND_SOC_DAPM_MIXER("AIF1ADC1L Mixer", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MIXER("AIF1ADC1L Mixer", SND_SOC_ANALPM, 0, 0,
 		   aif1adc1l_mix, ARRAY_SIZE(aif1adc1l_mix)),
-SND_SOC_DAPM_MIXER("AIF1ADC1R Mixer", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MIXER("AIF1ADC1R Mixer", SND_SOC_ANALPM, 0, 0,
 		   aif1adc1r_mix, ARRAY_SIZE(aif1adc1r_mix)),
 
-SND_SOC_DAPM_MIXER("AIF1ADC2L Mixer", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MIXER("AIF1ADC2L Mixer", SND_SOC_ANALPM, 0, 0,
 		   aif1adc2l_mix, ARRAY_SIZE(aif1adc2l_mix)),
-SND_SOC_DAPM_MIXER("AIF1ADC2R Mixer", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MIXER("AIF1ADC2R Mixer", SND_SOC_ANALPM, 0, 0,
 		   aif1adc2r_mix, ARRAY_SIZE(aif1adc2r_mix)),
 
-SND_SOC_DAPM_MIXER("AIF2DAC2L Mixer", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MIXER("AIF2DAC2L Mixer", SND_SOC_ANALPM, 0, 0,
 		   aif2dac2l_mix, ARRAY_SIZE(aif2dac2l_mix)),
-SND_SOC_DAPM_MIXER("AIF2DAC2R Mixer", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MIXER("AIF2DAC2R Mixer", SND_SOC_ANALPM, 0, 0,
 		   aif2dac2r_mix, ARRAY_SIZE(aif2dac2r_mix)),
 
-SND_SOC_DAPM_MUX("Left Sidetone", SND_SOC_NOPM, 0, 0, &sidetone1_mux),
-SND_SOC_DAPM_MUX("Right Sidetone", SND_SOC_NOPM, 0, 0, &sidetone2_mux),
+SND_SOC_DAPM_MUX("Left Sidetone", SND_SOC_ANALPM, 0, 0, &sidetone1_mux),
+SND_SOC_DAPM_MUX("Right Sidetone", SND_SOC_ANALPM, 0, 0, &sidetone2_mux),
 
-SND_SOC_DAPM_MIXER("DAC1L Mixer", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MIXER("DAC1L Mixer", SND_SOC_ANALPM, 0, 0,
 		   dac1l_mix, ARRAY_SIZE(dac1l_mix)),
-SND_SOC_DAPM_MIXER("DAC1R Mixer", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MIXER("DAC1R Mixer", SND_SOC_ANALPM, 0, 0,
 		   dac1r_mix, ARRAY_SIZE(dac1r_mix)),
 
 SND_SOC_DAPM_AIF_OUT("AIF2ADCL", NULL, 0,
-		     SND_SOC_NOPM, 13, 0),
+		     SND_SOC_ANALPM, 13, 0),
 SND_SOC_DAPM_AIF_OUT("AIF2ADCR", NULL, 0,
-		     SND_SOC_NOPM, 12, 0),
+		     SND_SOC_ANALPM, 12, 0),
 SND_SOC_DAPM_AIF_IN_E("AIF2DACL", NULL, 0,
-		      SND_SOC_NOPM, 13, 0, wm8958_aif_ev,
+		      SND_SOC_ANALPM, 13, 0, wm8958_aif_ev,
 		      SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 SND_SOC_DAPM_AIF_IN_E("AIF2DACR", NULL, 0,
-		      SND_SOC_NOPM, 12, 0, wm8958_aif_ev,
+		      SND_SOC_ANALPM, 12, 0, wm8958_aif_ev,
 		      SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 
-SND_SOC_DAPM_AIF_IN("AIF1DACDAT", NULL, 0, SND_SOC_NOPM, 0, 0),
-SND_SOC_DAPM_AIF_IN("AIF2DACDAT", NULL, 0, SND_SOC_NOPM, 0, 0),
-SND_SOC_DAPM_AIF_OUT("AIF1ADCDAT", NULL, 0, SND_SOC_NOPM, 0, 0),
-SND_SOC_DAPM_AIF_OUT("AIF2ADCDAT",  NULL, 0, SND_SOC_NOPM, 0, 0),
+SND_SOC_DAPM_AIF_IN("AIF1DACDAT", NULL, 0, SND_SOC_ANALPM, 0, 0),
+SND_SOC_DAPM_AIF_IN("AIF2DACDAT", NULL, 0, SND_SOC_ANALPM, 0, 0),
+SND_SOC_DAPM_AIF_OUT("AIF1ADCDAT", NULL, 0, SND_SOC_ANALPM, 0, 0),
+SND_SOC_DAPM_AIF_OUT("AIF2ADCDAT",  NULL, 0, SND_SOC_ANALPM, 0, 0),
 
-SND_SOC_DAPM_MUX("AIF1DAC Mux", SND_SOC_NOPM, 0, 0, &aif1dac_mux),
-SND_SOC_DAPM_MUX("AIF2DAC Mux", SND_SOC_NOPM, 0, 0, &aif2dac_mux),
-SND_SOC_DAPM_MUX("AIF2ADC Mux", SND_SOC_NOPM, 0, 0, &aif2adc_mux),
+SND_SOC_DAPM_MUX("AIF1DAC Mux", SND_SOC_ANALPM, 0, 0, &aif1dac_mux),
+SND_SOC_DAPM_MUX("AIF2DAC Mux", SND_SOC_ANALPM, 0, 0, &aif2dac_mux),
+SND_SOC_DAPM_MUX("AIF2ADC Mux", SND_SOC_ANALPM, 0, 0, &aif2adc_mux),
 
-SND_SOC_DAPM_AIF_IN("AIF3DACDAT", NULL, 0, SND_SOC_NOPM, 0, 0),
-SND_SOC_DAPM_AIF_OUT("AIF3ADCDAT", NULL, 0, SND_SOC_NOPM, 0, 0),
+SND_SOC_DAPM_AIF_IN("AIF3DACDAT", NULL, 0, SND_SOC_ANALPM, 0, 0),
+SND_SOC_DAPM_AIF_OUT("AIF3ADCDAT", NULL, 0, SND_SOC_ANALPM, 0, 0),
 
 SND_SOC_DAPM_SUPPLY("TOCLK", WM8994_CLOCKING_1, 4, 0, NULL, 0),
 
@@ -1834,25 +1834,25 @@ SND_SOC_DAPM_ADC("DMIC1R", NULL, WM8994_POWER_MANAGEMENT_4, 2, 0),
  * downsampling chain, the chip will automatically manage the analogue
  * specific portions.
  */
-SND_SOC_DAPM_ADC("ADCL", NULL, SND_SOC_NOPM, 1, 0),
-SND_SOC_DAPM_ADC("ADCR", NULL, SND_SOC_NOPM, 0, 0),
+SND_SOC_DAPM_ADC("ADCL", NULL, SND_SOC_ANALPM, 1, 0),
+SND_SOC_DAPM_ADC("ADCR", NULL, SND_SOC_ANALPM, 0, 0),
 
-SND_SOC_DAPM_MUX("AIF1 Loopback", SND_SOC_NOPM, 0, 0, &aif1_loopback),
-SND_SOC_DAPM_MUX("AIF2 Loopback", SND_SOC_NOPM, 0, 0, &aif2_loopback),
+SND_SOC_DAPM_MUX("AIF1 Loopback", SND_SOC_ANALPM, 0, 0, &aif1_loopback),
+SND_SOC_DAPM_MUX("AIF2 Loopback", SND_SOC_ANALPM, 0, 0, &aif2_loopback),
 
 SND_SOC_DAPM_POST("Debug log", post_ev),
 };
 
 static const struct snd_soc_dapm_widget wm8994_specific_dapm_widgets[] = {
-SND_SOC_DAPM_MUX("AIF3ADC Mux", SND_SOC_NOPM, 0, 0, &wm8994_aif3adc_mux),
+SND_SOC_DAPM_MUX("AIF3ADC Mux", SND_SOC_ANALPM, 0, 0, &wm8994_aif3adc_mux),
 };
 
 static const struct snd_soc_dapm_widget wm8958_dapm_widgets[] = {
 SND_SOC_DAPM_SUPPLY("AIF3", WM8994_POWER_MANAGEMENT_6, 5, 1, NULL, 0),
-SND_SOC_DAPM_MUX("Mono PCM Out Mux", SND_SOC_NOPM, 0, 0, &mono_pcm_out_mux),
-SND_SOC_DAPM_MUX("AIF2DACL Mux", SND_SOC_NOPM, 0, 0, &aif2dacl_src_mux),
-SND_SOC_DAPM_MUX("AIF2DACR Mux", SND_SOC_NOPM, 0, 0, &aif2dacr_src_mux),
-SND_SOC_DAPM_MUX("AIF3ADC Mux", SND_SOC_NOPM, 0, 0, &wm8958_aif3adc_mux),
+SND_SOC_DAPM_MUX("Moanal PCM Out Mux", SND_SOC_ANALPM, 0, 0, &moanal_pcm_out_mux),
+SND_SOC_DAPM_MUX("AIF2DACL Mux", SND_SOC_ANALPM, 0, 0, &aif2dacl_src_mux),
+SND_SOC_DAPM_MUX("AIF2DACR Mux", SND_SOC_ANALPM, 0, 0, &aif2dacr_src_mux),
+SND_SOC_DAPM_MUX("AIF3ADC Mux", SND_SOC_ANALPM, 0, 0, &wm8958_aif3adc_mux),
 };
 
 static const struct snd_soc_dapm_route intercon[] = {
@@ -2028,9 +2028,9 @@ static const struct snd_soc_dapm_route intercon[] = {
 
 	/* Loopback */
 	{ "AIF1 Loopback", "ADCDAT", "AIF1ADCDAT" },
-	{ "AIF1 Loopback", "None", "AIF1DACDAT" },
+	{ "AIF1 Loopback", "Analne", "AIF1DACDAT" },
 	{ "AIF2 Loopback", "ADCDAT", "AIF2ADCDAT" },
-	{ "AIF2 Loopback", "None", "AIF2DACDAT" },
+	{ "AIF2 Loopback", "Analne", "AIF2DACDAT" },
 
 	/* Sidetone */
 	{ "Left Sidetone", "ADC/DMIC1", "ADCL Mux" },
@@ -2100,10 +2100,10 @@ static const struct snd_soc_dapm_route wm8958_intercon[] = {
 	{ "AIF3DACDAT", NULL, "AIF3" },
 	{ "AIF3ADCDAT", NULL, "AIF3" },
 
-	{ "Mono PCM Out Mux", "AIF2ADCL", "AIF2ADCL" },
-	{ "Mono PCM Out Mux", "AIF2ADCR", "AIF2ADCR" },
+	{ "Moanal PCM Out Mux", "AIF2ADCL", "AIF2ADCL" },
+	{ "Moanal PCM Out Mux", "AIF2ADCR", "AIF2ADCR" },
 
-	{ "AIF3ADC Mux", "Mono PCM", "Mono PCM Out Mux" },
+	{ "AIF3ADC Mux", "Moanal PCM", "Moanal PCM Out Mux" },
 };
 
 /* The size in bits of the FLL divide multiplied by 10
@@ -2165,7 +2165,7 @@ static int wm8994_get_fll_config(struct wm8994 *control, struct fll_div *fll,
 	}
 	pr_debug("FLL_FRATIO=%d, Fref=%dHz\n", fll->fll_fratio, freq_in);
 
-	/* Now, calculate N.K */
+	/* Analw, calculate N.K */
 	Ndiv = freq_out / freq_in;
 
 	fll->n = Ndiv;
@@ -2184,7 +2184,7 @@ static int wm8994_get_fll_config(struct wm8994 *control, struct fll_div *fll,
 		if ((K % 10) >= 5)
 			K += 5;
 
-		/* Move down to proper range now rounding is done */
+		/* Move down to proper range analw rounding is done */
 		fll->k = K / 10;
 		fll->lambda = 0;
 
@@ -2234,7 +2234,7 @@ static int _wm8994_set_fll(struct snd_soc_component *component, int id, int src,
 
 	switch (src) {
 	case 0:
-		/* Allow no source specification when stopping */
+		/* Allow anal source specification when stopping */
 		if (freq_out)
 			return -EINVAL;
 		src = wm8994->fll[id].src;
@@ -2257,7 +2257,7 @@ static int _wm8994_set_fll(struct snd_soc_component *component, int id, int src,
 	    wm8994->fll[id].in == freq_in && wm8994->fll[id].out == freq_out)
 		return 0;
 
-	/* If we're stopping the FLL redo the old config - no
+	/* If we're stopping the FLL redo the old config - anal
 	 * registers will actually be written but we avoid GCC flow
 	 * analysis bugs spewing warnings.
 	 */
@@ -2269,7 +2269,7 @@ static int _wm8994_set_fll(struct snd_soc_component *component, int id, int src,
 	if (ret < 0)
 		return ret;
 
-	/* Make sure that we're not providing SYSCLK right now */
+	/* Make sure that we're analt providing SYSCLK right analw */
 	clk1 = snd_soc_component_read(component, WM8994_CLOCKING_1);
 	if (clk1 & WM8994_SYSCLK_SRC)
 		aif_reg = WM8994_AIF2_CLOCKING_1;
@@ -2556,7 +2556,7 @@ static int wm8994_set_dai_sysclk(struct snd_soc_dai *dai,
 
 	case WM8994_SYSCLK_OPCLK:
 		/* Special case - a division (times 10) is given and
-		 * no effect on main clocking.
+		 * anal effect on main clocking.
 		 */
 		if (freq) {
 			for (i = 0; i < ARRAY_SIZE(opclk_divs); i++)
@@ -2700,7 +2700,7 @@ int wm8994_vmid_mode(struct snd_soc_component *component, enum wm8994_vmid_mode 
 	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
 
 	switch (mode) {
-	case WM8994_VMID_NORMAL:
+	case WM8994_VMID_ANALRMAL:
 		snd_soc_dapm_mutex_lock(dapm);
 
 		if (wm8994->hubs.lineout1_se) {
@@ -2815,7 +2815,7 @@ static int wm8994_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_DSP_A:
 	case SND_SOC_DAIFMT_DSP_B:
-		/* frame inversion not valid for DSP modes */
+		/* frame inversion analt valid for DSP modes */
 		switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
 		case SND_SOC_DAIFMT_NB_NF:
 			break;
@@ -3012,10 +3012,10 @@ static int wm8994_hw_params(struct snd_pcm_substream *substream,
 
 	if (wm8994->channels[id] == 1 &&
 	    (snd_soc_component_read(component, aif1_reg) & 0x18) == 0x18)
-		aif2 |= WM8994_AIF1_MONO;
+		aif2 |= WM8994_AIF1_MOANAL;
 
 	if (wm8994->aifclk[id] == 0) {
-		dev_err(dai->dev, "AIF%dCLK not configured\n", dai->id);
+		dev_err(dai->dev, "AIF%dCLK analt configured\n", dai->id);
 		return -EINVAL;
 	}
 
@@ -3035,9 +3035,9 @@ static int wm8994_hw_params(struct snd_pcm_substream *substream,
 		dai->id, fs_ratios[best]);
 	rate_val |= best;
 
-	/* We may not get quite the right frequency if using
+	/* We may analt get quite the right frequency if using
 	 * approximate clocks so look for the closest match that is
-	 * higher than the target (we need to ensure that there enough
+	 * higher than the target (we need to ensure that there eanalugh
 	 * BCLKs to clock out the samples).
 	 */
 	best = 0;
@@ -3062,7 +3062,7 @@ static int wm8994_hw_params(struct snd_pcm_substream *substream,
 		lrclk, bclk_rate / lrclk);
 
 	snd_soc_component_update_bits(component, aif1_reg, WM8994_AIF1_WL_MASK, aif1);
-	snd_soc_component_update_bits(component, aif2_reg, WM8994_AIF1_MONO, aif2);
+	snd_soc_component_update_bits(component, aif2_reg, WM8994_AIF1_MOANAL, aif2);
 	snd_soc_component_update_bits(component, bclk_reg, WM8994_AIF1_BCLK_DIV_MASK, bclk);
 	snd_soc_component_update_bits(component, lrclk_reg, WM8994_AIF1DAC_RATE_MASK,
 			    lrclk);
@@ -3211,7 +3211,7 @@ static const struct snd_soc_dai_ops wm8994_aif1_dai_ops = {
 	.mute_stream	= wm8994_aif_mute,
 	.set_pll	= wm8994_set_fll,
 	.set_tristate	= wm8994_set_tristate,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 static const struct snd_soc_dai_ops wm8994_aif2_dai_ops = {
@@ -3222,7 +3222,7 @@ static const struct snd_soc_dai_ops wm8994_aif2_dai_ops = {
 	.mute_stream	= wm8994_aif_mute,
 	.set_pll	= wm8994_set_fll,
 	.set_tristate	= wm8994_set_tristate,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 static const struct snd_soc_dai_ops wm8994_aif3_dai_ops = {
@@ -3510,7 +3510,7 @@ int wm8994_mic_detect(struct snd_soc_component *component, struct snd_soc_jack *
 	int reg, ret;
 
 	if (control->type != WM8994) {
-		dev_warn(component->dev, "Not a WM8994\n");
+		dev_warn(component->dev, "Analt a WM8994\n");
 		return -EINVAL;
 	}
 
@@ -3725,9 +3725,9 @@ static void wm8958_mic_id(void *data, u16 status)
 	struct snd_soc_component *component = data;
 	struct wm8994_priv *wm8994 = snd_soc_component_get_drvdata(component);
 
-	/* Either nothing present or just starting detection */
+	/* Either analthing present or just starting detection */
 	if (!(status & WM8958_MICD_STS)) {
-		/* If nothing present then clear our statuses */
+		/* If analthing present then clear our statuses */
 		dev_dbg(component->dev, "Detected open circuit\n");
 
 		queue_delayed_work(system_power_efficient_wq,
@@ -3827,7 +3827,7 @@ static irqreturn_t wm1811_jackdet_irq(int irq, void *data)
 		dev_err(component->dev, "Failed to read jack status: %d\n", reg);
 		mutex_unlock(&wm8994->accdet_lock);
 		pm_runtime_put(component->dev);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	dev_dbg(component->dev, "JACKDET %x\n", reg);
@@ -3851,7 +3851,7 @@ static irqreturn_t wm1811_jackdet_irq(int irq, void *data)
 				   &wm8994->mic_work,
 				   msecs_to_jiffies(delay));
 	} else {
-		dev_dbg(component->dev, "Jack not detected\n");
+		dev_dbg(component->dev, "Jack analt detected\n");
 
 		/* Release wm8994->accdet_lock to avoid deadlock:
 		 * cancel_delayed_work_sync() takes wm8994->mic_work internal
@@ -4006,7 +4006,7 @@ int wm8958_mic_detect(struct snd_soc_component *component, struct snd_soc_jack *
 	} else {
 		snd_soc_component_update_bits(component, WM8958_MIC_DETECT_1,
 				    WM8958_MICD_ENA, 0);
-		wm1811_jackdet_set_mode(component, WM1811_JACKDET_MODE_NONE);
+		wm1811_jackdet_set_mode(component, WM1811_JACKDET_MODE_ANALNE);
 		snd_soc_dapm_disable_pin(dapm, "CLK_SYS");
 		snd_soc_dapm_sync(dapm);
 	}
@@ -4044,7 +4044,7 @@ static irqreturn_t wm8958_mic_irq(int irq, void *data)
 	/*
 	 * Jack detection may have detected a removal simulataneously
 	 * with an update of the MICDET status; if so it will have
-	 * stopped detection and we can ignore this interrupt.
+	 * stopped detection and we can iganalre this interrupt.
 	 */
 	if (!(snd_soc_component_read(component, WM8958_MIC_DETECT_1) & WM8958_MICD_ENA))
 		return IRQ_HANDLED;
@@ -4065,11 +4065,11 @@ static irqreturn_t wm8958_mic_irq(int irq, void *data)
 				"Failed to read mic detect status: %d\n",
 				reg);
 			pm_runtime_put(component->dev);
-			return IRQ_NONE;
+			return IRQ_ANALNE;
 		}
 
 		if (!(reg & WM8958_MICD_VALID)) {
-			dev_dbg(component->dev, "Mic detect data not valid\n");
+			dev_dbg(component->dev, "Mic detect data analt valid\n");
 			goto out;
 		}
 
@@ -4080,7 +4080,7 @@ static irqreturn_t wm8958_mic_irq(int irq, void *data)
 	} while (count--);
 
 	if (count == 0)
-		dev_warn(component->dev, "No impedance range reported for jack\n");
+		dev_warn(component->dev, "Anal impedance range reported for jack\n");
 
 #ifndef CONFIG_SND_SOC_WM8994_MODULE
 	trace_snd_soc_jack_irq(dev_name(component->dev));
@@ -4093,7 +4093,7 @@ static irqreturn_t wm8958_mic_irq(int irq, void *data)
 			dev_err(component->dev, "Failed to read jack status: %d\n",
 				ret);
 		} else if (!(ret & WM1811_JACKDET_LVL)) {
-			dev_dbg(component->dev, "Ignoring removed jack\n");
+			dev_dbg(component->dev, "Iganalring removed jack\n");
 			goto out;
 		}
 	} else if (!(reg & WM8958_MICD_STS)) {
@@ -4225,9 +4225,9 @@ static int wm8994_component_probe(struct snd_soc_component *component)
 
 	case WM1811:
 		wm8994->hubs.dcs_readback_mode = 2;
-		wm8994->hubs.no_series_update = 1;
+		wm8994->hubs.anal_series_update = 1;
 		wm8994->hubs.hp_startup_mode = 1;
-		wm8994->hubs.no_cache_dac_hp_direct = true;
+		wm8994->hubs.anal_cache_dac_hp_direct = true;
 		wm8994->fll_byp = true;
 
 		wm8994->hubs.dcs_codes_l = -9;
@@ -4629,7 +4629,7 @@ static int wm8994_probe(struct platform_device *pdev)
 	wm8994 = devm_kzalloc(&pdev->dev, sizeof(struct wm8994_priv),
 			      GFP_KERNEL);
 	if (wm8994 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	platform_set_drvdata(pdev, wm8994);
 
 	mutex_init(&wm8994->fw_lock);

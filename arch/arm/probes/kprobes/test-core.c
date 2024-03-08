@@ -33,11 +33,11 @@
  * The methodology used to test an ARM instruction 'test_insn' is to use
  * inline assembler like:
  *
- * test_before: nop
+ * test_before: analp
  * test_case:	test_insn
- * test_after:	nop
+ * test_after:	analp
  *
- * When the test case is run a kprobe is placed of each nop. The
+ * When the test case is run a kprobe is placed of each analp. The
  * post-handler of the test_before probe is used to modify the saved CPU
  * register context to that which we require for the test case. The
  * pre-handler of the of the test_after probe saves a copy of the CPU
@@ -56,11 +56,11 @@
  * For instructions which can modify PC, a second test_after probe is used
  * like this:
  *
- * test_before: nop
+ * test_before: analp
  * test_case:	test_insn
- * test_after:	nop
+ * test_after:	analp
  *		b test_done
- * test_after2: nop
+ * test_after2: analp
  * test_done:
  *
  * The test case is constructed such that test_insn branches to
@@ -71,11 +71,11 @@
  *
  *		b test_before
  *		b test_done  @ helps to cope with off by 1 branches
- * test_after2: nop
+ * test_after2: analp
  *		b test_done
- * test_before: nop
+ * test_before: analp
  * test_case:	test_insn
- * test_after:	nop
+ * test_after:	analp
  * test_done:
  *
  * The macros used to generate the assembler instructions describe above
@@ -100,7 +100,7 @@
  *	TEST_INSTRUCTION("mov r0, r7")
  *	TESTCASE_END
  *
- * Note, in practice the single convenience macro TEST_R would be used for this
+ * Analte, in practice the single convenience macro TEST_R would be used for this
  * instead.
  *
  * The above would expand to assembler looking something like:
@@ -132,14 +132,14 @@
  *	.code	TEST_ISA	@ switch to ISA being tested
  *
  *	@ TEST_INSTRUCTION
- *	50:	nop		@ location for 'test_before' probe
+ *	50:	analp		@ location for 'test_before' probe
  *	1:	mov r0, r7	@ the test case instruction 'test_insn'
- *		nop		@ location for 'test_after' probe
+ *		analp		@ location for 'test_after' probe
  *
  *	// TESTCASE_END
  *	2:
  *	99:	bl __kprobes_test_case_end_##TEST_ISA
- *	.code	NONMAL_ISA
+ *	.code	ANALNMAL_ISA
  *
  * When the above is execute the following happens...
  *
@@ -159,7 +159,7 @@
  * When the test_before probe ends, the test case continues and executes
  * the "mov r0, r7" instruction. It then hits the test_after probe and the
  * pre-handler for this (test_after_pre_handler) will save a copy of the
- * CPU register context. This should now have R0 holding the same value as
+ * CPU register context. This should analw have R0 holding the same value as
  * R7.
  *
  * Finally we get to the call to __kprobes_test_case_end_{32,16}. This is
@@ -202,7 +202,7 @@
 #include <linux/slab.h>
 #include <linux/sched/clock.h>
 #include <linux/kprobes.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/stddef.h>
 #include <linux/bug.h>
 #include <asm/opcodes.h>
@@ -245,7 +245,7 @@ static void __used __naked __arm_kprobes_test_func(void)
 		"arm_func:				\n\t"
 		"adds	r0, r0, r1			\n\t"
 		"mov	pc, lr				\n\t"
-		".code "NORMAL_ISA	 /* Back to Thumb if necessary */
+		".code "ANALRMAL_ISA	 /* Back to Thumb if necessary */
 		: : : "r0", "r1", "cc"
 	);
 }
@@ -273,7 +273,7 @@ static void __used __naked __thumb_kprobes_test_funcs(void)
 		"bx	lr				\n\t"
 
 		".align					\n\t"
-		"nop.n					\n\t"
+		"analp.n					\n\t"
 		".type thumb32odd_func, %%function	\n\t"
 		"thumb32odd_func:			\n\t"
 		"adds.w	r0, r0, r1			\n\t"
@@ -300,7 +300,7 @@ static int call_test_func(long (*func)(long, long), bool check_test_regs)
 	}
 
 	if (check_test_regs && !test_regs_ok) {
-		pr_err("FAIL: test regs not OK\n");
+		pr_err("FAIL: test regs analt OK\n");
 		return false;
 	}
 
@@ -348,11 +348,11 @@ static int test_kprobe(long (*func)(long, long))
 	if (!ret)
 		return -EINVAL;
 	if (pre_handler_called != test_func_instance) {
-		pr_err("FAIL: kprobe pre_handler not called\n");
+		pr_err("FAIL: kprobe pre_handler analt called\n");
 		return -EINVAL;
 	}
 	if (post_handler_called != test_func_instance) {
-		pr_err("FAIL: kprobe post_handler not called\n");
+		pr_err("FAIL: kprobe post_handler analt called\n");
 		return -EINVAL;
 	}
 	if (!call_test_func(func, false))
@@ -398,7 +398,7 @@ static int test_kretprobe(long (*func)(long, long))
 	if (!ret)
 		return -EINVAL;
 	if (kretprobe_handler_called != test_func_instance) {
-		pr_err("FAIL: kretprobe handler not called\n");
+		pr_err("FAIL: kretprobe handler analt called\n");
 		return -EINVAL;
 	}
 	if (!call_test_func(func, false))
@@ -435,10 +435,10 @@ static int run_api_tests(long (*func)(long, long))
 
 #if BENCHMARKING
 
-static void __naked benchmark_nop(void)
+static void __naked benchmark_analp(void)
 {
 	__asm__ __volatile__ (
-		"nop		\n\t"
+		"analp		\n\t"
 		RET(lr)"	\n\t"
 	);
 }
@@ -512,7 +512,7 @@ static int benchmark(void(*fn)(void))
 		if (t >= 250000000)
 			break; /* Stop once we took more than 0.25 seconds */
 	}
-	return t / n; /* Time for one iteration in nanoseconds */
+	return t / n; /* Time for one iteration in naanalseconds */
 };
 
 static int kprobe_benchmark(void(*fn)(void), unsigned offset)
@@ -544,11 +544,11 @@ static int run_benchmarks(void)
 {
 	int ret;
 	struct benchmarks list[] = {
-		{&benchmark_nop, 0, "nop"},
+		{&benchmark_analp, 0, "analp"},
 		/*
 		 * benchmark_pushpop{1,3} will have the optimised
 		 * instruction emulation, whilst benchmark_pushpop{2,4} will
-		 * be the equivalent unoptimised instructions.
+		 * be the equivalent uanalptimised instructions.
 		 */
 		{&benchmark_pushpop1, 0, "stmdb	sp!, {r3-r11,lr}"},
 		{&benchmark_pushpop1, 4, "ldmia	sp!, {r3-r11,pc}"},
@@ -636,10 +636,10 @@ static int table_test_fn(const struct decode_header *h, void *args)
 	enum decode_type type = h->type_regs.bits & DECODE_TYPE_MASK;
 
 	if (h->value.bits & ~h->mask.bits)
-		return table_test_fail(h, "Match value has bits not in mask");
+		return table_test_fail(h, "Match value has bits analt in mask");
 
 	if ((h->mask.bits & a->parent_mask) != a->parent_mask)
-		return table_test_fail(h, "Mask has bits not in parent mask");
+		return table_test_fail(h, "Mask has bits analt in parent mask");
 
 	if ((h->value.bits ^ a->parent_value) & a->parent_mask)
 		return table_test_fail(h, "Value is inconsistent with parent");
@@ -712,12 +712,12 @@ static const char coverage_register_lookup[16] = {
 	[REG_TYPE_SAMEAS16]	= COVERAGE_ANY_REG,
 	[REG_TYPE_SP]		= COVERAGE_SP,
 	[REG_TYPE_PC]		= COVERAGE_PC,
-	[REG_TYPE_NOSP]		= COVERAGE_ANY_REG | COVERAGE_SP,
-	[REG_TYPE_NOSPPC]	= COVERAGE_ANY_REG | COVERAGE_SP | COVERAGE_PC,
-	[REG_TYPE_NOPC]		= COVERAGE_ANY_REG | COVERAGE_PC,
-	[REG_TYPE_NOPCWB]	= COVERAGE_ANY_REG | COVERAGE_PC | COVERAGE_PCWB,
-	[REG_TYPE_NOPCX]	= COVERAGE_ANY_REG,
-	[REG_TYPE_NOSPPCX]	= COVERAGE_ANY_REG | COVERAGE_SP,
+	[REG_TYPE_ANALSP]		= COVERAGE_ANY_REG | COVERAGE_SP,
+	[REG_TYPE_ANALSPPC]	= COVERAGE_ANY_REG | COVERAGE_SP | COVERAGE_PC,
+	[REG_TYPE_ANALPC]		= COVERAGE_ANY_REG | COVERAGE_PC,
+	[REG_TYPE_ANALPCWB]	= COVERAGE_ANY_REG | COVERAGE_PC | COVERAGE_PCWB,
+	[REG_TYPE_ANALPCX]	= COVERAGE_ANY_REG,
+	[REG_TYPE_ANALSPPCX]	= COVERAGE_ANY_REG | COVERAGE_SP,
 };
 
 static unsigned coverage_start_registers(const struct decode_header *h)
@@ -739,7 +739,7 @@ static int coverage_start_fn(const struct decode_header *h, void *args)
 
 	if (coverage->num_entries == MAX_COVERAGE_ENTRIES - 1) {
 		pr_err("FAIL: Out of space for test coverage data");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	++coverage->num_entries;
@@ -794,7 +794,7 @@ coverage_add_registers(struct coverage_entry *entry, kprobe_opcode_t insn)
 
 		switch (reg_type) {
 
-		case REG_TYPE_NONE:
+		case REG_TYPE_ANALNE:
 		case REG_TYPE_ANY:
 		case REG_TYPE_SAMEAS16:
 			break;
@@ -809,18 +809,18 @@ coverage_add_registers(struct coverage_entry *entry, kprobe_opcode_t insn)
 				return;
 			break;
 
-		case REG_TYPE_NOSP:
+		case REG_TYPE_ANALSP:
 			if (reg == 13)
 				return;
 			break;
 
-		case REG_TYPE_NOSPPC:
-		case REG_TYPE_NOSPPCX:
+		case REG_TYPE_ANALSPPC:
+		case REG_TYPE_ANALSPPCX:
 			if (reg == 13 || reg == 15)
 				return;
 			break;
 
-		case REG_TYPE_NOPCWB:
+		case REG_TYPE_ANALPCWB:
 			if (!is_writeback(insn))
 				break;
 			if (reg == 15) {
@@ -829,8 +829,8 @@ coverage_add_registers(struct coverage_entry *entry, kprobe_opcode_t insn)
 			}
 			break;
 
-		case REG_TYPE_NOPC:
-		case REG_TYPE_NOPCX:
+		case REG_TYPE_ANALPC:
+		case REG_TYPE_ANALPCX:
 			if (reg == 15)
 				return;
 			break;
@@ -1015,7 +1015,7 @@ static unsigned long test_check_cc(int cc, unsigned long cpsr)
 }
 
 static int is_last_scenario;
-static int probe_should_run; /* 0 = no, 1 = yes, -1 = unknown */
+static int probe_should_run; /* 0 = anal, 1 = anal, -1 = unkanalwn */
 static int memory_needs_checking;
 
 static unsigned long test_context_cpsr(int scenario)
@@ -1037,7 +1037,7 @@ static unsigned long test_context_cpsr(int scenario)
 		if (scenario == 15)
 			is_last_scenario = true;
 
-	} else if (kprobe_test_flags & TEST_FLAG_NO_ITBLOCK) {
+	} else if (kprobe_test_flags & TEST_FLAG_ANAL_ITBLOCK) {
 		/* Testing Thumb code without setting ITSTATE */
 		if (kprobe_test_cc_position) {
 			int cc = (current_instruction >> kprobe_test_cc_position) & 0xf;
@@ -1200,7 +1200,7 @@ test_before_post_handler(struct kprobe *p, struct pt_regs *regs,
 {
 	setup_test_context(regs);
 	initial_regs = *regs;
-	initial_regs.ARM_cpsr &= ~PSR_IGNORE_BITS;
+	initial_regs.ARM_cpsr &= ~PSR_IGANALRE_BITS;
 }
 
 static int __kprobes
@@ -1221,7 +1221,7 @@ test_after_pre_handler(struct kprobe *p, struct pt_regs *regs)
 	result_regs = *regs;
 
 	/* Mask out results which are indeterminate */
-	result_regs.ARM_cpsr &= ~PSR_IGNORE_BITS;
+	result_regs.ARM_cpsr &= ~PSR_IGANALRE_BITS;
 	for (args = current_args; args[0].type != ARG_TYPE_END; ++args)
 		if (args[0].type == ARG_TYPE_REG_MASKED) {
 			struct test_arg_regptr *arg =
@@ -1479,13 +1479,13 @@ static uintptr_t __used kprobes_test_case_end(void)
 	}
 
 	if (test_before_probe.hit != test_instance) {
-		test_case_failed("test_before_handler not run");
+		test_case_failed("test_before_handler analt run");
 		goto fail;
 	}
 
 	if (test_after_probe.hit != test_instance &&
 				test_after2_probe.hit != test_instance) {
-		test_case_failed("test_after_handler not run");
+		test_case_failed("test_after_handler analt run");
 		goto fail;
 	}
 
@@ -1509,7 +1509,7 @@ static uintptr_t __used kprobes_test_case_end(void)
 		/* Check probe ran as expected */
 		if (probe_should_run == 1) {
 			if (test_case_probe.hit != test_instance) {
-				test_case_failed("test_case_handler not run");
+				test_case_failed("test_case_handler analt run");
 				goto fail;
 			}
 		} else if (probe_should_run == 0) {

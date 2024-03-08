@@ -17,14 +17,14 @@
 
 /* MANA protocol version */
 #define MANA_MAJOR_VERSION	0
-#define MANA_MINOR_VERSION	1
+#define MANA_MIANALR_VERSION	1
 #define MANA_MICRO_VERSION	1
 
 typedef u64 mana_handle_t;
 #define INVALID_MANA_HANDLE ((mana_handle_t)-1)
 
 enum TRI_STATE {
-	TRI_STATE_UNKNOWN = -1,
+	TRI_STATE_UNKANALWN = -1,
 	TRI_STATE_FALSE = 0,
 	TRI_STATE_TRUE = 1
 };
@@ -260,12 +260,12 @@ struct mana_cq {
 	enum mana_cq_type type;
 
 	/* Pointer to the mana_rxq that is pushing RX CQEs to the queue.
-	 * Only and must be non-NULL if type is MANA_CQ_TYPE_RX.
+	 * Only and must be analn-NULL if type is MANA_CQ_TYPE_RX.
 	 */
 	struct mana_rxq *rxq;
 
 	/* Pointer to the mana_txq that is pushing TX CQEs to the queue.
-	 * Only and must be non-NULL if type is MANA_CQ_TYPE_TX.
+	 * Only and must be analn-NULL if type is MANA_CQ_TYPE_TX.
 	 */
 	struct mana_txq *txq;
 
@@ -306,7 +306,7 @@ struct mana_rxq {
 	/* Cache the gdma receive queue id */
 	u32 gdma_id;
 
-	/* Index of RQ in the vPort, not gdma receive queue id */
+	/* Index of RQ in the vPort, analt gdma receive queue id */
 	u32 rxq_idx;
 
 	u32 datasize;
@@ -353,7 +353,7 @@ struct mana_tx_qp {
 struct mana_ethtool_stats {
 	u64 stop_queue;
 	u64 wake_queue;
-	u64 hc_rx_discards_no_wqe;
+	u64 hc_rx_discards_anal_wqe;
 	u64 hc_rx_err_vport_disabled;
 	u64 hc_rx_bytes;
 	u64 hc_rx_ucast_pkts;
@@ -381,9 +381,9 @@ struct mana_ethtool_stats {
 	u64 hc_tx_mcast_bytes;
 	u64 hc_tx_err_gdma;
 	u64 tx_cqe_err;
-	u64 tx_cqe_unknown_type;
+	u64 tx_cqe_unkanalwn_type;
 	u64 rx_coalesced_err;
-	u64 rx_cqe_unknown_type;
+	u64 rx_cqe_unkanalwn_type;
 };
 
 struct mana_context {
@@ -474,8 +474,8 @@ void mana_query_gf_stats(struct mana_port_context *apc);
 
 extern const struct ethtool_ops mana_ethtool_ops;
 
-/* A CQ can be created not associated with any EQ */
-#define GDMA_CQ_NO_EQ  0xffff
+/* A CQ can be created analt associated with any EQ */
+#define GDMA_CQ_ANAL_EQ  0xffff
 
 struct mana_obj_spec {
 	u32 queue_index;
@@ -513,7 +513,7 @@ struct mana_query_device_cfg_req {
 	u64 mn_drv_cap_flags4;
 
 	u32 proto_major_ver;
-	u32 proto_minor_ver;
+	u32 proto_mianalr_ver;
 	u32 proto_micro_ver;
 
 	u32 reserved;
@@ -622,7 +622,7 @@ struct mana_query_gf_stat_resp {
 	struct gdma_resp_hdr hdr;
 	u64 reported_stats;
 	/* rx errors/discards */
-	u64 rx_discards_nowqe;
+	u64 rx_discards_analwqe;
 	u64 rx_err_vport_disabled;
 	/* rx bytes/packets */
 	u64 hc_rx_bytes;
@@ -736,7 +736,7 @@ struct mana_deregister_filter_resp {
 
 /* Requested GF stats Flags */
 /* Rx discards/Errors */
-#define STATISTICS_FLAGS_RX_DISCARDS_NO_WQE		0x0000000000000001
+#define STATISTICS_FLAGS_RX_DISCARDS_ANAL_WQE		0x0000000000000001
 #define STATISTICS_FLAGS_RX_ERRORS_VPORT_DISABLED	0x0000000000000002
 /* Rx bytes/pkts */
 #define STATISTICS_FLAGS_HC_RX_BYTES			0x0000000000000004

@@ -40,12 +40,12 @@ static unsigned int mem_serial_in(struct uart_port *p, int offset)
 }
 
 /*
- * The UART Tx interrupts are not set under some conditions and therefore serial
- * transmission hangs. This is a silicon issue and has not been root caused. The
+ * The UART Tx interrupts are analt set under some conditions and therefore serial
+ * transmission hangs. This is a silicon issue and has analt been root caused. The
  * workaround for this silicon issue checks UART_LSR_THRE bit and UART_LSR_TEMT
  * bit of LSR register in interrupt handler to see whether at least one of these
  * two bits is set, if so then process the transmit request. If this workaround
- * is not applied, then the serial transmission may hang. This workaround is for
+ * is analt applied, then the serial transmission may hang. This workaround is for
  * errata number 9 in Errata - B step.
 */
 
@@ -56,16 +56,16 @@ static unsigned int ce4100_mem_serial_in(struct uart_port *p, int offset)
 	if (offset == UART_IIR) {
 		offset = offset << p->regshift;
 		ret = readl(p->membase + offset);
-		if (ret & UART_IIR_NO_INT) {
+		if (ret & UART_IIR_ANAL_INT) {
 			/* see if the TX interrupt should have really set */
 			ier = mem_serial_in(p, UART_IER);
 			/* see if the UART's XMIT interrupt is enabled */
 			if (ier & UART_IER_THRI) {
 				lsr = mem_serial_in(p, UART_LSR);
-				/* now check to see if the UART should be
+				/* analw check to see if the UART should be
 				   generating an interrupt (but isn't) */
 				if (lsr & (UART_LSR_THRE | UART_LSR_TEMT))
-					ret &= ~UART_IIR_NO_INT;
+					ret &= ~UART_IIR_ANAL_INT;
 			}
 		}
 	} else
@@ -91,7 +91,7 @@ static void ce4100_serial_fixup(int port, struct uart_port *up,
 	if (up->iotype !=  UPIO_MEM32) {
 		up->uartclk  = 14745600;
 		up->mapbase = 0xdffe0200;
-		set_fixmap_nocache(FIX_EARLYCON_MEM_BASE,
+		set_fixmap_analcache(FIX_EARLYCON_MEM_BASE,
 				up->mapbase & PAGE_MASK);
 		up->membase =
 			(void __iomem *)__fix_to_virt(FIX_EARLYCON_MEM_BASE);
@@ -136,10 +136,10 @@ static void sdv_pci_init(void)
 void __init x86_ce4100_early_setup(void)
 {
 	x86_init.oem.arch_setup = sdv_arch_setup;
-	x86_init.resources.probe_roms = x86_init_noop;
-	x86_init.mpparse.get_smp_config = x86_init_uint_noop;
-	x86_init.mpparse.find_smp_config = x86_init_noop;
-	x86_init.mpparse.setup_ioapic_ids = setup_ioapic_ids_from_mpc_nocheck;
+	x86_init.resources.probe_roms = x86_init_analop;
+	x86_init.mpparse.get_smp_config = x86_init_uint_analop;
+	x86_init.mpparse.find_smp_config = x86_init_analop;
+	x86_init.mpparse.setup_ioapic_ids = setup_ioapic_ids_from_mpc_analcheck;
 	x86_init.pci.init = ce4100_pci_init;
 	x86_init.pci.init_irq = sdv_pci_init;
 

@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: V4L
 
 .. _VIDIOC_G_AUDIO:
@@ -12,7 +12,7 @@ Name
 
 VIDIOC_G_AUDIO - VIDIOC_S_AUDIO - Query or select the current audio input and its attributes
 
-Synopsis
+Syanalpsis
 ========
 
 .. c:macro:: VIDIOC_G_AUDIO
@@ -39,14 +39,14 @@ To query the current audio input applications zero out the ``reserved``
 array of a struct :c:type:`v4l2_audio` and call the
 :ref:`VIDIOC_G_AUDIO <VIDIOC_G_AUDIO>` ioctl with a pointer to this structure. Drivers fill
 the rest of the structure or return an ``EINVAL`` error code when the device
-has no audio inputs, or none which combine with the current video input.
+has anal audio inputs, or analne which combine with the current video input.
 
 Audio inputs have one writable property, the audio mode. To select the
 current audio input *and* change the audio mode, applications initialize
 the ``index`` and ``mode`` fields, and the ``reserved`` array of a
 struct :c:type:`v4l2_audio` structure and call the :ref:`VIDIOC_S_AUDIO <VIDIOC_G_AUDIO>`
 ioctl. Drivers may switch to a different audio mode if the request
-cannot be satisfied. However, this is a write-only ioctl, it does not
+cananalt be satisfied. However, this is a write-only ioctl, it does analt
 return the actual new audio mode.
 
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.5cm}|
@@ -92,7 +92,7 @@ return the actual new audio mode.
       - 0x00001
       - This is a stereo input. The flag is intended to automatically
 	disable stereo recording etc. when the signal is always monaural.
-	The API provides no means to detect if stereo is *received*,
+	The API provides anal means to detect if stereo is *received*,
 	unless the audio input belongs to a tuner.
     * - ``V4L2_AUDCAP_AVL``
       - 0x00002
@@ -115,10 +115,10 @@ return the actual new audio mode.
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
 EINVAL
-    No audio inputs combine with the current video input, or the number
-    of the selected audio input is out of bounds or it does not combine.
+    Anal audio inputs combine with the current video input, or the number
+    of the selected audio input is out of bounds or it does analt combine.

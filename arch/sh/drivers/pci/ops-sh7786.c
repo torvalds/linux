@@ -28,7 +28,7 @@ static int sh7786_pcie_config_access(unsigned char access_type,
 	reg = where & ~3;
 
 	if (bus->number > 255 || dev > 31 || func > 7)
-		return PCIBIOS_FUNC_NOT_SUPPORTED;
+		return PCIBIOS_FUNC_ANALT_SUPPORTED;
 
 	/*
 	 * While each channel has its own memory-mapped extended config
@@ -54,7 +54,7 @@ static int sh7786_pcie_config_access(unsigned char access_type,
 
 			return PCIBIOS_SUCCESSFUL;
 		} else if (dev > 1)
-			return PCIBIOS_DEVICE_NOT_FOUND;
+			return PCIBIOS_DEVICE_ANALT_FOUND;
 	}
 
 	/* Clear errors */
@@ -69,11 +69,11 @@ static int sh7786_pcie_config_access(unsigned char access_type,
 
 	/* Check for errors */
 	if (pci_read_reg(chan, SH4A_PCIEERRFR) & 0x10)
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	/* Check for master and target aborts */
 	if (pci_read_reg(chan, SH4A_PCIEPCICONF1) & ((1 << 29) | (1 << 28)))
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	if (access_type == PCI_ACCESS_READ)
 		*data = pci_read_reg(chan, SH4A_PCIEPDR);

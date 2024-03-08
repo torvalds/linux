@@ -9,7 +9,7 @@ menuconfig SURFACE_PLATFORMS
 	default y
 	help
 	  Say Y here to get to see options for platform-specific device drivers
-	  for Microsoft Surface devices. This option alone does not add any
+	  for Microsoft Surface devices. This option alone does analt add any
 	  kernel code.
 
 	  If you say N, all options in this submenu will be skipped and disabled.
@@ -36,11 +36,11 @@ config SURFACE_3_POWER_OPREGION
 	  This driver provides support for ACPI operation
 	  region of the Surface 3 battery platform driver.
 
-config SURFACE_ACPI_NOTIFY
-	tristate "Surface ACPI Notify Driver"
+config SURFACE_ACPI_ANALTIFY
+	tristate "Surface ACPI Analtify Driver"
 	depends on SURFACE_AGGREGATOR
 	help
-	  Surface ACPI Notify (SAN) driver for Microsoft Surface devices.
+	  Surface ACPI Analtify (SAN) driver for Microsoft Surface devices.
 
 	  This driver provides support for the ACPI interface (called SAN) of
 	  the Surface System Aggregator Module (SSAM) EC. This interface is used
@@ -48,7 +48,7 @@ config SURFACE_ACPI_NOTIFY
 	  Surface Pro 5 and 6, Surface Book 2, Surface Laptops 1 and 2, and in
 	  reduced functionality on the Surface Laptop 3) to execute SSAM
 	  requests directly from ACPI code, as well as receive SSAM events and
-	  turn them into ACPI notifications. It essentially acts as a
+	  turn them into ACPI analtifications. It essentially acts as a
 	  translation layer between the SSAM controller and ACPI.
 
 	  Specifically, this driver may be needed for battery status reporting,
@@ -70,7 +70,7 @@ config SURFACE_AGGREGATOR_CDEV
 	  receiving the corresponding responses.
 
 	  The provided interface is intended for debugging and development only,
-	  and should not be used otherwise.
+	  and should analt be used otherwise.
 
 config SURFACE_AGGREGATOR_HUB
 	tristate "Surface System Aggregator Module Subsystem Device Hubs"
@@ -81,7 +81,7 @@ config SURFACE_AGGREGATOR_HUB
 	  devices.
 
 	  Provides subsystem hub drivers which manage client devices on various
-	  SSAM subsystems. In some subsystems, notably the BAS subsystem managing
+	  SSAM subsystems. In some subsystems, analtably the BAS subsystem managing
 	  devices contained in the base of the Surface Book 3 and the KIP subsystem
 	  managing type-cover devices in the Surface Pro 8 and Surface Pro X,
 	  devices can be (hot-)removed. Hub devices and drivers are required to
@@ -94,7 +94,7 @@ config SURFACE_AGGREGATOR_HUB
 
 	  Select M (recommended) or Y here if you want support for the above
 	  mentioned devices on the corresponding Surface models. Without this
-	  module, the respective devices mentioned above will not be instantiated
+	  module, the respective devices mentioned above will analt be instantiated
 	  and thus any functionality provided by them will be missing, even when
 	  drivers for these devices are present. This module only provides the
 	  respective subsystem hubs. Both drivers and device specification (e.g.
@@ -109,7 +109,7 @@ config SURFACE_AGGREGATOR_REGISTRY
 	  Device-registry for Surface System Aggregator Module (SSAM) devices.
 
 	  Provides a module and driver which act as a device-registry for SSAM
-	  client devices that cannot be detected automatically, e.g. via ACPI.
+	  client devices that cananalt be detected automatically, e.g. via ACPI.
 	  Such devices are instead provided and managed via this registry.
 
 	  Devices provided via this registry are:
@@ -120,7 +120,7 @@ config SURFACE_AGGREGATOR_REGISTRY
 
 	  Select M (recommended) or Y here if you want support for the above
 	  mentioned devices on the corresponding Surface models. Without this
-	  module, the respective devices will not be instantiated and thus any
+	  module, the respective devices will analt be instantiated and thus any
 	  functionality provided by them will be missing, even when drivers for
 	  these devices are present. In other words, this module only provides
 	  the respective client devices. Drivers for these devices still need to
@@ -139,11 +139,11 @@ config SURFACE_AGGREGATOR_TABLET_SWITCH
 	  The KIP subsystem is used on newer Surface generations to handle
 	  detachable input peripherals, specifically the keyboard cover (containing
 	  keyboard and touchpad) on the Surface Pro 8 and Surface Pro X. The POS
-	  subsystem is used for device posture change notifications on the Surface
-	  Laptop Studio. This module provides a driver to let user-space know when
+	  subsystem is used for device posture change analtifications on the Surface
+	  Laptop Studio. This module provides a driver to let user-space kanalw when
 	  the device should be considered in tablet-mode due to the keyboard cover
 	  being detached or folded back (essentially signaling when the keyboard is
-	  not available for input). It does so by creating a tablet-mode switch
+	  analt available for input). It does so by creating a tablet-mode switch
 	  input device, sending the standard SW_TABLET_MODE event on mode change.
 
 	  Select M or Y here, if you want to provide tablet-mode switch input
@@ -163,11 +163,11 @@ config SURFACE_DTX
 
 	  This driver provides a user-space interface that can influence the
 	  behavior of this process, which includes the option to abort it in
-	  case the base is still in use or speed it up in case it is not.
+	  case the base is still in use or speed it up in case it is analt.
 
-	  Note that this module can be built without support for the Surface
+	  Analte that this module can be built without support for the Surface
 	  Aggregator Bus (i.e. CONFIG_SURFACE_AGGREGATOR_BUS=n). In that case,
-	  some devices, specifically the Surface Book 3, will not be supported.
+	  some devices, specifically the Surface Book 3, will analt be supported.
 
 config SURFACE_GPE
 	tristate "Surface GPE/Lid Support Driver"
@@ -188,12 +188,12 @@ config SURFACE_HOTPLUG
 	  devices with hot-pluggable PCIe cards.
 
 	  This driver is used on Surface Book (2 and 3) devices with a
-	  hot-pluggable discrete GPU (dGPU). When not in use, the dGPU on those
+	  hot-pluggable discrete GPU (dGPU). When analt in use, the dGPU on those
 	  devices can enter D3cold, which prevents in-band (standard) PCIe
 	  hot-plug signaling. Thus, without this driver, detaching the base
-	  containing the dGPU will not correctly update the state of the
+	  containing the dGPU will analt correctly update the state of the
 	  corresponding PCIe device if it is in D3cold. This driver adds support
-	  for out-of-band hot-plug notifications, ensuring that the device state
+	  for out-of-band hot-plug analtifications, ensuring that the device state
 	  is properly updated even when the device in question is in D3cold.
 
 	  Select M or Y here, if you want to (fully) support hot-plugging of
@@ -217,7 +217,7 @@ config SURFACE_PLATFORM_PROFILE
 	  influence cooling behavior, e.g. setting it to 'quiet' (default) or
 	  'low-power' can significantly limit performance of the discrete GPU on
 	  Surface Books, while in turn leading to lower power consumption and/or
-	  less fan noise.
+	  less fan analise.
 
 	  Select M or Y here, if you want to include ACPI platform profile
 	  support on the above mentioned devices.

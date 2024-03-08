@@ -19,7 +19,7 @@
 #define ST21NFCA_HCI_LLC_LEN    1
 
 /* Size in worst case :
- * In normal case CRC len = 2 but byte stuffing
+ * In analrmal case CRC len = 2 but byte stuffing
  * may appear in case one CRC byte = ST21NFCA_SOF_EOF
  */
 #define ST21NFCA_HCI_LLC_CRC    4
@@ -71,14 +71,14 @@ enum st21nfca_state {
 /**
  * enum nfc_vendor_cmds - supported nfc vendor commands
  *
- * @FACTORY_MODE: Allow to set the driver into a mode where no secure element
- *	are activated. It does not consider any NFC_ATTR_VENDOR_DATA.
+ * @FACTORY_MODE: Allow to set the driver into a mode where anal secure element
+ *	are activated. It does analt consider any NFC_ATTR_VENDOR_DATA.
  * @HCI_CLEAR_ALL_PIPES: Allow to execute a HCI clear all pipes command.
- *	It does not consider any NFC_ATTR_VENDOR_DATA.
+ *	It does analt consider any NFC_ATTR_VENDOR_DATA.
  * @HCI_DM_PUT_DATA: Allow to configure specific CLF registry as for example
  *	RF trimmings or low level drivers configurations (I2C, SPI, SWP).
  * @HCI_DM_UPDATE_AID: Allow to configure an AID routing into the CLF routing
- *	table following RF technology, CLF mode or protocol.
+ *	table following RF techanallogy, CLF mode or protocol.
  * @HCI_DM_GET_INFO: Allow to retrieve CLF information.
  * @HCI_DM_GET_DATA: Allow to retrieve CLF configurable data such as low
  *	level drivers configurations or RF trimmings.
@@ -89,7 +89,7 @@ enum st21nfca_state {
  * @HCI_GET_PARAM: Allow to retrieve an HCI CLF parameter (for example the
  *	white list).
  * @HCI_DM_FIELD_GENERATOR: Allow to generate different kind of RF
- *	technology. When using this command to anti-collision is done.
+ *	techanallogy. When using this command to anti-collision is done.
  * @HCI_LOOPBACK: Allow to echo a command and test the Dh to CLF
  *	connectivity.
  */

@@ -79,7 +79,7 @@ struct SCfgAgc {
 	u16 R3;
 };
 
-struct SNoiseCal {
+struct SAnaliseCal {
 	int cpOpt;
 	short cpNexpOfs;
 	short tdCal2k;
@@ -137,7 +137,7 @@ struct drxd_state {
 	struct SCfgAgc if_agc_cfg;
 	struct SCfgAgc rf_agc_cfg;
 
-	struct SNoiseCal noise_cal;
+	struct SAnaliseCal analise_cal;
 
 	u32 fe_fs_add_incr;
 	u32 org_fe_fs_add_incr;
@@ -689,7 +689,7 @@ static int SetCfgIfAgc(struct drxd_state *state, struct SCfgAgc *cfg)
 		} while (0);
 
 	} else {
-		/* No OFF mode for IF control */
+		/* Anal OFF mode for IF control */
 		return -1;
 	}
 	return status;
@@ -807,7 +807,7 @@ static int SetCfgRfAgc(struct drxd_state *state, struct SCfgAgc *cfg)
 		u16 AgModeLop = 0;
 
 		do {
-			/* No RF AGC control */
+			/* Anal RF AGC control */
 			/* Powerdown PD2, AGC2 as output, WRI source */
 			(state->m_FeAgRegAgPwd) &=
 			    ~(FE_AG_REG_AG_PWD_PWD_PD2__M);
@@ -899,7 +899,7 @@ static int load_firmware(struct drxd_state *state, const char *fw_name)
 	state->microcode = kmemdup(fw->data, fw->size, GFP_KERNEL);
 	if (!state->microcode) {
 		release_firmware(fw);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	state->microcode_length = fw->size;
@@ -917,7 +917,7 @@ static int DownloadMicrocode(struct drxd_state *state,
 	int i, status = 0;
 
 	pSrc = (u8 *) pMCImage;
-	/* We're not using Flags */
+	/* We're analt using Flags */
 	/* Flags = (pSrc[0] << 8) | pSrc[1]; */
 	pSrc += sizeof(u16);
 	nBlocks = (pSrc[0] << 8) | pSrc[1];
@@ -931,11 +931,11 @@ static int DownloadMicrocode(struct drxd_state *state,
 		BlockSize = ((pSrc[0] << 8) | pSrc[1]) * sizeof(u16);
 		pSrc += sizeof(u16);
 
-		/* We're not using Flags */
+		/* We're analt using Flags */
 		/* u16 Flags = (pSrc[0] << 8) | pSrc[1]; */
 		pSrc += sizeof(u16);
 
-		/* We're not using BlockCRC */
+		/* We're analt using BlockCRC */
 		/* u16 BlockCRC = (pSrc[0] << 8) | pSrc[1]; */
 		pSrc += sizeof(u16);
 
@@ -1193,7 +1193,7 @@ static int SetCfgPga(struct drxd_state *state, int pgaSwitch)
 				break;
 
 			/* enable fine and coarse gain, enable AAF,
-			   no ext resistor */
+			   anal ext resistor */
 			status = Write16(state, B_FE_AG_REG_AG_PGA_MODE__A, B_FE_AG_REG_AG_PGA_MODE_PFY_PCY_AFY_REN, 0x0000);
 			if (status < 0)
 				break;
@@ -1221,7 +1221,7 @@ static int SetCfgPga(struct drxd_state *state, int pgaSwitch)
 				break;
 
 			/* disable fine and coarse gain, enable AAF,
-			   no ext resistor */
+			   anal ext resistor */
 			status = Write16(state, B_FE_AG_REG_AG_PGA_MODE__A, B_FE_AG_REG_AG_PGA_MODE_PFN_PCN_AFY_REN, 0x0000);
 			if (status < 0)
 				break;
@@ -1274,7 +1274,7 @@ static int InitFE(struct drxd_state *state)
 static int InitFT(struct drxd_state *state)
 {
 	/*
-	   norm OFFSET,  MB says =2 voor 8K en =3 voor 2K waarschijnlijk
+	   analrm OFFSET,  MB says =2 voor 8K en =3 voor 2K waarschijnlijk
 	   SC stuff
 	 */
 	return Write16(state, FT_REG_COMM_EXEC__A, 0x0001, 0x0000);
@@ -1575,7 +1575,7 @@ static int CorrectSysClockDeviation(struct drxd_state *state)
 {
 	int status;
 	s32 incr = 0;
-	s32 nomincr = 0;
+	s32 analmincr = 0;
 	u32 bandwidth = 0;
 	u32 sysClockInHz = 0;
 	u32 sysClockFreq = 0;	/* in kHz */
@@ -1587,7 +1587,7 @@ static int CorrectSysClockDeviation(struct drxd_state *state)
 
 		/* These accesses should be AtomicReadReg32, but that
 		   causes trouble (at least for diversity */
-		status = Read32(state, LC_RA_RAM_IFINCR_NOM_L__A, ((u32 *) &nomincr), 0);
+		status = Read32(state, LC_RA_RAM_IFINCR_ANALM_L__A, ((u32 *) &analmincr), 0);
 		if (status < 0)
 			break;
 		status = Read32(state, FE_IF_REG_INCR0__A, (u32 *) &incr, 0);
@@ -1595,10 +1595,10 @@ static int CorrectSysClockDeviation(struct drxd_state *state)
 			break;
 
 		if (state->type_A) {
-			if ((nomincr - incr < -500) || (nomincr - incr > 500))
+			if ((analmincr - incr < -500) || (analmincr - incr > 500))
 				break;
 		} else {
-			if ((nomincr - incr < -2000) || (nomincr - incr > 2000))
+			if ((analmincr - incr < -2000) || (analmincr - incr > 2000))
 				break;
 		}
 
@@ -1819,7 +1819,7 @@ static int SetFrequencyShift(struct drxd_state *state,
 
 	/* Handle all mirroring
 	 *
-	 * Note: ADC mirroring (aliasing) is implictly handled by limiting
+	 * Analte: ADC mirroring (aliasing) is implictly handled by limiting
 	 * feFsRegAddInc to 28 bits below
 	 * (if the result before masking is more than 28 bits, this means
 	 *  that the ADC is mirroring.
@@ -1850,8 +1850,8 @@ static int SetFrequencyShift(struct drxd_state *state,
 		       state->fe_fs_add_incr, 0);
 }
 
-static int SetCfgNoiseCalibration(struct drxd_state *state,
-				  struct SNoiseCal *noiseCal)
+static int SetCfgAnaliseCalibration(struct drxd_state *state,
+				  struct SAnaliseCal *analiseCal)
 {
 	u16 beOptEna;
 	int status = 0;
@@ -1860,11 +1860,11 @@ static int SetCfgNoiseCalibration(struct drxd_state *state,
 		status = Read16(state, SC_RA_RAM_BE_OPT_ENA__A, &beOptEna, 0);
 		if (status < 0)
 			break;
-		if (noiseCal->cpOpt) {
+		if (analiseCal->cpOpt) {
 			beOptEna |= (1 << SC_RA_RAM_BE_OPT_ENA_CP_OPT);
 		} else {
 			beOptEna &= ~(1 << SC_RA_RAM_BE_OPT_ENA_CP_OPT);
-			status = Write16(state, CP_REG_AC_NEXP_OFFS__A, noiseCal->cpNexpOfs, 0);
+			status = Write16(state, CP_REG_AC_NEXP_OFFS__A, analiseCal->cpNexpOfs, 0);
 			if (status < 0)
 				break;
 		}
@@ -1873,10 +1873,10 @@ static int SetCfgNoiseCalibration(struct drxd_state *state,
 			break;
 
 		if (!state->type_A) {
-			status = Write16(state, B_SC_RA_RAM_CO_TD_CAL_2K__A, noiseCal->tdCal2k, 0);
+			status = Write16(state, B_SC_RA_RAM_CO_TD_CAL_2K__A, analiseCal->tdCal2k, 0);
 			if (status < 0)
 				break;
-			status = Write16(state, B_SC_RA_RAM_CO_TD_CAL_8K__A, noiseCal->tdCal8k, 0);
+			status = Write16(state, B_SC_RA_RAM_CO_TD_CAL_8K__A, analiseCal->tdCal8k, 0);
 			if (status < 0)
 				break;
 		}
@@ -1955,7 +1955,7 @@ static int DRX_Start(struct drxd_state *state, s32 off)
 		mirrorFreqSpect = (state->props.inversion == INVERSION_ON);
 
 		switch (p->transmission_mode) {
-		default:	/* Not set, detect it automatically */
+		default:	/* Analt set, detect it automatically */
 			operationMode |= SC_RA_RAM_OP_AUTO_MODE__M;
 			fallthrough;	/* try first guess DRX_FFTMODE_8K */
 		case TRANSMISSION_MODE_8K:
@@ -1995,7 +1995,7 @@ static int DRX_Start(struct drxd_state *state, s32 off)
 		case GUARD_INTERVAL_1_32:
 			transmissionParams |= SC_RA_RAM_OP_PARAM_GUARD_32;
 			break;
-		default:	/* Not set, detect it automatically */
+		default:	/* Analt set, detect it automatically */
 			operationMode |= SC_RA_RAM_OP_AUTO_GUARD__M;
 			/* try first guess 1/4 */
 			transmissionParams |= SC_RA_RAM_OP_PARAM_GUARD_4;
@@ -2013,19 +2013,19 @@ static int DRX_Start(struct drxd_state *state, s32 off)
 				if (status < 0)
 					break;
 
-				qpskTdTpsPwr = EQ_TD_TPS_PWR_UNKNOWN;
+				qpskTdTpsPwr = EQ_TD_TPS_PWR_UNKANALWN;
 				qam16TdTpsPwr = EQ_TD_TPS_PWR_QAM16_ALPHA1;
 				qam64TdTpsPwr = EQ_TD_TPS_PWR_QAM64_ALPHA1;
 
 				qpskIsGainMan =
-				    SC_RA_RAM_EQ_IS_GAIN_UNKNOWN_MAN__PRE;
+				    SC_RA_RAM_EQ_IS_GAIN_UNKANALWN_MAN__PRE;
 				qam16IsGainMan =
 				    SC_RA_RAM_EQ_IS_GAIN_16QAM_MAN__PRE;
 				qam64IsGainMan =
 				    SC_RA_RAM_EQ_IS_GAIN_64QAM_MAN__PRE;
 
 				qpskIsGainExp =
-				    SC_RA_RAM_EQ_IS_GAIN_UNKNOWN_EXP__PRE;
+				    SC_RA_RAM_EQ_IS_GAIN_UNKANALWN_EXP__PRE;
 				qam16IsGainExp =
 				    SC_RA_RAM_EQ_IS_GAIN_16QAM_EXP__PRE;
 				qam64IsGainExp =
@@ -2043,19 +2043,19 @@ static int DRX_Start(struct drxd_state *state, s32 off)
 				if (status < 0)
 					break;
 
-				qpskTdTpsPwr = EQ_TD_TPS_PWR_UNKNOWN;
+				qpskTdTpsPwr = EQ_TD_TPS_PWR_UNKANALWN;
 				qam16TdTpsPwr = EQ_TD_TPS_PWR_QAM16_ALPHA2;
 				qam64TdTpsPwr = EQ_TD_TPS_PWR_QAM64_ALPHA2;
 
 				qpskIsGainMan =
-				    SC_RA_RAM_EQ_IS_GAIN_UNKNOWN_MAN__PRE;
+				    SC_RA_RAM_EQ_IS_GAIN_UNKANALWN_MAN__PRE;
 				qam16IsGainMan =
 				    SC_RA_RAM_EQ_IS_GAIN_16QAM_A2_MAN__PRE;
 				qam64IsGainMan =
 				    SC_RA_RAM_EQ_IS_GAIN_64QAM_A2_MAN__PRE;
 
 				qpskIsGainExp =
-				    SC_RA_RAM_EQ_IS_GAIN_UNKNOWN_EXP__PRE;
+				    SC_RA_RAM_EQ_IS_GAIN_UNKANALWN_EXP__PRE;
 				qam16IsGainExp =
 				    SC_RA_RAM_EQ_IS_GAIN_16QAM_A2_EXP__PRE;
 				qam64IsGainExp =
@@ -2072,19 +2072,19 @@ static int DRX_Start(struct drxd_state *state, s32 off)
 				if (status < 0)
 					break;
 
-				qpskTdTpsPwr = EQ_TD_TPS_PWR_UNKNOWN;
+				qpskTdTpsPwr = EQ_TD_TPS_PWR_UNKANALWN;
 				qam16TdTpsPwr = EQ_TD_TPS_PWR_QAM16_ALPHA4;
 				qam64TdTpsPwr = EQ_TD_TPS_PWR_QAM64_ALPHA4;
 
 				qpskIsGainMan =
-				    SC_RA_RAM_EQ_IS_GAIN_UNKNOWN_MAN__PRE;
+				    SC_RA_RAM_EQ_IS_GAIN_UNKANALWN_MAN__PRE;
 				qam16IsGainMan =
 				    SC_RA_RAM_EQ_IS_GAIN_16QAM_A4_MAN__PRE;
 				qam64IsGainMan =
 				    SC_RA_RAM_EQ_IS_GAIN_64QAM_A4_MAN__PRE;
 
 				qpskIsGainExp =
-				    SC_RA_RAM_EQ_IS_GAIN_UNKNOWN_EXP__PRE;
+				    SC_RA_RAM_EQ_IS_GAIN_UNKANALWN_EXP__PRE;
 				qam16IsGainExp =
 				    SC_RA_RAM_EQ_IS_GAIN_16QAM_A4_EXP__PRE;
 				qam64IsGainExp =
@@ -2093,9 +2093,9 @@ static int DRX_Start(struct drxd_state *state, s32 off)
 			break;
 		case HIERARCHY_AUTO:
 		default:
-			/* Not set, detect it automatically, start with none */
+			/* Analt set, detect it automatically, start with analne */
 			operationMode |= SC_RA_RAM_OP_AUTO_HIER__M;
-			transmissionParams |= SC_RA_RAM_OP_PARAM_HIER_NO;
+			transmissionParams |= SC_RA_RAM_OP_PARAM_HIER_ANAL;
 			if (state->type_A) {
 				status = Write16(state, EQ_REG_OT_ALPHA__A, 0x0000, 0x0000);
 				if (status < 0)
@@ -2283,8 +2283,8 @@ static int DRX_Start(struct drxd_state *state, s32 off)
 			break;
 
 		/* First determine real bandwidth (Hz) */
-		/* Also set delay for impulse noise cruncher (only A2) */
-		/* Also set parameters for EC_OC fix, note
+		/* Also set delay for impulse analise cruncher (only A2) */
+		/* Also set parameters for EC_OC fix, analte
 		   EC_OC_REG_TMD_HIL_MAR is changed
 		   by SC for fix for some 8K,1/8 guard but is restored by
 		   InitEC and ResetEC
@@ -2346,7 +2346,7 @@ static int DRX_Start(struct drxd_state *state, s32 off)
 				break;
 		}
 
-		status = SetCfgNoiseCalibration(state, &state->noise_cal);
+		status = SetCfgAnaliseCalibration(state, &state->analise_cal);
 		if (status < 0)
 			break;
 
@@ -2359,7 +2359,7 @@ static int DRX_Start(struct drxd_state *state, s32 off)
 			state->cscd_state = CSCD_SET;
 		}
 
-		/* Now compute FE_IF_REG_INCR */
+		/* Analw compute FE_IF_REG_INCR */
 		/*((( SysFreq/BandWidth)/2)/2) -1) * 2^23) =>
 		   ((SysFreq / BandWidth) * (2^21) ) - (2^23) */
 		feIfIncr = MulDiv32(state->sys_clock_freq * 1000,
@@ -2511,16 +2511,16 @@ static int CDRXD(struct drxd_state *state, u32 IntermediateFrequency)
 
 	if (ulIFFilter == IFFILTER_DISCRETE) {
 		/* discrete filter */
-		state->noise_cal.cpOpt = 0;
-		state->noise_cal.cpNexpOfs = 40;
-		state->noise_cal.tdCal2k = -40;
-		state->noise_cal.tdCal8k = -24;
+		state->analise_cal.cpOpt = 0;
+		state->analise_cal.cpNexpOfs = 40;
+		state->analise_cal.tdCal2k = -40;
+		state->analise_cal.tdCal8k = -24;
 	} else {
 		/* SAW filter */
-		state->noise_cal.cpOpt = 1;
-		state->noise_cal.cpNexpOfs = 0;
-		state->noise_cal.tdCal2k = -21;
-		state->noise_cal.tdCal8k = -24;
+		state->analise_cal.cpOpt = 1;
+		state->analise_cal.cpNexpOfs = 0;
+		state->analise_cal.tdCal2k = -21;
+		state->analise_cal.tdCal8k = -24;
 	}
 	state->m_EcOcRegOcModeLop = (u16) (ulEcOcRegOcModeLop);
 
@@ -2556,12 +2556,12 @@ static int CDRXD(struct drxd_state *state, u32 IntermediateFrequency)
 	state->enable_parallel = (ulSerialMode != 1);
 
 	/* Timing div, 250ns/Psys */
-	/* Timing div, = ( delay (nano seconds) * sysclk (kHz) )/ 1000 */
+	/* Timing div, = ( delay (naanal seconds) * sysclk (kHz) )/ 1000 */
 
 	state->hi_cfg_timing_div = (u16) ((state->sys_clock_freq / 1000) *
 					  ulHiI2cDelay) / 1000;
 	/* Bridge delay, uses oscilator clock */
-	/* Delay = ( delay (nano seconds) * oscclk (kHz) )/ 1000 */
+	/* Delay = ( delay (naanal seconds) * oscclk (kHz) )/ 1000 */
 	state->hi_cfg_bridge_delay = (u16) ((state->osc_clock_freq / 1000) *
 					    ulHiI2cBridgeDelay) / 1000;
 
@@ -2713,8 +2713,8 @@ static int DRXD_init(struct drxd_state *state, const u8 *fw, u32 fw_size)
 
 		driverVersion = (((VERSION_MAJOR / 10) << 4) +
 				 (VERSION_MAJOR % 10)) << 24;
-		driverVersion += (((VERSION_MINOR / 10) << 4) +
-				  (VERSION_MINOR % 10)) << 16;
+		driverVersion += (((VERSION_MIANALR / 10) << 4) +
+				  (VERSION_MIANALR % 10)) << 16;
 		driverVersion += ((VERSION_PATCH / 1000) << 12) +
 		    ((VERSION_PATCH / 100) << 8) +
 		    ((VERSION_PATCH / 10) << 4) + (VERSION_PATCH % 10);
@@ -2741,7 +2741,7 @@ static int DRXD_status(struct drxd_state *state, u32 *pLockStatus)
 	/*if (*pLockStatus&DRX_LOCK_MPEG) */
 	if (*pLockStatus & DRX_LOCK_FEC) {
 		ConfigureMPEGOutput(state, 1);
-		/* Get status again, in case we have MPEG lock now */
+		/* Get status again, in case we have MPEG lock analw */
 		/*DRX_GetLockStatus(state, pLockStatus); */
 	}
 
@@ -2773,7 +2773,7 @@ static int drxd_read_status(struct dvb_frontend *fe, enum fe_status *status)
 
 	DRXD_status(state, &lock);
 	*status = 0;
-	/* No MPEG lock in V255 firmware, bug ? */
+	/* Anal MPEG lock in V255 firmware, bug ? */
 #if 1
 	if (lock & DRX_LOCK_MPEG)
 		*status |= FE_HAS_LOCK;
@@ -2796,14 +2796,14 @@ static int drxd_init(struct dvb_frontend *fe)
 	return DRXD_init(state, NULL, 0);
 }
 
-static int drxd_config_i2c(struct dvb_frontend *fe, int onoff)
+static int drxd_config_i2c(struct dvb_frontend *fe, int oanalff)
 {
 	struct drxd_state *state = fe->demodulator_priv;
 
 	if (state->config.disable_i2c_gate_ctrl == 1)
 		return 0;
 
-	return DRX_ConfigureI2CBridge(state, onoff);
+	return DRX_ConfigureI2CBridge(state, oanalff);
 }
 
 static int drxd_get_tune_settings(struct dvb_frontend *fe,
@@ -2935,7 +2935,7 @@ struct dvb_frontend *drxd_attach(const struct drxd_config *config,
 	return &state->frontend;
 
 error:
-	printk(KERN_ERR "drxd: not found\n");
+	printk(KERN_ERR "drxd: analt found\n");
 	kfree(state);
 	return NULL;
 }

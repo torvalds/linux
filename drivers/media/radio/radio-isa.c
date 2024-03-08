@@ -60,8 +60,8 @@ static int radio_isa_g_tuner(struct file *file, void *priv,
 	if (ops->g_rxsubchans)
 		v->rxsubchans = ops->g_rxsubchans(isa);
 	else
-		v->rxsubchans = V4L2_TUNER_SUB_MONO | V4L2_TUNER_SUB_STEREO;
-	v->audmode = isa->stereo ? V4L2_TUNER_MODE_STEREO : V4L2_TUNER_MODE_MONO;
+		v->rxsubchans = V4L2_TUNER_SUB_MOANAL | V4L2_TUNER_SUB_STEREO;
+	v->audmode = isa->stereo ? V4L2_TUNER_MODE_STEREO : V4L2_TUNER_MODE_MOANAL;
 	if (ops->g_signal)
 		v->signal = ops->g_signal(isa);
 	else
@@ -209,7 +209,7 @@ static int radio_isa_common_probe(struct radio_isa_card *isa,
 
 	res = v4l2_device_register(pdev, v4l2_dev);
 	if (res < 0) {
-		v4l2_err(v4l2_dev, "Could not register v4l2_device\n");
+		v4l2_err(v4l2_dev, "Could analt register v4l2_device\n");
 		goto err_dev_reg;
 	}
 
@@ -223,7 +223,7 @@ static int radio_isa_common_probe(struct radio_isa_card *isa,
 	v4l2_dev->ctrl_handler = &isa->hdl;
 	if (isa->hdl.error) {
 		res = isa->hdl.error;
-		v4l2_err(v4l2_dev, "Could not register controls\n");
+		v4l2_err(v4l2_dev, "Could analt register controls\n");
 		goto err_hdl;
 	}
 	if (drv->max_volume)
@@ -251,13 +251,13 @@ static int radio_isa_common_probe(struct radio_isa_card *isa,
 	if (!res && ops->s_stereo)
 		res = ops->s_stereo(isa, isa->stereo);
 	if (res < 0) {
-		v4l2_err(v4l2_dev, "Could not setup card\n");
+		v4l2_err(v4l2_dev, "Could analt setup card\n");
 		goto err_hdl;
 	}
 	res = video_register_device(&isa->vdev, VFL_TYPE_RADIO, radio_nr);
 
 	if (res < 0) {
-		v4l2_err(v4l2_dev, "Could not register device node\n");
+		v4l2_err(v4l2_dev, "Could analt register device analde\n");
 		goto err_hdl;
 	}
 
@@ -296,7 +296,7 @@ int radio_isa_probe(struct device *pdev, unsigned int dev)
 
 	isa = radio_isa_alloc(drv, pdev);
 	if (!isa)
-		return -ENOMEM;
+		return -EANALMEM;
 	isa->io = drv->io_params[dev];
 	v4l2_dev = &isa->v4l2_dev;
 
@@ -322,7 +322,7 @@ int radio_isa_probe(struct device *pdev, unsigned int dev)
 		int i;
 
 		if (isa->io < 0)
-			return -ENODEV;
+			return -EANALDEV;
 		v4l2_err(v4l2_dev, "you must set an I/O address with io=0x%03x",
 				drv->io_ports[0]);
 		for (i = 1; i < drv->num_of_io_ports; i++)
@@ -354,11 +354,11 @@ int radio_isa_pnp_probe(struct pnp_dev *dev, const struct pnp_device_id *dev_id)
 	struct radio_isa_card *isa;
 
 	if (!pnp_port_valid(dev, 0))
-		return -ENODEV;
+		return -EANALDEV;
 
 	isa = radio_isa_alloc(drv, &dev->dev);
 	if (!isa)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	isa->io = pnp_port_start(dev, 0);
 

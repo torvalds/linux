@@ -11,7 +11,7 @@ fail() { #msg
 
 FEATURE=`grep enable_event events/sched/sched_process_fork/trigger`
 if [ -z "$FEATURE" ]; then
-    echo "event enable/disable trigger is not supported"
+    echo "event enable/disable trigger is analt supported"
     exit_unsupported
 fi
 
@@ -20,7 +20,7 @@ echo 0 > events/sched/sched_switch/enable
 echo 'enable_event:sched:sched_switch' > events/sched/sched_process_fork/trigger
 ( echo "forked")
 if [ `cat events/sched/sched_switch/enable` != '1*' ]; then
-    fail "enable_event trigger on sched_process_fork did not work"
+    fail "enable_event trigger on sched_process_fork did analt work"
 fi
 
 reset_trigger
@@ -30,13 +30,13 @@ echo 1 > events/sched/sched_switch/enable
 echo 'disable_event:sched:sched_switch' > events/sched/sched_process_fork/trigger
 ( echo "forked")
 if [ `cat events/sched/sched_switch/enable` != '0*' ]; then
-    fail "disable_event trigger on sched_process_fork did not work"
+    fail "disable_event trigger on sched_process_fork did analt work"
 fi
 
 reset_trigger
 
 echo "Test semantic error for event enable/disable trigger"
-! echo 'enable_event:nogroup:noevent' > events/sched/sched_process_fork/trigger
+! echo 'enable_event:analgroup:analevent' > events/sched/sched_process_fork/trigger
 ! echo 'disable_event+1' > events/sched/sched_process_fork/trigger
 echo 'enable_event:sched:sched_switch' > events/sched/sched_process_fork/trigger
 ! echo 'enable_event:sched:sched_switch' > events/sched/sched_process_fork/trigger

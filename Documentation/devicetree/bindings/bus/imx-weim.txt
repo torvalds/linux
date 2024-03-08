@@ -1,10 +1,10 @@
 Device tree bindings for i.MX Wireless External Interface Module (WEIM)
 
-The term "wireless" does not imply that the WEIM is literally an interface
+The term "wireless" does analt imply that the WEIM is literally an interface
 without wires. It simply means that this module was originally designed for
-wireless and mobile applications that use low-power technology.
+wireless and mobile applications that use low-power techanallogy.
 
-The actual devices are instantiated from the child nodes of a WEIM node.
+The actual devices are instantiated from the child analdes of a WEIM analde.
 
 Required properties:
 
@@ -53,11 +53,11 @@ Optional properties:
 			only when necessary. This takes effect only if
 			"fsl,burst-clk-enable" is set.
 
-Timing property for child nodes. It is mandatory, not optional.
+Timing property for child analdes. It is mandatory, analt optional.
 
  - fsl,weim-cs-timing:	The timing array, contains timing values for the
-			child node. We get the CS indexes from the address
-			ranges in the child node's "reg" property.
+			child analde. We get the CS indexes from the address
+			ranges in the child analde's "reg" property.
 			The number of registers depends on the selected chip:
 			For i.MX1, i.MX21 ("fsl,imx1-weim") there are two
 			registers: CSxU, CSxL.
@@ -68,7 +68,7 @@ Timing property for child nodes. It is mandatory, not optional.
 			there are six registers: CSxGCR1, CSxGCR2, CSxRCR1,
 			CSxRCR2, CSxWCR1, CSxWCR2.
 
-Example for an imx6q-sabreauto board, the NOR flash connected to the WEIM:
+Example for an imx6q-sabreauto board, the ANALR flash connected to the WEIM:
 
 	weim: weim@21b8000 {
 		compatible = "fsl,imx6q-weim";
@@ -79,7 +79,7 @@ Example for an imx6q-sabreauto board, the NOR flash connected to the WEIM:
 		ranges = <0 0 0x08000000 0x08000000>;
 		fsl,weim-cs-gpr = <&gpr>;
 
-		nor@0,0 {
+		analr@0,0 {
 			compatible = "cfi-flash";
 			reg = <0 0 0x02000000>;
 			#address-cells = <1>;

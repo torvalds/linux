@@ -45,7 +45,7 @@ static int validate_enumeration_input(int instance_id, const char *buf)
 	options = tmp = kstrdup(wmi_priv.enumeration_data[instance_id].possible_values,
 				 GFP_KERNEL);
 	if (!options)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	while ((p = strsep(&options, ";")) != NULL) {
 		if (!*p)
@@ -122,7 +122,7 @@ int alloc_enum_data(void)
 					sizeof(struct enumeration_data), GFP_KERNEL);
 	if (!wmi_priv.enumeration_data) {
 		wmi_priv.enumeration_instances_count = 0;
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 	}
 	return ret;
 }

@@ -78,4 +78,4 @@ ath9k_htc-$(CONFIG_ATH9K_HTC_DEBUGFS) += htc_drv_debug.o
 
 obj-$(CONFIG_ATH9K_HTC) += ath9k_htc.o
 
-obj-$(CONFIG_ATH9K_PCI_NO_EEPROM) += ath9k_pci_owl_loader.o
+obj-$(CONFIG_ATH9K_PCI_ANAL_EEPROM) += ath9k_pci_owl_loader.o

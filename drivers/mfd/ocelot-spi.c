@@ -8,14 +8,14 @@
  * processor's endianness. This will create and distribute regmaps for any
  * children.
  *
- * Copyright 2021-2022 Innovative Advantage Inc.
+ * Copyright 2021-2022 Inanalvative Advantage Inc.
  *
  * Author: Colin Foster <colin.foster@in-advantage.com>
  */
 
 #include <linux/device.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/export.h>
 #include <linux/ioport.h>
 #include <linux/mod_devicetable.h>
@@ -117,7 +117,7 @@ static int ocelot_spi_initialize(struct device *dev)
 		return err;
 
 	if (check != val)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -207,7 +207,7 @@ static int ocelot_spi_probe(struct spi_device *spi)
 
 	ddata = devm_kzalloc(dev, sizeof(*ddata), GFP_KERNEL);
 	if (!ddata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spi_set_drvdata(spi, ddata);
 
@@ -217,14 +217,14 @@ static int ocelot_spi_probe(struct spi_device *spi)
 		/*
 		 * Calculation taken from the manual for IF_CFGSTAT:IF_CFG.
 		 * Register access time is 1us, so we need to configure and send
-		 * out enough padding bytes between the read request and data
+		 * out eanalugh padding bytes between the read request and data
 		 * transmission that lasts at least 1 microsecond.
 		 */
 		ddata->spi_padding_bytes = 1 + (spi->max_speed_hz / HZ_PER_MHZ + 2) / 8;
 
 		ddata->dummy_buf = devm_kzalloc(dev, ddata->spi_padding_bytes, GFP_KERNEL);
 		if (!ddata->dummy_buf)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	spi->bits_per_word = 8;

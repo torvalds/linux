@@ -1,49 +1,49 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _LINUX_USER_RETURN_NOTIFIER_H
-#define _LINUX_USER_RETURN_NOTIFIER_H
+#ifndef _LINUX_USER_RETURN_ANALTIFIER_H
+#define _LINUX_USER_RETURN_ANALTIFIER_H
 
-#ifdef CONFIG_USER_RETURN_NOTIFIER
+#ifdef CONFIG_USER_RETURN_ANALTIFIER
 
 #include <linux/list.h>
 #include <linux/sched.h>
 
-struct user_return_notifier {
-	void (*on_user_return)(struct user_return_notifier *urn);
-	struct hlist_node link;
+struct user_return_analtifier {
+	void (*on_user_return)(struct user_return_analtifier *urn);
+	struct hlist_analde link;
 };
 
 
-void user_return_notifier_register(struct user_return_notifier *urn);
-void user_return_notifier_unregister(struct user_return_notifier *urn);
+void user_return_analtifier_register(struct user_return_analtifier *urn);
+void user_return_analtifier_unregister(struct user_return_analtifier *urn);
 
-static inline void propagate_user_return_notify(struct task_struct *prev,
+static inline void propagate_user_return_analtify(struct task_struct *prev,
 						struct task_struct *next)
 {
-	if (test_tsk_thread_flag(prev, TIF_USER_RETURN_NOTIFY)) {
-		clear_tsk_thread_flag(prev, TIF_USER_RETURN_NOTIFY);
-		set_tsk_thread_flag(next, TIF_USER_RETURN_NOTIFY);
+	if (test_tsk_thread_flag(prev, TIF_USER_RETURN_ANALTIFY)) {
+		clear_tsk_thread_flag(prev, TIF_USER_RETURN_ANALTIFY);
+		set_tsk_thread_flag(next, TIF_USER_RETURN_ANALTIFY);
 	}
 }
 
-void fire_user_return_notifiers(void);
+void fire_user_return_analtifiers(void);
 
-static inline void clear_user_return_notifier(struct task_struct *p)
+static inline void clear_user_return_analtifier(struct task_struct *p)
 {
-	clear_tsk_thread_flag(p, TIF_USER_RETURN_NOTIFY);
+	clear_tsk_thread_flag(p, TIF_USER_RETURN_ANALTIFY);
 }
 
 #else
 
-struct user_return_notifier {};
+struct user_return_analtifier {};
 
-static inline void propagate_user_return_notify(struct task_struct *prev,
+static inline void propagate_user_return_analtify(struct task_struct *prev,
 						struct task_struct *next)
 {
 }
 
-static inline void fire_user_return_notifiers(void) {}
+static inline void fire_user_return_analtifiers(void) {}
 
-static inline void clear_user_return_notifier(struct task_struct *p) {}
+static inline void clear_user_return_analtifier(struct task_struct *p) {}
 
 #endif
 

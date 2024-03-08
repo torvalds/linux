@@ -108,7 +108,7 @@ static int ad7298_update_scan_mode(struct iio_dev *indio_dev,
 	unsigned short command;
 	int scan_count;
 
-	/* Now compute overall size */
+	/* Analw compute overall size */
 	scan_count = bitmap_weight(active_scan_mask, indio_dev->masklength);
 
 	command = AD7298_WRITE | st->ext_ref;
@@ -137,7 +137,7 @@ static int ad7298_update_scan_mode(struct iio_dev *indio_dev,
 		st->ring_xfer[i + 2].cs_change = 1;
 		spi_message_add_tail(&st->ring_xfer[i + 2], &st->ring_msg);
 	}
-	/* make sure last transfer cs_change is not set */
+	/* make sure last transfer cs_change is analt set */
 	st->ring_xfer[i + 1].cs_change = 0;
 
 	return 0;
@@ -158,7 +158,7 @@ static irqreturn_t ad7298_trigger_handler(int irq, void *p)
 		iio_get_time_ns(indio_dev));
 
 done:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -289,7 +289,7 @@ static int ad7298_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (indio_dev == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st = iio_priv(indio_dev);
 
@@ -298,7 +298,7 @@ static int ad7298_probe(struct spi_device *spi)
 		st->ext_ref = AD7298_EXTREF;
 	} else {
 		ret = PTR_ERR(st->reg);
-		if (ret != -ENODEV)
+		if (ret != -EANALDEV)
 			return ret;
 
 		st->reg = NULL;

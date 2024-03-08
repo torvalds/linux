@@ -21,17 +21,17 @@
 #define TOD_CLK_FREQ			0x038
 
 /*
- * The read sequence of ToD timestamp registers: TOD_NANOSEC, TOD_SECONDSL and
- * TOD_SECONDSH, because there is a hardware snapshot whenever the TOD_NANOSEC
+ * The read sequence of ToD timestamp registers: TOD_NAANALSEC, TOD_SECONDSL and
+ * TOD_SECONDSH, because there is a hardware snapshot whenever the TOD_NAANALSEC
  * register is read.
  *
  * The ToD IP requires writing registers in the reverse order to the read sequence.
- * The timestamp is corrected when the TOD_NANOSEC register is written, so the
- * sequence of write TOD registers: TOD_SECONDSH, TOD_SECONDSL and TOD_NANOSEC.
+ * The timestamp is corrected when the TOD_NAANALSEC register is written, so the
+ * sequence of write TOD registers: TOD_SECONDSH, TOD_SECONDSL and TOD_NAANALSEC.
  */
 #define TOD_SECONDSH			0x100
 #define TOD_SECONDSL			0x104
-#define TOD_NANOSEC			0x108
+#define TOD_NAANALSEC			0x108
 #define TOD_PERIOD			0x110
 #define TOD_ADJUST_PERIOD		0x114
 #define TOD_ADJUST_COUNT		0x118
@@ -97,28 +97,28 @@ static int fine_adjust_tod_clock(struct dfl_tod *dt, u32 adjust_period,
  */
 static int coarse_adjust_tod_clock(struct dfl_tod *dt, s64 delta)
 {
-	u32 seconds_msb, seconds_lsb, nanosec;
+	u32 seconds_msb, seconds_lsb, naanalsec;
 	void __iomem *base = dt->tod_ctrl;
-	u64 seconds, now;
+	u64 seconds, analw;
 
 	if (delta == 0)
 		return 0;
 
-	nanosec = readl(base + TOD_NANOSEC);
+	naanalsec = readl(base + TOD_NAANALSEC);
 	seconds_lsb = readl(base + TOD_SECONDSL);
 	seconds_msb = readl(base + TOD_SECONDSH);
 
 	/* Calculate new time */
 	seconds = CAL_SECONDS(seconds_msb, seconds_lsb);
-	now = seconds * NSEC_PER_SEC + nanosec + delta;
+	analw = seconds * NSEC_PER_SEC + naanalsec + delta;
 
-	seconds = div_u64_rem(now, NSEC_PER_SEC, &nanosec);
+	seconds = div_u64_rem(analw, NSEC_PER_SEC, &naanalsec);
 	seconds_msb = FIELD_GET(SECONDS_MSB, seconds);
 	seconds_lsb = FIELD_GET(SECONDS_LSB, seconds);
 
 	writel(seconds_msb, base + TOD_SECONDSH);
 	writel(seconds_lsb, base + TOD_SECONDSL);
-	writel(nanosec, base + TOD_NANOSEC);
+	writel(naanalsec, base + TOD_NAANALSEC);
 
 	return 0;
 }
@@ -134,7 +134,7 @@ static int dfl_tod_adjust_fine(struct ptp_clock_info *ptp, long scaled_ppm)
 	/* Get the clock rate from clock frequency register offset */
 	rate = readl(base + TOD_CLK_FREQ);
 
-	/* add GIGA as nominal ppb */
+	/* add GIGA as analminal ppb */
 	ppb = scaled_ppm_to_ppb(scaled_ppm) + GIGA;
 
 	tod_period = div_u64_rem(ppb << PERIOD_FRAC_OFFSET, rate, &tod_rem);
@@ -186,7 +186,7 @@ static int dfl_tod_adjust_time(struct ptp_clock_info *ptp, s64 delta)
 
 	/*
 	 * Get the maximum possible value of the Period register offset
-	 * adjustment in nanoseconds scale. This depends on the current
+	 * adjustment in naanalseconds scale. This depends on the current
 	 * Period register setting and the maximum and minimum possible
 	 * values of the Period register.
 	 */
@@ -227,14 +227,14 @@ static int dfl_tod_get_timex(struct ptp_clock_info *ptp, struct timespec64 *ts,
 			     struct ptp_system_timestamp *sts)
 {
 	struct dfl_tod *dt = container_of(ptp, struct dfl_tod, ptp_clock_ops);
-	u32 seconds_msb, seconds_lsb, nanosec;
+	u32 seconds_msb, seconds_lsb, naanalsec;
 	void __iomem *base = dt->tod_ctrl;
 	unsigned long flags;
 	u64 seconds;
 
 	spin_lock_irqsave(&dt->tod_lock, flags);
 	ptp_read_system_prets(sts);
-	nanosec = readl(base + TOD_NANOSEC);
+	naanalsec = readl(base + TOD_NAANALSEC);
 	seconds_lsb = readl(base + TOD_SECONDSL);
 	seconds_msb = readl(base + TOD_SECONDSH);
 	ptp_read_system_postts(sts);
@@ -242,7 +242,7 @@ static int dfl_tod_get_timex(struct ptp_clock_info *ptp, struct timespec64 *ts,
 
 	seconds = CAL_SECONDS(seconds_msb, seconds_lsb);
 
-	ts->tv_nsec = nanosec;
+	ts->tv_nsec = naanalsec;
 	ts->tv_sec = seconds;
 
 	return 0;
@@ -254,14 +254,14 @@ static int dfl_tod_set_time(struct ptp_clock_info *ptp,
 	struct dfl_tod *dt = container_of(ptp, struct dfl_tod, ptp_clock_ops);
 	u32 seconds_msb = FIELD_GET(SECONDS_MSB, ts->tv_sec);
 	u32 seconds_lsb = FIELD_GET(SECONDS_LSB, ts->tv_sec);
-	u32 nanosec = FIELD_GET(SECONDS_LSB, ts->tv_nsec);
+	u32 naanalsec = FIELD_GET(SECONDS_LSB, ts->tv_nsec);
 	void __iomem *base = dt->tod_ctrl;
 	unsigned long flags;
 
 	spin_lock_irqsave(&dt->tod_lock, flags);
 	writel(seconds_msb, base + TOD_SECONDSH);
 	writel(seconds_lsb, base + TOD_SECONDSL);
-	writel(nanosec, base + TOD_NANOSEC);
+	writel(naanalsec, base + TOD_NAANALSEC);
 	spin_unlock_irqrestore(&dt->tod_lock, flags);
 
 	return 0;
@@ -284,7 +284,7 @@ static int dfl_tod_probe(struct dfl_device *ddev)
 
 	dt = devm_kzalloc(dev, sizeof(*dt), GFP_KERNEL);
 	if (!dt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dt->tod_ctrl = devm_ioremap_resource(dev, &ddev->mmio_res);
 	if (IS_ERR(dt->tod_ctrl))

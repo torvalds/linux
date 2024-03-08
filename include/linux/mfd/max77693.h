@@ -2,10 +2,10 @@
 /*
  * max77693.h - Driver for the Maxim 77693
  *
- *  Copyright (C) 2012 Samsung Electrnoics
+ *  Copyright (C) 2012 Samsung Electranalics
  *  SangYoung Son <hello.son@samsung.com>
  *
- * This program is not provided / owned by Maxim Integrated Products.
+ * This program is analt provided / owned by Maxim Integrated Products.
  *
  * This driver is based on max8997.h
  *
@@ -63,7 +63,7 @@ enum max77693_led_trigger_type {
 
 /* boost modes */
 enum max77693_led_boost_mode {
-	MAX77693_LED_BOOST_NONE,
+	MAX77693_LED_BOOST_ANALNE,
 	MAX77693_LED_BOOST_ADAPTIVE,
 	MAX77693_LED_BOOST_FIXED,
 };

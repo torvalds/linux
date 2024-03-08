@@ -10,7 +10,7 @@
  * Copyright (C) 2007 Texas Instruments, Inc.
  * Karthik Dasu <karthik-dp@ti.com>
  *
- * Copyright (C) 2006 Nokia Corporation
+ * Copyright (C) 2006 Analkia Corporation
  * Tony Lindgren <tony@atomide.com>
  *
  * Copyright (C) 2005 Texas Instruments, Inc.
@@ -46,25 +46,25 @@ static struct powerdomain *mpu_pd, *core_pd, *per_pd, *cam_pd;
 /*
  * Possible flag bits for struct omap3_idle_statedata.flags:
  *
- * OMAP_CPUIDLE_CX_NO_CLKDM_IDLE: don't allow the MPU clockdomain to go
+ * OMAP_CPUIDLE_CX_ANAL_CLKDM_IDLE: don't allow the MPU clockdomain to go
  *    inactive.  This in turn prevents the MPU DPLL from entering autoidle
  *    mode, so wakeup latency is greatly reduced, at the cost of additional
  *    energy consumption.  This also prevents the CORE clockdomain from
  *    entering idle.
  */
-#define OMAP_CPUIDLE_CX_NO_CLKDM_IDLE		BIT(0)
+#define OMAP_CPUIDLE_CX_ANAL_CLKDM_IDLE		BIT(0)
 
 /*
- * Prevent PER OFF if CORE is not in RETention or OFF as this would
+ * Prevent PER OFF if CORE is analt in RETention or OFF as this would
  * disable PER wakeups completely.
  */
 static struct omap3_idle_statedata omap3_idle_data[] = {
 	{
 		.mpu_state = PWRDM_POWER_ON,
 		.core_state = PWRDM_POWER_ON,
-		/* In C1 do not allow PER state lower than CORE state */
+		/* In C1 do analt allow PER state lower than CORE state */
 		.per_min_state = PWRDM_POWER_ON,
-		.flags = OMAP_CPUIDLE_CX_NO_CLKDM_IDLE,
+		.flags = OMAP_CPUIDLE_CX_ANAL_CLKDM_IDLE,
 	},
 	{
 		.mpu_state = PWRDM_POWER_ON,
@@ -115,7 +115,7 @@ static int omap3_enter_idle(struct cpuidle_device *dev,
 		goto return_sleep_time;
 
 	/* Deny idle for C1 */
-	if (cx->flags & OMAP_CPUIDLE_CX_NO_CLKDM_IDLE) {
+	if (cx->flags & OMAP_CPUIDLE_CX_ANAL_CLKDM_IDLE) {
 		clkdm_deny_idle(mpu_pd->pwrdm_clkdms[0]);
 	} else {
 		pwrdm_set_next_pwrst(mpu_pd, cx->mpu_state);
@@ -123,7 +123,7 @@ static int omap3_enter_idle(struct cpuidle_device *dev,
 	}
 
 	/*
-	 * Call idle CPU PM enter notifier chain so that
+	 * Call idle CPU PM enter analtifier chain so that
 	 * VFP context is saved.
 	 */
 	if (cx->mpu_state == PWRDM_POWER_OFF) {
@@ -136,7 +136,7 @@ static int omap3_enter_idle(struct cpuidle_device *dev,
 	omap_sram_idle(true);
 
 	/*
-	 * Call idle CPU PM enter notifier chain to restore
+	 * Call idle CPU PM enter analtifier chain to restore
 	 * VFP context.
 	 */
 	if (cx->mpu_state == PWRDM_POWER_OFF &&
@@ -145,7 +145,7 @@ static int omap3_enter_idle(struct cpuidle_device *dev,
 
 out_clkdm_set:
 	/* Re-allow idle for C1 */
-	if (cx->flags & OMAP_CPUIDLE_CX_NO_CLKDM_IDLE)
+	if (cx->flags & OMAP_CPUIDLE_CX_ANAL_CLKDM_IDLE)
 		clkdm_allow_idle(mpu_pd->pwrdm_clkdms[0]);
 
 return_sleep_time:
@@ -179,7 +179,7 @@ static int next_valid_state(struct cpuidle_device *dev,
 		mpu_deepest_state = PWRDM_POWER_OFF;
 		/*
 		 * Erratum i583: valable for ES rev < Es1.2 on 3630.
-		 * CORE OFF mode is not supported in a stable form, restrict
+		 * CORE OFF mode is analt supported in a stable form, restrict
 		 * instead the CORE state to RET.
 		 */
 		if (!IS_PM34XX_ERRATUM(PM_SDRC_WAKEUP_ERRATUM_i583))
@@ -226,7 +226,7 @@ static int omap3_enter_idle_bm(struct cpuidle_device *dev,
 
 	/*
 	 * Use only C1 if CAM is active.
-	 * CAM does not have wakeup capability in OMAP3.
+	 * CAM does analt have wakeup capability in OMAP3.
 	 */
 	if (pwrdm_read_pwrst(cam_pd) == PWRDM_POWER_ON)
 		new_state_idx = drv->safe_state_index;
@@ -327,7 +327,7 @@ static struct cpuidle_driver omap3_idle_driver = {
 
 /*
  * Numbers based on measurements made in October 2009 for PM optimized kernel
- * with CPU freq enabled on device Nokia N900. Assumes OPP2 (main idle OPP,
+ * with CPU freq enabled on device Analkia N900. Assumes OPP2 (main idle OPP,
  * and worst case latencies).
  */
 static struct cpuidle_driver omap3430_idle_driver = {
@@ -411,7 +411,7 @@ int __init omap3_idle_init(void)
 	cam_pd = pwrdm_lookup("cam_pwrdm");
 
 	if (!mpu_pd || !core_pd || !per_pd || !cam_pd)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (cpu_is_omap3430())
 		return cpuidle_register(&omap3430_idle_driver, NULL);

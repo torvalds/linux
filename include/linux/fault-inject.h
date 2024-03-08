@@ -33,7 +33,7 @@ struct fault_attr {
 };
 
 enum fault_flags {
-	FAULT_NOWARN =	1 << 0,
+	FAULT_ANALWARN =	1 << 0,
 };
 
 #define FAULT_ATTR_INITIALIZER {					\
@@ -61,7 +61,7 @@ struct dentry *fault_create_debugfs_attr(const char *name,
 static inline struct dentry *fault_create_debugfs_attr(const char *name,
 			struct dentry *parent, struct fault_attr *attr)
 {
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 
 #endif /* CONFIG_FAULT_INJECTION_DEBUG_FS */

@@ -188,7 +188,7 @@
 	},
 	BPF_EXIT_INSN(),
 	},
-	.errstr = "unknown opcode df",
+	.errstr = "unkanalwn opcode df",
 	.result = REJECT,
 },
 {

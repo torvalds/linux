@@ -21,7 +21,7 @@ SECTIONS
     COMMON_DISCARDS
     *(.ARM.exidx*)
     *(.ARM.extab*)
-    *(.note.*)
+    *(.analte.*)
     *(.rel.*)
     *(.printk_index)
     /*
@@ -76,7 +76,7 @@ SECTIONS
 #endif
 
   /* ensure the zImage file size is always a multiple of 64 bits */
-  /* (without a dummy byte, ld just ignores the empty section) */
+  /* (without a dummy byte, ld just iganalres the empty section) */
   .pad			: { BYTE(0); . = ALIGN(8); }
 
 #ifdef CONFIG_EFI_STUB
@@ -108,11 +108,11 @@ SECTIONS
    * that the linker may decide to insert in the binary image.  Having
    * this symbol allows further debug in the near future.
    */
-  .image_end (NOLOAD) : {
+  .image_end (ANALLOAD) : {
     /*
      * EFI requires that the image is aligned to 512 bytes, and appended
-     * DTB requires that we know where the end of the image is.  Ensure
-     * that both are satisfied by ensuring that there are no additional
+     * DTB requires that we kanalw where the end of the image is.  Ensure
+     * that both are satisfied by ensuring that there are anal additional
      * sections emitted into the decompressor image.
      */
     _edata_real = .;

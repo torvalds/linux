@@ -53,15 +53,15 @@ static void memcmp_h(uint8_t *mem, uint64_t gpa, uint8_t pattern, size_t size)
  * Run memory conversion tests with explicit conversion:
  * Execute KVM hypercall to map/unmap gpa range which will cause userspace exit
  * to back/unback private memory. Subsequent accesses by guest to the gpa range
- * will not cause exit to userspace.
+ * will analt cause exit to userspace.
  *
  * Test memory conversion scenarios with following steps:
  * 1) Access private memory using private access and verify that memory contents
- *   are not visible to userspace.
+ *   are analt visible to userspace.
  * 2) Convert memory to shared using explicit conversions and ensure that
  *   userspace is able to access the shared regions.
  * 3) Convert memory back to private using explicit conversions and ensure that
- *   userspace is again not able to access converted private regions.
+ *   userspace is again analt able to access converted private regions.
  */
 
 #define GUEST_STAGE(o, s) { .offset = o, .size = s }
@@ -209,7 +209,7 @@ skip:
 		/*
 		 * Free (via PUNCH_HOLE) *all* private memory so that the next
 		 * iteration starts from a clean slate, e.g. with respect to
-		 * whether or not there are pages/folios in guest_mem.
+		 * whether or analt there are pages/folios in guest_mem.
 		 */
 		guest_map_shared(base_gpa, PER_CPU_DATA_SIZE, true);
 	}
@@ -344,7 +344,7 @@ static void *__test_mem_conversions(void *__vcpu)
 
 			TEST_ASSERT(uc.args[0] == SYNC_SHARED ||
 				    uc.args[0] == SYNC_PRIVATE,
-				    "Unknown sync command '%ld'", uc.args[0]);
+				    "Unkanalwn sync command '%ld'", uc.args[0]);
 
 			for (i = 0; i < size; i += vm->page_size) {
 				size_t nr_bytes = min_t(size_t, vm->page_size, size - i);
@@ -362,7 +362,7 @@ static void *__test_mem_conversions(void *__vcpu)
 		case UCALL_DONE:
 			return NULL;
 		default:
-			TEST_FAIL("Unknown ucall 0x%lx.", uc.cmd);
+			TEST_FAIL("Unkanalwn ucall 0x%lx.", uc.cmd);
 		}
 	}
 }
@@ -371,7 +371,7 @@ static void test_mem_conversions(enum vm_mem_backing_src_type src_type, uint32_t
 				 uint32_t nr_memslots)
 {
 	/*
-	 * Allocate enough memory so that each vCPU's chunk of memory can be
+	 * Allocate eanalugh memory so that each vCPU's chunk of memory can be
 	 * naturally aligned with respect to the size of the backing store.
 	 */
 	const size_t alignment = max_t(size_t, SZ_2M, get_backing_src_pagesz(src_type));

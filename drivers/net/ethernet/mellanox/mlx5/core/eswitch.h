@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Mellanox Technologies, Ltd.  All rights reserved.
+ * Copyright (c) 2015, Mellaanalx Techanallogies, Ltd.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -156,7 +156,7 @@ struct mlx5_vport_drop_stats {
 struct mlx5_vport_info {
 	u8                      mac[ETH_ALEN];
 	u16                     vlan;
-	u64                     node_guid;
+	u64                     analde_guid;
 	int                     link_state;
 	u8                      qos;
 	u8                      spoofchk: 1;
@@ -301,9 +301,9 @@ struct mlx5_esw_offload {
 	unsigned int host_number; /* ECPF supports one external host */
 };
 
-/* E-Switch MC FDB table hash node */
+/* E-Switch MC FDB table hash analde */
 struct esw_mc_addr { /* SRIOV only */
-	struct l2addr_node     node;
+	struct l2addr_analde     analde;
 	struct mlx5_flow_handle *uplink_rule; /* Forward to uplink rule */
 	u32                    refcnt;
 };
@@ -364,7 +364,7 @@ struct mlx5_eswitch {
 		struct list_head groups; /* Protected by esw->state_lock */
 
 		/* Protected by esw->state_lock.
-		 * Initially 0, meaning no QoS users and QoS is disabled.
+		 * Initially 0, meaning anal QoS users and QoS is disabled.
 		 */
 		refcount_t refcnt;
 	} qos;
@@ -379,7 +379,7 @@ struct mlx5_eswitch {
 	struct {
 		u32             large_group_num;
 	}  params;
-	struct blocking_notifier_head n_head;
+	struct blocking_analtifier_head n_head;
 	struct xarray paired;
 	struct mlx5_devcom_comp_dev *devcom;
 	u16 enabled_ipsec_vf_count;
@@ -405,7 +405,7 @@ int mlx5_esw_qos_modify_vport_rate(struct mlx5_eswitch *esw, u16 vport_num, u32 
 int mlx5_eswitch_init(struct mlx5_core_dev *dev);
 void mlx5_eswitch_cleanup(struct mlx5_eswitch *esw);
 
-#define MLX5_ESWITCH_IGNORE_NUM_VFS (-1)
+#define MLX5_ESWITCH_IGANALRE_NUM_VFS (-1)
 int mlx5_eswitch_enable_locked(struct mlx5_eswitch *esw, int num_vfs);
 int mlx5_eswitch_enable(struct mlx5_eswitch *esw, int num_vfs);
 void mlx5_eswitch_disable_sriov(struct mlx5_eswitch *esw, bool clear_vf);
@@ -495,7 +495,7 @@ enum {
 };
 
 enum mlx5_flow_match_level {
-	MLX5_MATCH_NONE	= MLX5_INLINE_MODE_NONE,
+	MLX5_MATCH_ANALNE	= MLX5_INLINE_MODE_ANALNE,
 	MLX5_MATCH_L2	= MLX5_INLINE_MODE_L2,
 	MLX5_MATCH_L3	= MLX5_INLINE_MODE_IP,
 	MLX5_MATCH_L4	= MLX5_INLINE_MODE_TCP_UDP,
@@ -695,7 +695,7 @@ void mlx5e_tc_clean_fdb_peer_flows(struct mlx5_eswitch *esw);
 
 /* This macro should only be used if EC SRIOV is enabled.
  *
- * Because there were no more marks available on the xarray this uses a
+ * Because there were anal more marks available on the xarray this uses a
  * for_each_range approach. The range is only valid when EC SRIOV is enabled
  */
 #define mlx5_esw_for_each_ec_vf_vport(esw, index, vport, last)		\
@@ -709,7 +709,7 @@ void mlx5e_tc_clean_fdb_peer_flows(struct mlx5_eswitch *esw);
 struct mlx5_eswitch *__must_check
 mlx5_devlink_eswitch_get(struct devlink *devlink);
 
-struct mlx5_eswitch *mlx5_devlink_eswitch_nocheck_get(struct devlink *devlink);
+struct mlx5_eswitch *mlx5_devlink_eswitch_analcheck_get(struct devlink *devlink);
 
 struct mlx5_vport *__must_check
 mlx5_eswitch_get_vport(struct mlx5_eswitch *esw, u16 vport_num);
@@ -718,7 +718,7 @@ bool mlx5_eswitch_is_vf_vport(struct mlx5_eswitch *esw, u16 vport_num);
 bool mlx5_eswitch_is_pf_vf_vport(struct mlx5_eswitch *esw, u16 vport_num);
 bool mlx5_esw_is_sf_vport(struct mlx5_eswitch *esw, u16 vport_num);
 
-int mlx5_esw_funcs_changed_handler(struct notifier_block *nb, unsigned long type, void *data);
+int mlx5_esw_funcs_changed_handler(struct analtifier_block *nb, unsigned long type, void *data);
 
 int
 mlx5_eswitch_enable_pf_vf_vports(struct mlx5_eswitch *esw,
@@ -814,8 +814,8 @@ struct mlx5_esw_event_info {
 	u16 new_mode;
 };
 
-int mlx5_esw_event_notifier_register(struct mlx5_eswitch *esw, struct notifier_block *n);
-void mlx5_esw_event_notifier_unregister(struct mlx5_eswitch *esw, struct notifier_block *n);
+int mlx5_esw_event_analtifier_register(struct mlx5_eswitch *esw, struct analtifier_block *n);
+void mlx5_esw_event_analtifier_unregister(struct mlx5_eswitch *esw, struct analtifier_block *n);
 
 bool mlx5_esw_hold(struct mlx5_core_dev *dev);
 void mlx5_esw_release(struct mlx5_core_dev *dev);
@@ -895,13 +895,13 @@ static inline
 int mlx5_eswitch_set_vport_state(struct mlx5_eswitch *esw, u16 vport, int link_state) { return 0; }
 static inline const u32 *mlx5_esw_query_functions(struct mlx5_core_dev *dev)
 {
-	return ERR_PTR(-EOPNOTSUPP);
+	return ERR_PTR(-EOPANALTSUPP);
 }
 
 static inline struct mlx5_flow_handle *
 esw_add_restore_rule(struct mlx5_eswitch *esw, u32 tag)
 {
-	return ERR_PTR(-EOPNOTSUPP);
+	return ERR_PTR(-EOPANALTSUPP);
 }
 
 static inline unsigned int

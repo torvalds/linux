@@ -102,7 +102,7 @@ void adf_disable_sriov(struct adf_accel_dev *accel_dev)
 	if (!accel_dev->pf.vf_info)
 		return;
 
-	adf_pf2vf_notify_restarting(accel_dev);
+	adf_pf2vf_analtify_restarting(accel_dev);
 	pci_disable_sriov(accel_to_pci_dev(accel_dev));
 
 	/* Disable VF to PF interrupts */
@@ -125,7 +125,7 @@ EXPORT_SYMBOL_GPL(adf_disable_sriov);
  * @pdev:  Pointer to PCI device.
  * @numvfs: Number of virtual functions (VFs) to enable.
  *
- * Note that the @numvfs parameter is ignored and all VFs supported by the
+ * Analte that the @numvfs parameter is iganalred and all VFs supported by the
  * device are enabled due to the design of the hardware.
  *
  * Function enables SRIOV for the PCI device.
@@ -182,7 +182,7 @@ int adf_sriov_configure(struct pci_dev *pdev, int numvfs)
 					sizeof(struct adf_accel_vf_info),
 					GFP_KERNEL);
 	if (!accel_dev->pf.vf_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (adf_dev_up(accel_dev, false)) {
 		dev_err(&GET_DEV(accel_dev), "Failed to start qat_dev%d\n",
@@ -203,7 +203,7 @@ int __init adf_init_pf_wq(void)
 	/* Workqueue for PF2VF responses */
 	pf2vf_resp_wq = alloc_workqueue("qat_pf2vf_resp_wq", WQ_MEM_RECLAIM, 0);
 
-	return !pf2vf_resp_wq ? -ENOMEM : 0;
+	return !pf2vf_resp_wq ? -EANALMEM : 0;
 }
 
 void adf_exit_pf_wq(void)

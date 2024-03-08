@@ -19,17 +19,17 @@
 #define	PTP_TCR		0x00	/* Timestamp Control Reg */
 #define	PTP_SSIR	0x04	/* Sub-Second Increment Reg */
 #define	PTP_STSR	0x08	/* System Time – Seconds Regr */
-#define	PTP_STNSR	0x0c	/* System Time – Nanoseconds Reg */
+#define	PTP_STNSR	0x0c	/* System Time – Naanalseconds Reg */
 #define	PTP_STSUR	0x10	/* System Time – Seconds Update Reg */
-#define	PTP_STNSUR	0x14	/* System Time – Nanoseconds Update Reg */
+#define	PTP_STNSUR	0x14	/* System Time – Naanalseconds Update Reg */
 #define	PTP_TAR		0x18	/* Timestamp Addend Reg */
 #define	PTP_ACR		0x40	/* Auxiliary Control Reg */
-#define	PTP_ATNR	0x48	/* Auxiliary Timestamp - Nanoseconds Reg */
+#define	PTP_ATNR	0x48	/* Auxiliary Timestamp - Naanalseconds Reg */
 #define	PTP_ATSR	0x4c	/* Auxiliary Timestamp - Seconds Reg */
-#define	PTP_TS_INGR_CORR_NS	0x58	/* Ingress timestamp correction nanoseconds */
-#define	PTP_TS_EGR_CORR_NS	0x5C	/* Egress timestamp correction nanoseconds*/
-#define	PTP_TS_INGR_CORR_SNS	0x60	/* Ingress timestamp correction subnanoseconds */
-#define	PTP_TS_EGR_CORR_SNS	0x64	/* Egress timestamp correction subnanoseconds */
+#define	PTP_TS_INGR_CORR_NS	0x58	/* Ingress timestamp correction naanalseconds */
+#define	PTP_TS_EGR_CORR_NS	0x5C	/* Egress timestamp correction naanalseconds*/
+#define	PTP_TS_INGR_CORR_SNS	0x60	/* Ingress timestamp correction subnaanalseconds */
+#define	PTP_TS_EGR_CORR_SNS	0x64	/* Egress timestamp correction subnaanalseconds */
 #define	PTP_TS_INGR_LAT	0x68	/* MAC internal Ingress Latency */
 #define	PTP_TS_EGR_LAT	0x6c	/* MAC internal Egress Latency */
 

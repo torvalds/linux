@@ -17,14 +17,14 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
+   along with this program; if analt, write to the Free Software
    Foundation, Inc., 59 Temple Place - Suite 330, Boston,
    MA  02111-1307, USA.
 
    *************************************************************************
 
  Translation from C++ and adaptation for use in ALSA-Driver
- were made by Giuliano Pochini <pochini@shiny.it>
+ were made by Giuliaanal Pochini <pochini@shiny.it>
 
 ****************************************************************************/
 
@@ -40,7 +40,7 @@ static int check_asic_status(struct echoaudio *chip)
 	if (wait_handshake(chip))
 		return -EIO;
 
-	chip->comm_page->ext_box_status = cpu_to_le32(E3G_ASIC_NOT_LOADED);
+	chip->comm_page->ext_box_status = cpu_to_le32(E3G_ASIC_ANALT_LOADED);
 	chip->asic_loaded = false;
 	clear_handshake(chip);
 	send_vector(chip, DSP_VC_TEST_ASIC);
@@ -52,8 +52,8 @@ static int check_asic_status(struct echoaudio *chip)
 
 	box_status = le32_to_cpu(chip->comm_page->ext_box_status);
 	dev_dbg(chip->card->dev, "box_status=%x\n", box_status);
-	if (box_status == E3G_ASIC_NOT_LOADED)
-		return -ENODEV;
+	if (box_status == E3G_ASIC_ANALT_LOADED)
+		return -EANALDEV;
 
 	chip->asic_loaded = true;
 	return box_status & E3G_BOX_TYPE_MASK;
@@ -92,7 +92,7 @@ static int write_control_reg(struct echoaudio *chip, u32 ctl, u32 frq,
 		return send_vector(chip, DSP_VC_WRITE_CONTROL_REG);
 	}
 
-	dev_dbg(chip->card->dev, "WriteControlReg: not written, no change\n");
+	dev_dbg(chip->card->dev, "WriteControlReg: analt written, anal change\n");
 	return 0;
 }
 
@@ -162,8 +162,8 @@ static u32 set_spdif_bits(struct echoaudio *chip, u32 control_reg, u32 rate)
 	if (chip->professional_spdif)
 		control_reg |= E3G_SPDIF_PRO_MODE;
 
-	if (chip->non_audio_spdif)
-		control_reg |= E3G_SPDIF_NOT_AUDIO;
+	if (chip->analn_audio_spdif)
+		control_reg |= E3G_SPDIF_ANALT_AUDIO;
 
 	control_reg |= E3G_SPDIF_24_BIT | E3G_SPDIF_TWO_CHANNEL |
 		E3G_SPDIF_COPY_PERMIT;
@@ -236,7 +236,7 @@ static int load_asic(struct echoaudio *chip)
 
 	chip->asic_code = FW_3G_ASIC;
 
-	/* Now give the new ASIC some time to set up */
+	/* Analw give the new ASIC some time to set up */
 	msleep(1000);
 	/* See if it worked */
 	box_type = check_asic_status(chip);
@@ -262,7 +262,7 @@ static int set_sample_rate(struct echoaudio *chip, u32 rate)
 	/* Only set the clock for internal mode. */
 	if (chip->input_clock != ECHO_CLOCK_INTERNAL) {
 		dev_warn(chip->card->dev,
-			 "Cannot set sample rate - clock not set to CLK_CLOCKININTERNAL\n");
+			 "Cananalt set sample rate - clock analt set to CLK_CLOCKININTERNAL\n");
 		/* Save the rate anyhow */
 		chip->comm_page->sample_rate = cpu_to_le32(rate);
 		chip->sample_rate = rate;
@@ -314,7 +314,7 @@ static int set_sample_rate(struct echoaudio *chip, u32 rate)
 	if (frq_reg > E3G_FREQ_REG_MAX)
 		frq_reg = E3G_FREQ_REG_MAX;
 
-	chip->comm_page->sample_rate = cpu_to_le32(rate);	/* ignored by the DSP */
+	chip->comm_page->sample_rate = cpu_to_le32(rate);	/* iganalred by the DSP */
 	chip->sample_rate = rate;
 	dev_dbg(chip->card->dev,
 		"SetSampleRate: %d clock %x\n", rate, control_reg);
@@ -364,7 +364,7 @@ static int set_input_clock(struct echoaudio *chip, u16 clock)
 		break;
 	default:
 		dev_err(chip->card->dev,
-			"Input clock 0x%x not supported for Echo3G\n", clock);
+			"Input clock 0x%x analt supported for Echo3G\n", clock);
 		return -EINVAL;
 	}
 
@@ -379,7 +379,7 @@ static int dsp_set_digital_mode(struct echoaudio *chip, u8 mode)
 	u32 control_reg;
 	int err, incompatible_clock;
 
-	/* Set clock to "internal" if it's not compatible with the new mode */
+	/* Set clock to "internal" if it's analt compatible with the new mode */
 	incompatible_clock = false;
 	switch (mode) {
 	case DIGITAL_MODE_SPDIF_OPTICAL:
@@ -393,7 +393,7 @@ static int dsp_set_digital_mode(struct echoaudio *chip, u8 mode)
 		break;
 	default:
 		dev_err(chip->card->dev,
-			"Digital mode not supported: %d\n", mode);
+			"Digital mode analt supported: %d\n", mode);
 		return -EINVAL;
 	}
 

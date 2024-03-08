@@ -66,9 +66,9 @@ switch_destroy()
 
 	ip link set dev br1 down
 	ip link set dev $swp2 down
-	ip link set dev $swp2 nomaster
+	ip link set dev $swp2 analmaster
 	ip link set dev $swp1 down
-	ip link set dev $swp1 nomaster
+	ip link set dev $swp1 analmaster
 	ip link del dev br1
 }
 
@@ -105,23 +105,23 @@ __test_port_range()
 	$MZ $mode $h1 -c 1 -q -p 100 -a $smac -b $dmac -A $sip -B $dip \
 		-t $ip_proto "sp=$sport_min,dp=$dport_min"
 	tc_check_packets "dev $swp1 ingress" 101 1
-	check_err $? "Ingress filter not hit with minimum ports"
+	check_err $? "Ingress filter analt hit with minimum ports"
 	tc_check_packets "dev $swp2 egress" 101 1
-	check_err $? "Egress filter not hit with minimum ports"
+	check_err $? "Egress filter analt hit with minimum ports"
 
 	$MZ $mode $h1 -c 1 -q -p 100 -a $smac -b $dmac -A $sip -B $dip \
 		-t $ip_proto "sp=$sport_mid,dp=$dport_mid"
 	tc_check_packets "dev $swp1 ingress" 101 2
-	check_err $? "Ingress filter not hit with middle ports"
+	check_err $? "Ingress filter analt hit with middle ports"
 	tc_check_packets "dev $swp2 egress" 101 2
-	check_err $? "Egress filter not hit with middle ports"
+	check_err $? "Egress filter analt hit with middle ports"
 
 	$MZ $mode $h1 -c 1 -q -p 100 -a $smac -b $dmac -A $sip -B $dip \
 		-t $ip_proto "sp=$sport_max,dp=$dport_max"
 	tc_check_packets "dev $swp1 ingress" 101 3
-	check_err $? "Ingress filter not hit with maximum ports"
+	check_err $? "Ingress filter analt hit with maximum ports"
 	tc_check_packets "dev $swp2 egress" 101 3
-	check_err $? "Egress filter not hit with maximum ports"
+	check_err $? "Egress filter analt hit with maximum ports"
 
 	# Send traffic when both ports are out of range and when only one port
 	# is out of range.
@@ -136,9 +136,9 @@ __test_port_range()
 	$MZ $mode $h1 -c 1 -q -p 100 -a $smac -b $dmac -A $sip -B $dip \
 		-t $ip_proto "sp=$((sport_max + 1)),dp=$((dport_max + 1))"
 	tc_check_packets "dev $swp1 ingress" 101 3
-	check_err $? "Ingress filter was hit when should not"
+	check_err $? "Ingress filter was hit when should analt"
 	tc_check_packets "dev $swp2 egress" 101 3
-	check_err $? "Egress filter was hit when should not"
+	check_err $? "Egress filter was hit when should analt"
 
 	tc filter del dev $swp2 egress protocol $proto pref 1 handle 101 flower
 	tc filter del dev $swp1 ingress protocol $proto pref 1 handle 101 flower

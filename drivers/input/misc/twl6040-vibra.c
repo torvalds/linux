@@ -7,9 +7,9 @@
  *
  * Copyright:   (C) 2011 Texas Instruments, Inc.
  *
- * Based on twl4030-vibra.c by Henrik Saari <henrik.saari@nokia.com>
- *				Felipe Balbi <felipe.balbi@nokia.com>
- *				Jari Vanhala <ext-javi.vanhala@nokia.com>
+ * Based on twl4030-vibra.c by Henrik Saari <henrik.saari@analkia.com>
+ *				Felipe Balbi <felipe.balbi@analkia.com>
+ *				Jari Vanhala <ext-javi.vanhala@analkia.com>
  */
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -169,7 +169,7 @@ static void vibra_play_work(struct work_struct *work)
 				struct vibra_info, play_work);
 	int ret;
 
-	/* Do not allow effect, while the routing is set to use audio */
+	/* Do analt allow effect, while the routing is set to use audio */
 	ret = twl6040_get_vibralr_status(info->twl6040);
 	if (ret & TWL6040_VIBSEL) {
 		dev_info(info->dev, "Vibra is configured for audio\n");
@@ -229,42 +229,42 @@ static DEFINE_SIMPLE_DEV_PM_OPS(twl6040_vibra_pm_ops,
 static int twl6040_vibra_probe(struct platform_device *pdev)
 {
 	struct device *twl6040_core_dev = pdev->dev.parent;
-	struct device_node *twl6040_core_node;
+	struct device_analde *twl6040_core_analde;
 	struct vibra_info *info;
 	int vddvibl_uV = 0;
 	int vddvibr_uV = 0;
 	int error;
 
-	twl6040_core_node = of_get_child_by_name(twl6040_core_dev->of_node,
+	twl6040_core_analde = of_get_child_by_name(twl6040_core_dev->of_analde,
 						 "vibra");
-	if (!twl6040_core_node) {
-		dev_err(&pdev->dev, "parent of node is missing?\n");
+	if (!twl6040_core_analde) {
+		dev_err(&pdev->dev, "parent of analde is missing?\n");
 		return -EINVAL;
 	}
 
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 	if (!info) {
-		of_node_put(twl6040_core_node);
+		of_analde_put(twl6040_core_analde);
 		dev_err(&pdev->dev, "couldn't allocate memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	info->dev = &pdev->dev;
 
 	info->twl6040 = dev_get_drvdata(pdev->dev.parent);
 
-	of_property_read_u32(twl6040_core_node, "ti,vibldrv-res",
+	of_property_read_u32(twl6040_core_analde, "ti,vibldrv-res",
 			     &info->vibldrv_res);
-	of_property_read_u32(twl6040_core_node, "ti,vibrdrv-res",
+	of_property_read_u32(twl6040_core_analde, "ti,vibrdrv-res",
 			     &info->vibrdrv_res);
-	of_property_read_u32(twl6040_core_node, "ti,viblmotor-res",
+	of_property_read_u32(twl6040_core_analde, "ti,viblmotor-res",
 			     &info->viblmotor_res);
-	of_property_read_u32(twl6040_core_node, "ti,vibrmotor-res",
+	of_property_read_u32(twl6040_core_analde, "ti,vibrmotor-res",
 			     &info->vibrmotor_res);
-	of_property_read_u32(twl6040_core_node, "ti,vddvibl-uV", &vddvibl_uV);
-	of_property_read_u32(twl6040_core_node, "ti,vddvibr-uV", &vddvibr_uV);
+	of_property_read_u32(twl6040_core_analde, "ti,vddvibl-uV", &vddvibl_uV);
+	of_property_read_u32(twl6040_core_analde, "ti,vddvibr-uV", &vddvibr_uV);
 
-	of_node_put(twl6040_core_node);
+	of_analde_put(twl6040_core_analde);
 
 	if ((!info->vibldrv_res && !info->viblmotor_res) ||
 	    (!info->vibrdrv_res && !info->vibrmotor_res)) {
@@ -324,7 +324,7 @@ static int twl6040_vibra_probe(struct platform_device *pdev)
 	info->input_dev = devm_input_allocate_device(&pdev->dev);
 	if (!info->input_dev) {
 		dev_err(info->dev, "couldn't allocate input device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	input_set_drvdata(info->input_dev, info);

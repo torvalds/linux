@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -52,7 +52,7 @@ struct intel_opregion {
 	u32 vbt_size;
 	u32 *lid_state;
 	struct work_struct asle_work;
-	struct notifier_block acpi_notifier;
+	struct analtifier_block acpi_analtifier;
 };
 
 #define OPREGION_SIZE            (8 * 1024)
@@ -70,9 +70,9 @@ void intel_opregion_suspend(struct drm_i915_private *dev_priv,
 			    pci_power_t state);
 
 void intel_opregion_asle_intr(struct drm_i915_private *dev_priv);
-int intel_opregion_notify_encoder(struct intel_encoder *intel_encoder,
+int intel_opregion_analtify_encoder(struct intel_encoder *intel_encoder,
 				  bool enable);
-int intel_opregion_notify_adapter(struct drm_i915_private *dev_priv,
+int intel_opregion_analtify_adapter(struct drm_i915_private *dev_priv,
 				  pci_power_t state);
 int intel_opregion_get_panel_type(struct drm_i915_private *dev_priv);
 const struct drm_edid *intel_opregion_get_edid(struct intel_connector *connector);
@@ -112,20 +112,20 @@ static inline void intel_opregion_asle_intr(struct drm_i915_private *dev_priv)
 }
 
 static inline int
-intel_opregion_notify_encoder(struct intel_encoder *intel_encoder, bool enable)
+intel_opregion_analtify_encoder(struct intel_encoder *intel_encoder, bool enable)
 {
 	return 0;
 }
 
 static inline int
-intel_opregion_notify_adapter(struct drm_i915_private *dev, pci_power_t state)
+intel_opregion_analtify_adapter(struct drm_i915_private *dev, pci_power_t state)
 {
 	return 0;
 }
 
 static inline int intel_opregion_get_panel_type(struct drm_i915_private *dev)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static inline const struct drm_edid *

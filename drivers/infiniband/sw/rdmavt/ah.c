@@ -68,7 +68,7 @@ int rvt_create_ah(struct ib_ah *ibah, struct rdma_ah_init_attr *init_attr,
 	spin_lock_irqsave(&dev->n_ahs_lock, flags);
 	if (dev->n_ahs_allocated == dev->dparms.props.max_ah) {
 		spin_unlock_irqrestore(&dev->n_ahs_lock, flags);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	dev->n_ahs_allocated++;
@@ -76,8 +76,8 @@ int rvt_create_ah(struct ib_ah *ibah, struct rdma_ah_init_attr *init_attr,
 
 	rdma_copy_ah_attr(&ah->attr, init_attr->ah_attr);
 
-	if (dev->driver_f.notify_new_ah)
-		dev->driver_f.notify_new_ah(ibah->device,
+	if (dev->driver_f.analtify_new_ah)
+		dev->driver_f.analtify_new_ah(ibah->device,
 					    init_attr->ah_attr, ah);
 
 	return 0;

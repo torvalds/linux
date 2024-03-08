@@ -9,7 +9,7 @@
 #include "fs.h"
 
 enum mlx5e_rss_init_type {
-	MLX5E_RSS_INIT_NO_TIRS = 0,
+	MLX5E_RSS_INIT_ANAL_TIRS = 0,
 	MLX5E_RSS_INIT_TIRS
 };
 

@@ -70,7 +70,7 @@
 
 #define OCP_STD_PHY_BASE	0xa400
 
-#define RTL_CFG_NO_GBIT	1
+#define RTL_CFG_ANAL_GBIT	1
 
 /* write/read MMIO register */
 #define RTL_W8(tp, reg, val8)	writeb((val8), tp->mmio_addr + (reg))
@@ -142,7 +142,7 @@ static const struct pci_device_id rtl8169_pci_tbl[] = {
 	{ PCI_VDEVICE(REALTEK,	0x2502) },
 	{ PCI_VDEVICE(REALTEK,	0x2600) },
 	{ PCI_VDEVICE(REALTEK,	0x8129) },
-	{ PCI_VDEVICE(REALTEK,	0x8136), RTL_CFG_NO_GBIT },
+	{ PCI_VDEVICE(REALTEK,	0x8136), RTL_CFG_ANAL_GBIT },
 	{ PCI_VDEVICE(REALTEK,	0x8161) },
 	{ PCI_VDEVICE(REALTEK,	0x8162) },
 	{ PCI_VDEVICE(REALTEK,	0x8167) },
@@ -189,7 +189,7 @@ enum rtl_registers {
 #define	RX128_INT_EN			(1 << 15)	/* 8111c and later */
 #define	RX_MULTI_EN			(1 << 14)	/* 8111c only */
 #define	RXCFG_FIFO_SHIFT		13
-					/* No threshold before first PCI xfer */
+					/* Anal threshold before first PCI xfer */
 #define	RX_FIFO_THRESH			(7 << RXCFG_FIFO_SHIFT)
 #define	RX_EARLY_OFF			(1 << 11)
 #define	RX_PAUSE_SLOT_ON		(1 << 11)	/* 8125b and later */
@@ -224,7 +224,7 @@ enum rtl_registers {
 	RxDescAddrHigh	= 0xe8,
 	EarlyTxThres	= 0xec,	/* 8169. Unit of 32 bytes. */
 
-#define NoEarlyTx	0x3f	/* Max value : no early transmit. */
+#define AnalEarlyTx	0x3f	/* Max value : anal early transmit. */
 
 	MaxTxPacketSize	= 0xec,	/* 8101/8168. Unit of 128 bytes. */
 
@@ -249,9 +249,9 @@ enum rtl8168_8101_registers {
 #define	CSIAR_BYTE_ENABLE		0x0000f000
 #define	CSIAR_ADDR_MASK			0x00000fff
 	PMCH			= 0x6f,
-#define D3COLD_NO_PLL_DOWN		BIT(7)
-#define D3HOT_NO_PLL_DOWN		BIT(6)
-#define D3_NO_PLL_DOWN			(BIT(7) | BIT(6))
+#define D3COLD_ANAL_PLL_DOWN		BIT(7)
+#define D3HOT_ANAL_PLL_DOWN		BIT(6)
+#define D3_ANAL_PLL_DOWN			(BIT(7) | BIT(6))
 	EPHYAR			= 0x80,
 #define	EPHYAR_FLAG			0x80000000
 #define	EPHYAR_WRITE_CMD		0x80000000
@@ -266,7 +266,7 @@ enum rtl8168_8101_registers {
 #define	FIX_NAK_2			(1 << 3)
 	TWSI			= 0xd2,
 	MCU			= 0xd3,
-#define	NOW_IS_OOB			(1 << 7)
+#define	ANALW_IS_OOB			(1 << 7)
 #define	TX_EMPTY			(1 << 5)
 #define	RX_EMPTY			(1 << 4)
 #define	RXTX_EMPTY			(TX_EMPTY | RX_EMPTY)
@@ -429,7 +429,7 @@ enum rtl_register_content {
 	EnableBist	= (1 << 15),	// 8168 8101
 	Mac_dbgo_oe	= (1 << 14),	// 8168 8101
 	EnAnaPLL	= (1 << 14),	// 8169
-	Normal_mode	= (1 << 13),	// unused
+	Analrmal_mode	= (1 << 13),	// unused
 	Force_half_dup	= (1 << 12),	// 8168 8101
 	Force_rxflow_en	= (1 << 11),	// 8168 8101
 	Force_txflow_en	= (1 << 10),	// 8168 8101
@@ -442,7 +442,7 @@ enum rtl_register_content {
 	PCIDAC		= (1 << 4),
 	PCIMulRW	= (1 << 3),
 #define INTT_MASK	GENMASK(1, 0)
-#define CPCMD_MASK	(Normal_mode | RxVlan | RxChkSum | INTT_MASK)
+#define CPCMD_MASK	(Analrmal_mode | RxVlan | RxChkSum | INTT_MASK)
 
 	/* rtl8169_PHYstatus */
 	TBI_Enable	= 0x80,
@@ -577,13 +577,13 @@ struct rtl8169_tc_offsets {
 enum rtl_flag {
 	RTL_FLAG_TASK_ENABLED = 0,
 	RTL_FLAG_TASK_RESET_PENDING,
-	RTL_FLAG_TASK_RESET_NO_QUEUE_WAKE,
+	RTL_FLAG_TASK_RESET_ANAL_QUEUE_WAKE,
 	RTL_FLAG_TASK_TX_TIMEOUT,
 	RTL_FLAG_MAX
 };
 
 enum rtl_dash_type {
-	RTL_DASH_NONE,
+	RTL_DASH_ANALNE,
 	RTL_DASH_DP,
 	RTL_DASH_EP,
 };
@@ -1212,7 +1212,7 @@ static void r8168ep_ocp_write(struct rtl8169_private *tp, u8 mask, u16 reg,
 		       data, ERIAR_OOB);
 }
 
-static void r8168dp_oob_notify(struct rtl8169_private *tp, u8 cmd)
+static void r8168dp_oob_analtify(struct rtl8169_private *tp, u8 cmd)
 {
 	rtl_eri_write(tp, 0xe8, ERIAR_MASK_0001, cmd);
 
@@ -1257,7 +1257,7 @@ static void rtl8168ep_stop_cmac(struct rtl8169_private *tp)
 
 static void rtl8168dp_driver_start(struct rtl8169_private *tp)
 {
-	r8168dp_oob_notify(tp, OOB_CMD_DRIVER_START);
+	r8168dp_oob_analtify(tp, OOB_CMD_DRIVER_START);
 	rtl_loop_wait_high(tp, &rtl_dp_ocp_read_cond, 10000, 10);
 }
 
@@ -1278,7 +1278,7 @@ static void rtl8168_driver_start(struct rtl8169_private *tp)
 
 static void rtl8168dp_driver_stop(struct rtl8169_private *tp)
 {
-	r8168dp_oob_notify(tp, OOB_CMD_DRIVER_STOP);
+	r8168dp_oob_analtify(tp, OOB_CMD_DRIVER_STOP);
 	rtl_loop_wait_low(tp, &rtl_dp_ocp_read_cond, 10000, 10);
 }
 
@@ -1331,7 +1331,7 @@ static enum rtl_dash_type rtl_get_dash_type(struct rtl8169_private *tp)
 	case RTL_GIGA_MAC_VER_51 ... RTL_GIGA_MAC_VER_53:
 		return RTL_DASH_EP;
 	default:
-		return RTL_DASH_NONE;
+		return RTL_DASH_ANALNE;
 	}
 }
 
@@ -1343,9 +1343,9 @@ static void rtl_set_d3_pll_down(struct rtl8169_private *tp, bool enable)
 	case RTL_GIGA_MAC_VER_32 ... RTL_GIGA_MAC_VER_37:
 	case RTL_GIGA_MAC_VER_39 ... RTL_GIGA_MAC_VER_63:
 		if (enable)
-			RTL_W8(tp, PMCH, RTL_R8(tp, PMCH) & ~D3_NO_PLL_DOWN);
+			RTL_W8(tp, PMCH, RTL_R8(tp, PMCH) & ~D3_ANAL_PLL_DOWN);
 		else
-			RTL_W8(tp, PMCH, RTL_R8(tp, PMCH) | D3_NO_PLL_DOWN);
+			RTL_W8(tp, PMCH, RTL_R8(tp, PMCH) | D3_ANAL_PLL_DOWN);
 		break;
 	default:
 		break;
@@ -1668,7 +1668,7 @@ static int rtl8169_get_sset_count(struct net_device *dev, int sset)
 	case ETH_SS_STATS:
 		return ARRAY_SIZE(rtl8169_gstrings);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1713,7 +1713,7 @@ static void rtl8169_init_counter_offsets(struct rtl8169_private *tp)
 	 *
 	 * To make sure the HW values returned by @get_stats64 match the SW
 	 * values, we collect the initial values at first open(*) and use them
-	 * as offsets to normalize the values returned by @get_stats64.
+	 * as offsets to analrmalize the values returned by @get_stats64.
 	 *
 	 * (*) We can't call rtl8169_init_counter_offsets from rtl_init_one
 	 * for the reason stated in rtl8169_update_counters; CmdRxEnb is only
@@ -1832,8 +1832,8 @@ rtl_coalesce_info(struct rtl8169_private *tp)
 	else
 		ci = rtl_coalesce_info_8168_8136;
 
-	/* if speed is unknown assume highest one */
-	if (tp->phydev->speed == SPEED_UNKNOWN)
+	/* if speed is unkanalwn assume highest one */
+	if (tp->phydev->speed == SPEED_UNKANALWN)
 		return ci;
 
 	for (; ci->speed; ci++) {
@@ -1855,7 +1855,7 @@ static int rtl_get_coalesce(struct net_device *dev,
 	u16 intrmit;
 
 	if (rtl_is_8125(tp))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	memset(ec, 0, sizeof(*ec));
 
@@ -1872,7 +1872,7 @@ static int rtl_get_coalesce(struct net_device *dev,
 	ec->tx_coalesce_usecs = DIV_ROUND_UP(c_us * scale, 1000);
 
 	c_fr = FIELD_GET(RTL_COALESCE_TX_FRAMES, intrmit);
-	/* ethtool_coalesce states usecs and max_frames must not both be 0 */
+	/* ethtool_coalesce states usecs and max_frames must analt both be 0 */
 	ec->tx_max_coalesced_frames = (c_us || c_fr) ? c_fr * 4 : 1;
 
 	c_us = FIELD_GET(RTL_COALESCE_RX_USECS, intrmit);
@@ -1918,7 +1918,7 @@ static int rtl_set_coalesce(struct net_device *dev,
 	int scale;
 
 	if (rtl_is_8125(tp))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (rx_fr > RTL_COALESCE_FRAME_MAX || tx_fr > RTL_COALESCE_FRAME_MAX)
 		return -ERANGE;
@@ -1929,14 +1929,14 @@ static int rtl_set_coalesce(struct net_device *dev,
 		return scale;
 
 	/* Accept max_frames=1 we returned in rtl_get_coalesce. Accept it
-	 * not only when usecs=0 because of e.g. the following scenario:
+	 * analt only when usecs=0 because of e.g. the following scenario:
 	 *
-	 * - both rx_usecs=0 & rx_frames=0 in hardware (no delay on RX)
+	 * - both rx_usecs=0 & rx_frames=0 in hardware (anal delay on RX)
 	 * - rtl_get_coalesce returns rx_usecs=0, rx_frames=1
 	 * - then user does `ethtool -C eth0 rx-usecs 100`
 	 *
 	 * Since ethtool sends to kernel whole ethtool_coalesce settings,
-	 * if we want to ignore rx_frames then it has to be set to 0.
+	 * if we want to iganalre rx_frames then it has to be set to 0.
 	 */
 	if (rx_fr == 1)
 		rx_fr = 0;
@@ -1979,7 +1979,7 @@ static int rtl8169_get_eee(struct net_device *dev, struct ethtool_eee *data)
 	struct rtl8169_private *tp = netdev_priv(dev);
 
 	if (!rtl_supports_eee(tp))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return phy_ethtool_get_eee(tp->phydev, data);
 }
@@ -1990,7 +1990,7 @@ static int rtl8169_set_eee(struct net_device *dev, struct ethtool_eee *data)
 	int ret;
 
 	if (!rtl_supports_eee(tp))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = phy_ethtool_set_eee(tp->phydev, data);
 
@@ -2030,7 +2030,7 @@ static int rtl8169_set_pauseparam(struct net_device *dev,
 	struct rtl8169_private *tp = netdev_priv(dev);
 
 	if (dev->mtu > ETH_DATA_LEN)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	phy_set_asym_pause(tp->phydev, data->rx_pause, data->tx_pause);
 
@@ -2190,7 +2190,7 @@ static enum mac_version rtl8169_get_mac_version(u16 xid, bool gmii)
 		{ 0xfc8, 0x008,	RTL_GIGA_MAC_VER_02 },
 
 		/* Catch-all */
-		{ 0x000, 0x000,	RTL_GIGA_MAC_NONE   }
+		{ 0x000, 0x000,	RTL_GIGA_MAC_ANALNE   }
 	};
 	const struct rtl_mac_info *p = mac_info;
 	enum mac_version ver;
@@ -2199,7 +2199,7 @@ static enum mac_version rtl8169_get_mac_version(u16 xid, bool gmii)
 		p++;
 	ver = p->ver;
 
-	if (ver != RTL_GIGA_MAC_NONE && !gmii) {
+	if (ver != RTL_GIGA_MAC_ANALNE && !gmii) {
 		if (ver == RTL_GIGA_MAC_VER_42)
 			ver = RTL_GIGA_MAC_VER_43;
 		else if (ver == RTL_GIGA_MAC_VER_46)
@@ -2497,7 +2497,7 @@ static void rtl_request_firmware(struct rtl8169_private *tp)
 {
 	struct rtl_fw *rtl_fw;
 
-	/* firmware loaded already or no firmware available */
+	/* firmware loaded already or anal firmware available */
 	if (tp->rtl_fw || !tp->fw_name)
 		return;
 
@@ -2723,15 +2723,15 @@ static void rtl_set_aspm_entry_latency(struct rtl8169_private *tp, u8 val)
 	/* According to Realtek the value at config space address 0x070f
 	 * controls the L0s/L1 entrance latency. We try standard ECAM access
 	 * first and if it fails fall back to CSI.
-	 * bit 0..2: L0: 0 = 1us, 1 = 2us .. 6 = 7us, 7 = 7us (no typo)
+	 * bit 0..2: L0: 0 = 1us, 1 = 2us .. 6 = 7us, 7 = 7us (anal typo)
 	 * bit 3..5: L1: 0 = 1us, 1 = 2us .. 6 = 64us, 7 = 64us
 	 */
 	if (pdev->cfg_size > 0x070f &&
 	    pci_write_config_byte(pdev, 0x070f, val) == PCIBIOS_SUCCESSFUL)
 		return;
 
-	netdev_notice_once(tp->dev,
-		"No native access to PCI extended config space, falling back to CSI\n");
+	netdev_analtice_once(tp->dev,
+		"Anal native access to PCI extended config space, falling back to CSI\n");
 	csi = rtl_csi_read(tp, 0x070c) & 0x00ffffff;
 	rtl_csi_write(tp, 0x070c, csi | val << 24);
 }
@@ -2866,7 +2866,7 @@ static void rtl_set_fifo_size(struct rtl8169_private *tp, u16 rx_stat,
 			      u16 tx_stat, u16 rx_dyn, u16 tx_dyn)
 {
 	/* Usage of dynamic vs. static FIFO is controlled by bit
-	 * TXCFG_AUTO_FIFO. Exact meaning of FIFO values isn't known.
+	 * TXCFG_AUTO_FIFO. Exact meaning of FIFO values isn't kanalwn.
 	 */
 	rtl_eri_write(tp, 0xc8, ERIAR_MASK_1111, (rx_stat << 16) | rx_dyn);
 	rtl_eri_write(tp, 0xe8, ERIAR_MASK_1111, (tx_stat << 16) | tx_dyn);
@@ -3044,7 +3044,7 @@ static void rtl_hw_start_8168e_2(struct rtl8169_private *tp)
 
 	rtl_disable_clock_request(tp);
 
-	RTL_W8(tp, MCU, RTL_R8(tp, MCU) & ~NOW_IS_OOB);
+	RTL_W8(tp, MCU, RTL_R8(tp, MCU) & ~ANALW_IS_OOB);
 
 	rtl8168_config_eee_mac(tp);
 
@@ -3068,7 +3068,7 @@ static void rtl_hw_start_8168f(struct rtl8169_private *tp)
 
 	rtl_disable_clock_request(tp);
 
-	RTL_W8(tp, MCU, RTL_R8(tp, MCU) & ~NOW_IS_OOB);
+	RTL_W8(tp, MCU, RTL_R8(tp, MCU) & ~ANALW_IS_OOB);
 	RTL_W8(tp, DLLPR, RTL_R8(tp, DLLPR) | PFM_EN);
 	RTL_W32(tp, MISC, RTL_R32(tp, MISC) | PWM_EN);
 	rtl_mod_config5(tp, Spi_en, 0);
@@ -3474,7 +3474,7 @@ static void rtl_hw_start_8105e_1(struct rtl8169_private *tp)
 		{ 0x0a,	0, 0x0020 }
 	};
 
-	/* Force LAN exit from ASPM if Rx/Tx are not idle */
+	/* Force LAN exit from ASPM if Rx/Tx are analt idle */
 	RTL_W32(tp, FuncEvent, RTL_R32(tp, FuncEvent) | 0x002800);
 
 	/* Disable Early Tally Counter */
@@ -3503,10 +3503,10 @@ static void rtl_hw_start_8402(struct rtl8169_private *tp)
 
 	rtl_set_def_aspm_entry_latency(tp);
 
-	/* Force LAN exit from ASPM if Rx/Tx are not idle */
+	/* Force LAN exit from ASPM if Rx/Tx are analt idle */
 	RTL_W32(tp, FuncEvent, RTL_R32(tp, FuncEvent) | 0x002800);
 
-	RTL_W8(tp, MCU, RTL_R8(tp, MCU) & ~NOW_IS_OOB);
+	RTL_W8(tp, MCU, RTL_R8(tp, MCU) & ~ANALW_IS_OOB);
 
 	rtl_ephy_init(tp, e_info_8402);
 
@@ -3524,7 +3524,7 @@ static void rtl_hw_start_8402(struct rtl8169_private *tp)
 
 static void rtl_hw_start_8106(struct rtl8169_private *tp)
 {
-	/* Force LAN exit from ASPM if Rx/Tx are not idle */
+	/* Force LAN exit from ASPM if Rx/Tx are analt idle */
 	RTL_W32(tp, FuncEvent, RTL_R32(tp, FuncEvent) | 0x002800);
 
 	RTL_W32(tp, MISC, (RTL_R32(tp, MISC) | DISABLE_LAN_EN) & ~EARLY_TALLY_EN);
@@ -3721,7 +3721,7 @@ static void rtl_hw_start_8168(struct rtl8169_private *tp)
 
 static void rtl_hw_start_8169(struct rtl8169_private *tp)
 {
-	RTL_W8(tp, EarlyTxThres, NoEarlyTx);
+	RTL_W8(tp, EarlyTxThres, AnalEarlyTx);
 
 	tp->cp_cmd |= PCIMulRW;
 
@@ -3804,11 +3804,11 @@ static struct page *rtl8169_alloc_rx_data(struct rtl8169_private *tp,
 					  struct RxDesc *desc)
 {
 	struct device *d = tp_to_dev(tp);
-	int node = dev_to_node(d);
+	int analde = dev_to_analde(d);
 	dma_addr_t mapping;
 	struct page *data;
 
-	data = alloc_pages_node(node, GFP_KERNEL, get_order(R8169_RX_BUF_SIZE));
+	data = alloc_pages_analde(analde, GFP_KERNEL, get_order(R8169_RX_BUF_SIZE));
 	if (!data)
 		return NULL;
 
@@ -3850,7 +3850,7 @@ static int rtl8169_rx_fill(struct rtl8169_private *tp)
 		data = rtl8169_alloc_rx_data(tp, tp->RxDescArray + i);
 		if (!data) {
 			rtl8169_rx_clear(tp);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		tp->Rx_databuff[i] = data;
 	}
@@ -4025,16 +4025,16 @@ err_out:
 
 static bool rtl_skb_is_udp(struct sk_buff *skb)
 {
-	int no = skb_network_offset(skb);
+	int anal = skb_network_offset(skb);
 	struct ipv6hdr *i6h, _i6h;
 	struct iphdr *ih, _ih;
 
 	switch (vlan_get_protocol(skb)) {
 	case htons(ETH_P_IP):
-		ih = skb_header_pointer(skb, no, sizeof(_ih), &_ih);
+		ih = skb_header_pointer(skb, anal, sizeof(_ih), &_ih);
 		return ih && ih->protocol == IPPROTO_UDP;
 	case htons(ETH_P_IPV6):
-		i6h = skb_header_pointer(skb, no, sizeof(_i6h), &_i6h);
+		i6h = skb_header_pointer(skb, anal, sizeof(_i6h), &_i6h);
 		return i6h && i6h->nexthdr == IPPROTO_UDP;
 	default:
 		return false;
@@ -4383,8 +4383,8 @@ static void rtl_tx(struct net_device *dev, struct rtl8169_private *tp,
 		/*
 		 * 8168 hack: TxPoll requests are lost when the Tx packets are
 		 * too close. Let's kick an extra TxPoll request when a burst
-		 * of start_xmit activity is detected (if it is not detected,
-		 * it is slow enough). -- FR
+		 * of start_xmit activity is detected (if it is analt detected,
+		 * it is slow eanalugh). -- FR
 		 * If skb is NULL then we come here again once a tx irq is
 		 * triggered after the last fragment is marked transmitted.
 		 */
@@ -4405,7 +4405,7 @@ static inline void rtl8169_rx_csum(struct sk_buff *skb, u32 opts1)
 	if (status == RxProtoTCP || status == RxProtoUDP)
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 	else
-		skb_checksum_none_assert(skb);
+		skb_checksum_analne_assert(skb);
 }
 
 static int rtl_rx(struct net_device *dev, struct rtl8169_private *tp, int budget)
@@ -4427,7 +4427,7 @@ static int rtl_rx(struct net_device *dev, struct rtl8169_private *tp, int budget
 
 		/* This barrier is needed to keep us from reading
 		 * any other fields out of the Rx descriptor until
-		 * we know the status of DescOwn
+		 * we kanalw the status of DescOwn
 		 */
 		dma_rmb();
 
@@ -4451,7 +4451,7 @@ static int rtl_rx(struct net_device *dev, struct rtl8169_private *tp, int budget
 		if (likely(!(dev->features & NETIF_F_RXFCS)))
 			pkt_size -= ETH_FCS_LEN;
 
-		/* The driver does not support incoming fragmented frames.
+		/* The driver does analt support incoming fragmented frames.
 		 * They are seen as a symptom of over-mtu sized frames.
 		 */
 		if (unlikely(rtl8169_fragmented_frame(status))) {
@@ -4500,7 +4500,7 @@ static irqreturn_t rtl8169_interrupt(int irq, void *dev_instance)
 	u32 status = rtl_get_events(tp);
 
 	if ((status & 0xffff) == 0xffff || !(status & tp->irq_mask))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (unlikely(status & SYSErr)) {
 		rtl8169_pcierr_interrupt(tp->dev);
@@ -4560,7 +4560,7 @@ static void rtl_task(struct work_struct *work)
 reset:
 		rtl_reset_work(tp);
 		netif_wake_queue(tp->dev);
-	} else if (test_and_clear_bit(RTL_FLAG_TASK_RESET_NO_QUEUE_WAKE, tp->wk.flags)) {
+	} else if (test_and_clear_bit(RTL_FLAG_TASK_RESET_ANAL_QUEUE_WAKE, tp->wk.flags)) {
 		rtl_reset_work(tp);
 	}
 out_unlock:
@@ -4595,7 +4595,7 @@ static void r8169_phylink_handler(struct net_device *ndev)
 	} else {
 		/* In few cases rx is broken after link-down otherwise */
 		if (rtl_is_8125(tp))
-			rtl_schedule_task(tp, RTL_FLAG_TASK_RESET_NO_QUEUE_WAKE);
+			rtl_schedule_task(tp, RTL_FLAG_TASK_RESET_ANAL_QUEUE_WAKE);
 		pm_runtime_idle(d);
 	}
 
@@ -4640,13 +4640,13 @@ static void rtl8169_down(struct rtl8169_private *tp)
 	rtl_disable_exit_l1(tp);
 	rtl_prepare_power_down(tp);
 
-	if (tp->dash_type != RTL_DASH_NONE)
+	if (tp->dash_type != RTL_DASH_ANALNE)
 		rtl8168_driver_stop(tp);
 }
 
 static void rtl8169_up(struct rtl8169_private *tp)
 {
-	if (tp->dash_type != RTL_DASH_NONE)
+	if (tp->dash_type != RTL_DASH_ANALNE)
 		rtl8168_driver_start(tp);
 
 	pci_set_master(tp->pci_dev);
@@ -4703,7 +4703,7 @@ static int rtl_open(struct net_device *dev)
 	struct rtl8169_private *tp = netdev_priv(dev);
 	struct pci_dev *pdev = tp->pci_dev;
 	unsigned long irqflags;
-	int retval = -ENOMEM;
+	int retval = -EANALMEM;
 
 	pm_runtime_get_sync(&pdev->dev);
 
@@ -4727,7 +4727,7 @@ static int rtl_open(struct net_device *dev)
 
 	rtl_request_firmware(tp);
 
-	irqflags = pci_dev_msi_enabled(pdev) ? IRQF_NO_THREAD : IRQF_SHARED;
+	irqflags = pci_dev_msi_enabled(pdev) ? IRQF_ANAL_THREAD : IRQF_SHARED;
 	retval = request_irq(tp->irq, rtl8169_interrupt, irqflags, dev->name, tp);
 	if (retval < 0)
 		goto err_release_fw_2;
@@ -4767,7 +4767,7 @@ rtl8169_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 	struct pci_dev *pdev = tp->pci_dev;
 	struct rtl8169_counters *counters = tp->counters;
 
-	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_get_analresume(&pdev->dev);
 
 	netdev_stats_to_stats64(stats, &dev->stats);
 	dev_fetch_sw_netstats(stats, dev->tstats);
@@ -4792,7 +4792,7 @@ rtl8169_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 	stats->rx_missed_errors = le16_to_cpu(counters->rx_missed) -
 		le16_to_cpu(tp->tc_offset.rx_missed);
 
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_analidle(&pdev->dev);
 }
 
 static void rtl8169_net_suspend(struct rtl8169_private *tp)
@@ -4903,13 +4903,13 @@ static void rtl_remove_one(struct pci_dev *pdev)
 	struct rtl8169_private *tp = pci_get_drvdata(pdev);
 
 	if (pci_dev_run_wake(pdev))
-		pm_runtime_get_noresume(&pdev->dev);
+		pm_runtime_get_analresume(&pdev->dev);
 
 	cancel_work_sync(&tp->wk.work);
 
 	unregister_netdev(tp->dev);
 
-	if (tp->dash_type != RTL_DASH_NONE)
+	if (tp->dash_type != RTL_DASH_ANALNE)
 		rtl8168_driver_stop(tp);
 
 	rtl_release_firmware(tp);
@@ -5003,7 +5003,7 @@ static int r8169_mdio_read_reg(struct mii_bus *mii_bus, int phyaddr, int phyreg)
 	struct rtl8169_private *tp = mii_bus->priv;
 
 	if (phyaddr > 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return rtl_readphy(tp, phyreg);
 }
@@ -5014,7 +5014,7 @@ static int r8169_mdio_write_reg(struct mii_bus *mii_bus, int phyaddr,
 	struct rtl8169_private *tp = mii_bus->priv;
 
 	if (phyaddr > 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	rtl_writephy(tp, phyreg, val);
 
@@ -5029,7 +5029,7 @@ static int r8169_mdio_register(struct rtl8169_private *tp)
 
 	new_bus = devm_mdiobus_alloc(&pdev->dev);
 	if (!new_bus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	new_bus->name = "r8169";
 	new_bus->priv = tp;
@@ -5047,12 +5047,12 @@ static int r8169_mdio_register(struct rtl8169_private *tp)
 
 	tp->phydev = mdiobus_get_phy(new_bus, 0);
 	if (!tp->phydev) {
-		return -ENODEV;
+		return -EANALDEV;
 	} else if (!tp->phydev->drv) {
 		/* Most chip versions fail with the genphy driver.
 		 * Therefore ensure that the dedicated PHY driver is loaded.
 		 */
-		dev_err(&pdev->dev, "no dedicated PHY driver found for PHY ID 0x%08x, maybe realtek.ko needs to be added to initramfs?\n",
+		dev_err(&pdev->dev, "anal dedicated PHY driver found for PHY ID 0x%08x, maybe realtek.ko needs to be added to initramfs?\n",
 			tp->phydev->phy_id);
 		return -EUNATCH;
 	}
@@ -5073,7 +5073,7 @@ static void rtl_hw_init_8168g(struct rtl8169_private *tp)
 
 	RTL_W8(tp, ChipCmd, RTL_R8(tp, ChipCmd) & ~(CmdTxEnb | CmdRxEnb));
 	msleep(1);
-	RTL_W8(tp, MCU, RTL_R8(tp, MCU) & ~NOW_IS_OOB);
+	RTL_W8(tp, MCU, RTL_R8(tp, MCU) & ~ANALW_IS_OOB);
 
 	r8168_mac_ocp_modify(tp, 0xe8de, BIT(14), 0);
 	r8168g_wait_ll_share_fifo_ready(tp);
@@ -5088,7 +5088,7 @@ static void rtl_hw_init_8125(struct rtl8169_private *tp)
 
 	RTL_W8(tp, ChipCmd, RTL_R8(tp, ChipCmd) & ~(CmdTxEnb | CmdRxEnb));
 	msleep(1);
-	RTL_W8(tp, MCU, RTL_R8(tp, MCU) & ~NOW_IS_OOB);
+	RTL_W8(tp, MCU, RTL_R8(tp, MCU) & ~ANALW_IS_OOB);
 
 	r8168_mac_ocp_modify(tp, 0xe8de, BIT(14), 0);
 	r8168g_wait_ll_share_fifo_ready(tp);
@@ -5118,7 +5118,7 @@ static void rtl_hw_initialize(struct rtl8169_private *tp)
 
 static int rtl_jumbo_max(struct rtl8169_private *tp)
 {
-	/* Non-GBit versions don't support jumbo frames */
+	/* Analn-GBit versions don't support jumbo frames */
 	if (!tp->supports_gmii)
 		return 0;
 
@@ -5185,14 +5185,14 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	dev = devm_alloc_etherdev(&pdev->dev, sizeof (*tp));
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	SET_NETDEV_DEV(dev, &pdev->dev);
 	dev->netdev_ops = &rtl_netdev_ops;
 	tp = netdev_priv(dev);
 	tp->dev = dev;
 	tp->pci_dev = pdev;
-	tp->supports_gmii = ent->driver_data == RTL_CFG_NO_GBIT ? 0 : 1;
+	tp->supports_gmii = ent->driver_data == RTL_CFG_ANAL_GBIT ? 0 : 1;
 	tp->eee_adv = -1;
 	tp->ocp_base = OCP_STD_PHY_BASE;
 
@@ -5204,7 +5204,7 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev->tstats = devm_netdev_alloc_pcpu_stats(&pdev->dev,
 						   struct pcpu_sw_netstats);
 	if (!dev->tstats)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Get the *optional* external "ether_clk" used on some boards */
 	tp->clk = devm_clk_get_optional_enabled(&pdev->dev, "ether_clk");
@@ -5222,11 +5222,11 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* use first MMIO region */
 	region = ffs(pci_select_bars(pdev, IORESOURCE_MEM)) - 1;
 	if (region < 0)
-		return dev_err_probe(&pdev->dev, -ENODEV, "no MMIO resource found\n");
+		return dev_err_probe(&pdev->dev, -EANALDEV, "anal MMIO resource found\n");
 
 	rc = pcim_iomap_regions(pdev, BIT(region), KBUILD_MODNAME);
 	if (rc < 0)
-		return dev_err_probe(&pdev->dev, rc, "cannot remap MMIO, aborting\n");
+		return dev_err_probe(&pdev->dev, rc, "cananalt remap MMIO, aborting\n");
 
 	tp->mmio_addr = pcim_iomap_table(pdev)[region];
 
@@ -5238,9 +5238,9 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* Identify chip attached to board */
 	chipset = rtl8169_get_mac_version(xid, tp->supports_gmii);
-	if (chipset == RTL_GIGA_MAC_NONE)
-		return dev_err_probe(&pdev->dev, -ENODEV,
-				     "unknown chip XID %03x, contact r8169 maintainers (see MAINTAINERS file)\n",
+	if (chipset == RTL_GIGA_MAC_ANALNE)
+		return dev_err_probe(&pdev->dev, -EANALDEV,
+				     "unkanalwn chip XID %03x, contact r8169 maintainers (see MAINTAINERS file)\n",
 				     xid);
 	tp->mac_version = chipset;
 
@@ -5344,7 +5344,7 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 					    &tp->counters_phys_addr,
 					    GFP_KERNEL);
 	if (!tp->counters)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pci_set_drvdata(pdev, tp);
 
@@ -5369,7 +5369,7 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			    jumbo_max, tp->mac_version <= RTL_GIGA_MAC_VER_06 ?
 			    "ok" : "ko");
 
-	if (tp->dash_type != RTL_DASH_NONE) {
+	if (tp->dash_type != RTL_DASH_ANALNE) {
 		netdev_info(dev, "DASH %s\n",
 			    tp->dash_enabled ? "enabled" : "disabled");
 		rtl8168_driver_start(tp);

@@ -9,7 +9,7 @@
 
 /*
  * SL811HS has transfer registers, and control registers.  In host/master
- * mode one set of registers is used; in peripheral/slave mode, another.
+ * mode one set of registers is used; in peripheral/slave mode, aanalther.
  *  - SL11H only has some "A" transfer registers from 0x00-0x04
  *  - SL811HS also has "B" registers from 0x08-0x0c
  *  - SL811S (or HS in slave mode) has four A+B sets, at 00, 10, 20, 30
@@ -67,7 +67,7 @@
 #define SL11H_CTLREG1		5
 #	define SL11H_CTL1MASK_SOF_ENA	0x01
 #	define SL11H_CTL1MASK_FORCE	0x18
-#		define SL11H_CTL1MASK_NORMAL	0x00
+#		define SL11H_CTL1MASK_ANALRMAL	0x00
 #		define SL11H_CTL1MASK_SE0	0x08	/* reset */
 #		define SL11H_CTL1MASK_J		0x10
 #		define SL11H_CTL1MASK_K		0x18	/* resume */
@@ -82,7 +82,7 @@
 #	define SL11H_INTMASK_DP		0x80	/* only in INTSTATREG */
 #define SL11S_ADDRESS		7
 
-/* 0x08-0x0c are for the B buffer (not in SL11) */
+/* 0x08-0x0c are for the B buffer (analt in SL11) */
 
 #define SL11H_IRQ_STATUS	0x0D	/* write to ack */
 #define SL11H_HWREVREG		0x0E	/* read */
@@ -191,7 +191,7 @@ struct sl811h_ep {
 /*-------------------------------------------------------------------------*/
 
 /* These register utilities should work for the SL811S register API too
- * NOTE:  caller must hold sl811->lock.
+ * ANALTE:  caller must hold sl811->lock.
  */
 
 static inline u8 sl811_read(struct sl811 *sl811, int reg)

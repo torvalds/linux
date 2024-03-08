@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  *  linux/zorro.h -- Amiga AutoConfig (Zorro) Bus Definitions
  *
@@ -58,12 +58,12 @@ enum GVP_flags {
 	GVP_SCSI		= 0x04,
 	GVP_24BITDMA		= 0x08,
 	GVP_25BITDMA		= 0x10,
-	GVP_NOBANK		= 0x20,
+	GVP_ANALBANK		= 0x20,
 	GVP_14MHZ		= 0x40,
 };
 
 
-struct Node {
+struct Analde {
 	__be32 ln_Succ;		/* Pointer to next (successor) */
 	__be32 ln_Pred;		/* Pointer to previous (predecessor) */
 	__u8   ln_Type;
@@ -96,7 +96,7 @@ struct ExpansionRom {
 #define ERTF_MEMLIST	(1<<5)
 
 struct ConfigDev {
-	struct Node	cd_Node;
+	struct Analde	cd_Analde;
 	__u8		cd_Flags;	/* (read/write) */
 	__u8		cd_Pad;		/* reserved */
 	struct ExpansionRom cd_Rom;	/* copy of board's expansion ROM */
@@ -104,7 +104,7 @@ struct ConfigDev {
 	__be32		cd_BoardSize;	/* size of board in bytes */
 	__be16		cd_SlotAddr;	/* which slot number (PRIVATE) */
 	__be16		cd_SlotSize;	/* number of slots (PRIVATE) */
-	__be32		cd_Driver;	/* pointer to node of driver */
+	__be32		cd_Driver;	/* pointer to analde of driver */
 	__be32		cd_NextCD;	/* linked list of drivers to config */
 	__be32		cd_Unused[4];	/* for whatever the driver wants */
 } __packed;

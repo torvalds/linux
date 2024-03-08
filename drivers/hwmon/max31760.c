@@ -127,7 +127,7 @@ static int max31760_read(struct device *dev, enum hwmon_sensor_types type,
 			reg_temp = REG_TEMP_CRIT(channel);
 			break;
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 
 		ret = regmap_bulk_read(state->regmap, reg_temp, reg, 2);
@@ -172,7 +172,7 @@ static int max31760_read(struct device *dev, enum hwmon_sensor_types type,
 
 			return 0;
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 	case hwmon_pwm:
 		switch (attr) {
@@ -226,10 +226,10 @@ static int max31760_read(struct device *dev, enum hwmon_sensor_types type,
 
 			return 0;
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -252,7 +252,7 @@ static int max31760_write(struct device *dev, enum hwmon_sensor_types type,
 			reg_temp = REG_TEMP_CRIT(channel);
 			break;
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 
 		temp = TEMP11_TO_REG(val);
@@ -271,7 +271,7 @@ static int max31760_write(struct device *dev, enum hwmon_sensor_types type,
 
 			return -EINVAL;
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 	case hwmon_pwm:
 		switch (attr) {
@@ -311,10 +311,10 @@ static int max31760_write(struct device *dev, enum hwmon_sensor_types type,
 
 			return regmap_update_bits(state->regmap, REG_CR1, CR1_TEMP_SRC, val);
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -386,13 +386,13 @@ static int max31760_read_string(struct device *dev,
 	switch (type) {
 	case hwmon_temp:
 		if (attr != hwmon_temp_label)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		*str = channel ? "local" : "remote";
 
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -484,7 +484,7 @@ static ssize_t pwm1_auto_point_temp_hyst_store(struct device *dev,
 
 static DEVICE_ATTR_RW(pwm1_auto_point_temp_hyst);
 
-static void max31760_create_lut_nodes(struct max31760_state *state)
+static void max31760_create_lut_analdes(struct max31760_state *state)
 {
 	int i;
 	struct sensor_device_attribute *sda;
@@ -523,7 +523,7 @@ static int max31760_probe(struct i2c_client *client)
 
 	state = devm_kzalloc(dev, sizeof(*state), GFP_KERNEL);
 	if (!state)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	state->regmap = devm_regmap_init_i2c(client, &regmap_config);
 	if (IS_ERR(state->regmap))
@@ -536,9 +536,9 @@ static int max31760_probe(struct i2c_client *client)
 	/* Set alert output to comparator mode */
 	ret = regmap_set_bits(state->regmap, REG_CR2, CR2_ALERTS);
 	if (ret)
-		return dev_err_probe(dev, ret, "cannot write register\n");
+		return dev_err_probe(dev, ret, "cananalt write register\n");
 
-	max31760_create_lut_nodes(state);
+	max31760_create_lut_analdes(state);
 
 	hwmon_dev = devm_hwmon_device_register_with_info(dev, client->name,
 							 state,

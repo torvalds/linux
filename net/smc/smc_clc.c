@@ -90,7 +90,7 @@ static int smc_clc_ueid_add(char *ueid)
 	/* add a new ueid entry to the ueid table if there isn't one */
 	new_ueid = kzalloc(sizeof(*new_ueid), GFP_KERNEL);
 	if (!new_ueid)
-		return -ENOMEM;
+		return -EANALMEM;
 	memcpy(new_ueid->eid, ueid, SMC_MAX_EID_LEN);
 
 	write_lock(&smc_clc_eid_table.lock);
@@ -142,7 +142,7 @@ int smc_nl_add_ueid(struct sk_buff *skb, struct genl_info *info)
 static int smc_clc_ueid_remove(char *ueid)
 {
 	struct smc_clc_eid_entry *lst_ueid, *tmp_ueid;
-	int rc = -ENOENT;
+	int rc = -EANALENT;
 
 	/* remove table entry */
 	write_lock(&smc_clc_eid_table.lock);
@@ -192,7 +192,7 @@ static int smc_nl_ueid_dumpinfo(struct sk_buff *skb, u32 portid, u32 seq,
 	hdr = genlmsg_put(skb, portid, seq, &smc_gen_nl_family,
 			  flags, SMC_NETLINK_DUMP_UEID);
 	if (!hdr)
-		return -ENOMEM;
+		return -EANALMEM;
 	memcpy(ueid_str, ueid, SMC_MAX_EID_LEN);
 	ueid_str[SMC_MAX_EID_LEN] = 0;
 	if (nla_put_string(skb, SMC_NLA_EID_TABLE_ENTRY, ueid_str)) {
@@ -250,7 +250,7 @@ int smc_nl_dump_seid(struct sk_buff *skb, struct netlink_callback *cb)
 			  &smc_gen_nl_family, NLM_F_MULTI,
 			  SMC_NETLINK_DUMP_SEID);
 	if (!hdr)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (!smc_ism_is_v2_capable())
 		goto end;
 
@@ -281,7 +281,7 @@ int smc_nl_enable_seid(struct sk_buff *skb, struct genl_info *info)
 	write_unlock(&smc_clc_eid_table.lock);
 	return 0;
 #else
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 #endif
 }
 
@@ -292,12 +292,12 @@ int smc_nl_disable_seid(struct sk_buff *skb, struct genl_info *info)
 #if IS_ENABLED(CONFIG_S390)
 	write_lock(&smc_clc_eid_table.lock);
 	if (!smc_clc_eid_table.ueid_cnt)
-		rc = -ENOENT;
+		rc = -EANALENT;
 	else
 		smc_clc_eid_table.seid_enabled = 0;
 	write_unlock(&smc_clc_eid_table.lock);
 #else
-	rc = -EOPNOTSUPP;
+	rc = -EOPANALTSUPP;
 #endif
 	return rc;
 }
@@ -508,7 +508,7 @@ static int smc_clc_prfx_set4_rcu(struct dst_entry *dst, __be32 ipv4,
 	const struct in_ifaddr *ifa;
 
 	if (!in_dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	in_dev_for_each_ifa_rcu(ifa, in_dev) {
 		if (!inet_ifa_match(ipv4, ifa))
@@ -518,7 +518,7 @@ static int smc_clc_prfx_set4_rcu(struct dst_entry *dst, __be32 ipv4,
 		/* prop->ipv6_prefixes_cnt = 0; already done by memset before */
 		return 0;
 	}
-	return -ENOENT;
+	return -EANALENT;
 }
 
 /* fill CLC proposal msg with ipv6 prefixes from device */
@@ -532,7 +532,7 @@ static int smc_clc_prfx_set6_rcu(struct dst_entry *dst,
 	int cnt = 0;
 
 	if (!in6_dev)
-		return -ENODEV;
+		return -EANALDEV;
 	/* use a maximum of 8 IPv6 prefixes from device */
 	list_for_each_entry(ifa, &in6_dev->addr_list, if_list) {
 		if (ipv6_addr_type(&ifa->addr) & IPV6_ADDR_LINKLOCAL)
@@ -548,7 +548,7 @@ static int smc_clc_prfx_set6_rcu(struct dst_entry *dst,
 	if (cnt)
 		return 0;
 #endif
-	return -ENOENT;
+	return -EANALENT;
 }
 
 /* retrieve and set prefixes in CLC proposal msg */
@@ -560,14 +560,14 @@ static int smc_clc_prfx_set(struct socket *clcsock,
 	struct sockaddr_storage addrs;
 	struct sockaddr_in6 *addr6;
 	struct sockaddr_in *addr;
-	int rc = -ENOENT;
+	int rc = -EANALENT;
 
 	if (!dst) {
-		rc = -ENOTCONN;
+		rc = -EANALTCONN;
 		goto out;
 	}
 	if (!dst->dev) {
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto out_rel;
 	}
 	/* get address to which the internal TCP socket is bound */
@@ -603,14 +603,14 @@ static int smc_clc_prfx_match4_rcu(struct net_device *dev,
 	const struct in_ifaddr *ifa;
 
 	if (!in_dev)
-		return -ENODEV;
+		return -EANALDEV;
 	in_dev_for_each_ifa_rcu(ifa, in_dev) {
 		if (prop->prefix_len == inet_mask_len(ifa->ifa_mask) &&
 		    inet_ifa_match(prop->outgoing_subnet, ifa))
 			return 0;
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 /* match ipv6 addrs of dev against addrs in CLC proposal */
@@ -624,7 +624,7 @@ static int smc_clc_prfx_match6_rcu(struct net_device *dev,
 	int i, max;
 
 	if (!in6_dev)
-		return -ENODEV;
+		return -EANALDEV;
 	/* ipv6 prefix list starts behind smc_clc_msg_proposal_prefix */
 	ipv6_prfx = (struct smc_clc_ipv6_prefix *)((u8 *)prop + sizeof(*prop));
 	max = min_t(u8, prop->ipv6_prefixes_cnt, SMC_CLC_MAX_V6_PREFIX);
@@ -639,7 +639,7 @@ static int smc_clc_prfx_match6_rcu(struct net_device *dev,
 		}
 	}
 #endif
-	return -ENOENT;
+	return -EANALENT;
 }
 
 /* check if proposed prefixes match one of our device prefixes */
@@ -650,11 +650,11 @@ int smc_clc_prfx_match(struct socket *clcsock,
 	int rc;
 
 	if (!dst) {
-		rc = -ENOTCONN;
+		rc = -EANALTCONN;
 		goto out;
 	}
 	if (!dst->dev) {
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto out_rel;
 	}
 	rcu_read_lock();
@@ -671,8 +671,8 @@ out:
 
 /* Wait for data on the tcp-socket, analyze received data
  * Returns:
- * 0 if success and it was not a decline that we received.
- * SMC_CLC_DECL_REPLY if decline received for fallback w/o another decl send.
+ * 0 if success and it was analt a decline that we received.
+ * SMC_CLC_DECL_REPLY if decline received for fallback w/o aanalther decl send.
  * clcsock error, -EINTR, -ECONNRESET, -EPROTO otherwise.
  */
 int smc_clc_wait_msg(struct smc_sock *smc, void *buf, int buflen,
@@ -693,7 +693,7 @@ int smc_clc_wait_msg(struct smc_sock *smc, void *buf, int buflen,
 	 * in the TCP byte stream
 	 */
 	/*
-	 * Caller must make sure that buflen is no less than
+	 * Caller must make sure that buflen is anal less than
 	 * sizeof(struct smc_clc_msg_hdr)
 	 */
 	krflags = MSG_PEEK | MSG_WAITALL;
@@ -771,7 +771,7 @@ int smc_clc_wait_msg(struct smc_sock *smc, void *buf, int buflen,
 
 		dclc = (struct smc_clc_msg_decline *)clcm;
 		reason_code = SMC_CLC_DECL_PEERDECL;
-		smc->peer_diagnosis = ntohl(dclc->peer_diagnosis);
+		smc->peer_diaganalsis = ntohl(dclc->peer_diaganalsis);
 		if (((struct smc_clc_msg_decline *)buf)->hdr.typev2 &
 						SMC_FIRST_CONTACT_MASK) {
 			smc->conn.lgr->sync_err = 1;
@@ -805,7 +805,7 @@ int smc_clc_send_decline(struct smc_sock *smc, u32 peer_diag_info, u8 version)
 	    smc_ib_is_valid_local_systemid())
 		memcpy(dclc.id_for_peer, local_systemid,
 		       sizeof(local_systemid));
-	dclc.peer_diagnosis = htonl(peer_diag_info);
+	dclc.peer_diaganalsis = htonl(peer_diag_info);
 	if (version == SMC_V1) {
 		memcpy(dclc_v1->trl.eyecatcher, SMC_EYECATCHER,
 		       sizeof(SMC_EYECATCHER));
@@ -847,7 +847,7 @@ int smc_clc_send_proposal(struct smc_sock *smc, struct smc_init_info *ini)
 
 	pclc = kzalloc(sizeof(*pclc), GFP_KERNEL);
 	if (!pclc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pclc_base = &pclc->pclc_base;
 	pclc_smcd = &pclc->pclc_smcd;
@@ -1010,7 +1010,7 @@ int smc_clc_send_proposal(struct smc_sock *smc, struct smc_init_info *ini)
 	}
 	vec[i].iov_base = trl;
 	vec[i++].iov_len = sizeof(*trl);
-	/* due to the few bytes needed for clc-handshake this cannot block */
+	/* due to the few bytes needed for clc-handshake this cananalt block */
 	len = kernel_sendmsg(smc->clcsock, &msg, vec, i, plen);
 	if (len < 0) {
 		smc->sk.sk_err = smc->clcsock->sk->sk_err;
@@ -1093,7 +1093,7 @@ smcr_clc_prep_confirm_accept(struct smc_connection *conn,
 	hton24(clc->r0.qpn, link->roce_qp->qp_num);
 	clc->r0.rmb_rkey =
 		htonl(conn->rmb_desc->mr[link->link_idx]->rkey);
-	clc->r0.rmbe_idx = 1; /* for now: 1 RMB = 1 RMBE */
+	clc->r0.rmbe_idx = 1; /* for analw: 1 RMB = 1 RMBE */
 	clc->r0.rmbe_alert_token = htonl(conn->alert_token_local);
 	switch (clc->hdr.type) {
 	case SMC_CLC_ACCEPT:
@@ -1249,7 +1249,7 @@ int smc_clc_srv_v2x_features_validate(struct smc_sock *smc,
 
 	pclc_v2_ext = smc_get_clc_v2_ext(pclc);
 	if (!pclc_v2_ext)
-		return SMC_CLC_DECL_NOV2EXT;
+		return SMC_CLC_DECL_ANALV2EXT;
 
 	if (ini->smcr_version & SMC_V2) {
 		ini->max_conns = min_t(u8, pclc_v2_ext->max_conns,
@@ -1332,8 +1332,8 @@ void __init smc_clc_init(void)
 
 	memset(smc_hostname, _S, sizeof(smc_hostname)); /* ASCII blanks */
 	u = utsname();
-	memcpy(smc_hostname, u->nodename,
-	       min_t(size_t, strlen(u->nodename), sizeof(smc_hostname)));
+	memcpy(smc_hostname, u->analdename,
+	       min_t(size_t, strlen(u->analdename), sizeof(smc_hostname)));
 
 	INIT_LIST_HEAD(&smc_clc_eid_table.list);
 	rwlock_init(&smc_clc_eid_table.lock);

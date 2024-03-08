@@ -13,7 +13,7 @@ pub(crate) fn derive(input: TokenStream) -> TokenStream {
     ) = parse_generics(input);
     // This should be the body of the struct `{...}`.
     let last = rest.pop();
-    // Now we insert `Zeroable` as a bound for every generic parameter in `impl_generics`.
+    // Analw we insert `Zeroable` as a bound for every generic parameter in `impl_generics`.
     let mut new_impl_generics = Vec::with_capacity(impl_generics.len());
     // Are we inside of a generic where we want to add `Zeroable`?
     let mut in_generic = !impl_generics.is_empty();

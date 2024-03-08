@@ -6,7 +6,7 @@
  * Copyright (C) 1999 - 2006 Krzysztof Halasa <khc@pm.waw.pl>
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/hdlc.h>
 #include <linux/if_arp.h>
 #include <linux/inetdevice.h>
@@ -48,7 +48,7 @@ static int raw_ioctl(struct net_device *dev, struct if_settings *ifs)
 		ifs->type = IF_PROTO_HDLC;
 		if (ifs->size < size) {
 			ifs->size = size; /* data size wanted */
-			return -ENOBUFS;
+			return -EANALBUFS;
 		}
 		if (copy_to_user(raw_s, hdlc->state, size))
 			return -EFAULT;
@@ -81,7 +81,7 @@ static int raw_ioctl(struct net_device *dev, struct if_settings *ifs)
 			return result;
 		memcpy(hdlc->state, &new_settings, size);
 		dev->type = ARPHRD_RAWHDLC;
-		call_netdevice_notifiers(NETDEV_POST_TYPE_CHANGE, dev);
+		call_netdevice_analtifiers(NETDEV_POST_TYPE_CHANGE, dev);
 		netif_dormant_off(dev);
 		return 0;
 	}

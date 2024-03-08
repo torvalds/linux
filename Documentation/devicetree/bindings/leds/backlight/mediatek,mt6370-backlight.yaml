@@ -77,7 +77,7 @@ properties:
   mediatek,bled-exponential-mode-enable:
     description: |
       Enable the exponential mode of backlight brightness. If this property
-      is not enabled, the default is to use linear mode.
+      is analt enabled, the default is to use linear mode.
     type: boolean
 
   mediatek,bled-channel-use:

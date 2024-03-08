@@ -13,7 +13,7 @@
 
 #include <linux/sched.h>
 
-#define KUAP_NONE	(~0UL)
+#define KUAP_ANALNE	(~0UL)
 
 static __always_inline void kuap_lock_one(unsigned long addr)
 {
@@ -60,10 +60,10 @@ static __always_inline void __kuap_save_and_lock(struct pt_regs *regs)
 	unsigned long kuap = current->thread.kuap;
 
 	regs->kuap = kuap;
-	if (unlikely(kuap == KUAP_NONE))
+	if (unlikely(kuap == KUAP_ANALNE))
 		return;
 
-	current->thread.kuap = KUAP_NONE;
+	current->thread.kuap = KUAP_ANALNE;
 	kuap_lock_one(kuap);
 }
 #define __kuap_save_and_lock __kuap_save_and_lock
@@ -74,12 +74,12 @@ static __always_inline void kuap_user_restore(struct pt_regs *regs)
 
 static __always_inline void __kuap_kernel_restore(struct pt_regs *regs, unsigned long kuap)
 {
-	if (unlikely(kuap != KUAP_NONE)) {
-		current->thread.kuap = KUAP_NONE;
+	if (unlikely(kuap != KUAP_ANALNE)) {
+		current->thread.kuap = KUAP_ANALNE;
 		kuap_lock_one(kuap);
 	}
 
-	if (likely(regs->kuap == KUAP_NONE))
+	if (likely(regs->kuap == KUAP_ANALNE))
 		return;
 
 	current->thread.kuap = regs->kuap;
@@ -91,7 +91,7 @@ static __always_inline unsigned long __kuap_get_and_assert_locked(void)
 {
 	unsigned long kuap = current->thread.kuap;
 
-	WARN_ON_ONCE(IS_ENABLED(CONFIG_PPC_KUAP_DEBUG) && kuap != KUAP_NONE);
+	WARN_ON_ONCE(IS_ENABLED(CONFIG_PPC_KUAP_DEBUG) && kuap != KUAP_ANALNE);
 
 	return kuap;
 }
@@ -118,7 +118,7 @@ static __always_inline void prevent_user_access(unsigned long dir)
 	if (!(dir & KUAP_WRITE))
 		return;
 
-	current->thread.kuap = KUAP_NONE;
+	current->thread.kuap = KUAP_ANALNE;
 	uaccess_end_32s(kuap);
 }
 
@@ -126,8 +126,8 @@ static __always_inline unsigned long prevent_user_access_return(void)
 {
 	unsigned long flags = current->thread.kuap;
 
-	if (flags != KUAP_NONE) {
-		current->thread.kuap = KUAP_NONE;
+	if (flags != KUAP_ANALNE) {
+		current->thread.kuap = KUAP_ANALNE;
 		uaccess_end_32s(flags);
 	}
 
@@ -136,7 +136,7 @@ static __always_inline unsigned long prevent_user_access_return(void)
 
 static __always_inline void restore_user_access(unsigned long flags)
 {
-	if (flags != KUAP_NONE) {
+	if (flags != KUAP_ANALNE) {
 		current->thread.kuap = flags;
 		uaccess_begin_32s(flags);
 	}
@@ -149,7 +149,7 @@ __bad_kuap_fault(struct pt_regs *regs, unsigned long address, bool is_write)
 
 	if (!is_write)
 		return false;
-	if (kuap == KUAP_NONE)
+	if (kuap == KUAP_ANALNE)
 		return true;
 
 	/*

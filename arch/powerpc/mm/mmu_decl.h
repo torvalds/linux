@@ -16,7 +16,7 @@
 #include <linux/mm.h>
 #include <asm/mmu.h>
 
-#ifdef CONFIG_PPC_MMU_NOHASH
+#ifdef CONFIG_PPC_MMU_ANALHASH
 #include <asm/trace.h>
 
 /*
@@ -26,22 +26,22 @@
 static inline void _tlbil_all(void)
 {
 	asm volatile ("sync; tlbia; isync" : : : "memory");
-	trace_tlbia(MMU_NO_CONTEXT);
+	trace_tlbia(MMU_ANAL_CONTEXT);
 }
 static inline void _tlbil_pid(unsigned int pid)
 {
 	asm volatile ("sync; tlbia; isync" : : : "memory");
 	trace_tlbia(pid);
 }
-#define _tlbil_pid_noind(pid)	_tlbil_pid(pid)
+#define _tlbil_pid_analind(pid)	_tlbil_pid(pid)
 
 #else /* CONFIG_40x || CONFIG_PPC_8xx */
 extern void _tlbil_all(void);
 extern void _tlbil_pid(unsigned int pid);
 #ifdef CONFIG_PPC_BOOK3E_64
-extern void _tlbil_pid_noind(unsigned int pid);
+extern void _tlbil_pid_analind(unsigned int pid);
 #else
-#define _tlbil_pid_noind(pid)	_tlbil_pid(pid)
+#define _tlbil_pid_analind(pid)	_tlbil_pid(pid)
 #endif
 #endif /* !(CONFIG_40x || CONFIG_PPC_8xx) */
 
@@ -80,11 +80,11 @@ static inline void _tlbivax_bcast(unsigned long address, unsigned int pid,
 
 static inline void print_system_hash_info(void) {}
 
-#else /* CONFIG_PPC_MMU_NOHASH */
+#else /* CONFIG_PPC_MMU_ANALHASH */
 
 void print_system_hash_info(void);
 
-#endif /* CONFIG_PPC_MMU_NOHASH */
+#endif /* CONFIG_PPC_MMU_ANALHASH */
 
 #ifdef CONFIG_PPC32
 
@@ -102,7 +102,7 @@ extern phys_addr_t total_lowmem;
 extern phys_addr_t memstart_addr;
 extern phys_addr_t lowmem_end_addr;
 
-/* ...and now those things that may be slightly different between processor
+/* ...and analw those things that may be slightly different between processor
  * architectures.  -- Dan
  */
 #ifdef CONFIG_PPC32

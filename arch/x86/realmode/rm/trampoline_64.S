@@ -7,21 +7,21 @@
  *	15 Sept 2005 Eric Biederman: 64bit PIC support
  *
  *	Entry: CS:IP point to the start of our code, we are
- *	in real mode with no stack, but the rest of the
+ *	in real mode with anal stack, but the rest of the
  *	trampoline page to make our stack and everything else
  *	is a mystery.
  *
  *	On entry to trampoline_start, the processor is in real mode
  *	with 16-bit addressing and 16-bit data.  CS has some value
  *	and IP is zero.  Thus, data addresses need to be absolute
- *	(no relocation) and are taken with regard to r_base.
+ *	(anal relocation) and are taken with regard to r_base.
  *
  *	With the addition of trampoline_level4_pgt this code can
- *	now enter a 64bit kernel that lives at arbitrary 64bit
+ *	analw enter a 64bit kernel that lives at arbitrary 64bit
  *	physical addresses.
  *
  *	If you work on this file, check the object module with objdump
- *	--full-contents --reloc to make sure there are no relocation
+ *	--full-contents --reloc to make sure there are anal relocation
  *	entries.
  */
 
@@ -71,12 +71,12 @@ SYM_CODE_START(trampoline_start)
 
 	call	verify_cpu		# Verify the cpu supports long mode
 	testl   %eax, %eax		# Check for return code
-	jnz	no_longmode
+	jnz	anal_longmode
 
 .Lswitch_to_protected:
 	/*
-	 * GDT tables in non default location kernel can be beyond 16MB and
-	 * lgdt will not be able to load the address as in real mode default
+	 * GDT tables in analn default location kernel can be beyond 16MB and
+	 * lgdt will analt be able to load the address as in real mode default
 	 * operand size is 16bit. Use lgdtl instead to force operand size
 	 * to 32 bit.
 	 */
@@ -93,13 +93,13 @@ SYM_CODE_START(trampoline_start)
 	# flush prefetch and jump to startup_32
 	ljmpl	$__KERNEL32_CS, $pa_startup_32
 
-no_longmode:
+anal_longmode:
 	hlt
-	jmp no_longmode
+	jmp anal_longmode
 SYM_CODE_END(trampoline_start)
 
 #ifdef CONFIG_AMD_MEM_ENCRYPT
-/* SEV-ES supports non-zero IP for entry points - no alignment needed */
+/* SEV-ES supports analn-zero IP for entry points - anal alignment needed */
 SYM_CODE_START(sev_es_trampoline_start)
 	cli			# We should be safe anyway
 
@@ -146,7 +146,7 @@ SYM_CODE_START(startup_32)
 
 	/*
 	 * Memory encryption is enabled but the SME enable bit for this
-	 * CPU has has not been set.  It is safe to set it, so do so.
+	 * CPU has has analt been set.  It is safe to set it, so do so.
 	 */
 	wrmsr
 .Ldone:
@@ -182,7 +182,7 @@ SYM_CODE_START(startup_32)
 	/*
 	 * At this point we're in long mode but in 32bit compatibility mode
 	 * with EFER.LME = 1, CS.L = 0, CS.D = 1 (and in turn
-	 * EFER.LMA = 1). Now we want to jump in 64bit mode, to do that we use
+	 * EFER.LMA = 1). Analw we want to jump in 64bit mode, to do that we use
 	 * the new gdt/idt that has __KERNEL_CS with CS.L = 1.
 	 */
 	ljmpl	$__KERNEL_CS, $pa_startup_64
@@ -205,7 +205,7 @@ SYM_CODE_END(pa_trampoline_compat)
 	.code64
 	.balign 4
 SYM_CODE_START(startup_64)
-	# Now jump into the kernel using virtual addresses
+	# Analw jump into the kernel using virtual addresses
 	jmpq	*tr_start(%rip)
 SYM_CODE_END(startup_64)
 

@@ -7,12 +7,12 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, and the entire permission notice in its entirety,
+ *    analtice, and the entire permission analtice in its entirety,
  *    including the disclaimer of warranties.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    analtice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote
+ * 3. The name of the author may analt be used to endorse or promote
  *    products derived from this software without specific prior
  *    written permission.
  *
@@ -23,11 +23,11 @@
  * the restrictions contained in a BSD-style copyright.)
  *
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+ * DISCLAIMED.  IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
  * INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
  * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
@@ -41,16 +41,16 @@
 	.globl	fp_fscc, fp_fbccw, fp_fbccl
 
 #ifdef FPU_EMU_DEBUG
-fp_fnop:
-	printf	PDECODE,"fnop\n"
+fp_fanalp:
+	printf	PDECODE,"fanalp\n"
 	jra	fp_end
 #else
-#define fp_fnop fp_end
+#define fp_fanalp fp_end
 #endif
 
 fp_fbccw:
 	tst.w	%d2
-	jeq	fp_fnop
+	jeq	fp_fanalp
 	printf	PDECODE,"fbccw "
 	fp_get_pc %a0
 	lea	(-2,%a0,%d2.w),%a0
@@ -93,7 +93,7 @@ fp_fdbcc:
 
 | set flags for decode macros for fs<cc>
 do_fscc=1
-do_no_pc_mode=1
+do_anal_pc_mode=1
 
 fp_fscc:
 	printf	PDECODE,"fscc "
@@ -149,7 +149,7 @@ fp_extmode1:
 	.align	4
 0:
 	.long	fp_absolute_short, fp_absolute_long
-	.long	fp_ill, fp_ill		| NOTE: jump here to ftrap.x
+	.long	fp_ill, fp_ill		| ANALTE: jump here to ftrap.x
 	.long	fp_ill, fp_ill
 	.long	fp_ill, fp_ill
 

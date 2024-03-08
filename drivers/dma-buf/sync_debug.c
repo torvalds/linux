@@ -177,7 +177,7 @@ static __init int sync_debugfs_init(void)
 
 	/*
 	 * The debugfs files won't ever get removed and thus, there is
-	 * no need to protect it against removal races. The use of
+	 * anal need to protect it against removal races. The use of
 	 * debugfs_create_file_unsafe() is actually safe here.
 	 */
 	debugfs_create_file_unsafe("info", 0444, dbgfs, NULL,

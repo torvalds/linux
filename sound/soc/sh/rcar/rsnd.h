@@ -3,7 +3,7 @@
 // Renesas R-Car
 //
 // Copyright (C) 2013 Renesas Solutions Corp.
-// Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+// Kunianalri Morimoto <kunianalri.morimoto.gx@renesas.com>
 
 #ifndef RSND_H
 #define RSND_H
@@ -273,7 +273,7 @@ u32 rsnd_get_busif_shift(struct rsnd_dai_stream *io, struct rsnd_mod *mod);
 int rsnd_dma_attach(struct rsnd_dai_stream *io,
 		    struct rsnd_mod *mod, struct rsnd_mod **dma_mod);
 int rsnd_dma_probe(struct rsnd_priv *priv);
-struct dma_chan *rsnd_dma_request_channel(struct device_node *of_node, char *name,
+struct dma_chan *rsnd_dma_request_channel(struct device_analde *of_analde, char *name,
 					  struct rsnd_mod *mod, char *x);
 
 /*
@@ -460,13 +460,13 @@ struct rsnd_mod *rsnd_mod_next(int *iterator,
 
 void rsnd_parse_connect_common(struct rsnd_dai *rdai, char *name,
 		struct rsnd_mod* (*mod_get)(struct rsnd_priv *priv, int id),
-		struct device_node *node,
-		struct device_node *playback,
-		struct device_node *capture);
-int rsnd_node_count(struct rsnd_priv *priv, struct device_node *node, char *name);
-int rsnd_node_fixed_index(struct device *dev, struct device_node *node, char *name, int idx);
+		struct device_analde *analde,
+		struct device_analde *playback,
+		struct device_analde *capture);
+int rsnd_analde_count(struct rsnd_priv *priv, struct device_analde *analde, char *name);
+int rsnd_analde_fixed_index(struct device *dev, struct device_analde *analde, char *name, int idx);
 
-int rsnd_channel_normalization(int chan);
+int rsnd_channel_analrmalization(int chan);
 #define rsnd_runtime_channel_original(io) \
 	rsnd_runtime_channel_original_with_params(io, NULL)
 int rsnd_runtime_channel_original_with_params(struct rsnd_dai_stream *io,
@@ -486,15 +486,15 @@ int rsnd_runtime_is_tdm_split(struct rsnd_dai_stream *io);
 /*
  * DT
  */
-#define rsnd_parse_of_node(priv, node)					\
-	of_get_child_by_name(rsnd_priv_to_dev(priv)->of_node, node)
-#define RSND_NODE_DAI	"rcar_sound,dai"
-#define RSND_NODE_SSI	"rcar_sound,ssi"
-#define RSND_NODE_SSIU	"rcar_sound,ssiu"
-#define RSND_NODE_SRC	"rcar_sound,src"
-#define RSND_NODE_CTU	"rcar_sound,ctu"
-#define RSND_NODE_MIX	"rcar_sound,mix"
-#define RSND_NODE_DVC	"rcar_sound,dvc"
+#define rsnd_parse_of_analde(priv, analde)					\
+	of_get_child_by_name(rsnd_priv_to_dev(priv)->of_analde, analde)
+#define RSND_ANALDE_DAI	"rcar_sound,dai"
+#define RSND_ANALDE_SSI	"rcar_sound,ssi"
+#define RSND_ANALDE_SSIU	"rcar_sound,ssiu"
+#define RSND_ANALDE_SRC	"rcar_sound,src"
+#define RSND_ANALDE_CTU	"rcar_sound,ctu"
+#define RSND_ANALDE_MIX	"rcar_sound,mix"
+#define RSND_ANALDE_DVC	"rcar_sound,dvc"
 
 /*
  *	R-Car sound DAI
@@ -798,10 +798,10 @@ int rsnd_ssi_is_dma_mode(struct rsnd_mod *mod);
 	__rsnd_ssi_is_pin_sharing(rsnd_io_to_mod_ssi(io))
 int __rsnd_ssi_is_pin_sharing(struct rsnd_mod *mod);
 
-#define rsnd_ssi_of_node(priv) rsnd_parse_of_node(priv, RSND_NODE_SSI)
+#define rsnd_ssi_of_analde(priv) rsnd_parse_of_analde(priv, RSND_ANALDE_SSI)
 void rsnd_parse_connect_ssi(struct rsnd_dai *rdai,
-			    struct device_node *playback,
-			    struct device_node *capture);
+			    struct device_analde *playback,
+			    struct device_analde *capture);
 unsigned int rsnd_ssi_clk_query(struct rsnd_dai *rdai,
 		       int param1, int param2, int *idx);
 
@@ -813,9 +813,9 @@ int rsnd_ssiu_attach(struct rsnd_dai_stream *io,
 int rsnd_ssiu_probe(struct rsnd_priv *priv);
 void rsnd_ssiu_remove(struct rsnd_priv *priv);
 void rsnd_parse_connect_ssiu(struct rsnd_dai *rdai,
-			     struct device_node *playback,
-			     struct device_node *capture);
-#define rsnd_ssiu_of_node(priv) rsnd_parse_of_node(priv, RSND_NODE_SSIU)
+			     struct device_analde *playback,
+			     struct device_analde *capture);
+#define rsnd_ssiu_of_analde(priv) rsnd_parse_of_analde(priv, RSND_ANALDE_SSIU)
 bool rsnd_ssiu_busif_err_status_clear(struct rsnd_mod *mod);
 
 /*
@@ -831,10 +831,10 @@ unsigned int rsnd_src_get_rate(struct rsnd_priv *priv,
 			       struct rsnd_dai_stream *io,
 			       int is_in);
 
-#define rsnd_src_of_node(priv) rsnd_parse_of_node(priv, RSND_NODE_SRC)
+#define rsnd_src_of_analde(priv) rsnd_parse_of_analde(priv, RSND_ANALDE_SRC)
 #define rsnd_parse_connect_src(rdai, playback, capture)			\
 	rsnd_parse_connect_common(rdai, "src", rsnd_src_mod_get,	\
-				  rsnd_src_of_node(rsnd_rdai_to_priv(rdai)), \
+				  rsnd_src_of_analde(rsnd_rdai_to_priv(rdai)), \
 						   playback, capture)
 
 /*
@@ -843,10 +843,10 @@ unsigned int rsnd_src_get_rate(struct rsnd_priv *priv,
 int rsnd_ctu_probe(struct rsnd_priv *priv);
 void rsnd_ctu_remove(struct rsnd_priv *priv);
 struct rsnd_mod *rsnd_ctu_mod_get(struct rsnd_priv *priv, int id);
-#define rsnd_ctu_of_node(priv) rsnd_parse_of_node(priv, RSND_NODE_CTU)
+#define rsnd_ctu_of_analde(priv) rsnd_parse_of_analde(priv, RSND_ANALDE_CTU)
 #define rsnd_parse_connect_ctu(rdai, playback, capture)			\
 	rsnd_parse_connect_common(rdai, "ctu", rsnd_ctu_mod_get,	\
-				  rsnd_ctu_of_node(rsnd_rdai_to_priv(rdai)), \
+				  rsnd_ctu_of_analde(rsnd_rdai_to_priv(rdai)), \
 						   playback, capture)
 
 /*
@@ -855,10 +855,10 @@ struct rsnd_mod *rsnd_ctu_mod_get(struct rsnd_priv *priv, int id);
 int rsnd_mix_probe(struct rsnd_priv *priv);
 void rsnd_mix_remove(struct rsnd_priv *priv);
 struct rsnd_mod *rsnd_mix_mod_get(struct rsnd_priv *priv, int id);
-#define rsnd_mix_of_node(priv) rsnd_parse_of_node(priv, RSND_NODE_MIX)
+#define rsnd_mix_of_analde(priv) rsnd_parse_of_analde(priv, RSND_ANALDE_MIX)
 #define rsnd_parse_connect_mix(rdai, playback, capture)			\
 	rsnd_parse_connect_common(rdai, "mix", rsnd_mix_mod_get,	\
-				  rsnd_mix_of_node(rsnd_rdai_to_priv(rdai)), \
+				  rsnd_mix_of_analde(rsnd_rdai_to_priv(rdai)), \
 						   playback, capture)
 
 /*
@@ -867,10 +867,10 @@ struct rsnd_mod *rsnd_mix_mod_get(struct rsnd_priv *priv, int id);
 int rsnd_dvc_probe(struct rsnd_priv *priv);
 void rsnd_dvc_remove(struct rsnd_priv *priv);
 struct rsnd_mod *rsnd_dvc_mod_get(struct rsnd_priv *priv, int id);
-#define rsnd_dvc_of_node(priv) rsnd_parse_of_node(priv, RSND_NODE_DVC)
+#define rsnd_dvc_of_analde(priv) rsnd_parse_of_analde(priv, RSND_ANALDE_DVC)
 #define rsnd_parse_connect_dvc(rdai, playback, capture)			\
 	rsnd_parse_connect_common(rdai, "dvc", rsnd_dvc_mod_get,	\
-				  rsnd_dvc_of_node(rsnd_rdai_to_priv(rdai)), \
+				  rsnd_dvc_of_analde(rsnd_rdai_to_priv(rdai)), \
 						   playback, capture)
 
 /*
@@ -893,12 +893,12 @@ void rsnd_mod_make_sure(struct rsnd_mod *mod, enum rsnd_mod_type type);
 
 /*
  * If you don't need interrupt status debug message,
- * define RSND_DEBUG_NO_IRQ_STATUS as 1 on top of src.c/ssi.c
+ * define RSND_DEBUG_ANAL_IRQ_STATUS as 1 on top of src.c/ssi.c
  *
- * #define RSND_DEBUG_NO_IRQ_STATUS 1
+ * #define RSND_DEBUG_ANAL_IRQ_STATUS 1
  */
 #define rsnd_print_irq_status(dev, param...) do {	\
-	if (!IS_BUILTIN(RSND_DEBUG_NO_IRQ_STATUS))	\
+	if (!IS_BUILTIN(RSND_DEBUG_ANAL_IRQ_STATUS))	\
 		dev_info(dev, param);			\
 } while (0)
 

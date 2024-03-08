@@ -20,7 +20,7 @@
 #include <sound/soc-dai.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
-#include "q6dsp-errno.h"
+#include "q6dsp-erranal.h"
 #include "q6core.h"
 #include "q6afe.h"
 
@@ -66,7 +66,7 @@
 #define AFE_PORT_I2S_QUAD23		0x6
 #define AFE_PORT_I2S_6CHS		0x7
 #define AFE_PORT_I2S_8CHS		0x8
-#define AFE_PORT_I2S_MONO		0x0
+#define AFE_PORT_I2S_MOANAL		0x0
 #define AFE_PORT_I2S_STEREO		0x1
 #define AFE_PORT_CONFIG_I2S_WS_SRC_EXTERNAL	0x0
 #define AFE_PORT_CONFIG_I2S_WS_SRC_INTERNAL	0x1
@@ -361,7 +361,7 @@
 
 #define TIMEOUT_MS 1000
 #define AFE_CMD_RESP_AVAIL	0
-#define AFE_CMD_RESP_NONE	1
+#define AFE_CMD_RESP_ANALNE	1
 #define AFE_CLK_TOKEN		1024
 
 struct q6afe {
@@ -409,7 +409,7 @@ struct afe_port_cmd_set_param_v2 {
 } __packed;
 
 struct afe_param_id_hdmi_multi_chan_audio_cfg {
-	u32 hdmi_cfg_minor_version;
+	u32 hdmi_cfg_mianalr_version;
 	u16 datatype;
 	u16 channel_allocation;
 	u32 sample_rate;
@@ -418,8 +418,8 @@ struct afe_param_id_hdmi_multi_chan_audio_cfg {
 } __packed;
 
 struct afe_param_id_slimbus_cfg {
-	u32                  sb_cfg_minor_version;
-/* Minor version used for tracking the version of the SLIMBUS
+	u32                  sb_cfg_mianalr_version;
+/* Mianalr version used for tracking the version of the SLIMBUS
  * configuration interface.
  * Supported values: #AFE_API_VERSION_SLIMBUS_CONFIG
  */
@@ -435,8 +435,8 @@ struct afe_param_id_slimbus_cfg {
  */
 	u16                  data_format;
 /* Data format supported by the SLIMbus hardware. The default is
- * 0 (#AFE_SB_DATA_FORMAT_NOT_INDICATED), which indicates the
- * hardware does not perform any format conversions before the data
+ * 0 (#AFE_SB_DATA_FORMAT_ANALT_INDICATED), which indicates the
+ * hardware does analt perform any format conversions before the data
  * transfer.
  */
 	u16                  num_channels;
@@ -461,7 +461,7 @@ struct afe_param_id_slimbus_cfg {
 } __packed;
 
 struct afe_clk_cfg {
-	u32                  i2s_cfg_minor_version;
+	u32                  i2s_cfg_mianalr_version;
 	u32                  clk_val1;
 	u32                  clk_val2;
 	u16                  clk_src;
@@ -471,17 +471,17 @@ struct afe_clk_cfg {
 } __packed;
 
 struct afe_digital_clk_cfg {
-	u32                  i2s_cfg_minor_version;
+	u32                  i2s_cfg_mianalr_version;
 	u32                  clk_val;
 	u16                  clk_root;
 	u16                  reserved;
 } __packed;
 
 struct afe_param_id_i2s_cfg {
-	u32	i2s_cfg_minor_version;
+	u32	i2s_cfg_mianalr_version;
 	u16	bit_width;
 	u16	channel_mode;
-	u16	mono_stereo;
+	u16	moanal_stereo;
 	u16	ws_src;
 	u32	sample_rate;
 	u16	data_format;
@@ -489,7 +489,7 @@ struct afe_param_id_i2s_cfg {
 } __packed;
 
 struct afe_param_id_tdm_cfg {
-	u32	tdm_cfg_minor_version;
+	u32	tdm_cfg_mianalr_version;
 	u32	num_channels;
 	u32	sample_rate;
 	u32	bit_width;
@@ -505,7 +505,7 @@ struct afe_param_id_tdm_cfg {
 } __packed;
 
 struct afe_param_id_cdc_dma_cfg {
-	u32	cdc_dma_cfg_minor_version;
+	u32	cdc_dma_cfg_mianalr_version;
 	u32	sample_rate;
 	u16	bit_width;
 	u16	data_format;
@@ -523,7 +523,7 @@ union afe_port_config {
 
 
 struct afe_clk_set {
-	uint32_t clk_set_minor_version;
+	uint32_t clk_set_mianalr_version;
 	uint32_t clk_id;
 	uint32_t clk_freq_in_hz;
 	uint16_t clk_attri;
@@ -532,7 +532,7 @@ struct afe_clk_set {
 };
 
 struct afe_param_id_slot_mapping_cfg {
-	u32	minor_version;
+	u32	mianalr_version;
 	u16	num_channels;
 	u16	bitwidth;
 	u32	data_align_type;
@@ -549,7 +549,7 @@ struct q6afe_port {
 	int cfg_type;
 	struct q6afe *afe;
 	struct kref refcount;
-	struct list_head node;
+	struct list_head analde;
 };
 
 struct afe_cmd_remote_lpass_core_hw_vote_request {
@@ -844,7 +844,7 @@ static void q6afe_port_free(struct kref *ref)
 	port = container_of(ref, struct q6afe_port, refcount);
 	afe = port->afe;
 	spin_lock_irqsave(&afe->port_list_lock, flags);
-	list_del(&port->node);
+	list_del(&port->analde);
 	spin_unlock_irqrestore(&afe->port_list_lock, flags);
 	kfree(port->scfg);
 	kfree(port);
@@ -857,7 +857,7 @@ static struct q6afe_port *q6afe_find_port(struct q6afe *afe, int token)
 	unsigned long flags;
 
 	spin_lock_irqsave(&afe->port_list_lock, flags);
-	list_for_each_entry(p, &afe->port_list, node)
+	list_for_each_entry(p, &afe->port_list, analde)
 		if (p->token == token) {
 			ret = p;
 			kref_get(&p->refcount);
@@ -901,7 +901,7 @@ static int q6afe_callback(struct apr_device *adev, struct apr_resp_pkt *data)
 			}
 			break;
 		default:
-			dev_err(afe->dev, "Unknown cmd 0x%x\n",	res->opcode);
+			dev_err(afe->dev, "Unkanalwn cmd 0x%x\n",	res->opcode);
 			break;
 		}
 	}
@@ -955,7 +955,7 @@ static int afe_apr_send_pkt(struct q6afe *afe, struct apr_pkt *pkt,
 
 	ret = apr_send_pkt(afe->apr, pkt);
 	if (ret < 0) {
-		dev_err(afe->dev, "packet not transmitted (%d)\n", ret);
+		dev_err(afe->dev, "packet analt transmitted (%d)\n", ret);
 		ret = -EINVAL;
 		goto err;
 	}
@@ -991,7 +991,7 @@ static int q6afe_set_param(struct q6afe *afe, struct q6afe_port *port,
 	pkt_size = APR_HDR_SIZE + sizeof(*param) + sizeof(*pdata) + psize;
 	p = kzalloc(pkt_size, GFP_KERNEL);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pkt = p;
 	param = p + APR_HDR_SIZE;
@@ -1045,7 +1045,7 @@ static int q6afe_port_set_param_v2(struct q6afe_port *port, void *data,
 	pkt_size = APR_HDR_SIZE + sizeof(*param) + sizeof(*pdata) + psize;
 	p = kzalloc(pkt_size, GFP_KERNEL);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pkt = p;
 	param = p + APR_HDR_SIZE;
@@ -1111,7 +1111,7 @@ int q6afe_set_lpass_clock(struct device *dev, int clk_id, int attri,
 	struct q6afe *afe = dev_get_drvdata(dev->parent);
 	struct afe_clk_set cset = {0,};
 
-	cset.clk_set_minor_version = AFE_API_VERSION_CLOCK_SET;
+	cset.clk_set_mianalr_version = AFE_API_VERSION_CLOCK_SET;
 	cset.clk_id = clk_id;
 	cset.clk_freq_in_hz = freq;
 	cset.clk_attri = attri;
@@ -1135,13 +1135,13 @@ int q6afe_port_set_sysclk(struct q6afe_port *port, int clk_id,
 
 	switch (clk_id) {
 	case LPAIF_DIG_CLK:
-		dcfg.i2s_cfg_minor_version = AFE_API_VERSION_I2S_CONFIG;
+		dcfg.i2s_cfg_mianalr_version = AFE_API_VERSION_I2S_CONFIG;
 		dcfg.clk_val = freq;
 		dcfg.clk_root = clk_root;
 		ret = q6afe_set_digital_codec_core_clock(port, &dcfg);
 		break;
 	case LPAIF_BIT_CLK:
-		ccfg.i2s_cfg_minor_version = AFE_API_VERSION_I2S_CONFIG;
+		ccfg.i2s_cfg_mianalr_version = AFE_API_VERSION_I2S_CONFIG;
 		ccfg.clk_val1 = freq;
 		ccfg.clk_src = clk_src;
 		ccfg.clk_root = clk_root;
@@ -1150,7 +1150,7 @@ int q6afe_port_set_sysclk(struct q6afe_port *port, int clk_id,
 		break;
 
 	case LPAIF_OSR_CLK:
-		ccfg.i2s_cfg_minor_version = AFE_API_VERSION_I2S_CONFIG;
+		ccfg.i2s_cfg_mianalr_version = AFE_API_VERSION_I2S_CONFIG;
 		ccfg.clk_val2 = freq;
 		ccfg.clk_src = clk_src;
 		ccfg.clk_root = clk_root;
@@ -1161,7 +1161,7 @@ int q6afe_port_set_sysclk(struct q6afe_port *port, int clk_id,
 	case Q6AFE_LPASS_CLK_ID_MCLK_1 ... Q6AFE_LPASS_CLK_ID_INT_MCLK_1:
 	case Q6AFE_LPASS_CLK_ID_PRI_TDM_IBIT ... Q6AFE_LPASS_CLK_ID_QUIN_TDM_EBIT:
 	case Q6AFE_LPASS_CLK_ID_WSA_CORE_MCLK ... Q6AFE_LPASS_CLK_ID_VA_CORE_2X_MCLK:
-		cset.clk_set_minor_version = AFE_API_VERSION_CLOCK_SET;
+		cset.clk_set_mianalr_version = AFE_API_VERSION_CLOCK_SET;
 		cset.clk_id = clk_id;
 		cset.clk_freq_in_hz = freq;
 		cset.clk_attri = clk_src;
@@ -1204,7 +1204,7 @@ int q6afe_port_stop(struct q6afe_port *port)
 	pkt_size = APR_HDR_SIZE + sizeof(*stop);
 	p = kzalloc(pkt_size, GFP_KERNEL);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pkt = p;
 	stop = p + APR_HDR_SIZE;
@@ -1241,7 +1241,7 @@ void q6afe_slim_port_prepare(struct q6afe_port *port,
 {
 	union afe_port_config *pcfg = &port->port_cfg;
 
-	pcfg->slim_cfg.sb_cfg_minor_version = AFE_API_VERSION_SLIMBUS_CONFIG;
+	pcfg->slim_cfg.sb_cfg_mianalr_version = AFE_API_VERSION_SLIMBUS_CONFIG;
 	pcfg->slim_cfg.sample_rate = cfg->sample_rate;
 	pcfg->slim_cfg.bit_width = cfg->bit_width;
 	pcfg->slim_cfg.num_channels = cfg->num_channels;
@@ -1266,7 +1266,7 @@ void q6afe_tdm_port_prepare(struct q6afe_port *port,
 {
 	union afe_port_config *pcfg = &port->port_cfg;
 
-	pcfg->tdm_cfg.tdm_cfg_minor_version = AFE_API_VERSION_TDM_CONFIG;
+	pcfg->tdm_cfg.tdm_cfg_mianalr_version = AFE_API_VERSION_TDM_CONFIG;
 	pcfg->tdm_cfg.num_channels = cfg->num_channels;
 	pcfg->tdm_cfg.sample_rate = cfg->sample_rate;
 	pcfg->tdm_cfg.bit_width = cfg->bit_width;
@@ -1281,7 +1281,7 @@ void q6afe_tdm_port_prepare(struct q6afe_port *port,
 	if (!port->scfg)
 		return;
 
-	port->scfg->minor_version = AFE_API_VERSION_SLOT_MAPPING_CONFIG;
+	port->scfg->mianalr_version = AFE_API_VERSION_SLOT_MAPPING_CONFIG;
 	port->scfg->num_channels = cfg->num_channels;
 	port->scfg->bitwidth = cfg->bit_width;
 	port->scfg->data_align_type = cfg->data_align_type;
@@ -1302,7 +1302,7 @@ void q6afe_hdmi_port_prepare(struct q6afe_port *port,
 {
 	union afe_port_config *pcfg = &port->port_cfg;
 
-	pcfg->hdmi_multi_ch.hdmi_cfg_minor_version =
+	pcfg->hdmi_multi_ch.hdmi_cfg_mianalr_version =
 					AFE_API_VERSION_HDMI_CONFIG;
 	pcfg->hdmi_multi_ch.datatype = cfg->datatype;
 	pcfg->hdmi_multi_ch.channel_allocation = cfg->channel_allocation;
@@ -1324,7 +1324,7 @@ int q6afe_i2s_port_prepare(struct q6afe_port *port, struct q6afe_i2s_cfg *cfg)
 	struct device *dev = port->afe->dev;
 	int num_sd_lines;
 
-	pcfg->i2s_cfg.i2s_cfg_minor_version = AFE_API_VERSION_I2S_CONFIG;
+	pcfg->i2s_cfg.i2s_cfg_mianalr_version = AFE_API_VERSION_I2S_CONFIG;
 	pcfg->i2s_cfg.sample_rate = cfg->sample_rate;
 	pcfg->i2s_cfg.bit_width = cfg->bit_width;
 	pcfg->i2s_cfg.data_format = AFE_LINEAR_PCM_DATA;
@@ -1345,7 +1345,7 @@ int q6afe_i2s_port_prepare(struct q6afe_port *port, struct q6afe_i2s_cfg *cfg)
 
 	switch (num_sd_lines) {
 	case 0:
-		dev_err(dev, "no line is assigned\n");
+		dev_err(dev, "anal line is assigned\n");
 		return -EINVAL;
 	case 1:
 		switch (cfg->sd_line_mask) {
@@ -1420,9 +1420,9 @@ int q6afe_i2s_port_prepare(struct q6afe_port *port, struct q6afe_i2s_cfg *cfg)
 		}
 
 		if (cfg->num_channels == 2)
-			pcfg->i2s_cfg.mono_stereo = AFE_PORT_I2S_STEREO;
+			pcfg->i2s_cfg.moanal_stereo = AFE_PORT_I2S_STEREO;
 		else
-			pcfg->i2s_cfg.mono_stereo = AFE_PORT_I2S_MONO;
+			pcfg->i2s_cfg.moanal_stereo = AFE_PORT_I2S_MOANAL;
 
 		break;
 	case 3:
@@ -1467,7 +1467,7 @@ void q6afe_cdc_dma_port_prepare(struct q6afe_port *port,
 	union afe_port_config *pcfg = &port->port_cfg;
 	struct afe_param_id_cdc_dma_cfg *dma_cfg = &pcfg->dma_cfg;
 
-	dma_cfg->cdc_dma_cfg_minor_version = AFE_API_VERSION_CODEC_DMA_CONFIG;
+	dma_cfg->cdc_dma_cfg_mianalr_version = AFE_API_VERSION_CODEC_DMA_CONFIG;
 	dma_cfg->sample_rate = cfg->sample_rate;
 	dma_cfg->bit_width = cfg->bit_width;
 	dma_cfg->data_format = cfg->data_format;
@@ -1516,7 +1516,7 @@ int q6afe_port_start(struct q6afe_port *port)
 	pkt_size = APR_HDR_SIZE + sizeof(*start);
 	p = kzalloc(pkt_size, GFP_KERNEL);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pkt = p;
 	start = p + APR_HDR_SIZE;
@@ -1620,7 +1620,7 @@ struct q6afe_port *q6afe_port_get_from_id(struct device *dev, int id)
 
 	port = kzalloc(sizeof(*port), GFP_KERNEL);
 	if (!port)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init_waitqueue_head(&port->wait);
 
@@ -1631,7 +1631,7 @@ struct q6afe_port *q6afe_port_get_from_id(struct device *dev, int id)
 	kref_init(&port->refcount);
 
 	spin_lock_irqsave(&afe->port_list_lock, flags);
-	list_add_tail(&port->node, &afe->port_list);
+	list_add_tail(&port->analde, &afe->port_list);
 	spin_unlock_irqrestore(&afe->port_list_lock, flags);
 
 	return port;
@@ -1663,7 +1663,7 @@ int q6afe_unvote_lpass_core_hw(struct device *dev, uint32_t hw_block_id,
 	pkt_size = APR_HDR_SIZE + sizeof(*vote_cfg);
 	p = kzalloc(pkt_size, GFP_KERNEL);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pkt = p;
 	vote_cfg = p + APR_HDR_SIZE;
@@ -1701,7 +1701,7 @@ int q6afe_vote_lpass_core_hw(struct device *dev, uint32_t hw_block_id,
 	pkt_size = APR_HDR_SIZE + sizeof(*vote_cfg);
 	p = kzalloc(pkt_size, GFP_KERNEL);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pkt = p;
 	vote_cfg = p + APR_HDR_SIZE;
@@ -1736,7 +1736,7 @@ static int q6afe_probe(struct apr_device *adev)
 
 	afe = devm_kzalloc(dev, sizeof(*afe), GFP_KERNEL);
 	if (!afe)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	q6core_get_svc_api_info(adev->svc_id, &afe->ainfo);
 	afe->apr = adev;

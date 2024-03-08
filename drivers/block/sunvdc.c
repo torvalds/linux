@@ -24,7 +24,7 @@
 #define DRV_MODULE_NAME		"sunvdc"
 #define PFX DRV_MODULE_NAME	": "
 #define DRV_MODULE_VERSION	"1.2"
-#define DRV_MODULE_RELDATE	"November 24, 2014"
+#define DRV_MODULE_RELDATE	"Analvember 24, 2014"
 
 static char version[] =
 	DRV_MODULE_NAME ".c:v" DRV_MODULE_VERSION " (" DRV_MODULE_RELDATE ")\n";
@@ -99,15 +99,15 @@ static inline struct vdc_port *to_vdc_port(struct vio_driver_state *vio)
 
 /* Ordered from largest major to lowest */
 static struct vio_version vdc_versions[] = {
-	{ .major = 1, .minor = 2 },
-	{ .major = 1, .minor = 1 },
-	{ .major = 1, .minor = 0 },
+	{ .major = 1, .mianalr = 2 },
+	{ .major = 1, .mianalr = 1 },
+	{ .major = 1, .mianalr = 0 },
 };
 
 static inline int vdc_version_supported(struct vdc_port *port,
-					u16 major, u16 minor)
+					u16 major, u16 mianalr)
 {
-	return port->vio.ver.major == major && port->vio.ver.minor >= minor;
+	return port->vio.ver.major == major && port->vio.ver.mianalr >= mianalr;
 }
 
 #define VDCBLK_NAME	"vdisk"
@@ -147,7 +147,7 @@ static int vdc_ioctl(struct block_device *bdev, blk_mode_t mode,
 
 	switch (command) {
 	case CDROMMULTISESSION:
-		pr_debug(PFX "Multisession CDs not supported\n");
+		pr_debug(PFX "Multisession CDs analt supported\n");
 		for (i = 0; i < sizeof(struct cdrom_multisession); i++)
 			if (put_user(0, (char __user *)(argument + i)))
 				return -EFAULT;
@@ -164,7 +164,7 @@ static int vdc_ioctl(struct block_device *bdev, blk_mode_t mode,
 			return -EINVAL;
 		}
 	default:
-		pr_debug(PFX "ioctl %08x not supported\n", command);
+		pr_debug(PFX "ioctl %08x analt supported\n", command);
 		return -EINVAL;
 	}
 }
@@ -208,11 +208,11 @@ static void vdc_handshake_complete(struct vio_driver_state *vio)
 	vdc_blk_queue_start(port);
 }
 
-static int vdc_handle_unknown(struct vdc_port *port, void *arg)
+static int vdc_handle_unkanalwn(struct vdc_port *port, void *arg)
 {
 	struct vio_msg_tag *pkt = arg;
 
-	printk(KERN_ERR PFX "Received unknown msg [%02x:%02x:%04x:%08x]\n",
+	printk(KERN_ERR PFX "Received unkanalwn msg [%02x:%02x:%04x:%08x]\n",
 	       pkt->type, pkt->stype, pkt->stype_env, pkt->sid);
 	printk(KERN_ERR PFX "Resetting connection.\n");
 
@@ -407,11 +407,11 @@ static void vdc_event(void *arg, int event)
 			else if (msgbuf.tag.stype == VIO_SUBTYPE_NACK)
 				err = vdc_nack(port, &msgbuf);
 			else
-				err = vdc_handle_unknown(port, &msgbuf);
+				err = vdc_handle_unkanalwn(port, &msgbuf);
 		} else if (msgbuf.tag.type == VIO_TYPE_CTRL) {
 			err = vio_control_pkt_engine(vio, &msgbuf);
 		} else {
-			err = vdc_handle_unknown(port, &msgbuf);
+			err = vdc_handle_unkanalwn(port, &msgbuf);
 		}
 		if (err < 0)
 			break;
@@ -454,7 +454,7 @@ static int __vdc_tx_trigger(struct vdc_port *port)
 			break;
 	} while (err == -EAGAIN);
 
-	if (err == -ENOTCONN)
+	if (err == -EANALTCONN)
 		vdc_ldc_reset(port);
 	return err;
 }
@@ -517,7 +517,7 @@ static int __send_request(struct request *req)
 	desc->size = len;
 	desc->ncookies = err;
 
-	/* This has to be a non-SMP write barrier because we are writing
+	/* This has to be a analn-SMP write barrier because we are writing
 	 * to memory which is shared with the peer LDOM.
 	 */
 	wmb();
@@ -581,7 +581,7 @@ static int generic_request(struct vdc_port *port, u8 op, void *buf, int len)
 	void *req_buf;
 
 	if (!(((u64)1 << (u64)op) & port->operations))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (op) {
 	case VD_OP_BREAD:
@@ -636,7 +636,7 @@ static int generic_request(struct vdc_port *port, u8 op, void *buf, int len)
 
 	case VD_OP_GET_EFI:
 	case VD_OP_SET_EFI:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	map_perm |= LDC_MAP_SHADOW | LDC_MAP_DIRECT | LDC_MAP_IO;
@@ -644,7 +644,7 @@ static int generic_request(struct vdc_port *port, u8 op, void *buf, int len)
 	op_len = (op_len + 7) & ~7;
 	req_buf = kzalloc(op_len, GFP_KERNEL);
 	if (!req_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (len > op_len)
 		len = op_len;
@@ -683,7 +683,7 @@ static int generic_request(struct vdc_port *port, u8 op, void *buf, int len)
 	desc->size = op_len;
 	desc->ncookies = err;
 
-	/* This has to be a non-SMP write barrier because we are writing
+	/* This has to be a analn-SMP write barrier because we are writing
 	 * to memory which is shared with the peer LDOM.
 	 */
 	wmb();
@@ -793,17 +793,17 @@ static int probe_disk(struct vdc_port *port)
 		return err;
 
 	/* Using version 1.2 means vdisk_phys_blksz should be set unless the
-	 * disk is reserved by another system.
+	 * disk is reserved by aanalther system.
 	 */
 	if (vdc_version_supported(port, 1, 2) && !port->vdisk_phys_blksz)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (vdc_version_supported(port, 1, 1)) {
 		/* vdisk_size should be set during the handshake, if it wasn't
-		 * then the underlying disk is reserved by another system
+		 * then the underlying disk is reserved by aanalther system
 		 */
 		if (port->vdisk_size == -1)
-			return -ENODEV;
+			return -EANALDEV;
 	} else {
 		struct vio_disk_geom geom;
 
@@ -826,7 +826,7 @@ static int probe_disk(struct vdc_port *port)
 
 	g = blk_mq_alloc_disk(&port->tag_set, port);
 	if (IS_ERR(g)) {
-		printk(KERN_ERR PFX "%s: Could not allocate gendisk.\n",
+		printk(KERN_ERR PFX "%s: Could analt allocate gendisk.\n",
 		       port->vio.name);
 		err = PTR_ERR(g);
 		goto out_free_tag;
@@ -842,8 +842,8 @@ static int probe_disk(struct vdc_port *port)
 	blk_queue_max_segments(q, port->ring_cookies);
 	blk_queue_max_hw_sectors(q, port->max_xfer_size);
 	g->major = vdc_major;
-	g->first_minor = port->vio.vdev->dev_no << PARTITION_SHIFT;
-	g->minors = 1 << PARTITION_SHIFT;
+	g->first_mianalr = port->vio.vdev->dev_anal << PARTITION_SHIFT;
+	g->mianalrs = 1 << PARTITION_SHIFT;
 	strcpy(g->disk_name, port->disk_name);
 
 	g->fops = &vdc_fops;
@@ -877,7 +877,7 @@ static int probe_disk(struct vdc_port *port)
 	pr_info(PFX "%s: %u sectors (%u MB) protocol %d.%d\n",
 	       g->disk_name,
 	       port->vdisk_size, (port->vdisk_size >> (20 - 9)),
-	       port->vio.ver.major, port->vio.ver.minor);
+	       port->vio.ver.major, port->vio.ver.mianalr);
 
 	err = device_add_disk(&port->vio.vdev->dev, g, NULL);
 	if (err)
@@ -913,7 +913,7 @@ static void print_version(void)
 }
 
 struct vdc_check_port_data {
-	int	dev_no;
+	int	dev_anal;
 	char	*type;
 };
 
@@ -924,7 +924,7 @@ static int vdc_device_probed(struct device *dev, void *arg)
 
 	port_data = (struct vdc_check_port_data *)arg;
 
-	if ((vdev->dev_no == port_data->dev_no) &&
+	if ((vdev->dev_anal == port_data->dev_anal) &&
 	    (!(strcmp((char *)&vdev->type, port_data->type))) &&
 		dev_get_drvdata(dev)) {
 		/* This device has already been configured
@@ -937,9 +937,9 @@ static int vdc_device_probed(struct device *dev, void *arg)
 }
 
 /* Determine whether the VIO device is part of an mpgroup
- * by locating all the virtual-device-port nodes associated
- * with the parent virtual-device node for the VIO device
- * and checking whether any of these nodes are vdc-ports
+ * by locating all the virtual-device-port analdes associated
+ * with the parent virtual-device analde for the VIO device
+ * and checking whether any of these analdes are vdc-ports
  * which have already been configured.
  *
  * Returns true if this device is part of an mpgroup and has
@@ -950,7 +950,7 @@ static bool vdc_port_mpgroup_check(struct vio_dev *vdev)
 	struct vdc_check_port_data port_data;
 	struct device *dev;
 
-	port_data.dev_no = vdev->dev_no;
+	port_data.dev_anal = vdev->dev_anal;
 	port_data.type = (char *)&vdev->type;
 
 	dev = device_find_child(vdev->dev.parent, &port_data,
@@ -973,37 +973,37 @@ static int vdc_port_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 
 	hp = mdesc_grab();
 	if (!hp)
-		return -ENODEV;
+		return -EANALDEV;
 
-	err = -ENODEV;
-	if ((vdev->dev_no << PARTITION_SHIFT) & ~(u64)MINORMASK) {
+	err = -EANALDEV;
+	if ((vdev->dev_anal << PARTITION_SHIFT) & ~(u64)MIANALRMASK) {
 		printk(KERN_ERR PFX "Port id [%llu] too large.\n",
-		       vdev->dev_no);
+		       vdev->dev_anal);
 		goto err_out_release_mdesc;
 	}
 
 	/* Check if this device is part of an mpgroup */
 	if (vdc_port_mpgroup_check(vdev)) {
 		printk(KERN_WARNING
-			"VIO: Ignoring extra vdisk port %s",
+			"VIO: Iganalring extra vdisk port %s",
 			dev_name(&vdev->dev));
 		goto err_out_release_mdesc;
 	}
 
 	port = kzalloc(sizeof(*port), GFP_KERNEL);
 	if (!port) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out_release_mdesc;
 	}
 
-	if (vdev->dev_no >= 26)
+	if (vdev->dev_anal >= 26)
 		snprintf(port->disk_name, sizeof(port->disk_name),
 			 VDCBLK_NAME "%c%c",
-			 'a' + ((int)vdev->dev_no / 26) - 1,
-			 'a' + ((int)vdev->dev_no % 26));
+			 'a' + ((int)vdev->dev_anal / 26) - 1,
+			 'a' + ((int)vdev->dev_anal % 26));
 	else
 		snprintf(port->disk_name, sizeof(port->disk_name),
-			 VDCBLK_NAME "%c", 'a' + ((int)vdev->dev_no % 26));
+			 VDCBLK_NAME "%c", 'a' + ((int)vdev->dev_anal % 26));
 	port->vdisk_size = -1;
 
 	/* Actual wall time may be double due to do_generic_file_read() doing
@@ -1037,7 +1037,7 @@ static int vdc_port_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	if (err)
 		goto err_out_free_tx_ring;
 
-	/* Note that the device driver_data is used to determine
+	/* Analte that the device driver_data is used to determine
 	 * whether the port has been probed.
 	 */
 	dev_set_drvdata(&vdev->dev, port);
@@ -1215,7 +1215,7 @@ static int __init vdc_init(void)
 
 	sunvdc_wq = alloc_workqueue("sunvdc", 0, 0);
 	if (!sunvdc_wq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = register_blkdev(0, VDCBLK_NAME);
 	if (err < 0)

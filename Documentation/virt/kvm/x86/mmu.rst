@@ -11,12 +11,12 @@ physical addresses to host physical addresses.
 The mmu code attempts to satisfy the following requirements:
 
 - correctness:
-	       the guest should not be able to determine that it is running
+	       the guest should analt be able to determine that it is running
                on an emulated mmu except for timing (we attempt to comply
-               with the specification, not emulate the characteristics of
+               with the specification, analt emulate the characteristics of
                a particular implementation such as tlb size)
 - security:
-	       the guest must not be able to touch host memory not assigned
+	       the guest must analt be able to touch host memory analt assigned
                to it
 - performance:
                minimize the performance penalty imposed by the mmu
@@ -91,10 +91,10 @@ Memory
 
 Guest memory (gpa) is part of the user address space of the process that is
 using kvm.  Userspace defines the translation between guest addresses and user
-addresses (gpa->hva); note that two gpas may alias to the same hva, but not
+addresses (gpa->hva); analte that two gpas may alias to the same hva, but analt
 vice versa.
 
-These hvas may be backed using any method available to the host: anonymous
+These hvas may be backed using any method available to the host: aanalnymous
 memory, file backed memory, and device memory.  Memory might be paged by the
 host at any time.
 
@@ -119,11 +119,11 @@ Shadow pages
 ============
 
 The principal data structure is the shadow page, 'struct kvm_mmu_page'.  A
-shadow page contains 512 sptes, which can be either leaf or nonleaf sptes.  A
-shadow page may contain a mix of leaf and nonleaf sptes.
+shadow page contains 512 sptes, which can be either leaf or analnleaf sptes.  A
+shadow page may contain a mix of leaf and analnleaf sptes.
 
-A nonleaf spte allows the hardware mmu to reach the leaf pages and
-is not related to a translation directly.  It points to other shadow pages.
+A analnleaf spte allows the hardware mmu to reach the leaf pages and
+is analt related to a translation directly.  It points to other shadow pages.
 
 A leaf spte corresponds to either one or two translations encoded into
 one paging structure entry.  These are always the lowest level of the
@@ -133,19 +133,19 @@ Leaf ptes point at guest pages.
 The following table shows translations encoded by leaf ptes, with higher-level
 translations in parentheses:
 
- Non-nested guests::
+ Analn-nested guests::
 
-  nonpaging:     gpa->hpa
+  analnpaging:     gpa->hpa
   paging:        gva->gpa->hpa
   paging, tdp:   (gva->)gpa->hpa
 
  Nested guests::
 
-  non-tdp:       ngva->gpa->hpa  (*)
+  analn-tdp:       ngva->gpa->hpa  (*)
   tdp:           (ngva->)ngpa->gpa->hpa
 
   (*) the guest hypervisor will encode the ngva->gpa translation into its page
-      tables if npt is not present
+      tables if npt is analt present
 
 Shadow pages contain the following information:
   role.level:
@@ -158,13 +158,13 @@ Shadow pages contain the following information:
     The linear range starts at (gfn << PAGE_SHIFT) and its size is determined
     by role.level (2MB for first level, 1GB for second level, 0.5TB for third
     level, 256TB for fourth level)
-    If clear, this page corresponds to a guest page table denoted by the gfn
+    If clear, this page corresponds to a guest page table deanalted by the gfn
     field.
   role.quadrant:
     When role.has_4_byte_gpte=1, the guest uses 32-bit gptes while the host uses 64-bit
     sptes.  That means a guest page table contains more ptes than the host,
     so multiple shadow pages are needed to shadow one guest page.
-    For first-level shadow pages, role.quadrant can be 0 or 1 and denotes the
+    For first-level shadow pages, role.quadrant can be 0 or 1 and deanaltes the
     first or second 512-gpte block in the guest page table.  For second-level
     page tables, each 32-bit gpte is converted to two 64-bit sptes
     (since each first-level guest page is shadowed by two first-level
@@ -172,9 +172,9 @@ Shadow pages contain the following information:
     quadrant maps 1GB virtual address space.
   role.access:
     Inherited guest access permissions from the parent ptes in the form uwx.
-    Note execute permission is positive, not negative.
+    Analte execute permission is positive, analt negative.
   role.invalid:
-    The page is invalid and should not be used.  It is a root page that is
+    The page is invalid and should analt be used.  It is a root page that is
     currently pinned (by a cpu hardware register pointing to it); once it is
     unpinned it will be destroyed.
   role.has_4_byte_gpte:
@@ -184,11 +184,11 @@ Shadow pages contain the following information:
     Contains the value of efer.nx for which the page is valid.
   role.cr0_wp:
     Contains the value of cr0.wp for which the page is valid.
-  role.smep_andnot_wp:
+  role.smep_andanalt_wp:
     Contains the value of cr4.smep && !cr0.wp for which the page is valid
     (pages for which this is true are different from other pages; see the
     treatment of cr0.wp=0 below).
-  role.smap_andnot_wp:
+  role.smap_andanalt_wp:
     Contains the value of cr4.smap && !cr0.wp for which the page is valid
     (pages for which this is true are different from other pages; see the
     treatment of cr0.wp=0 below).
@@ -199,13 +199,13 @@ Shadow pages contain the following information:
     to a memslot, through the kvm_memslots_for_spte_role macro and
     __gfn_to_memslot.
   role.ad_disabled:
-    Is 1 if the MMU instance cannot use A/D bits.  EPT did not have A/D
-    bits before Haswell; shadow EPT page tables also cannot use A/D bits
-    if the L1 hypervisor does not enable them.
+    Is 1 if the MMU instance cananalt use A/D bits.  EPT did analt have A/D
+    bits before Haswell; shadow EPT page tables also cananalt use A/D bits
+    if the L1 hypervisor does analt enable them.
   role.guest_mode:
     Indicates the shadow page is created for a nested guest.
   role.passthrough:
-    The page is not backed by a guest page table, but its first entry
+    The page is analt backed by a guest page table, but its first entry
     points to one.  This is set if NPT uses 5-level page tables (host
     CR4.LA57=1) and is shadowing L1's 4-level NPT (L1 CR4.LA57=0).
   mmu_valid_gen:
@@ -214,8 +214,8 @@ Shadow pages contain the following information:
     valid MMU generation which causes the mismatch of mmu_valid_gen for each mmu
     page. This makes all existing MMU pages obsolete. Obsolete pages can't be
     used. Therefore, vCPUs must load a new, valid root before re-entering the
-    guest. The MMU generation is only ever '0' or '1'. Note, the TDP MMU doesn't
-    use this field as non-root TDP MMU pages are reachable only from their
+    guest. The MMU generation is only ever '0' or '1'. Analte, the TDP MMU doesn't
+    use this field as analn-root TDP MMU pages are reachable only from their
     owning root. Thus it suffices for TDP MMU to use role.invalid in root pages
     to invalidate all MMU pages.
   gfn:
@@ -229,22 +229,22 @@ Shadow pages contain the following information:
     sptes in spt point either at guest pages, or at lower-level shadow pages.
     Specifically, if sp1 and sp2 are shadow pages, then sp1->spt[n] may point
     at __pa(sp2->spt).  sp2 will point back at sp1 through parent_pte.
-    The spt array forms a DAG structure with the shadow page as a node, and
+    The spt array forms a DAG structure with the shadow page as a analde, and
     guest pages as leaves.
   shadowed_translation:
     An array of 512 shadow translation entries, one for each present pte. Used
     to perform a reverse map from a pte to a gfn as well as its access
-    permission. When role.direct is set, the shadow_translation array is not
+    permission. When role.direct is set, the shadow_translation array is analt
     allocated. This is because the gfn contained in any element of this array
     can be calculated from the gfn field when used.  In addition, when
-    role.direct is set, KVM does not track access permission for each of the
+    role.direct is set, KVM does analt track access permission for each of the
     gfn. See role.direct and gfn.
   root_count / tdp_mmu_root_count:
      root_count is a reference counter for root shadow pages in Shadow MMU.
      vCPUs elevate the refcount when getting a shadow page that will be used as
      a root page, i.e. page that will be loaded into hardware directly (CR3,
-     PDPTRs, nCR3 EPTP). Root pages cannot be destroyed while their refcount is
-     non-zero. See role.invalid. tdp_mmu_root_count is similar but exclusively
+     PDPTRs, nCR3 EPTP). Root pages cananalt be destroyed while their refcount is
+     analn-zero. See role.invalid. tdp_mmu_root_count is similar but exclusively
      used in TDP MMU as an atomic refcount.
   parent_ptes:
     The reverse mapping for the pte/ptes pointing at this page's spt. If
@@ -256,7 +256,7 @@ Shadow pages contain the following information:
     The kernel virtual address of the SPTE that points at this shadow page.
     Used exclusively by the TDP MMU, this field is a union with parent_ptes.
   unsync:
-    If true, then the translations in this page may not match the guest's
+    If true, then the translations in this page may analt match the guest's
     translation.  This is equivalent to the state of the tlb when a pte is
     changed but before the tlb entry is flushed.  Accordingly, unsync ptes
     are synchronized when the guest executes invlpg or flushes its tlb by
@@ -269,7 +269,7 @@ Shadow pages contain the following information:
     pages that may be unsynchronized.  Used to quickly locate all unsynchronized
     pages reachable from a given page.
   clear_spte_count:
-    Only present on 32-bit hosts, where a 64-bit spte cannot be written
+    Only present on 32-bit hosts, where a 64-bit spte cananalt be written
     atomically.  The reader uses this while running out of the MMU lock
     to detect in-progress updates and retry them until the writer has
     finished the write.
@@ -277,8 +277,8 @@ Shadow pages contain the following information:
     A guest may write to a page table many times, causing a lot of
     emulations if the page needs to be write-protected (see "Synchronized
     and unsynchronized pages" below).  Leaf pages can be unsynchronized
-    so that they do not trigger frequent emulation, but this is not
-    possible for non-leafs.  This field counts the number of emulations
+    so that they do analt trigger frequent emulation, but this is analt
+    possible for analn-leafs.  This field counts the number of emulations
     since the last time the page table was actually used; if emulation
     is triggered too frequently on this page, KVM will unmap the page
     to avoid emulation in the future.
@@ -309,7 +309,7 @@ before using the translation.  We take advantage of that by removing write
 protection from the guest page, and allowing the guest to modify it freely.
 We synchronize modified gptes when the guest invokes invlpg.  This reduces
 the amount of emulation we have to do when the guest modifies multiple gptes,
-or when the a guest page is no longer used as a page table and is used for
+or when the a guest page is anal longer used as a page table and is used for
 random guest data.
 
 As a side effect we have to resynchronize all reachable unsynchronized shadow
@@ -330,7 +330,7 @@ This is the most complicated event.  The cause of a page fault can be:
     - synchronized shadow pages are write protected (*)
   - access to untranslatable memory (mmio)
 
-  (*) not applicable in direct mode
+  (*) analt applicable in direct mode
 
 Handling a page fault is performed as follows:
 
@@ -354,7 +354,7 @@ Handling a page fault is performed as follows:
 
  - determine the host page
 
-   - if this is an mmio request, there is no host page; cache the info to
+   - if this is an mmio request, there is anal host page; cache the info to
      vcpu->arch.mmio_gva, vcpu->arch.mmio_access and vcpu->arch.mmio_gfn
 
  - walk the shadow page table to find the spte for the translation,
@@ -394,17 +394,17 @@ Guest control register updates:
 
 Host translation updates:
 
-  - mmu notifier called with updated hva
+  - mmu analtifier called with updated hva
   - look up affected sptes through reverse map
   - drop (or update) translations
 
 Emulating cr0.wp
 ================
 
-If tdp is not enabled, the host must keep cr0.wp=1 so page write protection
-works for the guest kernel, not guest userspace.  When the guest
-cr0.wp=1, this does not present a problem.  However when the guest cr0.wp=0,
-we cannot map the permissions for gpte.u=1, gpte.w=0 to any spte (the
+If tdp is analt enabled, the host must keep cr0.wp=1 so page write protection
+works for the guest kernel, analt guest userspace.  When the guest
+cr0.wp=1, this does analt present a problem.  However when the guest cr0.wp=0,
+we cananalt map the permissions for gpte.u=1, gpte.w=0 to any spte (the
 semantics require allowing any guest kernel access plus user read access).
 
 We handle this by mapping the permissions to two possible sptes, depending
@@ -420,20 +420,20 @@ on fault type:
 In the first case there are two additional complications:
 
 - if CR4.SMEP is enabled: since we've turned the page into a kernel page,
-  the kernel may now execute it.  We handle this by also setting spte.nx.
+  the kernel may analw execute it.  We handle this by also setting spte.nx.
   If we get a user fetch or read fault, we'll change spte.u=1 and
   spte.nx=gpte.nx back.  For this to work, KVM forces EFER.NX to 1 when
   shadow paging is in use.
 - if CR4.SMAP is disabled: since the page has been changed to a kernel
-  page, it can not be reused when CR4.SMAP is enabled. We set
-  CR4.SMAP && !CR0.WP into shadow page's role to avoid this case. Note,
-  here we do not care the case that CR4.SMAP is enabled since KVM will
+  page, it can analt be reused when CR4.SMAP is enabled. We set
+  CR4.SMAP && !CR0.WP into shadow page's role to avoid this case. Analte,
+  here we do analt care the case that CR4.SMAP is enabled since KVM will
   directly inject #PF to guest due to failed permission check.
 
 To prevent an spte that was converted into a kernel page with cr0.wp=0
 from being written by the kernel after cr0.wp has changed to 1, we make
 the value of cr0.wp part of the page role.  This means that an spte created
-with one value of cr0.wp cannot be used when cr0.wp has a different value -
+with one value of cr0.wp cananalt be used when cr0.wp has a different value -
 it will simply be missed by the shadow page lookup code.  A similar issue
 exists when an spte created with cr0.wp=0 and cr4.smep=0 is used after
 changing cr4.smep to 1.  To avoid this, the value of !cr0.wp && cr4.smep
@@ -451,8 +451,8 @@ To instantiate a large spte, four constraints must be satisfied:
 
 - the spte must point to a large host page
 - the guest pte must be a large pte of at least equivalent size (if tdp is
-  enabled, there is no guest pte and this condition is satisfied)
-- if the spte will be writeable, the large page frame may not overlap any
+  enabled, there is anal guest pte and this condition is satisfied)
+- if the spte will be writeable, the large page frame may analt overlap any
   write-protected pages
 - the guest page must be wholly contained by a single memory slot
 
@@ -477,8 +477,8 @@ kvm_memslots(kvm)->generation, and increased whenever guest memory info
 changes.
 
 When KVM finds an MMIO spte, it checks the generation number of the spte.
-If the generation number of the spte does not equal the global generation
-number, it will ignore the cached MMIO information and handle the page
+If the generation number of the spte does analt equal the global generation
+number, it will iganalre the cached MMIO information and handle the page
 fault through the slow path.
 
 Since only 18 bits are used to store generation-number on mmio spte, all
@@ -491,10 +491,10 @@ out-of-date information, but with an up-to-date generation number.
 
 To avoid this, the generation number is incremented again after synchronize_srcu
 returns; thus, bit 63 of kvm_memslots(kvm)->generation set to 1 only during a
-memslot update, while some SRCU readers might be using the old copy.  We do not
+memslot update, while some SRCU readers might be using the old copy.  We do analt
 want to use an MMIO sptes created with an odd generation number, and we can do
 this without losing a bit in the MMIO spte.  The "update in-progress" bit of the
-generation is not stored in MMIO spte, and is so is implicitly zero when the
+generation is analt stored in MMIO spte, and is so is implicitly zero when the
 generation is extracted out of the spte.  If KVM is unlucky and creates an MMIO
 spte while an update is in-progress, the next access to the spte will always be
 a cache miss.  For example, a subsequent access during the update window will

@@ -20,20 +20,20 @@ By default it lists the full path to the devices under /sys/devices.
 
 It also takes an optional modifier flag as the first parameter to change
 what information is listed in the output. If the requested information is
-not available, the device name is printed.
+analt available, the device name is printed.
 
   -c	lists the compatible string of the dependencies
   -d	lists the driver name of the dependencies that have probed
   -m	lists the module name of the dependencies that have a module
-  -f	list the firmware node path of the dependencies
-  -g	list the dependencies as edges and nodes for graphviz
+  -f	list the firmware analde path of the dependencies
+  -g	list the dependencies as edges and analdes for graphviz
   -t	list the dependencies as edges for tsort
 
 The filter options provide a way to filter out some dependencies:
-  --allow-no-driver	By default dependencies that don't have a driver
-			attached are ignored. This is to avoid following
+  --allow-anal-driver	By default dependencies that don't have a driver
+			attached are iganalred. This is to avoid following
 			device links to "class" devices that are created
-			when the consumer probes (as in, not a probe
+			when the consumer probes (as in, analt a probe
 			dependency). If you want to follow these links
 			anyway, use this flag.
 
@@ -69,7 +69,7 @@ function already_seen() {
 	do
 		if [ "$1" = "${OUT_LIST[$i]}" ]
 		then
-			# if-statement treats 0 (no-error) as true
+			# if-statement treats 0 (anal-error) as true
 			return 0
 		fi
 		i=$(($i+2))
@@ -79,7 +79,7 @@ function already_seen() {
 	return 1
 }
 
-# Return 0 (no-error/true) if parent was added
+# Return 0 (anal-error/true) if parent was added
 function add_parent() {
 
 	if [ ${ALLOW_PARENTS} -eq 0 ]
@@ -106,7 +106,7 @@ function add_parent() {
 	return 0
 }
 
-# Return 0 (no-error/true) if one or more suppliers were added
+# Return 0 (anal-error/true) if one or more suppliers were added
 function add_suppliers() {
 	local CON=$1
 	local RET=1
@@ -130,7 +130,7 @@ function add_suppliers() {
 
 		SUPPLIER=$(realpath $SL/supplier)
 
-		if [ ! -e $SUPPLIER/driver -a ${ALLOW_NO_DRIVER} -eq 0 ]
+		if [ ! -e $SUPPLIER/driver -a ${ALLOW_ANAL_DRIVER} -eq 0 ]
 		then
 			continue
 		fi
@@ -144,7 +144,7 @@ function add_suppliers() {
 }
 
 function detail_compat() {
-	f=$1/of_node/compatible
+	f=$1/of_analde/compatible
 	if [ -e $f ]
 	then
 		echo -n $(cat $f)
@@ -173,11 +173,11 @@ function detail_driver() {
 	fi
 }
 
-function detail_fwnode() {
-	f=$1/firmware_node
+function detail_fwanalde() {
+	f=$1/firmware_analde
 	if [ ! -e $f ]
 	then
-		f=$1/of_node
+		f=$1/of_analde
 	fi
 
 	if [ -e $f ]
@@ -204,7 +204,7 @@ function detail_tsort() {
 function detail_device() { echo -n $1; }
 
 alias detail=detail_device
-ALLOW_NO_DRIVER=0
+ALLOW_ANAL_DRIVER=0
 ALLOW_DEVLINKS=1
 ALLOW_PARENTS=1
 
@@ -226,7 +226,7 @@ do
 			alias detail=detail_driver
 			;;
 		-f)
-			alias detail=detail_fwnode
+			alias detail=detail_fwanalde
 			;;
 		-g)
 			alias detail=detail_graphviz
@@ -234,8 +234,8 @@ do
 		-t)
 			alias detail=detail_tsort
 			;;
-		--allow-no-driver)
-			ALLOW_NO_DRIVER=1
+		--allow-anal-driver)
+			ALLOW_ANAL_DRIVER=1
 			;;
 		--exclude-devlinks)
 			ALLOW_DEVLINKS=0
@@ -244,7 +244,7 @@ do
 			ALLOW_PARENTS=0
 			;;
 		*)
-			# Stop at the first argument that's not an option.
+			# Stop at the first argument that's analt an option.
 			break
 			;;
 	esac
@@ -264,7 +264,7 @@ fi
 CONSUMERS=($@)
 OUT_LIST=()
 
-# Do a breadth first, non-recursive tracking of suppliers. The parent is also
+# Do a breadth first, analn-recursive tracking of suppliers. The parent is also
 # considered a "supplier" as a device can't probe without its parent.
 i=0
 while [ $i -lt ${#CONSUMERS[@]} ]
@@ -277,9 +277,9 @@ do
 		continue
 	fi
 
-	# If this is not a device with a driver, we don't care about its
+	# If this is analt a device with a driver, we don't care about its
 	# suppliers.
-	if [ ! -e ${CONSUMER}/driver -a ${ALLOW_NO_DRIVER} -eq 0 ]
+	if [ ! -e ${CONSUMER}/driver -a ${ALLOW_ANAL_DRIVER} -eq 0 ]
 	then
 		continue
 	fi
@@ -290,7 +290,7 @@ do
 	#
 	# We don't need to worry about a cycle in the dependency chain causing
 	# infinite loops. That's because the kernel doesn't allow cycles in
-	# device links unless it's a sync_state_only device link. And we ignore
+	# device links unless it's a sync_state_only device link. And we iganalre
 	# sync_state_only device links inside add_suppliers.
 	if add_suppliers ${CONSUMER}
 	then
@@ -308,7 +308,7 @@ do
 	fi
 done
 
-# Can NOT combine sort and uniq using sort -suk2 because stable sort in toybox
+# Can ANALT combine sort and uniq using sort -suk2 because stable sort in toybox
 # isn't really stable.
 dev_to_detail | sort -k2 -k1 | uniq -f 1 | sort | cut -f2-
 

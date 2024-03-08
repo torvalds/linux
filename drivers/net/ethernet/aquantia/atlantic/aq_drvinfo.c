@@ -35,12 +35,12 @@ static int aq_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 		return -EIO;
 
 	if (type != hwmon_temp || attr != hwmon_temp_input)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (channel) {
 	case 0:
 		if (!aq_nic->aq_fw_ops->get_phy_temp)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		err = aq_nic->aq_fw_ops->get_phy_temp(aq_nic->aq_hw, &temp);
 		*value = temp;
@@ -48,7 +48,7 @@ static int aq_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 	case 1:
 		if (!aq_nic->aq_fw_ops->get_mac_temp &&
 		    !aq_nic->aq_hw_ops->hw_get_mac_temp)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		if (aq_nic->aq_fw_ops->get_mac_temp)
 			err = aq_nic->aq_fw_ops->get_mac_temp(aq_nic->aq_hw, &temp);
@@ -57,7 +57,7 @@ static int aq_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 		*value = temp;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return err;
@@ -73,12 +73,12 @@ static int aq_hwmon_read_string(struct device *dev,
 		return -EIO;
 
 	if (type != hwmon_temp || attr != hwmon_temp_label)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (channel < ARRAY_SIZE(atl_temp_label))
 		*str = atl_temp_label[channel];
 	else
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return 0;
 }

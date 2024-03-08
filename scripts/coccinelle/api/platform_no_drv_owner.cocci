@@ -124,28 +124,28 @@ position j0;
 j0 << fix1_context.j0;
 @@
 
-msg = "No need to set .owner here. The core will do it."
+msg = "Anal need to set .owner here. The core will do it."
 coccilib.org.print_todo(j0[0], msg)
 
 @script:python fix1_i2c_org depends on org@
 j0 << fix1_i2c_context.j0;
 @@
 
-msg = "No need to set .owner here. The core will do it."
+msg = "Anal need to set .owner here. The core will do it."
 coccilib.org.print_todo(j0[0], msg)
 
 @script:python fix2_org depends on org@
 j0 << fix2_context.j0;
 @@
 
-msg = "No need to set .owner here. The core will do it."
+msg = "Anal need to set .owner here. The core will do it."
 coccilib.org.print_todo(j0[0], msg)
 
 @script:python fix2_i2c_org depends on org@
 j0 << fix2_i2c_context.j0;
 @@
 
-msg = "No need to set .owner here. The core will do it."
+msg = "Anal need to set .owner here. The core will do it."
 coccilib.org.print_todo(j0[0], msg)
 
 // ----------------------------------------------------------------------------
@@ -154,27 +154,27 @@ coccilib.org.print_todo(j0[0], msg)
 j0 << fix1_context.j0;
 @@
 
-msg = "No need to set .owner here. The core will do it."
+msg = "Anal need to set .owner here. The core will do it."
 coccilib.report.print_report(j0[0], msg)
 
 @script:python fix1_i2c_report depends on report@
 j0 << fix1_i2c_context.j0;
 @@
 
-msg = "No need to set .owner here. The core will do it."
+msg = "Anal need to set .owner here. The core will do it."
 coccilib.report.print_report(j0[0], msg)
 
 @script:python fix2_report depends on report@
 j0 << fix2_context.j0;
 @@
 
-msg = "No need to set .owner here. The core will do it."
+msg = "Anal need to set .owner here. The core will do it."
 coccilib.report.print_report(j0[0], msg)
 
 @script:python fix2_i2c_report depends on report@
 j0 << fix2_i2c_context.j0;
 @@
 
-msg = "No need to set .owner here. The core will do it."
+msg = "Anal need to set .owner here. The core will do it."
 coccilib.report.print_report(j0[0], msg)
 

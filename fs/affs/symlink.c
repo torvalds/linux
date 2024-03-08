@@ -14,16 +14,16 @@
 static int affs_symlink_read_folio(struct file *file, struct folio *folio)
 {
 	struct buffer_head *bh;
-	struct inode *inode = folio->mapping->host;
+	struct ianalde *ianalde = folio->mapping->host;
 	char *link = folio_address(folio);
 	struct slink_front *lf;
 	int			 i, j;
 	char			 c;
 	char			 lc;
 
-	pr_debug("get_link(ino=%lu)\n", inode->i_ino);
+	pr_debug("get_link(ianal=%lu)\n", ianalde->i_ianal);
 
-	bh = affs_bread(inode->i_sb, inode->i_ino);
+	bh = affs_bread(ianalde->i_sb, ianalde->i_ianal);
 	if (!bh)
 		goto fail;
 	i  = 0;
@@ -32,7 +32,7 @@ static int affs_symlink_read_folio(struct file *file, struct folio *folio)
 	lc = 0;
 
 	if (strchr(lf->symname,':')) {	/* Handle assign or volume name */
-		struct affs_sb_info *sbi = AFFS_SB(inode->i_sb);
+		struct affs_sb_info *sbi = AFFS_SB(ianalde->i_sb);
 		char *pf;
 		spin_lock(&sbi->symlink_lock);
 		pf = sbi->s_prefix ? sbi->s_prefix : "/";
@@ -69,7 +69,7 @@ const struct address_space_operations affs_symlink_aops = {
 	.read_folio	= affs_symlink_read_folio,
 };
 
-const struct inode_operations affs_symlink_inode_operations = {
+const struct ianalde_operations affs_symlink_ianalde_operations = {
 	.get_link	= page_get_link,
-	.setattr	= affs_notify_change,
+	.setattr	= affs_analtify_change,
 };

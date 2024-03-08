@@ -35,7 +35,7 @@ static ssize_t force_power_store(struct device *dev,
 		status = wmidev_evaluate_method(to_wmi_device(dev), 0, 1, &input, NULL);
 		if (ACPI_FAILURE(status)) {
 			dev_dbg(dev, "force_power: failed to evaluate ACPI method\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	} else {
 		dev_dbg(dev, "force_power: unsupported mode\n");

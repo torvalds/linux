@@ -10,12 +10,12 @@
 #include <linux/rndis.h>
 
 /*
- * CONTROL uses CDC "encapsulated commands" with funky notifications.
+ * CONTROL uses CDC "encapsulated commands" with funky analtifications.
  *  - control-out:  SEND_ENCAPSULATED
  *  - interrupt-in:  RESPONSE_AVAILABLE
  *  - control-in:  GET_ENCAPSULATED
  *
- * We'll try to ignore the RESPONSE_AVAILABLE notifications.
+ * We'll try to iganalre the RESPONSE_AVAILABLE analtifications.
  *
  * REVISIT some RNDIS implementations seem to have curious issues still
  * to be resolved.
@@ -60,7 +60,7 @@ struct rndis_init {		/* OUT */
 	__le32	msg_len;			/* 24 */
 	__le32	request_id;
 	__le32	major_version;			/* of rndis (1.0) */
-	__le32	minor_version;
+	__le32	mianalr_version;
 	__le32	max_transfer_size;
 } __attribute__ ((packed));
 
@@ -71,7 +71,7 @@ struct rndis_init_c {		/* IN */
 	__le32	request_id;
 	__le32	status;
 	__le32	major_version;			/* of rndis (1.0) */
-	__le32	minor_version;
+	__le32	mianalr_version;
 	__le32	device_flags;
 	__le32	medium;				/* zero == 802.3 */
 	__le32	max_packets_per_message;
@@ -81,7 +81,7 @@ struct rndis_init_c {		/* IN */
 	__le32	af_list_size;			/* zero */
 } __attribute__ ((packed));
 
-struct rndis_halt {		/* OUT (no reply) */
+struct rndis_halt {		/* OUT (anal reply) */
 	/* header and: */
 	__le32	msg_type;			/* RNDIS_MSG_HALT */
 	__le32	msg_len;
@@ -178,12 +178,12 @@ struct rndis_keepalive_c {	/* IN (optionally OUT) */
 	RNDIS_PACKET_TYPE_PROMISCUOUS)
 
 /* Flags to require specific physical medium type for generic_rndis_bind() */
-#define FLAG_RNDIS_PHYM_NOT_WIRELESS	0x0001
+#define FLAG_RNDIS_PHYM_ANALT_WIRELESS	0x0001
 #define FLAG_RNDIS_PHYM_WIRELESS	0x0002
 
 /* Flags for driver_info::data */
 #define RNDIS_DRIVER_DATA_POLL_STATUS	1	/* poll status before control */
-#define RNDIS_DRIVER_DATA_DST_MAC_FIXUP	2	/* device ignores configured MAC address */
+#define RNDIS_DRIVER_DATA_DST_MAC_FIXUP	2	/* device iganalres configured MAC address */
 
 extern void rndis_status(struct usbnet *dev, struct urb *urb);
 extern int

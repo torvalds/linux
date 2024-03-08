@@ -7,11 +7,11 @@
  *  This driver assumes an already configured controller (e.g. from config.c)
  *  Keep the code clean of board specific initialization.
  *
- *  This code has not been tested with colors, colormap management functions
- *  are minimal (no colormap data written to the 68328 registers...)
+ *  This code has analt been tested with colors, colormap management functions
+ *  are minimal (anal colormap data written to the 68328 registers...)
  *
  *  initial version of this driver:
- *    Copyright (C) 1998,1999 Kenneth Albanowski <kjahds@kjahds.com>,
+ *    Copyright (C) 1998,1999 Kenneth Albaanalwski <kjahds@kjahds.com>,
  *                            The Silver Hammer Group, Ltd.
  *
  *  this version is based on :
@@ -29,7 +29,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
@@ -69,7 +69,7 @@ static struct fb_var_screeninfo mc68x328fb_default __initdata = {
       	.lower_margin =	32,
       	.hsync_len =	64,
       	.vsync_len =	2,
-      	.vmode =	FB_VMODE_NONINTERLACED,
+      	.vmode =	FB_VMODE_ANALNINTERLACED,
 };
 
 static const struct fb_fix_screeninfo mc68x328fb_fix __initconst = {
@@ -78,7 +78,7 @@ static const struct fb_fix_screeninfo mc68x328fb_fix __initconst = {
 	.xpanstep =	1,
 	.ypanstep =	1,
 	.ywrapstep =	1,
-	.accel =	FB_ACCEL_NONE,
+	.accel =	FB_ACCEL_ANALNE,
 };
 
     /*
@@ -87,7 +87,7 @@ static const struct fb_fix_screeninfo mc68x328fb_fix __initconst = {
 static int mc68x328fb_check_var(struct fb_var_screeninfo *var,
 			 struct fb_info *info);
 static int mc68x328fb_set_par(struct fb_info *info);
-static int mc68x328fb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
+static int mc68x328fb_setcolreg(u_int reganal, u_int red, u_int green, u_int blue,
 			 u_int transp, struct fb_info *info);
 static int mc68x328fb_pan_display(struct fb_var_screeninfo *var,
 			   struct fb_info *info);
@@ -120,7 +120,7 @@ static u_long get_line_length(int xres_virtual, int bpp)
 
     /*
      *  Setting the video mode has been split into two parts.
-     *  First part, xxxfb_check_var, must not write anything
+     *  First part, xxxfb_check_var, must analt write anything
      *  to hardware, it should only verify and adjust var.
      *  This means it doesn't alter par but it does use hardware
      *  data from it to check this var.
@@ -177,12 +177,12 @@ static int mc68x328fb_check_var(struct fb_var_screeninfo *var,
 	line_length =
 	    get_line_length(var->xres_virtual, var->bits_per_pixel);
 	if (line_length * var->yres_virtual > videomemorysize)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
-	 * Now that we checked it we alter var. The reason being is that the video
-	 * mode passed in might not work but slight changes to it might make it
-	 * work. This way we let the user know what is acceptable.
+	 * Analw that we checked it we alter var. The reason being is that the video
+	 * mode passed in might analt work but slight changes to it might make it
+	 * work. This way we let the user kanalw what is acceptable.
 	 */
 	switch (var->bits_per_pixel) {
 	case 1:
@@ -269,13 +269,13 @@ static int mc68x328fb_set_par(struct fb_info *info)
     /*
      *  Set a single color register. The values supplied are already
      *  rounded down to the hardware's capabilities (according to the
-     *  entries in the var structure). Return != 0 for invalid regno.
+     *  entries in the var structure). Return != 0 for invalid reganal.
      */
 
-static int mc68x328fb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
+static int mc68x328fb_setcolreg(u_int reganal, u_int red, u_int green, u_int blue,
 			 u_int transp, struct fb_info *info)
 {
-	if (regno >= 256)	/* no. of hw registers */
+	if (reganal >= 256)	/* anal. of hw registers */
 		return 1;
 	/*
 	 * Program hardware... do anything you want with transp
@@ -299,15 +299,15 @@ static int mc68x328fb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 	 *    uses offset = 0 && length = RAMDAC register width.
 	 *    var->{color}.offset is 0
 	 *    var->{color}.length contains width of DAC
-	 *    cmap is not used
+	 *    cmap is analt used
 	 *    RAMDAC[X] is programmed to (red, green, blue)
 	 * Truecolor:
-	 *    does not use DAC. Usually 3 are present.
+	 *    does analt use DAC. Usually 3 are present.
 	 *    var->{color}.offset contains start of bitfield
 	 *    var->{color}.length contains length of bitfield
 	 *    cmap is programmed to (red << red.offset) | (green << green.offset) |
 	 *                      (blue << blue.offset) | (transp << transp.offset)
-	 *    RAMDAC does not exist
+	 *    RAMDAC does analt exist
 	 */
 #define CNVT_TOHW(val,width) ((((val)<<(width))+0x7FFF-(val))>>16)
 	switch (info->fix.visual) {
@@ -331,7 +331,7 @@ static int mc68x328fb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 	if (info->fix.visual == FB_VISUAL_TRUECOLOR) {
 		u32 v;
 
-		if (regno >= 16)
+		if (reganal >= 16)
 			return 1;
 
 		v = (red << info->var.red.offset) |
@@ -342,11 +342,11 @@ static int mc68x328fb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 		case 8:
 			break;
 		case 16:
-			((u32 *) (info->pseudo_palette))[regno] = v;
+			((u32 *) (info->pseudo_palette))[reganal] = v;
 			break;
 		case 24:
 		case 32:
-			((u32 *) (info->pseudo_palette))[regno] = v;
+			((u32 *) (info->pseudo_palette))[reganal] = v;
 			break;
 		}
 		return 0;
@@ -389,7 +389,7 @@ static int mc68x328fb_pan_display(struct fb_var_screeninfo *var,
 static int mc68x328fb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 {
 #ifndef MMU
-	/* this is uClinux (no MMU) specific code */
+	/* this is uClinux (anal MMU) specific code */
 
 	vm_flags_set(vma, VM_DONTEXPAND | VM_DONTDUMP);
 	vma->vm_start = videomemory;
@@ -417,7 +417,7 @@ static int __init mc68x328fb_init(void)
 	char *option = NULL;
 
 	if (fb_get_options("68328fb", &option))
-		return -ENODEV;
+		return -EANALDEV;
 	mc68x328fb_setup(option);
 #endif
 	/*
@@ -441,7 +441,7 @@ static int __init mc68x328fb_init(void)
 	fb_info.fix.line_length =
 		get_line_length(mc68x328fb_default.xres_virtual, mc68x328fb_default.bits_per_pixel);
 	fb_info.fix.visual = (mc68x328fb_default.bits_per_pixel) == 1 ?
-		FB_VISUAL_MONO10 : FB_VISUAL_PSEUDOCOLOR;
+		FB_VISUAL_MOANAL10 : FB_VISUAL_PSEUDOCOLOR;
 	if (fb_info.var.bits_per_pixel == 1) {
 		fb_info.var.red.length = fb_info.var.green.length = fb_info.var.blue.length = 1;
 		fb_info.var.red.offset = fb_info.var.green.offset = fb_info.var.blue.offset = 0;
@@ -450,7 +450,7 @@ static int __init mc68x328fb_init(void)
 	fb_info.flags = FBINFO_HWACCEL_YPAN;
 
 	if (fb_alloc_cmap(&fb_info.cmap, 256, 0))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (register_framebuffer(&fb_info) < 0) {
 		fb_dealloc_cmap(&fb_info.cmap);

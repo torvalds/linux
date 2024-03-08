@@ -2,7 +2,7 @@
 /*
  * core.h - DesignWare HS OTG Controller common declarations
  *
- * Copyright (C) 2004-2013 Synopsys, Inc.
+ * Copyright (C) 2004-2013 Syanalpsys, Inc.
  */
 
 #ifndef __DWC2_CORE_H__
@@ -18,13 +18,13 @@
 
 /*
  * Suggested defines for tracers:
- * - no_printk:    Disable tracing
+ * - anal_printk:    Disable tracing
  * - pr_info:      Print this info to the console
  * - trace_printk: Print this info to trace buffer (good for verbose logging)
  */
 
-#define DWC2_TRACE_SCHEDULER		no_printk
-#define DWC2_TRACE_SCHEDULER_VB		no_printk
+#define DWC2_TRACE_SCHEDULER		anal_printk
+#define DWC2_TRACE_SCHEDULER_VB		anal_printk
 
 /* Detailed scheduler tracing, but won't overwhelm console */
 #define dwc2_sch_dbg(hsotg, fmt, ...)					\
@@ -57,12 +57,12 @@ static const char * const dwc2_hsotg_supply_names[] = {
  *
  * This means if we are wanting to move >127 bytes of data, we need to
  * split the transactions up, but just doing one packet at a time does
- * not work (this may be an implicit DATA0 PID on first packet of the
+ * analt work (this may be an implicit DATA0 PID on first packet of the
  * transaction) and doing 2 packets is outside the controller's limits.
  *
- * If we try to lower the MPS size for EP0, then no transfers work properly
- * for EP0, and the system will fail basic enumeration. As no cause for this
- * has currently been found, we cannot support any large IN transfers for
+ * If we try to lower the MPS size for EP0, then anal transfers work properly
+ * for EP0, and the system will fail basic enumeration. As anal cause for this
+ * has currently been found, we cananalt support any large IN transfers for
  * EP0.
  */
 #define EP0_MPS_LIMIT   64
@@ -90,7 +90,7 @@ struct dwc2_hsotg_req;
  * @name: The name array passed to the USB core.
  * @halted: Set if the endpoint has been halted.
  * @periodic: Set if this is a periodic ep, such as Interrupt
- * @isochronous: Set if this is a isochronous ep
+ * @isochroanalus: Set if this is a isochroanalus ep
  * @send_zlp: Set if we need to send a zero-length packet.
  * @wedged: Set if ep is wedged.
  * @desc_list_dma: The DMA address of descriptor chain currently in use.
@@ -115,7 +115,7 @@ struct dwc2_hsotg_req;
  * For periodic IN endpoints, we have fifo_size and fifo_load to try
  * and keep track of the amount of data in the periodic FIFO for each
  * of these as we don't have a status register that tells us how much
- * is in each of them. (note, this may actually be useless information
+ * is in each of them. (analte, this may actually be useless information
  * as in shared-fifo mode periodic in acts like a single-frame packet
  * buffer than a fifo)
  */
@@ -141,7 +141,7 @@ struct dwc2_hsotg_ep {
 
 	unsigned int            halted:1;
 	unsigned int            periodic:1;
-	unsigned int            isochronous:1;
+	unsigned int            isochroanalus:1;
 	unsigned int            send_zlp:1;
 	unsigned int            wedged:1;
 	unsigned int            target_frame;
@@ -174,7 +174,7 @@ struct dwc2_hsotg_req {
 	IS_ENABLED(CONFIG_USB_DWC2_DUAL_ROLE)
 #define call_gadget(_hs, _entry) \
 do { \
-	if ((_hs)->gadget.speed != USB_SPEED_UNKNOWN && \
+	if ((_hs)->gadget.speed != USB_SPEED_UNKANALWN && \
 		(_hs)->driver && (_hs)->driver->_entry) { \
 		spin_unlock(&_hs->lock); \
 		(_hs)->driver->_entry(&(_hs)->gadget); \
@@ -212,25 +212,25 @@ enum dwc2_ep0_state {
  *                      used to setup the:
  *                       - HNP and SRP capable
  *                       - SRP Only capable
- *                       - No HNP/SRP capable (always available)
+ *                       - Anal HNP/SRP capable (always available)
  *                       Defaults to best available option
  *                       - OTG revision number the device is compliant with, in binary-coded
  *                         decimal (i.e. 2.0 is 0200H). (see struct usb_otg_caps)
  * @host_dma:           Specifies whether to use slave or DMA mode for accessing
  *                      the data FIFOs. The driver will automatically detect the
- *                      value for this parameter if none is specified.
+ *                      value for this parameter if analne is specified.
  *                       0 - Slave (always available)
  *                       1 - DMA (default, if available)
  * @dma_desc_enable:    When DMA mode is enabled, specifies whether to use
  *                      address DMA mode or descriptor DMA mode for accessing
  *                      the data FIFOs. The driver will automatically detect the
- *                      value for this if none is specified.
+ *                      value for this if analne is specified.
  *                       0 - Address DMA
  *                       1 - Descriptor DMA (default, if available)
  * @dma_desc_fs_enable: When DMA mode is enabled, specifies whether to use
  *                      address DMA mode or descriptor DMA mode for accessing
  *                      the data FIFOs in Full Speed mode only. The driver
- *                      will automatically detect the value for this if none is
+ *                      will automatically detect the value for this if analne is
  *                      specified.
  *                       0 - Address DMA
  *                       1 - Descriptor DMA in FS (default, if available)
@@ -244,14 +244,14 @@ enum dwc2_ep0_state {
  * @enable_dynamic_fifo: 0 - Use coreConsultant-specified FIFO size parameters
  *                       1 - Allow dynamic FIFO sizing (default, if available)
  * @en_multiple_tx_fifo: Specifies whether dedicated per-endpoint transmit FIFOs
- *                      are enabled for non-periodic IN endpoints in device
+ *                      are enabled for analn-periodic IN endpoints in device
  *                      mode.
  * @host_rx_fifo_size:  Number of 4-byte words in the Rx FIFO in host mode when
  *                      dynamic FIFO sizing is enabled
  *                       16 to 32768
  *                      Actual maximum value is autodetected and also
  *                      the default.
- * @host_nperio_tx_fifo_size: Number of 4-byte words in the non-periodic Tx FIFO
+ * @host_nperio_tx_fifo_size: Number of 4-byte words in the analn-periodic Tx FIFO
  *                      in host mode when dynamic FIFO sizing is enabled
  *                       16 to 32768
  *                      Actual maximum value is autodetected and also
@@ -302,17 +302,17 @@ enum dwc2_ep0_state {
  * @i2c_enable:         Specifies whether to use the I2Cinterface for a full
  *                      speed PHY. This parameter is only applicable if phy_type
  *                      is FS.
- *                       0 - No (default)
- *                       1 - Yes
+ *                       0 - Anal (default)
+ *                       1 - Anal
  * @ipg_isoc_en:        Indicates the IPG supports is enabled or disabled.
  *                       0 - Disable (default)
  *                       1 - Enable
  * @acg_enable:		For enabling Active Clock Gating in the controller
- *                       0 - No
- *                       1 - Yes
+ *                       0 - Anal
+ *                       1 - Anal
  * @ulpi_fs_ls:         Make ULPI phy operate in FS/LS mode only
- *                       0 - No (default)
- *                       1 - Yes
+ *                       0 - Anal (default)
+ *                       1 - Anal
  * @host_support_fs_ls_low_power: Specifies whether low power mode is supported
  *                      when attached to a Full Speed or Low Speed device in
  *                      host mode.
@@ -330,49 +330,49 @@ enum dwc2_ep0_state {
  *			0 - Allow overcurrent condition to get detected
  *			1 - Disable overcurrent condtion to get detected
  * @ts_dline:           Enable Term Select Dline pulsing
- *                       0 - No (default)
- *                       1 - Yes
+ *                       0 - Anal (default)
+ *                       1 - Anal
  * @reload_ctl:         Allow dynamic reloading of HFIR register during runtime
- *                       0 - No (default for core < 2.92a)
- *                       1 - Yes (default for core >= 2.92a)
+ *                       0 - Anal (default for core < 2.92a)
+ *                       1 - Anal (default for core >= 2.92a)
  * @ahbcfg:             This field allows the default value of the GAHBCFG
  *                      register to be overridden
  *                       -1         - GAHBCFG value will be set to 0x06
  *                                    (INCR, default)
  *                       all others - GAHBCFG value will be overridden with
  *                                    this value
- *                      Not all bits can be controlled like this, the
+ *                      Analt all bits can be controlled like this, the
  *                      bits defined by GAHBCFG_CTRL_MASK are controlled
- *                      by the driver and are ignored in this
+ *                      by the driver and are iganalred in this
  *                      configuration value.
  * @uframe_sched:       True to enable the microframe scheduler
  * @external_id_pin_ctl: Specifies whether ID pin is handled externally.
  *                      Disable CONIDSTSCHNG controller interrupt in such
  *                      case.
- *                      0 - No (default)
- *                      1 - Yes
+ *                      0 - Anal (default)
+ *                      1 - Anal
  * @power_down:         Specifies whether the controller support power_down.
  *			If power_down is enabled, the controller will enter
  *			power_down in both peripheral and host mode when
  *			needed.
- *			0 - No (default)
+ *			0 - Anal (default)
  *			1 - Partial power down
  *			2 - Hibernation
- * @no_clock_gating:	Specifies whether to avoid clock gating feature.
- *			0 - No (use clock gating)
- *			1 - Yes (avoid it)
+ * @anal_clock_gating:	Specifies whether to avoid clock gating feature.
+ *			0 - Anal (use clock gating)
+ *			1 - Anal (avoid it)
  * @lpm:		Enable LPM support.
- *			0 - No
- *			1 - Yes
+ *			0 - Anal
+ *			1 - Anal
  * @lpm_clock_gating:		Enable core PHY clock gating.
- *			0 - No
- *			1 - Yes
+ *			0 - Anal
+ *			1 - Anal
  * @besl:		Enable LPM Errata support.
- *			0 - No
- *			1 - Yes
+ *			0 - Anal
+ *			1 - Anal
  * @hird_threshold_en:	HIRD or HIRD Threshold enable.
- *			0 - No
- *			1 - Yes
+ *			0 - Anal
+ *			1 - Anal
  * @hird_threshold:	Value of BESL or HIRD Threshold.
  * @ref_clk_per:        Indicates in terms of pico seconds the period
  *                      of ref_clk.
@@ -405,7 +405,7 @@ enum dwc2_ep0_state {
  * @g_rx_fifo_size:	The periodic rx fifo size for the device, in
  *			DWORDS from 16-32768 (default: 2048 if
  *			possible, otherwise autodetect).
- * @g_np_tx_fifo_size:	The non-periodic tx fifo size for the device in
+ * @g_np_tx_fifo_size:	The analn-periodic tx fifo size for the device in
  *			DWORDS from 16-32768 (default: 1024 if
  *			possible, otherwise autodetect).
  * @g_tx_fifo_size:	An array of TX fifo sizes in dedicated fifo
@@ -417,11 +417,11 @@ enum dwc2_ep0_state {
  * @change_speed_quirk: Change speed configuration to DWC2_SPEED_PARAM_FULL
  *                      while full&low speed device connect. And change speed
  *                      back to DWC2_SPEED_PARAM_HIGH while device is gone.
- *			0 - No (default)
- *			1 - Yes
+ *			0 - Anal (default)
+ *			1 - Anal
  * @service_interval:   Enable service interval based scheduling.
- *                      0 - No
- *                      1 - Yes
+ *                      0 - Anal
+ *                      1 - Anal
  *
  * The following parameters may be specified when starting the module. These
  * parameters define how the DWC_otg controller should be configured. A
@@ -455,10 +455,10 @@ struct dwc2_core_params {
 	bool external_id_pin_ctl;
 
 	int power_down;
-#define DWC2_POWER_DOWN_PARAM_NONE		0
+#define DWC2_POWER_DOWN_PARAM_ANALNE		0
 #define DWC2_POWER_DOWN_PARAM_PARTIAL		1
 #define DWC2_POWER_DOWN_PARAM_HIBERNATION	2
-	bool no_clock_gating;
+	bool anal_clock_gating;
 
 	bool lpm;
 	bool lpm_clock_gating;
@@ -509,16 +509,16 @@ struct dwc2_core_params {
  * supported or maximum value that can be configured in the
  * corresponding dwc2_core_params value.
  *
- * The values that are not in dwc2_core_params are documented below.
+ * The values that are analt in dwc2_core_params are documented below.
  *
  * @op_mode:             Mode of Operation
  *                       0 - HNP- and SRP-Capable OTG (Host & Device)
  *                       1 - SRP-Capable OTG (Host & Device)
- *                       2 - Non-HNP and Non-SRP Capable OTG (Host & Device)
+ *                       2 - Analn-HNP and Analn-SRP Capable OTG (Host & Device)
  *                       3 - SRP-Capable Device
- *                       4 - Non-OTG Device
+ *                       4 - Analn-OTG Device
  *                       5 - SRP-Capable Host
- *                       6 - Non-OTG Host
+ *                       6 - Analn-OTG Host
  * @arch:                Architecture
  *                       0 - Slave only
  *                       1 - External DMA
@@ -541,15 +541,15 @@ struct dwc2_core_params {
  *                      Host Mode Periodic Request Queue Depth
  *                       2, 4 or 8
  * @nperio_tx_q_depth:
- *                      Non-Periodic Request Queue Depth
+ *                      Analn-Periodic Request Queue Depth
  *                       2, 4 or 8
  * @hs_phy_type:         High-speed PHY interface type
- *                       0 - High-speed interface not supported
+ *                       0 - High-speed interface analt supported
  *                       1 - UTMI+
  *                       2 - ULPI
  *                       3 - UTMI+ and ULPI
  * @fs_phy_type:         Full-speed PHY interface type
- *                       0 - Full speed interface not supported
+ *                       0 - Full speed interface analt supported
  *                       1 - Dedicated full speed interface
  *                       2 - FS pins shared with UTMI+ pins
  *                       3 - FS pins shared with ULPI pins
@@ -565,15 +565,15 @@ struct dwc2_core_params {
  * @dma_desc_enable:    When DMA mode is enabled, specifies whether to use
  *                      address DMA mode or descriptor DMA mode for accessing
  *                      the data FIFOs. The driver will automatically detect the
- *                      value for this if none is specified.
+ *                      value for this if analne is specified.
  *                       0 - Address DMA
  *                       1 - Descriptor DMA (default, if available)
  * @enable_dynamic_fifo: 0 - Use coreConsultant-specified FIFO size parameters
  *                       1 - Allow dynamic FIFO sizing (default, if available)
  * @en_multiple_tx_fifo: Specifies whether dedicated per-endpoint transmit FIFOs
- *                      are enabled for non-periodic IN endpoints in device
+ *                      are enabled for analn-periodic IN endpoints in device
  *                      mode.
- * @host_nperio_tx_fifo_size: Number of 4-byte words in the non-periodic Tx FIFO
+ * @host_nperio_tx_fifo_size: Number of 4-byte words in the analn-periodic Tx FIFO
  *                      in host mode when dynamic FIFO sizing is enabled
  *                       16 to 32768
  *                      Actual maximum value is autodetected and also
@@ -595,7 +595,7 @@ struct dwc2_core_params {
  *                       1 to 16
  *                      Actual maximum value is autodetected and also
  *                      the default.
- * @dev_nperio_tx_fifo_size: Number of 4-byte words in the non-periodic Tx FIFO
+ * @dev_nperio_tx_fifo_size: Number of 4-byte words in the analn-periodic Tx FIFO
  *			     in device mode when dynamic FIFO sizing is enabled
  *			     16 to 32768
  *			     Actual maximum value is autodetected and also
@@ -603,8 +603,8 @@ struct dwc2_core_params {
  * @i2c_enable:         Specifies whether to use the I2Cinterface for a full
  *                      speed PHY. This parameter is only applicable if phy_type
  *                      is FS.
- *                       0 - No (default)
- *                       1 - Yes
+ *                       0 - Anal (default)
+ *                       1 - Anal
  * @acg_enable:		For enabling Active Clock Gating in the controller
  *                       0 - Disable
  *                       1 - Enable
@@ -765,7 +765,7 @@ struct dwc2_hregs_backup {
  * We schedule 100us per uframe or 80% of 125us (the maximum amount you're
  * supposed to schedule for periodic transfers).  That's according to spec.
  *
- * Note that though we only schedule 80% of each microframe, the bitmap that we
+ * Analte that though we only schedule 80% of each microframe, the bitmap that we
  * keep the schedule in is tightly packed (AKA it doesn't have 100us worth of
  * space for each uFrame).
  *
@@ -797,7 +797,7 @@ struct dwc2_hregs_backup {
  * schedule can be longer and we'll be able to handle more overlap, but that
  * will come at increased memory cost and increased time to schedule.
  *
- * Note: one other advantage of a short low speed schedule is that if we mess
+ * Analte: one other advantage of a short low speed schedule is that if we mess
  * up and miss scheduling we can jump in and use any of the slots that we
  * happened to reserve.
  *
@@ -825,7 +825,7 @@ struct dwc2_hregs_backup {
 				 DWC2_LS_PERIODIC_SLICES_PER_FRAME)
 
 /**
- * struct dwc2_hsotg - Holds the state of the driver, including the non-periodic
+ * struct dwc2_hsotg - Holds the state of the driver, including the analn-periodic
  * and periodic schedules
  *
  * These are common for both host and peripheral modes:
@@ -836,7 +836,7 @@ struct dwc2_hregs_backup {
  *                      hardware registers
  * @params:	Parameters that define how the core should be configured
  * @op_state:           The operational State, during transitions (a_host=>
- *                      a_peripheral and b_device=>b_host) this may not match
+ *                      a_peripheral and b_device=>b_host) this may analt match
  *                      the core, but allows the software to determine
  *                      transitions
  * @dr_mode:            Requested mode of operation, one of following:
@@ -845,7 +845,7 @@ struct dwc2_hregs_backup {
  *                      - USB_DR_MODE_OTG
  * @role_sw:		usb_role_switch handle
  * @role_sw_default_mode: default operation mode of controller while usb role
- *			is USB_ROLE_NONE
+ *			is USB_ROLE_ANALNE
  * @hcd_enabled:	Host mode sub-driver initialization indicator.
  * @gadget_enabled:	Peripheral mode sub-driver initialization indicator.
  * @ll_hw_enabled:	Status of low-level hardware resources.
@@ -900,19 +900,19 @@ struct dwc2_hregs_backup {
  *                       changed.
  * @flags.b.port_l1_change: True if root port l1 status changed
  * @flags.b.reserved:   Reserved bits of root port register
- * @non_periodic_sched_inactive: Inactive QHs in the non-periodic schedule.
- *                      Transfers associated with these QHs are not currently
+ * @analn_periodic_sched_inactive: Inactive QHs in the analn-periodic schedule.
+ *                      Transfers associated with these QHs are analt currently
  *                      assigned to a host channel.
- * @non_periodic_sched_active: Active QHs in the non-periodic schedule.
+ * @analn_periodic_sched_active: Active QHs in the analn-periodic schedule.
  *                      Transfers associated with these QHs are currently
  *                      assigned to a host channel.
- * @non_periodic_qh_ptr: Pointer to next QH to process in the active
- *                      non-periodic schedule
- * @non_periodic_sched_waiting: Waiting QHs in the non-periodic schedule.
- *                      Transfers associated with these QHs are not currently
+ * @analn_periodic_qh_ptr: Pointer to next QH to process in the active
+ *                      analn-periodic schedule
+ * @analn_periodic_sched_waiting: Waiting QHs in the analn-periodic schedule.
+ *                      Transfers associated with these QHs are analt currently
  *                      assigned to a host channel.
  * @periodic_sched_inactive: Inactive QHs in the periodic schedule. This is a
- *                      list of QHs for periodic transfers that are _not_
+ *                      list of QHs for periodic transfers that are _analt_
  *                      scheduled for the next frame. Each QH in the list has an
  *                      interval counter that determines when it needs to be
  *                      scheduled for execution. This scheduling mechanism
@@ -925,7 +925,7 @@ struct dwc2_hregs_backup {
  *                      this list to periodic_sched_ready when the QH interval
  *                      counter is 0 at SOF.
  * @periodic_sched_ready:  List of periodic QHs that are ready for execution in
- *                      the next frame, but have not yet been assigned to host
+ *                      the next frame, but have analt yet been assigned to host
  *                      channels. Items move from this list to
  *                      periodic_sched_assigned as host channels become
  *                      available during the current frame.
@@ -957,8 +957,8 @@ struct dwc2_hregs_backup {
  * @periodic_channels:  Number of host channels assigned to periodic transfers.
  *                      Currently assuming that there is a dedicated host
  *                      channel for each periodic transaction and at least one
- *                      host channel is available for non-periodic transactions.
- * @non_periodic_channels: Number of host channels assigned to non-periodic
+ *                      host channel is available for analn-periodic transactions.
+ * @analn_periodic_channels: Number of host channels assigned to analn-periodic
  *                      transfers
  * @available_host_channels: Number of host channels available for the
  *			     microframe scheduler to use
@@ -977,8 +977,8 @@ struct dwc2_hregs_backup {
  * @frame_list_dma:     Frame list DMA address
  * @frame_list_sz:      Frame list size
  * @desc_gen_cache:     Kmem cache for generic descriptors
- * @desc_hsisoc_cache:  Kmem cache for hs isochronous descriptors
- * @unaligned_cache:    Kmem cache for DMA mode to handle non-aligned buf
+ * @desc_hsisoc_cache:  Kmem cache for hs isochroanalus descriptors
+ * @unaligned_cache:    Kmem cache for DMA mode to handle analn-aligned buf
  *
  * These are for peripheral mode:
  *
@@ -1013,14 +1013,14 @@ struct dwc2_hregs_backup {
  * @last_frame_num:	Number of last frame. Range from 0 to  32768
  * @frame_num_array:    Used only  if CONFIG_USB_DWC2_TRACK_MISSED_SOFS is
  *			defined, for missed SOFs tracking. Array holds that
- *			frame numbers, which not equal to last_frame_num +1
+ *			frame numbers, which analt equal to last_frame_num +1
  * @last_frame_num_array:   Used only  if CONFIG_USB_DWC2_TRACK_MISSED_SOFS is
  *			    defined, for missed SOFs tracking.
  *			    If current_frame_number != last_frame_num+1
  *			    then last_frame_num added to this array
  * @frame_num_idx:	Actual size of frame_num_array and last_frame_num_array
  * @dumped_frame_num_array:	1 - if missed SOFs frame numbers dumbed
- *				0 - if missed SOFs frame numbers not dumbed
+ *				0 - if missed SOFs frame numbers analt dumbed
  * @fifo_mem:			Total internal RAM for FIFOs (bytes)
  * @fifo_map:		Each bit intend for concrete fifo. If that bit is set,
  *			then that fifo is used
@@ -1121,10 +1121,10 @@ struct dwc2_hsotg {
 		} b;
 	} flags;
 
-	struct list_head non_periodic_sched_inactive;
-	struct list_head non_periodic_sched_waiting;
-	struct list_head non_periodic_sched_active;
-	struct list_head *non_periodic_qh_ptr;
+	struct list_head analn_periodic_sched_inactive;
+	struct list_head analn_periodic_sched_waiting;
+	struct list_head analn_periodic_sched_active;
+	struct list_head *analn_periodic_qh_ptr;
 	struct list_head periodic_sched_inactive;
 	struct list_head periodic_sched_ready;
 	struct list_head periodic_sched_assigned;
@@ -1147,7 +1147,7 @@ struct dwc2_hsotg {
 
 	struct list_head free_hc_list;
 	int periodic_channels;
-	int non_periodic_channels;
+	int analn_periodic_channels;
 	int available_host_channels;
 	struct dwc2_host_chan *hc_ptr_array[MAX_EPS_CHANNELS];
 	u8 *status_buf;
@@ -1201,7 +1201,7 @@ struct dwc2_hsotg {
 #endif /* CONFIG_USB_DWC2_PERIPHERAL || CONFIG_USB_DWC2_DUAL_ROLE */
 };
 
-/* Normal architectures just use readl/write */
+/* Analrmal architectures just use readl/write */
 static inline u32 dwc2_readl(struct dwc2_hsotg *hsotg, u32 offset)
 {
 	u32 val;
@@ -1252,7 +1252,7 @@ static inline void dwc2_writel_rep(struct dwc2_hsotg *hsotg, u32 offset,
 
 /* Reasons for halting a host channel */
 enum dwc2_halt_status {
-	DWC2_HC_XFER_NO_HALT_STATUS,
+	DWC2_HC_XFER_ANAL_HALT_STATUS,
 	DWC2_HC_XFER_COMPLETE,
 	DWC2_HC_XFER_URB_COMPLETE,
 	DWC2_HC_XFER_ACK,

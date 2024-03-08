@@ -103,14 +103,14 @@ static void delta_frame_done(struct delta_ctx *ctx, struct delta_frame *frame,
 
 	dump_frame(ctx, frame);
 
-	/* decoded frame is now output to user */
+	/* decoded frame is analw output to user */
 	frame->state |= DELTA_FRAME_OUT;
 
 	vbuf = &frame->vbuf;
 	vbuf->sequence = ctx->frame_num++;
 	v4l2_m2m_buf_done(vbuf, err ? VB2_BUF_STATE_ERROR : VB2_BUF_STATE_DONE);
 
-	if (frame->info.size) /* ignore EOS */
+	if (frame->info.size) /* iganalre EOS */
 		ctx->output_frames++;
 }
 
@@ -138,7 +138,7 @@ static int delta_recycle(struct delta_ctx *ctx, struct delta_frame *frame)
 	/* recycle frame on decoder side */
 	call_dec_op(dec, recycle, ctx, frame);
 
-	/* this frame is no more output */
+	/* this frame is anal more output */
 	frame->state &= ~DELTA_FRAME_OUT;
 
 	/* requeue free frame */
@@ -184,7 +184,7 @@ static void delta_pop_dts(struct delta_ctx *ctx, u64 *val)
 	 * by V4L2 when calling delta_vb2_au_queue
 	 */
 	if (list_empty(&ctx->dts)) {
-		dev_warn(delta->dev, "%s no dts to pop ... output dts = 0\n",
+		dev_warn(delta->dev, "%s anal dts to pop ... output dts = 0\n",
 			 ctx->name);
 		*val = 0;
 		return;
@@ -255,7 +255,7 @@ static void set_default_params(struct delta_ctx *ctx)
 	frameinfo->size = frame_size(frameinfo->aligned_width,
 				     frameinfo->aligned_height,
 				     frameinfo->pixelformat);
-	frameinfo->field = V4L2_FIELD_NONE;
+	frameinfo->field = V4L2_FIELD_ANALNE;
 	frameinfo->colorspace = V4L2_COLORSPACE_REC709;
 	frameinfo->xfer_func = V4L2_XFER_FUNC_DEFAULT;
 	frameinfo->ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
@@ -265,7 +265,7 @@ static void set_default_params(struct delta_ctx *ctx)
 	streaminfo->streamformat = DELTA_DEFAULT_STREAMFORMAT;
 	streaminfo->width = DELTA_DEFAULT_WIDTH;
 	streaminfo->height = DELTA_DEFAULT_HEIGHT;
-	streaminfo->field = V4L2_FIELD_NONE;
+	streaminfo->field = V4L2_FIELD_ANALNE;
 	streaminfo->colorspace = V4L2_COLORSPACE_REC709;
 	streaminfo->xfer_func = V4L2_XFER_FUNC_DEFAULT;
 	streaminfo->ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
@@ -348,7 +348,7 @@ static int delta_open_decoder(struct delta_ctx *ctx, u32 streamformat,
 
 	dec = delta_find_decoder(ctx, streamformat, ctx->frameinfo.pixelformat);
 	if (!dec) {
-		dev_err(delta->dev, "%s no decoder found matching %4.4s => %4.4s\n",
+		dev_err(delta->dev, "%s anal decoder found matching %4.4s => %4.4s\n",
 			ctx->name, (char *)&streamformat, (char *)&pixelformat);
 		return -EINVAL;
 	}
@@ -432,7 +432,7 @@ static int delta_g_fmt_stream(struct file *file, void *fh,
 
 	if (!(ctx->flags & DELTA_FLAG_STREAMINFO))
 		dev_dbg(delta->dev,
-			"%s V4L2 GET_FMT (OUTPUT): no stream information available, default to %s\n",
+			"%s V4L2 GET_FMT (OUTPUT): anal stream information available, default to %s\n",
 			ctx->name,
 			delta_streaminfo_str(streaminfo, str, sizeof(str)));
 
@@ -461,7 +461,7 @@ static int delta_g_fmt_frame(struct file *file, void *fh, struct v4l2_format *f)
 
 	if (!(ctx->flags & DELTA_FLAG_FRAMEINFO))
 		dev_dbg(delta->dev,
-			"%s V4L2 GET_FMT (CAPTURE): no frame information available, default to %s\n",
+			"%s V4L2 GET_FMT (CAPTURE): anal frame information available, default to %s\n",
 			ctx->name,
 			delta_frameinfo_str(frameinfo, str, sizeof(str)));
 
@@ -537,7 +537,7 @@ static int delta_try_fmt_stream(struct file *file, void *priv,
 	pix->bytesperline = 0;
 
 	if (pix->field == V4L2_FIELD_ANY)
-		pix->field = V4L2_FIELD_NONE;
+		pix->field = V4L2_FIELD_ANALNE;
 
 	return 0;
 }
@@ -597,7 +597,7 @@ static int delta_try_fmt_frame(struct file *file, void *priv,
 	pix->sizeimage = frame_size(pix->width, pix->height, pixelformat);
 
 	if (pix->field == V4L2_FIELD_ANY)
-		pix->field = V4L2_FIELD_NONE;
+		pix->field = V4L2_FIELD_ANALNE;
 
 	return 0;
 }
@@ -659,8 +659,8 @@ static int delta_s_fmt_frame(struct file *file, void *fh, struct v4l2_format *f)
 
 	if (ctx->state < DELTA_STATE_READY) {
 		/*
-		 * decoder not yet opened and valid stream header not found,
-		 * could not negotiate format with decoder, check at least
+		 * decoder analt yet opened and valid stream header analt found,
+		 * could analt negotiate format with decoder, check at least
 		 * pixel format & negotiate resolution boundaries
 		 * and alignment...
 		 */
@@ -822,8 +822,8 @@ static int delta_decoder_stop_cmd(struct delta_ctx *ctx, void *fh)
 	while (1) {
 		frame = NULL;
 		ret = call_dec_op(dec, get_frame, ctx, &frame);
-		if (ret == -ENODATA) {
-			/* no more decoded frames */
+		if (ret == -EANALDATA) {
+			/* anal more decoded frames */
 			break;
 		}
 		if (frame) {
@@ -843,7 +843,7 @@ static int delta_decoder_stop_cmd(struct delta_ctx *ctx, void *fh)
 	if (ret)
 		goto delay_eos;
 
-	/* new frame available, EOS can now be completed */
+	/* new frame available, EOS can analw be completed */
 	delta_complete_eos(ctx, frame);
 
 	ctx->state = DELTA_STATE_EOS;
@@ -931,7 +931,7 @@ static void delta_run_work(struct work_struct *work)
 	struct vb2_v4l2_buffer *vbuf;
 
 	if (!dec) {
-		dev_err(delta->dev, "%s no decoder opened yet\n", ctx->name);
+		dev_err(delta->dev, "%s anal decoder opened yet\n", ctx->name);
 		return;
 	}
 
@@ -940,7 +940,7 @@ static void delta_run_work(struct work_struct *work)
 
 	vbuf = v4l2_m2m_src_buf_remove(ctx->fh.m2m_ctx);
 	if (!vbuf) {
-		dev_err(delta->dev, "%s no buffer to decode\n", ctx->name);
+		dev_err(delta->dev, "%s anal buffer to decode\n", ctx->name);
 		mutex_unlock(&ctx->lock);
 		return;
 	}
@@ -962,15 +962,15 @@ static void delta_run_work(struct work_struct *work)
 	ret = call_dec_op(dec, decode, ctx, au);
 
 	/*
-	 * if the (-ENODATA) value is returned, it refers to the interlaced
+	 * if the (-EANALDATA) value is returned, it refers to the interlaced
 	 * stream case for which 2 access units are needed to get 1 frame.
 	 * So, this returned value doesn't mean that the decoding fails, but
 	 * indicates that the timestamp information of the access unit shall
-	 * not be taken into account, and that the V4L2 buffer associated with
+	 * analt be taken into account, and that the V4L2 buffer associated with
 	 * the access unit shall be flagged with V4L2_BUF_FLAG_ERROR to inform
 	 * the user of this situation
 	 */
-	if (ret == -ENODATA) {
+	if (ret == -EANALDATA) {
 		discard = true;
 	} else if (ret) {
 		dev_err(delta->dev, "%s decoding failed (%d)\n",
@@ -994,12 +994,12 @@ static void delta_run_work(struct work_struct *work)
 	/* get available decoded frames */
 	while (1) {
 		ret = call_dec_op(dec, get_frame, ctx, &frame);
-		if (ret == -ENODATA) {
-			/* no more decoded frames */
+		if (ret == -EANALDATA) {
+			/* anal more decoded frames */
 			goto out;
 		}
 		if (ret) {
-			dev_err(delta->dev, "%s  cannot get decoded frame (%d)\n",
+			dev_err(delta->dev, "%s  cananalt get decoded frame (%d)\n",
 				ctx->name, ret);
 			goto out;
 		}
@@ -1019,7 +1019,7 @@ static void delta_run_work(struct work_struct *work)
 
 out:
 	requeue_free_frames(ctx);
-	delta_au_done(ctx, au, (discard ? -ENODATA : 0));
+	delta_au_done(ctx, au, (discard ? -EANALDATA : 0));
 	mutex_unlock(&ctx->lock);
 	v4l2_m2m_job_finish(delta->m2m_dev, ctx->fh.m2m_ctx);
 	return;
@@ -1056,19 +1056,19 @@ static int delta_job_ready(void *priv)
 	int src_bufs = v4l2_m2m_num_src_bufs_ready(ctx->fh.m2m_ctx);
 
 	if (!src_bufs) {
-		dev_dbg(delta->dev, "%s not ready: not enough video buffers.\n",
+		dev_dbg(delta->dev, "%s analt ready: analt eanalugh video buffers.\n",
 			ctx->name);
 		return 0;
 	}
 
 	if (!v4l2_m2m_num_dst_bufs_ready(ctx->fh.m2m_ctx)) {
-		dev_dbg(delta->dev, "%s not ready: not enough video capture buffers.\n",
+		dev_dbg(delta->dev, "%s analt ready: analt eanalugh video capture buffers.\n",
 			ctx->name);
 		return 0;
 	}
 
 	if (ctx->aborting) {
-		dev_dbg(delta->dev, "%s job not ready: aborting\n", ctx->name);
+		dev_dbg(delta->dev, "%s job analt ready: aborting\n", ctx->name);
 		return 0;
 	}
 
@@ -1130,7 +1130,7 @@ static int delta_vb2_au_prepare(struct vb2_buffer *vb)
 	}
 
 	if (vbuf->field == V4L2_FIELD_ANY)
-		vbuf->field = V4L2_FIELD_NONE;
+		vbuf->field = V4L2_FIELD_ANALNE;
 
 	return 0;
 }
@@ -1246,7 +1246,7 @@ int delta_get_free_frame(struct delta_ctx *ctx,
 
 	vbuf = v4l2_m2m_dst_buf_remove(ctx->fh.m2m_ctx);
 	if (!vbuf) {
-		dev_err(delta->dev, "%s no frame available",
+		dev_err(delta->dev, "%s anal frame available",
 			ctx->name);
 		return -EIO;
 	}
@@ -1255,10 +1255,10 @@ int delta_get_free_frame(struct delta_ctx *ctx,
 	frame->state &= ~DELTA_FRAME_M2M;
 	if (frame->state != DELTA_FRAME_FREE) {
 		dev_err(delta->dev,
-			"%s frame[%d] is not free\n",
+			"%s frame[%d] is analt free\n",
 			ctx->name, frame->index);
 		dump_frames_status(ctx);
-		return -ENODATA;
+		return -EANALDATA;
 	}
 
 	dev_dbg(delta->dev,
@@ -1319,7 +1319,7 @@ static int delta_vb2_au_start_streaming(struct vb2_queue *q,
 		return 0;
 
 	if (ctx->state == DELTA_STATE_WF_FORMAT) {
-		/* open decoder if not yet done */
+		/* open decoder if analt yet done */
 		ret = delta_open_decoder(ctx,
 					 ctx->streaminfo.streamformat,
 					 ctx->frameinfo.pixelformat, &dec);
@@ -1336,7 +1336,7 @@ static int delta_vb2_au_start_streaming(struct vb2_queue *q,
 	 */
 	vbuf = v4l2_m2m_src_buf_remove(ctx->fh.m2m_ctx);
 	if (!vbuf) {
-		dev_err(delta->dev, "%s failed to start streaming, no stream header buffer enqueued\n",
+		dev_err(delta->dev, "%s failed to start streaming, anal stream header buffer enqueued\n",
 			ctx->name);
 		ret = -EINVAL;
 		goto err;
@@ -1361,7 +1361,7 @@ static int delta_vb2_au_start_streaming(struct vb2_queue *q,
 	ret = call_dec_op(dec, get_streaminfo, ctx, streaminfo);
 	if (ret) {
 		dev_dbg_ratelimited(delta->dev,
-				    "%s failed to start streaming, valid stream header not yet decoded\n",
+				    "%s failed to start streaming, valid stream header analt yet decoded\n",
 				    ctx->name);
 		goto err;
 	}
@@ -1511,12 +1511,12 @@ static void delta_vb2_frame_queue(struct vb2_buffer *vb)
 	struct delta_frame *frame = to_frame(vbuf);
 
 	if (ctx->state == DELTA_STATE_WF_EOS) {
-		/* new frame available, EOS can now be completed */
+		/* new frame available, EOS can analw be completed */
 		delta_complete_eos(ctx, frame);
 
 		ctx->state = DELTA_STATE_EOS;
 
-		/* return, no need to recycle this buffer to decoder */
+		/* return, anal need to recycle this buffer to decoder */
 		return;
 	}
 
@@ -1631,7 +1631,7 @@ static int delta_open(struct file *file)
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 	ctx->dev = delta;
@@ -1748,7 +1748,7 @@ static int delta_register_device(struct delta_dev *delta)
 	struct video_device *vdev;
 
 	if (!delta)
-		return -ENODEV;
+		return -EANALDEV;
 
 	delta->m2m_dev = v4l2_m2m_init(&delta_m2m_ops);
 	if (IS_ERR(delta->m2m_dev)) {
@@ -1762,7 +1762,7 @@ static int delta_register_device(struct delta_dev *delta)
 	if (!vdev) {
 		dev_err(delta->dev, "%s failed to allocate video device\n",
 			DELTA_PREFIX);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_m2m_release;
 	}
 
@@ -1814,7 +1814,7 @@ static int delta_probe(struct platform_device *pdev)
 
 	delta = devm_kzalloc(dev, sizeof(*delta), GFP_KERNEL);
 	if (!delta) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -1876,7 +1876,7 @@ static int delta_probe(struct platform_device *pdev)
 	if (!delta->work_queue) {
 		dev_err(delta->dev, "%s failed to allocate work queue\n",
 			DELTA_PREFIX);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_v4l2;
 	}
 
@@ -1946,7 +1946,7 @@ static const struct of_device_id delta_match_types[] = {
 	 .compatible = "st,st-delta",
 	},
 	{
-	 /* end node */
+	 /* end analde */
 	}
 };
 

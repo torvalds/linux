@@ -4,7 +4,7 @@
 
  *  Copyright (C) 2013 Maxim Levitsky <maximlevitsky@gmail.com>
  *
- * Minor portions of the driver were copied from mspro_block.c which is
+ * Mianalr portions of the driver were copied from mspro_block.c which is
  * Copyright (C) 2007 Alex Dubov <oakad@yahoo.com>
  */
 #define DRIVER_NAME "ms_block"
@@ -31,7 +31,7 @@ static bool verify_writes;
 
 /*
  * Copies section of 'sg_from' starting from offset 'offset' and with length
- * 'len' To another scatterlist of to_nents enties
+ * 'len' To aanalther scatterlist of to_nents enties
  */
 static size_t msb_sg_copy(struct scatterlist *sg_from,
 	struct scatterlist *sg_to, int to_nents, size_t offset, size_t len)
@@ -179,7 +179,7 @@ static void msb_mark_block_used(struct msb_data *msb, int pba)
 	if (msb_validate_used_block_bitmap(msb))
 		return;
 
-	/* No races because all IO is single threaded */
+	/* Anal races because all IO is single threaded */
 	__set_bit(pba, msb->used_blocks_bitmap);
 	msb->free_block_count[zone]--;
 }
@@ -198,7 +198,7 @@ static void msb_mark_block_unused(struct msb_data *msb, int pba)
 	if (msb_validate_used_block_bitmap(msb))
 		return;
 
-	/* No races because all IO is single threaded */
+	/* Anal races because all IO is single threaded */
 	__clear_bit(pba, msb->used_blocks_bitmap);
 	msb->free_block_count[zone]++;
 }
@@ -341,7 +341,7 @@ static int h_msb_read_page(struct memstick_dev *card,
 	u8 command, intreg;
 
 	if (mrq->error) {
-		dbg("read_page, unknown error");
+		dbg("read_page, unkanalwn error");
 		return msb_exit_state_machine(msb, mrq->error);
 	}
 again:
@@ -454,7 +454,7 @@ again:
 			msb->current_sg_offset += msb->page_size;
 			return msb_exit_state_machine(msb, -EUCLEAN);
 		} else {
-			dbg("read_page: INT error, but no status error bits");
+			dbg("read_page: INT error, but anal status error bits");
 			return msb_exit_state_machine(msb, -EIO);
 		}
 	}
@@ -543,7 +543,7 @@ again:
 
 		}
 
-		/* for non-last page we need BREQ before writing next chunk */
+		/* for analn-last page we need BREQ before writing next chunk */
 		if (!(intreg & MEMSTICK_INT_BREQ)) {
 			msb->state = MSB_WB_SEND_INT_REQ;
 			goto again;
@@ -590,7 +590,7 @@ static int h_msb_send_command(struct memstick_dev *card,
 	u8 intreg;
 
 	if (mrq->error) {
-		dbg("send_command: unknown error");
+		dbg("send_command: unkanalwn error");
 		return msb_exit_state_machine(msb, mrq->error);
 	}
 again:
@@ -759,7 +759,7 @@ out_error:
 	if (error) {
 		dbg("Failed to reset the card");
 		msb->read_only = true;
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Set parallel mode */
@@ -806,7 +806,7 @@ static int msb_set_overwrite_flag(struct msb_data *msb,
 
 static int msb_mark_bad(struct msb_data *msb, int pba)
 {
-	pr_notice("marking pba %d as bad", pba);
+	pr_analtice("marking pba %d as bad", pba);
 	msb_reset(msb, true);
 	return msb_set_overwrite_flag(
 			msb, pba, 0, 0xFF & ~MEMSTICK_OVERWRITE_BKST);
@@ -914,7 +914,7 @@ static int msb_read_page(struct msb_data *msb,
 
 
 		if (error == -EUCLEAN) {
-			pr_notice("correctable error on pba %d, page %d",
+			pr_analtice("correctable error on pba %d, page %d",
 				pba, page);
 			error = 0;
 		}
@@ -964,7 +964,7 @@ static int msb_read_oob(struct msb_data *msb, u16 pba, u16 page,
 	*extra = msb->regs.extra_data;
 
 	if (error == -EUCLEAN) {
-		pr_notice("correctable error on pba %d, page %d",
+		pr_analtice("correctable error on pba %d, page %d",
 			pba, page);
 		return 0;
 	}
@@ -1086,7 +1086,7 @@ static u16 msb_get_free_block(struct msb_data *msb, int zone)
 	get_random_bytes(&pos, sizeof(pos));
 
 	if (!msb->free_block_count[zone]) {
-		pr_err("NO free blocks in the zone %d, to use for a write, (media is WORN out) switching to RO mode", zone);
+		pr_err("ANAL free blocks in the zone %d, to use for a write, (media is WORN out) switching to RO mode", zone);
 		msb->read_only = true;
 		return MS_BLOCK_INVALID;
 	}
@@ -1206,7 +1206,7 @@ static int msb_read_boot_blocks(struct msb_data *msb)
 		page = kmalloc_array(2, sizeof(struct ms_boot_page),
 				     GFP_KERNEL);
 		if (!page)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		msb->boot_page = page;
 	} else
@@ -1286,7 +1286,7 @@ static int msb_read_bad_block_table(struct msb_data *msb, int block_nr)
 
 	buffer = kzalloc(size_to_read, GFP_KERNEL);
 	if (!buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Read the buffer */
 	sg_init_one(&sg, buffer, size_to_read);
@@ -1352,7 +1352,7 @@ static int msb_ftl_initialize(struct msb_data *msb)
 		bitmap_free(msb->used_blocks_bitmap);
 		bitmap_free(msb->erased_blocks_bitmap);
 		kfree(msb->lba_to_pba_table);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for (i = 0; i < msb->zone_count; i++)
@@ -1377,7 +1377,7 @@ static int msb_ftl_scan(struct msb_data *msb)
 	u8 *overwrite_flags = kzalloc(msb->block_count, GFP_KERNEL);
 
 	if (!overwrite_flags)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dbg("Start of media scanning");
 	for (pba = 0; pba < msb->block_count; pba++) {
@@ -1399,13 +1399,13 @@ static int msb_ftl_scan(struct msb_data *msb)
 
 		/* can't trust the page if we can't read the oob */
 		if (error == -EBADMSG) {
-			pr_notice(
+			pr_analtice(
 			"oob of pba %d damaged, will try to erase it", pba);
 			msb_mark_block_used(msb, pba);
 			msb_erase_block(msb, pba);
 			continue;
 		} else if (error) {
-			pr_err("unknown error %d on read of oob of pba %d - aborting",
+			pr_err("unkanalwn error %d on read of oob of pba %d - aborting",
 				error, pba);
 
 			kfree(overwrite_flags);
@@ -1425,8 +1425,8 @@ static int msb_ftl_scan(struct msb_data *msb)
 		}
 
 		/* Skip system/drm blocks */
-		if ((management_flag & MEMSTICK_MANAGEMENT_FLAG_NORMAL) !=
-			MEMSTICK_MANAGEMENT_FLAG_NORMAL) {
+		if ((management_flag & MEMSTICK_MANAGEMENT_FLAG_ANALRMAL) !=
+			MEMSTICK_MANAGEMENT_FLAG_ANALRMAL) {
 			dbg("pba %05d -> [reserved management flag %02x]",
 							pba, management_flag);
 			msb_mark_block_used(msb, pba);
@@ -1449,15 +1449,15 @@ static int msb_ftl_scan(struct msb_data *msb)
 
 		msb_mark_block_used(msb, pba);
 
-		/* Block has LBA not according to zoning*/
+		/* Block has LBA analt according to zoning*/
 		if (msb_get_zone_from_lba(lba) != msb_get_zone_from_pba(pba)) {
-			pr_notice("pba %05d -> [bad lba %05d] - will erase",
+			pr_analtice("pba %05d -> [bad lba %05d] - will erase",
 								pba, lba);
 			msb_erase_block(msb, pba);
 			continue;
 		}
 
-		/* No collisions - great */
+		/* Anal collisions - great */
 		if (msb->lba_to_pba_table[lba] == MS_BLOCK_INVALID) {
 			dbg_verbose("pba %05d -> [lba %05d]", pba, lba);
 			msb->lba_to_pba_table[lba] = pba;
@@ -1467,24 +1467,24 @@ static int msb_ftl_scan(struct msb_data *msb)
 		other_block = msb->lba_to_pba_table[lba];
 		other_overwrite_flag = overwrite_flags[other_block];
 
-		pr_notice("Collision between pba %d and pba %d",
+		pr_analtice("Collision between pba %d and pba %d",
 			pba, other_block);
 
 		if (!(overwrite_flag & MEMSTICK_OVERWRITE_UDST)) {
-			pr_notice("pba %d is marked as stable, use it", pba);
+			pr_analtice("pba %d is marked as stable, use it", pba);
 			msb_erase_block(msb, other_block);
 			msb->lba_to_pba_table[lba] = pba;
 			continue;
 		}
 
 		if (!(other_overwrite_flag & MEMSTICK_OVERWRITE_UDST)) {
-			pr_notice("pba %d is marked as stable, use it",
+			pr_analtice("pba %d is marked as stable, use it",
 								other_block);
 			msb_erase_block(msb, pba);
 			continue;
 		}
 
-		pr_notice("collision between blocks %d and %d, without stable flag set on both, erasing pba %d",
+		pr_analtice("collision between blocks %d and %d, without stable flag set on both, erasing pba %d",
 				pba, other_block, other_block);
 
 		msb_erase_block(msb, other_block);
@@ -1524,7 +1524,7 @@ static int msb_cache_init(struct msb_data *msb)
 	if (!msb->cache)
 		msb->cache = kzalloc(msb->block_size, GFP_KERNEL);
 	if (!msb->cache)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	msb_cache_discard(msb);
 	return 0;
@@ -1559,7 +1559,7 @@ static int msb_cache_flush(struct msb_data *msb)
 
 		offset = page * msb->page_size;
 
-		dbg_verbose("reading non-present sector %d of cache block %d",
+		dbg_verbose("reading analn-present sector %d of cache block %d",
 			page, lba);
 		error = msb_read_page(msb, pba, page, &extra, &sg, offset);
 
@@ -1572,8 +1572,8 @@ static int msb_cache_flush(struct msb_data *msb)
 		if (error)
 			return error;
 
-		if ((extra.overwrite_flag & MEMSTICK_OV_PG_NORMAL) !=
-							MEMSTICK_OV_PG_NORMAL) {
+		if ((extra.overwrite_flag & MEMSTICK_OV_PG_ANALRMAL) !=
+							MEMSTICK_OV_PG_ANALRMAL) {
 			dbg("page %d is marked as bad", page);
 			continue;
 		}
@@ -1581,7 +1581,7 @@ static int msb_cache_flush(struct msb_data *msb)
 		set_bit(page, &msb->valid_cache_bitmap);
 	}
 
-	/* Write the cache now */
+	/* Write the cache analw */
 	error = msb_update_block(msb, msb->cache_block_lba, &sg, 0);
 	pba = msb->lba_to_pba_table[msb->cache_block_lba];
 
@@ -1595,7 +1595,7 @@ static int msb_cache_flush(struct msb_data *msb)
 			dbg("marking page %d as containing damaged data",
 				page);
 			msb_set_overwrite_flag(msb,
-				pba , page, 0xFF & ~MEMSTICK_OV_PG_NORMAL);
+				pba , page, 0xFF & ~MEMSTICK_OV_PG_ANALRMAL);
 		}
 	}
 
@@ -1744,7 +1744,7 @@ static int msb_init_card(struct memstick_dev *card)
 
 	msb->block_buffer = kzalloc(msb->block_size, GFP_KERNEL);
 	if (!msb->block_buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	raw_size_in_megs = (msb->block_size * msb->block_count) >> 20;
 
@@ -1772,7 +1772,7 @@ static int msb_init_card(struct memstick_dev *card)
 	dbg("Read only: %d", msb->read_only);
 
 #if 0
-	/* Now we can switch the interface */
+	/* Analw we can switch the interface */
 	if (host->caps & msb->caps & MEMSTICK_CAP_PAR4)
 		msb_switch_to_parallel(msb);
 #endif
@@ -1789,7 +1789,7 @@ static int msb_init_card(struct memstick_dev *card)
 	/* Read the bad block table */
 	error = msb_read_bad_block_table(msb, 0);
 
-	if (error && error != -ENOMEM) {
+	if (error && error != -EANALMEM) {
 		dbg("failed to read bad block table from primary boot block, trying from backup");
 		error = msb_read_bad_block_table(msb, 1);
 	}
@@ -1895,7 +1895,7 @@ static void msb_io_work(struct work_struct *work)
 
 		req = msb->req;
 		if (!req) {
-			dbg_verbose("IO: no more requests exiting");
+			dbg_verbose("IO: anal more requests exiting");
 			spin_unlock_irq(&msb->q_lock);
 			return;
 		}
@@ -1926,7 +1926,7 @@ static void msb_io_work(struct work_struct *work)
 		}
 
 		if (error && msb->req) {
-			blk_status_t ret = errno_to_blk_status(error);
+			blk_status_t ret = erranal_to_blk_status(error);
 
 			dbg_verbose("IO: ending one sector of the request with error");
 			blk_mq_end_request(req, ret);
@@ -2117,7 +2117,7 @@ static int msb_init_disk(struct memstick_dev *card)
 
 	msb->io_queue = alloc_ordered_workqueue("ms_block", WQ_MEM_RECLAIM);
 	if (!msb->io_queue) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out_cleanup_disk;
 	}
 
@@ -2154,7 +2154,7 @@ static int msb_probe(struct memstick_dev *card)
 
 	msb = kzalloc(sizeof(struct msb_data), GFP_KERNEL);
 	if (!msb)
-		return -ENOMEM;
+		return -EANALMEM;
 	memstick_set_drvdata(card, msb);
 	msb->card = card;
 	spin_lock_init(&msb->q_lock);
@@ -2187,7 +2187,7 @@ static void msb_remove(struct memstick_dev *card)
 
 	dbg("Removing the disk device");
 
-	/* Take care of unhandled + new requests from now on */
+	/* Take care of unhandled + new requests from analw on */
 	spin_lock_irqsave(&msb->q_lock, flags);
 	msb->card_dead = true;
 	spin_unlock_irqrestore(&msb->q_lock, flags);

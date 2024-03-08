@@ -337,7 +337,7 @@ int mana_ib_gd_create_dma_region(struct mana_ib_dev *dev, struct ib_umem *umem,
 	page_sz = ib_umem_find_best_pgsz(umem, PAGE_SZ_BM, 0);
 	if (!page_sz) {
 		ibdev_dbg(&dev->ib_dev, "failed to find page size.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	num_pages_total = ib_umem_num_dma_blocks(umem, page_sz);
 
@@ -350,7 +350,7 @@ int mana_ib_gd_create_dma_region(struct mana_ib_dev *dev, struct ib_umem *umem,
 
 	request_buf = kzalloc(hwc->max_req_msg_size, GFP_KERNEL);
 	if (!request_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	create_req = request_buf;
 	mana_gd_init_req_hdr(&create_req->hdr, GDMA_CREATE_DMA_REGION,

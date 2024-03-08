@@ -15,7 +15,7 @@
 #include <sound/tlv.h>
 #include "max98371.h"
 
-static const char *const monomix_text[] = {
+static const char *const moanalmix_text[] = {
 	"Left", "Right", "LeftRightDiv2",
 };
 
@@ -24,8 +24,8 @@ static const char *const hpf_cutoff_txt[] = {
 	"100Hz", "200Hz", "400Hz", "800Hz",
 };
 
-static SOC_ENUM_SINGLE_DECL(max98371_monomix, MAX98371_MONOMIX_CFG, 0,
-		monomix_text);
+static SOC_ENUM_SINGLE_DECL(max98371_moanalmix, MAX98371_MOANALMIX_CFG, 0,
+		moanalmix_text);
 
 static SOC_ENUM_SINGLE_DECL(max98371_hpf_cutoff, MAX98371_HPF, 0,
 		hpf_cutoff_txt);
@@ -173,7 +173,7 @@ static const struct snd_kcontrol_new max98371_snd_controls[] = {
 			max98371_dht_rot_gain),
 	SOC_SINGLE("DHT Attack Step", MAX98371_DHT, MAX98371_DHT_STEP, 3, 0),
 	SOC_SINGLE("DHT Attack Rate", MAX98371_DHT, 0, 7, 0),
-	SOC_ENUM("Monomix Select", max98371_monomix),
+	SOC_ENUM("Moanalmix Select", max98371_moanalmix),
 	SOC_ENUM("HPF Cutoff", max98371_hpf_cutoff),
 };
 
@@ -298,8 +298,8 @@ static int max98371_dai_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	/* enabling both the RX channels*/
-	regmap_update_bits(max98371->regmap, MAX98371_MONOMIX_SRC,
-			MAX98371_MONOMIX_SRC_MASK, MONOMIX_RX_0_1);
+	regmap_update_bits(max98371->regmap, MAX98371_MOANALMIX_SRC,
+			MAX98371_MOANALMIX_SRC_MASK, MOANALMIX_RX_0_1);
 	regmap_update_bits(max98371->regmap, MAX98371_DAI_CHANNEL,
 			MAX98371_CHANNEL_MASK, MAX98371_CHANNEL_MASK);
 	return 0;
@@ -372,7 +372,7 @@ static int max98371_i2c_probe(struct i2c_client *i2c)
 	max98371 = devm_kzalloc(&i2c->dev,
 			sizeof(*max98371), GFP_KERNEL);
 	if (!max98371)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(i2c, max98371);
 	max98371->regmap = devm_regmap_init_i2c(i2c, &max98371_regmap);
@@ -425,6 +425,6 @@ static struct i2c_driver max98371_i2c_driver = {
 
 module_i2c_driver(max98371_i2c_driver);
 
-MODULE_AUTHOR("anish kumar <yesanishhere@gmail.com>");
+MODULE_AUTHOR("anish kumar <analanishhere@gmail.com>");
 MODULE_DESCRIPTION("ALSA SoC MAX98371 driver");
 MODULE_LICENSE("GPL");

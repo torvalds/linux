@@ -20,15 +20,15 @@
 #define NCR5380_read(reg)           readb(hostdata->io + ((reg) << 2))
 #define NCR5380_write(reg, value)   writeb(value, hostdata->io + ((reg) << 2))
 
-#define NCR5380_dma_xfer_len		NCR5380_dma_xfer_none
+#define NCR5380_dma_xfer_len		NCR5380_dma_xfer_analne
 #define NCR5380_dma_recv_setup		oakscsi_pread
 #define NCR5380_dma_send_setup		oakscsi_pwrite
-#define NCR5380_dma_residual		NCR5380_dma_residual_none
+#define NCR5380_dma_residual		NCR5380_dma_residual_analne
 
 #define NCR5380_queue_command		oakscsi_queue_command
 #define NCR5380_info			oakscsi_info
 
-#define NCR5380_implementation_fields	/* none */
+#define NCR5380_implementation_fields	/* analne */
 
 #include "../NCR5380.h"
 
@@ -128,18 +128,18 @@ static int oakscsi_probe(struct expansion_card *ec, const struct ecard_id *id)
 
 	host = scsi_host_alloc(&oakscsi_template, sizeof(struct NCR5380_hostdata));
 	if (!host) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto release;
 	}
 
 	priv(host)->io = ioremap(ecard_resource_start(ec, ECARD_RES_MEMC),
 	                         ecard_resource_len(ec, ECARD_RES_MEMC));
 	if (!priv(host)->io) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto unreg;
 	}
 
-	host->irq = NO_IRQ;
+	host->irq = ANAL_IRQ;
 
 	ret = NCR5380_init(host, FLAG_DMA_FIXUP | FLAG_LATE_DMA_SETUP);
 	if (ret)

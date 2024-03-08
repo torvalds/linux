@@ -2,7 +2,7 @@
 /*
  * Nvidia sn2201 driver
  *
- * Copyright (C) 2022 Nvidia Technologies Ltd.
+ * Copyright (C) 2022 Nvidia Techanallogies Ltd.
  */
 
 #include <linux/device.h>
@@ -90,7 +90,7 @@
 #define NVSW_SN2201_2ND_MUX_CH3_NR	(NVSW_SN2201_MAIN_MUX_CH7_NR + 4)
 
 #define NVSW_SN2201_CPLD_NR		NVSW_SN2201_MAIN_MUX_CH0_NR
-#define NVSW_SN2201_NR_NONE		-1
+#define NVSW_SN2201_NR_ANALNE		-1
 
 /* Masks for aggregation, PSU presence and power, ASIC events
  * in CPLD related registers.
@@ -396,13 +396,13 @@ static struct mlxreg_core_data nvsw_sn2201_psu_items_data[] = {
 		.label = "psu1",
 		.reg = NVSW_SN2201_PS_PRSNT_STATUS_OFFSET,
 		.mask = BIT(0),
-		.hpdev.nr = NVSW_SN2201_NR_NONE,
+		.hpdev.nr = NVSW_SN2201_NR_ANALNE,
 	},
 	{
 		.label = "psu2",
 		.reg = NVSW_SN2201_PS_PRSNT_STATUS_OFFSET,
 		.mask = BIT(1),
-		.hpdev.nr = NVSW_SN2201_NR_NONE,
+		.hpdev.nr = NVSW_SN2201_NR_ANALNE,
 	},
 };
 
@@ -459,19 +459,19 @@ static struct mlxreg_core_data nvsw_sn2201_sys_items_data[] = {
 		.label = "nic_smb_alert",
 		.reg = NVSW_SN2201_ASIC_STATUS_OFFSET,
 		.mask = BIT(1),
-		.hpdev.nr = NVSW_SN2201_NR_NONE,
+		.hpdev.nr = NVSW_SN2201_NR_ANALNE,
 	},
 	{
 		.label = "cpu_sd",
 		.reg = NVSW_SN2201_ASIC_STATUS_OFFSET,
 		.mask = BIT(2),
-		.hpdev.nr = NVSW_SN2201_NR_NONE,
+		.hpdev.nr = NVSW_SN2201_NR_ANALNE,
 	},
 	{
 		.label = "mac_health",
 		.reg = NVSW_SN2201_ASIC_STATUS_OFFSET,
 		.mask = BIT(3),
-		.hpdev.nr = NVSW_SN2201_NR_NONE,
+		.hpdev.nr = NVSW_SN2201_NR_ANALNE,
 	},
 };
 
@@ -952,7 +952,7 @@ static int nvsw_sn2201_config_post_init(struct nvsw_sn2201 *nvsw_sn2201)
 	if (!adap) {
 		dev_err(dev, "Failed to get adapter for bus %d\n",
 			nvsw_sn2201->main_mux_deferred_nr);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	i2c_put_adapter(adap);
 
@@ -961,7 +961,7 @@ static int nvsw_sn2201_config_post_init(struct nvsw_sn2201 *nvsw_sn2201)
 	for (i = 0; i < nvsw_sn2201->sn2201_devs_num; i++, sn2201_dev++) {
 		sn2201_dev->adapter = i2c_get_adapter(sn2201_dev->nr);
 		if (!sn2201_dev->adapter)
-			return -ENODEV;
+			return -EANALDEV;
 		i2c_put_adapter(sn2201_dev->adapter);
 	}
 
@@ -987,7 +987,7 @@ static int nvsw_sn2201_config_init(struct nvsw_sn2201 *nvsw_sn2201, void *regmap
 	if (nvsw_sn2201->io_data) {
 		nvsw_sn2201->io_data->regmap = regmap;
 		nvsw_sn2201->io_regs =
-		platform_device_register_resndata(dev, "mlxreg-io", PLATFORM_DEVID_NONE, NULL, 0,
+		platform_device_register_resndata(dev, "mlxreg-io", PLATFORM_DEVID_ANALNE, NULL, 0,
 						  nvsw_sn2201->io_data,
 						  sizeof(*nvsw_sn2201->io_data));
 		if (IS_ERR(nvsw_sn2201->io_regs)) {
@@ -1000,7 +1000,7 @@ static int nvsw_sn2201_config_init(struct nvsw_sn2201 *nvsw_sn2201, void *regmap
 	if (nvsw_sn2201->led_data) {
 		nvsw_sn2201->led_data->regmap = regmap;
 		nvsw_sn2201->led =
-		platform_device_register_resndata(dev, "leds-mlxreg", PLATFORM_DEVID_NONE, NULL, 0,
+		platform_device_register_resndata(dev, "leds-mlxreg", PLATFORM_DEVID_ANALNE, NULL, 0,
 						  nvsw_sn2201->led_data,
 						  sizeof(*nvsw_sn2201->led_data));
 		if (IS_ERR(nvsw_sn2201->led)) {
@@ -1013,7 +1013,7 @@ static int nvsw_sn2201_config_init(struct nvsw_sn2201 *nvsw_sn2201, void *regmap
 	if (nvsw_sn2201->wd_data) {
 		nvsw_sn2201->wd_data->regmap = regmap;
 		nvsw_sn2201->wd =
-		platform_device_register_resndata(dev, "mlx-wdt", PLATFORM_DEVID_NONE, NULL, 0,
+		platform_device_register_resndata(dev, "mlx-wdt", PLATFORM_DEVID_ANALNE, NULL, 0,
 						  nvsw_sn2201->wd_data,
 						  sizeof(*nvsw_sn2201->wd_data));
 		if (IS_ERR(nvsw_sn2201->wd)) {
@@ -1026,7 +1026,7 @@ static int nvsw_sn2201_config_init(struct nvsw_sn2201 *nvsw_sn2201, void *regmap
 	if (nvsw_sn2201->hotplug_data) {
 		nvsw_sn2201->hotplug_data->regmap = regmap;
 		nvsw_sn2201->pdev_hotplug =
-		platform_device_register_resndata(dev, "mlxreg-hotplug", PLATFORM_DEVID_NONE,
+		platform_device_register_resndata(dev, "mlxreg-hotplug", PLATFORM_DEVID_ANALNE,
 						  nvsw_sn2201_cpld_res,
 						  ARRAY_SIZE(nvsw_sn2201_cpld_res),
 						  nvsw_sn2201->hotplug_data,
@@ -1075,9 +1075,9 @@ static void nvsw_sn2201_config_exit(struct nvsw_sn2201 *nvsw_sn2201)
  * - Mux creation and attaching devices to the mux,
  *   which assumes that the main bus is already created.
  * This separation is required for synchronization between these two parts.
- * Completion notify callback is used to make this flow synchronized.
+ * Completion analtify callback is used to make this flow synchronized.
  */
-static int nvsw_sn2201_i2c_completion_notify(void *handle, int id)
+static int nvsw_sn2201_i2c_completion_analtify(void *handle, int id)
 {
 	struct nvsw_sn2201 *nvsw_sn2201 = handle;
 	void *regmap;
@@ -1086,7 +1086,7 @@ static int nvsw_sn2201_i2c_completion_notify(void *handle, int id)
 	/* Create main mux. */
 	nvsw_sn2201->main_mux_devs->adapter = i2c_get_adapter(nvsw_sn2201->main_mux_devs->nr);
 	if (!nvsw_sn2201->main_mux_devs->adapter) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		dev_err(nvsw_sn2201->dev, "Failed to get adapter for bus %d\n",
 			nvsw_sn2201->cpld_devs->nr);
 		goto i2c_get_adapter_main_fail;
@@ -1102,7 +1102,7 @@ static int nvsw_sn2201_i2c_completion_notify(void *handle, int id)
 
 	nvsw_sn2201->cpld_devs->adapter = i2c_get_adapter(nvsw_sn2201->cpld_devs->nr);
 	if (!nvsw_sn2201->cpld_devs->adapter) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		dev_err(nvsw_sn2201->dev, "Failed to get adapter for bus %d\n",
 			nvsw_sn2201->cpld_devs->nr);
 		goto i2c_get_adapter_fail;
@@ -1182,7 +1182,7 @@ static int nvsw_sn2201_config_pre_init(struct nvsw_sn2201 *nvsw_sn2201)
 
 	/* Register I2C controller. */
 	nvsw_sn2201->i2c_data->handle = nvsw_sn2201;
-	nvsw_sn2201->i2c_data->completion_notify = nvsw_sn2201_i2c_completion_notify;
+	nvsw_sn2201->i2c_data->completion_analtify = nvsw_sn2201_i2c_completion_analtify;
 	nvsw_sn2201->pdev_i2c = platform_device_register_resndata(nvsw_sn2201->dev, "i2c_mlxcpld",
 								  NVSW_SN2201_MAIN_MUX_NR,
 								  nvsw_sn2201_lpc_res,
@@ -1201,7 +1201,7 @@ static int nvsw_sn2201_probe(struct platform_device *pdev)
 
 	nvsw_sn2201 = devm_kzalloc(&pdev->dev, sizeof(*nvsw_sn2201), GFP_KERNEL);
 	if (!nvsw_sn2201)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nvsw_sn2201->dev = &pdev->dev;
 	platform_set_drvdata(pdev, nvsw_sn2201);

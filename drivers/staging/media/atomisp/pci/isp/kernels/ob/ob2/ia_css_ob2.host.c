@@ -16,7 +16,7 @@
 #include "ia_css_types.h"
 #include "sh_css_defs.h"
 #include "sh_css_frac.h"
-#ifndef IA_CSS_NO_DEBUG
+#ifndef IA_CSS_ANAL_DEBUG
 #include "ia_css_debug.h"
 #endif
 #include "isp.h"
@@ -44,7 +44,7 @@ ia_css_ob2_encode(
 	to->blacklevel_gb = uDIGIT_FITTING(from->level_gb, 16, SH_CSS_BAYER_BITS);
 }
 
-#ifndef IA_CSS_NO_DEBUG
+#ifndef IA_CSS_ANAL_DEBUG
 void
 ia_css_ob2_dump(
     const struct sh_css_isp_ob2_params *ob2,

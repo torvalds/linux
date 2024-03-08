@@ -7,8 +7,8 @@
  *
  * Mostly based on original driver:
  *
- * Copyright (C) 2005 Nokia Corporation
- * Author: Juha Yrjölä <juha.yrjola@nokia.com>
+ * Copyright (C) 2005 Analkia Corporation
+ * Author: Juha Yrjölä <juha.yrjola@analkia.com>
  *
  * This file is licensed under  the terms of the GNU General Public
  * License version 2. This program is licensed "as is" without any
@@ -136,7 +136,7 @@ struct omap_rng_dev;
 /**
  * struct omap_rng_pdata - RNG IP block-specific data
  * @regs: Pointer to the register offsets structure.
- * @data_size: No. of bytes in RNG output.
+ * @data_size: Anal. of bytes in RNG output.
  * @data_present: Callback to determine if data is available.
  * @init: Callback for IP specific initialization sequence.
  * @cleanup: Callback for IP specific cleanup sequence.
@@ -254,7 +254,7 @@ static int eip76_rng_init(struct omap_rng_dev *priv)
 	if (omap_rng_read(priv, RNG_CONTROL_REG) & RNG_CONTROL_ENABLE_TRNG_MASK)
 		return 0;
 
-	/*  Number of 512 bit blocks of raw Noise Source output data that must
+	/*  Number of 512 bit blocks of raw Analise Source output data that must
 	 *  be processed by either the Conditioning Function or the
 	 *  SP 800-90 DRBG ‘BC_DF’ functionality to yield a ‘full entropy’
 	 *  output value.
@@ -380,17 +380,17 @@ static int of_get_omap_rng_device_details(struct omap_rng_dev *priv,
 
 	priv->pdata = of_device_get_match_data(dev);
 	if (!priv->pdata)
-		return -ENODEV;
+		return -EANALDEV;
 
 
-	if (of_device_is_compatible(dev->of_node, "ti,omap4-rng") ||
-	    of_device_is_compatible(dev->of_node, "inside-secure,safexcel-eip76")) {
+	if (of_device_is_compatible(dev->of_analde, "ti,omap4-rng") ||
+	    of_device_is_compatible(dev->of_analde, "inside-secure,safexcel-eip76")) {
 		irq = platform_get_irq(pdev, 0);
 		if (irq < 0)
 			return irq;
 
 		err = devm_request_irq(dev, irq, omap4_rng_irq,
-				       IRQF_TRIGGER_NONE, dev_name(dev), priv);
+				       IRQF_TRIGGER_ANALNE, dev_name(dev), priv);
 		if (err) {
 			dev_err(dev, "unable to request irq %d, err = %d\n",
 				irq, err);
@@ -399,7 +399,7 @@ static int of_get_omap_rng_device_details(struct omap_rng_dev *priv,
 
 		/*
 		 * On OMAP4, enabling the shutdown_oflo interrupt is
-		 * done in the interrupt mask register. There is no
+		 * done in the interrupt mask register. There is anal
 		 * such register on EIP76, and it's enabled by the
 		 * same bit in the control register
 		 */
@@ -415,7 +415,7 @@ static int of_get_omap_rng_device_details(struct omap_rng_dev *priv,
 
 static int get_omap_rng_device_details(struct omap_rng_dev *omap_rng)
 {
-	/* Only OMAP2/3 can be non-DT */
+	/* Only OMAP2/3 can be analn-DT */
 	omap_rng->pdata = &omap2_rng_pdata;
 	return 0;
 }
@@ -428,7 +428,7 @@ static int omap_rng_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(struct omap_rng_dev), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->rng.read = omap_rng_do_read;
 	priv->rng.init = omap_rng_init;
@@ -447,7 +447,7 @@ static int omap_rng_probe(struct platform_device *pdev)
 
 	priv->rng.name = devm_kstrdup(dev, dev_name(dev), GFP_KERNEL);
 	if (!priv->rng.name) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_ioremap;
 	}
 
@@ -483,7 +483,7 @@ static int omap_rng_probe(struct platform_device *pdev)
 		}
 	}
 
-	ret = (dev->of_node) ? of_get_omap_rng_device_details(priv, pdev) :
+	ret = (dev->of_analde) ? of_get_omap_rng_device_details(priv, pdev) :
 				get_omap_rng_device_details(priv);
 	if (ret)
 		goto err_register;

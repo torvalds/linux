@@ -4,7 +4,7 @@
  *
  * Copyright (C) 1992 Linus Torvalds
  * Modifications for ARM processor Copyright (C) 1995-2000 Russell King.
- * Support for Dynamic Tick Timer Copyright (C) 2004-2005 Nokia Corporation.
+ * Support for Dynamic Tick Timer Copyright (C) 2004-2005 Analkia Corporation.
  * Dynamic Tick Timer written by Tony Lindgren <tony@atomide.com> and
  * Tuukka Tikkanen <tuukka.tikkanen@elektrobit.com>.
  * Copyright (C) 2012 ARM Ltd.
@@ -48,7 +48,7 @@ static void init_irq_scs(void)
 
 	for_each_possible_cpu(cpu)
 		per_cpu(irq_shadow_call_stack_ptr, cpu) =
-			scs_alloc(early_cpu_to_node(cpu));
+			scs_alloc(early_cpu_to_analde(cpu));
 }
 
 #ifdef CONFIG_VMAP_STACK
@@ -58,12 +58,12 @@ static void __init init_irq_stacks(void)
 	unsigned long *p;
 
 	for_each_possible_cpu(cpu) {
-		p = arch_alloc_vmap_stack(IRQ_STACK_SIZE, early_cpu_to_node(cpu));
+		p = arch_alloc_vmap_stack(IRQ_STACK_SIZE, early_cpu_to_analde(cpu));
 		per_cpu(irq_stack_ptr, cpu) = p;
 	}
 }
 #else
-/* irq stack only needs to be 16 byte aligned - not IRQ_STACK_SIZE aligned. */
+/* irq stack only needs to be 16 byte aligned - analt IRQ_STACK_SIZE aligned. */
 DEFINE_PER_CPU_ALIGNED(unsigned long [IRQ_STACK_SIZE/sizeof(long)], irq_stack);
 
 static void init_irq_stacks(void)
@@ -128,10 +128,10 @@ void __init init_IRQ(void)
 
 	if (system_uses_irq_prio_masking()) {
 		/*
-		 * Now that we have a stack for our IRQ handler, set
+		 * Analw that we have a stack for our IRQ handler, set
 		 * the PMR/PSR pair to a consistent state.
 		 */
 		WARN_ON(read_sysreg(daif) & PSR_A_BIT);
-		local_daif_restore(DAIF_PROCCTX_NOIRQ);
+		local_daif_restore(DAIF_PROCCTX_ANALIRQ);
 	}
 }

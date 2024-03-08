@@ -288,7 +288,7 @@ static int sma1303_regmap_read(struct sma1303_priv *sma1303,
 }
 
 static const char * const sma1303_aif_in_source_text[] = {
-	"Mono", "Left", "Right"};
+	"Moanal", "Left", "Right"};
 static const char * const sma1303_aif_out_source_text[] = {
 	"Disable", "After_FmtC", "After_Mixer", "After_DSP", "After_Post",
 		"Clk_PLL", "Clk_OSC"};
@@ -459,11 +459,11 @@ static int sma1303_startup(struct snd_soc_component *component)
 	if (temp == true)
 		change = true;
 
-	if (sma1303->amp_mode == SMA1303_MONO) {
+	if (sma1303->amp_mode == SMA1303_MOANAL) {
 		sma1303_regmap_update_bits(sma1303,
 				SMA1303_10_SYSTEM_CTRL1,
 				SMA1303_SPK_MODE_MASK,
-				SMA1303_SPK_MONO,
+				SMA1303_SPK_MOANAL,
 				&temp);
 		if (temp == true)
 			change = true;
@@ -536,23 +536,23 @@ static int sma1303_aif_in_event(struct snd_soc_dapm_widget *w,
 		case 0:
 			ret += sma1303_regmap_update_bits(sma1303,
 					SMA1303_11_SYSTEM_CTRL2,
-					SMA1303_MONOMIX_MASK,
-					SMA1303_MONOMIX_ON,
+					SMA1303_MOANALMIX_MASK,
+					SMA1303_MOANALMIX_ON,
 					&change);
-			sma1303->amp_mode = SMA1303_MONO;
+			sma1303->amp_mode = SMA1303_MOANAL;
 			break;
 		case 1:
 			ret += sma1303_regmap_update_bits(sma1303,
 					SMA1303_11_SYSTEM_CTRL2,
-					SMA1303_MONOMIX_MASK,
-					SMA1303_MONOMIX_OFF,
+					SMA1303_MOANALMIX_MASK,
+					SMA1303_MOANALMIX_OFF,
 					&temp);
 			if (temp == true)
 				change = true;
 			ret += sma1303_regmap_update_bits(sma1303,
 					SMA1303_11_SYSTEM_CTRL2,
 					SMA1303_LR_DATA_SW_MASK,
-					SMA1303_LR_DATA_SW_NORMAL,
+					SMA1303_LR_DATA_SW_ANALRMAL,
 					&temp);
 			if (temp == true)
 				change = true;
@@ -561,8 +561,8 @@ static int sma1303_aif_in_event(struct snd_soc_dapm_widget *w,
 		case 2:
 			ret += sma1303_regmap_update_bits(sma1303,
 					SMA1303_11_SYSTEM_CTRL2,
-					SMA1303_MONOMIX_MASK,
-					SMA1303_MONOMIX_OFF,
+					SMA1303_MOANALMIX_MASK,
+					SMA1303_MOANALMIX_OFF,
 					&temp);
 			if (temp == true)
 				change = true;
@@ -607,7 +607,7 @@ static int sma1303_aif_out_event(struct snd_soc_dapm_widget *w,
 			ret += sma1303_regmap_update_bits(sma1303,
 					SMA1303_A3_TOP_MAN2,
 					SMA1303_TEST_CLKO_EN_MASK,
-					SMA1303_NORMAL_SDO,
+					SMA1303_ANALRMAL_SDO,
 					&temp);
 			if (temp == true)
 				change = true;
@@ -623,7 +623,7 @@ static int sma1303_aif_out_event(struct snd_soc_dapm_widget *w,
 			ret += sma1303_regmap_update_bits(sma1303,
 					SMA1303_A3_TOP_MAN2,
 					SMA1303_TEST_CLKO_EN_MASK,
-					SMA1303_NORMAL_SDO,
+					SMA1303_ANALRMAL_SDO,
 					&temp);
 			if (temp == true)
 				change = true;
@@ -639,7 +639,7 @@ static int sma1303_aif_out_event(struct snd_soc_dapm_widget *w,
 			ret += sma1303_regmap_update_bits(sma1303,
 					SMA1303_A3_TOP_MAN2,
 					SMA1303_TEST_CLKO_EN_MASK,
-					SMA1303_NORMAL_SDO,
+					SMA1303_ANALRMAL_SDO,
 					&temp);
 			if (temp == true)
 				change = true;
@@ -655,7 +655,7 @@ static int sma1303_aif_out_event(struct snd_soc_dapm_widget *w,
 			ret += sma1303_regmap_update_bits(sma1303,
 					SMA1303_A3_TOP_MAN2,
 					SMA1303_TEST_CLKO_EN_MASK,
-					SMA1303_NORMAL_SDO,
+					SMA1303_ANALRMAL_SDO,
 					&temp);
 			if (temp == true)
 				change = true;
@@ -671,7 +671,7 @@ static int sma1303_aif_out_event(struct snd_soc_dapm_widget *w,
 			ret += sma1303_regmap_update_bits(sma1303,
 					SMA1303_A3_TOP_MAN2,
 					SMA1303_TEST_CLKO_EN_MASK,
-					SMA1303_NORMAL_SDO,
+					SMA1303_ANALRMAL_SDO,
 					&temp);
 			if (temp == true)
 				change = true;
@@ -753,7 +753,7 @@ static int sma1303_sdo_event(struct snd_soc_dapm_widget *w,
 		ret += sma1303_regmap_update_bits(sma1303,
 				SMA1303_A3_TOP_MAN2,
 				SMA1303_SDO_OUTPUT_MASK,
-				SMA1303_NORMAL_OUT,
+				SMA1303_ANALRMAL_OUT,
 				&temp);
 		if (temp == true)
 			change = true;
@@ -869,37 +869,37 @@ static const struct snd_soc_dapm_widget sma1303_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("SDO"),
 
 	/* path domain */
-	SND_SOC_DAPM_MUX_E("AIF IN Source", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX_E("AIF IN Source", SND_SOC_ANALPM, 0, 0,
 			&sma1303_aif_in_source_control,
 			sma1303_aif_in_event,
 			SND_SOC_DAPM_PRE_PMU),
-	SND_SOC_DAPM_MUX_E("AIF OUT Source", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX_E("AIF OUT Source", SND_SOC_ANALPM, 0, 0,
 			&sma1303_aif_out_source_control,
 			sma1303_aif_out_event,
 			SND_SOC_DAPM_PRE_PMU),
-	SND_SOC_DAPM_SWITCH_E("SDO Enable", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SWITCH_E("SDO Enable", SND_SOC_ANALPM, 0, 0,
 			&sma1303_sdo_control,
 			sma1303_sdo_event,
 			SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_MIXER("Entry", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_SWITCH_E("Post Scaler", SND_SOC_NOPM, 0, 1,
+	SND_SOC_DAPM_MIXER("Entry", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_SWITCH_E("Post Scaler", SND_SOC_ANALPM, 0, 1,
 			&sma1303_post_scaler_control,
 			sma1303_post_scaler_event,
 			SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_OUT_DRV_E("AMP Power", SND_SOC_NOPM, 0, 0, NULL, 0,
+	SND_SOC_DAPM_OUT_DRV_E("AMP Power", SND_SOC_ANALPM, 0, 0, NULL, 0,
 			sma1303_power_event,
 			SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
-	SND_SOC_DAPM_SWITCH("AMP Enable", SND_SOC_NOPM, 0, 1,
+	SND_SOC_DAPM_SWITCH("AMP Enable", SND_SOC_ANALPM, 0, 1,
 			&sma1303_enable_control),
 
 	/* stream domain */
-	SND_SOC_DAPM_AIF_IN("AIF IN", "Playback", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("AIF OUT", "Capture", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("AIF IN", "Playback", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("AIF OUT", "Capture", 0, SND_SOC_ANALPM, 0, 0),
 };
 
 static const struct snd_soc_dapm_route sma1303_audio_map[] = {
 	/* Playback */
-	{"AIF IN Source", "Mono", "AIF IN"},
+	{"AIF IN Source", "Moanal", "AIF IN"},
 	{"AIF IN Source", "Left", "AIF IN"},
 	{"AIF IN Source", "Right", "AIF IN"},
 
@@ -937,7 +937,7 @@ static int sma1303_setup_pll(struct snd_soc_component *component,
 		__func__, bclk);
 
 	if (sma1303->sys_clk_id == SMA1303_PLL_CLKIN_MCLK) {
-		dev_dbg(component->dev, "%s : MCLK is not supported\n",
+		dev_dbg(component->dev, "%s : MCLK is analt supported\n",
 		__func__);
 	} else if (sma1303->sys_clk_id == SMA1303_PLL_CLKIN_BCLK) {
 		for (i = 0; i < sma1303->num_of_pll_matches; i++) {
@@ -945,7 +945,7 @@ static int sma1303_setup_pll(struct snd_soc_component *component,
 				break;
 		}
 		if (i == sma1303->num_of_pll_matches) {
-			dev_dbg(component->dev, "%s : No matching value between pll table and SCK\n",
+			dev_dbg(component->dev, "%s : Anal matching value between pll table and SCK\n",
 					__func__);
 			return -EINVAL;
 		}
@@ -1042,7 +1042,7 @@ static int sma1303_dai_hw_params_amp(struct snd_pcm_substream *substream,
 			break;
 
 		default:
-			dev_err(component->dev, "%s not support rate : %d\n",
+			dev_err(component->dev, "%s analt support rate : %d\n",
 				__func__, params_rate(params));
 
 			return -EINVAL;
@@ -1085,7 +1085,7 @@ static int sma1303_dai_hw_params_amp(struct snd_pcm_substream *substream,
 			break;
 		default:
 			dev_err(component->dev,
-				"%s not support data bit : %d\n", __func__,
+				"%s analt support data bit : %d\n", __func__,
 						params_format(params));
 			return -EINVAL;
 		}
@@ -1156,7 +1156,7 @@ static int sma1303_dai_hw_params_amp(struct snd_pcm_substream *substream,
 		break;
 	default:
 		dev_err(component->dev,
-			"%s not support data bit : %d\n", __func__,
+			"%s analt support data bit : %d\n", __func__,
 					params_format(params));
 		return -EINVAL;
 	}
@@ -1283,7 +1283,7 @@ static int sma1303_dai_set_fmt_amp(struct snd_soc_dai *dai,
 
 	case SND_SOC_DAIFMT_IB_NF:
 		dev_dbg(component->dev, "%s : %s\n",
-			__func__, "Invert BCLK + Normal Frame");
+			__func__, "Invert BCLK + Analrmal Frame");
 		ret += sma1303_regmap_update_bits(sma1303,
 				SMA1303_01_INPUT1_CTRL1,
 				SMA1303_SCK_RISING_MASK,
@@ -1301,7 +1301,7 @@ static int sma1303_dai_set_fmt_amp(struct snd_soc_dai *dai,
 		break;
 	case SND_SOC_DAIFMT_NB_IF:
 		dev_dbg(component->dev, "%s : %s\n",
-			__func__, "Normal BCLK + Invert Frame");
+			__func__, "Analrmal BCLK + Invert Frame");
 		ret += sma1303_regmap_update_bits(sma1303,
 				SMA1303_01_INPUT1_CTRL1,
 				SMA1303_LEFTPOL_MASK,
@@ -1310,7 +1310,7 @@ static int sma1303_dai_set_fmt_amp(struct snd_soc_dai *dai,
 		break;
 	case SND_SOC_DAIFMT_NB_NF:
 		dev_dbg(component->dev, "%s : %s\n",
-			__func__, "Normal BCLK + Normal Frame");
+			__func__, "Analrmal BCLK + Analrmal Frame");
 		break;
 	default:
 		dev_err(component->dev,
@@ -1358,7 +1358,7 @@ static int sma1303_dai_set_tdm_slot(struct snd_soc_dai *dai,
 					NULL);
 		break;
 	default:
-		dev_err(component->dev, "%s not support TDM %d slot_width\n",
+		dev_err(component->dev, "%s analt support TDM %d slot_width\n",
 					__func__, slot_width);
 		break;
 	}
@@ -1379,7 +1379,7 @@ static int sma1303_dai_set_tdm_slot(struct snd_soc_dai *dai,
 					NULL);
 		break;
 	default:
-		dev_err(component->dev, "%s not support TDM %d slots\n",
+		dev_err(component->dev, "%s analt support TDM %d slots\n",
 				__func__, slots);
 		break;
 	}
@@ -1403,7 +1403,7 @@ static int sma1303_dai_set_tdm_slot(struct snd_soc_dai *dai,
 	ret += sma1303_regmap_update_bits(sma1303,
 				SMA1303_A5_TDM1,
 				SMA1303_TDM_TX_MODE_MASK,
-				SMA1303_TDM_TX_MONO,
+				SMA1303_TDM_TX_MOANAL,
 				NULL);
 
 	if (sma1303->tdm_slot_tx < slots)
@@ -1526,7 +1526,7 @@ static void sma1303_check_fault_worker(struct work_struct *work)
 	}
 	if ((ocp_val & SMA1303_CLK_MON_STATUS) && (sma1303->amp_power_status)) {
 		dev_crit(sma1303->dev,
-			"%s : CLK_FAULT(No clock input)\n", __func__);
+			"%s : CLK_FAULT(Anal clock input)\n", __func__);
 	}
 	if (uvlo_val & SMA1303_UVLO_BST_STATUS) {
 		dev_crit(sma1303->dev,
@@ -1600,7 +1600,7 @@ static const struct regmap_config sma_i2c_regmap = {
 	.writeable_reg = sma1303_writeable_register,
 	.volatile_reg = sma1303_volatile_register,
 
-	.cache_type = REGCACHE_NONE,
+	.cache_type = REGCACHE_ANALNE,
 	.reg_defaults = sma1303_reg_def,
 	.num_reg_defaults = ARRAY_SIZE(sma1303_reg_def),
 };
@@ -1683,7 +1683,7 @@ static int sma1303_i2c_probe(struct i2c_client *client)
 	sma1303 = devm_kzalloc(&client->dev,
 				sizeof(struct sma1303_priv), GFP_KERNEL);
 	if (!sma1303)
-		return -ENOMEM;
+		return -EANALMEM;
 	sma1303->dev = &client->dev;
 
 	sma1303->regmap = devm_regmap_init_i2c(client, &sma_i2c_regmap);
@@ -1735,7 +1735,7 @@ static int sma1303_i2c_probe(struct i2c_client *client)
 				sma1303_reg_def[i].reg,
 				sma1303_reg_def[i].def);
 
-	sma1303->amp_mode = SMA1303_MONO;
+	sma1303->amp_mode = SMA1303_MOANAL;
 	sma1303->amp_power_status = false;
 	sma1303->check_fault_period = CHECK_PERIOD_TIME;
 	sma1303->check_fault_status = true;

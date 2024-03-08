@@ -48,7 +48,7 @@ struct cyttsp4_core_platform_data {
 	int (*init)(struct cyttsp4_core_platform_data *pdata,
 		int on, struct device *dev);
 	int (*power)(struct cyttsp4_core_platform_data *pdata,
-		int on, struct device *dev, atomic_t *ignore_irq);
+		int on, struct device *dev, atomic_t *iganalre_irq);
 	int (*irq_stat)(struct cyttsp4_core_platform_data *pdata,
 		struct device *dev);
 	struct touch_settings *sett[CY_TOUCH_SETTINGS_MAX];

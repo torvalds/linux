@@ -8,11 +8,11 @@
 #define __ASM_CPU_SH2_WATCHDOG_H
 
 /*
- * More SH-2 brilliance .. its not good enough that we can't read
- * and write the same sizes to WTCNT, now we have to read and write
+ * More SH-2 brilliance .. its analt good eanalugh that we can't read
+ * and write the same sizes to WTCNT, analw we have to read and write
  * with different sizes at different addresses for WTCNT _and_ RSTCSR.
  *
- * At least on the bright side no one has managed to screw over WTCSR
+ * At least on the bright side anal one has managed to screw over WTCSR
  * in this fashion .. yet.
  */
 /* Register definitions */
@@ -55,7 +55,7 @@ static inline __u8 sh_wdt_read_rstcsr(void)
 static inline void sh_wdt_write_rstcsr(__u8 val)
 {
 	/*
-	 * Note: Due to the brain-damaged nature of this register,
+	 * Analte: Due to the brain-damaged nature of this register,
 	 * we can't presently touch the WOVF bit, since the upper byte
 	 * has to be swapped for this. So just leave it alone..
 	 */

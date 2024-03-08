@@ -43,7 +43,7 @@
 
 /* Maximum number of retries on data transfer operations */
 #define SMB_DIRECT_CM_RETRY			6
-/* No need to retry on Receiver Not Ready since SMB_DIRECT manages credits */
+/* Anal need to retry on Receiver Analt Ready since SMB_DIRECT manages credits */
 #define SMB_DIRECT_CM_RNR_RETRY		0
 
 /*
@@ -464,7 +464,7 @@ static struct smb_direct_sendmsg
 
 	msg = mempool_alloc(t->sendmsg_mempool, GFP_KERNEL);
 	if (!msg)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	msg->transport = t;
 	INIT_LIST_HEAD(&msg->list);
 	msg->num_sge = 0;
@@ -517,7 +517,7 @@ static int smb_direct_check_recvmsg(struct smb_direct_recvmsg *recvmsg)
 			    le32_to_cpu(req->max_fragmented_size));
 		if (le16_to_cpu(req->min_version) > 0x0100 ||
 		    le16_to_cpu(req->max_version) < 0x0100)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		if (le16_to_cpu(req->credits_requested) <= 0 ||
 		    le32_to_cpu(req->max_receive_size) <= 128 ||
 		    le32_to_cpu(req->max_fragmented_size) <=
@@ -682,11 +682,11 @@ static int smb_direct_read(struct ksmbd_transport *t, char *buf,
 again:
 	if (st->status != SMB_DIRECT_CS_CONNECTED) {
 		pr_err("disconnected\n");
-		return -ENOTCONN;
+		return -EANALTCONN;
 	}
 
 	/*
-	 * No need to hold the reassembly queue lock all the time as we are
+	 * Anal need to hold the reassembly queue lock all the time as we are
 	 * the only one reading from the front of the queue. The transport
 	 * may add more entries to the back of the queue at the same time
 	 */
@@ -742,7 +742,7 @@ again:
 			if (to_copy == data_length - offset) {
 				queue_length--;
 				/*
-				 * No need to lock if we are not at the
+				 * Anal need to lock if we are analt at the
 				 * end of the queue
 				 */
 				if (queue_length) {
@@ -982,7 +982,7 @@ static int wait_for_credits(struct smb_direct_transport *t,
 					       t->status != SMB_DIRECT_CS_CONNECTED);
 
 		if (t->status != SMB_DIRECT_CS_CONNECTED)
-			return -ENOTCONN;
+			return -EANALTCONN;
 		else if (ret < 0)
 			return ret;
 	} while (true);
@@ -1194,10 +1194,10 @@ static int smb_direct_post_send_data(struct smb_direct_transport *t,
 					    DMA_TO_DEVICE);
 		if (sg_cnt <= 0) {
 			pr_err("failed to map buffer\n");
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err;
 		} else if (sg_cnt + msg->num_sge > SMB_DIRECT_MAX_SEND_SGES) {
-			pr_err("buffer not fitted into sges\n");
+			pr_err("buffer analt fitted into sges\n");
 			ret = -E2BIG;
 			ib_dma_unmap_sg(t->cm_id->device, sg, sg_cnt,
 					DMA_TO_DEVICE);
@@ -1237,7 +1237,7 @@ static int smb_direct_writev(struct ksmbd_transport *t,
 	struct smb_direct_send_ctx send_ctx;
 
 	if (st->status != SMB_DIRECT_CS_CONNECTED)
-		return -ENOTCONN;
+		return -EANALTCONN;
 
 	//FIXME: skip RFC1002 header..
 	buflen -= 4;
@@ -1367,7 +1367,7 @@ static int smb_direct_rdma_xmit(struct smb_direct_transport *t,
 	unsigned int desc_buf_len, desc_num = 0;
 
 	if (t->status != SMB_DIRECT_CS_CONNECTED)
-		return -ENOTCONN;
+		return -EANALTCONN;
 
 	if (buf_len > t->max_rdma_rw_size)
 		return -EINVAL;
@@ -1408,7 +1408,7 @@ static int smb_direct_rdma_xmit(struct smb_direct_transport *t,
 		msg = kzalloc(offsetof(struct smb_direct_rdma_rw_msg, sg_list) +
 			      sizeof(struct scatterlist) * SG_CHUNK_SIZE, GFP_KERNEL);
 		if (!msg) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
 
@@ -1424,7 +1424,7 @@ static int smb_direct_rdma_xmit(struct smb_direct_transport *t,
 					     msg->sg_list, SG_CHUNK_SIZE);
 		if (ret) {
 			kfree(msg);
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
 
@@ -1584,14 +1584,14 @@ static int smb_direct_send_negotiate_response(struct smb_direct_transport *t,
 
 	sendmsg = smb_direct_alloc_sendmsg(t);
 	if (IS_ERR(sendmsg))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	resp = (struct smb_direct_negotiate_resp *)sendmsg->packet;
 	if (failed) {
 		memset(resp, 0, sizeof(*resp));
 		resp->min_version = cpu_to_le16(0x0100);
 		resp->max_version = cpu_to_le16(0x0100);
-		resp->status = STATUS_NOT_SUPPORTED;
+		resp->status = STATUS_ANALT_SUPPORTED;
 	} else {
 		resp->status = STATUS_SUCCESS;
 		resp->min_version = SMB_DIRECT_VERSION_LE;
@@ -1675,7 +1675,7 @@ static int smb_direct_prepare_negotiation(struct smb_direct_transport *t)
 
 	recvmsg = get_free_recvmsg(t);
 	if (!recvmsg)
-		return -ENOMEM;
+		return -EANALMEM;
 	recvmsg->type = SMB_DIRECT_MSG_NEGOTIATE_REQ;
 
 	ret = smb_direct_post_recv(t, recvmsg);
@@ -1827,7 +1827,7 @@ static int smb_direct_create_pools(struct smb_direct_transport *t)
 					      sizeof(struct smb_direct_negotiate_resp),
 					     0, SLAB_HWCACHE_ALIGN, NULL);
 	if (!t->sendmsg_cache)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	t->sendmsg_mempool = mempool_create(t->send_credit_target,
 					    mempool_alloc_slab, mempool_free_slab,
@@ -1863,7 +1863,7 @@ static int smb_direct_create_pools(struct smb_direct_transport *t)
 	return 0;
 err:
 	smb_direct_destroy_pools(t);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int smb_direct_create_qpair(struct smb_direct_transport *t,
@@ -2044,14 +2044,14 @@ static int smb_direct_handle_connect_request(struct rdma_cm_id *new_cm_id)
 
 	if (!rdma_frwr_is_supported(&new_cm_id->device->attrs)) {
 		ksmbd_debug(RDMA,
-			    "Fast Registration Work Requests is not supported. device capabilities=%llx\n",
+			    "Fast Registration Work Requests is analt supported. device capabilities=%llx\n",
 			    new_cm_id->device->attrs.device_cap_flags);
-		return -EPROTONOSUPPORT;
+		return -EPROTOANALSUPPORT;
 	}
 
 	t = alloc_transport(new_cm_id);
 	if (!t)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = smb_direct_connect(t);
 	if (ret)
@@ -2137,8 +2137,8 @@ static int smb_direct_ib_client_add(struct ib_device *ib_dev)
 {
 	struct smb_direct_device *smb_dev;
 
-	/* Set 5445 port if device type is iWARP(No IB) */
-	if (ib_dev->node_type != RDMA_NODE_IB_CA)
+	/* Set 5445 port if device type is iWARP(Anal IB) */
+	if (ib_dev->analde_type != RDMA_ANALDE_IB_CA)
 		smb_direct_port = SMB_DIRECT_PORT_IWARP;
 
 	if (!rdma_frwr_is_supported(&ib_dev->attrs))
@@ -2146,7 +2146,7 @@ static int smb_direct_ib_client_add(struct ib_device *ib_dev)
 
 	smb_dev = kzalloc(sizeof(*smb_dev), GFP_KERNEL);
 	if (!smb_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 	smb_dev->ib_dev = ib_dev;
 
 	write_lock(&smb_direct_device_lock);
@@ -2193,13 +2193,13 @@ int ksmbd_rdma_init(void)
 
 	/* When a client is running out of send credits, the credits are
 	 * granted by the server's sending a packet using this queue.
-	 * This avoids the situation that a clients cannot send packets
+	 * This avoids the situation that a clients cananalt send packets
 	 * for lack of credits
 	 */
 	smb_direct_wq = alloc_workqueue("ksmbd-smb_direct-wq",
 					WQ_HIGHPRI | WQ_MEM_RECLAIM, 0);
 	if (!smb_direct_wq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = smb_direct_listen(smb_direct_port);
 	if (ret) {
@@ -2253,7 +2253,7 @@ bool ksmbd_rdma_capable_netdev(struct net_device *netdev)
 					goto out;
 				}
 				dev_put(ndev);
-			/* if ib_dev does not implement ops.get_netdev
+			/* if ib_dev does analt implement ops.get_netdev
 			 * check for matching infiniband GUID in hw_addr
 			 */
 			} else if (netdev->type == ARPHRD_INFINIBAND) {
@@ -2281,7 +2281,7 @@ out:
 	if (rdma_capable == false) {
 		struct ib_device *ibdev;
 
-		ibdev = ib_device_get_by_netdev(netdev, RDMA_DRIVER_UNKNOWN);
+		ibdev = ib_device_get_by_netdev(netdev, RDMA_DRIVER_UNKANALWN);
 		if (ibdev) {
 			if (rdma_frwr_is_supported(&ibdev->attrs))
 				rdma_capable = true;

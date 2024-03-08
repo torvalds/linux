@@ -11,7 +11,7 @@
  */
 
 #include <linux/delay.h>
-#include <linux/fwnode.h>
+#include <linux/fwanalde.h>
 #include <linux/init.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
@@ -103,7 +103,7 @@ static const struct ov490_reg {
 	{0x6010, 0x01},
 	/*
 	 * OV490 EMB line disable in YUV and RAW data,
-	 * NOTE: EMB line is still used in ISP and sensor
+	 * ANALTE: EMB line is still used in ISP and sensor
 	 */
 	{0xe000, 0x14},
 	{0xfffe, 0x28},
@@ -275,7 +275,7 @@ static int rdacm21_s_stream(struct v4l2_subdev *sd, int enable)
 	struct rdacm21_device *dev = sd_to_rdacm21(sd);
 
 	/*
-	 * Enable serial link now that the ISP provides a valid pixel clock
+	 * Enable serial link analw that the ISP provides a valid pixel clock
 	 * to start serializing video data on the GMSL link.
 	 */
 	return max9271_set_serial_link(&dev->serializer, enable);
@@ -307,10 +307,10 @@ static int rdacm21_get_fmt(struct v4l2_subdev *sd,
 	mf->height		= dev->fmt.height;
 	mf->code		= MEDIA_BUS_FMT_YUYV8_1X16;
 	mf->colorspace		= V4L2_COLORSPACE_SRGB;
-	mf->field		= V4L2_FIELD_NONE;
+	mf->field		= V4L2_FIELD_ANALNE;
 	mf->ycbcr_enc		= V4L2_YCBCR_ENC_601;
 	mf->quantization	= V4L2_QUANTIZATION_FULL_RANGE;
-	mf->xfer_func		= V4L2_XFER_FUNC_NONE;
+	mf->xfer_func		= V4L2_XFER_FUNC_ANALNE;
 
 	return 0;
 }
@@ -376,7 +376,7 @@ static int ov10640_check_id(struct rdacm21_device *dev)
 	}
 	if (i == OV10640_PID_TIMEOUT) {
 		dev_err(dev->dev, "OV10640 ID mismatch: (0x%02x)\n", val);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	dev_dbg(dev->dev, "OV10640 ID = 0x%2x\n", val);
@@ -414,7 +414,7 @@ static int ov490_initialize(struct rdacm21_device *dev)
 	if (OV490_ID(pid, ver) != OV490_ID_VAL) {
 		dev_err(dev->dev, "OV490 ID mismatch (0x%04x)\n",
 			OV490_ID(pid, ver));
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Wait for firmware boot by reading streamon status. */
@@ -426,7 +426,7 @@ static int ov490_initialize(struct rdacm21_device *dev)
 	}
 	if (i == OV490_OUTPUT_EN_TIMEOUT) {
 		dev_err(dev->dev, "Timeout waiting for firmware boot\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = ov10640_check_id(dev);
@@ -532,7 +532,7 @@ static int rdacm21_initialize(struct rdacm21_device *dev)
 		return ret;
 
 	/*
-	 * Set reverse channel high threshold to increase noise immunity.
+	 * Set reverse channel high threshold to increase analise immunity.
 	 *
 	 * This should be compensated by increasing the reverse channel
 	 * amplitude on the remote deserializer side.
@@ -547,11 +547,11 @@ static int rdacm21_probe(struct i2c_client *client)
 
 	dev = devm_kzalloc(&client->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev->dev = &client->dev;
 	dev->serializer.client = client;
 
-	ret = of_property_read_u32_array(client->dev.of_node, "reg",
+	ret = of_property_read_u32_array(client->dev.of_analde, "reg",
 					 dev->addrs, 2);
 	if (ret < 0) {
 		dev_err(dev->dev, "Invalid DT reg property: %d\n", ret);
@@ -569,7 +569,7 @@ static int rdacm21_probe(struct i2c_client *client)
 
 	/* Initialize and register the subdevice. */
 	v4l2_i2c_subdev_init(&dev->sd, client, &rdacm21_subdev_ops);
-	dev->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	dev->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 
 	v4l2_ctrl_handler_init(&dev->ctrls, 1);
 	v4l2_ctrl_new_std(&dev->ctrls, NULL, V4L2_CID_PIXEL_RATE,

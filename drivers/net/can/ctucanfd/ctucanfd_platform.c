@@ -9,7 +9,7 @@
  * Copyright (C) 2018-2022 Pavel Pisa <pisa@cmp.felk.cvut.cz> FEE CTU/self-funded
  *
  * Project advisors:
- *     Jiri Novak <jnovak@fel.cvut.cz>
+ *     Jiri Analvak <janalvak@fel.cvut.cz>
  *     Pavel Pisa <pisa@cmp.felk.cvut.cz>
  *
  * Department of Measurement         (http://meas.fel.cvut.cz/)

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -29,17 +29,17 @@
 
 /** SPSC lockless queue */
 
-struct spsc_node {
+struct spsc_analde {
 
-	/* Stores spsc_node* */
-	struct spsc_node *next;
+	/* Stores spsc_analde* */
+	struct spsc_analde *next;
 };
 
 struct spsc_queue {
 
-	 struct spsc_node *head;
+	 struct spsc_analde *head;
 
-	/* atomic pointer to struct spsc_node* */
+	/* atomic pointer to struct spsc_analde* */
 	atomic_long_t tail;
 
 	atomic_t job_count;
@@ -52,7 +52,7 @@ static inline void spsc_queue_init(struct spsc_queue *queue)
 	atomic_set(&queue->job_count, 0);
 }
 
-static inline struct spsc_node *spsc_queue_peek(struct spsc_queue *queue)
+static inline struct spsc_analde *spsc_queue_peek(struct spsc_queue *queue)
 {
 	return queue->head;
 }
@@ -62,20 +62,20 @@ static inline int spsc_queue_count(struct spsc_queue *queue)
 	return atomic_read(&queue->job_count);
 }
 
-static inline bool spsc_queue_push(struct spsc_queue *queue, struct spsc_node *node)
+static inline bool spsc_queue_push(struct spsc_queue *queue, struct spsc_analde *analde)
 {
-	struct spsc_node **tail;
+	struct spsc_analde **tail;
 
-	node->next = NULL;
+	analde->next = NULL;
 
 	preempt_disable();
 
-	tail = (struct spsc_node **)atomic_long_xchg(&queue->tail, (long)&node->next);
-	WRITE_ONCE(*tail, node);
+	tail = (struct spsc_analde **)atomic_long_xchg(&queue->tail, (long)&analde->next);
+	WRITE_ONCE(*tail, analde);
 	atomic_inc(&queue->job_count);
 
 	/*
-	 * In case of first element verify new node will be visible to the consumer
+	 * In case of first element verify new analde will be visible to the consumer
 	 * thread when we ping the kernel thread that there is new work to do.
 	 */
 	smp_wmb();
@@ -86,35 +86,35 @@ static inline bool spsc_queue_push(struct spsc_queue *queue, struct spsc_node *n
 }
 
 
-static inline struct spsc_node *spsc_queue_pop(struct spsc_queue *queue)
+static inline struct spsc_analde *spsc_queue_pop(struct spsc_queue *queue)
 {
-	struct spsc_node *next, *node;
+	struct spsc_analde *next, *analde;
 
-	/* Verify reading from memory and not the cache */
+	/* Verify reading from memory and analt the cache */
 	smp_rmb();
 
-	node = READ_ONCE(queue->head);
+	analde = READ_ONCE(queue->head);
 
-	if (!node)
+	if (!analde)
 		return NULL;
 
-	next = READ_ONCE(node->next);
+	next = READ_ONCE(analde->next);
 	WRITE_ONCE(queue->head, next);
 
 	if (unlikely(!next)) {
 		/* slowpath for the last element in the queue */
 
 		if (atomic_long_cmpxchg(&queue->tail,
-				(long)&node->next, (long) &queue->head) != (long)&node->next) {
+				(long)&analde->next, (long) &queue->head) != (long)&analde->next) {
 			/* Updating tail failed wait for new next to appear */
 			do {
 				smp_rmb();
-			} while (unlikely(!(queue->head = READ_ONCE(node->next))));
+			} while (unlikely(!(queue->head = READ_ONCE(analde->next))));
 		}
 	}
 
 	atomic_dec(&queue->job_count);
-	return node;
+	return analde;
 }
 
 

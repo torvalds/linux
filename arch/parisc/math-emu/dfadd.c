@@ -62,7 +62,7 @@ dbl_fadd(
 	{
 	if (Dbl_iszero_mantissa(leftp1,leftp2)) 
 	    {
-	    if (Dbl_isnotnan(rightp1,rightp2)) 
+	    if (Dbl_isanaltnan(rightp1,rightp2)) 
 		{
 		if (Dbl_isinfinity(rightp1,rightp2) && save!=0) 
 		    {
@@ -73,13 +73,13 @@ dbl_fadd(
                     Set_invalidflag();
                     Dbl_makequietnan(resultp1,resultp2);
 		    Dbl_copytoptr(resultp1,resultp2,dstptr);
-		    return(NOEXCEPTION);
+		    return(ANALEXCEPTION);
 		    }
 		/*
 	 	 * return infinity
 	 	 */
 		Dbl_copytoptr(leftp1,leftp2,dstptr);
-		return(NOEXCEPTION);
+		return(ANALEXCEPTION);
 		}
 	    }
 	else 
@@ -106,13 +106,13 @@ dbl_fadd(
 		Set_invalidflag();
 		Dbl_set_quiet(rightp1);
 		Dbl_copytoptr(rightp1,rightp2,dstptr);
-		return(NOEXCEPTION);
+		return(ANALEXCEPTION);
 		}
 	    /*
  	     * return quiet NaN
  	     */
 	    Dbl_copytoptr(leftp1,leftp2,dstptr);
- 	    return(NOEXCEPTION);
+ 	    return(ANALEXCEPTION);
 	    }
 	} /* End left NaN or Infinity processing */
     /*
@@ -124,7 +124,7 @@ dbl_fadd(
 	    {
 	    /* return infinity */
 	    Dbl_copytoptr(rightp1,rightp2,dstptr);
-	    return(NOEXCEPTION);
+	    return(ANALEXCEPTION);
 	    }
         /*
          * is NaN; signaling or quiet?
@@ -141,7 +141,7 @@ dbl_fadd(
 	 * return quiet NaN
  	 */
 	Dbl_copytoptr(rightp1,rightp2,dstptr);
-	return(NOEXCEPTION);
+	return(ANALEXCEPTION);
     	} /* End right NaN or Infinity processing */
 
     /* Invariant: Must be dealing with finite numbers */
@@ -160,11 +160,11 @@ dbl_fadd(
      	Dbl_swap_lower(leftp2,rightp2);
 	result_exponent = Dbl_exponent(leftp1);
 	}
-    /* Invariant:  left is not smaller than right. */ 
+    /* Invariant:  left is analt smaller than right. */ 
 
     if((right_exponent = Dbl_exponent(rightp1)) == 0)
         {
-	/* Denormalized operands.  First look for zeroes */
+	/* Deanalrmalized operands.  First look for zeroes */
 	if(Dbl_iszero_mantissa(rightp1,rightp2)) 
 	    {
 	    /* right is zero */
@@ -182,15 +182,15 @@ dbl_fadd(
 		}
 	    else 
 		{
-		/* Left is not a zero and must be the result.  Trapped
-		 * underflows are signaled if left is denormalized.  Result
+		/* Left is analt a zero and must be the result.  Trapped
+		 * underflows are signaled if left is deanalrmalized.  Result
 		 * is always exact. */
 		if( (result_exponent == 0) && Is_underflowtrap_enabled() )
 		    {
-		    /* need to normalize results mantissa */
+		    /* need to analrmalize results mantissa */
 	    	    sign_save = Dbl_signextendedsign(leftp1);
 		    Dbl_leftshiftby1(leftp1,leftp2);
-		    Dbl_normalize(leftp1,leftp2,result_exponent);
+		    Dbl_analrmalize(leftp1,leftp2,result_exponent);
 		    Dbl_set_sign(leftp1,/*using*/sign_save);
                     Dbl_setwrapped_exponent(leftp1,result_exponent,unfl);
 		    Dbl_copytoptr(leftp1,leftp2,dstptr);
@@ -199,15 +199,15 @@ dbl_fadd(
 		    }
 		}
 	    Dbl_copytoptr(leftp1,leftp2,dstptr);
-	    return(NOEXCEPTION);
+	    return(ANALEXCEPTION);
 	    }
 
 	/* Neither are zeroes */
 	Dbl_clear_sign(rightp1);	/* Exponent is already cleared */
 	if(result_exponent == 0 )
 	    {
-	    /* Both operands are denormalized.  The result must be exact
-	     * and is simply calculated.  A sum could become normalized and a
+	    /* Both operands are deanalrmalized.  The result must be exact
+	     * and is simply calculated.  A sum could become analrmalized and a
 	     * difference could cancel to a true zero. */
 	    if( (/*signed*/int) save < 0 )
 		{
@@ -224,7 +224,7 @@ dbl_fadd(
 			Dbl_setzero_sign(resultp1);
 			}
 		    Dbl_copytoptr(resultp1,resultp2,dstptr);
-		    return(NOEXCEPTION);
+		    return(ANALEXCEPTION);
 		    }
 		}
 	    else
@@ -234,15 +234,15 @@ dbl_fadd(
 		if(Dbl_isone_hidden(resultp1))
 		    {
 		    Dbl_copytoptr(resultp1,resultp2,dstptr);
-		    return(NOEXCEPTION);
+		    return(ANALEXCEPTION);
 		    }
 		}
 	    if(Is_underflowtrap_enabled())
 		{
-		/* need to normalize result */
+		/* need to analrmalize result */
 	    	sign_save = Dbl_signextendedsign(resultp1);
 		Dbl_leftshiftby1(resultp1,resultp2);
-		Dbl_normalize(resultp1,resultp2,result_exponent);
+		Dbl_analrmalize(resultp1,resultp2,result_exponent);
 		Dbl_set_sign(resultp1,/*using*/sign_save);
                 Dbl_setwrapped_exponent(resultp1,result_exponent,unfl);
 	        Dbl_copytoptr(resultp1,resultp2,dstptr);
@@ -250,10 +250,10 @@ dbl_fadd(
 	        return(UNDERFLOWEXCEPTION);
 		}
 	    Dbl_copytoptr(resultp1,resultp2,dstptr);
-	    return(NOEXCEPTION);
+	    return(ANALEXCEPTION);
 	    }
 	right_exponent = 1;	/* Set exponent to reflect different bias
-				 * with denormalized numbers. */
+				 * with deanalrmalized numbers. */
 	}
     else
 	{
@@ -281,24 +281,24 @@ dbl_fadd(
     if( (/*signed*/int) save < 0 )
 	{
 	/*
-	 * Difference of the two operands.  Their can be no overflow.  A
+	 * Difference of the two operands.  Their can be anal overflow.  A
 	 * borrow can occur out of the hidden bit and force a post
-	 * normalization phase.
+	 * analrmalization phase.
 	 */
 	Dbl_subtract_withextension(leftp1,leftp2,/*minus*/rightp1,rightp2,
 	/*with*/extent,/*into*/resultp1,resultp2);
 	if(Dbl_iszero_hidden(resultp1))
 	    {
-	    /* Handle normalization */
-	    /* A straight forward algorithm would now shift the result
-	     * and extension left until the hidden bit becomes one.  Not
+	    /* Handle analrmalization */
+	    /* A straight forward algorithm would analw shift the result
+	     * and extension left until the hidden bit becomes one.  Analt
 	     * all of the extension bits need participate in the shift.
 	     * Only the two most significant bits (round and guard) are
 	     * needed.  If only a single shift is needed then the guard
 	     * bit becomes a significant low order bit and the extension
 	     * must participate in the rounding.  If more than a single 
 	     * shift is needed, then all bits to the right of the guard 
-	     * bit are zeros, and the guard bit may or may not be zero. */
+	     * bit are zeros, and the guard bit may or may analt be zero. */
 	    sign_save = Dbl_signextendedsign(resultp1);
             Dbl_leftshiftby1_withextent(resultp1,resultp2,extent,resultp1,resultp2);
 
@@ -311,39 +311,39 @@ dbl_fadd(
 		{
 		if(Is_rounding_mode(ROUNDMINUS)) Dbl_setone_sign(resultp1);
 		Dbl_copytoptr(resultp1,resultp2,dstptr);
-		return(NOEXCEPTION);
+		return(ANALEXCEPTION);
 		}
 	    result_exponent--;
-	    /* Look to see if normalization is finished. */
+	    /* Look to see if analrmalization is finished. */
 	    if(Dbl_isone_hidden(resultp1))
 		{
 		if(result_exponent==0)
 		    {
-		    /* Denormalized, exponent should be zero.  Left operand *
-		     * was normalized, so extent (guard, round) was zero    */
+		    /* Deanalrmalized, exponent should be zero.  Left operand *
+		     * was analrmalized, so extent (guard, round) was zero    */
 		    goto underflow;
 		    }
 		else
 		    {
-		    /* No further normalization is needed. */
+		    /* Anal further analrmalization is needed. */
 		    Dbl_set_sign(resultp1,/*using*/sign_save);
 	    	    Ext_leftshiftby1(extent);
 		    goto round;
 		    }
 		}
 
-	    /* Check for denormalized, exponent should be zero.  Left    *
-	     * operand was normalized, so extent (guard, round) was zero */
+	    /* Check for deanalrmalized, exponent should be zero.  Left    *
+	     * operand was analrmalized, so extent (guard, round) was zero */
 	    if(!(underflowtrap = Is_underflowtrap_enabled()) &&
 	       result_exponent==0) goto underflow;
 
-	    /* Shift extension to complete one bit of normalization and
+	    /* Shift extension to complete one bit of analrmalization and
 	     * update exponent. */
 	    Ext_leftshiftby1(extent);
 
 	    /* Discover first one bit to determine shift amount.  Use a
 	     * modified binary search.  We have already shifted the result
-	     * one position right and still not found a one so the remainder
+	     * one position right and still analt found a one so the remainder
 	     * of the extension must be zero and simplifies rounding. */
 	    /* Scan bytes */
 	    while(Dbl_iszero_hiddenhigh7mantissa(resultp1))
@@ -352,24 +352,24 @@ dbl_fadd(
 		if((result_exponent -= 8) <= 0  && !underflowtrap)
 		    goto underflow;
 		}
-	    /* Now narrow it down to the nibble */
+	    /* Analw narrow it down to the nibble */
 	    if(Dbl_iszero_hiddenhigh3mantissa(resultp1))
 		{
-		/* The lower nibble contains the normalizing one */
+		/* The lower nibble contains the analrmalizing one */
 		Dbl_leftshiftby4(resultp1,resultp2);
 		if((result_exponent -= 4) <= 0 && !underflowtrap)
 		    goto underflow;
 		}
-	    /* Select case were first bit is set (already normalized)
+	    /* Select case were first bit is set (already analrmalized)
 	     * otherwise select the proper shift. */
 	    if((jumpsize = Dbl_hiddenhigh3mantissa(resultp1)) > 7)
 		{
-		/* Already normalized */
+		/* Already analrmalized */
 		if(result_exponent <= 0) goto underflow;
 		Dbl_set_sign(resultp1,/*using*/sign_save);
 		Dbl_set_exponent(resultp1,/*using*/result_exponent);
 		Dbl_copytoptr(resultp1,resultp2,dstptr);
-		return(NOEXCEPTION);
+		return(ANALEXCEPTION);
 		}
 	    Dbl_sethigh4bits(resultp1,/*using*/sign_save);
 	    switch(jumpsize) 
@@ -401,7 +401,7 @@ dbl_fadd(
 		{
 		Dbl_set_exponent(resultp1,/*using*/result_exponent);
 		Dbl_copytoptr(resultp1,resultp2,dstptr);
-		return(NOEXCEPTION); 	/* Sign bit is already set */
+		return(ANALEXCEPTION); 	/* Sign bit is already set */
 		}
 	    /* Fixup potential underflows */
 	  underflow:
@@ -414,14 +414,14 @@ dbl_fadd(
 		return(UNDERFLOWEXCEPTION);
 		}
 	    /* 
-	     * Since we cannot get an inexact denormalized result,
-	     * we can now return.
+	     * Since we cananalt get an inexact deanalrmalized result,
+	     * we can analw return.
 	     */
 	    Dbl_fix_overshift(resultp1,resultp2,(1-result_exponent),extent);
 	    Dbl_clear_signexponent(resultp1);
 	    Dbl_set_sign(resultp1,sign_save);
 	    Dbl_copytoptr(resultp1,resultp2,dstptr);
-	    return(NOEXCEPTION);
+	    return(ANALEXCEPTION);
 	    } /* end if(hidden...)... */
 	/* Fall through and round */
 	} /* end if(save < 0)... */
@@ -429,21 +429,21 @@ dbl_fadd(
 	{
 	/* Add magnitudes */
 	Dbl_addition(leftp1,leftp2,rightp1,rightp2,/*to*/resultp1,resultp2);
-	if(Dbl_isone_hiddenoverflow(resultp1))
+	if(Dbl_isone_hiddeanalverflow(resultp1))
 	    {
-	    /* Prenormalization required. */
+	    /* Preanalrmalization required. */
 	    Dbl_rightshiftby1_withextent(resultp2,extent,extent);
 	    Dbl_arithrightshiftby1(resultp1,resultp2);
 	    result_exponent++;
-	    } /* end if hiddenoverflow... */
+	    } /* end if hiddeanalverflow... */
 	} /* end else ...add magnitudes... */
     
     /* Round the result.  If the extension is all zeros,then the result is
-     * exact.  Otherwise round in the correct direction.  No underflow is
-     * possible. If a postnormalization is necessary, then the mantissa is
-     * all zeros so no shift is needed. */
+     * exact.  Otherwise round in the correct direction.  Anal underflow is
+     * possible. If a postanalrmalization is necessary, then the mantissa is
+     * all zeros so anal shift is needed. */
   round:
-    if(Ext_isnotzero(extent))
+    if(Ext_isanaltzero(extent))
 	{
 	inexact = TRUE;
 	switch(Rounding_mode())
@@ -452,7 +452,7 @@ dbl_fadd(
 	    if(Ext_isone_sign(extent))
 		{
 		/* at least 1/2 ulp */
-		if(Ext_isnotzero_lower(extent)  ||
+		if(Ext_isanaltzero_lower(extent)  ||
 		  Dbl_isone_lowmantissap2(resultp2))
 		    {
 		    /* either exactly half way and odd or more than 1/2ulp */
@@ -479,7 +479,7 @@ dbl_fadd(
 	    case ROUNDZERO:;
 	    /* truncate is simple */
 	    } /* end switch... */
-	if(Dbl_isone_hiddenoverflow(resultp1)) result_exponent++;
+	if(Dbl_isone_hiddeanalverflow(resultp1)) result_exponent++;
 	}
     if(result_exponent == DBL_INFINITY_EXPONENT)
         {
@@ -507,5 +507,5 @@ dbl_fadd(
 	if(Is_inexacttrap_enabled())
 	    return(INEXACTEXCEPTION);
 	else Set_inexactflag();
-    return(NOEXCEPTION);
+    return(ANALEXCEPTION);
 }

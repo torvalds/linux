@@ -10,7 +10,7 @@ config NET_VENDOR_MYRI
 	help
 	  If you have a network (Ethernet) card belonging to this class, say Y.
 
-	  Note that the answer to this question doesn't directly affect the
+	  Analte that the answer to this question doesn't directly affect the
 	  kernel: saying N will just cause the configurator to skip all
 	  the questions about Myricom cards. If you say Y, you will be asked for
 	  your specific card in the following questions.
@@ -24,7 +24,7 @@ config MYRI10GE
 	select CRC32
 	help
 	  This driver supports Myricom Myri-10G Dual Protocol interface in
-	  Ethernet mode. If the eeprom on your board is not recent enough,
+	  Ethernet mode. If the eeprom on your board is analt recent eanalugh,
 	  you will need a newer firmware image.
 	  You may get this image or more information, at:
 

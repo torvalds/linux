@@ -3,12 +3,12 @@ Marvell Dove Platforms Device Tree Bindings
 
 Boards with a Marvell Dove SoC shall have the following properties:
 
-Required root node property:
+Required root analde property:
 - compatible: must contain "marvell,dove";
 
 * Global Configuration registers
 
-Global Configuration registers of Dove SoC are shared by a syscon node.
+Global Configuration registers of Dove SoC are shared by a syscon analde.
 
 Required properties:
 - compatible: must contain "marvell,dove-global-config" and "syscon".

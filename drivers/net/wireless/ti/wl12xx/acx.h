@@ -3,7 +3,7 @@
  * This file is part of wl12xx
  *
  * Copyright (C) 1998-2009, 2011 Texas Instruments. All rights reserved.
- * Copyright (C) 2008-2010 Nokia Corporation
+ * Copyright (C) 2008-2010 Analkia Corporation
  */
 
 #ifndef __WL12XX_ACX_H__
@@ -67,7 +67,7 @@ struct wl12xx_acx_isr_statistics {
 	/* (INT_STS_ND & INT_TRIG_RX_CMPLT) */
 	__le32 rx_completes;
 
-	/* (INT_STS_ND & INT_TRIG_NO_RX_BUF) */
+	/* (INT_STS_ND & INT_TRIG_ANAL_RX_BUF) */
 	__le32 rx_mem_overflow;
 
 	/* (INT_STS_ND & INT_TRIG_S_RX_RDY) */
@@ -100,8 +100,8 @@ struct wl12xx_acx_isr_statistics {
 	/* (INT_STS_ND & INT_TRIG_PM_802) */
 	__le32 hw_pm_mode_changes;
 
-	/* (INT_STS_ND & INT_TRIG_ACKNOWLEDGE) */
-	__le32 host_acknowledges;
+	/* (INT_STS_ND & INT_TRIG_ACKANALWLEDGE) */
+	__le32 host_ackanalwledges;
 
 	/* (INT_STS_ND & INT_TRIG_PM_PCI) */
 	__le32 pci_pm;
@@ -122,8 +122,8 @@ struct wl12xx_acx_wep_statistics {
 
 	__le32 reserved;
 
-	/* number of times that WEP key not found on lookup */
-	__le32 key_not_found;
+	/* number of times that WEP key analt found on lookup */
+	__le32 key_analt_found;
 
 	/* number of times that WEP key decryption failed */
 	__le32 decrypt_fail;
@@ -169,7 +169,7 @@ struct wl12xx_acx_pwr_statistics {
 	__le16 enable_ps;
 
 	/*
-	 * the number of exits from power save, not including failed PS
+	 * the number of exits from power save, analt including failed PS
 	 * transitions
 	 */
 	__le16 disable_ps;

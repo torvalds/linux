@@ -2,13 +2,13 @@
  *  linux/fs/hfs/catalog.c
  *
  * Copyright (C) 1995-1997  Paul H. Hargrove
- * (C) 2003 Ardis Technologies <roman@ardistech.com>
+ * (C) 2003 Ardis Techanallogies <roman@ardistech.com>
  * This file may be distributed under the terms of the GNU General Public License.
  *
  * This file contains the functions related to the catalog B-tree.
  *
  * Cache code shamelessly stolen from
- *     linux/fs/inode.c Copyright (C) 1991, 1992  Linus Torvalds
+ *     linux/fs/ianalde.c Copyright (C) 1991, 1992  Linus Torvalds
  *     re-shamelessly stolen Copyright (C) 1997 Linus Torvalds
  */
 
@@ -33,12 +33,12 @@ void hfs_cat_build_key(struct super_block *sb, btree_key *key, u32 parent, const
 	}
 }
 
-static int hfs_cat_build_record(hfs_cat_rec *rec, u32 cnid, struct inode *inode)
+static int hfs_cat_build_record(hfs_cat_rec *rec, u32 cnid, struct ianalde *ianalde)
 {
 	__be32 mtime = hfs_mtime();
 
 	memset(rec, 0, sizeof(*rec));
-	if (S_ISDIR(inode->i_mode)) {
+	if (S_ISDIR(ianalde->i_mode)) {
 		rec->type = HFS_CDR_DIR;
 		rec->dir.DirID = cpu_to_be32(cnid);
 		rec->dir.CrDat = mtime;
@@ -50,14 +50,14 @@ static int hfs_cat_build_record(hfs_cat_rec *rec, u32 cnid, struct inode *inode)
 		/* init some fields for the file record */
 		rec->type = HFS_CDR_FIL;
 		rec->file.Flags = HFS_FIL_USED | HFS_FIL_THD;
-		if (!(inode->i_mode & S_IWUSR))
+		if (!(ianalde->i_mode & S_IWUSR))
 			rec->file.Flags |= HFS_FIL_LOCK;
 		rec->file.FlNum = cpu_to_be32(cnid);
 		rec->file.CrDat = mtime;
 		rec->file.MdDat = mtime;
 		rec->file.BkDat = 0;
-		rec->file.UsrWds.fdType = HFS_SB(inode->i_sb)->s_type;
-		rec->file.UsrWds.fdCreator = HFS_SB(inode->i_sb)->s_creator;
+		rec->file.UsrWds.fdType = HFS_SB(ianalde->i_sb)->s_type;
+		rec->file.UsrWds.fdCreator = HFS_SB(ianalde->i_sb)->s_creator;
 		return sizeof(struct hfs_cat_file);
 	}
 }
@@ -79,7 +79,7 @@ static int hfs_cat_build_thread(struct super_block *sb,
  * Add a new file or directory to the catalog B-tree and
  * return a (struct hfs_cat_entry) for it in '*result'.
  */
-int hfs_cat_create(u32 cnid, struct inode *dir, const struct qstr *str, struct inode *inode)
+int hfs_cat_create(u32 cnid, struct ianalde *dir, const struct qstr *str, struct ianalde *ianalde)
 {
 	struct hfs_find_data fd;
 	struct super_block *sb;
@@ -88,9 +88,9 @@ int hfs_cat_create(u32 cnid, struct inode *dir, const struct qstr *str, struct i
 	int err;
 
 	hfs_dbg(CAT_MOD, "create_cat: %s,%u(%d)\n",
-		str->name, cnid, inode->i_nlink);
+		str->name, cnid, ianalde->i_nlink);
 	if (dir->i_size >= HFS_MAX_VALENCE)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	sb = dir->i_sb;
 	err = hfs_find_init(HFS_SB(sb)->cat_tree, &fd);
@@ -98,19 +98,19 @@ int hfs_cat_create(u32 cnid, struct inode *dir, const struct qstr *str, struct i
 		return err;
 
 	/*
-	 * Fail early and avoid ENOSPC during the btree operations. We may
-	 * have to split the root node at most once.
+	 * Fail early and avoid EANALSPC during the btree operations. We may
+	 * have to split the root analde at most once.
 	 */
 	err = hfs_bmap_reserve(fd.tree, 2 * fd.tree->depth);
 	if (err)
 		goto err2;
 
 	hfs_cat_build_key(sb, fd.search_key, cnid, NULL);
-	entry_size = hfs_cat_build_thread(sb, &entry, S_ISDIR(inode->i_mode) ?
+	entry_size = hfs_cat_build_thread(sb, &entry, S_ISDIR(ianalde->i_mode) ?
 			HFS_CDR_THD : HFS_CDR_FTH,
-			dir->i_ino, str);
+			dir->i_ianal, str);
 	err = hfs_brec_find(&fd);
-	if (err != -ENOENT) {
+	if (err != -EANALENT) {
 		if (!err)
 			err = -EEXIST;
 		goto err2;
@@ -119,10 +119,10 @@ int hfs_cat_create(u32 cnid, struct inode *dir, const struct qstr *str, struct i
 	if (err)
 		goto err2;
 
-	hfs_cat_build_key(sb, fd.search_key, dir->i_ino, str);
-	entry_size = hfs_cat_build_record(&entry, cnid, inode);
+	hfs_cat_build_key(sb, fd.search_key, dir->i_ianal, str);
+	entry_size = hfs_cat_build_record(&entry, cnid, ianalde);
 	err = hfs_brec_find(&fd);
-	if (err != -ENOENT) {
+	if (err != -EANALENT) {
 		/* panic? */
 		if (!err)
 			err = -EEXIST;
@@ -133,8 +133,8 @@ int hfs_cat_create(u32 cnid, struct inode *dir, const struct qstr *str, struct i
 		goto err1;
 
 	dir->i_size++;
-	inode_set_mtime_to_ts(dir, inode_set_ctime_current(dir));
-	mark_inode_dirty(dir);
+	ianalde_set_mtime_to_ts(dir, ianalde_set_ctime_current(dir));
+	mark_ianalde_dirty(dir);
 	hfs_find_exit(&fd);
 	return 0;
 
@@ -160,13 +160,13 @@ err2:
  *   struct hfs_cat_key *key1: pointer to the first key to compare
  *   struct hfs_cat_key *key2: pointer to the second key to compare
  * Output Variable(s):
- *   NONE
+ *   ANALNE
  * Returns:
  *   int: negative if key1<key2, positive if key1>key2, and 0 if key1==key2
  * Preconditions:
  *   key1 and key2 point to "valid" (struct hfs_cat_key)s.
  * Postconditions:
- *   This function has no side-effects
+ *   This function has anal side-effects
  */
 int hfs_cat_keycmp(const btree_key *key1, const btree_key *key2)
 {
@@ -218,7 +218,7 @@ int hfs_cat_find_brec(struct super_block *sb, u32 cnid,
  * Delete the indicated file or directory.
  * The associated thread is also removed unless ('with_thread'==0).
  */
-int hfs_cat_delete(u32 cnid, struct inode *dir, const struct qstr *str)
+int hfs_cat_delete(u32 cnid, struct ianalde *dir, const struct qstr *str)
 {
 	struct super_block *sb;
 	struct hfs_find_data fd;
@@ -231,15 +231,15 @@ int hfs_cat_delete(u32 cnid, struct inode *dir, const struct qstr *str)
 	if (res)
 		return res;
 
-	hfs_cat_build_key(sb, fd.search_key, dir->i_ino, str);
+	hfs_cat_build_key(sb, fd.search_key, dir->i_ianal, str);
 	res = hfs_brec_find(&fd);
 	if (res)
 		goto out;
 
-	type = hfs_bnode_read_u8(fd.bnode, fd.entryoffset);
+	type = hfs_banalde_read_u8(fd.banalde, fd.entryoffset);
 	if (type == HFS_CDR_FIL) {
 		struct hfs_cat_file file;
-		hfs_bnode_read(fd.bnode, &file, fd.entryoffset, sizeof(file));
+		hfs_banalde_read(fd.banalde, &file, fd.entryoffset, sizeof(file));
 		if (be32_to_cpu(file.FlNum) == cnid) {
 #if 0
 			hfs_free_fork(sb, &file, HFS_FK_DATA);
@@ -269,8 +269,8 @@ int hfs_cat_delete(u32 cnid, struct inode *dir, const struct qstr *str)
 	}
 
 	dir->i_size--;
-	inode_set_mtime_to_ts(dir, inode_set_ctime_current(dir));
-	mark_inode_dirty(dir);
+	ianalde_set_mtime_to_ts(dir, ianalde_set_ctime_current(dir));
+	mark_ianalde_dirty(dir);
 	res = 0;
 out:
 	hfs_find_exit(&fd);
@@ -285,8 +285,8 @@ out:
  * If the destination exists it is removed and a
  * (struct hfs_cat_entry) for it is returned in '*result'.
  */
-int hfs_cat_move(u32 cnid, struct inode *src_dir, const struct qstr *src_name,
-		 struct inode *dst_dir, const struct qstr *dst_name)
+int hfs_cat_move(u32 cnid, struct ianalde *src_dir, const struct qstr *src_name,
+		 struct ianalde *dst_dir, const struct qstr *dst_name)
 {
 	struct super_block *sb;
 	struct hfs_find_data src_fd, dst_fd;
@@ -295,8 +295,8 @@ int hfs_cat_move(u32 cnid, struct inode *src_dir, const struct qstr *src_name,
 	int err;
 
 	hfs_dbg(CAT_MOD, "rename_cat: %u - %lu,%s - %lu,%s\n",
-		cnid, src_dir->i_ino, src_name->name,
-		dst_dir->i_ino, dst_name->name);
+		cnid, src_dir->i_ianal, src_name->name,
+		dst_dir->i_ianal, dst_name->name);
 	sb = src_dir->i_sb;
 	err = hfs_find_init(HFS_SB(sb)->cat_tree, &src_fd);
 	if (err)
@@ -304,15 +304,15 @@ int hfs_cat_move(u32 cnid, struct inode *src_dir, const struct qstr *src_name,
 	dst_fd = src_fd;
 
 	/*
-	 * Fail early and avoid ENOSPC during the btree operations. We may
-	 * have to split the root node at most once.
+	 * Fail early and avoid EANALSPC during the btree operations. We may
+	 * have to split the root analde at most once.
 	 */
 	err = hfs_bmap_reserve(src_fd.tree, 2 * src_fd.tree->depth);
 	if (err)
 		goto out;
 
 	/* find the old dir entry and read the data */
-	hfs_cat_build_key(sb, src_fd.search_key, src_dir->i_ino, src_name);
+	hfs_cat_build_key(sb, src_fd.search_key, src_dir->i_ianal, src_name);
 	err = hfs_brec_find(&src_fd);
 	if (err)
 		goto out;
@@ -321,13 +321,13 @@ int hfs_cat_move(u32 cnid, struct inode *src_dir, const struct qstr *src_name,
 		goto out;
 	}
 
-	hfs_bnode_read(src_fd.bnode, &entry, src_fd.entryoffset,
+	hfs_banalde_read(src_fd.banalde, &entry, src_fd.entryoffset,
 			    src_fd.entrylength);
 
 	/* create new dir entry with the data from the old entry */
-	hfs_cat_build_key(sb, dst_fd.search_key, dst_dir->i_ino, dst_name);
+	hfs_cat_build_key(sb, dst_fd.search_key, dst_dir->i_ianal, dst_name);
 	err = hfs_brec_find(&dst_fd);
-	if (err != -ENOENT) {
+	if (err != -EANALENT) {
 		if (!err)
 			err = -EEXIST;
 		goto out;
@@ -337,11 +337,11 @@ int hfs_cat_move(u32 cnid, struct inode *src_dir, const struct qstr *src_name,
 	if (err)
 		goto out;
 	dst_dir->i_size++;
-	inode_set_mtime_to_ts(dst_dir, inode_set_ctime_current(dst_dir));
-	mark_inode_dirty(dst_dir);
+	ianalde_set_mtime_to_ts(dst_dir, ianalde_set_ctime_current(dst_dir));
+	mark_ianalde_dirty(dst_dir);
 
 	/* finally remove the old entry */
-	hfs_cat_build_key(sb, src_fd.search_key, src_dir->i_ino, src_name);
+	hfs_cat_build_key(sb, src_fd.search_key, src_dir->i_ianal, src_name);
 	err = hfs_brec_find(&src_fd);
 	if (err)
 		goto out;
@@ -349,8 +349,8 @@ int hfs_cat_move(u32 cnid, struct inode *src_dir, const struct qstr *src_name,
 	if (err)
 		goto out;
 	src_dir->i_size--;
-	inode_set_mtime_to_ts(src_dir, inode_set_ctime_current(src_dir));
-	mark_inode_dirty(src_dir);
+	ianalde_set_mtime_to_ts(src_dir, ianalde_set_ctime_current(src_dir));
+	mark_ianalde_dirty(src_dir);
 
 	type = entry.type;
 	if (type == HFS_CDR_FIL && !(entry.file.Flags & HFS_FIL_THD))
@@ -368,16 +368,16 @@ int hfs_cat_move(u32 cnid, struct inode *src_dir, const struct qstr *src_name,
 	/* create new thread entry */
 	hfs_cat_build_key(sb, dst_fd.search_key, cnid, NULL);
 	entry_size = hfs_cat_build_thread(sb, &entry, type == HFS_CDR_FIL ? HFS_CDR_FTH : HFS_CDR_THD,
-					dst_dir->i_ino, dst_name);
+					dst_dir->i_ianal, dst_name);
 	err = hfs_brec_find(&dst_fd);
-	if (err != -ENOENT) {
+	if (err != -EANALENT) {
 		if (!err)
 			err = -EEXIST;
 		goto out;
 	}
 	err = hfs_brec_insert(&dst_fd, &entry, entry_size);
 out:
-	hfs_bnode_put(dst_fd.bnode);
+	hfs_banalde_put(dst_fd.banalde);
 	hfs_find_exit(&src_fd);
 	return err;
 }

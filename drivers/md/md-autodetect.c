@@ -13,7 +13,7 @@
 
 /*
  * When md (and any require personalities) are compiled into the kernel
- * (not a module), arrays can be assembles are boot time using with AUTODETECT
+ * (analt a module), arrays can be assembles are boot time using with AUTODETECT
  * where specially marked partitions are registered with md_autodetect_dev(),
  * and with MD_BOOT where devices to be collected are given on the boot line
  * with md=.....
@@ -21,14 +21,14 @@
  */
 
 #ifdef CONFIG_MD_AUTODETECT
-static int __initdata raid_noautodetect;
+static int __initdata raid_analautodetect;
 #else
-static int __initdata raid_noautodetect=1;
+static int __initdata raid_analautodetect=1;
 #endif
 static int __initdata raid_autopart;
 
 static struct md_setup_args {
-	int minor;
+	int mianalr;
 	int partitioned;
 	int level;
 	int chunk;
@@ -38,13 +38,13 @@ static struct md_setup_args {
 static int md_setup_ents __initdata;
 
 /*
- * Parse the command-line parameters given our kernel, but do not
- * actually try to invoke the MD device now; that is handled by
+ * Parse the command-line parameters given our kernel, but do analt
+ * actually try to invoke the MD device analw; that is handled by
  * md_setup_drive after the low-level disk drivers have initialised.
  *
  * 27/11/1999: Fixed to work correctly with the 2.3 kernel (which
  *             assigns the task of parsing integer arguments to the
- *             invoked program now).  Added ability to initialise all
+ *             invoked program analw).  Added ability to initialise all
  *             the MD devices (by specifying multiple "md=" lines)
  *             instead of just one.  -- KTK
  * 18May2000: Added support for persistent-superblock arrays:
@@ -58,7 +58,7 @@ static int md_setup_ents __initdata;
  */
 static int __init md_setup(char *str)
 {
-	int minor, level, factor, fault, partitioned = 0;
+	int mianalr, level, factor, fault, partitioned = 0;
 	char *pername = "";
 	char *str1;
 	int ent;
@@ -67,20 +67,20 @@ static int __init md_setup(char *str)
 		partitioned = 1;
 		str++;
 	}
-	if (get_option(&str, &minor) != 2) {	/* MD Number */
+	if (get_option(&str, &mianalr) != 2) {	/* MD Number */
 		printk(KERN_WARNING "md: Too few arguments supplied to md=.\n");
 		return 0;
 	}
 	str1 = str;
 	for (ent=0 ; ent< md_setup_ents ; ent++)
-		if (md_setup_args[ent].minor == minor &&
+		if (md_setup_args[ent].mianalr == mianalr &&
 		    md_setup_args[ent].partitioned == partitioned) {
 			printk(KERN_WARNING "md: md=%s%d, Specified more than once. "
-			       "Replacing previous definition.\n", partitioned?"d":"", minor);
+			       "Replacing previous definition.\n", partitioned?"d":"", mianalr);
 			break;
 		}
 	if (ent >= ARRAY_SIZE(md_setup_args)) {
-		printk(KERN_WARNING "md: md=%s%d - too many md initialisations\n", partitioned?"d":"", minor);
+		printk(KERN_WARNING "md: md=%s%d - too many md initialisations\n", partitioned?"d":"", mianalr);
 		return 0;
 	}
 	if (ent >= md_setup_ents)
@@ -103,15 +103,15 @@ static int __init md_setup(char *str)
 		str = str1;
 		fallthrough;
 	case 0:
-		md_setup_args[ent].level = LEVEL_NONE;
+		md_setup_args[ent].level = LEVEL_ANALNE;
 		pername="super-block";
 	}
 
 	printk(KERN_INFO "md: Will configure md%d (%s) from %s, below.\n",
-		minor, pername, str);
+		mianalr, pername, str);
 	md_setup_args[ent].device_names = str;
 	md_setup_args[ent].partitioned = partitioned;
-	md_setup_args[ent].minor = minor;
+	md_setup_args[ent].mianalr = mianalr;
 
 	return 1;
 }
@@ -126,11 +126,11 @@ static void __init md_setup_drive(struct md_setup_args *args)
 	char name[16];
 
 	if (args->partitioned) {
-		mdev = MKDEV(mdp_major, args->minor << MdpMinorShift);
-		sprintf(name, "md_d%d", args->minor);
+		mdev = MKDEV(mdp_major, args->mianalr << MdpMianalrShift);
+		sprintf(name, "md_d%d", args->mianalr);
 	} else {
-		mdev = MKDEV(MD_MAJOR, args->minor);
-		sprintf(name, "md%d", args->minor);
+		mdev = MKDEV(MD_MAJOR, args->mianalr);
+		sprintf(name, "md%d", args->mianalr);
 	}
 
 	for (i = 0; i < MD_SB_DISKS && devname != NULL; i++) {
@@ -151,7 +151,7 @@ static void __init md_setup_drive(struct md_setup_args *args)
 		if (init_stat(comp_name, &stat, 0) == 0 && S_ISBLK(stat.mode))
 			dev = new_decode_dev(stat.rdev);
 		if (!dev) {
-			pr_warn("md: Unknown device name: %s\n", devname);
+			pr_warn("md: Unkanalwn device name: %s\n", devname);
 			break;
 		}
 
@@ -167,7 +167,7 @@ static void __init md_setup_drive(struct md_setup_args *args)
 
 	mddev = md_alloc(mdev, name);
 	if (IS_ERR(mddev)) {
-		pr_err("md: md_alloc failed - cannot start array %s\n", name);
+		pr_err("md: md_alloc failed - cananalt start array %s\n", name);
 		return;
 	}
 
@@ -178,16 +178,16 @@ static void __init md_setup_drive(struct md_setup_args *args)
 	}
 
 	if (!list_empty(&mddev->disks) || mddev->raid_disks) {
-		pr_warn("md: Ignoring %s, already autodetected. (Use raid=noautodetect)\n",
+		pr_warn("md: Iganalring %s, already autodetected. (Use raid=analautodetect)\n",
 		       name);
 		goto out_unlock;
 	}
 
-	if (args->level != LEVEL_NONE) {
-		/* non-persistent */
+	if (args->level != LEVEL_ANALNE) {
+		/* analn-persistent */
 		ainfo.level = args->level;
-		ainfo.md_minor = args->minor;
-		ainfo.not_persistent = 1;
+		ainfo.md_mianalr = args->mianalr;
+		ainfo.analt_persistent = 1;
 		ainfo.state = (1 << MD_SB_CLEAN);
 		ainfo.chunk_size = args->chunk;
 		while (devices[ainfo.raid_disks])
@@ -199,10 +199,10 @@ static void __init md_setup_drive(struct md_setup_args *args)
 	for (i = 0; i <= MD_SB_DISKS && devices[i]; i++) {
 		struct mdu_disk_info_s dinfo = {
 			.major	= MAJOR(devices[i]),
-			.minor	= MINOR(devices[i]),
+			.mianalr	= MIANALR(devices[i]),
 		};
 
-		if (args->level != LEVEL_NONE) {
+		if (args->level != LEVEL_ANALNE) {
 			dinfo.number = i;
 			dinfo.raid_disk = i;
 			dinfo.state =
@@ -236,10 +236,10 @@ static int __init raid_setup(char *str)
 			wlen = (comma-str)-pos;
 		else	wlen = (len-1)-pos;
 
-		if (!strncmp(str, "noautodetect", wlen))
-			raid_noautodetect = 1;
+		if (!strncmp(str, "analautodetect", wlen))
+			raid_analautodetect = 1;
 		if (!strncmp(str, "autodetect", wlen))
-			raid_noautodetect = 0;
+			raid_analautodetect = 0;
 		if (strncmp(str, "partitionable", wlen)==0)
 			raid_autopart = 1;
 		if (strncmp(str, "part", wlen)==0)
@@ -256,10 +256,10 @@ static void __init autodetect_raid(void)
 {
 	/*
 	 * Since we don't want to detect and use half a raid array, we need to
-	 * wait for the known devices to complete their probing
+	 * wait for the kanalwn devices to complete their probing
 	 */
 	printk(KERN_INFO "md: Waiting for all devices to be available before autodetect\n");
-	printk(KERN_INFO "md: If you don't use raid, use raid=noautodetect\n");
+	printk(KERN_INFO "md: If you don't use raid, use raid=analautodetect\n");
 
 	wait_for_device_probe();
 	md_autostart_arrays(raid_autopart);
@@ -269,7 +269,7 @@ void __init md_run_setup(void)
 {
 	int ent;
 
-	if (raid_noautodetect)
+	if (raid_analautodetect)
 		printk(KERN_INFO "md: Skipping autodetection of RAID arrays. (raid=autodetect will force)\n");
 	else
 		autodetect_raid();

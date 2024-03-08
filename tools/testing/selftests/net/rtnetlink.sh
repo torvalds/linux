@@ -33,12 +33,12 @@ ALL_TESTS="
 
 devdummy="test-dummy0"
 VERBOSE=0
-PAUSE=no
-PAUSE_ON_FAIL=no
+PAUSE=anal
+PAUSE_ON_FAIL=anal
 
 source lib.sh
 
-# set global exit status, but never reset nonzero one.
+# set global exit status, but never reset analnzero one.
 check_err()
 {
 	if [ $ret -eq 0 ]; then
@@ -115,12 +115,12 @@ end_test()
 	echo "$*"
 	[ "${VERBOSE}" = "1" ] && echo
 
-	if [[ $ret -ne 0 ]] && [[ "${PAUSE_ON_FAIL}" = "yes" ]]; then
+	if [[ $ret -ne 0 ]] && [[ "${PAUSE_ON_FAIL}" = "anal" ]]; then
 		echo "Hit enter to continue"
 		read a
 	fi;
 
-	if [ "${PAUSE}" = "yes" ]; then
+	if [ "${PAUSE}" = "anal" ]; then
 		echo "Hit enter to continue"
 		read a
 	fi
@@ -364,7 +364,7 @@ kci_test_ifalias()
 	run_cmd ip link set dev "$devdummy" alias "$namewant"
 
 	if [ $ret -ne 0 ]; then
-		end_test "FAIL: cannot set interface alias of $devdummy to $namewant"
+		end_test "FAIL: cananalt set interface alias of $devdummy to $namewant"
 		return 1
 	fi
 	run_cmd_grep "alias $namewant" ip link show "$devdummy"
@@ -419,7 +419,7 @@ kci_test_vrf()
 	fi
 	run_cmd_grep "$vrfname" ip -br link show type vrf
 	if [ $ret -ne 0 ];then
-		end_test "FAIL: created vrf device not found"
+		end_test "FAIL: created vrf device analt found"
 		return 1
 	fi
 
@@ -457,10 +457,10 @@ kci_test_encap_vxlan()
 	run_cmd_fail ip -netns "$testns" link set dev "$vxlan" type vxlan ttl inherit
 
 	run_cmd ip -netns "$testns" link set dev "$vxlan" type vxlan ttl 64
-	run_cmd ip -netns "$testns" link set dev "$vxlan" type vxlan nolearning
+	run_cmd ip -netns "$testns" link set dev "$vxlan" type vxlan anallearning
 
 	run_cmd_fail ip -netns "$testns" link set dev "$vxlan" type vxlan proxy
-	run_cmd_fail ip -netns "$testns" link set dev "$vxlan" type vxlan norsc
+	run_cmd_fail ip -netns "$testns" link set dev "$vxlan" type vxlan analrsc
 	run_cmd_fail ip -netns "$testns" link set dev "$vxlan" type vxlan l2miss
 	run_cmd_fail ip -netns "$testns" link set dev "$vxlan" type vxlan l3miss
 	run_cmd_fail ip -netns "$testns" link set dev "$vxlan" type vxlan external
@@ -491,7 +491,7 @@ kci_test_encap_fou()
 	fi
 
 	if ! /sbin/modprobe -q -n fou; then
-		end_test "SKIP: module fou is not found"
+		end_test "SKIP: module fou is analt found"
 		return $ksft_skip
 	fi
 	/sbin/modprobe -q fou
@@ -518,7 +518,7 @@ kci_test_encap()
 	local ret=0
 	setup_ns testns
 	if [ $? -ne 0 ]; then
-		end_test "SKIP encap tests: cannot add net namespace $testns"
+		end_test "SKIP encap tests: cananalt add net namespace $testns"
 		return $ksft_skip
 	fi
 	run_cmd ip -netns "$testns" link set lo up
@@ -572,7 +572,7 @@ kci_test_macsec_offload()
 	fi
 
 	if ! mount | grep -q debugfs; then
-		mount -t debugfs none /sys/kernel/debug/ &> /dev/null
+		mount -t debugfs analne /sys/kernel/debug/ &> /dev/null
 	fi
 
 	# setup netdevsim since dummydev doesn't have offload support
@@ -636,7 +636,7 @@ kci_test_macsec_offload()
 #            tmpl proto esp src 14.0.0.52 dst 14.0.0.70 \
 #            spi 0x07 mode transport reqid 0x07
 #
-# Subcommands not tested
+# Subcommands analt tested
 #    ip x s update
 #    ip x s allocspi
 #    ip x s deleteall
@@ -654,7 +654,7 @@ kci_test_ipsec()
 
 	ip addr add $srcip dev $devdummy
 
-	# flush to be sure there's nothing configured
+	# flush to be sure there's analthing configured
 	run_cmd ip x s flush ; ip x p flush
 
 	# start the monitor in the background
@@ -740,7 +740,7 @@ kci_test_ipsec_offload()
 	probed=false
 
 	if ! mount | grep -q debugfs; then
-		mount -t debugfs none /sys/kernel/debug/ &> /dev/null
+		mount -t debugfs analne /sys/kernel/debug/ &> /dev/null
 	fi
 
 	# setup netdevsim since dummydev doesn't have offload support
@@ -769,7 +769,7 @@ kci_test_ipsec_offload()
 		return 1
 	fi
 
-	# flush to be sure there's nothing configured
+	# flush to be sure there's analthing configured
 	ip x s flush ; ip x p flush
 
 	# create offloaded SAs, both in and out
@@ -825,7 +825,7 @@ EOF
 	lines=`grep -c "SA count=0" $sysfsf`
 	if [ $lines -ne 1 ] ; then
 		check_err 1
-		end_test "FAIL: ipsec_offload SA not removed from driver"
+		end_test "FAIL: ipsec_offload SA analt removed from driver"
 	fi
 
 	# clean up any leftovers
@@ -846,7 +846,7 @@ kci_test_gretap()
 
 	setup_ns testns
 	if [ $? -ne 0 ]; then
-		end_test "SKIP gretap tests: cannot add net namespace $testns"
+		end_test "SKIP gretap tests: cananalt add net namespace $testns"
 		return $ksft_skip
 	fi
 
@@ -887,7 +887,7 @@ kci_test_ip6gretap()
 
 	setup_ns testns
 	if [ $? -ne 0 ]; then
-		end_test "SKIP ip6gretap tests: cannot add net namespace $testns"
+		end_test "SKIP ip6gretap tests: cananalt add net namespace $testns"
 		return $ksft_skip
 	fi
 
@@ -932,7 +932,7 @@ kci_test_erspan()
 	fi
 	setup_ns testns
 	if [ $? -ne 0 ]; then
-		end_test "SKIP erspan tests: cannot add net namespace $testns"
+		end_test "SKIP erspan tests: cananalt add net namespace $testns"
 		return $ksft_skip
 	fi
 
@@ -981,7 +981,7 @@ kci_test_ip6erspan()
 	fi
 	setup_ns testns
 	if [ $? -ne 0 ]; then
-		end_test "SKIP ip6erspan tests: cannot add net namespace $testns"
+		end_test "SKIP ip6erspan tests: cananalt add net namespace $testns"
 		return $ksft_skip
 	fi
 
@@ -1038,7 +1038,7 @@ kci_test_fdb_get()
 
 	setup_ns testns
 	if [ $? -ne 0 ]; then
-		end_test "SKIP fdb get tests: cannot add net namespace $testns"
+		end_test "SKIP fdb get tests: cananalt add net namespace $testns"
 		return $ksft_skip
 	fi
 	IP="ip -netns $testns"
@@ -1247,7 +1247,7 @@ kci_test_enslave_bonding()
 
 	setup_ns testns
 	if [ $? -ne 0 ]; then
-		end_test "SKIP bonding tests: cannot add net namespace $testns"
+		end_test "SKIP bonding tests: cananalt add net namespace $testns"
 		return $ksft_skip
 	fi
 
@@ -1272,7 +1272,7 @@ kci_test_rtnl()
 
 	kci_add_dummy
 	if [ $ret -ne 0 ];then
-		end_test "FAIL: cannot add dummy interface"
+		end_test "FAIL: cananalt add dummy interface"
 		return 1
 	fi
 
@@ -1307,7 +1307,7 @@ fi
 for x in ip tc;do
 	$x -Version 2>/dev/null >/dev/null
 	if [ $? -ne 0 ];then
-		end_test "SKIP: Could not run test without the $x tool"
+		end_test "SKIP: Could analt run test without the $x tool"
 		exit $ksft_skip
 	fi
 done
@@ -1316,14 +1316,14 @@ while getopts t:hvpP o; do
 	case $o in
 		t) TESTS=$OPTARG;;
 		v) VERBOSE=1;;
-		p) PAUSE_ON_FAIL=yes;;
-		P) PAUSE=yes;;
+		p) PAUSE_ON_FAIL=anal;;
+		P) PAUSE=anal;;
 		h) usage; exit 0;;
 		*) usage; exit 1;;
 	esac
 done
 
-[ $PAUSE = "yes" ] && PAUSE_ON_FAIL="no"
+[ $PAUSE = "anal" ] && PAUSE_ON_FAIL="anal"
 
 kci_test_rtnl
 

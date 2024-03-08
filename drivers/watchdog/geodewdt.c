@@ -36,11 +36,11 @@ MODULE_PARM_DESC(timeout,
 	"Watchdog timeout in seconds. 1<= timeout <=131, default="
 				__MODULE_STRING(WATCHDOG_TIMEOUT) ".");
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
-	"Watchdog cannot be stopped once started (default="
-				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout,
+	"Watchdog cananalt be stopped once started (default="
+				__MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 static struct platform_device *geodewdt_platform_device;
 static unsigned long wdt_flags;
@@ -79,7 +79,7 @@ static int geodewdt_set_heartbeat(int val)
 	return 0;
 }
 
-static int geodewdt_open(struct inode *inode, struct file *file)
+static int geodewdt_open(struct ianalde *ianalde, struct file *file)
 {
 	if (test_and_set_bit(WDT_FLAGS_OPEN, &wdt_flags))
 		return -EBUSY;
@@ -88,16 +88,16 @@ static int geodewdt_open(struct inode *inode, struct file *file)
 		__module_get(THIS_MODULE);
 
 	geodewdt_ping();
-	return stream_open(inode, file);
+	return stream_open(ianalde, file);
 }
 
-static int geodewdt_release(struct inode *inode, struct file *file)
+static int geodewdt_release(struct ianalde *ianalde, struct file *file)
 {
 	if (safe_close) {
 		geodewdt_disable();
 		module_put(THIS_MODULE);
 	} else {
-		pr_crit("Unexpected close - watchdog is not stopping\n");
+		pr_crit("Unexpected close - watchdog is analt stopping\n");
 		geodewdt_ping();
 
 		set_bit(WDT_FLAGS_ORPHAN, &wdt_flags);
@@ -112,7 +112,7 @@ static ssize_t geodewdt_write(struct file *file, const char __user *data,
 				size_t len, loff_t *ppos)
 {
 	if (len) {
-		if (!nowayout) {
+		if (!analwayout) {
 			size_t i;
 			safe_close = 0;
 
@@ -188,7 +188,7 @@ static long geodewdt_ioctl(struct file *file, unsigned int cmd,
 		return put_user(timeout, p);
 
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 
 	return 0;
@@ -196,7 +196,7 @@ static long geodewdt_ioctl(struct file *file, unsigned int cmd,
 
 static const struct file_operations geodewdt_fops = {
 	.owner          = THIS_MODULE,
-	.llseek         = no_llseek,
+	.llseek         = anal_llseek,
 	.write          = geodewdt_write,
 	.unlocked_ioctl = geodewdt_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
@@ -205,7 +205,7 @@ static const struct file_operations geodewdt_fops = {
 };
 
 static struct miscdevice geodewdt_miscdev = {
-	.minor = WATCHDOG_MINOR,
+	.mianalr = WATCHDOG_MIANALR,
 	.name = "watchdog",
 	.fops = &geodewdt_fops,
 };
@@ -216,8 +216,8 @@ static int __init geodewdt_probe(struct platform_device *dev)
 
 	wdt_timer = cs5535_mfgpt_alloc_timer(MFGPT_TIMER_ANY, MFGPT_DOMAIN_WORKING);
 	if (!wdt_timer) {
-		pr_err("No timers were available\n");
-		return -ENODEV;
+		pr_err("Anal timers were available\n");
+		return -EANALDEV;
 	}
 
 	/* Set up the timer */

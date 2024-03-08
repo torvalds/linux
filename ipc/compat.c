@@ -6,7 +6,7 @@
  * Copyright (C) 1997		David S. Miller (davem@caip.rutgers.edu)
  * Copyright (C) 1999		Arun Sharma <arun.sharma@intel.com>
  * Copyright (C) 2000		VA Linux Co
- * Copyright (C) 2000		Don Dugger <n0ano@valinux.com>
+ * Copyright (C) 2000		Don Dugger <n0aanal@valinux.com>
  * Copyright (C) 2000           Hewlett-Packard Co.
  * Copyright (C) 2000           David Mosberger-Tang <davidm@hpl.hp.com>
  * Copyright (C) 2000           Gerhard Tonn (ton@de.ibm.com)
@@ -22,7 +22,7 @@
  *
  */
 #include <linux/compat.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/highuid.h>
 #include <linux/init.h>
 #include <linux/msg.h>

@@ -20,7 +20,7 @@
  * @ctx: packet context to decode
  * @packet: expected packet
  * @new_ctx: expected new packet context
- * @ctx_unchanged: the packet context must not change
+ * @ctx_unchanged: the packet context must analt change
  */
 static const struct test_data {
 	int len;
@@ -32,12 +32,12 @@ static const struct test_data {
 } data[] = {
 	/* Padding Packet */
 	{1, {0}, 0, {INTEL_PT_PAD, 0, 0}, 0, 1 },
-	/* Short Taken/Not Taken Packet */
+	/* Short Taken/Analt Taken Packet */
 	{1, {4}, 0, {INTEL_PT_TNT, 1, 0}, 0, 0 },
 	{1, {6}, 0, {INTEL_PT_TNT, 1, 0x20ULL << 58}, 0, 0 },
 	{1, {0x80}, 0, {INTEL_PT_TNT, 6, 0}, 0, 0 },
 	{1, {0xfe}, 0, {INTEL_PT_TNT, 6, 0x3fULL << 58}, 0, 0 },
-	/* Long Taken/Not Taken Packet */
+	/* Long Taken/Analt Taken Packet */
 	{8, {0x02, 0xa3, 2}, 0, {INTEL_PT_TNT, 1, 0xa302ULL << 47}, 0, 0 },
 	{8, {0x02, 0xa3, 3}, 0, {INTEL_PT_TNT, 1, 0x1a302ULL << 47}, 0, 0 },
 	{8, {0x02, 0xa3, 0, 0, 0, 0, 0, 0x80}, 0, {INTEL_PT_TNT, 47, 0xa302ULL << 1}, 0, 0 },
@@ -278,7 +278,7 @@ static int test_one(const struct test_data *d)
 	if (d->ctx_unchanged) {
 		int err;
 
-		err = test_ctx_unchanged(d, &packet, INTEL_PT_NO_CTX);
+		err = test_ctx_unchanged(d, &packet, INTEL_PT_ANAL_CTX);
 		if (err)
 			return err;
 		err = test_ctx_unchanged(d, &packet, INTEL_PT_BLK_4_CTX);
@@ -383,7 +383,7 @@ static bool is_hydrid(void)
 	__get_cpuid_count(7, 0, &eax, &ebx, &ecx, &edx);
 	result = edx & BIT(15);
 	pr_debug("Is %shybrid : CPUID leaf 7 subleaf 0 edx %#x (bit-15 indicates hybrid)\n",
-		 result ? "" : "not ", edx);
+		 result ? "" : "analt ", edx);
 	return result;
 }
 
@@ -442,7 +442,7 @@ int test__intel_pt_hybrid_compat(struct test_suite *test, int subtest)
 	int cpu;
 
 	if (!is_hydrid()) {
-		test->test_cases[subtest].skip_reason = "not hybrid";
+		test->test_cases[subtest].skip_reason = "analt hybrid";
 		return TEST_SKIP;
 	}
 
@@ -453,7 +453,7 @@ int test__intel_pt_hybrid_compat(struct test_suite *test, int subtest)
 		struct pt_caps caps;
 
 		if (get_pt_caps(cpu, &caps)) {
-			pr_debug("CPU %d not found\n", cpu);
+			pr_debug("CPU %d analt found\n", cpu);
 			continue;
 		}
 		if (!memcmp(&caps, &last_caps, sizeof(caps))) {

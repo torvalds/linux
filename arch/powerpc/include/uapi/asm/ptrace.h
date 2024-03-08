@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
  * Copyright (C) 2001 PPC64 Team, IBM Corp
  *
@@ -6,14 +6,14 @@
  * kernel stack during a system call or other kernel entry.
  *
  * this should only contain volatile regs
- * since we can keep non-volatile in the thread_struct
+ * since we can keep analn-volatile in the thread_struct
  * should set this up when only volatiles are saved
  * by intr code.
  *
  * Since this is going on the stack, *CARE MUST BE TAKEN* to insure
  * that the overall structure is a multiple of 16 bytes in length.
  *
- * Note that the offsets of the fields in this struct correspond with
+ * Analte that the offsets of the fields in this struct correspond with
  * the PT_* values below.  This simplifies arch/powerpc/kernel/ptrace.c.
  *
  * This program is free software; you can redistribute it and/or
@@ -46,7 +46,7 @@ struct pt_regs
 #ifdef __powerpc64__
 	unsigned long softe;		/* Soft enabled/disabled */
 #else
-	unsigned long mq;		/* 601 only (not used at present) */
+	unsigned long mq;		/* 601 only (analt used at present) */
 					/* Used on APUS to hold IPL value. */
 #endif
 	unsigned long trap;		/* Reason for being here */
@@ -259,7 +259,7 @@ struct ppc_hw_breakpoint {
  * Condition Mode
  */
 #define PPC_BREAKPOINT_CONDITION_MODE	0x00000003
-#define PPC_BREAKPOINT_CONDITION_NONE	0x00000000
+#define PPC_BREAKPOINT_CONDITION_ANALNE	0x00000000
 #define PPC_BREAKPOINT_CONDITION_AND	0x00000001
 #define PPC_BREAKPOINT_CONDITION_EXACT	PPC_BREAKPOINT_CONDITION_AND
 #define PPC_BREAKPOINT_CONDITION_OR	0x00000002

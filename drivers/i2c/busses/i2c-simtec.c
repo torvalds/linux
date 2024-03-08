@@ -66,14 +66,14 @@ static int simtec_i2c_probe(struct platform_device *dev)
 
 	pd = kzalloc(sizeof(struct simtec_i2c_data), GFP_KERNEL);
 	if (pd == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(dev, pd);
 
 	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
 	if (res == NULL) {
-		dev_err(&dev->dev, "cannot find IO resource\n");
-		ret = -ENOENT;
+		dev_err(&dev->dev, "cananalt find IO resource\n");
+		ret = -EANALENT;
 		goto err;
 	}
 
@@ -81,14 +81,14 @@ static int simtec_i2c_probe(struct platform_device *dev)
 
 	pd->ioarea = request_mem_region(res->start, size, dev->name);
 	if (pd->ioarea == NULL) {
-		dev_err(&dev->dev, "cannot request IO\n");
+		dev_err(&dev->dev, "cananalt request IO\n");
 		ret = -ENXIO;
 		goto err;
 	}
 
 	pd->reg = ioremap(res->start, size);
 	if (pd->reg == NULL) {
-		dev_err(&dev->dev, "cannot map IO\n");
+		dev_err(&dev->dev, "cananalt map IO\n");
 		ret = -ENXIO;
 		goto err_res;
 	}

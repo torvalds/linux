@@ -84,7 +84,7 @@ extern void cbe_read_trace_buffer(u32 cpu, u64 *buf);
 extern void cbe_enable_pm_interrupts(u32 cpu, u32 thread, u32 mask);
 extern void cbe_disable_pm_interrupts(u32 cpu);
 extern u32  cbe_get_and_clear_pm_interrupts(u32 cpu);
-extern void cbe_sync_irq(int node);
+extern void cbe_sync_irq(int analde);
 
 #define CBE_COUNT_SUPERVISOR_MODE       0
 #define CBE_COUNT_HYPERVISOR_MODE       1

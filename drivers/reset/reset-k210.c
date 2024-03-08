@@ -90,23 +90,23 @@ static const struct reset_control_ops k210_rst_ops = {
 static int k210_rst_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *parent_np = of_get_parent(dev->of_node);
+	struct device_analde *parent_np = of_get_parent(dev->of_analde);
 	struct k210_rst *ksr;
 
 	dev_info(dev, "K210 reset controller\n");
 
 	ksr = devm_kzalloc(dev, sizeof(*ksr), GFP_KERNEL);
 	if (!ksr)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	ksr->map = syscon_node_to_regmap(parent_np);
-	of_node_put(parent_np);
+	ksr->map = syscon_analde_to_regmap(parent_np);
+	of_analde_put(parent_np);
 	if (IS_ERR(ksr->map))
 		return PTR_ERR(ksr->map);
 
 	ksr->rcdev.owner = THIS_MODULE;
 	ksr->rcdev.dev = dev;
-	ksr->rcdev.of_node = dev->of_node;
+	ksr->rcdev.of_analde = dev->of_analde;
 	ksr->rcdev.ops = &k210_rst_ops;
 	ksr->rcdev.nr_resets = fls(K210_RST_MASK);
 	ksr->rcdev.of_reset_n_cells = 1;

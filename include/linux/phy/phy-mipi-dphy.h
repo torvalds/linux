@@ -62,7 +62,7 @@ struct phy_configure_opts_mipi_dphy {
 	 * @clk_settle:
 	 *
 	 * Time interval, in picoseconds, during which the HS receiver
-	 * should ignore any Clock Lane HS transitions, starting from
+	 * should iganalre any Clock Lane HS transitions, starting from
 	 * the beginning of @clk_prepare.
 	 *
 	 * Minimum value: 95000 ps
@@ -146,7 +146,7 @@ struct phy_configure_opts_mipi_dphy {
 	 * @hs_settle:
 	 *
 	 * Time interval, in picoseconds, during which the HS receiver
-	 * shall ignore any Data Lane HS transitions, starting from
+	 * shall iganalre any Data Lane HS transitions, starting from
 	 * the beginning of @hs_prepare.
 	 *
 	 * Minimum value: 85000 ps + 6 * @hs_clk_rate period in ps
@@ -158,7 +158,7 @@ struct phy_configure_opts_mipi_dphy {
 	 * @hs_skip:
 	 *
 	 * Time interval, in picoseconds, during which the HS-RX
-	 * should ignore any transitions on the Data Lane, following a
+	 * should iganalre any transitions on the Data Lane, following a
 	 * HS burst. The end point of the interval is defined as the
 	 * beginning of the LP-11 state following the HS burst.
 	 *

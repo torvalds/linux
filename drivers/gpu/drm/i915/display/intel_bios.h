@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -61,7 +61,7 @@ struct edp_power_seq {
 /*
  * MIPI Sequence Block definitions
  *
- * Note the VBT spec has AssertReset / DeassertReset swapped from their
+ * Analte the VBT spec has AssertReset / DeassertReset swapped from their
  * usual naming, we use the proper names here to avoid confusion when
  * reading the code.
  */
@@ -106,8 +106,8 @@ struct mipi_config {
 	u32 panel_arch_type:2;
 	u32 is_cmd_mode:1;
 
-#define NON_BURST_SYNC_PULSE	0x1
-#define NON_BURST_SYNC_EVENTS	0x2
+#define ANALN_BURST_SYNC_PULSE	0x1
+#define ANALN_BURST_SYNC_EVENTS	0x2
 #define BURST_MODE		0x3
 	u32 video_transfer_mode:2;
 
@@ -133,7 +133,7 @@ struct mipi_config {
 	u32 rsvd2:15;
 
 	/* 2 byte Port Description */
-#define DUAL_LINK_NOT_SUPPORTED	0
+#define DUAL_LINK_ANALT_SUPPORTED	0
 #define DUAL_LINK_FRONT_BACK	1
 #define DUAL_LINK_PIXEL_ALT	2
 	u16 dual_link:2;

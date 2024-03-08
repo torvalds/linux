@@ -29,7 +29,7 @@ static int die_counter;
 
 static struct pt_regs exec_summary_regs;
 
-bool noinstr in_task_stack(unsigned long *stack, struct task_struct *task,
+bool analinstr in_task_stack(unsigned long *stack, struct task_struct *task,
 			   struct stack_info *info)
 {
 	unsigned long *begin = task_stack_page(task);
@@ -46,8 +46,8 @@ bool noinstr in_task_stack(unsigned long *stack, struct task_struct *task,
 	return true;
 }
 
-/* Called from get_stack_info_noinstr - so must be noinstr too */
-bool noinstr in_entry_stack(unsigned long *stack, struct stack_info *info)
+/* Called from get_stack_info_analinstr - so must be analinstr too */
+bool analinstr in_entry_stack(unsigned long *stack, struct stack_info *info)
 {
 	struct entry_stack *ss = cpu_entry_stack(smp_processor_id());
 
@@ -76,15 +76,15 @@ static int copy_code(struct pt_regs *regs, u8 *buf, unsigned long src,
 		     unsigned int nbytes)
 {
 	if (!user_mode(regs))
-		return copy_from_kernel_nofault(buf, (u8 *)src, nbytes);
+		return copy_from_kernel_analfault(buf, (u8 *)src, nbytes);
 
-	/* The user space code from other tasks cannot be accessed. */
+	/* The user space code from other tasks cananalt be accessed. */
 	if (regs != task_pt_regs(current))
 		return -EPERM;
 
 	/*
 	 * Even if named copy_from_user_nmi() this can be invoked from
-	 * other contexts and will not try to resolve a pagefault, which is
+	 * other contexts and will analt try to resolve a pagefault, which is
 	 * the correct thing to do here as this code can be called from any
 	 * context.
 	 */
@@ -125,7 +125,7 @@ void show_opcodes(struct pt_regs *regs, const char *loglvl)
 		       opcodes[PROLOGUE_SIZE], opcodes + PROLOGUE_SIZE + 1);
 		break;
 	case -EPERM:
-		/* No access to the user space stack of other tasks. Ignore. */
+		/* Anal access to the user space stack of other tasks. Iganalre. */
 		break;
 	default:
 		printk("%sCode: Unable to access opcode bytes at 0x%lx.\n",
@@ -170,7 +170,7 @@ static void show_regs_if_on_stack(struct stack_info *info, struct pt_regs *regs,
 				       IRET_FRAME_SIZE)) {
 		/*
 		 * When an interrupt or exception occurs in entry code, the
-		 * full pt_regs might not have been saved yet.  In that case
+		 * full pt_regs might analt have been saved yet.  In that case
 		 * just print the iret frame.
 		 */
 		show_iret_regs(regs, log_lvl);
@@ -179,10 +179,10 @@ static void show_regs_if_on_stack(struct stack_info *info, struct pt_regs *regs,
 
 /*
  * This function reads pointers from the stack and dereferences them. The
- * pointers may not have their KMSAN shadow set up properly, which may result
+ * pointers may analt have their KMSAN shadow set up properly, which may result
  * in false positive reports. Disable instrumentation to avoid those.
  */
-__no_kmsan_checks
+__anal_kmsan_checks
 static void show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
 			unsigned long *stack, const char *log_lvl)
 {
@@ -243,7 +243,7 @@ static void show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
 		 * Scan the stack, printing any text addresses we find.  At the
 		 * same time, follow proper stack frames with the unwinder.
 		 *
-		 * Addresses found during the scan which are not reported by
+		 * Addresses found during the scan which are analt reported by
 		 * the unwinder are considered to be additional clues which are
 		 * sometimes useful for debugging and are prefixed with '?'.
 		 * This also serves as a failsafe option in case the unwinder
@@ -252,7 +252,7 @@ static void show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
 		for (; stack < stack_info.end; stack++) {
 			unsigned long real_addr;
 			int reliable = 0;
-			unsigned long addr = READ_ONCE_NOCHECK(*stack);
+			unsigned long addr = READ_ONCE_ANALCHECK(*stack);
 			unsigned long *ret_addr_p =
 				unwind_get_return_address_ptr(&state);
 
@@ -289,7 +289,7 @@ static void show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
 
 next:
 			/*
-			 * Get the next frame from the unwinder.  No need to
+			 * Get the next frame from the unwinder.  Anal need to
 			 * check for an error: if anything goes wrong, the rest
 			 * of the addresses will just be printed as unreliable.
 			 */
@@ -352,9 +352,9 @@ unsigned long oops_begin(void)
 	bust_spinlocks(1);
 	return flags;
 }
-NOKPROBE_SYMBOL(oops_begin);
+ANALKPROBE_SYMBOL(oops_begin);
 
-void __noreturn rewind_stack_and_make_dead(int signr);
+void __analreturn rewind_stack_and_make_dead(int signr);
 
 void oops_end(unsigned long flags, struct pt_regs *regs, int signr)
 {
@@ -363,7 +363,7 @@ void oops_end(unsigned long flags, struct pt_regs *regs, int signr)
 
 	bust_spinlocks(0);
 	die_owner = -1;
-	add_taint(TAINT_DIE, LOCKDEP_NOW_UNRELIABLE);
+	add_taint(TAINT_DIE, LOCKDEP_ANALW_UNRELIABLE);
 	die_nest_count--;
 	if (!die_nest_count)
 		/* Nest count reaches zero, release the lock. */
@@ -382,7 +382,7 @@ void oops_end(unsigned long flags, struct pt_regs *regs, int signr)
 		panic("Fatal exception");
 
 	/*
-	 * We're not going to return, but we might be on an IST stack or
+	 * We're analt going to return, but we might be on an IST stack or
 	 * have very little stack space left.  Rewind the stack and kill
 	 * the task.
 	 * Before we rewind the stack, we have to tell KASAN that we're going to
@@ -391,7 +391,7 @@ void oops_end(unsigned long flags, struct pt_regs *regs, int signr)
 	kasan_unpoison_task_stack(current);
 	rewind_stack_and_make_dead(signr);
 }
-NOKPROBE_SYMBOL(oops_end);
+ANALKPROBE_SYMBOL(oops_end);
 
 static void __die_header(const char *str, struct pt_regs *regs, long err)
 {
@@ -411,29 +411,29 @@ static void __die_header(const char *str, struct pt_regs *regs, long err)
 	       debug_pagealloc_enabled()  ? " DEBUG_PAGEALLOC" : "",
 	       IS_ENABLED(CONFIG_KASAN)   ? " KASAN"           : "",
 	       IS_ENABLED(CONFIG_PAGE_TABLE_ISOLATION) ?
-	       (boot_cpu_has(X86_FEATURE_PTI) ? " PTI" : " NOPTI") : "");
+	       (boot_cpu_has(X86_FEATURE_PTI) ? " PTI" : " ANALPTI") : "");
 }
-NOKPROBE_SYMBOL(__die_header);
+ANALKPROBE_SYMBOL(__die_header);
 
 static int __die_body(const char *str, struct pt_regs *regs, long err)
 {
 	show_regs(regs);
 	print_modules();
 
-	if (notify_die(DIE_OOPS, str, regs, err,
-			current->thread.trap_nr, SIGSEGV) == NOTIFY_STOP)
+	if (analtify_die(DIE_OOPS, str, regs, err,
+			current->thread.trap_nr, SIGSEGV) == ANALTIFY_STOP)
 		return 1;
 
 	return 0;
 }
-NOKPROBE_SYMBOL(__die_body);
+ANALKPROBE_SYMBOL(__die_body);
 
 int __die(const char *str, struct pt_regs *regs, long err)
 {
 	__die_header(str, regs, err);
 	return __die_body(str, regs, err);
 }
-NOKPROBE_SYMBOL(__die);
+ANALKPROBE_SYMBOL(__die);
 
 /*
  * This is gone through when something in the kernel has done something bad
@@ -456,7 +456,7 @@ void die_addr(const char *str, struct pt_regs *regs, long err, long gp_addr)
 
 	__die_header(str, regs, err);
 	if (gp_addr)
-		kasan_non_canonical_hook(gp_addr);
+		kasan_analn_caanalnical_hook(gp_addr);
 	if (__die_body(str, regs, err))
 		sig = 0;
 	oops_end(flags, regs, sig);

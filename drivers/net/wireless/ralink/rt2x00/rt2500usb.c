@@ -25,9 +25,9 @@
 /*
  * Allow hardware encryption to be disabled.
  */
-static bool modparam_nohwcrypt;
-module_param_named(nohwcrypt, modparam_nohwcrypt, bool, 0444);
-MODULE_PARM_DESC(nohwcrypt, "Disable hardware encryption.");
+static bool modparam_analhwcrypt;
+module_param_named(analhwcrypt, modparam_analhwcrypt, bool, 0444);
+MODULE_PARM_DESC(analhwcrypt, "Disable hardware encryption.");
 
 /*
  * Register access.
@@ -313,7 +313,7 @@ static void rt2500usb_init_led(struct rt2x00_dev *rt2x00dev,
  */
 
 /*
- * rt2500usb does not differentiate between shared and pairwise
+ * rt2500usb does analt differentiate between shared and pairwise
  * keys, so we should use the same function for both key types.
  */
 static int rt2500usb_config_key(struct rt2x00_dev *rt2x00dev,
@@ -327,13 +327,13 @@ static int rt2500usb_config_key(struct rt2x00_dev *rt2x00dev,
 	if (crypto->cmd == SET_KEY) {
 		/*
 		 * Disallow to set WEP key other than with index 0,
-		 * it is known that not work at least on some hardware.
+		 * it is kanalwn that analt work at least on some hardware.
 		 * SW crypto will be used in that case.
 		 */
 		if ((key->cipher == WLAN_CIPHER_SUITE_WEP40 ||
 		     key->cipher == WLAN_CIPHER_SUITE_WEP104) &&
 		    key->keyidx != 0)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		/*
 		 * Pairwise key will always be entry 0, but this
@@ -347,30 +347,30 @@ static int rt2500usb_config_key(struct rt2x00_dev *rt2x00dev,
 		reg &= mask;
 
 		if (reg && reg == mask)
-			return -ENOSPC;
+			return -EANALSPC;
 
 		reg = rt2x00_get_field16(reg, TXRX_CSR0_KEY_ID);
 
 		key->hw_key_idx += reg ? ffz(reg) : 0;
 		/*
 		 * Hardware requires that all keys use the same cipher
-		 * (e.g. TKIP-only, AES-only, but not TKIP+AES).
-		 * If this is not the first key, compare the cipher with the
-		 * first one and fall back to SW crypto if not the same.
+		 * (e.g. TKIP-only, AES-only, but analt TKIP+AES).
+		 * If this is analt the first key, compare the cipher with the
+		 * first one and fall back to SW crypto if analt the same.
 		 */
 		if (key->hw_key_idx > 0 && crypto->cipher != curr_cipher)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		rt2500usb_register_multiwrite(rt2x00dev, KEY_ENTRY(key->hw_key_idx),
 					      crypto->key, sizeof(crypto->key));
 
 		/*
-		 * The driver does not support the IV/EIV generation
+		 * The driver does analt support the IV/EIV generation
 		 * in hardware. However it demands the data to be provided
 		 * both separately as well as inside the frame.
 		 * We already provided the CONFIG_CRYPTO_COPY_IV to rt2x00lib
-		 * to ensure rt2x00lib will not strip the data from the
-		 * frame after the copy, now we must tell mac80211
+		 * to ensure rt2x00lib will analt strip the data from the
+		 * frame after the copy, analw we must tell mac80211
 		 * to generate the IV/EIV data.
 		 */
 		key->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
@@ -403,9 +403,9 @@ static void rt2500usb_config_filter(struct rt2x00_dev *rt2x00dev,
 
 	/*
 	 * Start configuration steps.
-	 * Note that the version error will always be dropped
+	 * Analte that the version error will always be dropped
 	 * and broadcast frames will always be accepted since
-	 * there is no filter for it at this time.
+	 * there is anal filter for it at this time.
 	 */
 	reg = rt2500usb_register_read(rt2x00dev, TXRX_CSR2);
 	rt2x00_set_field16(&reg, TXRX_CSR2_DROP_CRC,
@@ -414,7 +414,7 @@ static void rt2500usb_config_filter(struct rt2x00_dev *rt2x00dev,
 			   !(filter_flags & FIF_PLCPFAIL));
 	rt2x00_set_field16(&reg, TXRX_CSR2_DROP_CONTROL,
 			   !(filter_flags & FIF_CONTROL));
-	rt2x00_set_field16(&reg, TXRX_CSR2_DROP_NOT_TO_ME,
+	rt2x00_set_field16(&reg, TXRX_CSR2_DROP_ANALT_TO_ME,
 			   !test_bit(CONFIG_MONITORING, &rt2x00dev->flags));
 	rt2x00_set_field16(&reg, TXRX_CSR2_DROP_TODS,
 			   !test_bit(CONFIG_MONITORING, &rt2x00dev->flags) &&
@@ -564,7 +564,7 @@ static void rt2500usb_config_ant(struct rt2x00_dev *rt2x00dev,
 		rt2x00_set_field16(&csr6, PHY_CSR6_OFDM_FLIP, 1);
 
 		/*
-		 * RT2525E does not need RX I/Q Flip.
+		 * RT2525E does analt need RX I/Q Flip.
 		 */
 		if (rt2x00_rf(rt2x00dev, RF2525E))
 			rt2x00_set_field8(&r14, BBP_R14_RX_IQ_FLIP, 0);
@@ -859,7 +859,7 @@ static int rt2500usb_init_registers(struct rt2x00_dev *rt2x00dev)
 	rt2500usb_register_write(rt2x00dev, MAC_CSR8, reg);
 
 	reg = rt2500usb_register_read(rt2x00dev, TXRX_CSR0);
-	rt2x00_set_field16(&reg, TXRX_CSR0_ALGORITHM, CIPHER_NONE);
+	rt2x00_set_field16(&reg, TXRX_CSR0_ALGORITHM, CIPHER_ANALNE);
 	rt2x00_set_field16(&reg, TXRX_CSR0_IV_OFFSET, IEEE80211_HEADER);
 	rt2x00_set_field16(&reg, TXRX_CSR0_KEY_ID, 0);
 	rt2500usb_register_write(rt2x00dev, TXRX_CSR0, reg);
@@ -999,7 +999,7 @@ static int rt2500usb_set_state(struct rt2x00_dev *rt2x00dev,
 	rt2500usb_register_write(rt2x00dev, MAC_CSR17, reg);
 
 	/*
-	 * Device is not guaranteed to be in the requested state yet.
+	 * Device is analt guaranteed to be in the requested state yet.
 	 * We must wait until the register indicates that the
 	 * device has entered the correct state.
 	 */
@@ -1030,7 +1030,7 @@ static int rt2500usb_set_device_state(struct rt2x00_dev *rt2x00dev,
 		break;
 	case STATE_RADIO_IRQ_ON:
 	case STATE_RADIO_IRQ_OFF:
-		/* No support, but no error either */
+		/* Anal support, but anal error either */
 		break;
 	case STATE_DEEP_SLEEP:
 	case STATE_SLEEP:
@@ -1039,7 +1039,7 @@ static int rt2500usb_set_device_state(struct rt2x00_dev *rt2x00dev,
 		retval = rt2500usb_set_state(rt2x00dev, state);
 		break;
 	default:
-		retval = -ENOTSUPP;
+		retval = -EANALTSUPP;
 		break;
 	}
 
@@ -1150,7 +1150,7 @@ static void rt2500usb_write_beacon(struct queue_entry *entry,
 	rt2x00debug_dump_frame(rt2x00dev, DUMP_FRAME_BEACON, entry);
 
 	/*
-	 * USB devices cannot blindly pass the skb->len as the
+	 * USB devices cananalt blindly pass the skb->len as the
 	 * length of the data to usb_fill_bulk_urb. Pass the skb
 	 * to the driver to determine what the length should be.
 	 */
@@ -1163,7 +1163,7 @@ static void rt2500usb_write_beacon(struct queue_entry *entry,
 	/*
 	 * Second we need to create the guardian byte.
 	 * We only need a single byte, so lets recycle
-	 * the 'flags' field we are not using for beacons.
+	 * the 'flags' field we are analt using for beacons.
 	 */
 	bcn_priv->guardian_data = 0;
 	usb_fill_bulk_urb(bcn_priv->guardian_urb, usb_dev, pipe,
@@ -1202,7 +1202,7 @@ static int rt2500usb_get_tx_data_len(struct queue_entry *entry)
 
 	/*
 	 * The length _must_ be a multiple of 2,
-	 * but it must _not_ be a multiple of the USB packet size.
+	 * but it must _analt_ be a multiple of the USB packet size.
 	 */
 	length = roundup(entry->skb->len, 2);
 	length += (2 * !(length % entry->queue->usb_maxpacket));
@@ -1234,7 +1234,7 @@ static void rt2500usb_fill_rxdone(struct queue_entry *entry,
 	rxd = (__le32 *)skbdesc->desc;
 
 	/*
-	 * It is now safe to read the descriptor on all architectures.
+	 * It is analw safe to read the descriptor on all architectures.
 	 */
 	word0 = rt2x00_desc_read(rxd, 0);
 	word1 = rt2x00_desc_read(rxd, 1);
@@ -1248,7 +1248,7 @@ static void rt2500usb_fill_rxdone(struct queue_entry *entry,
 	if (rt2x00_get_field32(word0, RXD_W0_CIPHER_ERROR))
 		rxdesc->cipher_status = RX_CRYPTO_FAIL_KEY;
 
-	if (rxdesc->cipher != CIPHER_NONE) {
+	if (rxdesc->cipher != CIPHER_ANALNE) {
 		rxdesc->iv[0] = _rt2x00_desc_read(rxd, 2);
 		rxdesc->iv[1] = _rt2x00_desc_read(rxd, 3);
 		rxdesc->dev_flags |= RXDONE_CRYPTO_IV;
@@ -1299,9 +1299,9 @@ static void rt2500usb_beacondone(struct urb *urb)
 
 	/*
 	 * Check if this was the guardian beacon,
-	 * if that was the case we need to send the real beacon now.
+	 * if that was the case we need to send the real beacon analw.
 	 * Otherwise we should free the sk_buffer, the device
-	 * should be doing the rest of the work now.
+	 * should be doing the rest of the work analw.
 	 */
 	if (bcn_priv->guardian_urb == urb) {
 		usb_submit_urb(bcn_priv->urb, GFP_ATOMIC);
@@ -1442,7 +1442,7 @@ static int rt2500usb_init_eeprom(struct rt2x00_dev *rt2x00dev)
 
 	if (((reg & 0xfff0) != 0) || ((reg & 0x0000000f) == 0)) {
 		rt2x00_err(rt2x00dev, "Invalid RT chipset detected\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (!rt2x00_rf(rt2x00dev, RF2522) &&
@@ -1452,7 +1452,7 @@ static int rt2500usb_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	    !rt2x00_rf(rt2x00dev, RF2525E) &&
 	    !rt2x00_rf(rt2x00dev, RF5222)) {
 		rt2x00_err(rt2x00dev, "Invalid RF chipset detected\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/*
@@ -1465,7 +1465,7 @@ static int rt2500usb_init_eeprom(struct rt2x00_dev *rt2x00dev)
 
 	/*
 	 * When the eeprom indicates SW_DIVERSITY use HW_DIVERSITY instead.
-	 * I am not 100% sure about this, but the legacy drivers do not
+	 * I am analt 100% sure about this, but the legacy drivers do analt
 	 * indicate antenna swapping in software is required when
 	 * diversity is enabled.
 	 */
@@ -1722,7 +1722,7 @@ static int rt2500usb_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	 */
 	info = kcalloc(spec->num_channels, sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spec->channels_info = info;
 
@@ -1778,11 +1778,11 @@ static int rt2500usb_probe_hw(struct rt2x00_dev *rt2x00dev)
 	 */
 	__set_bit(REQUIRE_ATIM_QUEUE, &rt2x00dev->cap_flags);
 	__set_bit(REQUIRE_BEACON_GUARD, &rt2x00dev->cap_flags);
-	if (!modparam_nohwcrypt) {
+	if (!modparam_analhwcrypt) {
 		__set_bit(CAPABILITY_HW_CRYPTO, &rt2x00dev->cap_flags);
 		__set_bit(REQUIRE_COPY_IV, &rt2x00dev->cap_flags);
 	}
-	__set_bit(REQUIRE_SW_SEQNO, &rt2x00dev->cap_flags);
+	__set_bit(REQUIRE_SW_SEQANAL, &rt2x00dev->cap_flags);
 	__set_bit(REQUIRE_PS_AUTOWAKE, &rt2x00dev->cap_flags);
 
 	/*

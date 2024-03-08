@@ -10,7 +10,7 @@
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
-#include "xfs_inode.h"
+#include "xfs_ianalde.h"
 #include "xfs_quota.h"
 #include "xfs_trans.h"
 #include "xfs_buf_item.h"
@@ -54,7 +54,7 @@ xfs_qm_dquot_logitem_format(
 	qlf->qlf_type = XFS_LI_DQUOT;
 	qlf->qlf_size = 2;
 	qlf->qlf_id = qlip->qli_dquot->q_id;
-	qlf->qlf_blkno = qlip->qli_dquot->q_blkno;
+	qlf->qlf_blkanal = qlip->qli_dquot->q_blkanal;
 	qlf->qlf_len = 1;
 	qlf->qlf_boffset = qlip->qli_dquot->q_bufoffset;
 	xlog_finish_iovec(lv, vecp, sizeof(struct xfs_dq_logformat));
@@ -98,7 +98,7 @@ xfs_qm_dquot_logitem_unpin(
 
 /*
  * This is called to wait for the given dquot to be unpinned.
- * Most of these pin/unpin routines are plagiarized from inode code.
+ * Most of these pin/unpin routines are plagiarized from ianalde code.
  */
 void
 xfs_qm_dqunpin_wait(
@@ -130,11 +130,11 @@ xfs_qm_dquot_logitem_push(
 	if (atomic_read(&dqp->q_pincount) > 0)
 		return XFS_ITEM_PINNED;
 
-	if (!xfs_dqlock_nowait(dqp))
+	if (!xfs_dqlock_analwait(dqp))
 		return XFS_ITEM_LOCKED;
 
 	/*
-	 * Re-check the pincount now that we stabilized the value by
+	 * Re-check the pincount analw that we stabilized the value by
 	 * taking the quota lock.
 	 */
 	if (atomic_read(&dqp->q_pincount) > 0) {
@@ -143,11 +143,11 @@ xfs_qm_dquot_logitem_push(
 	}
 
 	/*
-	 * Someone else is already flushing the dquot.  Nothing we can do
+	 * Someone else is already flushing the dquot.  Analthing we can do
 	 * here but wait for the flush to finish and remove the item from
 	 * the AIL.
 	 */
-	if (!xfs_dqflock_nowait(dqp)) {
+	if (!xfs_dqflock_analwait(dqp)) {
 		rval = XFS_ITEM_FLUSHING;
 		goto out_unlock;
 	}
@@ -179,7 +179,7 @@ xfs_qm_dquot_logitem_release(
 	/*
 	 * dquots are never 'held' from getting unlocked at the end of
 	 * a transaction.  Their locking and unlocking is hidden inside the
-	 * transaction layer, within trans_commit. Hence, no LI_HOLD flag
+	 * transaction layer, within trans_commit. Hence, anal LI_HOLD flag
 	 * for the logitem.
 	 */
 	xfs_dqunlock(dqp);

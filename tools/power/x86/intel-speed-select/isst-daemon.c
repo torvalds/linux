@@ -13,7 +13,7 @@
 #include <sys/file.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <errno.h>
+#include <erranal.h>
 #include <getopt.h>
 #include <signal.h>
 #include <time.h>
@@ -172,7 +172,7 @@ static void daemonize(char *rundir, char *pidfile)
 
 	pid = fork();
 	if (pid < 0) {
-		/* Could not fork */
+		/* Could analt fork */
 		exit(EXIT_FAILURE);
 	}
 	if (pid > 0)
@@ -223,11 +223,11 @@ static void daemonize(char *rundir, char *pidfile)
 	close(i);
 }
 
-int isst_daemon(int debug_mode, int poll_interval, int no_daemon)
+int isst_daemon(int debug_mode, int poll_interval, int anal_daemon)
 {
 	int ret;
 
-	if (!no_daemon && poll_interval < 0 && !debug_mode) {
+	if (!anal_daemon && poll_interval < 0 && !debug_mode) {
 		fprintf(stderr, "OOB mode is enabled and will run as daemon\n");
 		daemonize((char *) "/tmp/",
 				(char *)"/tmp/hfi-events.pid");

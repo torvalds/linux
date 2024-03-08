@@ -33,7 +33,7 @@ static u8 e1000_calculate_checksum(u8 *buffer, u32 length)
  *
  *  This function checks whether the HOST IF is enabled for command operation
  *  and also checks whether the previous command is completed.  It busy waits
- *  in case of previous command is not completed.
+ *  in case of previous command is analt completed.
  **/
 static s32 e1000_mng_enable_host_if(struct e1000_hw *hw)
 {
@@ -41,7 +41,7 @@ static s32 e1000_mng_enable_host_if(struct e1000_hw *hw)
 	u8 i;
 
 	if (!hw->mac.arc_subsystem_valid) {
-		e_dbg("ARC subsystem not valid.\n");
+		e_dbg("ARC subsystem analt valid.\n");
 		return -E1000_ERR_HOST_INTERFACE_COMMAND;
 	}
 
@@ -99,7 +99,7 @@ bool e1000e_enable_tx_pkt_filtering(struct e1000_hw *hw)
 
 	hw->mac.tx_pkt_filtering = true;
 
-	/* No manageability, no filtering */
+	/* Anal manageability, anal filtering */
 	if (!hw->mac.ops.check_mng_mode(hw)) {
 		hw->mac.tx_pkt_filtering = false;
 		return hw->mac.tx_pkt_filtering;
@@ -172,7 +172,7 @@ static s32 e1000_mng_write_cmd_header(struct e1000_hw *hw,
  *  @buffer: pointer to the host interface buffer
  *  @length: size of the buffer
  *  @offset: location in the buffer to write to
- *  @sum: sum of the data (not checksum)
+ *  @sum: sum of the data (analt checksum)
  *
  *  This function writes the buffer content at the offset given on the host if.
  *  It also does alignment considerations to do the writes in most efficient
@@ -186,7 +186,7 @@ static s32 e1000_mng_host_if_write(struct e1000_hw *hw, u8 *buffer,
 	u32 data = 0;
 	u16 remaining, i, j, prev_bytes;
 
-	/* sum = only sum of the data and it is not checksum */
+	/* sum = only sum of the data and it is analt checksum */
 
 	if (length == 0 || offset + length > E1000_HI_MAX_MNG_DATA_LENGTH)
 		return -E1000_ERR_PARAM;

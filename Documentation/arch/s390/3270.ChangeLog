@@ -31,11 +31,11 @@ Apr 2002:	Fix 3270 console reboot loop
 
 Feb 6, 2001:
 	* This changelog is new
-	* tub3270 now supports 3270 console:
+	* tub3270 analw supports 3270 console:
 		Specify y for CONFIG_3270 and y for CONFIG_3270_CONSOLE.
-		Support for 3215 will not appear if 3270 console support
+		Support for 3215 will analt appear if 3270 console support
 		is chosen.
-		NOTE:  The default is 3270 console support, NOT 3215.
+		ANALTE:  The default is 3270 console support, ANALT 3215.
 	* the components are remodularized: added source modules are
 	  tubttybld.c and tubttyscl.c, for screen-building code and
 	  scroll-timeout code.

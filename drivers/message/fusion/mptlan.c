@@ -2,7 +2,7 @@
  *  linux/drivers/message/fusion/mptlan.c
  *      IP Over Fibre Channel device driver.
  *      For use with LSI Fibre Channel PCI chip/adapters
- *      running LSI Fusion MPT (Message Passing Technology) firmware.
+ *      running LSI Fusion MPT (Message Passing Techanallogy) firmware.
  *
  *  Copyright (c) 2000-2008 LSI Corporation
  *  (mailto:DL-MPTFusionLinux@lsi.com)
@@ -19,19 +19,19 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
-    NO WARRANTY
+    ANAL WARRANTY
     THE PROGRAM IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OR
     CONDITIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED INCLUDING, WITHOUT
-    LIMITATION, ANY WARRANTIES OR CONDITIONS OF TITLE, NON-INFRINGEMENT,
+    LIMITATION, ANY WARRANTIES OR CONDITIONS OF TITLE, ANALN-INFRINGEMENT,
     MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. Each Recipient is
     solely responsible for determining the appropriateness of using and
     distributing the Program and assumes all risks associated with its
-    exercise of rights under this Agreement, including but not limited to
+    exercise of rights under this Agreement, including but analt limited to
     the risks and costs of program errors, damage to or loss of data,
     programs or equipment, and unavailability or interruption of operations.
 
     DISCLAIMER OF LIABILITY
-    NEITHER RECIPIENT NOR ANY CONTRIBUTORS SHALL HAVE ANY LIABILITY FOR ANY
+    NEITHER RECIPIENT ANALR ANY CONTRIBUTORS SHALL HAVE ANY LIABILITY FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
     DAMAGES (INCLUDING WITHOUT LIMITATION LOST PROFITS), HOWEVER CAUSED AND
     ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
@@ -40,7 +40,7 @@
     HEREUNDER, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES
 
     You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
+    along with this program; if analt, write to the Free Software
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
@@ -84,7 +84,7 @@ struct BufferControl {
 
 struct mpt_lan_priv {
 	MPT_ADAPTER *mpt_dev;
-	u8 pnum; /* Port number in the IOC. This is not a Unix network port! */
+	u8 pnum; /* Port number in the IOC. This is analt a Unix network port! */
 
 	atomic_t buckets_out;		/* number of unused buckets on IOC */
 	int bucketthresh;		/* Send more when this many left */
@@ -138,7 +138,7 @@ static int  mpt_lan_send_turbo(struct net_device *dev, u32 tmsg);
 static int  mpt_lan_send_reply(struct net_device *dev,
 			       LANSendReply_t *pSendRep);
 static int  mpt_lan_ioc_reset(MPT_ADAPTER *ioc, int reset_phase);
-static int  mpt_lan_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *pEvReply);
+static int  mpt_lan_event_process(MPT_ADAPTER *ioc, EventAnaltificationReply_t *pEvReply);
 static unsigned short mpt_lan_type_trans(struct sk_buff *skb,
 					 struct net_device *dev);
 
@@ -182,9 +182,9 @@ lan_reply (MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *reply)
 
 		switch (GET_LAN_FORM(tmsg)) {
 
-		// NOTE!  (Optimization) First case here is now caught in
+		// ANALTE!  (Optimization) First case here is analw caught in
 		//  mptbase.c::mpt_interrupt() routine and callcack here
-		//  is now skipped for this case!
+		//  is analw skipped for this case!
 #if 0
 		case LAN_REPLY_FORM_MESSAGE_CONTEXT:
 //			dioprintk((KERN_INFO MYNAM "/lan_reply: "
@@ -221,7 +221,7 @@ lan_reply (MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *reply)
 
 		default:
 			printk (KERN_ERR MYNAM "/lan_reply: Got a turbo reply "
-				"that I don't know what to do with\n");
+				"that I don't kanalw what to do with\n");
 
 			/* CHECKME!  Hmmm...  FreeReqFrame is 0 here; is that right? */
 
@@ -271,17 +271,17 @@ lan_reply (MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *reply)
 		FreeReqFrame = 1;
 		break;
 
-	case MPI_FUNCTION_EVENT_NOTIFICATION:
+	case MPI_FUNCTION_EVENT_ANALTIFICATION:
 	case MPI_FUNCTION_EVENT_ACK:
-		/*  _EVENT_NOTIFICATION should NOT come down this path any more.
+		/*  _EVENT_ANALTIFICATION should ANALT come down this path any more.
 		 *  Should be routed to mpt_lan_event_process(), but just in case...
 		 */
 		FreeReqFrame = 1;
 		break;
 
 	default:
-		printk (KERN_ERR MYNAM "/lan_reply: Got a non-turbo "
-			"reply that I don't know what to do with\n");
+		printk (KERN_ERR MYNAM "/lan_reply: Got a analn-turbo "
+			"reply that I don't kanalw what to do with\n");
 
 		/* CHECKME!  Hmmm...  FreeReqFrame is 0 here; is that right? */
 		FreeReqFrame = 1;
@@ -339,12 +339,12 @@ mpt_lan_ioc_reset(MPT_ADAPTER *ioc, int reset_phase)
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 static int
-mpt_lan_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *pEvReply)
+mpt_lan_event_process(MPT_ADAPTER *ioc, EventAnaltificationReply_t *pEvReply)
 {
 	dlprintk((KERN_INFO MYNAM ": MPT event routed to LAN driver!\n"));
 
 	switch (le32_to_cpu(pEvReply->Event)) {
-	case MPI_EVENT_NONE:				/* 00 */
+	case MPI_EVENT_ANALNE:				/* 00 */
 	case MPI_EVENT_LOG_DATA:			/* 01 */
 	case MPI_EVENT_STATE_CHANGE:			/* 02 */
 	case MPI_EVENT_UNIT_ATTENTION:			/* 03 */
@@ -363,8 +363,8 @@ mpt_lan_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *pEvReply)
 	}
 
 	/*
-	 *  NOTE: pEvent->AckRequired handling now done in mptbase.c;
-	 *  Do NOT do it here now!
+	 *  ANALTE: pEvent->AckRequired handling analw done in mptbase.c;
+	 *  Do ANALT do it here analw!
 	 */
 
 	return 1;
@@ -433,7 +433,7 @@ mpt_lan_open(struct net_device *dev)
 
 	if (mpt_event_register(LanCtx, mpt_lan_event_process) != 0) {
 		printk (KERN_WARNING MYNAM "/lo: Unable to register for Event"
-			" Notifications. This is a bad thing! We're not going "
+			" Analtifications. This is a bad thing! We're analt going "
 			"to go ahead, but I'd be leery of system stability at "
 			"this point.\n");
 	}
@@ -451,7 +451,7 @@ out_SendCtl:
 out_mpt_txfidx:
 	kfree(priv->mpt_txfidx);
 	priv->mpt_txfidx = NULL;
-out:	return -ENOMEM;
+out:	return -EANALMEM;
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
@@ -692,7 +692,7 @@ mpt_lan_sdu_send (struct sk_buff *skb, struct net_device *dev)
 		netif_stop_queue(dev);
 		spin_unlock_irqrestore(&priv->txfidx_lock, flags);
 
-		printk (KERN_ERR "%s: no tx context available: %u\n",
+		printk (KERN_ERR "%s: anal tx context available: %u\n",
 			__func__, priv->mpt_txfidx_tail);
 		return NETDEV_TX_BUSY;
 	}
@@ -739,7 +739,7 @@ mpt_lan_sdu_send (struct sk_buff *skb, struct net_device *dev)
 	/* Transaction Context Element */
 	pTrans = (SGETransaction32_t *) pSendReq->SG_List;
 
-	/* No Flags, 8 bytes of Details, 32bit Context (bloody turbo replies) */
+	/* Anal Flags, 8 bytes of Details, 32bit Context (bloody turbo replies) */
 	pTrans->ContextSize   = sizeof(u32);
 	pTrans->DetailsLength = 2 * sizeof(u32);
 	pTrans->Flags         = 0;
@@ -866,7 +866,7 @@ mpt_lan_receive_post_turbo(struct net_device *dev, u32 tmsg)
 			printk (KERN_ERR MYNAM ": %s/%s: ERROR - Can't allocate skb! (%s@%d)\n",
 					IOC_AND_NETDEV_NAMES_s_s(dev),
 					__FILE__, __LINE__);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		dma_sync_single_for_cpu(&mpt_dev->pcidev->dev,
@@ -980,7 +980,7 @@ mpt_lan_receive_post_reply(struct net_device *dev,
 
 	len = le32_to_cpu(pRecvRep->PacketLength);
 	if (len == 0) {
-		printk (KERN_ERR MYNAM ": %s/%s: ERROR - Got a non-TURBO "
+		printk (KERN_ERR MYNAM ": %s/%s: ERROR - Got a analn-TURBO "
 			"ReceivePostReply w/ PacketLength zero!\n",
 				IOC_AND_NETDEV_NAMES_s_s(dev));
 		printk (KERN_ERR MYNAM ": MsgFlags = %02x, IOCStatus = %04x\n",
@@ -1016,7 +1016,7 @@ mpt_lan_receive_post_reply(struct net_device *dev,
 			printk (KERN_ERR MYNAM ": %s/%s: ERROR - Can't allocate skb! (%s@%d)\n",
 					IOC_AND_NETDEV_NAMES_s_s(dev),
 					__FILE__, __LINE__);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		spin_lock_irqsave(&priv->rxfidx_lock, flags);
@@ -1058,7 +1058,7 @@ mpt_lan_receive_post_reply(struct net_device *dev,
 			printk (KERN_ERR MYNAM ": %s/%s: ERROR - Can't allocate skb! (%s@%d)\n",
 					IOC_AND_NETDEV_NAMES_s_s(dev),
 					__FILE__, __LINE__);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		dma_sync_single_for_cpu(&mpt_dev->pcidev->dev,
@@ -1125,7 +1125,7 @@ mpt_lan_receive_post_reply(struct net_device *dev,
 			"count has crossed the threshold, issuing a "
 			"LanReset to clear the fw's hashtable. You may "
 			"want to check your /var/log/messages for \"CRC "
-			"error\" event notifications.\n");
+			"error\" event analtifications.\n");
 		
 		mpt_lan_reset(dev);
 		mpt_lan_wake_post_buckets_task(dev, 0);
@@ -1255,7 +1255,7 @@ mpt_lan_post_receive_buckets(struct mpt_lan_priv *priv)
 		}
 
 		if (pSimple == NULL) {
-/**/			printk (KERN_WARNING MYNAM "/%s: No buckets posted\n",
+/**/			printk (KERN_WARNING MYNAM "/%s: Anal buckets posted\n",
 /**/				__func__);
 			mpt_free_msg_frame(mpt_dev, mf);
 			goto out;
@@ -1425,7 +1425,7 @@ mptlan_probe(struct pci_dev *pdev)
 		return 0;
 	}
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static void
@@ -1467,7 +1467,7 @@ static int __init mpt_lan_init (void)
 		return -EBUSY;
 	}
 
-	dlprintk((KERN_INFO MYNAM ": Registered for IOC reset notifications\n"));
+	dlprintk((KERN_INFO MYNAM ": Registered for IOC reset analtifications\n"));
 	
 	mpt_device_driver_register(&mptlan_driver, MPTLAN_DRIVER);
 	return 0;

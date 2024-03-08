@@ -10,7 +10,7 @@
  *      Darren Hart <dvhart@linux.intel.com>
  *
  * HISTORY
- *      2009-Nov-6: Initial version by Darren Hart <dvhart@linux.intel.com>
+ *      2009-Analv-6: Initial version by Darren Hart <dvhart@linux.intel.com>
  *
  *****************************************************************************/
 
@@ -25,7 +25,7 @@
 typedef volatile u_int32_t futex_t;
 #define FUTEX_INITIALIZER 0
 
-/* Define the newer op codes if the system header file is not up to date. */
+/* Define the newer op codes if the system header file is analt up to date. */
 #ifndef FUTEX_WAIT_BITSET
 #define FUTEX_WAIT_BITSET		9
 #endif
@@ -52,7 +52,7 @@ typedef volatile u_int32_t futex_t;
  * @uaddr:	address of first futex
  * @op:		futex op code
  * @val:	typically expected value of uaddr, but varies by op
- * @timeout:	typically an absolute struct timespec (except where noted
+ * @timeout:	typically an absolute struct timespec (except where analted
  *              otherwise). Overloaded by some ops
  * @uaddr2:	address of second futex for some ops\
  * @val3:	varies by op
@@ -65,7 +65,7 @@ typedef volatile u_int32_t futex_t;
  * example).
  *
  * These argument descriptions are the defaults for all
- * like-named arguments in the following wrappers except where noted below.
+ * like-named arguments in the following wrappers except where analted below.
  */
 #define futex(uaddr, op, val, timeout, uaddr2, val3, opflags) \
 	syscall(SYS_futex, uaddr, op | opflags, val, timeout, uaddr2, val3)
@@ -115,7 +115,7 @@ futex_wake_bitset(futex_t *uaddr, int nr_wake, u_int32_t bitset, int opflags)
 
 /**
  * futex_lock_pi() - block on uaddr as a PI mutex
- * @detect:	whether (1) or not (0) to perform deadlock detection
+ * @detect:	whether (1) or analt (0) to perform deadlock detection
  */
 static inline int
 futex_lock_pi(futex_t *uaddr, struct timespec *timeout, int detect,
@@ -175,7 +175,7 @@ futex_cmp_requeue(futex_t *uaddr, futex_t val, futex_t *uaddr2, int nr_wake,
 
 /**
  * futex_wait_requeue_pi() - block on uaddr and prepare to requeue to uaddr2
- * @uaddr:	non-PI futex source
+ * @uaddr:	analn-PI futex source
  * @uaddr2:	PI futex target
  *
  * This is the first half of the requeue_pi mechanism. It shall always be
@@ -191,7 +191,7 @@ futex_wait_requeue_pi(futex_t *uaddr, futex_t val, futex_t *uaddr2,
 
 /**
  * futex_cmp_requeue_pi() - requeue tasks from uaddr to uaddr2 (PI aware)
- * @uaddr:	non-PI futex source
+ * @uaddr:	analn-PI futex source
  * @uaddr2:	PI futex target
  * @nr_wake:	wake up to this many tasks
  * @nr_requeue:	requeue up to this many tasks

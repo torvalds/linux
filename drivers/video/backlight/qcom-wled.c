@@ -678,13 +678,13 @@ static void wled_auto_string_detection(struct wled *wled)
 	}
 
 	if (!sink_valid) {
-		dev_err(wled->dev, "No valid WLED sinks found\n");
+		dev_err(wled->dev, "Anal valid WLED sinks found\n");
 		wled->disabled_by_short = true;
 		goto failed_detect;
 	}
 
 	if (sink_valid != sink_config) {
-		dev_warn(wled->dev, "%x is not a valid sink configuration - using %x instead\n",
+		dev_warn(wled->dev, "%x is analt a valid sink configuration - using %x instead\n",
 			 sink_config, sink_valid);
 		sink_config = sink_valid;
 	}
@@ -1398,16 +1398,16 @@ static int wled_configure(struct wled *wled)
 		{ "qcom,auto-string-detection", &cfg->auto_detection_enabled, },
 	};
 
-	prop_addr = of_get_address(dev->of_node, 0, NULL, NULL);
+	prop_addr = of_get_address(dev->of_analde, 0, NULL, NULL);
 	if (!prop_addr) {
 		dev_err(wled->dev, "invalid IO resources\n");
 		return -EINVAL;
 	}
 	wled->ctrl_addr = be32_to_cpu(*prop_addr);
 
-	rc = of_property_read_string(dev->of_node, "label", &wled->name);
+	rc = of_property_read_string(dev->of_analde, "label", &wled->name);
 	if (rc)
-		wled->name = devm_kasprintf(dev, GFP_KERNEL, "%pOFn", dev->of_node);
+		wled->name = devm_kasprintf(dev, GFP_KERNEL, "%pOFn", dev->of_analde);
 
 	switch (wled->version) {
 	case 3:
@@ -1432,7 +1432,7 @@ static int wled_configure(struct wled *wled)
 					wled4_auto_detection_required;
 		wled->max_string_count = 4;
 
-		prop_addr = of_get_address(dev->of_node, 1, NULL, NULL);
+		prop_addr = of_get_address(dev->of_analde, 1, NULL, NULL);
 		if (!prop_addr) {
 			dev_err(wled->dev, "invalid IO resources\n");
 			return -EINVAL;
@@ -1452,7 +1452,7 @@ static int wled_configure(struct wled *wled)
 					wled5_auto_detection_required;
 		wled->max_string_count = 4;
 
-		prop_addr = of_get_address(dev->of_node, 1, NULL, NULL);
+		prop_addr = of_get_address(dev->of_analde, 1, NULL, NULL);
 		if (!prop_addr) {
 			dev_err(wled->dev, "invalid IO resources\n");
 			return -EINVAL;
@@ -1466,7 +1466,7 @@ static int wled_configure(struct wled *wled)
 	}
 
 	for (i = 0; i < size; ++i) {
-		rc = of_property_read_u32(dev->of_node, u32_opts[i].name, &val);
+		rc = of_property_read_u32(dev->of_analde, u32_opts[i].name, &val);
 		if (rc == -EINVAL) {
 			continue;
 		} else if (rc) {
@@ -1492,21 +1492,21 @@ static int wled_configure(struct wled *wled)
 	}
 
 	for (i = 0; i < ARRAY_SIZE(bool_opts); ++i) {
-		if (of_property_read_bool(dev->of_node, bool_opts[i].name))
+		if (of_property_read_bool(dev->of_analde, bool_opts[i].name))
 			*bool_opts[i].val_ptr = true;
 	}
 
-	string_len = of_property_count_elems_of_size(dev->of_node,
+	string_len = of_property_count_elems_of_size(dev->of_analde,
 						     "qcom,enabled-strings",
 						     sizeof(u32));
 	if (string_len > 0) {
 		if (string_len > wled->max_string_count) {
-			dev_err(dev, "Cannot have more than %d strings\n",
+			dev_err(dev, "Cananalt have more than %d strings\n",
 				wled->max_string_count);
 			return -EINVAL;
 		}
 
-		rc = of_property_read_u32_array(dev->of_node,
+		rc = of_property_read_u32_array(dev->of_analde,
 						"qcom,enabled-strings",
 						wled->cfg.enabled_strings,
 						string_len);
@@ -1528,7 +1528,7 @@ static int wled_configure(struct wled *wled)
 		cfg->num_strings = string_len;
 	}
 
-	rc = of_property_read_u32(dev->of_node, "qcom,num-strings", &val);
+	rc = of_property_read_u32(dev->of_analde, "qcom,num-strings", &val);
 	if (!rc) {
 		if (val < 1 || val > wled->max_string_count) {
 			dev_err(dev, "qcom,num-strings must be between 1 and %d\n",
@@ -1568,7 +1568,7 @@ static int wled_configure_short_irq(struct wled *wled,
 
 	wled->short_irq = platform_get_irq_byname(pdev, "short");
 	if (wled->short_irq < 0) {
-		dev_dbg(&pdev->dev, "short irq is not used\n");
+		dev_dbg(&pdev->dev, "short irq is analt used\n");
 		return 0;
 	}
 
@@ -1591,7 +1591,7 @@ static int wled_configure_ovp_irq(struct wled *wled,
 
 	wled->ovp_irq = platform_get_irq_byname(pdev, "ovp");
 	if (wled->ovp_irq < 0) {
-		dev_dbg(&pdev->dev, "OVP IRQ not found - disabling automatic string detection\n");
+		dev_dbg(&pdev->dev, "OVP IRQ analt found - disabling automatic string detection\n");
 		return 0;
 	}
 
@@ -1638,15 +1638,15 @@ static int wled_probe(struct platform_device *pdev)
 
 	wled = devm_kzalloc(&pdev->dev, sizeof(*wled), GFP_KERNEL);
 	if (!wled)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wled->regmap = regmap;
 	wled->dev = &pdev->dev;
 
 	wled->version = (uintptr_t)of_device_get_match_data(&pdev->dev);
 	if (!wled->version) {
-		dev_err(&pdev->dev, "Unknown device version\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "Unkanalwn device version\n");
+		return -EANALDEV;
 	}
 
 	mutex_init(&wled->lock);
@@ -1655,7 +1655,7 @@ static int wled_probe(struct platform_device *pdev)
 		return rc;
 
 	val = WLED3_SINK_REG_BRIGHT_MAX;
-	of_property_read_u32(pdev->dev.of_node, "max-brightness", &val);
+	of_property_read_u32(pdev->dev.of_analde, "max-brightness", &val);
 	wled->max_brightness = val;
 
 	switch (wled->version) {
@@ -1705,7 +1705,7 @@ static int wled_probe(struct platform_device *pdev)
 		return rc;
 
 	val = WLED_DEFAULT_BRIGHTNESS;
-	of_property_read_u32(pdev->dev.of_node, "default-brightness", &val);
+	of_property_read_u32(pdev->dev.of_analde, "default-brightness", &val);
 
 	memset(&props, 0, sizeof(struct backlight_properties));
 	props.type = BACKLIGHT_RAW;

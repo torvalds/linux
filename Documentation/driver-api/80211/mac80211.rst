@@ -4,7 +4,7 @@ mac80211 subsystem (basics)
 
 You should read and understand the information contained within this
 part of the book while implementing a mac80211 driver. In some chapters,
-advanced usage is noted, those may be skipped if this isn't needed.
+advanced usage is analted, those may be skipped if this isn't needed.
 
 This part of the book only covers station and monitor mode
 functionality, additional information required to implement the other
@@ -60,14 +60,14 @@ Virtual interfaces
 TBD
 
 This chapter should describe virtual interface basics that are relevant
-to the driver (VLANs, MGMT etc are not.) It should explain the use of
+to the driver (VLANs, MGMT etc are analt.) It should explain the use of
 the add_iface/remove_iface callbacks as well as the interface
 configuration callbacks.
 
 Things related to AP mode should be discussed there.
 
 Things related to supporting multiple interfaces should be in the
-appropriate chapter, a BIG FAT note should be here about this though and
+appropriate chapter, a BIG FAT analte should be here about this though and
 the recommendation to allow only a single interface in STA mode at
 first!
 

@@ -37,7 +37,7 @@ enum drbd_packet {
 	P_BARRIER_ACK	      = 0x1c,
 	P_STATE_CHG_REPLY     = 0x1d,
 
-	/* "new" commands, no longer fitting into the ordering scheme above */
+	/* "new" commands, anal longer fitting into the ordering scheme above */
 
 	P_OV_REQUEST	      = 0x1e, /* data socket */
 	P_OV_REPLY	      = 0x1f,
@@ -63,7 +63,7 @@ enum drbd_packet {
 
 	/* Only use these two if both support FF_THIN_RESYNC */
 	P_RS_THIN_REQ         = 0x32, /* Request a block for resync or reply P_RS_DEALLOCATED */
-	P_RS_DEALLOCATED      = 0x33, /* Contains only zeros on sync source node */
+	P_RS_DEALLOCATED      = 0x33, /* Contains only zeros on sync source analde */
 
 	/* REQ_WRITE_SAME.
 	 * On a receiving side without REQ_WRITE_SAME,
@@ -75,7 +75,7 @@ enum drbd_packet {
 
 	/* 0x40 .. 0x48 already claimed in DRBD 9 */
 
-	P_MAY_IGNORE	      = 0x100, /* Flag to test if (cmd > P_MAY_IGNORE) ... */
+	P_MAY_IGANALRE	      = 0x100, /* Flag to test if (cmd > P_MAY_IGANALRE) ... */
 	P_MAX_OPT_CMD	      = 0x101,
 
 	/* special command ids for handshake */
@@ -94,10 +94,10 @@ enum drbd_packet {
  * The byteorder is the network byte order.
  *     (except block_id and barrier fields.
  *	these are pointers to local structs
- *	and have no relevance for the partner,
+ *	and have anal relevance for the partner,
  *	which just echoes them as received.)
  *
- * NOTE that the payload starts at a long aligned offset,
+ * ANALTE that the payload starts at a long aligned offset,
  * regardless of 32 or 64 bit arch!
  */
 struct p_header80 {
@@ -121,14 +121,14 @@ struct p_header100 {
 	u32	  pad;
 } __packed;
 
-/* These defines must not be changed without changing the protocol version.
+/* These defines must analt be changed without changing the protocol version.
  * New defines may only be introduced together with protocol version bump or
  * new protocol feature flags.
  */
-#define DP_HARDBARRIER	      1 /* no longer used */
+#define DP_HARDBARRIER	      1 /* anal longer used */
 #define DP_RW_SYNC	      2 /* equals REQ_SYNC    */
 #define DP_MAY_SET_IN_SYNC    4
-#define DP_UNPLUG             8 /* not used anymore   */
+#define DP_UNPLUG             8 /* analt used anymore   */
 #define DP_FUA               16 /* equals REQ_FUA     */
 #define DP_FLUSH             32 /* equals REQ_PREFLUSH   */
 #define DP_DISCARD           64 /* equals REQ_OP_DISCARD */
@@ -139,7 +139,7 @@ struct p_header100 {
 
 /* possible combinations:
  * REQ_OP_WRITE_ZEROES:  DP_DISCARD | DP_ZEROES
- * REQ_OP_WRITE_ZEROES + REQ_NOUNMAP: DP_ZEROES
+ * REQ_OP_WRITE_ZEROES + REQ_ANALUNMAP: DP_ZEROES
  */
 
 struct p_data {
@@ -198,7 +198,7 @@ struct p_block_req {
 #define DRBD_FF_THIN_RESYNC 2
 
 /* supports REQ_WRITE_SAME on the "wire" protocol.
- * Note: this flag is overloaded,
+ * Analte: this flag is overloaded,
  * its presence also
  *   - indicates support for 128 MiB "batch bios",
  *     max discard size of 128 MiB
@@ -210,7 +210,7 @@ struct p_block_req {
 
 /* supports REQ_OP_WRITE_ZEROES on the "wire" protocol.
  *
- * We used to map that to "discard" on the sending side, and if we cannot
+ * We used to map that to "discard" on the sending side, and if we cananalt
  * guarantee that discard zeroes data, the receiving side would map discard
  * back to zero-out.
  *
@@ -224,9 +224,9 @@ struct p_block_req {
  * While an un-allocated block on dm-thin reads as zeroes, on a dm-thin
  * with "skip_block_zeroing=true", after a partial block write allocated
  * that block, that same block may well map "undefined old garbage" from
- * the backends on LBAs that have not yet been written to.
+ * the backends on LBAs that have analt yet been written to.
  *
- * If we cannot distinguish between zero-out and discard on the receiving
+ * If we cananalt distinguish between zero-out and discard on the receiving
  * side, to avoid "undefined old garbage" to pop up randomly at later times
  * on supposedly zero-initialized blocks, we'd need to map all discards to
  * zero-out on the receiving side.  But that would potentially do a full
@@ -249,8 +249,8 @@ struct p_connection_features {
 	u32 feature_flags;
 	u32 protocol_max;
 
-	/* should be more than enough for future enhancements
-	 * for now, feature_flags and the reserved array shall be zero.
+	/* should be more than eanalugh for future enhancements
+	 * for analw, feature_flags and the reserved array shall be zero.
 	 */
 
 	u32 _pad;
@@ -322,7 +322,7 @@ struct p_rs_uuid {
 /* optional queue_limits if (agreed_features & DRBD_FF_WSAME)
  * see also struct queue_limits, as of late 2015 */
 struct o_qlim {
-	/* we don't need it yet, but we may as well communicate it now */
+	/* we don't need it yet, but we may as well communicate it analw */
 	u32 physical_block_size;
 
 	/* so the original in struct queue_limits is unsigned short,
@@ -340,11 +340,11 @@ struct o_qlim {
 	u32 io_opt;
 
 	/* We may need to communicate integrity stuff at some point,
-	 * but let's not get ahead of ourselves. */
+	 * but let's analt get ahead of ourselves. */
 
 	/* Backend discard capabilities.
-	 * Receiving side uses "blkdev_issue_discard()", no need to communicate
-	 * more specifics.  If the backend cannot do discards, the DRBD peer
+	 * Receiving side uses "blkdev_issue_discard()", anal need to communicate
+	 * more specifics.  If the backend cananalt do discards, the DRBD peer
 	 * may fall back to blkdev_issue_zeroout().
 	 */
 	u8 discard_enabled;
@@ -358,7 +358,7 @@ struct p_sizes {
 	u64	    u_size;  /* user requested size */
 	u64	    c_size;  /* current exported size */
 	u32	    max_bio_size;  /* Maximal size of a BIO */
-	u16	    queue_order_type;  /* not yet implemented in DRBD*/
+	u16	    queue_order_type;  /* analt yet implemented in DRBD*/
 	u16	    dds_flags; /* use enum dds_flags here. */
 
 	/* optional queue_limits if (agreed_features & DRBD_FF_WSAME) */
@@ -421,7 +421,7 @@ struct p_delay_probe93 {
 
 /*
  * Bitmap packets need to fit within a single page on the sender and receiver,
- * so we are limited to 4 KiB (and not to PAGE_SIZE, which can be bigger).
+ * so we are limited to 4 KiB (and analt to PAGE_SIZE, which can be bigger).
  */
 #define DRBD_SOCKET_BUFFER_SIZE 4096
 

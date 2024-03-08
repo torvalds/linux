@@ -101,8 +101,8 @@ static int rtw8821c_read_efuse(struct rtw_dev *rtwdev, u8 *log_map)
 		rtw8821cs_efuse_parsing(efuse, map);
 		break;
 	default:
-		/* unsupported now */
-		return -ENOTSUPP;
+		/* unsupported analw */
+		return -EANALTSUPP;
 	}
 
 	return 0;
@@ -259,7 +259,7 @@ static int rtw8821c_mac_init(struct rtw_dev *rtwdev)
 	rtw_write8_set(rtwdev, REG_SND_PTCL_CTRL,
 		       BIT_DIS_CHK_VHTSIGB_CRC);
 	rtw_write32(rtwdev, REG_WMAC_OPTION_FUNCTION + 8, WLAN_MAC_OPT_FUNC2);
-	rtw_write8(rtwdev, REG_WMAC_OPTION_FUNCTION + 4, WLAN_MAC_OPT_NORM_FUNC1);
+	rtw_write8(rtwdev, REG_WMAC_OPTION_FUNCTION + 4, WLAN_MAC_OPT_ANALRM_FUNC1);
 
 	return 0;
 }
@@ -693,7 +693,7 @@ static void rtw8821c_query_rx_desc(struct rtw_dev *rtwdev, u8 *rx_desc,
 	pkt_stat->icv_err = GET_RX_DESC_ICV_ERR(rx_desc);
 	pkt_stat->crc_err = GET_RX_DESC_CRC32(rx_desc);
 	pkt_stat->decrypted = !GET_RX_DESC_SWDEC(rx_desc) &&
-			      GET_RX_DESC_ENC_TYPE(rx_desc) != RX_DESC_ENC_NONE;
+			      GET_RX_DESC_ENC_TYPE(rx_desc) != RX_DESC_ENC_ANALNE;
 	pkt_stat->is_c2h = GET_RX_DESC_C2H(rx_desc);
 	pkt_stat->pkt_len = GET_RX_DESC_PKT_LEN(rx_desc);
 	pkt_stat->drv_info_sz = GET_RX_DESC_DRV_INFO_SIZE(rx_desc);
@@ -706,7 +706,7 @@ static void rtw8821c_query_rx_desc(struct rtw_dev *rtwdev, u8 *rx_desc,
 	/* drv_info_sz is in unit of 8-bytes */
 	pkt_stat->drv_info_sz *= 8;
 
-	/* c2h cmd pkt's rx/phy status is not interested */
+	/* c2h cmd pkt's rx/phy status is analt interested */
 	if (pkt_stat->is_c2h)
 		return;
 
@@ -861,7 +861,7 @@ static void rtw8821c_coex_cfg_init(struct rtw_dev *rtwdev)
 
 	/* enable PTA (tx/rx signal form WiFi side) */
 	rtw_write8_set(rtwdev, REG_QUEUE_CTRL, BIT_PTA_WL_TX_EN);
-	/* wl tx signal to PTA not case EDCCA */
+	/* wl tx signal to PTA analt case EDCCA */
 	rtw_write8_clr(rtwdev, REG_QUEUE_CTRL, BIT_PTA_EDCCA_EN);
 	/* GNT_BT=1 while select both */
 	rtw_write16_set(rtwdev, REG_BT_COEX_V2, BIT_GNT_BT_POLARITY);
@@ -1015,9 +1015,9 @@ static void rtw8821c_coex_cfg_rfe_type(struct rtw_dev *rtwdev)
 		coex_rfe->ant_switch_polarity = 1;
 		break;
 	case 5:
-	case 13: /* 2-Ant, no switch, WLG */
+	case 13: /* 2-Ant, anal switch, WLG */
 	case 6:
-	case 14: /* 2-Ant, no antenna switch, WLG */
+	case 14: /* 2-Ant, anal antenna switch, WLG */
 		coex_rfe->ant_switch_exist = false;
 		break;
 	}
@@ -1640,7 +1640,7 @@ static const struct rtw_ltecoex_addr rtw8821c_ltecoex_addr = {
 };
 
 static struct rtw_page_table page_table_8821c[] = {
-	/* not sure what [0] stands for */
+	/* analt sure what [0] stands for */
 	{16, 16, 16, 14, 1},
 	{16, 16, 16, 14, 1},
 	{16, 16, 0, 0, 1},
@@ -1649,20 +1649,20 @@ static struct rtw_page_table page_table_8821c[] = {
 };
 
 static struct rtw_rqpn rqpn_table_8821c[] = {
-	/* not sure what [0] stands for */
-	{RTW_DMA_MAPPING_NORMAL, RTW_DMA_MAPPING_NORMAL,
+	/* analt sure what [0] stands for */
+	{RTW_DMA_MAPPING_ANALRMAL, RTW_DMA_MAPPING_ANALRMAL,
 	 RTW_DMA_MAPPING_LOW, RTW_DMA_MAPPING_LOW,
 	 RTW_DMA_MAPPING_EXTRA, RTW_DMA_MAPPING_HIGH},
-	{RTW_DMA_MAPPING_NORMAL, RTW_DMA_MAPPING_NORMAL,
+	{RTW_DMA_MAPPING_ANALRMAL, RTW_DMA_MAPPING_ANALRMAL,
 	 RTW_DMA_MAPPING_LOW, RTW_DMA_MAPPING_LOW,
 	 RTW_DMA_MAPPING_EXTRA, RTW_DMA_MAPPING_HIGH},
-	{RTW_DMA_MAPPING_NORMAL, RTW_DMA_MAPPING_NORMAL,
-	 RTW_DMA_MAPPING_NORMAL, RTW_DMA_MAPPING_HIGH,
+	{RTW_DMA_MAPPING_ANALRMAL, RTW_DMA_MAPPING_ANALRMAL,
+	 RTW_DMA_MAPPING_ANALRMAL, RTW_DMA_MAPPING_HIGH,
 	 RTW_DMA_MAPPING_HIGH, RTW_DMA_MAPPING_HIGH},
-	{RTW_DMA_MAPPING_NORMAL, RTW_DMA_MAPPING_NORMAL,
+	{RTW_DMA_MAPPING_ANALRMAL, RTW_DMA_MAPPING_ANALRMAL,
 	 RTW_DMA_MAPPING_LOW, RTW_DMA_MAPPING_LOW,
 	 RTW_DMA_MAPPING_HIGH, RTW_DMA_MAPPING_HIGH},
-	{RTW_DMA_MAPPING_NORMAL, RTW_DMA_MAPPING_NORMAL,
+	{RTW_DMA_MAPPING_ANALRMAL, RTW_DMA_MAPPING_ANALRMAL,
 	 RTW_DMA_MAPPING_LOW, RTW_DMA_MAPPING_LOW,
 	 RTW_DMA_MAPPING_EXTRA, RTW_DMA_MAPPING_HIGH},
 };
@@ -1674,7 +1674,7 @@ static struct rtw_prioq_addrs prioq_addrs_8821c = {
 	.prio[RTW_DMA_MAPPING_LOW] = {
 		.rsvd = REG_FIFOPAGE_INFO_2, .avail = REG_FIFOPAGE_INFO_2 + 2,
 	},
-	.prio[RTW_DMA_MAPPING_NORMAL] = {
+	.prio[RTW_DMA_MAPPING_ANALRMAL] = {
 		.rsvd = REG_FIFOPAGE_INFO_3, .avail = REG_FIFOPAGE_INFO_3 + 2,
 	},
 	.prio[RTW_DMA_MAPPING_HIGH] = {
@@ -1753,7 +1753,7 @@ static const struct coex_table_para table_sant_8821c[] = {
 	{0x56555555, 0x5a5a5aaa}
 };
 
-/* Non-Shared-Antenna Coex Table */
+/* Analn-Shared-Antenna Coex Table */
 static const struct coex_table_para table_nsant_8821c[] = {
 	{0xffffffff, 0xffffffff}, /* case-100 */
 	{0xffff55ff, 0xfafafafa},
@@ -1813,7 +1813,7 @@ static const struct coex_tdma_para tdma_sant_8821c[] = {
 	{ {0x61, 0x08, 0x03, 0x11, 0x11} }
 };
 
-/* Non-Shared-Antenna TDMA */
+/* Analn-Shared-Antenna TDMA */
 static const struct coex_tdma_para tdma_nsant_8821c[] = {
 	{ {0x00, 0x00, 0x00, 0x40, 0x00} }, /* case-100 */
 	{ {0x61, 0x45, 0x03, 0x11, 0x11} },
@@ -1843,7 +1843,7 @@ static const struct coex_5g_afh_map afh_5g_8821c[] = { {0, 0, 0} };
 
 /* wl_tx_dec_power, bt_tx_dec_power, wl_rx_gain, bt_rx_lna_constrain */
 static const struct coex_rf_para rf_para_tx_8821c[] = {
-	{0, 0, false, 7},  /* for normal */
+	{0, 0, false, 7},  /* for analrmal */
 	{0, 20, false, 7}, /* for WL-CPT */
 	{8, 17, true, 4},
 	{7, 18, true, 4},
@@ -1852,7 +1852,7 @@ static const struct coex_rf_para rf_para_tx_8821c[] = {
 };
 
 static const struct coex_rf_para rf_para_rx_8821c[] = {
-	{0, 0, false, 7},  /* for normal */
+	{0, 0, false, 7},  /* for analrmal */
 	{0, 20, false, 7}, /* for WL-CPT */
 	{3, 24, true, 5},
 	{2, 26, true, 5},

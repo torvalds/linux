@@ -25,7 +25,7 @@ static int nvme_set_max_append(struct nvme_ctrl *ctrl)
 
 	id = kzalloc(sizeof(*id), GFP_KERNEL);
 	if (!id)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	c.identify.opcode = nvme_admin_identify;
 	c.identify.cns = NVME_ID_CNS_CS_CTRL;
@@ -63,7 +63,7 @@ int nvme_update_zone_info(struct nvme_ns *ns, unsigned lbaf)
 	} else {
 		set_bit(NVME_NS_FORCE_RO, &ns->flags);
 		dev_warn(ns->ctrl->device,
-			 "Zone Append not supported for zoned namespace:%d. Forcing to read-only mode\n",
+			 "Zone Append analt supported for zoned namespace:%d. Forcing to read-only mode\n",
 			 ns->head->ns_id);
 	}
 
@@ -76,7 +76,7 @@ int nvme_update_zone_info(struct nvme_ns *ns, unsigned lbaf)
 
 	id = kzalloc(sizeof(*id), GFP_KERNEL);
 	if (!id)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	c.identify.opcode = nvme_admin_identify;
 	c.identify.nsid = cpu_to_le32(ns->head->ns_id);
@@ -88,14 +88,14 @@ int nvme_update_zone_info(struct nvme_ns *ns, unsigned lbaf)
 		goto free_data;
 
 	/*
-	 * We currently do not handle devices requiring any of the zoned
+	 * We currently do analt handle devices requiring any of the zoned
 	 * operation characteristics.
 	 */
 	if (id->zoc) {
 		dev_warn(ns->ctrl->device,
-			"zone operations:%x not supported for namespace:%u\n",
+			"zone operations:%x analt supported for namespace:%u\n",
 			le16_to_cpu(id->zoc), ns->head->ns_id);
-		status = -ENODEV;
+		status = -EANALDEV;
 		goto free_data;
 	}
 
@@ -105,7 +105,7 @@ int nvme_update_zone_info(struct nvme_ns *ns, unsigned lbaf)
 		dev_warn(ns->ctrl->device,
 			"invalid zone size:%llu for namespace:%u\n",
 			ns->head->zsze, ns->head->ns_id);
-		status = -ENODEV;
+		status = -EANALDEV;
 		goto free_data;
 	}
 
@@ -138,7 +138,7 @@ static void *nvme_zns_alloc_report_buffer(struct nvme_ns *ns,
 	bufsize = min_t(size_t, bufsize, queue_max_segments(q) << PAGE_SHIFT);
 
 	while (bufsize >= min_bufsize) {
-		buf = __vmalloc(bufsize, GFP_KERNEL | __GFP_NORETRY);
+		buf = __vmalloc(bufsize, GFP_KERNEL | __GFP_ANALRETRY);
 		if (buf) {
 			*buflen = bufsize;
 			return buf;
@@ -189,7 +189,7 @@ int nvme_ns_report_zones(struct nvme_ns *ns, sector_t sector,
 
 	report = nvme_zns_alloc_report_buffer(ns, nr_zones, &buflen);
 	if (!report)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	c.zmr.opcode = nvme_cmd_zone_mgmt_recv;
 	c.zmr.nsid = cpu_to_le32(ns->head->ns_id);

@@ -37,7 +37,7 @@
 		fw@80000000 {
 			compatible = "shared-dma-pool";
 			reg = <0x0 0x80000000 0x0 0x4000000>;
-			no-map;
+			anal-map;
 		};
 	};
 

@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -366,13 +366,13 @@ static void ar9003_hw_init_mode_regs(struct ath_hw *ah)
 
 		if (AR_SREV_9531_20(ah))
 			INIT_INI_ARRAY(&ah->iniModesTxGain,
-				       qca953x_2p0_modes_no_xpa_tx_gain_table);
+				       qca953x_2p0_modes_anal_xpa_tx_gain_table);
 		else if (AR_SREV_9531_11(ah))
 			INIT_INI_ARRAY(&ah->iniModesTxGain,
-				       qca953x_1p1_modes_no_xpa_tx_gain_table);
+				       qca953x_1p1_modes_anal_xpa_tx_gain_table);
 		else
 			INIT_INI_ARRAY(&ah->iniModesTxGain,
-				       qca953x_1p0_modes_no_xpa_tx_gain_table);
+				       qca953x_1p0_modes_anal_xpa_tx_gain_table);
 
 		INIT_INI_ARRAY(&ah->iniModesFastClock,
 			       qca953x_1p0_modes_fast_clock);
@@ -402,7 +402,7 @@ static void ar9003_hw_init_mode_regs(struct ath_hw *ah)
 		INIT_INI_ARRAY(&ah->ini_modes_rx_gain_bounds,
 			       qca956x_1p0_common_wo_xlna_rx_gain_bounds);
 		INIT_INI_ARRAY(&ah->iniModesTxGain,
-			       qca956x_1p0_modes_no_xpa_tx_gain_table);
+			       qca956x_1p0_modes_anal_xpa_tx_gain_table);
 
 		INIT_INI_ARRAY(&ah->ini_dfs,
 			       qca956x_1p0_baseband_postamble_dfs_channel);
@@ -656,20 +656,20 @@ static void ar9003_tx_gain_table_mode1(struct ath_hw *ah)
 			ar9580_1p0_high_ob_db_tx_gain_table);
 	else if (AR_SREV_9550(ah))
 		INIT_INI_ARRAY(&ah->iniModesTxGain,
-			ar955x_1p0_modes_no_xpa_tx_gain_table);
+			ar955x_1p0_modes_anal_xpa_tx_gain_table);
 	else if (AR_SREV_9531(ah)) {
 		if (AR_SREV_9531_20(ah))
 			INIT_INI_ARRAY(&ah->iniModesTxGain,
-				       qca953x_2p0_modes_no_xpa_tx_gain_table);
+				       qca953x_2p0_modes_anal_xpa_tx_gain_table);
 		else if (AR_SREV_9531_11(ah))
 			INIT_INI_ARRAY(&ah->iniModesTxGain,
-				       qca953x_1p1_modes_no_xpa_tx_gain_table);
+				       qca953x_1p1_modes_anal_xpa_tx_gain_table);
 		else
 			INIT_INI_ARRAY(&ah->iniModesTxGain,
-				       qca953x_1p0_modes_no_xpa_tx_gain_table);
+				       qca953x_1p0_modes_anal_xpa_tx_gain_table);
 	} else if (AR_SREV_9561(ah))
 		INIT_INI_ARRAY(&ah->iniModesTxGain,
-			       qca956x_1p0_modes_no_xpa_tx_gain_table);
+			       qca956x_1p0_modes_anal_xpa_tx_gain_table);
 	else if (AR_SREV_9462_21(ah))
 		INIT_INI_ARRAY(&ah->iniModesTxGain,
 			ar9462_2p1_modes_high_ob_db_tx_gain);
@@ -700,7 +700,7 @@ static void ar9003_tx_gain_table_mode2(struct ath_hw *ah)
 			ar9340Modes_low_ob_db_tx_gain_table_1p0);
 	else if (AR_SREV_9531_11(ah))
 		INIT_INI_ARRAY(&ah->iniModesTxGain,
-			       qca953x_1p1_modes_no_xpa_low_power_tx_gain_table);
+			       qca953x_1p1_modes_anal_xpa_low_power_tx_gain_table);
 	else if (AR_SREV_9485_11_OR_LATER(ah))
 		INIT_INI_ARRAY(&ah->iniModesTxGain,
 			ar9485Modes_low_ob_db_tx_gain_1_1);
@@ -709,7 +709,7 @@ static void ar9003_tx_gain_table_mode2(struct ath_hw *ah)
 			ar9580_1p0_low_ob_db_tx_gain_table);
 	else if (AR_SREV_9561(ah))
 		INIT_INI_ARRAY(&ah->iniModesTxGain,
-			       qca956x_1p0_modes_no_xpa_low_ob_db_tx_gain_table);
+			       qca956x_1p0_modes_anal_xpa_low_ob_db_tx_gain_table);
 	else if (AR_SREV_9565_11(ah))
 		INIT_INI_ARRAY(&ah->iniModesTxGain,
 			       ar9565_1p1_modes_low_ob_db_tx_gain_table);
@@ -783,7 +783,7 @@ static void ar9003_tx_gain_table_mode5(struct ath_hw *ah)
 			ar9580_1p0_type5_tx_gain_table);
 	else if (AR_SREV_9561(ah))
 		INIT_INI_ARRAY(&ah->iniModesTxGain,
-			       qca956x_1p0_modes_no_xpa_green_tx_gain_table);
+			       qca956x_1p0_modes_anal_xpa_green_tx_gain_table);
 	else if (AR_SREV_9300_22(ah))
 		INIT_INI_ARRAY(&ah->iniModesTxGain,
 			ar9300Modes_type5_tx_gain_table_2p2);
@@ -1029,7 +1029,7 @@ static void ar9003_hw_configpcipowersave(struct ath_hw *ah,
 		}
 	}
 
-	/* Nothing to do on restore for 11N */
+	/* Analthing to do on restore for 11N */
 	if (!power_off /* !restore */) {
 		/* set bit 19 to allow forcing of pcie core into L1 state */
 		REG_SET_BIT(ah, AR_PCIE_PM_CTRL(ah), AR_PCIE_PM_CTRL_ENA);
@@ -1037,7 +1037,7 @@ static void ar9003_hw_configpcipowersave(struct ath_hw *ah,
 	}
 
 	/*
-	 * Configure PCIE after Ini init. SERDES values now come from ini file
+	 * Configure PCIE after Ini init. SERDES values analw come from ini file
 	 * This enables PCIe low power mode.
 	 */
 	array = power_off ? &ah->iniPcieSerdes :
@@ -1059,7 +1059,7 @@ static void ar9003_hw_init_hang_checks(struct ath_hw *ah)
 	ah->config.hw_hang_checks |= HW_MAC_HANG;
 
 	/*
-	 * This is not required for AR9580 1.0
+	 * This is analt required for AR9580 1.0
 	 */
 	if (AR_SREV_9300_22(ah))
 		ah->config.hw_hang_checks |= HW_PHYRESTART_CLC_WAR;

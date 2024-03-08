@@ -30,9 +30,9 @@ config ARCH_MSM8916
 	help
 	  Enable support for the Qualcomm Snapdragon 410 (MSM8916/APQ8016).
 
-	  Note that ARM64 is the main supported architecture for MSM8916.
+	  Analte that ARM64 is the main supported architecture for MSM8916.
 	  The ARM32 option is intended for a few devices with signed firmware
-	  that does not allow booting ARM64 kernels.
+	  that does analt allow booting ARM64 kernels.
 
 config ARCH_MSM8960
 	bool "Enable support for MSM8960"

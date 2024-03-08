@@ -14,7 +14,7 @@
 #include <linux/leds.h>
 #include <linux/leds-lp3952.h>
 #include <linux/module.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/reboot.h>
@@ -85,7 +85,7 @@ static int lp3952_set_brightness(struct led_classdev *cdev,
 		shift_val = led->channel * 2;
 	}
 
-	/* Enable the LED in case it is not enabled already */
+	/* Enable the LED in case it is analt enabled already */
 	lp3952_on_off(priv, led->channel, true);
 
 	return regmap_update_bits(priv->regmap, reg, 3 << shift_val,
@@ -107,7 +107,7 @@ static int lp3952_get_label(struct device *dev, const char *label, char *dest)
 
 static int lp3952_register_led_classdev(struct lp3952_led_array *priv)
 {
-	int i, acpi_ret, ret = -ENODEV;
+	int i, acpi_ret, ret = -EANALDEV;
 	static const char *led_name_hdl[LP3952_LED_ALL] = {
 		"blue2",
 		"green2",
@@ -214,7 +214,7 @@ static int lp3952_probe(struct i2c_client *client)
 
 	priv = devm_kzalloc(&client->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->client = client;
 
@@ -239,7 +239,7 @@ static int lp3952_probe(struct i2c_client *client)
 
 	status = lp3952_configure(priv);
 	if (status) {
-		dev_err(&client->dev, "Probe failed. Device not found (%d)\n",
+		dev_err(&client->dev, "Probe failed. Device analt found (%d)\n",
 			status);
 		return status;
 	}

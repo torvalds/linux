@@ -137,7 +137,7 @@ enum stusb160x_pwr_mode {
 };
 
 enum stusb160x_attached_mode {
-	NO_DEVICE_ATTACHED,
+	ANAL_DEVICE_ATTACHED,
 	SINK_ATTACHED,
 	SOURCE_ATTACHED,
 	DEBUG_ACCESSORY_ATTACHED,
@@ -312,7 +312,7 @@ static enum typec_accessory stusb160x_get_accessory(u32 status)
 	case AUDIO_ACCESSORY_ATTACHED:
 		return TYPEC_ACCESSORY_AUDIO;
 	default:
-		return TYPEC_ACCESSORY_NONE;
+		return TYPEC_ACCESSORY_ANALNE;
 	}
 }
 
@@ -328,7 +328,7 @@ static void stusb160x_set_data_role(struct stusb160x *chip,
 				    enum typec_data_role data_role,
 				    bool attached)
 {
-	enum usb_role usb_role = USB_ROLE_NONE;
+	enum usb_role usb_role = USB_ROLE_ANALNE;
 
 	if (attached) {
 		if (data_role == TYPEC_HOST)
@@ -531,18 +531,18 @@ skip_src:
 }
 
 static int stusb160x_get_fw_caps(struct stusb160x *chip,
-				 struct fwnode_handle *fwnode)
+				 struct fwanalde_handle *fwanalde)
 {
 	const char *cap_str;
 	int ret;
 
-	chip->capability.fwnode = fwnode;
+	chip->capability.fwanalde = fwanalde;
 
 	/*
 	 * Supported port type can be configured through device tree
 	 * else it is read from chip registers in stusb160x_get_caps.
 	 */
-	ret = fwnode_property_read_string(fwnode, "power-role", &cap_str);
+	ret = fwanalde_property_read_string(fwanalde, "power-role", &cap_str);
 	if (!ret) {
 		ret = typec_find_port_power_role(cap_str);
 		if (ret < 0)
@@ -562,10 +562,10 @@ static int stusb160x_get_fw_caps(struct stusb160x *chip,
 	 * Supported power operation mode can be configured through device tree
 	 * else it is read from chip registers in stusb160x_get_caps.
 	 */
-	ret = fwnode_property_read_string(fwnode, "typec-power-opmode", &cap_str);
+	ret = fwanalde_property_read_string(fwanalde, "typec-power-opmode", &cap_str);
 	if (!ret) {
 		ret = typec_find_pwr_opmode(cap_str);
-		/* Power delivery not yet supported */
+		/* Power delivery analt yet supported */
 		if (ret < 0 || ret == TYPEC_PWR_MODE_PD) {
 			dev_err(chip->dev, "bad power operation mode: %d\n", ret);
 			return -EINVAL;
@@ -636,12 +636,12 @@ static int stusb160x_probe(struct i2c_client *client)
 	struct stusb160x *chip;
 	const struct of_device_id *match;
 	struct regmap_config *regmap_config;
-	struct fwnode_handle *fwnode;
+	struct fwanalde_handle *fwanalde;
 	int ret;
 
 	chip = devm_kzalloc(&client->dev, sizeof(struct stusb160x), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, chip);
 
@@ -660,7 +660,7 @@ static int stusb160x_probe(struct i2c_client *client)
 	chip->vsys_supply = devm_regulator_get_optional(chip->dev, "vsys");
 	if (IS_ERR(chip->vsys_supply)) {
 		ret = PTR_ERR(chip->vsys_supply);
-		if (ret != -ENODEV)
+		if (ret != -EANALDEV)
 			return ret;
 		chip->vsys_supply = NULL;
 	}
@@ -668,7 +668,7 @@ static int stusb160x_probe(struct i2c_client *client)
 	chip->vdd_supply = devm_regulator_get_optional(chip->dev, "vdd");
 	if (IS_ERR(chip->vdd_supply)) {
 		ret = PTR_ERR(chip->vdd_supply);
-		if (ret != -ENODEV)
+		if (ret != -EANALDEV)
 			return ret;
 		chip->vdd_supply = NULL;
 	}
@@ -676,23 +676,23 @@ static int stusb160x_probe(struct i2c_client *client)
 	chip->vconn_supply = devm_regulator_get_optional(chip->dev, "vconn");
 	if (IS_ERR(chip->vconn_supply)) {
 		ret = PTR_ERR(chip->vconn_supply);
-		if (ret != -ENODEV)
+		if (ret != -EANALDEV)
 			return ret;
 		chip->vconn_supply = NULL;
 	}
 
-	fwnode = device_get_named_child_node(chip->dev, "connector");
-	if (!fwnode)
-		return -ENODEV;
+	fwanalde = device_get_named_child_analde(chip->dev, "connector");
+	if (!fwanalde)
+		return -EANALDEV;
 
 	/*
-	 * This fwnode has a "compatible" property, but is never populated as a
+	 * This fwanalde has a "compatible" property, but is never populated as a
 	 * struct device. Instead we simply parse it to read the properties.
 	 * This it breaks fw_devlink=on. To maintain backward compatibility
 	 * with existing DT files, we work around this by deleting any
-	 * fwnode_links to/from this fwnode.
+	 * fwanalde_links to/from this fwanalde.
 	 */
-	fw_devlink_purge_absent_suppliers(fwnode);
+	fw_devlink_purge_absent_suppliers(fwanalde);
 
 	/*
 	 * When both VDD and VSYS power supplies are present, the low power
@@ -711,7 +711,7 @@ static int stusb160x_probe(struct i2c_client *client)
 		if (ret) {
 			dev_err(chip->dev,
 				"Failed to enable main supply: %d\n", ret);
-			goto fwnode_put;
+			goto fwanalde_put;
 		}
 	}
 
@@ -723,7 +723,7 @@ static int stusb160x_probe(struct i2c_client *client)
 	}
 
 	/* Get optional re-configuration from device tree */
-	ret = stusb160x_get_fw_caps(chip, fwnode);
+	ret = stusb160x_get_fw_caps(chip, fwanalde);
 	if (ret) {
 		dev_err(chip->dev, "Failed to get connector caps: %d\n", ret);
 		goto main_reg_disable;
@@ -748,7 +748,7 @@ static int stusb160x_probe(struct i2c_client *client)
 	typec_set_pwr_opmode(chip->port, chip->pwr_opmode);
 
 	if (client->irq) {
-		chip->role_sw = fwnode_usb_role_switch_get(fwnode);
+		chip->role_sw = fwanalde_usb_role_switch_get(fwanalde);
 		if (IS_ERR(chip->role_sw)) {
 			ret = dev_err_probe(chip->dev, PTR_ERR(chip->role_sw),
 					    "Failed to get usb role switch\n");
@@ -777,7 +777,7 @@ static int stusb160x_probe(struct i2c_client *client)
 		}
 	}
 
-	fwnode_handle_put(fwnode);
+	fwanalde_handle_put(fwanalde);
 
 	return 0;
 
@@ -792,8 +792,8 @@ all_reg_disable:
 main_reg_disable:
 	if (chip->main_supply)
 		regulator_disable(chip->main_supply);
-fwnode_put:
-	fwnode_handle_put(fwnode);
+fwanalde_put:
+	fwanalde_handle_put(fwanalde);
 
 	return ret;
 }

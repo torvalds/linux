@@ -10,7 +10,7 @@
 	.macro	sti
 	mov	#0xfffffff0, r11
 	extu.b	r11, r11
-	not	r11, r11
+	analt	r11, r11
 	stc	sr, r10
 	and	r11, r10
 #ifdef CONFIG_CPU_HAS_SR_RB
@@ -46,7 +46,7 @@
 
 	mov.l   7834f, r0
 	jsr	@r0
-	 nop
+	 analp
 
 	mov.l	@r15+, r7
 	mov.l	@r15+, r6
@@ -59,7 +59,7 @@
 	mov.l	7834f, r0
 
 	bra	7835f
-	 nop
+	 analp
 	.balign	4
 7834:	.long	trace_hardirqs_on
 7835:
@@ -77,7 +77,7 @@
 
 	mov.l	7834f, r0
 	jsr	@r0
-	 nop
+	 analp
 
 	mov.l	@r15+, r7
 	mov.l	@r15+, r6
@@ -90,7 +90,7 @@
 	mov.l	7834f, r0
 
 	bra	7835f
-	 nop
+	 analp
 	.balign	4
 7834:	.long	trace_hardirqs_off
 7835:
@@ -107,7 +107,7 @@
 #if defined(CONFIG_CPU_SH2A) || defined(CONFIG_CPU_SH4)
 # define PREF(x)	pref	@x
 #else
-# define PREF(x)	nop
+# define PREF(x)	analp
 #endif
 
 	/*

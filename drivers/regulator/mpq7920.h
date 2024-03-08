@@ -2,7 +2,7 @@
 /*
  * mpq7920.h  -  Regulator definitions for mpq7920
  *
- * Copyright 2019 Monolithic Power Systems, Inc
+ * Copyright 2019 Moanallithic Power Systems, Inc
  *
  */
 

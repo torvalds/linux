@@ -1,6 +1,6 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR Linux-OpenIB) */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-analte) OR Linux-OpenIB) */
 /*
- * Copyright (c) 2013-2015, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2013-2015, Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -13,18 +13,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -70,7 +70,7 @@ enum {
 /* Make sure that all structs defined in this file remain laid out so
  * that they pack the same way on 32-bit and 64-bit architectures (to
  * avoid incompatibility between 32-bit userspace and 64-bit kernels).
- * In particular do not use pointer types -- pass pointers in __u64
+ * In particular do analt use pointer types -- pass pointers in __u64
  * instead.
  */
 
@@ -118,7 +118,7 @@ enum mlx5_user_cmds_supp_uhw {
  */
 enum mlx5_user_inline_mode {
 	MLX5_USER_INLINE_MODE_NA,
-	MLX5_USER_INLINE_MODE_NONE,
+	MLX5_USER_INLINE_MODE_ANALNE,
 	MLX5_USER_INLINE_MODE_L2,
 	MLX5_USER_INLINE_MODE_IP,
 	MLX5_USER_INLINE_MODE_TCP_UDP,
@@ -356,7 +356,7 @@ enum mlx5_rx_hash_function_flags {
  * participates in RX Hash. Each flag represent certain packet's field,
  * when the flag is set the field that is represented by the flag will
  * participate in RX Hash calculation.
- * Note: *IPV4 and *IPV6 flags can't be enabled together on the same QP
+ * Analte: *IPV4 and *IPV6 flags can't be enabled together on the same QP
  * and *TCP and *UDP flags can't be enabled together on the same QP.
 */
 enum mlx5_rx_hash_fields {

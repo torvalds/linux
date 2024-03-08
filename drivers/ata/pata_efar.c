@@ -43,8 +43,8 @@ static int efar_pre_reset(struct ata_link *link, unsigned long deadline)
 	struct ata_port *ap = link->ap;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 
-	if (!pci_test_config_bits(pdev, &efar_enable_bits[ap->port_no]))
-		return -ENOENT;
+	if (!pci_test_config_bits(pdev, &efar_enable_bits[ap->port_anal]))
+		return -EANALENT;
 
 	return ata_sff_prereset(link, deadline);
 }
@@ -63,7 +63,7 @@ static int efar_cable_detect(struct ata_port *ap)
 	u8 tmp;
 
 	pci_read_config_byte(pdev, 0x47, &tmp);
-	if (tmp & (2 >> ap->port_no))
+	if (tmp & (2 >> ap->port_anal))
 		return ATA_CBL_PATA40;
 	return ATA_CBL_PATA80;
 }
@@ -78,14 +78,14 @@ static DEFINE_SPINLOCK(efar_lock);
  *	Set PIO mode for device, in host controller PCI config space.
  *
  *	LOCKING:
- *	None (inherited from caller).
+ *	Analne (inherited from caller).
  */
 
 static void efar_set_piomode (struct ata_port *ap, struct ata_device *adev)
 {
 	unsigned int pio	= adev->pio_mode - XFER_PIO_0;
 	struct pci_dev *dev	= to_pci_dev(ap->host->dev);
-	unsigned int master_port = ap->port_no ? 0x42 : 0x40;
+	unsigned int master_port = ap->port_anal ? 0x42 : 0x40;
 	unsigned long flags;
 	u16 master_data;
 	u8 udma_enable;
@@ -116,13 +116,13 @@ static void efar_set_piomode (struct ata_port *ap, struct ata_device *adev)
 	pci_read_config_word(dev, master_port, &master_data);
 
 	/* Set PPE, IE, and TIME as appropriate */
-	if (adev->devno == 0) {
+	if (adev->devanal == 0) {
 		master_data &= 0xCCF0;
 		master_data |= control;
 		master_data |= (timings[pio][0] << 12) |
 			(timings[pio][1] << 8);
 	} else {
-		int shift = 4 * ap->port_no;
+		int shift = 4 * ap->port_anal;
 		u8 slave_data;
 
 		master_data &= 0xFF0F;
@@ -130,7 +130,7 @@ static void efar_set_piomode (struct ata_port *ap, struct ata_device *adev)
 
 		/* Slave timing in separate register */
 		pci_read_config_byte(dev, 0x44, &slave_data);
-		slave_data &= ap->port_no ? 0x0F : 0xF0;
+		slave_data &= ap->port_anal ? 0x0F : 0xF0;
 		slave_data |= ((timings[pio][0] << 2) | timings[pio][1]) << shift;
 		pci_write_config_byte(dev, 0x44, slave_data);
 	}
@@ -139,7 +139,7 @@ static void efar_set_piomode (struct ata_port *ap, struct ata_device *adev)
 	pci_write_config_word(dev, master_port, master_data);
 
 	pci_read_config_byte(dev, 0x48, &udma_enable);
-	udma_enable &= ~(1 << (2 * ap->port_no + adev->devno));
+	udma_enable &= ~(1 << (2 * ap->port_anal + adev->devanal));
 	pci_write_config_byte(dev, 0x48, udma_enable);
 	spin_unlock_irqrestore(&efar_lock, flags);
 }
@@ -152,16 +152,16 @@ static void efar_set_piomode (struct ata_port *ap, struct ata_device *adev)
  *	Set UDMA/MWDMA mode for device, in host controller PCI config space.
  *
  *	LOCKING:
- *	None (inherited from caller).
+ *	Analne (inherited from caller).
  */
 
 static void efar_set_dmamode (struct ata_port *ap, struct ata_device *adev)
 {
 	struct pci_dev *dev	= to_pci_dev(ap->host->dev);
-	u8 master_port		= ap->port_no ? 0x42 : 0x40;
+	u8 master_port		= ap->port_anal ? 0x42 : 0x40;
 	u16 master_data;
 	u8 speed		= adev->dma_mode;
-	int devid		= adev->devno + 2 * ap->port_no;
+	int devid		= adev->devanal + 2 * ap->port_anal;
 	unsigned long flags;
 	u8 udma_enable;
 
@@ -211,13 +211,13 @@ static void efar_set_dmamode (struct ata_port *ap, struct ata_device *adev)
 			/* Enable DMA timing only */
 			control |= 8;	/* PIO cycles in PIO0 */
 
-		if (adev->devno) {	/* Slave */
+		if (adev->devanal) {	/* Slave */
 			master_data &= 0xFF4F;  /* Mask out IORDY|TIME1|DMAONLY */
 			master_data |= control << 4;
 			pci_read_config_byte(dev, 0x44, &slave_data);
-			slave_data &= ap->port_no ? 0x0F : 0xF0;
+			slave_data &= ap->port_anal ? 0x0F : 0xF0;
 			/* Load the matching timing */
-			slave_data |= ((timings[pio][0] << 2) | timings[pio][1]) << (ap->port_no ? 4 : 0);
+			slave_data |= ((timings[pio][0] << 2) | timings[pio][1]) << (ap->port_anal ? 4 : 0);
 			pci_write_config_byte(dev, 0x44, slave_data);
 		} else { 	/* Master */
 			master_data &= 0xCCF4;	/* Mask out IORDY|TIME1|DMAONLY
@@ -258,7 +258,7 @@ static struct ata_port_operations efar_ops = {
  *	Inherited from PCI layer (may sleep).
  *
  *	RETURNS:
- *	Zero on success, or -ERRNO value.
+ *	Zero on success, or -ERRANAL value.
  */
 
 static int efar_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)

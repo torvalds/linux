@@ -34,7 +34,7 @@ SECTIONS
 		_text = .; 	/* Text */
 		*(.text)
 		*(.text.*)
-		*(.noinstr.text)
+		*(.analinstr.text)
 		_etext = . ;
 	}
 	.rodata : {
@@ -80,7 +80,7 @@ SECTIONS
 	/DISCARD/ : {
 		*(.dynamic) *(.dynsym) *(.dynstr) *(.dynbss)
 		*(.hash) *(.gnu.hash)
-		*(.note.*)
+		*(.analte.*)
 	}
 
 	.got.plt (INFO) : {

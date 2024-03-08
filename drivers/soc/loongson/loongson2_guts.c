@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
  * Author: Yinbo Zhu <zhuyinbo@loongson.cn>
- * Copyright (C) 2022-2023 Loongson Technology Corporation Limited
+ * Copyright (C) 2022-2023 Loongson Techanallogy Corporation Limited
  */
 
 #include <linux/io.h>
@@ -18,8 +18,8 @@ static struct soc_device *soc_dev;
 /*
  * Global Utility Registers.
  *
- * Not all registers defined in this structure are available on all chips, so
- * you are expected to know whether a given register actually exists on your
+ * Analt all registers defined in this structure are available on all chips, so
+ * you are expected to kanalw whether a given register actually exists on your
  * chip before you access it.
  *
  * Also, some registers are similar on different chips but have slightly
@@ -92,7 +92,7 @@ static u32 loongson2_guts_get_svr(void)
 
 static int loongson2_guts_probe(struct platform_device *pdev)
 {
-	struct device_node *root, *np = pdev->dev.of_node;
+	struct device_analde *root, *np = pdev->dev.of_analde;
 	struct device *dev = &pdev->dev;
 	const struct loongson2_soc_die_attr *soc_die;
 	const char *machine;
@@ -101,7 +101,7 @@ static int loongson2_guts_probe(struct platform_device *pdev)
 	/* Initialize guts */
 	guts = devm_kzalloc(dev, sizeof(*guts), GFP_KERNEL);
 	if (!guts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	guts->little_endian = of_property_read_bool(np, "little-endian");
 
@@ -110,10 +110,10 @@ static int loongson2_guts_probe(struct platform_device *pdev)
 		return PTR_ERR(guts->regs);
 
 	/* Register soc device */
-	root = of_find_node_by_path("/");
+	root = of_find_analde_by_path("/");
 	if (of_property_read_string(root, "model", &machine))
 		of_property_read_string_index(root, "compatible", 0, &machine);
-	of_node_put(root);
+	of_analde_put(root);
 	if (machine)
 		soc_dev_attr.machine = devm_kstrdup(dev, machine, GFP_KERNEL);
 
@@ -126,15 +126,15 @@ static int loongson2_guts_probe(struct platform_device *pdev)
 		soc_dev_attr.family = devm_kasprintf(dev, GFP_KERNEL, "Loongson");
 	}
 	if (!soc_dev_attr.family)
-		return -ENOMEM;
+		return -EANALMEM;
 	soc_dev_attr.soc_id = devm_kasprintf(dev, GFP_KERNEL,
 					     "svr:0x%08x", svr);
 	if (!soc_dev_attr.soc_id)
-		return -ENOMEM;
+		return -EANALMEM;
 	soc_dev_attr.revision = devm_kasprintf(dev, GFP_KERNEL, "%d.%d",
 					       (svr >>  4) & 0xf, svr & 0xf);
 	if (!soc_dev_attr.revision)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	soc_dev = soc_device_register(&soc_dev_attr);
 	if (IS_ERR(soc_dev))
@@ -155,7 +155,7 @@ static void loongson2_guts_remove(struct platform_device *dev)
 
 /*
  * Table for matching compatible strings, for device tree
- * guts node, for Loongson-2 SoCs.
+ * guts analde, for Loongson-2 SoCs.
  */
 static const struct of_device_id loongson2_guts_of_match[] = {
 	{ .compatible = "loongson,ls2k-chipid", },

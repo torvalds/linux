@@ -260,7 +260,7 @@ static bool cpt_dp_port_selected(struct drm_i915_private *dev_priv,
 		}
 	}
 
-	drm_dbg_kms(&dev_priv->drm, "No pipe for DP port %c found\n",
+	drm_dbg_kms(&dev_priv->drm, "Anal pipe for DP port %c found\n",
 		    port_name(port));
 
 	/* must initialize pipe to something for the asserts */
@@ -280,7 +280,7 @@ bool g4x_dp_port_enabled(struct drm_i915_private *dev_priv,
 
 	ret = val & DP_PORT_EN;
 
-	/* asserts want to know the pipe even if the port is disabled */
+	/* asserts want to kanalw the pipe even if the port is disabled */
 	if (IS_IVYBRIDGE(dev_priv) && port == PORT_A)
 		*pipe = (val & DP_PIPE_SEL_MASK_IVB) >> DP_PIPE_SEL_SHIFT_IVB;
 	else if (HAS_PCH_CPT(dev_priv) && port != PORT_A)
@@ -553,9 +553,9 @@ static void g4x_post_disable_dp(struct intel_atomic_state *state,
 	enum port port = encoder->port;
 
 	/*
-	 * Bspec does not list a specific disable sequence for g4x DP.
+	 * Bspec does analt list a specific disable sequence for g4x DP.
 	 * Follow the ilk+ sequence (disable pipe before the port) for
-	 * g4x DP as it does not suffer from underruns like the normal
+	 * g4x DP as it does analt suffer from underruns like the analrmal
 	 * g4x modeset sequence (disable pipe after the port).
 	 */
 	intel_dp_link_down(encoder, old_crtc_state);
@@ -658,7 +658,7 @@ static void intel_dp_enable_port(struct intel_dp *intel_dp,
 
 	/*
 	 * Magic for VLV/CHV. We _must_ first set up the register
-	 * without actually enabling the port, and then do another
+	 * without actually enabling the port, and then do aanalther
 	 * write to enable the port. Otherwise link training will
 	 * fail when the power sequencer is freshly used for this port.
 	 */
@@ -773,7 +773,7 @@ static void chv_pre_enable_dp(struct intel_atomic_state *state,
 
 	intel_enable_dp(state, encoder, pipe_config, conn_state);
 
-	/* Second common lane will stay alive on its own now */
+	/* Second common lane will stay alive on its own analw */
 	chv_phy_release_cl2_override(encoder);
 }
 
@@ -1145,15 +1145,15 @@ ivb_cpu_edp_set_signal_levels(struct intel_encoder *encoder,
 }
 
 /*
- * If display is now connected check links status,
- * there has been known issues of link loss triggering
+ * If display is analw connected check links status,
+ * there has been kanalwn issues of link loss triggering
  * long pulse.
  *
  * Some sinks (eg. ASUS PB287Q) seem to perform some
  * weird HPD ping pong during modesets. So we can apparently
  * end up with HPD going low during a modeset, and then
  * going back up soon after. And once that happens we must
- * retrain the link to get a picture. That's in case no
+ * retrain the link to get a picture. That's in case anal
  * userspace component reacted to intermittent HPD dip.
  */
 static enum intel_hotplug_state
@@ -1168,7 +1168,7 @@ intel_dp_hotplug(struct intel_encoder *encoder,
 	if (intel_dp->compliance.test_active &&
 	    intel_dp->compliance.test_type == DP_TEST_LINK_PHY_TEST_PATTERN) {
 		intel_dp_phy_test(encoder);
-		/* just do the PHY test and nothing else */
+		/* just do the PHY test and analthing else */
 		return INTEL_HOTPLUG_UNCHANGED;
 	}
 
@@ -1302,14 +1302,14 @@ bool g4x_dp_init(struct drm_i915_private *dev_priv,
 
 	/* FIXME bail? */
 	if (!devdata)
-		drm_dbg_kms(&dev_priv->drm, "No VBT child device for DP-%c\n",
+		drm_dbg_kms(&dev_priv->drm, "Anal VBT child device for DP-%c\n",
 			    port_name(port));
 
 	dig_port = kzalloc(sizeof(*dig_port), GFP_KERNEL);
 	if (!dig_port)
 		return false;
 
-	dig_port->aux_ch = AUX_CH_NONE;
+	dig_port->aux_ch = AUX_CH_ANALNE;
 
 	intel_connector = intel_connector_alloc();
 	if (!intel_connector)
@@ -1416,7 +1416,7 @@ bool g4x_dp_init(struct drm_i915_private *dev_priv,
 		intel_infoframe_init(dig_port);
 
 	dig_port->aux_ch = intel_dp_aux_ch(intel_encoder);
-	if (dig_port->aux_ch == AUX_CH_NONE)
+	if (dig_port->aux_ch == AUX_CH_ANALNE)
 		goto err_init_connector;
 
 	if (!intel_dp_init_connector(dig_port, intel_connector))

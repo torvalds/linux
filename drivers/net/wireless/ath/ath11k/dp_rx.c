@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #include <linux/ieee80211.h>
@@ -79,7 +79,7 @@ static inline bool ath11k_dp_rx_h_mpdu_start_more_frags(struct ath11k_base *ab,
 	return ieee80211_has_morefrags(hdr->frame_control);
 }
 
-static inline u16 ath11k_dp_rx_h_mpdu_start_frag_no(struct ath11k_base *ab,
+static inline u16 ath11k_dp_rx_h_mpdu_start_frag_anal(struct ath11k_base *ab,
 						    struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr;
@@ -88,10 +88,10 @@ static inline u16 ath11k_dp_rx_h_mpdu_start_frag_no(struct ath11k_base *ab,
 	return le16_to_cpu(hdr->seq_ctrl) & IEEE80211_SCTL_FRAG;
 }
 
-static inline u16 ath11k_dp_rx_h_mpdu_start_seq_no(struct ath11k_base *ab,
+static inline u16 ath11k_dp_rx_h_mpdu_start_seq_anal(struct ath11k_base *ab,
 						   struct hal_rx_desc *desc)
 {
-	return ab->hw_params.hw_ops->rx_desc_get_mpdu_start_seq_no(desc);
+	return ab->hw_params.hw_ops->rx_desc_get_mpdu_start_seq_anal(desc);
 }
 
 static inline void *ath11k_dp_rx_get_attention(struct ath11k_base *ab,
@@ -329,7 +329,7 @@ static int ath11k_dp_purge_mon_ring(struct ath11k_base *ab)
 								 NULL,
 								 DP_MON_SERVICE_BUDGET);
 
-		/* nothing more to reap */
+		/* analthing more to reap */
 		if (reaped < DP_MON_SERVICE_BUDGET)
 			return 0;
 
@@ -724,7 +724,7 @@ static void ath11k_dp_reo_cache_flush(struct ath11k_base *ab,
 	int ret;
 
 	tot_desc_sz = rx_tid->size;
-	desc_sz = ath11k_hal_reo_qdesc_size(0, HAL_DESC_REO_NON_QOS_TID);
+	desc_sz = ath11k_hal_reo_qdesc_size(0, HAL_DESC_REO_ANALN_QOS_TID);
 
 	while (tot_desc_sz > desc_sz) {
 		tot_desc_sz -= desc_sz;
@@ -858,7 +858,7 @@ static int ath11k_dp_rx_link_desc_return(struct ath11k_base *ab,
 
 	desc = ath11k_hal_srng_src_get_next_entry(ab, srng);
 	if (!desc) {
-		ret = -ENOBUFS;
+		ret = -EANALBUFS;
 		goto exit;
 	}
 
@@ -888,7 +888,7 @@ static void ath11k_dp_rx_frags_cleanup(struct dp_rx_tid *rx_tid, bool rel_link_d
 	}
 
 	rx_tid->cur_sn = 0;
-	rx_tid->last_frag_no = 0;
+	rx_tid->last_frag_anal = 0;
 	rx_tid->rx_frag_bitmap = 0;
 	__skb_queue_purge(&rx_tid->rx_frags);
 }
@@ -1013,7 +1013,7 @@ int ath11k_peer_rx_tid_setup(struct ath11k *ar, const u8 *peer_mac, int vdev_id,
 		ath11k_warn(ab, "failed to find the peer %pM to set up rx tid\n",
 			    peer_mac);
 		spin_unlock_bh(&ab->base_lock);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	rx_tid = &peer->rx_tid[tid];
@@ -1045,7 +1045,7 @@ int ath11k_peer_rx_tid_setup(struct ath11k *ar, const u8 *peer_mac, int vdev_id,
 	/* TODO: Optimize the memory allocation for qos tid based on
 	 * the actual BA window size in REO tid update path.
 	 */
-	if (tid == HAL_DESC_REO_NON_QOS_TID)
+	if (tid == HAL_DESC_REO_ANALN_QOS_TID)
 		hw_desc_sz = ath11k_hal_reo_qdesc_size(ba_win_sz, tid);
 	else
 		hw_desc_sz = ath11k_hal_reo_qdesc_size(DP_BA_WIN_SZ_MAX, tid);
@@ -1053,7 +1053,7 @@ int ath11k_peer_rx_tid_setup(struct ath11k *ar, const u8 *peer_mac, int vdev_id,
 	vaddr = kzalloc(hw_desc_sz + HAL_LINK_DESC_ALIGN - 1, GFP_ATOMIC);
 	if (!vaddr) {
 		spin_unlock_bh(&ab->base_lock);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	addr_aligned = PTR_ALIGN(vaddr, HAL_LINK_DESC_ALIGN);
@@ -1130,7 +1130,7 @@ int ath11k_dp_rx_ampdu_stop(struct ath11k *ar,
 	if (!peer) {
 		ath11k_warn(ab, "failed to find the peer to stop rx aggregation\n");
 		spin_unlock_bh(&ab->base_lock);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	paddr = peer->rx_tid[params->tid].paddr;
@@ -1172,9 +1172,9 @@ int ath11k_dp_peer_rx_pn_replay_config(struct ath11k_vif *arvif,
 	u8 tid;
 	int ret = 0;
 
-	/* NOTE: Enable PN/TSC replay check offload only for unicast frames.
+	/* ANALTE: Enable PN/TSC replay check offload only for unicast frames.
 	 * We use mac80211 PN/TSC replay check functionality for bcast/mcast
-	 * for now.
+	 * for analw.
 	 */
 	if (!(key->flags & IEEE80211_KEY_FLAG_PAIRWISE))
 		return 0;
@@ -1207,7 +1207,7 @@ int ath11k_dp_peer_rx_pn_replay_config(struct ath11k_vif *arvif,
 	if (!peer) {
 		ath11k_warn(ab, "failed to find the peer to configure pn replay detection\n");
 		spin_unlock_bh(&ab->base_lock);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	for (tid = 0; tid <= IEEE80211_NUM_TIDS; tid++) {
@@ -1360,7 +1360,7 @@ int ath11k_dp_htt_tlv_iter(struct ath11k_base *ab, const void *ptr, size_t len,
 			return -EINVAL;
 		}
 		ret = iter(ab, tlv_tag, tlv_len, ptr, data);
-		if (ret == -ENOMEM)
+		if (ret == -EANALMEM)
 			return ret;
 
 		ptr += tlv_len;
@@ -1386,7 +1386,7 @@ ath11k_update_per_peer_tx_stats(struct ath11k *ar,
 	u32 succ_bytes = 0;
 	u16 rate = 0, succ_pkts = 0;
 	u32 tx_duration = 0;
-	u8 tid = HTT_PPDU_STATS_NON_QOS_TID;
+	u8 tid = HTT_PPDU_STATS_ANALN_QOS_TID;
 	bool is_ampdu = false;
 
 	if (!(usr_stats->tlv_flags & BIT(HTT_PPDU_STATS_TAG_USR_RATE)))
@@ -1416,7 +1416,7 @@ ath11k_update_per_peer_tx_stats(struct ath11k *ar,
 	sgi = HTT_USR_RATE_GI(user_rate->rate_flags);
 	dcm = HTT_USR_RATE_DCM(user_rate->rate_flags);
 
-	/* Note: If host configured fixed rates and in some other special
+	/* Analte: If host configured fixed rates and in some other special
 	 * cases, the broadcast/management frames are sent in different rates.
 	 * Firmware rate's control to be skipped for this?
 	 */
@@ -1500,7 +1500,7 @@ ath11k_update_per_peer_tx_stats(struct ath11k *ar,
 	/* PPDU stats reported for mgmt packet doesn't have valid tx bytes.
 	 * So skip peer stats update for mgmt packets.
 	 */
-	if (tid < HTT_PPDU_STATS_NON_QOS_TID) {
+	if (tid < HTT_PPDU_STATS_ANALN_QOS_TID) {
 		memset(peer_stats, 0, sizeof(*peer_stats));
 		peer_stats->succ_pkts = succ_pkts;
 		peer_stats->succ_bytes = succ_bytes;
@@ -1671,7 +1671,7 @@ static void ath11k_htt_backpressure_event_handler(struct ath11k_base *ab,
 
 		bp_stats = &ab->soc_stats.bp_stats.lmac_ring_bp_stats[ring_id][pdev_idx];
 	} else {
-		ath11k_warn(ab, "unknown ring type received in htt bp event %d\n",
+		ath11k_warn(ab, "unkanalwn ring type received in htt bp event %d\n",
 			    ring_type);
 		return;
 	}
@@ -1703,7 +1703,7 @@ void ath11k_dp_htt_htc_t2h_msg_handler(struct ath11k_base *ab,
 	case HTT_T2H_MSG_TYPE_VERSION_CONF:
 		dp->htt_tgt_ver_major = FIELD_GET(HTT_T2H_VERSION_CONF_MAJOR,
 						  resp->version_msg.version);
-		dp->htt_tgt_ver_minor = FIELD_GET(HTT_T2H_VERSION_CONF_MINOR,
+		dp->htt_tgt_ver_mianalr = FIELD_GET(HTT_T2H_VERSION_CONF_MIANALR,
 						  resp->version_msg.version);
 		complete(&dp->htt_tgt_version_received);
 		break;
@@ -1753,7 +1753,7 @@ void ath11k_dp_htt_htc_t2h_msg_handler(struct ath11k_base *ab,
 		ath11k_htt_backpressure_event_handler(ab, skb);
 		break;
 	default:
-		ath11k_warn(ab, "htt event %d not handled\n", type);
+		ath11k_warn(ab, "htt event %d analt handled\n", type);
 		break;
 	}
 
@@ -1814,7 +1814,7 @@ static int ath11k_dp_rx_msdu_coalesce(struct ath11k *ar,
 			}
 			dev_kfree_skb_any(skb);
 		}
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	rem_len = msdu_len - buf_first_len;
@@ -1874,7 +1874,7 @@ static void ath11k_dp_rx_h_csum_offload(struct ath11k *ar, struct sk_buff *msdu)
 	l4_csum_fail = ath11k_dp_rx_h_attn_l4_cksum_fail(rx_attention);
 
 	msdu->ip_summed = (ip_csum_fail || l4_csum_fail) ?
-			  CHECKSUM_NONE : CHECKSUM_UNNECESSARY;
+			  CHECKSUM_ANALNE : CHECKSUM_UNNECESSARY;
 }
 
 static int ath11k_dp_rx_crypto_mic_len(struct ath11k *ar,
@@ -1882,7 +1882,7 @@ static int ath11k_dp_rx_crypto_mic_len(struct ath11k *ar,
 {
 	switch (enctype) {
 	case HAL_ENCRYPT_TYPE_OPEN:
-	case HAL_ENCRYPT_TYPE_TKIP_NO_MIC:
+	case HAL_ENCRYPT_TYPE_TKIP_ANAL_MIC:
 	case HAL_ENCRYPT_TYPE_TKIP_MIC:
 		return 0;
 	case HAL_ENCRYPT_TYPE_CCMP_128:
@@ -1910,7 +1910,7 @@ static int ath11k_dp_rx_crypto_param_len(struct ath11k *ar,
 	switch (enctype) {
 	case HAL_ENCRYPT_TYPE_OPEN:
 		return 0;
-	case HAL_ENCRYPT_TYPE_TKIP_NO_MIC:
+	case HAL_ENCRYPT_TYPE_TKIP_ANAL_MIC:
 	case HAL_ENCRYPT_TYPE_TKIP_MIC:
 		return IEEE80211_TKIP_IV_LEN;
 	case HAL_ENCRYPT_TYPE_CCMP_128:
@@ -1942,7 +1942,7 @@ static int ath11k_dp_rx_crypto_icv_len(struct ath11k *ar,
 	case HAL_ENCRYPT_TYPE_GCMP_128:
 	case HAL_ENCRYPT_TYPE_AES_GCMP_256:
 		return 0;
-	case HAL_ENCRYPT_TYPE_TKIP_NO_MIC:
+	case HAL_ENCRYPT_TYPE_TKIP_ANAL_MIC:
 	case HAL_ENCRYPT_TYPE_TKIP_MIC:
 		return IEEE80211_TKIP_ICV_LEN;
 	case HAL_ENCRYPT_TYPE_WEP_40:
@@ -2260,7 +2260,7 @@ static void ath11k_dp_rx_h_mpdu(struct ath11k *ar,
 
 	if (rxcb->is_mcbc) {
 		rxcb->peer_id = ath11k_dp_rx_h_mpdu_start_peer_id(ar->ab, rx_desc);
-		rxcb->seq_no = ath11k_dp_rx_h_mpdu_start_seq_no(ar->ab, rx_desc);
+		rxcb->seq_anal = ath11k_dp_rx_h_mpdu_start_seq_anal(ar->ab, rx_desc);
 	}
 
 	spin_lock_bh(&ar->ab->base_lock);
@@ -2400,7 +2400,7 @@ static void ath11k_dp_rx_h_ppdu(struct ath11k *ar, struct hal_rx_desc *rx_desc,
 	rx_status->encoding = RX_ENC_LEGACY;
 	rx_status->bw = RATE_INFO_BW_20;
 
-	rx_status->flag |= RX_FLAG_NO_SIGNAL_VAL;
+	rx_status->flag |= RX_FLAG_ANAL_SIGNAL_VAL;
 
 	meta_data = ath11k_dp_rx_h_msdu_start_freq(ar->ab, rx_desc);
 	channel_num = meta_data;
@@ -2438,10 +2438,10 @@ static void ath11k_dp_rx_deliver_msdu(struct ath11k *ar, struct napi_struct *nap
 				      struct sk_buff *msdu,
 				      struct ieee80211_rx_status *status)
 {
-	static const struct ieee80211_radiotap_he known = {
-		.data1 = cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA1_DATA_MCS_KNOWN |
-				     IEEE80211_RADIOTAP_HE_DATA1_BW_RU_ALLOC_KNOWN),
-		.data2 = cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA2_GI_KNOWN),
+	static const struct ieee80211_radiotap_he kanalwn = {
+		.data1 = cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA1_DATA_MCS_KANALWN |
+				     IEEE80211_RADIOTAP_HE_DATA1_BW_RU_ALLOC_KANALWN),
+		.data2 = cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA2_GI_KANALWN),
 	};
 	struct ieee80211_rx_status *rx_status;
 	struct ieee80211_radiotap_he *he = NULL;
@@ -2455,8 +2455,8 @@ static void ath11k_dp_rx_deliver_msdu(struct ath11k *ar, struct napi_struct *nap
 	if (status->encoding == RX_ENC_HE &&
 	    !(status->flag & RX_FLAG_RADIOTAP_HE) &&
 	    !(status->flag & RX_FLAG_SKIP_MONITOR)) {
-		he = skb_push(msdu, sizeof(known));
-		memcpy(he, &known, sizeof(known));
+		he = skb_push(msdu, sizeof(kanalwn));
+		memcpy(he, &kanalwn, sizeof(kanalwn));
 		status->flag |= RX_FLAG_RADIOTAP_HE;
 	}
 
@@ -2476,7 +2476,7 @@ static void ath11k_dp_rx_deliver_msdu(struct ath11k *ar, struct napi_struct *nap
 		   peer ? peer->addr : NULL,
 		   rxcb->tid,
 		   is_mcbc ? "mcast" : "ucast",
-		   rxcb->seq_no,
+		   rxcb->seq_anal,
 		   (status->encoding == RX_ENC_LEGACY) ? "legacy" : "",
 		   (status->encoding == RX_ENC_HT) ? "ht" : "",
 		   (status->encoding == RX_ENC_VHT) ? "vht" : "",
@@ -2501,7 +2501,7 @@ static void ath11k_dp_rx_deliver_msdu(struct ath11k *ar, struct napi_struct *nap
 
 	/* TODO: trace rx packet */
 
-	/* PN for multicast packets are not validate in HW,
+	/* PN for multicast packets are analt validate in HW,
 	 * so skip 802.3 rx path
 	 * Also, fast_rx expects the STA to be authorized, hence
 	 * eapol packets are sent in slow path.
@@ -2532,14 +2532,14 @@ static int ath11k_dp_rx_process_msdu(struct ath11k *ar,
 	last_buf = ath11k_dp_rx_get_msdu_last_buf(msdu_list, msdu);
 	if (!last_buf) {
 		ath11k_warn(ab,
-			    "No valid Rx buffer to access Atten/MSDU_END/MPDU_END tlvs\n");
+			    "Anal valid Rx buffer to access Atten/MSDU_END/MPDU_END tlvs\n");
 		ret = -EIO;
 		goto free_out;
 	}
 
 	rx_desc = (struct hal_rx_desc *)msdu->data;
 	if (ath11k_dp_rx_h_attn_msdu_len_err(ab, rx_desc)) {
-		ath11k_warn(ar->ab, "msdu len not valid\n");
+		ath11k_warn(ar->ab, "msdu len analt valid\n");
 		ret = -EIO;
 		goto free_out;
 	}
@@ -2547,7 +2547,7 @@ static int ath11k_dp_rx_process_msdu(struct ath11k *ar,
 	lrx_desc = (struct hal_rx_desc *)last_buf->data;
 	rx_attention = ath11k_dp_rx_get_attention(ab, lrx_desc);
 	if (!ath11k_dp_rx_h_attn_msdu_done(rx_attention)) {
-		ath11k_warn(ab, "msdu_done bit in attention is not set\n");
+		ath11k_warn(ab, "msdu_done bit in attention is analt set\n");
 		ret = -EIO;
 		goto free_out;
 	}
@@ -2710,7 +2710,7 @@ try_again:
 					   RX_MSDU_DESC_INFO0_MSDU_CONTINUATION);
 		rxcb->peer_id = FIELD_GET(RX_MPDU_DESC_META_DATA_PEER_ID,
 					  desc->rx_mpdu_info.meta_data);
-		rxcb->seq_no = FIELD_GET(RX_MPDU_DESC_INFO0_SEQ_NUM,
+		rxcb->seq_anal = FIELD_GET(RX_MPDU_DESC_INFO0_SEQ_NUM,
 					 desc->rx_mpdu_info.info0);
 		rxcb->tid = FIELD_GET(HAL_REO_DEST_RING_INFO0_RX_QUEUE_NUM,
 				      desc->info0);
@@ -2731,7 +2731,7 @@ try_again:
 
 	/* Hw might have updated the head pointer after we cached it.
 	 * In this case, even though there are entries in the ring we'll
-	 * get rx_desc NULL. Give the read another try with updated cached
+	 * get rx_desc NULL. Give the read aanalther try with updated cached
 	 * head pointer so that we can reap complete MPDU in the current
 	 * rx processing.
 	 */
@@ -2825,7 +2825,7 @@ static void ath11k_dp_rx_update_peer_stats(struct ath11k_sta *arsta,
 	if (ppdu_info->num_mpdu_fcs_ok > 1)
 		rx_stats->ampdu_msdu_count += num_msdu;
 	else
-		rx_stats->non_ampdu_msdu_count += num_msdu;
+		rx_stats->analn_ampdu_msdu_count += num_msdu;
 
 	rx_stats->num_mpdu_fcs_ok += ppdu_info->num_mpdu_fcs_ok;
 	rx_stats->num_mpdu_fcs_err += ppdu_info->num_mpdu_fcs_err;
@@ -3054,7 +3054,7 @@ static int ath11k_dp_rx_reap_mon_status_ring(struct ath11k_base *ab, int mac_id,
 			tlv = (struct hal_tlv_hdr *)skb->data;
 			if (FIELD_GET(HAL_TLV_HDR_TAG, tlv->tl) !=
 					HAL_RX_STATUS_BUFFER_DONE) {
-				ath11k_warn(ab, "mon status DONE not set %lx, buf_id %d\n",
+				ath11k_warn(ab, "mon status DONE analt set %lx, buf_id %d\n",
 					    FIELD_GET(HAL_TLV_HDR_TAG,
 						      tlv->tl), buf_id);
 				/* If done status is missing, hold onto status
@@ -3064,7 +3064,7 @@ static int ath11k_dp_rx_reap_mon_status_ring(struct ath11k_base *ab, int mac_id,
 				 * and break from here.
 				 * Check status for same buffer for next time
 				 */
-				pmon->buf_state = DP_MON_STATUS_NO_DMA;
+				pmon->buf_state = DP_MON_STATUS_ANAL_DMA;
 				break;
 			}
 
@@ -3118,8 +3118,8 @@ static void ath11k_dp_rx_frag_timer(struct timer_list *timer)
 	struct dp_rx_tid *rx_tid = from_timer(rx_tid, timer, frag_timer);
 
 	spin_lock_bh(&rx_tid->ab->base_lock);
-	if (rx_tid->last_frag_no &&
-	    rx_tid->rx_frag_bitmap == GENMASK(rx_tid->last_frag_no, 0)) {
+	if (rx_tid->last_frag_anal &&
+	    rx_tid->rx_frag_bitmap == GENMASK(rx_tid->last_frag_anal, 0)) {
 		spin_unlock_bh(&rx_tid->ab->base_lock);
 		return;
 	}
@@ -3149,7 +3149,7 @@ int ath11k_peer_rx_frag_setup(struct ath11k *ar, const u8 *peer_mac, int vdev_id
 		ath11k_warn(ab, "failed to find the peer to set up fragment info\n");
 		spin_unlock_bh(&ab->base_lock);
 		crypto_free_shash(tfm);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	for (i = 0; i <= IEEE80211_NUM_TIDS; i++) {
@@ -3344,7 +3344,7 @@ static int ath11k_dp_rx_h_defrag(struct ath11k *ar,
 	extra_space = msdu_len - (DP_RX_BUFFER_SIZE + skb_tailroom(first_frag));
 	if (extra_space > 0 &&
 	    (pskb_expand_head(first_frag, 0, extra_space, GFP_ATOMIC) < 0))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	__skb_unlink(first_frag, &rx_tid->rx_frags);
 	while ((skb = __skb_dequeue(&rx_tid->rx_frags))) {
@@ -3409,14 +3409,14 @@ static int ath11k_dp_rx_h_defrag_reo_reinject(struct ath11k *ar, struct dp_rx_ti
 			       defrag_skb->len + skb_tailroom(defrag_skb),
 			       DMA_TO_DEVICE);
 	if (dma_mapping_error(ab->dev, paddr))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_bh(&rx_refill_ring->idr_lock);
 	buf_id = idr_alloc(&rx_refill_ring->bufs_idr, defrag_skb, 0,
 			   rx_refill_ring->bufs_max * 3, GFP_ATOMIC);
 	spin_unlock_bh(&rx_refill_ring->idr_lock);
 	if (buf_id < 0) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_unmap_dma;
 	}
 
@@ -3438,7 +3438,7 @@ static int ath11k_dp_rx_h_defrag_reo_reinject(struct ath11k *ar, struct dp_rx_ti
 	if (!reo_ent_ring) {
 		ath11k_hal_srng_access_end(ab, srng);
 		spin_unlock_bh(&srng->lock);
-		ret = -ENOSPC;
+		ret = -EANALSPC;
 		goto err_free_idr;
 	}
 	memset(reo_ent_ring, 0, sizeof(*reo_ent_ring));
@@ -3482,8 +3482,8 @@ static int ath11k_dp_rx_h_cmp_frags(struct ath11k *ar,
 {
 	int frag1, frag2;
 
-	frag1 = ath11k_dp_rx_h_mpdu_start_frag_no(ar->ab, a);
-	frag2 = ath11k_dp_rx_h_mpdu_start_frag_no(ar->ab, b);
+	frag1 = ath11k_dp_rx_h_mpdu_start_frag_anal(ar->ab, a);
+	frag2 = ath11k_dp_rx_h_mpdu_start_frag_anal(ar->ab, b);
 
 	return frag1 - frag2;
 }
@@ -3567,7 +3567,7 @@ static int ath11k_dp_rx_frag_h_mpdu(struct ath11k *ar,
 	struct dp_rx_tid *rx_tid;
 	struct sk_buff *defrag_skb = NULL;
 	u32 peer_id;
-	u16 seqno, frag_no;
+	u16 seqanal, frag_anal;
 	u8 tid;
 	int ret = 0;
 	bool more_frags;
@@ -3576,12 +3576,12 @@ static int ath11k_dp_rx_frag_h_mpdu(struct ath11k *ar,
 	rx_desc = (struct hal_rx_desc *)msdu->data;
 	peer_id = ath11k_dp_rx_h_mpdu_start_peer_id(ar->ab, rx_desc);
 	tid = ath11k_dp_rx_h_mpdu_start_tid(ar->ab, rx_desc);
-	seqno = ath11k_dp_rx_h_mpdu_start_seq_no(ar->ab, rx_desc);
-	frag_no = ath11k_dp_rx_h_mpdu_start_frag_no(ar->ab, msdu);
+	seqanal = ath11k_dp_rx_h_mpdu_start_seq_anal(ar->ab, rx_desc);
+	frag_anal = ath11k_dp_rx_h_mpdu_start_frag_anal(ar->ab, msdu);
 	more_frags = ath11k_dp_rx_h_mpdu_start_more_frags(ar->ab, msdu);
 	is_mcbc = ath11k_dp_rx_h_attn_is_mcbc(ar->ab, rx_desc);
 
-	/* Multicast/Broadcast fragments are not expected */
+	/* Multicast/Broadcast fragments are analt expected */
 	if (is_mcbc)
 		return -EINVAL;
 
@@ -3595,7 +3595,7 @@ static int ath11k_dp_rx_frag_h_mpdu(struct ath11k *ar,
 	 * as these packets typically come from
 	 * reo2sw srngs.
 	 */
-	if (WARN_ON_ONCE(!frag_no && !more_frags))
+	if (WARN_ON_ONCE(!frag_anal && !more_frags))
 		return -EINVAL;
 
 	spin_lock_bh(&ab->base_lock);
@@ -3603,46 +3603,46 @@ static int ath11k_dp_rx_frag_h_mpdu(struct ath11k *ar,
 	if (!peer) {
 		ath11k_warn(ab, "failed to find the peer to de-fragment received fragment peer_id %d\n",
 			    peer_id);
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto out_unlock;
 	}
 	if (!peer->dp_setup_done) {
 		ath11k_warn(ab, "The peer %pM [%d] has uninitialized datapath\n",
 			    peer->addr, peer_id);
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto out_unlock;
 	}
 
 	rx_tid = &peer->rx_tid[tid];
 
-	if ((!skb_queue_empty(&rx_tid->rx_frags) && seqno != rx_tid->cur_sn) ||
+	if ((!skb_queue_empty(&rx_tid->rx_frags) && seqanal != rx_tid->cur_sn) ||
 	    skb_queue_empty(&rx_tid->rx_frags)) {
 		/* Flush stored fragments and start a new sequence */
 		ath11k_dp_rx_frags_cleanup(rx_tid, true);
-		rx_tid->cur_sn = seqno;
+		rx_tid->cur_sn = seqanal;
 	}
 
-	if (rx_tid->rx_frag_bitmap & BIT(frag_no)) {
+	if (rx_tid->rx_frag_bitmap & BIT(frag_anal)) {
 		/* Fragment already present */
 		ret = -EINVAL;
 		goto out_unlock;
 	}
 
-	if (!rx_tid->rx_frag_bitmap || (frag_no > __fls(rx_tid->rx_frag_bitmap)))
+	if (!rx_tid->rx_frag_bitmap || (frag_anal > __fls(rx_tid->rx_frag_bitmap)))
 		__skb_queue_tail(&rx_tid->rx_frags, msdu);
 	else
 		ath11k_dp_rx_h_sort_frags(ar, &rx_tid->rx_frags, msdu);
 
-	rx_tid->rx_frag_bitmap |= BIT(frag_no);
+	rx_tid->rx_frag_bitmap |= BIT(frag_anal);
 	if (!more_frags)
-		rx_tid->last_frag_no = frag_no;
+		rx_tid->last_frag_anal = frag_anal;
 
-	if (frag_no == 0) {
+	if (frag_anal == 0) {
 		rx_tid->dst_ring_desc = kmemdup(ring_desc,
 						sizeof(*rx_tid->dst_ring_desc),
 						GFP_ATOMIC);
 		if (!rx_tid->dst_ring_desc) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out_unlock;
 		}
 	} else {
@@ -3650,8 +3650,8 @@ static int ath11k_dp_rx_frag_h_mpdu(struct ath11k *ar,
 					      HAL_WBM_REL_BM_ACT_PUT_IN_IDLE);
 	}
 
-	if (!rx_tid->last_frag_no ||
-	    rx_tid->rx_frag_bitmap != GENMASK(rx_tid->last_frag_no, 0)) {
+	if (!rx_tid->last_frag_anal ||
+	    rx_tid->rx_frag_bitmap != GENMASK(rx_tid->last_frag_anal, 0)) {
 		mod_timer(&rx_tid->frag_timer, jiffies +
 					       ATH11K_DP_RX_FRAGMENT_TIMEOUT_MS);
 		goto out_unlock;
@@ -3918,7 +3918,7 @@ static int ath11k_dp_rx_h_null_q_desc(struct ath11k *ar, struct sk_buff *msdu,
 	rx_attention = ath11k_dp_rx_get_attention(ar->ab, desc);
 	if (!ath11k_dp_rx_h_attn_msdu_done(rx_attention)) {
 		ath11k_warn(ar->ab,
-			    "msdu_done bit not set in null_q_des processing\n");
+			    "msdu_done bit analt set in null_q_des processing\n");
 		__skb_queue_purge(msdu_list);
 		return -EIO;
 	}
@@ -3927,8 +3927,8 @@ static int ath11k_dp_rx_h_null_q_desc(struct ath11k *ar, struct sk_buff *msdu,
 	 * REO queue for a given peer or a given TID. This typically
 	 * may happen if a packet is received on a QOS enabled TID before the
 	 * ADDBA negotiation for that TID, when the TID queue is setup. Or
-	 * it may also happen for MC/BC frames if they are not routed to the
-	 * non-QOS TID queue, in the absence of any other default TID queue.
+	 * it may also happen for MC/BC frames if they are analt routed to the
+	 * analn-QOS TID queue, in the absence of any other default TID queue.
 	 * This error can show up both in a REO destination or WBM release ring.
 	 */
 
@@ -3952,8 +3952,8 @@ static int ath11k_dp_rx_h_null_q_desc(struct ath11k *ar, struct sk_buff *msdu,
 
 	rxcb->tid = ath11k_dp_rx_h_mpdu_start_tid(ar->ab, desc);
 
-	/* Please note that caller will having the access to msdu and completing
-	 * rx with mac80211. Need not worry about cleaning up amsdu_list.
+	/* Please analte that caller will having the access to msdu and completing
+	 * rx with mac80211. Need analt worry about cleaning up amsdu_list.
 	 */
 
 	return 0;
@@ -3974,7 +3974,7 @@ static bool ath11k_dp_rx_h_reo_err(struct ath11k *ar, struct sk_buff *msdu,
 			drop = true;
 		break;
 	case HAL_REO_DEST_RING_ERROR_CODE_PN_CHECK_FAILED:
-		/* TODO: Do not drop PN failed packets in the driver;
+		/* TODO: Do analt drop PN failed packets in the driver;
 		 * instead, it is good to drop such packets in mac80211
 		 * after incrementing the replay counters.
 		 */
@@ -4326,7 +4326,7 @@ void ath11k_dp_process_reo_status(struct ath11k_base *ab)
 								  &reo_status);
 			break;
 		default:
-			ath11k_warn(ab, "Unknown reo status type %d\n", tag);
+			ath11k_warn(ab, "Unkanalwn reo status type %d\n", tag);
 			continue;
 		}
 
@@ -4499,7 +4499,7 @@ int ath11k_dp_rx_monitor_link_desc_return(struct ath11k *ar,
 	} else {
 		ath11k_dbg(ar->ab, ATH11K_DBG_DATA,
 			   "Monitor Link Desc Ring %d Full", mac_id);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 	}
 
 	ath11k_hal_srng_access_end(ar->ab, hal_srng);
@@ -4532,7 +4532,7 @@ static int ath11k_dp_pkt_set_pktlen(struct sk_buff *skb, u32 len)
 					      len - skb->len - skb_tailroom(skb),
 					      GFP_ATOMIC))) {
 				dev_kfree_skb_any(skb);
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 		}
 		skb_put(skb, (len - skb->len));
@@ -4589,11 +4589,11 @@ static u32 ath11k_dp_rx_mon_comp_ppduid(u32 msdu_ppdu_id, u32 *ppdu_id,
 	u32 ret = 0;
 
 	if ((*ppdu_id < msdu_ppdu_id) &&
-	    ((msdu_ppdu_id - *ppdu_id) < DP_NOT_PPDU_ID_WRAP_AROUND)) {
+	    ((msdu_ppdu_id - *ppdu_id) < DP_ANALT_PPDU_ID_WRAP_AROUND)) {
 		*ppdu_id = msdu_ppdu_id;
 		ret = msdu_ppdu_id;
 	} else if ((*ppdu_id > msdu_ppdu_id) &&
-		((*ppdu_id - msdu_ppdu_id) > DP_NOT_PPDU_ID_WRAP_AROUND)) {
+		((*ppdu_id - msdu_ppdu_id) > DP_ANALT_PPDU_ID_WRAP_AROUND)) {
 		/* mon_dst is behind than mon_status
 		 * skip dst_ring and free it
 		 */
@@ -4913,7 +4913,7 @@ ath11k_dp_rx_mon_merg_msdus(struct ath11k *ar,
 			   prev_buf, prev_buf->len);
 	} else {
 		ath11k_dbg(ab, ATH11K_DBG_DATA,
-			   "decap format %d is not supported!\n",
+			   "decap format %d is analt supported!\n",
 			   decap_format);
 		goto err_merge_fail;
 	}
@@ -4981,7 +4981,7 @@ static void ath11k_update_radiotap(struct ath11k *ar,
 	u8 *ptr = NULL;
 
 	rxs->flag |= RX_FLAG_MACTIME_START;
-	rxs->signal = ppduinfo->rssi_comb + ATH11K_DEFAULT_NOISE_FLOOR;
+	rxs->signal = ppduinfo->rssi_comb + ATH11K_DEFAULT_ANALISE_FLOOR;
 
 	if (ppduinfo->nss)
 		rxs->nss = ppduinfo->nss;
@@ -5070,7 +5070,7 @@ mon_deliver_fail:
 	return -EINVAL;
 }
 
-/* The destination ring processing is stuck if the destination is not
+/* The destination ring processing is stuck if the destination is analt
  * moving while status ring moves 16 PPDU. The destination ring processing
  * skips this destination ring PPDU as a workaround.
  */
@@ -5123,16 +5123,16 @@ static void ath11k_dp_rx_mon_dest_process(struct ath11k *ar, int mac_id,
 			dp->mon_dest_ring_stuck_cnt = 0;
 		} else {
 			dp->mon_dest_ring_stuck_cnt++;
-			rx_mon_stats->dest_mon_not_reaped++;
+			rx_mon_stats->dest_mon_analt_reaped++;
 		}
 
 		if (dp->mon_dest_ring_stuck_cnt > MON_DEST_RING_STUCK_MAX_CNT) {
 			rx_mon_stats->dest_mon_stuck++;
 			ath11k_dbg(ar->ab, ATH11K_DBG_DATA,
-				   "status ring ppdu_id=%d dest ring ppdu_id=%d mon_dest_ring_stuck_cnt=%d dest_mon_not_reaped=%u dest_mon_stuck=%u\n",
+				   "status ring ppdu_id=%d dest ring ppdu_id=%d mon_dest_ring_stuck_cnt=%d dest_mon_analt_reaped=%u dest_mon_stuck=%u\n",
 				   pmon->mon_ppdu_info.ppdu_id, ppdu_id,
 				   dp->mon_dest_ring_stuck_cnt,
-				   rx_mon_stats->dest_mon_not_reaped,
+				   rx_mon_stats->dest_mon_analt_reaped,
 				   rx_mon_stats->dest_mon_stuck);
 			pmon->mon_ppdu_info.ppdu_id = ppdu_id;
 			continue;
@@ -5141,9 +5141,9 @@ static void ath11k_dp_rx_mon_dest_process(struct ath11k *ar, int mac_id,
 		if (ppdu_id != pmon->mon_ppdu_info.ppdu_id) {
 			pmon->mon_ppdu_status = DP_PPDU_STATUS_START;
 			ath11k_dbg(ar->ab, ATH11K_DBG_DATA,
-				   "dest_rx: new ppdu_id %x != status ppdu_id %x dest_mon_not_reaped = %u dest_mon_stuck = %u\n",
+				   "dest_rx: new ppdu_id %x != status ppdu_id %x dest_mon_analt_reaped = %u dest_mon_stuck = %u\n",
 				   ppdu_id, pmon->mon_ppdu_info.ppdu_id,
-				   rx_mon_stats->dest_mon_not_reaped,
+				   rx_mon_stats->dest_mon_analt_reaped,
 				   rx_mon_stats->dest_mon_stuck);
 			break;
 		}
@@ -5428,7 +5428,7 @@ static int ath11k_dp_rx_full_mon_prepare_mpdu(struct ath11k_dp *dp,
 {
 	mon_mpdu = kzalloc(sizeof(*mon_mpdu), GFP_ATOMIC);
 	if (!mon_mpdu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	list_add_tail(&mon_mpdu->list, &dp->dp_full_mon_mpdu_list);
 	mon_mpdu->head = head;
@@ -5663,7 +5663,7 @@ int ath11k_dp_rx_pdev_mon_attach(struct ath11k *ar)
 		return ret;
 	}
 
-	/* if rxdma1_enable is false, no need to setup
+	/* if rxdma1_enable is false, anal need to setup
 	 * rxdma_mon_desc_ring.
 	 */
 	if (!ar->ab->hw_params.rxdma1_enable)

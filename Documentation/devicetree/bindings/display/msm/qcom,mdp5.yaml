@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/display/msm/qcom,mdp5.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm Adreno/Snapdragon Mobile Display controller (MDP5)
+title: Qualcomm Adreanal/Snapdragon Mobile Display controller (MDP5)
 
 description:
   MDP5 display controller found in SoCs like MSM8974, APQ8084, MSM8916, MSM8994
@@ -34,7 +34,7 @@ properties:
               - qcom,sdm660-mdp5
           - const: qcom,mdp5
 
-  $nodename:
+  $analdename:
     pattern: '^display-controller@[0-9a-f]+$'
 
   reg:

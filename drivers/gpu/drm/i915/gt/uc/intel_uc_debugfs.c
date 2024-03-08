@@ -21,17 +21,17 @@ static int uc_usage_show(struct seq_file *m, void *data)
 	struct drm_printer p = drm_seq_file_printer(m);
 
 	drm_printf(&p, "[guc] supported:%s wanted:%s used:%s\n",
-		   str_yes_no(intel_uc_supports_guc(uc)),
-		   str_yes_no(intel_uc_wants_guc(uc)),
-		   str_yes_no(intel_uc_uses_guc(uc)));
+		   str_anal_anal(intel_uc_supports_guc(uc)),
+		   str_anal_anal(intel_uc_wants_guc(uc)),
+		   str_anal_anal(intel_uc_uses_guc(uc)));
 	drm_printf(&p, "[huc] supported:%s wanted:%s used:%s\n",
-		   str_yes_no(intel_uc_supports_huc(uc)),
-		   str_yes_no(intel_uc_wants_huc(uc)),
-		   str_yes_no(intel_uc_uses_huc(uc)));
+		   str_anal_anal(intel_uc_supports_huc(uc)),
+		   str_anal_anal(intel_uc_wants_huc(uc)),
+		   str_anal_anal(intel_uc_uses_huc(uc)));
 	drm_printf(&p, "[submission] supported:%s wanted:%s used:%s\n",
-		   str_yes_no(intel_uc_supports_guc_submission(uc)),
-		   str_yes_no(intel_uc_wants_guc_submission(uc)),
-		   str_yes_no(intel_uc_uses_guc_submission(uc)));
+		   str_anal_anal(intel_uc_supports_guc_submission(uc)),
+		   str_anal_anal(intel_uc_wants_guc_submission(uc)),
+		   str_anal_anal(intel_uc_uses_guc_submission(uc)));
 
 	return 0;
 }
@@ -47,7 +47,7 @@ void intel_uc_debugfs_register(struct intel_uc *uc, struct dentry *gt_root)
 	if (!gt_root)
 		return;
 
-	/* GuC and HuC go always in pair, no need to check both */
+	/* GuC and HuC go always in pair, anal need to check both */
 	if (!intel_uc_supports_guc(uc))
 		return;
 
@@ -55,7 +55,7 @@ void intel_uc_debugfs_register(struct intel_uc *uc, struct dentry *gt_root)
 	if (IS_ERR(root))
 		return;
 
-	uc->guc.dbgfs_node = root;
+	uc->guc.dbgfs_analde = root;
 
 	intel_gt_debugfs_register_files(root, files, ARRAY_SIZE(files), uc);
 

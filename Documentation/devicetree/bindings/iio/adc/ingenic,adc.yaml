@@ -49,11 +49,11 @@ properties:
     description:
       If present, battery voltage is read from the VBAT_IR pin, which has an
       internal 1/4 divider. If absent, it is read through the VBAT_ER pin,
-      which does not have such a divider.
+      which does analt have such a divider.
     type: boolean
 
 if:
-  not:
+  analt:
     properties:
       compatible:
         contains:

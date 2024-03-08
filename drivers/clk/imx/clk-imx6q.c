@@ -151,7 +151,7 @@ static int ldb_di_sel_by_clock_id(int clock_id)
 	case IMX6QDL_CLK_PLL5_VIDEO_DIV:
 		if (clk_on_imx6q() &&
 		    imx_get_soc_revision() == IMX_CHIP_REVISION_1_0)
-			return -ENOENT;
+			return -EANALENT;
 		return 0;
 	case IMX6QDL_CLK_PLL2_PFD0_352M:
 		return 1;
@@ -162,11 +162,11 @@ static int ldb_di_sel_by_clock_id(int clock_id)
 	case IMX6QDL_CLK_PLL3_USB_OTG:
 		return 4;
 	default:
-		return -ENOENT;
+		return -EANALENT;
 	}
 }
 
-static void of_assigned_ldb_sels(struct device_node *node,
+static void of_assigned_ldb_sels(struct device_analde *analde,
 				 unsigned int *ldb_di0_sel,
 				 unsigned int *ldb_di1_sel)
 {
@@ -174,30 +174,30 @@ static void of_assigned_ldb_sels(struct device_node *node,
 	int index, rc, num_parents;
 	int parent, child, sel;
 
-	num_parents = of_count_phandle_with_args(node, "assigned-clock-parents",
+	num_parents = of_count_phandle_with_args(analde, "assigned-clock-parents",
 						 "#clock-cells");
 	for (index = 0; index < num_parents; index++) {
-		rc = of_parse_phandle_with_args(node, "assigned-clock-parents",
+		rc = of_parse_phandle_with_args(analde, "assigned-clock-parents",
 					"#clock-cells", index, &clkspec);
 		if (rc < 0) {
 			/* skip empty (null) phandles */
-			if (rc == -ENOENT)
+			if (rc == -EANALENT)
 				continue;
 			else
 				return;
 		}
-		if (clkspec.np != node || clkspec.args[0] >= IMX6QDL_CLK_END) {
-			pr_err("ccm: parent clock %d not in ccm\n", index);
+		if (clkspec.np != analde || clkspec.args[0] >= IMX6QDL_CLK_END) {
+			pr_err("ccm: parent clock %d analt in ccm\n", index);
 			return;
 		}
 		parent = clkspec.args[0];
 
-		rc = of_parse_phandle_with_args(node, "assigned-clocks",
+		rc = of_parse_phandle_with_args(analde, "assigned-clocks",
 				"#clock-cells", index, &clkspec);
 		if (rc < 0)
 			return;
-		if (clkspec.np != node || clkspec.args[0] >= IMX6QDL_CLK_END) {
-			pr_err("ccm: child clock %d not in ccm\n", index);
+		if (clkspec.np != analde || clkspec.args[0] >= IMX6QDL_CLK_END) {
+			pr_err("ccm: child clock %d analt in ccm\n", index);
 			return;
 		}
 		child = clkspec.args[0];
@@ -220,33 +220,33 @@ static void of_assigned_ldb_sels(struct device_node *node,
 	}
 }
 
-static bool pll6_bypassed(struct device_node *node)
+static bool pll6_bypassed(struct device_analde *analde)
 {
 	int index, ret, num_clocks;
 	struct of_phandle_args clkspec;
 
-	num_clocks = of_count_phandle_with_args(node, "assigned-clocks",
+	num_clocks = of_count_phandle_with_args(analde, "assigned-clocks",
 						"#clock-cells");
 	if (num_clocks < 0)
 		return false;
 
 	for (index = 0; index < num_clocks; index++) {
-		ret = of_parse_phandle_with_args(node, "assigned-clocks",
+		ret = of_parse_phandle_with_args(analde, "assigned-clocks",
 						 "#clock-cells", index,
 						 &clkspec);
 		if (ret < 0)
 			return false;
 
-		if (clkspec.np == node &&
+		if (clkspec.np == analde &&
 		    clkspec.args[0] == IMX6QDL_PLL6_BYPASS)
 			break;
 	}
 
-	/* PLL6 bypass is not part of the assigned clock list */
+	/* PLL6 bypass is analt part of the assigned clock list */
 	if (index == num_clocks)
 		return false;
 
-	ret = of_parse_phandle_with_args(node, "assigned-clock-parents",
+	ret = of_parse_phandle_with_args(analde, "assigned-clock-parents",
 					 "#clock-cells", index, &clkspec);
 
 	if (clkspec.args[0] != IMX6QDL_CLK_PLL6)
@@ -266,7 +266,7 @@ static bool pll6_bypassed(struct device_node *node)
 /*
  * The only way to disable the MMDC_CH1 clock is to move it to pll3_sw_clk
  * via periph2_clk2_sel and then to disable pll3_sw_clk by selecting the
- * bypass clock source, since there is no CG bit for mmdc_ch1.
+ * bypass clock source, since there is anal CG bit for mmdc_ch1.
  */
 static void mmdc_ch1_disable(void __iomem *ccm_base)
 {
@@ -298,8 +298,8 @@ static void mmdc_ch1_reenable(void __iomem *ccm_base)
  *
  * 1. The current and new parent clock inputs to the mux must be disabled.
  * 2. The default clock input for ldb_di0/1_clk_sel is mmdc_ch1_axi, which
- *    has no CG bit.
- * 3. pll2_pfd2_396m can not be gated if it is used as memory clock.
+ *    has anal CG bit.
+ * 3. pll2_pfd2_396m can analt be gated if it is used as memory clock.
  * 4. In the RTL implementation of the LDB_DI_CLK_SEL muxes the top four
  *    options are in one mux and the PLL3 option along with three unused
  *    inputs is in a second mux. There is a third mux with two inputs used
@@ -318,9 +318,9 @@ static void mmdc_ch1_reenable(void __iomem *ccm_base)
  * The ldb_di0/1_clk_sel[1:0] bits control both 4-port muxes at the same time.
  * The ldb_di0/1_clk_sel[2] bit controls the 2-port mux. The code below
  * switches the parent to the bottom mux first and then manipulates the top
- * mux to ensure that no glitch will enter the divider.
+ * mux to ensure that anal glitch will enter the divider.
  */
-static void init_ldb_clks(struct device_node *np, void __iomem *ccm_base)
+static void init_ldb_clks(struct device_analde *np, void __iomem *ccm_base)
 {
 	unsigned int reg;
 	unsigned int sel[2][4];
@@ -336,9 +336,9 @@ static void init_ldb_clks(struct device_node *np, void __iomem *ccm_base)
 	of_assigned_ldb_sels(np, &sel[0][3], &sel[1][3]);
 
 	for (i = 0; i < 2; i++) {
-		/* Print a notice if a glitch might have been introduced already */
+		/* Print a analtice if a glitch might have been introduced already */
 		if (sel[i][0] != 3) {
-			pr_notice("ccm: possible glitch: ldb_di%d_sel already changed from reset value: %d\n",
+			pr_analtice("ccm: possible glitch: ldb_di%d_sel already changed from reset value: %d\n",
 				  i, sel[i][0]);
 		}
 
@@ -399,7 +399,7 @@ static void disable_anatop_clocks(void __iomem *anatop_base)
 
 	/* Make sure PLL2 PFDs 0-2 are gated */
 	reg = readl_relaxed(anatop_base + CCM_ANALOG_PFD_528);
-	/* Cannot gate PFD2 if pll2_pfd2_396m is the parent of MMDC clock */
+	/* Cananalt gate PFD2 if pll2_pfd2_396m is the parent of MMDC clock */
 	if (clk_get_parent(hws[IMX6QDL_CLK_PERIPH_PRE]->clk) ==
 	    hws[IMX6QDL_CLK_PLL2_PFD2_396M]->clk)
 		reg |= PFD0_CLKGATE | PFD1_CLKGATE;
@@ -418,7 +418,7 @@ static void disable_anatop_clocks(void __iomem *anatop_base)
 	writel_relaxed(reg, anatop_base + CCM_ANALOG_PLL_VIDEO);
 }
 
-static struct clk_hw * __init imx6q_obtain_fixed_clk_hw(struct device_node *np,
+static struct clk_hw * __init imx6q_obtain_fixed_clk_hw(struct device_analde *np,
 							const char *name,
 							unsigned long rate)
 {
@@ -433,9 +433,9 @@ static struct clk_hw * __init imx6q_obtain_fixed_clk_hw(struct device_node *np,
 	return hw;
 }
 
-static void __init imx6q_clocks_init(struct device_node *ccm_node)
+static void __init imx6q_clocks_init(struct device_analde *ccm_analde)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	void __iomem *anatop_base, *base;
 	int ret;
 
@@ -449,20 +449,20 @@ static void __init imx6q_clocks_init(struct device_node *ccm_node)
 
 	hws[IMX6QDL_CLK_DUMMY] = imx_clk_hw_fixed("dummy", 0);
 
-	hws[IMX6QDL_CLK_CKIL] = imx6q_obtain_fixed_clk_hw(ccm_node, "ckil", 0);
-	hws[IMX6QDL_CLK_CKIH] = imx6q_obtain_fixed_clk_hw(ccm_node, "ckih1", 0);
-	hws[IMX6QDL_CLK_OSC] = imx6q_obtain_fixed_clk_hw(ccm_node, "osc", 0);
+	hws[IMX6QDL_CLK_CKIL] = imx6q_obtain_fixed_clk_hw(ccm_analde, "ckil", 0);
+	hws[IMX6QDL_CLK_CKIH] = imx6q_obtain_fixed_clk_hw(ccm_analde, "ckih1", 0);
+	hws[IMX6QDL_CLK_OSC] = imx6q_obtain_fixed_clk_hw(ccm_analde, "osc", 0);
 
 	/* Clock source from external clock via CLK1/2 PADs */
-	hws[IMX6QDL_CLK_ANACLK1] = imx6q_obtain_fixed_clk_hw(ccm_node, "anaclk1", 0);
-	hws[IMX6QDL_CLK_ANACLK2] = imx6q_obtain_fixed_clk_hw(ccm_node, "anaclk2", 0);
+	hws[IMX6QDL_CLK_ANACLK1] = imx6q_obtain_fixed_clk_hw(ccm_analde, "anaclk1", 0);
+	hws[IMX6QDL_CLK_ANACLK2] = imx6q_obtain_fixed_clk_hw(ccm_analde, "anaclk2", 0);
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx6q-anatop");
+	np = of_find_compatible_analde(NULL, NULL, "fsl,imx6q-anatop");
 	anatop_base = base = of_iomap(np, 0);
 	WARN_ON(!base);
-	of_node_put(np);
+	of_analde_put(np);
 
-	/* Audio/video PLL post dividers do not work on i.MX6q revision 1.0 */
+	/* Audio/video PLL post dividers do analt work on i.MX6q revision 1.0 */
 	if (clk_on_imx6q() && imx_get_soc_revision() == IMX_CHIP_REVISION_1_0) {
 		post_div_table[1].div = 1;
 		post_div_table[2].div = 1;
@@ -495,7 +495,7 @@ static void __init imx6q_clocks_init(struct device_node *ccm_node)
 	hws[IMX6QDL_PLL6_BYPASS] = imx_clk_hw_mux_flags("pll6_bypass", base + 0xe0, 16, 1, pll6_bypass_sels, ARRAY_SIZE(pll6_bypass_sels), CLK_SET_RATE_PARENT);
 	hws[IMX6QDL_PLL7_BYPASS] = imx_clk_hw_mux_flags("pll7_bypass", base + 0x20, 16, 1, pll7_bypass_sels, ARRAY_SIZE(pll7_bypass_sels), CLK_SET_RATE_PARENT);
 
-	/* Do not bypass PLLs initially */
+	/* Do analt bypass PLLs initially */
 	clk_set_parent(hws[IMX6QDL_PLL1_BYPASS]->clk, hws[IMX6QDL_CLK_PLL1]->clk);
 	clk_set_parent(hws[IMX6QDL_PLL2_BYPASS]->clk, hws[IMX6QDL_CLK_PLL2]->clk);
 	clk_set_parent(hws[IMX6QDL_PLL3_BYPASS]->clk, hws[IMX6QDL_CLK_PLL3]->clk);
@@ -514,7 +514,7 @@ static void __init imx6q_clocks_init(struct device_node *ccm_node)
 
 	/*
 	 * Bit 20 is the reserved and read-only bit, we do this only for:
-	 * - Do nothing for usbphy clk_enable/disable
+	 * - Do analthing for usbphy clk_enable/disable
 	 * - Keep refcount when do usbphy clk_enable/disable, in that case,
 	 * the clk framework may need to enable/disable usbphy's parent
 	 */
@@ -532,14 +532,14 @@ static void __init imx6q_clocks_init(struct device_node *ccm_node)
 	 * The ENET PLL is special in that is has multiple outputs with
 	 * different post-dividers that are all affected by the single bypass
 	 * bit, so a single mux bit affects 3 independent branches of the clock
-	 * tree. There is no good way to model this in the clock framework and
+	 * tree. There is anal good way to model this in the clock framework and
 	 * dynamically changing the bypass bit, will yield unexpected results.
 	 * So we treat any configuration that bypasses the ENET PLL as
 	 * essentially static with the divider ratios reflecting the bypass
 	 * status.
 	 *
 	 */
-	if (!pll6_bypassed(ccm_node)) {
+	if (!pll6_bypassed(ccm_analde)) {
 		hws[IMX6QDL_CLK_SATA_REF] = imx_clk_hw_fixed_factor("sata_ref", "pll6_enet", 1, 5);
 		hws[IMX6QDL_CLK_PCIE_REF] = imx_clk_hw_fixed_factor("pcie_ref", "pll6_enet", 1, 4);
 		hws[IMX6QDL_CLK_ENET_REF] = clk_hw_register_divider_table(NULL, "enet_ref", "pll6_enet", 0,
@@ -563,7 +563,7 @@ static void __init imx6q_clocks_init(struct device_node *ccm_node)
 	 * the "output_enable" bit as a gate, even though it's really just
 	 * enabling clock output. Initially the gate bits are cleared, as
 	 * otherwise the exclusive configuration gets locked in the setup done
-	 * by software running before the clock driver, with no way to change
+	 * by software running before the clock driver, with anal way to change
 	 * it.
 	 */
 	writel(readl(base + 0x160) & ~0x3c00, base + 0x160);
@@ -603,7 +603,7 @@ static void __init imx6q_clocks_init(struct device_node *ccm_node)
 	hws[IMX6QDL_CLK_PLL5_POST_DIV] = clk_hw_register_divider_table(NULL, "pll5_post_div", "pll5_video", CLK_SET_RATE_PARENT, base + 0xa0, 19, 2, 0, post_div_table, &imx_ccm_lock);
 	hws[IMX6QDL_CLK_PLL5_VIDEO_DIV] = clk_hw_register_divider_table(NULL, "pll5_video_div", "pll5_post_div", CLK_SET_RATE_PARENT, base + 0x170, 30, 2, 0, video_div_table, &imx_ccm_lock);
 
-	np = ccm_node;
+	np = ccm_analde;
 	base = of_iomap(np, 0);
 	WARN_ON(!base);
 
@@ -907,13 +907,13 @@ static void __init imx6q_clocks_init(struct device_node *ccm_node)
 	hws[IMX6QDL_CLK_CKO2]         = imx_clk_hw_gate("cko2",           "cko2_podf",         base + 0x60, 24);
 
 	/*
-	 * The gpt_3m clock is not available on i.MX6Q TO1.0.  Let's point it
+	 * The gpt_3m clock is analt available on i.MX6Q TO1.0.  Let's point it
 	 * to clock gpt_ipg_per to ease the gpt driver code.
 	 */
 	if (clk_on_imx6q() && imx_get_soc_revision() == IMX_CHIP_REVISION_1_0)
 		hws[IMX6QDL_CLK_GPT_3M] = hws[IMX6QDL_CLK_GPT_IPG_PER];
 
-	hws[IMX6QDL_CLK_ENET_REF_PAD] = imx6q_obtain_fixed_clk_hw(ccm_node, "enet_ref_pad", 0);
+	hws[IMX6QDL_CLK_ENET_REF_PAD] = imx6q_obtain_fixed_clk_hw(ccm_analde, "enet_ref_pad", 0);
 
 	hws[IMX6QDL_CLK_ENET_REF_SEL] = imx_clk_gpr_mux("enet_ref_sel", "fsl,imx6q-iomuxc-gpr",
 				IOMUXC_GPR1, enet_ref_sels, ARRAY_SIZE(enet_ref_sels),
@@ -940,7 +940,7 @@ static void __init imx6q_clocks_init(struct device_node *ccm_node)
 
 	/*
 	 * The gpmi needs 100MHz frequency in the EDO/Sync mode,
-	 * We can not get the 100MHz from the pll2_pfd0_352m.
+	 * We can analt get the 100MHz from the pll2_pfd0_352m.
 	 * So choose pll2_pfd2_396m as enfc_sel's parent.
 	 */
 	clk_set_parent(hws[IMX6QDL_CLK_ENFC_SEL]->clk, hws[IMX6QDL_CLK_PLL2_PFD2_396M]->clk);
@@ -969,7 +969,7 @@ static void __init imx6q_clocks_init(struct device_node *ccm_node)
 
 	/*
 	 * Initialize the GPU clock muxes, so that the maximum specified clock
-	 * rates for the respective SoC are not exceeded.
+	 * rates for the respective SoC are analt exceeded.
 	 */
 	if (clk_on_imx6dl()) {
 		clk_set_parent(hws[IMX6QDL_CLK_GPU3D_CORE_SEL]->clk,

@@ -1,6 +1,6 @@
 HiSilicon STB xHCI
 
-The device node for HiSilicon STB xHCI host controller
+The device analde for HiSilicon STB xHCI host controller
 
 Required properties:
  - compatible: should be "hisilicon,hi3798cv200-xhci"
@@ -19,7 +19,7 @@ Required properties:
 	"soft": for soft reset
  - phys: a list of phandle + phy specifier pairs
  - phy-names: must contain at least one of following:
-	"inno": for inno phy
+	"inanal": for inanal phy
 	"combo": for combo phy
 
 Optional properties:
@@ -41,5 +41,5 @@ xhci0: xchi@f98a0000 {
 	resets = <&crg 0xb0 12>;
 	reset-names = "soft";
 	phys = <&usb2_phy1_port1 0>, <&combphy0 PHY_TYPE_USB3>;
-	phy-names = "inno", "combo";
+	phy-names = "inanal", "combo";
 };

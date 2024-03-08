@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -24,7 +24,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/acpi.h>
 #include <linux/hash.h>
 #include <linux/cpufreq.h>
@@ -49,7 +49,7 @@ static struct kfd_system_properties sys_props;
 static DECLARE_RWSEM(topology_lock);
 static uint32_t topology_crat_proximity_domain;
 
-struct kfd_topology_device *kfd_topology_device_by_proximity_domain_no_lock(
+struct kfd_topology_device *kfd_topology_device_by_proximity_domain_anal_lock(
 						uint32_t proximity_domain)
 {
 	struct kfd_topology_device *top_dev;
@@ -71,7 +71,7 @@ struct kfd_topology_device *kfd_topology_device_by_proximity_domain(
 
 	down_read(&topology_lock);
 
-	device = kfd_topology_device_by_proximity_domain_no_lock(
+	device = kfd_topology_device_by_proximity_domain_anal_lock(
 							proximity_domain);
 	up_read(&topology_lock);
 
@@ -96,7 +96,7 @@ struct kfd_topology_device *kfd_topology_device_by_id(uint32_t gpu_id)
 	return ret;
 }
 
-struct kfd_node *kfd_device_by_id(uint32_t gpu_id)
+struct kfd_analde *kfd_device_by_id(uint32_t gpu_id)
 {
 	struct kfd_topology_device *top_dev;
 
@@ -107,10 +107,10 @@ struct kfd_node *kfd_device_by_id(uint32_t gpu_id)
 	return top_dev->gpu;
 }
 
-struct kfd_node *kfd_device_by_pci_dev(const struct pci_dev *pdev)
+struct kfd_analde *kfd_device_by_pci_dev(const struct pci_dev *pdev)
 {
 	struct kfd_topology_device *top_dev;
-	struct kfd_node *device = NULL;
+	struct kfd_analde *device = NULL;
 
 	down_read(&topology_lock);
 
@@ -198,7 +198,7 @@ struct kfd_topology_device *kfd_create_topology_device(
 
 	dev = kfd_alloc_struct(dev);
 	if (!dev) {
-		pr_err("No memory to allocate a topology device");
+		pr_err("Anal memory to allocate a topology device");
 		return NULL;
 	}
 
@@ -279,9 +279,9 @@ static ssize_t iolink_show(struct kobject *kobj, struct attribute *attr,
 		return -EPERM;
 	sysfs_show_32bit_prop(buffer, offs, "type", iolink->iolink_type);
 	sysfs_show_32bit_prop(buffer, offs, "version_major", iolink->ver_maj);
-	sysfs_show_32bit_prop(buffer, offs, "version_minor", iolink->ver_min);
-	sysfs_show_32bit_prop(buffer, offs, "node_from", iolink->node_from);
-	sysfs_show_32bit_prop(buffer, offs, "node_to", iolink->node_to);
+	sysfs_show_32bit_prop(buffer, offs, "version_mianalr", iolink->ver_min);
+	sysfs_show_32bit_prop(buffer, offs, "analde_from", iolink->analde_from);
+	sysfs_show_32bit_prop(buffer, offs, "analde_to", iolink->analde_to);
 	sysfs_show_32bit_prop(buffer, offs, "weight", iolink->weight);
 	sysfs_show_32bit_prop(buffer, offs, "min_latency", iolink->min_latency);
 	sysfs_show_32bit_prop(buffer, offs, "max_latency", iolink->max_latency);
@@ -416,7 +416,7 @@ static struct kfd_perf_attr perf_attr_iommu[] = {
 };
 /****************************************/
 
-static ssize_t node_show(struct kobject *kobj, struct attribute *attr,
+static ssize_t analde_show(struct kobject *kobj, struct attribute *attr,
 		char *buffer)
 {
 	int offs = 0;
@@ -440,7 +440,7 @@ static ssize_t node_show(struct kobject *kobj, struct attribute *attr,
 
 		if (dev->gpu && kfd_devcgroup_check_permission(dev->gpu))
 			return -EPERM;
-		return sysfs_show_str_val(buffer, offs, dev->node_props.name);
+		return sysfs_show_str_val(buffer, offs, dev->analde_props.name);
 	}
 
 	dev = container_of(attr, struct kfd_topology_device,
@@ -448,94 +448,94 @@ static ssize_t node_show(struct kobject *kobj, struct attribute *attr,
 	if (dev->gpu && kfd_devcgroup_check_permission(dev->gpu))
 		return -EPERM;
 	sysfs_show_32bit_prop(buffer, offs, "cpu_cores_count",
-			      dev->node_props.cpu_cores_count);
+			      dev->analde_props.cpu_cores_count);
 	sysfs_show_32bit_prop(buffer, offs, "simd_count",
-			      dev->gpu ? dev->node_props.simd_count : 0);
+			      dev->gpu ? dev->analde_props.simd_count : 0);
 	sysfs_show_32bit_prop(buffer, offs, "mem_banks_count",
-			      dev->node_props.mem_banks_count);
+			      dev->analde_props.mem_banks_count);
 	sysfs_show_32bit_prop(buffer, offs, "caches_count",
-			      dev->node_props.caches_count);
+			      dev->analde_props.caches_count);
 	sysfs_show_32bit_prop(buffer, offs, "io_links_count",
-			      dev->node_props.io_links_count);
+			      dev->analde_props.io_links_count);
 	sysfs_show_32bit_prop(buffer, offs, "p2p_links_count",
-			      dev->node_props.p2p_links_count);
+			      dev->analde_props.p2p_links_count);
 	sysfs_show_32bit_prop(buffer, offs, "cpu_core_id_base",
-			      dev->node_props.cpu_core_id_base);
+			      dev->analde_props.cpu_core_id_base);
 	sysfs_show_32bit_prop(buffer, offs, "simd_id_base",
-			      dev->node_props.simd_id_base);
+			      dev->analde_props.simd_id_base);
 	sysfs_show_32bit_prop(buffer, offs, "max_waves_per_simd",
-			      dev->node_props.max_waves_per_simd);
+			      dev->analde_props.max_waves_per_simd);
 	sysfs_show_32bit_prop(buffer, offs, "lds_size_in_kb",
-			      dev->node_props.lds_size_in_kb);
+			      dev->analde_props.lds_size_in_kb);
 	sysfs_show_32bit_prop(buffer, offs, "gds_size_in_kb",
-			      dev->node_props.gds_size_in_kb);
+			      dev->analde_props.gds_size_in_kb);
 	sysfs_show_32bit_prop(buffer, offs, "num_gws",
-			      dev->node_props.num_gws);
+			      dev->analde_props.num_gws);
 	sysfs_show_32bit_prop(buffer, offs, "wave_front_size",
-			      dev->node_props.wave_front_size);
+			      dev->analde_props.wave_front_size);
 	sysfs_show_32bit_prop(buffer, offs, "array_count",
-			      dev->gpu ? (dev->node_props.array_count *
+			      dev->gpu ? (dev->analde_props.array_count *
 					  NUM_XCC(dev->gpu->xcc_mask)) : 0);
 	sysfs_show_32bit_prop(buffer, offs, "simd_arrays_per_engine",
-			      dev->node_props.simd_arrays_per_engine);
+			      dev->analde_props.simd_arrays_per_engine);
 	sysfs_show_32bit_prop(buffer, offs, "cu_per_simd_array",
-			      dev->node_props.cu_per_simd_array);
+			      dev->analde_props.cu_per_simd_array);
 	sysfs_show_32bit_prop(buffer, offs, "simd_per_cu",
-			      dev->node_props.simd_per_cu);
+			      dev->analde_props.simd_per_cu);
 	sysfs_show_32bit_prop(buffer, offs, "max_slots_scratch_cu",
-			      dev->node_props.max_slots_scratch_cu);
+			      dev->analde_props.max_slots_scratch_cu);
 	sysfs_show_32bit_prop(buffer, offs, "gfx_target_version",
-			      dev->node_props.gfx_target_version);
+			      dev->analde_props.gfx_target_version);
 	sysfs_show_32bit_prop(buffer, offs, "vendor_id",
-			      dev->node_props.vendor_id);
+			      dev->analde_props.vendor_id);
 	sysfs_show_32bit_prop(buffer, offs, "device_id",
-			      dev->node_props.device_id);
+			      dev->analde_props.device_id);
 	sysfs_show_32bit_prop(buffer, offs, "location_id",
-			      dev->node_props.location_id);
+			      dev->analde_props.location_id);
 	sysfs_show_32bit_prop(buffer, offs, "domain",
-			      dev->node_props.domain);
-	sysfs_show_32bit_prop(buffer, offs, "drm_render_minor",
-			      dev->node_props.drm_render_minor);
+			      dev->analde_props.domain);
+	sysfs_show_32bit_prop(buffer, offs, "drm_render_mianalr",
+			      dev->analde_props.drm_render_mianalr);
 	sysfs_show_64bit_prop(buffer, offs, "hive_id",
-			      dev->node_props.hive_id);
+			      dev->analde_props.hive_id);
 	sysfs_show_32bit_prop(buffer, offs, "num_sdma_engines",
-			      dev->node_props.num_sdma_engines);
+			      dev->analde_props.num_sdma_engines);
 	sysfs_show_32bit_prop(buffer, offs, "num_sdma_xgmi_engines",
-			      dev->node_props.num_sdma_xgmi_engines);
+			      dev->analde_props.num_sdma_xgmi_engines);
 	sysfs_show_32bit_prop(buffer, offs, "num_sdma_queues_per_engine",
-			      dev->node_props.num_sdma_queues_per_engine);
+			      dev->analde_props.num_sdma_queues_per_engine);
 	sysfs_show_32bit_prop(buffer, offs, "num_cp_queues",
-			      dev->node_props.num_cp_queues);
+			      dev->analde_props.num_cp_queues);
 
 	if (dev->gpu) {
 		log_max_watch_addr =
 			__ilog2_u32(dev->gpu->kfd->device_info.num_of_watch_points);
 
 		if (log_max_watch_addr) {
-			dev->node_props.capability |=
+			dev->analde_props.capability |=
 					HSA_CAP_WATCH_POINTS_SUPPORTED;
 
-			dev->node_props.capability |=
+			dev->analde_props.capability |=
 				((log_max_watch_addr <<
 					HSA_CAP_WATCH_POINTS_TOTALBITS_SHIFT) &
 				HSA_CAP_WATCH_POINTS_TOTALBITS_MASK);
 		}
 
 		if (dev->gpu->adev->asic_type == CHIP_TONGA)
-			dev->node_props.capability |=
+			dev->analde_props.capability |=
 					HSA_CAP_AQL_QUEUE_DOUBLE_MAP;
 
 		sysfs_show_32bit_prop(buffer, offs, "max_engine_clk_fcompute",
-			dev->node_props.max_engine_clk_fcompute);
+			dev->analde_props.max_engine_clk_fcompute);
 
 		sysfs_show_64bit_prop(buffer, offs, "local_mem_size", 0ULL);
 
 		sysfs_show_32bit_prop(buffer, offs, "fw_version",
 				      dev->gpu->kfd->mec_fw_version);
 		sysfs_show_32bit_prop(buffer, offs, "capability",
-				      dev->node_props.capability);
+				      dev->analde_props.capability);
 		sysfs_show_64bit_prop(buffer, offs, "debug_prop",
-				      dev->node_props.debug_prop);
+				      dev->analde_props.debug_prop);
 		sysfs_show_32bit_prop(buffer, offs, "sdma_fw_version",
 				      dev->gpu->kfd->sdma_fw_version);
 		sysfs_show_64bit_prop(buffer, offs, "unique_id",
@@ -548,13 +548,13 @@ static ssize_t node_show(struct kobject *kobj, struct attribute *attr,
 				     cpufreq_quick_get_max(0)/1000);
 }
 
-static const struct sysfs_ops node_ops = {
-	.show = node_show,
+static const struct sysfs_ops analde_ops = {
+	.show = analde_show,
 };
 
-static const struct kobj_type node_type = {
+static const struct kobj_type analde_type = {
 	.release = kfd_topology_kobj_release,
-	.sysfs_ops = &node_ops,
+	.sysfs_ops = &analde_ops,
 };
 
 static void kfd_remove_sysfs_file(struct kobject *kobj, struct attribute *attr)
@@ -564,7 +564,7 @@ static void kfd_remove_sysfs_file(struct kobject *kobj, struct attribute *attr)
 	kobject_put(kobj);
 }
 
-static void kfd_remove_sysfs_node_entry(struct kfd_topology_device *dev)
+static void kfd_remove_sysfs_analde_entry(struct kfd_topology_device *dev)
 {
 	struct kfd_iolink_properties *p2plink;
 	struct kfd_iolink_properties *iolink;
@@ -629,17 +629,17 @@ static void kfd_remove_sysfs_node_entry(struct kfd_topology_device *dev)
 		dev->kobj_perf = NULL;
 	}
 
-	if (dev->kobj_node) {
-		sysfs_remove_file(dev->kobj_node, &dev->attr_gpuid);
-		sysfs_remove_file(dev->kobj_node, &dev->attr_name);
-		sysfs_remove_file(dev->kobj_node, &dev->attr_props);
-		kobject_del(dev->kobj_node);
-		kobject_put(dev->kobj_node);
-		dev->kobj_node = NULL;
+	if (dev->kobj_analde) {
+		sysfs_remove_file(dev->kobj_analde, &dev->attr_gpuid);
+		sysfs_remove_file(dev->kobj_analde, &dev->attr_name);
+		sysfs_remove_file(dev->kobj_analde, &dev->attr_props);
+		kobject_del(dev->kobj_analde);
+		kobject_put(dev->kobj_analde);
+		dev->kobj_analde = NULL;
 	}
 }
 
-static int kfd_build_sysfs_node_entry(struct kfd_topology_device *dev,
+static int kfd_build_sysfs_analde_entry(struct kfd_topology_device *dev,
 		uint32_t id)
 {
 	struct kfd_iolink_properties *p2plink;
@@ -651,45 +651,45 @@ static int kfd_build_sysfs_node_entry(struct kfd_topology_device *dev,
 	uint32_t i, num_attrs;
 	struct attribute **attrs;
 
-	if (WARN_ON(dev->kobj_node))
+	if (WARN_ON(dev->kobj_analde))
 		return -EEXIST;
 
 	/*
 	 * Creating the sysfs folders
 	 */
-	dev->kobj_node = kfd_alloc_struct(dev->kobj_node);
-	if (!dev->kobj_node)
-		return -ENOMEM;
+	dev->kobj_analde = kfd_alloc_struct(dev->kobj_analde);
+	if (!dev->kobj_analde)
+		return -EANALMEM;
 
-	ret = kobject_init_and_add(dev->kobj_node, &node_type,
-			sys_props.kobj_nodes, "%d", id);
+	ret = kobject_init_and_add(dev->kobj_analde, &analde_type,
+			sys_props.kobj_analdes, "%d", id);
 	if (ret < 0) {
-		kobject_put(dev->kobj_node);
+		kobject_put(dev->kobj_analde);
 		return ret;
 	}
 
-	dev->kobj_mem = kobject_create_and_add("mem_banks", dev->kobj_node);
+	dev->kobj_mem = kobject_create_and_add("mem_banks", dev->kobj_analde);
 	if (!dev->kobj_mem)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	dev->kobj_cache = kobject_create_and_add("caches", dev->kobj_node);
+	dev->kobj_cache = kobject_create_and_add("caches", dev->kobj_analde);
 	if (!dev->kobj_cache)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	dev->kobj_iolink = kobject_create_and_add("io_links", dev->kobj_node);
+	dev->kobj_iolink = kobject_create_and_add("io_links", dev->kobj_analde);
 	if (!dev->kobj_iolink)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	dev->kobj_p2plink = kobject_create_and_add("p2p_links", dev->kobj_node);
+	dev->kobj_p2plink = kobject_create_and_add("p2p_links", dev->kobj_analde);
 	if (!dev->kobj_p2plink)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	dev->kobj_perf = kobject_create_and_add("perf", dev->kobj_node);
+	dev->kobj_perf = kobject_create_and_add("perf", dev->kobj_analde);
 	if (!dev->kobj_perf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
-	 * Creating sysfs files for node properties
+	 * Creating sysfs files for analde properties
 	 */
 	dev->attr_gpuid.name = "gpu_id";
 	dev->attr_gpuid.mode = KFD_SYSFS_FILE_MODE;
@@ -700,13 +700,13 @@ static int kfd_build_sysfs_node_entry(struct kfd_topology_device *dev,
 	dev->attr_props.name = "properties";
 	dev->attr_props.mode = KFD_SYSFS_FILE_MODE;
 	sysfs_attr_init(&dev->attr_props);
-	ret = sysfs_create_file(dev->kobj_node, &dev->attr_gpuid);
+	ret = sysfs_create_file(dev->kobj_analde, &dev->attr_gpuid);
 	if (ret < 0)
 		return ret;
-	ret = sysfs_create_file(dev->kobj_node, &dev->attr_name);
+	ret = sysfs_create_file(dev->kobj_analde, &dev->attr_name);
 	if (ret < 0)
 		return ret;
-	ret = sysfs_create_file(dev->kobj_node, &dev->attr_props);
+	ret = sysfs_create_file(dev->kobj_analde, &dev->attr_props);
 	if (ret < 0)
 		return ret;
 
@@ -714,7 +714,7 @@ static int kfd_build_sysfs_node_entry(struct kfd_topology_device *dev,
 	list_for_each_entry(mem, &dev->mem_props, list) {
 		mem->kobj = kzalloc(sizeof(struct kobject), GFP_KERNEL);
 		if (!mem->kobj)
-			return -ENOMEM;
+			return -EANALMEM;
 		ret = kobject_init_and_add(mem->kobj, &mem_type,
 				dev->kobj_mem, "%d", i);
 		if (ret < 0) {
@@ -735,7 +735,7 @@ static int kfd_build_sysfs_node_entry(struct kfd_topology_device *dev,
 	list_for_each_entry(cache, &dev->cache_props, list) {
 		cache->kobj = kzalloc(sizeof(struct kobject), GFP_KERNEL);
 		if (!cache->kobj)
-			return -ENOMEM;
+			return -EANALMEM;
 		ret = kobject_init_and_add(cache->kobj, &cache_type,
 				dev->kobj_cache, "%d", i);
 		if (ret < 0) {
@@ -756,7 +756,7 @@ static int kfd_build_sysfs_node_entry(struct kfd_topology_device *dev,
 	list_for_each_entry(iolink, &dev->io_link_props, list) {
 		iolink->kobj = kzalloc(sizeof(struct kobject), GFP_KERNEL);
 		if (!iolink->kobj)
-			return -ENOMEM;
+			return -EANALMEM;
 		ret = kobject_init_and_add(iolink->kobj, &iolink_type,
 				dev->kobj_iolink, "%d", i);
 		if (ret < 0) {
@@ -777,7 +777,7 @@ static int kfd_build_sysfs_node_entry(struct kfd_topology_device *dev,
 	list_for_each_entry(p2plink, &dev->p2p_link_props, list) {
 		p2plink->kobj = kzalloc(sizeof(struct kobject), GFP_KERNEL);
 		if (!p2plink->kobj)
-			return -ENOMEM;
+			return -EANALMEM;
 		ret = kobject_init_and_add(p2plink->kobj, &iolink_type,
 				dev->kobj_p2plink, "%d", i);
 		if (ret < 0) {
@@ -801,7 +801,7 @@ static int kfd_build_sysfs_node_entry(struct kfd_topology_device *dev,
 			* num_attrs + sizeof(struct attribute_group),
 			GFP_KERNEL);
 		if (!perf->attr_group)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		attrs = (struct attribute **)(perf->attr_group + 1);
 		if (!strcmp(perf->block_name, "iommu")) {
@@ -824,14 +824,14 @@ static int kfd_build_sysfs_node_entry(struct kfd_topology_device *dev,
 }
 
 /* Called with write topology lock acquired */
-static int kfd_build_sysfs_node_tree(void)
+static int kfd_build_sysfs_analde_tree(void)
 {
 	struct kfd_topology_device *dev;
 	int ret;
 	uint32_t i = 0;
 
 	list_for_each_entry(dev, &topology_device_list, list) {
-		ret = kfd_build_sysfs_node_entry(dev, i);
+		ret = kfd_build_sysfs_analde_entry(dev, i);
 		if (ret < 0)
 			return ret;
 		i++;
@@ -841,12 +841,12 @@ static int kfd_build_sysfs_node_tree(void)
 }
 
 /* Called with write topology lock acquired */
-static void kfd_remove_sysfs_node_tree(void)
+static void kfd_remove_sysfs_analde_tree(void)
 {
 	struct kfd_topology_device *dev;
 
 	list_for_each_entry(dev, &topology_device_list, list)
-		kfd_remove_sysfs_node_entry(dev);
+		kfd_remove_sysfs_analde_entry(dev);
 }
 
 static int kfd_topology_update_sysfs(void)
@@ -857,7 +857,7 @@ static int kfd_topology_update_sysfs(void)
 		sys_props.kobj_topology =
 				kfd_alloc_struct(sys_props.kobj_topology);
 		if (!sys_props.kobj_topology)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ret = kobject_init_and_add(sys_props.kobj_topology,
 				&sysprops_type,  &kfd_device->kobj,
@@ -867,10 +867,10 @@ static int kfd_topology_update_sysfs(void)
 			return ret;
 		}
 
-		sys_props.kobj_nodes = kobject_create_and_add("nodes",
+		sys_props.kobj_analdes = kobject_create_and_add("analdes",
 				sys_props.kobj_topology);
-		if (!sys_props.kobj_nodes)
-			return -ENOMEM;
+		if (!sys_props.kobj_analdes)
+			return -EANALMEM;
 
 		sys_props.attr_genid.name = "generation_id";
 		sys_props.attr_genid.mode = KFD_SYSFS_FILE_MODE;
@@ -889,23 +889,23 @@ static int kfd_topology_update_sysfs(void)
 			return ret;
 	}
 
-	kfd_remove_sysfs_node_tree();
+	kfd_remove_sysfs_analde_tree();
 
-	return kfd_build_sysfs_node_tree();
+	return kfd_build_sysfs_analde_tree();
 }
 
 static void kfd_topology_release_sysfs(void)
 {
-	kfd_remove_sysfs_node_tree();
+	kfd_remove_sysfs_analde_tree();
 	if (sys_props.kobj_topology) {
 		sysfs_remove_file(sys_props.kobj_topology,
 				&sys_props.attr_genid);
 		sysfs_remove_file(sys_props.kobj_topology,
 				&sys_props.attr_props);
-		if (sys_props.kobj_nodes) {
-			kobject_del(sys_props.kobj_nodes);
-			kobject_put(sys_props.kobj_nodes);
-			sys_props.kobj_nodes = NULL;
+		if (sys_props.kobj_analdes) {
+			kobject_del(sys_props.kobj_analdes);
+			kobject_put(sys_props.kobj_analdes);
+			sys_props.kobj_analdes = NULL;
 		}
 		kobject_del(sys_props.kobj_topology);
 		kobject_put(sys_props.kobj_topology);
@@ -932,23 +932,23 @@ static void kfd_debug_print_topology(void)
 	dev = list_last_entry(&topology_device_list,
 			struct kfd_topology_device, list);
 	if (dev) {
-		if (dev->node_props.cpu_cores_count &&
-				dev->node_props.simd_count) {
-			pr_info("Topology: Add APU node [0x%0x:0x%0x]\n",
-				dev->node_props.device_id,
-				dev->node_props.vendor_id);
-		} else if (dev->node_props.cpu_cores_count)
-			pr_info("Topology: Add CPU node\n");
-		else if (dev->node_props.simd_count)
-			pr_info("Topology: Add dGPU node [0x%0x:0x%0x]\n",
-				dev->node_props.device_id,
-				dev->node_props.vendor_id);
+		if (dev->analde_props.cpu_cores_count &&
+				dev->analde_props.simd_count) {
+			pr_info("Topology: Add APU analde [0x%0x:0x%0x]\n",
+				dev->analde_props.device_id,
+				dev->analde_props.vendor_id);
+		} else if (dev->analde_props.cpu_cores_count)
+			pr_info("Topology: Add CPU analde\n");
+		else if (dev->analde_props.simd_count)
+			pr_info("Topology: Add dGPU analde [0x%0x:0x%0x]\n",
+				dev->analde_props.device_id,
+				dev->analde_props.vendor_id);
 	}
 	up_read(&topology_lock);
 }
 
 /* Helper function for intializing platform_xx members of
- * kfd_system_properties. Uses OEM info from the last CPU/APU node.
+ * kfd_system_properties. Uses OEM info from the last CPU/APU analde.
  */
 static void kfd_update_system_properties(void)
 {
@@ -987,18 +987,18 @@ static void find_system_memory(const struct dmi_header *dm,
 	}
 }
 
-/* kfd_add_non_crat_information - Add information that is not currently
+/* kfd_add_analn_crat_information - Add information that is analt currently
  *	defined in CRAT but is necessary for KFD topology
  * @dev - topology device to which addition info is added
  */
-static void kfd_add_non_crat_information(struct kfd_topology_device *kdev)
+static void kfd_add_analn_crat_information(struct kfd_topology_device *kdev)
 {
-	/* Check if CPU only node. */
+	/* Check if CPU only analde. */
 	if (!kdev->gpu) {
 		/* Add system memory information */
 		dmi_walk(find_system_memory, kdev);
 	}
-	/* TODO: For GPU node, rearrange code from kfd_topology_add_device */
+	/* TODO: For GPU analde, rearrange code from kfd_topology_add_device */
 }
 
 int kfd_topology_init(void)
@@ -1007,7 +1007,7 @@ int kfd_topology_init(void)
 	size_t image_size = 0;
 	int ret;
 	struct list_head temp_topology_device_list;
-	int cpu_only_node = 0;
+	int cpu_only_analde = 0;
 	struct kfd_topology_device *kdev;
 	int proximity_domain;
 
@@ -1034,7 +1034,7 @@ int kfd_topology_init(void)
 	ret = kfd_create_crat_image_virtual(&crat_image, &image_size,
 					    COMPUTE_UNIT_CPU, NULL,
 					    proximity_domain);
-	cpu_only_node = 1;
+	cpu_only_analde = 1;
 	if (ret) {
 		pr_err("Error creating VCRAT table for CPU\n");
 		return ret;
@@ -1065,16 +1065,16 @@ int kfd_topology_init(void)
 	} else
 		pr_err("Failed to update topology in sysfs ret=%d\n", ret);
 
-	/* For nodes with GPU, this information gets added
+	/* For analdes with GPU, this information gets added
 	 * when GPU is detected (kfd_topology_add_device).
 	 */
-	if (cpu_only_node) {
-		/* Add additional information to CPU only node created above */
+	if (cpu_only_analde) {
+		/* Add additional information to CPU only analde created above */
 		down_write(&topology_lock);
 		kdev = list_first_entry(&topology_device_list,
 				struct kfd_topology_device, list);
 		up_write(&topology_lock);
-		kfd_add_non_crat_information(kdev);
+		kfd_add_analn_crat_information(kdev);
 	}
 
 err:
@@ -1090,7 +1090,7 @@ void kfd_topology_shutdown(void)
 	up_write(&topology_lock);
 }
 
-static uint32_t kfd_generate_gpu_id(struct kfd_node *gpu)
+static uint32_t kfd_generate_gpu_id(struct kfd_analde *gpu)
 {
 	uint32_t hashout;
 	uint32_t buf[8];
@@ -1118,11 +1118,11 @@ static uint32_t kfd_generate_gpu_id(struct kfd_node *gpu)
 	return hashout;
 }
 /* kfd_assign_gpu - Attach @gpu to the correct kfd topology device. If
- *		the GPU device is not already present in the topology device
+ *		the GPU device is analt already present in the topology device
  *		list then return NULL. This means a new topology device has to
  *		be created for this GPU.
  */
-static struct kfd_topology_device *kfd_assign_gpu(struct kfd_node *gpu)
+static struct kfd_topology_device *kfd_assign_gpu(struct kfd_analde *gpu)
 {
 	struct kfd_topology_device *dev;
 	struct kfd_topology_device *out_dev = NULL;
@@ -1133,12 +1133,12 @@ static struct kfd_topology_device *kfd_assign_gpu(struct kfd_node *gpu)
 
 	list_for_each_entry(dev, &topology_device_list, list) {
 		/* Discrete GPUs need their own topology device list
-		 * entries. Don't assign them to CPU/APU nodes.
+		 * entries. Don't assign them to CPU/APU analdes.
 		 */
-		if (dev->node_props.cpu_cores_count)
+		if (dev->analde_props.cpu_cores_count)
 			continue;
 
-		if (!dev->gpu && (dev->node_props.simd_count > 0)) {
+		if (!dev->gpu && (dev->analde_props.simd_count > 0)) {
 			dev->gpu = gpu;
 			out_dev = dev;
 
@@ -1156,7 +1156,7 @@ static struct kfd_topology_device *kfd_assign_gpu(struct kfd_node *gpu)
 	return out_dev;
 }
 
-static void kfd_notify_gpu_change(uint32_t gpu_id, int arrival)
+static void kfd_analtify_gpu_change(uint32_t gpu_id, int arrival)
 {
 	/*
 	 * TODO: Generate an event for thunk about the arrival/removal
@@ -1188,7 +1188,7 @@ static void kfd_fill_mem_clk_max_info(struct kfd_topology_device *dev)
 		mem->mem_clk_max = local_mem_info.mem_clk_max;
 }
 
-static void kfd_set_iolink_no_atomics(struct kfd_topology_device *dev,
+static void kfd_set_iolink_anal_atomics(struct kfd_topology_device *dev,
 					struct kfd_topology_device *target_gpu_dev,
 					struct kfd_iolink_properties *link)
 {
@@ -1205,25 +1205,25 @@ static void kfd_set_iolink_no_atomics(struct kfd_topology_device *dev,
 
 		if (!(cap & (PCI_EXP_DEVCAP2_ATOMIC_COMP32 |
 			     PCI_EXP_DEVCAP2_ATOMIC_COMP64)))
-			link->flags |= CRAT_IOLINK_FLAGS_NO_ATOMICS_32_BIT |
-				CRAT_IOLINK_FLAGS_NO_ATOMICS_64_BIT;
+			link->flags |= CRAT_IOLINK_FLAGS_ANAL_ATOMICS_32_BIT |
+				CRAT_IOLINK_FLAGS_ANAL_ATOMICS_64_BIT;
 	/* set gpu (dev) flags. */
 	} else {
 		if (!dev->gpu->kfd->pci_atomic_requested ||
 				dev->gpu->adev->asic_type == CHIP_HAWAII)
-			link->flags |= CRAT_IOLINK_FLAGS_NO_ATOMICS_32_BIT |
-				CRAT_IOLINK_FLAGS_NO_ATOMICS_64_BIT;
+			link->flags |= CRAT_IOLINK_FLAGS_ANAL_ATOMICS_32_BIT |
+				CRAT_IOLINK_FLAGS_ANAL_ATOMICS_64_BIT;
 	}
 }
 
-static void kfd_set_iolink_non_coherent(struct kfd_topology_device *to_dev,
+static void kfd_set_iolink_analn_coherent(struct kfd_topology_device *to_dev,
 		struct kfd_iolink_properties *outbound_link,
 		struct kfd_iolink_properties *inbound_link)
 {
 	/* CPU -> GPU with PCIe */
 	if (!to_dev->gpu &&
 	    inbound_link->iolink_type == CRAT_IOLINK_TYPE_PCIEXPRESS)
-		inbound_link->flags |= CRAT_IOLINK_FLAGS_NON_COHERENT;
+		inbound_link->flags |= CRAT_IOLINK_FLAGS_ANALN_COHERENT;
 
 	if (to_dev->gpu) {
 		/* GPU <-> GPU with PCIe and
@@ -1232,13 +1232,13 @@ static void kfd_set_iolink_non_coherent(struct kfd_topology_device *to_dev,
 		if (inbound_link->iolink_type == CRAT_IOLINK_TYPE_PCIEXPRESS ||
 		    (inbound_link->iolink_type == CRAT_IOLINK_TYPE_XGMI &&
 		    KFD_GC_VERSION(to_dev->gpu) == IP_VERSION(9, 4, 0))) {
-			outbound_link->flags |= CRAT_IOLINK_FLAGS_NON_COHERENT;
-			inbound_link->flags |= CRAT_IOLINK_FLAGS_NON_COHERENT;
+			outbound_link->flags |= CRAT_IOLINK_FLAGS_ANALN_COHERENT;
+			inbound_link->flags |= CRAT_IOLINK_FLAGS_ANALN_COHERENT;
 		}
 	}
 }
 
-static void kfd_fill_iolink_non_crat_info(struct kfd_topology_device *dev)
+static void kfd_fill_iolink_analn_crat_info(struct kfd_topology_device *dev)
 {
 	struct kfd_iolink_properties *link, *inbound_link;
 	struct kfd_topology_device *peer_dev;
@@ -1249,9 +1249,9 @@ static void kfd_fill_iolink_non_crat_info(struct kfd_topology_device *dev)
 	/* GPU only creates direct links so apply flags setting to all */
 	list_for_each_entry(link, &dev->io_link_props, list) {
 		link->flags = CRAT_IOLINK_FLAGS_ENABLED;
-		kfd_set_iolink_no_atomics(dev, NULL, link);
+		kfd_set_iolink_anal_atomics(dev, NULL, link);
 		peer_dev = kfd_topology_device_by_proximity_domain(
-				link->node_to);
+				link->analde_to);
 
 		if (!peer_dev)
 			continue;
@@ -1260,58 +1260,58 @@ static void kfd_fill_iolink_non_crat_info(struct kfd_topology_device *dev)
 		if (!peer_dev->gpu &&
 		    link->iolink_type == CRAT_IOLINK_TYPE_XGMI) {
 			/*
-			 * If the GPU is not part of a GPU hive, use its pci
+			 * If the GPU is analt part of a GPU hive, use its pci
 			 * device location as the hive ID to bind with the CPU.
 			 */
-			if (!dev->node_props.hive_id)
-				dev->node_props.hive_id = pci_dev_id(dev->gpu->adev->pdev);
-			peer_dev->node_props.hive_id = dev->node_props.hive_id;
+			if (!dev->analde_props.hive_id)
+				dev->analde_props.hive_id = pci_dev_id(dev->gpu->adev->pdev);
+			peer_dev->analde_props.hive_id = dev->analde_props.hive_id;
 		}
 
 		list_for_each_entry(inbound_link, &peer_dev->io_link_props,
 									list) {
-			if (inbound_link->node_to != link->node_from)
+			if (inbound_link->analde_to != link->analde_from)
 				continue;
 
 			inbound_link->flags = CRAT_IOLINK_FLAGS_ENABLED;
-			kfd_set_iolink_no_atomics(peer_dev, dev, inbound_link);
-			kfd_set_iolink_non_coherent(peer_dev, link, inbound_link);
+			kfd_set_iolink_anal_atomics(peer_dev, dev, inbound_link);
+			kfd_set_iolink_analn_coherent(peer_dev, link, inbound_link);
 		}
 	}
 
 	/* Create indirect links so apply flags setting to all */
 	list_for_each_entry(link, &dev->p2p_link_props, list) {
 		link->flags = CRAT_IOLINK_FLAGS_ENABLED;
-		kfd_set_iolink_no_atomics(dev, NULL, link);
+		kfd_set_iolink_anal_atomics(dev, NULL, link);
 		peer_dev = kfd_topology_device_by_proximity_domain(
-				link->node_to);
+				link->analde_to);
 
 		if (!peer_dev)
 			continue;
 
 		list_for_each_entry(inbound_link, &peer_dev->p2p_link_props,
 									list) {
-			if (inbound_link->node_to != link->node_from)
+			if (inbound_link->analde_to != link->analde_from)
 				continue;
 
 			inbound_link->flags = CRAT_IOLINK_FLAGS_ENABLED;
-			kfd_set_iolink_no_atomics(peer_dev, dev, inbound_link);
-			kfd_set_iolink_non_coherent(peer_dev, link, inbound_link);
+			kfd_set_iolink_anal_atomics(peer_dev, dev, inbound_link);
+			kfd_set_iolink_analn_coherent(peer_dev, link, inbound_link);
 		}
 	}
 }
 
-static int kfd_build_p2p_node_entry(struct kfd_topology_device *dev,
+static int kfd_build_p2p_analde_entry(struct kfd_topology_device *dev,
 				struct kfd_iolink_properties *p2plink)
 {
 	int ret;
 
 	p2plink->kobj = kzalloc(sizeof(struct kobject), GFP_KERNEL);
 	if (!p2plink->kobj)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = kobject_init_and_add(p2plink->kobj, &iolink_type,
-			dev->kobj_p2plink, "%d", dev->node_props.p2p_links_count - 1);
+			dev->kobj_p2plink, "%d", dev->analde_props.p2p_links_count - 1);
 	if (ret < 0) {
 		kobject_put(p2plink->kobj);
 		return ret;
@@ -1327,7 +1327,7 @@ static int kfd_build_p2p_node_entry(struct kfd_topology_device *dev,
 	return 0;
 }
 
-static int kfd_create_indirect_link_prop(struct kfd_topology_device *kdev, int gpu_node)
+static int kfd_create_indirect_link_prop(struct kfd_topology_device *kdev, int gpu_analde)
 {
 	struct kfd_iolink_properties *gpu_link, *tmp_link, *cpu_link;
 	struct kfd_iolink_properties *props = NULL, *props2 = NULL;
@@ -1343,14 +1343,14 @@ static int kfd_create_indirect_link_prop(struct kfd_topology_device *kdev, int g
 	}
 
 	if (list_empty(&kdev->io_link_props))
-		return -ENODATA;
+		return -EANALDATA;
 
 	gpu_link = list_first_entry(&kdev->io_link_props,
 				    struct kfd_iolink_properties, list);
 
 	for (i = 0; i < num_cpu; i++) {
 		/* CPU <--> GPU */
-		if (gpu_link->node_to == i)
+		if (gpu_link->analde_to == i)
 			continue;
 
 		/* find CPU <-->  CPU links */
@@ -1359,7 +1359,7 @@ static int kfd_create_indirect_link_prop(struct kfd_topology_device *kdev, int g
 		if (cpu_dev) {
 			list_for_each_entry(tmp_link,
 					&cpu_dev->io_link_props, list) {
-				if (tmp_link->node_to == gpu_link->node_to) {
+				if (tmp_link->analde_to == gpu_link->analde_to) {
 					cpu_link = tmp_link;
 					break;
 				}
@@ -1367,12 +1367,12 @@ static int kfd_create_indirect_link_prop(struct kfd_topology_device *kdev, int g
 		}
 
 		if (!cpu_link)
-			return -ENOMEM;
+			return -EANALMEM;
 
-		/* CPU <--> CPU <--> GPU, GPU node*/
+		/* CPU <--> CPU <--> GPU, GPU analde*/
 		props = kfd_alloc_struct(props);
 		if (!props)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		memcpy(props, gpu_link, sizeof(struct kfd_iolink_properties));
 		props->weight = gpu_link->weight + cpu_link->weight;
@@ -1381,28 +1381,28 @@ static int kfd_create_indirect_link_prop(struct kfd_topology_device *kdev, int g
 		props->min_bandwidth = min(gpu_link->min_bandwidth, cpu_link->min_bandwidth);
 		props->max_bandwidth = min(gpu_link->max_bandwidth, cpu_link->max_bandwidth);
 
-		props->node_from = gpu_node;
-		props->node_to = i;
-		kdev->node_props.p2p_links_count++;
+		props->analde_from = gpu_analde;
+		props->analde_to = i;
+		kdev->analde_props.p2p_links_count++;
 		list_add_tail(&props->list, &kdev->p2p_link_props);
-		ret = kfd_build_p2p_node_entry(kdev, props);
+		ret = kfd_build_p2p_analde_entry(kdev, props);
 		if (ret < 0)
 			return ret;
 
-		/* for small Bar, no CPU --> GPU in-direct links */
+		/* for small Bar, anal CPU --> GPU in-direct links */
 		if (kfd_dev_is_large_bar(kdev->gpu)) {
-			/* CPU <--> CPU <--> GPU, CPU node*/
+			/* CPU <--> CPU <--> GPU, CPU analde*/
 			props2 = kfd_alloc_struct(props2);
 			if (!props2)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			memcpy(props2, props, sizeof(struct kfd_iolink_properties));
-			props2->node_from = i;
-			props2->node_to = gpu_node;
+			props2->analde_from = i;
+			props2->analde_to = gpu_analde;
 			props2->kobj = NULL;
-			cpu_dev->node_props.p2p_links_count++;
+			cpu_dev->analde_props.p2p_links_count++;
 			list_add_tail(&props2->list, &cpu_dev->p2p_link_props);
-			ret = kfd_build_p2p_node_entry(cpu_dev, props2);
+			ret = kfd_build_p2p_analde_entry(cpu_dev, props2);
 			if (ret < 0)
 				return ret;
 		}
@@ -1425,20 +1425,20 @@ static int kfd_add_peer_prop(struct kfd_topology_device *kdev,
 		return ret;
 
 	if (list_empty(&kdev->io_link_props))
-		return -ENODATA;
+		return -EANALDATA;
 
 	iolink1 = list_first_entry(&kdev->io_link_props,
 				   struct kfd_iolink_properties, list);
 
 	if (list_empty(&peer->io_link_props))
-		return -ENODATA;
+		return -EANALDATA;
 
 	iolink2 = list_first_entry(&peer->io_link_props,
 				   struct kfd_iolink_properties, list);
 
 	props = kfd_alloc_struct(props);
 	if (!props)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(props, iolink1, sizeof(struct kfd_iolink_properties));
 
@@ -1448,12 +1448,12 @@ static int kfd_add_peer_prop(struct kfd_topology_device *kdev,
 	props->min_bandwidth = min(iolink1->min_bandwidth, iolink2->min_bandwidth);
 	props->max_bandwidth = min(iolink2->max_bandwidth, iolink2->max_bandwidth);
 
-	if (iolink1->node_to != iolink2->node_to) {
+	if (iolink1->analde_to != iolink2->analde_to) {
 		/* CPU->CPU  link*/
-		cpu_dev = kfd_topology_device_by_proximity_domain(iolink1->node_to);
+		cpu_dev = kfd_topology_device_by_proximity_domain(iolink1->analde_to);
 		if (cpu_dev) {
 			list_for_each_entry(iolink3, &cpu_dev->io_link_props, list) {
-				if (iolink3->node_to != iolink2->node_to)
+				if (iolink3->analde_to != iolink2->analde_to)
 					continue;
 
 				props->weight += iolink3->weight;
@@ -1466,15 +1466,15 @@ static int kfd_add_peer_prop(struct kfd_topology_device *kdev,
 				break;
 			}
 		} else {
-			WARN(1, "CPU node not found");
+			WARN(1, "CPU analde analt found");
 		}
 	}
 
-	props->node_from = from;
-	props->node_to = to;
-	peer->node_props.p2p_links_count++;
+	props->analde_from = from;
+	props->analde_to = to;
+	peer->analde_props.p2p_links_count++;
 	list_add_tail(&props->list, &peer->p2p_link_props);
-	ret = kfd_build_p2p_node_entry(peer, props);
+	ret = kfd_build_p2p_analde_entry(peer, props);
 
 	return ret;
 }
@@ -1518,7 +1518,7 @@ static int kfd_dev_create_p2p_links(void)
 		     dev->gpu->kfd->hive_id == new_dev->gpu->kfd->hive_id))
 			goto next;
 
-		/* check if node(s) is/are peer accessible in one direction or bi-direction */
+		/* check if analde(s) is/are peer accessible in one direction or bi-direction */
 		ret = kfd_add_peer_prop(new_dev, dev, i, k);
 		if (ret < 0)
 			goto out;
@@ -1552,13 +1552,13 @@ static int fill_in_l1_pcache(struct kfd_cache_properties **props_ext,
 	first_active_cu = ffs(cu_sibling_map_mask);
 
 	/* CU could be inactive. In case of shared cache find the first active
-	 * CU. and incase of non-shared cache check if the CU is inactive. If
+	 * CU. and incase of analn-shared cache check if the CU is inactive. If
 	 * inactive active skip it
 	 */
 	if (first_active_cu) {
 		pcache = kfd_alloc_struct(pcache);
 		if (!pcache)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		memset(pcache, 0, sizeof(struct kfd_cache_properties));
 		pcache->processor_id_low = cu_processor_id + (first_active_cu - 1);
@@ -1602,17 +1602,17 @@ static int fill_in_l2_l3_pcache(struct kfd_cache_properties **props_ext,
 				struct amdgpu_cu_info *cu_info,
 				struct amdgpu_gfx_config *gfx_info,
 				int cache_type, unsigned int cu_processor_id,
-				struct kfd_node *knode)
+				struct kfd_analde *kanalde)
 {
 	unsigned int cu_sibling_map_mask;
 	int first_active_cu;
 	int i, j, k, xcc, start, end;
-	int num_xcc = NUM_XCC(knode->xcc_mask);
+	int num_xcc = NUM_XCC(kanalde->xcc_mask);
 	struct kfd_cache_properties *pcache = NULL;
 	enum amdgpu_memory_partition mode;
-	struct amdgpu_device *adev = knode->adev;
+	struct amdgpu_device *adev = kanalde->adev;
 
-	start = ffs(knode->xcc_mask) - 1;
+	start = ffs(kanalde->xcc_mask) - 1;
 	end = start + num_xcc;
 	cu_sibling_map_mask = cu_info->bitmap[start][0][0];
 	cu_sibling_map_mask &=
@@ -1620,23 +1620,23 @@ static int fill_in_l2_l3_pcache(struct kfd_cache_properties **props_ext,
 	first_active_cu = ffs(cu_sibling_map_mask);
 
 	/* CU could be inactive. In case of shared cache find the first active
-	 * CU. and incase of non-shared cache check if the CU is inactive. If
+	 * CU. and incase of analn-shared cache check if the CU is inactive. If
 	 * inactive active skip it
 	 */
 	if (first_active_cu) {
 		pcache = kfd_alloc_struct(pcache);
 		if (!pcache)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		memset(pcache, 0, sizeof(struct kfd_cache_properties));
 		pcache->processor_id_low = cu_processor_id
 					+ (first_active_cu - 1);
 		pcache->cache_level = pcache_info[cache_type].cache_level;
 
-		if (KFD_GC_VERSION(knode) == IP_VERSION(9, 4, 3))
+		if (KFD_GC_VERSION(kanalde) == IP_VERSION(9, 4, 3))
 			mode = adev->gmc.gmc_funcs->query_mem_partition_mode(adev);
 		else
-			mode = UNKNOWN_MEMORY_PARTITION_MODE;
+			mode = UNKANALWN_MEMORY_PARTITION_MODE;
 
 		pcache->cache_size = pcache_info[cache_type].cache_size;
 		/* Partition mode only affects L3 cache size */
@@ -1681,10 +1681,10 @@ static int fill_in_l2_l3_pcache(struct kfd_cache_properties **props_ext,
 
 #define KFD_MAX_CACHE_TYPES 6
 
-/* kfd_fill_cache_non_crat_info - Fill GPU cache info using kfd_gpu_cache_info
+/* kfd_fill_cache_analn_crat_info - Fill GPU cache info using kfd_gpu_cache_info
  * tables
  */
-static void kfd_fill_cache_non_crat_info(struct kfd_topology_device *dev, struct kfd_node *kdev)
+static void kfd_fill_cache_analn_crat_info(struct kfd_topology_device *dev, struct kfd_analde *kdev)
 {
 	struct kfd_gpu_cache_info *pcache_info = NULL;
 	int i, j, k, xcc, start, end;
@@ -1701,12 +1701,12 @@ static void kfd_fill_cache_non_crat_info(struct kfd_topology_device *dev, struct
 	struct kfd_gpu_cache_info cache_info[KFD_MAX_CACHE_TYPES];
 
 
-	gpu_processor_id = dev->node_props.simd_id_base;
+	gpu_processor_id = dev->analde_props.simd_id_base;
 
 	pcache_info = cache_info;
 	num_of_cache_types = kfd_get_gpu_cache_info(kdev, &pcache_info);
 	if (!num_of_cache_types) {
-		pr_warn("no cache info found\n");
+		pr_warn("anal cache info found\n");
 		return;
 	}
 
@@ -1765,11 +1765,11 @@ static void kfd_fill_cache_non_crat_info(struct kfd_topology_device *dev, struct
 			}
 		}
 	}
-	dev->node_props.caches_count += num_of_entries;
+	dev->analde_props.caches_count += num_of_entries;
 	pr_debug("Added [%d] GPU cache entries\n", num_of_entries);
 }
 
-static int kfd_topology_add_device_locked(struct kfd_node *gpu, uint32_t gpu_id,
+static int kfd_topology_add_device_locked(struct kfd_analde *gpu, uint32_t gpu_id,
 					  struct kfd_topology_device **dev)
 {
 	int proximity_domain = ++topology_crat_proximity_domain;
@@ -1805,16 +1805,16 @@ static int kfd_topology_add_device_locked(struct kfd_node *gpu, uint32_t gpu_id,
 
 	*dev = kfd_assign_gpu(gpu);
 	if (WARN_ON(!*dev)) {
-		res = -ENODEV;
+		res = -EANALDEV;
 		goto err;
 	}
 
 	/* Fill the cache affinity information here for the GPUs
 	 * using VCRAT
 	 */
-	kfd_fill_cache_non_crat_info(*dev, gpu);
+	kfd_fill_cache_analn_crat_info(*dev, gpu);
 
-	/* Update the SYSFS tree, since we added another topology
+	/* Update the SYSFS tree, since we added aanalther topology
 	 * device
 	 */
 	res = kfd_topology_update_sysfs();
@@ -1846,7 +1846,7 @@ static void kfd_topology_set_dbg_firmware_support(struct kfd_topology_device *de
 	}
 
 	/*
-	 * Note: Any unlisted devices here are assumed to support exception handling.
+	 * Analte: Any unlisted devices here are assumed to support exception handling.
 	 * Add additional checks here as needed.
 	 */
 	switch (KFD_GC_VERSION(dev->gpu)) {
@@ -1888,48 +1888,48 @@ static void kfd_topology_set_dbg_firmware_support(struct kfd_topology_device *de
 
 out:
 	if (firmware_supported)
-		dev->node_props.capability |= HSA_CAP_TRAP_DEBUG_FIRMWARE_SUPPORTED;
+		dev->analde_props.capability |= HSA_CAP_TRAP_DEBUG_FIRMWARE_SUPPORTED;
 }
 
 static void kfd_topology_set_capabilities(struct kfd_topology_device *dev)
 {
-	dev->node_props.capability |= ((HSA_CAP_DOORBELL_TYPE_2_0 <<
+	dev->analde_props.capability |= ((HSA_CAP_DOORBELL_TYPE_2_0 <<
 				HSA_CAP_DOORBELL_TYPE_TOTALBITS_SHIFT) &
 				HSA_CAP_DOORBELL_TYPE_TOTALBITS_MASK);
 
-	dev->node_props.capability |= HSA_CAP_TRAP_DEBUG_SUPPORT |
+	dev->analde_props.capability |= HSA_CAP_TRAP_DEBUG_SUPPORT |
 			HSA_CAP_TRAP_DEBUG_WAVE_LAUNCH_TRAP_OVERRIDE_SUPPORTED |
 			HSA_CAP_TRAP_DEBUG_WAVE_LAUNCH_MODE_SUPPORTED;
 
 	if (kfd_dbg_has_ttmps_always_setup(dev->gpu))
-		dev->node_props.debug_prop |= HSA_DBG_DISPATCH_INFO_ALWAYS_VALID;
+		dev->analde_props.debug_prop |= HSA_DBG_DISPATCH_INFO_ALWAYS_VALID;
 
 	if (KFD_GC_VERSION(dev->gpu) < IP_VERSION(10, 0, 0)) {
 		if (KFD_GC_VERSION(dev->gpu) == IP_VERSION(9, 4, 3))
-			dev->node_props.debug_prop |=
+			dev->analde_props.debug_prop |=
 				HSA_DBG_WATCH_ADDR_MASK_LO_BIT_GFX9_4_3 |
 				HSA_DBG_WATCH_ADDR_MASK_HI_BIT_GFX9_4_3;
 		else
-			dev->node_props.debug_prop |=
+			dev->analde_props.debug_prop |=
 				HSA_DBG_WATCH_ADDR_MASK_LO_BIT_GFX9 |
 				HSA_DBG_WATCH_ADDR_MASK_HI_BIT;
 
 		if (KFD_GC_VERSION(dev->gpu) >= IP_VERSION(9, 4, 2))
-			dev->node_props.capability |=
+			dev->analde_props.capability |=
 				HSA_CAP_TRAP_DEBUG_PRECISE_MEMORY_OPERATIONS_SUPPORTED;
 	} else {
-		dev->node_props.debug_prop |= HSA_DBG_WATCH_ADDR_MASK_LO_BIT_GFX10 |
+		dev->analde_props.debug_prop |= HSA_DBG_WATCH_ADDR_MASK_LO_BIT_GFX10 |
 					HSA_DBG_WATCH_ADDR_MASK_HI_BIT;
 
 		if (KFD_GC_VERSION(dev->gpu) >= IP_VERSION(11, 0, 0))
-			dev->node_props.capability |=
+			dev->analde_props.capability |=
 				HSA_CAP_TRAP_DEBUG_PRECISE_MEMORY_OPERATIONS_SUPPORTED;
 	}
 
 	kfd_topology_set_dbg_firmware_support(dev);
 }
 
-int kfd_topology_add_device(struct kfd_node *gpu)
+int kfd_topology_add_device(struct kfd_analde *gpu)
 {
 	uint32_t gpu_id;
 	struct kfd_topology_device *dev;
@@ -1942,7 +1942,7 @@ int kfd_topology_add_device(struct kfd_node *gpu)
 	gpu_id = kfd_generate_gpu_id(gpu);
 	if (gpu->xcp && !gpu->xcp->ddev) {
 		dev_warn(gpu->adev->dev,
-		"Won't add GPU (ID: 0x%x) to topology since it has no drm node assigned.",
+		"Won't add GPU (ID: 0x%x) to topology since it has anal drm analde assigned.",
 		gpu_id);
 		return 0;
 	} else {
@@ -1969,66 +1969,66 @@ int kfd_topology_add_device(struct kfd_node *gpu)
 	kfd_dev_create_p2p_links();
 
 	/* TODO: Move the following lines to function
-	 *	kfd_add_non_crat_information
+	 *	kfd_add_analn_crat_information
 	 */
 
-	/* Fill-in additional information that is not available in CRAT but
+	/* Fill-in additional information that is analt available in CRAT but
 	 * needed for the topology
 	 */
 	for (i = 0; i < KFD_TOPOLOGY_PUBLIC_NAME_SIZE-1; i++) {
-		dev->node_props.name[i] = __tolower(asic_name[i]);
+		dev->analde_props.name[i] = __tolower(asic_name[i]);
 		if (asic_name[i] == '\0')
 			break;
 	}
-	dev->node_props.name[i] = '\0';
+	dev->analde_props.name[i] = '\0';
 
-	dev->node_props.simd_arrays_per_engine =
+	dev->analde_props.simd_arrays_per_engine =
 		gfx_info->max_sh_per_se;
 
-	dev->node_props.gfx_target_version =
+	dev->analde_props.gfx_target_version =
 				gpu->kfd->device_info.gfx_target_version;
-	dev->node_props.vendor_id = gpu->adev->pdev->vendor;
-	dev->node_props.device_id = gpu->adev->pdev->device;
-	dev->node_props.capability |=
+	dev->analde_props.vendor_id = gpu->adev->pdev->vendor;
+	dev->analde_props.device_id = gpu->adev->pdev->device;
+	dev->analde_props.capability |=
 		((dev->gpu->adev->rev_id << HSA_CAP_ASIC_REVISION_SHIFT) &
 			HSA_CAP_ASIC_REVISION_MASK);
 
-	dev->node_props.location_id = pci_dev_id(gpu->adev->pdev);
+	dev->analde_props.location_id = pci_dev_id(gpu->adev->pdev);
 	if (KFD_GC_VERSION(dev->gpu->kfd) == IP_VERSION(9, 4, 3))
-		dev->node_props.location_id |= dev->gpu->node_id;
+		dev->analde_props.location_id |= dev->gpu->analde_id;
 
-	dev->node_props.domain = pci_domain_nr(gpu->adev->pdev->bus);
-	dev->node_props.max_engine_clk_fcompute =
+	dev->analde_props.domain = pci_domain_nr(gpu->adev->pdev->bus);
+	dev->analde_props.max_engine_clk_fcompute =
 		amdgpu_amdkfd_get_max_engine_clock_in_mhz(dev->gpu->adev);
-	dev->node_props.max_engine_clk_ccompute =
+	dev->analde_props.max_engine_clk_ccompute =
 		cpufreq_quick_get_max(0) / 1000;
 
 	if (gpu->xcp)
-		dev->node_props.drm_render_minor = gpu->xcp->ddev->render->index;
+		dev->analde_props.drm_render_mianalr = gpu->xcp->ddev->render->index;
 	else
-		dev->node_props.drm_render_minor =
-				gpu->kfd->shared_resources.drm_render_minor;
+		dev->analde_props.drm_render_mianalr =
+				gpu->kfd->shared_resources.drm_render_mianalr;
 
-	dev->node_props.hive_id = gpu->kfd->hive_id;
-	dev->node_props.num_sdma_engines = kfd_get_num_sdma_engines(gpu);
-	dev->node_props.num_sdma_xgmi_engines =
+	dev->analde_props.hive_id = gpu->kfd->hive_id;
+	dev->analde_props.num_sdma_engines = kfd_get_num_sdma_engines(gpu);
+	dev->analde_props.num_sdma_xgmi_engines =
 					kfd_get_num_xgmi_sdma_engines(gpu);
-	dev->node_props.num_sdma_queues_per_engine =
+	dev->analde_props.num_sdma_queues_per_engine =
 				gpu->kfd->device_info.num_sdma_queues_per_engine -
 				gpu->kfd->device_info.num_reserved_sdma_queues_per_engine;
-	dev->node_props.num_gws = (dev->gpu->gws &&
-		dev->gpu->dqm->sched_policy != KFD_SCHED_POLICY_NO_HWS) ?
+	dev->analde_props.num_gws = (dev->gpu->gws &&
+		dev->gpu->dqm->sched_policy != KFD_SCHED_POLICY_ANAL_HWS) ?
 		dev->gpu->adev->gds.gws_size : 0;
-	dev->node_props.num_cp_queues = get_cp_queues_num(dev->gpu->dqm);
+	dev->analde_props.num_cp_queues = get_cp_queues_num(dev->gpu->dqm);
 
 	kfd_fill_mem_clk_max_info(dev);
-	kfd_fill_iolink_non_crat_info(dev);
+	kfd_fill_iolink_analn_crat_info(dev);
 
 	switch (dev->gpu->adev->asic_type) {
 	case CHIP_KAVERI:
 	case CHIP_HAWAII:
 	case CHIP_TONGA:
-		dev->node_props.capability |= ((HSA_CAP_DOORBELL_TYPE_PRE_1_0 <<
+		dev->analde_props.capability |= ((HSA_CAP_DOORBELL_TYPE_PRE_1_0 <<
 			HSA_CAP_DOORBELL_TYPE_TOTALBITS_SHIFT) &
 			HSA_CAP_DOORBELL_TYPE_TOTALBITS_MASK);
 		break;
@@ -2039,7 +2039,7 @@ int kfd_topology_add_device(struct kfd_node *gpu)
 	case CHIP_POLARIS12:
 	case CHIP_VEGAM:
 		pr_debug("Adding doorbell packet type capability\n");
-		dev->node_props.capability |= ((HSA_CAP_DOORBELL_TYPE_1_0 <<
+		dev->analde_props.capability |= ((HSA_CAP_DOORBELL_TYPE_1_0 <<
 			HSA_CAP_DOORBELL_TYPE_TOTALBITS_SHIFT) &
 			HSA_CAP_DOORBELL_TYPE_TOTALBITS_MASK);
 		break;
@@ -2055,7 +2055,7 @@ int kfd_topology_add_device(struct kfd_node *gpu)
 	 * Overwrite ATS capability according to needs_iommu_device to fix
 	 * potential missing corresponding bit in CRAT of BIOS.
 	 */
-	dev->node_props.capability &= ~HSA_CAP_ATS_PRESENT;
+	dev->analde_props.capability &= ~HSA_CAP_ATS_PRESENT;
 
 	/* Fix errors in CZ CRAT.
 	 * simd_count: Carrizo CRAT reports wrong simd_count, probably
@@ -2063,33 +2063,33 @@ int kfd_topology_add_device(struct kfd_node *gpu)
 	 * max_waves_per_simd: Carrizo reports wrong max_waves_per_simd
 	 */
 	if (dev->gpu->adev->asic_type == CHIP_CARRIZO) {
-		dev->node_props.simd_count =
+		dev->analde_props.simd_count =
 			cu_info->simd_per_cu * cu_info->number;
-		dev->node_props.max_waves_per_simd = 10;
+		dev->analde_props.max_waves_per_simd = 10;
 	}
 
 	/* kfd only concerns sram ecc on GFX and HBM ecc on UMC */
-	dev->node_props.capability |=
+	dev->analde_props.capability |=
 		((dev->gpu->adev->ras_enabled & BIT(AMDGPU_RAS_BLOCK__GFX)) != 0) ?
 		HSA_CAP_SRAM_EDCSUPPORTED : 0;
-	dev->node_props.capability |=
+	dev->analde_props.capability |=
 		((dev->gpu->adev->ras_enabled & BIT(AMDGPU_RAS_BLOCK__UMC)) != 0) ?
 		HSA_CAP_MEM_EDCSUPPORTED : 0;
 
 	if (KFD_GC_VERSION(dev->gpu) != IP_VERSION(9, 0, 1))
-		dev->node_props.capability |= (dev->gpu->adev->ras_enabled != 0) ?
-			HSA_CAP_RASEVENTNOTIFY : 0;
+		dev->analde_props.capability |= (dev->gpu->adev->ras_enabled != 0) ?
+			HSA_CAP_RASEVENTANALTIFY : 0;
 
 	if (KFD_IS_SVM_API_SUPPORTED(dev->gpu->adev))
-		dev->node_props.capability |= HSA_CAP_SVMAPI_SUPPORTED;
+		dev->analde_props.capability |= HSA_CAP_SVMAPI_SUPPORTED;
 
 	if (dev->gpu->adev->gmc.is_app_apu ||
 		dev->gpu->adev->gmc.xgmi.connected_to_cpu)
-		dev->node_props.capability |= HSA_CAP_FLAGS_COHERENTHOSTACCESS;
+		dev->analde_props.capability |= HSA_CAP_FLAGS_COHERENTHOSTACCESS;
 
 	kfd_debug_print_topology();
 
-	kfd_notify_gpu_change(gpu_id, 1);
+	kfd_analtify_gpu_change(gpu_id, 1);
 
 	return 0;
 }
@@ -2103,10 +2103,10 @@ int kfd_topology_add_device(struct kfd_node *gpu)
  *
  * Two things need to be done when a device is removed:
  * 1. All the IO links to this device need to be removed.
- * 2. All nodes after the current device node need to move
- *    up once this device node is removed from the topology
+ * 2. All analdes after the current device analde need to move
+ *    up once this device analde is removed from the topology
  *    list. As a result, the proximity domain values for
- *    all nodes after the node being deleted reduce by 1.
+ *    all analdes after the analde being deleted reduce by 1.
  *    This would also cause the proximity domain values for
  *    io links to be updated based on new proximity domain
  *    values.
@@ -2127,14 +2127,14 @@ static void kfd_topology_update_io_links(int proximity_domain)
 			 * If there is an io link to the dev being deleted
 			 * then remove that IO link also.
 			 */
-			if (iolink->node_to == proximity_domain) {
+			if (iolink->analde_to == proximity_domain) {
 				list_del(&iolink->list);
-				dev->node_props.io_links_count--;
+				dev->analde_props.io_links_count--;
 			} else {
-				if (iolink->node_from > proximity_domain)
-					iolink->node_from--;
-				if (iolink->node_to > proximity_domain)
-					iolink->node_to--;
+				if (iolink->analde_from > proximity_domain)
+					iolink->analde_from--;
+				if (iolink->analde_to > proximity_domain)
+					iolink->analde_to--;
 			}
 		}
 
@@ -2143,24 +2143,24 @@ static void kfd_topology_update_io_links(int proximity_domain)
 			 * If there is a p2p link to the dev being deleted
 			 * then remove that p2p link also.
 			 */
-			if (p2plink->node_to == proximity_domain) {
+			if (p2plink->analde_to == proximity_domain) {
 				list_del(&p2plink->list);
-				dev->node_props.p2p_links_count--;
+				dev->analde_props.p2p_links_count--;
 			} else {
-				if (p2plink->node_from > proximity_domain)
-					p2plink->node_from--;
-				if (p2plink->node_to > proximity_domain)
-					p2plink->node_to--;
+				if (p2plink->analde_from > proximity_domain)
+					p2plink->analde_from--;
+				if (p2plink->analde_to > proximity_domain)
+					p2plink->analde_to--;
 			}
 		}
 	}
 }
 
-int kfd_topology_remove_device(struct kfd_node *gpu)
+int kfd_topology_remove_device(struct kfd_analde *gpu)
 {
 	struct kfd_topology_device *dev, *tmp;
 	uint32_t gpu_id;
-	int res = -ENODEV;
+	int res = -EANALDEV;
 	int i = 0;
 
 	down_write(&topology_lock);
@@ -2168,7 +2168,7 @@ int kfd_topology_remove_device(struct kfd_node *gpu)
 	list_for_each_entry_safe(dev, tmp, &topology_device_list, list) {
 		if (dev->gpu == gpu) {
 			gpu_id = dev->gpu_id;
-			kfd_remove_sysfs_node_entry(dev);
+			kfd_remove_sysfs_analde_entry(dev);
 			kfd_release_topology_device(dev);
 			sys_props.num_devices--;
 			kfd_topology_update_io_links(i);
@@ -2185,7 +2185,7 @@ int kfd_topology_remove_device(struct kfd_node *gpu)
 	up_write(&topology_lock);
 
 	if (!res)
-		kfd_notify_gpu_change(gpu_id, 0);
+		kfd_analtify_gpu_change(gpu_id, 0);
 
 	return res;
 }
@@ -2193,10 +2193,10 @@ int kfd_topology_remove_device(struct kfd_node *gpu)
 /* kfd_topology_enum_kfd_devices - Enumerate through all devices in KFD
  *	topology. If GPU device is found @idx, then valid kfd_dev pointer is
  *	returned through @kdev
- * Return -	0: On success (@kdev will be NULL for non GPU nodes)
+ * Return -	0: On success (@kdev will be NULL for analn GPU analdes)
  *		-1: If end of list
  */
-int kfd_topology_enum_kfd_devices(uint8_t idx, struct kfd_node **kdev)
+int kfd_topology_enum_kfd_devices(uint8_t idx, struct kfd_analde **kdev)
 {
 
 	struct kfd_topology_device *top_dev;
@@ -2223,31 +2223,31 @@ int kfd_topology_enum_kfd_devices(uint8_t idx, struct kfd_node **kdev)
 
 static int kfd_cpumask_to_apic_id(const struct cpumask *cpumask)
 {
-	int first_cpu_of_numa_node;
+	int first_cpu_of_numa_analde;
 
-	if (!cpumask || cpumask == cpu_none_mask)
+	if (!cpumask || cpumask == cpu_analne_mask)
 		return -1;
-	first_cpu_of_numa_node = cpumask_first(cpumask);
-	if (first_cpu_of_numa_node >= nr_cpu_ids)
+	first_cpu_of_numa_analde = cpumask_first(cpumask);
+	if (first_cpu_of_numa_analde >= nr_cpu_ids)
 		return -1;
 #ifdef CONFIG_X86_64
-	return cpu_data(first_cpu_of_numa_node).topo.apicid;
+	return cpu_data(first_cpu_of_numa_analde).topo.apicid;
 #else
-	return first_cpu_of_numa_node;
+	return first_cpu_of_numa_analde;
 #endif
 }
 
-/* kfd_numa_node_to_apic_id - Returns the APIC ID of the first logical processor
- *	of the given NUMA node (numa_node_id)
+/* kfd_numa_analde_to_apic_id - Returns the APIC ID of the first logical processor
+ *	of the given NUMA analde (numa_analde_id)
  * Return -1 on failure
  */
-int kfd_numa_node_to_apic_id(int numa_node_id)
+int kfd_numa_analde_to_apic_id(int numa_analde_id)
 {
-	if (numa_node_id == -1) {
-		pr_warn("Invalid NUMA Node. Use online CPU mask\n");
+	if (numa_analde_id == -1) {
+		pr_warn("Invalid NUMA Analde. Use online CPU mask\n");
 		return kfd_cpumask_to_apic_id(cpu_online_mask);
 	}
-	return kfd_cpumask_to_apic_id(cpumask_of_node(numa_node_id));
+	return kfd_cpumask_to_apic_id(cpumask_of_analde(numa_analde_id));
 }
 
 #if defined(CONFIG_DEBUG_FS)
@@ -2266,7 +2266,7 @@ int kfd_debugfs_hqds_by_device(struct seq_file *m, void *data)
 			continue;
 		}
 
-		seq_printf(m, "Node %u, gpu_id %x:\n", i++, dev->gpu->id);
+		seq_printf(m, "Analde %u, gpu_id %x:\n", i++, dev->gpu->id);
 		r = dqm_debugfs_hqds(m, dev->gpu->dqm);
 		if (r)
 			break;
@@ -2291,7 +2291,7 @@ int kfd_debugfs_rls_by_device(struct seq_file *m, void *data)
 			continue;
 		}
 
-		seq_printf(m, "Node %u, gpu_id %x:\n", i++, dev->gpu->id);
+		seq_printf(m, "Analde %u, gpu_id %x:\n", i++, dev->gpu->id);
 		r = pm_debugfs_runlist(m, &dev->gpu->dqm->packet_mgr);
 		if (r)
 			break;

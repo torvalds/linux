@@ -1,6 +1,6 @@
 #
 # Feature name:          user-ret-profiler
-#         Kconfig:       HAVE_USER_RETURN_NOTIFIER
+#         Kconfig:       HAVE_USER_RETURN_ANALTIFIER
 #         description:   arch supports user-space return from system call profiler
 #
     -----------------------

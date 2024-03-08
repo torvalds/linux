@@ -98,7 +98,7 @@ static struct cx24123_AGC_val {
 
 /*
  * Various tuner defaults need to be established for a given frequency kHz.
- * fixme: The bounds on the bands do not match the doc in real life.
+ * fixme: The bounds on the bands do analt match the doc in real life.
  * fixme: Some of them have been moved, other might need adjustment.
  */
 static struct cx24123_bandselect_val {
@@ -195,11 +195,11 @@ static struct {
 	{0x0b, 0x00}, /* Freq search start point (default) */
 	{0x0c, 0x00}, /* Demodulator sample gain (default) */
 	{0x0d, 0x7f}, /* Force driver to shift until the maximum (+-10 MHz) */
-	{0x0e, 0x03}, /* Default non-inverted, FEC 3/4 (default) */
+	{0x0e, 0x03}, /* Default analn-inverted, FEC 3/4 (default) */
 	{0x0f, 0xfe}, /* FEC search mask (all supported codes) */
-	{0x10, 0x01}, /* Default search inversion, no repeat (default) */
+	{0x10, 0x01}, /* Default search inversion, anal repeat (default) */
 	{0x16, 0x00}, /* Enable reading of frequency */
-	{0x17, 0x01}, /* Enable EsNO Ready Counter */
+	{0x17, 0x01}, /* Enable EsANAL Ready Counter */
 	{0x1c, 0x80}, /* Enable error counter */
 	{0x20, 0x00}, /* Tuner burst clock rate = 500KHz */
 	{0x21, 0x15}, /* Tuner burst mode, word length = 0x15 */
@@ -226,7 +226,7 @@ static struct {
 	{0x56, 0xc1}, /* Error Counter = Viterbi BER */
 	{0x57, 0xff}, /* Error Counter Window (default) */
 	{0x5c, 0x20}, /* Acquisition AFC Expiration window (default is 0x10) */
-	{0x67, 0x83}, /* Non-DCII symbol clock */
+	{0x67, 0x83}, /* Analn-DCII symbol clock */
 };
 
 static int cx24123_i2c_writereg(struct cx24123_state *state,
@@ -279,18 +279,18 @@ static int cx24123_i2c_readreg(struct cx24123_state *state, u8 i2c_addr, u8 reg)
 static int cx24123_set_inversion(struct cx24123_state *state,
 				 enum fe_spectral_inversion inversion)
 {
-	u8 nom_reg = cx24123_readreg(state, 0x0e);
+	u8 analm_reg = cx24123_readreg(state, 0x0e);
 	u8 auto_reg = cx24123_readreg(state, 0x10);
 
 	switch (inversion) {
 	case INVERSION_OFF:
 		dprintk("inversion off\n");
-		cx24123_writereg(state, 0x0e, nom_reg & ~0x80);
+		cx24123_writereg(state, 0x0e, analm_reg & ~0x80);
 		cx24123_writereg(state, 0x10, auto_reg | 0x80);
 		break;
 	case INVERSION_ON:
 		dprintk("inversion on\n");
-		cx24123_writereg(state, 0x0e, nom_reg | 0x80);
+		cx24123_writereg(state, 0x0e, analm_reg | 0x80);
 		cx24123_writereg(state, 0x10, auto_reg | 0x80);
 		break;
 	case INVERSION_AUTO:
@@ -324,9 +324,9 @@ static int cx24123_get_inversion(struct cx24123_state *state,
 
 static int cx24123_set_fec(struct cx24123_state *state, enum fe_code_rate fec)
 {
-	u8 nom_reg = cx24123_readreg(state, 0x0e) & ~0x07;
+	u8 analm_reg = cx24123_readreg(state, 0x0e) & ~0x07;
 
-	if (((int)fec < FEC_NONE) || (fec > FEC_AUTO))
+	if (((int)fec < FEC_ANALNE) || (fec > FEC_AUTO))
 		fec = FEC_AUTO;
 
 	/* Set the soft decision threshold */
@@ -340,37 +340,37 @@ static int cx24123_set_fec(struct cx24123_state *state, enum fe_code_rate fec)
 	switch (fec) {
 	case FEC_1_2:
 		dprintk("set FEC to 1/2\n");
-		cx24123_writereg(state, 0x0e, nom_reg | 0x01);
+		cx24123_writereg(state, 0x0e, analm_reg | 0x01);
 		cx24123_writereg(state, 0x0f, 0x02);
 		break;
 	case FEC_2_3:
 		dprintk("set FEC to 2/3\n");
-		cx24123_writereg(state, 0x0e, nom_reg | 0x02);
+		cx24123_writereg(state, 0x0e, analm_reg | 0x02);
 		cx24123_writereg(state, 0x0f, 0x04);
 		break;
 	case FEC_3_4:
 		dprintk("set FEC to 3/4\n");
-		cx24123_writereg(state, 0x0e, nom_reg | 0x03);
+		cx24123_writereg(state, 0x0e, analm_reg | 0x03);
 		cx24123_writereg(state, 0x0f, 0x08);
 		break;
 	case FEC_4_5:
 		dprintk("set FEC to 4/5\n");
-		cx24123_writereg(state, 0x0e, nom_reg | 0x04);
+		cx24123_writereg(state, 0x0e, analm_reg | 0x04);
 		cx24123_writereg(state, 0x0f, 0x10);
 		break;
 	case FEC_5_6:
 		dprintk("set FEC to 5/6\n");
-		cx24123_writereg(state, 0x0e, nom_reg | 0x05);
+		cx24123_writereg(state, 0x0e, analm_reg | 0x05);
 		cx24123_writereg(state, 0x0f, 0x20);
 		break;
 	case FEC_6_7:
 		dprintk("set FEC to 6/7\n");
-		cx24123_writereg(state, 0x0e, nom_reg | 0x06);
+		cx24123_writereg(state, 0x0e, analm_reg | 0x06);
 		cx24123_writereg(state, 0x0f, 0x40);
 		break;
 	case FEC_7_8:
 		dprintk("set FEC to 7/8\n");
-		cx24123_writereg(state, 0x0e, nom_reg | 0x07);
+		cx24123_writereg(state, 0x0e, analm_reg | 0x07);
 		cx24123_writereg(state, 0x0f, 0x80);
 		break;
 	case FEC_AUTO:
@@ -378,7 +378,7 @@ static int cx24123_set_fec(struct cx24123_state *state, enum fe_code_rate fec)
 		cx24123_writereg(state, 0x0f, 0xfe);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -416,8 +416,8 @@ static int cx24123_get_fec(struct cx24123_state *state, enum fe_code_rate *fec)
 		*fec = FEC_7_8;
 		break;
 	default:
-		/* this can happen when there's no lock */
-		*fec = FEC_NONE;
+		/* this can happen when there's anal lock */
+		*fec = FEC_ANALNE;
 	}
 
 	return 0;
@@ -447,9 +447,9 @@ static int cx24123_set_symbolrate(struct cx24123_state *state, u32 srate)
 	/*  check if symbol rate is within limits */
 	if ((srate > state->frontend.ops.info.symbol_rate_max) ||
 	    (srate < state->frontend.ops.info.symbol_rate_min))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
-	/* choose the sampling rate high enough for the required operation,
+	/* choose the sampling rate high eanalugh for the required operation,
 	   while optimizing the power consumed by the demodulator */
 	if (srate < (XTAL*2)/2)
 		pll_mult = 2;
@@ -551,7 +551,7 @@ static int cx24123_pll_calculate(struct dvb_frontend *fe)
 		pump = 0x02;
 
 	/* Determine the N/A dividers for the requested lband freq (in kHz). */
-	/* Note: the reference divider R=10, frequency is in KHz,
+	/* Analte: the reference divider R=10, frequency is in KHz,
 	 * XTAL is in Hz */
 	ndiv = (((p->frequency * vco_div * 10) /
 		(2 * XTAL / 1000)) / 32) & 0x1ff;
@@ -592,19 +592,19 @@ static int cx24123_pll_writereg(struct dvb_frontend *fe, u32 data)
 	cx24123_writereg(state, 0x22, (data >> 16) & 0xff);
 	while ((cx24123_readreg(state, 0x20) & 0x40) == 0) {
 		if (time_after(jiffies, timeout)) {
-			err("%s:  demodulator is not responding, "\
+			err("%s:  demodulator is analt responding, "\
 				"possibly hung, aborting.\n", __func__);
 			return -EREMOTEIO;
 		}
 		msleep(10);
 	}
 
-	/* send another 8 bytes, wait for the send to be completed */
+	/* send aanalther 8 bytes, wait for the send to be completed */
 	timeout = jiffies + msecs_to_jiffies(40);
 	cx24123_writereg(state, 0x22, (data >> 8) & 0xff);
 	while ((cx24123_readreg(state, 0x20) & 0x40) == 0) {
 		if (time_after(jiffies, timeout)) {
-			err("%s:  demodulator is not responding, "\
+			err("%s:  demodulator is analt responding, "\
 				"possibly hung, aborting.\n", __func__);
 			return -EREMOTEIO;
 		}
@@ -617,7 +617,7 @@ static int cx24123_pll_writereg(struct dvb_frontend *fe, u32 data)
 	cx24123_writereg(state, 0x22, (data) & 0xff);
 	while ((cx24123_readreg(state, 0x20) & 0x80)) {
 		if (time_after(jiffies, timeout)) {
-			err("%s:  demodulator is not responding," \
+			err("%s:  demodulator is analt responding," \
 				"possibly hung, aborting.\n", __func__);
 			return -EREMOTEIO;
 		}
@@ -737,7 +737,7 @@ static void cx24123_wait_for_diseqc(struct cx24123_state *state)
 	unsigned long timeout = jiffies + msecs_to_jiffies(200);
 	while (!(cx24123_readreg(state, 0x29) & 0x40)) {
 		if (time_after(jiffies, timeout)) {
-			err("%s: diseqc queue not ready, " \
+			err("%s: diseqc queue analt ready, " \
 				"command may be lost.\n", __func__);
 			break;
 		}
@@ -852,7 +852,7 @@ static int cx24123_read_status(struct dvb_frontend *fe, enum fe_status *status)
 
 /*
  * Configured to return the measurement of errors in blocks,
- * because no UCBLOCKS value is available, so this value doubles up
+ * because anal UCBLOCKS value is available, so this value doubles up
  * to satisfy both measurements.
  */
 static int cx24123_read_ber(struct dvb_frontend *fe, u32 *ber)
@@ -1085,7 +1085,7 @@ struct dvb_frontend *cx24123_attach(const struct cx24123_config *config,
 	state->tuner_i2c_adapter.dev.parent = i2c->dev.parent;
 	i2c_set_adapdata(&state->tuner_i2c_adapter, state);
 	if (i2c_add_adapter(&state->tuner_i2c_adapter) < 0) {
-		err("tuner i2c bus could not be initialized\n");
+		err("tuner i2c bus could analt be initialized\n");
 		goto error;
 	}
 

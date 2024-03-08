@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef __TARGET_CORE_USER_H
 #define __TARGET_CORE_USER_H
 
@@ -42,10 +42,10 @@
  */
 
 #define TCMU_MAILBOX_VERSION 2
-#define ALIGN_SIZE 64 /* Should be enough for most CPUs */
+#define ALIGN_SIZE 64 /* Should be eanalugh for most CPUs */
 #define TCMU_MAILBOX_FLAG_CAP_OOOC (1 << 0) /* Out-of-order completions */
 #define TCMU_MAILBOX_FLAG_CAP_READ_LEN (1 << 1) /* Read data length */
-#define TCMU_MAILBOX_FLAG_CAP_TMR (1 << 2) /* TMR notifications */
+#define TCMU_MAILBOX_FLAG_CAP_TMR (1 << 2) /* TMR analtifications */
 #define TCMU_MAILBOX_FLAG_CAP_KEEP_BUF (1<<3) /* Keep buf after cmd completion */
 
 struct tcmu_mailbox {
@@ -74,7 +74,7 @@ struct tcmu_cmd_entry_hdr {
 	__u32 len_op;
 	__u16 cmd_id;
 	__u8 kflags;
-#define TCMU_UFLAG_UNKNOWN_OP 0x1
+#define TCMU_UFLAG_UNKANALWN_OP 0x1
 #define TCMU_UFLAG_READ_LEN   0x2
 #define TCMU_UFLAG_KEEP_BUF   0x4
 	__u8 uflags;
@@ -135,7 +135,7 @@ struct tcmu_cmd_entry {
 struct tcmu_tmr_entry {
 	struct tcmu_cmd_entry_hdr hdr;
 
-#define TCMU_TMR_UNKNOWN		0
+#define TCMU_TMR_UNKANALWN		0
 #define TCMU_TMR_ABORT_TASK		1
 #define TCMU_TMR_ABORT_TASK_SET		2
 #define TCMU_TMR_CLEAR_ACA		3
@@ -173,7 +173,7 @@ enum tcmu_genl_cmd {
 enum tcmu_genl_attr {
 	TCMU_ATTR_UNSPEC,
 	TCMU_ATTR_DEVICE,
-	TCMU_ATTR_MINOR,
+	TCMU_ATTR_MIANALR,
 	TCMU_ATTR_PAD,
 	TCMU_ATTR_DEV_CFG,
 	TCMU_ATTR_DEV_SIZE,

@@ -105,7 +105,7 @@ option, trace data are output via stdout in the guest.
 
 3) Open FIFO in a host
 	# cat /tmp/virtio-trace/trace-path-cpu0.out
-If a host does not open these, trace data get stuck in buffers of virtio. Then,
+If a host does analt open these, trace data get stuck in buffers of virtio. Then,
 the guest will stop by specification of chardev in QEMU. This blocking mode may
 be solved in the future.
 

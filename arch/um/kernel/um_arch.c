@@ -9,7 +9,7 @@
 #include <linux/mm.h>
 #include <linux/ctype.h>
 #include <linux/module.h>
-#include <linux/panic_notifier.h>
+#include <linux/panic_analtifier.h>
 #include <linux/seq_file.h>
 #include <linux/string.h>
 #include <linux/utsname.h>
@@ -51,8 +51,8 @@ static void __init add_arg(char *arg)
 }
 
 /*
- * These fields are initialized at boot time and not changed.
- * XXX This structure is used only in the non-SMP case.  Maybe this
+ * These fields are initialized at boot time and analt changed.
+ * XXX This structure is used only in the analn-SMP case.  Maybe this
  * should be moved to smp.c.
  */
 struct cpuinfo_um boot_cpu_data = {
@@ -80,7 +80,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	seq_printf(m, "model name\t: UML\n");
 	seq_printf(m, "mode\t\t: skas\n");
 	seq_printf(m, "host\t\t: %s\n", host_info);
-	seq_printf(m, "fpu\t\t: %s\n", cpu_has(&boot_cpu_data, X86_FEATURE_FPU) ? "yes" : "no");
+	seq_printf(m, "fpu\t\t: %s\n", cpu_has(&boot_cpu_data, X86_FEATURE_FPU) ? "anal" : "anal");
 	seq_printf(m, "flags\t\t:");
 	for (i = 0; i < 32*NCAPINTS; i++)
 		if (cpu_has(&boot_cpu_data, i) && (x86_cap_flags[i] != NULL))
@@ -169,17 +169,17 @@ __uml_setup("root=", uml_root_setup,
 "        root=/dev/ubd5\n\n"
 );
 
-static int __init no_skas_debug_setup(char *line, int *add)
+static int __init anal_skas_debug_setup(char *line, int *add)
 {
-	os_warn("'debug' is not necessary to gdb UML in skas mode - run\n");
+	os_warn("'debug' is analt necessary to gdb UML in skas mode - run\n");
 	os_warn("'gdb linux'\n");
 
 	return 0;
 }
 
-__uml_setup("debug", no_skas_debug_setup,
+__uml_setup("debug", anal_skas_debug_setup,
 "debug\n"
-"    this flag is not needed to run gdb on UML in skas mode\n\n"
+"    this flag is analt needed to run gdb on UML in skas mode\n\n"
 );
 
 static int __init uml_console_setup(char *line, int *add)
@@ -240,7 +240,7 @@ static void __init uml_postsetup(void)
 	return;
 }
 
-static int panic_exit(struct notifier_block *self, unsigned long unused1,
+static int panic_exit(struct analtifier_block *self, unsigned long unused1,
 		      void *unused2)
 {
 	kmsg_dump(KMSG_DUMP_PANIC);
@@ -249,18 +249,18 @@ static int panic_exit(struct notifier_block *self, unsigned long unused1,
 	uml_exitcode = 1;
 	os_dump_core();
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block panic_exit_notifier = {
-	.notifier_call	= panic_exit,
-	.priority	= INT_MAX - 1, /* run as 2nd notifier, won't return */
+static struct analtifier_block panic_exit_analtifier = {
+	.analtifier_call	= panic_exit,
+	.priority	= INT_MAX - 1, /* run as 2nd analtifier, won't return */
 };
 
 void uml_finishsetup(void)
 {
-	atomic_notifier_chain_register(&panic_notifier_list,
-				       &panic_exit_notifier);
+	atomic_analtifier_chain_register(&panic_analtifier_list,
+				       &panic_exit_analtifier);
 
 	uml_postsetup();
 
@@ -331,7 +331,7 @@ int __init linux_main(int argc, char **argv)
 	/* align the data portion */
 	BUILD_BUG_ON(!is_power_of_2(STUB_DATA_PAGES));
 	stub_start = (host_task_size - 1) & ~(STUB_DATA_PAGES * PAGE_SIZE - 1);
-	/* another page for the code portion */
+	/* aanalther page for the code portion */
 	stub_start -= PAGE_SIZE;
 	host_task_size = stub_start;
 
@@ -351,7 +351,7 @@ int __init linux_main(int argc, char **argv)
 	/*
 	 * Increase physical memory size for exec-shield users
 	 * so they actually get what they asked for. This should
-	 * add zero for non-exec shield users
+	 * add zero for analn-exec shield users
 	 */
 
 	diff = UML_ROUND_UP(brk_start) - UML_ROUND_UP(&_end);
@@ -499,7 +499,7 @@ static int um_suspend_enter(suspend_state_t state)
 	/*
 	 * This is identical to the idle sleep, but we've just
 	 * (during suspend) turned off all interrupt sources
-	 * except for the ones we want, so now we can only wake
+	 * except for the ones we want, so analw we can only wake
 	 * up on something we actually want to wake up on. All
 	 * timing has also been suspended.
 	 */

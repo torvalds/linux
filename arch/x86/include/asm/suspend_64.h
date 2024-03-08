@@ -32,7 +32,7 @@ struct saved_context {
 	u16 ds, es, fs, gs;
 
 	/*
-	 * Usermode FSBASE and GSBASE may not match the fs and gs selectors,
+	 * Usermode FSBASE and GSBASE may analt match the fs and gs selectors,
 	 * so we save them separately.  We save the kernelmode GSBASE to
 	 * restore percpu access after resume.
 	 */

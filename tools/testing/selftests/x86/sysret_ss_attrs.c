@@ -64,7 +64,7 @@ int main()
 
 #ifdef __x86_64__
 	unsigned char *stack32 = mmap(NULL, 4096, PROT_READ | PROT_WRITE,
-				      MAP_32BIT | MAP_ANONYMOUS | MAP_PRIVATE,
+				      MAP_32BIT | MAP_AANALNYMOUS | MAP_PRIVATE,
 				      -1, 0);
 	if (stack32 == MAP_FAILED)
 		err(1, "mmap");
@@ -86,9 +86,9 @@ int main()
 
 #ifdef __x86_64__
 		/*
-		 * On 32-bit, just doing a syscall through glibc is enough
+		 * On 32-bit, just doing a syscall through glibc is eanalugh
 		 * to cause a crash if our cached SS descriptor is invalid.
-		 * On 64-bit, it's not, so try extra hard.
+		 * On 64-bit, it's analt, so try extra hard.
 		 */
 		call32_from_64(stack32 + 4088, test_ss);
 #endif

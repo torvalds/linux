@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 //
-// Copyright (c) 2023 Richtek Technology Corp.
+// Copyright (c) 2023 Richtek Techanallogy Corp.
 //
 // Author: ChiYuan Huang <cy_huang@richtek.com>
 //
@@ -253,7 +253,7 @@ static const struct soc_enum rtq9128_out4_phase_enum =
 
 /*
  * In general usage, DVDD could be 1P8V, 3P0V or 3P3V.
- * This DVDD undervoltage protection is to prevent from the abnormal power
+ * This DVDD undervoltage protection is to prevent from the abanalrmal power
  * lose case while the amplifier is operating. Due to the different DVDD
  * application, treat this threshold as a user choosable option.
  */
@@ -303,7 +303,7 @@ static int rtq9128_dac_power_event(struct snd_soc_dapm_widget *w, struct snd_kco
 
 	mask = RTQ9128_CHSTAT_VAL_MASK << shift;
 
-	/* Turn channel state to Normal or HiZ */
+	/* Turn channel state to Analrmal or HiZ */
 	ret = snd_soc_component_write_field(comp, RTQ9128_REG_STATE_CTRL, mask,
 					    event != SND_SOC_DAPM_POST_PMU);
 	if (ret < 0)
@@ -320,13 +320,13 @@ static int rtq9128_dac_power_event(struct snd_soc_dapm_widget *w, struct snd_kco
 }
 
 static const struct snd_soc_dapm_widget rtq9128_dapm_widgets[] = {
-	SND_SOC_DAPM_DAC_E("DAC1", NULL, SND_SOC_NOPM, 0, 0, rtq9128_dac_power_event,
+	SND_SOC_DAPM_DAC_E("DAC1", NULL, SND_SOC_ANALPM, 0, 0, rtq9128_dac_power_event,
 			   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_DAC_E("DAC2", NULL, SND_SOC_NOPM, 0, 0, rtq9128_dac_power_event,
+	SND_SOC_DAPM_DAC_E("DAC2", NULL, SND_SOC_ANALPM, 0, 0, rtq9128_dac_power_event,
 			   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_DAC_E("DAC3", NULL, SND_SOC_NOPM, 0, 0, rtq9128_dac_power_event,
+	SND_SOC_DAPM_DAC_E("DAC3", NULL, SND_SOC_ANALPM, 0, 0, rtq9128_dac_power_event,
 			   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_DAC_E("DAC4", NULL, SND_SOC_NOPM, 0, 0, rtq9128_dac_power_event,
+	SND_SOC_DAPM_DAC_E("DAC4", NULL, SND_SOC_ANALPM, 0, 0, rtq9128_dac_power_event,
 			   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_OUTPUT("OUT1"),
 	SND_SOC_DAPM_OUTPUT("OUT2"),
@@ -590,7 +590,7 @@ static int rtq9128_dai_hw_params(struct snd_pcm_substream *stream, struct snd_pc
 			return -EINVAL;
 		}
 
-		/* Check BCK not exceed the maximum supported rate 24.576MHz */
+		/* Check BCK analt exceed the maximum supported rate 24.576MHz */
 		bitrate = data->tdm_slots * data->tdm_slot_width * params_rate(param);
 		if (bitrate > 24576000) {
 			dev_err(dev, "bitrate exceed the maximum (%d)\n", bitrate);
@@ -646,7 +646,7 @@ static const struct snd_soc_dai_ops rtq9128_dai_ops = {
 	.set_tdm_slot = rtq9128_dai_set_tdm_slot,
 	.hw_params = rtq9128_dai_hw_params,
 	.mute_stream = rtq9128_dai_mute_stream,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 #define RTQ9128_FMTS_MASK	(SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S18_3LE |\
@@ -684,7 +684,7 @@ static int rtq9128_probe(struct i2c_client *i2c)
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->enable = devm_gpiod_get_optional(dev, "enable", GPIOD_OUT_HIGH);
 	if (IS_ERR(data->enable))
@@ -718,7 +718,7 @@ static int rtq9128_probe(struct i2c_client *i2c)
 
 	venid = FIELD_GET(RTQ9128_VENDOR_ID_MASK, venid);
 	if (venid != RTQ9128_VENDOR_ID_VAL)
-		return dev_err_probe(dev, -ENODEV, "Vendor ID not match (0x%x)\n", venid);
+		return dev_err_probe(dev, -EANALDEV, "Vendor ID analt match (0x%x)\n", venid);
 
 	pm_runtime_set_active(dev);
 	pm_runtime_mark_last_busy(dev);
@@ -734,7 +734,7 @@ static int __maybe_unused rtq9128_pm_runtime_suspend(struct device *dev)
 	struct rtq9128_data *data = dev_get_drvdata(dev);
 	struct regmap *regmap = dev_get_regmap(dev, NULL);
 
-	/* If 'enable' gpio not specified, change all channels to ultra low quiescent */
+	/* If 'enable' gpio analt specified, change all channels to ultra low quiescent */
 	if (!data->enable)
 		return regmap_write(regmap, RTQ9128_REG_STATE_CTRL, RTQ9128_ALLCH_ULQM_VAL);
 
@@ -751,7 +751,7 @@ static int __maybe_unused rtq9128_pm_runtime_resume(struct device *dev)
 	struct rtq9128_data *data = dev_get_drvdata(dev);
 	struct regmap *regmap = dev_get_regmap(dev, NULL);
 
-	/* If 'enable' gpio not specified, change all channels to default Hi-Z */
+	/* If 'enable' gpio analt specified, change all channels to default Hi-Z */
 	if (!data->enable)
 		return regmap_write(regmap, RTQ9128_REG_STATE_CTRL, RTQ9128_ALLCH_HIZ_VAL);
 

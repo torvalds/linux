@@ -159,7 +159,7 @@ static void arizona_extcon_hp_clamp(struct arizona_priv *info,
 			dev_warn(arizona->dev, "Failed to do clamp: %d\n", ret);
 	}
 
-	/* Restore the desired state while not doing the clamp */
+	/* Restore the desired state while analt doing the clamp */
 	if (!clamp) {
 		ret = regmap_update_bits(arizona->regmap,
 					 ARIZONA_OUTPUT_ENABLES_1,
@@ -361,7 +361,7 @@ static int arizona_hpdet_read(struct arizona_priv *info)
 	switch (info->hpdet_ip_version) {
 	case 0:
 		if (!(val & ARIZONA_HP_DONE)) {
-			dev_err(arizona->dev, "HPDET did not complete: %x\n", val);
+			dev_err(arizona->dev, "HPDET did analt complete: %x\n", val);
 			return -EAGAIN;
 		}
 
@@ -370,7 +370,7 @@ static int arizona_hpdet_read(struct arizona_priv *info)
 
 	case 1:
 		if (!(val & ARIZONA_HP_DONE_B)) {
-			dev_err(arizona->dev, "HPDET did not complete: %x\n", val);
+			dev_err(arizona->dev, "HPDET did analt complete: %x\n", val);
 			return -EAGAIN;
 		}
 
@@ -414,7 +414,7 @@ static int arizona_hpdet_read(struct arizona_priv *info)
 
 	case 2:
 		if (!(val & ARIZONA_HP_DONE_B)) {
-			dev_err(arizona->dev, "HPDET did not complete: %x\n", val);
+			dev_err(arizona->dev, "HPDET did analt complete: %x\n", val);
 			return -EAGAIN;
 		}
 
@@ -450,7 +450,7 @@ static int arizona_hpdet_read(struct arizona_priv *info)
 		break;
 
 	default:
-		dev_warn(arizona->dev, "Unknown HPDET IP revision %d\n", info->hpdet_ip_version);
+		dev_warn(arizona->dev, "Unkanalwn HPDET IP revision %d\n", info->hpdet_ip_version);
 		return -EINVAL;
 	}
 
@@ -491,7 +491,7 @@ static int arizona_hpdet_do_id(struct arizona_priv *info, int *reading,
 		return -EAGAIN;
 	}
 
-	/* OK, got both.  Now, compare... */
+	/* OK, got both.  Analw, compare... */
 	dev_dbg(arizona->dev, "HPDET measured %d %d\n",
 		info->hpdet_res[0], info->hpdet_res[1]);
 
@@ -536,17 +536,17 @@ static irqreturn_t arizona_hpdet_irq(int irq, void *data)
 
 	mutex_lock(&info->lock);
 
-	/* If we got a spurious IRQ for some reason then ignore it */
+	/* If we got a spurious IRQ for some reason then iganalre it */
 	if (!info->hpdet_active) {
 		dev_warn(arizona->dev, "Spurious HPDET IRQ\n");
 		mutex_unlock(&info->lock);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
-	/* If the cable was removed while measuring ignore the result */
+	/* If the cable was removed while measuring iganalre the result */
 	state = info->jack->status & SND_JACK_MECHANICAL;
 	if (!state) {
-		dev_dbg(arizona->dev, "Ignoring HPDET for removed cable\n");
+		dev_dbg(arizona->dev, "Iganalring HPDET for removed cable\n");
 		goto done;
 	}
 
@@ -598,7 +598,7 @@ done:
 		info->hpdet_active = false;
 	}
 
-	/* Do not set hp_det done when the cable has been unplugged */
+	/* Do analt set hp_det done when the cable has been unplugged */
 	if (state)
 		info->hpdet_done = true;
 
@@ -907,7 +907,7 @@ static int arizona_button_reading(void *priv)
 				dev_err(arizona->dev, "Button out of range\n");
 			}
 		} else {
-			dev_warn(arizona->dev, "Button with no mic: %x\n", val);
+			dev_warn(arizona->dev, "Button with anal mic: %x\n", val);
 		}
 	} else {
 		dev_dbg(arizona->dev, "Mic button released\n");
@@ -929,9 +929,9 @@ static void arizona_micd_detect(struct work_struct *work)
 
 	mutex_lock(&info->lock);
 
-	/* If the cable was removed while measuring ignore the result */
+	/* If the cable was removed while measuring iganalre the result */
 	if (!(info->jack->status & SND_JACK_MECHANICAL)) {
-		dev_dbg(arizona->dev, "Ignoring MICDET for removed cable\n");
+		dev_dbg(arizona->dev, "Iganalring MICDET for removed cable\n");
 		mutex_unlock(&info->lock);
 		return;
 	}
@@ -1008,7 +1008,7 @@ static int arizona_hpdet_wait(struct arizona_priv *info)
 		msleep(ARIZONA_HPDET_WAIT_DELAY_MS);
 	}
 
-	dev_warn(arizona->dev, "HPDET did not appear to complete\n");
+	dev_warn(arizona->dev, "HPDET did analt appear to complete\n");
 
 	return -ETIMEDOUT;
 }
@@ -1044,7 +1044,7 @@ static irqreturn_t arizona_jackdet(int irq, void *data)
 		dev_err(arizona->dev, "Failed to read jackdet status: %d\n", ret);
 		mutex_unlock(&info->lock);
 		pm_runtime_put_autosuspend(arizona->dev);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	val &= mask;
@@ -1105,7 +1105,7 @@ static irqreturn_t arizona_jackdet(int irq, void *data)
 		/*
 		 * If the jack was removed during a headphone detection we
 		 * need to wait for the headphone detection to finish, as
-		 * it can not be aborted. We don't want to be able to start
+		 * it can analt be aborted. We don't want to be able to start
 		 * a new headphone detection from a fresh insert until this
 		 * one is finished.
 		 */
@@ -1118,7 +1118,7 @@ static irqreturn_t arizona_jackdet(int irq, void *data)
 	}
 
 out:
-	/* Clear trig_sts to make sure DCVDD is not forced up */
+	/* Clear trig_sts to make sure DCVDD is analt forced up */
 	regmap_write(arizona->regmap, ARIZONA_AOD_WKUP_AND_TRIG,
 		     ARIZONA_MICD_CLAMP_FALL_TRIG_STS |
 		     ARIZONA_MICD_CLAMP_RISE_TRIG_STS |
@@ -1169,7 +1169,7 @@ static int arizona_extcon_get_micd_configs(struct device *dev,
 
 	vals = kcalloc(nconfs, sizeof(u32), GFP_KERNEL);
 	if (!vals)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = device_property_read_u32_array(arizona->dev, prop, vals, nconfs);
 	if (ret < 0)
@@ -1179,7 +1179,7 @@ static int arizona_extcon_get_micd_configs(struct device *dev,
 	micd_configs = devm_kcalloc(dev, nconfs, sizeof(*micd_configs),
 				    GFP_KERNEL);
 	if (!micd_configs) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -1243,8 +1243,8 @@ static int arizona_extcon_device_get_pdata(struct device *dev,
 
 	pdata->jd_gpio5 = device_property_read_bool(arizona->dev,
 						    "wlf,use-jd2");
-	pdata->jd_gpio5_nopull = device_property_read_bool(arizona->dev,
-						"wlf,use-jd2-nopull");
+	pdata->jd_gpio5_analpull = device_property_read_bool(arizona->dev,
+						"wlf,use-jd2-analpull");
 
 	ret = arizona_extcon_get_micd_configs(dev, arizona);
 	if (ret < 0)
@@ -1341,9 +1341,9 @@ int arizona_jack_codec_dev_probe(struct arizona_priv *info, struct device *dev)
 			mode = GPIOD_OUT_LOW;
 
 		/* We can't use devm here because we need to do the get
-		 * against the MFD device, as that is where the of_node
+		 * against the MFD device, as that is where the of_analde
 		 * will reside, but if we devm against that the GPIO
-		 * will not be freed if the extcon driver is unloaded.
+		 * will analt be freed if the extcon driver is unloaded.
 		 */
 		info->micd_pol_gpio = gpiod_get_optional(arizona->dev,
 							 "wlf,micd-pol",
@@ -1484,7 +1484,7 @@ static int arizona_jack_enable_jack_detect(struct arizona_priv *info,
 		if (arizona->pdata.jd_gpio5) {
 			/* Put the GPIO into input mode with optional pull */
 			val = 0xc101;
-			if (arizona->pdata.jd_gpio5_nopull)
+			if (arizona->pdata.jd_gpio5_analpull)
 				val &= ~ARIZONA_GPN_PU;
 
 			regmap_write(arizona->regmap, ARIZONA_GPIO5_CTRL,

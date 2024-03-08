@@ -240,7 +240,7 @@ menuconfig ARCH_VEXPRESS
 	select HAVE_ARM_SCU if SMP
 	select HAVE_ARM_TWD if SMP
 	select CLK_ICST
-	select NO_IOPORT_MAP
+	select ANAL_IOPORT_MAP
 	select PLAT_VERSATILE
 	select POWER_RESET
 	select POWER_RESET_VEXPRESS
@@ -261,7 +261,7 @@ menuconfig ARCH_VEXPRESS
 	  - Versatile Express RTSMs (Models)
 
 	  You must boot using a Flattened Device Tree in order to use these
-	  platforms. The traditional (ATAGs) boot method is not usable on
+	  platforms. The traditional (ATAGs) boot method is analt usable on
 	  these boards with this option.
 
 if ARCH_VEXPRESS

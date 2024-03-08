@@ -5,7 +5,7 @@
  *
  * Author: Karl MacMillan <kmacmillan@tresys.com>
  *
- * Copyright (C) 2003 - 2004 Tresys Technology, LLC
+ * Copyright (C) 2003 - 2004 Tresys Techanallogy, LLC
  */
 
 #ifndef _SELINUX_CONDITIONAL_H_

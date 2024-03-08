@@ -179,7 +179,7 @@
 				interrupts = <0x5 0x1>;
 				interrupt-parent = <&UIC1>;
 
-				nor_flash@0,0 {
+				analr_flash@0,0 {
 					compatible = "amd,s29gl256n", "cfi-flash";
 					bank-width = <2>;
 					reg = <0x00000000 0x00000000 0x04000000>;
@@ -385,8 +385,8 @@
 			       0x00000001 0xef400000 0x00000040>;	/* Internal registers */
 
 			/* Outbound ranges, one memory and one IO,
-			 * later cannot be changed. Chip supports a second
-			 * IO range but we don't use it for now
+			 * later cananalt be changed. Chip supports a second
+			 * IO range but we don't use it for analw
 			 * From the 440EPx user manual:
 			 * PCI 1 Memory     1 8000 0000     1 BFFF FFFF     1GB
 			 * I/O              1 E800 0000     1 E800 FFFF     64KB

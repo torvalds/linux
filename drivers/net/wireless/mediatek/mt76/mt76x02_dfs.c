@@ -371,7 +371,7 @@ static bool mt76x02_dfs_fetch_event(struct mt76x02_dev *dev,
 	 * 4th: DFS_R37[12:0]: current pwr
 	 * 4th: DFS_R37[21:16]: pwr stable counter
 	 *
-	 * 1st: DFS_R37[31:0] set to 0xffffffff means no event detected
+	 * 1st: DFS_R37[31:0] set to 0xffffffff means anal event detected
 	 */
 	data = mt76_rr(dev, MT_BBP(DFS, 37));
 	if (!MT_DFS_CHECK_EVENT(data))
@@ -499,7 +499,7 @@ static int mt76x02_dfs_create_sequence(struct mt76x02_dev *dev,
 
 		seq_p = mt76x02_dfs_seq_pool_get(dev);
 		if (!seq_p)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		*seq_p = seq;
 		INIT_LIST_HEAD(&seq_p->head);
@@ -882,7 +882,7 @@ mt76x02_dfs_set_domain(struct mt76x02_dev *dev,
 	mutex_unlock(&dev->mt76.mutex);
 }
 
-void mt76x02_regd_notifier(struct wiphy *wiphy,
+void mt76x02_regd_analtifier(struct wiphy *wiphy,
 			   struct regulatory_request *request)
 {
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);

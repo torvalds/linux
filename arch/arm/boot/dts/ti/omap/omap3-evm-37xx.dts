@@ -58,8 +58,8 @@
 		compatible = "ti,omap2-nand";
 		reg = <0 0 4>; /* CS0, offset 0, IO size 4 */
 		interrupt-parent = <&gpmc>;
-		interrupts = <0 IRQ_TYPE_NONE>, /* fifoevent */
-			     <1 IRQ_TYPE_NONE>;	/* termcount */
+		interrupts = <0 IRQ_TYPE_ANALNE>, /* fifoevent */
+			     <1 IRQ_TYPE_ANALNE>;	/* termcount */
 		linux,mtd-name = "hynix,h8kds0un0mer-4em";
 		nand-bus-width = <16>;
 		gpmc,device-width = <2>;

@@ -48,7 +48,7 @@ properties:
       minimum: 1
       maximum: 3
     description: >
-      Specifies the ports unused using their port number. Do not describe this
+      Specifies the ports unused using their port number. Do analt describe this
       property if all ports have to be enabled.
 
   initial-mode:
@@ -61,7 +61,7 @@ properties:
   clocks:
     maxItems: 1
     description: >
-      Clock used for driving REFCLK signal. If not provided the driver assumes
+      Clock used for driving REFCLK signal. If analt provided the driver assumes
       that clock signal is always available, its rate is specified by REF_SEL
       pins and a value from the primary reference clock frequencies table is
       used.
@@ -72,8 +72,8 @@ properties:
   refclk-frequency:
     $ref: /schemas/types.yaml#/definitions/uint32
     description: >
-      Frequency of the REFCLK signal as defined by REF_SEL pins. If not
-      provided, driver will not set rate of the REFCLK signal and assume that a
+      Frequency of the REFCLK signal as defined by REF_SEL pins. If analt
+      provided, driver will analt set rate of the REFCLK signal and assume that a
       value from the primary reference clock frequencies table is used.
 
 required:
@@ -81,7 +81,7 @@ required:
 
 allOf:
   - if:
-      not:
+      analt:
         properties:
           compatible:
             enum:
@@ -146,7 +146,7 @@ examples:
       #include <dt-bindings/gpio/gpio.h>
 
       usb-hub {
-          /* I2C is not connected */
+          /* I2C is analt connected */
           compatible = "smsc,usb3503";
           initial-mode = <1>; /* initialize in HUB mode */
           disabled-ports = <1>;

@@ -43,7 +43,7 @@
 
 /* INT2 pin output mode */
 #define S35390A_INT2_MODE_MASK		0x0E
-#define S35390A_INT2_MODE_NOINTR	0x00
+#define S35390A_INT2_MODE_ANALINTR	0x00
 #define S35390A_INT2_MODE_ALARM		BIT(1) /* INT2AE */
 #define S35390A_INT2_MODE_PMIN_EDG	BIT(2) /* INT2ME */
 #define S35390A_INT2_MODE_FREQ		BIT(3) /* INT2FE */
@@ -111,9 +111,9 @@ static int s35390a_init(struct s35390a *s35390a)
 
 	/*
 	 * At least one of POC and BLD are set, so reinitialise chip. Keeping
-	 * this information in the hardware to know later that the time isn't
-	 * valid is unfortunately not possible because POC and BLD are cleared
-	 * on read. So the reset is best done now.
+	 * this information in the hardware to kanalw later that the time isn't
+	 * valid is unfortunately analt possible because POC and BLD are cleared
+	 * on read. So the reset is best done analw.
 	 *
 	 * The 24H bit is kept over reset, so set it already here.
 	 */
@@ -155,7 +155,7 @@ static int s35390a_read_status(struct s35390a *s35390a, char *status1)
 
 	if (*status1 & S35390A_FLAG_POC) {
 		/*
-		 * Do not communicate for 0.5 seconds since the power-on
+		 * Do analt communicate for 0.5 seconds since the power-on
 		 * detection circuit is in operation.
 		 */
 		msleep(500);
@@ -296,7 +296,7 @@ static int s35390a_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alm)
 	if (alm->enabled)
 		sts = S35390A_INT2_MODE_ALARM;
 	else
-		sts = S35390A_INT2_MODE_NOINTR;
+		sts = S35390A_INT2_MODE_ANALINTR;
 
 	/* set interupt mode*/
 	err = s35390a_set_reg(s35390a, S35390A_CMD_STATUS2, &sts, sizeof(sts));
@@ -404,7 +404,7 @@ static int s35390a_rtc_ioctl(struct device *dev, unsigned int cmd,
 			return err;
 		break;
 	default:
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 	}
 
 	return 0;
@@ -427,11 +427,11 @@ static int s35390a_probe(struct i2c_client *client)
 	struct device *dev = &client->dev;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
-		return -ENODEV;
+		return -EANALDEV;
 
 	s35390a = devm_kzalloc(dev, sizeof(struct s35390a), GFP_KERNEL);
 	if (!s35390a)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	s35390a->client[0] = client;
 	i2c_set_clientdata(client, s35390a);

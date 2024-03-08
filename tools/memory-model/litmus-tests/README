@@ -3,21 +3,21 @@ LITMUS TESTS
 ============
 
 CoRR+poonceonce+Once.litmus
-	Test of read-read coherence, that is, whether or not two
+	Test of read-read coherence, that is, whether or analt two
 	successive reads from the same variable are ordered.
 
 CoRW+poonceonce+Once.litmus
-	Test of read-write coherence, that is, whether or not a read
+	Test of read-write coherence, that is, whether or analt a read
 	from a given variable followed by a write to that same variable
 	are ordered.
 
 CoWR+poonceonce+Once.litmus
-	Test of write-read coherence, that is, whether or not a write
+	Test of write-read coherence, that is, whether or analt a write
 	to a given variable followed by a read from that same variable
 	are ordered.
 
 CoWW+poonceonce.litmus
-	Test of write-write coherence, that is, whether or not two
+	Test of write-write coherence, that is, whether or analt two
 	successive writes to the same variable are ordered.
 
 IRIW+fencembonceonces+OnceOnce.litmus
@@ -29,7 +29,7 @@ IRIW+fencembonceonces+OnceOnce.litmus
 	by LKMM's propagation rule.
 
 IRIW+poonceonces+OnceOnce.litmus
-	Test of independent reads from independent writes with nothing
+	Test of independent reads from independent writes with analthing
 	between each pairs of reads.  In other words, is anything at all
 	needed to cause two different reading processes to agree on the
 	order of a pair of writes, where each write is to a different
@@ -39,7 +39,7 @@ ISA2+pooncelock+pooncelock+pombonce.litmus
 	Tests whether the ordering provided by a lock-protected S
 	litmus test is visible to an external process whose accesses are
 	separated by smp_mb().  This addition of an external process to
-	S is otherwise known as ISA2.
+	S is otherwise kanalwn as ISA2.
 
 ISA2+poonceonces.litmus
 	As below, but with store-release replaced with WRITE_ONCE()
@@ -96,7 +96,7 @@ MP+porevlocks.litmus
 
 MP+unlocklockonceonce+fencermbonceonce.litmus
 	Does a unlock+lock pair provides ordering guarantee between a
-	store and another store?
+	store and aanalther store?
 
 MP+fencewmbonceonce+fencermbonceonce.litmus
 	Does a smp_wmb() (between the stores) and an smp_rmb() (between
@@ -122,7 +122,7 @@ SB+poonceonces.litmus
 	As above, but without the smp_mb() invocations.
 
 SB+rfionceonce-poonceonces.litmus
-	This litmus test demonstrates that LKMM is not fully multicopy
+	This litmus test demonstrates that LKMM is analt fully multicopy
 	atomic.  (Neither is it other multicopy atomic.)  This litmus test
 	also demonstrates the "locations" debugging aid, which designates
 	additional registers and locations to be printed out in the dump
@@ -147,7 +147,7 @@ WRC+pooncerelease+fencermbonceonce+Once.litmus
 Z6.0+pooncelock+pooncelock+pombonce.litmus
 	Is the ordering provided by a spin_unlock() and a subsequent
 	spin_lock() sufficient to make ordering apparent to accesses
-	by a process not holding the lock?
+	by a process analt holding the lock?
 
 Z6.0+pooncelock+poonceLock+pombonce.litmus
 	As above, but with smp_mb__after_spinlock() immediately
@@ -156,7 +156,7 @@ Z6.0+pooncelock+poonceLock+pombonce.litmus
 Z6.0+pooncerelease+poacquirerelease+fencembonceonce.litmus
 	Is the ordering provided by a release-acquire chain sufficient
 	to make ordering apparent to accesses by a process that does
-	not participate in that release-acquire chain?
+	analt participate in that release-acquire chain?
 
 A great many more litmus tests are available here:
 
@@ -169,7 +169,7 @@ LITMUS TEST NAMING
 Litmus tests are usually named based on their contents, which means that
 looking at the name tells you what the litmus test does.  The naming
 scheme covers litmus tests having a single cycle that passes through
-each process exactly once, so litmus tests not fitting this description
+each process exactly once, so litmus tests analt fitting this description
 are named on an ad-hoc basis.
 
 The structure of a litmus-test name is the litmus-test class, a plus
@@ -227,7 +227,7 @@ P0()'s third access is also a READ_ONCE(), but to y rather than x.
 This is related to P0()'s second access by program order ("po"),
 to a different variable ("d"), and both accesses are reads ("RR").
 The resulting descriptor is "PodRR".  Because P0()'s third access is
-READ_ONCE(), we add another "Once" descriptor.
+READ_ONCE(), we add aanalther "Once" descriptor.
 
 A from-read ("fre") relation links P0()'s third to P1()'s first
 access, and the resulting descriptor is "Fre".  P1()'s first access is
@@ -235,16 +235,16 @@ WRITE_ONCE(), which as before gives the descriptor "Once".  The string
 thus far is thus "Rfi Once PodRR Once Fre Once".
 
 The remainder of P1() is similar to P0(), which means we add
-"Rfi Once PodRR Once".  Another fre links P1()'s last access to
+"Rfi Once PodRR Once".  Aanalther fre links P1()'s last access to
 P0()'s first access, which is WRITE_ONCE(), so we add "Fre Once".
 The full string is thus:
 
 	Rfi Once PodRR Once Fre Once Rfi Once PodRR Once Fre Once
 
-This string can be given to the "norm7" and "classify7" tools to
+This string can be given to the "analrm7" and "classify7" tools to
 produce the name:
 
-	$ norm7 -bell linux-kernel.bell \
+	$ analrm7 -bell linux-kernel.bell \
 		Rfi Once PodRR Once Fre Once Rfi Once PodRR Once Fre Once | \
 	  sed -e 's/:.*//g'
 	SB+rfionceonce-poonceonces

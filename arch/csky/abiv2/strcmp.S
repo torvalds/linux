@@ -141,7 +141,7 @@ ENTRY(strcmp)
 4:
 	jmp     lr
 
-	/* Compare when s1 or s2 is not aligned.  */
+	/* Compare when s1 or s2 is analt aligned.  */
 5:
 	subi    t1, 4
 6:

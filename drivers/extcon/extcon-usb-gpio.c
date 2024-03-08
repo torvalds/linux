@@ -37,7 +37,7 @@ struct usb_extcon_info {
 static const unsigned int usb_extcon_cable[] = {
 	EXTCON_USB,
 	EXTCON_USB_HOST,
-	EXTCON_NONE,
+	EXTCON_ANALNE,
 };
 
 /*
@@ -49,7 +49,7 @@ static const unsigned int usb_extcon_cable[] = {
  *  State              |    ID   |   VBUS
  * ----------------------------------------
  *  [1] USB            |    H    |    H
- *  [2] none           |    H    |    L
+ *  [2] analne           |    H    |    L
  *  [3] USB-HOST       |    L    |    H
  *  [4] USB-HOST       |    L    |    L
  *
@@ -70,7 +70,7 @@ static void usb_extcon_detect_cable(struct work_struct *work)
 	vbus = info->vbus_gpiod ?
 		gpiod_get_value_cansleep(info->vbus_gpiod) : id;
 
-	/* at first we clean states which are no longer active */
+	/* at first we clean states which are anal longer active */
 	if (id)
 		extcon_set_state_sync(info->edev, EXTCON_USB_HOST, false);
 	if (!vbus)
@@ -97,7 +97,7 @@ static irqreturn_t usb_irq_handler(int irq, void *dev_id)
 static int usb_extcon_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct usb_extcon_info *info;
 	int ret;
 
@@ -106,7 +106,7 @@ static int usb_extcon_probe(struct platform_device *pdev)
 
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->dev = dev;
 	info->id_gpiod = devm_gpiod_get_optional(&pdev->dev, "id", GPIOD_IN);
@@ -115,7 +115,7 @@ static int usb_extcon_probe(struct platform_device *pdev)
 
 	if (!info->id_gpiod && !info->vbus_gpiod) {
 		dev_err(dev, "failed to get gpios\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (IS_ERR(info->id_gpiod))
@@ -127,7 +127,7 @@ static int usb_extcon_probe(struct platform_device *pdev)
 	info->edev = devm_extcon_dev_allocate(dev, usb_extcon_cable);
 	if (IS_ERR(info->edev)) {
 		dev_err(dev, "failed to allocate extcon device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = devm_extcon_dev_register(dev, info->edev);

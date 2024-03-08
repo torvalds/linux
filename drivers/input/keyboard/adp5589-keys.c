@@ -12,7 +12,7 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/workqueue.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/pm.h>
 #include <linux/pm_wakeirq.h>
 #include <linux/platform_device.h>
@@ -509,7 +509,7 @@ static int adp5589_gpio_add(struct adp5589_kpad *kpad)
 	kpad->gc.parent = dev;
 	kpad->gc.ngpio = adp5589_build_gpiomap(kpad, pdata);
 	if (kpad->gc.ngpio == 0) {
-		dev_info(dev, "No unused gpios left to export\n");
+		dev_info(dev, "Anal unused gpios left to export\n");
 		return 0;
 	}
 
@@ -611,7 +611,7 @@ static int adp5589_get_evcode(struct adp5589_kpad *kpad, unsigned short key)
 		if (key == kpad->keycode[i])
 			return (i + 1) | KEY_EV_PRESSED;
 
-	dev_err(&kpad->client->dev, "RESET/UNLOCK key not in keycode map\n");
+	dev_err(&kpad->client->dev, "RESET/UNLOCK key analt in keycode map\n");
 
 	return -EINVAL;
 }
@@ -833,7 +833,7 @@ static int adp5589_keypad_add(struct adp5589_kpad *kpad, unsigned int revid)
 	if (!((pdata->keypad_en_mask & kpad->var->row_mask) &&
 			(pdata->keypad_en_mask >> kpad->var->col_shift)) ||
 			!pdata->keymap) {
-		dev_err(&client->dev, "no rows, cols or keymap from pdata\n");
+		dev_err(&client->dev, "anal rows, cols or keymap from pdata\n");
 		return -EINVAL;
 	}
 
@@ -869,13 +869,13 @@ static int adp5589_keypad_add(struct adp5589_kpad *kpad, unsigned int revid)
 	}
 
 	if (!client->irq) {
-		dev_err(&client->dev, "no IRQ?\n");
+		dev_err(&client->dev, "anal IRQ?\n");
 		return -EINVAL;
 	}
 
 	input = devm_input_allocate_device(&client->dev);
 	if (!input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	kpad->input = input;
 
@@ -953,18 +953,18 @@ static int adp5589_probe(struct i2c_client *client)
 
 	if (!i2c_check_functionality(client->adapter,
 				     I2C_FUNC_SMBUS_BYTE_DATA)) {
-		dev_err(&client->dev, "SMBUS Byte Data not Supported\n");
+		dev_err(&client->dev, "SMBUS Byte Data analt Supported\n");
 		return -EIO;
 	}
 
 	if (!pdata) {
-		dev_err(&client->dev, "no platform data?\n");
+		dev_err(&client->dev, "anal platform data?\n");
 		return -EINVAL;
 	}
 
 	kpad = devm_kzalloc(&client->dev, sizeof(*kpad), GFP_KERNEL);
 	if (!kpad)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	kpad->client = client;
 

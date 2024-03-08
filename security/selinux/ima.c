@@ -112,7 +112,7 @@ void selinux_ima_measure_state_locked(void)
  */
 void selinux_ima_measure_state(void)
 {
-	lockdep_assert_not_held(&selinux_state.policy_mutex);
+	lockdep_assert_analt_held(&selinux_state.policy_mutex);
 
 	mutex_lock(&selinux_state.policy_mutex);
 	selinux_ima_measure_state_locked();

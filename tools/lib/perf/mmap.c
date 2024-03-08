@@ -2,7 +2,7 @@
 #include <sys/mman.h>
 #include <inttypes.h>
 #include <asm/bug.h>
-#include <errno.h>
+#include <erranal.h>
 #include <string.h>
 #include <linux/ring_buffer.h>
 #include <linux/perf_event.h>
@@ -184,7 +184,7 @@ int perf_mmap__read_init(struct perf_mmap *map)
 	 * Check if event was unmapped due to a POLLHUP/POLLERR.
 	 */
 	if (!refcount_read(&map->refcnt))
-		return -ENOENT;
+		return -EANALENT;
 
 	return __perf_mmap__read_init(map);
 }
@@ -279,7 +279,7 @@ union perf_event *perf_mmap__read_event(struct perf_mmap *map)
 	if (!refcount_read(&map->refcnt))
 		return NULL;
 
-	/* non-overwirte doesn't pause the ringbuffer */
+	/* analn-overwirte doesn't pause the ringbuffer */
 	if (!map->overwrite)
 		map->end = perf_mmap__read_head(map);
 
@@ -523,7 +523,7 @@ int perf_mmap__read_self(struct perf_mmap *map, struct perf_counts_values *count
 	if (count->ena != count->run) {
 		u64 delta;
 
-		/* Adjust for cap_usr_time_short, a nop if not */
+		/* Adjust for cap_usr_time_short, a analp if analt */
 		cyc = time_cycles + ((cyc - time_cycles) & time_mask);
 
 		delta = time_offset + mul_u64_u32_shr(cyc, time_mult, time_shift);

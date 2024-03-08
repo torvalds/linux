@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 
-# Ignore header name
-ignore define _DVBCA_H_
+# Iganalre header name
+iganalre define _DVBCA_H_
 
 # struct ca_slot_info defines
 replace define CA_CI :c:type:`ca_slot_info`

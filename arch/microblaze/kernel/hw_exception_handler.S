@@ -43,7 +43,7 @@
  * The handlers which require translation are in entry.S --KAA
  *
  * Microblaze HW Exception Handler
- * - Non self-modifying exception handler for the following exception conditions
+ * - Analn self-modifying exception handler for the following exception conditions
  *   - Unalignment
  *   - Instruction bus error
  *   - Data bus error
@@ -56,7 +56,7 @@
  *   - Data TLB miss exception (MMU)
  *   - Instruction TLB miss exception (MMU)
  *
- * Note we disable interrupts during exception handling, otherwise we will
+ * Analte we disable interrupts during exception handling, otherwise we will
  * possibly get multiple re-entrancy if interrupt handles themselves cause
  * exceptions. JW
  */
@@ -83,7 +83,7 @@
 	#define RESTORE_STATE			\
 		lwi	r5, r1, 0;		\
 		mts	rmsr, r5;		\
-		nop;				\
+		analp;				\
 		lwi	r3, r1, PT_R3;		\
 		lwi	r4, r1, PT_R4;		\
 		lwi	r5, r1, PT_R5;		\
@@ -92,13 +92,13 @@
 		lwi	r31, r1, PT_R31;	\
 		lwi	r1, r1, PT_R1;
 
-#define LWREG_NOP			\
+#define LWREG_ANALP			\
 	bri	ex_handler_unhandled;	\
-	nop;
+	analp;
 
-#define SWREG_NOP			\
+#define SWREG_ANALP			\
 	bri	ex_handler_unhandled;	\
-	nop;
+	analp;
 
 /* r3 is the source */
 #define R3_TO_LWREG_V(regnum)				\
@@ -192,10 +192,10 @@
 /*
  * hw_exception_handler - Handler for exceptions
  *
- * Exception handler notes:
+ * Exception handler analtes:
  * - Handles all exceptions
- * - Does not handle unaligned exceptions during load into r17, r1, r0.
- * - Does not handle unaligned exceptions during store from r17 (cannot be
+ * - Does analt handle unaligned exceptions during load into r17, r1, r0.
+ * - Does analt handle unaligned exceptions during store from r17 (cananalt be
  *   done) and r1 (slows down common case)
  *
  *  Relevant register structures
@@ -224,12 +224,12 @@
  *      |      .      |
  *
  * MMU kernel uses the same 'pt_pool_space' pointed space
- * which is used for storing register values - noMMu style was, that values were
+ * which is used for storing register values - analMMu style was, that values were
  * stored in stack but in case of failure you lost information about register.
  * Currently you can see register value in memory in specific place.
  * In compare to with previous solution the speed should be the same.
  *
- * MMU exception handler has different handling compare to no MMU kernel.
+ * MMU exception handler has different handling compare to anal MMU kernel.
  * Exception handler use jump table for directing of what happen. For MMU kernel
  * is this approach better because MMU relate exception are handled by asm code
  * in this file. In compare to with MMU expect of unaligned exception
@@ -327,12 +327,12 @@ _hw_exception_handler:
 	lwi	r31, r0, TOPHYS(PER_CPU(CURRENT_SAVE)) /* get saved current */
 
 	mfs	r5, rmsr;
-	nop
+	analp
 	swi	r5, r1, 0;
 	mfs	r4, resr
-	nop
+	analp
 	mfs	r3, rear;
-	nop
+	analp
 
 	andi	r5, r4, 0x1F;		/* Extract ESR[EXC] */
 
@@ -359,11 +359,11 @@ full_exception_trapw:
 	bri	full_exception_trap
 
 /* 0x01 - Unaligned data access exception
- * This occurs when a word access is not aligned on a word boundary,
- * or when a 16-bit access is not aligned on a 16-bit boundary.
+ * This occurs when a word access is analt aligned on a word boundary,
+ * or when a 16-bit access is analt aligned on a 16-bit boundary.
  * This handler perform the access, and returns, except for MMU when
  * the unaligned address is last on a 4k page or the physical address is
- * not found in the page table, in which case unaligned_data_trap is called.
+ * analt found in the page table, in which case unaligned_data_trap is called.
  */
 handle_unaligned_ex:
 	/* Working registers already saved: R3, R4, R5, R6
@@ -371,10 +371,10 @@ handle_unaligned_ex:
 	 *  R3 = EAR
 	 */
 	andi	r6, r4, 0x1000			/* Check ESR[DS] */
-	beqi	r6, _no_delayslot		/* Branch if ESR[DS] not set */
+	beqi	r6, _anal_delayslot		/* Branch if ESR[DS] analt set */
 	mfs	r17, rbtr;	/* ESR[DS] set - return address in BTR */
-	nop
-_no_delayslot:
+	analp
+_anal_delayslot:
 	/* jump to high level unaligned handler */
 	RESTORE_STATE;
 	bri	unaligned_data_trap
@@ -438,7 +438,7 @@ ex_sw:
 	bra	r5;
 ex_sw_tail:
 	mfs	r6, resr;
-	nop
+	analp
 	andi	r6, r6, 0x800; /* Extract ESR[W] */
 	beqi	r6, ex_shw;
 	/* Get the word - delay slot */
@@ -466,7 +466,7 @@ ex_sw_end: /* Exception handling of store word, ends. */
 ex_handler_done:
 	RESTORE_STATE;
 	rted	r17, 0
-	nop
+	analp
 
 	/* Exception vector entry code. This code runs with address translation
 	 * turned off (i.e. using physical addresses). */
@@ -484,7 +484,7 @@ ex_handler_done:
 		 * R3 = ESR
 		 */
 		mfs	r11, rpid
-		nop
+		analp
 		/* If we are faulting a kernel address, we have to use the
 		 * kernel page tables.
 		 */
@@ -493,21 +493,21 @@ ex_handler_done:
 		bgti	r5, ex3
 		/* First, check if it was a zone fault (which means a user
 		 * tried to access a kernel or read-protected page - always
-		 * a SEGV). All other faults here must be stores, so no
+		 * a SEGV). All other faults here must be stores, so anal
 		 * need to check ESR_S as well. */
 		andi	r4, r4, ESR_DIZ		/* ESR_Z - zone protection */
 		bnei	r4, ex2
 
 		ori	r4, r0, swapper_pg_dir
 		mts	rpid, r0		/* TLB will have 0 TID */
-		nop
+		analp
 		bri	ex4
 
 		/* Get the PGD for the current thread. */
 	ex3:
 		/* First, check if it was a zone fault (which means a user
 		 * tried to access a kernel or read-protected page - always
-		 * a SEGV). All other faults here must be stores, so no
+		 * a SEGV). All other faults here must be stores, so anal
 		 * need to check ESR_S as well. */
 		andi	r4, r4, ESR_DIZ		/* ESR_Z */
 		bnei	r4, ex2
@@ -519,11 +519,11 @@ ex_handler_done:
 		/* Create L1 (pgdir/pmd) address */
 		bsrli	r5, r3, PGDIR_SHIFT - 2
 		andi	r5, r5, PAGE_SIZE - 4
-/* Assume pgdir aligned on 4K boundary, no need for "andi r4,r4,0xfffff003" */
+/* Assume pgdir aligned on 4K boundary, anal need for "andi r4,r4,0xfffff003" */
 		or	r4, r4, r5
 		lwi	r4, r4, 0		/* Get L1 entry */
 		andi	r5, r4, PAGE_MASK /* Extract L2 (pte) base address */
-		beqi	r5, ex2			/* Bail if no table */
+		beqi	r5, ex2			/* Bail if anal table */
 
 		tophys(r5,r5)
 		bsrli	r6, r3, PTE_SHIFT /* Compute PTE address */
@@ -532,7 +532,7 @@ ex_handler_done:
 		lwi	r4, r5, 0		/* Get Linux PTE */
 
 		andi	r6, r4, _PAGE_RW	/* Is it writeable? */
-		beqi	r6, ex2			/* Bail if not */
+		beqi	r6, ex2			/* Bail if analt */
 
 		/* Update 'changed' */
 		ori	r4, r4, _PAGE_DIRTY|_PAGE_ACCESSED|_PAGE_HWWRITE
@@ -546,40 +546,40 @@ ex_handler_done:
 		 * Many of these bits are software only. Bits we don't set
 		 * here we (properly should) assume have the appropriate value.
 		 */
-/* Ignore memory coherent, just LSB on ZSEL is used + EX/WR */
+/* Iganalre memory coherent, just LSB on ZSEL is used + EX/WR */
 		andi	r4, r4, PAGE_MASK | TLB_EX | TLB_WR | \
 						TLB_ZSEL(1) | TLB_ATTR_MASK
 		ori	r4, r4, _PAGE_HWEXEC	/* make it executable */
 
 		/* find the TLB index that caused the fault. It has to be here*/
 		mts	rtlbsx, r3
-		nop
+		analp
 		mfs	r5, rtlbx		/* DEBUG: TBD */
-		nop
+		analp
 		mts	rtlblo, r4		/* Load TLB LO */
-		nop
+		analp
 						/* Will sync shadow TLBs */
 
 		/* Done...restore registers and get out of here. */
 		mts	rpid, r11
-		nop
+		analp
 		bri 4
 
 		RESTORE_STATE;
 		rted	r17, 0
-		nop
+		analp
 	ex2:
 		/* The bailout. Restore registers to pre-exception conditions
 		 * and call the heavyweights to help us out. */
 		mts	rpid, r11
-		nop
+		analp
 		bri 4
 		RESTORE_STATE;
 		bri	page_fault_data_trap
 
 
 	/* 0x11 - Instruction Storage Exception
-	 * This is caused by a fetch from non-execute or guarded pages. */
+	 * This is caused by a fetch from analn-execute or guarded pages. */
 	handle_instruction_storage_exception:
 		/* Working registers already saved: R3, R4, R5, R6
 		 * R3 = ESR
@@ -589,7 +589,7 @@ ex_handler_done:
 		bri	page_fault_instr_trap
 
 	/* 0x12 - Data TLB Miss Exception
-	 * As the name implies, translation is not in the MMU, so search the
+	 * As the name implies, translation is analt in the MMU, so search the
 	 * page tables and fix it. The only purpose of this function is to
 	 * load TLB entries from the page table if they exist.
 	 */
@@ -598,7 +598,7 @@ ex_handler_done:
 		 * R3 = EAR, R4 = ESR
 		 */
 		mfs	r11, rpid
-		nop
+		analp
 
 		/* If we are faulting a kernel address, we have to use the
 		 * kernel page tables. */
@@ -607,7 +607,7 @@ ex_handler_done:
 		bgti	r4, ex5
 		ori	r4, r0, swapper_pg_dir
 		mts	rpid, r0		/* TLB will have 0 TID */
-		nop
+		analp
 		bri	ex6
 
 		/* Get the PGD for the current thread. */
@@ -620,11 +620,11 @@ ex_handler_done:
 		/* Create L1 (pgdir/pmd) address */
 		bsrli	r5, r3, PGDIR_SHIFT - 2
 		andi	r5, r5, PAGE_SIZE - 4
-/* Assume pgdir aligned on 4K boundary, no need for "andi r4,r4,0xfffff003" */
+/* Assume pgdir aligned on 4K boundary, anal need for "andi r4,r4,0xfffff003" */
 		or	r4, r4, r5
 		lwi	r4, r4, 0		/* Get L1 entry */
 		andi	r5, r4, PAGE_MASK /* Extract L2 (pte) base address */
-		beqi	r5, ex7			/* Bail if no table */
+		beqi	r5, ex7			/* Bail if anal table */
 
 		tophys(r5,r5)
 		bsrli	r6, r3, PTE_SHIFT /* Compute PTE address */
@@ -654,7 +654,7 @@ ex_handler_done:
 		 * and call the heavyweights to help us out.
 		 */
 		mts	rpid, r11
-		nop
+		analp
 		bri	4
 		RESTORE_STATE;
 		bri	page_fault_data_trap
@@ -668,7 +668,7 @@ ex_handler_done:
 		 *  R3 = ESR
 		 */
 		mfs	r11, rpid
-		nop
+		analp
 
 		/* If we are faulting a kernel address, we have to use the
 		 * kernel page tables.
@@ -678,7 +678,7 @@ ex_handler_done:
 		bgti	r4, ex8
 		ori	r4, r0, swapper_pg_dir
 		mts	rpid, r0		/* TLB will have 0 TID */
-		nop
+		analp
 		bri	ex9
 
 		/* Get the PGD for the current thread. */
@@ -691,11 +691,11 @@ ex_handler_done:
 		/* Create L1 (pgdir/pmd) address */
 		bsrli	r5, r3, PGDIR_SHIFT - 2
 		andi	r5, r5, PAGE_SIZE - 4
-/* Assume pgdir aligned on 4K boundary, no need for "andi r4,r4,0xfffff003" */
+/* Assume pgdir aligned on 4K boundary, anal need for "andi r4,r4,0xfffff003" */
 		or	r4, r4, r5
 		lwi	r4, r4, 0		/* Get L1 entry */
 		andi	r5, r4, PAGE_MASK /* Extract L2 (pte) base address */
-		beqi	r5, ex10		/* Bail if no table */
+		beqi	r5, ex10		/* Bail if anal table */
 
 		tophys(r5,r5)
 		bsrli	r6, r3, PTE_SHIFT /* Compute PTE address */
@@ -725,7 +725,7 @@ ex_handler_done:
 		 * and call the heavyweights to help us out.
 		 */
 		mts	rpid, r11
-		nop
+		analp
 		bri 4
 		RESTORE_STATE;
 		bri	page_fault_instr_trap
@@ -752,7 +752,7 @@ ex_handler_done:
 		lwi	r5, r0, TOPHYS(tlb_index)
 		addik	r5, r5, 1 /* MS: inc tlb_index -> use next one */
 
-/* MS: FIXME this is potential fault, because this is mask not count */
+/* MS: FIXME this is potential fault, because this is mask analt count */
 		andi	r5, r5, MICROBLAZE_TLB_SIZE - 1
 		ori	r6, r0, 1
 		cmp	r31, r5, r6
@@ -764,9 +764,9 @@ ex_handler_done:
 
 		ori	r4, r4, _PAGE_HWEXEC	/* make it executable */
 		mts	rtlbx, r5		/* MS: save current TLB */
-		nop
+		analp
 		mts	rtlblo,	r4		/* MS: save to TLB LO */
-		nop
+		analp
 
 		/* Create EPN. This is the faulting address plus a static
 		 * set of bits. These are size, valid, E, U0, and ensure
@@ -775,26 +775,26 @@ ex_handler_done:
 		andi	r3, r3, PAGE_MASK
 		ori	r3, r3, TLB_VALID | TLB_PAGESZ(PAGESZ_4K)
 		mts	rtlbhi,	r3		/* Load TLB HI */
-		nop
+		analp
 
 		/* Done...restore registers and get out of here. */
 		mts	rpid, r11
-		nop
+		analp
 		bri 4
 		RESTORE_STATE;
 		rted	r17, 0
-		nop
+		analp
 
 	/* extern void giveup_fpu(struct task_struct *prev)
 	 *
-	 * The MicroBlaze processor may have an FPU, so this should not just
+	 * The MicroBlaze processor may have an FPU, so this should analt just
 	 * return: TBD.
 	 */
 	.globl giveup_fpu;
 	.align 4;
 	giveup_fpu:
 		bralid	r15,0			/* TBD */
-		nop
+		analp
 
 	/* At present, this routine just hangs. - extern void abort(void) */
 	.globl abort;
@@ -806,10 +806,10 @@ ex_handler_done:
 	.align 4;
 	set_context:
 		mts	rpid, r5	/* Shadow TLBs are automatically */
-		nop
+		analp
 		bri	4		/* flushed by changing PID */
 		rtsd	r15,8
-		nop
+		analp
 
 .end _hw_exception_handler
 
@@ -898,7 +898,7 @@ ex_sw_end_vm:			/* Exception handling of store word, ends. */
 
 /* We have to prevent cases that get/put_user macros get unaligned pointer
  * to bad page area. We have to find out which origin instruction caused it
- * and called fixup for that origin instruction not instruction in unaligned
+ * and called fixup for that origin instruction analt instruction in unaligned
  * handler */
 ex_unaligned_fixup:
 	ori	r5, r7, 0 /* setup pointer to pt_regs */
@@ -910,7 +910,7 @@ ex_unaligned_fixup:
 	 * in PT_PC which is used as return address from exception */
 	addik	r15, r0, ret_from_exc-8 /* setup return address */
 	brid	bad_page_fault
-	nop
+	analp
 
 /* We prevent all load/store because it could failed any attempt to access */
 .section __ex_table,"a";
@@ -936,7 +936,7 @@ ex_handler_unhandled:
 /*
  * hw_exception_handler Jump Table
  * - Contains code snippets for each register that caused the unalign exception
- * - Hence exception handler is NOT self-modifying
+ * - Hence exception handler is ANALT self-modifying
  * - Separate table for load exceptions and store exceptions.
  * - Each table is of size: (8 * 32) = 256 bytes
  */
@@ -945,7 +945,7 @@ ex_handler_unhandled:
 .align 4
 lw_table:
 lw_r0:		R3_TO_LWREG	(0);
-lw_r1:		LWREG_NOP;
+lw_r1:		LWREG_ANALP;
 lw_r2:		R3_TO_LWREG	(2);
 lw_r3:		R3_TO_LWREG_V	(3);
 lw_r4:		R3_TO_LWREG_V	(4);
@@ -961,7 +961,7 @@ lw_r13:		R3_TO_LWREG	(13);
 lw_r14:		R3_TO_LWREG	(14);
 lw_r15:		R3_TO_LWREG	(15);
 lw_r16:		R3_TO_LWREG	(16);
-lw_r17:		LWREG_NOP;
+lw_r17:		LWREG_ANALP;
 lw_r18:		R3_TO_LWREG	(18);
 lw_r19:		R3_TO_LWREG	(19);
 lw_r20:		R3_TO_LWREG	(20);
@@ -979,7 +979,7 @@ lw_r31: 	R3_TO_LWREG_V	(31);
 
 sw_table:
 sw_r0:		SWREG_TO_R3	(0);
-sw_r1:		SWREG_NOP;
+sw_r1:		SWREG_ANALP;
 sw_r2:		SWREG_TO_R3	(2);
 sw_r3:		SWREG_TO_R3_V	(3);
 sw_r4:		SWREG_TO_R3_V	(4);
@@ -995,7 +995,7 @@ sw_r13:		SWREG_TO_R3	(13);
 sw_r14:		SWREG_TO_R3	(14);
 sw_r15:		SWREG_TO_R3	(15);
 sw_r16:		SWREG_TO_R3	(16);
-sw_r17:		SWREG_NOP;
+sw_r17:		SWREG_ANALP;
 sw_r18:		SWREG_TO_R3	(18);
 sw_r19:		SWREG_TO_R3	(19);
 sw_r20:		SWREG_TO_R3	(20);

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Copyright (C) 2014 Sergey Senozhatsky.
+ * Copyright (C) 2014 Sergey Seanalzhatsky.
  */
 
 #ifndef _ZCOMP_H_
@@ -19,11 +19,11 @@ struct zcomp_strm {
 struct zcomp {
 	struct zcomp_strm __percpu *stream;
 	const char *name;
-	struct hlist_node node;
+	struct hlist_analde analde;
 };
 
-int zcomp_cpu_up_prepare(unsigned int cpu, struct hlist_node *node);
-int zcomp_cpu_dead(unsigned int cpu, struct hlist_node *node);
+int zcomp_cpu_up_prepare(unsigned int cpu, struct hlist_analde *analde);
+int zcomp_cpu_dead(unsigned int cpu, struct hlist_analde *analde);
 ssize_t zcomp_available_show(const char *comp, char *buf);
 bool zcomp_available_algorithm(const char *comp);
 

@@ -21,7 +21,7 @@ s32 e1000e_get_bus_info_pcie(struct e1000_hw *hw)
 	u16 pcie_link_status;
 
 	if (!pci_pcie_cap(pdev)) {
-		bus->width = e1000_bus_width_unknown;
+		bus->width = e1000_bus_width_unkanalwn;
 	} else {
 		pcie_capability_read_word(pdev, PCI_EXP_LNKSTA, &pcie_link_status);
 		bus->width = (enum e1000_bus_width)FIELD_GET(PCI_EXP_LNKSTA_NLW,
@@ -146,7 +146,7 @@ s32 e1000_check_alt_mac_addr_generic(struct e1000_hw *hw)
 	if (ret_val)
 		return ret_val;
 
-	/* not supported on 82573 */
+	/* analt supported on 82573 */
 	if (hw->mac.type == e1000_82573)
 		return 0;
 
@@ -159,7 +159,7 @@ s32 e1000_check_alt_mac_addr_generic(struct e1000_hw *hw)
 
 	if ((nvm_alt_mac_addr_offset == 0xFFFF) ||
 	    (nvm_alt_mac_addr_offset == 0x0000))
-		/* There is no Alternate MAC Address */
+		/* There is anal Alternate MAC Address */
 		return 0;
 
 	if (hw->bus.func == E1000_FUNC_1)
@@ -176,14 +176,14 @@ s32 e1000_check_alt_mac_addr_generic(struct e1000_hw *hw)
 		alt_mac_addr[i + 1] = (u8)(nvm_data >> 8);
 	}
 
-	/* if multicast bit is set, the alternate address will not be used */
+	/* if multicast bit is set, the alternate address will analt be used */
 	if (is_multicast_ether_addr(alt_mac_addr)) {
-		e_dbg("Ignoring Alternate Mac Address with MC bit set\n");
+		e_dbg("Iganalring Alternate Mac Address with MC bit set\n");
 		return 0;
 	}
 
 	/* We have a valid alternate MAC address, and we want to treat it the
-	 * same as the normal permanent MAC address stored by the HW into the
+	 * same as the analrmal permanent MAC address stored by the HW into the
 	 * RAR. Do this by mapping this address into RAR0.
 	 */
 	hw->mac.ops.rar_set(hw, alt_mac_addr, 0);
@@ -217,7 +217,7 @@ int e1000e_rar_set_generic(struct e1000_hw *hw, u8 *addr, u32 index)
 
 	rar_high = ((u32)addr[4] | ((u32)addr[5] << 8));
 
-	/* If MAC address zero, no need to set the AV bit */
+	/* If MAC address zero, anal need to set the AV bit */
 	if (rar_low || rar_high)
 		rar_high |= E1000_RAH_AV;
 
@@ -420,7 +420,7 @@ s32 e1000e_check_for_copper_link(struct e1000_hw *hw)
 	e1000e_check_downshift(hw);
 
 	/* If we are forcing speed/duplex, then we simply return since
-	 * we have already determined whether we have link or not.
+	 * we have already determined whether we have link or analt.
 	 */
 	if (!mac->autoneg)
 		return -E1000_ERR_CONFIG;
@@ -431,7 +431,7 @@ s32 e1000e_check_for_copper_link(struct e1000_hw *hw)
 	 */
 	mac->ops.config_collision_dist(hw);
 
-	/* Configure Flow Control now that Auto-Neg has completed.
+	/* Configure Flow Control analw that Auto-Neg has completed.
 	 * First, we need to restore the desired flow control
 	 * settings because we may have had to re-autoneg with a
 	 * different link partner.
@@ -451,7 +451,7 @@ out:
  *  e1000e_check_for_fiber_link - Check for link (Fiber)
  *  @hw: pointer to the HW structure
  *
- *  Checks for link up on the hardware.  If link is not up and we have
+ *  Checks for link up on the hardware.  If link is analt up and we have
  *  a signal, then we need to force link up.
  **/
 s32 e1000e_check_for_fiber_link(struct e1000_hw *hw)
@@ -467,8 +467,8 @@ s32 e1000e_check_for_fiber_link(struct e1000_hw *hw)
 	rxcw = er32(RXCW);
 
 	/* If we don't have link (auto-negotiation failed or link partner
-	 * cannot auto-negotiate), the cable is plugged in (we have signal),
-	 * and our link partner is not trying to auto-negotiate with us (we
+	 * cananalt auto-negotiate), the cable is plugged in (we have signal),
+	 * and our link partner is analt trying to auto-negotiate with us (we
 	 * are receiving idles or data), we need to force link up. We also
 	 * need to give auto-negotiation time to complete, in case the cable
 	 * was just plugged in. The autoneg_failed flag does this.
@@ -480,7 +480,7 @@ s32 e1000e_check_for_fiber_link(struct e1000_hw *hw)
 			mac->autoneg_failed = true;
 			return 0;
 		}
-		e_dbg("NOT Rx'ing /C/, disable AutoNeg and force link.\n");
+		e_dbg("ANALT Rx'ing /C/, disable AutoNeg and force link.\n");
 
 		/* Disable auto-negotiation in the TXCW register */
 		ew32(TXCW, (mac->txcw & ~E1000_TXCW_ANE));
@@ -516,7 +516,7 @@ s32 e1000e_check_for_fiber_link(struct e1000_hw *hw)
  *  e1000e_check_for_serdes_link - Check for link (Serdes)
  *  @hw: pointer to the HW structure
  *
- *  Checks for link up on the hardware.  If link is not up and we have
+ *  Checks for link up on the hardware.  If link is analt up and we have
  *  a signal, then we need to force link up.
  **/
 s32 e1000e_check_for_serdes_link(struct e1000_hw *hw)
@@ -532,7 +532,7 @@ s32 e1000e_check_for_serdes_link(struct e1000_hw *hw)
 	rxcw = er32(RXCW);
 
 	/* If we don't have link (auto-negotiation failed or link partner
-	 * cannot auto-negotiate), and our link partner is not trying to
+	 * cananalt auto-negotiate), and our link partner is analt trying to
 	 * auto-negotiate with us (we are receiving idles or data),
 	 * we need to force link up. We also need to give auto-negotiation
 	 * time to complete.
@@ -543,7 +543,7 @@ s32 e1000e_check_for_serdes_link(struct e1000_hw *hw)
 			mac->autoneg_failed = true;
 			return 0;
 		}
-		e_dbg("NOT Rx'ing /C/, disable AutoNeg and force link.\n");
+		e_dbg("ANALT Rx'ing /C/, disable AutoNeg and force link.\n");
 
 		/* Disable auto-negotiation in the TXCW register */
 		ew32(TXCW, (mac->txcw & ~E1000_TXCW_ANE));
@@ -571,7 +571,7 @@ s32 e1000e_check_for_serdes_link(struct e1000_hw *hw)
 
 		mac->serdes_has_link = true;
 	} else if (!(E1000_TXCW_ANE & er32(TXCW))) {
-		/* If we force link for non-auto-negotiation switch, check
+		/* If we force link for analn-auto-negotiation switch, check
 		 * link status based on MAC synchronization for internal
 		 * serdes media type.
 		 */
@@ -605,7 +605,7 @@ s32 e1000e_check_for_serdes_link(struct e1000_hw *hw)
 				}
 			} else {
 				mac->serdes_has_link = false;
-				e_dbg("SERDES: Link down - no sync.\n");
+				e_dbg("SERDES: Link down - anal sync.\n");
 			}
 		} else {
 			mac->serdes_has_link = false;
@@ -632,7 +632,7 @@ static s32 e1000_set_default_fc_generic(struct e1000_hw *hw)
 	 * that determine the hardware's default PAUSE (flow control) mode,
 	 * a bit that determines whether the HW defaults to enabling or
 	 * disabling auto-negotiation, and the direction of the
-	 * SW defined pins. If there is no SW over-ride of the flow
+	 * SW defined pins. If there is anal SW over-ride of the flow
 	 * control setting, then the variable hw->fc will
 	 * be initialized based on a value in the EEPROM.
 	 */
@@ -644,7 +644,7 @@ static s32 e1000_set_default_fc_generic(struct e1000_hw *hw)
 	}
 
 	if (!(nvm_data & NVM_WORD0F_PAUSE_MASK))
-		hw->fc.requested_mode = e1000_fc_none;
+		hw->fc.requested_mode = e1000_fc_analne;
 	else if ((nvm_data & NVM_WORD0F_PAUSE_MASK) == NVM_WORD0F_ASM_DIR)
 		hw->fc.requested_mode = e1000_fc_tx_pause;
 	else
@@ -661,14 +661,14 @@ static s32 e1000_set_default_fc_generic(struct e1000_hw *hw)
  *  control.  Calls the appropriate media-specific link configuration
  *  function.  Assuming the adapter has a valid link partner, a valid link
  *  should be established.  Assumes the hardware has previously been reset
- *  and the transmitter and receiver are not enabled.
+ *  and the transmitter and receiver are analt enabled.
  **/
 s32 e1000e_setup_link_generic(struct e1000_hw *hw)
 {
 	s32 ret_val;
 
 	/* In the case of the phy reset being blocked, we already have a link.
-	 * We do not need to set it up again.
+	 * We do analt need to set it up again.
 	 */
 	if (hw->phy.ops.check_reset_block && hw->phy.ops.check_reset_block(hw))
 		return 0;
@@ -683,11 +683,11 @@ s32 e1000e_setup_link_generic(struct e1000_hw *hw)
 	}
 
 	/* Save off the requested flow control mode for use later.  Depending
-	 * on the link partner's capabilities, we may or may not use this mode.
+	 * on the link partner's capabilities, we may or may analt use this mode.
 	 */
 	hw->fc.current_mode = hw->fc.requested_mode;
 
-	e_dbg("After fix-ups FlowControl is now = %x\n", hw->fc.current_mode);
+	e_dbg("After fix-ups FlowControl is analw = %x\n", hw->fc.current_mode);
 
 	/* Call the necessary media_type subroutine to configure the link. */
 	ret_val = hw->mac.ops.setup_physical_interface(hw);
@@ -696,7 +696,7 @@ s32 e1000e_setup_link_generic(struct e1000_hw *hw)
 
 	/* Initialize the flow control address, type, and PAUSE timer
 	 * registers to their default values.  This is done even if flow
-	 * control is disabled, because it does not hurt anything to
+	 * control is disabled, because it does analt hurt anything to
 	 * initialize these registers.
 	 */
 	e_dbg("Initializing the Flow Control address, type and timer regs\n");
@@ -732,13 +732,13 @@ static s32 e1000_commit_fc_settings_generic(struct e1000_hw *hw)
 	 * The possible values of the "fc" parameter are:
 	 *      0:  Flow control is completely disabled
 	 *      1:  Rx flow control is enabled (we can receive pause frames,
-	 *          but not send pause frames).
+	 *          but analt send pause frames).
 	 *      2:  Tx flow control is enabled (we can send pause frames but we
-	 *          do not support receiving pause frames).
+	 *          do analt support receiving pause frames).
 	 *      3:  Both Rx and Tx flow control (symmetric) are enabled.
 	 */
 	switch (hw->fc.current_mode) {
-	case e1000_fc_none:
+	case e1000_fc_analne:
 		/* Flow control completely disabled by a software over-ride. */
 		txcw = (E1000_TXCW_ANE | E1000_TXCW_FD);
 		break;
@@ -806,7 +806,7 @@ static s32 e1000_poll_fiber_serdes_link_generic(struct e1000_hw *hw)
 		/* AutoNeg failed to achieve a link, so we'll call
 		 * mac->check_for_link. This routine will force the
 		 * link up if we detect a signal. This will allow us to
-		 * communicate with non-autonegotiating link partners.
+		 * communicate with analn-autonegotiating link partners.
 		 */
 		ret_val = mac->ops.check_for_link(hw);
 		if (ret_val) {
@@ -865,7 +865,7 @@ s32 e1000e_setup_fiber_serdes_link(struct e1000_hw *hw)
 	    (er32(CTRL) & E1000_CTRL_SWDPIN1)) {
 		ret_val = e1000_poll_fiber_serdes_link_generic(hw);
 	} else {
-		e_dbg("No signal detected\n");
+		e_dbg("Anal signal detected\n");
 	}
 
 	return ret_val;
@@ -903,10 +903,10 @@ s32 e1000e_set_fc_watermarks(struct e1000_hw *hw)
 {
 	u32 fcrtl = 0, fcrth = 0;
 
-	/* Set the flow control receive threshold registers.  Normally,
+	/* Set the flow control receive threshold registers.  Analrmally,
 	 * these registers will be set to a default threshold that may be
 	 * adjusted later by the driver's runtime code.  However, if the
-	 * ability to transmit pause frames is not enabled, then these
+	 * ability to transmit pause frames is analt enabled, then these
 	 * registers will be set to 0.
 	 */
 	if (hw->fc.current_mode & e1000_fc_tx_pause) {
@@ -953,16 +953,16 @@ s32 e1000e_force_mac_fc(struct e1000_hw *hw)
 	 * The possible values of the "fc" parameter are:
 	 *      0:  Flow control is completely disabled
 	 *      1:  Rx flow control is enabled (we can receive pause
-	 *          frames but not send pause frames).
+	 *          frames but analt send pause frames).
 	 *      2:  Tx flow control is enabled (we can send pause frames
-	 *          but we do not receive pause frames).
+	 *          but we do analt receive pause frames).
 	 *      3:  Both Rx and Tx flow control (symmetric) is enabled.
-	 *  other:  No other values should be possible at this point.
+	 *  other:  Anal other values should be possible at this point.
 	 */
 	e_dbg("hw->fc.current_mode = %u\n", hw->fc.current_mode);
 
 	switch (hw->fc.current_mode) {
-	case e1000_fc_none:
+	case e1000_fc_analne:
 		ctrl &= (~(E1000_CTRL_TFCE | E1000_CTRL_RFCE));
 		break;
 	case e1000_fc_rx_pause:
@@ -991,9 +991,9 @@ s32 e1000e_force_mac_fc(struct e1000_hw *hw)
  *  @hw: pointer to the HW structure
  *
  *  Checks the status of auto-negotiation after link up to ensure that the
- *  speed and duplex were not forced.  If the link needed to be forced, then
+ *  speed and duplex were analt forced.  If the link needed to be forced, then
  *  flow control needs to be forced also.  If auto-negotiation is enabled
- *  and did not fail, then we configure flow control based on our link
+ *  and did analt fail, then we configure flow control based on our link
  *  partner.
  **/
 s32 e1000e_config_fc_after_link_up(struct e1000_hw *hw)
@@ -1040,11 +1040,11 @@ s32 e1000e_config_fc_after_link_up(struct e1000_hw *hw)
 			return ret_val;
 
 		if (!(mii_status_reg & BMSR_ANEGCOMPLETE)) {
-			e_dbg("Copper PHY and Auto Neg has not completed.\n");
+			e_dbg("Copper PHY and Auto Neg has analt completed.\n");
 			return ret_val;
 		}
 
-		/* The AutoNeg process has completed, so we now need to
+		/* The AutoNeg process has completed, so we analw need to
 		 * read both the Auto Negotiation Advertisement
 		 * Register (Address 4) and the Auto_Negotiation Base
 		 * Page Ability Register (Address 5) to determine how
@@ -1064,18 +1064,18 @@ s32 e1000e_config_fc_after_link_up(struct e1000_hw *hw)
 		 * table, taken out of the IEEE 802.3ab/D6.0 dated March 25,
 		 * 1999, describes these PAUSE resolution bits and how flow
 		 * control is determined based upon these settings.
-		 * NOTE:  DC = Don't Care
+		 * ANALTE:  DC = Don't Care
 		 *
 		 *   LOCAL DEVICE  |   LINK PARTNER
 		 * PAUSE | ASM_DIR | PAUSE | ASM_DIR | NIC Resolution
 		 *-------|---------|-------|---------|--------------------
-		 *   0   |    0    |  DC   |   DC    | e1000_fc_none
-		 *   0   |    1    |   0   |   DC    | e1000_fc_none
-		 *   0   |    1    |   1   |    0    | e1000_fc_none
+		 *   0   |    0    |  DC   |   DC    | e1000_fc_analne
+		 *   0   |    1    |   0   |   DC    | e1000_fc_analne
+		 *   0   |    1    |   1   |    0    | e1000_fc_analne
 		 *   0   |    1    |   1   |    1    | e1000_fc_tx_pause
-		 *   1   |    0    |   0   |   DC    | e1000_fc_none
+		 *   1   |    0    |   0   |   DC    | e1000_fc_analne
 		 *   1   |   DC    |   1   |   DC    | e1000_fc_full
-		 *   1   |    1    |   0   |    0    | e1000_fc_none
+		 *   1   |    1    |   0   |    0    | e1000_fc_analne
 		 *   1   |    1    |   0   |    1    | e1000_fc_rx_pause
 		 *
 		 * Are both PAUSE bits set to 1?  If so, this implies
@@ -1092,10 +1092,10 @@ s32 e1000e_config_fc_after_link_up(struct e1000_hw *hw)
 		 */
 		if ((mii_nway_adv_reg & ADVERTISE_PAUSE_CAP) &&
 		    (mii_nway_lp_ability_reg & LPA_PAUSE_CAP)) {
-			/* Now we need to check if the user selected Rx ONLY
+			/* Analw we need to check if the user selected Rx ONLY
 			 * of pause frames.  In this case, we had to advertise
-			 * FULL flow control because we could not advertise Rx
-			 * ONLY. Hence, we must now check to see if we need to
+			 * FULL flow control because we could analt advertise Rx
+			 * ONLY. Hence, we must analw check to see if we need to
 			 * turn OFF the TRANSMISSION of PAUSE frames.
 			 */
 			if (hw->fc.requested_mode == e1000_fc_full) {
@@ -1137,12 +1137,12 @@ s32 e1000e_config_fc_after_link_up(struct e1000_hw *hw)
 			/* Per the IEEE spec, at this point flow control
 			 * should be disabled.
 			 */
-			hw->fc.current_mode = e1000_fc_none;
-			e_dbg("Flow Control = NONE.\n");
+			hw->fc.current_mode = e1000_fc_analne;
+			e_dbg("Flow Control = ANALNE.\n");
 		}
 
-		/* Now we need to do one last check...  If we auto-
-		 * negotiated to HALF DUPLEX, flow control should not be
+		/* Analw we need to do one last check...  If we auto-
+		 * negotiated to HALF DUPLEX, flow control should analt be
 		 * enabled per IEEE 802.3 spec.
 		 */
 		ret_val = mac->ops.get_link_up_info(hw, &speed, &duplex);
@@ -1152,9 +1152,9 @@ s32 e1000e_config_fc_after_link_up(struct e1000_hw *hw)
 		}
 
 		if (duplex == HALF_DUPLEX)
-			hw->fc.current_mode = e1000_fc_none;
+			hw->fc.current_mode = e1000_fc_analne;
 
-		/* Now we call a subroutine to actually force the MAC
+		/* Analw we call a subroutine to actually force the MAC
 		 * controller to use the correct flow control settings.
 		 */
 		ret_val = e1000e_force_mac_fc(hw);
@@ -1177,11 +1177,11 @@ s32 e1000e_config_fc_after_link_up(struct e1000_hw *hw)
 		pcs_status_reg = er32(PCS_LSTAT);
 
 		if (!(pcs_status_reg & E1000_PCS_LSTS_AN_COMPLETE)) {
-			e_dbg("PCS Auto Neg has not completed.\n");
+			e_dbg("PCS Auto Neg has analt completed.\n");
 			return ret_val;
 		}
 
-		/* The AutoNeg process has completed, so we now need to
+		/* The AutoNeg process has completed, so we analw need to
 		 * read both the Auto Negotiation Advertisement
 		 * Register (PCS_ANADV) and the Auto_Negotiation Base
 		 * Page Ability Register (PCS_LPAB) to determine how
@@ -1197,18 +1197,18 @@ s32 e1000e_config_fc_after_link_up(struct e1000_hw *hw)
 		 * table, taken out of the IEEE 802.3ab/D6.0 dated March 25,
 		 * 1999, describes these PAUSE resolution bits and how flow
 		 * control is determined based upon these settings.
-		 * NOTE:  DC = Don't Care
+		 * ANALTE:  DC = Don't Care
 		 *
 		 *   LOCAL DEVICE  |   LINK PARTNER
 		 * PAUSE | ASM_DIR | PAUSE | ASM_DIR | NIC Resolution
 		 *-------|---------|-------|---------|--------------------
-		 *   0   |    0    |  DC   |   DC    | e1000_fc_none
-		 *   0   |    1    |   0   |   DC    | e1000_fc_none
-		 *   0   |    1    |   1   |    0    | e1000_fc_none
+		 *   0   |    0    |  DC   |   DC    | e1000_fc_analne
+		 *   0   |    1    |   0   |   DC    | e1000_fc_analne
+		 *   0   |    1    |   1   |    0    | e1000_fc_analne
 		 *   0   |    1    |   1   |    1    | e1000_fc_tx_pause
-		 *   1   |    0    |   0   |   DC    | e1000_fc_none
+		 *   1   |    0    |   0   |   DC    | e1000_fc_analne
 		 *   1   |   DC    |   1   |   DC    | e1000_fc_full
-		 *   1   |    1    |   0   |    0    | e1000_fc_none
+		 *   1   |    1    |   0   |    0    | e1000_fc_analne
 		 *   1   |    1    |   0   |    1    | e1000_fc_rx_pause
 		 *
 		 * Are both PAUSE bits set to 1?  If so, this implies
@@ -1225,10 +1225,10 @@ s32 e1000e_config_fc_after_link_up(struct e1000_hw *hw)
 		 */
 		if ((pcs_adv_reg & E1000_TXCW_PAUSE) &&
 		    (pcs_lp_ability_reg & E1000_TXCW_PAUSE)) {
-			/* Now we need to check if the user selected Rx ONLY
+			/* Analw we need to check if the user selected Rx ONLY
 			 * of pause frames.  In this case, we had to advertise
-			 * FULL flow control because we could not advertise Rx
-			 * ONLY. Hence, we must now check to see if we need to
+			 * FULL flow control because we could analt advertise Rx
+			 * ONLY. Hence, we must analw check to see if we need to
 			 * turn OFF the TRANSMISSION of PAUSE frames.
 			 */
 			if (hw->fc.requested_mode == e1000_fc_full) {
@@ -1270,11 +1270,11 @@ s32 e1000e_config_fc_after_link_up(struct e1000_hw *hw)
 			/* Per the IEEE spec, at this point flow control
 			 * should be disabled.
 			 */
-			hw->fc.current_mode = e1000_fc_none;
-			e_dbg("Flow Control = NONE.\n");
+			hw->fc.current_mode = e1000_fc_analne;
+			e_dbg("Flow Control = ANALNE.\n");
 		}
 
-		/* Now we call a subroutine to actually force the MAC
+		/* Analw we call a subroutine to actually force the MAC
 		 * controller to use the correct flow control settings.
 		 */
 		pcs_ctrl_reg = er32(PCS_LCTL);
@@ -1425,7 +1425,7 @@ s32 e1000e_get_auto_rd_done(struct e1000_hw *hw)
 	}
 
 	if (i == AUTO_READ_DONE_TIMEOUT) {
-		e_dbg("Auto read by HW from NVM has not completed.\n");
+		e_dbg("Auto read by HW from NVM has analt completed.\n");
 		return -E1000_ERR_RESET;
 	}
 
@@ -1438,7 +1438,7 @@ s32 e1000e_get_auto_rd_done(struct e1000_hw *hw)
  *  @data: pointer to the NVM (EEPROM)
  *
  *  Read the EEPROM for the current default LED configuration.  If the
- *  LED configuration is not valid, set to a valid LED configuration.
+ *  LED configuration is analt valid, set to a valid LED configuration.
  **/
 s32 e1000e_valid_led_default(struct e1000_hw *hw, u16 *data)
 {
@@ -1495,7 +1495,7 @@ s32 e1000e_id_led_init_generic(struct e1000_hw *hw)
 			mac->ledctl_mode1 |= ledctl_off << (i << 3);
 			break;
 		default:
-			/* Do nothing */
+			/* Do analthing */
 			break;
 		}
 		switch (temp) {
@@ -1512,7 +1512,7 @@ s32 e1000e_id_led_init_generic(struct e1000_hw *hw)
 			mac->ledctl_mode2 |= ledctl_off << (i << 3);
 			break;
 		default:
-			/* Do nothing */
+			/* Do analthing */
 			break;
 		}
 	}
@@ -1663,20 +1663,20 @@ s32 e1000e_led_off_generic(struct e1000_hw *hw)
 }
 
 /**
- *  e1000e_set_pcie_no_snoop - Set PCI-express capabilities
+ *  e1000e_set_pcie_anal_sanalop - Set PCI-express capabilities
  *  @hw: pointer to the HW structure
- *  @no_snoop: bitmap of snoop events
+ *  @anal_sanalop: bitmap of sanalop events
  *
- *  Set the PCI-express register to snoop for events enabled in 'no_snoop'.
+ *  Set the PCI-express register to sanalop for events enabled in 'anal_sanalop'.
  **/
-void e1000e_set_pcie_no_snoop(struct e1000_hw *hw, u32 no_snoop)
+void e1000e_set_pcie_anal_sanalop(struct e1000_hw *hw, u32 anal_sanalop)
 {
 	u32 gcr;
 
-	if (no_snoop) {
+	if (anal_sanalop) {
 		gcr = er32(GCR);
-		gcr &= ~(PCIE_NO_SNOOP_ALL);
-		gcr |= no_snoop;
+		gcr &= ~(PCIE_ANAL_SANALOP_ALL);
+		gcr |= anal_sanalop;
 		ew32(GCR, gcr);
 	}
 }
@@ -1686,10 +1686,10 @@ void e1000e_set_pcie_no_snoop(struct e1000_hw *hw, u32 no_snoop)
  *  @hw: pointer to the HW structure
  *
  *  Returns 0 if successful, else returns -10
- *  (-E1000_ERR_MASTER_REQUESTS_PENDING) if master disable bit has not caused
+ *  (-E1000_ERR_MASTER_REQUESTS_PENDING) if master disable bit has analt caused
  *  the master requests to be disabled.
  *
- *  Disables PCI-Express master access and verifies there are no pending
+ *  Disables PCI-Express master access and verifies there are anal pending
  *  requests.
  **/
 s32 e1000e_disable_pcie_master(struct e1000_hw *hw)
@@ -1727,7 +1727,7 @@ void e1000e_reset_adaptive(struct e1000_hw *hw)
 	struct e1000_mac_info *mac = &hw->mac;
 
 	if (!mac->adaptive_ifs) {
-		e_dbg("Not in Adaptive IFS mode!\n");
+		e_dbg("Analt in Adaptive IFS mode!\n");
 		return;
 	}
 
@@ -1753,7 +1753,7 @@ void e1000e_update_adaptive(struct e1000_hw *hw)
 	struct e1000_mac_info *mac = &hw->mac;
 
 	if (!mac->adaptive_ifs) {
-		e_dbg("Not in Adaptive IFS mode!\n");
+		e_dbg("Analt in Adaptive IFS mode!\n");
 		return;
 	}
 

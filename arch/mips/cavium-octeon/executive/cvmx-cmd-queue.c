@@ -13,11 +13,11 @@
  * This file is distributed in the hope that it will be useful, but
  * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
- * NONINFRINGEMENT.  See the GNU General Public License for more
+ * ANALNINFRINGEMENT.  See the GNU General Public License for more
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this file; if not, write to the Free Software
+ * along with this file; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  * or visit http://www.gnu.org/licenses/.
  *
@@ -87,7 +87,7 @@ static cvmx_cmd_queue_result_t __cvmx_cmd_queue_init_state_ptr(void)
 			cvmx_dprintf
 			    ("ERROR: cvmx_cmd_queue_initialize: Unable to get named block %s.\n",
 			     alloc_name);
-			return CVMX_CMD_QUEUE_NO_MEMORY;
+			return CVMX_CMD_QUEUE_ANAL_MEMORY;
 		}
 	}
 	return CVMX_CMD_QUEUE_SUCCESS;
@@ -165,14 +165,14 @@ cvmx_cmd_queue_result_t cvmx_cmd_queue_initialize(cvmx_cmd_queue_id_t queue_id,
 		status.u64 = cvmx_read_csr(CVMX_FPA_CTL_STATUS);
 		if (!status.s.enb) {
 			cvmx_dprintf("ERROR: cvmx_cmd_queue_initialize: "
-				     "FPA is not enabled.\n");
-			return CVMX_CMD_QUEUE_NO_MEMORY;
+				     "FPA is analt enabled.\n");
+			return CVMX_CMD_QUEUE_ANAL_MEMORY;
 		}
 		buffer = cvmx_fpa_alloc(fpa_pool);
 		if (buffer == NULL) {
 			cvmx_dprintf("ERROR: cvmx_cmd_queue_initialize: "
 				     "Unable to allocate initial buffer.\n");
-			return CVMX_CMD_QUEUE_NO_MEMORY;
+			return CVMX_CMD_QUEUE_ANAL_MEMORY;
 		}
 
 		memset(qstate, 0, sizeof(*qstate));
@@ -181,7 +181,7 @@ cvmx_cmd_queue_result_t cvmx_cmd_queue_initialize(cvmx_cmd_queue_id_t queue_id,
 		qstate->pool_size_m1 = (pool_size >> 3) - 1;
 		qstate->base_ptr_div128 = cvmx_ptr_to_phys(buffer) / 128;
 		/*
-		 * We zeroed the now serving field so we need to also
+		 * We zeroed the analw serving field so we need to also
 		 * zero the ticket.
 		 */
 		__cvmx_cmd_queue_state_ptr->
@@ -250,7 +250,7 @@ int cvmx_cmd_queue_length(cvmx_cmd_queue_id_t queue_id)
 	case CVMX_CMD_QUEUE_PKO_BASE:
 		/*
 		 * FIXME: Need atomic lock on
-		 * CVMX_PKO_REG_READ_IDX. Right now we are normally
+		 * CVMX_PKO_REG_READ_IDX. Right analw we are analrmally
 		 * called with the queue lock, so that is a SLIGHT
 		 * amount of protection.
 		 */
@@ -286,7 +286,7 @@ int cvmx_cmd_queue_length(cvmx_cmd_queue_id_t queue_id)
 /*
  * Return the command buffer to be written to. The purpose of this
  * function is to allow CVMX routine access to the low level buffer
- * for initial hardware setup. User applications should not call this
+ * for initial hardware setup. User applications should analt call this
  * function directly.
  *
  * @queue_id: Command queue to query

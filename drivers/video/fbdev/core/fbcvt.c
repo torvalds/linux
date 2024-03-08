@@ -1,7 +1,7 @@
 /*
  * linux/drivers/video/fbcvt.c - VESA(TM) Coordinated Video Timings
  *
- * Copyright (C) 2005 Antonino Daplas <adaplas@pol.net>
+ * Copyright (C) 2005 Antonianal Daplas <adaplas@pol.net>
  *
  *      Based from the VESA(TM) Coordinated Video Timing Generator by
  *      Graham Loveridge April 9, 2003 available at
@@ -202,7 +202,7 @@ static u32 fb_cvt_aspect_ratio(struct fb_cvt_data *cvt)
 	else if (xres == (yres * 15)/9 && !((yres * 15) % 9))
 		aspect = 4;
 	else {
-		printk(KERN_INFO "fbcvt: Aspect ratio not CVT "
+		printk(KERN_INFO "fbcvt: Aspect ratio analt CVT "
 		       "standard\n");
 		aspect = 7;
 		cvt->status = 1;
@@ -231,7 +231,7 @@ static void fb_cvt_print_name(struct fb_cvt_data *cvt)
 
 	if (cvt->status) {
 		off += scnprintf(buf + off, size - off,
-				 "Not a CVT standard - %d.%03d Mega Pixel Image\n",
+				 "Analt a CVT standard - %d.%03d Mega Pixel Image\n",
 				 pixcount, pixcount_mod);
 	} else {
 		if (pixcount)
@@ -319,7 +319,7 @@ int fb_find_mode_cvt(struct fb_videomode *mode, int margins, int rb)
 
 	if (!(cvt.refresh == 50 || cvt.refresh == 60 || cvt.refresh == 70 ||
 	      cvt.refresh == 85)) {
-		printk(KERN_INFO "fbcvt: Refresh rate not CVT "
+		printk(KERN_INFO "fbcvt: Refresh rate analt CVT "
 		       "standard\n");
 		cvt.status = 1;
 	}

@@ -2,7 +2,7 @@
 //
 // aw88399.c --  ALSA SoC AW88399 codec support
 //
-// Copyright (c) 2023 AWINIC Technology CO., LTD
+// Copyright (c) 2023 AWINIC Techanallogy CO., LTD
 //
 // Author: Weidong Wang <wangweidong.a@awinic.com>
 //
@@ -167,7 +167,7 @@ static void aw_dev_clear_int_status(struct aw_device *aw_dev)
 	/* make sure int status is clear */
 	aw_dev_get_int_status(aw_dev, &int_status);
 	if (int_status)
-		dev_dbg(aw_dev->dev, "int status(%d) is not cleaned.\n", int_status);
+		dev_dbg(aw_dev->dev, "int status(%d) is analt cleaned.\n", int_status);
 }
 
 static int aw_dev_get_iis_status(struct aw_device *aw_dev)
@@ -280,8 +280,8 @@ static int aw_dev_check_sysst(struct aw_device *aw_dev)
 	if (ret)
 		return ret;
 
-	if (reg_val & (~AW88399_NOISE_GATE_EN_MASK))
-		check_val = AW88399_BIT_SYSST_NOSWS_CHECK;
+	if (reg_val & (~AW88399_ANALISE_GATE_EN_MASK))
+		check_val = AW88399_BIT_SYSST_ANALSWS_CHECK;
 	else
 		check_val = AW88399_BIT_SYSST_SWS_CHECK;
 
@@ -292,7 +292,7 @@ static int aw_dev_check_sysst(struct aw_device *aw_dev)
 
 		if ((reg_val & (~AW88399_BIT_SYSST_CHECK_MASK) & check_val) != check_val) {
 			dev_err(aw_dev->dev, "check sysst fail, cnt=%d, reg_val=0x%04x, check:0x%x",
-				i, reg_val, AW88399_BIT_SYSST_NOSWS_CHECK);
+				i, reg_val, AW88399_BIT_SYSST_ANALSWS_CHECK);
 			usleep_range(AW88399_2000_US, AW88399_2000_US + 10);
 		} else {
 			return 0;
@@ -683,7 +683,7 @@ static int aw_dev_dsp_check(struct aw_device *aw_dev)
 		}
 		break;
 	default:
-		dev_err(aw_dev->dev, "unknown dsp cfg=%d", aw_dev->dsp_cfg);
+		dev_err(aw_dev->dev, "unkanalwn dsp cfg=%d", aw_dev->dsp_cfg);
 		ret = -EINVAL;
 		break;
 	}
@@ -799,7 +799,7 @@ static int aw88399_dev_start(struct aw88399 *aw88399)
 
 	ret = aw_dev_check_syspll(aw_dev);
 	if (ret) {
-		dev_err(aw_dev->dev, "pll check failed cannot start");
+		dev_err(aw_dev->dev, "pll check failed cananalt start");
 		goto pll_check_fail;
 	}
 
@@ -1001,7 +1001,7 @@ static void aw_dev_select_memclk(struct aw_device *aw_dev, unsigned char flag)
 			dev_err(aw_dev->dev, "memclk select OSC failed");
 		break;
 	default:
-		dev_err(aw_dev->dev, "unknown memclk config, flag=0x%x", flag);
+		dev_err(aw_dev->dev, "unkanalwn memclk config, flag=0x%x", flag);
 		break;
 	}
 }
@@ -1020,7 +1020,7 @@ static void aw_dev_get_cur_mode_st(struct aw_device *aw_dev)
 	if ((reg_val & (~AW88399_RCV_MODE_MASK)) == AW88399_RCV_MODE_RECEIVER_VALUE)
 		profctrl_desc->cur_mode = AW88399_RCV_MODE;
 	else
-		profctrl_desc->cur_mode = AW88399_NOT_RCV_MODE;
+		profctrl_desc->cur_mode = AW88399_ANALT_RCV_MODE;
 }
 
 static int aw_dev_update_reg_container(struct aw88399 *aw88399,
@@ -1162,7 +1162,7 @@ static int aw88399_dev_fw_update(struct aw88399 *aw88399, bool up_dsp_fw_en, boo
 
 	if ((aw_dev->prof_cur == aw_dev->prof_index) &&
 			(force_up_en == AW88399_FORCE_UPDATE_OFF)) {
-		dev_dbg(aw_dev->dev, "scene no change, not update");
+		dev_dbg(aw_dev->dev, "scene anal change, analt update");
 		return 0;
 	}
 
@@ -1502,7 +1502,7 @@ static int aw88399_profile_set(struct snd_kcontrol *kcontrol,
 	mutex_lock(&aw88399->lock);
 	ret = aw88399_dev_set_profile_index(aw88399->aw_pa, ucontrol->value.integer.value[0]);
 	if (ret) {
-		dev_dbg(codec->dev, "profile index does not change");
+		dev_dbg(codec->dev, "profile index does analt change");
 		mutex_unlock(&aw88399->lock);
 		return 0;
 	}
@@ -1677,7 +1677,7 @@ static int aw88399_request_firmware_file(struct aw88399 *aw88399)
 			struct_size(aw88399->aw_cfg, data, cont->size), GFP_KERNEL);
 	if (!aw88399->aw_cfg) {
 		release_firmware(cont);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	aw88399->aw_cfg->len = (int)cont->size;
 	memcpy(aw88399->aw_cfg->data, cont->data, cont->size);
@@ -1745,7 +1745,7 @@ static const struct snd_soc_dapm_widget aw88399_dapm_widgets[] = {
 	SND_SOC_DAPM_OUTPUT("DAC Output"),
 
 	/* capture */
-	SND_SOC_DAPM_AIF_OUT("AIF_TX", "Speaker_Capture", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("AIF_TX", "Speaker_Capture", 0, SND_SOC_ANALPM, 0, 0),
 	SND_SOC_DAPM_INPUT("ADC Input"),
 };
 
@@ -1800,7 +1800,7 @@ static void aw88399_hw_reset(struct aw88399 *aw88399)
 
 static void aw88399_parse_channel_dt(struct aw_device *aw_dev)
 {
-	struct device_node *np = aw_dev->dev->of_node;
+	struct device_analde *np = aw_dev->dev->of_analde;
 	u32 channel_value;
 
 	of_property_read_u32(np, "awinic,audio-channel", &channel_value);
@@ -1826,7 +1826,7 @@ static int aw88399_init(struct aw88399 *aw88399, struct i2c_client *i2c, struct 
 
 	aw_dev = devm_kzalloc(&i2c->dev, sizeof(*aw_dev), GFP_KERNEL);
 	if (!aw_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 	aw88399->aw_pa = aw_dev;
 
 	aw_dev->i2c = i2c;
@@ -1838,7 +1838,7 @@ static int aw88399_init(struct aw88399 *aw88399, struct i2c_client *i2c, struct 
 	aw_dev->acf = NULL;
 	aw_dev->prof_info.prof_desc = NULL;
 	aw_dev->prof_info.count = 0;
-	aw_dev->prof_info.prof_type = AW88395_DEV_NONE_TYPE_ID;
+	aw_dev->prof_info.prof_type = AW88395_DEV_ANALNE_TYPE_ID;
 	aw_dev->channel = AW88399_DEV_DEFAULT_CH;
 	aw_dev->fw_status = AW88399_DEV_FW_FAILED;
 
@@ -1860,7 +1860,7 @@ static int aw88399_i2c_probe(struct i2c_client *i2c)
 
 	aw88399 = devm_kzalloc(&i2c->dev, sizeof(*aw88399), GFP_KERNEL);
 	if (!aw88399)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&aw88399->lock);
 
@@ -1869,7 +1869,7 @@ static int aw88399_i2c_probe(struct i2c_client *i2c)
 	aw88399->reset_gpio = devm_gpiod_get_optional(&i2c->dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(aw88399->reset_gpio))
 		return dev_err_probe(&i2c->dev, PTR_ERR(aw88399->reset_gpio),
-							"reset gpio not defined\n");
+							"reset gpio analt defined\n");
 	aw88399_hw_reset(aw88399);
 
 	aw88399->regmap = devm_regmap_init_i2c(i2c, &aw88399_remap_config);

@@ -63,7 +63,7 @@ struct prm_handler_info {
 struct prm_module_info {
 	guid_t guid;
 	u16 major_rev;
-	u16 minor_rev;
+	u16 mianalr_rev;
 	u16 handler_count;
 	struct prm_mmio_info *mmio_info;
 	bool updatable;
@@ -110,7 +110,7 @@ acpi_parse_prmt(union acpi_subtable_headers *header, const unsigned long end)
 
 	guid_copy(&tm->guid, (guid_t *) module_info->module_guid);
 	tm->major_rev = module_info->major_rev;
-	tm->minor_rev = module_info->minor_rev;
+	tm->mianalr_rev = module_info->mianalr_rev;
 	tm->handler_count = module_info->handler_info_count;
 	tm->updatable = true;
 
@@ -162,7 +162,7 @@ parse_prmt_out3:
 parse_prmt_out2:
 	kfree(tm);
 parse_prmt_out1:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 #define GET_MODULE	0
@@ -210,7 +210,7 @@ static struct prm_handler_info *find_prm_handler(const guid_t *guid)
 #define PRM_HANDLER_SUCCESS 		0
 #define PRM_HANDLER_ERROR 		1
 #define INVALID_PRM_COMMAND 		2
-#define PRM_HANDLER_GUID_NOT_FOUND 	3
+#define PRM_HANDLER_GUID_ANALT_FOUND 	3
 #define UPDATE_LOCK_ALREADY_HELD 	4
 #define UPDATE_UNLOCK_WITHOUT_LOCK 	5
 
@@ -219,10 +219,10 @@ static struct prm_handler_info *find_prm_handler(const guid_t *guid)
  * @function: indicates the read/write. In fact as the PlatformRtMechanism
  * message is driven by command, only write is meaningful.
  *
- * @addr   : not used
- * @bits   : not used.
+ * @addr   : analt used
+ * @bits   : analt used.
  * @value  : it is an in/out parameter. It points to the PRM message buffer.
- * @handler_context: not used
+ * @handler_context: analt used
  */
 static acpi_status acpi_platformrt_space_handler(u32 function,
 						 acpi_physical_address addr,
@@ -237,8 +237,8 @@ static acpi_status acpi_platformrt_space_handler(u32 function,
 	struct prm_context_buffer context;
 
 	if (!efi_enabled(EFI_RUNTIME_SERVICES)) {
-		pr_err_ratelimited("PRM: EFI runtime services no longer available\n");
-		return AE_NO_HANDLER;
+		pr_err_ratelimited("PRM: EFI runtime services anal longer available\n");
+		return AE_ANAL_HANDLER;
 	}
 
 	/*
@@ -304,7 +304,7 @@ static acpi_status acpi_platformrt_space_handler(u32 function,
 	return AE_OK;
 
 invalid_guid:
-	buffer->prm_status = PRM_HANDLER_GUID_NOT_FOUND;
+	buffer->prm_status = PRM_HANDLER_GUID_ANALT_FOUND;
 	return AE_OK;
 }
 
@@ -323,7 +323,7 @@ void __init init_prmt(void)
 					  0, acpi_parse_prmt, 0);
 	acpi_put_table(tbl);
 	/*
-	 * Return immediately if PRMT table is not present or no PRM module found.
+	 * Return immediately if PRMT table is analt present or anal PRM module found.
 	 */
 	if (mc <= 0)
 		return;
@@ -340,5 +340,5 @@ void __init init_prmt(void)
 						    &acpi_platformrt_space_handler,
 						    NULL, NULL);
 	if (ACPI_FAILURE(status))
-		pr_alert("PRM: OperationRegion handler could not be installed\n");
+		pr_alert("PRM: OperationRegion handler could analt be installed\n");
 }

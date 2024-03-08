@@ -253,7 +253,7 @@ __mlx5e_flow_meter_alloc(struct mlx5e_flow_meters *flow_meters, bool alloc_aso)
 
 	meter = kzalloc(sizeof(*meter), GFP_KERNEL);
 	if (!meter)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	counter = mlx5_fc_create(mdev, true);
 	if (IS_ERR(counter)) {
@@ -270,7 +270,7 @@ __mlx5e_flow_meter_alloc(struct mlx5e_flow_meters *flow_meters, bool alloc_aso)
 	meter->act_counter = counter;
 
 	if (!alloc_aso)
-		goto no_aso;
+		goto anal_aso;
 
 	meters_obj = list_first_entry_or_null(&flow_meters->partial_list,
 					      struct mlx5e_flow_meter_aso_obj,
@@ -287,7 +287,7 @@ __mlx5e_flow_meter_alloc(struct mlx5e_flow_meters *flow_meters, bool alloc_aso)
 		meters_obj = kzalloc(sizeof(*meters_obj) + BITS_TO_BYTES(total),
 				     GFP_KERNEL);
 		if (!meters_obj) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_mem;
 		}
 
@@ -308,7 +308,7 @@ __mlx5e_flow_meter_alloc(struct mlx5e_flow_meters *flow_meters, bool alloc_aso)
 	meter->obj_id = meters_obj->base_id + pos / 2;
 	meter->idx = pos % 2;
 
-no_aso:
+anal_aso:
 	meter->flow_meters = flow_meters;
 	mlx5_core_dbg(mdev, "flow meter allocated, obj_id=0x%x, index=%d\n",
 		      meter->obj_id, meter->idx);
@@ -338,7 +338,7 @@ __mlx5e_flow_meter_free(struct mlx5e_flow_meter_handle *meter)
 	mlx5_fc_destroy(mdev, meter->drop_counter);
 
 	if (meter->params.mtu)
-		goto out_no_aso;
+		goto out_anal_aso;
 
 	meters_obj = meter->meters_obj;
 	pos = (meter->obj_id - meters_obj->base_id) * 2 + meter->idx;
@@ -353,7 +353,7 @@ __mlx5e_flow_meter_free(struct mlx5e_flow_meter_handle *meter)
 		list_add(&meters_obj->entry, &flow_meters->partial_list);
 	}
 
-out_no_aso:
+out_anal_aso:
 	mlx5_core_dbg(mdev, "flow meter freed, obj_id=0x%x, index=%d\n",
 		      meter->obj_id, meter->idx);
 	kfree(meter);
@@ -368,7 +368,7 @@ __mlx5e_tc_meter_get(struct mlx5e_flow_meters *flow_meters, u32 index)
 		if (meter->params.index == index)
 			goto add_ref;
 
-	return ERR_PTR(-ENOENT);
+	return ERR_PTR(-EANALENT);
 
 add_ref:
 	meter->refcnt++;
@@ -384,7 +384,7 @@ mlx5e_tc_meter_get(struct mlx5_core_dev *mdev, struct mlx5e_flow_meter_params *p
 
 	flow_meters = mlx5e_get_flow_meters(mdev);
 	if (!flow_meters)
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 
 	mutex_lock(&flow_meters->sync_lock);
 	meter = __mlx5e_tc_meter_get(flow_meters, params->index);
@@ -462,7 +462,7 @@ mlx5e_tc_meter_update(struct mlx5e_flow_meter_handle *meter,
 
 	flow_meters = mlx5e_get_flow_meters(mdev);
 	if (!flow_meters)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mutex_lock(&flow_meters->sync_lock);
 	err = __mlx5e_tc_meter_update(meter, params);
@@ -479,7 +479,7 @@ mlx5e_tc_meter_replace(struct mlx5_core_dev *mdev, struct mlx5e_flow_meter_param
 
 	flow_meters = mlx5e_get_flow_meters(mdev);
 	if (!flow_meters)
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 
 	mutex_lock(&flow_meters->sync_lock);
 	meter = __mlx5e_tc_meter_get(flow_meters, params->index);
@@ -522,17 +522,17 @@ mlx5e_flow_meters_init(struct mlx5e_priv *priv,
 
 	if (!(MLX5_CAP_GEN_64(mdev, general_obj_types) &
 	      MLX5_HCA_CAP_GENERAL_OBJECT_TYPES_FLOW_METER_ASO))
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 
 	if (IS_ERR_OR_NULL(post_act)) {
 		netdev_dbg(priv->netdev,
-			   "flow meter offload is not supported, post action is missing\n");
-		return ERR_PTR(-EOPNOTSUPP);
+			   "flow meter offload is analt supported, post action is missing\n");
+		return ERR_PTR(-EOPANALTSUPP);
 	}
 
 	flow_meters = kzalloc(sizeof(*flow_meters), GFP_KERNEL);
 	if (!flow_meters)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	err = mlx5_core_alloc_pd(mdev, &flow_meters->pdn);
 	if (err) {

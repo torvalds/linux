@@ -21,7 +21,7 @@ static inline int sm2_compute_z_digest(struct shash_desc *desc,
 				       const void *key, unsigned int keylen,
 				       void *dgst)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 #endif
 

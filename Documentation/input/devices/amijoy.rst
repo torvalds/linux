@@ -20,7 +20,7 @@ Pin    Meaning  Pin    Meaning
 18     Gnd1	18     Gnd2
 =====  ======== ====   ==========
 
-Amiga digital joystick pinout
+Amiga digital joystick pianalut
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 === ============
@@ -37,7 +37,7 @@ Pin Meaning
 9   Thumb button
 === ============
 
-Amiga mouse pinout
+Amiga mouse pianalut
 ~~~~~~~~~~~~~~~~~~
 
 === ============
@@ -54,7 +54,7 @@ Pin Meaning
 9   Right button
 === ============
 
-Amiga analog joystick pinout
+Amiga analog joystick pianalut
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 === ==============
@@ -71,7 +71,7 @@ Pin Meaning
 9   Analog Y
 === ==============
 
-Amiga lightpen pinout
+Amiga lightpen pianalut
 ~~~~~~~~~~~~~~~~~~~~~
 
 === =============
@@ -212,11 +212,11 @@ POT1DAT  h  014   R   Paula  Pot counter data right pair (vert,horiz)
          | LEFT  | X    | LX  | 5   | 35    |
          +-------+------+-----+-----+-------+
 
-         With normal (NTSC or PAL) horiz. line rate, the pots will
+         With analrmal (NTSC or PAL) horiz. line rate, the pots will
          give a full scale (FF) reading with about 500kohms in one
          frame time. With proportionally faster horiz line times,
          the counters will count proportionally faster.
-         This should be noted when doing variable beam displays.
+         This should be analted when doing variable beam displays.
 
 -------------------------------------------------------------------------------
 
@@ -257,7 +257,7 @@ POTINP     016   R   Paula  Pot pin data read
          +-------+----------+---------------------------------------------+
          | 08    | DATLX    | I/O data  Paula pin 35                      |
          +-------+----------+---------------------------------------------+
-         | 07-01 |   X      | Not used                                    |
+         | 07-01 |   X      | Analt used                                    |
          +-------+----------+---------------------------------------------+
          | 00    | START    | Start pots (dump capacitors,start counters) |
          +-------+----------+---------------------------------------------+

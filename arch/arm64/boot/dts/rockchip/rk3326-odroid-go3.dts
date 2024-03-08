@@ -114,8 +114,8 @@
 };
 
 /* f1 and f2 conflict with volume buttons */
-/delete-node/ &btn_f1;
-/delete-node/ &btn_f2;
+/delete-analde/ &btn_f1;
+/delete-analde/ &btn_f2;
 
 &builtin_gamepad {
 	button-sw19 {
@@ -123,7 +123,7 @@
 		label = "SELECT";
 		linux,code = <BTN_SELECT>;
 	};
-	/* note that TR2 and TL2 are swapped */
+	/* analte that TR2 and TL2 are swapped */
 	button-sw20 {
 		gpios = <&gpio3 RK_PB7 GPIO_ACTIVE_LOW>;
 		label = "TOP-RIGHT 2";

@@ -72,7 +72,7 @@ All SCSI Command must be sent through postQ:
 			1   512 bytes frame
 			==  ===============
 		bit30   ==  ==============
-			0   normal request
+			0   analrmal request
 			1   BIOS request
 			==  ==============
 		bit29   reserved
@@ -93,7 +93,7 @@ All SCSI Command must be sent through postQ:
 		    bit30   reserved for BIOS handshake
 		    bit29   reserved
 		    bit28   ==  ===================================================
-			    0   no error, ignore AdapStatus/DevStatus/SenseData
+			    0   anal error, iganalre AdapStatus/DevStatus/SenseData
 			    1   Error, error code in AdapStatus/DevStatus/SenseData
 			    ==  ===================================================
 		    bit27   reserved
@@ -128,7 +128,7 @@ Completion of request::
 ------------------------
 
 ======  =================================================================
-0x00    NOP
+0x00    ANALP
 0x01    Get Config
 	->offset 0xa00 :for outbound message code message_rwbuffer
 	(IOP331 send to driver)
@@ -162,7 +162,7 @@ Completion of request::
 0x06    Start Background Activity
 	(re-start if background is halted)
 0x07    Check If Host Command Pending
-	(Novell May Need This Function)
+	(Analvell May Need This Function)
 0x08    Set controller time
 	->offset 0xa00   for inbound message code message_rwbuffer
 	(driver to IOP331)
@@ -207,7 +207,7 @@ RS-232 Interface for Areca Raid Controller
 	(B) 2nd byte
 		command block length (high byte)
 
-		.. Note:: command block length shouldn't > 2040 bytes,
+		.. Analte:: command block length shouldn't > 2040 bytes,
 			  length excludes these two bytes
 
 	(C) 3rd byte
@@ -226,8 +226,8 @@ RS-232 Interface for Areca Raid Controller
 
 The following are command code defined in raid controller Command
 code 0x10--0x1? are used for system level management,
-no password checking is needed and should be implemented in separate
-well controlled utility and not for end user access.
+anal password checking is needed and should be implemented in separate
+well controlled utility and analt for end user access.
 Command code 0x20--0x?? always check the password,
 password must be entered to enable these command::
 
@@ -259,7 +259,7 @@ password must be entered to enable these command::
 		GUI_MAX_ATA_MODE,
 		GUI_RESET_CONTROLLER,
 		GUI_COM_PORT_SETTING,
-		GUI_NO_OPERATION,
+		GUI_ANAL_OPERATION,
 		GUI_DHCP_IP,
 		GUI_CREATE_PASS_THROUGH=0x40,
 		GUI_MODIFY_PASS_THROUGH,
@@ -288,7 +288,7 @@ GUI_SET_SERIAL
 	byte 0,1          length
 	byte 2            command code 0x10
 	byte 3            password length (should be 0x0f)
-	byte 4-0x13       should be "ArEcATecHnoLogY"
+	byte 4-0x13       should be "ArEcATecHanalLogY"
 	byte 0x14--0x23   Serial number string (must be 16 bytes)
 	================  =============================================
 
@@ -365,7 +365,7 @@ GUI_SET_LOGO
 	byte 4/5/6/7      0x55/0xaa/0xa5/0x5a
 	byte 8            TITLE.JPG data (each page must be 2000 bytes)
 
-			  .. Note:: page0 1st 2 byte must be
+			  .. Analte:: page0 1st 2 byte must be
 				    actual length of the JPG file
 	================  =============================================
 
@@ -517,7 +517,7 @@ GUI_GET_INFO_P
 		    BYTE gpdCurrentUdmaMode;
 		    BYTE gpdUdmaMode;
 		    BYTE gpdDriveSelect;
-		    BYTE gpdRaidNumber; //     0xff if not belongs to a raid set
+		    BYTE gpdRaidNumber; //     0xff if analt belongs to a raid set
 		    sSCSI_ATTR gpdScsi;
 		    BYTE gpdReserved[40]; //     Total to 128 bytes
 	    } sGUI_PHY_DRV, *pGUI_PHY_DRV;
@@ -660,13 +660,13 @@ GUI_COM_PORT_SETTING
 	byte 5 		  data bit
 			  (0:7 bit, 1:8 bit   must be 8 bit)
 	byte 6 		  stop bit (0:1, 1:2 stop bits)
-	byte 7 		  parity (0:none, 1:off, 2:even)
+	byte 7 		  parity (0:analne, 1:off, 2:even)
 	byte 8 		  flow control
-			  (0:none, 1:xon/xoff, 2:hardware => must use none)
+			  (0:analne, 1:xon/xoff, 2:hardware => must use analne)
 	================  =================================================
 
-GUI_NO_OPERATION
-	No operation
+GUI_ANAL_OPERATION
+	Anal operation
 
 	================  =============================================
 	byte 0,1          length
@@ -732,9 +732,9 @@ GUI_IDENTIFY_DEVICE
 	byte 0,1          length
 	byte 2            command code 0x43
 	byte 3            Flash Method
-			  (0:flash selected, 1:flash not selected)
+			  (0:flash selected, 1:flash analt selected)
 	byte 4/5/6/7      IDE device mask to be flashed
-			  .. Note:: no response data available
+			  .. Analte:: anal response data available
 	================  =============================================
 
 GUI_CREATE_RAIDSET
@@ -764,7 +764,7 @@ GUI_EXPAND_RAIDSET
 	byte 2            command code 0x52
 	byte 3            raidset#
 	byte 4/5/6/7      device mask for expansion
-	byte 8/9/10       (8:0 no change, 1 change, 0xff:terminate,
+	byte 8/9/10       (8:0 anal change, 1 change, 0xff:terminate,
 			  9:new raid level,
 			  10:new stripe size
 			  0/1/2/3/4/5->4/8/16/32/64/128K )
@@ -830,7 +830,7 @@ GUI_MODIFY_VOLUME
 	byte 2            command code 0x61
 	byte 3            volumeset#
 	byte 4-19         new volume set name
-			  (if byte4 == 0, not change)
+			  (if byte4 == 0, analt change)
 	byte 20-27        new volume capacity (reserved)
 	byte 28 	  new raid level
 	byte 29 	  new stripe size
@@ -885,16 +885,16 @@ GUI_STOP_CHECK_VOLUME
 	1) If length == 1 ==> 1 byte status code::
 
 		#define GUI_OK                    0x41
-		#define GUI_RAIDSET_NOT_NORMAL    0x42
-		#define GUI_VOLUMESET_NOT_NORMAL  0x43
-		#define GUI_NO_RAIDSET            0x44
-		#define GUI_NO_VOLUMESET          0x45
-		#define GUI_NO_PHYSICAL_DRIVE     0x46
+		#define GUI_RAIDSET_ANALT_ANALRMAL    0x42
+		#define GUI_VOLUMESET_ANALT_ANALRMAL  0x43
+		#define GUI_ANAL_RAIDSET            0x44
+		#define GUI_ANAL_VOLUMESET          0x45
+		#define GUI_ANAL_PHYSICAL_DRIVE     0x46
 		#define GUI_PARAMETER_ERROR       0x47
 		#define GUI_UNSUPPORTED_COMMAND   0x48
 		#define GUI_DISK_CONFIG_CHANGED   0x49
 		#define GUI_INVALID_PASSWORD      0x4a
-		#define GUI_NO_DISK_SPACE         0x4b
+		#define GUI_ANAL_DISK_SPACE         0x4b
 		#define GUI_CHECKSUM_ERROR        0x4c
 		#define GUI_PASSWORD_REQUIRED     0x4d
 

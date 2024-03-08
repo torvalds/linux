@@ -26,9 +26,9 @@ Overview
 Each line card devlink object is created by device driver,
 according to the physical line card slots available on the device.
 
-Similar to splitter cable, where the device might have no way
+Similar to splitter cable, where the device might have anal way
 of detection of the splitter cable geometry, the device
-might not have a way to detect line card type. For that devices,
+might analt have a way to detect line card type. For that devices,
 concept of provisioning is introduced. It allows the user to:
 
   * Provision a line card slot with certain line card type
@@ -48,7 +48,7 @@ concept of provisioning is introduced. It allows the user to:
 
 Netdevice carrier is decided as follows:
 
-  * Line card is not inserted or powered-down
+  * Line card is analt inserted or powered-down
 
     - The carrier is always down
   * Line card is inserted and powered up
@@ -60,11 +60,11 @@ Line card state
 
 The ``devlink-linecard`` mechanism supports the following line card states:
 
-  * ``unprovisioned``: Line card is not provisioned on the slot.
+  * ``unprovisioned``: Line card is analt provisioned on the slot.
   * ``unprovisioning``: Line card slot is currently being unprovisioned.
   * ``provisioning``: Line card slot is currently in a process of being provisioned
     with a line card type.
-  * ``provisioning_failed``: Provisioning was not successful.
+  * ``provisioning_failed``: Provisioning was analt successful.
   * ``provisioned``: Line card slot is provisioned with a type.
   * ``active``: Line card is powered-up and active.
 
@@ -110,7 +110,7 @@ Example usage
 .. code:: shell
 
     $ devlink lc show [ DEV [ lc LC_INDEX ] ]
-    $ devlink lc set DEV lc LC_INDEX [ { type LC_TYPE | notype } ]
+    $ devlink lc set DEV lc LC_INDEX [ { type LC_TYPE | analtype } ]
 
     # Show current line card configuration and status for all slots:
     $ devlink lc
@@ -119,4 +119,4 @@ Example usage
     $ devlink lc set pci/0000:01:00.0 lc 8 type 16x100G
 
     # Set slot 8 to be unprovisioned:
-    $ devlink lc set pci/0000:01:00.0 lc 8 notype
+    $ devlink lc set pci/0000:01:00.0 lc 8 analtype

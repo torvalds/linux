@@ -12,13 +12,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * PRECISION INSIGHT AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -180,10 +180,10 @@ extern "C" {
 #define RADEON_CMD_PACKET3     5	/* emit hw packet */
 #define RADEON_CMD_PACKET3_CLIP 6	/* emit hw packet wrapped in cliprects */
 #define RADEON_CMD_SCALARS2     7	/* r200 stopgap */
-#define RADEON_CMD_WAIT         8	/* emit hw wait commands -- note:
+#define RADEON_CMD_WAIT         8	/* emit hw wait commands -- analte:
 					 *  doesn't make the cpu wait, just
 					 *  the graphics hardware */
-#define RADEON_CMD_VECLINEAR	9       /* another r200 stopgap */
+#define RADEON_CMD_VECLINEAR	9       /* aanalther r200 stopgap */
 
 typedef union {
 	int i;
@@ -219,7 +219,7 @@ typedef union {
 #define R300_CMD_PACKET3_RAW		1
 
 /* Commands understood by cmd_buffer ioctl for R300.
- * The interface has not been stabilized, so some of these may be removed
+ * The interface has analt been stabilized, so some of these may be removed
  * and eventually reordered before stabilization.
  */
 #define R300_CMD_PACKET0		1
@@ -235,7 +235,7 @@ typedef union {
  * we have userspace which relies on using these.
  * The wait interface is backwards compat new 
  * code should use the NEW_WAIT defines below
- * THESE ARE NOT BIT FIELDS
+ * THESE ARE ANALT BIT FIELDS
  */
 #	define R300_WAIT_2D_CLEAN	0x3
 #	define R300_WAIT_3D_CLEAN	0x4
@@ -483,7 +483,7 @@ typedef struct {
 #define DRM_RADEON_CLEAR      0x08
 #define DRM_RADEON_VERTEX     0x09
 #define DRM_RADEON_INDICES    0x0A
-#define DRM_RADEON_NOT_USED
+#define DRM_RADEON_ANALT_USED
 #define DRM_RADEON_STIPPLE    0x0C
 #define DRM_RADEON_INDIRECT   0x0D
 #define DRM_RADEON_TEXTURE    0x0E
@@ -802,13 +802,13 @@ struct drm_radeon_gem_info {
 	__u64	vram_visible;
 };
 
-#define RADEON_GEM_NO_BACKING_STORE	(1 << 0)
+#define RADEON_GEM_ANAL_BACKING_STORE	(1 << 0)
 #define RADEON_GEM_GTT_UC		(1 << 1)
 #define RADEON_GEM_GTT_WC		(1 << 2)
 /* BO is expected to be accessed by the CPU */
 #define RADEON_GEM_CPU_ACCESS		(1 << 3)
-/* CPU access is not expected to work for this BO */
-#define RADEON_GEM_NO_CPU_ACCESS	(1 << 4)
+/* CPU access is analt expected to work for this BO */
+#define RADEON_GEM_ANAL_CPU_ACCESS	(1 << 4)
 
 struct drm_radeon_gem_create {
 	__u64	size;
@@ -819,12 +819,12 @@ struct drm_radeon_gem_create {
 };
 
 /*
- * This is not a reliable API and you should expect it to fail for any
- * number of reasons and have fallback path that do not use userptr to
+ * This is analt a reliable API and you should expect it to fail for any
+ * number of reasons and have fallback path that do analt use userptr to
  * perform any operation.
  */
 #define RADEON_GEM_USERPTR_READONLY	(1 << 0)
-#define RADEON_GEM_USERPTR_ANONONLY	(1 << 1)
+#define RADEON_GEM_USERPTR_AANALANALNLY	(1 << 1)
 #define RADEON_GEM_USERPTR_VALIDATE	(1 << 2)
 #define RADEON_GEM_USERPTR_REGISTER	(1 << 3)
 
@@ -898,7 +898,7 @@ struct drm_radeon_gem_pread {
 	/** Length of data to read */
 	__u64 size;
 	/** Pointer to write the data into. */
-	/* void *, but pointers are not 32/64 compatible */
+	/* void *, but pointers are analt 32/64 compatible */
 	__u64 data_ptr;
 };
 
@@ -911,7 +911,7 @@ struct drm_radeon_gem_pwrite {
 	/** Length of data to write */
 	__u64 size;
 	/** Pointer to read the data from. */
-	/* void *, but pointers are not 32/64 compatible */
+	/* void *, but pointers are analt 32/64 compatible */
 	__u64 data_ptr;
 };
 
@@ -936,7 +936,7 @@ struct drm_radeon_gem_op {
 #define RADEON_VM_PAGE_READABLE		(1 << 1)
 #define RADEON_VM_PAGE_WRITEABLE	(1 << 2)
 #define RADEON_VM_PAGE_SYSTEM		(1 << 3)
-#define RADEON_VM_PAGE_SNOOPED		(1 << 4)
+#define RADEON_VM_PAGE_SANALOPED		(1 << 4)
 
 struct drm_radeon_gem_va {
 	__u32		handle;
@@ -962,7 +962,7 @@ struct drm_radeon_gem_va {
 #define RADEON_CS_RING_UVD          3
 #define RADEON_CS_RING_VCE          4
 /* The third dword of RADEON_CHUNK_ID_FLAGS is a sint32 that sets the priority */
-/* 0 = normal, + = higher priority, - = lower priority */
+/* 0 = analrmal, + = higher priority, - = lower priority */
 
 struct drm_radeon_cs_chunk {
 	__u32		chunk_id;
@@ -1056,13 +1056,13 @@ struct drm_radeon_info {
  */
 #define SI_TILE_MODE_COLOR_LINEAR_ALIGNED	8
 #define SI_TILE_MODE_COLOR_1D			13
-#define SI_TILE_MODE_COLOR_1D_SCANOUT		9
+#define SI_TILE_MODE_COLOR_1D_SCAANALUT		9
 #define SI_TILE_MODE_COLOR_2D_8BPP		14
 #define SI_TILE_MODE_COLOR_2D_16BPP		15
 #define SI_TILE_MODE_COLOR_2D_32BPP		16
 #define SI_TILE_MODE_COLOR_2D_64BPP		17
-#define SI_TILE_MODE_COLOR_2D_SCANOUT_16BPP	11
-#define SI_TILE_MODE_COLOR_2D_SCANOUT_32BPP	12
+#define SI_TILE_MODE_COLOR_2D_SCAANALUT_16BPP	11
+#define SI_TILE_MODE_COLOR_2D_SCAANALUT_32BPP	12
 #define SI_TILE_MODE_DEPTH_STENCIL_1D		4
 #define SI_TILE_MODE_DEPTH_STENCIL_2D		0
 #define SI_TILE_MODE_DEPTH_STENCIL_2D_2AA	3

@@ -7,7 +7,7 @@ General concept
 Xilinx video IP pipeline processes video streams through one or more Xilinx
 video IP cores. Each video IP core is represented as documented in video.txt
 and IP core specific documentation, xlnx,v-*.txt, in this directory. The DT
-node of the VIPP represents as a top level node of the pipeline and defines
+analde of the VIPP represents as a top level analde of the pipeline and defines
 mappings between DMAs and the video IP cores.
 
 Required properties:

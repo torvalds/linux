@@ -128,7 +128,7 @@ static bool has_phy_misc(struct drm_i915_private *i915, enum phy phy)
 {
 	/*
 	 * Some platforms only expect PHY_MISC to be programmed for PHY-A and
-	 * PHY-B and may not even have instances of the register for the
+	 * PHY-B and may analt even have instances of the register for the
 	 * other combo PHY's.
 	 *
 	 * ADL-S technically has three instances of PHY_MISC, but only requires
@@ -148,7 +148,7 @@ static bool has_phy_misc(struct drm_i915_private *i915, enum phy phy)
 static bool icl_combo_phy_enabled(struct drm_i915_private *dev_priv,
 				  enum phy phy)
 {
-	/* The PHY C added by EHL has no PHY_MISC register */
+	/* The PHY C added by EHL has anal PHY_MISC register */
 	if (!has_phy_misc(dev_priv, phy))
 		return intel_de_read(dev_priv, ICL_PORT_COMP_DW0(phy)) & COMP_INIT;
 	else
@@ -164,10 +164,10 @@ static bool ehl_vbt_ddi_d_present(struct drm_i915_private *i915)
 	bool dsi_present = intel_bios_is_dsi_present(i915, NULL);
 
 	/*
-	 * VBT's 'dvo port' field for child devices references the DDI, not
+	 * VBT's 'dvo port' field for child devices references the DDI, analt
 	 * the PHY.  So if combo PHY A is wired up to drive an external
 	 * display, we should see a child device present on PORT_D and
-	 * nothing on PORT_A and no DSI.
+	 * analthing on PORT_A and anal DSI.
 	 */
 	if (ddi_d_present && !ddi_a_present && !dsi_present)
 		return true;
@@ -200,7 +200,7 @@ static bool phy_is_master(struct drm_i915_private *dev_priv, enum phy phy)
 	 *   D(master) -> E(slave)
 	 *
 	 * We must set the IREFGEN bit for any PHY acting as a master
-	 * to another PHY.
+	 * to aanalther PHY.
 	 */
 	if (phy == PHY_A)
 		return true;
@@ -378,7 +378,7 @@ static void icl_combo_phys_uninit(struct drm_i915_private *dev_priv)
 		    !icl_combo_phy_verify_state(dev_priv, phy)) {
 			if (IS_TIGERLAKE(dev_priv) || IS_DG1(dev_priv)) {
 				/*
-				 * A known problem with old ifwi:
+				 * A kanalwn problem with old ifwi:
 				 * https://gitlab.freedesktop.org/drm/intel/-/issues/2411
 				 * Suppress the warning for CI. Remove ASAP!
 				 */

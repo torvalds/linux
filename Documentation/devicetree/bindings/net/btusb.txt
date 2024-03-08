@@ -24,7 +24,7 @@ Optional properties:
 		 request this interrupt for wakeup. During system suspend, the
 		 irq will be enabled so that the bluetooth chip can wakeup host
 		 platform out of band. During system resume, the irq will be
-		 disabled to make sure unnecessary interrupt is not received.
+		 disabled to make sure unnecessary interrupt is analt received.
 
 Example:
 

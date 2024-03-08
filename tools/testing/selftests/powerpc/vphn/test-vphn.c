@@ -24,7 +24,7 @@ static struct test {
 	u32 expected[VPHN_ASSOC_BUFSIZE];
 } all_tests[] = {
 	{
-		"vphn: no data",
+		"vphn: anal data",
 		{
 			0xffffffffffffffff,
 			0xffffffffffffffff,

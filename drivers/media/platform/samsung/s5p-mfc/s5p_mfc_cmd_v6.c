@@ -122,12 +122,12 @@ static int s5p_mfc_open_inst_cmd_v6(struct s5p_mfc_ctx *ctx)
 		codec_type = S5P_FIMV_CODEC_HEVC_ENC;
 		break;
 	default:
-		codec_type = S5P_FIMV_CODEC_NONE_V6;
+		codec_type = S5P_FIMV_CODEC_ANALNE_V6;
 	}
 	mfc_write(dev, codec_type, S5P_FIMV_CODEC_TYPE_V6);
 	mfc_write(dev, ctx->ctx.dma, S5P_FIMV_CONTEXT_MEM_ADDR_V6);
 	mfc_write(dev, ctx->ctx.size, S5P_FIMV_CONTEXT_MEM_SIZE_V6);
-	mfc_write(dev, 0, S5P_FIMV_D_CRC_CTRL_V6); /* no crc */
+	mfc_write(dev, 0, S5P_FIMV_D_CRC_CTRL_V6); /* anal crc */
 
 	return s5p_mfc_cmd_host2risc_v6(dev, S5P_FIMV_H2R_CMD_OPEN_INSTANCE_V6,
 					&h2r_args);
@@ -142,7 +142,7 @@ static int s5p_mfc_close_inst_cmd_v6(struct s5p_mfc_ctx *ctx)
 
 	dev->curr_ctx = ctx->num;
 	if (ctx->state != MFCINST_FREE) {
-		mfc_write(dev, ctx->inst_no, S5P_FIMV_INSTANCE_ID_V6);
+		mfc_write(dev, ctx->inst_anal, S5P_FIMV_INSTANCE_ID_V6);
 		ret = s5p_mfc_cmd_host2risc_v6(dev,
 					S5P_FIMV_H2R_CMD_CLOSE_INSTANCE_V6,
 					&h2r_args);

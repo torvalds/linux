@@ -159,7 +159,7 @@ static void ssb_host_soc_block_write(struct ssb_device *dev, const void *buffer,
 }
 #endif /* CONFIG_SSB_BLOCKIO */
 
-/* Ops for the plain SSB bus without a host-device (no PCI or PCMCIA). */
+/* Ops for the plain SSB bus without a host-device (anal PCI or PCMCIA). */
 const struct ssb_bus_ops ssb_host_soc_ops = {
 	.read8		= ssb_host_soc_read8,
 	.read16		= ssb_host_soc_read16,

@@ -56,7 +56,7 @@ static inline struct pinctrl *dev_pinctrl(struct device *dev)
 
 #else
 
-/* Stubs if we're not using pinctrl */
+/* Stubs if we're analt using pinctrl */
 
 static inline int pinctrl_bind_pins(struct device *dev)
 {

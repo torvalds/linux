@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _LINUX_HDREG_H
 #define _LINUX_HDREG_H
 
@@ -12,7 +12,7 @@
 #define HDIO_DRIVE_HOB_HDR_SIZE		(8 * sizeof(__u8))
 #define HDIO_DRIVE_TASK_HDR_SIZE	(8 * sizeof(__u8))
 
-#define IDE_DRIVE_TASK_NO_DATA		0
+#define IDE_DRIVE_TASK_ANAL_DATA		0
 #ifndef __KERNEL__
 #define IDE_DRIVE_TASK_INVALID		-1
 #define IDE_DRIVE_TASK_SET_XFER		1
@@ -105,7 +105,7 @@ typedef struct hd_drive_hob_hdr {
 } hob_struct_t;
 #endif
 
-#define TASKFILE_NO_DATA		0x0000
+#define TASKFILE_ANAL_DATA		0x0000
 
 #define TASKFILE_IN			0x0001
 #define TASKFILE_MULTI_IN		0x0002
@@ -132,7 +132,7 @@ typedef struct hd_drive_hob_hdr {
 
 #ifndef __KERNEL__
 /* ATA/ATAPI Commands pre T13 Spec */
-#define WIN_NOP				0x00
+#define WIN_ANALP				0x00
 /*
  *	0x01->0x02 Reserved
  */
@@ -199,14 +199,14 @@ typedef struct hd_drive_hob_hdr {
 #define WIN_SEEK			0x70 /* 0x70-0x7F Reserved */
 
 #define CFA_TRANSLATE_SECTOR		0x87 /* CFA Translate Sector */
-#define WIN_DIAGNOSE			0x90
+#define WIN_DIAGANALSE			0x90
 #define WIN_SPECIFY			0x91 /* set drive geometry translation */
 #define WIN_DOWNLOAD_MICROCODE		0x92
-#define WIN_STANDBYNOW2			0x94
+#define WIN_STANDBYANALW2			0x94
 #define WIN_STANDBY2			0x96
 #define WIN_SETIDLE2			0x97
 #define WIN_CHECKPOWERMODE2		0x98
-#define WIN_SLEEPNOW2			0x99
+#define WIN_SLEEPANALW2			0x99
 /*
  *	0x9A VENDOR
  */
@@ -231,13 +231,13 @@ typedef struct hd_drive_hob_hdr {
 #define WIN_PREBOOT 			0xDD
 #define WIN_DOORLOCK			0xDE /* lock door on removable drives */
 #define WIN_DOORUNLOCK			0xDF /* unlock door on removable drives */
-#define WIN_STANDBYNOW1			0xE0
+#define WIN_STANDBYANALW1			0xE0
 #define WIN_IDLEIMMEDIATE		0xE1 /* force drive to become "ready" */
 #define WIN_STANDBY			0xE2 /* Set device in Standby Mode */
 #define WIN_SETIDLE1			0xE3
 #define WIN_READ_BUFFER			0xE4 /* force read only 1 sector */
 #define WIN_CHECKPOWERMODE1		0xE5
-#define WIN_SLEEPNOW1			0xE6
+#define WIN_SLEEPANALW1			0xE6
 #define WIN_FLUSH_CACHE			0xE7
 #define WIN_WRITE_BUFFER		0xE8 /* force write only 1 sector */
 #define WIN_WRITE_SAME			0xE9 /* read ata-2 to use */
@@ -284,7 +284,7 @@ typedef struct hd_drive_hob_hdr {
 #define SETFEATURES_DIS_DEFECT	0x04	/* Disable Defect Management */
 #define SETFEATURES_EN_APM	0x05	/* Enable advanced power management */
 #define SETFEATURES_EN_SAME_R	0x22	/* for a region ATA-1 */
-#define SETFEATURES_DIS_MSN	0x31	/* Disable Media Status Notification */
+#define SETFEATURES_DIS_MSN	0x31	/* Disable Media Status Analtification */
 #define SETFEATURES_DIS_RETRY	0x33	/* Disable Retry */
 #define SETFEATURES_EN_AAM	0x42	/* Enable Automatic Acoustic Management */
 #define SETFEATURES_RW_LONG	0x44	/* Set Length of VS bytes */
@@ -299,7 +299,7 @@ typedef struct hd_drive_hob_hdr {
 #define SETFEATURES_EN_DEFECT	0x84	/* Enable Defect Management */
 #define SETFEATURES_DIS_APM	0x85	/* Disable advanced power management */
 #define SETFEATURES_EN_ECC	0x88	/* Enable ECC byte count */
-#define SETFEATURES_EN_MSN	0x95	/* Enable Media Status Notification */
+#define SETFEATURES_EN_MSN	0x95	/* Enable Media Status Analtification */
 #define SETFEATURES_EN_RETRY	0x99	/* Enable Retry */
 #define SETFEATURES_EN_RLA	0xAA	/* Enable read look-ahead feature */
 #define SETFEATURES_PREFETCH	0xAB	/* Sets drive prefetch value */
@@ -336,10 +336,10 @@ struct hd_geometry {
 
 #define HDIO_SET_XFER		0x0306  /* set transfer rate via proc */
 
-#define HDIO_OBSOLETE_IDENTITY	0x0307	/* OBSOLETE, DO NOT USE: returns 142 bytes */
+#define HDIO_OBSOLETE_IDENTITY	0x0307	/* OBSOLETE, DO ANALT USE: returns 142 bytes */
 #define HDIO_GET_KEEPSETTINGS	0x0308	/* get keep-settings-on-reset flag */
 #define HDIO_GET_32BIT		0x0309	/* get current io_32bit setting */
-#define HDIO_GET_NOWERR		0x030a	/* get ignore-write-error flag */
+#define HDIO_GET_ANALWERR		0x030a	/* get iganalre-write-error flag */
 #define HDIO_GET_DMA		0x030b	/* get use-dma flag */
 #define HDIO_GET_NICE		0x030c	/* get nice flags */
 #define HDIO_GET_IDENTITY	0x030d	/* get IDE identification info */
@@ -355,12 +355,12 @@ struct hd_geometry {
 #define HDIO_DRIVE_CMD		0x031f	/* execute a special drive command */
 #define HDIO_DRIVE_CMD_AEB	HDIO_DRIVE_TASK
 
-/* hd/ide ctl's that pass (arg) non-ptr values are numbered 0x032n/0x033n */
+/* hd/ide ctl's that pass (arg) analn-ptr values are numbered 0x032n/0x033n */
 #define HDIO_SET_MULTCOUNT	0x0321	/* change IDE blockmode */
 #define HDIO_SET_UNMASKINTR	0x0322	/* permit other irqs during I/O */
 #define HDIO_SET_KEEPSETTINGS	0x0323	/* keep ioctl settings on reset */
 #define HDIO_SET_32BIT		0x0324	/* change io_32bit flags */
-#define HDIO_SET_NOWERR		0x0325	/* change ignore-write-error flag */
+#define HDIO_SET_ANALWERR		0x0325	/* change iganalre-write-error flag */
 #define HDIO_SET_DMA		0x0326	/* change use-dma flag */
 #define HDIO_SET_PIO_MODE	0x0327	/* reconfig interface to new speed */
 #ifndef __KERNEL__
@@ -407,17 +407,17 @@ struct hd_driveid {
 	unsigned short	vendor0;	/* vendor unique */
 	unsigned short	vendor1;	/* vendor unique */
 	unsigned short	vendor2;	/* Retired vendor unique */
-	unsigned char	serial_no[20];	/* 0 = not_specified */
+	unsigned char	serial_anal[20];	/* 0 = analt_specified */
 	unsigned short	buf_type;	/* Retired */
 	unsigned short	buf_size;	/* Retired, 512 byte increments
-					 * 0 = not_specified
+					 * 0 = analt_specified
 					 */
-	unsigned short	ecc_bytes;	/* for r/w long cmds; 0 = not_specified */
-	unsigned char	fw_rev[8];	/* 0 = not_specified */
-	unsigned char	model[40];	/* 0 = not_specified */
-	unsigned char	max_multsect;	/* 0=not_implemented */
+	unsigned short	ecc_bytes;	/* for r/w long cmds; 0 = analt_specified */
+	unsigned char	fw_rev[8];	/* 0 = analt_specified */
+	unsigned char	model[40];	/* 0 = analt_specified */
+	unsigned char	max_multsect;	/* 0=analt_implemented */
 	unsigned char	vendor3;	/* vendor unique */
-	unsigned short	dword_io;	/* 0=not_implemented; 1=implemented */
+	unsigned short	dword_io;	/* 0=analt_implemented; 1=implemented */
 	unsigned char	vendor4;	/* vendor unique */
 	unsigned char	capability;	/* (upper byte of word 49)
 					 *  3:	IORDYsup
@@ -448,7 +448,7 @@ struct hd_driveid {
 	unsigned short  eide_pio_modes; /* bits 0:mode3 1:mode4 */
 	unsigned short  eide_dma_min;	/* min mword dma cycle time (ns) */
 	unsigned short  eide_dma_time;	/* recommended mword dma cycle time (ns) */
-	unsigned short  eide_pio;       /* min cycle time (ns), no IORDY  */
+	unsigned short  eide_pio;       /* min cycle time (ns), anal IORDY  */
 	unsigned short  eide_pio_iordy; /* min cycle time (ns), with IORDY */
 	unsigned short	words69_70[2];	/* reserved words 69-70
 					 * future command overlap and queuing
@@ -462,10 +462,10 @@ struct hd_driveid {
 					 */
 	unsigned short  words76_79[4];	/* reserved words 76-79 */
 	unsigned short  major_rev_num;	/* (word 80) */
-	unsigned short  minor_rev_num;	/* (word 81) */
+	unsigned short  mianalr_rev_num;	/* (word 81) */
 	unsigned short  command_set_1;	/* (word 82) supported
 					 * 15:	Obsolete
-					 * 14:	NOP command
+					 * 14:	ANALP command
 					 * 13:	READ_BUFFER
 					 * 12:	WRITE_BUFFER
 					 * 11:	Obsolete
@@ -493,7 +493,7 @@ struct hd_driveid {
 					 *  7:	reserved 1407DT PARTIES
 					 *  6:	SetF sub-command Power-Up
 					 *  5:	Power-Up in Standby Feature Set
-					 *  4:	Removable Media Notification
+					 *  4:	Removable Media Analtification
 					 *  3:	APM Feature Set
 					 *  2:	CFA Feature Set
 					 *  1:	READ/WRITE DMA QUEUED
@@ -514,7 +514,7 @@ struct hd_driveid {
 	unsigned short  cfs_enable_1;	/* (word 85)
 					 * command set-feature enabled
 					 * 15:	Obsolete
-					 * 14:	NOP command
+					 * 14:	ANALP command
 					 * 13:	READ_BUFFER
 					 * 12:	WRITE_BUFFER
 					 * 11:	Obsolete
@@ -543,7 +543,7 @@ struct hd_driveid {
 					 *  7:	reserved 1407DT PARTIES
 					 *  6:	SetF sub-command Power-Up
 					 *  5:	Power-Up in Standby Feature Set
-					 *  4:	Removable Media Notification
+					 *  4:	Removable Media Analtification
 					 *  3:	APM Feature Set
 					 *  2:	CFA Feature Set
 					 *  1:	READ/WRITE DMA QUEUED
@@ -596,9 +596,9 @@ struct hd_driveid {
 	unsigned short	words104_125[22];/* reserved words 104-125 */
 	unsigned short	last_lun;	/* (word 126) */
 	unsigned short	word127;	/* (word 127) Feature Set
-					 * Removable Media Notification
+					 * Removable Media Analtification
 					 * 15:2	reserved
-					 *  1:0	00 = not supported
+					 *  1:0	00 = analt supported
 					 *	01 = supported
 					 *	10 = reserved
 					 *	11 = reserved
@@ -649,11 +649,11 @@ struct hd_driveid {
  * share the same IDE bus.
  */
 #define IDE_NICE_DSC_OVERLAP	(0)	/* per the DSC overlap protocol */
-#define IDE_NICE_ATAPI_OVERLAP	(1)	/* not supported yet */
+#define IDE_NICE_ATAPI_OVERLAP	(1)	/* analt supported yet */
 #define IDE_NICE_1		(3)	/* when probably won't affect us much */
 #ifndef __KERNEL__
 #define IDE_NICE_0		(2)	/* when sure that it won't affect us */
-#define IDE_NICE_2		(4)	/* when we know it's on our expense */
+#define IDE_NICE_2		(4)	/* when we kanalw it's on our expense */
 #endif
 
 #endif	/* _LINUX_HDREG_H */

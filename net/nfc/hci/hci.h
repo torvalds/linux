@@ -53,11 +53,11 @@ struct hci_create_pipe_resp {
 	u8 pipe;
 } __packed;
 
-struct hci_delete_pipe_noti {
+struct hci_delete_pipe_analti {
 	u8 pipe;
 } __packed;
 
-struct hci_all_pipe_cleared_noti {
+struct hci_all_pipe_cleared_analti {
 	u8 host;
 } __packed;
 
@@ -98,20 +98,20 @@ void nfc_hci_hcp_message_rx(struct nfc_hci_dev *hdev, u8 pipe, u8 type,
 /* Admin commands */
 #define NFC_HCI_ADM_CREATE_PIPE			0x10
 #define NFC_HCI_ADM_DELETE_PIPE			0x11
-#define NFC_HCI_ADM_NOTIFY_PIPE_CREATED		0x12
-#define NFC_HCI_ADM_NOTIFY_PIPE_DELETED		0x13
+#define NFC_HCI_ADM_ANALTIFY_PIPE_CREATED		0x12
+#define NFC_HCI_ADM_ANALTIFY_PIPE_DELETED		0x13
 #define NFC_HCI_ADM_CLEAR_ALL_PIPE		0x14
-#define NFC_HCI_ADM_NOTIFY_ALL_PIPE_CLEARED	0x15
+#define NFC_HCI_ADM_ANALTIFY_ALL_PIPE_CLEARED	0x15
 
 /* Generic responses */
 #define NFC_HCI_ANY_OK				0x00
-#define NFC_HCI_ANY_E_NOT_CONNECTED		0x01
-#define NFC_HCI_ANY_E_CMD_PAR_UNKNOWN		0x02
-#define NFC_HCI_ANY_E_NOK			0x03
+#define NFC_HCI_ANY_E_ANALT_CONNECTED		0x01
+#define NFC_HCI_ANY_E_CMD_PAR_UNKANALWN		0x02
+#define NFC_HCI_ANY_E_ANALK			0x03
 #define NFC_HCI_ANY_E_PIPES_FULL		0x04
-#define NFC_HCI_ANY_E_REG_PAR_UNKNOWN		0x05
-#define NFC_HCI_ANY_E_PIPE_NOT_OPENED		0x06
-#define NFC_HCI_ANY_E_CMD_NOT_SUPPORTED		0x07
+#define NFC_HCI_ANY_E_REG_PAR_UNKANALWN		0x05
+#define NFC_HCI_ANY_E_PIPE_ANALT_OPENED		0x06
+#define NFC_HCI_ANY_E_CMD_ANALT_SUPPORTED		0x07
 #define NFC_HCI_ANY_E_INHIBITED			0x08
 #define NFC_HCI_ANY_E_TIMEOUT			0x09
 #define NFC_HCI_ANY_E_REG_ACCESS_DENIED		0x0a

@@ -59,7 +59,7 @@ int mpc52xx_set_wakeup_gpio(u8 pin, u8 level)
 
 int mpc52xx_pm_prepare(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	static const struct of_device_id immr_ids[] = {
 		{ .compatible = "fsl,mpc5200-immr", },
 		{ .compatible = "fsl,mpc5200b-immr", },
@@ -70,20 +70,20 @@ int mpc52xx_pm_prepare(void)
 	struct resource res;
 
 	/* map the whole register space */
-	np = of_find_matching_node(NULL, immr_ids);
+	np = of_find_matching_analde(NULL, immr_ids);
 
 	if (of_address_to_resource(np, 0, &res)) {
-		pr_err("mpc52xx_pm_prepare(): could not get IMMR address\n");
-		of_node_put(np);
-		return -ENOSYS;
+		pr_err("mpc52xx_pm_prepare(): could analt get IMMR address\n");
+		of_analde_put(np);
+		return -EANALSYS;
 	}
 
 	mbar = ioremap(res.start, 0xc000); /* we should map whole region including SRAM */
 
-	of_node_put(np);
+	of_analde_put(np);
 	if (!mbar) {
-		pr_err("mpc52xx_pm_prepare(): could not map registers\n");
-		return -ENOSYS;
+		pr_err("mpc52xx_pm_prepare(): could analt map registers\n");
+		return -EANALSYS;
 	}
 	/* these offsets are from mpc5200 users manual */
 	sdram	= mbar + 0x100;
@@ -97,7 +97,7 @@ int mpc52xx_pm_prepare(void)
 	if (mpc52xx_suspend.board_suspend_prepare)
 		mpc52xx_suspend.board_suspend_prepare(mbar);
 	else {
-		printk(KERN_ALERT "%s: %i don't know how to wake up the board\n",
+		printk(KERN_ALERT "%s: %i don't kanalw how to wake up the board\n",
 				__func__, __LINE__);
 		goto out_unmap;
 	}
@@ -106,7 +106,7 @@ int mpc52xx_pm_prepare(void)
 
  out_unmap:
 	iounmap(mbar);
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 
@@ -122,7 +122,7 @@ int mpc52xx_pm_enter(suspend_state_t state)
 	char saved_0x500[0x600-0x500];
 
 	if (WARN_ON(mpc52xx_ds_cached_size > sizeof(saved_0x500)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* disable all interrupts in PIC */
 	intr_main_mask = in_be32(&intr->main_mask);

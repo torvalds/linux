@@ -5,7 +5,7 @@
  */
 
 #include <linux/bug.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/linkage.h>
 #include <linux/printk.h>
@@ -20,7 +20,7 @@
 // https://refspecs.linuxbase.org/LSB_4.0.0/LSB-Core-generic/LSB-Core-generic/ehframechpt.html
 //
 
-#define DW_CFA_nop                          0x00
+#define DW_CFA_analp                          0x00
 #define DW_CFA_set_loc                      0x01
 #define DW_CFA_advance_loc1                 0x02
 #define DW_CFA_advance_loc2                 0x03
@@ -76,7 +76,7 @@ static void __always_inline scs_patch_loc(u64 loc)
 		 * also appear after a DW_CFA_restore_state directive that
 		 * restores a state that is only partially accurate, and is
 		 * followed by DW_CFA_negate_ra_state directive to toggle the
-		 * PAC bit again. So we permit other instructions here, and ignore
+		 * PAC bit again. So we permit other instructions here, and iganalre
 		 * them.
 		 */
 		return;
@@ -128,7 +128,7 @@ struct eh_frame {
 	};
 };
 
-static int noinstr scs_handle_fde_frame(const struct eh_frame *frame,
+static int analinstr scs_handle_fde_frame(const struct eh_frame *frame,
 					bool fde_has_augmentation_data,
 					int code_alignment_factor,
 					bool dry_run)
@@ -142,7 +142,7 @@ static int noinstr scs_handle_fde_frame(const struct eh_frame *frame,
 
 		// assume single byte uleb128_t
 		if (WARN_ON(*opcode & BIT(7)))
-			return -ENOEXEC;
+			return -EANALEXEC;
 
 		l = *opcode++;
 		opcode += l;
@@ -155,7 +155,7 @@ static int noinstr scs_handle_fde_frame(const struct eh_frame *frame,
 	 */
 	while (size-- > 0) {
 		switch (*opcode++) {
-		case DW_CFA_nop:
+		case DW_CFA_analp:
 		case DW_CFA_remember_state:
 		case DW_CFA_restore_state:
 			break;
@@ -199,13 +199,13 @@ static int noinstr scs_handle_fde_frame(const struct eh_frame *frame,
 
 		default:
 			pr_err("unhandled opcode: %02x in FDE frame %lx\n", opcode[-1], (uintptr_t)frame);
-			return -ENOEXEC;
+			return -EANALEXEC;
 		}
 	}
 	return 0;
 }
 
-int noinstr scs_patch(const u8 eh_frame[], int size)
+int analinstr scs_patch(const u8 eh_frame[], int size)
 {
 	const u8 *p = eh_frame;
 
@@ -229,7 +229,7 @@ int noinstr scs_patch(const u8 eh_frame[], int size)
 			/*
 			 * The code alignment factor is a uleb128 encoded field
 			 * but given that the only sensible values are 1 or 4,
-			 * there is no point in decoding the whole thing.
+			 * there is anal point in decoding the whole thing.
 			 */
 			p += strlen(p) + 1;
 			if (!WARN_ON(*p & BIT(7)))

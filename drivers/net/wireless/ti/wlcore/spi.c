@@ -2,9 +2,9 @@
 /*
  * This file is part of wl1271
  *
- * Copyright (C) 2008-2009 Nokia Corporation
+ * Copyright (C) 2008-2009 Analkia Corporation
  *
- * Contact: Luciano Coelho <luciano.coelho@nokia.com>
+ * Contact: Luciaanal Coelho <luciaanal.coelho@analkia.com>
  */
 
 #include <linux/interrupt.h>
@@ -96,7 +96,7 @@ static void wl12xx_spi_reset(struct device *child)
 	cmd = kzalloc(WSPI_INIT_CMD_LEN, GFP_KERNEL);
 	if (!cmd) {
 		dev_err(child->parent,
-			"could not allocate cmd for spi reset\n");
+			"could analt allocate cmd for spi reset\n");
 		return;
 	}
 
@@ -124,7 +124,7 @@ static void wl12xx_spi_init(struct device *child)
 
 	if (!cmd) {
 		dev_err(child->parent,
-			"could not allocate cmd for spi init\n");
+			"could analt allocate cmd for spi init\n");
 		return;
 	}
 
@@ -185,7 +185,7 @@ static void wl12xx_spi_init(struct device *child)
 
 	spi_sync(to_spi_device(glue->dev), &m);
 
-	/* Restore chip select configuration to normal */
+	/* Restore chip select configuration to analrmal */
 	spi->mode ^= SPI_CS_HIGH;
 	kfree(cmd);
 }
@@ -202,7 +202,7 @@ static int wl12xx_spi_read_busy(struct device *child)
 	int num_busy_bytes = 0;
 
 	/*
-	 * Read further busy words from SPI until a non-busy word is
+	 * Read further busy words from SPI until a analn-busy word is
 	 * encountered, then read the data itself into the buffer.
 	 */
 
@@ -261,7 +261,7 @@ static int __must_check wl12xx_spi_raw_read(struct device *child, int addr,
 		t[0].cs_change = true;
 		spi_message_add_tail(&t[0], &m);
 
-		/* Busy and non busy words read */
+		/* Busy and analn busy words read */
 		t[1].rx_buf = busy_buf;
 		t[1].len = WL1271_BUSY_WORD_LEN;
 		t[1].cs_change = true;
@@ -308,7 +308,7 @@ static int __wl12xx_spi_raw_write(struct device *child, int addr,
 	/* SPI write buffers - 2 for each chunk */
 	t = kzalloc(sizeof(*t) * 2 * WSPI_MAX_NUM_OF_CHUNKS, GFP_KERNEL);
 	if (!t)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	WARN_ON(len > SPI_AGGR_BUFFER_SIZE);
 
@@ -393,7 +393,7 @@ static int wl12xx_spi_set_power(struct device *child, bool enable)
 /*
  * wl12xx_spi_set_block_size
  *
- * This function is not needed for spi mode, but need to be present.
+ * This function is analt needed for spi mode, but need to be present.
  * Without it defined the wlcore fallback to use the wrong packet
  * allignment on tx.
  */
@@ -428,7 +428,7 @@ static const struct of_device_id wlcore_spi_of_match_table[] = {
 MODULE_DEVICE_TABLE(of, wlcore_spi_of_match_table);
 
 /**
- * wlcore_probe_of - DT node parsing.
+ * wlcore_probe_of - DT analde parsing.
  * @spi: SPI slave device parameters.
  * @glue: wl12xx SPI bus to slave device glue parameters.
  * @pdev_data: wlcore device parameters
@@ -436,23 +436,23 @@ MODULE_DEVICE_TABLE(of, wlcore_spi_of_match_table);
 static int wlcore_probe_of(struct spi_device *spi, struct wl12xx_spi_glue *glue,
 			   struct wlcore_platdev_data *pdev_data)
 {
-	struct device_node *dt_node = spi->dev.of_node;
+	struct device_analde *dt_analde = spi->dev.of_analde;
 	const struct of_device_id *of_id;
 
-	of_id = of_match_node(wlcore_spi_of_match_table, dt_node);
+	of_id = of_match_analde(wlcore_spi_of_match_table, dt_analde);
 	if (!of_id)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pdev_data->family = of_id->data;
 	dev_info(&spi->dev, "selected chip family is %s\n",
 		 pdev_data->family->name);
 
-	pdev_data->ref_clock_xtal = of_property_read_bool(dt_node, "clock-xtal");
+	pdev_data->ref_clock_xtal = of_property_read_bool(dt_analde, "clock-xtal");
 
 	/* optional clock frequency params */
-	of_property_read_u32(dt_node, "ref-clock-frequency",
+	of_property_read_u32(dt_analde, "ref-clock-frequency",
 			     &pdev_data->ref_clock_freq);
-	of_property_read_u32(dt_node, "tcxo-clock-frequency",
+	of_property_read_u32(dt_analde, "tcxo-clock-frequency",
 			     &pdev_data->tcxo_clock_freq);
 
 	return 0;
@@ -467,14 +467,14 @@ static int wl1271_probe(struct spi_device *spi)
 
 	pdev_data = devm_kzalloc(&spi->dev, sizeof(*pdev_data), GFP_KERNEL);
 	if (!pdev_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pdev_data->if_ops = &spi_ops;
 
 	glue = devm_kzalloc(&spi->dev, sizeof(*glue), GFP_KERNEL);
 	if (!glue) {
 		dev_err(&spi->dev, "can't allocate glue\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	glue->dev = &spi->dev;
@@ -507,7 +507,7 @@ static int wl1271_probe(struct spi_device *spi)
 					   PLATFORM_DEVID_AUTO);
 	if (!glue->core) {
 		dev_err(glue->dev, "can't allocate platform_device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	glue->core->dev.parent = &spi->dev;
@@ -564,6 +564,6 @@ static struct spi_driver wl1271_spi_driver = {
 module_spi_driver(wl1271_spi_driver);
 MODULE_DESCRIPTION("TI WLAN SPI helpers");
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Luciano Coelho <coelho@ti.com>");
-MODULE_AUTHOR("Juuso Oikarinen <juuso.oikarinen@nokia.com>");
+MODULE_AUTHOR("Luciaanal Coelho <coelho@ti.com>");
+MODULE_AUTHOR("Juuso Oikarinen <juuso.oikarinen@analkia.com>");
 MODULE_ALIAS("spi:wl1271");

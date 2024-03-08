@@ -38,6 +38,6 @@ static struct platform_driver adau7118_driver_hw = {
 };
 module_platform_driver(adau7118_driver_hw);
 
-MODULE_AUTHOR("Nuno Sa <nuno.sa@analog.com>");
+MODULE_AUTHOR("Nuanal Sa <nuanal.sa@analog.com>");
 MODULE_DESCRIPTION("ADAU7118 8 channel PDM-to-I2S/TDM Converter driver for standalone hw mode");
 MODULE_LICENSE("GPL");

@@ -4,7 +4,7 @@
  * Copyright (C) 2021 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
  *
- * NOTE!!! See:
+ * ANALTE!!! See:
  *
  *	Documentation/filesystems/caching/backend-api.rst
  *
@@ -21,7 +21,7 @@ enum fscache_cookie_trace;
 enum fscache_access_trace;
 
 enum fscache_cache_state {
-	FSCACHE_CACHE_IS_NOT_PRESENT,	/* No cache is present for this name */
+	FSCACHE_CACHE_IS_ANALT_PRESENT,	/* Anal cache is present for this name */
 	FSCACHE_CACHE_IS_PREPARING,	/* A cache is preparing to come live */
 	FSCACHE_CACHE_IS_ACTIVE,	/* Attached cache is active and can be used */
 	FSCACHE_CACHE_GOT_IOERROR,	/* Attached cache stopped on I/O error */
@@ -39,7 +39,7 @@ struct fscache_cache {
 	refcount_t		ref;
 	atomic_t		n_volumes;	/* Number of active volumes; */
 	atomic_t		n_accesses;	/* Number of in-progress accesses on the cache */
-	atomic_t		object_count;	/* no. of live objects in this cache */
+	atomic_t		object_count;	/* anal. of live objects in this cache */
 	unsigned int		debug_id;
 	enum fscache_cache_state state;
 	char			*name;
@@ -161,7 +161,7 @@ static inline void fscache_count_object(struct fscache_cache *cache)
  * fscache_uncount_object - Tell fscache that an object has been removed
  * @cache: The cache to account to
  *
- * Tell fscache that an object has been removed from the cache and will no
+ * Tell fscache that an object has been removed from the cache and will anal
  * longer be accessed.  After this point, the cache cookie may be destroyed.
  */
 static inline void fscache_uncount_object(struct fscache_cache *cache)
@@ -186,21 +186,21 @@ static inline void fscache_wait_for_objects(struct fscache_cache *cache)
 #ifdef CONFIG_FSCACHE_STATS
 extern atomic_t fscache_n_read;
 extern atomic_t fscache_n_write;
-extern atomic_t fscache_n_no_write_space;
-extern atomic_t fscache_n_no_create_space;
+extern atomic_t fscache_n_anal_write_space;
+extern atomic_t fscache_n_anal_create_space;
 extern atomic_t fscache_n_culled;
 extern atomic_t fscache_n_dio_misfit;
 #define fscache_count_read() atomic_inc(&fscache_n_read)
 #define fscache_count_write() atomic_inc(&fscache_n_write)
-#define fscache_count_no_write_space() atomic_inc(&fscache_n_no_write_space)
-#define fscache_count_no_create_space() atomic_inc(&fscache_n_no_create_space)
+#define fscache_count_anal_write_space() atomic_inc(&fscache_n_anal_write_space)
+#define fscache_count_anal_create_space() atomic_inc(&fscache_n_anal_create_space)
 #define fscache_count_culled() atomic_inc(&fscache_n_culled)
 #define fscache_count_dio_misfit() atomic_inc(&fscache_n_dio_misfit)
 #else
 #define fscache_count_read() do {} while(0)
 #define fscache_count_write() do {} while(0)
-#define fscache_count_no_write_space() do {} while(0)
-#define fscache_count_no_create_space() do {} while(0)
+#define fscache_count_anal_write_space() do {} while(0)
+#define fscache_count_anal_create_space() do {} while(0)
 #define fscache_count_culled() do {} while(0)
 #define fscache_count_dio_misfit() do {} while(0)
 #endif

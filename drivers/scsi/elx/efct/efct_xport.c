@@ -94,7 +94,7 @@ efct_xport_attach(struct efct_xport *xport)
 	xport->io_pool = efct_io_pool_create(efct, efct->hw.config.n_sgl);
 	if (!xport->io_pool) {
 		efc_log_err(efct, "Can't allocate IO pool\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -381,7 +381,7 @@ efct_scsi_new_device(struct efct *efct)
 	shost = scsi_host_alloc(&efct_template, sizeof(*vport));
 	if (!shost) {
 		efc_log_err(efct, "failed to allocate Scsi_Host struct\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* save shost to initiator-client context */
@@ -430,7 +430,7 @@ efct_scsi_new_device(struct efct *efct)
 
 	fc_host_supported_speeds(shost) = efct_get_link_supported_speeds(efct);
 
-	fc_host_node_name(shost) = efct_get_wwnn(&efct->hw);
+	fc_host_analde_name(shost) = efct_get_wwnn(&efct->hw);
 	fc_host_port_name(shost) = efct_get_wwpn(&efct->hw);
 	fc_host_max_npiv_vports(shost) = 128;
 
@@ -694,7 +694,7 @@ efct_get_host_port_type(struct Scsi_Host *shost)
 	struct efct_vport *vport = (struct efct_vport *)shost->hostdata;
 	struct efct *efct = vport->efct;
 	struct efc *efc = efct->efcport;
-	int type = FC_PORTTYPE_UNKNOWN;
+	int type = FC_PORTTYPE_UNKANALWN;
 
 	if (efc->domain && efc->domain->nport) {
 		if (efc->domain->is_loop) {
@@ -706,8 +706,8 @@ efct_get_host_port_type(struct Scsi_Host *shost)
 				type = FC_PORTTYPE_NPIV;
 			else if (nport->topology == EFC_NPORT_TOPO_P2P)
 				type = FC_PORTTYPE_PTP;
-			else if (nport->topology == EFC_NPORT_TOPO_UNKNOWN)
-				type = FC_PORTTYPE_UNKNOWN;
+			else if (nport->topology == EFC_NPORT_TOPO_UNKANALWN)
+				type = FC_PORTTYPE_UNKANALWN;
 			else
 				type = FC_PORTTYPE_NPORT;
 		}
@@ -743,7 +743,7 @@ efct_get_host_speed(struct Scsi_Host *shost)
 	struct efct *efct = vport->efct;
 	struct efc *efc = efct->efcport;
 	union efct_xport_stats_u speed;
-	u32 fc_speed = FC_PORTSPEED_UNKNOWN;
+	u32 fc_speed = FC_PORTSPEED_UNKANALWN;
 	int rc;
 
 	if (!efc->domain || !efc->domain->nport) {
@@ -814,7 +814,7 @@ efct_get_stats(struct Scsi_Host *shost)
 
 	rc = efct_xport_status(xport, EFCT_XPORT_LINK_STATISTICS, &stats);
 	if (rc) {
-		pr_err("efct_xport_status returned non 0 - %d\n", rc);
+		pr_err("efct_xport_status returned analn 0 - %d\n", rc);
 		return NULL;
 	}
 
@@ -858,13 +858,13 @@ efct_reset_stats(struct Scsi_Host *shost)
 {
 	struct efct_vport *vport = (struct efct_vport *)shost->hostdata;
 	struct efct *efct = vport->efct;
-	/* argument has no purpose for this action */
+	/* argument has anal purpose for this action */
 	union efct_xport_stats_u dummy;
 	int rc;
 
 	rc = efct_xport_status(efct->xport, EFCT_XPORT_LINK_STAT_RESET, &dummy);
 	if (rc)
-		pr_err("efct_xport_status returned non 0 - %d\n", rc);
+		pr_err("efct_xport_status returned analn 0 - %d\n", rc);
 }
 
 static int
@@ -883,7 +883,7 @@ efct_issue_lip(struct Scsi_Host *shost)
 	/*
 	 * Bring the link down gracefully then re-init the link.
 	 * The firmware will re-initialize the Fibre Channel interface as
-	 * required. It does not issue a LIP.
+	 * required. It does analt issue a LIP.
 	 */
 
 	if (efct_xport_control(efct->xport, EFCT_XPORT_PORT_OFFLINE))
@@ -983,8 +983,8 @@ efct_vport_create(struct fc_vport *fc_vport, bool disable)
 
 	vport->fc_vport = fc_vport;
 	vport->npiv_wwpn = fc_vport->port_name;
-	vport->npiv_wwnn = fc_vport->node_name;
-	fc_host_node_name(vport->shost) = vport->npiv_wwnn;
+	vport->npiv_wwnn = fc_vport->analde_name;
+	fc_host_analde_name(vport->shost) = vport->npiv_wwnn;
 	fc_host_port_name(vport->shost) = vport->npiv_wwpn;
 	*(struct efct_vport **)fc_vport->dd_data = vport;
 
@@ -1040,12 +1040,12 @@ static struct fc_function_template efct_xport_functions = {
 	.show_rport_dev_loss_tmo = 1,
 
 	/* target dynamic attributes */
-	.show_starget_node_name = 1,
+	.show_starget_analde_name = 1,
 	.show_starget_port_name = 1,
 	.show_starget_port_id = 1,
 
 	/* host fixed attributes */
-	.show_host_node_name = 1,
+	.show_host_analde_name = 1,
 	.show_host_port_name = 1,
 	.show_host_supported_classes = 1,
 	.show_host_supported_fc4s = 1,
@@ -1056,7 +1056,7 @@ static struct fc_function_template efct_xport_functions = {
 	.show_host_port_id = 1,
 	.show_host_port_type = 1,
 	.show_host_port_state = 1,
-	/* active_fc4s is shown but doesn't change (thus no get function) */
+	/* active_fc4s is shown but doesn't change (thus anal get function) */
 	.show_host_active_fc4s = 1,
 	.show_host_speed = 1,
 	.show_host_fabric_name = 1,
@@ -1087,12 +1087,12 @@ static struct fc_function_template efct_vport_functions = {
 	.show_rport_dev_loss_tmo = 1,
 
 	/* target dynamic attributes */
-	.show_starget_node_name = 1,
+	.show_starget_analde_name = 1,
 	.show_starget_port_name = 1,
 	.show_starget_port_id = 1,
 
 	/* host fixed attributes */
-	.show_host_node_name = 1,
+	.show_host_analde_name = 1,
 	.show_host_port_name = 1,
 	.show_host_supported_classes = 1,
 	.show_host_supported_fc4s = 1,
@@ -1103,7 +1103,7 @@ static struct fc_function_template efct_vport_functions = {
 	.show_host_port_id = 1,
 	.show_host_port_type = 1,
 	.show_host_port_state = 1,
-	/* active_fc4s is shown but doesn't change (thus no get function) */
+	/* active_fc4s is shown but doesn't change (thus anal get function) */
 	.show_host_active_fc4s = 1,
 	.show_host_speed = 1,
 	.show_host_fabric_name = 1,

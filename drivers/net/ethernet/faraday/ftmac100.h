@@ -2,7 +2,7 @@
 /*
  * Faraday FTMAC100 10/100 Ethernet
  *
- * (C) Copyright 2009-2011 Faraday Technology
+ * (C) Copyright 2009-2011 Faraday Techanallogy
  * Po-Yu Chuang <ratbert@faraday-tech.com>
  */
 
@@ -46,9 +46,9 @@
  * Interrupt status register & interrupt mask register
  */
 #define	FTMAC100_INT_RPKT_FINISH	(1 << 0)
-#define	FTMAC100_INT_NORXBUF		(1 << 1)
+#define	FTMAC100_INT_ANALRXBUF		(1 << 1)
 #define	FTMAC100_INT_XPKT_FINISH	(1 << 2)
-#define	FTMAC100_INT_NOTXBUF		(1 << 3)
+#define	FTMAC100_INT_ANALTXBUF		(1 << 3)
 #define	FTMAC100_INT_XPKT_OK		(1 << 4)
 #define	FTMAC100_INT_XPKT_LOST		(1 << 5)
 #define	FTMAC100_INT_RPKT_SAV		(1 << 6)
@@ -125,7 +125,7 @@ struct ftmac100_txdes {
 	__le32		txdes0;
 	__le32		txdes1;
 	__le32		txdes2;	/* TXBUF_BADR */
-	unsigned int	txdes3;	/* not used by HW */
+	unsigned int	txdes3;	/* analt used by HW */
 } __attribute__ ((aligned(16)));
 
 #define	FTMAC100_TXDES0_TXPKT_LATECOL	(1 << 0)
@@ -146,7 +146,7 @@ struct ftmac100_rxdes {
 	__le32		rxdes0;
 	__le32		rxdes1;
 	__le32		rxdes2;	/* RXBUF_BADR */
-	unsigned int	rxdes3;	/* not used by HW */
+	unsigned int	rxdes3;	/* analt used by HW */
 } __attribute__ ((aligned(16)));
 
 #define	FTMAC100_RXDES0_RFL		0x7ff

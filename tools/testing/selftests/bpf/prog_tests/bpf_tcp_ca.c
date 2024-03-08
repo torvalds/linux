@@ -7,15 +7,15 @@
 #include "network_helpers.h"
 #include "bpf_dctcp.skel.h"
 #include "bpf_cubic.skel.h"
-#include "bpf_tcp_nogpl.skel.h"
+#include "bpf_tcp_analgpl.skel.h"
 #include "tcp_ca_update.skel.h"
 #include "bpf_dctcp_release.skel.h"
 #include "tcp_ca_write_sk_pacing.skel.h"
 #include "tcp_ca_incompl_cong_ops.skel.h"
 #include "tcp_ca_unsupp_cong_op.skel.h"
 
-#ifndef ENOTSUPP
-#define ENOTSUPP 524
+#ifndef EANALTSUPP
+#define EANALTSUPP 524
 #endif
 
 static const unsigned int total_bytes = 10 * 1024 * 1024;
@@ -41,24 +41,24 @@ static void *server(void *arg)
 
 	fd = accept(lfd, NULL, NULL);
 	while (fd == -1) {
-		if (errno == EINTR)
+		if (erranal == EINTR)
 			continue;
-		err = -errno;
+		err = -erranal;
 		goto done;
 	}
 
 	if (settimeo(fd, 0)) {
-		err = -errno;
+		err = -erranal;
 		goto done;
 	}
 
 	while (bytes < total_bytes && !READ_ONCE(stop)) {
 		nr_sent = send(fd, &batch,
 			       MIN(total_bytes - bytes, sizeof(batch)), 0);
-		if (nr_sent == -1 && errno == EINTR)
+		if (nr_sent == -1 && erranal == EINTR)
 			continue;
 		if (nr_sent == -1) {
-			err = -errno;
+			err = -erranal;
 			break;
 		}
 		bytes += nr_sent;
@@ -120,7 +120,7 @@ static void do_test(const char *tcp_ca, const struct bpf_map *sk_stg_map)
 
 	if (sk_stg_map) {
 		err = bpf_map_update_elem(bpf_map__fd(sk_stg_map), &fd,
-					  &expected_stg, BPF_NOEXIST);
+					  &expected_stg, BPF_ANALEXIST);
 		if (!ASSERT_OK(err, "bpf_map_update_elem(sk_stg_map)"))
 			goto done;
 	}
@@ -136,7 +136,7 @@ static void do_test(const char *tcp_ca, const struct bpf_map *sk_stg_map)
 		err = bpf_map_lookup_elem(bpf_map__fd(sk_stg_map), &fd,
 					  &tmp_stg);
 		if (!ASSERT_ERR(err, "bpf_map_lookup_elem(sk_stg_map)") ||
-				!ASSERT_EQ(errno, ENOENT, "bpf_map_lookup_elem(sk_stg_map)"))
+				!ASSERT_EQ(erranal, EANALENT, "bpf_map_lookup_elem(sk_stg_map)"))
 			goto done;
 	}
 
@@ -148,7 +148,7 @@ static void do_test(const char *tcp_ca, const struct bpf_map *sk_stg_map)
 	while (bytes < total_bytes && !READ_ONCE(stop)) {
 		nr_recv = recv(fd, &batch,
 			       MIN(total_bytes - bytes, sizeof(batch)), 0);
-		if (nr_recv == -1 && errno == EINTR)
+		if (nr_recv == -1 && erranal == EINTR)
 			continue;
 		if (nr_recv == -1)
 			break;
@@ -239,17 +239,17 @@ out:
 static void test_invalid_license(void)
 {
 	libbpf_print_fn_t old_print_fn;
-	struct bpf_tcp_nogpl *skel;
+	struct bpf_tcp_analgpl *skel;
 
 	err_str = "struct ops programs must have a GPL compatible license";
 	found = false;
 	old_print_fn = libbpf_set_print(libbpf_debug_print);
 
-	skel = bpf_tcp_nogpl__open_and_load();
-	ASSERT_NULL(skel, "bpf_tcp_nogpl");
+	skel = bpf_tcp_analgpl__open_and_load();
+	ASSERT_NULL(skel, "bpf_tcp_analgpl");
 	ASSERT_EQ(found, true, "expected_err_msg");
 
-	bpf_tcp_nogpl__destroy(skel);
+	bpf_tcp_analgpl__destroy(skel);
 	libbpf_set_print(old_print_fn);
 }
 
@@ -288,7 +288,7 @@ static void test_dctcp_fallback(void)
 	if (!ASSERT_GE(srv_fd, 0, "srv_fd"))
 		goto done;
 	ASSERT_STREQ(dctcp_skel->bss->cc_res, "cubic", "cc_res");
-	ASSERT_EQ(dctcp_skel->bss->tcp_cdg_res, -ENOTSUPP, "tcp_cdg_res");
+	ASSERT_EQ(dctcp_skel->bss->tcp_cdg_res, -EANALTSUPP, "tcp_cdg_res");
 	/* All setsockopt(TCP_CONGESTION) in the recurred
 	 * bpf_dctcp->init() should fail with -EBUSY.
 	 */
@@ -315,7 +315,7 @@ static void test_rel_setsockopt(void)
 	struct bpf_dctcp_release *rel_skel;
 	libbpf_print_fn_t old_print_fn;
 
-	err_str = "unknown func bpf_setsockopt";
+	err_str = "unkanalwn func bpf_setsockopt";
 	found = false;
 
 	old_print_fn = libbpf_set_print(libbpf_debug_print);
@@ -447,7 +447,7 @@ static void test_mixed_links(void)
 	if (!ASSERT_OK_PTR(skel, "open"))
 		return;
 
-	link_nl = bpf_map__attach_struct_ops(skel->maps.ca_no_link);
+	link_nl = bpf_map__attach_struct_ops(skel->maps.ca_anal_link);
 	ASSERT_OK_PTR(link_nl, "attach_struct_ops_nl");
 
 	link = bpf_map__attach_struct_ops(skel->maps.ca_update_1);
@@ -456,7 +456,7 @@ static void test_mixed_links(void)
 	do_test("tcp_ca_update", NULL);
 	ASSERT_GT(skel->bss->ca1_cnt, 0, "ca1_ca1_cnt");
 
-	err = bpf_link__update_map(link, skel->maps.ca_no_link);
+	err = bpf_link__update_map(link, skel->maps.ca_anal_link);
 	ASSERT_ERR(err, "update_map");
 
 	bpf_link__destroy(link);

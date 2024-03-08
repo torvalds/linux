@@ -14,36 +14,36 @@
  *                     Feature and Parameter Negotiation
  *****************************************************************************
  *
- * The two halves of a para-virtual driver utilize nodes within
+ * The two halves of a para-virtual driver utilize analdes within
  * XenStore to communicate capabilities and to negotiate operating parameters.
- * This section enumerates these nodes which reside in the respective front and
+ * This section enumerates these analdes which reside in the respective front and
  * backend portions of XenStore, following XenBus convention.
  *
- * All data in XenStore is stored as strings.  Nodes specifying numeric
+ * All data in XenStore is stored as strings.  Analdes specifying numeric
  * values are encoded in decimal. Integer value ranges listed below are
  * expressed as fixed sized integer types capable of storing the conversion
- * of a properly formated node string, without loss of information.
+ * of a properly formated analde string, without loss of information.
  *
  *****************************************************************************
- *                            Backend XenBus Nodes
+ *                            Backend XenBus Analdes
  *****************************************************************************
  *
  *---------------------------- Features supported ----------------------------
  *
  * Capable backend advertises supported features by publishing
  * corresponding entries in XenStore and puts 1 as the value of the entry.
- * If a feature is not supported then 0 must be set or feature entry omitted.
+ * If a feature is analt supported then 0 must be set or feature entry omitted.
  *
  * feature-disable-keyboard
  *      Values:         <uint>
  *
- *      If there is no need to expose a virtual keyboard device by the
+ *      If there is anal need to expose a virtual keyboard device by the
  *      frontend then this must be set to 1.
  *
  * feature-disable-pointer
  *      Values:         <uint>
  *
- *      If there is no need to expose a virtual pointer device by the
+ *      If there is anal need to expose a virtual pointer device by the
  *      frontend then this must be set to 1.
  *
  * feature-abs-pointer
@@ -108,14 +108,14 @@
  *      while reporting input events, pixels, [0; UINT32_MAX].
  *
  *****************************************************************************
- *                            Frontend XenBus Nodes
+ *                            Frontend XenBus Analdes
  *****************************************************************************
  *
  *------------------------------ Feature request -----------------------------
  *
  * Capable frontend requests features from backend via setting corresponding
- * entries to 1 in XenStore. Requests for features not advertised as supported
- * by the backend have no effect.
+ * entries to 1 in XenStore. Requests for features analt advertised as supported
+ * by the backend have anal effect.
  *
  * request-abs-pointer
  *      Values:         <uint>
@@ -152,7 +152,7 @@
  * page-ref
  *      Values:         <uint>
  *
- *      OBSOLETE, not recommended for use.
+ *      OBSOLETE, analt recommended for use.
  *      PFN of the shared page.
  */
 
@@ -198,7 +198,7 @@
 #define XENKBD_FIELD_MT_NUM_CONTACTS	"multi-touch-num-contacts"
 #define XENKBD_FIELD_UNIQUE_ID		"unique-id"
 
-/* OBSOLETE, not recommended for use */
+/* OBSOLETE, analt recommended for use */
 #define XENKBD_FIELD_RING_REF		"page-ref"
 
 /*
@@ -216,7 +216,7 @@
  *                           Backend to frontend events
  *****************************************************************************
  *
- * Frontends should ignore unknown in events.
+ * Frontends should iganalre unkanalwn in events.
  * All event packets have the same length (40 octets)
  * All event packets have common header:
  *
@@ -414,8 +414,8 @@ struct xenkbd_position {
  * +----------------+----------------+----------------+----------------+
  *
  * Multi-touch shape event - touch point's shape has changed its shape.
- * Shape is approximated by an ellipse through the major and minor axis
- * lengths: major is the longer diameter of the ellipse and minor is the
+ * Shape is approximated by an ellipse through the major and mianalr axis
+ * lengths: major is the longer diameter of the ellipse and mianalr is the
  * shorter one. Center of the ellipse is reported via
  * XENKBD_MT_EV_DOWN/XENKBD_MT_EV_MOTION events.
  *         0                1                 2               3        octet
@@ -426,7 +426,7 @@ struct xenkbd_position {
  * +----------------+----------------+----------------+----------------+
  * |                               major                               | 12
  * +----------------+----------------+----------------+----------------+
- * |                               minor                               | 16
+ * |                               mianalr                               | 16
  * +----------------+----------------+----------------+----------------+
  * |                             reserved                              | 20
  * +----------------+----------------+----------------+----------------+
@@ -436,7 +436,7 @@ struct xenkbd_position {
  * +----------------+----------------+----------------+----------------+
  *
  * major - unt32_t, length of the major axis, pixels
- * minor - unt32_t, length of the minor axis, pixels
+ * mianalr - unt32_t, length of the mianalr axis, pixels
  *
  * Multi-touch orientation event - touch point's shape has changed
  * its orientation: calculated as a clockwise angle between the major axis
@@ -471,7 +471,7 @@ struct xenkbd_mtouch {
 		} pos;
 		struct {
 			uint32_t major;	/* length of the major axis, pixels */
-			uint32_t minor;	/* length of the minor axis, pixels */
+			uint32_t mianalr;	/* length of the mianalr axis, pixels */
 		} shape;
 		int16_t orientation;	/* clockwise angle of the major axis */
 	} u;
@@ -494,8 +494,8 @@ union xenkbd_in_event {
  *****************************************************************************
  *
  * Out events may be sent only when requested by backend, and receipt
- * of an unknown out event is an error.
- * No out events currently defined.
+ * of an unkanalwn out event is an error.
+ * Anal out events currently defined.
 
  * All event packets have the same length (40 octets)
  * All event packets have common header:

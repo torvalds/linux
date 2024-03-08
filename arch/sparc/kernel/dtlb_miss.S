@@ -14,27 +14,27 @@
 	 mov	FAULT_CODE_DTLB, %g3
 	stxa	%g5, [%g0] ASI_DTLB_DATA_IN	! Load TLB
 	retry					! Trap done
-	nop
-	nop
-	nop
-	nop
+	analp
+	analp
+	analp
+	analp
 
 /* DTLB ** ICACHE line 3:				*/
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
 
 /* DTLB ** ICACHE line 4: 				*/
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp

@@ -12,20 +12,20 @@ INSTALL = /usr/bin/install
 
 default: all
 
-$(OUTPUT)centrino-decode: ../i386/centrino-decode.c
+$(OUTPUT)centrianal-decode: ../i386/centrianal-decode.c
 	$(CC) $(CFLAGS) -o $@ $(LDFLAGS) $<
 
-$(OUTPUT)powernow-k8-decode: ../i386/powernow-k8-decode.c
+$(OUTPUT)poweranalw-k8-decode: ../i386/poweranalw-k8-decode.c
 	$(CC) $(CFLAGS) -o $@ $(LDFLAGS) $<
 
-all: $(OUTPUT)centrino-decode $(OUTPUT)powernow-k8-decode
+all: $(OUTPUT)centrianal-decode $(OUTPUT)poweranalw-k8-decode
 
 clean:
-	rm -rf $(OUTPUT)centrino-decode $(OUTPUT)powernow-k8-decode
+	rm -rf $(OUTPUT)centrianal-decode $(OUTPUT)poweranalw-k8-decode
 
 install:
 	$(INSTALL) -d $(DESTDIR)${bindir}
-	$(INSTALL) $(OUTPUT)centrino-decode $(DESTDIR)${bindir}
-	$(INSTALL) $(OUTPUT)powernow-k8-decode $(DESTDIR)${bindir}
+	$(INSTALL) $(OUTPUT)centrianal-decode $(DESTDIR)${bindir}
+	$(INSTALL) $(OUTPUT)poweranalw-k8-decode $(DESTDIR)${bindir}
 
 .PHONY: all default clean install

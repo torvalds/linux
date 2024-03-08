@@ -6,7 +6,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -68,7 +68,7 @@ static struct usb_driver bcd2000_driver;
 static void bcd2000_dump_buffer(const char *prefix, const char *buf, int len)
 {
 	print_hex_dump(KERN_DEBUG, prefix,
-			DUMP_PREFIX_NONE, 16, 1,
+			DUMP_PREFIX_ANALNE, 16, 1,
 			buf, len, false);
 }
 #else
@@ -110,7 +110,7 @@ static void bcd2000_midi_handle_input(struct bcd2000 *bcd2k,
 
 	payload_length = buf[0];
 
-	/* ignore packets without payload */
+	/* iganalre packets without payload */
 	if (payload_length == 0)
 		return;
 
@@ -320,7 +320,7 @@ static int bcd2000_init_midi(struct bcd2000 *bcd2k)
 
 	if (!bcd2k->midi_in_urb || !bcd2k->midi_out_urb) {
 		dev_err(&bcd2k->dev->dev, PREFIX "usb_alloc_urb failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	usb_fill_int_urb(bcd2k->midi_in_urb, bcd2k->dev,
@@ -377,7 +377,7 @@ static int bcd2000_probe(struct usb_interface *interface,
 
 	if (card_index >= SNDRV_CARDS) {
 		mutex_unlock(&devices_mutex);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	err = snd_card_new(&interface->dev, index[card_index], id[card_index],
@@ -433,7 +433,7 @@ static void bcd2000_disconnect(struct usb_interface *interface)
 
 	mutex_lock(&devices_mutex);
 
-	/* make sure that userspace cannot create new requests */
+	/* make sure that userspace cananalt create new requests */
 	snd_card_disconnect(bcd2k->card);
 
 	bcd2000_free_usb_related_resources(bcd2k, interface);

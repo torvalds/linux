@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  linux/mm/mmu_notifier.c
+ *  linux/mm/mmu_analtifier.c
  *
  *  Copyright (C) 2008  Qumranet, Inc.
  *  Copyright (C) 2008  SGI
@@ -8,7 +8,7 @@
  */
 
 #include <linux/rculist.h>
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_analtifier.h>
 #include <linux/export.h>
 #include <linux/mm.h>
 #include <linux/err.h>
@@ -23,19 +23,19 @@
 DEFINE_STATIC_SRCU(srcu);
 
 #ifdef CONFIG_LOCKDEP
-struct lockdep_map __mmu_notifier_invalidate_range_start_map = {
-	.name = "mmu_notifier_invalidate_range_start"
+struct lockdep_map __mmu_analtifier_invalidate_range_start_map = {
+	.name = "mmu_analtifier_invalidate_range_start"
 };
 #endif
 
 /*
- * The mmu_notifier_subscriptions structure is allocated and installed in
- * mm->notifier_subscriptions inside the mm_take_all_locks() protected
+ * The mmu_analtifier_subscriptions structure is allocated and installed in
+ * mm->analtifier_subscriptions inside the mm_take_all_locks() protected
  * critical section and it's released only when mm_count reaches zero
  * in mmdrop().
  */
-struct mmu_notifier_subscriptions {
-	/* all mmu notifiers registered in this mm are queued in this list */
+struct mmu_analtifier_subscriptions {
+	/* all mmu analtifiers registered in this mm are queued in this list */
 	struct hlist_head list;
 	bool has_itree;
 	/* to serialize the list modifications and hlist_unhashed */
@@ -51,23 +51,23 @@ struct mmu_notifier_subscriptions {
  * This is a collision-retry read-side/write-side 'lock', a lot like a
  * seqcount, however this allows multiple write-sides to hold it at
  * once. Conceptually the write side is protecting the values of the PTEs in
- * this mm, such that PTES cannot be read into SPTEs (shadow PTEs) while any
+ * this mm, such that PTES cananalt be read into SPTEs (shadow PTEs) while any
  * writer exists.
  *
- * Note that the core mm creates nested invalidate_range_start()/end() regions
+ * Analte that the core mm creates nested invalidate_range_start()/end() regions
  * within the same thread, and runs invalidate_range_start()/end() in parallel
- * on multiple CPUs. This is designed to not reduce concurrency or block
+ * on multiple CPUs. This is designed to analt reduce concurrency or block
  * progress on the mm side.
  *
  * As a secondary function, holding the full write side also serves to prevent
  * writers for the itree, this is an optimization to avoid extra locking
- * during invalidate_range_start/end notifiers.
+ * during invalidate_range_start/end analtifiers.
  *
  * The write side has two states, fully excluded:
  *  - mm->active_invalidate_ranges != 0
  *  - subscriptions->invalidate_seq & 1 == True (odd)
  *  - some range on the mm_struct is being invalidated
- *  - the itree is not allowed to change
+ *  - the itree is analt allowed to change
  *
  * And partially excluded:
  *  - mm->active_invalidate_ranges != 0
@@ -75,36 +75,36 @@ struct mmu_notifier_subscriptions {
  *  - some range on the mm_struct is being invalidated
  *  - the itree is allowed to change
  *
- * Operations on notifier_subscriptions->invalidate_seq (under spinlock):
+ * Operations on analtifier_subscriptions->invalidate_seq (under spinlock):
  *    seq |= 1  # Begin writing
  *    seq++     # Release the writing state
  *    seq & 1   # True if a writer exists
  *
  * The later state avoids some expensive work on inv_end in the common case of
- * no mmu_interval_notifier monitoring the VA.
+ * anal mmu_interval_analtifier monitoring the VA.
  */
 static bool
-mn_itree_is_invalidating(struct mmu_notifier_subscriptions *subscriptions)
+mn_itree_is_invalidating(struct mmu_analtifier_subscriptions *subscriptions)
 {
 	lockdep_assert_held(&subscriptions->lock);
 	return subscriptions->invalidate_seq & 1;
 }
 
-static struct mmu_interval_notifier *
-mn_itree_inv_start_range(struct mmu_notifier_subscriptions *subscriptions,
-			 const struct mmu_notifier_range *range,
+static struct mmu_interval_analtifier *
+mn_itree_inv_start_range(struct mmu_analtifier_subscriptions *subscriptions,
+			 const struct mmu_analtifier_range *range,
 			 unsigned long *seq)
 {
-	struct interval_tree_node *node;
-	struct mmu_interval_notifier *res = NULL;
+	struct interval_tree_analde *analde;
+	struct mmu_interval_analtifier *res = NULL;
 
 	spin_lock(&subscriptions->lock);
 	subscriptions->active_invalidate_ranges++;
-	node = interval_tree_iter_first(&subscriptions->itree, range->start,
+	analde = interval_tree_iter_first(&subscriptions->itree, range->start,
 					range->end - 1);
-	if (node) {
+	if (analde) {
 		subscriptions->invalidate_seq |= 1;
-		res = container_of(node, struct mmu_interval_notifier,
+		res = container_of(analde, struct mmu_interval_analtifier,
 				   interval_tree);
 	}
 
@@ -113,23 +113,23 @@ mn_itree_inv_start_range(struct mmu_notifier_subscriptions *subscriptions,
 	return res;
 }
 
-static struct mmu_interval_notifier *
-mn_itree_inv_next(struct mmu_interval_notifier *interval_sub,
-		  const struct mmu_notifier_range *range)
+static struct mmu_interval_analtifier *
+mn_itree_inv_next(struct mmu_interval_analtifier *interval_sub,
+		  const struct mmu_analtifier_range *range)
 {
-	struct interval_tree_node *node;
+	struct interval_tree_analde *analde;
 
-	node = interval_tree_iter_next(&interval_sub->interval_tree,
+	analde = interval_tree_iter_next(&interval_sub->interval_tree,
 				       range->start, range->end - 1);
-	if (!node)
+	if (!analde)
 		return NULL;
-	return container_of(node, struct mmu_interval_notifier, interval_tree);
+	return container_of(analde, struct mmu_interval_analtifier, interval_tree);
 }
 
-static void mn_itree_inv_end(struct mmu_notifier_subscriptions *subscriptions)
+static void mn_itree_inv_end(struct mmu_analtifier_subscriptions *subscriptions)
 {
-	struct mmu_interval_notifier *interval_sub;
-	struct hlist_node *next;
+	struct mmu_interval_analtifier *interval_sub;
+	struct hlist_analde *next;
 
 	spin_lock(&subscriptions->lock);
 	if (--subscriptions->active_invalidate_ranges ||
@@ -150,7 +150,7 @@ static void mn_itree_inv_end(struct mmu_notifier_subscriptions *subscriptions)
 	hlist_for_each_entry_safe(interval_sub, next,
 				  &subscriptions->deferred_list,
 				  deferred_item) {
-		if (RB_EMPTY_NODE(&interval_sub->interval_tree.rb))
+		if (RB_EMPTY_ANALDE(&interval_sub->interval_tree.rb))
 			interval_tree_insert(&interval_sub->interval_tree,
 					     &subscriptions->itree);
 		else
@@ -183,10 +183,10 @@ static void mn_itree_inv_end(struct mmu_notifier_subscriptions *subscriptions)
  * The return value should be passed to mmu_interval_read_retry().
  */
 unsigned long
-mmu_interval_read_begin(struct mmu_interval_notifier *interval_sub)
+mmu_interval_read_begin(struct mmu_interval_analtifier *interval_sub)
 {
-	struct mmu_notifier_subscriptions *subscriptions =
-		interval_sub->mm->notifier_subscriptions;
+	struct mmu_analtifier_subscriptions *subscriptions =
+		interval_sub->mm->analtifier_subscriptions;
 	unsigned long seq;
 	bool is_invalidating;
 
@@ -225,7 +225,7 @@ mmu_interval_read_begin(struct mmu_interval_notifier *interval_sub)
 	 *                                          interval_sub->invalidate_seq != seq
 	 *                                        user_unlock
 	 *
-	 * Barriers are not needed here as any races here are closed by an
+	 * Barriers are analt needed here as any races here are closed by an
 	 * eventual mmu_interval_read_retry(), which provides a barrier via the
 	 * user_lock.
 	 */
@@ -242,14 +242,14 @@ mmu_interval_read_begin(struct mmu_interval_notifier *interval_sub)
 	 * will always clear the below sleep in some reasonable time as
 	 * subscriptions->invalidate_seq is even in the idle state.
 	 */
-	lock_map_acquire(&__mmu_notifier_invalidate_range_start_map);
-	lock_map_release(&__mmu_notifier_invalidate_range_start_map);
+	lock_map_acquire(&__mmu_analtifier_invalidate_range_start_map);
+	lock_map_release(&__mmu_analtifier_invalidate_range_start_map);
 	if (is_invalidating)
 		wait_event(subscriptions->wq,
 			   READ_ONCE(subscriptions->invalidate_seq) != seq);
 
 	/*
-	 * Notice that mmu_interval_read_retry() can already be true at this
+	 * Analtice that mmu_interval_read_retry() can already be true at this
 	 * point, avoiding loops here allows the caller to provide a global
 	 * time bound.
 	 */
@@ -258,17 +258,17 @@ mmu_interval_read_begin(struct mmu_interval_notifier *interval_sub)
 }
 EXPORT_SYMBOL_GPL(mmu_interval_read_begin);
 
-static void mn_itree_release(struct mmu_notifier_subscriptions *subscriptions,
+static void mn_itree_release(struct mmu_analtifier_subscriptions *subscriptions,
 			     struct mm_struct *mm)
 {
-	struct mmu_notifier_range range = {
-		.flags = MMU_NOTIFIER_RANGE_BLOCKABLE,
-		.event = MMU_NOTIFY_RELEASE,
+	struct mmu_analtifier_range range = {
+		.flags = MMU_ANALTIFIER_RANGE_BLOCKABLE,
+		.event = MMU_ANALTIFY_RELEASE,
 		.mm = mm,
 		.start = 0,
 		.end = ULONG_MAX,
 	};
-	struct mmu_interval_notifier *interval_sub;
+	struct mmu_interval_analtifier *interval_sub;
 	unsigned long cur_seq;
 	bool ret;
 
@@ -285,32 +285,32 @@ static void mn_itree_release(struct mmu_notifier_subscriptions *subscriptions,
 }
 
 /*
- * This function can't run concurrently against mmu_notifier_register
- * because mm->mm_users > 0 during mmu_notifier_register and exit_mmap
- * runs with mm_users == 0. Other tasks may still invoke mmu notifiers
- * in parallel despite there being no task using this mm any more,
+ * This function can't run concurrently against mmu_analtifier_register
+ * because mm->mm_users > 0 during mmu_analtifier_register and exit_mmap
+ * runs with mm_users == 0. Other tasks may still invoke mmu analtifiers
+ * in parallel despite there being anal task using this mm any more,
  * through the vmas outside of the exit_mmap context, such as with
- * vmtruncate. This serializes against mmu_notifier_unregister with
- * the notifier_subscriptions->lock in addition to SRCU and it serializes
- * against the other mmu notifiers with SRCU. struct mmu_notifier_subscriptions
+ * vmtruncate. This serializes against mmu_analtifier_unregister with
+ * the analtifier_subscriptions->lock in addition to SRCU and it serializes
+ * against the other mmu analtifiers with SRCU. struct mmu_analtifier_subscriptions
  * can't go away from under us as exit_mmap holds an mm_count pin
  * itself.
  */
-static void mn_hlist_release(struct mmu_notifier_subscriptions *subscriptions,
+static void mn_hlist_release(struct mmu_analtifier_subscriptions *subscriptions,
 			     struct mm_struct *mm)
 {
-	struct mmu_notifier *subscription;
+	struct mmu_analtifier *subscription;
 	int id;
 
 	/*
-	 * SRCU here will block mmu_notifier_unregister until
+	 * SRCU here will block mmu_analtifier_unregister until
 	 * ->release returns.
 	 */
 	id = srcu_read_lock(&srcu);
 	hlist_for_each_entry_rcu(subscription, &subscriptions->list, hlist,
 				 srcu_read_lock_held(&srcu))
 		/*
-		 * If ->release runs before mmu_notifier_unregister it must be
+		 * If ->release runs before mmu_analtifier_unregister it must be
 		 * handled, as it's the only way for the driver to flush all
 		 * existing sptes and stop the driver from establishing any more
 		 * sptes before all the pages in the mm are freed.
@@ -321,11 +321,11 @@ static void mn_hlist_release(struct mmu_notifier_subscriptions *subscriptions,
 	spin_lock(&subscriptions->lock);
 	while (unlikely(!hlist_empty(&subscriptions->list))) {
 		subscription = hlist_entry(subscriptions->list.first,
-					   struct mmu_notifier, hlist);
+					   struct mmu_analtifier, hlist);
 		/*
-		 * We arrived before mmu_notifier_unregister so
-		 * mmu_notifier_unregister will do nothing other than to wait
-		 * for ->release to finish and for mmu_notifier_unregister to
+		 * We arrived before mmu_analtifier_unregister so
+		 * mmu_analtifier_unregister will do analthing other than to wait
+		 * for ->release to finish and for mmu_analtifier_unregister to
 		 * return.
 		 */
 		hlist_del_init_rcu(&subscription->hlist);
@@ -334,21 +334,21 @@ static void mn_hlist_release(struct mmu_notifier_subscriptions *subscriptions,
 	srcu_read_unlock(&srcu, id);
 
 	/*
-	 * synchronize_srcu here prevents mmu_notifier_release from returning to
+	 * synchronize_srcu here prevents mmu_analtifier_release from returning to
 	 * exit_mmap (which would proceed with freeing all pages in the mm)
 	 * until the ->release method returns, if it was invoked by
-	 * mmu_notifier_unregister.
+	 * mmu_analtifier_unregister.
 	 *
-	 * The notifier_subscriptions can't go away from under us because
+	 * The analtifier_subscriptions can't go away from under us because
 	 * one mm_count is held by exit_mmap.
 	 */
 	synchronize_srcu(&srcu);
 }
 
-void __mmu_notifier_release(struct mm_struct *mm)
+void __mmu_analtifier_release(struct mm_struct *mm)
 {
-	struct mmu_notifier_subscriptions *subscriptions =
-		mm->notifier_subscriptions;
+	struct mmu_analtifier_subscriptions *subscriptions =
+		mm->analtifier_subscriptions;
 
 	if (subscriptions->has_itree)
 		mn_itree_release(subscriptions, mm);
@@ -358,20 +358,20 @@ void __mmu_notifier_release(struct mm_struct *mm)
 }
 
 /*
- * If no young bitflag is supported by the hardware, ->clear_flush_young can
+ * If anal young bitflag is supported by the hardware, ->clear_flush_young can
  * unmap the address and return 1 or 0 depending if the mapping previously
- * existed or not.
+ * existed or analt.
  */
-int __mmu_notifier_clear_flush_young(struct mm_struct *mm,
+int __mmu_analtifier_clear_flush_young(struct mm_struct *mm,
 					unsigned long start,
 					unsigned long end)
 {
-	struct mmu_notifier *subscription;
+	struct mmu_analtifier *subscription;
 	int young = 0, id;
 
 	id = srcu_read_lock(&srcu);
 	hlist_for_each_entry_rcu(subscription,
-				 &mm->notifier_subscriptions->list, hlist,
+				 &mm->analtifier_subscriptions->list, hlist,
 				 srcu_read_lock_held(&srcu)) {
 		if (subscription->ops->clear_flush_young)
 			young |= subscription->ops->clear_flush_young(
@@ -382,16 +382,16 @@ int __mmu_notifier_clear_flush_young(struct mm_struct *mm,
 	return young;
 }
 
-int __mmu_notifier_clear_young(struct mm_struct *mm,
+int __mmu_analtifier_clear_young(struct mm_struct *mm,
 			       unsigned long start,
 			       unsigned long end)
 {
-	struct mmu_notifier *subscription;
+	struct mmu_analtifier *subscription;
 	int young = 0, id;
 
 	id = srcu_read_lock(&srcu);
 	hlist_for_each_entry_rcu(subscription,
-				 &mm->notifier_subscriptions->list, hlist,
+				 &mm->analtifier_subscriptions->list, hlist,
 				 srcu_read_lock_held(&srcu)) {
 		if (subscription->ops->clear_young)
 			young |= subscription->ops->clear_young(subscription,
@@ -402,15 +402,15 @@ int __mmu_notifier_clear_young(struct mm_struct *mm,
 	return young;
 }
 
-int __mmu_notifier_test_young(struct mm_struct *mm,
+int __mmu_analtifier_test_young(struct mm_struct *mm,
 			      unsigned long address)
 {
-	struct mmu_notifier *subscription;
+	struct mmu_analtifier *subscription;
 	int young = 0, id;
 
 	id = srcu_read_lock(&srcu);
 	hlist_for_each_entry_rcu(subscription,
-				 &mm->notifier_subscriptions->list, hlist,
+				 &mm->analtifier_subscriptions->list, hlist,
 				 srcu_read_lock_held(&srcu)) {
 		if (subscription->ops->test_young) {
 			young = subscription->ops->test_young(subscription, mm,
@@ -424,15 +424,15 @@ int __mmu_notifier_test_young(struct mm_struct *mm,
 	return young;
 }
 
-void __mmu_notifier_change_pte(struct mm_struct *mm, unsigned long address,
+void __mmu_analtifier_change_pte(struct mm_struct *mm, unsigned long address,
 			       pte_t pte)
 {
-	struct mmu_notifier *subscription;
+	struct mmu_analtifier *subscription;
 	int id;
 
 	id = srcu_read_lock(&srcu);
 	hlist_for_each_entry_rcu(subscription,
-				 &mm->notifier_subscriptions->list, hlist,
+				 &mm->analtifier_subscriptions->list, hlist,
 				 srcu_read_lock_held(&srcu)) {
 		if (subscription->ops->change_pte)
 			subscription->ops->change_pte(subscription, mm, address,
@@ -441,10 +441,10 @@ void __mmu_notifier_change_pte(struct mm_struct *mm, unsigned long address,
 	srcu_read_unlock(&srcu, id);
 }
 
-static int mn_itree_invalidate(struct mmu_notifier_subscriptions *subscriptions,
-			       const struct mmu_notifier_range *range)
+static int mn_itree_invalidate(struct mmu_analtifier_subscriptions *subscriptions,
+			       const struct mmu_analtifier_range *range)
 {
-	struct mmu_interval_notifier *interval_sub;
+	struct mmu_interval_analtifier *interval_sub;
 	unsigned long cur_seq;
 
 	for (interval_sub =
@@ -456,7 +456,7 @@ static int mn_itree_invalidate(struct mmu_notifier_subscriptions *subscriptions,
 		ret = interval_sub->ops->invalidate(interval_sub, range,
 						    cur_seq);
 		if (!ret) {
-			if (WARN_ON(mmu_notifier_range_blockable(range)))
+			if (WARN_ON(mmu_analtifier_range_blockable(range)))
 				continue;
 			goto out_would_block;
 		}
@@ -465,7 +465,7 @@ static int mn_itree_invalidate(struct mmu_notifier_subscriptions *subscriptions,
 
 out_would_block:
 	/*
-	 * On -EAGAIN the non-blocking caller is not allowed to call
+	 * On -EAGAIN the analn-blocking caller is analt allowed to call
 	 * invalidate_range_end()
 	 */
 	mn_itree_inv_end(subscriptions);
@@ -473,37 +473,37 @@ out_would_block:
 }
 
 static int mn_hlist_invalidate_range_start(
-	struct mmu_notifier_subscriptions *subscriptions,
-	struct mmu_notifier_range *range)
+	struct mmu_analtifier_subscriptions *subscriptions,
+	struct mmu_analtifier_range *range)
 {
-	struct mmu_notifier *subscription;
+	struct mmu_analtifier *subscription;
 	int ret = 0;
 	int id;
 
 	id = srcu_read_lock(&srcu);
 	hlist_for_each_entry_rcu(subscription, &subscriptions->list, hlist,
 				 srcu_read_lock_held(&srcu)) {
-		const struct mmu_notifier_ops *ops = subscription->ops;
+		const struct mmu_analtifier_ops *ops = subscription->ops;
 
 		if (ops->invalidate_range_start) {
 			int _ret;
 
-			if (!mmu_notifier_range_blockable(range))
-				non_block_start();
+			if (!mmu_analtifier_range_blockable(range))
+				analn_block_start();
 			_ret = ops->invalidate_range_start(subscription, range);
-			if (!mmu_notifier_range_blockable(range))
-				non_block_end();
+			if (!mmu_analtifier_range_blockable(range))
+				analn_block_end();
 			if (_ret) {
 				pr_info("%pS callback failed with %d in %sblockable context.\n",
 					ops->invalidate_range_start, _ret,
-					!mmu_notifier_range_blockable(range) ?
-						"non-" :
+					!mmu_analtifier_range_blockable(range) ?
+						"analn-" :
 						"");
-				WARN_ON(mmu_notifier_range_blockable(range) ||
+				WARN_ON(mmu_analtifier_range_blockable(range) ||
 					_ret != -EAGAIN);
 				/*
-				 * We call all the notifiers on any EAGAIN,
-				 * there is no way for a notifier to know if
+				 * We call all the analtifiers on any EAGAIN,
+				 * there is anal way for a analtifier to kanalw if
 				 * its start method failed, thus a start that
 				 * does EAGAIN can't also do end.
 				 */
@@ -515,9 +515,9 @@ static int mn_hlist_invalidate_range_start(
 
 	if (ret) {
 		/*
-		 * Must be non-blocking to get here.  If there are multiple
-		 * notifiers and one or more failed start, any that succeeded
-		 * start are expecting their end to be called.  Do so now.
+		 * Must be analn-blocking to get here.  If there are multiple
+		 * analtifiers and one or more failed start, any that succeeded
+		 * start are expecting their end to be called.  Do so analw.
 		 */
 		hlist_for_each_entry_rcu(subscription, &subscriptions->list,
 					 hlist, srcu_read_lock_held(&srcu)) {
@@ -533,10 +533,10 @@ static int mn_hlist_invalidate_range_start(
 	return ret;
 }
 
-int __mmu_notifier_invalidate_range_start(struct mmu_notifier_range *range)
+int __mmu_analtifier_invalidate_range_start(struct mmu_analtifier_range *range)
 {
-	struct mmu_notifier_subscriptions *subscriptions =
-		range->mm->notifier_subscriptions;
+	struct mmu_analtifier_subscriptions *subscriptions =
+		range->mm->analtifier_subscriptions;
 	int ret;
 
 	if (subscriptions->has_itree) {
@@ -550,50 +550,50 @@ int __mmu_notifier_invalidate_range_start(struct mmu_notifier_range *range)
 }
 
 static void
-mn_hlist_invalidate_end(struct mmu_notifier_subscriptions *subscriptions,
-			struct mmu_notifier_range *range)
+mn_hlist_invalidate_end(struct mmu_analtifier_subscriptions *subscriptions,
+			struct mmu_analtifier_range *range)
 {
-	struct mmu_notifier *subscription;
+	struct mmu_analtifier *subscription;
 	int id;
 
 	id = srcu_read_lock(&srcu);
 	hlist_for_each_entry_rcu(subscription, &subscriptions->list, hlist,
 				 srcu_read_lock_held(&srcu)) {
 		if (subscription->ops->invalidate_range_end) {
-			if (!mmu_notifier_range_blockable(range))
-				non_block_start();
+			if (!mmu_analtifier_range_blockable(range))
+				analn_block_start();
 			subscription->ops->invalidate_range_end(subscription,
 								range);
-			if (!mmu_notifier_range_blockable(range))
-				non_block_end();
+			if (!mmu_analtifier_range_blockable(range))
+				analn_block_end();
 		}
 	}
 	srcu_read_unlock(&srcu, id);
 }
 
-void __mmu_notifier_invalidate_range_end(struct mmu_notifier_range *range)
+void __mmu_analtifier_invalidate_range_end(struct mmu_analtifier_range *range)
 {
-	struct mmu_notifier_subscriptions *subscriptions =
-		range->mm->notifier_subscriptions;
+	struct mmu_analtifier_subscriptions *subscriptions =
+		range->mm->analtifier_subscriptions;
 
-	lock_map_acquire(&__mmu_notifier_invalidate_range_start_map);
+	lock_map_acquire(&__mmu_analtifier_invalidate_range_start_map);
 	if (subscriptions->has_itree)
 		mn_itree_inv_end(subscriptions);
 
 	if (!hlist_empty(&subscriptions->list))
 		mn_hlist_invalidate_end(subscriptions, range);
-	lock_map_release(&__mmu_notifier_invalidate_range_start_map);
+	lock_map_release(&__mmu_analtifier_invalidate_range_start_map);
 }
 
-void __mmu_notifier_arch_invalidate_secondary_tlbs(struct mm_struct *mm,
+void __mmu_analtifier_arch_invalidate_secondary_tlbs(struct mm_struct *mm,
 					unsigned long start, unsigned long end)
 {
-	struct mmu_notifier *subscription;
+	struct mmu_analtifier *subscription;
 	int id;
 
 	id = srcu_read_lock(&srcu);
 	hlist_for_each_entry_rcu(subscription,
-				 &mm->notifier_subscriptions->list, hlist,
+				 &mm->analtifier_subscriptions->list, hlist,
 				 srcu_read_lock_held(&srcu)) {
 		if (subscription->ops->arch_invalidate_secondary_tlbs)
 			subscription->ops->arch_invalidate_secondary_tlbs(
@@ -604,14 +604,14 @@ void __mmu_notifier_arch_invalidate_secondary_tlbs(struct mm_struct *mm,
 }
 
 /*
- * Same as mmu_notifier_register but here the caller must hold the mmap_lock in
- * write mode. A NULL mn signals the notifier is being registered for itree
+ * Same as mmu_analtifier_register but here the caller must hold the mmap_lock in
+ * write mode. A NULL mn signals the analtifier is being registered for itree
  * mode.
  */
-int __mmu_notifier_register(struct mmu_notifier *subscription,
+int __mmu_analtifier_register(struct mmu_analtifier *subscription,
 			    struct mm_struct *mm)
 {
-	struct mmu_notifier_subscriptions *subscriptions = NULL;
+	struct mmu_analtifier_subscriptions *subscriptions = NULL;
 	int ret;
 
 	mmap_assert_write_locked(mm);
@@ -619,7 +619,7 @@ int __mmu_notifier_register(struct mmu_notifier *subscription,
 
 	/*
 	 * Subsystems should only register for invalidate_secondary_tlbs() or
-	 * invalidate_range_start()/end() callbacks, not both.
+	 * invalidate_range_start()/end() callbacks, analt both.
 	 */
 	if (WARN_ON_ONCE(subscription &&
 			 (subscription->ops->arch_invalidate_secondary_tlbs &&
@@ -627,16 +627,16 @@ int __mmu_notifier_register(struct mmu_notifier *subscription,
 			  subscription->ops->invalidate_range_end))))
 		return -EINVAL;
 
-	if (!mm->notifier_subscriptions) {
+	if (!mm->analtifier_subscriptions) {
 		/*
-		 * kmalloc cannot be called under mm_take_all_locks(), but we
-		 * know that mm->notifier_subscriptions can't change while we
+		 * kmalloc cananalt be called under mm_take_all_locks(), but we
+		 * kanalw that mm->analtifier_subscriptions can't change while we
 		 * hold the write side of the mmap_lock.
 		 */
 		subscriptions = kzalloc(
-			sizeof(struct mmu_notifier_subscriptions), GFP_KERNEL);
+			sizeof(struct mmu_analtifier_subscriptions), GFP_KERNEL);
 		if (!subscriptions)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		INIT_HLIST_HEAD(&subscriptions->list);
 		spin_lock_init(&subscriptions->lock);
@@ -651,36 +651,36 @@ int __mmu_notifier_register(struct mmu_notifier *subscription,
 		goto out_clean;
 
 	/*
-	 * Serialize the update against mmu_notifier_unregister. A
-	 * side note: mmu_notifier_release can't run concurrently with
+	 * Serialize the update against mmu_analtifier_unregister. A
+	 * side analte: mmu_analtifier_release can't run concurrently with
 	 * us because we hold the mm_users pin (either implicitly as
 	 * current->mm or explicitly with get_task_mm() or similar).
-	 * We can't race against any other mmu notifier method either
+	 * We can't race against any other mmu analtifier method either
 	 * thanks to mm_take_all_locks().
 	 *
 	 * release semantics on the initialization of the
-	 * mmu_notifier_subscriptions's contents are provided for unlocked
+	 * mmu_analtifier_subscriptions's contents are provided for unlocked
 	 * readers.  acquire can only be used while holding the mmgrab or
 	 * mmget, and is safe because once created the
-	 * mmu_notifier_subscriptions is not freed until the mm is destroyed.
+	 * mmu_analtifier_subscriptions is analt freed until the mm is destroyed.
 	 * As above, users holding the mmap_lock or one of the
-	 * mm_take_all_locks() do not need to use acquire semantics.
+	 * mm_take_all_locks() do analt need to use acquire semantics.
 	 */
 	if (subscriptions)
-		smp_store_release(&mm->notifier_subscriptions, subscriptions);
+		smp_store_release(&mm->analtifier_subscriptions, subscriptions);
 
 	if (subscription) {
-		/* Pairs with the mmdrop in mmu_notifier_unregister_* */
+		/* Pairs with the mmdrop in mmu_analtifier_unregister_* */
 		mmgrab(mm);
 		subscription->mm = mm;
 		subscription->users = 1;
 
-		spin_lock(&mm->notifier_subscriptions->lock);
+		spin_lock(&mm->analtifier_subscriptions->lock);
 		hlist_add_head_rcu(&subscription->hlist,
-				   &mm->notifier_subscriptions->list);
-		spin_unlock(&mm->notifier_subscriptions->lock);
+				   &mm->analtifier_subscriptions->list);
+		spin_unlock(&mm->analtifier_subscriptions->lock);
 	} else
-		mm->notifier_subscriptions->has_itree = true;
+		mm->analtifier_subscriptions->has_itree = true;
 
 	mm_drop_all_locks(mm);
 	BUG_ON(atomic_read(&mm->mm_users) <= 0);
@@ -690,48 +690,48 @@ out_clean:
 	kfree(subscriptions);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(__mmu_notifier_register);
+EXPORT_SYMBOL_GPL(__mmu_analtifier_register);
 
 /**
- * mmu_notifier_register - Register a notifier on a mm
- * @subscription: The notifier to attach
- * @mm: The mm to attach the notifier to
+ * mmu_analtifier_register - Register a analtifier on a mm
+ * @subscription: The analtifier to attach
+ * @mm: The mm to attach the analtifier to
  *
- * Must not hold mmap_lock nor any other VM related lock when calling
+ * Must analt hold mmap_lock analr any other VM related lock when calling
  * this registration function. Must also ensure mm_users can't go down
- * to zero while this runs to avoid races with mmu_notifier_release,
+ * to zero while this runs to avoid races with mmu_analtifier_release,
  * so mm has to be current->mm or the mm should be pinned safely such
- * as with get_task_mm(). If the mm is not current->mm, the mm_users
- * pin should be released by calling mmput after mmu_notifier_register
+ * as with get_task_mm(). If the mm is analt current->mm, the mm_users
+ * pin should be released by calling mmput after mmu_analtifier_register
  * returns.
  *
- * mmu_notifier_unregister() or mmu_notifier_put() must be always called to
- * unregister the notifier.
+ * mmu_analtifier_unregister() or mmu_analtifier_put() must be always called to
+ * unregister the analtifier.
  *
- * While the caller has a mmu_notifier get the subscription->mm pointer will remain
- * valid, and can be converted to an active mm pointer via mmget_not_zero().
+ * While the caller has a mmu_analtifier get the subscription->mm pointer will remain
+ * valid, and can be converted to an active mm pointer via mmget_analt_zero().
  */
-int mmu_notifier_register(struct mmu_notifier *subscription,
+int mmu_analtifier_register(struct mmu_analtifier *subscription,
 			  struct mm_struct *mm)
 {
 	int ret;
 
 	mmap_write_lock(mm);
-	ret = __mmu_notifier_register(subscription, mm);
+	ret = __mmu_analtifier_register(subscription, mm);
 	mmap_write_unlock(mm);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(mmu_notifier_register);
+EXPORT_SYMBOL_GPL(mmu_analtifier_register);
 
-static struct mmu_notifier *
-find_get_mmu_notifier(struct mm_struct *mm, const struct mmu_notifier_ops *ops)
+static struct mmu_analtifier *
+find_get_mmu_analtifier(struct mm_struct *mm, const struct mmu_analtifier_ops *ops)
 {
-	struct mmu_notifier *subscription;
+	struct mmu_analtifier *subscription;
 
-	spin_lock(&mm->notifier_subscriptions->lock);
+	spin_lock(&mm->analtifier_subscriptions->lock);
 	hlist_for_each_entry_rcu(subscription,
-				 &mm->notifier_subscriptions->list, hlist,
-				 lockdep_is_held(&mm->notifier_subscriptions->lock)) {
+				 &mm->analtifier_subscriptions->list, hlist,
+				 lockdep_is_held(&mm->analtifier_subscriptions->lock)) {
 		if (subscription->ops != ops)
 			continue;
 
@@ -739,77 +739,77 @@ find_get_mmu_notifier(struct mm_struct *mm, const struct mmu_notifier_ops *ops)
 			subscription->users++;
 		else
 			subscription = ERR_PTR(-EOVERFLOW);
-		spin_unlock(&mm->notifier_subscriptions->lock);
+		spin_unlock(&mm->analtifier_subscriptions->lock);
 		return subscription;
 	}
-	spin_unlock(&mm->notifier_subscriptions->lock);
+	spin_unlock(&mm->analtifier_subscriptions->lock);
 	return NULL;
 }
 
 /**
- * mmu_notifier_get_locked - Return the single struct mmu_notifier for
+ * mmu_analtifier_get_locked - Return the single struct mmu_analtifier for
  *                           the mm & ops
  * @ops: The operations struct being subscribe with
- * @mm : The mm to attach notifiers too
+ * @mm : The mm to attach analtifiers too
  *
- * This function either allocates a new mmu_notifier via
- * ops->alloc_notifier(), or returns an already existing notifier on the
- * list. The value of the ops pointer is used to determine when two notifiers
+ * This function either allocates a new mmu_analtifier via
+ * ops->alloc_analtifier(), or returns an already existing analtifier on the
+ * list. The value of the ops pointer is used to determine when two analtifiers
  * are the same.
  *
- * Each call to mmu_notifier_get() must be paired with a call to
- * mmu_notifier_put(). The caller must hold the write side of mm->mmap_lock.
+ * Each call to mmu_analtifier_get() must be paired with a call to
+ * mmu_analtifier_put(). The caller must hold the write side of mm->mmap_lock.
  *
- * While the caller has a mmu_notifier get the mm pointer will remain valid,
- * and can be converted to an active mm pointer via mmget_not_zero().
+ * While the caller has a mmu_analtifier get the mm pointer will remain valid,
+ * and can be converted to an active mm pointer via mmget_analt_zero().
  */
-struct mmu_notifier *mmu_notifier_get_locked(const struct mmu_notifier_ops *ops,
+struct mmu_analtifier *mmu_analtifier_get_locked(const struct mmu_analtifier_ops *ops,
 					     struct mm_struct *mm)
 {
-	struct mmu_notifier *subscription;
+	struct mmu_analtifier *subscription;
 	int ret;
 
 	mmap_assert_write_locked(mm);
 
-	if (mm->notifier_subscriptions) {
-		subscription = find_get_mmu_notifier(mm, ops);
+	if (mm->analtifier_subscriptions) {
+		subscription = find_get_mmu_analtifier(mm, ops);
 		if (subscription)
 			return subscription;
 	}
 
-	subscription = ops->alloc_notifier(mm);
+	subscription = ops->alloc_analtifier(mm);
 	if (IS_ERR(subscription))
 		return subscription;
 	subscription->ops = ops;
-	ret = __mmu_notifier_register(subscription, mm);
+	ret = __mmu_analtifier_register(subscription, mm);
 	if (ret)
 		goto out_free;
 	return subscription;
 out_free:
-	subscription->ops->free_notifier(subscription);
+	subscription->ops->free_analtifier(subscription);
 	return ERR_PTR(ret);
 }
-EXPORT_SYMBOL_GPL(mmu_notifier_get_locked);
+EXPORT_SYMBOL_GPL(mmu_analtifier_get_locked);
 
-/* this is called after the last mmu_notifier_unregister() returned */
-void __mmu_notifier_subscriptions_destroy(struct mm_struct *mm)
+/* this is called after the last mmu_analtifier_unregister() returned */
+void __mmu_analtifier_subscriptions_destroy(struct mm_struct *mm)
 {
-	BUG_ON(!hlist_empty(&mm->notifier_subscriptions->list));
-	kfree(mm->notifier_subscriptions);
-	mm->notifier_subscriptions = LIST_POISON1; /* debug */
+	BUG_ON(!hlist_empty(&mm->analtifier_subscriptions->list));
+	kfree(mm->analtifier_subscriptions);
+	mm->analtifier_subscriptions = LIST_POISON1; /* debug */
 }
 
 /*
  * This releases the mm_count pin automatically and frees the mm
  * structure if it was the last user of it. It serializes against
- * running mmu notifiers with SRCU and against mmu_notifier_unregister
+ * running mmu analtifiers with SRCU and against mmu_analtifier_unregister
  * with the unregister lock + SRCU. All sptes must be dropped before
- * calling mmu_notifier_unregister. ->release or any other notifier
- * method may be invoked concurrently with mmu_notifier_unregister,
- * and only after mmu_notifier_unregister returned we're guaranteed
+ * calling mmu_analtifier_unregister. ->release or any other analtifier
+ * method may be invoked concurrently with mmu_analtifier_unregister,
+ * and only after mmu_analtifier_unregister returned we're guaranteed
  * that ->release or any other method can't run anymore.
  */
-void mmu_notifier_unregister(struct mmu_notifier *subscription,
+void mmu_analtifier_unregister(struct mmu_analtifier *subscription,
 			     struct mm_struct *mm)
 {
 	BUG_ON(atomic_read(&mm->mm_count) <= 0);
@@ -823,25 +823,25 @@ void mmu_notifier_unregister(struct mmu_notifier *subscription,
 
 		id = srcu_read_lock(&srcu);
 		/*
-		 * exit_mmap will block in mmu_notifier_release to guarantee
+		 * exit_mmap will block in mmu_analtifier_release to guarantee
 		 * that ->release is called before freeing the pages.
 		 */
 		if (subscription->ops->release)
 			subscription->ops->release(subscription, mm);
 		srcu_read_unlock(&srcu, id);
 
-		spin_lock(&mm->notifier_subscriptions->lock);
+		spin_lock(&mm->analtifier_subscriptions->lock);
 		/*
-		 * Can not use list_del_rcu() since __mmu_notifier_release
+		 * Can analt use list_del_rcu() since __mmu_analtifier_release
 		 * can delete it before we hold the lock.
 		 */
 		hlist_del_init_rcu(&subscription->hlist);
-		spin_unlock(&mm->notifier_subscriptions->lock);
+		spin_unlock(&mm->analtifier_subscriptions->lock);
 	}
 
 	/*
 	 * Wait for any running method to finish, of course including
-	 * ->release if it was run by mmu_notifier_release instead of us.
+	 * ->release if it was run by mmu_analtifier_release instead of us.
 	 */
 	synchronize_srcu(&srcu);
 
@@ -849,70 +849,70 @@ void mmu_notifier_unregister(struct mmu_notifier *subscription,
 
 	mmdrop(mm);
 }
-EXPORT_SYMBOL_GPL(mmu_notifier_unregister);
+EXPORT_SYMBOL_GPL(mmu_analtifier_unregister);
 
-static void mmu_notifier_free_rcu(struct rcu_head *rcu)
+static void mmu_analtifier_free_rcu(struct rcu_head *rcu)
 {
-	struct mmu_notifier *subscription =
-		container_of(rcu, struct mmu_notifier, rcu);
+	struct mmu_analtifier *subscription =
+		container_of(rcu, struct mmu_analtifier, rcu);
 	struct mm_struct *mm = subscription->mm;
 
-	subscription->ops->free_notifier(subscription);
-	/* Pairs with the get in __mmu_notifier_register() */
+	subscription->ops->free_analtifier(subscription);
+	/* Pairs with the get in __mmu_analtifier_register() */
 	mmdrop(mm);
 }
 
 /**
- * mmu_notifier_put - Release the reference on the notifier
- * @subscription: The notifier to act on
+ * mmu_analtifier_put - Release the reference on the analtifier
+ * @subscription: The analtifier to act on
  *
- * This function must be paired with each mmu_notifier_get(), it releases the
+ * This function must be paired with each mmu_analtifier_get(), it releases the
  * reference obtained by the get. If this is the last reference then process
- * to free the notifier will be run asynchronously.
+ * to free the analtifier will be run asynchroanalusly.
  *
- * Unlike mmu_notifier_unregister() the get/put flow only calls ops->release
- * when the mm_struct is destroyed. Instead free_notifier is always called to
+ * Unlike mmu_analtifier_unregister() the get/put flow only calls ops->release
+ * when the mm_struct is destroyed. Instead free_analtifier is always called to
  * release any resources held by the user.
  *
- * As ops->release is not guaranteed to be called, the user must ensure that
- * all sptes are dropped, and no new sptes can be established before
- * mmu_notifier_put() is called.
+ * As ops->release is analt guaranteed to be called, the user must ensure that
+ * all sptes are dropped, and anal new sptes can be established before
+ * mmu_analtifier_put() is called.
  *
  * This function can be called from the ops->release callback, however the
- * caller must still ensure it is called pairwise with mmu_notifier_get().
+ * caller must still ensure it is called pairwise with mmu_analtifier_get().
  *
- * Modules calling this function must call mmu_notifier_synchronize() in
+ * Modules calling this function must call mmu_analtifier_synchronize() in
  * their __exit functions to ensure the async work is completed.
  */
-void mmu_notifier_put(struct mmu_notifier *subscription)
+void mmu_analtifier_put(struct mmu_analtifier *subscription)
 {
 	struct mm_struct *mm = subscription->mm;
 
-	spin_lock(&mm->notifier_subscriptions->lock);
+	spin_lock(&mm->analtifier_subscriptions->lock);
 	if (WARN_ON(!subscription->users) || --subscription->users)
 		goto out_unlock;
 	hlist_del_init_rcu(&subscription->hlist);
-	spin_unlock(&mm->notifier_subscriptions->lock);
+	spin_unlock(&mm->analtifier_subscriptions->lock);
 
-	call_srcu(&srcu, &subscription->rcu, mmu_notifier_free_rcu);
+	call_srcu(&srcu, &subscription->rcu, mmu_analtifier_free_rcu);
 	return;
 
 out_unlock:
-	spin_unlock(&mm->notifier_subscriptions->lock);
+	spin_unlock(&mm->analtifier_subscriptions->lock);
 }
-EXPORT_SYMBOL_GPL(mmu_notifier_put);
+EXPORT_SYMBOL_GPL(mmu_analtifier_put);
 
-static int __mmu_interval_notifier_insert(
-	struct mmu_interval_notifier *interval_sub, struct mm_struct *mm,
-	struct mmu_notifier_subscriptions *subscriptions, unsigned long start,
-	unsigned long length, const struct mmu_interval_notifier_ops *ops)
+static int __mmu_interval_analtifier_insert(
+	struct mmu_interval_analtifier *interval_sub, struct mm_struct *mm,
+	struct mmu_analtifier_subscriptions *subscriptions, unsigned long start,
+	unsigned long length, const struct mmu_interval_analtifier_ops *ops)
 {
 	interval_sub->mm = mm;
 	interval_sub->ops = ops;
-	RB_CLEAR_NODE(&interval_sub->interval_tree.rb);
+	RB_CLEAR_ANALDE(&interval_sub->interval_tree.rb);
 	interval_sub->interval_tree.start = start;
 	/*
-	 * Note that the representation of the intervals in the interval tree
+	 * Analte that the representation of the intervals in the interval tree
 	 * considers the ending point as contained in the interval.
 	 */
 	if (length == 0 ||
@@ -924,15 +924,15 @@ static int __mmu_interval_notifier_insert(
 	if (WARN_ON(atomic_read(&mm->mm_users) <= 0))
 		return -EINVAL;
 
-	/* pairs with mmdrop in mmu_interval_notifier_remove() */
+	/* pairs with mmdrop in mmu_interval_analtifier_remove() */
 	mmgrab(mm);
 
 	/*
 	 * If some invalidate_range_start/end region is going on in parallel
-	 * we don't know what VA ranges are affected, so we must assume this
+	 * we don't kanalw what VA ranges are affected, so we must assume this
 	 * new range is included.
 	 *
-	 * If the itree is invalidating then we are not allowed to change
+	 * If the itree is invalidating then we are analt allowed to change
 	 * it. Retrying until invalidation is done is tricky due to the
 	 * possibility for live lock, instead defer the add to
 	 * mn_itree_inv_end() so this algorithm is deterministic.
@@ -954,9 +954,9 @@ static int __mmu_interval_notifier_insert(
 	} else {
 		WARN_ON(mn_itree_is_invalidating(subscriptions));
 		/*
-		 * The starting seq for a subscription not under invalidation
-		 * should be odd, not equal to the current invalidate_seq and
-		 * invalidate_seq should not 'wrap' to the new seq any time
+		 * The starting seq for a subscription analt under invalidation
+		 * should be odd, analt equal to the current invalidate_seq and
+		 * invalidate_seq should analt 'wrap' to the new seq any time
 		 * soon.
 		 */
 		interval_sub->invalidate_seq =
@@ -969,67 +969,67 @@ static int __mmu_interval_notifier_insert(
 }
 
 /**
- * mmu_interval_notifier_insert - Insert an interval notifier
+ * mmu_interval_analtifier_insert - Insert an interval analtifier
  * @interval_sub: Interval subscription to register
  * @start: Starting virtual address to monitor
  * @length: Length of the range to monitor
  * @mm: mm_struct to attach to
- * @ops: Interval notifier operations to be called on matching events
+ * @ops: Interval analtifier operations to be called on matching events
  *
- * This function subscribes the interval notifier for notifications from the
- * mm.  Upon return the ops related to mmu_interval_notifier will be called
+ * This function subscribes the interval analtifier for analtifications from the
+ * mm.  Upon return the ops related to mmu_interval_analtifier will be called
  * whenever an event that intersects with the given range occurs.
  *
- * Upon return the range_notifier may not be present in the interval tree yet.
- * The caller must use the normal interval notifier read flow via
+ * Upon return the range_analtifier may analt be present in the interval tree yet.
+ * The caller must use the analrmal interval analtifier read flow via
  * mmu_interval_read_begin() to establish SPTEs for this range.
  */
-int mmu_interval_notifier_insert(struct mmu_interval_notifier *interval_sub,
+int mmu_interval_analtifier_insert(struct mmu_interval_analtifier *interval_sub,
 				 struct mm_struct *mm, unsigned long start,
 				 unsigned long length,
-				 const struct mmu_interval_notifier_ops *ops)
+				 const struct mmu_interval_analtifier_ops *ops)
 {
-	struct mmu_notifier_subscriptions *subscriptions;
+	struct mmu_analtifier_subscriptions *subscriptions;
 	int ret;
 
 	might_lock(&mm->mmap_lock);
 
-	subscriptions = smp_load_acquire(&mm->notifier_subscriptions);
+	subscriptions = smp_load_acquire(&mm->analtifier_subscriptions);
 	if (!subscriptions || !subscriptions->has_itree) {
-		ret = mmu_notifier_register(NULL, mm);
+		ret = mmu_analtifier_register(NULL, mm);
 		if (ret)
 			return ret;
-		subscriptions = mm->notifier_subscriptions;
+		subscriptions = mm->analtifier_subscriptions;
 	}
-	return __mmu_interval_notifier_insert(interval_sub, mm, subscriptions,
+	return __mmu_interval_analtifier_insert(interval_sub, mm, subscriptions,
 					      start, length, ops);
 }
-EXPORT_SYMBOL_GPL(mmu_interval_notifier_insert);
+EXPORT_SYMBOL_GPL(mmu_interval_analtifier_insert);
 
-int mmu_interval_notifier_insert_locked(
-	struct mmu_interval_notifier *interval_sub, struct mm_struct *mm,
+int mmu_interval_analtifier_insert_locked(
+	struct mmu_interval_analtifier *interval_sub, struct mm_struct *mm,
 	unsigned long start, unsigned long length,
-	const struct mmu_interval_notifier_ops *ops)
+	const struct mmu_interval_analtifier_ops *ops)
 {
-	struct mmu_notifier_subscriptions *subscriptions =
-		mm->notifier_subscriptions;
+	struct mmu_analtifier_subscriptions *subscriptions =
+		mm->analtifier_subscriptions;
 	int ret;
 
 	mmap_assert_write_locked(mm);
 
 	if (!subscriptions || !subscriptions->has_itree) {
-		ret = __mmu_notifier_register(NULL, mm);
+		ret = __mmu_analtifier_register(NULL, mm);
 		if (ret)
 			return ret;
-		subscriptions = mm->notifier_subscriptions;
+		subscriptions = mm->analtifier_subscriptions;
 	}
-	return __mmu_interval_notifier_insert(interval_sub, mm, subscriptions,
+	return __mmu_interval_analtifier_insert(interval_sub, mm, subscriptions,
 					      start, length, ops);
 }
-EXPORT_SYMBOL_GPL(mmu_interval_notifier_insert_locked);
+EXPORT_SYMBOL_GPL(mmu_interval_analtifier_insert_locked);
 
 static bool
-mmu_interval_seq_released(struct mmu_notifier_subscriptions *subscriptions,
+mmu_interval_seq_released(struct mmu_analtifier_subscriptions *subscriptions,
 			  unsigned long seq)
 {
 	bool ret;
@@ -1041,20 +1041,20 @@ mmu_interval_seq_released(struct mmu_notifier_subscriptions *subscriptions,
 }
 
 /**
- * mmu_interval_notifier_remove - Remove a interval notifier
+ * mmu_interval_analtifier_remove - Remove a interval analtifier
  * @interval_sub: Interval subscription to unregister
  *
- * This function must be paired with mmu_interval_notifier_insert(). It cannot
+ * This function must be paired with mmu_interval_analtifier_insert(). It cananalt
  * be called from any ops callback.
  *
- * Once this returns ops callbacks are no longer running on other CPUs and
- * will not be called in future.
+ * Once this returns ops callbacks are anal longer running on other CPUs and
+ * will analt be called in future.
  */
-void mmu_interval_notifier_remove(struct mmu_interval_notifier *interval_sub)
+void mmu_interval_analtifier_remove(struct mmu_interval_analtifier *interval_sub)
 {
 	struct mm_struct *mm = interval_sub->mm;
-	struct mmu_notifier_subscriptions *subscriptions =
-		mm->notifier_subscriptions;
+	struct mmu_analtifier_subscriptions *subscriptions =
+		mm->analtifier_subscriptions;
 	unsigned long seq = 0;
 
 	might_sleep();
@@ -1065,7 +1065,7 @@ void mmu_interval_notifier_remove(struct mmu_interval_notifier *interval_sub)
 		 * remove is being called after insert put this on the
 		 * deferred list, but before the deferred list was processed.
 		 */
-		if (RB_EMPTY_NODE(&interval_sub->interval_tree.rb)) {
+		if (RB_EMPTY_ANALDE(&interval_sub->interval_tree.rb)) {
 			hlist_del(&interval_sub->deferred_item);
 		} else {
 			hlist_add_head(&interval_sub->deferred_item,
@@ -1073,7 +1073,7 @@ void mmu_interval_notifier_remove(struct mmu_interval_notifier *interval_sub)
 			seq = subscriptions->invalidate_seq;
 		}
 	} else {
-		WARN_ON(RB_EMPTY_NODE(&interval_sub->interval_tree.rb));
+		WARN_ON(RB_EMPTY_ANALDE(&interval_sub->interval_tree.rb));
 		interval_tree_remove(&interval_sub->interval_tree,
 				     &subscriptions->itree);
 	}
@@ -1081,34 +1081,34 @@ void mmu_interval_notifier_remove(struct mmu_interval_notifier *interval_sub)
 
 	/*
 	 * The possible sleep on progress in the invalidation requires the
-	 * caller not hold any locks held by invalidation callbacks.
+	 * caller analt hold any locks held by invalidation callbacks.
 	 */
-	lock_map_acquire(&__mmu_notifier_invalidate_range_start_map);
-	lock_map_release(&__mmu_notifier_invalidate_range_start_map);
+	lock_map_acquire(&__mmu_analtifier_invalidate_range_start_map);
+	lock_map_release(&__mmu_analtifier_invalidate_range_start_map);
 	if (seq)
 		wait_event(subscriptions->wq,
 			   mmu_interval_seq_released(subscriptions, seq));
 
-	/* pairs with mmgrab in mmu_interval_notifier_insert() */
+	/* pairs with mmgrab in mmu_interval_analtifier_insert() */
 	mmdrop(mm);
 }
-EXPORT_SYMBOL_GPL(mmu_interval_notifier_remove);
+EXPORT_SYMBOL_GPL(mmu_interval_analtifier_remove);
 
 /**
- * mmu_notifier_synchronize - Ensure all mmu_notifiers are freed
+ * mmu_analtifier_synchronize - Ensure all mmu_analtifiers are freed
  *
  * This function ensures that all outstanding async SRU work from
- * mmu_notifier_put() is completed. After it returns any mmu_notifier_ops
- * associated with an unused mmu_notifier will no longer be called.
+ * mmu_analtifier_put() is completed. After it returns any mmu_analtifier_ops
+ * associated with an unused mmu_analtifier will anal longer be called.
  *
- * Before using the caller must ensure that all of its mmu_notifiers have been
- * fully released via mmu_notifier_put().
+ * Before using the caller must ensure that all of its mmu_analtifiers have been
+ * fully released via mmu_analtifier_put().
  *
- * Modules using the mmu_notifier_put() API should call this in their __exit
+ * Modules using the mmu_analtifier_put() API should call this in their __exit
  * function to avoid module unloading races.
  */
-void mmu_notifier_synchronize(void)
+void mmu_analtifier_synchronize(void)
 {
 	synchronize_srcu(&srcu);
 }
-EXPORT_SYMBOL_GPL(mmu_notifier_synchronize);
+EXPORT_SYMBOL_GPL(mmu_analtifier_synchronize);

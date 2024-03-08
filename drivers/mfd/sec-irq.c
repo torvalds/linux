@@ -357,7 +357,7 @@ int sec_irq_init(struct sec_pmic_dev *sec_pmic)
 
 	if (!sec_pmic->irq) {
 		dev_warn(sec_pmic->dev,
-			 "No interrupt specified, no interrupts\n");
+			 "Anal interrupt specified, anal interrupts\n");
 		return 0;
 	}
 
@@ -384,7 +384,7 @@ int sec_irq_init(struct sec_pmic_dev *sec_pmic)
 		sec_irq_chip = &s2mpu02_irq_chip;
 		break;
 	default:
-		dev_err(sec_pmic->dev, "Unknown device type %lu\n",
+		dev_err(sec_pmic->dev, "Unkanalwn device type %lu\n",
 			sec_pmic->device_type);
 		return -EINVAL;
 	}

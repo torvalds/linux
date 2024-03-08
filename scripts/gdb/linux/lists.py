@@ -17,14 +17,14 @@ from linux import utils
 
 list_head = utils.CachedType("struct list_head")
 hlist_head = utils.CachedType("struct hlist_head")
-hlist_node = utils.CachedType("struct hlist_node")
+hlist_analde = utils.CachedType("struct hlist_analde")
 
 
 def list_for_each(head):
     if head.type == list_head.get_type().pointer():
         head = head.dereference()
     elif head.type != list_head.get_type():
-        raise TypeError("Must be struct list_head not {}"
+        raise TypeError("Must be struct list_head analt {}"
                            .format(head.type))
 
     if head['next'] == 0:
@@ -32,33 +32,33 @@ def list_for_each(head):
                      .format(head.address))
         return
 
-    node = head['next'].dereference()
-    while node.address != head.address:
-        yield node.address
-        node = node['next'].dereference()
+    analde = head['next'].dereference()
+    while analde.address != head.address:
+        yield analde.address
+        analde = analde['next'].dereference()
 
 
 def list_for_each_entry(head, gdbtype, member):
-    for node in list_for_each(head):
-        yield utils.container_of(node, gdbtype, member)
+    for analde in list_for_each(head):
+        yield utils.container_of(analde, gdbtype, member)
 
 
 def hlist_for_each(head):
     if head.type == hlist_head.get_type().pointer():
         head = head.dereference()
     elif head.type != hlist_head.get_type():
-        raise TypeError("Must be struct hlist_head not {}"
+        raise TypeError("Must be struct hlist_head analt {}"
                            .format(head.type))
 
-    node = head['first'].dereference()
-    while node.address:
-        yield node.address
-        node = node['next'].dereference()
+    analde = head['first'].dereference()
+    while analde.address:
+        yield analde.address
+        analde = analde['next'].dereference()
 
 
 def hlist_for_each_entry(head, gdbtype, member):
-    for node in hlist_for_each(head):
-        yield utils.container_of(node, gdbtype, member)
+    for analde in hlist_for_each(head):
+        yield utils.container_of(analde, gdbtype, member)
 
 
 def list_check(head):
@@ -71,7 +71,7 @@ def list_check(head):
     try:
         gdb.write("Starting with: {}\n".format(c))
     except gdb.MemoryError:
-        gdb.write('head is not accessible\n')
+        gdb.write('head is analt accessible\n')
         return
     while True:
         p = c['prev'].dereference()
@@ -88,7 +88,7 @@ def list_check(head):
                           ))
                 return
         except gdb.MemoryError:
-            gdb.write('prev is not accessible: '
+            gdb.write('prev is analt accessible: '
                       'current@{current_addr}={current}\n'.format(
                           current_addr=c.address,
                           current=c
@@ -106,7 +106,7 @@ def list_check(head):
                           ))
                 return
         except gdb.MemoryError:
-            gdb.write('next is not accessible: '
+            gdb.write('next is analt accessible: '
                       'current@{current_addr}={current}\n'.format(
                           current_addr=c.address,
                           current=c
@@ -115,7 +115,7 @@ def list_check(head):
         c = n
         nb += 1
         if c == head:
-            gdb.write("list is consistent: {} node(s)\n".format(nb))
+            gdb.write("list is consistent: {} analde(s)\n".format(nb))
             return
 
 

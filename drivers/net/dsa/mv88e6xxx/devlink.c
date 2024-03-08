@@ -12,7 +12,7 @@ static int mv88e6xxx_atu_get_hash(struct mv88e6xxx_chip *chip, u8 *hash)
 	if (chip->info->ops->atu_get_hash)
 		return chip->info->ops->atu_get_hash(chip, hash);
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int mv88e6xxx_atu_set_hash(struct mv88e6xxx_chip *chip, u8 hash)
@@ -20,7 +20,7 @@ static int mv88e6xxx_atu_set_hash(struct mv88e6xxx_chip *chip, u8 hash)
 	if (chip->info->ops->atu_set_hash)
 		return chip->info->ops->atu_set_hash(chip, hash);
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 enum mv88e6xxx_devlink_param_id {
@@ -41,7 +41,7 @@ int mv88e6xxx_devlink_param_get(struct dsa_switch *ds, u32 id,
 		err = mv88e6xxx_atu_get_hash(chip, &ctx->val.vu8);
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		break;
 	}
 
@@ -63,7 +63,7 @@ int mv88e6xxx_devlink_param_set(struct dsa_switch *ds, u32 id,
 		err = mv88e6xxx_atu_set_hash(chip, ctx->val.vu8);
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		break;
 	}
 
@@ -274,7 +274,7 @@ static int mv88e6xxx_region_global_snapshot(struct devlink *dl,
 
 	registers = kmalloc_array(32, sizeof(u16), GFP_KERNEL);
 	if (!registers)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mv88e6xxx_reg_lock(chip);
 	for (i = 0; i < 32; i++) {
@@ -286,7 +286,7 @@ static int mv88e6xxx_region_global_snapshot(struct devlink *dl,
 			err = mv88e6xxx_g2_read(chip, i, &registers[i]);
 			break;
 		default:
-			err = -EOPNOTSUPP;
+			err = -EOPANALTSUPP;
 		}
 
 		if (err) {
@@ -383,7 +383,7 @@ static int mv88e6xxx_region_atu_snapshot(struct devlink *dl,
 			      sizeof(struct mv88e6xxx_devlink_atu_entry),
 			      GFP_KERNEL);
 	if (!table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(table, 0, mv88e6xxx_num_databases(chip) *
 	       sizeof(struct mv88e6xxx_devlink_atu_entry));
@@ -420,7 +420,7 @@ out:
 /**
  * struct mv88e6xxx_devlink_vtu_entry - Devlink VTU entry
  * @fid:   Global1/2:   FID and VLAN policy.
- * @sid:   Global1/3:   SID, unknown filters and learning.
+ * @sid:   Global1/3:   SID, unkanalwn filters and learning.
  * @op:    Global1/5:   FID (old chipsets).
  * @vid:   Global1/6:   VID, valid, and page.
  * @data:  Global1/7-9: Membership data and priority override.
@@ -428,7 +428,7 @@ out:
  *
  * The VTU entry format varies between chipset generations, the
  * descriptions above represent the superset of all possible
- * information, not all fields are valid on all devices. Since this is
+ * information, analt all fields are valid on all devices. Since this is
  * a low-level debug interface, copy all data verbatim and defer
  * parsing to the consumer.
  */
@@ -456,7 +456,7 @@ static int mv88e6xxx_region_vtu_snapshot(struct devlink *dl,
 			sizeof(struct mv88e6xxx_devlink_vtu_entry),
 			GFP_KERNEL);
 	if (!table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	entry = table;
 	vlan.vid = mv88e6xxx_max_vid(chip);
@@ -505,7 +505,7 @@ static int mv88e6xxx_region_vtu_snapshot(struct devlink *dl,
 
 /**
  * struct mv88e6xxx_devlink_stu_entry - Devlink STU entry
- * @sid:   Global1/3:   SID, unknown filters and learning.
+ * @sid:   Global1/3:   SID, unkanalwn filters and learning.
  * @vid:   Global1/6:   Valid bit.
  * @data:  Global1/7-9: Membership data and priority override.
  * @resvd: Reserved. In case we forgot something.
@@ -513,7 +513,7 @@ static int mv88e6xxx_region_vtu_snapshot(struct devlink *dl,
  * The STU entry format varies between chipset generations. Peridot
  * and Amethyst packs the STU data into Global1/7-8. Older silicon
  * spreads the information across all three VTU data registers -
- * inheriting the layout of even older hardware that had no STU at
+ * inheriting the layout of even older hardware that had anal STU at
  * all. Since this is a low-level debug interface, copy all data
  * verbatim and defer parsing to the consumer.
  */
@@ -539,7 +539,7 @@ static int mv88e6xxx_region_stu_snapshot(struct devlink *dl,
 			sizeof(struct mv88e6xxx_devlink_stu_entry),
 			GFP_KERNEL);
 	if (!table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	entry = table;
 	stu.sid = mv88e6xxx_max_sid(chip);
@@ -594,7 +594,7 @@ static int mv88e6xxx_region_pvt_snapshot(struct devlink *dl,
 
 	pvt = kcalloc(MV88E6XXX_MAX_PVT_ENTRIES, sizeof(*pvt), GFP_KERNEL);
 	if (!pvt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mv88e6xxx_reg_lock(chip);
 
@@ -633,7 +633,7 @@ static int mv88e6xxx_region_port_snapshot(struct devlink_port *devlink_port,
 
 	registers = kmalloc_array(32, sizeof(u16), GFP_KERNEL);
 	if (!registers)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mv88e6xxx_reg_lock(chip);
 	for (i = 0; i < 32; i++) {

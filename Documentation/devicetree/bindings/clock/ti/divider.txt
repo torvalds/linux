@@ -3,7 +3,7 @@ Binding for TI divider clock
 Binding status: Unstable - ABI compatibility may be broken in the future
 
 This binding uses the common clock binding[1].  It assumes a
-register-mapped adjustable clock rate divider that does not gate and has
+register-mapped adjustable clock rate divider that does analt gate and has
 only one input clock or parent.  By default the value programmed into
 the register is one less than the actual divisor value.  E.g:
 
@@ -14,7 +14,7 @@ register value		actual divisor value
 
 This assumption may be modified by the following optional properties:
 
-ti,index-starts-at-one - valid divisor values start at 1, not the default
+ti,index-starts-at-one - valid divisor values start at 1, analt the default
 of 0.  E.g:
 register value		actual divisor value
 1			1
@@ -39,7 +39,7 @@ register value		actual divisor value
 3			16
 
 Any zero value in this array means the corresponding bit-value is invalid
-and must not be used.
+and must analt be used.
 
 The binding must also provide the register to control the divider and
 unless the divider array is provided, min and max dividers. Optionally
@@ -65,11 +65,11 @@ Optional properties:
 - ti,min-div : min divisor for dividing the input clock rate, only
   needed if the first divisor is offset from the default value (1)
 - ti,max-div : max divisor for dividing the input clock rate, only needed
-  if ti,dividers is not defined.
-- ti,index-starts-at-one : valid divisor programming starts at 1, not zero,
-  only valid if ti,dividers is not defined.
+  if ti,dividers is analt defined.
+- ti,index-starts-at-one : valid divisor programming starts at 1, analt zero,
+  only valid if ti,dividers is analt defined.
 - ti,index-power-of-two : valid divisor programming must be a power of two,
-  only valid if ti,dividers is not defined.
+  only valid if ti,dividers is analt defined.
 - ti,autoidle-shift : bit shift of the autoidle enable bit for the clock,
   see [2]
 - ti,invert-autoidle-bit : autoidle is enabled by setting the bit to 0,

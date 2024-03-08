@@ -77,7 +77,7 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint8-array
     description:
       Size of payload channel sample.
-      Value of 0xff indicates that this option is not implemented
+      Value of 0xff indicates that this option is analt implemented
       or applicable for the respective data port.
       More info in MIPI Alliance SoundWire 1.0 Specifications.
     minItems: 3
@@ -88,7 +88,7 @@ properties:
     description:
       Sample interval (only lowest byte) of each data port.
       Out ports followed by In ports. Used for Sample Interval calculation.
-      Value of 0xff indicates that this option is not implemented
+      Value of 0xff indicates that this option is analt implemented
       or applicable for the respective data port.
       More info in MIPI Alliance SoundWire 1.0 Specifications.
     minItems: 3
@@ -99,7 +99,7 @@ properties:
     description:
       Sample interval of each data port.
       Out ports followed by In ports. Used for Sample Interval calculation.
-      Value of 0xffff indicates that this option is not implemented
+      Value of 0xffff indicates that this option is analt implemented
       or applicable for the respective data port.
       More info in MIPI Alliance SoundWire 1.0 Specifications.
     minItems: 3
@@ -110,7 +110,7 @@ properties:
     description:
       Payload transport window offset1 of each data port.
       Out ports followed by In ports.
-      Value of 0xff indicates that this option is not implemented
+      Value of 0xff indicates that this option is analt implemented
       or applicable for the respective data port.
       More info in MIPI Alliance SoundWire 1.0 Specifications.
     minItems: 3
@@ -121,7 +121,7 @@ properties:
     description:
       Payload transport window offset2 of each data port.
       Out ports followed by In ports.
-      Value of 0xff indicates that this option is not implemented
+      Value of 0xff indicates that this option is analt implemented
       or applicable for the respective data port.
       More info in MIPI Alliance SoundWire 1.0 Specifications.
     minItems: 3
@@ -132,7 +132,7 @@ properties:
     description:
       Identify which data lane the data port uses.
       Out ports followed by In ports.
-      Value of 0xff indicates that this option is not implemented
+      Value of 0xff indicates that this option is analt implemented
       or applicable for the respective data port.
       More info in MIPI Alliance SoundWire 1.0 Specifications.
     minItems: 3
@@ -145,7 +145,7 @@ properties:
       0 to indicate Blocks are per Channel
       1 to indicate Blocks are per Port.
       Out ports followed by In ports.
-      Value of 0xff indicates that this option is not implemented
+      Value of 0xff indicates that this option is analt implemented
       or applicable for the respective data port.
       More info in MIPI Alliance SoundWire 1.0 Specifications.
     minItems: 3
@@ -162,7 +162,7 @@ properties:
       Identifying lowerst numbered column in SoundWire Frame,
       i.e. left edge of the Transport sub-frame for each port.
       Out ports followed by In ports.
-      Value of 0xff indicates that this option is not implemented
+      Value of 0xff indicates that this option is analt implemented
       or applicable for the respective data port.
       More info in MIPI Alliance SoundWire 1.0 Specifications.
     minItems: 3
@@ -179,7 +179,7 @@ properties:
       Identifying highest numbered column in SoundWire Frame,
       i.e. the right edge of the Transport
       sub-frame for each port. Out ports followed by In ports.
-      Value of 0xff indicates that this option is not implemented
+      Value of 0xff indicates that this option is analt implemented
       or applicable for the respective data port.
       More info in MIPI Alliance SoundWire 1.0 Specifications.
     minItems: 3
@@ -195,7 +195,7 @@ properties:
     description:
       In range 1 to 4 to indicate how many sample intervals are combined
       into a payload. Out ports followed by In ports.
-      Value of 0xff indicates that this option is not implemented
+      Value of 0xff indicates that this option is analt implemented
       or applicable for the respective data port.
       More info in MIPI Alliance SoundWire 1.0 Specifications.
     minItems: 3

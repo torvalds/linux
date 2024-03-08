@@ -5,11 +5,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -19,7 +19,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/moduleparam.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/export.h>
 #include <linux/of.h>
 #include <linux/mmc/sdio_func.h>
@@ -237,10 +237,10 @@ void ath6kl_init_profile_info(struct ath6kl_vif *vif)
 	memset(vif->ssid, 0, sizeof(vif->ssid));
 
 	vif->dot11_auth_mode = OPEN_AUTH;
-	vif->auth_mode = NONE_AUTH;
-	vif->prwise_crypto = NONE_CRYPT;
+	vif->auth_mode = ANALNE_AUTH;
+	vif->prwise_crypto = ANALNE_CRYPT;
 	vif->prwise_crypto_len = 0;
-	vif->grp_crypto = NONE_CRYPT;
+	vif->grp_crypto = ANALNE_CRYPT;
 	vif->grp_crypto_len = 0;
 	memset(vif->wep_key_list, 0, sizeof(vif->wep_key_list));
 	memset(vif->req_bssid, 0, sizeof(vif->req_bssid));
@@ -314,7 +314,7 @@ static int ath6kl_connectservice(struct ath6kl *ar,
 		set_ac2_ep_map(ar, WMM_AC_VO, response.endpoint);
 		break;
 	default:
-		ath6kl_err("service id is not mapped %d\n", con_req->svc_id);
+		ath6kl_err("service id is analt mapped %d\n", con_req->svc_id);
 		return -EINVAL;
 	}
 
@@ -388,10 +388,10 @@ static int ath6kl_init_service_ep(struct ath6kl *ar)
 		return -EIO;
 
 	/*
-	 * Connect to VO service, this is currently not mapped to a WMI
+	 * Connect to VO service, this is currently analt mapped to a WMI
 	 * priority stream due to historical reasons. WMI originally
 	 * defined 3 priorities over 3 mailboxes We can change this when
-	 * WMI is reworked so that priorities are not dependent on
+	 * WMI is reworked so that priorities are analt dependent on
 	 * mailboxes.
 	 */
 	connect.svc_id = WMI_DATA_VO_SVC;
@@ -465,9 +465,9 @@ static int ath6kl_target_config_wlan_params(struct ath6kl *ar, int idx)
 		return ret;
 	}
 
-	if (ar->conf_flags & ATH6KL_CONF_IGNORE_PS_FAIL_EVT_IN_SCAN) {
+	if (ar->conf_flags & ATH6KL_CONF_IGANALRE_PS_FAIL_EVT_IN_SCAN) {
 		ret = ath6kl_wmi_pmparams_cmd(ar->wmi, idx, 0, 1, 0, 0, 1,
-					      IGNORE_PS_FAIL_DURING_SCAN);
+					      IGANALRE_PS_FAIL_DURING_SCAN);
 		if (ret) {
 			ath6kl_err("unable to set power save fail event policy: %d\n",
 				   ret);
@@ -475,7 +475,7 @@ static int ath6kl_target_config_wlan_params(struct ath6kl *ar, int idx)
 		}
 	}
 
-	if (!(ar->conf_flags & ATH6KL_CONF_IGNORE_ERP_BARKER)) {
+	if (!(ar->conf_flags & ATH6KL_CONF_IGANALRE_ERP_BARKER)) {
 		ret = ath6kl_wmi_set_lpreamble_cmd(ar->wmi, idx, 0,
 						   WMI_FOLLOW_BARKER_IN_ERP);
 		if (ret) {
@@ -514,7 +514,7 @@ static int ath6kl_target_config_wlan_params(struct ath6kl *ar, int idx)
 					      P2P_FLAG_HMODEL_REQ);
 		if (ret) {
 			ath6kl_dbg(ATH6KL_DBG_TRC,
-				   "failed to request P2P capabilities (%d) - assuming P2P not supported\n",
+				   "failed to request P2P capabilities (%d) - assuming P2P analt supported\n",
 				   ret);
 			ar->p2p = false;
 		}
@@ -546,12 +546,12 @@ int ath6kl_configure_target(struct ath6kl *ar)
 	}
 
 	/*
-	 * Note: Even though the firmware interface type is
+	 * Analte: Even though the firmware interface type is
 	 * chosen as BSS_STA for all three interfaces, can
 	 * be configured to IBSS/AP as long as the fw submode
-	 * remains normal mode (0 - AP, STA and IBSS). But
+	 * remains analrmal mode (0 - AP, STA and IBSS). But
 	 * due to an target assert in firmware only one interface is
-	 * configured for now.
+	 * configured for analw.
 	 */
 	fw_iftype = HI_OPTION_FW_MODE_BSS_STA;
 
@@ -559,7 +559,7 @@ int ath6kl_configure_target(struct ath6kl *ar)
 		fw_mode |= fw_iftype << (i * HI_OPTION_FW_MODE_BITS);
 
 	/*
-	 * Submodes when fw does not support dynamic interface
+	 * Submodes when fw does analt support dynamic interface
 	 * switching:
 	 *		vif[0] - AP/STA/IBSS
 	 *		vif[1] - "P2P dev"/"P2P GO"/"P2P Client"
@@ -573,11 +573,11 @@ int ath6kl_configure_target(struct ath6kl *ar)
 			fw_submode |= HI_OPTION_FW_SUBMODE_P2PDEV <<
 				(i * HI_OPTION_FW_SUBMODE_BITS);
 	} else {
-		for (i = 0; i < ar->max_norm_iface; i++)
-			fw_submode |= HI_OPTION_FW_SUBMODE_NONE <<
+		for (i = 0; i < ar->max_analrm_iface; i++)
+			fw_submode |= HI_OPTION_FW_SUBMODE_ANALNE <<
 				(i * HI_OPTION_FW_SUBMODE_BITS);
 
-		for (i = ar->max_norm_iface; i < ar->vif_max; i++)
+		for (i = ar->max_analrm_iface; i < ar->vif_max; i++)
 			fw_submode |= HI_OPTION_FW_SUBMODE_P2PDEV <<
 				(i * HI_OPTION_FW_SUBMODE_BITS);
 
@@ -685,7 +685,7 @@ static int ath6kl_get_fw(struct ath6kl *ar, const char *filename,
 	*fw = kmemdup(fw_entry->data, fw_entry->size, GFP_KERNEL);
 
 	if (*fw == NULL)
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 
 	release_firmware(fw_entry);
 
@@ -695,23 +695,23 @@ static int ath6kl_get_fw(struct ath6kl *ar, const char *filename,
 #ifdef CONFIG_OF
 /*
  * Check the device tree for a board-id and use it to construct
- * the pathname to the firmware file.  Used (for now) to find a
+ * the pathname to the firmware file.  Used (for analw) to find a
  * fallback to the "bdata.bin" file--typically a symlink to the
  * appropriate board-specific file.
  */
 static bool check_device_tree(struct ath6kl *ar)
 {
 	static const char *board_id_prop = "atheros,board-id";
-	struct device_node *node;
+	struct device_analde *analde;
 	char board_filename[64];
 	const char *board_id;
 	int ret;
 
-	for_each_compatible_node(node, NULL, "atheros,ath6kl") {
-		board_id = of_get_property(node, board_id_prop, NULL);
+	for_each_compatible_analde(analde, NULL, "atheros,ath6kl") {
+		board_id = of_get_property(analde, board_id_prop, NULL);
 		if (board_id == NULL) {
-			ath6kl_warn("No \"%s\" property on %pOFn node.\n",
-				    board_id_prop, node);
+			ath6kl_warn("Anal \"%s\" property on %pOFn analde.\n",
+				    board_id_prop, analde);
 			continue;
 		}
 		snprintf(board_filename, sizeof(board_filename),
@@ -724,7 +724,7 @@ static bool check_device_tree(struct ath6kl *ar)
 				   board_filename, ret);
 			continue;
 		}
-		of_node_put(node);
+		of_analde_put(analde);
 		return true;
 	}
 	return false;
@@ -761,7 +761,7 @@ static int ath6kl_fetch_board_file(struct ath6kl *ar)
 		return 0;
 	}
 
-	/* there was no proper board file, try to use default instead */
+	/* there was anal proper board file, try to use default instead */
 	ath6kl_warn("Failed to get board file %s (%d), trying to find default board file.\n",
 		    filename, ret);
 
@@ -775,7 +775,7 @@ static int ath6kl_fetch_board_file(struct ath6kl *ar)
 		return ret;
 	}
 
-	ath6kl_warn("WARNING! No proper board file was not found, instead using a default board file.\n");
+	ath6kl_warn("WARNING! Anal proper board file was analt found, instead using a default board file.\n");
 	ath6kl_warn("Most likely your hardware won't work as specified. Install correct board file!\n");
 
 	return 0;
@@ -791,7 +791,7 @@ static int ath6kl_fetch_otp_file(struct ath6kl *ar)
 
 	if (ar->hw.fw.otp == NULL) {
 		ath6kl_dbg(ATH6KL_DBG_BOOT,
-			   "no OTP file configured for this hw\n");
+			   "anal OTP file configured for this hw\n");
 		return 0;
 	}
 
@@ -821,16 +821,16 @@ static int ath6kl_fetch_testmode_file(struct ath6kl *ar)
 
 	if (ar->testmode == 2) {
 		if (ar->hw.fw.utf == NULL) {
-			ath6kl_warn("testmode 2 not supported\n");
-			return -EOPNOTSUPP;
+			ath6kl_warn("testmode 2 analt supported\n");
+			return -EOPANALTSUPP;
 		}
 
 		snprintf(filename, sizeof(filename), "%s/%s",
 			 ar->hw.fw.dir, ar->hw.fw.utf);
 	} else {
 		if (ar->hw.fw.tcmd == NULL) {
-			ath6kl_warn("testmode 1 not supported\n");
-			return -EOPNOTSUPP;
+			ath6kl_warn("testmode 1 analt supported\n");
+			return -EOPANALTSUPP;
 		}
 
 		snprintf(filename, sizeof(filename), "%s/%s",
@@ -1028,8 +1028,8 @@ static int ath6kl_fetch_fw_apin(struct ath6kl *ar, const char *name)
 			ar->fw_otp = kmemdup(data, ie_len, GFP_KERNEL);
 
 			if (ar->fw_otp == NULL) {
-				ath6kl_err("fw_otp cannot be allocated\n");
-				ret = -ENOMEM;
+				ath6kl_err("fw_otp cananalt be allocated\n");
+				ret = -EANALMEM;
 				goto out;
 			}
 
@@ -1046,8 +1046,8 @@ static int ath6kl_fetch_fw_apin(struct ath6kl *ar, const char *name)
 			ar->fw = vmalloc(ie_len);
 
 			if (ar->fw == NULL) {
-				ath6kl_err("fw storage cannot be allocated, len: %zd\n", ie_len);
-				ret = -ENOMEM;
+				ath6kl_err("fw storage cananalt be allocated, len: %zd\n", ie_len);
+				ret = -EANALMEM;
 				goto out;
 			}
 
@@ -1061,8 +1061,8 @@ static int ath6kl_fetch_fw_apin(struct ath6kl *ar, const char *name)
 			ar->fw_patch = kmemdup(data, ie_len, GFP_KERNEL);
 
 			if (ar->fw_patch == NULL) {
-				ath6kl_err("fw_patch storage cannot be allocated, len: %zd\n", ie_len);
-				ret = -ENOMEM;
+				ath6kl_err("fw_patch storage cananalt be allocated, len: %zd\n", ie_len);
+				ret = -EANALMEM;
 				goto out;
 			}
 
@@ -1127,13 +1127,13 @@ static int ath6kl_fetch_fw_apin(struct ath6kl *ar, const char *name)
 					    ATH6KL_VIF_MAX);
 
 			if (ar->vif_max > 1 && !ar->p2p)
-				ar->max_norm_iface = 2;
+				ar->max_analrm_iface = 2;
 
 			ath6kl_dbg(ATH6KL_DBG_BOOT,
 				   "found vif max ie %d\n", ar->vif_max);
 			break;
 		default:
-			ath6kl_dbg(ATH6KL_DBG_BOOT, "Unknown fw ie: %u\n",
+			ath6kl_dbg(ATH6KL_DBG_BOOT, "Unkanalwn fw ie: %u\n",
 				   le32_to_cpup(&hdr->id));
 			break;
 		}
@@ -1204,7 +1204,7 @@ static int ath6kl_upload_board_file(struct ath6kl *ar)
 	int ret;
 
 	if (WARN_ON(ar->fw_board == NULL))
-		return -ENOENT;
+		return -EANALENT;
 
 	/*
 	 * Determine where in Target RAM to write Board Data.
@@ -1477,7 +1477,7 @@ static int ath6kl_init_upload(struct ath6kl *ar)
 		   options, sleep);
 
 	/* program analog PLL register */
-	/* no need to control 40/44MHz clock on AR6004 */
+	/* anal need to control 40/44MHz clock on AR6004 */
 	if (ar->target_type != TARGET_TYPE_AR6004) {
 		status = ath6kl_bmi_reg_write(ar, ATH6KL_ANALOG_PLL_REGISTER,
 					      0xF9104001);
@@ -1635,7 +1635,7 @@ static const struct fw_capa_str_map {
 	{ ATH6KL_FW_CAPABILITY_SCHED_SCAN_MATCH_LIST, "sscan-match-list" },
 	{ ATH6KL_FW_CAPABILITY_RSSI_SCAN_THOLD, "rssi-scan-thold" },
 	{ ATH6KL_FW_CAPABILITY_CUSTOM_MAC_ADDR, "custom-mac-addr" },
-	{ ATH6KL_FW_CAPABILITY_TX_ERR_NOTIFY, "tx-err-notify" },
+	{ ATH6KL_FW_CAPABILITY_TX_ERR_ANALTIFY, "tx-err-analtify" },
 	{ ATH6KL_FW_CAPABILITY_REGDOMAIN, "regdomain" },
 	{ ATH6KL_FW_CAPABILITY_SCHED_SCAN_V2, "sched-scan-v2" },
 	{ ATH6KL_FW_CAPABILITY_HEART_BEAT_POLL, "hb-poll" },
@@ -1643,7 +1643,7 @@ static const struct fw_capa_str_map {
 	{ ATH6KL_FW_CAPABILITY_AP_INACTIVITY_MINS, "ap-inactivity-mins" },
 	{ ATH6KL_FW_CAPABILITY_MAP_LP_ENDPOINT, "map-lp-endpoint" },
 	{ ATH6KL_FW_CAPABILITY_RATETABLE_MCS15, "ratetable-mcs15" },
-	{ ATH6KL_FW_CAPABILITY_NO_IP_CHECKSUM, "no-ip-checksum" },
+	{ ATH6KL_FW_CAPABILITY_ANAL_IP_CHECKSUM, "anal-ip-checksum" },
 };
 
 static const char *ath6kl_init_get_fw_capa_name(unsigned int id)
@@ -1655,7 +1655,7 @@ static const char *ath6kl_init_get_fw_capa_name(unsigned int id)
 			return fw_capa_map[i].name;
 	}
 
-	return "<unknown>";
+	return "<unkanalwn>";
 }
 
 static void ath6kl_init_get_fwcaps(struct ath6kl *ar, char *buf, size_t buf_len)
@@ -1774,7 +1774,7 @@ static int __ath6kl_init_hw_start(struct ath6kl *ar)
 						    WMI_TIMEOUT);
 	if (timeleft <= 0) {
 		clear_bit(WMI_READY, &ar->flag);
-		ath6kl_err("wmi is not ready or wait was interrupted: %ld\n",
+		ath6kl_err("wmi is analt ready or wait was interrupted: %ld\n",
 			   timeleft);
 		ret = -EIO;
 		goto err_htc_stop;
@@ -1920,7 +1920,7 @@ void ath6kl_stop_txrx(struct ath6kl *ar)
 	/*
 	 * After wmi_shudown all WMI events will be dropped. We
 	 * need to cleanup the buffers allocated in AP mode and
-	 * give disconnect notification to stack, which usually
+	 * give disconnect analtification to stack, which usually
 	 * happens in the disconnect_event. Simulate the disconnect
 	 * event by calling the function directly. Sometimes
 	 * disconnect_event will be received when the debug logs
@@ -1936,7 +1936,7 @@ void ath6kl_stop_txrx(struct ath6kl *ar)
 
 	/*
 	 * Try to reset the device if we can. The driver may have been
-	 * configure NOT to reset the target during a debug session.
+	 * configure ANALT to reset the target during a debug session.
 	 */
 	ath6kl_init_hw_reset(ar);
 

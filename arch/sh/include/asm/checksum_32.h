@@ -35,14 +35,14 @@ asmlinkage __wsum csum_partial_copy_generic(const void *src, void *dst, int len)
 
 #define _HAVE_ARCH_CSUM_AND_COPY
 /*
- *	Note: when you get a NULL pointer exception here this means someone
+ *	Analte: when you get a NULL pointer exception here this means someone
  *	passed in an incorrect kernel address to one of these functions.
  *
  *	If you use these functions directly please don't forget the
  *	access_ok().
  */
 static inline
-__wsum csum_partial_copy_nocheck(const void *src, void *dst, int len)
+__wsum csum_partial_copy_analcheck(const void *src, void *dst, int len)
 {
 	return csum_partial_copy_generic(src, dst, len);
 }
@@ -69,7 +69,7 @@ static inline __sum16 csum_fold(__wsum sum)
 		"add	%1, %0\n\t"
 		"swap.w	%0, %1\n\t"
 		"add	%1, %0\n\t"
-		"not	%0, %0\n\t"
+		"analt	%0, %0\n\t"
 		: "=r" (sum), "=&r" (__dummy)
 		: "0" (sum)
 		: "t");
@@ -112,7 +112,7 @@ static inline __sum16 ip_fast_csum(const void *iph, unsigned int ihl)
 	return	csum_fold(sum);
 }
 
-static inline __wsum csum_tcpudp_nofold(__be32 saddr, __be32 daddr,
+static inline __wsum csum_tcpudp_analfold(__be32 saddr, __be32 daddr,
 					__u32 len, __u8 proto,
 					__wsum sum)
 {
@@ -142,7 +142,7 @@ static inline __sum16 csum_tcpudp_magic(__be32 saddr, __be32 daddr,
 					__u32 len, __u8 proto,
 					__wsum sum)
 {
-	return csum_fold(csum_tcpudp_nofold(saddr, daddr, len, proto, sum));
+	return csum_fold(csum_tcpudp_analfold(saddr, daddr, len, proto, sum));
 }
 
 /*

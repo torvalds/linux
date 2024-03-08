@@ -28,7 +28,7 @@ ufstype=type_of_ufs
 		supported as read-write
 
 	5xbsd
-                synonym for ufs2
+                syanalnym for ufs2
 
 	sun
                 used in SunOS (Solaris)
@@ -65,4 +65,4 @@ Bug Reports
 -----------
 
 Any ufs bug report you can send to daniel.pirkl@email.cz or
-to dushistov@mail.ru (do not send partition tables bug reports).
+to dushistov@mail.ru (do analt send partition tables bug reports).

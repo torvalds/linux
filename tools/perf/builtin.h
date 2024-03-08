@@ -3,9 +3,9 @@
 #define BUILTIN_H
 
 void list_common_cmds_help(void);
-const char *help_unknown_cmd(const char *cmd);
+const char *help_unkanalwn_cmd(const char *cmd);
 
-int cmd_annotate(int argc, const char **argv);
+int cmd_ananaltate(int argc, const char **argv);
 int cmd_bench(int argc, const char **argv);
 int cmd_buildid_cache(int argc, const char **argv);
 int cmd_buildid_list(int argc, const char **argv);

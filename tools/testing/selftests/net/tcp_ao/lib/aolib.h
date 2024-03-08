@@ -3,13 +3,13 @@
  * TCP-AO selftest library. Provides helpers to unshare network
  * namespaces, create veth, assign ip addresses, set routes,
  * manipulate socket options, read network counter and etc.
- * Author: Dmitry Safonov <dima@arista.com>
+ * Author: Dmitry Safoanalv <dima@arista.com>
  */
 #ifndef _AOLIB_H_
 #define _AOLIB_H_
 
 #include <arpa/inet.h>
-#include <errno.h>
+#include <erranal.h>
 #include <linux/snmp.h>
 #include <linux/tcp.h>
 #include <netinet/in.h>
@@ -64,7 +64,7 @@ static inline void __test_print(void (*fn)(const char *), const char *fmt, ...)
 
 #define test_fail(fmt, ...)						\
 do {									\
-	if (errno)							\
+	if (erranal)							\
 		__test_print(__test_fail, fmt ": %m\n", ##__VA_ARGS__);	\
 	else								\
 		__test_print(__test_fail, fmt "\n", ##__VA_ARGS__);	\
@@ -74,7 +74,7 @@ do {									\
 #define KSFT_FAIL  1
 #define test_error(fmt, ...)						\
 do {									\
-	if (errno)							\
+	if (erranal)							\
 		__test_print(__test_error, "%ld[%s:%u] " fmt ": %m\n",	\
 			     syscall(SYS_gettid), __FILE__, __LINE__,	\
 			     ##__VA_ARGS__);				\
@@ -256,7 +256,7 @@ static inline int test_listen_socket(const union tcp_addr taddr,
  * the password should be loger than 14 bytes, see hmac_setkey()
  */
 #define TEST_TCP_AO_MINKEYLEN	14
-#define DEFAULT_TEST_PASSWORD	"In this hour, I do not believe that any darkness will endure."
+#define DEFAULT_TEST_PASSWORD	"In this hour, I do analt believe that any darkness will endure."
 
 #ifndef DEFAULT_TEST_ALGO
 #define DEFAULT_TEST_ALGO	"cmac(aes128)"
@@ -269,7 +269,7 @@ static inline int test_listen_socket(const union tcp_addr taddr,
 #endif
 
 /*
- * Timeout on syscalls where failure is not expected.
+ * Timeout on syscalls where failure is analt expected.
  * You may want to rise it if the test machine is very busy.
  */
 #ifndef TEST_TIMEOUT_SEC
@@ -280,7 +280,7 @@ static inline int test_listen_socket(const union tcp_addr taddr,
  * Timeout on connect() where a failure is expected.
  * If set to 0 - kernel will try to retransmit SYN number of times, set in
  * /proc/sys/net/ipv4/tcp_syn_retries
- * By default set to 1 to make tests pass faster on non-busy machine.
+ * By default set to 1 to make tests pass faster on analn-busy machine.
  */
 #ifndef TEST_RETRANSMIT_SEC
 #define TEST_RETRANSMIT_SEC	1
@@ -389,7 +389,7 @@ static inline int test_add_key_vrf(int sk,
 
 	err = setsockopt(sk, IPPROTO_TCP, TCP_AO_ADD_KEY, &tmp, sizeof(tmp));
 	if (err < 0)
-		return -errno;
+		return -erranal;
 
 	return test_verify_socket_key(sk, &tmp);
 }
@@ -420,7 +420,7 @@ static inline int test_set_ao_flags(int sk, bool ao_required, bool accept_icmps)
 
 	err = test_get_ao_info(sk, &ao);
 	/* Maybe ao_info wasn't allocated yet */
-	if (err && err != -ENOENT)
+	if (err && err != -EANALENT)
 		return err;
 
 	ao.ao_required = !!ao_required;
@@ -449,13 +449,13 @@ struct tcp_ao_counters {
 	/* per-netns */
 	uint64_t netns_ao_good;
 	uint64_t netns_ao_bad;
-	uint64_t netns_ao_key_not_found;
+	uint64_t netns_ao_key_analt_found;
 	uint64_t netns_ao_required;
 	uint64_t netns_ao_dropped_icmp;
 	/* per-socket */
 	uint64_t ao_info_pkt_good;
 	uint64_t ao_info_pkt_bad;
-	uint64_t ao_info_pkt_key_not_found;
+	uint64_t ao_info_pkt_key_analt_found;
 	uint64_t ao_info_pkt_ao_required;
 	uint64_t ao_info_pkt_dropped_icmp;
 	/* per-key */
@@ -468,20 +468,20 @@ extern int test_get_tcp_ao_counters(int sk, struct tcp_ao_counters *out);
 #define TEST_CNT_KEY_BAD		BIT(1)
 #define TEST_CNT_SOCK_GOOD		BIT(2)
 #define TEST_CNT_SOCK_BAD		BIT(3)
-#define TEST_CNT_SOCK_KEY_NOT_FOUND	BIT(4)
+#define TEST_CNT_SOCK_KEY_ANALT_FOUND	BIT(4)
 #define TEST_CNT_SOCK_AO_REQUIRED	BIT(5)
 #define TEST_CNT_SOCK_DROPPED_ICMP	BIT(6)
 #define TEST_CNT_NS_GOOD		BIT(7)
 #define TEST_CNT_NS_BAD			BIT(8)
-#define TEST_CNT_NS_KEY_NOT_FOUND	BIT(9)
+#define TEST_CNT_NS_KEY_ANALT_FOUND	BIT(9)
 #define TEST_CNT_NS_AO_REQUIRED		BIT(10)
 #define TEST_CNT_NS_DROPPED_ICMP	BIT(11)
 typedef uint16_t test_cnt;
 
 #define TEST_CNT_AO_GOOD		(TEST_CNT_SOCK_GOOD | TEST_CNT_NS_GOOD)
 #define TEST_CNT_AO_BAD			(TEST_CNT_SOCK_BAD | TEST_CNT_NS_BAD)
-#define TEST_CNT_AO_KEY_NOT_FOUND	(TEST_CNT_SOCK_KEY_NOT_FOUND | \
-					 TEST_CNT_NS_KEY_NOT_FOUND)
+#define TEST_CNT_AO_KEY_ANALT_FOUND	(TEST_CNT_SOCK_KEY_ANALT_FOUND | \
+					 TEST_CNT_NS_KEY_ANALT_FOUND)
 #define TEST_CNT_AO_REQUIRED		(TEST_CNT_SOCK_AO_REQUIRED | \
 					 TEST_CNT_NS_AO_REQUIRED)
 #define TEST_CNT_AO_DROPPED_ICMP	(TEST_CNT_SOCK_DROPPED_ICMP | \
@@ -525,14 +525,14 @@ extern struct netstat *netstat_read(void);
 extern void netstat_free(struct netstat *ns);
 extern void netstat_print_diff(struct netstat *nsa, struct netstat *nsb);
 extern uint64_t netstat_get(struct netstat *ns,
-			    const char *name, bool *not_found);
+			    const char *name, bool *analt_found);
 
-static inline uint64_t netstat_get_one(const char *name, bool *not_found)
+static inline uint64_t netstat_get_one(const char *name, bool *analt_found)
 {
 	struct netstat *ns = netstat_read();
 	uint64_t ret;
 
-	ret = netstat_get(ns, name, not_found);
+	ret = netstat_get(ns, name, analt_found);
 
 	netstat_free(ns);
 	return ret;
@@ -547,8 +547,8 @@ struct tcp_sock_state {
 	struct tcp_info info;
 	struct tcp_repair_window trw;
 	struct tcp_sock_queue out;
-	int outq_len;		/* output queue size (not sent + not acked) */
-	int outq_nsd_len;	/* output queue size (not sent only) */
+	int outq_len;		/* output queue size (analt sent + analt acked) */
+	int outq_nsd_len;	/* output queue size (analt sent only) */
 	struct tcp_sock_queue in;
 	int inq_len;
 	int mss;
@@ -597,7 +597,7 @@ static inline int test_add_repaired_key(int sk,
 	tmp.set_current = 1;
 	tmp.set_rnext = 1;
 	if (setsockopt(sk, IPPROTO_TCP, TCP_AO_ADD_KEY, &tmp, sizeof(tmp)) < 0)
-		return -errno;
+		return -erranal;
 
 	return test_verify_socket_key(sk, &tmp);
 }

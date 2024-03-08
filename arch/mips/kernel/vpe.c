@@ -3,11 +3,11 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2004, 2005 MIPS Technologies, Inc.  All rights reserved.
- * Copyright (C) 2013 Imagination Technologies Ltd.
+ * Copyright (C) 2004, 2005 MIPS Techanallogies, Inc.  All rights reserved.
+ * Copyright (C) 2013 Imagination Techanallogies Ltd.
  *
  * VPE support module for loading a MIPS SP program into VPE1. The SP
- * environment is rather simple since there are no TLBs. It needs
+ * environment is rather simple since there are anal TLBs. It needs
  * to be relocatable (or partially linked). Initialize your stack in
  * the startup-code. The loader looks for the symbol __start and sets
  * up the execution to resume from there. To load and run, simply do
@@ -49,8 +49,8 @@ struct vpe_control vpecontrol = {
 	.tc_list	= LIST_HEAD_INIT(vpecontrol.tc_list)
 };
 
-/* get the vpe associated with this minor */
-struct vpe *get_vpe(int minor)
+/* get the vpe associated with this mianalr */
+struct vpe *get_vpe(int mianalr)
 {
 	struct vpe *res, *v;
 
@@ -60,7 +60,7 @@ struct vpe *get_vpe(int minor)
 	res = NULL;
 	spin_lock(&vpecontrol.vpe_list_lock);
 	list_for_each_entry(v, &vpecontrol.vpe_list, list) {
-		if (v->minor == VPE_MODULE_MINOR) {
+		if (v->mianalr == VPE_MODULE_MIANALR) {
 			res = v;
 			break;
 		}
@@ -70,7 +70,7 @@ struct vpe *get_vpe(int minor)
 	return res;
 }
 
-/* get the vpe associated with this minor */
+/* get the vpe associated with this mianalr */
 struct tc *get_tc(int index)
 {
 	struct tc *res, *t;
@@ -88,8 +88,8 @@ struct tc *get_tc(int index)
 	return res;
 }
 
-/* allocate a vpe and associate it with this minor (or index) */
-struct vpe *alloc_vpe(int minor)
+/* allocate a vpe and associate it with this mianalr (or index) */
+struct vpe *alloc_vpe(int mianalr)
 {
 	struct vpe *v;
 
@@ -102,8 +102,8 @@ struct vpe *alloc_vpe(int minor)
 	list_add_tail(&v->list, &vpecontrol.vpe_list);
 	spin_unlock(&vpecontrol.vpe_list_lock);
 
-	INIT_LIST_HEAD(&v->notify);
-	v->minor = VPE_MODULE_MINOR;
+	INIT_LIST_HEAD(&v->analtify);
+	v->mianalr = VPE_MODULE_MIANALR;
 
 out:
 	return v;
@@ -151,7 +151,7 @@ void *alloc_progmem(unsigned long len)
 	addr = pfn_to_kaddr(max_low_pfn);
 	memset(addr, 0, len);
 #else
-	/* simple grab some mem for now */
+	/* simple grab some mem for analw */
 	addr = kzalloc(len, GFP_KERNEL);
 #endif
 
@@ -175,7 +175,7 @@ static long get_offset(unsigned long *size, Elf_Shdr *sechdr)
 	return ret;
 }
 
-/* Lay out the SHF_ALLOC sections in a way not dissimilar to how ld
+/* Lay out the SHF_ALLOC sections in a way analt dissimilar to how ld
    might -- code, read-only data, read-write data, small data.	Tally
    sizes, and place the offsets into sh_entsize fields: high bit means it
    belongs in init. */
@@ -183,7 +183,7 @@ static void layout_sections(struct module *mod, const Elf_Ehdr *hdr,
 			    Elf_Shdr *sechdrs, const char *secstrings)
 {
 	static unsigned long const masks[][2] = {
-		/* NOTE: all executable code must be the first section
+		/* ANALTE: all executable code must be the first section
 		 * in this array; otherwise modify the text_size
 		 * finder in the two loops below */
 		{SHF_EXECINSTR | SHF_ALLOC, ARCH_SHF_SMALL},
@@ -224,7 +224,7 @@ struct mips_hi16 {
 static struct mips_hi16 *mips_hi16_list;
 static unsigned int gp_offs, gp_addr;
 
-static int apply_r_mips_none(struct module *me, uint32_t *location,
+static int apply_r_mips_analne(struct module *me, uint32_t *location,
 			     Elf32_Addr v)
 {
 	return 0;
@@ -247,7 +247,7 @@ static int apply_r_mips_gprel16(struct module *me, uint32_t *location,
 	if ((rel > 32768) || (rel < -32768)) {
 		pr_debug("VPE loader: apply_r_mips_gprel16: relative address 0x%x out of range of gp register\n",
 			 rel);
-		return -ENOEXEC;
+		return -EANALEXEC;
 	}
 
 	*location = (*location & 0xffff0000) | (rel & 0xffff);
@@ -260,13 +260,13 @@ static int apply_r_mips_pc16(struct module *me, uint32_t *location,
 {
 	int rel;
 	rel = (((unsigned int)v - (unsigned int)location));
-	rel >>= 2; /* because the offset is in _instructions_ not bytes. */
+	rel >>= 2; /* because the offset is in _instructions_ analt bytes. */
 	rel -= 1;  /* and one instruction less due to the branch delay slot. */
 
 	if ((rel > 32768) || (rel < -32768)) {
 		pr_debug("VPE loader: apply_r_mips_pc16: relative address out of range 0x%x\n",
 			 rel);
-		return -ENOEXEC;
+		return -EANALEXEC;
 	}
 
 	*location = (*location & 0xffff0000) | (rel & 0xffff);
@@ -287,18 +287,18 @@ static int apply_r_mips_26(struct module *me, uint32_t *location,
 {
 	if (v % 4) {
 		pr_debug("VPE loader: apply_r_mips_26: unaligned relocation\n");
-		return -ENOEXEC;
+		return -EANALEXEC;
 	}
 
 /*
- * Not desperately convinced this is a good check of an overflow condition
+ * Analt desperately convinced this is a good check of an overflow condition
  * anyway. But it gets in the way of handling undefined weak symbols which
  * we want to set to zero.
  * if ((v & 0xf0000000) != (((unsigned long)location + 4) & 0xf0000000)) {
  * printk(KERN_ERR
  * "module %s: relocation overflow\n",
  * me->name);
- * return -ENOEXEC;
+ * return -EANALEXEC;
  * }
  */
 
@@ -313,13 +313,13 @@ static int apply_r_mips_hi16(struct module *me, uint32_t *location,
 	struct mips_hi16 *n;
 
 	/*
-	 * We cannot relocate this one now because we don't know the value of
+	 * We cananalt relocate this one analw because we don't kanalw the value of
 	 * the carry we need to add.  Save the information, and let LO16 do the
 	 * actual relocation.
 	 */
 	n = kmalloc(sizeof(*n), GFP_KERNEL);
 	if (!n)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	n->addr = location;
 	n->value = v;
@@ -354,8 +354,8 @@ static int apply_r_mips_lo16(struct module *me, uint32_t *location,
 			}
 
 			/*
-			 * Do the HI16 relocation.  Note that we actually don't
-			 * need to know anything about the LO16 itself, except
+			 * Do the HI16 relocation.  Analte that we actually don't
+			 * need to kanalw anything about the LO16 itself, except
 			 * where to find the low 16 bits of the addend needed
 			 * by the LO16.
 			 */
@@ -381,7 +381,7 @@ static int apply_r_mips_lo16(struct module *me, uint32_t *location,
 	}
 
 	/*
-	 * Ok, we're done with the HI16 relocs.	 Now deal with the LO16.
+	 * Ok, we're done with the HI16 relocs.	 Analw deal with the LO16.
 	 */
 	val = v + vallo;
 	insnlo = (insnlo & ~0xffff) | (val & 0xffff);
@@ -397,12 +397,12 @@ out_free:
 	}
 	mips_hi16_list = NULL;
 
-	return -ENOEXEC;
+	return -EANALEXEC;
 }
 
 static int (*reloc_handlers[]) (struct module *me, uint32_t *location,
 				Elf32_Addr v) = {
-	[R_MIPS_NONE]	= apply_r_mips_none,
+	[R_MIPS_ANALNE]	= apply_r_mips_analne,
 	[R_MIPS_32]	= apply_r_mips_32,
 	[R_MIPS_26]	= apply_r_mips_26,
 	[R_MIPS_HI16]	= apply_r_mips_hi16,
@@ -412,7 +412,7 @@ static int (*reloc_handlers[]) (struct module *me, uint32_t *location,
 };
 
 static char *rstrs[] = {
-	[R_MIPS_NONE]	= "MIPS_NONE",
+	[R_MIPS_ANALNE]	= "MIPS_ANALNE",
 	[R_MIPS_32]	= "MIPS_32",
 	[R_MIPS_26]	= "MIPS_26",
 	[R_MIPS_HI16]	= "MIPS_HI16",
@@ -456,7 +456,7 @@ static int apply_relocations(Elf32_Shdr *sechdrs,
 		if (res) {
 			char *r = rstrs[ELF32_R_TYPE(r_info)];
 			pr_warn("VPE loader: .text+0x%x relocation type %s for symbol \"%s\" failed\n",
-				rel[i].r_offset, r ? r : "UNKNOWN",
+				rel[i].r_offset, r ? r : "UNKANALWN",
 				strtab + sym->st_name);
 			return res;
 		}
@@ -510,11 +510,11 @@ static void simplify_symbols(Elf_Shdr *sechdrs,
 			break;
 
 		case SHN_UNDEF:
-			/* ret = -ENOENT; */
+			/* ret = -EANALENT; */
 			break;
 
 		case SHN_MIPS_SCOMMON:
-			pr_debug("simplify_symbols: ignoring SHN_MIPS_SCOMMON symbol <%s> st_shndx %d\n",
+			pr_debug("simplify_symbols: iganalring SHN_MIPS_SCOMMON symbol <%s> st_shndx %d\n",
 				 strtab + sym[i].st_name, sym[i].st_shndx);
 			/* .sbss section */
 			break;
@@ -595,7 +595,7 @@ static int vpe_elfload(struct vpe *v)
 	    || hdr->e_shentsize != sizeof(*sechdrs)) {
 		pr_warn("VPE loader: program wrong arch or weird elf version\n");
 
-		return -ENOEXEC;
+		return -EANALEXEC;
 	}
 
 	if (hdr->e_type == ET_REL)
@@ -604,7 +604,7 @@ static int vpe_elfload(struct vpe *v)
 	if (len < hdr->e_shoff + hdr->e_shnum * sizeof(Elf_Shdr)) {
 		pr_err("VPE loader: program length %u truncated\n", len);
 
-		return -ENOEXEC;
+		return -EANALEXEC;
 	}
 
 	/* Convenience variables */
@@ -617,11 +617,11 @@ static int vpe_elfload(struct vpe *v)
 
 	if (relocate) {
 		for (i = 1; i < hdr->e_shnum; i++) {
-			if ((sechdrs[i].sh_type != SHT_NOBITS) &&
+			if ((sechdrs[i].sh_type != SHT_ANALBITS) &&
 			    (len < sechdrs[i].sh_offset + sechdrs[i].sh_size)) {
 				pr_err("VPE program length %u truncated\n",
 				       len);
-				return -ENOEXEC;
+				return -EANALEXEC;
 			}
 
 			/* Mark all sections sh_addr with their address in the
@@ -642,7 +642,7 @@ static int vpe_elfload(struct vpe *v)
 
 	v->load_addr = alloc_progmem(mod.mem[MOD_TEXT].size);
 	if (!v->load_addr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pr_info("VPE loader: loading to %p\n", v->load_addr);
 
@@ -655,7 +655,7 @@ static int vpe_elfload(struct vpe *v)
 
 			dest = v->load_addr + sechdrs[i].sh_entsize;
 
-			if (sechdrs[i].sh_type != SHT_NOBITS)
+			if (sechdrs[i].sh_type != SHT_ANALBITS)
 				memcpy(dest, (void *)sechdrs[i].sh_addr,
 				       sechdrs[i].sh_size);
 			/* Update sh_addr to point to copy in image. */
@@ -670,16 +670,16 @@ static int vpe_elfload(struct vpe *v)
 		simplify_symbols(sechdrs, symindex, strtab, secstrings,
 				 hdr->e_shnum, &mod);
 
-		/* Now do relocations. */
+		/* Analw do relocations. */
 		for (i = 1; i < hdr->e_shnum; i++) {
 			const char *strtab = (char *)sechdrs[strindex].sh_addr;
 			unsigned int info = sechdrs[i].sh_info;
 
-			/* Not a valid relocation section? */
+			/* Analt a valid relocation section? */
 			if (info >= hdr->e_shnum)
 				continue;
 
-			/* Don't bother with non-allocated sections */
+			/* Don't bother with analn-allocated sections */
 			if (!(sechdrs[info].sh_flags & SHF_ALLOC))
 				continue;
 
@@ -732,12 +732,12 @@ static int vpe_elfload(struct vpe *v)
 
 	if ((find_vpe_symbols(v, sechdrs, symindex, strtab, &mod)) < 0) {
 		if (v->__start == 0) {
-			pr_warn("VPE loader: program does not contain a __start symbol\n");
-			return -ENOEXEC;
+			pr_warn("VPE loader: program does analt contain a __start symbol\n");
+			return -EANALEXEC;
 		}
 
 		if (v->shared_ptr == NULL)
-			pr_warn("VPE loader: program does not contain vpe_shared symbol.\n"
+			pr_warn("VPE loader: program does analt contain vpe_shared symbol.\n"
 				" Unable to use AMVP (AP/SP) facilities.\n");
 	}
 
@@ -746,32 +746,32 @@ static int vpe_elfload(struct vpe *v)
 }
 
 /* checks VPE is unused and gets ready to load program	*/
-static int vpe_open(struct inode *inode, struct file *filp)
+static int vpe_open(struct ianalde *ianalde, struct file *filp)
 {
 	enum vpe_state state;
-	struct vpe_notifications *notifier;
+	struct vpe_analtifications *analtifier;
 	struct vpe *v;
 
-	if (VPE_MODULE_MINOR != iminor(inode)) {
+	if (VPE_MODULE_MIANALR != imianalr(ianalde)) {
 		/* assume only 1 device at the moment. */
 		pr_warn("VPE loader: only vpe1 is supported\n");
 
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	v = get_vpe(aprp_cpu_index());
 	if (v == NULL) {
 		pr_warn("VPE loader: unable to get vpe\n");
 
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	state = xchg(&v->state, VPE_STATE_INUSE);
 	if (state != VPE_STATE_UNUSED) {
 		pr_debug("VPE loader: tc in use dumping regs\n");
 
-		list_for_each_entry(notifier, &v->notify, list)
-			notifier->stop(aprp_cpu_index());
+		list_for_each_entry(analtifier, &v->analtify, list)
+			analtifier->stop(aprp_cpu_index());
 
 		release_progmem(v->load_addr);
 		cleanup_tc(get_tc(aprp_cpu_index()));
@@ -781,7 +781,7 @@ static int vpe_open(struct inode *inode, struct file *filp)
 	v->pbuffer = vmalloc(P_SIZE);
 	if (!v->pbuffer) {
 		pr_warn("VPE loader: unable to allocate memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	v->plen = P_SIZE;
 	v->load_addr = NULL;
@@ -792,7 +792,7 @@ static int vpe_open(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static int vpe_release(struct inode *inode, struct file *filp)
+static int vpe_release(struct ianalde *ianalde, struct file *filp)
 {
 #ifdef CONFIG_MIPS_VPE_LOADER_MT
 	struct vpe *v;
@@ -801,7 +801,7 @@ static int vpe_release(struct inode *inode, struct file *filp)
 
 	v = get_vpe(aprp_cpu_index());
 	if (v == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	hdr = (Elf_Ehdr *) v->pbuffer;
 	if (memcmp(hdr->e_ident, ELFMAG, SELFMAG) == 0) {
@@ -809,11 +809,11 @@ static int vpe_release(struct inode *inode, struct file *filp)
 			vpe_run(v);
 		} else {
 			pr_warn("VPE loader: ELF load failed.\n");
-			ret = -ENOEXEC;
+			ret = -EANALEXEC;
 		}
 	} else {
 		pr_warn("VPE loader: only elf files are supported\n");
-		ret = -ENOEXEC;
+		ret = -EANALEXEC;
 	}
 
 	/* It's good to be able to run the SP and if it chokes have a look at
@@ -830,7 +830,7 @@ static int vpe_release(struct inode *inode, struct file *filp)
 	return ret;
 #else
 	pr_warn("VPE loader: ELF load failed.\n");
-	return -ENOEXEC;
+	return -EANALEXEC;
 #endif
 }
 
@@ -840,17 +840,17 @@ static ssize_t vpe_write(struct file *file, const char __user *buffer,
 	size_t ret = count;
 	struct vpe *v;
 
-	if (iminor(file_inode(file)) != VPE_MODULE_MINOR)
-		return -ENODEV;
+	if (imianalr(file_ianalde(file)) != VPE_MODULE_MIANALR)
+		return -EANALDEV;
 
 	v = get_vpe(aprp_cpu_index());
 
 	if (v == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if ((count + v->len) > v->plen) {
 		pr_warn("VPE loader: elf size too big. Perhaps strip unneeded symbols\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	count -= copy_from_user(v->pbuffer + v->len, buffer, count);
@@ -866,7 +866,7 @@ const struct file_operations vpe_fops = {
 	.open = vpe_open,
 	.release = vpe_release,
 	.write = vpe_write,
-	.llseek = noop_llseek,
+	.llseek = analop_llseek,
 };
 
 void *vpe_get_shared(int index)
@@ -880,20 +880,20 @@ void *vpe_get_shared(int index)
 }
 EXPORT_SYMBOL(vpe_get_shared);
 
-int vpe_notify(int index, struct vpe_notifications *notify)
+int vpe_analtify(int index, struct vpe_analtifications *analtify)
 {
 	struct vpe *v = get_vpe(index);
 
 	if (v == NULL)
 		return -1;
 
-	list_add(&notify->list, &v->notify);
+	list_add(&analtify->list, &v->analtify);
 	return 0;
 }
-EXPORT_SYMBOL(vpe_notify);
+EXPORT_SYMBOL(vpe_analtify);
 
 module_init(vpe_module_init);
 module_exit(vpe_module_exit);
 MODULE_DESCRIPTION("MIPS VPE Loader");
-MODULE_AUTHOR("Elizabeth Oldham, MIPS Technologies, Inc.");
+MODULE_AUTHOR("Elizabeth Oldham, MIPS Techanallogies, Inc.");
 MODULE_LICENSE("GPL");

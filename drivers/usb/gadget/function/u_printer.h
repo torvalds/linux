@@ -17,7 +17,7 @@
 
 struct f_printer_opts {
 	struct usb_function_instance	func_inst;
-	int				minor;
+	int				mianalr;
 	char				*pnp_string;
 	bool				pnp_string_allocated;
 	unsigned			q_len;

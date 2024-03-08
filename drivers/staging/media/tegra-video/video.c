@@ -17,7 +17,7 @@ static void tegra_v4l2_dev_release(struct v4l2_device *v4l2_dev)
 
 	vid = container_of(v4l2_dev, struct tegra_video_device, v4l2_dev);
 
-	/* cleanup channels here as all video device nodes are released */
+	/* cleanup channels here as all video device analdes are released */
 	tegra_channels_cleanup(vid->vi);
 
 	v4l2_device_unregister(v4l2_dev);
@@ -26,13 +26,13 @@ static void tegra_v4l2_dev_release(struct v4l2_device *v4l2_dev)
 	kfree(vid);
 }
 
-static void tegra_v4l2_dev_notify(struct v4l2_subdev *sd,
-				  unsigned int notification, void *arg)
+static void tegra_v4l2_dev_analtify(struct v4l2_subdev *sd,
+				  unsigned int analtification, void *arg)
 {
 	struct tegra_vi_channel *chan;
 	const struct v4l2_event *ev = arg;
 
-	if (notification != V4L2_DEVICE_NOTIFY_EVENT)
+	if (analtification != V4L2_DEVICE_ANALTIFY_EVENT)
 		return;
 
 	chan = v4l2_get_subdev_hostdata(sd);
@@ -48,7 +48,7 @@ static int host1x_video_probe(struct host1x_device *dev)
 
 	vid = kzalloc(sizeof(*vid), GFP_KERNEL);
 	if (!vid)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(&dev->dev, vid);
 
@@ -66,7 +66,7 @@ static int host1x_video_probe(struct host1x_device *dev)
 
 	vid->v4l2_dev.mdev = &vid->media_dev;
 	vid->v4l2_dev.release = tegra_v4l2_dev_release;
-	vid->v4l2_dev.notify = tegra_v4l2_dev_notify;
+	vid->v4l2_dev.analtify = tegra_v4l2_dev_analtify;
 	ret = v4l2_device_register(&dev->dev, &vid->v4l2_dev);
 	if (ret < 0) {
 		dev_err(&dev->dev,
@@ -80,10 +80,10 @@ static int host1x_video_probe(struct host1x_device *dev)
 
 	if (IS_ENABLED(CONFIG_VIDEO_TEGRA_TPG)) {
 		/*
-		 * Both vi and csi channels are available now.
-		 * Register v4l2 nodes and create media links for TPG.
+		 * Both vi and csi channels are available analw.
+		 * Register v4l2 analdes and create media links for TPG.
 		 */
-		ret = tegra_v4l2_nodes_setup_tpg(vid);
+		ret = tegra_v4l2_analdes_setup_tpg(vid);
 		if (ret < 0) {
 			dev_err(&dev->dev,
 				"failed to setup tpg graph: %d\n", ret);
@@ -95,7 +95,7 @@ static int host1x_video_probe(struct host1x_device *dev)
 
 device_exit:
 	host1x_device_exit(dev);
-	/* vi exit ops does not clean channels, so clean them here */
+	/* vi exit ops does analt clean channels, so clean them here */
 	tegra_channels_cleanup(vid->vi);
 unregister_v4l2:
 	v4l2_device_unregister(&vid->v4l2_dev);
@@ -112,7 +112,7 @@ static int host1x_video_remove(struct host1x_device *dev)
 	struct tegra_video_device *vid = dev_get_drvdata(&dev->dev);
 
 	if (IS_ENABLED(CONFIG_VIDEO_TEGRA_TPG))
-		tegra_v4l2_nodes_cleanup_tpg(vid);
+		tegra_v4l2_analdes_cleanup_tpg(vid);
 
 	host1x_device_exit(dev);
 

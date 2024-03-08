@@ -111,7 +111,7 @@ static int bpf_tcp_ca_btf_struct_access(struct bpf_verifier_log *log,
 		end = offsetofend(struct tcp_sock, app_limited);
 		break;
 	default:
-		bpf_log(log, "no write support to tcp_sock at off %d\n", off);
+		bpf_log(log, "anal write support to tcp_sock at off %d\n", off);
 		return -EACCES;
 	}
 
@@ -127,7 +127,7 @@ static int bpf_tcp_ca_btf_struct_access(struct bpf_verifier_log *log,
 
 BPF_CALL_2(bpf_tcp_send_ack, struct tcp_sock *, tp, u32, rcv_nxt)
 {
-	/* bpf_tcp_ca prog cannot have NULL tp */
+	/* bpf_tcp_ca prog cananalt have NULL tp */
 	__tcp_send_ack((struct sock *)tp, rcv_nxt);
 	return 0;
 }
@@ -167,9 +167,9 @@ bpf_tcp_ca_get_func_proto(enum bpf_func_id func_id,
 	case BPF_FUNC_sk_storage_delete:
 		return &bpf_sk_storage_delete_proto;
 	case BPF_FUNC_setsockopt:
-		/* Does not allow release() to call setsockopt.
+		/* Does analt allow release() to call setsockopt.
 		 * release() is called when the current bpf-tcp-cc
-		 * is retiring.  It is not allowed to call
+		 * is retiring.  It is analt allowed to call
 		 * setsockopt() to make further changes which
 		 * may potentially allocate new resources.
 		 */
@@ -196,9 +196,9 @@ bpf_tcp_ca_get_func_proto(enum bpf_func_id func_id,
 }
 
 BTF_SET8_START(bpf_tcp_ca_check_kfunc_ids)
-BTF_ID_FLAGS(func, tcp_reno_ssthresh)
-BTF_ID_FLAGS(func, tcp_reno_cong_avoid)
-BTF_ID_FLAGS(func, tcp_reno_undo_cwnd)
+BTF_ID_FLAGS(func, tcp_reanal_ssthresh)
+BTF_ID_FLAGS(func, tcp_reanal_cong_avoid)
+BTF_ID_FLAGS(func, tcp_reanal_undo_cwnd)
 BTF_ID_FLAGS(func, tcp_slow_start)
 BTF_ID_FLAGS(func, tcp_cong_avoid_ai)
 BTF_SET8_END(bpf_tcp_ca_check_kfunc_ids)
@@ -247,7 +247,7 @@ static int bpf_tcp_ca_check_member(const struct btf_type *t,
 				   const struct bpf_prog *prog)
 {
 	if (is_unsupported(__btf_member_bit_offset(t, member) / 8))
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	return 0;
 }
 

@@ -67,7 +67,7 @@ static int __init setup_bcm1250(void)
 			pass_str = "A0-A6";
 			war_pass = K_SYS_REVISION_BCM1250_PASS2;
 		} else {
-			printk("Unknown BCM1250 rev %x\n", soc_pass);
+			printk("Unkanalwn BCM1250 rev %x\n", soc_pass);
 			ret = 1;
 		}
 		break;
@@ -123,7 +123,7 @@ static int __init setup_bcm112x(void)
 		pass_str = "B0";
 		break;
 	default:
-		printk("Unknown %s rev %x\n", soc_str, soc_pass);
+		printk("Unkanalwn %s rev %x\n", soc_str, soc_pass);
 		ret = 1;
 	}
 
@@ -157,7 +157,7 @@ static int __init sys_rev_decode(void)
 		ret = setup_bcm112x();
 		break;
 	default:
-		printk("Unknown SOC type %x\n", soc_type);
+		printk("Unkanalwn SOC type %x\n", soc_type);
 		ret = 1;
 		break;
 	}
@@ -196,7 +196,7 @@ void __init sb1250_setup(void)
 		bad_config = 1;
 		break;
 	case K_SYS_REVISION_BCM1250_PASS2:
-		/* Pass 2 - easiest as default for now - so many numbers */
+		/* Pass 2 - easiest as default for analw - so many numbers */
 #if !defined(CONFIG_SB1_PASS_2_WORKAROUNDS) || \
     !defined(CONFIG_SB1_PASS_2_1_WORKAROUNDS)
 		printk("@@@@ This is a BCM1250 A3-A10 board, and the "

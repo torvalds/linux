@@ -4,7 +4,7 @@
  * Copyright 2020 NXP
  */
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fsl/mc.h>
 #include "dpni.h"
 #include "dpni-cmd.h"
@@ -126,7 +126,7 @@ int dpni_open(struct fsl_mc_io *mc_io,
  * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
  * @token:	Token of DPNI object
  *
- * After this function is called, no further operations are
+ * After this function is called, anal further operations are
  * allowed on the object without opening a new control session.
  *
  * Return:	'0' on Success; Error code otherwise.
@@ -303,7 +303,7 @@ int dpni_reset(struct fsl_mc_io *mc_io,
  *
  * Allows GPP software to control when interrupts are generated.
  * Each interrupt can have up to 32 causes.  The enable/disable control's the
- * overall interrupt state. if the interrupt is disabled no causes will cause
+ * overall interrupt state. if the interrupt is disabled anal causes will cause
  * an interrupt.
  *
  * Return:	'0' on Success; Error code otherwise.
@@ -378,7 +378,7 @@ int dpni_get_irq_enable(struct fsl_mc_io *mc_io,
  * @irq_index:	The interrupt index to configure
  * @mask:	event mask to trigger interrupt;
  *			each bit:
- *				0 = ignore event
+ *				0 = iganalre event
  *				1 = consider event for asserting IRQ
  *
  * Every interrupt can have up to 32 causes and the interrupt model supports
@@ -457,7 +457,7 @@ int dpni_get_irq_mask(struct fsl_mc_io *mc_io,
  * @token:	Token of DPNI object
  * @irq_index:	The interrupt index to configure
  * @status:	Returned interrupts status - one bit per cause:
- *			0 = no interrupt pending
+ *			0 = anal interrupt pending
  *			1 = interrupt pending
  *
  * Return:	'0' on Success; Error code otherwise.
@@ -598,7 +598,7 @@ int dpni_set_errors_behavior(struct fsl_mc_io *mc_io,
 	cmd_params = (struct dpni_cmd_set_errors_behavior *)cmd.params;
 	cmd_params->errors = cpu_to_le32(cfg->errors);
 	dpni_set_field(cmd_params->flags, ERROR_ACTION, cfg->error_action);
-	dpni_set_field(cmd_params->flags, FRAME_ANN, cfg->set_frame_annotation);
+	dpni_set_field(cmd_params->flags, FRAME_ANN, cfg->set_frame_ananaltation);
 
 	/* send command to mc*/
 	return mc_send_command(mc_io, &cmd);
@@ -697,7 +697,7 @@ int dpni_set_buffer_layout(struct fsl_mc_io *mc_io,
  * @token:	Token of DPNI object
  * @type:	Type of DPNI offload
  * @config:	Offload configuration.
- *		For checksum offloads, non-zero value enables the offload
+ *		For checksum offloads, analn-zero value enables the offload
  *
  * Return:     '0' on Success; Error code otherwise.
  *
@@ -1199,7 +1199,7 @@ int dpni_get_primary_mac_addr(struct fsl_mc_io *mc_io,
  * @token:	Token of DPNI object
  * @mac_addr:	MAC address of the physical port, if any, otherwise 0
  *
- * The primary MAC address is not cleared by this operation.
+ * The primary MAC address is analt cleared by this operation.
  *
  * Return:	'0' on Success; Error code otherwise.
  */
@@ -1264,7 +1264,7 @@ int dpni_enable_vlan_filter(struct fsl_mc_io *mc_io,
  * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
  * @token:	Token of DPNI object
  * @vlan_id:	VLAN ID to add
- * @flags:   0 - tc_id and flow_id will be ignored.
+ * @flags:   0 - tc_id and flow_id will be iganalred.
  * Pkt with this vlan_id will be passed to the next
  * classification stages
  * DPNI_VLAN_SET_QUEUE_ACTION
@@ -1391,7 +1391,7 @@ int dpni_remove_mac_addr(struct fsl_mc_io *mc_io,
  * @unicast:	Set to '1' to clear unicast addresses
  * @multicast:	Set to '1' to clear multicast addresses
  *
- * The primary MAC address is not cleared by this operation.
+ * The primary MAC address is analt cleared by this operation.
  *
  * Return:	'0' on Success; Error code otherwise.
  */
@@ -1424,7 +1424,7 @@ int dpni_clear_mac_filters(struct fsl_mc_io *mc_io,
  * @tc_id:	Traffic class selection (0-7)
  * @cfg:	Traffic class distribution configuration
  *
- * warning: if 'dist_mode != DPNI_DIST_MODE_NONE', call dpni_prepare_key_cfg()
+ * warning: if 'dist_mode != DPNI_DIST_MODE_ANALNE', call dpni_prepare_key_cfg()
  *			first to prepare the key_cfg_iova parameter
  *
  * Return:	'0' on Success; error code otherwise.
@@ -1455,38 +1455,38 @@ int dpni_set_rx_tc_dist(struct fsl_mc_io *mc_io,
 }
 
 /**
- * dpni_set_congestion_notification() - Set traffic class congestion
- *					notification configuration
+ * dpni_set_congestion_analtification() - Set traffic class congestion
+ *					analtification configuration
  * @mc_io:	Pointer to MC portal's I/O object
  * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
  * @token:	Token of DPNI object
  * @qtype:	Type of queue - Rx, Tx and Tx confirm types are supported
  * @tc_id:	Traffic class selection (0-7)
- * @cfg:	Congestion notification configuration
+ * @cfg:	Congestion analtification configuration
  *
  * Return:	'0' on Success; error code otherwise.
  */
-int dpni_set_congestion_notification(
+int dpni_set_congestion_analtification(
 			struct fsl_mc_io *mc_io,
 			u32 cmd_flags,
 			u16 token,
 			enum dpni_queue_type qtype,
 			u8 tc_id,
-			const struct dpni_congestion_notification_cfg *cfg)
+			const struct dpni_congestion_analtification_cfg *cfg)
 {
-	struct dpni_cmd_set_congestion_notification *cmd_params;
+	struct dpni_cmd_set_congestion_analtification *cmd_params;
 	struct fsl_mc_command cmd = { 0 };
 
 	/* prepare command */
 	cmd.header =
-		mc_encode_cmd_header(DPNI_CMDID_SET_CONGESTION_NOTIFICATION,
+		mc_encode_cmd_header(DPNI_CMDID_SET_CONGESTION_ANALTIFICATION,
 				     cmd_flags,
 				     token);
-	cmd_params = (struct dpni_cmd_set_congestion_notification *)cmd.params;
+	cmd_params = (struct dpni_cmd_set_congestion_analtification *)cmd.params;
 	cmd_params->qtype = qtype;
 	cmd_params->tc = tc_id;
 	cmd_params->dest_id = cpu_to_le32(cfg->dest_cfg.dest_id);
-	cmd_params->notification_mode = cpu_to_le16(cfg->notification_mode);
+	cmd_params->analtification_mode = cpu_to_le16(cfg->analtification_mode);
 	cmd_params->dest_priority = cfg->dest_cfg.priority;
 	dpni_set_field(cmd_params->type_units, DEST_TYPE,
 		       cfg->dest_cfg.dest_type);
@@ -1506,7 +1506,7 @@ int dpni_set_congestion_notification(
  * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
  * @token:	Token of DPNI object
  * @qtype:	Type of queue - all queue types are supported, although
- *		the command is ignored for Tx
+ *		the command is iganalred for Tx
  * @tc:		Traffic class, in range 0 to NUM_TCS - 1
  * @index:	Selects the specific queue out of the set allocated for the
  *		same TC. Value must be in range 0 to NUM_QUEUES - 1
@@ -1659,10 +1659,10 @@ int dpni_get_statistics(struct fsl_mc_io *mc_io,
  * @token:	Token of DPNI object
  * @cg_point:	Congestion point
  * @qtype:	Queue type on which the taildrop is configured.
- *		Only Rx queues are supported for now
+ *		Only Rx queues are supported for analw
  * @tc:		Traffic class to apply this taildrop to
  * @index:	Index of the queue if the DPNI supports multiple queues for
- *		traffic distribution. Ignored if CONGESTION_POINT is not 0.
+ *		traffic distribution. Iganalred if CONGESTION_POINT is analt 0.
  * @taildrop:	Taildrop structure
  *
  * Return:	'0' on Success; Error code otherwise.
@@ -1703,10 +1703,10 @@ int dpni_set_taildrop(struct fsl_mc_io *mc_io,
  * @token:	Token of DPNI object
  * @cg_point:	Congestion point
  * @qtype:	Queue type on which the taildrop is configured.
- *		Only Rx queues are supported for now
+ *		Only Rx queues are supported for analw
  * @tc:		Traffic class to apply this taildrop to
  * @index:	Index of the queue if the DPNI supports multiple queues for
- *		traffic distribution. Ignored if CONGESTION_POINT is not 0.
+ *		traffic distribution. Iganalred if CONGESTION_POINT is analt 0.
  * @taildrop:	Taildrop structure
  *
  * Return:	'0' on Success; Error code otherwise.
@@ -1754,14 +1754,14 @@ int dpni_get_taildrop(struct fsl_mc_io *mc_io,
  * @mc_io:	Pointer to MC portal's I/O object
  * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
  * @major_ver:	Major version of data path network interface API
- * @minor_ver:	Minor version of data path network interface API
+ * @mianalr_ver:	Mianalr version of data path network interface API
  *
  * Return:	'0' on Success; Error code otherwise.
  */
 int dpni_get_api_version(struct fsl_mc_io *mc_io,
 			 u32 cmd_flags,
 			 u16 *major_ver,
-			 u16 *minor_ver)
+			 u16 *mianalr_ver)
 {
 	struct dpni_rsp_get_api_version *rsp_params;
 	struct fsl_mc_command cmd = { 0 };
@@ -1776,7 +1776,7 @@ int dpni_get_api_version(struct fsl_mc_io *mc_io,
 
 	rsp_params = (struct dpni_rsp_get_api_version *)cmd.params;
 	*major_ver = le16_to_cpu(rsp_params->major);
-	*minor_ver = le16_to_cpu(rsp_params->minor);
+	*mianalr_ver = le16_to_cpu(rsp_params->mianalr);
 
 	return 0;
 }
@@ -1790,7 +1790,7 @@ int dpni_get_api_version(struct fsl_mc_io *mc_io,
  *
  * If the FS is already enabled with a previous call the classification
  * key will be changed but all the table rules are kept. If the
- * existing rules do not match the key the results will not be
+ * existing rules do analt match the key the results will analt be
  * predictable. It is the user responsibility to keep key integrity.
  * If cfg.enable is set to 1 the command will create a flow steering table
  * and will classify packets according to this table. The packets that
@@ -1868,7 +1868,7 @@ int dpni_set_rx_hash_dist(struct fsl_mc_io *mc_io,
  * @tc_id:	Traffic class selection (0-7)
  * @index:	Location in the FS table where to insert the entry.
  *		Only relevant if MASKING is enabled for FS
- *		classification on this DPNI, it is ignored for exact match.
+ *		classification on this DPNI, it is iganalred for exact match.
  * @cfg:	Flow steering rule to add
  * @action:	Action to be taken as result of a classification hit
  *
@@ -1983,7 +1983,7 @@ int dpni_set_qos_table(struct fsl_mc_io *mc_io,
  * @tc_id:	Traffic class selection (0-7)
  * @index:	Location in the QoS table where to insert the entry.
  *		Only relevant if MASKING is enabled for QoS classification on
- *		this DPNI, it is ignored for exact match.
+ *		this DPNI, it is iganalred for exact match.
  *
  * Return:	'0' on Success; Error code otherwise.
  */
@@ -2156,7 +2156,7 @@ int dpni_get_single_step_cfg(struct fsl_mc_io *mc_io,
  * Return:	'0' on Success; Error code otherwise.
  *
  * The function has effect only when dpni object is connected to a dpmac
- * object. If the dpni is not connected to a dpmac the configuration will
+ * object. If the dpni is analt connected to a dpmac the configuration will
  * be stored inside and applied when connection is made.
  */
 int dpni_set_single_step_cfg(struct fsl_mc_io *mc_io,

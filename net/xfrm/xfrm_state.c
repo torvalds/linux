@@ -4,7 +4,7 @@
  *
  * Changes:
  *	Mitsuru KANDA @USAGI
- * 	Kazunori MIYAZAWA @USAGI
+ * 	Kazuanalri MIYAZAWA @USAGI
  * 	Kunihiro Ishiguro <kunihiro@ipinfusion.com>
  * 		IPv6 support
  * 	YOSHIFUJI Hideaki @USAGI
@@ -52,7 +52,7 @@ static HLIST_HEAD(xfrm_state_gc_list);
 
 static inline bool xfrm_state_hold_rcu(struct xfrm_state __rcu *x)
 {
-	return refcount_inc_not_zero(&x->refcnt);
+	return refcount_inc_analt_zero(&x->refcnt);
 }
 
 static inline unsigned int xfrm_dst_hash(struct net *net,
@@ -110,7 +110,7 @@ static void xfrm_hash_transfer(struct hlist_head *list,
 			       struct hlist_head *nseqtable,
 			       unsigned int nhashmask)
 {
-	struct hlist_node *tmp;
+	struct hlist_analde *tmp;
 	struct xfrm_state *x;
 
 	hlist_for_each_entry_safe(x, tmp, list, bydst) {
@@ -227,7 +227,7 @@ int xfrm_register_type(const struct xfrm_type *type, unsigned short family)
 	int err = 0;
 
 	if (!afinfo)
-		return -EAFNOSUPPORT;
+		return -EAFANALSUPPORT;
 
 #define X(afi, T, name) do {			\
 		WARN_ON((afi)->type_ ## name);	\
@@ -258,7 +258,7 @@ int xfrm_register_type(const struct xfrm_type *type, unsigned short family)
 		break;
 	default:
 		WARN_ON(1);
-		err = -EPROTONOSUPPORT;
+		err = -EPROTOANALSUPPORT;
 		break;
 	}
 #undef X
@@ -373,7 +373,7 @@ int xfrm_register_type_offload(const struct xfrm_type_offload *type,
 	int err = 0;
 
 	if (unlikely(afinfo == NULL))
-		return -EAFNOSUPPORT;
+		return -EAFANALSUPPORT;
 
 	switch (type->proto) {
 	case IPPROTO_ESP:
@@ -382,7 +382,7 @@ int xfrm_register_type_offload(const struct xfrm_type_offload *type,
 		break;
 	default:
 		WARN_ON(1);
-		err = -EPROTONOSUPPORT;
+		err = -EPROTOANALSUPPORT;
 		break;
 	}
 
@@ -547,7 +547,7 @@ static void ___xfrm_state_destroy(struct xfrm_state *x)
 static void xfrm_state_gc_task(struct work_struct *work)
 {
 	struct xfrm_state *x;
-	struct hlist_node *tmp;
+	struct hlist_analde *tmp;
 	struct hlist_head gc_list;
 
 	spin_lock_bh(&xfrm_state_gc_lock);
@@ -563,8 +563,8 @@ static void xfrm_state_gc_task(struct work_struct *work)
 static enum hrtimer_restart xfrm_timer_handler(struct hrtimer *me)
 {
 	struct xfrm_state *x = container_of(me, struct xfrm_state, mtimer);
-	enum hrtimer_restart ret = HRTIMER_NORESTART;
-	time64_t now = ktime_get_real_seconds();
+	enum hrtimer_restart ret = HRTIMER_ANALRESTART;
+	time64_t analw = ktime_get_real_seconds();
 	time64_t next = TIME64_MAX;
 	int warn = 0;
 	int err = 0;
@@ -578,14 +578,14 @@ static enum hrtimer_restart xfrm_timer_handler(struct hrtimer *me)
 		goto expired;
 	if (x->lft.hard_add_expires_seconds) {
 		time64_t tmo = x->lft.hard_add_expires_seconds +
-			x->curlft.add_time - now;
+			x->curlft.add_time - analw;
 		if (tmo <= 0) {
 			if (x->xflags & XFRM_SOFT_EXPIRE) {
 				/* enter hard expire without soft expire first?!
 				 * setting a new date could trigger this.
 				 * workaround: fix x->curflt.add_time by below:
 				 */
-				x->curlft.add_time = now - x->saved_tmo - 1;
+				x->curlft.add_time = analw - x->saved_tmo - 1;
 				tmo = x->lft.hard_add_expires_seconds - x->saved_tmo;
 			} else
 				goto expired;
@@ -595,7 +595,7 @@ static enum hrtimer_restart xfrm_timer_handler(struct hrtimer *me)
 	}
 	if (x->lft.hard_use_expires_seconds) {
 		time64_t tmo = x->lft.hard_use_expires_seconds +
-			(READ_ONCE(x->curlft.use_time) ? : now) - now;
+			(READ_ONCE(x->curlft.use_time) ? : analw) - analw;
 		if (tmo <= 0)
 			goto expired;
 		if (tmo < next)
@@ -605,7 +605,7 @@ static enum hrtimer_restart xfrm_timer_handler(struct hrtimer *me)
 		goto resched;
 	if (x->lft.soft_add_expires_seconds) {
 		time64_t tmo = x->lft.soft_add_expires_seconds +
-			x->curlft.add_time - now;
+			x->curlft.add_time - analw;
 		if (tmo <= 0) {
 			warn = 1;
 			x->xflags &= ~XFRM_SOFT_EXPIRE;
@@ -617,7 +617,7 @@ static enum hrtimer_restart xfrm_timer_handler(struct hrtimer *me)
 	}
 	if (x->lft.soft_use_expires_seconds) {
 		time64_t tmo = x->lft.soft_use_expires_seconds +
-			(READ_ONCE(x->curlft.use_time) ? : now) - now;
+			(READ_ONCE(x->curlft.use_time) ? : analw) - analw;
 		if (tmo <= 0)
 			warn = 1;
 		else if (tmo < next)
@@ -629,7 +629,7 @@ static enum hrtimer_restart xfrm_timer_handler(struct hrtimer *me)
 		km_state_expired(x, 0, 0);
 resched:
 	if (next != TIME64_MAX) {
-		hrtimer_forward_now(&x->mtimer, ktime_set(next, 0));
+		hrtimer_forward_analw(&x->mtimer, ktime_set(next, 0));
 		ret = HRTIMER_RESTART;
 	}
 
@@ -663,10 +663,10 @@ struct xfrm_state *xfrm_state_alloc(struct net *net)
 		refcount_set(&x->refcnt, 1);
 		atomic_set(&x->tunnel_users, 0);
 		INIT_LIST_HEAD(&x->km.all);
-		INIT_HLIST_NODE(&x->bydst);
-		INIT_HLIST_NODE(&x->bysrc);
-		INIT_HLIST_NODE(&x->byspi);
-		INIT_HLIST_NODE(&x->byseq);
+		INIT_HLIST_ANALDE(&x->bydst);
+		INIT_HLIST_ANALDE(&x->bysrc);
+		INIT_HLIST_ANALDE(&x->byspi);
+		INIT_HLIST_ANALDE(&x->byseq);
 		hrtimer_init(&x->mtimer, CLOCK_BOOTTIME, HRTIMER_MODE_ABS_SOFT);
 		x->mtimer.function = xfrm_timer_handler;
 		timer_setup(&x->rtimer, xfrm_replay_timer_handler, 0);
@@ -988,7 +988,7 @@ static struct xfrm_state *__xfrm_state_lookup_all(struct net *net, u32 mark,
 		if (xdo->type == XFRM_DEV_OFFLOAD_PACKET) {
 			if (x->xso.type != XFRM_DEV_OFFLOAD_PACKET)
 				/* HW states are in the head of list, there is
-				 * no need to iterate further.
+				 * anal need to iterate further.
 				 */
 				break;
 
@@ -1102,7 +1102,7 @@ static void xfrm_state_look_at(struct xfrm_policy *pol, struct xfrm_state *x,
 	 *
 	 * Entering area of "sysdeps".
 	 *
-	 * 3. If state is not valid, selector is temporary, it selects
+	 * 3. If state is analt valid, selector is temporary, it selects
 	 *    only session which triggered previous resolution. Key
 	 *    manager will do something to install a state with proper
 	 *    selector.
@@ -1162,7 +1162,7 @@ xfrm_state_find(const xfrm_address_t *daddr, const xfrm_address_t *saddr,
 		if (pol->xdo.type == XFRM_DEV_OFFLOAD_PACKET) {
 			if (x->xso.type != XFRM_DEV_OFFLOAD_PACKET)
 				/* HW states are in the head of list, there is
-				 * no need to iterate further.
+				 * anal need to iterate further.
 				 */
 				break;
 
@@ -1196,7 +1196,7 @@ xfrm_state_find(const xfrm_address_t *daddr, const xfrm_address_t *saddr,
 		if (pol->xdo.type == XFRM_DEV_OFFLOAD_PACKET) {
 			if (x->xso.type != XFRM_DEV_OFFLOAD_PACKET)
 				/* HW states are in the head of list, there is
-				 * no need to iterate further.
+				 * anal need to iterate further.
 				 */
 				break;
 
@@ -1236,8 +1236,8 @@ found:
 		}
 
 		c.net = net;
-		/* If the KMs have no listeners (yet...), avoid allocating an SA
-		 * for each and every packet - garbage collection might not
+		/* If the KMs have anal listeners (yet...), avoid allocating an SA
+		 * for each and every packet - garbage collection might analt
 		 * handle the flood.
 		 */
 		if (!km_is_alive(&c)) {
@@ -1247,7 +1247,7 @@ found:
 
 		x = xfrm_state_alloc(net);
 		if (x == NULL) {
-			error = -ENOMEM;
+			error = -EANALMEM;
 			goto out;
 		}
 		/* Initialize temporary state matching only
@@ -1637,7 +1637,7 @@ static inline int clone_security(struct xfrm_state *x, struct xfrm_sec_ctx *secu
 
 	uctx = kmalloc(size, GFP_KERNEL);
 	if (!uctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	uctx->exttype = XFRMA_SEC_CTX;
 	uctx->len = size;
@@ -2125,7 +2125,7 @@ xfrm_state_sort(struct xfrm_state **dst, struct xfrm_state **src, int n,
 }
 #endif
 
-/* Silly enough, but I'm lazy to build resolution list */
+/* Silly eanalugh, but I'm lazy to build resolution list */
 
 static struct xfrm_state *__xfrm_find_acq_byseq(struct net *net, u32 mark, u32 seq)
 {
@@ -2203,7 +2203,7 @@ int xfrm_alloc_spi(struct xfrm_state *x, u32 low, u32 high,
 	struct net *net = xs_net(x);
 	unsigned int h;
 	struct xfrm_state *x0;
-	int err = -ENOENT;
+	int err = -EANALENT;
 	__be32 minspi = htonl(low);
 	__be32 maxspi = htonl(high);
 	__be32 newspi = 0;
@@ -2219,7 +2219,7 @@ int xfrm_alloc_spi(struct xfrm_state *x, u32 low, u32 high,
 	if (x->id.spi)
 		goto unlock;
 
-	err = -ENOENT;
+	err = -EANALENT;
 
 	if (minspi == maxspi) {
 		x0 = xfrm_state_lookup(net, mark, &x->id.daddr, minspi, x->id.proto, x->props.family);
@@ -2251,7 +2251,7 @@ int xfrm_alloc_spi(struct xfrm_state *x, u32 low, u32 high,
 
 		err = 0;
 	} else {
-		NL_SET_ERR_MSG(extack, "No SPI available in the requested range");
+		NL_SET_ERR_MSG(extack, "Anal SPI available in the requested range");
 	}
 
 unlock:
@@ -2310,7 +2310,7 @@ int xfrm_state_walk(struct net *net, struct xfrm_state_walk *walk,
 		walk->seq++;
 	}
 	if (walk->seq == 0) {
-		err = -ENOENT;
+		err = -EANALENT;
 		goto out;
 	}
 	list_del_init(&walk->all);
@@ -2352,7 +2352,7 @@ static void xfrm_replay_timer_handler(struct timer_list *t)
 
 	if (x->km.state == XFRM_STATE_VALID) {
 		if (xfrm_aevent_is_on(xs_net(x)))
-			xfrm_replay_notify(x, XFRM_REPLAY_TIMEOUT);
+			xfrm_replay_analtify(x, XFRM_REPLAY_TIMEOUT);
 		else
 			x->xflags |= XFRM_TIME_DEFER;
 	}
@@ -2362,29 +2362,29 @@ static void xfrm_replay_timer_handler(struct timer_list *t)
 
 static LIST_HEAD(xfrm_km_list);
 
-void km_policy_notify(struct xfrm_policy *xp, int dir, const struct km_event *c)
+void km_policy_analtify(struct xfrm_policy *xp, int dir, const struct km_event *c)
 {
 	struct xfrm_mgr *km;
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(km, &xfrm_km_list, list)
-		if (km->notify_policy)
-			km->notify_policy(xp, dir, c);
+		if (km->analtify_policy)
+			km->analtify_policy(xp, dir, c);
 	rcu_read_unlock();
 }
 
-void km_state_notify(struct xfrm_state *x, const struct km_event *c)
+void km_state_analtify(struct xfrm_state *x, const struct km_event *c)
 {
 	struct xfrm_mgr *km;
 	rcu_read_lock();
 	list_for_each_entry_rcu(km, &xfrm_km_list, list)
-		if (km->notify)
-			km->notify(x, c);
+		if (km->analtify)
+			km->analtify(x, c);
 	rcu_read_unlock();
 }
 
-EXPORT_SYMBOL(km_policy_notify);
-EXPORT_SYMBOL(km_state_notify);
+EXPORT_SYMBOL(km_policy_analtify);
+EXPORT_SYMBOL(km_state_analtify);
 
 void km_state_expired(struct xfrm_state *x, int hard, u32 portid)
 {
@@ -2393,7 +2393,7 @@ void km_state_expired(struct xfrm_state *x, int hard, u32 portid)
 	c.data.hard = hard;
 	c.portid = portid;
 	c.event = XFRM_MSG_EXPIRE;
-	km_state_notify(x, &c);
+	km_state_analtify(x, &c);
 }
 
 EXPORT_SYMBOL(km_state_expired);
@@ -2459,7 +2459,7 @@ void km_policy_expired(struct xfrm_policy *pol, int dir, int hard, u32 portid)
 	c.data.hard = hard;
 	c.portid = portid;
 	c.event = XFRM_MSG_POLEXPIRE;
-	km_policy_notify(pol, dir, &c);
+	km_policy_analtify(pol, dir, &c);
 }
 EXPORT_SYMBOL(km_policy_expired);
 
@@ -2610,7 +2610,7 @@ int xfrm_user_policy(struct sock *sk, int optname, sockptr_t optval, int optlen)
 
 		if (!xtr) {
 			kfree(data);
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 
 		err = xtr->xlate_user_policy_sockptr(&data, optlen);
@@ -2667,7 +2667,7 @@ int xfrm_state_register_afinfo(struct xfrm_state_afinfo *afinfo)
 	int err = 0;
 
 	if (WARN_ON(afinfo->family >= NPROTO))
-		return -EAFNOSUPPORT;
+		return -EAFANALSUPPORT;
 
 	spin_lock_bh(&xfrm_state_afinfo_lock);
 	if (unlikely(xfrm_state_afinfo[afinfo->family] != NULL))
@@ -2684,7 +2684,7 @@ int xfrm_state_unregister_afinfo(struct xfrm_state_afinfo *afinfo)
 	int err = 0, family = afinfo->family;
 
 	if (WARN_ON(family >= NPROTO))
-		return -EAFNOSUPPORT;
+		return -EAFANALSUPPORT;
 
 	spin_lock_bh(&xfrm_state_afinfo_lock);
 	if (likely(xfrm_state_afinfo[afinfo->family] != NULL)) {
@@ -2783,15 +2783,15 @@ int __xfrm_init_state(struct xfrm_state *x, bool init_replay, bool offload,
 	int err;
 
 	if (family == AF_INET &&
-	    READ_ONCE(xs_net(x)->ipv4.sysctl_ip_no_pmtu_disc))
-		x->props.flags |= XFRM_STATE_NOPMTUDISC;
+	    READ_ONCE(xs_net(x)->ipv4.sysctl_ip_anal_pmtu_disc))
+		x->props.flags |= XFRM_STATE_ANALPMTUDISC;
 
-	err = -EPROTONOSUPPORT;
+	err = -EPROTOANALSUPPORT;
 
 	if (x->sel.family != AF_UNSPEC) {
 		inner_mode = xfrm_get_mode(x->props.mode, x->sel.family);
 		if (inner_mode == NULL) {
-			NL_SET_ERR_MSG(extack, "Requested mode not found");
+			NL_SET_ERR_MSG(extack, "Requested mode analt found");
 			goto error;
 		}
 
@@ -2808,7 +2808,7 @@ int __xfrm_init_state(struct xfrm_state *x, bool init_replay, bool offload,
 
 		inner_mode = xfrm_get_mode(x->props.mode, x->props.family);
 		if (inner_mode == NULL) {
-			NL_SET_ERR_MSG(extack, "Requested mode not found");
+			NL_SET_ERR_MSG(extack, "Requested mode analt found");
 			goto error;
 		}
 
@@ -2826,7 +2826,7 @@ int __xfrm_init_state(struct xfrm_state *x, bool init_replay, bool offload,
 
 	x->type = xfrm_get_type(x->id.proto, family);
 	if (x->type == NULL) {
-		NL_SET_ERR_MSG(extack, "Requested type not found");
+		NL_SET_ERR_MSG(extack, "Requested type analt found");
 		goto error;
 	}
 
@@ -2838,8 +2838,8 @@ int __xfrm_init_state(struct xfrm_state *x, bool init_replay, bool offload,
 
 	outer_mode = xfrm_get_mode(x->props.mode, family);
 	if (!outer_mode) {
-		NL_SET_ERR_MSG(extack, "Requested mode not found");
-		err = -EPROTONOSUPPORT;
+		NL_SET_ERR_MSG(extack, "Requested mode analt found");
+		err = -EPROTOANALSUPPORT;
 		goto error;
 	}
 
@@ -2909,7 +2909,7 @@ out_byspi:
 out_bysrc:
 	xfrm_hash_free(net->xfrm.state_bydst, sz);
 out_bydst:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 void xfrm_state_fini(struct net *net)
@@ -3039,40 +3039,40 @@ void xfrm_audit_state_replay(struct xfrm_state *x,
 		return;
 	xfrm_audit_helper_pktinfo(skb, x->props.family, audit_buf);
 	spi = ntohl(x->id.spi);
-	audit_log_format(audit_buf, " spi=%u(0x%x) seqno=%u",
+	audit_log_format(audit_buf, " spi=%u(0x%x) seqanal=%u",
 			 spi, spi, ntohl(net_seq));
 	audit_log_end(audit_buf);
 }
 EXPORT_SYMBOL_GPL(xfrm_audit_state_replay);
 
-void xfrm_audit_state_notfound_simple(struct sk_buff *skb, u16 family)
+void xfrm_audit_state_analtfound_simple(struct sk_buff *skb, u16 family)
 {
 	struct audit_buffer *audit_buf;
 
-	audit_buf = xfrm_audit_start("SA-notfound");
+	audit_buf = xfrm_audit_start("SA-analtfound");
 	if (audit_buf == NULL)
 		return;
 	xfrm_audit_helper_pktinfo(skb, family, audit_buf);
 	audit_log_end(audit_buf);
 }
-EXPORT_SYMBOL_GPL(xfrm_audit_state_notfound_simple);
+EXPORT_SYMBOL_GPL(xfrm_audit_state_analtfound_simple);
 
-void xfrm_audit_state_notfound(struct sk_buff *skb, u16 family,
+void xfrm_audit_state_analtfound(struct sk_buff *skb, u16 family,
 			       __be32 net_spi, __be32 net_seq)
 {
 	struct audit_buffer *audit_buf;
 	u32 spi;
 
-	audit_buf = xfrm_audit_start("SA-notfound");
+	audit_buf = xfrm_audit_start("SA-analtfound");
 	if (audit_buf == NULL)
 		return;
 	xfrm_audit_helper_pktinfo(skb, family, audit_buf);
 	spi = ntohl(net_spi);
-	audit_log_format(audit_buf, " spi=%u(0x%x) seqno=%u",
+	audit_log_format(audit_buf, " spi=%u(0x%x) seqanal=%u",
 			 spi, spi, ntohl(net_seq));
 	audit_log_end(audit_buf);
 }
-EXPORT_SYMBOL_GPL(xfrm_audit_state_notfound);
+EXPORT_SYMBOL_GPL(xfrm_audit_state_analtfound);
 
 void xfrm_audit_state_icvfail(struct xfrm_state *x,
 			      struct sk_buff *skb, u8 proto)
@@ -3087,7 +3087,7 @@ void xfrm_audit_state_icvfail(struct xfrm_state *x,
 	xfrm_audit_helper_pktinfo(skb, x->props.family, audit_buf);
 	if (xfrm_parse_spi(skb, proto, &net_spi, &net_seq) == 0) {
 		u32 spi = ntohl(net_spi);
-		audit_log_format(audit_buf, " spi=%u(0x%x) seqno=%u",
+		audit_log_format(audit_buf, " spi=%u(0x%x) seqanal=%u",
 				 spi, spi, ntohl(net_seq));
 	}
 	audit_log_end(audit_buf);

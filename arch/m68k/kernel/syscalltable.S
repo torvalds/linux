@@ -5,7 +5,7 @@
  *  Based on older entry.S files, the following copyrights apply:
  *
  *  Copyright (C) 1998  D. Jeff Dionne <jeff@lineo.ca>,
- *                      Kenneth Albanowski <kjahds@kjahds.com>,
+ *                      Kenneth Albaanalwski <kjahds@kjahds.com>,
  *  Copyright (C) 2000  Lineo Inc. (www.lineo.com) 
  *  Copyright (C) 1991, 1992  Linus Torvalds
  *

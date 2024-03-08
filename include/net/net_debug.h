@@ -21,7 +21,7 @@ void netdev_err(const struct net_device *dev, const char *format, ...);
 __printf(2, 3) __cold
 void netdev_warn(const struct net_device *dev, const char *format, ...);
 __printf(2, 3) __cold
-void netdev_notice(const struct net_device *dev, const char *format, ...);
+void netdev_analtice(const struct net_device *dev, const char *format, ...);
 __printf(2, 3) __cold
 void netdev_info(const struct net_device *dev, const char *format, ...);
 
@@ -45,8 +45,8 @@ do {								\
 	netdev_level_once(KERN_ERR, dev, fmt, ##__VA_ARGS__)
 #define netdev_warn_once(dev, fmt, ...) \
 	netdev_level_once(KERN_WARNING, dev, fmt, ##__VA_ARGS__)
-#define netdev_notice_once(dev, fmt, ...) \
-	netdev_level_once(KERN_NOTICE, dev, fmt, ##__VA_ARGS__)
+#define netdev_analtice_once(dev, fmt, ...) \
+	netdev_level_once(KERN_ANALTICE, dev, fmt, ##__VA_ARGS__)
 #define netdev_info_once(dev, fmt, ...) \
 	netdev_level_once(KERN_INFO, dev, fmt, ##__VA_ARGS__)
 
@@ -103,8 +103,8 @@ do {								\
 	netif_level(err, priv, type, dev, fmt, ##args)
 #define netif_warn(priv, type, dev, fmt, args...)		\
 	netif_level(warn, priv, type, dev, fmt, ##args)
-#define netif_notice(priv, type, dev, fmt, args...)		\
-	netif_level(notice, priv, type, dev, fmt, ##args)
+#define netif_analtice(priv, type, dev, fmt, args...)		\
+	netif_level(analtice, priv, type, dev, fmt, ##args)
 #define netif_info(priv, type, dev, fmt, args...)		\
 	netif_level(info, priv, type, dev, fmt, ##args)
 

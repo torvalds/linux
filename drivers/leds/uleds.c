@@ -2,7 +2,7 @@
 /*
  * Userspace driver for the LED subsystem
  *
- * Copyright (C) 2016 David Lechner <david@lechnology.com>
+ * Copyright (C) 2016 David Lechner <david@lechanallogy.com>
  *
  * Based on uinput.c: Aristeu Sergio Rozanski Filho <aris@cathedrallabs.org>
  */
@@ -20,7 +20,7 @@
 #define ULEDS_NAME	"uleds"
 
 enum uleds_state {
-	ULEDS_STATE_UNKNOWN,
+	ULEDS_STATE_UNKANALWN,
 	ULEDS_STATE_REGISTERED,
 };
 
@@ -49,23 +49,23 @@ static void uleds_brightness_set(struct led_classdev *led_cdev,
 	}
 }
 
-static int uleds_open(struct inode *inode, struct file *file)
+static int uleds_open(struct ianalde *ianalde, struct file *file)
 {
 	struct uleds_device *udev;
 
 	udev = kzalloc(sizeof(*udev), GFP_KERNEL);
 	if (!udev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	udev->led_cdev.name = udev->user_dev.name;
 	udev->led_cdev.brightness_set = uleds_brightness_set;
 
 	mutex_init(&udev->mutex);
 	init_waitqueue_head(&udev->waitq);
-	udev->state = ULEDS_STATE_UNKNOWN;
+	udev->state = ULEDS_STATE_UNKANALWN;
 
 	file->private_data = udev;
-	stream_open(inode, file);
+	stream_open(ianalde, file);
 
 	return 0;
 }
@@ -143,8 +143,8 @@ static ssize_t uleds_read(struct file *file, char __user *buffer, size_t count,
 			return retval;
 
 		if (udev->state != ULEDS_STATE_REGISTERED) {
-			retval = -ENODEV;
-		} else if (!udev->new_data && (file->f_flags & O_NONBLOCK)) {
+			retval = -EANALDEV;
+		} else if (!udev->new_data && (file->f_flags & O_ANALNBLOCK)) {
 			retval = -EAGAIN;
 		} else if (udev->new_data) {
 			retval = copy_to_user(buffer, &udev->brightness,
@@ -158,7 +158,7 @@ static ssize_t uleds_read(struct file *file, char __user *buffer, size_t count,
 		if (retval)
 			break;
 
-		if (!(file->f_flags & O_NONBLOCK))
+		if (!(file->f_flags & O_ANALNBLOCK))
 			retval = wait_event_interruptible(udev->waitq,
 					udev->new_data ||
 					udev->state != ULEDS_STATE_REGISTERED);
@@ -174,17 +174,17 @@ static __poll_t uleds_poll(struct file *file, poll_table *wait)
 	poll_wait(file, &udev->waitq, wait);
 
 	if (udev->new_data)
-		return EPOLLIN | EPOLLRDNORM;
+		return EPOLLIN | EPOLLRDANALRM;
 
 	return 0;
 }
 
-static int uleds_release(struct inode *inode, struct file *file)
+static int uleds_release(struct ianalde *ianalde, struct file *file)
 {
 	struct uleds_device *udev = file->private_data;
 
 	if (udev->state == ULEDS_STATE_REGISTERED) {
-		udev->state = ULEDS_STATE_UNKNOWN;
+		udev->state = ULEDS_STATE_UNKANALWN;
 		devm_led_classdev_unregister(uleds_misc.this_device,
 					     &udev->led_cdev);
 	}
@@ -200,17 +200,17 @@ static const struct file_operations uleds_fops = {
 	.read		= uleds_read,
 	.write		= uleds_write,
 	.poll		= uleds_poll,
-	.llseek		= no_llseek,
+	.llseek		= anal_llseek,
 };
 
 static struct miscdevice uleds_misc = {
 	.fops		= &uleds_fops,
-	.minor		= MISC_DYNAMIC_MINOR,
+	.mianalr		= MISC_DYNAMIC_MIANALR,
 	.name		= ULEDS_NAME,
 };
 
 module_misc_device(uleds_misc);
 
-MODULE_AUTHOR("David Lechner <david@lechnology.com>");
+MODULE_AUTHOR("David Lechner <david@lechanallogy.com>");
 MODULE_DESCRIPTION("Userspace driver for the LED subsystem");
 MODULE_LICENSE("GPL");

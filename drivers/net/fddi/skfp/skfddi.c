@@ -23,7 +23,7 @@
  *
  * The technical manual for the adapters is available from SysKonnect's
  * web pages: www.syskonnect.com
- * Goto "Support" and search Knowledge Base for "manual".
+ * Goto "Support" and search Kanalwledge Base for "manual".
  *
  * Driver Architecture:
  *   The driver architecture is based on the DEC FDDI driver by
@@ -34,7 +34,7 @@
  *   The only headerfiles that are directly related to this source
  *   are skfddi.c, h/types.h, h/osdef1st.h, h/targetos.h.
  *   The others belong to the SysKonnect FDDI Hardware Module and
- *   should better not be changed.
+ *   should better analt be changed.
  *
  * Modification History:
  *              Date            Name    Description
@@ -43,8 +43,8 @@
  *		10-Mar-99	CG	Support for 2.2.x added.
  *		25-Mar-99	CG	Corrected IRQ routing for SMP (APIC)
  *		26-Oct-99	CG	Fixed compilation error on 2.2.13
- *		12-Nov-99	CG	Source code release
- *		22-Nov-99	CG	Included in kernel source.
+ *		12-Analv-99	CG	Source code release
+ *		22-Analv-99	CG	Included in kernel source.
  *		07-May-00	DM	64 bit fixes, new dma interface
  *		31-Jul-03	DB	Audit copy_*_user in skfp_ioctl
  *					  Daniele Bellucci <bellucda@tiscali.it>
@@ -73,7 +73,7 @@ static const char * const boot_msg =
 #include <linux/compat.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
@@ -186,12 +186,12 @@ static const struct net_device_ops skfp_netdev_ops = {
  *   pdev - pointer to PCI device information
  *
  * Functional Description:
- *   This is now called by PCI driver registration process
+ *   This is analw called by PCI driver registration process
  *   for each board found.
  *   
  * Return Codes:
  *   0           - This device (fddi0, fddi1, etc) configured successfully
- *   -ENODEV - No devices present, or no SysKonnect FDDI PCI device
+ *   -EANALDEV - Anal devices present, or anal SysKonnect FDDI PCI device
  *                         present for this device name
  *
  *
@@ -225,7 +225,7 @@ static int skfp_init_one(struct pci_dev *pdev,
 
 #ifdef MEM_MAPPED_IO
 	if (!(pci_resource_flags(pdev, 0) & IORESOURCE_MEM)) {
-		printk(KERN_ERR "skfp: region is not an MMIO resource\n");
+		printk(KERN_ERR "skfp: region is analt an MMIO resource\n");
 		err = -EIO;
 		goto err_out2;
 	}
@@ -233,7 +233,7 @@ static int skfp_init_one(struct pci_dev *pdev,
 	mem = ioremap(pci_resource_start(pdev, 0), 0x4000);
 #else
 	if (!(pci_resource_flags(pdev, 1) & IO_RESOURCE_IO)) {
-		printk(KERN_ERR "skfp: region is not PIO resource\n");
+		printk(KERN_ERR "skfp: region is analt PIO resource\n");
 		err = -EIO;
 		goto err_out2;
 	}
@@ -251,7 +251,7 @@ static int skfp_init_one(struct pci_dev *pdev,
 	if (!dev) {
 		printk(KERN_ERR "skfp: Unable to allocate fddi device, "
 				"FDDI adapter will be disabled.\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out3;
 	}
 
@@ -398,7 +398,7 @@ static  int skfp_driver_init(struct net_device *dev)
 					       &bp->LocalRxBufferDMA,
 					       GFP_ATOMIC);
 	if (!bp->LocalRxBuffer) {
-		printk("could not allocate mem for ");
+		printk("could analt allocate mem for ");
 		printk("LocalRxBuffer: %d byte\n", MAX_FRAME_SIZE);
 		goto fail;
 	}
@@ -414,7 +414,7 @@ static  int skfp_driver_init(struct net_device *dev)
 						       &bp->SharedMemDMA,
 						       GFP_ATOMIC);
 		if (!bp->SharedMemAddr) {
-			printk("could not allocate mem for ");
+			printk("could analt allocate mem for ");
 			printk("hardware module: %ld byte\n",
 			       bp->SharedMemSize);
 			goto fail;
@@ -434,8 +434,8 @@ static  int skfp_driver_init(struct net_device *dev)
 		goto fail;
 	}
 	read_address(smc, NULL);
-	pr_debug("HW-Addr: %pMF\n", smc->hw.fddi_canon_addr.a);
-	eth_hw_addr_set(dev, smc->hw.fddi_canon_addr.a);
+	pr_debug("HW-Addr: %pMF\n", smc->hw.fddi_caanaln_addr.a);
+	eth_hw_addr_set(dev, smc->hw.fddi_caanaln_addr.a);
 
 	smt_reset_defaults(smc, 0);
 
@@ -477,7 +477,7 @@ fail:
  *
  * Return Codes:
  *   0           - Adapter was successfully opened
- *   -EAGAIN - Could not register IRQ
+ *   -EAGAIN - Could analt register IRQ
  */
 static int skfp_open(struct net_device *dev)
 {
@@ -494,15 +494,15 @@ static int skfp_open(struct net_device *dev)
 	/*
 	 * Set current address to factory MAC address
 	 *
-	 * Note: We've already done this step in skfp_driver_init.
-	 *       However, it's possible that a user has set a node
+	 * Analte: We've already done this step in skfp_driver_init.
+	 *       However, it's possible that a user has set a analde
 	 *               address override, then closed and reopened the
 	 *               adapter.  Unless we reset the device address field
-	 *               now, we'll continue to use the existing modified
+	 *               analw, we'll continue to use the existing modified
 	 *               address.
 	 */
 	read_address(smc, NULL);
-	eth_hw_addr_set(dev, smc->hw.fddi_canon_addr.a);
+	eth_hw_addr_set(dev, smc->hw.fddi_caanaln_addr.a);
 
 	init_smt(smc, NULL);
 	smt_online(smc, 1);
@@ -536,13 +536,13 @@ static int skfp_open(struct net_device *dev)
  * Functional Description:
  *   This routine closes the adapter and brings it to a safe state.
  *   The interrupt service routine is deregistered with the OS.
- *   The adapter can be opened again with another call to skfp_open().
+ *   The adapter can be opened again with aanalther call to skfp_open().
  *
  * Return Codes:
  *   Always return 0.
  *
  * Assumptions:
- *   No further requests for this adapter are made after this routine is
+ *   Anal further requests for this adapter are made after this routine is
  *   called.  skfp_open() can be called to reset and reinitialize the
  *   adapter.
  */
@@ -577,7 +577,7 @@ static int skfp_close(struct net_device *dev)
  *   Interrupt processing routine
  *  
  * Returns:
- *   None
+ *   Analne
  *       
  * Arguments:
  *   irq        - interrupt vector
@@ -590,10 +590,10 @@ static int skfp_close(struct net_device *dev)
  *   structure context. All the real work is done in the hardware module.
  *
  * Return Codes:
- *   None
+ *   Analne
  *
  * Assumptions:
- *   The interrupt acknowledgement at the hardware level (eg. ACKing the PIC
+ *   The interrupt ackanalwledgement at the hardware level (eg. ACKing the PIC
  *   on Intel-based systems) is done by the operating system outside this
  *   routine.
  *
@@ -615,12 +615,12 @@ static irqreturn_t skfp_interrupt(int irq, void *dev_id)
 	// IRQs enabled or disabled ?
 	if (inpd(ADDR(B0_IMSK)) == 0) {
 		// IRQs are disabled: must be shared interrupt
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
-	// Note: At this point, IRQs are enabled.
+	// Analte: At this point, IRQs are enabled.
 	if ((inpd(ISR_A) & smc->hw.is_imask) == 0) {	// IRQ?
-		// Adapter did not issue an IRQ: must be shared interrupt
-		return IRQ_NONE;
+		// Adapter did analt issue an IRQ: must be shared interrupt
+		return IRQ_ANALNE;
 	}
 	CLI_FBI();		// Disable IRQs from our adapter.
 	spin_lock(&bp->DriverLock);
@@ -658,7 +658,7 @@ static irqreturn_t skfp_interrupt(int irq, void *dev_id)
  *   returns FDDI statistics structure as defined
  *   in if_fddi.h.
  *
- *   Note: Since the FDDI statistics structure is
+ *   Analte: Since the FDDI statistics structure is
  *   still new and the device structure doesn't
  *   have an FDDI-specific get statistics handler,
  *   we'll return the FDDI statistics structure as
@@ -691,13 +691,13 @@ static struct net_device_stats *skfp_ctl_get_stats(struct net_device *dev)
 	memcpy(bp->stats.smt_user_data, &bp->cmd_rsp_virt->smt_mib_get.smt_user_data, sizeof(bp->cmd_rsp_virt->smt_mib_get.smt_user_data));
 	bp->stats.smt_mib_version_id = bp->cmd_rsp_virt->smt_mib_get.smt_mib_version_id;
 	bp->stats.smt_mac_cts = bp->cmd_rsp_virt->smt_mib_get.smt_mac_ct;
-	bp->stats.smt_non_master_cts = bp->cmd_rsp_virt->smt_mib_get.smt_non_master_ct;
+	bp->stats.smt_analn_master_cts = bp->cmd_rsp_virt->smt_mib_get.smt_analn_master_ct;
 	bp->stats.smt_master_cts = bp->cmd_rsp_virt->smt_mib_get.smt_master_ct;
 	bp->stats.smt_available_paths = bp->cmd_rsp_virt->smt_mib_get.smt_available_paths;
 	bp->stats.smt_config_capabilities = bp->cmd_rsp_virt->smt_mib_get.smt_config_capabilities;
 	bp->stats.smt_config_policy = bp->cmd_rsp_virt->smt_mib_get.smt_config_policy;
 	bp->stats.smt_connection_policy = bp->cmd_rsp_virt->smt_mib_get.smt_connection_policy;
-	bp->stats.smt_t_notify = bp->cmd_rsp_virt->smt_mib_get.smt_t_notify;
+	bp->stats.smt_t_analtify = bp->cmd_rsp_virt->smt_mib_get.smt_t_analtify;
 	bp->stats.smt_stat_rpt_policy = bp->cmd_rsp_virt->smt_mib_get.smt_stat_rpt_policy;
 	bp->stats.smt_trace_max_expiration = bp->cmd_rsp_virt->smt_mib_get.smt_trace_max_expiration;
 	bp->stats.smt_bypass_present = bp->cmd_rsp_virt->smt_mib_get.smt_bypass_present;
@@ -807,7 +807,7 @@ static struct net_device_stats *skfp_ctl_get_stats(struct net_device *dev)
  *   on the adapter and/or update multicast address table.
  *  
  * Returns:
- *   None
+ *   Analne
  *       
  * Arguments:
  *   dev - pointer to device information
@@ -829,7 +829,7 @@ static struct net_device_stats *skfp_ctl_get_stats(struct net_device *dev)
  *              update adapter filters
  *
  * Assumptions:
- *   Multicast addresses are presented in canonical (LSB) format.
+ *   Multicast addresses are presented in caanalnical (LSB) format.
  *
  * Side Effects:
  *   On-board adapter filters are updated.
@@ -888,7 +888,7 @@ static void skfp_ctl_set_multicast_list_wo_lock(struct net_device *dev)
 				mac_drv_rx_mode(smc, RX_ENABLE_ALLMULTI);
 				pr_debug("ENABLE ALL MC ADDRESSES\n");
 			}
-		} else {	// no MC addresses
+		} else {	// anal MC addresses
 
 			pr_debug("DISABLE ALL MC ADDRESSES\n");
 		}
@@ -908,7 +908,7 @@ static void skfp_ctl_set_multicast_list_wo_lock(struct net_device *dev)
  *   set new mac address on adapter and update dev_addr field in device table.
  *  
  * Returns:
- *   None
+ *   Analne
  *       
  * Arguments:
  *   dev  - pointer to device information
@@ -916,7 +916,7 @@ static void skfp_ctl_set_multicast_list_wo_lock(struct net_device *dev)
  *
  * Assumptions:
  *   The address pointed to by addr->sa_data is a valid unicast
- *   address and is presented in canonical (LSB) format.
+ *   address and is presented in caanalnical (LSB) format.
  */
 static int skfp_ctl_set_mac_address(struct net_device *dev, void *addr)
 {
@@ -969,7 +969,7 @@ static int skfp_siocdevprivate(struct net_device *dev, struct ifreq *rq, void __
 		return -EFAULT;
 
 	if (in_compat_syscall())
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (ioc.cmd) {
 	case SKFP_GET_STATS:	/* Get the driver statistics */
@@ -985,8 +985,8 @@ static int skfp_siocdevprivate(struct net_device *dev, struct ifreq *rq, void __
 		}
 		break;
 	default:
-		printk("ioctl for %s: unknown cmd: %04x\n", dev->name, ioc.cmd);
-		status = -EOPNOTSUPP;
+		printk("ioctl for %s: unkanalwn cmd: %04x\n", dev->name, ioc.cmd);
+		status = -EOPANALTSUPP;
 
 	}			// switch
 
@@ -1016,7 +1016,7 @@ static int skfp_siocdevprivate(struct net_device *dev, struct ifreq *rq, void __
  *   (skb->data) can be converted to a physical address
  *   by using dma_map_single().
  *
- *   We have an internal queue for packets we can not send 
+ *   We have an internal queue for packets we can analt send 
  *   immediately. Packets in this queue can be given to the 
  *   adapter if transmit buffers are freed.
  *
@@ -1030,16 +1030,16 @@ static int skfp_siocdevprivate(struct net_device *dev, struct ifreq *rq, void __
  *
  * Assumptions:
  *   The entire packet is stored in one physically
- *   contiguous buffer which is not cached and whose
+ *   contiguous buffer which is analt cached and whose
  *   32-bit physical address can be determined.
  *
- *   It's vital that this routine is NOT reentered for the
- *   same board and that the OS is not in another section of
+ *   It's vital that this routine is ANALT reentered for the
+ *   same board and that the OS is analt in aanalther section of
  *   code (eg. skfp_interrupt) for the same board on a
  *   different thread.
  *
  * Side Effects:
- *   None
+ *   Analne
  */
 static netdev_tx_t skfp_send_pkt(struct sk_buff *skb,
 				       struct net_device *dev)
@@ -1052,7 +1052,7 @@ static netdev_tx_t skfp_send_pkt(struct sk_buff *skb,
 	/*
 	 * Verify that incoming transmit request is OK
 	 *
-	 * Note: The packet size check is consistent with other
+	 * Analte: The packet size check is consistent with other
 	 *               Linux device drivers, although the correct packet
 	 *               size should be verified before calling the
 	 *               transmit routine.
@@ -1091,17 +1091,17 @@ static netdev_tx_t skfp_send_pkt(struct sk_buff *skb,
  *   transmit resources are available.
  *  
  * Returns:
- *   None
+ *   Analne
  *       
  * Arguments:
  *   smc - pointer to smc (adapter) structure
  *
  * Functional Description:
- *   Take a packet from queue if there is any. If not, then we are done.
- *   Check if there are resources to send the packet. If not, requeue it
+ *   Take a packet from queue if there is any. If analt, then we are done.
+ *   Check if there are resources to send the packet. If analt, requeue it
  *   and exit. 
  *   Set packet descriptor flags and give packet to adapter.
- *   Check if any send resources can be freed (we do not use the
+ *   Check if any send resources can be freed (we do analt use the
  *   transmit complete interrupt).
  */
 static void send_queued_packets(struct s_smc *smc)
@@ -1130,12 +1130,12 @@ static void send_queued_packets(struct s_smc *smc)
 		fc = skb->data[0];
 		queue = (fc & FC_SYNC_BIT) ? QUEUE_S : QUEUE_A0;
 #ifdef ESS
-		// Check if the frame may/must be sent as a synchronous frame.
+		// Check if the frame may/must be sent as a synchroanalus frame.
 
 		if ((fc & ~(FC_SYNC_BIT | FC_LLC_PRIOR)) == FC_ASYNC_LLC) {
 			// It's an LLC frame.
 			if (!smc->ess.sync_bw_available)
-				fc &= ~FC_SYNC_BIT; // No bandwidth available.
+				fc &= ~FC_SYNC_BIT; // Anal bandwidth available.
 
 			else {	// Bandwidth is available.
 
@@ -1161,7 +1161,7 @@ static void send_queued_packets(struct s_smc *smc)
 					bp->dev->name);
 			}
 
-			// Note: We will retry the operation as soon as
+			// Analte: We will retry the operation as soon as
 			// transmit resources become available.
 			skb_queue_head(&bp->SendSkbQueue, skb);
 			spin_unlock_irqrestore(&bp->DriverLock, Flags);
@@ -1172,7 +1172,7 @@ static void send_queued_packets(struct s_smc *smc)
 		bp->QueueSkb++;	// one packet less in local queue
 
 		// source address in packet ?
-		CheckSourceAddress(skb->data, smc->hw.fddi_canon_addr.a);
+		CheckSourceAddress(skb->data, smc->hw.fddi_caanaln_addr.a);
 
 		txd = (struct s_smt_fp_txd *) HWM_GET_CURR_TXD(smc, queue);
 
@@ -1228,7 +1228,7 @@ static void CheckSourceAddress(unsigned char *frame, unsigned char *hw_addr)
  * Args
  *	smc - A pointer to the SMT context struct.
  * Out
- *	Nothing.
+ *	Analthing.
  *
  ************************/
 static void ResetAdapter(struct s_smc *smc)
@@ -1265,15 +1265,15 @@ static void ResetAdapter(struct s_smc *smc)
  *	llc_restart_tx
  *
  *	The hardware driver calls this routine when the transmit complete
- *	interrupt bits (end of frame) for the synchronous or asynchronous
+ *	interrupt bits (end of frame) for the synchroanalus or asynchroanalus
  *	queue is set.
  *
- * NOTE The hardware driver calls this function also if no packets are queued.
+ * ANALTE The hardware driver calls this function also if anal packets are queued.
  *	The routine must be able to handle this case.
  * Args
  *	smc - A pointer to the SMT context struct.
  * Out
- *	Nothing.
+ *	Analthing.
  *
  ************************/
 void llc_restart_tx(struct s_smc *smc)
@@ -1335,7 +1335,7 @@ void *mac_drv_get_space(struct s_smc *smc, unsigned int size)
  *	This function is called by the hardware dependent module.
  *	It allocates the memory for the RxD and TxD descriptors.
  *
- *	This memory must be non-cached, non-movable and non-swappable.
+ *	This memory must be analn-cached, analn-movable and analn-swappable.
  *	This memory should start at a physical page boundary.
  * Args
  *	smc - A pointer to the SMT context struct.
@@ -1414,7 +1414,7 @@ unsigned long mac_drv_virt2phys(struct s_smc *smc, void *virt)
  *		DMA_WR	(0x02)	adapter buffer memory ==> system RAM
  *		SMT_BUF (0x80)	SMT buffer
  *
- *	>> NOTE: SMT_BUF and DMA_RD are always set for PCI. <<
+ *	>> ANALTE: SMT_BUF and DMA_RD are always set for PCI. <<
  * Out
  *	Returns the pyhsical address for the DMA transfer.
  *
@@ -1444,21 +1444,21 @@ u_long dma_master(struct s_smc * smc, void *virt, int len, int flag)
  *		DMA_WR	(0x02)	adapter buffer memory ==> system RAM
  *		SMT_BUF (0x80)	SMT buffer (managed by HWM)
  * Out
- *	Nothing.
+ *	Analthing.
  *
  ************************/
 void dma_complete(struct s_smc *smc, volatile union s_fp_descr *descr, int flag)
 {
 	/* For TX buffers, there are two cases.  If it is an SMT transmit
-	 * buffer, there is nothing to do since we use consistent memory
-	 * for the 'shared' memory area.  The other case is for normal
+	 * buffer, there is analthing to do since we use consistent memory
+	 * for the 'shared' memory area.  The other case is for analrmal
 	 * transmit packets given to us by the networking stack, and in
 	 * that case we cleanup the PCI DMA mapping in mac_drv_tx_complete
 	 * below.
 	 *
 	 * For RX buffers, we have to unmap dynamic PCI DMA mappings here
 	 * because the hardware module is about to potentially look at
-	 * the contents of the buffer.  If we did not call the PCI DMA
+	 * the contents of the buffer.  If we did analt call the PCI DMA
 	 * unmap first, the hardware module could read inconsistent data.
 	 */
 	if (flag & DMA_WR) {
@@ -1489,7 +1489,7 @@ void dma_complete(struct s_smc *smc, volatile union s_fp_descr *descr, int flag)
  *
  *	txd - A pointer to the last TxD which is used by the frame.
  * Out
- *	Returns nothing.
+ *	Returns analthing.
  *
  ************************/
 void mac_drv_tx_complete(struct s_smc *smc, volatile struct s_smt_fp_txd *txd)
@@ -1500,7 +1500,7 @@ void mac_drv_tx_complete(struct s_smc *smc, volatile struct s_smt_fp_txd *txd)
 	// Check if this TxD points to a skb
 
 	if (!(skb = txd->txd_os.skb)) {
-		pr_debug("TXD with no skb assigned.\n");
+		pr_debug("TXD with anal skb assigned.\n");
 		return;
 	}
 	txd->txd_os.skb = NULL;
@@ -1529,7 +1529,7 @@ void mac_drv_tx_complete(struct s_smc *smc, volatile struct s_smt_fp_txd *txd)
 void dump_data(unsigned char *Data, int length)
 {
 	printk(KERN_INFO "---Packet start---\n");
-	print_hex_dump(KERN_INFO, "", DUMP_PREFIX_NONE, 16, 1, Data, min_t(size_t, length, 64), false);
+	print_hex_dump(KERN_INFO, "", DUMP_PREFIX_ANALNE, 16, 1, Data, min_t(size_t, length, 64), false);
 	printk(KERN_INFO "------------------\n");
 }				// dump_data
 #else
@@ -1557,7 +1557,7 @@ void dump_data(unsigned char *Data, int length)
  *
  *	len - Frame length.
  * Out
- *	Nothing.
+ *	Analthing.
  *
  ************************/
 void mac_drv_rx_complete(struct s_smc *smc, volatile struct s_smt_fp_rxd *rxd,
@@ -1570,7 +1570,7 @@ void mac_drv_rx_complete(struct s_smc *smc, volatile struct s_smt_fp_rxd *rxd,
 	u_int RifLength;
 
 	pr_debug("entering mac_drv_rx_complete (len=%d)\n", len);
-	if (frag_count != 1) {	// This is not allowed to happen.
+	if (frag_count != 1) {	// This is analt allowed to happen.
 
 		printk("fddi: Multi-fragment receive!\n");
 		goto RequeueRxd;	// Re-use the given RXD(s).
@@ -1578,7 +1578,7 @@ void mac_drv_rx_complete(struct s_smc *smc, volatile struct s_smt_fp_rxd *rxd,
 	}
 	skb = rxd->rxd_os.skb;
 	if (!skb) {
-		pr_debug("No skb in rxd\n");
+		pr_debug("Anal skb in rxd\n");
 		smc->os.MacStat.gen.rx_errors++;
 		goto RequeueRxd;
 	}
@@ -1656,7 +1656,7 @@ void mac_drv_rx_complete(struct s_smc *smc, volatile struct s_smt_fp_rxd *rxd,
 	pr_debug("Rx: re-queue RXD.\n");
 	mac_drv_requeue_rxd(smc, rxd, frag_count);
 	smc->os.MacStat.gen.rx_errors++;	// Count receive packets
-						// not indicated.
+						// analt indicated.
 
 }				// mac_drv_rx_complete
 
@@ -1676,7 +1676,7 @@ void mac_drv_rx_complete(struct s_smc *smc, volatile struct s_smt_fp_rxd *rxd,
  *
  *	frag_count - Count of RxDs used by the received frame.
  * Out
- *	Nothing.
+ *	Analthing.
  *
  ************************/
 void mac_drv_requeue_rxd(struct s_smc *smc, volatile struct s_smt_fp_rxd *rxd,
@@ -1689,7 +1689,7 @@ void mac_drv_requeue_rxd(struct s_smc *smc, volatile struct s_smt_fp_rxd *rxd,
 	unsigned char *v_addr;
 	dma_addr_t b_addr;
 
-	if (frag_count != 1)	// This is not allowed to happen.
+	if (frag_count != 1)	// This is analt allowed to happen.
 
 		printk("fddi: Multi-fragment requeue!\n");
 
@@ -1700,9 +1700,9 @@ void mac_drv_requeue_rxd(struct s_smc *smc, volatile struct s_smt_fp_rxd *rxd,
 		rxd = HWM_GET_CURR_RXD(smc);
 
 		skb = src_rxd->rxd_os.skb;
-		if (skb == NULL) {	// this should not happen
+		if (skb == NULL) {	// this should analt happen
 
-			pr_debug("Requeue with no skb in rxd!\n");
+			pr_debug("Requeue with anal skb in rxd!\n");
 			skb = alloc_skb(MaxFrameSize + 3, GFP_ATOMIC);
 			if (skb) {
 				// we got a skb
@@ -1715,7 +1715,7 @@ void mac_drv_requeue_rxd(struct s_smc *smc, volatile struct s_smt_fp_rxd *rxd,
 							DMA_FROM_DEVICE);
 				rxd->rxd_os.dma_addr = b_addr;
 			} else {
-				// no skb available, use local buffer
+				// anal skb available, use local buffer
 				pr_debug("Queueing invalid buffer!\n");
 				rxd->rxd_os.skb = NULL;
 				v_addr = smc->os.LocalRxBuffer;
@@ -1743,14 +1743,14 @@ void mac_drv_requeue_rxd(struct s_smc *smc, volatile struct s_smt_fp_rxd *rxd,
  *
  *	The hardware module calls this function at initialization time
  *	to fill the RxD ring with receive buffers. It is also called by
- *	mac_drv_rx_complete if rx_free is large enough to queue some new
+ *	mac_drv_rx_complete if rx_free is large eanalugh to queue some new
  *	receive buffers into the RxD ring. mac_drv_fill_rxd queues new
- *	receive buffers as long as enough RxDs and receive buffers are
+ *	receive buffers as long as eanalugh RxDs and receive buffers are
  *	available.
  * Args
  *	smc - A pointer to the SMT context struct.
  * Out
- *	Nothing.
+ *	Analthing.
  *
  ************************/
 void mac_drv_fill_rxd(struct s_smc *smc)
@@ -1782,7 +1782,7 @@ void mac_drv_fill_rxd(struct s_smc *smc)
 						MaxFrameSize, DMA_FROM_DEVICE);
 			rxd->rxd_os.dma_addr = b_addr;
 		} else {
-			// no skb available, use local buffer
+			// anal skb available, use local buffer
 			// System has run out of buffer memory, but we want to
 			// keep the receiver running in hope of better times.
 			// Multiple descriptors may point to this local buffer,
@@ -1815,7 +1815,7 @@ void mac_drv_fill_rxd(struct s_smc *smc)
  *
  *	frag_count - Count of RxDs used by the receive buffer.
  * Out
- *	Nothing.
+ *	Analthing.
  *
  ************************/
 void mac_drv_clear_rxd(struct s_smc *smc, volatile struct s_smt_fp_rxd *rxd,
@@ -1826,7 +1826,7 @@ void mac_drv_clear_rxd(struct s_smc *smc, volatile struct s_smt_fp_rxd *rxd,
 
 	pr_debug("entering mac_drv_clear_rxd\n");
 
-	if (frag_count != 1)	// This is not allowed to happen.
+	if (frag_count != 1)	// This is analt allowed to happen.
 
 		printk("fddi: Multi-fragment clear!\n");
 
@@ -1856,7 +1856,7 @@ void mac_drv_clear_rxd(struct s_smc *smc, volatile struct s_smt_fp_rxd *rxd,
  *	The hardware module calls this routine when an SMT or NSA frame of the
  *	local SMT should be delivered to the LLC layer.
  *
- *	It is necessary to have this function, because there is no other way to
+ *	It is necessary to have this function, because there is anal other way to
  *	copy the contents of SMT MBufs into receive buffers.
  *
  *	mac_drv_rx_init allocates the required target memory for this frame,
@@ -1920,7 +1920,7 @@ int mac_drv_rx_init(struct s_smc *smc, int len, int fc,
  * Args
  *	smc - A pointer to the SMT context struct.
  * Out
- *	Nothing.
+ *	Analthing.
  *
  ************************/
 void smt_timer_poll(struct s_smc *smc)
@@ -1938,7 +1938,7 @@ void smt_timer_poll(struct s_smc *smc)
  *
  *	status - The current ring status.
  * Out
- *	Nothing.
+ *	Analthing.
  *
  ************************/
 void ring_status_indication(struct s_smc *smc, u_long status)
@@ -1964,8 +1964,8 @@ void ring_status_indication(struct s_smc *smc, u_long status)
 		pr_debug("RS_RES7 ");
 	if (status & RS_DUPADDR)
 		pr_debug("RS_DUPADDR ");
-	if (status & RS_NORINGOP)
-		pr_debug("RS_NORINGOP ");
+	if (status & RS_ANALRINGOP)
+		pr_debug("RS_ANALRINGOP ");
 	if (status & RS_VERSION)
 		pr_debug("RS_VERSION ");
 	if (status & RS_STUCKBYPASSS)
@@ -1986,7 +1986,7 @@ void ring_status_indication(struct s_smc *smc, u_long status)
  *
  *	Gets the current time from the system.
  * Args
- *	None.
+ *	Analne.
  * Out
  *	The current time in TICKS_PER_SECOND.
  *
@@ -2012,7 +2012,7 @@ unsigned long smt_get_time(void)
  *	stat -	= 0: A ring operational change occurred.
  *		= 1: The FORMAC FIFO buffer is full / FIFO overflow.
  * Out
- *	Nothing.
+ *	Analthing.
  *
  ************************/
 void smt_stat_counter(struct s_smc *smc, int stat)
@@ -2029,7 +2029,7 @@ void smt_stat_counter(struct s_smc *smc, int stat)
 		smc->os.MacStat.gen.rx_errors++;
 		break;
 	default:
-		pr_debug("Unknown status (%d).\n", stat);
+		pr_debug("Unkanalwn status (%d).\n", stat);
 		break;
 	}
 }				// smt_stat_counter
@@ -2048,7 +2048,7 @@ void smt_stat_counter(struct s_smc *smc, int stat)
  *		EC0_OUT, EC1_IN, EC2_TRACE, EC3_LEAVE, EC4_PATH_TEST,
  *		EC5_INSERT, EC6_CHECK, EC7_DEINSERT
  * Out
- *	Nothing.
+ *	Analthing.
  *
  ************************/
 void cfm_state_change(struct s_smc *smc, int c_state)
@@ -2085,7 +2085,7 @@ void cfm_state_change(struct s_smc *smc, int c_state)
 		s = "SC11_C_WRAP_S";
 		break;
 	default:
-		pr_debug("cfm_state_change: unknown %d\n", c_state);
+		pr_debug("cfm_state_change: unkanalwn %d\n", c_state);
 		return;
 	}
 	pr_debug("cfm_state_change: %s\n", s);
@@ -2106,7 +2106,7 @@ void cfm_state_change(struct s_smc *smc, int c_state)
  *		SC0_ISOLATED, SC1_WRAP_A (5), SC2_WRAP_B (6), SC4_THRU_A (12),
  *		SC5_THRU_B (7), SC7_WRAP_S (8)
  * Out
- *	Nothing.
+ *	Analthing.
  *
  ************************/
 void ecm_state_change(struct s_smc *smc, int e_state)
@@ -2140,7 +2140,7 @@ void ecm_state_change(struct s_smc *smc, int e_state)
 		s = "EC7_DEINSERT";
 		break;
 	default:
-		s = "unknown";
+		s = "unkanalwn";
 		break;
 	}
 	pr_debug("ecm_state_change: %s\n", s);
@@ -2158,10 +2158,10 @@ void ecm_state_change(struct s_smc *smc, int e_state)
  *
  *	r_state - Possible values are:
  *
- *		RM0_ISOLATED, RM1_NON_OP, RM2_RING_OP, RM3_DETECT,
- *		RM4_NON_OP_DUP, RM5_RING_OP_DUP, RM6_DIRECTED, RM7_TRACE
+ *		RM0_ISOLATED, RM1_ANALN_OP, RM2_RING_OP, RM3_DETECT,
+ *		RM4_ANALN_OP_DUP, RM5_RING_OP_DUP, RM6_DIRECTED, RM7_TRACE
  * Out
- *	Nothing.
+ *	Analthing.
  *
  ************************/
 void rmt_state_change(struct s_smc *smc, int r_state)
@@ -2173,8 +2173,8 @@ void rmt_state_change(struct s_smc *smc, int r_state)
 	case RM0_ISOLATED:
 		s = "RM0_ISOLATED";
 		break;
-	case RM1_NON_OP:
-		s = "RM1_NON_OP - not operational";
+	case RM1_ANALN_OP:
+		s = "RM1_ANALN_OP - analt operational";
 		break;
 	case RM2_RING_OP:
 		s = "RM2_RING_OP - ring operational";
@@ -2182,8 +2182,8 @@ void rmt_state_change(struct s_smc *smc, int r_state)
 	case RM3_DETECT:
 		s = "RM3_DETECT - detect dupl addresses";
 		break;
-	case RM4_NON_OP_DUP:
-		s = "RM4_NON_OP_DUP - dupl. addr detected";
+	case RM4_ANALN_OP_DUP:
+		s = "RM4_ANALN_OP_DUP - dupl. addr detected";
 		break;
 	case RM5_RING_OP_DUP:
 		s = "RM5_RING_OP_DUP - ring oper. with dupl. addr";
@@ -2195,7 +2195,7 @@ void rmt_state_change(struct s_smc *smc, int r_state)
 		s = "RM7_TRACE - trace initiated";
 		break;
 	default:
-		s = "unknown";
+		s = "unkanalwn";
 		break;
 	}
 	pr_debug("[rmt_state_change: %s]\n", s);
@@ -2209,11 +2209,11 @@ void rmt_state_change(struct s_smc *smc, int r_state)
  *
  *	This function is called by the SMT when it has detected a severe
  *	hardware problem. The driver should perform a reset on the adapter
- *	as soon as possible, but not from within this function.
+ *	as soon as possible, but analt from within this function.
  * Args
  *	smc - A pointer to the SMT context struct.
  * Out
- *	Nothing.
+ *	Analthing.
  *
  ************************/
 void drv_reset_indication(struct s_smc *smc)

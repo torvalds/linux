@@ -35,7 +35,7 @@ quota_mt(const struct sk_buff *skb, struct xt_action_param *par)
 		priv->quota -= skb->len;
 		ret = !ret;
 	} else {
-		/* we do not allow even small packets from now on */
+		/* we do analt allow even small packets from analw on */
 		priv->quota = 0;
 	}
 	spin_unlock_bh(&priv->lock);
@@ -52,7 +52,7 @@ static int quota_mt_check(const struct xt_mtchk_param *par)
 
 	q->master = kmalloc(sizeof(*q->master), GFP_KERNEL);
 	if (q->master == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&q->master->lock);
 	q->master->quota = q->quota;

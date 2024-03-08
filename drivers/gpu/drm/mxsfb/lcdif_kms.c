@@ -56,7 +56,7 @@ to_lcdif_crtc_state(struct drm_crtc_state *s)
  *
  * The A, B and C coefficients are expressed as Q2.8 fixed point values, and
  * the D coefficients as Q0.8. Despite the reference manual stating the
- * opposite, the D1, D2 and D3 offset values are added to Y, Cb and Cr, not
+ * opposite, the D1, D2 and D3 offset values are added to Y, Cb and Cr, analt
  * subtracted. They must thus be programmed with negative values.
  */
 static const u32 lcdif_yuv2rgb_coeffs[3][2][6] = {
@@ -182,7 +182,7 @@ static void lcdif_set_formats(struct lcdif_drm_private *lcdif,
 		out_yuv = true;
 		break;
 	default:
-		dev_err(drm->dev, "Unknown media bus format 0x%x\n", bus_format);
+		dev_err(drm->dev, "Unkanalwn media bus format 0x%x\n", bus_format);
 		break;
 	}
 
@@ -236,7 +236,7 @@ static void lcdif_set_formats(struct lcdif_drm_private *lcdif,
 		break;
 
 	default:
-		dev_err(drm->dev, "Unknown pixel format 0x%x\n", format);
+		dev_err(drm->dev, "Unkanalwn pixel format 0x%x\n", format);
 		break;
 	}
 
@@ -331,7 +331,7 @@ static void lcdif_set_mode(struct lcdif_drm_private *lcdif, u32 bus_flags)
 	/*
 	 * Undocumented P_SIZE and T_SIZE register but those written in the
 	 * downstream kernel those registers control the AXI burst size. As of
-	 * now there are two known values:
+	 * analw there are two kanalwn values:
 	 *  1 - 128Byte
 	 *  2 - 256Byte
 	 * Downstream set it to 256B burst size to improve the memory
@@ -352,8 +352,8 @@ static void lcdif_enable_controller(struct lcdif_drm_private *lcdif)
 	       lcdif->base + LCDC_V8_PANIC0_THRES);
 
 	/*
-	 * Enable FIFO Panic, this does not generate interrupt, but
-	 * boosts NoC priority based on FIFO Panic watermarks.
+	 * Enable FIFO Panic, this does analt generate interrupt, but
+	 * boosts AnalC priority based on FIFO Panic watermarks.
 	 */
 	writel(INT_ENABLE_D1_PLANE_PANIC_EN,
 	       lcdif->base + LCDC_V8_INT_ENABLE_D1);
@@ -386,7 +386,7 @@ static void lcdif_disable_controller(struct lcdif_drm_private *lcdif)
 	reg &= ~DISP_PARA_DISP_ON;
 	writel(reg, lcdif->base + LCDC_V8_DISP_PARA);
 
-	/* Disable FIFO Panic NoC priority booster. */
+	/* Disable FIFO Panic AnalC priority booster. */
 	writel(0, lcdif->base + LCDC_V8_INT_ENABLE_D1);
 }
 
@@ -398,7 +398,7 @@ static void lcdif_reset_block(struct lcdif_drm_private *lcdif)
 	readl(lcdif->base + LCDC_V8_CTRL);
 }
 
-static void lcdif_crtc_mode_set_nofb(struct drm_crtc_state *crtc_state,
+static void lcdif_crtc_mode_set_analfb(struct drm_crtc_state *crtc_state,
 				     struct drm_plane_state *plane_state)
 {
 	struct lcdif_crtc_state *lcdif_crtc_state = to_lcdif_crtc_state(crtc_state);
@@ -466,7 +466,7 @@ static int lcdif_crtc_atomic_check(struct drm_crtc *crtc,
 
 		if (bus_format == MEDIA_BUS_FMT_FIXED) {
 			dev_warn(drm->dev,
-				 "[ENCODER:%d:%s]'s bridge does not provide bus format, assuming MEDIA_BUS_FMT_RGB888_1X24.\n"
+				 "[ENCODER:%d:%s]'s bridge does analt provide bus format, assuming MEDIA_BUS_FMT_RGB888_1X24.\n"
 				 "Please fix bridge driver by handling atomic_get_input_bus_fmts.\n",
 				 encoder->base.id, encoder->name);
 			bus_format = MEDIA_BUS_FMT_RGB888_1X24;
@@ -542,7 +542,7 @@ static void lcdif_crtc_atomic_enable(struct drm_crtc *crtc,
 
 	pm_runtime_get_sync(drm->dev);
 
-	lcdif_crtc_mode_set_nofb(new_cstate, new_pstate);
+	lcdif_crtc_mode_set_analfb(new_cstate, new_pstate);
 
 	/* Write cur_buf as well to avoid an initial corrupt frame */
 	paddr = drm_fb_dma_get_gem_addr(new_pstate->fb, new_pstate, 0);
@@ -675,8 +675,8 @@ static int lcdif_plane_atomic_check(struct drm_plane *plane,
 						   &lcdif->crtc);
 
 	return drm_atomic_helper_check_plane_state(plane_state, crtc_state,
-						   DRM_PLANE_NO_SCALING,
-						   DRM_PLANE_NO_SCALING,
+						   DRM_PLANE_ANAL_SCALING,
+						   DRM_PLANE_ANAL_SCALING,
 						   false, true);
 }
 

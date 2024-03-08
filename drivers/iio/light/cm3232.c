@@ -97,7 +97,7 @@ static int cm3232_reg_init(struct cm3232_chip *chip)
 	}
 
 	if ((ret & 0xFF) != chip->als_info->hw_id)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Disable and reset device */
 	chip->regs_cmd = CM3232_CMD_ALS_DISABLE | CM3232_CMD_ALS_RESET;
@@ -334,7 +334,7 @@ static int cm3232_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*chip));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip = iio_priv(indio_dev);
 	i2c_set_clientdata(client, indio_dev);

@@ -46,7 +46,7 @@ static const char *apollo_models[] = {
 
 int __init apollo_parse_bootinfo(const struct bi_record *record)
 {
-	int unknown = 0;
+	int unkanalwn = 0;
 	const void *data = record->data;
 
 	switch (be16_to_cpu(record->tag)) {
@@ -55,10 +55,10 @@ int __init apollo_parse_bootinfo(const struct bi_record *record)
 		break;
 
 	default:
-		 unknown=1;
+		 unkanalwn=1;
 	}
 
-	return unknown;
+	return unkanalwn;
 }
 
 static void __init dn_setup_model(void)
@@ -67,8 +67,8 @@ static void __init dn_setup_model(void)
 		apollo_models[apollo_model - APOLLO_DN3000]);
 
 	switch(apollo_model) {
-		case APOLLO_UNKNOWN:
-			panic("Unknown apollo model");
+		case APOLLO_UNKANALWN:
+			panic("Unkanalwn apollo model");
 			break;
 		case APOLLO_DN3000:
 		case APOLLO_DN3010:
@@ -89,7 +89,7 @@ static void __init dn_setup_model(void)
 			timer_physaddr=SAU7_TIMER;
 			break;
 		case APOLLO_DN4500:
-			panic("Apollo model not yet supported");
+			panic("Apollo model analt yet supported");
 			break;
 		case APOLLO_DN3500:
 			sio01_physaddr=SAU7_SIO01_PHYSADDR;

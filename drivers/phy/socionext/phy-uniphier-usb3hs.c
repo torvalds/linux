@@ -39,7 +39,7 @@
 #define HSPHY_CFG1_ADR_MASK	GENMASK(27, 16)
 #define HSPHY_CFG1_DAT_MASK	GENMASK(23, 16)
 
-#define PHY_F(regno, msb, lsb) { (regno), (msb), (lsb) }
+#define PHY_F(reganal, msb, lsb) { (reganal), (msb), (lsb) }
 
 #define RX_CHK_SYNC	PHY_F(0, 5, 5)	/* RX sync mode */
 #define RX_SYNC_SEL	PHY_F(1, 1, 0)	/* RX sync length */
@@ -50,7 +50,7 @@
 
 struct uniphier_u3hsphy_param {
 	struct {
-		int reg_no;
+		int reg_anal;
 		int msb;
 		int lsb;
 	} field;
@@ -152,7 +152,7 @@ static int uniphier_u3hsphy_update_config(struct uniphier_u3hsphy_priv *priv,
 
 		/*
 		 * call trim_func only when trimming parameters that aren't
-		 * all-zero can be acquired. All-zero parameters mean nothing
+		 * all-zero can be acquired. All-zero parameters mean analthing
 		 * has been written to nvmem.
 		 */
 		if (!ret && trim_param_is_valid(&trim)) {
@@ -181,7 +181,7 @@ static void uniphier_u3hsphy_set_param(struct uniphier_u3hsphy_priv *priv,
 
 	val = readl(priv->base + HSPHY_CFG1);
 	val &= ~HSPHY_CFG1_ADR_MASK;
-	val |= FIELD_PREP(HSPHY_CFG1_ADR_MASK, p->field.reg_no)
+	val |= FIELD_PREP(HSPHY_CFG1_ADR_MASK, p->field.reg_anal)
 		| HSPHY_CFG1_ADR_EN;
 	writel(val, priv->base + HSPHY_CFG1);
 
@@ -329,7 +329,7 @@ static int uniphier_u3hsphy_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->dev = dev;
 	priv->data = of_device_get_match_data(dev);
@@ -380,7 +380,7 @@ static int uniphier_u3hsphy_probe(struct platform_device *pdev)
 		priv->vbus = NULL;
 	}
 
-	phy = devm_phy_create(dev, dev->of_node, &uniphier_u3hsphy_ops);
+	phy = devm_phy_create(dev, dev->of_analde, &uniphier_u3hsphy_ops);
 	if (IS_ERR(phy))
 		return PTR_ERR(phy);
 

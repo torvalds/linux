@@ -76,7 +76,7 @@ struct saa7146_format* saa7146_format_by_fourcc(struct saa7146_dev *dev, int fou
 		}
 	}
 
-	DEB_D("unknown pixelformat:'%4.4s'\n", (char *)&fourcc);
+	DEB_D("unkanalwn pixelformat:'%4.4s'\n", (char *)&fourcc);
 	return NULL;
 }
 
@@ -141,7 +141,7 @@ static int saa7146_pgtable_build(struct saa7146_dev *dev, struct saa7146_buf *bu
 		for_each_sg_dma_page(list, &dma_iter, length, 0)
 			*ptr1++ = cpu_to_le32(sg_page_iter_dma_address(&dma_iter) - list->offset);
 
-		/* if we have a user buffer, the first page may not be
+		/* if we have a user buffer, the first page may analt be
 		   aligned to a page boundary. */
 		pt1->offset = sgt->sgl->offset;
 		pt2->offset = pt1->offset + o1;
@@ -201,7 +201,7 @@ static int video_begin(struct saa7146_dev *dev)
 
 	ret = saa7146_res_get(dev, resource);
 	if (0 == ret) {
-		DEB_S("cannot get capture resource %d\n", resource);
+		DEB_S("cananalt get capture resource %d\n", resource);
 		return -EBUSY;
 	}
 
@@ -445,12 +445,12 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format 
 	return 0;
 }
 
-static int vidioc_g_std(struct file *file, void *fh, v4l2_std_id *norm)
+static int vidioc_g_std(struct file *file, void *fh, v4l2_std_id *analrm)
 {
 	struct saa7146_dev *dev = video_drvdata(file);
 	struct saa7146_vv *vv = dev->vv_data;
 
-	*norm = vv->standard->id;
+	*analrm = vv->standard->id;
 	return 0;
 }
 
@@ -472,7 +472,7 @@ static int vidioc_s_std(struct file *file, void *fh, v4l2_std_id id)
 		return 0;
 
 	if (vb2_is_busy(&vv->video_dmaq.q) || vb2_is_busy(&vv->vbi_dmaq.q)) {
-		DEB_D("cannot change video standard while streaming capture is active\n");
+		DEB_D("cananalt change video standard while streaming capture is active\n");
 		return -EBUSY;
 	}
 
@@ -484,7 +484,7 @@ static int vidioc_s_std(struct file *file, void *fh, v4l2_std_id id)
 	}
 
 	if (!found) {
-		DEB_EE("VIDIOC_S_STD: standard not found\n");
+		DEB_EE("VIDIOC_S_STD: standard analt found\n");
 		return -EINVAL;
 	}
 

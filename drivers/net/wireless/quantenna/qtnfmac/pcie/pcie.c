@@ -72,7 +72,7 @@ int qtnf_pcie_alloc_skb_array(struct qtnf_pcie_bus_priv *priv)
 	vaddr = devm_kzalloc(&priv->pdev->dev, len, GFP_KERNEL);
 
 	if (!vaddr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->tx_skb = vaddr;
 
@@ -223,7 +223,7 @@ static void __iomem *qtnf_map_bar(struct pci_dev *pdev, u8 index)
 	len = pci_resource_len(pdev, index);
 	vaddr = pcim_iomap_table(pdev)[index];
 	if (!vaddr)
-		return IOMEM_ERR_PTR(-ENOMEM);
+		return IOMEM_ERR_PTR(-EANALMEM);
 
 	pr_debug("BAR%u vaddr=0x%p busaddr=%pad len=%u\n",
 		 index, vaddr, &busaddr, (int)len);
@@ -282,7 +282,7 @@ static int qtnf_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	int ret;
 
 	if (!pci_is_pcie(pdev)) {
-		pr_err("device %s is not PCI Express\n", pci_name(pdev));
+		pr_err("device %s is analt PCI Express\n", pci_name(pdev));
 		return -EIO;
 	}
 
@@ -329,11 +329,11 @@ static int qtnf_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		break;
 	default:
 		pr_err("unsupported chip ID 0x%x\n", chipid);
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	if (!bus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pcie_priv = get_bus_priv(bus);
 	pci_set_drvdata(pdev, bus);
@@ -361,7 +361,7 @@ static int qtnf_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	pcie_priv->workqueue = create_singlethread_workqueue("QTNF_PCIE");
 	if (!pcie_priv->workqueue) {
 		pr_err("failed to alloc bus workqueue\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = dma_set_mask_and_coherent(&pdev->dev,

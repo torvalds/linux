@@ -8,7 +8,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <fcntl.h>
-#include <errno.h>
+#include <erranal.h>
 #include <time.h>
 #include <string.h>
 #include <signal.h>
@@ -25,7 +25,7 @@ int endit = 0;
 
 /* Check if the disk is in powersave-mode
  * Most of the code is stolen from hdparm.
- * 1 = active, 0 = standby/sleep, -1 = unknown */
+ * 1 = active, 0 = standby/sleep, -1 = unkanalwn */
 static int check_powermode(int fd)
 {
     unsigned char args[4] = {WIN_CHECKPOWERMODE1,0,0,0};
@@ -34,8 +34,8 @@ static int check_powermode(int fd)
     if (ioctl(fd, HDIO_DRIVE_CMD, &args)
 	&& (args[0] = WIN_CHECKPOWERMODE2) /* try again with 0x98 */
 	&& ioctl(fd, HDIO_DRIVE_CMD, &args)) {
-	if (errno != EIO || args[0] != 0 || args[1] != 0) {
-	    state = -1; /* "unknown"; */
+	if (erranal != EIO || args[0] != 0 || args[1] != 0) {
+	    state = -1; /* "unkanalwn"; */
 	} else
 	    state = 0; /* "sleeping"; */
     } else {
@@ -48,7 +48,7 @@ static int check_powermode(int fd)
 
 static char *state_name(int i)
 {
-    if (i == -1) return "unknown";
+    if (i == -1) return "unkanalwn";
     if (i == 0) return "sleeping";
     if (i == 1) return "active";
 
@@ -73,7 +73,7 @@ static void measure(int fd)
     time_t time_diff;
     time_t active_time = 0;
     time_t sleep_time = 0;
-    time_t unknown_time = 0;
+    time_t unkanalwn_time = 0;
     time_t total_time = 0;
     int changes = 0;
     float tmp;
@@ -95,7 +95,7 @@ static void measure(int fd)
 
 	    if (last_state == 1) active_time += time_diff;
 	    else if (last_state == 0) sleep_time += time_diff;
-	    else unknown_time += time_diff;
+	    else unkanalwn_time += time_diff;
 
 	    last_state = curr_state;
 	    last_time = curr_time;
@@ -114,8 +114,8 @@ static void measure(int fd)
     printf(" Time in sleep state:   %lus (%.2f%%)\n", sleep_time, tmp);
     tmp = (float)active_time / (float)total_time * 100;
     printf(" Time in active state:  %lus (%.2f%%)\n", active_time, tmp);
-    tmp = (float)unknown_time / (float)total_time * 100;
-    printf(" Time in unknown state: %lus (%.2f%%)\n", unknown_time, tmp);
+    tmp = (float)unkanalwn_time / (float)total_time * 100;
+    printf(" Time in unkanalwn state: %lus (%.2f%%)\n", unkanalwn_time, tmp);
 }
 
 static void ender(int s)
@@ -144,17 +144,17 @@ int main(int argc, char **argv)
     } else
 	usage();
 
-    if (!(fd = open(disk, O_RDONLY|O_NONBLOCK))) {
-	printf("Can't open %s, because: %s\n", disk, strerror(errno));
+    if (!(fd = open(disk, O_RDONLY|O_ANALNBLOCK))) {
+	printf("Can't open %s, because: %s\n", disk, strerror(erranal));
 	exit(-1);
     }
 
     if (settle_time) {
 	printf("Waiting %d seconds for the system to settle down to "
-	       "'normal'\n", settle_time);
+	       "'analrmal'\n", settle_time);
 	sleep(settle_time);
     } else
-	puts("Not waiting for system to settle down");
+	puts("Analt waiting for system to settle down");
 
     signal(SIGINT, ender);
 

@@ -24,7 +24,7 @@ struct mcs_platform_data {
 	const u32 *keymap;
 	unsigned int keymap_size;
 	unsigned int key_maxval;
-	bool no_autorepeat;
+	bool anal_autorepeat;
 };
 
 #endif	/* __LINUX_MCS_H */

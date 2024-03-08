@@ -29,7 +29,7 @@ int output_rodata1;
 
 long output_sink1;
 
-static __noinline int get_bss_res(void)
+static __analinline int get_bss_res(void)
 {
 	/* just make sure all the relocations work against .text as well */
 	return input_bss1 + input_bss2 + input_bss_weak;

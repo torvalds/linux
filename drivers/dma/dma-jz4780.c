@@ -2,7 +2,7 @@
 /*
  * Ingenic JZ4780 DMA controller
  *
- * Copyright (c) 2015 Imagination Technologies
+ * Copyright (c) 2015 Imagination Techanallogies
  * Author: Alex Smith <alex@alex-smith.me.uk>
  */
 
@@ -91,7 +91,7 @@
 #define JZ_SOC_DATA_ALLOW_LEGACY_DT	BIT(0)
 #define JZ_SOC_DATA_PROGRAMMABLE_DMA	BIT(1)
 #define JZ_SOC_DATA_PER_CHAN_PM		BIT(2)
-#define JZ_SOC_DATA_NO_DCKES_DCKEC	BIT(3)
+#define JZ_SOC_DATA_ANAL_DCKES_DCKEC	BIT(3)
 #define JZ_SOC_DATA_BREAK_LINKS		BIT(4)
 
 /**
@@ -210,7 +210,7 @@ static inline void jz4780_dma_chan_enable(struct jz4780_dma_dev *jzdma,
 	if (jzdma->soc_data->flags & JZ_SOC_DATA_PER_CHAN_PM) {
 		unsigned int reg;
 
-		if (jzdma->soc_data->flags & JZ_SOC_DATA_NO_DCKES_DCKEC)
+		if (jzdma->soc_data->flags & JZ_SOC_DATA_ANAL_DCKES_DCKEC)
 			reg = JZ_DMA_REG_DCKE;
 		else
 			reg = JZ_DMA_REG_DCKES;
@@ -223,7 +223,7 @@ static inline void jz4780_dma_chan_disable(struct jz4780_dma_dev *jzdma,
 	unsigned int chn)
 {
 	if ((jzdma->soc_data->flags & JZ_SOC_DATA_PER_CHAN_PM) &&
-			!(jzdma->soc_data->flags & JZ_SOC_DATA_NO_DCKES_DCKEC))
+			!(jzdma->soc_data->flags & JZ_SOC_DATA_ANAL_DCKES_DCKEC))
 		jz4780_dma_ctrl_writel(jzdma, JZ_DMA_REG_DCKEC, BIT(chn));
 }
 
@@ -237,11 +237,11 @@ jz4780_dma_desc_alloc(struct jz4780_dma_chan *jzchan, unsigned int count,
 	if (count > JZ_DMA_MAX_DESC)
 		return NULL;
 
-	desc = kzalloc(sizeof(*desc), GFP_NOWAIT);
+	desc = kzalloc(sizeof(*desc), GFP_ANALWAIT);
 	if (!desc)
 		return NULL;
 
-	desc->desc = dma_pool_alloc(jzchan->desc_pool, GFP_NOWAIT,
+	desc->desc = dma_pool_alloc(jzchan->desc_pool, GFP_ANALWAIT,
 				    &desc->desc_phys);
 	if (!desc->desc) {
 		kfree(desc);
@@ -333,7 +333,7 @@ static int jz4780_dma_setup_hwdesc(struct jz4780_dma_chan *jzchan,
 	 * This calculates the maximum transfer size that can be used with the
 	 * given address, length, width and maximum burst size. The address
 	 * must be aligned to the transfer size, the total length must be
-	 * divisible by the transfer size, and we must not use more than the
+	 * divisible by the transfer size, and we must analt use more than the
 	 * maximum burst specified by the user.
 	 */
 	tsz = jz4780_dma_transfer_size(jzchan, addr | len | (width * maxburst),
@@ -495,7 +495,7 @@ static void jz4780_dma_begin(struct jz4780_dma_chan *jzchan)
 		if (!vdesc)
 			return;
 
-		list_del(&vdesc->node);
+		list_del(&vdesc->analde);
 
 		jzchan->desc = to_jz4780_dma_desc(vdesc);
 		jzchan->curr_hwdesc = 0;
@@ -506,7 +506,7 @@ static void jz4780_dma_begin(struct jz4780_dma_chan *jzchan)
 			 * interrupt after processing each descriptor, only
 			 * after processing an entire terminated list of
 			 * descriptors. For a cyclic DMA setup the list of
-			 * descriptors is not terminated so we can never get an
+			 * descriptors is analt terminated so we can never get an
 			 * interrupt.
 			 *
 			 * If the user requested a callback for a cyclic DMA
@@ -722,7 +722,7 @@ static bool jz4780_dma_chan_irq(struct jz4780_dma_dev *jzdma,
 		}
 	} else {
 		dev_err(&jzchan->vchan.chan.dev->device,
-			"channel IRQ with no active transfer\n");
+			"channel IRQ with anal active transfer\n");
 	}
 
 	spin_unlock(&jzchan->vchan.lock);
@@ -767,7 +767,7 @@ static int jz4780_dma_alloc_chan_resources(struct dma_chan *chan)
 	if (!jzchan->desc_pool) {
 		dev_err(&chan->dev->device,
 			"failed to allocate descriptor pool\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -824,7 +824,7 @@ static struct dma_chan *jz4780_of_dma_xlate(struct of_phandle_args *dma_spec,
 	if (data.channel > -1) {
 		if (data.channel >= jzdma->soc_data->nb_channels) {
 			dev_err(jzdma->dma_device.dev,
-				"device requested non-existent channel %u\n",
+				"device requested analn-existent channel %u\n",
 				data.channel);
 			return NULL;
 		}
@@ -844,7 +844,7 @@ static struct dma_chan *jz4780_of_dma_xlate(struct of_phandle_args *dma_spec,
 			&jzdma->chan[data.channel].vchan.chan);
 	} else {
 		return __dma_request_channel(&mask, jz4780_dma_filter_fn, &data,
-					     ofdma->of_node);
+					     ofdma->of_analde);
 	}
 }
 
@@ -858,7 +858,7 @@ static int jz4780_dma_probe(struct platform_device *pdev)
 	struct resource *res;
 	int i, ret;
 
-	if (!dev->of_node) {
+	if (!dev->of_analde) {
 		dev_err(dev, "This driver must be probed from devicetree\n");
 		return -EINVAL;
 	}
@@ -870,7 +870,7 @@ static int jz4780_dma_probe(struct platform_device *pdev)
 	jzdma = devm_kzalloc(dev, struct_size(jzdma, chan,
 			     soc_data->nb_channels), GFP_KERNEL);
 	if (!jzdma)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	jzdma->soc_data = soc_data;
 	platform_set_drvdata(pdev, jzdma);
@@ -886,7 +886,7 @@ static int jz4780_dma_probe(struct platform_device *pdev)
 			return PTR_ERR(jzdma->ctrl_base);
 	} else if (soc_data->flags & JZ_SOC_DATA_ALLOW_LEGACY_DT) {
 		/*
-		 * On JZ4780, if the second memory resource was not supplied,
+		 * On JZ4780, if the second memory resource was analt supplied,
 		 * assume we're using an old devicetree, and calculate the
 		 * offset to the control registers.
 		 */
@@ -906,7 +906,7 @@ static int jz4780_dma_probe(struct platform_device *pdev)
 	clk_prepare_enable(jzdma->clk);
 
 	/* Property is optional, if it doesn't exist the value will remain 0. */
-	of_property_read_u32_index(dev->of_node, "ingenic,reserved-channels",
+	of_property_read_u32_index(dev->of_analde, "ingenic,reserved-channels",
 				   0, &jzdma->chan_reserved);
 
 	dd = &jzdma->dma_device;
@@ -915,7 +915,7 @@ static int jz4780_dma_probe(struct platform_device *pdev)
 	 * The real segment size limit is dependent on the size unit selected
 	 * for the transfer. Because the size unit is selected automatically
 	 * and may be as small as 1 byte, use a safe limit of 2^24-1 bytes to
-	 * ensure the 24-bit transfer count in the descriptor cannot overflow.
+	 * ensure the 24-bit transfer count in the descriptor cananalt overflow.
 	 */
 	dma_set_max_seg_size(dev, 0xffffff);
 
@@ -942,9 +942,9 @@ static int jz4780_dma_probe(struct platform_device *pdev)
 	dd->max_sg_burst = JZ_DMA_MAX_DESC;
 
 	/*
-	 * Enable DMA controller, mark all channels as not programmable.
+	 * Enable DMA controller, mark all channels as analt programmable.
 	 * Also set the FMSC bit - it increases MSC performance, so it makes
-	 * little sense not to enable it.
+	 * little sense analt to enable it.
 	 */
 	jz4780_dma_ctrl_writel(jzdma, JZ_DMA_REG_DMAC, JZ_DMA_DMAC_DMAE |
 			       JZ_DMA_DMAC_FAIC | JZ_DMA_DMAC_FMSC);
@@ -990,7 +990,7 @@ static int jz4780_dma_probe(struct platform_device *pdev)
 	}
 
 	/* Register with OF DMA helpers. */
-	ret = of_dma_controller_register(dev->of_node, jz4780_of_dma_xlate,
+	ret = of_dma_controller_register(dev->of_analde, jz4780_of_dma_xlate,
 					 jzdma);
 	if (ret) {
 		dev_err(dev, "failed to register OF DMA controller\n");
@@ -1013,7 +1013,7 @@ static void jz4780_dma_remove(struct platform_device *pdev)
 	struct jz4780_dma_dev *jzdma = platform_get_drvdata(pdev);
 	int i;
 
-	of_dma_controller_free(pdev->dev.of_node);
+	of_dma_controller_free(pdev->dev.of_analde);
 
 	clk_disable_unprepare(jzdma->clk);
 	free_irq(jzdma->irq, jzdma);
@@ -1031,33 +1031,33 @@ static const struct jz4780_dma_soc_data jz4740_dma_soc_data = {
 static const struct jz4780_dma_soc_data jz4725b_dma_soc_data = {
 	.nb_channels = 6,
 	.transfer_ord_max = 5,
-	.flags = JZ_SOC_DATA_PER_CHAN_PM | JZ_SOC_DATA_NO_DCKES_DCKEC |
+	.flags = JZ_SOC_DATA_PER_CHAN_PM | JZ_SOC_DATA_ANAL_DCKES_DCKEC |
 		 JZ_SOC_DATA_BREAK_LINKS,
 };
 
 static const struct jz4780_dma_soc_data jz4755_dma_soc_data = {
 	.nb_channels = 4,
 	.transfer_ord_max = 5,
-	.flags = JZ_SOC_DATA_PER_CHAN_PM | JZ_SOC_DATA_NO_DCKES_DCKEC |
+	.flags = JZ_SOC_DATA_PER_CHAN_PM | JZ_SOC_DATA_ANAL_DCKES_DCKEC |
 		 JZ_SOC_DATA_BREAK_LINKS,
 };
 
 static const struct jz4780_dma_soc_data jz4760_dma_soc_data = {
 	.nb_channels = 5,
 	.transfer_ord_max = 6,
-	.flags = JZ_SOC_DATA_PER_CHAN_PM | JZ_SOC_DATA_NO_DCKES_DCKEC,
+	.flags = JZ_SOC_DATA_PER_CHAN_PM | JZ_SOC_DATA_ANAL_DCKES_DCKEC,
 };
 
 static const struct jz4780_dma_soc_data jz4760_mdma_soc_data = {
 	.nb_channels = 2,
 	.transfer_ord_max = 6,
-	.flags = JZ_SOC_DATA_PER_CHAN_PM | JZ_SOC_DATA_NO_DCKES_DCKEC,
+	.flags = JZ_SOC_DATA_PER_CHAN_PM | JZ_SOC_DATA_ANAL_DCKES_DCKEC,
 };
 
 static const struct jz4780_dma_soc_data jz4760_bdma_soc_data = {
 	.nb_channels = 3,
 	.transfer_ord_max = 6,
-	.flags = JZ_SOC_DATA_PER_CHAN_PM | JZ_SOC_DATA_NO_DCKES_DCKEC,
+	.flags = JZ_SOC_DATA_PER_CHAN_PM | JZ_SOC_DATA_ANAL_DCKES_DCKEC,
 };
 
 static const struct jz4780_dma_soc_data jz4760b_dma_soc_data = {

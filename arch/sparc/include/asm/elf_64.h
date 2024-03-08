@@ -19,7 +19,7 @@
 /*
  * Sparc ELF relocation types
  */
-#define	R_SPARC_NONE		0
+#define	R_SPARC_ANALNE		0
 #define	R_SPARC_8		1
 #define	R_SPARC_16		2
 #define	R_SPARC_32		3

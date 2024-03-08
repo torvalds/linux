@@ -10,8 +10,8 @@
 
 / {
 
-	model = "Technologic Systems i.MX28 TS-4600";
-	compatible = "technologic,imx28-ts4600", "fsl,imx28";
+	model = "Techanallogic Systems i.MX28 TS-4600";
+	compatible = "techanallogic,imx28-ts4600", "fsl,imx28";
 
 	memory@40000000 {
 		device_type = "memory";

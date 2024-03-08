@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syanalpsys, Inc. (www.syanalpsys.com)
  *
  * Vineetg: May 16th, 2008
- *  - Current macro is now implemented as "global register" r25
+ *  - Current macro is analw implemented as "global register" r25
  */
 
 #ifndef _ASM_ARC_CURRENT_H

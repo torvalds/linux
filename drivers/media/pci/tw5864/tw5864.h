@@ -7,7 +7,7 @@
 
 #include <linux/pci.h>
 #include <linux/videodev2.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/delay.h>
 #include <linux/mutex.h>
 #include <linux/io.h>
@@ -23,7 +23,7 @@
 
 #define PCI_DEVICE_ID_TECHWELL_5864 0x5864
 
-#define TW5864_NORMS V4L2_STD_ALL
+#define TW5864_ANALRMS V4L2_STD_ALL
 
 /* ----------------------------------------------------------- */
 /* card configuration   */
@@ -92,8 +92,8 @@ struct tw5864_input {
 	struct list_head active;
 	enum resolution resolution;
 	unsigned int width, height;
-	unsigned int frame_seqno;
-	unsigned int frame_gop_seqno;
+	unsigned int frame_seqanal;
+	unsigned int frame_gop_seqanal;
 	unsigned int h264_idr_pic_id;
 	int enabled;
 	enum tw5864_vid_std std;
@@ -136,8 +136,8 @@ struct tw5864_h264_frame {
 	u32 checksum;
 	struct tw5864_input *input;
 	u64 timestamp;
-	unsigned int seqno;
-	unsigned int gop_seqno;
+	unsigned int seqanal;
+	unsigned int gop_seqanal;
 };
 
 /* global device status */
@@ -191,6 +191,6 @@ void tw5864_h264_put_stream_header(u8 **buf, size_t *space_left, int qp,
 				   int width, int height);
 void tw5864_h264_put_slice_header(u8 **buf, size_t *space_left,
 				  unsigned int idr_pic_id,
-				  unsigned int frame_gop_seqno,
+				  unsigned int frame_gop_seqanal,
 				  int *tail_nb_bits, u8 *tail);
 void tw5864_request_encoded_frame(struct tw5864_input *input);

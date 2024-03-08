@@ -23,8 +23,8 @@ struct zpodd {
 	struct ata_device	*dev;
 
 	/* The following fields are synchronized by PM core. */
-	bool			from_notify; /* resumed as a result of
-					      * acpi wake notification */
+	bool			from_analtify; /* resumed as a result of
+					      * acpi wake analtification */
 	bool			zp_ready; /* ZP ready state */
 	unsigned long		last_ready; /* last ZP ready timestamp */
 	bool			zp_sampled; /* ZP ready state sampled */
@@ -44,9 +44,9 @@ static int eject_tray(struct ata_device *dev)
 	ata_tf_init(dev, &tf);
 	tf.flags = ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE;
 	tf.command = ATA_CMD_PACKET;
-	tf.protocol = ATAPI_PROT_NODATA;
+	tf.protocol = ATAPI_PROT_ANALDATA;
 
-	return ata_exec_internal(dev, &tf, cdb, DMA_NONE, NULL, 0, 0);
+	return ata_exec_internal(dev, &tf, cdb, DMA_ANALNE, NULL, 0, 0);
 }
 
 /* Per the spec, only slot type and drawer type ODD can be supported */
@@ -109,7 +109,7 @@ static bool zpready(struct ata_device *dev)
 
 	ret = atapi_eh_tur(dev, &sense_key);
 
-	if (!ret || sense_key != NOT_READY)
+	if (!ret || sense_key != ANALT_READY)
 		return false;
 
 	sense_buf = dev->link->ap->sector_buf;
@@ -130,10 +130,10 @@ static bool zpready(struct ata_device *dev)
 	ascq = sense_buf[13];
 
 	if (zpodd->mech_type == ODD_MECH_TYPE_SLOT)
-		/* no media inside */
+		/* anal media inside */
 		return asc == 0x3a;
 	else
-		/* no media inside and door closed */
+		/* anal media inside and door closed */
 		return asc == 0x3a && ascq == 0x01;
 }
 
@@ -208,10 +208,10 @@ void zpodd_disable_run_wake(struct ata_device *dev)
  * For drawer type ODD, if it is powered on due to user pressed the
  * eject button, the tray needs to be ejected. This can only be done
  * after the ODD has been recovered, i.e. link is initialized and
- * device is able to process NON_DATA PIO command, as eject needs to
+ * device is able to process ANALN_DATA PIO command, as eject needs to
  * send command for the ODD to process.
  *
- * The from_notify flag set in wake notification handler function
+ * The from_analtify flag set in wake analtification handler function
  * zpodd_wake_dev represents if power on is due to user's action.
  *
  * For both types of ODD, several fields need to be reset.
@@ -225,8 +225,8 @@ void zpodd_post_poweron(struct ata_device *dev)
 
 	zpodd->powered_off = false;
 
-	if (zpodd->from_notify) {
-		zpodd->from_notify = false;
+	if (zpodd->from_analtify) {
+		zpodd->from_analtify = false;
 		if (zpodd->mech_type == ODD_MECH_TYPE_DRAWER)
 			eject_tray(dev);
 	}
@@ -243,23 +243,23 @@ static void zpodd_wake_dev(acpi_handle handle, u32 event, void *context)
 	struct zpodd *zpodd = ata_dev->zpodd;
 	struct device *dev = &ata_dev->sdev->sdev_gendev;
 
-	if (event == ACPI_NOTIFY_DEVICE_WAKE && pm_runtime_suspended(dev)) {
-		zpodd->from_notify = true;
+	if (event == ACPI_ANALTIFY_DEVICE_WAKE && pm_runtime_suspended(dev)) {
+		zpodd->from_analtify = true;
 		pm_runtime_resume(dev);
 	}
 }
 
-static void ata_acpi_add_pm_notifier(struct ata_device *dev)
+static void ata_acpi_add_pm_analtifier(struct ata_device *dev)
 {
 	acpi_handle handle = ata_dev_acpi_handle(dev);
-	acpi_install_notify_handler(handle, ACPI_SYSTEM_NOTIFY,
+	acpi_install_analtify_handler(handle, ACPI_SYSTEM_ANALTIFY,
 				    zpodd_wake_dev, dev);
 }
 
-static void ata_acpi_remove_pm_notifier(struct ata_device *dev)
+static void ata_acpi_remove_pm_analtifier(struct ata_device *dev)
 {
 	acpi_handle handle = ata_dev_acpi_handle(dev);
-	acpi_remove_notify_handler(handle, ACPI_SYSTEM_NOTIFY, zpodd_wake_dev);
+	acpi_remove_analtify_handler(handle, ACPI_SYSTEM_ANALTIFY, zpodd_wake_dev);
 }
 
 void zpodd_init(struct ata_device *dev)
@@ -281,7 +281,7 @@ void zpodd_init(struct ata_device *dev)
 
 	zpodd->mech_type = mech_type;
 
-	ata_acpi_add_pm_notifier(dev);
+	ata_acpi_add_pm_analtifier(dev);
 	zpodd->dev = dev;
 	dev->zpodd = zpodd;
 	dev_pm_qos_expose_flags(&dev->tdev, 0);
@@ -289,7 +289,7 @@ void zpodd_init(struct ata_device *dev)
 
 void zpodd_exit(struct ata_device *dev)
 {
-	ata_acpi_remove_pm_notifier(dev);
+	ata_acpi_remove_pm_analtifier(dev);
 	kfree(dev->zpodd);
 	dev->zpodd = NULL;
 }

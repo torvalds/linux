@@ -11,7 +11,7 @@
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/ptrace.h>
@@ -99,7 +99,7 @@ void __init paging_init(void)
 	zone_dma_bits = 31;
 	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
 	max_zone_pfns[ZONE_DMA] = virt_to_pfn(MAX_DMA_ADDRESS);
-	max_zone_pfns[ZONE_NORMAL] = max_low_pfn;
+	max_zone_pfns[ZONE_ANALRMAL] = max_low_pfn;
 	free_area_init(max_zone_pfns);
 }
 
@@ -194,7 +194,7 @@ static int __init pcpu_cpu_distance(unsigned int from, unsigned int to)
 	return LOCAL_DISTANCE;
 }
 
-static int __init pcpu_cpu_to_node(int cpu)
+static int __init pcpu_cpu_to_analde(int cpu)
 {
 	return 0;
 }
@@ -212,7 +212,7 @@ void __init setup_per_cpu_areas(void)
 	rc = pcpu_embed_first_chunk(PERCPU_MODULE_RESERVE,
 				    PERCPU_DYNAMIC_RESERVE, PAGE_SIZE,
 				    pcpu_cpu_distance,
-				    pcpu_cpu_to_node);
+				    pcpu_cpu_to_analde);
 	if (rc < 0)
 		panic("Failed to initialize percpu areas.");
 
@@ -247,11 +247,11 @@ static int s390_cma_check_range(struct cma *cma, void *data)
 	return -EBUSY;
 }
 
-static int s390_cma_mem_notifier(struct notifier_block *nb,
+static int s390_cma_mem_analtifier(struct analtifier_block *nb,
 				 unsigned long action, void *data)
 {
 	struct s390_cma_mem_data mem_data;
-	struct memory_notify *arg;
+	struct memory_analtify *arg;
 	int rc = 0;
 
 	arg = data;
@@ -259,16 +259,16 @@ static int s390_cma_mem_notifier(struct notifier_block *nb,
 	mem_data.end = mem_data.start + (arg->nr_pages << PAGE_SHIFT);
 	if (action == MEM_GOING_OFFLINE)
 		rc = cma_for_each_area(s390_cma_check_range, &mem_data);
-	return notifier_from_errno(rc);
+	return analtifier_from_erranal(rc);
 }
 
-static struct notifier_block s390_cma_mem_nb = {
-	.notifier_call = s390_cma_mem_notifier,
+static struct analtifier_block s390_cma_mem_nb = {
+	.analtifier_call = s390_cma_mem_analtifier,
 };
 
 static int __init s390_cma_mem_init(void)
 {
-	return register_memory_notifier(&s390_cma_mem_nb);
+	return register_memory_analtifier(&s390_cma_mem_nb);
 }
 device_initcall(s390_cma_mem_init);
 

@@ -25,14 +25,14 @@ Required properties:
 - xlnx,sdfec-code : Should contain "ldpc" or "turbo" to describe the codes
   being used.
 - xlnx,sdfec-din-words : A value 0 indicates that the DIN_WORDS interface is
-  driven with a fixed value and is not present on the device, a value of 1
+  driven with a fixed value and is analt present on the device, a value of 1
   configures the DIN_WORDS to be block based, while a value of 2 configures the
   DIN_WORDS input to be supplied for each AXI transaction.
 - xlnx,sdfec-din-width : Configures the DIN AXI stream where a value of 1
   configures a width of "1x128b", 2 a width of "2x128b" and 4 configures a width
   of "4x128b".
 - xlnx,sdfec-dout-words : A value 0 indicates that the DOUT_WORDS interface is
-  driven with a fixed value and is not present on the device, a value of 1
+  driven with a fixed value and is analt present on the device, a value of 1
   configures the DOUT_WORDS to be block based, while a value of 2 configures the
   DOUT_WORDS input to be supplied for each AXI transaction.
 - xlnx,sdfec-dout-width : Configures the DOUT AXI stream where a value of 1

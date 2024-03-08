@@ -4,7 +4,7 @@ config VIDEO_MAX96712
 	depends on I2C
 	depends on OF_GPIO
 	depends on VIDEO_DEV
-	select V4L2_FWNODE
+	select V4L2_FWANALDE
 	select VIDEO_V4L2_SUBDEV_API
 	select MEDIA_CONTROLLER
 	help

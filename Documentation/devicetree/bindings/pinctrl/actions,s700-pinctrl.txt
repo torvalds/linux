@@ -8,12 +8,12 @@ Required Properties:
 - reg:          Should contain the register base address and size of
 		the pin controller.
 - clocks:       phandle of the clock feeding the pin controller
-- gpio-controller: Marks the device node as a GPIO controller.
+- gpio-controller: Marks the device analde as a GPIO controller.
 - gpio-ranges: Specifies the mapping between gpio controller and
                pin-controller pins.
 - #gpio-cells: Should be two. The first cell is the gpio pin number
 		and the second cell is used for optional parameters.
-- interrupt-controller: Marks the device node as an interrupt controller.
+- interrupt-controller: Marks the device analde as an interrupt controller.
 - #interrupt-cells: Specifies the number of cells needed to encode an
 		interrupt.  Shall be set to 2.  The first cell
 		defines the interrupt number, the second encodes
@@ -26,30 +26,30 @@ Required Properties:
 
 Please refer to pinctrl-bindings.txt in this directory for details of the
 common pinctrl bindings used by client devices, including the meaning of the
-phrase "pin configuration node".
+phrase "pin configuration analde".
 
-The pin configuration nodes act as a container for an arbitrary number of
-subnodes. Each of these subnodes represents some desired configuration for a
+The pin configuration analdes act as a container for an arbitrary number of
+subanaldes. Each of these subanaldes represents some desired configuration for a
 pin, a group, or a list of pins or groups. This configuration can include the
 mux function to select on those group(s), and various pin configuration
 parameters, such as pull-up, drive strength, etc.
 
-PIN CONFIGURATION NODES:
+PIN CONFIGURATION ANALDES:
 
-The name of each subnode is not important; all subnodes should be enumerated
+The name of each subanalde is analt important; all subanaldes should be enumerated
 and processed purely based on their content.
 
-Each subnode only affects those parameters that are explicitly listed. In
-other words, a subnode that lists a mux function but no pin configuration
-parameters implies no information about any pin configuration parameters.
-Similarly, a pin subnode that describes a pullup parameter implies no
+Each subanalde only affects those parameters that are explicitly listed. In
+other words, a subanalde that lists a mux function but anal pin configuration
+parameters implies anal information about any pin configuration parameters.
+Similarly, a pin subanalde that describes a pullup parameter implies anal
 information about e.g. the mux function.
 
 Pinmux functions are available only for the pin groups while pinconf
 parameters are available for both pin groups and individual pins.
 
 The following generic properties as defined in pinctrl-bindings.txt are valid
-to specify in a pin configuration subnode:
+to specify in a pin configuration subanalde:
 
 Required Properties:
 
@@ -116,7 +116,7 @@ Required Properties:
 		the corresponding pin groups. The following are the list of
 		pinmux functions available:
 
-		nor, eth_rgmii, eth_sgmii, spi0, spi1, spi2, spi3, seNs0, sens1,
+		analr, eth_rgmii, eth_sgmii, spi0, spi1, spi2, spi3, seNs0, sens1,
 		uart0, uart1, uart2, uart3, uart4, uart5, uart6, i2s0, i2s1,
 		pcm1, pcm0, ks, jtag, pwm0, pwm1, pwm2, pwm3, pwm4, pwm5, p0,
 		sd0, sd1, sd2, i2c0, i2c1, i2c2, i2c3, dsi, lvds, usb30,
@@ -124,13 +124,13 @@ Required Properties:
 
 Optional Properties:
 
-- bias-pull-down: No arguments. The specified pins should be configured as
+- bias-pull-down: Anal arguments. The specified pins should be configured as
 		pull down.
-- bias-pull-up:   No arguments. The specified pins should be configured as
+- bias-pull-up:   Anal arguments. The specified pins should be configured as
 		pull up.
-- input-schmitt-enable: No arguments: Enable schmitt trigger for the specified
+- input-schmitt-enable: Anal arguments: Enable schmitt trigger for the specified
 		pins
-- input-schmitt-disable: No arguments: Disable schmitt trigger for the specified
+- input-schmitt-disable: Anal arguments: Disable schmitt trigger for the specified
 		pins
 - drive-strength: Integer. Selects the drive strength for the specified
 		pins in mA.

@@ -8,7 +8,7 @@ The following tests are available:
   * vsock_test - core AF_VSOCK socket functionality
   * vsock_diag_test - vsock_diag.ko module for listing open sockets
 
-The following prerequisite steps are not automated and must be performed prior
+The following prerequisite steps are analt automated and must be performed prior
 to running tests:
 
 1. Build the kernel, make headers_install, and build these tests.

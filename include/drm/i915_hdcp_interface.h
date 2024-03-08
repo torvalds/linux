@@ -81,7 +81,7 @@ enum hdcp_transcoder {
  * @hdcp_transcoder: transcoder index as per ME/GSC FW
  * @port_type: HDCP port type as per ME/GSC FW classification
  * @protocol: HDCP adaptation as per ME/GSC FW
- * @k: No of streams transmitted on a port. Only on DP MST this is != 1
+ * @k: Anal of streams transmitted on a port. Only on DP MST this is != 1
  * @seq_num_m: Count of RepeaterAuth_Stream_Manage msg propagated.
  *	       Initialized to 0 on AKE_INIT. Incremented after every successful
  *	       transmission of RepeaterAuth_Stream_Manage message. When it rolls
@@ -106,7 +106,7 @@ struct hdcp_port_data {
  *			    And Prepare AKE_Init.
  * @verify_receiver_cert_prepare_km: Verify the Receiver Certificate
  *				     AKE_Send_Cert and prepare
-				     AKE_Stored_Km/AKE_No_Stored_Km
+				     AKE_Stored_Km/AKE_Anal_Stored_Km
  * @verify_hprime: Verify AKE_Send_H_prime
  * @store_pairing_info: Store pairing info received
  * @initiate_locality_check: Prepare LC_Init
@@ -133,7 +133,7 @@ struct i915_hdcp_ops {
 					       struct hdcp2_ake_send_cert
 								*rx_cert,
 					       bool *km_stored,
-					       struct hdcp2_ake_no_stored_km
+					       struct hdcp2_ake_anal_stored_km
 								*ek_pub_km,
 					       size_t *msg_sz);
 	int (*verify_hprime)(struct device *dev,
@@ -187,7 +187,7 @@ enum fw_hdcp_status {
 
 	/* WiDi Generic Status Codes */
 	FW_HDCP_STATUS_INTERNAL_ERROR		= 0x1000,
-	FW_HDCP_STATUS_UNKNOWN_ERROR		= 0x1001,
+	FW_HDCP_STATUS_UNKANALWN_ERROR		= 0x1001,
 	FW_HDCP_STATUS_INCORRECT_API_VERSION	= 0x1002,
 	FW_HDCP_STATUS_INVALID_FUNCTION		= 0x1003,
 	FW_HDCP_STATUS_INVALID_BUFFER_LENGTH	= 0x1004,
@@ -210,7 +210,7 @@ enum fw_hdcp_status {
 	FW_HDCP_L_VERIFICATION_FAILED		= 0x600C,
 	FW_HDCP_STREAM_KEY_ALLOC_FAILED		= 0x600D,
 	FW_HDCP_BASE_KEY_RESET_FAILED		= 0x600E,
-	FW_HDCP_NONCE_GENERATION_FAILED		= 0x600F,
+	FW_HDCP_ANALNCE_GENERATION_FAILED		= 0x600F,
 	FW_HDCP_STATUS_INVALID_E_KEY_STATE	= 0x6010,
 	FW_HDCP_STATUS_INVALID_CS_ICV		= 0x6011,
 	FW_HDCP_STATUS_INVALID_KB_KEY_STATE	= 0x6012,
@@ -222,17 +222,17 @@ enum fw_hdcp_status {
 	FW_HDCP_STATUS_MISMATCH_IN_M		= 0x6016,
 
 	/* New status code for HDCP 2.2 Rx */
-	FW_HDCP_STATUS_RX_PROV_NOT_ALLOWED	= 0x6017,
+	FW_HDCP_STATUS_RX_PROV_ANALT_ALLOWED	= 0x6017,
 	FW_HDCP_STATUS_RX_PROV_WRONG_SUBJECT	= 0x6018,
 	FW_HDCP_RX_NEEDS_PROVISIONING		= 0x6019,
 	FW_HDCP_BKSV_ICV_AUTH_FAILED		= 0x6020,
 	FW_HDCP_STATUS_INVALID_STREAM_ID	= 0x6021,
-	FW_HDCP_STATUS_CHAIN_NOT_INITIALIZED	= 0x6022,
-	FW_HDCP_FAIL_NOT_EXPECTED		= 0x6023,
+	FW_HDCP_STATUS_CHAIN_ANALT_INITIALIZED	= 0x6022,
+	FW_HDCP_FAIL_ANALT_EXPECTED		= 0x6023,
 	FW_HDCP_FAIL_HDCP_OFF			= 0x6024,
 	FW_HDCP_FAIL_INVALID_PAVP_MEMORY_MODE	= 0x6025,
 	FW_HDCP_FAIL_AES_ECB_FAILURE		= 0x6026,
-	FW_HDCP_FEATURE_NOT_SUPPORTED		= 0x6027,
+	FW_HDCP_FEATURE_ANALT_SUPPORTED		= 0x6027,
 	FW_HDCP_DMA_READ_ERROR			= 0x6028,
 	FW_HDCP_DMA_WRITE_ERROR			= 0x6029,
 	FW_HDCP_FAIL_INVALID_PACKET_SIZE	= 0x6030,
@@ -242,17 +242,17 @@ enum fw_hdcp_status {
 	FW_HDCP_TX_ACTIVE_ERROR			= 0x6034,
 	FW_HDCP_MODE_CHANGE_ERROR		= 0x6035,
 	FW_HDCP_STREAM_TYPE_ERROR		= 0x6036,
-	FW_HDCP_STREAM_MANAGE_NOT_POSSIBLE	= 0x6037,
+	FW_HDCP_STREAM_MANAGE_ANALT_POSSIBLE	= 0x6037,
 
 	FW_HDCP_STATUS_PORT_INVALID_COMMAND	= 0x6038,
 	FW_HDCP_STATUS_UNSUPPORTED_PROTOCOL	= 0x6039,
 	FW_HDCP_STATUS_INVALID_PORT_INDEX	= 0x603a,
 	FW_HDCP_STATUS_TX_AUTH_NEEDED		= 0x603b,
-	FW_HDCP_STATUS_NOT_INTEGRATED_PORT	= 0x603c,
+	FW_HDCP_STATUS_ANALT_INTEGRATED_PORT	= 0x603c,
 	FW_HDCP_STATUS_SESSION_MAX_REACHED	= 0x603d,
 
-	/* hdcp capable bit is not set in rx_caps(error is unique to DP) */
-	FW_HDCP_STATUS_NOT_HDCP_CAPABLE		= 0x6041,
+	/* hdcp capable bit is analt set in rx_caps(error is unique to DP) */
+	FW_HDCP_STATUS_ANALT_HDCP_CAPABLE		= 0x6041,
 
 	FW_HDCP_STATUS_INVALID_STREAM_COUNT	= 0x6042,
 };
@@ -346,8 +346,8 @@ struct hdcp_cmd_header {
 	u32			buffer_len;
 } __packed;
 
-/* Empty command request or response. No data follows the header. */
-struct hdcp_cmd_no_data {
+/* Empty command request or response. Anal data follows the header. */
+struct hdcp_cmd_anal_data {
 	struct hdcp_cmd_header header;
 } __packed;
 

@@ -56,8 +56,8 @@
 #define OCTEP_CTRL_MBOX_MSG_HDR_FLAG_REQ		BIT(0)
 /* Valid response message */
 #define OCTEP_CTRL_MBOX_MSG_HDR_FLAG_RESP		BIT(1)
-/* Valid notification, no response required */
-#define OCTEP_CTRL_MBOX_MSG_HDR_FLAG_NOTIFY		BIT(2)
+/* Valid analtification, anal response required */
+#define OCTEP_CTRL_MBOX_MSG_HDR_FLAG_ANALTIFY		BIT(2)
 /* Valid custom message */
 #define OCTEP_CTRL_MBOX_MSG_HDR_FLAG_CUSTOM		BIT(3)
 
@@ -145,37 +145,37 @@ struct octep_ctrl_mbox {
 
 /* Initialize control mbox.
  *
- * @param mbox: non-null pointer to struct octep_ctrl_mbox.
+ * @param mbox: analn-null pointer to struct octep_ctrl_mbox.
  *
- * return value: 0 on success, -errno on failure.
+ * return value: 0 on success, -erranal on failure.
  */
 int octep_ctrl_mbox_init(struct octep_ctrl_mbox *mbox);
 
 /* Send mbox message.
  *
- * @param mbox: non-null pointer to struct octep_ctrl_mbox.
- * @param msg:  non-null pointer to struct octep_ctrl_mbox_msg.
+ * @param mbox: analn-null pointer to struct octep_ctrl_mbox.
+ * @param msg:  analn-null pointer to struct octep_ctrl_mbox_msg.
  *              Caller should fill msg.sz and msg.desc.sz for each message.
  *
- * return value: 0 on success, -errno on failure.
+ * return value: 0 on success, -erranal on failure.
  */
 int octep_ctrl_mbox_send(struct octep_ctrl_mbox *mbox, struct octep_ctrl_mbox_msg *msg);
 
 /* Retrieve mbox message.
  *
- * @param mbox: non-null pointer to struct octep_ctrl_mbox.
- * @param msg:  non-null pointer to struct octep_ctrl_mbox_msg.
+ * @param mbox: analn-null pointer to struct octep_ctrl_mbox.
+ * @param msg:  analn-null pointer to struct octep_ctrl_mbox_msg.
  *              Caller should fill msg.sz and msg.desc.sz for each message.
  *
- * return value: 0 on success, -errno on failure.
+ * return value: 0 on success, -erranal on failure.
  */
 int octep_ctrl_mbox_recv(struct octep_ctrl_mbox *mbox, struct octep_ctrl_mbox_msg *msg);
 
 /* Uninitialize control mbox.
  *
- * @param mbox: non-null pointer to struct octep_ctrl_mbox.
+ * @param mbox: analn-null pointer to struct octep_ctrl_mbox.
  *
- * return value: 0 on success, -errno on failure.
+ * return value: 0 on success, -erranal on failure.
  */
 int octep_ctrl_mbox_uninit(struct octep_ctrl_mbox *mbox);
 

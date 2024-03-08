@@ -6,7 +6,7 @@
  * Copyright (C) 1999 - 2006 Krzysztof Halasa <khc@pm.waw.pl>
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/gfp.h>
 #include <linux/hdlc.h>
 #include <linux/if_arp.h>
@@ -55,7 +55,7 @@ static void x25_connect_disconnect(struct net_device *dev, int reason, int code)
 	struct sk_buff *skb;
 	unsigned char *ptr;
 
-	skb = __dev_alloc_skb(1, GFP_ATOMIC | __GFP_NOMEMALLOC);
+	skb = __dev_alloc_skb(1, GFP_ATOMIC | __GFP_ANALMEMALLOC);
 	if (!skb)
 		return;
 
@@ -110,7 +110,7 @@ static void x25_data_transmit(struct net_device *dev, struct sk_buff *skb)
 	if (dev_nit_active(dev))
 		dev_queue_xmit_nit(skb, dev);
 
-	hdlc->xmit(skb, dev); /* Ignore return value :-( */
+	hdlc->xmit(skb, dev); /* Iganalre return value :-( */
 }
 
 static netdev_tx_t x25_xmit(struct sk_buff *skb, struct net_device *dev)
@@ -158,7 +158,7 @@ static netdev_tx_t x25_xmit(struct sk_buff *skb, struct net_device *dev)
 	case X25_IFACE_DISCONNECT:
 		result = lapb_disconnect_request(dev);
 		if (result != LAPB_OK) {
-			if (result == LAPB_NOTCONNECTED)
+			if (result == LAPB_ANALTCONNECTED)
 				/* Send disconnect confirm. msg to level 3 */
 				x25_disconnected(dev, 0);
 			else
@@ -193,7 +193,7 @@ static int x25_open(struct net_device *dev)
 
 	result = lapb_register(dev, &cb);
 	if (result != LAPB_OK)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	result = lapb_getparms(dev, &params);
 	if (result != LAPB_OK)
@@ -289,7 +289,7 @@ static int x25_ioctl(struct net_device *dev, struct if_settings *ifs)
 		ifs->type = IF_PROTO_X25;
 		if (ifs->size < size) {
 			ifs->size = size; /* data size wanted */
-			return -ENOBUFS;
+			return -EANALBUFS;
 		}
 		if (copy_to_user(x25_s, &state(hdlc)->settings, size))
 			return -EFAULT;
@@ -348,7 +348,7 @@ static int x25_ioctl(struct net_device *dev, struct if_settings *ifs)
 		skb_queue_head_init(&state(hdlc)->rx_queue);
 		tasklet_setup(&state(hdlc)->rx_tasklet, x25_rx_queue_kick);
 
-		/* There's no header_ops so hard_header_len should be 0. */
+		/* There's anal header_ops so hard_header_len should be 0. */
 		dev->hard_header_len = 0;
 		/* When transmitting data:
 		 * first we'll remove a pseudo header of 1 byte,
@@ -357,7 +357,7 @@ static int x25_ioctl(struct net_device *dev, struct if_settings *ifs)
 		dev->needed_headroom = 3 - 1;
 
 		dev->type = ARPHRD_X25;
-		call_netdevice_notifiers(NETDEV_POST_TYPE_CHANGE, dev);
+		call_netdevice_analtifiers(NETDEV_POST_TYPE_CHANGE, dev);
 		netif_dormant_off(dev);
 		return 0;
 	}

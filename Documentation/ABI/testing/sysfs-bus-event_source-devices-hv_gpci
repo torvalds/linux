@@ -104,7 +104,7 @@ Description:	admin read only
 
 		Possible error codes while reading this sysfs file:
 
-		* "-EPERM" : Partition is not permitted to retrieve performance information,
+		* "-EPERM" : Partition is analt permitted to retrieve performance information,
 			    required to set "Enable Performance Information Collection" option.
 
 		* "-EIO" : Can't retrieve system information because of invalid buffer length/invalid address
@@ -136,7 +136,7 @@ Description:	admin read only
 
 		Possible error codes while reading this sysfs file:
 
-		* "-EPERM" : Partition is not permitted to retrieve performance information,
+		* "-EPERM" : Partition is analt permitted to retrieve performance information,
 			    required to set "Enable Performance Information Collection" option.
 
 		* "-EIO" : Can't retrieve system information because of invalid buffer length/invalid address
@@ -168,7 +168,7 @@ Description:	admin read only
 
 		Possible error codes while reading this sysfs file:
 
-		* "-EPERM" : Partition is not permitted to retrieve performance information,
+		* "-EPERM" : Partition is analt permitted to retrieve performance information,
 			    required to set "Enable Performance Information Collection" option.
 
 		* "-EIO" : Can't retrieve system information because of invalid buffer length/invalid address
@@ -200,7 +200,7 @@ Description:	admin read only
 
 		Possible error codes while reading this sysfs file:
 
-		* "-EPERM" : Partition is not permitted to retrieve performance information,
+		* "-EPERM" : Partition is analt permitted to retrieve performance information,
 			    required to set "Enable Performance Information Collection" option.
 
 		* "-EIO" : Can't retrieve system information because of invalid buffer length/invalid address
@@ -232,7 +232,7 @@ Description:	admin read only
 
 		Possible error codes while reading this sysfs file:
 
-		* "-EPERM" : Partition is not permitted to retrieve performance information,
+		* "-EPERM" : Partition is analt permitted to retrieve performance information,
 			    required to set "Enable Performance Information Collection" option.
 
 		* "-EIO" : Can't retrieve system information because of invalid buffer length/invalid address

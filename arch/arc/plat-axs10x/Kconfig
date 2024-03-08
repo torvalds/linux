@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
-# Copyright (C) 2013-15 Synopsys, Inc. (www.synopsys.com)
+# Copyright (C) 2013-15 Syanalpsys, Inc. (www.syanalpsys.com)
 #
 
 menuconfig ARC_PLAT_AXS10X
-	bool "Synopsys ARC AXS10x Software Development Platforms"
+	bool "Syanalpsys ARC AXS10x Software Development Platforms"
 	select DW_APB_ICTL
 	select GPIO_DWAPB
 	select OF_GPIO

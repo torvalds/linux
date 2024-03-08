@@ -1,6 +1,6 @@
 Binding for a ST multiplexed clock driver.
 
-This binding supports only simple indexed multiplexers, it does not
+This binding supports only simple indexed multiplexers, it does analt
 support table based parent index to hardware value translations.
 
 This binding uses the common clock binding[1].

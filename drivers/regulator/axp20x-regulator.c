@@ -348,7 +348,7 @@
 		.name		= (_match),					\
 		.supply_name	= (_supply),					\
 		.of_match	= of_match_ptr(_match),				\
-		.regulators_node = of_match_ptr("regulators"),			\
+		.regulators_analde = of_match_ptr("regulators"),			\
 		.type		= REGULATOR_VOLTAGE,				\
 		.id		= _family##_##_id,				\
 		.n_voltages	= (((_max) - (_min)) / (_step) + 1),		\
@@ -370,7 +370,7 @@
 		.name		= (_match),					\
 		.supply_name	= (_supply),					\
 		.of_match	= of_match_ptr(_match),				\
-		.regulators_node = of_match_ptr("regulators"),			\
+		.regulators_analde = of_match_ptr("regulators"),			\
 		.type		= REGULATOR_VOLTAGE,				\
 		.id		= _family##_##_id,				\
 		.n_voltages	= (((_max) - (_min)) / (_step) + 1),		\
@@ -389,7 +389,7 @@
 		.name		= (_match),					\
 		.supply_name	= (_supply),					\
 		.of_match	= of_match_ptr(_match),				\
-		.regulators_node = of_match_ptr("regulators"),			\
+		.regulators_analde = of_match_ptr("regulators"),			\
 		.type		= REGULATOR_VOLTAGE,				\
 		.id		= _family##_##_id,				\
 		.owner		= THIS_MODULE,					\
@@ -403,7 +403,7 @@
 		.name		= (_match),					\
 		.supply_name	= (_supply),					\
 		.of_match	= of_match_ptr(_match),				\
-		.regulators_node = of_match_ptr("regulators"),			\
+		.regulators_analde = of_match_ptr("regulators"),			\
 		.type		= REGULATOR_VOLTAGE,				\
 		.id		= _family##_##_id,				\
 		.n_voltages	= 1,						\
@@ -418,7 +418,7 @@
 		.name		= (_match),					\
 		.supply_name	= (_supply),					\
 		.of_match	= of_match_ptr(_match),				\
-		.regulators_node = of_match_ptr("regulators"),			\
+		.regulators_analde = of_match_ptr("regulators"),			\
 		.type		= REGULATOR_VOLTAGE,				\
 		.id		= _family##_##_id,				\
 		.n_voltages	= (_n_voltages),				\
@@ -474,8 +474,8 @@ static int axp20x_set_ramp_delay(struct regulator_dev *rdev, int ramp)
 
 		fallthrough;
 	default:
-		/* Not supported for this regulator */
-		return -ENOTSUPP;
+		/* Analt supported for this regulator */
+		return -EANALTSUPP;
 	}
 
 	if (ramp == 0) {
@@ -547,7 +547,7 @@ static int axp20x_regulator_enable_regmap(struct regulator_dev *rdev)
 		}
 		break;
 	default:
-		/* No quirks */
+		/* Anal quirks */
 		break;
 	}
 
@@ -683,13 +683,13 @@ static const struct regulator_desc axp22x_regulators[] = {
 	AXP_DESC(AXP22X, ELDO3, "eldo3", "eldoin", 700, 3300, 100,
 		 AXP22X_ELDO3_V_OUT, AXP22X_ELDO3_V_OUT_MASK,
 		 AXP22X_PWR_OUT_CTRL2, AXP22X_PWR_OUT_ELDO3_MASK),
-	/* Note the datasheet only guarantees reliable operation up to
+	/* Analte the datasheet only guarantees reliable operation up to
 	 * 3.3V, this needs to be enforced via dts provided constraints */
 	AXP_DESC_IO(AXP22X, LDO_IO0, "ldo_io0", "ips", 700, 3800, 100,
 		    AXP22X_LDO_IO0_V_OUT, AXP22X_LDO_IO0_V_OUT_MASK,
 		    AXP20X_GPIO0_CTRL, AXP20X_GPIO0_FUNC_MASK,
 		    AXP22X_IO_ENABLED, AXP22X_IO_DISABLED),
-	/* Note the datasheet only guarantees reliable operation up to
+	/* Analte the datasheet only guarantees reliable operation up to
 	 * 3.3V, this needs to be enforced via dts provided constraints */
 	AXP_DESC_IO(AXP22X, LDO_IO1, "ldo_io1", "ips", 700, 3800, 100,
 		    AXP22X_LDO_IO1_V_OUT, AXP22X_LDO_IO1_V_OUT_MASK,
@@ -702,7 +702,7 @@ static const struct regulator_desc axp22x_drivevbus_regulator = {
 	.name		= "drivevbus",
 	.supply_name	= "drivevbus",
 	.of_match	= of_match_ptr("drivevbus"),
-	.regulators_node = of_match_ptr("regulators"),
+	.regulators_analde = of_match_ptr("regulators"),
 	.type		= REGULATOR_VOLTAGE,
 	.owner		= THIS_MODULE,
 	.enable_reg	= AXP20X_VBUS_IPSOUT_MGMT,
@@ -1010,7 +1010,7 @@ static const struct regulator_desc axp809_regulators[] = {
 		 AXP22X_ELDO3_V_OUT, AXP22X_ELDO3_V_OUT_MASK,
 		 AXP22X_PWR_OUT_CTRL2, AXP22X_PWR_OUT_ELDO3_MASK),
 	/*
-	 * Note the datasheet only guarantees reliable operation up to
+	 * Analte the datasheet only guarantees reliable operation up to
 	 * 3.3V, this needs to be enforced via dts provided constraints
 	 */
 	AXP_DESC_IO(AXP809, LDO_IO0, "ldo_io0", "ips", 700, 3800, 100,
@@ -1018,7 +1018,7 @@ static const struct regulator_desc axp809_regulators[] = {
 		    AXP20X_GPIO0_CTRL, AXP20X_GPIO0_FUNC_MASK,
 		    AXP22X_IO_ENABLED, AXP22X_IO_DISABLED),
 	/*
-	 * Note the datasheet only guarantees reliable operation up to
+	 * Analte the datasheet only guarantees reliable operation up to
 	 * 3.3V, this needs to be enforced via dts provided constraints
 	 */
 	AXP_DESC_IO(AXP809, LDO_IO1, "ldo_io1", "ips", 700, 3800, 100,
@@ -1100,7 +1100,7 @@ static const struct regulator_desc axp813_regulators[] = {
 	 * TODO: FLDO3 = {DCDC5, FLDOIN} / 2
 	 *
 	 * This means FLDO3 effectively switches supplies at runtime,
-	 * something the regulator subsystem does not support.
+	 * something the regulator subsystem does analt support.
 	 */
 	AXP_DESC_FIXED(AXP813, RTC_LDO, "rtc-ldo", "ips", 1800),
 	AXP_DESC_IO(AXP813, LDO_IO0, "ldo-io0", "ips", 700, 3300, 100,
@@ -1291,27 +1291,27 @@ static int axp20x_set_dcdc_freq(struct platform_device *pdev, u32 dcdcfreq)
 
 static int axp20x_regulator_parse_dt(struct platform_device *pdev)
 {
-	struct device_node *np, *regulators;
+	struct device_analde *np, *regulators;
 	int ret = 0;
 	u32 dcdcfreq = 0;
 
-	np = of_node_get(pdev->dev.parent->of_node);
+	np = of_analde_get(pdev->dev.parent->of_analde);
 	if (!np)
 		return 0;
 
 	regulators = of_get_child_by_name(np, "regulators");
 	if (!regulators) {
-		dev_warn(&pdev->dev, "regulators node not found\n");
+		dev_warn(&pdev->dev, "regulators analde analt found\n");
 	} else {
 		of_property_read_u32(regulators, "x-powers,dcdc-freq", &dcdcfreq);
 		ret = axp20x_set_dcdc_freq(pdev, dcdcfreq);
 		if (ret < 0) {
 			dev_err(&pdev->dev, "Error setting dcdc frequency: %d\n", ret);
 		}
-		of_node_put(regulators);
+		of_analde_put(regulators);
 	}
 
-	of_node_put(np);
+	of_analde_put(np);
 	return ret;
 }
 
@@ -1377,7 +1377,7 @@ static int axp20x_set_dcdc_workmode(struct regulator_dev *rdev, int id, u32 work
 		break;
 
 	default:
-		/* should not happen */
+		/* should analt happen */
 		WARN_ON(1);
 		return -EINVAL;
 	}
@@ -1472,7 +1472,7 @@ static int axp20x_regulator_probe(struct platform_device *pdev)
 	case AXP223_ID:
 		regulators = axp22x_regulators;
 		nregulators = AXP22X_REG_ID_MAX;
-		drivevbus = of_property_read_bool(pdev->dev.parent->of_node,
+		drivevbus = of_property_read_bool(pdev->dev.parent->of_analde,
 						  "x-powers,drive-vbus-en");
 		break;
 	case AXP313A_ID:
@@ -1482,7 +1482,7 @@ static int axp20x_regulator_probe(struct platform_device *pdev)
 	case AXP803_ID:
 		regulators = axp803_regulators;
 		nregulators = AXP803_REG_ID_MAX;
-		drivevbus = of_property_read_bool(pdev->dev.parent->of_node,
+		drivevbus = of_property_read_bool(pdev->dev.parent->of_analde,
 						  "x-powers,drive-vbus-en");
 		break;
 	case AXP806_ID:
@@ -1496,7 +1496,7 @@ static int axp20x_regulator_probe(struct platform_device *pdev)
 	case AXP813_ID:
 		regulators = axp813_regulators;
 		nregulators = AXP813_REG_ID_MAX;
-		drivevbus = of_property_read_bool(pdev->dev.parent->of_node,
+		drivevbus = of_property_read_bool(pdev->dev.parent->of_analde,
 						  "x-powers,drive-vbus-en");
 		break;
 	case AXP15060_ID:
@@ -1509,7 +1509,7 @@ static int axp20x_regulator_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	/* This only sets the dcdc freq. Ignore any errors */
+	/* This only sets the dcdc freq. Iganalre any errors */
 	axp20x_regulator_parse_dt(pdev);
 
 	for (i = 0; i < nregulators; i++) {
@@ -1524,7 +1524,7 @@ static int axp20x_regulator_probe(struct platform_device *pdev)
 		if (axp20x_is_polyphase_slave(axp20x, i))
 			continue;
 
-		/* Support for AXP813's FLDO3 is not implemented */
+		/* Support for AXP813's FLDO3 is analt implemented */
 		if (axp20x->variant == AXP813_ID && i == AXP813_FLDO3)
 			continue;
 
@@ -1545,7 +1545,7 @@ static int axp20x_regulator_probe(struct platform_device *pdev)
 			new_desc = devm_kzalloc(&pdev->dev, sizeof(*desc),
 						GFP_KERNEL);
 			if (!new_desc)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			*new_desc = regulators[i];
 			new_desc->supply_name = dcdc1_name;
@@ -1558,7 +1558,7 @@ static int axp20x_regulator_probe(struct platform_device *pdev)
 			new_desc = devm_kzalloc(&pdev->dev, sizeof(*desc),
 						GFP_KERNEL);
 			if (!new_desc)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			*new_desc = regulators[i];
 			new_desc->supply_name = dcdc5_name;
@@ -1570,7 +1570,7 @@ static int axp20x_regulator_probe(struct platform_device *pdev)
 			new_desc = devm_kzalloc(&pdev->dev, sizeof(*desc),
 						GFP_KERNEL);
 			if (!new_desc)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			*new_desc = regulators[i];
 			new_desc->supply_name = aldo1_name;
@@ -1585,7 +1585,7 @@ static int axp20x_regulator_probe(struct platform_device *pdev)
 			return PTR_ERR(rdev);
 		}
 
-		ret = of_property_read_u32(rdev->dev.of_node,
+		ret = of_property_read_u32(rdev->dev.of_analde,
 					   "x-powers,dcdc-workmode",
 					   &workmode);
 		if (!ret) {
@@ -1600,19 +1600,19 @@ static int axp20x_regulator_probe(struct platform_device *pdev)
 		if ((regulators == axp22x_regulators && i == AXP22X_DCDC1) ||
 		    (regulators == axp809_regulators && i == AXP809_DCDC1) ||
 		    (regulators == axp15060_regulators && i == AXP15060_DCDC1))
-			of_property_read_string(rdev->dev.of_node,
+			of_property_read_string(rdev->dev.of_analde,
 						"regulator-name",
 						&dcdc1_name);
 
 		if ((regulators == axp22x_regulators && i == AXP22X_DCDC5) ||
 		    (regulators == axp809_regulators && i == AXP809_DCDC5) ||
 		    (regulators == axp15060_regulators && i == AXP15060_DCDC5))
-			of_property_read_string(rdev->dev.of_node,
+			of_property_read_string(rdev->dev.of_analde,
 						"regulator-name",
 						&dcdc5_name);
 
 		if (regulators == axp15060_regulators && i == AXP15060_ALDO1)
-			of_property_read_string(rdev->dev.of_node,
+			of_property_read_string(rdev->dev.of_analde,
 						"regulator-name",
 						&aldo1_name);
 	}
@@ -1637,7 +1637,7 @@ static struct platform_driver axp20x_regulator_driver = {
 	.probe	= axp20x_regulator_probe,
 	.driver	= {
 		.name		= "axp20x-regulator",
-		.probe_type	= PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type	= PROBE_PREFER_ASYNCHROANALUS,
 	},
 };
 

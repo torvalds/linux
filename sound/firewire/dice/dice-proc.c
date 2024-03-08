@@ -32,7 +32,7 @@ static const char *str_from_array(const char *const strs[], unsigned int count,
 	if (i < count)
 		return strs[i];
 
-	return "(unknown)";
+	return "(unkanalwn)";
 }
 
 static void dice_proc_fixup_string(char *s, unsigned int size)
@@ -65,7 +65,7 @@ static void dice_proc_read(struct snd_info_entry *entry,
 	};
 	static const char *const rates[] = {
 		"32000", "44100", "48000", "88200", "96000", "176400", "192000",
-		"any low", "any mid", "any high", "none"
+		"any low", "any mid", "any high", "analne"
 	};
 	struct snd_dice *dice = entry->private_data;
 	u32 sections[ARRAY_SIZE(section_names) * 2];
@@ -76,7 +76,7 @@ static void dice_proc_read(struct snd_info_entry *entry,
 	union {
 		struct {
 			u32 owner_hi, owner_lo;
-			u32 notification;
+			u32 analtification;
 			char nick_name[NICK_NAME_SIZE];
 			u32 clock_select;
 			u32 enable;
@@ -129,7 +129,7 @@ static void dice_proc_read(struct snd_info_entry *entry,
 	snd_iprintf(buffer, "  owner: %04x:%04x%08x\n",
 		    buf.global.owner_hi >> 16,
 		    buf.global.owner_hi & 0xffff, buf.global.owner_lo);
-	snd_iprintf(buffer, "  notification: %08x\n", buf.global.notification);
+	snd_iprintf(buffer, "  analtification: %08x\n", buf.global.analtification);
 	dice_proc_fixup_string(buf.global.nick_name, NICK_NAME_SIZE);
 	snd_iprintf(buffer, "  nick name: %s\n", buf.global.nick_name);
 	snd_iprintf(buffer, "  clock select: %s %s\n",
@@ -143,7 +143,7 @@ static void dice_proc_read(struct snd_info_entry *entry,
 		    buf.global.status & STATUS_SOURCE_LOCKED ? "" : "un",
 		    str_from_array(rates, ARRAY_SIZE(rates),
 				   (buf.global.status &
-				    STATUS_NOMINAL_RATE_MASK)
+				    STATUS_ANALMINAL_RATE_MASK)
 				   >> CLOCK_RATE_SHIFT));
 	snd_iprintf(buffer, "  ext status: %08x\n", buf.global.extended_status);
 	snd_iprintf(buffer, "  sample rate: %u\n", buf.global.sample_rate);
@@ -234,7 +234,7 @@ static void dice_proc_read(struct snd_info_entry *entry,
 			    str_from_array(rates, ARRAY_SIZE(rates),
 					   buf.ext_sync.rate));
 		snd_iprintf(buffer, "  adat user data: ");
-		if (buf.ext_sync.adat_user_data & ADAT_USER_DATA_NO_DATA)
+		if (buf.ext_sync.adat_user_data & ADAT_USER_DATA_ANAL_DATA)
 			snd_iprintf(buffer, "-\n");
 		else
 			snd_iprintf(buffer, "%x\n",
@@ -276,7 +276,7 @@ static void dice_proc_read_formation(struct snd_info_entry *entry,
 	}
 }
 
-static void add_node(struct snd_dice *dice, struct snd_info_entry *root,
+static void add_analde(struct snd_dice *dice, struct snd_info_entry *root,
 		     const char *name,
 		     void (*op)(struct snd_info_entry *entry,
 				struct snd_info_buffer *buffer))
@@ -293,7 +293,7 @@ void snd_dice_create_proc(struct snd_dice *dice)
 	struct snd_info_entry *root;
 
 	/*
-	 * All nodes are automatically removed at snd_card_disconnect(),
+	 * All analdes are automatically removed at snd_card_disconnect(),
 	 * by following to link list.
 	 */
 	root = snd_info_create_card_entry(dice->card, "firewire",
@@ -302,6 +302,6 @@ void snd_dice_create_proc(struct snd_dice *dice)
 		return;
 	root->mode = S_IFDIR | 0555;
 
-	add_node(dice, root, "dice", dice_proc_read);
-	add_node(dice, root, "formation", dice_proc_read_formation);
+	add_analde(dice, root, "dice", dice_proc_read);
+	add_analde(dice, root, "formation", dice_proc_read_formation);
 }

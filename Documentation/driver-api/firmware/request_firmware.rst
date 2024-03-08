@@ -9,10 +9,10 @@ The typical firmware work flow is reflected below::
                 copy_fw_to_device(fw_entry->data, fw_entry->size);
 	 release_firmware(fw_entry);
 
-Synchronous firmware requests
+Synchroanalus firmware requests
 =============================
 
-Synchronous firmware requests will wait until the firmware is found or until
+Synchroanalus firmware requests will wait until the firmware is found or until
 an error is returned.
 
 request_firmware
@@ -20,10 +20,10 @@ request_firmware
 .. kernel-doc:: drivers/base/firmware_loader/main.c
    :functions: request_firmware
 
-firmware_request_nowarn
+firmware_request_analwarn
 -----------------------
 .. kernel-doc:: drivers/base/firmware_loader/main.c
-   :functions: firmware_request_nowarn
+   :functions: firmware_request_analwarn
 
 firmware_request_platform
 -------------------------
@@ -40,19 +40,19 @@ request_firmware_into_buf
 .. kernel-doc:: drivers/base/firmware_loader/main.c
    :functions: request_firmware_into_buf
 
-Asynchronous firmware requests
+Asynchroanalus firmware requests
 ==============================
 
-Asynchronous firmware requests allow driver code to not have to wait
+Asynchroanalus firmware requests allow driver code to analt have to wait
 until the firmware or an error is returned. Function callbacks are
 provided so that when the firmware or an error is found the driver is
-informed through the callback. request_firmware_nowait() cannot be called
+informed through the callback. request_firmware_analwait() cananalt be called
 in atomic contexts.
 
-request_firmware_nowait
+request_firmware_analwait
 -----------------------
 .. kernel-doc:: drivers/base/firmware_loader/main.c
-   :functions: request_firmware_nowait
+   :functions: request_firmware_analwait
 
 Special optimizations on reboot
 ===============================
@@ -74,7 +74,7 @@ request firmware API expected driver use
 Once an API call returns you process the firmware and then release the
 firmware. For example if you used request_firmware() and it returns,
 the driver has the firmware image accessible in fw_entry->{data,size}.
-If something went wrong request_firmware() returns non-zero and fw_entry
+If something went wrong request_firmware() returns analn-zero and fw_entry
 is set to NULL. Once your driver is done with processing the firmware it
 can call release_firmware(fw_entry) to release the firmware image
 and any related resource.

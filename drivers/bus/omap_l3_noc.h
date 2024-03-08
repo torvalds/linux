@@ -6,8 +6,8 @@
  *	Santosh Shilimkar <santosh.shilimkar@ti.com>
  *	sricharan <r.sricharan@ti.com>
  */
-#ifndef __OMAP_L3_NOC_H
-#define __OMAP_L3_NOC_H
+#ifndef __OMAP_L3_ANALC_H
+#define __OMAP_L3_ANALC_H
 
 #define MAX_L3_MODULES			3
 #define MAX_CLKDM_TARGETS		31
@@ -31,7 +31,7 @@
 #define L3_FLAGMUX_REGERR0		0xc
 #define L3_FLAGMUX_MASK0		0x8
 
-#define L3_TARGET_NOT_SUPPORTED		NULL
+#define L3_TARGET_ANALT_SUPPORTED		NULL
 
 #define L3_BASE_IS_SUBMODULE		((void __iomem *)(1 << 0))
 
@@ -41,7 +41,7 @@ static const char * const l3_transaction_type[] = {
 	/* 0 1 0 */ "Read",
 	/* 0 1 1 */ "ReadEx",
 	/* 1 0 0 */ "Read Link",
-	/* 1 0 1 */ "Write Non-Posted",
+	/* 1 0 1 */ "Write Analn-Posted",
 	/* 1 1 0 */ "Write Conditional",
 	/* 1 1 1 */ "Write Broadcast",
 };
@@ -73,10 +73,10 @@ struct l3_target_data {
  * @offset:	offset from base for flagmux register
  * @l3_targ:	array indexed by flagmux index (bit offset) pointing to the
  *		target data. unsupported ones are marked with
- *		L3_TARGET_NOT_SUPPORTED
+ *		L3_TARGET_ANALT_SUPPORTED
  * @num_targ_data: number of entries in target data
- * @mask_app_bits: ignore these from raw application irq status
- * @mask_dbg_bits: ignore these from raw debug irq status
+ * @mask_app_bits: iganalre these from raw application irq status
+ * @mask_dbg_bits: iganalre these from raw debug irq status
  */
 struct l3_flagmux_data {
 	u32 offset;
@@ -293,10 +293,10 @@ static struct l3_flagmux_data dra_l3_flagmux_clk1 = {
 static struct l3_target_data dra_l3_target_data_clk2[] = {
 	{0x0,	"HOST CLK1",},
 	{0x800000, "HOST CLK2",},
-	{0xdead, L3_TARGET_NOT_SUPPORTED,},
+	{0xdead, L3_TARGET_ANALT_SUPPORTED,},
 	{0x3400, "SHA2_2",},
 	{0x0900, "BB2D",},
-	{0xdead, L3_TARGET_NOT_SUPPORTED,},
+	{0xdead, L3_TARGET_ANALT_SUPPORTED,},
 	{0x2100, "L4_PER1_P3",},
 	{0x1c00, "L4_PER1_P1",},
 	{0x1f00, "L4_PER1_P2",},
@@ -409,7 +409,7 @@ static struct l3_target_data am4372_l3_target_data_200f[] = {
 	{0x900,  "TPTC2"},
 	{0xb00,  "TPCC",},
 	{0xd00,  "DEBUGSS",},
-	{0xdead, L3_TARGET_NOT_SUPPORTED,},
+	{0xdead, L3_TARGET_ANALT_SUPPORTED,},
 	{0x200,  "SHA",},
 	{0xc00,  "SGX530",},
 	{0x500,  "AES0",},
@@ -434,7 +434,7 @@ static struct l3_target_data am4372_l3_target_data_100s[] = {
 	{0xC00, "MMCHS2",},
 	{0x700, "GPMC",},
 	{0xD00, "L4_FW",},
-	{0xdead, L3_TARGET_NOT_SUPPORTED,},
+	{0xdead, L3_TARGET_ANALT_SUPPORTED,},
 	{0x500, "ADCTSC",},
 	{0xE00, "L4_WKUP",},
 	{0xA00, "MAG_CARD",},
@@ -490,4 +490,4 @@ static const struct omap_l3 am4372_l3_data = {
 	.mst_addr_mask = 0x3F,
 };
 
-#endif	/* __OMAP_L3_NOC_H */
+#endif	/* __OMAP_L3_ANALC_H */

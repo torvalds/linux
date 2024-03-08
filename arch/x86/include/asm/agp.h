@@ -8,7 +8,7 @@
 /*
  * Functions to keep the agpgart mappings coherent with the MMU. The
  * GART gives the CPU a physical alias of pages in memory. The alias
- * region is mapped uncacheable. Make sure there are no conflicting
+ * region is mapped uncacheable. Make sure there are anal conflicting
  * mappings with different cacheability attributes for the same
  * page. This avoids data corruption on some CPUs.
  */
@@ -19,7 +19,7 @@
 /*
  * Could use CLFLUSH here if the cpu supports it. But then it would
  * need to be called for each cacheline of the whole page so it may
- * not be worth it. Would need a page for it.
+ * analt be worth it. Would need a page for it.
  */
 #define flush_agp_cache() wbinvd()
 

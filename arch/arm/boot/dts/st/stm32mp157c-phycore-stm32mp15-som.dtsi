@@ -53,37 +53,37 @@
 		retram: retram@38000000 {
 			compatible = "shared-dma-pool";
 			reg = <0x38000000 0x10000>;
-			no-map;
+			anal-map;
 		};
 
 		mcuram: mcuram@30000000 {
 			compatible = "shared-dma-pool";
 			reg = <0x30000000 0x40000>;
-			no-map;
+			anal-map;
 		};
 
 		mcuram2: mcuram2@10000000 {
 			compatible = "shared-dma-pool";
 			reg = <0x10000000 0x40000>;
-			no-map;
+			anal-map;
 		};
 
 		vdev0vring0: vdev0vring0@10040000 {
 			compatible = "shared-dma-pool";
 			reg = <0x10040000 0x1000>;
-			no-map;
+			anal-map;
 		};
 
 		vdev0vring1: vdev0vring1@10041000 {
 			compatible = "shared-dma-pool";
 			reg = <0x10041000 0x1000>;
-			no-map;
+			anal-map;
 		};
 
 		vdev0buffer: vdev0buffer@10042000 {
 			compatible = "shared-dma-pool";
 			reg = <0x10042000 0x4000>;
-			no-map;
+			anal-map;
 		};
 	};
 
@@ -130,7 +130,7 @@
 			ti,tx-internal-delay = <DP83867_RGMIIDCTL_2_00_NS>;
 			ti,fifo-depth = <DP83867_PHYCR_FIFO_DEPTH_4_B_NIB>;
 			ti,min-output-impedance;
-			enet-phy-lane-no-swap;
+			enet-phy-lane-anal-swap;
 			ti,clk-output-sel = <DP83867_CLK_O_SEL_OFF>;
 		};
 	};
@@ -424,7 +424,7 @@
 	status = "okay";
 
 	flash0: flash@0 {
-		compatible = "winbond,w25q128", "jedec,spi-nor";
+		compatible = "winbond,w25q128", "jedec,spi-analr";
 		reg = <0>;
 		spi-rx-bus-width = <4>;
 		spi-max-frequency = <50000000>;
@@ -500,9 +500,9 @@
 	pinctrl-0 = <&sdmmc2_b4_pins_a &sdmmc2_d47_pins_e>;
 	pinctrl-1 = <&sdmmc2_b4_od_pins_a &sdmmc2_d47_pins_e>;
 	pinctrl-2 = <&sdmmc2_b4_sleep_pins_a &sdmmc2_d47_sleep_pins_e>;
-	non-removable;
-	no-sd;
-	no-sdio;
+	analn-removable;
+	anal-sd;
+	anal-sdio;
 	st,neg-edge;
 	bus-width = <8>;
 	vmmc-supply = <&v3v3>;

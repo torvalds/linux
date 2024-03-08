@@ -3,7 +3,7 @@
 
 #include <linux/bpf.h>
 #include <time.h>
-#include <errno.h>
+#include <erranal.h>
 #include <bpf/bpf_helpers.h>
 #include "bpf_misc.h"
 #include "bpf_tcp_helpers.h"
@@ -21,7 +21,7 @@ struct {
 	__type(value, struct elem);
 } timer_map SEC(".maps");
 
-__naked __noinline __used
+__naked __analinline __used
 static unsigned long timer_cb_ret_bad()
 {
 	asm volatile (

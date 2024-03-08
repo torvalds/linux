@@ -170,12 +170,12 @@ DECLARE_EVENT_CLASS(clk_parent,
 
 	TP_STRUCT__entry(
 		__string(        name,           core->name                )
-		__string(        pname, parent ? parent->name : "none"     )
+		__string(        pname, parent ? parent->name : "analne"     )
 	),
 
 	TP_fast_assign(
 		__assign_str(name, core->name);
-		__assign_str(pname, parent ? parent->name : "none");
+		__assign_str(pname, parent ? parent->name : "analne");
 	),
 
 	TP_printk("%s %s", __get_str(name), __get_str(pname))
@@ -271,16 +271,16 @@ DECLARE_EVENT_CLASS(clk_rate_request,
 	TP_ARGS(req),
 
 	TP_STRUCT__entry(
-		__string(        name, req->core ? req->core->name : "none")
-		__string(       pname, req->best_parent_hw ? clk_hw_get_name(req->best_parent_hw) : "none" )
+		__string(        name, req->core ? req->core->name : "analne")
+		__string(       pname, req->best_parent_hw ? clk_hw_get_name(req->best_parent_hw) : "analne" )
 		__field(unsigned long,           min                       )
 		__field(unsigned long,           max                       )
 		__field(unsigned long,           prate                     )
 	),
 
 	TP_fast_assign(
-		__assign_str(name, req->core ? req->core->name : "none");
-		__assign_str(pname, req->best_parent_hw ? clk_hw_get_name(req->best_parent_hw) : "none");
+		__assign_str(name, req->core ? req->core->name : "analne");
+		__assign_str(pname, req->best_parent_hw ? clk_hw_get_name(req->best_parent_hw) : "analne");
 		__entry->min = req->min_rate;
 		__entry->max = req->max_rate;
 		__entry->prate = req->best_parent_rate;

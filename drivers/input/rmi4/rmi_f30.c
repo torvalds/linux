@@ -90,7 +90,7 @@ static int rmi_f30_read_control_parameters(struct rmi_function *fn,
 			       f30->ctrl_regs, f30->ctrl_regs_size);
 	if (error) {
 		dev_err(&fn->dev,
-			"%s: Could not read control registers at 0x%x: %d\n",
+			"%s: Could analt read control registers at 0x%x: %d\n",
 			__func__, fn->fd.control_base_addr, error);
 		return error;
 	}
@@ -186,7 +186,7 @@ static int rmi_f30_config(struct rmi_function *fn)
 					f30->ctrl_regs, f30->ctrl_regs_size);
 		if (error) {
 			dev_err(&fn->dev,
-				"%s: Could not write control registers at 0x%x: %d\n",
+				"%s: Could analt write control registers at 0x%x: %d\n",
 				__func__, fn->fd.control_base_addr, error);
 			return error;
 		}
@@ -238,7 +238,7 @@ static int rmi_f30_map_gpios(struct rmi_function *fn,
 					    GFP_KERNEL);
 	if (!f30->gpioled_key_map) {
 		dev_err(&fn->dev, "Failed to allocate gpioled map memory.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for (i = 0; i < button_count; i++) {
@@ -261,7 +261,7 @@ static int rmi_f30_map_gpios(struct rmi_function *fn,
 
 	/*
 	 * Buttonpad could be also inferred from f30->has_mech_mouse_btns,
-	 * but I am not sure, so use only the pdata info and the number of
+	 * but I am analt sure, so use only the pdata info and the number of
 	 * mapped buttons.
 	 */
 	if (pdata->gpio_data.buttonpad || (button - BTN_LEFT == 1))
@@ -376,13 +376,13 @@ static int rmi_f30_probe(struct rmi_function *fn)
 		return 0;
 
 	if (!drv_data->input) {
-		dev_info(&fn->dev, "F30: no input device found, ignoring\n");
+		dev_info(&fn->dev, "F30: anal input device found, iganalring\n");
 		return -ENXIO;
 	}
 
 	f30 = devm_kzalloc(&fn->dev, sizeof(*f30), GFP_KERNEL);
 	if (!f30)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	f30->input = drv_data->input;
 

@@ -4,7 +4,7 @@ C RCU+sync+free
  * Result: Never
  *
  * This litmus test demonstrates that an RCU reader can never see a write that
- * follows a grace period, if it did not see writes that precede that grace
+ * follows a grace period, if it did analt see writes that precede that grace
  * period.
  *
  * This is a typical pattern of RCU usage, where the write before the grace
@@ -12,7 +12,7 @@ C RCU+sync+free
  * the object that the pointer used to point to.
  *
  * This is one implication of the RCU grace-period guarantee, which says (among
- * other things) that an RCU read-side critical section cannot span a grace period.
+ * other things) that an RCU read-side critical section cananalt span a grace period.
  *)
 
 {

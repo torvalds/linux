@@ -12,16 +12,16 @@
 
 #include "imx.h"
 
-static const struct imx_icc_node_adj_desc imx8mq_dram_adj = {
+static const struct imx_icc_analde_adj_desc imx8mq_dram_adj = {
 	.bw_mul = 1,
 	.bw_div = 4,
 	.phandle_name = "fsl,ddrc",
 };
 
-static const struct imx_icc_node_adj_desc imx8mq_noc_adj = {
+static const struct imx_icc_analde_adj_desc imx8mq_analc_adj = {
 	.bw_mul = 1,
 	.bw_div = 4,
-	.main_noc = true,
+	.main_analc = true,
 };
 
 /*
@@ -30,30 +30,30 @@ static const struct imx_icc_node_adj_desc imx8mq_noc_adj = {
  * This is a simplified subset of the bus diagram, there are several other
  * PL301 nics which are skipped/merged into PL301_MAIN
  */
-static struct imx_icc_node_desc nodes[] = {
-	DEFINE_BUS_INTERCONNECT("NOC", IMX8MQ_ICN_NOC, &imx8mq_noc_adj,
+static struct imx_icc_analde_desc analdes[] = {
+	DEFINE_BUS_INTERCONNECT("ANALC", IMX8MQ_ICN_ANALC, &imx8mq_analc_adj,
 			IMX8MQ_ICS_DRAM, IMX8MQ_ICN_MAIN),
 
 	DEFINE_BUS_SLAVE("DRAM", IMX8MQ_ICS_DRAM, &imx8mq_dram_adj),
 	DEFINE_BUS_SLAVE("OCRAM", IMX8MQ_ICS_OCRAM, NULL),
-	DEFINE_BUS_MASTER("A53", IMX8MQ_ICM_A53, IMX8MQ_ICN_NOC),
+	DEFINE_BUS_MASTER("A53", IMX8MQ_ICM_A53, IMX8MQ_ICN_ANALC),
 
 	/* VPUMIX */
 	DEFINE_BUS_MASTER("VPU", IMX8MQ_ICM_VPU, IMX8MQ_ICN_VIDEO),
-	DEFINE_BUS_INTERCONNECT("PL301_VIDEO", IMX8MQ_ICN_VIDEO, NULL, IMX8MQ_ICN_NOC),
+	DEFINE_BUS_INTERCONNECT("PL301_VIDEO", IMX8MQ_ICN_VIDEO, NULL, IMX8MQ_ICN_ANALC),
 
 	/* GPUMIX */
 	DEFINE_BUS_MASTER("GPU", IMX8MQ_ICM_GPU, IMX8MQ_ICN_GPU),
-	DEFINE_BUS_INTERCONNECT("PL301_GPU", IMX8MQ_ICN_GPU, NULL, IMX8MQ_ICN_NOC),
+	DEFINE_BUS_INTERCONNECT("PL301_GPU", IMX8MQ_ICN_GPU, NULL, IMX8MQ_ICN_ANALC),
 
 	/* DISPMIX (only for DCSS) */
 	DEFINE_BUS_MASTER("DC", IMX8MQ_ICM_DCSS, IMX8MQ_ICN_DCSS),
-	DEFINE_BUS_INTERCONNECT("PL301_DC", IMX8MQ_ICN_DCSS, NULL, IMX8MQ_ICN_NOC),
+	DEFINE_BUS_INTERCONNECT("PL301_DC", IMX8MQ_ICN_DCSS, NULL, IMX8MQ_ICN_ANALC),
 
 	/* USBMIX */
 	DEFINE_BUS_MASTER("USB1", IMX8MQ_ICM_USB1, IMX8MQ_ICN_USB),
 	DEFINE_BUS_MASTER("USB2", IMX8MQ_ICM_USB2, IMX8MQ_ICN_USB),
-	DEFINE_BUS_INTERCONNECT("PL301_USB", IMX8MQ_ICN_USB, NULL, IMX8MQ_ICN_NOC),
+	DEFINE_BUS_INTERCONNECT("PL301_USB", IMX8MQ_ICN_USB, NULL, IMX8MQ_ICN_ANALC),
 
 	/* PL301_DISPLAY (IPs other than DCSS, inside SUPERMIX) */
 	DEFINE_BUS_MASTER("CSI1", IMX8MQ_ICM_CSI1, IMX8MQ_ICN_DISPLAY),
@@ -77,12 +77,12 @@ static struct imx_icc_node_desc nodes[] = {
 	DEFINE_BUS_MASTER("PCIE1", IMX8MQ_ICM_PCIE1, IMX8MQ_ICN_MAIN),
 	DEFINE_BUS_MASTER("PCIE2", IMX8MQ_ICM_PCIE2, IMX8MQ_ICN_MAIN),
 	DEFINE_BUS_INTERCONNECT("PL301_MAIN", IMX8MQ_ICN_MAIN, NULL,
-			IMX8MQ_ICN_NOC, IMX8MQ_ICS_OCRAM),
+			IMX8MQ_ICN_ANALC, IMX8MQ_ICS_OCRAM),
 };
 
 static int imx8mq_icc_probe(struct platform_device *pdev)
 {
-	return imx_icc_register(pdev, nodes, ARRAY_SIZE(nodes), NULL);
+	return imx_icc_register(pdev, analdes, ARRAY_SIZE(analdes), NULL);
 }
 
 static struct platform_driver imx8mq_icc_driver = {

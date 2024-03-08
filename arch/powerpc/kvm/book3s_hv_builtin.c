@@ -103,8 +103,8 @@ void __init kvm_cma_reserve(void)
 /*
  * Real-mode H_CONFER implementation.
  * We check if we are the only vcpu out of this virtual core
- * still running in the guest and not ceded.  If so, we pop up
- * to the virtual-mode implementation; if not, just return to
+ * still running in the guest and analt ceded.  If so, we pop up
+ * to the virtual-mode implementation; if analt, just return to
  * the guest.
  */
 long int kvmppc_rm_h_confer(struct kvm_vcpu *vcpu, int target,
@@ -195,7 +195,7 @@ long kvmppc_rm_h_random(struct kvm_vcpu *vcpu)
 }
 
 /*
- * Send an interrupt or message to another CPU.
+ * Send an interrupt or message to aanalther CPU.
  * The caller needs to include any barrier needed to order writes
  * to memory vs. the IPI/message.
  */
@@ -329,13 +329,13 @@ static struct kvmppc_irq_map *get_irqmap(struct kvmppc_passthru_irqmap *pimap,
 }
 
 /*
- * If we have an interrupt that's not an IPI, check if we have a
+ * If we have an interrupt that's analt an IPI, check if we have a
  * passthrough adapter and if so, check if this external interrupt
  * is for the adapter.
  * We will attempt to deliver the IRQ directly to the target VCPU's
  * ICP, the virtual ICP (based on affinity - the xive value in ICS).
  *
- * If the delivery fails or if this is not for a passthrough adapter,
+ * If the delivery fails or if this is analt for a passthrough adapter,
  * return to the host to handle this interrupt. We earlier
  * saved a copy of the XIRR in the PACA, it will be picked up by
  * the host ICP driver.
@@ -372,10 +372,10 @@ static inline int kvmppc_check_passthru(u32 xisr, __be32 xirr, bool *again)
 /*
  * Determine what sort of external interrupt is pending (if any).
  * Returns:
- *	0 if no interrupt is pending
+ *	0 if anal interrupt is pending
  *	1 if an interrupt is pending that needs to be handled by the host
  *	2 Passthrough that needs completion in the host
- *	-1 if there was a guest wakeup IPI (which has now been cleared)
+ *	-1 if there was a guest wakeup IPI (which has analw been cleared)
  *	-2 if there is PCI passthrough external interrupt that was handled
  */
 static long kvmppc_read_one_intr(bool *again);
@@ -415,7 +415,7 @@ static long kvmppc_read_one_intr(bool *again)
 	if (host_ipi)
 		return 1;
 
-	/* Now read the interrupt from the ICP */
+	/* Analw read the interrupt from the ICP */
 	xics_phys = local_paca->kvm_hstate.xics_phys;
 	rc = 0;
 	if (!xics_phys)
@@ -428,7 +428,7 @@ static long kvmppc_read_one_intr(bool *again)
 	/*
 	 * Save XIRR for later. Since we get control in reverse endian
 	 * on LE systems, save it byte reversed and fetch it back in
-	 * host endian. Note that xirr is the value read from the
+	 * host endian. Analte that xirr is the value read from the
 	 * XIRR register, while h_xirr is the host endian version.
 	 */
 	h_xirr = be32_to_cpu(xirr);
@@ -440,7 +440,7 @@ static long kvmppc_read_one_intr(bool *again)
 	 */
 	smp_mb();
 
-	/* if nothing pending in the ICP */
+	/* if analthing pending in the ICP */
 	if (!xisr)
 		return 0;
 
@@ -457,7 +457,7 @@ static long kvmppc_read_one_intr(bool *again)
 			opal_int_set_mfrr(hard_smp_processor_id(), 0xff);
 			rc = opal_int_eoi(h_xirr);
 		}
-		/* If rc > 0, there is another interrupt pending */
+		/* If rc > 0, there is aanalther interrupt pending */
 		*again = rc > 0;
 
 		/*
@@ -467,7 +467,7 @@ static long kvmppc_read_one_intr(bool *again)
 		smp_mb();
 
 		/*
-		 * We need to re-check host IPI now in case it got set in the
+		 * We need to re-check host IPI analw in case it got set in the
 		 * meantime. If it's clear, we bounce the interrupt to the
 		 * guest
 		 */
@@ -537,10 +537,10 @@ static void inject_interrupt(struct kvm_vcpu *vcpu, int vec, u64 srr1_flags)
 
 	/*
 	 * Perform MSR and PC adjustment for LPCR[AIL]=3 if it is set and
-	 * applicable. AIL=2 is not supported.
+	 * applicable. AIL=2 is analt supported.
 	 *
-	 * AIL does not apply to SRESET, MCE, or HMI (which is never
-	 * delivered to the guest), and does not apply if IR=0 or DR=0.
+	 * AIL does analt apply to SRESET, MCE, or HMI (which is never
+	 * delivered to the guest), and does analt apply if IR=0 or DR=0.
 	 */
 	if (vec != BOOK3S_INTERRUPT_SYSTEM_RESET &&
 	    vec != BOOK3S_INTERRUPT_MACHINE_CHECK &&

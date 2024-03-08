@@ -188,7 +188,7 @@ static int max31865_init(struct max31865_data *data)
 		cfg |= MAX31865_3WIRE_RTD;
 
 	if (data->filter_50hz)
-		/* 50Hz noise rejection filter */
+		/* 50Hz analise rejection filter */
 		cfg |= MAX31865_FILTER_50HZ;
 
 	data->buf[0] = MAX31865_CFG_REG | MAX31865_RD_WR_BIT;
@@ -266,13 +266,13 @@ static ssize_t set_filter(struct device *dev,
 
 static IIO_CONST_ATTR_SAMP_FREQ_AVAIL(max31865_show_samp_freq);
 static IIO_DEVICE_ATTR(fault_ovuv, 0444, show_fault_ovuv, NULL, 0);
-static IIO_DEVICE_ATTR(in_filter_notch_center_frequency, 0644,
+static IIO_DEVICE_ATTR(in_filter_analtch_center_frequency, 0644,
 		    show_filter, set_filter, 0);
 
 static struct attribute *max31865_attributes[] = {
 	&iio_dev_attr_fault_ovuv.dev_attr.attr,
 	&iio_const_attr_sampling_frequency_available.dev_attr.attr,
-	&iio_dev_attr_in_filter_notch_center_frequency.dev_attr.attr,
+	&iio_dev_attr_in_filter_analtch_center_frequency.dev_attr.attr,
 	NULL,
 };
 
@@ -294,7 +294,7 @@ static int max31865_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	data->spi = spi;

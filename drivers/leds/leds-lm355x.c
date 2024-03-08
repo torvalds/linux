@@ -41,7 +41,7 @@ enum lm355x_mode {
 
 /* register map info. */
 struct lm355x_reg_data {
-	u8 regno;
+	u8 reganal;
 	u8 mask;
 	u8 shift;
 };
@@ -182,7 +182,7 @@ static int lm355x_chip_init(struct lm355x_chip_data *chip)
 			goto out;
 		break;
 	default:
-		return -ENODATA;
+		return -EANALDATA;
 	}
 
 	return ret;
@@ -200,7 +200,7 @@ static int lm355x_control(struct lm355x_chip_data *chip,
 	struct lm355x_platform_data *pdata = chip->pdata;
 	struct lm355x_reg_data *preg = chip->regs;
 
-	ret = regmap_read(chip->regmap, preg[REG_FLAG].regno, &chip->last_flag);
+	ret = regmap_read(chip->regmap, preg[REG_FLAG].reganal, &chip->last_flag);
 	if (ret < 0)
 		goto out;
 	if (chip->last_flag & preg[REG_FLAG].mask)
@@ -214,7 +214,7 @@ static int lm355x_control(struct lm355x_chip_data *chip,
 	switch (opmode) {
 	case MODE_TORCH:
 		ret =
-		    regmap_update_bits(chip->regmap, preg[REG_TORCH_CTRL].regno,
+		    regmap_update_bits(chip->regmap, preg[REG_TORCH_CTRL].reganal,
 				       preg[REG_TORCH_CTRL].mask,
 				       (brightness - 1)
 				       << preg[REG_TORCH_CTRL].shift);
@@ -224,7 +224,7 @@ static int lm355x_control(struct lm355x_chip_data *chip,
 		if (pdata->pin_tx1 != LM355x_PIN_TORCH_DISABLE) {
 			ret =
 			    regmap_update_bits(chip->regmap,
-					       preg[REG_TORCH_CFG].regno,
+					       preg[REG_TORCH_CFG].reganal,
 					       preg[REG_TORCH_CFG].mask,
 					       0x01 <<
 					       preg[REG_TORCH_CFG].shift);
@@ -239,7 +239,7 @@ static int lm355x_control(struct lm355x_chip_data *chip,
 	case MODE_FLASH:
 
 		ret =
-		    regmap_update_bits(chip->regmap, preg[REG_FLASH_CTRL].regno,
+		    regmap_update_bits(chip->regmap, preg[REG_FLASH_CTRL].reganal,
 				       preg[REG_FLASH_CTRL].mask,
 				       (brightness - 1)
 				       << preg[REG_FLASH_CTRL].shift);
@@ -253,7 +253,7 @@ static int lm355x_control(struct lm355x_chip_data *chip,
 				reg_val = 0x01;
 			ret =
 			    regmap_update_bits(chip->regmap,
-					       preg[REG_STROBE_CFG].regno,
+					       preg[REG_STROBE_CFG].reganal,
 					       preg[REG_STROBE_CFG].mask,
 					       reg_val <<
 					       preg[REG_STROBE_CFG].shift);
@@ -267,7 +267,7 @@ static int lm355x_control(struct lm355x_chip_data *chip,
 
 	case MODE_INDIC:
 		ret =
-		    regmap_update_bits(chip->regmap, preg[REG_INDI_CTRL].regno,
+		    regmap_update_bits(chip->regmap, preg[REG_INDI_CTRL].reganal,
 				       preg[REG_INDI_CTRL].mask,
 				       (brightness - 1)
 				       << preg[REG_INDI_CTRL].shift);
@@ -277,7 +277,7 @@ static int lm355x_control(struct lm355x_chip_data *chip,
 		if (pdata->pin_tx2 != LM355x_PIN_TX_DISABLE) {
 			ret =
 			    regmap_update_bits(chip->regmap,
-					       preg[REG_INDI_CFG].regno,
+					       preg[REG_INDI_CFG].reganal,
 					       preg[REG_INDI_CFG].mask,
 					       0x01 <<
 					       preg[REG_INDI_CFG].shift);
@@ -292,7 +292,7 @@ static int lm355x_control(struct lm355x_chip_data *chip,
 		return -EINVAL;
 	}
 	/* operation mode control */
-	ret = regmap_update_bits(chip->regmap, preg[REG_OPMODE].regno,
+	ret = regmap_update_bits(chip->regmap, preg[REG_OPMODE].reganal,
 				 preg[REG_OPMODE].mask,
 				 opmode << preg[REG_OPMODE].shift);
 	if (ret < 0)
@@ -406,18 +406,18 @@ static int lm355x_probe(struct i2c_client *client)
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		dev_err(&client->dev, "i2c functionality check fail.\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (pdata == NULL) {
 		dev_err(&client->dev, "needs Platform Data.\n");
-		return -ENODATA;
+		return -EANALDATA;
 	}
 
 	chip = devm_kzalloc(&client->dev,
 			    sizeof(struct lm355x_chip_data), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->dev = &client->dev;
 	chip->type = id->driver_data;
@@ -429,7 +429,7 @@ static int lm355x_probe(struct i2c_client *client)
 		chip->regs = lm3556_regs;
 		break;
 	default:
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 	chip->pdata = pdata;
 
@@ -496,7 +496,7 @@ static void lm355x_remove(struct i2c_client *client)
 	struct lm355x_chip_data *chip = i2c_get_clientdata(client);
 	struct lm355x_reg_data *preg = chip->regs;
 
-	regmap_write(chip->regmap, preg[REG_OPMODE].regno, 0);
+	regmap_write(chip->regmap, preg[REG_OPMODE].reganal, 0);
 	led_classdev_unregister(&chip->cdev_indicator);
 	led_classdev_unregister(&chip->cdev_torch);
 	led_classdev_unregister(&chip->cdev_flash);

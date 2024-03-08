@@ -12,13 +12,13 @@ struct bucket_alloc_state {
 	u64	buckets_seen;
 	u64	skipped_open;
 	u64	skipped_need_journal_commit;
-	u64	skipped_nocow;
-	u64	skipped_nouse;
+	u64	skipped_analcow;
+	u64	skipped_analuse;
 };
 
 #define BCH_WATERMARKS()		\
 	x(stripe)			\
-	x(normal)			\
+	x(analrmal)			\
 	x(copygc)			\
 	x(btree)			\
 	x(btree_copygc)			\
@@ -92,7 +92,7 @@ enum write_point_state {
 
 struct write_point {
 	struct {
-		struct hlist_node	node;
+		struct hlist_analde	analde;
 		struct mutex		lock;
 		u64			last_used;
 		unsigned long		write_point;

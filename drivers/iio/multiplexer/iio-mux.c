@@ -2,7 +2,7 @@
 /*
  * IIO multiplexer driver
  *
- * Copyright (C) 2017 Axentia Technologies AB
+ * Copyright (C) 2017 Axentia Techanallogies AB
  *
  * Author: Peter Rosin <peda@axentia.se>
  */
@@ -215,7 +215,7 @@ static ssize_t mux_write_ext_info(struct iio_dev *indio_dev, uintptr_t private,
 	new = devm_kmemdup(dev, buf, len + 1, GFP_KERNEL);
 	if (!new) {
 		iio_mux_deselect(mux);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	new[len] = 0;
@@ -279,14 +279,14 @@ static int mux_configure_channel(struct device *dev, struct mux *mux,
 	if (num_ext_info) {
 		page = devm_kzalloc(dev, PAGE_SIZE, GFP_KERNEL);
 		if (!page)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 	child->ext_info_cache = devm_kcalloc(dev,
 					     num_ext_info,
 					     sizeof(*child->ext_info_cache),
 					     GFP_KERNEL);
 	if (!child->ext_info_cache)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num_ext_info; ++i) {
 		child->ext_info_cache[i].size = -1;
@@ -313,7 +313,7 @@ static int mux_configure_channel(struct device *dev, struct mux *mux,
 		child->ext_info_cache[i].data = devm_kmemdup(dev, page, ret + 1,
 							     GFP_KERNEL);
 		if (!child->ext_info_cache[i].data)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		child->ext_info_cache[i].data[ret] = 0;
 		child->ext_info_cache[i].size = ret;
@@ -357,7 +357,7 @@ static int mux_probe(struct platform_device *pdev)
 
 	labels = devm_kmalloc_array(dev, all_children, sizeof(*labels), GFP_KERNEL);
 	if (!labels)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = device_property_read_string_array(dev, "channels", labels, all_children);
 	if (ret < 0)
@@ -369,7 +369,7 @@ static int mux_probe(struct platform_device *pdev)
 			children++;
 	}
 	if (children <= 0) {
-		dev_err(dev, "not even a single child\n");
+		dev_err(dev, "analt even a single child\n");
 		return -EINVAL;
 	}
 
@@ -380,7 +380,7 @@ static int mux_probe(struct platform_device *pdev)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof_priv);
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mux = iio_priv(indio_dev);
 	mux->child = (struct mux_child *)(mux + 1);
@@ -404,7 +404,7 @@ static int mux_probe(struct platform_device *pdev)
 					     parent->channel->ext_info,
 					     sizeof_ext_info, GFP_KERNEL);
 		if (!mux->ext_info)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		for (i = 0; mux->ext_info[i].name; ++i) {
 			if (parent->channel->ext_info[i].read)

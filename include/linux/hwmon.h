@@ -370,7 +370,7 @@ enum hwmon_intrusion_attributes {
  *		@channel:
  *			Channel number
  *		The function returns the file permissions.
- *		If the return value is 0, no attribute will be created.
+ *		If the return value is 0, anal attribute will be created.
  * @read:	Read callback for data attributes. Mandatory if readable
  *		data attributes are present.
  *		Parameters are:
@@ -475,7 +475,7 @@ devm_hwmon_device_register_with_info(struct device *dev,
 void hwmon_device_unregister(struct device *dev);
 void devm_hwmon_device_unregister(struct device *dev);
 
-int hwmon_notify_event(struct device *dev, enum hwmon_sensor_types type,
+int hwmon_analtify_event(struct device *dev, enum hwmon_sensor_types type,
 		       u32 attr, int channel);
 
 char *hwmon_sanitize_name(const char *name);
@@ -486,7 +486,7 @@ char *devm_hwmon_sanitize_name(struct device *dev, const char *name);
  * @ch: the char to be considered
  *
  * hwmon_is_bad_char() can be used to determine if the given character
- * may not be used in a hwmon name.
+ * may analt be used in a hwmon name.
  *
  * Returns true if the char is invalid, false otherwise.
  */

@@ -43,7 +43,7 @@ SYM_CODE_START(wakeup_start)
 
 	LJMPW_RM(3f)
 3:
-	/* Apparently some dimwit BIOS programmers don't know how to
+	/* Apparently some dimwit BIOS programmers don't kanalw how to
 	   program a PM to RM transition, and we might end up here with
 	   junk in the data segment descriptor registers.  The only way
 	   to repair that is to go into PM and fix it ourselves... */
@@ -146,8 +146,8 @@ bogus_real_magic:
 
 	/*
 	 * Set up the wakeup GDT.  We set these up as Big Real Mode,
-	 * that is, with limits set to 4 GB.  At least the Lenovo
-	 * Thinkpad X61 is known to need this for the video BIOS
+	 * that is, with limits set to 4 GB.  At least the Leanalvo
+	 * Thinkpad X61 is kanalwn to need this for the video BIOS
 	 * initialization quirk to work; this is likely to also
 	 * be the case for other laptops or integrated video devices.
 	 */

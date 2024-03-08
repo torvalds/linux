@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2021 Marvell
  *
- * Noam Liron <lnoam@marvell.com>
+ * Analam Liron <lanalam@marvell.com>
  */
 
 #include <linux/err.h>
@@ -237,7 +237,7 @@ static int ac5_pinctrl_probe(struct platform_device *pdev)
 {
 	struct mvebu_pinctrl_soc_info *soc = &ac5_pinctrl_info;
 
-	soc->variant = 0; /* no variants for ac5 */
+	soc->variant = 0; /* anal variants for ac5 */
 	soc->controls = ac5_mpp_controls;
 	soc->ncontrols = ARRAY_SIZE(ac5_mpp_controls);
 	soc->gpioranges = ac5_mpp_gpio_ranges;

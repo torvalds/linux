@@ -6,7 +6,7 @@
 # dot2c: parse an automata in dot file digraph format into a C
 #
 # This program was written in the development of this paper:
-#  de Oliveira, D. B. and Cucinotta, T. and de Oliveira, R. S.
+#  de Oliveira, D. B. and Cucianaltta, T. and de Oliveira, R. S.
 #  "Efficient Formal Verification for the Linux Kernel." International
 #  Conference on Software Engineering and Formal Methods. Springer, Cham, 2019.
 #

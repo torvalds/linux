@@ -111,7 +111,7 @@ static int twlreg_grp(struct regulator_dev *rdev)
 
 /*
  * Enable/disable regulators by joining/leaving the P1 (processor) group.
- * We assume nobody else is updating the DEV_GRP registers.
+ * We assume analbody else is updating the DEV_GRP registers.
  */
 /* definition for 6030 family */
 #define P3_GRP_6030	BIT(2)		/* secondary processor, modem, etc */
@@ -195,7 +195,7 @@ static int twl6030reg_get_status(struct regulator_dev *rdev)
 
 	switch (val) {
 	case TWL6030_CFG_STATE_ON:
-		return REGULATOR_STATUS_NORMAL;
+		return REGULATOR_STATUS_ANALRMAL;
 
 	case TWL6030_CFG_STATE_SLEEP:
 		return REGULATOR_STATUS_STANDBY;
@@ -225,7 +225,7 @@ static int twl6030reg_set_mode(struct regulator_dev *rdev, unsigned mode)
 	val = grp << TWL6030_CFG_STATE_GRP_SHIFT;
 	/* We can only set the mode through state machine commands... */
 	switch (mode) {
-	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_ANALRMAL:
 		val |= TWL6030_CFG_STATE_ON;
 		break;
 	case REGULATOR_MODE_STANDBY:
@@ -242,12 +242,12 @@ static int twl6030reg_set_mode(struct regulator_dev *rdev, unsigned mode)
 static int twl6030coresmps_set_voltage(struct regulator_dev *rdev, int min_uV,
 	int max_uV, unsigned *selector)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int twl6030coresmps_get_voltage(struct regulator_dev *rdev)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static const struct regulator_ops twl6030coresmps_ops = {
@@ -411,7 +411,7 @@ static int twl6030smps_map_voltage(struct regulator_dev *rdev, int min_uV,
 			vsel++;
 		}
 		/* Values 1..57 for vsel are linear and can be calculated
-		 * values 58..62 are non linear.
+		 * values 58..62 are analn linear.
 		 */
 		else if ((min_uV > 1900000) && (min_uV <= 2100000))
 			vsel = 62;
@@ -434,7 +434,7 @@ static int twl6030smps_map_voltage(struct regulator_dev *rdev, int min_uV,
 			vsel++;
 		}
 		/* Values 1..57 for vsel are linear and can be calculated
-		 * values 58..62 are non linear.
+		 * values 58..62 are analn linear.
 		 */
 		else if ((min_uV > 1900000) && (min_uV <= 2100000))
 			vsel = 62;
@@ -549,7 +549,7 @@ static const struct twlreg_info TWL6032_INFO_##label = { \
 		}, \
 	}
 
-#define TWL6030_FIXED_LDO(label, offset, mVolts, turnon_delay) \
+#define TWL6030_FIXED_LDO(label, offset, mVolts, turanaln_delay) \
 static const struct twlreg_info TWLFIXED_INFO_##label = { \
 	.base = offset, \
 	.id = 0, \
@@ -561,7 +561,7 @@ static const struct twlreg_info TWLFIXED_INFO_##label = { \
 		.type = REGULATOR_VOLTAGE, \
 		.owner = THIS_MODULE, \
 		.min_uV = mVolts * 1000, \
-		.enable_time = turnon_delay, \
+		.enable_time = turanaln_delay, \
 		.of_map_mode = NULL, \
 		}, \
 	}
@@ -582,8 +582,8 @@ static const struct twlreg_info TWLSMPS_INFO_##label = { \
 
 /* VUSBCP is managed *only* by the USB subchip */
 /* 6030 REG with base as PMC Slave Misc : 0x0030 */
-/* Turnon-delay and remap configuration values for 6030 are not
-   verified since the specification is not public */
+/* Turanaln-delay and remap configuration values for 6030 are analt
+   verified since the specification is analt public */
 TWL6030_ADJUSTABLE_SMPS(VDD1);
 TWL6030_ADJUSTABLE_SMPS(VDD2);
 TWL6030_ADJUSTABLE_SMPS(VDD3);
@@ -683,11 +683,11 @@ static int twlreg_probe(struct platform_device *pdev)
 	struct regulation_constraints	*c;
 	struct regulator_dev		*rdev;
 	struct regulator_config		config = { };
-	struct device_node		*np = pdev->dev.of_node;
+	struct device_analde		*np = pdev->dev.of_analde;
 
 	template = of_device_get_match_data(&pdev->dev);
 	if (!template)
-		return -ENODEV;
+		return -EANALDEV;
 
 	id = template->desc.id;
 	initdata = of_get_regulator_init_data(&pdev->dev, np, &template->desc);
@@ -696,13 +696,13 @@ static int twlreg_probe(struct platform_device *pdev)
 
 	info = devm_kmemdup(&pdev->dev, template, sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Constrain board-specific capabilities according to what
 	 * this driver and the chip itself can actually do.
 	 */
 	c = &initdata->constraints;
-	c->valid_modes_mask &= REGULATOR_MODE_NORMAL | REGULATOR_MODE_STANDBY;
+	c->valid_modes_mask &= REGULATOR_MODE_ANALRMAL | REGULATOR_MODE_STANDBY;
 	c->valid_ops_mask &= REGULATOR_CHANGE_VOLTAGE
 				| REGULATOR_CHANGE_MODE
 				| REGULATOR_CHANGE_STATUS;
@@ -734,7 +734,7 @@ static int twlreg_probe(struct platform_device *pdev)
 	config.dev = &pdev->dev;
 	config.init_data = initdata;
 	config.driver_data = info;
-	config.of_node = np;
+	config.of_analde = np;
 
 	rdev = devm_regulator_register(&pdev->dev, &info->desc, &config);
 	if (IS_ERR(rdev)) {
@@ -744,8 +744,8 @@ static int twlreg_probe(struct platform_device *pdev)
 	}
 	platform_set_drvdata(pdev, rdev);
 
-	/* NOTE:  many regulators support short-circuit IRQs (presentable
-	 * as REGULATOR_OVER_CURRENT notifications?) configured via:
+	/* ANALTE:  many regulators support short-circuit IRQs (presentable
+	 * as REGULATOR_OVER_CURRENT analtifications?) configured via:
 	 *  - SC_CONFIG
 	 *  - SC_DETECT1 (vintana2, vmmc1/2, vaux1/2/3/4)
 	 *  - SC_DETECT2 (vusb, vdac, vio, vdd1/2, vpll2)
@@ -759,12 +759,12 @@ MODULE_ALIAS("platform:twl6030_reg");
 
 static struct platform_driver twlreg_driver = {
 	.probe		= twlreg_probe,
-	/* NOTE: short name, to work around driver model truncation of
+	/* ANALTE: short name, to work around driver model truncation of
 	 * "twl_regulator.12" (and friends) to "twl_regulator.1".
 	 */
 	.driver  = {
 		.name  = "twl6030_reg",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = of_match_ptr(twl_of_match),
 	},
 };

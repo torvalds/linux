@@ -2,7 +2,7 @@
 /*
 	usa90msg.h
 
-	Copyright (c) 1998-2003 InnoSys Incorporated.  All Rights Reserved
+	Copyright (c) 1998-2003 InanalSys Incorporated.  All Rights Reserved
 	This file is available under a BSD-style copyright
 
 	Keyspan USB Async Message Formats for the USA19HS
@@ -13,23 +13,23 @@
 
 	1. Redistributions of source code must retain this licence text
    	without modification, this list of conditions, and the following
-   	disclaimer.  The following copyright notice must appear immediately at
+   	disclaimer.  The following copyright analtice must appear immediately at
    	the beginning of all source files:
 
-        	Copyright (c) 1998-2003 InnoSys Incorporated.  All Rights Reserved
+        	Copyright (c) 1998-2003 InanalSys Incorporated.  All Rights Reserved
 
         	This file is available under a BSD-style copyright
 
-	2. The name of InnoSys Incorporated may not be used to endorse or promote
+	2. The name of InanalSys Incorporated may analt be used to endorse or promote
    	products derived from this software without specific prior written
    	permission.
 
-	THIS SOFTWARE IS PROVIDED BY INNOSYS CORP. ``AS IS'' AND ANY EXPRESS OR
-	IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+	THIS SOFTWARE IS PROVIDED BY INANALSYS CORP. ``AS IS'' AND ANY EXPRESS OR
+	IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE IMPLIED WARRANTIES
 	OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
-	NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+	ANAL EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
 	INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-	(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+	(INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
 	SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
 	CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 	LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
@@ -93,28 +93,28 @@ struct keyspan_usa90_portControlMessage
 
 	u8	rxForwardingLength,  // forward when this number of chars available
 		rxForwardingTimeout, // (1-31 in ms)
-		txAckSetting;	   // 0=don't ack, 1=normal, 2-255 TBD...
+		txAckSetting;	   // 0=don't ack, 1=analrmal, 2-255 TBD...
 	/*
 		3.	Firmware states which cause actions if they change					
 		and must be specified correctly in every host message.
 	*/
 
 	u8	portEnabled,	// 0=disabled, 1=enabled
-		txFlush,		// 0=normal, 1=toss outbound data
+		txFlush,		// 0=analrmal, 1=toss outbound data
 		txBreak,		// 0=break off, 1=break on
-		loopbackMode;	// 0=no loopback, 1=loopback enabled
+		loopbackMode;	// 0=anal loopback, 1=loopback enabled
 
 	/*
 		4.	commands which are flags only; these are processed in order
 			(so that, e.g., if rxFlush and rxForward flags are set, the
-			port will have no data to forward); any non-zero value 
+			port will have anal data to forward); any analn-zero value 
 			is respected
 	*/
 
 	u8	rxFlush,		// toss inbound data
-		rxForward,		// forward all inbound data, NOW (as if fwdLen==1)
+		rxForward,		// forward all inbound data, ANALW (as if fwdLen==1)
 		cancelRxXoff,	// cancel any receive XOFF state (_txXoff)
-		returnStatus;	// return current status NOW
+		returnStatus;	// return current status ANALW
 };
 
 // defines for bits in lcr
@@ -125,7 +125,7 @@ struct keyspan_usa90_portControlMessage
 #define		STOPBITS_5678_1		0x00	// 1 stop bit for all byte sizes
 #define		STOPBITS_5_1p5		0x04	// 1.5 stop bits for 5-bit byte
 #define		STOPBITS_678_2		0x04	// 2 stop bits for 6-8 bit byte
-#define		USA_PARITY_NONE		0x00
+#define		USA_PARITY_ANALNE		0x00
 #define		USA_PARITY_ODD		0x08
 #define		USA_PARITY_EVEN		0x18
 #define		PARITY_MARK_1  		0x28   	// force parity MARK
@@ -164,8 +164,8 @@ struct keyspan_usa90_portStatusMessage
 		rxParity,		// count of parity errors (since last reported)
 		rxFrame,		// count of frame errors (since last reported)
 		portState,		// PORTSTATE_xxx bits (useful for debugging)
-		messageAck,		// message acknowledgement
-		charAck,		// character acknowledgement
+		messageAck,		// message ackanalwledgement
+		charAck,		// character ackanalwledgement
 		controlResponse;	// (value = returnStatus) a control message has been processed 
 };
 

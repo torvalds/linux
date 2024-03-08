@@ -10,13 +10,13 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
@@ -185,7 +185,7 @@ static unsigned long vmw_port_hb_out(struct rpc_channel *channel,
 		return ebx;
 	}
 
-	/* HB port not available. Send the message 4 bytes at a time. */
+	/* HB port analt available. Send the message 4 bytes at a time. */
 	ecx = MESSAGE_STATUS_SUCCESS << 16;
 	while (msg_len && (HIGH_WORD(ecx) & MESSAGE_STATUS_SUCCESS)) {
 		unsigned int bytes = min_t(size_t, msg_len, 4);
@@ -240,7 +240,7 @@ static unsigned long vmw_port_hb_in(struct rpc_channel *channel, char *reply,
 		return ebx;
 	}
 
-	/* HB port not available. Retrieve the message 4 bytes at a time. */
+	/* HB port analt available. Retrieve the message 4 bytes at a time. */
 	ecx = MESSAGE_STATUS_SUCCESS << 16;
 	while (reply_len) {
 		unsigned int bytes = min_t(unsigned long, reply_len, 4);
@@ -314,13 +314,13 @@ static int vmw_send_msg(struct rpc_channel *channel, const char *msg)
 
 	return -EINVAL;
 }
-STACK_FRAME_NON_STANDARD(vmw_send_msg);
+STACK_FRAME_ANALN_STANDARD(vmw_send_msg);
 
 
 /**
  * vmw_recv_msg: Receives a message from the host
  *
- * Note:  It is the caller's responsibility to call kfree() on msg.
+ * Analte:  It is the caller's responsibility to call kfree() on msg.
  *
  * @channel:  channel opened by vmw_open_channel
  * @msg:  [OUT] message received from the host
@@ -356,15 +356,15 @@ static int vmw_recv_msg(struct rpc_channel *channel, void **msg,
 			return -EINVAL;
 		}
 
-		/* No reply available.  This is okay. */
+		/* Anal reply available.  This is okay. */
 		if ((HIGH_WORD(ecx) & MESSAGE_STATUS_DORECV) == 0)
 			return 0;
 
 		reply_len = ebx;
 		reply     = kzalloc(reply_len + 1, GFP_KERNEL);
 		if (!reply) {
-			DRM_ERROR("Cannot allocate memory for host message reply.\n");
-			return -ENOMEM;
+			DRM_ERROR("Cananalt allocate memory for host message reply.\n");
+			return -EANALMEM;
 		}
 
 
@@ -417,7 +417,7 @@ static int vmw_recv_msg(struct rpc_channel *channel, void **msg,
 
 	return 0;
 }
-STACK_FRAME_NON_STANDARD(vmw_recv_msg);
+STACK_FRAME_ANALN_STANDARD(vmw_recv_msg);
 
 
 /**
@@ -440,16 +440,16 @@ int vmw_host_get_guestinfo(const char *guest_info_param,
 	size_t reply_len = 0;
 
 	if (!vmw_msg_enabled)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!guest_info_param || !length)
 		return -EINVAL;
 
 	msg = kasprintf(GFP_KERNEL, "info-get %s", guest_info_param);
 	if (!msg) {
-		DRM_ERROR("Cannot allocate memory to get guest info \"%s\".",
+		DRM_ERROR("Cananalt allocate memory to get guest info \"%s\".",
 			  guest_info_param);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (vmw_open_channel(&channel, RPCI_PROTOCOL_NUM))
@@ -507,7 +507,7 @@ int vmw_host_printf(const char *fmt, ...)
 	int ret = 0;
 
 	if (!vmw_msg_enabled)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!fmt)
 		return ret;
@@ -516,15 +516,15 @@ int vmw_host_printf(const char *fmt, ...)
 	log = kvasprintf(GFP_KERNEL, fmt, ap);
 	va_end(ap);
 	if (!log) {
-		DRM_ERROR("Cannot allocate memory for the log message.\n");
-		return -ENOMEM;
+		DRM_ERROR("Cananalt allocate memory for the log message.\n");
+		return -EANALMEM;
 	}
 
 	msg = kasprintf(GFP_KERNEL, "log %s", log);
 	if (!msg) {
-		DRM_ERROR("Cannot allocate memory for host log message.\n");
+		DRM_ERROR("Cananalt allocate memory for host log message.\n");
 		kfree(log);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (vmw_open_channel(&channel, RPCI_PROTOCOL_NUM))
@@ -573,8 +573,8 @@ int vmw_msg_ioctl(struct drm_device *dev, void *data,
 
 	msg = kmalloc(MAX_USER_MSG_LENGTH, GFP_KERNEL);
 	if (!msg) {
-		DRM_ERROR("Cannot allocate memory for log message.\n");
-		return -ENOMEM;
+		DRM_ERROR("Cananalt allocate memory for log message.\n");
+		return -EANALMEM;
 	}
 
 	length = strncpy_from_user(msg, (void __user *)((unsigned long)arg->send),
@@ -751,7 +751,7 @@ static int mksstat_init_kern_id(struct page **ppage)
 	struct page *page = alloc_pages(GFP_KERNEL | __GFP_ZERO, MKSSTAT_KERNEL_PAGES_ORDER);
 
 	if (!page)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pdesc = page_address(page);
 	pstat = vmw_mksstat_get_kern_pstat(pdesc);
@@ -798,12 +798,12 @@ static int mksstat_init_kern_id(struct page **ppage)
  * mksGuestStat instance descriptor.
  *
  * Find a slot for a single kernel-internal mksGuestStat instance descriptor.
- * In case no such was already present, allocate a new one and set up a kernel-
+ * In case anal such was already present, allocate a new one and set up a kernel-
  * internal mksGuestStat instance descriptor for the former.
  *
  * @pid: Process for which a slot is sought.
  * @dev_priv: Identifies the drm private device.
- * Return: Non-negative slot on success, negative error code on error.
+ * Return: Analn-negative slot on success, negative error code on error.
  */
 
 int vmw_mksstat_get_kern_slot(pid_t pid, struct vmw_private *dev_priv)
@@ -835,7 +835,7 @@ int vmw_mksstat_get_kern_slot(pid_t pid, struct vmw_private *dev_priv)
 		}
 	}
 
-	return -ENOSPC;
+	return -EANALSPC;
 }
 
 #endif
@@ -1003,7 +1003,7 @@ int vmw_mksstat_add_ioctl(struct drm_device *dev, void *data,
 	struct page **pages_info = NULL;
 	struct page **pages_strs = NULL;
 	size_t i, slot;
-	int ret_err = -ENOMEM;
+	int ret_err = -EANALMEM;
 
 	arg->id = -1;
 
@@ -1027,7 +1027,7 @@ int vmw_mksstat_add_ioctl(struct drm_device *dev, void *data,
 			break;
 
 	if (slot == ARRAY_SIZE(dev_priv->mksstat_user_pids))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	BUG_ON(dev_priv->mksstat_user_pages[slot]);
 
@@ -1038,7 +1038,7 @@ int vmw_mksstat_add_ioctl(struct drm_device *dev, void *data,
 		ARRAY_SIZE(pdesc->strsPPNs), sizeof(*pages_stat), GFP_KERNEL);
 
 	if (!pages_stat)
-		goto err_nomem;
+		goto err_analmem;
 
 	pages_info = pages_stat + ARRAY_SIZE(pdesc->statPPNs);
 	pages_strs = pages_info + ARRAY_SIZE(pdesc->infoPPNs);
@@ -1047,7 +1047,7 @@ int vmw_mksstat_add_ioctl(struct drm_device *dev, void *data,
 	page = alloc_page(GFP_KERNEL | __GFP_ZERO);
 
 	if (!page)
-		goto err_nomem;
+		goto err_analmem;
 
 	/* Set up the instance descriptor */
 	pdesc = page_address(page);
@@ -1063,7 +1063,7 @@ int vmw_mksstat_add_ioctl(struct drm_device *dev, void *data,
 
 	if (desc_len < 0) {
 		ret_err = -EFAULT;
-		goto err_nomem;
+		goto err_analmem;
 	}
 
 	reset_ppn_array(pdesc->statPPNs, ARRAY_SIZE(pdesc->statPPNs));
@@ -1119,7 +1119,7 @@ err_pin_stat:
 	if (nr_pinned_stat > 0)
 		unpin_user_pages(pages_stat, nr_pinned_stat);
 
-err_nomem:
+err_analmem:
 	atomic_set(&dev_priv->mksstat_user_pids[slot], 0);
 	if (page)
 		__free_page(page);

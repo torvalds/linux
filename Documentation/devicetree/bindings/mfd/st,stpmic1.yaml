@@ -50,7 +50,7 @@ properties:
         $ref: /schemas/types.yaml#/definitions/flag
 
       st,onkey-pu-inactive:
-        description: onkey pull up is not active
+        description: onkey pull up is analt active
         $ref: /schemas/types.yaml#/definitions/flag
 
       power-off-time-sec:

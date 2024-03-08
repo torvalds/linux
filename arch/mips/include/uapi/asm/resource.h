@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -15,7 +15,7 @@
  * These five resource limit IDs have a MIPS/Linux-specific ordering,
  * the rest comes from the generic header:
  */
-#define RLIMIT_NOFILE		5	/* max number of open files */
+#define RLIMIT_ANALFILE		5	/* max number of open files */
 #define RLIMIT_AS		6	/* address space limit */
 #define RLIMIT_RSS		7	/* max resident set size */
 #define RLIMIT_NPROC		8	/* max number of processes */

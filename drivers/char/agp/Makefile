@@ -14,5 +14,5 @@ obj-$(CONFIG_INTEL_GTT)		+= intel-gtt.o
 obj-$(CONFIG_AGP_NVIDIA)	+= nvidia-agp.o
 obj-$(CONFIG_AGP_SIS)		+= sis-agp.o
 obj-$(CONFIG_AGP_SWORKS)	+= sworks-agp.o
-obj-$(CONFIG_AGP_UNINORTH)	+= uninorth-agp.o
+obj-$(CONFIG_AGP_UNIANALRTH)	+= unianalrth-agp.o
 obj-$(CONFIG_AGP_VIA)		+= via-agp.o

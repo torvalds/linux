@@ -57,8 +57,8 @@
 #define EX_HS_POLL_DELAY_MS	10
 
 enum mtk_feature_support_type {
-	MTK_FEATURE_DOES_NOT_EXIST,
-	MTK_FEATURE_NOT_SUPPORTED,
+	MTK_FEATURE_DOES_ANALT_EXIST,
+	MTK_FEATURE_ANALT_SUPPORTED,
 	MTK_FEATURE_MUST_BE_SUPPORTED,
 };
 
@@ -151,12 +151,12 @@ static int t7xx_acpi_reset(struct t7xx_pci_dev *t7xx_dev, char *fn_name)
 
 	handle = ACPI_HANDLE(dev);
 	if (!handle) {
-		dev_err(dev, "ACPI handle not found\n");
+		dev_err(dev, "ACPI handle analt found\n");
 		return -EFAULT;
 	}
 
 	if (!acpi_has_method(handle, fn_name)) {
-		dev_err(dev, "%s method not found\n", fn_name);
+		dev_err(dev, "%s method analt found\n", fn_name);
 		return -EFAULT;
 	}
 
@@ -266,7 +266,7 @@ static void t7xx_cldma_exception(struct cldma_ctrl *md_ctrl, enum hif_ex_stage s
 		break;
 
 	case HIF_EX_CLEARQ_DONE:
-		/* We do not want to get CLDMA IRQ when MD is
+		/* We do analt want to get CLDMA IRQ when MD is
 		 * resetting CLDMA after it got clearq_ack.
 		 */
 		t7xx_cldma_stop_all_qs(md_ctrl, MTK_RX);
@@ -325,12 +325,12 @@ static int t7xx_wait_hif_ex_hk_event(struct t7xx_modem *md, int event_id)
 static void t7xx_md_sys_sw_init(struct t7xx_pci_dev *t7xx_dev)
 {
 	/* Register the MHCCIF ISR for MD exception, port enum and
-	 * async handshake notifications.
+	 * async handshake analtifications.
 	 */
 	t7xx_mhccif_mask_set(t7xx_dev, D2H_SW_INT_MASK);
 	t7xx_mhccif_mask_clr(t7xx_dev, D2H_INT_PORT_ENUM);
 
-	/* Register RGU IRQ handler for sAP exception notification */
+	/* Register RGU IRQ handler for sAP exception analtification */
 	t7xx_dev->rgu_pci_irq_en = true;
 	t7xx_pcie_register_rgu_isr(t7xx_dev);
 }
@@ -384,7 +384,7 @@ static int t7xx_prepare_device_rt_data(struct t7xx_sys_info *core, struct device
 
 	skb = t7xx_ctrl_alloc_skb(rt_data_len);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rt_feature = skb_put(skb, rt_data_len);
 	memset(rt_feature, 0, rt_data_len);
@@ -397,7 +397,7 @@ static int t7xx_prepare_device_rt_data(struct t7xx_sys_info *core, struct device
 			continue;
 
 		rt_feature->feature_id = i;
-		if (md_feature_mask == MTK_FEATURE_DOES_NOT_EXIST)
+		if (md_feature_mask == MTK_FEATURE_DOES_ANALT_EXIST)
 			rt_feature->support_info = md_feature->feature_set[i];
 
 		rt_feature++;
@@ -443,7 +443,7 @@ static int t7xx_core_reset(struct t7xx_modem *md)
 	md->core_md.ready = false;
 
 	if (!ctl) {
-		dev_err(dev, "FSM is not initialized\n");
+		dev_err(dev, "FSM is analt initialized\n");
 		return -EINVAL;
 	}
 
@@ -550,7 +550,7 @@ static void t7xx_ap_hk_wq(struct work_struct *work)
 	t7xx_core_hk_handler(md, &md->core_ap, ctl, FSM_EVENT_AP_HS2, FSM_EVENT_AP_HS2_EXIT);
 }
 
-void t7xx_md_event_notify(struct t7xx_modem *md, enum md_event_id evt_id)
+void t7xx_md_event_analtify(struct t7xx_modem *md, enum md_event_id evt_id)
 {
 	struct t7xx_fsm_ctl *ctl = md->fsm_ctl;
 	unsigned int int_sta;
@@ -688,7 +688,7 @@ int t7xx_md_reset(struct t7xx_pci_dev *t7xx_dev)
  *
  * Return:
  ** 0		- Success.
- ** -ENOMEM	- Allocation failure.
+ ** -EANALMEM	- Allocation failure.
  */
 int t7xx_md_init(struct t7xx_pci_dev *t7xx_dev)
 {
@@ -697,7 +697,7 @@ int t7xx_md_init(struct t7xx_pci_dev *t7xx_dev)
 
 	md = t7xx_md_alloc(t7xx_dev);
 	if (!md)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = t7xx_cldma_alloc(CLDMA_ID_MD, t7xx_dev);
 	if (ret)

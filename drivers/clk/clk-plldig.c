@@ -45,7 +45,7 @@
 #define PLLDIG_DEFAULT_MFD   44
 
 /*
- * Denominator part of the fractional part of the
+ * Deanalminator part of the fractional part of the
  * loop multiplication factor.
  */
 #define MFDEN          20480
@@ -227,7 +227,7 @@ static int plldig_clk_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(data->regs))
@@ -241,7 +241,7 @@ static int plldig_clk_probe(struct platform_device *pdev)
 	ret = devm_clk_hw_register(dev, &data->hw);
 	if (ret) {
 		dev_err(dev, "failed to register %s clock\n",
-						dev->of_node->name);
+						dev->of_analde->name);
 		return ret;
 	}
 
@@ -253,10 +253,10 @@ static int plldig_clk_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * The frequency of the VCO cannot be changed during runtime.
+	 * The frequency of the VCO cananalt be changed during runtime.
 	 * Therefore, let the user specify a desired frequency.
 	 */
-	if (!of_property_read_u32(dev->of_node, "fsl,vco-hz",
+	if (!of_property_read_u32(dev->of_analde, "fsl,vco-hz",
 				  &data->vco_freq)) {
 		if (data->vco_freq < PLLDIG_MIN_VCO_FREQ ||
 		    data->vco_freq > PLLDIG_MAX_VCO_FREQ)

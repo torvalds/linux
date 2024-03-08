@@ -37,7 +37,7 @@ static void slirp_init(struct net_device *dev, void *data)
 	dev->addr_len = 0;
 	dev->type = ARPHRD_SLIP;
 	dev->tx_queue_len = 256;
-	dev->flags = IFF_NOARP;
+	dev->flags = IFF_ANALARP;
 	printk("SLIRP backend - command line:");
 	for (i = 0; spri->argw.argv[i] != NULL; i++)
 		printk(" '%s'",spri->argw.argv[i]);
@@ -77,7 +77,7 @@ static int slirp_setup(char *str, char **mac_out, void *data)
 
 	str = split_if_spec(str, mac_out, NULL);
 
-	if (str == NULL) /* no command line given after MAC addr */
+	if (str == NULL) /* anal command line given after MAC addr */
 		return 1;
 
 	do {

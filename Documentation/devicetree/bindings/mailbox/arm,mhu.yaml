@@ -13,7 +13,7 @@ description: |
   The ARM's Message-Handling-Unit (MHU) is a mailbox controller that has 3
   independent channels/links to communicate with remote processor(s).  MHU links
   are hardwired on a platform. A link raises interrupt for any received data.
-  However, there is no specified way of knowing if the sent data has been read
+  However, there is anal specified way of kanalwing if the sent data has been read
   by the remote. This driver assumes the sender polls STAT register and the
   remote clears it after having read the data.  The last channel is specified to
   be a 'Secure' resource, hence can't be used by Linux running NS.
@@ -28,7 +28,7 @@ description: |
   interrupt. Each of the 32-bits can be used as "doorbell" to alert the remote
   processor.
 
-# We need a select here so we don't match all nodes with 'arm,primecell'
+# We need a select here so we don't match all analdes with 'arm,primecell'
 select:
   properties:
     compatible:
@@ -59,8 +59,8 @@ properties:
   interrupts:
     minItems: 2
     items:
-      - description: low-priority non-secure
-      - description: high-priority non-secure
+      - description: low-priority analn-secure
+      - description: high-priority analn-secure
       - description: Secure
 
   clocks:
@@ -96,8 +96,8 @@ examples:
             #mbox-cells = <1>;
             compatible = "arm,mhu", "arm,primecell";
             reg = <0 0x2b1f0000 0 0x1000>;
-            interrupts = <0 36 4>, /* LP-NonSecure */
-                         <0 35 4>, /* HP-NonSecure */
+            interrupts = <0 36 4>, /* LP-AnalnSecure */
+                         <0 35 4>, /* HP-AnalnSecure */
                          <0 37 4>; /* Secure */
             clocks = <&clock 0 2 1>;
             clock-names = "apb_pclk";
@@ -107,8 +107,8 @@ examples:
     firmware {
         scpi {
             compatible = "arm,scpi";
-            mboxes = <&mhuA 1>; /* HP-NonSecure */
-            shmem = <&cpu_scp_hpri>; /* HP-NonSecure */
+            mboxes = <&mhuA 1>; /* HP-AnalnSecure */
+            shmem = <&cpu_scp_hpri>; /* HP-AnalnSecure */
 
             scpi_devpd: power-controller {
                 compatible = "arm,scpi-power-domains";
@@ -128,8 +128,8 @@ examples:
             #mbox-cells = <2>;
             compatible = "arm,mhu-doorbell", "arm,primecell";
             reg = <0 0x2b2f0000 0 0x1000>;
-            interrupts = <0 36 4>, /* LP-NonSecure */
-                         <0 35 4>, /* HP-NonSecure */
+            interrupts = <0 36 4>, /* LP-AnalnSecure */
+                         <0 35 4>, /* HP-AnalnSecure */
                          <0 37 4>; /* Secure */
             clocks = <&clock 0 2 1>;
             clock-names = "apb_pclk";
@@ -139,8 +139,8 @@ examples:
     firmware {
         scmi {
             compatible = "arm,scmi";
-            mboxes = <&mhuB 0 0>, /* LP-NonSecure, 1st doorbell */
-                     <&mhuB 0 1>; /* LP-NonSecure, 2nd doorbell */
+            mboxes = <&mhuB 0 0>, /* LP-AnalnSecure, 1st doorbell */
+                     <&mhuB 0 1>; /* LP-AnalnSecure, 2nd doorbell */
             mbox-names = "tx", "rx";
             shmem = <&cpu_scp_lpri0>,
                     <&cpu_scp_lpri1>;
@@ -157,8 +157,8 @@ examples:
                 reg = <0x13>;
                 #clock-cells = <1>;
 
-                mboxes = <&mhuB 1 2>, /* HP-NonSecure, 3rd doorbell */
-                         <&mhuB 1 3>; /* HP-NonSecure, 4th doorbell */
+                mboxes = <&mhuB 1 2>, /* HP-AnalnSecure, 3rd doorbell */
+                         <&mhuB 1 3>; /* HP-AnalnSecure, 4th doorbell */
                 mbox-names = "tx", "rx";
                 shmem = <&cpu_scp_hpri0>,
                         <&cpu_scp_hpri1>;

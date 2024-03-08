@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 dtb-$(CONFIG_ARCH_MXS) += \
 	imx23-evk.dtb \
-	imx23-olinuxino.dtb \
+	imx23-olinuxianal.dtb \
 	imx23-sansa.dtb \
 	imx23-stmp378x_devb.dtb \
 	imx23-xfi3.dtb \
@@ -17,7 +17,7 @@ dtb-$(CONFIG_ARCH_MXS) += \
 	imx28-cfa10058.dtb \
 	imx28-duckbill-2-485.dtb \
 	imx28-duckbill-2.dtb \
-	imx28-duckbill-2-enocean.dtb \
+	imx28-duckbill-2-eanalcean.dtb \
 	imx28-duckbill-2-spi.dtb \
 	imx28-duckbill.dtb \
 	imx28-eukrea-mbmx283lc.dtb \

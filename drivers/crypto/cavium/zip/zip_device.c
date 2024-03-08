@@ -14,14 +14,14 @@
  * conditions are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  *
  *  * Redistributions in binary form must reproduce the above
- *    copyright notice, this list of conditions and the following
+ *    copyright analtice, this list of conditions and the following
  *    disclaimer in the documentation and/or other materials provided
  *    with the distribution.
  *
- *  * Neither the name of Cavium Inc. nor the names of its contributors may be
+ *  * Neither the name of Cavium Inc. analr the names of its contributors may be
  *    used to endorse or promote products derived from this software without
  *    specific prior written permission.
  *
@@ -31,12 +31,12 @@
  * regulations in other countries.
  *
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES ANAL PROMISES, REPRESENTATIONS
  * OR WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH
  * RESPECT TO THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY
  * REPRESENTATION OR DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT
  * DEFECTS, AND CAVIUM SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY)
- * WARRANTIES OF TITLE, MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A
+ * WARRANTIES OF TITLE, MERCHANTABILITY, ANALNINFRINGEMENT, FITNESS FOR A
  * PARTICULAR PURPOSE, LACK OF VIRUSES, ACCURACY OR COMPLETENESS, QUIET
  * ENJOYMENT, QUIET POSSESSION OR CORRESPONDENCE TO DESCRIPTION. THE
  * ENTIRE  RISK ARISING OUT OF USE OR PERFORMANCE OF THE SOFTWARE LIES
@@ -67,7 +67,7 @@ static inline u32 zip_cmd_queue_consumed(struct zip_device *zip_dev, int queue)
  *              be submitted
  *
  * This function copies the ZIP instruction to the command queue and rings the
- * doorbell to notify the engine of the instruction submission. The command
+ * doorbell to analtify the engine of the instruction submission. The command
  * queue is maintained in a circular fashion. When there is space for exactly
  * one instruction in the queue, next chunk pointer of the queue is made to
  * point to the head of the queue, thus maintaining a circular queue.
@@ -118,7 +118,7 @@ u32 zip_load_instr(union zip_inst_s *instr,
 		       sizeof(union zip_inst_s));
 		zip_dev->iq[queue].sw_head += 16; /* 16 64_bit words = 128B */
 
-		/* Now, point the "Next-Chunk Buffer Ptr" to sw_head */
+		/* Analw, point the "Next-Chunk Buffer Ptr" to sw_head */
 		ncb_ptr = zip_dev->iq[queue].sw_head;
 
 		zip_dbg("ncb addr :0x%lx sw_head addr :0x%lx",
@@ -139,7 +139,7 @@ u32 zip_load_instr(union zip_inst_s *instr,
 		zip_dev->iq[queue].pend_cnt++;
 
 	} else {
-		zip_dbg("Enough space is available for commands");
+		zip_dbg("Eanalugh space is available for commands");
 		/* Push this cmd to cmd queue buffer */
 		memcpy((u8 *)zip_dev->iq[queue].sw_head, (u8 *)instr,
 		       sizeof(union zip_inst_s));
@@ -186,7 +186,7 @@ void zip_update_cmd_bufs(struct zip_device *zip_dev, u32 queue)
 		/* Point the hw_tail to start of the new chunk buffer */
 		zip_dev->iq[queue].hw_tail = zip_dev->iq[queue].sw_head;
 	} else {
-		zip_dbg("Free flag not set. increment hw tail");
+		zip_dbg("Free flag analt set. increment hw tail");
 		zip_dev->iq[queue].hw_tail += 16; /* 16 64_bit words = 128B */
 	}
 

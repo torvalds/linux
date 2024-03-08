@@ -128,11 +128,11 @@ struct ctrl_dbg {
 
 #define MAX_OUTPUT	(4*PAGE_SIZE)
 
-static int open(struct inode *inode, struct file *file)
+static int open(struct ianalde *ianalde, struct file *file)
 {
-	struct controller *ctrl = inode->i_private;
+	struct controller *ctrl = ianalde->i_private;
 	struct ctrl_dbg *dbg;
-	int retval = -ENOMEM;
+	int retval = -EANALMEM;
 
 	mutex_lock(&cpqphp_mutex);
 	dbg = kmalloc(sizeof(*dbg), GFP_KERNEL);
@@ -164,7 +164,7 @@ static ssize_t read(struct file *file, char __user *buf,
 	return simple_read_from_buffer(buf, nbytes, ppos, dbg->data, dbg->size);
 }
 
-static int release(struct inode *inode, struct file *file)
+static int release(struct ianalde *ianalde, struct file *file)
 {
 	struct ctrl_dbg *dbg = file->private_data;
 

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included
+ * The above copyright analtice and this permission analtice shall be included
  * in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
@@ -46,14 +46,14 @@
 #define LOOP_UMC_CH_INST(ch_inst) for ((ch_inst) = 0; (ch_inst) < adev->umc.channel_inst_num; (ch_inst)++)
 #define LOOP_UMC_INST_AND_CH(umc_inst, ch_inst) LOOP_UMC_INST((umc_inst)) LOOP_UMC_CH_INST((ch_inst))
 
-#define LOOP_UMC_NODE_INST(node_inst) \
-		for_each_set_bit((node_inst), &(adev->umc.active_mask), adev->umc.node_inst_num)
+#define LOOP_UMC_ANALDE_INST(analde_inst) \
+		for_each_set_bit((analde_inst), &(adev->umc.active_mask), adev->umc.analde_inst_num)
 
-#define LOOP_UMC_EACH_NODE_INST_AND_CH(node_inst, umc_inst, ch_inst) \
-		LOOP_UMC_NODE_INST((node_inst)) LOOP_UMC_INST_AND_CH((umc_inst), (ch_inst))
+#define LOOP_UMC_EACH_ANALDE_INST_AND_CH(analde_inst, umc_inst, ch_inst) \
+		LOOP_UMC_ANALDE_INST((analde_inst)) LOOP_UMC_INST_AND_CH((umc_inst), (ch_inst))
 
 
-typedef int (*umc_func)(struct amdgpu_device *adev, uint32_t node_inst,
+typedef int (*umc_func)(struct amdgpu_device *adev, uint32_t analde_inst,
 			uint32_t umc_inst, uint32_t ch_inst, void *data);
 
 struct amdgpu_umc_ras {
@@ -80,8 +80,8 @@ struct amdgpu_umc {
 	/* number of umc instance with memory map register access */
 	uint32_t umc_inst_num;
 
-	/* Total number of umc node instance including harvest one */
-	uint32_t node_inst_num;
+	/* Total number of umc analde instance including harvest one */
+	uint32_t analde_inst_num;
 
 	/* UMC regiser per channel offset */
 	uint32_t channel_offs;
@@ -94,7 +94,7 @@ struct amdgpu_umc {
 	const struct amdgpu_umc_funcs *funcs;
 	struct amdgpu_umc_ras *ras;
 
-	/* active mask for umc node instance */
+	/* active mask for umc analde instance */
 	unsigned long active_mask;
 };
 

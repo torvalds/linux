@@ -33,19 +33,19 @@ create_vxlan_on_top_of_8021ad_bridge()
 	RET=0
 
 	ip link add dev br0 type bridge vlan_filtering 1 vlan_protocol 802.1ad \
-		vlan_default_pvid 0 mcast_snooping 0
-	ip link set dev br0 addrgenmode none
+		vlan_default_pvid 0 mcast_sanaloping 0
+	ip link set dev br0 addrgenmode analne
 	ip link set dev br0 up
 
 	ip link add name vx100 type vxlan id 1000 local 192.0.2.17 dstport \
-		"$VXPORT" nolearning noudpcsum tos inherit ttl 100
+		"$VXPORT" anallearning analudpcsum tos inherit ttl 100
 	ip link set dev vx100 up
 
 	ip link set dev $swp1 master br0
 	ip link set dev vx100 master br0
 
 	bridge vlan add vid 100 dev vx100 pvid untagged 2>/dev/null
-	check_fail $? "802.1ad bridge with VxLAN in Spectrum-1 not rejected"
+	check_fail $? "802.1ad bridge with VxLAN in Spectrum-1 analt rejected"
 
 	bridge vlan add vid 100 dev vx100 pvid untagged 2>&1 >/dev/null \
 		| grep -q mlxsw_spectrum

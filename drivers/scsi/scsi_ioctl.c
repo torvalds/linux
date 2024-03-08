@@ -8,7 +8,7 @@
 #include <linux/module.h>
 #include <linux/blkdev.h>
 #include <linux/interrupt.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
@@ -27,8 +27,8 @@
 
 #include "scsi_logging.h"
 
-#define NORMAL_RETRIES			5
-#define IOCTL_NORMAL_TIMEOUT			(10 * HZ)
+#define ANALRMAL_RETRIES			5
+#define IOCTL_ANALRMAL_TIMEOUT			(10 * HZ)
 
 #define MAX_BUF PAGE_SIZE
 
@@ -37,7 +37,7 @@
  * @host:	host to identify
  * @buffer:	userspace buffer for identification
  *
- * Return an identifying string at @buffer, if @buffer is non-NULL, filling
+ * Return an identifying string at @buffer, if @buffer is analn-NULL, filling
  * to the length stored at * (int *) @buffer.
  */
 static int ioctl_probe(struct Scsi_Host *host, void __user *buffer)
@@ -96,17 +96,17 @@ static int ioctl_internal_command(struct scsi_device *sdev, char *cmd,
 					    "asc=0x%x ascq=0x%x\n",
 					    sshdr.asc, sshdr.ascq);
 			break;
-		case NOT_READY:	/* This happens if there is no disc in drive */
+		case ANALT_READY:	/* This happens if there is anal disc in drive */
 			if (sdev->removable)
 				break;
 			fallthrough;
 		case UNIT_ATTENTION:
 			if (sdev->removable) {
 				sdev->changed = 1;
-				result = 0;	/* This is no longer considered an error */
+				result = 0;	/* This is anal longer considered an error */
 				break;
 			}
-			fallthrough;	/* for non-removable media */
+			fallthrough;	/* for analn-removable media */
 		default:
 			sdev_printk(KERN_INFO, sdev,
 				    "ioctl_internal_command return code = %x\n",
@@ -137,7 +137,7 @@ int scsi_set_medium_removal(struct scsi_device *sdev, char state)
 	scsi_cmd[5] = 0;
 
 	ret = ioctl_internal_command(sdev, scsi_cmd,
-			IOCTL_NORMAL_TIMEOUT, NORMAL_RETRIES);
+			IOCTL_ANALRMAL_TIMEOUT, ANALRMAL_RETRIES);
 	if (ret == 0)
 		sdev->locked = (state == SCSI_REMOVAL_PREVENT);
 	return ret;
@@ -210,7 +210,7 @@ static int sg_set_reserved_size(struct scsi_device *sdev, int __user *p)
 }
 
 /*
- * will always return that we are ATAPI even for a real SCSI drive, I'm not
+ * will always return that we are ATAPI even for a real SCSI drive, I'm analt
  * so sure this is worth doing anything about (why would you care??)
  */
 static int sg_emulated_host(struct request_queue *q, int __user *p)
@@ -224,7 +224,7 @@ static int scsi_get_idlun(struct scsi_device *sdev, void __user *argp)
 		.dev_id = (sdev->id & 0xff) +
 			((sdev->lun & 0xff) << 8) +
 			((sdev->channel & 0xff) << 16) +
-			((sdev->host->host_no & 0xff) << 24),
+			((sdev->host->host_anal & 0xff) << 24),
 		.host_unique_id = sdev->host->unique_id
 	};
 	if (copy_to_user(argp, &v, sizeof(struct scsi_idlun)))
@@ -239,14 +239,14 @@ static int scsi_send_start_stop(struct scsi_device *sdev, int data)
 	cdb[0] = START_STOP;
 	cdb[4] = data;
 	return ioctl_internal_command(sdev, cdb, START_STOP_TIMEOUT,
-				      NORMAL_RETRIES);
+				      ANALRMAL_RETRIES);
 }
 
 /*
  * Check if the given command is allowed.
  *
  * Only a subset of commands are allowed for unprivileged users. Commands used
- * to format the media, update the firmware, etc. are not permitted.
+ * to format the media, update the firmware, etc. are analt permitted.
  */
 bool scsi_cmd_allowed(unsigned char *cmd, bool open_for_write)
 {
@@ -276,7 +276,7 @@ bool scsi_cmd_allowed(unsigned char *cmd, bool open_for_write)
 	case VERIFY_16:
 	case REPORT_LUNS:
 	case SERVICE_ACTION_IN_16:
-	case RECEIVE_DIAGNOSTIC:
+	case RECEIVE_DIAGANALSTIC:
 	case MAINTENANCE_IN: /* also GPCMD_SEND_KEY, which is a write command */
 	case GPCMD_READ_BUFFER_CAPACITY:
 	/* Audio CD commands */
@@ -298,7 +298,7 @@ bool scsi_cmd_allowed(unsigned char *cmd, bool open_for_write)
 	case GPCMD_SCAN:
 	case GPCMD_GET_CONFIGURATION:
 	case GPCMD_READ_FORMAT_CAPACITIES:
-	case GPCMD_GET_EVENT_STATUS_NOTIFICATION:
+	case GPCMD_GET_EVENT_STATUS_ANALTIFICATION:
 	case GPCMD_GET_PERFORMANCE:
 	case GPCMD_SEEK:
 	case GPCMD_STOP_PLAY_SCAN:
@@ -484,19 +484,19 @@ out_put_request:
  * Send down the scsi command described by @sic to the device below
  * the request queue @q.
  *
- * Notes:
+ * Analtes:
  *   -  This interface is deprecated - users should use the SG_IO
  *      interface instead, as this is a more flexible approach to
  *      performing SCSI commands on a device.
  *   -  The SCSI command length is determined by examining the 1st byte
- *      of the given command. There is no way to override this.
+ *      of the given command. There is anal way to override this.
  *   -  Data transfers are limited to PAGE_SIZE
  *   -  The length (x + y) must be at least OMAX_SB_LEN bytes long to
  *      accommodate the sense buffer when an error occurs.
  *      The sense buffer is truncated to OMAX_SB_LEN (16) bytes so that
- *      old code will not be surprised.
- *   -  If a Unix error occurs (e.g. ENOMEM) then the user will receive
- *      a negative return and the Unix error code in 'errno'.
+ *      old code will analt be surprised.
+ *   -  If a Unix error occurs (e.g. EANALMEM) then the user will receive
+ *      a negative return and the Unix error code in 'erranal'.
  *      If the SCSI command succeeds then 0 is returned.
  *      Positive numbers returned are the compacted SCSI error codes (4
  *      bytes in one int) where the lowest byte is the SCSI status.
@@ -527,9 +527,9 @@ static int sg_scsi_ioctl(struct request_queue *q, bool open_for_write,
 
 	bytes = max(in_len, out_len);
 	if (bytes) {
-		buffer = kzalloc(bytes, GFP_NOIO | GFP_USER | __GFP_NOWARN);
+		buffer = kzalloc(bytes, GFP_ANALIO | GFP_USER | __GFP_ANALWARN);
 		if (!buffer)
-			return -ENOMEM;
+			return -EANALMEM;
 
 	}
 
@@ -561,7 +561,7 @@ static int sg_scsi_ioctl(struct request_queue *q, bool open_for_write,
 	scmd->allowed = 5;
 
 	switch (opcode) {
-	case SEND_DIAGNOSTIC:
+	case SEND_DIAGANALSTIC:
 	case FORMAT_UNIT:
 		rq->timeout = FORMAT_UNIT_TIMEOUT;
 		scmd->allowed = 1;
@@ -585,7 +585,7 @@ static int sg_scsi_ioctl(struct request_queue *q, bool open_for_write,
 	}
 
 	if (bytes) {
-		err = blk_rq_map_kern(q, rq, buffer, bytes, GFP_NOIO);
+		err = blk_rq_map_kern(q, rq, buffer, bytes, GFP_ANALIO);
 		if (err)
 			goto error;
 	}
@@ -793,8 +793,8 @@ static int scsi_cdrom_send_packet(struct scsi_device *sdev, bool open_for_write,
 	hdr.cmd_len = sizeof(cgc.cmd);
 	hdr.dxfer_len = cgc.buflen;
 	switch (cgc.data_direction) {
-	case CGC_DATA_UNKNOWN:
-		hdr.dxfer_direction = SG_DXFER_UNKNOWN;
+	case CGC_DATA_UNKANALWN:
+		hdr.dxfer_direction = SG_DXFER_UNKANALWN;
 		break;
 	case CGC_DATA_WRITE:
 		hdr.dxfer_direction = SG_DXFER_TO_DEV;
@@ -802,8 +802,8 @@ static int scsi_cdrom_send_packet(struct scsi_device *sdev, bool open_for_write,
 	case CGC_DATA_READ:
 		hdr.dxfer_direction = SG_DXFER_FROM_DEV;
 		break;
-	case CGC_DATA_NONE:
-		hdr.dxfer_direction = SG_DXFER_NONE;
+	case CGC_DATA_ANALNE:
+		hdr.dxfer_direction = SG_DXFER_ANALNE;
 		break;
 	default:
 		return -EINVAL;
@@ -857,7 +857,7 @@ static int scsi_ioctl_sg_io(struct scsi_device *sdev, bool open_for_write,
  * @arg: data associated with ioctl
  *
  * Description: The scsi_ioctl() function differs from most ioctls in that it
- * does not take a major/minor number as the dev field.  Rather, it takes
+ * does analt take a major/mianalr number as the dev field.  Rather, it takes
  * a pointer to a &struct scsi_device.
  */
 int scsi_ioctl(struct scsi_device *sdev, bool open_for_write, int cmd,
@@ -908,7 +908,7 @@ int scsi_ioctl(struct scsi_device *sdev, bool open_for_write, int cmd,
 	case SCSI_IOCTL_GET_IDLUN:
 		return scsi_get_idlun(sdev, arg);
 	case SCSI_IOCTL_GET_BUS_NUMBER:
-		return put_user(sdev->host->host_no, (int __user *)arg);
+		return put_user(sdev->host->host_anal, (int __user *)arg);
 	case SCSI_IOCTL_PROBE_HOST:
 		return ioctl_probe(sdev->host, arg);
 	case SCSI_IOCTL_DOORLOCK:
@@ -916,8 +916,8 @@ int scsi_ioctl(struct scsi_device *sdev, bool open_for_write, int cmd,
 	case SCSI_IOCTL_DOORUNLOCK:
 		return scsi_set_medium_removal(sdev, SCSI_REMOVAL_ALLOW);
 	case SCSI_IOCTL_TEST_UNIT_READY:
-		return scsi_test_unit_ready(sdev, IOCTL_NORMAL_TIMEOUT,
-					    NORMAL_RETRIES, &sense_hdr);
+		return scsi_test_unit_ready(sdev, IOCTL_ANALRMAL_TIMEOUT,
+					    ANALRMAL_RETRIES, &sense_hdr);
 	case SCSI_IOCTL_START_UNIT:
 		return scsi_send_start_stop(sdev, 1);
 	case SCSI_IOCTL_STOP_UNIT:
@@ -952,7 +952,7 @@ int scsi_ioctl_block_when_processing_errors(struct scsi_device *sdev, int cmd,
 			return -EAGAIN;
 	} else {
 		if (!scsi_block_when_processing_errors(sdev))
-			return -ENODEV;
+			return -EANALDEV;
 	}
 
 	return 0;

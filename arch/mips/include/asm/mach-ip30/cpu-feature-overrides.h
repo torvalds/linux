@@ -28,7 +28,7 @@
 #define cpu_has_4kex			1
 #define cpu_has_3k_cache		0
 #define cpu_has_4k_cache		1
-#define cpu_has_nofpuex			0
+#define cpu_has_analfpuex			0
 #define cpu_has_32fpr			1
 #define cpu_has_counter			1
 #define cpu_has_watch			1
@@ -51,7 +51,7 @@
 #define cpu_has_dc_aliases		0
 #define cpu_has_ic_fills_f_dc		0
 
-#define cpu_icache_snoops_remote_store	1
+#define cpu_icache_sanalops_remote_store	1
 
 #define cpu_has_mips32r1		0
 #define cpu_has_mips32r2		0

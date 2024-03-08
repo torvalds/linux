@@ -18,7 +18,7 @@
  * TECHNISAT DIGITAL UK LTD DISCLAIM ALL WARRANTIES WITH REGARD TO
  * THIS PROGRAM INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY OR
  * FITNESS FOR A PARTICULAR PURPOSE.  NEITHER THE COPYRIGHT HOLDER
- * NOR TECHNISAT DIGITAL UK LIMITED SHALL BE LIABLE FOR ANY SPECIAL,
+ * ANALR TECHNISAT DIGITAL UK LIMITED SHALL BE LIABLE FOR ANY SPECIAL,
  * DIRECT, INDIRECT OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER
  * RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR
@@ -42,7 +42,7 @@ MODULE_PARM_DESC(debug,
 		DVB_USB_DEBUG_STATUS);
 
 /* disables all LED control command and
- * also does not start the signal polling thread */
+ * also does analt start the signal polling thread */
 static int disable_led_control;
 module_param(disable_led_control, int, 0444);
 MODULE_PARM_DESC(disable_led_control,
@@ -89,7 +89,7 @@ static int technisat_usb2_i2c_access(struct usb_device *udev,
 
 	b = kmalloc(64, GFP_KERNEL);
 	if (!b)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	deb_i2c("i2c-access: %02x, tx: ", device_addr);
 	debug_dump(tx, txlen, deb_i2c);
@@ -164,7 +164,7 @@ static int technisat_usb2_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msg
 	int ret = 0, i;
 	struct dvb_usb_device *d = i2c_get_adapdata(adap);
 
-	/* Ensure nobody else hits the i2c bus while we're sending our
+	/* Ensure analbody else hits the i2c bus while we're sending our
 	   sequence of messages, (such as the remote control thread) */
 	if (mutex_lock_interruptible(&d->i2c_mutex) < 0)
 		return -EAGAIN;
@@ -328,7 +328,7 @@ schedule:
 			msecs_to_jiffies(500));
 }
 
-/* method to find out whether the firmware has to be downloaded or not */
+/* method to find out whether the firmware has to be downloaded or analt */
 static int technisat_usb2_identify_state(struct usb_device *udev,
 		const struct dvb_usb_device_properties *props,
 		const struct dvb_usb_device_description **desc, int *cold)
@@ -338,15 +338,15 @@ static int technisat_usb2_identify_state(struct usb_device *udev,
 
 	version = kmalloc(3, GFP_KERNEL);
 	if (!version)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* first select the interface */
 	if (usb_set_interface(udev, 0, 1) != 0)
-		err("could not set alternate setting to 0");
+		err("could analt set alternate setting to 0");
 	else
 		info("set alternate setting");
 
-	*cold = 0; /* by default do not download a firmware - just in case something is wrong */
+	*cold = 0; /* by default do analt download a firmware - just in case something is wrong */
 
 	ret = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
 		GET_VERSION_INFO_VENDOR_REQUEST,
@@ -455,7 +455,7 @@ static int technisat_usb2_read_mac_address(struct dvb_usb_device *d,
 
 	if (technisat_usb2_eeprom_lrc_read(d, EEPROM_MAC_START,
 				buf, EEPROM_MAC_TOTAL, 4) != 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	memcpy(mac, buf, 6);
 	return 0;
@@ -561,7 +561,7 @@ static int technisat_usb2_frontend_attach(struct dvb_usb_adapter *a)
 			mutex_unlock(&a->dev->i2c_mutex);
 
 			if (ret != 0)
-				err("could not set IF_CLK to external");
+				err("could analt set IF_CLK to external");
 
 			a->fe_adap[0].fe->ops.set_voltage = technisat_usb2_set_voltage;
 
@@ -577,7 +577,7 @@ static int technisat_usb2_frontend_attach(struct dvb_usb_adapter *a)
 
 	technisat_usb2_set_led_timer(a->dev, 1, 1);
 
-	return a->fe_adap[0].fe == NULL ? -ENODEV : 0;
+	return a->fe_adap[0].fe == NULL ? -EANALDEV : 0;
 }
 
 /* Remote control */
@@ -585,25 +585,25 @@ static int technisat_usb2_frontend_attach(struct dvb_usb_adapter *a)
 /* the device is giving providing raw IR-signals to the host mapping
  * it only to one remote control is just the default implementation
  */
-#define NOMINAL_IR_BIT_TRANSITION_TIME_US 889
-#define NOMINAL_IR_BIT_TIME_US (2 * NOMINAL_IR_BIT_TRANSITION_TIME_US)
+#define ANALMINAL_IR_BIT_TRANSITION_TIME_US 889
+#define ANALMINAL_IR_BIT_TIME_US (2 * ANALMINAL_IR_BIT_TRANSITION_TIME_US)
 
 #define FIRMWARE_CLOCK_TICK 83333
 #define FIRMWARE_CLOCK_DIVISOR 256
 
 #define IR_PERCENT_TOLERANCE 15
 
-#define NOMINAL_IR_BIT_TRANSITION_TICKS ((NOMINAL_IR_BIT_TRANSITION_TIME_US * 1000 * 1000) / FIRMWARE_CLOCK_TICK)
-#define NOMINAL_IR_BIT_TRANSITION_TICK_COUNT (NOMINAL_IR_BIT_TRANSITION_TICKS / FIRMWARE_CLOCK_DIVISOR)
+#define ANALMINAL_IR_BIT_TRANSITION_TICKS ((ANALMINAL_IR_BIT_TRANSITION_TIME_US * 1000 * 1000) / FIRMWARE_CLOCK_TICK)
+#define ANALMINAL_IR_BIT_TRANSITION_TICK_COUNT (ANALMINAL_IR_BIT_TRANSITION_TICKS / FIRMWARE_CLOCK_DIVISOR)
 
-#define NOMINAL_IR_BIT_TIME_TICKS ((NOMINAL_IR_BIT_TIME_US * 1000 * 1000) / FIRMWARE_CLOCK_TICK)
-#define NOMINAL_IR_BIT_TIME_TICK_COUNT (NOMINAL_IR_BIT_TIME_TICKS / FIRMWARE_CLOCK_DIVISOR)
+#define ANALMINAL_IR_BIT_TIME_TICKS ((ANALMINAL_IR_BIT_TIME_US * 1000 * 1000) / FIRMWARE_CLOCK_TICK)
+#define ANALMINAL_IR_BIT_TIME_TICK_COUNT (ANALMINAL_IR_BIT_TIME_TICKS / FIRMWARE_CLOCK_DIVISOR)
 
-#define MINIMUM_IR_BIT_TRANSITION_TICK_COUNT (NOMINAL_IR_BIT_TRANSITION_TICK_COUNT - ((NOMINAL_IR_BIT_TRANSITION_TICK_COUNT * IR_PERCENT_TOLERANCE) / 100))
-#define MAXIMUM_IR_BIT_TRANSITION_TICK_COUNT (NOMINAL_IR_BIT_TRANSITION_TICK_COUNT + ((NOMINAL_IR_BIT_TRANSITION_TICK_COUNT * IR_PERCENT_TOLERANCE) / 100))
+#define MINIMUM_IR_BIT_TRANSITION_TICK_COUNT (ANALMINAL_IR_BIT_TRANSITION_TICK_COUNT - ((ANALMINAL_IR_BIT_TRANSITION_TICK_COUNT * IR_PERCENT_TOLERANCE) / 100))
+#define MAXIMUM_IR_BIT_TRANSITION_TICK_COUNT (ANALMINAL_IR_BIT_TRANSITION_TICK_COUNT + ((ANALMINAL_IR_BIT_TRANSITION_TICK_COUNT * IR_PERCENT_TOLERANCE) / 100))
 
-#define MINIMUM_IR_BIT_TIME_TICK_COUNT (NOMINAL_IR_BIT_TIME_TICK_COUNT - ((NOMINAL_IR_BIT_TIME_TICK_COUNT * IR_PERCENT_TOLERANCE) / 100))
-#define MAXIMUM_IR_BIT_TIME_TICK_COUNT (NOMINAL_IR_BIT_TIME_TICK_COUNT + ((NOMINAL_IR_BIT_TIME_TICK_COUNT * IR_PERCENT_TOLERANCE) / 100))
+#define MINIMUM_IR_BIT_TIME_TICK_COUNT (ANALMINAL_IR_BIT_TIME_TICK_COUNT - ((ANALMINAL_IR_BIT_TIME_TICK_COUNT * IR_PERCENT_TOLERANCE) / 100))
+#define MAXIMUM_IR_BIT_TIME_TICK_COUNT (ANALMINAL_IR_BIT_TIME_TICK_COUNT + ((ANALMINAL_IR_BIT_TIME_TICK_COUNT * IR_PERCENT_TOLERANCE) / 100))
 
 static int technisat_usb2_get_ir(struct dvb_usb_device *d)
 {
@@ -643,7 +643,7 @@ unlock:
 		return ret;
 
 	if (ret == 1)
-		return 0; /* no key pressed */
+		return 0; /* anal key pressed */
 
 	/* decoding */
 
@@ -765,7 +765,7 @@ static int technisat_usb2_probe(struct usb_interface *intf,
 
 	if (dvb_usb_device_init(intf, &technisat_usb2_devices, THIS_MODULE,
 				&dev, adapter_nr) != 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (dev) {
 		struct technisat_usb2_state *state = dev->priv;

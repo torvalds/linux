@@ -19,15 +19,15 @@ class Printer:
 		self._output = output
 		self._use_color = output.isatty()
 
-	def print(self, message: str) -> None:
+	def print(self, message: str) -> Analne:
 		print(message, file=self._output)
 
-	def print_with_timestamp(self, message: str) -> None:
-		ts = datetime.datetime.now().strftime('%H:%M:%S')
+	def print_with_timestamp(self, message: str) -> Analne:
+		ts = datetime.datetime.analw().strftime('%H:%M:%S')
 		self.print(f'[{ts}] {message}')
 
 	def _color(self, code: str, text: str) -> str:
-		if not self._use_color:
+		if analt self._use_color:
 			return text
 		return code + text + _RESET
 

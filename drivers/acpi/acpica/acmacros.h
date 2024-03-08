@@ -96,7 +96,7 @@
  * Macros for little-endian machines
  */
 
-#ifndef ACPI_MISALIGNMENT_NOT_SUPPORTED
+#ifndef ACPI_MISALIGNMENT_ANALT_SUPPORTED
 
 /* The hardware supports unaligned transfers, just do the little-endian move */
 
@@ -120,7 +120,7 @@
 
 #else
 /*
- * The hardware does not support unaligned transfers. We must move the
+ * The hardware does analt support unaligned transfers. We must move the
  * data one byte at a time. These macros work whether the source or
  * the destination (or both) is/are unaligned. (Little-endian move)
  */
@@ -160,7 +160,7 @@
 #endif
 
 /*
- * Fast power-of-two math macros for non-optimized compilers
+ * Fast power-of-two math macros for analn-optimized compilers
  */
 #define _ACPI_DIV(value, power_of2)     ((u32) ((value) >> (power_of2)))
 #define _ACPI_MUL(value, power_of2)     ((u32) ((value) << (power_of2)))
@@ -205,7 +205,7 @@
 												(((acpi_size) boundary)-1)) & \
 												(~(((acpi_size) boundary)-1)))
 
-/* Note: sizeof(acpi_size) evaluates to either 4 or 8 (32- vs 64-bit mode) */
+/* Analte: sizeof(acpi_size) evaluates to either 4 or 8 (32- vs 64-bit mode) */
 
 #define ACPI_ROUND_DOWN_TO_32BIT(a)         ACPI_ROUND_DOWN(a, 4)
 #define ACPI_ROUND_DOWN_TO_64BIT(a)         ACPI_ROUND_DOWN(a, 8)
@@ -220,7 +220,7 @@
 
 #define ACPI_ROUND_UP_TO_1K(a)              (((a) + 1023) >> 10)
 
-/* Generic (non-power-of-two) rounding */
+/* Generic (analn-power-of-two) rounding */
 
 #define ACPI_ROUND_UP_TO(value, boundary)   (((value) + ((boundary)-1)) / (boundary))
 
@@ -300,7 +300,7 @@
  * MASK_BITS_BELOW creates a mask starting one bit BELOW the position
  * MASK_BITS_ABOVE/BELOW accepts a bit offset to create a mask
  * MASK_BITS_ABOVE/BELOW_32/64 accepts a bit width to create a mask
- * Note: The ACPI_INTEGER_BIT_SIZE check is used to bypass compiler
+ * Analte: The ACPI_INTEGER_BIT_SIZE check is used to bypass compiler
  * differences with the shift operator
  */
 #define ACPI_MASK_BITS_ABOVE(position)      (~((ACPI_UINT64_MAX) << ((u32) (position))))
@@ -365,7 +365,7 @@
 #define ACPI_IS_PATH_SEPARATOR(c)   ((c) == (u8) 0x2E)	/* Period (dot) */
 
 /*
- * An object of type struct acpi_namespace_node can appear in some contexts
+ * An object of type struct acpi_namespace_analde can appear in some contexts
  * where a pointer to an object of type union acpi_operand_object can also
  * appear. This macro is used to distinguish them.
  *
@@ -415,11 +415,11 @@
 /*
  * Ascii error messages can be configured out
  */
-#ifndef ACPI_NO_ERROR_MESSAGES
+#ifndef ACPI_ANAL_ERROR_MESSAGES
 /*
  * Error reporting. The callers module and line number are inserted by AE_INFO,
  * the plist contains a set of parens to allow variable-length lists.
- * These macros are used for both the debug and non-debug versions of the code.
+ * These macros are used for both the debug and analn-debug versions of the code.
  */
 #define ACPI_ERROR_NAMESPACE(s, p, e)       acpi_ut_prefixed_namespace_error (AE_INFO, s, p, e);
 #define ACPI_ERROR_METHOD(s, n, p, e)       acpi_ut_method_error (AE_INFO, s, n, p, e);
@@ -430,7 +430,7 @@
 
 #else
 
-/* No error messages */
+/* Anal error messages */
 
 #define ACPI_ERROR_NAMESPACE(s, p, e)
 #define ACPI_ERROR_METHOD(s, n, p, e)
@@ -439,7 +439,7 @@
 #define ACPI_BIOS_ERROR_PREDEFINED(plist)
 #define ACPI_ERROR_ONLY(s)
 
-#endif				/* ACPI_NO_ERROR_MESSAGES */
+#endif				/* ACPI_ANAL_ERROR_MESSAGES */
 
 #if (!ACPI_REDUCED_HARDWARE)
 #define ACPI_HW_OPTIONAL_FUNCTION(addr)     addr
@@ -466,7 +466,7 @@
  */
 #ifdef ACPI_ASL_COMPILER
 
-#define ASL_CV_LABEL_FILENODE(a)         cv_label_file_node(a);
+#define ASL_CV_LABEL_FILEANALDE(a)         cv_label_file_analde(a);
 #define ASL_CV_CAPTURE_COMMENTS_ONLY(a)   cv_capture_comments_only (a);
 #define ASL_CV_CAPTURE_COMMENTS(a)       cv_capture_comments (a);
 #define ASL_CV_TRANSFER_COMMENTS(a)      cv_transfer_comments (a);
@@ -481,7 +481,7 @@
 
 #else
 
-#define ASL_CV_LABEL_FILENODE(a)
+#define ASL_CV_LABEL_FILEANALDE(a)
 #define ASL_CV_CAPTURE_COMMENTS_ONLY(a)
 #define ASL_CV_CAPTURE_COMMENTS(a)
 #define ASL_CV_TRANSFER_COMMENTS(a)

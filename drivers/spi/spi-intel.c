@@ -10,7 +10,7 @@
 #include <linux/module.h>
 
 #include <linux/mtd/partitions.h>
-#include <linux/mtd/spi-nor.h>
+#include <linux/mtd/spi-analr.h>
 
 #include <linux/spi/flash.h>
 #include <linux/spi/spi.h>
@@ -85,8 +85,8 @@
 #define OPMENU0				0x08
 #define OPMENU1				0x0c
 
-#define OPTYPE_READ_NO_ADDR		0
-#define OPTYPE_WRITE_NO_ADDR		1
+#define OPTYPE_READ_ANAL_ADDR		0
+#define OPTYPE_WRITE_ANAL_ADDR		1
 #define OPTYPE_READ_WITH_ADDR		2
 #define OPTYPE_WRITE_WITH_ADDR		3
 
@@ -396,7 +396,7 @@ static int intel_spi_sw_cycle(struct intel_spi *ispi, u8 opcode, size_t len,
 
 	/*
 	 * Always clear it after each SW sequencer operation regardless
-	 * of whether it is successful or not.
+	 * of whether it is successful or analt.
 	 */
 	atomic_preopcode = ispi->atomic_preopcode;
 	ispi->atomic_preopcode = 0;
@@ -411,12 +411,12 @@ static int intel_spi_sw_cycle(struct intel_spi *ispi, u8 opcode, size_t len,
 		u16 preop;
 
 		switch (optype) {
-		case OPTYPE_WRITE_NO_ADDR:
+		case OPTYPE_WRITE_ANAL_ADDR:
 		case OPTYPE_WRITE_WITH_ADDR:
 			/* Pick matching preopcode for the atomic sequence */
 			preop = readw(ispi->sregs + PREOP_OPTYPE);
 			if ((preop & 0xff) == atomic_preopcode)
-				; /* Do nothing */
+				; /* Do analthing */
 			else if ((preop >> 8) == atomic_preopcode)
 				val |= SSFSTS_CTL_SPOP;
 			else
@@ -467,7 +467,7 @@ static int intel_spi_read_reg(struct intel_spi *ispi, const struct spi_mem *mem,
 
 	if (ispi->swseq_reg)
 		ret = intel_spi_sw_cycle(ispi, opcode, nbytes,
-					 OPTYPE_READ_NO_ADDR);
+					 OPTYPE_READ_ANAL_ADDR);
 	else
 		ret = intel_spi_hw_cycle(ispi, iop, nbytes);
 
@@ -489,13 +489,13 @@ static int intel_spi_write_reg(struct intel_spi *ispi, const struct spi_mem *mem
 	/*
 	 * This is handled with atomic operation and preop code in Intel
 	 * controller so we only verify that it is available. If the
-	 * controller is not locked, program the opcode to the PREOP
+	 * controller is analt locked, program the opcode to the PREOP
 	 * register for later use.
 	 *
-	 * When hardware sequencer is used there is no need to program
+	 * When hardware sequencer is used there is anal need to program
 	 * any opcodes (it handles them automatically as part of a command).
 	 */
-	if (opcode == SPINOR_OP_WREN) {
+	if (opcode == SPIANALR_OP_WREN) {
 		u16 preop;
 
 		if (!ispi->swseq_reg)
@@ -518,11 +518,11 @@ static int intel_spi_write_reg(struct intel_spi *ispi, const struct spi_mem *mem
 
 	/*
 	 * We hope that HW sequencer will do the right thing automatically and
-	 * with the SW sequencer we cannot use preopcode anyway, so just ignore
+	 * with the SW sequencer we cananalt use preopcode anyway, so just iganalre
 	 * the Write Disable operation and pretend it was completed
 	 * successfully.
 	 */
-	if (opcode == SPINOR_OP_WRDI)
+	if (opcode == SPIANALR_OP_WRDI)
 		return 0;
 
 	writel(addr, ispi->base + FADDR);
@@ -534,7 +534,7 @@ static int intel_spi_write_reg(struct intel_spi *ispi, const struct spi_mem *mem
 
 	if (ispi->swseq_reg)
 		return intel_spi_sw_cycle(ispi, opcode, nbytes,
-					  OPTYPE_WRITE_NO_ADDR);
+					  OPTYPE_WRITE_ANAL_ADDR);
 	return intel_spi_hw_cycle(ispi, iop, nbytes);
 }
 
@@ -549,7 +549,7 @@ static int intel_spi_read(struct intel_spi *ispi, const struct spi_mem *mem,
 	int ret;
 
 	/*
-	 * Atomic sequence is not expected with HW sequencer reads. Make
+	 * Atomic sequence is analt expected with HW sequencer reads. Make
 	 * sure it is cleared regardless.
 	 */
 	if (WARN_ON_ONCE(ispi->atomic_preopcode))
@@ -558,7 +558,7 @@ static int intel_spi_read(struct intel_spi *ispi, const struct spi_mem *mem,
 	while (nbytes > 0) {
 		block_size = min_t(size_t, nbytes, INTEL_SPI_FIFO_SZ);
 
-		/* Read cannot cross 4K boundary */
+		/* Read cananalt cross 4K boundary */
 		block_size = min_t(loff_t, addr + block_size,
 				   round_up(addr + 1, SZ_4K)) - addr;
 
@@ -609,13 +609,13 @@ static int intel_spi_write(struct intel_spi *ispi, const struct spi_mem *mem,
 	u32 val, status;
 	int ret;
 
-	/* Not needed with HW sequencer write, make sure it is cleared */
+	/* Analt needed with HW sequencer write, make sure it is cleared */
 	ispi->atomic_preopcode = 0;
 
 	while (nbytes > 0) {
 		block_size = min_t(size_t, nbytes, INTEL_SPI_FIFO_SZ);
 
-		/* Write cannot cross 4K boundary */
+		/* Write cananalt cross 4K boundary */
 		block_size = min_t(loff_t, addr + block_size,
 				   round_up(addr + 1, SZ_4K)) - addr;
 
@@ -633,7 +633,7 @@ static int intel_spi_write(struct intel_spi *ispi, const struct spi_mem *mem,
 			return ret;
 		}
 
-		/* Start the write now */
+		/* Start the write analw */
 		val |= HSFSTS_CTL_FGO;
 		writel(val, ispi->base + HSFSTS_CTL);
 
@@ -677,7 +677,7 @@ static int intel_spi_erase(struct intel_spi *ispi, const struct spi_mem *mem,
 		return intel_spi_sw_cycle(ispi, opcode, 0,
 					  OPTYPE_WRITE_WITH_ADDR);
 
-	/* Not needed with HW sequencer erase, make sure it is cleared */
+	/* Analt needed with HW sequencer erase, make sure it is cleared */
 	ispi->atomic_preopcode = 0;
 
 	val = readl(ispi->base + HSFSTS_CTL);
@@ -722,7 +722,7 @@ static bool intel_spi_cmp_mem_op(const struct intel_spi_mem_op *iop,
 	    iop->mem_op.data.dtr != op->data.dtr)
 		return false;
 
-	if (iop->mem_op.data.dir != SPI_MEM_NO_DATA) {
+	if (iop->mem_op.data.dir != SPI_MEM_ANAL_DATA) {
 		if (iop->mem_op.data.buswidth != op->data.buswidth)
 			return false;
 	}
@@ -752,7 +752,7 @@ static bool intel_spi_supports_mem_op(struct spi_mem *mem,
 
 	iop = intel_spi_match_mem_op(ispi, op);
 	if (!iop) {
-		dev_dbg(ispi->dev, "%#x not supported\n", op->cmd.opcode);
+		dev_dbg(ispi->dev, "%#x analt supported\n", op->cmd.opcode);
 		return false;
 	}
 
@@ -769,7 +769,7 @@ static bool intel_spi_supports_mem_op(struct spi_mem *mem,
 				return true;
 		}
 
-		dev_dbg(ispi->dev, "%#x not supported\n", op->cmd.opcode);
+		dev_dbg(ispi->dev, "%#x analt supported\n", op->cmd.opcode);
 		return false;
 	}
 
@@ -783,7 +783,7 @@ static int intel_spi_exec_mem_op(struct spi_mem *mem, const struct spi_mem_op *o
 
 	iop = intel_spi_match_mem_op(ispi, op);
 	if (!iop)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return iop->exec_op(ispi, mem, iop, op);
 }
@@ -806,7 +806,7 @@ static int intel_spi_dirmap_create(struct spi_mem_dirmap_desc *desc)
 
 	iop = intel_spi_match_mem_op(ispi, &desc->info.op_tmpl);
 	if (!iop)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	desc->priv = (void *)iop;
 	return 0;
@@ -860,9 +860,9 @@ static const struct spi_controller_mem_ops intel_spi_mem_ops = {
 		.nbytes = __nbytes,					\
 	}
 
-#define INTEL_SPI_OP_NO_DATA						\
+#define INTEL_SPI_OP_ANAL_DATA						\
 	{								\
-		.dir = SPI_MEM_NO_DATA,					\
+		.dir = SPI_MEM_ANAL_DATA,					\
 	}
 
 #define INTEL_SPI_OP_DATA_IN(__buswidth)				\
@@ -906,137 +906,137 @@ static const struct spi_controller_mem_ops intel_spi_mem_ops = {
  */
 #define INTEL_SPI_GENERIC_OPS						\
 	/* Status register operations */				\
-	INTEL_SPI_MEM_OP_REPL(SPI_MEM_OP_CMD(SPINOR_OP_RDID, 1),	\
-			      SPI_MEM_OP_NO_ADDR,			\
+	INTEL_SPI_MEM_OP_REPL(SPI_MEM_OP_CMD(SPIANALR_OP_RDID, 1),	\
+			      SPI_MEM_OP_ANAL_ADDR,			\
 			      INTEL_SPI_OP_DATA_IN(1),			\
 			      intel_spi_read_reg,			\
 			      HSFSTS_CTL_FCYCLE_RDID),			\
-	INTEL_SPI_MEM_OP_REPL(SPI_MEM_OP_CMD(SPINOR_OP_RDSR, 1),	\
-			      SPI_MEM_OP_NO_ADDR,			\
+	INTEL_SPI_MEM_OP_REPL(SPI_MEM_OP_CMD(SPIANALR_OP_RDSR, 1),	\
+			      SPI_MEM_OP_ANAL_ADDR,			\
 			      INTEL_SPI_OP_DATA_IN(1),			\
 			      intel_spi_read_reg,			\
 			      HSFSTS_CTL_FCYCLE_RDSR),			\
-	INTEL_SPI_MEM_OP_REPL(SPI_MEM_OP_CMD(SPINOR_OP_WRSR, 1),	\
-			      SPI_MEM_OP_NO_ADDR,			\
+	INTEL_SPI_MEM_OP_REPL(SPI_MEM_OP_CMD(SPIANALR_OP_WRSR, 1),	\
+			      SPI_MEM_OP_ANAL_ADDR,			\
 			      INTEL_SPI_OP_DATA_OUT(1),			\
 			      intel_spi_write_reg,			\
 			      HSFSTS_CTL_FCYCLE_WRSR),			\
-	INTEL_SPI_MEM_OP_REPL(SPI_MEM_OP_CMD(SPINOR_OP_RDSFDP, 1),	\
+	INTEL_SPI_MEM_OP_REPL(SPI_MEM_OP_CMD(SPIANALR_OP_RDSFDP, 1),	\
 			      INTEL_SPI_OP_ADDR(3),			\
 			      INTEL_SPI_OP_DATA_IN(1),			\
 			      intel_spi_read_reg,			\
 			      HSFSTS_CTL_FCYCLE_RDSFDP),		\
-	/* Normal read */						\
-	INTEL_SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_READ, 1),		\
+	/* Analrmal read */						\
+	INTEL_SPI_MEM_OP(SPI_MEM_OP_CMD(SPIANALR_OP_READ, 1),		\
 			 INTEL_SPI_OP_ADDR(3),				\
 			 INTEL_SPI_OP_DATA_IN(1),			\
 			 intel_spi_read),				\
-	INTEL_SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_READ, 1),		\
+	INTEL_SPI_MEM_OP(SPI_MEM_OP_CMD(SPIANALR_OP_READ, 1),		\
 			 INTEL_SPI_OP_ADDR(3),				\
 			 INTEL_SPI_OP_DATA_IN(2),			\
 			 intel_spi_read),				\
-	INTEL_SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_READ, 1),		\
+	INTEL_SPI_MEM_OP(SPI_MEM_OP_CMD(SPIANALR_OP_READ, 1),		\
 			 INTEL_SPI_OP_ADDR(3),				\
 			 INTEL_SPI_OP_DATA_IN(4),			\
 			 intel_spi_read),				\
-	INTEL_SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_READ, 1),		\
+	INTEL_SPI_MEM_OP(SPI_MEM_OP_CMD(SPIANALR_OP_READ, 1),		\
 			 INTEL_SPI_OP_ADDR(4),				\
 			 INTEL_SPI_OP_DATA_IN(1),			\
 			 intel_spi_read),				\
-	INTEL_SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_READ, 1),		\
+	INTEL_SPI_MEM_OP(SPI_MEM_OP_CMD(SPIANALR_OP_READ, 1),		\
 			 INTEL_SPI_OP_ADDR(4),				\
 			 INTEL_SPI_OP_DATA_IN(2),			\
 			 intel_spi_read),				\
-	INTEL_SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_READ, 1),		\
+	INTEL_SPI_MEM_OP(SPI_MEM_OP_CMD(SPIANALR_OP_READ, 1),		\
 			 INTEL_SPI_OP_ADDR(4),				\
 			 INTEL_SPI_OP_DATA_IN(4),			\
 			 intel_spi_read),				\
 	/* Fast read */							\
-	INTEL_SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_READ_FAST, 1),	\
+	INTEL_SPI_MEM_OP(SPI_MEM_OP_CMD(SPIANALR_OP_READ_FAST, 1),	\
 			 INTEL_SPI_OP_ADDR(3),				\
 			 INTEL_SPI_OP_DATA_IN(1),			\
 			 intel_spi_read),				\
-	INTEL_SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_READ_FAST, 1),	\
+	INTEL_SPI_MEM_OP(SPI_MEM_OP_CMD(SPIANALR_OP_READ_FAST, 1),	\
 			 INTEL_SPI_OP_ADDR(3),				\
 			 INTEL_SPI_OP_DATA_IN(2),			\
 			 intel_spi_read),				\
-	INTEL_SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_READ_FAST, 1),	\
+	INTEL_SPI_MEM_OP(SPI_MEM_OP_CMD(SPIANALR_OP_READ_FAST, 1),	\
 			 INTEL_SPI_OP_ADDR(3),				\
 			 INTEL_SPI_OP_DATA_IN(4),			\
 			 intel_spi_read),				\
-	INTEL_SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_READ_FAST, 1),	\
+	INTEL_SPI_MEM_OP(SPI_MEM_OP_CMD(SPIANALR_OP_READ_FAST, 1),	\
 			 INTEL_SPI_OP_ADDR(4),				\
 			 INTEL_SPI_OP_DATA_IN(1),			\
 			 intel_spi_read),				\
-	INTEL_SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_READ_FAST, 1),	\
+	INTEL_SPI_MEM_OP(SPI_MEM_OP_CMD(SPIANALR_OP_READ_FAST, 1),	\
 			 INTEL_SPI_OP_ADDR(4),				\
 			 INTEL_SPI_OP_DATA_IN(2),			\
 			 intel_spi_read),				\
-	INTEL_SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_READ_FAST, 1),	\
+	INTEL_SPI_MEM_OP(SPI_MEM_OP_CMD(SPIANALR_OP_READ_FAST, 1),	\
 			 INTEL_SPI_OP_ADDR(4),				\
 			 INTEL_SPI_OP_DATA_IN(4),			\
 			 intel_spi_read),				\
 	/* Read with 4-byte address opcode */				\
-	INTEL_SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_READ_4B, 1),		\
+	INTEL_SPI_MEM_OP(SPI_MEM_OP_CMD(SPIANALR_OP_READ_4B, 1),		\
 			 INTEL_SPI_OP_ADDR(4),				\
 			 INTEL_SPI_OP_DATA_IN(1),			\
 			 intel_spi_read),				\
-	INTEL_SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_READ_4B, 1),		\
+	INTEL_SPI_MEM_OP(SPI_MEM_OP_CMD(SPIANALR_OP_READ_4B, 1),		\
 			 INTEL_SPI_OP_ADDR(4),				\
 			 INTEL_SPI_OP_DATA_IN(2),			\
 			 intel_spi_read),				\
-	INTEL_SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_READ_4B, 1),		\
+	INTEL_SPI_MEM_OP(SPI_MEM_OP_CMD(SPIANALR_OP_READ_4B, 1),		\
 			 INTEL_SPI_OP_ADDR(4),				\
 			 INTEL_SPI_OP_DATA_IN(4),			\
 			 intel_spi_read),				\
 	/* Fast read with 4-byte address opcode */			\
-	INTEL_SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_READ_FAST_4B, 1),	\
+	INTEL_SPI_MEM_OP(SPI_MEM_OP_CMD(SPIANALR_OP_READ_FAST_4B, 1),	\
 			 INTEL_SPI_OP_ADDR(4),				\
 			 INTEL_SPI_OP_DATA_IN(1),			\
 			 intel_spi_read),				\
-	INTEL_SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_READ_FAST_4B, 1),	\
+	INTEL_SPI_MEM_OP(SPI_MEM_OP_CMD(SPIANALR_OP_READ_FAST_4B, 1),	\
 			 INTEL_SPI_OP_ADDR(4),				\
 			 INTEL_SPI_OP_DATA_IN(2),			\
 			 intel_spi_read),				\
-	INTEL_SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_READ_FAST_4B, 1),	\
+	INTEL_SPI_MEM_OP(SPI_MEM_OP_CMD(SPIANALR_OP_READ_FAST_4B, 1),	\
 			 INTEL_SPI_OP_ADDR(4),				\
 			 INTEL_SPI_OP_DATA_IN(4),			\
 			 intel_spi_read),				\
 	/* Write operations */						\
-	INTEL_SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_PP, 1),		\
+	INTEL_SPI_MEM_OP(SPI_MEM_OP_CMD(SPIANALR_OP_PP, 1),		\
 			 INTEL_SPI_OP_ADDR(3),				\
 			 INTEL_SPI_OP_DATA_OUT(1),			\
 			 intel_spi_write),				\
-	INTEL_SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_PP, 1),		\
+	INTEL_SPI_MEM_OP(SPI_MEM_OP_CMD(SPIANALR_OP_PP, 1),		\
 			 INTEL_SPI_OP_ADDR(4),				\
 			 INTEL_SPI_OP_DATA_OUT(1),			\
 			 intel_spi_write),				\
-	INTEL_SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_PP_4B, 1),		\
+	INTEL_SPI_MEM_OP(SPI_MEM_OP_CMD(SPIANALR_OP_PP_4B, 1),		\
 			 INTEL_SPI_OP_ADDR(4),				\
 			 INTEL_SPI_OP_DATA_OUT(1),			\
 			 intel_spi_write),				\
-	INTEL_SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_WREN, 1),		\
-			 SPI_MEM_OP_NO_ADDR,				\
-			 SPI_MEM_OP_NO_DATA,				\
+	INTEL_SPI_MEM_OP(SPI_MEM_OP_CMD(SPIANALR_OP_WREN, 1),		\
+			 SPI_MEM_OP_ANAL_ADDR,				\
+			 SPI_MEM_OP_ANAL_DATA,				\
 			 intel_spi_write_reg),				\
-	INTEL_SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_WRDI, 1),		\
-			 SPI_MEM_OP_NO_ADDR,				\
-			 SPI_MEM_OP_NO_DATA,				\
+	INTEL_SPI_MEM_OP(SPI_MEM_OP_CMD(SPIANALR_OP_WRDI, 1),		\
+			 SPI_MEM_OP_ANAL_ADDR,				\
+			 SPI_MEM_OP_ANAL_DATA,				\
 			 intel_spi_write_reg),				\
 	/* Erase operations */						\
-	INTEL_SPI_MEM_OP_REPL(SPI_MEM_OP_CMD(SPINOR_OP_BE_4K, 1),	\
+	INTEL_SPI_MEM_OP_REPL(SPI_MEM_OP_CMD(SPIANALR_OP_BE_4K, 1),	\
 			      INTEL_SPI_OP_ADDR(3),			\
-			      SPI_MEM_OP_NO_DATA,			\
+			      SPI_MEM_OP_ANAL_DATA,			\
 			      intel_spi_erase,				\
 			      HSFSTS_CTL_FCYCLE_ERASE),			\
-	INTEL_SPI_MEM_OP_REPL(SPI_MEM_OP_CMD(SPINOR_OP_BE_4K, 1),	\
+	INTEL_SPI_MEM_OP_REPL(SPI_MEM_OP_CMD(SPIANALR_OP_BE_4K, 1),	\
 			      INTEL_SPI_OP_ADDR(4),			\
-			      SPI_MEM_OP_NO_DATA,			\
+			      SPI_MEM_OP_ANAL_DATA,			\
 			      intel_spi_erase,				\
 			      HSFSTS_CTL_FCYCLE_ERASE),			\
-	INTEL_SPI_MEM_OP_REPL(SPI_MEM_OP_CMD(SPINOR_OP_BE_4K_4B, 1),	\
+	INTEL_SPI_MEM_OP_REPL(SPI_MEM_OP_CMD(SPIANALR_OP_BE_4K_4B, 1),	\
 			      INTEL_SPI_OP_ADDR(4),			\
-			      SPI_MEM_OP_NO_DATA,			\
+			      SPI_MEM_OP_ANAL_DATA,			\
 			      intel_spi_erase,				\
 			      HSFSTS_CTL_FCYCLE_ERASE)			\
 
@@ -1048,19 +1048,19 @@ static const struct intel_spi_mem_op generic_mem_ops[] = {
 static const struct intel_spi_mem_op erase_64k_mem_ops[] = {
 	INTEL_SPI_GENERIC_OPS,
 	/* 64k sector erase operations */
-	INTEL_SPI_MEM_OP_REPL(SPI_MEM_OP_CMD(SPINOR_OP_SE, 1),
+	INTEL_SPI_MEM_OP_REPL(SPI_MEM_OP_CMD(SPIANALR_OP_SE, 1),
 			      INTEL_SPI_OP_ADDR(3),
-			      SPI_MEM_OP_NO_DATA,
+			      SPI_MEM_OP_ANAL_DATA,
 			      intel_spi_erase,
 			      HSFSTS_CTL_FCYCLE_ERASE_64K),
-	INTEL_SPI_MEM_OP_REPL(SPI_MEM_OP_CMD(SPINOR_OP_SE, 1),
+	INTEL_SPI_MEM_OP_REPL(SPI_MEM_OP_CMD(SPIANALR_OP_SE, 1),
 			      INTEL_SPI_OP_ADDR(4),
-			      SPI_MEM_OP_NO_DATA,
+			      SPI_MEM_OP_ANAL_DATA,
 			      intel_spi_erase,
 			      HSFSTS_CTL_FCYCLE_ERASE_64K),
-	INTEL_SPI_MEM_OP_REPL(SPI_MEM_OP_CMD(SPINOR_OP_SE_4B, 1),
+	INTEL_SPI_MEM_OP_REPL(SPI_MEM_OP_CMD(SPIANALR_OP_SE_4B, 1),
 			      INTEL_SPI_OP_ADDR(4),
-			      SPI_MEM_OP_NO_DATA,
+			      SPI_MEM_OP_ANAL_DATA,
 			      intel_spi_erase,
 			      HSFSTS_CTL_FCYCLE_ERASE_64K),
 	{ },
@@ -1126,7 +1126,7 @@ static int intel_spi_init(struct intel_spi *ispi)
 	 * The HW sequencer has a predefined list of opcodes, with only the
 	 * erase opcode being programmable in LVSCC and UVSCC registers.
 	 * If these registers don't contain a valid erase opcode, erase
-	 * cannot be done using HW sequencer.
+	 * cananalt be done using HW sequencer.
 	 */
 	lvscc = readl(ispi->base + LVSCC);
 	uvscc = readl(ispi->base + UVSCC);
@@ -1139,7 +1139,7 @@ static int intel_spi_init(struct intel_spi *ispi)
 			erase_64k = false;
 
 	if (!ispi->sregs && (ispi->swseq_reg || ispi->swseq_erase)) {
-		dev_err(ispi->dev, "software sequencer not supported, but required\n");
+		dev_err(ispi->dev, "software sequencer analt supported, but required\n");
 		return -EINVAL;
 	}
 
@@ -1227,7 +1227,7 @@ static void intel_spi_fill_partition(struct intel_spi *ispi,
 	part->name = "BIOS";
 
 	/*
-	 * Now try to find where this partition ends based on the flash
+	 * Analw try to find where this partition ends based on the flash
 	 * region registers.
 	 */
 	for (i = 1; i < ispi->nregions; i++) {
@@ -1244,7 +1244,7 @@ static void intel_spi_fill_partition(struct intel_spi *ispi,
 		 * If any of the regions have protection bits set, make the
 		 * whole partition read-only to be on the safe side.
 		 *
-		 * Also if the user did not ask the chip to be writeable
+		 * Also if the user did analt ask the chip to be writeable
 		 * mask the bit too.
 		 */
 		if (!writeable || intel_spi_is_protected(ispi, base, limit))
@@ -1259,9 +1259,9 @@ static void intel_spi_fill_partition(struct intel_spi *ispi,
 static int intel_spi_read_desc(struct intel_spi *ispi)
 {
 	struct spi_mem_op op =
-		SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_READ, 0),
+		SPI_MEM_OP(SPI_MEM_OP_CMD(SPIANALR_OP_READ, 0),
 			   SPI_MEM_OP_ADDR(3, 0, 0),
-			   SPI_MEM_OP_NO_DUMMY,
+			   SPI_MEM_OP_ANAL_DUMMY,
 			   SPI_MEM_OP_DATA_IN(0, NULL, 0));
 	u32 buf[2], nc, fcba, flcomp;
 	ssize_t ret;
@@ -1280,8 +1280,8 @@ static int intel_spi_read_desc(struct intel_spi *ispi)
 	dev_dbg(ispi->dev, "FLMAP0=0x%08x\n", buf[1]);
 
 	if (buf[0] != FLVALSIG_MAGIC) {
-		dev_warn(ispi->dev, "descriptor signature not valid\n");
-		return -ENODEV;
+		dev_warn(ispi->dev, "descriptor signature analt valid\n");
+		return -EANALDEV;
 	}
 
 	fcba = (buf[1] & FLMAP0_FCBA_MASK) << 4;
@@ -1294,7 +1294,7 @@ static int intel_spi_read_desc(struct intel_spi *ispi)
 	ret = intel_spi_read(ispi, NULL, NULL, &op);
 	if (ret) {
 		dev_warn(ispi->dev, "failed to read FLCOMP\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	dev_dbg(ispi->dev, "FLCOMP=0x%08x\n", flcomp);
@@ -1351,22 +1351,22 @@ static int intel_spi_populate_chip(struct intel_spi *ispi)
 
 	pdata = devm_kzalloc(ispi->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pdata->nr_parts = 1;
 	pdata->parts = devm_kcalloc(ispi->dev, pdata->nr_parts,
 				    sizeof(*pdata->parts), GFP_KERNEL);
 	if (!pdata->parts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	intel_spi_fill_partition(ispi, pdata->parts);
 
 	memset(&chip, 0, sizeof(chip));
-	snprintf(chip.modalias, 8, "spi-nor");
+	snprintf(chip.modalias, 8, "spi-analr");
 	chip.platform_data = pdata;
 
 	if (!spi_new_device(ispi->host, &chip))
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = intel_spi_read_desc(ispi);
 	if (ret)
@@ -1380,7 +1380,7 @@ static int intel_spi_populate_chip(struct intel_spi *ispi)
 	chip.chip_select = 1;
 
 	if (!spi_new_device(ispi->host, &chip))
-		return -ENODEV;
+		return -EANALDEV;
 	return 0;
 }
 
@@ -1391,7 +1391,7 @@ static int intel_spi_populate_chip(struct intel_spi *ispi)
  * @info: Platform specific information
  *
  * Probes Intel SPI flash controller and creates the flash chip device.
- * Returns %0 on success and negative errno in case of failure.
+ * Returns %0 on success and negative erranal in case of failure.
  */
 int intel_spi_probe(struct device *dev, struct resource *mem,
 		    const struct intel_spi_boardinfo *info)
@@ -1402,7 +1402,7 @@ int intel_spi_probe(struct device *dev, struct resource *mem,
 
 	host = devm_spi_alloc_host(dev, sizeof(*ispi));
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	host->mem_ops = &intel_spi_mem_ops;
 

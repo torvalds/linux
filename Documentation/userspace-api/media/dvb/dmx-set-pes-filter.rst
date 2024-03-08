@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: DTV.dmx
 
 .. _DMX_SET_PES_FILTER:
@@ -12,7 +12,7 @@ Name
 
 DMX_SET_PES_FILTER
 
-Synopsis
+Syanalpsis
 --------
 
 .. c:macro:: DMX_SET_PES_FILTER
@@ -33,7 +33,7 @@ Description
 
 This ioctl call sets up a PES filter according to the parameters
 provided. By a PES filter is meant a filter that is based just on the
-packet identifier (PID), i.e. no PES header or payload filtering
+packet identifier (PID), i.e. anal PES header or payload filtering
 capability is supported.
 
 Return Value
@@ -41,7 +41,7 @@ Return Value
 
 On success 0 is returned.
 
-On error -1 is returned, and the ``errno`` variable is set
+On error -1 is returned, and the ``erranal`` variable is set
 appropriately.
 
 .. tabularcolumns:: |p{2.5cm}|p{15.0cm}|
@@ -56,7 +56,7 @@ appropriately.
        -  ``EBUSY``
 
        -  This error code indicates that there are conflicting requests.
-	  There are active filters filtering data from another input source.
+	  There are active filters filtering data from aanalther input source.
 	  Make sure that these filters are stopped before starting this
 	  filter.
 

@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  linux/drivers/devfreq/governor_simpleondemand.c
+ *  linux/drivers/devfreq/goveranalr_simpleondemand.c
  *
  *  Copyright (C) 2011 Samsung Electronics
  *	MyungJoo Ham <myungjoo.ham@samsung.com>
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/module.h>
 #include <linux/devfreq.h>
 #include <linux/math64.h>
-#include "governor.h"
+#include "goveranalr.h"
 
 /* Default constants for DevFreq-Simple-Ondemand (DFSO) */
 #define DFSO_UPTHRESHOLD	(90)
@@ -53,14 +53,14 @@ static int devfreq_simple_ondemand_func(struct devfreq *df,
 		stat->total_time >>= 7;
 	}
 
-	/* Set MAX if it's busy enough */
+	/* Set MAX if it's busy eanalugh */
 	if (stat->busy_time * 100 >
 	    stat->total_time * dfso_upthreshold) {
 		*freq = DEVFREQ_MAX_FREQ;
 		return 0;
 	}
 
-	/* Set MAX if we do not know the initial frequency */
+	/* Set MAX if we do analt kanalw the initial frequency */
 	if (stat->current_frequency == 0) {
 		*freq = DEVFREQ_MAX_FREQ;
 		return 0;
@@ -115,7 +115,7 @@ static int devfreq_simple_ondemand_handler(struct devfreq *devfreq,
 	return 0;
 }
 
-static struct devfreq_governor devfreq_simple_ondemand = {
+static struct devfreq_goveranalr devfreq_simple_ondemand = {
 	.name = DEVFREQ_GOV_SIMPLE_ONDEMAND,
 	.attrs = DEVFREQ_GOV_ATTR_POLLING_INTERVAL
 		| DEVFREQ_GOV_ATTR_TIMER,
@@ -125,7 +125,7 @@ static struct devfreq_governor devfreq_simple_ondemand = {
 
 static int __init devfreq_simple_ondemand_init(void)
 {
-	return devfreq_add_governor(&devfreq_simple_ondemand);
+	return devfreq_add_goveranalr(&devfreq_simple_ondemand);
 }
 subsys_initcall(devfreq_simple_ondemand_init);
 
@@ -133,9 +133,9 @@ static void __exit devfreq_simple_ondemand_exit(void)
 {
 	int ret;
 
-	ret = devfreq_remove_governor(&devfreq_simple_ondemand);
+	ret = devfreq_remove_goveranalr(&devfreq_simple_ondemand);
 	if (ret)
-		pr_err("%s: failed remove governor %d\n", __func__, ret);
+		pr_err("%s: failed remove goveranalr %d\n", __func__, ret);
 
 	return;
 }

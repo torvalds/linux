@@ -13,10 +13,10 @@ description: |
   Renesas RPC-IF allows a SPI flash or HyperFlash connected to the SoC to
   be accessed via the external address space read mode or the manual mode.
 
-  The flash chip itself should be represented by a subnode of the RPC-IF node.
+  The flash chip itself should be represented by a subanalde of the RPC-IF analde.
   The flash interface is selected based on the "compatible" property of this
-  subnode:
-  - if it contains "jedec,spi-nor", then SPI is used;
+  subanalde:
+  - if it contains "jedec,spi-analr", then SPI is used;
   - if it contains "cfi-flash", then HyperFlash is used.
 
 allOf:
@@ -87,7 +87,7 @@ patternProperties:
         contains:
           enum:
             - cfi-flash
-            - jedec,spi-nor
+            - jedec,spi-analr
 
 required:
   - compatible
@@ -137,7 +137,7 @@ examples:
       #size-cells = <0>;
 
       flash@0 {
-        compatible = "jedec,spi-nor";
+        compatible = "jedec,spi-analr";
         reg = <0>;
         spi-max-frequency = <40000000>;
         spi-tx-bus-width = <1>;

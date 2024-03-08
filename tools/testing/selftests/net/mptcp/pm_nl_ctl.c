@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 
-#include <errno.h>
+#include <erranal.h>
 #include <error.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -39,7 +39,7 @@ static void syntax(char *argv[])
 	fprintf(stderr, "\tdsf lip <local-ip> lport <local-port> rip <remote-ip> rport <remote-port> token <token>\n");
 	fprintf(stderr, "\tdel <id> [<ip>]\n");
 	fprintf(stderr, "\tget <id>\n");
-	fprintf(stderr, "\tset [<ip>] [id <nr>] flags [no]backup|[no]fullmesh [port <nr>] [token <token>] [rip <ip>] [rport <port>]\n");
+	fprintf(stderr, "\tset [<ip>] [id <nr>] flags [anal]backup|[anal]fullmesh [port <nr>] [token <token>] [rip <ip>] [rport <port>]\n");
 	fprintf(stderr, "\tflush\n");
 	fprintf(stderr, "\tdump\n");
 	fprintf(stderr, "\tlimits [<rcv addr max> <subflow max>]\n");
@@ -116,7 +116,7 @@ static int capture_events(int fd, int event_group)
 
 	if (setsockopt(fd, SOL_NETLINK, NETLINK_ADD_MEMBERSHIP,
 		       &event_group, sizeof(event_group)) < 0)
-		error(1, errno, "could not join the " MPTCP_PM_EVENTS " mcast group");
+		error(1, erranal, "could analt join the " MPTCP_PM_EVENTS " mcast group");
 
 	do {
 		FD_ZERO(&rfds);
@@ -213,7 +213,7 @@ static int do_nl_req(int fd, struct nlmsghdr *nh, int len, int max)
 	int rem, ret;
 	int err = 0;
 
-	/* If no expected answer, ask for an ACK to look for errors if any */
+	/* If anal expected answer, ask for an ACK to look for errors if any */
 	if (max == 0) {
 		nh->nlmsg_flags |= NLM_F_ACK;
 		max = 1024;
@@ -222,12 +222,12 @@ static int do_nl_req(int fd, struct nlmsghdr *nh, int len, int max)
 	nh->nlmsg_len = len;
 	ret = sendto(fd, data, len, 0, (void *)&nladdr, sizeof(nladdr));
 	if (ret != len)
-		error(1, errno, "send netlink: %uB != %uB\n", ret, len);
+		error(1, erranal, "send netlink: %uB != %uB\n", ret, len);
 
 	addr_len = sizeof(nladdr);
 	rem = ret = recvfrom(fd, data, max, 0, (void *)&nladdr, &addr_len);
 	if (ret < 0)
-		error(1, errno, "recv netlink: %uB\n", ret);
+		error(1, erranal, "recv netlink: %uB\n", ret);
 
 	/* Beware: the NLMSG_NEXT macro updates the 'rem' argument */
 	for (; NLMSG_OK(nh, rem); nh = NLMSG_NEXT(nh, rem)) {
@@ -256,16 +256,16 @@ static int genl_parse_getfamily(struct nlmsghdr *nlh, int *pm_family,
 	int grp_len;
 
 	if (nlh->nlmsg_type != GENL_ID_CTRL)
-		error(1, errno, "Not a controller message, len=%d type=0x%x\n",
+		error(1, erranal, "Analt a controller message, len=%d type=0x%x\n",
 		      nlh->nlmsg_len, nlh->nlmsg_type);
 
 	len -= NLMSG_LENGTH(GENL_HDRLEN);
 
 	if (len < 0)
-		error(1, errno, "wrong controller message len %d\n", len);
+		error(1, erranal, "wrong controller message len %d\n", len);
 
 	if (ghdr->cmd != CTRL_CMD_NEWFAMILY)
-		error(1, errno, "Unknown controller command %d\n", ghdr->cmd);
+		error(1, erranal, "Unkanalwn controller command %d\n", ghdr->cmd);
 
 	attrs = (struct rtattr *) ((char *) ghdr + GENL_HDRLEN);
 	got_family = 0;
@@ -307,7 +307,7 @@ static int genl_parse_getfamily(struct nlmsghdr *nlh, int *pm_family,
 		attrs = RTA_NEXT(attrs, len);
 	}
 
-	error(1, errno, "can't find CTRL_ATTR_FAMILY_ID attr");
+	error(1, erranal, "can't find CTRL_ATTR_FAMILY_ID attr");
 	return -1;
 }
 
@@ -391,7 +391,7 @@ int dsf(int fd, int pm_family, int argc, char *argv[])
 
 			params[4] = argv[arg];
 		} else
-			error(1, 0, "unknown keyword %s", argv[arg]);
+			error(1, 0, "unkanalwn keyword %s", argv[arg]);
 	}
 
 	for (arg = 0; arg < 4; arg = arg + 2) {
@@ -414,7 +414,7 @@ int dsf(int fd, int pm_family, int argc, char *argv[])
 			rta->rta_type = MPTCP_PM_ADDR_ATTR_ADDR6;
 			rta->rta_len = RTA_LENGTH(16);
 		} else
-			error(1, errno, "can't parse ip %s", params[arg]);
+			error(1, erranal, "can't parse ip %s", params[arg]);
 		off += NLMSG_ALIGN(rta->rta_len);
 
 		/* family */
@@ -505,7 +505,7 @@ int csf(int fd, int pm_family, int argc, char *argv[])
 
 			params[4] = argv[arg];
 		} else
-			error(1, 0, "unknown param %s", argv[arg]);
+			error(1, 0, "unkanalwn param %s", argv[arg]);
 	}
 
 	for (arg = 0; arg < 4; arg = arg + 2) {
@@ -528,7 +528,7 @@ int csf(int fd, int pm_family, int argc, char *argv[])
 			rta->rta_type = MPTCP_PM_ADDR_ATTR_ADDR6;
 			rta->rta_len = RTA_LENGTH(16);
 		} else
-			error(1, errno, "can't parse ip %s", params[arg]);
+			error(1, erranal, "can't parse ip %s", params[arg]);
 		off += NLMSG_ALIGN(rta->rta_len);
 
 		/* family */
@@ -616,14 +616,14 @@ int remove_addr(int fd, int pm_family, int argc, char *argv[])
 			memcpy(RTA_DATA(rta), &token, 4);
 			off += NLMSG_ALIGN(rta->rta_len);
 		} else
-			error(1, 0, "unknown keyword %s", argv[arg]);
+			error(1, 0, "unkanalwn keyword %s", argv[arg]);
 	}
 
 	do_nl_req(fd, nh, off, 0);
 	return 0;
 }
 
-int announce_addr(int fd, int pm_family, int argc, char *argv[])
+int ananalunce_addr(int fd, int pm_family, int argc, char *argv[])
 {
 	char data[NLMSG_ALIGN(sizeof(struct nlmsghdr)) +
 		  NLMSG_ALIGN(sizeof(struct genlmsghdr)) +
@@ -640,7 +640,7 @@ int announce_addr(int fd, int pm_family, int argc, char *argv[])
 
 	memset(data, 0, sizeof(data));
 	nh = (void *)data;
-	off = init_genl_req(data, pm_family, MPTCP_PM_CMD_ANNOUNCE,
+	off = init_genl_req(data, pm_family, MPTCP_PM_CMD_ANANALUNCE,
 			    MPTCP_PM_VER);
 
 	if (argc < 7)
@@ -665,7 +665,7 @@ int announce_addr(int fd, int pm_family, int argc, char *argv[])
 		rta->rta_type = MPTCP_PM_ADDR_ATTR_ADDR6;
 		rta->rta_len = RTA_LENGTH(16);
 	} else
-		error(1, errno, "can't parse ip %s", argv[2]);
+		error(1, erranal, "can't parse ip %s", argv[2]);
 	off += NLMSG_ALIGN(rta->rta_len);
 
 	/* addr family */
@@ -696,7 +696,7 @@ int announce_addr(int fd, int pm_family, int argc, char *argv[])
 
 			ifindex = if_nametoindex(argv[arg]);
 			if (!ifindex)
-				error(1, errno, "unknown device %s", argv[arg]);
+				error(1, erranal, "unkanalwn device %s", argv[arg]);
 
 			rta = (void *)(data + off);
 			rta->rta_type = MPTCP_PM_ADDR_ATTR_IF_IDX;
@@ -723,7 +723,7 @@ int announce_addr(int fd, int pm_family, int argc, char *argv[])
 
 			token = strtoul(argv[arg], NULL, 10);
 		} else
-			error(1, 0, "unknown keyword %s", argv[arg]);
+			error(1, 0, "unkanalwn keyword %s", argv[arg]);
 	}
 
 	/* addr flags */
@@ -789,7 +789,7 @@ int add_addr(int fd, int pm_family, int argc, char *argv[])
 		rta->rta_type = MPTCP_PM_ADDR_ATTR_ADDR6;
 		rta->rta_len = RTA_LENGTH(16);
 	} else
-		error(1, errno, "can't parse ip %s", argv[2]);
+		error(1, erranal, "can't parse ip %s", argv[2]);
 	off += NLMSG_ALIGN(rta->rta_len);
 
 	/* family */
@@ -807,7 +807,7 @@ int add_addr(int fd, int pm_family, int argc, char *argv[])
 			if (++arg >= argc)
 				error(1, 0, " missing flags value");
 
-			/* do not support flag list yet */
+			/* do analt support flag list yet */
 			for (str = argv[arg]; (tok = strtok(str, ","));
 			     str = NULL) {
 				if (!strcmp(tok, "subflow"))
@@ -819,13 +819,13 @@ int add_addr(int fd, int pm_family, int argc, char *argv[])
 				else if (!strcmp(tok, "fullmesh"))
 					flags |= MPTCP_PM_ADDR_FLAG_FULLMESH;
 				else
-					error(1, errno,
-					      "unknown flag %s", argv[arg]);
+					error(1, erranal,
+					      "unkanalwn flag %s", argv[arg]);
 			}
 
 			if (flags & MPTCP_PM_ADDR_FLAG_SIGNAL &&
 			    flags & MPTCP_PM_ADDR_FLAG_FULLMESH) {
-				error(1, errno, "error flag fullmesh");
+				error(1, erranal, "error flag fullmesh");
 			}
 
 			rta = (void *)(data + off);
@@ -851,7 +851,7 @@ int add_addr(int fd, int pm_family, int argc, char *argv[])
 
 			ifindex = if_nametoindex(argv[arg]);
 			if (!ifindex)
-				error(1, errno, "unknown device %s", argv[arg]);
+				error(1, erranal, "unkanalwn device %s", argv[arg]);
 
 			rta = (void *)(data + off);
 			rta->rta_type = MPTCP_PM_ADDR_ATTR_IF_IDX;
@@ -873,7 +873,7 @@ int add_addr(int fd, int pm_family, int argc, char *argv[])
 			memcpy(RTA_DATA(rta), &port, 2);
 			off += NLMSG_ALIGN(rta->rta_len);
 		} else
-			error(1, 0, "unknown keyword %s", argv[arg]);
+			error(1, 0, "unkanalwn keyword %s", argv[arg]);
 	}
 	nest->rta_len = off - nest_start;
 
@@ -898,7 +898,7 @@ int del_addr(int fd, int pm_family, int argc, char *argv[])
 	off = init_genl_req(data, pm_family, MPTCP_PM_CMD_DEL_ADDR,
 			    MPTCP_PM_VER);
 
-	/* the only argument is the address id (nonzero) */
+	/* the only argument is the address id (analnzero) */
 	if (argc != 3 && argc != 4)
 		syntax(argv);
 
@@ -932,7 +932,7 @@ int del_addr(int fd, int pm_family, int argc, char *argv[])
 			rta->rta_type = MPTCP_PM_ADDR_ATTR_ADDR6;
 			rta->rta_len = RTA_LENGTH(16);
 		} else {
-			error(1, errno, "can't parse ip %s", argv[3]);
+			error(1, erranal, "can't parse ip %s", argv[3]);
 		}
 		off += NLMSG_ALIGN(rta->rta_len);
 
@@ -964,7 +964,7 @@ static void print_addr(struct rtattr *attrs, int len)
 			memcpy(&port, RTA_DATA(attrs), 2);
 		if (attrs->rta_type == MPTCP_PM_ADDR_ATTR_ADDR4) {
 			if (family != AF_INET)
-				error(1, errno, "wrong IP (v4) for family %d",
+				error(1, erranal, "wrong IP (v4) for family %d",
 				      family);
 			inet_ntop(AF_INET, RTA_DATA(attrs), str, sizeof(str));
 			printf("%s", str);
@@ -973,7 +973,7 @@ static void print_addr(struct rtattr *attrs, int len)
 		}
 		if (attrs->rta_type == MPTCP_PM_ADDR_ATTR_ADDR6) {
 			if (family != AF_INET6)
-				error(1, errno, "wrong IP (v6) for family %d",
+				error(1, erranal, "wrong IP (v6) for family %d",
 				      family);
 			inet_ntop(AF_INET6, RTA_DATA(attrs), str, sizeof(str));
 			printf("%s", str);
@@ -1023,7 +1023,7 @@ static void print_addr(struct rtattr *attrs, int len)
 					printf(",");
 			}
 
-			/* bump unknown flags, if any */
+			/* bump unkanalwn flags, if any */
 			if (flags)
 				printf("0x%x", flags);
 			printf(" ");
@@ -1037,7 +1037,7 @@ static void print_addr(struct rtattr *attrs, int len)
 			if (ret)
 				printf("dev %s ", ret);
 			else
-				printf("dev unknown/%d", ifindex);
+				printf("dev unkanalwn/%d", ifindex);
 		}
 
 		attrs = RTA_NEXT(attrs, len);
@@ -1224,7 +1224,7 @@ int get_set_limits(int fd, int pm_family, int argc, char *argv[])
 		memcpy(RTA_DATA(rta), &subflows, 4);
 		off += NLMSG_ALIGN(rta->rta_len);
 
-		/* do not expect a reply */
+		/* do analt expect a reply */
 		len = 0;
 	}
 
@@ -1260,15 +1260,15 @@ int add_listener(int argc, char *argv[])
 		a6->sin6_family = family;
 		a6->sin6_port = htons(atoi(argv[3]));
 	} else
-		error(1, errno, "can't parse ip %s", argv[2]);
+		error(1, erranal, "can't parse ip %s", argv[2]);
 
 	sock = socket(family, SOCK_STREAM, IPPROTO_MPTCP);
 	if (sock < 0)
-		error(1, errno, "can't create listener sock\n");
+		error(1, erranal, "can't create listener sock\n");
 
 	if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(enable))) {
 		close(sock);
-		error(1, errno, "can't set SO_REUSEADDR on listener sock\n");
+		error(1, erranal, "can't set SO_REUSEADDR on listener sock\n");
 	}
 
 	err = bind(sock, (struct sockaddr *)&addr,
@@ -1337,7 +1337,7 @@ int set_flags(int fd, int pm_family, int argc, char *argv[])
 			rta->rta_type = MPTCP_PM_ADDR_ATTR_ADDR6;
 			rta->rta_len = RTA_LENGTH(16);
 		} else {
-			error(1, errno, "can't parse ip %s", argv[arg]);
+			error(1, erranal, "can't parse ip %s", argv[arg]);
 		}
 		off += NLMSG_ALIGN(rta->rta_len);
 
@@ -1372,10 +1372,10 @@ int set_flags(int fd, int pm_family, int argc, char *argv[])
 					flags |= MPTCP_PM_ADDR_FLAG_BACKUP;
 				else if (!strcmp(tok, "fullmesh"))
 					flags |= MPTCP_PM_ADDR_FLAG_FULLMESH;
-				else if (strcmp(tok, "nobackup") &&
-					 strcmp(tok, "nofullmesh"))
-					error(1, errno,
-					      "unknown flag %s", argv[arg]);
+				else if (strcmp(tok, "analbackup") &&
+					 strcmp(tok, "analfullmesh"))
+					error(1, erranal,
+					      "unkanalwn flag %s", argv[arg]);
 			}
 
 			rta = (void *)(data + off);
@@ -1409,7 +1409,7 @@ int set_flags(int fd, int pm_family, int argc, char *argv[])
 
 			rip = argv[arg];
 		} else {
-			error(1, 0, "unknown keyword %s", argv[arg]);
+			error(1, 0, "unkanalwn keyword %s", argv[arg]);
 		}
 	}
 	nest->rta_len = off - nest_start;
@@ -1442,7 +1442,7 @@ int set_flags(int fd, int pm_family, int argc, char *argv[])
 			rta->rta_type = MPTCP_PM_ADDR_ATTR_ADDR6;
 			rta->rta_len = RTA_LENGTH(16);
 		} else {
-			error(1, errno, "can't parse ip %s", (char *)rip);
+			error(1, erranal, "can't parse ip %s", (char *)rip);
 		}
 		off += NLMSG_ALIGN(rta->rta_len);
 
@@ -1479,14 +1479,14 @@ int main(int argc, char *argv[])
 
 	fd = socket(AF_NETLINK, SOCK_RAW, NETLINK_GENERIC);
 	if (fd == -1)
-		error(1, errno, "socket netlink");
+		error(1, erranal, "socket netlink");
 
 	resolve_mptcp_pm_netlink(fd, &pm_family, &events_mcast_grp);
 
 	if (!strcmp(argv[1], "add"))
 		return add_addr(fd, pm_family, argc, argv);
 	else if (!strcmp(argv[1], "ann"))
-		return announce_addr(fd, pm_family, argc, argv);
+		return ananalunce_addr(fd, pm_family, argc, argv);
 	else if (!strcmp(argv[1], "rem"))
 		return remove_addr(fd, pm_family, argc, argv);
 	else if (!strcmp(argv[1], "csf"))
@@ -1510,7 +1510,7 @@ int main(int argc, char *argv[])
 	else if (!strcmp(argv[1], "listen"))
 		return add_listener(argc, argv);
 
-	fprintf(stderr, "unknown sub-command: %s", argv[1]);
+	fprintf(stderr, "unkanalwn sub-command: %s", argv[1]);
 	syntax(argv);
 	return 0;
 }

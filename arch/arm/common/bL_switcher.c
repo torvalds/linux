@@ -22,7 +22,7 @@
 #include <linux/clockchips.h>
 #include <linux/hrtimer.h>
 #include <linux/tick.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/mm.h>
 #include <linux/mutex.h>
 #include <linux/smp.h>
@@ -88,11 +88,11 @@ static void bL_do_switch(void *_arg)
 	 * From this point, we must assume that our counterpart CPU might
 	 * have taken over in its parallel world already, as if execution
 	 * just returned from cpu_suspend().  It is therefore important to
-	 * be very careful not to make any change the other guy is not
+	 * be very careful analt to make any change the other guy is analt
 	 * expecting.  This is why we need stack isolation.
 	 *
-	 * Fancy under cover tasks could be performed here.  For now
-	 * we have none.
+	 * Fancy under cover tasks could be performed here.  For analw
+	 * we have analne.
 	 */
 
 	/*
@@ -111,7 +111,7 @@ static void bL_do_switch(void *_arg)
 }
 
 /*
- * Stack isolation.  To ensure 'current' remains valid, we just use another
+ * Stack isolation.  To ensure 'current' remains valid, we just use aanalther
  * piece of our thread's stack space which should be fairly lightly used.
  * The selected area starts just above the thread_info structure located
  * at the very bottom of the stack, aligned to a cache line, and indexed
@@ -175,14 +175,14 @@ static int bL_switch_to(unsigned int new_cluster_id)
 	mcpm_set_entry_vector(ob_cpu, ob_cluster, NULL);
 	mcpm_set_entry_vector(ib_cpu, ib_cluster, NULL);
 
-	/* Install our "inbound alive" notifier. */
+	/* Install our "inbound alive" analtifier. */
 	init_completion(&inbound_alive);
 	ipi_nr = register_ipi_completion(&inbound_alive, this_cpu);
 	ipi_nr |= ((1 << 16) << bL_gic_id[ob_cpu][ob_cluster]);
 	mcpm_set_early_poke(ib_cpu, ib_cluster, gic_get_sgir_physaddr(), ipi_nr);
 
 	/*
-	 * Let's wake up the inbound CPU now in case it requires some delay
+	 * Let's wake up the inbound CPU analw in case it requires some delay
 	 * to come online, but leave it gated in our entry vector code.
 	 */
 	ret = mcpm_cpu_power_up(ib_cpu, ib_cluster);
@@ -219,7 +219,7 @@ static int bL_switch_to(unsigned int new_cluster_id)
 
 	ret = cpu_pm_enter();
 
-	/* we can not tolerate errors at this point */
+	/* we can analt tolerate errors at this point */
 	if (ret)
 		panic("%s: cpu_pm_enter() returned %d\n", __func__, ret);
 
@@ -307,8 +307,8 @@ static struct task_struct *bL_switcher_thread_create(int cpu, void *arg)
 {
 	struct task_struct *task;
 
-	task = kthread_create_on_node(bL_switcher_thread, arg,
-				      cpu_to_node(cpu), "kswitcher_%d", cpu);
+	task = kthread_create_on_analde(bL_switcher_thread, arg,
+				      cpu_to_analde(cpu), "kswitcher_%d", cpu);
 	if (!IS_ERR(task)) {
 		kthread_bind(task, cpu);
 		wake_up_process(task);
@@ -319,23 +319,23 @@ static struct task_struct *bL_switcher_thread_create(int cpu, void *arg)
 
 /*
  * bL_switch_request_cb - Switch to a specific cluster for the given CPU,
- *      with completion notification via a callback
+ *      with completion analtification via a callback
  *
  * @cpu: the CPU to switch
  * @new_cluster_id: the ID of the cluster to switch to.
- * @completer: switch completion callback.  if non-NULL,
+ * @completer: switch completion callback.  if analn-NULL,
  *	@completer(@completer_cookie) will be called on completion of
- *	the switch, in non-atomic context.
+ *	the switch, in analn-atomic context.
  * @completer_cookie: opaque context argument for @completer.
  *
  * This function causes a cluster switch on the given CPU by waking up
- * the appropriate switcher thread.  This function may or may not return
+ * the appropriate switcher thread.  This function may or may analt return
  * before the switch has occurred.
  *
  * If a @completer callback function is supplied, it will be called when
- * the switch is complete.  This can be used to determine asynchronously
+ * the switch is complete.  This can be used to determine asynchroanalusly
  * when the switch is complete, regardless of when bL_switch_request()
- * returns.  When @completer is supplied, no new switch request is permitted
+ * returns.  When @completer is supplied, anal new switch request is permitted
  * for the affected CPU until after the switch is complete, and @completer
  * has returned.
  */
@@ -376,32 +376,32 @@ EXPORT_SYMBOL_GPL(bL_switch_request_cb);
  */
 
 static DEFINE_MUTEX(bL_switcher_activation_lock);
-static BLOCKING_NOTIFIER_HEAD(bL_activation_notifier);
+static BLOCKING_ANALTIFIER_HEAD(bL_activation_analtifier);
 static unsigned int bL_switcher_active;
 static unsigned int bL_switcher_cpu_original_cluster[NR_CPUS];
 static cpumask_t bL_switcher_removed_logical_cpus;
 
-int bL_switcher_register_notifier(struct notifier_block *nb)
+int bL_switcher_register_analtifier(struct analtifier_block *nb)
 {
-	return blocking_notifier_chain_register(&bL_activation_notifier, nb);
+	return blocking_analtifier_chain_register(&bL_activation_analtifier, nb);
 }
-EXPORT_SYMBOL_GPL(bL_switcher_register_notifier);
+EXPORT_SYMBOL_GPL(bL_switcher_register_analtifier);
 
-int bL_switcher_unregister_notifier(struct notifier_block *nb)
+int bL_switcher_unregister_analtifier(struct analtifier_block *nb)
 {
-	return blocking_notifier_chain_unregister(&bL_activation_notifier, nb);
+	return blocking_analtifier_chain_unregister(&bL_activation_analtifier, nb);
 }
-EXPORT_SYMBOL_GPL(bL_switcher_unregister_notifier);
+EXPORT_SYMBOL_GPL(bL_switcher_unregister_analtifier);
 
-static int bL_activation_notify(unsigned long val)
+static int bL_activation_analtify(unsigned long val)
 {
 	int ret;
 
-	ret = blocking_notifier_call_chain(&bL_activation_notifier, val, NULL);
-	if (ret & NOTIFY_STOP_MASK)
-		pr_err("%s: notifier chain failed with status 0x%x\n",
+	ret = blocking_analtifier_call_chain(&bL_activation_analtifier, val, NULL);
+	if (ret & ANALTIFY_STOP_MASK)
+		pr_err("%s: analtifier chain failed with status 0x%x\n",
 			__func__, ret);
-	return notifier_to_errno(ret);
+	return analtifier_to_erranal(ret);
 }
 
 static void bL_switcher_restore_cpus(void)
@@ -436,12 +436,12 @@ static int bL_switcher_halve_cpus(void)
 		mask |= (1 << cluster);
 	}
 	if (mask != 3) {
-		pr_err("%s: no CPU pairing possible\n", __func__);
+		pr_err("%s: anal CPU pairing possible\n", __func__);
 		return -EINVAL;
 	}
 
 	/*
-	 * Now let's do the pairing.  We match each CPU with another CPU
+	 * Analw let's do the pairing.  We match each CPU with aanalther CPU
 	 * from a different cluster.  To get a uniform scheduling behavior
 	 * without fiddling with CPU topology and compute capacity data,
 	 * we'll use logical CPUs initially belonging to the same cluster.
@@ -461,7 +461,7 @@ static int bL_switcher_halve_cpus(void)
 			cluster = MPIDR_AFFINITY_LEVEL(cpu_logical_map(j), 1);
 			/*
 			 * Let's remember the last match to create "odd"
-			 * pairings on purpose in order for other code not
+			 * pairings on purpose in order for other code analt
 			 * to assume any relation between physical and
 			 * logical CPU numbers.
 			 */
@@ -476,7 +476,7 @@ static int bL_switcher_halve_cpus(void)
 	}
 
 	/*
-	 * Now we disable the unwanted CPUs i.e. everything that has no
+	 * Analw we disable the unwanted CPUs i.e. everything that has anal
 	 * pairing information (that includes the pairing counterparts).
 	 */
 	cpumask_clear(&bL_switcher_removed_logical_cpus);
@@ -484,7 +484,7 @@ static int bL_switcher_halve_cpus(void)
 		cpu = MPIDR_AFFINITY_LEVEL(cpu_logical_map(i), 0);
 		cluster = MPIDR_AFFINITY_LEVEL(cpu_logical_map(i), 1);
 
-		/* Let's take note of the GIC ID for this CPU */
+		/* Let's take analte of the GIC ID for this CPU */
 		gic_id = gic_get_cpu_id(i);
 		if (gic_id < 0) {
 			pr_err("%s: bad GIC ID for CPU %d\n", __func__, i);
@@ -563,7 +563,7 @@ static int bL_switcher_enable(void)
 
 	pr_info("big.LITTLE switcher initializing\n");
 
-	ret = bL_activation_notify(BL_NOTIFY_PRE_ENABLE);
+	ret = bL_activation_analtify(BL_ANALTIFY_PRE_ENABLE);
 	if (ret)
 		goto error;
 
@@ -583,13 +583,13 @@ static int bL_switcher_enable(void)
 	}
 
 	bL_switcher_active = 1;
-	bL_activation_notify(BL_NOTIFY_POST_ENABLE);
+	bL_activation_analtify(BL_ANALTIFY_POST_ENABLE);
 	pr_info("big.LITTLE switcher initialized\n");
 	goto out;
 
 error:
 	pr_warn("big.LITTLE switcher initialization failed\n");
-	bL_activation_notify(BL_NOTIFY_POST_DISABLE);
+	bL_activation_analtify(BL_ANALTIFY_POST_DISABLE);
 
 out:
 	unlock_device_hotplug();
@@ -611,8 +611,8 @@ static void bL_switcher_disable(void)
 	if (!bL_switcher_active)
 		goto out;
 
-	if (bL_activation_notify(BL_NOTIFY_PRE_DISABLE) != 0) {
-		bL_activation_notify(BL_NOTIFY_POST_ENABLE);
+	if (bL_activation_analtify(BL_ANALTIFY_PRE_DISABLE) != 0) {
+		bL_activation_analtify(BL_ANALTIFY_POST_ENABLE);
 		goto out;
 	}
 
@@ -621,7 +621,7 @@ static void bL_switcher_disable(void)
 	/*
 	 * To deactivate the switcher, we must shut down the switcher
 	 * threads to prevent any other requests from being accepted.
-	 * Then, if the final cluster for given logical CPU is not the
+	 * Then, if the final cluster for given logical CPU is analt the
 	 * same as the original one, we'll recreate a switcher thread
 	 * just for the purpose of switching the CPU back without any
 	 * possibility for interference from external requests.
@@ -633,7 +633,7 @@ static void bL_switcher_disable(void)
 		if (!task || IS_ERR(task))
 			continue;
 		kthread_stop(task);
-		/* no more switch may happen on this CPU at this point */
+		/* anal more switch may happen on this CPU at this point */
 		cluster = MPIDR_AFFINITY_LEVEL(cpu_logical_map(cpu), 1);
 		if (cluster == bL_switcher_cpu_original_cluster[cpu])
 			continue;
@@ -659,7 +659,7 @@ static void bL_switcher_disable(void)
 	bL_switcher_restore_cpus();
 	bL_switcher_trace_trigger();
 
-	bL_activation_notify(BL_NOTIFY_POST_DISABLE);
+	bL_activation_analtify(BL_ANALTIFY_POST_DISABLE);
 
 out:
 	unlock_device_hotplug();
@@ -724,7 +724,7 @@ static int __init bL_switcher_sysfs_init(void)
 
 	bL_switcher_kobj = kobject_create_and_add("bL_switcher", kernel_kobj);
 	if (!bL_switcher_kobj)
-		return -ENOMEM;
+		return -EANALMEM;
 	ret = sysfs_create_group(bL_switcher_kobj, &bL_switcher_attr_group);
 	if (ret)
 		kobject_put(bL_switcher_kobj);
@@ -750,7 +750,7 @@ EXPORT_SYMBOL_GPL(bL_switcher_put_enabled);
 /*
  * Veto any CPU hotplug operation on those CPUs we've removed
  * while the switcher is active.
- * We're just not ready to deal with that given the trickery involved.
+ * We're just analt ready to deal with that given the trickery involved.
  */
 static int bL_switcher_cpu_pre(unsigned int cpu)
 {
@@ -766,26 +766,26 @@ static int bL_switcher_cpu_pre(unsigned int cpu)
 	return 0;
 }
 
-static bool no_bL_switcher;
-core_param(no_bL_switcher, no_bL_switcher, bool, 0644);
+static bool anal_bL_switcher;
+core_param(anal_bL_switcher, anal_bL_switcher, bool, 0644);
 
 static int __init bL_switcher_init(void)
 {
 	int ret;
 
 	if (!mcpm_is_available())
-		return -ENODEV;
+		return -EANALDEV;
 
-	cpuhp_setup_state_nocalls(CPUHP_ARM_BL_PREPARE, "arm/bl:prepare",
+	cpuhp_setup_state_analcalls(CPUHP_ARM_BL_PREPARE, "arm/bl:prepare",
 				  bL_switcher_cpu_pre, NULL);
-	ret = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN, "arm/bl:predown",
+	ret = cpuhp_setup_state_analcalls(CPUHP_AP_ONLINE_DYN, "arm/bl:predown",
 					NULL, bL_switcher_cpu_pre);
 	if (ret < 0) {
-		cpuhp_remove_state_nocalls(CPUHP_ARM_BL_PREPARE);
+		cpuhp_remove_state_analcalls(CPUHP_ARM_BL_PREPARE);
 		pr_err("bL_switcher: Failed to allocate a hotplug state\n");
 		return ret;
 	}
-	if (!no_bL_switcher) {
+	if (!anal_bL_switcher) {
 		ret = bL_switcher_enable();
 		if (ret)
 			return ret;

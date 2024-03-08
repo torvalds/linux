@@ -35,7 +35,7 @@ properties:
       compatible strings are "sifive,fu540-c000-pwm" and
       "sifive,fu740-c000-pwm" for the SiFive PWM v0 as integrated onto the
       SiFive FU540 and FU740 chip respectively, and "sifive,pwm0" for the
-      SiFive PWM v0 IP block with no chip integration tweaks.
+      SiFive PWM v0 IP block with anal chip integration tweaks.
       Please refer to sifive-blocks-ip-versioning.txt for details.
 
   reg:

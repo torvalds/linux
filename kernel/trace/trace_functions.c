@@ -28,10 +28,10 @@ static void
 function_stack_trace_call(unsigned long ip, unsigned long parent_ip,
 			  struct ftrace_ops *op, struct ftrace_regs *fregs);
 static void
-function_no_repeats_trace_call(unsigned long ip, unsigned long parent_ip,
+function_anal_repeats_trace_call(unsigned long ip, unsigned long parent_ip,
 			       struct ftrace_ops *op, struct ftrace_regs *fregs);
 static void
-function_stack_no_repeats_trace_call(unsigned long ip, unsigned long parent_ip,
+function_stack_anal_repeats_trace_call(unsigned long ip, unsigned long parent_ip,
 				     struct ftrace_ops *op,
 				     struct ftrace_regs *fregs);
 static struct tracer_flags func_flags;
@@ -39,9 +39,9 @@ static struct tracer_flags func_flags;
 /* Our option */
 enum {
 
-	TRACE_FUNC_NO_OPTS		= 0x0, /* No flags set. */
+	TRACE_FUNC_ANAL_OPTS		= 0x0, /* Anal flags set. */
 	TRACE_FUNC_OPT_STACK		= 0x1,
-	TRACE_FUNC_OPT_NO_REPEATS	= 0x2,
+	TRACE_FUNC_OPT_ANAL_REPEATS	= 0x2,
 
 	/* Update this to next highest bit. */
 	TRACE_FUNC_OPT_HIGHEST_BIT	= 0x4
@@ -59,9 +59,9 @@ int ftrace_allocate_ftrace_ops(struct trace_array *tr)
 
 	ops = kzalloc(sizeof(*ops), GFP_KERNEL);
 	if (!ops)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* Currently only the non stack version is supported */
+	/* Currently only the analn stack version is supported */
 	ops->func = function_trace_call;
 	ops->flags = FTRACE_OPS_FL_PID;
 
@@ -104,14 +104,14 @@ void ftrace_destroy_function_files(struct trace_array *tr)
 static ftrace_func_t select_trace_function(u32 flags_val)
 {
 	switch (flags_val & TRACE_FUNC_OPT_MASK) {
-	case TRACE_FUNC_NO_OPTS:
+	case TRACE_FUNC_ANAL_OPTS:
 		return function_trace_call;
 	case TRACE_FUNC_OPT_STACK:
 		return function_stack_trace_call;
-	case TRACE_FUNC_OPT_NO_REPEATS:
-		return function_no_repeats_trace_call;
-	case TRACE_FUNC_OPT_STACK | TRACE_FUNC_OPT_NO_REPEATS:
-		return function_stack_no_repeats_trace_call;
+	case TRACE_FUNC_OPT_ANAL_REPEATS:
+		return function_anal_repeats_trace_call;
+	case TRACE_FUNC_OPT_STACK | TRACE_FUNC_OPT_ANAL_REPEATS:
+		return function_stack_anal_repeats_trace_call;
 	default:
 		return NULL;
 	}
@@ -120,7 +120,7 @@ static ftrace_func_t select_trace_function(u32 flags_val)
 static bool handle_func_repeats(struct trace_array *tr, u32 flags_val)
 {
 	if (!tr->last_func_repeats &&
-	    (flags_val & TRACE_FUNC_OPT_NO_REPEATS)) {
+	    (flags_val & TRACE_FUNC_OPT_ANAL_REPEATS)) {
 		tr->last_func_repeats = alloc_percpu(struct trace_func_repeats);
 		if (!tr->last_func_repeats)
 			return false;
@@ -138,14 +138,14 @@ static int function_trace_init(struct trace_array *tr)
 	 * the allocation.
 	 */
 	if (!tr->ops)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	func = select_trace_function(func_flags.val);
 	if (!func)
 		return -EINVAL;
 
 	if (!handle_func_repeats(tr, func_flags.val))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ftrace_init_array_ops(tr, func);
 
@@ -277,7 +277,7 @@ static inline void process_repeats(struct trace_array *tr,
 }
 
 static void
-function_no_repeats_trace_call(unsigned long ip, unsigned long parent_ip,
+function_anal_repeats_trace_call(unsigned long ip, unsigned long parent_ip,
 			       struct ftrace_ops *op,
 			       struct ftrace_regs *fregs)
 {
@@ -323,7 +323,7 @@ out:
 }
 
 static void
-function_stack_no_repeats_trace_call(unsigned long ip, unsigned long parent_ip,
+function_stack_anal_repeats_trace_call(unsigned long ip, unsigned long parent_ip,
 				     struct ftrace_ops *op,
 				     struct ftrace_regs *fregs)
 {
@@ -368,12 +368,12 @@ static struct tracer_opt func_opts[] = {
 #ifdef CONFIG_STACKTRACE
 	{ TRACER_OPT(func_stack_trace, TRACE_FUNC_OPT_STACK) },
 #endif
-	{ TRACER_OPT(func-no-repeats, TRACE_FUNC_OPT_NO_REPEATS) },
+	{ TRACER_OPT(func-anal-repeats, TRACE_FUNC_OPT_ANAL_REPEATS) },
 	{ } /* Always set a last empty entry */
 };
 
 static struct tracer_flags func_flags = {
-	.val = TRACE_FUNC_NO_OPTS, /* By default: all flags disabled */
+	.val = TRACE_FUNC_ANAL_OPTS, /* By default: all flags disabled */
 	.opts = func_opts
 };
 
@@ -398,11 +398,11 @@ func_set_flag(struct trace_array *tr, u32 old_flags, u32 bit, int set)
 	ftrace_func_t func;
 	u32 new_flags;
 
-	/* Do nothing if already set. */
+	/* Do analthing if already set. */
 	if (!!set == !!(func_flags.val & bit))
 		return 0;
 
-	/* We can change this flag only when not running. */
+	/* We can change this flag only when analt running. */
 	if (tr->current_trace != &function_trace)
 		return 0;
 
@@ -416,7 +416,7 @@ func_set_flag(struct trace_array *tr, u32 old_flags, u32 bit, int set)
 		return 0;
 
 	if (!handle_func_repeats(tr, new_flags))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	unregister_ftrace_function(tr->ops);
 	tr->ops->func = func;
@@ -457,24 +457,24 @@ static void update_traceon_count(struct ftrace_probe_ops *ops,
 	 * state of the tracer is already disabled (or enabled).
 	 * What needs to be synchronized in this case is that the count
 	 * only gets decremented once, even if the tracer is disabled
-	 * (or enabled) twice, as the second one is really a nop.
+	 * (or enabled) twice, as the second one is really a analp.
 	 *
 	 * The memory barriers guarantee that we only decrement the
 	 * counter once. First the count is read to a local variable
 	 * and a read barrier is used to make sure that it is loaded
 	 * before checking if the tracer is in the state we want.
-	 * If the tracer is not in the state we want, then the count
+	 * If the tracer is analt in the state we want, then the count
 	 * is guaranteed to be the old count.
 	 *
 	 * Next the tracer is set to the state we want (disabled or enabled)
 	 * then a write memory barrier is used to make sure that
 	 * the new state is visible before changing the counter by
-	 * one minus the old counter. This guarantees that another CPU
+	 * one minus the old counter. This guarantees that aanalther CPU
 	 * executing this code will see the new state before seeing
-	 * the new counter value, and would not do anything if the new
+	 * the new counter value, and would analt do anything if the new
 	 * counter is seen.
 	 *
-	 * Note, there is no synchronization between this and a user
+	 * Analte, there is anal synchronization between this and a user
 	 * setting the tracing_on file. But we currently don't care
 	 * about that.
 	 */
@@ -724,7 +724,7 @@ ftrace_count_init(struct ftrace_probe_ops *ops, struct trace_array *tr,
 	if (!mapper) {
 		mapper = allocate_ftrace_func_mapper();
 		if (!mapper)
-			return -ENOMEM;
+			return -EANALMEM;
 		*data = mapper;
 	}
 
@@ -833,13 +833,13 @@ ftrace_trace_probe_callback(struct trace_array *tr,
 }
 
 static int
-ftrace_trace_onoff_callback(struct trace_array *tr, struct ftrace_hash *hash,
+ftrace_trace_oanalff_callback(struct trace_array *tr, struct ftrace_hash *hash,
 			    char *glob, char *cmd, char *param, int enable)
 {
 	struct ftrace_probe_ops *ops;
 
 	if (!tr)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* we register both traceon and traceoff to this callback */
 	if (strcmp(cmd, "traceon") == 0)
@@ -858,7 +858,7 @@ ftrace_stacktrace_callback(struct trace_array *tr, struct ftrace_hash *hash,
 	struct ftrace_probe_ops *ops;
 
 	if (!tr)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ops = param ? &stacktrace_count_probe_ops : &stacktrace_probe_ops;
 
@@ -873,7 +873,7 @@ ftrace_dump_callback(struct trace_array *tr, struct ftrace_hash *hash,
 	struct ftrace_probe_ops *ops;
 
 	if (!tr)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ops = &dump_probe_ops;
 
@@ -889,7 +889,7 @@ ftrace_cpudump_callback(struct trace_array *tr, struct ftrace_hash *hash,
 	struct ftrace_probe_ops *ops;
 
 	if (!tr)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ops = &cpudump_probe_ops;
 
@@ -900,12 +900,12 @@ ftrace_cpudump_callback(struct trace_array *tr, struct ftrace_hash *hash,
 
 static struct ftrace_func_command ftrace_traceon_cmd = {
 	.name			= "traceon",
-	.func			= ftrace_trace_onoff_callback,
+	.func			= ftrace_trace_oanalff_callback,
 };
 
 static struct ftrace_func_command ftrace_traceoff_cmd = {
 	.name			= "traceoff",
-	.func			= ftrace_trace_onoff_callback,
+	.func			= ftrace_trace_oanalff_callback,
 };
 
 static struct ftrace_func_command ftrace_stacktrace_cmd = {

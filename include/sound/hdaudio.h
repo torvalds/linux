@@ -9,7 +9,7 @@
 #include <linux/device.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 #include <linux/iopoll.h>
 #include <linux/pci.h>
 #include <linux/pm_runtime.h>
@@ -20,7 +20,7 @@
 #include <sound/hda_verbs.h>
 #include <drm/i915_component.h>
 
-/* codec node id */
+/* codec analde id */
 typedef u16 hda_nid_t;
 
 struct hdac_bus;
@@ -56,8 +56,8 @@ struct hdac_device {
 	unsigned int addr;		/* codec address */
 	struct list_head list;		/* list point for bus codec_list */
 
-	hda_nid_t afg;			/* AFG node id */
-	hda_nid_t mfg;			/* MFG node id */
+	hda_nid_t afg;			/* AFG analde id */
+	hda_nid_t mfg;			/* MFG analde id */
 
 	/* ids */
 	unsigned int vendor_id;
@@ -78,7 +78,7 @@ struct hdac_device {
 			 unsigned int flags, unsigned int *res);
 
 	/* widgets */
-	unsigned int num_nodes;
+	unsigned int num_analdes;
 	hda_nid_t start_nid, end_nid;
 
 	/* misc flags */
@@ -138,7 +138,7 @@ int snd_hdac_override_parm(struct hdac_device *codec, hda_nid_t nid,
 			   unsigned int parm, unsigned int val);
 int snd_hdac_get_connections(struct hdac_device *codec, hda_nid_t nid,
 			     hda_nid_t *conn_list, int max_conns);
-int snd_hdac_get_sub_nodes(struct hdac_device *codec, hda_nid_t nid,
+int snd_hdac_get_sub_analdes(struct hdac_device *codec, hda_nid_t nid,
 			   hda_nid_t *start_id);
 unsigned int snd_hdac_stream_format_bits(snd_pcm_format_t format, snd_pcm_subformat_t subformat,
 					 unsigned int maxbits);
@@ -246,7 +246,7 @@ struct hdac_bus_ops {
 	/* get a response from the last command */
 	int (*get_response)(struct hdac_bus *bus, unsigned int addr,
 			    unsigned int *res);
-	/* notify of codec link power-up/down */
+	/* analtify of codec link power-up/down */
 	void (*link_power)(struct hdac_device *hdev, bool enable);
 };
 
@@ -343,13 +343,13 @@ struct hdac_bus {
 	bool aligned_mmio:1;		/* aligned MMIO access */
 	bool sync_write:1;		/* sync after verb write */
 	bool use_posbuf:1;		/* use position buffer */
-	bool snoop:1;			/* enable snooping */
+	bool sanalop:1;			/* enable sanaloping */
 	bool align_bdle_4k:1;		/* BDLE align 4K boundary */
 	bool reverse_assign:1;		/* assign devices in reverse order */
 	bool corbrp_self_clear:1;	/* CORBRP clears itself after reset */
 	bool polling_mode:1;
 	bool needs_damn_long_delay:1;
-	bool not_use_interrupts:1;	/* prohibiting the RIRB IRQ */
+	bool analt_use_interrupts:1;	/* prohibiting the RIRB IRQ */
 	bool access_sdnctl_in_dword:1;	/* accessing the sdnctl register by dword */
 
 	int poll_count;
@@ -546,7 +546,7 @@ struct hdac_stream {
 	bool opened:1;
 	bool running:1;
 	bool prepared:1;
-	bool no_period_wakeup:1;
+	bool anal_period_wakeup:1;
 	bool locked:1;
 	bool stripe:1;			/* apply stripe control */
 

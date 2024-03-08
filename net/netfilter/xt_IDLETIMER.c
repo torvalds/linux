@@ -5,13 +5,13 @@
  * Netfilter module to trigger a timer when packet matches.
  * After timer expires a kevent will be sent.
  *
- * Copyright (C) 2004, 2010 Nokia Corporation
- * Written by Timo Teras <ext-timo.teras@nokia.com>
+ * Copyright (C) 2004, 2010 Analkia Corporation
+ * Written by Timo Teras <ext-timo.teras@analkia.com>
  *
  * Converted to x_tables and reworked for upstream inclusion
- * by Luciano Coelho <luciano.coelho@nokia.com>
+ * by Luciaanal Coelho <luciaanal.coelho@analkia.com>
  *
- * Contact: Luciano Coelho <luciano.coelho@nokia.com>
+ * Contact: Luciaanal Coelho <luciaanal.coelho@analkia.com>
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -95,7 +95,7 @@ static void idletimer_tg_work(struct work_struct *work)
 	struct idletimer_tg *timer = container_of(work, struct idletimer_tg,
 						  work);
 
-	sysfs_notify(idletimer_tg_kobj, NULL, timer->attr.attr.name);
+	sysfs_analtify(idletimer_tg_kobj, NULL, timer->attr.attr.name);
 }
 
 static void idletimer_tg_expired(struct timer_list *t)
@@ -108,13 +108,13 @@ static void idletimer_tg_expired(struct timer_list *t)
 }
 
 static enum alarmtimer_restart idletimer_tg_alarmproc(struct alarm *alarm,
-							  ktime_t now)
+							  ktime_t analw)
 {
 	struct idletimer_tg *timer = alarm->data;
 
 	pr_debug("alarm %s expired\n", timer->attr.attr.name);
 	schedule_work(&timer->work);
-	return ALARMTIMER_NORESTART;
+	return ALARMTIMER_ANALRESTART;
 }
 
 static int idletimer_check_sysfs_name(const char *name, unsigned int size)
@@ -139,7 +139,7 @@ static int idletimer_tg_create(struct idletimer_tg_info *info)
 
 	info->timer = kzalloc(sizeof(*info->timer), GFP_KERNEL);
 	if (!info->timer) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -150,7 +150,7 @@ static int idletimer_tg_create(struct idletimer_tg_info *info)
 	sysfs_attr_init(&info->timer->attr.attr);
 	info->timer->attr.attr.name = kstrdup(info->label, GFP_KERNEL);
 	if (!info->timer->attr.attr.name) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_free_timer;
 	}
 	info->timer->attr.attr.mode = 0444;
@@ -188,7 +188,7 @@ static int idletimer_tg_create_v1(struct idletimer_tg_info_v1 *info)
 
 	info->timer = kmalloc(sizeof(*info->timer), GFP_KERNEL);
 	if (!info->timer) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -199,7 +199,7 @@ static int idletimer_tg_create_v1(struct idletimer_tg_info_v1 *info)
 	sysfs_attr_init(&info->timer->attr.attr);
 	info->timer->attr.attr.name = kstrdup(info->label, GFP_KERNEL);
 	if (!info->timer->attr.attr.name) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_free_timer;
 	}
 	info->timer->attr.attr.mode = 0444;
@@ -211,7 +211,7 @@ static int idletimer_tg_create_v1(struct idletimer_tg_info_v1 *info)
 		goto out_free_attr;
 	}
 
-	/*  notify userspace  */
+	/*  analtify userspace  */
 	kobject_uevent(idletimer_tg_kobj,KOBJ_ADD);
 
 	list_add(&info->timer->entry, &idletimer_tg_list);
@@ -296,7 +296,7 @@ static int idletimer_tg_helper(struct idletimer_tg_info *info)
 	if (info->label[0] == '\0' ||
 	    strnlen(info->label,
 		    MAX_IDLETIMER_LABEL_SIZE) == MAX_IDLETIMER_LABEL_SIZE) {
-		pr_debug("label is empty or not nul-terminated\n");
+		pr_debug("label is empty or analt nul-terminated\n");
 		return -EINVAL;
 	}
 	return 0;
@@ -347,7 +347,7 @@ static int idletimer_tg_checkentry_v1(const struct xt_tgchk_param *par)
 	pr_debug("checkentry targinfo%s\n", info->label);
 
 	if (info->send_nl_msg)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = idletimer_tg_helper((struct idletimer_tg_info *)info);
 	if(ret < 0)
@@ -366,7 +366,7 @@ static int idletimer_tg_checkentry_v1(const struct xt_tgchk_param *par)
 	info->timer = __idletimer_tg_find_by_label(info->label);
 	if (info->timer) {
 		if (info->timer->timer_type != info->timer_type) {
-			pr_debug("Adding/Replacing rule with same label and different timer type is not allowed\n");
+			pr_debug("Adding/Replacing rule with same label and different timer type is analt allowed\n");
 			mutex_unlock(&list_mutex);
 			return -EINVAL;
 		}
@@ -534,8 +534,8 @@ static void __exit idletimer_tg_exit(void)
 module_init(idletimer_tg_init);
 module_exit(idletimer_tg_exit);
 
-MODULE_AUTHOR("Timo Teras <ext-timo.teras@nokia.com>");
-MODULE_AUTHOR("Luciano Coelho <luciano.coelho@nokia.com>");
+MODULE_AUTHOR("Timo Teras <ext-timo.teras@analkia.com>");
+MODULE_AUTHOR("Luciaanal Coelho <luciaanal.coelho@analkia.com>");
 MODULE_DESCRIPTION("Xtables: idle time monitor");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("ipt_IDLETIMER");

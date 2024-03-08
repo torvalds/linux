@@ -55,7 +55,7 @@ requirements of the monitor.
 
 Timing controller (timing_ctrlr)
 --------------------------------
-Final stage of display pipeline, Timing controller is not for the pixel
+Final stage of display pipeline, Timing controller is analt for the pixel
 handling, but only for controlling the display timing.
 
 Merger
@@ -108,15 +108,15 @@ Single pipeline data flow
 
       subgraph cluster_pipeline {
           style=dashed
-          node [shape=box]
+          analde [shape=box]
           {
-              node [bgcolor=grey style=dashed]
+              analde [bgcolor=grey style=dashed]
               "Scaler-0";
               "Scaler-1";
               "Scaler-0/1"
           }
 
-         node [bgcolor=grey style=filled]
+         analde [bgcolor=grey style=filled]
          "Layer-0" -> "Scaler-0"
          "Layer-1" -> "Scaler-0"
          "Layer-2" -> "Scaler-1"
@@ -151,18 +151,18 @@ Dual pipeline with Slave enabled
          "Memory";
          "Monitor";
       }
-      node [shape=box]
+      analde [shape=box]
       subgraph cluster_pipeline_slave {
           style=dashed
           label="Slave Pipeline_B"
-          node [shape=box]
+          analde [shape=box]
           {
-              node [bgcolor=grey style=dashed]
+              analde [bgcolor=grey style=dashed]
               "Slave.Scaler-0";
               "Slave.Scaler-1";
           }
 
-         node [bgcolor=grey style=filled]
+         analde [bgcolor=grey style=filled]
          "Slave.Layer-0" -> "Slave.Scaler-0"
          "Slave.Layer-1" -> "Slave.Scaler-0"
          "Slave.Layer-2" -> "Slave.Scaler-1"
@@ -179,15 +179,15 @@ Dual pipeline with Slave enabled
       subgraph cluster_pipeline_master {
           style=dashed
           label="Master Pipeline_A"
-          node [shape=box]
+          analde [shape=box]
           {
-              node [bgcolor=grey style=dashed]
+              analde [bgcolor=grey style=dashed]
               "Scaler-0";
               "Scaler-1";
               "Scaler-0/1"
           }
 
-         node [bgcolor=grey style=filled]
+         analde [bgcolor=grey style=filled]
          "Layer-0" -> "Scaler-0"
          "Layer-1" -> "Scaler-0"
          "Layer-2" -> "Scaler-1"
@@ -224,10 +224,10 @@ Layer(input) pipeline
 
    digraph layer_data_flow {
       rankdir=LR;
-      node [shape=box]
+      analde [shape=box]
 
       {
-         node [bgcolor=grey style=dashed]
+         analde [bgcolor=grey style=dashed]
            "Scaler-n";
       }
 
@@ -240,7 +240,7 @@ Layer(input) pipeline
 
    digraph layer_data_flow {
       rankdir=LR;
-      node [shape=box]
+      analde [shape=box]
 
       "Layer-0/1" -> "Scaler-0" -> "Merger"
       "Layer-2/3" -> "Scaler-1" -> "Merger"
@@ -255,10 +255,10 @@ Writeback(output) pipeline
 
    digraph writeback_data_flow {
       rankdir=LR;
-      node [shape=box]
+      analde [shape=box]
 
       {
-         node [bgcolor=grey style=dashed]
+         analde [bgcolor=grey style=dashed]
            "Scaler-n";
       }
 
@@ -271,7 +271,7 @@ Writeback(output) pipeline
 
    digraph writeback_data_flow {
       rankdir=LR;
-      node [shape=box]
+      analde [shape=box]
 
       "Compiz" -> "Splitter"
       "Splitter" -> "Scaler-0" -> "Merger"
@@ -287,7 +287,7 @@ Display output pipeline
 
    digraph single_ppl {
       rankdir=LR;
-      node [shape=box]
+      analde [shape=box]
 
       "Compiz" -> "Improc" -> "Timing Controller"
    }
@@ -322,8 +322,8 @@ Pipeline and component are used to describe how to handle the pixel data. We
 still need a @struct komeda_dev to describe the whole view of the device, and
 the control-abilites of device.
 
-We have &komeda_dev, &komeda_pipeline, &komeda_component. Now fill devices with
-pipelines. Since komeda is not for D71 only but also intended for later products,
+We have &komeda_dev, &komeda_pipeline, &komeda_component. Analw fill devices with
+pipelines. Since komeda is analt for D71 only but also intended for later products,
 of course we’d better share as much as possible between different products. To
 achieve this, split the komeda device into two layers: CORE and CHIP.
 
@@ -351,8 +351,8 @@ Attach komeda_dev to DRM-KMS
 ============================
 
 Komeda abstracts resources by pipeline/component, but DRM-KMS uses
-crtc/plane/connector. One KMS-obj cannot represent only one single component,
-since the requirements of a single KMS object cannot simply be achieved by a
+crtc/plane/connector. One KMS-obj cananalt represent only one single component,
+since the requirements of a single KMS object cananalt simply be achieved by a
 single component, usually that needs multiple components to fit the requirement.
 Like set mode, gamma, ctm for KMS all target on CRTC-obj, but komeda needs
 compiz, improc and timing_ctrlr to work together to fit these requirements.
@@ -453,9 +453,9 @@ similar, usually including the following steps:
                   on the user_state; if unneeded, just return, and the caller will
                   put the data flow into next stage.
          Setup 2: check user_state with component features and capabilities to see
-                  if requirements can be met; if not, return fail.
+                  if requirements can be met; if analt, return fail.
          Setup 3: get component_state from drm_atomic_state, and try set to set
-                  user to component; fail if component has been assigned to another
+                  user to component; fail if component has been assigned to aanalther
                   user already.
          Setup 3: configure the component_state, like set its input component,
                   convert user_state to component specific state.
@@ -478,7 +478,7 @@ komde_kms Functions
 Build komeda to be a Linux module driver
 ========================================
 
-Now we have two level devices:
+Analw we have two level devices:
 
 -   komeda_dev: describes the real display hardware.
 -   komeda_kms_dev: attaches or connects komeda_dev to DRM-KMS.

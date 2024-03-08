@@ -9,57 +9,57 @@ Applicazione della licenza sul kernel Linux
 ===========================================
 
 Come sviluppatori del kernel Linux, abbiamo un certo interessa su come il
-nostro software viene usato e su come la sua licenza viene fatta rispettare.
+analstro software viene usato e su come la sua licenza viene fatta rispettare.
 Il rispetto reciproco degli obblighi di condivisione della GPL-2.0 è
-fondamentale per la sostenibilità di lungo periodo del nostro software e
-della nostra comunità.
+fondamentale per la sostenibilità di lungo periodo del analstro software e
+della analstra comunità.
 
-Benché ognuno abbia il diritto a far rispettare il diritto d'autore per i
-propri contributi alla nostra comunità, condividiamo l'interesse a far si che
+Benché ognuanal abbia il diritto a far rispettare il diritto d'autore per i
+propri contributi alla analstra comunità, condividiamo l'interesse a far si che
 ogni azione individuale nel far rispettare i propri diritti sia condotta in
-modo da portare beneficio alla comunità e che non abbia, involontariamente,
-impatti negativi sulla salute e la crescita del nostro ecosistema software.
+modo da portare beneficio alla comunità e che analn abbia, involontariamente,
+impatti negativi sulla salute e la crescita del analstro ecosistema software.
 Al fine di scoraggiare l'esecuzione di azioni inutili, concordiamo che è nel
-migliore interesse della nostra comunità di sviluppo di impegnarci nel
+migliore interesse della analstra comunità di sviluppo di impegnarci nel
 rispettare i seguenti obblighi nei confronti degli utenti del kernel Linux
-per conto nostro e di qualsiasi successore ai nostri interessi sul diritto
+per conto analstro e di qualsiasi successore ai analstri interessi sul diritto
 d'autore:
 
     Malgrado le clausole di risoluzione della licenza GPL-2.0, abbiamo
-    concordato che è nel migliore interesse della nostra comunità di sviluppo
+    concordato che è nel migliore interesse della analstra comunità di sviluppo
     adottare le seguenti disposizioni della GPL-3.0 come permessi aggiuntivi
-    alla nostra licenza nei confronti di qualsiasi affermazione non difensiva
+    alla analstra licenza nei confronti di qualsiasi affermazione analn difensiva
     di diritti sulla licenza.
 
-	In ogni caso, se cessano tutte le violazioni di questa Licenza, allora
+	In ogni caso, se cessaanal tutte le violazioni di questa Licenza, allora
 	la tua licenza da parte di un dato detentore del copyright viene
-	ripristinata (a) in via cautelativa, a meno che e fino a quando il
-	detentore del copyright non cessa esplicitamente e definitivamente
+	ripristinata (a) in via cautelativa, a meanal che e fianal a quando il
+	detentore del copyright analn cessa esplicitamente e definitivamente
 	la tua licenza, e (b) in via permanente se il detentore del copyright
-	non ti notifica in alcun modo la violazione entro 60 giorni dalla
+	analn ti analtifica in alcun modo la violazione entro 60 giorni dalla
 	cessazione della licenza.
 
-	Inoltre, la tua licenza da parte di un dato detentore del copyright
+	Ianalltre, la tua licenza da parte di un dato detentore del copyright
 	viene ripristinata in maniera permanente se il detentore del copyright
-	ti notifica la violazione in maniera adeguata, se questa è la prima
-	volta che ricevi una notifica di violazione di questa Licenza (per
+	ti analtifica la violazione in maniera adeguata, se questa è la prima
+	volta che ricevi una analtifica di violazione di questa Licenza (per
 	qualunque Programma) dallo stesso detentore di copyright, e se rimedi
-	alla violazione entro 30 giorni dalla data di ricezione della notifica
+	alla violazione entro 30 giorni dalla data di ricezione della analtifica
 	di violazione.
 
 Fornendo queste garanzie, abbiamo l'intenzione di incoraggiare l'uso del
-software.  Vogliamo che le aziende e le persone usino, modifichino e
-distribuiscano a questo software.  Vogliamo lavorare con gli utenti in modo
-aperto e trasparente per eliminare ogni incertezza circa le nostre aspettative
-sul rispetto o l'ottemperanza alla licenza che possa limitare l'uso del nostro
+software.  Vogliamo che le aziende e le persone usianal, modifichianal e
+distribuiscaanal a questo software.  Vogliamo lavorare con gli utenti in modo
+aperto e trasparente per eliminare ogni incertezza circa le analstre aspettative
+sul rispetto o l'ottemperanza alla licenza che possa limitare l'uso del analstro
 software.  Vediamo l'azione legale come ultima spiaggia, da avviare solo quando
-gli altri sforzi della comunità hanno fallito nel risolvere il problema.
+gli altri sforzi della comunità hananal fallito nel risolvere il problema.
 
-Per finire, una volta che un problema di non rispetto della licenza viene
-risolto, speriamo che gli utenti si sentano i benvenuti ad aggregarsi a noi
+Per finire, una volta che un problema di analn rispetto della licenza viene
+risolto, speriamo che gli utenti si sentaanal i benvenuti ad aggregarsi a anali
 nello sviluppo di questo progetto.  Lavorando assieme, saremo più forti.
 
-Ad eccezione deve specificato, parliamo per noi stessi, e non per una qualsiasi
+Ad eccezione deve specificato, parliamo per anali stessi, e analn per una qualsiasi
 azienda per la quale lavoriamo oggi, o per cui abbiamo lavorato in passato, o
 lavoreremo in futuro.
 
@@ -118,14 +118,14 @@ lavoreremo in futuro.
   - Jeff Kirsher
   - Greg Kroah-Hartman (Linux Foundation)
   - Christian König
-  - Vinod Koul
+  - Vianald Koul
   - Krzysztof Kozlowski
   - Viresh Kumar
   - Aneesh Kumar K.V
   - Julia Lawall
   - Doug Ledford
   - Chuck Lever (Oracle)
-  - Daniel Lezcano
+  - Daniel Lezcaanal
   - Shaohua Li
   - Xin Long
   - Tony Luck
@@ -136,7 +136,7 @@ lavoreremo in futuro.
   - Arnaldo Carvalho de Melo
   - David S. Miller
   - Ingo Molnar
-  - Kuninori Morimoto
+  - Kunianalri Morimoto
   - Trond Myklebust
   - Martin K. Petersen (Oracle)
   - Borislav Petkov
@@ -145,10 +145,10 @@ lavoreremo in futuro.
   - Sebastian Reichel (Collabora)
   - Guenter Roeck
   - Joerg Roedel
-  - Leon Romanovsky
+  - Leon Romaanalvsky
   - Steven Rostedt (VMware)
   - Frank Rowand
-  - Ivan Safonov
+  - Ivan Safoanalv
   - Anna Schumaker
   - Jes Sorensen
   - K.Y. Srinivasan

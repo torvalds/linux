@@ -94,16 +94,16 @@ static int xusbatm_bind(struct usbatm_data *usbatm,
 
 	if (!rx_intf || !tx_intf) {
 		if (!rx_intf)
-			usb_dbg(usbatm, "%s: no interface contains endpoint %02x in altsetting %2d\n",
+			usb_dbg(usbatm, "%s: anal interface contains endpoint %02x in altsetting %2d\n",
 				__func__, rx_endpoint[drv_ix], rx_alt);
 		if (!tx_intf)
-			usb_dbg(usbatm, "%s: no interface contains endpoint %02x in altsetting %2d\n",
+			usb_dbg(usbatm, "%s: anal interface contains endpoint %02x in altsetting %2d\n",
 				__func__, tx_endpoint[drv_ix], tx_alt);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if ((rx_intf != intf) && (tx_intf != intf))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if ((rx_intf == tx_intf) && (rx_alt != tx_alt)) {
 		usb_err(usbatm, "%s: altsettings clash on interface %2d (%2d vs %2d)!\n", __func__,
@@ -150,7 +150,7 @@ static int xusbatm_atm_start(struct usbatm_data *usbatm,
 {
 	atm_dbg(usbatm, "%s entered\n", __func__);
 
-	/* use random MAC as we've no way to get it from the device */
+	/* use random MAC as we've anal way to get it from the device */
 	eth_random_addr(atm_dev->esi);
 
 	return 0;

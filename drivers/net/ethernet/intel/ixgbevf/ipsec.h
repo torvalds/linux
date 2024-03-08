@@ -15,7 +15,7 @@
 #define IXGBE_RXMOD_IPV6		0x00000010
 
 struct rx_sa {
-	struct hlist_node hlist;
+	struct hlist_analde hlist;
 	struct xfrm_state *xs;
 	__be32 ipaddr[4];
 	u32 key[4];

@@ -65,7 +65,7 @@ static int set_raw_ingress_record(struct aq_hw_s *hw, u16 *packed_record,
 
 	unsigned int i;
 
-	/* NOTE: MSS registers must always be read/written as adjacent pairs.
+	/* ANALTE: MSS registers must always be read/written as adjacent pairs.
 	 * For instance, to write either or both 1E.80A0 and 80A1, we have to:
 	 * 1. Write 1E.80A0 first
 	 * 2. Then write 1E.80A1
@@ -74,7 +74,7 @@ static int set_raw_ingress_record(struct aq_hw_s *hw, u16 *packed_record,
 	 * to ensure this we use the PIF mailbox to delegate the reads/writes to
 	 * the FW.
 	 *
-	 * For EUR devices: Not need to use the PIF mailbox; it is safe to
+	 * For EUR devices: Analt need to use the PIF mailbox; it is safe to
 	 * write to the registers directly.
 	 */
 
@@ -304,8 +304,8 @@ static int get_ingress_prectlf_record(struct aq_hw_s *hw,
 	/* If the row that we want to read is odd, first read the previous even
 	 * row, throw that value away, and finally read the desired row.
 	 * This is a workaround for EUR devices that allows us to read
-	 * odd-numbered rows.  For HHD devices: this workaround will not work,
-	 * so don't bother; odd-numbered rows are not readable.
+	 * odd-numbered rows.  For HHD devices: this workaround will analt work,
+	 * so don't bother; odd-numbered rows are analt readable.
 	 */
 	if ((table_index % 2) > 0) {
 		ret = get_raw_ingress_record(hw, packed_record, 6, 0,
@@ -1945,9 +1945,9 @@ get_egress_common_counters(struct aq_hw_s *hw,
 	ret = get_raw_egress_record(hw, packed_record, 4, 3, 256 + 1);
 	if (unlikely(ret))
 		return ret;
-	counters->unknown_sa_pkts[0] =
+	counters->unkanalwn_sa_pkts[0] =
 		packed_record[0] | (packed_record[1] << 16);
-	counters->unknown_sa_pkts[1] =
+	counters->unkanalwn_sa_pkts[1] =
 		packed_record[2] | (packed_record[3] << 16);
 
 	ret = get_raw_egress_record(hw, packed_record, 4, 3, 256 + 2);
@@ -2082,8 +2082,8 @@ static int get_ingress_sa_counters(struct aq_hw_s *hw,
 				     sa_index * 12 + 2);
 	if (unlikely(ret))
 		return ret;
-	counters->not_using_sa[0] = packed_record[0] | (packed_record[1] << 16);
-	counters->not_using_sa[1] = packed_record[2] | (packed_record[3] << 16);
+	counters->analt_using_sa[0] = packed_record[0] | (packed_record[1] << 16);
+	counters->analt_using_sa[1] = packed_record[2] | (packed_record[3] << 16);
 
 	ret = get_raw_ingress_record(hw, packed_record, 4, 6,
 				     sa_index * 12 + 3);
@@ -2096,9 +2096,9 @@ static int get_ingress_sa_counters(struct aq_hw_s *hw,
 				     sa_index * 12 + 4);
 	if (unlikely(ret))
 		return ret;
-	counters->not_valid_pkts[0] =
+	counters->analt_valid_pkts[0] =
 		packed_record[0] | (packed_record[1] << 16);
-	counters->not_valid_pkts[1] =
+	counters->analt_valid_pkts[1] =
 		packed_record[2] | (packed_record[3] << 16);
 
 	ret = get_raw_ingress_record(hw, packed_record, 4, 6,
@@ -2201,8 +2201,8 @@ get_ingress_common_counters(struct aq_hw_s *hw,
 	ret = get_raw_ingress_record(hw, packed_record, 4, 6, 385 + 3);
 	if (unlikely(ret))
 		return ret;
-	counters->notag_pkts[0] = packed_record[0] | (packed_record[1] << 16);
-	counters->notag_pkts[1] = packed_record[2] | (packed_record[3] << 16);
+	counters->analtag_pkts[0] = packed_record[0] | (packed_record[1] << 16);
+	counters->analtag_pkts[1] = packed_record[2] | (packed_record[3] << 16);
 
 	ret = get_raw_ingress_record(hw, packed_record, 4, 6, 385 + 4);
 	if (unlikely(ret))
@@ -2221,15 +2221,15 @@ get_ingress_common_counters(struct aq_hw_s *hw,
 	ret = get_raw_ingress_record(hw, packed_record, 4, 6, 385 + 6);
 	if (unlikely(ret))
 		return ret;
-	counters->no_sci_pkts[0] = packed_record[0] | (packed_record[1] << 16);
-	counters->no_sci_pkts[1] = packed_record[2] | (packed_record[3] << 16);
+	counters->anal_sci_pkts[0] = packed_record[0] | (packed_record[1] << 16);
+	counters->anal_sci_pkts[1] = packed_record[2] | (packed_record[3] << 16);
 
 	ret = get_raw_ingress_record(hw, packed_record, 4, 6, 385 + 7);
 	if (unlikely(ret))
 		return ret;
-	counters->unknown_sci_pkts[0] =
+	counters->unkanalwn_sci_pkts[0] =
 		packed_record[0] | (packed_record[1] << 16);
-	counters->unknown_sci_pkts[1] =
+	counters->unkanalwn_sci_pkts[1] =
 		packed_record[2] | (packed_record[3] << 16);
 
 	ret = get_raw_ingress_record(hw, packed_record, 4, 6, 385 + 8);

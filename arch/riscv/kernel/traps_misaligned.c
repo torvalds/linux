@@ -487,7 +487,7 @@ int handle_misaligned_load(struct pt_regs *regs)
 	}
 
 	if (!IS_ENABLED(CONFIG_FPU) && fp)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	val.data_u64 = 0;
 	for (i = 0; i < len; i++) {
@@ -584,7 +584,7 @@ int handle_misaligned_store(struct pt_regs *regs)
 	}
 
 	if (!IS_ENABLED(CONFIG_FPU) && fp)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	for (i = 0; i < len; i++) {
 		if (store_u8(regs, (void *)(addr + i), val.data_bytes[i]))
@@ -602,7 +602,7 @@ bool check_unaligned_access_emulated(int cpu)
 	unsigned long tmp_var, tmp_val;
 	bool misaligned_emu_detected;
 
-	*mas_ptr = RISCV_HWPROBE_MISALIGNED_UNKNOWN;
+	*mas_ptr = RISCV_HWPROBE_MISALIGNED_UNKANALWN;
 
 	__asm__ __volatile__ (
 		"       "REG_L" %[tmp], 1(%[ptr])\n"
@@ -615,7 +615,7 @@ bool check_unaligned_access_emulated(int cpu)
 	 * when hotplugging the new cpu, this is something we don't handle.
 	 */
 	if (unlikely(unaligned_ctl && !misaligned_emu_detected)) {
-		pr_crit("CPU misaligned accesses non homogeneous (expected all emulated)\n");
+		pr_crit("CPU misaligned accesses analn homogeneous (expected all emulated)\n");
 		while (true)
 			cpu_relax();
 	}

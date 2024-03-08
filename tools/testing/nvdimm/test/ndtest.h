@@ -9,12 +9,12 @@
 #define PAPR_PMEM_UNARMED                   (1ULL << (63 - 0))
 /* SCM device failed to persist memory contents */
 #define PAPR_PMEM_SHUTDOWN_DIRTY            (1ULL << (63 - 1))
-/* SCM device contents are not persisted from previous IPL */
+/* SCM device contents are analt persisted from previous IPL */
 #define PAPR_PMEM_EMPTY                     (1ULL << (63 - 3))
 #define PAPR_PMEM_HEALTH_CRITICAL           (1ULL << (63 - 4))
 /* SCM device will be garded off next IPL due to failure */
 #define PAPR_PMEM_HEALTH_FATAL              (1ULL << (63 - 5))
-/* SCM contents cannot persist due to current platform health status */
+/* SCM contents cananalt persist due to current platform health status */
 #define PAPR_PMEM_HEALTH_UNHEALTHY          (1ULL << (63 - 6))
 
 /* Bits status indicators for health bitmap indicating unarmed dimm */
@@ -29,7 +29,7 @@
 /* Bits status indicators for health bitmap indicating unrestored dimm */
 #define PAPR_PMEM_BAD_RESTORE_MASK  (PAPR_PMEM_EMPTY)
 
-/* Bit status indicators for smart event notification */
+/* Bit status indicators for smart event analtification */
 #define PAPR_PMEM_SMART_EVENT_MASK (PAPR_PMEM_HEALTH_CRITICAL | \
 				    PAPR_PMEM_HEALTH_FATAL |	\
 				    PAPR_PMEM_HEALTH_UNHEALTHY)
@@ -40,7 +40,7 @@ struct ndtest_config;
 
 struct ndtest_priv {
 	struct platform_device pdev;
-	struct device_node *dn;
+	struct device_analde *dn;
 	struct list_head resources;
 	struct nvdimm_bus_descriptor bus_desc;
 	struct nvdimm_bus *bus;
@@ -79,7 +79,7 @@ struct ndtest_dimm {
 	unsigned int num_formats;
 	int id;
 	int fail_cmd_code;
-	u8 no_alias;
+	u8 anal_alias;
 };
 
 struct ndtest_mapping {

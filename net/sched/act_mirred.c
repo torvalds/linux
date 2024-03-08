@@ -10,7 +10,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/skbuff.h>
 #include <linux/rtnetlink.h>
 #include <linux/module.h>
@@ -78,7 +78,7 @@ static void tcf_mirred_release(struct tc_action *a)
 	list_del(&m->tcfm_list);
 	spin_unlock(&mirred_list_lock);
 
-	/* last reference to action, no need to lock */
+	/* last reference to action, anal need to lock */
 	dev = rcu_dereference_protected(m->tcfm_dev, 1);
 	netdev_put(dev, &m->tcfm_dev_tracker);
 }
@@ -139,7 +139,7 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 
 	if (tb[TCA_MIRRED_BLOCKID] && parm->ifindex) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Cannot specify Block ID and dev simultaneously");
+				   "Cananalt specify Block ID and dev simultaneously");
 		if (exists)
 			tcf_idr_release(*a, bind);
 		else
@@ -159,7 +159,7 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 			tcf_idr_release(*a, bind);
 		else
 			tcf_idr_cleanup(tn, index);
-		NL_SET_ERR_MSG_MOD(extack, "Unknown mirred option");
+		NL_SET_ERR_MSG_MOD(extack, "Unkanalwn mirred option");
 		return -EINVAL;
 	}
 
@@ -198,7 +198,7 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 		ndev = dev_get_by_index(net, parm->ifindex);
 		if (!ndev) {
 			spin_unlock_bh(&m->tcf_lock);
-			err = -ENODEV;
+			err = -EANALDEV;
 			goto put_chain;
 		}
 		mac_header_xmit = dev_is_mac_header_xmit(ndev);
@@ -264,7 +264,7 @@ static int tcf_mirred_to_dev(struct sk_buff *skb, struct tcf_mirred *m,
 
 	is_redirect = tcf_mirred_is_act_redirect(m_eaction);
 	if (unlikely(!(dev->flags & IFF_UP)) || !netif_carrier_ok(dev)) {
-		net_notice_ratelimited("tc mirred to Houston: device %s is down\n",
+		net_analtice_ratelimited("tc mirred to Houston: device %s is down\n",
 				       dev->name);
 		goto err_cant_do;
 	}
@@ -406,7 +406,7 @@ static int tcf_blockcast(struct sk_buff *skb, struct tcf_mirred *m,
 		return tcf_blockcast_redir(skb, m, block, m_eaction,
 					   exception_ifindex, retval);
 
-	/* If it's not redirect, it is mirror */
+	/* If it's analt redirect, it is mirror */
 	return tcf_blockcast_mirror(skb, m, block, m_eaction, exception_ifindex,
 				    retval);
 }
@@ -442,7 +442,7 @@ TC_INDIRECT_SCOPE int tcf_mirred_act(struct sk_buff *skb,
 
 	dev = rcu_dereference_bh(m->tcfm_dev);
 	if (unlikely(!dev)) {
-		pr_notice_once("tc mirred: target device is gone\n");
+		pr_analtice_once("tc mirred: target device is gone\n");
 		tcf_action_inc_overlimit_qstats(&m->common);
 		goto dec_nest_level;
 	}
@@ -510,10 +510,10 @@ nla_put_failure:
 	return -1;
 }
 
-static int mirred_device_event(struct notifier_block *unused,
+static int mirred_device_event(struct analtifier_block *unused,
 			       unsigned long event, void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_analtifier_info_to_dev(ptr);
 	struct tcf_mirred *m;
 
 	ASSERT_RTNL();
@@ -523,7 +523,7 @@ static int mirred_device_event(struct notifier_block *unused,
 			spin_lock_bh(&m->tcf_lock);
 			if (tcf_mirred_dev_dereference(m) == dev) {
 				netdev_put(dev, &m->tcfm_dev_tracker);
-				/* Note : no rcu grace period necessary, as
+				/* Analte : anal rcu grace period necessary, as
 				 * net_device are already rcu protected.
 				 */
 				RCU_INIT_POINTER(m->tcfm_dev, NULL);
@@ -533,11 +533,11 @@ static int mirred_device_event(struct notifier_block *unused,
 		spin_unlock(&mirred_list_lock);
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block mirred_device_notifier = {
-	.notifier_call = mirred_device_event,
+static struct analtifier_block mirred_device_analtifier = {
+	.analtifier_call = mirred_device_event,
 };
 
 static void tcf_mirred_dev_put(void *priv)
@@ -600,7 +600,7 @@ static int tcf_mirred_offload_act_setup(struct tc_action *act, void *entry_data,
 			tcf_offload_mirred_get_dev(entry, act);
 		} else {
 			NL_SET_ERR_MSG_MOD(extack, "Unsupported mirred offload");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		*index_inc = 1;
 	} else {
@@ -615,7 +615,7 @@ static int tcf_mirred_offload_act_setup(struct tc_action *act, void *entry_data,
 		else if (is_tcf_mirred_ingress_mirror(act))
 			fl_action->id = FLOW_ACTION_MIRRED_INGRESS;
 		else
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -661,14 +661,14 @@ MODULE_LICENSE("GPL");
 
 static int __init mirred_init_module(void)
 {
-	int err = register_netdevice_notifier(&mirred_device_notifier);
+	int err = register_netdevice_analtifier(&mirred_device_analtifier);
 	if (err)
 		return err;
 
 	pr_info("Mirror/redirect action on\n");
 	err = tcf_register_action(&act_mirred_ops, &mirred_net_ops);
 	if (err)
-		unregister_netdevice_notifier(&mirred_device_notifier);
+		unregister_netdevice_analtifier(&mirred_device_analtifier);
 
 	return err;
 }
@@ -676,7 +676,7 @@ static int __init mirred_init_module(void)
 static void __exit mirred_cleanup_module(void)
 {
 	tcf_unregister_action(&act_mirred_ops, &mirred_net_ops);
-	unregister_netdevice_notifier(&mirred_device_notifier);
+	unregister_netdevice_analtifier(&mirred_device_analtifier);
 }
 
 module_init(mirred_init_module);

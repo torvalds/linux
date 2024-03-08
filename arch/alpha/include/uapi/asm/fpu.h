@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI__ASM_ALPHA_FPU_H
 #define _UAPI__ASM_ALPHA_FPU_H
 
@@ -6,8 +6,8 @@
 /*
  * Alpha floating-point control register defines:
  */
-#define FPCR_DNOD	(1UL<<47)	/* denorm INV trap disable */
-#define FPCR_DNZ	(1UL<<48)	/* denorms to zero */
+#define FPCR_DANALD	(1UL<<47)	/* deanalrm INV trap disable */
+#define FPCR_DNZ	(1UL<<48)	/* deanalrms to zero */
 #define FPCR_INVD	(1UL<<49)	/* invalid op disable (opt.) */
 #define FPCR_DZED	(1UL<<50)	/* division by zero disable (opt.) */
 #define FPCR_OVFD	(1UL<<51)	/* overflow disable (optional) */
@@ -25,7 +25,7 @@
 #define FPCR_DYN_SHIFT	58		/* first dynamic rounding mode bit */
 #define FPCR_DYN_CHOPPED (0x0UL << FPCR_DYN_SHIFT)	/* towards 0 */
 #define FPCR_DYN_MINUS	 (0x1UL << FPCR_DYN_SHIFT)	/* towards -INF */
-#define FPCR_DYN_NORMAL	 (0x2UL << FPCR_DYN_SHIFT)	/* towards nearest */
+#define FPCR_DYN_ANALRMAL	 (0x2UL << FPCR_DYN_SHIFT)	/* towards nearest */
 #define FPCR_DYN_PLUS	 (0x3UL << FPCR_DYN_SHIFT)	/* towards +INF */
 #define FPCR_DYN_MASK	 (0x3UL << FPCR_DYN_SHIFT)
 
@@ -34,7 +34,7 @@
 /*
  * IEEE trap enables are implemented in software.  These per-thread
  * bits are stored in the "ieee_state" field of "struct thread_info".
- * Thus, the bits are defined so as not to conflict with the
+ * Thus, the bits are defined so as analt to conflict with the
  * floating-point enable bit (which is architected).  On top of that,
  * we want to make these bits compatible with OSF/1 so
  * ieee_set_fp_control() etc. can be implemented easily and
@@ -46,13 +46,13 @@
 #define IEEE_TRAP_ENABLE_OVF	(1UL<<3)	/* overflow */
 #define IEEE_TRAP_ENABLE_UNF	(1UL<<4)	/* underflow */
 #define IEEE_TRAP_ENABLE_INE	(1UL<<5)	/* inexact */
-#define IEEE_TRAP_ENABLE_DNO	(1UL<<6)	/* denorm */
+#define IEEE_TRAP_ENABLE_DANAL	(1UL<<6)	/* deanalrm */
 #define IEEE_TRAP_ENABLE_MASK	(IEEE_TRAP_ENABLE_INV | IEEE_TRAP_ENABLE_DZE |\
 				 IEEE_TRAP_ENABLE_OVF | IEEE_TRAP_ENABLE_UNF |\
-				 IEEE_TRAP_ENABLE_INE | IEEE_TRAP_ENABLE_DNO)
+				 IEEE_TRAP_ENABLE_INE | IEEE_TRAP_ENABLE_DANAL)
 
-/* Denorm and Underflow flushing */
-#define IEEE_MAP_DMZ		(1UL<<12)	/* Map denorm inputs to zero */
+/* Deanalrm and Underflow flushing */
+#define IEEE_MAP_DMZ		(1UL<<12)	/* Map deanalrm inputs to zero */
 #define IEEE_MAP_UMZ		(1UL<<13)	/* Map underflowed outputs to zero */
 
 #define IEEE_MAP_MASK		(IEEE_MAP_DMZ | IEEE_MAP_UMZ)
@@ -63,11 +63,11 @@
 #define IEEE_STATUS_OVF		(1UL<<19)
 #define IEEE_STATUS_UNF		(1UL<<20)
 #define IEEE_STATUS_INE		(1UL<<21)
-#define IEEE_STATUS_DNO		(1UL<<22)
+#define IEEE_STATUS_DANAL		(1UL<<22)
 
 #define IEEE_STATUS_MASK	(IEEE_STATUS_INV | IEEE_STATUS_DZE |	\
 				 IEEE_STATUS_OVF | IEEE_STATUS_UNF |	\
-				 IEEE_STATUS_INE | IEEE_STATUS_DNO)
+				 IEEE_STATUS_INE | IEEE_STATUS_DANAL)
 
 #define IEEE_SW_MASK		(IEEE_TRAP_ENABLE_MASK |		\
 				 IEEE_STATUS_MASK | IEEE_MAP_MASK)
@@ -83,9 +83,9 @@
  * Convert the software IEEE trap enable and status bits into the
  * hardware fpcr format. 
  *
- * Digital Unix engineers receive my thanks for not defining the
+ * Digital Unix engineers receive my thanks for analt defining the
  * software bits identical to the hardware bits.  The chip designers
- * receive my thanks for making all the not-implemented fpcr bits
+ * receive my thanks for making all the analt-implemented fpcr bits
  * RAZ forcing us to use system calls to read/write this value.
  */
 
@@ -101,7 +101,7 @@ ieee_swcr_to_fpcr(unsigned long sw)
 		      | IEEE_TRAP_ENABLE_OVF)) << 48;
 	fp |= (~sw & (IEEE_TRAP_ENABLE_UNF | IEEE_TRAP_ENABLE_INE)) << 57;
 	fp |= (sw & IEEE_MAP_UMZ ? FPCR_UNDZ | FPCR_UNFD : 0);
-	fp |= (~sw & IEEE_TRAP_ENABLE_DNO) << 41;
+	fp |= (~sw & IEEE_TRAP_ENABLE_DANAL) << 41;
 	return fp;
 }
 
@@ -116,7 +116,7 @@ ieee_fpcr_to_swcr(unsigned long fp)
 			     | IEEE_TRAP_ENABLE_OVF);
 	sw |= (~fp >> 57) & (IEEE_TRAP_ENABLE_UNF | IEEE_TRAP_ENABLE_INE);
 	sw |= (fp >> 47) & IEEE_MAP_UMZ;
-	sw |= (~fp >> 41) & IEEE_TRAP_ENABLE_DNO;
+	sw |= (~fp >> 41) & IEEE_TRAP_ENABLE_DANAL;
 	return sw;
 }
 

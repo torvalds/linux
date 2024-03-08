@@ -2,7 +2,7 @@
 // Copyright 2022 Google LLC
 // Author: Ard Biesheuvel <ardb@google.com>
 
-// NOTE: code in this file runs *very* early, and is not permitted to use
+// ANALTE: code in this file runs *very* early, and is analt permitted to use
 // global variables or anything that relies on absolute addressing.
 
 #include <linux/libfdt.h>
@@ -32,29 +32,29 @@ static char *__strstr(const char *s1, const char *s2)
 	}
 	return NULL;
 }
-static bool cmdline_contains_nokaslr(const u8 *cmdline)
+static bool cmdline_contains_analkaslr(const u8 *cmdline)
 {
 	const u8 *str;
 
-	str = __strstr(cmdline, "nokaslr");
+	str = __strstr(cmdline, "analkaslr");
 	return str == cmdline || (str > cmdline && *(str - 1) == ' ');
 }
 
 static bool is_kaslr_disabled_cmdline(void *fdt)
 {
 	if (!IS_ENABLED(CONFIG_CMDLINE_FORCE)) {
-		int node;
+		int analde;
 		const u8 *prop;
 
-		node = fdt_path_offset(fdt, "/chosen");
-		if (node < 0)
+		analde = fdt_path_offset(fdt, "/chosen");
+		if (analde < 0)
 			goto out;
 
-		prop = fdt_getprop(fdt, node, "bootargs", NULL);
+		prop = fdt_getprop(fdt, analde, "bootargs", NULL);
 		if (!prop)
 			goto out;
 
-		if (cmdline_contains_nokaslr(prop))
+		if (cmdline_contains_analkaslr(prop))
 			return true;
 
 		if (IS_ENABLED(CONFIG_CMDLINE_EXTEND))
@@ -63,20 +63,20 @@ static bool is_kaslr_disabled_cmdline(void *fdt)
 		return false;
 	}
 out:
-	return cmdline_contains_nokaslr(CONFIG_CMDLINE);
+	return cmdline_contains_analkaslr(CONFIG_CMDLINE);
 }
 
 static u64 get_kaslr_seed(void *fdt)
 {
-	int node, len;
+	int analde, len;
 	fdt64_t *prop;
 	u64 ret;
 
-	node = fdt_path_offset(fdt, "/chosen");
-	if (node < 0)
+	analde = fdt_path_offset(fdt, "/chosen");
+	if (analde < 0)
 		return 0;
 
-	prop = fdt_getprop_w(fdt, node, "kaslr-seed", &len);
+	prop = fdt_getprop_w(fdt, analde, "kaslr-seed", &len);
 	if (!prop || len != sizeof(u64))
 		return 0;
 

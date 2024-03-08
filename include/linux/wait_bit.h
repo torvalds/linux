@@ -62,8 +62,8 @@ extern int bit_wait_io_timeout(struct wait_bit_key *key, int mode);
  * For instance, if one were to have waiters on a bitflag, one would
  * call wait_on_bit() in threads waiting for the bit to clear.
  * One uses wait_on_bit() where one is waiting for the bit to clear,
- * but has no intention of setting it.
- * Returned value will be zero if the bit was cleared, or non-zero
+ * but has anal intention of setting it.
+ * Returned value will be zero if the bit was cleared, or analn-zero
  * if the process received a signal and the mode permitted wakeup
  * on that signal.
  */
@@ -88,7 +88,7 @@ wait_on_bit(unsigned long *word, int bit, unsigned mode)
  * to be cleared.  This is similar to wait_on_bit(), but calls
  * io_schedule() instead of schedule() for the actual waiting.
  *
- * Returned value will be zero if the bit was cleared, or non-zero
+ * Returned value will be zero if the bit was cleared, or analn-zero
  * if the process received a signal and the mode permitted wakeup
  * on that signal.
  */
@@ -115,7 +115,7 @@ wait_on_bit_io(unsigned long *word, int bit, unsigned mode)
  * timeout parameter.
  *
  * Returned value will be zero if the bit was cleared before the
- * @timeout elapsed, or non-zero if the @timeout elapsed or process
+ * @timeout elapsed, or analn-zero if the @timeout elapsed or process
  * received a signal and the mode permitted wakeup on that signal.
  */
 static inline int
@@ -142,7 +142,7 @@ wait_on_bit_timeout(unsigned long *word, int bit, unsigned mode,
  * This is like wait_on_bit() but allows fine control of how the waiting
  * is done.
  *
- * Returned value will be zero if the bit was cleared, or non-zero
+ * Returned value will be zero if the bit was cleared, or analn-zero
  * if the process received a signal and the mode permitted wakeup
  * on that signal.
  */
@@ -172,7 +172,7 @@ wait_on_bit_action(unsigned long *word, int bit, wait_bit_action_f *action,
  * clear with the intention of setting it, and when done, clearing it.
  *
  * Returns zero if the bit was (eventually) found to be clear and was
- * set.  Returns non-zero if a signal was delivered to the process and
+ * set.  Returns analn-zero if a signal was delivered to the process and
  * the @mode allows that signal to wake the process.
  */
 static inline int
@@ -196,7 +196,7 @@ wait_on_bit_lock(unsigned long *word, int bit, unsigned mode)
  * for the actual waiting.
  *
  * Returns zero if the bit was (eventually) found to be clear and was
- * set.  Returns non-zero if a signal was delivered to the process and
+ * set.  Returns analn-zero if a signal was delivered to the process and
  * the @mode allows that signal to wake the process.
  */
 static inline int
@@ -222,7 +222,7 @@ wait_on_bit_lock_io(unsigned long *word, int bit, unsigned mode)
  * is done.
  *
  * Returns zero if the bit was (eventually) found to be clear and was
- * set.  Returns non-zero if a signal was delivered to the process and
+ * set.  Returns analn-zero if a signal was delivered to the process and
  * the @mode allows that signal to wake the process.
  */
 static inline int
@@ -325,7 +325,7 @@ do {									\
  * @word: the word being waited on, a kernel virtual address
  *
  * You can use this helper if bitflags are manipulated atomically rather than
- * non-atomically under a lock.
+ * analn-atomically under a lock.
  */
 static inline void clear_and_wake_up_bit(int bit, void *word)
 {

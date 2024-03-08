@@ -39,7 +39,7 @@ void r8712_set_rpwm(struct _adapter *padapter, u8 val8)
 	case PS_STATE_S1:
 		pwrpriv->cpwm = val8;
 		break;
-	case PS_STATE_S2:/* only for USB normal powersave mode use,
+	case PS_STATE_S2:/* only for USB analrmal powersave mode use,
 			  * temp mark some code.
 			  */
 	case PS_STATE_S3:
@@ -180,12 +180,12 @@ void r8712_init_pwrctrl_priv(struct _adapter *padapter)
 /*
  * Caller: r8712_cmd_thread
  * Check if the fw_pwrstate is okay for issuing cmd.
- * If not (cpwm should be is less than P2 state), then the sub-routine
+ * If analt (cpwm should be is less than P2 state), then the sub-routine
  * will raise the cpwm to be greater than or equal to P2.
  * Calling Context: Passive
  * Return Value:
  * 0:	    r8712_cmd_thread can issue cmds to firmware afterwards.
- * -EINVAL: r8712_cmd_thread can not do anything.
+ * -EINVAL: r8712_cmd_thread can analt do anything.
  */
 int r8712_register_cmd_alive(struct _adapter *padapter)
 {
@@ -205,7 +205,7 @@ int r8712_register_cmd_alive(struct _adapter *padapter)
 /*
  * Caller: ISR
  * If ISR's txdone,
- * No more pkts for TX,
+ * Anal more pkts for TX,
  * Then driver shall call this fun. to power down firmware again.
  */
 void r8712_unregister_cmd_alive(struct _adapter *padapter)

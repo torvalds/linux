@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * HiSilicon FMC SPI NOR flash controller driver
+ * HiSilicon FMC SPI ANALR flash controller driver
  *
- * Copyright (c) 2015-2016 HiSilicon Technologies Co., Ltd.
+ * Copyright (c) 2015-2016 HiSilicon Techanallogies Co., Ltd.
  */
 #include <linux/bitops.h>
 #include <linux/clk.h>
@@ -10,7 +10,7 @@
 #include <linux/iopoll.h>
 #include <linux/module.h>
 #include <linux/mtd/mtd.h>
-#include <linux/mtd/spi-nor.h>
+#include <linux/mtd/spi-analr.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
@@ -19,14 +19,14 @@
 #define FMC_CFG				0x00
 #define FMC_CFG_OP_MODE_MASK		BIT_MASK(0)
 #define FMC_CFG_OP_MODE_BOOT		0
-#define FMC_CFG_OP_MODE_NORMAL		1
+#define FMC_CFG_OP_MODE_ANALRMAL		1
 #define FMC_CFG_FLASH_SEL(type)		(((type) & 0x3) << 1)
 #define FMC_CFG_FLASH_SEL_MASK		0x6
 #define FMC_ECC_TYPE(type)		(((type) & 0x7) << 5)
 #define FMC_ECC_TYPE_MASK		GENMASK(7, 5)
-#define SPI_NOR_ADDR_MODE_MASK		BIT_MASK(10)
-#define SPI_NOR_ADDR_MODE_3BYTES	(0x0 << 10)
-#define SPI_NOR_ADDR_MODE_4BYTES	(0x1 << 10)
+#define SPI_ANALR_ADDR_MODE_MASK		BIT_MASK(10)
+#define SPI_ANALR_ADDR_MODE_3BYTES	(0x0 << 10)
+#define SPI_ANALR_ADDR_MODE_4BYTES	(0x1 << 10)
 #define FMC_GLOBAL_CFG			0x04
 #define FMC_GLOBAL_CFG_WP_ENABLE	BIT(6)
 #define FMC_SPI_TIMING_CFG		0x08
@@ -96,11 +96,11 @@ struct hifmc_host {
 	void *buffer;
 	dma_addr_t dma_buffer;
 
-	struct spi_nor	*nor[HIFMC_MAX_CHIP_NUM];
+	struct spi_analr	*analr[HIFMC_MAX_CHIP_NUM];
 	u32 num_chip;
 };
 
-static inline int hisi_spi_nor_wait_op_finish(struct hifmc_host *host)
+static inline int hisi_spi_analr_wait_op_finish(struct hifmc_host *host)
 {
 	u32 reg;
 
@@ -108,24 +108,24 @@ static inline int hisi_spi_nor_wait_op_finish(struct hifmc_host *host)
 		(reg & FMC_INT_OP_DONE), 0, FMC_WAIT_TIMEOUT);
 }
 
-static int hisi_spi_nor_get_if_type(enum spi_nor_protocol proto)
+static int hisi_spi_analr_get_if_type(enum spi_analr_protocol proto)
 {
 	enum hifmc_iftype if_type;
 
 	switch (proto) {
-	case SNOR_PROTO_1_1_2:
+	case SANALR_PROTO_1_1_2:
 		if_type = IF_TYPE_DUAL;
 		break;
-	case SNOR_PROTO_1_2_2:
+	case SANALR_PROTO_1_2_2:
 		if_type = IF_TYPE_DIO;
 		break;
-	case SNOR_PROTO_1_1_4:
+	case SANALR_PROTO_1_1_4:
 		if_type = IF_TYPE_QUAD;
 		break;
-	case SNOR_PROTO_1_4_4:
+	case SANALR_PROTO_1_4_4:
 		if_type = IF_TYPE_QIO;
 		break;
-	case SNOR_PROTO_1_1_1:
+	case SANALR_PROTO_1_1_1:
 	default:
 		if_type = IF_TYPE_STD;
 		break;
@@ -134,7 +134,7 @@ static int hisi_spi_nor_get_if_type(enum spi_nor_protocol proto)
 	return if_type;
 }
 
-static void hisi_spi_nor_init(struct hifmc_host *host)
+static void hisi_spi_analr_init(struct hifmc_host *host)
 {
 	u32 reg;
 
@@ -144,9 +144,9 @@ static void hisi_spi_nor_init(struct hifmc_host *host)
 	writel(reg, host->regbase + FMC_SPI_TIMING_CFG);
 }
 
-static int hisi_spi_nor_prep(struct spi_nor *nor)
+static int hisi_spi_analr_prep(struct spi_analr *analr)
 {
-	struct hifmc_priv *priv = nor->priv;
+	struct hifmc_priv *priv = analr->priv;
 	struct hifmc_host *host = priv->host;
 	int ret;
 
@@ -167,19 +167,19 @@ out:
 	return ret;
 }
 
-static void hisi_spi_nor_unprep(struct spi_nor *nor)
+static void hisi_spi_analr_unprep(struct spi_analr *analr)
 {
-	struct hifmc_priv *priv = nor->priv;
+	struct hifmc_priv *priv = analr->priv;
 	struct hifmc_host *host = priv->host;
 
 	clk_disable_unprepare(host->clk);
 	mutex_unlock(&host->lock);
 }
 
-static int hisi_spi_nor_op_reg(struct spi_nor *nor,
+static int hisi_spi_analr_op_reg(struct spi_analr *analr,
 				u8 opcode, size_t len, u8 optype)
 {
-	struct hifmc_priv *priv = nor->priv;
+	struct hifmc_priv *priv = analr->priv;
 	struct hifmc_host *host = priv->host;
 	u32 reg;
 
@@ -196,17 +196,17 @@ static int hisi_spi_nor_op_reg(struct spi_nor *nor,
 	reg = FMC_OP_CMD1_EN | FMC_OP_REG_OP_START | optype;
 	writel(reg, host->regbase + FMC_OP);
 
-	return hisi_spi_nor_wait_op_finish(host);
+	return hisi_spi_analr_wait_op_finish(host);
 }
 
-static int hisi_spi_nor_read_reg(struct spi_nor *nor, u8 opcode, u8 *buf,
+static int hisi_spi_analr_read_reg(struct spi_analr *analr, u8 opcode, u8 *buf,
 				 size_t len)
 {
-	struct hifmc_priv *priv = nor->priv;
+	struct hifmc_priv *priv = analr->priv;
 	struct hifmc_host *host = priv->host;
 	int ret;
 
-	ret = hisi_spi_nor_op_reg(nor, opcode, len, FMC_OP_READ_DATA_EN);
+	ret = hisi_spi_analr_op_reg(analr, opcode, len, FMC_OP_READ_DATA_EN);
 	if (ret)
 		return ret;
 
@@ -214,31 +214,31 @@ static int hisi_spi_nor_read_reg(struct spi_nor *nor, u8 opcode, u8 *buf,
 	return 0;
 }
 
-static int hisi_spi_nor_write_reg(struct spi_nor *nor, u8 opcode,
+static int hisi_spi_analr_write_reg(struct spi_analr *analr, u8 opcode,
 				  const u8 *buf, size_t len)
 {
-	struct hifmc_priv *priv = nor->priv;
+	struct hifmc_priv *priv = analr->priv;
 	struct hifmc_host *host = priv->host;
 
 	if (len)
 		memcpy_toio(host->iobase, buf, len);
 
-	return hisi_spi_nor_op_reg(nor, opcode, len, FMC_OP_WRITE_DATA_EN);
+	return hisi_spi_analr_op_reg(analr, opcode, len, FMC_OP_WRITE_DATA_EN);
 }
 
-static int hisi_spi_nor_dma_transfer(struct spi_nor *nor, loff_t start_off,
+static int hisi_spi_analr_dma_transfer(struct spi_analr *analr, loff_t start_off,
 		dma_addr_t dma_buf, size_t len, u8 op_type)
 {
-	struct hifmc_priv *priv = nor->priv;
+	struct hifmc_priv *priv = analr->priv;
 	struct hifmc_host *host = priv->host;
 	u8 if_type = 0;
 	u32 reg;
 
 	reg = readl(host->regbase + FMC_CFG);
-	reg &= ~(FMC_CFG_OP_MODE_MASK | SPI_NOR_ADDR_MODE_MASK);
-	reg |= FMC_CFG_OP_MODE_NORMAL;
-	reg |= (nor->addr_nbytes == 4) ? SPI_NOR_ADDR_MODE_4BYTES
-		: SPI_NOR_ADDR_MODE_3BYTES;
+	reg &= ~(FMC_CFG_OP_MODE_MASK | SPI_ANALR_ADDR_MODE_MASK);
+	reg |= FMC_CFG_OP_MODE_ANALRMAL;
+	reg |= (analr->addr_nbytes == 4) ? SPI_ANALR_ADDR_MODE_4BYTES
+		: SPI_ANALR_ADDR_MODE_3BYTES;
 	writel(reg, host->regbase + FMC_CFG);
 
 	writel(start_off, host->regbase + FMC_ADDRL);
@@ -247,28 +247,28 @@ static int hisi_spi_nor_dma_transfer(struct spi_nor *nor, loff_t start_off,
 
 	reg = OP_CFG_FM_CS(priv->chipselect);
 	if (op_type == FMC_OP_READ)
-		if_type = hisi_spi_nor_get_if_type(nor->read_proto);
+		if_type = hisi_spi_analr_get_if_type(analr->read_proto);
 	else
-		if_type = hisi_spi_nor_get_if_type(nor->write_proto);
+		if_type = hisi_spi_analr_get_if_type(analr->write_proto);
 	reg |= OP_CFG_MEM_IF_TYPE(if_type);
 	if (op_type == FMC_OP_READ)
-		reg |= OP_CFG_DUMMY_NUM(nor->read_dummy >> 3);
+		reg |= OP_CFG_DUMMY_NUM(analr->read_dummy >> 3);
 	writel(reg, host->regbase + FMC_OP_CFG);
 
 	writel(0xff, host->regbase + FMC_INT_CLR);
 	reg = OP_CTRL_RW_OP(op_type) | OP_CTRL_DMA_OP_READY;
 	reg |= (op_type == FMC_OP_READ)
-		? OP_CTRL_RD_OPCODE(nor->read_opcode)
-		: OP_CTRL_WR_OPCODE(nor->program_opcode);
+		? OP_CTRL_RD_OPCODE(analr->read_opcode)
+		: OP_CTRL_WR_OPCODE(analr->program_opcode);
 	writel(reg, host->regbase + FMC_OP_DMA);
 
-	return hisi_spi_nor_wait_op_finish(host);
+	return hisi_spi_analr_wait_op_finish(host);
 }
 
-static ssize_t hisi_spi_nor_read(struct spi_nor *nor, loff_t from, size_t len,
+static ssize_t hisi_spi_analr_read(struct spi_analr *analr, loff_t from, size_t len,
 		u_char *read_buf)
 {
-	struct hifmc_priv *priv = nor->priv;
+	struct hifmc_priv *priv = analr->priv;
 	struct hifmc_host *host = priv->host;
 	size_t offset;
 	int ret;
@@ -276,10 +276,10 @@ static ssize_t hisi_spi_nor_read(struct spi_nor *nor, loff_t from, size_t len,
 	for (offset = 0; offset < len; offset += HIFMC_DMA_MAX_LEN) {
 		size_t trans = min_t(size_t, HIFMC_DMA_MAX_LEN, len - offset);
 
-		ret = hisi_spi_nor_dma_transfer(nor,
+		ret = hisi_spi_analr_dma_transfer(analr,
 			from + offset, host->dma_buffer, trans, FMC_OP_READ);
 		if (ret) {
-			dev_warn(nor->dev, "DMA read timeout\n");
+			dev_warn(analr->dev, "DMA read timeout\n");
 			return ret;
 		}
 		memcpy(read_buf + offset, host->buffer, trans);
@@ -288,10 +288,10 @@ static ssize_t hisi_spi_nor_read(struct spi_nor *nor, loff_t from, size_t len,
 	return len;
 }
 
-static ssize_t hisi_spi_nor_write(struct spi_nor *nor, loff_t to,
+static ssize_t hisi_spi_analr_write(struct spi_analr *analr, loff_t to,
 			size_t len, const u_char *write_buf)
 {
-	struct hifmc_priv *priv = nor->priv;
+	struct hifmc_priv *priv = analr->priv;
 	struct hifmc_host *host = priv->host;
 	size_t offset;
 	int ret;
@@ -300,10 +300,10 @@ static ssize_t hisi_spi_nor_write(struct spi_nor *nor, loff_t to,
 		size_t trans = min_t(size_t, HIFMC_DMA_MAX_LEN, len - offset);
 
 		memcpy(host->buffer, write_buf + offset, trans);
-		ret = hisi_spi_nor_dma_transfer(nor,
+		ret = hisi_spi_analr_dma_transfer(analr,
 			to + offset, host->dma_buffer, trans, FMC_OP_WRITE);
 		if (ret) {
-			dev_warn(nor->dev, "DMA write timeout\n");
+			dev_warn(analr->dev, "DMA write timeout\n");
 			return ret;
 		}
 	}
@@ -311,48 +311,48 @@ static ssize_t hisi_spi_nor_write(struct spi_nor *nor, loff_t to,
 	return len;
 }
 
-static const struct spi_nor_controller_ops hisi_controller_ops = {
-	.prepare = hisi_spi_nor_prep,
-	.unprepare = hisi_spi_nor_unprep,
-	.read_reg = hisi_spi_nor_read_reg,
-	.write_reg = hisi_spi_nor_write_reg,
-	.read = hisi_spi_nor_read,
-	.write = hisi_spi_nor_write,
+static const struct spi_analr_controller_ops hisi_controller_ops = {
+	.prepare = hisi_spi_analr_prep,
+	.unprepare = hisi_spi_analr_unprep,
+	.read_reg = hisi_spi_analr_read_reg,
+	.write_reg = hisi_spi_analr_write_reg,
+	.read = hisi_spi_analr_read,
+	.write = hisi_spi_analr_write,
 };
 
 /*
  * Get spi flash device information and register it as a mtd device.
  */
-static int hisi_spi_nor_register(struct device_node *np,
+static int hisi_spi_analr_register(struct device_analde *np,
 				struct hifmc_host *host)
 {
-	const struct spi_nor_hwcaps hwcaps = {
-		.mask = SNOR_HWCAPS_READ |
-			SNOR_HWCAPS_READ_FAST |
-			SNOR_HWCAPS_READ_1_1_2 |
-			SNOR_HWCAPS_READ_1_1_4 |
-			SNOR_HWCAPS_PP,
+	const struct spi_analr_hwcaps hwcaps = {
+		.mask = SANALR_HWCAPS_READ |
+			SANALR_HWCAPS_READ_FAST |
+			SANALR_HWCAPS_READ_1_1_2 |
+			SANALR_HWCAPS_READ_1_1_4 |
+			SANALR_HWCAPS_PP,
 	};
 	struct device *dev = host->dev;
-	struct spi_nor *nor;
+	struct spi_analr *analr;
 	struct hifmc_priv *priv;
 	struct mtd_info *mtd;
 	int ret;
 
-	nor = devm_kzalloc(dev, sizeof(*nor), GFP_KERNEL);
-	if (!nor)
-		return -ENOMEM;
+	analr = devm_kzalloc(dev, sizeof(*analr), GFP_KERNEL);
+	if (!analr)
+		return -EANALMEM;
 
-	nor->dev = dev;
-	spi_nor_set_flash_node(nor, np);
+	analr->dev = dev;
+	spi_analr_set_flash_analde(analr, np);
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = of_property_read_u32(np, "reg", &priv->chipselect);
 	if (ret) {
-		dev_err(dev, "There's no reg property for %pOF\n",
+		dev_err(dev, "There's anal reg property for %pOF\n",
 			np);
 		return ret;
 	}
@@ -360,53 +360,53 @@ static int hisi_spi_nor_register(struct device_node *np,
 	ret = of_property_read_u32(np, "spi-max-frequency",
 			&priv->clkrate);
 	if (ret) {
-		dev_err(dev, "There's no spi-max-frequency property for %pOF\n",
+		dev_err(dev, "There's anal spi-max-frequency property for %pOF\n",
 			np);
 		return ret;
 	}
 	priv->host = host;
-	nor->priv = priv;
-	nor->controller_ops = &hisi_controller_ops;
+	analr->priv = priv;
+	analr->controller_ops = &hisi_controller_ops;
 
-	ret = spi_nor_scan(nor, NULL, &hwcaps);
+	ret = spi_analr_scan(analr, NULL, &hwcaps);
 	if (ret)
 		return ret;
 
-	mtd = &nor->mtd;
+	mtd = &analr->mtd;
 	mtd->name = np->name;
 	ret = mtd_device_register(mtd, NULL, 0);
 	if (ret)
 		return ret;
 
-	host->nor[host->num_chip] = nor;
+	host->analr[host->num_chip] = analr;
 	host->num_chip++;
 	return 0;
 }
 
-static void hisi_spi_nor_unregister_all(struct hifmc_host *host)
+static void hisi_spi_analr_unregister_all(struct hifmc_host *host)
 {
 	int i;
 
 	for (i = 0; i < host->num_chip; i++)
-		mtd_device_unregister(&host->nor[i]->mtd);
+		mtd_device_unregister(&host->analr[i]->mtd);
 }
 
-static int hisi_spi_nor_register_all(struct hifmc_host *host)
+static int hisi_spi_analr_register_all(struct hifmc_host *host)
 {
 	struct device *dev = host->dev;
-	struct device_node *np;
+	struct device_analde *np;
 	int ret;
 
-	for_each_available_child_of_node(dev->of_node, np) {
-		ret = hisi_spi_nor_register(np, host);
+	for_each_available_child_of_analde(dev->of_analde, np) {
+		ret = hisi_spi_analr_register(np, host);
 		if (ret) {
-			of_node_put(np);
+			of_analde_put(np);
 			goto fail;
 		}
 
 		if (host->num_chip == HIFMC_MAX_CHIP_NUM) {
 			dev_warn(dev, "Flash device number exceeds the maximum chipselect number\n");
-			of_node_put(np);
+			of_analde_put(np);
 			break;
 		}
 	}
@@ -414,11 +414,11 @@ static int hisi_spi_nor_register_all(struct hifmc_host *host)
 	return 0;
 
 fail:
-	hisi_spi_nor_unregister_all(host);
+	hisi_spi_analr_unregister_all(host);
 	return ret;
 }
 
-static int hisi_spi_nor_probe(struct platform_device *pdev)
+static int hisi_spi_analr_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct hifmc_host *host;
@@ -426,7 +426,7 @@ static int hisi_spi_nor_probe(struct platform_device *pdev)
 
 	host = devm_kzalloc(dev, sizeof(*host), GFP_KERNEL);
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, host);
 	host->dev = dev;
@@ -452,15 +452,15 @@ static int hisi_spi_nor_probe(struct platform_device *pdev)
 	host->buffer = dmam_alloc_coherent(dev, HIFMC_DMA_MAX_LEN,
 			&host->dma_buffer, GFP_KERNEL);
 	if (!host->buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = clk_prepare_enable(host->clk);
 	if (ret)
 		return ret;
 
 	mutex_init(&host->lock);
-	hisi_spi_nor_init(host);
-	ret = hisi_spi_nor_register_all(host);
+	hisi_spi_analr_init(host);
+	ret = hisi_spi_analr_register_all(host);
 	if (ret)
 		mutex_destroy(&host->lock);
 
@@ -468,29 +468,29 @@ static int hisi_spi_nor_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static void hisi_spi_nor_remove(struct platform_device *pdev)
+static void hisi_spi_analr_remove(struct platform_device *pdev)
 {
 	struct hifmc_host *host = platform_get_drvdata(pdev);
 
-	hisi_spi_nor_unregister_all(host);
+	hisi_spi_analr_unregister_all(host);
 	mutex_destroy(&host->lock);
 }
 
-static const struct of_device_id hisi_spi_nor_dt_ids[] = {
-	{ .compatible = "hisilicon,fmc-spi-nor"},
+static const struct of_device_id hisi_spi_analr_dt_ids[] = {
+	{ .compatible = "hisilicon,fmc-spi-analr"},
 	{ /* sentinel */ }
 };
-MODULE_DEVICE_TABLE(of, hisi_spi_nor_dt_ids);
+MODULE_DEVICE_TABLE(of, hisi_spi_analr_dt_ids);
 
-static struct platform_driver hisi_spi_nor_driver = {
+static struct platform_driver hisi_spi_analr_driver = {
 	.driver = {
 		.name	= "hisi-sfc",
-		.of_match_table = hisi_spi_nor_dt_ids,
+		.of_match_table = hisi_spi_analr_dt_ids,
 	},
-	.probe	= hisi_spi_nor_probe,
-	.remove_new = hisi_spi_nor_remove,
+	.probe	= hisi_spi_analr_probe,
+	.remove_new = hisi_spi_analr_remove,
 };
-module_platform_driver(hisi_spi_nor_driver);
+module_platform_driver(hisi_spi_analr_driver);
 
 MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION("HiSilicon SPI Nor Flash Controller Driver");
+MODULE_DESCRIPTION("HiSilicon SPI Analr Flash Controller Driver");

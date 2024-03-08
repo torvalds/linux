@@ -40,7 +40,7 @@ int test_segv_errors(void)
 	};
 	char c, *p = NULL;
 
-	p = mmap(NULL, getpagesize(), 0, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+	p = mmap(NULL, getpagesize(), 0, MAP_PRIVATE|MAP_AANALNYMOUS, -1, 0);
 	FAIL_IF(p == MAP_FAILED);
 
 	FAIL_IF(sigaction(SIGSEGV, &act, NULL) != 0);

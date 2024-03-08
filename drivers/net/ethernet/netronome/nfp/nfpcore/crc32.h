@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
-/* Copyright (C) 2015-2017 Netronome Systems, Inc. */
+/* Copyright (C) 2015-2017 Netroanalme Systems, Inc. */
 
 #ifndef NFP_CRC32_H
 #define NFP_CRC32_H

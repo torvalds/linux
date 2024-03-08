@@ -10,7 +10,7 @@
 
 #include <linux/types.h>
 
-struct device_node;
+struct device_analde;
 
 /**
  * enum k3_ring_mode - &struct k3_ring_cfg mode
@@ -21,8 +21,8 @@ struct device_node;
  * @K3_RINGACC_RING_MODE_MESSAGE: Messaging mode. Messaging mode requires
  *	that all accesses to the queue must go through this IP so that all
  *	accesses to the memory are controlled and ordered. This IP then
- *	controls the entire state of the queue, and SW has no directly control,
- *	such as through doorbells and cannot access the storage memory directly.
+ *	controls the entire state of the queue, and SW has anal directly control,
+ *	such as through doorbells and cananalt access the storage memory directly.
  *	This is particularly useful when more than one SW or HW entity can be
  *	the producer and/or consumer at the same time
  * @K3_RINGACC_RING_MODE_CREDENTIALS: Credentials mode is message mode plus
@@ -66,7 +66,7 @@ struct k3_ring;
  *	 @K3_RINGACC_RING_SHARED: when set allows to request the same ring
  *	 few times. It's usable when the same ring is used as Free Host PD ring
  *	 for different flows, for example.
- *	 Note: Locking should be done by consumer if required
+ *	 Analte: Locking should be done by consumer if required
  * @dma_dev: Master device which is using and accessing to the ring
  *	memory when the mode is K3_RINGACC_RING_MODE_RING. Memory allocations
  *	should be done using this device.
@@ -87,14 +87,14 @@ struct k3_ring_cfg {
 
 /**
  * of_k3_ringacc_get_by_phandle - find a RA by phandle property
- * @np: device node
- * @propname: property name containing phandle on RA node
+ * @np: device analde
+ * @propname: property name containing phandle on RA analde
  *
  * Returns pointer on the RA - struct k3_ringacc
- * or -ENODEV if not found,
- * or -EPROBE_DEFER if not yet registered
+ * or -EANALDEV if analt found,
+ * or -EPROBE_DEFER if analt yet registered
  */
-struct k3_ringacc *of_k3_ringacc_get_by_phandle(struct device_node *np,
+struct k3_ringacc *of_k3_ringacc_get_by_phandle(struct device_analde *np,
 						const char *property);
 
 #define K3_RINGACC_RING_USE_PROXY BIT(1)
@@ -164,7 +164,7 @@ int k3_ringacc_get_ring_irq_num(struct k3_ring *ring);
  * @cfg: Ring configuration parameters (see &struct k3_ring_cfg)
  *
  * Configures ring, including ring memory allocation.
- * Returns 0 on success, errno otherwise.
+ * Returns 0 on success, erranal otherwise.
  */
 int k3_ringacc_ring_cfg(struct k3_ring *ring, struct k3_ring_cfg *cfg);
 
@@ -208,7 +208,7 @@ u32 k3_ringacc_ring_is_full(struct k3_ring *ring);
  * Push one ring element to the ring tail. Size of the ring element is
  * determined by ring configuration &struct k3_ring_cfg elm_size.
  *
- * Returns 0 on success, errno otherwise.
+ * Returns 0 on success, erranal otherwise.
  */
 int k3_ringacc_ring_push(struct k3_ring *ring, void *elem);
 
@@ -220,7 +220,7 @@ int k3_ringacc_ring_push(struct k3_ring *ring, void *elem);
  * Push one ring element from the ring head. Size of the ring element is
  * determined by ring configuration &struct k3_ring_cfg elm_size..
  *
- * Returns 0 on success, errno otherwise.
+ * Returns 0 on success, erranal otherwise.
  */
 int k3_ringacc_ring_pop(struct k3_ring *ring, void *elem);
 
@@ -232,8 +232,8 @@ int k3_ringacc_ring_pop(struct k3_ring *ring, void *elem);
  * Push one ring element to the ring head. Size of the ring element is
  * determined by ring configuration &struct k3_ring_cfg elm_size.
  *
- * Returns 0 on success, errno otherwise.
- * Not Supported by ring modes: K3_RINGACC_RING_MODE_RING
+ * Returns 0 on success, erranal otherwise.
+ * Analt Supported by ring modes: K3_RINGACC_RING_MODE_RING
  */
 int k3_ringacc_ring_push_head(struct k3_ring *ring, void *elem);
 
@@ -245,8 +245,8 @@ int k3_ringacc_ring_push_head(struct k3_ring *ring, void *elem);
  * Push one ring element from the ring tail. Size of the ring element is
  * determined by ring configuration &struct k3_ring_cfg elm_size.
  *
- * Returns 0 on success, errno otherwise.
- * Not Supported by ring modes: K3_RINGACC_RING_MODE_RING
+ * Returns 0 on success, erranal otherwise.
+ * Analt Supported by ring modes: K3_RINGACC_RING_MODE_RING
  */
 int k3_ringacc_ring_pop_tail(struct k3_ring *ring, void *elem);
 

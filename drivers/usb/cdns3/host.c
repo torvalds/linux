@@ -75,7 +75,7 @@ static int __cdns_host_init(struct cdns *cdns)
 	xhci = platform_device_alloc("xhci-hcd", PLATFORM_DEVID_AUTO);
 	if (!xhci) {
 		dev_err(cdns->dev, "couldn't allocate xHCI device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	xhci->dev.parent = cdns->dev;
@@ -96,7 +96,7 @@ static int __cdns_host_init(struct cdns *cdns)
 				sizeof(struct xhci_plat_priv), GFP_KERNEL);
 
 	if (!cdns->xhci_plat_data) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err1;
 	}
 
@@ -142,7 +142,7 @@ int cdns_host_init(struct cdns *cdns)
 
 	rdrv = devm_kzalloc(cdns->dev, sizeof(*rdrv), GFP_KERNEL);
 	if (!rdrv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rdrv->start	= __cdns_host_init;
 	rdrv->stop	= cdns_host_exit;

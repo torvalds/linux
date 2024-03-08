@@ -65,7 +65,7 @@ save_reg_insts:       /* must be quad-word aligned. */
 
 	/* Allocate a minimum stack frame for the called main.
 	 * This is needed so that main has a place to save the
-	 * link register when it calls another function.
+	 * link register when it calls aanalther function.
 	 */
 	stqd	$SP, -160($SP)
 	ai	$SP, $SP, -160
@@ -73,7 +73,7 @@ save_reg_insts:       /* must be quad-word aligned. */
 	/* Call the program's main function. */
 	brsl	$0, main
 
-	/* In this case main should not return; if it does
+	/* In this case main should analt return; if it does
 	 * there has been an error in the sequence.  Execute
 	 * stop-and-signal with code=0.
 	 */

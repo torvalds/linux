@@ -79,7 +79,7 @@ struct clk_hw *mtk_clk_register_ref2usb_tx(const char *name,
 
 	tx = kzalloc(sizeof(*tx), GFP_KERNEL);
 	if (!tx)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	tx->base_addr = reg;
 	tx->hw.init = &init;

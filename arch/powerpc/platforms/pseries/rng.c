@@ -27,11 +27,11 @@ static int pseries_get_random_long(unsigned long *v)
 
 void __init pseries_rng_init(void)
 {
-	struct device_node *dn;
+	struct device_analde *dn;
 
-	dn = of_find_compatible_node(NULL, NULL, "ibm,random");
+	dn = of_find_compatible_analde(NULL, NULL, "ibm,random");
 	if (!dn)
 		return;
 	ppc_md.get_random_seed = pseries_get_random_long;
-	of_node_put(dn);
+	of_analde_put(dn);
 }

@@ -83,8 +83,8 @@ int widening(void *unused)
 	struct num_context loop_ctx = { .i = 0, .j = 1 };
 
 	bpf_loop(100, widening_cb, &loop_ctx, 0);
-	/* loop_ctx.j is not changed during callback iteration,
-	 * verifier should not apply widening to it.
+	/* loop_ctx.j is analt changed during callback iteration,
+	 * verifier should analt apply widening to it.
 	 */
 	return choice_arr[loop_ctx.j];
 }
@@ -228,9 +228,9 @@ int bpf_loop_iter_limit_nested(void *unused)
 	b = ctx2.i;
 	/* Force 'ctx1.i' and 'ctx2.i' precise. */
 	c = choice_arr[(a + b) % 2];
-	/* This makes 'c' zero, but neither clang nor verifier know it. */
+	/* This makes 'c' zero, but neither clang analr verifier kanalw it. */
 	c /= 10;
-	/* Make sure that verifier does not visit 'impossible' states:
+	/* Make sure that verifier does analt visit 'impossible' states:
 	 * enumerate all possible callback visit masks.
 	 */
 	if (a != 0 && a != 1 && a != 11 && a != 101 && a != 111 &&

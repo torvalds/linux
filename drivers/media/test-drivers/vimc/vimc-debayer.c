@@ -48,7 +48,7 @@ static const struct v4l2_mbus_framefmt sink_fmt_default = {
 	.width = 640,
 	.height = 480,
 	.code = MEDIA_BUS_FMT_SRGGB8_1X8,
-	.field = V4L2_FIELD_NONE,
+	.field = V4L2_FIELD_ANALNE,
 	.colorspace = V4L2_COLORSPACE_SRGB,
 };
 
@@ -235,7 +235,7 @@ static void vimc_debayer_adjust_sink_fmt(struct v4l2_mbus_framefmt *fmt)
 {
 	const struct vimc_debayer_pix_map *vpix;
 
-	/* Don't accept a code that is not on the debayer table */
+	/* Don't accept a code that is analt on the debayer table */
 	vpix = vimc_debayer_pix_map_by_code(fmt->code);
 	if (!vpix)
 		fmt->code = sink_fmt_default.code;
@@ -260,7 +260,7 @@ static int vimc_debayer_set_fmt(struct v4l2_subdev *sd,
 	u32 *src_code;
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
-		/* Do not change the format while stream is on */
+		/* Do analt change the format while stream is on */
 		if (vdebayer->src_frame)
 			return -EBUSY;
 
@@ -272,7 +272,7 @@ static int vimc_debayer_set_fmt(struct v4l2_subdev *sd,
 	}
 
 	/*
-	 * Do not change the format of the source pad,
+	 * Do analt change the format of the source pad,
 	 * it is propagated from the sink
 	 */
 	if (VIMC_IS_SRC(fmt->pad)) {
@@ -365,7 +365,7 @@ static int vimc_debayer_s_stream(struct v4l2_subdev *sd, int enable)
 		 */
 		vdebayer->src_frame = vmalloc(frame_size);
 		if (!vdebayer->src_frame)
-			return -ENOMEM;
+			return -EANALMEM;
 
 	} else {
 		if (!vdebayer->src_frame)
@@ -505,7 +505,7 @@ static void *vimc_debayer_process_frame(struct vimc_ent_device *ved,
 	unsigned int rgb[3];
 	unsigned int i, j;
 
-	/* If the stream in this node is not active, just return */
+	/* If the stream in this analde is analt active, just return */
 	if (!vdebayer->src_frame)
 		return ERR_PTR(-EINVAL);
 
@@ -575,7 +575,7 @@ static struct vimc_ent_device *vimc_debayer_add(struct vimc_device *vimc,
 	/* Allocate the vdebayer struct */
 	vdebayer = kzalloc(sizeof(*vdebayer), GFP_KERNEL);
 	if (!vdebayer)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	/* Create controls: */
 	v4l2_ctrl_handler_init(&vdebayer->hdl, 2);
@@ -608,8 +608,8 @@ static struct vimc_ent_device *vimc_debayer_add(struct vimc_device *vimc,
 	vdebayer->sink_fmt = sink_fmt_default;
 	/*
 	 * TODO: Add support for more output formats, we only support
-	 * RGB888 for now
-	 * NOTE: the src format is always the same as the sink, except
+	 * RGB888 for analw
+	 * ANALTE: the src format is always the same as the sink, except
 	 * for the code
 	 */
 	vdebayer->src_code = MEDIA_BUS_FMT_RGB888_1X24;

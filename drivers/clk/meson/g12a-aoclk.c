@@ -39,7 +39,7 @@
 
 /*
  * Like every other peripheral clock gate in Amlogic Clock drivers,
- * we are using CLK_IGNORE_UNUSED here, so we keep the state of the
+ * we are using CLK_IGANALRE_UNUSED here, so we keep the state of the
  * bootloader. The goal is to remove this flag at some point.
  * Actually removing it will require some extensive test to be done safely.
  */
@@ -56,7 +56,7 @@ static struct clk_regmap g12a_aoclk_##_name = {				\
 			.fw_name = "mpeg-clk",				\
 		},							\
 		.num_parents = 1,					\
-		.flags = CLK_IGNORE_UNUSED,				\
+		.flags = CLK_IGANALRE_UNUSED,				\
 	},								\
 }
 

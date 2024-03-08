@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *
- * Copyright (C) 1996 Mike Shaver (shaver@zeroknowledge.com)
+ * Copyright (C) 1996 Mike Shaver (shaver@zerokanalwledge.com)
  */
 #include <linux/mm.h>
 #include <linux/slab.h>
@@ -153,7 +153,7 @@ int ax25_register_dev_sysctl(ax25_dev *ax25_dev)
 
 	table = kmemdup(ax25_param_table, sizeof(ax25_param_table), GFP_KERNEL);
 	if (!table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (k = 0; k < AX25_MAX_VALUES; k++)
 		table[k].data = &ax25_dev->values[k];
@@ -163,7 +163,7 @@ int ax25_register_dev_sysctl(ax25_dev *ax25_dev)
 						     ARRAY_SIZE(ax25_param_table));
 	if (!ax25_dev->sysheader) {
 		kfree(table);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	return 0;
 }

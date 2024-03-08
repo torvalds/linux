@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright Sunplus Technology Co., Ltd.
+/* Copyright Sunplus Techanallogy Co., Ltd.
  *       All rights reserved.
  */
 
@@ -62,7 +62,7 @@ int spl2sw_rx_poll(struct napi_struct *napi, int budget)
 
 			skb = sinfo->skb;
 			skb_put(skb, pkg_len - 4); /* Minus FCS */
-			skb->ip_summed = CHECKSUM_NONE;
+			skb->ip_summed = CHECKSUM_ANALNE;
 			skb->protocol = eth_type_trans(skb, comm->ndev[port]);
 			len = skb->len;
 			netif_receive_skb(skb);

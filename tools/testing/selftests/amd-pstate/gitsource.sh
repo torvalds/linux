@@ -5,7 +5,7 @@
 # power consumption and throughput etc. when this script trigger
 # gitsource test.
 # 1) Download and tar gitsource codes.
-# 2) Run gitsource benchmark on specific governors, ondemand or schedutil.
+# 2) Run gitsource benchmark on specific goveranalrs, ondemand or schedutil.
 # 3) Run tbench benchmark comparative test on acpi-cpufreq kernel driver.
 # 4) Get desire performance, frequency, load by perf.
 # 5) Get power consumption and throughput by amd_pstate_trace.py.
@@ -23,9 +23,9 @@ fi
 git_name="git-2.15.1"
 git_tar="$git_name.tar.gz"
 gitsource_url="https://github.com/git/git/archive/refs/tags/v2.15.1.tar.gz"
-gitsource_governors=("ondemand" "schedutil")
+gitsource_goveranalrs=("ondemand" "schedutil")
 
-# $1: governor, $2: round, $3: des-perf, $4: freq, $5: load, $6: time $7: energy, $8: PPW
+# $1: goveranalr, $2: round, $3: des-perf, $4: freq, $5: load, $6: time $7: energy, $8: PPW
 store_csv_gitsource()
 {
 	echo "$1, $2, $3, $4, $5, $6, $7, $8" | tee -a $OUTFILE_GIT.csv > /dev/null 2>&1
@@ -78,7 +78,7 @@ install_gitsource()
 	fi
 }
 
-# $1: governor, $2: loop
+# $1: goveranalr, $2: loop
 run_gitsource()
 {
 	echo "Launching amd pstate tracer for $1 #$2 tracer_interval: $TRACER_INTERVAL"
@@ -98,7 +98,7 @@ run_gitsource()
 	done
 }
 
-# $1: governor, $2: loop
+# $1: goveranalr, $2: loop
 parse_gitsource()
 {
 	awk '{print $5}' results/tracer-gitsource-$1-$2/cpu.csv | sed -e '1d' | sed s/,// > $OUTFILE_GIT-des-perf-$1-$2.log
@@ -121,8 +121,8 @@ parse_gitsource()
 	en_sum=$(awk 'BEGIN {sum=0};{sum += $1};END {print sum}' $OUTFILE_GIT-energy-$1-$2.log)
 	printf "Gitsource-$1-#$2 power consumption(J): $en_sum\n" | tee -a $OUTFILE_GIT.result
 
-	# Permance is the number of run gitsource per second, denoted 1/t, where 1 is the number of run gitsource in t
-	# seconds. It is well known that P=E/t, where P is power measured in watts(W), E is energy measured in joules(J),
+	# Permance is the number of run gitsource per second, deanalted 1/t, where 1 is the number of run gitsource in t
+	# seconds. It is well kanalwn that P=E/t, where P is power measured in watts(W), E is energy measured in joules(J),
 	# and t is time measured in seconds(s). This means that performance per watt becomes
 	#        1/t     1/t     1
 	#       ----- = ----- = ---
@@ -136,7 +136,7 @@ parse_gitsource()
 	store_csv_gitsource "$driver_name-$1" $2 $avg_des_perf $avg_freq $avg_load $time_sum $en_sum $ppw
 }
 
-# $1: governor
+# $1: goveranalr
 loop_gitsource()
 {
 	printf "\nGitsource total test times is $LOOP_TIMES for $1\n\n"
@@ -147,7 +147,7 @@ loop_gitsource()
 	done
 }
 
-# $1: governor
+# $1: goveranalr
 gather_gitsource()
 {
 	printf "Gitsource test result for $1 (loops:$LOOP_TIMES)" | tee -a $OUTFILE_GIT.result
@@ -179,8 +179,8 @@ gather_gitsource()
 	avg_en=$(awk 'BEGIN {sum=0};{sum += $1};END {print sum/'$LOOP_TIMES'}' $OUTFILE_GIT-energy-$1.log)
 	printf "Gitsource-$1 avg power consumption(J): $avg_en\n" | tee -a $OUTFILE_GIT.result
 
-	# Permance is the number of run gitsource per second, denoted 1/t, where 1 is the number of run gitsource in t
-	# seconds. It is well known that P=E/t, where P is power measured in watts(W), E is energy measured in joules(J),
+	# Permance is the number of run gitsource per second, deanalted 1/t, where 1 is the number of run gitsource in t
+	# seconds. It is well kanalwn that P=E/t, where P is power measured in watts(W), E is energy measured in joules(J),
 	# and t is time measured in seconds(s). This means that performance per watt becomes
 	#        1/t     1/t     1
 	#       ----- = ----- = ---
@@ -194,7 +194,7 @@ gather_gitsource()
 	store_csv_gitsource "$driver_name-$1" "Average" $avg_des_perf $avg_freq $avg_load $avg_time $avg_en $ppw
 }
 
-# $1: base scaling_driver $2: base governor $3: comparison scaling_driver $4: comparison governor
+# $1: base scaling_driver $2: base goveranalr $3: comparison scaling_driver $4: comparison goveranalr
 __calc_comp_gitsource()
 {
 	base=`grep "$1-$2" $OUTFILE_GIT.csv | grep "Average"`
@@ -249,16 +249,16 @@ __calc_comp_gitsource()
 calc_comp_gitsource()
 {
 	# acpi-cpufreq-ondemand VS acpi-cpufreq-schedutil
-	__calc_comp_gitsource ${all_scaling_names[0]} ${gitsource_governors[0]} ${all_scaling_names[0]} ${gitsource_governors[1]}
+	__calc_comp_gitsource ${all_scaling_names[0]} ${gitsource_goveranalrs[0]} ${all_scaling_names[0]} ${gitsource_goveranalrs[1]}
 
 	# amd-pstate-ondemand VS amd-pstate-schedutil
-	__calc_comp_gitsource ${all_scaling_names[1]} ${gitsource_governors[0]} ${all_scaling_names[1]} ${gitsource_governors[1]}
+	__calc_comp_gitsource ${all_scaling_names[1]} ${gitsource_goveranalrs[0]} ${all_scaling_names[1]} ${gitsource_goveranalrs[1]}
 
 	# acpi-cpufreq-ondemand VS amd-pstate-ondemand
-	__calc_comp_gitsource ${all_scaling_names[0]} ${gitsource_governors[0]} ${all_scaling_names[1]} ${gitsource_governors[0]}
+	__calc_comp_gitsource ${all_scaling_names[0]} ${gitsource_goveranalrs[0]} ${all_scaling_names[1]} ${gitsource_goveranalrs[0]}
 
 	# acpi-cpufreq-schedutil VS amd-pstate-schedutil
-	__calc_comp_gitsource ${all_scaling_names[0]} ${gitsource_governors[1]} ${all_scaling_names[1]} ${gitsource_governors[1]}
+	__calc_comp_gitsource ${all_scaling_names[0]} ${gitsource_goveranalrs[1]} ${all_scaling_names[1]} ${gitsource_goveranalrs[1]}
 }
 
 # $1: file_name, $2: title, $3: ylable, $4: column
@@ -302,20 +302,20 @@ plot_png_gitsource()
 
 		if ($flag == 1) {
 			plot \
-			"<(sed -n -e 's/,//g' -e '/${all_scaling_names[0]}-${gitsource_governors[0]}/p' $OUTFILE_GIT.csv)" using $4:xtic(2) title "${all_scaling_names[0]}-${gitsource_governors[0]}", \
-			"<(sed -n -e 's/,//g' -e '/${all_scaling_names[0]}-${gitsource_governors[1]}/p' $OUTFILE_GIT.csv)" using $4:xtic(2) title "${all_scaling_names[0]}-${gitsource_governors[1]}"
+			"<(sed -n -e 's/,//g' -e '/${all_scaling_names[0]}-${gitsource_goveranalrs[0]}/p' $OUTFILE_GIT.csv)" using $4:xtic(2) title "${all_scaling_names[0]}-${gitsource_goveranalrs[0]}", \
+			"<(sed -n -e 's/,//g' -e '/${all_scaling_names[0]}-${gitsource_goveranalrs[1]}/p' $OUTFILE_GIT.csv)" using $4:xtic(2) title "${all_scaling_names[0]}-${gitsource_goveranalrs[1]}"
 		} else {
 			if ($flag == 2) {
 				plot \
-				"<(sed -n -e 's/,//g' -e '/${all_scaling_names[1]}-${gitsource_governors[0]}/p' $OUTFILE_GIT.csv)" using $4:xtic(2) title "${all_scaling_names[1]}-${gitsource_governors[0]}", \
-				"<(sed -n -e 's/,//g' -e '/${all_scaling_names[1]}-${gitsource_governors[1]}/p' $OUTFILE_GIT.csv)" using $4:xtic(2) title "${all_scaling_names[1]}-${gitsource_governors[1]}"
+				"<(sed -n -e 's/,//g' -e '/${all_scaling_names[1]}-${gitsource_goveranalrs[0]}/p' $OUTFILE_GIT.csv)" using $4:xtic(2) title "${all_scaling_names[1]}-${gitsource_goveranalrs[0]}", \
+				"<(sed -n -e 's/,//g' -e '/${all_scaling_names[1]}-${gitsource_goveranalrs[1]}/p' $OUTFILE_GIT.csv)" using $4:xtic(2) title "${all_scaling_names[1]}-${gitsource_goveranalrs[1]}"
 			} else {
 				if ($flag == 3 ) {
 					plot \
-					"<(sed -n -e 's/,//g' -e '/${all_scaling_names[0]}-${gitsource_governors[0]}/p' $OUTFILE_GIT.csv)" using $4:xtic(2) title "${all_scaling_names[0]}-${gitsource_governors[0]}", \
-					"<(sed -n -e 's/,//g' -e '/${all_scaling_names[0]}-${gitsource_governors[1]}/p' $OUTFILE_GIT.csv)" using $4:xtic(2) title "${all_scaling_names[0]}-${gitsource_governors[1]}", \
-					"<(sed -n -e 's/,//g' -e '/${all_scaling_names[1]}-${gitsource_governors[0]}/p' $OUTFILE_GIT.csv)" using $4:xtic(2) title "${all_scaling_names[1]}-${gitsource_governors[0]}", \
-					"<(sed -n -e 's/,//g' -e '/${all_scaling_names[1]}-${gitsource_governors[1]}/p' $OUTFILE_GIT.csv)" using $4:xtic(2) title "${all_scaling_names[1]}-${gitsource_governors[1]}"
+					"<(sed -n -e 's/,//g' -e '/${all_scaling_names[0]}-${gitsource_goveranalrs[0]}/p' $OUTFILE_GIT.csv)" using $4:xtic(2) title "${all_scaling_names[0]}-${gitsource_goveranalrs[0]}", \
+					"<(sed -n -e 's/,//g' -e '/${all_scaling_names[0]}-${gitsource_goveranalrs[1]}/p' $OUTFILE_GIT.csv)" using $4:xtic(2) title "${all_scaling_names[0]}-${gitsource_goveranalrs[1]}", \
+					"<(sed -n -e 's/,//g' -e '/${all_scaling_names[1]}-${gitsource_goveranalrs[0]}/p' $OUTFILE_GIT.csv)" using $4:xtic(2) title "${all_scaling_names[1]}-${gitsource_goveranalrs[0]}", \
+					"<(sed -n -e 's/,//g' -e '/${all_scaling_names[1]}-${gitsource_goveranalrs[1]}/p' $OUTFILE_GIT.csv)" using $4:xtic(2) title "${all_scaling_names[1]}-${gitsource_goveranalrs[1]}"
 				}
 			}
 		}
@@ -333,21 +333,21 @@ amd_pstate_gitsource()
 
 	install_gitsource
 
-	get_lines_csv_gitsource "Governor"
+	get_lines_csv_gitsource "Goveranalr"
 	if [ $? -eq 0 ]; then
 		# add titles and unit for csv file
-		store_csv_gitsource "Governor" "Round" "Des-perf" "Freq" "Load" "Time" "Energy" "Performance Per Watt"
+		store_csv_gitsource "Goveranalr" "Round" "Des-perf" "Freq" "Load" "Time" "Energy" "Performance Per Watt"
 		store_csv_gitsource "Unit" "" "" "GHz" "" "s" "J" "1/J"
 	fi
 
-	backup_governor
-	for governor in ${gitsource_governors[*]} ; do
-		printf "\nSpecified governor is $governor\n\n"
-		switch_governor $governor
-		loop_gitsource $governor
-		gather_gitsource $governor
+	backup_goveranalr
+	for goveranalr in ${gitsource_goveranalrs[*]} ; do
+		printf "\nSpecified goveranalr is $goveranalr\n\n"
+		switch_goveranalr $goveranalr
+		loop_gitsource $goveranalr
+		gather_gitsource $goveranalr
 	done
-	restore_governor
+	restore_goveranalr
 
 	plot_png_gitsource "gitsource_time.png" "Gitsource Benchmark Time" "Time (s)" 6
 	plot_png_gitsource "gitsource_energy.png" "Gitsource Benchmark Energy" "Energy (J)" 7

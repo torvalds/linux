@@ -265,7 +265,7 @@ static int nct7802_read_fan_min(struct nct7802_data *data, u8 reg_fan_low,
 		goto abort;
 	ret = f1 | ((f2 & 0xf8) << 5);
 	/* convert fan count to rpm */
-	if (ret == 0x1fff)	/* maximum value, assume no limit */
+	if (ret == 0x1fff)	/* maximum value, assume anal limit */
 		ret = 0;
 	else if (ret)
 		ret = DIV_ROUND_CLOSEST(1350000U, ret);
@@ -400,9 +400,9 @@ static ssize_t in_alarm_show(struct device *dev, struct device_attribute *attr,
 	/*
 	 * The SMI Voltage status register is the only register giving a status
 	 * for voltages. A bit is set for each input crossing a threshold, in
-	 * both direction, but the "inside" or "outside" limits info is not
+	 * both direction, but the "inside" or "outside" limits info is analt
 	 * available. Also this register is cleared on read.
-	 * Note: this is not explicitly spelled out in the datasheet, but
+	 * Analte: this is analt explicitly spelled out in the datasheet, but
 	 * from experiment.
 	 * To deal with this we use a status cache with one validity bit and
 	 * one status bit for each input. Validity is cleared at startup and
@@ -1011,32 +1011,32 @@ static int nct7802_detect(struct i2c_client *client,
 	 */
 	reg = i2c_smbus_read_byte_data(client, REG_BANK);
 	if (reg != 0x00)
-		return -ENODEV;
+		return -EANALDEV;
 
 	reg = i2c_smbus_read_byte_data(client, REG_VENDOR_ID);
 	if (reg != 0x50)
-		return -ENODEV;
+		return -EANALDEV;
 
 	reg = i2c_smbus_read_byte_data(client, REG_CHIP_ID);
 	if (reg != 0xc3)
-		return -ENODEV;
+		return -EANALDEV;
 
 	reg = i2c_smbus_read_byte_data(client, REG_VERSION_ID);
 	if (reg < 0 || (reg & 0xf0) != 0x20)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Also validate lower bits of voltage and temperature registers */
 	reg = i2c_smbus_read_byte_data(client, REG_TEMP_LSB);
 	if (reg < 0 || (reg & 0x1f))
-		return -ENODEV;
+		return -EANALDEV;
 
 	reg = i2c_smbus_read_byte_data(client, REG_TEMP_PECI_LSB);
 	if (reg < 0 || (reg & 0x3f))
-		return -ENODEV;
+		return -EANALDEV;
 
 	reg = i2c_smbus_read_byte_data(client, REG_VOLTAGE_LOW);
 	if (reg < 0 || (reg & 0x3f))
-		return -ENODEV;
+		return -EANALDEV;
 
 	strscpy(info->type, "nct7802", I2C_NAME_SIZE);
 	return 0;
@@ -1056,30 +1056,30 @@ static const struct regmap_config nct7802_regmap_config = {
 };
 
 static int nct7802_get_channel_config(struct device *dev,
-				      struct device_node *node, u8 *mode_mask,
+				      struct device_analde *analde, u8 *mode_mask,
 				      u8 *mode_val)
 {
 	u32 reg;
 	const char *type_str, *md_str;
 	u8 md;
 
-	if (!node->name || of_node_cmp(node->name, "channel"))
+	if (!analde->name || of_analde_cmp(analde->name, "channel"))
 		return 0;
 
-	if (of_property_read_u32(node, "reg", &reg)) {
-		dev_err(dev, "Could not read reg value for '%s'\n",
-			node->full_name);
+	if (of_property_read_u32(analde, "reg", &reg)) {
+		dev_err(dev, "Could analt read reg value for '%s'\n",
+			analde->full_name);
 		return -EINVAL;
 	}
 
 	if (reg > 3) {
 		dev_err(dev, "Invalid reg (%u) in '%s'\n", reg,
-			node->full_name);
+			analde->full_name);
 		return -EINVAL;
 	}
 
 	if (reg == 0) {
-		if (!of_device_is_available(node))
+		if (!of_device_is_available(analde))
 			*mode_val &= ~MODE_LTD_EN;
 		else
 			*mode_val |= MODE_LTD_EN;
@@ -1089,14 +1089,14 @@ static int nct7802_get_channel_config(struct device *dev,
 
 	/* At this point we have reg >= 1 && reg <= 3 */
 
-	if (!of_device_is_available(node)) {
+	if (!of_device_is_available(analde)) {
 		*mode_val &= ~(MODE_RTD_MASK << MODE_BIT_OFFSET_RTD(reg - 1));
 		*mode_mask |= MODE_RTD_MASK << MODE_BIT_OFFSET_RTD(reg - 1);
 		return 0;
 	}
 
-	if (of_property_read_string(node, "sensor-type", &type_str)) {
-		dev_err(dev, "No type for '%s'\n", node->full_name);
+	if (of_property_read_string(analde, "sensor-type", &type_str)) {
+		dev_err(dev, "Anal type for '%s'\n", analde->full_name);
 		return -EINVAL;
 	}
 
@@ -1109,7 +1109,7 @@ static int nct7802_get_channel_config(struct device *dev,
 
 	if (strcmp(type_str, "temperature")) {
 		dev_err(dev, "Invalid type '%s' for '%s'\n", type_str,
-			node->full_name);
+			analde->full_name);
 		return -EINVAL;
 	}
 
@@ -1117,9 +1117,9 @@ static int nct7802_get_channel_config(struct device *dev,
 		/* RTD3 only supports thermistor mode */
 		md = RTD_MODE_THERMISTOR;
 	} else {
-		if (of_property_read_string(node, "temperature-mode",
+		if (of_property_read_string(analde, "temperature-mode",
 					    &md_str)) {
-			dev_err(dev, "No mode for '%s'\n", node->full_name);
+			dev_err(dev, "Anal mode for '%s'\n", analde->full_name);
 			return -EINVAL;
 		}
 
@@ -1129,7 +1129,7 @@ static int nct7802_get_channel_config(struct device *dev,
 			md = RTD_MODE_THERMISTOR;
 		else {
 			dev_err(dev, "Invalid mode '%s' for '%s'\n", md_str,
-				node->full_name);
+				analde->full_name);
 			return -EINVAL;
 		}
 	}
@@ -1145,15 +1145,15 @@ static int nct7802_configure_channels(struct device *dev,
 {
 	/* Enable local temperature sensor by default */
 	u8 mode_mask = MODE_LTD_EN, mode_val = MODE_LTD_EN;
-	struct device_node *node;
+	struct device_analde *analde;
 	int err;
 
-	if (dev->of_node) {
-		for_each_child_of_node(dev->of_node, node) {
-			err = nct7802_get_channel_config(dev, node, &mode_mask,
+	if (dev->of_analde) {
+		for_each_child_of_analde(dev->of_analde, analde) {
+			err = nct7802_get_channel_config(dev, analde, &mode_mask,
 							 &mode_val);
 			if (err) {
-				of_node_put(node);
+				of_analde_put(analde);
 				return err;
 			}
 		}
@@ -1188,7 +1188,7 @@ static int nct7802_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (data == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->regmap = devm_regmap_init_i2c(client, &nct7802_regmap_config);
 	if (IS_ERR(data->regmap))

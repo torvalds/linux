@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 //
-// Based on sound/soc/codecs/tlv320aic3x.c by  Vladimir Barinov
+// Based on sound/soc/codecs/tlv320aic3x.c by  Vladimir Barianalv
 //
 // Copyright (C) 2010 Mistral Solutions Pvt Ltd.
 // Author: Shahina Shaik <shahina.s@mistralsolutions.com>
@@ -255,7 +255,7 @@
 
 #define ADC3XXX_USE_PLL	((ADC3XXX_PLL_CLKIN_MCLK << ADC3XXX_PLL_CLKIN_SHIFT) | \
 			 (ADC3XXX_CODEC_CLKIN_PLL_CLK << ADC3XXX_CODEC_CLKIN_SHIFT))
-#define ADC3XXX_NO_PLL	((ADC3XXX_PLL_CLKIN_ZERO << ADC3XXX_PLL_CLKIN_SHIFT) | \
+#define ADC3XXX_ANAL_PLL	((ADC3XXX_PLL_CLKIN_ZERO << ADC3XXX_PLL_CLKIN_SHIFT) | \
 			 (ADC3XXX_CODEC_CLKIN_MCLK << ADC3XXX_CODEC_CLKIN_SHIFT))
 
 /*  Analog PGA control bits */
@@ -321,10 +321,10 @@ struct adc3xxx {
 	struct gpio_desc *rst_pin;
 	unsigned int pll_mode;
 	unsigned int sysclk;
-	unsigned int gpio_cfg[ADC3XXX_GPIOS_MAX]; /* value+1 (0 => not set)  */
+	unsigned int gpio_cfg[ADC3XXX_GPIOS_MAX]; /* value+1 (0 => analt set)  */
 	unsigned int micbias_vg[ADC3XXX_MICBIAS_PINS];
 	int master;
-	u8 page_no;
+	u8 page_anal;
 	int use_pll;
 	struct gpio_chip gpio_chip;
 };
@@ -479,9 +479,9 @@ struct adc3xxx_rate_divs {
 
 /*
  * PLL and Clock settings.
- * If p member is 0, PLL is not used.
+ * If p member is 0, PLL is analt used.
  * The order of the entries in this table have the PLL entries before
- * the non-PLL entries, so that the PLL modes are preferred unless
+ * the analn-PLL entries, so that the PLL modes are preferred unless
  * the PLL mode setting says otherwise.
  */
 static const struct adc3xxx_rate_divs adc3xxx_divs[] = {
@@ -533,7 +533,7 @@ static int adc3xxx_get_divs(struct device *dev, int mclk, int rate, int pll_mode
 			return i;
 	}
 
-	dev_info(dev, "Master clock rate %d and sample rate %d is not supported\n",
+	dev_info(dev, "Master clock rate %d and sample rate %d is analt supported\n",
 		 mclk, rate);
 	return -EINVAL;
 }
@@ -691,18 +691,18 @@ static const struct snd_kcontrol_new adc3xxx_snd_controls[] = {
 		     ADC3XXX_RIGHT_CHN_AGC_1, 7, 1, 0),
 	SOC_DOUBLE_R_TLV("AGC Target Level Capture Volume", ADC3XXX_LEFT_CHN_AGC_1,
 		     ADC3XXX_RIGHT_CHN_AGC_2, 4, 0x07, 1, agc_target_tlv),
-	SOC_DOUBLE_R_TLV("AGC Noise Threshold Capture Volume", ADC3XXX_LEFT_CHN_AGC_2,
+	SOC_DOUBLE_R_TLV("AGC Analise Threshold Capture Volume", ADC3XXX_LEFT_CHN_AGC_2,
 		     ADC3XXX_RIGHT_CHN_AGC_2, 1, 0x1f, 1, agc_thresh_tlv),
 	SOC_DOUBLE_R_TLV("AGC Hysteresis Capture Volume", ADC3XXX_LEFT_CHN_AGC_2,
 		     ADC3XXX_RIGHT_CHN_AGC_2, 6, 3, 0, agc_hysteresis_tlv),
 	SOC_DOUBLE_R("AGC Clip Stepping Capture Switch", ADC3XXX_LEFT_CHN_AGC_2,
 		     ADC3XXX_RIGHT_CHN_AGC_2, 0, 1, 0),
 	/*
-	 * Oddly enough, the data sheet says the default value
+	 * Oddly eanalugh, the data sheet says the default value
 	 * for the left/right AGC maximum gain register field
 	 * (ADC3XXX_LEFT/RIGHT_CHN_AGC_3 bits 0..6) is 0x7f = 127
 	 * (verified empirically) even though this value (indeed, above
-	 * 0x50) is specified as 'Reserved. Do not use.' in the accompanying
+	 * 0x50) is specified as 'Reserved. Do analt use.' in the accompanying
 	 * table in the data sheet.
 	 */
 	SOC_DOUBLE_R_TLV("AGC Maximum Capture Volume", ADC3XXX_LEFT_CHN_AGC_3,
@@ -710,7 +710,7 @@ static const struct snd_kcontrol_new adc3xxx_snd_controls[] = {
 	SOC_DOUBLE_R("AGC Attack Time", ADC3XXX_LEFT_CHN_AGC_4,
 		     ADC3XXX_RIGHT_CHN_AGC_4, 3, 0x1f, 0),
 	/* Would like to have the multipliers as LR pairs, but there is
-	 * no SOC_ENUM_foo which accepts two values in separate registers.
+	 * anal SOC_ENUM_foo which accepts two values in separate registers.
 	 */
 	SOC_ENUM("AGC Left Attack Time Multiplier", left_agc_attack_mult_enum),
 	SOC_ENUM("AGC Right Attack Time Multiplier", right_agc_attack_mult_enum),
@@ -718,7 +718,7 @@ static const struct snd_kcontrol_new adc3xxx_snd_controls[] = {
 		     ADC3XXX_RIGHT_CHN_AGC_5, 3, 0x1f, 0),
 	SOC_ENUM("AGC Left Decay Time Multiplier", left_agc_decay_mult_enum),
 	SOC_ENUM("AGC Right Decay Time Multiplier", right_agc_decay_mult_enum),
-	SOC_DOUBLE_R("AGC Noise Debounce", ADC3XXX_LEFT_CHN_AGC_6,
+	SOC_DOUBLE_R("AGC Analise Debounce", ADC3XXX_LEFT_CHN_AGC_6,
 		     ADC3XXX_RIGHT_CHN_AGC_6, 0, 0x1f, 0),
 	SOC_DOUBLE_R("AGC Signal Debounce", ADC3XXX_LEFT_CHN_AGC_7,
 		     ADC3XXX_RIGHT_CHN_AGC_7, 0, 0x0f, 0),
@@ -834,11 +834,11 @@ static const struct snd_kcontrol_new right_input_dmic_controls[] = {
 static const struct snd_soc_dapm_widget adc3xxx_dapm_widgets[] = {
 
 	/* Left Input Selection */
-	SND_SOC_DAPM_MIXER("Left Input", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Left Input", SND_SOC_ANALPM, 0, 0,
 			   &left_input_mixer_controls[0],
 			   ARRAY_SIZE(left_input_mixer_controls)),
 	/* Right Input Selection */
-	SND_SOC_DAPM_MIXER("Right Input", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Right Input", SND_SOC_ANALPM, 0, 0,
 			   &right_input_mixer_controls[0],
 			   ARRAY_SIZE(right_input_mixer_controls)),
 	/* PGA selection */
@@ -846,10 +846,10 @@ static const struct snd_soc_dapm_widget adc3xxx_dapm_widgets[] = {
 	SND_SOC_DAPM_PGA("Right PGA", ADC3XXX_RIGHT_APGA_CTRL, 7, 1, NULL, 0),
 
 	/* Digital Microphone Input Control for Left/Right ADC */
-	SND_SOC_DAPM_MIXER("Left DMic Input", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Left DMic Input", SND_SOC_ANALPM, 0, 0,
 			&left_input_dmic_controls[0],
 			ARRAY_SIZE(left_input_dmic_controls)),
-	SND_SOC_DAPM_MIXER("Right DMic Input", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Right DMic Input", SND_SOC_ANALPM, 0, 0,
 			&right_input_dmic_controls[0],
 			ARRAY_SIZE(right_input_dmic_controls)),
 
@@ -874,7 +874,7 @@ static const struct snd_soc_dapm_widget adc3xxx_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("DMic_R"),
 
 	/* Digital audio interface output */
-	SND_SOC_DAPM_AIF_OUT("AIF_OUT", "Capture", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("AIF_OUT", "Capture", 0, SND_SOC_ANALPM, 0, 0),
 
 	/* Clocks */
 	SND_SOC_DAPM_SUPPLY("PLL_CLK", ADC3XXX_PLL_PROG_PR, ADC3XXX_ENABLE_PLL_SHIFT,
@@ -961,9 +961,9 @@ static int adc3xxx_gpio_request(struct gpio_chip *chip, unsigned int offset)
 		return -EINVAL;
 
 	/* GPIO1 is offset 0, GPIO2 is offset 1 */
-	/* We check here that the GPIO pins are either not configured in the
+	/* We check here that the GPIO pins are either analt configured in the
 	 * DT, or that they purposely are set as outputs.
-	 * (Input mode not yet implemented).
+	 * (Input mode analt yet implemented).
 	 */
 	if (adc3xxx->gpio_cfg[offset] != 0 &&
 	    adc3xxx->gpio_cfg[offset] != ADC3XXX_GPIO_GPO + 1)
@@ -996,7 +996,7 @@ static void adc3xxx_gpio_set(struct gpio_chip *chip, unsigned int offset,
 	(void) adc3xxx_gpio_direction_out(chip, offset, value);
 }
 
-/* Even though we only support GPIO output for now, some GPIO clients
+/* Even though we only support GPIO output for analw, some GPIO clients
  * want to read the current pin state using the .get callback.
  */
 static int adc3xxx_gpio_get(struct gpio_chip *chip, unsigned int offset)
@@ -1046,7 +1046,7 @@ static void adc3xxx_init_gpio(struct adc3xxx *adc3xxx)
 		dev_err(adc3xxx->dev, "Failed to add gpios: %d\n", ret);
 
 	/* Set up potential GPIO configuration from the devicetree.
-	 * This allows us to set up things which are not software
+	 * This allows us to set up things which are analt software
 	 * controllable GPIOs, such as PDM microphone I/O,
 	 */
 	for (gpio = 0; gpio < ADC3XXX_GPIOS_MAX; gpio++) {
@@ -1076,7 +1076,7 @@ static int adc3xxx_parse_dt_gpio(struct adc3xxx *adc3xxx,
 				 const char *propname, unsigned int *cfg)
 {
 	struct device *dev = adc3xxx->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	unsigned int val;
 
 	if (!of_property_read_u32(np, propname, &val)) {
@@ -1085,8 +1085,8 @@ static int adc3xxx_parse_dt_gpio(struct adc3xxx *adc3xxx,
 			return -EINVAL;
 		}
 		if (val == ADC3XXX_GPIO_GPI)
-			dev_warn(dev, "GPIO Input read not yet implemented\n");
-		*cfg = val + 1; /* 0 => not set up, all others shifted +1 */
+			dev_warn(dev, "GPIO Input read analt yet implemented\n");
+		*cfg = val + 1; /* 0 => analt set up, all others shifted +1 */
 	}
 	return 0;
 }
@@ -1095,7 +1095,7 @@ static int adc3xxx_parse_dt_micbias(struct adc3xxx *adc3xxx,
 				    const char *propname, unsigned int *vg)
 {
 	struct device *dev = adc3xxx->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	unsigned int val;
 
 	if (!of_property_read_u32(np, propname, &val)) {
@@ -1187,7 +1187,7 @@ static int adc3xxx_hw_params(struct snd_pcm_substream *substream,
 			adc3xxx->use_pll = 1;
 		}
 	} else {
-		snd_soc_component_write(component, ADC3XXX_CLKGEN_MUX, ADC3XXX_NO_PLL);
+		snd_soc_component_write(component, ADC3XXX_CLKGEN_MUX, ADC3XXX_ANAL_PLL);
 		if (adc3xxx->use_pll) {
 			snd_soc_dapm_del_routes(dapm, adc3xxx_pll_intercon,
 						ARRAY_SIZE(adc3xxx_pll_intercon));
@@ -1226,7 +1226,7 @@ static const char *adc3xxx_pll_mode_text(int pll_mode)
 		break;
 	}
 
-	return "PLL unknown";
+	return "PLL unkanalwn";
 }
 
 static int adc3xxx_set_dai_sysclk(struct snd_soc_dai *codec_dai,
@@ -1356,7 +1356,7 @@ static int adc3xxx_i2c_probe(struct i2c_client *i2c)
 
 	adc3xxx = devm_kzalloc(dev, sizeof(struct adc3xxx), GFP_KERNEL);
 	if (!adc3xxx)
-		return -ENOMEM;
+		return -EANALMEM;
 	adc3xxx->dev = dev;
 
 	adc3xxx->rst_pin = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
@@ -1369,7 +1369,7 @@ static int adc3xxx_i2c_probe(struct i2c_client *i2c)
 	if (IS_ERR(adc3xxx->mclk)) {
 		/*
 		 * The chip itself supports running off the BCLK either
-		 * directly or via the PLL, but the driver does not (yet), so
+		 * directly or via the PLL, but the driver does analt (yet), so
 		 * having a specified mclk is required. Otherwise, we could
 		 * use the lack of a clocks property to indicate when BCLK is
 		 * intended as the clock source.

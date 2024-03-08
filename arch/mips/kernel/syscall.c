@@ -5,10 +5,10 @@
  *
  * Copyright (C) 1995, 1996, 1997, 2000, 2001, 05 by Ralf Baechle
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
- * Copyright (C) 2001 MIPS Technologies, Inc.
+ * Copyright (C) 2001 MIPS Techanallogies, Inc.
  */
 #include <linux/capability.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/linkage.h>
 #include <linux/fs.h>
 #include <linux/smp.h>
@@ -45,7 +45,7 @@
 /*
  * For historic reasons the pipe(2) syscall on MIPS has an unusual calling
  * convention.	It returns results in registers $v0 / $v1 which means there
- * is no need for it to do verify the validity of a userspace pointer
+ * is anal need for it to do verify the validity of a userspace pointer
  * argument.  Historically that used to be expensive in Linux.	These days
  * the performance advantage is negligible.
  */
@@ -184,7 +184,7 @@ static inline int mips_atomic_set(unsigned long addr, unsigned long new)
 
 	regs = current_pt_regs();
 	regs->regs[2] = old;
-	regs->regs[7] = 0;	/* No error */
+	regs->regs[7] = 0;	/* Anal error */
 
 	/*
 	 * Don't let your children do this ...
@@ -192,7 +192,7 @@ static inline int mips_atomic_set(unsigned long addr, unsigned long new)
 	__asm__ __volatile__(
 	"	move	$29, %0						\n"
 	"	j	syscall_exit					\n"
-	: /* no outputs */
+	: /* anal outputs */
 	: "r" (regs));
 
 	/* unreached.  Honestly.  */
@@ -200,7 +200,7 @@ static inline int mips_atomic_set(unsigned long addr, unsigned long new)
 }
 
 /*
- * mips_atomic_set() normally returns directly via syscall_exit potentially
+ * mips_atomic_set() analrmally returns directly via syscall_exit potentially
  * clobbering static registers, so be sure to preserve them.
  */
 save_static_function(sys_sysmips);
@@ -235,9 +235,9 @@ SYSCALL_DEFINE3(sysmips, long, cmd, long, arg1, long, arg2)
 }
 
 /*
- * No implemented yet ...
+ * Anal implemented yet ...
  */
 SYSCALL_DEFINE3(cachectl, char *, addr, int, nbytes, int, op)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }

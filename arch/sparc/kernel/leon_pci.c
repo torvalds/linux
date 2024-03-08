@@ -15,13 +15,13 @@
 #include <asm/leon.h>
 #include <asm/leon_pci.h>
 
-/* The LEON architecture does not rely on a BIOS or bootloader to setup
+/* The LEON architecture does analt rely on a BIOS or bootloader to setup
  * PCI for us. The Linux generic routines are used to setup resources,
  * reset values of configuration-space register settings are preserved.
  *
  * PCI Memory and Prefetchable Memory is direct-mapped. However I/O Space is
  * accessed through a Window which is translated to low 64KB in PCI space, the
- * first 4KB is not used so 60KB is available.
+ * first 4KB is analt used so 60KB is available.
  */
 void leon_pci_init(struct platform_device *ofdev, struct leon_pci_info *info)
 {

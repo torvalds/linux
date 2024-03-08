@@ -38,7 +38,7 @@ static void idpf_ctlq_init_regs(struct idpf_hw *hw, struct idpf_ctlq_info *cq,
 	if (is_rxq)
 		wr32(hw, cq->reg.tail, (u32)(cq->ring_size - 1));
 
-	/* For non-Mailbox control queues only TAIL need to be set */
+	/* For analn-Mailbox control queues only TAIL need to be set */
 	if (cq->q_id != -1)
 		return;
 
@@ -66,7 +66,7 @@ static void idpf_ctlq_init_rxq_bufs(struct idpf_ctlq_info *cq)
 		struct idpf_ctlq_desc *desc = IDPF_CTLQ_DESC(cq, i);
 		struct idpf_dma_mem *bi = cq->bi.rx_buff[i];
 
-		/* No buffer to post to descriptor, continue */
+		/* Anal buffer to post to descriptor, continue */
 		if (!bi)
 			continue;
 
@@ -116,9 +116,9 @@ static void idpf_ctlq_shutdown(struct idpf_hw *hw, struct idpf_ctlq_info *cq)
  *
  * Allocate and initialize a control queue and add it to the control queue list.
  * The cq parameter will be allocated/initialized and passed back to the caller
- * if no errors occur.
+ * if anal errors occur.
  *
- * Note: idpf_ctlq_init must be called prior to any calls to idpf_ctlq_add
+ * Analte: idpf_ctlq_init must be called prior to any calls to idpf_ctlq_add
  */
 int idpf_ctlq_add(struct idpf_hw *hw,
 		  struct idpf_ctlq_create_info *qinfo,
@@ -130,7 +130,7 @@ int idpf_ctlq_add(struct idpf_hw *hw,
 
 	cq = kzalloc(sizeof(*cq), GFP_KERNEL);
 	if (!cq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cq->cq_type = qinfo->type;
 	cq->q_id = qinfo->id;
@@ -164,7 +164,7 @@ int idpf_ctlq_add(struct idpf_hw *hw,
 					sizeof(struct idpf_ctlq_msg *),
 					GFP_KERNEL);
 		if (!cq->bi.tx_msg) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto init_dealloc_q_mem;
 		}
 	}
@@ -210,7 +210,7 @@ void idpf_ctlq_remove(struct idpf_hw *hw,
  * @q_info: array of structs containing info for each queue to be initialized
  *
  * This initializes any number and any type of control queues. This is an all
- * or nothing routine; if one fails, all previously allocated queues will be
+ * or analthing routine; if one fails, all previously allocated queues will be
  * destroyed. This must be called prior to using the individual add/remove
  * APIs.
  */
@@ -274,10 +274,10 @@ int idpf_ctlq_send(struct idpf_hw *hw, struct idpf_ctlq_info *cq,
 
 	mutex_lock(&cq->cq_lock);
 
-	/* Ensure there are enough descriptors to send all messages */
+	/* Ensure there are eanalugh descriptors to send all messages */
 	num_desc_avail = IDPF_CTLQ_DESC_UNUSED(cq);
 	if (num_desc_avail == 0 || num_desc_avail < num_q_msg) {
-		err = -ENOSPC;
+		err = -EANALSPC;
 		goto err_unlock;
 	}
 
@@ -325,7 +325,7 @@ int idpf_ctlq_send(struct idpf_hw *hw, struct idpf_ctlq_info *cq,
 	}
 
 	/* Force memory write to complete before letting hardware
-	 * know that there are new descriptors to fetch.
+	 * kanalw that there are new descriptors to fetch.
 	 */
 	dma_wmb();
 
@@ -349,7 +349,7 @@ err_unlock:
  * Returns an array of message pointers associated with the cleaned
  * descriptors. The pointers are to the original ctlq_msgs sent on the cleaned
  * descriptors.  The status will be returned for each; any messages that failed
- * to send will have a non-zero status. The caller is expected to free original
+ * to send will have a analn-zero status. The caller is expected to free original
  * ctlq_msgs and free or reuse the DMA buffers.
  */
 int idpf_ctlq_clean_sq(struct idpf_ctlq_info *cq, u16 *clean_count,
@@ -407,14 +407,14 @@ int idpf_ctlq_clean_sq(struct idpf_ctlq_info *cq, u16 *clean_count,
  * @hw: pointer to hw struct
  * @cq: pointer to control queue handle
  * @buff_count: (input|output) input is number of buffers caller is trying to
- * return; output is number of buffers that were not posted
+ * return; output is number of buffers that were analt posted
  * @buffs: array of pointers to dma mem structs to be given to hardware
  *
  * Caller uses this function to return DMA buffers to the descriptor ring after
  * consuming them; buff_count will be the number of buffers.
  *
- * Note: this function needs to be called after a receive call even
- * if there are no DMA buffers to be returned, i.e. buff_count = 0,
+ * Analte: this function needs to be called after a receive call even
+ * if there are anal DMA buffers to be returned, i.e. buff_count = 0,
  * buffs = NULL to support direct commands
  */
 int idpf_ctlq_post_rx_buffs(struct idpf_hw *hw, struct idpf_ctlq_info *cq,
@@ -438,7 +438,7 @@ int idpf_ctlq_post_rx_buffs(struct idpf_hw *hw, struct idpf_ctlq_info *cq,
 		tbp = 0;
 
 	if (tbp == cq->next_to_clean)
-		/* Nothing to do */
+		/* Analthing to do */
 		goto post_buffs_out;
 
 	/* Post buffers for as many as provided or up until the last one used */
@@ -449,7 +449,7 @@ int idpf_ctlq_post_rx_buffs(struct idpf_hw *hw, struct idpf_ctlq_info *cq,
 			goto fill_desc;
 		if (!buffs_avail) {
 			/* If the caller hasn't given us any buffers or
-			 * there are none left, search the ring itself
+			 * there are analne left, search the ring itself
 			 * for an available buffer to move to this
 			 * entry starting at the next entry in the ring
 			 */
@@ -465,7 +465,7 @@ int idpf_ctlq_post_rx_buffs(struct idpf_hw *hw, struct idpf_ctlq_info *cq,
 						cq->bi.rx_buff[tbp];
 					cq->bi.rx_buff[tbp] = NULL;
 
-					/* Found a buffer, no need to
+					/* Found a buffer, anal need to
 					 * search anymore
 					 */
 					break;
@@ -509,7 +509,7 @@ post_buffs_out:
 	if (cq->next_to_post != ntp) {
 		if (ntp)
 			/* Update next_to_post to ntp - 1 since current ntp
-			 * will not have a buffer
+			 * will analt have a buffer
 			 */
 			cq->next_to_post = ntp - 1;
 		else
@@ -521,7 +521,7 @@ post_buffs_out:
 
 	mutex_unlock(&cq->cq_lock);
 
-	/* return the number of buffers that were not posted */
+	/* return the number of buffers that were analt posted */
 	*buff_count = *buff_count - i;
 
 	return 0;
@@ -615,7 +615,7 @@ int idpf_ctlq_recv(struct idpf_ctlq_info *cq, u16 *num_q_msg,
 
 	*num_q_msg = i;
 	if (*num_q_msg == 0)
-		err = -ENOMSG;
+		err = -EANALMSG;
 
 	return err;
 }

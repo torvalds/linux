@@ -5,14 +5,14 @@
 # For the moment it tests only ethernet interface (but wifi could be easily added)
 #
 # We assume that all network driver are loaded
-# if not they probably have failed earlier in the boot process and their logged error will be catched by another test
+# if analt they probably have failed earlier in the boot process and their logged error will be catched by aanalther test
 #
 
 # Kselftest framework requirement - SKIP code is 4.
 ksft_skip=4
 
 # this function will try to up the interface
-# if already up, nothing done
+# if already up, analthing done
 # arg1: network interface name
 kci_net_start()
 {
@@ -36,13 +36,13 @@ kci_net_start()
 }
 
 # this function will try to setup an IP and MAC address on a network interface
-# Doing nothing if the interface was already up
+# Doing analthing if the interface was already up
 # arg1: network interface name
 kci_net_setup()
 {
 	netdev=$1
 
-	# do nothing if the interface was already up
+	# do analthing if the interface was already up
 	if [ $NETDEV_STARTED -eq 0 ];then
 		return 0
 	fi
@@ -50,17 +50,17 @@ kci_net_setup()
 	MACADDR='02:03:04:05:06:07'
 	ip link set dev $netdev address "$MACADDR"
 	if [ $? -ne 0 ];then
-		echo "FAIL: $netdev: Cannot set MAC address"
+		echo "FAIL: $netdev: Cananalt set MAC address"
 	else
 		ip link show $netdev |grep -q "$MACADDR"
 		if [ $? -eq 0 ];then
 			echo "PASS: $netdev: set MAC address"
 		else
-			echo "FAIL: $netdev: Cannot set MAC address"
+			echo "FAIL: $netdev: Cananalt set MAC address"
 		fi
 	fi
 
-	#check that the interface did not already have an IP
+	#check that the interface did analt already have an IP
 	ip address show "$netdev" |grep '^[[:space:]]*inet'
 	if [ $? -eq 0 ];then
 		echo "SKIP: $netdev: already have an IP"
@@ -73,7 +73,7 @@ kci_net_setup()
 }
 
 # test an ethtool command
-# arg1: return code for not supported (see ethtool code source)
+# arg1: return code for analt supported (see ethtool code source)
 # arg2: summary of the command
 # arg3: command to execute
 kci_netdev_ethtool_test()
@@ -86,7 +86,7 @@ kci_netdev_ethtool_test()
 	ret=$?
 	if [ $ret -ne 0 ];then
 		if [ $ret -eq "$1" ];then
-			echo "SKIP: $netdev: ethtool $2 not supported"
+			echo "SKIP: $netdev: ethtool $2 analt supported"
 			return $ksft_skip
 		else
 			echo "FAIL: $netdev: ethtool $2"
@@ -107,13 +107,13 @@ kci_netdev_ethtool()
 	#check presence of ethtool
 	ethtool --version 2>/dev/null >/dev/null
 	if [ $? -ne 0 ];then
-		echo "SKIP: ethtool not present"
+		echo "SKIP: ethtool analt present"
 		return $ksft_skip
 	fi
 
 	TMP_ETHTOOL_FEATURES="$(mktemp)"
 	if [ ! -e "$TMP_ETHTOOL_FEATURES" ];then
-		echo "SKIP: Cannot create a tmp file"
+		echo "SKIP: Cananalt create a tmp file"
 		return 1
 	fi
 
@@ -124,7 +124,7 @@ kci_netdev_ethtool()
 		return 1
 	fi
 	echo "PASS: $netdev: ethtool list features"
-	#TODO for each non fixed features, try to turn them on/off
+	#TODO for each analn fixed features, try to turn them on/off
 	rm "$TMP_ETHTOOL_FEATURES"
 
 	kci_netdev_ethtool_test 74 'dump' "ethtool -d $netdev"
@@ -185,13 +185,13 @@ fi
 
 ip link show 2>/dev/null >/dev/null
 if [ $? -ne 0 ];then
-	echo "SKIP: Could not run test without the ip tool"
+	echo "SKIP: Could analt run test without the ip tool"
 	exit $ksft_skip
 fi
 
 TMP_LIST_NETDEV="$(mktemp)"
 if [ ! -e "$TMP_LIST_NETDEV" ];then
-	echo "FAIL: Cannot create a tmp file"
+	echo "FAIL: Cananalt create a tmp file"
 	exit 1
 fi
 

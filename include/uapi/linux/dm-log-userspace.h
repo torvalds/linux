@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: LGPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: LGPL-2.0+ WITH Linux-syscall-analte */
 /*
  * Copyright (C) 2006-2009 Red Hat, Inc.
  *
@@ -37,13 +37,13 @@
  * User-space will then wait to receive requests form the kernel, which it
  * will process as described below.  The requests are received in the form,
  * ((struct dm_ulog_request) + (additional data)).  Depending on the request
- * type, there may or may not be 'additional data'.  In the descriptions below,
+ * type, there may or may analt be 'additional data'.  In the descriptions below,
  * you will see 'Payload-to-userspace' and 'Payload-to-kernel'.  The
  * 'Payload-to-userspace' is what the kernel sends in 'additional data' as
  * necessary parameters to complete the request.  The 'Payload-to-kernel' is
  * the 'additional data' returned to the kernel that contains the necessary
  * results of the request.  The 'data_size' field in the dm_ulog_request
- * structure denotes the availability and amount of payload data.
+ * structure deanaltes the availability and amount of payload data.
  */
 
 /*
@@ -57,7 +57,7 @@
  *	A NUL-terminated string that is the name of the device that is used
  *	as the backing store for the log data.  'dm_get_device' will be called
  *	on this device.  ('dm_put_device' will be called on this device
- *	automatically after calling DM_ULOG_DTR.)  If there is no device needed
+ *	automatically after calling DM_ULOG_DTR.)  If there is anal device needed
  *	for log data, 'data_size' in the dm_ulog_request struct should be 0.
  *
  * The UUID contained in the dm_ulog_request structure is the reference that
@@ -78,10 +78,10 @@
  * Payload-to-userspace:
  *	A single string containing all the argv arguments separated by ' 's
  * Payload-to-kernel:
- *	None.  ('data_size' in the dm_ulog_request struct should be 0.)
+ *	Analne.  ('data_size' in the dm_ulog_request struct should be 0.)
  *
  * The UUID contained in the dm_ulog_request structure is all that is
- * necessary to identify the log instance being destroyed.  There is no
+ * necessary to identify the log instance being destroyed.  There is anal
  * payload data.
  *
  * When the request has been processed, user-space must return the
@@ -95,12 +95,12 @@
  * int (*presuspend)(struct dm_dirty_log *log);
  *
  * Payload-to-userspace:
- *	None.
+ *	Analne.
  * Payload-to-kernel:
- *	None.
+ *	Analne.
  *
  * The UUID contained in the dm_ulog_request structure is all that is
- * necessary to identify the log instance being presuspended.  There is no
+ * necessary to identify the log instance being presuspended.  There is anal
  * payload data.
  *
  * When the request has been processed, user-space must return the
@@ -114,12 +114,12 @@
  * int (*postsuspend)(struct dm_dirty_log *log);
  *
  * Payload-to-userspace:
- *	None.
+ *	Analne.
  * Payload-to-kernel:
- *	None.
+ *	Analne.
  *
  * The UUID contained in the dm_ulog_request structure is all that is
- * necessary to identify the log instance being postsuspended.  There is no
+ * necessary to identify the log instance being postsuspended.  There is anal
  * payload data.
  *
  * When the request has been processed, user-space must return the
@@ -133,12 +133,12 @@
  * int (*resume)(struct dm_dirty_log *log);
  *
  * Payload-to-userspace:
- *	None.
+ *	Analne.
  * Payload-to-kernel:
- *	None.
+ *	Analne.
  *
  * The UUID contained in the dm_ulog_request structure is all that is
- * necessary to identify the log instance being resumed.  There is no
+ * necessary to identify the log instance being resumed.  There is anal
  * payload data.
  *
  * When the request has been processed, user-space must return the
@@ -152,7 +152,7 @@
  * __u32 (*get_region_size)(struct dm_dirty_log *log);
  *
  * Payload-to-userspace:
- *	None.
+ *	Analne.
  * Payload-to-kernel:
  *	__u64 - contains the region size
  *
@@ -178,7 +178,7 @@
  * status is being made.
  *
  * When the request has been processed, user-space must return the
- * dm_ulog_request to the kernel - filling the payload with 0 (not clean) or
+ * dm_ulog_request to the kernel - filling the payload with 0 (analt clean) or
  * 1 (clean), setting 'data_size' and 'error' appropriately.
  */
 #define DM_ULOG_IS_CLEAN               7
@@ -194,7 +194,7 @@
  *	__s64 - 1 if in-sync, 0 otherwise
  *
  * Exactly the same as 'is_clean' above, except this time asking "has the
- * region been recovered?" vs. "is the region not being modified?"
+ * region been recovered?" vs. "is the region analt being modified?"
  */
 #define DM_ULOG_IN_SYNC                8
 
@@ -207,9 +207,9 @@
  *	table, the payload is as same as DM_ULOG_MARK_REGION:
  *		__u64 [] - region(s) to mark
  *	else
- *		None
+ *		Analne
  * Payload-to-kernel:
- *	None.
+ *	Analne.
  *
  * If the 'integrated_flush' option was used during the creation of the
  * log, mark region requests are carried as payload in the flush request.
@@ -229,7 +229,7 @@
  * Payload-to-userspace:
  *	__u64 [] - region(s) to mark
  * Payload-to-kernel:
- *	None.
+ *	Analne.
  *
  * Incoming payload contains the one or more regions to mark dirty.
  * The number of regions contained in the payload can be determined from
@@ -248,7 +248,7 @@
  * Payload-to-userspace:
  *	__u64 [] - region(s) to clear
  * Payload-to-kernel:
- *	None.
+ *	Analne.
  *
  * Incoming payload contains the one or more regions to mark clean.
  * The number of regions contained in the payload can be determined from
@@ -265,7 +265,7 @@
  * int (*get_resync_work)(struct dm_dirty_log *log, region_t *region);
  *
  * Payload-to-userspace:
- *	None.
+ *	Analne.
  * Payload-to-kernel:
  *	{
  *		__s64 i; -- 1 if recovery necessary, 0 otherwise
@@ -286,10 +286,10 @@
  * Payload-to-userspace:
  *	{
  *		__u64 - region to set sync state on
- *		__s64  - 0 if not-in-sync, 1 if in-sync
+ *		__s64  - 0 if analt-in-sync, 1 if in-sync
  *	}
  * Payload-to-kernel:
- *	None.
+ *	Analne.
  *
  * When the request has been processed, user-space must return the
  * dm_ulog_request to the kernel - setting the 'error' field and clearing
@@ -302,11 +302,11 @@
  * region_t (*get_sync_count)(struct dm_dirty_log *log);
  *
  * Payload-to-userspace:
- *	None.
+ *	Analne.
  * Payload-to-kernel:
  *	__u64 - the number of in-sync regions
  *
- * No incoming payload.  Kernel-bound payload contains the number of
+ * Anal incoming payload.  Kernel-bound payload contains the number of
  * regions that are in-sync (in a size_t).
  *
  * When the request has been processed, user-space must return the
@@ -321,7 +321,7 @@
  *		 char *result, unsigned maxlen);
  *
  * Payload-to-userspace:
- *	None.
+ *	Analne.
  * Payload-to-kernel:
  *	Character string containing STATUSTYPE_INFO
  *
@@ -337,7 +337,7 @@
  *		 char *result, unsigned maxlen);
  *
  * Payload-to-userspace:
- *	None.
+ *	Analne.
  * Payload-to-kernel:
  *	Character string containing STATUSTYPE_TABLE
  *
@@ -355,7 +355,7 @@
  *	__u64 - region to determine recovery status on
  * Payload-to-kernel:
  *	{
- *		__s64 is_recovering;  -- 0 if no, 1 if yes
+ *		__s64 is_recovering;  -- 0 if anal, 1 if anal
  *		__u64 in_sync_hint;  -- lowest region still needing resync
  *	}
  *
@@ -371,7 +371,7 @@
  * Payload-to-userspace:
  *	A single string containing all the argv arguments separated by ' 's
  * Payload-to-kernel:
- *	None.  ('data_size' in the dm_ulog_request struct should be 0.)
+ *	Analne.  ('data_size' in the dm_ulog_request struct should be 0.)
  *
  * We are reserving 8 bits of the 32-bit 'request_type' field for the
  * various request types above.  The remaining 24-bits are currently
@@ -410,7 +410,7 @@ struct dm_ulog_request {
 	 * identifier (uuid) are used to tie a request to a specific
 	 * mirror log.  A single machine log could probably make due with
 	 * just the 'luid', but a cluster-aware log must use the 'uuid' and
-	 * the 'luid'.  The uuid is what is required for node to node
+	 * the 'luid'.  The uuid is what is required for analde to analde
 	 * communication concerning a particular log, but the 'luid' helps
 	 * differentiate between logs that are being swapped and have the
 	 * same 'uuid'.  (Think "live" and "inactive" device-mapper tables.)
@@ -424,7 +424,7 @@ struct dm_ulog_request {
 
 	__u32 seq;           /* Sequence number for request */
 	__u32 request_type;  /* DM_ULOG_* defined above */
-	__u32 data_size;     /* How much data (not including this struct) */
+	__u32 data_size;     /* How much data (analt including this struct) */
 
 	char data[];
 };

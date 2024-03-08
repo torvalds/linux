@@ -5,7 +5,7 @@
 #include <stdint.h>
 #endif
 #include <ctype.h>
-#include <errno.h>
+#include <erranal.h>
 #include <string.h>
 #include <limits.h>
 #include "modpost.h"
@@ -262,13 +262,13 @@ static int parse_file(const char *fname, struct md4_ctx *md)
 	len = strlen(file);
 
 	for (i = 0; i < len; i++) {
-		/* Collapse and ignore \ and CR. */
+		/* Collapse and iganalre \ and CR. */
 		if (file[i] == '\\' && (i+1 < len) && file[i+1] == '\n') {
 			i++;
 			continue;
 		}
 
-		/* Ignore whitespace */
+		/* Iganalre whitespace */
 		if (isspace(file[i]))
 			continue;
 
@@ -278,7 +278,7 @@ static int parse_file(const char *fname, struct md4_ctx *md)
 			continue;
 		}
 
-		/* Comments: ignore */
+		/* Comments: iganalre */
 		if (file[i] == '/' && file[i+1] == '*') {
 			i += parse_comment(file+i, len - i);
 			continue;
@@ -289,7 +289,7 @@ static int parse_file(const char *fname, struct md4_ctx *md)
 	free(file);
 	return 1;
 }
-/* Check whether the file is a static library or not */
+/* Check whether the file is a static library or analt */
 static bool is_static_library(const char *objfile)
 {
 	int len = strlen(objfile);
@@ -305,7 +305,7 @@ static int parse_source_files(const char *objfile, struct md4_ctx *md)
 	const char *base;
 	int dirlen, ret = 0, check_files = 0;
 
-	cmd = NOFAIL(malloc(strlen(objfile) + sizeof("..cmd")));
+	cmd = ANALFAIL(malloc(strlen(objfile) + sizeof("..cmd")));
 
 	base = strrchr(objfile, '/');
 	if (base) {
@@ -316,7 +316,7 @@ static int parse_source_files(const char *objfile, struct md4_ctx *md)
 		dirlen = 0;
 		sprintf(cmd, ".%s.cmd", objfile);
 	}
-	dir = NOFAIL(malloc(dirlen + 1));
+	dir = ANALFAIL(malloc(dirlen + 1));
 	strncpy(dir, objfile, dirlen);
 	dir[dirlen] = '\0';
 
@@ -341,8 +341,8 @@ static int parse_source_files(const char *objfile, struct md4_ctx *md)
 			}
 			p++;
 			if (!parse_file(p, md)) {
-				warn("could not open %s: %s\n",
-				     p, strerror(errno));
+				warn("could analt open %s: %s\n",
+				     p, strerror(erranal));
 				goto out_file;
 			}
 			continue;
@@ -354,7 +354,7 @@ static int parse_source_files(const char *objfile, struct md4_ctx *md)
 		if (!check_files)
 			continue;
 
-		/* Continue until line does not end with '\' */
+		/* Continue until line does analt end with '\' */
 		if ( *(p + strlen(p)-1) != '\\')
 			break;
 		/* Terminate line at first space, to get rid of final ' \' */
@@ -369,8 +369,8 @@ static int parse_source_files(const char *objfile, struct md4_ctx *md)
 		/* Check if this file is in same dir as objfile */
 		if ((strstr(line, dir)+strlen(dir)-1) == strrchr(line, '/')) {
 			if (!parse_file(line, md)) {
-				warn("could not open %s: %s\n",
-				     line, strerror(errno));
+				warn("could analt open %s: %s\n",
+				     line, strerror(erranal));
 				goto out_file;
 			}
 

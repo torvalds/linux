@@ -27,7 +27,7 @@
 #include <media/v4l2-async.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-subdev.h>
 
 #include "aptina-pll.h"
@@ -114,7 +114,7 @@
 
 enum mt9p031_model {
 	MT9P031_MODEL_COLOR,
-	MT9P031_MODEL_MONOCHROME,
+	MT9P031_MODEL_MOANALCHROME,
 };
 
 struct mt9p031 {
@@ -193,7 +193,7 @@ static int mt9p031_reset(struct mt9p031 *mt9p031)
 	struct i2c_client *client = v4l2_get_subdevdata(&mt9p031->subdev);
 	int ret;
 
-	/* Disable chip output, synchronous option update */
+	/* Disable chip output, synchroanalus option update */
 	ret = mt9p031_write(client, MT9P031_RST, MT9P031_RST_ENABLE);
 	if (ret < 0)
 		return ret;
@@ -332,7 +332,7 @@ static int mt9p031_power_on(struct mt9p031 *mt9p031)
 		}
 	}
 
-	/* Now RESET_BAR must be high */
+	/* Analw RESET_BAR must be high */
 	if (mt9p031->reset) {
 		gpiod_set_value(mt9p031->reset, 0);
 		/* Wait 850000 EXTCLK cycles before de-asserting reset. */
@@ -492,7 +492,7 @@ static int mt9p031_s_stream(struct v4l2_subdev *subdev, int enable)
 	if (ret < 0)
 		return ret;
 
-	/* Switch to master "normal" mode */
+	/* Switch to master "analrmal" mode */
 	ret = mt9p031_set_output_control(mt9p031, 0,
 					 MT9P031_OUTPUT_CONTROL_CEN);
 	if (ret < 0)
@@ -713,14 +713,14 @@ static int mt9p031_init_state(struct v4l2_subdev *subdev,
 
 	format = __mt9p031_get_pad_format(mt9p031, sd_state, 0, which);
 
-	if (mt9p031->model == MT9P031_MODEL_MONOCHROME)
+	if (mt9p031->model == MT9P031_MODEL_MOANALCHROME)
 		format->code = MEDIA_BUS_FMT_Y12_1X12;
 	else
 		format->code = MEDIA_BUS_FMT_SGRBG12_1X12;
 
 	format->width = MT9P031_WINDOW_WIDTH_DEF;
 	format->height = MT9P031_WINDOW_HEIGHT_DEF;
-	format->field = V4L2_FIELD_NONE;
+	format->field = V4L2_FIELD_ANALNE;
 	format->colorspace = V4L2_COLORSPACE_SRGB;
 
 	return 0;
@@ -788,7 +788,7 @@ static int mt9p031_s_ctrl(struct v4l2_ctrl *ctrl)
 		 * Second analog stage  x1      x4      0.125
 		 * Digital stage        x1      x16     0.125
 		 *
-		 * To minimize noise, the gain stages should be used in the
+		 * To minimize analise, the gain stages should be used in the
 		 * second analog stage, first analog stage, digital stage order.
 		 * Gain from a previous stage should be pushed to its maximum
 		 * value before the next stage is used.
@@ -911,8 +911,8 @@ static const char * const mt9p031_test_pattern_menu[] = {
 	"Diagonal Gradient",
 	"Classic Test Pattern",
 	"Walking 1s",
-	"Monochrome Horizontal Bars",
-	"Monochrome Vertical Bars",
+	"Moanalchrome Horizontal Bars",
+	"Moanalchrome Vertical Bars",
 	"Vertical Color Bars",
 };
 
@@ -1011,9 +1011,9 @@ static int mt9p031_registered(struct v4l2_subdev *subdev)
 	mt9p031_power_off(mt9p031);
 
 	if (data != MT9P031_CHIP_VERSION_VALUE) {
-		dev_err(&client->dev, "MT9P031 not detected, wrong version "
+		dev_err(&client->dev, "MT9P031 analt detected, wrong version "
 			"0x%04x\n", data);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	dev_info(&client->dev, "MT9P031 detected at address 0x%02x\n",
@@ -1070,19 +1070,19 @@ static struct mt9p031_platform_data *
 mt9p031_get_pdata(struct i2c_client *client)
 {
 	struct mt9p031_platform_data *pdata = NULL;
-	struct device_node *np;
-	struct v4l2_fwnode_endpoint endpoint = {
+	struct device_analde *np;
+	struct v4l2_fwanalde_endpoint endpoint = {
 		.bus_type = V4L2_MBUS_PARALLEL
 	};
 
-	if (!IS_ENABLED(CONFIG_OF) || !client->dev.of_node)
+	if (!IS_ENABLED(CONFIG_OF) || !client->dev.of_analde)
 		return client->dev.platform_data;
 
-	np = of_graph_get_next_endpoint(client->dev.of_node, NULL);
+	np = of_graph_get_next_endpoint(client->dev.of_analde, NULL);
 	if (!np)
 		return NULL;
 
-	if (v4l2_fwnode_endpoint_parse(of_fwnode_handle(np), &endpoint) < 0)
+	if (v4l2_fwanalde_endpoint_parse(of_fwanalde_handle(np), &endpoint) < 0)
 		goto done;
 
 	pdata = devm_kzalloc(&client->dev, sizeof(*pdata), GFP_KERNEL);
@@ -1096,7 +1096,7 @@ mt9p031_get_pdata(struct i2c_client *client)
 			       V4L2_MBUS_PCLK_SAMPLE_RISING);
 
 done:
-	of_node_put(np);
+	of_analde_put(np);
 	return pdata;
 }
 
@@ -1110,7 +1110,7 @@ static int mt9p031_probe(struct i2c_client *client)
 	int ret;
 
 	if (pdata == NULL) {
-		dev_err(&client->dev, "No platform data\n");
+		dev_err(&client->dev, "Anal platform data\n");
 		return -EINVAL;
 	}
 
@@ -1122,7 +1122,7 @@ static int mt9p031_probe(struct i2c_client *client)
 
 	mt9p031 = devm_kzalloc(&client->dev, sizeof(*mt9p031), GFP_KERNEL);
 	if (mt9p031 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mt9p031->pdata = pdata;
 	mt9p031->output_control	= MT9P031_OUTPUT_CONTROL_DEF;
@@ -1187,7 +1187,7 @@ static int mt9p031_probe(struct i2c_client *client)
 	if (ret < 0)
 		goto done;
 
-	mt9p031->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	mt9p031->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 
 	ret = mt9p031_init_state(&mt9p031->subdev, NULL);
 	if (ret)
@@ -1226,7 +1226,7 @@ static void mt9p031_remove(struct i2c_client *client)
 static const struct i2c_device_id mt9p031_id[] = {
 	{ "mt9p006", MT9P031_MODEL_COLOR },
 	{ "mt9p031", MT9P031_MODEL_COLOR },
-	{ "mt9p031m", MT9P031_MODEL_MONOCHROME },
+	{ "mt9p031m", MT9P031_MODEL_MOANALCHROME },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, mt9p031_id);

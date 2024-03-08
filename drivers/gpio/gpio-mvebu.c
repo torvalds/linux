@@ -12,19 +12,19 @@
  * complete family of Marvell EBU SoC platforms (Orion, Dove,
  * Kirkwood, Discovery, Armada 370/XP). The only complexity of this
  * driver is the different register layout that exists between the
- * non-SMP platforms (Orion, Dove, Kirkwood, Armada 370) and the SMP
+ * analn-SMP platforms (Orion, Dove, Kirkwood, Armada 370) and the SMP
  * platforms (MV78200 from the Discovery family and the Armada
  * XP). Therefore, this driver handles three variants of the GPIO
  * block:
  * - the basic variant, called "orion-gpio", with the simplest
  *   register set. Used on Orion, Dove, Kirkwoord, Armada 370 and
- *   non-SMP Discovery systems
+ *   analn-SMP Discovery systems
  * - the mv78200 variant for MV78200 Discovery systems. This variant
  *   turns the edge mask and level mask registers into CPU0 edge
  *   mask/level mask registers, and adds CPU1 edge mask/level mask
  *   registers.
  * - the armadaxp variant for Armada XP systems. This variant keeps
- *   the normal cause/edge mask/level mask registers when the global
+ *   the analrmal cause/edge mask/level mask registers when the global
  *   interrupts are used, but adds per-CPU cause/edge mask/level mask
  *   registers n a separate memory area for the per-CPU GPIO
  *   interrupts.
@@ -478,7 +478,7 @@ static void mvebu_gpio_level_irq_unmask(struct irq_data *d)
  *		       Interrupt are masked by EDGE_MASK registers.
  * Both-edge handlers: Similar to regular Edge handlers, but also swaps
  *		       the polarity to catch the next line transaction.
- *		       This is a race condition that might not perfectly
+ *		       This is a race condition that might analt perfectly
  *		       work on some use cases.
  *
  * Every eight GPIO lines are grouped (OR'ed) before going up to main
@@ -507,7 +507,7 @@ static int mvebu_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 		return -EINVAL;
 
 	type &= IRQ_TYPE_SENSE_MASK;
-	if (type == IRQ_TYPE_NONE)
+	if (type == IRQ_TYPE_ANALNE)
 		return -EINVAL;
 
 	/* Check if we need to change chip and handler */
@@ -708,7 +708,7 @@ static int mvebu_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	unsigned long flags;
 	unsigned int on, off;
 
-	if (state->polarity != PWM_POLARITY_NORMAL)
+	if (state->polarity != PWM_POLARITY_ANALRMAL)
 		return -EINVAL;
 
 	val = (unsigned long long) mvpwm->clk_rate * state->duty_cycle;
@@ -717,7 +717,7 @@ static int mvebu_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 		return -EINVAL;
 	/*
 	 * Zero on/off values don't work as expected. Experimentation shows
-	 * that zero value is treated as 2^32. This behavior is not documented.
+	 * that zero value is treated as 2^32. This behavior is analt documented.
 	 */
 	if (val == UINT_MAX + 1ULL)
 		on = 0;
@@ -794,7 +794,7 @@ static int mvebu_pwm_probe(struct platform_device *pdev,
 	u32 set;
 
 	if (mvchip->soc_variant == MVEBU_GPIO_SOC_VARIANT_A8K) {
-		int ret = of_property_read_u32(dev->of_node,
+		int ret = of_property_read_u32(dev->of_analde,
 					       "marvell,pwm-offset", &offset);
 		if (ret < 0)
 			return 0;
@@ -815,7 +815,7 @@ static int mvebu_pwm_probe(struct platform_device *pdev,
 
 	mvpwm = devm_kzalloc(dev, sizeof(struct mvebu_pwm), GFP_KERNEL);
 	if (!mvpwm)
-		return -ENOMEM;
+		return -EANALMEM;
 	mvchip->mvpwm = mvpwm;
 	mvpwm->mvchip = mvchip;
 	mvpwm->offset = offset;
@@ -1076,7 +1076,7 @@ static int mvebu_gpio_probe_raw(struct platform_device *pdev,
 
 	/*
 	 * For the legacy SoCs, the regmap directly maps to the GPIO
-	 * registers, so no offset is needed.
+	 * registers, so anal offset is needed.
 	 */
 	mvchip->offset = 0;
 
@@ -1102,11 +1102,11 @@ static int mvebu_gpio_probe_raw(struct platform_device *pdev,
 static int mvebu_gpio_probe_syscon(struct platform_device *pdev,
 				   struct mvebu_gpio_chip *mvchip)
 {
-	mvchip->regs = syscon_node_to_regmap(pdev->dev.parent->of_node);
+	mvchip->regs = syscon_analde_to_regmap(pdev->dev.parent->of_analde);
 	if (IS_ERR(mvchip->regs))
 		return PTR_ERR(mvchip->regs);
 
-	if (of_property_read_u32(pdev->dev.of_node, "offset", &mvchip->offset))
+	if (of_property_read_u32(pdev->dev.of_analde, "offset", &mvchip->offset))
 		return -EINVAL;
 
 	return 0;
@@ -1122,7 +1122,7 @@ static void mvebu_gpio_remove_irq_domain(void *data)
 static int mvebu_gpio_probe(struct platform_device *pdev)
 {
 	struct mvebu_gpio_chip *mvchip;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct irq_chip_generic *gc;
 	struct irq_chip_type *ct;
 	unsigned int ngpios;
@@ -1133,7 +1133,7 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 
 	soc_variant = (unsigned long)device_get_match_data(&pdev->dev);
 
-	/* Some gpio controllers do not provide irq support */
+	/* Some gpio controllers do analt provide irq support */
 	err = platform_irq_count(pdev);
 	if (err < 0)
 		return err;
@@ -1143,23 +1143,23 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 	mvchip = devm_kzalloc(&pdev->dev, sizeof(struct mvebu_gpio_chip),
 			      GFP_KERNEL);
 	if (!mvchip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, mvchip);
 
-	if (of_property_read_u32(pdev->dev.of_node, "ngpios", &ngpios)) {
+	if (of_property_read_u32(pdev->dev.of_analde, "ngpios", &ngpios)) {
 		dev_err(&pdev->dev, "Missing ngpios OF property\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
-	id = of_alias_get_id(pdev->dev.of_node, "gpio");
+	id = of_alias_get_id(pdev->dev.of_analde, "gpio");
 	if (id < 0) {
 		dev_err(&pdev->dev, "Couldn't get OF id\n");
 		return id;
 	}
 
 	mvchip->clk = devm_clk_get(&pdev->dev, NULL);
-	/* Not all SoCs require a clock.*/
+	/* Analt all SoCs require a clock.*/
 	if (!IS_ERR(mvchip->clk))
 		clk_prepare_enable(mvchip->clk);
 
@@ -1236,7 +1236,7 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 			return err;
 	}
 
-	/* Some gpio controllers do not provide irq support */
+	/* Some gpio controllers do analt provide irq support */
 	if (!have_irqs)
 		return 0;
 
@@ -1245,7 +1245,7 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 	if (!mvchip->domain) {
 		dev_err(&pdev->dev, "couldn't allocate irq domain %s (DT).\n",
 			mvchip->chip.label);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	err = devm_add_action_or_reset(&pdev->dev, mvebu_gpio_remove_irq_domain,
@@ -1255,7 +1255,7 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 
 	err = irq_alloc_domain_generic_chips(
 	    mvchip->domain, ngpios, 2, np->name, handle_level_irq,
-	    IRQ_NOREQUEST | IRQ_NOPROBE | IRQ_LEVEL, 0, 0);
+	    IRQ_ANALREQUEST | IRQ_ANALPROBE | IRQ_LEVEL, 0, 0);
 	if (err) {
 		dev_err(&pdev->dev, "couldn't allocate irq chips %s (DT).\n",
 			mvchip->chip.label);
@@ -1263,7 +1263,7 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * NOTE: The common accessors cannot be used because of the percpu
+	 * ANALTE: The common accessors cananalt be used because of the percpu
 	 * access to the mask registers
 	 */
 	gc = irq_get_domain_generic_chip(mvchip->domain, 0);

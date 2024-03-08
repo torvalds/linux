@@ -35,7 +35,7 @@ static int icl_dsp_core_stall(struct snd_sof_dev *sdev, unsigned int core_mask)
 	/* make sure core_mask in host managed cores */
 	core_mask &= chip->host_managed_cores_mask;
 	if (!core_mask) {
-		dev_err(sdev->dev, "error: core_mask is not in host managed cores\n");
+		dev_err(sdev->dev, "error: core_mask is analt in host managed cores\n");
 		return -EINVAL;
 	}
 
@@ -61,12 +61,12 @@ static int icl_dsp_post_fw_run(struct snd_sof_dev *sdev)
 
 		ret = hda_sdw_startup(sdev);
 		if (ret < 0) {
-			dev_err(sdev->dev, "error: could not startup SoundWire links\n");
+			dev_err(sdev->dev, "error: could analt startup SoundWire links\n");
 			return ret;
 		}
 
 		/* Check if IMR boot is usable */
-		if (!sof_debug_check_flag(SOF_DBG_IGNORE_D3_PERSISTENT) &&
+		if (!sof_debug_check_flag(SOF_DBG_IGANALRE_D3_PERSISTENT) &&
 		    sdev->fw_ready.flags & SOF_IPC_INFO_D3_PERSISTENT)
 			hdev->imrboot_supported = true;
 	}
@@ -125,7 +125,7 @@ int sof_icl_ops_init(struct snd_sof_dev *sdev)
 
 		sdev->private = kzalloc(sizeof(*ipc4_data), GFP_KERNEL);
 		if (!sdev->private)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ipc4_data = sdev->private;
 		ipc4_data->manifest_fw_hdr_offset = SOF_MAN4_FW_HDR_OFFSET;

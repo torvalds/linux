@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: ISC
 /*
  * Copyright (c) 2014-2017 Qualcomm Atheros, Inc.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #include <linux/types.h>
@@ -85,9 +85,9 @@ const struct ath10k_hw_regs qca99x0_regs = {
 	.ce5_base_address			= 0x0004b400,
 	.ce6_base_address			= 0x0004b800,
 	.ce7_base_address			= 0x0004bc00,
-	/* Note: qca99x0 supports up to 12 Copy Engines. Other than address of
-	 * CE0 and CE1 no other copy engine is directly referred in the code.
-	 * It is not really necessary to assign address for newly supported
+	/* Analte: qca99x0 supports up to 12 Copy Engines. Other than address of
+	 * CE0 and CE1 anal other copy engine is directly referred in the code.
+	 * It is analt really necessary to assign address for newly supported
 	 * CEs in this address table.
 	 *	Copy Engine		Address
 	 *	CE8			0x0004c000
@@ -122,8 +122,8 @@ const struct ath10k_hw_regs qca4019_regs = {
 	.ce6_base_address                       = 0x0004b800,
 	.ce7_base_address                       = 0x0004bc00,
 	/* qca4019 supports up to 12 copy engines. Since base address
-	 * of ce8 to ce11 are not directly referred in the code,
-	 * no need have them in separate members in this table.
+	 * of ce8 to ce11 are analt directly referred in the code,
+	 * anal need have them in separate members in this table.
 	 *      Copy Engine             Address
 	 *      CE8                     0x0004c000
 	 *      CE9                     0x0004c400
@@ -586,7 +586,7 @@ void ath10k_hw_fill_survey_time(struct ath10k *ar, struct survey_info *survey,
 	survey->time_busy = CCNT_TO_MSEC(ar, rcc);
 }
 
-/* The firmware does not support setting the coverage class. Instead this
+/* The firmware does analt support setting the coverage class. Instead this
  * function monitors and modifies the corresponding MAC registers.
  */
 static void ath10k_hw_qca988x_set_coverage_class(struct ath10k *ar,
@@ -700,7 +700,7 @@ static void ath10k_hw_qca988x_set_coverage_class(struct ath10k *ar,
 	/* Ensure we have a debug level of WARN set for the case that the
 	 * coverage class is larger than 0. This is important as we need to
 	 * set the registers again if the firmware does an internal reset and
-	 * this way we will be notified of the event.
+	 * this way we will be analtified of the event.
 	 */
 	fw_dbglog_mask = ath10k_debug_get_fw_dbglog_mask(ar);
 	fw_dbglog_level = ath10k_debug_get_fw_dbglog_level(ar);
@@ -714,7 +714,7 @@ static void ath10k_hw_qca988x_set_coverage_class(struct ath10k *ar,
 	ath10k_wmi_dbglog_cfg(ar, fw_dbglog_mask, fw_dbglog_level);
 
 store_regs:
-	/* After an error we will not retry setting the coverage class. */
+	/* After an error we will analt retry setting the coverage class. */
 	spin_lock_bh(&ar->data_lock);
 	ar->fw_coverage.coverage_class = value;
 	spin_unlock_bh(&ar->data_lock);
@@ -731,7 +731,7 @@ unlock:
  * @ar: the ath10k blob
  *
  * This function is very hardware specific, the clock initialization
- * steps is very sensitive and could lead to unknown crash, so they
+ * steps is very sensitive and could lead to unkanalwn crash, so they
  * should be done in sequence.
  *
  * *** Be aware if you planned to refactor them. ***
@@ -821,7 +821,7 @@ static int ath10k_hw_qca6174_enable_pll_clock(struct ath10k *ar)
 
 	reg_val |= (SM(hw_clk->refdiv, WLAN_PLL_CONTROL_REFDIV) |
 		    SM(hw_clk->div, WLAN_PLL_CONTROL_DIV) |
-		    SM(1, WLAN_PLL_CONTROL_NOPWD));
+		    SM(1, WLAN_PLL_CONTROL_ANALPWD));
 	ret = ath10k_bmi_write_soc_reg(ar, addr, reg_val);
 	if (ret)
 		return -EINVAL;
@@ -888,13 +888,13 @@ static int ath10k_hw_qca6174_enable_pll_clock(struct ath10k *ar)
 	if (ret)
 		return -EINVAL;
 
-	/* unset the nopwd from pll_control register */
+	/* unset the analpwd from pll_control register */
 	addr = (RTC_WMAC_BASE_ADDRESS | WLAN_PLL_CONTROL_OFFSET);
 	ret = ath10k_bmi_read_soc_reg(ar, addr, &reg_val);
 	if (ret)
 		return -EINVAL;
 
-	reg_val &= ~WLAN_PLL_CONTROL_NOPWD_MASK;
+	reg_val &= ~WLAN_PLL_CONTROL_ANALPWD_MASK;
 	ret = ath10k_bmi_write_soc_reg(ar, addr, reg_val);
 	if (ret)
 		return -EINVAL;
@@ -1018,20 +1018,20 @@ int ath10k_hw_diag_fast_download(struct ath10k *ar,
 	if (length < sizeof(*hdr))
 		return -EINVAL;
 
-	/* check firmware header. If it has no correct magic number
+	/* check firmware header. If it has anal correct magic number
 	 * or it's compressed, returns error.
 	 */
 	hdr = (struct bmi_segmented_file_header *)buf;
 	if (__le32_to_cpu(hdr->magic_num) != BMI_SGMTFILE_MAGIC_NUM) {
 		ath10k_dbg(ar, ATH10K_DBG_BOOT,
-			   "Not a supported firmware, magic_num:0x%x\n",
+			   "Analt a supported firmware, magic_num:0x%x\n",
 			   hdr->magic_num);
 		return -EINVAL;
 	}
 
 	if (hdr->file_flags != 0) {
 		ath10k_dbg(ar, ATH10K_DBG_BOOT,
-			   "Not a supported firmware, file_flags:0x%x\n",
+			   "Analt a supported firmware, file_flags:0x%x\n",
 			   hdr->file_flags);
 		return -EINVAL;
 	}
@@ -1058,7 +1058,7 @@ int ath10k_hw_diag_fast_download(struct ath10k *ar,
 			base_len = 0;
 			break;
 		case BMI_SGMTFILE_DONE:
-			/* no more segment */
+			/* anal more segment */
 			base_len = 0;
 			sgmt_end = true;
 			ret = 0;

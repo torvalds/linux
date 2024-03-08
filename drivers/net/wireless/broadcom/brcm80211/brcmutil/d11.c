@@ -13,7 +13,7 @@
 static u16 d11n_sb(enum brcmu_chan_sb sb)
 {
 	switch (sb) {
-	case BRCMU_CHAN_SB_NONE:
+	case BRCMU_CHAN_SB_ANALNE:
 		return BRCMU_CHSPEC_D11N_SB_N;
 	case BRCMU_CHAN_SB_L:
 		return BRCMU_CHSPEC_D11N_SB_L;
@@ -41,7 +41,7 @@ static u16 d11n_bw(enum brcmu_chan_bw bw)
 static void brcmu_d11n_encchspec(struct brcmu_chan *ch)
 {
 	if (ch->bw == BRCMU_CHAN_BW_20)
-		ch->sb = BRCMU_CHAN_SB_NONE;
+		ch->sb = BRCMU_CHAN_SB_ANALNE;
 
 	ch->chspec = 0;
 	brcmu_maskset16(&ch->chspec, BRCMU_CHSPEC_CH_MASK,
@@ -76,7 +76,7 @@ static u16 d11ac_bw(enum brcmu_chan_bw bw)
 
 static void brcmu_d11ac_encchspec(struct brcmu_chan *ch)
 {
-	if (ch->bw == BRCMU_CHAN_BW_20 || ch->sb == BRCMU_CHAN_SB_NONE)
+	if (ch->bw == BRCMU_CHAN_BW_20 || ch->sb == BRCMU_CHAN_SB_ANALNE)
 		ch->sb = BRCMU_CHAN_SB_L;
 
 	brcmu_maskset16(&ch->chspec, BRCMU_CHSPEC_CH_MASK,
@@ -103,7 +103,7 @@ static void brcmu_d11n_decchspec(struct brcmu_chan *ch)
 	switch (ch->chspec & BRCMU_CHSPEC_D11N_BW_MASK) {
 	case BRCMU_CHSPEC_D11N_BW_20:
 		ch->bw = BRCMU_CHAN_BW_20;
-		ch->sb = BRCMU_CHAN_SB_NONE;
+		ch->sb = BRCMU_CHAN_SB_ANALNE;
 		break;
 	case BRCMU_CHSPEC_D11N_BW_40:
 		ch->bw = BRCMU_CHAN_BW_40;
@@ -144,7 +144,7 @@ static void brcmu_d11ac_decchspec(struct brcmu_chan *ch)
 	switch (ch->chspec & BRCMU_CHSPEC_D11AC_BW_MASK) {
 	case BRCMU_CHSPEC_D11AC_BW_20:
 		ch->bw = BRCMU_CHAN_BW_20;
-		ch->sb = BRCMU_CHAN_SB_NONE;
+		ch->sb = BRCMU_CHAN_SB_ANALNE;
 		break;
 	case BRCMU_CHSPEC_D11AC_BW_40:
 		ch->bw = BRCMU_CHAN_BW_40;

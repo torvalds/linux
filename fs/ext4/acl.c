@@ -34,9 +34,9 @@ ext4_acl_from_disk(const void *value, size_t size)
 		return ERR_PTR(-EINVAL);
 	if (count == 0)
 		return NULL;
-	acl = posix_acl_alloc(count, GFP_NOFS);
+	acl = posix_acl_alloc(count, GFP_ANALFS);
 	if (!acl)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	for (n = 0; n < count; n++) {
 		ext4_acl_entry *entry =
 			(ext4_acl_entry *)value;
@@ -96,9 +96,9 @@ ext4_acl_to_disk(const struct posix_acl *acl, size_t *size)
 
 	*size = ext4_acl_size(acl->a_count);
 	ext_acl = kmalloc(sizeof(ext4_acl_header) + acl->a_count *
-			sizeof(ext4_acl_entry), GFP_NOFS);
+			sizeof(ext4_acl_entry), GFP_ANALFS);
 	if (!ext_acl)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	ext_acl->a_version = cpu_to_le32(EXT4_ACL_VERSION);
 	e = (char *)ext_acl + sizeof(ext4_acl_header);
 	for (n = 0; n < acl->a_count; n++) {
@@ -137,12 +137,12 @@ fail:
 }
 
 /*
- * Inode operation get_posix_acl().
+ * Ianalde operation get_posix_acl().
  *
- * inode->i_rwsem: don't care
+ * ianalde->i_rwsem: don't care
  */
 struct posix_acl *
-ext4_get_acl(struct inode *inode, int type, bool rcu)
+ext4_get_acl(struct ianalde *ianalde, int type, bool rcu)
 {
 	int name_index;
 	char *value = NULL;
@@ -162,16 +162,16 @@ ext4_get_acl(struct inode *inode, int type, bool rcu)
 	default:
 		BUG();
 	}
-	retval = ext4_xattr_get(inode, name_index, "", NULL, 0);
+	retval = ext4_xattr_get(ianalde, name_index, "", NULL, 0);
 	if (retval > 0) {
-		value = kmalloc(retval, GFP_NOFS);
+		value = kmalloc(retval, GFP_ANALFS);
 		if (!value)
-			return ERR_PTR(-ENOMEM);
-		retval = ext4_xattr_get(inode, name_index, "", value, retval);
+			return ERR_PTR(-EANALMEM);
+		retval = ext4_xattr_get(ianalde, name_index, "", value, retval);
 	}
 	if (retval > 0)
 		acl = ext4_acl_from_disk(value, retval);
-	else if (retval == -ENODATA || retval == -ENOSYS)
+	else if (retval == -EANALDATA || retval == -EANALSYS)
 		acl = NULL;
 	else
 		acl = ERR_PTR(retval);
@@ -181,12 +181,12 @@ ext4_get_acl(struct inode *inode, int type, bool rcu)
 }
 
 /*
- * Set the access or default ACL of an inode.
+ * Set the access or default ACL of an ianalde.
  *
- * inode->i_rwsem: down unless called from ext4_new_inode
+ * ianalde->i_rwsem: down unless called from ext4_new_ianalde
  */
 static int
-__ext4_set_acl(handle_t *handle, struct inode *inode, int type,
+__ext4_set_acl(handle_t *handle, struct ianalde *ianalde, int type,
 	     struct posix_acl *acl, int xattr_flags)
 {
 	int name_index;
@@ -201,7 +201,7 @@ __ext4_set_acl(handle_t *handle, struct inode *inode, int type,
 
 	case ACL_TYPE_DEFAULT:
 		name_index = EXT4_XATTR_INDEX_POSIX_ACL_DEFAULT;
-		if (!S_ISDIR(inode->i_mode))
+		if (!S_ISDIR(ianalde->i_mode))
 			return acl ? -EACCES : 0;
 		break;
 
@@ -214,12 +214,12 @@ __ext4_set_acl(handle_t *handle, struct inode *inode, int type,
 			return (int)PTR_ERR(value);
 	}
 
-	error = ext4_xattr_set_handle(handle, inode, name_index, "",
+	error = ext4_xattr_set_handle(handle, ianalde, name_index, "",
 				      value, size, xattr_flags);
 
 	kfree(value);
 	if (!error)
-		set_cached_acl(inode, type, acl);
+		set_cached_acl(ianalde, type, acl);
 
 	return error;
 }
@@ -231,74 +231,74 @@ ext4_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 	handle_t *handle;
 	int error, credits, retries = 0;
 	size_t acl_size = acl ? ext4_acl_size(acl->a_count) : 0;
-	struct inode *inode = d_inode(dentry);
-	umode_t mode = inode->i_mode;
+	struct ianalde *ianalde = d_ianalde(dentry);
+	umode_t mode = ianalde->i_mode;
 	int update_mode = 0;
 
-	error = dquot_initialize(inode);
+	error = dquot_initialize(ianalde);
 	if (error)
 		return error;
 retry:
-	error = ext4_xattr_set_credits(inode, acl_size, false /* is_create */,
+	error = ext4_xattr_set_credits(ianalde, acl_size, false /* is_create */,
 				       &credits);
 	if (error)
 		return error;
 
-	handle = ext4_journal_start(inode, EXT4_HT_XATTR, credits);
+	handle = ext4_journal_start(ianalde, EXT4_HT_XATTR, credits);
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
 
 	if ((type == ACL_TYPE_ACCESS) && acl) {
-		error = posix_acl_update_mode(idmap, inode, &mode, &acl);
+		error = posix_acl_update_mode(idmap, ianalde, &mode, &acl);
 		if (error)
 			goto out_stop;
-		if (mode != inode->i_mode)
+		if (mode != ianalde->i_mode)
 			update_mode = 1;
 	}
 
-	error = __ext4_set_acl(handle, inode, type, acl, 0 /* xattr_flags */);
+	error = __ext4_set_acl(handle, ianalde, type, acl, 0 /* xattr_flags */);
 	if (!error && update_mode) {
-		inode->i_mode = mode;
-		inode_set_ctime_current(inode);
-		error = ext4_mark_inode_dirty(handle, inode);
+		ianalde->i_mode = mode;
+		ianalde_set_ctime_current(ianalde);
+		error = ext4_mark_ianalde_dirty(handle, ianalde);
 	}
 out_stop:
 	ext4_journal_stop(handle);
-	if (error == -ENOSPC && ext4_should_retry_alloc(inode->i_sb, &retries))
+	if (error == -EANALSPC && ext4_should_retry_alloc(ianalde->i_sb, &retries))
 		goto retry;
 	return error;
 }
 
 /*
- * Initialize the ACLs of a new inode. Called from ext4_new_inode.
+ * Initialize the ACLs of a new ianalde. Called from ext4_new_ianalde.
  *
  * dir->i_rwsem: down
- * inode->i_rwsem: up (access to inode is still exclusive)
+ * ianalde->i_rwsem: up (access to ianalde is still exclusive)
  */
 int
-ext4_init_acl(handle_t *handle, struct inode *inode, struct inode *dir)
+ext4_init_acl(handle_t *handle, struct ianalde *ianalde, struct ianalde *dir)
 {
 	struct posix_acl *default_acl, *acl;
 	int error;
 
-	error = posix_acl_create(dir, &inode->i_mode, &default_acl, &acl);
+	error = posix_acl_create(dir, &ianalde->i_mode, &default_acl, &acl);
 	if (error)
 		return error;
 
 	if (default_acl) {
-		error = __ext4_set_acl(handle, inode, ACL_TYPE_DEFAULT,
+		error = __ext4_set_acl(handle, ianalde, ACL_TYPE_DEFAULT,
 				       default_acl, XATTR_CREATE);
 		posix_acl_release(default_acl);
 	} else {
-		inode->i_default_acl = NULL;
+		ianalde->i_default_acl = NULL;
 	}
 	if (acl) {
 		if (!error)
-			error = __ext4_set_acl(handle, inode, ACL_TYPE_ACCESS,
+			error = __ext4_set_acl(handle, ianalde, ACL_TYPE_ACCESS,
 					       acl, XATTR_CREATE);
 		posix_acl_release(acl);
 	} else {
-		inode->i_acl = NULL;
+		ianalde->i_acl = NULL;
 	}
 	return error;
 }

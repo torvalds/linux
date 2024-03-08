@@ -11,7 +11,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/delay.h>
 #include <linux/init.h>
@@ -80,10 +80,10 @@ struct bw2_regs {
 #define BWTWO_SR_1152_900_76_A	0x40
 #define BWTWO_SR_1152_900_76_B	0x60
 #define BWTWO_SR_ID_MASK	0x0f
-#define BWTWO_SR_ID_MONO	0x02
-#define BWTWO_SR_ID_MONO_ECL	0x03
+#define BWTWO_SR_ID_MOANAL	0x02
+#define BWTWO_SR_ID_MOANAL_ECL	0x03
 #define BWTWO_SR_ID_MSYNC	0x04
-#define BWTWO_SR_ID_NOCONN	0x0a
+#define BWTWO_SR_ID_ANALCONN	0x0a
 
 /* Control Register Constants */
 #define BWTWO_CTL_ENABLE_INTS   0x80
@@ -131,7 +131,7 @@ bw2_blank(int blank, struct fb_info *info)
 		par->flags &= ~BW2_FLAG_BLANKED;
 		break;
 
-	case FB_BLANK_NORMAL: /* Normal blanking */
+	case FB_BLANK_ANALRMAL: /* Analrmal blanking */
 	case FB_BLANK_VSYNC_SUSPEND: /* VESA blank (vsync off) */
 	case FB_BLANK_HSYNC_SUSPEND: /* VESA blank (hsync off) */
 	case FB_BLANK_POWERDOWN: /* Poweroff */
@@ -179,7 +179,7 @@ static void bw2_init_fix(struct fb_info *info, int linebytes)
 	strscpy(info->fix.id, "bwtwo", sizeof(info->fix.id));
 
 	info->fix.type = FB_TYPE_PACKED_PIXELS;
-	info->fix.visual = FB_VISUAL_MONO01;
+	info->fix.visual = FB_VISUAL_MOANAL01;
 
 	info->fix.line_length = linebytes;
 
@@ -230,7 +230,7 @@ static int bw2_do_default_mode(struct bw2_par *par, struct fb_info *info,
 	status = sbus_readb(&par->regs->status);
 	mon = status & BWTWO_SR_RES_MASK;
 	switch (status & BWTWO_SR_ID_MASK) {
-	case BWTWO_SR_ID_MONO_ECL:
+	case BWTWO_SR_ID_MOANAL_ECL:
 		if (mon == BWTWO_SR_1600_1280) {
 			p = bw2regs_1600;
 			info->var.xres = info->var.xres_virtual = 1600;
@@ -240,7 +240,7 @@ static int bw2_do_default_mode(struct bw2_par *par, struct fb_info *info,
 			p = bw2regs_ecl;
 		break;
 
-	case BWTWO_SR_ID_MONO:
+	case BWTWO_SR_ID_MOANAL:
 		p = bw2regs_analog;
 		break;
 
@@ -252,7 +252,7 @@ static int bw2_do_default_mode(struct bw2_par *par, struct fb_info *info,
 			p = bw2regs_66hz;
 		break;
 
-	case BWTWO_SR_ID_NOCONN:
+	case BWTWO_SR_ID_ANALCONN:
 		return 0;
 
 	default:
@@ -269,14 +269,14 @@ static int bw2_do_default_mode(struct bw2_par *par, struct fb_info *info,
 
 static int bw2_probe(struct platform_device *op)
 {
-	struct device_node *dp = op->dev.of_node;
+	struct device_analde *dp = op->dev.of_analde;
 	struct fb_info *info;
 	struct bw2_par *par;
 	int linebytes, err;
 
 	info = framebuffer_alloc(sizeof(struct bw2_par), &op->dev);
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	if (!info)
 		goto out_err;
 	par = info->par;
@@ -313,7 +313,7 @@ static int bw2_probe(struct platform_device *op)
 	info->screen_base = of_ioremap(&op->resource[0], 0,
 				       info->fix.smem_len, "bw2 ram");
 	if (!info->screen_base) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_unmap_regs;
 	}
 
@@ -378,7 +378,7 @@ static struct platform_driver bw2_driver = {
 static int __init bw2_init(void)
 {
 	if (fb_get_options("bw2fb", NULL))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return platform_driver_register(&bw2_driver);
 }

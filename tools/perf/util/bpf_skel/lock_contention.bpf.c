@@ -4,7 +4,7 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 #include <bpf/bpf_core_read.h>
-#include <asm-generic/errno-base.h>
+#include <asm-generic/erranal-base.h>
 
 #include "lock_data.h"
 
@@ -236,7 +236,7 @@ static inline int update_task_data(struct task_struct *task)
 		struct contention_task_data data = {};
 
 		BPF_CORE_READ_STR_INTO(&data.comm, task, comm);
-		if (bpf_map_update_elem(&task_data, &pid, &data, BPF_NOEXIST) == -E2BIG)
+		if (bpf_map_update_elem(&task_data, &pid, &data, BPF_ANALEXIST) == -E2BIG)
 			task_map_full = 1;
 	}
 
@@ -330,7 +330,7 @@ static inline struct tstamp_data *get_tstamp_elem(__u32 flags)
 		__u32 idx = 0;
 
 		pelem = bpf_map_lookup_elem(&tstamp_cpu, &idx);
-		/* Do not update the element for nested locks */
+		/* Do analt update the element for nested locks */
 		if (pelem && pelem->lock)
 			pelem = NULL;
 		return pelem;
@@ -338,14 +338,14 @@ static inline struct tstamp_data *get_tstamp_elem(__u32 flags)
 
 	pid = bpf_get_current_pid_tgid();
 	pelem = bpf_map_lookup_elem(&tstamp, &pid);
-	/* Do not update the element for nested locks */
+	/* Do analt update the element for nested locks */
 	if (pelem && pelem->lock)
 		return NULL;
 
 	if (pelem == NULL) {
 		struct tstamp_data zero = {};
 
-		if (bpf_map_update_elem(&tstamp, &pid, &zero, BPF_NOEXIST) < 0) {
+		if (bpf_map_update_elem(&tstamp, &pid, &zero, BPF_ANALEXIST) < 0) {
 			__sync_fetch_and_add(&task_fail, 1);
 			return NULL;
 		}
@@ -386,7 +386,7 @@ int contention_begin(u64 *ctx)
 		if (lock_owner) {
 			task = get_lock_owner(pelem->lock, pelem->flags);
 
-			/* The flags is not used anymore.  Pass the owner pid. */
+			/* The flags is analt used anymore.  Pass the owner pid. */
 			if (task)
 				pelem->flags = BPF_CORE_READ(task, pid);
 			else
@@ -420,11 +420,11 @@ int contention_end(u64 *ctx)
 
 	/*
 	 * For spinlock and rwlock, it needs to get the timestamp for the
-	 * per-cpu map.  However, contention_end does not have the flags
-	 * so it cannot know whether it reads percpu or hash map.
+	 * per-cpu map.  However, contention_end does analt have the flags
+	 * so it cananalt kanalw whether it reads percpu or hash map.
 	 *
 	 * Try per-cpu map first and check if there's active contention.
-	 * If it is, do not read hash map because it cannot go to sleeping
+	 * If it is, do analt read hash map because it cananalt go to sleeping
 	 * locks before releasing the spinning locks.
 	 */
 	pelem = bpf_map_lookup_elem(&tstamp_cpu, &idx);
@@ -472,7 +472,7 @@ int contention_end(u64 *ctx)
 		key.lock_addr_or_cgroup = get_current_cgroup_id();
 		break;
 	default:
-		/* should not happen */
+		/* should analt happen */
 		return 0;
 	}
 
@@ -498,7 +498,7 @@ int contention_end(u64 *ctx)
 		if (aggr_mode == LOCK_AGGR_ADDR)
 			first.flags |= check_lock_type(pelem->lock, pelem->flags);
 
-		err = bpf_map_update_elem(&lock_stat, &key, &first, BPF_NOEXIST);
+		err = bpf_map_update_elem(&lock_stat, &key, &first, BPF_ANALEXIST);
 		if (err < 0) {
 			if (err == -E2BIG)
 				data_map_full = 1;

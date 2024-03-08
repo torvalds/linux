@@ -268,7 +268,7 @@ static int versatile_panel_get_modes(struct drm_panel *panel,
 
 	mode = drm_mode_duplicate(connector->dev, &vpanel->panel_type->mode);
 	if (!mode)
-		return -ENOMEM;
+		return -EANALMEM;
 	drm_mode_set_name(mode);
 	mode->type = DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED;
 
@@ -297,22 +297,22 @@ static int versatile_panel_probe(struct platform_device *pdev)
 
 	parent = dev->parent;
 	if (!parent) {
-		dev_err(dev, "no parent for versatile panel\n");
-		return -ENODEV;
+		dev_err(dev, "anal parent for versatile panel\n");
+		return -EANALDEV;
 	}
-	map = syscon_node_to_regmap(parent->of_node);
+	map = syscon_analde_to_regmap(parent->of_analde);
 	if (IS_ERR(map)) {
-		dev_err(dev, "no regmap for versatile panel parent\n");
+		dev_err(dev, "anal regmap for versatile panel parent\n");
 		return PTR_ERR(map);
 	}
 
 	vpanel = devm_kzalloc(dev, sizeof(*vpanel), GFP_KERNEL);
 	if (!vpanel)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = regmap_read(map, SYS_CLCD, &val);
 	if (ret) {
-		dev_err(dev, "cannot access syscon regs\n");
+		dev_err(dev, "cananalt access syscon regs\n");
 		return ret;
 	}
 
@@ -328,10 +328,10 @@ static int versatile_panel_probe(struct platform_device *pdev)
 		}
 	}
 
-	/* No panel detected or VGA, let's leave this show */
+	/* Anal panel detected or VGA, let's leave this show */
 	if (i == ARRAY_SIZE(versatile_panels)) {
-		dev_info(dev, "no panel detected\n");
-		return -ENODEV;
+		dev_info(dev, "anal panel detected\n");
+		return -EANALDEV;
 	}
 
 	dev_info(dev, "detected: %s\n", vpanel->panel_type->name);

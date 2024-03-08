@@ -9,12 +9,12 @@
  * It can:
  *	- Simulate 'playback' and 'capture' actions
  *	- Generate random or pattern-based capture data
- *	- Check playback buffer for containing looped template, and notify about the results
+ *	- Check playback buffer for containing looped template, and analtify about the results
  *	through the debugfs entry
  *	- Inject delays into the playback and capturing processes. See 'inject_delay' parameter.
  *	- Inject errors during the PCM callbacks.
- *	- Register custom RESET ioctl and notify when it is called through the debugfs entry
- *	- Work in interleaved and non-interleaved modes
+ *	- Register custom RESET ioctl and analtify when it is called through the debugfs entry
+ *	- Work in interleaved and analn-interleaved modes
  *	- Support up to 8 substreams
  *	- Support up to 4 channels
  *	- Support framerates from 8 kHz to 48 kHz
@@ -22,7 +22,7 @@
  * When driver works in the capture mode with multiple channels, it duplicates the looped
  * pattern to each separate channel. For example, if we have 2 channels, format = U8, interleaved
  * access mode and pattern 'abacaba', the DMA buffer will look like aabbccaabbaaaa..., so buffer for
- * each channel will contain abacabaabacaba... Same for the non-interleaved mode.
+ * each channel will contain abacabaabacaba... Same for the analn-interleaved mode.
  *
  * However, it may break the capturing on the higher framerates with small period size, so it is
  * better to choose larger period sizes.
@@ -104,9 +104,9 @@ struct pcmtst_buf_iter {
 	unsigned int sample_bytes;		// sample_bits / 8
 	bool is_buf_corrupted;			// playback test result indicator
 	size_t period_bytes;			// bytes in a one period
-	bool interleaved;			// Interleaved/Non-interleaved mode
+	bool interleaved;			// Interleaved/Analn-interleaved mode
 	size_t total_bytes;			// Total bytes read/written
-	size_t chan_block;			// Bytes in one channel buffer when non-interleaved
+	size_t chan_block;			// Bytes in one channel buffer when analn-interleaved
 	struct snd_pcm_substream *substream;
 	bool suspend;				// We need to pause timer without shutting it down
 	struct timer_list timer_instance;
@@ -115,7 +115,7 @@ struct pcmtst_buf_iter {
 static struct snd_pcm_hardware snd_pcmtst_hw = {
 	.info = (SNDRV_PCM_INFO_INTERLEAVED |
 		 SNDRV_PCM_INFO_BLOCK_TRANSFER |
-		 SNDRV_PCM_INFO_NONINTERLEAVED |
+		 SNDRV_PCM_INFO_ANALNINTERLEAVED |
 		 SNDRV_PCM_INFO_MMAP_VALID |
 		 SNDRV_PCM_INFO_PAUSE),
 	.formats =		SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_S16_LE,
@@ -148,7 +148,7 @@ static inline void inc_buf_pos(struct pcmtst_buf_iter *v_iter, size_t by, size_t
 }
 
 /*
- * Position in the DMA buffer when we are in the non-interleaved mode. We increment buf_pos
+ * Position in the DMA buffer when we are in the analn-interleaved mode. We increment buf_pos
  * every time we write a byte to any channel, so the position in the current channel buffer is
  * (position in the DMA buffer) / count_of_channels + size_of_channel_buf * current_channel
  */
@@ -228,7 +228,7 @@ static void check_buf_block(struct pcmtst_buf_iter *v_iter, struct snd_pcm_runti
 }
 
 /*
- * Fill buffer in the non-interleaved mode. The order of samples is C0, ..., C0, C1, ..., C1, C2...
+ * Fill buffer in the analn-interleaved mode. The order of samples is C0, ..., C0, C1, ..., C1, C2...
  * The channel buffers lay in the DMA buffer continuously (see default copy
  * handlers in the pcm_lib.c file).
  *
@@ -337,7 +337,7 @@ static void fill_block(struct pcmtst_buf_iter *v_iter, struct snd_pcm_runtime *r
 
 /*
  * Here we iterate through the buffer by (buffer_size / iterates_per_second) bytes.
- * The driver uses timer to simulate the hardware pointer moving, and notify the PCM middle layer
+ * The driver uses timer to simulate the hardware pointer moving, and analtify the PCM middle layer
  * about period elapsed.
  */
 static void timer_timeout(struct timer_list *data)
@@ -378,7 +378,7 @@ static int snd_pcmtst_pcm_open(struct snd_pcm_substream *substream)
 
 	v_iter = kzalloc(sizeof(*v_iter), GFP_KERNEL);
 	if (!v_iter)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	v_iter->substream = substream;
 	runtime->hw = snd_pcmtst_hw;
@@ -477,8 +477,8 @@ static int snd_pcmtst_pcm_prepare(struct snd_pcm_substream *substream)
 	v_iter->sample_bytes = samples_to_bytes(runtime, 1);
 	v_iter->period_bytes = snd_pcm_lib_period_bytes(substream);
 	v_iter->interleaved = true;
-	if (runtime->access == SNDRV_PCM_ACCESS_RW_NONINTERLEAVED ||
-	    runtime->access == SNDRV_PCM_ACCESS_MMAP_NONINTERLEAVED) {
+	if (runtime->access == SNDRV_PCM_ACCESS_RW_ANALNINTERLEAVED ||
+	    runtime->access == SNDRV_PCM_ACCESS_MMAP_ANALNINTERLEAVED) {
 		v_iter->chan_block = snd_pcm_lib_buffer_bytes(substream) / runtime->channels;
 		v_iter->interleaved = false;
 	}
@@ -576,7 +576,7 @@ static int snd_pcmtst_create(struct snd_card *card, struct platform_device *pdev
 
 	pcmtst = kzalloc(sizeof(*pcmtst), GFP_KERNEL);
 	if (!pcmtst)
-		return -ENOMEM;
+		return -EANALMEM;
 	pcmtst->card = card;
 	pcmtst->pdev = pdev;
 
@@ -648,7 +648,7 @@ static struct platform_driver pcmtst_pdrv = {
 
 static ssize_t pattern_write(struct file *file, const char __user *u_buff, size_t len, loff_t *off)
 {
-	struct pattern_buf *patt_buf = file->f_inode->i_private;
+	struct pattern_buf *patt_buf = file->f_ianalde->i_private;
 	ssize_t to_write = len;
 
 	if (*off + to_write > MAX_PATTERN_LEN)
@@ -669,7 +669,7 @@ static ssize_t pattern_write(struct file *file, const char __user *u_buff, size_
 
 static ssize_t pattern_read(struct file *file, char __user *u_buff, size_t len, loff_t *off)
 {
-	struct pattern_buf *patt_buf = file->f_inode->i_private;
+	struct pattern_buf *patt_buf = file->f_ianalde->i_private;
 	ssize_t to_read = len;
 
 	if (*off + to_read >= MAX_PATTERN_LEN)
@@ -747,7 +747,7 @@ static int __init mod_init(void)
 
 	buf_allocated = setup_patt_bufs();
 	if (!buf_allocated)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	snd_pcmtst_hw.channels_max = buf_allocated;
 

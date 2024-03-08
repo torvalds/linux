@@ -100,7 +100,7 @@
 	vcc-gpio = <&chipcommon 12 GPIO_ACTIVE_HIGH>;
 };
 
-&spi_nor {
+&spi_analr {
 	status = "okay";
 
 	partitions {

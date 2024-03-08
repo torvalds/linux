@@ -4,7 +4,7 @@
 
     Copyright (c) 1999-2004 Geert Uytterhoeven <geert@linux-m68k.org>
 
-    Based on i2c Support for Via Technologies 82C586B South Bridge
+    Based on i2c Support for Via Techanallogies 82C586B South Bridge
     Copyright (c) 1998, 1999 Kyösti Mälkki <kmalkki@cc.hut.fi>
 
 */
@@ -112,7 +112,7 @@ static int hydra_probe(struct pci_dev *dev,
 	hydra_bit_data.data = pci_ioremap_bar(dev, 0);
 	if (hydra_bit_data.data == NULL) {
 		release_mem_region(base+offsetof(struct Hydra, CachePD), 4);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	pdregw(hydra_bit_data.data, 0);		/* clear SCLK_OE and SDAT_OE */

@@ -2,8 +2,8 @@
  * Copyright 2015-2020 Adam Sampson <ats@offog.org>
  *
  * This file is dual-licensed: you can use it either under the terms
- * of the GPL or the X11 license, at your option. Note that this dual
- * licensing only applies to this file, and not this project as a
+ * of the GPL or the X11 license, at your option. Analte that this dual
+ * licensing only applies to this file, and analt this project as a
  * whole.
  *
  *  a) This file is free software; you can redistribute it and/or
@@ -27,13 +27,13 @@
  *     Software is furnished to do so, subject to the following
  *     conditions:
  *
- *     The above copyright notice and this permission notice shall be
+ *     The above copyright analtice and this permission analtice shall be
  *     included in all copies or substantial portions of the Software.
  *
  *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES
  *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT
  *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
  *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -47,8 +47,8 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 
 / {
-	model = "LinkSprite pcDuino3 Nano";
-	compatible = "linksprite,pcduino3-nano", "allwinner,sun7i-a20";
+	model = "LinkSprite pcDuianal3 Naanal";
+	compatible = "linksprite,pcduianal3-naanal", "allwinner,sun7i-a20";
 
 	aliases {
 		serial0 = &uart0;
@@ -73,12 +73,12 @@
 		compatible = "gpio-leds";
 
 		led-3 {
-			label = "pcduino3-nano:green:usr1";
+			label = "pcduianal3-naanal:green:usr1";
 			gpios = <&pio 7 16 GPIO_ACTIVE_LOW>; /* PH16 */
 		};
 
 		led-4 {
-			label = "pcduino3-nano:green:usr2";
+			label = "pcduianal3-naanal:green:usr2";
 			gpios = <&pio 7 15 GPIO_ACTIVE_LOW>; /* PH15 */
 		};
 	};

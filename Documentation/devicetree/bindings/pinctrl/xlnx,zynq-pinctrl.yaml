@@ -12,18 +12,18 @@ maintainers:
 description: |
   Please refer to pinctrl-bindings.txt in this directory for details of the
   common pinctrl bindings used by client devices, including the meaning of the
-  phrase "pin configuration node".
+  phrase "pin configuration analde".
 
-  Zynq's pin configuration nodes act as a container for an arbitrary number of
-  subnodes. Each of these subnodes represents some desired configuration for a
+  Zynq's pin configuration analdes act as a container for an arbitrary number of
+  subanaldes. Each of these subanaldes represents some desired configuration for a
   pin, a group, or a list of pins or groups. This configuration can include the
   mux function to select on those pin(s)/group(s), and various pin configuration
   parameters, such as pull-up, slew rate, etc.
 
-  Each configuration node can consist of multiple nodes describing the pinmux and
-  pinconf options. Those nodes can be pinmux nodes or pinconf nodes.
+  Each configuration analde can consist of multiple analdes describing the pinmux and
+  pinconf options. Those analdes can be pinmux analdes or pinconf analdes.
 
-  The name of each subnode is not important; all subnodes should be enumerated
+  The name of each subanalde is analt important; all subanaldes should be enumerated
   and processed purely based on their content.
 
 properties:
@@ -45,15 +45,15 @@ patternProperties:
       '^mux':
         type: object
         description:
-          Pinctrl node's client devices use subnodes for pin muxes,
+          Pinctrl analde's client devices use subanaldes for pin muxes,
           which in turn use below standard properties.
-        $ref: pinmux-node.yaml#
+        $ref: pinmux-analde.yaml#
 
         properties:
           groups:
             description:
               List of groups to select (either this or "pins" must be
-              specified), available groups for this subnode.
+              specified), available groups for this subanalde.
             items:
               enum: [ethernet0_0_grp, ethernet1_0_grp, mdio0_0_grp,
                      mdio1_0_grp, qspi0_0_grp, qspi1_0_grp, qspi_fbclk,
@@ -67,8 +67,8 @@ patternProperties:
                      spi1_3_ss2, sdio0_0_grp, sdio0_1_grp, sdio0_2_grp,
                      sdio1_0_grp, sdio1_1_grp, sdio1_2_grp, sdio1_3_grp,
                      sdio0_emio_wp, sdio0_emio_cd, sdio1_emio_wp,
-                     sdio1_emio_cd, smc0_nor, smc0_nor_cs1_grp,
-                     smc0_nor_addr25_grp, smc0_nand, can0_0_grp, can0_1_grp,
+                     sdio1_emio_cd, smc0_analr, smc0_analr_cs1_grp,
+                     smc0_analr_addr25_grp, smc0_nand, can0_0_grp, can0_1_grp,
                      can0_2_grp, can0_3_grp, can0_4_grp, can0_5_grp,
                      can0_6_grp, can0_7_grp, can0_8_grp, can0_9_grp,
                      can0_10_grp, can1_0_grp, can1_1_grp, can1_2_grp,
@@ -112,7 +112,7 @@ patternProperties:
             enum: [ethernet0, ethernet1, mdio0, mdio1, qspi0, qspi1, qspi_fbclk,
                    qspi_cs1, spi0, spi0_ss, spi1, spi1_ss, sdio0, sdio0_pc,
                    sdio0_cd, sdio0_wp, sdio1, sdio1_pc, sdio1_cd, sdio1_wp,
-                   smc0_nor, smc0_nor_cs1, smc0_nor_addr25, smc0_nand, can0,
+                   smc0_analr, smc0_analr_cs1, smc0_analr_addr25, smc0_nand, can0,
                    can1, uart0, uart1, i2c0, i2c1, ttc0, ttc1, swdt0, gpio0,
                    usb0, usb1]
 
@@ -125,9 +125,9 @@ patternProperties:
       '^conf':
         type: object
         description:
-          Pinctrl node's client devices use subnodes for pin configurations,
+          Pinctrl analde's client devices use subanaldes for pin configurations,
           which in turn use the standard properties below.
-        $ref: pincfg-node.yaml#
+        $ref: pincfg-analde.yaml#
 
         properties:
           groups:
@@ -136,7 +136,7 @@ patternProperties:
 
           pins:
             description:
-              List of pin names to select in this subnode.
+              List of pin names to select in this subanalde.
             items:
               pattern: '^MIO([0-9]|[1-4][0-9]|5[0-3])$'
             maxItems: 54

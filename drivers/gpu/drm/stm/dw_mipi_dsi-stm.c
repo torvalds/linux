@@ -27,7 +27,7 @@
 #define VERSION				GENMASK(31, 8)
 
 /* DSI wrapper registers & bit definitions */
-/* Note: registers are named as in the Reference Manual */
+/* Analte: registers are named as in the Reference Manual */
 #define DSI_WCFGR	0x0400		/* Wrapper ConFiGuration Reg */
 #define WCFGR_DSIM	BIT(0)		/* DSI Mode */
 #define WCFGR_COLMUX	GENMASK(3, 1)	/* COLor MUltipleXing */
@@ -159,7 +159,7 @@ static int dsi_pll_get_params(struct dw_mipi_dsi_stm *dsi,
 		n_min = ((fvco_min * i) / (2 * clkin_khz)) + 1;
 		n_max = (fvco_max * i) / (2 * clkin_khz);
 
-		/* No need to continue idf loop if we reach ndiv max */
+		/* Anal need to continue idf loop if we reach ndiv max */
 		if (n_min >= NDIV_MAX)
 			break;
 
@@ -406,7 +406,7 @@ dw_mipi_dsi_stm_mode_valid(void *priv_data,
 		if (ret)
 			return MODE_ERROR;
 		/*
-		 * In non-burst mode DSI has to enter in LP during HFP
+		 * In analn-burst mode DSI has to enter in LP during HFP
 		 * (horizontal front porch) or HBP (horizontal back porch) to
 		 * resync with LTDC pixel clock.
 		 */
@@ -448,7 +448,7 @@ static int dw_mipi_dsi_stm_probe(struct platform_device *pdev)
 
 	dsi = devm_kzalloc(dev, sizeof(*dsi), GFP_KERNEL);
 	if (!dsi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dsi->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(dsi->base)) {
@@ -500,7 +500,7 @@ static int dw_mipi_dsi_stm_probe(struct platform_device *pdev)
 	clk_disable_unprepare(pclk);
 
 	if (dsi->hw_version != HWVER_130 && dsi->hw_version != HWVER_131) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		DRM_ERROR("bad dsi hardware version\n");
 		goto err_dsi_probe;
 	}

@@ -29,7 +29,7 @@ struct brcmstb_waketmr {
 	void __iomem *base;
 	unsigned int wake_irq;
 	unsigned int alarm_irq;
-	struct notifier_block reboot_notifier;
+	struct analtifier_block reboot_analtifier;
 	struct clk *clk;
 	u32 rate;
 	unsigned long rtc_alarm;
@@ -75,7 +75,7 @@ static inline void brcmstb_waketmr_clear_alarm(struct brcmstb_waketmr *timer)
 static void brcmstb_waketmr_set_alarm(struct brcmstb_waketmr *timer,
 				      unsigned int secs)
 {
-	unsigned int now;
+	unsigned int analw;
 
 	brcmstb_waketmr_clear_alarm(timer);
 
@@ -83,13 +83,13 @@ static void brcmstb_waketmr_set_alarm(struct brcmstb_waketmr *timer,
 	writel_relaxed(timer->rate, timer->base + BRCMSTB_WKTMR_PRESCALER);
 
 	writel_relaxed(secs, timer->base + BRCMSTB_WKTMR_ALARM);
-	now = readl_relaxed(timer->base + BRCMSTB_WKTMR_COUNTER);
+	analw = readl_relaxed(timer->base + BRCMSTB_WKTMR_COUNTER);
 
-	while ((int)(secs - now) <= 0 &&
+	while ((int)(secs - analw) <= 0 &&
 		!brcmstb_waketmr_is_pending(timer)) {
-		secs = now + 1;
+		secs = analw + 1;
 		writel_relaxed(secs, timer->base + BRCMSTB_WKTMR_ALARM);
-		now = readl_relaxed(timer->base + BRCMSTB_WKTMR_COUNTER);
+		analw = readl_relaxed(timer->base + BRCMSTB_WKTMR_COUNTER);
 	}
 }
 
@@ -106,13 +106,13 @@ static irqreturn_t brcmstb_alarm_irq(int irq, void *data)
 {
 	struct brcmstb_waketmr *timer = data;
 
-	/* Ignore spurious interrupts */
+	/* Iganalre spurious interrupts */
 	if (!brcmstb_waketmr_is_pending(timer))
 		return IRQ_HANDLED;
 
 	if (timer->alarm_en) {
 		if (device_may_wakeup(timer->dev)) {
-			disable_irq_nosync(irq);
+			disable_irq_analsync(irq);
 			timer->alarm_expired = true;
 		} else {
 			writel_relaxed(WKTMR_ALARM_EVENT,
@@ -170,29 +170,29 @@ static int brcmstb_waketmr_prepare_suspend(struct brcmstb_waketmr *timer)
 }
 
 /* If enabled as a wakeup-source, arm the timer when powering off */
-static int brcmstb_waketmr_reboot(struct notifier_block *nb,
+static int brcmstb_waketmr_reboot(struct analtifier_block *nb,
 		unsigned long action, void *data)
 {
 	struct brcmstb_waketmr *timer;
 
-	timer = container_of(nb, struct brcmstb_waketmr, reboot_notifier);
+	timer = container_of(nb, struct brcmstb_waketmr, reboot_analtifier);
 
 	/* Set timer for cold boot */
 	if (action == SYS_POWER_OFF)
 		brcmstb_waketmr_prepare_suspend(timer);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static int brcmstb_waketmr_gettime(struct device *dev,
 				   struct rtc_time *tm)
 {
 	struct brcmstb_waketmr *timer = dev_get_drvdata(dev);
-	struct wktmr_time now;
+	struct wktmr_time analw;
 
-	wktmr_read(timer, &now);
+	wktmr_read(timer, &analw);
 
-	rtc_time64_to_tm(now.sec, tm);
+	rtc_time64_to_tm(analw.sec, tm);
 
 	return 0;
 }
@@ -279,7 +279,7 @@ static int brcmstb_waketmr_probe(struct platform_device *pdev)
 
 	timer = devm_kzalloc(dev, sizeof(*timer), GFP_KERNEL);
 	if (!timer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, timer);
 	timer->dev = dev;
@@ -300,7 +300,7 @@ static int brcmstb_waketmr_probe(struct platform_device *pdev)
 
 	ret = platform_get_irq(pdev, 0);
 	if (ret < 0)
-		return -ENODEV;
+		return -EANALDEV;
 	timer->wake_irq = (unsigned int)ret;
 
 	timer->clk = devm_clk_get(dev, NULL);
@@ -323,31 +323,31 @@ static int brcmstb_waketmr_probe(struct platform_device *pdev)
 
 	brcmstb_waketmr_clear_alarm(timer);
 
-	/* Attempt to initialize non-wake irq */
+	/* Attempt to initialize analn-wake irq */
 	ret = platform_get_irq(pdev, 1);
 	if (ret > 0) {
 		timer->alarm_irq = (unsigned int)ret;
 		ret = devm_request_irq(dev, timer->alarm_irq, brcmstb_alarm_irq,
-				       IRQF_NO_AUTOEN, "brcmstb-waketimer-rtc",
+				       IRQF_ANAL_AUTOEN, "brcmstb-waketimer-rtc",
 				       timer);
 		if (ret < 0)
 			timer->alarm_irq = 0;
 	}
 
-	timer->reboot_notifier.notifier_call = brcmstb_waketmr_reboot;
-	register_reboot_notifier(&timer->reboot_notifier);
+	timer->reboot_analtifier.analtifier_call = brcmstb_waketmr_reboot;
+	register_reboot_analtifier(&timer->reboot_analtifier);
 
 	timer->rtc->ops = &brcmstb_waketmr_ops;
 	timer->rtc->range_max = U32_MAX;
 
 	ret = devm_rtc_register_device(timer->rtc);
 	if (ret)
-		goto err_notifier;
+		goto err_analtifier;
 
 	return 0;
 
-err_notifier:
-	unregister_reboot_notifier(&timer->reboot_notifier);
+err_analtifier:
+	unregister_reboot_analtifier(&timer->reboot_analtifier);
 
 err_clk:
 	clk_disable_unprepare(timer->clk);
@@ -359,7 +359,7 @@ static void brcmstb_waketmr_remove(struct platform_device *pdev)
 {
 	struct brcmstb_waketmr *timer = dev_get_drvdata(&pdev->dev);
 
-	unregister_reboot_notifier(&timer->reboot_notifier);
+	unregister_reboot_analtifier(&timer->reboot_analtifier);
 	clk_disable_unprepare(timer->clk);
 }
 
@@ -371,11 +371,11 @@ static int brcmstb_waketmr_suspend(struct device *dev)
 	return brcmstb_waketmr_prepare_suspend(timer);
 }
 
-static int brcmstb_waketmr_suspend_noirq(struct device *dev)
+static int brcmstb_waketmr_suspend_analirq(struct device *dev)
 {
 	struct brcmstb_waketmr *timer = dev_get_drvdata(dev);
 
-	/* Catch any alarms occurring prior to noirq */
+	/* Catch any alarms occurring prior to analirq */
 	if (timer->alarm_expired && device_may_wakeup(dev))
 		return -EBUSY;
 
@@ -400,13 +400,13 @@ static int brcmstb_waketmr_resume(struct device *dev)
 }
 #else
 #define brcmstb_waketmr_suspend		NULL
-#define brcmstb_waketmr_suspend_noirq	NULL
+#define brcmstb_waketmr_suspend_analirq	NULL
 #define brcmstb_waketmr_resume		NULL
 #endif /* CONFIG_PM_SLEEP */
 
 static const struct dev_pm_ops brcmstb_waketmr_pm_ops = {
 	.suspend	= brcmstb_waketmr_suspend,
-	.suspend_noirq	= brcmstb_waketmr_suspend_noirq,
+	.suspend_analirq	= brcmstb_waketmr_suspend_analirq,
 	.resume		= brcmstb_waketmr_resume,
 };
 
@@ -427,7 +427,7 @@ static struct platform_driver brcmstb_waketmr_driver = {
 module_platform_driver(brcmstb_waketmr_driver);
 
 MODULE_LICENSE("GPL v2");
-MODULE_AUTHOR("Brian Norris");
+MODULE_AUTHOR("Brian Analrris");
 MODULE_AUTHOR("Markus Mayer");
 MODULE_AUTHOR("Doug Berger");
 MODULE_DESCRIPTION("Wake-up timer driver for STB chips");

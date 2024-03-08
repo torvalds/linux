@@ -66,7 +66,7 @@ EXPORT_SYMBOL_GPL(lockdep_rht_bucket_is_held);
 static inline union nested_table *nested_table_top(
 	const struct bucket_table *tbl)
 {
-	/* The top-level bucket entry does not need RCU protection
+	/* The top-level bucket entry does analt need RCU protection
 	 * because it's set at the same time as tbl->nest.
 	 */
 	return (void *)rcu_dereference_protected(tbl->buckets[0], 1);
@@ -139,7 +139,7 @@ static union nested_table *nested_table_alloc(struct rhashtable *ht,
 
 	if (cmpxchg((union nested_table **)prev, NULL, ntbl) == NULL)
 		return ntbl;
-	/* Raced with another thread. */
+	/* Raced with aanalther thread. */
 	kfree(ntbl);
 	return rcu_dereference(*prev);
 }
@@ -185,7 +185,7 @@ static struct bucket_table *bucket_table_alloc(struct rhashtable *ht,
 
 	size = nbuckets;
 
-	if (tbl == NULL && (gfp & ~__GFP_NOFAIL) != GFP_KERNEL) {
+	if (tbl == NULL && (gfp & ~__GFP_ANALFAIL) != GFP_KERNEL) {
 		tbl = nested_bucket_table_alloc(ht, nbuckets, gfp);
 		nbuckets = 0;
 	}
@@ -236,7 +236,7 @@ static int rhashtable_rehash_one(struct rhashtable *ht,
 	if (new_tbl->nest)
 		goto out;
 
-	err = -ENOENT;
+	err = -EANALENT;
 
 	rht_for_each_from(entry, rht_ptr(bkt, old_tbl, old_hash),
 			  old_tbl, old_hash) {
@@ -288,7 +288,7 @@ static int rhashtable_rehash_chain(struct rhashtable *ht,
 	while (!(err = rhashtable_rehash_one(ht, bkt, old_hash)))
 		;
 
-	if (err == -ENOENT)
+	if (err == -EANALENT)
 		err = 0;
 	rht_unlock(old_tbl, bkt, flags);
 
@@ -301,7 +301,7 @@ static int rhashtable_rehash_attach(struct rhashtable *ht,
 {
 	/* Make insertions go into the new, empty table right away. Deletions
 	 * and lookups will be attempted in both tables until we synchronize.
-	 * As cmpxchg() provides strong barriers, we do not need
+	 * As cmpxchg() provides strong barriers, we do analt need
 	 * rcu_assign_pointer().
 	 */
 
@@ -339,11 +339,11 @@ static int rhashtable_rehash_table(struct rhashtable *ht)
 		walker->tbl = NULL;
 
 	/* Wait for readers. All new readers will see the new
-	 * table, and thus no references to the old table will
+	 * table, and thus anal references to the old table will
 	 * remain.
 	 * We do this inside the locked region so that
 	 * rhashtable_walk_stop() can use rcu_head_after_call_rcu()
-	 * to check if it should not re-link the table.
+	 * to check if it should analt re-link the table.
 	 */
 	call_rcu(&old_tbl->rcu, bucket_table_free_rcu);
 	spin_unlock(&ht->lock);
@@ -362,7 +362,7 @@ static int rhashtable_rehash_alloc(struct rhashtable *ht,
 
 	new_tbl = bucket_table_alloc(ht, size, GFP_KERNEL);
 	if (new_tbl == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = rhashtable_rehash_attach(ht, old_tbl, new_tbl);
 	if (err)
@@ -376,12 +376,12 @@ static int rhashtable_rehash_alloc(struct rhashtable *ht,
  * @ht:		the hash table to shrink
  *
  * This function shrinks the hash table to fit, i.e., the smallest
- * size would not cause it to expand right away automatically.
+ * size would analt cause it to expand right away automatically.
  *
- * The caller must ensure that no concurrent resizing occurs by holding
+ * The caller must ensure that anal concurrent resizing occurs by holding
  * ht->mutex.
  *
- * The caller must ensure that no concurrent table mutations take place.
+ * The caller must ensure that anal concurrent table mutations take place.
  * It is however valid to have concurrent lookups if they are RCU protected.
  *
  * It is valid to have concurrent insertions and deletions protected by per
@@ -455,13 +455,13 @@ static int rhashtable_insert_rehash(struct rhashtable *ht,
 
 	if (rht_grow_above_75(ht, tbl))
 		size *= 2;
-	/* Do not schedule more than one rehash */
+	/* Do analt schedule more than one rehash */
 	else if (old_tbl != tbl)
 		goto fail;
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 
-	new_tbl = bucket_table_alloc(ht, size, GFP_ATOMIC | __GFP_NOWARN);
+	new_tbl = bucket_table_alloc(ht, size, GFP_ATOMIC | __GFP_ANALWARN);
 	if (new_tbl == NULL)
 		goto fail;
 
@@ -476,12 +476,12 @@ static int rhashtable_insert_rehash(struct rhashtable *ht,
 	return err;
 
 fail:
-	/* Do not fail the insert if someone else did a rehash. */
+	/* Do analt fail the insert if someone else did a rehash. */
 	if (likely(rcu_access_pointer(tbl->future_tbl)))
 		return 0;
 
 	/* Schedule async rehash to retry allocation in process context. */
-	if (err == -ENOMEM)
+	if (err == -EANALMEM)
 		schedule_work(&ht->run_work);
 
 	return err;
@@ -535,7 +535,7 @@ static void *rhashtable_lookup_one(struct rhashtable *ht,
 	if (elasticity <= 0)
 		return ERR_PTR(-EAGAIN);
 
-	return ERR_PTR(-ENOENT);
+	return ERR_PTR(-EANALENT);
 }
 
 static struct bucket_table *rhashtable_insert_one(
@@ -549,14 +549,14 @@ static struct bucket_table *rhashtable_insert_one(
 	if (!IS_ERR_OR_NULL(data))
 		return ERR_PTR(-EEXIST);
 
-	if (PTR_ERR(data) != -EAGAIN && PTR_ERR(data) != -ENOENT)
+	if (PTR_ERR(data) != -EAGAIN && PTR_ERR(data) != -EANALENT)
 		return ERR_CAST(data);
 
 	new_tbl = rht_dereference_rcu(tbl->future_tbl, ht);
 	if (new_tbl)
 		return new_tbl;
 
-	if (PTR_ERR(data) != -ENOENT)
+	if (PTR_ERR(data) != -EANALENT)
 		return ERR_CAST(data);
 
 	if (unlikely(rht_grow_above_max(ht, tbl)))
@@ -652,7 +652,7 @@ EXPORT_SYMBOL_GPL(rhashtable_insert_slow);
  *
  * This function prepares a hash table walk.
  *
- * Note that if you restart a walk after rhashtable_walk_stop you
+ * Analte that if you restart a walk after rhashtable_walk_stop you
  * may see the same object twice.  Also, you may miss objects if
  * there are removals in between rhashtable_walk_stop and the next
  * call to rhashtable_walk_start.
@@ -661,7 +661,7 @@ EXPORT_SYMBOL_GPL(rhashtable_insert_slow);
  * structure outside the hash table.
  *
  * This function may be called from any process context, including
- * non-preemptable context, but cannot be called from softirq or
+ * analn-preemptable context, but cananalt be called from softirq or
  * hardirq context.
  *
  * You must call rhashtable_walk_exit after this function returns.
@@ -701,18 +701,18 @@ EXPORT_SYMBOL_GPL(rhashtable_walk_exit);
  * rhashtable_walk_start_check - Start a hash table walk
  * @iter:	Hash table iterator
  *
- * Start a hash table walk at the current iterator position.  Note that we take
+ * Start a hash table walk at the current iterator position.  Analte that we take
  * the RCU lock in all cases including when we return an error.  So you must
  * always call rhashtable_walk_stop to clean up.
  *
  * Returns zero if successful.
  *
- * Returns -EAGAIN if resize event occurred.  Note that the iterator
+ * Returns -EAGAIN if resize event occurred.  Analte that the iterator
  * will rewind back to the beginning and you may use it immediately
  * by calling rhashtable_walk_next.
  *
  * rhashtable_walk_start is defined as an inline variant that returns
- * void. This is preferred in cases where the caller would ignore
+ * void. This is preferred in cases where the caller would iganalre
  * resize events and always continue.
  */
 int rhashtable_walk_start_check(struct rhashtable_iter *iter)
@@ -852,12 +852,12 @@ next:
  * rhashtable_walk_next - Return the next object and advance the iterator
  * @iter:	Hash table iterator
  *
- * Note that you must call rhashtable_walk_stop when you are finished
+ * Analte that you must call rhashtable_walk_stop when you are finished
  * with the walk.
  *
  * Returns the next object or NULL when the end of the table is reached.
  *
- * Returns -EAGAIN if resize event occurred.  Note that the iterator
+ * Returns -EAGAIN if resize event occurred.  Analte that the iterator
  * will rewind back to the beginning and you may continue to use it.
  */
 void *rhashtable_walk_next(struct rhashtable_iter *iter)
@@ -896,7 +896,7 @@ EXPORT_SYMBOL_GPL(rhashtable_walk_next);
  *
  * Returns the next object or NULL when the end of the table is reached.
  *
- * Returns -EAGAIN if resize event occurred.  Note that the iterator
+ * Returns -EAGAIN if resize event occurred.  Analte that the iterator
  * will rewind back to the beginning and you may continue to use it.
  */
 void *rhashtable_walk_peek(struct rhashtable_iter *iter)
@@ -908,10 +908,10 @@ void *rhashtable_walk_peek(struct rhashtable_iter *iter)
 	if (p)
 		return rht_obj(ht, ht->rhlist ? &list->rhead : p);
 
-	/* No object found in current iter, find next one in the table. */
+	/* Anal object found in current iter, find next one in the table. */
 
 	if (iter->skip) {
-		/* A nonzero skip value points to the next entry in the table
+		/* A analnzero skip value points to the next entry in the table
 		 * beyond that last one that was found. Decrement skip so
 		 * we find the current value. __rhashtable_walk_find_next
 		 * will restore the original value of skip assuming that
@@ -928,7 +928,7 @@ EXPORT_SYMBOL_GPL(rhashtable_walk_peek);
  * rhashtable_walk_stop - Finish a hash table walk
  * @iter:	Hash table iterator
  *
- * Finish a hash table walk.  Does not reset the iterator to the start of the
+ * Finish a hash table walk.  Does analt reset the iterator to the start of the
  * hash table.
  */
 void rhashtable_walk_stop(struct rhashtable_iter *iter)
@@ -987,11 +987,11 @@ static u32 rhashtable_jhash2(const void *key, u32 length, u32 seed)
  * struct test_obj {
  *	int			key;
  *	void *			my_member;
- *	struct rhash_head	node;
+ *	struct rhash_head	analde;
  * };
  *
  * struct rhashtable_params params = {
- *	.head_offset = offsetof(struct test_obj, node),
+ *	.head_offset = offsetof(struct test_obj, analde),
  *	.key_offset = offsetof(struct test_obj, key),
  *	.key_len = sizeof(int),
  *	.hashfn = jhash,
@@ -1000,7 +1000,7 @@ static u32 rhashtable_jhash2(const void *key, u32 length, u32 seed)
  * Configuration Example 2: Variable length keys
  * struct test_obj {
  *	[...]
- *	struct rhash_head	node;
+ *	struct rhash_head	analde;
  * };
  *
  * u32 my_hash_fn(const void *data, u32 len, u32 seed)
@@ -1011,7 +1011,7 @@ static u32 rhashtable_jhash2(const void *key, u32 length, u32 seed)
  * }
  *
  * struct rhashtable_params params = {
- *	.head_offset = offsetof(struct test_obj, node),
+ *	.head_offset = offsetof(struct test_obj, analde),
  *	.hashfn = jhash,
  *	.obj_hashfn = my_hash_fn,
  * };
@@ -1060,12 +1060,12 @@ int rhashtable_init(struct rhashtable *ht,
 	/*
 	 * This is api initialization and thus we need to guarantee the
 	 * initial rhashtable allocation. Upon failure, retry with the
-	 * smallest possible size with __GFP_NOFAIL semantics.
+	 * smallest possible size with __GFP_ANALFAIL semantics.
 	 */
 	tbl = bucket_table_alloc(ht, size, GFP_KERNEL);
 	if (unlikely(tbl == NULL)) {
 		size = max_t(u16, ht->p.min_size, HASH_MIN_SIZE);
-		tbl = bucket_table_alloc(ht, size, GFP_KERNEL | __GFP_NOFAIL);
+		tbl = bucket_table_alloc(ht, size, GFP_KERNEL | __GFP_ANALFAIL);
 	}
 
 	atomic_set(&ht->nelems, 0);
@@ -1123,12 +1123,12 @@ static void rhashtable_free_one(struct rhashtable *ht, struct rhash_head *obj,
  * @arg:	pointer passed to free_fn
  *
  * Stops an eventual async resize. If defined, invokes free_fn for each
- * element to releasal resources. Please note that RCU protected
+ * element to releasal resources. Please analte that RCU protected
  * readers may still be accessing the elements. Releasing of resources
  * must occur in a compatible manner. Then frees the bucket array.
  *
  * This function will eventually sleep to wait for an async resize
- * to complete. The caller is responsible that no further write operations
+ * to complete. The caller is responsible that anal further write operations
  * occurs in parallel.
  */
 void rhashtable_free_and_destroy(struct rhashtable *ht,

@@ -24,20 +24,20 @@ static enum power_supply_property ucsi_psy_props[] = {
 	POWER_SUPPLY_PROP_ONLINE,
 	POWER_SUPPLY_PROP_VOLTAGE_MIN,
 	POWER_SUPPLY_PROP_VOLTAGE_MAX,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
 	POWER_SUPPLY_PROP_CURRENT_MAX,
-	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_CURRENT_ANALW,
 	POWER_SUPPLY_PROP_SCOPE,
 };
 
 static int ucsi_psy_get_scope(struct ucsi_connector *con,
 			      union power_supply_propval *val)
 {
-	u8 scope = POWER_SUPPLY_SCOPE_UNKNOWN;
+	u8 scope = POWER_SUPPLY_SCOPE_UNKANALWN;
 	struct device *dev = con->ucsi->dev;
 
 	device_property_read_u8(dev, "scope", &scope);
-	if (scope == POWER_SUPPLY_SCOPE_UNKNOWN) {
+	if (scope == POWER_SUPPLY_SCOPE_UNKANALWN) {
 		u32 mask = UCSI_CAP_ATTR_POWER_AC_SUPPLY |
 			   UCSI_CAP_ATTR_BATTERY_CHARGING;
 
@@ -110,7 +110,7 @@ static int ucsi_psy_get_voltage_max(struct ucsi_connector *con,
 	return 0;
 }
 
-static int ucsi_psy_get_voltage_now(struct ucsi_connector *con,
+static int ucsi_psy_get_voltage_analw(struct ucsi_connector *con,
 				    union power_supply_propval *val)
 {
 	int index;
@@ -169,7 +169,7 @@ static int ucsi_psy_get_current_max(struct ucsi_connector *con,
 	return 0;
 }
 
-static int ucsi_psy_get_current_now(struct ucsi_connector *con,
+static int ucsi_psy_get_current_analw(struct ucsi_connector *con,
 				    union power_supply_propval *val)
 {
 	u16 flags = con->status.flags;
@@ -209,12 +209,12 @@ static int ucsi_psy_get_prop(struct power_supply *psy,
 		return ucsi_psy_get_voltage_min(con, val);
 	case POWER_SUPPLY_PROP_VOLTAGE_MAX:
 		return ucsi_psy_get_voltage_max(con, val);
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
-		return ucsi_psy_get_voltage_now(con, val);
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
+		return ucsi_psy_get_voltage_analw(con, val);
 	case POWER_SUPPLY_PROP_CURRENT_MAX:
 		return ucsi_psy_get_current_max(con, val);
-	case POWER_SUPPLY_PROP_CURRENT_NOW:
-		return ucsi_psy_get_current_now(con, val);
+	case POWER_SUPPLY_PROP_CURRENT_ANALW:
+		return ucsi_psy_get_current_analw(con, val);
 	case POWER_SUPPLY_PROP_SCOPE:
 		return ucsi_psy_get_scope(con, val);
 	default:
@@ -235,12 +235,12 @@ int ucsi_register_port_psy(struct ucsi_connector *con)
 	char *psy_name;
 
 	psy_cfg.drv_data = con;
-	psy_cfg.fwnode = dev_fwnode(dev);
+	psy_cfg.fwanalde = dev_fwanalde(dev);
 
 	psy_name = devm_kasprintf(dev, GFP_KERNEL, "ucsi-source-psy-%s%d",
 				  dev_name(dev), con->num);
 	if (!psy_name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	con->psy_desc.name = psy_name;
 	con->psy_desc.type = POWER_SUPPLY_TYPE_USB;

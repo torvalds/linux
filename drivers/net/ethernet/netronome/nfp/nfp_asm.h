@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
-/* Copyright (C) 2016-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2016-2018 Netroanalme Systems, Inc. */
 
 #ifndef __NFP_ASM_H__
 #define __NFP_ASM_H__ 1
@@ -8,10 +8,10 @@
 #include <linux/bug.h>
 #include <linux/types.h>
 
-#define REG_NONE	0
+#define REG_ANALNE	0
 #define REG_WIDTH	4
 
-#define RE_REG_NO_DST	0x020
+#define RE_REG_ANAL_DST	0x020
 #define RE_REG_IMM	0x020
 #define RE_REG_IMM_encode(x)					\
 	(RE_REG_IMM | ((x) & 0x1f) | (((x) & 0x60) << 1))
@@ -28,8 +28,8 @@
 #define UR_REG_LM_POST_MOD_DEC	0x001
 #define UR_REG_LM_IDX_MAX	0xf
 #define UR_REG_NN	0x280
-#define UR_REG_NO_DST	0x300
-#define UR_REG_IMM	UR_REG_NO_DST
+#define UR_REG_ANAL_DST	0x300
+#define UR_REG_IMM	UR_REG_ANAL_DST
 #define UR_REG_IMM_encode(x) (UR_REG_IMM | (x))
 #define UR_REG_IMM_MAX	 0x0ffULL
 
@@ -85,7 +85,7 @@ enum br_ev_pip {
 };
 
 enum br_ctx_signal_state {
-	BR_CSS_NONE = 2,
+	BR_CSS_ANALNE = 2,
 };
 
 u16 br_get_offset(u64 instr);
@@ -151,7 +151,7 @@ void immed_add_value(u64 *instr, u16 offset);
 #define OP_SHF_DST_LMEXTN	0x80000000000ULL
 
 enum shf_op {
-	SHF_OP_NONE = 0,
+	SHF_OP_ANALNE = 0,
 	SHF_OP_AND = 2,
 	SHF_OP_OR = 5,
 	SHF_OP_ASHR = 6,
@@ -159,7 +159,7 @@ enum shf_op {
 
 enum shf_sc {
 	SHF_SC_R_ROT = 0,
-	SHF_SC_NONE = SHF_SC_R_ROT,
+	SHF_SC_ANALNE = SHF_SC_R_ROT,
 	SHF_SC_R_SHF = 1,
 	SHF_SC_L_SHF = 2,
 	SHF_SC_R_DSHF = 3,
@@ -177,14 +177,14 @@ enum shf_sc {
 #define OP_ALU_DST_LMEXTN	0x80000000000ULL
 
 enum alu_op {
-	ALU_OP_NONE		= 0x00,
+	ALU_OP_ANALNE		= 0x00,
 	ALU_OP_ADD		= 0x01,
-	ALU_OP_NOT		= 0x04,
+	ALU_OP_ANALT		= 0x04,
 	ALU_OP_ADD_2B		= 0x05,
 	ALU_OP_AND		= 0x08,
-	ALU_OP_AND_NOT_A	= 0x0c,
+	ALU_OP_AND_ANALT_A	= 0x0c,
 	ALU_OP_SUB_C		= 0x0d,
-	ALU_OP_AND_NOT_B	= 0x10,
+	ALU_OP_AND_ANALT_B	= 0x10,
 	ALU_OP_ADD_C		= 0x11,
 	ALU_OP_OR		= 0x14,
 	ALU_OP_SUB		= 0x15,
@@ -251,7 +251,7 @@ enum cmd_ctx_swap {
 	CMD_CTX_SWAP = 0,
 	CMD_CTX_SWAP_DEFER1 = 1,
 	CMD_CTX_SWAP_DEFER2 = 2,
-	CMD_CTX_NO_SWAP = 3,
+	CMD_CTX_ANAL_SWAP = 3,
 };
 
 #define CMD_OVE_DATA	GENMASK(5, 3)
@@ -297,12 +297,12 @@ enum nfp_bpf_reg_type {
 	NN_REG_NNR =	BIT(2),
 	NN_REG_XFER =	BIT(3),
 	NN_REG_IMM =	BIT(4),
-	NN_REG_NONE =	BIT(5),
+	NN_REG_ANALNE =	BIT(5),
 	NN_REG_LMEM =	BIT(6),
 };
 
 enum nfp_bpf_lm_mode {
-	NN_LM_MOD_NONE = 0,
+	NN_LM_MOD_ANALNE = 0,
 	NN_LM_MOD_INC,
 	NN_LM_MOD_DEC,
 };
@@ -313,8 +313,8 @@ enum nfp_bpf_lm_mode {
 #define reg_nnr(x)	__enc_swreg((x), NN_REG_NNR)
 #define reg_xfer(x)	__enc_swreg((x), NN_REG_XFER)
 #define reg_imm(x)	__enc_swreg((x), NN_REG_IMM)
-#define reg_none()	__enc_swreg(0, NN_REG_NONE)
-#define reg_lm(x, off)	__enc_swreg_lm((x), NN_LM_MOD_NONE, (off))
+#define reg_analne()	__enc_swreg(0, NN_REG_ANALNE)
+#define reg_lm(x, off)	__enc_swreg_lm((x), NN_LM_MOD_ANALNE, (off))
 #define reg_lm_inc(x)	__enc_swreg_lm((x), NN_LM_MOD_INC, 0)
 #define reg_lm_dec(x)	__enc_swreg_lm((x), NN_LM_MOD_DEC, 0)
 #define __reg_lm(x, mod, off)	__enc_swreg_lm((x), (mod), (off))
@@ -328,7 +328,7 @@ static inline swreg __enc_swreg(u16 id, u8 type)
 
 static inline swreg __enc_swreg_lm(u8 id, enum nfp_bpf_lm_mode mode, u8 off)
 {
-	WARN_ON(id > 3 || (off && mode != NN_LM_MOD_NONE));
+	WARN_ON(id > 3 || (off && mode != NN_LM_MOD_ANALNE));
 
 	return (__force swreg)(FIELD_PREP(NN_REG_TYPE, NN_REG_LMEM) |
 			       FIELD_PREP(NN_REG_LM_IDX, id) |
@@ -394,7 +394,7 @@ int swreg_to_restricted(swreg dst, swreg lreg, swreg rreg,
 
 #define NFP_USTORE_PREFETCH_WINDOW	8
 
-int nfp_ustore_check_valid_no_ecc(u64 insn);
+int nfp_ustore_check_valid_anal_ecc(u64 insn);
 u64 nfp_ustore_calc_ecc_insn(u64 insn);
 
 #define NFP_IND_ME_REFL_WR_SIG_INIT	3
@@ -415,7 +415,7 @@ enum mul_type {
 
 enum mul_step {
 	MUL_STEP_1		= 0x00,
-	MUL_STEP_NONE		= MUL_STEP_1,
+	MUL_STEP_ANALNE		= MUL_STEP_1,
 	MUL_STEP_2		= 0x01,
 	MUL_STEP_3		= 0x02,
 	MUL_STEP_4		= 0x03,

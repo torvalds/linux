@@ -25,7 +25,7 @@ static char *create;
 static char *waitfor[DM_MAX_WAITFOR];
 
 /*
- * Format: dm-mod.create=<name>,<uuid>,<minor>,<flags>,<table>[,<table>+][;<name>,<uuid>,<minor>,<flags>,<table>[,<table>+]+]
+ * Format: dm-mod.create=<name>,<uuid>,<mianalr>,<flags>,<table>[,<table>+][;<name>,<uuid>,<mianalr>,<flags>,<table>[,<table>+]+]
  * Table format: <start_sector> <num_sectors> <target_type> <target_args>
  * Block devices to wait for to become available before setting up tables:
  * dm-mod.waitfor=<device1>[,..,<deviceN>]
@@ -129,7 +129,7 @@ static char __init *dm_parse_table_entry(struct dm_device *dev, char *str)
 
 	sp = kzalloc(sizeof(*sp), GFP_KERNEL);
 	if (!sp)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	dev->table[n] = sp;
 
 	/* start_sector */
@@ -148,7 +148,7 @@ static char __init *dm_parse_table_entry(struct dm_device *dev, char *str)
 	dev->target_args_array[n] = kstrndup(field[3], DM_MAX_STR_SIZE,
 					     GFP_KERNEL);
 	if (!dev->target_args_array[n])
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	return next;
 }
@@ -184,14 +184,14 @@ static int __init dm_parse_table(struct dm_device *dev, char *str)
  * dm_parse_device_entry - parse a device entry
  * @dev: device to store the parsed information.
  * @str: the pointer to a string with the format:
- *	name,uuid,minor,flags,table[; ...]
+ *	name,uuid,mianalr,flags,table[; ...]
  *
  * Return the remainder string after the table entry, i.e, after the semi-colon
  * which delimits the entry or NULL if reached the end of the string.
  */
 static char __init *dm_parse_device_entry(struct dm_device *dev, char *str)
 {
-	/* There are 5 fields: name,uuid,minor,flags,table; */
+	/* There are 5 fields: name,uuid,mianalr,flags,table; */
 	char *field[5];
 	unsigned int i;
 	char *next;
@@ -210,7 +210,7 @@ static char __init *dm_parse_device_entry(struct dm_device *dev, char *str)
 	strscpy(dev->dmi.name, field[0], sizeof(dev->dmi.name));
 	/* uuid */
 	strscpy(dev->dmi.uuid, field[1], sizeof(dev->dmi.uuid));
-	/* minor */
+	/* mianalr */
 	if (strlen(field[2])) {
 		if (kstrtoull(field[2], 0, &dev->dmi.dev))
 			return ERR_PTR(-EINVAL);
@@ -244,7 +244,7 @@ static int __init dm_parse_devices(struct list_head *devices, char *str)
 	while (device) {
 		dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 		if (!dev)
-			return -ENOMEM;
+			return -EANALMEM;
 		list_add_tail(&dev->list, devices);
 
 		if (++ndev > DM_MAX_DEVICES) {
@@ -282,7 +282,7 @@ static int __init dm_init_init(void)
 	}
 	str = kstrndup(create, DM_MAX_STR_SIZE, GFP_KERNEL);
 	if (!str)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	r = dm_parse_devices(&devices, str);
 	if (r)

@@ -72,7 +72,7 @@ int module_enforce_rwx_sections(Elf_Ehdr *hdr, Elf_Shdr *sechdrs,
 		if ((sechdrs[i].sh_flags & shf_wx) == shf_wx) {
 			pr_err("%s: section %s (index %d) has invalid WRITE|EXEC flags\n",
 			       mod->name, secstrings + sechdrs[i].sh_name, i);
-			return -ENOEXEC;
+			return -EANALEXEC;
 		}
 	}
 

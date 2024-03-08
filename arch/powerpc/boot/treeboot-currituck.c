@@ -9,7 +9,7 @@
  *   Copyright 2002-2005 MontaVista Software Inc.
  *
  *   Eugene Surovegin <eugene.surovegin@zultys.com> or <ebs@ebshome.net>
- *   Copyright (c) 2003, 2004 Zultys Technologies
+ *   Copyright (c) 2003, 2004 Zultys Techanallogies
  *
  *    Copyright 2007 David Gibson, IBM Corporation.
  *    Copyright 2010 Ben. Herrenschmidt, IBM Corporation.
@@ -63,7 +63,7 @@ static void ibm_currituck_fixups(void)
 
 	dt_fixup_memory(0x0ULL,  ibm_currituck_memsize);
 
-	while ((devp = find_node_by_devtype(devp, "pci"))) {
+	while ((devp = find_analde_by_devtype(devp, "pci"))) {
 		if (getprop(devp, "dma-ranges", dma_ranges, sizeof(dma_ranges)) < 0) {
 			printf("%s: Failed to get dma-ranges\r\n", __func__);
 			continue;
@@ -81,7 +81,7 @@ void platform_init(void)
 {
 	unsigned long end_of_ram, avail_ram;
 	u32 pir_reg;
-	int node, size;
+	int analde, size;
 	const u32 *timebase;
 
 	ibm_currituck_memsize = ibm_currituck_detect_memsize();
@@ -100,11 +100,11 @@ void platform_init(void)
 	if (fdt_check_header(_dtb_start) != 0)
 		fatal("Invalid device tree blob\n");
 
-	node = fdt_node_offset_by_prop_value(_dtb_start, -1, "device_type",
+	analde = fdt_analde_offset_by_prop_value(_dtb_start, -1, "device_type",
 	                                     "cpu", sizeof("cpu"));
-	if (!node)
-		fatal("Cannot find cpu node\n");
-	timebase = fdt_getprop(_dtb_start, node, "timebase-frequency", &size);
+	if (!analde)
+		fatal("Cananalt find cpu analde\n");
+	timebase = fdt_getprop(_dtb_start, analde, "timebase-frequency", &size);
 	if (timebase && (size == 4))
 		timebase_period_ns = 1000000000 / *timebase;
 

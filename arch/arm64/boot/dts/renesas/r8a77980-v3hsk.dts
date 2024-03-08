@@ -116,7 +116,7 @@
 
 	phy-mode = "rgmii";
 	phy-handle = <&phy0>;
-	renesas,no-ether-link;
+	renesas,anal-ether-link;
 	status = "okay";
 
 	phy0: ethernet-phy@0 {
@@ -221,7 +221,7 @@
 	status = "okay";
 
 	flash@0 {
-		compatible = "spansion,s25fs512s", "jedec,spi-nor";
+		compatible = "spansion,s25fs512s", "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <50000000>;
 		spi-rx-bus-width = <4>;

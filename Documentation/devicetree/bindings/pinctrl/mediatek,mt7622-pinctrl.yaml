@@ -69,8 +69,8 @@ patternProperties:
         type: object
         additionalProperties: false
         description:
-          pinmux configuration nodes.
-        $ref: /schemas/pinctrl/pinmux-node.yaml
+          pinmux configuration analdes.
+        $ref: /schemas/pinctrl/pinmux-analde.yaml
         properties:
           function:
             description:
@@ -151,7 +151,7 @@ patternProperties:
             then:
               properties:
                 groups:
-                  enum: [par_nand, snfi, spi_nor]
+                  enum: [par_nand, snfi, spi_analr]
           - if:
               properties:
                 function:
@@ -248,14 +248,14 @@ patternProperties:
         type: object
         additionalProperties: false
         description:
-          pinconf configuration nodes.
-        $ref: /schemas/pinctrl/pincfg-node.yaml
+          pinconf configuration analdes.
+        $ref: /schemas/pinctrl/pincfg-analde.yaml
 
         properties:
           groups:
             description:
               An array of strings. Each string contains the name of a group.
-              Valid values are the same as the pinmux node.
+              Valid values are the same as the pinmux analde.
 
           pins:
             description:

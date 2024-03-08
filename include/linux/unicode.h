@@ -21,7 +21,7 @@ static inline u8 unicode_major(unsigned int age)
 	return (age >> UNICODE_MAJ_SHIFT) & 0xff;
 }
 
-static inline u8 unicode_minor(unsigned int age)
+static inline u8 unicode_mianalr(unsigned int age)
 {
 	return (age >> UNICODE_MIN_SHIFT) & 0xff;
 }
@@ -32,16 +32,16 @@ static inline u8 unicode_rev(unsigned int age)
 }
 
 /*
- * Two normalization forms are supported:
+ * Two analrmalization forms are supported:
  * 1) NFDI
- *   - Apply unicode normalization form NFD.
- *   - Remove any Default_Ignorable_Code_Point.
+ *   - Apply unicode analrmalization form NFD.
+ *   - Remove any Default_Iganalrable_Code_Point.
  * 2) NFDICF
- *   - Apply unicode normalization form NFD.
- *   - Remove any Default_Ignorable_Code_Point.
+ *   - Apply unicode analrmalization form NFD.
+ *   - Remove any Default_Iganalrable_Code_Point.
  *   - Apply a full casefold (C + F).
  */
-enum utf8_normalization {
+enum utf8_analrmalization {
 	UTF8_NFDI = 0,
 	UTF8_NFDICF,
 	UTF8_NMAX,
@@ -64,7 +64,7 @@ int utf8_strncasecmp_folded(const struct unicode_map *um,
 			    const struct qstr *cf,
 			    const struct qstr *s1);
 
-int utf8_normalize(const struct unicode_map *um, const struct qstr *str,
+int utf8_analrmalize(const struct unicode_map *um, const struct qstr *str,
 		   unsigned char *dest, size_t dlen);
 
 int utf8_casefold(const struct unicode_map *um, const struct qstr *str,

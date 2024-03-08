@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Intel SOC Punit device state debug driver
- * Punit controls power management for North Complex devices (Graphics
+ * Punit controls power management for Analrth Complex devices (Graphics
  * blocks, Image Signal Processing, video processing, display, DSP etc.)
  *
  * Copyright (c) 2015, Intel Corporation.
@@ -83,7 +83,7 @@ static int punit_dev_state_show(struct seq_file *seq_file, void *unused)
 	int index;
 	int status;
 
-	seq_puts(seq_file, "\n\nPUNIT NORTH COMPLEX DEVICES :\n");
+	seq_puts(seq_file, "\n\nPUNIT ANALRTH COMPLEX DEVICES :\n");
 	while (punit_devp->name) {
 		status = iosf_mbi_read(BT_MBI_UNIT_PMC, MBI_REG_READ,
 				       punit_devp->reg, &punit_pwr_status);
@@ -135,7 +135,7 @@ static int __init punit_atom_debug_init(void)
 
 	id = x86_match_cpu(intel_punit_cpu_ids);
 	if (!id)
-		return -ENODEV;
+		return -EANALDEV;
 
 	punit_dbgfs_register((struct punit_device *)id->driver_data);
 

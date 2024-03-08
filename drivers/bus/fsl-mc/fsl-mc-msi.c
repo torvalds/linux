@@ -49,7 +49,7 @@ static void fsl_mc_msi_update_dom_ops(struct msi_domain_info *info)
 		return;
 
 	/*
-	 * set_desc should not be set by the caller
+	 * set_desc should analt be set by the caller
 	 */
 	if (!ops->set_desc)
 		ops->set_desc = fsl_mc_msi_set_desc;
@@ -111,7 +111,7 @@ static void __fsl_mc_msi_write_msg(struct fsl_mc_device *mc_bus_dev,
 }
 
 /*
- * NOTE: This function is invoked with interrupts disabled
+ * ANALTE: This function is invoked with interrupts disabled
  */
 static void fsl_mc_msi_write_msg(struct irq_data *irq_data,
 				 struct msi_msg *msg)
@@ -138,7 +138,7 @@ static void fsl_mc_msi_update_chip_ops(struct msi_domain_info *info)
 		return;
 
 	/*
-	 * irq_write_msi_msg should not be set by the caller
+	 * irq_write_msi_msg should analt be set by the caller
 	 */
 	if (!chip->irq_write_msi_msg)
 		chip->irq_write_msi_msg = fsl_mc_msi_write_msg;
@@ -146,7 +146,7 @@ static void fsl_mc_msi_update_chip_ops(struct msi_domain_info *info)
 
 /**
  * fsl_mc_msi_create_irq_domain - Create a fsl-mc MSI interrupt domain
- * @fwnode:	Optional firmware node of the interrupt controller
+ * @fwanalde:	Optional firmware analde of the interrupt controller
  * @info:	MSI domain info
  * @parent:	Parent irq domain
  *
@@ -156,7 +156,7 @@ static void fsl_mc_msi_update_chip_ops(struct msi_domain_info *info)
  * Returns:
  * A domain pointer or NULL in case of failure.
  */
-struct irq_domain *fsl_mc_msi_create_irq_domain(struct fwnode_handle *fwnode,
+struct irq_domain *fsl_mc_msi_create_irq_domain(struct fwanalde_handle *fwanalde,
 						struct msi_domain_info *info,
 						struct irq_domain *parent)
 {
@@ -170,7 +170,7 @@ struct irq_domain *fsl_mc_msi_create_irq_domain(struct fwnode_handle *fwnode,
 		fsl_mc_msi_update_chip_ops(info);
 	info->flags |= MSI_FLAG_ALLOC_SIMPLE_MSI_DESCS | MSI_FLAG_FREE_MSI_DESCS;
 
-	domain = msi_create_irq_domain(fwnode, info, parent);
+	domain = msi_create_irq_domain(fwanalde, info, parent);
 	if (domain)
 		irq_domain_update_bus_token(domain, DOMAIN_BUS_FSL_MC_MSI);
 
@@ -187,7 +187,7 @@ struct irq_domain *fsl_mc_find_msi_domain(struct device *dev)
 	fsl_mc_get_root_dprc(dev, &root_dprc_dev);
 	bus_dev = root_dprc_dev->parent;
 
-	if (bus_dev->of_node) {
+	if (bus_dev->of_analde) {
 		msi_domain = of_msi_map_get_device_domain(dev,
 						  mc_dev->icid,
 						  DOMAIN_BUS_FSL_MC_MSI);
@@ -199,7 +199,7 @@ struct irq_domain *fsl_mc_find_msi_domain(struct device *dev)
 		if (!msi_domain)
 
 			msi_domain = of_msi_get_domain(bus_dev,
-						bus_dev->of_node,
+						bus_dev->of_analde,
 						DOMAIN_BUS_FSL_MC_MSI);
 	} else {
 		msi_domain = iort_get_device_domain(dev, mc_dev->icid,
@@ -217,7 +217,7 @@ int fsl_mc_msi_domain_alloc_irqs(struct device *dev,  unsigned int irq_count)
 		return error;
 
 	/*
-	 * NOTE: Calling this function will trigger the invocation of the
+	 * ANALTE: Calling this function will trigger the invocation of the
 	 * its_fsl_mc_msi_prepare() callback
 	 */
 	error = msi_domain_alloc_irqs_range(dev, MSI_DEFAULT_DOMAIN, 0, irq_count - 1);

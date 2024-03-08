@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * linux/include/linux/edd.h
  *  Copyright (C) 2002, 2003, 2004 Dell Inc.
@@ -64,9 +64,9 @@
 #define EDD_INFO_GEOMETRY_VALID                (1 << 1)
 #define EDD_INFO_REMOVABLE                     (1 << 2)
 #define EDD_INFO_WRITE_VERIFY                  (1 << 3)
-#define EDD_INFO_MEDIA_CHANGE_NOTIFICATION     (1 << 4)
+#define EDD_INFO_MEDIA_CHANGE_ANALTIFICATION     (1 << 4)
 #define EDD_INFO_LOCKABLE                      (1 << 5)
-#define EDD_INFO_NO_MEDIA_PRESENT              (1 << 6)
+#define EDD_INFO_ANAL_MEDIA_PRESENT              (1 << 6)
 #define EDD_INFO_USE_INT13_FN50                (1 << 7)
 
 struct edd_device_params {
@@ -109,7 +109,7 @@ struct edd_device_params {
 		} __attribute__ ((packed)) htpt;
 		struct {
 			__u64 reserved;
-		} __attribute__ ((packed)) unknown;
+		} __attribute__ ((packed)) unkanalwn;
 	} interface_path;
 	union {
 		struct {
@@ -164,7 +164,7 @@ struct edd_device_params {
 		struct {
 			__u64 reserved1;
 			__u64 reserved2;
-		} __attribute__ ((packed)) unknown;
+		} __attribute__ ((packed)) unkanalwn;
 	} device_path;
 	__u8 reserved4;
 	__u8 checksum;

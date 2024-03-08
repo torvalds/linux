@@ -32,7 +32,7 @@ static irqreturn_t altera_ps2_rxint(int irq, void *dev_id)
 {
 	struct ps2if *ps2if = dev_id;
 	unsigned int status;
-	irqreturn_t handled = IRQ_NONE;
+	irqreturn_t handled = IRQ_ANALNE;
 
 	while ((status = readl(ps2if->base)) & 0xffff0000) {
 		serio_interrupt(ps2if->io, status & 0xff, 0);
@@ -83,7 +83,7 @@ static int altera_ps2_probe(struct platform_device *pdev)
 
 	ps2if = devm_kzalloc(&pdev->dev, sizeof(struct ps2if), GFP_KERNEL);
 	if (!ps2if)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ps2if->base = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(ps2if->base))
@@ -96,13 +96,13 @@ static int altera_ps2_probe(struct platform_device *pdev)
 	error = devm_request_irq(&pdev->dev, irq, altera_ps2_rxint, 0,
 				 pdev->name, ps2if);
 	if (error) {
-		dev_err(&pdev->dev, "could not request IRQ %d\n", irq);
+		dev_err(&pdev->dev, "could analt request IRQ %d\n", irq);
 		return error;
 	}
 
 	serio = kzalloc(sizeof(struct serio), GFP_KERNEL);
 	if (!serio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	serio->id.type		= SERIO_8042;
 	serio->write		= altera_ps2_write;

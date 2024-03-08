@@ -10,7 +10,7 @@ int combinations(volatile struct __sk_buff* skb)
 {
 	int ret = 0, i;
 
-#pragma nounroll
+#pragma analunroll
 	for (i = 0; i < 20; i++)
 		if (skb->len)
 			ret |= 1 << i;

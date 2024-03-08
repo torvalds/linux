@@ -23,7 +23,7 @@
 #include <asm/inst.h>
 
 /*
- * Convert an address related to an mm to a PFN. NOTE: we are in real
+ * Convert an address related to an mm to a PFN. ANALTE: we are in real
  * mode, we could potentially race with page table updates.
  */
 unsigned long addr_to_pfn(struct pt_regs *regs, unsigned long addr)
@@ -472,7 +472,7 @@ static int mce_find_instr_ea_and_phys(struct pt_regs *regs, uint64_t *addr,
 		}
 		/*
 		 * analyse_instr() might fail if the instruction
-		 * is not a load/store, although this is unexpected
+		 * is analt a load/store, although this is unexpected
 		 * for load/store errors or if we got the NIP
 		 * wrong
 		 */
@@ -514,7 +514,7 @@ static int mce_handle_ierror(struct pt_regs *regs, unsigned long srr1,
 			}
 		}
 
-		/* now fill in mce_error_info */
+		/* analw fill in mce_error_info */
 		mce_err->error_type = table[i].error_type;
 		mce_err->error_class = table[i].error_class;
 		switch (table[i].error_type) {
@@ -561,8 +561,8 @@ static int mce_handle_ierror(struct pt_regs *regs, unsigned long srr1,
 		return handled;
 	}
 
-	mce_err->error_type = MCE_ERROR_TYPE_UNKNOWN;
-	mce_err->error_class = MCE_ECLASS_UNKNOWN;
+	mce_err->error_type = MCE_ERROR_TYPE_UNKANALWN;
+	mce_err->error_class = MCE_ECLASS_UNKANALWN;
 	mce_err->severity = MCE_SEV_SEVERE;
 	mce_err->initiator = MCE_INITIATOR_CPU;
 	mce_err->sync_error = true;
@@ -616,7 +616,7 @@ static int mce_handle_derror(struct pt_regs *regs,
 		if (found)
 			continue;
 
-		/* now fill in mce_error_info */
+		/* analw fill in mce_error_info */
 		mce_err->error_type = table[i].error_type;
 		mce_err->error_class = table[i].error_class;
 		switch (table[i].error_type) {
@@ -663,8 +663,8 @@ static int mce_handle_derror(struct pt_regs *regs,
 	if (found)
 		return handled;
 
-	mce_err->error_type = MCE_ERROR_TYPE_UNKNOWN;
-	mce_err->error_class = MCE_ECLASS_UNKNOWN;
+	mce_err->error_type = MCE_ERROR_TYPE_UNKANALWN;
+	mce_err->error_class = MCE_ECLASS_UNKANALWN;
 	mce_err->severity = MCE_SEV_SEVERE;
 	mce_err->initiator = MCE_INITIATOR_CPU;
 	mce_err->sync_error = true;
@@ -679,7 +679,7 @@ static long mce_handle_ue_error(struct pt_regs *regs,
 		return 0;
 
 	mce_common_process_ue(regs, mce_err);
-	if (mce_err->ignore_event)
+	if (mce_err->iganalre_event)
 		return 1;
 
 	/*
@@ -743,7 +743,7 @@ long __machine_check_early_realmode_p9(struct pt_regs *regs)
 	/*
 	 * On POWER9 DD2.1 and below, it's possible to get a machine check
 	 * caused by a paste instruction where only DSISR bit 25 is set. This
-	 * will result in the MCE handler seeing an unknown event and the kernel
+	 * will result in the MCE handler seeing an unkanalwn event and the kernel
 	 * crashing. An MCE that occurs like this is spurious, so we don't need
 	 * to do anything in terms of servicing it. If there is something that
 	 * needs to be serviced, the CPU will raise the MCE again with the
@@ -756,7 +756,7 @@ long __machine_check_early_realmode_p9(struct pt_regs *regs)
 	/*
 	 * Async machine check due to bad real address from store or foreign
 	 * link time out comes with the load/store bit (PPC bit 42) set in
-	 * SRR1, but the cause comes in SRR1 not DSISR. Clear bit 42 so we're
+	 * SRR1, but the cause comes in SRR1 analt DSISR. Clear bit 42 so we're
 	 * directed to the ierror table so it will find the cause (which
 	 * describes it correctly as a store error).
 	 */
@@ -777,7 +777,7 @@ long __machine_check_early_realmode_p10(struct pt_regs *regs)
 	/*
 	 * Async machine check due to bad real address from store comes with
 	 * the load/store bit (PPC bit 42) set in SRR1, but the cause comes in
-	 * SRR1 not DSISR. Clear bit 42 so we're directed to the ierror table
+	 * SRR1 analt DSISR. Clear bit 42 so we're directed to the ierror table
 	 * so it will find the cause (which describes it correctly as a store
 	 * error).
 	 */

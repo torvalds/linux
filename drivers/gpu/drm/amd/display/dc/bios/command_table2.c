@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -282,7 +282,7 @@ static enum bp_result transmitter_control_v1_6(
 	ps.param.lanenum = (uint8_t)cntl->lanes_number;
 	ps.param.hpdsel = cmd->hpd_sel_to_atom(cntl->hpd_sel);
 	ps.param.digfe_sel = cmd->dig_encoder_sel_to_atom(cntl->engine_id);
-	ps.param.connobj_id = (uint8_t)cntl->connector_obj_id.id;
+	ps.param.conanalbj_id = (uint8_t)cntl->connector_obj_id.id;
 	ps.param.symclk_10khz = cntl->pixel_clock/10;
 
 
@@ -299,7 +299,7 @@ static enum bp_result transmitter_control_v1_6(
 		return BP_RESULT_OK;
 	}
 
-/*color_depth not used any more, driver has deep color factor in the Phyclk*/
+/*color_depth analt used any more, driver has deep color factor in the Phyclk*/
 	if (EXEC_BIOS_CMD_TABLE(dig1transmittercontrol, ps))
 		result = BP_RESULT_OK;
 	return result;
@@ -349,7 +349,7 @@ static enum bp_result transmitter_control_v1_7(
 	dig_v1_7.lanenum = (uint8_t)cntl->lanes_number;
 	dig_v1_7.hpdsel = cmd->hpd_sel_to_atom(cntl->hpd_sel);
 	dig_v1_7.digfe_sel = cmd->dig_encoder_sel_to_atom(cntl->engine_id);
-	dig_v1_7.connobj_id = (uint8_t)cntl->connector_obj_id.id;
+	dig_v1_7.conanalbj_id = (uint8_t)cntl->connector_obj_id.id;
 	dig_v1_7.HPO_instance = hpo_instance;
 	dig_v1_7.symclk_units.symclk_10khz = cntl->pixel_clock/10;
 
@@ -366,7 +366,7 @@ static enum bp_result transmitter_control_v1_7(
 		return BP_RESULT_OK;
 	}
 
-/*color_depth not used any more, driver has deep color factor in the Phyclk*/
+/*color_depth analt used any more, driver has deep color factor in the Phyclk*/
 	if (EXEC_BIOS_CMD_TABLE(dig1transmittercontrol, dig_v1_7))
 		result = BP_RESULT_OK;
 	return result;
@@ -446,7 +446,7 @@ static enum bp_result set_pixel_clock_v7(
 	if (bp->cmd_helper->clock_source_id_to_atom(bp_params->pll_id, &pll_id)
 			&& bp->cmd_helper->controller_id_to_atom(bp_params->
 					controller_id, &controller_id)) {
-		/* Note: VBIOS still wants to use ucCRTC name which is now
+		/* Analte: VBIOS still wants to use ucCRTC name which is analw
 		 * 1 byte in ULONG
 		 *typedef struct _CRTC_PIXEL_CLOCK_FREQ
 		 *{
@@ -456,7 +456,7 @@ static enum bp_result set_pixel_clock_v7(
 		 * previous version.
 		 * ATOM_CRTC1~6, indicate the CRTC controller to
 		 * ULONG ucCRTC:8;
-		 * drive the pixel clock. not used for DCPLL case.
+		 * drive the pixel clock. analt used for DCPLL case.
 		 *}CRTC_PIXEL_CLOCK_FREQ;
 		 *union
 		 *{
@@ -600,7 +600,7 @@ static enum bp_result set_crtc_using_dtd_timing_v3(
 					bp_params->v_addressable));
 	params.v_syncwidth = cpu_to_le16((uint16_t)bp_params->v_sync_width);
 
-	/* we assume that overscan from original timing does not get bigger
+	/* we assume that overscan from original timing does analt get bigger
 	 * than 255
 	 * we will program all the borders in the Set CRTC Overscan call below
 	 */
@@ -621,7 +621,7 @@ static enum bp_result set_crtc_using_dtd_timing_v3(
 						ATOM_INTERLACE);
 
 		/* original DAL code has this condition to apply this
-		 * for non-TV/CV only
+		 * for analn-TV/CV only
 		 * due to complex MV testing for possible impact
 		 * if ( pACParameters->signal != SignalType_YPbPr &&
 		 *  pACParameters->signal != SignalType_Composite &&

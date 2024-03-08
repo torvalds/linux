@@ -102,7 +102,7 @@ static void dc_scan_kbd(struct dc_kbd *kbd)
 				input_report_key(dev, keycode, 0);
 			} else
 				dev_dbg(&dev->dev,
-					"Unknown key (scancode %#x) released.",
+					"Unkanalwn key (scancode %#x) released.",
 					code);
 		}
 		ptr = memchr(kbd->old + 2, kbd->new[i], 6);
@@ -114,7 +114,7 @@ static void dc_scan_kbd(struct dc_kbd *kbd)
 				input_report_key(dev, keycode, 1);
 			} else
 				dev_dbg(&dev->dev,
-					"Unknown key (scancode %#x) pressed.",
+					"Unkanalwn key (scancode %#x) pressed.",
 					code);
 		}
 	}
@@ -156,13 +156,13 @@ static int probe_maple_kbd(struct device *dev)
 
 	kbd = kzalloc(sizeof(struct dc_kbd), GFP_KERNEL);
 	if (!kbd) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto fail;
 	}
 
 	idev = input_allocate_device();
 	if (!idev) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto fail_idev_alloc;
 	}
 

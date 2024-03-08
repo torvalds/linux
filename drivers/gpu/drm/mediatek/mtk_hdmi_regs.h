@@ -25,7 +25,7 @@
 #define I2S_UV_CH_EN_MASK		0x3c
 #define I2S_UV_CH_EN(x)			BIT((x) + 2)
 #define I2S_UV_TMDS_DEBUG		BIT(6)
-#define I2S_UV_NORMAL_INFO_INV		BIT(7)
+#define I2S_UV_ANALRMAL_INFO_INV		BIT(7)
 #define GRL_ACP_ISRC_CTRL	0x158
 #define VS_EN				BIT(0)
 #define ACP_EN				BIT(1)
@@ -60,7 +60,7 @@
 #define AUDIO_ZERO			BIT(0)
 #define HIGH_BIT_RATE			BIT(1)
 #define SACD_DST			BIT(2)
-#define DST_NORMAL_DOUBLE		BIT(3)
+#define DST_ANALRMAL_DOUBLE		BIT(3)
 #define DSD_INV				BIT(4)
 #define LR_INV				BIT(5)
 #define LR_MIX				BIT(6)
@@ -106,7 +106,7 @@
 #define CFG2_MHL_DE_SEL			BIT(3)
 #define CFG2_MHL_FAKE_DE_SEL		BIT(4)
 #define CFG2_MHL_DATA_REMAP		BIT(5)
-#define CFG2_NOTICE_EN			BIT(6)
+#define CFG2_ANALTICE_EN			BIT(6)
 #define CFG2_ACLK_INV			BIT(7)
 #define GRL_CFG3		0x30
 #define CFG3_AES_KEY_INDEX_MASK		0x3f
@@ -191,7 +191,7 @@
 #define VIDEO_CFG_3		0x38c
 #define VIDEO_CFG_4		0x390
 #define VIDEO_SOURCE_SEL		BIT(7)
-#define NORMAL_PATH			(1 << 7)
+#define ANALRMAL_PATH			(1 << 7)
 #define GEN_RGB				(0 << 7)
 
 #define HDMI_SYS_CFG1C		0x000

@@ -42,16 +42,16 @@ static DECLARE_RWSEM(alg_types_sem);
 
 static const struct af_alg_type *alg_get_type(const char *name)
 {
-	const struct af_alg_type *type = ERR_PTR(-ENOENT);
-	struct alg_type_list *node;
+	const struct af_alg_type *type = ERR_PTR(-EANALENT);
+	struct alg_type_list *analde;
 
 	down_read(&alg_types_sem);
-	list_for_each_entry(node, &alg_types, list) {
-		if (strcmp(node->type->name, name))
+	list_for_each_entry(analde, &alg_types, list) {
+		if (strcmp(analde->type->name, name))
 			continue;
 
-		if (try_module_get(node->type->owner))
-			type = node->type;
+		if (try_module_get(analde->type->owner))
+			type = analde->type;
 		break;
 	}
 	up_read(&alg_types_sem);
@@ -61,25 +61,25 @@ static const struct af_alg_type *alg_get_type(const char *name)
 
 int af_alg_register_type(const struct af_alg_type *type)
 {
-	struct alg_type_list *node;
+	struct alg_type_list *analde;
 	int err = -EEXIST;
 
 	down_write(&alg_types_sem);
-	list_for_each_entry(node, &alg_types, list) {
-		if (!strcmp(node->type->name, type->name))
+	list_for_each_entry(analde, &alg_types, list) {
+		if (!strcmp(analde->type->name, type->name))
 			goto unlock;
 	}
 
-	node = kmalloc(sizeof(*node), GFP_KERNEL);
-	err = -ENOMEM;
-	if (!node)
+	analde = kmalloc(sizeof(*analde), GFP_KERNEL);
+	err = -EANALMEM;
+	if (!analde)
 		goto unlock;
 
 	type->ops->owner = THIS_MODULE;
-	if (type->ops_nokey)
-		type->ops_nokey->owner = THIS_MODULE;
-	node->type = type;
-	list_add(&node->list, &alg_types);
+	if (type->ops_analkey)
+		type->ops_analkey->owner = THIS_MODULE;
+	analde->type = type;
+	list_add(&analde->list, &alg_types);
 	err = 0;
 
 unlock:
@@ -91,16 +91,16 @@ EXPORT_SYMBOL_GPL(af_alg_register_type);
 
 int af_alg_unregister_type(const struct af_alg_type *type)
 {
-	struct alg_type_list *node;
-	int err = -ENOENT;
+	struct alg_type_list *analde;
+	int err = -EANALENT;
 
 	down_write(&alg_types_sem);
-	list_for_each_entry(node, &alg_types, list) {
-		if (strcmp(node->type->name, type->name))
+	list_for_each_entry(analde, &alg_types, list) {
+		if (strcmp(analde->type->name, type->name))
 			continue;
 
-		list_del(&node->list);
-		kfree(node);
+		list_del(&analde->list);
+		kfree(analde);
 		err = 0;
 		break;
 	}
@@ -132,13 +132,13 @@ EXPORT_SYMBOL_GPL(af_alg_release);
 void af_alg_release_parent(struct sock *sk)
 {
 	struct alg_sock *ask = alg_sk(sk);
-	unsigned int nokey = atomic_read(&ask->nokey_refcnt);
+	unsigned int analkey = atomic_read(&ask->analkey_refcnt);
 
 	sk = ask->parent;
 	ask = alg_sk(sk);
 
-	if (nokey)
-		atomic_dec(&ask->nokey_refcnt);
+	if (analkey)
+		atomic_dec(&ask->analkey_refcnt);
 
 	if (atomic_dec_and_test(&ask->refcnt))
 		sock_put(sk);
@@ -165,7 +165,7 @@ static int alg_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	if (addr_len < sizeof(*sa) + 1)
 		return -EINVAL;
 
-	/* If caller uses non-allowed flag, return error. */
+	/* If caller uses analn-allowed flag, return error. */
 	if ((sa->salg_feat & ~allowed) || (sa->salg_mask & ~allowed))
 		return -EINVAL;
 
@@ -173,7 +173,7 @@ static int alg_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	sa->salg_name[addr_len - sizeof(*sa) - 1] = 0;
 
 	type = alg_get_type(sa->salg_type);
-	if (PTR_ERR(type) == -ENOENT) {
+	if (PTR_ERR(type) == -EANALENT) {
 		request_module("algif-%s", sa->salg_type);
 		type = alg_get_type(sa->salg_type);
 	}
@@ -214,7 +214,7 @@ static int alg_setkey(struct sock *sk, sockptr_t ukey, unsigned int keylen)
 
 	key = sock_kmalloc(sk, keylen, GFP_KERNEL);
 	if (!key)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = -EFAULT;
 	if (copy_from_sockptr(key, ukey, keylen))
@@ -306,7 +306,7 @@ static int alg_setkey_by_key_serial(struct alg_sock *ask, sockptr_t optval,
 
 	down_read(&key->sem);
 
-	ret = ERR_PTR(-ENOPROTOOPT);
+	ret = ERR_PTR(-EANALPROTOOPT);
 	if (!strcmp(key->type->name, "user") ||
 	    !strcmp(key->type->name, "logon")) {
 		ret = key_data_ptr_user(key, &key_datalen);
@@ -328,7 +328,7 @@ static int alg_setkey_by_key_serial(struct alg_sock *ask, sockptr_t optval,
 	if (!key_data) {
 		up_read(&key->sem);
 		key_put(key);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	memcpy(key_data, ret, key_datalen);
@@ -349,7 +349,7 @@ static inline int alg_setkey_by_key_serial(struct alg_sock *ask,
 					   sockptr_t optval,
 					   unsigned int optlen)
 {
-	return -ENOPROTOOPT;
+	return -EANALPROTOOPT;
 }
 
 #endif
@@ -363,12 +363,12 @@ static int alg_setsockopt(struct socket *sock, int level, int optname,
 	int err = -EBUSY;
 
 	lock_sock(sk);
-	if (atomic_read(&ask->refcnt) != atomic_read(&ask->nokey_refcnt))
+	if (atomic_read(&ask->refcnt) != atomic_read(&ask->analkey_refcnt))
 		goto unlock;
 
 	type = ask->type;
 
-	err = -ENOPROTOOPT;
+	err = -EANALPROTOOPT;
 	if (level != SOL_ALG || !type)
 		goto unlock;
 
@@ -412,7 +412,7 @@ int af_alg_accept(struct sock *sk, struct socket *newsock, bool kern)
 	struct alg_sock *ask = alg_sk(sk);
 	const struct af_alg_type *type;
 	struct sock *sk2;
-	unsigned int nokey;
+	unsigned int analkey;
 	int err;
 
 	lock_sock(sk);
@@ -423,7 +423,7 @@ int af_alg_accept(struct sock *sk, struct socket *newsock, bool kern)
 		goto unlock;
 
 	sk2 = sk_alloc(sock_net(sk), PF_ALG, GFP_KERNEL, &alg_proto, kern);
-	err = -ENOMEM;
+	err = -EANALMEM;
 	if (!sk2)
 		goto unlock;
 
@@ -438,26 +438,26 @@ int af_alg_accept(struct sock *sk, struct socket *newsock, bool kern)
 	newsock->ops = type->ops;
 	err = type->accept(ask->private, sk2);
 
-	nokey = err == -ENOKEY;
-	if (nokey && type->accept_nokey)
-		err = type->accept_nokey(ask->private, sk2);
+	analkey = err == -EANALKEY;
+	if (analkey && type->accept_analkey)
+		err = type->accept_analkey(ask->private, sk2);
 
 	if (err)
 		goto unlock;
 
 	if (atomic_inc_return_relaxed(&ask->refcnt) == 1)
 		sock_hold(sk);
-	if (nokey) {
-		atomic_inc(&ask->nokey_refcnt);
-		atomic_set(&alg_sk(sk2)->nokey_refcnt, 1);
+	if (analkey) {
+		atomic_inc(&ask->analkey_refcnt);
+		atomic_set(&alg_sk(sk2)->analkey_refcnt, 1);
 	}
 	alg_sk(sk2)->parent = sk;
 	alg_sk(sk2)->type = type;
 
 	newsock->state = SS_CONNECTED;
 
-	if (nokey)
-		newsock->ops = type->ops_nokey;
+	if (analkey)
+		newsock->ops = type->ops_analkey;
 
 	err = 0;
 
@@ -478,15 +478,15 @@ static const struct proto_ops alg_proto_ops = {
 	.family		=	PF_ALG,
 	.owner		=	THIS_MODULE,
 
-	.connect	=	sock_no_connect,
-	.socketpair	=	sock_no_socketpair,
-	.getname	=	sock_no_getname,
-	.ioctl		=	sock_no_ioctl,
-	.listen		=	sock_no_listen,
-	.shutdown	=	sock_no_shutdown,
-	.mmap		=	sock_no_mmap,
-	.sendmsg	=	sock_no_sendmsg,
-	.recvmsg	=	sock_no_recvmsg,
+	.connect	=	sock_anal_connect,
+	.socketpair	=	sock_anal_socketpair,
+	.getname	=	sock_anal_getname,
+	.ioctl		=	sock_anal_ioctl,
+	.listen		=	sock_anal_listen,
+	.shutdown	=	sock_anal_shutdown,
+	.mmap		=	sock_anal_mmap,
+	.sendmsg	=	sock_anal_sendmsg,
+	.recvmsg	=	sock_anal_recvmsg,
 
 	.bind		=	alg_bind,
 	.release	=	af_alg_release,
@@ -508,11 +508,11 @@ static int alg_create(struct net *net, struct socket *sock, int protocol,
 	int err;
 
 	if (sock->type != SOCK_SEQPACKET)
-		return -ESOCKTNOSUPPORT;
+		return -ESOCKTANALSUPPORT;
 	if (protocol != 0)
-		return -EPROTONOSUPPORT;
+		return -EPROTOANALSUPPORT;
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	sk = sk_alloc(net, PF_ALG, GFP_KERNEL, &alg_proto, kern);
 	if (!sk)
 		goto out;
@@ -617,7 +617,7 @@ static int af_alg_alloc_tsgl(struct sock *sk)
 				   struct_size(sgl, sg, (MAX_SGL_ENTS + 1)),
 				   GFP_KERNEL);
 		if (!sgl)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		sg_init_table(sgl->sg, MAX_SGL_ENTS + 1);
 		sgl->cur = 0;
@@ -686,14 +686,14 @@ EXPORT_SYMBOL_GPL(af_alg_count_tsgl);
 /**
  * af_alg_pull_tsgl - Release the specified buffers from TX SGL
  *
- * If @dst is non-null, reassign the pages to @dst. The caller must release
+ * If @dst is analn-null, reassign the pages to @dst. The caller must release
  * the pages. If @dst_offset is given only reassign the pages to @dst starting
  * at the @dst_offset (byte). The caller must ensure that @dst is large
- * enough (e.g. by using af_alg_count_tsgl with the same offset).
+ * eanalugh (e.g. by using af_alg_count_tsgl with the same offset).
  *
  * @sk: socket of connection to user space
  * @used: Number of bytes to pull from TX SGL
- * @dst: If non-NULL, buffer is reassigned to dst SGL instead of releasing. The
+ * @dst: If analn-NULL, buffer is reassigned to dst SGL instead of releasing. The
  *	 caller must release the buffers in dst.
  * @dst_offset: Reassign the TX SGL from given offset. All buffers before
  *	        reaching the offset is released.
@@ -812,7 +812,7 @@ static int af_alg_wait_for_wmem(struct sock *sk, unsigned int flags)
 	if (flags & MSG_DONTWAIT)
 		return -EAGAIN;
 
-	sk_set_bit(SOCKWQ_ASYNC_NOSPACE, sk);
+	sk_set_bit(SOCKWQ_ASYNC_ANALSPACE, sk);
 
 	add_wait_queue(sk_sleep(sk), &wait);
 	for (;;) {
@@ -845,7 +845,7 @@ void af_alg_wmem_wakeup(struct sock *sk)
 	wq = rcu_dereference(sk->sk_wq);
 	if (skwq_has_sleeper(wq))
 		wake_up_interruptible_sync_poll(&wq->wait, EPOLLIN |
-							   EPOLLRDNORM |
+							   EPOLLRDANALRM |
 							   EPOLLRDBAND);
 	sk_wake_async(sk, SOCK_WAKE_WAITD, POLL_IN);
 	rcu_read_unlock();
@@ -912,7 +912,7 @@ static void af_alg_data_wakeup(struct sock *sk)
 	wq = rcu_dereference(sk->sk_wq);
 	if (skwq_has_sleeper(wq))
 		wake_up_interruptible_sync_poll(&wq->wait, EPOLLOUT |
-							   EPOLLRDNORM |
+							   EPOLLRDANALRM |
 							   EPOLLRDBAND);
 	sk_wake_async(sk, SOCK_WAKE_SPACE, POLL_OUT);
 	rcu_read_unlock();
@@ -1067,7 +1067,7 @@ int af_alg_sendmsg(struct socket *sock, struct msghdr *msg, size_t size,
 
 				pg = alloc_page(GFP_KERNEL);
 				if (!pg) {
-					err = -ENOMEM;
+					err = -EANALMEM;
 					goto unlock;
 				}
 
@@ -1129,7 +1129,7 @@ EXPORT_SYMBOL_GPL(af_alg_free_resources);
 /**
  * af_alg_async_cb - AIO callback handler
  * @data: async request completion data
- * @err: if non-zero, error result to be returned via ki_complete();
+ * @err: if analn-zero, error result to be returned via ki_complete();
  *       otherwise return the AIO output length via ki_complete().
  *
  * This handler cleans up the struct af_alg_async_req upon completion of the
@@ -1173,10 +1173,10 @@ __poll_t af_alg_poll(struct file *file, struct socket *sock,
 	mask = 0;
 
 	if (!ctx->more || ctx->used)
-		mask |= EPOLLIN | EPOLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDANALRM;
 
 	if (af_alg_writable(sk))
-		mask |= EPOLLOUT | EPOLLWRNORM | EPOLLWRBAND;
+		mask |= EPOLLOUT | EPOLLWRANALRM | EPOLLWRBAND;
 
 	return mask;
 }
@@ -1201,7 +1201,7 @@ struct af_alg_async_req *af_alg_alloc_areq(struct sock *sk,
 
 	areq = sock_kmalloc(sk, areqlen, GFP_KERNEL);
 	if (unlikely(!areq))
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ctx->inflight = true;
 
@@ -1254,7 +1254,7 @@ int af_alg_get_rsgl(struct sock *sk, struct msghdr *msg, int flags,
 		} else {
 			rsgl = sock_kmalloc(sk, sizeof(*rsgl), GFP_KERNEL);
 			if (unlikely(!rsgl))
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 
 		rsgl->sgl.need_unpin =

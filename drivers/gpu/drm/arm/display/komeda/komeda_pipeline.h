@@ -102,9 +102,9 @@ struct komeda_component {
 	 * @max_active_outputs:
 	 *
 	 * maximum number of inputs/outputs that can be active at the same time
-	 * Note:
+	 * Analte:
 	 * the number isn't the bit number of @supported_inputs or
-	 * @supported_outputs, but may be less than it, since component may not
+	 * @supported_outputs, but may be less than it, since component may analt
 	 * support enabling all @supported_inputs/outputs at the same time.
 	 */
 	u8 max_active_inputs;
@@ -131,8 +131,8 @@ struct komeda_component {
 /**
  * struct komeda_component_output
  *
- * a component has multiple outputs, if want to know where the data
- * comes from, only know the component is not enough, we still need to know
+ * a component has multiple outputs, if want to kanalw where the data
+ * comes from, only kanalw the component is analt eanalugh, we still need to kanalw
  * its output port
  */
 struct komeda_component_output {
@@ -187,7 +187,7 @@ struct komeda_component_state {
 	 * -  disabling_inputs = affected_inputs ^ active_inputs;
 	 * -  changed_inputs = disabling_inputs | changed_active_inputs;
 	 *
-	 * NOTE:
+	 * ANALTE:
 	 * changed_inputs doesn't include all active_input but only
 	 * @changed_active_inputs, and this bitmask can be used in chip
 	 * level for dirty update.
@@ -201,7 +201,7 @@ struct komeda_component_state {
 	 * @inputs:
 	 *
 	 * the specific inputs[i] only valid on BIT(i) has been set in
-	 * @active_inputs, if not the inputs[i] is undefined.
+	 * @active_inputs, if analt the inputs[i] is undefined.
 	 */
 	struct komeda_component_output inputs[KOMEDA_COMPONENT_N_INPUTS];
 };
@@ -233,8 +233,8 @@ struct komeda_layer {
 	u32 supported_rots;
 	/* komeda supports layer split which splits a whole image to two parts
 	 * left and right and handle them by two individual layer processors
-	 * Note: left/right are always according to the final display rect,
-	 * not the source buffer.
+	 * Analte: left/right are always according to the final display rect,
+	 * analt the source buffer.
 	 */
 	struct komeda_layer *right;
 };
@@ -342,7 +342,7 @@ struct komeda_timing_ctrlr_state {
 	struct komeda_component_state base;
 };
 
-/* Why define A separated structure but not use plane_state directly ?
+/* Why define A separated structure but analt use plane_state directly ?
  * 1. Komeda supports layer_split which means a plane_state can be split and
  *    handled by two layers, one layer only handle half of plane image.
  * 2. Fix up the user properties according to HW's capabilities, like user
@@ -398,7 +398,7 @@ struct komeda_pipeline {
 	/**
 	 * @standalone_disabled_comps:
 	 *
-	 * When disable the pipeline, some components can not be disabled
+	 * When disable the pipeline, some components can analt be disabled
 	 * together with others, but need a sparated and standalone disable.
 	 * The standalone_disabled_comps are the components which need to be
 	 * disabled standalone, and this concept also introduce concept of
@@ -430,12 +430,12 @@ struct komeda_pipeline {
 	/** @funcs: chip private pipeline functions */
 	const struct komeda_pipeline_funcs *funcs;
 
-	/** @of_node: pipeline dt node */
-	struct device_node *of_node;
+	/** @of_analde: pipeline dt analde */
+	struct device_analde *of_analde;
 	/** @of_output_port: pipeline output port */
-	struct device_node *of_output_port;
-	/** @of_output_links: output connector device nodes */
-	struct device_node *of_output_links[2];
+	struct device_analde *of_output_port;
+	/** @of_output_links: output connector device analdes */
+	struct device_analde *of_output_links[2];
 	/** @dual_link: true if of_output_links[0] and [1] are both valid */
 	bool dual_link;
 };
@@ -443,7 +443,7 @@ struct komeda_pipeline {
 /**
  * struct komeda_pipeline_state
  *
- * NOTE:
+ * ANALTE:
  * Unlike the pipeline, pipeline_state doesn’t gather any component_state
  * into it. It because all component will be managed by drm_atomic_state.
  */

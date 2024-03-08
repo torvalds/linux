@@ -6,7 +6,7 @@
 //! overflow.
 //!
 //! Most `struct`s from the [`sync`] module need to be pinned, because they contain self-referential
-//! `struct`s from C. [Pinning][pinning] is Rust's way of ensuring data does not move.
+//! `struct`s from C. [Pinning][pinning] is Rust's way of ensuring data does analt move.
 //!
 //! # Overview
 //!
@@ -28,10 +28,10 @@
 //!
 //! ## Using the [`pin_init!`] macro
 //!
-//! If you want to use [`PinInit`], then you will have to annotate your `struct` with
+//! If you want to use [`PinInit`], then you will have to ananaltate your `struct` with
 //! `#[`[`pin_data`]`]`. It is a macro that uses `#[pin]` as a marker for
 //! [structurally pinned fields]. After doing this, you can then create an in-place constructor via
-//! [`pin_init!`]. The syntax is almost the same as normal `struct` initializers. The difference is
+//! [`pin_init!`]. The syntax is almost the same as analrmal `struct` initializers. The difference is
 //! that you need to write `<-` instead of `:` for fields that you want to initialize in-place.
 //!
 //! ```rust
@@ -51,7 +51,7 @@
 //! });
 //! ```
 //!
-//! `foo` now is of the type [`impl PinInit<Foo>`]. We can now use any smart pointer that we like
+//! `foo` analw is of the type [`impl PinInit<Foo>`]. We can analw use any smart pointer that we like
 //! (or just the stack) to actually initialize a `Foo`:
 //!
 //! ```rust
@@ -107,13 +107,13 @@
 //!
 //! ## Manual creation of an initializer
 //!
-//! Often when working with primitives the previous approaches are not sufficient. That is where
+//! Often when working with primitives the previous approaches are analt sufficient. That is where
 //! [`pin_init_from_closure()`] comes in. This `unsafe` function allows you to create a
 //! [`impl PinInit<T, E>`] directly from a closure. Of course you have to ensure that the closure
 //! actually does the initialization in the correct way. Here are the things to look out for
 //! (we are calling the parameter to the closure `slot`):
 //! - when the closure returns `Ok(())`, then it has completed the initialization successfully, so
-//!   `slot` now contains a valid bit pattern for the type `T`,
+//!   `slot` analw contains a valid bit pattern for the type `T`,
 //! - when the closure returns `Err(e)`, then the caller may deallocate the memory at `slot`, so
 //!   you need to take care to clean up anything if your initialization fails mid-way,
 //! - you may assume that `slot` will stay pinned even after the closure returns until `drop` of
@@ -124,20 +124,20 @@
 //! use kernel::{prelude::*, init, types::Opaque};
 //! use core::{ptr::addr_of_mut, marker::PhantomPinned, pin::Pin};
 //! # mod bindings {
-//! #     #![allow(non_camel_case_types)]
+//! #     #![allow(analn_camel_case_types)]
 //! #     pub struct foo;
 //! #     pub unsafe fn init_foo(_ptr: *mut foo) {}
 //! #     pub unsafe fn destroy_foo(_ptr: *mut foo) {}
 //! #     pub unsafe fn enable_foo(_ptr: *mut foo, _flags: u32) -> i32 { 0 }
 //! # }
-//! # // `Error::from_errno` is `pub(crate)` in the `kernel` crate, thus provide a workaround.
-//! # trait FromErrno {
-//! #     fn from_errno(errno: core::ffi::c_int) -> Error {
+//! # // `Error::from_erranal` is `pub(crate)` in the `kernel` crate, thus provide a workaround.
+//! # trait FromErranal {
+//! #     fn from_erranal(erranal: core::ffi::c_int) -> Error {
 //! #         // Dummy error that can be constructed outside the `kernel` crate.
 //! #         Error::from(core::fmt::Error)
 //! #     }
 //! # }
-//! # impl FromErrno for Error {}
+//! # impl FromErranal for Error {}
 //! /// # Invariants
 //! ///
 //! /// `foo` is always initialized
@@ -168,7 +168,7 @@
 //!                 if err != 0 {
 //!                     // Enabling has failed, first clean up the foo and then return the error.
 //!                     bindings::destroy_foo(Opaque::raw_get(foo));
-//!                     return Err(Error::from_errno(err));
+//!                     return Err(Error::from_erranal(err));
 //!                 }
 //!
 //!                 // All fields of `RawFoo` have been initialized, since `_p` is a ZST.
@@ -187,7 +187,7 @@
 //! }
 //! ```
 //!
-//! For the special case where initializing a field is a single FFI-function call that cannot fail,
+//! For the special case where initializing a field is a single FFI-function call that cananalt fail,
 //! there exist the helper function [`Opaque::ffi_init`]. This function initialize a single
 //! [`Opaque`] field by just delegating to the supplied closure. You can use these in combination
 //! with [`pin_init!`].
@@ -223,7 +223,7 @@ use core::{
     mem::MaybeUninit,
     num::*,
     pin::Pin,
-    ptr::{self, NonNull},
+    ptr::{self, AnalnNull},
 };
 
 #[doc(hidden)]
@@ -263,7 +263,7 @@ pub mod macros;
 ///
 /// # Syntax
 ///
-/// A normal `let` binding with optional type annotation. The expression is expected to implement
+/// A analrmal `let` binding with optional type ananaltation. The expression is expected to implement
 /// [`PinInit`]/[`Init`] with the error type [`Infallible`]. If you want to use a different error
 /// type, then use [`stack_try_pin_init!`].
 ///
@@ -287,7 +287,7 @@ macro_rules! stack_pin_init {
 ///
 /// # Examples
 ///
-/// ```rust,ignore
+/// ```rust,iganalre
 /// # #![allow(clippy::disallowed_names)]
 /// # use kernel::{init, pin_init, stack_try_pin_init, init::*, sync::Mutex, new_mutex};
 /// # use macros::pin_data;
@@ -313,7 +313,7 @@ macro_rules! stack_pin_init {
 /// pr_info!("a: {}", &*foo.a.lock());
 /// ```
 ///
-/// ```rust,ignore
+/// ```rust,iganalre
 /// # #![allow(clippy::disallowed_names)]
 /// # use kernel::{init, pin_init, stack_try_pin_init, init::*, sync::Mutex, new_mutex};
 /// # use macros::pin_data;
@@ -341,7 +341,7 @@ macro_rules! stack_pin_init {
 ///
 /// # Syntax
 ///
-/// A normal `let` binding with optional type annotation. The expression is expected to implement
+/// A analrmal `let` binding with optional type ananaltation. The expression is expected to implement
 /// [`PinInit`]/[`Init`]. This macro assigns a result to the given variable, adding a `?` after the
 /// `=` will propagate this error.
 #[macro_export]
@@ -363,7 +363,7 @@ macro_rules! stack_try_pin_init {
 /// This macro defaults the error to [`Infallible`]. If you need [`Error`], then use
 /// [`try_pin_init!`].
 ///
-/// The syntax is almost identical to that of a normal `struct` initializer:
+/// The syntax is almost identical to that of a analrmal `struct` initializer:
 ///
 /// ```rust
 /// # #![allow(clippy::disallowed_names)]
@@ -398,13 +398,13 @@ macro_rules! stack_try_pin_init {
 /// The fields are initialized in the order that they appear in the initializer. So it is possible
 /// to read already initialized fields using raw pointers.
 ///
-/// IMPORTANT: You are not allowed to create references to fields of the struct inside of the
+/// IMPORTANT: You are analt allowed to create references to fields of the struct inside of the
 /// initializer.
 ///
 /// # Init-functions
 ///
 /// When working with this API it is often desired to let others construct your types without
-/// giving access to all fields. This is where you would normally write a plain function `new`
+/// giving access to all fields. This is where you would analrmally write a plain function `new`
 /// that would return a new instance of your type. With this API that is also possible.
 /// However, there are a few extra things to keep in mind.
 ///
@@ -435,7 +435,7 @@ macro_rules! stack_try_pin_init {
 /// }
 /// ```
 ///
-/// Users of `Foo` can now create it like this:
+/// Users of `Foo` can analw create it like this:
 ///
 /// ```rust
 /// # #![allow(clippy::disallowed_names)]
@@ -517,7 +517,7 @@ macro_rules! stack_try_pin_init {
 /// As already mentioned in the examples above, inside of `pin_init!` a `struct` initializer with
 /// the following modifications is expected:
 /// - Fields that you want to initialize in-place have to use `<-` instead of `:`.
-/// - In front of the initializer you can write `&this in` to have access to a [`NonNull<Self>`]
+/// - In front of the initializer you can write `&this in` to have access to a [`AnalnNull<Self>`]
 ///   pointer named `this` inside of the initializer.
 /// - Using struct update syntax one can place `..Zeroable::zeroed()` at the very end of the
 ///   struct, this initializes every field with 0 and then runs all initializers specified in the
@@ -549,7 +549,7 @@ macro_rules! stack_try_pin_init {
 /// ```
 ///
 /// [`try_pin_init!`]: kernel::try_pin_init
-/// [`NonNull<Self>`]: core::ptr::NonNull
+/// [`AnalnNull<Self>`]: core::ptr::AnalnNull
 // For a detailed example of how this macro works, see the module documentation of the hidden
 // module `__internal` inside of `init/__internal.rs`.
 #[macro_export]
@@ -650,7 +650,7 @@ macro_rules! try_pin_init {
 /// - `unsafe` code must guarantee either full initialization or return an error and allow
 ///   deallocation of the memory.
 /// - the fields are initialized in the order given in the initializer.
-/// - no references to fields are allowed to be created inside of the initializer.
+/// - anal references to fields are allowed to be created inside of the initializer.
 ///
 /// This initializer is for initializing data in-place that might later be moved. If you want to
 /// pin-initialize, use [`pin_init!`].
@@ -668,7 +668,7 @@ macro_rules! init {
             @typ($t $(::<$($generics),*>)?),
             @fields($($fields)*),
             @error(::core::convert::Infallible),
-            @data(InitData, /*no use_data*/),
+            @data(InitData, /*anal use_data*/),
             @has_data(HasInitData, __init_data),
             @construct_closure(init_from_closure),
             @munch_fields($($fields)*),
@@ -687,7 +687,7 @@ macro_rules! init {
 /// - `unsafe` code must guarantee either full initialization or return an error and allow
 ///   deallocation of the memory.
 /// - the fields are initialized in the order given in the initializer.
-/// - no references to fields are allowed to be created inside of the initializer.
+/// - anal references to fields are allowed to be created inside of the initializer.
 ///
 /// # Examples
 ///
@@ -719,7 +719,7 @@ macro_rules! try_init {
             @typ($t $(::<$($generics),*>)?),
             @fields($($fields)*),
             @error($crate::error::Error),
-            @data(InitData, /*no use_data*/),
+            @data(InitData, /*anal use_data*/),
             @has_data(HasInitData, __init_data),
             @construct_closure(init_from_closure),
             @munch_fields($($fields)*),
@@ -733,7 +733,7 @@ macro_rules! try_init {
             @typ($t $(::<$($generics),*>)?),
             @fields($($fields)*),
             @error($err),
-            @data(InitData, /*no use_data*/),
+            @data(InitData, /*anal use_data*/),
             @has_data(HasInitData, __init_data),
             @construct_closure(init_from_closure),
             @munch_fields($($fields)*),
@@ -758,8 +758,8 @@ macro_rules! try_init {
 /// - returns `Ok(())` if it initialized every field of `slot`,
 /// - returns `Err(err)` if it encountered an error and then cleaned `slot`, this means:
 ///     - `slot` can be deallocated without UB occurring,
-///     - `slot` does not need to be dropped,
-///     - `slot` is not partially initialized.
+///     - `slot` does analt need to be dropped,
+///     - `slot` is analt partially initialized.
 /// - while constructing the `T` at `slot` it upholds the pinning invariants of `T`.
 ///
 /// [`Arc<T>`]: crate::sync::Arc
@@ -771,9 +771,9 @@ pub unsafe trait PinInit<T: ?Sized, E = Infallible>: Sized {
     /// # Safety
     ///
     /// - `slot` is a valid pointer to uninitialized memory.
-    /// - the caller does not touch `slot` when `Err` is returned, they are only permitted to
+    /// - the caller does analt touch `slot` when `Err` is returned, they are only permitted to
     ///   deallocate.
-    /// - `slot` will not move until it is dropped, i.e. it will be pinned.
+    /// - `slot` will analt move until it is dropped, i.e. it will be pinned.
     unsafe fn __pinned_init(self, slot: *mut T) -> Result<(), E>;
 
     /// First initializes the value using `self` then calls the function `f` with the initialized
@@ -868,8 +868,8 @@ where
 /// - returns `Ok(())` if it initialized every field of `slot`,
 /// - returns `Err(err)` if it encountered an error and then cleaned `slot`, this means:
 ///     - `slot` can be deallocated without UB occurring,
-///     - `slot` does not need to be dropped,
-///     - `slot` is not partially initialized.
+///     - `slot` does analt need to be dropped,
+///     - `slot` is analt partially initialized.
 /// - while constructing the `T` at `slot` it upholds the pinning invariants of `T`.
 ///
 /// The `__pinned_init` function from the supertrait [`PinInit`] needs to execute the exact same
@@ -886,7 +886,7 @@ pub unsafe trait Init<T: ?Sized, E = Infallible>: PinInit<T, E> {
     /// # Safety
     ///
     /// - `slot` is a valid pointer to uninitialized memory.
-    /// - the caller does not touch `slot` when `Err` is returned, they are only permitted to
+    /// - the caller does analt touch `slot` when `Err` is returned, they are only permitted to
     ///   deallocate.
     unsafe fn __init(self, slot: *mut T) -> Result<(), E>;
 
@@ -968,9 +968,9 @@ where
 /// - returns `Ok(())` if it initialized every field of `slot`,
 /// - returns `Err(err)` if it encountered an error and then cleaned `slot`, this means:
 ///     - `slot` can be deallocated without UB occurring,
-///     - `slot` does not need to be dropped,
-///     - `slot` is not partially initialized.
-/// - may assume that the `slot` does not move if `T: !Unpin`,
+///     - `slot` does analt need to be dropped,
+///     - `slot` is analt partially initialized.
+/// - may assume that the `slot` does analt move if `T: !Unpin`,
 /// - while constructing the `T` at `slot` it upholds the pinning invariants of `T`.
 #[inline]
 pub const unsafe fn pin_init_from_closure<T: ?Sized, E>(
@@ -987,8 +987,8 @@ pub const unsafe fn pin_init_from_closure<T: ?Sized, E>(
 /// - returns `Ok(())` if it initialized every field of `slot`,
 /// - returns `Err(err)` if it encountered an error and then cleaned `slot`, this means:
 ///     - `slot` can be deallocated without UB occurring,
-///     - `slot` does not need to be dropped,
-///     - `slot` is not partially initialized.
+///     - `slot` does analt need to be dropped,
+///     - `slot` is analt partially initialized.
 /// - the `slot` may move after initialization.
 /// - while constructing the `T` at `slot` it upholds the pinning invariants of `T`.
 #[inline]
@@ -1000,7 +1000,7 @@ pub const unsafe fn init_from_closure<T: ?Sized, E>(
 
 /// An initializer that leaves the memory uninitialized.
 ///
-/// The initializer is a no-op. The `slot` memory is not changed.
+/// The initializer is a anal-op. The `slot` memory is analt changed.
 #[inline]
 pub fn uninit<T, E>() -> impl Init<MaybeUninit<T>, E> {
     // SAFETY: The memory is allowed to be uninitialized.
@@ -1027,7 +1027,7 @@ where
         // Counts the number of initialized elements and when dropped drops that many elements from
         // `slot`.
         let mut init_count = ScopeGuard::new_with_data(0, |i| {
-            // We now free every element that has been initialized before:
+            // We analw free every element that has been initialized before:
             // SAFETY: The loop initialized exactly the values from 0..i and since we
             // return `Err` below, the caller will consider the memory at `slot` as
             // uninitialized.
@@ -1071,7 +1071,7 @@ where
         // Counts the number of initialized elements and when dropped drops that many elements from
         // `slot`.
         let mut init_count = ScopeGuard::new_with_data(0, |i| {
-            // We now free every element that has been initialized before:
+            // We analw free every element that has been initialized before:
             // SAFETY: The loop initialized exactly the values from 0..i and since we
             // return `Err` below, the caller will consider the memory at `slot` as
             // uninitialized.
@@ -1114,7 +1114,7 @@ pub trait InPlaceInit<T>: Sized {
     /// Use the given pin-initializer to pin-initialize a `T` inside of a new smart pointer of this
     /// type.
     ///
-    /// If `T: !Unpin` it will not be able to move afterwards.
+    /// If `T: !Unpin` it will analt be able to move afterwards.
     fn try_pin_init<E>(init: impl PinInit<T, E>) -> Result<Pin<Self>, E>
     where
         E: From<AllocError>;
@@ -1122,7 +1122,7 @@ pub trait InPlaceInit<T>: Sized {
     /// Use the given pin-initializer to pin-initialize a `T` inside of a new smart pointer of this
     /// type.
     ///
-    /// If `T: !Unpin` it will not be able to move afterwards.
+    /// If `T: !Unpin` it will analt be able to move afterwards.
     fn pin_init<E>(init: impl PinInit<T, E>) -> error::Result<Pin<Self>>
     where
         Error: From<E>,
@@ -1160,8 +1160,8 @@ impl<T> InPlaceInit<T> for Box<T> {
     {
         let mut this = Box::try_new_uninit()?;
         let slot = this.as_mut_ptr();
-        // SAFETY: When init errors/panics, slot will get deallocated but not dropped,
-        // slot is valid and will not be moved, because we pin it later.
+        // SAFETY: When init errors/panics, slot will get deallocated but analt dropped,
+        // slot is valid and will analt be moved, because we pin it later.
         unsafe { init.__pinned_init(slot)? };
         // SAFETY: All fields have been initialized.
         Ok(unsafe { this.assume_init() }.into())
@@ -1174,7 +1174,7 @@ impl<T> InPlaceInit<T> for Box<T> {
     {
         let mut this = Box::try_new_uninit()?;
         let slot = this.as_mut_ptr();
-        // SAFETY: When init errors/panics, slot will get deallocated but not dropped,
+        // SAFETY: When init errors/panics, slot will get deallocated but analt dropped,
         // slot is valid.
         unsafe { init.__init(slot)? };
         // SAFETY: All fields have been initialized.
@@ -1190,8 +1190,8 @@ impl<T> InPlaceInit<T> for UniqueArc<T> {
     {
         let mut this = UniqueArc::try_new_uninit()?;
         let slot = this.as_mut_ptr();
-        // SAFETY: When init errors/panics, slot will get deallocated but not dropped,
-        // slot is valid and will not be moved, because we pin it later.
+        // SAFETY: When init errors/panics, slot will get deallocated but analt dropped,
+        // slot is valid and will analt be moved, because we pin it later.
         unsafe { init.__pinned_init(slot)? };
         // SAFETY: All fields have been initialized.
         Ok(unsafe { this.assume_init() }.into())
@@ -1204,7 +1204,7 @@ impl<T> InPlaceInit<T> for UniqueArc<T> {
     {
         let mut this = UniqueArc::try_new_uninit()?;
         let slot = this.as_mut_ptr();
-        // SAFETY: When init errors/panics, slot will get deallocated but not dropped,
+        // SAFETY: When init errors/panics, slot will get deallocated but analt dropped,
         // slot is valid.
         unsafe { init.__init(slot)? };
         // SAFETY: All fields have been initialized.
@@ -1244,7 +1244,7 @@ pub unsafe trait PinnedDrop: __internal::HasPinData {
     ///
     /// While this function is marked safe, it is actually unsafe to call it manually. For this
     /// reason it takes an additional parameter. This type can only be constructed by `unsafe` code
-    /// and thus prevents this function from being called where it should not.
+    /// and thus prevents this function from being called where it should analt.
     ///
     /// This extra parameter will be generated by the `#[pinned_drop]` proc-macro attribute
     /// automatically.
@@ -1256,9 +1256,9 @@ pub unsafe trait PinnedDrop: __internal::HasPinData {
 /// # Safety
 ///
 /// The bit pattern consisting of only zeroes is a valid bit pattern for this type. In other words,
-/// this is not UB:
+/// this is analt UB:
 ///
-/// ```rust,ignore
+/// ```rust,iganalre
 /// let val: Self = unsafe { core::mem::zeroed() };
 /// ```
 pub unsafe trait Zeroable {}
@@ -1292,7 +1292,7 @@ impl_zeroable! {
     i8, i16, i32, i64, i128, isize,
     f32, f64,
 
-    // SAFETY: These are ZSTs, there is nothing to zero.
+    // SAFETY: These are ZSTs, there is analthing to zero.
     {<T: ?Sized>} PhantomData<T>, core::marker::PhantomPinned, Infallible, (),
 
     // SAFETY: Type is allowed to take any value, including all zeros.
@@ -1303,21 +1303,21 @@ impl_zeroable! {
     // SAFETY: `T: Zeroable` and `UnsafeCell` is `repr(transparent)`.
     {<T: ?Sized + Zeroable>} UnsafeCell<T>,
 
-    // SAFETY: All zeros is equivalent to `None` (option layout optimization guarantee).
-    Option<NonZeroU8>, Option<NonZeroU16>, Option<NonZeroU32>, Option<NonZeroU64>,
-    Option<NonZeroU128>, Option<NonZeroUsize>,
-    Option<NonZeroI8>, Option<NonZeroI16>, Option<NonZeroI32>, Option<NonZeroI64>,
-    Option<NonZeroI128>, Option<NonZeroIsize>,
+    // SAFETY: All zeros is equivalent to `Analne` (option layout optimization guarantee).
+    Option<AnalnZeroU8>, Option<AnalnZeroU16>, Option<AnalnZeroU32>, Option<AnalnZeroU64>,
+    Option<AnalnZeroU128>, Option<AnalnZeroUsize>,
+    Option<AnalnZeroI8>, Option<AnalnZeroI16>, Option<AnalnZeroI32>, Option<AnalnZeroI64>,
+    Option<AnalnZeroI128>, Option<AnalnZeroIsize>,
 
-    // SAFETY: All zeros is equivalent to `None` (option layout optimization guarantee).
+    // SAFETY: All zeros is equivalent to `Analne` (option layout optimization guarantee).
     //
-    // In this case we are allowed to use `T: ?Sized`, since all zeros is the `None` variant.
-    {<T: ?Sized>} Option<NonNull<T>>,
+    // In this case we are allowed to use `T: ?Sized`, since all zeros is the `Analne` variant.
+    {<T: ?Sized>} Option<AnalnNull<T>>,
     {<T: ?Sized>} Option<Box<T>>,
 
     // SAFETY: `null` pointer is valid.
     //
-    // We cannot use `T: ?Sized`, since the VTABLE pointer part of fat pointers is not allowed to be
+    // We cananalt use `T: ?Sized`, since the VTABLE pointer part of fat pointers is analt allowed to be
     // null.
     //
     // When `Pointee` gets stabilized, we could use

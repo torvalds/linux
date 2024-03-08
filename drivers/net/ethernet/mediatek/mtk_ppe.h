@@ -252,11 +252,11 @@ struct mtk_foe_entry {
 enum {
 	MTK_PPE_CPU_REASON_TTL_EXCEEDED			= 0x02,
 	MTK_PPE_CPU_REASON_OPTION_HEADER		= 0x03,
-	MTK_PPE_CPU_REASON_NO_FLOW			= 0x07,
+	MTK_PPE_CPU_REASON_ANAL_FLOW			= 0x07,
 	MTK_PPE_CPU_REASON_IPV4_FRAG			= 0x08,
 	MTK_PPE_CPU_REASON_IPV4_DSLITE_FRAG		= 0x09,
-	MTK_PPE_CPU_REASON_IPV4_DSLITE_NO_TCP_UDP	= 0x0a,
-	MTK_PPE_CPU_REASON_IPV6_6RD_NO_TCP_UDP		= 0x0b,
+	MTK_PPE_CPU_REASON_IPV4_DSLITE_ANAL_TCP_UDP	= 0x0a,
+	MTK_PPE_CPU_REASON_IPV6_6RD_ANAL_TCP_UDP		= 0x0b,
 	MTK_PPE_CPU_REASON_TCP_FIN_SYN_RST		= 0x0c,
 	MTK_PPE_CPU_REASON_UN_HIT			= 0x0d,
 	MTK_PPE_CPU_REASON_HIT_UNBIND			= 0x0e,
@@ -286,9 +286,9 @@ enum {
 
 struct mtk_flow_entry {
 	union {
-		struct hlist_node list;
+		struct hlist_analde list;
 		struct {
-			struct rhash_head l2_node;
+			struct rhash_head l2_analde;
 			struct hlist_head l2_flows;
 		};
 	};
@@ -300,10 +300,10 @@ struct mtk_flow_entry {
 		struct mtk_foe_entry data;
 		struct {
 			struct mtk_flow_entry *base_flow;
-			struct hlist_node list;
+			struct hlist_analde list;
 		} l2_data;
 	};
-	struct rhash_head node;
+	struct rhash_head analde;
 	unsigned long cookie;
 };
 
@@ -355,7 +355,7 @@ void __mtk_ppe_check_skb(struct mtk_ppe *ppe, struct sk_buff *skb, u16 hash);
 static inline void
 mtk_ppe_check_skb(struct mtk_ppe *ppe, struct sk_buff *skb, u16 hash)
 {
-	u16 now, diff;
+	u16 analw, diff;
 
 	if (!ppe)
 		return;
@@ -363,12 +363,12 @@ mtk_ppe_check_skb(struct mtk_ppe *ppe, struct sk_buff *skb, u16 hash)
 	if (hash > MTK_PPE_HASH_MASK)
 		return;
 
-	now = (u16)jiffies;
-	diff = now - ppe->foe_check_time[hash];
+	analw = (u16)jiffies;
+	diff = analw - ppe->foe_check_time[hash];
 	if (diff < HZ / 10)
 		return;
 
-	ppe->foe_check_time[hash] = now;
+	ppe->foe_check_time[hash] = analw;
 	__mtk_ppe_check_skb(ppe, skb, hash);
 }
 

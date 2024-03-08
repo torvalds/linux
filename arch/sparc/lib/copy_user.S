@@ -9,7 +9,7 @@
  * derived from:
  *	e-mail between David and Eddie.
  *
- * Returns 0 if successful, otherwise count of bytes not copied yet
+ * Returns 0 if successful, otherwise count of bytes analt copied yet
  */
 
 #include <linux/export.h>
@@ -189,7 +189,7 @@ __copy_user:	/* %o0=dst %o1=src %o2=len */
 1:
 	andcc	%o4, 3, %o5
 2:
-	bne	cannot_optimize
+	bne	cananalt_optimize
 	 cmp	%o2, 15
 
 	bleu	short_aligned_end
@@ -269,7 +269,7 @@ copy_user_last7:
 	add	%o0, 2, %o0
 1:
 	be	1f
-	 nop
+	 analp
 
 	EX(ldub	[%o1], %g2, add %g0, 1)
 	EX(stb	%g2, [%o0], add %g0, 1)
@@ -299,7 +299,7 @@ ldd_std:
 	jmpl	%o5 + %lo(copy_user_table_end), %g0
 	 add	%o0, %g7, %o0
 
-cannot_optimize:
+cananalt_optimize:
 	bleu	short_end
 	 cmp	%o5, 2
 
@@ -308,7 +308,7 @@ cannot_optimize:
 	 
 	andcc	%o1, 1, %g0
 	be	10f
-	 nop
+	 analp
 
 	EXO2(ldub [%o1], %g2)
 	add	%o1, 1, %o1
@@ -360,7 +360,7 @@ short_end:
 	MOVE_LAST_SHORTCHUNK(o1, o0, 0x00, g2, g3)
 short_table_end:
 	be	1f
-	 nop
+	 analp
 	EX(ldub	[%o1], %g2, add %g0, 1)
 	EX(stb	%g2, [%o0], add %g0, 1)
 1:

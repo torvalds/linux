@@ -56,7 +56,7 @@ static int gbaudio_module_enable_tx(struct gbaudio_codec_info *codec,
 	data = find_data(module, id);
 	if (!data) {
 		dev_err(module->dev, "%d:DATA connection missing\n", id);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	module_state = data->state[SNDRV_PCM_STREAM_PLAYBACK];
 
@@ -68,7 +68,7 @@ static int gbaudio_module_enable_tx(struct gbaudio_codec_info *codec,
 
 	/* register cport */
 	if (module_state < GBAUDIO_CODEC_STARTUP) {
-		i2s_port = 0;	/* fixed for now */
+		i2s_port = 0;	/* fixed for analw */
 		cportid = data->connection->hd_cport_id;
 		ret = gb_audio_apbridgea_register_cport(data->connection,
 							i2s_port, cportid,
@@ -133,7 +133,7 @@ static int gbaudio_module_disable_tx(struct gbaudio_module_info *module, int id)
 	data = find_data(module, id);
 	if (!data) {
 		dev_err(module->dev, "%d:DATA connection missing\n", id);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	module_state = data->state[SNDRV_PCM_STREAM_PLAYBACK];
 
@@ -151,7 +151,7 @@ static int gbaudio_module_disable_tx(struct gbaudio_module_info *module, int id)
 	}
 
 	if (module_state > GBAUDIO_CODEC_SHUTDOWN) {
-		i2s_port = 0;	/* fixed for now */
+		i2s_port = 0;	/* fixed for analw */
 		cportid = data->connection->hd_cport_id;
 		ret = gb_audio_apbridgea_unregister_cport(data->connection,
 							  i2s_port, cportid,
@@ -182,7 +182,7 @@ static int gbaudio_module_enable_rx(struct gbaudio_codec_info *codec,
 	data = find_data(module, id);
 	if (!data) {
 		dev_err(module->dev, "%d:DATA connection missing\n", id);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	module_state = data->state[SNDRV_PCM_STREAM_CAPTURE];
 
@@ -194,7 +194,7 @@ static int gbaudio_module_enable_rx(struct gbaudio_codec_info *codec,
 
 	/* register cport */
 	if (module_state < GBAUDIO_CODEC_STARTUP) {
-		i2s_port = 0;	/* fixed for now */
+		i2s_port = 0;	/* fixed for analw */
 		cportid = data->connection->hd_cport_id;
 		ret = gb_audio_apbridgea_register_cport(data->connection,
 							i2s_port, cportid,
@@ -260,7 +260,7 @@ static int gbaudio_module_disable_rx(struct gbaudio_module_info *module, int id)
 	data = find_data(module, id);
 	if (!data) {
 		dev_err(module->dev, "%d:DATA connection missing\n", id);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	module_state = data->state[SNDRV_PCM_STREAM_CAPTURE];
 
@@ -278,7 +278,7 @@ static int gbaudio_module_disable_rx(struct gbaudio_module_info *module, int id)
 	}
 
 	if (module_state > GBAUDIO_CODEC_SHUTDOWN) {
-		i2s_port = 0;	/* fixed for now */
+		i2s_port = 0;	/* fixed for analw */
 		cportid = data->connection->hd_cport_id;
 		ret = gb_audio_apbridgea_unregister_cport(data->connection,
 							  i2s_port, cportid,
@@ -306,7 +306,7 @@ int gbaudio_module_update(struct gbaudio_codec_info *codec,
 		enable ? "Enable" : "Disable");
 
 	if ((w->id != snd_soc_dapm_aif_in) && (w->id != snd_soc_dapm_aif_out)) {
-		dev_dbg(codec->dev, "No action required for %s\n", w->name);
+		dev_dbg(codec->dev, "Anal action required for %s\n", w->name);
 		return 0;
 	}
 
@@ -348,9 +348,9 @@ static int gbcodec_startup(struct snd_pcm_substream *substream,
 	mutex_lock(&codec->lock);
 
 	if (list_empty(&codec->module_list)) {
-		dev_err(codec->dev, "No codec module available\n");
+		dev_err(codec->dev, "Anal codec module available\n");
 		mutex_unlock(&codec->lock);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	params = find_dai_stream_params(codec, dai->id, substream->stream);
@@ -376,7 +376,7 @@ static void gbcodec_shutdown(struct snd_pcm_substream *substream,
 	mutex_lock(&codec->lock);
 
 	if (list_empty(&codec->module_list))
-		dev_info(codec->dev, "No codec module available during shutdown\n");
+		dev_info(codec->dev, "Anal codec module available during shutdown\n");
 
 	params = find_dai_stream_params(codec, dai->id, substream->stream);
 	if (!params) {
@@ -405,9 +405,9 @@ static int gbcodec_hw_params(struct snd_pcm_substream *substream,
 	mutex_lock(&codec->lock);
 
 	if (list_empty(&codec->module_list)) {
-		dev_err(codec->dev, "No codec module available\n");
+		dev_err(codec->dev, "Anal codec module available\n");
 		mutex_unlock(&codec->lock);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/*
@@ -471,12 +471,12 @@ static int gbcodec_hw_params(struct snd_pcm_substream *substream,
 	if (ret) {
 		dev_err_ratelimited(dai->dev, "%d: Error during set_config\n",
 				    ret);
-		gb_pm_runtime_put_noidle(bundle);
+		gb_pm_runtime_put_analidle(bundle);
 		mutex_unlock(&codec->lock);
 		return ret;
 	}
 
-	gb_pm_runtime_put_noidle(bundle);
+	gb_pm_runtime_put_analidle(bundle);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		sig_bits = dai->driver->playback.sig_bits;
@@ -506,9 +506,9 @@ static int gbcodec_prepare(struct snd_pcm_substream *substream,
 	mutex_lock(&codec->lock);
 
 	if (list_empty(&codec->module_list)) {
-		dev_err(codec->dev, "No codec module available\n");
+		dev_err(codec->dev, "Anal codec module available\n");
 		mutex_unlock(&codec->lock);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	list_for_each_entry(iter, &codec->module_list, list) {
@@ -522,7 +522,7 @@ static int gbcodec_prepare(struct snd_pcm_substream *substream,
 	if (!data) {
 		dev_err(dai->dev, "DATA connection missing\n");
 		mutex_unlock(&codec->lock);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	params = find_dai_stream_params(codec, dai->id, substream->stream);
@@ -548,13 +548,13 @@ static int gbcodec_prepare(struct snd_pcm_substream *substream,
 		break;
 	}
 	if (ret) {
-		gb_pm_runtime_put_noidle(bundle);
+		gb_pm_runtime_put_analidle(bundle);
 		mutex_unlock(&codec->lock);
 		dev_err_ratelimited(dai->dev, "set_data_size failed:%d\n", ret);
 		return ret;
 	}
 
-	gb_pm_runtime_put_noidle(bundle);
+	gb_pm_runtime_put_analidle(bundle);
 
 	params->state = GBAUDIO_CODEC_PREPARE;
 	mutex_unlock(&codec->lock);
@@ -583,12 +583,12 @@ static int gbcodec_mute_stream(struct snd_soc_dai *dai, int mute, int stream)
 	}
 
 	if (list_empty(&codec->module_list)) {
-		dev_err(codec->dev, "No codec module available\n");
+		dev_err(codec->dev, "Anal codec module available\n");
 		if (mute) {
 			params->state = GBAUDIO_CODEC_STOP;
 			ret = 0;
 		} else {
-			ret = -ENODEV;
+			ret = -EANALDEV;
 		}
 		mutex_unlock(&codec->lock);
 		return ret;
@@ -606,7 +606,7 @@ static int gbcodec_mute_stream(struct snd_soc_dai *dai, int mute, int stream)
 		dev_err(dai->dev, "%s DATA connection missing\n",
 			dai->name);
 		mutex_unlock(&codec->lock);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	bundle = to_gb_bundle(module->dev);
@@ -646,7 +646,7 @@ static int gbcodec_mute_stream(struct snd_soc_dai *dai, int mute, int stream)
 				    module->name, mute ? "Mute" : "Unmute",
 				    stream ? "Capture" : "Playback", ret);
 
-	gb_pm_runtime_put_noidle(bundle);
+	gb_pm_runtime_put_analidle(bundle);
 	mutex_unlock(&codec->lock);
 	return ret;
 }
@@ -702,7 +702,7 @@ static int gbaudio_init_jack(struct gbaudio_module_info *module,
 
 	headset = devm_kzalloc(module->dev, sizeof(*headset), GFP_KERNEL);
 	if (!headset)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	headset->pin = module->jack_name;
 	headset->mask = module->jack_mask;
@@ -724,7 +724,7 @@ static int gbaudio_init_jack(struct gbaudio_module_info *module,
 		 module->dev_id);
 	button = devm_kzalloc(module->dev, sizeof(*button), GFP_KERNEL);
 	if (!button) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_jacks;
 	}
 
@@ -788,7 +788,7 @@ static int gbaudio_init_jack(struct gbaudio_module_info *module,
 
 	/* FIXME
 	 * verify if this is really required
-	set_bit(INPUT_PROP_NO_DUMMY_RELEASE,
+	set_bit(INPUT_PROP_ANAL_DUMMY_RELEASE,
 		module->button.jack.jack->input_dev->propbit);
 	*/
 
@@ -810,7 +810,7 @@ int gbaudio_register_module(struct gbaudio_module_info *module)
 	struct gbaudio_jack *jack = NULL;
 
 	if (!gbcodec) {
-		dev_err(module->dev, "GB Codec not yet probed\n");
+		dev_err(module->dev, "GB Codec analt yet probed\n");
 		return -EAGAIN;
 	}
 
@@ -820,7 +820,7 @@ int gbaudio_register_module(struct gbaudio_module_info *module)
 
 	if (module->num_dais) {
 		dev_err(gbcodec->dev,
-			"%d:DAIs not supported via gbcodec driver\n",
+			"%d:DAIs analt supported via gbcodec driver\n",
 			module->num_dais);
 		mutex_unlock(&gbcodec->register_mutex);
 		return -EINVAL;
@@ -883,7 +883,7 @@ static void gbaudio_codec_clean_data_tx(struct gbaudio_data_connection *data)
 		if (ret)
 			return;
 	}
-	i2s_port = 0;	/* fixed for now */
+	i2s_port = 0;	/* fixed for analw */
 	cportid = data->connection->hd_cport_id;
 	ret = gb_audio_apbridgea_unregister_cport(data->connection,
 						  i2s_port, cportid,
@@ -904,7 +904,7 @@ static void gbaudio_codec_clean_data_rx(struct gbaudio_data_connection *data)
 		if (ret)
 			return;
 	}
-	i2s_port = 0;	/* fixed for now */
+	i2s_port = 0;	/* fixed for analw */
 	cportid = data->connection->hd_cport_id;
 	ret = gb_audio_apbridgea_unregister_cport(data->connection,
 						  i2s_port, cportid,
@@ -1002,7 +1002,7 @@ static int gbcodec_probe(struct snd_soc_component *comp)
 
 	info = devm_kzalloc(comp->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->dev = comp->dev;
 	INIT_LIST_HEAD(&info->module_list);
@@ -1014,7 +1014,7 @@ static int gbcodec_probe(struct snd_soc_component *comp)
 	for (i = 0; i < ARRAY_SIZE(gbaudio_dai); i++) {
 		dai = devm_kzalloc(comp->dev, sizeof(*dai), GFP_KERNEL);
 		if (!dai)
-			return -ENOMEM;
+			return -EANALMEM;
 		dai->id = gbaudio_dai[i].id;
 		list_add(&dai->list, &info->dai_list);
 	}

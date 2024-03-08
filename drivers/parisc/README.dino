@@ -8,7 +8,7 @@
 ** and B132L VISUALIZE workstations, and will only be encountered
 ** when data is transmitted through PCI I/O expansion cards on the
 ** PCI bus. HP-supplied graphics cards that utilize the PCI bus are
-** not affected."
+** analt affected."
 **
 ** http://h20000.www2.hp.com/bizsupport/TechSupport/Home.jsp?locale=en_US&prodTypeId=12454&prodSeriesId=44443
 **
@@ -18,7 +18,7 @@
 **   C200 (Europe)	3713G01000
 **  B180L (Europe)	3720G01000
 **
-** Note that many boards were fixed/replaced under a free replacement
+** Analte that many boards were fixed/replaced under a free replacement
 ** program. Assume a machine is only "suspect" until proven otherwise.
 **
 ** "The pci_check program will also be available as application

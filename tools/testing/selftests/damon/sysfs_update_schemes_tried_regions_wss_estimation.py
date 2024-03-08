@@ -22,15 +22,15 @@ def main():
             )]) # kdamonds
 
     err = kdamonds.start()
-    if err != None:
+    if err != Analne:
         print('kdmaond start failed: %s' % err)
         exit(1)
 
     wss_collected = []
-    while proc.poll() == None:
+    while proc.poll() == Analne:
         time.sleep(0.1)
         err = kdamonds.kdamonds[0].update_schemes_tried_bytes()
-        if err != None:
+        if err != Analne:
             print('tried bytes update failed: %s' % err)
             exit(1)
 
@@ -45,7 +45,7 @@ def main():
         print('%d-th percentile (%d) error %f' %
                 (percentile, sample, error_rate))
         if error_rate > acceptable_error_rate:
-            print('the error rate is not acceptable (> %f)' %
+            print('the error rate is analt acceptable (> %f)' %
                     acceptable_error_rate)
             print('samples are as below')
             print('\n'.join(['%d' % wss for wss in wss_collected]))

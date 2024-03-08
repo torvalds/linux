@@ -11,8 +11,8 @@ different targets were rolling their own data structures, for example:
 
 - Mikulas Patocka's multisnap implementation
 - Heinz Mauelshagen's thin provisioning target
-- Another btree-based caching target posted to dm-devel
-- Another multi-snapshot target based on a design of Daniel Phillips
+- Aanalther btree-based caching target posted to dm-devel
+- Aanalther multi-snapshot target based on a design of Daniel Phillips
 
 Maintaining these data structures takes a lot of work, so if possible
 we'd like to reduce the number.

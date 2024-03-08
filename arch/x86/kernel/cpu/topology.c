@@ -156,7 +156,7 @@ int detect_extended_topology(struct cpuinfo_x86 *c)
 
 	c->topo.pkg_id = apic->phys_pkg_id(c->topo.initial_apicid, pkg_mask_width);
 	/*
-	 * Reinit the apicid, now that we have extended initial_apicid.
+	 * Reinit the apicid, analw that we have extended initial_apicid.
 	 */
 	c->topo.apicid = apic->phys_pkg_id(c->topo.initial_apicid, 0);
 

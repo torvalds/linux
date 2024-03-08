@@ -29,13 +29,13 @@ struct RESTART_HDR {
 	__le32 sys_page_size; // 0x10: Page size of the system which initialized the log.
 	__le32 page_size;     // 0x14: Log page size used for this log file.
 	__le16 ra_off;        // 0x18:
-	__le16 minor_ver;     // 0x1A:
+	__le16 mianalr_ver;     // 0x1A:
 	__le16 major_ver;     // 0x1C:
 	__le16 fixups[];
 };
 
-#define LFS_NO_CLIENT 0xffff
-#define LFS_NO_CLIENT_LE cpu_to_le16(0xffff)
+#define LFS_ANAL_CLIENT 0xffff
+#define LFS_ANAL_CLIENT_LE cpu_to_le16(0xffff)
 
 struct CLIENT_REC {
 	__le64 oldest_lsn;
@@ -198,7 +198,7 @@ static_assert(sizeof(struct TRANSACTION_ENTRY) == 0x28);
 
 struct NTFS_RESTART {
 	__le32 major_ver;             // 0x00:
-	__le32 minor_ver;             // 0x04:
+	__le32 mianalr_ver;             // 0x04:
 	__le64 check_point_start;     // 0x08:
 	__le64 open_attr_table_lsn;   // 0x10:
 	__le64 attr_names_lsn;        // 0x18:
@@ -295,7 +295,7 @@ static_assert(offsetof(struct RECORD_PAGE_HDR, file_off) == 0x3c);
 
 enum NTFS_LOG_OPERATION {
 
-	Noop = 0x00,
+	Analop = 0x00,
 	CompensationLogRecord = 0x01,
 	InitializeFileRecordSegment = 0x02,
 	DeallocateFileRecordSegment = 0x03,
@@ -303,7 +303,7 @@ enum NTFS_LOG_OPERATION {
 	CreateAttribute = 0x05,
 	DeleteAttribute = 0x06,
 	UpdateResidentValue = 0x07,
-	UpdateNonresidentValue = 0x08,
+	UpdateAnalnresidentValue = 0x08,
 	UpdateMappingPairs = 0x09,
 	DeleteDirtyClusters = 0x0A,
 	SetNewAttributeSizes = 0x0B,
@@ -316,14 +316,14 @@ enum NTFS_LOG_OPERATION {
 	SetIndexEntryVcnAllocation = 0x12,
 	UpdateFileNameRoot = 0x13,
 	UpdateFileNameAllocation = 0x14,
-	SetBitsInNonresidentBitMap = 0x15,
-	ClearBitsInNonresidentBitMap = 0x16,
+	SetBitsInAnalnresidentBitMap = 0x15,
+	ClearBitsInAnalnresidentBitMap = 0x16,
 	HotFix = 0x17,
 	EndTopLevelAction = 0x18,
 	PrepareTransaction = 0x19,
 	CommitTransaction = 0x1A,
 	ForgetTransaction = 0x1B,
-	OpenNonresidentAttribute = 0x1C,
+	OpenAnalnresidentAttribute = 0x1C,
 	OpenAttributeTableDump = 0x1D,
 	AttributeNamesDump = 0x1E,
 	DirtyPageTableDump = 0x1F,
@@ -356,7 +356,7 @@ static inline bool is_target_required(u16 op)
 static inline bool can_skip_action(enum NTFS_LOG_OPERATION op)
 {
 	switch (op) {
-	case Noop:
+	case Analop:
 	case DeleteDirtyClusters:
 	case HotFix:
 	case EndTopLevelAction:
@@ -364,7 +364,7 @@ static inline bool can_skip_action(enum NTFS_LOG_OPERATION op)
 	case CommitTransaction:
 	case ForgetTransaction:
 	case CompensationLogRecord:
-	case OpenNonresidentAttribute:
+	case OpenAnalnresidentAttribute:
 	case OpenAttributeTableDump:
 	case AttributeNamesDump:
 	case DirtyPageTableDump:
@@ -412,11 +412,11 @@ static void lcb_put(struct lcb *lcb)
 static inline void oldest_client_lsn(const struct CLIENT_REC *ca,
 				     __le16 next_client, u64 *oldest_lsn)
 {
-	while (next_client != LFS_NO_CLIENT_LE) {
+	while (next_client != LFS_ANAL_CLIENT_LE) {
 		const struct CLIENT_REC *cr = ca + le16_to_cpu(next_client);
 		u64 lsn = le64_to_cpu(cr->oldest_lsn);
 
-		/* Ignore this block if it's oldest lsn is 0. */
+		/* Iganalre this block if it's oldest lsn is 0. */
 		if (lsn && lsn < *oldest_lsn)
 			*oldest_lsn = lsn;
 
@@ -442,7 +442,7 @@ static inline bool is_rst_page_hdr_valid(u32 file_off,
 		return false;
 
 	/* Check support version 1.1+. */
-	if (le16_to_cpu(rhdr->major_ver) <= 1 && !rhdr->minor_ver)
+	if (le16_to_cpu(rhdr->major_ver) <= 1 && !rhdr->mianalr_ver)
 		return false;
 
 	if (le16_to_cpu(rhdr->major_ver) > 2)
@@ -504,8 +504,8 @@ static inline bool is_rst_area_valid(const struct RESTART_HDR *rhdr)
 	 */
 	fl = le16_to_cpu(ra->client_idx[0]);
 	ul = le16_to_cpu(ra->client_idx[1]);
-	if ((fl != LFS_NO_CLIENT && fl >= cl) ||
-	    (ul != LFS_NO_CLIENT && ul >= cl))
+	if ((fl != LFS_ANAL_CLIENT && fl >= cl) ||
+	    (ul != LFS_ANAL_CLIENT && ul >= cl))
 		return false;
 
 	/* Make sure the sequence number bits match the log file size. */
@@ -553,7 +553,7 @@ static inline bool is_client_area_valid(const struct RESTART_HDR *rhdr,
 		bool first_client = true;
 		u16 clients = le16_to_cpu(ra->log_clients);
 
-		while (client_idx != LFS_NO_CLIENT) {
+		while (client_idx != LFS_ANAL_CLIENT) {
 			const struct CLIENT_REC *cr;
 
 			if (!clients ||
@@ -567,7 +567,7 @@ static inline bool is_client_area_valid(const struct RESTART_HDR *rhdr,
 
 			if (first_client) {
 				first_client = false;
-				if (cr->prev_client != LFS_NO_CLIENT_LE)
+				if (cr->prev_client != LFS_ANAL_CLIENT_LE)
 					return false;
 			}
 		}
@@ -584,12 +584,12 @@ static inline bool is_client_area_valid(const struct RESTART_HDR *rhdr,
 static inline void remove_client(struct CLIENT_REC *ca,
 				 const struct CLIENT_REC *cr, __le16 *head)
 {
-	if (cr->prev_client == LFS_NO_CLIENT_LE)
+	if (cr->prev_client == LFS_ANAL_CLIENT_LE)
 		*head = cr->next_client;
 	else
 		ca[le16_to_cpu(cr->prev_client)].next_client = cr->next_client;
 
-	if (cr->next_client != LFS_NO_CLIENT_LE)
+	if (cr->next_client != LFS_ANAL_CLIENT_LE)
 		ca[le16_to_cpu(cr->next_client)].prev_client = cr->prev_client;
 }
 
@@ -600,10 +600,10 @@ static inline void add_client(struct CLIENT_REC *ca, u16 index, __le16 *head)
 {
 	struct CLIENT_REC *cr = ca + index;
 
-	cr->prev_client = LFS_NO_CLIENT_LE;
+	cr->prev_client = LFS_ANAL_CLIENT_LE;
 	cr->next_client = *head;
 
-	if (*head != LFS_NO_CLIENT_LE)
+	if (*head != LFS_ANAL_CLIENT_LE)
 		ca[le16_to_cpu(*head)].prev_client = cpu_to_le16(index);
 
 	*head = cpu_to_le16(index);
@@ -652,7 +652,7 @@ static inline struct DIR_PAGE_ENTRY *find_dp(struct RESTART_TABLE *dptbl,
 	return NULL;
 }
 
-static inline u32 norm_file_page(u32 page_size, u32 *l_size, bool use_default)
+static inline u32 analrm_file_page(u32 page_size, u32 *l_size, bool use_default)
 {
 	if (use_default)
 		page_size = DefaultLogPageSize;
@@ -747,7 +747,7 @@ static bool check_rstbl(const struct RESTART_TABLE *rt, size_t bytes)
 
 	/*
 	 * Walk through the list headed by the first entry to make
-	 * sure none of the entries are currently being used.
+	 * sure analne of the entries are currently being used.
 	 */
 	for (off = ff; off;) {
 		if (off == RESTART_ENTRY_ALLOCATED)
@@ -794,7 +794,7 @@ static inline struct RESTART_TABLE *init_rsttbl(u16 esize, u16 used)
 	u32 off;
 	u32 bytes = esize * used + sizeof(struct RESTART_TABLE);
 	u32 lf = sizeof(struct RESTART_TABLE) + (used - 1) * esize;
-	struct RESTART_TABLE *t = kzalloc(bytes, GFP_NOFS);
+	struct RESTART_TABLE *t = kzalloc(bytes, GFP_ANALFS);
 
 	if (!t)
 		return NULL;
@@ -897,7 +897,7 @@ static inline void *alloc_rsttbl_from_idx(struct RESTART_TABLE **tbl, u32 vbo)
 	u32 bytes = bytes_per_rt(rt);
 	u16 esize = le16_to_cpu(rt->size);
 
-	/* If the entry is not the table, we will have to extend the table. */
+	/* If the entry is analt the table, we will have to extend the table. */
 	if (vbo >= bytes) {
 		/*
 		 * Extend the size by computing the number of entries between
@@ -907,7 +907,7 @@ static inline void *alloc_rsttbl_from_idx(struct RESTART_TABLE **tbl, u32 vbo)
 
 		/*
 		 * There should always be an integral number of entries
-		 * being added. Now extend the table.
+		 * being added. Analw extend the table.
 		 */
 		*tbl = rt = extend_rsttbl(rt, bytes2idx / esize + 1, bytes);
 		if (!rt)
@@ -963,7 +963,7 @@ static inline void *alloc_rsttbl_from_idx(struct RESTART_TABLE **tbl, u32 vbo)
 	}
 
 skip_looking:
-	/* If the list is now empty, we fix the last_free as well. */
+	/* If the list is analw empty, we fix the last_free as well. */
 	if (!rt->first_free)
 		rt->last_free = 0;
 
@@ -990,13 +990,13 @@ struct restart_info {
 
 #define NTFSLOG_WRAPPED 0x00000001
 #define NTFSLOG_MULTIPLE_PAGE_IO 0x00000002
-#define NTFSLOG_NO_LAST_LSN 0x00000004
+#define NTFSLOG_ANAL_LAST_LSN 0x00000004
 #define NTFSLOG_REUSE_TAIL 0x00000010
-#define NTFSLOG_NO_OLDEST_LSN 0x00000020
+#define NTFSLOG_ANAL_OLDEST_LSN 0x00000020
 
 /* Helper struct to work with NTFS $LogFile. */
 struct ntfs_log {
-	struct ntfs_inode *ni;
+	struct ntfs_ianalde *ni;
 
 	u32 l_size;
 	u32 orig_file_size;
@@ -1046,7 +1046,7 @@ struct ntfs_log {
 	u32 reserved;
 
 	short major_ver;
-	short minor_ver;
+	short mianalr_ver;
 
 	u32 l_flags; /* See NTFSLOG_XXX */
 	u32 current_openlog_count; /* On-disk value for open_log_count. */
@@ -1130,16 +1130,16 @@ static int read_log_page(struct ntfs_log *log, u32 vbo,
 	void *to_free = NULL;
 	u32 page_vbo = page_idx << log->page_bits;
 	struct RECORD_PAGE_HDR *page_buf;
-	struct ntfs_inode *ni = log->ni;
+	struct ntfs_ianalde *ni = log->ni;
 	bool bBAAD;
 
 	if (vbo >= log->l_size)
 		return -EINVAL;
 
 	if (!*buffer) {
-		to_free = kmalloc(log->page_size, GFP_NOFS);
+		to_free = kmalloc(log->page_size, GFP_ANALFS);
 		if (!to_free)
-			return -ENOMEM;
+			return -EANALMEM;
 		*buffer = to_free;
 	}
 
@@ -1205,7 +1205,7 @@ static int log_read_rst(struct ntfs_log *log, bool first,
 		/* Read a page header at the current offset. */
 		if (read_log_page(log, vbo, (struct RECORD_PAGE_HDR **)&r_page,
 				  &usa_error)) {
-			/* Ignore any errors. */
+			/* Iganalre any errors. */
 			continue;
 		}
 
@@ -1221,7 +1221,7 @@ static int log_read_rst(struct ntfs_log *log, bool first,
 		if (!bchk && !brst) {
 			if (r_page->rhdr.sign != NTFS_FFFF_SIGNATURE) {
 				/*
-				 * Remember if the signature does not
+				 * Remember if the signature does analt
 				 * indicate uninitialized file.
 				 */
 				info->initialized = true;
@@ -1244,10 +1244,10 @@ static int log_read_rst(struct ntfs_log *log, bool first,
 
 		/*
 		 * We have a valid restart page header and restart area.
-		 * If chkdsk was run or we have no clients then we have
-		 * no more checking to do.
+		 * If chkdsk was run or we have anal clients then we have
+		 * anal more checking to do.
 		 */
-		if (bchk || ra->client_idx[1] == LFS_NO_CLIENT_LE) {
+		if (bchk || ra->client_idx[1] == LFS_ANAL_CLIENT_LE) {
 			info->valid_page = true;
 			goto check_result;
 		}
@@ -1290,7 +1290,7 @@ check_result:
 /*
  * Ilog_init_pg_hdr - Init @log from restart page header.
  */
-static void log_init_pg_hdr(struct ntfs_log *log, u16 major_ver, u16 minor_ver)
+static void log_init_pg_hdr(struct ntfs_log *log, u16 major_ver, u16 mianalr_ver)
 {
 	log->sys_page_size = log->page_size;
 	log->sys_page_mask = log->page_mask;
@@ -1302,7 +1302,7 @@ static void log_init_pg_hdr(struct ntfs_log *log, u16 major_ver, u16 minor_ver)
 	log->first_page = major_ver >= 2 ? 0x22 * log->page_size :
 					   4 * log->page_size;
 	log->major_ver = major_ver;
-	log->minor_ver = minor_ver;
+	log->mianalr_ver = mianalr_ver;
 }
 
 /*
@@ -1321,7 +1321,7 @@ static void log_create(struct ntfs_log *log, const u64 last_lsn,
 	log->oldest_lsn_off = 0;
 	log->last_lsn = log->oldest_lsn;
 
-	log->l_flags |= NTFSLOG_NO_LAST_LSN | NTFSLOG_NO_OLDEST_LSN;
+	log->l_flags |= NTFSLOG_ANAL_LAST_LSN | NTFSLOG_ANAL_OLDEST_LSN;
 
 	/* Set the correct flags for the I/O and indicate if we have wrapped. */
 	if (wrapped)
@@ -1374,14 +1374,14 @@ static void log_create(struct ntfs_log *log, const u64 last_lsn,
 static struct RESTART_AREA *log_create_ra(struct ntfs_log *log)
 {
 	struct CLIENT_REC *cr;
-	struct RESTART_AREA *ra = kzalloc(log->restart_size, GFP_NOFS);
+	struct RESTART_AREA *ra = kzalloc(log->restart_size, GFP_ANALFS);
 
 	if (!ra)
 		return NULL;
 
 	ra->current_lsn = cpu_to_le64(log->last_lsn);
 	ra->log_clients = cpu_to_le16(1);
-	ra->client_idx[1] = LFS_NO_CLIENT_LE;
+	ra->client_idx[1] = LFS_ANAL_CLIENT_LE;
 	if (log->l_flags & NTFSLOG_MULTIPLE_PAGE_IO)
 		ra->flags = RESTART_SINGLE_PAGE_IO;
 	ra->seq_num_bits = cpu_to_le32(log->seq_num_bits);
@@ -1394,8 +1394,8 @@ static struct RESTART_AREA *log_create_ra(struct ntfs_log *log)
 
 	cr = ra->clients;
 
-	cr->prev_client = LFS_NO_CLIENT_LE;
-	cr->next_client = LFS_NO_CLIENT_LE;
+	cr->prev_client = LFS_ANAL_CLIENT_LE;
+	cr->next_client = LFS_ANAL_CLIENT_LE;
 
 	return ra;
 }
@@ -1463,7 +1463,7 @@ static int next_log_lsn(struct ntfs_log *log, const struct LFS_RECORD_HDR *rh,
 		return err;
 
 	/*
-	 * If the lsn we were given was not the last lsn on this page,
+	 * If the lsn we were given was analt the last lsn on this page,
 	 * then the starting offset for the next lsn is on a quad word
 	 * boundary following the last file offset for the current lsn.
 	 * Otherwise the file offset is the start of the data on the next page.
@@ -1484,7 +1484,7 @@ static int next_log_lsn(struct ntfs_log *log, const struct LFS_RECORD_HDR *rh,
 
 	/*
 	 * If this lsn is within the legal range for the file, we return true.
-	 * Otherwise false indicates that there are no more lsn's.
+	 * Otherwise false indicates that there are anal more lsn's.
 	 */
 	if (!is_lsn_in_file(log, *lsn))
 		*lsn = 0;
@@ -1501,17 +1501,17 @@ static u32 current_log_avail(struct ntfs_log *log)
 {
 	u32 oldest_off, next_free_off, free_bytes;
 
-	if (log->l_flags & NTFSLOG_NO_LAST_LSN) {
+	if (log->l_flags & NTFSLOG_ANAL_LAST_LSN) {
 		/* The entire file is available. */
 		return log->max_current_avail;
 	}
 
 	/*
-	 * If there is a last lsn the restart area then we know that we will
+	 * If there is a last lsn the restart area then we kanalw that we will
 	 * have to compute the free range.
-	 * If there is no oldest lsn then start at the first page of the file.
+	 * If there is anal oldest lsn then start at the first page of the file.
 	 */
-	oldest_off = (log->l_flags & NTFSLOG_NO_OLDEST_LSN) ?
+	oldest_off = (log->l_flags & NTFSLOG_ANAL_OLDEST_LSN) ?
 			     log->first_page :
 			     (log->oldest_lsn_off & ~log->sys_page_mask);
 
@@ -1525,7 +1525,7 @@ static u32 current_log_avail(struct ntfs_log *log)
 			log->next_page == log->first_page ? log->l_size :
 							    log->next_page;
 
-	/* If the two offsets are the same then there is no available space. */
+	/* If the two offsets are the same then there is anal available space. */
 	if (oldest_off == next_free_off)
 		return 0;
 	/*
@@ -1611,9 +1611,9 @@ static int last_log_lsn(struct ntfs_log *log)
 		second_off = 0x12 * log->page_size;
 
 		// 0x10 == 0x12 - 0x2
-		page_bufs = kmalloc(log->page_size * 0x10, GFP_NOFS);
+		page_bufs = kmalloc(log->page_size * 0x10, GFP_ANALFS);
 		if (!page_bufs)
-			return -ENOMEM;
+			return -EANALMEM;
 	} else {
 		second_off = log->first_page - log->page_size;
 		final_off = second_off - log->page_size;
@@ -1770,7 +1770,7 @@ tail_read:
 
 	wrapped_file =
 		curpage_off == log->first_page &&
-		!(log->l_flags & (NTFSLOG_NO_LAST_LSN | NTFSLOG_REUSE_TAIL));
+		!(log->l_flags & (NTFSLOG_ANAL_LAST_LSN | NTFSLOG_REUSE_TAIL));
 
 	expected_seq = wrapped_file ? (log->seq_num + 1) : log->seq_num;
 
@@ -1837,7 +1837,7 @@ use_cur_page:
 		}
 
 		log->seq_num = expected_seq;
-		log->l_flags &= ~NTFSLOG_NO_LAST_LSN;
+		log->l_flags &= ~NTFSLOG_ANAL_LAST_LSN;
 		log->last_lsn = le64_to_cpu(cur_page->record_hdr.last_end_lsn);
 		log->ra->current_lsn = cur_page->record_hdr.last_end_lsn;
 
@@ -1894,7 +1894,7 @@ use_tail_page:
 
 		if (last_ok_lsn < lsn_cur) {
 			/*
-			 * If the sequence number is not expected,
+			 * If the sequence number is analt expected,
 			 * then don't use the tail copy.
 			 */
 			if (expected_seq != (lsn_cur >> log->file_data_bits))
@@ -1916,8 +1916,8 @@ use_tail_page:
 		goto check_tail;
 
 	/*
-	 * Done if the last lsn on this page doesn't match the previous known
-	 * last lsn or the sequence number is not expected.
+	 * Done if the last lsn on this page doesn't match the previous kanalwn
+	 * last lsn or the sequence number is analt expected.
 	 */
 	lsn_cur = le64_to_cpu(page->rhdr.lsn);
 	if (last_ok_lsn != lsn_cur &&
@@ -1928,7 +1928,7 @@ use_tail_page:
 	/*
 	 * Check that the page position and page count values are correct.
 	 * If this is the first page of a transfer the position must be 1
-	 * and the count will be unknown.
+	 * and the count will be unkanalwn.
 	 */
 	if (page_cnt == page_pos) {
 		if (page->page_pos != cpu_to_le16(1) &&
@@ -1967,16 +1967,16 @@ use_tail_page:
 
 	if (is_log_record_end(page)) {
 		/*
-		 * Since we have read this page we know the sequence number
+		 * Since we have read this page we kanalw the sequence number
 		 * is the same as our expected value.
 		 */
 		log->seq_num = expected_seq;
 		log->last_lsn = le64_to_cpu(page->record_hdr.last_end_lsn);
 		log->ra->current_lsn = page->record_hdr.last_end_lsn;
-		log->l_flags &= ~NTFSLOG_NO_LAST_LSN;
+		log->l_flags &= ~NTFSLOG_ANAL_LAST_LSN;
 
 		/*
-		 * If there is room on this page for another header then
+		 * If there is room on this page for aanalther header then
 		 * remember we want to reuse the page.
 		 */
 		if (log->record_header_len <=
@@ -1996,7 +1996,7 @@ use_tail_page:
 
 	/*
 	 * Remember the last page count and position.
-	 * Also remember the last known lsn.
+	 * Also remember the last kanalwn lsn.
 	 */
 	page_cnt = le16_to_cpu(page->page_count);
 	page_pos = le16_to_cpu(page->page_pos);
@@ -2020,7 +2020,7 @@ check_tail:
 		log->seq_num = expected_seq;
 		log->last_lsn = le64_to_cpu(tail_page->record_hdr.last_end_lsn);
 		log->ra->current_lsn = tail_page->record_hdr.last_end_lsn;
-		log->l_flags &= ~NTFSLOG_NO_LAST_LSN;
+		log->l_flags &= ~NTFSLOG_ANAL_LAST_LSN;
 
 		if (log->page_size -
 			    le16_to_cpu(
@@ -2061,7 +2061,7 @@ check_tail:
 		goto check_valid;
 	/*
 	 * If the next page causes us to wrap to the beginning of the log
-	 * file then we know which page to check next.
+	 * file then we kanalw which page to check next.
 	 */
 	if (wrapped) {
 		page_cnt = 2;
@@ -2166,9 +2166,9 @@ file_is_valid:
 			u64 off = hdr_file_off(log, tmp_page);
 
 			if (!page) {
-				page = kmalloc(log->page_size, GFP_NOFS);
+				page = kmalloc(log->page_size, GFP_ANALFS);
 				if (!page) {
-					err = -ENOMEM;
+					err = -EANALMEM;
 					goto out;
 				}
 			}
@@ -2265,7 +2265,7 @@ static int read_log_rec_buf(struct ntfs_log *log,
 
 		memcpy(buffer, Add2Ptr(ph, off), tail);
 
-		/* If there are no more bytes to transfer, we exit the loop. */
+		/* If there are anal more bytes to transfer, we exit the loop. */
 		if (!data_len) {
 			if (!is_log_record_end(ph) ||
 			    lsn > le64_to_cpu(ph->record_hdr.last_end_lsn)) {
@@ -2310,7 +2310,7 @@ static int read_rst_area(struct ntfs_log *log, struct NTFS_RESTART **rst_,
 	*lsn = 0;
 	*rst_ = NULL;
 
-	/* If the client doesn't have a restart area, go ahead and exit now. */
+	/* If the client doesn't have a restart area, go ahead and exit analw. */
 	if (!lsnc)
 		return 0;
 
@@ -2341,9 +2341,9 @@ static int read_rst_area(struct ntfs_log *log, struct NTFS_RESTART **rst_,
 		goto out;
 	}
 
-	rst = kmalloc(len, GFP_NOFS);
+	rst = kmalloc(len, GFP_ANALFS);
 	if (!rst) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -2400,10 +2400,10 @@ static int find_log_rec(struct ntfs_log *log, u64 lsn, struct lcb *lcb)
 	 * put a pointer to the log record the context block.
 	 */
 	if (rh->flags & LOG_RECORD_MULTI_PAGE) {
-		void *lr = kmalloc(len, GFP_NOFS);
+		void *lr = kmalloc(len, GFP_ANALFS);
 
 		if (!lr)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		lcb->log_rec = lr;
 		lcb->alloc = true;
@@ -2451,9 +2451,9 @@ static int read_log_rec_lcb(struct ntfs_log *log, u64 lsn, u32 ctx_mode,
 	if (!verify_client_lsn(log, cr, lsn))
 		return -EINVAL;
 
-	lcb = kzalloc(sizeof(struct lcb), GFP_NOFS);
+	lcb = kzalloc(sizeof(struct lcb), GFP_ANALFS);
 	if (!lcb)
-		return -ENOMEM;
+		return -EANALMEM;
 	lcb->client = log->client_id;
 	lcb->ctx_mode = ctx_mode;
 
@@ -2488,7 +2488,7 @@ static int find_client_next_lsn(struct ntfs_log *log, struct lcb *lcb, u64 *lsn)
 	if (lcb_ctx_next != lcb->ctx_mode)
 		goto check_undo_next;
 
-	/* Loop as long as another lsn can be found. */
+	/* Loop as long as aanalther lsn can be found. */
 	for (;;) {
 		u64 current_lsn;
 
@@ -2581,9 +2581,9 @@ bool check_index_header(const struct INDEX_HDR *hdr, size_t bytes)
 	u32 min_de, de_off, used, total;
 	const struct NTFS_DE *e;
 
-	if (hdr_has_subnode(hdr)) {
+	if (hdr_has_subanalde(hdr)) {
 		min_de = sizeof(struct NTFS_DE) + sizeof(u64);
-		mask = NTFS_IE_HAS_SUBNODES;
+		mask = NTFS_IE_HAS_SUBANALDES;
 	} else {
 		min_de = sizeof(struct NTFS_DE);
 		mask = 0;
@@ -2604,7 +2604,7 @@ bool check_index_header(const struct INDEX_HDR *hdr, size_t bytes)
 		struct NTFS_DE *next = Add2Ptr(e, esize);
 
 		if (esize < min_de || PtrOffset(hdr, next) > used ||
-		    (e->flags & NTFS_IE_HAS_SUBNODES) != mask) {
+		    (e->flags & NTFS_IE_HAS_SUBANALDES) != mask) {
 			return false;
 		}
 
@@ -2685,7 +2685,7 @@ static inline bool check_attr(const struct MFT_REC *rec,
 	}
 
 	/* Check the attribute fields. */
-	switch (attr->non_res) {
+	switch (attr->analn_res) {
 	case 0:
 		rsize = le32_to_cpu(attr->res.data_size);
 		if (rsize >= asize ||
@@ -2928,8 +2928,8 @@ struct OpenAttr {
 	struct ATTRIB *attr;
 	struct runs_tree *run1;
 	struct runs_tree run0;
-	struct ntfs_inode *ni;
-	// CLST rno;
+	struct ntfs_ianalde *ni;
+	// CLST ranal;
 };
 
 /*
@@ -2946,14 +2946,14 @@ static inline int cmp_type_and_name(const struct ATTRIB *a1,
 }
 
 static struct OpenAttr *find_loaded_attr(struct ntfs_log *log,
-					 const struct ATTRIB *attr, CLST rno)
+					 const struct ATTRIB *attr, CLST ranal)
 {
 	struct OPEN_ATTR_ENRTY *oe = NULL;
 
 	while ((oe = enum_rstbl(log->open_attr_tbl, oe))) {
 		struct OpenAttr *op_attr;
 
-		if (ino_get(&oe->ref) != rno)
+		if (ianal_get(&oe->ref) != ranal)
 			continue;
 
 		op_attr = (struct OpenAttr *)oe->ptr;
@@ -2963,7 +2963,7 @@ static struct OpenAttr *find_loaded_attr(struct ntfs_log *log,
 	return NULL;
 }
 
-static struct ATTRIB *attr_create_nonres_log(struct ntfs_sb_info *sbi,
+static struct ATTRIB *attr_create_analnres_log(struct ntfs_sb_info *sbi,
 					     enum ATTR_TYPE type, u64 size,
 					     const u16 *name, size_t name_len,
 					     __le16 flags)
@@ -2972,16 +2972,16 @@ static struct ATTRIB *attr_create_nonres_log(struct ntfs_sb_info *sbi,
 	u32 name_size = ALIGN(name_len * sizeof(short), 8);
 	bool is_ext = flags & (ATTR_FLAG_COMPRESSED | ATTR_FLAG_SPARSED);
 	u32 asize = name_size +
-		    (is_ext ? SIZEOF_NONRESIDENT_EX : SIZEOF_NONRESIDENT);
+		    (is_ext ? SIZEOF_ANALNRESIDENT_EX : SIZEOF_ANALNRESIDENT);
 
-	attr = kzalloc(asize, GFP_NOFS);
+	attr = kzalloc(asize, GFP_ANALFS);
 	if (!attr)
 		return NULL;
 
 	attr->type = type;
 	attr->size = cpu_to_le32(asize);
 	attr->flags = flags;
-	attr->non_res = 1;
+	attr->analn_res = 1;
 	attr->name_len = name_len;
 
 	attr->nres.evcn = cpu_to_le64((u64)bytes_to_cluster(sbi, size) - 1);
@@ -2989,19 +2989,19 @@ static struct ATTRIB *attr_create_nonres_log(struct ntfs_sb_info *sbi,
 	attr->nres.data_size = cpu_to_le64(size);
 	attr->nres.valid_size = attr->nres.data_size;
 	if (is_ext) {
-		attr->name_off = SIZEOF_NONRESIDENT_EX_LE;
+		attr->name_off = SIZEOF_ANALNRESIDENT_EX_LE;
 		if (is_attr_compressed(attr))
 			attr->nres.c_unit = COMPRESSION_UNIT;
 
 		attr->nres.run_off =
-			cpu_to_le16(SIZEOF_NONRESIDENT_EX + name_size);
-		memcpy(Add2Ptr(attr, SIZEOF_NONRESIDENT_EX), name,
+			cpu_to_le16(SIZEOF_ANALNRESIDENT_EX + name_size);
+		memcpy(Add2Ptr(attr, SIZEOF_ANALNRESIDENT_EX), name,
 		       name_len * sizeof(short));
 	} else {
-		attr->name_off = SIZEOF_NONRESIDENT_LE;
+		attr->name_off = SIZEOF_ANALNRESIDENT_LE;
 		attr->nres.run_off =
-			cpu_to_le16(SIZEOF_NONRESIDENT + name_size);
-		memcpy(Add2Ptr(attr, SIZEOF_NONRESIDENT), name,
+			cpu_to_le16(SIZEOF_ANALNRESIDENT + name_size);
+		memcpy(Add2Ptr(attr, SIZEOF_ANALNRESIDENT), name,
 		       name_len * sizeof(short));
 	}
 
@@ -3018,9 +3018,9 @@ static int do_action(struct ntfs_log *log, struct OPEN_ATTR_ENRTY *oe,
 {
 	int err = 0;
 	struct ntfs_sb_info *sbi = log->ni->mi.sbi;
-	struct inode *inode = NULL, *inode_parent;
-	struct mft_inode *mi = NULL, *mi2_child = NULL;
-	CLST rno = 0, rno_base = 0;
+	struct ianalde *ianalde = NULL, *ianalde_parent;
+	struct mft_ianalde *mi = NULL, *mi2_child = NULL;
+	CLST ranal = 0, ranal_base = 0;
 	struct INDEX_BUFFER *ib = NULL;
 	struct MFT_REC *rec = NULL;
 	struct ATTRIB *attr = NULL, *attr2;
@@ -3067,20 +3067,20 @@ static int do_action(struct ntfs_log *log, struct OPEN_ATTR_ENRTY *oe,
 	case UpdateFileNameRoot:
 	case UpdateRecordDataRoot:
 	case ZeroEndOfFileRecord:
-		rno = vbo >> sbi->record_bits;
-		inode = ilookup(sbi->sb, rno);
-		if (inode) {
-			mi = &ntfs_i(inode)->mi;
+		ranal = vbo >> sbi->record_bits;
+		ianalde = ilookup(sbi->sb, ranal);
+		if (ianalde) {
+			mi = &ntfs_i(ianalde)->mi;
 		} else if (op == InitializeFileRecordSegment) {
-			mi = kzalloc(sizeof(struct mft_inode), GFP_NOFS);
+			mi = kzalloc(sizeof(struct mft_ianalde), GFP_ANALFS);
 			if (!mi)
-				return -ENOMEM;
-			err = mi_format_new(mi, sbi, rno, 0, false);
+				return -EANALMEM;
+			err = mi_format_new(mi, sbi, ranal, 0, false);
 			if (err)
 				goto out;
 		} else {
 			/* Read from disk. */
-			err = mi_get(sbi, rno, &mi);
+			err = mi_get(sbi, ranal, &mi);
 			if (err)
 				return err;
 		}
@@ -3100,56 +3100,56 @@ static int do_action(struct ntfs_log *log, struct OPEN_ATTR_ENRTY *oe,
 		}
 
 		if (is_rec_base(rec) || InitializeFileRecordSegment == op) {
-			rno_base = rno;
+			ranal_base = ranal;
 			goto skip_load_parent;
 		}
 
-		rno_base = ino_get(&rec->parent_ref);
-		inode_parent = ntfs_iget5(sbi->sb, &rec->parent_ref, NULL);
-		if (IS_ERR(inode_parent))
+		ranal_base = ianal_get(&rec->parent_ref);
+		ianalde_parent = ntfs_iget5(sbi->sb, &rec->parent_ref, NULL);
+		if (IS_ERR(ianalde_parent))
 			goto skip_load_parent;
 
-		if (is_bad_inode(inode_parent)) {
-			iput(inode_parent);
+		if (is_bad_ianalde(ianalde_parent)) {
+			iput(ianalde_parent);
 			goto skip_load_parent;
 		}
 
-		if (ni_load_mi_ex(ntfs_i(inode_parent), rno, &mi2_child)) {
-			iput(inode_parent);
+		if (ni_load_mi_ex(ntfs_i(ianalde_parent), ranal, &mi2_child)) {
+			iput(ianalde_parent);
 		} else {
 			if (mi2_child->mrec != mi->mrec)
 				memcpy(mi2_child->mrec, mi->mrec,
 				       sbi->record_size);
 
-			if (inode)
-				iput(inode);
+			if (ianalde)
+				iput(ianalde);
 			else if (mi)
 				mi_put(mi);
 
-			inode = inode_parent;
+			ianalde = ianalde_parent;
 			mi = mi2_child;
 			rec = mi2_child->mrec;
 			attr = Add2Ptr(rec, roff);
 		}
 
 skip_load_parent:
-		inode_parent = NULL;
+		ianalde_parent = NULL;
 		break;
 
 	/*
 	 * Process attributes, as described by the current log record.
 	 */
-	case UpdateNonresidentValue:
+	case UpdateAnalnresidentValue:
 	case AddIndexEntryAllocation:
 	case DeleteIndexEntryAllocation:
 	case WriteEndOfIndexBuffer:
 	case SetIndexEntryVcnAllocation:
 	case UpdateFileNameAllocation:
-	case SetBitsInNonresidentBitMap:
-	case ClearBitsInNonresidentBitMap:
+	case SetBitsInAnalnresidentBitMap:
+	case ClearBitsInAnalnresidentBitMap:
 	case UpdateRecordDataAllocation:
 		attr = oa->attr;
-		bytes = UpdateNonresidentValue == op ? dlen : 0;
+		bytes = UpdateAnalnresidentValue == op ? dlen : 0;
 		lco = (u64)le16_to_cpu(lrh->lcns_follow) << sbi->cluster_bits;
 
 		if (attr->type == ATTR_ALLOC) {
@@ -3165,9 +3165,9 @@ skip_load_parent:
 		if (attr->type == ATTR_ALLOC)
 			bytes = (bytes + 511) & ~511; // align
 
-		buffer_le = kmalloc(bytes, GFP_NOFS);
+		buffer_le = kmalloc(bytes, GFP_ANALFS);
 		if (!buffer_le)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		err = ntfs_read_run_nb(sbi, oa->run1, vbo, buffer_le, bytes,
 				       NULL);
@@ -3232,10 +3232,10 @@ skip_load_parent:
 		if (is_attr_indexed(attr))
 			le16_add_cpu(&rec->hard_links, 1);
 
-		oa2 = find_loaded_attr(log, attr, rno_base);
+		oa2 = find_loaded_attr(log, attr, ranal_base);
 		if (oa2) {
 			void *p2 = kmemdup(attr, le32_to_cpu(attr->size),
-					   GFP_NOFS);
+					   GFP_ANALFS);
 			if (p2) {
 				// run_close(oa2->run1);
 				kfree(oa2->attr);
@@ -3299,10 +3299,10 @@ move_data:
 		if (data)
 			memmove(Add2Ptr(attr, aoff), data, dlen);
 
-		oa2 = find_loaded_attr(log, attr, rno_base);
+		oa2 = find_loaded_attr(log, attr, ranal_base);
 		if (oa2) {
 			void *p2 = kmemdup(attr, le32_to_cpu(attr->size),
-					   GFP_NOFS);
+					   GFP_ANALFS);
 			if (p2) {
 				// run_close(&oa2->run0);
 				oa2->run1 = &oa2->run0;
@@ -3319,7 +3319,7 @@ move_data:
 		asize = le32_to_cpu(attr->size);
 		used = le32_to_cpu(rec->used);
 
-		if (!check_if_attr(rec, lrh) || !attr->non_res ||
+		if (!check_if_attr(rec, lrh) || !attr->analn_res ||
 		    aoff < le16_to_cpu(attr->nres.run_off) || aoff > asize ||
 		    (nsize > asize && nsize - asize > record_size - used)) {
 			goto dirty_vol;
@@ -3339,8 +3339,8 @@ move_data:
 		}
 
 		attr->nres.evcn = cpu_to_le64(t64);
-		oa2 = find_loaded_attr(log, attr, rno_base);
-		if (oa2 && oa2->attr->non_res)
+		oa2 = find_loaded_attr(log, attr, ranal_base);
+		if (oa2 && oa2->attr->analn_res)
 			oa2->attr->nres.evcn = attr->nres.evcn;
 
 		mi->dirty = true;
@@ -3348,7 +3348,7 @@ move_data:
 
 	case SetNewAttributeSizes:
 		new_sz = data;
-		if (!check_if_attr(rec, lrh) || !attr->non_res)
+		if (!check_if_attr(rec, lrh) || !attr->analn_res)
 			goto dirty_vol;
 
 		attr->nres.alloc_size = new_sz->alloc_size;
@@ -3358,10 +3358,10 @@ move_data:
 		if (dlen >= sizeof(struct NEW_ATTRIBUTE_SIZES))
 			attr->nres.total_size = new_sz->total_size;
 
-		oa2 = find_loaded_attr(log, attr, rno_base);
+		oa2 = find_loaded_attr(log, attr, ranal_base);
 		if (oa2) {
 			void *p2 = kmemdup(attr, le32_to_cpu(attr->size),
-					   GFP_NOFS);
+					   GFP_ANALFS);
 			if (p2) {
 				kfree(oa2->attr);
 				oa2->attr = p2;
@@ -3478,7 +3478,7 @@ move_data:
 		mi->dirty = true;
 		break;
 
-	case UpdateNonresidentValue:
+	case UpdateAnalnresidentValue:
 		if (lco < cbo + roff + dlen)
 			goto dirty_vol;
 
@@ -3616,7 +3616,7 @@ move_data:
 		ntfs_fix_pre_write(&ib->rhdr, bytes);
 		break;
 
-	case SetBitsInNonresidentBitMap:
+	case SetBitsInAnalnresidentBitMap:
 		off = le32_to_cpu(((struct BITMAP_RANGE *)data)->bitmap_off);
 		bits = le32_to_cpu(((struct BITMAP_RANGE *)data)->bits);
 
@@ -3629,7 +3629,7 @@ move_data:
 		a_dirty = true;
 		break;
 
-	case ClearBitsInNonresidentBitMap:
+	case ClearBitsInAnalnresidentBitMap:
 		off = le32_to_cpu(((struct BITMAP_RANGE *)data)->bitmap_off);
 		bits = le32_to_cpu(((struct BITMAP_RANGE *)data)->bits);
 
@@ -3692,8 +3692,8 @@ move_data:
 
 out:
 
-	if (inode)
-		iput(inode);
+	if (ianalde)
+		iput(ianalde);
 	else if (mi != mi2_child)
 		mi_put(mi);
 
@@ -3713,7 +3713,7 @@ dirty_vol:
  * It replays log and empties it.
  * Initialized is set false if logfile contains '-1'.
  */
-int log_replay(struct ntfs_inode *ni, bool *initialized)
+int log_replay(struct ntfs_ianalde *ni, bool *initialized)
 {
 	int err;
 	struct ntfs_sb_info *sbi = ni->mi.sbi;
@@ -3725,12 +3725,12 @@ int log_replay(struct ntfs_inode *ni, bool *initialized)
 	struct RESTART_TABLE *trtbl = NULL;
 	const struct RESTART_TABLE *rt;
 	struct RESTART_TABLE *oatbl = NULL;
-	struct inode *inode;
+	struct ianalde *ianalde;
 	struct OpenAttr *oa;
-	struct ntfs_inode *ni_oe;
+	struct ntfs_ianalde *ni_oe;
 	struct ATTRIB *attr = NULL;
 	u64 size, vcn, undo_next_lsn;
-	CLST rno, lcn, lcn0, len0, clen;
+	CLST ranal, lcn, lcn0, len0, clen;
 	void *data;
 	struct NTFS_RESTART *rst = NULL;
 	struct lcb *lcb = NULL;
@@ -3753,27 +3753,27 @@ int log_replay(struct ntfs_inode *ni, bool *initialized)
 	u16 t16;
 	u32 t32;
 
-	log = kzalloc(sizeof(struct ntfs_log), GFP_NOFS);
+	log = kzalloc(sizeof(struct ntfs_log), GFP_ANALFS);
 	if (!log)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	log->ni = ni;
-	log->l_size = log->orig_file_size = ni->vfs_inode.i_size;
+	log->l_size = log->orig_file_size = ni->vfs_ianalde.i_size;
 
-	/* Get the size of page. NOTE: To replay we can use default page. */
+	/* Get the size of page. ANALTE: To replay we can use default page. */
 #if PAGE_SIZE >= DefaultLogPageSize && PAGE_SIZE <= DefaultLogPageSize * 2
-	log->page_size = norm_file_page(PAGE_SIZE, &log->l_size, true);
+	log->page_size = analrm_file_page(PAGE_SIZE, &log->l_size, true);
 #else
-	log->page_size = norm_file_page(PAGE_SIZE, &log->l_size, false);
+	log->page_size = analrm_file_page(PAGE_SIZE, &log->l_size, false);
 #endif
 	if (!log->page_size) {
 		err = -EINVAL;
 		goto out;
 	}
 
-	log->one_page_buf = kmalloc(log->page_size, GFP_NOFS);
+	log->one_page_buf = kmalloc(log->page_size, GFP_ANALFS);
 	if (!log->one_page_buf) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -3790,7 +3790,7 @@ int log_replay(struct ntfs_inode *ni, bool *initialized)
 
 	if (!log->rst_info.restart) {
 		if (log->rst_info.initialized) {
-			/* No restart area but the file is not initialized. */
+			/* Anal restart area but the file is analt initialized. */
 			err = -EINVAL;
 			goto out;
 		}
@@ -3800,7 +3800,7 @@ int log_replay(struct ntfs_inode *ni, bool *initialized)
 
 		ra = log_create_ra(log);
 		if (!ra) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out;
 		}
 		log->ra = ra;
@@ -3863,7 +3863,7 @@ check_restart_area:
 		      NULL;
 
 	if (log->rst_info.chkdsk_was_run ||
-	    (ra2 && ra2->client_idx[1] == LFS_NO_CLIENT_LE)) {
+	    (ra2 && ra2->client_idx[1] == LFS_ANAL_CLIENT_LE)) {
 		bool wrapped = false;
 		bool use_multi_page = false;
 		u32 open_log_count;
@@ -3880,7 +3880,7 @@ check_restart_area:
 
 		ra = log_create_ra(log);
 		if (!ra) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out;
 		}
 		log->ra = ra;
@@ -3899,12 +3899,12 @@ check_restart_area:
 	/*
 	 * If the log page or the system page sizes have changed, we can't
 	 * use the log file. We must use the system page size instead of the
-	 * default size if there is not a clean shutdown.
+	 * default size if there is analt a clean shutdown.
 	 */
 	t32 = le32_to_cpu(log->rst_info.r_page->sys_page_size);
 	if (log->page_size != t32) {
 		log->l_size = log->orig_file_size;
-		log->page_size = norm_file_page(t32, &log->l_size,
+		log->page_size = analrm_file_page(t32, &log->l_size,
 						t32 == DefaultLogPageSize);
 	}
 
@@ -3921,7 +3921,7 @@ check_restart_area:
 	}
 
 	log_init_pg_hdr(log, le16_to_cpu(log->rst_info.r_page->major_ver),
-			le16_to_cpu(log->rst_info.r_page->minor_ver));
+			le16_to_cpu(log->rst_info.r_page->mianalr_ver));
 
 	log->l_size = le64_to_cpu(ra2->l_size);
 	log->seq_num_bits = le32_to_cpu(ra2->seq_num_bits);
@@ -3941,7 +3941,7 @@ check_restart_area:
 
 	if (vbo < log->first_page) {
 		/* This is a pseudo lsn. */
-		log->l_flags |= NTFSLOG_NO_LAST_LSN;
+		log->l_flags |= NTFSLOG_ANAL_LAST_LSN;
 		log->next_page = log->first_page;
 		goto find_oldest;
 	}
@@ -3956,12 +3956,12 @@ check_restart_area:
 		log->l_flags |= NTFSLOG_WRAPPED;
 	}
 
-	/* Now compute the next log page to use. */
+	/* Analw compute the next log page to use. */
 	vbo &= ~log->sys_page_mask;
 	tail = log->page_size - (off & log->page_mask) - 1;
 
 	/*
-	 *If we can fit another log record on the page,
+	 *If we can fit aanalther log record on the page,
 	 * move back a page the log file.
 	 */
 	if (tail >= log->record_header_len) {
@@ -3982,7 +3982,7 @@ find_oldest:
 	log->oldest_lsn_off = lsn_to_vbo(log, log->oldest_lsn);
 
 	if (log->oldest_lsn_off < log->first_page)
-		log->l_flags |= NTFSLOG_NO_OLDEST_LSN;
+		log->l_flags |= NTFSLOG_ANAL_OLDEST_LSN;
 
 	if (!(ra2->flags & RESTART_SINGLE_PAGE_IO))
 		log->l_flags |= NTFSLOG_WRAPPED | NTFSLOG_MULTIPLE_PAGE_IO;
@@ -3995,9 +3995,9 @@ find_oldest:
 
 	log->current_avail = current_log_avail(log);
 
-	ra = kzalloc(log->restart_size, GFP_NOFS);
+	ra = kzalloc(log->restart_size, GFP_ANALFS);
 	if (!ra) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 	log->ra = ra;
@@ -4021,7 +4021,7 @@ find_oldest:
 
 	le32_add_cpu(&ra->open_log_count, 1);
 
-	/* Now we need to walk through looking for the last lsn. */
+	/* Analw we need to walk through looking for the last lsn. */
 	err = last_log_lsn(log);
 	if (err)
 		goto out;
@@ -4032,16 +4032,16 @@ find_oldest:
 	log->init_ra = log->rst_info.vbo;
 
 process_log:
-	/* 1.0, 1.1, 2.0 log->major_ver/minor_ver - short values. */
-	switch ((log->major_ver << 16) + log->minor_ver) {
+	/* 1.0, 1.1, 2.0 log->major_ver/mianalr_ver - short values. */
+	switch ((log->major_ver << 16) + log->mianalr_ver) {
 	case 0x10000:
 	case 0x10001:
 	case 0x20000:
 		break;
 	default:
-		ntfs_warn(sbi->sb, "\x24LogFile version %d.%d is not supported",
-			  log->major_ver, log->minor_ver);
-		err = -EOPNOTSUPP;
+		ntfs_warn(sbi->sb, "\x24LogFile version %d.%d is analt supported",
+			  log->major_ver, log->mianalr_ver);
+		err = -EOPANALTSUPP;
 		log->set_dirty = true;
 		goto out;
 	}
@@ -4050,10 +4050,10 @@ process_log:
 	ca = Add2Ptr(ra, le16_to_cpu(ra->client_off));
 
 	for (client = ra->client_idx[1];; client = cr->next_client) {
-		if (client == LFS_NO_CLIENT_LE) {
+		if (client == LFS_ANAL_CLIENT_LE) {
 			/* Insert "NTFS" client LogFile. */
 			client = ra->client_idx[0];
-			if (client == LFS_NO_CLIENT_LE) {
+			if (client == LFS_ANAL_CLIENT_LE) {
 				err = -EINVAL;
 				goto out;
 			}
@@ -4125,15 +4125,15 @@ process_log:
 	rt = Add2Ptr(lrh, t16);
 	t32 = rec_len - t16;
 
-	/* Now check that this is a valid restart table. */
+	/* Analw check that this is a valid restart table. */
 	if (!check_rstbl(rt, t32)) {
 		err = -EINVAL;
 		goto out;
 	}
 
-	trtbl = kmemdup(rt, t32, GFP_NOFS);
+	trtbl = kmemdup(rt, t32, GFP_ANALFS);
 	if (!trtbl) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -4165,15 +4165,15 @@ check_dirty_page_table:
 	rt = Add2Ptr(lrh, t16);
 	t32 = rec_len - t16;
 
-	/* Now check that this is a valid restart table. */
+	/* Analw check that this is a valid restart table. */
 	if (!check_rstbl(rt, t32)) {
 		err = -EINVAL;
 		goto out;
 	}
 
-	dptbl = kmemdup(rt, t32, GFP_NOFS);
+	dptbl = kmemdup(rt, t32, GFP_ANALFS);
 	if (!dptbl) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -4184,7 +4184,7 @@ check_dirty_page_table:
 	dp = NULL;
 	while ((dp = enum_rstbl(dptbl, dp))) {
 		struct DIR_PAGE_ENTRY_32 *dp0 = (struct DIR_PAGE_ENTRY_32 *)dp;
-		// NOTE: Danger. Check for of boundary.
+		// ANALTE: Danger. Check for of boundary.
 		memmove(&dp->vcn, &dp0->vcn_low,
 			2 * sizeof(u64) +
 				le32_to_cpu(dp->lcns_follow) * sizeof(u64));
@@ -4241,9 +4241,9 @@ check_attribute_names:
 	t32 = lrh_length(lrh);
 	rec_len -= t32;
 
-	attr_names = kmemdup(Add2Ptr(lrh, t32), rec_len, GFP_NOFS);
+	attr_names = kmemdup(Add2Ptr(lrh, t32), rec_len, GFP_ANALFS);
 	if (!attr_names) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -4280,9 +4280,9 @@ check_attr_table:
 		goto out;
 	}
 
-	oatbl = kmemdup(rt, t32, GFP_NOFS);
+	oatbl = kmemdup(rt, t32, GFP_ANALFS);
 	if (!oatbl) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -4329,7 +4329,7 @@ check_attribute_names2:
 
 	/*
 	 * If the checkpt_lsn is zero, then this is a freshly
-	 * formatted disk and we have no work to do.
+	 * formatted disk and we have anal work to do.
 	 */
 	if (!checkpt_lsn) {
 		err = 0;
@@ -4339,7 +4339,7 @@ check_attribute_names2:
 	if (!oatbl) {
 		oatbl = init_rsttbl(bytes_per_attr_entry, 8);
 		if (!oatbl) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out;
 		}
 	}
@@ -4384,14 +4384,14 @@ next_log_record_analyze:
 		goto next_log_record_analyze;
 
 	/*
-	 * Now update the Transaction Table for this transaction. If there
-	 * is no entry present or it is unallocated we allocate the entry.
+	 * Analw update the Transaction Table for this transaction. If there
+	 * is anal entry present or it is unallocated we allocate the entry.
 	 */
 	if (!trtbl) {
 		trtbl = init_rsttbl(sizeof(struct TRANSACTION_ENTRY),
 				    INITIAL_NUMBER_TRANSACTIONS);
 		if (!trtbl) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out;
 		}
 	}
@@ -4402,7 +4402,7 @@ next_log_record_analyze:
 	    tr->next != RESTART_ENTRY_ALLOCATED_LE) {
 		tr = alloc_rsttbl_from_idx(&trtbl, transact_id);
 		if (!tr) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out;
 		}
 		tr->transact_state = TransactionActive;
@@ -4426,7 +4426,7 @@ next_log_record_analyze:
 	case CreateAttribute:
 	case DeleteAttribute:
 	case UpdateResidentValue:
-	case UpdateNonresidentValue:
+	case UpdateAnalnresidentValue:
 	case UpdateMappingPairs:
 	case SetNewAttributeSizes:
 	case AddIndexEntryRoot:
@@ -4438,8 +4438,8 @@ next_log_record_analyze:
 	case SetIndexEntryVcnAllocation:
 	case UpdateFileNameRoot:
 	case UpdateFileNameAllocation:
-	case SetBitsInNonresidentBitMap:
-	case ClearBitsInNonresidentBitMap:
+	case SetBitsInAnalnresidentBitMap:
+	case ClearBitsInAnalnresidentBitMap:
 	case UpdateRecordDataRoot:
 	case UpdateRecordDataAllocation:
 	case ZeroEndOfFileRecord:
@@ -4464,14 +4464,14 @@ next_log_record_analyze:
 			dptbl = init_rsttbl(struct_size(dp, page_lcns, t32),
 					    32);
 			if (!dptbl) {
-				err = -ENOMEM;
+				err = -EANALMEM;
 				goto out;
 			}
 		}
 
 		dp = alloc_rsttbl_idx(&dptbl);
 		if (!dp) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out;
 		}
 		dp->target_attr = cpu_to_le32(t16);
@@ -4484,7 +4484,7 @@ copy_lcns:
 		/*
 		 * Copy the Lcns from the log record into the Dirty Page Entry.
 		 * TODO: For different page size support, must somehow make
-		 * whole routine a loop, case Lcns do not fit below.
+		 * whole routine a loop, case Lcns do analt fit below.
 		 */
 		t16 = le16_to_cpu(lrh->lcns_follow);
 		for (i = 0; i < t16; i++) {
@@ -4522,7 +4522,7 @@ copy_lcns:
 		;
 	}
 
-	case OpenNonresidentAttribute:
+	case OpenAnalnresidentAttribute:
 		t16 = le16_to_cpu(lrh->target_attr);
 		if (t16 >= bytes_per_rt(oatbl)) {
 			/*
@@ -4536,7 +4536,7 @@ copy_lcns:
 			oatbl = extend_rsttbl(oatbl, new_e, ~0u);
 			log->open_attr_tbl = oatbl;
 			if (!oatbl) {
-				err = -ENOMEM;
+				err = -EANALMEM;
 				goto out;
 			}
 		}
@@ -4545,7 +4545,7 @@ copy_lcns:
 		oe = alloc_rsttbl_from_idx(&oatbl, t16);
 		log->open_attr_tbl = oatbl;
 		if (!oe) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out;
 		}
 
@@ -4567,9 +4567,9 @@ copy_lcns:
 
 		t16 = le16_to_cpu(lrh->undo_len);
 		if (t16) {
-			oe->ptr = kmalloc(t16, GFP_NOFS);
+			oe->ptr = kmalloc(t16, GFP_ANALFS);
 			if (!oe->ptr) {
-				err = -ENOMEM;
+				err = -EANALMEM;
 				goto out;
 			}
 			oe->name_len = t16 / sizeof(short);
@@ -4615,18 +4615,18 @@ copy_lcns:
 		free_rsttbl_idx(trtbl, transact_id);
 		goto next_log_record_analyze;
 
-	case Noop:
+	case Analop:
 	case OpenAttributeTableDump:
 	case AttributeNamesDump:
 	case DirtyPageTableDump:
 	case TransactionTableDump:
-		/* The following cases require no action the Analysis Pass. */
+		/* The following cases require anal action the Analysis Pass. */
 		goto next_log_record_analyze;
 
 	default:
 		/*
 		 * All codes will be explicitly handled.
-		 * If we see a code we do not expect, then we are trouble.
+		 * If we see a code we do analt expect, then we are trouble.
 		 */
 		goto next_log_record_analyze;
 	}
@@ -4655,7 +4655,7 @@ end_log_records_enumerate:
 
 	/*
 	 * Only proceed if the Dirty Page Table or Transaction
-	 * table are not empty.
+	 * table are analt empty.
 	 */
 	if ((!dptbl || !dptbl->total) && (!trtbl || !trtbl->total))
 		goto end_reply;
@@ -4675,29 +4675,29 @@ next_open_attribute:
 		goto next_dirty_page;
 	}
 
-	oa = kzalloc(sizeof(struct OpenAttr), GFP_NOFS);
+	oa = kzalloc(sizeof(struct OpenAttr), GFP_ANALFS);
 	if (!oa) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
-	inode = ntfs_iget5(sbi->sb, &oe->ref, NULL);
-	if (IS_ERR(inode))
+	ianalde = ntfs_iget5(sbi->sb, &oe->ref, NULL);
+	if (IS_ERR(ianalde))
 		goto fake_attr;
 
-	if (is_bad_inode(inode)) {
-		iput(inode);
+	if (is_bad_ianalde(ianalde)) {
+		iput(ianalde);
 fake_attr:
 		if (oa->ni) {
-			iput(&oa->ni->vfs_inode);
+			iput(&oa->ni->vfs_ianalde);
 			oa->ni = NULL;
 		}
 
-		attr = attr_create_nonres_log(sbi, oe->type, 0, oe->ptr,
+		attr = attr_create_analnres_log(sbi, oe->type, 0, oe->ptr,
 					      oe->name_len, 0);
 		if (!attr) {
 			kfree(oa);
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out;
 		}
 		oa->attr = attr;
@@ -4705,7 +4705,7 @@ fake_attr:
 		goto final_oe;
 	}
 
-	ni_oe = ntfs_i(inode);
+	ni_oe = ntfs_i(ianalde);
 	oa->ni = ni_oe;
 
 	attr = ni_find_attr(ni_oe, NULL, NULL, oe->type, oe->ptr, oe->name_len,
@@ -4715,11 +4715,11 @@ fake_attr:
 		goto fake_attr;
 
 	t32 = le32_to_cpu(attr->size);
-	oa->attr = kmemdup(attr, t32, GFP_NOFS);
+	oa->attr = kmemdup(attr, t32, GFP_ANALFS);
 	if (!oa->attr)
 		goto fake_attr;
 
-	if (!S_ISDIR(inode->i_mode)) {
+	if (!S_ISDIR(ianalde->i_mode)) {
 		if (attr->type == ATTR_DATA && !attr->name_len) {
 			oa->run1 = &ni_oe->file.run;
 			goto final_oe;
@@ -4733,7 +4733,7 @@ fake_attr:
 		}
 	}
 
-	if (attr->non_res) {
+	if (attr->analn_res) {
 		u16 roff = le16_to_cpu(attr->nres.run_off);
 		CLST svcn = le64_to_cpu(attr->nres.svcn);
 
@@ -4743,7 +4743,7 @@ fake_attr:
 			goto fake_attr;
 		}
 
-		err = run_unpack(&oa->run0, sbi, inode->i_ino, svcn,
+		err = run_unpack(&oa->run0, sbi, ianalde->i_ianal, svcn,
 				 le64_to_cpu(attr->nres.evcn), svcn,
 				 Add2Ptr(attr, roff), t32 - roff);
 		if (err < 0) {
@@ -4766,7 +4766,7 @@ final_oe:
 	goto next_open_attribute;
 
 	/*
-	 * Now loop through the dirty page table to extract all of the Vcn/Lcn.
+	 * Analw loop through the dirty page table to extract all of the Vcn/Lcn.
 	 * Mapping that we have, and insert it into the appropriate run.
 	 */
 next_dirty_page:
@@ -4795,8 +4795,8 @@ next_dirty_page_vcn:
 	if (!dp->page_lcns[i])
 		goto next_dirty_page_vcn;
 
-	rno = ino_get(&oe->ref);
-	if (rno <= MFT_REC_MIRR &&
+	ranal = ianal_get(&oe->ref);
+	if (ranal <= MFT_REC_MIRR &&
 	    size < (MFT_REC_VOL + 1) * sbi->record_size &&
 	    oe->type == ATTR_DATA) {
 		goto next_dirty_page_vcn;
@@ -4807,7 +4807,7 @@ next_dirty_page_vcn:
 	if ((!run_lookup_entry(oa->run1, vcn, &lcn0, &len0, NULL) ||
 	     lcn0 != lcn) &&
 	    !run_add_entry(oa->run1, vcn, lcn, 1, false)) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 	attr = oa->attr;
@@ -4837,7 +4837,7 @@ do_redo_1:
 		goto out;
 
 	/*
-	 * Now loop to read all of our log records forwards, until
+	 * Analw loop to read all of our log records forwards, until
 	 * we hit the end of the file, cleaning up at the end.
 	 */
 do_action_next:
@@ -4855,7 +4855,7 @@ do_action_next:
 		goto out;
 	}
 
-	/* Ignore log records that do not update pages. */
+	/* Iganalre log records that do analt update pages. */
 	if (lrh->lcns_follow)
 		goto find_dirty_page;
 
@@ -4940,7 +4940,7 @@ find_dirty_page:
 	}
 
 	/*
-	 * If the resulting dlen from above is now zero,
+	 * If the resulting dlen from above is analw zero,
 	 * we can skip this log record.
 	 */
 	if (!dlen && saved_len)
@@ -4993,7 +4993,7 @@ transaction_table_next:
 		goto out;
 
 	/*
-	 * Now loop to read all of our log records forwards,
+	 * Analw loop to read all of our log records forwards,
 	 * until we hit the end of the file, cleaning up at the end.
 	 */
 undo_action_next:
@@ -5008,7 +5008,7 @@ undo_action_next:
 		goto out;
 	}
 
-	if (lrh->undo_op == cpu_to_le16(Noop))
+	if (lrh->undo_op == cpu_to_le16(Analop))
 		goto read_next_log_undo_action;
 
 	oe = Add2Ptr(oatbl, le16_to_cpu(lrh->target_attr));
@@ -5024,7 +5024,7 @@ undo_action_next:
 	/*
 	 * If the mapping isn't already the table or the  mapping
 	 * corresponds to a hole the mapping, we need to make sure
-	 * there is no partial page already memory.
+	 * there is anal partial page already memory.
 	 */
 	if (is_mapped && lcn != SPARSE_LCN && clen >= t16)
 		goto add_allocated_vcns;
@@ -5037,7 +5037,7 @@ add_allocated_vcns:
 	    size = (vcn + 1) << sbi->cluster_bits;
 	     i < t16; i++, vcn += 1, size += sbi->cluster_size) {
 		attr = oa->attr;
-		if (!attr->non_res) {
+		if (!attr->analn_res) {
 			if (size > le32_to_cpu(attr->res.data_size))
 				attr->res.data_size = cpu_to_le32(size);
 		} else {
@@ -5093,9 +5093,9 @@ end_reply:
 	if (is_ro)
 		goto out;
 
-	rh = kzalloc(log->page_size, GFP_NOFS);
+	rh = kzalloc(log->page_size, GFP_ANALFS);
 	if (!rh) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -5109,14 +5109,14 @@ end_reply:
 	t16 = ALIGN(offsetof(struct RESTART_HDR, fixups) + sizeof(short) * t16,
 		    8);
 	rh->ra_off = cpu_to_le16(t16);
-	rh->minor_ver = cpu_to_le16(1); // 0x1A:
+	rh->mianalr_ver = cpu_to_le16(1); // 0x1A:
 	rh->major_ver = cpu_to_le16(1); // 0x1C:
 
 	ra2 = Add2Ptr(rh, t16);
 	memcpy(ra2, ra, sizeof(struct RESTART_AREA));
 
 	ra2->client_idx[0] = 0;
-	ra2->client_idx[1] = LFS_NO_CLIENT_LE;
+	ra2->client_idx[1] = LFS_ANAL_CLIENT_LE;
 	ra2->flags = cpu_to_le16(2);
 
 	le32_add_cpu(&ra2->open_log_count, 1);
@@ -5143,7 +5143,7 @@ out:
 	 */
 	oe = NULL;
 	while ((oe = enum_rstbl(oatbl, oe))) {
-		rno = ino_get(&oe->ref);
+		ranal = ianal_get(&oe->ref);
 
 		if (oe->is_attr_name == 1) {
 			kfree(oe->ptr);
@@ -5161,7 +5161,7 @@ out:
 		run_close(&oa->run0);
 		kfree(oa->attr);
 		if (oa->ni)
-			iput(&oa->ni->vfs_inode);
+			iput(&oa->ni->vfs_ianalde);
 		kfree(oa);
 	}
 

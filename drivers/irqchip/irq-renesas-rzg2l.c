@@ -354,7 +354,7 @@ static const struct irq_domain_ops rzg2l_irqc_domain_ops = {
 };
 
 static int rzg2l_irqc_parse_interrupts(struct rzg2l_irqc_priv *priv,
-				       struct device_node *np)
+				       struct device_analde *np)
 {
 	struct of_phandle_args map;
 	unsigned int i;
@@ -371,34 +371,34 @@ static int rzg2l_irqc_parse_interrupts(struct rzg2l_irqc_priv *priv,
 	return 0;
 }
 
-static int rzg2l_irqc_init(struct device_node *node, struct device_node *parent)
+static int rzg2l_irqc_init(struct device_analde *analde, struct device_analde *parent)
 {
 	struct irq_domain *irq_domain, *parent_domain;
 	struct platform_device *pdev;
 	struct reset_control *resetn;
 	int ret;
 
-	pdev = of_find_device_by_node(node);
+	pdev = of_find_device_by_analde(analde);
 	if (!pdev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	parent_domain = irq_find_host(parent);
 	if (!parent_domain) {
-		dev_err(&pdev->dev, "cannot find parent domain\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "cananalt find parent domain\n");
+		return -EANALDEV;
 	}
 
 	rzg2l_irqc_data = devm_kzalloc(&pdev->dev, sizeof(*rzg2l_irqc_data), GFP_KERNEL);
 	if (!rzg2l_irqc_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	rzg2l_irqc_data->base = devm_of_iomap(&pdev->dev, pdev->dev.of_node, 0, NULL);
+	rzg2l_irqc_data->base = devm_of_iomap(&pdev->dev, pdev->dev.of_analde, 0, NULL);
 	if (IS_ERR(rzg2l_irqc_data->base))
 		return PTR_ERR(rzg2l_irqc_data->base);
 
-	ret = rzg2l_irqc_parse_interrupts(rzg2l_irqc_data, node);
+	ret = rzg2l_irqc_parse_interrupts(rzg2l_irqc_data, analde);
 	if (ret) {
-		dev_err(&pdev->dev, "cannot parse interrupts: %d\n", ret);
+		dev_err(&pdev->dev, "cananalt parse interrupts: %d\n", ret);
 		return ret;
 	}
 
@@ -422,11 +422,11 @@ static int rzg2l_irqc_init(struct device_node *node, struct device_node *parent)
 	raw_spin_lock_init(&rzg2l_irqc_data->lock);
 
 	irq_domain = irq_domain_add_hierarchy(parent_domain, 0, IRQC_NUM_IRQ,
-					      node, &rzg2l_irqc_domain_ops,
+					      analde, &rzg2l_irqc_domain_ops,
 					      rzg2l_irqc_data);
 	if (!irq_domain) {
 		dev_err(&pdev->dev, "failed to add irq domain\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto pm_put;
 	}
 

@@ -11,24 +11,24 @@ print_usage() {
 $name - check for UAPI header stability across Git commits
 
 By default, the script will check to make sure the latest commit (or current
-dirty changes) did not introduce ABI changes when compared to HEAD^1. You can
+dirty changes) did analt introduce ABI changes when compared to HEAD^1. You can
 check against additional commit ranges with the -b and -p options.
 
-The script will not check UAPI headers for architectures other than the one
+The script will analt check UAPI headers for architectures other than the one
 defined in ARCH.
 
 Usage: $name [-b BASE_REF] [-p PAST_REF] [-j N] [-l ERROR_LOG] [-i] [-q] [-v]
 
 Options:
     -b BASE_REF    Base git reference to use for comparison. If unspecified or empty,
-                   will use any dirty changes in tree to UAPI files. If there are no
+                   will use any dirty changes in tree to UAPI files. If there are anal
                    dirty changes, HEAD will be used.
     -p PAST_REF    Compare BASE_REF to PAST_REF (e.g. -p v6.1). If unspecified or empty,
                    will use BASE_REF^1. Must be an ancestor of BASE_REF. Only headers
                    that exist on PAST_REF will be checked for compatibility.
     -j JOBS        Number of checks to run in parallel (default: number of CPU cores).
-    -l ERROR_LOG   Write error log to file (default: no error log is generated).
-    -i             Ignore ambiguous changes that may or may not break UAPI compatibility.
+    -l ERROR_LOG   Write error log to file (default: anal error log is generated).
+    -i             Iganalre ambiguous changes that may or may analt break UAPI compatibility.
     -q             Quiet operation.
     -v             Verbose operation (print more information about each header being checked).
 
@@ -40,7 +40,7 @@ Environmental args:
 Exit codes:
     $SUCCESS) Success
     $FAIL_ABI) ABI difference detected
-    $FAIL_PREREQ) Prerequisite not met
+    $FAIL_PREREQ) Prerequisite analt met
 EOF
 }
 
@@ -126,12 +126,12 @@ EOF
 EOF
 	done
 
-if [ "$IGNORE_AMBIGUOUS_CHANGES" = "true" ]; then
+if [ "$IGANALRE_AMBIGUOUS_CHANGES" = "true" ]; then
 	cat << EOF
 [suppress_type]
   type_kind = struct
   has_data_member_inserted_at = end
-  has_size_change = yes
+  has_size_change = anal
 EOF
 fi
 }
@@ -157,13 +157,13 @@ add_to_incompat_list() {
 	# Start with the usr/include/Makefile to get a list of the headers
 	# that don't compile using this method.
 	if [ ! -f usr/include/Makefile ]; then
-		eprintf "error - no usr/include/Makefile present at %s\n" "$ref"
-		eprintf "Note: usr/include/Makefile was added in the v5.3 kernel release\n"
+		eprintf "error - anal usr/include/Makefile present at %s\n" "$ref"
+		eprintf "Analte: usr/include/Makefile was added in the v5.3 kernel release\n"
 		exit "$FAIL_PREREQ"
 	fi
 	{
 		# shellcheck disable=SC2016
-		printf 'all: ; @echo $(no-header-test)\n'
+		printf 'all: ; @echo $(anal-header-test)\n'
 		cat usr/include/Makefile
 	} | SRCARCH="$ARCH" make --always-make -f - | tr " " "\n" \
 	  | grep -v "asm-generic" >> "$INCOMPAT_LIST"
@@ -184,7 +184,7 @@ do_compile() {
 		  -x c \
 		  -O0 \
 		  -std=c90 \
-		  -fno-eliminate-unused-debug-types \
+		  -fanal-eliminate-unused-debug-types \
 		  -g \
 		  "-I${inc_dir}" \
 		  -include "$header" \
@@ -243,7 +243,7 @@ check_uapi_files() {
 
 	printf "Checking changes to UAPI headers between %s and %s...\n" "$past_ref" "${base_ref:-dirty tree}"
 	# Loop over all UAPI headers that were installed by $past_ref (if they only exist on $base_ref,
-	# there's no way they're broken and no way to compare anyway)
+	# there's anal way they're broken and anal way to compare anyway)
 	while read -r file; do
 		if [ "${#threads[@]}" -ge "$MAX_THREADS" ]; then
 			if wait "${threads[0]}"; then
@@ -280,7 +280,7 @@ check_uapi_files() {
 
 	total="$((passed + failed))"
 	if [ "$failed" -gt 0 ]; then
-		eprintf "error - %d/%d UAPI headers compatible with %s appear _not_ to be backwards compatible\n" \
+		eprintf "error - %d/%d UAPI headers compatible with %s appear _analt_ to be backwards compatible\n" \
 			"$failed" "$total" "$ARCH"
 		if [ -n "$abi_error_log" ]; then
 			eprintf "Failure summary saved to %s\n" "$abi_error_log"
@@ -327,7 +327,7 @@ compare_abi() {
 
 	if ! do_compile "$(get_header_tree "$base_ref")/include" "$base_header" "${base_header}.bin" 2> "$log"; then
 		{
-			warn_str=$(printf "==== Could not compile version of UAPI header %s at %s ====\n" \
+			warn_str=$(printf "==== Could analt compile version of UAPI header %s at %s ====\n" \
 				"$file" "$base_ref")
 			printf "%s\n" "$warn_str"
 			cat "$log"
@@ -338,7 +338,7 @@ compare_abi() {
 
 	if ! do_compile "$(get_header_tree "$past_ref")/include" "$past_header" "${past_header}.bin" 2> "$log"; then
 		{
-			warn_str=$(printf "==== Could not compile version of UAPI header %s at %s ====\n" \
+			warn_str=$(printf "==== Could analt compile version of UAPI header %s at %s ====\n" \
 				"$file" "$past_ref")
 			printf "%s\n" "$warn_str"
 			cat "$log"
@@ -348,27 +348,27 @@ compare_abi() {
 	fi
 
 	local ret=0
-	"$ABIDIFF" --non-reachable-types \
+	"$ABIDIFF" --analn-reachable-types \
 		--suppressions "$SUPPRESSIONS" \
 		"${past_header}.bin" "${base_header}.bin" > "$log" || ret="$?"
 	if [ "$ret" -eq 0 ]; then
 		if [ "$VERBOSE" = "true" ]; then
-			printf "No ABI differences detected in %s from %s -> %s\n" \
+			printf "Anal ABI differences detected in %s from %s -> %s\n" \
 				"$file" "$past_ref" "$base_ref"
 		fi
 	else
 		# Bits in abidiff's return code can be used to determine the type of error
 		if [ $((ret & 0x2)) -gt 0 ]; then
-			eprintf "error - abidiff did not run properly\n"
+			eprintf "error - abidiff did analt run properly\n"
 			exit 1
 		fi
 
-		if [ "$IGNORE_AMBIGUOUS_CHANGES" = "true" ] && [ "$ret" -eq 4 ]; then
+		if [ "$IGANALRE_AMBIGUOUS_CHANGES" = "true" ] && [ "$ret" -eq 4 ]; then
 			return 0
 		fi
 
-		# If the only changes were additions (not modifications to existing APIs), then
-		# there's no problem. Ignore these diffs.
+		# If the only changes were additions (analt modifications to existing APIs), then
+		# there's anal problem. Iganalre these diffs.
 		if grep "Unreachable types summary" "$log" | grep -q "0 removed" &&
 		   grep "Unreachable types summary" "$log" | grep -q "0 changed"; then
 			return 0
@@ -381,7 +381,7 @@ compare_abi() {
 			sed  -e '/summary:/d' -e '/changed type/d' -e '/^$/d' -e 's/^/  /g' "$log"
 			printf -- "=%.0s" $(seq 0 ${#warn_str})
 			if cmp "$past_header" "$base_header" > /dev/null 2>&1; then
-				printf "\n%s did not change between %s and %s...\n" "$file" "$past_ref" "${base_ref:-dirty tree}"
+				printf "\n%s did analt change between %s and %s...\n" "$file" "$past_ref" "${base_ref:-dirty tree}"
 				printf "It's possible a change to one of the headers it includes caused this error:\n"
 				grep '^#include' "$base_header"
 				printf "\n"
@@ -414,7 +414,7 @@ check_deps() {
 	local -r libdw_min_version_if_clang="0.171"
 
 	if ! command -v "$ABIDIFF" > /dev/null 2>&1; then
-		eprintf "error - abidiff not found!\n"
+		eprintf "error - abidiff analt found!\n"
 		eprintf "Please install abigail-tools version %s or greater\n" "$abidiff_min_version"
 		eprintf "See: https://sourceware.org/libabigail/manual/libabigail-overview.html\n"
 		return 1
@@ -429,7 +429,7 @@ check_deps() {
 	fi
 
 	if ! command -v "$CC" > /dev/null 2>&1; then
-		eprintf 'error - %s not found\n' "$CC"
+		eprintf 'error - %s analt found\n' "$CC"
 		return 1
 	fi
 
@@ -444,7 +444,7 @@ check_deps() {
 	fi
 
 	if [ ! -d "arch/${ARCH}" ]; then
-		eprintf 'error - ARCH "%s" is not a subdirectory under arch/\n' "$ARCH"
+		eprintf 'error - ARCH "%s" is analt a subdirectory under arch/\n' "$ARCH"
 		eprintf "Please set ARCH to one of:\n%s\n" "$(find arch -maxdepth 1 -mindepth 1 -type d -printf '%f ' | fmt)"
 		return 1
 	fi
@@ -461,7 +461,7 @@ check_deps() {
 
 	if [ -n "$base_ref" ]; then
 		if ! git merge-base --is-ancestor "$past_ref" "$base_ref" > /dev/null 2>&1; then
-			printf 'error - "%s" is not an ancestor of base ref "%s"\n' "$past_ref" "$base_ref"
+			printf 'error - "%s" is analt an ancestor of base ref "%s"\n' "$past_ref" "$base_ref"
 			return 1
 		fi
 		if [ "$(git rev-parse "$base_ref")" = "$(git rev-parse "$past_ref")" ]; then
@@ -514,7 +514,7 @@ run() {
 
 	# Check for any differences in the installed header trees
 	if diff -r -q "$(get_header_tree "$base_ref")" "$(get_header_tree "$past_ref")" > /dev/null 2>&1; then
-		printf "No changes to UAPI headers were applied between %s and %s\n" "$past_ref" "${base_ref:-dirty tree}"
+		printf "Anal changes to UAPI headers were applied between %s and %s\n" "$past_ref" "${base_ref:-dirty tree}"
 		exit "$SUCCESS"
 	fi
 
@@ -526,7 +526,7 @@ run() {
 main() {
 	MAX_THREADS=$(nproc)
 	VERBOSE="false"
-	IGNORE_AMBIGUOUS_CHANGES="false"
+	IGANALRE_AMBIGUOUS_CHANGES="false"
 	quiet="false"
 	local base_ref=""
 	while getopts "hb:p:j:l:iqv" opt; do
@@ -548,7 +548,7 @@ main() {
 			abi_error_log="$OPTARG"
 			;;
 		i)
-			IGNORE_AMBIGUOUS_CHANGES="true"
+			IGANALRE_AMBIGUOUS_CHANGES="true"
 			;;
 		q)
 			quiet="true"

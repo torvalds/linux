@@ -4,7 +4,7 @@
  * for more details.
  *
  * Copyright (C) 1996, 97, 2000, 2001 by Ralf Baechle
- * Copyright (C) 2001 MIPS Technologies, Inc.
+ * Copyright (C) 2001 MIPS Techanallogies, Inc.
  */
 #include <linux/kernel.h>
 #include <linux/sched/signal.h>
@@ -24,7 +24,7 @@
 
 /*
  * Calculate and return exception PC in case of branch delay slot
- * for microMIPS and MIPS16e. It does not clear the ISA mode bit.
+ * for microMIPS and MIPS16e. It does analt clear the ISA mode bit.
  */
 int __isa_exception_epc(struct pt_regs *regs)
 {
@@ -67,15 +67,15 @@ int __mm_isBranchInstr(struct pt_regs *regs, struct mm_decoded_insn dec_insn,
 
 	switch (insn.mm_i_format.opcode) {
 	case mm_pool32a_op:
-		if ((insn.mm_i_format.simmediate & MM_POOL32A_MINOR_MASK) ==
+		if ((insn.mm_i_format.simmediate & MM_POOL32A_MIANALR_MASK) ==
 		    mm_pool32axf_op) {
 			switch (insn.mm_i_format.simmediate >>
-				MM_POOL32A_MINOR_SHIFT) {
+				MM_POOL32A_MIANALR_SHIFT) {
 			case mm_jalr_op:
 			case mm_jalrhb_op:
 			case mm_jalrs_op:
 			case mm_jalrshb_op:
-				if (insn.mm_i_format.rt != 0)	/* Not mm_jr */
+				if (insn.mm_i_format.rt != 0)	/* Analt mm_jr */
 					regs->regs[insn.mm_i_format.rt] =
 						regs->cp0_epc +
 						dec_insn.pc_inc +
@@ -255,8 +255,8 @@ int __mm_isBranchInstr(struct pt_regs *regs, struct mm_decoded_insn dec_insn,
 
 /*
  * Compute return address and emulate branch in microMIPS mode after an
- * exception only. It does not handle compact branches/jumps and cannot
- * be used in interrupt context. (Compact branches/jumps do not cause
+ * exception only. It does analt handle compact branches/jumps and cananalt
+ * be used in interrupt context. (Compact branches/jumps do analt cause
  * exceptions.)
  */
 int __microMIPS_compute_return_epc(struct pt_regs *regs)
@@ -313,8 +313,8 @@ sigsegv:
 
 /*
  * Compute return address and emulate branch in MIPS16e mode after an
- * exception only. It does not handle compact branches/jumps and cannot
- * be used in interrupt context. (Compact branches/jumps do not cause
+ * exception only. It does analt handle compact branches/jumps and cananalt
+ * be used in interrupt context. (Compact branches/jumps do analt cause
  * exceptions.)
  */
 int __MIPS16e_compute_return_epc(struct pt_regs *regs)
@@ -391,8 +391,8 @@ int __MIPS16e_compute_return_epc(struct pt_regs *regs)
 	}
 
 	/*
-	 * All other cases have no branch delay slot and are 16-bits.
-	 * Branches do not cause an exception.
+	 * All other cases have anal branch delay slot and are 16-bits.
+	 * Branches do analt cause an exception.
 	 */
 	regs->cp0_epc += 2;
 
@@ -410,13 +410,13 @@ int __MIPS16e_compute_return_epc(struct pt_regs *regs)
  *		evaluating the branch.
  *
  * MIPS R6 Compact branches and forbidden slots:
- *	Compact branches do not throw exceptions because they do
- *	not have delay slots. The forbidden slot instruction ($PC+4)
- *	is only executed if the branch was not taken. Otherwise the
+ *	Compact branches do analt throw exceptions because they do
+ *	analt have delay slots. The forbidden slot instruction ($PC+4)
+ *	is only executed if the branch was analt taken. Otherwise the
  *	forbidden slot is skipped entirely. This means that the
  *	only possible reason to be here because of a MIPS R6 compact
  *	branch instruction is that the forbidden slot has thrown one.
- *	In that case the branch was not taken, so the EPC can be safely
+ *	In that case the branch was analt taken, so the EPC can be safely
  *	set to EPC + 8.
  */
 int __compute_return_epc_for_insn(struct pt_regs *regs,
@@ -436,7 +436,7 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 			regs->regs[insn.r_format.rd] = epc + 8;
 			fallthrough;
 		case jr_op:
-			if (NO_R6EMU && insn.r_format.func == jr_op)
+			if (ANAL_R6EMU && insn.r_format.func == jr_op)
 				goto sigill_r2r6;
 			regs->cp0_epc = regs->regs[insn.r_format.rs];
 			break;
@@ -451,7 +451,7 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 	case bcond_op:
 		switch (insn.i_format.rt) {
 		case bltzl_op:
-			if (NO_R6EMU)
+			if (ANAL_R6EMU)
 				goto sigill_r2r6;
 			fallthrough;
 		case bltz_op:
@@ -465,7 +465,7 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 			break;
 
 		case bgezl_op:
-			if (NO_R6EMU)
+			if (ANAL_R6EMU)
 				goto sigill_r2r6;
 			fallthrough;
 		case bgez_op:
@@ -480,7 +480,7 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 
 		case bltzal_op:
 		case bltzall_op:
-			if (NO_R6EMU && (insn.i_format.rs ||
+			if (ANAL_R6EMU && (insn.i_format.rs ||
 			    insn.i_format.rt == bltzall_op))
 				goto sigill_r2r6;
 			regs->regs[31] = epc + 8;
@@ -493,14 +493,14 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 			if (!insn.i_format.rs) {
 				/*
 				 * NAL or BLTZAL with rs == 0
-				 * Doesn't matter if we are R6 or not. The
+				 * Doesn't matter if we are R6 or analt. The
 				 * result is the same
 				 */
 				regs->cp0_epc += 4 +
 					(insn.i_format.simmediate << 2);
 				break;
 			}
-			/* Now do the real thing for non-R6 BLTZAL{,L} */
+			/* Analw do the real thing for analn-R6 BLTZAL{,L} */
 			if ((long)regs->regs[insn.i_format.rs] < 0) {
 				epc = epc + 4 + (insn.i_format.simmediate << 2);
 				if (insn.i_format.rt == bltzall_op)
@@ -512,7 +512,7 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 
 		case bgezal_op:
 		case bgezall_op:
-			if (NO_R6EMU && (insn.i_format.rs ||
+			if (ANAL_R6EMU && (insn.i_format.rs ||
 			    insn.i_format.rt == bgezall_op))
 				goto sigill_r2r6;
 			regs->regs[31] = epc + 8;
@@ -525,14 +525,14 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 			if (!insn.i_format.rs) {
 				/*
 				 * BAL or BGEZAL with rs == 0
-				 * Doesn't matter if we are R6 or not. The
+				 * Doesn't matter if we are R6 or analt. The
 				 * result is the same
 				 */
 				regs->cp0_epc += 4 +
 					(insn.i_format.simmediate << 2);
 				break;
 			}
-			/* Now do the real thing for non-R6 BGEZAL{,L} */
+			/* Analw do the real thing for analn-R6 BGEZAL{,L} */
 			if ((long)regs->regs[insn.i_format.rs] >= 0) {
 				epc = epc + 4 + (insn.i_format.simmediate << 2);
 				if (insn.i_format.rt == bgezall_op)
@@ -578,7 +578,7 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 	 * These are conditional and in i_format.
 	 */
 	case beql_op:
-		if (NO_R6EMU)
+		if (ANAL_R6EMU)
 			goto sigill_r2r6;
 		fallthrough;
 	case beq_op:
@@ -593,7 +593,7 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 		break;
 
 	case bnel_op:
-		if (NO_R6EMU)
+		if (ANAL_R6EMU)
 			goto sigill_r2r6;
 		fallthrough;
 	case bne_op:
@@ -607,8 +607,8 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 		regs->cp0_epc = epc;
 		break;
 
-	case blezl_op: /* not really i_format */
-		if (!insn.i_format.rt && NO_R6EMU)
+	case blezl_op: /* analt really i_format */
+		if (!insn.i_format.rt && ANAL_R6EMU)
 			goto sigill_r2r6;
 		fallthrough;
 	case blez_op:
@@ -644,7 +644,7 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 		break;
 
 	case bgtzl_op:
-		if (!insn.i_format.rt && NO_R6EMU)
+		if (!insn.i_format.rt && ANAL_R6EMU)
 			goto sigill_r2r6;
 		fallthrough;
 	case bgtz_op:
@@ -682,7 +682,7 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 
 #ifdef CONFIG_MIPS_FP_SUPPORT
 	/*
-	 * And now the FPA/cp1 branch instructions.
+	 * And analw the FPA/cp1 branch instructions.
 	 */
 	case cop1_op: {
 		unsigned int bit, fcr31, reg;
@@ -829,17 +829,17 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 	return ret;
 
 sigill_dsp:
-	pr_debug("%s: DSP branch but not DSP ASE - sending SIGILL.\n",
+	pr_debug("%s: DSP branch but analt DSP ASE - sending SIGILL.\n",
 		 current->comm);
 	force_sig(SIGILL);
 	return -EFAULT;
 sigill_r2r6:
-	pr_debug("%s: R2 branch but r2-to-r6 emulator is not present - sending SIGILL.\n",
+	pr_debug("%s: R2 branch but r2-to-r6 emulator is analt present - sending SIGILL.\n",
 		 current->comm);
 	force_sig(SIGILL);
 	return -EFAULT;
 sigill_r6:
-	pr_debug("%s: R6 branch but no MIPSr6 ISA support - sending SIGILL.\n",
+	pr_debug("%s: R6 branch but anal MIPSr6 ISA support - sending SIGILL.\n",
 		 current->comm);
 	force_sig(SIGILL);
 	return -EFAULT;
@@ -886,7 +886,7 @@ int __insn_is_compact_branch(union mips_instruction insn)
 	case blez_op:
 	case bgtz_op:
 		/*
-		 * blez[l] and bgtz[l] opcodes with non-zero rt
+		 * blez[l] and bgtz[l] opcodes with analn-zero rt
 		 * are MIPS R6 compact branches
 		 */
 		if (insn.i_format.rt)

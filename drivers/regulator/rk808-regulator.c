@@ -79,7 +79,7 @@
 		.name		= (_match),				\
 		.supply_name	= (_supply),				\
 		.of_match	= of_match_ptr(_match),			\
-		.regulators_node = of_match_ptr("regulators"),		\
+		.regulators_analde = of_match_ptr("regulators"),		\
 		.type		= REGULATOR_VOLTAGE,			\
 		.id		= (_id),				\
 		.n_voltages	= (((_max) - (_min)) / (_step) + 1),	\
@@ -103,7 +103,7 @@
 		.name		= (_match),				\
 		.supply_name	= (_supply),				\
 		.of_match	= of_match_ptr(_match),			\
-		.regulators_node = of_match_ptr("regulators"),		\
+		.regulators_analde = of_match_ptr("regulators"),		\
 		.type		= REGULATOR_VOLTAGE,			\
 		.id		= (_id),				\
 		.n_voltages	= (((_max) - (_min)) / (_step) + 1),	\
@@ -132,7 +132,7 @@
 		.name = _name,\
 		.supply_name = _supply_name,\
 		.of_match = of_match_ptr(_name),\
-		.regulators_node = of_match_ptr("regulators"),\
+		.regulators_analde = of_match_ptr("regulators"),\
 		.id = _id,\
 		.ops = &_ops,\
 		.type = REGULATOR_VOLTAGE,\
@@ -169,7 +169,7 @@
 		.name		= (_match),				\
 		.supply_name	= (_supply),				\
 		.of_match	= of_match_ptr(_match),			\
-		.regulators_node = of_match_ptr("regulators"),		\
+		.regulators_analde = of_match_ptr("regulators"),		\
 		.type		= REGULATOR_VOLTAGE,			\
 		.id		= (_id),				\
 		.enable_reg	= (_ereg),				\
@@ -276,7 +276,7 @@ static int rk806_set_mode_dcdc(struct regulator_dev *rdev, unsigned int mode)
 		return regmap_update_bits(rdev->regmap, reg,
 					  PWM_MODE_MSK << ctr_bit,
 					  FPWM_MODE << ctr_bit);
-	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_ANALRMAL:
 		return regmap_update_bits(rdev->regmap, reg,
 					  PWM_MODE_MSK << ctr_bit,
 					  AUTO_PWM_MODE << ctr_bit);
@@ -305,7 +305,7 @@ static unsigned int rk806_get_mode_dcdc(struct regulator_dev *rdev)
 	if ((val >> ctr_bit) & FPWM_MODE)
 		return REGULATOR_MODE_FAST;
 	else
-		return REGULATOR_MODE_NORMAL;
+		return REGULATOR_MODE_ANALRMAL;
 }
 
 static const struct rk8xx_register_bit rk806_dcdc_rate2[] = {
@@ -508,7 +508,7 @@ static int rk808_buck1_2_set_voltage_time_sel(struct regulator_dev *rdev,
 	int id = rdev_get_id(rdev);
 	struct gpio_desc *gpio = pdata->dvs_gpio[id];
 
-	/* if there is no dvs1/2 pin, we don't need wait extra time here. */
+	/* if there is anal dvs1/2 pin, we don't need wait extra time here. */
 	if (!gpio)
 		return 0;
 
@@ -677,11 +677,11 @@ static int rk8xx_set_suspend_mode(struct regulator_dev *rdev, unsigned int mode)
 	case REGULATOR_MODE_FAST:
 		return regmap_update_bits(rdev->regmap, reg,
 					  PWM_MODE_MSK, FPWM_MODE);
-	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_ANALRMAL:
 		return regmap_update_bits(rdev->regmap, reg,
 					  PWM_MODE_MSK, AUTO_PWM_MODE);
 	default:
-		dev_err(&rdev->dev, "do not support this mode\n");
+		dev_err(&rdev->dev, "do analt support this mode\n");
 		return -EINVAL;
 	}
 
@@ -694,11 +694,11 @@ static int rk8xx_set_mode(struct regulator_dev *rdev, unsigned int mode)
 	case REGULATOR_MODE_FAST:
 		return regmap_update_bits(rdev->regmap, rdev->desc->vsel_reg,
 					  PWM_MODE_MSK, FPWM_MODE);
-	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_ANALRMAL:
 		return regmap_update_bits(rdev->regmap, rdev->desc->vsel_reg,
 					  PWM_MODE_MSK, AUTO_PWM_MODE);
 	default:
-		dev_err(&rdev->dev, "do not support this mode\n");
+		dev_err(&rdev->dev, "do analt support this mode\n");
 		return -EINVAL;
 	}
 
@@ -717,7 +717,7 @@ static unsigned int rk8xx_get_mode(struct regulator_dev *rdev)
 	if (val & FPWM_MODE)
 		return REGULATOR_MODE_FAST;
 	else
-		return REGULATOR_MODE_NORMAL;
+		return REGULATOR_MODE_ANALRMAL;
 }
 
 static int rk8xx_is_enabled_wmsk_regmap(struct regulator_dev *rdev)
@@ -749,7 +749,7 @@ static unsigned int rk8xx_regulator_of_map_mode(unsigned int mode)
 	case 1:
 		return REGULATOR_MODE_FAST;
 	case 2:
-		return REGULATOR_MODE_NORMAL;
+		return REGULATOR_MODE_ANALRMAL;
 	default:
 		return REGULATOR_MODE_INVALID;
 	}
@@ -959,7 +959,7 @@ static const struct regulator_desc rk805_reg[] = {
 		.name = "DCDC_REG1",
 		.supply_name = "vcc1",
 		.of_match = of_match_ptr("DCDC_REG1"),
-		.regulators_node = of_match_ptr("regulators"),
+		.regulators_analde = of_match_ptr("regulators"),
 		.id = RK805_ID_DCDC1,
 		.ops = &rk808_reg_ops_ranges,
 		.type = REGULATOR_VOLTAGE,
@@ -975,7 +975,7 @@ static const struct regulator_desc rk805_reg[] = {
 		.name = "DCDC_REG2",
 		.supply_name = "vcc2",
 		.of_match = of_match_ptr("DCDC_REG2"),
-		.regulators_node = of_match_ptr("regulators"),
+		.regulators_analde = of_match_ptr("regulators"),
 		.id = RK805_ID_DCDC2,
 		.ops = &rk808_reg_ops_ranges,
 		.type = REGULATOR_VOLTAGE,
@@ -991,7 +991,7 @@ static const struct regulator_desc rk805_reg[] = {
 		.name = "DCDC_REG3",
 		.supply_name = "vcc3",
 		.of_match = of_match_ptr("DCDC_REG3"),
-		.regulators_node = of_match_ptr("regulators"),
+		.regulators_analde = of_match_ptr("regulators"),
 		.id = RK805_ID_DCDC3,
 		.ops = &rk805_switch_ops,
 		.type = REGULATOR_VOLTAGE,
@@ -1127,7 +1127,7 @@ static const struct regulator_desc rk808_reg[] = {
 		.name = "DCDC_REG1",
 		.supply_name = "vcc1",
 		.of_match = of_match_ptr("DCDC_REG1"),
-		.regulators_node = of_match_ptr("regulators"),
+		.regulators_analde = of_match_ptr("regulators"),
 		.id = RK808_ID_DCDC1,
 		.ops = &rk808_buck1_2_ops,
 		.type = REGULATOR_VOLTAGE,
@@ -1147,7 +1147,7 @@ static const struct regulator_desc rk808_reg[] = {
 		.name = "DCDC_REG2",
 		.supply_name = "vcc2",
 		.of_match = of_match_ptr("DCDC_REG2"),
-		.regulators_node = of_match_ptr("regulators"),
+		.regulators_analde = of_match_ptr("regulators"),
 		.id = RK808_ID_DCDC2,
 		.ops = &rk808_buck1_2_ops,
 		.type = REGULATOR_VOLTAGE,
@@ -1167,7 +1167,7 @@ static const struct regulator_desc rk808_reg[] = {
 		.name = "DCDC_REG3",
 		.supply_name = "vcc3",
 		.of_match = of_match_ptr("DCDC_REG3"),
-		.regulators_node = of_match_ptr("regulators"),
+		.regulators_analde = of_match_ptr("regulators"),
 		.id = RK808_ID_DCDC3,
 		.ops = &rk808_switch_ops,
 		.type = REGULATOR_VOLTAGE,
@@ -1189,7 +1189,7 @@ static const struct regulator_desc rk808_reg[] = {
 		.name = "LDO_REG3",
 		.supply_name = "vcc7",
 		.of_match = of_match_ptr("LDO_REG3"),
-		.regulators_node = of_match_ptr("regulators"),
+		.regulators_analde = of_match_ptr("regulators"),
 		.id = RK808_ID_LDO3,
 		.ops = &rk808_reg_ops_ranges,
 		.type = REGULATOR_VOLTAGE,
@@ -1229,7 +1229,7 @@ static const struct regulator_desc rk809_reg[] = {
 		.name = "DCDC_REG1",
 		.supply_name = "vcc1",
 		.of_match = of_match_ptr("DCDC_REG1"),
-		.regulators_node = of_match_ptr("regulators"),
+		.regulators_analde = of_match_ptr("regulators"),
 		.id = RK817_ID_DCDC1,
 		.ops = &rk817_buck_ops_range,
 		.type = REGULATOR_VOLTAGE,
@@ -1252,7 +1252,7 @@ static const struct regulator_desc rk809_reg[] = {
 		.name = "DCDC_REG2",
 		.supply_name = "vcc2",
 		.of_match = of_match_ptr("DCDC_REG2"),
-		.regulators_node = of_match_ptr("regulators"),
+		.regulators_analde = of_match_ptr("regulators"),
 		.id = RK817_ID_DCDC2,
 		.ops = &rk817_buck_ops_range,
 		.type = REGULATOR_VOLTAGE,
@@ -1275,7 +1275,7 @@ static const struct regulator_desc rk809_reg[] = {
 		.name = "DCDC_REG3",
 		.supply_name = "vcc3",
 		.of_match = of_match_ptr("DCDC_REG3"),
-		.regulators_node = of_match_ptr("regulators"),
+		.regulators_analde = of_match_ptr("regulators"),
 		.id = RK817_ID_DCDC3,
 		.ops = &rk817_buck_ops_range,
 		.type = REGULATOR_VOLTAGE,
@@ -1298,7 +1298,7 @@ static const struct regulator_desc rk809_reg[] = {
 		.name = "DCDC_REG4",
 		.supply_name = "vcc4",
 		.of_match = of_match_ptr("DCDC_REG4"),
-		.regulators_node = of_match_ptr("regulators"),
+		.regulators_analde = of_match_ptr("regulators"),
 		.id = RK817_ID_DCDC4,
 		.ops = &rk817_buck_ops_range,
 		.type = REGULATOR_VOLTAGE,
@@ -1322,7 +1322,7 @@ static const struct regulator_desc rk809_reg[] = {
 		.name = "DCDC_REG5",
 		.supply_name = "vcc9",
 		.of_match = of_match_ptr("DCDC_REG5"),
-		.regulators_node = of_match_ptr("regulators"),
+		.regulators_analde = of_match_ptr("regulators"),
 		.id = RK809_ID_DCDC5,
 		.ops = &rk809_buck5_ops_range,
 		.type = REGULATOR_VOLTAGE,
@@ -1387,7 +1387,7 @@ static const struct regulator_desc rk817_reg[] = {
 		.name = "DCDC_REG1",
 		.supply_name = "vcc1",
 		.of_match = of_match_ptr("DCDC_REG1"),
-		.regulators_node = of_match_ptr("regulators"),
+		.regulators_analde = of_match_ptr("regulators"),
 		.id = RK817_ID_DCDC1,
 		.ops = &rk817_buck_ops_range,
 		.type = REGULATOR_VOLTAGE,
@@ -1410,7 +1410,7 @@ static const struct regulator_desc rk817_reg[] = {
 		.name = "DCDC_REG2",
 		.supply_name = "vcc2",
 		.of_match = of_match_ptr("DCDC_REG2"),
-		.regulators_node = of_match_ptr("regulators"),
+		.regulators_analde = of_match_ptr("regulators"),
 		.id = RK817_ID_DCDC2,
 		.ops = &rk817_buck_ops_range,
 		.type = REGULATOR_VOLTAGE,
@@ -1433,7 +1433,7 @@ static const struct regulator_desc rk817_reg[] = {
 		.name = "DCDC_REG3",
 		.supply_name = "vcc3",
 		.of_match = of_match_ptr("DCDC_REG3"),
-		.regulators_node = of_match_ptr("regulators"),
+		.regulators_analde = of_match_ptr("regulators"),
 		.id = RK817_ID_DCDC3,
 		.ops = &rk817_buck_ops_range,
 		.type = REGULATOR_VOLTAGE,
@@ -1456,7 +1456,7 @@ static const struct regulator_desc rk817_reg[] = {
 		.name = "DCDC_REG4",
 		.supply_name = "vcc4",
 		.of_match = of_match_ptr("DCDC_REG4"),
-		.regulators_node = of_match_ptr("regulators"),
+		.regulators_analde = of_match_ptr("regulators"),
 		.id = RK817_ID_DCDC4,
 		.ops = &rk817_buck_ops_range,
 		.type = REGULATOR_VOLTAGE,
@@ -1526,7 +1526,7 @@ static const struct regulator_desc rk818_reg[] = {
 		.name = "DCDC_REG1",
 		.supply_name = "vcc1",
 		.of_match = of_match_ptr("DCDC_REG1"),
-		.regulators_node = of_match_ptr("regulators"),
+		.regulators_analde = of_match_ptr("regulators"),
 		.id = RK818_ID_DCDC1,
 		.ops = &rk808_reg_ops,
 		.type = REGULATOR_VOLTAGE,
@@ -1542,7 +1542,7 @@ static const struct regulator_desc rk818_reg[] = {
 		.name = "DCDC_REG2",
 		.supply_name = "vcc2",
 		.of_match = of_match_ptr("DCDC_REG2"),
-		.regulators_node = of_match_ptr("regulators"),
+		.regulators_analde = of_match_ptr("regulators"),
 		.id = RK818_ID_DCDC2,
 		.ops = &rk808_reg_ops,
 		.type = REGULATOR_VOLTAGE,
@@ -1558,7 +1558,7 @@ static const struct regulator_desc rk818_reg[] = {
 		.name = "DCDC_REG3",
 		.supply_name = "vcc3",
 		.of_match = of_match_ptr("DCDC_REG3"),
-		.regulators_node = of_match_ptr("regulators"),
+		.regulators_analde = of_match_ptr("regulators"),
 		.id = RK818_ID_DCDC3,
 		.ops = &rk808_switch_ops,
 		.type = REGULATOR_VOLTAGE,
@@ -1583,7 +1583,7 @@ static const struct regulator_desc rk818_reg[] = {
 		.name = "LDO_REG3",
 		.supply_name = "vcc7",
 		.of_match = of_match_ptr("LDO_REG3"),
-		.regulators_node = of_match_ptr("regulators"),
+		.regulators_analde = of_match_ptr("regulators"),
 		.id = RK818_ID_LDO3,
 		.ops = &rk808_reg_ops_ranges,
 		.type = REGULATOR_VOLTAGE,
@@ -1627,10 +1627,10 @@ static int rk808_regulator_dt_parse_pdata(struct device *dev,
 				   struct regmap *map,
 				   struct rk808_regulator_data *pdata)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	int tmp, ret = 0, i;
 
-	np = of_get_child_by_name(dev->of_node, "regulators");
+	np = of_get_child_by_name(dev->of_analde, "regulators");
 	if (!np)
 		return -ENXIO;
 
@@ -1645,7 +1645,7 @@ static int rk808_regulator_dt_parse_pdata(struct device *dev,
 		}
 
 		if (!pdata->dvs_gpio[i]) {
-			dev_info(dev, "there is no dvs%d gpio\n", i);
+			dev_info(dev, "there is anal dvs%d gpio\n", i);
 			continue;
 		}
 
@@ -1656,7 +1656,7 @@ static int rk808_regulator_dt_parse_pdata(struct device *dev,
 	}
 
 dt_parse_end:
-	of_node_put(np);
+	of_analde_put(np);
 	return ret;
 }
 
@@ -1670,16 +1670,16 @@ static int rk808_regulator_probe(struct platform_device *pdev)
 	struct regmap *regmap;
 	int ret, i, nregulators;
 
-	pdev->dev.of_node = pdev->dev.parent->of_node;
-	pdev->dev.of_node_reused = true;
+	pdev->dev.of_analde = pdev->dev.parent->of_analde;
+	pdev->dev.of_analde_reused = true;
 
 	regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!regmap)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = rk808_regulator_dt_parse_pdata(&pdev->dev, regmap, pdata);
 	if (ret < 0)
@@ -1738,7 +1738,7 @@ static struct platform_driver rk808_regulator_driver = {
 	.probe = rk808_regulator_probe,
 	.driver = {
 		.name = "rk808-regulator",
-		.probe_type = PROBE_FORCE_SYNCHRONOUS,
+		.probe_type = PROBE_FORCE_SYNCHROANALUS,
 	},
 };
 

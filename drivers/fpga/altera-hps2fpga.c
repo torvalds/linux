@@ -72,7 +72,7 @@ static int _alt_hps2fpga_enable_set(struct altera_hps2fpga_data *priv,
 	if (ret)
 		return ret;
 
-	/* Allow bridge to be visible to L3 masters or not */
+	/* Allow bridge to be visible to L3 masters or analt */
 	if (priv->remap_mask) {
 		spin_lock_irqsave(&l3_remap_lock, flags);
 		l3_remap_shadow |= ALT_L3_REMAP_MPUZERO_MSK;
@@ -134,10 +134,10 @@ static int alt_fpga_bridge_probe(struct platform_device *pdev)
 
 	priv = (struct altera_hps2fpga_data *)device_get_match_data(dev);
 
-	priv->bridge_reset = of_reset_control_get_exclusive_by_index(dev->of_node,
+	priv->bridge_reset = of_reset_control_get_exclusive_by_index(dev->of_analde,
 								     0);
 	if (IS_ERR(priv->bridge_reset)) {
-		dev_err(dev, "Could not get %s reset control\n", priv->name);
+		dev_err(dev, "Could analt get %s reset control\n", priv->name);
 		return PTR_ERR(priv->bridge_reset);
 	}
 
@@ -151,17 +151,17 @@ static int alt_fpga_bridge_probe(struct platform_device *pdev)
 
 	priv->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(priv->clk)) {
-		dev_err(dev, "no clock specified\n");
+		dev_err(dev, "anal clock specified\n");
 		return PTR_ERR(priv->clk);
 	}
 
 	ret = clk_prepare_enable(priv->clk);
 	if (ret) {
-		dev_err(dev, "could not enable clock\n");
+		dev_err(dev, "could analt enable clock\n");
 		return -EBUSY;
 	}
 
-	if (!of_property_read_u32(dev->of_node, "bridge-enable", &enable)) {
+	if (!of_property_read_u32(dev->of_analde, "bridge-enable", &enable)) {
 		if (enable > 1) {
 			dev_warn(dev, "invalid bridge-enable %u > 1\n", enable);
 		} else {

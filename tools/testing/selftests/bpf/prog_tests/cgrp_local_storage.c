@@ -153,7 +153,7 @@ static void test_recursion(int cgroup_fd)
 	if (!ASSERT_OK(err, "skel_attach"))
 		goto out;
 
-	/* trigger sys_enter, make sure it does not cause deadlock */
+	/* trigger sys_enter, make sure it does analt cause deadlock */
 	syscall(SYS_gettid);
 
 out:
@@ -214,7 +214,7 @@ out:
 	cgrp_ls_sleepable__destroy(skel);
 }
 
-static void test_yes_rcu_lock(__u64 cgroup_id)
+static void test_anal_rcu_lock(__u64 cgroup_id)
 {
 	struct cgrp_ls_sleepable *skel;
 	int err;
@@ -226,7 +226,7 @@ static void test_yes_rcu_lock(__u64 cgroup_id)
 	CGROUP_MODE_SET(skel);
 	skel->bss->target_pid = syscall(SYS_gettid);
 
-	bpf_program__set_autoload(skel->progs.yes_rcu_lock, true);
+	bpf_program__set_autoload(skel->progs.anal_rcu_lock, true);
 	err = cgrp_ls_sleepable__load(skel);
 	if (!ASSERT_OK(err, "skel_load"))
 		goto out;
@@ -242,7 +242,7 @@ out:
 	cgrp_ls_sleepable__destroy(skel);
 }
 
-static void test_no_rcu_lock(void)
+static void test_anal_rcu_lock(void)
 {
 	struct cgrp_ls_sleepable *skel;
 	int err;
@@ -253,14 +253,14 @@ static void test_no_rcu_lock(void)
 
 	CGROUP_MODE_SET(skel);
 
-	bpf_program__set_autoload(skel->progs.no_rcu_lock, true);
+	bpf_program__set_autoload(skel->progs.anal_rcu_lock, true);
 	err = cgrp_ls_sleepable__load(skel);
 	ASSERT_ERR(err, "skel_load");
 
 	cgrp_ls_sleepable__destroy(skel);
 }
 
-static void test_cgrp1_no_rcu_lock(void)
+static void test_cgrp1_anal_rcu_lock(void)
 {
 	struct cgrp_ls_sleepable *skel;
 	int err;
@@ -271,7 +271,7 @@ static void test_cgrp1_no_rcu_lock(void)
 
 	CGROUP_MODE_SET(skel);
 
-	bpf_program__set_autoload(skel->progs.cgrp1_no_rcu_lock, true);
+	bpf_program__set_autoload(skel->progs.cgrp1_anal_rcu_lock, true);
 	err = cgrp_ls_sleepable__load(skel);
 	ASSERT_OK(err, "skel_load");
 
@@ -300,10 +300,10 @@ static void cgrp2_local_storage(void)
 		test_negative();
 	if (test__start_subtest("cgroup_iter_sleepable"))
 		test_cgroup_iter_sleepable(cgroup_fd, cgroup_id);
-	if (test__start_subtest("yes_rcu_lock"))
-		test_yes_rcu_lock(cgroup_id);
-	if (test__start_subtest("no_rcu_lock"))
-		test_no_rcu_lock();
+	if (test__start_subtest("anal_rcu_lock"))
+		test_anal_rcu_lock(cgroup_id);
+	if (test__start_subtest("anal_rcu_lock"))
+		test_anal_rcu_lock();
 
 	close(cgroup_fd);
 }
@@ -343,10 +343,10 @@ static void cgrp1_local_storage(void)
 		test_negative();
 	if (test__start_subtest("cgrp1_iter_sleepable"))
 		test_cgroup_iter_sleepable(cgrp1_fd, cgrp1_id);
-	if (test__start_subtest("cgrp1_yes_rcu_lock"))
-		test_yes_rcu_lock(cgrp1_id);
-	if (test__start_subtest("cgrp1_no_rcu_lock"))
-		test_cgrp1_no_rcu_lock();
+	if (test__start_subtest("cgrp1_anal_rcu_lock"))
+		test_anal_rcu_lock(cgrp1_id);
+	if (test__start_subtest("cgrp1_anal_rcu_lock"))
+		test_cgrp1_anal_rcu_lock();
 
 close_fd:
 	close(cgrp1_fd);

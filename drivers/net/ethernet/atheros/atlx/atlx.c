@@ -2,7 +2,7 @@
 /* atlx.c -- common functions for Attansic network drivers
  *
  * Copyright(c) 2005 - 2006 Attansic Corporation. All rights reserved.
- * Copyright(c) 2006 - 2007 Chris Snook <csnook@redhat.com>
+ * Copyright(c) 2006 - 2007 Chris Sanalok <csanalok@redhat.com>
  * Copyright(c) 2006 - 2008 Jay Cliburn <jcliburn@gmail.com>
  * Copyright(c) 2007 Atheros Corporation. All rights reserved.
  *
@@ -15,7 +15,7 @@
 #define ATLX_C
 
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/etherdevice.h>
 #include <linux/if.h>
 #include <linux/netdevice.h>
@@ -47,7 +47,7 @@ static int atlx_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 	case SIOCSMIIREG:
 		return atlx_mii_ioctl(netdev, ifr, cmd);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -67,7 +67,7 @@ static int atlx_set_mac(struct net_device *netdev, void *p)
 		return -EBUSY;
 
 	if (!is_valid_ether_addr(addr->sa_data))
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	eth_hw_addr_set(netdev, addr->sa_data);
 	memcpy(adapter->hw.mac_addr, addr->sa_data, netdev->addr_len);
@@ -87,7 +87,7 @@ static void atlx_check_for_link(struct atlx_adapter *adapter)
 	atlx_read_phy_reg(&adapter->hw, MII_BMSR, &phy_data);
 	spin_unlock(&adapter->lock);
 
-	/* notify upper layer link down ASAP */
+	/* analtify upper layer link down ASAP */
 	if (!(phy_data & BMSR_LSTATUS)) {
 		/* Link Down */
 		if (netif_carrier_ok(netdev)) {
@@ -154,7 +154,7 @@ static inline void atlx_imr_set(struct atlx_adapter *adapter,
  */
 static void atlx_irq_enable(struct atlx_adapter *adapter)
 {
-	atlx_imr_set(adapter, IMR_NORMAL_MASK);
+	atlx_imr_set(adapter, IMR_ANALRMAL_MASK);
 	adapter->int_enabled = true;
 }
 
@@ -241,7 +241,7 @@ static netdev_features_t atlx_fix_features(struct net_device *netdev,
 	netdev_features_t features)
 {
 	/*
-	 * Since there is no support for separate rx/tx vlan accel
+	 * Since there is anal support for separate rx/tx vlan accel
 	 * enable/disable make sure tx flag is always in same state as rx.
 	 */
 	if (features & NETIF_F_HW_VLAN_CTAG_RX)

@@ -56,7 +56,7 @@ static int cma_heap_attach(struct dma_buf *dmabuf,
 
 	a = kzalloc(sizeof(*a), GFP_KERNEL);
 	if (!a)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = sg_alloc_table_from_pages(&a->table, buffer->pages,
 					buffer->pagecount, 0,
@@ -103,7 +103,7 @@ static struct sg_table *cma_heap_map_dma_buf(struct dma_buf_attachment *attachme
 
 	ret = dma_map_sgtable(attachment->dev, table, direction, 0);
 	if (ret)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	a->mapped = true;
 	return table;
 }
@@ -196,7 +196,7 @@ static void *cma_heap_do_vmap(struct cma_heap_buffer *buffer)
 
 	vaddr = vmap(buffer->pages, buffer->pagecount, VM_MAP, PAGE_KERNEL);
 	if (!vaddr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	return vaddr;
 }
@@ -285,12 +285,12 @@ static struct dma_buf *cma_heap_allocate(struct dma_heap *heap,
 	unsigned long align = get_order(size);
 	struct page *cma_pages;
 	struct dma_buf *dmabuf;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 	pgoff_t pg;
 
 	buffer = kzalloc(sizeof(*buffer), GFP_KERNEL);
 	if (!buffer)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	INIT_LIST_HEAD(&buffer->attachments);
 	mutex_init(&buffer->lock);
@@ -328,7 +328,7 @@ static struct dma_buf *cma_heap_allocate(struct dma_heap *heap,
 
 	buffer->pages = kmalloc_array(pagecount, sizeof(*buffer->pages), GFP_KERNEL);
 	if (!buffer->pages) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_cma;
 	}
 
@@ -373,7 +373,7 @@ static int __add_cma_heap(struct cma *cma, void *data)
 
 	cma_heap = kzalloc(sizeof(*cma_heap), GFP_KERNEL);
 	if (!cma_heap)
-		return -ENOMEM;
+		return -EANALMEM;
 	cma_heap->cma = cma;
 
 	exp_info.name = cma_get_name(cma);

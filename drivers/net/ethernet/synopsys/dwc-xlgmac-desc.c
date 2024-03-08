@@ -1,17 +1,17 @@
-/* Synopsys DesignWare Core Enterprise Ethernet (XLGMAC) Driver
+/* Syanalpsys DesignWare Core Enterprise Ethernet (XLGMAC) Driver
  *
- * Copyright (c) 2017 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (c) 2017 Syanalpsys, Inc. (www.syanalpsys.com)
  *
  * This program is dual-licensed; you may select either version 2 of
  * the GNU General Public License ("GPL") or BSD license ("BSD").
  *
- * This Synopsys DWC XLGMAC software driver and associated documentation
+ * This Syanalpsys DWC XLGMAC software driver and associated documentation
  * (hereinafter the "Software") is an unsupported proprietary work of
- * Synopsys, Inc. unless otherwise expressly agreed to in writing between
- * Synopsys and you. The Software IS NOT an item of Licensed Software or a
+ * Syanalpsys, Inc. unless otherwise expressly agreed to in writing between
+ * Syanalpsys and you. The Software IS ANALT an item of Licensed Software or a
  * Licensed Product under any End User Software License Agreement or
- * Agreement for Licensed Products with Synopsys or any supplement thereto.
- * Synopsys is a registered trademark of Synopsys, Inc. Other names included
+ * Agreement for Licensed Products with Syanalpsys or any supplement thereto.
+ * Syanalpsys is a registered trademark of Syanalpsys, Inc. Other names included
  * in the SOFTWARE may be the trademarks of their respective owners.
  */
 
@@ -137,14 +137,14 @@ static int xlgmac_init_ring(struct xlgmac_pdata *pdata,
 					&ring->dma_desc_head_addr,
 					GFP_KERNEL);
 	if (!ring->dma_desc_head)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Array of descriptor data */
 	ring->desc_data_head = kcalloc(dma_desc_count,
 					sizeof(struct xlgmac_desc_data),
 					GFP_KERNEL);
 	if (!ring->desc_data_head)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	netif_dbg(pdata, drv, pdata->netdev,
 		  "dma_desc_head=%p, dma_desc_head_addr=%pad, desc_data_head=%p\n",
@@ -231,7 +231,7 @@ static int xlgmac_alloc_channels(struct xlgmac_pdata *pdata)
 {
 	struct xlgmac_channel *channel_head, *channel;
 	struct xlgmac_ring *tx_ring, *rx_ring;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 	unsigned int i;
 
 	channel_head = kcalloc(pdata->channel_count,
@@ -335,7 +335,7 @@ static int xlgmac_alloc_pages(struct xlgmac_pdata *pdata,
 	dma_addr_t pages_dma;
 
 	/* Try to obtain pages, decreasing order if necessary */
-	gfp |= __GFP_COMP | __GFP_NOWARN;
+	gfp |= __GFP_COMP | __GFP_ANALWARN;
 	while (order >= 0) {
 		pages = alloc_pages(gfp, order);
 		if (pages)
@@ -344,14 +344,14 @@ static int xlgmac_alloc_pages(struct xlgmac_pdata *pdata,
 		order--;
 	}
 	if (!pages)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Map the pages */
 	pages_dma = dma_map_page(pdata->dev, pages, 0,
 				 PAGE_SIZE << order, DMA_FROM_DEVICE);
 	if (dma_mapping_error(pdata->dev, pages_dma)) {
 		put_page(pages);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	pa->pages = pages;

@@ -10,12 +10,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -57,13 +57,13 @@ static vm_fault_t radeon_gem_fault(struct vm_fault *vmf)
 	if (ret)
 		goto unlock_mclk;
 
-	ret = radeon_bo_fault_reserve_notify(bo);
+	ret = radeon_bo_fault_reserve_analtify(bo);
 	if (ret)
 		goto unlock_resv;
 
 	ret = ttm_bo_vm_fault_reserved(vmf, vmf->vma->vm_page_prot,
 				       TTM_BO_VM_NUM_PREFAULT);
-	if (ret == VM_FAULT_RETRY && !(vmf->flags & FAULT_FLAG_RETRY_NOWAIT))
+	if (ret == VM_FAULT_RETRY && !(vmf->flags & FAULT_FLAG_RETRY_ANALWAIT))
 		goto unlock_mclk;
 
 unlock_resv:
@@ -113,7 +113,7 @@ int radeon_gem_object_create(struct radeon_device *rdev, unsigned long size,
 	if (size > max_size) {
 		DRM_DEBUG("Allocation size %ldMb bigger than %ldMb limit\n",
 			  size >> 20, max_size >> 20);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 retry:
@@ -156,7 +156,7 @@ static int radeon_gem_set_domain(struct drm_gem_object *gobj,
 		domain = rdomain;
 	}
 	if (!domain) {
-		/* Do nothings */
+		/* Do analthings */
 		pr_warn("Set domain without domain !\n");
 		return 0;
 	}
@@ -174,7 +174,7 @@ static int radeon_gem_set_domain(struct drm_gem_object *gobj,
 		}
 	}
 	if (domain == RADEON_GEM_DOMAIN_VRAM && robj->prime_shared_count) {
-		/* A BO that is associated with a dma-buf cannot be sensibly migrated to VRAM */
+		/* A BO that is associated with a dma-buf cananalt be sensibly migrated to VRAM */
 		return -EINVAL;
 	}
 	return 0;
@@ -332,7 +332,7 @@ int radeon_gem_create_ioctl(struct drm_device *dev, void *data,
 		return r;
 	}
 	r = drm_gem_handle_create(filp, gobj, &handle);
-	/* drop reference from allocate - handle holds it now */
+	/* drop reference from allocate - handle holds it analw */
 	drm_gem_object_put(gobj);
 	if (r) {
 		up_read(&rdev->exclusive_lock);
@@ -360,22 +360,22 @@ int radeon_gem_userptr_ioctl(struct drm_device *dev, void *data,
 	if (offset_in_page(args->addr | args->size))
 		return -EINVAL;
 
-	/* reject unknown flag values */
+	/* reject unkanalwn flag values */
 	if (args->flags & ~(RADEON_GEM_USERPTR_READONLY |
-	    RADEON_GEM_USERPTR_ANONONLY | RADEON_GEM_USERPTR_VALIDATE |
+	    RADEON_GEM_USERPTR_AANALANALNLY | RADEON_GEM_USERPTR_VALIDATE |
 	    RADEON_GEM_USERPTR_REGISTER))
 		return -EINVAL;
 
 	if (args->flags & RADEON_GEM_USERPTR_READONLY) {
-		/* readonly pages not tested on older hardware */
+		/* readonly pages analt tested on older hardware */
 		if (rdev->family < CHIP_R600)
 			return -EINVAL;
 
-	} else if (!(args->flags & RADEON_GEM_USERPTR_ANONONLY) ||
+	} else if (!(args->flags & RADEON_GEM_USERPTR_AANALANALNLY) ||
 		   !(args->flags & RADEON_GEM_USERPTR_REGISTER)) {
 
-		/* if we want to write to it we must require anonymous
-		   memory and install a MMU notifier */
+		/* if we want to write to it we must require aanalnymous
+		   memory and install a MMU analtifier */
 		return -EACCES;
 	}
 
@@ -416,7 +416,7 @@ int radeon_gem_userptr_ioctl(struct drm_device *dev, void *data,
 	}
 
 	r = drm_gem_handle_create(filp, gobj, &handle);
-	/* drop reference from allocate - handle holds it now */
+	/* drop reference from allocate - handle holds it analw */
 	drm_gem_object_put(gobj);
 	if (r)
 		goto handle_lockup;
@@ -445,15 +445,15 @@ int radeon_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 	struct drm_gem_object *gobj;
 	int r;
 
-	/* for now if someone requests domain CPU -
+	/* for analw if someone requests domain CPU -
 	 * just make sure the buffer is finished with */
 	down_read(&rdev->exclusive_lock);
 
-	/* just do a BO wait for now */
+	/* just do a BO wait for analw */
 	gobj = drm_gem_object_lookup(filp, args->handle);
 	if (gobj == NULL) {
 		up_read(&rdev->exclusive_lock);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	r = radeon_gem_set_domain(gobj, args->read_domains, args->write_domain);
@@ -473,7 +473,7 @@ int radeon_mode_dumb_mmap(struct drm_file *filp,
 
 	gobj = drm_gem_object_lookup(filp, handle);
 	if (gobj == NULL) {
-		return -ENOENT;
+		return -EANALENT;
 	}
 	robj = gem_to_radeon_bo(gobj);
 	if (radeon_ttm_tt_has_userptr(robj->rdev, robj->tbo.ttm)) {
@@ -504,7 +504,7 @@ int radeon_gem_busy_ioctl(struct drm_device *dev, void *data,
 
 	gobj = drm_gem_object_lookup(filp, args->handle);
 	if (gobj == NULL) {
-		return -ENOENT;
+		return -EANALENT;
 	}
 	robj = gem_to_radeon_bo(gobj);
 
@@ -533,7 +533,7 @@ int radeon_gem_wait_idle_ioctl(struct drm_device *dev, void *data,
 
 	gobj = drm_gem_object_lookup(filp, args->handle);
 	if (gobj == NULL) {
-		return -ENOENT;
+		return -EANALENT;
 	}
 	robj = gem_to_radeon_bo(gobj);
 
@@ -565,7 +565,7 @@ int radeon_gem_set_tiling_ioctl(struct drm_device *dev, void *data,
 	DRM_DEBUG("%d \n", args->handle);
 	gobj = drm_gem_object_lookup(filp, args->handle);
 	if (gobj == NULL)
-		return -ENOENT;
+		return -EANALENT;
 	robj = gem_to_radeon_bo(gobj);
 	r = radeon_bo_set_tiling_flags(robj, args->tiling_flags, args->pitch);
 	drm_gem_object_put(gobj);
@@ -583,7 +583,7 @@ int radeon_gem_get_tiling_ioctl(struct drm_device *dev, void *data,
 	DRM_DEBUG("\n");
 	gobj = drm_gem_object_lookup(filp, args->handle);
 	if (gobj == NULL)
-		return -ENOENT;
+		return -EANALENT;
 	rbo = gem_to_radeon_bo(gobj);
 	r = radeon_bo_reserve(rbo, false);
 	if (unlikely(r != 0))
@@ -601,8 +601,8 @@ out:
  * @rdev: radeon_device pointer
  * @bo_va: bo_va to update
  *
- * Update the bo_va directly after setting it's address. Errors are not
- * vital here, so they are not reported back to userspace.
+ * Update the bo_va directly after setting it's address. Errors are analt
+ * vital here, so they are analt reported back to userspace.
  */
 static void radeon_gem_va_update_vm(struct radeon_device *rdev,
 				    struct radeon_bo_va *bo_va)
@@ -671,12 +671,12 @@ int radeon_gem_va_ioctl(struct drm_device *dev, void *data,
 
 	if (!rdev->vm_manager.enabled) {
 		args->operation = RADEON_VA_RESULT_ERROR;
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 
 	/* !! DONT REMOVE !!
 	 * We don't support vm_id yet, to be sure we don't have broken
-	 * userspace, reject anyone trying to use non 0 value thus moving
+	 * userspace, reject anyone trying to use analn 0 value thus moving
 	 * forward we can use those fields without breaking existant userspace
 	 */
 	if (args->vm_id) {
@@ -693,7 +693,7 @@ int radeon_gem_va_ioctl(struct drm_device *dev, void *data,
 		return -EINVAL;
 	}
 
-	/* don't remove, we need to enforce userspace to set the snooped flag
+	/* don't remove, we need to enforce userspace to set the sanaloped flag
 	 * otherwise we will endup with broken userspace and we won't be able
 	 * to enable this feature without adding new interface
 	 */
@@ -719,7 +719,7 @@ int radeon_gem_va_ioctl(struct drm_device *dev, void *data,
 	gobj = drm_gem_object_lookup(filp, args->handle);
 	if (gobj == NULL) {
 		args->operation = RADEON_VA_RESULT_ERROR;
-		return -ENOENT;
+		return -EANALENT;
 	}
 	rbo = gem_to_radeon_bo(gobj);
 	r = radeon_bo_reserve(rbo, false);
@@ -733,7 +733,7 @@ int radeon_gem_va_ioctl(struct drm_device *dev, void *data,
 		args->operation = RADEON_VA_RESULT_ERROR;
 		radeon_bo_unreserve(rbo);
 		drm_gem_object_put(gobj);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	switch (args->operation) {
@@ -773,7 +773,7 @@ int radeon_gem_op_ioctl(struct drm_device *dev, void *data,
 
 	gobj = drm_gem_object_lookup(filp, args->handle);
 	if (gobj == NULL) {
-		return -ENOENT;
+		return -EANALENT;
 	}
 	robj = gem_to_radeon_bo(gobj);
 
@@ -846,10 +846,10 @@ int radeon_mode_dumb_create(struct drm_file *file_priv,
 				     RADEON_GEM_DOMAIN_VRAM, 0,
 				     false, &gobj);
 	if (r)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	r = drm_gem_handle_create(file_priv, gobj, &handle);
-	/* drop reference from allocate - handle holds it now */
+	/* drop reference from allocate - handle holds it analw */
 	drm_gem_object_put(gobj);
 	if (r) {
 		return r;

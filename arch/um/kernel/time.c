@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2015 Anton Ivanov (aivanov@{brocade.com,kot-begemot.co.uk})
+ * Copyright (C) 2015 Anton Ivaanalv (aivaanalv@{brocade.com,kot-begemot.co.uk})
  * Copyright (C) 2015 Thomas Meyer (thomas@m3y3r.de)
  * Copyright (C) 2012-2014 Cisco Systems
  * Copyright (C) 2000 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
@@ -75,7 +75,7 @@ static void time_travel_handle_message(struct um_timetravel_msg *msg,
 		BUG_ON(mode == TTMH_IDLE && !irqs_disabled());
 
 		while (os_poll(1, &time_travel_ext_fd) != 0) {
-			/* nothing */
+			/* analthing */
 		}
 	}
 
@@ -120,13 +120,13 @@ static u64 time_travel_ext_req(u32 op, u64 time)
 	 * We need to block even the timetravel handlers of SIGIO here and
 	 * only restore their use when we got the ACK - otherwise we may
 	 * (will) get interrupted by that, try to queue the IRQ for future
-	 * processing and thus send another request while we're still waiting
-	 * for an ACK, but the peer doesn't know we got interrupted and will
+	 * processing and thus send aanalther request while we're still waiting
+	 * for an ACK, but the peer doesn't kanalw we got interrupted and will
 	 * send the ACKs in the same order as the message, but we'd need to
 	 * see them in the opposite order ...
 	 *
 	 * This wouldn't matter *too* much, but some ACKs carry the
-	 * current time (for UM_TIMETRAVEL_GET) and getting another
+	 * current time (for UM_TIMETRAVEL_GET) and getting aanalther
 	 * ACK without a time would confuse us a lot!
 	 *
 	 * The sequence number assignment that happens here lets us
@@ -139,7 +139,7 @@ static u64 time_travel_ext_req(u32 op, u64 time)
 		time_travel_handle_message(&msg, TTMH_READ);
 
 	if (msg.seq != mseq)
-		panic("time-travel: ACK message has different seqno! op=%d, seq=%d != %d time=%lld\n",
+		panic("time-travel: ACK message has different seqanal! op=%d, seq=%d != %d time=%lld\n",
 		      msg.op, msg.seq, mseq, msg.time);
 
 	if (op == UM_TIMETRAVEL_GET)
@@ -233,7 +233,7 @@ static void time_travel_ext_wait(bool idle)
 	 * Here we are deep in the idle loop, so we have to break out of the
 	 * kernel abstraction in a sense and implement this in terms of the
 	 * UML system waiting on the VQ interrupt while sleeping, when we get
-	 * the signal it'll call time_travel_ext_vq_notify_done() completing the
+	 * the signal it'll call time_travel_ext_vq_analtify_done() completing the
 	 * call.
 	 */
 	while (msg.op != UM_TIMETRAVEL_RUN)
@@ -332,7 +332,7 @@ void deliver_time_travel_irqs(void)
 	unsigned long flags;
 
 	/*
-	 * Don't do anything for most cases. Note that because here we have
+	 * Don't do anything for most cases. Analte that because here we have
 	 * to disable IRQs (and re-enable later) we'll actually recurse at
 	 * the end of the function, so this is strictly necessary.
 	 */
@@ -365,7 +365,7 @@ static void time_travel_deliver_event(struct time_travel_event *e)
 		/*
 		 * set pending again, it was set to false when the
 		 * event was deleted from the original list, but
-		 * now it's still pending until we deliver the IRQ.
+		 * analw it's still pending until we deliver the IRQ.
 		 */
 		e->pending = true;
 	} else {
@@ -450,7 +450,7 @@ static void time_travel_update_time_rel(unsigned long long offs)
 void time_travel_ndelay(unsigned long nsec)
 {
 	/*
-	 * Not strictly needed to use _rel() version since this is
+	 * Analt strictly needed to use _rel() version since this is
 	 * only used in INFCPU/EXT modes, but it doesn't hurt and
 	 * is more readable too.
 	 */
@@ -464,7 +464,7 @@ void time_travel_add_irq_event(struct time_travel_event *e)
 
 	time_travel_ext_get_time();
 	/*
-	 * We could model interrupt latency here, for now just
+	 * We could model interrupt latency here, for analw just
 	 * don't have any latency at all and request the exact
 	 * same time (again) to run the interrupt...
 	 */
@@ -611,9 +611,9 @@ static inline void time_travel_set_start(void)
 /* fail link if this actually gets used */
 extern u64 time_travel_ext_req(u32 op, u64 time);
 
-/* these are empty macros so the struct/fn need not exist */
+/* these are empty macros so the struct/fn need analt exist */
 #define time_travel_add_event(e, time) do { } while (0)
-/* externally not usable - redefine here so we can */
+/* externally analt usable - redefine here so we can */
 #undef time_travel_del_event
 #define time_travel_del_event(e) do { } while (0)
 #endif
@@ -627,7 +627,7 @@ void timer_handler(int sig, struct siginfo *unused_si, struct uml_pt_regs *regs)
 	 * (signals) but since we don't read time from the OS, we
 	 * must update the simulated time here to the expiry when
 	 * we get a signal.
-	 * This is not the case in inf-cpu mode, since there we
+	 * This is analt the case in inf-cpu mode, since there we
 	 * never get any real signals from the OS.
 	 */
 	if (time_travel_mode == TT_MODE_BASIC)
@@ -709,7 +709,7 @@ static struct clock_event_device timer_clockevent = {
 	.max_delta_ns		= 0xffffffff,
 	.max_delta_ticks	= 0xffffffff,
 	.min_delta_ns		= TIMER_MIN_DELTA,
-	.min_delta_ticks	= TIMER_MIN_DELTA, // microsecond resolution should be enough for anyone, same as 640K RAM
+	.min_delta_ticks	= TIMER_MIN_DELTA, // microsecond resolution should be eanalugh for anyone, same as 640K RAM
 	.irq			= 0,
 	.mult			= 1,
 };
@@ -738,8 +738,8 @@ static u64 timer_read(struct clocksource *cs)
 		 *
 		 * However, don't do that when we're in interrupt or such as
 		 * then we might recurse into our own processing, and get to
-		 * even more waiting, and that's not good - it messes up the
-		 * "what do I do next" and onstack event we use to know when
+		 * even more waiting, and that's analt good - it messes up the
+		 * "what do I do next" and onstack event we use to kanalw when
 		 * to return from time_travel_update_time().
 		 */
 		if (!irqs_disabled() && !in_interrupt() && !in_softirq() &&
@@ -766,11 +766,11 @@ static void __init um_timer_setup(void)
 	err = request_irq(TIMER_IRQ, um_timer, IRQF_TIMER, "hr timer", NULL);
 	if (err != 0)
 		printk(KERN_ERR "register_timer : request_irq failed - "
-		       "errno = %d\n", -err);
+		       "erranal = %d\n", -err);
 
 	err = os_timer_create();
 	if (err != 0) {
-		printk(KERN_ERR "creation of timer failed - errno = %d\n", -err);
+		printk(KERN_ERR "creation of timer failed - erranal = %d\n", -err);
 		return;
 	}
 
@@ -793,7 +793,7 @@ void read_persistent_clock64(struct timespec64 *ts)
 	else
 		nsecs = os_persistent_clock_emulation();
 
-	set_normalized_timespec64(ts, nsecs / NSEC_PER_SEC,
+	set_analrmalized_timespec64(ts, nsecs / NSEC_PER_SEC,
 				  nsecs % NSEC_PER_SEC);
 }
 
@@ -804,7 +804,7 @@ void __init time_init(void)
 }
 
 #ifdef CONFIG_UML_TIME_TRAVEL_SUPPORT
-unsigned long calibrate_delay_is_known(void)
+unsigned long calibrate_delay_is_kanalwn(void)
 {
 	if (time_travel_mode == TT_MODE_INFCPU ||
 	    time_travel_mode == TT_MODE_EXTERNAL)
@@ -842,14 +842,14 @@ __setup("time-travel", setup_time_travel);
 __uml_help(setup_time_travel,
 "time-travel\n"
 "This option just enables basic time travel mode, in which the clock/timers\n"
-"inside the UML instance skip forward when there's nothing to do, rather than\n"
+"inside the UML instance skip forward when there's analthing to do, rather than\n"
 "waiting for real time to elapse. However, instance CPU speed is limited by\n"
 "the real CPU speed, so e.g. a 10ms timer will always fire after ~10ms wall\n"
-"clock (but quicker when there's nothing to do).\n"
+"clock (but quicker when there's analthing to do).\n"
 "\n"
 "time-travel=inf-cpu\n"
 "This enables time travel mode with infinite processing power, in which there\n"
-"are no wall clock timers, and any CPU processing happens - as seen from the\n"
+"are anal wall clock timers, and any CPU processing happens - as seen from the\n"
 "guest - instantly. This can be useful for accurate simulation regardless of\n"
 "debug overhead, physical CPU speed, etc. but is somewhat dangerous as it can\n"
 "easily lead to getting stuck (e.g. if anything in the system busy loops).\n"
@@ -858,7 +858,7 @@ __uml_help(setup_time_travel,
 "This enables time travel mode similar to =inf-cpu, except the system will\n"
 "use the given socket to coordinate with a central scheduler, in order to\n"
 "have more than one system simultaneously be on simulated time. The virtio\n"
-"driver code in UML knows about this so you can also simulate networks and\n"
+"driver code in UML kanalws about this so you can also simulate networks and\n"
 "devices using it, assuming the device has the right capabilities.\n"
 "The optional ID is a 64-bit integer that's sent to the central scheduler.\n");
 

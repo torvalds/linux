@@ -32,17 +32,17 @@
 #define J1939_ETP_CMD_ABORT 0xff
 
 enum j1939_xtp_abort {
-	J1939_XTP_NO_ABORT = 0,
+	J1939_XTP_ANAL_ABORT = 0,
 	J1939_XTP_ABORT_BUSY = 1,
 	/* Already in one or more connection managed sessions and
-	 * cannot support another.
+	 * cananalt support aanalther.
 	 *
 	 * EALREADY:
 	 * Operation already in progress
 	 */
 
 	J1939_XTP_ABORT_RESOURCE = 2,
-	/* System resources were needed for another task so this
+	/* System resources were needed for aanalther task so this
 	 * connection managed session was terminated.
 	 *
 	 * EMSGSIZE:
@@ -56,40 +56,40 @@ enum j1939_xtp_abort {
 	 * close the session.
 	 *
 	 * EHOSTUNREACH:
-	 * The destination host cannot be reached (probably because
-	 * the host is down or a remote router cannot reach it).
+	 * The destination host cananalt be reached (probably because
+	 * the host is down or a remote router cananalt reach it).
 	 */
 
 	J1939_XTP_ABORT_GENERIC = 4,
 	/* CTS messages received when data transfer is in progress
 	 *
 	 * EBADMSG:
-	 * Not a data message
+	 * Analt a data message
 	 */
 
 	J1939_XTP_ABORT_FAULT = 5,
 	/* Maximal retransmit request limit reached
 	 *
-	 * ENOTRECOVERABLE:
-	 * State not recoverable
+	 * EANALTRECOVERABLE:
+	 * State analt recoverable
 	 */
 
 	J1939_XTP_ABORT_UNEXPECTED_DATA = 6,
 	/* Unexpected data transfer packet
 	 *
-	 * ENOTCONN:
-	 * Transport endpoint is not connected
+	 * EANALTCONN:
+	 * Transport endpoint is analt connected
 	 */
 
 	J1939_XTP_ABORT_BAD_SEQ = 7,
-	/* Bad sequence number (and software is not able to recover)
+	/* Bad sequence number (and software is analt able to recover)
 	 *
 	 * EILSEQ:
 	 * Illegal byte sequence
 	 */
 
 	J1939_XTP_ABORT_DUP_SEQ = 8,
-	/* Duplicate sequence number (and software is not able to
+	/* Duplicate sequence number (and software is analt able to
 	 * recover)
 	 */
 
@@ -118,7 +118,7 @@ enum j1939_xtp_abort {
 
 	J1939_XTP_ABORT_OTHER = 250,
 	/* Any other reason (if a Connection Abort reason is
-	 * identified that is not listed in the table use code 250)
+	 * identified that is analt listed in the table use code 250)
 	 */
 };
 
@@ -131,9 +131,9 @@ static const char *j1939_xtp_abort_to_str(enum j1939_xtp_abort abort)
 {
 	switch (abort) {
 	case J1939_XTP_ABORT_BUSY:
-		return "Already in one or more connection managed sessions and cannot support another.";
+		return "Already in one or more connection managed sessions and cananalt support aanalther.";
 	case J1939_XTP_ABORT_RESOURCE:
-		return "System resources were needed for another task so this connection managed session was terminated.";
+		return "System resources were needed for aanalther task so this connection managed session was terminated.";
 	case J1939_XTP_ABORT_TIMEOUT:
 		return "A timeout occurred and this is the connection abort to close the session.";
 	case J1939_XTP_ABORT_GENERIC:
@@ -143,9 +143,9 @@ static const char *j1939_xtp_abort_to_str(enum j1939_xtp_abort abort)
 	case J1939_XTP_ABORT_UNEXPECTED_DATA:
 		return "Unexpected data transfer packet";
 	case J1939_XTP_ABORT_BAD_SEQ:
-		return "Bad sequence number (and software is not able to recover)";
+		return "Bad sequence number (and software is analt able to recover)";
 	case J1939_XTP_ABORT_DUP_SEQ:
-		return "Duplicate sequence number (and software is not able to recover)";
+		return "Duplicate sequence number (and software is analt able to recover)";
 	case J1939_XTP_ABORT_EDPO_UNEXPECTED:
 		return "Unexpected EDPO packet (ETP) or Message size > 1785 bytes (TP)";
 	case J1939_XTP_ABORT_BAD_EDPO_PGN:
@@ -161,20 +161,20 @@ static const char *j1939_xtp_abort_to_str(enum j1939_xtp_abort abort)
 	case J1939_XTP_ABORT_ECTS_TOO_BIG:
 		return "ECTS requested packets exceeds message size";
 	case J1939_XTP_ABORT_OTHER:
-		return "Any other reason (if a Connection Abort reason is identified that is not listed in the table use code 250)";
+		return "Any other reason (if a Connection Abort reason is identified that is analt listed in the table use code 250)";
 	default:
-		return "<unknown>";
+		return "<unkanalwn>";
 	}
 }
 
-static int j1939_xtp_abort_to_errno(struct j1939_priv *priv,
+static int j1939_xtp_abort_to_erranal(struct j1939_priv *priv,
 				    enum j1939_xtp_abort abort)
 {
 	int err;
 
 	switch (abort) {
-	case J1939_XTP_NO_ABORT:
-		WARN_ON_ONCE(abort == J1939_XTP_NO_ABORT);
+	case J1939_XTP_ANAL_ABORT:
+		WARN_ON_ONCE(abort == J1939_XTP_ANAL_ABORT);
 		err = 0;
 		break;
 	case J1939_XTP_ABORT_BUSY:
@@ -190,10 +190,10 @@ static int j1939_xtp_abort_to_errno(struct j1939_priv *priv,
 		err = EBADMSG;
 		break;
 	case J1939_XTP_ABORT_FAULT:
-		err = ENOTRECOVERABLE;
+		err = EANALTRECOVERABLE;
 		break;
 	case J1939_XTP_ABORT_UNEXPECTED_DATA:
-		err = ENOTCONN;
+		err = EANALTCONN;
 		break;
 	case J1939_XTP_ABORT_BAD_SEQ:
 		err = EILSEQ;
@@ -226,7 +226,7 @@ static int j1939_xtp_abort_to_errno(struct j1939_priv *priv,
 		err = EPROTO;
 		break;
 	default:
-		netdev_warn(priv->ndev, "Unknown abort code %i", abort);
+		netdev_warn(priv->ndev, "Unkanalwn abort code %i", abort);
 		err = EPROTO;
 	}
 
@@ -394,7 +394,7 @@ sk_buff *j1939_session_skb_get_by_offset(struct j1939_session *session,
 	spin_unlock_irqrestore(&session->skb_queue.lock, flags);
 
 	if (!skb)
-		netdev_dbg(priv->ndev, "%s: 0x%p: no skb found for start: %i, queue size: %i\n",
+		netdev_dbg(priv->ndev, "%s: 0x%p: anal skb found for start: %i, queue size: %i\n",
 			   __func__, session, offset_start,
 			   skb_queue_len(&session->skb_queue));
 
@@ -466,8 +466,8 @@ static inline unsigned int j1939_etp_ctl_to_size(const u8 *dat)
 
 /* find existing session:
  * reverse: swap cb's src & dst
- * there is no problem with matching broadcasts, since
- * broadcasts (no dst, no da) would never call this
+ * there is anal problem with matching broadcasts, since
+ * broadcasts (anal dst, anal da) would never call this
  * with reverse == true
  */
 static bool j1939_session_match(struct j1939_addr *se_addr,
@@ -595,7 +595,7 @@ sk_buff *j1939_tp_tx_dat_new(struct j1939_priv *priv,
 	skb = alloc_skb(sizeof(struct can_frame) + sizeof(struct can_skb_priv),
 			GFP_ATOMIC);
 	if (unlikely(!skb))
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	skb->dev = priv->ndev;
 	can_skb_reserve(skb);
@@ -604,7 +604,7 @@ sk_buff *j1939_tp_tx_dat_new(struct j1939_priv *priv,
 	/* reserve CAN header */
 	skb_reserve(skb, offsetof(struct can_frame, data));
 
-	/* skb->cb must be large enough to hold a j1939_sk_buff_cb structure */
+	/* skb->cb must be large eanalugh to hold a j1939_sk_buff_cb structure */
 	BUILD_BUG_ON(sizeof(skb->cb) < sizeof(*re_skcb));
 
 	memcpy(skb->cb, re_skcb, sizeof(*re_skcb));
@@ -801,7 +801,7 @@ static int j1939_session_tx_dat(struct j1939_session *session)
 
 	se_skb = j1939_session_skb_get_by_offset(session, session->pkt.tx * 7);
 	if (!se_skb)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	se_skcb = j1939_skb_to_cb(se_skb);
 	tpdat = se_skb->data;
@@ -830,15 +830,15 @@ static int j1939_session_tx_dat(struct j1939_session *session)
 		}
 
 		if (!len) {
-			ret = -ENOBUFS;
+			ret = -EANALBUFS;
 			break;
 		}
 
 		memcpy(&dat[1], &tpdat[offset], len);
 		ret = j1939_tp_tx_dat(session, dat, len + 1);
 		if (ret < 0) {
-			/* ENOBUFS == CAN interface TX queue is full */
-			if (ret != -ENOBUFS)
+			/* EANALBUFS == CAN interface TX queue is full */
+			if (ret != -EANALBUFS)
 				netdev_alert(priv->ndev,
 					     "%s: 0x%p: queue data error: %i\n",
 					     __func__, session, ret);
@@ -875,7 +875,7 @@ static int j1939_xtp_txnext_transmiter(struct j1939_session *session)
 	int ret = 0;
 
 	if (!j1939_tp_im_transmitter(&session->skcb)) {
-		netdev_alert(priv->ndev, "%s: 0x%p: called by not transmitter!\n",
+		netdev_alert(priv->ndev, "%s: 0x%p: called by analt transmitter!\n",
 			     __func__, session);
 		return -EINVAL;
 	}
@@ -916,7 +916,7 @@ static int j1939_session_tx_cts(struct j1939_session *session)
 	u8 dat[8];
 
 	if (!j1939_sk_recv_match(priv, &session->skcb))
-		return -ENOENT;
+		return -EANALENT;
 
 	len = session->pkt.total - session->pkt.rx;
 	len = min3(len, session->pkt.block, j1939_tp_block ?: 255);
@@ -960,7 +960,7 @@ static int j1939_session_tx_eoma(struct j1939_session *session)
 	int ret;
 
 	if (!j1939_sk_recv_match(priv, &session->skcb))
-		return -ENOENT;
+		return -EANALENT;
 
 	memset(dat, 0xff, sizeof(dat));
 
@@ -1001,7 +1001,7 @@ static int j1939_xtp_txnext_receiver(struct j1939_session *session)
 	int ret = 0;
 
 	if (!j1939_tp_im_receiver(&session->skcb)) {
-		netdev_alert(priv->ndev, "%s: 0x%p: called by not receiver!\n",
+		netdev_alert(priv->ndev, "%s: 0x%p: called by analt receiver!\n",
 			     __func__, session);
 		return -EINVAL;
 	}
@@ -1047,7 +1047,7 @@ static int j1939_simple_txnext(struct j1939_session *session)
 
 	skb = skb_clone(se_skb, GFP_ATOMIC);
 	if (!skb) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_free;
 	}
 
@@ -1116,9 +1116,9 @@ static void __j1939_session_cancel(struct j1939_session *session,
 	WARN_ON_ONCE(!err);
 	lockdep_assert_held(&session->priv->active_session_list_lock);
 
-	session->err = j1939_xtp_abort_to_errno(priv, err);
+	session->err = j1939_xtp_abort_to_erranal(priv, err);
 	session->state = J1939_SESSION_WAITING_ABORT;
-	/* do not send aborts on incoming broadcasts */
+	/* do analt send aborts on incoming broadcasts */
 	if (!j1939_cb_is_broadcast(&session->skcb)) {
 		j1939_xtp_tx_abort(priv, &session->skcb,
 				   !session->transmission,
@@ -1163,7 +1163,7 @@ static enum hrtimer_restart j1939_tp_txtimer(struct hrtimer *hrtimer)
 	}
 
 	switch (ret) {
-	case -ENOBUFS:
+	case -EANALBUFS:
 		/* Retry limit is currently arbitrary chosen */
 		if (session->tx_retry < J1939_XTP_TX_RETRY_LIMIT) {
 			session->tx_retry++;
@@ -1192,7 +1192,7 @@ static enum hrtimer_restart j1939_tp_txtimer(struct hrtimer *hrtimer)
 		session->tx_retry = 0;
 		break;
 	default:
-		netdev_alert(priv->ndev, "%s: 0x%p: tx aborted with unknown reason: %i\n",
+		netdev_alert(priv->ndev, "%s: 0x%p: tx aborted with unkanalwn reason: %i\n",
 			     __func__, session, ret);
 		if (session->skcb.addr.type != J1939_SIMPLE) {
 			j1939_session_cancel(session, J1939_XTP_ABORT_OTHER);
@@ -1205,7 +1205,7 @@ static enum hrtimer_restart j1939_tp_txtimer(struct hrtimer *hrtimer)
 
 	j1939_session_put(session);
 
-	return HRTIMER_NORESTART;
+	return HRTIMER_ANALRESTART;
 }
 
 static void j1939_session_completed(struct j1939_session *session)
@@ -1264,7 +1264,7 @@ static enum hrtimer_restart j1939_tp_rxtimer(struct hrtimer *hrtimer)
 
 	j1939_session_put(session);
 
-	return HRTIMER_NORESTART;
+	return HRTIMER_ANALRESTART;
 }
 
 static bool j1939_xtp_rx_cmd_bad_pgn(struct j1939_session *session,
@@ -1273,7 +1273,7 @@ static bool j1939_xtp_rx_cmd_bad_pgn(struct j1939_session *session,
 	const struct j1939_sk_buff_cb *skcb = j1939_skb_to_cb(skb);
 	pgn_t pgn = j1939_xtp_ctl_to_pgn(skb->data);
 	struct j1939_priv *priv = session->priv;
-	enum j1939_xtp_abort abort = J1939_XTP_NO_ABORT;
+	enum j1939_xtp_abort abort = J1939_XTP_ANAL_ABORT;
 	u8 cmd = skb->data[0];
 
 	if (session->skcb.addr.pgn == pgn)
@@ -1281,7 +1281,7 @@ static bool j1939_xtp_rx_cmd_bad_pgn(struct j1939_session *session,
 
 	switch (cmd) {
 	case J1939_TP_CMD_BAM:
-		abort = J1939_XTP_NO_ABORT;
+		abort = J1939_XTP_ANAL_ABORT;
 		break;
 
 	case J1939_ETP_CMD_RTS:
@@ -1307,7 +1307,7 @@ static bool j1939_xtp_rx_cmd_bad_pgn(struct j1939_session *session,
 		break;
 
 	case J1939_ETP_CMD_ABORT: /* && J1939_TP_CMD_ABORT */
-		abort = J1939_XTP_NO_ABORT;
+		abort = J1939_XTP_ANAL_ABORT;
 		break;
 
 	default:
@@ -1317,7 +1317,7 @@ static bool j1939_xtp_rx_cmd_bad_pgn(struct j1939_session *session,
 
 	netdev_warn(priv->ndev, "%s: 0x%p: CMD 0x%02x with PGN 0x%05x for running session with different PGN 0x%05x.\n",
 		    __func__, session, cmd, pgn, session->skcb.addr.pgn);
-	if (abort != J1939_XTP_NO_ABORT)
+	if (abort != J1939_XTP_ANAL_ABORT)
 		j1939_xtp_tx_abort(priv, skcb, true, abort, pgn);
 
 	return true;
@@ -1343,7 +1343,7 @@ static void j1939_xtp_rx_abort_one(struct j1939_priv *priv, struct sk_buff *skb,
 		    j1939_xtp_abort_to_str(abort));
 
 	j1939_session_timers_cancel(session);
-	session->err = j1939_xtp_abort_to_errno(priv, abort);
+	session->err = j1939_xtp_abort_to_erranal(priv, abort);
 	if (session->sk)
 		j1939_sk_send_loop_abort(session->sk, session->err);
 	else
@@ -1440,14 +1440,14 @@ j1939_xtp_rx_cts_one(struct j1939_session *session, struct sk_buff *skb)
 	else if (dat[1] > session->pkt.block /* 0xff for etp */)
 		goto out_session_cancel;
 
-	/* set packet counters only when not CTS(0) */
+	/* set packet counters only when analt CTS(0) */
 	session->pkt.tx_acked = pkt - 1;
 	j1939_session_skb_drop_old(session);
 	session->pkt.last = session->pkt.tx_acked + dat[1];
 	if (session->pkt.last > session->pkt.total)
 		/* safety measure */
 		session->pkt.last = session->pkt.total;
-	/* TODO: do not set tx here, do it in txtimer */
+	/* TODO: do analt set tx here, do it in txtimer */
 	session->pkt.tx = session->pkt.tx_acked;
 
 	session->last_cmd = dat[0];
@@ -1510,10 +1510,10 @@ static struct j1939_session *j1939_session_new(struct j1939_priv *priv,
 	skcb = j1939_skb_to_cb(skb);
 	memcpy(&session->skcb, skcb, sizeof(session->skcb));
 
-	hrtimer_init(&session->txtimer, CLOCK_MONOTONIC,
+	hrtimer_init(&session->txtimer, CLOCK_MOANALTONIC,
 		     HRTIMER_MODE_REL_SOFT);
 	session->txtimer.function = j1939_tp_txtimer;
-	hrtimer_init(&session->rxtimer, CLOCK_MONOTONIC,
+	hrtimer_init(&session->rxtimer, CLOCK_MOANALTONIC,
 		     HRTIMER_MODE_REL_SOFT);
 	session->rxtimer.function = j1939_tp_rxtimer;
 
@@ -1589,7 +1589,7 @@ static struct
 j1939_session *j1939_xtp_rx_rts_session_new(struct j1939_priv *priv,
 					    struct sk_buff *skb)
 {
-	enum j1939_xtp_abort abort = J1939_XTP_NO_ABORT;
+	enum j1939_xtp_abort abort = J1939_XTP_ANAL_ABORT;
 	struct j1939_sk_buff_cb skcb = *j1939_skb_to_cb(skb);
 	struct j1939_session *session;
 	const u8 *dat;
@@ -1623,7 +1623,7 @@ j1939_session *j1939_xtp_rx_rts_session_new(struct j1939_priv *priv,
 			abort = J1939_XTP_ABORT_FAULT;
 	}
 
-	if (abort != J1939_XTP_NO_ABORT) {
+	if (abort != J1939_XTP_ANAL_ABORT) {
 		j1939_xtp_tx_abort(priv, &skcb, true, abort, pgn);
 		return NULL;
 	}
@@ -1692,8 +1692,8 @@ static int j1939_xtp_rx_rts_session_active(struct j1939_session *session,
 			    session->skcb.addr.sa, skcb->addr.sa,
 			    session->skcb.addr.da, skcb->addr.da);
 	/* make sure 'sa' & 'da' are correct !
-	 * They may be 'not filled in yet' for sending
-	 * skb's, since they did not pass the Address Claim ever.
+	 * They may be 'analt filled in yet' for sending
+	 * skb's, since they did analt pass the Address Claim ever.
 	 */
 	session->skcb.addr.sa = skcb->addr.sa;
 	session->skcb.addr.da = skcb->addr.da;
@@ -1790,7 +1790,7 @@ static void j1939_xtp_rx_dpo(struct j1939_priv *priv, struct sk_buff *skb,
 					    transmitter);
 	if (!session) {
 		netdev_info(priv->ndev,
-			    "%s: no connection found\n", __func__);
+			    "%s: anal connection found\n", __func__);
 		return;
 	}
 
@@ -1817,7 +1817,7 @@ static void j1939_xtp_rx_dat_one(struct j1939_session *session,
 	skcb = j1939_skb_to_cb(skb);
 	dat = skb->data;
 	if (skb->len != 8) {
-		/* makes no sense */
+		/* makes anal sense */
 		abort = J1939_XTP_ABORT_UNEXPECTED_DATA;
 		goto out_session_cancel;
 	}
@@ -1851,7 +1851,7 @@ static void j1939_xtp_rx_dat_one(struct j1939_session *session,
 
 	se_skb = j1939_session_skb_get_by_offset(session, packet * 7);
 	if (!se_skb) {
-		netdev_warn(priv->ndev, "%s: 0x%p: no skb found\n", __func__,
+		netdev_warn(priv->ndev, "%s: 0x%p: anal skb found\n", __func__,
 			    session);
 		goto out_session_cancel;
 	}
@@ -1934,7 +1934,7 @@ static void j1939_xtp_rx_dat(struct j1939_priv *priv, struct sk_buff *skb)
 		session = j1939_session_get_by_addr(priv, &skcb->addr, false,
 						    true);
 		if (!session)
-			netdev_info(priv->ndev, "%s: no tx connection found\n",
+			netdev_info(priv->ndev, "%s: anal tx connection found\n",
 				    __func__);
 		else
 			j1939_xtp_rx_dat_one(session, skb);
@@ -1944,7 +1944,7 @@ static void j1939_xtp_rx_dat(struct j1939_priv *priv, struct sk_buff *skb)
 		session = j1939_session_get_by_addr(priv, &skcb->addr, false,
 						    false);
 		if (!session)
-			netdev_info(priv->ndev, "%s: no rx connection found\n",
+			netdev_info(priv->ndev, "%s: anal rx connection found\n",
 				    __func__);
 		else
 			j1939_xtp_rx_dat_one(session, skb);
@@ -2003,7 +2003,7 @@ struct j1939_session *j1939_tp_send(struct j1939_priv *priv,
 	/* prepare new session */
 	session = j1939_session_new(priv, skb, size);
 	if (!session)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	/* skb is recounted in j1939_session_new() */
 	sock_hold(skb->sk);
@@ -2035,7 +2035,7 @@ static void j1939_tp_cmd_recv(struct j1939_priv *priv, struct sk_buff *skb)
 		fallthrough;
 	case J1939_TP_CMD_BAM:
 		if (cmd == J1939_TP_CMD_BAM && !j1939_cb_is_broadcast(skcb)) {
-			netdev_err_once(priv->ndev, "%s: BAM to unicast (%02x), ignoring!\n",
+			netdev_err_once(priv->ndev, "%s: BAM to unicast (%02x), iganalring!\n",
 					__func__, skcb->addr.sa);
 			return;
 		}
@@ -2102,7 +2102,7 @@ static void j1939_tp_cmd_recv(struct j1939_priv *priv, struct sk_buff *skb)
 
 	case J1939_ETP_CMD_ABORT: /* && J1939_TP_CMD_ABORT */
 		if (j1939_cb_is_broadcast(skcb)) {
-			netdev_err_once(priv->ndev, "%s: abort to broadcast (%02x), ignoring!\n",
+			netdev_err_once(priv->ndev, "%s: abort to broadcast (%02x), iganalring!\n",
 					__func__, skcb->addr.sa);
 			return;
 		}
@@ -2139,12 +2139,12 @@ int j1939_tp_recv(struct j1939_priv *priv, struct sk_buff *skb)
 		fallthrough;
 	case J1939_TP_PGN_CTL:
 		if (skb->len < 8)
-			return 0; /* Don't care. Nothing to extract here */
+			return 0; /* Don't care. Analthing to extract here */
 
 		j1939_tp_cmd_recv(priv, skb);
 		break;
 	default:
-		return 0; /* no problem */
+		return 0; /* anal problem */
 	}
 	return 1; /* "I processed the message" */
 }
@@ -2195,7 +2195,7 @@ int j1939_cancel_active_session(struct j1939_priv *priv, struct sock *sk)
 		}
 	}
 	j1939_session_list_unlock(priv);
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 void j1939_tp_init(struct j1939_priv *priv)

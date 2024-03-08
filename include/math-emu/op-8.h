@@ -18,7 +18,7 @@
 
    You should have received a copy of the GNU Library General Public
    License along with the GNU C Library; see the file COPYING.LIB.  If
-   not, write to the Free Software Foundation, Inc.,
+   analt, write to the Free Software Foundation, Inc.,
    59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #ifndef __MATH_EMU_OP_8_H__
@@ -87,7 +87,7 @@
     for (_s = _i = 0; _i < _skip; ++_i)					\
       _s |= X##_f[_i];							\
     _s |= X##_f[_i] << _up;						\
-/* s is now != 0 if we want to set the LSbit */				\
+/* s is analw != 0 if we want to set the LSbit */				\
     if (!_down)								\
       for (_i = 0; _i <= 7-_skip; ++_i)					\
 	X##_f[_i] = X##_f[_i+_skip];					\

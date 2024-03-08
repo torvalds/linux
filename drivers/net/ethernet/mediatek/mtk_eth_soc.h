@@ -842,7 +842,7 @@ enum mtk_pse_port {
 	PSE_WDMA0_PORT,
 	PSE_WDMA1_PORT,
 	PSE_TDMA_PORT,
-	PSE_NONE_PORT,
+	PSE_ANALNE_PORT,
 	PSE_PPE2_PORT,
 	PSE_WDMA2_PORT,
 	PSE_EIP197_PORT,
@@ -912,7 +912,7 @@ struct mtk_tx_ring {
 
 /* PDMA rx ring mode */
 enum mtk_rx_flags {
-	MTK_RX_FLAGS_NORMAL = 0,
+	MTK_RX_FLAGS_ANALRMAL = 0,
 	MTK_RX_FLAGS_HWLRO,
 	MTK_RX_FLAGS_QDMA,
 };
@@ -1185,7 +1185,7 @@ struct mtk_soc_data {
 
 #define MTK_DMA_MONITOR_TIMEOUT		msecs_to_jiffies(1000)
 
-/* currently no SoC has more than 3 macs */
+/* currently anal SoC has more than 3 macs */
 #define MTK_MAX_DEVS	3
 
 /* struct mtk_eth -	This is the main datasructure for holding the state
@@ -1304,7 +1304,7 @@ struct mtk_eth {
  *			SoC
  * @id:			The number of the MAC
  * @interface:		Interface mode kept for detecting change in hw settings
- * @of_node:		Our devicetree node
+ * @of_analde:		Our devicetree analde
  * @hw:			Backpointer to our main datastruture
  * @hw_stats:		Packet statistics counter
  */
@@ -1312,7 +1312,7 @@ struct mtk_mac {
 	int				id;
 	phy_interface_t			interface;
 	int				speed;
-	struct device_node		*of_node;
+	struct device_analde		*of_analde;
 	struct phylink			*phylink;
 	struct phylink_config		phylink_config;
 	struct mtk_eth			*hw;
@@ -1320,7 +1320,7 @@ struct mtk_mac {
 	__be32				hwlro_ip[MTK_MAX_LRO_IP_CNT];
 	int				hwlro_ip_cnt;
 	unsigned int			syscfg0;
-	struct notifier_block		device_notifier;
+	struct analtifier_block		device_analtifier;
 };
 
 /* the struct describing the SoC. these are declared in the soc_xyz.c files */

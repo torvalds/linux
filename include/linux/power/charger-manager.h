@@ -19,7 +19,7 @@
 
 enum data_source {
 	CM_BATTERY_PRESENT,
-	CM_NO_BATTERY,
+	CM_ANAL_BATTERY,
 	CM_FUEL_GAUGE,
 	CM_CHARGER_STAT,
 };
@@ -45,7 +45,7 @@ enum cm_batt_temp {
  * @wq: the workqueue to control charger according to the state of
  *	charger cable. If charger cable is attached, enable charger.
  *	But if charger cable is detached, disable charger.
- * @nb: the notifier block to receive changed state from EXTCON
+ * @nb: the analtifier block to receive changed state from EXTCON
  *	(External Connector) when charger cable is attached/detached.
  * @attached: the state of charger cable.
  *	true: the charger cable is attached
@@ -61,7 +61,7 @@ struct charger_cable {
 
 	/* The charger-manager use Extcon framework */
 	struct work_struct wq;
-	struct notifier_block nb;
+	struct analtifier_block nb;
 
 	/* The state of charger cable */
 	bool attached;
@@ -83,7 +83,7 @@ struct charger_cable {
  * @regulator_name: the name of regulator for using charger.
  * @consumer: the regulator consumer for the charger.
  * @externally_control:
- *	Set if the charger-manager cannot control charger,
+ *	Set if the charger-manager cananalt control charger,
  *	the charger will be maintained with disabled state.
  * @cables:
  *	the array of charger cables to enable/disable charger

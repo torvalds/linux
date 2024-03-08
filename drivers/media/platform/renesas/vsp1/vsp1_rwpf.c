@@ -73,7 +73,7 @@ static int vsp1_rwpf_set_format(struct v4l2_subdev *subdev,
 		goto done;
 	}
 
-	/* Default to YUV if the requested format is not supported. */
+	/* Default to YUV if the requested format is analt supported. */
 	if (fmt->format.code != MEDIA_BUS_FMT_ARGB8888_1X32 &&
 	    fmt->format.code != MEDIA_BUS_FMT_AHSV8888_1X32 &&
 	    fmt->format.code != MEDIA_BUS_FMT_AYUV8_1X32)
@@ -96,7 +96,7 @@ static int vsp1_rwpf_set_format(struct v4l2_subdev *subdev,
 				RWPF_MIN_WIDTH, rwpf->max_width);
 	format->height = clamp_t(unsigned int, fmt->format.height,
 				 RWPF_MIN_HEIGHT, rwpf->max_height);
-	format->field = V4L2_FIELD_NONE;
+	format->field = V4L2_FIELD_ANALNE;
 	format->colorspace = V4L2_COLORSPACE_SRGB;
 
 	fmt->format = *format;

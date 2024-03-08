@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -66,10 +66,10 @@ static void si_dma_ring_emit_ib(struct amdgpu_ring *ring,
 {
 	unsigned vmid = AMDGPU_JOB_GET_VMID(job);
 	/* The indirect buffer packet must end on an 8 DW boundary in the DMA ring.
-	 * Pad as necessary with NOPs.
+	 * Pad as necessary with ANALPs.
 	 */
 	while ((lower_32_bits(ring->wptr) & 7) != 5)
-		amdgpu_ring_write(ring, DMA_PACKET(DMA_PACKET_NOP, 0, 0, 0, 0));
+		amdgpu_ring_write(ring, DMA_PACKET(DMA_PACKET_ANALP, 0, 0, 0, 0));
 	amdgpu_ring_write(ring, DMA_IB_PACKET(DMA_PACKET_INDIRECT_BUFFER, vmid, 0));
 	amdgpu_ring_write(ring, (ib->gpu_addr & 0xFFFFFFE0));
 	amdgpu_ring_write(ring, (ib->length_dw << 12) | (upper_32_bits(ib->gpu_addr) & 0xFF));
@@ -400,7 +400,7 @@ static void si_dma_vm_set_pte_pde(struct amdgpu_ib *ib,
 static void si_dma_ring_pad_ib(struct amdgpu_ring *ring, struct amdgpu_ib *ib)
 {
 	while (ib->length_dw & 0x7)
-		ib->ptr[ib->length_dw++] = DMA_PACKET(DMA_PACKET_NOP, 0, 0, 0, 0);
+		ib->ptr[ib->length_dw++] = DMA_PACKET(DMA_PACKET_ANALP, 0, 0, 0, 0);
 }
 
 /**
@@ -573,7 +573,7 @@ static int si_dma_wait_for_idle(void *handle)
 
 static int si_dma_soft_reset(void *handle)
 {
-	DRM_INFO("si_dma_soft_reset --- not implemented !!!!!!!\n");
+	DRM_INFO("si_dma_soft_reset --- analt implemented !!!!!!!\n");
 	return 0;
 }
 
@@ -713,7 +713,7 @@ static const struct amd_ip_funcs si_dma_ip_funcs = {
 static const struct amdgpu_ring_funcs si_dma_ring_funcs = {
 	.type = AMDGPU_RING_TYPE_SDMA,
 	.align_mask = 0xf,
-	.nop = DMA_PACKET(DMA_PACKET_NOP, 0, 0, 0, 0),
+	.analp = DMA_PACKET(DMA_PACKET_ANALP, 0, 0, 0, 0),
 	.support_64bit_ptrs = false,
 	.get_rptr = si_dma_ring_get_rptr,
 	.get_wptr = si_dma_ring_get_wptr,
@@ -730,7 +730,7 @@ static const struct amdgpu_ring_funcs si_dma_ring_funcs = {
 	.emit_vm_flush = si_dma_ring_emit_vm_flush,
 	.test_ring = si_dma_ring_test_ring,
 	.test_ib = si_dma_ring_test_ib,
-	.insert_nop = amdgpu_ring_insert_nop,
+	.insert_analp = amdgpu_ring_insert_analp,
 	.pad_ib = si_dma_ring_pad_ib,
 	.emit_wreg = si_dma_ring_emit_wreg,
 };
@@ -844,7 +844,7 @@ const struct amdgpu_ip_block_version si_dma_ip_block =
 {
 	.type = AMD_IP_BLOCK_TYPE_SDMA,
 	.major = 1,
-	.minor = 0,
+	.mianalr = 0,
 	.rev = 0,
 	.funcs = &si_dma_ip_funcs,
 };

@@ -22,13 +22,13 @@ int dpmac_close(struct fsl_mc_io *mc_io,
 
 /**
  * enum dpmac_link_type -  DPMAC link type
- * @DPMAC_LINK_TYPE_NONE: No link
+ * @DPMAC_LINK_TYPE_ANALNE: Anal link
  * @DPMAC_LINK_TYPE_FIXED: Link is fixed type
  * @DPMAC_LINK_TYPE_PHY: Link by PHY ID
  * @DPMAC_LINK_TYPE_BACKPLANE: Backplane link type
  */
 enum dpmac_link_type {
-	DPMAC_LINK_TYPE_NONE,
+	DPMAC_LINK_TYPE_ANALNE,
 	DPMAC_LINK_TYPE_FIXED,
 	DPMAC_LINK_TYPE_PHY,
 	DPMAC_LINK_TYPE_BACKPLANE
@@ -105,7 +105,7 @@ int dpmac_get_attributes(struct fsl_mc_io *mc_io,
  * @rate: Rate in Mbps
  * @options: Enable/Disable DPMAC link cfg features (bitmap)
  * @up: Link state
- * @state_valid: Ignore/Update the state of the link
+ * @state_valid: Iganalre/Update the state of the link
  * @supported: Speeds capability of the phy (bitmap)
  * @advertising: Speeds that are advertised for autoneg (bitmap)
  */
@@ -206,7 +206,7 @@ int dpmac_get_counter(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
 		      enum dpmac_counter_id id, u64 *value);
 
 int dpmac_get_api_version(struct fsl_mc_io *mc_io, u32 cmd_flags,
-			  u16 *major_ver, u16 *minor_ver);
+			  u16 *major_ver, u16 *mianalr_ver);
 
 int dpmac_set_protocol(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
 		       enum dpmac_eth_if protocol);

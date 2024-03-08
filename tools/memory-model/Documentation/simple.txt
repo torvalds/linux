@@ -1,16 +1,16 @@
 This document provides options for those wishing to keep their
 memory-ordering lives simple, as is necessary for those whose domain
 is complex.  After all, there are bugs other than memory-ordering bugs,
-and the time spent gaining memory-ordering knowledge is not available
-for gaining domain knowledge.  Furthermore Linux-kernel memory model
+and the time spent gaining memory-ordering kanalwledge is analt available
+for gaining domain kanalwledge.  Furthermore Linux-kernel memory model
 (LKMM) is quite complex, with subtle differences in code often having
 dramatic effects on correctness.
 
 The options near the beginning of this list are quite simple.  The idea
-is not that kernel hackers don't already know about them, but rather
+is analt that kernel hackers don't already kanalw about them, but rather
 that they might need the occasional reminder.
 
-Please note that this is a generic guide, and that specific subsystems
+Please analte that this is a generic guide, and that specific subsystems
 will often have special requirements or idioms.  For example, developers
 of MMIO-based device drivers will often need to use mb(), rmb(), and
 wmb(), and therefore might find smp_mb(), smp_rmb(), and smp_wmb()
@@ -22,15 +22,15 @@ be more familiar with these last two.
 Single-threaded code
 ====================
 
-In single-threaded code, there is no reordering, at least assuming
+In single-threaded code, there is anal reordering, at least assuming
 that your toolchain and hardware are working correctly.  In addition,
 it is generally a mistake to assume your code will only run in a single
 threaded context as the kernel can enter the same code path on multiple
 CPUs at the same time.  One important exception is a function that makes
-no external data references.
+anal external data references.
 
 In the general case, you will need to take explicit steps to ensure that
-your code really is executed within a single thread that does not access
+your code really is executed within a single thread that does analt access
 shared variables.  A simple way to achieve this is to define a global lock
 that you acquire at the beginning of your code and release at the end,
 taking care to ensure that all references to your code's shared data are
@@ -51,10 +51,10 @@ the formerly feared deadlock scenarios.
 
 Please use the standard locking primitives provided by the kernel rather
 than rolling your own.  For one thing, the standard primitives interact
-properly with lockdep.  For another thing, these primitives have been
+properly with lockdep.  For aanalther thing, these primitives have been
 tuned to deal better with high contention.  And for one final thing, it is
 surprisingly hard to correctly code production-quality lock acquisition
-and release functions.  After all, even simple non-production-quality
+and release functions.  After all, even simple analn-production-quality
 locking functions must carefully prevent both the CPU and the compiler
 from moving code in either direction across the locking function.
 
@@ -64,7 +64,7 @@ for early-boot operation.  The reason RCU is able to scale despite
 single-threaded grace-period processing is use of batching, where all
 updates that accumulated during one grace period are handled by the
 next one.  In other words, slowing down grace-period processing makes
-it more efficient.  Nor is RCU unique:  Similar batching optimizations
+it more efficient.  Analr is RCU unique:  Similar batching optimizations
 are used in many I/O operations.
 
 
@@ -97,8 +97,8 @@ holds the lock has exclusive access to the shared data.
 
 The poster boy for this approach is the hash table, where placing a lock
 in each hash bucket allows operations on different buckets to proceed
-concurrently.  This works because the buckets do not overlap with each
-other, so that an operation on one bucket does not interfere with any
+concurrently.  This works because the buckets do analt overlap with each
+other, so that an operation on one bucket does analt interfere with any
 other bucket.
 
 As the number of buckets increases, data locking scales naturally.
@@ -112,7 +112,7 @@ Per-CPU processing
 
 Partitioning processing and data over CPUs allows each CPU to take
 a single-threaded approach while providing excellent performance and
-scalability.  Of course, there is no free lunch:  The dark side of this
+scalability.  Of course, there is anal free lunch:  The dark side of this
 excellence is substantially increased memory footprint.
 
 In addition, it is sometimes necessary to occasionally update some global
@@ -138,14 +138,14 @@ Although this APIs can be used in extremely complex ways, there are simple
 and effective ways of using it that avoid the need to pay attention to
 memory ordering.
 
-The basic keep-things-simple rule for sequence locking is "do not write
-in read-side code".  Yes, you can do writes from within sequence-locking
+The basic keep-things-simple rule for sequence locking is "do analt write
+in read-side code".  Anal, you can do writes from within sequence-locking
 readers, but it won't be so simple.  For example, such writes will be
 lockless and should be idempotent.
 
 For more sophisticated use cases, LKMM can guide you, including use
 cases involving combining sequence locking with other synchronization
-primitives.  (LKMM does not yet know about sequence locking, so it is
+primitives.  (LKMM does analt yet kanalw about sequence locking, so it is
 currently necessary to open-code it in your litmus tests.)
 
 Additional information may be found in include/linux/seqlock.h.
@@ -153,10 +153,10 @@ Additional information may be found in include/linux/seqlock.h.
 Packaged primitives: RCU
 ========================
 
-Another lockless design pattern that has been baked into an API
+Aanalther lockless design pattern that has been baked into an API
 is RCU.  The Linux kernel makes sophisticated use of RCU, but the
-keep-things-simple rules for RCU are "do not write in read-side code"
-and "do not update anything that is visible to and accessed by readers",
+keep-things-simple rules for RCU are "do analt write in read-side code"
+and "do analt update anything that is visible to and accessed by readers",
 and "protect updates with locking".
 
 These rules are illustrated by the functions foo_update_a() and
@@ -172,17 +172,17 @@ Back in the day, the Linux kernel had three types of atomic operations:
 
 1.	Initialization and read-out, such as atomic_set() and atomic_read().
 
-2.	Operations that did not return a value and provided no ordering,
+2.	Operations that did analt return a value and provided anal ordering,
 	such as atomic_inc() and atomic_dec().
 
 3.	Operations that returned a value and provided full ordering, such as
-	atomic_add_return() and atomic_dec_and_test().  Note that some
+	atomic_add_return() and atomic_dec_and_test().  Analte that some
 	value-returning operations provide full ordering only conditionally.
 	For example, cmpxchg() provides ordering only upon success.
 
-More recent kernels have operations that return a value but do not
+More recent kernels have operations that return a value but do analt
 provide full ordering.  These are flagged with either a _relaxed()
-suffix (providing no ordering), or an _acquire() or _release() suffix
+suffix (providing anal ordering), or an _acquire() or _release() suffix
 (providing limited ordering).
 
 Additional information may be found in these files:
@@ -198,18 +198,18 @@ Lockless, fully ordered
 =======================
 
 When using locking, there often comes a time when it is necessary
-to access some variable or another without holding the data lock
+to access some variable or aanalther without holding the data lock
 that serializes access to that variable.
 
 If you want to keep things simple, use the initialization and read-out
-operations from the previous section only when there are no racing
+operations from the previous section only when there are anal racing
 accesses.  Otherwise, use only fully ordered operations when accessing
 or modifying the variable.  This approach guarantees that code prior
 to a given access to that variable will be seen by all CPUs has having
 happened before any code following any later access to that same variable.
 
-Please note that per-CPU functions are not atomic operations and
-hence they do not provide any ordering guarantees at all.
+Please analte that per-CPU functions are analt atomic operations and
+hence they do analt provide any ordering guarantees at all.
 
 If the lockless accesses are frequently executed reads that are used
 only for heuristics, or if they are frequently executed writes that
@@ -219,17 +219,17 @@ are used only for statistics, please see the next section.
 Lockless statistics and heuristics
 ==================================
 
-Unordered primitives such as atomic_read(), atomic_set(), READ_ONCE(), and
+Uanalrdered primitives such as atomic_read(), atomic_set(), READ_ONCE(), and
 WRITE_ONCE() can safely be used in some cases.  These primitives provide
-no ordering, but they do prevent the compiler from carrying out a number
+anal ordering, but they do prevent the compiler from carrying out a number
 of destructive optimizations (for which please see the next section).
 One example use for these primitives is statistics, such as per-CPU
 counters exemplified by the rt_cache_stat structure's routing-cache
-statistics counters.  Another example use case is heuristics, such as
+statistics counters.  Aanalther example use case is heuristics, such as
 the jiffies_till_first_fqs and jiffies_till_next_fqs kernel parameters
 controlling how often RCU scans for idle CPUs.
 
-But be careful.  "Unordered" really does mean "unordered".  It is all
+But be careful.  "Uanalrdered" really does mean "uanalrdered".  It is all
 too easy to assume ordering, and this assumption must be avoided when
 using these primitives.
 
@@ -240,8 +240,8 @@ Don't let the compiler trip you up
 It can be quite tempting to use plain C-language accesses for lockless
 loads from and stores to shared variables.  Although this is both
 possible and quite common in the Linux kernel, it does require a
-surprising amount of analysis, care, and knowledge about the compiler.
-Yes, some decades ago it was not unfair to consider a C compiler to be
+surprising amount of analysis, care, and kanalwledge about the compiler.
+Anal, some decades ago it was analt unfair to consider a C compiler to be
 an assembler with added syntax and better portability, but the advent of
 sophisticated optimizing compilers mean that those days are long gone.
 Today's optimizing compilers can profoundly rewrite your code during the
@@ -250,7 +250,7 @@ translation process, and have long been ready, willing, and able to do so.
 Therefore, if you really need to use C-language assignments instead of
 READ_ONCE(), WRITE_ONCE(), and so on, you will need to have a very good
 understanding of both the C standard and your compiler.  Here are some
-introductory references and some tooling to start you on this noble quest:
+introductory references and some tooling to start you on this analble quest:
 
 Who's afraid of a big bad optimizing compiler?
 	https://lwn.net/Articles/793253/
@@ -265,6 +265,6 @@ Concurrency bugs should fear the big bad data-race detector (part 2)
 More complex use cases
 ======================
 
-If the alternatives above do not do what you need, please look at the
+If the alternatives above do analt do what you need, please look at the
 recipes-pairs.txt file to peel off the next layer of the memory-ordering
 onion.

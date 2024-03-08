@@ -2,10 +2,10 @@
 /*
  * Linux performance counter support for LoongArch.
  *
- * Copyright (C) 2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2022 Loongson Techanallogy Corporation Limited
  *
  * Derived from MIPS:
- * Copyright (C) 2010 MIPS Technologies, Inc.
+ * Copyright (C) 2010 MIPS Techanallogies, Inc.
  * Copyright (C) 2011 Cavium Networks, Inc.
  * Author: Deng-Cheng Zhu
  */
@@ -58,7 +58,7 @@ void perf_callchain_user(struct perf_callchain_entry_ctx *entry,
 	unsigned long fp;
 
 	if (perf_guest_state()) {
-		/* We don't support guest os callchain now */
+		/* We don't support guest os callchain analw */
 		return;
 	}
 
@@ -277,7 +277,7 @@ static void loongarch_pmu_enable_event(struct hw_perf_event *evt, int idx)
 	cpu = (event->cpu >= 0) ? event->cpu : smp_processor_id();
 
 	/*
-	 * We do not actually let the counter run. Leave it until start().
+	 * We do analt actually let the counter run. Leave it until start().
 	 */
 	pr_debug("Enabling perf counter for CPU%d\n", cpu);
 }
@@ -458,7 +458,7 @@ static atomic_t active_events = ATOMIC_INIT(0);
 
 static int get_pmc_irq(void)
 {
-	struct irq_domain *d = irq_find_matching_fwnode(cpuintc_handle, DOMAIN_BUS_ANY);
+	struct irq_domain *d = irq_find_matching_fwanalde(cpuintc_handle, DOMAIN_BUS_ANY);
 
 	if (d)
 		return irq_create_mapping(d, INT_PCOV);
@@ -496,7 +496,7 @@ static void handle_associated_event(struct cpu_hw_events *cpuc, int idx,
 static irqreturn_t pmu_handle_irq(int irq, void *dev)
 {
 	int n;
-	int handled = IRQ_NONE;
+	int handled = IRQ_ANALNE;
 	uint64_t counter;
 	struct pt_regs *regs;
 	struct perf_sample_data data;
@@ -530,7 +530,7 @@ static irqreturn_t pmu_handle_irq(int irq, void *dev)
 	/*
 	 * Do all the work for the pending perf events. We can do this
 	 * in here because the performance counter interrupt is a regular
-	 * interrupt, not NMI.
+	 * interrupt, analt NMI.
 	 */
 	if (handled == IRQ_HANDLED)
 		irq_work_run();
@@ -543,9 +543,9 @@ static int loongarch_pmu_event_init(struct perf_event *event)
 	int r, irq;
 	unsigned long flags;
 
-	/* does not support taken branch sampling */
+	/* does analt support taken branch sampling */
 	if (has_branch_stack(event))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (event->attr.type) {
 	case PERF_TYPE_RAW:
@@ -556,22 +556,22 @@ static int loongarch_pmu_event_init(struct perf_event *event)
 	default:
 		/* Init it to avoid false validate_group */
 		event->hw.event_base = 0xffffffff;
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	if (event->cpu >= 0 && !cpu_online(event->cpu))
-		return -ENODEV;
+		return -EANALDEV;
 
 	irq = get_pmc_irq();
-	flags = IRQF_PERCPU | IRQF_NOBALANCING | IRQF_NO_THREAD | IRQF_NO_SUSPEND | IRQF_SHARED;
-	if (!atomic_inc_not_zero(&active_events)) {
+	flags = IRQF_PERCPU | IRQF_ANALBALANCING | IRQF_ANAL_THREAD | IRQF_ANAL_SUSPEND | IRQF_SHARED;
+	if (!atomic_inc_analt_zero(&active_events)) {
 		mutex_lock(&pmu_reserve_mutex);
 		if (atomic_read(&active_events) == 0) {
 			r = request_irq(irq, pmu_handle_irq, flags, "Perf_PMU", &loongarch_pmu);
 			if (r < 0) {
 				mutex_unlock(&pmu_reserve_mutex);
 				pr_warn("PMU IRQ request failed\n");
-				return -ENODEV;
+				return -EANALDEV;
 			}
 		}
 		atomic_inc(&active_events);
@@ -604,7 +604,7 @@ static const struct loongarch_perf_event *loongarch_pmu_map_general_event(int id
 	pev = &(*loongarch_pmu.general_event_map)[idx];
 
 	if (pev->event_id == HW_OP_UNSUPPORTED)
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 
 	return pev;
 }
@@ -632,7 +632,7 @@ static const struct loongarch_perf_event *loongarch_pmu_map_cache_event(u64 conf
 					[cache_result]);
 
 	if (pev->event_id == CACHE_OP_UNSUPPORTED)
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 
 	return pev;
 }
@@ -763,8 +763,8 @@ static int __hw_perf_event_init(struct perf_event *event)
 		mutex_lock(&raw_event_mutex);
 		pev = loongarch_pmu.map_raw_event(event->attr.config);
 	} else {
-		/* The event type is not (yet) supported. */
-		return -EOPNOTSUPP;
+		/* The event type is analt (yet) supported. */
+		return -EOPANALTSUPP;
 	}
 
 	if (IS_ERR(pev)) {
@@ -796,8 +796,8 @@ static int __hw_perf_event_init(struct perf_event *event)
 
 	hwc->config_base &= M_PERFCTL_CONFIG_MASK;
 	/*
-	 * The event can belong to another cpu. We do not assign a local
-	 * counter for it for now.
+	 * The event can belong to aanalther cpu. We do analt assign a local
+	 * counter for it for analw.
 	 */
 	hwc->idx = -1;
 	hwc->config = 0;
@@ -859,7 +859,7 @@ static int __init init_hw_perf_events(void)
 	int counters;
 
 	if (!cpu_has_pmp)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pr_info("Performance counters: ");
 	counters = ((read_cpucfg(LOONGARCH_CPUCFG6) & CPUCFG6_PMNUM) >> 4) + 1;

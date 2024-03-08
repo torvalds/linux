@@ -9,7 +9,7 @@
  * Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
  * Ben Dooks <ben.dooks@codethink.co.uk>
  *
- * Contains definitions specific to the Armada XP SoC that are not
+ * Contains definitions specific to the Armada XP SoC that are analt
  * common to all Armada SoCs.
  */
 
@@ -221,7 +221,7 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			clocks = <&gateclk 13>;
-			no-memory-wc;
+			anal-memory-wc;
 			status = "disabled";
 		};
 	};

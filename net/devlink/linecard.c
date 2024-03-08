@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (c) 2016 Mellanox Technologies. All rights reserved.
- * Copyright (c) 2016 Jiri Pirko <jiri@mellanox.com>
+ * Copyright (c) 2016 Mellaanalx Techanallogies. All rights reserved.
+ * Copyright (c) 2016 Jiri Pirko <jiri@mellaanalx.com>
  */
 
 #include "devl_internal.h"
@@ -53,7 +53,7 @@ devlink_linecard_get_from_attrs(struct devlink *devlink, struct nlattr **attrs)
 
 		linecard = devlink_linecard_get_by_index(devlink, linecard_index);
 		if (!linecard)
-			return ERR_PTR(-ENODEV);
+			return ERR_PTR(-EANALDEV);
 		return linecard;
 	}
 	return ERR_PTR(-EINVAL);
@@ -126,7 +126,7 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
-static void devlink_linecard_notify(struct devlink_linecard *linecard,
+static void devlink_linecard_analtify(struct devlink_linecard *linecard,
 				    enum devlink_command cmd)
 {
 	struct devlink *devlink = linecard->devlink;
@@ -136,7 +136,7 @@ static void devlink_linecard_notify(struct devlink_linecard *linecard,
 	WARN_ON(cmd != DEVLINK_CMD_LINECARD_NEW &&
 		cmd != DEVLINK_CMD_LINECARD_DEL);
 
-	if (!__devl_is_registered(devlink) || !devlink_nl_notify_need(devlink))
+	if (!__devl_is_registered(devlink) || !devlink_nl_analtify_need(devlink))
 		return;
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
@@ -150,23 +150,23 @@ static void devlink_linecard_notify(struct devlink_linecard *linecard,
 		return;
 	}
 
-	devlink_nl_notify_send(devlink, msg);
+	devlink_nl_analtify_send(devlink, msg);
 }
 
-void devlink_linecards_notify_register(struct devlink *devlink)
+void devlink_linecards_analtify_register(struct devlink *devlink)
 {
 	struct devlink_linecard *linecard;
 
 	list_for_each_entry(linecard, &devlink->linecard_list, list)
-		devlink_linecard_notify(linecard, DEVLINK_CMD_LINECARD_NEW);
+		devlink_linecard_analtify(linecard, DEVLINK_CMD_LINECARD_NEW);
 }
 
-void devlink_linecards_notify_unregister(struct devlink *devlink)
+void devlink_linecards_analtify_unregister(struct devlink *devlink)
 {
 	struct devlink_linecard *linecard;
 
 	list_for_each_entry_reverse(linecard, &devlink->linecard_list, list)
-		devlink_linecard_notify(linecard, DEVLINK_CMD_LINECARD_DEL);
+		devlink_linecard_analtify(linecard, DEVLINK_CMD_LINECARD_DEL);
 }
 
 int devlink_nl_linecard_get_doit(struct sk_buff *skb, struct genl_info *info)
@@ -182,7 +182,7 @@ int devlink_nl_linecard_get_doit(struct sk_buff *skb, struct genl_info *info)
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&linecard->state_lock);
 	err = devlink_nl_linecard_fill(msg, devlink, linecard,
@@ -296,7 +296,7 @@ static int devlink_linecard_type_set(struct devlink_linecard *linecard,
 
 	linecard->state = DEVLINK_LINECARD_STATE_PROVISIONING;
 	linecard->type = linecard_type->type;
-	devlink_linecard_notify(linecard, DEVLINK_CMD_LINECARD_NEW);
+	devlink_linecard_analtify(linecard, DEVLINK_CMD_LINECARD_NEW);
 	mutex_unlock(&linecard->state_lock);
 	err = ops->provision(linecard, linecard->priv, linecard_type->type,
 			     linecard_type->priv, extack);
@@ -307,7 +307,7 @@ static int devlink_linecard_type_set(struct devlink_linecard *linecard,
 		mutex_lock(&linecard->state_lock);
 		linecard->state = DEVLINK_LINECARD_STATE_UNPROVISIONED;
 		linecard->type = NULL;
-		devlink_linecard_notify(linecard, DEVLINK_CMD_LINECARD_NEW);
+		devlink_linecard_analtify(linecard, DEVLINK_CMD_LINECARD_NEW);
 		mutex_unlock(&linecard->state_lock);
 	}
 	return err;
@@ -336,18 +336,18 @@ static int devlink_linecard_type_unset(struct devlink_linecard *linecard,
 	if (linecard->state == DEVLINK_LINECARD_STATE_PROVISIONING_FAILED) {
 		linecard->state = DEVLINK_LINECARD_STATE_UNPROVISIONED;
 		linecard->type = NULL;
-		devlink_linecard_notify(linecard, DEVLINK_CMD_LINECARD_NEW);
+		devlink_linecard_analtify(linecard, DEVLINK_CMD_LINECARD_NEW);
 		err = 0;
 		goto out;
 	}
 
 	if (linecard->state == DEVLINK_LINECARD_STATE_UNPROVISIONED) {
-		NL_SET_ERR_MSG(extack, "Line card is not provisioned");
+		NL_SET_ERR_MSG(extack, "Line card is analt provisioned");
 		err = 0;
 		goto out;
 	}
 	linecard->state = DEVLINK_LINECARD_STATE_UNPROVISIONING;
-	devlink_linecard_notify(linecard, DEVLINK_CMD_LINECARD_NEW);
+	devlink_linecard_analtify(linecard, DEVLINK_CMD_LINECARD_NEW);
 	mutex_unlock(&linecard->state_lock);
 	err = linecard->ops->unprovision(linecard, linecard->priv,
 					 extack);
@@ -358,7 +358,7 @@ static int devlink_linecard_type_unset(struct devlink_linecard *linecard,
 		mutex_lock(&linecard->state_lock);
 		linecard->state = DEVLINK_LINECARD_STATE_UNPROVISIONED;
 		linecard->type = NULL;
-		devlink_linecard_notify(linecard, DEVLINK_CMD_LINECARD_NEW);
+		devlink_linecard_analtify(linecard, DEVLINK_CMD_LINECARD_NEW);
 		mutex_unlock(&linecard->state_lock);
 	}
 	return err;
@@ -407,7 +407,7 @@ static int devlink_linecard_types_init(struct devlink_linecard *linecard)
 	linecard->types = kmalloc_array(count, sizeof(*linecard_type),
 					GFP_KERNEL);
 	if (!linecard->types)
-		return -ENOMEM;
+		return -EANALMEM;
 	linecard->types_count = count;
 
 	for (i = 0; i < count; i++) {
@@ -453,7 +453,7 @@ devl_linecard_create(struct devlink *devlink, unsigned int linecard_index,
 
 	linecard = kzalloc(sizeof(*linecard), GFP_KERNEL);
 	if (!linecard)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	linecard->devlink = devlink;
 	linecard->index = linecard_index;
@@ -470,7 +470,7 @@ devl_linecard_create(struct devlink *devlink, unsigned int linecard_index,
 	}
 
 	list_add_tail(&linecard->list, &devlink->linecard_list);
-	devlink_linecard_notify(linecard, DEVLINK_CMD_LINECARD_NEW);
+	devlink_linecard_analtify(linecard, DEVLINK_CMD_LINECARD_NEW);
 	return linecard;
 }
 EXPORT_SYMBOL_GPL(devl_linecard_create);
@@ -482,7 +482,7 @@ EXPORT_SYMBOL_GPL(devl_linecard_create);
  */
 void devl_linecard_destroy(struct devlink_linecard *linecard)
 {
-	devlink_linecard_notify(linecard, DEVLINK_CMD_LINECARD_DEL);
+	devlink_linecard_analtify(linecard, DEVLINK_CMD_LINECARD_DEL);
 	list_del(&linecard->list);
 	devlink_linecard_types_fini(linecard);
 	mutex_destroy(&linecard->state_lock);
@@ -497,7 +497,7 @@ EXPORT_SYMBOL_GPL(devl_linecard_destroy);
  *	@type: linecard type
  *
  *	This is either called directly from the provision() op call or
- *	as a result of the provision() op call asynchronously.
+ *	as a result of the provision() op call asynchroanalusly.
  */
 void devlink_linecard_provision_set(struct devlink_linecard *linecard,
 				    const char *type)
@@ -506,7 +506,7 @@ void devlink_linecard_provision_set(struct devlink_linecard *linecard,
 	WARN_ON(linecard->type && strcmp(linecard->type, type));
 	linecard->state = DEVLINK_LINECARD_STATE_PROVISIONED;
 	linecard->type = type;
-	devlink_linecard_notify(linecard, DEVLINK_CMD_LINECARD_NEW);
+	devlink_linecard_analtify(linecard, DEVLINK_CMD_LINECARD_NEW);
 	mutex_unlock(&linecard->state_lock);
 }
 EXPORT_SYMBOL_GPL(devlink_linecard_provision_set);
@@ -517,14 +517,14 @@ EXPORT_SYMBOL_GPL(devlink_linecard_provision_set);
  *	@linecard: devlink linecard
  *
  *	This is either called directly from the unprovision() op call or
- *	as a result of the unprovision() op call asynchronously.
+ *	as a result of the unprovision() op call asynchroanalusly.
  */
 void devlink_linecard_provision_clear(struct devlink_linecard *linecard)
 {
 	mutex_lock(&linecard->state_lock);
 	linecard->state = DEVLINK_LINECARD_STATE_UNPROVISIONED;
 	linecard->type = NULL;
-	devlink_linecard_notify(linecard, DEVLINK_CMD_LINECARD_NEW);
+	devlink_linecard_analtify(linecard, DEVLINK_CMD_LINECARD_NEW);
 	mutex_unlock(&linecard->state_lock);
 }
 EXPORT_SYMBOL_GPL(devlink_linecard_provision_clear);
@@ -535,13 +535,13 @@ EXPORT_SYMBOL_GPL(devlink_linecard_provision_clear);
  *	@linecard: devlink linecard
  *
  *	This is either called directly from the provision() op call or
- *	as a result of the provision() op call asynchronously.
+ *	as a result of the provision() op call asynchroanalusly.
  */
 void devlink_linecard_provision_fail(struct devlink_linecard *linecard)
 {
 	mutex_lock(&linecard->state_lock);
 	linecard->state = DEVLINK_LINECARD_STATE_PROVISIONING_FAILED;
-	devlink_linecard_notify(linecard, DEVLINK_CMD_LINECARD_NEW);
+	devlink_linecard_analtify(linecard, DEVLINK_CMD_LINECARD_NEW);
 	mutex_unlock(&linecard->state_lock);
 }
 EXPORT_SYMBOL_GPL(devlink_linecard_provision_fail);
@@ -556,7 +556,7 @@ void devlink_linecard_activate(struct devlink_linecard *linecard)
 	mutex_lock(&linecard->state_lock);
 	WARN_ON(linecard->state != DEVLINK_LINECARD_STATE_PROVISIONED);
 	linecard->state = DEVLINK_LINECARD_STATE_ACTIVE;
-	devlink_linecard_notify(linecard, DEVLINK_CMD_LINECARD_NEW);
+	devlink_linecard_analtify(linecard, DEVLINK_CMD_LINECARD_NEW);
 	mutex_unlock(&linecard->state_lock);
 }
 EXPORT_SYMBOL_GPL(devlink_linecard_activate);
@@ -572,7 +572,7 @@ void devlink_linecard_deactivate(struct devlink_linecard *linecard)
 	switch (linecard->state) {
 	case DEVLINK_LINECARD_STATE_ACTIVE:
 		linecard->state = DEVLINK_LINECARD_STATE_PROVISIONED;
-		devlink_linecard_notify(linecard, DEVLINK_CMD_LINECARD_NEW);
+		devlink_linecard_analtify(linecard, DEVLINK_CMD_LINECARD_NEW);
 		break;
 	case DEVLINK_LINECARD_STATE_UNPROVISIONING:
 		/* Line card is being deactivated as part
@@ -587,7 +587,7 @@ void devlink_linecard_deactivate(struct devlink_linecard *linecard)
 }
 EXPORT_SYMBOL_GPL(devlink_linecard_deactivate);
 
-static void devlink_linecard_rel_notify_cb(struct devlink *devlink,
+static void devlink_linecard_rel_analtify_cb(struct devlink *devlink,
 					   u32 linecard_index)
 {
 	struct devlink_linecard *linecard;
@@ -595,7 +595,7 @@ static void devlink_linecard_rel_notify_cb(struct devlink *devlink,
 	linecard = devlink_linecard_get_by_index(devlink, linecard_index);
 	if (!linecard)
 		return;
-	devlink_linecard_notify(linecard, DEVLINK_CMD_LINECARD_NEW);
+	devlink_linecard_analtify(linecard, DEVLINK_CMD_LINECARD_NEW);
 }
 
 static void devlink_linecard_rel_cleanup_cb(struct devlink *devlink,
@@ -621,7 +621,7 @@ int devlink_linecard_nested_dl_set(struct devlink_linecard *linecard,
 	return devlink_rel_nested_in_add(&linecard->rel_index,
 					 linecard->devlink->index,
 					 linecard->index,
-					 devlink_linecard_rel_notify_cb,
+					 devlink_linecard_rel_analtify_cb,
 					 devlink_linecard_rel_cleanup_cb,
 					 nested_devlink);
 }

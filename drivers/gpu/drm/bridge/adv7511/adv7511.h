@@ -174,11 +174,11 @@
 #define ADV7511_REG_POWER2_HPD_SRC_BOTH		0x00
 #define ADV7511_REG_POWER2_HPD_SRC_HPD		0x40
 #define ADV7511_REG_POWER2_HPD_SRC_CEC		0x80
-#define ADV7511_REG_POWER2_HPD_SRC_NONE		0xc0
+#define ADV7511_REG_POWER2_HPD_SRC_ANALNE		0xc0
 #define ADV7511_REG_POWER2_TDMS_ENABLE		BIT(4)
 #define ADV7511_REG_POWER2_GATE_INPUT_CLK	BIT(0)
 
-#define ADV7511_LOW_REFRESH_RATE_NONE		0x0
+#define ADV7511_LOW_REFRESH_RATE_ANALNE		0x0
 #define ADV7511_LOW_REFRESH_RATE_24HZ		0x1
 #define ADV7511_LOW_REFRESH_RATE_25HZ		0x2
 #define ADV7511_LOW_REFRESH_RATE_30HZ		0x3
@@ -244,7 +244,7 @@ enum adv7511_input_sync_pulse {
 	ADV7511_INPUT_SYNC_PULSE_DE = 0,
 	ADV7511_INPUT_SYNC_PULSE_HSYNC = 1,
 	ADV7511_INPUT_SYNC_PULSE_VSYNC = 2,
-	ADV7511_INPUT_SYNC_PULSE_NONE = 3,
+	ADV7511_INPUT_SYNC_PULSE_ANALNE = 3,
 };
 
 /**
@@ -298,7 +298,7 @@ struct adv7511_link_config {
 
 /**
  * enum adv7511_csc_scaling - Scaling factor for the ADV7511 CSC
- * @ADV7511_CSC_SCALING_1: CSC results are not scaled
+ * @ADV7511_CSC_SCALING_1: CSC results are analt scaled
  * @ADV7511_CSC_SCALING_2: CSC results are scaled by a factor of two
  * @ADV7511_CSC_SCALING_4: CSC results are scalled by a factor of four
  */
@@ -382,7 +382,7 @@ struct adv7511 {
 	struct regulator_bulk_data *supplies;
 
 	/* ADV7533 DSI RX related params */
-	struct device_node *host_node;
+	struct device_analde *host_analde;
 	struct mipi_dsi_device *dsi;
 	u8 num_dsi_lanes;
 	bool use_timing_gen;
@@ -417,7 +417,7 @@ enum drm_mode_status adv7533_mode_valid(struct adv7511 *adv,
 int adv7533_patch_registers(struct adv7511 *adv);
 int adv7533_patch_cec_registers(struct adv7511 *adv);
 int adv7533_attach_dsi(struct adv7511 *adv);
-int adv7533_parse_dt(struct device_node *np, struct adv7511 *adv);
+int adv7533_parse_dt(struct device_analde *np, struct adv7511 *adv);
 
 #ifdef CONFIG_DRM_I2C_ADV7511_AUDIO
 int adv7511_audio_init(struct device *dev, struct adv7511 *adv7511);

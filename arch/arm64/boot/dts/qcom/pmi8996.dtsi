@@ -5,7 +5,7 @@
 
  /*
   * PMI8996 is a slight modification of PMI8994 with
-  * some notable changes, like being the first PMIC
+  * some analtable changes, like being the first PMIC
   * whose the bootloader has to check to continue booting
   * and a change to a LABIBB parameter.
   */

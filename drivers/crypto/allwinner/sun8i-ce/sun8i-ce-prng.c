@@ -44,7 +44,7 @@ int sun8i_ce_prng_seed(struct crypto_rng *tfm, const u8 *seed,
 	if (!ctx->seed)
 		ctx->seed = kmalloc(slen, GFP_KERNEL | GFP_DMA);
 	if (!ctx->seed)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(ctx->seed, seed, slen);
 	ctx->slen = slen;
@@ -72,7 +72,7 @@ int sun8i_ce_prng_generate(struct crypto_rng *tfm, const u8 *src,
 	ce = algt->ce;
 
 	if (ctx->slen == 0) {
-		dev_err(ce->dev, "not seeded\n");
+		dev_err(ce->dev, "analt seeded\n");
 		return -EINVAL;
 	}
 
@@ -82,7 +82,7 @@ int sun8i_ce_prng_generate(struct crypto_rng *tfm, const u8 *src,
 
 	d = kzalloc(todo, GFP_KERNEL | GFP_DMA);
 	if (!d) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_mem;
 	}
 
@@ -96,14 +96,14 @@ int sun8i_ce_prng_generate(struct crypto_rng *tfm, const u8 *src,
 
 	dma_iv = dma_map_single(ce->dev, ctx->seed, ctx->slen, DMA_TO_DEVICE);
 	if (dma_mapping_error(ce->dev, dma_iv)) {
-		dev_err(ce->dev, "Cannot DMA MAP IV\n");
+		dev_err(ce->dev, "Cananalt DMA MAP IV\n");
 		err = -EFAULT;
 		goto err_iv;
 	}
 
 	dma_dst = dma_map_single(ce->dev, d, todo, DMA_FROM_DEVICE);
 	if (dma_mapping_error(ce->dev, dma_dst)) {
-		dev_err(ce->dev, "Cannot DMA MAP DST\n");
+		dev_err(ce->dev, "Cananalt DMA MAP DST\n");
 		err = -EFAULT;
 		goto err_dst;
 	}

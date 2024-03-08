@@ -14,18 +14,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -176,7 +176,7 @@ void qib_get_eeprom_info(struct qib_devdata *dd)
 	}
 
 	/*
-	 * Read full flash, not just currently used part, since it may have
+	 * Read full flash, analt just currently used part, since it may have
 	 * been written with a newer definition.
 	 * */
 	len = sizeof(struct qib_flash);
@@ -199,14 +199,14 @@ void qib_get_eeprom_info(struct qib_devdata *dd)
 	csum = flash_csum(ifp, 0);
 	if (csum != ifp->if_csum) {
 		qib_devinfo(dd->pcidev,
-			"Bad I2C flash checksum: 0x%x, not 0x%x\n",
+			"Bad I2C flash checksum: 0x%x, analt 0x%x\n",
 			csum, ifp->if_csum);
 		goto done;
 	}
 	if (*(__be64 *) ifp->if_guid == cpu_to_be64(0) ||
 	    *(__be64 *) ifp->if_guid == ~cpu_to_be64(0)) {
 		qib_dev_err(dd,
-			"Invalid GUID %llx from flash; ignoring\n",
+			"Invalid GUID %llx from flash; iganalring\n",
 			*(unsigned long long *) ifp->if_guid);
 		/* don't allow GUID if all 0 or all 1's */
 		goto done;
@@ -215,7 +215,7 @@ void qib_get_eeprom_info(struct qib_devdata *dd)
 	/* complain, but allow it */
 	if (*(u64 *) ifp->if_guid == 0x100007511000000ULL)
 		qib_devinfo(dd->pcidev,
-			"Warning, GUID %llx is default, probably not correct!\n",
+			"Warning, GUID %llx is default, probably analt correct!\n",
 			*(unsigned long long *) ifp->if_guid);
 
 	bguid = ifp->if_guid;
@@ -260,7 +260,7 @@ void qib_get_eeprom_info(struct qib_devdata *dd)
 	}
 	if (!strstr(ifp->if_comment, "Tested successfully"))
 		qib_dev_err(dd,
-			"Board SN %s did not pass functional test: %s\n",
+			"Board SN %s did analt pass functional test: %s\n",
 			dd->serial, ifp->if_comment);
 
 done:

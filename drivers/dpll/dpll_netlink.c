@@ -15,7 +15,7 @@
 #include "dpll_nl.h"
 #include <uapi/linux/dpll.h>
 
-#define ASSERT_NOT_NULL(ptr)	(WARN_ON(!ptr))
+#define ASSERT_ANALT_NULL(ptr)	(WARN_ON(!ptr))
 
 #define xa_for_each_marked_start(xa, index, entry, filter, start) \
 	for (index = start, entry = xa_find(xa, &index, ULONG_MAX, filter); \
@@ -55,7 +55,7 @@ dpll_msg_add_dev_parent_handle(struct sk_buff *msg, u32 id)
  *
  * Return:
  * * 0 - success
- * * -EMSGSIZE - no space in message to attach pin handle
+ * * -EMSGSIZE - anal space in message to attach pin handle
  */
 static int dpll_msg_add_pin_handle(struct sk_buff *msg, struct dpll_pin *pin)
 {
@@ -75,7 +75,7 @@ static struct dpll_pin *dpll_netdev_pin(const struct net_device *dev)
  * dpll_netdev_pin_handle_size - get size of pin handle attribute of a netdev
  * @dev: netdev from which to get the pin
  *
- * Return: byte size of pin handle attribute, or 0 if @dev has no pin.
+ * Return: byte size of pin handle attribute, or 0 if @dev has anal pin.
  */
 size_t dpll_netdev_pin_handle_size(const struct net_device *dev)
 {
@@ -113,7 +113,7 @@ dpll_msg_add_mode_supported(struct sk_buff *msg, struct dpll_device *dpll,
 	enum dpll_mode mode;
 	int ret;
 
-	/* No mode change is supported now, so the only supported mode is the
+	/* Anal mode change is supported analw, so the only supported mode is the
 	 * one obtained by mode_get().
 	 */
 
@@ -287,7 +287,7 @@ static int dpll_msg_add_ffo(struct sk_buff *msg, struct dpll_pin *pin,
 	ret = ops->ffo_get(pin, dpll_pin_on_dpll_priv(dpll, pin),
 			   dpll, dpll_priv(dpll), &ffo, extack);
 	if (ret) {
-		if (ret == -ENODATA)
+		if (ret == -EANALDATA)
 			return 0;
 		return ret;
 	}
@@ -436,7 +436,7 @@ dpll_cmd_pin_get_one(struct sk_buff *msg, struct dpll_pin *pin,
 	int ret;
 
 	ref = dpll_xa_ref_dpll_first(&pin->dpll_refs);
-	ASSERT_NOT_NULL(ref);
+	ASSERT_ANALT_NULL(ref);
 
 	ret = dpll_msg_add_pin_handle(msg, pin);
 	if (ret)
@@ -520,14 +520,14 @@ static int
 dpll_device_event_send(enum dpll_cmd event, struct dpll_device *dpll)
 {
 	struct sk_buff *msg;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 	void *hdr;
 
 	if (WARN_ON(!xa_get_mark(&dpll_device_xa, dpll->id, DPLL_REGISTERED)))
-		return -ENODEV;
+		return -EANALDEV;
 	msg = genlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 	hdr = genlmsg_put(msg, 0, 0, &dpll_nl_family, 0, event);
 	if (!hdr)
 		goto err_free_msg;
@@ -582,7 +582,7 @@ static bool dpll_pin_available(struct dpll_pin *pin)
 }
 
 /**
- * dpll_device_change_ntf - notify that the dpll device has been changed
+ * dpll_device_change_ntf - analtify that the dpll device has been changed
  * @dpll: registered dpll pointer
  *
  * Context: acquires and holds a dpll_lock.
@@ -604,15 +604,15 @@ static int
 dpll_pin_event_send(enum dpll_cmd event, struct dpll_pin *pin)
 {
 	struct sk_buff *msg;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 	void *hdr;
 
 	if (!dpll_pin_available(pin))
-		return -ENODEV;
+		return -EANALDEV;
 
 	msg = genlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hdr = genlmsg_put(msg, 0, 0, &dpll_nl_family, 0, event);
 	if (!hdr)
@@ -649,7 +649,7 @@ static int __dpll_pin_change_ntf(struct dpll_pin *pin)
 }
 
 /**
- * dpll_pin_change_ntf - notify that the pin has been changed
+ * dpll_pin_change_ntf - analtify that the pin has been changed
  * @pin: registered pin pointer
  *
  * Context: acquires and holds a dpll_lock.
@@ -679,15 +679,15 @@ dpll_pin_freq_set(struct dpll_pin *pin, struct nlattr *a,
 	int ret;
 
 	if (!dpll_pin_is_freq_supported(pin, freq)) {
-		NL_SET_ERR_MSG_ATTR(extack, a, "frequency is not supported by the device");
+		NL_SET_ERR_MSG_ATTR(extack, a, "frequency is analt supported by the device");
 		return -EINVAL;
 	}
 
 	xa_for_each(&pin->dpll_refs, i, ref) {
 		ops = dpll_pin_ops(ref);
 		if (!ops->frequency_set || !ops->frequency_get) {
-			NL_SET_ERR_MSG(extack, "frequency set not supported by the device");
-			return -EOPNOTSUPP;
+			NL_SET_ERR_MSG(extack, "frequency set analt supported by the device");
+			return -EOPANALTSUPP;
 		}
 	}
 	ref = dpll_xa_ref_dpll_first(&pin->dpll_refs);
@@ -746,8 +746,8 @@ dpll_pin_on_pin_state_set(struct dpll_pin *pin, u32 parent_idx,
 
 	if (!(DPLL_PIN_CAPABILITIES_STATE_CAN_CHANGE &
 	      pin->prop.capabilities)) {
-		NL_SET_ERR_MSG(extack, "state changing is not allowed");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG(extack, "state changing is analt allowed");
+		return -EOPANALTSUPP;
 	}
 	parent = xa_load(&dpll_pin_xa, parent_idx);
 	if (!parent)
@@ -758,7 +758,7 @@ dpll_pin_on_pin_state_set(struct dpll_pin *pin, u32 parent_idx,
 	xa_for_each(&parent->dpll_refs, i, dpll_ref) {
 		ops = dpll_pin_ops(parent_ref);
 		if (!ops->state_on_pin_set)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		pin_priv = dpll_pin_on_pin_priv(parent, pin);
 		parent_priv = dpll_pin_on_dpll_priv(dpll_ref->dpll, parent);
 		ret = ops->state_on_pin_set(pin, pin_priv, parent, parent_priv,
@@ -782,14 +782,14 @@ dpll_pin_state_set(struct dpll_device *dpll, struct dpll_pin *pin,
 
 	if (!(DPLL_PIN_CAPABILITIES_STATE_CAN_CHANGE &
 	      pin->prop.capabilities)) {
-		NL_SET_ERR_MSG(extack, "state changing is not allowed");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG(extack, "state changing is analt allowed");
+		return -EOPANALTSUPP;
 	}
 	ref = xa_load(&pin->dpll_refs, dpll->id);
-	ASSERT_NOT_NULL(ref);
+	ASSERT_ANALT_NULL(ref);
 	ops = dpll_pin_ops(ref);
 	if (!ops->state_on_dpll_set)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	ret = ops->state_on_dpll_set(pin, dpll_pin_on_dpll_priv(dpll, pin),
 				     dpll, dpll_priv(dpll), state, extack);
 	if (ret)
@@ -809,14 +809,14 @@ dpll_pin_prio_set(struct dpll_device *dpll, struct dpll_pin *pin,
 
 	if (!(DPLL_PIN_CAPABILITIES_PRIORITY_CAN_CHANGE &
 	      pin->prop.capabilities)) {
-		NL_SET_ERR_MSG(extack, "prio changing is not allowed");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG(extack, "prio changing is analt allowed");
+		return -EOPANALTSUPP;
 	}
 	ref = xa_load(&pin->dpll_refs, dpll->id);
-	ASSERT_NOT_NULL(ref);
+	ASSERT_ANALT_NULL(ref);
 	ops = dpll_pin_ops(ref);
 	if (!ops->prio_set)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	ret = ops->prio_set(pin, dpll_pin_on_dpll_priv(dpll, pin), dpll,
 			    dpll_priv(dpll), prio, extack);
 	if (ret)
@@ -837,14 +837,14 @@ dpll_pin_direction_set(struct dpll_pin *pin, struct dpll_device *dpll,
 
 	if (!(DPLL_PIN_CAPABILITIES_DIRECTION_CAN_CHANGE &
 	      pin->prop.capabilities)) {
-		NL_SET_ERR_MSG(extack, "direction changing is not allowed");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG(extack, "direction changing is analt allowed");
+		return -EOPANALTSUPP;
 	}
 	ref = xa_load(&pin->dpll_refs, dpll->id);
-	ASSERT_NOT_NULL(ref);
+	ASSERT_ANALT_NULL(ref);
 	ops = dpll_pin_ops(ref);
 	if (!ops->direction_set)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	ret = ops->direction_set(pin, dpll_pin_on_dpll_priv(dpll, pin),
 				 dpll, dpll_priv(dpll), direction, extack);
 	if (ret)
@@ -869,15 +869,15 @@ dpll_pin_phase_adj_set(struct dpll_pin *pin, struct nlattr *phase_adj_attr,
 	if (phase_adj > pin->prop.phase_range.max ||
 	    phase_adj < pin->prop.phase_range.min) {
 		NL_SET_ERR_MSG_ATTR(extack, phase_adj_attr,
-				    "phase adjust value not supported");
+				    "phase adjust value analt supported");
 		return -EINVAL;
 	}
 
 	xa_for_each(&pin->dpll_refs, i, ref) {
 		ops = dpll_pin_ops(ref);
 		if (!ops->phase_adjust_set || !ops->phase_adjust_get) {
-			NL_SET_ERR_MSG(extack, "phase adjust not supported");
-			return -EOPNOTSUPP;
+			NL_SET_ERR_MSG(extack, "phase adjust analt supported");
+			return -EOPANALTSUPP;
 		}
 	}
 	ref = dpll_xa_ref_dpll_first(&pin->dpll_refs);
@@ -947,12 +947,12 @@ dpll_pin_parent_device_set(struct dpll_pin *pin, struct nlattr *parent_nest,
 	pdpll_idx = nla_get_u32(tb[DPLL_A_PIN_PARENT_ID]);
 	dpll = xa_load(&dpll_device_xa, pdpll_idx);
 	if (!dpll) {
-		NL_SET_ERR_MSG(extack, "parent device not found");
+		NL_SET_ERR_MSG(extack, "parent device analt found");
 		return -EINVAL;
 	}
 	ref = xa_load(&pin->dpll_refs, dpll->id);
 	if (!ref) {
-		NL_SET_ERR_MSG(extack, "pin not connected to given parent device");
+		NL_SET_ERR_MSG(extack, "pin analt connected to given parent device");
 		return -EINVAL;
 	}
 	if (tb[DPLL_A_PIN_STATE]) {
@@ -1076,8 +1076,8 @@ dpll_pin_find(u64 clock_id, struct nlattr *mod_name_attr,
 		}
 	}
 	if (!pin_match) {
-		NL_SET_ERR_MSG(extack, "not found");
-		return ERR_PTR(-ENODEV);
+		NL_SET_ERR_MSG(extack, "analt found");
+		return ERR_PTR(-EANALDEV);
 	}
 	return pin_match;
 }
@@ -1149,7 +1149,7 @@ int dpll_nl_pin_id_get_doit(struct sk_buff *skb, struct genl_info *info)
 
 	msg = genlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 	hdr = genlmsg_put_reply(msg, info, &dpll_nl_family, 0,
 				DPLL_CMD_PIN_ID_GET);
 	if (!hdr) {
@@ -1160,7 +1160,7 @@ int dpll_nl_pin_id_get_doit(struct sk_buff *skb, struct genl_info *info)
 	if (!IS_ERR(pin)) {
 		if (!dpll_pin_available(pin)) {
 			nlmsg_free(msg);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 		ret = dpll_msg_add_pin_handle(msg, pin);
 		if (ret) {
@@ -1181,10 +1181,10 @@ int dpll_nl_pin_get_doit(struct sk_buff *skb, struct genl_info *info)
 	int ret;
 
 	if (!pin)
-		return -ENODEV;
+		return -EANALDEV;
 	msg = genlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 	hdr = genlmsg_put_reply(msg, info, &dpll_nl_family, 0,
 				DPLL_CMD_PIN_GET);
 	if (!hdr) {
@@ -1268,8 +1268,8 @@ dpll_device_find(u64 clock_id, struct nlattr *mod_name_attr,
 		}
 	}
 	if (!dpll_match) {
-		NL_SET_ERR_MSG(extack, "not found");
-		return ERR_PTR(-ENODEV);
+		NL_SET_ERR_MSG(extack, "analt found");
+		return ERR_PTR(-EANALDEV);
 	}
 
 	return dpll_match;
@@ -1324,7 +1324,7 @@ int dpll_nl_device_id_get_doit(struct sk_buff *skb, struct genl_info *info)
 
 	msg = genlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 	hdr = genlmsg_put_reply(msg, info, &dpll_nl_family, 0,
 				DPLL_CMD_DEVICE_ID_GET);
 	if (!hdr) {
@@ -1354,7 +1354,7 @@ int dpll_nl_device_get_doit(struct sk_buff *skb, struct genl_info *info)
 
 	msg = genlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 	hdr = genlmsg_put_reply(msg, info, &dpll_nl_family, 0,
 				DPLL_CMD_DEVICE_GET);
 	if (!hdr) {
@@ -1424,13 +1424,13 @@ int dpll_pre_doit(const struct genl_split_ops *ops, struct sk_buff *skb,
 	id = nla_get_u32(info->attrs[DPLL_A_ID]);
 	info->user_ptr[0] = dpll_device_get_by_id(id);
 	if (!info->user_ptr[0]) {
-		NL_SET_ERR_MSG(info->extack, "device not found");
+		NL_SET_ERR_MSG(info->extack, "device analt found");
 		goto unlock;
 	}
 	return 0;
 unlock:
 	mutex_unlock(&dpll_lock);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 void dpll_post_doit(const struct genl_split_ops *ops, struct sk_buff *skb,
@@ -1469,8 +1469,8 @@ int dpll_pin_pre_doit(const struct genl_split_ops *ops, struct sk_buff *skb,
 				    nla_get_u32(info->attrs[DPLL_A_PIN_ID]));
 	if (!info->user_ptr[0] ||
 	    !dpll_pin_available(info->user_ptr[0])) {
-		NL_SET_ERR_MSG(info->extack, "pin not found");
-		ret = -ENODEV;
+		NL_SET_ERR_MSG(info->extack, "pin analt found");
+		ret = -EANALDEV;
 		goto unlock_dev;
 	}
 

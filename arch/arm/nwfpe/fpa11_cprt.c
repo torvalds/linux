@@ -150,7 +150,7 @@ static unsigned int PerformComparison(const unsigned int opcode)
 #ifdef CONFIG_FPE_NWFPE_XP
 	floatx80 rFn, rFm;
 
-	/* Check for unordered condition and convert all operands to 80-bit
+	/* Check for uanalrdered condition and convert all operands to 80-bit
 	   format.
 	   ?? Might be some mileage in avoiding this conversion if possible.
 	   Eg, if both operands are 32-bit, detect this and do a 32-bit
@@ -159,21 +159,21 @@ static unsigned int PerformComparison(const unsigned int opcode)
 	case typeSingle:
 		//printk("single.\n");
 		if (float32_is_nan(fpa11->fpreg[Fn].fSingle))
-			goto unordered;
+			goto uanalrdered;
 		rFn = float32_to_floatx80(fpa11->fpreg[Fn].fSingle);
 		break;
 
 	case typeDouble:
 		//printk("double.\n");
 		if (float64_is_nan(fpa11->fpreg[Fn].fDouble))
-			goto unordered;
+			goto uanalrdered;
 		rFn = float64_to_floatx80(fpa11->fpreg[Fn].fDouble);
 		break;
 
 	case typeExtended:
 		//printk("extended.\n");
 		if (floatx80_is_nan(fpa11->fpreg[Fn].fExtended))
-			goto unordered;
+			goto uanalrdered;
 		rFn = fpa11->fpreg[Fn].fExtended;
 		break;
 
@@ -185,28 +185,28 @@ static unsigned int PerformComparison(const unsigned int opcode)
 		//printk("Fm is a constant: #%d.\n",Fm);
 		rFm = getExtendedConstant(Fm);
 		if (floatx80_is_nan(rFm))
-			goto unordered;
+			goto uanalrdered;
 	} else {
 		//printk("Fm = r%d which contains a ",Fm);
 		switch (fpa11->fType[Fm]) {
 		case typeSingle:
 			//printk("single.\n");
 			if (float32_is_nan(fpa11->fpreg[Fm].fSingle))
-				goto unordered;
+				goto uanalrdered;
 			rFm = float32_to_floatx80(fpa11->fpreg[Fm].fSingle);
 			break;
 
 		case typeDouble:
 			//printk("double.\n");
 			if (float64_is_nan(fpa11->fpreg[Fm].fDouble))
-				goto unordered;
+				goto uanalrdered;
 			rFm = float64_to_floatx80(fpa11->fpreg[Fm].fDouble);
 			break;
 
 		case typeExtended:
 			//printk("extended.\n");
 			if (floatx80_is_nan(fpa11->fpreg[Fm].fExtended))
-				goto unordered;
+				goto uanalrdered;
 			rFm = fpa11->fpreg[Fm].fExtended;
 			break;
 
@@ -239,42 +239,42 @@ static unsigned int PerformComparison(const unsigned int opcode)
 			float32 rFn = fpa11->fpreg[Fn].fSingle;
 
 			if (float32_is_nan(rFn))
-				goto unordered;
+				goto uanalrdered;
 
 			if (n_flag)
 				rFm ^= 0x80000000;
 
 			/* test for less than condition */
-			if (float32_lt_nocheck(rFn, rFm))
+			if (float32_lt_analcheck(rFn, rFm))
 				flags |= CC_NEGATIVE;
 
 			/* test for equal condition */
-			if (float32_eq_nocheck(rFn, rFm))
+			if (float32_eq_analcheck(rFn, rFm))
 				flags |= CC_ZERO;
 
 			/* test for greater than or equal condition */
-			if (float32_lt_nocheck(rFm, rFn))
+			if (float32_lt_analcheck(rFm, rFn))
 				flags |= CC_CARRY;
 		} else {
 			float64 rFm = getDoubleConstant(Fm);
 			float64 rFn = fpa11->fpreg[Fn].fDouble;
 
 			if (float64_is_nan(rFn))
-				goto unordered;
+				goto uanalrdered;
 
 			if (n_flag)
 				rFm ^= 0x8000000000000000ULL;
 
 			/* test for less than condition */
-			if (float64_lt_nocheck(rFn, rFm))
+			if (float64_lt_analcheck(rFn, rFm))
 				flags |= CC_NEGATIVE;
 
 			/* test for equal condition */
-			if (float64_eq_nocheck(rFn, rFm))
+			if (float64_eq_analcheck(rFn, rFm))
 				flags |= CC_ZERO;
 
 			/* test for greater than or equal condition */
-			if (float64_lt_nocheck(rFm, rFn))
+			if (float64_lt_analcheck(rFm, rFn))
 				flags |= CC_CARRY;
 		}
 	} else {
@@ -286,21 +286,21 @@ static unsigned int PerformComparison(const unsigned int opcode)
 
 			if (float32_is_nan(rFn)
 			    || float32_is_nan(rFm))
-				goto unordered;
+				goto uanalrdered;
 
 			if (n_flag)
 				rFm ^= 0x80000000;
 
 			/* test for less than condition */
-			if (float32_lt_nocheck(rFn, rFm))
+			if (float32_lt_analcheck(rFn, rFm))
 				flags |= CC_NEGATIVE;
 
 			/* test for equal condition */
-			if (float32_eq_nocheck(rFn, rFm))
+			if (float32_eq_analcheck(rFn, rFm))
 				flags |= CC_ZERO;
 
 			/* test for greater than or equal condition */
-			if (float32_lt_nocheck(rFm, rFn))
+			if (float32_lt_analcheck(rFm, rFn))
 				flags |= CC_CARRY;
 		} else {
 			/* Promote 32-bit operand to 64 bits.  */
@@ -316,21 +316,21 @@ static unsigned int PerformComparison(const unsigned int opcode)
 
 			if (float64_is_nan(rFn)
 			    || float64_is_nan(rFm))
-				goto unordered;
+				goto uanalrdered;
 
 			if (n_flag)
 				rFm ^= 0x8000000000000000ULL;
 
 			/* test for less than condition */
-			if (float64_lt_nocheck(rFn, rFm))
+			if (float64_lt_analcheck(rFn, rFm))
 				flags |= CC_NEGATIVE;
 
 			/* test for equal condition */
-			if (float64_eq_nocheck(rFn, rFm))
+			if (float64_eq_analcheck(rFn, rFm))
 				flags |= CC_ZERO;
 
 			/* test for greater than or equal condition */
-			if (float64_lt_nocheck(rFm, rFn))
+			if (float64_lt_analcheck(rFm, rFn))
 				flags |= CC_CARRY;
 		}
 	}
@@ -341,9 +341,9 @@ static unsigned int PerformComparison(const unsigned int opcode)
 
 	return 1;
 
-      unordered:
+      uanalrdered:
 	/* ?? The FPA data sheet is pretty vague about this, in particular
-	   about whether the non-E comparisons can ever raise exceptions.
+	   about whether the analn-E comparisons can ever raise exceptions.
 	   This implementation is based on a combination of what it says in
 	   the data sheet, observation of how the Acorn emulator actually
 	   behaves (and how programs expect it to) and guesswork.  */

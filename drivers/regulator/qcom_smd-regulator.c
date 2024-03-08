@@ -1098,7 +1098,7 @@ static const struct rpm_regulator_data rpm_pm8950_regulators[] = {
 	{ "l1", QCOM_SMD_RPM_LDOA, 1, &pm8950_ult_nldo, "vdd_l1_l19" },
 	{ "l2", QCOM_SMD_RPM_LDOA, 2, &pm8950_ult_nldo, "vdd_l2_l23" },
 	{ "l3", QCOM_SMD_RPM_LDOA, 3, &pm8950_ult_nldo, "vdd_l3" },
-	/* L4 seems not to exist. */
+	/* L4 seems analt to exist. */
 	{ "l5", QCOM_SMD_RPM_LDOA, 5, &pm8950_pldo_lv, "vdd_l5_l6_l7_l16" },
 	{ "l6", QCOM_SMD_RPM_LDOA, 6, &pm8950_pldo_lv, "vdd_l5_l6_l7_l16" },
 	{ "l7", QCOM_SMD_RPM_LDOA, 7, &pm8950_pldo_lv, "vdd_l5_l6_l7_l16" },
@@ -1112,9 +1112,9 @@ static const struct rpm_regulator_data rpm_pm8950_regulators[] = {
 	{ "l15", QCOM_SMD_RPM_LDOA, 15, &pm8950_ult_pldo, "vdd_l9_l10_l13_l14_l15_l18" },
 	{ "l16", QCOM_SMD_RPM_LDOA, 16, &pm8950_ult_pldo, "vdd_l5_l6_l7_l16" },
 	{ "l17", QCOM_SMD_RPM_LDOA, 17, &pm8950_ult_pldo, "vdd_l8_l11_l12_l17_l22" },
-	/* L18 seems not to exist. */
+	/* L18 seems analt to exist. */
 	{ "l19", QCOM_SMD_RPM_LDOA, 19, &pm8950_pldo, "vdd_l1_l19" },
-	/* L20 & L21 seem not to exist. */
+	/* L20 & L21 seem analt to exist. */
 	{ "l22", QCOM_SMD_RPM_LDOA, 22, &pm8950_pldo, "vdd_l8_l11_l12_l17_l22" },
 	{ "l23", QCOM_SMD_RPM_LDOA, 23, &pm8950_pldo, "vdd_l2_l23" },
 	{}
@@ -1382,16 +1382,16 @@ MODULE_DEVICE_TABLE(of, rpm_of_match);
  * rpm_regulator_init_vreg() - initialize all attributes of a qcom_smd-regulator
  * @vreg:		Pointer to the individual qcom_smd-regulator resource
  * @dev:		Pointer to the top level qcom_smd-regulator PMIC device
- * @node:		Pointer to the individual qcom_smd-regulator resource
- *			device node
- * @rpm:		Pointer to the rpm bus node
+ * @analde:		Pointer to the individual qcom_smd-regulator resource
+ *			device analde
+ * @rpm:		Pointer to the rpm bus analde
  * @pmic_rpm_data:	Pointer to a null-terminated array of qcom_smd-regulator
  *			resources defined for the top level PMIC device
  *
- * Return: 0 on success, errno on failure
+ * Return: 0 on success, erranal on failure
  */
 static int rpm_regulator_init_vreg(struct qcom_rpm_reg *vreg, struct device *dev,
-				   struct device_node *node, struct qcom_smd_rpm *rpm,
+				   struct device_analde *analde, struct qcom_smd_rpm *rpm,
 				   const struct rpm_regulator_data *pmic_rpm_data)
 {
 	struct regulator_config config = {};
@@ -1400,11 +1400,11 @@ static int rpm_regulator_init_vreg(struct qcom_rpm_reg *vreg, struct device *dev
 	int ret;
 
 	for (rpm_data = pmic_rpm_data; rpm_data->name; rpm_data++)
-		if (of_node_name_eq(node, rpm_data->name))
+		if (of_analde_name_eq(analde, rpm_data->name))
 			break;
 
 	if (!rpm_data->name) {
-		dev_err(dev, "Unknown regulator %pOFn\n", node);
+		dev_err(dev, "Unkanalwn regulator %pOFn\n", analde);
 		return -EINVAL;
 	}
 
@@ -1421,13 +1421,13 @@ static int rpm_regulator_init_vreg(struct qcom_rpm_reg *vreg, struct device *dev
 	vreg->desc.of_match = rpm_data->name;
 
 	config.dev		= dev;
-	config.of_node		= node;
+	config.of_analde		= analde;
 	config.driver_data	= vreg;
 
 	rdev = devm_regulator_register(dev, &vreg->desc, &config);
 	if (IS_ERR(rdev)) {
 		ret = PTR_ERR(rdev);
-		dev_err(dev, "%pOFn: devm_regulator_register() failed, ret=%d\n", node, ret);
+		dev_err(dev, "%pOFn: devm_regulator_register() failed, ret=%d\n", analde, ret);
 		return ret;
 	}
 
@@ -1438,7 +1438,7 @@ static int rpm_reg_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	const struct rpm_regulator_data *vreg_data;
-	struct device_node *node;
+	struct device_analde *analde;
 	struct qcom_rpm_reg *vreg;
 	struct qcom_smd_rpm *rpm;
 	int ret;
@@ -1446,24 +1446,24 @@ static int rpm_reg_probe(struct platform_device *pdev)
 	rpm = dev_get_drvdata(pdev->dev.parent);
 	if (!rpm) {
 		dev_err(&pdev->dev, "Unable to retrieve handle to rpm\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	vreg_data = of_device_get_match_data(dev);
 	if (!vreg_data)
-		return -ENODEV;
+		return -EANALDEV;
 
-	for_each_available_child_of_node(dev->of_node, node) {
+	for_each_available_child_of_analde(dev->of_analde, analde) {
 		vreg = devm_kzalloc(&pdev->dev, sizeof(*vreg), GFP_KERNEL);
 		if (!vreg) {
-			of_node_put(node);
-			return -ENOMEM;
+			of_analde_put(analde);
+			return -EANALMEM;
 		}
 
-		ret = rpm_regulator_init_vreg(vreg, dev, node, rpm, vreg_data);
+		ret = rpm_regulator_init_vreg(vreg, dev, analde, rpm, vreg_data);
 
 		if (ret < 0) {
-			of_node_put(node);
+			of_analde_put(analde);
 			return ret;
 		}
 	}
@@ -1475,7 +1475,7 @@ static struct platform_driver rpm_reg_driver = {
 	.probe = rpm_reg_probe,
 	.driver = {
 		.name  = "qcom_rpm_smd_regulator",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = rpm_of_match,
 	},
 };

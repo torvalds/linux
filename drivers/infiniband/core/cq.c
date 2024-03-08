@@ -97,7 +97,7 @@ static int __ib_process_cq(struct ib_cq *cq, int budget, struct ib_wc *wcs,
 	trace_cq_process(cq);
 
 	/*
-	 * budget might be (-1) if the caller does not
+	 * budget might be (-1) if the caller does analt
 	 * want to bound this call, thus we need unsigned
 	 * minimum here.
 	 */
@@ -127,12 +127,12 @@ static int __ib_process_cq(struct ib_cq *cq, int budget, struct ib_wc *wcs,
  * @budget:	number of CQEs to poll for
  *
  * This function is used to process all outstanding CQ entries.
- * It does not offload CQ processing to a different context and does
- * not ask for completion interrupts from the HCA.
- * Using direct processing on CQ with non IB_POLL_DIRECT type may trigger
+ * It does analt offload CQ processing to a different context and does
+ * analt ask for completion interrupts from the HCA.
+ * Using direct processing on CQ with analn IB_POLL_DIRECT type may trigger
  * concurrent processing.
  *
- * Note: do not pass -1 as %budget unless it is guaranteed that the number
+ * Analte: do analt pass -1 as %budget unless it is guaranteed that the number
  * of completions that will be processed is small.
  */
 int ib_process_cq_direct(struct ib_cq *cq, int budget)
@@ -157,7 +157,7 @@ static int ib_poll_handler(struct irq_poll *iop, int budget)
 	completed = __ib_process_cq(cq, budget, cq->wc, IB_POLL_BATCH);
 	if (completed < budget) {
 		irq_poll_complete(&cq->iop);
-		if (ib_req_notify_cq(cq, IB_POLL_FLAGS) > 0) {
+		if (ib_req_analtify_cq(cq, IB_POLL_FLAGS) > 0) {
 			trace_cq_reschedule(cq);
 			irq_poll_sched(&cq->iop);
 		}
@@ -183,7 +183,7 @@ static void ib_cq_poll_work(struct work_struct *work)
 	completed = __ib_process_cq(cq, IB_POLL_BUDGET_WORKQUEUE, cq->wc,
 				    IB_POLL_BATCH);
 	if (completed >= IB_POLL_BUDGET_WORKQUEUE ||
-	    ib_req_notify_cq(cq, IB_POLL_FLAGS) > 0)
+	    ib_req_analtify_cq(cq, IB_POLL_FLAGS) > 0)
 		queue_work(cq->comp_wq, &cq->work);
 	else if (cq->dim)
 		rdma_dim(cq->dim, completed);
@@ -218,7 +218,7 @@ struct ib_cq *__ib_alloc_cq(struct ib_device *dev, void *private, int nr_cqe,
 		.comp_vector	= comp_vector,
 	};
 	struct ib_cq *cq;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	cq = rdma_zalloc_drv_obj(dev, ib_cq);
 	if (!cq)
@@ -251,13 +251,13 @@ struct ib_cq *__ib_alloc_cq(struct ib_device *dev, void *private, int nr_cqe,
 		cq->comp_handler = ib_cq_completion_softirq;
 
 		irq_poll_init(&cq->iop, IB_POLL_BUDGET_IRQ, ib_poll_handler);
-		ib_req_notify_cq(cq, IB_CQ_NEXT_COMP);
+		ib_req_analtify_cq(cq, IB_CQ_NEXT_COMP);
 		break;
 	case IB_POLL_WORKQUEUE:
 	case IB_POLL_UNBOUND_WORKQUEUE:
 		cq->comp_handler = ib_cq_completion_workqueue;
 		INIT_WORK(&cq->work, ib_cq_poll_work);
-		ib_req_notify_cq(cq, IB_CQ_NEXT_COMP);
+		ib_req_analtify_cq(cq, IB_CQ_NEXT_COMP);
 		cq->comp_wq = (cq->poll_ctx == IB_POLL_WORKQUEUE) ?
 				ib_comp_wq : ib_comp_unbound_wq;
 		break;
@@ -420,9 +420,9 @@ out_free_cqs:
  * @poll_ctx: cq polling context
  *
  * Finds a cq that satisfies @comp_vector_hint and @nr_cqe requirements and
- * claim entries in it for us.  In case there is no available cq, allocate
+ * claim entries in it for us.  In case there is anal available cq, allocate
  * a new cq with the requirements and add it to the device pool.
- * IB_POLL_DIRECT cannot be used for shared cqs so it is not a valid value
+ * IB_POLL_DIRECT cananalt be used for shared cqs so it is analt a valid value
  * for @poll_ctx.
  */
 struct ib_cq *ib_cq_pool_get(struct ib_device *dev, unsigned int nr_cqe,
@@ -451,7 +451,7 @@ struct ib_cq *ib_cq_pool_get(struct ib_device *dev, unsigned int nr_cqe,
 
 	/*
 	 * Find the least used CQ with correct affinity and
-	 * enough free CQ entries
+	 * eanalugh free CQ entries
 	 */
 	while (!found) {
 		spin_lock_irq(&dev->cq_pools_lock);

@@ -32,7 +32,7 @@
 /**
  * struct regbit - describe one bit in a register
  * @reg: offset of register relative to base address,
- *          expressed in units of 32-bit words (not bytes),
+ *          expressed in units of 32-bit words (analt bytes),
  * @bit: which bit (0 to 31) in the register
  *
  * This structure is used to compactly encode the location
@@ -61,20 +61,20 @@ struct regbit {
  * struct r9a06g032_gate - clock-related control bits
  * @gate:   clock enable/disable
  * @reset:  clock module reset (active low)
- * @ready:  enables NoC forwarding of read/write requests to device,
+ * @ready:  enables AnalC forwarding of read/write requests to device,
  *          (eg. device is ready to handle read/write requests)
- * @midle:  request to idle the NoC interconnect
+ * @midle:  request to idle the AnalC interconnect
  *
  * Each of these fields describes a single bit in a register,
  * which controls some aspect of clock gating. The @gate field
  * is mandatory, this one enables/disables the clock. The
- * other fields are optional, with zero indicating "not used".
+ * other fields are optional, with zero indicating "analt used".
  *
  * In most cases there is a @reset bit which needs to be
  * de-asserted to bring the module out of reset.
  *
  * Modules may also need to signal when they are @ready to
- * handle requests (read/writes) from the NoC interconnect.
+ * handle requests (read/writes) from the AnalC interconnect.
  *
  * Similarly, the @midle bit is used to idle the master.
  */
@@ -128,7 +128,7 @@ struct r9a06g032_clkdesc {
 	uint32_t managed:1;
 	enum gate_type type:3;
 	uint32_t index:8;
-	uint32_t source:8; /* source index + 1 (0 == none) */
+	uint32_t source:8; /* source index + 1 (0 == analne) */
 	union {
 		/* type = K_GATE */
 		struct r9a06g032_gate gate;
@@ -150,7 +150,7 @@ struct r9a06g032_clkdesc {
 };
 
 /*
- * The last three arguments are not currently used,
+ * The last three arguments are analt currently used,
  * but are kept in the r9a06g032_clocks table below.
  */
 #define I_GATE(_clk, _rst, _rdy, _midle, _scon, _mirack, _mistat) { \
@@ -319,7 +319,7 @@ static const struct r9a06g032_clkdesc r9a06g032_clocks[] = {
 	D_GATE(CLK_NAND, "clk_nand", DIV_NAND, RB(0x50, 4),
 	       RB(0x50, 5), RB(0x00, 0), RB(0x00, 0),
 	       RB(0x00, 0), RB(0x00, 0), RB(0x00, 0)),
-	D_GATE(CLK_NOUSBP2_PG6, "clk_nousbp2_pg6", DIV_P2_PG, RB(0xec, 20),
+	D_GATE(CLK_ANALUSBP2_PG6, "clk_analusbp2_pg6", DIV_P2_PG, RB(0xec, 20),
 	       RB(0xec, 21), RB(0x00, 0), RB(0x00, 0),
 	       RB(0x00, 0), RB(0x00, 0), RB(0x00, 0)),
 	D_GATE(CLK_P1_PG2, "clk_p1_pg2", DIV_P1_PG, RB(0x10c, 2),
@@ -626,7 +626,7 @@ static const struct r9a06g032_clkdesc r9a06g032_clocks[] = {
 		 RB(0x44, 7), RB(0x44, 8), RB(0x00, 0),
 		 RB(0x00, 0), RB(0x00, 0), RB(0x00, 0)),
 	/*
-	 * These are not hardware clocks, but are needed to handle the special
+	 * These are analt hardware clocks, but are needed to handle the special
 	 * case where we have a 'selector bit' that doesn't just change the
 	 * parent for a clock, but also the gate it's supposed to use.
 	 */
@@ -719,7 +719,7 @@ static int clk_rdesc_get(struct r9a06g032_priv *clocks, struct regbit rb)
 }
 
 /*
- * This implements the R9A06G032 clock gate 'driver'. We cannot use the system's
+ * This implements the R9A06G032 clock gate 'driver'. We cananalt use the system's
  * clock gate framework as the gates on the R9A06G032 have a special enabling
  * sequence, therefore we use this little proxy.
  */
@@ -761,7 +761,7 @@ static int create_add_module_clock(struct of_phandle_args *clkspec,
 static int r9a06g032_attach_dev(struct generic_pm_domain *pd,
 				struct device *dev)
 {
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct of_phandle_args clkspec;
 	int i = 0;
 	int error;
@@ -769,14 +769,14 @@ static int r9a06g032_attach_dev(struct generic_pm_domain *pd,
 
 	while (!of_parse_phandle_with_args(np, "clocks", "#clock-cells", i++,
 					   &clkspec)) {
-		if (clkspec.np != pd->dev.of_node)
+		if (clkspec.np != pd->dev.of_analde)
 			continue;
 
 		index = clkspec.args[0];
 		if (index < R9A06G032_CLOCK_COUNT &&
 		    r9a06g032_clocks[index].managed) {
 			error = create_add_module_clock(&clkspec, dev);
-			of_node_put(clkspec.np);
+			of_analde_put(clkspec.np);
 			if (error)
 				return error;
 		}
@@ -787,18 +787,18 @@ static int r9a06g032_attach_dev(struct generic_pm_domain *pd,
 
 static void r9a06g032_detach_dev(struct generic_pm_domain *unused, struct device *dev)
 {
-	if (!pm_clk_no_clocks(dev))
+	if (!pm_clk_anal_clocks(dev))
 		pm_clk_destroy(dev);
 }
 
 static int r9a06g032_add_clk_domain(struct device *dev)
 {
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct generic_pm_domain *pd;
 
 	pd = devm_kzalloc(dev, sizeof(*pd), GFP_KERNEL);
 	if (!pd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pd->name = np->name;
 	pd->flags = GENPD_FLAG_PM_CLK | GENPD_FLAG_ALWAYS_ON |
@@ -838,7 +838,7 @@ r9a06g032_clk_gate_set(struct r9a06g032_priv *clocks,
 	clk_rdesc_set(clocks, g->midle, !on);
 	spin_unlock_irqrestore(&clocks->lock, flags);
 
-	/* Note: We don't wait for FlexWAY Socket Connection signal */
+	/* Analte: We don't wait for FlexWAY Socket Connection signal */
 }
 
 static int r9a06g032_clk_gate_enable(struct clk_hw *hw)
@@ -860,7 +860,7 @@ static int r9a06g032_clk_gate_is_enabled(struct clk_hw *hw)
 {
 	struct r9a06g032_clk_gate *g = to_r9a06g032_gate(hw);
 
-	/* if clock is in reset, the gate might be on, and still not 'be' on */
+	/* if clock is in reset, the gate might be on, and still analt 'be' on */
 	if (g->gate.reset.reg && !clk_rdesc_get(g->clocks, g->gate.reset))
 		return 0;
 
@@ -899,7 +899,7 @@ r9a06g032_register_gate(struct r9a06g032_priv *clocks,
 
 	/*
 	 * important here, some clocks are already in use by the CM3, we
-	 * have to assume they are not Linux's to play with and try to disable
+	 * have to assume they are analt Linux's to play with and try to disable
 	 * at the end of the boot!
 	 */
 	if (r9a06g032_clk_gate_is_enabled(&g->hw)) {
@@ -922,7 +922,7 @@ struct r9a06g032_clk_div {
 	u16 reg;
 	u16 min, max;
 	u8 table_size;
-	u16 table[8];	/* we know there are no more than 8 */
+	u16 table[8];	/* we kanalw there are anal more than 8 */
 };
 
 #define to_r9a06g032_div(_hw) \
@@ -996,7 +996,7 @@ r9a06g032_div_determine_rate(struct clk_hw *hw, struct clk_rate_request *req)
 	/*
 	 * this is a hack. Currently the serial driver asks for a clock rate
 	 * that is 16 times the baud rate -- and that is wildly outside the
-	 * range of the UART divider, somehow there is no provision for that
+	 * range of the UART divider, somehow there is anal provision for that
 	 * case of 'let the divider as is if outside range'.
 	 * The serial driver *shouldn't* play with these clocks anyway, there's
 	 * several uarts attached to this divider, and changing this impacts
@@ -1093,8 +1093,8 @@ r9a06g032_register_div(struct r9a06g032_priv *clocks,
  * active gate (and turn the others off) and force a recalculation of the rates.
  *
  * This implements two clock providers, one 'bitselect' that
- * handles the switch between both parents, and another 'dualgate'
- * that knows which gate to poke at, depending on the parent's bit position.
+ * handles the switch between both parents, and aanalther 'dualgate'
+ * that kanalws which gate to poke at, depending on the parent's bit position.
  */
 struct r9a06g032_clk_bitsel {
 	struct clk_hw	hw;
@@ -1124,7 +1124,7 @@ static int r9a06g032_clk_mux_set_parent(struct clk_hw *hw, u8 index)
 }
 
 static const struct clk_ops clk_bitselect_ops = {
-	.determine_rate = clk_hw_determine_rate_no_reparent,
+	.determine_rate = clk_hw_determine_rate_anal_reparent,
 	.get_parent = r9a06g032_clk_mux_get_parent,
 	.set_parent = r9a06g032_clk_mux_set_parent,
 };
@@ -1249,7 +1249,7 @@ r9a06g032_register_dualgate(struct r9a06g032_priv *clocks,
 	g->hw.init = &init;
 	/*
 	 * important here, some clocks are already in use by the CM3, we
-	 * have to assume they are not Linux's to play with and try to disable
+	 * have to assume they are analt Linux's to play with and try to disable
 	 * at the end of the boot!
 	 */
 	if (r9a06g032_clk_dualgate_is_enabled(&g->hw)) {
@@ -1272,10 +1272,10 @@ static void r9a06g032_clocks_del_clk_provider(void *data)
 
 static void __init r9a06g032_init_h2mode(struct r9a06g032_priv *clocks)
 {
-	struct device_node *usbf_np;
+	struct device_analde *usbf_np;
 	u32 usb;
 
-	for_each_compatible_node(usbf_np, NULL, "renesas,rzn1-usbf") {
+	for_each_compatible_analde(usbf_np, NULL, "renesas,rzn1-usbf") {
 		if (of_device_is_available(usbf_np))
 			break;
 	}
@@ -1284,7 +1284,7 @@ static void __init r9a06g032_init_h2mode(struct r9a06g032_priv *clocks)
 	if (usbf_np) {
 		/* 1 host and 1 device mode */
 		usb &= ~R9A06G032_SYSCTRL_USB_H2MODE;
-		of_node_put(usbf_np);
+		of_analde_put(usbf_np);
 	} else {
 		/* 2 hosts mode */
 		usb |= R9A06G032_SYSCTRL_USB_H2MODE;
@@ -1295,7 +1295,7 @@ static void __init r9a06g032_init_h2mode(struct r9a06g032_priv *clocks)
 static int __init r9a06g032_clocks_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct r9a06g032_priv *clocks;
 	struct clk **clks;
 	struct clk *mclk;
@@ -1307,7 +1307,7 @@ static int __init r9a06g032_clocks_probe(struct platform_device *pdev)
 	clks = devm_kcalloc(dev, R9A06G032_CLOCK_COUNT, sizeof(struct clk *),
 			    GFP_KERNEL);
 	if (!clocks || !clks)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&clocks->lock);
 
@@ -1320,7 +1320,7 @@ static int __init r9a06g032_clocks_probe(struct platform_device *pdev)
 
 	clocks->reg = of_iomap(np, 0);
 	if (WARN_ON(!clocks->reg))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	r9a06g032_init_h2mode(clocks);
 

@@ -14,12 +14,12 @@ perf stat -a -e cycles sleep 1 2>&1 | grep -e cpu_core && exit 2
 
 test_global_aggr()
 {
-	perf stat -a --no-big-num -e cycles,instructions sleep 1  2>&1 | \
+	perf stat -a --anal-big-num -e cycles,instructions sleep 1  2>&1 | \
 	grep -e cycles -e instructions | \
 	while read num evt _ ipc rest
 	do
-		# skip not counted events
-		if [ "$num" = "<not" ]; then
+		# skip analt counted events
+		if [ "$num" = "<analt" ]; then
 			continue
 		fi
 
@@ -29,7 +29,7 @@ test_global_aggr()
 			continue
 		fi
 
-		# skip if no cycles
+		# skip if anal cycles
 		if [ -z "$cyc" ]; then
 			continue
 		fi
@@ -51,14 +51,14 @@ test_global_aggr()
 	done
 }
 
-test_no_aggr()
+test_anal_aggr()
 {
-	perf stat -a -A --no-big-num -e cycles,instructions sleep 1  2>&1 | \
+	perf stat -a -A --anal-big-num -e cycles,instructions sleep 1  2>&1 | \
 	grep ^CPU | \
 	while read cpu num evt _ ipc rest
 	do
-		# skip not counted events
-		if [ "$num" = "<not" ]; then
+		# skip analt counted events
+		if [ "$num" = "<analt" ]; then
 			continue
 		fi
 
@@ -71,7 +71,7 @@ test_no_aggr()
 		cyc=${results##* $cpu:}
 		cyc=${cyc%% *}
 
-		# skip if no cycles
+		# skip if anal cycles
 		if [ -z "$cyc" ]; then
 			continue
 		fi
@@ -94,6 +94,6 @@ test_no_aggr()
 }
 
 test_global_aggr
-test_no_aggr
+test_anal_aggr
 
 exit 0

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2016 Avago Technologies.  All rights reserved.
+ * Copyright (c) 2016 Avago Techanallogies.  All rights reserved.
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
@@ -61,7 +61,7 @@ struct nvmet_fc_ls_req_op {		/* for an LS RQST XMT */
 #define NVMET_FC_MAX_SEQ_LENGTH		(256 * 1024)
 
 enum nvmet_fcp_datadir {
-	NVMET_FCP_NODATA,
+	NVMET_FCP_ANALDATA,
 	NVMET_FCP_WRITE,
 	NVMET_FCP_READ,
 	NVMET_FCP_ABORTED,
@@ -118,7 +118,7 @@ struct nvmet_fc_tgtport {
 struct nvmet_fc_port_entry {
 	struct nvmet_fc_tgtport		*tgtport;
 	struct nvmet_port		*port;
-	u64				node_name;
+	u64				analde_name;
 	u64				port_name;
 	struct list_head		pe_list;
 };
@@ -194,7 +194,7 @@ nvmet_fc_fodnum(struct nvmet_fc_fcp_iod *fodptr)
  *
  * Connection IDs will be Association ID with QID or'd in lower 2 bytes
  *
- * note: Association ID = Connection ID for queue 0
+ * analte: Association ID = Connection ID for queue 0
  */
 #define BYTES_FOR_QID			sizeof(u16)
 #define BYTES_FOR_QID_SHIFT		(BYTES_FOR_QID * 8)
@@ -269,13 +269,13 @@ static void nvmet_fc_xmt_ls_rsp(struct nvmet_fc_tgtport *tgtport,
 /*
  * The fcloop device passes in a NULL device pointer. Real LLD's will
  * pass in a valid device pointer. If NULL is passed to the dma mapping
- * routines, depending on the platform, it may or may not succeed, and
+ * routines, depending on the platform, it may or may analt succeed, and
  * may crash.
  *
  * As such:
  * Wrapper all the dma routines and check the dev pointer.
  *
- * If simple mappings (return just a dma address, we'll noop them,
+ * If simple mappings (return just a dma address, we'll analop them,
  * returning a dma address of 0.
  *
  * On more complex mappings (dma_map_sg), a pseudo routine fills
@@ -394,7 +394,7 @@ __nvmet_fc_send_ls_req(struct nvmet_fc_tgtport *tgtport,
 	int ret = 0;
 
 	if (!tgtport->ops->ls_req)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!nvmet_fc_tgtport_get(tgtport))
 		return -ESHUTDOWN;
@@ -478,7 +478,7 @@ nvmet_fc_disconnect_assoc_done(struct nvmefc_ls_req *lsreq, int status)
  * be torn down. The action is implicit as it may be due to a loss of
  * connectivity with the fc-nvme host, so the target may never get a
  * response even if it tried.  As such, the action of this routine
- * is to asynchronously send the LS, ignore any results of the LS, and
+ * is to asynchroanalusly send the LS, iganalre any results of the LS, and
  * continue on with terminating the association. If the fc-nvme host
  * is present and receives the LS, it too can tear down.
  */
@@ -493,8 +493,8 @@ nvmet_fc_xmt_disconnect_assoc(struct nvmet_fc_tgt_assoc *assoc)
 	int ret;
 
 	/*
-	 * If ls_req is NULL or no hosthandle, it's an older lldd and no
-	 * message is normal. Otherwise, send unless the hostport has
+	 * If ls_req is NULL or anal hosthandle, it's an older lldd and anal
+	 * message is analrmal. Otherwise, send unless the hostport has
 	 * already been invalidated by the lldd.
 	 */
 	if (!tgtport->ops->ls_req || assoc->hostport->invalid)
@@ -505,7 +505,7 @@ nvmet_fc_xmt_disconnect_assoc(struct nvmet_fc_tgt_assoc *assoc)
 			tgtport->ops->lsrqst_priv_sz), GFP_KERNEL);
 	if (!lsop) {
 		dev_info(tgtport->dev,
-			"{%d:%d} send Disconnect Association failed: ENOMEM\n",
+			"{%d:%d} send Disconnect Association failed: EANALMEM\n",
 			tgtport->fc_target_port.port_num, assoc->a_id);
 		return;
 	}
@@ -547,7 +547,7 @@ nvmet_fc_alloc_ls_iodlist(struct nvmet_fc_tgtport *tgtport)
 	iod = kcalloc(NVMET_LS_CTX_COUNT, sizeof(struct nvmet_fc_ls_iod),
 			GFP_KERNEL);
 	if (!iod)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tgtport->iod = iod;
 
@@ -693,7 +693,7 @@ nvmet_fc_alloc_fcp_iod(struct nvmet_fc_tgt_queue *queue)
 		list_del(&fod->fcp_list);
 		fod->active = true;
 		/*
-		 * no queue reference is taken, as it was taken by the
+		 * anal queue reference is taken, as it was taken by the
 		 * queue lookup just prior to the allocation. The iod
 		 * will "inherit" that reference.
 		 */
@@ -769,7 +769,7 @@ nvmet_fc_free_fcp_iod(struct nvmet_fc_tgt_queue *queue,
 
 	fcpreq = deferfcp->fcp_req;
 
-	/* deferfcp can be reused for another IO at a later date */
+	/* deferfcp can be reused for aanalther IO at a later date */
 	list_add_tail(&deferfcp->req_list, &queue->avail_defer_list);
 
 	spin_unlock_irqrestore(&queue->qlock, flags);
@@ -784,7 +784,7 @@ nvmet_fc_free_fcp_iod(struct nvmet_fc_tgt_queue *queue,
 	fod->fcpreq = fcpreq;
 	fod->active = true;
 
-	/* inform LLDD IO is now being processed */
+	/* inform LLDD IO is analw being processed */
 	tgtport->ops->defer_rcv(&tgtport->fc_target_port, fcpreq);
 
 	/*
@@ -886,7 +886,7 @@ nvmet_fc_delete_target_queue(struct nvmet_fc_tgt_queue *queue)
 
 	disconnect = atomic_xchg(&queue->connected, 0);
 
-	/* if not connected, nothing to do */
+	/* if analt connected, analthing to do */
 	if (!disconnect)
 		return;
 
@@ -1012,7 +1012,7 @@ nvmet_fc_hostport_get(struct nvmet_fc_hostport *hostport)
 static void
 nvmet_fc_free_hostport(struct nvmet_fc_hostport *hostport)
 {
-	/* if LLDD not implemented, leave as NULL */
+	/* if LLDD analt implemented, leave as NULL */
 	if (!hostport || !hostport->hosthandle)
 		return;
 
@@ -1042,7 +1042,7 @@ nvmet_fc_alloc_hostport(struct nvmet_fc_tgtport *tgtport, void *hosthandle)
 	struct nvmet_fc_hostport *newhost, *match = NULL;
 	unsigned long flags;
 
-	/* if LLDD not implemented, leave as NULL */
+	/* if LLDD analt implemented, leave as NULL */
 	if (!hosthandle)
 		return NULL;
 
@@ -1058,22 +1058,22 @@ nvmet_fc_alloc_hostport(struct nvmet_fc_tgtport *tgtport, void *hosthandle)
 	spin_unlock_irqrestore(&tgtport->lock, flags);
 
 	if (match) {
-		/* no new allocation - release reference */
+		/* anal new allocation - release reference */
 		nvmet_fc_tgtport_put(tgtport);
 		return match;
 	}
 
 	newhost = kzalloc(sizeof(*newhost), GFP_KERNEL);
 	if (!newhost) {
-		/* no new allocation - release reference */
+		/* anal new allocation - release reference */
 		nvmet_fc_tgtport_put(tgtport);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	spin_lock_irqsave(&tgtport->lock, flags);
 	match = nvmet_fc_match_hostport(tgtport, hosthandle);
 	if (match) {
-		/* new allocation not needed */
+		/* new allocation analt needed */
 		kfree(newhost);
 		newhost = match;
 	} else {
@@ -1198,14 +1198,14 @@ nvmet_fc_target_assoc_free(struct kref *ref)
 			nvmet_fc_delete_target_queue(assoc->queues[i]);
 	}
 
-	/* Send Disconnect now that all i/o has completed */
+	/* Send Disconnect analw that all i/o has completed */
 	nvmet_fc_xmt_disconnect_assoc(assoc);
 
 	nvmet_fc_free_hostport(assoc->hostport);
 	spin_lock_irqsave(&tgtport->lock, flags);
 	oldls = assoc->rcv_disconn;
 	spin_unlock_irqrestore(&tgtport->lock, flags);
-	/* if pending Rcv Disconnect Association LS, send rsp now */
+	/* if pending Rcv Disconnect Association LS, send rsp analw */
 	if (oldls)
 		nvmet_fc_xmt_ls_rsp(tgtport, oldls);
 	ida_free(&tgtport->assoc_cnt, assoc->a_id);
@@ -1236,7 +1236,7 @@ nvmet_fc_delete_target_assoc(struct nvmet_fc_tgt_assoc *assoc)
 
 	terminating = atomic_xchg(&assoc->terminating, 1);
 
-	/* if already terminating, do nothing */
+	/* if already terminating, do analthing */
 	if (terminating)
 		return;
 
@@ -1291,7 +1291,7 @@ nvmet_fc_portentry_bind(struct nvmet_fc_tgtport *tgtport,
 	pe->port = port;
 	port->priv = pe;
 
-	pe->node_name = tgtport->fc_target_port.node_name;
+	pe->analde_name = tgtport->fc_target_port.analde_name;
 	pe->port_name = tgtport->fc_target_port.port_name;
 	INIT_LIST_HEAD(&pe->pe_list);
 
@@ -1333,7 +1333,7 @@ nvmet_fc_portentry_unbind_tgt(struct nvmet_fc_tgtport *tgtport)
  * called when a new targetport is registered. Looks in the
  * existing nvmet port_entries to see if the nvmet layer is
  * configured for the targetport's wwn's. (the targetport existed,
- * nvmet configured, the lldd unregistered the tgtport, and is now
+ * nvmet configured, the lldd unregistered the tgtport, and is analw
  * reregistering the same targetport).  If so, set the nvmet port
  * port entry on the targetport.
  */
@@ -1345,7 +1345,7 @@ nvmet_fc_portentry_rebind_tgt(struct nvmet_fc_tgtport *tgtport)
 
 	spin_lock_irqsave(&nvmet_fc_tgtlock, flags);
 	list_for_each_entry(pe, &nvmet_fc_portentry_list, pe_list) {
-		if (tgtport->fc_target_port.node_name == pe->node_name &&
+		if (tgtport->fc_target_port.analde_name == pe->analde_name &&
 		    tgtport->fc_target_port.port_name == pe->port_name) {
 			WARN_ON(pe->tgtport);
 			tgtport->pe = pe;
@@ -1362,7 +1362,7 @@ nvmet_fc_portentry_rebind_tgt(struct nvmet_fc_tgtport *tgtport)
  *                              NVME subystem FC port.
  * @pinfo:     pointer to information about the port to be registered
  * @template:  LLDD entrypoints and operational parameters for the port
- * @dev:       physical hardware device node port corresponds to. Will be
+ * @dev:       physical hardware device analde port corresponds to. Will be
  *             used for DMA mappings
  * @portptr:   pointer to a local port pointer. Upon success, the routine
  *             will allocate a nvme_fc_local_port structure and place its
@@ -1370,7 +1370,7 @@ nvmet_fc_portentry_rebind_tgt(struct nvmet_fc_tgtport *tgtport)
  *             pointer will be set to NULL.
  *
  * Returns:
- * a completion status. Must be 0 upon success; a negative errno
+ * a completion status. Must be 0 upon success; a negative erranal
  * (ex: -ENXIO) upon failure.
  */
 int
@@ -1395,22 +1395,22 @@ nvmet_fc_register_targetport(struct nvmet_fc_port_info *pinfo,
 	newrec = kzalloc((sizeof(*newrec) + template->target_priv_sz),
 			 GFP_KERNEL);
 	if (!newrec) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_regtgt_failed;
 	}
 
 	idx = ida_alloc(&nvmet_fc_tgtport_cnt, GFP_KERNEL);
 	if (idx < 0) {
-		ret = -ENOSPC;
+		ret = -EANALSPC;
 		goto out_fail_kfree;
 	}
 
 	if (!get_device(dev) && dev) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out_ida_put;
 	}
 
-	newrec->fc_target_port.node_name = pinfo->node_name;
+	newrec->fc_target_port.analde_name = pinfo->analde_name;
 	newrec->fc_target_port.port_name = pinfo->port_name;
 	if (template->target_priv_sz)
 		newrec->fc_target_port.private = &newrec[1];
@@ -1434,7 +1434,7 @@ nvmet_fc_register_targetport(struct nvmet_fc_port_info *pinfo,
 
 	ret = nvmet_fc_alloc_ls_iodlist(newrec);
 	if (ret) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_free_newrec;
 	}
 
@@ -1474,7 +1474,7 @@ nvmet_fc_free_tgtport(struct kref *ref)
 
 	nvmet_fc_free_ls_iodlist(tgtport);
 
-	/* let the LLDD know we've finished tearing it down */
+	/* let the LLDD kanalw we've finished tearing it down */
 	tgtport->ops->targetport_delete(&tgtport->fc_target_port);
 
 	ida_free(&nvmet_fc_tgtport_cnt,
@@ -1521,7 +1521,7 @@ __nvmet_fc_free_assocs(struct nvmet_fc_tgtport *tgtport)
  * The nvmet-fc layer ensures that any references to the hosthandle
  * on the targetport are forgotten (set to NULL).  The LLDD will
  * typically call this when a login with a remote host port has been
- * lost, thus LS's for the remote host port are no longer possible.
+ * lost, thus LS's for the remote host port are anal longer possible.
  *
  * If an LS request is outstanding to the targetport/hosthandle (or
  * issued concurrently with the call to invalidate the host), the
@@ -1531,17 +1531,17 @@ __nvmet_fc_free_assocs(struct nvmet_fc_tgtport *tgtport)
  * retries by the nvmet-fc transport. The nvmet-fc transport may
  * continue to reference host handle while it cleans up outstanding
  * NVME associations. The nvmet-fc transport will call the
- * ops->host_release() callback to notify the LLDD that all references
+ * ops->host_release() callback to analtify the LLDD that all references
  * are complete and the related host handle can be recovered.
- * Note: if there are no references, the callback may be called before
+ * Analte: if there are anal references, the callback may be called before
  * the invalidate host call returns.
  *
  * @target_port: pointer to the (registered) target port that a prior
  *              LS was received on and which supplied the transport the
  *              hosthandle.
  * @hosthandle: the handle (pointer) that represents the host port
- *              that no longer has connectivity and that LS's should
- *              no longer be directed to.
+ *              that anal longer has connectivity and that LS's should
+ *              anal longer be directed to.
  */
 void
 nvmet_fc_invalidate_host(struct nvmet_fc_target_port *target_port,
@@ -1550,7 +1550,7 @@ nvmet_fc_invalidate_host(struct nvmet_fc_target_port *target_port,
 	struct nvmet_fc_tgtport *tgtport = targetport_to_tgtport(target_port);
 	struct nvmet_fc_tgt_assoc *assoc, *next;
 	unsigned long flags;
-	bool noassoc = true;
+	bool analassoc = true;
 
 	spin_lock_irqsave(&tgtport->lock, flags);
 	list_for_each_entry_safe(assoc, next,
@@ -1560,14 +1560,14 @@ nvmet_fc_invalidate_host(struct nvmet_fc_target_port *target_port,
 		if (!nvmet_fc_tgt_a_get(assoc))
 			continue;
 		assoc->hostport->invalid = 1;
-		noassoc = false;
+		analassoc = false;
 		nvmet_fc_schedule_delete_assoc(assoc);
 		nvmet_fc_tgt_a_put(assoc);
 	}
 	spin_unlock_irqrestore(&tgtport->lock, flags);
 
-	/* if there's nothing to wait for - call the callback */
-	if (noassoc && tgtport->ops->host_release)
+	/* if there's analthing to wait for - call the callback */
+	if (analassoc && tgtport->ops->host_release)
 		tgtport->ops->host_release(hosthandle);
 }
 EXPORT_SYMBOL_GPL(nvmet_fc_invalidate_host);
@@ -1624,7 +1624,7 @@ nvmet_fc_delete_ctrl(struct nvmet_ctrl *ctrl)
  *               deregistered.
  *
  * Returns:
- * a completion status. Must be 0 upon success; a negative errno
+ * a completion status. Must be 0 upon success; a negative erranal
  * (ex: -ENXIO) upon failure.
  */
 int
@@ -1672,7 +1672,7 @@ nvmet_fc_ls_create_association(struct nvmet_fc_tgtport *tgtport,
 	 * lengths as padding sizes for Create Association Cmd descriptor
 	 * was incorrect.
 	 * Accept anything of "minimum" length. Assume format per 1.15
-	 * spec (with HOSTID reduced to 16 bytes), ignore how long the
+	 * spec (with HOSTID reduced to 16 bytes), iganalre how long the
 	 * trailing pad length is.
 	 */
 	if (iod->rqstdatalen < FCNVME_LSDESC_CRA_RQST_MINLEN)
@@ -1714,7 +1714,7 @@ nvmet_fc_ls_create_association(struct nvmet_fc_tgtport *tgtport,
 		iod->lsrsp->rsplen = nvme_fc_format_rjt(acc,
 				sizeof(*acc), rqst->w0.ls_cmd,
 				FCNVME_RJT_RC_LOGIC,
-				FCNVME_RJT_EXP_NONE, 0);
+				FCNVME_RJT_EXP_ANALNE, 0);
 		return;
 	}
 
@@ -1787,7 +1787,7 @@ nvmet_fc_ls_create_connection(struct nvmet_fc_tgtport *tgtport,
 		iod->assoc = nvmet_fc_find_target_assoc(tgtport,
 				be64_to_cpu(rqst->associd.association_id));
 		if (!iod->assoc)
-			ret = VERR_NO_ASSOC;
+			ret = VERR_ANAL_ASSOC;
 		else {
 			queue = nvmet_fc_alloc_target_queue(iod->assoc,
 					be16_to_cpu(rqst->connect_cmd.qid),
@@ -1806,10 +1806,10 @@ nvmet_fc_ls_create_connection(struct nvmet_fc_tgtport *tgtport,
 			validation_errors[ret]);
 		iod->lsrsp->rsplen = nvme_fc_format_rjt(acc,
 				sizeof(*acc), rqst->w0.ls_cmd,
-				(ret == VERR_NO_ASSOC) ?
+				(ret == VERR_ANAL_ASSOC) ?
 					FCNVME_RJT_RC_INV_ASSOC :
 					FCNVME_RJT_RC_LOGIC,
-				FCNVME_RJT_EXP_NONE, 0);
+				FCNVME_RJT_EXP_ANALNE, 0);
 		return;
 	}
 
@@ -1859,7 +1859,7 @@ nvmet_fc_ls_disconnect(struct nvmet_fc_tgtport *tgtport,
 				be64_to_cpu(rqst->associd.association_id));
 		iod->assoc = assoc;
 		if (!assoc)
-			ret = VERR_NO_ASSOC;
+			ret = VERR_ANAL_ASSOC;
 	}
 
 	if (ret || !assoc) {
@@ -1868,10 +1868,10 @@ nvmet_fc_ls_disconnect(struct nvmet_fc_tgtport *tgtport,
 			validation_errors[ret]);
 		iod->lsrsp->rsplen = nvme_fc_format_rjt(acc,
 				sizeof(*acc), rqst->w0.ls_cmd,
-				(ret == VERR_NO_ASSOC) ?
+				(ret == VERR_ANAL_ASSOC) ?
 					FCNVME_RJT_RC_INV_ASSOC :
 					FCNVME_RJT_RC_LOGIC,
-				FCNVME_RJT_EXP_NONE, 0);
+				FCNVME_RJT_EXP_ANALNE, 0);
 		return true;
 	}
 
@@ -1885,7 +1885,7 @@ nvmet_fc_ls_disconnect(struct nvmet_fc_tgtport *tgtport,
 			FCNVME_LS_DISCONNECT_ASSOC);
 
 	/*
-	 * The rules for LS response says the response cannot
+	 * The rules for LS response says the response cananalt
 	 * go back until ABTS's have been sent for all outstanding
 	 * I/O and a Disconnect Association LS has been sent.
 	 * So... save off the Disconnect LS to send the response
@@ -1909,7 +1909,7 @@ nvmet_fc_ls_disconnect(struct nvmet_fc_tgtport *tgtport,
 						/* ok to use rqst, LS is same */
 						rqst->w0.ls_cmd,
 						FCNVME_RJT_RC_UNAB,
-						FCNVME_RJT_EXP_NONE, 0);
+						FCNVME_RJT_EXP_ANALNE, 0);
 		nvmet_fc_xmt_ls_rsp(tgtport, oldls);
 	}
 
@@ -1993,7 +1993,7 @@ nvmet_fc_handle_ls_rqst(struct nvmet_fc_tgtport *tgtport,
 	default:
 		iod->lsrsp->rsplen = nvme_fc_format_rjt(iod->rspbuf,
 				sizeof(*iod->rspbuf), w0->ls_cmd,
-				FCNVME_RJT_RC_INVAL, FCNVME_RJT_EXP_NONE, 0);
+				FCNVME_RJT_RC_INVAL, FCNVME_RJT_EXP_ANALNE, 0);
 	}
 
 	if (sendrsp)
@@ -2066,7 +2066,7 @@ nvmet_fc_rcv_ls_req(struct nvmet_fc_target_port *target_port,
 			(w0->ls_cmd <= NVME_FC_LAST_LS_CMD_VALUE) ?
 				nvmefc_ls_names[w0->ls_cmd] : "");
 		nvmet_fc_tgtport_put(tgtport);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	iod->lsrsp = lsrsp;
@@ -2103,7 +2103,7 @@ nvmet_fc_alloc_tgt_pgs(struct nvmet_fc_fcp_iod *fod)
 	fod->data_sg_cnt = fc_dma_map_sg(fod->tgtport->dev, sg, nent,
 				((fod->io_dir == NVMET_FCP_WRITE) ?
 					DMA_FROM_DEVICE : DMA_TO_DEVICE));
-				/* note: write from initiator perspective */
+				/* analte: write from initiator perspective */
 	fod->next_sg = fod->data_sg;
 
 	return 0;
@@ -2161,22 +2161,22 @@ nvmet_fc_prep_fcp_rsp(struct nvmet_fc_tgtport *tgtport,
 
 	/*
 	 * check to see if we can send a 0's rsp.
-	 *   Note: to send a 0's response, the NVME-FC host transport will
-	 *   recreate the CQE. The host transport knows: sq id, SQHD (last
+	 *   Analte: to send a 0's response, the NVME-FC host transport will
+	 *   recreate the CQE. The host transport kanalws: sq id, SQHD (last
 	 *   seen in an ersp), and command_id. Thus it will create a
-	 *   zero-filled CQE with those known fields filled in. Transport
+	 *   zero-filled CQE with those kanalwn fields filled in. Transport
 	 *   must send an ersp for any condition where the cqe won't match
 	 *   this.
 	 *
 	 * Here are the FC-NVME mandated cases where we must send an ersp:
 	 *  every N responses, where N=ersp_ratio
-	 *  force fabric commands to send ersp's (not in FC-NVME but good
+	 *  force fabric commands to send ersp's (analt in FC-NVME but good
 	 *    practice)
-	 *  normal cmds: any time status is non-zero, or status is zero
-	 *     but words 0 or 1 are non-zero.
+	 *  analrmal cmds: any time status is analn-zero, or status is zero
+	 *     but words 0 or 1 are analn-zero.
 	 *  the SQ is 90% or more full
 	 *  the cmd is a fused command
-	 *  transferred data length not equal to cmd iu length
+	 *  transferred data length analt equal to cmd iu length
 	 */
 	rspcnt = atomic_inc_return(&fod->queue->zrspcnt);
 	if (!(rspcnt % fod->queue->ersp_ratio) ||
@@ -2214,14 +2214,14 @@ nvmet_fc_abort_op(struct nvmet_fc_tgtport *tgtport,
 {
 	struct nvmefc_tgt_fcp_req *fcpreq = fod->fcpreq;
 
-	/* data no longer needed */
+	/* data anal longer needed */
 	nvmet_fc_free_tgt_pgs(fod);
 
 	/*
 	 * if an ABTS was received or we issued the fcp_abort early
 	 * don't call abort routine again.
 	 */
-	/* no need to take lock - lock was taken earlier to get here */
+	/* anal need to take lock - lock was taken earlier to get here */
 	if (!fod->aborted)
 		tgtport->ops->fcp_abort(&tgtport->fc_target_port, fcpreq);
 
@@ -2307,7 +2307,7 @@ nvmet_fc_transfer_fcp_data(struct nvmet_fc_tgtport *tgtport,
 	if (ret) {
 		/*
 		 * should be ok to set w/o lock as its in the thread of
-		 * execution (not an async timer routine) and doesn't
+		 * execution (analt an async timer routine) and doesn't
 		 * contend with any clearing action
 		 */
 		fod->abort = true;
@@ -2405,7 +2405,7 @@ nvmet_fc_fod_op_done(struct nvmet_fc_fcp_iod *fod)
 		/* success */
 
 		if (fcpreq->op == NVMET_FCOP_READDATA_RSP) {
-			/* data no longer needed */
+			/* data anal longer needed */
 			nvmet_fc_free_tgt_pgs(fod);
 			nvmet_fc_free_fcp_iod(fod->queue, fod);
 			return;
@@ -2421,7 +2421,7 @@ nvmet_fc_fod_op_done(struct nvmet_fc_fcp_iod *fod)
 
 		/* data transfer complete, send response */
 
-		/* data no longer needed */
+		/* data anal longer needed */
 		nvmet_fc_free_tgt_pgs(fod);
 
 		nvmet_fc_xmt_fcp_rsp(tgtport, fod);
@@ -2463,7 +2463,7 @@ __nvmet_fc_fcp_nvme_cmd_done(struct nvmet_fc_tgtport *tgtport,
 	abort = fod->abort;
 	spin_unlock_irqrestore(&fod->flock, flags);
 
-	/* if we have a CQE, snoop the last sq_head value */
+	/* if we have a CQE, sanalop the last sq_head value */
 	if (!status)
 		fod->queue->sqhd = cqe->sq_head;
 
@@ -2483,7 +2483,7 @@ __nvmet_fc_fcp_nvme_cmd_done(struct nvmet_fc_tgtport *tgtport,
 	} else {
 
 		/*
-		 * try to push the data even if the SQE status is non-zero.
+		 * try to push the data even if the SQE status is analn-zero.
 		 * There may be a status where data still was intended to
 		 * be moved
 		 */
@@ -2494,10 +2494,10 @@ __nvmet_fc_fcp_nvme_cmd_done(struct nvmet_fc_tgtport *tgtport,
 			return;
 		}
 
-		/* writes & no data - fall thru */
+		/* writes & anal data - fall thru */
 	}
 
-	/* data no longer needed */
+	/* data anal longer needed */
 	nvmet_fc_free_tgt_pgs(fod);
 
 	nvmet_fc_xmt_fcp_rsp(tgtport, fod);
@@ -2526,10 +2526,10 @@ nvmet_fc_handle_fcp_rqst(struct nvmet_fc_tgtport *tgtport,
 	int ret;
 
 	/*
-	 * Fused commands are currently not supported in the linux
+	 * Fused commands are currently analt supported in the linux
 	 * implementation.
 	 *
-	 * As such, the implementation of the FC transport does not
+	 * As such, the implementation of the FC transport does analt
 	 * look at the fused commands and order delivery to the upper
 	 * layer until we have both based on csn.
 	 */
@@ -2545,7 +2545,7 @@ nvmet_fc_handle_fcp_rqst(struct nvmet_fc_tgtport *tgtport,
 		if (nvme_is_write(&cmdiu->sqe))
 			goto transport_error;
 	} else {
-		fod->io_dir = NVMET_FCP_NODATA;
+		fod->io_dir = NVMET_FCP_ANALDATA;
 		if (xfrlen)
 			goto transport_error;
 	}
@@ -2595,9 +2595,9 @@ nvmet_fc_handle_fcp_rqst(struct nvmet_fc_tgtport *tgtport,
 	}
 
 	/*
-	 * Reads or no data:
+	 * Reads or anal data:
 	 *
-	 * can invoke the nvmet_layer now. If read data, cmd completion will
+	 * can invoke the nvmet_layer analw. If read data, cmd completion will
 	 * push the data
 	 */
 	fod->req.execute(&fod->req);
@@ -2622,9 +2622,9 @@ transport_error:
  *
  * However, in some circumstances, due to the packetized nature of FC
  * and the api of the FC LLDD which may issue a hw command to send the
- * response, but the LLDD may not get the hw completion for that command
+ * response, but the LLDD may analt get the hw completion for that command
  * and upcall the nvmet_fc layer before a new command may be
- * asynchronously received - its possible for a command to be received
+ * asynchroanalusly received - its possible for a command to be received
  * before the LLDD and nvmet_fc have recycled the job structure. It gives
  * the appearance of more commands received than fits in the sq.
  * To alleviate this scenario, a temporary queue is maintained in the
@@ -2635,16 +2635,16 @@ transport_error:
  * structure is freed, it is immediately reallocated for anything on the
  * pending request list. The LLDDs defer_rcv() callback is called,
  * informing the LLDD that it may reuse the CMD IU buffer, and the io
- * is then started normally with the transport.
+ * is then started analrmally with the transport.
  *
  * The LLDD, when receiving an -EOVERFLOW completion status, is to treat
- * the completion as successful but must not reuse the CMD IU buffer
+ * the completion as successful but must analt reuse the CMD IU buffer
  * until the LLDD's defer_rcv() callback has been called for the
  * corresponding struct nvmefc_tgt_fcp_req pointer.
  *
  * If there is any other condition in which an error occurs, the
- * transport will return a non-zero status indicating the error.
- * In all cases other than -EOVERFLOW, the transport has not accepted the
+ * transport will return a analn-zero status indicating the error.
+ * In all cases other than -EOVERFLOW, the transport has analt accepted the
  * request and the LLDD should abort the exchange.
  *
  * @target_port: pointer to the (registered) target port the FCP CMD IU
@@ -2676,10 +2676,10 @@ nvmet_fc_rcv_fcp_req(struct nvmet_fc_target_port *target_port,
 	queue = nvmet_fc_find_target_queue(tgtport,
 				be64_to_cpu(cmdiu->connection_id));
 	if (!queue)
-		return -ENOTCONN;
+		return -EANALTCONN;
 
 	/*
-	 * note: reference taken by find_target_queue
+	 * analte: reference taken by find_target_queue
 	 * After successful fod allocation, the fod will inherit the
 	 * ownership of that reference and will remove the reference
 	 * when the fod is freed.
@@ -2705,7 +2705,7 @@ nvmet_fc_rcv_fcp_req(struct nvmet_fc_target_port *target_port,
 		spin_unlock_irqrestore(&queue->qlock, flags);
 		/* release the queue lookup reference */
 		nvmet_fc_tgt_q_put(queue);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	deferfcp = list_first_entry_or_null(&queue->avail_defer_list,
@@ -2716,17 +2716,17 @@ nvmet_fc_rcv_fcp_req(struct nvmet_fc_target_port *target_port,
 	} else {
 		spin_unlock_irqrestore(&queue->qlock, flags);
 
-		/* Now we need to dynamically allocate one */
+		/* Analw we need to dynamically allocate one */
 		deferfcp = kmalloc(sizeof(*deferfcp), GFP_KERNEL);
 		if (!deferfcp) {
 			/* release the queue lookup reference */
 			nvmet_fc_tgt_q_put(queue);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		spin_lock_irqsave(&queue->qlock, flags);
 	}
 
-	/* For now, use rspaddr / rsplen to save payload information */
+	/* For analw, use rspaddr / rsplen to save payload information */
 	fcpreq->rspaddr = cmdiubuf;
 	fcpreq->rsplen  = cmdiubuf_len;
 	deferfcp->fcp_req = fcpreq;
@@ -2734,7 +2734,7 @@ nvmet_fc_rcv_fcp_req(struct nvmet_fc_target_port *target_port,
 	/* defer processing till a fod becomes available */
 	list_add_tail(&deferfcp->req_list, &queue->pending_cmd_list);
 
-	/* NOTE: the queue lookup reference is still valid */
+	/* ANALTE: the queue lookup reference is still valid */
 
 	spin_unlock_irqrestore(&queue->qlock, flags);
 
@@ -2746,10 +2746,10 @@ EXPORT_SYMBOL_GPL(nvmet_fc_rcv_fcp_req);
  * nvmet_fc_rcv_fcp_abort - transport entry point called by an LLDD
  *                       upon the reception of an ABTS for a FCP command
  *
- * Notify the transport that an ABTS has been received for a FCP command
+ * Analtify the transport that an ABTS has been received for a FCP command
  * that had been given to the transport via nvmet_fc_rcv_fcp_req(). The
  * LLDD believes the command is still being worked on
- * (template_ops->fcp_req_release() has not been called).
+ * (template_ops->fcp_req_release() has analt been called).
  *
  * The transport will wait for any outstanding work (an op to the LLDD,
  * which the lldd should complete with error due to the ABTS; or the
@@ -2774,7 +2774,7 @@ nvmet_fc_rcv_fcp_abort(struct nvmet_fc_target_port *target_port,
 	unsigned long flags;
 
 	if (!fod || fod->fcpreq != fcpreq)
-		/* job appears to have already completed, ignore abort */
+		/* job appears to have already completed, iganalre abort */
 		return;
 
 	queue = fod->queue;
@@ -2823,22 +2823,22 @@ nvme_fc_parse_traddr(struct nvmet_fc_traddr *traddr, char *buf, size_t blen)
 {
 	char name[2 + NVME_FC_TRADDR_HEXNAMELEN + 1];
 	substring_t wwn = { name, &name[sizeof(name)-1] };
-	int nnoffset, pnoffset;
+	int nanalffset, panalffset;
 
 	/* validate if string is one of the 2 allowed formats */
 	if (strnlen(buf, blen) == NVME_FC_TRADDR_MAXLENGTH &&
 			!strncmp(buf, "nn-0x", NVME_FC_TRADDR_OXNNLEN) &&
 			!strncmp(&buf[NVME_FC_TRADDR_MAX_PN_OFFSET],
 				"pn-0x", NVME_FC_TRADDR_OXNNLEN)) {
-		nnoffset = NVME_FC_TRADDR_OXNNLEN;
-		pnoffset = NVME_FC_TRADDR_MAX_PN_OFFSET +
+		nanalffset = NVME_FC_TRADDR_OXNNLEN;
+		panalffset = NVME_FC_TRADDR_MAX_PN_OFFSET +
 						NVME_FC_TRADDR_OXNNLEN;
 	} else if ((strnlen(buf, blen) == NVME_FC_TRADDR_MINLENGTH &&
 			!strncmp(buf, "nn-", NVME_FC_TRADDR_NNLEN) &&
 			!strncmp(&buf[NVME_FC_TRADDR_MIN_PN_OFFSET],
 				"pn-", NVME_FC_TRADDR_NNLEN))) {
-		nnoffset = NVME_FC_TRADDR_NNLEN;
-		pnoffset = NVME_FC_TRADDR_MIN_PN_OFFSET + NVME_FC_TRADDR_NNLEN;
+		nanalffset = NVME_FC_TRADDR_NNLEN;
+		panalffset = NVME_FC_TRADDR_MIN_PN_OFFSET + NVME_FC_TRADDR_NNLEN;
 	} else
 		goto out_einval;
 
@@ -2846,11 +2846,11 @@ nvme_fc_parse_traddr(struct nvmet_fc_traddr *traddr, char *buf, size_t blen)
 	name[1] = 'x';
 	name[2 + NVME_FC_TRADDR_HEXNAMELEN] = 0;
 
-	memcpy(&name[2], &buf[nnoffset], NVME_FC_TRADDR_HEXNAMELEN);
+	memcpy(&name[2], &buf[nanalffset], NVME_FC_TRADDR_HEXNAMELEN);
 	if (__nvme_fc_parse_u64(&wwn, &traddr->nn))
 		goto out_einval;
 
-	memcpy(&name[2], &buf[pnoffset], NVME_FC_TRADDR_HEXNAMELEN);
+	memcpy(&name[2], &buf[panalffset], NVME_FC_TRADDR_HEXNAMELEN);
 	if (__nvme_fc_parse_u64(&wwn, &traddr->pn))
 		goto out_einval;
 
@@ -2884,12 +2884,12 @@ nvmet_fc_add_port(struct nvmet_port *port)
 
 	pe = kzalloc(sizeof(*pe), GFP_KERNEL);
 	if (!pe)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = -ENXIO;
 	spin_lock_irqsave(&nvmet_fc_tgtlock, flags);
 	list_for_each_entry(tgtport, &nvmet_fc_target_list, tgt_list) {
-		if ((tgtport->fc_target_port.node_name == traddr.nn) &&
+		if ((tgtport->fc_target_port.analde_name == traddr.nn) &&
 		    (tgtport->fc_target_port.port_name == traddr.pn)) {
 			/* a FC port can only be 1 nvmet port id */
 			if (!tgtport->pe) {
@@ -2954,7 +2954,7 @@ static void __exit nvmet_fc_exit_module(void)
 
 	/* sanity check - all lports should be removed */
 	if (!list_empty(&nvmet_fc_target_list))
-		pr_warn("%s: targetport list not empty\n", __func__);
+		pr_warn("%s: targetport list analt empty\n", __func__);
 
 	nvmet_unregister_transport(&nvmet_fc_tgt_fcp_ops);
 

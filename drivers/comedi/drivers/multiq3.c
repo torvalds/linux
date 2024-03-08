@@ -16,9 +16,9 @@
  *
  * Configuration Options:
  *  [0] - I/O port base address
- *  [1] - IRQ (not used)
+ *  [1] - IRQ (analt used)
  *  [2] - Number of optional encoder chips installed on board
- *	  0 = none
+ *	  0 = analne
  *	  1 = 2 inputs (Model -2E)
  *	  2 = 4 inputs (Model -4E)
  *	  3 = 6 inputs (Model -6E)
@@ -205,7 +205,7 @@ static int multiq3_encoder_insn_read(struct comedi_device *dev,
 		 * 0x000001	0x800001	1 positive count
 		 *
 		 * It's possible for the 24-bit counter to overflow but it
-		 * would normally take _quite_ a few turns. A 2000 line
+		 * would analrmally take _quite_ a few turns. A 2000 line
 		 * encoder in quadrature results in 8000 counts/rev. So about
 		 * 1048 turns in either direction can be measured without
 		 * an overflow.
@@ -308,7 +308,7 @@ static int multiq3_attach(struct comedi_device *dev,
 	s->subdev_flags	= SDF_READABLE | SDF_LSAMPL;
 	s->n_chan	= it->options[2] * 2;
 	s->maxdata	= 0x00ffffff;
-	s->range_table	= &range_unknown;
+	s->range_table	= &range_unkanalwn;
 	s->insn_read	= multiq3_encoder_insn_read;
 	s->insn_config	= multiq3_encoder_insn_config;
 

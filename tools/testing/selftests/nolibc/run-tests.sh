@@ -1,7 +1,7 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
 
-# Test runner for nolibc tests
+# Test runner for anallibc tests
 
 set -e
 
@@ -12,7 +12,7 @@ hostarch=x86_64
 nproc=$(( $(nproc) + 2))
 cache_dir="${XDG_CACHE_HOME:-"$HOME"/.cache}"
 download_location="${cache_dir}/crosstools/"
-build_location="$(realpath "${cache_dir}"/nolibc-tests/)"
+build_location="$(realpath "${cache_dir}"/anallibc-tests/)"
 perform_download=0
 test_mode=system
 archs="i386 x86_64 arm64 arm mips32le mips32be ppc ppc64 ppc64le riscv s390 loongarch"
@@ -24,12 +24,12 @@ unset TEMP
 
 print_usage() {
 	cat <<EOF
-Run nolibc testsuite for multiple architectures with crosstools
+Run anallibc testsuite for multiple architectures with crosstools
 
 Usage:
  $0 [options] <architectures>
 
-Known architectures:
+Kanalwn architectures:
  ${archs}
 
 Options:
@@ -105,7 +105,7 @@ download_crosstool() {
 	arch="$(crosstool_arch "$1")"
 	abi="$(crosstool_abi "$1")"
 
-	archive_name="${hostarch}-gcc-${crosstool_version}-nolibc-${arch}-${abi}.tar.gz"
+	archive_name="${hostarch}-gcc-${crosstool_version}-anallibc-${arch}-${abi}.tar.gz"
 	url="https://mirrors.edge.kernel.org/pub/tools/crosstool/files/bin/${hostarch}/${crosstool_version}/${archive_name}"
 	archive="${download_location}${archive_name}"
 	stamp="${archive}.stamp"
@@ -133,7 +133,7 @@ test_arch() {
 	arch=$1
 	ct_arch=$(crosstool_arch "$arch")
 	ct_abi=$(crosstool_abi "$1")
-	cross_compile=$(realpath "${download_location}gcc-${crosstool_version}-nolibc/${ct_arch}-${ct_abi}/bin/${ct_arch}-${ct_abi}-")
+	cross_compile=$(realpath "${download_location}gcc-${crosstool_version}-anallibc/${ct_arch}-${ct_abi}/bin/${ct_arch}-${ct_abi}-")
 	build_dir="${build_location}/${arch}"
 	MAKE=(make -j"${nproc}" XARCH="${arch}" CROSS_COMPILE="${cross_compile}" O="${build_dir}")
 
@@ -149,7 +149,7 @@ test_arch() {
 			test_target=run-user
 			;;
 		*)
-			echo "Unknown mode $test_mode"
+			echo "Unkanalwn mode $test_mode"
 			exit 1
 	esac
 	printf '%-15s' "$arch:"

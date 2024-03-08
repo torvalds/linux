@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2018 Mellaanalx Techanallogies. All rights reserved */
 
 #include <linux/kernel.h>
 
@@ -295,7 +295,7 @@ static int mlxsw_sp2_mr_tcam_init(struct mlxsw_sp *mlxsw_sp, void *priv)
 	mr_tcam->mlxsw_sp = mlxsw_sp;
 	mr_tcam->flow_block = mlxsw_sp_flow_block_create(mlxsw_sp, NULL);
 	if (!mr_tcam->flow_block)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = mlxsw_sp2_mr_tcam_ipv4_init(mr_tcam);
 	if (err)

@@ -11,8 +11,8 @@ struct nvbios_source {
 	u32   (*read)(void *, u32 offset, u32 length, struct nvkm_bios *);
 	u32   (*size)(void *);
 	bool rw;
-	bool ignore_checksum;
-	bool no_pcir;
+	bool iganalre_checksum;
+	bool anal_pcir;
 	bool require_checksum;
 };
 

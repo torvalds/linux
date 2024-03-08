@@ -65,7 +65,7 @@ void page_counter_cancel(struct page_counter *counter, unsigned long nr_pages)
  * @counter: counter
  * @nr_pages: number of pages to charge
  *
- * NOTE: This does not consider any configured counter limits.
+ * ANALTE: This does analt consider any configured counter limits.
  */
 void page_counter_charge(struct page_counter *counter, unsigned long nr_pages)
 {
@@ -175,7 +175,7 @@ int page_counter_set_max(struct page_counter *counter, unsigned long nr_pages)
 		long usage;
 
 		/*
-		 * Update the limit while making sure that it's not
+		 * Update the limit while making sure that it's analt
 		 * below the concurrently-changing counter value.
 		 *
 		 * The xchg implies two full memory barriers before

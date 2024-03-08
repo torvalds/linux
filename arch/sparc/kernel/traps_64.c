@@ -90,8 +90,8 @@ void bad_trap(struct pt_regs *regs, long lvl)
 {
 	char buffer[36];
 
-	if (notify_die(DIE_TRAP, "bad trap", regs,
-		       0, lvl, SIGTRAP) == NOTIFY_STOP)
+	if (analtify_die(DIE_TRAP, "bad trap", regs,
+		       0, lvl, SIGTRAP) == ANALTIFY_STOP)
 		return;
 
 	if (lvl < 0x100) {
@@ -108,7 +108,7 @@ void bad_trap(struct pt_regs *regs, long lvl)
 		regs->tpc &= 0xffffffff;
 		regs->tnpc &= 0xffffffff;
 	}
-	force_sig_fault_trapno(SIGILL, ILL_ILLTRP,
+	force_sig_fault_trapanal(SIGILL, ILL_ILLTRP,
 			       (void __user *)regs->tpc, lvl);
 }
 
@@ -116,8 +116,8 @@ void bad_trap_tl1(struct pt_regs *regs, long lvl)
 {
 	char buffer[36];
 	
-	if (notify_die(DIE_TRAP_TL1, "bad trap tl1", regs,
-		       0, lvl, SIGTRAP) == NOTIFY_STOP)
+	if (analtify_die(DIE_TRAP_TL1, "bad trap tl1", regs,
+		       0, lvl, SIGTRAP) == ANALTIFY_STOP)
 		return;
 
 	dump_tl1_traplog((struct tl1_traplog *)(regs + 1));
@@ -141,7 +141,7 @@ static dimm_printer_t dimm_handler;
 static int sprintf_dimm(int synd_code, unsigned long paddr, char *buf, int buflen)
 {
 	unsigned long flags;
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 
 	spin_lock_irqsave(&dimm_handler_lock, flags);
 	if (dimm_handler) {
@@ -152,7 +152,7 @@ static int sprintf_dimm(int synd_code, unsigned long paddr, char *buf, int bufle
 		else
 			ret = 0;
 	} else
-		ret = -ENODEV;
+		ret = -EANALDEV;
 	spin_unlock_irqrestore(&dimm_handler_lock, flags);
 
 	return ret;
@@ -189,8 +189,8 @@ void spitfire_insn_access_exception(struct pt_regs *regs, unsigned long sfsr, un
 {
 	enum ctx_state prev_state = exception_enter();
 
-	if (notify_die(DIE_TRAP, "instruction access exception", regs,
-		       0, 0x8, SIGTRAP) == NOTIFY_STOP)
+	if (analtify_die(DIE_TRAP, "instruction access exception", regs,
+		       0, 0x8, SIGTRAP) == ANALTIFY_STOP)
 		goto out;
 
 	if (regs->tstate & TSTATE_PRIV) {
@@ -209,8 +209,8 @@ out:
 
 void spitfire_insn_access_exception_tl1(struct pt_regs *regs, unsigned long sfsr, unsigned long sfar)
 {
-	if (notify_die(DIE_TRAP_TL1, "instruction access exception tl1", regs,
-		       0, 0x8, SIGTRAP) == NOTIFY_STOP)
+	if (analtify_die(DIE_TRAP_TL1, "instruction access exception tl1", regs,
+		       0, 0x8, SIGTRAP) == ANALTIFY_STOP)
 		return;
 
 	dump_tl1_traplog((struct tl1_traplog *)(regs + 1));
@@ -222,8 +222,8 @@ void sun4v_insn_access_exception(struct pt_regs *regs, unsigned long addr, unsig
 	unsigned short type = (type_ctx >> 16);
 	unsigned short ctx  = (type_ctx & 0xffff);
 
-	if (notify_die(DIE_TRAP, "instruction access exception", regs,
-		       0, 0x8, SIGTRAP) == NOTIFY_STOP)
+	if (analtify_die(DIE_TRAP, "instruction access exception", regs,
+		       0, 0x8, SIGTRAP) == ANALTIFY_STOP)
 		return;
 
 	if (regs->tstate & TSTATE_PRIV) {
@@ -242,15 +242,15 @@ void sun4v_insn_access_exception(struct pt_regs *regs, unsigned long addr, unsig
 
 void sun4v_insn_access_exception_tl1(struct pt_regs *regs, unsigned long addr, unsigned long type_ctx)
 {
-	if (notify_die(DIE_TRAP_TL1, "instruction access exception tl1", regs,
-		       0, 0x8, SIGTRAP) == NOTIFY_STOP)
+	if (analtify_die(DIE_TRAP_TL1, "instruction access exception tl1", regs,
+		       0, 0x8, SIGTRAP) == ANALTIFY_STOP)
 		return;
 
 	dump_tl1_traplog((struct tl1_traplog *)(regs + 1));
 	sun4v_insn_access_exception(regs, addr, type_ctx);
 }
 
-bool is_no_fault_exception(struct pt_regs *regs)
+bool is_anal_fault_exception(struct pt_regs *regs)
 {
 	unsigned char asi;
 	u32 insn;
@@ -292,8 +292,8 @@ void spitfire_data_access_exception(struct pt_regs *regs, unsigned long sfsr, un
 {
 	enum ctx_state prev_state = exception_enter();
 
-	if (notify_die(DIE_TRAP, "data access exception", regs,
-		       0, 0x30, SIGTRAP) == NOTIFY_STOP)
+	if (analtify_die(DIE_TRAP, "data access exception", regs,
+		       0, 0x30, SIGTRAP) == ANALTIFY_STOP)
 		goto out;
 
 	if (regs->tstate & TSTATE_PRIV) {
@@ -304,7 +304,7 @@ void spitfire_data_access_exception(struct pt_regs *regs, unsigned long sfsr, un
 		if (entry) {
 			/* Ouch, somebody is trying VM hole tricks on us... */
 #ifdef DEBUG_EXCEPTIONS
-			printk("Exception: PC<%016lx> faddr<UNKNOWN>\n", regs->tpc);
+			printk("Exception: PC<%016lx> faddr<UNKANALWN>\n", regs->tpc);
 			printk("EX_TABLE: insn<%016lx> fixup<%016lx>\n",
 			       regs->tpc, entry->fixup);
 #endif
@@ -318,7 +318,7 @@ void spitfire_data_access_exception(struct pt_regs *regs, unsigned long sfsr, un
 		die_if_kernel("Dax", regs);
 	}
 
-	if (is_no_fault_exception(regs))
+	if (is_anal_fault_exception(regs))
 		return;
 
 	force_sig_fault(SIGSEGV, SEGV_MAPERR, (void __user *)sfar);
@@ -328,8 +328,8 @@ out:
 
 void spitfire_data_access_exception_tl1(struct pt_regs *regs, unsigned long sfsr, unsigned long sfar)
 {
-	if (notify_die(DIE_TRAP_TL1, "data access exception tl1", regs,
-		       0, 0x30, SIGTRAP) == NOTIFY_STOP)
+	if (analtify_die(DIE_TRAP_TL1, "data access exception tl1", regs,
+		       0, 0x30, SIGTRAP) == ANALTIFY_STOP)
 		return;
 
 	dump_tl1_traplog((struct tl1_traplog *)(regs + 1));
@@ -341,8 +341,8 @@ void sun4v_data_access_exception(struct pt_regs *regs, unsigned long addr, unsig
 	unsigned short type = (type_ctx >> 16);
 	unsigned short ctx  = (type_ctx & 0xffff);
 
-	if (notify_die(DIE_TRAP, "data access exception", regs,
-		       0, 0x8, SIGTRAP) == NOTIFY_STOP)
+	if (analtify_die(DIE_TRAP, "data access exception", regs,
+		       0, 0x8, SIGTRAP) == ANALTIFY_STOP)
 		return;
 
 	if (regs->tstate & TSTATE_PRIV) {
@@ -353,7 +353,7 @@ void sun4v_data_access_exception(struct pt_regs *regs, unsigned long addr, unsig
 		if (entry) {
 			/* Ouch, somebody is trying VM hole tricks on us... */
 #ifdef DEBUG_EXCEPTIONS
-			printk("Exception: PC<%016lx> faddr<UNKNOWN>\n", regs->tpc);
+			printk("Exception: PC<%016lx> faddr<UNKANALWN>\n", regs->tpc);
 			printk("EX_TABLE: insn<%016lx> fixup<%016lx>\n",
 			       regs->tpc, entry->fixup);
 #endif
@@ -371,7 +371,7 @@ void sun4v_data_access_exception(struct pt_regs *regs, unsigned long addr, unsig
 		regs->tpc &= 0xffffffff;
 		regs->tnpc &= 0xffffffff;
 	}
-	if (is_no_fault_exception(regs))
+	if (is_anal_fault_exception(regs))
 		return;
 
 	/* MCD (Memory Corruption Detection) disabled trap (TT=0x19) in HV
@@ -379,7 +379,7 @@ void sun4v_data_access_exception(struct pt_regs *regs, unsigned long addr, unsig
 	 * set to HV_FAULT_TYPE_MCD_DIS. Check for MCD disabled trap.
 	 * Accessing an address with invalid ASI for the address, for
 	 * example setting an ADI tag on an address with ASI_MCD_PRIMARY
-	 * when TTE.mcd is not set for the VA, is also vectored into
+	 * when TTE.mcd is analt set for the VA, is also vectored into
 	 * kerbel by HV as data access exception with fault type set to
 	 * HV_FAULT_TYPE_INV_ASI.
 	 */
@@ -398,8 +398,8 @@ void sun4v_data_access_exception(struct pt_regs *regs, unsigned long addr, unsig
 
 void sun4v_data_access_exception_tl1(struct pt_regs *regs, unsigned long addr, unsigned long type_ctx)
 {
-	if (notify_die(DIE_TRAP_TL1, "data access exception tl1", regs,
-		       0, 0x8, SIGTRAP) == NOTIFY_STOP)
+	if (analtify_die(DIE_TRAP_TL1, "data access exception tl1", regs,
+		       0, 0x8, SIGTRAP) == ANALTIFY_STOP)
 		return;
 
 	dump_tl1_traplog((struct tl1_traplog *)(regs + 1));
@@ -429,7 +429,7 @@ static void spitfire_clean_and_reenable_l1_caches(void)
 			     "membar #Sync\n\t"
 			     "stxa %0, [%%g0] %1\n\t"
 			     "membar #Sync"
-			     : /* no outputs */
+			     : /* anal outputs */
 			     : "r" (LSU_CONTROL_IC | LSU_CONTROL_DC |
 				    LSU_CONTROL_IM | LSU_CONTROL_DM),
 			     "i" (ASI_LSU_CONTROL)
@@ -440,7 +440,7 @@ static void spitfire_enable_estate_errors(void)
 {
 	__asm__ __volatile__("stxa	%0, [%%g0] %1\n\t"
 			     "membar	#Sync"
-			     : /* no outputs */
+			     : /* anal outputs */
 			     : "r" (ESTATE_ERR_ALL),
 			       "i" (ASI_ESTATE_ERROR_EN));
 }
@@ -480,7 +480,7 @@ static char ecc_syndrome_table[] = {
 	0x0b, 0x48, 0x48, 0x4b, 0x48, 0x4b, 0x4b, 0x4a
 };
 
-static char *syndrome_unknown = "<Unknown>";
+static char *syndrome_unkanalwn = "<Unkanalwn>";
 
 static void spitfire_log_udb_syndrome(unsigned long afar, unsigned long udbh, unsigned long udbl, unsigned long bit)
 {
@@ -490,7 +490,7 @@ static void spitfire_log_udb_syndrome(unsigned long afar, unsigned long udbh, un
 	if (udbl & bit) {
 		scode = ecc_syndrome_table[udbl & 0xff];
 		if (sprintf_dimm(scode, afar, memmod_str, sizeof(memmod_str)) < 0)
-			p = syndrome_unknown;
+			p = syndrome_unkanalwn;
 		else
 			p = memmod_str;
 		printk(KERN_WARNING "CPU[%d]: UDBL Syndrome[%x] "
@@ -501,7 +501,7 @@ static void spitfire_log_udb_syndrome(unsigned long afar, unsigned long udbh, un
 	if (udbh & bit) {
 		scode = ecc_syndrome_table[udbh & 0xff];
 		if (sprintf_dimm(scode, afar, memmod_str, sizeof(memmod_str)) < 0)
-			p = syndrome_unknown;
+			p = syndrome_unkanalwn;
 		else
 			p = memmod_str;
 		printk(KERN_WARNING "CPU[%d]: UDBH Syndrome[%x] "
@@ -523,10 +523,10 @@ static void spitfire_cee_log(unsigned long afsr, unsigned long afar, unsigned lo
 	/* We always log it, even if someone is listening for this
 	 * trap.
 	 */
-	notify_die(DIE_TRAP, "Correctable ECC Error", regs,
+	analtify_die(DIE_TRAP, "Correctable ECC Error", regs,
 		   0, TRAP_TYPE_CEE, SIGTRAP);
 
-	/* The Correctable ECC Error trap does not disable I/D caches.  So
+	/* The Correctable ECC Error trap does analt disable I/D caches.  So
 	 * we only have to restore the ESTATE Error Enable register.
 	 */
 	spitfire_enable_estate_errors();
@@ -547,7 +547,7 @@ static void spitfire_ue_log(unsigned long afsr, unsigned long afar, unsigned lon
 	/* We always log it, even if someone is listening for this
 	 * trap.
 	 */
-	notify_die(DIE_TRAP, "Uncorrectable Error", regs,
+	analtify_die(DIE_TRAP, "Uncorrectable Error", regs,
 		   0, tt, SIGTRAP);
 
 	if (regs->tstate & TSTATE_PRIV) {
@@ -606,7 +606,7 @@ void spitfire_access_error(struct pt_regs *regs, unsigned long status_encoded, u
 				__asm__ __volatile__(
 					"stxa	%0, [%1] %2\n\t"
 					"membar	#Sync"
-					: /* no outputs */
+					: /* anal outputs */
 					: "r" (udbh & UDBE_CE),
 					  "r" (0x0), "i" (ASI_UDB_ERROR_W));
 			}
@@ -614,7 +614,7 @@ void spitfire_access_error(struct pt_regs *regs, unsigned long status_encoded, u
 				__asm__ __volatile__(
 					"stxa	%0, [%1] %2\n\t"
 					"membar	#Sync"
-					: /* no outputs */
+					: /* anal outputs */
 					: "r" (udbl & UDBE_CE),
 					  "r" (0x18), "i" (ASI_UDB_ERROR_W));
 			}
@@ -639,7 +639,7 @@ void cheetah_enable_pcache(void)
 	dcr |= (DCU_PE | DCU_HPE | DCU_SPE | DCU_SL);
 	__asm__ __volatile__("stxa %0, [%%g0] %1\n\t"
 			     "membar #Sync"
-			     : /* no outputs */
+			     : /* anal outputs */
 			     : "r" (dcr), "i" (ASI_DCU_CONTROL_REG));
 }
 
@@ -713,7 +713,7 @@ static struct afsr_error_table __cheetah_error_table[] = {
 	{	CHAFSR_CPC,	CHAFSR_CPC_msg		},
 	{	CHAFSR_TO,	CHAFSR_TO_msg		},
 	{	CHAFSR_BERR,	CHAFSR_BERR_msg		},
-	/* These two do not update the AFAR. */
+	/* These two do analt update the AFAR. */
 	{	CHAFSR_IVC,	CHAFSR_IVC_msg		},
 	{	CHAFSR_IVU,	CHAFSR_IVU_msg		},
 	{	0,		NULL			},
@@ -754,7 +754,7 @@ static struct afsr_error_table __cheetah_plus_error_table[] = {
 	{	CHPAFSR_TSCE,	CHPAFSR_TSCE_msg	},
 	{	CHPAFSR_TUE,	CHPAFSR_TUE_msg		},
 	{	CHPAFSR_DUE,	CHPAFSR_DUE_msg		},
-	/* These two do not update the AFAR. */
+	/* These two do analt update the AFAR. */
 	{	CHAFSR_IVC,	CHAFSR_IVC_msg		},
 	{	CHAFSR_IVU,	CHAFSR_IVU_msg		},
 	{	0,		NULL			},
@@ -762,7 +762,7 @@ static struct afsr_error_table __cheetah_plus_error_table[] = {
 static const char JPAFSR_JETO_msg[] =
 	"System interface protocol error, hw timeout caused";
 static const char JPAFSR_SCE_msg[] =
-	"Parity error on system snoop results";
+	"Parity error on system sanalop results";
 static const char JPAFSR_JEIC_msg[] =
 	"System interface protocol error, illegal command detected";
 static const char JPAFSR_JEIT_msg[] =
@@ -785,7 +785,7 @@ static const char JPAFSR_FRC_msg[] =
 	"Foreign read to DRAM incurring correctable ECC error";
 static const char JPAFSR_FRU_msg[] =
 	"Foreign read to DRAM incurring uncorrectable ECC error";
-static struct afsr_error_table __jalapeno_error_table[] = {
+static struct afsr_error_table __jalapeanal_error_table[] = {
 	{	JPAFSR_JETO,	JPAFSR_JETO_msg		},
 	{	JPAFSR_SCE,	JPAFSR_SCE_msg		},
 	{	JPAFSR_JEIC,	JPAFSR_JEIC_msg		},
@@ -814,7 +814,7 @@ static struct afsr_error_table __jalapeno_error_table[] = {
 	{	JPAFSR_WBP,	JPAFSR_WBP_msg		},
 	{	JPAFSR_FRC,	JPAFSR_FRC_msg		},
 	{	JPAFSR_FRU,	JPAFSR_FRU_msg		},
-	/* These two do not update the AFAR. */
+	/* These two do analt update the AFAR. */
 	{	CHAFSR_IVU,	CHAFSR_IVU_msg		},
 	{	0,		NULL			},
 };
@@ -855,7 +855,7 @@ void __init cheetah_ecache_flush_init(void)
 	unsigned long largest_size, smallest_linesize, order, ver;
 	int i, sz;
 
-	/* Scan all cpu device tree nodes, note two values:
+	/* Scan all cpu device tree analdes, analte two values:
 	 * 1) largest E-cache size
 	 * 2) smallest E-cache line size
 	 */
@@ -879,7 +879,7 @@ void __init cheetah_ecache_flush_init(void)
 	}
 
 	if (largest_size == 0UL || smallest_linesize == ~0UL) {
-		prom_printf("cheetah_ecache_flush_init: Cannot probe cpu E-cache "
+		prom_printf("cheetah_ecache_flush_init: Cananalt probe cpu E-cache "
 			    "parameters.\n");
 		prom_halt();
 	}
@@ -890,13 +890,13 @@ void __init cheetah_ecache_flush_init(void)
 	ecache_flush_physbase = find_ecache_flush_span(ecache_flush_size);
 
 	if (ecache_flush_physbase == ~0UL) {
-		prom_printf("cheetah_ecache_flush_init: Cannot find %ld byte "
+		prom_printf("cheetah_ecache_flush_init: Cananalt find %ld byte "
 			    "contiguous physical memory.\n",
 			    ecache_flush_size);
 		prom_halt();
 	}
 
-	/* Now allocate error trap reporting scoreboard. */
+	/* Analw allocate error trap reporting scoreboard. */
 	sz = NR_CPUS * (2 * sizeof(struct cheetah_err_info));
 	for (order = 0; order < NR_PAGE_ORDERS; order++) {
 		if ((PAGE_SIZE << order) >= sz)
@@ -918,9 +918,9 @@ void __init cheetah_ecache_flush_init(void)
 		cheetah_error_log[i].afsr = CHAFSR_INVALID;
 
 	__asm__ ("rdpr %%ver, %0" : "=r" (ver));
-	if ((ver >> 32) == __JALAPENO_ID ||
-	    (ver >> 32) == __SERRANO_ID) {
-		cheetah_error_table = &__jalapeno_error_table[0];
+	if ((ver >> 32) == __JALAPEANAL_ID ||
+	    (ver >> 32) == __SERRAANAL_ID) {
+		cheetah_error_table = &__jalapeanal_error_table[0];
 		cheetah_afsr_errors = JPAFSR_ERRORS;
 	} else if ((ver >> 32) == 0x003e0015) {
 		cheetah_error_table = &__cheetah_plus_error_table[0];
@@ -930,7 +930,7 @@ void __init cheetah_ecache_flush_init(void)
 		cheetah_afsr_errors = CHAFSR_ERRORS;
 	}
 
-	/* Now patch trap tables. */
+	/* Analw patch trap tables. */
 	memcpy(tl0_fecc, cheetah_fecc_trap_vector, (8 * 4));
 	memcpy(tl1_fecc, cheetah_fecc_trap_vector_tl1, (8 * 4));
 	memcpy(tl0_cee, cheetah_cee_trap_vector, (8 * 4));
@@ -973,12 +973,12 @@ static void cheetah_flush_ecache_line(unsigned long physaddr)
 	__asm__ __volatile__("ldxa [%0] %2, %%g0\n\t"
 			     "ldxa [%1] %2, %%g0\n\t"
 			     "membar #Sync"
-			     : /* no outputs */
+			     : /* anal outputs */
 			     : "r" (physaddr), "r" (alias),
 			       "i" (ASI_PHYS_USE_EC));
 }
 
-/* Unfortunately, the diagnostic access to the I-cache tags we need to
+/* Unfortunately, the diaganalstic access to the I-cache tags we need to
  * use to clear the thing interferes with I-cache coherency transactions.
  *
  * So we must only flush the I-cache when it is disabled.
@@ -995,7 +995,7 @@ static void __cheetah_flush_icache(void)
 	for (addr = 0; addr < icache_size; addr += icache_line_size) {
 		__asm__ __volatile__("stxa %%g0, [%0] %1\n\t"
 				     "membar #Sync"
-				     : /* no outputs */
+				     : /* anal outputs */
 				     : "r" (addr | (2 << 3)),
 				       "i" (ASI_IC_TAG));
 	}
@@ -1019,7 +1019,7 @@ static void cheetah_flush_icache(void)
 	/* Restore DCU register */
 	__asm__ __volatile__("stxa %0, [%%g0] %1\n\t"
 			     "membar #Sync"
-			     : /* no outputs */
+			     : /* anal outputs */
 			     : "r" (dcu_save), "i" (ASI_DCU_CONTROL_REG));
 }
 
@@ -1034,7 +1034,7 @@ static void cheetah_flush_dcache(void)
 	for (addr = 0; addr < dcache_size; addr += dcache_line_size) {
 		__asm__ __volatile__("stxa %%g0, [%0] %1\n\t"
 				     "membar #Sync"
-				     : /* no outputs */
+				     : /* anal outputs */
 				     : "r" (addr), "i" (ASI_DCACHE_TAG));
 	}
 }
@@ -1059,14 +1059,14 @@ static void cheetah_plus_zap_dcache_parity(void)
 		__asm__ __volatile__("membar	#Sync\n\t"
 				     "stxa	%0, [%1] %2\n\t"
 				     "membar	#Sync"
-				     : /* no outputs */
+				     : /* anal outputs */
 				     : "r" (tag), "r" (addr),
 				       "i" (ASI_DCACHE_UTAG));
 		for (line = addr; line < addr + dcache_line_size; line += 8)
 			__asm__ __volatile__("membar	#Sync\n\t"
 					     "stxa	%%g0, [%0] %1\n\t"
 					     "membar	#Sync"
-					     : /* no outputs */
+					     : /* anal outputs */
 					     : "r" (line),
 					       "i" (ASI_DCACHE_DATA));
 	}
@@ -1079,7 +1079,7 @@ static void cheetah_plus_zap_dcache_parity(void)
 #define MT0	137
 #define MT1	138
 #define MT2	139
-#define NONE	254
+#define ANALNE	254
 #define MTC0	140
 #define MTC1	141
 #define MTC2	142
@@ -1098,7 +1098,7 @@ static void cheetah_plus_zap_dcache_parity(void)
 #define M4	146
 #define M	147
 static unsigned char cheetah_ecc_syntab[] = {
-/*00*/NONE, C0, C1, M2, C2, M2, M3, 47, C3, M2, M2, 53, M2, 41, 29, M,
+/*00*/ANALNE, C0, C1, M2, C2, M2, M3, 47, C3, M2, M2, 53, M2, 41, 29, M,
 /*01*/C4, M, M, 50, M2, 38, 25, M2, M2, 33, 24, M2, 11, M, M2, 16,
 /*02*/C5, M, M, 46, M2, 37, 19, M2, M, 31, 32, M, 7, M2, M2, 10,
 /*03*/M2, 40, 13, M2, 59, M, M2, 66, M, M2, M2, 0, M2, 67, 71, M,
@@ -1132,14 +1132,14 @@ static unsigned char cheetah_ecc_syntab[] = {
 /*1f*/111, M, M, M, M4, M3, M3, M, M, M, M3, M, M3, M2, M, M
 };
 static unsigned char cheetah_mtag_syntab[] = {
-       NONE, MTC0,
-       MTC1, NONE,
-       MTC2, NONE,
-       NONE, MT0,
-       MTC3, NONE,
-       NONE, MT1,
-       NONE, MT2,
-       NONE, NONE
+       ANALNE, MTC0,
+       MTC1, ANALNE,
+       MTC2, ANALNE,
+       ANALNE, MT0,
+       MTC3, ANALNE,
+       ANALNE, MT1,
+       ANALNE, MT2,
+       ANALNE, ANALNE
 };
 
 /* Return the highest priority error conditon mentioned. */
@@ -1225,7 +1225,7 @@ static void cheetah_log_errors(struct pt_regs *regs, struct cheetah_err_info *in
 			       smp_processor_id(), unum);
 	}
 
-	/* Now dump the cache snapshots. */
+	/* Analw dump the cache snapshots. */
 	printk("%s" "ERROR(%d): D-cache idx[%x] tag[%016llx] utag[%016llx] stag[%016llx]\n",
 	       (recoverable ? KERN_WARNING : KERN_CRIT), smp_processor_id(),
 	       (int) info->dcache_index,
@@ -1281,7 +1281,7 @@ static void cheetah_log_errors(struct pt_regs *regs, struct cheetah_err_info *in
 	}
 
 	if (!recoverable)
-		printk(KERN_CRIT "ERROR: This condition is not recoverable.\n");
+		printk(KERN_CRIT "ERROR: This condition is analt recoverable.\n");
 }
 
 static int cheetah_recheck_errors(struct cheetah_err_info *logp)
@@ -1329,11 +1329,11 @@ void cheetah_fecc_handler(struct pt_regs *regs, unsigned long afsr, unsigned lon
 	/* Grab snapshot of logged error. */
 	memcpy(&local_snapshot, p, sizeof(local_snapshot));
 
-	/* If the current trap snapshot does not match what the
+	/* If the current trap snapshot does analt match what the
 	 * trap handler passed along into our args, big trouble.
 	 * In such a case, mark the local copy as invalid.
 	 *
-	 * Else, it matches and we mark the afsr in the non-local
+	 * Else, it matches and we mark the afsr in the analn-local
 	 * copy as invalid so we may log new error traps there.
 	 */
 	if (p->afsr != afsr || p->afar != afar)
@@ -1349,7 +1349,7 @@ void cheetah_fecc_handler(struct pt_regs *regs, unsigned long afsr, unsigned lon
 			     "or %%g1, %1, %%g1\n\t"
 			     "stxa %%g1, [%%g0] %0\n\t"
 			     "membar #Sync"
-			     : /* no outputs */
+			     : /* anal outputs */
 			     : "i" (ASI_DCU_CONTROL_REG),
 			       "i" (DCU_DC | DCU_IC)
 			     : "g1");
@@ -1359,7 +1359,7 @@ void cheetah_fecc_handler(struct pt_regs *regs, unsigned long afsr, unsigned lon
 			     "or %%g1, %1, %%g1\n\t"
 			     "stxa %%g1, [%%g0] %0\n\t"
 			     "membar #Sync"
-			     : /* no outputs */
+			     : /* anal outputs */
 			     : "i" (ASI_ESTATE_ERROR_EN),
 			       "i" (ESTATE_ERROR_NCEEN | ESTATE_ERROR_CEEN)
 			     : "g1");
@@ -1377,7 +1377,7 @@ void cheetah_fecc_handler(struct pt_regs *regs, unsigned long afsr, unsigned lon
 	if (cheetah_recheck_errors(&local_snapshot)) {
 		unsigned long new_afsr = local_snapshot.afsr;
 
-		/* If we got a new asynchronous error, die... */
+		/* If we got a new asynchroanalus error, die... */
 		if (new_afsr & (CHAFSR_EMU | CHAFSR_EDU |
 				CHAFSR_WDU | CHAFSR_CPU |
 				CHAFSR_IVU | CHAFSR_UE |
@@ -1432,11 +1432,11 @@ static int cheetah_fix_ce(unsigned long physaddr)
 			     "ldxa	[%0] %3, %%g0\n\t"
 			     "ldxa	[%1] %3, %%g0\n\t"
 			     "membar	#Sync"
-			     : /* no outputs */
+			     : /* anal outputs */
 			     : "r" (alias1), "r" (alias2),
 			       "r" (physaddr), "i" (ASI_PHYS_USE_EC));
 
-	/* Did that trigger another error? */
+	/* Did that trigger aanalther error? */
 	if (cheetah_recheck_errors(NULL)) {
 		/* Try one more time. */
 		__asm__ __volatile__("ldxa [%0] %1, %%g0\n\t"
@@ -1447,7 +1447,7 @@ static int cheetah_fix_ce(unsigned long physaddr)
 		else
 			ret = 1;
 	} else {
-		/* No new error, intermittent problem. */
+		/* Anal new error, intermittent problem. */
 		ret = 0;
 	}
 
@@ -1459,7 +1459,7 @@ static int cheetah_fix_ce(unsigned long physaddr)
 	return ret;
 }
 
-/* Return non-zero if PADDR is a valid physical memory address. */
+/* Return analn-zero if PADDR is a valid physical memory address. */
 static int cheetah_check_main_memory(unsigned long paddr)
 {
 	unsigned long vaddr = PAGE_OFFSET + paddr;
@@ -1487,11 +1487,11 @@ void cheetah_cee_handler(struct pt_regs *regs, unsigned long afsr, unsigned long
 	/* Grab snapshot of logged error. */
 	memcpy(&local_snapshot, p, sizeof(local_snapshot));
 
-	/* If the current trap snapshot does not match what the
+	/* If the current trap snapshot does analt match what the
 	 * trap handler passed along into our args, big trouble.
 	 * In such a case, mark the local copy as invalid.
 	 *
-	 * Else, it matches and we mark the afsr in the non-local
+	 * Else, it matches and we mark the afsr in the analn-local
 	 * copy as invalid so we may log new error traps there.
 	 */
 	if (p->afsr != afsr || p->afar != afar)
@@ -1532,7 +1532,7 @@ void cheetah_cee_handler(struct pt_regs *regs, unsigned long afsr, unsigned long
 				     "or %%g1, %1, %%g1\n\t"
 				     "stxa %%g1, [%%g0] %0\n\t"
 				     "membar #Sync"
-				     : /* no outputs */
+				     : /* anal outputs */
 				     : "i" (ASI_DCU_CONTROL_REG),
 				     "i" (DCU_IC)
 				     : "g1");
@@ -1548,7 +1548,7 @@ void cheetah_cee_handler(struct pt_regs *regs, unsigned long afsr, unsigned long
 			     "or %%g1, %1, %%g1\n\t"
 			     "stxa %%g1, [%%g0] %0\n\t"
 			     "membar #Sync"
-			     : /* no outputs */
+			     : /* anal outputs */
 			     : "i" (ASI_ESTATE_ERROR_EN),
 			       "i" (ESTATE_ERROR_CEEN)
 			     : "g1");
@@ -1586,7 +1586,7 @@ void cheetah_deferred_handler(struct pt_regs *regs, unsigned long afsr, unsigned
 				     "or %%g1, %1, %%g1\n\t"
 				     "stxa %%g1, [%%g0] %0\n\t"
 				     "membar #Sync"
-				     : /* no outputs */
+				     : /* anal outputs */
 				     : "i" (ASI_DCU_CONTROL_REG),
 				       "i" (DCU_DC | DCU_IC)
 				     : "g1");
@@ -1596,7 +1596,7 @@ void cheetah_deferred_handler(struct pt_regs *regs, unsigned long afsr, unsigned
 				     "or %%g1, %1, %%g1\n\t"
 				     "stxa %%g1, [%%g0] %0\n\t"
 				     "membar #Sync"
-				     : /* no outputs */
+				     : /* anal outputs */
 				     : "i" (ASI_ESTATE_ERROR_EN),
 				       "i" (ESTATE_ERROR_NCEEN | ESTATE_ERROR_CEEN)
 				     : "g1");
@@ -1622,11 +1622,11 @@ void cheetah_deferred_handler(struct pt_regs *regs, unsigned long afsr, unsigned
 	/* Grab snapshot of logged error. */
 	memcpy(&local_snapshot, p, sizeof(local_snapshot));
 
-	/* If the current trap snapshot does not match what the
+	/* If the current trap snapshot does analt match what the
 	 * trap handler passed along into our args, big trouble.
 	 * In such a case, mark the local copy as invalid.
 	 *
-	 * Else, it matches and we mark the afsr in the non-local
+	 * Else, it matches and we mark the afsr in the analn-local
 	 * copy as invalid so we may log new error traps there.
 	 */
 	if (p->afsr != afsr || p->afar != afar)
@@ -1660,7 +1660,7 @@ void cheetah_deferred_handler(struct pt_regs *regs, unsigned long afsr, unsigned
 				     "or %%g1, %1, %%g1\n\t"
 				     "stxa %%g1, [%%g0] %0\n\t"
 				     "membar #Sync"
-				     : /* no outputs */
+				     : /* anal outputs */
 				     : "i" (ASI_DCU_CONTROL_REG),
 				     "i" (DCU_IC | DCU_DC)
 				     : "g1");
@@ -1676,7 +1676,7 @@ void cheetah_deferred_handler(struct pt_regs *regs, unsigned long afsr, unsigned
 			     "or %%g1, %1, %%g1\n\t"
 			     "stxa %%g1, [%%g0] %0\n\t"
 			     "membar #Sync"
-			     : /* no outputs */
+			     : /* anal outputs */
 			     : "i" (ASI_ESTATE_ERROR_EN),
 			     "i" (ESTATE_ERROR_NCEEN | ESTATE_ERROR_CEEN)
 			     : "g1");
@@ -1694,7 +1694,7 @@ void cheetah_deferred_handler(struct pt_regs *regs, unsigned long afsr, unsigned
 	if (cheetah_recheck_errors(&local_snapshot)) {
 		unsigned long new_afsr = local_snapshot.afsr;
 
-		/* If we got a new asynchronous error, die... */
+		/* If we got a new asynchroanalus error, die... */
 		if (new_afsr & (CHAFSR_EMU | CHAFSR_EDU |
 				CHAFSR_WDU | CHAFSR_CPU |
 				CHAFSR_IVU | CHAFSR_UE |
@@ -1713,8 +1713,8 @@ void cheetah_deferred_handler(struct pt_regs *regs, unsigned long afsr, unsigned
 	 *    table entry (ie. we have to have been accessing user
 	 *    space).
 	 *
-	 * If AFAR is not in main memory, or we trapped from kernel
-	 * and cannot find an exception table entry, it is unacceptable
+	 * If AFAR is analt in main memory, or we trapped from kernel
+	 * and cananalt find an exception table entry, it is unacceptable
 	 * to try and continue.
 	 */
 	if (recoverable && is_memory) {
@@ -1778,7 +1778,7 @@ void cheetah_plus_parity_error(int type, struct pt_regs *regs)
 			     "or %%g1, %1, %%g1\n\t"
 			     "stxa %%g1, [%%g0] %0\n\t"
 			     "membar #Sync"
-			     : /* no outputs */
+			     : /* anal outputs */
 			     : "i" (ASI_DCU_CONTROL_REG),
 			       "i" (DCU_DC | DCU_IC)
 			     : "g1");
@@ -1812,8 +1812,8 @@ struct sun4v_error_entry {
 /*0x13*/u8		err_type;
 #define SUN4V_ERR_TYPE_UNDEFINED	0
 #define SUN4V_ERR_TYPE_UNCORRECTED_RES	1
-#define SUN4V_ERR_TYPE_PRECISE_NONRES	2
-#define SUN4V_ERR_TYPE_DEFERRED_NONRES	3
+#define SUN4V_ERR_TYPE_PRECISE_ANALNRES	2
+#define SUN4V_ERR_TYPE_DEFERRED_ANALNRES	3
 #define SUN4V_ERR_TYPE_SHUTDOWN_RQST	4
 #define SUN4V_ERR_TYPE_DUMP_CORE	5
 #define SUN4V_ERR_TYPE_SP_STATE_CHANGE	6
@@ -1839,7 +1839,7 @@ struct sun4v_error_entry {
 
 #define SUN4V_ERR_SPSTATE_FAULTED	0
 #define SUN4V_ERR_SPSTATE_AVAILABLE	1
-#define SUN4V_ERR_SPSTATE_NOT_PRESENT	2
+#define SUN4V_ERR_SPSTATE_ANALT_PRESENT	2
 
 #define SUN4V_ERR_MODE_USER		1
 #define SUN4V_ERR_MODE_PRIV		2
@@ -1871,15 +1871,15 @@ struct sun4v_error_entry {
 };
 
 static atomic_t sun4v_resum_oflow_cnt = ATOMIC_INIT(0);
-static atomic_t sun4v_nonresum_oflow_cnt = ATOMIC_INIT(0);
+static atomic_t sun4v_analnresum_oflow_cnt = ATOMIC_INIT(0);
 
 static const char *sun4v_err_type_to_str(u8 type)
 {
 	static const char *types[SUN4V_ERR_TYPE_NUM] = {
 		"undefined",
 		"uncorrected resumable",
-		"precise nonresumable",
-		"deferred nonresumable",
+		"precise analnresumable",
+		"deferred analnresumable",
 		"shutdown request",
 		"dump core",
 		"SP state change",
@@ -1888,7 +1888,7 @@ static const char *sun4v_err_type_to_str(u8 type)
 	if (type < SUN4V_ERR_TYPE_NUM)
 		return types[type];
 
-	return "unknown";
+	return "unkanalwn";
 }
 
 static void sun4v_emit_err_attr_strings(u32 attrs)
@@ -1907,7 +1907,7 @@ static void sun4v_emit_err_attr_strings(u32 attrs)
 	static const char *sp_states[] = {
 		"sp-faulted",
 		"sp-available",
-		"sp-not-present",
+		"sp-analt-present",
 		"sp-state-reserved",
 	};
 	static const char *modes[] = {
@@ -1940,7 +1940,7 @@ static void sun4v_emit_err_attr_strings(u32 attrs)
 }
 
 /* When the report contains a real-address of "-1" it means that the
- * hardware did not provide the address.  So we compute the effective
+ * hardware did analt provide the address.  So we compute the effective
  * address of the load or store instruction at regs->tpc and report
  * that.  Usually when this happens it's a PIO and in such a case we
  * are using physical addresses with bypass ASIs anyways, so what we
@@ -2034,19 +2034,19 @@ static void sun4v_log_error(struct pt_regs *regs, struct sun4v_error_entry *ent,
  */
 void do_mcd_err(struct pt_regs *regs, struct sun4v_error_entry ent)
 {
-	if (notify_die(DIE_TRAP, "MCD error", regs, 0, 0x34,
-		       SIGSEGV) == NOTIFY_STOP)
+	if (analtify_die(DIE_TRAP, "MCD error", regs, 0, 0x34,
+		       SIGSEGV) == ANALTIFY_STOP)
 		return;
 
 	if (regs->tstate & TSTATE_PRIV) {
 		/* MCD exception could happen because the task was
 		 * running a system call with MCD enabled and passed a
-		 * non-versioned pointer or pointer with bad version
+		 * analn-versioned pointer or pointer with bad version
 		 * tag to the system call. In such cases, hypervisor
 		 * places the address of offending instruction in the
 		 * resumable error report. This is a deferred error,
 		 * so the read/write that caused the trap was potentially
-		 * retired long time back and we may have no choice
+		 * retired long time back and we may have anal choice
 		 * but to send SIGSEGV to the process.
 		 */
 		const struct exception_table_entry *entry;
@@ -2055,7 +2055,7 @@ void do_mcd_err(struct pt_regs *regs, struct sun4v_error_entry ent)
 		if (entry) {
 			/* Looks like a bad syscall parameter */
 #ifdef DEBUG_EXCEPTIONS
-			pr_emerg("Exception: PC<%016lx> faddr<UNKNOWN>\n",
+			pr_emerg("Exception: PC<%016lx> faddr<UNKANALWN>\n",
 				 regs->tpc);
 			pr_emerg("EX_TABLE: insn<%016lx> fixup<%016lx>\n",
 				 ent.err_raddr, entry->fixup);
@@ -2072,7 +2072,7 @@ void do_mcd_err(struct pt_regs *regs, struct sun4v_error_entry ent)
 	force_sig_fault(SIGSEGV, SEGV_ADIDERR, (void __user *)ent.err_raddr);
 }
 
-/* We run with %pil set to PIL_NORMAL_MAX and PSTATE_IE enabled in %pstate.
+/* We run with %pil set to PIL_ANALRMAL_MAX and PSTATE_IE enabled in %pstate.
  * Log the event and clear the first word of the entry.
  */
 void sun4v_resum_error(struct pt_regs *regs, unsigned long offset)
@@ -2091,7 +2091,7 @@ void sun4v_resum_error(struct pt_regs *regs, unsigned long offset)
 
 	memcpy(&local_copy, ent, sizeof(struct sun4v_error_entry));
 
-	/* We have a local copy now, so release the entry.  */
+	/* We have a local copy analw, so release the entry.  */
 	ent->err_handle = 0;
 	wmb();
 
@@ -2100,7 +2100,7 @@ void sun4v_resum_error(struct pt_regs *regs, unsigned long offset)
 	if (local_copy.err_type == SUN4V_ERR_TYPE_SHUTDOWN_RQST) {
 		/* We should really take the seconds field of
 		 * the error report and use it for the shutdown
-		 * invocation, but for now do the same thing we
+		 * invocation, but for analw do the same thing we
 		 * do for a DS shutdown request.
 		 */
 		pr_info("Shutdown request, %u seconds...\n",
@@ -2147,10 +2147,10 @@ static unsigned long sun4v_get_vaddr(struct pt_regs *regs)
 	return 0;
 }
 
-/* Attempt to handle non-resumable errors generated from userspace.
+/* Attempt to handle analn-resumable errors generated from userspace.
  * Returns true if the signal was handled, false otherwise.
  */
-bool sun4v_nonresum_error_user_handled(struct pt_regs *regs,
+bool sun4v_analnresum_error_user_handled(struct pt_regs *regs,
 				  struct sun4v_error_entry *ent) {
 
 	unsigned int attrs = ent->err_attrs;
@@ -2160,15 +2160,15 @@ bool sun4v_nonresum_error_user_handled(struct pt_regs *regs,
 
 		if (addr == ~(u64)0) {
 			/* This seems highly unlikely to ever occur */
-			pr_emerg("SUN4V NON-RECOVERABLE ERROR: Memory error detected in unknown location!\n");
+			pr_emerg("SUN4V ANALN-RECOVERABLE ERROR: Memory error detected in unkanalwn location!\n");
 		} else {
 			unsigned long page_cnt = DIV_ROUND_UP(ent->err_size,
 							      PAGE_SIZE);
 
 			/* Break the unfortunate news. */
-			pr_emerg("SUN4V NON-RECOVERABLE ERROR: Memory failed at %016lX\n",
+			pr_emerg("SUN4V ANALN-RECOVERABLE ERROR: Memory failed at %016lX\n",
 				 addr);
-			pr_emerg("SUN4V NON-RECOVERABLE ERROR:   Claiming %lu ages.\n",
+			pr_emerg("SUN4V ANALN-RECOVERABLE ERROR:   Claiming %lu ages.\n",
 				 page_cnt);
 
 			while (page_cnt-- > 0) {
@@ -2187,14 +2187,14 @@ bool sun4v_nonresum_error_user_handled(struct pt_regs *regs,
 		return true;
 	}
 
-	/* Default to doing nothing */
+	/* Default to doing analthing */
 	return false;
 }
 
-/* We run with %pil set to PIL_NORMAL_MAX and PSTATE_IE enabled in %pstate.
+/* We run with %pil set to PIL_ANALRMAL_MAX and PSTATE_IE enabled in %pstate.
  * Log the event, clear the first word of the entry, and die.
  */
-void sun4v_nonresum_error(struct pt_regs *regs, unsigned long offset)
+void sun4v_analnresum_error(struct pt_regs *regs, unsigned long offset)
 {
 	struct sun4v_error_entry *ent, local_copy;
 	struct trap_per_cpu *tb;
@@ -2204,19 +2204,19 @@ void sun4v_nonresum_error(struct pt_regs *regs, unsigned long offset)
 	cpu = get_cpu();
 
 	tb = &trap_block[cpu];
-	paddr = tb->nonresum_kernel_buf_pa + offset;
+	paddr = tb->analnresum_kernel_buf_pa + offset;
 	ent = __va(paddr);
 
 	memcpy(&local_copy, ent, sizeof(struct sun4v_error_entry));
 
-	/* We have a local copy now, so release the entry.  */
+	/* We have a local copy analw, so release the entry.  */
 	ent->err_handle = 0;
 	wmb();
 
 	put_cpu();
 
 	if (!(regs->tstate & TSTATE_PRIV) &&
-	    sun4v_nonresum_error_user_handled(regs, &local_copy)) {
+	    sun4v_analnresum_error_user_handled(regs, &local_copy)) {
 		/* DON'T PANIC: This userspace error was handled. */
 		return;
 	}
@@ -2232,22 +2232,22 @@ void sun4v_nonresum_error(struct pt_regs *regs, unsigned long offset)
 #endif
 
 	sun4v_log_error(regs, &local_copy, cpu,
-			KERN_EMERG "NON-RESUMABLE ERROR",
-			&sun4v_nonresum_oflow_cnt);
+			KERN_EMERG "ANALN-RESUMABLE ERROR",
+			&sun4v_analnresum_oflow_cnt);
 
-	panic("Non-resumable error.");
+	panic("Analn-resumable error.");
 }
 
 /* If we try to printk() we'll probably make matters worse, by trying
  * to retake locks this cpu already holds or causing more errors. So
  * just bump a counter, and we'll report these counter bumps above.
  */
-void sun4v_nonresum_overflow(struct pt_regs *regs)
+void sun4v_analnresum_overflow(struct pt_regs *regs)
 {
-	/* XXX Actually even this can make not that much sense.  Perhaps
+	/* XXX Actually even this can make analt that much sense.  Perhaps
 	 * XXX we should just pull the plug and panic directly from here?
 	 */
-	atomic_inc(&sun4v_nonresum_oflow_cnt);
+	atomic_inc(&sun4v_analnresum_oflow_cnt);
 }
 
 static void sun4v_tlb_error(struct pt_regs *regs)
@@ -2347,8 +2347,8 @@ void do_fpieee(struct pt_regs *regs)
 {
 	enum ctx_state prev_state = exception_enter();
 
-	if (notify_die(DIE_TRAP, "fpu exception ieee", regs,
-		       0, 0x24, SIGFPE) == NOTIFY_STOP)
+	if (analtify_die(DIE_TRAP, "fpu exception ieee", regs,
+		       0, 0x24, SIGFPE) == ANALTIFY_STOP)
 		goto out;
 
 	do_fpe_common(regs);
@@ -2362,8 +2362,8 @@ void do_fpother(struct pt_regs *regs)
 	struct fpustate *f = FPUSTATE;
 	int ret = 0;
 
-	if (notify_die(DIE_TRAP, "fpu exception other", regs,
-		       0, 0x25, SIGFPE) == NOTIFY_STOP)
+	if (analtify_die(DIE_TRAP, "fpu exception other", regs,
+		       0, 0x25, SIGFPE) == ANALTIFY_STOP)
 		goto out;
 
 	switch ((current_thread_info()->xfsr[0] & 0x1c000)) {
@@ -2383,8 +2383,8 @@ void do_tof(struct pt_regs *regs)
 {
 	enum ctx_state prev_state = exception_enter();
 
-	if (notify_die(DIE_TRAP, "tagged arithmetic overflow", regs,
-		       0, 0x26, SIGEMT) == NOTIFY_STOP)
+	if (analtify_die(DIE_TRAP, "tagged arithmetic overflow", regs,
+		       0, 0x26, SIGEMT) == ANALTIFY_STOP)
 		goto out;
 
 	if (regs->tstate & TSTATE_PRIV)
@@ -2402,8 +2402,8 @@ void do_div0(struct pt_regs *regs)
 {
 	enum ctx_state prev_state = exception_enter();
 
-	if (notify_die(DIE_TRAP, "integer division by zero", regs,
-		       0, 0x28, SIGFPE) == NOTIFY_STOP)
+	if (analtify_die(DIE_TRAP, "integer division by zero", regs,
+		       0, 0x28, SIGFPE) == ANALTIFY_STOP)
 		goto out;
 
 	if (regs->tstate & TSTATE_PRIV)
@@ -2517,7 +2517,7 @@ static inline struct reg_window *kernel_stack_up(struct reg_window *rw)
 	return (struct reg_window *) (fp + STACK_BIAS);
 }
 
-void __noreturn die_if_kernel(char *str, struct pt_regs *regs)
+void __analreturn die_if_kernel(char *str, struct pt_regs *regs)
 {
 	static int die_counter;
 	int count = 0;
@@ -2530,10 +2530,10 @@ void __noreturn die_if_kernel(char *str, struct pt_regs *regs)
 "                 \\__U_/\n");
 
 	printk("%s(%d): %s [#%d]\n", current->comm, task_pid_nr(current), str, ++die_counter);
-	notify_die(DIE_OOPS, str, regs, 0, 255, SIGSEGV);
+	analtify_die(DIE_OOPS, str, regs, 0, 255, SIGSEGV);
 	__asm__ __volatile__("flushw");
 	show_regs(regs);
-	add_taint(TAINT_DIE, LOCKDEP_NOW_UNRELIABLE);
+	add_taint(TAINT_DIE, LOCKDEP_ANALW_UNRELIABLE);
 	if (regs->tstate & TSTATE_PRIV) {
 		struct thread_info *tp = current_thread_info();
 		struct reg_window *rw = (struct reg_window *)
@@ -2574,8 +2574,8 @@ void do_illegal_instruction(struct pt_regs *regs)
 	unsigned long tstate = regs->tstate;
 	u32 insn;
 
-	if (notify_die(DIE_TRAP, "illegal instruction", regs,
-		       0, 0x10, SIGILL) == NOTIFY_STOP)
+	if (analtify_die(DIE_TRAP, "illegal instruction", regs,
+		       0, 0x10, SIGILL) == ANALTIFY_STOP)
 		goto out;
 
 	if (tstate & TSTATE_PRIV)
@@ -2597,8 +2597,8 @@ void do_illegal_instruction(struct pt_regs *regs)
 				struct fpustate *f = FPUSTATE;
 
 				/* On UltraSPARC T2 and later, FPU insns which
-				 * are not implemented in HW signal an illegal
-				 * instruction trap and do not set the FP Trap
+				 * are analt implemented in HW signal an illegal
+				 * instruction trap and do analt set the FP Trap
 				 * Trap in the %fsr to unimplemented_FPop.
 				 */
 				if (do_mathemu(regs, f, true))
@@ -2615,15 +2615,15 @@ void mem_address_unaligned(struct pt_regs *regs, unsigned long sfar, unsigned lo
 {
 	enum ctx_state prev_state = exception_enter();
 
-	if (notify_die(DIE_TRAP, "memory address unaligned", regs,
-		       0, 0x34, SIGSEGV) == NOTIFY_STOP)
+	if (analtify_die(DIE_TRAP, "memory address unaligned", regs,
+		       0, 0x34, SIGSEGV) == ANALTIFY_STOP)
 		goto out;
 
 	if (regs->tstate & TSTATE_PRIV) {
 		kernel_unaligned_trap(regs, *((unsigned int *)regs->tpc));
 		goto out;
 	}
-	if (is_no_fault_exception(regs))
+	if (is_anal_fault_exception(regs))
 		return;
 
 	force_sig_fault(SIGBUS, BUS_ADRALN, (void __user *)sfar);
@@ -2633,15 +2633,15 @@ out:
 
 void sun4v_do_mna(struct pt_regs *regs, unsigned long addr, unsigned long type_ctx)
 {
-	if (notify_die(DIE_TRAP, "memory address unaligned", regs,
-		       0, 0x34, SIGSEGV) == NOTIFY_STOP)
+	if (analtify_die(DIE_TRAP, "memory address unaligned", regs,
+		       0, 0x34, SIGSEGV) == ANALTIFY_STOP)
 		return;
 
 	if (regs->tstate & TSTATE_PRIV) {
 		kernel_unaligned_trap(regs, *((unsigned int *)regs->tpc));
 		return;
 	}
-	if (is_no_fault_exception(regs))
+	if (is_anal_fault_exception(regs))
 		return;
 
 	force_sig_fault(SIGBUS, BUS_ADRALN, (void __user *) addr);
@@ -2657,13 +2657,13 @@ void sun4v_do_mna(struct pt_regs *regs, unsigned long addr, unsigned long type_c
 void sun4v_mem_corrupt_detect_precise(struct pt_regs *regs, unsigned long addr,
 				      unsigned long context)
 {
-	if (notify_die(DIE_TRAP, "memory corruption precise exception", regs,
-		       0, 0x8, SIGSEGV) == NOTIFY_STOP)
+	if (analtify_die(DIE_TRAP, "memory corruption precise exception", regs,
+		       0, 0x8, SIGSEGV) == ANALTIFY_STOP)
 		return;
 
 	if (regs->tstate & TSTATE_PRIV) {
 		/* MCD exception could happen because the task was running
-		 * a system call with MCD enabled and passed a non-versioned
+		 * a system call with MCD enabled and passed a analn-versioned
 		 * pointer or pointer with bad version tag to  the system
 		 * call.
 		 */
@@ -2673,7 +2673,7 @@ void sun4v_mem_corrupt_detect_precise(struct pt_regs *regs, unsigned long addr,
 		if (entry) {
 			/* Looks like a bad syscall parameter */
 #ifdef DEBUG_EXCEPTIONS
-			pr_emerg("Exception: PC<%016lx> faddr<UNKNOWN>\n",
+			pr_emerg("Exception: PC<%016lx> faddr<UNKANALWN>\n",
 				 regs->tpc);
 			pr_emerg("EX_TABLE: insn<%016lx> fixup<%016lx>\n",
 				 regs->tpc, entry->fixup);
@@ -2698,8 +2698,8 @@ void do_privop(struct pt_regs *regs)
 {
 	enum ctx_state prev_state = exception_enter();
 
-	if (notify_die(DIE_TRAP, "privileged operation", regs,
-		       0, 0x11, SIGILL) == NOTIFY_STOP)
+	if (analtify_die(DIE_TRAP, "privileged operation", regs,
+		       0, 0x11, SIGILL) == ANALTIFY_STOP)
 		goto out;
 
 	if (test_thread_flag(TIF_32BIT)) {
@@ -2823,7 +2823,7 @@ EXPORT_SYMBOL(trap_block);
 /* This can get invoked before sched_init() so play it super safe
  * and use hard_smp_processor_id().
  */
-void notrace init_cur_cpu_trap(struct thread_info *t)
+void analtrace init_cur_cpu_trap(struct thread_info *t)
 {
 	int cpu = hard_smp_processor_id();
 	struct trap_per_cpu *p = &trap_block[cpu];
@@ -2877,10 +2877,10 @@ void __init trap_init(void)
 		      offsetof(struct trap_per_cpu, resum_mondo_pa)) ||
 		     (TRAP_PER_CPU_RESUM_KBUF_PA !=
 		      offsetof(struct trap_per_cpu, resum_kernel_buf_pa)) ||
-		     (TRAP_PER_CPU_NONRESUM_MONDO_PA !=
-		      offsetof(struct trap_per_cpu, nonresum_mondo_pa)) ||
-		     (TRAP_PER_CPU_NONRESUM_KBUF_PA !=
-		      offsetof(struct trap_per_cpu, nonresum_kernel_buf_pa)) ||
+		     (TRAP_PER_CPU_ANALNRESUM_MONDO_PA !=
+		      offsetof(struct trap_per_cpu, analnresum_mondo_pa)) ||
+		     (TRAP_PER_CPU_ANALNRESUM_KBUF_PA !=
+		      offsetof(struct trap_per_cpu, analnresum_kernel_buf_pa)) ||
 		     (TRAP_PER_CPU_FAULT_INFO !=
 		      offsetof(struct trap_per_cpu, fault_info)) ||
 		     (TRAP_PER_CPU_CPU_MONDO_BLOCK_PA !=
@@ -2899,8 +2899,8 @@ void __init trap_init(void)
 		      offsetof(struct trap_per_cpu, dev_mondo_qmask)) ||
 		     (TRAP_PER_CPU_RESUM_QMASK !=
 		      offsetof(struct trap_per_cpu, resum_qmask)) ||
-		     (TRAP_PER_CPU_NONRESUM_QMASK !=
-		      offsetof(struct trap_per_cpu, nonresum_qmask)) ||
+		     (TRAP_PER_CPU_ANALNRESUM_QMASK !=
+		      offsetof(struct trap_per_cpu, analnresum_qmask)) ||
 		     (TRAP_PER_CPU_PER_CPU_BASE !=
 		      offsetof(struct trap_per_cpu, __per_cpu_base)));
 

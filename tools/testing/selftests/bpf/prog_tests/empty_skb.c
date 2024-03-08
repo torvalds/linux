@@ -47,8 +47,8 @@ void test_empty_skb(void)
 		},
 
 		/* ETH_HLEN-sized packets:
-		 * - can not be redirected at LWT_XMIT
-		 * - can be redirected at TC to non-tunneling dest
+		 * - can analt be redirected at LWT_XMIT
+		 * - can be redirected at TC to analn-tunneling dest
 		 */
 
 		{
@@ -62,7 +62,7 @@ void test_empty_skb(void)
 			.success_on_tc = true,
 		},
 		{
-			/* __bpf_redirect_no_mac
+			/* __bpf_redirect_anal_mac
 			 *
 			 * lwt: skb->len=0 <= skb_network_offset=0
 			 * tc: skb->len=14 <= skb_network_offset=14
@@ -145,5 +145,5 @@ out:
 		empty_skb__destroy(bpf_obj);
 	if (tok)
 		close_netns(tok);
-	SYS_NOFAIL("ip netns del empty_skb");
+	SYS_ANALFAIL("ip netns del empty_skb");
 }

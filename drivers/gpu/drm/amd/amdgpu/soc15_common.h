@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -69,11 +69,11 @@
 
 #define RREG32_SOC15_IP(ip, reg) __RREG32_SOC15_RLC__(reg, 0, ip##_HWIP, 0)
 
-#define RREG32_SOC15_IP_NO_KIQ(ip, reg, inst) __RREG32_SOC15_RLC__(reg, AMDGPU_REGS_NO_KIQ, ip##_HWIP, inst)
+#define RREG32_SOC15_IP_ANAL_KIQ(ip, reg, inst) __RREG32_SOC15_RLC__(reg, AMDGPU_REGS_ANAL_KIQ, ip##_HWIP, inst)
 
-#define RREG32_SOC15_NO_KIQ(ip, inst, reg) \
+#define RREG32_SOC15_ANAL_KIQ(ip, inst, reg) \
 	__RREG32_SOC15_RLC__(adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + reg, \
-			 AMDGPU_REGS_NO_KIQ, ip##_HWIP, inst)
+			 AMDGPU_REGS_ANAL_KIQ, ip##_HWIP, inst)
 
 #define RREG32_SOC15_OFFSET(ip, inst, reg, offset) \
 	 __RREG32_SOC15_RLC__((adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + (reg)) + \
@@ -86,12 +86,12 @@
 #define WREG32_SOC15_IP(ip, reg, value) \
 	 __WREG32_SOC15_RLC__(reg, value, 0, ip##_HWIP, 0)
 
-#define WREG32_SOC15_IP_NO_KIQ(ip, reg, value, inst) \
-	 __WREG32_SOC15_RLC__(reg, value, AMDGPU_REGS_NO_KIQ, ip##_HWIP, inst)
+#define WREG32_SOC15_IP_ANAL_KIQ(ip, reg, value, inst) \
+	 __WREG32_SOC15_RLC__(reg, value, AMDGPU_REGS_ANAL_KIQ, ip##_HWIP, inst)
 
-#define WREG32_SOC15_NO_KIQ(ip, inst, reg, value) \
+#define WREG32_SOC15_ANAL_KIQ(ip, inst, reg, value) \
 	__WREG32_SOC15_RLC__(adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + reg, \
-			     value, AMDGPU_REGS_NO_KIQ, ip##_HWIP, inst)
+			     value, AMDGPU_REGS_ANAL_KIQ, ip##_HWIP, inst)
 
 #define WREG32_SOC15_OFFSET(ip, inst, reg, offset, value) \
 	 __WREG32_SOC15_RLC__((adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + reg) + offset, \
@@ -142,11 +142,11 @@
 #define RREG32_RLC(reg) \
 	__RREG32_SOC15_RLC__(reg, AMDGPU_REGS_RLC, GC_HWIP, 0)
 
-#define WREG32_RLC_NO_KIQ(reg, value, hwip) \
-	__WREG32_SOC15_RLC__(reg, value, AMDGPU_REGS_NO_KIQ | AMDGPU_REGS_RLC, hwip, 0)
+#define WREG32_RLC_ANAL_KIQ(reg, value, hwip) \
+	__WREG32_SOC15_RLC__(reg, value, AMDGPU_REGS_ANAL_KIQ | AMDGPU_REGS_RLC, hwip, 0)
 
-#define RREG32_RLC_NO_KIQ(reg, hwip) \
-	__RREG32_SOC15_RLC__(reg, AMDGPU_REGS_NO_KIQ | AMDGPU_REGS_RLC, hwip, 0)
+#define RREG32_RLC_ANAL_KIQ(reg, hwip) \
+	__RREG32_SOC15_RLC__(reg, AMDGPU_REGS_ANAL_KIQ | AMDGPU_REGS_RLC, hwip, 0)
 
 #define WREG32_SOC15_RLC_SHADOW_EX(prefix, ip, inst, reg, value) \
 	do {							\

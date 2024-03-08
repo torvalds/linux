@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Fixmap support for Hexagon - enough to support highmem features
+ * Fixmap support for Hexagon - eanalugh to support highmem features
  *
  * Copyright (c) 2010-2011, The Linux Foundation. All rights reserved.
  */

@@ -71,7 +71,7 @@ static int typec_altmode_set_state(struct typec_altmode *adev,
 /* Common API */
 
 /**
- * typec_altmode_notify - Communication between the OS and alternate mode driver
+ * typec_altmode_analtify - Communication between the OS and alternate mode driver
  * @adev: Handle to the alternate mode
  * @conf: Alternate mode specific configuration value
  * @data: Alternate mode specific data
@@ -80,10 +80,10 @@ static int typec_altmode_set_state(struct typec_altmode *adev,
  * to tell which pin configuration has been negotiated with the partner. That
  * information will then be used for example to configure the muxes.
  * Communication to the other direction is also possible, and low level device
- * drivers can also send notifications to the alternate mode drivers. The actual
+ * drivers can also send analtifications to the alternate mode drivers. The actual
  * communication will be specific for every SVID.
  */
-int typec_altmode_notify(struct typec_altmode *adev,
+int typec_altmode_analtify(struct typec_altmode *adev,
 			 unsigned long conf, void *data)
 {
 	bool is_port;
@@ -97,7 +97,7 @@ int typec_altmode_notify(struct typec_altmode *adev,
 	altmode = to_altmode(adev);
 
 	if (!altmode->partner)
-		return -ENODEV;
+		return -EANALDEV;
 
 	is_port = is_typec_port(adev->dev.parent);
 	partner = altmode->partner;
@@ -106,12 +106,12 @@ int typec_altmode_notify(struct typec_altmode *adev,
 	if (ret)
 		return ret;
 
-	if (partner->adev.ops && partner->adev.ops->notify)
-		return partner->adev.ops->notify(&partner->adev, conf, data);
+	if (partner->adev.ops && partner->adev.ops->analtify)
+		return partner->adev.ops->analtify(&partner->adev, conf, data);
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(typec_altmode_notify);
+EXPORT_SYMBOL_GPL(typec_altmode_analtify);
 
 /**
  * typec_altmode_enter - Enter Mode
@@ -120,7 +120,7 @@ EXPORT_SYMBOL_GPL(typec_altmode_notify);
  *
  * The alternate mode drivers use this function to enter mode. The port drivers
  * use this to inform the alternate mode drivers that the partner has initiated
- * Enter Mode command. If the alternate mode does not require VDO, @vdo must be
+ * Enter Mode command. If the alternate mode does analt require VDO, @vdo must be
  * NULL.
  */
 int typec_altmode_enter(struct typec_altmode *adev, u32 *vdo)
@@ -133,7 +133,7 @@ int typec_altmode_enter(struct typec_altmode *adev, u32 *vdo)
 		return 0;
 
 	if (!pdev->ops || !pdev->ops->enter)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (is_typec_port(pdev->dev.parent) && !pdev->active)
 		return -EPERM;
@@ -164,7 +164,7 @@ int typec_altmode_exit(struct typec_altmode *adev)
 		return 0;
 
 	if (!pdev->ops || !pdev->ops->exit)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Moving to USB Safe State */
 	ret = typec_altmode_set_state(adev, TYPEC_STATE_SAFE, NULL);
@@ -181,7 +181,7 @@ EXPORT_SYMBOL_GPL(typec_altmode_exit);
  * @adev: The alternate mode
  * @vdo: VDO for the Attention command
  *
- * Notifies the partner of @adev about Attention command.
+ * Analtifies the partner of @adev about Attention command.
  */
 int typec_altmode_attention(struct typec_altmode *adev, u32 vdo)
 {
@@ -189,7 +189,7 @@ int typec_altmode_attention(struct typec_altmode *adev, u32 vdo)
 	struct typec_altmode *pdev;
 
 	if (!partner)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pdev = &partner->adev;
 
@@ -223,12 +223,12 @@ int typec_altmode_vdm(struct typec_altmode *adev,
 	altmode = to_altmode(adev);
 
 	if (!altmode->partner)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pdev = &altmode->partner->adev;
 
 	if (!pdev->ops || !pdev->ops->vdm)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return pdev->ops->vdm(pdev, header, vdo, count);
 }
@@ -253,7 +253,7 @@ EXPORT_SYMBOL_GPL(typec_altmode_get_partner);
  * @index: Cable plug index
  *
  * Increment reference count for cable plug alternate mode device. Returns
- * handle to the cable plug alternate mode, or NULL if none is found.
+ * handle to the cable plug alternate mode, or NULL if analne is found.
  */
 struct typec_altmode *typec_altmode_get_plug(struct typec_altmode *adev,
 					     enum typec_plug_index index)
@@ -309,7 +309,7 @@ EXPORT_SYMBOL_GPL(typec_altmode_unregister_driver);
  * @svid: Standard or Vendor ID to match with
  * @mode: Mode to match with
  *
- * Return pointer to an alternate mode with SVID matching @svid, or NULL when no
+ * Return pointer to an alternate mode with SVID matching @svid, or NULL when anal
  * match is found.
  */
 struct typec_altmode *typec_match_altmode(struct typec_altmode **altmodes,
@@ -363,10 +363,10 @@ static int typec_uevent(const struct device *dev, struct kobj_uevent_env *env)
 	const struct typec_altmode *altmode = to_typec_altmode(dev);
 
 	if (add_uevent_var(env, "SVID=%04X", altmode->svid))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (add_uevent_var(env, "MODE=%u", altmode->mode))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return add_uevent_var(env, "MODALIAS=typec:id%04Xm%02X",
 			      altmode->svid, altmode->mode);
@@ -402,9 +402,9 @@ static int typec_probe(struct device *dev)
 	struct altmode *altmode = to_altmode(adev);
 	int ret;
 
-	/* Fail if the port does not support the alternate mode */
+	/* Fail if the port does analt support the alternate mode */
 	if (!altmode->partner)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = typec_altmode_create_links(altmode);
 	if (ret) {

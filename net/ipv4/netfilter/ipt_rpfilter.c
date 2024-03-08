@@ -34,7 +34,7 @@ static bool rpfilter_lookup_reverse(struct net *net, struct flowi4 *fl4,
 {
 	struct fib_result res;
 
-	if (fib_lookup(net, fl4, &res, FIB_LOOKUP_IGNORE_LINKSTATE))
+	if (fib_lookup(net, fl4, &res, FIB_LOOKUP_IGANALRE_LINKSTATE))
 		return false;
 
 	if (res.type != RTN_UNICAST) {
@@ -88,13 +88,13 @@ static int rpfilter_check(const struct xt_mtchk_param *par)
 	const struct xt_rpfilter_info *info = par->matchinfo;
 	unsigned int options = ~XT_RPFILTER_OPTION_MASK;
 	if (info->flags & options) {
-		pr_info_ratelimited("unknown options\n");
+		pr_info_ratelimited("unkanalwn options\n");
 		return -EINVAL;
 	}
 
 	if (strcmp(par->table, "mangle") != 0 &&
 	    strcmp(par->table, "raw") != 0) {
-		pr_info_ratelimited("only valid in \'raw\' or \'mangle\' table, not \'%s\'\n",
+		pr_info_ratelimited("only valid in \'raw\' or \'mangle\' table, analt \'%s\'\n",
 				    par->table);
 		return -EINVAL;
 	}

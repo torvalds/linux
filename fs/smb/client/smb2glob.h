@@ -21,7 +21,7 @@
 
 /*
  * Identifiers for functions that use the open, operation, close pattern
- * in smb2inode.c:smb2_compound_op()
+ * in smb2ianalde.c:smb2_compound_op()
  */
 enum smb2_compound_ops {
 	SMB2_OP_SET_DELETE = 1,

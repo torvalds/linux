@@ -9,7 +9,7 @@
  * The Silicon Labs Si7013/20/21 Relative Humidity and Temperature Sensors
  * are i2c devices which have an identical programming interface for
  * measuring relative humidity and temperature. The Si7013 has an additional
- * temperature input which this driver does not support.
+ * temperature input which this driver does analt support.
  *
  * Data Sheets:
  *   Si7013: http://www.silabs.com/Support%20Documents/TechnicalDocs/Si7013.pdf
@@ -71,7 +71,7 @@ static int si7020_read_raw(struct iio_dev *indio_dev,
 		 * accuracy.
 		 * Relative humidity will be 0.0032959% too high and
 		 * temperature will be 0.00277344 degrees too high.
-		 * This is no big deal because it's within the accuracy of the
+		 * This is anal big deal because it's within the accuracy of the
 		 * sensor.
 		 */
 		if (chan->type == IIO_TEMP)
@@ -112,7 +112,7 @@ static int si7020_probe(struct i2c_client *client)
 	if (!i2c_check_functionality(client->adapter,
 				     I2C_FUNC_SMBUS_WRITE_BYTE |
 				     I2C_FUNC_SMBUS_READ_WORD_DATA))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Reset device, loads default settings. */
 	ret = i2c_smbus_write_byte(client, SI7020CMD_RESET);
@@ -123,7 +123,7 @@ static int si7020_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	*data = client;

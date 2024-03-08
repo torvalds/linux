@@ -18,7 +18,7 @@
 #include <net/sock.h>
 
 #define NH_RES_DEFAULT_IDLE_TIMER	(120 * HZ)
-#define NH_RES_DEFAULT_UNBALANCED_TIMER	0	/* No forced rebalancing. */
+#define NH_RES_DEFAULT_UNBALANCED_TIMER	0	/* Anal forced rebalancing. */
 
 static void remove_nexthop(struct net *net, struct nexthop *nh,
 			   struct nl_info *nlinfo);
@@ -76,13 +76,13 @@ static const struct nla_policy rtm_nh_res_bucket_policy_get[] = {
 	[NHA_RES_BUCKET_INDEX]	= { .type = NLA_U16 },
 };
 
-static bool nexthop_notifiers_is_empty(struct net *net)
+static bool nexthop_analtifiers_is_empty(struct net *net)
 {
-	return !net->nexthop.notifier_chain.head;
+	return !net->nexthop.analtifier_chain.head;
 }
 
 static void
-__nh_notifier_single_info_init(struct nh_notifier_single_info *nh_info,
+__nh_analtifier_single_info_init(struct nh_analtifier_single_info *nh_info,
 			       const struct nh_info *nhi)
 {
 	nh_info->dev = nhi->fib_nhc.nhc_dev;
@@ -97,37 +97,37 @@ __nh_notifier_single_info_init(struct nh_notifier_single_info *nh_info,
 	nh_info->has_encap = !!nhi->fib_nhc.nhc_lwtstate;
 }
 
-static int nh_notifier_single_info_init(struct nh_notifier_info *info,
+static int nh_analtifier_single_info_init(struct nh_analtifier_info *info,
 					const struct nexthop *nh)
 {
 	struct nh_info *nhi = rtnl_dereference(nh->nh_info);
 
-	info->type = NH_NOTIFIER_INFO_TYPE_SINGLE;
+	info->type = NH_ANALTIFIER_INFO_TYPE_SINGLE;
 	info->nh = kzalloc(sizeof(*info->nh), GFP_KERNEL);
 	if (!info->nh)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	__nh_notifier_single_info_init(info->nh, nhi);
+	__nh_analtifier_single_info_init(info->nh, nhi);
 
 	return 0;
 }
 
-static void nh_notifier_single_info_fini(struct nh_notifier_info *info)
+static void nh_analtifier_single_info_fini(struct nh_analtifier_info *info)
 {
 	kfree(info->nh);
 }
 
-static int nh_notifier_mpath_info_init(struct nh_notifier_info *info,
+static int nh_analtifier_mpath_info_init(struct nh_analtifier_info *info,
 				       struct nh_group *nhg)
 {
 	u16 num_nh = nhg->num_nh;
 	int i;
 
-	info->type = NH_NOTIFIER_INFO_TYPE_GRP;
+	info->type = NH_ANALTIFIER_INFO_TYPE_GRP;
 	info->nh_grp = kzalloc(struct_size(info->nh_grp, nh_entries, num_nh),
 			       GFP_KERNEL);
 	if (!info->nh_grp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->nh_grp->num_nh = num_nh;
 	info->nh_grp->is_fdb = nhg->fdb_nh;
@@ -139,14 +139,14 @@ static int nh_notifier_mpath_info_init(struct nh_notifier_info *info,
 		nhi = rtnl_dereference(nhge->nh->nh_info);
 		info->nh_grp->nh_entries[i].id = nhge->nh->id;
 		info->nh_grp->nh_entries[i].weight = nhge->weight;
-		__nh_notifier_single_info_init(&info->nh_grp->nh_entries[i].nh,
+		__nh_analtifier_single_info_init(&info->nh_grp->nh_entries[i].nh,
 					       nhi);
 	}
 
 	return 0;
 }
 
-static int nh_notifier_res_table_info_init(struct nh_notifier_info *info,
+static int nh_analtifier_res_table_info_init(struct nh_analtifier_info *info,
 					   struct nh_group *nhg)
 {
 	struct nh_res_table *res_table = rtnl_dereference(nhg->res_table);
@@ -154,12 +154,12 @@ static int nh_notifier_res_table_info_init(struct nh_notifier_info *info,
 	unsigned long size;
 	u16 i;
 
-	info->type = NH_NOTIFIER_INFO_TYPE_RES_TABLE;
+	info->type = NH_ANALTIFIER_INFO_TYPE_RES_TABLE;
 	size = struct_size(info->nh_res_table, nhs, num_nh_buckets);
 	info->nh_res_table = __vmalloc(size, GFP_KERNEL | __GFP_ZERO |
-				       __GFP_NOWARN);
+				       __GFP_ANALWARN);
 	if (!info->nh_res_table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->nh_res_table->num_nh_buckets = num_nh_buckets;
 
@@ -170,26 +170,26 @@ static int nh_notifier_res_table_info_init(struct nh_notifier_info *info,
 
 		nhge = rtnl_dereference(bucket->nh_entry);
 		nhi = rtnl_dereference(nhge->nh->nh_info);
-		__nh_notifier_single_info_init(&info->nh_res_table->nhs[i],
+		__nh_analtifier_single_info_init(&info->nh_res_table->nhs[i],
 					       nhi);
 	}
 
 	return 0;
 }
 
-static int nh_notifier_grp_info_init(struct nh_notifier_info *info,
+static int nh_analtifier_grp_info_init(struct nh_analtifier_info *info,
 				     const struct nexthop *nh)
 {
 	struct nh_group *nhg = rtnl_dereference(nh->nh_grp);
 
 	if (nhg->hash_threshold)
-		return nh_notifier_mpath_info_init(info, nhg);
+		return nh_analtifier_mpath_info_init(info, nhg);
 	else if (nhg->resilient)
-		return nh_notifier_res_table_info_init(info, nhg);
+		return nh_analtifier_res_table_info_init(info, nhg);
 	return -EINVAL;
 }
 
-static void nh_notifier_grp_info_fini(struct nh_notifier_info *info,
+static void nh_analtifier_grp_info_fini(struct nh_analtifier_info *info,
 				      const struct nexthop *nh)
 {
 	struct nh_group *nhg = rtnl_dereference(nh->nh_grp);
@@ -200,32 +200,32 @@ static void nh_notifier_grp_info_fini(struct nh_notifier_info *info,
 		vfree(info->nh_res_table);
 }
 
-static int nh_notifier_info_init(struct nh_notifier_info *info,
+static int nh_analtifier_info_init(struct nh_analtifier_info *info,
 				 const struct nexthop *nh)
 {
 	info->id = nh->id;
 
 	if (nh->is_group)
-		return nh_notifier_grp_info_init(info, nh);
+		return nh_analtifier_grp_info_init(info, nh);
 	else
-		return nh_notifier_single_info_init(info, nh);
+		return nh_analtifier_single_info_init(info, nh);
 }
 
-static void nh_notifier_info_fini(struct nh_notifier_info *info,
+static void nh_analtifier_info_fini(struct nh_analtifier_info *info,
 				  const struct nexthop *nh)
 {
 	if (nh->is_group)
-		nh_notifier_grp_info_fini(info, nh);
+		nh_analtifier_grp_info_fini(info, nh);
 	else
-		nh_notifier_single_info_fini(info);
+		nh_analtifier_single_info_fini(info);
 }
 
-static int call_nexthop_notifiers(struct net *net,
+static int call_nexthop_analtifiers(struct net *net,
 				  enum nexthop_event_type event_type,
 				  struct nexthop *nh,
 				  struct netlink_ext_ack *extack)
 {
-	struct nh_notifier_info info = {
+	struct nh_analtifier_info info = {
 		.net = net,
 		.extack = extack,
 	};
@@ -233,24 +233,24 @@ static int call_nexthop_notifiers(struct net *net,
 
 	ASSERT_RTNL();
 
-	if (nexthop_notifiers_is_empty(net))
+	if (nexthop_analtifiers_is_empty(net))
 		return 0;
 
-	err = nh_notifier_info_init(&info, nh);
+	err = nh_analtifier_info_init(&info, nh);
 	if (err) {
-		NL_SET_ERR_MSG(extack, "Failed to initialize nexthop notifier info");
+		NL_SET_ERR_MSG(extack, "Failed to initialize nexthop analtifier info");
 		return err;
 	}
 
-	err = blocking_notifier_call_chain(&net->nexthop.notifier_chain,
+	err = blocking_analtifier_call_chain(&net->nexthop.analtifier_chain,
 					   event_type, &info);
-	nh_notifier_info_fini(&info, nh);
+	nh_analtifier_info_fini(&info, nh);
 
-	return notifier_to_errno(err);
+	return analtifier_to_erranal(err);
 }
 
 static int
-nh_notifier_res_bucket_idle_timer_get(const struct nh_notifier_info *info,
+nh_analtifier_res_bucket_idle_timer_get(const struct nh_analtifier_info *info,
 				      bool force, unsigned int *p_idle_timer_ms)
 {
 	struct nh_res_table *res_table;
@@ -264,7 +264,7 @@ nh_notifier_res_bucket_idle_timer_get(const struct nh_notifier_info *info,
 	 * only replaced if it is inactive. However, if the idle timer interval
 	 * is smaller than the interval in which a listener is querying
 	 * buckets' activity from the device, then atomic replacement should
-	 * not be tried. Pass the idle timer value to listeners, so that they
+	 * analt be tried. Pass the idle timer value to listeners, so that they
 	 * could determine which type of replacement to perform.
 	 */
 	if (force) {
@@ -290,7 +290,7 @@ out:
 	return err;
 }
 
-static int nh_notifier_res_bucket_info_init(struct nh_notifier_info *info,
+static int nh_analtifier_res_bucket_info_init(struct nh_analtifier_info *info,
 					    u16 bucket_index, bool force,
 					    struct nh_info *oldi,
 					    struct nh_info *newi)
@@ -298,56 +298,56 @@ static int nh_notifier_res_bucket_info_init(struct nh_notifier_info *info,
 	unsigned int idle_timer_ms;
 	int err;
 
-	err = nh_notifier_res_bucket_idle_timer_get(info, force,
+	err = nh_analtifier_res_bucket_idle_timer_get(info, force,
 						    &idle_timer_ms);
 	if (err)
 		return err;
 
-	info->type = NH_NOTIFIER_INFO_TYPE_RES_BUCKET;
+	info->type = NH_ANALTIFIER_INFO_TYPE_RES_BUCKET;
 	info->nh_res_bucket = kzalloc(sizeof(*info->nh_res_bucket),
 				      GFP_KERNEL);
 	if (!info->nh_res_bucket)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->nh_res_bucket->bucket_index = bucket_index;
 	info->nh_res_bucket->idle_timer_ms = idle_timer_ms;
 	info->nh_res_bucket->force = force;
-	__nh_notifier_single_info_init(&info->nh_res_bucket->old_nh, oldi);
-	__nh_notifier_single_info_init(&info->nh_res_bucket->new_nh, newi);
+	__nh_analtifier_single_info_init(&info->nh_res_bucket->old_nh, oldi);
+	__nh_analtifier_single_info_init(&info->nh_res_bucket->new_nh, newi);
 	return 0;
 }
 
-static void nh_notifier_res_bucket_info_fini(struct nh_notifier_info *info)
+static void nh_analtifier_res_bucket_info_fini(struct nh_analtifier_info *info)
 {
 	kfree(info->nh_res_bucket);
 }
 
-static int __call_nexthop_res_bucket_notifiers(struct net *net, u32 nhg_id,
+static int __call_nexthop_res_bucket_analtifiers(struct net *net, u32 nhg_id,
 					       u16 bucket_index, bool force,
 					       struct nh_info *oldi,
 					       struct nh_info *newi,
 					       struct netlink_ext_ack *extack)
 {
-	struct nh_notifier_info info = {
+	struct nh_analtifier_info info = {
 		.net = net,
 		.extack = extack,
 		.id = nhg_id,
 	};
 	int err;
 
-	if (nexthop_notifiers_is_empty(net))
+	if (nexthop_analtifiers_is_empty(net))
 		return 0;
 
-	err = nh_notifier_res_bucket_info_init(&info, bucket_index, force,
+	err = nh_analtifier_res_bucket_info_init(&info, bucket_index, force,
 					       oldi, newi);
 	if (err)
 		return err;
 
-	err = blocking_notifier_call_chain(&net->nexthop.notifier_chain,
+	err = blocking_analtifier_call_chain(&net->nexthop.analtifier_chain,
 					   NEXTHOP_EVENT_BUCKET_REPLACE, &info);
-	nh_notifier_res_bucket_info_fini(&info);
+	nh_analtifier_res_bucket_info_fini(&info);
 
-	return notifier_to_errno(err);
+	return analtifier_to_erranal(err);
 }
 
 /* There are three users of RES_TABLE, and NHs etc. referenced from there:
@@ -358,14 +358,14 @@ static int __call_nexthop_res_bucket_notifiers(struct net *net, u32 nhg_id,
  * 3) and nexthop_select_path(), operating under RCU.
  *
  * Both the delayed work and the RTNL block are writers, and need to
- * maintain mutual exclusion. Since there are only two and well-known
+ * maintain mutual exclusion. Since there are only two and well-kanalwn
  * writers for each table, the RTNL code can make sure it has exclusive
  * access thus:
  *
  * - Have the DW operate without locking;
- * - synchronously cancel the DW;
+ * - synchroanalusly cancel the DW;
  * - do the writing;
- * - if the write was not actually a delete, call upkeep, which schedules
+ * - if the write was analt actually a delete, call upkeep, which schedules
  *   DW again if necessary.
  *
  * The functions that are always called from the RTNL context use
@@ -374,7 +374,7 @@ static int __call_nexthop_res_bucket_notifiers(struct net *net, u32 nhg_id,
  */
 #define nh_res_dereference(p) (rcu_dereference_raw(p))
 
-static int call_nexthop_res_bucket_notifiers(struct net *net, u32 nhg_id,
+static int call_nexthop_res_bucket_analtifiers(struct net *net, u32 nhg_id,
 					     u16 bucket_index, bool force,
 					     struct nexthop *old_nh,
 					     struct nexthop *new_nh,
@@ -383,14 +383,14 @@ static int call_nexthop_res_bucket_notifiers(struct net *net, u32 nhg_id,
 	struct nh_info *oldi = nh_res_dereference(old_nh->nh_info);
 	struct nh_info *newi = nh_res_dereference(new_nh->nh_info);
 
-	return __call_nexthop_res_bucket_notifiers(net, nhg_id, bucket_index,
+	return __call_nexthop_res_bucket_analtifiers(net, nhg_id, bucket_index,
 						   force, oldi, newi, extack);
 }
 
-static int call_nexthop_res_table_notifiers(struct net *net, struct nexthop *nh,
+static int call_nexthop_res_table_analtifiers(struct net *net, struct nexthop *nh,
 					    struct netlink_ext_ack *extack)
 {
-	struct nh_notifier_info info = {
+	struct nh_analtifier_info info = {
 		.net = net,
 		.extack = extack,
 	};
@@ -399,47 +399,47 @@ static int call_nexthop_res_table_notifiers(struct net *net, struct nexthop *nh,
 
 	ASSERT_RTNL();
 
-	if (nexthop_notifiers_is_empty(net))
+	if (nexthop_analtifiers_is_empty(net))
 		return 0;
 
-	/* At this point, the nexthop buckets are still not populated. Only
-	 * emit a notification with the logical nexthops, so that a listener
+	/* At this point, the nexthop buckets are still analt populated. Only
+	 * emit a analtification with the logical nexthops, so that a listener
 	 * could potentially veto it in case of unsupported configuration.
 	 */
 	nhg = rtnl_dereference(nh->nh_grp);
-	err = nh_notifier_mpath_info_init(&info, nhg);
+	err = nh_analtifier_mpath_info_init(&info, nhg);
 	if (err) {
-		NL_SET_ERR_MSG(extack, "Failed to initialize nexthop notifier info");
+		NL_SET_ERR_MSG(extack, "Failed to initialize nexthop analtifier info");
 		return err;
 	}
 
-	err = blocking_notifier_call_chain(&net->nexthop.notifier_chain,
+	err = blocking_analtifier_call_chain(&net->nexthop.analtifier_chain,
 					   NEXTHOP_EVENT_RES_TABLE_PRE_REPLACE,
 					   &info);
 	kfree(info.nh_grp);
 
-	return notifier_to_errno(err);
+	return analtifier_to_erranal(err);
 }
 
-static int call_nexthop_notifier(struct notifier_block *nb, struct net *net,
+static int call_nexthop_analtifier(struct analtifier_block *nb, struct net *net,
 				 enum nexthop_event_type event_type,
 				 struct nexthop *nh,
 				 struct netlink_ext_ack *extack)
 {
-	struct nh_notifier_info info = {
+	struct nh_analtifier_info info = {
 		.net = net,
 		.extack = extack,
 	};
 	int err;
 
-	err = nh_notifier_info_init(&info, nh);
+	err = nh_analtifier_info_init(&info, nh);
 	if (err)
 		return err;
 
-	err = nb->notifier_call(nb, event_type, &info);
-	nh_notifier_info_fini(&info, nh);
+	err = nb->analtifier_call(nb, event_type, &info);
+	nh_analtifier_info_fini(&info, nh);
 
-	return notifier_to_errno(err);
+	return analtifier_to_erranal(err);
 }
 
 static unsigned int nh_dev_hashfn(unsigned int val)
@@ -550,7 +550,7 @@ nexthop_res_table_alloc(struct net *net, u32 nhg_id, struct nh_config *cfg)
 	unsigned long size;
 
 	size = struct_size(res_table, nh_buckets, num_nh_buckets);
-	res_table = __vmalloc(size, GFP_KERNEL | __GFP_ZERO | __GFP_NOWARN);
+	res_table = __vmalloc(size, GFP_KERNEL | __GFP_ZERO | __GFP_ANALWARN);
 	if (!res_table)
 		return NULL;
 
@@ -570,12 +570,12 @@ static void nh_base_seq_inc(struct net *net)
 		;
 }
 
-/* no reference taken; rcu lock or rtnl must be held */
+/* anal reference taken; rcu lock or rtnl must be held */
 struct nexthop *nexthop_find_by_id(struct net *net, u32 id)
 {
-	struct rb_node **pp, *parent = NULL, *next;
+	struct rb_analde **pp, *parent = NULL, *next;
 
-	pp = &net->nexthop.rb_root.rb_node;
+	pp = &net->nexthop.rb_root.rb_analde;
 	while (1) {
 		struct nexthop *nh;
 
@@ -584,7 +584,7 @@ struct nexthop *nexthop_find_by_id(struct net *net, u32 id)
 			break;
 		parent = next;
 
-		nh = rb_entry(parent, struct nexthop, rb_node);
+		nh = rb_entry(parent, struct nexthop, rb_analde);
 		if (id < nh->id)
 			pp = &next->rb_left;
 		else if (id > nh->id)
@@ -690,7 +690,7 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
-static int nh_fill_node(struct sk_buff *skb, struct nexthop *nh,
+static int nh_fill_analde(struct sk_buff *skb, struct nexthop *nh,
 			int event, u32 portid, u32 seq, unsigned int nlflags)
 {
 	struct fib6_nh *fib6_nh;
@@ -838,18 +838,18 @@ static size_t nh_nlmsg_size(struct nexthop *nh)
 	return sz;
 }
 
-static void nexthop_notify(int event, struct nexthop *nh, struct nl_info *info)
+static void nexthop_analtify(int event, struct nexthop *nh, struct nl_info *info)
 {
 	unsigned int nlflags = info->nlh ? info->nlh->nlmsg_flags : 0;
 	u32 seq = info->nlh ? info->nlh->nlmsg_seq : 0;
 	struct sk_buff *skb;
-	int err = -ENOBUFS;
+	int err = -EANALBUFS;
 
 	skb = nlmsg_new(nh_nlmsg_size(nh), gfp_any());
 	if (!skb)
 		goto errout;
 
-	err = nh_fill_node(skb, nh, event, info->portid, seq, nlflags);
+	err = nh_fill_analde(skb, nh, event, info->portid, seq, nlflags);
 	if (err < 0) {
 		/* -EMSGSIZE implies BUG in nh_nlmsg_size() */
 		WARN_ON(err == -EMSGSIZE);
@@ -857,7 +857,7 @@ static void nexthop_notify(int event, struct nexthop *nh, struct nl_info *info)
 		goto errout;
 	}
 
-	rtnl_notify(skb, info->nl_net, info->portid, RTNLGRP_NEXTHOP,
+	rtnl_analtify(skb, info->nl_net, info->portid, RTNLGRP_NEXTHOP,
 		    info->nlh, gfp_any());
 	return;
 errout:
@@ -873,13 +873,13 @@ static unsigned long nh_res_bucket_used_time(const struct nh_res_bucket *bucket)
 static unsigned long
 nh_res_bucket_idle_point(const struct nh_res_table *res_table,
 			 const struct nh_res_bucket *bucket,
-			 unsigned long now)
+			 unsigned long analw)
 {
 	unsigned long time = nh_res_bucket_used_time(bucket);
 
-	/* Bucket was not used since it was migrated. The idle time is now. */
+	/* Bucket was analt used since it was migrated. The idle time is analw. */
 	if (time == bucket->migrated_time)
-		return now;
+		return analw;
 
 	return time + res_table->idle_timer;
 }
@@ -893,10 +893,10 @@ nh_res_table_unb_point(const struct nh_res_table *res_table)
 static void nh_res_bucket_set_idle(const struct nh_res_table *res_table,
 				   struct nh_res_bucket *bucket)
 {
-	unsigned long now = jiffies;
+	unsigned long analw = jiffies;
 
-	atomic_long_set(&bucket->used_time, (long)now);
-	bucket->migrated_time = now;
+	atomic_long_set(&bucket->used_time, (long)analw);
+	bucket->migrated_time = analw;
 }
 
 static void nh_res_bucket_set_busy(struct nh_res_bucket *bucket)
@@ -958,14 +958,14 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
-static void nexthop_bucket_notify(struct nh_res_table *res_table,
+static void nexthop_bucket_analtify(struct nh_res_table *res_table,
 				  u16 bucket_index)
 {
 	struct nh_res_bucket *bucket = &res_table->nh_buckets[bucket_index];
 	struct nh_grp_entry *nhge = nh_res_dereference(bucket->nh_entry);
 	struct nexthop *nh = nhge->nh_parent;
 	struct sk_buff *skb;
-	int err = -ENOBUFS;
+	int err = -EANALBUFS;
 
 	skb = alloc_skb(NLMSG_GOODSIZE, GFP_KERNEL);
 	if (!skb)
@@ -979,7 +979,7 @@ static void nexthop_bucket_notify(struct nh_res_table *res_table,
 		goto errout;
 	}
 
-	rtnl_notify(skb, nh->net, 0, RTNLGRP_NEXTHOP, NULL, GFP_KERNEL);
+	rtnl_analtify(skb, nh->net, 0, RTNLGRP_NEXTHOP, NULL, GFP_KERNEL);
 	return;
 errout:
 	if (err < 0)
@@ -992,15 +992,15 @@ static bool valid_group_nh(struct nexthop *nh, unsigned int npaths,
 	if (nh->is_group) {
 		struct nh_group *nhg = rtnl_dereference(nh->nh_grp);
 
-		/* Nesting groups within groups is not supported. */
+		/* Nesting groups within groups is analt supported. */
 		if (nhg->hash_threshold) {
 			NL_SET_ERR_MSG(extack,
-				       "Hash-threshold group can not be a nexthop within a group");
+				       "Hash-threshold group can analt be a nexthop within a group");
 			return false;
 		}
 		if (nhg->resilient) {
 			NL_SET_ERR_MSG(extack,
-				       "Resilient group can not be a nexthop within a group");
+				       "Resilient group can analt be a nexthop within a group");
 			return false;
 		}
 		*is_fdb = nhg->fdb_nh;
@@ -1009,7 +1009,7 @@ static bool valid_group_nh(struct nexthop *nh, unsigned int npaths,
 
 		if (nhi->reject_nh && npaths > 1) {
 			NL_SET_ERR_MSG(extack,
-				       "Blackhole nexthop can not be used in a group with more than 1 path");
+				       "Blackhole nexthop can analt be used in a group with more than 1 path");
 			return false;
 		}
 		*is_fdb = nhi->fdb_nh;
@@ -1033,7 +1033,7 @@ static int nh_check_attr_fdb_group(struct nexthop *nh, u8 *nh_family,
 	if (*nh_family == AF_UNSPEC) {
 		*nh_family = nhi->family;
 	} else if (*nh_family != nhi->family) {
-		NL_SET_ERR_MSG(extack, "FDB nexthop group cannot have mixed family nexthops");
+		NL_SET_ERR_MSG(extack, "FDB nexthop group cananalt have mixed family nexthops");
 		return -EINVAL;
 	}
 
@@ -1071,7 +1071,7 @@ static int nh_check_attr_group(struct net *net,
 		}
 		for (j = i + 1; j < len; ++j) {
 			if (nhg[i].id == nhg[j].id) {
-				NL_SET_ERR_MSG(extack, "Nexthop id can not be used twice in a group");
+				NL_SET_ERR_MSG(extack, "Nexthop id can analt be used twice in a group");
 				return -EINVAL;
 			}
 		}
@@ -1096,7 +1096,7 @@ static int nh_check_attr_group(struct net *net,
 			return -EINVAL;
 
 		if (!nhg_fdb && is_fdb_nh) {
-			NL_SET_ERR_MSG(extack, "Non FDB nexthop group cannot have fdb nexthops");
+			NL_SET_ERR_MSG(extack, "Analn FDB nexthop group cananalt have fdb nexthops");
 			return -EINVAL;
 		}
 	}
@@ -1112,7 +1112,7 @@ static int nh_check_attr_group(struct net *net,
 			break;
 		}
 		NL_SET_ERR_MSG(extack,
-			       "No other attributes can be set in nexthop groups");
+			       "Anal other attributes can be set in nexthop groups");
 		return -EINVAL;
 	}
 
@@ -1126,7 +1126,7 @@ static bool ipv6_good_nh(const struct fib6_nh *nh)
 
 	rcu_read_lock();
 
-	n = __ipv6_neigh_lookup_noref_stub(nh->fib_nh_dev, &nh->fib_nh_gw6);
+	n = __ipv6_neigh_lookup_analref_stub(nh->fib_nh_dev, &nh->fib_nh_gw6);
 	if (n)
 		state = READ_ONCE(n->nud_state);
 
@@ -1142,7 +1142,7 @@ static bool ipv4_good_nh(const struct fib_nh *nh)
 
 	rcu_read_lock();
 
-	n = __ipv4_neigh_lookup_noref(nh->fib_nh_dev,
+	n = __ipv4_neigh_lookup_analref(nh->fib_nh_dev,
 				      (__force u32)nh->fib_nh_gw4);
 	if (n)
 		state = READ_ONCE(n->nud_state);
@@ -1195,7 +1195,7 @@ static struct nexthop *nexthop_select_path_hthr(struct nh_group *nhg, int hash)
 		struct nh_grp_entry *nhge = &nhg->nh_entries[i];
 
 		/* nexthops always check if it is good and does
-		 * not rely on a sysctl for this behavior
+		 * analt rely on a sysctl for this behavior
 		 */
 		if (!nexthop_is_good_nh(nhge->nh))
 			continue;
@@ -1219,7 +1219,7 @@ static struct nexthop *nexthop_select_path_res(struct nh_group *nhg, int hash)
 	struct nh_res_bucket *bucket;
 	struct nh_grp_entry *nhge;
 
-	/* nexthop_select_path() is expected to return a non-NULL value, so
+	/* nexthop_select_path() is expected to return a analn-NULL value, so
 	 * skip protocol validation and just hand out whatever there is.
 	 */
 	bucket = &res_table->nh_buckets[bucket_index];
@@ -1281,7 +1281,7 @@ static int check_src_addr(const struct in6_addr *saddr,
 			  struct netlink_ext_ack *extack)
 {
 	if (!ipv6_addr_any(saddr)) {
-		NL_SET_ERR_MSG(extack, "IPv6 routes using source address can not use nexthop objects");
+		NL_SET_ERR_MSG(extack, "IPv6 routes using source address can analt use nexthop objects");
 		return -EINVAL;
 	}
 	return 0;
@@ -1296,7 +1296,7 @@ int fib6_check_nexthop(struct nexthop *nh, struct fib6_config *cfg,
 	/* fib6_src is unique to a fib6_info and limits the ability to cache
 	 * routes in fib6_nh within a nexthop that is potentially shared
 	 * across multiple fib entries. If the config wants to use source
-	 * routing it can not use nexthop objects. mlxsw also does not allow
+	 * routing it can analt use nexthop objects. mlxsw also does analt allow
 	 * fib6_src on routes.
 	 */
 	if (cfg && check_src_addr(&cfg->fc_src, extack) < 0)
@@ -1307,23 +1307,23 @@ int fib6_check_nexthop(struct nexthop *nh, struct fib6_config *cfg,
 
 		nhg = rtnl_dereference(nh->nh_grp);
 		if (nhg->has_v4)
-			goto no_v4_nh;
+			goto anal_v4_nh;
 		is_fdb_nh = nhg->fdb_nh;
 	} else {
 		nhi = rtnl_dereference(nh->nh_info);
 		if (nhi->family == AF_INET)
-			goto no_v4_nh;
+			goto anal_v4_nh;
 		is_fdb_nh = nhi->fdb_nh;
 	}
 
 	if (is_fdb_nh) {
-		NL_SET_ERR_MSG(extack, "Route cannot point to a fdb nexthop");
+		NL_SET_ERR_MSG(extack, "Route cananalt point to a fdb nexthop");
 		return -EINVAL;
 	}
 
 	return 0;
-no_v4_nh:
-	NL_SET_ERR_MSG(extack, "IPv6 routes can not use an IPv4 nexthop");
+anal_v4_nh:
+	NL_SET_ERR_MSG(extack, "IPv6 routes can analt use an IPv4 nexthop");
 	return -EINVAL;
 }
 EXPORT_SYMBOL_GPL(fib6_check_nexthop);
@@ -1352,7 +1352,7 @@ static int nexthop_check_scope(struct nh_info *nhi, u8 scope,
 {
 	if (scope == RT_SCOPE_HOST && nhi->fib_nhc.nhc_gw_family) {
 		NL_SET_ERR_MSG(extack,
-			       "Route with host scope can not have a gateway");
+			       "Route with host scope can analt have a gateway");
 		return -EINVAL;
 	}
 
@@ -1365,7 +1365,7 @@ static int nexthop_check_scope(struct nh_info *nhi, u8 scope,
 }
 
 /* Invoked by fib add code to verify nexthop by id is ok with
- * config for prefix; parts of fib_check_nh not done when nexthop
+ * config for prefix; parts of fib_check_nh analt done when nexthop
  * object is used.
  */
 int fib_check_nexthop(struct nexthop *nh, u8 scope,
@@ -1379,13 +1379,13 @@ int fib_check_nexthop(struct nexthop *nh, u8 scope,
 
 		nhg = rtnl_dereference(nh->nh_grp);
 		if (nhg->fdb_nh) {
-			NL_SET_ERR_MSG(extack, "Route cannot point to a fdb nexthop");
+			NL_SET_ERR_MSG(extack, "Route cananalt point to a fdb nexthop");
 			err = -EINVAL;
 			goto out;
 		}
 
 		if (scope == RT_SCOPE_HOST) {
-			NL_SET_ERR_MSG(extack, "Route with host scope can not have multiple nexthops");
+			NL_SET_ERR_MSG(extack, "Route with host scope can analt have multiple nexthops");
 			err = -EINVAL;
 			goto out;
 		}
@@ -1396,7 +1396,7 @@ int fib_check_nexthop(struct nexthop *nh, u8 scope,
 	} else {
 		nhi = rtnl_dereference(nh->nh_info);
 		if (nhi->fdb_nh) {
-			NL_SET_ERR_MSG(extack, "Route cannot point to a fdb nexthop");
+			NL_SET_ERR_MSG(extack, "Route cananalt point to a fdb nexthop");
 			err = -EINVAL;
 			goto out;
 		}
@@ -1467,12 +1467,12 @@ static bool nh_res_bucket_should_migrate(struct nh_res_table *res_table,
 					 struct nh_res_bucket *bucket,
 					 unsigned long *deadline, bool *force)
 {
-	unsigned long now = jiffies;
+	unsigned long analw = jiffies;
 	struct nh_grp_entry *nhge;
 	unsigned long idle_point;
 
 	if (!bucket->occupied) {
-		/* The bucket is not occupied, its NHGE pointer is either
+		/* The bucket is analt occupied, its NHGE pointer is either
 		 * NULL or obsolete. We _have to_ migrate: set force.
 		 */
 		*force = true;
@@ -1482,18 +1482,18 @@ static bool nh_res_bucket_should_migrate(struct nh_res_table *res_table,
 	nhge = nh_res_dereference(bucket->nh_entry);
 
 	/* If the bucket is populated by an underweight or balanced
-	 * nexthop, do not migrate.
+	 * nexthop, do analt migrate.
 	 */
 	if (!nh_res_nhge_is_ow(nhge))
 		return false;
 
-	/* At this point we know that the bucket is populated with an
+	/* At this point we kanalw that the bucket is populated with an
 	 * overweight nexthop. It needs to be migrated to a new nexthop if
 	 * the idle timer of unbalanced timer expired.
 	 */
 
-	idle_point = nh_res_bucket_idle_point(res_table, bucket, now);
-	if (time_after_eq(now, idle_point)) {
+	idle_point = nh_res_bucket_idle_point(res_table, bucket, analw);
+	if (time_after_eq(analw, idle_point)) {
 		/* The bucket is idle. We _can_ migrate: unset force. */
 		*force = false;
 		return true;
@@ -1504,10 +1504,10 @@ static bool nh_res_bucket_should_migrate(struct nh_res_table *res_table,
 		unsigned long unb_point;
 
 		unb_point = nh_res_table_unb_point(res_table);
-		if (time_after(now, unb_point)) {
-			/* The bucket is not idle, but the unbalanced timer
+		if (time_after(analw, unb_point)) {
+			/* The bucket is analt idle, but the unbalanced timer
 			 * expired. We _can_ migrate, but set force anyway,
-			 * so that drivers know to ignore activity reports
+			 * so that drivers kanalw to iganalre activity reports
 			 * from the HW.
 			 */
 			*force = true;
@@ -1522,8 +1522,8 @@ static bool nh_res_bucket_should_migrate(struct nh_res_table *res_table,
 }
 
 static bool nh_res_bucket_migrate(struct nh_res_table *res_table,
-				  u16 bucket_index, bool notify,
-				  bool notify_nl, bool force)
+				  u16 bucket_index, bool analtify,
+				  bool analtify_nl, bool force)
 {
 	struct nh_res_bucket *bucket = &res_table->nh_buckets[bucket_index];
 	struct nh_grp_entry *new_nhge;
@@ -1534,18 +1534,18 @@ static bool nh_res_bucket_migrate(struct nh_res_table *res_table,
 					    struct nh_grp_entry,
 					    res.uw_nh_entry);
 	if (WARN_ON_ONCE(!new_nhge))
-		/* If this function is called, "bucket" is either not
+		/* If this function is called, "bucket" is either analt
 		 * occupied, or it belongs to a next hop that is
 		 * overweight. In either case, there ought to be a
 		 * corresponding underweight next hop.
 		 */
 		return false;
 
-	if (notify) {
+	if (analtify) {
 		struct nh_grp_entry *old_nhge;
 
 		old_nhge = nh_res_dereference(bucket->nh_entry);
-		err = call_nexthop_res_bucket_notifiers(res_table->net,
+		err = call_nexthop_res_bucket_analtifiers(res_table->net,
 							res_table->nhg_id,
 							bucket_index, force,
 							old_nhge->nh,
@@ -1554,10 +1554,10 @@ static bool nh_res_bucket_migrate(struct nh_res_table *res_table,
 			pr_err_ratelimited("%s\n", extack._msg);
 			if (!force)
 				return false;
-			/* It is not possible to veto a forced replacement, so
+			/* It is analt possible to veto a forced replacement, so
 			 * just clear the hardware flags from the nexthop
 			 * bucket to indicate to user space that this bucket is
-			 * not correctly populated in hardware.
+			 * analt correctly populated in hardware.
 			 */
 			bucket->nh_flags &= ~(RTNH_F_OFFLOAD | RTNH_F_TRAP);
 		}
@@ -1566,8 +1566,8 @@ static bool nh_res_bucket_migrate(struct nh_res_table *res_table,
 	nh_res_bucket_set_nh(bucket, new_nhge);
 	nh_res_bucket_set_idle(res_table, bucket);
 
-	if (notify_nl)
-		nexthop_bucket_notify(res_table, bucket_index);
+	if (analtify_nl)
+		nexthop_bucket_analtify(res_table, bucket_index);
 
 	if (nh_res_nhge_is_balanced(new_nhge))
 		list_del(&new_nhge->res.uw_nh_entry);
@@ -1577,23 +1577,23 @@ static bool nh_res_bucket_migrate(struct nh_res_table *res_table,
 #define NH_RES_UPKEEP_DW_MINIMUM_INTERVAL (HZ / 2)
 
 static void nh_res_table_upkeep(struct nh_res_table *res_table,
-				bool notify, bool notify_nl)
+				bool analtify, bool analtify_nl)
 {
-	unsigned long now = jiffies;
+	unsigned long analw = jiffies;
 	unsigned long deadline;
 	u16 i;
 
 	/* Deadline is the next time that upkeep should be run. It is the
 	 * earliest time at which one of the buckets might be migrated.
 	 * Start at the most pessimistic estimate: either unbalanced_timer
-	 * from now, or if there is none, idle_timer from now. For each
+	 * from analw, or if there is analne, idle_timer from analw. For each
 	 * encountered time point, call nh_res_time_set_deadline() to
 	 * refine the estimate.
 	 */
 	if (res_table->unbalanced_timer)
-		deadline = now + res_table->unbalanced_timer;
+		deadline = analw + res_table->unbalanced_timer;
 	else
-		deadline = now + res_table->idle_timer;
+		deadline = analw + res_table->idle_timer;
 
 	for (i = 0; i < res_table->num_nh_buckets; i++) {
 		struct nh_res_bucket *bucket = &res_table->nh_buckets[i];
@@ -1601,20 +1601,20 @@ static void nh_res_table_upkeep(struct nh_res_table *res_table,
 
 		if (nh_res_bucket_should_migrate(res_table, bucket,
 						 &deadline, &force)) {
-			if (!nh_res_bucket_migrate(res_table, i, notify,
-						   notify_nl, force)) {
+			if (!nh_res_bucket_migrate(res_table, i, analtify,
+						   analtify_nl, force)) {
 				unsigned long idle_point;
 
 				/* A driver can override the migration
 				 * decision if the HW reports that the
-				 * bucket is actually not idle. Therefore
+				 * bucket is actually analt idle. Therefore
 				 * remark the bucket as busy again and
 				 * update the deadline.
 				 */
 				nh_res_bucket_set_busy(bucket);
 				idle_point = nh_res_bucket_idle_point(res_table,
 								      bucket,
-								      now);
+								      analw);
 				nh_res_time_set_deadline(idle_point, &deadline);
 			}
 		}
@@ -1625,15 +1625,15 @@ static void nh_res_table_upkeep(struct nh_res_table *res_table,
 	 * whichever comes later.
 	 */
 	if (!nh_res_table_is_balanced(res_table)) {
-		unsigned long now = jiffies;
+		unsigned long analw = jiffies;
 		unsigned long min_deadline;
 
-		min_deadline = now + NH_RES_UPKEEP_DW_MINIMUM_INTERVAL;
+		min_deadline = analw + NH_RES_UPKEEP_DW_MINIMUM_INTERVAL;
 		if (time_before(deadline, min_deadline))
 			deadline = min_deadline;
 
 		queue_delayed_work(system_power_efficient_wq,
-				   &res_table->upkeep_dw, deadline - now);
+				   &res_table->upkeep_dw, deadline - analw);
 	}
 }
 
@@ -1684,8 +1684,8 @@ static void nh_res_group_rebalance(struct nh_group *nhg,
 }
 
 /* Migrate buckets in res_table so that they reference NHGE's from NHG with
- * the right NH ID. Set those buckets that do not have a corresponding NHGE
- * entry in NHG as not occupied.
+ * the right NH ID. Set those buckets that do analt have a corresponding NHGE
+ * entry in NHG as analt occupied.
  */
 static void nh_res_table_migrate_buckets(struct nh_res_table *res_table,
 					 struct nh_group *nhg)
@@ -1717,7 +1717,7 @@ static void replace_nexthop_grp_res(struct nh_group *oldg,
 				    struct nh_group *newg)
 {
 	/* For NH group replacement, the new NHG might only have a stub
-	 * hash table with 0 buckets, because the number of buckets was not
+	 * hash table with 0 buckets, because the number of buckets was analt
 	 * specified. For NH removal, oldg and newg both reference the same
 	 * res_table. So in any case, in the following, we want to work
 	 * with oldg->res_table.
@@ -1815,18 +1815,18 @@ static void remove_nh_grp_entry(struct net *net, struct nh_grp_entry *nhge,
 	list_del(&nhge->nh_list);
 	nexthop_put(nhge->nh);
 
-	/* Removal of a NH from a resilient group is notified through
-	 * bucket notifications.
+	/* Removal of a NH from a resilient group is analtified through
+	 * bucket analtifications.
 	 */
 	if (newg->hash_threshold) {
-		err = call_nexthop_notifiers(net, NEXTHOP_EVENT_REPLACE, nhp,
+		err = call_nexthop_analtifiers(net, NEXTHOP_EVENT_REPLACE, nhp,
 					     &extack);
 		if (err)
 			pr_err("%s\n", extack._msg);
 	}
 
 	if (nlinfo)
-		nexthop_notify(RTM_NEWNEXTHOP, nhp, nlinfo);
+		nexthop_analtify(RTM_NEWNEXTHOP, nhp, nlinfo);
 }
 
 static void remove_nexthop_from_groups(struct net *net, struct nexthop *nh,
@@ -1862,7 +1862,7 @@ static void remove_nexthop_group(struct nexthop *nh, struct nl_info *nlinfo)
 	}
 }
 
-/* not called for nexthop replace */
+/* analt called for nexthop replace */
 static void __remove_nexthop_fib(struct net *net, struct nexthop *nh)
 {
 	struct fib6_info *f6i, *tmp;
@@ -1906,13 +1906,13 @@ static void __remove_nexthop(struct net *net, struct nexthop *nh,
 static void remove_nexthop(struct net *net, struct nexthop *nh,
 			   struct nl_info *nlinfo)
 {
-	call_nexthop_notifiers(net, NEXTHOP_EVENT_DEL, nh, NULL);
+	call_nexthop_analtifiers(net, NEXTHOP_EVENT_DEL, nh, NULL);
 
 	/* remove from the tree */
-	rb_erase(&nh->rb_node, &net->nexthop.rb_root);
+	rb_erase(&nh->rb_analde, &net->nexthop.rb_root);
 
 	if (nlinfo)
-		nexthop_notify(RTM_DELNEXTHOP, nh, nlinfo);
+		nexthop_analtify(RTM_DELNEXTHOP, nh, nlinfo);
 
 	__remove_nexthop(net, nh, nlinfo);
 	nh_base_seq_inc(net);
@@ -1963,7 +1963,7 @@ static int replace_nexthop_grp(struct net *net, struct nexthop *old,
 	int i, err;
 
 	if (!new->is_group) {
-		NL_SET_ERR_MSG(extack, "Can not replace a nexthop group with a nexthop.");
+		NL_SET_ERR_MSG(extack, "Can analt replace a nexthop group with a nexthop.");
 		return -EINVAL;
 	}
 
@@ -1971,12 +1971,12 @@ static int replace_nexthop_grp(struct net *net, struct nexthop *old,
 	newg = rtnl_dereference(new->nh_grp);
 
 	if (newg->hash_threshold != oldg->hash_threshold) {
-		NL_SET_ERR_MSG(extack, "Can not replace a nexthop group with one of a different type.");
+		NL_SET_ERR_MSG(extack, "Can analt replace a nexthop group with one of a different type.");
 		return -EINVAL;
 	}
 
 	if (newg->hash_threshold) {
-		err = call_nexthop_notifiers(net, NEXTHOP_EVENT_REPLACE, new,
+		err = call_nexthop_analtifiers(net, NEXTHOP_EVENT_REPLACE, new,
 					     extack);
 		if (err)
 			return err;
@@ -1984,23 +1984,23 @@ static int replace_nexthop_grp(struct net *net, struct nexthop *old,
 		new_res_table = rtnl_dereference(newg->res_table);
 		old_res_table = rtnl_dereference(oldg->res_table);
 
-		/* Accept if num_nh_buckets was not given, but if it was
+		/* Accept if num_nh_buckets was analt given, but if it was
 		 * given, demand that the value be correct.
 		 */
 		if (cfg->nh_grp_res_has_num_buckets &&
 		    cfg->nh_grp_res_num_buckets !=
 		    old_res_table->num_nh_buckets) {
-			NL_SET_ERR_MSG(extack, "Can not change number of buckets of a resilient nexthop group.");
+			NL_SET_ERR_MSG(extack, "Can analt change number of buckets of a resilient nexthop group.");
 			return -EINVAL;
 		}
 
-		/* Emit a pre-replace notification so that listeners could veto
+		/* Emit a pre-replace analtification so that listeners could veto
 		 * a potentially unsupported configuration. Otherwise,
-		 * individual bucket replacement notifications would need to be
+		 * individual bucket replacement analtifications would need to be
 		 * vetoed, which is something that should only happen if the
 		 * bucket is currently active.
 		 */
-		err = call_nexthop_res_table_notifiers(net, new, extack);
+		err = call_nexthop_res_table_analtifiers(net, new, extack);
 		if (err)
 			return err;
 
@@ -2023,7 +2023,7 @@ static int replace_nexthop_grp(struct net *net, struct nexthop *old,
 
 	rcu_assign_pointer(old->nh_grp, newg);
 
-	/* Make sure concurrent readers are not using 'oldg' anymore. */
+	/* Make sure concurrent readers are analt using 'oldg' anymore. */
 	synchronize_net();
 
 	if (newg->resilient) {
@@ -2056,7 +2056,7 @@ static void nh_group_v4_update(struct nh_group *nhg)
 	nhg->has_v4 = has_v4;
 }
 
-static int replace_nexthop_single_notify_res(struct net *net,
+static int replace_nexthop_single_analtify_res(struct net *net,
 					     struct nh_res_table *res_table,
 					     struct nexthop *old,
 					     struct nh_info *oldi,
@@ -2073,32 +2073,32 @@ static int replace_nexthop_single_notify_res(struct net *net,
 
 		nhge = rtnl_dereference(bucket->nh_entry);
 		if (nhge->nh == old) {
-			err = __call_nexthop_res_bucket_notifiers(net, nhg_id,
+			err = __call_nexthop_res_bucket_analtifiers(net, nhg_id,
 								  i, true,
 								  oldi, newi,
 								  extack);
 			if (err)
-				goto err_notify;
+				goto err_analtify;
 		}
 	}
 
 	return 0;
 
-err_notify:
+err_analtify:
 	while (i-- > 0) {
 		struct nh_res_bucket *bucket = &res_table->nh_buckets[i];
 		struct nh_grp_entry *nhge;
 
 		nhge = rtnl_dereference(bucket->nh_entry);
 		if (nhge->nh == old)
-			__call_nexthop_res_bucket_notifiers(net, nhg_id, i,
+			__call_nexthop_res_bucket_analtifiers(net, nhg_id, i,
 							    true, newi, oldi,
 							    extack);
 	}
 	return err;
 }
 
-static int replace_nexthop_single_notify(struct net *net,
+static int replace_nexthop_single_analtify(struct net *net,
 					 struct nexthop *group_nh,
 					 struct nexthop *old,
 					 struct nh_info *oldi,
@@ -2109,11 +2109,11 @@ static int replace_nexthop_single_notify(struct net *net,
 	struct nh_res_table *res_table;
 
 	if (nhg->hash_threshold) {
-		return call_nexthop_notifiers(net, NEXTHOP_EVENT_REPLACE,
+		return call_nexthop_analtifiers(net, NEXTHOP_EVENT_REPLACE,
 					      group_nh, extack);
 	} else if (nhg->resilient) {
 		res_table = rtnl_dereference(nhg->res_table);
-		return replace_nexthop_single_notify_res(net, res_table,
+		return replace_nexthop_single_analtify_res(net, res_table,
 							 old, oldi, newi,
 							 extack);
 	}
@@ -2131,15 +2131,15 @@ static int replace_nexthop_single(struct net *net, struct nexthop *old,
 	int err;
 
 	if (new->is_group) {
-		NL_SET_ERR_MSG(extack, "Can not replace a nexthop with a nexthop group.");
+		NL_SET_ERR_MSG(extack, "Can analt replace a nexthop with a nexthop group.");
 		return -EINVAL;
 	}
 
-	err = call_nexthop_notifiers(net, NEXTHOP_EVENT_REPLACE, new, extack);
+	err = call_nexthop_analtifiers(net, NEXTHOP_EVENT_REPLACE, new, extack);
 	if (err)
 		return err;
 
-	/* Hardware flags were set on 'old' as 'new' is not in the red-black
+	/* Hardware flags were set on 'old' as 'new' is analt in the red-black
 	 * tree. Therefore, inherit the flags from 'old' to 'new'.
 	 */
 	new->nh_flags |= old->nh_flags & (RTNH_F_OFFLOAD | RTNH_F_TRAP);
@@ -2159,14 +2159,14 @@ static int replace_nexthop_single(struct net *net, struct nexthop *old,
 	rcu_assign_pointer(old->nh_info, newi);
 	rcu_assign_pointer(new->nh_info, oldi);
 
-	/* Send a replace notification for all the groups using the nexthop. */
+	/* Send a replace analtification for all the groups using the nexthop. */
 	list_for_each_entry(nhge, &old->grp_list, nh_list) {
 		struct nexthop *nhp = nhge->nh_parent;
 
-		err = replace_nexthop_single_notify(net, nhp, old, oldi, newi,
+		err = replace_nexthop_single_analtify(net, nhp, old, oldi, newi,
 						    extack);
 		if (err)
-			goto err_notify;
+			goto err_analtify;
 	}
 
 	/* When replacing an IPv4 nexthop with an IPv6 nexthop, potentially
@@ -2184,7 +2184,7 @@ static int replace_nexthop_single(struct net *net, struct nexthop *old,
 
 	return 0;
 
-err_notify:
+err_analtify:
 	rcu_assign_pointer(new->nh_info, newi);
 	rcu_assign_pointer(old->nh_info, oldi);
 	old->nh_flags = old_nh_flags;
@@ -2194,13 +2194,13 @@ err_notify:
 	list_for_each_entry_continue_reverse(nhge, &old->grp_list, nh_list) {
 		struct nexthop *nhp = nhge->nh_parent;
 
-		replace_nexthop_single_notify(net, nhp, old, newi, oldi, NULL);
+		replace_nexthop_single_analtify(net, nhp, old, newi, oldi, NULL);
 	}
-	call_nexthop_notifiers(net, NEXTHOP_EVENT_REPLACE, old, extack);
+	call_nexthop_analtifiers(net, NEXTHOP_EVENT_REPLACE, old, extack);
 	return err;
 }
 
-static void __nexthop_replace_notify(struct net *net, struct nexthop *nh,
+static void __nexthop_replace_analtify(struct net *net, struct nexthop *nh,
 				     struct nl_info *info)
 {
 	struct fib6_info *f6i;
@@ -2215,7 +2215,7 @@ static void __nexthop_replace_notify(struct net *net, struct nexthop *nh,
 		list_for_each_entry(fi, &nh->fi_list, nh_list)
 			fi->nh_updated = true;
 
-		fib_info_notify_update(net, info);
+		fib_info_analtify_update(net, info);
 
 		list_for_each_entry(fi, &nh->fi_list, nh_list)
 			fi->nh_updated = false;
@@ -2229,15 +2229,15 @@ static void __nexthop_replace_notify(struct net *net, struct nexthop *nh,
  * linked to this nexthop and for all groups that the nexthop
  * is a member of
  */
-static void nexthop_replace_notify(struct net *net, struct nexthop *nh,
+static void nexthop_replace_analtify(struct net *net, struct nexthop *nh,
 				   struct nl_info *info)
 {
 	struct nh_grp_entry *nhge;
 
-	__nexthop_replace_notify(net, nh, info);
+	__nexthop_replace_analtify(net, nh, info);
 
 	list_for_each_entry(nhge, &nh->grp_list, nh_list)
-		__nexthop_replace_notify(net, nhge->nh_parent, info);
+		__nexthop_replace_analtify(net, nhge->nh_parent, info);
 }
 
 static int replace_nexthop(struct net *net, struct nexthop *old,
@@ -2267,11 +2267,11 @@ static int replace_nexthop(struct net *net, struct nexthop *old,
 
 	list_for_each_entry(nhge, &old->grp_list, nh_list) {
 		/* if new nexthop is a blackhole, any groups using this
-		 * nexthop cannot have more than 1 path
+		 * nexthop cananalt have more than 1 path
 		 */
 		if (new_is_reject &&
 		    nexthop_num_path(nhge->nh_parent) > 1) {
-			NL_SET_ERR_MSG(extack, "Blackhole nexthop can not be a member of a group with more than one path");
+			NL_SET_ERR_MSG(extack, "Blackhole nexthop can analt be a member of a group with more than one path");
 			return -EINVAL;
 		}
 
@@ -2303,15 +2303,15 @@ static int replace_nexthop(struct net *net, struct nexthop *old,
 static int insert_nexthop(struct net *net, struct nexthop *new_nh,
 			  struct nh_config *cfg, struct netlink_ext_ack *extack)
 {
-	struct rb_node **pp, *parent = NULL, *next;
+	struct rb_analde **pp, *parent = NULL, *next;
 	struct rb_root *root = &net->nexthop.rb_root;
 	bool replace = !!(cfg->nlflags & NLM_F_REPLACE);
 	bool create = !!(cfg->nlflags & NLM_F_CREATE);
 	u32 new_id = new_nh->id;
-	int replace_notify = 0;
+	int replace_analtify = 0;
 	int rc = -EEXIST;
 
-	pp = &root->rb_node;
+	pp = &root->rb_analde;
 	while (1) {
 		struct nexthop *nh;
 
@@ -2321,7 +2321,7 @@ static int insert_nexthop(struct net *net, struct nexthop *new_nh,
 
 		parent = next;
 
-		nh = rb_entry(parent, struct nexthop, rb_node);
+		nh = rb_entry(parent, struct nexthop, rb_analde);
 		if (new_id < nh->id) {
 			pp = &next->rb_left;
 		} else if (new_id > nh->id) {
@@ -2329,19 +2329,19 @@ static int insert_nexthop(struct net *net, struct nexthop *new_nh,
 		} else if (replace) {
 			rc = replace_nexthop(net, nh, new_nh, cfg, extack);
 			if (!rc) {
-				new_nh = nh; /* send notification with old nh */
-				replace_notify = 1;
+				new_nh = nh; /* send analtification with old nh */
+				replace_analtify = 1;
 			}
 			goto out;
 		} else {
-			/* id already exists and not a replace */
+			/* id already exists and analt a replace */
 			goto out;
 		}
 	}
 
 	if (replace && !create) {
-		NL_SET_ERR_MSG(extack, "Replace specified without create and no entry exists");
-		rc = -ENOENT;
+		NL_SET_ERR_MSG(extack, "Replace specified without create and anal entry exists");
+		rc = -EANALENT;
 		goto out;
 	}
 
@@ -2352,41 +2352,41 @@ static int insert_nexthop(struct net *net, struct nexthop *new_nh,
 		if (nhg->resilient) {
 			res_table = rtnl_dereference(nhg->res_table);
 
-			/* Not passing the number of buckets is OK when
-			 * replacing, but not when creating a new group.
+			/* Analt passing the number of buckets is OK when
+			 * replacing, but analt when creating a new group.
 			 */
 			if (!cfg->nh_grp_res_has_num_buckets) {
-				NL_SET_ERR_MSG(extack, "Number of buckets not specified for nexthop group insertion");
+				NL_SET_ERR_MSG(extack, "Number of buckets analt specified for nexthop group insertion");
 				rc = -EINVAL;
 				goto out;
 			}
 
 			nh_res_group_rebalance(nhg, res_table);
 
-			/* Do not send bucket notifications, we do full
-			 * notification below.
+			/* Do analt send bucket analtifications, we do full
+			 * analtification below.
 			 */
 			nh_res_table_upkeep(res_table, false, false);
 		}
 	}
 
-	rb_link_node_rcu(&new_nh->rb_node, parent, pp);
-	rb_insert_color(&new_nh->rb_node, root);
+	rb_link_analde_rcu(&new_nh->rb_analde, parent, pp);
+	rb_insert_color(&new_nh->rb_analde, root);
 
-	/* The initial insertion is a full notification for hash-threshold as
+	/* The initial insertion is a full analtification for hash-threshold as
 	 * well as resilient groups.
 	 */
-	rc = call_nexthop_notifiers(net, NEXTHOP_EVENT_REPLACE, new_nh, extack);
+	rc = call_nexthop_analtifiers(net, NEXTHOP_EVENT_REPLACE, new_nh, extack);
 	if (rc)
-		rb_erase(&new_nh->rb_node, &net->nexthop.rb_root);
+		rb_erase(&new_nh->rb_analde, &net->nexthop.rb_root);
 
 out:
 	if (!rc) {
 		nh_base_seq_inc(net);
-		nexthop_notify(RTM_NEWNEXTHOP, new_nh, &cfg->nlinfo);
-		if (replace_notify &&
+		nexthop_analtify(RTM_NEWNEXTHOP, new_nh, &cfg->nlinfo);
+		if (replace_analtify &&
 		    READ_ONCE(net->ipv4.sysctl_nexthop_compat_mode))
-			nexthop_replace_notify(net, new_nh, &cfg->nlinfo);
+			nexthop_replace_analtify(net, new_nh, &cfg->nlinfo);
 	}
 
 	return rc;
@@ -2399,7 +2399,7 @@ static void nexthop_flush_dev(struct net_device *dev, unsigned long event)
 	unsigned int hash = nh_dev_hashfn(dev->ifindex);
 	struct net *net = dev_net(dev);
 	struct hlist_head *head = &net->nexthop.devhash[hash];
-	struct hlist_node *n;
+	struct hlist_analde *n;
 	struct nh_info *nhi;
 
 	hlist_for_each_entry_safe(nhi, n, head, dev_hash) {
@@ -2418,11 +2418,11 @@ static void nexthop_flush_dev(struct net_device *dev, unsigned long event)
 static void flush_all_nexthops(struct net *net)
 {
 	struct rb_root *root = &net->nexthop.rb_root;
-	struct rb_node *node;
+	struct rb_analde *analde;
 	struct nexthop *nh;
 
-	while ((node = rb_first(root))) {
-		nh = rb_entry(node, struct nexthop, rb_node);
+	while ((analde = rb_first(root))) {
+		nh = rb_entry(analde, struct nexthop, rb_analde);
 		remove_nexthop(net, nh, NULL);
 		cond_resched();
 	}
@@ -2444,14 +2444,14 @@ static struct nexthop *nexthop_create_group(struct net *net,
 
 	nh = nexthop_alloc();
 	if (!nh)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	nh->is_group = 1;
 
 	nhg = nexthop_grp_alloc(num_nh);
 	if (!nhg) {
 		kfree(nh);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	/* spare group used for removals */
@@ -2459,7 +2459,7 @@ static struct nexthop *nexthop_create_group(struct net *net,
 	if (!nhg->spare) {
 		kfree(nhg);
 		kfree(nh);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 	nhg->spare->spare = nhg;
 
@@ -2469,8 +2469,8 @@ static struct nexthop *nexthop_create_group(struct net *net,
 
 		nhe = nexthop_find_by_id(net, entry[i].id);
 		if (!nexthop_get(nhe)) {
-			err = -ENOENT;
-			goto out_no_nh;
+			err = -EANALENT;
+			goto out_anal_nh;
 		}
 
 		nhi = rtnl_dereference(nhe->nh_info);
@@ -2491,8 +2491,8 @@ static struct nexthop *nexthop_create_group(struct net *net,
 
 		res_table = nexthop_res_table_alloc(net, cfg->nh_id, cfg);
 		if (!res_table) {
-			err = -ENOMEM;
-			goto out_no_nh;
+			err = -EANALMEM;
+			goto out_anal_nh;
 		}
 
 		rcu_assign_pointer(nhg->spare->res_table, res_table);
@@ -2513,7 +2513,7 @@ static struct nexthop *nexthop_create_group(struct net *net,
 
 	return nh;
 
-out_no_nh:
+out_anal_nh:
 	for (i--; i >= 0; --i) {
 		list_del(&nhg->nh_entries[i].nh_list);
 		nexthop_put(nhg->nh_entries[i].nh);
@@ -2589,8 +2589,8 @@ static int nh_create_ipv6(struct net *net,  struct nexthop *nh,
 	err = ipv6_stub->fib6_nh_init(net, fib6_nh, &fib6_cfg, GFP_KERNEL,
 				      extack);
 	if (err) {
-		/* IPv6 is not enabled, don't call fib6_nh_release */
-		if (err == -EAFNOSUPPORT)
+		/* IPv6 is analt enabled, don't call fib6_nh_release */
+		if (err == -EAFANALSUPPORT)
 			goto out;
 		ipv6_stub->fib6_nh_release(fib6_nh);
 	} else {
@@ -2609,12 +2609,12 @@ static struct nexthop *nexthop_create(struct net *net, struct nh_config *cfg,
 
 	nh = nexthop_alloc();
 	if (!nh)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	nhi = kzalloc(sizeof(*nhi), GFP_KERNEL);
 	if (!nhi) {
 		kfree(nh);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	nh->nh_flags = cfg->nh_flags;
@@ -2671,7 +2671,7 @@ static struct nexthop *nexthop_add(struct net *net, struct nh_config *cfg,
 	if (!cfg->nh_id) {
 		cfg->nh_id = nh_find_unused_id(net);
 		if (!cfg->nh_id) {
-			NL_SET_ERR_MSG(extack, "No unused id");
+			NL_SET_ERR_MSG(extack, "Anal unused id");
 			return ERR_PTR(-EINVAL);
 		}
 	}
@@ -2743,7 +2743,7 @@ static int rtm_to_nh_config_grp_res(struct nlattr *res, struct nh_config *cfg,
 			nla_get_u16(tb[NHA_RES_GROUP_BUCKETS]);
 		cfg->nh_grp_res_has_num_buckets = true;
 		if (!cfg->nh_grp_res_num_buckets) {
-			NL_SET_ERR_MSG(extack, "Number of buckets needs to be non-0");
+			NL_SET_ERR_MSG(extack, "Number of buckets needs to be analn-0");
 			return -EINVAL;
 		}
 	}
@@ -2816,7 +2816,7 @@ static int rtm_to_nh_config(struct net *net, struct sk_buff *skb,
 	if (tb[NHA_FDB]) {
 		if (tb[NHA_OIF] || tb[NHA_BLACKHOLE] ||
 		    tb[NHA_ENCAP]   || tb[NHA_ENCAP_TYPE]) {
-			NL_SET_ERR_MSG(extack, "Fdb attribute can not be used with encap, oif or blackhole");
+			NL_SET_ERR_MSG(extack, "Fdb attribute can analt be used with encap, oif or blackhole");
 			goto out;
 		}
 		if (nhm->nh_flags) {
@@ -2850,14 +2850,14 @@ static int rtm_to_nh_config(struct net *net, struct sk_buff *skb,
 			err = rtm_to_nh_config_grp_res(tb[NHA_RES_GROUP],
 						       cfg, extack);
 
-		/* no other attributes should be set */
+		/* anal other attributes should be set */
 		goto out;
 	}
 
 	if (tb[NHA_BLACKHOLE]) {
 		if (tb[NHA_GATEWAY] || tb[NHA_OIF] ||
 		    tb[NHA_ENCAP]   || tb[NHA_ENCAP_TYPE] || tb[NHA_FDB]) {
-			NL_SET_ERR_MSG(extack, "Blackhole attribute can not be used with gateway, oif, encap or fdb");
+			NL_SET_ERR_MSG(extack, "Blackhole attribute can analt be used with gateway, oif, encap or fdb");
 			goto out;
 		}
 
@@ -2867,7 +2867,7 @@ static int rtm_to_nh_config(struct net *net, struct sk_buff *skb,
 	}
 
 	if (!cfg->nh_fdb && !tb[NHA_OIF]) {
-		NL_SET_ERR_MSG(extack, "Device attribute required for non-blackhole and non-fdb nexthops");
+		NL_SET_ERR_MSG(extack, "Device attribute required for analn-blackhole and analn-fdb nexthops");
 		goto out;
 	}
 
@@ -2880,7 +2880,7 @@ static int rtm_to_nh_config(struct net *net, struct sk_buff *skb,
 			NL_SET_ERR_MSG(extack, "Invalid device index");
 			goto out;
 		} else if (!(cfg->dev->flags & IFF_UP)) {
-			NL_SET_ERR_MSG(extack, "Nexthop device is not up");
+			NL_SET_ERR_MSG(extack, "Nexthop device is analt up");
 			err = -ENETDOWN;
 			goto out;
 		} else if (!netif_carrier_ok(cfg->dev)) {
@@ -2911,14 +2911,14 @@ static int rtm_to_nh_config(struct net *net, struct sk_buff *skb,
 			break;
 		default:
 			NL_SET_ERR_MSG(extack,
-				       "Unknown address family for gateway");
+				       "Unkanalwn address family for gateway");
 			goto out;
 		}
 	} else {
-		/* device only nexthop (no gateway) */
+		/* device only nexthop (anal gateway) */
 		if (cfg->nh_flags & RTNH_F_ONLINK) {
 			NL_SET_ERR_MSG(extack,
-				       "ONLINK flag can not be set for nexthop without a gateway");
+				       "ONLINK flag can analt be set for nexthop without a gateway");
 			goto out;
 		}
 	}
@@ -3026,7 +3026,7 @@ static int rtm_del_nexthop(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	nh = nexthop_find_by_id(net, id);
 	if (!nh)
-		return -ENOENT;
+		return -EANALENT;
 
 	remove_nexthop(net, nh, &nlinfo);
 
@@ -3047,17 +3047,17 @@ static int rtm_get_nexthop(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 	if (err)
 		return err;
 
-	err = -ENOBUFS;
+	err = -EANALBUFS;
 	skb = alloc_skb(NLMSG_GOODSIZE, GFP_KERNEL);
 	if (!skb)
 		goto out;
 
-	err = -ENOENT;
+	err = -EANALENT;
 	nh = nexthop_find_by_id(net, id);
 	if (!nh)
 		goto errout_free;
 
-	err = nh_fill_node(skb, nh, RTM_NEWNEXTHOP, NETLINK_CB(in_skb).portid,
+	err = nh_fill_analde(skb, nh, RTM_NEWNEXTHOP, NETLINK_CB(in_skb).portid,
 			   nlh->nlmsg_seq, 0);
 	if (err < 0) {
 		WARN_ON(err == -EMSGSIZE);
@@ -3191,15 +3191,15 @@ static int rtm_dump_walk_nexthops(struct sk_buff *skb,
 					       struct nexthop *nh, void *data),
 				  void *data)
 {
-	struct rb_node *node;
+	struct rb_analde *analde;
 	int s_idx;
 	int err;
 
 	s_idx = ctx->idx;
-	for (node = rb_first(root); node; node = rb_next(node)) {
+	for (analde = rb_first(root); analde; analde = rb_next(analde)) {
 		struct nexthop *nh;
 
-		nh = rb_entry(node, struct nexthop, rb_node);
+		nh = rb_entry(analde, struct nexthop, rb_analde);
 		if (nh->id < s_idx)
 			continue;
 
@@ -3221,7 +3221,7 @@ static int rtm_dump_nexthop_cb(struct sk_buff *skb, struct netlink_callback *cb,
 	if (nh_dump_filtered(nh, filter, nhm->nh_family))
 		return 0;
 
-	return nh_fill_node(skb, nh, RTM_NEWNEXTHOP,
+	return nh_fill_analde(skb, nh, RTM_NEWNEXTHOP,
 			    NETLINK_CB(cb->skb).portid,
 			    cb->nlh->nlmsg_seq, NLM_F_MULTI);
 }
@@ -3260,16 +3260,16 @@ nexthop_find_group_resilient(struct net *net, u32 id,
 
 	nh = nexthop_find_by_id(net, id);
 	if (!nh)
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 
 	if (!nh->is_group) {
-		NL_SET_ERR_MSG(extack, "Not a nexthop group");
+		NL_SET_ERR_MSG(extack, "Analt a nexthop group");
 		return ERR_PTR(-EINVAL);
 	}
 
 	nhg = rtnl_dereference(nh->nh_grp);
 	if (!nhg->resilient) {
-		NL_SET_ERR_MSG(extack, "Nexthop group not of type resilient");
+		NL_SET_ERR_MSG(extack, "Nexthop group analt of type resilient");
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -3525,12 +3525,12 @@ static int rtm_get_nexthop_bucket(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 	res_table = rtnl_dereference(nhg->res_table);
 	if (bucket_index >= res_table->num_nh_buckets) {
 		NL_SET_ERR_MSG(extack, "Bucket index out of bounds");
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	skb = alloc_skb(NLMSG_GOODSIZE, GFP_KERNEL);
 	if (!skb)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	err = nh_fill_res_bucket(skb, nh, &res_table->nh_buckets[bucket_index],
 				 bucket_index, RTM_NEWNEXTHOPBUCKET,
@@ -3553,7 +3553,7 @@ static void nexthop_sync_mtu(struct net_device *dev, u32 orig_mtu)
 	unsigned int hash = nh_dev_hashfn(dev->ifindex);
 	struct net *net = dev_net(dev);
 	struct hlist_head *head = &net->nexthop.devhash[hash];
-	struct hlist_node *n;
+	struct hlist_analde *n;
 	struct nh_info *nhi;
 
 	hlist_for_each_entry_safe(nhi, n, head, dev_hash) {
@@ -3566,11 +3566,11 @@ static void nexthop_sync_mtu(struct net_device *dev, u32 orig_mtu)
 }
 
 /* rtnl */
-static int nh_netdev_event(struct notifier_block *this,
+static int nh_netdev_event(struct analtifier_block *this,
 			   unsigned long event, void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
-	struct netdev_notifier_info_ext *info_ext;
+	struct net_device *dev = netdev_analtifier_info_to_dev(ptr);
+	struct netdev_analtifier_info_ext *info_ext;
 
 	switch (event) {
 	case NETDEV_DOWN:
@@ -3587,26 +3587,26 @@ static int nh_netdev_event(struct notifier_block *this,
 		rt_cache_flush(dev_net(dev));
 		break;
 	}
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block nh_netdev_notifier = {
-	.notifier_call = nh_netdev_event,
+static struct analtifier_block nh_netdev_analtifier = {
+	.analtifier_call = nh_netdev_event,
 };
 
-static int nexthops_dump(struct net *net, struct notifier_block *nb,
+static int nexthops_dump(struct net *net, struct analtifier_block *nb,
 			 enum nexthop_event_type event_type,
 			 struct netlink_ext_ack *extack)
 {
 	struct rb_root *root = &net->nexthop.rb_root;
-	struct rb_node *node;
+	struct rb_analde *analde;
 	int err = 0;
 
-	for (node = rb_first(root); node; node = rb_next(node)) {
+	for (analde = rb_first(root); analde; analde = rb_next(analde)) {
 		struct nexthop *nh;
 
-		nh = rb_entry(node, struct nexthop, rb_node);
-		err = call_nexthop_notifier(nb, net, event_type, nh, extack);
+		nh = rb_entry(analde, struct nexthop, rb_analde);
+		err = call_nexthop_analtifier(nb, net, event_type, nh, extack);
 		if (err)
 			break;
 	}
@@ -3614,7 +3614,7 @@ static int nexthops_dump(struct net *net, struct notifier_block *nb,
 	return err;
 }
 
-int register_nexthop_notifier(struct net *net, struct notifier_block *nb,
+int register_nexthop_analtifier(struct net *net, struct analtifier_block *nb,
 			      struct netlink_ext_ack *extack)
 {
 	int err;
@@ -3623,20 +3623,20 @@ int register_nexthop_notifier(struct net *net, struct notifier_block *nb,
 	err = nexthops_dump(net, nb, NEXTHOP_EVENT_REPLACE, extack);
 	if (err)
 		goto unlock;
-	err = blocking_notifier_chain_register(&net->nexthop.notifier_chain,
+	err = blocking_analtifier_chain_register(&net->nexthop.analtifier_chain,
 					       nb);
 unlock:
 	rtnl_unlock();
 	return err;
 }
-EXPORT_SYMBOL(register_nexthop_notifier);
+EXPORT_SYMBOL(register_nexthop_analtifier);
 
-int unregister_nexthop_notifier(struct net *net, struct notifier_block *nb)
+int unregister_nexthop_analtifier(struct net *net, struct analtifier_block *nb)
 {
 	int err;
 
 	rtnl_lock();
-	err = blocking_notifier_chain_unregister(&net->nexthop.notifier_chain,
+	err = blocking_analtifier_chain_unregister(&net->nexthop.analtifier_chain,
 						 nb);
 	if (err)
 		goto unlock;
@@ -3645,7 +3645,7 @@ unlock:
 	rtnl_unlock();
 	return err;
 }
-EXPORT_SYMBOL(unregister_nexthop_notifier);
+EXPORT_SYMBOL(unregister_nexthop_analtifier);
 
 void nexthop_set_hw_flags(struct net *net, u32 id, bool offload, bool trap)
 {
@@ -3720,7 +3720,7 @@ void nexthop_res_grp_activity_update(struct net *net, u32 id, u16 num_buckets,
 	if (!nhg->resilient)
 		goto out;
 
-	/* Instead of silently ignoring some buckets, demand that the sizes
+	/* Instead of silently iganalring some buckets, demand that the sizes
 	 * be the same.
 	 */
 	res_table = rcu_dereference(nhg->res_table);
@@ -3756,8 +3756,8 @@ static int __net_init nexthop_net_init(struct net *net)
 	net->nexthop.rb_root = RB_ROOT;
 	net->nexthop.devhash = kzalloc(sz, GFP_KERNEL);
 	if (!net->nexthop.devhash)
-		return -ENOMEM;
-	BLOCKING_INIT_NOTIFIER_HEAD(&net->nexthop.notifier_chain);
+		return -EANALMEM;
+	BLOCKING_INIT_ANALTIFIER_HEAD(&net->nexthop.analtifier_chain);
 
 	return 0;
 }
@@ -3771,7 +3771,7 @@ static int __init nexthop_init(void)
 {
 	register_pernet_subsys(&nexthop_net_ops);
 
-	register_netdevice_notifier(&nh_netdev_notifier);
+	register_netdevice_analtifier(&nh_netdev_analtifier);
 
 	rtnl_register(PF_UNSPEC, RTM_NEWNEXTHOP, rtm_new_nexthop, NULL, 0);
 	rtnl_register(PF_UNSPEC, RTM_DELNEXTHOP, rtm_del_nexthop, NULL, 0);

@@ -37,7 +37,7 @@ static struct ctl_table_header *sysctls_root_table;
  * ntfs_sysctl - add or remove the debug sysctl
  * @add:	add (1) or remove (0) the sysctl
  *
- * Add or remove the debug sysctl. Return 0 on success or -errno on error.
+ * Add or remove the debug sysctl. Return 0 on success or -erranal on error.
  */
 int ntfs_sysctl(int add)
 {
@@ -45,7 +45,7 @@ int ntfs_sysctl(int add)
 		BUG_ON(sysctls_root_table);
 		sysctls_root_table = register_sysctl("fs", ntfs_sysctls);
 		if (!sysctls_root_table)
-			return -ENOMEM;
+			return -EANALMEM;
 	} else {
 		BUG_ON(!sysctls_root_table);
 		unregister_sysctl_table(sysctls_root_table);

@@ -199,7 +199,7 @@ static int tegra_audio_graph_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	card = simple_priv_to_card(&priv->simple);
 	card->driver_name = "tegra-ape";

@@ -2,13 +2,13 @@
 /*
  * aio_iiro_16.c
  * Comedi driver for Access I/O Products 104-IIRO-16 board
- * Copyright (C) 2006 C&C Technologies, Inc.
+ * Copyright (C) 2006 C&C Techanallogies, Inc.
  */
 
 /*
  * Driver: aio_iiro_16
  * Description: Access I/O Products PC/104 Isolated Input/Relay Output Board
- * Author: Zachary Ware <zach.ware@cctechnol.com>
+ * Author: Zachary Ware <zach.ware@cctechanall.com>
  * Devices: [Access I/O] 104-IIRO-16 (aio_iiro_16)
  * Status: experimental
  *
@@ -21,8 +21,8 @@
  * changed state and the current state of the inputs:
  *
  *	Bit 23 - IRQ Enable (1) / Disable (0)
- *	Bit 17 - Input 8-15 Changed State (1 = Changed, 0 = No Change)
- *	Bit 16 - Input 0-7 Changed State (1 = Changed, 0 = No Change)
+ *	Bit 17 - Input 8-15 Changed State (1 = Changed, 0 = Anal Change)
+ *	Bit 16 - Input 0-7 Changed State (1 = Changed, 0 = Anal Change)
  *	Bit 15 - Digital input 15
  *	...
  *	Bit 0  - Digital input 0
@@ -61,7 +61,7 @@ static irqreturn_t aio_iiro_16_cos(int irq, void *d)
 
 	status = inb(dev->iobase + AIO_IIRO_16_STATUS);
 	if (!(status & AIO_IIRO_16_STATUS_IRQE))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	val = aio_iiro_16_read_inputs(dev);
 	val |= (status << 16);
@@ -104,11 +104,11 @@ static int aio_iiro_16_cos_cmdtest(struct comedi_device *dev,
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW);
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_ANALW);
 	err |= comedi_check_trigger_src(&cmd->scan_begin_src, TRIG_EXT);
 	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_FOLLOW);
 	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_ANALNE);
 
 	if (err)
 		return 1;

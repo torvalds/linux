@@ -49,8 +49,8 @@ static const u8 DS620_REG_TEMP[3] = {
 };
 
 #define DS620_REG_CONF		0xAC	/* word, RW */
-#define DS620_COM_START		0x51	/* no data */
-#define DS620_COM_STOP		0x22	/* no data */
+#define DS620_COM_START		0x51	/* anal data */
+#define DS620_COM_STOP		0x22	/* anal data */
 
 /* Each client has this additional data */
 struct ds620_data {
@@ -219,7 +219,7 @@ static int ds620_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(dev, sizeof(struct ds620_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->client = client;
 	mutex_init(&data->update_lock);

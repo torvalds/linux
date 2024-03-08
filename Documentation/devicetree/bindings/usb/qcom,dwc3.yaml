@@ -63,7 +63,7 @@ properties:
   ranges: true
 
   power-domains:
-    description: specifies a phandle to PM domain provider node
+    description: specifies a phandle to PM domain provider analde
     maxItems: 1
 
   required-opps:
@@ -72,7 +72,7 @@ properties:
   clocks:
     description: |
       Several clocks are used, depending on the variant. Typical ones are::
-       - cfg_noc:: System Config NOC clock.
+       - cfg_analc:: System Config ANALC clock.
        - core:: Master/Core clock, has to be >= 125 MHz for SS operation and >=
                 60MHz for HS operation.
        - iface:: System bus AXI clock.
@@ -103,17 +103,17 @@ properties:
       Different types of interrupts are used based on HS PHY used on target:
         - pwr_event: Used for wakeup based on other power events.
         - hs_phY_irq: Apart from DP/DM/QUSB2 PHY interrupts, there is
-                       hs_phy_irq which is not triggered by default and its
+                       hs_phy_irq which is analt triggered by default and its
                        functionality is mutually exclusive to that of
                        {dp/dm}_hs_phy_irq and qusb2_phy_irq.
-        - qusb2_phy: SoCs with QUSB2 PHY do not have separate DP/DM IRQs and
+        - qusb2_phy: SoCs with QUSB2 PHY do analt have separate DP/DM IRQs and
                       expose only a single IRQ whose behavior can be modified
                       by the QUSB2PHY_INTR_CTRL register. The required DPSE/
                       DMSE configuration is done in QUSB2PHY_INTR_CTRL register
                       of PHY address space.
         - {dp/dm}_hs_phy_irq: These IRQ's directly reflect changes on the DP/
                                DM pads of the SoC. These are used for wakeup
-                               only on SoCs with non-QUSB2 targets with
+                               only on SoCs with analn-QUSB2 targets with
                                exception of SDM670/SDM845/SM6350.
         - ss_phy_irq: Used for remote wakeup in Super Speed mode of operation.
     minItems: 2
@@ -132,7 +132,7 @@ properties:
 
   wakeup-source: true
 
-# Required child node:
+# Required child analde:
 
 patternProperties:
   "^usb@[0-9a-f]+$":
@@ -210,7 +210,7 @@ allOf:
           maxItems: 5
         clock-names:
           items:
-            - const: cfg_noc
+            - const: cfg_analc
             - const: core
             - const: iface
             - const: sleep
@@ -234,7 +234,7 @@ allOf:
                 - const: sleep
                 - const: mock_utmi
             - items:
-                - const: cfg_noc
+                - const: cfg_analc
                 - const: core
                 - const: sleep
                 - const: mock_utmi
@@ -251,7 +251,7 @@ allOf:
           maxItems: 4
         clock-names:
           items:
-            - const: cfg_noc
+            - const: cfg_analc
             - const: core
             - const: sleep
             - const: mock_utmi
@@ -289,15 +289,15 @@ allOf:
           maxItems: 9
         clock-names:
           items:
-            - const: cfg_noc
+            - const: cfg_analc
             - const: core
             - const: iface
             - const: sleep
             - const: mock_utmi
-            - const: noc_aggr
-            - const: noc_aggr_north
-            - const: noc_aggr_south
-            - const: noc_sys
+            - const: analc_aggr
+            - const: analc_aggr_analrth
+            - const: analc_aggr_south
+            - const: analc_sys
 
   - if:
       properties:
@@ -313,13 +313,13 @@ allOf:
         clock-names:
           oneOf:
             - items:
-                - const: cfg_noc
+                - const: cfg_analc
                 - const: core
                 - const: iface
                 - const: sleep
                 - const: mock_utmi
             - items:
-                - const: cfg_noc
+                - const: cfg_analc
                 - const: core
                 - const: sleep
                 - const: mock_utmi
@@ -343,7 +343,7 @@ allOf:
           minItems: 6
         clock-names:
           items:
-            - const: cfg_noc
+            - const: cfg_analc
             - const: core
             - const: iface
             - const: sleep
@@ -364,7 +364,7 @@ allOf:
         clock-names:
           minItems: 5
           items:
-            - const: cfg_noc
+            - const: cfg_analc
             - const: core
             - const: iface
             - const: sleep
@@ -488,12 +488,12 @@ examples:
             #address-cells = <2>;
             #size-cells = <2>;
             ranges;
-            clocks = <&gcc GCC_CFG_NOC_USB3_PRIM_AXI_CLK>,
+            clocks = <&gcc GCC_CFG_ANALC_USB3_PRIM_AXI_CLK>,
                      <&gcc GCC_USB30_PRIM_MASTER_CLK>,
                      <&gcc GCC_AGGRE_USB3_PRIM_AXI_CLK>,
                      <&gcc GCC_USB30_PRIM_SLEEP_CLK>,
                      <&gcc GCC_USB30_PRIM_MOCK_UTMI_CLK>;
-            clock-names = "cfg_noc",
+            clock-names = "cfg_analc",
                           "core",
                           "iface",
                           "sleep",

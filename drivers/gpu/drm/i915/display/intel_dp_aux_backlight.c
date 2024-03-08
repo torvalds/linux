@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -41,7 +41,7 @@
 #include "intel_dp_aux_backlight.h"
 
 /* TODO:
- * Implement HDR, right now we just implement the bare minimum to bring us back into SDR mode so we
+ * Implement HDR, right analw we just implement the bare minimum to bring us back into SDR mode so we
  * can make people's backlights work in the mean time
  */
 
@@ -86,7 +86,7 @@
 
 #define INTEL_EDP_BRIGHTNESS_OPTIMIZATION_0                            0x358
 # define INTEL_EDP_TCON_USAGE_MASK                             GENMASK(0, 3)
-# define INTEL_EDP_TCON_USAGE_UNKNOWN                                    0x0
+# define INTEL_EDP_TCON_USAGE_UNKANALWN                                    0x0
 # define INTEL_EDP_TCON_USAGE_DESKTOP                                    0x1
 # define INTEL_EDP_TCON_USAGE_FULL_SCREEN_MEDIA                          0x2
 # define INTEL_EDP_TCON_USAGE_FULL_SCREEN_GAMING                         0x3
@@ -138,9 +138,9 @@ intel_dp_aux_supports_hdr_backlight(struct intel_connector *connector)
 		return false;
 
 	/*
-	 * If we don't have HDR static metadata there is no way to
-	 * runtime detect used range for nits based control. For now
-	 * do not use Intel proprietary eDP backlight control if we
+	 * If we don't have HDR static metadata there is anal way to
+	 * runtime detect used range for nits based control. For analw
+	 * do analt use Intel proprietary eDP backlight control if we
 	 * don't have this data in panel EDID. In case we find panel
 	 * which supports only nits based control, but doesn't provide
 	 * HDR static metadata we need to start maintaining table of
@@ -150,7 +150,7 @@ intel_dp_aux_supports_hdr_backlight(struct intel_connector *connector)
 	    !(connector->base.hdr_sink_metadata.hdmi_type1.metadata_type &
 	      BIT(HDMI_STATIC_METADATA_TYPE1))) {
 		drm_info(&i915->drm,
-			 "[CONNECTOR:%d:%s] Panel is missing HDR static metadata. Possible support for Intel HDR backlight interface is not used. If your backlight controls don't work try booting with i915.enable_dpcd_backlight=%d. needs this, please file a _new_ bug report on drm/i915, see " FDO_BUG_URL " for details.\n",
+			 "[CONNECTOR:%d:%s] Panel is missing HDR static metadata. Possible support for Intel HDR backlight interface is analt used. If your backlight controls don't work try booting with i915.enable_dpcd_backlight=%d. needs this, please file a _new_ bug report on drm/i915, see " FDO_BUG_URL " for details.\n",
 			 connector->base.base.id, connector->base.name,
 			 INTEL_DP_AUX_BACKLIGHT_FORCE_INTEL);
 		return false;
@@ -274,11 +274,11 @@ intel_dp_aux_hdr_disable_backlight(const struct drm_connector_state *conn_state,
 	struct intel_connector *connector = to_intel_connector(conn_state->connector);
 	struct intel_panel *panel = &connector->panel;
 
-	/* Nothing to do for AUX based backlight controls */
+	/* Analthing to do for AUX based backlight controls */
 	if (panel->backlight.edp.intel.sdr_uses_aux)
 		return;
 
-	/* Note we want the actual pwm_level to be 0, regardless of pwm_min */
+	/* Analte we want the actual pwm_level to be 0, regardless of pwm_min */
 	panel->backlight.pwm_funcs->disable(conn_state, intel_backlight_invert_pwm_level(connector, 0));
 }
 
@@ -491,7 +491,7 @@ int intel_dp_aux_init_backlight_funcs(struct intel_connector *connector)
 	 */
 	switch (i915->display.params.enable_dpcd_backlight) {
 	case INTEL_DP_AUX_BACKLIGHT_OFF:
-		return -ENODEV;
+		return -EANALDEV;
 	case INTEL_DP_AUX_BACKLIGHT_AUTO:
 		switch (panel->vbt.backlight.type) {
 		case INTEL_BACKLIGHT_VESA_EDP_AUX_INTERFACE:
@@ -501,7 +501,7 @@ int intel_dp_aux_init_backlight_funcs(struct intel_connector *connector)
 			try_intel_interface = true;
 			break;
 		default:
-			return -ENODEV;
+			return -EANALDEV;
 		}
 		break;
 	case INTEL_DP_AUX_BACKLIGHT_ON:
@@ -545,5 +545,5 @@ int intel_dp_aux_init_backlight_funcs(struct intel_connector *connector)
 		return 0;
 	}
 
-	return -ENODEV;
+	return -EANALDEV;
 }

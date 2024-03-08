@@ -17,7 +17,7 @@ ENTRY(armada_38x_scu_power_up)
 	and	r0, r0, #15
 	add	r1, r1, r0
 	mov	r0, #0x0
-	strb	r0, [r1]		@ switch SCU power state to Normal mode
+	strb	r0, [r1]		@ switch SCU power state to Analrmal mode
 	ret	lr
 ENDPROC(armada_38x_scu_power_up)
 

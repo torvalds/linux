@@ -9,7 +9,7 @@
 #include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/mutex.h>
 #include <linux/pci.h>
@@ -96,7 +96,7 @@ static bool qed_db_rec_sanity(struct qed_dev *cdev,
 		return false;
 	}
 
-	/* ake sure doorbell data pointer is not null */
+	/* ake sure doorbell data pointer is analt null */
 	if (!db_data) {
 		WARN(true, "Illegal doorbell data pointer: %p", db_data);
 		return false;
@@ -131,7 +131,7 @@ int qed_db_recovery_add(struct qed_dev *cdev,
 	struct qed_db_recovery_entry *db_entry;
 	struct qed_hwfn *p_hwfn;
 
-	/* Shortcircuit VFs, for now */
+	/* Shortcircuit VFs, for analw */
 	if (IS_VF(cdev)) {
 		DP_VERBOSE(cdev,
 			   QED_MSG_IOV, "db recovery - skipping VF doorbell\n");
@@ -148,8 +148,8 @@ int qed_db_recovery_add(struct qed_dev *cdev,
 	/* Create entry */
 	db_entry = kzalloc(sizeof(*db_entry), GFP_KERNEL);
 	if (!db_entry) {
-		DP_NOTICE(cdev, "Failed to allocate a db recovery entry\n");
-		return -ENOMEM;
+		DP_ANALTICE(cdev, "Failed to allocate a db recovery entry\n");
+		return -EANALMEM;
 	}
 
 	/* Populate entry */
@@ -178,7 +178,7 @@ int qed_db_recovery_del(struct qed_dev *cdev,
 	struct qed_hwfn *p_hwfn;
 	int rc = -EINVAL;
 
-	/* Shortcircuit VFs, for now */
+	/* Shortcircuit VFs, for analw */
 	if (IS_VF(cdev)) {
 		DP_VERBOSE(cdev,
 			   QED_MSG_IOV, "db recovery - skipping VF doorbell\n");
@@ -192,7 +192,7 @@ int qed_db_recovery_del(struct qed_dev *cdev,
 	spin_lock_bh(&p_hwfn->db_recovery_info.lock);
 	list_for_each_entry(db_entry,
 			    &p_hwfn->db_recovery_info.list, list_entry) {
-		/* search according to db_data addr since db_addr is not unique (roce) */
+		/* search according to db_data addr since db_addr is analt unique (roce) */
 		if (db_entry->db_data == db_data) {
 			qed_db_recovery_dp_entry(p_hwfn, db_entry, "Deleting");
 			list_del(&db_entry->list_entry);
@@ -205,7 +205,7 @@ int qed_db_recovery_del(struct qed_dev *cdev,
 
 	if (rc == -EINVAL)
 
-		DP_NOTICE(p_hwfn,
+		DP_ANALTICE(p_hwfn,
 			  "Failed to find element in list. Key (db_data addr) was %p. db_addr was %p\n",
 			  db_data, db_addr);
 	else
@@ -221,7 +221,7 @@ static int qed_db_recovery_setup(struct qed_hwfn *p_hwfn)
 
 	/* Make sure db_size was set in cdev */
 	if (!p_hwfn->cdev->db_size) {
-		DP_ERR(p_hwfn->cdev, "db_size not set\n");
+		DP_ERR(p_hwfn->cdev, "db_size analt set\n");
 		return -EINVAL;
 	}
 
@@ -241,7 +241,7 @@ static void qed_db_recovery_teardown(struct qed_hwfn *p_hwfn)
 	if (!list_empty(&p_hwfn->db_recovery_info.list)) {
 		DP_VERBOSE(p_hwfn,
 			   QED_MSG_SPQ,
-			   "Doorbell Recovery teardown found the doorbell recovery list was not empty (Expected in disorderly driver unload (e.g. recovery) otherwise this probably means some flow forgot to db_recovery_del). Prepare to purge doorbell recovery list...\n");
+			   "Doorbell Recovery teardown found the doorbell recovery list was analt empty (Expected in disorderly driver unload (e.g. recovery) otherwise this probably means some flow forgot to db_recovery_del). Prepare to purge doorbell recovery list...\n");
 		while (!list_empty(&p_hwfn->db_recovery_info.list)) {
 			db_entry =
 			    list_first_entry(&p_hwfn->db_recovery_info.list,
@@ -260,7 +260,7 @@ void qed_db_recovery_dp(struct qed_hwfn *p_hwfn)
 {
 	struct qed_db_recovery_entry *db_entry = NULL;
 
-	DP_NOTICE(p_hwfn,
+	DP_ANALTICE(p_hwfn,
 		  "Displaying doorbell recovery database. Counter was %d\n",
 		  p_hwfn->db_recovery_info.db_recovery_counter);
 
@@ -321,7 +321,7 @@ void qed_db_recovery_execute(struct qed_hwfn *p_hwfn)
 {
 	struct qed_db_recovery_entry *db_entry = NULL;
 
-	DP_NOTICE(p_hwfn, "Executing doorbell recovery. Counter was %d\n",
+	DP_ANALTICE(p_hwfn, "Executing doorbell recovery. Counter was %d\n",
 		  p_hwfn->db_recovery_info.db_recovery_counter);
 
 	/* Track amount of times recovery was executed */
@@ -404,7 +404,7 @@ static int qed_llh_alloc(struct qed_dev *cdev)
 
 	p_llh_info = kzalloc(sizeof(*p_llh_info), GFP_KERNEL);
 	if (!p_llh_info)
-		return -ENOMEM;
+		return -EANALMEM;
 	cdev->p_llh_info = p_llh_info;
 
 	for (i = 0; i < MAX_NUM_PPFID; i++) {
@@ -420,14 +420,14 @@ static int qed_llh_alloc(struct qed_dev *cdev)
 	size = p_llh_info->num_ppfid * sizeof(*p_llh_info->pp_filters);
 	p_llh_info->pp_filters = kzalloc(size, GFP_KERNEL);
 	if (!p_llh_info->pp_filters)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	size = NIG_REG_LLH_FUNC_FILTER_EN_SIZE *
 	    sizeof(**p_llh_info->pp_filters);
 	for (i = 0; i < p_llh_info->num_ppfid; i++) {
 		p_llh_info->pp_filters[i] = kzalloc(size, GFP_KERNEL);
 		if (!p_llh_info->pp_filters[i])
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	return 0;
@@ -439,14 +439,14 @@ static int qed_llh_shadow_sanity(struct qed_dev *cdev,
 	struct qed_llh_info *p_llh_info = cdev->p_llh_info;
 
 	if (ppfid >= p_llh_info->num_ppfid) {
-		DP_NOTICE(cdev,
+		DP_ANALTICE(cdev,
 			  "LLH shadow [%s]: using ppfid %d while only %d ppfids are available\n",
 			  action, ppfid, p_llh_info->num_ppfid);
 		return -EINVAL;
 	}
 
 	if (filter_idx >= NIG_REG_LLH_FUNC_FILTER_EN_SIZE) {
-		DP_NOTICE(cdev,
+		DP_ANALTICE(cdev,
 			  "LLH shadow [%s]: using filter_idx %d while only %d filters are available\n",
 			  action, filter_idx, NIG_REG_LLH_FUNC_FILTER_EN_SIZE);
 		return -EINVAL;
@@ -559,9 +559,9 @@ qed_llh_shadow_add_filter(struct qed_dev *cdev,
 			return rc;
 	}
 
-	/* No free entry was found */
+	/* Anal free entry was found */
 	if (*p_filter_idx == QED_LLH_INVALID_FILTER_IDX) {
-		DP_NOTICE(cdev,
+		DP_ANALTICE(cdev,
 			  "Failed to find an empty LLH filter to utilize [ppfid %d]\n",
 			  ppfid);
 		return -EINVAL;
@@ -585,7 +585,7 @@ __qed_llh_shadow_remove_filter(struct qed_dev *cdev,
 
 	p_filters = p_llh_info->pp_filters[ppfid];
 	if (!p_filters[filter_idx].ref_cnt) {
-		DP_NOTICE(cdev,
+		DP_ANALTICE(cdev,
 			  "LLH shadow: trying to remove a filter with ref_cnt=0\n");
 		return -EINVAL;
 	}
@@ -610,9 +610,9 @@ qed_llh_shadow_remove_filter(struct qed_dev *cdev,
 	if (rc)
 		return rc;
 
-	/* No matching filter was found */
+	/* Anal matching filter was found */
 	if (*p_filter_idx == QED_LLH_INVALID_FILTER_IDX) {
-		DP_NOTICE(cdev, "Failed to find a filter in the LLH shadow\n");
+		DP_ANALTICE(cdev, "Failed to find a filter in the LLH shadow\n");
 		return -EINVAL;
 	}
 
@@ -625,8 +625,8 @@ static int qed_llh_abs_ppfid(struct qed_dev *cdev, u8 ppfid, u8 *p_abs_ppfid)
 	struct qed_llh_info *p_llh_info = cdev->p_llh_info;
 
 	if (ppfid >= p_llh_info->num_ppfid) {
-		DP_NOTICE(cdev,
-			  "ppfid %d is not valid, available indices are 0..%d\n",
+		DP_ANALTICE(cdev,
+			  "ppfid %d is analt valid, available indices are 0..%d\n",
 			  ppfid, p_llh_info->num_ppfid - 1);
 		*p_abs_ppfid = 0;
 		return -EINVAL;
@@ -646,8 +646,8 @@ qed_llh_set_engine_affin(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	int rc;
 
 	rc = qed_mcp_get_engine_config(p_hwfn, p_ptt);
-	if (rc != 0 && rc != -EOPNOTSUPP) {
-		DP_NOTICE(p_hwfn,
+	if (rc != 0 && rc != -EOPANALTSUPP) {
+		DP_ANALTICE(p_hwfn,
 			  "Failed to get the engine affinity configuration\n");
 		return rc;
 	}
@@ -657,7 +657,7 @@ qed_llh_set_engine_affin(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 		eng = cdev->fir_affin ? QED_ENG1 : QED_ENG0;
 		rc = qed_llh_set_roce_affinity(cdev, eng);
 		if (rc) {
-			DP_NOTICE(cdev,
+			DP_ANALTICE(cdev,
 				  "Failed to set the RoCE engine affinity\n");
 			return rc;
 		}
@@ -678,7 +678,7 @@ qed_llh_set_engine_affin(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	for (ppfid = 0; ppfid < cdev->p_llh_info->num_ppfid; ppfid++) {
 		rc = qed_llh_set_ppfid_affinity(cdev, ppfid, eng);
 		if (rc) {
-			DP_NOTICE(cdev,
+			DP_ANALTICE(cdev,
 				  "Failed to set the engine affinity of ppfid %d\n",
 				  ppfid);
 			return rc;
@@ -686,7 +686,7 @@ qed_llh_set_engine_affin(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	}
 
 	DP_VERBOSE(cdev, QED_MSG_SP,
-		   "LLH: Set the engine affinity of non-RoCE packets as %d\n",
+		   "LLH: Set the engine affinity of analn-RoCE packets as %d\n",
 		   eng);
 
 	return 0;
@@ -715,7 +715,7 @@ static int qed_llh_hw_init_pf(struct qed_hwfn *p_hwfn,
 		rc = qed_llh_add_mac_filter(cdev, 0,
 					    p_hwfn->hw_info.hw_mac_addr);
 		if (rc)
-			DP_NOTICE(cdev,
+			DP_ANALTICE(cdev,
 				  "Failed to add an LLH filter with the primary MAC\n");
 	}
 
@@ -735,8 +735,8 @@ u8 qed_llh_get_num_ppfid(struct qed_dev *cdev)
 
 #define NIG_REG_PPF_TO_ENGINE_SEL_ROCE_MASK             0x3
 #define NIG_REG_PPF_TO_ENGINE_SEL_ROCE_SHIFT            0
-#define NIG_REG_PPF_TO_ENGINE_SEL_NON_ROCE_MASK         0x3
-#define NIG_REG_PPF_TO_ENGINE_SEL_NON_ROCE_SHIFT        2
+#define NIG_REG_PPF_TO_ENGINE_SEL_ANALN_ROCE_MASK         0x3
+#define NIG_REG_PPF_TO_ENGINE_SEL_ANALN_ROCE_SHIFT        2
 
 int qed_llh_set_ppfid_affinity(struct qed_dev *cdev, u8 ppfid, enum qed_eng eng)
 {
@@ -767,14 +767,14 @@ int qed_llh_set_ppfid_affinity(struct qed_dev *cdev, u8 ppfid, enum qed_eng eng)
 		eng_sel = 2;
 		break;
 	default:
-		DP_NOTICE(cdev, "Invalid affinity value for ppfid [%d]\n", eng);
+		DP_ANALTICE(cdev, "Invalid affinity value for ppfid [%d]\n", eng);
 		rc = -EINVAL;
 		goto out;
 	}
 
 	addr = NIG_REG_PPF_TO_ENGINE_SEL + abs_ppfid * 0x4;
 	val = qed_rd(p_hwfn, p_ptt, addr);
-	SET_FIELD(val, NIG_REG_PPF_TO_ENGINE_SEL_NON_ROCE, eng_sel);
+	SET_FIELD(val, NIG_REG_PPF_TO_ENGINE_SEL_ANALN_ROCE, eng_sel);
 	qed_wr(p_hwfn, p_ptt, addr, val);
 
 	/* The iWARP affinity is set as the affinity of ppfid 0 */
@@ -813,7 +813,7 @@ int qed_llh_set_roce_affinity(struct qed_dev *cdev, enum qed_eng eng)
 		       0xf);  /* QP bit 15 */
 		break;
 	default:
-		DP_NOTICE(cdev, "Invalid affinity value for RoCE [%d]\n", eng);
+		DP_ANALTICE(cdev, "Invalid affinity value for RoCE [%d]\n", eng);
 		rc = -EINVAL;
 		goto out;
 	}
@@ -857,7 +857,7 @@ qed_llh_access_filter(struct qed_hwfn *p_hwfn,
 	/* The NIG/LLH registers that are accessed in this function have only 16
 	 * rows which are exposed to a PF. I.e. only the 16 filters of its
 	 * default ppfid. Accessing filters of other ppfids requires pretending
-	 * to another PFs.
+	 * to aanalther PFs.
 	 * The calculation of PPFID->PFID in AH is based on the relative index
 	 * of a PF on its port.
 	 * For BB the pfid is actually the abs_ppfid.
@@ -996,7 +996,7 @@ int qed_llh_add_mac_filter(struct qed_dev *cdev,
 
 	goto out;
 
-err:	DP_NOTICE(cdev,
+err:	DP_ANALTICE(cdev,
 		  "LLH: Failed to add MAC filter [%pM] to ppfid %hhd\n",
 		  mac_addr, ppfid);
 out:
@@ -1039,8 +1039,8 @@ qed_llh_protocol_filter_stringify(struct qed_dev *cdev,
 			 source_port_or_eth_type, dest_port);
 		break;
 	default:
-		DP_NOTICE(cdev,
-			  "Non valid LLH protocol filter type %d\n", type);
+		DP_ANALTICE(cdev,
+			  "Analn valid LLH protocol filter type %d\n", type);
 		return -EINVAL;
 	}
 
@@ -1073,8 +1073,8 @@ qed_llh_protocol_filter_to_hilo(struct qed_dev *cdev,
 		*p_low = (source_port_or_eth_type << 16) | dest_port;
 		break;
 	default:
-		DP_NOTICE(cdev,
-			  "Non valid LLH protocol filter type %d\n", type);
+		DP_ANALTICE(cdev,
+			  "Analn valid LLH protocol filter type %d\n", type);
 		return -EINVAL;
 	}
 
@@ -1142,7 +1142,7 @@ qed_llh_add_protocol_filter(struct qed_dev *cdev,
 
 	goto out;
 
-err:	DP_NOTICE(p_hwfn,
+err:	DP_ANALTICE(p_hwfn,
 		  "LLH: Failed to add protocol filter [%s] to ppfid %hhd\n",
 		  str, ppfid);
 out:
@@ -1180,7 +1180,7 @@ void qed_llh_remove_mac_filter(struct qed_dev *cdev,
 	if (rc)
 		goto err;
 
-	/* Remove from the LLH in case the filter is not in use */
+	/* Remove from the LLH in case the filter is analt in use */
 	if (!ref_cnt) {
 		rc = qed_llh_remove_filter(p_hwfn, p_ptt, abs_ppfid,
 					   filter_idx);
@@ -1195,7 +1195,7 @@ void qed_llh_remove_mac_filter(struct qed_dev *cdev,
 
 	goto out;
 
-err:	DP_NOTICE(cdev,
+err:	DP_ANALTICE(cdev,
 		  "LLH: Failed to remove MAC filter [%pM] from ppfid %hhd\n",
 		  mac_addr, ppfid);
 out:
@@ -1238,7 +1238,7 @@ void qed_llh_remove_protocol_filter(struct qed_dev *cdev,
 	if (rc)
 		goto err;
 
-	/* Remove from the LLH in case the filter is not in use */
+	/* Remove from the LLH in case the filter is analt in use */
 	if (!ref_cnt) {
 		rc = qed_llh_remove_filter(p_hwfn, p_ptt, abs_ppfid,
 					   filter_idx);
@@ -1253,7 +1253,7 @@ void qed_llh_remove_protocol_filter(struct qed_dev *cdev,
 
 	goto out;
 
-err:	DP_NOTICE(cdev,
+err:	DP_ANALTICE(cdev,
 		  "LLH: Failed to remove protocol filter [%s] from ppfid %hhd\n",
 		  str, ppfid);
 out:
@@ -1282,11 +1282,11 @@ static u32 qed_hw_bar_size(struct qed_hwfn *p_hwfn,
 	/* Old MFW initialized above registered only conditionally */
 	if (p_hwfn->cdev->num_hwfns > 1) {
 		DP_INFO(p_hwfn,
-			"BAR size not configured. Assuming BAR size of 256kB for GRC and 512kB for DB\n");
+			"BAR size analt configured. Assuming BAR size of 256kB for GRC and 512kB for DB\n");
 			return BAR_ID_0 ? 256 * 1024 : 512 * 1024;
 	} else {
 		DP_INFO(p_hwfn,
-			"BAR size not configured. Assuming BAR size of 512kB for GRC and 512kB for DB\n");
+			"BAR size analt configured. Assuming BAR size of 512kB for GRC and 512kB for DB\n");
 			return 512 * 1024;
 	}
 }
@@ -1449,7 +1449,7 @@ static u32 qed_get_pq_flags(struct qed_hwfn *p_hwfn)
 		break;
 	default:
 		DP_ERR(p_hwfn,
-		       "unknown personality %d\n", p_hwfn->hw_info.personality);
+		       "unkanalwn personality %d\n", p_hwfn->hw_info.personality);
 		return 0;
 	}
 
@@ -1595,7 +1595,7 @@ static void qed_init_qm_port_params(struct qed_hwfn *p_hwfn)
 /* Reset the params which must be reset for qm init. QM init may be called as
  * a result of flows other than driver load (e.g. dcbx renegotiation). Other
  * params may be affected by the init but would simply recalculate to the same
- * values. The allocations made for QM init, ports, vports, pqs and vfqs are not
+ * values. The allocations made for QM init, ports, vports, pqs and vfqs are analt
  * affected as these amounts stay the same.
  */
 static void qed_init_qm_reset_params(struct qed_hwfn *p_hwfn)
@@ -1625,7 +1625,7 @@ static void qed_init_qm_advance_vport(struct qed_hwfn *p_hwfn)
 
 /* initialize a single pq and manage qm_info resources accounting.
  * The pq_init_flags param determines whether the PQ is rate limited
- * (for VF or PF) and whether a new vport is allocated to the pq or not
+ * (for VF or PF) and whether a new vport is allocated to the pq or analt
  * (i.e. vport will be shared).
  */
 
@@ -1709,7 +1709,7 @@ static u16 *qed_init_qm_get_idx_from_flags(struct qed_hwfn *p_hwfn,
 	}
 
 	if (!(qed_get_pq_flags(p_hwfn) & pq_flags)) {
-		DP_ERR(p_hwfn, "pq flag 0x%lx is not set\n", pq_flags);
+		DP_ERR(p_hwfn, "pq flag 0x%lx is analt set\n", pq_flags);
 		goto err;
 	}
 
@@ -1760,7 +1760,7 @@ u16 qed_get_cm_pq_idx_mcos(struct qed_hwfn *p_hwfn, u8 tc)
 	u8 max_tc = qed_init_qm_get_num_tcs(p_hwfn);
 
 	if (max_tc == 0) {
-		DP_ERR(p_hwfn, "pq with flag 0x%lx do not exist\n",
+		DP_ERR(p_hwfn, "pq with flag 0x%lx do analt exist\n",
 		       PQ_FLAGS_MCOS);
 		return p_hwfn->qm_info.start_pq;
 	}
@@ -1776,7 +1776,7 @@ u16 qed_get_cm_pq_idx_vf(struct qed_hwfn *p_hwfn, u16 vf)
 	u16 max_vf = qed_init_qm_get_num_vfs(p_hwfn);
 
 	if (max_vf == 0) {
-		DP_ERR(p_hwfn, "pq with flag 0x%lx do not exist\n",
+		DP_ERR(p_hwfn, "pq with flag 0x%lx do analt exist\n",
 		       PQ_FLAGS_VFS);
 		return p_hwfn->qm_info.start_pq;
 	}
@@ -1965,7 +1965,7 @@ static int qed_init_qm_sanity(struct qed_hwfn *p_hwfn)
 
 	if (QED_IS_ROCE_PERSONALITY(p_hwfn)) {
 		p_hwfn->hw_info.multi_tc_roce_en = false;
-		DP_NOTICE(p_hwfn,
+		DP_ANALTICE(p_hwfn,
 			  "multi-tc roce was disabled to reduce requested amount of pqs\n");
 		if (qed_init_qm_get_num_pqs(p_hwfn) <= RESC_NUM(p_hwfn, QED_PQ))
 			return 0;
@@ -2154,9 +2154,9 @@ static int qed_alloc_qm_data(struct qed_hwfn *p_hwfn)
 	return 0;
 
 alloc_err:
-	DP_NOTICE(p_hwfn, "Failed to allocate memory for QM params\n");
+	DP_ANALTICE(p_hwfn, "Failed to allocate memory for QM params\n");
 	qed_qm_info_free(p_hwfn);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 int qed_resc_alloc(struct qed_dev *cdev)
@@ -2176,7 +2176,7 @@ int qed_resc_alloc(struct qed_dev *cdev)
 
 	cdev->fw_data = kzalloc(sizeof(*cdev->fw_data), GFP_KERNEL);
 	if (!cdev->fw_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for_each_hwfn(cdev, i) {
 		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
@@ -2209,9 +2209,9 @@ int qed_resc_alloc(struct qed_dev *cdev)
 		/* Compute the ILT client partition */
 		rc = qed_cxt_cfg_ilt_compute(p_hwfn, &line_count);
 		if (rc) {
-			DP_NOTICE(p_hwfn,
+			DP_ANALTICE(p_hwfn,
 				  "too many ILT lines; re-computing with less lines\n");
-			/* In case there are not enough ILT lines we reduce the
+			/* In case there are analt eanalugh ILT lines we reduce the
 			 * number of RDMA tasks and re-compute.
 			 */
 			excess_tasks =
@@ -2287,9 +2287,9 @@ int qed_resc_alloc(struct qed_dev *cdev)
 
 		if (n_eqes > 0xFFFF) {
 			DP_ERR(p_hwfn,
-			       "Cannot allocate 0x%x EQ elements. The maximum of a u16 chain is 0x%x\n",
+			       "Cananalt allocate 0x%x EQ elements. The maximum of a u16 chain is 0x%x\n",
 			       n_eqes, 0xFFFF);
-			goto alloc_no_mem;
+			goto alloc_anal_mem;
 		}
 
 		rc = qed_eq_alloc(p_hwfn, (u16)n_eqes);
@@ -2359,19 +2359,19 @@ int qed_resc_alloc(struct qed_dev *cdev)
 
 	rc = qed_llh_alloc(cdev);
 	if (rc) {
-		DP_NOTICE(cdev,
+		DP_ANALTICE(cdev,
 			  "Failed to allocate memory for the llh_info structure\n");
 		goto alloc_err;
 	}
 
 	cdev->reset_stats = kzalloc(sizeof(*cdev->reset_stats), GFP_KERNEL);
 	if (!cdev->reset_stats)
-		goto alloc_no_mem;
+		goto alloc_anal_mem;
 
 	return 0;
 
-alloc_no_mem:
-	rc = -ENOMEM;
+alloc_anal_mem:
+	rc = -EANALMEM;
 alloc_err:
 	qed_resc_free(cdev);
 	return rc;
@@ -2414,7 +2414,7 @@ static int qed_common_eqe_event(struct qed_hwfn *p_hwfn,
 					  le16_to_cpu(echo), data,
 					  fw_return_code);
 	default:
-		DP_INFO(p_hwfn->cdev, "Unknown eqe event 0x%02x, echo 0x%x\n",
+		DP_INFO(p_hwfn->cdev, "Unkanalwn eqe event 0x%02x, echo 0x%x\n",
 			opcode, echo);
 		return -EINVAL;
 	}
@@ -2488,10 +2488,10 @@ int qed_final_cleanup(struct qed_hwfn *p_hwfn,
 	command |= id << SDM_AGG_INT_COMP_PARAMS_AGG_VECTOR_BIT_SHIFT;
 	command |= SDM_COMP_TYPE_AGG_INT << SDM_OP_GEN_COMP_TYPE_SHIFT;
 
-	/* Make sure notification is not set before initiating final cleanup */
+	/* Make sure analtification is analt set before initiating final cleanup */
 	if (REG_RD(p_hwfn, addr)) {
-		DP_NOTICE(p_hwfn,
-			  "Unexpected; Found final cleanup notification before initiating final cleanup\n");
+		DP_ANALTICE(p_hwfn,
+			  "Unexpected; Found final cleanup analtification before initiating final cleanup\n");
 		REG_WR(p_hwfn, addr, 0);
 	}
 
@@ -2508,8 +2508,8 @@ int qed_final_cleanup(struct qed_hwfn *p_hwfn,
 	if (REG_RD(p_hwfn, addr))
 		rc = 0;
 	else
-		DP_NOTICE(p_hwfn,
-			  "Failed to receive FW final cleanup notification\n");
+		DP_ANALTICE(p_hwfn,
+			  "Failed to receive FW final cleanup analtification\n");
 
 	/* Cleanup afterwards */
 	REG_WR(p_hwfn, addr, 0);
@@ -2526,7 +2526,7 @@ static int qed_calc_hw_mode(struct qed_hwfn *p_hwfn)
 	} else if (QED_IS_AH(p_hwfn->cdev)) {
 		hw_mode |= 1 << MODE_K2;
 	} else {
-		DP_NOTICE(p_hwfn, "Unknown chip type %#x\n",
+		DP_ANALTICE(p_hwfn, "Unkanalwn chip type %#x\n",
 			  p_hwfn->cdev->type);
 		return -EINVAL;
 	}
@@ -2542,7 +2542,7 @@ static int qed_calc_hw_mode(struct qed_hwfn *p_hwfn)
 		hw_mode |= 1 << MODE_PORTS_PER_ENG_4;
 		break;
 	default:
-		DP_NOTICE(p_hwfn, "num_ports_in_engine = %d not supported\n",
+		DP_ANALTICE(p_hwfn, "num_ports_in_engine = %d analt supported\n",
 			  p_hwfn->cdev->num_ports_in_engine);
 		return -EINVAL;
 	}
@@ -2663,10 +2663,10 @@ static int qed_hw_init_common(struct qed_hwfn *p_hwfn,
 
 	params = kzalloc(sizeof(*params), GFP_KERNEL);
 	if (!params) {
-		DP_NOTICE(p_hwfn->cdev,
+		DP_ANALTICE(p_hwfn->cdev,
 			  "Failed to allocate common init params\n");
 
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	qed_init_cau_rt_data(cdev);
@@ -2768,7 +2768,7 @@ enum QED_ROCE_EDPM_MODE {
 
 bool qed_edpm_enabled(struct qed_hwfn *p_hwfn)
 {
-	if (p_hwfn->dcbx_no_edpm || p_hwfn->db_bar_no_edpm)
+	if (p_hwfn->dcbx_anal_edpm || p_hwfn->db_bar_anal_edpm)
 		return false;
 
 	return true;
@@ -2777,8 +2777,8 @@ bool qed_edpm_enabled(struct qed_hwfn *p_hwfn)
 static int
 qed_hw_init_pf_doorbell_bar(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
-	u32 pwm_regsize, norm_regsize;
-	u32 non_pwm_conn, min_addr_reg1;
+	u32 pwm_regsize, analrm_regsize;
+	u32 analn_pwm_conn, min_addr_reg1;
 	u32 db_bar_size, n_cpus = 1;
 	u32 roce_edpm_mode;
 	u32 pf_dems_shift;
@@ -2790,28 +2790,28 @@ qed_hw_init_pf_doorbell_bar(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 		db_bar_size /= 2;
 
 	/* Calculate doorbell regions */
-	non_pwm_conn = qed_cxt_get_proto_cid_start(p_hwfn, PROTOCOLID_CORE) +
+	analn_pwm_conn = qed_cxt_get_proto_cid_start(p_hwfn, PROTOCOLID_CORE) +
 		       qed_cxt_get_proto_cid_count(p_hwfn, PROTOCOLID_CORE,
 						   NULL) +
 		       qed_cxt_get_proto_cid_count(p_hwfn, PROTOCOLID_ETH,
 						   NULL);
-	norm_regsize = roundup(QED_PF_DEMS_SIZE * non_pwm_conn, PAGE_SIZE);
-	min_addr_reg1 = norm_regsize / 4096;
-	pwm_regsize = db_bar_size - norm_regsize;
+	analrm_regsize = roundup(QED_PF_DEMS_SIZE * analn_pwm_conn, PAGE_SIZE);
+	min_addr_reg1 = analrm_regsize / 4096;
+	pwm_regsize = db_bar_size - analrm_regsize;
 
-	/* Check that the normal and PWM sizes are valid */
-	if (db_bar_size < norm_regsize) {
+	/* Check that the analrmal and PWM sizes are valid */
+	if (db_bar_size < analrm_regsize) {
 		DP_ERR(p_hwfn->cdev,
-		       "Doorbell BAR size 0x%x is too small (normal region is 0x%0x )\n",
-		       db_bar_size, norm_regsize);
+		       "Doorbell BAR size 0x%x is too small (analrmal region is 0x%0x )\n",
+		       db_bar_size, analrm_regsize);
 		return -EINVAL;
 	}
 
 	if (pwm_regsize < QED_MIN_PWM_REGION) {
 		DP_ERR(p_hwfn->cdev,
-		       "PWM region size 0x%0x is too small. Should be at least 0x%0x (Doorbell BAR size is 0x%x and normal region size is 0x%0x)\n",
+		       "PWM region size 0x%0x is too small. Should be at least 0x%0x (Doorbell BAR size is 0x%x and analrmal region size is 0x%0x)\n",
 		       pwm_regsize,
-		       QED_MIN_PWM_REGION, db_bar_size, norm_regsize);
+		       QED_MIN_PWM_REGION, db_bar_size, analrm_regsize);
 		return -EINVAL;
 	}
 
@@ -2828,9 +2828,9 @@ qed_hw_init_pf_doorbell_bar(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 
 	cond = (rc && (roce_edpm_mode == QED_ROCE_EDPM_MODE_ENABLE)) ||
 	       (roce_edpm_mode == QED_ROCE_EDPM_MODE_DISABLE);
-	if (cond || p_hwfn->dcbx_no_edpm) {
+	if (cond || p_hwfn->dcbx_anal_edpm) {
 		/* Either EDPM is disabled from user configuration, or it is
-		 * disabled via DCBx, or it is not mandatory and we failed to
+		 * disabled via DCBx, or it is analt mandatory and we failed to
 		 * allocated a WID per CPU.
 		 */
 		n_cpus = 1;
@@ -2843,8 +2843,8 @@ qed_hw_init_pf_doorbell_bar(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	p_hwfn->wid_count = (u16)n_cpus;
 
 	DP_INFO(p_hwfn,
-		"doorbell bar: normal_region_size=%d, pwm_region_size=%d, dpi_size=%d, dpi_count=%d, roce_edpm=%s, page_size=%lu\n",
-		norm_regsize,
+		"doorbell bar: analrmal_region_size=%d, pwm_region_size=%d, dpi_size=%d, dpi_count=%d, roce_edpm=%s, page_size=%lu\n",
+		analrm_regsize,
 		pwm_regsize,
 		p_hwfn->dpi_size,
 		p_hwfn->dpi_count,
@@ -2853,17 +2853,17 @@ qed_hw_init_pf_doorbell_bar(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 
 	if (rc) {
 		DP_ERR(p_hwfn,
-		       "Failed to allocate enough DPIs. Allocated %d but the current minimum is %d.\n",
+		       "Failed to allocate eanalugh DPIs. Allocated %d but the current minimum is %d.\n",
 		       p_hwfn->dpi_count,
 		       p_hwfn->pf_params.rdma_pf_params.min_dpis);
 		return -EINVAL;
 	}
 
-	p_hwfn->dpi_start_offset = norm_regsize;
+	p_hwfn->dpi_start_offset = analrm_regsize;
 
 	/* DEMS size is configured log2 of DWORDs, hence the division by 4 */
 	pf_dems_shift = ilog2(QED_PF_DEMS_SIZE / 4);
-	qed_wr(p_hwfn, p_ptt, DORQ_REG_PF_ICID_BIT_SHIFT_NORM, pf_dems_shift);
+	qed_wr(p_hwfn, p_ptt, DORQ_REG_PF_ICID_BIT_SHIFT_ANALRM, pf_dems_shift);
 	qed_wr(p_hwfn, p_ptt, DORQ_REG_PF_MIN_ADDR_REG1, min_addr_reg1);
 
 	return 0;
@@ -2981,13 +2981,13 @@ static int qed_hw_init_pf(struct qed_hwfn *p_hwfn,
 		rc = qed_sp_pf_start(p_hwfn, p_ptt, p_tunn,
 				     allow_npar_tx_switch);
 		if (rc) {
-			DP_NOTICE(p_hwfn, "Function start ramrod failed\n");
+			DP_ANALTICE(p_hwfn, "Function start ramrod failed\n");
 			return rc;
 		}
 		if (p_hwfn->hw_info.personality == QED_PCI_FCOE) {
 			qed_wr(p_hwfn, p_ptt, PRS_REG_SEARCH_TAG1, BIT(2));
 			qed_wr(p_hwfn, p_ptt,
-			       PRS_REG_PKT_LEN_STAT_TAGS_NOT_COUNTED_FIRST,
+			       PRS_REG_PKT_LEN_STAT_TAGS_ANALT_COUNTED_FIRST,
 			       0x100);
 		}
 	}
@@ -3013,7 +3013,7 @@ int qed_pglueb_set_pfid_enable(struct qed_hwfn *p_hwfn,
 	}
 
 	if (val != set_val) {
-		DP_NOTICE(p_hwfn,
+		DP_ANALTICE(p_hwfn,
 			  "PFID_ENABLE_MASTER wasn't changed after a second\n");
 		return -EAGAIN;
 	}
@@ -3074,7 +3074,7 @@ int qed_hw_init(struct qed_dev *cdev, struct qed_hw_init_params *p_params)
 	int rc = 0, i;
 
 	if ((p_params->int_mode == QED_INT_MODE_MSI) && (cdev->num_hwfns > 1)) {
-		DP_NOTICE(cdev, "MSI mode is not supported for CMT devices\n");
+		DP_ANALTICE(cdev, "MSI mode is analt supported for CMT devices\n");
 		return -EINVAL;
 	}
 
@@ -3128,7 +3128,7 @@ int qed_hw_init(struct qed_dev *cdev, struct qed_hw_init_params *p_params)
 		rc = qed_mcp_load_req(p_hwfn, p_hwfn->p_main_ptt,
 				      &load_req_params);
 		if (rc) {
-			DP_NOTICE(p_hwfn, "Failed sending a LOAD_REQ command\n");
+			DP_ANALTICE(p_hwfn, "Failed sending a LOAD_REQ command\n");
 			return rc;
 		}
 
@@ -3147,14 +3147,14 @@ int qed_hw_init(struct qed_dev *cdev, struct qed_hw_init_params *p_params)
 		qed_reset_mb_shadow(p_hwfn, p_hwfn->p_main_ptt);
 
 		/* Clean up chip from previous driver if such remains exist.
-		 * This is not needed when the PF is the first one on the
+		 * This is analt needed when the PF is the first one on the
 		 * engine, since afterwards we are going to init the FW.
 		 */
 		if (load_code != FW_MSG_CODE_DRV_LOAD_ENGINE) {
 			rc = qed_final_cleanup(p_hwfn, p_hwfn->p_main_ptt,
 					       p_hwfn->rel_pf_id, false);
 			if (rc) {
-				qed_hw_err_notify(p_hwfn, p_hwfn->p_main_ptt,
+				qed_hw_err_analtify(p_hwfn, p_hwfn->p_main_ptt,
 						  QED_HW_ERR_RAMROD_FAIL,
 						  "Final cleanup failed\n");
 				goto load_err;
@@ -3183,9 +3183,9 @@ int qed_hw_init(struct qed_dev *cdev, struct qed_hw_init_params *p_params)
 		    qed_fw_overlay_mem_alloc(p_hwfn, fw_overlays,
 					     fw_overlays_len);
 		if (!p_hwfn->fw_overlay_mem) {
-			DP_NOTICE(p_hwfn,
+			DP_ANALTICE(p_hwfn,
 				  "Failed to allocate fw overlay memory\n");
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto load_err;
 		}
 
@@ -3212,14 +3212,14 @@ int qed_hw_init(struct qed_dev *cdev, struct qed_hw_init_params *p_params)
 					    p_params->allow_npar_tx_switch);
 			break;
 		default:
-			DP_NOTICE(p_hwfn,
+			DP_ANALTICE(p_hwfn,
 				  "Unexpected load code [0x%08x]", load_code);
 			rc = -EINVAL;
 			break;
 		}
 
 		if (rc) {
-			DP_NOTICE(p_hwfn,
+			DP_ANALTICE(p_hwfn,
 				  "init phase failed for loadcode 0x%x (rc %d)\n",
 				  load_code, rc);
 			goto load_err;
@@ -3235,10 +3235,10 @@ int qed_hw_init(struct qed_dev *cdev, struct qed_hw_init_params *p_params)
 			   "sending phony dcbx set command to trigger DCBx attention handling\n");
 		rc = qed_mcp_cmd(p_hwfn, p_hwfn->p_main_ptt,
 				 DRV_MSG_CODE_SET_DCBX,
-				 1 << DRV_MB_PARAM_DCBX_NOTIFY_SHIFT,
+				 1 << DRV_MB_PARAM_DCBX_ANALTIFY_SHIFT,
 				 &resp, &param);
 		if (rc) {
-			DP_NOTICE(p_hwfn,
+			DP_ANALTICE(p_hwfn,
 				  "Failed to send DCBX attention request\n");
 			return rc;
 		}
@@ -3258,7 +3258,7 @@ int qed_hw_init(struct qed_dev *cdev, struct qed_hw_init_params *p_params)
 				 DRV_MSG_CODE_GET_OEM_UPDATES,
 				 drv_mb_param, &resp, &param);
 		if (rc)
-			DP_NOTICE(p_hwfn,
+			DP_ANALTICE(p_hwfn,
 				  "Failed to send GET_OEM_UPDATES attention request\n");
 
 		drv_mb_param = STORM_FW_VERSION;
@@ -3283,7 +3283,7 @@ int qed_hw_init(struct qed_dev *cdev, struct qed_hw_init_params *p_params)
 			DP_INFO(p_hwfn, "Failed to update driver state\n");
 
 		rc = qed_mcp_ov_update_eswitch(p_hwfn, p_hwfn->p_main_ptt,
-					       QED_OV_ESWITCH_NONE);
+					       QED_OV_ESWITCH_ANALNE);
 		if (rc)
 			DP_INFO(p_hwfn, "Failed to update eswitch mode\n");
 	}
@@ -3325,8 +3325,8 @@ static void qed_hw_timers_stop(struct qed_dev *cdev,
 	if (i < QED_HW_STOP_RETRY_LIMIT)
 		return;
 
-	DP_NOTICE(p_hwfn,
-		  "Timers linear scans are not over [Connection %02x Tasks %02x]\n",
+	DP_ANALTICE(p_hwfn,
+		  "Timers linear scans are analt over [Connection %02x Tasks %02x]\n",
 		  (u8)qed_rd(p_hwfn, p_ptt, TM_REG_PF_SCAN_ACTIVE_CONN),
 		  (u8)qed_rd(p_hwfn, p_ptt, TM_REG_PF_SCAN_ACTIVE_TASK));
 }
@@ -3360,7 +3360,7 @@ int qed_hw_stop(struct qed_dev *cdev)
 			qed_vf_pf_int_cleanup(p_hwfn);
 			rc = qed_vf_pf_reset(p_hwfn);
 			if (rc) {
-				DP_NOTICE(p_hwfn,
+				DP_ANALTICE(p_hwfn,
 					  "qed_vf_pf_reset failed. rc = %d.\n",
 					  rc);
 				rc2 = -EINVAL;
@@ -3375,7 +3375,7 @@ int qed_hw_stop(struct qed_dev *cdev)
 		if (!cdev->recov_in_prog) {
 			rc = qed_mcp_unload_req(p_hwfn, p_ptt);
 			if (rc) {
-				DP_NOTICE(p_hwfn,
+				DP_ANALTICE(p_hwfn,
 					  "Failed sending a UNLOAD_REQ command. rc = %d.\n",
 					  rc);
 				rc2 = -EINVAL;
@@ -3384,12 +3384,12 @@ int qed_hw_stop(struct qed_dev *cdev)
 
 		qed_slowpath_irq_sync(p_hwfn);
 
-		/* After this point no MFW attentions are expected, e.g. prevent
+		/* After this point anal MFW attentions are expected, e.g. prevent
 		 * race between pf stop and dcbx pf update.
 		 */
 		rc = qed_sp_pf_stop(p_hwfn);
 		if (rc) {
-			DP_NOTICE(p_hwfn,
+			DP_ANALTICE(p_hwfn,
 				  "Failed to close PF against FW [rc = %d]. Continue to stop HW to prevent illegal host access by the device.\n",
 				  rc);
 			rc2 = -EINVAL;
@@ -3430,7 +3430,7 @@ int qed_hw_stop(struct qed_dev *cdev)
 		if (!cdev->recov_in_prog) {
 			rc = qed_mcp_unload_done(p_hwfn, p_ptt);
 			if (rc) {
-				DP_NOTICE(p_hwfn,
+				DP_ANALTICE(p_hwfn,
 					  "Failed sending a UNLOAD_DONE command. rc = %d.\n",
 					  rc);
 				rc2 = -EINVAL;
@@ -3449,7 +3449,7 @@ int qed_hw_stop(struct qed_dev *cdev)
 		 */
 		rc = qed_pglueb_set_pfid_enable(p_hwfn, p_ptt, false);
 		if (rc) {
-			DP_NOTICE(p_hwfn,
+			DP_ANALTICE(p_hwfn,
 				  "qed_pglueb_set_pfid_enable() failed. rc = %d.\n",
 				  rc);
 			rc2 = -EINVAL;
@@ -3582,7 +3582,7 @@ static void qed_hw_set_feat(struct qed_hwfn *p_hwfn)
 {
 	u32 *feat_num = p_hwfn->hw_info.feat_num;
 	struct qed_sb_cnt_info sb_cnt;
-	u32 non_l2_sbs = 0;
+	u32 analn_l2_sbs = 0;
 
 	memset(&sb_cnt, 0, sizeof(sb_cnt));
 	qed_int_get_num_sbs(p_hwfn, &sb_cnt);
@@ -3597,7 +3597,7 @@ static void qed_hw_set_feat(struct qed_hwfn *p_hwfn)
 			min_t(u32, sb_cnt.cnt / 2,
 			      RESC_NUM(p_hwfn, QED_RDMA_CNQ_RAM));
 
-		non_l2_sbs = feat_num[QED_RDMA_CNQ];
+		analn_l2_sbs = feat_num[QED_RDMA_CNQ];
 	}
 	if (QED_IS_L2_PERSONALITY(p_hwfn)) {
 		/* Start by allocating VF queues, then PF's */
@@ -3605,7 +3605,7 @@ static void qed_hw_set_feat(struct qed_hwfn *p_hwfn)
 						RESC_NUM(p_hwfn, QED_L2_QUEUE),
 						sb_cnt.iov_cnt);
 		feat_num[QED_PF_L2_QUE] = min_t(u32,
-						sb_cnt.cnt - non_l2_sbs,
+						sb_cnt.cnt - analn_l2_sbs,
 						RESC_NUM(p_hwfn,
 							 QED_L2_QUEUE) -
 						FEAT_NUM(p_hwfn,
@@ -3673,7 +3673,7 @@ const char *qed_hw_get_resc_name(enum qed_resources res_id)
 	case QED_SB:
 		return "SB";
 	default:
-		return "UNKNOWN_RESOURCE";
+		return "UNKANALWN_RESOURCE";
 	}
 }
 
@@ -3688,7 +3688,7 @@ __qed_hw_set_soft_resc_size(struct qed_hwfn *p_hwfn,
 	rc = qed_mcp_set_resc_max_val(p_hwfn, p_ptt, res_id,
 				      resc_max_val, p_mcp_resp);
 	if (rc) {
-		DP_NOTICE(p_hwfn,
+		DP_ANALTICE(p_hwfn,
 			  "MFW response failure for a max value setting of resource %d [%s]\n",
 			  res_id, qed_hw_get_resc_name(res_id));
 		return rc;
@@ -3746,7 +3746,7 @@ qed_hw_set_soft_resc_size(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 			resc_max_val = MAX_NUM_LL2_RX_CTX_QUEUES;
 			break;
 		case QED_RDMA_CNQ_RAM:
-			/* No need for a case for QED_CMDQS_CQS since
+			/* Anal need for a case for QED_CMDQS_CQS since
 			 * CNQ/CMDQS are the same resource.
 			 */
 			resc_max_val = NUM_OF_GLOBAL_QUEUES;
@@ -3767,10 +3767,10 @@ qed_hw_set_soft_resc_size(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 		if (rc)
 			return rc;
 
-		/* There's no point to continue to the next resource if the
-		 * command is not supported by the MFW.
+		/* There's anal point to continue to the next resource if the
+		 * command is analt supported by the MFW.
 		 * We do continue if the command is supported but the resource
-		 * is unknown to the MFW. Such a resource will be later
+		 * is unkanalwn to the MFW. Such a resource will be later
 		 * configured with the default allocation values.
 		 */
 		if (mcp_resp == FW_MSG_CODE_UNSUPPORTED)
@@ -3887,16 +3887,16 @@ static int __qed_hw_set_resc_info(struct qed_hwfn *p_hwfn,
 	rc = qed_mcp_get_resc_info(p_hwfn, p_hwfn->p_main_ptt, res_id,
 				   &mcp_resp, p_resc_num, p_resc_start);
 	if (rc) {
-		DP_NOTICE(p_hwfn,
+		DP_ANALTICE(p_hwfn,
 			  "MFW response failure for an allocation request for resource %d [%s]\n",
 			  res_id, qed_hw_get_resc_name(res_id));
 		return rc;
 	}
 
 	/* Default driver values are applied in the following cases:
-	 * - The resource allocation MB command is not supported by the MFW
+	 * - The resource allocation MB command is analt supported by the MFW
 	 * - There is an internal error in the MFW while processing the request
-	 * - The resource ID is unknown to the MFW
+	 * - The resource ID is unkanalwn to the MFW
 	 */
 	if (mcp_resp != FW_MSG_CODE_RESOURCE_ALLOC_OK) {
 		DP_INFO(p_hwfn,
@@ -3955,9 +3955,9 @@ static int qed_hw_get_ppfid_bitmap(struct qed_hwfn *p_hwfn,
 		    cdev->num_ports_in_engine;
 
 	rc = qed_mcp_get_ppfid_bitmap(p_hwfn, p_ptt);
-	if (rc != 0 && rc != -EOPNOTSUPP)
+	if (rc != 0 && rc != -EOPANALTSUPP)
 		return rc;
-	else if (rc == -EOPNOTSUPP)
+	else if (rc == -EOPANALTSUPP)
 		cdev->ppfid_bitmap = 0x1 << native_ppfid_idx;
 
 	if (!(cdev->ppfid_bitmap & (0x1 << native_ppfid_idx))) {
@@ -3981,7 +3981,7 @@ static int qed_hw_get_resc(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	/* Setting the max values of the soft resources and the following
 	 * resources allocation queries should be atomic. Since several PFs can
 	 * run in parallel - a resource lock is needed.
-	 * If either the resource lock or resource set value commands are not
+	 * If either the resource lock or resource set value commands are analt
 	 * supported - skip the max values setting, release the lock if
 	 * needed, and proceed to the queries. Other failures, including a
 	 * failure to acquire the lock, will cause this function to fail.
@@ -3994,20 +3994,20 @@ static int qed_hw_get_resc(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 		return rc;
 	} else if (rc == -EINVAL) {
 		DP_INFO(p_hwfn,
-			"Skip the max values setting of the soft resources since the resource lock is not supported by the MFW\n");
+			"Skip the max values setting of the soft resources since the resource lock is analt supported by the MFW\n");
 	} else if (!resc_lock_params.b_granted) {
-		DP_NOTICE(p_hwfn,
+		DP_ANALTICE(p_hwfn,
 			  "Failed to acquire the resource lock for the resource allocation commands\n");
 		return -EBUSY;
 	} else {
 		rc = qed_hw_set_soft_resc_size(p_hwfn, p_ptt);
 		if (rc && rc != -EINVAL) {
-			DP_NOTICE(p_hwfn,
+			DP_ANALTICE(p_hwfn,
 				  "Failed to set the max values of the soft resources\n");
 			goto unlock_and_exit;
 		} else if (rc == -EINVAL) {
 			DP_INFO(p_hwfn,
-				"Skip the max values setting of the soft resources since it is not supported by the MFW\n");
+				"Skip the max values setting of the soft resources since it is analt supported by the MFW\n");
 			rc = qed_mcp_resc_unlock(p_hwfn, p_ptt,
 						 &resc_unlock_params);
 			if (rc)
@@ -4037,7 +4037,7 @@ static int qed_hw_get_resc(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	/* Sanity for ILT */
 	if ((b_ah && (RESC_END(p_hwfn, QED_ILT) > PXP_NUM_ILT_RECORDS_K2)) ||
 	    (!b_ah && (RESC_END(p_hwfn, QED_ILT) > PXP_NUM_ILT_RECORDS_BB))) {
-		DP_NOTICE(p_hwfn, "Can't assign ILT pages [%08x,...,%08x]\n",
+		DP_ANALTICE(p_hwfn, "Can't assign ILT pages [%08x,...,%08x]\n",
 			  RESC_START(p_hwfn, QED_ILT),
 			  RESC_END(p_hwfn, QED_ILT) - 1);
 		return -EINVAL;
@@ -4077,11 +4077,11 @@ static int qed_hw_get_nvm_info(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 
 	/* Verify MCP has initialized it */
 	if (!nvm_cfg_addr) {
-		DP_NOTICE(p_hwfn, "Shared memory not initialized\n");
+		DP_ANALTICE(p_hwfn, "Shared memory analt initialized\n");
 		return -EINVAL;
 	}
 
-	/* Read nvm_cfg1  (Notice this is just offset, and not offsize (TBD) */
+	/* Read nvm_cfg1  (Analtice this is just offset, and analt offsize (TBD) */
 	nvm_cfg1_offset = qed_rd(p_hwfn, p_ptt, nvm_cfg_addr + 4);
 
 	addr = MCP_REG_SCRATCH + nvm_cfg1_offset +
@@ -4110,7 +4110,7 @@ static int qed_hw_get_nvm_info(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_AHP_1X100G_R4:
 		break;
 	default:
-		DP_NOTICE(p_hwfn, "Unknown port mode in 0x%08x\n", core_cfg);
+		DP_ANALTICE(p_hwfn, "Unkanalwn port mode in 0x%08x\n", core_cfg);
 		break;
 	}
 
@@ -4157,7 +4157,7 @@ static int qed_hw_get_nvm_info(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 		link->speed.forced_speed = 100000;
 		break;
 	default:
-		DP_NOTICE(p_hwfn, "Unknown Speed in 0x%08x\n", link_temp);
+		DP_ANALTICE(p_hwfn, "Unkanalwn Speed in 0x%08x\n", link_temp);
 	}
 
 	p_caps->default_speed_autoneg = link->speed.autoneg;
@@ -4172,8 +4172,8 @@ static int qed_hw_get_nvm_info(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	    FW_MB_PARAM_FEATURE_SUPPORT_FEC_CONTROL) {
 		switch (GET_MFW_FIELD(link_temp,
 				      NVM_CFG1_PORT_FEC_FORCE_MODE)) {
-		case NVM_CFG1_PORT_FEC_FORCE_MODE_NONE:
-			p_caps->fec_default |= QED_FEC_MODE_NONE;
+		case NVM_CFG1_PORT_FEC_FORCE_MODE_ANALNE:
+			p_caps->fec_default |= QED_FEC_MODE_ANALNE;
 			break;
 		case NVM_CFG1_PORT_FEC_FORCE_MODE_FIRECODE:
 			p_caps->fec_default |= QED_FEC_MODE_FIRECODE;
@@ -4186,7 +4186,7 @@ static int qed_hw_get_nvm_info(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 			break;
 		default:
 			DP_VERBOSE(p_hwfn, NETIF_MSG_LINK,
-				   "unknown FEC mode in 0x%08x\n", link_temp);
+				   "unkanalwn FEC mode in 0x%08x\n", link_temp);
 		}
 	} else {
 		p_caps->fec_default = QED_FEC_MODE_UNSUPPORTED;
@@ -4350,14 +4350,14 @@ static int qed_hw_get_nvm_info(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 		case NVM_CFG1_GLOB_MF_MODE_NPAR1_0:
 			cdev->mf_bits = BIT(QED_MF_LLH_MAC_CLSS) |
 					BIT(QED_MF_LLH_PROTO_CLSS) |
-					BIT(QED_MF_LL2_NON_UNICAST) |
+					BIT(QED_MF_LL2_ANALN_UNICAST) |
 					BIT(QED_MF_INTER_PF_SWITCH) |
 					BIT(QED_MF_DISABLE_ARFS);
 			break;
 		case NVM_CFG1_GLOB_MF_MODE_DEFAULT:
 			cdev->mf_bits = BIT(QED_MF_LLH_MAC_CLSS) |
 					BIT(QED_MF_LLH_PROTO_CLSS) |
-					BIT(QED_MF_LL2_NON_UNICAST);
+					BIT(QED_MF_LL2_ANALN_UNICAST);
 			if (QED_IS_BB(p_hwfn->cdev))
 				cdev->mf_bits |= BIT(QED_MF_NEED_DEF_PF);
 			break;
@@ -4366,8 +4366,8 @@ static int qed_hw_get_nvm_info(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 		DP_INFO(p_hwfn, "Multi function mode is 0x%lx\n",
 			cdev->mf_bits);
 
-		/* In CMT the PF is unknown when the GFS block processes the
-		 * packet. Therefore cannot use searcher as it has a per PF
+		/* In CMT the PF is unkanalwn when the GFS block processes the
+		 * packet. Therefore cananalt use searcher as it has a per PF
 		 * database, and thus ARFS must be disabled.
 		 *
 		 */
@@ -4494,7 +4494,7 @@ static void qed_hw_info_port_num(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 		cdev->num_ports_in_engine = 4;
 		break;
 	default:
-		DP_NOTICE(p_hwfn, "Unknown port mode 0x%08x\n", port_mode);
+		DP_ANALTICE(p_hwfn, "Unkanalwn port mode 0x%08x\n", port_mode);
 		cdev->num_ports_in_engine = 1;	/* Default to something */
 		break;
 	}
@@ -4613,7 +4613,7 @@ static int qed_get_dev_info(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 		cdev->type = QED_DEV_TYPE_AH;
 		break;
 	default:
-		DP_NOTICE(p_hwfn, "Unknown device id 0x%x\n", cdev->device_id);
+		DP_ANALTICE(p_hwfn, "Unkanalwn device id 0x%x\n", cdev->device_id);
 		return -EBUSY;
 	}
 
@@ -4626,7 +4626,7 @@ static int qed_get_dev_info(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	tmp = qed_rd(p_hwfn, p_ptt, MISCS_REG_CMT_ENABLED_FOR_PAIR);
 
 	if (tmp & (1 << p_hwfn->rel_pf_id)) {
-		DP_NOTICE(cdev->hwfns, "device in CMT mode\n");
+		DP_ANALTICE(cdev->hwfns, "device in CMT mode\n");
 		cdev->num_hwfns = 2;
 	} else {
 		cdev->num_hwfns = 1;
@@ -4695,14 +4695,14 @@ static int qed_hw_prepare_single(struct qed_hwfn *p_hwfn,
 	/* Initialize MCP structure */
 	rc = qed_mcp_cmd_init(p_hwfn, p_hwfn->p_main_ptt);
 	if (rc) {
-		DP_NOTICE(p_hwfn, "Failed initializing mcp command\n");
+		DP_ANALTICE(p_hwfn, "Failed initializing mcp command\n");
 		goto err1;
 	}
 
 	/* Read the device configuration information from the HW and SHMEM */
 	rc = qed_get_hw_info(p_hwfn, p_hwfn->p_main_ptt, personality);
 	if (rc) {
-		DP_NOTICE(p_hwfn, "Failed to get HW information\n");
+		DP_ANALTICE(p_hwfn, "Failed to get HW information\n");
 		goto err2;
 	}
 
@@ -4712,14 +4712,14 @@ static int qed_hw_prepare_single(struct qed_hwfn *p_hwfn,
 	if (IS_LEAD_HWFN(p_hwfn) && !cdev->recov_in_prog) {
 		rc = qed_mcp_initiate_pf_flr(p_hwfn, p_hwfn->p_main_ptt);
 		if (rc)
-			DP_NOTICE(p_hwfn, "Failed to initiate PF FLR\n");
+			DP_ANALTICE(p_hwfn, "Failed to initiate PF FLR\n");
 	}
 
 	/* NVRAM info initialization and population */
 	if (IS_LEAD_HWFN(p_hwfn)) {
 		rc = qed_mcp_nvm_info_populate(p_hwfn);
 		if (rc) {
-			DP_NOTICE(p_hwfn,
+			DP_ANALTICE(p_hwfn,
 				  "Failed to populate nvm info shadow\n");
 			goto err2;
 		}
@@ -4811,7 +4811,7 @@ void qed_hw_remove(struct qed_dev *cdev)
 
 	if (IS_PF(cdev))
 		qed_mcp_ov_update_driver_state(p_hwfn, p_hwfn->p_main_ptt,
-					       QED_OV_DRIVER_STATE_NOT_LOADED);
+					       QED_OV_DRIVER_STATE_ANALT_LOADED);
 
 	for_each_hwfn(cdev, i) {
 		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
@@ -4838,8 +4838,8 @@ int qed_fw_l2_queue(struct qed_hwfn *p_hwfn, u16 src_id, u16 *dst_id)
 
 		min = (u16)RESC_START(p_hwfn, QED_L2_QUEUE);
 		max = min + RESC_NUM(p_hwfn, QED_L2_QUEUE);
-		DP_NOTICE(p_hwfn,
-			  "l2_queue id [%d] is not valid, available indices [%d - %d]\n",
+		DP_ANALTICE(p_hwfn,
+			  "l2_queue id [%d] is analt valid, available indices [%d - %d]\n",
 			  src_id, min, max);
 
 		return -EINVAL;
@@ -4857,8 +4857,8 @@ int qed_fw_vport(struct qed_hwfn *p_hwfn, u8 src_id, u8 *dst_id)
 
 		min = (u8)RESC_START(p_hwfn, QED_VPORT);
 		max = min + RESC_NUM(p_hwfn, QED_VPORT);
-		DP_NOTICE(p_hwfn,
-			  "vport id [%d] is not valid, available indices [%d - %d]\n",
+		DP_ANALTICE(p_hwfn,
+			  "vport id [%d] is analt valid, available indices [%d - %d]\n",
 			  src_id, min, max);
 
 		return -EINVAL;
@@ -4876,8 +4876,8 @@ int qed_fw_rss_eng(struct qed_hwfn *p_hwfn, u8 src_id, u8 *dst_id)
 
 		min = (u8)RESC_START(p_hwfn, QED_RSS_ENG);
 		max = min + RESC_NUM(p_hwfn, QED_RSS_ENG);
-		DP_NOTICE(p_hwfn,
-			  "rss_eng id [%d] is not valid, available indices [%d - %d]\n",
+		DP_ANALTICE(p_hwfn,
+			  "rss_eng id [%d] is analt valid, available indices [%d - %d]\n",
 			  src_id, min, max);
 
 		return -EINVAL;
@@ -4895,7 +4895,7 @@ static int qed_set_coalesce(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 	struct coalescing_timeset *p_coal_timeset;
 
 	if (p_hwfn->cdev->int_coalescing_mode != QED_COAL_MODE_ENABLE) {
-		DP_NOTICE(p_hwfn, "Coalescing configuration not enabled\n");
+		DP_ANALTICE(p_hwfn, "Coalescing configuration analt enabled\n");
 		return -EINVAL;
 	}
 
@@ -5071,7 +5071,7 @@ static void qed_disable_wfq_for_all_vports(struct qed_hwfn *p_hwfn,
 /* This function performs several validations for WFQ
  * configuration and required min rate for a given vport
  * 1. req_rate must be greater than one percent of min_pf_rate.
- * 2. req_rate should not cause other vports [not configured for WFQ explicitly]
+ * 2. req_rate should analt cause other vports [analt configured for WFQ explicitly]
  *    rates to get less than one percent of min_pf_rate.
  * 3. total_req_min_rate [all vports min rate sum] shouldn't exceed min_pf_rate.
  */
@@ -5079,12 +5079,12 @@ static int qed_init_wfq_param(struct qed_hwfn *p_hwfn,
 			      u16 vport_id, u32 req_rate, u32 min_pf_rate)
 {
 	u32 total_req_min_rate = 0, total_left_rate = 0, left_rate_per_vp = 0;
-	int non_requested_count = 0, req_count = 0, i, num_vports;
+	int analn_requested_count = 0, req_count = 0, i, num_vports;
 
 	num_vports = p_hwfn->qm_info.num_vports;
 
 	if (num_vports < 2) {
-		DP_NOTICE(p_hwfn, "Unexpected num_vports: %d\n", num_vports);
+		DP_ANALTICE(p_hwfn, "Unexpected num_vports: %d\n", num_vports);
 		return -EINVAL;
 	}
 
@@ -5103,7 +5103,7 @@ static int qed_init_wfq_param(struct qed_hwfn *p_hwfn,
 	/* Include current vport data as well */
 	req_count++;
 	total_req_min_rate += req_rate;
-	non_requested_count = num_vports - req_count;
+	analn_requested_count = num_vports - req_count;
 
 	if (req_rate < min_pf_rate / QED_WFQ_UNIT) {
 		DP_VERBOSE(p_hwfn, NETIF_MSG_LINK,
@@ -5128,10 +5128,10 @@ static int qed_init_wfq_param(struct qed_hwfn *p_hwfn,
 
 	total_left_rate	= min_pf_rate - total_req_min_rate;
 
-	left_rate_per_vp = total_left_rate / non_requested_count;
+	left_rate_per_vp = total_left_rate / analn_requested_count;
 	if (left_rate_per_vp <  min_pf_rate / QED_WFQ_UNIT) {
 		DP_VERBOSE(p_hwfn, NETIF_MSG_LINK,
-			   "Non WFQ configured vports rate [%d Mbps] is less than one percent of configured PF min rate[%d Mbps]\n",
+			   "Analn WFQ configured vports rate [%d Mbps] is less than one percent of configured PF min rate[%d Mbps]\n",
 			   left_rate_per_vp, min_pf_rate);
 		return -EINVAL;
 	}
@@ -5169,7 +5169,7 @@ static int __qed_configure_vport_wfq(struct qed_hwfn *p_hwfn,
 		qed_configure_wfq_for_all_vports(p_hwfn, p_ptt,
 						 p_link->min_pf_rate);
 	else
-		DP_NOTICE(p_hwfn,
+		DP_ANALTICE(p_hwfn,
 			  "Validation failed while configuring min rate\n");
 
 	return rc;
@@ -5195,7 +5195,7 @@ static int __qed_configure_vp_wfq_on_link_change(struct qed_hwfn *p_hwfn,
 
 		rc = qed_init_wfq_param(p_hwfn, i, rate, min_pf_rate);
 		if (rc) {
-			DP_NOTICE(p_hwfn,
+			DP_ANALTICE(p_hwfn,
 				  "WFQ validation failed while configuring min rate\n");
 			break;
 		}
@@ -5217,10 +5217,10 @@ int qed_configure_vport_wfq(struct qed_dev *cdev, u16 vp_id, u32 rate)
 {
 	int i, rc = -EINVAL;
 
-	/* Currently not supported; Might change in future */
+	/* Currently analt supported; Might change in future */
 	if (cdev->num_hwfns > 1) {
-		DP_NOTICE(cdev,
-			  "WFQ configuration is not supported for this device\n");
+		DP_ANALTICE(cdev,
+			  "WFQ configuration is analt supported for this device\n");
 		return rc;
 	}
 
@@ -5254,7 +5254,7 @@ void qed_configure_vp_wfq_on_link_change(struct qed_dev *cdev,
 	if (cdev->num_hwfns > 1) {
 		DP_VERBOSE(cdev,
 			   NETIF_MSG_LINK,
-			   "WFQ configuration is not supported for this device\n");
+			   "WFQ configuration is analt supported for this device\n");
 		return;
 	}
 
@@ -5282,7 +5282,7 @@ int __qed_configure_pf_max_bandwidth(struct qed_hwfn *p_hwfn,
 	p_hwfn->qm_info.pf_rl = p_link->speed;
 
 	/* Since the limiter also affects Tx-switched traffic, we don't want it
-	 * to limit such traffic in case there's no actual limit.
+	 * to limit such traffic in case there's anal actual limit.
 	 * In that case, set limit to imaginary high boundary.
 	 */
 	if (max_bw == 100)
@@ -5304,7 +5304,7 @@ int qed_configure_pf_max_bandwidth(struct qed_dev *cdev, u8 max_bw)
 	int i, rc = -EINVAL;
 
 	if (max_bw < 1 || max_bw > 100) {
-		DP_NOTICE(cdev, "PF max bw valid range is [1-100]\n");
+		DP_ANALTICE(cdev, "PF max bw valid range is [1-100]\n");
 		return rc;
 	}
 
@@ -5362,7 +5362,7 @@ int qed_configure_pf_min_bandwidth(struct qed_dev *cdev, u8 min_bw)
 	int i, rc = -EINVAL;
 
 	if (min_bw < 1 || min_bw > 100) {
-		DP_NOTICE(cdev, "PF min bw valid range is [1-100]\n");
+		DP_ANALTICE(cdev, "PF min bw valid range is [1-100]\n");
 		return rc;
 	}
 

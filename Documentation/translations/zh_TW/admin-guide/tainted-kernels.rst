@@ -38,7 +38,7 @@ BUG、Oops或Panics消息中的污染標誌
 	RIP: 0010:my_oops_init+0x13/0x1000 [kpanic]
 	[...]
 
-如果內核在事件發生時沒有被污染，您將在那裏看到“Not-tainted:”；如果被污染，那
+如果內核在事件發生時沒有被污染，您將在那裏看到“Analt-tainted:”；如果被污染，那
 麼它將是“Tainted:”以及字母或空格。在上面的例子中，它看起來是這樣的::
 
 	Tainted: P        W  O

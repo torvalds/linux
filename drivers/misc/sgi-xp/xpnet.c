@@ -32,12 +32,12 @@
  *
  * buf_pa is the physical address where the DMA should pull from.
  *
- * NOTE: for performance reasons, buf_pa should _ALWAYS_ begin on a
+ * ANALTE: for performance reasons, buf_pa should _ALWAYS_ begin on a
  * cacheline boundary.  To accomplish this, we record the number of
  * bytes from the beginning of the first cacheline to the first useful
- * byte of the skb (leadin_ignore) and the number of bytes from the
+ * byte of the skb (leadin_iganalre) and the number of bytes from the
  * last useful byte of the skb to the end of the last cacheline
- * (tailout_ignore).
+ * (tailout_iganalre).
  *
  * size is the number of bytes to transfer which includes the skb->len
  * (useful bytes of the senders skb) plus the leadin and tailout
@@ -48,8 +48,8 @@ struct xpnet_message {
 	u32 magic;		/* Special number indicating this is xpnet */
 	unsigned long buf_pa;	/* phys address of buffer to retrieve */
 	u32 size;		/* #of bytes in buffer */
-	u8 leadin_ignore;	/* #of bytes to ignore at the beginning */
-	u8 tailout_ignore;	/* #of bytes to ignore at the end */
+	u8 leadin_iganalre;	/* #of bytes to iganalre at the beginning */
+	u8 tailout_iganalre;	/* #of bytes to iganalre at the end */
 	unsigned char data;	/* body of small packets */
 };
 
@@ -71,9 +71,9 @@ struct xpnet_message {
  * Version number of XPNET implementation. XPNET can always talk to versions
  * with same major #, and never talk to versions with a different version.
  */
-#define _XPNET_VERSION(_major, _minor)	(((_major) << 4) | (_minor))
+#define _XPNET_VERSION(_major, _mianalr)	(((_major) << 4) | (_mianalr))
 #define XPNET_VERSION_MAJOR(_v)		((_v) >> 4)
-#define XPNET_VERSION_MINOR(_v)		((_v) & 0xf)
+#define XPNET_VERSION_MIANALR(_v)		((_v) & 0xf)
 
 #define	XPNET_VERSION _XPNET_VERSION(1, 0)	/* version 1.0 */
 #define	XPNET_VERSION_EMBED _XPNET_VERSION(1, 1)	/* version 1.1 */
@@ -86,9 +86,9 @@ struct xpnet_message {
 #define XPNET_DEVICE_NAME		"xp0"
 
 /*
- * When messages are queued with xpc_send_notify, a kmalloc'd buffer
- * of the following type is passed as a notification cookie.  When the
- * notification function is called, we use the cookie to decide
+ * When messages are queued with xpc_send_analtify, a kmalloc'd buffer
+ * of the following type is passed as a analtification cookie.  When the
+ * analtification function is called, we use the cookie to decide
  * whether all outstanding message sends have completed.  The skb can
  * then be released.
  */
@@ -100,7 +100,7 @@ struct xpnet_pending_msg {
 static struct net_device *xpnet_device;
 
 /*
- * When we are notified of other partitions activating, we add them to
+ * When we are analtified of other partitions activating, we add them to
  * our bitmask of partitions to which we broadcast.
  */
 static unsigned long *xpnet_broadcast_partitions;
@@ -113,10 +113,10 @@ static DEFINE_SPINLOCK(xpnet_broadcast_lock);
  * least one cache-line for head and tail alignment.  The BTE is
  * limited to 8MB transfers.
  *
- * Testing has shown that changing MTU to greater than 64KB has no effect
+ * Testing has shown that changing MTU to greater than 64KB has anal effect
  * on TCP as the two sides negotiate a Max Segment Size that is limited
  * to 64K.  Other protocols May use packets greater than this, but for
- * now, the default is 64KB.
+ * analw, the default is 64KB.
  */
 #define XPNET_MAX_MTU (0x800000UL - L1_CACHE_BYTES)
 /* 68 comes from min TCP+IP+MAC header */
@@ -155,7 +155,7 @@ xpnet_receive(short partid, int channel, struct xpnet_message *msg)
 
 	if (!XPNET_VALID_MSG(msg)) {
 		/*
-		 * Packet with a different XPC version.  Ignore.
+		 * Packet with a different XPC version.  Iganalre.
 		 */
 		xpc_received(partid, channel, (void *)msg);
 
@@ -164,7 +164,7 @@ xpnet_receive(short partid, int channel, struct xpnet_message *msg)
 		return;
 	}
 	dev_dbg(xpnet, "received 0x%lx, %d, %d, %d\n", msg->buf_pa, msg->size,
-		msg->leadin_ignore, msg->tailout_ignore);
+		msg->leadin_iganalre, msg->tailout_iganalre);
 
 	/* reserve an extra cache line */
 	skb = dev_alloc_skb(msg->size + L1_CACHE_BYTES);
@@ -186,18 +186,18 @@ xpnet_receive(short partid, int channel, struct xpnet_message *msg)
 	 */
 	skb_reserve(skb, (L1_CACHE_BYTES - ((u64)skb->data &
 					    (L1_CACHE_BYTES - 1)) +
-			  msg->leadin_ignore));
+			  msg->leadin_iganalre));
 
 	/*
 	 * Update the tail pointer to indicate data actually
 	 * transferred.
 	 */
-	skb_put(skb, (msg->size - msg->leadin_ignore - msg->tailout_ignore));
+	skb_put(skb, (msg->size - msg->leadin_iganalre - msg->tailout_iganalre));
 
 	/*
 	 * Move the data over from the other side.
 	 */
-	if ((XPNET_VERSION_MINOR(msg->version) == 1) &&
+	if ((XPNET_VERSION_MIANALR(msg->version) == 1) &&
 	    (msg->embedded_bytes != 0)) {
 		dev_dbg(xpnet, "copying embedded message. memcpy(0x%p, 0x%p, "
 			"%lu)\n", skb->data, &msg->data,
@@ -315,7 +315,7 @@ xpnet_dev_open(struct net_device *dev)
 		dev_err(xpnet, "ifconfig up of %s failed on XPC connect, "
 			"ret=%d\n", dev->name, ret);
 
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	dev_dbg(xpnet, "ifconfig up of %s; XPC connected\n", dev->name);
@@ -334,7 +334,7 @@ xpnet_dev_stop(struct net_device *dev)
 }
 
 /*
- * Notification that the other end has received the message and
+ * Analtification that the other end has received the message and
  * DMA'd the skb information.  At this point, they are done with
  * our side.  When all recipients are done processing, we
  * release the skb and then release our pending message structure.
@@ -347,7 +347,7 @@ xpnet_send_completed(enum xp_retval reason, short partid, int channel,
 
 	DBUG_ON(queued_msg == NULL);
 
-	dev_dbg(xpnet, "message to %d notified with reason %d\n",
+	dev_dbg(xpnet, "message to %d analtified with reason %d\n",
 		partid, reason);
 
 	if (atomic_dec_return(&queued_msg->use_count) == 0) {
@@ -381,19 +381,19 @@ xpnet_send(struct sk_buff *skb, struct xpnet_pending_msg *queued_msg,
 	}
 	msg->magic = XPNET_MAGIC;
 	msg->size = end_addr - start_addr;
-	msg->leadin_ignore = (u64)skb->data - start_addr;
-	msg->tailout_ignore = end_addr - (u64)skb_tail_pointer(skb);
+	msg->leadin_iganalre = (u64)skb->data - start_addr;
+	msg->tailout_iganalre = end_addr - (u64)skb_tail_pointer(skb);
 	msg->buf_pa = xp_pa((void *)start_addr);
 
 	dev_dbg(xpnet, "sending XPC message to %d:%d\n"
 		"msg->buf_pa=0x%lx, msg->size=%u, "
-		"msg->leadin_ignore=%u, msg->tailout_ignore=%u\n",
+		"msg->leadin_iganalre=%u, msg->tailout_iganalre=%u\n",
 		dest_partid, XPC_NET_CHANNEL, msg->buf_pa, msg->size,
-		msg->leadin_ignore, msg->tailout_ignore);
+		msg->leadin_iganalre, msg->tailout_iganalre);
 
 	atomic_inc(&queued_msg->use_count);
 
-	ret = xpc_send_notify(dest_partid, XPC_NET_CHANNEL, XPC_NOWAIT, msg,
+	ret = xpc_send_analtify(dest_partid, XPC_NET_CHANNEL, XPC_ANALWAIT, msg,
 			      msg_size, xpnet_send_completed, queued_msg);
 	if (unlikely(ret != xpSuccess))
 		atomic_dec(&queued_msg->use_count);
@@ -404,7 +404,7 @@ xpnet_send(struct sk_buff *skb, struct xpnet_pending_msg *queued_msg,
  * "on the wire".  Prepare and send an xpnet_message to all partitions
  * which have connected with us and are targets of this packet.
  *
- * MAC-NOTE:  For the XPNET driver, the MAC address contains the
+ * MAC-ANALTE:  For the XPNET driver, the MAC address contains the
  * destination partid.  If the destination partid octets are 0xffff,
  * this packet is to be broadcast to all connected partitions.
  */
@@ -423,12 +423,12 @@ xpnet_dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (skb->data[0] == 0x33) {
 		dev_kfree_skb(skb);
-		return NETDEV_TX_OK;	/* nothing needed to be done */
+		return NETDEV_TX_OK;	/* analthing needed to be done */
 	}
 
 	/*
 	 * The xpnet_pending_msg tracks how many outstanding
-	 * xpc_send_notifies are relying on this skb.  When none
+	 * xpc_send_analtifies are relying on this skb.  When analne
 	 * remain, release the skb.
 	 */
 	queued_msg = kmalloc(sizeof(struct xpnet_pending_msg), GFP_ATOMIC);
@@ -452,11 +452,11 @@ xpnet_dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	/*
-	 * Since the send occurs asynchronously, we set the count to one
+	 * Since the send occurs asynchroanalusly, we set the count to one
 	 * and begin sending.  Any sends that happen to complete before
-	 * we are done sending will not free the skb.  We will be left
+	 * we are done sending will analt free the skb.  We will be left
 	 * with that task during exit.  This also handles the case of
-	 * a packet destined for a partition which is no longer up.
+	 * a packet destined for a partition which is anal longer up.
 	 */
 	atomic_set(&queued_msg->use_count, 1);
 	queued_msg->skb = skb;
@@ -518,24 +518,24 @@ xpnet_init(void)
 	int result;
 
 	if (!is_uv_system())
-		return -ENODEV;
+		return -EANALDEV;
 
 	dev_info(xpnet, "registering network device %s\n", XPNET_DEVICE_NAME);
 
 	xpnet_broadcast_partitions = bitmap_zalloc(xp_max_npartitions,
 						   GFP_KERNEL);
 	if (xpnet_broadcast_partitions == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * use ether_setup() to init the majority of our device
 	 * structure and then override the necessary pieces.
 	 */
-	xpnet_device = alloc_netdev(0, XPNET_DEVICE_NAME, NET_NAME_UNKNOWN,
+	xpnet_device = alloc_netdev(0, XPNET_DEVICE_NAME, NET_NAME_UNKANALWN,
 				    ether_setup);
 	if (xpnet_device == NULL) {
 		bitmap_free(xpnet_broadcast_partitions);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	netif_carrier_off(xpnet_device);
@@ -551,7 +551,7 @@ xpnet_init(void)
 	 * MAC addresses.  We chose the first octet of the MAC to be unlikely
 	 * to collide with any vendor's officially issued MAC.
 	 */
-	addr[0] = 0x02;     /* locally administered, no OUI */
+	addr[0] = 0x02;     /* locally administered, anal OUI */
 
 	addr[XPNET_PARTID_OCTET + 1] = xp_partition_id;
 	addr[XPNET_PARTID_OCTET + 0] = (xp_partition_id >> 8);
@@ -559,13 +559,13 @@ xpnet_init(void)
 
 	/*
 	 * ether_setup() sets this to a multicast device.  We are
-	 * really not supporting multicast at this time.
+	 * really analt supporting multicast at this time.
 	 */
 	xpnet_device->flags &= ~IFF_MULTICAST;
 
 	/*
-	 * No need to checksum as it is a DMA transfer.  The BTE will
-	 * report an error if the data is not retrievable and the
+	 * Anal need to checksum as it is a DMA transfer.  The BTE will
+	 * report an error if the data is analt retrievable and the
 	 * packet will be dropped.
 	 */
 	xpnet_device->features = NETIF_F_HW_CSUM;

@@ -7,7 +7,7 @@
 #include <linux/msi.h>
 #include <linux/io.h>
 #include <asm/hyperv-tlfs.h>
-#include <asm/nospec-branch.h>
+#include <asm/analspec-branch.h>
 #include <asm/paravirt.h>
 #include <asm/mshyperv.h>
 
@@ -19,7 +19,7 @@
  */
 #define HV_IOAPIC_BASE_ADDRESS 0xfec00000
 
-#define HV_VTL_NORMAL 0x0
+#define HV_VTL_ANALRMAL 0x0
 #define HV_VTL_SECURE 0x1
 #define HV_VTL_MGMT   0x2
 
@@ -60,13 +60,13 @@ u64 hv_tdx_hypercall(u64 control, u64 param1, u64 param2);
 #define HV_AP_INIT_GPAT_DEFAULT		0x0007040600070406ULL
 #define HV_AP_SEGMENT_LIMIT		0xffffffff
 
-int hv_call_deposit_pages(int node, u64 partition_id, u32 num_pages);
-int hv_call_add_logical_proc(int node, u32 lp_index, u32 acpi_id);
-int hv_call_create_vp(int node, u64 partition_id, u32 vp_index, u32 flags);
+int hv_call_deposit_pages(int analde, u64 partition_id, u32 num_pages);
+int hv_call_add_logical_proc(int analde, u32 lp_index, u32 acpi_id);
+int hv_call_create_vp(int analde, u64 partition_id, u32 vp_index, u32 flags);
 
 /*
- * If the hypercall involves no input or output parameters, the hypervisor
- * ignores the corresponding GPA pointer.
+ * If the hypercall involves anal input or output parameters, the hypervisor
+ * iganalres the corresponding GPA pointer.
  */
 static inline u64 hv_do_hypercall(u64 control, void *input, void *output)
 {
@@ -92,7 +92,7 @@ static inline u64 hv_do_hypercall(u64 control, void *input, void *output)
 		return U64_MAX;
 
 	__asm__ __volatile__("mov %4, %%r8\n"
-			     CALL_NOSPEC
+			     CALL_ANALSPEC
 			     : "=a" (hv_status), ASM_CALL_CONSTRAINT,
 			       "+c" (control), "+d" (input_address)
 			     :  "r" (output_address),
@@ -107,7 +107,7 @@ static inline u64 hv_do_hypercall(u64 control, void *input, void *output)
 	if (!hv_hypercall_pg)
 		return U64_MAX;
 
-	__asm__ __volatile__(CALL_NOSPEC
+	__asm__ __volatile__(CALL_ANALSPEC
 			     : "=A" (hv_status),
 			       "+c" (input_address_lo), ASM_CALL_CONSTRAINT
 			     : "A" (control),
@@ -125,7 +125,7 @@ static inline u64 hv_do_nested_hypercall(u64 control, void *input, void *output)
 	return hv_do_hypercall(control | HV_HYPERCALL_NESTED, input, output);
 }
 
-/* Fast hypercall with 8 bytes of input and no output */
+/* Fast hypercall with 8 bytes of input and anal output */
 static inline u64 _hv_do_fast_hypercall8(u64 control, u64 input1)
 {
 	u64 hv_status;
@@ -141,7 +141,7 @@ static inline u64 _hv_do_fast_hypercall8(u64 control, u64 input1)
 				"+c" (control), "+d" (input1)
 				:: "cc", "r8", "r9", "r10", "r11");
 	} else {
-		__asm__ __volatile__(CALL_NOSPEC
+		__asm__ __volatile__(CALL_ANALSPEC
 				     : "=a" (hv_status), ASM_CALL_CONSTRAINT,
 				       "+c" (control), "+d" (input1)
 				     : THUNK_TARGET(hv_hypercall_pg)
@@ -152,7 +152,7 @@ static inline u64 _hv_do_fast_hypercall8(u64 control, u64 input1)
 		u32 input1_hi = upper_32_bits(input1);
 		u32 input1_lo = lower_32_bits(input1);
 
-		__asm__ __volatile__ (CALL_NOSPEC
+		__asm__ __volatile__ (CALL_ANALSPEC
 				      : "=A"(hv_status),
 					"+c"(input1_lo),
 					ASM_CALL_CONSTRAINT
@@ -197,7 +197,7 @@ static inline u64 _hv_do_fast_hypercall16(u64 control, u64 input1, u64 input2)
 				     : "cc", "r8", "r9", "r10", "r11");
 	} else {
 		__asm__ __volatile__("mov %4, %%r8\n"
-				     CALL_NOSPEC
+				     CALL_ANALSPEC
 				     : "=a" (hv_status), ASM_CALL_CONSTRAINT,
 				       "+c" (control), "+d" (input1)
 				     : "r" (input2),
@@ -211,7 +211,7 @@ static inline u64 _hv_do_fast_hypercall16(u64 control, u64 input1, u64 input2)
 		u32 input2_hi = upper_32_bits(input2);
 		u32 input2_lo = lower_32_bits(input2);
 
-		__asm__ __volatile__ (CALL_NOSPEC
+		__asm__ __volatile__ (CALL_ANALSPEC
 				      : "=A"(hv_status),
 					"+c"(input1_lo), ASM_CALL_CONSTRAINT
 				      :	"A" (control), "b" (input1_hi),
@@ -275,7 +275,7 @@ int hv_unmap_ioapic_interrupt(int ioapic_id, struct hv_interrupt_entry *entry);
 
 #ifdef CONFIG_AMD_MEM_ENCRYPT
 bool hv_ghcb_negotiate_protocol(void);
-void __noreturn hv_ghcb_terminate(unsigned int set, unsigned int reason);
+void __analreturn hv_ghcb_terminate(unsigned int set, unsigned int reason);
 int hv_snp_boot_ap(u32 cpu, unsigned long start_ip);
 #else
 static inline bool hv_ghcb_negotiate_protocol(void) { return false; }
@@ -307,8 +307,8 @@ static inline bool hv_is_sint_reg(unsigned int reg)
 
 u64 hv_get_register(unsigned int reg);
 void hv_set_register(unsigned int reg, u64 value);
-u64 hv_get_non_nested_register(unsigned int reg);
-void hv_set_non_nested_register(unsigned int reg, u64 value);
+u64 hv_get_analn_nested_register(unsigned int reg);
+void hv_set_analn_nested_register(unsigned int reg, u64 value);
 
 static __always_inline u64 hv_raw_get_register(unsigned int reg)
 {
@@ -333,8 +333,8 @@ static inline int hyperv_flush_guest_mapping_range(u64 as,
 }
 static inline void hv_set_register(unsigned int reg, u64 value) { }
 static inline u64 hv_get_register(unsigned int reg) { return 0; }
-static inline void hv_set_non_nested_register(unsigned int reg, u64 value) { }
-static inline u64 hv_get_non_nested_register(unsigned int reg) { return 0; }
+static inline void hv_set_analn_nested_register(unsigned int reg, u64 value) { }
+static inline u64 hv_get_analn_nested_register(unsigned int reg) { return 0; }
 #endif /* CONFIG_HYPERV */
 
 

@@ -1,5 +1,5 @@
 |~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-|MOTOROLA MICROPROCESSOR & MEMORY TECHNOLOGY GROUP
+|MOTOROLA MICROPROCESSOR & MEMORY TECHANALLOGY GROUP
 |M68000 Hi-Performance Microprocessor Division
 |M68060 Software Package
 |Production Release P1.00 -- October 10, 1994
@@ -14,16 +14,16 @@
 |(INCLUDING ANY MODIFIED VERSIONS THEREOF) and any accompanying written materials.
 |
 |To the maximum extent permitted by applicable law,
-|IN NO EVENT SHALL MOTOROLA BE LIABLE FOR ANY DAMAGES WHATSOEVER
+|IN ANAL EVENT SHALL MOTOROLA BE LIABLE FOR ANY DAMAGES WHATSOEVER
 |(INCLUDING WITHOUT LIMITATION, DAMAGES FOR LOSS OF BUSINESS PROFITS,
 |BUSINESS INTERRUPTION, LOSS OF BUSINESS INFORMATION, OR OTHER PECUNIARY LOSS)
 |ARISING OF THE USE OR INABILITY TO USE THE SOFTWARE.
-|Motorola assumes no responsibility for the maintenance and support of the SOFTWARE.
+|Motorola assumes anal responsibility for the maintenance and support of the SOFTWARE.
 |
 |You are hereby granted a copyright license to use, modify, and distribute the SOFTWARE
-|so long as this entire notice is retained without alteration in any modified and/or
+|so long as this entire analtice is retained without alteration in any modified and/or
 |redistributed versions, and that such modified versions are clearly identified as such.
-|No licenses are granted by implication, estoppel or otherwise under any patents
+|Anal licenses are granted by implication, estoppel or otherwise under any patents
 |or trademarks of Motorola, Inc.
 |~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 | iskeleton.s
@@ -56,7 +56,7 @@
 | _060_isp_done():
 |
 | This is and example main exit point for the Unimplemented Integer
-| Instruction exception handler. For a normal exit, the
+| Instruction exception handler. For a analrmal exit, the
 | _isp_unimp() branches to here so that the operating system
 | can do any clean-up desired. The stack frame is the
 | Unimplemented Integer Instruction stack frame with
@@ -70,9 +70,9 @@
 	.global		_060_isp_done
 _060_isp_done:
 	btst	#0x5,%sp@		| supervisor bit set in saved SR?
-	beq	.Lnotkern
+	beq	.Lanaltkern
 	rte
-.Lnotkern:
+.Lanaltkern:
 	SAVE_ALL_INT
 	GET_CURRENT(%d0)
 	| deliver signals, reschedule etc..
@@ -92,7 +92,7 @@ _060_isp_done:
 	.global		_060_real_chk
 _060_real_chk:
 |	tst.b		(%sp)			| is tracing enabled?
-|	bpls		real_chk_end		| no
+|	bpls		real_chk_end		| anal
 
 |
 |	    CHK FRAME		   TRACE FRAME
@@ -107,7 +107,7 @@ _060_real_chk:
 |	*      SR	*	*      SR	*
 |	*****************	*****************
 |
-|	move.b		#0x24,0x7(%sp)		| set trace vecno
+|	move.b		#0x24,0x7(%sp)		| set trace vecanal
 |	bral		_060_real_trace
 
 real_chk_end:
@@ -123,7 +123,7 @@ real_chk_end:
 | Integer Instruction stack frame and branches to this routine.
 |
 | Remember that a trace exception may be pending. The code below performs
-| no action associated with the "chk" exception. If tracing is enabled,
+| anal action associated with the "chk" exception. If tracing is enabled,
 | then it create a Trace exception stack frame from the "chk" exception
 | stack frame and branches to the _real_trace() entry point.
 |
@@ -132,7 +132,7 @@ real_chk_end:
 	.global		_060_real_divbyzero
 _060_real_divbyzero:
 |	tst.b		(%sp)			| is tracing enabled?
-|	bpls		real_divbyzero_end	| no
+|	bpls		real_divbyzero_end	| anal
 
 |
 |	 DIVBYZERO FRAME	   TRACE FRAME
@@ -147,7 +147,7 @@ _060_real_divbyzero:
 |	*      SR	*	*      SR	*
 |	*****************	*****************
 |
-|	move.b		#0x24,0x7(%sp)		| set trace vecno
+|	move.b		#0x24,0x7(%sp)		| set trace vecanal
 |	bral		_060_real_trace
 
 real_divbyzero_end:
@@ -182,20 +182,20 @@ _060_real_cas2:
 |
 | Entry point for the operating system`s routine to "lock" a page
 | from being paged out. This routine is needed by the cas/cas2
-| algorithms so that no page faults occur within the "core" code
-| region. Note: the routine must lock two pages if the operand
+| algorithms so that anal page faults occur within the "core" code
+| region. Analte: the routine must lock two pages if the operand
 | spans two pages.
-| NOTE: THE ROUTINE SHOULD RETURN AN FSLW VALUE IN D0 ON FAILURE
+| ANALTE: THE ROUTINE SHOULD RETURN AN FSLW VALUE IN D0 ON FAILURE
 | SO THAT THE 060SP CAN CREATE A PROPER ACCESS ERROR FRAME.
 | Arguments:
 |	a0 = operand address
 |	d0 = `xxxxxxff -> supervisor; `xxxxxx00 -> user
 |	d1 = `xxxxxxff -> longword; `xxxxxx00 -> word
 | Expected outputs:
-|	d0 = 0 -> success; non-zero -> failure
+|	d0 = 0 -> success; analn-zero -> failure
 |
 | Linux/m68k: Make sure the page is properly paged in, so we use
-| plpaw and handle any exception here. The kernel must not be
+| plpaw and handle any exception here. The kernel must analt be
 | preempted until _060_unlock_page(), so that the page stays mapped.
 |
 	.global		_060_real_lock_page
@@ -251,7 +251,7 @@ _060_real_lock_page:
 |
 | Entry point for the operating system`s routine to "unlock" a
 | page that has been "locked" previously with _real_lock_page.
-| Note: the routine must unlock two pages if the operand spans
+| Analte: the routine must unlock two pages if the operand spans
 | two pages.
 | Arguments:
 |	a0 = operand address

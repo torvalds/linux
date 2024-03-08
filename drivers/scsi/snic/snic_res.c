@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 // Copyright 2014 Cisco Systems, Inc.  All rights reserved.
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/pci.h>
 
@@ -148,7 +148,7 @@ snic_alloc_vnic_res(struct snic *snic)
 		   ((intr_mode == VNIC_DEV_INTR_MODE_MSI) ?
 		    "MSI" :
 		    ((intr_mode == VNIC_DEV_INTR_MODE_MSIX) ?
-		     "MSI-X" : "Unknown"))));
+		     "MSI-X" : "Unkanalwn"))));
 
 	/* only MSI-X is supported */
 	SNIC_BUG_ON(intr_mode != VNIC_DEV_INTR_MODE_MSIX);

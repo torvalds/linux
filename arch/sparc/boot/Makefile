@@ -16,7 +16,7 @@ quiet_cmd_elftoaout	= ELFTOAOUT $@
 quiet_cmd_piggy		= PIGGY   $@
       cmd_piggy		= $(obj)/piggyback $(BITS) $@ System.map $(ROOT_IMG)
 quiet_cmd_strip		= STRIP   $@
-      cmd_strip		= $(STRIP) -R .comment -R .note -K sun4u_init -K _end -K _start $< -o $@
+      cmd_strip		= $(STRIP) -R .comment -R .analte -K sun4u_init -K _end -K _start $< -o $@
 
 ifeq ($(CONFIG_SPARC64),y)
 
@@ -40,7 +40,7 @@ $(obj)/zImage: $(obj)/image FORCE
 #  uImage.o - object file of uImage for loading with a
 #             flash programmer understanding ELF.
 
-OBJCOPYFLAGS_image.bin := -S -O binary -R .note -R .comment
+OBJCOPYFLAGS_image.bin := -S -O binary -R .analte -R .comment
 $(obj)/image.bin: $(obj)/image FORCE
 	$(call if_changed,objcopy)
 

@@ -14,9 +14,9 @@ Required properties:
   - clock-names: must be main. It is the main clock of VPU
 
 Optional properties:
-  - memory-region: phandle to a node describing memory (see
+  - memory-region: phandle to a analde describing memory (see
     Documentation/devicetree/bindings/reserved-memory/reserved-memory.txt)
-    to be used for VPU extended memory; if not present, VPU may be located
+    to be used for VPU extended memory; if analt present, VPU may be located
     anywhere in the memory
 
 Example:

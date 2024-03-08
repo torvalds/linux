@@ -82,7 +82,7 @@
 
 /*
  * Two-Channel DMA Descriptor Struct
- * NOTE: desc's buf must be aligned to 16 bytes.
+ * ANALTE: desc's buf must be aligned to 16 bytes.
  */
 struct mmp_tdma_desc {
 	u32 byte_cnt;
@@ -235,7 +235,7 @@ static int mmp_tdma_config_chan(struct dma_chan *chan)
 			tdcr |= TDCR_BURSTSZ_128B;
 			break;
 		default:
-			dev_err(tdmac->dev, "unknown burst size.\n");
+			dev_err(tdmac->dev, "unkanalwn burst size.\n");
 			return -EINVAL;
 		}
 
@@ -250,7 +250,7 @@ static int mmp_tdma_config_chan(struct dma_chan *chan)
 			tdcr |= TDCR_SSZ_32_BITS;
 			break;
 		default:
-			dev_err(tdmac->dev, "unknown bus size.\n");
+			dev_err(tdmac->dev, "unkanalwn bus size.\n");
 			return -EINVAL;
 		}
 	} else if (tdmac->type == PXA910_SQU) {
@@ -276,7 +276,7 @@ static int mmp_tdma_config_chan(struct dma_chan *chan)
 			tdcr |= TDCR_BURSTSZ_SQU_32B;
 			break;
 		default:
-			dev_err(tdmac->dev, "unknown burst size.\n");
+			dev_err(tdmac->dev, "unkanalwn burst size.\n");
 			return -EINVAL;
 		}
 	}
@@ -323,7 +323,7 @@ static irqreturn_t mmp_tdma_chan_handler(int irq, void *dev_id)
 		tasklet_schedule(&tdmac->tasklet);
 		return IRQ_HANDLED;
 	} else
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 }
 
 static irqreturn_t mmp_tdma_int_handler(int irq, void *dev_id)
@@ -343,7 +343,7 @@ static irqreturn_t mmp_tdma_int_handler(int irq, void *dev_id)
 	if (irq_num)
 		return IRQ_HANDLED;
 	else
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 }
 
 static void dma_do_tasklet(struct tasklet_struct *t)
@@ -554,8 +554,8 @@ static void mmp_tdma_issue_pending(struct dma_chan *chan)
 
 static void mmp_tdma_remove(struct platform_device *pdev)
 {
-	if (pdev->dev.of_node)
-		of_dma_controller_free(pdev->dev.of_node);
+	if (pdev->dev.of_analde)
+		of_dma_controller_free(pdev->dev.of_analde);
 }
 
 static int mmp_tdma_chan_init(struct mmp_tdma_device *tdev,
@@ -572,7 +572,7 @@ static int mmp_tdma_chan_init(struct mmp_tdma_device *tdev,
 	/* alloc channel */
 	tdmac = devm_kzalloc(tdev->dev, sizeof(*tdmac), GFP_KERNEL);
 	if (!tdmac)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (irq)
 		tdmac->irq = irq;
@@ -587,7 +587,7 @@ static int mmp_tdma_chan_init(struct mmp_tdma_device *tdev,
 	tasklet_setup(&tdmac->tasklet, dma_do_tasklet);
 
 	/* add the channel to tdma_chan list */
-	list_add_tail(&tdmac->chan.device_node,
+	list_add_tail(&tdmac->chan.device_analde,
 			&tdev->device.channels);
 	return 0;
 }
@@ -622,7 +622,7 @@ static struct dma_chan *mmp_tdma_xlate(struct of_phandle_args *dma_spec,
 		return NULL;
 
 	return __dma_request_channel(&mask, mmp_tdma_filter_fn, &param,
-				     ofdma->of_node);
+				     ofdma->of_analde);
 }
 
 static const struct of_device_id mmp_tdma_dt_ids[] = {
@@ -646,7 +646,7 @@ static int mmp_tdma_probe(struct platform_device *pdev)
 	/* always have couple channels */
 	tdev = devm_kzalloc(&pdev->dev, sizeof(*tdev), GFP_KERNEL);
 	if (!tdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tdev->dev = &pdev->dev;
 
@@ -661,10 +661,10 @@ static int mmp_tdma_probe(struct platform_device *pdev)
 
 	INIT_LIST_HEAD(&tdev->device.channels);
 
-	pool = of_gen_pool_get(pdev->dev.of_node, "asram", 0);
+	pool = of_gen_pool_get(pdev->dev.of_analde, "asram", 0);
 	if (!pool) {
-		dev_err(&pdev->dev, "asram pool not available\n");
-		return -ENOMEM;
+		dev_err(&pdev->dev, "asram pool analt available\n");
+		return -EANALMEM;
 	}
 
 	if (irq_num != chan_num) {
@@ -719,7 +719,7 @@ static int mmp_tdma_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = of_dma_controller_register(pdev->dev.of_node,
+	ret = of_dma_controller_register(pdev->dev.of_analde,
 					 mmp_tdma_xlate, tdev);
 	if (ret) {
 		dev_err(tdev->device.dev, "failed to register controller\n");

@@ -4,7 +4,7 @@
  */
 
 #include <linux/acpi.h>
-#include <linux/adreno-smmu-priv.h>
+#include <linux/adreanal-smmu-priv.h>
 #include <linux/delay.h>
 #include <linux/of_device.h>
 #include <linux/firmware/qcom/qcom_scm.h>
@@ -39,7 +39,7 @@ static void qcom_smmu_tlb_sync(struct arm_smmu_device *smmu, int page,
 	qcom_smmu_tlb_sync_debug(smmu);
 }
 
-static void qcom_adreno_smmu_write_sctlr(struct arm_smmu_device *smmu, int idx,
+static void qcom_adreanal_smmu_write_sctlr(struct arm_smmu_device *smmu, int idx,
 		u32 reg)
 {
 	struct qcom_smmu *qsmmu = to_qcom_smmu(smmu);
@@ -56,8 +56,8 @@ static void qcom_adreno_smmu_write_sctlr(struct arm_smmu_device *smmu, int idx,
 	arm_smmu_cb_write(smmu, idx, ARM_SMMU_CB_SCTLR, reg);
 }
 
-static void qcom_adreno_smmu_get_fault_info(const void *cookie,
-		struct adreno_smmu_fault_info *info)
+static void qcom_adreanal_smmu_get_fault_info(const void *cookie,
+		struct adreanal_smmu_fault_info *info)
 {
 	struct arm_smmu_domain *smmu_domain = (void *)cookie;
 	struct arm_smmu_cfg *cfg = &smmu_domain->cfg;
@@ -72,7 +72,7 @@ static void qcom_adreno_smmu_get_fault_info(const void *cookie,
 	info->contextidr = arm_smmu_cb_read(smmu, cfg->cbndx, ARM_SMMU_CB_CONTEXTIDR);
 }
 
-static void qcom_adreno_smmu_set_stall(const void *cookie, bool enabled)
+static void qcom_adreanal_smmu_set_stall(const void *cookie, bool enabled)
 {
 	struct arm_smmu_domain *smmu_domain = (void *)cookie;
 	struct arm_smmu_cfg *cfg = &smmu_domain->cfg;
@@ -84,7 +84,7 @@ static void qcom_adreno_smmu_set_stall(const void *cookie, bool enabled)
 		qsmmu->stall_enabled &= ~BIT(cfg->cbndx);
 }
 
-static void qcom_adreno_smmu_resume_translation(const void *cookie, bool terminate)
+static void qcom_adreanal_smmu_resume_translation(const void *cookie, bool terminate)
 {
 	struct arm_smmu_domain *smmu_domain = (void *)cookie;
 	struct arm_smmu_cfg *cfg = &smmu_domain->cfg;
@@ -97,9 +97,9 @@ static void qcom_adreno_smmu_resume_translation(const void *cookie, bool termina
 	arm_smmu_cb_write(smmu, cfg->cbndx, ARM_SMMU_CB_RESUME, reg);
 }
 
-#define QCOM_ADRENO_SMMU_GPU_SID 0
+#define QCOM_ADREANAL_SMMU_GPU_SID 0
 
-static bool qcom_adreno_smmu_is_gpu_device(struct device *dev)
+static bool qcom_adreanal_smmu_is_gpu_device(struct device *dev)
 {
 	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
 	int i;
@@ -111,14 +111,14 @@ static bool qcom_adreno_smmu_is_gpu_device(struct device *dev)
 	for (i = 0; i < fwspec->num_ids; i++) {
 		u16 sid = FIELD_GET(ARM_SMMU_SMR_ID, fwspec->ids[i]);
 
-		if (sid == QCOM_ADRENO_SMMU_GPU_SID)
+		if (sid == QCOM_ADREANAL_SMMU_GPU_SID)
 			return true;
 	}
 
 	return false;
 }
 
-static const struct io_pgtable_cfg *qcom_adreno_smmu_get_ttbr1_cfg(
+static const struct io_pgtable_cfg *qcom_adreanal_smmu_get_ttbr1_cfg(
 		const void *cookie)
 {
 	struct arm_smmu_domain *smmu_domain = (void *)cookie;
@@ -133,7 +133,7 @@ static const struct io_pgtable_cfg *qcom_adreno_smmu_get_ttbr1_cfg(
  * are active
  */
 
-static int qcom_adreno_smmu_set_ttbr0_cfg(const void *cookie,
+static int qcom_adreanal_smmu_set_ttbr0_cfg(const void *cookie,
 		const struct io_pgtable_cfg *pgtbl_cfg)
 {
 	struct arm_smmu_domain *smmu_domain = (void *)cookie;
@@ -147,7 +147,7 @@ static int qcom_adreno_smmu_set_ttbr0_cfg(const void *cookie,
 
 	/* If the pagetable config is NULL, disable TTBR0 */
 	if (!pgtbl_cfg) {
-		/* Do nothing if it is already disabled */
+		/* Do analthing if it is already disabled */
 		if ((cb->tcr[0] & ARM_SMMU_TCR_EPD0))
 			return -EINVAL;
 
@@ -174,7 +174,7 @@ static int qcom_adreno_smmu_set_ttbr0_cfg(const void *cookie,
 	return 0;
 }
 
-static int qcom_adreno_smmu_alloc_context_bank(struct arm_smmu_domain *smmu_domain,
+static int qcom_adreanal_smmu_alloc_context_bank(struct arm_smmu_domain *smmu_domain,
 					       struct arm_smmu_device *smmu,
 					       struct device *dev, int start)
 {
@@ -184,7 +184,7 @@ static int qcom_adreno_smmu_alloc_context_bank(struct arm_smmu_domain *smmu_doma
 	 * Assign context bank 0 to the GPU device so the GPU hardware can
 	 * switch pagetables
 	 */
-	if (qcom_adreno_smmu_is_gpu_device(dev)) {
+	if (qcom_adreanal_smmu_is_gpu_device(dev)) {
 		start = 0;
 		count = 1;
 	} else {
@@ -195,9 +195,9 @@ static int qcom_adreno_smmu_alloc_context_bank(struct arm_smmu_domain *smmu_doma
 	return __arm_smmu_alloc_bitmap(smmu->context_map, start, count);
 }
 
-static bool qcom_adreno_can_do_ttbr1(struct arm_smmu_device *smmu)
+static bool qcom_adreanal_can_do_ttbr1(struct arm_smmu_device *smmu)
 {
-	const struct device_node *np = smmu->dev->of_node;
+	const struct device_analde *np = smmu->dev->of_analde;
 
 	if (of_device_is_compatible(np, "qcom,msm8996-smmu-v2"))
 		return false;
@@ -205,23 +205,23 @@ static bool qcom_adreno_can_do_ttbr1(struct arm_smmu_device *smmu)
 	return true;
 }
 
-static int qcom_adreno_smmu_init_context(struct arm_smmu_domain *smmu_domain,
+static int qcom_adreanal_smmu_init_context(struct arm_smmu_domain *smmu_domain,
 		struct io_pgtable_cfg *pgtbl_cfg, struct device *dev)
 {
-	struct adreno_smmu_priv *priv;
+	struct adreanal_smmu_priv *priv;
 
 	smmu_domain->cfg.flush_walk_prefer_tlbiasid = true;
 
 	/* Only enable split pagetables for the GPU device (SID 0) */
-	if (!qcom_adreno_smmu_is_gpu_device(dev))
+	if (!qcom_adreanal_smmu_is_gpu_device(dev))
 		return 0;
 
 	/*
-	 * All targets that use the qcom,adreno-smmu compatible string *should*
+	 * All targets that use the qcom,adreanal-smmu compatible string *should*
 	 * be AARCH64 stage 1 but double check because the arm-smmu code assumes
 	 * that is the case when the TTBR1 quirk is enabled
 	 */
-	if (qcom_adreno_can_do_ttbr1(smmu_domain->smmu) &&
+	if (qcom_adreanal_can_do_ttbr1(smmu_domain->smmu) &&
 	    (smmu_domain->stage == ARM_SMMU_DOMAIN_S1) &&
 	    (smmu_domain->cfg.fmt == ARM_SMMU_CTX_FMT_AARCH64))
 		pgtbl_cfg->quirks |= IO_PGTABLE_QUIRK_ARM_TTBR1;
@@ -232,18 +232,18 @@ static int qcom_adreno_smmu_init_context(struct arm_smmu_domain *smmu_domain,
 
 	priv = dev_get_drvdata(dev);
 	priv->cookie = smmu_domain;
-	priv->get_ttbr1_cfg = qcom_adreno_smmu_get_ttbr1_cfg;
-	priv->set_ttbr0_cfg = qcom_adreno_smmu_set_ttbr0_cfg;
-	priv->get_fault_info = qcom_adreno_smmu_get_fault_info;
-	priv->set_stall = qcom_adreno_smmu_set_stall;
-	priv->resume_translation = qcom_adreno_smmu_resume_translation;
+	priv->get_ttbr1_cfg = qcom_adreanal_smmu_get_ttbr1_cfg;
+	priv->set_ttbr0_cfg = qcom_adreanal_smmu_set_ttbr0_cfg;
+	priv->get_fault_info = qcom_adreanal_smmu_get_fault_info;
+	priv->set_stall = qcom_adreanal_smmu_set_stall;
+	priv->resume_translation = qcom_adreanal_smmu_resume_translation;
 
 	return 0;
 }
 
 static const struct of_device_id qcom_smmu_client_of_match[] __maybe_unused = {
-	{ .compatible = "qcom,adreno" },
-	{ .compatible = "qcom,adreno-gmu" },
+	{ .compatible = "qcom,adreanal" },
+	{ .compatible = "qcom,adreanal-gmu" },
 	{ .compatible = "qcom,mdp4" },
 	{ .compatible = "qcom,mdss" },
 	{ .compatible = "qcom,qcm2290-mdss" },
@@ -281,13 +281,13 @@ static int qcom_smmu_cfg_probe(struct arm_smmu_device *smmu)
 
 	/*
 	 * Some platforms support more than the Arm SMMU architected maximum of
-	 * 128 stream matching groups. For unknown reasons, the additional
+	 * 128 stream matching groups. For unkanalwn reasons, the additional
 	 * groups don't exhibit the same behavior as the architected registers,
 	 * so limit the groups to 128 until the behavior is fixed for the other
 	 * groups.
 	 */
 	if (smmu->num_mapping_groups > 128) {
-		dev_notice(smmu->dev, "\tLimiting the stream matching groups to 128\n");
+		dev_analtice(smmu->dev, "\tLimiting the stream matching groups to 128\n");
 		smmu->num_mapping_groups = 128;
 	}
 
@@ -295,7 +295,7 @@ static int qcom_smmu_cfg_probe(struct arm_smmu_device *smmu)
 
 	/*
 	 * With some firmware versions writes to S2CR of type FAULT are
-	 * ignored, and writing BYPASS will end up written as FAULT in the
+	 * iganalred, and writing BYPASS will end up written as FAULT in the
 	 * register. Perform a write to S2CR to detect if this is the case and
 	 * if so reserve a context bank to emulate bypass streams.
 	 */
@@ -320,7 +320,7 @@ static int qcom_smmu_cfg_probe(struct arm_smmu_device *smmu)
 		smr = arm_smmu_gr0_read(smmu, ARM_SMMU_GR0_SMR(i));
 
 		if (FIELD_GET(ARM_SMMU_SMR_VALID, smr)) {
-			/* Ignore valid bit for SMR mask extraction. */
+			/* Iganalre valid bit for SMR mask extraction. */
 			smr &= ~ARM_SMMU_SMR_VALID;
 			smmu->smrs[i].id = FIELD_GET(ARM_SMMU_SMR_ID, smr);
 			smmu->smrs[i].mask = FIELD_GET(ARM_SMMU_SMR_MASK, smr);
@@ -355,7 +355,7 @@ static void qcom_smmu_write_s2cr(struct arm_smmu_device *smmu, int idx)
 			cbndx = qsmmu->bypass_cbndx;
 		} else if (type == S2CR_TYPE_FAULT) {
 			/*
-			 * Firmware with quirky S2CR handling will ignore FAULT
+			 * Firmware with quirky S2CR handling will iganalre FAULT
 			 * writes, so trick it to write FAULT by asking for a
 			 * BYPASS.
 			 */
@@ -385,7 +385,7 @@ static int qcom_sdm845_smmu500_reset(struct arm_smmu_device *smmu)
 	arm_mmu500_reset(smmu);
 
 	/*
-	 * To address performance degradation in non-real time clients,
+	 * To address performance degradation in analn-real time clients,
 	 * such as USB and UFS, turn off wait-for-safe on sdm845 based boards,
 	 * such as MTP and db845, whose firmwares implement secure monitor
 	 * call handlers to turn on/off the wait-for-safe logic.
@@ -423,35 +423,35 @@ static const struct arm_smmu_impl sdm845_smmu_500_impl = {
 	.tlb_sync = qcom_smmu_tlb_sync,
 };
 
-static const struct arm_smmu_impl qcom_adreno_smmu_v2_impl = {
-	.init_context = qcom_adreno_smmu_init_context,
+static const struct arm_smmu_impl qcom_adreanal_smmu_v2_impl = {
+	.init_context = qcom_adreanal_smmu_init_context,
 	.def_domain_type = qcom_smmu_def_domain_type,
-	.alloc_context_bank = qcom_adreno_smmu_alloc_context_bank,
-	.write_sctlr = qcom_adreno_smmu_write_sctlr,
+	.alloc_context_bank = qcom_adreanal_smmu_alloc_context_bank,
+	.write_sctlr = qcom_adreanal_smmu_write_sctlr,
 	.tlb_sync = qcom_smmu_tlb_sync,
 };
 
-static const struct arm_smmu_impl qcom_adreno_smmu_500_impl = {
-	.init_context = qcom_adreno_smmu_init_context,
+static const struct arm_smmu_impl qcom_adreanal_smmu_500_impl = {
+	.init_context = qcom_adreanal_smmu_init_context,
 	.def_domain_type = qcom_smmu_def_domain_type,
 	.reset = arm_mmu500_reset,
-	.alloc_context_bank = qcom_adreno_smmu_alloc_context_bank,
-	.write_sctlr = qcom_adreno_smmu_write_sctlr,
+	.alloc_context_bank = qcom_adreanal_smmu_alloc_context_bank,
+	.write_sctlr = qcom_adreanal_smmu_write_sctlr,
 	.tlb_sync = qcom_smmu_tlb_sync,
 };
 
 static struct arm_smmu_device *qcom_smmu_create(struct arm_smmu_device *smmu,
 		const struct qcom_smmu_match_data *data)
 {
-	const struct device_node *np = smmu->dev->of_node;
+	const struct device_analde *np = smmu->dev->of_analde;
 	const struct arm_smmu_impl *impl;
 	struct qcom_smmu *qsmmu;
 
 	if (!data)
 		return ERR_PTR(-EINVAL);
 
-	if (np && of_device_is_compatible(np, "qcom,adreno-smmu"))
-		impl = data->adreno_impl;
+	if (np && of_device_is_compatible(np, "qcom,adreanal-smmu"))
+		impl = data->adreanal_impl;
 	else
 		impl = data->impl;
 
@@ -464,7 +464,7 @@ static struct arm_smmu_device *qcom_smmu_create(struct arm_smmu_device *smmu,
 
 	qsmmu = devm_krealloc(smmu->dev, smmu, sizeof(*qsmmu), GFP_KERNEL);
 	if (!qsmmu)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	qsmmu->smmu.impl = impl;
 	qsmmu->cfg = data->cfg;
@@ -484,37 +484,37 @@ static const struct qcom_smmu_config qcom_smmu_impl0_cfg = {
 };
 
 /*
- * It is not yet possible to use MDP SMMU with the bypass quirk on the msm8996,
- * there are not enough context banks.
+ * It is analt yet possible to use MDP SMMU with the bypass quirk on the msm8996,
+ * there are analt eanalugh context banks.
  */
 static const struct qcom_smmu_match_data msm8996_smmu_data = {
 	.impl = NULL,
-	.adreno_impl = &qcom_adreno_smmu_v2_impl,
+	.adreanal_impl = &qcom_adreanal_smmu_v2_impl,
 };
 
 static const struct qcom_smmu_match_data qcom_smmu_v2_data = {
 	.impl = &qcom_smmu_v2_impl,
-	.adreno_impl = &qcom_adreno_smmu_v2_impl,
+	.adreanal_impl = &qcom_adreanal_smmu_v2_impl,
 };
 
 static const struct qcom_smmu_match_data sdm845_smmu_500_data = {
 	.impl = &sdm845_smmu_500_impl,
 	/*
-	 * No need for adreno impl here. On sdm845 the Adreno SMMU is handled
+	 * Anal need for adreanal impl here. On sdm845 the Adreanal SMMU is handled
 	 * by the separate sdm845-smmu-v2 device.
 	 */
-	/* Also no debug configuration. */
+	/* Also anal debug configuration. */
 };
 
 static const struct qcom_smmu_match_data qcom_smmu_500_impl0_data = {
 	.impl = &qcom_smmu_500_impl,
-	.adreno_impl = &qcom_adreno_smmu_500_impl,
+	.adreanal_impl = &qcom_adreanal_smmu_500_impl,
 	.cfg = &qcom_smmu_impl0_cfg,
 };
 
 /*
- * Do not add any more qcom,SOC-smmu-500 entries to this list, unless they need
- * special handling and can not be covered by the qcom,smmu-500 entry.
+ * Do analt add any more qcom,SOC-smmu-500 entries to this list, unless they need
+ * special handling and can analt be covered by the qcom,smmu-500 entry.
  */
 static const struct of_device_id __maybe_unused qcom_smmu_impl_of_match[] = {
 	{ .compatible = "qcom,msm8996-smmu-v2", .data = &msm8996_smmu_data },
@@ -546,7 +546,7 @@ static const struct of_device_id __maybe_unused qcom_smmu_impl_of_match[] = {
 
 #ifdef CONFIG_ACPI
 static struct acpi_platform_list qcom_acpi_platlist[] = {
-	{ "LENOVO", "CB-01   ", 0x8180, ACPI_SIG_IORT, equal, "QCOM SMMU" },
+	{ "LEANALVO", "CB-01   ", 0x8180, ACPI_SIG_IORT, equal, "QCOM SMMU" },
 	{ "QCOM  ", "QCOMEDK2", 0x8180, ACPI_SIG_IORT, equal, "QCOM SMMU" },
 	{ }
 };
@@ -554,7 +554,7 @@ static struct acpi_platform_list qcom_acpi_platlist[] = {
 
 struct arm_smmu_device *qcom_smmu_impl_init(struct arm_smmu_device *smmu)
 {
-	const struct device_node *np = smmu->dev->of_node;
+	const struct device_analde *np = smmu->dev->of_analde;
 	const struct of_device_id *match;
 
 #ifdef CONFIG_ACPI
@@ -565,7 +565,7 @@ struct arm_smmu_device *qcom_smmu_impl_init(struct arm_smmu_device *smmu)
 	}
 #endif
 
-	match = of_match_node(qcom_smmu_impl_of_match, np);
+	match = of_match_analde(qcom_smmu_impl_of_match, np);
 	if (match)
 		return qcom_smmu_create(smmu, match->data);
 
@@ -574,7 +574,7 @@ struct arm_smmu_device *qcom_smmu_impl_init(struct arm_smmu_device *smmu)
 	 * qcom_smmu_impl_of_match[] table, and GPU per-process page-
 	 * tables will be broken.
 	 */
-	WARN(of_device_is_compatible(np, "qcom,adreno-smmu"),
+	WARN(of_device_is_compatible(np, "qcom,adreanal-smmu"),
 	     "Missing qcom_smmu_impl_of_match entry for: %s",
 	     dev_name(smmu->dev));
 

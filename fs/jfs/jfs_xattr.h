@@ -10,7 +10,7 @@
 
 /*
  * jfs_ea_list describe the on-disk format of the extended attributes.
- * I know the null-terminator is redundant since namelen is stored, but
+ * I kanalw the null-terminator is redundant since namelen is stored, but
  * I am maintaining compatibility with OS/2 where possible.
  */
 struct jfs_ea {
@@ -41,19 +41,19 @@ struct jfs_ea_list {
 #define	END_EALIST(ealist) \
 	((struct jfs_ea *) (((char *) (ealist)) + EALIST_SIZE(ealist)))
 
-extern int __jfs_setxattr(tid_t, struct inode *, const char *, const void *,
+extern int __jfs_setxattr(tid_t, struct ianalde *, const char *, const void *,
 			  size_t, int);
-extern ssize_t __jfs_getxattr(struct inode *, const char *, void *, size_t);
+extern ssize_t __jfs_getxattr(struct ianalde *, const char *, void *, size_t);
 extern ssize_t jfs_listxattr(struct dentry *, char *, size_t);
 
 extern const struct xattr_handler * const jfs_xattr_handlers[];
 
 #ifdef CONFIG_JFS_SECURITY
-extern int jfs_init_security(tid_t, struct inode *, struct inode *,
+extern int jfs_init_security(tid_t, struct ianalde *, struct ianalde *,
 			     const struct qstr *);
 #else
-static inline int jfs_init_security(tid_t tid, struct inode *inode,
-				    struct inode *dir, const struct qstr *qstr)
+static inline int jfs_init_security(tid_t tid, struct ianalde *ianalde,
+				    struct ianalde *dir, const struct qstr *qstr)
 {
 	return 0;
 }

@@ -92,12 +92,12 @@ static int shm16read__write_file(struct b43_wldev *dev,
 	if (res != 2)
 		return -EINVAL;
 	if (routing > B43_MAX_SHM_ROUTING)
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 	if (addr > B43_MAX_SHM_ADDR)
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 	if (routing == B43_SHM_SHARED) {
 		if ((addr % 2) != 0)
-			return -EADDRNOTAVAIL;
+			return -EADDRANALTAVAIL;
 	}
 
 	dev->dfsentry->shm16read_routing_next = routing;
@@ -118,12 +118,12 @@ static int shm16write__write_file(struct b43_wldev *dev,
 	if (res != 4)
 		return -EINVAL;
 	if (routing > B43_MAX_SHM_ROUTING)
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 	if (addr > B43_MAX_SHM_ADDR)
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 	if (routing == B43_SHM_SHARED) {
 		if ((addr % 2) != 0)
-			return -EADDRNOTAVAIL;
+			return -EADDRANALTAVAIL;
 	}
 	if ((mask > 0xFFFF) || (set > 0xFFFF))
 		return -E2BIG;
@@ -168,12 +168,12 @@ static int shm32read__write_file(struct b43_wldev *dev,
 	if (res != 2)
 		return -EINVAL;
 	if (routing > B43_MAX_SHM_ROUTING)
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 	if (addr > B43_MAX_SHM_ADDR)
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 	if (routing == B43_SHM_SHARED) {
 		if ((addr % 2) != 0)
-			return -EADDRNOTAVAIL;
+			return -EADDRANALTAVAIL;
 	}
 
 	dev->dfsentry->shm32read_routing_next = routing;
@@ -194,12 +194,12 @@ static int shm32write__write_file(struct b43_wldev *dev,
 	if (res != 4)
 		return -EINVAL;
 	if (routing > B43_MAX_SHM_ROUTING)
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 	if (addr > B43_MAX_SHM_ADDR)
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 	if (routing == B43_SHM_SHARED) {
 		if ((addr % 2) != 0)
-			return -EADDRNOTAVAIL;
+			return -EADDRANALTAVAIL;
 	}
 	if ((mask > 0xFFFFFFFF) || (set > 0xFFFFFFFF))
 		return -E2BIG;
@@ -245,7 +245,7 @@ static int mmio16read__write_file(struct b43_wldev *dev,
 	if (res != 1)
 		return -EINVAL;
 	if (addr > B43_MAX_MMIO_ACCESS)
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 	if ((addr % 2) != 0)
 		return -EINVAL;
 
@@ -265,7 +265,7 @@ static int mmio16write__write_file(struct b43_wldev *dev,
 	if (res != 3)
 		return -EINVAL;
 	if (addr > B43_MAX_MMIO_ACCESS)
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 	if ((mask > 0xFFFF) || (set > 0xFFFF))
 		return -E2BIG;
 	if ((addr % 2) != 0)
@@ -309,7 +309,7 @@ static int mmio32read__write_file(struct b43_wldev *dev,
 	if (res != 1)
 		return -EINVAL;
 	if (addr > B43_MAX_MMIO_ACCESS)
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 	if ((addr % 4) != 0)
 		return -EINVAL;
 
@@ -329,7 +329,7 @@ static int mmio32write__write_file(struct b43_wldev *dev,
 	if (res != 3)
 		return -EINVAL;
 	if (addr > B43_MAX_MMIO_ACCESS)
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 	if ((mask > 0xFFFFFFFF) || (set > 0xFFFFFFFF))
 		return -E2BIG;
 	if ((addr % 4) != 0)
@@ -355,7 +355,7 @@ static ssize_t txstat_read_file(struct b43_wldev *dev,
 	struct b43_txstatus *stat;
 
 	if (log->end < 0) {
-		fappend("Nothing transmitted, yet\n");
+		fappend("Analthing transmitted, yet\n");
 		goto out;
 	}
 	fappend("b43 TX status reports:\n\n"
@@ -404,22 +404,22 @@ static int restart_write_file(struct b43_wldev *dev,
 	return err;
 }
 
-static unsigned long calc_expire_secs(unsigned long now,
+static unsigned long calc_expire_secs(unsigned long analw,
 				      unsigned long time,
 				      unsigned long expire)
 {
 	expire = time + expire;
 
-	if (time_after(now, expire))
+	if (time_after(analw, expire))
 		return 0; /* expired */
-	if (expire < now) {
+	if (expire < analw) {
 		/* jiffies wrapped */
 		expire -= MAX_JIFFY_OFFSET;
-		now -= MAX_JIFFY_OFFSET;
+		analw -= MAX_JIFFY_OFFSET;
 	}
-	B43_WARN_ON(expire < now);
+	B43_WARN_ON(expire < analw);
 
-	return (expire - now) / HZ;
+	return (expire - analw) / HZ;
 }
 
 static ssize_t loctls_read_file(struct b43_wldev *dev,
@@ -429,12 +429,12 @@ static ssize_t loctls_read_file(struct b43_wldev *dev,
 	struct b43_txpower_lo_control *lo;
 	int i, err = 0;
 	struct b43_lo_calib *cal;
-	unsigned long now = jiffies;
+	unsigned long analw = jiffies;
 	struct b43_phy *phy = &dev->phy;
 
 	if (phy->type != B43_PHYTYPE_G) {
-		fappend("Device is not a G-PHY\n");
-		err = -ENODEV;
+		fappend("Device is analt a G-PHY\n");
+		err = -EANALDEV;
 		goto out;
 	}
 	lo = phy->g->lo_control;
@@ -443,12 +443,12 @@ static ssize_t loctls_read_file(struct b43_wldev *dev,
 		dev->phy.hardware_power_control);
 	fappend("TX Bias: 0x%02X,  TX Magn: 0x%02X  (expire in %lu sec)\n",
 		lo->tx_bias, lo->tx_magn,
-		calc_expire_secs(now, lo->txctl_measured_time,
+		calc_expire_secs(analw, lo->txctl_measured_time,
 				 B43_LO_TXCTL_EXPIRE));
 	fappend("Power Vector: 0x%08X%08X  (expires in %lu sec)\n",
 		(unsigned int)((lo->power_vector & 0xFFFFFFFF00000000ULL) >> 32),
 		(unsigned int)(lo->power_vector & 0x00000000FFFFFFFFULL),
-		calc_expire_secs(now, lo->pwr_vec_read_time,
+		calc_expire_secs(analw, lo->pwr_vec_read_time,
 				 B43_LO_PWRVEC_EXPIRE));
 
 	fappend("\nCalibrated settings:\n");
@@ -462,7 +462,7 @@ static ssize_t loctls_read_file(struct b43_wldev *dev,
 			cal->bbatt.att,
 			cal->rfatt.att, cal->rfatt.with_padmix,
 			cal->ctl.i, cal->ctl.q,
-			calc_expire_secs(now, cal->calib_time,
+			calc_expire_secs(analw, cal->calib_time,
 					 B43_LO_CALIB_EXPIRE),
 			active ? "  ACTIVE" : "");
 	}
@@ -503,18 +503,18 @@ static ssize_t b43_debugfs_read(struct file *file, char __user *userbuf,
 		return 0;
 	dev = file->private_data;
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mutex_lock(&dev->wl->mutex);
 	if (b43_status(dev) < B43_STAT_INITIALIZED) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto out_unlock;
 	}
 
 	dfops = container_of(debugfs_real_fops(file),
 			     struct b43_debugfs_fops, fops);
 	if (!dfops->read) {
-		err = -ENOSYS;
+		err = -EANALSYS;
 		goto out_unlock;
 	}
 	dfile = fops_to_dfs_file(dev, dfops);
@@ -522,7 +522,7 @@ static ssize_t b43_debugfs_read(struct file *file, char __user *userbuf,
 	if (!dfile->buffer) {
 		buf = (char *)__get_free_pages(GFP_KERNEL, buforder);
 		if (!buf) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out_unlock;
 		}
 		memset(buf, 0, bufsize);
@@ -565,24 +565,24 @@ static ssize_t b43_debugfs_write(struct file *file,
 		return -E2BIG;
 	dev = file->private_data;
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mutex_lock(&dev->wl->mutex);
 	if (b43_status(dev) < B43_STAT_INITIALIZED) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto out_unlock;
 	}
 
 	dfops = container_of(debugfs_real_fops(file),
 			     struct b43_debugfs_fops, fops);
 	if (!dfops->write) {
-		err = -ENOSYS;
+		err = -EANALSYS;
 		goto out_unlock;
 	}
 
 	buf = (char *)get_zeroed_page(GFP_KERNEL);
 	if (!buf) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_unlock;
 	}
 	if (copy_from_user(buf, userbuf, count)) {

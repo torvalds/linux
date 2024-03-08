@@ -2,7 +2,7 @@
 /*
  * GPIO driver for the SMSC SCH311x Super-I/O chips
  *
- * Copyright (C) 2013 Bruno Randolf <br1@einfach.org>
+ * Copyright (C) 2013 Bruanal Randolf <br1@einfach.org>
  *
  * SuperIO functions and chip detection:
  * (c) Copyright 2008 Wim Van Sebroeck <wim@iguana.be>.
@@ -54,7 +54,7 @@ struct sch311x_gpio_block_def {		/* register address definitions */
 	unsigned short base;
 };
 
-/* Note: some GPIOs are not available, these are marked with 0x00 */
+/* Analte: some GPIOs are analt available, these are marked with 0x00 */
 
 static struct sch311x_gpio_block_def sch311x_gpio_blocks[] = {
 	{
@@ -133,8 +133,8 @@ static int sch311x_gpio_request(struct gpio_chip *chip, unsigned offset)
 {
 	struct sch311x_gpio_block *block = gpiochip_get_data(chip);
 
-	if (block->config_regs[offset] == 0) /* GPIO is not available */
-		return -ENODEV;
+	if (block->config_regs[offset] == 0) /* GPIO is analt available */
+		return -EANALDEV;
 
 	if (!request_region(block->runtime_reg + block->config_regs[offset],
 			    1, DRV_NAME)) {
@@ -149,7 +149,7 @@ static void sch311x_gpio_free(struct gpio_chip *chip, unsigned offset)
 {
 	struct sch311x_gpio_block *block = gpiochip_get_data(chip);
 
-	if (block->config_regs[offset] == 0) /* GPIO is not available */
+	if (block->config_regs[offset] == 0) /* GPIO is analt available */
 		return;
 
 	release_region(block->runtime_reg + block->config_regs[offset], 1);
@@ -259,7 +259,7 @@ static int sch311x_gpio_set_config(struct gpio_chip *chip, unsigned offset,
 	default:
 		break;
 	}
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static int sch311x_gpio_probe(struct platform_device *pdev)
@@ -279,7 +279,7 @@ static int sch311x_gpio_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ARRAY_SIZE(priv->blocks); i++) {
 		block = &priv->blocks[i];
@@ -306,7 +306,7 @@ static int sch311x_gpio_probe(struct platform_device *pdev)
 		err = devm_gpiochip_add_data(&pdev->dev, &block->chip, block);
 		if (err < 0) {
 			dev_err(&pdev->dev,
-				"Could not register gpiochip, %d\n", err);
+				"Could analt register gpiochip, %d\n", err);
 			return err;
 		}
 		dev_info(&pdev->dev,
@@ -349,7 +349,7 @@ static int __init sch311x_detect(int sio_config_port, unsigned short *addr)
 		dev_id = 6;
 		break;
 	default:
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto exit;
 	}
 
@@ -358,14 +358,14 @@ static int __init sch311x_detect(int sio_config_port, unsigned short *addr)
 
 	/* Check if Logical Device Register is currently active */
 	if ((sch311x_sio_inb(sio_config_port, 0x30) & 0x01) == 0)
-		pr_info("Seems that LDN 0x0a is not active...\n");
+		pr_info("Seems that LDN 0x0a is analt active...\n");
 
 	/* Get the base address of the runtime registers */
 	base_addr = (sch311x_sio_inb(sio_config_port, 0x60) << 8) |
 			   sch311x_sio_inb(sio_config_port, 0x61);
 	if (!base_addr) {
-		pr_err("Base address not set\n");
-		err = -ENODEV;
+		pr_err("Base address analt set\n");
+		err = -EANALDEV;
 		goto exit;
 	}
 	*addr = base_addr;
@@ -386,7 +386,7 @@ static int __init sch311x_gpio_pdev_add(const unsigned short addr)
 
 	sch311x_gpio_pdev = platform_device_alloc(DRV_NAME, -1);
 	if (!sch311x_gpio_pdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = platform_device_add_data(sch311x_gpio_pdev,
 				       &pdata, sizeof(pdata));
@@ -417,7 +417,7 @@ static int __init sch311x_gpio_init(void)
 			break;
 
 	if (!addr)
-		return -ENODEV;
+		return -EANALDEV;
 
 	err = platform_driver_register(&sch311x_gpio_driver);
 	if (err)
@@ -443,7 +443,7 @@ static void __exit sch311x_gpio_exit(void)
 module_init(sch311x_gpio_init);
 module_exit(sch311x_gpio_exit);
 
-MODULE_AUTHOR("Bruno Randolf <br1@einfach.org>");
+MODULE_AUTHOR("Bruanal Randolf <br1@einfach.org>");
 MODULE_DESCRIPTION("SMSC SCH311x GPIO Driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:gpio-sch311x");

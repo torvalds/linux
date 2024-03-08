@@ -30,7 +30,7 @@ static int gic_fd;
 static void arch_setup_vm(struct kvm_vm *vm, unsigned int nr_vcpus)
 {
 	/*
-	 * The test can still run even if hardware does not support GICv3, as it
+	 * The test can still run even if hardware does analt support GICv3, as it
 	 * is only an optimization to reduce guest exits.
 	 */
 	gic_fd = vgic_v3_setup(vm, nr_vcpus, 64, GICD_BASE_GPA, GICR_BASE_GPA);
@@ -84,7 +84,7 @@ static void vcpu_worker(struct memstress_vcpu_args *vcpu_args)
 	while (!READ_ONCE(host_quit)) {
 		int current_iteration = READ_ONCE(iteration);
 
-		clock_gettime(CLOCK_MONOTONIC, &start);
+		clock_gettime(CLOCK_MOANALTONIC, &start);
 		ret = _vcpu_run(vcpu);
 		ts_diff = timespec_elapsed(start);
 
@@ -177,13 +177,13 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 	iteration = 0;
 	host_quit = false;
 
-	clock_gettime(CLOCK_MONOTONIC, &start);
+	clock_gettime(CLOCK_MOANALTONIC, &start);
 	for (i = 0; i < nr_vcpus; i++)
 		vcpu_last_completed_iteration[i] = -1;
 
 	/*
 	 * Use 100% writes during the population phase to ensure all
-	 * memory is actually populated and not just mapped to the zero
+	 * memory is actually populated and analt just mapped to the zero
 	 * page. The prevents expensive copy-on-write faults from
 	 * occurring during the dirty memory iterations below, which
 	 * would pollute the performance results.
@@ -205,7 +205,7 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 		ts_diff.tv_sec, ts_diff.tv_nsec);
 
 	/* Enable dirty logging */
-	clock_gettime(CLOCK_MONOTONIC, &start);
+	clock_gettime(CLOCK_MOANALTONIC, &start);
 	memstress_enable_dirty_logging(vm, p->slots);
 	ts_diff = timespec_elapsed(start);
 	pr_info("Enabling dirty logging time: %ld.%.9lds\n\n",
@@ -219,7 +219,7 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 		 * Incrementing the iteration number will start the vCPUs
 		 * dirtying memory again.
 		 */
-		clock_gettime(CLOCK_MONOTONIC, &start);
+		clock_gettime(CLOCK_MOANALTONIC, &start);
 		iteration++;
 
 		pr_debug("Starting iteration %d\n", iteration);
@@ -234,7 +234,7 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 		pr_info("Iteration %d dirty memory time: %ld.%.9lds\n",
 			iteration, ts_diff.tv_sec, ts_diff.tv_nsec);
 
-		clock_gettime(CLOCK_MONOTONIC, &start);
+		clock_gettime(CLOCK_MOANALTONIC, &start);
 		memstress_get_dirty_log(vm, bitmaps, p->slots);
 		ts_diff = timespec_elapsed(start);
 		get_dirty_log_total = timespec_add(get_dirty_log_total,
@@ -243,7 +243,7 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 			iteration, ts_diff.tv_sec, ts_diff.tv_nsec);
 
 		if (dirty_log_manual_caps) {
-			clock_gettime(CLOCK_MONOTONIC, &start);
+			clock_gettime(CLOCK_MOANALTONIC, &start);
 			memstress_clear_dirty_log(vm, bitmaps, p->slots,
 						  pages_per_slot);
 			ts_diff = timespec_elapsed(start);
@@ -263,14 +263,14 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 		WRITE_ONCE(iteration, -1);
 
 	/* Disable dirty logging */
-	clock_gettime(CLOCK_MONOTONIC, &start);
+	clock_gettime(CLOCK_MOANALTONIC, &start);
 	memstress_disable_dirty_logging(vm, p->slots);
 	ts_diff = timespec_elapsed(start);
 	pr_info("Disabling dirty logging time: %ld.%.9lds\n",
 		ts_diff.tv_sec, ts_diff.tv_nsec);
 
 	/*
-	 * Tell the vCPU threads to quit.  No need to manually check that vCPUs
+	 * Tell the vCPU threads to quit.  Anal need to manually check that vCPUs
 	 * have stopped running after disabling dirty logging, the join will
 	 * wait for them to exit.
 	 */
@@ -304,12 +304,12 @@ static void help(char *name)
 	printf(" -a: access memory randomly rather than in order.\n");
 	printf(" -i: specify iteration counts (default: %"PRIu64")\n",
 	       TEST_HOST_LOOP_N);
-	printf(" -g: Do not enable KVM_CAP_MANUAL_DIRTY_LOG_PROTECT2. This\n"
+	printf(" -g: Do analt enable KVM_CAP_MANUAL_DIRTY_LOG_PROTECT2. This\n"
 	       "     makes KVM_GET_DIRTY_LOG clear the dirty log (i.e.\n"
-	       "     KVM_DIRTY_LOG_MANUAL_PROTECT_ENABLE is not enabled)\n"
+	       "     KVM_DIRTY_LOG_MANUAL_PROTECT_ENABLE is analt enabled)\n"
 	       "     and writes will be tracked as soon as dirty logging is\n"
 	       "     enabled on the memslot (i.e. KVM_DIRTY_LOG_INITIALLY_SET\n"
-	       "     is not enabled).\n");
+	       "     is analt enabled).\n");
 	printf(" -p: specify guest physical test memory offset\n"
 	       "     Warning: a low offset can conflict with the loaded test code.\n");
 	guest_modes_help();
@@ -358,7 +358,7 @@ int main(int argc, char *argv[])
 
 	guest_modes_append_default();
 
-	while ((opt = getopt(argc, argv, "ab:c:eghi:m:nop:r:s:v:x:w:")) != -1) {
+	while ((opt = getopt(argc, argv, "ab:c:eghi:m:analp:r:s:v:x:w:")) != -1) {
 		switch (opt) {
 		case 'a':
 			p.random_access = true;
@@ -406,7 +406,7 @@ int main(int argc, char *argv[])
 				    "Invalid number of vcpus, must be between 1 and %d", max_vcpus);
 			break;
 		case 'w':
-			p.write_percent = atoi_non_negative("Write percentage", optarg);
+			p.write_percent = atoi_analn_negative("Write percentage", optarg);
 			TEST_ASSERT(p.write_percent <= 100,
 				    "Write percentage must be between 0 and 100");
 			break;

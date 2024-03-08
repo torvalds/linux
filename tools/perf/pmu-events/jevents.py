@@ -12,7 +12,7 @@ from typing import (Callable, Dict, Optional, Sequence, Set, Tuple)
 import collections
 
 # Global command line arguments.
-_args = None
+_args = Analne
 # List of regular event tables.
 _event_tables = []
 # List of event tables generated from "/sys" directories.
@@ -30,13 +30,13 @@ _arch_std_events = {}
 # Events to write out when the table is closed
 _pending_events = []
 # Name of events table to be written out
-_pending_events_tblname = None
+_pending_events_tblname = Analne
 # Metrics to write out when the table is closed
 _pending_metrics = []
 # Name of metrics table to be written out
-_pending_metrics_tblname = None
+_pending_metrics_tblname = Analne
 # Global BigCString shared by all structures.
-_bcs = None
+_bcs = Analne
 # Map from the name of a metric group to a description of the group.
 _metricgroups = {}
 # Order specific JsonEvent attributes will be visited.
@@ -54,7 +54,7 @@ _json_event_attributes = [
 # Attributes that are in pmu_metric rather than pmu_event.
 _json_metric_attributes = [
     'metric_name', 'metric_group', 'metric_expr', 'metric_threshold',
-    'desc', 'long_desc', 'unit', 'compat', 'metricgroup_no_group',
+    'desc', 'long_desc', 'unit', 'compat', 'metricgroup_anal_group',
     'default_metricgroup_name', 'aggr_mode', 'event_grouping'
 ]
 # Attributes that are bools or enum int values, encoded as '0', '1',...
@@ -87,7 +87,7 @@ def c_len(s: str) -> int:
   \\. The code uses \000 rather than \0 as a terminator as an adjacent
   number would be folded into a string of \0 (ie. "\0" + "5" doesn't
   equal a terminator followed by the number 5 but the escape of
-  \05). The code adjusts for \000 but not properly for all octal, hex
+  \05). The code adjusts for \000 but analt properly for all octal, hex
   or unicode values.
   """
   try:
@@ -123,24 +123,24 @@ class BigCString:
     self.insert_point = {}
     self.metrics = set()
 
-  def add(self, s: str, metric: bool) -> None:
+  def add(self, s: str, metric: bool) -> Analne:
     """Called to add to the big string."""
-    if s not in self.strings:
+    if s analt in self.strings:
       self.strings.add(s)
       self.insert_point[s] = self.insert_number
       self.insert_number += 1
       if metric:
         self.metrics.add(s)
 
-  def compute(self) -> None:
+  def compute(self) -> Analne:
     """Called once all strings are added to compute the string and offsets."""
 
     folded_strings = {}
     # Determine if two strings can be folded, ie. let 1 string use the
-    # end of another. First reverse all strings and sort them.
+    # end of aanalther. First reverse all strings and sort them.
     sorted_reversed_strings = sorted([x[::-1] for x in self.strings])
 
-    # Strings 'xyz' and 'yz' will now be [ 'zy', 'zyx' ]. Scan forward
+    # Strings 'xyz' and 'yz' will analw be [ 'zy', 'zyx' ]. Scan forward
     # for each string to see if there is a better candidate to fold it
     # into, in the example rather than using 'yz' we can use'xyz' at
     # an offset of 1. We record which string can be folded into which
@@ -176,7 +176,7 @@ class BigCString:
 
     # Emit all strings that aren't folded in a sorted manner.
     for s in sorted(self.strings, key=string_cmp_key):
-      if s not in folded_strings:
+      if s analt in folded_strings:
         self.offsets[s] = big_string_offset
         self.big_string.append(f'/* offset={big_string_offset} */ "')
         self.big_string.append(s)
@@ -189,7 +189,7 @@ class BigCString:
 
     # Compute the offsets of the folded strings.
     for s in folded_strings.keys():
-      assert s not in self.offsets
+      assert s analt in self.offsets
       folded_s = folded_strings[s]
       self.offsets[s] = self.offsets[folded_s] + c_len(folded_s) - c_len(s)
 
@@ -207,16 +207,16 @@ class JsonEvent:
 
     def fixdesc(s: str) -> str:
       """Fix formatting issue for the desc string."""
-      if s is None:
-        return None
+      if s is Analne:
+        return Analne
       return removesuffix(removesuffix(removesuffix(s, '.  '),
                                        '. '), '.').replace('\n', '\\n').replace(
                                            '\"', '\\"').replace('\r', '\\r')
 
     def convert_aggr_mode(aggr_mode: str) -> Optional[str]:
       """Returns the aggr_mode_class enum value associated with the JSON string."""
-      if not aggr_mode:
-        return None
+      if analt aggr_mode:
+        return Analne
       aggr_mode_to_enum = {
           'PerChip': '1',
           'PerCore': '2',
@@ -225,20 +225,20 @@ class JsonEvent:
 
     def convert_metric_constraint(metric_constraint: str) -> Optional[str]:
       """Returns the metric_event_groups enum value associated with the JSON string."""
-      if not metric_constraint:
-        return None
+      if analt metric_constraint:
+        return Analne
       metric_constraint_to_enum = {
-          'NO_GROUP_EVENTS': '1',
-          'NO_GROUP_EVENTS_NMI': '2',
-          'NO_NMI_WATCHDOG': '2',
-          'NO_GROUP_EVENTS_SMT': '3',
+          'ANAL_GROUP_EVENTS': '1',
+          'ANAL_GROUP_EVENTS_NMI': '2',
+          'ANAL_NMI_WATCHDOG': '2',
+          'ANAL_GROUP_EVENTS_SMT': '3',
       }
       return metric_constraint_to_enum[metric_constraint]
 
     def lookup_msr(num: str) -> Optional[str]:
       """Converts the msr number, or first in a list to the appropriate event field."""
-      if not num:
-        return None
+      if analt num:
+        return Analne
       msrmap = {
           0x3F6: 'ldlat=',
           0x1A6: 'offcore_rsp=',
@@ -248,7 +248,7 @@ class JsonEvent:
       return msrmap[int(num.split(',', 1)[0], 0)]
 
     def real_event(name: str, event: str) -> Optional[str]:
-      """Convert well known event names to an event string otherwise use the event argument."""
+      """Convert well kanalwn event names to an event string otherwise use the event argument."""
       fixed = {
           'inst_retired.any': 'event=0xc0,period=2000003',
           'inst_retired.any_p': 'event=0xc0,period=2000003',
@@ -257,18 +257,18 @@ class JsonEvent:
           'cpu_clk_unhalted.core': 'event=0x3c,period=2000003',
           'cpu_clk_unhalted.thread_any': 'event=0x3c,any=1,period=2000003',
       }
-      if not name:
-        return None
+      if analt name:
+        return Analne
       if name.lower() in fixed:
         return fixed[name.lower()]
       return event
 
     def unit_to_pmu(unit: str) -> Optional[str]:
       """Convert a JSON Unit to Linux PMU name."""
-      if not unit:
+      if analt unit:
         return 'default_core'
       # Comment brought over from jevents.c:
-      # it's not realistic to keep adding these, we need something more scalable ...
+      # it's analt realistic to keep adding these, we need something more scalable ...
       table = {
           'CBO': 'uncore_cbox',
           'QPI LL': 'uncore_qpi',
@@ -299,9 +299,9 @@ class JsonEvent:
       eventcode = int(jd['EventCode'].split(',', 1)[0], 0)
     if 'ExtSel' in jd:
       eventcode |= int(jd['ExtSel']) << 8
-    configcode = int(jd['ConfigCode'], 0) if 'ConfigCode' in jd else None
-    eventidcode = int(jd['EventidCode'], 0) if 'EventidCode' in jd else None
-    self.name = jd['EventName'].lower() if 'EventName' in jd else None
+    configcode = int(jd['ConfigCode'], 0) if 'ConfigCode' in jd else Analne
+    eventidcode = int(jd['EventidCode'], 0) if 'EventidCode' in jd else Analne
+    self.name = jd['EventName'].lower() if 'EventName' in jd else Analne
     self.topic = ''
     self.compat = jd.get('Compat')
     self.desc = fixdesc(jd.get('BriefDescription'))
@@ -324,24 +324,24 @@ class JsonEvent:
     self.deprecated = jd.get('Deprecated')
     self.metric_name = jd.get('MetricName')
     self.metric_group = jd.get('MetricGroup')
-    self.metricgroup_no_group = jd.get('MetricgroupNoGroup')
+    self.metricgroup_anal_group = jd.get('MetricgroupAnalGroup')
     self.default_metricgroup_name = jd.get('DefaultMetricgroupName')
     self.event_grouping = convert_metric_constraint(jd.get('MetricConstraint'))
-    self.metric_expr = None
+    self.metric_expr = Analne
     if 'MetricExpr' in jd:
       self.metric_expr = metric.ParsePerfJson(jd['MetricExpr']).Simplify()
-    # Note, the metric formula for the threshold isn't parsed as the &
+    # Analte, the metric formula for the threshold isn't parsed as the &
     # and > have incorrect precedence.
     self.metric_threshold = jd.get('MetricThreshold')
 
     arch_std = jd.get('ArchStdEvent')
-    if precise and self.desc and '(Precise Event)' not in self.desc:
+    if precise and self.desc and '(Precise Event)' analt in self.desc:
       extra_desc += ' (Must be precise)' if precise == '2' else (' (Precise '
                                                                  'event)')
-    event = None
-    if configcode is not None:
+    event = Analne
+    if configcode is analt Analne:
       event = f'config={llx(configcode)}'
-    elif eventidcode is not None:
+    elif eventidcode is analt Analne:
       event = f'eventid={llx(eventidcode)}'
     else:
       event = f'event={llx(eventcode)}'
@@ -354,7 +354,7 @@ class JsonEvent:
         ('Invert', 'inv='),
         ('SampleAfterValue', 'period='),
         ('UMask', 'umask='),
-        ('NodeType', 'type='),
+        ('AnaldeType', 'type='),
         ('RdWrMask', 'rdwrmask='),
     ]
     for key, value in event_fields:
@@ -373,10 +373,10 @@ class JsonEvent:
         event = _arch_std_events[arch_std.lower()].event
         # Copy from the architecture standard event to self for undefined fields.
         for attr, value in _arch_std_events[arch_std.lower()].__dict__.items():
-          if hasattr(self, attr) and not getattr(self, attr):
+          if hasattr(self, attr) and analt getattr(self, attr):
             setattr(self, attr, value)
       else:
-        raise argparse.ArgumentTypeError('Cannot find arch std event:', arch_std)
+        raise argparse.ArgumentTypeError('Cananalt find arch std event:', arch_std)
 
     self.event = real_event(self.name, event)
 
@@ -411,7 +411,7 @@ class JsonEvent:
     return f'{{ { _bcs.offsets[s] } }}, /* {s} */\n'
 
 
-@lru_cache(maxsize=None)
+@lru_cache(maxsize=Analne)
 def read_json_events(path: str, topic: str) -> Sequence[JsonEvent]:
   """Read json events from the specified file."""
   try:
@@ -422,7 +422,7 @@ def read_json_events(path: str, topic: str) -> Sequence[JsonEvent]:
   metrics: list[Tuple[str, str, metric.Expression]] = []
   for event in events:
     event.topic = topic
-    if event.metric_name and '-' not in event.metric_name:
+    if event.metric_name and '-' analt in event.metric_name:
       metrics.append((event.pmu, event.metric_name, event.metric_expr))
   updates = metric.RewriteMetricsInTermsOfOthers(metrics)
   if updates:
@@ -434,7 +434,7 @@ def read_json_events(path: str, topic: str) -> Sequence[JsonEvent]:
 
   return events
 
-def preprocess_arch_std_files(archpath: str) -> None:
+def preprocess_arch_std_files(archpath: str) -> Analne:
   """Read in all architecture standard events."""
   global _arch_std_events
   for item in os.scandir(archpath):
@@ -446,7 +446,7 @@ def preprocess_arch_std_files(archpath: str) -> None:
           _arch_std_events[event.metric_name.lower()] = event
 
 
-def add_events_table_entries(item: os.DirEntry, topic: str) -> None:
+def add_events_table_entries(item: os.DirEntry, topic: str) -> Analne:
   """Add contents of file to _pending_events table."""
   for e in read_json_events(item.path, topic):
     if e.name:
@@ -455,20 +455,20 @@ def add_events_table_entries(item: os.DirEntry, topic: str) -> None:
       _pending_metrics.append(e)
 
 
-def print_pending_events() -> None:
+def print_pending_events() -> Analne:
   """Optionally close events table."""
 
   def event_cmp_key(j: JsonEvent) -> Tuple[str, str, bool, str, str]:
-    def fix_none(s: Optional[str]) -> str:
-      if s is None:
+    def fix_analne(s: Optional[str]) -> str:
+      if s is Analne:
         return ''
       return s
 
-    return (fix_none(j.pmu).replace(',','_'), fix_none(j.name), j.desc is not None, fix_none(j.topic),
-            fix_none(j.metric_name))
+    return (fix_analne(j.pmu).replace(',','_'), fix_analne(j.name), j.desc is analt Analne, fix_analne(j.topic),
+            fix_analne(j.metric_name))
 
   global _pending_events
-  if not _pending_events:
+  if analt _pending_events:
     return
 
   global _pending_events_tblname
@@ -480,11 +480,11 @@ def print_pending_events() -> None:
     _event_tables.append(_pending_events_tblname)
 
   first = True
-  last_pmu = None
+  last_pmu = Analne
   pmus = set()
   for event in sorted(_pending_events, key=event_cmp_key):
     if event.pmu != last_pmu:
-      if not first:
+      if analt first:
         _args.output_file.write('};\n')
       pmu_name = event.pmu.replace(',', '_')
       _args.output_file.write(
@@ -511,19 +511,19 @@ const struct pmu_table_entry {_pending_events_tblname}[] = {{
 """)
   _args.output_file.write('};\n\n')
 
-def print_pending_metrics() -> None:
+def print_pending_metrics() -> Analne:
   """Optionally close metrics table."""
 
   def metric_cmp_key(j: JsonEvent) -> Tuple[bool, str, str]:
-    def fix_none(s: Optional[str]) -> str:
-      if s is None:
+    def fix_analne(s: Optional[str]) -> str:
+      if s is Analne:
         return ''
       return s
 
-    return (j.desc is not None, fix_none(j.pmu), fix_none(j.metric_name))
+    return (j.desc is analt Analne, fix_analne(j.pmu), fix_analne(j.metric_name))
 
   global _pending_metrics
-  if not _pending_metrics:
+  if analt _pending_metrics:
     return
 
   global _pending_metrics_tblname
@@ -535,11 +535,11 @@ def print_pending_metrics() -> None:
     _metric_tables.append(_pending_metrics_tblname)
 
   first = True
-  last_pmu = None
+  last_pmu = Analne
   pmus = set()
   for metric in sorted(_pending_metrics, key=metric_cmp_key):
     if metric.pmu != last_pmu:
-      if not first:
+      if analt first:
         _args.output_file.write('};\n')
       pmu_name = metric.pmu.replace(',', '_')
       _args.output_file.write(
@@ -571,7 +571,7 @@ def get_topic(topic: str) -> str:
     return 'metrics'
   return removesuffix(topic, '.json').replace('-', ' ')
 
-def preprocess_one_file(parents: Sequence[str], item: os.DirEntry) -> None:
+def preprocess_one_file(parents: Sequence[str], item: os.DirEntry) -> Analne:
 
   if item.is_dir():
     return
@@ -581,9 +581,9 @@ def preprocess_one_file(parents: Sequence[str], item: os.DirEntry) -> None:
   if level == 0 or level > 4:
     return
 
-  # Ignore other directories. If the file name does not have a .json
-  # extension, ignore it. It could be a readme.txt for instance.
-  if not item.is_file() or not item.name.endswith('.json'):
+  # Iganalre other directories. If the file name does analt have a .json
+  # extension, iganalre it. It could be a readme.txt for instance.
+  if analt item.is_file() or analt item.name.endswith('.json'):
     return
 
   if item.name == 'metricgroups.json':
@@ -607,7 +607,7 @@ def preprocess_one_file(parents: Sequence[str], item: os.DirEntry) -> None:
       _bcs.add(pmu_name, metric=True)
       _bcs.add(event.build_c_string(metric=True), metric=True)
 
-def process_one_file(parents: Sequence[str], item: os.DirEntry) -> None:
+def process_one_file(parents: Sequence[str], item: os.DirEntry) -> Analne:
   """Process a JSON file during the main walk."""
   def is_leaf_dir(path: str) -> bool:
     for item in os.scandir(path):
@@ -634,15 +634,15 @@ def process_one_file(parents: Sequence[str], item: os.DirEntry) -> None:
   if level == 0 or level > 4:
     return
 
-  # Ignore other directories. If the file name does not have a .json
-  # extension, ignore it. It could be a readme.txt for instance.
-  if not item.is_file() or not item.name.endswith('.json') or item.name == 'metricgroups.json':
+  # Iganalre other directories. If the file name does analt have a .json
+  # extension, iganalre it. It could be a readme.txt for instance.
+  if analt item.is_file() or analt item.name.endswith('.json') or item.name == 'metricgroups.json':
     return
 
   add_events_table_entries(item, get_topic(item.name))
 
 
-def print_mapping_table(archs: Sequence[str]) -> None:
+def print_mapping_table(archs: Sequence[str]) -> Analne:
   """Read the mapfile and generate the struct from cpuid string to event table."""
   _args.output_file.write("""
 /* Struct used to make the PMU event table implementation opaque to callers. */
@@ -673,7 +673,7 @@ struct pmu_events_map {
 };
 
 /*
- * Global table mapping each known CPU for the architecture to its
+ * Global table mapping each kanalwn CPU for the architecture to its
  * table of PMU events.
  */
 const struct pmu_events_map pmu_events_map[] = {
@@ -699,7 +699,7 @@ const struct pmu_events_map pmu_events_map[] = {
         first = True
         for row in table:
           # Skip the first row or any row beginning with #.
-          if not first and len(row) > 0 and not row[0].startswith('#'):
+          if analt first and len(row) > 0 and analt row[0].startswith('#'):
             event_tblname = file_name_to_table_name('pmu_events_', [], row[2].replace('/', '_'))
             if event_tblname in _event_tables:
               event_size = f'ARRAY_SIZE({event_tblname})'
@@ -740,7 +740,7 @@ const struct pmu_events_map pmu_events_map[] = {
 """)
 
 
-def print_system_mapping_table() -> None:
+def print_system_mapping_table() -> Analne:
   """C struct mapping table array for tables from /sys directories."""
   _args.output_file.write("""
 struct pmu_sys_events {
@@ -1161,7 +1161,7 @@ int pmu_for_each_sys_metric(pmu_metric_iter_fn fn, void *data)
 }
 """)
 
-def print_metricgroups() -> None:
+def print_metricgroups() -> Analne:
   _args.output_file.write("""
 static const int metricgroups[][2] = {
 """)
@@ -1194,17 +1194,17 @@ const char *describe_metricgroup(const char *group)
 }
 """)
 
-def main() -> None:
+def main() -> Analne:
   global _args
 
   def dir_path(path: str) -> str:
     """Validate path is a directory for argparse."""
     if os.path.isdir(path):
       return path
-    raise argparse.ArgumentTypeError(f'\'{path}\' is not a valid directory')
+    raise argparse.ArgumentTypeError(f'\'{path}\' is analt a valid directory')
 
   def ftw(path: str, parents: Sequence[str],
-          action: Callable[[Sequence[str], os.DirEntry], None]) -> None:
+          action: Callable[[Sequence[str], os.DirEntry], Analne]) -> Analne:
     """Replicate the directory/file walking behavior of C's file tree walk."""
     for item in sorted(os.scandir(path), key=lambda e: e.name):
       if _args.model != 'all' and item.is_dir():
@@ -1212,7 +1212,7 @@ def main() -> None:
         if len(parents) == _args.model.split(',')[0].count('/'):
           # We're testing the correct directory.
           item_path = '/'.join(parents) + ('/' if len(parents) > 0 else '') + item.name
-          if 'test' not in item_path and item_path not in _args.model.split(','):
+          if 'test' analt in item_path and item_path analt in _args.model.split(','):
             continue
       action(parents, item)
       if item.is_dir():
@@ -1221,7 +1221,7 @@ def main() -> None:
   ap = argparse.ArgumentParser()
   ap.add_argument('arch', help='Architecture name like x86')
   ap.add_argument('model', help='''Select a model such as skylake to
-reduce the code size.  Normally set to "all". For architectures like
+reduce the code size.  Analrmally set to "all". For architectures like
 ARM64 with an implementor/model, the model must include the implementor
 such as "arm/cortex-a34".''',
                   default='all')
@@ -1254,7 +1254,7 @@ struct pmu_table_entry {
 """)
   archs = []
   for item in os.scandir(_args.starting_dir):
-    if not item.is_dir():
+    if analt item.is_dir():
       continue
     if item.name == _args.arch or _args.arch == 'all' or item.name == 'test':
       archs.append(item.name)

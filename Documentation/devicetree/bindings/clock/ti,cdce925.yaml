@@ -41,7 +41,7 @@ properties:
   vddout-supply:
     description: |
       Regulator that provides Vddout power supply.
-      non-L variant: 2.5V or 3.3V for
+      analn-L variant: 2.5V or 3.3V for
       L variant: 1.8V for
 
   xtal-load-pf:
@@ -54,7 +54,7 @@ patternProperties:
   "^PLL[1-4]$":
     type: object
     description: |
-      optional child node can be used to specify spread
+      optional child analde can be used to specify spread
       spectrum clocking parameters for a board
 
     additionalProperties: false

@@ -41,9 +41,9 @@
 #define SMP_RESP_FUNC_UNK        0x01
 #define SMP_RESP_FUNC_FAILED     0x02
 #define SMP_RESP_INV_FRM_LEN     0x03
-#define SMP_RESP_NO_PHY          0x10
-#define SMP_RESP_NO_INDEX        0x11
-#define SMP_RESP_PHY_NO_SATA     0x12
+#define SMP_RESP_ANAL_PHY          0x10
+#define SMP_RESP_ANAL_INDEX        0x11
+#define SMP_RESP_PHY_ANAL_SATA     0x12
 #define SMP_RESP_PHY_UNK_OP      0x13
 #define SMP_RESP_PHY_UNK_TESTF   0x14
 #define SMP_RESP_PHY_TEST_INPROG 0x15
@@ -63,11 +63,11 @@
 #define TMF_RESP_FUNC_ESUPP      0x04
 #define TMF_RESP_FUNC_FAILED     0x05
 #define TMF_RESP_FUNC_SUCC       0x08
-#define TMF_RESP_NO_LUN          0x09
+#define TMF_RESP_ANAL_LUN          0x09
 #define TMF_RESP_OVERLAPPED_TAG  0x0A
 
 enum sas_oob_mode {
-	OOB_NOT_CONNECTED,
+	OOB_ANALT_CONNECTED,
 	SATA_OOB_MODE,
 	SAS_OOB_MODE
 };
@@ -78,7 +78,7 @@ enum sas_device_type {
 	SAS_PHY_UNUSED = 0,
 	SAS_END_DEVICE = 1,
 	SAS_EDGE_EXPANDER_DEVICE = 2,
-	SAS_FANOUT_EXPANDER_DEVICE = 3,
+	SAS_FAANALUT_EXPANDER_DEVICE = 3,
 	/* these are internal to libsas */
 	SAS_HA = 4,
 	SAS_SATA_DEV = 5,
@@ -88,7 +88,7 @@ enum sas_device_type {
 };
 
 enum sas_protocol {
-	SAS_PROTOCOL_NONE		= 0,
+	SAS_PROTOCOL_ANALNE		= 0,
 	SAS_PROTOCOL_SATA		= 0x01,
 	SAS_PROTOCOL_SMP		= 0x02,
 	SAS_PROTOCOL_STP		= 0x04,
@@ -101,7 +101,7 @@ enum sas_protocol {
 
 /* From the spec; local phys only */
 enum phy_func {
-	PHY_FUNC_NOP,
+	PHY_FUNC_ANALP,
 	PHY_FUNC_LINK_RESET,		  /* Enables the phy */
 	PHY_FUNC_HARD_RESET,
 	PHY_FUNC_DISABLE,
@@ -117,7 +117,7 @@ enum phy_func {
  * Most of those are here for completeness.
  */
 enum sas_prim {
-	SAS_PRIM_AIP_NORMAL = 1,
+	SAS_PRIM_AIP_ANALRMAL = 1,
 	SAS_PRIM_AIP_R0     = 2,
 	SAS_PRIM_AIP_R1     = 3,
 	SAS_PRIM_AIP_R2     = 4,
@@ -135,13 +135,13 @@ enum sas_prim {
 	SAS_PRIM_BC_R3      = 15,
 	SAS_PRIM_BC_R4      = 16,
 
-	SAS_PRIM_NOTIFY_ENSP= 17,
-	SAS_PRIM_NOTIFY_R0  = 18,
-	SAS_PRIM_NOTIFY_R1  = 19,
-	SAS_PRIM_NOTIFY_R2  = 20,
+	SAS_PRIM_ANALTIFY_ENSP= 17,
+	SAS_PRIM_ANALTIFY_R0  = 18,
+	SAS_PRIM_ANALTIFY_R1  = 19,
+	SAS_PRIM_ANALTIFY_R2  = 20,
 
 	SAS_PRIM_CLOSE_CLAF = 21,
-	SAS_PRIM_CLOSE_NORM = 22,
+	SAS_PRIM_CLOSE_ANALRM = 22,
 	SAS_PRIM_CLOSE_R0   = 23,
 	SAS_PRIM_CLOSE_R1   = 24,
 
@@ -162,7 +162,7 @@ enum sas_prim {
 
 enum sas_open_rej_reason {
 	/* Abandon open */
-	SAS_OREJ_UNKNOWN   = 0,
+	SAS_OREJ_UNKANALWN   = 0,
 	SAS_OREJ_BAD_DEST  = 1,
 	SAS_OREJ_CONN_RATE = 2,
 	SAS_OREJ_EPROTO    = 3,
@@ -171,10 +171,10 @@ enum sas_open_rej_reason {
 	SAS_OREJ_RESV_AB2  = 6,
 	SAS_OREJ_RESV_AB3  = 7,
 	SAS_OREJ_WRONG_DEST= 8,
-	SAS_OREJ_STP_NORES = 9,
+	SAS_OREJ_STP_ANALRES = 9,
 
 	/* Retry open */
-	SAS_OREJ_NO_DEST   = 10,
+	SAS_OREJ_ANAL_DEST   = 10,
 	SAS_OREJ_PATH_BLOCKED = 11,
 	SAS_OREJ_RSVD_CONT0 = 12,
 	SAS_OREJ_RSVD_CONT1 = 13,
@@ -195,7 +195,7 @@ enum sas_gpio_reg_type {
 
 /* Response frame DATAPRES field */
 enum {
-	SAS_DATAPRES_NO_DATA		= 0,
+	SAS_DATAPRES_ANAL_DATA		= 0,
 	SAS_DATAPRES_RESPONSE_DATA	= 1,
 	SAS_DATAPRES_SENSE_DATA		= 2,
 };
@@ -693,7 +693,7 @@ struct report_phy_sata_resp {
 } __attribute__ ((packed));
 
 #else
-#error "Bitfield order not defined!"
+#error "Bitfield order analt defined!"
 #endif
 
 struct smp_rg_resp {

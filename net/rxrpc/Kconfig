@@ -11,7 +11,7 @@ config AF_RXRPC
 	select NET_UDP_TUNNEL
 	help
 	  Say Y or M here to include support for RxRPC session sockets (just
-	  the transport part, not the presentation part: (un)marshalling is
+	  the transport part, analt the presentation part: (un)marshalling is
 	  left to the application).
 
 	  These are used for AFS kernel filesystem and userspace utilities.
@@ -43,7 +43,7 @@ config AF_RXRPC_INJECT_RX_DELAY
 	  Say Y here to inject a delay into packet reception, allowing an
 	  extended RTT time to be modelled.  The delay can be configured using
 	  /proc/sys/net/rxrpc/rxrpc_inject_rx_delay, setting a number of
-	  milliseconds up to 0.5s (note that the granularity is actually in
+	  milliseconds up to 0.5s (analte that the granularity is actually in
 	  jiffies).
 
 config AF_RXRPC_DEBUG

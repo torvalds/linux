@@ -12,7 +12,7 @@
  *	X.25 001	Split from x25_subr.c
  *	mar/20/00	Daniela Squassoni Disabling/enabling of facilities
  *					  negotiation.
- *	apr/14/05	Shaun Pereira - Allow fast select with no restriction
+ *	apr/14/05	Shaun Pereira - Allow fast select with anal restriction
  *					on response.
  */
 
@@ -34,7 +34,7 @@
  *
  * Return codes:
  *  -1 - Parsing error, caller should drop call and clean up
- *   0 - Parse OK, this skb has no facilities
+ *   0 - Parse OK, this skb has anal facilities
  *  >0 - Parse OK, returns the length of the facilities header
  *
  */
@@ -47,8 +47,8 @@ int x25_parse_facilities(struct sk_buff *skb, struct x25_facilities *facilities,
 	*vc_fac_mask = 0;
 
 	/*
-	 * The kernel knows which facilities were set on an incoming call but
-	 * currently this information is not available to userspace.  Here we
+	 * The kernel kanalws which facilities were set on an incoming call but
+	 * currently this information is analt available to userspace.  Here we
 	 * give userspace who read incoming call facilities 0 length to indicate
 	 * it wasn't set.
 	 */
@@ -106,7 +106,7 @@ int x25_parse_facilities(struct sk_buff *skb, struct x25_facilities *facilities,
 			case X25_MARKER:
 				break;
 			default:
-				pr_debug("unknown facility "
+				pr_debug("unkanalwn facility "
 				       "%02X, value %02X\n",
 				       p[0], p[1]);
 				break;
@@ -129,7 +129,7 @@ int x25_parse_facilities(struct sk_buff *skb, struct x25_facilities *facilities,
 				*vc_fac_mask |= X25_MASK_WINDOW_SIZE;
 				break;
 			default:
-				pr_debug("unknown facility "
+				pr_debug("unkanalwn facility "
 				       "%02X, values %02X, %02X\n",
 				       p[0], p[1], p[2]);
 				break;
@@ -140,7 +140,7 @@ int x25_parse_facilities(struct sk_buff *skb, struct x25_facilities *facilities,
 		case X25_FAC_CLASS_C:
 			if (len < 4)
 				return -1;
-			pr_debug("unknown facility %02X, "
+			pr_debug("unkanalwn facility %02X, "
 			       "values %02X, %02X, %02X\n",
 			       p[0], p[1], p[2], p[3]);
 			p   += 4;
@@ -169,7 +169,7 @@ int x25_parse_facilities(struct sk_buff *skb, struct x25_facilities *facilities,
 				*vc_fac_mask |= X25_MASK_CALLED_AE;
 				break;
 			default:
-				pr_debug("unknown facility %02X,"
+				pr_debug("unkanalwn facility %02X,"
 					"length %d\n", p[0], p[1]);
 				break;
 			}

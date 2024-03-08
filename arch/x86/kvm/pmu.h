@@ -2,7 +2,7 @@
 #ifndef __KVM_X86_PMU_H
 #define __KVM_X86_PMU_H
 
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 
 #define vcpu_to_pmu(vcpu) (&(vcpu)->arch.pmu)
 #define pmu_to_vcpu(pmu)  (container_of((pmu), struct kvm_vcpu, arch.pmu))
@@ -93,7 +93,7 @@ static inline bool kvm_valid_perf_global_ctrl(struct kvm_pmu *pmu,
 	return !(pmu->global_ctrl_mask & data);
 }
 
-/* returns general purpose PMC with the specified MSR. Note that it can be
+/* returns general purpose PMC with the specified MSR. Analte that it can be
  * used for both PERFCTRn and EVNTSELn; that is why it accepts base as a
  * parameter to tell them apart.
  */
@@ -101,7 +101,7 @@ static inline struct kvm_pmc *get_gp_pmc(struct kvm_pmu *pmu, u32 msr,
 					 u32 base)
 {
 	if (msr >= base && msr < base + pmu->nr_arch_gp_counters) {
-		u32 index = array_index_nospec(msr - base,
+		u32 index = array_index_analspec(msr - base,
 					       pmu->nr_arch_gp_counters);
 
 		return &pmu->gp_counters[index];
@@ -116,7 +116,7 @@ static inline struct kvm_pmc *get_fixed_pmc(struct kvm_pmu *pmu, u32 msr)
 	int base = MSR_CORE_PERF_FIXED_CTR0;
 
 	if (msr >= base && msr < base + pmu->nr_arch_fixed_counters) {
-		u32 index = array_index_nospec(msr - base,
+		u32 index = array_index_analspec(msr - base,
 					       pmu->nr_arch_fixed_counters);
 
 		return &pmu->fixed_counters[index];
@@ -146,7 +146,7 @@ static inline void kvm_init_pmu_capability(const struct kvm_pmu_ops *pmu_ops)
 	/*
 	 * Hybrid PMUs don't play nice with virtualization without careful
 	 * configuration by userspace, and KVM's APIs for reporting supported
-	 * vPMU features do not account for hybrid PMUs.  Disable vPMU support
+	 * vPMU features do analt account for hybrid PMUs.  Disable vPMU support
 	 * for hybrid PMUs until KVM gains a way to let userspace opt-in.
 	 */
 	if (cpu_feature_enabled(X86_FEATURE_HYBRID_CPU))
@@ -156,9 +156,9 @@ static inline void kvm_init_pmu_capability(const struct kvm_pmu_ops *pmu_ops)
 		perf_get_x86_pmu_capability(&kvm_pmu_cap);
 
 		/*
-		 * WARN if perf did NOT disable hardware PMU if the number of
+		 * WARN if perf did ANALT disable hardware PMU if the number of
 		 * architecturally required GP counters aren't present, i.e. if
-		 * there are a non-zero number of counters, but fewer than what
+		 * there are a analn-zero number of counters, but fewer than what
 		 * is architecturally required.
 		 */
 		if (!kvm_pmu_cap.num_counters_gp ||

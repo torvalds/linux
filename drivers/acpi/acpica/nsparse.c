@@ -23,25 +23,25 @@ ACPI_MODULE_NAME("nsparse")
  * FUNCTION:    ns_execute_table
  *
  * PARAMETERS:  table_desc      - An ACPI table descriptor for table to parse
- *              start_node      - Where to enter the table into the namespace
+ *              start_analde      - Where to enter the table into the namespace
  *
  * RETURN:      Status
  *
  * DESCRIPTION: Load ACPI/AML table by executing the entire table as a single
  *              large control method.
  *
- * NOTE: The point of this is to execute any module-level code in-place
+ * ANALTE: The point of this is to execute any module-level code in-place
  * as the table is parsed. Some AML code depends on this behavior.
  *
  * It is a run-time option at this time, but will eventually become
  * the default.
  *
- * Note: This causes the table to only have a single-pass parse.
+ * Analte: This causes the table to only have a single-pass parse.
  * However, this is compatible with other ACPI implementations.
  *
  ******************************************************************************/
 acpi_status
-acpi_ns_execute_table(u32 table_index, struct acpi_namespace_node *start_node)
+acpi_ns_execute_table(u32 table_index, struct acpi_namespace_analde *start_analde)
 {
 	acpi_status status;
 	struct acpi_table_header *table;
@@ -76,14 +76,14 @@ acpi_ns_execute_table(u32 table_index, struct acpi_namespace_node *start_node)
 
 	method_obj = acpi_ut_create_internal_object(ACPI_TYPE_METHOD);
 	if (!method_obj) {
-		return_ACPI_STATUS(AE_NO_MEMORY);
+		return_ACPI_STATUS(AE_ANAL_MEMORY);
 	}
 
 	/* Allocate the evaluation information block */
 
 	info = ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_evaluate_info));
 	if (!info) {
-		status = AE_NO_MEMORY;
+		status = AE_ANAL_MEMORY;
 		goto cleanup;
 	}
 
@@ -98,12 +98,12 @@ acpi_ns_execute_table(u32 table_index, struct acpi_namespace_node *start_node)
 	method_obj->method.info_flags |= ACPI_METHOD_MODULE_LEVEL;
 
 	info->pass_number = ACPI_IMODE_EXECUTE;
-	info->node = start_node;
+	info->analde = start_analde;
 	info->obj_desc = method_obj;
-	info->node_flags = info->node->flags;
-	info->full_pathname = acpi_ns_get_normalized_pathname(info->node, TRUE);
+	info->analde_flags = info->analde->flags;
+	info->full_pathname = acpi_ns_get_analrmalized_pathname(info->analde, TRUE);
 	if (!info->full_pathname) {
-		status = AE_NO_MEMORY;
+		status = AE_ANAL_MEMORY;
 		goto cleanup;
 	}
 
@@ -147,7 +147,7 @@ cleanup:
 acpi_status
 acpi_ns_one_complete_parse(u32 pass_number,
 			   u32 table_index,
-			   struct acpi_namespace_node *start_node)
+			   struct acpi_namespace_analde *start_analde)
 {
 	union acpi_parse_object *parse_root;
 	acpi_status status;
@@ -178,11 +178,11 @@ acpi_ns_one_complete_parse(u32 pass_number,
 		return_ACPI_STATUS(status);
 	}
 
-	/* Create and init a Root Node */
+	/* Create and init a Root Analde */
 
 	parse_root = acpi_ps_create_scope_op(aml_start);
 	if (!parse_root) {
-		return_ACPI_STATUS(AE_NO_MEMORY);
+		return_ACPI_STATUS(AE_ANAL_MEMORY);
 	}
 
 	/* Create and initialize a new walk state */
@@ -190,7 +190,7 @@ acpi_ns_one_complete_parse(u32 pass_number,
 	walk_state = acpi_ds_create_walk_state(owner_id, NULL, NULL, NULL);
 	if (!walk_state) {
 		acpi_ps_free_op(parse_root);
-		return_ACPI_STATUS(AE_NO_MEMORY);
+		return_ACPI_STATUS(AE_ANAL_MEMORY);
 	}
 
 	status = acpi_ds_init_aml_walk(walk_state, parse_root, NULL,
@@ -208,11 +208,11 @@ acpi_ns_one_complete_parse(u32 pass_number,
 		walk_state->namespace_override = TRUE;
 	}
 
-	/* start_node is the default location to load the table */
+	/* start_analde is the default location to load the table */
 
-	if (start_node && start_node != acpi_gbl_root_node) {
+	if (start_analde && start_analde != acpi_gbl_root_analde) {
 		status =
-		    acpi_ds_scope_stack_push(start_node, ACPI_TYPE_METHOD,
+		    acpi_ds_scope_stack_push(start_analde, ACPI_TYPE_METHOD,
 					     walk_state);
 		if (ACPI_FAILURE(status)) {
 			acpi_ds_delete_walk_state(walk_state);
@@ -238,7 +238,7 @@ cleanup:
  * FUNCTION:    acpi_ns_parse_table
  *
  * PARAMETERS:  table_desc      - An ACPI table descriptor for table to parse
- *              start_node      - Where to enter the table into the namespace
+ *              start_analde      - Where to enter the table into the namespace
  *
  * RETURN:      Status
  *
@@ -247,7 +247,7 @@ cleanup:
  ******************************************************************************/
 
 acpi_status
-acpi_ns_parse_table(u32 table_index, struct acpi_namespace_node *start_node)
+acpi_ns_parse_table(u32 table_index, struct acpi_namespace_analde *start_analde)
 {
 	acpi_status status;
 
@@ -258,14 +258,14 @@ acpi_ns_parse_table(u32 table_index, struct acpi_namespace_node *start_node)
 	 * The point of this is to execute any module-level code in-place
 	 * as the table is parsed. Some AML code depends on this behavior.
 	 *
-	 * Note: This causes the table to only have a single-pass parse.
+	 * Analte: This causes the table to only have a single-pass parse.
 	 * However, this is compatible with other ACPI implementations.
 	 */
 	ACPI_DEBUG_PRINT_RAW((ACPI_DB_PARSE,
 			      "%s: **** Start table execution pass\n",
 			      ACPI_GET_FUNCTION_NAME));
 
-	status = acpi_ns_execute_table(table_index, start_node);
+	status = acpi_ns_execute_table(table_index, start_analde);
 
 	return_ACPI_STATUS(status);
 }

@@ -21,7 +21,7 @@
 	};
 
 	chosen {
-		bootargs = "earlyprintk ignore_loglevel root=/dev/nfs ip=on rw";
+		bootargs = "earlyprintk iganalre_loglevel root=/dev/nfs ip=on rw";
 		stdout-path = "serial0:115200n8";
 	};
 
@@ -315,7 +315,7 @@
 
 	vmmc-supply = <&reg_3p3v>;
 	bus-width = <8>;
-	non-removable;
+	analn-removable;
 	status = "okay";
 };
 

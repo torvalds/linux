@@ -214,7 +214,7 @@ static int s6d27a1_get_modes(struct drm_panel *panel,
 	mode = drm_mode_duplicate(connector->dev, &s6d27a1_480_800_mode);
 	if (!mode) {
 		dev_err(ctx->dev, "failed to add mode\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	connector->display_info.bpc = 8;
@@ -249,7 +249,7 @@ static int s6d27a1_probe(struct spi_device *spi)
 
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->dev = dev;
 
@@ -268,7 +268,7 @@ static int s6d27a1_probe(struct spi_device *spi)
 	ctx->reset = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(ctx->reset)) {
 		ret = PTR_ERR(ctx->reset);
-		return dev_err_probe(dev, ret, "no RESET GPIO\n");
+		return dev_err_probe(dev, ret, "anal RESET GPIO\n");
 	}
 
 	ret = mipi_dbi_spi_init(spi, &ctx->dbi, NULL);

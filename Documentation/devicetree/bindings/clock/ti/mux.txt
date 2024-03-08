@@ -4,7 +4,7 @@ Binding status: Unstable - ABI compatibility may be broken in the future
 
 This binding uses the common clock binding[1].  It assumes a
 register-mapped multiplexer with multiple input clock signals or
-parents, one of which can be selected as output.  This clock does not
+parents, one of which can be selected as output.  This clock does analt
 gate or adjust the parent rate via a divider or multiplier.
 
 By default the "clocks" property lists the parents in the same order
@@ -19,7 +19,7 @@ register value		selected parent clock
 1			bar_clock
 2			baz_clock
 
-Some clock controller IPs do not allow a value of zero to be programmed
+Some clock controller IPs do analt allow a value of zero to be programmed
 into the register, instead indexing begins at 1.  The optional property
 "index-starts-at-one" modified the scheme as follows:
 
@@ -44,11 +44,11 @@ Required properties:
 Optional properties:
 - clock-output-names : from common clock binding.
 - ti,bit-shift : number of bits to shift the bit-mask, defaults to
-  0 if not present
-- ti,index-starts-at-one : valid input select programming starts at 1, not
+  0 if analt present
+- ti,index-starts-at-one : valid input select programming starts at 1, analt
   zero
 - ti,set-rate-parent : clk_set_rate is propagated to parent clock,
-  not supported by the composite-mux-clock subtype
+  analt supported by the composite-mux-clock subtype
 - ti,latch-bit : latch the mux value to HW, only needed if the register
   access requires this. As an example, dra7x DPLL_GMAC H14 muxing
   implements such behavior.

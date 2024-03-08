@@ -18,7 +18,7 @@ struct snic_io_stats {
 	atomic64_t req_null;		/* req or req info is NULL */
 	atomic64_t alloc_fail;		/* Alloc Failures */
 	atomic64_t sc_null;
-	atomic64_t io_not_found;	/* IO Not Found */
+	atomic64_t io_analt_found;	/* IO Analt Found */
 	atomic64_t num_ios;		/* Number of IOs */
 };
 
@@ -27,7 +27,7 @@ struct snic_abort_stats {
 	atomic64_t fail;	/* Abort Failure Counter */
 	atomic64_t drv_tmo;	/* Abort Driver Timeouts */
 	atomic64_t fw_tmo;	/* Abort Firmware Timeouts */
-	atomic64_t io_not_found;/* Abort IO Not Found */
+	atomic64_t io_analt_found;/* Abort IO Analt Found */
 	atomic64_t q_fail;	/* Abort Queuing Failed */
 };
 
@@ -58,7 +58,7 @@ struct snic_misc_stats {
 	u64	last_ack_time;
 	atomic64_t ack_isr_cnt;
 	atomic64_t cmpl_isr_cnt;
-	atomic64_t errnotify_isr_cnt;
+	atomic64_t erranaltify_isr_cnt;
 	atomic64_t max_cq_ents;		/* Max CQ Entries */
 	atomic64_t data_cnt_mismat;	/* Data Count Mismatch */
 	atomic64_t io_tmo;
@@ -67,13 +67,13 @@ struct snic_misc_stats {
 	atomic64_t abts_wq_alloc_fail;	/* Abort Path WQ desc alloc failure */
 	atomic64_t devrst_wq_alloc_fail;/* Device Reset - WQ desc alloc fail */
 	atomic64_t wq_alloc_fail;	/* IO WQ desc alloc failure */
-	atomic64_t no_icmnd_itmf_cmpls;
+	atomic64_t anal_icmnd_itmf_cmpls;
 	atomic64_t io_under_run;
 	atomic64_t qfull;
 	atomic64_t qsz_rampup;
 	atomic64_t qsz_rampdown;
 	atomic64_t last_qsz;
-	atomic64_t tgt_not_rdy;
+	atomic64_t tgt_analt_rdy;
 };
 
 struct snic_stats {

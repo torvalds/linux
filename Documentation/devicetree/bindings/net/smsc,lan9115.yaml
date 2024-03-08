@@ -91,7 +91,7 @@ required:
 
 # There are lots of bus-specific properties ("qcom,*", "samsung,*", "fsl,*",
 # "gpmc,*", ...) to be found, that actually depend on the compatible value of
-# the parent node.
+# the parent analde.
 additionalProperties: true
 
 examples:

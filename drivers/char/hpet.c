@@ -16,7 +16,7 @@
 #include <linux/ioport.h>
 #include <linux/fcntl.h>
 #include <linux/init.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 #include <linux/poll.h>
 #include <linux/mm.h>
 #include <linux/proc_fs.h>
@@ -112,14 +112,14 @@ static irqreturn_t hpet_interrupt(int irq, void *data)
 
 	if ((devp->hd_flags & HPET_SHARED_IRQ) &&
 	    !(isr & readl(&devp->hd_hpet->hpet_isr)))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	spin_lock(&hpet_lock);
 	devp->hd_irqdata++;
 
 	/*
-	 * For non-periodic timers, increment the accumulator.
-	 * This has the effect of treating non-periodic like periodic.
+	 * For analn-periodic timers, increment the accumulator.
+	 * This has the effect of treating analn-periodic like periodic.
 	 */
 	if ((devp->hd_flags & (HPET_IE | HPET_PERIODIC)) == HPET_IE) {
 		unsigned long t, mc, base, k;
@@ -220,7 +220,7 @@ static void hpet_timer_set_irq(struct hpet_dev *devp)
 	return;
 }
 
-static int hpet_open(struct inode *inode, struct file *file)
+static int hpet_open(struct ianalde *ianalde, struct file *file)
 {
 	struct hpet_dev *devp;
 	struct hpets *hpetp;
@@ -285,7 +285,7 @@ hpet_read(struct file *file, char __user *buf, size_t count, loff_t * ppos)
 
 		if (data) {
 			break;
-		} else if (file->f_flags & O_NONBLOCK) {
+		} else if (file->f_flags & O_ANALNBLOCK) {
 			retval = -EAGAIN;
 			goto out;
 		} else if (signal_pending(current)) {
@@ -322,7 +322,7 @@ static __poll_t hpet_poll(struct file *file, poll_table * wait)
 	spin_unlock_irq(&hpet_lock);
 
 	if (v != 0)
-		return EPOLLIN | EPOLLRDNORM;
+		return EPOLLIN | EPOLLRDANALRM;
 
 	return 0;
 }
@@ -354,15 +354,15 @@ static int hpet_mmap(struct file *file, struct vm_area_struct *vma)
 	addr = devp->hd_hpets->hp_hpet_phys;
 
 	if (addr & (PAGE_SIZE - 1))
-		return -ENOSYS;
+		return -EANALSYS;
 
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	vma->vm_page_prot = pgprot_analncached(vma->vm_page_prot);
 	return vm_iomap_memory(vma, addr, PAGE_SIZE);
 }
 #else
 static int hpet_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 #endif
 
@@ -378,7 +378,7 @@ static int hpet_fasync(int fd, struct file *file, int on)
 		return -EIO;
 }
 
-static int hpet_release(struct inode *inode, struct file *file)
+static int hpet_release(struct ianalde *ianalde, struct file *file)
 {
 	struct hpet_dev *devp;
 	struct hpet_timer __iomem *timer;
@@ -454,7 +454,7 @@ static int hpet_ioctl_ieon(struct hpet_dev *devp)
 			/*
 			 * To prevent the interrupt handler from seeing an
 			 * unwanted interrupt status bit, program the timer
-			 * so that it will not fire in the near future ...
+			 * so that it will analt fire in the near future ...
 			 */
 			writel(readl(&timer->hpet_config) & ~Tn_TYPE_CNF_MASK,
 			       &timer->hpet_config);
@@ -469,7 +469,7 @@ static int hpet_ioctl_ieon(struct hpet_dev *devp)
 		irq_flags = devp->hd_flags & HPET_SHARED_IRQ ? IRQF_SHARED : 0;
 		if (request_irq(irq, hpet_interrupt, irq_flags,
 				devp->hd_name, (void *)devp)) {
-			printk(KERN_ERR "hpet: IRQ %d is not free\n", irq);
+			printk(KERN_ERR "hpet: IRQ %d is analt free\n", irq);
 			irq = 0;
 		}
 	}
@@ -485,7 +485,7 @@ static int hpet_ioctl_ieon(struct hpet_dev *devp)
 	t = devp->hd_ireqfreq;
 	v = readq(&timer->hpet_config);
 
-	/* 64-bit comparators are not yet supported through the ioctls,
+	/* 64-bit comparators are analt yet supported through the ioctls,
 	 * so force this into 32-bit mode if it supports both modes
 	 */
 	g = v | Tn_32MODE_CNF_MASK | Tn_INT_ENB_CNF_MASK;
@@ -497,7 +497,7 @@ static int hpet_ioctl_ieon(struct hpet_dev *devp)
 		local_irq_save(flags);
 
 		/*
-		 * NOTE: First we modify the hidden accumulator
+		 * ANALTE: First we modify the hidden accumulator
 		 * register supported by periodic-capable comparators.
 		 * We never want to modify the (single) counter; that
 		 * would affect all the comparators. The value written
@@ -677,7 +677,7 @@ hpet_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 static const struct file_operations hpet_fops = {
 	.owner = THIS_MODULE,
-	.llseek = no_llseek,
+	.llseek = anal_llseek,
 	.read = hpet_read,
 	.poll = hpet_poll,
 	.unlocked_ioctl = hpet_ioctl,
@@ -690,7 +690,7 @@ static const struct file_operations hpet_fops = {
 	.mmap = hpet_mmap,
 };
 
-static int hpet_is_known(struct hpet_data *hdp)
+static int hpet_is_kanalwn(struct hpet_data *hdp)
 {
 	struct hpets *hpetp;
 
@@ -794,8 +794,8 @@ int hpet_alloc(struct hpet_data *hdp)
 	 * If platform dependent code has allocated the hpet that
 	 * ACPI has also reported, then we catch it here.
 	 */
-	if (hpet_is_known(hdp)) {
-		printk(KERN_DEBUG "%s: duplicate HPET ignored\n",
+	if (hpet_is_kanalwn(hdp)) {
+		printk(KERN_DEBUG "%s: duplicate HPET iganalred\n",
 			__func__);
 		return 0;
 	}
@@ -804,7 +804,7 @@ int hpet_alloc(struct hpet_data *hdp)
 			GFP_KERNEL);
 
 	if (!hpetp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hpetp->hp_which = hpet_nhpet++;
 	hpetp->hp_hpet = hdp->hd_address;
@@ -825,7 +825,7 @@ int hpet_alloc(struct hpet_data *hdp)
 		printk(KERN_WARNING "hpet: number irqs doesn't agree"
 		       " with number of timers\n");
 		kfree(hpetp);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (last)
@@ -906,7 +906,7 @@ static acpi_status hpet_resources(struct acpi_resource *res, void *data)
 		if (!hdp->hd_address)
 			return AE_ERROR;
 
-		if (hpet_is_known(hdp)) {
+		if (hpet_is_kanalwn(hdp)) {
 			iounmap(hdp->hd_address);
 			return AE_ALREADY_EXISTS;
 		}
@@ -921,7 +921,7 @@ static acpi_status hpet_resources(struct acpi_resource *res, void *data)
 		if (!hdp->hd_address)
 			return AE_ERROR;
 
-		if (hpet_is_known(hdp)) {
+		if (hpet_is_kanalwn(hdp)) {
 			iounmap(hdp->hd_address);
 			return AE_ALREADY_EXISTS;
 		}
@@ -961,13 +961,13 @@ static int hpet_acpi_add(struct acpi_device *device)
 				hpet_resources, &data);
 
 	if (ACPI_FAILURE(result))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!data.hd_address || !data.hd_nirqs) {
 		if (data.hd_address)
 			iounmap(data.hd_address);
-		printk("%s: no address or irqs in _CRS\n", __func__);
-		return -ENODEV;
+		printk("%s: anal address or irqs in _CRS\n", __func__);
+		return -EANALDEV;
 	}
 
 	return hpet_alloc(&data);
@@ -986,7 +986,7 @@ static struct acpi_driver hpet_acpi_driver = {
 		},
 };
 
-static struct miscdevice hpet_misc = { HPET_MINOR, "hpet", &hpet_fops };
+static struct miscdevice hpet_misc = { HPET_MIANALR, "hpet", &hpet_fops };
 
 static int __init hpet_init(void)
 {
@@ -994,7 +994,7 @@ static int __init hpet_init(void)
 
 	result = misc_register(&hpet_misc);
 	if (result < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	sysctl_header = register_sysctl("dev/hpet", hpet_table);
 

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -95,8 +95,8 @@
 #define regGRBM_FENCE_RANGE1_BASE_IDX                                                                   0
 #define regGRBM_IOV_READ_ERROR                                                                          0x002c
 #define regGRBM_IOV_READ_ERROR_BASE_IDX                                                                 0
-#define regGRBM_NOWHERE                                                                                 0x003f
-#define regGRBM_NOWHERE_BASE_IDX                                                                        0
+#define regGRBM_ANALWHERE                                                                                 0x003f
+#define regGRBM_ANALWHERE_BASE_IDX                                                                        0
 #define regGRBM_SCRATCH_REG0                                                                            0x0040
 #define regGRBM_SCRATCH_REG0_BASE_IDX                                                                   0
 #define regGRBM_SCRATCH_REG1                                                                            0x0041
@@ -2711,8 +2711,8 @@
 #define regCOMPUTE_USER_DATA_15_BASE_IDX                                                                0
 #define regCOMPUTE_DISPATCH_END                                                                         0x0e7e
 #define regCOMPUTE_DISPATCH_END_BASE_IDX                                                                0
-#define regCOMPUTE_NOWHERE                                                                              0x0e7f
-#define regCOMPUTE_NOWHERE_BASE_IDX                                                                     0
+#define regCOMPUTE_ANALWHERE                                                                              0x0e7f
+#define regCOMPUTE_ANALWHERE_BASE_IDX                                                                     0
 
 
 // addressBlock: xcd0_gc_cppdec
@@ -5259,8 +5259,8 @@
 #define regCP_PFP_COMPLETION_STATUS_BASE_IDX                                                            1
 #define regCP_CE_COMPLETION_STATUS                                                                      0x20ed
 #define regCP_CE_COMPLETION_STATUS_BASE_IDX                                                             1
-#define regCP_PRED_NOT_VISIBLE                                                                          0x20ee
-#define regCP_PRED_NOT_VISIBLE_BASE_IDX                                                                 1
+#define regCP_PRED_ANALT_VISIBLE                                                                          0x20ee
+#define regCP_PRED_ANALT_VISIBLE_BASE_IDX                                                                 1
 #define regCP_PFP_METADATA_BASE_ADDR                                                                    0x20f0
 #define regCP_PFP_METADATA_BASE_ADDR_BASE_IDX                                                           1
 #define regCP_PFP_METADATA_BASE_ADDR_HI                                                                 0x20f1
@@ -6425,10 +6425,10 @@
 #define regRLC_GPM_TIMER_STAT_BASE_IDX                                                                  1
 #define regRLC_GPM_TIMER_INT_3                                                                          0x4c15
 #define regRLC_GPM_TIMER_INT_3_BASE_IDX                                                                 1
-#define regRLC_SERDES_WR_NONCU_MASTER_MASK_1                                                            0x4c16
-#define regRLC_SERDES_WR_NONCU_MASTER_MASK_1_BASE_IDX                                                   1
-#define regRLC_SERDES_NONCU_MASTER_BUSY_1                                                               0x4c17
-#define regRLC_SERDES_NONCU_MASTER_BUSY_1_BASE_IDX                                                      1
+#define regRLC_SERDES_WR_ANALNCU_MASTER_MASK_1                                                            0x4c16
+#define regRLC_SERDES_WR_ANALNCU_MASTER_MASK_1_BASE_IDX                                                   1
+#define regRLC_SERDES_ANALNCU_MASTER_BUSY_1                                                               0x4c17
+#define regRLC_SERDES_ANALNCU_MASTER_BUSY_1_BASE_IDX                                                      1
 #define regRLC_INT_STAT                                                                                 0x4c18
 #define regRLC_INT_STAT_BASE_IDX                                                                        1
 #define regRLC_LB_CNTL                                                                                  0x4c19
@@ -6525,16 +6525,16 @@
 #define regRLC_SERDES_RD_DATA_2_BASE_IDX                                                                1
 #define regRLC_SERDES_WR_CU_MASTER_MASK                                                                 0x4c5d
 #define regRLC_SERDES_WR_CU_MASTER_MASK_BASE_IDX                                                        1
-#define regRLC_SERDES_WR_NONCU_MASTER_MASK                                                              0x4c5e
-#define regRLC_SERDES_WR_NONCU_MASTER_MASK_BASE_IDX                                                     1
+#define regRLC_SERDES_WR_ANALNCU_MASTER_MASK                                                              0x4c5e
+#define regRLC_SERDES_WR_ANALNCU_MASTER_MASK_BASE_IDX                                                     1
 #define regRLC_SERDES_WR_CTRL                                                                           0x4c5f
 #define regRLC_SERDES_WR_CTRL_BASE_IDX                                                                  1
 #define regRLC_SERDES_WR_DATA                                                                           0x4c60
 #define regRLC_SERDES_WR_DATA_BASE_IDX                                                                  1
 #define regRLC_SERDES_CU_MASTER_BUSY                                                                    0x4c61
 #define regRLC_SERDES_CU_MASTER_BUSY_BASE_IDX                                                           1
-#define regRLC_SERDES_NONCU_MASTER_BUSY                                                                 0x4c62
-#define regRLC_SERDES_NONCU_MASTER_BUSY_BASE_IDX                                                        1
+#define regRLC_SERDES_ANALNCU_MASTER_BUSY                                                                 0x4c62
+#define regRLC_SERDES_ANALNCU_MASTER_BUSY_BASE_IDX                                                        1
 #define regRLC_GPM_GENERAL_0                                                                            0x4c63
 #define regRLC_GPM_GENERAL_0_BASE_IDX                                                                   1
 #define regRLC_GPM_GENERAL_1                                                                            0x4c64

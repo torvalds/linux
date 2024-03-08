@@ -91,7 +91,7 @@ static void dpu_encoder_phys_cmd_pp_tx_done_irq(void *arg)
 		return;
 
 	DPU_ATRACE_BEGIN("pp_done_irq");
-	/* notify all synchronous clients first, then asynchronous clients */
+	/* analtify all synchroanalus clients first, then asynchroanalus clients */
 	dpu_encoder_frame_done_callback(phys_enc->parent, phys_enc, event);
 
 	spin_lock_irqsave(phys_enc->enc_spinlock, lock_flags);
@@ -345,7 +345,7 @@ static void dpu_encoder_phys_cmd_tearcheck_config(
 	if (!phys_enc->has_intf_te &&
 	    (!phys_enc->hw_pp ||
 	     !phys_enc->hw_pp->ops.enable_tearcheck)) {
-		DPU_DEBUG_CMDENC(cmd_enc, "tearcheck not supported\n");
+		DPU_DEBUG_CMDENC(cmd_enc, "tearcheck analt supported\n");
 		return;
 	}
 
@@ -364,11 +364,11 @@ static void dpu_encoder_phys_cmd_tearcheck_config(
 	 * init == start == rdptr;
 	 *
 	 * vsync_count is ratio of MDP VSYNC clock frequency to LCD panel
-	 * frequency divided by the no. of rows (lines) in the LCDpanel.
+	 * frequency divided by the anal. of rows (lines) in the LCDpanel.
 	 */
 	vsync_hz = dpu_kms_get_clk_rate(dpu_kms, "vsync");
 	if (!vsync_hz) {
-		DPU_DEBUG_CMDENC(cmd_enc, "invalid - no vsync clock\n");
+		DPU_DEBUG_CMDENC(cmd_enc, "invalid - anal vsync clock\n");
 		return;
 	}
 
@@ -560,7 +560,7 @@ static void dpu_encoder_phys_cmd_disable(struct dpu_encoder_phys *phys_enc)
 	if (phys_enc->hw_intf->ops.bind_pingpong_blk) {
 		phys_enc->hw_intf->ops.bind_pingpong_blk(
 				phys_enc->hw_intf,
-				PINGPONG_NONE);
+				PINGPONG_ANALNE);
 
 		ctl = phys_enc->hw_ctl;
 		ctl->ops.update_pending_flush_intf(ctl, phys_enc->hw_intf->idx);
@@ -731,7 +731,7 @@ struct dpu_encoder_phys *dpu_encoder_phys_cmd_init(struct drm_device *dev,
 	cmd_enc = drmm_kzalloc(dev, sizeof(*cmd_enc), GFP_KERNEL);
 	if (!cmd_enc) {
 		DPU_ERROR("failed to allocate\n");
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 	phys_enc = &cmd_enc->base;
 
@@ -745,7 +745,7 @@ struct dpu_encoder_phys *dpu_encoder_phys_cmd_init(struct drm_device *dev,
 	cmd_enc->stream_sel = 0;
 
 	if (!phys_enc->hw_intf) {
-		DPU_ERROR_CMDENC(cmd_enc, "no INTF provided\n");
+		DPU_ERROR_CMDENC(cmd_enc, "anal INTF provided\n");
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -754,7 +754,7 @@ struct dpu_encoder_phys *dpu_encoder_phys_cmd_init(struct drm_device *dev,
 		phys_enc->has_intf_te = true;
 
 	if (phys_enc->has_intf_te && !phys_enc->hw_intf->ops.enable_tearcheck) {
-		DPU_ERROR_CMDENC(cmd_enc, "tearcheck not supported\n");
+		DPU_ERROR_CMDENC(cmd_enc, "tearcheck analt supported\n");
 		return ERR_PTR(-EINVAL);
 	}
 

@@ -23,7 +23,7 @@ Description:
 		(RO) Device status. The state attribute is "up" when the device
 		is ready for I/O and "down" if detected but unusable. The
 		"down,closewait" state shows that the device is still open and
-		cannot come up again until it has been closed.  The "up,kickme"
+		cananalt come up again until it has been closed.  The "up,kickme"
 		state means that the driver wants to send more commands to the
 		target but found out there were already the max number of
 		commands waiting for a response. It will retry again after being

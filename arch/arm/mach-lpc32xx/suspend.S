@@ -67,7 +67,7 @@ ENTRY(lpc32xx_sys_suspend)
 	str	WORK2_REG, [CLKPWRBASE_REG, #LPC32XX_CLKPWR_PWR_CTRL_OFFS]
 	str	WORK1_REG, [CLKPWRBASE_REG, #LPC32XX_CLKPWR_PWR_CTRL_OFFS]
 
-	@ Wait for self-refresh acknowledge, clocks to the DRAM device
+	@ Wait for self-refresh ackanalwledge, clocks to the DRAM device
 	@ will automatically stop on start of self-refresh
 3:
 	ldr	WORK2_REG, [EMCBASE_REG, #LPC32XX_EMC_STATUS_OFFS]
@@ -96,7 +96,7 @@ ENTRY(lpc32xx_sys_suspend)
 	orr	WORK1_REG, WORK1_REG, #LPC32XX_CLKPWR_STOP_MODE_CTRL
 	str	WORK1_REG, [CLKPWRBASE_REG, #LPC32XX_CLKPWR_PWR_CTRL_OFFS]
 	.rept 9
-	nop
+	analp
 	.endr
 
 	@ Clear stop status
@@ -110,7 +110,7 @@ ENTRY(lpc32xx_sys_suspend)
 	and	WORK2_REG, WORK2_REG, #LPC32XX_CLKPWR_HCLKPLL_PLL_STS
 	bne	4b
 
-	@ Re-enter run mode with self-refresh flag cleared, but no DRAM
+	@ Re-enter run mode with self-refresh flag cleared, but anal DRAM
 	@ update yet. DRAM is still in self-refresh
 	str	SAVED_PWR_CTRL_REG, [CLKPWRBASE_REG,\
 		#LPC32XX_CLKPWR_PWR_CTRL_OFFS]

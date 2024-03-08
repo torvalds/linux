@@ -84,8 +84,8 @@ enum dpmaif_hw_intr_type {
 	DPF_INTR_INVALID_MIN,
 	DPF_INTR_UL_DONE,
 	DPF_INTR_UL_DRB_EMPTY,
-	DPF_INTR_UL_MD_NOTREADY,
-	DPF_INTR_UL_MD_PWR_NOTREADY,
+	DPF_INTR_UL_MD_ANALTREADY,
+	DPF_INTR_UL_MD_PWR_ANALTREADY,
 	DPF_INTR_UL_LEN_ERR,
 	DPF_INTR_DL_DONE,
 	DPF_INTR_DL_SKB_LEN_ERR,
@@ -103,9 +103,9 @@ enum dpmaif_hw_intr_type {
 	DPF_INTR_INVALID_MAX
 };
 
-#define DPF_RX_QNO0			0
-#define DPF_RX_QNO1			1
-#define DPF_RX_QNO_DFT			DPF_RX_QNO0
+#define DPF_RX_QANAL0			0
+#define DPF_RX_QANAL1			1
+#define DPF_RX_QANAL_DFT			DPF_RX_QANAL0
 
 struct dpmaif_hw_intr_st_para {
 	unsigned int intr_cnt;
@@ -126,8 +126,8 @@ struct dpmaif_hw_intr_st_para {
 #define DP_UL_INT_DONE_OFFSET		0
 #define DP_UL_INT_QDONE_MSK		GENMASK(4, 0)
 #define DP_UL_INT_EMPTY_MSK		GENMASK(9, 5)
-#define DP_UL_INT_MD_NOTREADY_MSK	GENMASK(14, 10)
-#define DP_UL_INT_MD_PWR_NOTREADY_MSK	GENMASK(19, 15)
+#define DP_UL_INT_MD_ANALTREADY_MSK	GENMASK(14, 10)
+#define DP_UL_INT_MD_PWR_ANALTREADY_MSK	GENMASK(19, 15)
 #define DP_UL_INT_ERR_MSK		GENMASK(24, 20)
 
 #define DP_DL_INT_QDONE_MSK		BIT(0)
@@ -152,7 +152,7 @@ int t7xx_dpmaif_hw_stop_all_txq(struct dpmaif_hw_info *hw_info);
 int t7xx_dpmaif_hw_stop_all_rxq(struct dpmaif_hw_info *hw_info);
 void t7xx_dpmaif_start_hw(struct dpmaif_hw_info *hw_info);
 int t7xx_dpmaif_hw_get_intr_cnt(struct dpmaif_hw_info *hw_info,
-				struct dpmaif_hw_intr_st_para *para, int qno);
+				struct dpmaif_hw_intr_st_para *para, int qanal);
 void t7xx_dpmaif_unmask_ulq_intr(struct dpmaif_hw_info *hw_info, unsigned int q_num);
 void t7xx_dpmaif_ul_update_hw_drb_cnt(struct dpmaif_hw_info *hw_info, unsigned int q_num,
 				      unsigned int drb_entry_cnt);
@@ -161,9 +161,9 @@ int t7xx_dpmaif_dl_snd_hw_frg_cnt(struct dpmaif_hw_info *hw_info, unsigned int f
 int t7xx_dpmaif_dlq_add_pit_remain_cnt(struct dpmaif_hw_info *hw_info, unsigned int dlq_pit_idx,
 				       unsigned int pit_remain_cnt);
 void t7xx_dpmaif_dlq_unmask_pitcnt_len_err_intr(struct dpmaif_hw_info *hw_info,
-						unsigned int qno);
-void t7xx_dpmaif_dlq_unmask_rx_done(struct dpmaif_hw_info *hw_info, unsigned int qno);
-bool t7xx_dpmaif_ul_clr_done(struct dpmaif_hw_info *hw_info, unsigned int qno);
+						unsigned int qanal);
+void t7xx_dpmaif_dlq_unmask_rx_done(struct dpmaif_hw_info *hw_info, unsigned int qanal);
+bool t7xx_dpmaif_ul_clr_done(struct dpmaif_hw_info *hw_info, unsigned int qanal);
 void t7xx_dpmaif_ul_clr_all_intr(struct dpmaif_hw_info *hw_info);
 void t7xx_dpmaif_dl_clr_all_intr(struct dpmaif_hw_info *hw_info);
 void t7xx_dpmaif_clr_ip_busy_sts(struct dpmaif_hw_info *hw_info);

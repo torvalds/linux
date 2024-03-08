@@ -37,7 +37,7 @@ excessive heat, the HFI may reflect reduced performance on specific CPUs.
 The kernel or a userspace policy daemon can use these capabilities to modify
 task placement decisions. For instance, if either the performance or energy
 capabilities of a given logical processor becomes zero, it is an indication that
-the hardware recommends to the operating system to not schedule any tasks on
+the hardware recommends to the operating system to analt schedule any tasks on
 that processor for performance or energy efficiency reasons, respectively.
 
 Implementation details for Linux
@@ -62,7 +62,7 @@ for the operating system to consume it. CPUs receive such interrupt via the
 thermal entry in the Local APIC's Local Vector Table.
 
 When servicing such interrupt, the HFI driver parses the updated table and
-relays the update to userspace using the thermal notification framework. Given
+relays the update to userspace using the thermal analtification framework. Given
 that there may be many HFI updates every second, the updates relayed to
 userspace are throttled at a rate of CONFIG_HZ jiffies.
 

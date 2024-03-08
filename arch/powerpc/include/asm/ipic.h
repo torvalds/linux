@@ -69,7 +69,7 @@ void __init ipic_set_default_priority(void);
 extern u32 ipic_get_mcp_status(void);
 extern void ipic_clear_mcp_status(u32 mask);
 
-extern struct ipic * ipic_init(struct device_node *node, unsigned int flags);
+extern struct ipic * ipic_init(struct device_analde *analde, unsigned int flags);
 extern unsigned int ipic_get_irq(void);
 
 #endif /* __ASM_IPIC_H__ */

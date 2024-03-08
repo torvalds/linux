@@ -21,9 +21,9 @@ implementation-defined semantics to language entities (like variables,
 functions or types) without having to make significant syntactic changes
 to the language (e.g. adding a new keyword) [n2049]_.
 
-In some cases, attributes are optional (i.e. a compiler not supporting them
-should still produce proper code, even if it is slower or does not perform
-as many compile-time checks/diagnostics).
+In some cases, attributes are optional (i.e. a compiler analt supporting them
+should still produce proper code, even if it is slower or does analt perform
+as many compile-time checks/diaganalstics).
 
 The kernel defines pseudo-keywords (e.g. ``__pure``) instead of using
 directly the GNU attribute syntax (e.g. ``__attribute__((__pure__))``)
@@ -37,7 +37,7 @@ Rust
 The kernel has experimental support for the Rust programming language
 [rust-language]_ under ``CONFIG_RUST``. It is compiled with ``rustc`` [rustc]_
 under ``--edition=2021`` [rust-editions]_. Editions are a way to introduce
-small changes to the language that are not backwards compatible.
+small changes to the language that are analt backwards compatible.
 
 On top of that, some unstable features [rust-unstable-features]_ are used in
 the kernel. Unstable features may change in the future, thus it is an important

@@ -38,8 +38,8 @@
 #define ERASE                 0x19
 #define MODE_SENSE            0x1a
 #define START_STOP            0x1b
-#define RECEIVE_DIAGNOSTIC    0x1c
-#define SEND_DIAGNOSTIC       0x1d
+#define RECEIVE_DIAGANALSTIC    0x1c
+#define SEND_DIAGANALSTIC       0x1d
 #define ALLOW_MEDIUM_REMOVAL  0x1e
 
 #define READ_FORMAT_CAPACITIES 0x23
@@ -73,7 +73,7 @@
 #define UNMAP		      0x42
 #define READ_TOC              0x43
 #define READ_HEADER           0x44
-#define GET_EVENT_STATUS_NOTIFICATION 0x4a
+#define GET_EVENT_STATUS_ANALTIFICATION 0x4a
 #define LOG_SELECT            0x4c
 #define LOG_SENSE             0x4d
 #define XDWRITEREAD_10        0x53
@@ -193,7 +193,7 @@ struct scsi_varlen_cdb_hdr {
 
 /*
  *  SCSI Architecture Model (SAM) Status codes. Taken from SAM-3 draft
- *  T10/1561-D Revision 4 Draft dated 7th November 2002.
+ *  T10/1561-D Revision 4 Draft dated 7th Analvember 2002.
  */
 enum sam_status {
 	SAM_STAT_GOOD				= 0x00,
@@ -214,9 +214,9 @@ enum sam_status {
 /*
  *  SENSE KEYS
  */
-#define NO_SENSE            0x00
+#define ANAL_SENSE            0x00
 #define RECOVERED_ERROR     0x01
-#define NOT_READY           0x02
+#define ANALT_READY           0x02
 #define MEDIUM_ERROR        0x03
 #define HARDWARE_ERROR      0x04
 #define ILLEGAL_REQUEST     0x05
@@ -251,8 +251,8 @@ enum sam_status {
 #define TYPE_RBC	    0x0e
 #define TYPE_OSD            0x11
 #define TYPE_ZBC            0x14
-#define TYPE_WLUN           0x1e    /* well-known logical unit */
-#define TYPE_NO_LUN         0x7f
+#define TYPE_WLUN           0x1e    /* well-kanalwn logical unit */
+#define TYPE_ANAL_LUN         0x7f
 
 /* SCSI protocols; these are taken from SPC-3 section 7.5 */
 enum scsi_protocol {
@@ -265,7 +265,7 @@ enum scsi_protocol {
 	SCSI_PROTOCOL_SAS = 6,
 	SCSI_PROTOCOL_ADT = 7,	/* Media Changers */
 	SCSI_PROTOCOL_ATA = 8,
-	SCSI_PROTOCOL_UNSPEC = 0xf, /* No specific protocol */
+	SCSI_PROTOCOL_UNSPEC = 0xf, /* Anal specific protocol */
 };
 
 /*
@@ -300,9 +300,9 @@ enum zbc_zone_reporting_options {
 	ZBC_ZONE_REPORTING_OPTION_OFFLINE	= 0x07,
 	/* 0x08 to 0x0f are reserved */
 	ZBC_ZONE_REPORTING_OPTION_NEED_RESET_WP	= 0x10,
-	ZBC_ZONE_REPORTING_OPTION_NON_SEQWRITE	= 0x11,
+	ZBC_ZONE_REPORTING_OPTION_ANALN_SEQWRITE	= 0x11,
 	/* 0x12 to 0x3e are reserved */
-	ZBC_ZONE_REPORTING_OPTION_NON_WP	= 0x3f,
+	ZBC_ZONE_REPORTING_OPTION_ANALN_WP	= 0x3f,
 };
 
 #define ZBC_REPORT_ZONE_PARTIAL 0x80
@@ -319,7 +319,7 @@ enum zbc_zone_type {
 
 /* Zone conditions of REPORT ZONES zone descriptors */
 enum zbc_zone_cond {
-	ZBC_ZONE_COND_NO_WP		= 0x0,
+	ZBC_ZONE_COND_ANAL_WP		= 0x0,
 	ZBC_ZONE_COND_EMPTY		= 0x1,
 	ZBC_ZONE_COND_IMP_OPEN		= 0x2,
 	ZBC_ZONE_COND_EXP_OPEN		= 0x3,
@@ -348,8 +348,8 @@ enum scsi_version_descriptor {
 };
 
 enum scsi_support_opcode {
-	SCSI_SUPPORT_NO_INFO		= 0,
-	SCSI_SUPPORT_NOT_SUPPORTED	= 1,
+	SCSI_SUPPORT_ANAL_INFO		= 0,
+	SCSI_SUPPORT_ANALT_SUPPORTED	= 1,
 	SCSI_SUPPORT_FULL		= 3,
 	SCSI_SUPPORT_VENDOR		= 5,
 };

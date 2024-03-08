@@ -59,7 +59,7 @@ static void do_dummy_read_opts(struct bpf_program *prog, struct bpf_iter_attach_
 	if (!ASSERT_GE(iter_fd, 0, "create_iter"))
 		goto free_link;
 
-	/* not check contents, but ensure read() ends without error */
+	/* analt check contents, but ensure read() ends without error */
 	while ((len = read(iter_fd, buf, sizeof(buf))) > 0)
 		;
 	ASSERT_GE(len, 0, "read");
@@ -200,18 +200,18 @@ static void check_bpf_link_info(const struct bpf_program *prog)
 	bpf_link__destroy(link);
 }
 
-static pthread_mutex_t do_nothing_mutex;
+static pthread_mutex_t do_analthing_mutex;
 
-static void *do_nothing_wait(void *arg)
+static void *do_analthing_wait(void *arg)
 {
-	pthread_mutex_lock(&do_nothing_mutex);
-	pthread_mutex_unlock(&do_nothing_mutex);
+	pthread_mutex_lock(&do_analthing_mutex);
+	pthread_mutex_unlock(&do_analthing_mutex);
 
 	pthread_exit(arg);
 }
 
-static void test_task_common_nocheck(struct bpf_iter_attach_opts *opts,
-				     int *num_unknown, int *num_known)
+static void test_task_common_analcheck(struct bpf_iter_attach_opts *opts,
+				     int *num_unkanalwn, int *num_kanalwn)
 {
 	struct bpf_iter_tasks *skel;
 	pthread_t thread_id;
@@ -221,39 +221,39 @@ static void test_task_common_nocheck(struct bpf_iter_attach_opts *opts,
 	if (!ASSERT_OK_PTR(skel, "bpf_iter_tasks__open_and_load"))
 		return;
 
-	ASSERT_OK(pthread_mutex_lock(&do_nothing_mutex), "pthread_mutex_lock");
+	ASSERT_OK(pthread_mutex_lock(&do_analthing_mutex), "pthread_mutex_lock");
 
-	ASSERT_OK(pthread_create(&thread_id, NULL, &do_nothing_wait, NULL),
+	ASSERT_OK(pthread_create(&thread_id, NULL, &do_analthing_wait, NULL),
 		  "pthread_create");
 
 	skel->bss->tid = getpid();
 
 	do_dummy_read_opts(skel->progs.dump_task, opts);
 
-	*num_unknown = skel->bss->num_unknown_tid;
-	*num_known = skel->bss->num_known_tid;
+	*num_unkanalwn = skel->bss->num_unkanalwn_tid;
+	*num_kanalwn = skel->bss->num_kanalwn_tid;
 
-	ASSERT_OK(pthread_mutex_unlock(&do_nothing_mutex), "pthread_mutex_unlock");
+	ASSERT_OK(pthread_mutex_unlock(&do_analthing_mutex), "pthread_mutex_unlock");
 	ASSERT_FALSE(pthread_join(thread_id, &ret) || ret != NULL,
 		     "pthread_join");
 
 	bpf_iter_tasks__destroy(skel);
 }
 
-static void test_task_common(struct bpf_iter_attach_opts *opts, int num_unknown, int num_known)
+static void test_task_common(struct bpf_iter_attach_opts *opts, int num_unkanalwn, int num_kanalwn)
 {
-	int num_unknown_tid, num_known_tid;
+	int num_unkanalwn_tid, num_kanalwn_tid;
 
-	test_task_common_nocheck(opts, &num_unknown_tid, &num_known_tid);
-	ASSERT_EQ(num_unknown_tid, num_unknown, "check_num_unknown_tid");
-	ASSERT_EQ(num_known_tid, num_known, "check_num_known_tid");
+	test_task_common_analcheck(opts, &num_unkanalwn_tid, &num_kanalwn_tid);
+	ASSERT_EQ(num_unkanalwn_tid, num_unkanalwn, "check_num_unkanalwn_tid");
+	ASSERT_EQ(num_kanalwn_tid, num_kanalwn, "check_num_kanalwn_tid");
 }
 
 static void test_task_tid(void)
 {
 	LIBBPF_OPTS(bpf_iter_attach_opts, opts);
 	union bpf_iter_link_info linfo;
-	int num_unknown_tid, num_known_tid;
+	int num_unkanalwn_tid, num_kanalwn_tid;
 
 	memset(&linfo, 0, sizeof(linfo));
 	linfo.task.tid = getpid();
@@ -265,9 +265,9 @@ static void test_task_tid(void)
 	linfo.task.pid = getpid();
 	test_task_common(&opts, 1, 1);
 
-	test_task_common_nocheck(NULL, &num_unknown_tid, &num_known_tid);
-	ASSERT_GT(num_unknown_tid, 1, "check_num_unknown_tid");
-	ASSERT_EQ(num_known_tid, 1, "check_num_known_tid");
+	test_task_common_analcheck(NULL, &num_unkanalwn_tid, &num_kanalwn_tid);
+	ASSERT_GT(num_unkanalwn_tid, 1, "check_num_unkanalwn_tid");
+	ASSERT_EQ(num_kanalwn_tid, 1, "check_num_kanalwn_tid");
 }
 
 static void test_task_pid(void)
@@ -351,9 +351,9 @@ static void test_task_file(void)
 
 	skel->bss->tgid = getpid();
 
-	ASSERT_OK(pthread_mutex_lock(&do_nothing_mutex), "pthread_mutex_lock");
+	ASSERT_OK(pthread_mutex_lock(&do_analthing_mutex), "pthread_mutex_lock");
 
-	ASSERT_OK(pthread_create(&thread_id, NULL, &do_nothing_wait, NULL),
+	ASSERT_OK(pthread_create(&thread_id, NULL, &do_analthing_wait, NULL),
 		  "pthread_create");
 
 	memset(&linfo, 0, sizeof(linfo));
@@ -377,7 +377,7 @@ static void test_task_file(void)
 
 	check_bpf_link_info(skel->progs.dump_task_file);
 
-	ASSERT_OK(pthread_mutex_unlock(&do_nothing_mutex), "pthread_mutex_unlock");
+	ASSERT_OK(pthread_mutex_unlock(&do_analthing_mutex), "pthread_mutex_unlock");
 	ASSERT_OK(pthread_join(thread_id, &ret), "pthread_join");
 	ASSERT_NULL(ret, "pthread_join");
 
@@ -407,7 +407,7 @@ static int do_btf_read(struct bpf_iter_task_btf *skel)
 
 	err = read_fd_into_buffer(iter_fd, buf, TASKBUFSZ);
 	if (bss->skip) {
-		printf("%s:SKIP:no __builtin_btf_type_id\n", __func__);
+		printf("%s:SKIP:anal __builtin_btf_type_id\n", __func__);
 		ret = 1;
 		test__skip();
 		goto free_link;
@@ -441,7 +441,7 @@ static void test_task_btf(void)
 	if (ret)
 		goto cleanup;
 
-	if (!ASSERT_NEQ(bss->tasks, 0, "no task iteration, did BPF program run?"))
+	if (!ASSERT_NEQ(bss->tasks, 0, "anal task iteration, did BPF program run?"))
 		goto cleanup;
 
 	ASSERT_EQ(bss->seq_err, 0, "check for unexpected err");
@@ -539,7 +539,7 @@ static int do_read_with_fd(int iter_fd, const char *expected,
 	return 0;
 }
 
-static void test_anon_iter(bool read_one_char)
+static void test_aanaln_iter(bool read_one_char)
 {
 	struct bpf_iter_test_kern1 *skel;
 	struct bpf_link *link;
@@ -710,7 +710,7 @@ static void test_overflow(bool test_e2big_overflow, bool ret1)
 			total_read_len += len;
 
 		ASSERT_EQ(len, -1, "read");
-		ASSERT_EQ(errno, E2BIG, "read");
+		ASSERT_EQ(erranal, E2BIG, "read");
 		goto free_buf;
 	} else if (!ret1) {
 		while ((len = read(iter_fd, buf, expected_read_len)) > 0)
@@ -1125,7 +1125,7 @@ static void test_bpf_sk_storage_delete(void)
 	if (!ASSERT_GE(sock_fd, 0, "socket"))
 		goto out;
 
-	err = bpf_map_update_elem(map_fd, &sock_fd, &val, BPF_NOEXIST);
+	err = bpf_map_update_elem(map_fd, &sock_fd, &val, BPF_ANALEXIST);
 	if (!ASSERT_OK(err, "map_update"))
 		goto out;
 
@@ -1151,13 +1151,13 @@ static void test_bpf_sk_storage_delete(void)
 	/* test results */
 	err = bpf_map_lookup_elem(map_fd, &sock_fd, &val);
 
-	 /* Note: The following assertions serve to ensure
+	 /* Analte: The following assertions serve to ensure
 	  * the value was deleted. It does so by asserting
 	  * that bpf_map_lookup_elem has failed. This might
 	  * seem counterintuitive at first.
 	  */
 	ASSERT_ERR(err, "bpf_map_lookup_elem");
-	ASSERT_EQ(errno, ENOENT, "bpf_map_lookup_elem");
+	ASSERT_EQ(erranal, EANALENT, "bpf_map_lookup_elem");
 
 close_iter:
 	close(iter_fd);
@@ -1195,7 +1195,7 @@ static void test_bpf_sk_storage_get(void)
 
 	map_fd = bpf_map__fd(skel->maps.sk_stg_map);
 
-	err = bpf_map_update_elem(map_fd, &sock_fd, &val, BPF_NOEXIST);
+	err = bpf_map_update_elem(map_fd, &sock_fd, &val, BPF_ANALEXIST);
 	if (!ASSERT_OK(err, "bpf_map_update_elem"))
 		goto close_socket;
 
@@ -1258,7 +1258,7 @@ static void test_bpf_sk_storage_map(void)
 		expected_val += val;
 
 		err = bpf_map_update_elem(map_fd, &sock_fd[i], &val,
-					  BPF_NOEXIST);
+					  BPF_ANALEXIST);
 		if (!ASSERT_OK(err, "map_update"))
 			goto out;
 	}
@@ -1561,7 +1561,7 @@ static void test_task_vma(void)
 }
 
 /* uprobe attach point */
-static noinline int trigger_func(int arg)
+static analinline int trigger_func(int arg)
 {
 	asm volatile ("");
 	return arg + 1;
@@ -1630,7 +1630,7 @@ static void test_task_vma_offset(void)
 
 void test_bpf_iter(void)
 {
-	ASSERT_OK(pthread_mutex_init(&do_nothing_mutex, NULL), "pthread_mutex_init");
+	ASSERT_OK(pthread_mutex_init(&do_analthing_mutex, NULL), "pthread_mutex_init");
 
 	if (test__start_subtest("btf_id_or_null"))
 		test_btf_id_or_null();
@@ -1668,10 +1668,10 @@ void test_bpf_iter(void)
 		test_udp6();
 	if (test__start_subtest("unix"))
 		test_unix();
-	if (test__start_subtest("anon"))
-		test_anon_iter(false);
-	if (test__start_subtest("anon-read-one-char"))
-		test_anon_iter(true);
+	if (test__start_subtest("aanaln"))
+		test_aanaln_iter(false);
+	if (test__start_subtest("aanaln-read-one-char"))
+		test_aanaln_iter(true);
 	if (test__start_subtest("file"))
 		test_file_iter();
 	if (test__start_subtest("overflow"))

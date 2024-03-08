@@ -357,7 +357,7 @@ struct tx_desc_92c {
 	u32 lastseg:1;
 	u32 firstseg:1;
 	u32 linip:1;
-	u32 noacm:1;
+	u32 analacm:1;
 	u32 gf:1;
 	u32 own:1;
 

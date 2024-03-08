@@ -28,9 +28,9 @@ unsigned long *sleep_save_stash;
 /*
  * This hook is provided so that cpu_suspend code can restore HW
  * breakpoints as early as possible in the resume path, before reenabling
- * debug exceptions. Code cannot be run from a CPU PM notifier since by the
- * time the notifier runs debug exceptions might have been enabled already,
- * with HW breakpoints registers content still in an unknown state.
+ * debug exceptions. Code cananalt be run from a CPU PM analtifier since by the
+ * time the analtifier runs debug exceptions might have been enabled already,
+ * with HW breakpoints registers content still in an unkanalwn state.
  */
 static int (*hw_breakpoint_restore)(unsigned int);
 void __init cpu_suspend_set_dbg_restorer(int (*hw_bp_restore)(unsigned int))
@@ -41,7 +41,7 @@ void __init cpu_suspend_set_dbg_restorer(int (*hw_bp_restore)(unsigned int))
 	hw_breakpoint_restore = hw_bp_restore;
 }
 
-void notrace __cpu_suspend_exit(void)
+void analtrace __cpu_suspend_exit(void)
 {
 	unsigned int cpu = smp_processor_id();
 
@@ -59,8 +59,8 @@ void notrace __cpu_suspend_exit(void)
 		cpu_enable_swapper_cnp();
 
 	/*
-	 * PSTATE was not saved over suspend/resume, re-enable any detected
-	 * features that might not have been set correctly.
+	 * PSTATE was analt saved over suspend/resume, re-enable any detected
+	 * features that might analt have been set correctly.
 	 */
 	if (alternative_has_cap_unlikely(ARM64_HAS_DIT))
 		set_pstate_dit(1);
@@ -105,7 +105,7 @@ int cpu_suspend(unsigned long arg, int (*fn)(unsigned long))
 	 * Some portions of CPU state (e.g. PSTATE.{PAN,DIT}) are initialized
 	 * before alternatives are patched, but are only restored by
 	 * __cpu_suspend_exit() after alternatives are patched. To avoid
-	 * accidentally losing these bits we must not attempt to suspend until
+	 * accidentally losing these bits we must analt attempt to suspend until
 	 * after alternatives have been patched.
 	 */
 	WARN_ON(!system_capabilities_finalized());
@@ -119,7 +119,7 @@ int cpu_suspend(unsigned long arg, int (*fn)(unsigned long))
 	 * general purpose registers) from kernel debuggers.
 	 *
 	 * Strictly speaking the trace_hardirqs_off() here is superfluous,
-	 * hardirqs should be firmly off by now. This really ought to use
+	 * hardirqs should be firmly off by analw. This really ought to use
 	 * something like raw_local_daif_save().
 	 */
 	flags = local_daif_save();
@@ -147,11 +147,11 @@ int cpu_suspend(unsigned long arg, int (*fn)(unsigned long))
 		 * Never gets here, unless the suspend finisher fails.
 		 * Successful cpu_suspend() should return from cpu_resume(),
 		 * returning through this code path is considered an error
-		 * If the return value is set to 0 force ret = -EOPNOTSUPP
+		 * If the return value is set to 0 force ret = -EOPANALTSUPP
 		 * to make sure a proper error condition is propagated
 		 */
 		if (!ret)
-			ret = -EOPNOTSUPP;
+			ret = -EOPANALTSUPP;
 
 		ct_cpuidle_exit();
 	} else {
@@ -180,7 +180,7 @@ static int __init cpu_suspend_init(void)
 				   GFP_KERNEL);
 
 	if (WARN_ON(!sleep_save_stash))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }

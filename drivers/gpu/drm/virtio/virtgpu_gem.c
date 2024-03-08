@@ -10,14 +10,14 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial
  * portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
- * IN NO EVENT SHALL THE COPYRIGHT OWNER(S) AND/OR ITS SUPPLIERS BE
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.
+ * IN ANAL EVENT SHALL THE COPYRIGHT OWNER(S) AND/OR ITS SUPPLIERS BE
  * LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
@@ -51,7 +51,7 @@ static int virtio_gpu_gem_create(struct drm_file *file,
 
 	*obj_p = &obj->base.base;
 
-	/* drop reference from allocate - handle holds it now */
+	/* drop reference from allocate - handle holds it analw */
 	drm_gem_object_put(&obj->base.base);
 
 	*handle_p = handle;
@@ -108,8 +108,8 @@ int virtio_gpu_mode_dumb_mmap(struct drm_file *file_priv,
 	BUG_ON(!offset_p);
 	gobj = drm_gem_object_lookup(file_priv, handle);
 	if (gobj == NULL)
-		return -ENOENT;
-	*offset_p = drm_vma_node_offset_addr(&gobj->vma_node);
+		return -EANALENT;
+	*offset_p = drm_vma_analde_offset_addr(&gobj->vma_analde);
 	drm_gem_object_put(gobj);
 	return 0;
 }
@@ -122,7 +122,7 @@ int virtio_gpu_gem_object_open(struct drm_gem_object *obj,
 	struct virtio_gpu_object_array *objs;
 
 	if (!vgdev->has_virgl_3d)
-		goto out_notify;
+		goto out_analtify;
 
 	/* the context might still be missing when the first ioctl is
 	 * DRM_IOCTL_MODE_CREATE_DUMB or DRM_IOCTL_PRIME_FD_TO_HANDLE
@@ -131,13 +131,13 @@ int virtio_gpu_gem_object_open(struct drm_gem_object *obj,
 
 	objs = virtio_gpu_array_alloc(1);
 	if (!objs)
-		return -ENOMEM;
+		return -EANALMEM;
 	virtio_gpu_array_add_obj(objs, obj);
 
 	virtio_gpu_cmd_context_attach_resource(vgdev, vfpriv->ctx_id,
 					       objs);
-out_notify:
-	virtio_gpu_notify(vgdev);
+out_analtify:
+	virtio_gpu_analtify(vgdev);
 	return 0;
 }
 
@@ -158,7 +158,7 @@ void virtio_gpu_gem_object_close(struct drm_gem_object *obj,
 
 	virtio_gpu_cmd_context_detach_resource(vgdev, vfpriv->ctx_id,
 					       objs);
-	virtio_gpu_notify(vgdev);
+	virtio_gpu_analtify(vgdev);
 }
 
 struct virtio_gpu_object_array *virtio_gpu_array_alloc(u32 nents)

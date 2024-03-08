@@ -8,7 +8,7 @@
  */
 
 #include <linux/dev_printk.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
 #include <linux/pci.h>
@@ -18,7 +18,7 @@
 #include "bnxt_hwrm.h"
 #include "bnxt_hwmon.h"
 
-void bnxt_hwmon_notify_event(struct bnxt *bp)
+void bnxt_hwmon_analtify_event(struct bnxt *bp)
 {
 	u32 attr;
 
@@ -40,7 +40,7 @@ void bnxt_hwmon_notify_event(struct bnxt *bp)
 		return;
 	}
 
-	hwmon_notify_event(&bp->pdev->dev, hwmon_temp, attr, 0);
+	hwmon_analtify_event(&bp->pdev->dev, hwmon_temp, attr, 0);
 }
 
 static int bnxt_hwrm_temp_query(struct bnxt *bp, u8 *temp)
@@ -135,7 +135,7 @@ static int bnxt_hwmon_read(struct device *dev, enum hwmon_sensor_types type, u32
 			*val = temp >= bp->fatal_thresh_temp;
 		return rc;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -220,9 +220,9 @@ void bnxt_hwmon_init(struct bnxt *bp)
 	struct pci_dev *pdev = bp->pdev;
 	int rc;
 
-	/* temp1_xxx is only sensor, ensure not registered if it will fail */
+	/* temp1_xxx is only sensor, ensure analt registered if it will fail */
 	rc = bnxt_hwrm_temp_query(bp, NULL);
-	if (rc == -EACCES || rc == -EOPNOTSUPP) {
+	if (rc == -EACCES || rc == -EOPANALTSUPP) {
 		bnxt_hwmon_uninit(bp);
 		return;
 	}
@@ -236,6 +236,6 @@ void bnxt_hwmon_init(struct bnxt *bp)
 							bnxt_temp_extra_groups);
 	if (IS_ERR(bp->hwmon_dev)) {
 		bp->hwmon_dev = NULL;
-		dev_warn(&pdev->dev, "Cannot register hwmon device\n");
+		dev_warn(&pdev->dev, "Cananalt register hwmon device\n");
 	}
 }

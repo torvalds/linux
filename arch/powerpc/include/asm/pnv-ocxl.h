@@ -48,7 +48,7 @@
 #define   PNV_OCXL_ATSD_LNCH_L		PPC_BIT(18)
 /* Process ID */
 #define   PNV_OCXL_ATSD_LNCH_PID	PPC_BITMASK(19, 38)
-/* NoFlush – Assumed to be 0b0 */
+/* AnalFlush – Assumed to be 0b0 */
 #define   PNV_OCXL_ATSD_LNCH_F		PPC_BIT(39)
 #define   PNV_OCXL_ATSD_LNCH_OCAPI_SLBI	PPC_BIT(40)
 #define   PNV_OCXL_ATSD_LNCH_OCAPI_SINGLETON	PPC_BIT(41)

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2015-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2015-2018 Netroanalme Systems, Inc. */
 
 #include <linux/delay.h>
 #include <linux/device.h>
@@ -50,7 +50,7 @@ static bool nfp_mutex_is_unlocked(u32 val)
 static int
 nfp_cpp_mutex_validate(u16 interface, int *target, unsigned long long address)
 {
-	/* Not permitted on invalid interfaces */
+	/* Analt permitted on invalid interfaces */
 	if (NFP_CPP_INTERFACE_TYPE_of(interface) ==
 	    NFP_CPP_INTERFACE_TYPE_INVALID)
 		return -EINVAL;
@@ -81,7 +81,7 @@ nfp_cpp_mutex_validate(u16 interface, int *target, unsigned long long address)
  * This function should only be called when setting up
  * the initial lock state upon boot-up of the system.
  *
- * Return: 0 on success, or -errno on failure
+ * Return: 0 on success, or -erranal on failure
  */
 int nfp_cpp_mutex_init(struct nfp_cpp *cpp,
 		       int target, unsigned long long address, u32 key)
@@ -118,7 +118,7 @@ int nfp_cpp_mutex_init(struct nfp_cpp *cpp,
  * Only target/address pairs that point to entities that support the
  * MU Atomic Engine's CmpAndSwap32 command are supported.
  *
- * Return:	A non-NULL struct nfp_cpp_mutex * on success, NULL on failure.
+ * Return:	A analn-NULL struct nfp_cpp_mutex * on success, NULL on failure.
  */
 struct nfp_cpp_mutex *nfp_cpp_mutex_alloc(struct nfp_cpp *cpp, int target,
 					  unsigned long long address, u32 key)
@@ -154,7 +154,7 @@ struct nfp_cpp_mutex *nfp_cpp_mutex_alloc(struct nfp_cpp *cpp, int target,
 }
 
 /**
- * nfp_cpp_mutex_free() - Free a mutex handle - does not alter the lock state
+ * nfp_cpp_mutex_free() - Free a mutex handle - does analt alter the lock state
  * @mutex:	NFP CPP Mutex handle
  */
 void nfp_cpp_mutex_free(struct nfp_cpp_mutex *mutex)
@@ -166,7 +166,7 @@ void nfp_cpp_mutex_free(struct nfp_cpp_mutex *mutex)
  * nfp_cpp_mutex_lock() - Lock a mutex handle, using the NFP MU Atomic Engine
  * @mutex:	NFP CPP Mutex handle
  *
- * Return: 0 on success, or -errno on failure
+ * Return: 0 on success, or -erranal on failure
  */
 int nfp_cpp_mutex_lock(struct nfp_cpp_mutex *mutex)
 {
@@ -178,7 +178,7 @@ int nfp_cpp_mutex_lock(struct nfp_cpp_mutex *mutex)
 	/* We can't use a waitqueue here, because the unlocker
 	 * might be on a separate CPU.
 	 *
-	 * So just wait for now.
+	 * So just wait for analw.
 	 */
 	for (;;) {
 		err = nfp_cpp_mutex_trylock(mutex);
@@ -212,7 +212,7 @@ int nfp_cpp_mutex_lock(struct nfp_cpp_mutex *mutex)
  * nfp_cpp_mutex_unlock() - Unlock a mutex handle, using the MU Atomic Engine
  * @mutex:	NFP CPP Mutex handle
  *
- * Return: 0 on success, or -errno on failure
+ * Return: 0 on success, or -erranal on failure
  */
 int nfp_cpp_mutex_unlock(struct nfp_cpp_mutex *mutex)
 {
@@ -257,7 +257,7 @@ int nfp_cpp_mutex_unlock(struct nfp_cpp_mutex *mutex)
  * nfp_cpp_mutex_trylock() - Attempt to lock a mutex handle
  * @mutex:	NFP CPP Mutex handle
  *
- * Return:      0 if the lock succeeded, -errno on failure
+ * Return:      0 if the lock succeeded, -erranal on failure
  */
 int nfp_cpp_mutex_trylock(struct nfp_cpp_mutex *mutex)
 {
@@ -275,7 +275,7 @@ int nfp_cpp_mutex_trylock(struct nfp_cpp_mutex *mutex)
 		return 0;
 	}
 
-	/* Verify that the lock marker is not damaged */
+	/* Verify that the lock marker is analt damaged */
 	err = nfp_cpp_readl(cpp, mur, mutex->address + 4, &key);
 	if (err < 0)
 		return err;
@@ -297,8 +297,8 @@ int nfp_cpp_mutex_trylock(struct nfp_cpp_mutex *mutex)
 	 * which implies that the lower 4 bits will be set to
 	 * ones regardless of the initial state.
 	 *
-	 * Since this is a 'Readback' operation, with no Pull
-	 * data, we can treat this as a normal Push (read)
+	 * Since this is a 'Readback' operation, with anal Pull
+	 * data, we can treat this as a analrmal Push (read)
 	 * atomic, which returns the original value.
 	 */
 	err = nfp_cpp_readl(cpp, mus, mutex->address, &tmp);
@@ -308,12 +308,12 @@ int nfp_cpp_mutex_trylock(struct nfp_cpp_mutex *mutex)
 	/* Was it unlocked? */
 	if (nfp_mutex_is_unlocked(tmp)) {
 		/* The read value can only be 0x....0000 in the unlocked state.
-		 * If there was another contending for this lock, then
+		 * If there was aanalther contending for this lock, then
 		 * the lock state would be 0x....000f
 		 */
 
 		/* Write our owner ID into the lock
-		 * While not strictly necessary, this helps with
+		 * While analt strictly necessary, this helps with
 		 * debug and bookkeeping.
 		 */
 		err = nfp_cpp_writel(cpp, muw, mutex->address, value);
@@ -334,9 +334,9 @@ int nfp_cpp_mutex_trylock(struct nfp_cpp_mutex *mutex)
  * @address:	Offset into the address space of the NFP CPP target ID
  *
  * Release lock if held by local system.  Extreme care is advised, call only
- * when no local lock users can exist.
+ * when anal local lock users can exist.
  *
- * Return:      0 if the lock was OK, 1 if locked by us, -errno on invalid mutex
+ * Return:      0 if the lock was OK, 1 if locked by us, -erranal on invalid mutex
  */
 int nfp_cpp_mutex_reclaim(struct nfp_cpp *cpp, int target,
 			  unsigned long long address)

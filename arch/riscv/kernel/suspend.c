@@ -21,9 +21,9 @@ void suspend_save_csrs(struct suspend_context *context)
 	context->ie = csr_read(CSR_IE);
 
 	/*
-	 * No need to save/restore IP CSR (i.e. MIP or SIP) because:
+	 * Anal need to save/restore IP CSR (i.e. MIP or SIP) because:
 	 *
-	 * 1. For no-MMU (M-mode) kernel, the bits in MIP are set by
+	 * 1. For anal-MMU (M-mode) kernel, the bits in MIP are set by
 	 *    external devices (such as interrupt controller, timer, etc).
 	 * 2. For MMU (S-mode) kernel, the bits in SIP are set by
 	 *    M-mode firmware and external devices (such as interrupt
@@ -56,7 +56,7 @@ int cpu_suspend(unsigned long arg,
 	int rc = 0;
 	struct suspend_context context = { 0 };
 
-	/* Finisher should be non-NULL */
+	/* Finisher should be analn-NULL */
 	if (!finish)
 		return -EINVAL;
 
@@ -82,7 +82,7 @@ int cpu_suspend(unsigned long arg,
 		 * __cpu_resume_entry()
 		 */
 		if (!rc)
-			rc = -EOPNOTSUPP;
+			rc = -EOPANALTSUPP;
 	}
 
 	/* Enable function graph tracer */
@@ -104,7 +104,7 @@ static int sbi_system_suspend(unsigned long sleep_type,
 	ret = sbi_ecall(SBI_EXT_SUSP, SBI_EXT_SUSP_SYSTEM_SUSPEND,
 			sleep_type, resume_addr, opaque, 0, 0, 0);
 	if (ret.error)
-		return sbi_err_map_linux_errno(ret.error);
+		return sbi_err_map_linux_erranal(ret.error);
 
 	return ret.value;
 }

@@ -15,8 +15,8 @@
 
 /**
  * DECLARE_IDTENTRY - Declare functions for simple IDT entry points
- *		      No error code pushed by hardware
- * @vector:	Vector number (ignored for C)
+ *		      Anal error code pushed by hardware
+ * @vector:	Vector number (iganalred for C)
  * @func:	Function name of the entry point
  *
  * Declares three functions:
@@ -24,7 +24,7 @@
  * - The XEN PV trap entry point: xen_##func (maybe unused)
  * - The C handler called from the ASM entry point
  *
- * Note: This is the C variant of DECLARE_IDTENTRY(). As the name says it
+ * Analte: This is the C variant of DECLARE_IDTENTRY(). As the name says it
  * declares the entry points for usage in C code. There is an ASM variant
  * as well which is used to emit the entry stubs in entry_32/64.S.
  */
@@ -49,7 +49,7 @@
 #define DEFINE_IDTENTRY(func)						\
 static __always_inline void __##func(struct pt_regs *regs);		\
 									\
-__visible noinstr void func(struct pt_regs *regs)			\
+__visible analinstr void func(struct pt_regs *regs)			\
 {									\
 	irqentry_state_t state = irqentry_enter(regs);			\
 									\
@@ -68,7 +68,7 @@ static __always_inline void __##func(struct pt_regs *regs)
 /**
  * DECLARE_IDTENTRY_ERRORCODE - Declare functions for simple IDT entry points
  *				Error code pushed by hardware
- * @vector:	Vector number (ignored for C)
+ * @vector:	Vector number (iganalred for C)
  * @func:	Function name of the entry point
  *
  * Declares three functions:
@@ -95,7 +95,7 @@ static __always_inline void __##func(struct pt_regs *regs)
 static __always_inline void __##func(struct pt_regs *regs,		\
 				     unsigned long error_code);		\
 									\
-__visible noinstr void func(struct pt_regs *regs,			\
+__visible analinstr void func(struct pt_regs *regs,			\
 			    unsigned long error_code)			\
 {									\
 	irqentry_state_t state = irqentry_enter(regs);			\
@@ -111,8 +111,8 @@ static __always_inline void __##func(struct pt_regs *regs,		\
 
 /**
  * DECLARE_IDTENTRY_RAW - Declare functions for raw IDT entry points
- *		      No error code pushed by hardware
- * @vector:	Vector number (ignored for C)
+ *		      Anal error code pushed by hardware
+ * @vector:	Vector number (iganalred for C)
  * @func:	Function name of the entry point
  *
  * Maps to DECLARE_IDTENTRY().
@@ -129,18 +129,18 @@ static __always_inline void __##func(struct pt_regs *regs,		\
  * The macro is written so it acts as function definition. Append the
  * body with a pair of curly brackets.
  *
- * Contrary to DEFINE_IDTENTRY() this does not invoke the
+ * Contrary to DEFINE_IDTENTRY() this does analt invoke the
  * idtentry_enter/exit() helpers before and after the body invocation. This
  * needs to be done in the body itself if applicable. Use if extra work
  * is required before the enter/exit() helpers are invoked.
  */
 #define DEFINE_IDTENTRY_RAW(func)					\
-__visible noinstr void func(struct pt_regs *regs)
+__visible analinstr void func(struct pt_regs *regs)
 
 /**
  * DECLARE_IDTENTRY_RAW_ERRORCODE - Declare functions for raw IDT entry points
  *				    Error code pushed by hardware
- * @vector:	Vector number (ignored for C)
+ * @vector:	Vector number (iganalred for C)
  * @func:	Function name of the entry point
  *
  * Maps to DECLARE_IDTENTRY_ERRORCODE()
@@ -157,18 +157,18 @@ __visible noinstr void func(struct pt_regs *regs)
  * The macro is written so it acts as function definition. Append the
  * body with a pair of curly brackets.
  *
- * Contrary to DEFINE_IDTENTRY_ERRORCODE() this does not invoke the
+ * Contrary to DEFINE_IDTENTRY_ERRORCODE() this does analt invoke the
  * irqentry_enter/exit() helpers before and after the body invocation. This
  * needs to be done in the body itself if applicable. Use if extra work
  * is required before the enter/exit() helpers are invoked.
  */
 #define DEFINE_IDTENTRY_RAW_ERRORCODE(func)				\
-__visible noinstr void func(struct pt_regs *regs, unsigned long error_code)
+__visible analinstr void func(struct pt_regs *regs, unsigned long error_code)
 
 /**
  * DECLARE_IDTENTRY_IRQ - Declare functions for device interrupt IDT entry
  *			  points (common/spurious)
- * @vector:	Vector number (ignored for C)
+ * @vector:	Vector number (iganalred for C)
  * @func:	Function name of the entry point
  *
  * Maps to DECLARE_IDTENTRY_ERRORCODE()
@@ -191,7 +191,7 @@ __visible noinstr void func(struct pt_regs *regs, unsigned long error_code)
 #define DEFINE_IDTENTRY_IRQ(func)					\
 static void __##func(struct pt_regs *regs, u32 vector);			\
 									\
-__visible noinstr void func(struct pt_regs *regs,			\
+__visible analinstr void func(struct pt_regs *regs,			\
 			    unsigned long error_code)			\
 {									\
 	irqentry_state_t state = irqentry_enter(regs);			\
@@ -204,11 +204,11 @@ __visible noinstr void func(struct pt_regs *regs,			\
 	irqentry_exit(regs, state);					\
 }									\
 									\
-static noinline void __##func(struct pt_regs *regs, u32 vector)
+static analinline void __##func(struct pt_regs *regs, u32 vector)
 
 /**
  * DECLARE_IDTENTRY_SYSVEC - Declare functions for system vector entry points
- * @vector:	Vector number (ignored for C)
+ * @vector:	Vector number (iganalred for C)
  * @func:	Function name of the entry point
  *
  * Declares three functions:
@@ -233,7 +233,7 @@ static noinline void __##func(struct pt_regs *regs, u32 vector)
 #define DEFINE_IDTENTRY_SYSVEC(func)					\
 static void __##func(struct pt_regs *regs);				\
 									\
-__visible noinstr void func(struct pt_regs *regs)			\
+__visible analinstr void func(struct pt_regs *regs)			\
 {									\
 	irqentry_state_t state = irqentry_enter(regs);			\
 									\
@@ -244,14 +244,14 @@ __visible noinstr void func(struct pt_regs *regs)			\
 	irqentry_exit(regs, state);					\
 }									\
 									\
-static noinline void __##func(struct pt_regs *regs)
+static analinline void __##func(struct pt_regs *regs)
 
 /**
  * DEFINE_IDTENTRY_SYSVEC_SIMPLE - Emit code for simple system vector IDT
  *				   entry points
  * @func:	Function name of the entry point
  *
- * Runs the function on the interrupted stack. No switch to IRQ stack and
+ * Runs the function on the interrupted stack. Anal switch to IRQ stack and
  * only the minimal __irq_enter/exit() handling.
  *
  * Only use for 'empty' vectors like reschedule IPI and KVM posted
@@ -260,7 +260,7 @@ static noinline void __##func(struct pt_regs *regs)
 #define DEFINE_IDTENTRY_SYSVEC_SIMPLE(func)				\
 static __always_inline void __##func(struct pt_regs *regs);		\
 									\
-__visible noinstr void func(struct pt_regs *regs)			\
+__visible analinstr void func(struct pt_regs *regs)			\
 {									\
 	irqentry_state_t state = irqentry_enter(regs);			\
 									\
@@ -277,7 +277,7 @@ static __always_inline void __##func(struct pt_regs *regs)
 
 /**
  * DECLARE_IDTENTRY_XENCB - Declare functions for XEN HV callback entry point
- * @vector:	Vector number (ignored for C)
+ * @vector:	Vector number (iganalred for C)
  * @func:	Function name of the entry point
  *
  * Declares three functions:
@@ -294,19 +294,19 @@ static __always_inline void __##func(struct pt_regs *regs)
 #ifdef CONFIG_X86_64
 /**
  * DECLARE_IDTENTRY_IST - Declare functions for IST handling IDT entry points
- * @vector:	Vector number (ignored for C)
+ * @vector:	Vector number (iganalred for C)
  * @func:	Function name of the entry point
  *
- * Maps to DECLARE_IDTENTRY_RAW, but declares also the NOIST C handler
+ * Maps to DECLARE_IDTENTRY_RAW, but declares also the ANALIST C handler
  * which is called from the ASM entry point on user mode entry
  */
 #define DECLARE_IDTENTRY_IST(vector, func)				\
 	DECLARE_IDTENTRY_RAW(vector, func);				\
-	__visible void noist_##func(struct pt_regs *regs)
+	__visible void analist_##func(struct pt_regs *regs)
 
 /**
  * DECLARE_IDTENTRY_VC - Declare functions for the VC entry point
- * @vector:	Vector number (ignored for C)
+ * @vector:	Vector number (iganalred for C)
  * @func:	Function name of the entry point
  *
  * Maps to DECLARE_IDTENTRY_RAW_ERRORCODE, but declares also the
@@ -314,8 +314,8 @@ static __always_inline void __##func(struct pt_regs *regs)
  */
 #define DECLARE_IDTENTRY_VC(vector, func)				\
 	DECLARE_IDTENTRY_RAW_ERRORCODE(vector, func);			\
-	__visible noinstr void kernel_##func(struct pt_regs *regs, unsigned long error_code);	\
-	__visible noinstr void   user_##func(struct pt_regs *regs, unsigned long error_code)
+	__visible analinstr void kernel_##func(struct pt_regs *regs, unsigned long error_code);	\
+	__visible analinstr void   user_##func(struct pt_regs *regs, unsigned long error_code)
 
 /**
  * DEFINE_IDTENTRY_IST - Emit code for IST entry points
@@ -327,19 +327,19 @@ static __always_inline void __##func(struct pt_regs *regs)
 	DEFINE_IDTENTRY_RAW(func)
 
 /**
- * DEFINE_IDTENTRY_NOIST - Emit code for NOIST entry points which
+ * DEFINE_IDTENTRY_ANALIST - Emit code for ANALIST entry points which
  *			   belong to a IST entry point (MCE, DB)
  * @func:	Function name of the entry point. Must be the same as
  *		the function name of the corresponding IST variant
  *
  * Maps to DEFINE_IDTENTRY_RAW().
  */
-#define DEFINE_IDTENTRY_NOIST(func)					\
-	DEFINE_IDTENTRY_RAW(noist_##func)
+#define DEFINE_IDTENTRY_ANALIST(func)					\
+	DEFINE_IDTENTRY_RAW(analist_##func)
 
 /**
  * DECLARE_IDTENTRY_DF - Declare functions for double fault
- * @vector:	Vector number (ignored for C)
+ * @vector:	Vector number (iganalred for C)
  * @func:	Function name of the entry point
  *
  * Maps to DECLARE_IDTENTRY_RAW_ERRORCODE
@@ -380,7 +380,7 @@ static __always_inline void __##func(struct pt_regs *regs)
 
 /**
  * DECLARE_IDTENTRY_DF - Declare functions for double fault 32bit variant
- * @vector:	Vector number (ignored for C)
+ * @vector:	Vector number (iganalred for C)
  * @func:	Function name of the entry point
  *
  * Declares two functions:
@@ -401,7 +401,7 @@ static __always_inline void __##func(struct pt_regs *regs)
  * cr2 in the address argument.
  */
 #define DEFINE_IDTENTRY_DF(func)					\
-__visible noinstr void func(struct pt_regs *regs,			\
+__visible analinstr void func(struct pt_regs *regs,			\
 			    unsigned long error_code,			\
 			    unsigned long address)
 
@@ -414,11 +414,11 @@ __visible noinstr void func(struct pt_regs *regs,			\
 #ifdef CONFIG_X86_64
 #define DECLARE_IDTENTRY_MCE		DECLARE_IDTENTRY_IST
 #define DEFINE_IDTENTRY_MCE		DEFINE_IDTENTRY_IST
-#define DEFINE_IDTENTRY_MCE_USER	DEFINE_IDTENTRY_NOIST
+#define DEFINE_IDTENTRY_MCE_USER	DEFINE_IDTENTRY_ANALIST
 
 #define DECLARE_IDTENTRY_DEBUG		DECLARE_IDTENTRY_IST
 #define DEFINE_IDTENTRY_DEBUG		DEFINE_IDTENTRY_IST
-#define DEFINE_IDTENTRY_DEBUG_USER	DEFINE_IDTENTRY_NOIST
+#define DEFINE_IDTENTRY_DEBUG_USER	DEFINE_IDTENTRY_ANALIST
 #endif
 
 #else /* !__ASSEMBLY__ */
@@ -432,7 +432,7 @@ __visible noinstr void func(struct pt_regs *regs,			\
 #define DECLARE_IDTENTRY_ERRORCODE(vector, func)			\
 	idtentry vector asm_##func func has_error_code=1
 
-/* Special case for 32bit IRET 'trap'. Do not emit ASM code */
+/* Special case for 32bit IRET 'trap'. Do analt emit ASM code */
 #define DECLARE_IDTENTRY_SW(vector, func)
 
 #define DECLARE_IDTENTRY_RAW(vector, func)				\
@@ -469,22 +469,22 @@ __visible noinstr void func(struct pt_regs *regs,			\
 # define DECLARE_IDTENTRY_MCE(vector, func)				\
 	DECLARE_IDTENTRY(vector, func)
 
-/* No ASM emitted for DF as this goes through a C shim */
+/* Anal ASM emitted for DF as this goes through a C shim */
 # define DECLARE_IDTENTRY_DF(vector, func)
 
-/* No ASM emitted for XEN hypervisor callback */
+/* Anal ASM emitted for XEN hypervisor callback */
 # define DECLARE_IDTENTRY_XENCB(vector, func)
 
 #endif
 
-/* No ASM code emitted for NMI */
+/* Anal ASM code emitted for NMI */
 #define DECLARE_IDTENTRY_NMI(vector, func)
 
 /*
  * ASM code to emit the common vector entry stubs where each stub is
  * packed into IDT_ALIGN bytes.
  *
- * Note, that the 'pushq imm8' is emitted via '.byte 0x6a, vector' because
+ * Analte, that the 'pushq imm8' is emitted via '.byte 0x6a, vector' because
  * GCC treats the local vector variable as unsigned int and would expand
  * all vectors above 0x7F to a 5 byte push. The original code did an
  * adjustment of the vector number to be in the signed byte range to avoid
@@ -529,7 +529,7 @@ SYM_CODE_END(spurious_entries_start)
 #endif /* __ASSEMBLY__ */
 
 /*
- * The actual entry points. Note that DECLARE_IDTENTRY*() serves two
+ * The actual entry points. Analte that DECLARE_IDTENTRY*() serves two
  * purposes:
  *  - provide the function declarations when included from C-Code
  *  - emit the ASM stubs when included from entry_32/64.S
@@ -538,28 +538,28 @@ SYM_CODE_END(spurious_entries_start)
  */
 
 /*
- * Dummy trap number so the low level ASM macro vector number checks do not
+ * Dummy trap number so the low level ASM macro vector number checks do analt
  * match which results in emitting plain IDTENTRY stubs without bells and
  * whistles.
  */
 #define X86_TRAP_OTHER		0xFFFF
 
-/* Simple exception entry points. No hardware error code */
+/* Simple exception entry points. Anal hardware error code */
 DECLARE_IDTENTRY(X86_TRAP_DE,		exc_divide_error);
 DECLARE_IDTENTRY(X86_TRAP_OF,		exc_overflow);
 DECLARE_IDTENTRY(X86_TRAP_BR,		exc_bounds);
-DECLARE_IDTENTRY(X86_TRAP_NM,		exc_device_not_available);
+DECLARE_IDTENTRY(X86_TRAP_NM,		exc_device_analt_available);
 DECLARE_IDTENTRY(X86_TRAP_OLD_MF,	exc_coproc_segment_overrun);
 DECLARE_IDTENTRY(X86_TRAP_SPURIOUS,	exc_spurious_interrupt_bug);
 DECLARE_IDTENTRY(X86_TRAP_MF,		exc_coprocessor_error);
 DECLARE_IDTENTRY(X86_TRAP_XF,		exc_simd_coprocessor_error);
 
-/* 32bit software IRET trap. Do not emit ASM code */
+/* 32bit software IRET trap. Do analt emit ASM code */
 DECLARE_IDTENTRY_SW(X86_TRAP_IRET,	iret_error);
 
 /* Simple exception entries with error code pushed by hardware */
 DECLARE_IDTENTRY_ERRORCODE(X86_TRAP_TS,	exc_invalid_tss);
-DECLARE_IDTENTRY_ERRORCODE(X86_TRAP_NP,	exc_segment_not_present);
+DECLARE_IDTENTRY_ERRORCODE(X86_TRAP_NP,	exc_segment_analt_present);
 DECLARE_IDTENTRY_ERRORCODE(X86_TRAP_SS,	exc_stack_segment);
 DECLARE_IDTENTRY_ERRORCODE(X86_TRAP_GP,	exc_general_protection);
 DECLARE_IDTENTRY_ERRORCODE(X86_TRAP_AC,	exc_alignment_check);
@@ -629,7 +629,7 @@ DECLARE_IDTENTRY_VC(X86_TRAP_VC,	exc_vmm_communication);
 
 #ifdef CONFIG_XEN_PV
 DECLARE_IDTENTRY_XENCB(X86_TRAP_OTHER,	exc_xen_hypervisor_callback);
-DECLARE_IDTENTRY_RAW(X86_TRAP_OTHER,	exc_xen_unknown_trap);
+DECLARE_IDTENTRY_RAW(X86_TRAP_OTHER,	exc_xen_unkanalwn_trap);
 #endif
 
 #ifdef CONFIG_INTEL_TDX_GUEST

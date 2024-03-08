@@ -8,7 +8,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/skbuff.h>
 #include <linux/rtnetlink.h>
 #include <linux/module.h>
@@ -43,7 +43,7 @@ static struct tcf_meta_ops ife_prio_ops = {
 	.metaid = IFE_META_PRIO,
 	.metatype = NLA_U32,
 	.name = "skbprio",
-	.synopsis = "skb prio metadata",
+	.syanalpsis = "skb prio metadata",
 	.check_presence = skbprio_check,
 	.encode = skbprio_encode,
 	.decode = skbprio_decode,

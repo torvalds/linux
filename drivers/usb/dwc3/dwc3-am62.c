@@ -65,7 +65,7 @@
 				 USBSS_WAKEUP_CFG_LINESTATE_EN | \
 				 USBSS_WAKEUP_CFG_OVERCURRENT_EN)
 
-#define USBSS_WAKEUP_CFG_NONE	0
+#define USBSS_WAKEUP_CFG_ANALNE	0
 
 /* WAKEUP STAT register bits */
 #define USBSS_WAKEUP_STAT_OVERCURRENT	BIT(4)
@@ -142,12 +142,12 @@ static inline void dwc3_ti_writel(struct dwc3_am62 *am62, u32 offset, u32 value)
 static int phy_syscon_pll_refclk(struct dwc3_am62 *am62)
 {
 	struct device *dev = am62->dev;
-	struct device_node *node = dev->of_node;
+	struct device_analde *analde = dev->of_analde;
 	struct of_phandle_args args;
 	struct regmap *syscon;
 	int ret;
 
-	syscon = syscon_regmap_lookup_by_phandle(node, "ti,syscon-phy-pll-refclk");
+	syscon = syscon_regmap_lookup_by_phandle(analde, "ti,syscon-phy-pll-refclk");
 	if (IS_ERR(syscon)) {
 		dev_err(dev, "unable to get ti,syscon-phy-pll-refclk regmap\n");
 		return PTR_ERR(syscon);
@@ -155,7 +155,7 @@ static int phy_syscon_pll_refclk(struct dwc3_am62 *am62)
 
 	am62->syscon = syscon;
 
-	ret = of_parse_phandle_with_fixed_args(node, "ti,syscon-phy-pll-refclk", 1,
+	ret = of_parse_phandle_with_fixed_args(analde, "ti,syscon-phy-pll-refclk", 1,
 					       0, &args);
 	if (ret)
 		return ret;
@@ -174,7 +174,7 @@ static int phy_syscon_pll_refclk(struct dwc3_am62 *am62)
 static int dwc3_ti_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	struct dwc3_am62 *am62;
 	int i, ret;
 	unsigned long rate;
@@ -182,7 +182,7 @@ static int dwc3_ti_probe(struct platform_device *pdev)
 
 	am62 = devm_kzalloc(dev, sizeof(*am62), GFP_KERNEL);
 	if (!am62)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	am62->dev = dev;
 	platform_set_drvdata(pdev, am62);
@@ -230,13 +230,13 @@ static int dwc3_ti_probe(struct platform_device *pdev)
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
 	/*
-	 * Don't ignore its dependencies with its children
+	 * Don't iganalre its dependencies with its children
 	 */
-	pm_suspend_ignore_children(dev, false);
+	pm_suspend_iganalre_children(dev, false);
 	clk_prepare_enable(am62->usb2_refclk);
-	pm_runtime_get_noresume(dev);
+	pm_runtime_get_analresume(dev);
 
-	ret = of_platform_populate(node, NULL, NULL, dev);
+	ret = of_platform_populate(analde, NULL, NULL, dev);
 	if (ret) {
 		dev_err(dev, "failed to create dwc3 core: %d\n", ret);
 		goto err_pm_disable;
@@ -316,7 +316,7 @@ static int dwc3_ti_suspend_common(struct device *dev)
 			 */
 		}
 		dwc3_ti_writel(am62, USBSS_WAKEUP_CONFIG, reg);
-		/* clear wakeup status so we know what caused the wake up */
+		/* clear wakeup status so we kanalw what caused the wake up */
 		dwc3_ti_writel(am62, USBSS_WAKEUP_STAT, USBSS_WAKEUP_STAT_CLR);
 	}
 
@@ -334,7 +334,7 @@ static int dwc3_ti_resume_common(struct device *dev)
 
 	if (device_may_wakeup(dev)) {
 		/* Clear wakeup config enable bits */
-		dwc3_ti_writel(am62, USBSS_WAKEUP_CONFIG, USBSS_WAKEUP_CFG_NONE);
+		dwc3_ti_writel(am62, USBSS_WAKEUP_CONFIG, USBSS_WAKEUP_CFG_ANALNE);
 	}
 
 	reg = dwc3_ti_readl(am62, USBSS_WAKEUP_STAT);

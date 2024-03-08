@@ -41,7 +41,7 @@ static struct dev_dax *__dax_pmem_probe(struct device *dev)
 	nsio = to_nd_namespace_io(&ndns->dev);
 	if (!devm_request_mem_region(dev, nsio->res.start, offset,
 				dev_name(&ndns->dev))) {
-		dev_warn(dev, "could not reserve metadata\n");
+		dev_warn(dev, "could analt reserve metadata\n");
 		return ERR_PTR(-EBUSY);
 	}
 
@@ -53,10 +53,10 @@ static struct dev_dax *__dax_pmem_probe(struct device *dev)
 	range = pgmap.range;
 	range.start += offset;
 	dax_region = alloc_dax_region(dev, region_id, &range,
-			nd_region->target_node, le32_to_cpu(pfn_sb->align),
+			nd_region->target_analde, le32_to_cpu(pfn_sb->align),
 			IORESOURCE_DAX_STATIC);
 	if (!dax_region)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	data = (struct dev_dax_data) {
 		.dax_region = dax_region,

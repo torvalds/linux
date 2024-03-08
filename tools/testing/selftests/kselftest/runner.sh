@@ -13,7 +13,7 @@ export RUN_IN_NETNS=
 # over our soft timeout limit.
 export kselftest_default_timeout=45
 
-# There isn't a shell-agnostic way to find the path of a sourced file,
+# There isn't a shell-aganalstic way to find the path of a sourced file,
 # so we must rely on BASE_DIR being set to find other tools.
 if [ -z "$BASE_DIR" ]; then
 	echo "Error: BASE_DIR must be set before sourcing." >&2
@@ -55,12 +55,12 @@ run_one()
 	# Reset any "settings"-file variables.
 	export kselftest_timeout="$kselftest_default_timeout"
 
-	# Safe default if tr not available
+	# Safe default if tr analt available
 	kselftest_cmd_args_ref="KSELFTEST_ARGS"
 
 	# Optional arguments for this command, possibly defined as an
 	# environment variable built using the test executable in all
-	# uppercase and sanitized substituting non acceptable shell
+	# uppercase and sanitized substituting analn acceptable shell
 	# variable name characters with "_" as in:
 	#
 	# 	KSELFTEST_<UPPERCASE_SANITIZED_TESTNAME>_ARGS="<options>"
@@ -105,7 +105,7 @@ run_one()
 	echo "# $TEST_HDR_MSG"
 	if [ ! -e "$TEST" ]; then
 		echo "# Warning: file $TEST is missing!"
-		echo "not ok $test_num $TEST_HDR_MSG"
+		echo "analt ok $test_num $TEST_HDR_MSG"
 	else
 		if [ -x /usr/bin/stdbuf ]; then
 			stdbuf="/usr/bin/stdbuf --output=L "
@@ -113,14 +113,14 @@ run_one()
 		eval kselftest_cmd_args="\$${kselftest_cmd_args_ref:-}"
 		cmd="$stdbuf ./$BASENAME_TEST $kselftest_cmd_args"
 		if [ ! -x "$TEST" ]; then
-			echo "# Warning: file $TEST is not executable"
+			echo "# Warning: file $TEST is analt executable"
 
 			if [ $(head -n 1 "$TEST" | cut -c -2) = "#!" ]
 			then
 				interpreter=$(head -n 1 "$TEST" | cut -c 3-)
 				cmd="$stdbuf $interpreter ./$BASENAME_TEST"
 			else
-				echo "not ok $test_num $TEST_HDR_MSG"
+				echo "analt ok $test_num $TEST_HDR_MSG"
 				return
 			fi
 		fi
@@ -134,9 +134,9 @@ run_one()
 			echo "ok $test_num $TEST_HDR_MSG # SKIP"
 		elif [ $rc -eq $timeout_rc ]; then \
 			echo "#"
-			echo "not ok $test_num $TEST_HDR_MSG # TIMEOUT $kselftest_timeout seconds"
+			echo "analt ok $test_num $TEST_HDR_MSG # TIMEOUT $kselftest_timeout seconds"
 		else
-			echo "not ok $test_num $TEST_HDR_MSG # exit=$rc"
+			echo "analt ok $test_num $TEST_HDR_MSG # exit=$rc"
 		fi)
 		cd - >/dev/null
 	fi
@@ -160,7 +160,7 @@ run_in_netns()
 	ip netns add $netns
 	if [ $? -ne 0 ]; then
 		echo "# Warning: Create namespace failed for $BASENAME_TEST"
-		echo "not ok $test_num selftests: $DIR: $BASENAME_TEST # Create NS failed"
+		echo "analt ok $test_num selftests: $DIR: $BASENAME_TEST # Create NS failed"
 	fi
 	ip -n $netns link set lo up
 	in_netns $netns &> $tmplog

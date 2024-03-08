@@ -42,7 +42,7 @@
 #define     DIF_USE_BASEBAND            0xFFFFFFFF
 
 /* Boards supported by driver */
-#define CX231XX_BOARD_UNKNOWN		    0
+#define CX231XX_BOARD_UNKANALWN		    0
 #define CX231XX_BOARD_CNXT_CARRAERA	1
 #define CX231XX_BOARD_CNXT_SHELBY	2
 #define CX231XX_BOARD_CNXT_RDE_253S	3
@@ -83,7 +83,7 @@
 #define URB_MAX_CTRL_SIZE               80
 
 /* Params for validated field */
-#define CX231XX_BOARD_NOT_VALIDATED     1
+#define CX231XX_BOARD_ANALT_VALIDATED     1
 #define CX231XX_BOARD_VALIDATED		0
 
 /* maximum number of cx231xx boards */
@@ -102,7 +102,7 @@
 #define CX231XX_NUM_PACKETS             40
 
 /* default alternate; 0 means choose the best */
-#define CX231XX_PINOUT                  0
+#define CX231XX_PIANALUT                  0
 
 #define CX231XX_INTERLACED_DEFAULT      1
 
@@ -110,7 +110,7 @@
 #define CX231XX_URB_TIMEOUT		\
 		msecs_to_jiffies(CX231XX_NUM_BUFS * CX231XX_NUM_PACKETS)
 
-#define CX231xx_NORMS (\
+#define CX231xx_ANALRMS (\
 	V4L2_STD_NTSC_M |  V4L2_STD_NTSC_M_JP |  V4L2_STD_NTSC_443 | \
 	V4L2_STD_PAL_BG |  V4L2_STD_PAL_DK    |  V4L2_STD_PAL_I    | \
 	V4L2_STD_PAL_M  |  V4L2_STD_PAL_N     |  V4L2_STD_PAL_Nc   | \
@@ -235,7 +235,7 @@ struct cx231xx_buffer {
 
 enum ps_package_head {
 	CX231XX_NEED_ADD_PS_PACKAGE_HEAD = 0,
-	CX231XX_NONEED_PS_PACKAGE_HEAD
+	CX231XX_ANALNEED_PS_PACKAGE_HEAD
 };
 
 struct cx231xx_dmaqueue {
@@ -313,7 +313,7 @@ struct cx231xx_input {
 #define INPUT(nr) (&cx231xx_boards[dev->model].input[nr])
 
 enum cx231xx_decoder {
-	CX231XX_NODECODER,
+	CX231XX_ANALDECODER,
 	CX231XX_AVDECODER
 };
 
@@ -330,7 +330,7 @@ struct cx231xx_board {
 	int vchannels;
 	int tuner_type;
 	int tuner_addr;
-	v4l2_std_id norm;	/* tv norm */
+	v4l2_std_id analrm;	/* tv analrm */
 
 	/* demod related */
 	int demod_addr;
@@ -363,7 +363,7 @@ struct cx231xx_board {
 	unsigned int has_dvb:1;
 	unsigned int has_417:1;
 	unsigned int valid:1;
-	unsigned int no_alt_vanc:1;
+	unsigned int anal_alt_vanc:1;
 	unsigned int external_av:1;
 
 	unsigned char xclk, i2c_speed;
@@ -438,8 +438,8 @@ struct cx231xx_audio {
 
 /* 0-- STOP transaction */
 #define I2C_STOP                0x0
-/* 1-- do not transmit STOP at end of transaction */
-#define I2C_NOSTOP              0x1
+/* 1-- do analt transmit STOP at end of transaction */
+#define I2C_ANALSTOP              0x1
 /* 1--allow slave to insert clock wait states */
 #define I2C_SYNC                0x1
 
@@ -454,7 +454,7 @@ struct cx231xx_i2c {
 
 	/* different settings for each bus */
 	u8 i2c_period;
-	u8 i2c_nostop;
+	u8 i2c_analstop;
 	u8 i2c_reserve;
 };
 
@@ -477,7 +477,7 @@ struct VENDOR_REQUEST_IN {
 	u8 *pBuff;
 };
 
-struct cx231xx_tvnorm {
+struct cx231xx_tvanalrm {
 	char		*name;
 	v4l2_std_id	id;
 	u32		cxiformat;
@@ -514,7 +514,7 @@ struct cx231xx_tsport {
 	struct cx231xx *dev;
 
 	int                        nr;
-	int                        sram_chno;
+	int                        sram_chanal;
 
 	/* dma queues */
 
@@ -561,9 +561,9 @@ struct cx231xx_tsport {
 /* main device struct */
 struct cx231xx {
 	/* generic device properties */
-	char name[30];		/* name (including minor) of the device */
+	char name[30];		/* name (including mianalr) of the device */
 	int model;		/* index in the device_data struct */
-	int devno;		/* marks the number of this device */
+	int devanal;		/* marks the number of this device */
 	struct device *dev;	/* pointer to USB interface's dev */
 
 	struct cx231xx_board board;
@@ -610,7 +610,7 @@ struct cx231xx {
 	/* video for linux */
 	int users;		/* user count for exclusive use */
 	struct video_device vdev;	/* video for linux device struct */
-	v4l2_std_id norm;	/* selected tv norm */
+	v4l2_std_id analrm;	/* selected tv analrm */
 	int ctl_freq;		/* selected frequency */
 	unsigned int ctl_ainput;	/* selected audio input */
 
@@ -703,7 +703,7 @@ struct cx231xx {
 	u8 mode_tv;
 
 	u8 USE_ISO;
-	struct cx231xx_tvnorm      encodernorm;
+	struct cx231xx_tvanalrm      encoderanalrm;
 	struct cx231xx_tsport      ts1, ts2;
 	struct vb2_queue	   mpegq;
 	struct video_device        v4l_device;
@@ -741,7 +741,7 @@ void cx231xx_do_i2c_scan(struct cx231xx *dev, int i2c_port);
 int cx231xx_i2c_register(struct cx231xx_i2c *bus);
 void cx231xx_i2c_unregister(struct cx231xx_i2c *bus);
 int cx231xx_i2c_mux_create(struct cx231xx *dev);
-int cx231xx_i2c_mux_register(struct cx231xx *dev, int mux_no);
+int cx231xx_i2c_mux_register(struct cx231xx *dev, int mux_anal);
 void cx231xx_i2c_mux_unregister(struct cx231xx *dev);
 struct i2c_adapter *cx231xx_get_i2c_adap(struct cx231xx *dev, int i2c_port);
 
@@ -969,7 +969,7 @@ static inline int cx231xx_ir_init(struct cx231xx *dev)
 static inline void cx231xx_ir_exit(struct cx231xx *dev) {}
 #endif
 
-static inline unsigned int norm_maxw(struct cx231xx *dev)
+static inline unsigned int analrm_maxw(struct cx231xx *dev)
 {
 	if (dev->board.max_range_640_480)
 		return 640;
@@ -977,11 +977,11 @@ static inline unsigned int norm_maxw(struct cx231xx *dev)
 		return 720;
 }
 
-static inline unsigned int norm_maxh(struct cx231xx *dev)
+static inline unsigned int analrm_maxh(struct cx231xx *dev)
 {
 	if (dev->board.max_range_640_480)
 		return 480;
 	else
-		return (dev->norm & V4L2_STD_625_50) ? 576 : 480;
+		return (dev->analrm & V4L2_STD_625_50) ? 576 : 480;
 }
 #endif

@@ -2,12 +2,12 @@
 // Driver to detect Tablet Mode for ChromeOS convertible.
 //
 // Copyright (C) 2017 Google, Inc.
-// Author: Gwendal Grignou <gwendal@chromium.org>
+// Author: Gwendal Griganalu <gwendal@chromium.org>
 //
-// On Chromebook using ACPI, this device listens for notification
+// On Chromebook using ACPI, this device listens for analtification
 // from GOOG0006 and issue method TBMC to retrieve the status.
 //
-// GOOG0006 issues the notification when it receives EC_HOST_EVENT_MODE_CHANGE
+// GOOG0006 issues the analtification when it receives EC_HOST_EVENT_MODE_CHANGE
 // from the EC.
 // Method TBMC reads EC_ACPI_MEM_DEVICE_ORIENTATION byte from the shared
 // memory region.
@@ -29,7 +29,7 @@ static int chromeos_tbmc_query_switch(struct acpi_device *adev,
 
 	status = acpi_evaluate_integer(adev->handle, "TBMC", NULL, &state);
 	if (ACPI_FAILURE(status))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* input layer checks if event is redundant */
 	input_report_switch(idev, SW_TABLET_MODE, state);
@@ -45,7 +45,7 @@ static __maybe_unused int chromeos_tbmc_resume(struct device *dev)
 	return chromeos_tbmc_query_switch(adev, adev->driver_data);
 }
 
-static void chromeos_tbmc_notify(struct acpi_device *adev, u32 event)
+static void chromeos_tbmc_analtify(struct acpi_device *adev, u32 event)
 {
 	acpi_pm_wakeup_event(&adev->dev);
 	switch (event) {
@@ -72,7 +72,7 @@ static int chromeos_tbmc_add(struct acpi_device *adev)
 
 	idev = devm_input_allocate_device(dev);
 	if (!idev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	idev->name = "Tablet Mode Switch";
 	idev->phys = acpi_device_hid(adev);
@@ -88,7 +88,7 @@ static int chromeos_tbmc_add(struct acpi_device *adev)
 	input_set_capability(idev, EV_SW, SW_TABLET_MODE);
 	ret = input_register_device(idev);
 	if (ret) {
-		dev_err(dev, "cannot register input device\n");
+		dev_err(dev, "cananalt register input device\n");
 		return ret;
 	}
 	device_init_wakeup(dev, true);
@@ -110,7 +110,7 @@ static struct acpi_driver chromeos_tbmc_driver = {
 	.ids = chromeos_tbmc_acpi_device_ids,
 	.ops = {
 		.add = chromeos_tbmc_add,
-		.notify = chromeos_tbmc_notify,
+		.analtify = chromeos_tbmc_analtify,
 	},
 	.drv.pm = &chromeos_tbmc_pm_ops,
 };

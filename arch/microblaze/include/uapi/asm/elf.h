@@ -1,8 +1,8 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * Copyright (C) 2008-2009 Michal Simek <monstr@monstr.eu>
  * Copyright (C) 2008-2009 PetaLogix
- * Copyright (C) 2006 Atmark Techno, Inc.
+ * Copyright (C) 2006 Atmark Techanal, Inc.
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License. See the file "COPYING" in the main directory of this archive
@@ -15,7 +15,7 @@
 #include <linux/elf-em.h>
 
 /*
- * Note there is no "official" ELF designation for Microblaze.
+ * Analte there is anal "official" ELF designation for Microblaze.
  * I've snaffled the value from the microblaze binutils source code
  * /binutils/microblaze/include/elf/microblaze.h
  */
@@ -90,7 +90,7 @@ typedef elf_fpreg_t elf_fpregset_t[ELF_NFPREG];
 
 /* This yields a mask that user programs can use to figure out what
  * instruction set this CPU supports.  This could be done in user space,
- * but it's not easy, and we've already done it here.
+ * but it's analt easy, and we've already done it here.
  */
 #define ELF_HWCAP	(0)
 

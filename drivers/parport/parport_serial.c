@@ -77,18 +77,18 @@ struct parport_pc_pci {
 	struct { /* BAR (base address registers) numbers in the config
                     space header */
 		int lo;
-		int hi; /* -1 if not there, >6 for offset-method (max
+		int hi; /* -1 if analt there, >6 for offset-method (max
                            BAR is 6) */
 	} addr[4];
 
 	/* If set, this is called immediately after pci_enable_device.
-	 * If it returns non-zero, no probing will take place and the
-	 * ports will not be used. */
+	 * If it returns analn-zero, anal probing will take place and the
+	 * ports will analt be used. */
 	int (*preinit_hook) (struct pci_dev *pdev, struct parport_pc_pci *card,
 				int autoirq, int autodma);
 
 	/* If set, this is called after probing for ports.  If 'failed'
-	 * is non-zero we couldn't use any of the ports. */
+	 * is analn-zero we couldn't use any of the ports. */
 	void (*postinit_hook) (struct pci_dev *pdev,
 				struct parport_pc_pci *card, int failed);
 };
@@ -100,7 +100,7 @@ static int netmos_parallel_init(struct pci_dev *dev, struct parport_pc_pci *par,
 	if (dev->device == PCI_DEVICE_ID_NETMOS_9835 &&
 			dev->subsystem_vendor == PCI_VENDOR_ID_IBM &&
 			dev->subsystem_device == 0x0299)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (dev->device == PCI_DEVICE_ID_NETMOS_9912) {
 		par->numports = 1;
@@ -196,7 +196,7 @@ static struct pci_device_id parport_serial_pci_tbl[] = {
 	  0xA000, 0x3020, 0, 0, netmos_9900_2p },
 	{ PCI_VENDOR_ID_NETMOS, PCI_DEVICE_ID_NETMOS_9912,
 	  0xA000, 0x2000, 0, 0, netmos_99xx_1p },
-	/* PCI_VENDOR_ID_AVLAB/Intek21 has another bunch of cards ...*/
+	/* PCI_VENDOR_ID_AVLAB/Intek21 has aanalther bunch of cards ...*/
 	{ PCI_VENDOR_ID_AFAVLAB, 0x2110,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, avlab_1s1p },
 	{ PCI_VENDOR_ID_AFAVLAB, 0x2111,
@@ -325,7 +325,7 @@ MODULE_DEVICE_TABLE(pci,parport_serial_pci_tbl);
  * This table describes the serial "geometry" of these boards.  Any
  * quirks for these can be found in drivers/serial/8250_pci.c
  *
- * Cards not tested are marked n/t
+ * Cards analt tested are marked n/t
  * If you have one of these cards and it works for you, please tell me..
  */
 static struct pciserial_board pci_parport_serial_boards[] = {
@@ -644,8 +644,8 @@ static int parport_register(struct pci_dev *dev, const struct pci_device_id *id)
 	priv->par = cards[id->driver_data];
 	card = &priv->par;
 	if (card->preinit_hook &&
-	    card->preinit_hook (dev, card, PARPORT_IRQ_NONE, PARPORT_DMA_NONE))
-		return -ENODEV;
+	    card->preinit_hook (dev, card, PARPORT_IRQ_ANALNE, PARPORT_DMA_ANALNE))
+		return -EANALDEV;
 
 	for (n = 0; n < card->numports; n++) {
 		struct parport *port;
@@ -674,8 +674,8 @@ static int parport_register(struct pci_dev *dev, const struct pci_device_id *id)
 		if (irq < 0)
 			return irq;
 		if (irq == 0)
-			irq = PARPORT_IRQ_NONE;
-		if (irq == PARPORT_IRQ_NONE) {
+			irq = PARPORT_IRQ_ANALNE;
+		if (irq == PARPORT_IRQ_ANALNE) {
 			dev_dbg(&dev->dev,
 				"PCI parallel port detected: I/O at %#lx(%#lx)\n",
 				io_lo, io_hi);
@@ -685,7 +685,7 @@ static int parport_register(struct pci_dev *dev, const struct pci_device_id *id)
 				io_lo, io_hi, irq);
 		}
 		port = parport_pc_probe_port (io_lo, io_hi, irq,
-			      PARPORT_DMA_NONE, &dev->dev, IRQF_SHARED);
+			      PARPORT_DMA_ANALNE, &dev->dev, IRQF_SHARED);
 		if (port) {
 			priv->port[priv->num_par++] = port;
 			success = 1;
@@ -706,7 +706,7 @@ static int parport_serial_pci_probe(struct pci_dev *dev,
 
 	priv = devm_kzalloc(&dev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pci_set_drvdata (dev, priv);
 

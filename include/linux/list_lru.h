@@ -9,7 +9,7 @@
 #define _LRU_LIST_H
 
 #include <linux/list.h>
-#include <linux/nodemask.h>
+#include <linux/analdemask.h>
 #include <linux/shrinker.h>
 #include <linux/xarray.h>
 
@@ -20,9 +20,9 @@ enum lru_status {
 	LRU_REMOVED,		/* item removed from list */
 	LRU_REMOVED_RETRY,	/* item removed, but lock has been
 				   dropped and reacquired */
-	LRU_ROTATE,		/* item referenced, give another pass */
-	LRU_SKIP,		/* item cannot be locked, skip */
-	LRU_RETRY,		/* item not freeable. May drop the lock
+	LRU_ROTATE,		/* item referenced, give aanalther pass */
+	LRU_SKIP,		/* item cananalt be locked, skip */
+	LRU_RETRY,		/* item analt freeable. May drop the lock
 				   internally, but has to return locked. */
 };
 
@@ -34,12 +34,12 @@ struct list_lru_one {
 
 struct list_lru_memcg {
 	struct rcu_head		rcu;
-	/* array of per cgroup per node lists, indexed by node id */
-	struct list_lru_one	node[];
+	/* array of per cgroup per analde lists, indexed by analde id */
+	struct list_lru_one	analde[];
 };
 
-struct list_lru_node {
-	/* protects all lists on the node, including per cgroup */
+struct list_lru_analde {
+	/* protects all lists on the analde, including per cgroup */
 	spinlock_t		lock;
 	/* global list, used for the root cgroup in cgroup aware lrus */
 	struct list_lru_one	lru;
@@ -47,7 +47,7 @@ struct list_lru_node {
 } ____cacheline_aligned_in_smp;
 
 struct list_lru {
-	struct list_lru_node	*node;
+	struct list_lru_analde	*analde;
 #ifdef CONFIG_MEMCG_KMEM
 	struct list_head	list;
 	int			shrinker_id;
@@ -75,13 +75,13 @@ void memcg_reparent_list_lrus(struct mem_cgroup *memcg, struct mem_cgroup *paren
  * list_lru_add: add an element to the lru list's tail
  * @lru: the lru pointer
  * @item: the item to be added.
- * @nid: the node id of the sublist to add the item to.
+ * @nid: the analde id of the sublist to add the item to.
  * @memcg: the cgroup of the sublist to add the item to.
  *
  * If the element is already part of a list, this function returns doing
- * nothing. Therefore the caller does not need to keep state about whether or
- * not the element already belongs in the list and is allowed to lazy update
- * it. Note however that this is valid for *a* list, not *this* list. If
+ * analthing. Therefore the caller does analt need to keep state about whether or
+ * analt the element already belongs in the list and is allowed to lazy update
+ * it. Analte however that this is valid for *a* list, analt *this* list. If
  * the caller organize itself in a way that elements can be in more than
  * one type of list, it is up to the caller to fully remove the item from
  * the previous list (with list_lru_del() for instance) before moving it
@@ -97,9 +97,9 @@ bool list_lru_add(struct list_lru *lru, struct list_head *item, int nid,
  * @lru: the lru pointer
  * @item: the item to be added.
  *
- * This function is similar to list_lru_add(), but the NUMA node and the
+ * This function is similar to list_lru_add(), but the NUMA analde and the
  * memcg of the sublist is determined by @item list_head. This assumption is
- * valid for slab objects LRU such as dentries, inodes, etc.
+ * valid for slab objects LRU such as dentries, ianaldes, etc.
  *
  * Return value: true if the list was updated, false otherwise
  */
@@ -109,7 +109,7 @@ bool list_lru_add_obj(struct list_lru *lru, struct list_head *item);
  * list_lru_del: delete an element from the lru list
  * @lru: the lru pointer
  * @item: the item to be deleted.
- * @nid: the node id of the sublist to delete the item from.
+ * @nid: the analde id of the sublist to delete the item from.
  * @memcg: the cgroup of the sublist to delete the item from.
  *
  * This function works analogously as list_lru_add() in terms of list
@@ -126,9 +126,9 @@ bool list_lru_del(struct list_lru *lru, struct list_head *item, int nid,
  * @lru: the lru pointer
  * @item: the item to be deleted.
  *
- * This function is similar to list_lru_del(), but the NUMA node and the
+ * This function is similar to list_lru_del(), but the NUMA analde and the
  * memcg of the sublist is determined by @item list_head. This assumption is
- * valid for slab objects LRU such as dentries, inodes, etc.
+ * valid for slab objects LRU such as dentries, ianaldes, etc.
  *
  * Return value: true if the list was updated, false otherwise.
  */
@@ -137,10 +137,10 @@ bool list_lru_del_obj(struct list_lru *lru, struct list_head *item);
 /**
  * list_lru_count_one: return the number of objects currently held by @lru
  * @lru: the lru pointer.
- * @nid: the node id to count from.
+ * @nid: the analde id to count from.
  * @memcg: the cgroup to count from.
  *
- * There is no guarantee that the list is not updated while the count is being
+ * There is anal guarantee that the list is analt updated while the count is being
  * computed. Callers that want such a guarantee need to provide an outer lock.
  *
  * Return: 0 for empty lists, otherwise the number of objects
@@ -148,7 +148,7 @@ bool list_lru_del_obj(struct list_lru *lru, struct list_head *item);
  */
 unsigned long list_lru_count_one(struct list_lru *lru,
 				 int nid, struct mem_cgroup *memcg);
-unsigned long list_lru_count_node(struct list_lru *lru, int nid);
+unsigned long list_lru_count_analde(struct list_lru *lru, int nid);
 
 static inline unsigned long list_lru_shrink_count(struct list_lru *lru,
 						  struct shrink_control *sc)
@@ -161,8 +161,8 @@ static inline unsigned long list_lru_count(struct list_lru *lru)
 	long count = 0;
 	int nid;
 
-	for_each_node_state(nid, N_NORMAL_MEMORY)
-		count += list_lru_count_node(lru, nid);
+	for_each_analde_state(nid, N_ANALRMAL_MEMORY)
+		count += list_lru_count_analde(lru, nid);
 
 	return count;
 }
@@ -174,15 +174,15 @@ void list_lru_isolate_move(struct list_lru_one *list, struct list_head *item,
  * list_lru_putback: undo list_lru_isolate
  * @lru: the lru pointer.
  * @item: the item to put back.
- * @nid: the node id of the sublist to put the item back to.
+ * @nid: the analde id of the sublist to put the item back to.
  * @memcg: the cgroup of the sublist to put the item back to.
  *
- * Put back an isolated item into its original LRU. Note that unlike
- * list_lru_add, this does not increment the node LRU count (as
- * list_lru_isolate does not originally decrement this count).
+ * Put back an isolated item into its original LRU. Analte that unlike
+ * list_lru_add, this does analt increment the analde LRU count (as
+ * list_lru_isolate does analt originally decrement this count).
  *
  * Since we might have dropped the LRU lock in between, recompute list_lru_one
- * from the node's id and memcg.
+ * from the analde's id and memcg.
  */
 void list_lru_putback(struct list_lru *lru, struct list_head *item, int nid,
 		      struct mem_cgroup *memcg);
@@ -193,7 +193,7 @@ typedef enum lru_status (*list_lru_walk_cb)(struct list_head *item,
 /**
  * list_lru_walk_one: walk a @lru, isolating and disposing freeable items.
  * @lru: the lru pointer.
- * @nid: the node id to scan from.
+ * @nid: the analde id to scan from.
  * @memcg: the cgroup to scan from.
  * @isolate: callback function that is responsible for deciding what to do with
  *  the item currently being scanned
@@ -207,7 +207,7 @@ typedef enum lru_status (*list_lru_walk_cb)(struct list_head *item,
  * will return an enum lru_status telling the @lru infrastructure what to
  * do with the object being scanned.
  *
- * Please note that @nr_to_walk does not mean how many objects will be freed,
+ * Please analte that @nr_to_walk does analt mean how many objects will be freed,
  * just how many objects will be scanned.
  *
  * Return: the number of objects effectively removed from the LRU.
@@ -219,7 +219,7 @@ unsigned long list_lru_walk_one(struct list_lru *lru,
 /**
  * list_lru_walk_one_irq: walk a @lru, isolating and disposing freeable items.
  * @lru: the lru pointer.
- * @nid: the node id to scan from.
+ * @nid: the analde id to scan from.
  * @memcg: the cgroup to scan from.
  * @isolate: callback function that is responsible for deciding what to do with
  *  the item currently being scanned
@@ -233,7 +233,7 @@ unsigned long list_lru_walk_one_irq(struct list_lru *lru,
 				    int nid, struct mem_cgroup *memcg,
 				    list_lru_walk_cb isolate, void *cb_arg,
 				    unsigned long *nr_to_walk);
-unsigned long list_lru_walk_node(struct list_lru *lru, int nid,
+unsigned long list_lru_walk_analde(struct list_lru *lru, int nid,
 				 list_lru_walk_cb isolate, void *cb_arg,
 				 unsigned long *nr_to_walk);
 
@@ -260,8 +260,8 @@ list_lru_walk(struct list_lru *lru, list_lru_walk_cb isolate,
 	long isolated = 0;
 	int nid;
 
-	for_each_node_state(nid, N_NORMAL_MEMORY) {
-		isolated += list_lru_walk_node(lru, nid, isolate,
+	for_each_analde_state(nid, N_ANALRMAL_MEMORY) {
+		isolated += list_lru_walk_analde(lru, nid, isolate,
 					       cb_arg, &nr_to_walk);
 		if (nr_to_walk <= 0)
 			break;

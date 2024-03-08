@@ -10,11 +10,11 @@
 #include <linux/reboot.h>
 
 struct tps65086_restart {
-	struct notifier_block handler;
+	struct analtifier_block handler;
 	struct device *dev;
 };
 
-static int tps65086_restart_notify(struct notifier_block *this,
+static int tps65086_restart_analtify(struct analtifier_block *this,
 				   unsigned long mode, void *cmd)
 {
 	struct tps65086_restart *tps65086_restart =
@@ -26,7 +26,7 @@ static int tps65086_restart_notify(struct notifier_block *this,
 	if (ret) {
 		dev_err(tps65086_restart->dev, "%s: error writing to tps65086 pmic: %d\n",
 			__func__, ret);
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 
 	/* give it a little time */
@@ -34,7 +34,7 @@ static int tps65086_restart_notify(struct notifier_block *this,
 
 	WARN_ON(1);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static int tps65086_restart_probe(struct platform_device *pdev)
@@ -44,19 +44,19 @@ static int tps65086_restart_probe(struct platform_device *pdev)
 
 	tps65086_restart = devm_kzalloc(&pdev->dev, sizeof(*tps65086_restart), GFP_KERNEL);
 	if (!tps65086_restart)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, tps65086_restart);
 
-	tps65086_restart->handler.notifier_call = tps65086_restart_notify;
+	tps65086_restart->handler.analtifier_call = tps65086_restart_analtify;
 	tps65086_restart->handler.priority = 192;
 	tps65086_restart->dev = &pdev->dev;
 
 	ret = register_restart_handler(&tps65086_restart->handler);
 	if (ret) {
-		dev_err(&pdev->dev, "%s: cannot register restart handler: %d\n",
+		dev_err(&pdev->dev, "%s: cananalt register restart handler: %d\n",
 			__func__, ret);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -74,7 +74,7 @@ static void tps65086_restart_remove(struct platform_device *pdev)
 		 * unregistering should work fine. Checking the error code
 		 * shouldn't be needed, still doing it for completeness.
 		 */
-		dev_err(&pdev->dev, "%s: cannot unregister restart handler: %d\n",
+		dev_err(&pdev->dev, "%s: cananalt unregister restart handler: %d\n",
 			__func__, ret);
 	}
 }

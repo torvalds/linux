@@ -27,7 +27,7 @@
  *
  *  - same mapping on all i.MX machines
  *  - works for assembler, too
- *  - no need to nurture #defines for virtual addresses
+ *  - anal need to nurture #defines for virtual addresses
  *
  * The downside it, it's hard to verify (but I have a script for that).
  *

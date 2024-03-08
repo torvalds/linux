@@ -18,26 +18,26 @@
  */
 typedef char		xwidgetnum_t;	/* xtalk widget number	(0..15) */
 
-#define XWIDGET_NONE		-1
+#define XWIDGET_ANALNE		-1
 
 typedef int xwidget_part_num_t; /* xtalk widget part number */
 
-#define XWIDGET_PART_NUM_NONE	-1
+#define XWIDGET_PART_NUM_ANALNE	-1
 
 typedef int		xwidget_rev_num_t;	/* xtalk widget revision number */
 
-#define XWIDGET_REV_NUM_NONE	-1
+#define XWIDGET_REV_NUM_ANALNE	-1
 
 typedef int xwidget_mfg_num_t;	/* xtalk widget manufacturing ID */
 
-#define XWIDGET_MFG_NUM_NONE	-1
+#define XWIDGET_MFG_NUM_ANALNE	-1
 
 typedef struct xtalk_piomap_s *xtalk_piomap_t;
 
 /* It is often convenient to fold the XIO target port
  * number into the XIO address.
  */
-#define XIO_NOWHERE	(0xFFFFFFFFFFFFFFFFull)
+#define XIO_ANALWHERE	(0xFFFFFFFFFFFFFFFFull)
 #define XIO_ADDR_BITS	(0x0000FFFFFFFFFFFFull)
 #define XIO_PORT_BITS	(0xF000000000000000ull)
 #define XIO_PORT_SHIFT	(60)

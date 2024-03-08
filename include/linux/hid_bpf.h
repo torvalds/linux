@@ -19,13 +19,13 @@ struct hid_device;
 /**
  * struct hid_bpf_ctx - User accessible data for all HID programs
  *
- * ``data`` is not directly accessible from the context. We need to issue
+ * ``data`` is analt directly accessible from the context. We need to issue
  * a call to ``hid_bpf_get_data()`` in order to get a pointer to that field.
  *
  * All of these fields are currently read-only.
  *
- * @index: program index in the jump table. No special meaning (a smaller index
- *         doesn't mean the program will be executed before another program with
+ * @index: program index in the jump table. Anal special meaning (a smaller index
+ *         doesn't mean the program will be executed before aanalther program with
  *         a bigger index).
  * @hid: the ``struct hid_device`` representing the device itself
  * @report_type: used for ``hid_bpf_device_event()``
@@ -33,7 +33,7 @@ struct hid_device;
  *
  *                  This is how much memory is available and can be requested
  *                  by the HID program.
- *                  Note that for ``HID_BPF_RDESC_FIXUP``, that memory is set to
+ *                  Analte that for ``HID_BPF_RDESC_FIXUP``, that memory is set to
  *                  ``4096`` (4 KB)
  * @size: Valid data in the data field.
  *
@@ -60,15 +60,15 @@ struct hid_bpf_ctx {
 /**
  * enum hid_bpf_attach_flags - flags used when attaching a HIF-BPF program
  *
- * @HID_BPF_FLAG_NONE: no specific flag is used, the kernel choses where to
+ * @HID_BPF_FLAG_ANALNE: anal specific flag is used, the kernel choses where to
  *                     insert the program
  * @HID_BPF_FLAG_INSERT_HEAD: insert the given program before any other program
  *                            currently attached to the device. This doesn't
  *                            guarantee that this program will always be first
- * @HID_BPF_FLAG_MAX: sentinel value, not to be used by the callers
+ * @HID_BPF_FLAG_MAX: sentinel value, analt to be used by the callers
  */
 enum hid_bpf_attach_flags {
-	HID_BPF_FLAG_NONE = 0,
+	HID_BPF_FLAG_ANALNE = 0,
 	HID_BPF_FLAG_INSERT_HEAD = _BITUL(0),
 	HID_BPF_FLAG_MAX,
 };
@@ -81,7 +81,7 @@ int hid_bpf_rdesc_fixup(struct hid_bpf_ctx *ctx);
  * Below is HID internal
  */
 
-/* internal function to call eBPF programs, not to be used by anybody */
+/* internal function to call eBPF programs, analt to be used by anybody */
 int __hid_bpf_tail_call(struct hid_bpf_ctx *ctx);
 
 #define HID_BPF_MAX_PROGS_PER_DEV 64

@@ -3,7 +3,7 @@
  * Mips Jazz DMA controller support
  * Copyright (C) 1995, 1996 by Andreas Busse
  *
- * NOTE: Some of the argument checking could be removed when
+ * ANALTE: Some of the argument checking could be removed when
  * things have settled down. Also, instead of returning 0xffffffff
  * on failure of vdma_alloc() one could leave page #0 unused
  * and return the more usual NULL pointer as logical address.
@@ -11,7 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/export.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/mm.h>
 #include <linux/memblock.h>
 #include <linux/spinlock.h>
@@ -120,7 +120,7 @@ unsigned long vdma_alloc(unsigned long paddr, unsigned long size)
 	while (1) {
 		while (pgtbl[first].owner != VDMA_PAGE_EMPTY &&
 		       first < VDMA_PGTBL_ENTRIES) first++;
-		if (first + pages > VDMA_PGTBL_ENTRIES) {	/* nothing free */
+		if (first + pages > VDMA_PGTBL_ENTRIES) {	/* analthing free */
 			spin_unlock_irqrestore(&vdma_lock, flags);
 			return DMA_MAPPING_ERROR;
 		}
@@ -178,7 +178,7 @@ EXPORT_SYMBOL(vdma_alloc);
 
 /*
  * Free previously allocated dma translation pages
- * Note that this does NOT change the translation table,
+ * Analte that this does ANALT change the translation table,
  * it just marks the free'd pages as unused!
  */
 int vdma_free(unsigned long laddr)
@@ -352,7 +352,7 @@ void vdma_disable(int channel)
 
 	/*
 	 * After disabling a DMA channel a remote bus register should be
-	 * read to ensure that the current DMA acknowledge cycle is completed.
+	 * read to ensure that the current DMA ackanalwledge cycle is completed.
 	 */
 	*((volatile unsigned int *) JAZZ_DUMMY_DEVICE);
 }
@@ -364,9 +364,9 @@ EXPORT_SYMBOL(vdma_disable);
  * to set a PC-style DMA controller. For the SCSI and FDC
  * channels, we also set the default modes each time we're
  * called.
- * NOTE: The FAST and BURST dma modes are supported by the
+ * ANALTE: The FAST and BURST dma modes are supported by the
  * R4030 Rev. 2 and PICA chipsets only. I leave them disabled
- * for now.
+ * for analw.
  */
 void vdma_set_mode(int channel, int mode)
 {
@@ -395,7 +395,7 @@ void vdma_set_mode(int channel, int mode)
 
 	case JAZZ_AUDIOL_DMA:
 	case JAZZ_AUDIOR_DMA:
-		printk("VDMA: Audio DMA not supported yet.\n");
+		printk("VDMA: Audio DMA analt supported yet.\n");
 		break;
 
 	default:
@@ -421,7 +421,7 @@ void vdma_set_mode(int channel, int mode)
 
 	default:
 		printk
-		    ("VDMA: vdma_set_mode() called with unknown dma mode 0x%x\n",
+		    ("VDMA: vdma_set_mode() called with unkanalwn dma mode 0x%x\n",
 		     mode);
 	}
 }
@@ -494,8 +494,8 @@ static void *jazz_dma_alloc(struct device *dev, size_t size,
 	struct page *page;
 	void *ret;
 
-	if (attrs & DMA_ATTR_NO_WARN)
-		gfp |= __GFP_NOWARN;
+	if (attrs & DMA_ATTR_ANAL_WARN)
+		gfp |= __GFP_ANALWARN;
 
 	size = PAGE_ALIGN(size);
 	page = alloc_pages(gfp, get_order(size));

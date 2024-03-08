@@ -30,19 +30,19 @@ static inline void i915_gem_context_set_closed(struct i915_gem_context *ctx)
 	set_bit(CONTEXT_CLOSED, &ctx->flags);
 }
 
-static inline bool i915_gem_context_no_error_capture(const struct i915_gem_context *ctx)
+static inline bool i915_gem_context_anal_error_capture(const struct i915_gem_context *ctx)
 {
-	return test_bit(UCONTEXT_NO_ERROR_CAPTURE, &ctx->user_flags);
+	return test_bit(UCONTEXT_ANAL_ERROR_CAPTURE, &ctx->user_flags);
 }
 
-static inline void i915_gem_context_set_no_error_capture(struct i915_gem_context *ctx)
+static inline void i915_gem_context_set_anal_error_capture(struct i915_gem_context *ctx)
 {
-	set_bit(UCONTEXT_NO_ERROR_CAPTURE, &ctx->user_flags);
+	set_bit(UCONTEXT_ANAL_ERROR_CAPTURE, &ctx->user_flags);
 }
 
-static inline void i915_gem_context_clear_no_error_capture(struct i915_gem_context *ctx)
+static inline void i915_gem_context_clear_anal_error_capture(struct i915_gem_context *ctx)
 {
-	clear_bit(UCONTEXT_NO_ERROR_CAPTURE, &ctx->user_flags);
+	clear_bit(UCONTEXT_ANAL_ERROR_CAPTURE, &ctx->user_flags);
 }
 
 static inline bool i915_gem_context_is_bannable(const struct i915_gem_context *ctx)
@@ -210,7 +210,7 @@ i915_gem_context_get_engine(struct i915_gem_context *ctx, unsigned int idx)
 	rcu_read_lock(); {
 		struct i915_gem_engines *e = rcu_dereference(ctx->engines);
 		if (unlikely(!e)) /* context was closed! */
-			ce = ERR_PTR(-ENOENT);
+			ce = ERR_PTR(-EANALENT);
 		else if (likely(idx < e->num_engines && e->engines[idx]))
 			ce = intel_context_get(e->engines[idx]);
 		else

@@ -49,9 +49,9 @@ int ceph_cls_lock(struct ceph_osd_client *osdc,
 	if (lock_op_buf_size > PAGE_SIZE)
 		return -E2BIG;
 
-	lock_op_page = alloc_page(GFP_NOIO);
+	lock_op_page = alloc_page(GFP_ANALIO);
 	if (!lock_op_page)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	p = page_address(lock_op_page);
 	end = p + lock_op_buf_size;
@@ -108,9 +108,9 @@ int ceph_cls_unlock(struct ceph_osd_client *osdc,
 	if (unlock_op_buf_size > PAGE_SIZE)
 		return -E2BIG;
 
-	unlock_op_page = alloc_page(GFP_NOIO);
+	unlock_op_page = alloc_page(GFP_ANALIO);
 	if (!unlock_op_page)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	p = page_address(unlock_op_page);
 	end = p + unlock_op_buf_size;
@@ -161,9 +161,9 @@ int ceph_cls_break_lock(struct ceph_osd_client *osdc,
 	if (break_op_buf_size > PAGE_SIZE)
 		return -E2BIG;
 
-	break_op_page = alloc_page(GFP_NOIO);
+	break_op_page = alloc_page(GFP_ANALIO);
 	if (!break_op_page)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	p = page_address(break_op_page);
 	end = p + break_op_buf_size;
@@ -210,9 +210,9 @@ int ceph_cls_set_cookie(struct ceph_osd_client *osdc,
 	if (cookie_op_buf_size > PAGE_SIZE)
 		return -E2BIG;
 
-	cookie_op_page = alloc_page(GFP_NOIO);
+	cookie_op_page = alloc_page(GFP_ANALIO);
 	if (!cookie_op_page)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	p = page_address(cookie_op_page);
 	end = p + cookie_op_buf_size;
@@ -260,7 +260,7 @@ static int decode_locker(void **p, void *end, struct ceph_locker *locker)
 		return ret;
 
 	ceph_decode_copy(p, &locker->id.name, sizeof(locker->id.name));
-	s = ceph_extract_encoded_string(p, end, NULL, GFP_NOIO);
+	s = ceph_extract_encoded_string(p, end, NULL, GFP_ANALIO);
 	if (IS_ERR(s))
 		return PTR_ERR(s);
 
@@ -300,9 +300,9 @@ static int decode_lockers(void **p, void *end, u8 *type, char **tag,
 		return ret;
 
 	*num_lockers = ceph_decode_32(p);
-	*lockers = kcalloc(*num_lockers, sizeof(**lockers), GFP_NOIO);
+	*lockers = kcalloc(*num_lockers, sizeof(**lockers), GFP_ANALIO);
 	if (!*lockers)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < *num_lockers; i++) {
 		ret = decode_locker(p, end, *lockers + i);
@@ -311,7 +311,7 @@ static int decode_lockers(void **p, void *end, u8 *type, char **tag,
 	}
 
 	*type = ceph_decode_8(p);
-	s = ceph_extract_encoded_string(p, end, NULL, GFP_NOIO);
+	s = ceph_extract_encoded_string(p, end, NULL, GFP_ANALIO);
 	if (IS_ERR(s)) {
 		ret = PTR_ERR(s);
 		goto err_free_lockers;
@@ -349,14 +349,14 @@ int ceph_cls_lock_info(struct ceph_osd_client *osdc,
 	if (get_info_op_buf_size > PAGE_SIZE)
 		return -E2BIG;
 
-	get_info_op_page = alloc_page(GFP_NOIO);
+	get_info_op_page = alloc_page(GFP_ANALIO);
 	if (!get_info_op_page)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	reply_page = alloc_page(GFP_NOIO);
+	reply_page = alloc_page(GFP_ANALIO);
 	if (!reply_page) {
 		__free_page(get_info_op_page);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	p = page_address(get_info_op_page);
@@ -408,7 +408,7 @@ int ceph_cls_assert_locked(struct ceph_osd_request *req, int which,
 	if (ret)
 		return ret;
 
-	pages = ceph_alloc_page_vector(1, GFP_NOIO);
+	pages = ceph_alloc_page_vector(1, GFP_ANALIO);
 	if (IS_ERR(pages))
 		return PTR_ERR(pages);
 

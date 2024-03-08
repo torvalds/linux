@@ -16,7 +16,7 @@ static int pcm3060_spi_probe(struct spi_device *spi)
 
 	priv = devm_kzalloc(&spi->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spi_set_drvdata(spi, priv);
 

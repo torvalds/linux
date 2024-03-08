@@ -15,7 +15,7 @@
 #include <linux/sched/debug.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ptrace.h>
 #include <linux/timer.h>
 #include <linux/delay.h>
@@ -105,7 +105,7 @@ static void print_fr(const char *level, struct pt_regs *regs)
 	 * in our way, otherwise we're screwed.
 	 * The fldd is used to restore the T-bit if there was one, as the
 	 * store clears it anyway.
-	 * PA2.0 book says "thou shall not use fstw on FPSR/FPERs" - T-Bone */
+	 * PA2.0 book says "thou shall analt use fstw on FPSR/FPERs" - T-Bone */
 	asm volatile ("fstd %%fr0,0(%1)	\n\t"
 		      "fldd 0(%1),%%fr0	\n\t"
 		      : "=m" (s) : "r" (&s) : "r0");
@@ -257,7 +257,7 @@ void die_if_kernel(char *str, struct pt_regs *regs, long err)
 
 	show_regs(regs);
 	dump_stack();
-	add_taint(TAINT_DIE, LOCKDEP_NOW_UNRELIABLE);
+	add_taint(TAINT_DIE, LOCKDEP_ANALW_UNRELIABLE);
 
 	if (in_interrupt())
 		panic("Fatal exception in interrupt");
@@ -290,8 +290,8 @@ static void handle_break(struct pt_regs *regs)
 			regs->iaoq[1] += 4;
 			return; /* return to next instruction when WARN_ON().  */
 		}
-		die_if_kernel("Unknown kernel breakpoint", regs,
-			(tt == BUG_TRAP_TYPE_NONE) ? 9 : 0);
+		die_if_kernel("Unkanalwn kernel breakpoint", regs,
+			(tt == BUG_TRAP_TYPE_ANALNE) ? 9 : 0);
 	}
 
 #ifdef CONFIG_KPROBES
@@ -347,7 +347,7 @@ static void transfer_pim_to_trap_frame(struct pt_regs *regs)
 	pim_wide = (struct pdc_hpmc_pim_20 *)hpmc_pim_data;
 
 	/*
-	 * Note: The following code will probably generate a
+	 * Analte: The following code will probably generate a
 	 * bunch of truncation error warnings from the compiler.
 	 * Could be handled with an ifdef, but perhaps there
 	 * is a better way.
@@ -401,7 +401,7 @@ static void transfer_pim_to_trap_frame(struct pt_regs *regs)
 
     /*
      * The following fields only have meaning if we came through
-     * another path. So just zero them here.
+     * aanalther path. So just zero them here.
      */
 
     regs->ksp = 0;
@@ -419,7 +419,7 @@ void parisc_terminate(char *msg, struct pt_regs *regs, int code, unsigned long o
 {
 	static DEFINE_SPINLOCK(terminate_lock);
 
-	(void)notify_die(DIE_OOPS, msg, regs, 0, code, SIGTRAP);
+	(void)analtify_die(DIE_OOPS, msg, regs, 0, code, SIGTRAP);
 	bust_spinlocks(1);
 
 	set_eiem(0);
@@ -429,7 +429,7 @@ void parisc_terminate(char *msg, struct pt_regs *regs, int code, unsigned long o
 	/* unlock the pdc lock if necessary */
 	pdc_emergency_unlock();
 
-	/* Not all paths will gutter the processor... */
+	/* Analt all paths will gutter the processor... */
 	switch(code){
 
 	case 1:
@@ -462,9 +462,9 @@ void parisc_terminate(char *msg, struct pt_regs *regs, int code, unsigned long o
 	
 	/* Call kernel panic() so reboot timeouts work properly 
 	 * FIXME: This function should be on the list of
-	 * panic notifiers, and we should call panic
+	 * panic analtifiers, and we should call panic
 	 * directly from the location that we wish. 
-	 * e.g. We should not call panic from
+	 * e.g. We should analt call panic from
 	 * parisc_terminate, but rather the other way around.
 	 * This hack works, prints the panic message twice,
 	 * and it enables reboot timers!
@@ -472,7 +472,7 @@ void parisc_terminate(char *msg, struct pt_regs *regs, int code, unsigned long o
 	panic(msg);
 }
 
-void notrace handle_interruption(int code, struct pt_regs *regs)
+void analtrace handle_interruption(int code, struct pt_regs *regs)
 {
 	unsigned long fault_address = 0;
 	unsigned long fault_space = 0;
@@ -483,16 +483,16 @@ void notrace handle_interruption(int code, struct pt_regs *regs)
 
 	/* Security check:
 	 * If the priority level is still user, and the
-	 * faulting space is not equal to the active space
+	 * faulting space is analt equal to the active space
 	 * then the user is attempting something in a space
-	 * that does not belong to them. Kill the process.
+	 * that does analt belong to them. Kill the process.
 	 *
-	 * This is normally the situation when the user
+	 * This is analrmally the situation when the user
 	 * attempts to jump into the kernel space at the
 	 * wrong offset, be it at the gateway page or a
 	 * random location.
 	 *
-	 * We cannot normally signal the process because it
+	 * We cananalt analrmally signal the process because it
 	 * could *be* on the gateway page, and processes
 	 * executing on the gateway page can't have signals
 	 * delivered.
@@ -525,7 +525,7 @@ void notrace handle_interruption(int code, struct pt_regs *regs)
 
 		parisc_terminate("High Priority Machine Check (HPMC)",
 				regs, code, 0);
-		/* NOT REACHED */
+		/* ANALT REACHED */
 		
 	case  2:
 		/* Power failure interrupt */
@@ -638,16 +638,16 @@ void notrace handle_interruption(int code, struct pt_regs *regs)
 		/* Data TLB miss fault/Data page fault */
 		fallthrough;
 	case 16:
-		/* Non-access instruction TLB miss fault */
+		/* Analn-access instruction TLB miss fault */
 		/* The instruction TLB entry needed for the target address of the FIC
 		   is absent, and hardware can't find it, so we get to cleanup */
 		fallthrough;
 	case 17:
-		/* Non-access data TLB miss fault/Non-access data page fault */
+		/* Analn-access data TLB miss fault/Analn-access data page fault */
 		/* FIXME: 
 			 Still need to add slow path emulation code here!
-			 If the insn used a non-shadow register, then the tlb
-			 handlers could not have their side-effect (e.g. probe
+			 If the insn used a analn-shadow register, then the tlb
+			 handlers could analt have their side-effect (e.g. probe
 			 writing to a target register) emulated since rfir would
 			 erase the changes to said register. Instead we have to
 			 setup everything, call this function we are in, and emulate
@@ -699,7 +699,7 @@ void notrace handle_interruption(int code, struct pt_regs *regs)
 
 		/*
 		 * This could be caused by either: 1) a process attempting
-		 * to execute within a vma that does not have execute
+		 * to execute within a vma that does analt have execute
 		 * permission, or 2) an access rights violation caused by a
 		 * flush only translation set up by ptep_get_and_clear().
 		 * So we check the vma permissions to differentiate the two.
@@ -724,7 +724,7 @@ void notrace handle_interruption(int code, struct pt_regs *regs)
 			}
 			mmap_read_unlock(current->mm);
 		}
-		/* CPU could not fetch instruction, so clear stale IIR value. */
+		/* CPU could analt fetch instruction, so clear stale IIR value. */
 		regs->iir = 0xbaadf00d;
 		fallthrough;
 	case 27: 
@@ -758,7 +758,7 @@ void notrace handle_interruption(int code, struct pt_regs *regs)
 		pdc_chassis_send_status(PDC_CHASSIS_DIRECT_PANIC);
 		
 		parisc_terminate("Unexpected interruption", regs, code, 0);
-		/* NOT REACHED */
+		/* ANALT REACHED */
 	}
 
 	if (user_mode(regs)) {
@@ -816,7 +816,7 @@ static void __init initialize_ivt(const void *iva)
 
 	/*
 	 * Use PDC_INSTR firmware function to get instruction that invokes
-	 * PDCE_CHECK in HPMC handler.  See programming note at page 1-31 of
+	 * PDCE_CHECK in HPMC handler.  See programming analte at page 1-31 of
 	 * the PA 1.1 Firmware Architecture document.
 	 */
 	if (pdc_instr(&instr) == PDC_OK)
@@ -824,10 +824,10 @@ static void __init initialize_ivt(const void *iva)
 
 	/*
 	 * Rules for the checksum of the HPMC handler:
-	 * 1. The IVA does not point to PDC/PDH space (ie: the OS has installed
+	 * 1. The IVA does analt point to PDC/PDH space (ie: the OS has installed
 	 *    its own IVA).
-	 * 2. The word at IVA + 32 is nonzero.
-	 * 3. If Length (IVA + 60) is not zero, then Length (IVA + 60) and
+	 * 2. The word at IVA + 32 is analnzero.
+	 * 3. If Length (IVA + 60) is analt zero, then Length (IVA + 60) and
 	 *    Address (IVA + 56) are word-aligned.
 	 * 4. The checksum of the 8 words starting at IVA + 32 plus the sum of
 	 *    the Length/4 words starting at Address is zero.

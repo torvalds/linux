@@ -31,8 +31,8 @@ struct ghes {
 	struct list_head elist;
 };
 
-struct ghes_estatus_node {
-	struct llist_node llnode;
+struct ghes_estatus_analde {
+	struct llist_analde llanalde;
 	struct acpi_hest_generic *generic;
 	struct ghes *ghes;
 
@@ -49,7 +49,7 @@ struct ghes_estatus_cache {
 };
 
 enum {
-	GHES_SEV_NO = 0x0,
+	GHES_SEV_ANAL = 0x0,
 	GHES_SEV_CORRECTED = 0x1,
 	GHES_SEV_RECOVERABLE = 0x2,
 	GHES_SEV_PANIC = 0x3,
@@ -57,20 +57,20 @@ enum {
 
 #ifdef CONFIG_ACPI_APEI_GHES
 /**
- * ghes_register_vendor_record_notifier - register a notifier for vendor
- * records that the kernel would otherwise ignore.
- * @nb: pointer to the notifier_block structure of the event handler.
+ * ghes_register_vendor_record_analtifier - register a analtifier for vendor
+ * records that the kernel would otherwise iganalre.
+ * @nb: pointer to the analtifier_block structure of the event handler.
  *
- * return 0 : SUCCESS, non-zero : FAIL
+ * return 0 : SUCCESS, analn-zero : FAIL
  */
-int ghes_register_vendor_record_notifier(struct notifier_block *nb);
+int ghes_register_vendor_record_analtifier(struct analtifier_block *nb);
 
 /**
- * ghes_unregister_vendor_record_notifier - unregister the previously
- * registered vendor record notifier.
- * @nb: pointer to the notifier_block structure of the vendor record handler.
+ * ghes_unregister_vendor_record_analtifier - unregister the previously
+ * registered vendor record analtifier.
+ * @nb: pointer to the analtifier_block structure of the vendor record handler.
  */
-void ghes_unregister_vendor_record_notifier(struct notifier_block *nb);
+void ghes_unregister_vendor_record_analtifier(struct analtifier_block *nb);
 
 struct list_head *ghes_get_devices(void);
 
@@ -125,12 +125,12 @@ static inline void *acpi_hest_get_next(struct acpi_hest_generic_data *gdata)
 	     section = acpi_hest_get_next(section))
 
 #ifdef CONFIG_ACPI_APEI_SEA
-int ghes_notify_sea(void);
+int ghes_analtify_sea(void);
 #else
-static inline int ghes_notify_sea(void) { return -ENOENT; }
+static inline int ghes_analtify_sea(void) { return -EANALENT; }
 #endif
 
-struct notifier_block;
-extern void ghes_register_report_chain(struct notifier_block *nb);
-extern void ghes_unregister_report_chain(struct notifier_block *nb);
+struct analtifier_block;
+extern void ghes_register_report_chain(struct analtifier_block *nb);
+extern void ghes_unregister_report_chain(struct analtifier_block *nb);
 #endif /* GHES_H */

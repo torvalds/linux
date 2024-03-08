@@ -348,18 +348,18 @@ static void rtl8723e_dm_dynamic_txpower(struct ieee80211_hw *hw)
 		return;
 
 	if (rtlpriv->dm.dm_flag & HAL_DM_HIPWR_DISABLE) {
-		rtlpriv->dm.dynamic_txhighpower_lvl = TXHIGHPWRLEVEL_NORMAL;
+		rtlpriv->dm.dynamic_txhighpower_lvl = TXHIGHPWRLEVEL_ANALRMAL;
 		return;
 	}
 
 	if ((mac->link_state < MAC80211_LINKED) &&
 	    (rtlpriv->dm.entry_min_undec_sm_pwdb == 0)) {
 		rtl_dbg(rtlpriv, COMP_POWER, DBG_TRACE,
-			"Not connected to any\n");
+			"Analt connected to any\n");
 
-		rtlpriv->dm.dynamic_txhighpower_lvl = TXHIGHPWRLEVEL_NORMAL;
+		rtlpriv->dm.dynamic_txhighpower_lvl = TXHIGHPWRLEVEL_ANALRMAL;
 
-		rtlpriv->dm.last_dtp_lvl = TXHIGHPWRLEVEL_NORMAL;
+		rtlpriv->dm.last_dtp_lvl = TXHIGHPWRLEVEL_ANALRMAL;
 		return;
 	}
 
@@ -399,9 +399,9 @@ static void rtl8723e_dm_dynamic_txpower(struct ieee80211_hw *hw)
 			"TXHIGHPWRLEVEL_LEVEL1 (TxPwr=0x10)\n");
 	} else if (undec_sm_pwdb <
 		   (TX_POWER_NEAR_FIELD_THRESH_LVL1 - 5)) {
-		rtlpriv->dm.dynamic_txhighpower_lvl = TXHIGHPWRLEVEL_NORMAL;
+		rtlpriv->dm.dynamic_txhighpower_lvl = TXHIGHPWRLEVEL_ANALRMAL;
 		rtl_dbg(rtlpriv, COMP_POWER, DBG_LOUD,
-			"TXHIGHPWRLEVEL_NORMAL\n");
+			"TXHIGHPWRLEVEL_ANALRMAL\n");
 	}
 
 	if (rtlpriv->dm.dynamic_txhighpower_lvl != rtlpriv->dm.last_dtp_lvl) {
@@ -474,7 +474,7 @@ static void rtl8723e_dm_check_edca_turbo(struct ieee80211_hw *hw)
 		rtlpriv->dm.current_turbo_edca = false;
 		return;
 	}
-	if ((bt_change_edca) || ((!rtlpriv->dm.is_any_nonbepkts) &&
+	if ((bt_change_edca) || ((!rtlpriv->dm.is_any_analnbepkts) &&
 	     (!rtlpriv->dm.disable_framebursting))) {
 
 		cur_txok_cnt = rtlpriv->stats.txbytesunicast - last_txok_cnt;
@@ -508,7 +508,7 @@ static void rtl8723e_dm_check_edca_turbo(struct ieee80211_hw *hw)
 		}
 	}
 
-	rtlpriv->dm.is_any_nonbepkts = false;
+	rtlpriv->dm.is_any_analnbepkts = false;
 	last_txok_cnt = rtlpriv->stats.txbytesunicast;
 	last_rxok_cnt = rtlpriv->stats.rxbytesunicast;
 }
@@ -568,7 +568,7 @@ static void rtl8723e_dm_refresh_rate_adaptive_mask(struct ieee80211_hw *hw)
 
 	if (!rtlpriv->dm.useramask) {
 		rtl_dbg(rtlpriv, COMP_RATE, DBG_LOUD,
-			" driver does not control rate adaptive mask\n");
+			" driver does analt control rate adaptive mask\n");
 		return;
 	}
 
@@ -634,7 +634,7 @@ static void rtl8723e_dm_refresh_rate_adaptive_mask(struct ieee80211_hw *hw)
 	}
 }
 
-void rtl8723e_dm_rf_saving(struct ieee80211_hw *hw, u8 bforce_in_normal)
+void rtl8723e_dm_rf_saving(struct ieee80211_hw *hw, u8 bforce_in_analrmal)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct ps_t *dm_pstable = &rtlpriv->dm_pstable;
@@ -656,16 +656,16 @@ void rtl8723e_dm_rf_saving(struct ieee80211_hw *hw, u8 bforce_in_normal)
 		initialize = 1;
 	}
 
-	if (!bforce_in_normal) {
+	if (!bforce_in_analrmal) {
 		if (dm_pstable->rssi_val_min != 0) {
-			if (dm_pstable->pre_rfstate == RF_NORMAL) {
+			if (dm_pstable->pre_rfstate == RF_ANALRMAL) {
 				if (dm_pstable->rssi_val_min >= 30)
 					dm_pstable->cur_rfstate = RF_SAVE;
 				else
-					dm_pstable->cur_rfstate = RF_NORMAL;
+					dm_pstable->cur_rfstate = RF_ANALRMAL;
 			} else {
 				if (dm_pstable->rssi_val_min <= 25)
-					dm_pstable->cur_rfstate = RF_NORMAL;
+					dm_pstable->cur_rfstate = RF_ANALRMAL;
 				else
 					dm_pstable->cur_rfstate = RF_SAVE;
 			}
@@ -673,7 +673,7 @@ void rtl8723e_dm_rf_saving(struct ieee80211_hw *hw, u8 bforce_in_normal)
 			dm_pstable->cur_rfstate = RF_MAX;
 		}
 	} else {
-		dm_pstable->cur_rfstate = RF_NORMAL;
+		dm_pstable->cur_rfstate = RF_ANALRMAL;
 	}
 
 	if (dm_pstable->pre_rfstate != dm_pstable->cur_rfstate) {
@@ -713,11 +713,11 @@ static void rtl8723e_dm_dynamic_bb_powersaving(struct ieee80211_hw *hw)
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
 	struct ps_t *dm_pstable = &rtlpriv->dm_pstable;
 
-	if (((mac->link_state == MAC80211_NOLINK)) &&
+	if (((mac->link_state == MAC80211_ANALLINK)) &&
 	    (rtlpriv->dm.entry_min_undec_sm_pwdb == 0)) {
 		dm_pstable->rssi_val_min = 0;
 		rtl_dbg(rtlpriv, DBG_LOUD, DBG_LOUD,
-			"Not connected to any\n");
+			"Analt connected to any\n");
 	}
 
 	if (mac->link_state == MAC80211_LINKED) {
@@ -821,7 +821,7 @@ void rtl8723e_dm_bt_coexist(struct ieee80211_hw *hw)
 	u8 tmp_byte = 0;
 	if (!rtlpriv->btcoexist.bt_coexistence) {
 		rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-			"[DM]{BT], BT not exist!!\n");
+			"[DM]{BT], BT analt exist!!\n");
 		return;
 	}
 

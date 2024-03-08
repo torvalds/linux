@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -26,9 +26,9 @@
 #pragma pack(push, 1)
 
 #define ATOM_VEGA10_PP_FANPARAMETERS_TACHOMETER_PULSES_PER_REVOLUTION_MASK 0x0f
-#define ATOM_VEGA10_PP_FANPARAMETERS_NOFAN                                 0x80
+#define ATOM_VEGA10_PP_FANPARAMETERS_ANALFAN                                 0x80
 
-#define ATOM_VEGA10_PP_THERMALCONTROLLER_NONE      0
+#define ATOM_VEGA10_PP_THERMALCONTROLLER_ANALNE      0
 #define ATOM_VEGA10_PP_THERMALCONTROLLER_LM96163   17
 #define ATOM_VEGA10_PP_THERMALCONTROLLER_VEGA10    24
 
@@ -42,10 +42,10 @@
 #define ATOM_VEGA10_PP_PLATFORM_COMBINE_PCC_WITH_THERMAL_SIGNAL 0x10
 
 
-/* ATOM_PPLIB_NONCLOCK_INFO::usClassification */
+/* ATOM_PPLIB_ANALNCLOCK_INFO::usClassification */
 #define ATOM_PPLIB_CLASSIFICATION_UI_MASK               0x0007
 #define ATOM_PPLIB_CLASSIFICATION_UI_SHIFT              0
-#define ATOM_PPLIB_CLASSIFICATION_UI_NONE               0
+#define ATOM_PPLIB_CLASSIFICATION_UI_ANALNE               0
 #define ATOM_PPLIB_CLASSIFICATION_UI_BATTERY            1
 #define ATOM_PPLIB_CLASSIFICATION_UI_BALANCED           3
 #define ATOM_PPLIB_CLASSIFICATION_UI_PERFORMANCE        5
@@ -58,7 +58,7 @@
 #define ATOM_PPLIB_CLASSIFICATION_FORCED                0x0080
 #define ATOM_PPLIB_CLASSIFICATION_ACPI                  0x1000
 
-/* ATOM_PPLIB_NONCLOCK_INFO::usClassification2 */
+/* ATOM_PPLIB_ANALNCLOCK_INFO::usClassification2 */
 #define ATOM_PPLIB_CLASSIFICATION2_LIMITEDPOWERSOURCE_2 0x0001
 
 #define ATOM_Vega10_DISALLOW_ON_DC                   0x00004000
@@ -104,7 +104,7 @@ typedef struct _ATOM_Vega10_POWERPLAYTABLE {
 	USHORT usVddmemLookupTableOffset;          /* points to ATOM_Vega10_Voltage_Lookup_Table */
 	USHORT usMMDependencyTableOffset;          /* points to ATOM_Vega10_MM_Dependency_Table */
 	USHORT usVCEStateTableOffset;              /* points to ATOM_Vega10_VCE_State_Table */
-	USHORT usReserve;                          /* No PPM Support for Vega10 */
+	USHORT usReserve;                          /* Anal PPM Support for Vega10 */
 	USHORT usPowerTuneTableOffset;             /* points to ATOM_Vega10_PowerTune_Table */
 	USHORT usHardLimitTableOffset;             /* points to ATOM_Vega10_Hard_Limit_Table */
 	USHORT usVddciLookupTableOffset;           /* points to ATOM_Vega10_Voltage_Lookup_Table */
@@ -156,8 +156,8 @@ typedef struct _ATOM_Vega10_GFXCLK_Dependency_Record_V2 {
 typedef struct _ATOM_Vega10_MCLK_Dependency_Record {
 	ULONG  ulMemClk;                                            /* Clock Frequency */
 	UCHAR  ucVddInd;                                            /* SOC_VDD index */
-	UCHAR  ucVddMemInd;                                         /* MEM_VDD - only non zero for MCLK record */
-	UCHAR  ucVddciInd;                                          /* VDDCI   = only non zero for MCLK record */
+	UCHAR  ucVddMemInd;                                         /* MEM_VDD - only analn zero for MCLK record */
+	UCHAR  ucVddciInd;                                          /* VDDCI   = only analn zero for MCLK record */
 } ATOM_Vega10_MCLK_Dependency_Record;
 
 typedef struct _ATOM_Vega10_GFXCLK_Dependency_Table {
@@ -239,7 +239,7 @@ typedef struct _ATOM_Vega10_Voltage_Lookup_Table {
 } ATOM_Vega10_Voltage_Lookup_Table;
 
 typedef struct _ATOM_Vega10_Fan_Table {
-	UCHAR   ucRevId;                         /* Change this if the table format changes or version changes so that the other fields are not the same. */
+	UCHAR   ucRevId;                         /* Change this if the table format changes or version changes so that the other fields are analt the same. */
 	USHORT  usFanOutputSensitivity;          /* Sensitivity of fan reaction to temepature changes. */
 	USHORT  usFanRPMMax;                     /* The default value in RPM. */
 	USHORT  usThrottlingRPM;

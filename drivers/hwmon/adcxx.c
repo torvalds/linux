@@ -157,7 +157,7 @@ static int adcxx_probe(struct spi_device *spi)
 
 	adc = devm_kzalloc(&spi->dev, sizeof(*adc), GFP_KERNEL);
 	if (!adc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* set a default value for the reference */
 	adc->reference = 3300;

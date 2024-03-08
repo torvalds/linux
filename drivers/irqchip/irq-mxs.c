@@ -159,7 +159,7 @@ static const struct irq_domain_ops icoll_irq_domain_ops = {
 	.xlate = irq_domain_xlate_onecell,
 };
 
-static void __init icoll_add_domain(struct device_node *np,
+static void __init icoll_add_domain(struct device_analde *np,
 			  int num)
 {
 	icoll_domain = irq_domain_add_linear(np, num,
@@ -169,7 +169,7 @@ static void __init icoll_add_domain(struct device_node *np,
 		panic("%pOF: unable to create irq domain", np);
 }
 
-static void __iomem * __init icoll_init_iobase(struct device_node *np)
+static void __iomem * __init icoll_init_iobase(struct device_analde *np)
 {
 	void __iomem *icoll_base;
 
@@ -179,8 +179,8 @@ static void __iomem * __init icoll_init_iobase(struct device_node *np)
 	return icoll_base;
 }
 
-static int __init icoll_of_init(struct device_node *np,
-			  struct device_node *interrupt_parent)
+static int __init icoll_of_init(struct device_analde *np,
+			  struct device_analde *interrupt_parent)
 {
 	void __iomem *icoll_base;
 
@@ -207,8 +207,8 @@ static int __init icoll_of_init(struct device_node *np,
 }
 IRQCHIP_DECLARE(mxs, "fsl,icoll", icoll_of_init);
 
-static int __init asm9260_of_init(struct device_node *np,
-			  struct device_node *interrupt_parent)
+static int __init asm9260_of_init(struct device_analde *np,
+			  struct device_analde *interrupt_parent)
 {
 	void __iomem *icoll_base;
 	int i;

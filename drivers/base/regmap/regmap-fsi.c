@@ -200,7 +200,7 @@ static const struct regmap_bus *regmap_get_fsi_bus(struct fsi_device *fsi_dev,
 		}
 	}
 
-	return bus ?: ERR_PTR(-EOPNOTSUPP);
+	return bus ?: ERR_PTR(-EOPANALTSUPP);
 }
 
 struct regmap *__regmap_init_fsi(struct fsi_device *fsi_dev, const struct regmap_config *config,

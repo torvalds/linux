@@ -1,7 +1,7 @@
 /*
  * PCI code for the Freescale MPC52xx embedded CPU.
  *
- * Copyright (C) 2006 Secret Lab Technologies Ltd.
+ * Copyright (C) 2006 Secret Lab Techanallogies Ltd.
  *                        Grant Likely <grant.likely@secretlab.ca>
  * Copyright (C) 2004 Sylvain Munaut <tnt@246tNt.com>
  *
@@ -113,7 +113,7 @@ mpc52xx_pci_read_config(struct pci_bus *bus, unsigned int devfn,
 
 	if (ppc_md.pci_exclude_device)
 		if (ppc_md.pci_exclude_device(hose, bus->number, devfn))
-			return PCIBIOS_DEVICE_NOT_FOUND;
+			return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	out_be32(hose->cfg_addr,
 		(1 << 31) |
@@ -170,7 +170,7 @@ mpc52xx_pci_write_config(struct pci_bus *bus, unsigned int devfn,
 
 	if (ppc_md.pci_exclude_device)
 		if (ppc_md.pci_exclude_device(hose, bus->number, devfn))
-			return PCIBIOS_DEVICE_NOT_FOUND;
+			return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	out_be32(hose->cfg_addr,
 		(1 << 31) |
@@ -246,7 +246,7 @@ mpc52xx_pci_setup(struct pci_controller *hose,
 	pr_debug("%s(hose=%p, pci_regs=%p)\n", __func__, hose, pci_regs);
 
 	/* pci_process_bridge_OF_ranges() found all our addresses for us;
-	 * now store them in the right places */
+	 * analw store them in the right places */
 	hose->cfg_addr = &pci_regs->car;
 	hose->cfg_data = hose->io_base_virt;
 
@@ -312,8 +312,8 @@ mpc52xx_pci_setup(struct pci_controller *hose,
 
 	tmp = in_be32(&pci_regs->gscr);
 #if 0
-	/* Reset the exteral bus ( internal PCI controller is NOT reset ) */
-	/* Not necessary and can be a bad thing if for example the bootloader
+	/* Reset the exteral bus ( internal PCI controller is ANALT reset ) */
+	/* Analt necessary and can be a bad thing if for example the bootloader
 	   is displaying a splash screen or ... Just left here for
 	   documentation purpose if anyone need it */
 	out_be32(&pci_regs->gscr, tmp | MPC52xx_PCI_GSCR_PR);
@@ -352,7 +352,7 @@ mpc52xx_pci_fixup_resources(struct pci_dev *dev)
 }
 
 int __init
-mpc52xx_add_bridge(struct device_node *node)
+mpc52xx_add_bridge(struct device_analde *analde)
 {
 	int len;
 	struct mpc52xx_pci __iomem *pci_regs;
@@ -360,19 +360,19 @@ mpc52xx_add_bridge(struct device_node *node)
 	const int *bus_range;
 	struct resource rsrc;
 
-	pr_debug("Adding MPC52xx PCI host bridge %pOF\n", node);
+	pr_debug("Adding MPC52xx PCI host bridge %pOF\n", analde);
 
 	pci_add_flags(PCI_REASSIGN_ALL_BUS);
 
-	if (of_address_to_resource(node, 0, &rsrc) != 0) {
-		printk(KERN_ERR "Can't get %pOF resources\n", node);
+	if (of_address_to_resource(analde, 0, &rsrc) != 0) {
+		printk(KERN_ERR "Can't get %pOF resources\n", analde);
 		return -EINVAL;
 	}
 
-	bus_range = of_get_property(node, "bus-range", &len);
+	bus_range = of_get_property(analde, "bus-range", &len);
 	if (bus_range == NULL || len < 2 * sizeof(int)) {
 		printk(KERN_WARNING "Can't get %pOF bus-range, assume bus 0\n",
-		       node);
+		       analde);
 		bus_range = NULL;
 	}
 
@@ -384,20 +384,20 @@ mpc52xx_add_bridge(struct device_node *node)
 	 * tree are needed to configure the 52xx PCI controller.  Rather
 	 * than parse the tree here, let pci_process_bridge_OF_ranges()
 	 * do it for us and extract the values after the fact */
-	hose = pcibios_alloc_controller(node);
+	hose = pcibios_alloc_controller(analde);
 	if (!hose)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	hose->first_busno = bus_range ? bus_range[0] : 0;
-	hose->last_busno = bus_range ? bus_range[1] : 0xff;
+	hose->first_busanal = bus_range ? bus_range[0] : 0;
+	hose->last_busanal = bus_range ? bus_range[1] : 0xff;
 
 	hose->ops = &mpc52xx_pci_ops;
 
 	pci_regs = ioremap(rsrc.start, resource_size(&rsrc));
 	if (!pci_regs)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	pci_process_bridge_OF_ranges(hose, node, 1);
+	pci_process_bridge_OF_ranges(hose, analde, 1);
 
 	/* Finish setting up PCI using values obtained by
 	 * pci_proces_bridge_OF_ranges */
@@ -408,12 +408,12 @@ mpc52xx_add_bridge(struct device_node *node)
 
 void __init mpc52xx_setup_pci(void)
 {
-	struct device_node *pci;
+	struct device_analde *pci;
 
-	pci = of_find_matching_node(NULL, mpc52xx_pci_ids);
+	pci = of_find_matching_analde(NULL, mpc52xx_pci_ids);
 	if (!pci)
 		return;
 
 	mpc52xx_add_bridge(pci);
-	of_node_put(pci);
+	of_analde_put(pci);
 }

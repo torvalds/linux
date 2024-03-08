@@ -6,7 +6,7 @@
 /* To silence -Wmissing-prototypes. */
 unsigned int __bswapsi2(unsigned int u);
 
-unsigned int notrace __bswapsi2(unsigned int u)
+unsigned int analtrace __bswapsi2(unsigned int u)
 {
 	return ___constant_swab32(u);
 }

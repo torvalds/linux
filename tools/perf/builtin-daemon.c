@@ -13,8 +13,8 @@
 #include <time.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <errno.h>
-#include <sys/inotify.h>
+#include <erranal.h>
+#include <sys/ianaltify.h>
 #include <libgen.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -48,11 +48,11 @@
  *    - reads config file and setup session objects
  *      with following states:
  *
- *      OK       - no change needed
+ *      OK       - anal change needed
  *      RECONFIG - session needs to be changed
  *                 (run variable changed)
  *      KILL     - session needs to be killed
- *                 (session is no longer in config file)
+ *                 (session is anal longer in config file)
  *
  *  daemon__reconfig
  *    - scans session objects and does following actions
@@ -173,14 +173,14 @@ static int session_config(struct daemon *daemon, const char *var, const char *va
 		/* New session is defined. */
 		session = daemon__add_session(daemon, name);
 		if (!session)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		pr_debug("reconfig: found new session %s\n", name);
 
 		/* Trigger reconfig to start it. */
 		session->state = RECONFIG;
 	} else if (session->state == KILL) {
-		/* Current session is defined, no action needed. */
+		/* Current session is defined, anal action needed. */
 		pr_debug("reconfig: found current session %s\n", name);
 		session->state = OK;
 	}
@@ -199,7 +199,7 @@ static int session_config(struct daemon *daemon, const char *var, const char *va
 
 			session->run = strdup(value);
 			if (!session->run)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			/*
 			 * Either new or changed run value is defined,
@@ -225,7 +225,7 @@ static int server_config(const char *var, const char *value, void *cb)
 		}
 		daemon->base = strdup(value);
 		if (!daemon->base)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	return 0;
@@ -238,7 +238,7 @@ static int client_config(const char *var, const char *value, void *cb)
 	if (!strcmp(var, "daemon.base") && !daemon->base_user) {
 		daemon->base = strdup(value);
 		if (!daemon->base)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	return 0;
@@ -249,29 +249,29 @@ static int check_base(struct daemon *daemon)
 	struct stat st;
 
 	if (!daemon->base) {
-		pr_err("failed: base not defined\n");
+		pr_err("failed: base analt defined\n");
 		return -EINVAL;
 	}
 
 	if (stat(daemon->base, &st)) {
-		switch (errno) {
+		switch (erranal) {
 		case EACCES:
 			pr_err("failed: permission denied for '%s' base\n",
 			       daemon->base);
 			return -EACCES;
-		case ENOENT:
-			pr_err("failed: base '%s' does not exists\n",
+		case EANALENT:
+			pr_err("failed: base '%s' does analt exists\n",
 			       daemon->base);
 			return -EACCES;
 		default:
 			pr_err("failed: can't access base '%s': %s\n",
-			       daemon->base, strerror(errno));
-			return -errno;
+			       daemon->base, strerror(erranal));
+			return -erranal;
 		}
 	}
 
 	if ((st.st_mode & S_IFMT) != S_IFDIR) {
-		pr_err("failed: base '%s' is not directory\n",
+		pr_err("failed: base '%s' is analt directory\n",
 		       daemon->base);
 		return -EINVAL;
 	}
@@ -282,7 +282,7 @@ static int check_base(struct daemon *daemon)
 static int setup_client_config(struct daemon *daemon)
 {
 	struct perf_config_set *set = perf_config_set__load_file(daemon->config_real);
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	if (set) {
 		err = perf_config_set(set, client_config, daemon);
@@ -296,7 +296,7 @@ static int setup_server_config(struct daemon *daemon)
 {
 	struct perf_config_set *set;
 	struct daemon_session *session;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	pr_debug("reconfig: started\n");
 
@@ -330,7 +330,7 @@ static int daemon_session__run(struct daemon_session *session,
 		return -1;
 	}
 
-	if (mkdir(session->base, 0755) && errno != EEXIST) {
+	if (mkdir(session->base, 0755) && erranal != EEXIST) {
 		perror("failed: mkdir");
 		return -1;
 	}
@@ -370,12 +370,12 @@ static int daemon_session__run(struct daemon_session *session,
 	dup2(fd, 2);
 	close(fd);
 
-	if (mkfifo(SESSION_CONTROL, 0600) && errno != EEXIST) {
+	if (mkfifo(SESSION_CONTROL, 0600) && erranal != EEXIST) {
 		perror("failed: create control fifo");
 		return -1;
 	}
 
-	if (mkfifo(SESSION_ACK, 0600) && errno != EEXIST) {
+	if (mkfifo(SESSION_ACK, 0600) && erranal != EEXIST) {
 		perror("failed: create ack fifo");
 		return -1;
 	}
@@ -400,7 +400,7 @@ static pid_t handle_signalfd(struct daemon *daemon)
 	pid_t pid;
 
 	/*
-	 * Take signal fd data as pure signal notification and check all
+	 * Take signal fd data as pure signal analtification and check all
 	 * the sessions state. The reason is that multiple signals can get
 	 * coalesced in kernel and we can receive only single signal even
 	 * if multiple SIGCHLD were generated.
@@ -415,7 +415,7 @@ static pid_t handle_signalfd(struct daemon *daemon)
 		if (session->pid == -1)
 			continue;
 
-		pid = waitpid(session->pid, &status, WNOHANG);
+		pid = waitpid(session->pid, &status, WANALHANG);
 		if (pid <= 0)
 			continue;
 
@@ -522,7 +522,7 @@ static int daemon_session__control(struct daemon_session *session,
 	scnprintf(control_path, sizeof(control_path), "%s/%s",
 		  session->base, SESSION_CONTROL);
 
-	control = open(control_path, O_WRONLY|O_NONBLOCK);
+	control = open(control_path, O_WRONLY|O_ANALNBLOCK);
 	if (!control)
 		return -1;
 
@@ -531,7 +531,7 @@ static int daemon_session__control(struct daemon_session *session,
 		scnprintf(ack_path, sizeof(ack_path), "%s/%s",
 			  session->base, SESSION_ACK);
 
-		ack = open(ack_path, O_RDONLY, O_NONBLOCK);
+		ack = open(ack_path, O_RDONLY, O_ANALNBLOCK);
 		if (!ack) {
 			close(control);
 			return -1;
@@ -544,7 +544,7 @@ static int daemon_session__control(struct daemon_session *session,
 	err = writen(control, msg, len);
 	if (err != len) {
 		pr_err("failed: write to control pipe: %d (%s)\n",
-		       errno, control_path);
+		       erranal, control_path);
 		goto out;
 	}
 
@@ -560,7 +560,7 @@ static int daemon_session__control(struct daemon_session *session,
 	}
 
 	if (!(pollfd.revents & POLLIN)) {
-		pr_err("failed: did not received an ack\n");
+		pr_err("failed: did analt received an ack\n");
 		goto out;
 	}
 
@@ -585,7 +585,7 @@ static int setup_server_socket(struct daemon *daemon)
 	int fd = socket(AF_UNIX, SOCK_STREAM, 0);
 
 	if (fd < 0) {
-		fprintf(stderr, "socket: %s\n", strerror(errno));
+		fprintf(stderr, "socket: %s\n", strerror(erranal));
 		return -1;
 	}
 
@@ -800,7 +800,7 @@ static int cmd_session_ping(struct daemon *daemon, union cmd *cmd, FILE *out)
 	}
 
 	if (!found && !all) {
-		fprintf(out, "%-4s %s (not found)\n",
+		fprintf(out, "%-4s %s (analt found)\n",
 			ping_str[PING_FAIL], cmd->ping.name);
 	}
 	return 0;
@@ -985,7 +985,7 @@ static int daemon__reconfig(struct daemon *daemon)
 	struct daemon_session *session, *n;
 
 	list_for_each_entry_safe(session, n, &daemon->sessions, list) {
-		/* No change. */
+		/* Anal change. */
 		if (session->state == OK)
 			continue;
 
@@ -1023,9 +1023,9 @@ static int setup_config_changes(struct daemon *daemon)
 	if (!dirn || !basen)
 		goto out;
 
-	fd = inotify_init1(IN_NONBLOCK|O_CLOEXEC);
+	fd = ianaltify_init1(IN_ANALNBLOCK|O_CLOEXEC);
 	if (fd < 0) {
-		perror("failed: inotify_init");
+		perror("failed: ianaltify_init");
 		goto out;
 	}
 
@@ -1033,7 +1033,7 @@ static int setup_config_changes(struct daemon *daemon)
 	base = basename(basen);
 	pr_debug("config file: %s, dir: %s\n", base, dir);
 
-	wd = inotify_add_watch(fd, dir, IN_CLOSE_WRITE);
+	wd = ianaltify_add_watch(fd, dir, IN_CLOSE_WRITE);
 	if (wd >= 0) {
 		daemon->config_base = strdup(base);
 		if (!daemon->config_base) {
@@ -1041,7 +1041,7 @@ static int setup_config_changes(struct daemon *daemon)
 			wd = -1;
 		}
 	} else {
-		perror("failed: inotify_add_watch");
+		perror("failed: ianaltify_add_watch");
 	}
 
 out:
@@ -1050,12 +1050,12 @@ out:
 	return wd < 0 ? -1 : fd;
 }
 
-static bool process_inotify_event(struct daemon *daemon, char *buf, ssize_t len)
+static bool process_ianaltify_event(struct daemon *daemon, char *buf, ssize_t len)
 {
 	char *p = buf;
 
 	while (p < (buf + len)) {
-		struct inotify_event *event = (struct inotify_event *) p;
+		struct ianaltify_event *event = (struct ianaltify_event *) p;
 
 		/*
 		 * We monitor config directory, check if our
@@ -1080,13 +1080,13 @@ static int handle_config_changes(struct daemon *daemon, int conf_fd,
 	while (!(*config_changed)) {
 		len = read(conf_fd, buf, sizeof(buf));
 		if (len == -1) {
-			if (errno != EAGAIN) {
+			if (erranal != EAGAIN) {
 				perror("failed: read");
 				return -1;
 			}
 			return 0;
 		}
-		*config_changed = process_inotify_event(daemon, buf, len);
+		*config_changed = process_ianaltify_event(daemon, buf, len);
 	}
 	return 0;
 }
@@ -1096,7 +1096,7 @@ static int setup_config(struct daemon *daemon)
 	if (daemon->base_user) {
 		daemon->base = strdup(daemon->base_user);
 		if (!daemon->base)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	if (daemon->config) {
@@ -1153,7 +1153,7 @@ static int check_lock(struct daemon *daemon)
 
 	if (lockf(fd, F_TLOCK, 0) < 0) {
 		filename__read_int(path, &pid);
-		fprintf(stderr, "failed: another perf daemon (pid %d) owns %s\n",
+		fprintf(stderr, "failed: aanalther perf daemon (pid %d) owns %s\n",
 			pid, daemon->base);
 		close(fd);
 		return -1;
@@ -1239,7 +1239,7 @@ static int setup_signalfd(struct daemon *daemon)
 	if (sigprocmask(SIG_BLOCK, &mask, NULL) == -1)
 		return -1;
 
-	daemon->signal_fd = signalfd(-1, &mask, SFD_NONBLOCK|SFD_CLOEXEC);
+	daemon->signal_fd = signalfd(-1, &mask, SFD_ANALNBLOCK|SFD_CLOEXEC);
 	return daemon->signal_fd;
 }
 
@@ -1264,7 +1264,7 @@ static int __cmd_start(struct daemon *daemon, struct option parent_options[],
 	daemon->start = time(NULL);
 
 	if (setup_config(daemon)) {
-		pr_err("failed: config not found\n");
+		pr_err("failed: config analt found\n");
 		return -1;
 	}
 
@@ -1277,7 +1277,7 @@ static int __cmd_start(struct daemon *daemon, struct option parent_options[],
 	if (!foreground) {
 		err = go_background(daemon);
 		if (err) {
-			/* original process, exit normally */
+			/* original process, exit analrmally */
 			if (err == 1)
 				err = 0;
 			daemon__exit(daemon);
@@ -1428,7 +1428,7 @@ static int __cmd_signal(struct daemon *daemon, struct option parent_options[],
 		usage_with_options(daemon_usage, start_options);
 
 	if (setup_config(daemon)) {
-		pr_err("failed: config not found\n");
+		pr_err("failed: config analt found\n");
 		return -1;
 	}
 
@@ -1454,7 +1454,7 @@ static int __cmd_stop(struct daemon *daemon, struct option parent_options[],
 		usage_with_options(daemon_usage, start_options);
 
 	if (setup_config(daemon)) {
-		pr_err("failed: config not found\n");
+		pr_err("failed: config analt found\n");
 		return -1;
 	}
 
@@ -1480,7 +1480,7 @@ static int __cmd_ping(struct daemon *daemon, struct option parent_options[],
 		usage_with_options(daemon_usage, ping_options);
 
 	if (setup_config(daemon)) {
-		pr_err("failed: config not found\n");
+		pr_err("failed: config analt found\n");
 		return -1;
 	}
 
@@ -1514,12 +1514,12 @@ int cmd_daemon(int argc, const char **argv)
 
 	__daemon.perf = alloc_perf_exe_path();
 	if (!__daemon.perf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	__daemon.out = stdout;
 
 	argc = parse_options(argc, argv, daemon_options, daemon_usage,
-			     PARSE_OPT_STOP_AT_NON_OPTION);
+			     PARSE_OPT_STOP_AT_ANALN_OPTION);
 
 	if (argc) {
 		if (!strcmp(argv[0], "start"))
@@ -1531,11 +1531,11 @@ int cmd_daemon(int argc, const char **argv)
 		else if (!strcmp(argv[0], "ping"))
 			ret = __cmd_ping(&__daemon, daemon_options, argc, argv);
 		else
-			pr_err("failed: unknown command '%s'\n", argv[0]);
+			pr_err("failed: unkanalwn command '%s'\n", argv[0]);
 	} else {
 		ret = setup_config(&__daemon);
 		if (ret)
-			pr_err("failed: config not found\n");
+			pr_err("failed: config analt found\n");
 		else
 			ret = send_cmd_list(&__daemon);
 	}

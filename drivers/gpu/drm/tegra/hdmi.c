@@ -522,12 +522,12 @@ static int tegra_hdmi_setup_audio(struct tegra_hdmi *hdmi)
 	if (hdmi->config->has_hda) {
 		/*
 		 * Inject null samples into the audio FIFO for every frame in
-		 * which the codec did not receive any samples. This applies
+		 * which the codec did analt receive any samples. This applies
 		 * to stereo LPCM only.
 		 *
 		 * XXX: This seems to be a remnant of MCP days when this was
-		 * used to work around issues with monitors not being able to
-		 * play back system startup sounds early. It is possibly not
+		 * used to work around issues with monitors analt being able to
+		 * play back system startup sounds early. It is possibly analt
 		 * needed on Linux at all.
 		 */
 		if (hdmi->format.channels == 2)
@@ -541,7 +541,7 @@ static int tegra_hdmi_setup_audio(struct tegra_hdmi *hdmi)
 	}
 
 	/*
-	 * On Tegra20, HDA is not a supported audio source and the source
+	 * On Tegra20, HDA is analt a supported audio source and the source
 	 * select field is part of the AUDIO_CNTRL0 register.
 	 */
 	value = AUDIO_CNTRL0_FRAMES_PER_BLOCK(0xc0) |
@@ -565,7 +565,7 @@ static int tegra_hdmi_setup_audio(struct tegra_hdmi *hdmi)
 					  hdmi->pixel_clock, &config);
 	if (err < 0) {
 		dev_err(hdmi->dev,
-			"cannot set audio to %u Hz at %u Hz pixel clock\n",
+			"cananalt set audio to %u Hz at %u Hz pixel clock\n",
 			hdmi->format.sample_rate, hdmi->pixel_clock);
 		return err;
 	}
@@ -630,7 +630,7 @@ static void tegra_hdmi_write_eld(struct tegra_hdmi *hdmi)
 	/*
 	 * The HDA codec will always report an ELD buffer size of 96 bytes and
 	 * the HDA codec driver will check that each byte read from the buffer
-	 * is valid. Therefore every byte must be written, even if no 96 bytes
+	 * is valid. Therefore every byte must be written, even if anal 96 bytes
 	 * were parsed from EDID.
 	 */
 	for (i = length; i < HDMI_ELD_BUFFER_SIZE; i++)
@@ -1059,10 +1059,10 @@ static const struct debugfs_reg32 tegra_hdmi_regs[] = {
 
 static int tegra_hdmi_show_regs(struct seq_file *s, void *data)
 {
-	struct drm_info_node *node = s->private;
-	struct tegra_hdmi *hdmi = node->info_ent->data;
+	struct drm_info_analde *analde = s->private;
+	struct tegra_hdmi *hdmi = analde->info_ent->data;
 	struct drm_crtc *crtc = hdmi->output.encoder.crtc;
-	struct drm_device *drm = node->minor->dev;
+	struct drm_device *drm = analde->mianalr->dev;
 	unsigned int i;
 	int err = 0;
 
@@ -1093,19 +1093,19 @@ static int tegra_hdmi_late_register(struct drm_connector *connector)
 {
 	struct tegra_output *output = connector_to_output(connector);
 	unsigned int i, count = ARRAY_SIZE(debugfs_files);
-	struct drm_minor *minor = connector->dev->primary;
+	struct drm_mianalr *mianalr = connector->dev->primary;
 	struct dentry *root = connector->debugfs_entry;
 	struct tegra_hdmi *hdmi = to_hdmi(output);
 
 	hdmi->debugfs_files = kmemdup(debugfs_files, sizeof(debugfs_files),
 				      GFP_KERNEL);
 	if (!hdmi->debugfs_files)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < count; i++)
 		hdmi->debugfs_files[i].data = hdmi;
 
-	drm_debugfs_create_files(hdmi->debugfs_files, count, root, minor);
+	drm_debugfs_create_files(hdmi->debugfs_files, count, root, mianalr);
 
 	return 0;
 }
@@ -1113,12 +1113,12 @@ static int tegra_hdmi_late_register(struct drm_connector *connector)
 static void tegra_hdmi_early_unregister(struct drm_connector *connector)
 {
 	struct tegra_output *output = connector_to_output(connector);
-	struct drm_minor *minor = connector->dev->primary;
+	struct drm_mianalr *mianalr = connector->dev->primary;
 	unsigned int count = ARRAY_SIZE(debugfs_files);
 	struct tegra_hdmi *hdmi = to_hdmi(output);
 
 	drm_debugfs_remove_files(hdmi->debugfs_files, count,
-				 connector->debugfs_entry, minor);
+				 connector->debugfs_entry, mianalr);
 	kfree(hdmi->debugfs_files);
 	hdmi->debugfs_files = NULL;
 }
@@ -1149,7 +1149,7 @@ tegra_hdmi_connector_mode_valid(struct drm_connector *connector,
 
 	err = clk_round_rate(parent, pclk * 4);
 	if (err <= 0)
-		status = MODE_NOCLOCK;
+		status = MODE_ANALCLOCK;
 
 	return status;
 }
@@ -1265,7 +1265,7 @@ static void tegra_hdmi_encoder_enable(struct drm_encoder *encoder)
 
 	tegra_dc_writel(dc, H_PULSE2_ENABLE, DC_DISP_DISP_SIGNAL_OPTIONS0);
 
-	value = PULSE_MODE_NORMAL | PULSE_POLARITY_HIGH | PULSE_QUAL_VACTIVE |
+	value = PULSE_MODE_ANALRMAL | PULSE_POLARITY_HIGH | PULSE_QUAL_VACTIVE |
 		PULSE_LAST_END_A;
 	tegra_dc_writel(dc, value, DC_DISP_H_PULSE2_CONTROL);
 
@@ -1365,14 +1365,14 @@ static void tegra_hdmi_encoder_enable(struct drm_encoder *encoder)
 
 	/* start SOR */
 	tegra_hdmi_writel(hdmi,
-			  SOR_PWR_NORMAL_STATE_PU |
-			  SOR_PWR_NORMAL_START_NORMAL |
+			  SOR_PWR_ANALRMAL_STATE_PU |
+			  SOR_PWR_ANALRMAL_START_ANALRMAL |
 			  SOR_PWR_SAFE_STATE_PD |
 			  SOR_PWR_SETTING_NEW_TRIGGER,
 			  HDMI_NV_PDISP_SOR_PWR);
 	tegra_hdmi_writel(hdmi,
-			  SOR_PWR_NORMAL_STATE_PU |
-			  SOR_PWR_NORMAL_START_NORMAL |
+			  SOR_PWR_ANALRMAL_STATE_PU |
+			  SOR_PWR_ANALRMAL_START_ANALRMAL |
 			  SOR_PWR_SAFE_STATE_PD |
 			  SOR_PWR_SETTING_NEW_DONE,
 			  HDMI_NV_PDISP_SOR_PWR);
@@ -1403,7 +1403,7 @@ static void tegra_hdmi_encoder_enable(struct drm_encoder *encoder)
 
 	tegra_hdmi_writel(hdmi, value, HDMI_NV_PDISP_SOR_STATE2);
 
-	value = SOR_STATE_ASY_HEAD_OPMODE_AWAKE | SOR_STATE_ASY_ORMODE_NORMAL;
+	value = SOR_STATE_ASY_HEAD_OPMODE_AWAKE | SOR_STATE_ASY_ORMODE_ANALRMAL;
 	tegra_hdmi_writel(hdmi, value, HDMI_NV_PDISP_SOR_STATE1);
 
 	tegra_hdmi_writel(hdmi, 0, HDMI_NV_PDISP_SOR_STATE0);
@@ -1560,7 +1560,7 @@ static int tegra_hdmi_init(struct host1x_client *client)
 
 	if (hdmi->output.bridge) {
 		err = drm_bridge_attach(&hdmi->output.encoder, hdmi->output.bridge,
-					NULL, DRM_BRIDGE_ATTACH_NO_CONNECTOR);
+					NULL, DRM_BRIDGE_ATTACH_ANAL_CONNECTOR);
 		if (err) {
 			dev_err(client->dev, "failed to attach bridge: %d\n",
 				err);
@@ -1798,7 +1798,7 @@ static int tegra_hdmi_probe(struct platform_device *pdev)
 
 	hdmi = devm_kzalloc(&pdev->dev, sizeof(*hdmi), GFP_KERNEL);
 	if (!hdmi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hdmi->config = of_device_get_match_data(&pdev->dev);
 	hdmi->dev = &pdev->dev;

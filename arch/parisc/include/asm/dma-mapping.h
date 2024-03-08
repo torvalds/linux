@@ -8,11 +8,11 @@
 **     I/O MMU        consistent method           dma_sync behavior
 **  =============   ======================       =======================
 **  a) PA-7x00LC    uncachable host memory          flush/purge
-**  b) U2/Uturn      cachable host memory              NOP
-**  c) Ike/Astro     cachable host memory              NOP
+**  b) U2/Uturn      cachable host memory              ANALP
+**  c) Ike/Astro     cachable host memory              ANALP
 **  d) EPIC/SAGA     memory on EPIC/SAGA         flush/reset DMA channel
 **
-** PA-7[13]00LC processors have a GSC bus interface and no I/O MMU.
+** PA-7[13]00LC processors have a GSC bus interface and anal I/O MMU.
 **
 ** Systems (eg PCX-T workstations) that don't fall into the above
 ** categories will need to modify the needed drivers to perform

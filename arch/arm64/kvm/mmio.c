@@ -112,7 +112,7 @@ int kvm_handle_mmio_return(struct kvm_vcpu *vcpu)
 	}
 
 	/*
-	 * The MMIO instruction is emulated and should not be re-executed
+	 * The MMIO instruction is emulated and should analt be re-executed
 	 * in the guest.
 	 */
 	kvm_incr_pc(vcpu);
@@ -131,7 +131,7 @@ int io_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa)
 	u8 data_buf[8];
 
 	/*
-	 * No valid syndrome? Ask userspace for help if it has
+	 * Anal valid syndrome? Ask userspace for help if it has
 	 * volunteered to do so, and bail out otherwise.
 	 */
 	if (!kvm_vcpu_dabt_isvalid(vcpu)) {
@@ -146,7 +146,7 @@ int io_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa)
 			return 0;
 		}
 
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 
 	/*
@@ -175,7 +175,7 @@ int io_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa)
 				      data_buf);
 	}
 
-	/* Now prepare kvm_run for the potential return to userland. */
+	/* Analw prepare kvm_run for the potential return to userland. */
 	run->mmio.is_write	= is_write;
 	run->mmio.phys_addr	= fault_ipa;
 	run->mmio.len		= len;

@@ -146,10 +146,10 @@ int softing_netdev_rx(struct net_device *netdev, const struct can_frame *msg,
 #define TXMAX	(DPRAM_TX_CNT - 1)
 
 /* DPRAM return codes */
-#define RES_NONE	0
+#define RES_ANALNE	0
 #define RES_OK		1
-#define RES_NOK		2
-#define RES_UNKNOWN	3
+#define RES_ANALK		2
+#define RES_UNKANALWN	3
 /* DPRAM flags */
 #define CMD_TX		0x01
 #define CMD_ACK		0x02

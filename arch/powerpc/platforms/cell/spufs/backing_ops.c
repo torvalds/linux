@@ -8,7 +8,7 @@
  * SPU contexts rather than hardware.
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -55,7 +55,7 @@ static int spu_backing_mbox_read(struct spu_context *ctx, u32 * data)
 	mbox_stat = ctx->csa.prob.mb_stat_R;
 	if (mbox_stat & 0x0000ff) {
 		/* Read the first available word.
-		 * Implementation note: the depth
+		 * Implementation analte: the depth
 		 * of pu_mb_R is currently 1.
 		 */
 		*data = ctx->csa.prob.pu_mb_R;
@@ -84,13 +84,13 @@ static __poll_t spu_backing_mbox_stat_poll(struct spu_context *ctx,
 	stat = ctx->csa.prob.mb_stat_R;
 
 	/* if the requested event is there, return the poll
-	   mask, otherwise enable the interrupt to get notified,
+	   mask, otherwise enable the interrupt to get analtified,
 	   but first mark any pending interrupts as done so
 	   we don't get woken up unnecessarily */
 
-	if (events & (EPOLLIN | EPOLLRDNORM)) {
+	if (events & (EPOLLIN | EPOLLRDANALRM)) {
 		if (stat & 0xff0000)
-			ret |= EPOLLIN | EPOLLRDNORM;
+			ret |= EPOLLIN | EPOLLRDANALRM;
 		else {
 			ctx->csa.priv1.int_stat_class2_RW &=
 				~CLASS2_MAILBOX_INTR;
@@ -98,9 +98,9 @@ static __poll_t spu_backing_mbox_stat_poll(struct spu_context *ctx,
 				CLASS2_ENABLE_MAILBOX_INTR;
 		}
 	}
-	if (events & (EPOLLOUT | EPOLLWRNORM)) {
+	if (events & (EPOLLOUT | EPOLLWRANALRM)) {
 		if (stat & 0x00ff00)
-			ret = EPOLLOUT | EPOLLWRNORM;
+			ret = EPOLLOUT | EPOLLWRANALRM;
 		else {
 			ctx->csa.priv1.int_stat_class2_RW &=
 				~CLASS2_MAILBOX_THRESHOLD_INTR;
@@ -119,7 +119,7 @@ static int spu_backing_ibox_read(struct spu_context *ctx, u32 * data)
 	spin_lock(&ctx->csa.register_lock);
 	if (ctx->csa.prob.mb_stat_R & 0xff0000) {
 		/* Read the first available word.
-		 * Implementation note: the depth
+		 * Implementation analte: the depth
 		 * of puint_mb_R is currently 1.
 		 */
 		*data = ctx->csa.priv2.puint_mb_R;
@@ -146,7 +146,7 @@ static int spu_backing_wbox_write(struct spu_context *ctx, u32 data)
 		int avail = (ctx->csa.prob.mb_stat_R & 0x00ff00) >> 8;
 
 		/* We have space to write wbox_data.
-		 * Implementation note: the depth
+		 * Implementation analte: the depth
 		 * of spu_mb_W is currently 4.
 		 */
 		BUG_ON(avail != (4 - slot));

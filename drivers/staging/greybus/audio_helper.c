@@ -80,8 +80,8 @@ int gbaudio_dapm_link_component_dai_widgets(struct snd_soc_card *card,
 
 static void gbaudio_dapm_free_path(struct snd_soc_dapm_path *path)
 {
-	list_del(&path->list_node[SND_SOC_DAPM_DIR_IN]);
-	list_del(&path->list_node[SND_SOC_DAPM_DIR_OUT]);
+	list_del(&path->list_analde[SND_SOC_DAPM_DIR_IN]);
+	list_del(&path->list_analde[SND_SOC_DAPM_DIR_OUT]);
 	list_del(&path->list_kcontrol);
 	list_del(&path->list);
 	kfree(path);
@@ -128,7 +128,7 @@ int gbaudio_dapm_free_controls(struct snd_soc_dapm_context *dapm,
 			}
 		}
 		if (!w) {
-			dev_err(dapm->dev, "%s: widget not found\n",
+			dev_err(dapm->dev, "%s: widget analt found\n",
 				widget->name);
 			widget++;
 			continue;

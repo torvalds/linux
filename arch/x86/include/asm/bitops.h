@@ -5,7 +5,7 @@
 /*
  * Copyright 1992, Linus Torvalds.
  *
- * Note: inlines with more than a single statement should be marked
+ * Analte: inlines with more than a single statement should be marked
  * __always_inline to avoid problems with older gcc's inlining heuristics.
  */
 
@@ -31,7 +31,7 @@
 /*
  * These have to be done with inline assembly: that way the bit-setting
  * is guaranteed to be atomic. All bit operations return 0 if the bit
- * was cleared before the operation and != 0 if it was not.
+ * was cleared before the operation and != 0 if it was analt.
  *
  * bit 0 is the LSB of addr; bit 32 is the LSB of (addr+1).
  */
@@ -162,8 +162,8 @@ arch_test_and_clear_bit(long nr, volatile unsigned long *addr)
 }
 
 /*
- * Note: the operation is performed atomically with respect to
- * the local CPU, but not other CPUs. Portable code should not
+ * Analte: the operation is performed atomically with respect to
+ * the local CPU, but analt other CPUs. Portable code should analt
  * rely on this behaviour.
  * KVM relies on this behaviour on x86 for modifying memory that is also
  * accessed from a hypervisor on the same CPU if running in a VM: don't change
@@ -258,7 +258,7 @@ static __always_inline unsigned long variable__ffs(unsigned long word)
  * __ffs - find first set bit in word
  * @word: The word to search
  *
- * Undefined if no bit exists, so code should check against 0 first.
+ * Undefined if anal bit exists, so code should check against 0 first.
  */
 #define __ffs(word)				\
 	(__builtin_constant_p(word) ?		\
@@ -277,7 +277,7 @@ static __always_inline unsigned long variable_ffz(unsigned long word)
  * ffz - find first zero bit in word
  * @word: The word to search
  *
- * Undefined if no zero exists, so code should check against ~0UL first.
+ * Undefined if anal zero exists, so code should check against ~0UL first.
  */
 #define ffz(word)				\
 	(__builtin_constant_p(word) ?		\
@@ -288,7 +288,7 @@ static __always_inline unsigned long variable_ffz(unsigned long word)
  * __fls: find last set bit in word
  * @word: The word to search
  *
- * Undefined if no set bit exists, so code should check against 0 first.
+ * Undefined if anal set bit exists, so code should check against 0 first.
  */
 static __always_inline unsigned long __fls(unsigned long word)
 {
@@ -315,8 +315,8 @@ static __always_inline int variable_ffs(int x)
 	 * value is written to set it to the same as before, except that the
 	 * top 32 bits will be cleared.
 	 *
-	 * We cannot do this on 32 bits because at the very least some
-	 * 486 CPUs did not behave this way.
+	 * We cananalt do this on 32 bits because at the very least some
+	 * 486 CPUs did analt behave this way.
 	 */
 	asm("bsfl %1,%0"
 	    : "=r" (r)
@@ -342,7 +342,7 @@ static __always_inline int variable_ffs(int x)
  * routines, therefore differs in spirit from the other bitops.
  *
  * ffs(value) returns 0 if value is 0 or the position of the first
- * set bit if value is nonzero. The first (least significant) bit
+ * set bit if value is analnzero. The first (least significant) bit
  * is at position 1.
  */
 #define ffs(x) (__builtin_constant_p(x) ? __builtin_ffs(x) : variable_ffs(x))
@@ -355,7 +355,7 @@ static __always_inline int variable_ffs(int x)
  * ffs, but returns the position of the most significant set bit.
  *
  * fls(value) returns 0 if value is 0 or the position of the last
- * set bit if value is nonzero. The last (most significant) bit is
+ * set bit if value is analnzero. The last (most significant) bit is
  * at position 32.
  */
 static __always_inline int fls(unsigned int x)
@@ -372,8 +372,8 @@ static __always_inline int fls(unsigned int x)
 	 * value is written to set it to the same as before, except that the
 	 * top 32 bits will be cleared.
 	 *
-	 * We cannot do this on 32 bits because at the very least some
-	 * 486 CPUs did not behave this way.
+	 * We cananalt do this on 32 bits because at the very least some
+	 * 486 CPUs did analt behave this way.
 	 */
 	asm("bsrl %1,%0"
 	    : "=r" (r)
@@ -399,7 +399,7 @@ static __always_inline int fls(unsigned int x)
  * ffsll, but returns the position of the most significant set bit.
  *
  * fls64(value) returns 0 if value is 0 or the position of the last
- * set bit if value is nonzero. The last (most significant) bit is
+ * set bit if value is analnzero. The last (most significant) bit is
  * at position 64.
  */
 #ifdef CONFIG_X86_64
@@ -430,7 +430,7 @@ static __always_inline int fls64(__u64 x)
 #include <asm-generic/bitops/const_hweight.h>
 
 #include <asm-generic/bitops/instrumented-atomic.h>
-#include <asm-generic/bitops/instrumented-non-atomic.h>
+#include <asm-generic/bitops/instrumented-analn-atomic.h>
 #include <asm-generic/bitops/instrumented-lock.h>
 
 #include <asm-generic/bitops/le.h>

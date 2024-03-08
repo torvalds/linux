@@ -75,7 +75,7 @@ static int mtk_disp_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	u64 div, rate;
 	int err;
 
-	if (state->polarity != PWM_POLARITY_NORMAL)
+	if (state->polarity != PWM_POLARITY_ANALRMAL)
 		return -EINVAL;
 
 	if (!state->enabled && mdp->enabled) {
@@ -217,7 +217,7 @@ static int mtk_disp_pwm_get_state(struct pwm_chip *chip,
 	high_width = FIELD_GET(PWM_HIGH_WIDTH_MASK, con1);
 	state->duty_cycle = DIV64_U64_ROUND_UP(high_width * (clk_div + 1) * NSEC_PER_SEC,
 					       rate);
-	state->polarity = PWM_POLARITY_NORMAL;
+	state->polarity = PWM_POLARITY_ANALRMAL;
 	clk_disable_unprepare(mdp->clk_mm);
 	clk_disable_unprepare(mdp->clk_main);
 
@@ -236,7 +236,7 @@ static int mtk_disp_pwm_probe(struct platform_device *pdev)
 
 	mdp = devm_kzalloc(&pdev->dev, sizeof(*mdp), GFP_KERNEL);
 	if (!mdp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mdp->data = of_device_get_match_data(&pdev->dev);
 

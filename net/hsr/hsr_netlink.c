@@ -38,27 +38,27 @@ static int hsr_newlink(struct net *src_net, struct net_device *dev,
 	struct net_device *link[2];
 
 	if (!data) {
-		NL_SET_ERR_MSG_MOD(extack, "No slave devices specified");
+		NL_SET_ERR_MSG_MOD(extack, "Anal slave devices specified");
 		return -EINVAL;
 	}
 	if (!data[IFLA_HSR_SLAVE1]) {
-		NL_SET_ERR_MSG_MOD(extack, "Slave1 device not specified");
+		NL_SET_ERR_MSG_MOD(extack, "Slave1 device analt specified");
 		return -EINVAL;
 	}
 	link[0] = __dev_get_by_index(src_net,
 				     nla_get_u32(data[IFLA_HSR_SLAVE1]));
 	if (!link[0]) {
-		NL_SET_ERR_MSG_MOD(extack, "Slave1 does not exist");
+		NL_SET_ERR_MSG_MOD(extack, "Slave1 does analt exist");
 		return -EINVAL;
 	}
 	if (!data[IFLA_HSR_SLAVE2]) {
-		NL_SET_ERR_MSG_MOD(extack, "Slave2 device not specified");
+		NL_SET_ERR_MSG_MOD(extack, "Slave2 device analt specified");
 		return -EINVAL;
 	}
 	link[1] = __dev_get_by_index(src_net,
 				     nla_get_u32(data[IFLA_HSR_SLAVE2]));
 	if (!link[1]) {
-		NL_SET_ERR_MSG_MOD(extack, "Slave2 does not exist");
+		NL_SET_ERR_MSG_MOD(extack, "Slave2 does analt exist");
 		return -EINVAL;
 	}
 
@@ -107,13 +107,13 @@ static void hsr_dellink(struct net_device *dev, struct list_head *head)
 	struct hsr_priv *hsr = netdev_priv(dev);
 
 	del_timer_sync(&hsr->prune_timer);
-	del_timer_sync(&hsr->announce_timer);
+	del_timer_sync(&hsr->ananalunce_timer);
 
 	hsr_debugfs_term(hsr);
 	hsr_del_ports(hsr);
 
-	hsr_del_self_node(hsr);
-	hsr_del_nodes(&hsr->node_db);
+	hsr_del_self_analde(hsr);
+	hsr_del_analdes(&hsr->analde_db);
 
 	unregister_netdevice_queue(dev, head);
 }
@@ -164,8 +164,8 @@ static struct rtnl_link_ops hsr_link_ops __read_mostly = {
 
 /* attribute policy */
 static const struct nla_policy hsr_genl_policy[HSR_A_MAX + 1] = {
-	[HSR_A_NODE_ADDR] = { .len = ETH_ALEN },
-	[HSR_A_NODE_ADDR_B] = { .len = ETH_ALEN },
+	[HSR_A_ANALDE_ADDR] = { .len = ETH_ALEN },
+	[HSR_A_ANALDE_ADDR_B] = { .len = ETH_ALEN },
 	[HSR_A_IFINDEX] = { .type = NLA_U32 },
 	[HSR_A_IF1_AGE] = { .type = NLA_U32 },
 	[HSR_A_IF2_AGE] = { .type = NLA_U32 },
@@ -179,7 +179,7 @@ static const struct genl_multicast_group hsr_mcgrps[] = {
 	{ .name = "hsr-network", },
 };
 
-/* This is called if for some node with MAC address addr, we only get frames
+/* This is called if for some analde with MAC address addr, we only get frames
  * over one of the slave interfaces. This would indicate an open network ring
  * (i.e. a link has failed somewhere).
  */
@@ -200,7 +200,7 @@ void hsr_nl_ringerror(struct hsr_priv *hsr, unsigned char addr[ETH_ALEN],
 	if (!msg_head)
 		goto nla_put_failure;
 
-	res = nla_put(skb, HSR_A_NODE_ADDR, ETH_ALEN, addr);
+	res = nla_put(skb, HSR_A_ANALDE_ADDR, ETH_ALEN, addr);
 	if (res < 0)
 		goto nla_put_failure;
 
@@ -219,14 +219,14 @@ nla_put_failure:
 fail:
 	rcu_read_lock();
 	master = hsr_port_get_hsr(hsr, HSR_PT_MASTER);
-	netdev_warn(master->dev, "Could not send HSR ring error message\n");
+	netdev_warn(master->dev, "Could analt send HSR ring error message\n");
 	rcu_read_unlock();
 }
 
-/* This is called when we haven't heard from the node with MAC address addr for
- * some time (just before the node is removed from the node table/list).
+/* This is called when we haven't heard from the analde with MAC address addr for
+ * some time (just before the analde is removed from the analde table/list).
  */
-void hsr_nl_nodedown(struct hsr_priv *hsr, unsigned char addr[ETH_ALEN])
+void hsr_nl_analdedown(struct hsr_priv *hsr, unsigned char addr[ETH_ALEN])
 {
 	struct sk_buff *skb;
 	void *msg_head;
@@ -237,11 +237,11 @@ void hsr_nl_nodedown(struct hsr_priv *hsr, unsigned char addr[ETH_ALEN])
 	if (!skb)
 		goto fail;
 
-	msg_head = genlmsg_put(skb, 0, 0, &hsr_genl_family, 0, HSR_C_NODE_DOWN);
+	msg_head = genlmsg_put(skb, 0, 0, &hsr_genl_family, 0, HSR_C_ANALDE_DOWN);
 	if (!msg_head)
 		goto nla_put_failure;
 
-	res = nla_put(skb, HSR_A_NODE_ADDR, ETH_ALEN, addr);
+	res = nla_put(skb, HSR_A_ANALDE_ADDR, ETH_ALEN, addr);
 	if (res < 0)
 		goto nla_put_failure;
 
@@ -256,19 +256,19 @@ nla_put_failure:
 fail:
 	rcu_read_lock();
 	master = hsr_port_get_hsr(hsr, HSR_PT_MASTER);
-	netdev_warn(master->dev, "Could not send HSR node down\n");
+	netdev_warn(master->dev, "Could analt send HSR analde down\n");
 	rcu_read_unlock();
 }
 
-/* HSR_C_GET_NODE_STATUS lets userspace query the internal HSR node table
- * about the status of a specific node in the network, defined by its MAC
+/* HSR_C_GET_ANALDE_STATUS lets userspace query the internal HSR analde table
+ * about the status of a specific analde in the network, defined by its MAC
  * address.
  *
- * Input: hsr ifindex, node mac address
- * Output: hsr ifindex, node mac address (copied from request),
- *	   age of latest frame from node over slave 1, slave 2 [ms]
+ * Input: hsr ifindex, analde mac address
+ * Output: hsr ifindex, analde mac address (copied from request),
+ *	   age of latest frame from analde over slave 1, slave 2 [ms]
  */
-static int hsr_get_node_status(struct sk_buff *skb_in, struct genl_info *info)
+static int hsr_get_analde_status(struct sk_buff *skb_in, struct genl_info *info)
 {
 	/* For receiving */
 	struct nlattr *na;
@@ -279,11 +279,11 @@ static int hsr_get_node_status(struct sk_buff *skb_in, struct genl_info *info)
 	void *msg_head;
 	struct hsr_priv *hsr;
 	struct hsr_port *port;
-	unsigned char hsr_node_addr_b[ETH_ALEN];
-	int hsr_node_if1_age;
-	u16 hsr_node_if1_seq;
-	int hsr_node_if2_age;
-	u16 hsr_node_if2_seq;
+	unsigned char hsr_analde_addr_b[ETH_ALEN];
+	int hsr_analde_if1_age;
+	u16 hsr_analde_if1_seq;
+	int hsr_analde_if2_age;
+	u16 hsr_analde_if2_seq;
 	int addr_b_ifindex;
 	int res;
 
@@ -293,7 +293,7 @@ static int hsr_get_node_status(struct sk_buff *skb_in, struct genl_info *info)
 	na = info->attrs[HSR_A_IFINDEX];
 	if (!na)
 		goto invalid;
-	na = info->attrs[HSR_A_NODE_ADDR];
+	na = info->attrs[HSR_A_ANALDE_ADDR];
 	if (!na)
 		goto invalid;
 
@@ -308,15 +308,15 @@ static int hsr_get_node_status(struct sk_buff *skb_in, struct genl_info *info)
 	/* Send reply */
 	skb_out = genlmsg_new(NLMSG_GOODSIZE, GFP_ATOMIC);
 	if (!skb_out) {
-		res = -ENOMEM;
+		res = -EANALMEM;
 		goto fail;
 	}
 
 	msg_head = genlmsg_put(skb_out, NETLINK_CB(skb_in).portid,
 			       info->snd_seq, &hsr_genl_family, 0,
-			       HSR_C_SET_NODE_STATUS);
+			       HSR_C_SET_ANALDE_STATUS);
 	if (!msg_head) {
-		res = -ENOMEM;
+		res = -EANALMEM;
 		goto nla_put_failure;
 	}
 
@@ -325,26 +325,26 @@ static int hsr_get_node_status(struct sk_buff *skb_in, struct genl_info *info)
 		goto nla_put_failure;
 
 	hsr = netdev_priv(hsr_dev);
-	res = hsr_get_node_data(hsr,
+	res = hsr_get_analde_data(hsr,
 				(unsigned char *)
-				nla_data(info->attrs[HSR_A_NODE_ADDR]),
-					 hsr_node_addr_b,
+				nla_data(info->attrs[HSR_A_ANALDE_ADDR]),
+					 hsr_analde_addr_b,
 					 &addr_b_ifindex,
-					 &hsr_node_if1_age,
-					 &hsr_node_if1_seq,
-					 &hsr_node_if2_age,
-					 &hsr_node_if2_seq);
+					 &hsr_analde_if1_age,
+					 &hsr_analde_if1_seq,
+					 &hsr_analde_if2_age,
+					 &hsr_analde_if2_seq);
 	if (res < 0)
 		goto nla_put_failure;
 
-	res = nla_put(skb_out, HSR_A_NODE_ADDR, ETH_ALEN,
-		      nla_data(info->attrs[HSR_A_NODE_ADDR]));
+	res = nla_put(skb_out, HSR_A_ANALDE_ADDR, ETH_ALEN,
+		      nla_data(info->attrs[HSR_A_ANALDE_ADDR]));
 	if (res < 0)
 		goto nla_put_failure;
 
 	if (addr_b_ifindex > -1) {
-		res = nla_put(skb_out, HSR_A_NODE_ADDR_B, ETH_ALEN,
-			      hsr_node_addr_b);
+		res = nla_put(skb_out, HSR_A_ANALDE_ADDR_B, ETH_ALEN,
+			      hsr_analde_addr_b);
 		if (res < 0)
 			goto nla_put_failure;
 
@@ -354,10 +354,10 @@ static int hsr_get_node_status(struct sk_buff *skb_in, struct genl_info *info)
 			goto nla_put_failure;
 	}
 
-	res = nla_put_u32(skb_out, HSR_A_IF1_AGE, hsr_node_if1_age);
+	res = nla_put_u32(skb_out, HSR_A_IF1_AGE, hsr_analde_if1_age);
 	if (res < 0)
 		goto nla_put_failure;
-	res = nla_put_u16(skb_out, HSR_A_IF1_SEQ, hsr_node_if1_seq);
+	res = nla_put_u16(skb_out, HSR_A_IF1_SEQ, hsr_analde_if1_seq);
 	if (res < 0)
 		goto nla_put_failure;
 	port = hsr_port_get_hsr(hsr, HSR_PT_SLAVE_A);
@@ -367,10 +367,10 @@ static int hsr_get_node_status(struct sk_buff *skb_in, struct genl_info *info)
 	if (res < 0)
 		goto nla_put_failure;
 
-	res = nla_put_u32(skb_out, HSR_A_IF2_AGE, hsr_node_if2_age);
+	res = nla_put_u32(skb_out, HSR_A_IF2_AGE, hsr_analde_if2_age);
 	if (res < 0)
 		goto nla_put_failure;
-	res = nla_put_u16(skb_out, HSR_A_IF2_SEQ, hsr_node_if2_seq);
+	res = nla_put_u16(skb_out, HSR_A_IF2_SEQ, hsr_analde_if2_seq);
 	if (res < 0)
 		goto nla_put_failure;
 	port = hsr_port_get_hsr(hsr, HSR_PT_SLAVE_B);
@@ -402,9 +402,9 @@ fail:
 	return res;
 }
 
-/* Get a list of MacAddressA of all nodes known to this node (including self).
+/* Get a list of MacAddressA of all analdes kanalwn to this analde (including self).
  */
-static int hsr_get_node_list(struct sk_buff *skb_in, struct genl_info *info)
+static int hsr_get_analde_list(struct sk_buff *skb_in, struct genl_info *info)
 {
 	unsigned char addr[ETH_ALEN];
 	struct net_device *hsr_dev;
@@ -435,15 +435,15 @@ restart:
 	/* Send reply */
 	skb_out = genlmsg_new(GENLMSG_DEFAULT_SIZE, GFP_ATOMIC);
 	if (!skb_out) {
-		res = -ENOMEM;
+		res = -EANALMEM;
 		goto fail;
 	}
 
 	msg_head = genlmsg_put(skb_out, NETLINK_CB(skb_in).portid,
 			       info->snd_seq, &hsr_genl_family, 0,
-			       HSR_C_SET_NODE_LIST);
+			       HSR_C_SET_ANALDE_LIST);
 	if (!msg_head) {
-		res = -ENOMEM;
+		res = -EANALMEM;
 		goto nla_put_failure;
 	}
 
@@ -456,9 +456,9 @@ restart:
 	hsr = netdev_priv(hsr_dev);
 
 	if (!pos)
-		pos = hsr_get_next_node(hsr, NULL, addr);
+		pos = hsr_get_next_analde(hsr, NULL, addr);
 	while (pos) {
-		res = nla_put(skb_out, HSR_A_NODE_ADDR, ETH_ALEN, addr);
+		res = nla_put(skb_out, HSR_A_ANALDE_ADDR, ETH_ALEN, addr);
 		if (res < 0) {
 			if (res == -EMSGSIZE) {
 				genlmsg_end(skb_out, msg_head);
@@ -469,7 +469,7 @@ restart:
 			}
 			goto nla_put_failure;
 		}
-		pos = hsr_get_next_node(hsr, pos, addr);
+		pos = hsr_get_next_analde(hsr, pos, addr);
 	}
 	rcu_read_unlock();
 
@@ -495,17 +495,17 @@ fail:
 
 static const struct genl_small_ops hsr_ops[] = {
 	{
-		.cmd = HSR_C_GET_NODE_STATUS,
+		.cmd = HSR_C_GET_ANALDE_STATUS,
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.flags = 0,
-		.doit = hsr_get_node_status,
+		.doit = hsr_get_analde_status,
 		.dumpit = NULL,
 	},
 	{
-		.cmd = HSR_C_GET_NODE_LIST,
+		.cmd = HSR_C_GET_ANALDE_LIST,
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.flags = 0,
-		.doit = hsr_get_node_list,
+		.doit = hsr_get_analde_list,
 		.dumpit = NULL,
 	},
 };
@@ -520,7 +520,7 @@ static struct genl_family hsr_genl_family __ro_after_init = {
 	.module = THIS_MODULE,
 	.small_ops = hsr_ops,
 	.n_small_ops = ARRAY_SIZE(hsr_ops),
-	.resv_start_op = HSR_C_SET_NODE_LIST + 1,
+	.resv_start_op = HSR_C_SET_ANALDE_LIST + 1,
 	.mcgrps = hsr_mcgrps,
 	.n_mcgrps = ARRAY_SIZE(hsr_mcgrps),
 };

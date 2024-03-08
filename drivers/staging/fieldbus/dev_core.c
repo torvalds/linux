@@ -50,7 +50,7 @@ static ssize_t enabled_store(struct device *dev, struct device_attribute *attr,
 	int ret;
 
 	if (!fb->simple_enable_set)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	ret = kstrtobool(buf, &value);
 	if (ret)
 		return ret;
@@ -109,7 +109,7 @@ static ssize_t fieldbus_type_show(struct device *dev,
 		t = "profinet";
 		break;
 	default:
-		t = "unknown";
+		t = "unkanalwn";
 		break;
 	}
 
@@ -162,22 +162,22 @@ struct fb_open_file {
 	int dc_event;
 };
 
-static int fieldbus_open(struct inode *inode, struct file *filp)
+static int fieldbus_open(struct ianalde *ianalde, struct file *filp)
 {
 	struct fb_open_file *of;
-	struct fieldbus_dev *fbdev = container_of(inode->i_cdev,
+	struct fieldbus_dev *fbdev = container_of(ianalde->i_cdev,
 						struct fieldbus_dev,
 						cdev);
 
 	of = kzalloc(sizeof(*of), GFP_KERNEL);
 	if (!of)
-		return -ENOMEM;
+		return -EANALMEM;
 	of->fbdev = fbdev;
 	filp->private_data = of;
 	return 0;
 }
 
-static int fieldbus_release(struct inode *node, struct file *filp)
+static int fieldbus_release(struct ianalde *analde, struct file *filp)
 {
 	struct fb_open_file *of = filp->private_data;
 
@@ -208,7 +208,7 @@ static __poll_t fieldbus_poll(struct file *filp, poll_table *wait)
 {
 	struct fb_open_file *of = filp->private_data;
 	struct fieldbus_dev *fbdev = of->fbdev;
-	__poll_t mask = EPOLLIN | EPOLLRDNORM | EPOLLOUT | EPOLLWRNORM;
+	__poll_t mask = EPOLLIN | EPOLLRDANALRM | EPOLLOUT | EPOLLWRANALRM;
 
 	poll_wait(filp, &fbdev->dc_wq, wait);
 	/* data changed ? */
@@ -260,7 +260,7 @@ EXPORT_SYMBOL_GPL(fieldbus_dev_unregister);
 
 static int __fieldbus_dev_register(struct fieldbus_dev *fb)
 {
-	dev_t devno;
+	dev_t devanal;
 	int err;
 
 	if (!fb)
@@ -270,16 +270,16 @@ static int __fieldbus_dev_register(struct fieldbus_dev *fb)
 	fb->id = ida_simple_get(&fieldbus_ida, 0, MAX_FIELDBUSES, GFP_KERNEL);
 	if (fb->id < 0)
 		return fb->id;
-	devno = MKDEV(MAJOR(fieldbus_devt), fb->id);
+	devanal = MKDEV(MAJOR(fieldbus_devt), fb->id);
 	init_waitqueue_head(&fb->dc_wq);
 	cdev_init(&fb->cdev, &fieldbus_fops);
-	err = cdev_add(&fb->cdev, devno, 1);
+	err = cdev_add(&fb->cdev, devanal, 1);
 	if (err) {
 		pr_err("fieldbus_dev%d unable to add device %d:%d\n",
 		       fb->id, MAJOR(fieldbus_devt), fb->id);
 		goto err_cdev;
 	}
-	fb->dev = device_create(&fieldbus_class, fb->parent, devno, fb,
+	fb->dev = device_create(&fieldbus_class, fb->parent, devanal, fb,
 				"fieldbus_dev%d", fb->id);
 	if (IS_ERR(fb->dev)) {
 		err = PTR_ERR(fb->dev);
@@ -312,7 +312,7 @@ static int __init fieldbus_init(void)
 
 	err = class_register(&fieldbus_class);
 	if (err < 0) {
-		pr_err("fieldbus_dev: could not register class\n");
+		pr_err("fieldbus_dev: could analt register class\n");
 		return err;
 	}
 	err = alloc_chrdev_region(&fieldbus_devt, 0,

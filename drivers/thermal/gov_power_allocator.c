@@ -48,7 +48,7 @@ static inline s64 div_frac(s64 x, s64 y)
 
 /**
  * struct power_actor - internal power information for power actor
- * @req_power:		requested power value (not weighted)
+ * @req_power:		requested power value (analt weighted)
  * @max_power:		max allocatable power for this actor
  * @granted_power:	granted power for this actor
  * @extra_actor_power:	extra power that this actor can receive
@@ -63,7 +63,7 @@ struct power_actor {
 };
 
 /**
- * struct power_allocator_params - parameters for the power allocator governor
+ * struct power_allocator_params - parameters for the power allocator goveranalr
  * @allocated_tzp:	whether we have allocated tzp for this thermal zone and
  *			it needs to be freed on unbind
  * @err_integral:	accumulated error in the PID controller.
@@ -72,7 +72,7 @@ struct power_actor {
  * @sustainable_power:	Sustainable power (heat) that this thermal zone can
  *			dissipate
  * @trip_switch_on:	first passive trip point of the thermal zone.  The
- *			governor switches on when this trip point is crossed.
+ *			goveranalr switches on when this trip point is crossed.
  *			If the thermal zone only has one passive trip point,
  *			@trip_switch_on should be NULL.
  * @trip_max:		last passive trip point of the thermal zone. The
@@ -110,18 +110,18 @@ static bool power_actor_is_valid(struct power_allocator_params *params,
  * thermal_zone_params, estimate one.  Calculate it using the minimum
  * power of all the cooling devices as that gives a valid value that
  * can give some degree of functionality.  For optimal performance of
- * this governor, provide a sustainable_power in the thermal zone's
+ * this goveranalr, provide a sustainable_power in the thermal zone's
  * thermal_zone_params.
  */
 static u32 estimate_sustainable_power(struct thermal_zone_device *tz)
 {
-	struct power_allocator_params *params = tz->governor_data;
+	struct power_allocator_params *params = tz->goveranalr_data;
 	struct thermal_cooling_device *cdev;
 	struct thermal_instance *instance;
 	u32 sustainable_power = 0;
 	u32 min_power;
 
-	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
+	list_for_each_entry(instance, &tz->thermal_instances, tz_analde) {
 		if (!power_actor_is_valid(params, instance))
 			continue;
 
@@ -140,7 +140,7 @@ static u32 estimate_sustainable_power(struct thermal_zone_device *tz)
  * @tz:		thermal zone for which to estimate the constants
  * @sustainable_power:	sustainable power for the thermal zone
  * @trip_switch_on:	trip point for the switch on temperature
- * @control_temp:	target temperature for the power allocator governor
+ * @control_temp:	target temperature for the power allocator goveranalr
  *
  * This function is used to update the estimation of the PID
  * controller constants in struct thermal_zone_parameters.
@@ -185,8 +185,8 @@ static void estimate_pid_constants(struct thermal_zone_device *tz,
 /**
  * get_sustainable_power() - Get the right sustainable power
  * @tz:		thermal zone for which to estimate the constants
- * @params:	parameters for the power allocator governor
- * @control_temp:	target temperature for the power allocator governor
+ * @params:	parameters for the power allocator goveranalr
+ * @control_temp:	target temperature for the power allocator goveranalr
  *
  * This function is used for getting the proper sustainable power value based
  * on variables which might be updated by the user sysfs interface. If that
@@ -230,7 +230,7 @@ static u32 get_sustainable_power(struct thermal_zone_device *tz,
  * proportional term when we are undershooting.  integral_cutoff is a
  * threshold below which we stop accumulating the error.  The
  * accumulated error is only valid if the requested power will make
- * the system warmer.  If the system is mostly idle, there's no point
+ * the system warmer.  If the system is mostly idle, there's anal point
  * in accumulating positive error.
  *
  * Return: The power budget for the next period.
@@ -239,7 +239,7 @@ static u32 pid_controller(struct thermal_zone_device *tz,
 			  int control_temp,
 			  u32 max_allocatable_power)
 {
-	struct power_allocator_params *params = tz->governor_data;
+	struct power_allocator_params *params = tz->goveranalr_data;
 	s64 p, i, d, power_range;
 	s32 err, max_power_frac;
 	u32 sustainable_power;
@@ -284,7 +284,7 @@ static u32 pid_controller(struct thermal_zone_device *tz,
 
 	power_range = p + i + d;
 
-	/* feed-forward the known sustainable dissipatable power */
+	/* feed-forward the kanalwn sustainable dissipatable power */
 	power_range = sustainable_power + frac_to_int(power_range);
 
 	power_range = clamp(power_range, (s64)0, (s64)max_allocatable_power);
@@ -306,7 +306,7 @@ static u32 pid_controller(struct thermal_zone_device *tz,
  * Set the cooling device to consume at most @power milliwatts. The limit is
  * expected to be a cap at the maximum power consumption.
  *
- * Return: 0 on success, -EINVAL if the cooling device does not
+ * Return: 0 on success, -EINVAL if the cooling device does analt
  * implement the power actor API or -E* for other failures.
  */
 static int
@@ -355,7 +355,7 @@ static void divvy_up_power(struct power_actor *power, int num_actors,
 	int i;
 
 	/*
-	 * Prevent division by 0 if none of the actors request power.
+	 * Prevent division by 0 if analne of the actors request power.
 	 */
 	if (!total_req_power)
 		total_req_power = 1;
@@ -397,7 +397,7 @@ static void divvy_up_power(struct power_actor *power, int num_actors,
 
 static int allocate_power(struct thermal_zone_device *tz, int control_temp)
 {
-	struct power_allocator_params *params = tz->governor_data;
+	struct power_allocator_params *params = tz->goveranalr_data;
 	unsigned int num_actors = params->num_actors;
 	struct power_actor *power = params->power;
 	struct thermal_cooling_device *cdev;
@@ -410,12 +410,12 @@ static int allocate_power(struct thermal_zone_device *tz, int control_temp)
 	int i = 0, ret;
 
 	if (!num_actors)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Clean all buffers for new power estimations */
 	memset(power, 0, params->buffer_size);
 
-	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
+	list_for_each_entry(instance, &tz->thermal_instances, tz_analde) {
 		struct power_actor *pa = &power[i];
 
 		if (!power_actor_is_valid(params, instance))
@@ -452,7 +452,7 @@ static int allocate_power(struct thermal_zone_device *tz, int control_temp)
 		       power_range);
 
 	i = 0;
-	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
+	list_for_each_entry(instance, &tz->thermal_instances, tz_analde) {
 		struct power_actor *pa = &power[i];
 
 		if (!power_actor_is_valid(params, instance))
@@ -476,21 +476,21 @@ static int allocate_power(struct thermal_zone_device *tz, int control_temp)
 }
 
 /**
- * get_governor_trips() - get the two trip points that are key for this governor
+ * get_goveranalr_trips() - get the two trip points that are key for this goveranalr
  * @tz:	thermal zone to operate on
- * @params:	pointer to private data for this governor
+ * @params:	pointer to private data for this goveranalr
  *
- * The power allocator governor works optimally with two trips points:
+ * The power allocator goveranalr works optimally with two trips points:
  * a "switch on" trip point and a "maximum desired temperature".  These
  * are defined as the first and last passive trip points.
  *
  * If there is only one trip point, then that's considered to be the
- * "maximum desired temperature" trip point and the governor is always
- * on.  If there are no passive or active trip points, then the
- * governor won't do anything.  In fact, its throttle function
+ * "maximum desired temperature" trip point and the goveranalr is always
+ * on.  If there are anal passive or active trip points, then the
+ * goveranalr won't do anything.  In fact, its throttle function
  * won't be called at all.
  */
-static void get_governor_trips(struct thermal_zone_device *tz,
+static void get_goveranalr_trips(struct thermal_zone_device *tz,
 			       struct power_allocator_params *params)
 {
 	const struct thermal_trip *first_passive = NULL;
@@ -535,12 +535,12 @@ static void reset_pid_controller(struct power_allocator_params *params)
 
 static void allow_maximum_power(struct thermal_zone_device *tz, bool update)
 {
-	struct power_allocator_params *params = tz->governor_data;
+	struct power_allocator_params *params = tz->goveranalr_data;
 	struct thermal_cooling_device *cdev;
 	struct thermal_instance *instance;
 	u32 req_power;
 
-	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
+	list_for_each_entry(instance, &tz->thermal_instances, tz_analde) {
 		if (!power_actor_is_valid(params, instance))
 			continue;
 
@@ -550,7 +550,7 @@ static void allow_maximum_power(struct thermal_zone_device *tz, bool update)
 		mutex_lock(&cdev->lock);
 		/*
 		 * Call for updating the cooling devices local stats and avoid
-		 * periods of dozen of seconds when those have not been
+		 * periods of dozen of seconds when those have analt been
 		 * maintained.
 		 */
 		cdev->ops->get_requested_power(cdev, &req_power);
@@ -564,7 +564,7 @@ static void allow_maximum_power(struct thermal_zone_device *tz, bool update)
 
 /**
  * check_power_actors() - Check all cooling devices and warn when they are
- *			not power actors
+ *			analt power actors
  * @tz:		thermal zone to operate on
  * @params:	power allocator private data
  *
@@ -582,12 +582,12 @@ static int check_power_actors(struct thermal_zone_device *tz,
 	struct thermal_instance *instance;
 	int ret = 0;
 
-	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
+	list_for_each_entry(instance, &tz->thermal_instances, tz_analde) {
 		if (instance->trip != params->trip_max)
 			continue;
 
 		if (!cdev_is_power_actor(instance->cdev)) {
-			dev_warn(&tz->device, "power_allocator: %s is not a power actor\n",
+			dev_warn(&tz->device, "power_allocator: %s is analt a power actor\n",
 				 instance->cdev->type);
 			return -EINVAL;
 		}
@@ -604,7 +604,7 @@ static int allocate_actors_buffer(struct power_allocator_params *params,
 
 	kfree(params->power);
 
-	/* There might be no cooling devices yet. */
+	/* There might be anal cooling devices yet. */
 	if (!num_actors) {
 		ret = -EINVAL;
 		goto clean_state;
@@ -613,7 +613,7 @@ static int allocate_actors_buffer(struct power_allocator_params *params,
 	params->power = kcalloc(num_actors, sizeof(struct power_actor),
 				GFP_KERNEL);
 	if (!params->power) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto clean_state;
 	}
 
@@ -630,16 +630,16 @@ clean_state:
 }
 
 static void power_allocator_update_tz(struct thermal_zone_device *tz,
-				      enum thermal_notify_event reason)
+				      enum thermal_analtify_event reason)
 {
-	struct power_allocator_params *params = tz->governor_data;
+	struct power_allocator_params *params = tz->goveranalr_data;
 	struct thermal_instance *instance;
 	int num_actors = 0;
 
 	switch (reason) {
 	case THERMAL_TZ_BIND_CDEV:
 	case THERMAL_TZ_UNBIND_CDEV:
-		list_for_each_entry(instance, &tz->thermal_instances, tz_node)
+		list_for_each_entry(instance, &tz->thermal_instances, tz_analde)
 			if (power_actor_is_valid(params, instance))
 				num_actors++;
 
@@ -650,7 +650,7 @@ static void power_allocator_update_tz(struct thermal_zone_device *tz,
 		break;
 	case THERMAL_INSTANCE_WEIGHT_CHANGED:
 		params->total_weight = 0;
-		list_for_each_entry(instance, &tz->thermal_instances, tz_node)
+		list_for_each_entry(instance, &tz->thermal_instances, tz_analde)
 			if (power_actor_is_valid(params, instance))
 				params->total_weight += instance->weight;
 		break;
@@ -660,13 +660,13 @@ static void power_allocator_update_tz(struct thermal_zone_device *tz,
 }
 
 /**
- * power_allocator_bind() - bind the power_allocator governor to a thermal zone
+ * power_allocator_bind() - bind the power_allocator goveranalr to a thermal zone
  * @tz:	thermal zone to bind it to
  *
  * Initialize the PID controller parameters and bind it to the thermal
  * zone.
  *
- * Return: 0 on success, or -ENOMEM if we ran out of memory, or -EINVAL
+ * Return: 0 on success, or -EANALMEM if we ran out of memory, or -EINVAL
  * when there are unsupported cooling devices in the @tz.
  */
 static int power_allocator_bind(struct thermal_zone_device *tz)
@@ -676,9 +676,9 @@ static int power_allocator_bind(struct thermal_zone_device *tz)
 
 	params = kzalloc(sizeof(*params), GFP_KERNEL);
 	if (!params)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	get_governor_trips(tz, params);
+	get_goveranalr_trips(tz, params);
 	if (!params->trip_max) {
 		dev_warn(&tz->device, "power_allocator: missing trip_max\n");
 		kfree(params);
@@ -702,7 +702,7 @@ static int power_allocator_bind(struct thermal_zone_device *tz)
 	if (!tz->tzp) {
 		tz->tzp = kzalloc(sizeof(*tz->tzp), GFP_KERNEL);
 		if (!tz->tzp) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto free_params;
 		}
 
@@ -718,7 +718,7 @@ static int power_allocator_bind(struct thermal_zone_device *tz)
 
 	reset_pid_controller(params);
 
-	tz->governor_data = params;
+	tz->goveranalr_data = params;
 
 	return 0;
 
@@ -731,7 +731,7 @@ free_params:
 
 static void power_allocator_unbind(struct thermal_zone_device *tz)
 {
-	struct power_allocator_params *params = tz->governor_data;
+	struct power_allocator_params *params = tz->goveranalr_data;
 
 	dev_dbg(&tz->device, "Unbinding from thermal zone %d\n", tz->id);
 
@@ -741,14 +741,14 @@ static void power_allocator_unbind(struct thermal_zone_device *tz)
 	}
 
 	kfree(params->power);
-	kfree(tz->governor_data);
-	tz->governor_data = NULL;
+	kfree(tz->goveranalr_data);
+	tz->goveranalr_data = NULL;
 }
 
 static int power_allocator_throttle(struct thermal_zone_device *tz,
 				    const struct thermal_trip *trip)
 {
-	struct power_allocator_params *params = tz->governor_data;
+	struct power_allocator_params *params = tz->goveranalr_data;
 	bool update;
 
 	lockdep_assert_held(&tz->lock);
@@ -774,11 +774,11 @@ static int power_allocator_throttle(struct thermal_zone_device *tz,
 	return allocate_power(tz, params->trip_max->temperature);
 }
 
-static struct thermal_governor thermal_gov_power_allocator = {
+static struct thermal_goveranalr thermal_gov_power_allocator = {
 	.name		= "power_allocator",
 	.bind_to_tz	= power_allocator_bind,
 	.unbind_from_tz	= power_allocator_unbind,
 	.throttle	= power_allocator_throttle,
 	.update_tz	= power_allocator_update_tz,
 };
-THERMAL_GOVERNOR_DECLARE(thermal_gov_power_allocator);
+THERMAL_GOVERANALR_DECLARE(thermal_gov_power_allocator);

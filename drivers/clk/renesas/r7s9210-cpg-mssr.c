@@ -117,7 +117,7 @@ static void __init r7s9210_update_clk_table(struct clk *extal_clk,
 	u16 frqcr;
 	u8 index;
 
-	/* If EXTAL is above 12MHz, then we know it is Mode 1 */
+	/* If EXTAL is above 12MHz, then we kanalw it is Mode 1 */
 	if (clk_get_rate(extal_clk) > 12000000)
 		cpg_mode = 1;
 
@@ -160,7 +160,7 @@ static void __init r7s9210_update_clk_table(struct clk *extal_clk,
 static struct clk * __init rza2_cpg_clk_register(struct device *dev,
 	const struct cpg_core_clk *core, const struct cpg_mssr_info *info,
 	struct clk **clks, void __iomem *base,
-	struct raw_notifier_head *notifiers)
+	struct raw_analtifier_head *analtifiers)
 {
 	struct clk *parent;
 	unsigned int mult = 1;
@@ -217,7 +217,7 @@ const struct cpg_mssr_info r7s9210_cpg_mssr_info __initconst = {
 	.reg_layout = CLK_REG_LAYOUT_RZ_A,
 };
 
-static void __init r7s9210_cpg_mssr_early_init(struct device_node *np)
+static void __init r7s9210_cpg_mssr_early_init(struct device_analde *np)
 {
 	cpg_mssr_early_init(np, &r7s9210_cpg_mssr_info);
 }

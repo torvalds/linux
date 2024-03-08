@@ -2,7 +2,7 @@
 /*
  * Driver for NXP PN533 NFC Chip - core functions
  *
- * Copyright (C) 2011 Instituto Nokia de Tecnologia
+ * Copyright (C) 2011 Instituto Analkia de Tecanallogia
  * Copyright (C) 2012-2013 Tieto Poland
  */
 
@@ -47,7 +47,7 @@ struct pn533_fw_version {
 #define PN533_CONFIG_TIMING_409 0xd
 #define PN533_CONFIG_TIMING_819 0xe
 
-#define PN533_CONFIG_MAX_RETRIES_NO_RETRY 0x00
+#define PN533_CONFIG_MAX_RETRIES_ANAL_RETRY 0x00
 #define PN533_CONFIG_MAX_RETRIES_ENDLESS 0xFF
 
 struct pn533_config_max_retries {
@@ -69,7 +69,7 @@ struct pn533_config_timing {
 #define PN533_FELICA_OPC_SENSF_RES 1
 /* felica SENSF_REQ parameters */
 #define PN533_FELICA_SENSF_SC_ALL 0xFFFF
-#define PN533_FELICA_SENSF_RC_NO_SYSTEM_CODE 0
+#define PN533_FELICA_SENSF_RC_ANAL_SYSTEM_CODE 0
 #define PN533_FELICA_SENSF_RC_SYSTEM_CODE 1
 #define PN533_FELICA_SENSF_RC_ADVANCED_PROTOCOL 2
 
@@ -401,7 +401,7 @@ static int pn533_send_async_complete(struct pn533 *dev)
 	int status, rc = 0;
 
 	if (!cmd) {
-		dev_dbg(dev->dev, "%s: cmd not set\n", __func__);
+		dev_dbg(dev->dev, "%s: cmd analt set\n", __func__);
 		goto done;
 	}
 
@@ -417,7 +417,7 @@ static int pn533_send_async_complete(struct pn533 *dev)
 		goto done;
 	}
 
-	/* when no response is set we got interrupted */
+	/* when anal response is set we got interrupted */
 	if (!resp)
 		resp = ERR_PTR(-EINTR);
 
@@ -446,7 +446,7 @@ static int __pn533_send_async(struct pn533 *dev, u8 cmd_code,
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd->code = cmd_code;
 	cmd->req = req;
@@ -520,7 +520,7 @@ static int pn533_send_cmd_direct_async(struct pn533 *dev, u8 cmd_code,
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd->code = cmd_code;
 	cmd->req = req;
@@ -598,12 +598,12 @@ static int pn533_send_sync_complete(struct pn533 *dev, void *_arg,
 
 /*  pn533_send_cmd_sync
  *
- *  Please note the req parameter is freed inside the function to
+ *  Please analte the req parameter is freed inside the function to
  *  limit a number of return value interpretations by the caller.
  *
  *  1. negative in case of error during TX path -> req should be freed
  *
- *  2. negative in case of error during RX path -> req should not be freed
+ *  2. negative in case of error during RX path -> req should analt be freed
  *     as it's been already freed at the beginning of RX path by
  *     async_complete_cb.
  *
@@ -680,8 +680,8 @@ static bool pn533_target_type_a_is_valid(struct pn533_target_type_a *type_a,
 		return false;
 
 	/*
-	 * The length check of nfcid[] and ats[] are not being performed because
-	 * the values are not being used
+	 * The length check of nfcid[] and ats[] are analt being performed because
+	 * the values are analt being used
 	 */
 
 	/* Requirement 4.6.3.3 from NFC Forum Digital Spec */
@@ -919,7 +919,7 @@ static int pn533_target_found(struct pn533 *dev, u8 tg, u8 *tgdata,
 		break;
 	default:
 		nfc_err(dev->dev,
-			"Unknown current poll modulation\n");
+			"Unkanalwn current poll modulation\n");
 		return -EPROTO;
 	}
 
@@ -1146,7 +1146,7 @@ static void pn533_wq_tm_mi_send(struct work_struct *work)
 
 	/* Grab the first skb in the queue */
 	skb = skb_dequeue(&dev->fragment_skb);
-	if (skb == NULL) {	/* No more data */
+	if (skb == NULL) {	/* Anal more data */
 		/* Reset the queue for future use */
 		skb_queue_head_init(&dev->fragment_skb);
 		goto error;
@@ -1212,7 +1212,7 @@ static int pn533_init_target_complete(struct pn533 *dev, struct sk_buff *resp)
 		comm_mode = NFC_COMM_ACTIVE;
 
 	if ((mode & PN533_INIT_TARGET_RESP_DEP) == 0)  /* Only DEP supported */
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	gb = cmd + ATR_REQ_GB_OFFSET;
 	gb_len = resp->len - (ATR_REQ_GB_OFFSET + 1);
@@ -1301,7 +1301,7 @@ static int pn533_poll_dep_complete(struct pn533 *dev, void *arg,
 
 	rc = rsp->status & PN533_CMD_RET_MASK;
 	if (rc != PN533_CMD_RET_SUCCESS) {
-		/* Not target found, turn radio off */
+		/* Analt target found, turn radio off */
 		queue_work(dev->wq, &dev->rf_work);
 
 		dev_kfree_skb(resp);
@@ -1366,7 +1366,7 @@ static int pn533_poll_dep(struct nfc_dev *nfc_dev)
 
 	skb = pn533_alloc_skb(dev, skb_len);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_put_u8(skb, 0x01);  /* Active */
 	skb_put_u8(skb, 0x02);  /* 424 kbps */
@@ -1408,7 +1408,7 @@ static int pn533_autopoll_complete(struct pn533 *dev, void *arg,
 		nfc_err(dev->dev, "%s  autopoll complete error %d\n",
 			__func__, rc);
 
-		if (rc == -ENOENT) {
+		if (rc == -EANALENT) {
 			if (dev->poll_mod_count != 0)
 				return rc;
 			goto stop_poll;
@@ -1455,7 +1455,7 @@ static int pn533_autopoll_complete(struct pn533 *dev, void *arg,
 			break;
 		default:
 			nfc_err(dev->dev,
-				    "Unknown current poll modulation\n");
+				    "Unkanalwn current poll modulation\n");
 			rc = -EPROTO;
 		}
 
@@ -1501,7 +1501,7 @@ static int pn533_poll_complete(struct pn533 *dev, void *arg,
 		nfc_err(dev->dev, "%s  Poll complete error %d\n",
 			__func__, rc);
 
-		if (rc == -ENOENT) {
+		if (rc == -EANALENT) {
 			if (dev->poll_mod_count != 0)
 				return rc;
 			goto stop_poll;
@@ -1531,7 +1531,7 @@ static int pn533_poll_complete(struct pn533 *dev, void *arg,
 	}
 
 	pn533_poll_next_mod(dev);
-	/* Not target found, turn radio off */
+	/* Analt target found, turn radio off */
 	queue_work(dev->wq, &dev->rf_work);
 
 done:
@@ -1587,7 +1587,7 @@ static int pn533_send_poll_frame(struct pn533 *dev)
 
 	if (!skb) {
 		nfc_err(dev->dev, "Failed to allocate skb\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	rc = pn533_send_cmd_async(dev, cmd_code, skb, pn533_poll_complete,
@@ -1640,13 +1640,13 @@ static int pn533_start_poll(struct nfc_dev *nfc_dev,
 
 	if (dev->tgt_active_prot) {
 		nfc_err(dev->dev,
-			"Cannot poll with a target already activated\n");
+			"Cananalt poll with a target already activated\n");
 		return -EBUSY;
 	}
 
 	if (dev->tgt_mode) {
 		nfc_err(dev->dev,
-			"Cannot poll while already being activated\n");
+			"Cananalt poll while already being activated\n");
 		return -EBUSY;
 	}
 
@@ -1661,7 +1661,7 @@ static int pn533_start_poll(struct nfc_dev *nfc_dev,
 	if (dev->device_type == PN533_DEVICE_PN532_AUTOPOLL) {
 		skb = pn533_alloc_skb(dev, 4 + 6);
 		if (!skb)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		*((u8 *)skb_put(skb, sizeof(u8))) =
 			PN532_AUTOPOLL_POLLNR_INFINITE;
@@ -1724,7 +1724,7 @@ static int pn533_start_poll(struct nfc_dev *nfc_dev,
 
 	pn533_poll_create_mod_list(dev, im_protocols, tm_protocols);
 
-	/* Do not always start polling from the same modulation */
+	/* Do analt always start polling from the same modulation */
 	get_random_bytes(&rand_mod, sizeof(rand_mod));
 	rand_mod %= dev->poll_mod_count;
 	dev->poll_mod_curr = rand_mod;
@@ -1748,7 +1748,7 @@ static void pn533_stop_poll(struct nfc_dev *nfc_dev)
 
 	if (!dev->poll_mod_count) {
 		dev_dbg(dev->dev,
-			"Polling operation was not running\n");
+			"Polling operation was analt running\n");
 		return;
 	}
 
@@ -1767,7 +1767,7 @@ static int pn533_activate_target_nfcdep(struct pn533 *dev)
 
 	skb = pn533_alloc_skb(dev, sizeof(u8) * 2); /*TG + Next*/
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_put_u8(skb, 1); /* TG */
 	skb_put_u8(skb, 0); /* Next */
@@ -1803,7 +1803,7 @@ static int pn533_activate_target(struct nfc_dev *nfc_dev,
 
 	if (dev->poll_mod_count) {
 		nfc_err(dev->dev,
-			"Cannot activate while polling\n");
+			"Cananalt activate while polling\n");
 		return -EBUSY;
 	}
 
@@ -1815,7 +1815,7 @@ static int pn533_activate_target(struct nfc_dev *nfc_dev,
 
 	if (!dev->tgt_available_prots) {
 		nfc_err(dev->dev,
-			"There is no available target to activate\n");
+			"There is anal available target to activate\n");
 		return -EINVAL;
 	}
 
@@ -1871,7 +1871,7 @@ static void pn533_deactivate_target(struct nfc_dev *nfc_dev,
 	int rc;
 
 	if (!dev->tgt_active_prot) {
-		nfc_err(dev->dev, "There is no active target\n");
+		nfc_err(dev->dev, "There is anal active target\n");
 		return;
 	}
 
@@ -1909,7 +1909,7 @@ static int pn533_in_dep_link_up_complete(struct pn533 *dev, void *arg,
 	if (dev->tgt_available_prots &&
 	    !(dev->tgt_available_prots & (1 << NFC_PROTO_NFC_DEP))) {
 		nfc_err(dev->dev,
-			"The target does not support DEP\n");
+			"The target does analt support DEP\n");
 		rc =  -EINVAL;
 		goto error;
 	}
@@ -1968,7 +1968,7 @@ static int pn533_dep_link_up(struct nfc_dev *nfc_dev, struct nfc_target *target,
 
 	if (dev->poll_mod_count) {
 		nfc_err(dev->dev,
-			"Cannot bring the DEP link up while polling\n");
+			"Cananalt bring the DEP link up while polling\n");
 		return -EBUSY;
 	}
 
@@ -1991,7 +1991,7 @@ static int pn533_dep_link_up(struct nfc_dev *nfc_dev, struct nfc_target *target,
 
 	skb = pn533_alloc_skb(dev, skb_len);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_put_u8(skb, !comm_mode);  /* ActPass */
 	skb_put_u8(skb, 0x02);  /* 424 kbps */
@@ -2021,7 +2021,7 @@ static int pn533_dep_link_up(struct nfc_dev *nfc_dev, struct nfc_target *target,
 	arg = kmalloc(sizeof(*arg), GFP_KERNEL);
 	if (!arg) {
 		dev_kfree_skb(skb);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	*arg = !comm_mode;
@@ -2141,7 +2141,7 @@ static int pn533_data_exchange_complete(struct pn533 *dev, void *_arg,
 
 	skb = pn533_build_response(dev);
 	if (!skb) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto error;
 	}
 
@@ -2160,7 +2160,7 @@ _error:
 
 /*
  * Receive an incoming pn533 frame. skb contains only header and payload.
- * If skb == NULL, it is a notification that the link below is dead.
+ * If skb == NULL, it is a analtification that the link below is dead.
  */
 void pn533_recv_frame(struct pn533 *dev, struct sk_buff *skb, int status)
 {
@@ -2185,14 +2185,14 @@ void pn533_recv_frame(struct pn533 *dev, struct sk_buff *skb, int status)
 		return;
 	}
 
-	print_hex_dump_debug("PN533 RX: ", DUMP_PREFIX_NONE, 16, 1, skb->data,
+	print_hex_dump_debug("PN533 RX: ", DUMP_PREFIX_ANALNE, 16, 1, skb->data,
 			     dev->ops->rx_frame_size(skb->data), false);
 
 	if (!dev->ops->rx_is_frame_valid(skb->data, dev)) {
 		nfc_err(dev->dev, "Received an invalid frame\n");
 		dev->cmd->status = -EIO;
 	} else if (!pn533_rx_frame_is_cmd_response(dev, skb->data)) {
-		nfc_err(dev->dev, "It it not the response to the last command\n");
+		nfc_err(dev->dev, "It it analt the response to the last command\n");
 		dev->cmd->status = -EIO;
 	}
 
@@ -2220,7 +2220,7 @@ static int pn533_fill_fragment_skbs(struct pn533 *dev, struct sk_buff *skb)
 		frag = pn533_alloc_skb(dev, frag_size);
 		if (!frag) {
 			skb_queue_purge(&dev->fragment_skb);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		if (!dev->tgt_mode) {
@@ -2260,14 +2260,14 @@ static int pn533_transceive(struct nfc_dev *nfc_dev,
 
 	if (!dev->tgt_active_prot) {
 		nfc_err(dev->dev,
-			"Can't exchange data if there is no active target\n");
+			"Can't exchange data if there is anal active target\n");
 		rc = -EINVAL;
 		goto error;
 	}
 
 	arg = kmalloc(sizeof(*arg), GFP_KERNEL);
 	if (!arg) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto error;
 	}
 
@@ -2441,7 +2441,7 @@ static void pn533_wq_mi_send(struct work_struct *work)
 	/* Grab the first skb in the queue */
 	skb = skb_dequeue(&dev->fragment_skb);
 
-	if (skb == NULL) {	/* No more data */
+	if (skb == NULL) {	/* Anal more data */
 		/* Reset the queue for future use */
 		skb_queue_head_init(&dev->fragment_skb);
 		goto error;
@@ -2497,7 +2497,7 @@ static int pn533_set_configuration(struct pn533 *dev, u8 cfgitem, u8 *cfgdata,
 
 	skb = pn533_alloc_skb(dev, skb_len);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_put_u8(skb, cfgitem);
 	skb_put_data(skb, cfgdata, cfgdata_len);
@@ -2518,7 +2518,7 @@ static int pn533_get_firmware_version(struct pn533 *dev,
 
 	skb = pn533_alloc_skb(dev, 0);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	resp = pn533_send_cmd_sync(dev, PN533_CMD_GET_FIRMWARE_VERSION, skb);
 	if (IS_ERR(resp))
@@ -2540,7 +2540,7 @@ static int pn533_pasori_fw_reset(struct pn533 *dev)
 
 	skb = pn533_alloc_skb(dev, sizeof(u8));
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_put_u8(skb, 0x1);
 
@@ -2579,7 +2579,7 @@ static int pn532_sam_configuration(struct nfc_dev *nfc_dev)
 
 	skb = pn533_alloc_skb(dev, 1);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_put_u8(skb, 0x01);
 
@@ -2654,7 +2654,7 @@ static int pn533_setup(struct pn533 *dev)
 		max_retries.mx_rty_atr = 0x2;
 		max_retries.mx_rty_psl = 0x1;
 		max_retries.mx_rty_passive_act =
-			PN533_CONFIG_MAX_RETRIES_NO_RETRY;
+			PN533_CONFIG_MAX_RETRIES_ANAL_RETRY;
 
 		timing.rfu = PN533_CONFIG_TIMING_102;
 		timing.atr_res_timeout = PN533_CONFIG_TIMING_102;
@@ -2663,7 +2663,7 @@ static int pn533_setup(struct pn533 *dev)
 		break;
 
 	default:
-		nfc_err(dev->dev, "Unknown device type %d\n",
+		nfc_err(dev->dev, "Unkanalwn device type %d\n",
 			dev->device_type);
 		return -EINVAL;
 	}
@@ -2723,7 +2723,7 @@ int pn533_finalize_setup(struct pn533 *dev)
 		return rc;
 	}
 
-	nfc_info(dev->dev, "NXP PN5%02X firmware ver %d.%d now attached\n",
+	nfc_info(dev->dev, "NXP PN5%02X firmware ver %d.%d analw attached\n",
 		fw_ver.ic, fw_ver.ver, fw_ver.rev);
 
 	rc = pn533_setup(dev);
@@ -2745,7 +2745,7 @@ struct pn533 *pn53x_common_init(u32 device_type,
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	priv->phy = phy;
 	priv->phy_ops = phy_ops;
@@ -2783,7 +2783,7 @@ struct pn533 *pn53x_common_init(u32 device_type,
 
 error:
 	kfree(priv);
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(-EANALMEM);
 }
 EXPORT_SYMBOL_GPL(pn53x_common_init);
 
@@ -2816,7 +2816,7 @@ int pn532_i2c_nfc_alloc(struct pn533 *priv, u32 protocols,
 					   PN533_CMD_DATAEXCH_HEAD_LEN,
 					   priv->ops->tx_tail_len);
 	if (!priv->nfc_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nfc_set_parent_dev(priv->nfc_dev, parent);
 	nfc_set_drvdata(priv->nfc_dev, priv);

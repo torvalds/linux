@@ -49,7 +49,7 @@ MODULE_PARM_DESC(flip_image,
 static bool override_serial;
 module_param(override_serial, bool, 0444);
 MODULE_PARM_DESC(override_serial,
-		"The camera driver will normally refuse to load if the XO 1.5 serial port is enabled.  Set this option to force-enable the camera.");
+		"The camera driver will analrmally refuse to load if the XO 1.5 serial port is enabled.  Set this option to force-enable the camera.");
 
 /*
  * The structure describing our camera.
@@ -109,8 +109,8 @@ struct via_buffer {
 };
 
 /*
- * Yes, this is a hack, but there's only going to be one of these
- * on any system we know of.
+ * Anal, this is a hack, but there's only going to be one of these
+ * on any system we kanalw of.
  */
 static struct via_camera *via_cam_info;
 
@@ -140,8 +140,8 @@ static struct via_camera *via_cam_info;
 /*
  * Format handling.  This is ripped almost directly from Hans's changes
  * to cafe_ccic.c.  It's a little unfortunate; until this change, we
- * didn't need to know anything about the format except its byte depth;
- * now this information must be managed at this level too.
+ * didn't need to kanalw anything about the format except its byte depth;
+ * analw this information must be managed at this level too.
  */
 static struct via_format {
 	__u32 pixelformat;
@@ -167,7 +167,7 @@ static struct via_format *via_find_format(u32 pixelformat)
 	for (i = 0; i < N_VIA_FMTS; i++)
 		if (via_formats[i].pixelformat == pixelformat)
 			return via_formats + i;
-	/* Not found? Then return the first format. */
+	/* Analt found? Then return the first format. */
 	return via_formats;
 }
 
@@ -295,7 +295,7 @@ static inline void viacam_write_reg_mask(struct via_camera *cam,
 static irqreturn_t viacam_quick_irq(int irq, void *data)
 {
 	struct via_camera *cam = data;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 	int icv;
 
 	/*
@@ -337,7 +337,7 @@ static irqreturn_t viacam_irq(int irq, void *data)
 
 	mutex_lock(&cam->lock);
 	/*
-	 * If there is no place to put the data frame, don't bother
+	 * If there is anal place to put the data frame, don't bother
 	 * with anything else.
 	 */
 	vb = viacam_next_buffer(cam);
@@ -351,13 +351,13 @@ static irqreturn_t viacam_irq(int irq, void *data)
 	if (bufn < 0)
 		bufn = cam->n_cap_bufs - 1;
 	/*
-	 * Copy over the data and let any waiters know.
+	 * Copy over the data and let any waiters kanalw.
 	 */
 	sgt = vb2_dma_sg_plane_desc(&vb->vbuf.vb2_buf, 0);
 	vb->vbuf.vb2_buf.timestamp = ktime_get_ns();
 	viafb_dma_copy_out_sg(cam->cb_offsets[bufn], sgt->sgl, sgt->nents);
 	vb->vbuf.sequence = cam->sequence++;
-	vb->vbuf.field = V4L2_FIELD_NONE;
+	vb->vbuf.field = V4L2_FIELD_ANALNE;
 	list_del(&vb->queue);
 	vb2_buffer_done(&vb->vbuf.vb2_buf, VB2_BUF_STATE_DONE);
 done:
@@ -369,7 +369,7 @@ done:
 /*
  * These functions must mess around with the general interrupt
  * control register, which is relevant to much more than just the
- * camera.  Nothing else uses interrupts, though, as of this writing.
+ * camera.  Analthing else uses interrupts, though, as of this writing.
  * Should that situation change, we'll have to improve support at
  * the via-core level.
  */
@@ -412,7 +412,7 @@ static int viacam_ctlr_cbufs(struct via_camera *cam)
 		viacam_write_reg_mask(cam, VCR_CAPINTC, 0, VCR_CI_3BUFS);
 	} else {
 		cam_warn(cam, "Insufficient frame buffer memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	/*
 	 * Set them up.
@@ -679,7 +679,7 @@ static int viacam_open(struct file *filp)
 	int ret;
 
 	/*
-	 * Note the new user.  If this is the first one, we'll also
+	 * Analte the new user.  If this is the first one, we'll also
 	 * need to power up the sensor.
 	 */
 	mutex_lock(&cam->lock);
@@ -770,7 +770,7 @@ static const struct v4l2_pix_format viacam_def_pix_format = {
 	.width		= VGA_WIDTH,
 	.height		= VGA_HEIGHT,
 	.pixelformat	= V4L2_PIX_FMT_YUYV,
-	.field		= V4L2_FIELD_NONE,
+	.field		= V4L2_FIELD_ANALNE,
 	.bytesperline	= VGA_WIDTH * 2,
 	.sizeimage	= VGA_WIDTH * VGA_HEIGHT * 2,
 	.colorspace	= V4L2_COLORSPACE_SRGB,
@@ -1076,7 +1076,7 @@ static struct viafb_pm_hooks viacam_pm_hooks = {
 
 static const struct video_device viacam_v4l_template = {
 	.name		= "via-camera",
-	.minor		= -1,
+	.mianalr		= -1,
 	.fops		= &viacam_fops,
 	.ioctl_ops	= &viacam_ioctl_ops,
 	.release	= video_device_release_empty, /* Check this */
@@ -1088,7 +1088,7 @@ static const struct video_device viacam_v4l_template = {
  * The OLPC folks put the serial port on the same pin as
  * the camera.	They also get grumpy if we break the
  * serial port and keep them from using it.  So we have
- * to check the serial enable bit and not step on it.
+ * to check the serial enable bit and analt step on it.
  */
 #define VIACAM_SERIAL_DEVFN 0x88
 #define VIACAM_SERIAL_CREG 0x46
@@ -1104,22 +1104,22 @@ static bool viacam_serial_is_enabled(void)
 	pci_bus_read_config_byte(pbus, VIACAM_SERIAL_DEVFN,
 			VIACAM_SERIAL_CREG, &cbyte);
 	if ((cbyte & VIACAM_SERIAL_BIT) == 0)
-		return false; /* Not enabled */
+		return false; /* Analt enabled */
 	if (!override_serial) {
-		printk(KERN_NOTICE "Via camera: serial port is enabled, " \
+		printk(KERN_ANALTICE "Via camera: serial port is enabled, " \
 				"refusing to load.\n");
-		printk(KERN_NOTICE "Specify override_serial=1 to force " \
+		printk(KERN_ANALTICE "Specify override_serial=1 to force " \
 				"module loading.\n");
 		return true;
 	}
-	printk(KERN_NOTICE "Via camera: overriding serial port\n");
+	printk(KERN_ANALTICE "Via camera: overriding serial port\n");
 	pci_bus_write_config_byte(pbus, VIACAM_SERIAL_DEVFN,
 			VIACAM_SERIAL_CREG, cbyte & ~VIACAM_SERIAL_BIT);
 	return false;
 }
 
 static struct ov7670_config sensor_cfg = {
-	/* The XO-1.5 (only known user) clocks the camera at 90MHz. */
+	/* The XO-1.5 (only kanalwn user) clocks the camera at 90MHz. */
 	.clock_speed = 90,
 };
 
@@ -1136,9 +1136,9 @@ static int viacam_probe(struct platform_device *pdev)
 	};
 
 	/*
-	 * Note that there are actually two capture channels on
-	 * the device.	We only deal with one for now.	That
-	 * is encoded here; nothing else assumes it's dealing with
+	 * Analte that there are actually two capture channels on
+	 * the device.	We only deal with one for analw.	That
+	 * is encoded here; analthing else assumes it's dealing with
 	 * a unique capture device.
 	 */
 	struct via_camera *cam;
@@ -1153,11 +1153,11 @@ static int viacam_probe(struct platform_device *pdev)
 	 */
 	if (viadev->camera_fbmem_size < (VGA_HEIGHT*VGA_WIDTH*4)) {
 		printk(KERN_ERR "viacam: insufficient FB memory reserved\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	if (viadev->engine_mmio == NULL) {
-		printk(KERN_ERR "viacam: No I/O memory, so no pictures\n");
-		return -ENOMEM;
+		printk(KERN_ERR "viacam: Anal I/O memory, so anal pictures\n");
+		return -EANALMEM;
 	}
 
 	if (machine_is_olpc() && viacam_serial_is_enabled())
@@ -1168,7 +1168,7 @@ static int viacam_probe(struct platform_device *pdev)
 	 */
 	cam = kzalloc (sizeof(struct via_camera), GFP_KERNEL);
 	if (cam == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	via_cam_info = cam;
 	cam->platdev = pdev;
 	cam->viadev = viadev;
@@ -1223,7 +1223,7 @@ static int viacam_probe(struct platform_device *pdev)
 			&ov7670_info, NULL);
 	if (cam->sensor == NULL) {
 		dev_err(&pdev->dev, "Unable to find the sensor!\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out_power_down;
 	}
 	/*
@@ -1239,7 +1239,7 @@ static int viacam_probe(struct platform_device *pdev)
 	vq->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	vq->io_modes = VB2_MMAP | VB2_USERPTR | VB2_DMABUF | VB2_READ;
 	vq->drv_priv = cam;
-	vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 	vq->buf_struct_size = sizeof(struct via_buffer);
 	vq->dev = cam->v4l2_dev.dev;
 

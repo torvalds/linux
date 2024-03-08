@@ -16,7 +16,7 @@
 
 #include "vxfs.h"
 #include "vxfs_dir.h"
-#include "vxfs_inode.h"
+#include "vxfs_ianalde.h"
 #include "vxfs_extern.h"
 
 /*
@@ -25,10 +25,10 @@
 #define VXFS_BLOCK_PER_PAGE(sbp)  ((PAGE_SIZE / (sbp)->s_blocksize))
 
 
-static struct dentry *	vxfs_lookup(struct inode *, struct dentry *, unsigned int);
+static struct dentry *	vxfs_lookup(struct ianalde *, struct dentry *, unsigned int);
 static int		vxfs_readdir(struct file *, struct dir_context *);
 
-const struct inode_operations vxfs_dir_inode_ops = {
+const struct ianalde_operations vxfs_dir_ianalde_ops = {
 	.lookup =		vxfs_lookup,
 };
 
@@ -41,7 +41,7 @@ const struct file_operations vxfs_dir_operations = {
 
 /**
  * vxfs_find_entry - find a mathing directory entry for a dentry
- * @ip:		directory inode
+ * @ip:		directory ianalde
  * @dp:		dentry for which we want to find a direct
  * @ppp:	gets filled with the page the return value sits in
  *
@@ -54,7 +54,7 @@ const struct file_operations vxfs_dir_operations = {
  *   The wanted direct on success, else a NULL pointer.
  */
 static struct vxfs_direct *
-vxfs_find_entry(struct inode *ip, struct dentry *dp, struct page **ppp)
+vxfs_find_entry(struct ianalde *ip, struct dentry *dp, struct page **ppp)
 {
 	u_long bsize = ip->i_sb->s_blocksize;
 	const char *name = dp->d_name.name;
@@ -96,7 +96,7 @@ vxfs_find_entry(struct inode *ip, struct dentry *dp, struct page **ppp)
 
 			pg_ofs += fs16_to_cpu(sbi, de->d_reclen);
 			pos += fs16_to_cpu(sbi, de->d_reclen);
-			if (!de->d_ino)
+			if (!de->d_ianal)
 				continue;
 
 			if (namelen != fs16_to_cpu(sbi, de->d_namelen))
@@ -117,32 +117,32 @@ vxfs_find_entry(struct inode *ip, struct dentry *dp, struct page **ppp)
 }
 
 /**
- * vxfs_inode_by_name - find inode number for dentry
+ * vxfs_ianalde_by_name - find ianalde number for dentry
  * @dip:	directory to search in
  * @dp:		dentry we search for
  *
  * Description:
- *   vxfs_inode_by_name finds out the inode number of
+ *   vxfs_ianalde_by_name finds out the ianalde number of
  *   the path component described by @dp in @dip.
  *
  * Returns:
- *   The wanted inode number on success, else Zero.
+ *   The wanted ianalde number on success, else Zero.
  */
-static ino_t
-vxfs_inode_by_name(struct inode *dip, struct dentry *dp)
+static ianal_t
+vxfs_ianalde_by_name(struct ianalde *dip, struct dentry *dp)
 {
 	struct vxfs_direct		*de;
 	struct page			*pp;
-	ino_t				ino = 0;
+	ianal_t				ianal = 0;
 
 	de = vxfs_find_entry(dip, dp, &pp);
 	if (de) {
-		ino = fs32_to_cpu(VXFS_SBI(dip->i_sb), de->d_ino);
+		ianal = fs32_to_cpu(VXFS_SBI(dip->i_sb), de->d_ianal);
 		kunmap(pp);
 		put_page(pp);
 	}
 	
-	return (ino);
+	return (ianal);
 }
 
 /**
@@ -160,17 +160,17 @@ vxfs_inode_by_name(struct inode *dip, struct dentry *dp)
  *   in the return pointer.
  */
 static struct dentry *
-vxfs_lookup(struct inode *dip, struct dentry *dp, unsigned int flags)
+vxfs_lookup(struct ianalde *dip, struct dentry *dp, unsigned int flags)
 {
-	struct inode		*ip = NULL;
-	ino_t			ino;
+	struct ianalde		*ip = NULL;
+	ianal_t			ianal;
 			 
 	if (dp->d_name.len > VXFS_NAMELEN)
 		return ERR_PTR(-ENAMETOOLONG);
 				 
-	ino = vxfs_inode_by_name(dip, dp);
-	if (ino)
-		ip = vxfs_iget(dip->i_sb, ino);
+	ianal = vxfs_ianalde_by_name(dip, dp);
+	if (ianal)
+		ip = vxfs_iget(dip->i_sb, ianal);
 	return d_splice_alias(ip, dp);
 }
 
@@ -189,7 +189,7 @@ vxfs_lookup(struct inode *dip, struct dentry *dp, unsigned int flags)
 static int
 vxfs_readdir(struct file *fp, struct dir_context *ctx)
 {
-	struct inode		*ip = file_inode(fp);
+	struct ianalde		*ip = file_ianalde(fp);
 	struct super_block	*sbp = ip->i_sb;
 	u_long			bsize = sbp->s_blocksize;
 	loff_t			pos, limit;
@@ -201,7 +201,7 @@ vxfs_readdir(struct file *fp, struct dir_context *ctx)
 		ctx->pos++;
 	}
 	if (ctx->pos == 1) {
-		if (!dir_emit(ctx, "..", 2, VXFS_INO(ip)->vii_dotdot, DT_DIR))
+		if (!dir_emit(ctx, "..", 2, VXFS_IANAL(ip)->vii_dotdot, DT_DIR))
 			goto out;
 		ctx->pos++;
 	}
@@ -220,7 +220,7 @@ vxfs_readdir(struct file *fp, struct dir_context *ctx)
 
 		pp = vxfs_get_page(ip->i_mapping, pos >> PAGE_SHIFT);
 		if (IS_ERR(pp))
-			return -ENOMEM;
+			return -EANALMEM;
 
 		kaddr = (char *)page_address(pp);
 
@@ -246,15 +246,15 @@ vxfs_readdir(struct file *fp, struct dir_context *ctx)
 
 			pg_ofs += fs16_to_cpu(sbi, de->d_reclen);
 			pos += fs16_to_cpu(sbi, de->d_reclen);
-			if (!de->d_ino)
+			if (!de->d_ianal)
 				continue;
 
 			rc = dir_emit(ctx, de->d_name,
 					fs16_to_cpu(sbi, de->d_namelen),
-					fs32_to_cpu(sbi, de->d_ino),
-					DT_UNKNOWN);
+					fs32_to_cpu(sbi, de->d_ianal),
+					DT_UNKANALWN);
 			if (!rc) {
-				/* the dir entry was not read, fix pos. */
+				/* the dir entry was analt read, fix pos. */
 				pos -= fs16_to_cpu(sbi, de->d_reclen);
 				break;
 			}

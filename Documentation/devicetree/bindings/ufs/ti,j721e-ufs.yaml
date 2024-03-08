@@ -49,7 +49,7 @@ patternProperties:
   "^ufs@[0-9a-f]+$":
     $ref: cdns,ufshc.yaml
     description: |
-      Cadence UFS controller node must be the child node.
+      Cadence UFS controller analde must be the child analde.
     unevaluatedProperties: false
 
 additionalProperties: false

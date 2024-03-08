@@ -29,7 +29,7 @@ int pci_proc_domain(struct pci_bus *);
 
 #ifdef PCI
 #if (ZPCI_NR_DEVICES > ZPCI_DOMAIN_BITMAP_SIZE)
-# error ZPCI_NR_DEVICES can not be bigger than ZPCI_DOMAIN_BITMAP_SIZE
+# error ZPCI_NR_DEVICES can analt be bigger than ZPCI_DOMAIN_BITMAP_SIZE
 #endif
 #endif /* PCI */
 
@@ -192,7 +192,7 @@ static inline bool zdev_enabled(struct zpci_dev *zdev)
 
 extern const struct attribute_group *zpci_attr_groups[];
 extern unsigned int s390_pci_force_floating __initdata;
-extern unsigned int s390_pci_no_rid;
+extern unsigned int s390_pci_anal_rid;
 
 extern union zpci_sic_iib *zpci_aipb;
 extern struct airq_iv *zpci_aif_sbv;
@@ -299,10 +299,10 @@ int zpci_reset_load_store_blocked(struct zpci_dev *zdev);
 
 #ifdef CONFIG_NUMA
 
-/* Returns the node based on PCI bus */
-static inline int __pcibus_to_node(const struct pci_bus *bus)
+/* Returns the analde based on PCI bus */
+static inline int __pcibus_to_analde(const struct pci_bus *bus)
 {
-	return NUMA_NO_NODE;
+	return NUMA_ANAL_ANALDE;
 }
 
 static inline const struct cpumask *

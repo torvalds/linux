@@ -4,7 +4,7 @@
         "EventCode": "0x1",
         "EventName": "UNC_R2_CLOCKTICKS",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of uclks in the R2PCIe uclk domain.  This could be slightly different than the count in the Ubox because of enable/freeze delays.  However, because the R2PCIe is close to the Ubox, they generally should not diverge by more than a handful of cycles.",
+        "PublicDescription": "Counts the number of uclks in the R2PCIe uclk domain.  This could be slightly different than the count in the Ubox because of enable/freeze delays.  However, because the R2PCIe is close to the Ubox, they generally should analt diverge by more than a handful of cycles.",
         "Unit": "R2PCIe"
     },
     {
@@ -12,7 +12,7 @@
         "EventCode": "0x33",
         "EventName": "UNC_R2_IIO_CREDITS_ACQUIRED.DRS",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of credits that are acquired in the R2PCIe agent for sending transactions into the IIO on either NCB or NCS are in use.  Transactions from the BL ring going into the IIO Agent must first acquire a credit.  These credits are for either the NCB or NCS message classes.  NCB, or non-coherent bypass messages are used to transmit data without coherency (and are common).  NCS is used for reads to PCIe (and should be used sparingly).",
+        "PublicDescription": "Counts the number of credits that are acquired in the R2PCIe agent for sending transactions into the IIO on either NCB or NCS are in use.  Transactions from the BL ring going into the IIO Agent must first acquire a credit.  These credits are for either the NCB or NCS message classes.  NCB, or analn-coherent bypass messages are used to transmit data without coherency (and are common).  NCS is used for reads to PCIe (and should be used sparingly).",
         "UMask": "0x8",
         "Unit": "R2PCIe"
     },
@@ -21,7 +21,7 @@
         "EventCode": "0x33",
         "EventName": "UNC_R2_IIO_CREDITS_ACQUIRED.NCB",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of credits that are acquired in the R2PCIe agent for sending transactions into the IIO on either NCB or NCS are in use.  Transactions from the BL ring going into the IIO Agent must first acquire a credit.  These credits are for either the NCB or NCS message classes.  NCB, or non-coherent bypass messages are used to transmit data without coherency (and are common).  NCS is used for reads to PCIe (and should be used sparingly).",
+        "PublicDescription": "Counts the number of credits that are acquired in the R2PCIe agent for sending transactions into the IIO on either NCB or NCS are in use.  Transactions from the BL ring going into the IIO Agent must first acquire a credit.  These credits are for either the NCB or NCS message classes.  NCB, or analn-coherent bypass messages are used to transmit data without coherency (and are common).  NCS is used for reads to PCIe (and should be used sparingly).",
         "UMask": "0x10",
         "Unit": "R2PCIe"
     },
@@ -30,7 +30,7 @@
         "EventCode": "0x33",
         "EventName": "UNC_R2_IIO_CREDITS_ACQUIRED.NCS",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of credits that are acquired in the R2PCIe agent for sending transactions into the IIO on either NCB or NCS are in use.  Transactions from the BL ring going into the IIO Agent must first acquire a credit.  These credits are for either the NCB or NCS message classes.  NCB, or non-coherent bypass messages are used to transmit data without coherency (and are common).  NCS is used for reads to PCIe (and should be used sparingly).",
+        "PublicDescription": "Counts the number of credits that are acquired in the R2PCIe agent for sending transactions into the IIO on either NCB or NCS are in use.  Transactions from the BL ring going into the IIO Agent must first acquire a credit.  These credits are for either the NCB or NCS message classes.  NCB, or analn-coherent bypass messages are used to transmit data without coherency (and are common).  NCS is used for reads to PCIe (and should be used sparingly).",
         "UMask": "0x20",
         "Unit": "R2PCIe"
     },
@@ -39,7 +39,7 @@
         "EventCode": "0x34",
         "EventName": "UNC_R2_IIO_CREDITS_REJECT.DRS",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of times that a request pending in the BL Ingress attempted to acquire either a NCB or NCS credit to transmit into the IIO, but was rejected because no credits were available.  NCB, or non-coherent bypass messages are used to transmit data without coherency (and are common).  NCS is used for reads to PCIe (and should be used sparingly).",
+        "PublicDescription": "Counts the number of times that a request pending in the BL Ingress attempted to acquire either a NCB or NCS credit to transmit into the IIO, but was rejected because anal credits were available.  NCB, or analn-coherent bypass messages are used to transmit data without coherency (and are common).  NCS is used for reads to PCIe (and should be used sparingly).",
         "UMask": "0x8",
         "Unit": "R2PCIe"
     },
@@ -48,7 +48,7 @@
         "EventCode": "0x34",
         "EventName": "UNC_R2_IIO_CREDITS_REJECT.NCB",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of times that a request pending in the BL Ingress attempted to acquire either a NCB or NCS credit to transmit into the IIO, but was rejected because no credits were available.  NCB, or non-coherent bypass messages are used to transmit data without coherency (and are common).  NCS is used for reads to PCIe (and should be used sparingly).",
+        "PublicDescription": "Counts the number of times that a request pending in the BL Ingress attempted to acquire either a NCB or NCS credit to transmit into the IIO, but was rejected because anal credits were available.  NCB, or analn-coherent bypass messages are used to transmit data without coherency (and are common).  NCS is used for reads to PCIe (and should be used sparingly).",
         "UMask": "0x10",
         "Unit": "R2PCIe"
     },
@@ -57,7 +57,7 @@
         "EventCode": "0x34",
         "EventName": "UNC_R2_IIO_CREDITS_REJECT.NCS",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of times that a request pending in the BL Ingress attempted to acquire either a NCB or NCS credit to transmit into the IIO, but was rejected because no credits were available.  NCB, or non-coherent bypass messages are used to transmit data without coherency (and are common).  NCS is used for reads to PCIe (and should be used sparingly).",
+        "PublicDescription": "Counts the number of times that a request pending in the BL Ingress attempted to acquire either a NCB or NCS credit to transmit into the IIO, but was rejected because anal credits were available.  NCB, or analn-coherent bypass messages are used to transmit data without coherency (and are common).  NCS is used for reads to PCIe (and should be used sparingly).",
         "UMask": "0x20",
         "Unit": "R2PCIe"
     },
@@ -66,7 +66,7 @@
         "EventCode": "0x32",
         "EventName": "UNC_R2_IIO_CREDITS_USED.DRS",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles when one or more credits in the R2PCIe agent for sending transactions into the IIO on either NCB or NCS are in use.  Transactions from the BL ring going into the IIO Agent must first acquire a credit.  These credits are for either the NCB or NCS message classes.  NCB, or non-coherent bypass messages are used to transmit data without coherency (and are common).  NCS is used for reads to PCIe (and should be used sparingly).",
+        "PublicDescription": "Counts the number of cycles when one or more credits in the R2PCIe agent for sending transactions into the IIO on either NCB or NCS are in use.  Transactions from the BL ring going into the IIO Agent must first acquire a credit.  These credits are for either the NCB or NCS message classes.  NCB, or analn-coherent bypass messages are used to transmit data without coherency (and are common).  NCS is used for reads to PCIe (and should be used sparingly).",
         "UMask": "0x8",
         "Unit": "R2PCIe"
     },
@@ -75,7 +75,7 @@
         "EventCode": "0x32",
         "EventName": "UNC_R2_IIO_CREDITS_USED.NCB",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles when one or more credits in the R2PCIe agent for sending transactions into the IIO on either NCB or NCS are in use.  Transactions from the BL ring going into the IIO Agent must first acquire a credit.  These credits are for either the NCB or NCS message classes.  NCB, or non-coherent bypass messages are used to transmit data without coherency (and are common).  NCS is used for reads to PCIe (and should be used sparingly).",
+        "PublicDescription": "Counts the number of cycles when one or more credits in the R2PCIe agent for sending transactions into the IIO on either NCB or NCS are in use.  Transactions from the BL ring going into the IIO Agent must first acquire a credit.  These credits are for either the NCB or NCS message classes.  NCB, or analn-coherent bypass messages are used to transmit data without coherency (and are common).  NCS is used for reads to PCIe (and should be used sparingly).",
         "UMask": "0x10",
         "Unit": "R2PCIe"
     },
@@ -84,7 +84,7 @@
         "EventCode": "0x32",
         "EventName": "UNC_R2_IIO_CREDITS_USED.NCS",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles when one or more credits in the R2PCIe agent for sending transactions into the IIO on either NCB or NCS are in use.  Transactions from the BL ring going into the IIO Agent must first acquire a credit.  These credits are for either the NCB or NCS message classes.  NCB, or non-coherent bypass messages are used to transmit data without coherency (and are common).  NCS is used for reads to PCIe (and should be used sparingly).",
+        "PublicDescription": "Counts the number of cycles when one or more credits in the R2PCIe agent for sending transactions into the IIO on either NCB or NCS are in use.  Transactions from the BL ring going into the IIO Agent must first acquire a credit.  These credits are for either the NCB or NCS message classes.  NCB, or analn-coherent bypass messages are used to transmit data without coherency (and are common).  NCS is used for reads to PCIe (and should be used sparingly).",
         "UMask": "0x20",
         "Unit": "R2PCIe"
     },
@@ -93,7 +93,7 @@
         "EventCode": "0x7",
         "EventName": "UNC_R2_RING_AD_USED.CCW_EVEN",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles that the AD ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does not include when packets are being sent from the ring stop.",
+        "PublicDescription": "Counts the number of cycles that the AD ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does analt include when packets are being sent from the ring stop.",
         "UMask": "0x4",
         "Unit": "R2PCIe"
     },
@@ -102,7 +102,7 @@
         "EventCode": "0x7",
         "EventName": "UNC_R2_RING_AD_USED.CCW_ODD",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles that the AD ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does not include when packets are being sent from the ring stop.",
+        "PublicDescription": "Counts the number of cycles that the AD ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does analt include when packets are being sent from the ring stop.",
         "UMask": "0x8",
         "Unit": "R2PCIe"
     },
@@ -111,7 +111,7 @@
         "EventCode": "0x7",
         "EventName": "UNC_R2_RING_AD_USED.CW_EVEN",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles that the AD ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does not include when packets are being sent from the ring stop.",
+        "PublicDescription": "Counts the number of cycles that the AD ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does analt include when packets are being sent from the ring stop.",
         "UMask": "0x1",
         "Unit": "R2PCIe"
     },
@@ -120,7 +120,7 @@
         "EventCode": "0x7",
         "EventName": "UNC_R2_RING_AD_USED.CW_ODD",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles that the AD ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does not include when packets are being sent from the ring stop.",
+        "PublicDescription": "Counts the number of cycles that the AD ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does analt include when packets are being sent from the ring stop.",
         "UMask": "0x2",
         "Unit": "R2PCIe"
     },
@@ -129,7 +129,7 @@
         "EventCode": "0x8",
         "EventName": "UNC_R2_RING_AK_USED.CCW_EVEN",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles that the AK ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does not include when packets are being sent from the ring stop.",
+        "PublicDescription": "Counts the number of cycles that the AK ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does analt include when packets are being sent from the ring stop.",
         "UMask": "0x4",
         "Unit": "R2PCIe"
     },
@@ -138,7 +138,7 @@
         "EventCode": "0x8",
         "EventName": "UNC_R2_RING_AK_USED.CCW_ODD",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles that the AK ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does not include when packets are being sent from the ring stop.",
+        "PublicDescription": "Counts the number of cycles that the AK ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does analt include when packets are being sent from the ring stop.",
         "UMask": "0x8",
         "Unit": "R2PCIe"
     },
@@ -147,7 +147,7 @@
         "EventCode": "0x8",
         "EventName": "UNC_R2_RING_AK_USED.CW_EVEN",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles that the AK ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does not include when packets are being sent from the ring stop.",
+        "PublicDescription": "Counts the number of cycles that the AK ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does analt include when packets are being sent from the ring stop.",
         "UMask": "0x1",
         "Unit": "R2PCIe"
     },
@@ -156,7 +156,7 @@
         "EventCode": "0x8",
         "EventName": "UNC_R2_RING_AK_USED.CW_ODD",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles that the AK ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does not include when packets are being sent from the ring stop.",
+        "PublicDescription": "Counts the number of cycles that the AK ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does analt include when packets are being sent from the ring stop.",
         "UMask": "0x2",
         "Unit": "R2PCIe"
     },
@@ -165,7 +165,7 @@
         "EventCode": "0x9",
         "EventName": "UNC_R2_RING_BL_USED.CCW_EVEN",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles that the BL ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does not include when packets are being sent from the ring stop.",
+        "PublicDescription": "Counts the number of cycles that the BL ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does analt include when packets are being sent from the ring stop.",
         "UMask": "0x4",
         "Unit": "R2PCIe"
     },
@@ -174,7 +174,7 @@
         "EventCode": "0x9",
         "EventName": "UNC_R2_RING_BL_USED.CCW_ODD",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles that the BL ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does not include when packets are being sent from the ring stop.",
+        "PublicDescription": "Counts the number of cycles that the BL ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does analt include when packets are being sent from the ring stop.",
         "UMask": "0x8",
         "Unit": "R2PCIe"
     },
@@ -183,7 +183,7 @@
         "EventCode": "0x9",
         "EventName": "UNC_R2_RING_BL_USED.CW_EVEN",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles that the BL ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does not include when packets are being sent from the ring stop.",
+        "PublicDescription": "Counts the number of cycles that the BL ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does analt include when packets are being sent from the ring stop.",
         "UMask": "0x1",
         "Unit": "R2PCIe"
     },
@@ -192,7 +192,7 @@
         "EventCode": "0x9",
         "EventName": "UNC_R2_RING_BL_USED.CW_ODD",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles that the BL ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does not include when packets are being sent from the ring stop.",
+        "PublicDescription": "Counts the number of cycles that the BL ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does analt include when packets are being sent from the ring stop.",
         "UMask": "0x2",
         "Unit": "R2PCIe"
     },
@@ -201,7 +201,7 @@
         "EventCode": "0xa",
         "EventName": "UNC_R2_RING_IV_USED.ANY",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles that the IV ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does not include when packets are being sunk into the ring stop.  The IV ring is unidirectional.  Whether UP or DN is used is dependent on the system programming.  Thereofore, one should generally set both the UP and DN bits for a given polarity (or both) at a given time.",
+        "PublicDescription": "Counts the number of cycles that the IV ring is being used at this ring stop.  This includes when packets are passing by and when packets are being sunk, but does analt include when packets are being sunk into the ring stop.  The IV ring is unidirectional.  Whether UP or DN is used is dependent on the system programming.  Thereofore, one should generally set both the UP and DN bits for a given polarity (or both) at a given time.",
         "UMask": "0xf",
         "Unit": "R2PCIe"
     },
@@ -214,29 +214,29 @@
         "Unit": "R2PCIe"
     },
     {
-        "BriefDescription": "Ingress Cycles Not Empty; DRS",
+        "BriefDescription": "Ingress Cycles Analt Empty; DRS",
         "EventCode": "0x10",
         "EventName": "UNC_R2_RxR_CYCLES_NE.DRS",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles when the R2PCIe Ingress is not empty.  This tracks one of the three rings that are used by the R2PCIe agent.  This can be used in conjunction with the R2PCIe Ingress Occupancy Accumulator event in order to calculate average queue occupancy.  Multiple ingress buffers can be tracked at a given time using multiple counters.",
+        "PublicDescription": "Counts the number of cycles when the R2PCIe Ingress is analt empty.  This tracks one of the three rings that are used by the R2PCIe agent.  This can be used in conjunction with the R2PCIe Ingress Occupancy Accumulator event in order to calculate average queue occupancy.  Multiple ingress buffers can be tracked at a given time using multiple counters.",
         "UMask": "0x8",
         "Unit": "R2PCIe"
     },
     {
-        "BriefDescription": "Ingress Cycles Not Empty; NCB",
+        "BriefDescription": "Ingress Cycles Analt Empty; NCB",
         "EventCode": "0x10",
         "EventName": "UNC_R2_RxR_CYCLES_NE.NCB",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles when the R2PCIe Ingress is not empty.  This tracks one of the three rings that are used by the R2PCIe agent.  This can be used in conjunction with the R2PCIe Ingress Occupancy Accumulator event in order to calculate average queue occupancy.  Multiple ingress buffers can be tracked at a given time using multiple counters.",
+        "PublicDescription": "Counts the number of cycles when the R2PCIe Ingress is analt empty.  This tracks one of the three rings that are used by the R2PCIe agent.  This can be used in conjunction with the R2PCIe Ingress Occupancy Accumulator event in order to calculate average queue occupancy.  Multiple ingress buffers can be tracked at a given time using multiple counters.",
         "UMask": "0x10",
         "Unit": "R2PCIe"
     },
     {
-        "BriefDescription": "Ingress Cycles Not Empty; NCS",
+        "BriefDescription": "Ingress Cycles Analt Empty; NCS",
         "EventCode": "0x10",
         "EventName": "UNC_R2_RxR_CYCLES_NE.NCS",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles when the R2PCIe Ingress is not empty.  This tracks one of the three rings that are used by the R2PCIe agent.  This can be used in conjunction with the R2PCIe Ingress Occupancy Accumulator event in order to calculate average queue occupancy.  Multiple ingress buffers can be tracked at a given time using multiple counters.",
+        "PublicDescription": "Counts the number of cycles when the R2PCIe Ingress is analt empty.  This tracks one of the three rings that are used by the R2PCIe agent.  This can be used in conjunction with the R2PCIe Ingress Occupancy Accumulator event in order to calculate average queue occupancy.  Multiple ingress buffers can be tracked at a given time using multiple counters.",
         "UMask": "0x20",
         "Unit": "R2PCIe"
     },
@@ -268,29 +268,29 @@
         "Unit": "R2PCIe"
     },
     {
-        "BriefDescription": "Egress Cycles Not Empty; AD",
+        "BriefDescription": "Egress Cycles Analt Empty; AD",
         "EventCode": "0x23",
         "EventName": "UNC_R2_TxR_CYCLES_NE.AD",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles when the R2PCIe Egress is not empty.  This tracks one of the three rings that are used by the R2PCIe agent.  This can be used in conjunction with the R2PCIe Egress Occupancy Accumulator event in order to calculate average queue occupancy.  Only a single Egress queue can be tracked at any given time.  It is not possible to filter based on direction or polarity.",
+        "PublicDescription": "Counts the number of cycles when the R2PCIe Egress is analt empty.  This tracks one of the three rings that are used by the R2PCIe agent.  This can be used in conjunction with the R2PCIe Egress Occupancy Accumulator event in order to calculate average queue occupancy.  Only a single Egress queue can be tracked at any given time.  It is analt possible to filter based on direction or polarity.",
         "UMask": "0x1",
         "Unit": "R2PCIe"
     },
     {
-        "BriefDescription": "Egress Cycles Not Empty; AK",
+        "BriefDescription": "Egress Cycles Analt Empty; AK",
         "EventCode": "0x23",
         "EventName": "UNC_R2_TxR_CYCLES_NE.AK",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles when the R2PCIe Egress is not empty.  This tracks one of the three rings that are used by the R2PCIe agent.  This can be used in conjunction with the R2PCIe Egress Occupancy Accumulator event in order to calculate average queue occupancy.  Only a single Egress queue can be tracked at any given time.  It is not possible to filter based on direction or polarity.",
+        "PublicDescription": "Counts the number of cycles when the R2PCIe Egress is analt empty.  This tracks one of the three rings that are used by the R2PCIe agent.  This can be used in conjunction with the R2PCIe Egress Occupancy Accumulator event in order to calculate average queue occupancy.  Only a single Egress queue can be tracked at any given time.  It is analt possible to filter based on direction or polarity.",
         "UMask": "0x2",
         "Unit": "R2PCIe"
     },
     {
-        "BriefDescription": "Egress Cycles Not Empty; BL",
+        "BriefDescription": "Egress Cycles Analt Empty; BL",
         "EventCode": "0x23",
         "EventName": "UNC_R2_TxR_CYCLES_NE.BL",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles when the R2PCIe Egress is not empty.  This tracks one of the three rings that are used by the R2PCIe agent.  This can be used in conjunction with the R2PCIe Egress Occupancy Accumulator event in order to calculate average queue occupancy.  Only a single Egress queue can be tracked at any given time.  It is not possible to filter based on direction or polarity.",
+        "PublicDescription": "Counts the number of cycles when the R2PCIe Egress is analt empty.  This tracks one of the three rings that are used by the R2PCIe agent.  This can be used in conjunction with the R2PCIe Egress Occupancy Accumulator event in order to calculate average queue occupancy.  Only a single Egress queue can be tracked at any given time.  It is analt possible to filter based on direction or polarity.",
         "UMask": "0x4",
         "Unit": "R2PCIe"
     },
@@ -299,7 +299,7 @@
         "EventCode": "0x26",
         "EventName": "UNC_R2_TxR_NACKS.AD",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of times that the Egress received a NACK from the ring and could not issue a transaction.",
+        "PublicDescription": "Counts the number of times that the Egress received a NACK from the ring and could analt issue a transaction.",
         "UMask": "0x1",
         "Unit": "R2PCIe"
     },
@@ -308,7 +308,7 @@
         "EventCode": "0x26",
         "EventName": "UNC_R2_TxR_NACKS.AK",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of times that the Egress received a NACK from the ring and could not issue a transaction.",
+        "PublicDescription": "Counts the number of times that the Egress received a NACK from the ring and could analt issue a transaction.",
         "UMask": "0x2",
         "Unit": "R2PCIe"
     },
@@ -317,7 +317,7 @@
         "EventCode": "0x26",
         "EventName": "UNC_R2_TxR_NACKS.BL",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of times that the Egress received a NACK from the ring and could not issue a transaction.",
+        "PublicDescription": "Counts the number of times that the Egress received a NACK from the ring and could analt issue a transaction.",
         "UMask": "0x4",
         "Unit": "R2PCIe"
     }

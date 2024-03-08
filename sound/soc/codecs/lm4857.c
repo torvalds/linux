@@ -61,7 +61,7 @@ static const struct snd_kcontrol_new lm4857_mode_ctrl =
 static const struct snd_soc_dapm_widget lm4857_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("IN"),
 
-	SND_SOC_DAPM_DEMUX("Mode", SND_SOC_NOPM, 0, 0, &lm4857_mode_ctrl),
+	SND_SOC_DAPM_DEMUX("Mode", SND_SOC_ANALPM, 0, 0, &lm4857_mode_ctrl),
 
 	SND_SOC_DAPM_OUTPUT("LS"),
 	SND_SOC_DAPM_OUTPUT("HP"),
@@ -69,15 +69,15 @@ static const struct snd_soc_dapm_widget lm4857_dapm_widgets[] = {
 };
 
 static const DECLARE_TLV_DB_SCALE(stereo_tlv, -4050, 150, 0);
-static const DECLARE_TLV_DB_SCALE(mono_tlv, -3450, 150, 0);
+static const DECLARE_TLV_DB_SCALE(moanal_tlv, -3450, 150, 0);
 
 static const struct snd_kcontrol_new lm4857_controls[] = {
 	SOC_SINGLE_TLV("Left Playback Volume", LM4857_LVOL, 0, 31, 0,
 		stereo_tlv),
 	SOC_SINGLE_TLV("Right Playback Volume", LM4857_RVOL, 0, 31, 0,
 		stereo_tlv),
-	SOC_SINGLE_TLV("Mono Playback Volume", LM4857_MVOL, 0, 31, 0,
-		mono_tlv),
+	SOC_SINGLE_TLV("Moanal Playback Volume", LM4857_MVOL, 0, 31, 0,
+		moanal_tlv),
 	SOC_SINGLE("Spk 3D Playback Switch", LM4857_LVOL, LM4857_3D, 1, 0),
 	SOC_SINGLE("HP 3D Playback Switch", LM4857_RVOL, LM4857_3D, 1, 0),
 	SOC_SINGLE("Fast Wakeup Playback Switch", LM4857_CTRL,

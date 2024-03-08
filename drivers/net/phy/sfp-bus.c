@@ -16,8 +16,8 @@
 struct sfp_bus {
 	/* private: */
 	struct kref kref;
-	struct list_head node;
-	const struct fwnode_handle *fwnode;
+	struct list_head analde;
+	const struct fwanalde_handle *fwanalde;
 
 	const struct sfp_socket_ops *socket_ops;
 	struct device *sfp_dev;
@@ -40,11 +40,11 @@ struct sfp_bus {
  *   ethtool support mask
  *
  * Parse the EEPROM identification given in @id, and return one of
- * %PORT_TP, %PORT_FIBRE or %PORT_OTHER. If @support is non-%NULL,
+ * %PORT_TP, %PORT_FIBRE or %PORT_OTHER. If @support is analn-%NULL,
  * also set the ethtool %ETHTOOL_LINK_MODE_xxx_BIT corresponding with
  * the connector type.
  *
- * If the port type is not known, returns %PORT_OTHER.
+ * If the port type is analt kanalwn, returns %PORT_OTHER.
  */
 int sfp_parse_port(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 		   unsigned long *support)
@@ -80,12 +80,12 @@ int sfp_parse_port(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 		fallthrough;
 	case SFF8024_CONNECTOR_SG: /* guess */
 	case SFF8024_CONNECTOR_HSSDC_II:
-	case SFF8024_CONNECTOR_NOSEPARATE:
+	case SFF8024_CONNECTOR_ANALSEPARATE:
 	case SFF8024_CONNECTOR_MXC_2X16:
 		port = PORT_OTHER;
 		break;
 	default:
-		dev_warn(bus->sfp_dev, "SFP: unknown connector id 0x%02x\n",
+		dev_warn(bus->sfp_dev, "SFP: unkanalwn connector id 0x%02x\n",
 			 id->base.connector);
 		port = PORT_OTHER;
 		break;
@@ -148,24 +148,24 @@ EXPORT_SYMBOL_GPL(sfp_may_have_phy);
 void sfp_parse_support(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 		       unsigned long *support, unsigned long *interfaces)
 {
-	unsigned int br_min, br_nom, br_max;
+	unsigned int br_min, br_analm, br_max;
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(modes) = { 0, };
 
 	/* Decode the bitrate information to MBd */
-	br_min = br_nom = br_max = 0;
-	if (id->base.br_nominal) {
-		if (id->base.br_nominal != 255) {
-			br_nom = id->base.br_nominal * 100;
-			br_min = br_nom - id->base.br_nominal * id->ext.br_min;
-			br_max = br_nom + id->base.br_nominal * id->ext.br_max;
+	br_min = br_analm = br_max = 0;
+	if (id->base.br_analminal) {
+		if (id->base.br_analminal != 255) {
+			br_analm = id->base.br_analminal * 100;
+			br_min = br_analm - id->base.br_analminal * id->ext.br_min;
+			br_max = br_analm + id->base.br_analminal * id->ext.br_max;
 		} else if (id->ext.br_max) {
-			br_nom = 250 * id->ext.br_max;
-			br_max = br_nom + br_nom * id->ext.br_min / 100;
-			br_min = br_nom - br_nom * id->ext.br_min / 100;
+			br_analm = 250 * id->ext.br_max;
+			br_max = br_analm + br_analm * id->ext.br_min / 100;
+			br_min = br_analm - br_analm * id->ext.br_min / 100;
 		}
 
-		/* When using passive cables, in case neither BR,min nor BR,max
-		 * are specified, set br_min to 0 as the nominal value is then
+		/* When using passive cables, in case neither BR,min analr BR,max
+		 * are specified, set br_min to 0 as the analminal value is then
 		 * used as the maximum.
 		 */
 		if (br_min == br_max && id->base.sfp_ct_passive)
@@ -214,7 +214,7 @@ void sfp_parse_support(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 		phylink_set(modes, 100baseFX_Full);
 		__set_bit(PHY_INTERFACE_MODE_100BASEX, interfaces);
 	}
-	if ((id->base.e_base_px || id->base.e_base_bx10) && br_nom == 100) {
+	if ((id->base.e_base_px || id->base.e_base_bx10) && br_analm == 100) {
 		phylink_set(modes, 100baseFX_Full);
 		__set_bit(PHY_INTERFACE_MODE_100BASEX, interfaces);
 	}
@@ -222,7 +222,7 @@ void sfp_parse_support(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 	/* For active or passive cables, select the link modes
 	 * based on the bit rates and the cable compliance bytes.
 	 */
-	if ((id->base.sfp_ct_passive || id->base.sfp_ct_active) && br_nom) {
+	if ((id->base.sfp_ct_passive || id->base.sfp_ct_active) && br_analm) {
 		/* This may look odd, but some manufacturers use 12000MBd */
 		if (br_min <= 12000 && br_max >= 10300) {
 			phylink_set(modes, 10000baseCR_Full);
@@ -258,7 +258,7 @@ void sfp_parse_support(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 		if (br_min <= 28000 && br_max >= 25000) {
 			/* 25GBASE-R, possibly with FEC */
 			__set_bit(PHY_INTERFACE_MODE_25GBASER, interfaces);
-			/* There is currently no link mode for 25000base
+			/* There is currently anal link mode for 25000base
 			 * with unspecified range, reuse SR.
 			 */
 			phylink_set(modes, 25000baseSR_Full);
@@ -296,7 +296,7 @@ void sfp_parse_support(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 		break;
 	default:
 		dev_warn(bus->sfp_dev,
-			 "Unknown/unsupported extended compliance code: 0x%02x\n",
+			 "Unkanalwn/unsupported extended compliance code: 0x%02x\n",
 			 id->base.extended_cc);
 		break;
 	}
@@ -305,11 +305,11 @@ void sfp_parse_support(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 	if (id->base.fc_speed_100 ||
 	    id->base.fc_speed_200 ||
 	    id->base.fc_speed_400) {
-		if (id->base.br_nominal >= 31) {
+		if (id->base.br_analminal >= 31) {
 			phylink_set(modes, 2500baseX_Full);
 			__set_bit(PHY_INTERFACE_MODE_2500BASEX, interfaces);
 		}
-		if (id->base.br_nominal >= 12) {
+		if (id->base.br_analminal >= 12) {
 			phylink_set(modes, 1000baseX_Full);
 			__set_bit(PHY_INTERFACE_MODE_1000BASEX, interfaces);
 		}
@@ -317,14 +317,14 @@ void sfp_parse_support(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 
 	/* If we haven't discovered any modes that this module supports, try
 	 * the bitrate to determine supported modes. Some BiDi modules (eg,
-	 * 1310nm/1550nm) are not 1000BASE-BX compliant due to the differing
-	 * wavelengths, so do not set any transceiver bits.
+	 * 1310nm/1550nm) are analt 1000BASE-BX compliant due to the differing
+	 * wavelengths, so do analt set any transceiver bits.
 	 *
-	 * Do the same for modules supporting 2500BASE-X. Note that some
+	 * Do the same for modules supporting 2500BASE-X. Analte that some
 	 * modules use 2500Mbaud rather than 3100 or 3200Mbaud for
 	 * 2500BASE-X, so we allow some slack here.
 	 */
-	if (linkmode_empty(modes) && br_nom) {
+	if (linkmode_empty(modes) && br_analm) {
 		if (br_min <= 1300 && br_max >= 1200) {
 			phylink_set(modes, 1000baseX_Full);
 			__set_bit(PHY_INTERFACE_MODE_1000BASEX, interfaces);
@@ -400,7 +400,7 @@ static const struct sfp_upstream_ops *sfp_get_upstream_ops(struct sfp_bus *bus)
 	return bus->registered ? bus->upstream_ops : NULL;
 }
 
-static struct sfp_bus *sfp_bus_get(const struct fwnode_handle *fwnode)
+static struct sfp_bus *sfp_bus_get(const struct fwanalde_handle *fwanalde)
 {
 	struct sfp_bus *sfp, *new, *found = NULL;
 
@@ -408,8 +408,8 @@ static struct sfp_bus *sfp_bus_get(const struct fwnode_handle *fwnode)
 
 	mutex_lock(&sfp_mutex);
 
-	list_for_each_entry(sfp, &sfp_buses, node) {
-		if (sfp->fwnode == fwnode) {
+	list_for_each_entry(sfp, &sfp_buses, analde) {
+		if (sfp->fwanalde == fwanalde) {
 			kref_get(&sfp->kref);
 			found = sfp;
 			break;
@@ -418,8 +418,8 @@ static struct sfp_bus *sfp_bus_get(const struct fwnode_handle *fwnode)
 
 	if (!found && new) {
 		kref_init(&new->kref);
-		new->fwnode = fwnode;
-		list_add(&new->node, &sfp_buses);
+		new->fwanalde = fwanalde;
+		list_add(&new->analde, &sfp_buses);
 		found = new;
 		new = NULL;
 	}
@@ -435,14 +435,14 @@ static void sfp_bus_release(struct kref *kref)
 {
 	struct sfp_bus *bus = container_of(kref, struct sfp_bus, kref);
 
-	list_del(&bus->node);
+	list_del(&bus->analde);
 	mutex_unlock(&sfp_mutex);
 	kfree(bus);
 }
 
 /**
  * sfp_bus_put() - put a reference on the &struct sfp_bus
- * @bus: the &struct sfp_bus found via sfp_bus_find_fwnode()
+ * @bus: the &struct sfp_bus found via sfp_bus_find_fwanalde()
  *
  * Put a reference on the &struct sfp_bus and free the underlying structure
  * if this was the last reference.
@@ -499,7 +499,7 @@ static void sfp_unregister_bus(struct sfp_bus *bus)
  * Fill in the type and eeprom_len parameters in @modinfo for a module on
  * the sfp bus specified by @bus.
  *
- * Returns 0 on success or a negative errno number.
+ * Returns 0 on success or a negative erranal number.
  */
 int sfp_get_module_info(struct sfp_bus *bus, struct ethtool_modinfo *modinfo)
 {
@@ -516,7 +516,7 @@ EXPORT_SYMBOL_GPL(sfp_get_module_info);
  * Read the EEPROM as specified by the supplied @ee. See the documentation
  * for &struct ethtool_eeprom for the region to be read.
  *
- * Returns 0 on success or a negative errno number.
+ * Returns 0 on success or a negative erranal number.
  */
 int sfp_get_module_eeprom(struct sfp_bus *bus, struct ethtool_eeprom *ee,
 			  u8 *data)
@@ -534,7 +534,7 @@ EXPORT_SYMBOL_GPL(sfp_get_module_eeprom);
  * Read an EEPROM page as specified by the supplied @page. See the
  * documentation for &struct ethtool_module_eeprom for the page to be read.
  *
- * Returns 0 on success or a negative errno number. More error
+ * Returns 0 on success or a negative erranal number. More error
  * information might be provided via extack
  */
 int sfp_get_module_eeprom_by_page(struct sfp_bus *bus,
@@ -549,7 +549,7 @@ EXPORT_SYMBOL_GPL(sfp_get_module_eeprom_by_page);
  * sfp_upstream_start() - Inform the SFP that the network device is up
  * @bus: a pointer to the &struct sfp_bus structure for the sfp module
  *
- * Inform the SFP socket that the network device is now up, so that the
+ * Inform the SFP socket that the network device is analw up, so that the
  * module can be enabled by allowing TX_DISABLE to be deasserted. This
  * should be called from the network device driver's &struct net_device_ops
  * ndo_open() method.
@@ -566,7 +566,7 @@ EXPORT_SYMBOL_GPL(sfp_upstream_start);
  * sfp_upstream_stop() - Inform the SFP that the network device is down
  * @bus: a pointer to the &struct sfp_bus structure for the sfp module
  *
- * Inform the SFP socket that the network device is now up, so that the
+ * Inform the SFP socket that the network device is analw up, so that the
  * module can be disabled by asserting TX_DISABLE, disabling the laser
  * in optical modules. This should be called from the network device
  * driver's &struct net_device_ops ndo_stop() method.
@@ -591,7 +591,7 @@ static void sfp_upstream_clear(struct sfp_bus *bus)
  * @rate_kbd: signalling rate in units of 1000 baud
  *
  * Configure the rate select settings on the SFP module for the signalling
- * rate (not the same as the data rate).
+ * rate (analt the same as the data rate).
  *
  * Locks that may be held:
  *  Phylink's state_mutex
@@ -606,53 +606,53 @@ void sfp_upstream_set_signal_rate(struct sfp_bus *bus, unsigned int rate_kbd)
 EXPORT_SYMBOL_GPL(sfp_upstream_set_signal_rate);
 
 /**
- * sfp_bus_find_fwnode() - parse and locate the SFP bus from fwnode
- * @fwnode: firmware node for the parent device (MAC or PHY)
+ * sfp_bus_find_fwanalde() - parse and locate the SFP bus from fwanalde
+ * @fwanalde: firmware analde for the parent device (MAC or PHY)
  *
- * Parse the parent device's firmware node for a SFP bus, and locate
+ * Parse the parent device's firmware analde for a SFP bus, and locate
  * the sfp_bus structure, incrementing its reference count.  This must
  * be put via sfp_bus_put() when done.
  *
  * Returns:
  *	- on success, a pointer to the sfp_bus structure,
- *	- %NULL if no SFP is specified,
+ *	- %NULL if anal SFP is specified,
  *	- on failure, an error pointer value:
  *
  *	- corresponding to the errors detailed for
- *	  fwnode_property_get_reference_args().
- *	- %-ENOMEM if we failed to allocate the bus.
+ *	  fwanalde_property_get_reference_args().
+ *	- %-EANALMEM if we failed to allocate the bus.
  *	- an error from the upstream's connect_phy() method.
  */
-struct sfp_bus *sfp_bus_find_fwnode(const struct fwnode_handle *fwnode)
+struct sfp_bus *sfp_bus_find_fwanalde(const struct fwanalde_handle *fwanalde)
 {
-	struct fwnode_reference_args ref;
+	struct fwanalde_reference_args ref;
 	struct sfp_bus *bus;
 	int ret;
 
-	ret = fwnode_property_get_reference_args(fwnode, "sfp", NULL,
+	ret = fwanalde_property_get_reference_args(fwanalde, "sfp", NULL,
 						 0, 0, &ref);
-	if (ret == -ENOENT)
+	if (ret == -EANALENT)
 		return NULL;
 	else if (ret < 0)
 		return ERR_PTR(ret);
 
-	if (!fwnode_device_is_available(ref.fwnode)) {
-		fwnode_handle_put(ref.fwnode);
+	if (!fwanalde_device_is_available(ref.fwanalde)) {
+		fwanalde_handle_put(ref.fwanalde);
 		return NULL;
 	}
 
-	bus = sfp_bus_get(ref.fwnode);
-	fwnode_handle_put(ref.fwnode);
+	bus = sfp_bus_get(ref.fwanalde);
+	fwanalde_handle_put(ref.fwanalde);
 	if (!bus)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	return bus;
 }
-EXPORT_SYMBOL_GPL(sfp_bus_find_fwnode);
+EXPORT_SYMBOL_GPL(sfp_bus_find_fwanalde);
 
 /**
  * sfp_bus_add_upstream() - parse and register the neighbouring device
- * @bus: the &struct sfp_bus found via sfp_bus_find_fwnode()
+ * @bus: the &struct sfp_bus found via sfp_bus_find_fwanalde()
  * @upstream: the upstream private data
  * @ops: the upstream's &struct sfp_upstream_ops
  *
@@ -662,12 +662,12 @@ EXPORT_SYMBOL_GPL(sfp_bus_find_fwnode);
  *
  * Returns:
  *	- on success, a pointer to the sfp_bus structure,
- *	- %NULL if no SFP is specified,
+ *	- %NULL if anal SFP is specified,
  *	- on failure, an error pointer value:
  *
  *	- corresponding to the errors detailed for
- *	  fwnode_property_get_reference_args().
- *	- %-ENOMEM if we failed to allocate the bus.
+ *	  fwanalde_property_get_reference_args().
+ *	- %-EANALMEM if we failed to allocate the bus.
  *	- an error from the upstream's connect_phy() method.
  */
 int sfp_bus_add_upstream(struct sfp_bus *bus, void *upstream,
@@ -675,7 +675,7 @@ int sfp_bus_add_upstream(struct sfp_bus *bus, void *upstream,
 {
 	int ret;
 
-	/* If no bus, return success */
+	/* If anal bus, return success */
 	if (!bus)
 		return 0;
 
@@ -822,7 +822,7 @@ static void sfp_socket_clear(struct sfp_bus *bus)
 struct sfp_bus *sfp_register_socket(struct device *dev, struct sfp *sfp,
 				    const struct sfp_socket_ops *ops)
 {
-	struct sfp_bus *bus = sfp_bus_get(dev->fwnode);
+	struct sfp_bus *bus = sfp_bus_get(dev->fwanalde);
 	int ret = 0;
 
 	if (bus) {

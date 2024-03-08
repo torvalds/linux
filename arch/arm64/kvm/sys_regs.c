@@ -139,14 +139,14 @@ u64 vcpu_read_sys_reg(const struct kvm_vcpu *vcpu, int reg)
 			goto memory_read;
 
 		/*
-		 * If this register does not have an EL1 counterpart,
+		 * If this register does analt have an EL1 counterpart,
 		 * then read the stored EL2 version.
 		 */
 		if (reg == el1r)
 			goto memory_read;
 
 		/*
-		 * If we have a non-VHE guest and that the sysreg
+		 * If we have a analn-VHE guest and that the sysreg
 		 * requires translation to be used at EL1, use the
 		 * in-memory copy instead.
 		 */
@@ -184,11 +184,11 @@ void vcpu_write_sys_reg(struct kvm_vcpu *vcpu, u64 val, int reg)
 		/*
 		 * Always store a copy of the write to memory to avoid having
 		 * to reverse-translate virtual EL2 system registers for a
-		 * non-VHE guest hypervisor.
+		 * analn-VHE guest hypervisor.
 		 */
 		__vcpu_sys_reg(vcpu, reg) = val;
 
-		/* No EL1 counterpart? We're done here.? */
+		/* Anal EL1 counterpart? We're done here.? */
 		if (reg == el1r)
 			return;
 
@@ -250,8 +250,8 @@ static u32 get_ccsidr(struct kvm_vcpu *vcpu, u32 csselr)
 	line_size = get_min_cache_line_size(csselr & CSSELR_EL1_InD);
 
 	/*
-	 * Fabricate a CCSIDR value as the overriding value does not exist.
-	 * The real CCSIDR value will not be used as it can vary by the
+	 * Fabricate a CCSIDR value as the overriding value does analt exist.
+	 * The real CCSIDR value will analt be used as it can vary by the
 	 * physical CPU which the vcpu currently resides in.
 	 *
 	 * The line size is determined with get_min_cache_line_size(), which
@@ -260,17 +260,17 @@ static u32 get_ccsidr(struct kvm_vcpu *vcpu, u32 csselr)
 	 *
 	 * The associativity bits are cleared, meaning the geometry of all data
 	 * and unified caches (which are guaranteed to be PIPT and thus
-	 * non-aliasing) are 1 set and 1 way.
-	 * Guests should not be doing cache operations by set/way at all, and
+	 * analn-aliasing) are 1 set and 1 way.
+	 * Guests should analt be doing cache operations by set/way at all, and
 	 * for this reason, we trap them and attempt to infer the intent, so
 	 * that we can flush the entire guest's address space at the appropriate
 	 * time. The exposed geometry minimizes the number of the traps.
 	 * [If guests should attempt to infer aliasing properties from the
-	 * geometry (which is not permitted by the architecture), they would
+	 * geometry (which is analt permitted by the architecture), they would
 	 * only do so for virtually indexed caches.]
 	 *
 	 * We don't check if the cache level exists as it is allowed to return
-	 * an UNKNOWN value if not.
+	 * an UNKANALWN value if analt.
 	 */
 	return SYS_FIELD_PREP(CCSIDR_EL1, LineSize, line_size - 4);
 }
@@ -291,7 +291,7 @@ static int set_ccsidr(struct kvm_vcpu *vcpu, u32 csselr, u32 val)
 
 		ccsidr = kmalloc_array(CSSELR_MAX, sizeof(u32), GFP_KERNEL_ACCOUNT);
 		if (!ccsidr)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		for (i = 0; i < CSSELR_MAX; i++)
 			ccsidr[i] = get_ccsidr(vcpu, i);
@@ -317,7 +317,7 @@ static bool access_rw(struct kvm_vcpu *vcpu,
 }
 
 /*
- * See note at ARMv7 ARM B1.14.4 (TL;DR: S/W ops are not easily virtualized).
+ * See analte at ARMv7 ARM B1.14.4 (TL;DR: S/W ops are analt easily virtualized).
  */
 static bool access_dcsw(struct kvm_vcpu *vcpu,
 			struct sys_reg_params *p,
@@ -329,8 +329,8 @@ static bool access_dcsw(struct kvm_vcpu *vcpu,
 	/*
 	 * Only track S/W ops if we don't have FWB. It still indicates
 	 * that the guest is a bit broken (S/W operations should only
-	 * be done by firmware, knowing that there is only a single
-	 * CPU left in the system, and certainly not from non-secure
+	 * be done by firmware, kanalwing that there is only a single
+	 * CPU left in the system, and certainly analt from analn-secure
 	 * software).
 	 */
 	if (!cpus_have_final_cap(ARM64_HAS_STAGE2_FWB))
@@ -407,7 +407,7 @@ static bool access_actlr(struct kvm_vcpu *vcpu,
 	u64 mask, shift;
 
 	if (p->is_write)
-		return ignore_write(vcpu, p);
+		return iganalre_write(vcpu, p);
 
 	get_access_mask(r, &mask, &shift);
 	p->regval = (vcpu_read_sys_reg(vcpu, r->reg) & mask) >> shift;
@@ -434,7 +434,7 @@ static bool access_gic_sgi(struct kvm_vcpu *vcpu,
 	 * In a system where GICD_CTLR.DS=1, a ICC_SGI0R_EL1 access generates
 	 * Group0 SGIs only, while ICC_SGI1R_EL1 can generate either group,
 	 * depending on the SGI configuration. ICC_ASGI1R_EL1 is effectively
-	 * equivalent to ICC_SGI0R_EL1, as there is no "alternative" secure
+	 * equivalent to ICC_SGI0R_EL1, as there is anal "alternative" secure
 	 * group.
 	 */
 	if (p->Op0 == 0) {		/* AArch32 */
@@ -471,7 +471,7 @@ static bool access_gic_sre(struct kvm_vcpu *vcpu,
 			   const struct sys_reg_desc *r)
 {
 	if (p->is_write)
-		return ignore_write(vcpu, p);
+		return iganalre_write(vcpu, p);
 
 	p->regval = vcpu->arch.vgic_cpu.vgic_v3.vgic_sre;
 	return true;
@@ -482,7 +482,7 @@ static bool trap_raz_wi(struct kvm_vcpu *vcpu,
 			const struct sys_reg_desc *r)
 {
 	if (p->is_write)
-		return ignore_write(vcpu, p);
+		return iganalre_write(vcpu, p);
 	else
 		return read_zero(vcpu, p);
 }
@@ -567,7 +567,7 @@ static bool trap_dbgauthstatus_el1(struct kvm_vcpu *vcpu,
 				   const struct sys_reg_desc *r)
 {
 	if (p->is_write) {
-		return ignore_write(vcpu, p);
+		return iganalre_write(vcpu, p);
 	} else {
 		p->regval = read_sysreg(dbgauthstatus_el1);
 		return true;
@@ -599,7 +599,7 @@ static bool trap_dbgauthstatus_el1(struct kvm_vcpu *vcpu,
  * On guest exit:
  * - If the dirty bit is set, save guest registers, restore host
  *   registers and clear the dirty bit. This ensure that the host can
- *   now use the debug registers.
+ *   analw use the debug registers.
  */
 static bool trap_debug_regs(struct kvm_vcpu *vcpu,
 			    struct sys_reg_params *p,
@@ -851,7 +851,7 @@ static u64 reset_pmu_reg(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r)
 	if (n)
 		mask |= GENMASK(n - 1, 0);
 
-	reset_unknown(vcpu, r);
+	reset_unkanalwn(vcpu, r);
 	__vcpu_sys_reg(vcpu, r->reg) &= mask;
 
 	return __vcpu_sys_reg(vcpu, r->reg);
@@ -859,7 +859,7 @@ static u64 reset_pmu_reg(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r)
 
 static u64 reset_pmevcntr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r)
 {
-	reset_unknown(vcpu, r);
+	reset_unkanalwn(vcpu, r);
 	__vcpu_sys_reg(vcpu, r->reg) &= GENMASK(31, 0);
 
 	return __vcpu_sys_reg(vcpu, r->reg);
@@ -871,7 +871,7 @@ static u64 reset_pmevtyper(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r)
 	if (!kvm_vcpu_has_pmu(vcpu))
 		return 0;
 
-	reset_unknown(vcpu, r);
+	reset_unkanalwn(vcpu, r);
 	__vcpu_sys_reg(vcpu, r->reg) &= kvm_pmu_evtyper_mask(vcpu->kvm);
 
 	return __vcpu_sys_reg(vcpu, r->reg);
@@ -879,7 +879,7 @@ static u64 reset_pmevtyper(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r)
 
 static u64 reset_pmselr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r)
 {
-	reset_unknown(vcpu, r);
+	reset_unkanalwn(vcpu, r);
 	__vcpu_sys_reg(vcpu, r->reg) &= ARMV8_PMU_COUNTER_MASK;
 
 	return __vcpu_sys_reg(vcpu, r->reg);
@@ -1276,7 +1276,7 @@ static int set_pmcr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r,
 
 	/*
 	 * The vCPU can't have more counters than the PMU hardware
-	 * implements. Ignore this error to maintain compatibility
+	 * implements. Iganalre this error to maintain compatibility
 	 * with the existing KVM behavior.
 	 */
 	if (!kvm_vm_has_ran_once(kvm) &&
@@ -1286,17 +1286,17 @@ static int set_pmcr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r,
 	mutex_unlock(&kvm->arch.config_lock);
 
 	/*
-	 * Ignore writes to RES0 bits, read only bits that are cleared on
+	 * Iganalre writes to RES0 bits, read only bits that are cleared on
 	 * vCPU reset, and writable bits that KVM doesn't support yet.
 	 * (i.e. only PMCR.N and bits [7:0] are mutable from userspace)
-	 * The LP bit is RES0 when FEAT_PMUv3p5 is not supported on the vCPU.
+	 * The LP bit is RES0 when FEAT_PMUv3p5 is analt supported on the vCPU.
 	 * But, we leave the bit as it is here, as the vCPU's PMUver might
-	 * be changed later (NOTE: the bit will be cleared on first vCPU run
+	 * be changed later (ANALTE: the bit will be cleared on first vCPU run
 	 * if necessary).
 	 */
 	val &= ARMV8_PMU_PMCR_MASK;
 
-	/* The LC bit is RES1 when AArch32 is not supported */
+	/* The LC bit is RES1 when AArch32 is analt supported */
 	if (!kvm_supports_32bit_el0())
 		val |= ARMV8_PMU_PMCR_LC;
 
@@ -1354,11 +1354,11 @@ static unsigned int ptrauth_visibility(const struct kvm_vcpu *vcpu,
 /*
  * If we land here on a PtrAuth access, that is because we didn't
  * fixup the access on exit by allowing the PtrAuth sysregs. The only
- * way this happens is when the guest does not have PtrAuth support
+ * way this happens is when the guest does analt have PtrAuth support
  * enabled.
  */
 #define __PTRAUTH_KEY(k)						\
-	{ SYS_DESC(SYS_## k), undef_access, reset_unknown, k,		\
+	{ SYS_DESC(SYS_## k), undef_access, reset_unkanalwn, k,		\
 	.visibility = ptrauth_visibility}
 
 #define PTRAUTH_KEY(k)							\
@@ -1442,10 +1442,10 @@ static s64 kvm_arm64_ftr_safe_value(u32 id, const struct arm64_ftr_bits *ftrp,
  * This function will check if each feature field of @val is the "safe" value
  * against idreg's KVM sanitised limit return from reset() callback.
  * If a field value in @val is the same as the one in limit, it is always
- * considered the safe value regardless For register fields that are not in
+ * considered the safe value regardless For register fields that are analt in
  * writable, only the value in limit is considered the safe value.
  *
- * Return: 0 if all the fields are safe. Otherwise, return negative errno.
+ * Return: 0 if all the fields are safe. Otherwise, return negative erranal.
  */
 static int arm64_check_features(struct kvm_vcpu *vcpu,
 				const struct sys_reg_desc *rd,
@@ -1459,8 +1459,8 @@ static int arm64_check_features(struct kvm_vcpu *vcpu,
 	u64 mask = 0;
 
 	/*
-	 * Hidden and unallocated ID registers may not have a corresponding
-	 * struct arm64_ftr_reg. Of course, if the register is RAZ we know the
+	 * Hidden and unallocated ID registers may analt have a corresponding
+	 * struct arm64_ftr_reg. Of course, if the register is RAZ we kanalw the
 	 * only safe value is 0.
 	 */
 	if (sysreg_visible_as_raz(vcpu, rd))
@@ -1493,7 +1493,7 @@ static int arm64_check_features(struct kvm_vcpu *vcpu,
 			return -E2BIG;
 	}
 
-	/* For fields that are not writable, values in limit are the safe values. */
+	/* For fields that are analt writable, values in limit are the safe values. */
 	if ((val & ~mask) != (limit & ~mask))
 		return -E2BIG;
 
@@ -1508,7 +1508,7 @@ static u8 pmuver_to_perfmon(u8 pmuver)
 	case ID_AA64DFR0_EL1_PMUVer_IMP_DEF:
 		return ID_DFR0_EL1_PerfMon_IMPDEF;
 	default:
-		/* Anything ARMv8.1+ and NI have the same value. For now. */
+		/* Anything ARMv8.1+ and NI have the same value. For analw. */
 		return pmuver;
 	}
 }
@@ -1605,7 +1605,7 @@ static unsigned int aa32_id_visibility(const struct kvm_vcpu *vcpu,
 				       const struct sys_reg_desc *r)
 {
 	/*
-	 * AArch32 ID registers are UNKNOWN if AArch32 isn't implemented at any
+	 * AArch32 ID registers are UNKANALWN if AArch32 isn't implemented at any
 	 * EL. Promote to RAZ/WI in order to guarantee consistency between
 	 * systems.
 	 */
@@ -1721,13 +1721,13 @@ static int set_id_aa64dfr0_el1(struct kvm_vcpu *vcpu,
 	 * Prior to commit 3d0dba5764b9 ("KVM: arm64: PMU: Move the
 	 * ID_AA64DFR0_EL1.PMUver limit to VM creation"), KVM erroneously
 	 * exposed an IMP_DEF PMU to userspace and the guest on systems w/
-	 * non-architectural PMUs. Of course, PMUv3 is the only game in town for
+	 * analn-architectural PMUs. Of course, PMUv3 is the only game in town for
 	 * PMU virtualization, so the IMP_DEF value was rather user-hostile.
 	 *
 	 * At minimum, we're on the hook to allow values that were given to
 	 * userspace by KVM. Cover our tracks here and replace the IMP_DEF value
 	 * with a more sensible NI. The value of an ID register changing under
-	 * the nose of the guest is unfortunate, but is certainly no more
+	 * the analse of the guest is unfortunate, but is certainly anal more
 	 * surprising than an ill-guided PMU driver poking at impdef system
 	 * registers that end in an UNDEF...
 	 */
@@ -1736,7 +1736,7 @@ static int set_id_aa64dfr0_el1(struct kvm_vcpu *vcpu,
 
 	/*
 	 * ID_AA64DFR0_EL1.DebugVer is one of those awkward fields with a
-	 * nonzero minimum safe value.
+	 * analnzero minimum safe value.
 	 */
 	if (debugver < ID_AA64DFR0_EL1_DebugVer_IMP)
 		return -EINVAL;
@@ -1789,7 +1789,7 @@ static int set_id_dfr0_el1(struct kvm_vcpu *vcpu,
 /*
  * cpufeature ID register user accessors
  *
- * For now, these registers are immutable for userspace, so no values
+ * For analw, these registers are immutable for userspace, so anal values
  * are stored, and for set_id_reg() we don't allow the effective value
  * to be changed.
  */
@@ -1822,7 +1822,7 @@ static int set_id_reg(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
 
 	/*
 	 * Once the VM has started the ID registers are immutable. Reject any
-	 * write that does not match the final register value.
+	 * write that does analt match the final register value.
 	 */
 	if (kvm_vm_has_ran_once(vcpu->kvm)) {
 		if (val != read_id_reg(vcpu, rd))
@@ -1897,11 +1897,11 @@ static u64 reset_clidr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r)
 
 	if ((ctr_el0 & CTR_EL0_IDC)) {
 		/*
-		 * Data cache clean to the PoU is not required so LoUU and LoUIS
-		 * will not be set and a unified cache, which will be marked as
+		 * Data cache clean to the PoU is analt required so LoUU and LoUIS
+		 * will analt be set and a unified cache, which will be marked as
 		 * LoC, will be added.
 		 *
-		 * If not DIC, let the unified cache L2 so that an instruction
+		 * If analt DIC, let the unified cache L2 so that an instruction
 		 * cache can be added as L1 later.
 		 */
 		loc = (ctr_el0 & CTR_EL0_DIC) ? 1 : 2;
@@ -1995,7 +1995,7 @@ static unsigned int mte_visibility(const struct kvm_vcpu *vcpu,
 #define MTE_REG(name) {				\
 	SYS_DESC(SYS_##name),			\
 	.access = undef_access,			\
-	.reset = reset_unknown,			\
+	.reset = reset_unkanalwn,			\
 	.reg = name,				\
 	.visibility = mte_visibility,		\
 }
@@ -2016,7 +2016,7 @@ static bool bad_vncr_trap(struct kvm_vcpu *vcpu,
 	/*
 	 * We really shouldn't be here, and this is likely the result
 	 * of a misconfigured trap, as this register should target the
-	 * VNCR page, and nothing else.
+	 * VNCR page, and analthing else.
 	 */
 	return bad_trap(vcpu, p, r,
 			"trap of VNCR-backed register");
@@ -2029,7 +2029,7 @@ static bool bad_redir_trap(struct kvm_vcpu *vcpu,
 	/*
 	 * We really shouldn't be here, and this is likely the result
 	 * of a misconfigured trap, as this register should target the
-	 * corresponding EL1, and nothing else.
+	 * corresponding EL1, and analthing else.
 	 */
 	return bad_trap(vcpu, p, r,
 			"trap of EL2 register redirected to EL1");
@@ -2068,12 +2068,12 @@ static unsigned int hidden_user_visibility(const struct kvm_vcpu *vcpu,
 }
 
 /*
- * Since reset() callback and field val are not used for idregs, they will be
+ * Since reset() callback and field val are analt used for idregs, they will be
  * used for specific purposes for idregs.
  * The reset() would return KVM sanitised register value. The value would be the
- * same as the host kernel sanitised value if there is no KVM sanitisation.
+ * same as the host kernel sanitised value if there is anal KVM sanitisation.
  * The val would be used as a mask indicating writable fields for the idreg.
- * Only bits with 1 are writable from userspace. This mask might not be
+ * Only bits with 1 are writable from userspace. This mask might analt be
  * necessary in the future whenever all ID registers are enabled as writable
  * from userspace.
  */
@@ -2083,7 +2083,7 @@ static unsigned int hidden_user_visibility(const struct kvm_vcpu *vcpu,
 	.access	= access_id_reg,		\
 	.get_user = get_id_reg			\
 
-/* sys_reg_desc initialiser for known cpufeature ID registers */
+/* sys_reg_desc initialiser for kanalwn cpufeature ID registers */
 #define ID_SANITISED(name) {			\
 	ID_DESC(name),				\
 	.set_user = set_id_reg,			\
@@ -2092,7 +2092,7 @@ static unsigned int hidden_user_visibility(const struct kvm_vcpu *vcpu,
 	.val = 0,				\
 }
 
-/* sys_reg_desc initialiser for known cpufeature ID registers */
+/* sys_reg_desc initialiser for kanalwn cpufeature ID registers */
 #define AA32_ID_SANITISED(name) {		\
 	ID_DESC(name),				\
 	.set_user = set_id_reg,			\
@@ -2126,8 +2126,8 @@ static unsigned int hidden_user_visibility(const struct kvm_vcpu *vcpu,
 }
 
 /*
- * sys_reg_desc initialiser for known ID registers that we hide from guests.
- * For now, these are exposed just like unallocated ID regs: they appear
+ * sys_reg_desc initialiser for kanalwn ID registers that we hide from guests.
+ * For analw, these are exposed just like unallocated ID regs: they appear
  * RAZ for the guest.
  */
 #define ID_HIDDEN(name) {			\
@@ -2178,8 +2178,8 @@ static bool access_spsr(struct kvm_vcpu *vcpu,
  * Architected system registers.
  * Important: Must be sorted ascending by Op0, Op1, CRn, CRm, Op2
  *
- * Debug handling: We do trap most, if not all debug related system
- * registers. The implementation is good enough to ensure that a guest
+ * Debug handling: We do trap most, if analt all debug related system
+ * registers. The implementation is good eanalugh to ensure that a guest
  * can use these with minimal performance degradation. The drawback is
  * that we don't implement any of the external debug architecture.
  * This should be revisited if we ever encounter a more demanding
@@ -2365,8 +2365,8 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	{ SYS_DESC(SYS_TRFCR_EL1), undef_access },
 	{ SYS_DESC(SYS_SMPRI_EL1), undef_access },
 	{ SYS_DESC(SYS_SMCR_EL1), undef_access },
-	{ SYS_DESC(SYS_TTBR0_EL1), access_vm_reg, reset_unknown, TTBR0_EL1 },
-	{ SYS_DESC(SYS_TTBR1_EL1), access_vm_reg, reset_unknown, TTBR1_EL1 },
+	{ SYS_DESC(SYS_TTBR0_EL1), access_vm_reg, reset_unkanalwn, TTBR0_EL1 },
+	{ SYS_DESC(SYS_TTBR1_EL1), access_vm_reg, reset_unkanalwn, TTBR1_EL1 },
 	{ SYS_DESC(SYS_TCR_EL1), access_vm_reg, reset_val, TCR_EL1, 0 },
 	{ SYS_DESC(SYS_TCR2_EL1), access_vm_reg, reset_val, TCR2_EL1, 0 },
 
@@ -2379,9 +2379,9 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	{ SYS_DESC(SYS_SPSR_EL1), access_spsr},
 	{ SYS_DESC(SYS_ELR_EL1), access_elr},
 
-	{ SYS_DESC(SYS_AFSR0_EL1), access_vm_reg, reset_unknown, AFSR0_EL1 },
-	{ SYS_DESC(SYS_AFSR1_EL1), access_vm_reg, reset_unknown, AFSR1_EL1 },
-	{ SYS_DESC(SYS_ESR_EL1), access_vm_reg, reset_unknown, ESR_EL1 },
+	{ SYS_DESC(SYS_AFSR0_EL1), access_vm_reg, reset_unkanalwn, AFSR0_EL1 },
+	{ SYS_DESC(SYS_AFSR1_EL1), access_vm_reg, reset_unkanalwn, AFSR1_EL1 },
+	{ SYS_DESC(SYS_ESR_EL1), access_vm_reg, reset_unkanalwn, ESR_EL1 },
 
 	{ SYS_DESC(SYS_ERRIDR_EL1), trap_raz_wi },
 	{ SYS_DESC(SYS_ERRSELR_EL1), trap_raz_wi },
@@ -2395,8 +2395,8 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	MTE_REG(TFSR_EL1),
 	MTE_REG(TFSRE0_EL1),
 
-	{ SYS_DESC(SYS_FAR_EL1), access_vm_reg, reset_unknown, FAR_EL1 },
-	{ SYS_DESC(SYS_PAR_EL1), NULL, reset_unknown, PAR_EL1 },
+	{ SYS_DESC(SYS_FAR_EL1), access_vm_reg, reset_unkanalwn, FAR_EL1 },
+	{ SYS_DESC(SYS_PAR_EL1), NULL, reset_unkanalwn, PAR_EL1 },
 
 	{ SYS_DESC(SYS_PMSCR_EL1), undef_access },
 	{ SYS_DESC(SYS_PMSNEVFR_EL1), undef_access },
@@ -2409,7 +2409,7 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	{ SYS_DESC(SYS_PMBLIMITR_EL1), undef_access },
 	{ SYS_DESC(SYS_PMBPTR_EL1), undef_access },
 	{ SYS_DESC(SYS_PMBSR_EL1), undef_access },
-	/* PMBIDR_EL1 is not trapped */
+	/* PMBIDR_EL1 is analt trapped */
 
 	{ PMU_SYS_REG(PMINTENSET_EL1),
 	  .access = access_pminten, .reg = PMINTENSET_EL1,
@@ -2419,9 +2419,9 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	  .get_user = get_pmreg, .set_user = set_pmreg },
 	{ SYS_DESC(SYS_PMMIR_EL1), trap_raz_wi },
 
-	{ SYS_DESC(SYS_MAIR_EL1), access_vm_reg, reset_unknown, MAIR_EL1 },
-	{ SYS_DESC(SYS_PIRE0_EL1), NULL, reset_unknown, PIRE0_EL1 },
-	{ SYS_DESC(SYS_PIR_EL1), NULL, reset_unknown, PIR_EL1 },
+	{ SYS_DESC(SYS_MAIR_EL1), access_vm_reg, reset_unkanalwn, MAIR_EL1 },
+	{ SYS_DESC(SYS_PIRE0_EL1), NULL, reset_unkanalwn, PIRE0_EL1 },
+	{ SYS_DESC(SYS_PIR_EL1), NULL, reset_unkanalwn, PIR_EL1 },
 	{ SYS_DESC(SYS_AMAIR_EL1), access_vm_reg, reset_amair_el1, AMAIR_EL1 },
 
 	{ SYS_DESC(SYS_LORSA_EL1), trap_loregion },
@@ -2447,7 +2447,7 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	{ SYS_DESC(SYS_ICC_SRE_EL1), access_gic_sre },
 
 	{ SYS_DESC(SYS_CONTEXTIDR_EL1), access_vm_reg, reset_val, CONTEXTIDR_EL1, 0 },
-	{ SYS_DESC(SYS_TPIDR_EL1), NULL, reset_unknown, TPIDR_EL1 },
+	{ SYS_DESC(SYS_TPIDR_EL1), NULL, reset_unkanalwn, TPIDR_EL1 },
 
 	{ SYS_DESC(SYS_ACCDATA_EL1), undef_access },
 
@@ -2460,7 +2460,7 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	  .set_user = set_clidr },
 	{ SYS_DESC(SYS_CCSIDR2_EL1), undef_access },
 	{ SYS_DESC(SYS_SMIDR_EL1), undef_access },
-	{ SYS_DESC(SYS_CSSELR_EL1), access_csselr, reset_unknown, CSSELR_EL1 },
+	{ SYS_DESC(SYS_CSSELR_EL1), access_csselr, reset_unkanalwn, CSSELR_EL1 },
 	{ SYS_DESC(SYS_CTR_EL0), access_ctr },
 	{ SYS_DESC(SYS_SVCR), undef_access },
 
@@ -2489,14 +2489,14 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	{ PMU_SYS_REG(PMCEID1_EL0),
 	  .access = access_pmceid, .reset = NULL },
 	{ PMU_SYS_REG(PMCCNTR_EL0),
-	  .access = access_pmu_evcntr, .reset = reset_unknown,
+	  .access = access_pmu_evcntr, .reset = reset_unkanalwn,
 	  .reg = PMCCNTR_EL0, .get_user = get_pmu_evcntr},
 	{ PMU_SYS_REG(PMXEVTYPER_EL0),
 	  .access = access_pmu_evtyper, .reset = NULL },
 	{ PMU_SYS_REG(PMXEVCNTR_EL0),
 	  .access = access_pmu_evcntr, .reset = NULL },
 	/*
-	 * PMUSERENR_EL0 resets as unknown in 64bit mode while it resets as zero
+	 * PMUSERENR_EL0 resets as unkanalwn in 64bit mode while it resets as zero
 	 * in 32bit mode. Here we choose to reset it as zero for consistency.
 	 */
 	{ PMU_SYS_REG(PMUSERENR_EL0), .access = access_pmuserenr,
@@ -2505,8 +2505,8 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	  .access = access_pmovs, .reg = PMOVSSET_EL0,
 	  .get_user = get_pmreg, .set_user = set_pmreg },
 
-	{ SYS_DESC(SYS_TPIDR_EL0), NULL, reset_unknown, TPIDR_EL0 },
-	{ SYS_DESC(SYS_TPIDRRO_EL0), NULL, reset_unknown, TPIDRRO_EL0 },
+	{ SYS_DESC(SYS_TPIDR_EL0), NULL, reset_unkanalwn, TPIDR_EL0 },
+	{ SYS_DESC(SYS_TPIDRRO_EL0), NULL, reset_unkanalwn, TPIDRRO_EL0 },
 	{ SYS_DESC(SYS_TPIDR2_EL0), undef_access },
 
 	{ SYS_DESC(SYS_SCXTNUM_EL0), undef_access },
@@ -2655,14 +2655,14 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	PMU_PMEVTYPER_EL0(29),
 	PMU_PMEVTYPER_EL0(30),
 	/*
-	 * PMCCFILTR_EL0 resets as unknown in 64bit mode while it resets as zero
+	 * PMCCFILTR_EL0 resets as unkanalwn in 64bit mode while it resets as zero
 	 * in 32bit mode. Here we choose to reset it as zero for consistency.
 	 */
 	{ PMU_SYS_REG(PMCCFILTR_EL0), .access = access_pmu_evtyper,
 	  .reset = reset_val, .reg = PMCCFILTR_EL0, .val = 0 },
 
-	EL2_REG_VNCR(VPIDR_EL2, reset_unknown, 0),
-	EL2_REG_VNCR(VMPIDR_EL2, reset_unknown, 0),
+	EL2_REG_VNCR(VPIDR_EL2, reset_unkanalwn, 0),
+	EL2_REG_VNCR(VMPIDR_EL2, reset_unkanalwn, 0),
 	EL2_REG(SCTLR_EL2, access_rw, reset_val, SCTLR_EL2_RES1),
 	EL2_REG(ACTLR_EL2, access_rw, reset_val, 0),
 	EL2_REG_VNCR(HCR_EL2, reset_val, 0),
@@ -2682,7 +2682,7 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	EL2_REG_VNCR(VTTBR_EL2, reset_val, 0),
 	EL2_REG_VNCR(VTCR_EL2, reset_val, 0),
 
-	{ SYS_DESC(SYS_DACR32_EL2), trap_undef, reset_unknown, DACR32_EL2 },
+	{ SYS_DESC(SYS_DACR32_EL2), trap_undef, reset_unkanalwn, DACR32_EL2 },
 	EL2_REG_VNCR(HDFGRTR_EL2, reset_val, 0),
 	EL2_REG_VNCR(HDFGWTR_EL2, reset_val, 0),
 	EL2_REG_VNCR(HAFGRTR_EL2, reset_val, 0),
@@ -2700,7 +2700,7 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	{ SYS_DESC(SYS_SPSR_fiq), .access = trap_raz_wi,
 	  .visibility = hidden_user_visibility },
 
-	{ SYS_DESC(SYS_IFSR32_EL2), trap_undef, reset_unknown, IFSR32_EL2 },
+	{ SYS_DESC(SYS_IFSR32_EL2), trap_undef, reset_unkanalwn, IFSR32_EL2 },
 	EL2_REG(AFSR0_EL2, access_rw, reset_val, 0),
 	EL2_REG(AFSR1_EL2, access_rw, reset_val, 0),
 	EL2_REG_REDIR(ESR_EL2, reset_val, 0),
@@ -2724,7 +2724,7 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 
 	EL12_REG(CNTKCTL, access_rw, reset_val, 0),
 
-	EL2_REG(SP_EL2, NULL, reset_unknown, 0),
+	EL2_REG(SP_EL2, NULL, reset_unkanalwn, 0),
 };
 
 static const struct sys_reg_desc *first_idreg;
@@ -2734,7 +2734,7 @@ static bool trap_dbgdidr(struct kvm_vcpu *vcpu,
 			const struct sys_reg_desc *r)
 {
 	if (p->is_write) {
-		return ignore_write(vcpu, p);
+		return iganalre_write(vcpu, p);
 	} else {
 		u64 dfr = IDREG(vcpu->kvm, SYS_ID_AA64DFR0_EL1);
 		u64 pfr = IDREG(vcpu->kvm, SYS_ID_AA64PFR0_EL1);
@@ -2755,7 +2755,7 @@ static bool trap_dbgdidr(struct kvm_vcpu *vcpu,
  * AArch32 DBGBVRn is mapped to DBGBVRn_EL1[31:0]
  * AArch32 DBGBXVRn is mapped to DBGBVRn_EL1[63:32]
  *
- * None of the other registers share their location, so treat them as
+ * Analne of the other registers share their location, so treat them as
  * if they were 64bit.
  */
 #define DBG_BCR_BVR_WCR_WVR(n)						      \
@@ -2772,7 +2772,7 @@ static bool trap_dbgdidr(struct kvm_vcpu *vcpu,
 	{ AA32(HI), Op1( 0), CRn( 1), CRm((n)), Op2( 1), trap_bvr, NULL, n }
 
 /*
- * Trapped cp14 registers. We generally ignore most of the external
+ * Trapped cp14 registers. We generally iganalre most of the external
  * debug, on the principle that they don't really make sense to a
  * guest. Revisit this one day, would this principle change.
  */
@@ -3089,8 +3089,8 @@ static void perform_access(struct kvm_vcpu *vcpu,
 	}
 
 	/*
-	 * Not having an accessor means that we have configured a trap
-	 * that we don't know how to handle. This certainly qualifies
+	 * Analt having an accessor means that we have configured a trap
+	 * that we don't kanalw how to handle. This certainly qualifies
 	 * as a gross bug that should be fixed right away.
 	 */
 	BUG_ON(!r->access);
@@ -3108,7 +3108,7 @@ static void perform_access(struct kvm_vcpu *vcpu,
  * @table: array of trap descriptors
  * @num: size of the trap descriptor array
  *
- * Return true if the access has been handled, false if not.
+ * Return true if the access has been handled, false if analt.
  */
 static bool emulate_cp(struct kvm_vcpu *vcpu,
 		       struct sys_reg_params *params,
@@ -3118,7 +3118,7 @@ static bool emulate_cp(struct kvm_vcpu *vcpu,
 	const struct sys_reg_desc *r;
 
 	if (!table)
-		return false;	/* Not handled */
+		return false;	/* Analt handled */
 
 	r = find_reg(params, table, num);
 
@@ -3127,7 +3127,7 @@ static bool emulate_cp(struct kvm_vcpu *vcpu,
 		return true;
 	}
 
-	/* Not handled */
+	/* Analt handled */
 	return false;
 }
 
@@ -3286,14 +3286,14 @@ int kvm_handle_cp10_id(struct kvm_vcpu *vcpu)
  * @vcpu: the vCPU pointer
  * @params: the system register access parameters.
  *
- * Our cp15 system register tables do not enumerate the AArch32 feature
+ * Our cp15 system register tables do analt enumerate the AArch32 feature
  * registers. Conveniently, our AArch64 table does, and the AArch32 system
  * register encoding can be trivially remapped into the AArch64 for the feature
  * registers: Append op0=3, leaving op1, CRn, CRm, and op2 the same.
  *
  * According to DDI0487G.b G7.3.1, paragraph "Behavior of VMSAv8-32 32-bit
  * System registers with (coproc=0b1111, CRn==c0)", read accesses from this
- * range are either UNKNOWN or RES0. Rerouting remains architectural as we
+ * range are either UNKANALWN or RES0. Rerouting remains architectural as we
  * treat undefined registers in this range as RAZ.
  */
 static int kvm_emulate_cp15_id_reg(struct kvm_vcpu *vcpu,
@@ -3310,7 +3310,7 @@ static int kvm_emulate_cp15_id_reg(struct kvm_vcpu *vcpu,
 	params->Op0 = 3;
 
 	/*
-	 * All registers where CRm > 3 are known to be UNKNOWN/RAZ from AArch32.
+	 * All registers where CRm > 3 are kanalwn to be UNKANALWN/RAZ from AArch32.
 	 * Avoid conflicting with future expansion of AArch64 feature registers
 	 * and simply treat them as RAZ here.
 	 */
@@ -3361,7 +3361,7 @@ int kvm_handle_cp15_32(struct kvm_vcpu *vcpu)
 	/*
 	 * Certain AArch32 ID registers are handled by rerouting to the AArch64
 	 * system register table. Registers in the ID range where CRm=0 are
-	 * excluded from this scheme as they do not trivially map into AArch64
+	 * excluded from this scheme as they do analt trivially map into AArch64
 	 * system register encodings.
 	 */
 	if (params.Op1 == 0 && params.CRn == 0 && params.CRm)
@@ -3500,7 +3500,7 @@ static bool index_to_params(u64 id, struct sys_reg_params *params)
 {
 	switch (id & KVM_REG_SIZE_MASK) {
 	case KVM_REG_SIZE_U64:
-		/* Any unused index bits means it's not valid. */
+		/* Any unused index bits means it's analt valid. */
 		if (id & ~(KVM_REG_ARCH_MASK | KVM_REG_SIZE_MASK
 			      | KVM_REG_ARM_COPROC_MASK
 			      | KVM_REG_ARM64_SYSREG_OP0_MASK
@@ -3545,13 +3545,13 @@ id_to_sys_reg_desc(struct kvm_vcpu *vcpu, u64 id,
 {
 	const struct sys_reg_desc *r;
 
-	/* We only do sys_reg for now. */
+	/* We only do sys_reg for analw. */
 	if ((id & KVM_REG_ARM_COPROC_MASK) != KVM_REG_ARM64_SYSREG)
 		return NULL;
 
 	r = get_reg_by_id(id, table, num);
 
-	/* Not saved in the sys_reg array and not otherwise accessible? */
+	/* Analt saved in the sys_reg array and analt otherwise accessible? */
 	if (r && (!(r->reg || r->get_user) || sysreg_hidden(vcpu, r)))
 		r = NULL;
 
@@ -3599,7 +3599,7 @@ static int get_invariant_sys_reg(u64 id, u64 __user *uaddr)
 	r = get_reg_by_id(id, invariant_sys_regs,
 			  ARRAY_SIZE(invariant_sys_regs));
 	if (!r)
-		return -ENOENT;
+		return -EANALENT;
 
 	return put_user(r->val, uaddr);
 }
@@ -3612,7 +3612,7 @@ static int set_invariant_sys_reg(u64 id, u64 __user *uaddr)
 	r = get_reg_by_id(id, invariant_sys_regs,
 			  ARRAY_SIZE(invariant_sys_regs));
 	if (!r)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (get_user(val, uaddr))
 		return -EFAULT;
@@ -3629,23 +3629,23 @@ static int demux_c15_get(struct kvm_vcpu *vcpu, u64 id, void __user *uaddr)
 	u32 val;
 	u32 __user *uval = uaddr;
 
-	/* Fail if we have unknown bits set. */
+	/* Fail if we have unkanalwn bits set. */
 	if (id & ~(KVM_REG_ARCH_MASK|KVM_REG_SIZE_MASK|KVM_REG_ARM_COPROC_MASK
 		   | ((1 << KVM_REG_ARM_COPROC_SHIFT)-1)))
-		return -ENOENT;
+		return -EANALENT;
 
 	switch (id & KVM_REG_ARM_DEMUX_ID_MASK) {
 	case KVM_REG_ARM_DEMUX_ID_CCSIDR:
 		if (KVM_REG_SIZE(id) != 4)
-			return -ENOENT;
+			return -EANALENT;
 		val = (id & KVM_REG_ARM_DEMUX_VAL_MASK)
 			>> KVM_REG_ARM_DEMUX_VAL_SHIFT;
 		if (val >= CSSELR_MAX)
-			return -ENOENT;
+			return -EANALENT;
 
 		return put_user(get_ccsidr(vcpu, val), uval);
 	default:
-		return -ENOENT;
+		return -EANALENT;
 	}
 }
 
@@ -3654,26 +3654,26 @@ static int demux_c15_set(struct kvm_vcpu *vcpu, u64 id, void __user *uaddr)
 	u32 val, newval;
 	u32 __user *uval = uaddr;
 
-	/* Fail if we have unknown bits set. */
+	/* Fail if we have unkanalwn bits set. */
 	if (id & ~(KVM_REG_ARCH_MASK|KVM_REG_SIZE_MASK|KVM_REG_ARM_COPROC_MASK
 		   | ((1 << KVM_REG_ARM_COPROC_SHIFT)-1)))
-		return -ENOENT;
+		return -EANALENT;
 
 	switch (id & KVM_REG_ARM_DEMUX_ID_MASK) {
 	case KVM_REG_ARM_DEMUX_ID_CCSIDR:
 		if (KVM_REG_SIZE(id) != 4)
-			return -ENOENT;
+			return -EANALENT;
 		val = (id & KVM_REG_ARM_DEMUX_VAL_MASK)
 			>> KVM_REG_ARM_DEMUX_VAL_SHIFT;
 		if (val >= CSSELR_MAX)
-			return -ENOENT;
+			return -EANALENT;
 
 		if (get_user(newval, uval))
 			return -EFAULT;
 
 		return set_ccsidr(vcpu, val, newval);
 	default:
-		return -ENOENT;
+		return -EANALENT;
 	}
 }
 
@@ -3687,7 +3687,7 @@ int kvm_sys_reg_get_user(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg,
 
 	r = id_to_sys_reg_desc(vcpu, reg->id, table, num);
 	if (!r || sysreg_hidden_user(vcpu, r))
-		return -ENOENT;
+		return -EANALENT;
 
 	if (r->get_user) {
 		ret = (r->get_user)(vcpu, r, &val);
@@ -3711,7 +3711,7 @@ int kvm_arm_sys_reg_get_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg
 		return demux_c15_get(vcpu, reg->id, uaddr);
 
 	err = get_invariant_sys_reg(reg->id, uaddr);
-	if (err != -ENOENT)
+	if (err != -EANALENT)
 		return err;
 
 	return kvm_sys_reg_get_user(vcpu, reg,
@@ -3731,9 +3731,9 @@ int kvm_sys_reg_set_user(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg,
 
 	r = id_to_sys_reg_desc(vcpu, reg->id, table, num);
 	if (!r || sysreg_hidden_user(vcpu, r))
-		return -ENOENT;
+		return -EANALENT;
 
-	if (sysreg_user_write_ignore(vcpu, r))
+	if (sysreg_user_write_iganalre(vcpu, r))
 		return 0;
 
 	if (r->set_user) {
@@ -3755,7 +3755,7 @@ int kvm_arm_sys_reg_set_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg
 		return demux_c15_set(vcpu, reg->id, uaddr);
 
 	err = set_invariant_sys_reg(reg->id, uaddr);
-	if (err != -ENOENT)
+	if (err != -EANALENT)
 		return err;
 
 	return kvm_sys_reg_set_user(vcpu, reg,
@@ -3810,8 +3810,8 @@ static int walk_one_sys_reg(const struct kvm_vcpu *vcpu,
 			    unsigned int *total)
 {
 	/*
-	 * Ignore registers we trap but don't save,
-	 * and for which no custom user accessor is provided.
+	 * Iganalre registers we trap but don't save,
+	 * and for which anal custom user accessor is provided.
 	 */
 	if (!(rd->reg || rd->get_user))
 		return 0;
@@ -3910,7 +3910,7 @@ int kvm_vm_ioctl_get_reg_writable_masks(struct kvm *kvm, struct reg_mask_range *
 
 		/*
 		 * For ID registers, we return the writable mask. Other feature
-		 * registers return a full 64bit mask. That's not necessary
+		 * registers return a full 64bit mask. That's analt necessary
 		 * compliant with a given revision of the architecture, but the
 		 * RES0/RES1 definitions allow us to do that.
 		 */

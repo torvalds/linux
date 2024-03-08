@@ -7,9 +7,9 @@ config A64FX_DIAG
 	depends on ACPI
 	help
 	  Say Y here if you want to enable diag interrupt on Fujitsu A64FX.
-	  This driver enables BMC's diagnostic requests and enables
+	  This driver enables BMC's diaganalstic requests and enables
 	  A64FX-specific interrupts. This allows administrators to obtain
-	  kernel dumps via diagnostic requests using ipmitool, etc.
+	  kernel dumps via diaganalstic requests using ipmitool, etc.
 
 	  If unsure, say N.
 

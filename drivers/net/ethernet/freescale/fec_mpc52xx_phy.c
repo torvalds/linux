@@ -65,7 +65,7 @@ static int mpc52xx_fec_mdio_write(struct mii_bus *bus, int phy_id, int reg,
 static int mpc52xx_fec_mdio_probe(struct platform_device *of)
 {
 	struct device *dev = &of->dev;
-	struct device_node *np = of->dev.of_node;
+	struct device_analde *np = of->dev.of_analde;
 	struct mii_bus *bus;
 	struct mpc52xx_fec_mdio_priv *priv;
 	struct resource res;
@@ -73,10 +73,10 @@ static int mpc52xx_fec_mdio_probe(struct platform_device *of)
 
 	bus = mdiobus_alloc();
 	if (bus == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (priv == NULL) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_free;
 	}
 
@@ -90,7 +90,7 @@ static int mpc52xx_fec_mdio_probe(struct platform_device *of)
 		goto out_free;
 	priv->regs = ioremap(res.start, resource_size(&res));
 	if (priv->regs == NULL) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_free;
 	}
 

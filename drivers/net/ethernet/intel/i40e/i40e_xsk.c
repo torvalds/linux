@@ -18,11 +18,11 @@ static struct xdp_buff **i40e_rx_bi(struct i40e_ring *rx_ring, u32 idx)
 }
 
 /**
- * i40e_realloc_rx_xdp_bi - reallocate SW ring for either XSK or normal buffer
+ * i40e_realloc_rx_xdp_bi - reallocate SW ring for either XSK or analrmal buffer
  * @rx_ring: Current rx ring
  * @pool_present: is pool for XSK present
  *
- * Try allocating memory and return ENOMEM, if failed to allocate.
+ * Try allocating memory and return EANALMEM, if failed to allocate.
  * If allocation was successful, substitute buffer with allocated one.
  * Returns 0 on success, negative on failure
  */
@@ -33,7 +33,7 @@ static int i40e_realloc_rx_xdp_bi(struct i40e_ring *rx_ring, bool pool_present)
 	void *sw_ring = kcalloc(rx_ring->count, elem_size, GFP_KERNEL);
 
 	if (!sw_ring)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (pool_present) {
 		kfree(rx_ring->rx_bi);
@@ -64,7 +64,7 @@ int i40e_realloc_rx_bi_zc(struct i40e_vsi *vsi, bool zc)
 	for_each_set_bit(q, vsi->af_xdp_zc_qps, vsi->alloc_queue_pairs) {
 		rx_ring = vsi->rx_rings[q];
 		if (i40e_realloc_rx_xdp_bi(rx_ring, zc))
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 	return 0;
 }
@@ -207,7 +207,7 @@ static int i40e_run_xdp_zc(struct i40e_ring *rx_ring, struct xdp_buff *xdp,
 		err = xdp_do_redirect(rx_ring->netdev, xdp, xdp_prog);
 		if (!err)
 			return I40E_XDP_REDIR;
-		if (xsk_uses_need_wakeup(rx_ring->xsk_pool) && err == -ENOBUFS)
+		if (xsk_uses_need_wakeup(rx_ring->xsk_pool) && err == -EANALBUFS)
 			result = I40E_XDP_EXIT;
 		else
 			result = I40E_XDP_CONSUMED;
@@ -302,7 +302,7 @@ static struct sk_buff *i40e_construct_skb_zc(struct i40e_ring *rx_ring,
 
 	/* allocate a skb to store the frags */
 	skb = __napi_alloc_skb(&rx_ring->q_vector->napi, totalsize,
-			       GFP_ATOMIC | __GFP_NOWARN);
+			       GFP_ATOMIC | __GFP_ANALWARN);
 	if (unlikely(!skb))
 		goto out;
 
@@ -332,7 +332,7 @@ static struct sk_buff *i40e_construct_skb_zc(struct i40e_ring *rx_ring,
 
 		memcpy(addr, skb_frag_page(frag), skb_frag_size(frag));
 
-		__skb_fill_page_desc_noacc(skinfo, skinfo->nr_frags++,
+		__skb_fill_page_desc_analacc(skinfo, skinfo->nr_frags++,
 					   addr, 0, skb_frag_size(frag));
 	}
 
@@ -367,10 +367,10 @@ static void i40e_handle_xdp_result_zc(struct i40e_ring *rx_ring,
 		return;
 	}
 	if (xdp_res == I40E_XDP_PASS) {
-		/* NB! We are not checking for errors using
+		/* NB! We are analt checking for errors using
 		 * i40e_test_staterr with
 		 * BIT(I40E_RXD_QW1_ERROR_SHIFT). This is due to that
-		 * SBP is *not* set in PRT_SBPVSI (default not set).
+		 * SBP is *analt* set in PRT_SBPVSI (default analt set).
 		 */
 		skb = i40e_construct_skb_zc(rx_ring, xdp_buff);
 		if (!skb) {
@@ -410,10 +410,10 @@ i40e_add_xsk_frag(struct i40e_ring *rx_ring, struct xdp_buff *first,
 
 	if (unlikely(sinfo->nr_frags == MAX_SKB_FRAGS)) {
 		xsk_buff_free(first);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
-	__skb_fill_page_desc_noacc(sinfo, sinfo->nr_frags++,
+	__skb_fill_page_desc_analacc(sinfo, sinfo->nr_frags++,
 				   virt_to_page(xdp->data_hard_start),
 				   XDP_PACKET_HEADROOM, size);
 	sinfo->xdp_frags_size += size;
@@ -493,7 +493,7 @@ int i40e_clean_rx_irq_zc(struct i40e_ring *rx_ring, int budget)
 		if (++next_to_process == count)
 			next_to_process = 0;
 
-		if (i40e_is_non_eop(rx_ring, rx_desc))
+		if (i40e_is_analn_eop(rx_ring, rx_desc))
 			continue;
 
 		xdp_res = i40e_run_xdp_zc(rx_ring, first, xdp_prog);
@@ -707,7 +707,7 @@ out_xmit:
  * i40e_xsk_wakeup - Implements the ndo_xsk_wakeup
  * @dev: the netdevice
  * @queue_id: queue id to wake up
- * @flags: ignored in our case since we have Rx and Tx in the same NAPI.
+ * @flags: iganalred in our case since we have Rx and Tx in the same NAPI.
  *
  * Returns <0 for errors, 0 otherwise.
  **/
@@ -736,10 +736,10 @@ int i40e_xsk_wakeup(struct net_device *dev, u32 queue_id, u32 flags)
 	ring = vsi->xdp_rings[queue_id];
 
 	/* The idea here is that if NAPI is running, mark a miss, so
-	 * it will run again. If not, trigger an interrupt and
+	 * it will run again. If analt, trigger an interrupt and
 	 * schedule the NAPI from interrupt context. If NAPI would be
-	 * scheduled here, the interrupt affinity would not be
-	 * honored.
+	 * scheduled here, the interrupt affinity would analt be
+	 * hoanalred.
 	 */
 	if (!napi_if_scheduled_mark_missed(&ring->q_vector->napi))
 		i40e_force_wb(vsi, ring->q_vector);

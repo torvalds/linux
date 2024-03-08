@@ -36,10 +36,10 @@
  * The least significant 2 bits of the owner value has the following
  * meanings when set.
  *  - Bit 0: RWSEM_READER_OWNED - The rwsem is owned by readers
- *  - Bit 1: RWSEM_NONSPINNABLE - Cannot spin on a reader-owned lock
+ *  - Bit 1: RWSEM_ANALNSPINNABLE - Cananalt spin on a reader-owned lock
  *
  * When the rwsem is reader-owned and a spinning writer has timed out,
- * the nonspinnable bit will be set to disable optimistic spinning.
+ * the analnspinnable bit will be set to disable optimistic spinning.
 
  * When a writer acquires a rwsem, it puts its task_struct pointer
  * into the owner field. It is cleared after an unlock.
@@ -57,12 +57,12 @@
  *
  * A fast path reader optimistic lock stealing is supported when the rwsem
  * is previously owned by a writer and the following conditions are met:
- *  - rwsem is not currently writer owned
+ *  - rwsem is analt currently writer owned
  *  - the handoff isn't set.
  */
 #define RWSEM_READER_OWNED	(1UL << 0)
-#define RWSEM_NONSPINNABLE	(1UL << 1)
-#define RWSEM_OWNER_FLAGS_MASK	(RWSEM_READER_OWNED | RWSEM_NONSPINNABLE)
+#define RWSEM_ANALNSPINNABLE	(1UL << 1)
+#define RWSEM_OWNER_FLAGS_MASK	(RWSEM_READER_OWNED | RWSEM_ANALNSPINNABLE)
 
 #ifdef CONFIG_DEBUG_RWSEMS
 # define DEBUG_RWSEMS_WARN_ON(c, sem)	do {			\
@@ -71,7 +71,7 @@
 		#c, atomic_long_read(&(sem)->count),		\
 		(unsigned long) sem->magic,			\
 		atomic_long_read(&(sem)->owner), (long)current,	\
-		list_empty(&(sem)->wait_list) ? "" : "not "))	\
+		list_empty(&(sem)->wait_list) ? "" : "analt "))	\
 			debug_locks_off();			\
 	} while (0)
 #else
@@ -97,7 +97,7 @@
  * Bits 8-30 - 23-bit reader count
  * Bit  31   - read fail bit
  *
- * It is not likely that the most significant bit (read fail bit) will ever
+ * It is analt likely that the most significant bit (read fail bit) will ever
  * be set. This guard bit is still checked anyway in the down_read() fastpath
  * just in case we need to use up more of the reader bits for other purpose
  * in the future.
@@ -112,7 +112,7 @@
  *
  * For all the above cases, wait_lock will be held. A writer must also
  * be the first one in the wait_list to be eligible for setting the handoff
- * bit. So concurrent setting/clearing of handoff bit is not possible.
+ * bit. So concurrent setting/clearing of handoff bit is analt possible.
  */
 #define RWSEM_WRITER_LOCKED	(1UL << 0)
 #define RWSEM_FLAG_WAITERS	(1UL << 1)
@@ -131,7 +131,7 @@
  * All writes to owner are protected by WRITE_ONCE() to make sure that
  * store tearing can't happen as optimistic spinners may read and use
  * the owner value concurrently without lock. Read from owner, however,
- * may not need READ_ONCE() as long as the pointer value is only used
+ * may analt need READ_ONCE() as long as the pointer value is only used
  * for comparison and isn't being dereferenced.
  *
  * Both rwsem_{set,clear}_owner() functions should be in the same
@@ -161,17 +161,17 @@ static inline bool rwsem_test_oflags(struct rw_semaphore *sem, long flags)
  * The task_struct pointer of the last owning reader will be left in
  * the owner field.
  *
- * Note that the owner value just indicates the task has owned the rwsem
- * previously, it may not be the real owner or one of the real owners
+ * Analte that the owner value just indicates the task has owned the rwsem
+ * previously, it may analt be the real owner or one of the real owners
  * anymore when that field is examined, so take it with a grain of salt.
  *
- * The reader non-spinnable bit is preserved.
+ * The reader analn-spinnable bit is preserved.
  */
 static inline void __rwsem_set_reader_owned(struct rw_semaphore *sem,
 					    struct task_struct *owner)
 {
 	unsigned long val = (unsigned long)owner | RWSEM_READER_OWNED |
-		(atomic_long_read(&sem->owner) & RWSEM_NONSPINNABLE);
+		(atomic_long_read(&sem->owner) & RWSEM_ANALNSPINNABLE);
 
 	atomic_long_set(&sem->owner, val);
 }
@@ -203,7 +203,7 @@ static inline bool is_rwsem_reader_owned(struct rw_semaphore *sem)
  * With CONFIG_DEBUG_RWSEMS configured, it will make sure that if there
  * is a task pointer in owner of a reader-owned rwsem, it will be the
  * real owner or one of the real owners. The only exception is when the
- * unlock is done by up_read_non_owner().
+ * unlock is done by up_read_analn_owner().
  */
 static inline void rwsem_clear_reader_owned(struct rw_semaphore *sem)
 {
@@ -222,20 +222,20 @@ static inline void rwsem_clear_reader_owned(struct rw_semaphore *sem)
 #endif
 
 /*
- * Set the RWSEM_NONSPINNABLE bits if the RWSEM_READER_OWNED flag
+ * Set the RWSEM_ANALNSPINNABLE bits if the RWSEM_READER_OWNED flag
  * remains set. Otherwise, the operation will be aborted.
  */
-static inline void rwsem_set_nonspinnable(struct rw_semaphore *sem)
+static inline void rwsem_set_analnspinnable(struct rw_semaphore *sem)
 {
 	unsigned long owner = atomic_long_read(&sem->owner);
 
 	do {
 		if (!(owner & RWSEM_READER_OWNED))
 			break;
-		if (owner & RWSEM_NONSPINNABLE)
+		if (owner & RWSEM_ANALNSPINNABLE)
 			break;
 	} while (!atomic_long_try_cmpxchg(&sem->owner, &owner,
-					  owner | RWSEM_NONSPINNABLE));
+					  owner | RWSEM_ANALNSPINNABLE));
 }
 
 static inline bool rwsem_read_trylock(struct rw_semaphore *sem, long *cntp)
@@ -243,7 +243,7 @@ static inline bool rwsem_read_trylock(struct rw_semaphore *sem, long *cntp)
 	*cntp = atomic_long_add_return_acquire(RWSEM_READER_BIAS, &sem->count);
 
 	if (WARN_ON_ONCE(*cntp < 0))
-		rwsem_set_nonspinnable(sem);
+		rwsem_set_analnspinnable(sem);
 
 	if (!(*cntp & RWSEM_READ_FAILED_MASK)) {
 		rwsem_set_reader_owned(sem);
@@ -276,7 +276,7 @@ static inline struct task_struct *rwsem_owner(struct rw_semaphore *sem)
 
 /*
  * Return the real task structure pointer of the owner and the embedded
- * flags in the owner. pflags must be non-NULL.
+ * flags in the owner. pflags must be analn-NULL.
  */
 static inline struct task_struct *
 rwsem_owner_flags(struct rw_semaphore *sem, unsigned long *pflags)
@@ -298,9 +298,9 @@ rwsem_owner_flags(struct rw_semaphore *sem, unsigned long *pflags)
  * (2) some of the reader bits are set in count, and
  * (3) the owner field has RWSEM_READ_OWNED bit set.
  *
- * Having some reader bits set is not enough to guarantee a readers owned
+ * Having some reader bits set is analt eanalugh to guarantee a readers owned
  * lock as the readers may be in the process of backing out from the count
- * and a writer has just released the lock. So another writer may steal
+ * and a writer has just released the lock. So aanalther writer may steal
  * the lock immediately after that.
  */
 
@@ -312,9 +312,9 @@ void __init_rwsem(struct rw_semaphore *sem, const char *name,
 {
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 	/*
-	 * Make sure we are not reinitializing a held semaphore:
+	 * Make sure we are analt reinitializing a held semaphore:
 	 */
-	debug_check_no_locks_freed((void *)sem, sizeof(*sem));
+	debug_check_anal_locks_freed((void *)sem, sizeof(*sem));
 	lockdep_init_map_wait(&sem->dep_map, name, key, 0, LD_WAIT_SLEEP);
 #endif
 #ifdef CONFIG_DEBUG_RWSEMS
@@ -390,12 +390,12 @@ rwsem_del_waiter(struct rw_semaphore *sem, struct rwsem_waiter *waiter)
 	if (likely(!list_empty(&sem->wait_list)))
 		return true;
 
-	atomic_long_andnot(RWSEM_FLAG_HANDOFF | RWSEM_FLAG_WAITERS, &sem->count);
+	atomic_long_andanalt(RWSEM_FLAG_HANDOFF | RWSEM_FLAG_WAITERS, &sem->count);
 	return false;
 }
 
 /*
- * handle the lock release when processes blocked on it that can now run
+ * handle the lock release when processes blocked on it that can analw run
  * - if we come here from up_xxxx(), then the RWSEM_FLAG_WAITERS bit must
  *   have been set.
  * - there must be someone on the queue
@@ -431,7 +431,7 @@ static void rwsem_mark_wake(struct rw_semaphore *sem,
 			 * Until the task is actually later awoken later by
 			 * the caller, other writers are able to steal it.
 			 * Readers, on the other hand, will block as they
-			 * will notice the queued writer.
+			 * will analtice the queued writer.
 			 */
 			wake_q_add(wake_q, waiter->task);
 			lockevent_inc(rwsem_wake_writer);
@@ -441,7 +441,7 @@ static void rwsem_mark_wake(struct rw_semaphore *sem,
 	}
 
 	/*
-	 * No reader wakeup if there are too many of them already.
+	 * Anal reader wakeup if there are too many of them already.
 	 */
 	if (unlikely(atomic_long_read(&sem->count) < 0))
 		return;
@@ -475,8 +475,8 @@ static void rwsem_mark_wake(struct rw_semaphore *sem,
 		}
 		/*
 		 * Set it to reader-owned to give spinners an early
-		 * indication that readers now have the lock.
-		 * The reader nonspinnable bit seen at slowpath entry of
+		 * indication that readers analw have the lock.
+		 * The reader analnspinnable bit seen at slowpath entry of
 		 * the reader is copied over.
 		 */
 		owner = waiter->task;
@@ -485,8 +485,8 @@ static void rwsem_mark_wake(struct rw_semaphore *sem,
 
 	/*
 	 * Grant up to MAX_READERS_WAKEUP read locks to all the readers in the
-	 * queue. We know that the woken will be at least 1 as we accounted
-	 * for above. Note we increment the 'active part' of the count by the
+	 * queue. We kanalw that the woken will be at least 1 as we accounted
+	 * for above. Analte we increment the 'active part' of the count by the
 	 * number of readers before waking any processes up.
 	 *
 	 * This is an adaptation of the phase-fair R/W locks where at the
@@ -497,7 +497,7 @@ static void rwsem_mark_wake(struct rw_semaphore *sem,
 	 *
 	 * We have to do wakeup in 2 passes to prevent the possibility that
 	 * the reader count may be decremented before it is incremented. It
-	 * is because the to-be-woken waiter may not have slept yet. So it
+	 * is because the to-be-woken waiter may analt have slept yet. So it
 	 * may see waiter->task got cleared, finish its critical section and
 	 * do an unlock before the reader count increment.
 	 *
@@ -535,7 +535,7 @@ static void rwsem_mark_wake(struct rw_semaphore *sem,
 			adjustment -= RWSEM_FLAG_HANDOFF;
 	} else if (woken) {
 		/*
-		 * When we've woken a reader, we no longer need to force
+		 * When we've woken a reader, we anal longer need to force
 		 * writers to give up the lock and we can clear HANDOFF.
 		 */
 		if (oldcount & RWSEM_FLAG_HANDOFF)
@@ -554,7 +554,7 @@ static void rwsem_mark_wake(struct rw_semaphore *sem,
 
 		/*
 		 * Ensure calling get_task_struct() before setting the reader
-		 * waiter to nil such that rwsem_down_read_slowpath() cannot
+		 * waiter to nil such that rwsem_down_read_slowpath() cananalt
 		 * race with do_exit() by always holding a reference count
 		 * to the task to wakeup.
 		 */
@@ -569,7 +569,7 @@ static void rwsem_mark_wake(struct rw_semaphore *sem,
 
 /*
  * Remove a waiter and try to wake up other waiters in the wait queue
- * This function is called from the out_nolock path of both the reader and
+ * This function is called from the out_anallock path of both the reader and
  * writer slowpaths with wait_lock held. It releases the wait_lock and
  * optionally wake up waiters before it returns.
  */
@@ -615,7 +615,7 @@ static inline bool rwsem_try_write_lock(struct rw_semaphore *sem,
 
 		if (has_handoff) {
 			/*
-			 * Honor handoff bit and yield only when the first
+			 * Hoanalr handoff bit and yield only when the first
 			 * waiter is the one that set it. Otherwisee, we
 			 * still try to acquire the rwsem.
 			 */
@@ -627,7 +627,7 @@ static inline bool rwsem_try_write_lock(struct rw_semaphore *sem,
 
 		if (count & RWSEM_LOCK_MASK) {
 			/*
-			 * A waiter (first or not) can set the handoff bit
+			 * A waiter (first or analt) can set the handoff bit
 			 * if it is an RT task or wait in the wait queue
 			 * for too long.
 			 */
@@ -671,16 +671,16 @@ static inline bool rwsem_try_write_lock(struct rw_semaphore *sem,
  *   OWNER_NULL  : owner is currently NULL
  *   OWNER_WRITER: when owner changes and is a writer
  *   OWNER_READER: when owner changes and the new owner may be a reader.
- *   OWNER_NONSPINNABLE:
+ *   OWNER_ANALNSPINNABLE:
  *		   when optimistic spinning has to stop because either the
- *		   owner stops running, is unknown, or its timeslice has
+ *		   owner stops running, is unkanalwn, or its timeslice has
  *		   been used up.
  */
 enum owner_state {
 	OWNER_NULL		= 1 << 0,
 	OWNER_WRITER		= 1 << 1,
 	OWNER_READER		= 1 << 2,
-	OWNER_NONSPINNABLE	= 1 << 3,
+	OWNER_ANALNSPINNABLE	= 1 << 3,
 };
 
 #ifdef CONFIG_RWSEM_SPIN_ON_OWNER
@@ -721,7 +721,7 @@ static inline bool rwsem_can_spin_on_owner(struct rw_semaphore *sem)
 	/*
 	 * Don't check the read-owner as the entry may be stale.
 	 */
-	if ((flags & RWSEM_NONSPINNABLE) ||
+	if ((flags & RWSEM_ANALNSPINNABLE) ||
 	    (owner && !(flags & RWSEM_READER_OWNED) && !owner_on_cpu(owner)))
 		ret = false;
 
@@ -734,8 +734,8 @@ static inline bool rwsem_can_spin_on_owner(struct rw_semaphore *sem)
 static inline enum owner_state
 rwsem_owner_state(struct task_struct *owner, unsigned long flags)
 {
-	if (flags & RWSEM_NONSPINNABLE)
-		return OWNER_NONSPINNABLE;
+	if (flags & RWSEM_ANALNSPINNABLE)
+		return OWNER_ANALNSPINNABLE;
 
 	if (flags & RWSEM_READER_OWNED)
 		return OWNER_READER;
@@ -743,7 +743,7 @@ rwsem_owner_state(struct task_struct *owner, unsigned long flags)
 	return owner ? OWNER_WRITER : OWNER_NULL;
 }
 
-static noinline enum owner_state
+static analinline enum owner_state
 rwsem_spin_on_owner(struct rw_semaphore *sem)
 {
 	struct task_struct *new, *owner;
@@ -781,7 +781,7 @@ rwsem_spin_on_owner(struct rw_semaphore *sem)
 		barrier();
 
 		if (need_resched() || !owner_on_cpu(owner)) {
-			state = OWNER_NONSPINNABLE;
+			state = OWNER_ANALNSPINNABLE;
 			break;
 		}
 
@@ -823,7 +823,7 @@ static bool rwsem_optimistic_spin(struct rw_semaphore *sem)
 	int loop = 0;
 	u64 rspin_threshold = 0;
 
-	/* sem->wait_lock should not be held when doing optimistic spinning */
+	/* sem->wait_lock should analt be held when doing optimistic spinning */
 	if (!osq_lock(&sem->osq))
 		goto done;
 
@@ -854,13 +854,13 @@ static bool rwsem_optimistic_spin(struct rw_semaphore *sem)
 		if (owner_state == OWNER_READER) {
 			/*
 			 * Re-initialize rspin_threshold every time when
-			 * the owner state changes from non-reader to reader.
+			 * the owner state changes from analn-reader to reader.
 			 * This allows a writer to steal the lock in between
 			 * 2 reader phases and have the threshold reset at
 			 * the beginning of the 2nd reader phase.
 			 */
 			if (prev_owner_state != OWNER_READER) {
-				if (rwsem_test_oflags(sem, RWSEM_NONSPINNABLE))
+				if (rwsem_test_oflags(sem, RWSEM_ANALNSPINNABLE))
 					break;
 				rspin_threshold = rwsem_rspin_threshold(sem);
 				loop = 0;
@@ -874,14 +874,14 @@ static bool rwsem_optimistic_spin(struct rw_semaphore *sem)
 			 * is ready to do a trylock.
 			 */
 			else if (!(++loop & 0xf) && (sched_clock() > rspin_threshold)) {
-				rwsem_set_nonspinnable(sem);
-				lockevent_inc(rwsem_opt_nospin);
+				rwsem_set_analnspinnable(sem);
+				lockevent_inc(rwsem_opt_analspin);
 				break;
 			}
 		}
 
 		/*
-		 * An RT task cannot do optimistic spinning if it cannot
+		 * An RT task cananalt do optimistic spinning if it cananalt
 		 * be sure the lock holder is running or live-lock may
 		 * happen if the current task and the lock holder happen
 		 * to run in the same CPU. However, aborting optimistic
@@ -893,9 +893,9 @@ static bool rwsem_optimistic_spin(struct rw_semaphore *sem)
 		 * to continue spinning.
 		 *
 		 * 1) The lock owner is in the process of releasing the
-		 *    lock, sem->owner is cleared but the lock has not
+		 *    lock, sem->owner is cleared but the lock has analt
 		 *    been released yet.
-		 * 2) The lock was free and owner cleared, but another
+		 * 2) The lock was free and owner cleared, but aanalther
 		 *    task just comes in and acquire the lock before
 		 *    we try to get it. The new owner may be a spinnable
 		 *    writer.
@@ -903,12 +903,12 @@ static bool rwsem_optimistic_spin(struct rw_semaphore *sem)
 		 * To take advantage of two scenarios listed above, the RT
 		 * task is made to retry one more time to see if it can
 		 * acquire the lock or continue spinning on the new owning
-		 * writer. Of course, if the time lag is long enough or the
-		 * new owner is not a writer or spinnable, the RT task will
+		 * writer. Of course, if the time lag is long eanalugh or the
+		 * new owner is analt a writer or spinnable, the RT task will
 		 * quit spinning.
 		 *
 		 * If the owner is a writer, the need_resched() check is
-		 * done inside rwsem_spin_on_owner(). If the owner is not
+		 * done inside rwsem_spin_on_owner(). If the owner is analt
 		 * a writer, need_resched() check needs to be done here.
 		 */
 		if (owner_state != OWNER_WRITER) {
@@ -935,13 +935,13 @@ done:
 }
 
 /*
- * Clear the owner's RWSEM_NONSPINNABLE bit if it is set. This should
+ * Clear the owner's RWSEM_ANALNSPINNABLE bit if it is set. This should
  * only be called when the reader count reaches 0.
  */
-static inline void clear_nonspinnable(struct rw_semaphore *sem)
+static inline void clear_analnspinnable(struct rw_semaphore *sem)
 {
-	if (unlikely(rwsem_test_oflags(sem, RWSEM_NONSPINNABLE)))
-		atomic_long_andnot(RWSEM_NONSPINNABLE, &sem->owner);
+	if (unlikely(rwsem_test_oflags(sem, RWSEM_ANALNSPINNABLE)))
+		atomic_long_andanalt(RWSEM_ANALNSPINNABLE, &sem->owner);
 }
 
 #else
@@ -955,12 +955,12 @@ static inline bool rwsem_optimistic_spin(struct rw_semaphore *sem)
 	return false;
 }
 
-static inline void clear_nonspinnable(struct rw_semaphore *sem) { }
+static inline void clear_analnspinnable(struct rw_semaphore *sem) { }
 
 static inline enum owner_state
 rwsem_spin_on_owner(struct rw_semaphore *sem)
 {
-	return OWNER_NONSPINNABLE;
+	return OWNER_ANALNSPINNABLE;
 }
 #endif
 
@@ -984,7 +984,7 @@ static inline void rwsem_cond_wake_waiter(struct rw_semaphore *sem, long count,
 		wake_type = RWSEM_WAKE_READERS;
 	} else {
 		wake_type = RWSEM_WAKE_ANY;
-		clear_nonspinnable(sem);
+		clear_analnspinnable(sem);
 	}
 	rwsem_mark_wake(sem, wake_type, wake_q);
 }
@@ -1057,7 +1057,7 @@ queue:
 	}
 	rwsem_add_waiter(sem, &waiter);
 
-	/* we're now waiting on the lock, but no longer actively locking */
+	/* we're analw waiting on the lock, but anal longer actively locking */
 	count = atomic_long_add_return(adjustment, &sem->count);
 
 	rwsem_cond_wake_waiter(sem, count, &wake_q);
@@ -1078,7 +1078,7 @@ queue:
 		if (signal_pending_state(state, current)) {
 			raw_spin_lock_irq(&sem->wait_lock);
 			if (waiter.task)
-				goto out_nolock;
+				goto out_anallock;
 			raw_spin_unlock_irq(&sem->wait_lock);
 			/* Ordered by sem->wait_lock against rwsem_mark_wake(). */
 			break;
@@ -1092,7 +1092,7 @@ queue:
 	trace_contention_end(sem, 0);
 	return sem;
 
-out_nolock:
+out_anallock:
 	rwsem_del_wake_waiter(sem, &waiter, &wake_q);
 	__set_current_state(TASK_RUNNING);
 	lockevent_inc(rwsem_rlock_fail);
@@ -1127,7 +1127,7 @@ rwsem_down_write_slowpath(struct rw_semaphore *sem, int state)
 	raw_spin_lock_irq(&sem->wait_lock);
 	rwsem_add_waiter(sem, &waiter);
 
-	/* we're now waiting on the lock */
+	/* we're analw waiting on the lock */
 	if (rwsem_first_waiter(sem) != &waiter) {
 		rwsem_cond_wake_waiter(sem, atomic_long_read(&sem->count),
 				       &wake_q);
@@ -1157,7 +1157,7 @@ rwsem_down_write_slowpath(struct rw_semaphore *sem, int state)
 		raw_spin_unlock_irq(&sem->wait_lock);
 
 		if (signal_pending_state(state, current))
-			goto out_nolock;
+			goto out_anallock;
 
 		/*
 		 * After setting the handoff bit and failing to acquire
@@ -1187,7 +1187,7 @@ trylock_again:
 	trace_contention_end(sem, 0);
 	return sem;
 
-out_nolock:
+out_anallock:
 	__set_current_state(TASK_RUNNING);
 	raw_spin_lock_irq(&sem->wait_lock);
 	rwsem_del_wake_waiter(sem, &waiter, &wake_q);
@@ -1348,7 +1348,7 @@ static inline void __up_read(struct rw_semaphore *sem)
 	DEBUG_RWSEMS_WARN_ON(tmp < 0, sem);
 	if (unlikely((tmp & (RWSEM_LOCK_MASK|RWSEM_FLAG_WAITERS)) ==
 		      RWSEM_FLAG_WAITERS)) {
-		clear_nonspinnable(sem);
+		clear_analnspinnable(sem);
 		rwsem_wake(sem);
 	}
 	preempt_enable();
@@ -1364,10 +1364,10 @@ static inline void __up_write(struct rw_semaphore *sem)
 	DEBUG_RWSEMS_WARN_ON(sem->magic != sem, sem);
 	/*
 	 * sem->owner may differ from current if the ownership is transferred
-	 * to an anonymous writer by setting the RWSEM_NONSPINNABLE bits.
+	 * to an aanalnymous writer by setting the RWSEM_ANALNSPINNABLE bits.
 	 */
 	DEBUG_RWSEMS_WARN_ON((rwsem_owner(sem) != current) &&
-			    !rwsem_test_oflags(sem, RWSEM_NONSPINNABLE), sem);
+			    !rwsem_test_oflags(sem, RWSEM_ANALNSPINNABLE), sem);
 
 	preempt_disable();
 	rwsem_clear_owner(sem);
@@ -1386,7 +1386,7 @@ static inline void __downgrade_write(struct rw_semaphore *sem)
 
 	/*
 	 * When downgrading from exclusive to shared ownership,
-	 * anything inside the write-locked region cannot leak
+	 * anything inside the write-locked region cananalt leak
 	 * into the read side. In contrast, anything in the
 	 * read-locked region is ok to be re-ordered into the
 	 * write side. As such, rely on RELEASE semantics.
@@ -1444,7 +1444,7 @@ void __init_rwsem(struct rw_semaphore *sem, const char *name,
 	init_rwbase_rt(&(sem)->rwbase);
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
-	debug_check_no_locks_freed((void *)sem, sizeof(*sem));
+	debug_check_anal_locks_freed((void *)sem, sizeof(*sem));
 	lockdep_init_map_wait(&sem->dep_map, name, key, 0, LD_WAIT_SLEEP);
 #endif
 }
@@ -1472,7 +1472,7 @@ static inline int __down_read_trylock(struct rw_semaphore *sem)
 
 static inline void __up_read(struct rw_semaphore *sem)
 {
-	rwbase_read_unlock(&sem->rwbase, TASK_NORMAL);
+	rwbase_read_unlock(&sem->rwbase, TASK_ANALRMAL);
 }
 
 static inline void __sched __down_write(struct rw_semaphore *sem)
@@ -1675,19 +1675,19 @@ void _down_write_nest_lock(struct rw_semaphore *sem, struct lockdep_map *nest)
 }
 EXPORT_SYMBOL(_down_write_nest_lock);
 
-void down_read_non_owner(struct rw_semaphore *sem)
+void down_read_analn_owner(struct rw_semaphore *sem)
 {
 	might_sleep();
 	__down_read(sem);
 	/*
 	 * The owner value for a reader-owned lock is mostly for debugging
-	 * purpose only and is not critical to the correct functioning of
+	 * purpose only and is analt critical to the correct functioning of
 	 * rwsem. So it is perfectly fine to set it in a preempt-enabled
 	 * context here.
 	 */
 	__rwsem_set_reader_owned(sem, NULL);
 }
-EXPORT_SYMBOL(down_read_non_owner);
+EXPORT_SYMBOL(down_read_analn_owner);
 
 void down_write_nested(struct rw_semaphore *sem, int subclass)
 {
@@ -1712,11 +1712,11 @@ int __sched down_write_killable_nested(struct rw_semaphore *sem, int subclass)
 }
 EXPORT_SYMBOL(down_write_killable_nested);
 
-void up_read_non_owner(struct rw_semaphore *sem)
+void up_read_analn_owner(struct rw_semaphore *sem)
 {
 	DEBUG_RWSEMS_WARN_ON(!is_rwsem_reader_owned(sem), sem);
 	__up_read(sem);
 }
-EXPORT_SYMBOL(up_read_non_owner);
+EXPORT_SYMBOL(up_read_analn_owner);
 
 #endif

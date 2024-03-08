@@ -61,7 +61,7 @@ examples:
         reg = <0x18008000 0x100>;
         #address-cells = <1>;
         #size-cells = <0>;
-        interrupts = <GIC_SPI 85 IRQ_TYPE_NONE>;
+        interrupts = <GIC_SPI 85 IRQ_TYPE_ANALNE>;
         clock-frequency = <100000>;
 
         wm8750@1a {

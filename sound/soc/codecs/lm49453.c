@@ -494,7 +494,7 @@ static const DECLARE_TLV_DB_SCALE(port_tlv, -1800, 600, 0);
 static const DECLARE_TLV_DB_SCALE(stn_tlv, -7200, 150, 0);
 
 static const struct snd_kcontrol_new lm49453_sidetone_mixer_controls[] = {
-/* Sidetone supports mono only */
+/* Sidetone supports moanal only */
 SOC_DAPM_SINGLE_TLV("Sidetone ADCL Volume", LM49453_P0_STN_VOL_ADCL_REG,
 		     0, 0x3F, 0, stn_tlv),
 SOC_DAPM_SINGLE_TLV("Sidetone ADCR Volume", LM49453_P0_STN_VOL_ADCR_REG,
@@ -510,7 +510,7 @@ SOC_DAPM_SINGLE_TLV("Sidetone DMIC2R Volume", LM49453_P0_STN_VOL_DMIC2R_REG,
 };
 
 static const struct snd_kcontrol_new lm49453_snd_controls[] = {
-	/* mic1 and mic2 supports mono only */
+	/* mic1 and mic2 supports moanal only */
 	SOC_SINGLE_TLV("Mic1 Volume", LM49453_P0_MICL_REG, 0, 15, 0, mic_tlv),
 	SOC_SINGLE_TLV("Mic2 Volume", LM49453_P0_MICR_REG, 0, 15, 0, mic_tlv),
 
@@ -602,16 +602,16 @@ static const struct snd_soc_dapm_widget lm49453_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("AUXL"),
 	SND_SOC_DAPM_INPUT("AUXR"),
 
-	SND_SOC_DAPM_PGA("PORT1_1_RX", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("PORT1_2_RX", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("PORT1_3_RX", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("PORT1_4_RX", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("PORT1_5_RX", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("PORT1_6_RX", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("PORT1_7_RX", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("PORT1_8_RX", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("PORT2_1_RX", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("PORT2_2_RX", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("PORT1_1_RX", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("PORT1_2_RX", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("PORT1_3_RX", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("PORT1_4_RX", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("PORT1_5_RX", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("PORT1_6_RX", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("PORT1_7_RX", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("PORT1_8_RX", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("PORT2_1_RX", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("PORT2_2_RX", SND_SOC_ANALPM, 0, 0, NULL, 0),
 
 	SND_SOC_DAPM_SUPPLY("AMIC1Bias", LM49453_P0_MICL_REG, 6, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("AMIC2Bias", LM49453_P0_MICR_REG, 6, 0, NULL, 0),
@@ -631,14 +631,14 @@ static const struct snd_soc_dapm_widget lm49453_dapm_widgets[] = {
 			LM49453_P0_DIS_PKVL_FB_REG, 3, 1, NULL, 0),
 
 	/* DAC */
-	SND_SOC_DAPM_DAC("HPL DAC", "Headset", SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_DAC("HPR DAC", "Headset", SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_DAC("LSL DAC", "Speaker", SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_DAC("LSR DAC", "Speaker", SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_DAC("HAL DAC", "Haptic", SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_DAC("HAR DAC", "Haptic", SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_DAC("LOL DAC", "Lineout", SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_DAC("LOR DAC", "Lineout", SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_DAC("HPL DAC", "Headset", SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_DAC("HPR DAC", "Headset", SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_DAC("LSL DAC", "Speaker", SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_DAC("LSR DAC", "Speaker", SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_DAC("HAL DAC", "Haptic", SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_DAC("HAR DAC", "Haptic", SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_DAC("LOL DAC", "Lineout", SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_DAC("LOR DAC", "Lineout", SND_SOC_ANALPM, 0, 0),
 
 
 	SND_SOC_DAPM_PGA("AUXL Input",
@@ -646,27 +646,27 @@ static const struct snd_soc_dapm_widget lm49453_dapm_widgets[] = {
 	SND_SOC_DAPM_PGA("AUXR Input",
 			LM49453_P0_ANALOG_MIXER_ADC_REG, 3, 0, NULL, 0),
 
-	SND_SOC_DAPM_PGA("Sidetone", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("Sidetone", SND_SOC_ANALPM, 0, 0, NULL, 0),
 
 	/* ADC */
-	SND_SOC_DAPM_ADC("DMIC1 Left", "Capture", SND_SOC_NOPM, 1, 0),
-	SND_SOC_DAPM_ADC("DMIC1 Right", "Capture", SND_SOC_NOPM, 1, 0),
-	SND_SOC_DAPM_ADC("DMIC2 Left", "Capture", SND_SOC_NOPM, 1, 0),
-	SND_SOC_DAPM_ADC("DMIC2 Right", "Capture", SND_SOC_NOPM, 1, 0),
+	SND_SOC_DAPM_ADC("DMIC1 Left", "Capture", SND_SOC_ANALPM, 1, 0),
+	SND_SOC_DAPM_ADC("DMIC1 Right", "Capture", SND_SOC_ANALPM, 1, 0),
+	SND_SOC_DAPM_ADC("DMIC2 Left", "Capture", SND_SOC_ANALPM, 1, 0),
+	SND_SOC_DAPM_ADC("DMIC2 Right", "Capture", SND_SOC_ANALPM, 1, 0),
 
-	SND_SOC_DAPM_ADC("ADC Left", "Capture", SND_SOC_NOPM, 1, 0),
-	SND_SOC_DAPM_ADC("ADC Right", "Capture", SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_ADC("ADC Left", "Capture", SND_SOC_ANALPM, 1, 0),
+	SND_SOC_DAPM_ADC("ADC Right", "Capture", SND_SOC_ANALPM, 0, 0),
 
-	SND_SOC_DAPM_MUX("ADCL Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("ADCL Mux", SND_SOC_ANALPM, 0, 0,
 			  &lm49453_adcl_mux_control),
-	SND_SOC_DAPM_MUX("ADCR Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("ADCR Mux", SND_SOC_ANALPM, 0, 0,
 			  &lm49453_adcr_mux_control),
 
 	SND_SOC_DAPM_MUX("Mic1 Input",
-			SND_SOC_NOPM, 0, 0, &lm49453_adcl_mux_control),
+			SND_SOC_ANALPM, 0, 0, &lm49453_adcl_mux_control),
 
 	SND_SOC_DAPM_MUX("Mic2 Input",
-			SND_SOC_NOPM, 0, 0, &lm49453_adcr_mux_control),
+			SND_SOC_ANALPM, 0, 0, &lm49453_adcr_mux_control),
 
 	/* AIF */
 	SND_SOC_DAPM_AIF_IN("PORT1_SDI", NULL, 0,
@@ -680,80 +680,80 @@ static const struct snd_soc_dapm_widget lm49453_dapm_widgets[] = {
 			      LM49453_P0_PULL_CONFIG1_REG, 7, 0),
 
 	/* Port1 TX controls */
-	SND_SOC_DAPM_OUT_DRV("P1_1_TX", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_OUT_DRV("P1_2_TX", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_OUT_DRV("P1_3_TX", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_OUT_DRV("P1_4_TX", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_OUT_DRV("P1_5_TX", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_OUT_DRV("P1_6_TX", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_OUT_DRV("P1_7_TX", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_OUT_DRV("P1_8_TX", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_OUT_DRV("P1_1_TX", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_OUT_DRV("P1_2_TX", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_OUT_DRV("P1_3_TX", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_OUT_DRV("P1_4_TX", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_OUT_DRV("P1_5_TX", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_OUT_DRV("P1_6_TX", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_OUT_DRV("P1_7_TX", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_OUT_DRV("P1_8_TX", SND_SOC_ANALPM, 0, 0, NULL, 0),
 
 	/* Port2 TX controls */
-	SND_SOC_DAPM_OUT_DRV("P2_1_TX", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_OUT_DRV("P2_2_TX", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_OUT_DRV("P2_1_TX", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_OUT_DRV("P2_2_TX", SND_SOC_ANALPM, 0, 0, NULL, 0),
 
 	/* Sidetone Mixer */
-	SND_SOC_DAPM_MIXER("Sidetone Mixer", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Sidetone Mixer", SND_SOC_ANALPM, 0, 0,
 			    lm49453_sidetone_mixer_controls,
 			    ARRAY_SIZE(lm49453_sidetone_mixer_controls)),
 
 	/* DAC MIXERS */
-	SND_SOC_DAPM_MIXER("HPL Mixer", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("HPL Mixer", SND_SOC_ANALPM, 0, 0,
 			    lm49453_headset_left_mixer,
 			    ARRAY_SIZE(lm49453_headset_left_mixer)),
-	SND_SOC_DAPM_MIXER("HPR Mixer", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("HPR Mixer", SND_SOC_ANALPM, 0, 0,
 			    lm49453_headset_right_mixer,
 			    ARRAY_SIZE(lm49453_headset_right_mixer)),
-	SND_SOC_DAPM_MIXER("LOL Mixer", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("LOL Mixer", SND_SOC_ANALPM, 0, 0,
 			    lm49453_lineout_left_mixer,
 			    ARRAY_SIZE(lm49453_lineout_left_mixer)),
-	SND_SOC_DAPM_MIXER("LOR Mixer", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("LOR Mixer", SND_SOC_ANALPM, 0, 0,
 			    lm49453_lineout_right_mixer,
 			    ARRAY_SIZE(lm49453_lineout_right_mixer)),
-	SND_SOC_DAPM_MIXER("LSL Mixer", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("LSL Mixer", SND_SOC_ANALPM, 0, 0,
 			    lm49453_speaker_left_mixer,
 			    ARRAY_SIZE(lm49453_speaker_left_mixer)),
-	SND_SOC_DAPM_MIXER("LSR Mixer", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("LSR Mixer", SND_SOC_ANALPM, 0, 0,
 			    lm49453_speaker_right_mixer,
 			    ARRAY_SIZE(lm49453_speaker_right_mixer)),
-	SND_SOC_DAPM_MIXER("HAL Mixer", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("HAL Mixer", SND_SOC_ANALPM, 0, 0,
 			    lm49453_haptic_left_mixer,
 			    ARRAY_SIZE(lm49453_haptic_left_mixer)),
-	SND_SOC_DAPM_MIXER("HAR Mixer", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("HAR Mixer", SND_SOC_ANALPM, 0, 0,
 			    lm49453_haptic_right_mixer,
 			    ARRAY_SIZE(lm49453_haptic_right_mixer)),
 
 	/* Capture Mixer */
-	SND_SOC_DAPM_MIXER("Port1_1 Mixer", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Port1_1 Mixer", SND_SOC_ANALPM, 0, 0,
 			    lm49453_port1_tx1_mixer,
 			    ARRAY_SIZE(lm49453_port1_tx1_mixer)),
-	SND_SOC_DAPM_MIXER("Port1_2 Mixer", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Port1_2 Mixer", SND_SOC_ANALPM, 0, 0,
 			    lm49453_port1_tx2_mixer,
 			    ARRAY_SIZE(lm49453_port1_tx2_mixer)),
-	SND_SOC_DAPM_MIXER("Port1_3 Mixer", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Port1_3 Mixer", SND_SOC_ANALPM, 0, 0,
 			    lm49453_port1_tx3_mixer,
 			    ARRAY_SIZE(lm49453_port1_tx3_mixer)),
-	SND_SOC_DAPM_MIXER("Port1_4 Mixer", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Port1_4 Mixer", SND_SOC_ANALPM, 0, 0,
 			    lm49453_port1_tx4_mixer,
 			    ARRAY_SIZE(lm49453_port1_tx4_mixer)),
-	SND_SOC_DAPM_MIXER("Port1_5 Mixer", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Port1_5 Mixer", SND_SOC_ANALPM, 0, 0,
 			    lm49453_port1_tx5_mixer,
 			    ARRAY_SIZE(lm49453_port1_tx5_mixer)),
-	SND_SOC_DAPM_MIXER("Port1_6 Mixer", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Port1_6 Mixer", SND_SOC_ANALPM, 0, 0,
 			    lm49453_port1_tx6_mixer,
 			    ARRAY_SIZE(lm49453_port1_tx6_mixer)),
-	SND_SOC_DAPM_MIXER("Port1_7 Mixer", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Port1_7 Mixer", SND_SOC_ANALPM, 0, 0,
 			    lm49453_port1_tx7_mixer,
 			    ARRAY_SIZE(lm49453_port1_tx7_mixer)),
-	SND_SOC_DAPM_MIXER("Port1_8 Mixer", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Port1_8 Mixer", SND_SOC_ANALPM, 0, 0,
 			    lm49453_port1_tx8_mixer,
 			    ARRAY_SIZE(lm49453_port1_tx8_mixer)),
 
-	SND_SOC_DAPM_MIXER("Port2_1 Mixer", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Port2_1 Mixer", SND_SOC_ANALPM, 0, 0,
 			    lm49453_port2_tx1_mixer,
 			    ARRAY_SIZE(lm49453_port2_tx1_mixer)),
-	SND_SOC_DAPM_MIXER("Port2_2 Mixer", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Port2_2 Mixer", SND_SOC_ANALPM, 0, 0,
 			    lm49453_port2_tx2_mixer,
 			    ARRAY_SIZE(lm49453_port2_tx2_mixer)),
 };
@@ -1287,7 +1287,7 @@ static const struct snd_soc_dai_ops lm49453_headset_dai_ops = {
 	.set_sysclk	= lm49453_set_dai_sysclk,
 	.set_fmt	= lm49453_set_dai_fmt,
 	.mute_stream	= lm49453_hp_mute,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 static const struct snd_soc_dai_ops lm49453_speaker_dai_ops = {
@@ -1295,7 +1295,7 @@ static const struct snd_soc_dai_ops lm49453_speaker_dai_ops = {
 	.set_sysclk	= lm49453_set_dai_sysclk,
 	.set_fmt	= lm49453_set_dai_fmt,
 	.mute_stream	= lm49453_ls_mute,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 static const struct snd_soc_dai_ops lm49453_haptic_dai_ops = {
@@ -1303,7 +1303,7 @@ static const struct snd_soc_dai_ops lm49453_haptic_dai_ops = {
 	.set_sysclk	= lm49453_set_dai_sysclk,
 	.set_fmt	= lm49453_set_dai_fmt,
 	.mute_stream	= lm49453_ha_mute,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 static const struct snd_soc_dai_ops lm49453_ep_dai_ops = {
@@ -1311,7 +1311,7 @@ static const struct snd_soc_dai_ops lm49453_ep_dai_ops = {
 	.set_sysclk	= lm49453_set_dai_sysclk,
 	.set_fmt	= lm49453_set_dai_fmt,
 	.mute_stream	= lm49453_ep_mute,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 static const struct snd_soc_dai_ops lm49453_lineout_dai_ops = {
@@ -1319,7 +1319,7 @@ static const struct snd_soc_dai_ops lm49453_lineout_dai_ops = {
 	.set_sysclk	= lm49453_set_dai_sysclk,
 	.set_fmt	= lm49453_set_dai_fmt,
 	.mute_stream	= lm49453_lo_mute,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 /* LM49453 dai structure. */
@@ -1420,7 +1420,7 @@ static int lm49453_i2c_probe(struct i2c_client *i2c)
 				GFP_KERNEL);
 
 	if (lm49453 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(i2c, lm49453);
 

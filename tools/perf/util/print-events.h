@@ -29,7 +29,7 @@ struct print_callbacks {
 	bool (*skip_duplicate_pmus)(void *print_state);
 };
 
-/** Print all events, the default when no options are specified. */
+/** Print all events, the default when anal options are specified. */
 void print_events(const struct print_callbacks *print_cb, void *print_state);
 int print_hwcache_events(const struct print_callbacks *print_cb, void *print_state);
 void print_sdt_events(const struct print_callbacks *print_cb, void *print_state);

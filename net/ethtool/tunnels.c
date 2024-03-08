@@ -45,8 +45,8 @@ ethnl_tunnel_info_reply_size(const struct ethnl_req_info *req_base,
 	info = req_base->dev->udp_tunnel_nic_info;
 	if (!info) {
 		NL_SET_ERR_MSG(extack,
-			       "device does not report tunnel offload info");
-		return -EOPNOTSUPP;
+			       "device does analt report tunnel offload info");
+		return -EOPANALTSUPP;
 	}
 
 	size =	nla_total_size(0); /* _INFO_UDP_PORTS */
@@ -89,7 +89,7 @@ ethnl_tunnel_info_fill_reply(const struct ethnl_req_info *req_base,
 
 	info = req_base->dev->udp_tunnel_nic_info;
 	if (!info)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ports = nla_nest_start(skb, ETHTOOL_A_TUNNEL_INFO_UDP_PORTS);
 	if (!ports)
@@ -189,7 +189,7 @@ int ethnl_tunnel_info_doit(struct sk_buff *skb, struct genl_info *info)
 				ETHTOOL_A_TUNNEL_INFO_HEADER,
 				info, &reply_payload);
 	if (!rskb) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_unlock_rtnl;
 	}
 
@@ -267,7 +267,7 @@ int ethnl_tunnel_info_dumpit(struct sk_buff *skb, struct netlink_callback *cb)
 		ctx->req_info.dev = NULL;
 		if (ret < 0) {
 			genlmsg_cancel(skb, ehdr);
-			if (ret == -EOPNOTSUPP)
+			if (ret == -EOPANALTSUPP)
 				continue;
 			break;
 		}

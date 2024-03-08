@@ -44,7 +44,7 @@ static int dpaa2_ptp_enable(struct ptp_clock_info *ptp,
 		bit = DPRTC_EVENT_PPS;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	err = dprtc_get_irq_mask(mc_dev->mc_io, 0, mc_dev->mc_handle,
@@ -101,7 +101,7 @@ static irqreturn_t dpaa2_ptp_irq_handler_thread(int irq, void *priv)
 				   DPRTC_IRQ_INDEX, &status);
 	if (unlikely(err)) {
 		dev_err(dev, "dprtc_get_irq_status err %d\n", err);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (status & DPRTC_EVENT_PPS) {
@@ -119,7 +119,7 @@ static irqreturn_t dpaa2_ptp_irq_handler_thread(int irq, void *priv)
 				     DPRTC_IRQ_INDEX, status);
 	if (unlikely(err)) {
 		dev_err(dev, "dprtc_clear_irq_status err %d\n", err);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	return IRQ_HANDLED;
@@ -129,13 +129,13 @@ static int dpaa2_ptp_probe(struct fsl_mc_device *mc_dev)
 {
 	struct device *dev = &mc_dev->dev;
 	struct ptp_qoriq *ptp_qoriq;
-	struct device_node *node;
+	struct device_analde *analde;
 	void __iomem *base;
 	int err;
 
 	ptp_qoriq = devm_kzalloc(dev, sizeof(*ptp_qoriq), GFP_KERNEL);
 	if (!ptp_qoriq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = fsl_mc_portal_allocate(mc_dev, 0, &mc_dev->mc_io);
 	if (err) {
@@ -155,17 +155,17 @@ static int dpaa2_ptp_probe(struct fsl_mc_device *mc_dev)
 
 	ptp_qoriq->dev = dev;
 
-	node = of_find_compatible_node(NULL, NULL, "fsl,dpaa2-ptp");
-	if (!node) {
-		err = -ENODEV;
+	analde = of_find_compatible_analde(NULL, NULL, "fsl,dpaa2-ptp");
+	if (!analde) {
+		err = -EANALDEV;
 		goto err_close;
 	}
 
-	dev->of_node = node;
+	dev->of_analde = analde;
 
-	base = of_iomap(node, 0);
+	base = of_iomap(analde, 0);
 	if (!base) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_put;
 	}
 
@@ -179,7 +179,7 @@ static int dpaa2_ptp_probe(struct fsl_mc_device *mc_dev)
 
 	err = request_threaded_irq(ptp_qoriq->irq, NULL,
 				   dpaa2_ptp_irq_handler_thread,
-				   IRQF_NO_SUSPEND | IRQF_ONESHOT,
+				   IRQF_ANAL_SUSPEND | IRQF_ONESHOT,
 				   dev_name(dev), ptp_qoriq);
 	if (err < 0) {
 		dev_err(dev, "devm_request_threaded_irq(): %d\n", err);
@@ -210,7 +210,7 @@ err_free_mc_irq:
 err_unmap:
 	iounmap(base);
 err_put:
-	of_node_put(node);
+	of_analde_put(analde);
 err_close:
 	dprtc_close(mc_dev->mc_io, 0, mc_dev->mc_handle);
 err_free_mcp:

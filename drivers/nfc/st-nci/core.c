@@ -119,7 +119,7 @@ int st_nci_probe(struct llt_ndlc *ndlc, int phy_headroom,
 	info = devm_kzalloc(ndlc->dev,
 			sizeof(struct st_nci_info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	protocols = NFC_PROTO_JEWEL_MASK
 		| NFC_PROTO_MIFARE_MASK
@@ -133,8 +133,8 @@ int st_nci_probe(struct llt_ndlc *ndlc, int phy_headroom,
 	ndlc->ndev = nci_allocate_device(&st_nci_ops, protocols,
 					phy_headroom, phy_tailroom);
 	if (!ndlc->ndev) {
-		pr_err("Cannot allocate nfc ndev\n");
-		return -ENOMEM;
+		pr_err("Cananalt allocate nfc ndev\n");
+		return -EANALMEM;
 	}
 	info->ndlc = ndlc;
 
@@ -142,13 +142,13 @@ int st_nci_probe(struct llt_ndlc *ndlc, int phy_headroom,
 
 	r = st_nci_vendor_cmds_init(ndlc->ndev);
 	if (r) {
-		pr_err("Cannot register proprietary vendor cmds\n");
+		pr_err("Cananalt register proprietary vendor cmds\n");
 		goto err_reg_dev;
 	}
 
 	r = nci_register_device(ndlc->ndev);
 	if (r) {
-		pr_err("Cannot register nfc device to nci core\n");
+		pr_err("Cananalt register nfc device to nci core\n");
 		goto err_reg_dev;
 	}
 

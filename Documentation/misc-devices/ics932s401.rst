@@ -26,11 +26,11 @@ frequency.  If spread spectrum mode is enabled, the driver also reports by what
 percent the clock signal is being spread, which should be between 0 and -0.5%.
 All frequencies are reported in KHz.
 
-The ICS932S401 monitors all inputs continuously. The driver will not read
+The ICS932S401 monitors all inputs continuously. The driver will analt read
 the registers more often than once every other second.
 
 Special Features
 ----------------
 
-The clocks could be reprogrammed to increase system speed.  I will not help you
+The clocks could be reprogrammed to increase system speed.  I will analt help you
 do this, as you risk damaging your system!

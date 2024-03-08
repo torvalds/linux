@@ -43,7 +43,7 @@ static void print_hist(void)
 	for (j = 0; j < MAX_CPU; j++) {
 		hist = &cpu_hist[j];
 
-		/* ignore CPUs without data (maybe offline?) */
+		/* iganalre CPUs without data (maybe offline?) */
 		if (hist->max == 0)
 			continue;
 

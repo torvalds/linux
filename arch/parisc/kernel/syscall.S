@@ -12,8 +12,8 @@
 How does the Linux gateway page on PA-RISC work?
 ------------------------------------------------
 The Linux gateway page on PA-RISC is "special".
-It actually has PAGE_GATEWAY bits set (this is linux terminology; in parisc
-terminology it's Execute, promote to PL0) in the page map.  So anything
+It actually has PAGE_GATEWAY bits set (this is linux termianallogy; in parisc
+termianallogy it's Execute, promote to PL0) in the page map.  So anything
 executing on this page executes with kernel level privilege (there's more to it
 than that: to have this happen, you also have to use a branch with a ,gate
 completer to activate the privilege promotion).  The upshot is that everything
@@ -32,7 +32,7 @@ registers).
 
 #include <asm/asm-offsets.h>
 #include <asm/unistd.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include <asm/page.h>
 #include <asm/psw.h>
 #include <asm/thread_info.h>
@@ -67,7 +67,7 @@ registers).
 	stw	\reg1, 0(%sr2,\reg2)
 	.endm
 
-	/* raise exception if spinlock content is not zero or
+	/* raise exception if spinlock content is analt zero or
 	 * __ARCH_SPIN_LOCK_UNLOCKED_VAL */
 	.macro	spinlock_check spin_val,tmpreg
 #ifdef CONFIG_LIGHTWEIGHT_SPINLOCK_CHECK
@@ -83,7 +83,7 @@ registers).
 	.import syscall_exit_rfi,code
 
 	/* Linux gateway page is aliased to virtual page 0 in the kernel
-	 * address space. Since it is a gateway page it cannot be
+	 * address space. Since it is a gateway page it cananalt be
 	 * dereferenced, so null pointers will still fault. We start
 	 * the actual entry point at 0x100. We put break instructions
 	 * at the beginning of the page to trap null indirect function
@@ -113,7 +113,7 @@ lws_entry:
 	.endr
 
 	/* This function MUST be located at 0xe0 for glibc's threading 
-	mechanism to work. DO NOT MOVE THIS CODE EVER! */
+	mechanism to work. DO ANALT MOVE THIS CODE EVER! */
 set_thread_pointer:
 	gate	.+8, %r0		/* increase privilege */
 	depi	PRIV_USER, 31, 2, %r31	/* Ensure we return into user mode. */
@@ -177,13 +177,13 @@ linux_gateway_entry:
 
 	mtsp	%r0,%sr7			/* get kernel space into sr7 */
 	ssm	PSW_SM_I, %r0			/* enable interrupts */
-	STREGM	%r1,FRAME_SIZE(%r30)		/* save r1 (usp) here for now */
+	STREGM	%r1,FRAME_SIZE(%r30)		/* save r1 (usp) here for analw */
 	mfctl	%cr30,%r1			/* get task ptr in %r1 */
 
 	/* Save some registers for sigcontext and potential task
 	   switch (see entry.S for the details of which ones are
 	   saved/restored).  TASK_PT_PSW is zeroed so we can see whether
-	   a process is on a syscall or not.  For an interrupt the real
+	   a process is on a syscall or analt.  For an interrupt the real
 	   PSW value is stored.  This is needed for gdb and sys_ptrace. */
 	STREG	%r0,  TASK_PT_PSW(%r1)
 	STREG	%r2,  TASK_PT_GR2(%r1)		/* preserve rp */
@@ -225,7 +225,7 @@ linux_gateway_entry:
 	ldo	-16(%r30),%r29			/* Reference param save area */
 	copy	%r19,%r2			/* W bit back to r2 */
 #else
-	/* no need to save these on stack in wide mode because the first 8
+	/* anal need to save these on stack in wide mode because the first 8
 	 * args are passed in registers */
 	stw     %r22, -52(%r30)                 /* 5th argument */
 	stw     %r21, -56(%r30)                 /* 6th argument */
@@ -238,7 +238,7 @@ linux_gateway_entry:
 	and,COND(=) %r1, %r19, %r0
 	b,n	.Ltracesys
 	
-	/* Note!  We cannot use the syscall table that is mapped
+	/* Analte!  We cananalt use the syscall table that is mapped
 	nearby since the gateway page is mapped execute-only. */
 
 #ifdef CONFIG_64BIT
@@ -252,13 +252,13 @@ linux_gateway_entry:
 	load32	sys_call_table, %r19
 #endif	
 	comiclr,>>	__NR_Linux_syscalls, %r20, %r0
-	b,n	.Lsyscall_nosys
+	b,n	.Lsyscall_analsys
 	
 	LDREGX  %r20(%r19), %r19
 
 	/* If this is a sys_rt_sigreturn call, and the signal was received
-	 * when not in_syscall, then we want to return via syscall_exit_rfi,
-	 * not syscall_exit.  Signal no. in r20, in_syscall in r25 (see
+	 * when analt in_syscall, then we want to return via syscall_exit_rfi,
+	 * analt syscall_exit.  Signal anal. in r20, in_syscall in r25 (see
 	 * trampoline code in signal.c).
 	 */
 	ldi	__NR_rt_sigreturn,%r2
@@ -273,16 +273,16 @@ linux_gateway_entry:
 	be      0(%sr7,%r19)
 	ldo	R%syscall_exit_rfi(%r2),%r2
 
-	/* Note!  Because we are not running where we were linked, any
+	/* Analte!  Because we are analt running where we were linked, any
 	calls to functions external to this file must be indirect.  To
 	be safe, we apply the opposite rule to functions within this
 	file, with local labels given to them to ensure correctness. */
 	
-.Lsyscall_nosys:
-syscall_nosys:
+.Lsyscall_analsys:
+syscall_analsys:
 	ldil	L%syscall_exit,%r1
 	be	R%syscall_exit(%sr7,%r1)
-	ldo	-ENOSYS(%r0),%r28		   /* set errno */
+	ldo	-EANALSYS(%r0),%r28		   /* set erranal */
 
 
 /* Warning! This trace code is a virtual duplicate of the code above so be
@@ -295,7 +295,7 @@ tracesys:
 	 * full register save path has been executed.  We check the D
 	 * bit on syscall_return_rfi to determine which registers to
 	 * restore.  An interrupt results in a full PSW saved with the
-	 * C bit set, a non-straced syscall entry results in C and D clear
+	 * C bit set, a analn-straced syscall entry results in C and D clear
 	 * in the saved PSW.
 	 */
 	mfctl	%cr30,%r1			/* get task ptr */
@@ -346,7 +346,7 @@ tracesys:
 	ldo	R%tracesys_next(%r2),%r2
 	
 tracesys_next:
-	/* do_syscall_trace_enter either returned the syscallno, or -1L,
+	/* do_syscall_trace_enter either returned the syscallanal, or -1L,
 	 *  so we skip restoring the PT_GR20 below, since we pulled it from
 	 *  task->thread.regs.gr[20] above.
 	 */
@@ -369,9 +369,9 @@ tracesys_next:
 
 	cmpib,COND(=),n -1,%r20,tracesys_exit /* seccomp may have returned -1 */
 	comiclr,>>	__NR_Linux_syscalls, %r20, %r0
-	b,n	.Ltracesys_nosys
+	b,n	.Ltracesys_analsys
 
-	/* Note!  We cannot use the syscall table that is mapped
+	/* Analte!  We cananalt use the syscall table that is mapped
 	nearby since the gateway page is mapped execute-only. */
 
 #ifdef CONFIG_64BIT
@@ -391,8 +391,8 @@ tracesys_next:
 	LDREGX  %r20(%r19), %r19
 
 	/* If this is a sys_rt_sigreturn call, and the signal was received
-	 * when not in_syscall, then we want to return via syscall_exit_rfi,
-	 * not syscall_exit.  Signal no. in r20, in_syscall in r25 (see
+	 * when analt in_syscall, then we want to return via syscall_exit_rfi,
+	 * analt syscall_exit.  Signal anal. in r20, in_syscall in r25 (see
 	 * trampoline code in signal.c).
 	 */
 	ldi	__NR_rt_sigreturn,%r2
@@ -402,10 +402,10 @@ tracesys_next:
 	be      0(%sr7,%r19)
 	ldo	R%tracesys_exit(%r2),%r2
 
-.Ltracesys_nosys:
-	ldo	-ENOSYS(%r0),%r28		/* set errno */
+.Ltracesys_analsys:
+	ldo	-EANALSYS(%r0),%r28		/* set erranal */
 
-	/* Do *not* call this function on the gateway page, because it
+	/* Do *analt* call this function on the gateway page, because it
 	makes a direct call to syscall_trace. */
 	
 tracesys_exit:
@@ -415,7 +415,7 @@ tracesys_exit:
 #endif
 	ldo	TASK_REGS(%r1),%r26
 	BL	do_syscall_trace_exit,%r2
-	STREG   %r28,TASK_PT_GR28(%r1)          /* save return value now */
+	STREG   %r28,TASK_PT_GR28(%r1)          /* save return value analw */
 	mfctl	%cr30,%r1			/* get task ptr */
 	LDREG   TASK_PT_GR28(%r1), %r28		/* Restore return val. */
 
@@ -455,7 +455,7 @@ tracesys_sigexit:
 	        * In asm input.
 
 		Return registers (caller-saves)
-	        - %r28 (return), %r21 (errno)
+	        - %r28 (return), %r21 (erranal)
 	        * In asm output.
 
 		Caller-saves registers
@@ -467,7 +467,7 @@ tracesys_sigexit:
 		Callee-saves registers
 	        - %r3-%r18
 	        - %r30 (stack pointer)
-	        * Not in asm clobber.
+	        * Analt in asm clobber.
 
 		If userspace is 32-bit:
 		Callee-saves registers
@@ -489,7 +489,7 @@ tracesys_sigexit:
 
 		Error codes returned by entry path:
 
-		ENOSYS - r20 was an invalid LWS number.
+		EANALSYS - r20 was an invalid LWS number.
 
 	*********************************************************/
 lws_start:
@@ -507,7 +507,7 @@ lws_start:
 
         /* Is the lws entry number valid? */
 	comiclr,>>	__NR_lws_entries, %r20, %r0
-	b,n	lws_exit_nosys
+	b,n	lws_exit_analsys
 
 	/* Load table start */
 	ldil	L%lws_table, %r1
@@ -517,7 +517,7 @@ lws_start:
 	/* Jump to lws, lws table pointers already relocated */
 	be,n	0(%sr2,%r21)
 
-lws_exit_noerror:
+lws_exit_analerror:
 	lws_pagefault_enable	%r1,%r21
 	ldi	__ARCH_SPIN_LOCK_UNLOCKED_VAL, %r21
 	stw,ma	%r21, 0(%sr2,%r20)
@@ -545,8 +545,8 @@ lws_fault:
 	b	lws_exit
 	ldo	-EFAULT(%r0),%r21
 
-lws_exit_nosys:
-	ldo	-ENOSYS(%r0),%r21
+lws_exit_analsys:
+	ldo	-EANALSYS(%r0),%r21
 	/* Fall through: Return to userspace */
 
 lws_exit:
@@ -557,7 +557,7 @@ lws_exit:
 	 * of sp.  Extract it and reset W if it is zero */
 	extrd,u,*<>	%r30,63,1,%r1
 	rsm	PSW_SM_W, %r0
-	/* now reset the lowest bit of sp if it was set */
+	/* analw reset the lowest bit of sp if it was set */
 	xor	%r30,%r1,%r30
 #endif
 	be,n	0(%sr7, %r31)
@@ -591,11 +591,11 @@ lws_compare_and_swap64:
 #ifdef CONFIG_64BIT
 	b,n	lws_compare_and_swap
 #else
-	/* If we are not a 64-bit kernel, then we don't
+	/* If we are analt a 64-bit kernel, then we don't
 	 * have 64-bit input registers, and calling
-	 * the 64-bit LWS CAS returns ENOSYS.
+	 * the 64-bit LWS CAS returns EANALSYS.
 	 */
-	b,n	lws_exit_nosys
+	b,n	lws_exit_analsys
 #endif
 
 	/* ELF32/ELF64 Process entry path */
@@ -646,7 +646,7 @@ lws_compare_and_swap:
 		return prev;
 	*/
 
-	/* NOTES:
+	/* ANALTES:
 		This all works because intr_do_signal
 		and schedule both check the return iasq
 		and see that we are on the kernel page
@@ -659,7 +659,7 @@ lws_compare_and_swap:
 3:	ldw	0(%r26), %r28
 	sub,<>	%r28, %r25, %r0
 4:	stw	%r24, 0(%r26)
-	b,n	lws_exit_noerror
+	b,n	lws_exit_analerror
 
 	/* A fault occurred on load or stbys,e store */
 5:	b,n	lws_fault
@@ -674,14 +674,14 @@ lws_compare_and_swap:
 
 	/***************************************************
 		New CAS implementation which uses pointers and variable size
-		information. The value pointed by old and new MUST NOT change
+		information. The value pointed by old and new MUST ANALT change
 		while performing CAS. The lock only protects the value at %r26.
 
 		%r26 - Address to examine
 		%r25 - Pointer to the value to check (old)
 		%r24 - Pointer to the value to set (new)
 		%r23 - Size of the variable (0/1/2/3 for 8/16/32/64 bit)
-		%r28 - Return non-zero on failure
+		%r28 - Return analn-zero on failure
 		%r21 - Kernel error code
 
 		%r21 returns the following error codes:
@@ -712,43 +712,43 @@ lws_compare_and_swap_2:
 cas2_begin:
 	/* Check the validity of the size pointer */
 	subi,>>= 3, %r23, %r0
-	b,n	lws_exit_nosys
+	b,n	lws_exit_analsys
 
 	/* Jump to the functions which will load the old and new values into
 	   registers depending on the their size */
 	shlw	%r23, 2, %r29
 	blr	%r29, %r0
-	nop
+	analp
 
 	/* 8-bit load */
 1:	ldb	0(%r25), %r25
 	b	cas2_lock_start
 2:	ldb	0(%r24), %r24
-	nop
-	nop
-	nop
-	nop
-	nop
+	analp
+	analp
+	analp
+	analp
+	analp
 
 	/* 16-bit load */
 3:	ldh	0(%r25), %r25
 	b	cas2_lock_start
 4:	ldh	0(%r24), %r24
-	nop
-	nop
-	nop
-	nop
-	nop
+	analp
+	analp
+	analp
+	analp
+	analp
 
 	/* 32-bit load */
 5:	ldw	0(%r25), %r25
 	b	cas2_lock_start
 6:	ldw	0(%r24), %r24
-	nop
-	nop
-	nop
-	nop
-	nop
+	analp
+	analp
+	analp
+	analp
+	analp
 
 	/* 64-bit load */
 #ifdef CONFIG_64BIT
@@ -800,7 +800,7 @@ cas2_lock_start:
 		return prev;
 	*/
 
-	/* NOTES:
+	/* ANALTES:
 		This all works because intr_do_signal
 		and schedule both check the return iasq
 		and see that we are on the kernel page
@@ -812,60 +812,60 @@ cas2_lock_start:
 
 	/* Jump to the correct function */
 	blr	%r29, %r0
-	/* Set %r28 as non-zero for now */
+	/* Set %r28 as analn-zero for analw */
 	ldo	1(%r0),%r28
 
 	/* 8-bit CAS */
 12:	ldb	0(%r26), %r29
 	sub,=	%r29, %r25, %r0
-	b,n	lws_exit_noerror
+	b,n	lws_exit_analerror
 13:	stb	%r24, 0(%r26)
-	b	lws_exit_noerror
+	b	lws_exit_analerror
 	copy	%r0, %r28
-	nop
-	nop
+	analp
+	analp
 
 	/* 16-bit CAS */
 14:	ldh	0(%r26), %r29
 	sub,=	%r29, %r25, %r0
-	b,n	lws_exit_noerror
+	b,n	lws_exit_analerror
 15:	sth	%r24, 0(%r26)
-	b	lws_exit_noerror
+	b	lws_exit_analerror
 	copy	%r0, %r28
-	nop
-	nop
+	analp
+	analp
 
 	/* 32-bit CAS */
 16:	ldw	0(%r26), %r29
 	sub,=	%r29, %r25, %r0
-	b,n	lws_exit_noerror
+	b,n	lws_exit_analerror
 17:	stw	%r24, 0(%r26)
-	b	lws_exit_noerror
+	b	lws_exit_analerror
 	copy	%r0, %r28
-	nop
-	nop
+	analp
+	analp
 
 	/* 64-bit CAS */
 #ifdef CONFIG_64BIT
 18:	ldd	0(%r26), %r29
 	sub,*=	%r29, %r25, %r0
-	b,n	lws_exit_noerror
+	b,n	lws_exit_analerror
 19:	std	%r24, 0(%r26)
 	copy	%r0, %r28
 #else
 	/* Compare first word */
 18:	ldw	0(%r26), %r29
 	sub,=	%r29, %r22, %r0
-	b,n	lws_exit_noerror
+	b,n	lws_exit_analerror
 	/* Compare second word */
 19:	ldw	4(%r26), %r29
 	sub,=	%r29, %r23, %r0
-	b,n	lws_exit_noerror
+	b,n	lws_exit_analerror
 	/* Perform the store */
 20:	fstdx	%fr4, 0(%r26)
 	copy	%r0, %r28
 #endif
-	b	lws_exit_noerror
+	b	lws_exit_analerror
 	copy	%r0, %r28
 
 	/* A fault occurred on load or stbys,e store */
@@ -907,7 +907,7 @@ cas2_lock_start:
 		%r25 - Size of the variable (0/1/2/3 for 8/16/32/64 bit)
 		%r24 - Address of new value
 		%r23 - Address of old value
-		%r28 - Return non-zero on failure
+		%r28 - Return analn-zero on failure
 		%r21 - Kernel error code
 
 		%r21 returns the following error codes:
@@ -939,13 +939,13 @@ lws_atomic_xchg:
 atomic_xchg_begin:
 	/* Check the validity of the size pointer */
 	subi,>>= 3, %r25, %r0
-	b,n	lws_exit_nosys
+	b,n	lws_exit_analsys
 
 	/* Jump to the functions which will load the old and new values into
 	   registers depending on the their size */
 	shlw	%r25, 2, %r1
 	blr	%r1, %r0
-	nop
+	analp
 
 	/* Perform exception checks */
 
@@ -955,9 +955,9 @@ atomic_xchg_begin:
 	depi_safe	0, 31, 2, %r20
 	b	atomic_xchg_start
 2:	stbys,e	%r0, 0(%r20)
-	nop
-	nop
-	nop
+	analp
+	analp
+	analp
 
 	/* 16-bit exchange */
 3:	ldh	0(%r24), %r20
@@ -965,19 +965,19 @@ atomic_xchg_begin:
 	depi_safe	0, 31, 2, %r20
 	b	atomic_xchg_start
 4:	stbys,e	%r0, 0(%r20)
-	nop
-	nop
-	nop
+	analp
+	analp
+	analp
 
 	/* 32-bit exchange */
 5:	ldw	0(%r24), %r20
 	b	atomic_xchg_start
 6:	stbys,e	%r0, 0(%r23)
-	nop
-	nop
-	nop
-	nop
-	nop
+	analp
+	analp
+	analp
+	analp
+	analp
 
 	/* 64-bit exchange */
 #ifdef CONFIG_64BIT
@@ -1023,7 +1023,7 @@ atomic_xchg_start:
 	/* Disable page faults to prevent sleeping in critical region */
 	lws_pagefault_disable	%r21,%r28
 
-	/* NOTES:
+	/* ANALTES:
 		This all works because intr_do_signal
 		and schedule both check the return iasq
 		and see that we are on the kernel page
@@ -1035,7 +1035,7 @@ atomic_xchg_start:
 
 	/* Jump to the correct function */
 	blr	%r1, %r0
-	/* Set %r28 as non-zero for now */
+	/* Set %r28 as analn-zero for analw */
 	ldo	1(%r0),%r28
 
 	/* 8-bit exchange */
@@ -1043,30 +1043,30 @@ atomic_xchg_start:
 15:	stb	%r1, 0(%r23)
 15:	ldb	0(%r24), %r1
 17:	stb	%r1, 0(%r26)
-	b	lws_exit_noerror
+	b	lws_exit_analerror
 	copy	%r0, %r28
-	nop
-	nop
+	analp
+	analp
 
 	/* 16-bit exchange */
 18:	ldh	0(%r26), %r1
 19:	sth	%r1, 0(%r23)
 20:	ldh	0(%r24), %r1
 21:	sth	%r1, 0(%r26)
-	b	lws_exit_noerror
+	b	lws_exit_analerror
 	copy	%r0, %r28
-	nop
-	nop
+	analp
+	analp
 
 	/* 32-bit exchange */
 22:	ldw	0(%r26), %r1
 23:	stw	%r1, 0(%r23)
 24:	ldw	0(%r24), %r1
 25:	stw	%r1, 0(%r26)
-	b	lws_exit_noerror
+	b	lws_exit_analerror
 	copy	%r0, %r28
-	nop
-	nop
+	analp
+	analp
 
 	/* 64-bit exchange */
 #ifdef CONFIG_64BIT
@@ -1080,7 +1080,7 @@ atomic_xchg_start:
 28:	flddx	0(%r24), %fr4
 29:	fstdx	%fr4, 0(%r26)
 #endif
-	b	lws_exit_noerror
+	b	lws_exit_analerror
 	copy	%r0, %r28
 
 	/* A fault occurred on load or stbys,e store */
@@ -1126,7 +1126,7 @@ atomic_xchg_start:
 		%r26 - Address to store
 		%r25 - Size of the variable (0/1/2/3 for 8/16/32/64 bit)
 		%r24 - Address of value to store
-		%r28 - Return non-zero on failure
+		%r28 - Return analn-zero on failure
 		%r21 - Kernel error code
 
 		%r21 returns the following error codes:
@@ -1157,31 +1157,31 @@ lws_atomic_store:
 atomic_store_begin:
 	/* Check the validity of the size pointer */
 	subi,>>= 3, %r25, %r0
-	b,n	lws_exit_nosys
+	b,n	lws_exit_analsys
 
 	shlw	%r25, 1, %r1
 	blr	%r1, %r0
-	nop
+	analp
 
 	/* Perform exception checks */
 
 	/* 8-bit store */
 1:	ldb	0(%r24), %r20
 	b,n	atomic_store_start
-	nop
-	nop
+	analp
+	analp
 
 	/* 16-bit store */
 2:	ldh	0(%r24), %r20
 	b,n	atomic_store_start
-	nop
-	nop
+	analp
+	analp
 
 	/* 32-bit store */
 3:	ldw	0(%r24), %r20
 	b,n	atomic_store_start
-	nop
-	nop
+	analp
+	analp
 
 	/* 64-bit store */
 #ifdef CONFIG_64BIT
@@ -1222,7 +1222,7 @@ atomic_store_start:
 	/* Disable page faults to prevent sleeping in critical region */
 	lws_pagefault_disable	%r21,%r28
 
-	/* NOTES:
+	/* ANALTES:
 		This all works because intr_do_signal
 		and schedule both check the return iasq
 		and see that we are on the kernel page
@@ -1234,25 +1234,25 @@ atomic_store_start:
 
 	/* Jump to the correct function */
 	blr	%r1, %r0
-	/* Set %r28 as non-zero for now */
+	/* Set %r28 as analn-zero for analw */
 	ldo	1(%r0),%r28
 
 	/* 8-bit store */
 9:	ldb	0(%r24), %r1
 10:	stb	%r1, 0(%r26)
-	b	lws_exit_noerror
+	b	lws_exit_analerror
 	copy	%r0, %r28
 
 	/* 16-bit store */
 11:	ldh	0(%r24), %r1
 12:	sth	%r1, 0(%r26)
-	b	lws_exit_noerror
+	b	lws_exit_analerror
 	copy	%r0, %r28
 
 	/* 32-bit store */
 13:	ldw	0(%r24), %r1
 14:	stw	%r1, 0(%r26)
-	b	lws_exit_noerror
+	b	lws_exit_analerror
 	copy	%r0, %r28
 
 	/* 64-bit store */
@@ -1263,7 +1263,7 @@ atomic_store_start:
 15:	flddx	0(%r24), %fr4
 16:	fstdx	%fr4, 0(%r26)
 #endif
-	b	lws_exit_noerror
+	b	lws_exit_analerror
 	copy	%r0, %r28
 
 	/* A fault occurred on load or stbys,e store */
@@ -1290,7 +1290,7 @@ atomic_store_start:
 	ASM_EXCEPTIONTABLE_ENTRY(15b-linux_gateway_page, 31b-linux_gateway_page)
 	ASM_EXCEPTIONTABLE_ENTRY(16b-linux_gateway_page, 31b-linux_gateway_page)
 
-	/* Make sure nothing else is placed on this page */
+	/* Make sure analthing else is placed on this page */
 	.align PAGE_SIZE
 END(linux_gateway_page)
 ENTRY(end_linux_gateway_page)
@@ -1337,7 +1337,7 @@ END(sys_call_table64)
 		All light-weight-syscall atomic operations 
 		will use this set of locks 
 
-		NOTE: The lws_lock_start symbol must be
+		ANALTE: The lws_lock_start symbol must be
 		at least 16-byte aligned for safe use
 		with ldcw.
 	*/

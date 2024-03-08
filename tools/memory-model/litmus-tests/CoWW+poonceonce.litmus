@@ -3,7 +3,7 @@ C CoWW+poonceonce
 (*
  * Result: Never
  *
- * Test of write-write coherence, that is, whether or not two successive
+ * Test of write-write coherence, that is, whether or analt two successive
  * writes to the same variable are ordered.
  *)
 

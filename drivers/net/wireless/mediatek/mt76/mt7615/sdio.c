@@ -106,11 +106,11 @@ static int mt7663s_probe(struct sdio_func *func,
 	ops = devm_kmemdup(&func->dev, &mt7615_ops, sizeof(mt7615_ops),
 			   GFP_KERNEL);
 	if (!ops)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mdev = mt76_alloc_device(&func->dev, sizeof(*dev), ops, &drv_ops);
 	if (!mdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev = container_of(mdev, struct mt7615_dev, mt76);
 
@@ -136,7 +136,7 @@ static int mt7663s_probe(struct sdio_func *func,
 					    sizeof(struct mt7663s_intr),
 					    GFP_KERNEL);
 	if (!mdev->sdio.intr_data) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error;
 	}
 

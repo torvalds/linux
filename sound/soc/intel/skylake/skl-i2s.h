@@ -50,7 +50,7 @@ struct skl_i2s_config_mclk_ext {
 } __packed;
 
 struct skl_i2s_config_blob_signature {
-	u32 minor_ver : 8;
+	u32 mianalr_ver : 8;
 	u32 major_ver : 8;
 	u32 resvdz : 8;
 	u32 signature : 8;

@@ -219,7 +219,7 @@ static int hi3660_pcie_phy_start(struct hi3660_pcie_phy *phy)
 	usleep_range(PIPE_CLK_WAIT_MIN, PIPE_CLK_WAIT_MAX);
 	reg_val = kirin_apb_phy_readl(phy, PCIE_APB_PHY_STATUS0);
 	if (reg_val & PIPE_CLK_STABLE) {
-		dev_err(dev, "PIPE clk is not stable\n");
+		dev_err(dev, "PIPE clk is analt stable\n");
 		return -EINVAL;
 	}
 
@@ -327,7 +327,7 @@ static int hi3660_pcie_phy_init(struct platform_device *pdev,
 
 	phy = devm_kzalloc(dev, sizeof(*phy), GFP_KERNEL);
 	if (!phy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pcie->phy_priv = phy;
 	phy->dev = dev;
@@ -352,7 +352,7 @@ static int hi3660_pcie_phy_power_off(struct kirin_pcie *pcie)
 }
 
 /*
- * The non-PHY part starts here
+ * The analn-PHY part starts here
  */
 
 static const struct regmap_config pcie_kirin_regmap_conf = {
@@ -381,7 +381,7 @@ static int kirin_pcie_get_gpio_enable(struct kirin_pcie *pcie,
 	pcie->n_gpio_clkreq = ret;
 
 	for (i = 0; i < pcie->n_gpio_clkreq; i++) {
-		pcie->gpio_id_clkreq[i] = of_get_named_gpio(dev->of_node,
+		pcie->gpio_id_clkreq[i] = of_get_named_gpio(dev->of_analde,
 						    "hisilicon,clken-gpios", i);
 		if (pcie->gpio_id_clkreq[i] < 0)
 			return pcie->gpio_id_clkreq[i];
@@ -389,7 +389,7 @@ static int kirin_pcie_get_gpio_enable(struct kirin_pcie *pcie,
 		pcie->clkreq_names[i] = devm_kasprintf(dev, GFP_KERNEL,
 						       "pcie_clkreq_%d", i);
 		if (!pcie->clkreq_names[i])
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	return 0;
@@ -397,14 +397,14 @@ static int kirin_pcie_get_gpio_enable(struct kirin_pcie *pcie,
 
 static int kirin_pcie_parse_port(struct kirin_pcie *pcie,
 				 struct platform_device *pdev,
-				 struct device_node *node)
+				 struct device_analde *analde)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *parent, *child;
+	struct device_analde *parent, *child;
 	int ret, slot, i;
 
-	for_each_available_child_of_node(node, parent) {
-		for_each_available_child_of_node(parent, child) {
+	for_each_available_child_of_analde(analde, parent) {
+		for_each_available_child_of_analde(parent, child) {
 			i = pcie->num_slots;
 
 			pcie->gpio_id_reset[i] = of_get_named_gpio(child,
@@ -416,13 +416,13 @@ static int kirin_pcie_parse_port(struct kirin_pcie *pcie,
 			if (pcie->num_slots > MAX_PCI_SLOTS) {
 				dev_err(dev, "Too many PCI slots!\n");
 				ret = -EINVAL;
-				goto put_node;
+				goto put_analde;
 			}
 
 			ret = of_pci_get_devfn(child);
 			if (ret < 0) {
 				dev_err(dev, "failed to parse devfn: %d\n", ret);
-				goto put_node;
+				goto put_analde;
 			}
 
 			slot = PCI_SLOT(ret);
@@ -431,17 +431,17 @@ static int kirin_pcie_parse_port(struct kirin_pcie *pcie,
 							      "pcie_perst_%d",
 							      slot);
 			if (!pcie->reset_names[i]) {
-				ret = -ENOMEM;
-				goto put_node;
+				ret = -EANALMEM;
+				goto put_analde;
 			}
 		}
 	}
 
 	return 0;
 
-put_node:
-	of_node_put(child);
-	of_node_put(parent);
+put_analde:
+	of_analde_put(child);
+	of_analde_put(parent);
 	return ret;
 }
 
@@ -449,7 +449,7 @@ static long kirin_pcie_get_resource(struct kirin_pcie *kirin_pcie,
 				    struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *child, *node = dev->of_node;
+	struct device_analde *child, *analde = dev->of_analde;
 	void __iomem *apb_base;
 	int ret;
 
@@ -463,13 +463,13 @@ static long kirin_pcie_get_resource(struct kirin_pcie *kirin_pcie,
 		return PTR_ERR(kirin_pcie->apb);
 
 	/* pcie internal PERST# gpio */
-	kirin_pcie->gpio_id_dwc_perst = of_get_named_gpio(dev->of_node,
+	kirin_pcie->gpio_id_dwc_perst = of_get_named_gpio(dev->of_analde,
 							  "reset-gpios", 0);
 	if (kirin_pcie->gpio_id_dwc_perst == -EPROBE_DEFER) {
 		return -EPROBE_DEFER;
 	} else if (!gpio_is_valid(kirin_pcie->gpio_id_dwc_perst)) {
 		dev_err(dev, "unable to get a valid gpio pin\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = kirin_pcie_get_gpio_enable(kirin_pcie, pdev);
@@ -477,16 +477,16 @@ static long kirin_pcie_get_resource(struct kirin_pcie *kirin_pcie,
 		return ret;
 
 	/* Parse OF children */
-	for_each_available_child_of_node(node, child) {
+	for_each_available_child_of_analde(analde, child) {
 		ret = kirin_pcie_parse_port(kirin_pcie, pdev, child);
 		if (ret)
-			goto put_node;
+			goto put_analde;
 	}
 
 	return 0;
 
-put_node:
-	of_node_put(child);
+put_analde:
+	of_analde_put(child);
 	return ret;
 }
 
@@ -524,7 +524,7 @@ static int kirin_pcie_rd_own_conf(struct pci_bus *bus, unsigned int devfn,
 	struct dw_pcie *pci = to_dw_pcie_from_pp(bus->sysdata);
 
 	if (PCI_SLOT(devfn))
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	*val = dw_pcie_read_dbi(pci, where, size);
 	return PCIBIOS_SUCCESSFUL;
@@ -536,7 +536,7 @@ static int kirin_pcie_wr_own_conf(struct pci_bus *bus, unsigned int devfn,
 	struct dw_pcie *pci = to_dw_pcie_from_pp(bus->sysdata);
 
 	if (PCI_SLOT(devfn))
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	dw_pcie_write_dbi(pci, where, size, val);
 	return PCIBIOS_SUCCESSFUL;
@@ -632,7 +632,7 @@ static int kirin_pcie_gpio_request(struct kirin_pcie *kirin_pcie,
 		if (!gpio_is_valid(kirin_pcie->gpio_id_reset[i])) {
 			dev_err(dev, "unable to get a valid %s gpio\n",
 				kirin_pcie->reset_names[i]);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		ret = devm_gpio_request(dev, kirin_pcie->gpio_id_reset[i],
@@ -645,7 +645,7 @@ static int kirin_pcie_gpio_request(struct kirin_pcie *kirin_pcie,
 		if (!gpio_is_valid(kirin_pcie->gpio_id_clkreq[i])) {
 			dev_err(dev, "unable to get a valid %s gpio\n",
 				kirin_pcie->clkreq_names[i]);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		ret = devm_gpio_request(dev, kirin_pcie->gpio_id_clkreq[i],
@@ -703,7 +703,7 @@ static int kirin_pcie_power_on(struct platform_device *pdev,
 		if (ret)
 			return ret;
 	} else {
-		kirin_pcie->phy = devm_of_phy_get(dev, dev->of_node, NULL);
+		kirin_pcie->phy = devm_of_phy_get(dev, dev->of_analde, NULL);
 		if (IS_ERR(kirin_pcie->phy))
 			return PTR_ERR(kirin_pcie->phy);
 
@@ -773,8 +773,8 @@ static int kirin_pcie_probe(struct platform_device *pdev)
 	struct dw_pcie *pci;
 	int ret;
 
-	if (!dev->of_node) {
-		dev_err(dev, "NULL node\n");
+	if (!dev->of_analde) {
+		dev_err(dev, "NULL analde\n");
 		return -EINVAL;
 	}
 
@@ -786,11 +786,11 @@ static int kirin_pcie_probe(struct platform_device *pdev)
 
 	kirin_pcie = devm_kzalloc(dev, sizeof(struct kirin_pcie), GFP_KERNEL);
 	if (!kirin_pcie)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pci = devm_kzalloc(dev, sizeof(*pci), GFP_KERNEL);
 	if (!pci)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pci->dev = dev;
 	pci->ops = &kirin_dw_pcie_ops;

@@ -25,11 +25,11 @@
  * much all hardware is replicated per-tile, although certain responsibilities
  * like PCI communication, reporting of interrupts to the OS, etc. are handled
  * solely by the "root tile."  A multi-tile platform takes care of tying the
- * tiles together in a way such that interrupt notifications from remote tiles
+ * tiles together in a way such that interrupt analtifications from remote tiles
  * are forwarded to the root tile, the per-tile vram is combined into a single
  * address space, etc.
  *
- * In contrast, a "GT" (which officially stands for "Graphics Technology") is
+ * In contrast, a "GT" (which officially stands for "Graphics Techanallogy") is
  * the subset of a GPU/tile that is responsible for implementing graphics
  * and/or media operations.  The GT is where a lot of the driver implementation
  * happens since it's where the hardware engines, the execution units, and the
@@ -77,9 +77,9 @@
  * @tile: Tile to perform allocations for
  *
  * Allocates various per-tile data structures using DRM-managed allocations.
- * Does not touch the hardware.
+ * Does analt touch the hardware.
  *
- * Returns -ENOMEM if allocations fail, otherwise 0.
+ * Returns -EANALMEM if allocations fail, otherwise 0.
  */
 static int xe_tile_alloc(struct xe_tile *tile)
 {
@@ -88,12 +88,12 @@ static int xe_tile_alloc(struct xe_tile *tile)
 	tile->mem.ggtt = drmm_kzalloc(drm, sizeof(*tile->mem.ggtt),
 				      GFP_KERNEL);
 	if (!tile->mem.ggtt)
-		return -ENOMEM;
+		return -EANALMEM;
 	tile->mem.ggtt->tile = tile;
 
 	tile->mem.vram_mgr = drmm_kzalloc(drm, sizeof(*tile->mem.vram_mgr), GFP_KERNEL);
 	if (!tile->mem.vram_mgr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -105,7 +105,7 @@ static int xe_tile_alloc(struct xe_tile *tile)
  * @id: Tile ID
  *
  * Initializes per-tile resources that don't require any interactions with the
- * hardware or any knowledge about the Graphics/Media IP version.
+ * hardware or any kanalwledge about the Graphics/Media IP version.
  *
  * Returns: 0 on success, negative error code on error.
  */
@@ -143,20 +143,20 @@ static int tile_ttm_mgr_init(struct xe_tile *tile)
 }
 
 /**
- * xe_tile_init_noalloc - Init tile up to the point where allocations can happen.
+ * xe_tile_init_analalloc - Init tile up to the point where allocations can happen.
  * @tile: The tile to initialize.
  *
  * This function prepares the tile to allow memory allocations to VRAM, but is
- * not allowed to allocate memory itself. This state is useful for display
+ * analt allowed to allocate memory itself. This state is useful for display
  * readout, because the inherited display framebuffer will otherwise be
  * overwritten as it is usually put at the start of VRAM.
  *
- * Note that since this is tile initialization, it should not perform any
- * GT-specific operations, and thus does not need to hold GT forcewake.
+ * Analte that since this is tile initialization, it should analt perform any
+ * GT-specific operations, and thus does analt need to hold GT forcewake.
  *
  * Returns: 0 on success, negative error code on error.
  */
-int xe_tile_init_noalloc(struct xe_tile *tile)
+int xe_tile_init_analalloc(struct xe_tile *tile)
 {
 	int err;
 

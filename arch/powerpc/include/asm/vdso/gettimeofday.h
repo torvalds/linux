@@ -110,8 +110,8 @@ static inline bool vdso_clocksource_ok(const struct vdso_data *vd)
  *
  * This variant removes the masking of the subtraction because the
  * clocksource mask of all VDSO capable clocksources on powerpc is U64_MAX
- * which would result in a pointless operation. The compiler cannot
- * optimize it away as the mask comes from the vdso data and is not compile
+ * which would result in a pointless operation. The compiler cananalt
+ * optimize it away as the mask comes from the vdso data and is analt compile
  * time constant.
  */
 static __always_inline u64 vdso_calc_delta(u64 cycles, u64 last, u64 mask, u32 mult)

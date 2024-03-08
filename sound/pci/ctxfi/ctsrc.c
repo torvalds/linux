@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2008, Creative Technology Ltd. All Rights Reserved.
+ * Copyright (C) 2008, Creative Techanallogy Ltd. All Rights Reserved.
  *
  * @File	ctsrc.c
  *
@@ -439,7 +439,7 @@ get_src_rsc(struct src_mgr *mgr, const struct src_desc *desc, struct src **rsrc)
 		src = kzalloc(sizeof(*src), GFP_KERNEL);
 
 	if (!src) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto error1;
 	}
 
@@ -548,7 +548,7 @@ int src_mgr_create(struct hw *hw, struct src_mgr **rsrc_mgr)
 	*rsrc_mgr = NULL;
 	src_mgr = kzalloc(sizeof(*src_mgr), GFP_KERNEL);
 	if (!src_mgr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = rsc_mgr_init(&src_mgr->mgr, SRC, SRC_RESOURCE_NUM, hw);
 	if (err)
@@ -673,11 +673,11 @@ static int srcimp_rsc_init(struct srcimp *srcimp,
 	if (err)
 		return err;
 
-	/* Reserve memory for imapper nodes */
+	/* Reserve memory for imapper analdes */
 	srcimp->imappers = kcalloc(desc->msr, sizeof(struct imapper),
 				   GFP_KERNEL);
 	if (!srcimp->imappers) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto error1;
 	}
 
@@ -720,7 +720,7 @@ static int get_srcimp_rsc(struct srcimp_mgr *mgr,
 	/* Allocate mem for SRCIMP resource */
 	srcimp = kzalloc(sizeof(*srcimp), GFP_KERNEL);
 	if (!srcimp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Check whether there are sufficient SRCIMP resources. */
 	err = 0;
@@ -830,7 +830,7 @@ int srcimp_mgr_create(struct hw *hw, struct srcimp_mgr **rsrcimp_mgr)
 	*rsrcimp_mgr = NULL;
 	srcimp_mgr = kzalloc(sizeof(*srcimp_mgr), GFP_KERNEL);
 	if (!srcimp_mgr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = rsc_mgr_init(&srcimp_mgr->mgr, SRCIMP, SRCIMP_RESOURCE_NUM, hw);
 	if (err)
@@ -841,7 +841,7 @@ int srcimp_mgr_create(struct hw *hw, struct srcimp_mgr **rsrcimp_mgr)
 	INIT_LIST_HEAD(&srcimp_mgr->imappers);
 	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto error2;
 	}
 	entry->slot = entry->addr = entry->next = entry->user = 0;

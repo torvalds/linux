@@ -14,7 +14,7 @@
 #define MGB4_DEFAULT_PERIOD    (125000000 / 60)
 
 /* Register access error indication */
-#define MGB4_ERR_NO_REG        0xFFFFFFFE
+#define MGB4_ERR_ANAL_REG        0xFFFFFFFE
 /* Frame buffer addresses greater than 0xFFFFFFFA indicate HW errors */
 #define MGB4_ERR_QUEUE_TIMEOUT 0xFFFFFFFD
 #define MGB4_ERR_QUEUE_EMPTY   0xFFFFFFFC

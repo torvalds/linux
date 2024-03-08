@@ -26,8 +26,8 @@
 
 /*
  * ADI High-Speed ADC common spi interface registers
- * See Application-Note AN-877:
- *   https://www.analog.com/media/en/technical-documentation/application-notes/AN-877.pdf
+ * See Application-Analte AN-877:
+ *   https://www.analog.com/media/en/technical-documentation/application-analtes/AN-877.pdf
  */
 
 #define AN877_ADC_REG_CHIP_PORT_CONF		0x00
@@ -410,7 +410,7 @@ static int ad9467_scale_fill(struct adi_axi_adc_conv *conv)
 	st->scales = devm_kmalloc_array(&st->spi->dev, info->num_scales,
 					sizeof(*st->scales), GFP_KERNEL);
 	if (!st->scales)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < info->num_scales; i++) {
 		__ad9467_get_scale(conv, i, &val1, &val2);
@@ -453,7 +453,7 @@ static int ad9467_probe(struct spi_device *spi)
 
 	info = spi_get_device_match_data(spi);
 	if (!info)
-		return -ENODEV;
+		return -EANALDEV;
 
 	conv = devm_adi_axi_adc_conv_register(&spi->dev, sizeof(*st));
 	if (IS_ERR(conv))
@@ -485,7 +485,7 @@ static int ad9467_probe(struct spi_device *spi)
 	if (id != conv->chip_info->id) {
 		dev_err(&spi->dev, "Mismatch CHIP_ID, got 0x%X, expected 0x%X\n",
 			id, conv->chip_info->id);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	conv->reg_access = ad9467_reg_access;

@@ -21,7 +21,7 @@
 #define DRIVER_DESC "DRM driver for Hyper-V synthetic video device"
 #define DRIVER_DATE "2020"
 #define DRIVER_MAJOR 1
-#define DRIVER_MINOR 0
+#define DRIVER_MIANALR 0
 
 DEFINE_DRM_GEM_FOPS(hv_fops);
 
@@ -32,7 +32,7 @@ static struct drm_driver hyperv_driver = {
 	.desc		 = DRIVER_DESC,
 	.date		 = DRIVER_DATE,
 	.major		 = DRIVER_MAJOR,
-	.minor		 = DRIVER_MINOR,
+	.mianalr		 = DRIVER_MIANALR,
 
 	.fops		 = &hv_fops,
 	DRM_GEM_SHMEM_DRIVER_OPS,
@@ -78,7 +78,7 @@ static int hyperv_setup_vram(struct hyperv_drm_device *hv,
 				  true);
 	if (ret) {
 		drm_err(dev, "Failed to allocate mmio\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/*
@@ -89,7 +89,7 @@ static int hyperv_setup_vram(struct hyperv_drm_device *hv,
 	hv->vram = ioremap_cache(hv->mem->start, hv->fb_size);
 	if (!hv->vram) {
 		drm_err(dev, "Failed to map vram\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error;
 	}
 
@@ -132,7 +132,7 @@ static int hyperv_vmbus_probe(struct hv_device *hdev,
 
 	/*
 	 * Should be done only once during init and resume. Failing to update
-	 * vram location is not fatal. Device will update dirty area till
+	 * vram location is analt fatal. Device will update dirty area till
 	 * preferred resolution only.
 	 */
 	ret = hyperv_update_vram_location(hdev, hv->fb_base);
@@ -226,7 +226,7 @@ static struct hv_driver hyperv_hv_driver = {
 	.suspend = hyperv_vmbus_suspend,
 	.resume = hyperv_vmbus_resume,
 	.driver = {
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 };
 
@@ -235,7 +235,7 @@ static int __init hyperv_init(void)
 	int ret;
 
 	if (drm_firmware_drivers_only())
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = pci_register_driver(&hyperv_pci_driver);
 	if (ret != 0)

@@ -28,7 +28,7 @@ u8 hisi_sas_get_ata_protocol(struct host_to_dev_fis *fis, int direction)
 	case ATA_CMD_FPDMA_READ:
 	case ATA_CMD_FPDMA_RECV:
 	case ATA_CMD_FPDMA_SEND:
-	case ATA_CMD_NCQ_NON_DATA:
+	case ATA_CMD_NCQ_ANALN_DATA:
 		return HISI_SAS_SATA_PROTOCOL_FPDMA;
 
 	case ATA_CMD_DOWNLOAD_MICRO:
@@ -71,9 +71,9 @@ u8 hisi_sas_get_ata_protocol(struct host_to_dev_fis *fis, int direction)
 	case ATA_CMD_VERIFY_EXT:
 	case ATA_CMD_SET_FEATURES:
 	case ATA_CMD_STANDBY:
-	case ATA_CMD_STANDBYNOW1:
+	case ATA_CMD_STANDBYANALW1:
 	case ATA_CMD_ZAC_MGMT_OUT:
-		return HISI_SAS_SATA_PROTOCOL_NONDATA;
+		return HISI_SAS_SATA_PROTOCOL_ANALNDATA;
 
 	case ATA_CMD_SET_MAX:
 		switch (fis->features) {
@@ -86,13 +86,13 @@ u8 hisi_sas_get_ata_protocol(struct host_to_dev_fis *fis, int direction)
 			return HISI_SAS_SATA_PROTOCOL_DMA;
 
 		default:
-			return HISI_SAS_SATA_PROTOCOL_NONDATA;
+			return HISI_SAS_SATA_PROTOCOL_ANALNDATA;
 		}
 
 	default:
 	{
-		if (direction == DMA_NONE)
-			return HISI_SAS_SATA_PROTOCOL_NONDATA;
+		if (direction == DMA_ANALNE)
+			return HISI_SAS_SATA_PROTOCOL_ANALNDATA;
 		return HISI_SAS_SATA_PROTOCOL_PIO;
 	}
 	}
@@ -145,10 +145,10 @@ EXPORT_SYMBOL_GPL(to_hisi_sas_port);
 
 void hisi_sas_stop_phys(struct hisi_hba *hisi_hba)
 {
-	int phy_no;
+	int phy_anal;
 
-	for (phy_no = 0; phy_no < hisi_hba->n_phy; phy_no++)
-		hisi_sas_phy_enable(hisi_hba, phy_no, 0);
+	for (phy_anal = 0; phy_anal < hisi_hba->n_phy; phy_anal++)
+		hisi_sas_phy_enable(hisi_hba, phy_anal, 0);
 }
 EXPORT_SYMBOL_GPL(hisi_sas_stop_phys);
 
@@ -308,14 +308,14 @@ static int hisi_sas_dma_map(struct hisi_hba *hisi_hba,
 			*n_elem = dma_map_sg(dev, task->scatter,
 					     task->num_scatter, task->data_dir);
 			if (!*n_elem) {
-				rc = -ENOMEM;
+				rc = -EANALMEM;
 				goto prep_out;
 			}
 		} else if (task->task_proto & SAS_PROTOCOL_SMP) {
 			*n_elem = dma_map_sg(dev, &task->smp_task.smp_req,
 					     1, DMA_TO_DEVICE);
 			if (!*n_elem) {
-				rc = -ENOMEM;
+				rc = -EANALMEM;
 				goto prep_out;
 			}
 			req_len = sg_dma_len(&task->smp_task.smp_req);
@@ -375,7 +375,7 @@ static int hisi_sas_dif_dma_map(struct hisi_hba *hisi_hba,
 						 task->data_dir);
 
 			if (!*n_elem_dif)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			if (*n_elem_dif > HISI_SAS_SGE_DIF_PAGE_CNT) {
 				dev_err(dev, "task prep: n_elem_dif(%d) too large\n",
@@ -480,7 +480,7 @@ static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
 		ts->stat = SAS_PHY_DOWN;
 		/*
 		 * libsas will use dev->port, should
-		 * not call task_done for sata
+		 * analt call task_done for sata
 		 */
 		if (device->dev_type != SAS_SATA_DEV && !internal_abort)
 			task->task_done(task);
@@ -506,10 +506,10 @@ static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
 
 		if (DEV_IS_GONE(sas_dev)) {
 			if (sas_dev)
-				dev_info(dev, "task prep: device %d not ready\n",
+				dev_info(dev, "task prep: device %d analt ready\n",
 					 sas_dev->device_id);
 			else
-				dev_info(dev, "task prep: device %016llx not ready\n",
+				dev_info(dev, "task prep: device %016llx analt ready\n",
 					 SAS_ADDR(device->sas_addr));
 
 			return -ECOMM;
@@ -517,7 +517,7 @@ static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
 
 		port = to_hisi_sas_port(sas_port);
 		if (!port->port_attached) {
-			dev_info(dev, "task prep: %s port%d not attach device\n",
+			dev_info(dev, "task prep: %s port%d analt attach device\n",
 				 dev_is_sata(device) ? "SATA/STP" : "SAS",
 				 device->port->id);
 
@@ -567,7 +567,7 @@ static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
 		dq = &hisi_hba->dq[task->abort_task.qid];
 		break;
 	default:
-		dev_err(hisi_hba->dev, "task prep: unknown/unsupported proto (0x%x)\n",
+		dev_err(hisi_hba->dev, "task prep: unkanalwn/unsupported proto (0x%x)\n",
 			task->task_proto);
 		return -EINVAL;
 	}
@@ -614,16 +614,16 @@ prep_out:
 	return rc;
 }
 
-static void hisi_sas_bytes_dmaed(struct hisi_hba *hisi_hba, int phy_no,
+static void hisi_sas_bytes_dmaed(struct hisi_hba *hisi_hba, int phy_anal,
 				 gfp_t gfp_flags)
 {
-	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
+	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_anal];
 	struct asd_sas_phy *sas_phy = &phy->sas_phy;
 
 	if (!phy->phy_attached)
 		return;
 
-	sas_notify_phy_event(sas_phy, PHYE_OOB_DONE, gfp_flags);
+	sas_analtify_phy_event(sas_phy, PHYE_OOB_DONE, gfp_flags);
 
 	if (sas_phy->phy) {
 		struct sas_phy *sphy = sas_phy->phy;
@@ -632,10 +632,10 @@ static void hisi_sas_bytes_dmaed(struct hisi_hba *hisi_hba, int phy_no,
 		sphy->minimum_linkrate_hw = SAS_LINK_RATE_1_5_GBPS;
 		sphy->maximum_linkrate_hw =
 			hisi_hba->hw->phy_get_max_linkrate();
-		if (sphy->minimum_linkrate == SAS_LINK_RATE_UNKNOWN)
+		if (sphy->minimum_linkrate == SAS_LINK_RATE_UNKANALWN)
 			sphy->minimum_linkrate = phy->minimum_linkrate;
 
-		if (sphy->maximum_linkrate == SAS_LINK_RATE_UNKNOWN)
+		if (sphy->maximum_linkrate == SAS_LINK_RATE_UNKANALWN)
 			sphy->maximum_linkrate = phy->maximum_linkrate;
 	}
 
@@ -647,11 +647,11 @@ static void hisi_sas_bytes_dmaed(struct hisi_hba *hisi_hba, int phy_no,
 		id->initiator_bits = SAS_PROTOCOL_ALL;
 		id->target_bits = phy->identify.target_port_protocols;
 	} else if (phy->phy_type & PORT_TYPE_SATA) {
-		/* Nothing */
+		/* Analthing */
 	}
 
 	sas_phy->frame_rcvd_size = phy->frame_rcvd_size;
-	sas_notify_port_event(sas_phy, PORTE_BYTES_DMAED, gfp_flags);
+	sas_analtify_port_event(sas_phy, PORTE_BYTES_DMAED, gfp_flags);
 }
 
 static struct hisi_sas_device *hisi_sas_alloc_dev(struct domain_device *device)
@@ -708,7 +708,7 @@ static void hisi_sas_sync_cq(struct hisi_sas_cq *cq)
 	if (hisi_sas_queue_is_poll(cq))
 		hisi_sas_sync_poll_cq(cq);
 	else
-		synchronize_irq(cq->irq_no);
+		synchronize_irq(cq->irq_anal);
 }
 
 void hisi_sas_sync_poll_cqs(struct hisi_hba *hisi_hba)
@@ -788,7 +788,7 @@ static int hisi_sas_init_device(struct domain_device *device)
 		 * reasons:
 		 * a. When probing the device, libsas/libata already issues a
 		 * hard reset in sas_probe_sata() -> ata_port_probe().
-		 * Note that in hisi_sas_debug_I_T_nexus_reset() we take care
+		 * Analte that in hisi_sas_debug_I_T_nexus_reset() we take care
 		 * to issue a hard reset by checking the dev status (== INIT).
 		 * b. When resetting the controller, this is simply unnecessary.
 		 */
@@ -818,7 +818,7 @@ int hisi_sas_slave_alloc(struct scsi_device *sdev)
 	rc = hisi_sas_init_device(ddev);
 	if (rc)
 		return rc;
-	sas_dev->dev_status = HISI_SAS_DEV_NORMAL;
+	sas_dev->dev_status = HISI_SAS_DEV_ANALRMAL;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(hisi_sas_slave_alloc);
@@ -845,15 +845,15 @@ static int hisi_sas_dev_found(struct domain_device *device)
 	hisi_hba->hw->setup_itct(hisi_hba, sas_dev);
 
 	if (parent_dev && dev_is_expander(parent_dev->dev_type)) {
-		int phy_no;
+		int phy_anal;
 
-		phy_no = sas_find_attached_phy_id(&parent_dev->ex_dev, device);
-		if (phy_no < 0) {
-			dev_info(dev, "dev found: no attached "
+		phy_anal = sas_find_attached_phy_id(&parent_dev->ex_dev, device);
+		if (phy_anal < 0) {
+			dev_info(dev, "dev found: anal attached "
 				 "dev:%016llx at ex:%016llx\n",
 				 SAS_ADDR(device->sas_addr),
 				 SAS_ADDR(parent_dev->sas_addr));
-			rc = phy_no;
+			rc = phy_anal;
 			goto err_out;
 		}
 	}
@@ -911,12 +911,12 @@ static void hisi_sas_phyup_work_common(struct work_struct *work,
 		container_of(work, typeof(*phy), works[event]);
 	struct hisi_hba *hisi_hba = phy->hisi_hba;
 	struct asd_sas_phy *sas_phy = &phy->sas_phy;
-	int phy_no = sas_phy->id;
+	int phy_anal = sas_phy->id;
 
 	phy->wait_phyup_cnt = 0;
 	if (phy->identify.target_port_protocols == SAS_PROTOCOL_SSP)
-		hisi_hba->hw->sl_notify_ssp(hisi_hba, phy_no);
-	hisi_sas_bytes_dmaed(hisi_hba, phy_no, GFP_KERNEL);
+		hisi_hba->hw->sl_analtify_ssp(hisi_hba, phy_anal);
+	hisi_sas_bytes_dmaed(hisi_hba, phy_anal, GFP_KERNEL);
 }
 
 static void hisi_sas_phyup_work(struct work_struct *work)
@@ -944,44 +944,44 @@ static void hisi_sas_phyup_pm_work(struct work_struct *work)
 	pm_runtime_put_sync(dev);
 }
 
-static const work_func_t hisi_sas_phye_fns[HISI_PHYES_NUM] = {
+static const work_func_t hisi_sas_phye_fns[HISI_PHANAL_NUM] = {
 	[HISI_PHYE_PHY_UP] = hisi_sas_phyup_work,
 	[HISI_PHYE_LINK_RESET] = hisi_sas_linkreset_work,
 	[HISI_PHYE_PHY_UP_PM] = hisi_sas_phyup_pm_work,
 };
 
-bool hisi_sas_notify_phy_event(struct hisi_sas_phy *phy,
+bool hisi_sas_analtify_phy_event(struct hisi_sas_phy *phy,
 				enum hisi_sas_phy_event event)
 {
 	struct hisi_hba *hisi_hba = phy->hisi_hba;
 
-	if (WARN_ON(event >= HISI_PHYES_NUM))
+	if (WARN_ON(event >= HISI_PHANAL_NUM))
 		return false;
 
 	return queue_work(hisi_hba->wq, &phy->works[event]);
 }
-EXPORT_SYMBOL_GPL(hisi_sas_notify_phy_event);
+EXPORT_SYMBOL_GPL(hisi_sas_analtify_phy_event);
 
 static void hisi_sas_wait_phyup_timedout(struct timer_list *t)
 {
 	struct hisi_sas_phy *phy = from_timer(phy, t, timer);
 	struct hisi_hba *hisi_hba = phy->hisi_hba;
 	struct device *dev = hisi_hba->dev;
-	int phy_no = phy->sas_phy.id;
+	int phy_anal = phy->sas_phy.id;
 
-	dev_warn(dev, "phy%d wait phyup timeout, issuing link reset\n", phy_no);
-	hisi_sas_notify_phy_event(phy, HISI_PHYE_LINK_RESET);
+	dev_warn(dev, "phy%d wait phyup timeout, issuing link reset\n", phy_anal);
+	hisi_sas_analtify_phy_event(phy, HISI_PHYE_LINK_RESET);
 }
 
 #define HISI_SAS_WAIT_PHYUP_RETRIES	10
 
-void hisi_sas_phy_oob_ready(struct hisi_hba *hisi_hba, int phy_no)
+void hisi_sas_phy_oob_ready(struct hisi_hba *hisi_hba, int phy_anal)
 {
-	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
+	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_anal];
 	struct device *dev = hisi_hba->dev;
 	unsigned long flags;
 
-	dev_dbg(dev, "phy%d OOB ready\n", phy_no);
+	dev_dbg(dev, "phy%d OOB ready\n", phy_anal);
 	spin_lock_irqsave(&phy->lock, flags);
 	if (phy->phy_attached) {
 		spin_unlock_irqrestore(&phy->lock, flags);
@@ -999,7 +999,7 @@ void hisi_sas_phy_oob_ready(struct hisi_hba *hisi_hba, int phy_no)
 		}
 
 		dev_warn(dev, "phy%d failed to come up %d times, giving up\n",
-			 phy_no, phy->wait_phyup_cnt);
+			 phy_anal, phy->wait_phyup_cnt);
 		phy->wait_phyup_cnt = 0;
 	}
 	spin_unlock_irqrestore(&phy->lock, flags);
@@ -1007,9 +1007,9 @@ void hisi_sas_phy_oob_ready(struct hisi_hba *hisi_hba, int phy_no)
 
 EXPORT_SYMBOL_GPL(hisi_sas_phy_oob_ready);
 
-static void hisi_sas_phy_init(struct hisi_hba *hisi_hba, int phy_no)
+static void hisi_sas_phy_init(struct hisi_hba *hisi_hba, int phy_anal)
 {
-	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
+	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_anal];
 	struct asd_sas_phy *sas_phy = &phy->sas_phy;
 	int i;
 
@@ -1017,19 +1017,19 @@ static void hisi_sas_phy_init(struct hisi_hba *hisi_hba, int phy_no)
 	phy->port = NULL;
 	phy->minimum_linkrate = SAS_LINK_RATE_1_5_GBPS;
 	phy->maximum_linkrate = hisi_hba->hw->phy_get_max_linkrate();
-	sas_phy->enabled = (phy_no < hisi_hba->n_phy) ? 1 : 0;
+	sas_phy->enabled = (phy_anal < hisi_hba->n_phy) ? 1 : 0;
 	sas_phy->iproto = SAS_PROTOCOL_ALL;
 	sas_phy->tproto = 0;
 	sas_phy->role = PHY_ROLE_INITIATOR;
-	sas_phy->oob_mode = OOB_NOT_CONNECTED;
-	sas_phy->linkrate = SAS_LINK_RATE_UNKNOWN;
-	sas_phy->id = phy_no;
+	sas_phy->oob_mode = OOB_ANALT_CONNECTED;
+	sas_phy->linkrate = SAS_LINK_RATE_UNKANALWN;
+	sas_phy->id = phy_anal;
 	sas_phy->sas_addr = &hisi_hba->sas_addr[0];
 	sas_phy->frame_rcvd = &phy->frame_rcvd[0];
 	sas_phy->ha = (struct sas_ha_struct *)hisi_hba->shost->hostdata;
 	sas_phy->lldd_phy = phy;
 
-	for (i = 0; i < HISI_PHYES_NUM; i++)
+	for (i = 0; i < HISI_PHANAL_NUM; i++)
 		INIT_WORK(&phy->works[i], hisi_sas_phye_fns[i]);
 
 	spin_lock_init(&phy->lock);
@@ -1038,9 +1038,9 @@ static void hisi_sas_phy_init(struct hisi_hba *hisi_hba, int phy_no)
 }
 
 /* Wrapper to ensure we track hisi_sas_phy.enable properly */
-void hisi_sas_phy_enable(struct hisi_hba *hisi_hba, int phy_no, int enable)
+void hisi_sas_phy_enable(struct hisi_hba *hisi_hba, int phy_anal, int enable)
 {
-	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
+	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_anal];
 	struct asd_sas_phy *aphy = &phy->sas_phy;
 	struct sas_phy *sphy = aphy->phy;
 	unsigned long flags;
@@ -1050,18 +1050,18 @@ void hisi_sas_phy_enable(struct hisi_hba *hisi_hba, int phy_no, int enable)
 	if (enable) {
 		/* We may have been enabled already; if so, don't touch */
 		if (!phy->enable)
-			sphy->negotiated_linkrate = SAS_LINK_RATE_UNKNOWN;
-		hisi_hba->hw->phy_start(hisi_hba, phy_no);
+			sphy->negotiated_linkrate = SAS_LINK_RATE_UNKANALWN;
+		hisi_hba->hw->phy_start(hisi_hba, phy_anal);
 	} else {
 		sphy->negotiated_linkrate = SAS_PHY_DISABLED;
-		hisi_hba->hw->phy_disable(hisi_hba, phy_no);
+		hisi_hba->hw->phy_disable(hisi_hba, phy_anal);
 	}
 	phy->enable = enable;
 	spin_unlock_irqrestore(&phy->lock, flags);
 }
 EXPORT_SYMBOL_GPL(hisi_sas_phy_enable);
 
-static void hisi_sas_port_notify_formed(struct asd_sas_phy *sas_phy)
+static void hisi_sas_port_analtify_formed(struct asd_sas_phy *sas_phy)
 {
 	struct hisi_sas_phy *phy = sas_phy->lldd_phy;
 	struct asd_sas_port *sas_port = sas_phy->port;
@@ -1190,22 +1190,22 @@ static void hisi_sas_dev_gone(struct domain_device *device)
 	up(&hisi_hba->sem);
 }
 
-static int hisi_sas_phy_set_linkrate(struct hisi_hba *hisi_hba, int phy_no,
+static int hisi_sas_phy_set_linkrate(struct hisi_hba *hisi_hba, int phy_anal,
 			struct sas_phy_linkrates *r)
 {
 	struct sas_phy_linkrates _r;
 
-	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
+	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_anal];
 	struct asd_sas_phy *sas_phy = &phy->sas_phy;
 	enum sas_linkrate min, max;
 
 	if (r->minimum_linkrate > SAS_LINK_RATE_1_5_GBPS)
 		return -EINVAL;
 
-	if (r->maximum_linkrate == SAS_LINK_RATE_UNKNOWN) {
+	if (r->maximum_linkrate == SAS_LINK_RATE_UNKANALWN) {
 		max = sas_phy->phy->maximum_linkrate;
 		min = r->minimum_linkrate;
-	} else if (r->minimum_linkrate == SAS_LINK_RATE_UNKNOWN) {
+	} else if (r->minimum_linkrate == SAS_LINK_RATE_UNKANALWN) {
 		max = r->maximum_linkrate;
 		min = sas_phy->phy->minimum_linkrate;
 	} else
@@ -1217,10 +1217,10 @@ static int hisi_sas_phy_set_linkrate(struct hisi_hba *hisi_hba, int phy_no,
 	sas_phy->phy->maximum_linkrate = max;
 	sas_phy->phy->minimum_linkrate = min;
 
-	hisi_sas_phy_enable(hisi_hba, phy_no, 0);
+	hisi_sas_phy_enable(hisi_hba, phy_anal, 0);
 	msleep(100);
-	hisi_hba->hw->phy_set_linkrate(hisi_hba, phy_no, &_r);
-	hisi_sas_phy_enable(hisi_hba, phy_no, 1);
+	hisi_hba->hw->phy_set_linkrate(hisi_hba, phy_anal, &_r);
+	hisi_sas_phy_enable(hisi_hba, phy_anal, 1);
 
 	return 0;
 }
@@ -1234,7 +1234,7 @@ static int hisi_sas_control_phy(struct asd_sas_phy *sas_phy, enum phy_func func,
 	struct hisi_hba *hisi_hba = sas_ha->lldd_ha;
 	struct device *dev = hisi_hba->dev;
 	DECLARE_COMPLETION_ONSTACK(completion);
-	int phy_no = sas_phy->id;
+	int phy_anal = sas_phy->id;
 	u8 sts = phy->phy_attached;
 	int ret = 0;
 
@@ -1243,39 +1243,39 @@ static int hisi_sas_control_phy(struct asd_sas_phy *sas_phy, enum phy_func func,
 
 	switch (func) {
 	case PHY_FUNC_HARD_RESET:
-		hisi_hba->hw->phy_hard_reset(hisi_hba, phy_no);
+		hisi_hba->hw->phy_hard_reset(hisi_hba, phy_anal);
 		break;
 
 	case PHY_FUNC_LINK_RESET:
-		hisi_sas_phy_enable(hisi_hba, phy_no, 0);
+		hisi_sas_phy_enable(hisi_hba, phy_anal, 0);
 		msleep(100);
-		hisi_sas_phy_enable(hisi_hba, phy_no, 1);
+		hisi_sas_phy_enable(hisi_hba, phy_anal, 1);
 		break;
 
 	case PHY_FUNC_DISABLE:
-		hisi_sas_phy_enable(hisi_hba, phy_no, 0);
+		hisi_sas_phy_enable(hisi_hba, phy_anal, 0);
 		goto out;
 
 	case PHY_FUNC_SET_LINK_RATE:
-		ret = hisi_sas_phy_set_linkrate(hisi_hba, phy_no, funcdata);
+		ret = hisi_sas_phy_set_linkrate(hisi_hba, phy_anal, funcdata);
 		break;
 
 	case PHY_FUNC_GET_EVENTS:
 		if (hisi_hba->hw->get_events) {
-			hisi_hba->hw->get_events(hisi_hba, phy_no);
+			hisi_hba->hw->get_events(hisi_hba, phy_anal);
 			goto out;
 		}
 		fallthrough;
 	case PHY_FUNC_RELEASE_SPINUP_HOLD:
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto out;
 	}
 
 	if (sts && !wait_for_completion_timeout(&completion,
 		HISI_SAS_WAIT_PHYUP_TIMEOUT)) {
 		dev_warn(dev, "phy%d wait phyup timed out for func %d\n",
-			 phy_no, func);
+			 phy_anal, func);
 		if (phy->in_reset)
 			ret = -ETIMEDOUT;
 	}
@@ -1384,10 +1384,10 @@ static void hisi_sas_refresh_port_id(struct hisi_hba *hisi_hba)
 static void hisi_sas_rescan_topology(struct hisi_hba *hisi_hba, u32 state)
 {
 	struct asd_sas_port *_sas_port = NULL;
-	int phy_no;
+	int phy_anal;
 
-	for (phy_no = 0; phy_no < hisi_hba->n_phy; phy_no++) {
-		struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
+	for (phy_anal = 0; phy_anal < hisi_hba->n_phy; phy_anal++) {
+		struct hisi_sas_phy *phy = &hisi_hba->phy[phy_anal];
 		struct asd_sas_phy *sas_phy = &phy->sas_phy;
 		struct asd_sas_port *sas_port = sas_phy->port;
 		bool do_port_check = _sas_port != sas_port;
@@ -1396,19 +1396,19 @@ static void hisi_sas_rescan_topology(struct hisi_hba *hisi_hba, u32 state)
 			continue;
 
 		/* Report PHY state change to libsas */
-		if (state & BIT(phy_no)) {
+		if (state & BIT(phy_anal)) {
 			if (do_port_check && sas_port && sas_port->port_dev) {
 				struct domain_device *dev = sas_port->port_dev;
 
 				_sas_port = sas_port;
 
 				if (dev_is_expander(dev->dev_type))
-					sas_notify_port_event(sas_phy,
+					sas_analtify_port_event(sas_phy,
 							PORTE_BROADCAST_RCVD,
 							GFP_KERNEL);
 			}
 		} else {
-			hisi_sas_phy_down(hisi_hba, phy_no, 0, GFP_KERNEL);
+			hisi_sas_phy_down(hisi_hba, phy_anal, 0, GFP_KERNEL);
 		}
 	}
 }
@@ -1462,7 +1462,7 @@ static void hisi_sas_send_ata_reset_each_phy(struct hisi_hba *hisi_hba,
 static void hisi_sas_terminate_stp_reject(struct hisi_hba *hisi_hba)
 {
 	struct device *dev = hisi_hba->dev;
-	int port_no, rc, i;
+	int port_anal, rc, i;
 
 	for (i = 0; i < HISI_SAS_MAX_DEVICES; i++) {
 		struct hisi_sas_device *sas_dev = &hisi_hba->devices[i];
@@ -1476,8 +1476,8 @@ static void hisi_sas_terminate_stp_reject(struct hisi_hba *hisi_hba)
 			dev_err(dev, "STP reject: abort dev failed %d\n", rc);
 	}
 
-	for (port_no = 0; port_no < hisi_hba->n_phy; port_no++) {
-		struct hisi_sas_port *port = &hisi_hba->port[port_no];
+	for (port_anal = 0; port_anal < hisi_hba->n_phy; port_anal++) {
+		struct hisi_sas_port *port = &hisi_hba->port[port_anal];
 		struct asd_sas_port *sas_port = &port->sas_port;
 		struct domain_device *port_dev = sas_port->port_dev;
 		struct domain_device *device;
@@ -1487,7 +1487,7 @@ static void hisi_sas_terminate_stp_reject(struct hisi_hba *hisi_hba)
 
 		/* Try to find a SATA device */
 		list_for_each_entry(device, &sas_port->dev_list,
-				    dev_list_node) {
+				    dev_list_analde) {
 			if (dev_is_sata(device)) {
 				hisi_sas_send_ata_reset_each_phy(hisi_hba,
 								 sas_port,
@@ -1519,13 +1519,13 @@ static void hisi_sas_async_init_wait_phyup(void *data, async_cookie_t cookie)
 	struct hisi_hba *hisi_hba = phy->hisi_hba;
 	struct device *dev = hisi_hba->dev;
 	DECLARE_COMPLETION_ONSTACK(completion);
-	int phy_no = phy->sas_phy.id;
+	int phy_anal = phy->sas_phy.id;
 
 	phy->reset_completion = &completion;
-	hisi_sas_phy_enable(hisi_hba, phy_no, 1);
+	hisi_sas_phy_enable(hisi_hba, phy_anal, 1);
 	if (!wait_for_completion_timeout(&completion,
 					 HISI_SAS_WAIT_PHYUP_TIMEOUT))
-		dev_warn(dev, "phy%d wait phyup timed out\n", phy_no);
+		dev_warn(dev, "phy%d wait phyup timed out\n", phy_anal);
 
 	phy->reset_completion = NULL;
 }
@@ -1534,13 +1534,13 @@ void hisi_sas_controller_reset_done(struct hisi_hba *hisi_hba)
 {
 	struct Scsi_Host *shost = hisi_hba->shost;
 	ASYNC_DOMAIN_EXCLUSIVE(async);
-	int phy_no;
+	int phy_anal;
 
 	/* Init and wait for PHYs to come up and all libsas event finished. */
-	for (phy_no = 0; phy_no < hisi_hba->n_phy; phy_no++) {
-		struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
+	for (phy_anal = 0; phy_anal < hisi_hba->n_phy; phy_anal++) {
+		struct hisi_sas_phy *phy = &hisi_hba->phy[phy_anal];
 
-		if (!(hisi_hba->phy_state & BIT(phy_no)))
+		if (!(hisi_hba->phy_state & BIT(phy_anal)))
 			continue;
 
 		async_schedule_domain(hisi_sas_async_init_wait_phyup,
@@ -1565,7 +1565,7 @@ EXPORT_SYMBOL_GPL(hisi_sas_controller_reset_done);
 static int hisi_sas_controller_prereset(struct hisi_hba *hisi_hba)
 {
 	if (!hisi_hba->hw->soft_reset)
-		return -ENOENT;
+		return -EANALENT;
 
 	down(&hisi_hba->sem);
 	if (test_and_set_bit(HISI_SAS_RESETTING_BIT, &hisi_hba->flags)) {
@@ -1657,10 +1657,10 @@ static int hisi_sas_abort_task(struct sas_task *task)
 		}
 
 		/*
-		 * If the TMF finds that the IO is not in the device and also
-		 * the internal abort does not succeed, then it is safe to
+		 * If the TMF finds that the IO is analt in the device and also
+		 * the internal abort does analt succeed, then it is safe to
 		 * free the slot.
-		 * Note: if the internal abort succeeds then the slot
+		 * Analte: if the internal abort succeeds then the slot
 		 * will have already been completed
 		 */
 		if (rc == TMF_RESP_FUNC_COMPLETE && rc2 != TMF_RESP_FUNC_SUCC) {
@@ -1712,7 +1712,7 @@ static int hisi_sas_abort_task(struct sas_task *task)
 
 out:
 	if (rc != TMF_RESP_FUNC_COMPLETE)
-		dev_notice(dev, "abort task: rc=%d\n", rc);
+		dev_analtice(dev, "abort task: rc=%d\n", rc);
 	return rc;
 }
 
@@ -1747,7 +1747,7 @@ static int hisi_sas_debug_I_T_nexus_reset(struct domain_device *device)
 
 	if (!local_phy->enabled) {
 		sas_put_local_phy(local_phy);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (scsi_is_sas_phy_local(local_phy)) {
@@ -1809,7 +1809,7 @@ static int hisi_sas_I_T_nexus_reset(struct domain_device *device)
 	int rc;
 
 	if (sas_dev->dev_status == HISI_SAS_DEV_NCQ_ERR)
-		sas_dev->dev_status = HISI_SAS_DEV_NORMAL;
+		sas_dev->dev_status = HISI_SAS_DEV_ANALRMAL;
 
 	rc = hisi_sas_internal_task_abort_dev(sas_dev, false);
 	if (rc < 0) {
@@ -1825,7 +1825,7 @@ static int hisi_sas_I_T_nexus_reset(struct domain_device *device)
 		rc = hisi_sas_softreset_ata_disk(device);
 		switch (rc) {
 		case -ECOMM:
-			rc = -ENODEV;
+			rc = -EANALDEV;
 			break;
 		case TMF_RESP_FUNC_FAILED:
 		case -EMSGSIZE:
@@ -1836,7 +1836,7 @@ static int hisi_sas_I_T_nexus_reset(struct domain_device *device)
 				local_phy->enabled = 0;
 				dev_err(dev, "Disabled local phy of ATA disk %016llx due to softreset fail (%d)\n",
 					SAS_ADDR(device->sas_addr), rc);
-				rc = -ENODEV;
+				rc = -EANALDEV;
 			}
 			sas_put_local_phy(local_phy);
 			break;
@@ -1845,7 +1845,7 @@ static int hisi_sas_I_T_nexus_reset(struct domain_device *device)
 		}
 	}
 
-	if ((rc == TMF_RESP_FUNC_COMPLETE) || (rc == -ENODEV))
+	if ((rc == TMF_RESP_FUNC_COMPLETE) || (rc == -EANALDEV))
 		hisi_sas_release_task(hisi_hba, device);
 
 	return rc;
@@ -1942,7 +1942,7 @@ static int hisi_sas_query_task(struct sas_task *task)
 		switch (rc) {
 		/* The task is still in Lun, release it then */
 		case TMF_RESP_FUNC_SUCC:
-		/* The task is not in Lun or failed, reset the phy */
+		/* The task is analt in Lun or failed, reset the phy */
 		case TMF_RESP_FUNC_FAILED:
 		case TMF_RESP_FUNC_COMPLETE:
 			break;
@@ -1987,11 +1987,11 @@ static bool hisi_sas_internal_abort_timeout(struct sas_task *task,
 		}
 
 		if (timeout->rst_ha_timeout) {
-			pr_err("Internal abort: timeout and not done %016llx. Queuing reset.\n",
+			pr_err("Internal abort: timeout and analt done %016llx. Queuing reset.\n",
 			       SAS_ADDR(device->sas_addr));
 			queue_work(hisi_hba->wq, &hisi_hba->rst_work);
 		} else {
-			pr_err("Internal abort: timeout and not done %016llx.\n",
+			pr_err("Internal abort: timeout and analt done %016llx.\n",
 			       SAS_ADDR(device->sas_addr));
 		}
 
@@ -2003,7 +2003,7 @@ static bool hisi_sas_internal_abort_timeout(struct sas_task *task,
 
 static void hisi_sas_port_formed(struct asd_sas_phy *sas_phy)
 {
-	hisi_sas_port_notify_formed(sas_phy);
+	hisi_sas_port_analtify_formed(sas_phy);
 }
 
 static int hisi_sas_write_gpio(struct sas_ha_struct *sha, u8 reg_type,
@@ -2012,7 +2012,7 @@ static int hisi_sas_write_gpio(struct sas_ha_struct *sha, u8 reg_type,
 	struct hisi_hba *hisi_hba = sha->lldd_ha;
 
 	if (!hisi_hba->hw->write_gpio)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return hisi_hba->hw->write_gpio(hisi_hba, reg_type,
 				reg_index, reg_count, write_data);
@@ -2030,33 +2030,33 @@ static void hisi_sas_phy_disconnected(struct hisi_sas_phy *phy)
 
 	spin_lock_irqsave(&phy->lock, flags);
 	if (phy->enable)
-		sphy->negotiated_linkrate = SAS_LINK_RATE_UNKNOWN;
+		sphy->negotiated_linkrate = SAS_LINK_RATE_UNKANALWN;
 	else
 		sphy->negotiated_linkrate = SAS_PHY_DISABLED;
 	spin_unlock_irqrestore(&phy->lock, flags);
 }
 
-void hisi_sas_phy_down(struct hisi_hba *hisi_hba, int phy_no, int rdy,
+void hisi_sas_phy_down(struct hisi_hba *hisi_hba, int phy_anal, int rdy,
 		       gfp_t gfp_flags)
 {
-	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
+	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_anal];
 	struct asd_sas_phy *sas_phy = &phy->sas_phy;
 	struct device *dev = hisi_hba->dev;
 
 	if (rdy) {
 		/* Phy down but ready */
-		hisi_sas_bytes_dmaed(hisi_hba, phy_no, gfp_flags);
-		hisi_sas_port_notify_formed(sas_phy);
+		hisi_sas_bytes_dmaed(hisi_hba, phy_anal, gfp_flags);
+		hisi_sas_port_analtify_formed(sas_phy);
 	} else {
 		struct hisi_sas_port *port  = phy->port;
 
 		if (test_bit(HISI_SAS_RESETTING_BIT, &hisi_hba->flags) ||
 		    phy->in_reset) {
-			dev_info(dev, "ignore flutter phy%d down\n", phy_no);
+			dev_info(dev, "iganalre flutter phy%d down\n", phy_anal);
 			return;
 		}
-		/* Phy down and not ready */
-		sas_notify_phy_event(sas_phy, PHYE_LOSS_OF_SIGNAL, gfp_flags);
+		/* Phy down and analt ready */
+		sas_analtify_phy_event(sas_phy, PHYE_LOSS_OF_SIGNAL, gfp_flags);
 		sas_phy_disconnected(sas_phy);
 
 		if (port) {
@@ -2082,7 +2082,7 @@ void hisi_sas_phy_bcast(struct hisi_sas_phy *phy)
 	if (test_bit(HISI_SAS_RESETTING_BIT, &hisi_hba->flags))
 		return;
 
-	sas_notify_port_event(sas_phy, PORTE_BROADCAST_RCVD, GFP_ATOMIC);
+	sas_analtify_port_event(sas_phy, PORTE_BROADCAST_RCVD, GFP_ATOMIC);
 }
 EXPORT_SYMBOL_GPL(hisi_sas_phy_bcast);
 
@@ -2091,7 +2091,7 @@ int hisi_sas_host_reset(struct Scsi_Host *shost, int reset_type)
 	struct hisi_hba *hisi_hba = shost_priv(shost);
 
 	if (reset_type != SCSI_ADAPTER_RESET)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	queue_work(hisi_hba->wq, &hisi_hba->rst_work);
 
@@ -2296,7 +2296,7 @@ int hisi_sas_alloc(struct hisi_hba *hisi_hba)
 
 	return 0;
 err_out:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 EXPORT_SYMBOL_GPL(hisi_sas_alloc);
 
@@ -2346,13 +2346,13 @@ int hisi_sas_get_fw_info(struct hisi_hba *hisi_hba)
 {
 	struct device *dev = hisi_hba->dev;
 	struct platform_device *pdev = hisi_hba->platform_dev;
-	struct device_node *np = pdev ? pdev->dev.of_node : NULL;
+	struct device_analde *np = pdev ? pdev->dev.of_analde : NULL;
 	struct clk *refclk;
 
 	if (device_property_read_u8_array(dev, "sas-addr", hisi_hba->sas_addr,
 					  SAS_ADDR_SIZE)) {
-		dev_err(dev, "could not get property sas-addr\n");
-		return -ENOENT;
+		dev_err(dev, "could analt get property sas-addr\n");
+		return -EANALENT;
 	}
 
 	if (np) {
@@ -2363,44 +2363,44 @@ int hisi_sas_get_fw_info(struct hisi_hba *hisi_hba)
 		hisi_hba->ctrl = syscon_regmap_lookup_by_phandle(np,
 					"hisilicon,sas-syscon");
 		if (IS_ERR(hisi_hba->ctrl)) {
-			dev_err(dev, "could not get syscon\n");
-			return -ENOENT;
+			dev_err(dev, "could analt get syscon\n");
+			return -EANALENT;
 		}
 
 		if (device_property_read_u32(dev, "ctrl-reset-reg",
 					     &hisi_hba->ctrl_reset_reg)) {
-			dev_err(dev, "could not get property ctrl-reset-reg\n");
-			return -ENOENT;
+			dev_err(dev, "could analt get property ctrl-reset-reg\n");
+			return -EANALENT;
 		}
 
 		if (device_property_read_u32(dev, "ctrl-reset-sts-reg",
 					     &hisi_hba->ctrl_reset_sts_reg)) {
-			dev_err(dev, "could not get property ctrl-reset-sts-reg\n");
-			return -ENOENT;
+			dev_err(dev, "could analt get property ctrl-reset-sts-reg\n");
+			return -EANALENT;
 		}
 
 		if (device_property_read_u32(dev, "ctrl-clock-ena-reg",
 					     &hisi_hba->ctrl_clock_ena_reg)) {
-			dev_err(dev, "could not get property ctrl-clock-ena-reg\n");
-			return -ENOENT;
+			dev_err(dev, "could analt get property ctrl-clock-ena-reg\n");
+			return -EANALENT;
 		}
 	}
 
 	refclk = devm_clk_get(dev, NULL);
 	if (IS_ERR(refclk))
-		dev_dbg(dev, "no ref clk property\n");
+		dev_dbg(dev, "anal ref clk property\n");
 	else
 		hisi_hba->refclk_frequency_mhz = clk_get_rate(refclk) / 1000000;
 
 	if (device_property_read_u32(dev, "phy-count", &hisi_hba->n_phy)) {
-		dev_err(dev, "could not get property phy-count\n");
-		return -ENOENT;
+		dev_err(dev, "could analt get property phy-count\n");
+		return -EANALENT;
 	}
 
 	if (device_property_read_u32(dev, "queue-count",
 				     &hisi_hba->queue_count)) {
-		dev_err(dev, "could not get property queue-count\n");
-		return -ENOENT;
+		dev_err(dev, "could analt get property queue-count\n");
+		return -EANALENT;
 	}
 
 	return 0;
@@ -2437,7 +2437,7 @@ static struct Scsi_Host *hisi_sas_shost_alloc(struct platform_device *pdev,
 
 	error = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64));
 	if (error) {
-		dev_err(dev, "No usable DMA addressing method\n");
+		dev_err(dev, "Anal usable DMA addressing method\n");
 		goto err_out;
 	}
 
@@ -2484,7 +2484,7 @@ int hisi_sas_probe(struct platform_device *pdev,
 
 	shost = hisi_sas_shost_alloc(pdev, hw);
 	if (!shost)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sha = SHOST_TO_SAS_HA(shost);
 	hisi_hba = shost_priv(shost);
@@ -2495,7 +2495,7 @@ int hisi_sas_probe(struct platform_device *pdev,
 	arr_phy = devm_kcalloc(dev, phy_nr, sizeof(void *), GFP_KERNEL);
 	arr_port = devm_kcalloc(dev, port_nr, sizeof(void *), GFP_KERNEL);
 	if (!arr_phy || !arr_port) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_out_ha;
 	}
 
@@ -2600,7 +2600,7 @@ static __init int hisi_sas_init(void)
 {
 	hisi_sas_stt = sas_domain_attach_transport(&hisi_sas_transport_ops);
 	if (!hisi_sas_stt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (hisi_sas_debugfs_enable) {
 		hisi_sas_debugfs_dir = debugfs_create_dir("hisi_sas", NULL);

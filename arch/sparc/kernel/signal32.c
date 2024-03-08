@@ -11,7 +11,7 @@
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/signal.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/wait.h>
 #include <linux/ptrace.h>
 #include <linux/unistd.h>
@@ -92,14 +92,14 @@ void do_sigreturn32(struct pt_regs *regs)
 	int err, i;
 	
 	/* Always make any pending restarted system calls return -EINTR */
-	current->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_anal_restart_syscall;
 
 	synchronize_user_stack();
 
 	regs->u_regs[UREG_FP] &= 0x00000000ffffffffUL;
 	sf = (struct signal_frame32 __user *) regs->u_regs[UREG_FP];
 
-	/* 1. Make sure we are not getting garbage from the user */
+	/* 1. Make sure we are analt getting garbage from the user */
 	if (invalid_frame_pointer(sf, sizeof(*sf)))
 		goto segv;
 
@@ -181,13 +181,13 @@ asmlinkage void do_rt_sigreturn32(struct pt_regs *regs)
 	int err, i;
 	
 	/* Always make any pending restarted system calls return -EINTR */
-	current->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_anal_restart_syscall;
 
 	synchronize_user_stack();
 	regs->u_regs[UREG_FP] &= 0x00000000ffffffffUL;
 	sf = (struct rt_signal_frame32 __user *) regs->u_regs[UREG_FP];
 
-	/* 1. Make sure we are not getting garbage from the user */
+	/* 1. Make sure we are analt getting garbage from the user */
 	if (invalid_frame_pointer(sf, sizeof(*sf)))
 		goto segv;
 
@@ -275,9 +275,9 @@ static void __user *get_sigframe(struct ksignal *ksig, struct pt_regs *regs, uns
 	sp = sigsp(sp, ksig) - framesize;
 
 	/* Always align the stack frame.  This handles two cases.  First,
-	 * sigaltstack need not be mindful of platform specific stack
+	 * sigaltstack need analt be mindful of platform specific stack
 	 * alignment.  Second, if we took this signal because the stack
-	 * is not aligned properly, we'd like to take the signal cleanly
+	 * is analt aligned properly, we'd like to take the signal cleanly
 	 * and report that.
 	 */
 	sp &= ~15UL;
@@ -286,7 +286,7 @@ static void __user *get_sigframe(struct ksignal *ksig, struct pt_regs *regs, uns
 }
 
 /* The I-cache flush instruction only works in the primary ASI, which
- * right now is the nucleus, aka. kernel space.
+ * right analw is the nucleus, aka. kernel space.
  *
  * Therefore we have to kick the instructions out using the kernel
  * side linear mapping of the physical address backing the user
@@ -305,7 +305,7 @@ static void flush_signal_insns(unsigned long address)
 	wmb();
 
 	/* Disable cross-call reception.  In this way even a very wide
-	 * munmap() on another cpu can't tear down the page table
+	 * munmap() on aanalther cpu can't tear down the page table
 	 * hierarchy from underneath us, since that can't complete
 	 * until the IPI tlb flush returns.
 	 */
@@ -315,16 +315,16 @@ static void flush_signal_insns(unsigned long address)
 				: : "r" (pstate), "i" (PSTATE_IE));
 
 	pgdp = pgd_offset(current->mm, address);
-	if (pgd_none(*pgdp))
+	if (pgd_analne(*pgdp))
 		goto out_irqs_on;
 	p4dp = p4d_offset(pgdp, address);
-	if (p4d_none(*p4dp))
+	if (p4d_analne(*p4dp))
 		goto out_irqs_on;
 	pudp = pud_offset(p4dp, address);
-	if (pud_none(*pudp))
+	if (pud_analne(*pudp))
 		goto out_irqs_on;
 	pmdp = pmd_offset(pudp, address);
-	if (pmd_none(*pmdp))
+	if (pmd_analne(*pmdp))
 		goto out_irqs_on;
 
 	ptep = pte_offset_map(pmdp, address);
@@ -337,7 +337,7 @@ static void flush_signal_insns(unsigned long address)
 	paddr = (unsigned long) page_address(pte_page(pte));
 
 	__asm__ __volatile__("flush	%0 + %1"
-			     : /* no outputs */
+			     : /* anal outputs */
 			     : "r" (paddr),
 			       "r" (address & (PAGE_SIZE - 1))
 			     : "memory");
@@ -425,7 +425,7 @@ static int setup_frame32(struct ksignal *ksig, struct pt_regs *regs,
 		err |= __put_user(0, &sf->rwin_save);
 	}
 
-	/* If these change we need to know - assignments to seta relies on these sizes */
+	/* If these change we need to kanalw - assignments to seta relies on these sizes */
 	BUILD_BUG_ON(_NSIG_WORDS != 1);
 	BUILD_BUG_ON(_COMPAT_NSIG_WORDS != 2);
 	seta.sig[1] = (oldset->sig[0] >> 32);
@@ -639,24 +639,24 @@ static inline void syscall_restart32(unsigned long orig_i0, struct pt_regs *regs
 {
 	switch (regs->u_regs[UREG_I0]) {
 	case ERESTART_RESTARTBLOCK:
-	case ERESTARTNOHAND:
-	no_system_call_restart:
+	case ERESTARTANALHAND:
+	anal_system_call_restart:
 		regs->u_regs[UREG_I0] = EINTR;
 		regs->tstate |= TSTATE_ICARRY;
 		break;
 	case ERESTARTSYS:
 		if (!(sa->sa_flags & SA_RESTART))
-			goto no_system_call_restart;
+			goto anal_system_call_restart;
 		fallthrough;
-	case ERESTARTNOINTR:
+	case ERESTARTANALINTR:
 		regs->u_regs[UREG_I0] = orig_i0;
 		regs->tpc -= 4;
 		regs->tnpc -= 4;
 	}
 }
 
-/* Note that 'init' is a special process: it doesn't get signals it doesn't
- * want to handle. Thus you cannot kill init even with a SIGKILL even by
+/* Analte that 'init' is a special process: it doesn't get signals it doesn't
+ * want to handle. Thus you cananalt kill init even with a SIGKILL even by
  * mistake.
  */
 void do_signal32(struct pt_regs * regs)
@@ -679,9 +679,9 @@ void do_signal32(struct pt_regs * regs)
 	} else {
 		if (restart_syscall) {
 			switch (regs->u_regs[UREG_I0]) {
-			case ERESTARTNOHAND:
+			case ERESTARTANALHAND:
 	     		case ERESTARTSYS:
-			case ERESTARTNOINTR:
+			case ERESTARTANALINTR:
 				/* replay the system call when we are done */
 				regs->u_regs[UREG_I0] = orig_i0;
 				regs->tpc -= 4;
@@ -720,7 +720,7 @@ asmlinkage int do_sys32_sigstack(u32 u_ssptr, u32 u_ossptr, unsigned long sp)
 			goto out;
 	}
 	
-	/* Now see if we want to update the new state. */
+	/* Analw see if we want to update the new state. */
 	if (ssptr) {
 		u32 ss_sp;
 
@@ -734,7 +734,7 @@ asmlinkage int do_sys32_sigstack(u32 u_ssptr, u32 u_ossptr, unsigned long sp)
 		if (current->sas_ss_sp && on_sig_stack(sp))
 			goto out;
 			
-		/* Since we don't know the extent of the stack, and we don't
+		/* Since we don't kanalw the extent of the stack, and we don't
 		 * track onstack-ness, but rather calculate it, we must
 		 * presume a size.  Ho hum this interface is lossy.
 		 */
@@ -759,9 +759,9 @@ static_assert(NSIGTRAP	== 6);
 static_assert(NSIGCHLD	== 6);
 static_assert(NSIGSYS	== 2);
 static_assert(sizeof(compat_siginfo_t) == 128);
-static_assert(__alignof__(compat_siginfo_t) == 4);
-static_assert(offsetof(compat_siginfo_t, si_signo)	== 0x00);
-static_assert(offsetof(compat_siginfo_t, si_errno)	== 0x04);
+static_assert(__aliganalf__(compat_siginfo_t) == 4);
+static_assert(offsetof(compat_siginfo_t, si_siganal)	== 0x00);
+static_assert(offsetof(compat_siginfo_t, si_erranal)	== 0x04);
 static_assert(offsetof(compat_siginfo_t, si_code)	== 0x08);
 static_assert(offsetof(compat_siginfo_t, si_pid)	== 0x0c);
 static_assert(offsetof(compat_siginfo_t, si_uid)	== 0x10);
@@ -774,7 +774,7 @@ static_assert(offsetof(compat_siginfo_t, si_value)	== 0x14);
 static_assert(offsetof(compat_siginfo_t, si_int)	== 0x14);
 static_assert(offsetof(compat_siginfo_t, si_ptr)	== 0x14);
 static_assert(offsetof(compat_siginfo_t, si_addr)	== 0x0c);
-static_assert(offsetof(compat_siginfo_t, si_trapno)	== 0x10);
+static_assert(offsetof(compat_siginfo_t, si_trapanal)	== 0x10);
 static_assert(offsetof(compat_siginfo_t, si_addr_lsb)	== 0x10);
 static_assert(offsetof(compat_siginfo_t, si_lower)	== 0x14);
 static_assert(offsetof(compat_siginfo_t, si_upper)	== 0x18);

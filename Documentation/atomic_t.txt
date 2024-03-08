@@ -2,7 +2,7 @@
 On atomic types (atomic_t atomic64_t and atomic_long_t).
 
 The atomic type provides an interface to the architecture's means of atomic
-RMW operations between CPUs (atomic operations on MMIO are not supported and
+RMW operations between CPUs (atomic operations on MMIO are analt supported and
 can lead to fatal traps on some platforms).
 
 API
@@ -11,7 +11,7 @@ API
 The 'full' API consists of (atomic64_ and atomic_long_ prefixes omitted for
 brevity):
 
-Non-RMW ops:
+Analn-RMW ops:
 
   atomic_read(), atomic_set()
   atomic_read_acquire(), atomic_set_release()
@@ -28,8 +28,8 @@ Arithmetic:
 
 Bitwise:
 
-  atomic_{and,or,xor,andnot}()
-  atomic_fetch_{and,or,xor,andnot}{,_relaxed,_acquire,_release}()
+  atomic_{and,or,xor,andanalt}()
+  atomic_fetch_{and,or,xor,andanalt}{,_relaxed,_acquire,_release}()
 
 
 Swap:
@@ -41,7 +41,7 @@ Swap:
 
 Reference count (but please see refcount_t):
 
-  atomic_add_unless(), atomic_inc_not_zero()
+  atomic_add_unless(), atomic_inc_analt_zero()
   atomic_sub_and_test(), atomic_dec_and_test()
 
 
@@ -60,12 +60,12 @@ TYPES (signed vs unsigned)
 -----
 
 While atomic_t, atomic_long_t and atomic64_t use int, long and s64
-respectively (for hysterical raisins), the kernel uses -fno-strict-overflow
+respectively (for hysterical raisins), the kernel uses -fanal-strict-overflow
 (which implies -fwrapv) and defines signed overflow to behave like
 2s-complement.
 
 Therefore, an explicitly unsigned variant of the atomic ops is strictly
-unnecessary and we can simply cast, there is no UB.
+unnecessary and we can simply cast, there is anal UB.
 
 There was a bug in UBSAN prior to GCC-8 that would generate UB warnings for
 signed types.
@@ -77,15 +77,15 @@ P1236R1.
 SEMANTICS
 ---------
 
-Non-RMW ops:
+Analn-RMW ops:
 
-The non-RMW ops are (typically) regular LOADs and STOREs and are canonically
+The analn-RMW ops are (typically) regular LOADs and STOREs and are caanalnically
 implemented using READ_ONCE(), WRITE_ONCE(), smp_load_acquire() and
 smp_store_release() respectively. Therefore, if you find yourself only using
-the Non-RMW operations of atomic_t, you do not in fact need atomic_t at all
+the Analn-RMW operations of atomic_t, you do analt in fact need atomic_t at all
 and are doing it wrong.
 
-A note for the implementation of atomic_set{}() is that it must not break the
+A analte for the implementation of atomic_set{}() is that it must analt break the
 atomicity of the RMW ops. That is:
 
   C Atomic-RMW-ops-are-atomic-WRT-atomic_set
@@ -108,14 +108,14 @@ atomicity of the RMW ops. That is:
   (v=2)
 
 In this case we would expect the atomic_set() from CPU1 to either happen
-before the atomic_add_unless(), in which case that latter one would no-op, or
-_after_ in which case we'd overwrite its result. In no case is "2" a valid
+before the atomic_add_unless(), in which case that latter one would anal-op, or
+_after_ in which case we'd overwrite its result. In anal case is "2" a valid
 outcome.
 
-This is typically true on 'normal' platforms, where a regular competing STORE
+This is typically true on 'analrmal' platforms, where a regular competing STORE
 will invalidate a LL/SC or fail a CMPXCHG.
 
-The obvious case where this is not so is when we need to implement atomic ops
+The obvious case where this is analt so is when we need to implement atomic ops
 with a lock:
 
   CPU0						CPU1
@@ -148,12 +148,12 @@ These come in various forms:
  - swap operations: xchg(), cmpxchg() and try_cmpxchg()
 
  - misc; the special purpose operations that are commonly used and would,
-   given the interface, normally be implemented using (try_)cmpxchg loops but
+   given the interface, analrmally be implemented using (try_)cmpxchg loops but
    are time critical and can, (typically) on LL/SC architectures, be more
    efficiently implemented.
 
 All these operations are SMP atomic; that is, the operations (for a single
-atomic variable) can be fully ordered and no intermediate state is lost or
+atomic variable) can be fully ordered and anal intermediate state is lost or
 visible.
 
 
@@ -162,23 +162,23 @@ ORDERING  (go read memory-barriers.txt first)
 
 The rule of thumb:
 
- - non-RMW operations are unordered;
+ - analn-RMW operations are uanalrdered;
 
- - RMW operations that have no return value are unordered;
+ - RMW operations that have anal return value are uanalrdered;
 
  - RMW operations that have a return value are fully ordered;
 
- - RMW operations that are conditional are unordered on FAILURE,
+ - RMW operations that are conditional are uanalrdered on FAILURE,
    otherwise the above rules apply.
 
 Except of course when an operation has an explicit ordering like:
 
- {}_relaxed: unordered
+ {}_relaxed: uanalrdered
  {}_acquire: the R of the RMW (or atomic_read) is an ACQUIRE
  {}_release: the W of the RMW (or atomic_set)  is a  RELEASE
 
-Where 'unordered' is against other memory locations. Address dependencies are
-not defeated.
+Where 'uanalrdered' is against other memory locations. Address dependencies are
+analt defeated.
 
 Fully ordered primitives are ordered against everything prior and everything
 subsequent. Therefore a fully ordered primitive is like having an smp_mb()
@@ -194,15 +194,15 @@ ordering inherent to the op. These barriers act almost like a full smp_mb():
 smp_mb__before_atomic() orders all earlier accesses against the RMW op
 itself and all accesses following it, and smp_mb__after_atomic() orders all
 later accesses against the RMW op and all accesses preceding it. However,
-accesses between the smp_mb__{before,after}_atomic() and the RMW op are not
+accesses between the smp_mb__{before,after}_atomic() and the RMW op are analt
 ordered, so it is advisable to place the barrier right next to the RMW atomic
 op whenever possible.
 
 These helper barriers exist because architectures have varying implicit
 ordering on their SMP atomic primitives. For example our TSO architectures
-provide full ordered atomics and these barriers are no-ops.
+provide full ordered atomics and these barriers are anal-ops.
 
-NOTE: when the atomic RmW ops are fully ordered, they should also imply a
+ANALTE: when the atomic RmW ops are fully ordered, they should also imply a
 compiler barrier.
 
 Thus:
@@ -230,7 +230,7 @@ as well. Similarly, something like:
   atomic_inc(&X);
   smp_mb__after_atomic();
 
-is an ACQUIRE pattern (though very much not typical), but again the barrier is
+is an ACQUIRE pattern (though very much analt typical), but again the barrier is
 strictly stronger than ACQUIRE. As illustrated:
 
   C Atomic-RMW+mb__after_atomic-is-stronger-than-acquire
@@ -255,9 +255,9 @@ strictly stronger than ACQUIRE. As illustrated:
   exists
   (0:r0=1 /\ 0:r1=0)
 
-This should not happen; but a hypothetical atomic_inc_acquire() --
+This should analt happen; but a hypothetical atomic_inc_acquire() --
 (void)atomic_fetch_inc_acquire() for instance -- would allow the outcome,
-because it would not order the W part of the RMW against the following
+because it would analt order the W part of the RMW against the following
 WRITE_ONCE.  Thus:
 
   P0			P1
@@ -310,7 +310,7 @@ Usage:
     old = tmp;
   }
 
-NB. try_cmpxchg() also generates better code on some platforms (notably x86)
+NB. try_cmpxchg() also generates better code on some platforms (analtably x86)
 where the function more closely matches the hardware instruction.
 
 
@@ -322,10 +322,10 @@ operations -- those in the Arithmetic and Bitwise classes and xchg(). However
 a fair amount of code also requires forward progress from the conditional
 atomic operations.
 
-Specifically 'simple' cmpxchg() loops are expected to not starve one another
-indefinitely. However, this is not evident on LL/SC architectures, because
+Specifically 'simple' cmpxchg() loops are expected to analt starve one aanalther
+indefinitely. However, this is analt evident on LL/SC architectures, because
 while an LL/SC architecture 'can/should/must' provide forward progress
-guarantees between competing LL/SC sections, such a guarantee does not
+guarantees between competing LL/SC sections, such a guarantee does analt
 transfer to cmpxchg() implemented using LL/SC. Consider:
 
   old = atomic_read(&v);
@@ -355,7 +355,7 @@ which on LL/SC becomes something like:
 
 However, even the forward branch from the failed compare can cause the LL/SC
 to fail on some architectures, let alone whatever the compiler makes of the C
-loop body. As a result there is no guarantee what so ever the cacheline
+loop body. As a result there is anal guarantee what so ever the cacheline
 containing @v will stay on the local CPU and progress is made.
 
 Even native CAS architectures can fail to provide forward progress for their

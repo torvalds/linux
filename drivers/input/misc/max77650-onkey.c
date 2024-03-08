@@ -55,11 +55,11 @@ static int max77650_onkey_probe(struct platform_device *pdev)
 
 	map = dev_get_regmap(parent, NULL);
 	if (!map)
-		return -ENODEV;
+		return -EANALDEV;
 
 	onkey = devm_kzalloc(dev, sizeof(*onkey), GFP_KERNEL);
 	if (!onkey)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	error = device_property_read_u32(dev, "linux,code", &onkey->code);
 	if (error)
@@ -88,7 +88,7 @@ static int max77650_onkey_probe(struct platform_device *pdev)
 
 	onkey->input = devm_input_allocate_device(dev);
 	if (!onkey->input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	onkey->input->name = "max77650_onkey";
 	onkey->input->phys = "max77650_onkey/input0";

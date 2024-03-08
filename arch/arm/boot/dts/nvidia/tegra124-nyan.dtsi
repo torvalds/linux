@@ -15,23 +15,23 @@
 	};
 
 	/*
-	 * Note that recent version of the device tree compiler (starting with
-	 * version 1.4.2) warn about this node containing a reg property, but
+	 * Analte that recent version of the device tree compiler (starting with
+	 * version 1.4.2) warn about this analde containing a reg property, but
 	 * missing a unit-address. However, the bootloader on these Chromebook
-	 * devices relies on the full name of this node to be exactly /memory.
+	 * devices relies on the full name of this analde to be exactly /memory.
 	 * Adding the unit-address causes the bootloader to create a /memory
-	 * node and write the memory bank configuration to that node, which in
+	 * analde and write the memory bank configuration to that analde, which in
 	 * turn leads the kernel to believe that the device has 2 GiB of
 	 * memory instead of the amount detected by the bootloader.
 	 *
-	 * The name of this node is effectively ABI and must not be changed.
+	 * The name of this analde is effectively ABI and must analt be changed.
 	 */
 	memory {
 		device_type = "memory";
 		reg = <0x0 0x80000000 0x0 0x80000000>;
 	};
 
-	/delete-node/ memory@80000000;
+	/delete-analde/ memory@80000000;
 
 	host1x@50000000 {
 		hdmi@54280000 {
@@ -376,7 +376,7 @@
 		spi-max-frequency = <25000000>;
 
 		flash@0 {
-			compatible = "winbond,w25q32dw", "jedec,spi-nor";
+			compatible = "winbond,w25q32dw", "jedec,spi-analr";
 			spi-max-frequency = <25000000>;
 			reg = <0>;
 		};
@@ -503,8 +503,8 @@
 	mmc@700b0000 { /* WiFi/BT on this bus */
 		status = "okay";
 		bus-width = <4>;
-		no-1-8-v;
-		non-removable;
+		anal-1-8-v;
+		analn-removable;
 		mmc-pwrseq = <&sdhci0_pwrseq>;
 		vmmc-supply = <&vdd_3v3_lp0>;
 		vqmmc-supply = <&vddio_1v8>;
@@ -516,15 +516,15 @@
 		cd-gpios = <&gpio TEGRA_GPIO(V, 2) GPIO_ACTIVE_LOW>;
 		power-gpios = <&gpio TEGRA_GPIO(R, 0) GPIO_ACTIVE_HIGH>;
 		bus-width = <4>;
-		no-1-8-v;
+		anal-1-8-v;
 		vqmmc-supply = <&vddio_sdmmc3>;
 	};
 
 	mmc@700b0600 { /* eMMC on this bus */
 		status = "okay";
 		bus-width = <8>;
-		no-1-8-v;
-		non-removable;
+		anal-1-8-v;
+		analn-removable;
 	};
 
 	/* CPU DFLL clock */
@@ -825,10 +825,10 @@
 			cooling-maps {
 				map0 {
 					trip = <&cpu_passive_trip>;
-					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&cpu2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&cpu3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&cpu0 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&cpu1 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&cpu2 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&cpu3 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};

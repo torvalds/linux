@@ -76,7 +76,7 @@ enum e1000_mac_type {
 };
 
 enum e1000_media_type {
-	e1000_media_type_unknown = 0,
+	e1000_media_type_unkanalwn = 0,
 	e1000_media_type_copper = 1,
 	e1000_media_type_fiber = 2,
 	e1000_media_type_internal_serdes = 3,
@@ -84,8 +84,8 @@ enum e1000_media_type {
 };
 
 enum e1000_nvm_type {
-	e1000_nvm_unknown = 0,
-	e1000_nvm_none,
+	e1000_nvm_unkanalwn = 0,
+	e1000_nvm_analne,
 	e1000_nvm_eeprom_spi,
 	e1000_nvm_flash_hw,
 	e1000_nvm_invm,
@@ -93,14 +93,14 @@ enum e1000_nvm_type {
 };
 
 enum e1000_nvm_override {
-	e1000_nvm_override_none = 0,
+	e1000_nvm_override_analne = 0,
 	e1000_nvm_override_spi_small,
 	e1000_nvm_override_spi_large,
 };
 
 enum e1000_phy_type {
-	e1000_phy_unknown = 0,
-	e1000_phy_none,
+	e1000_phy_unkanalwn = 0,
+	e1000_phy_analne,
 	e1000_phy_m88,
 	e1000_phy_igp,
 	e1000_phy_igp_2,
@@ -113,7 +113,7 @@ enum e1000_phy_type {
 };
 
 enum e1000_bus_type {
-	e1000_bus_type_unknown = 0,
+	e1000_bus_type_unkanalwn = 0,
 	e1000_bus_type_pci,
 	e1000_bus_type_pcix,
 	e1000_bus_type_pci_express,
@@ -121,7 +121,7 @@ enum e1000_bus_type {
 };
 
 enum e1000_bus_speed {
-	e1000_bus_speed_unknown = 0,
+	e1000_bus_speed_unkanalwn = 0,
 	e1000_bus_speed_33,
 	e1000_bus_speed_66,
 	e1000_bus_speed_100,
@@ -133,7 +133,7 @@ enum e1000_bus_speed {
 };
 
 enum e1000_bus_width {
-	e1000_bus_width_unknown = 0,
+	e1000_bus_width_unkanalwn = 0,
 	e1000_bus_width_pcie_x1,
 	e1000_bus_width_pcie_x2,
 	e1000_bus_width_pcie_x4 = 4,
@@ -144,19 +144,19 @@ enum e1000_bus_width {
 };
 
 enum e1000_1000t_rx_status {
-	e1000_1000t_rx_status_not_ok = 0,
+	e1000_1000t_rx_status_analt_ok = 0,
 	e1000_1000t_rx_status_ok,
 	e1000_1000t_rx_status_undefined = 0xFF
 };
 
 enum e1000_rev_polarity {
-	e1000_rev_polarity_normal = 0,
+	e1000_rev_polarity_analrmal = 0,
 	e1000_rev_polarity_reversed,
 	e1000_rev_polarity_undefined = 0xFF
 };
 
 enum e1000_fc_mode {
-	e1000_fc_none = 0,
+	e1000_fc_analne = 0,
 	e1000_fc_rx_pause,
 	e1000_fc_tx_pause,
 	e1000_fc_full,
@@ -455,7 +455,7 @@ struct e1000_bus_info {
 	enum e1000_bus_speed speed;
 	enum e1000_bus_width width;
 
-	u32 snoop;
+	u32 sanalop;
 
 	u16 func;
 	u16 pci_cmd_word;

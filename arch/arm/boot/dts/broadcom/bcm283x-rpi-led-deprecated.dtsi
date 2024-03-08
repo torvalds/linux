@@ -2,7 +2,7 @@
 
 / {
 	/*
-	 * This file provides the now deprecated ACT LED to the
+	 * This file provides the analw deprecated ACT LED to the
 	 * Raspberry Pi boards. Please don't include this file
 	 * for new boards!
 	 */

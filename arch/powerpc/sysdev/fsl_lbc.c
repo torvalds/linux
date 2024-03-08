@@ -43,7 +43,7 @@ EXPORT_SYMBOL(fsl_lbc_ctrl_dev);
  */
 u32 fsl_lbc_addr(phys_addr_t addr_base)
 {
-	struct device_node *np = fsl_lbc_ctrl_dev->dev->of_node;
+	struct device_analde *np = fsl_lbc_ctrl_dev->dev->of_analde;
 	u32 addr = addr_base & 0xffff8000;
 
 	if (of_device_is_compatible(np, "fsl,elbc"))
@@ -60,7 +60,7 @@ EXPORT_SYMBOL(fsl_lbc_addr);
  * This function walks LBC banks comparing "Base address" field of the BR
  * registers with the supplied addr_base argument. When bases match this
  * function returns bank number (starting with 0), otherwise it returns
- * appropriate errno value.
+ * appropriate erranal value.
  */
 int fsl_lbc_find(phys_addr_t addr_base)
 {
@@ -68,7 +68,7 @@ int fsl_lbc_find(phys_addr_t addr_base)
 	struct fsl_lbc_regs __iomem *lbc;
 
 	if (!fsl_lbc_ctrl_dev || !fsl_lbc_ctrl_dev->regs)
-		return -ENODEV;
+		return -EANALDEV;
 
 	lbc = fsl_lbc_ctrl_dev->regs;
 	for (i = 0; i < ARRAY_SIZE(lbc->bank); i++) {
@@ -79,7 +79,7 @@ int fsl_lbc_find(phys_addr_t addr_base)
 			return i;
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }
 EXPORT_SYMBOL(fsl_lbc_find);
 
@@ -90,7 +90,7 @@ EXPORT_SYMBOL(fsl_lbc_find);
  *
  * This function fills fsl_upm structure so you can use it with the rest of
  * UPM API. On success this function returns 0, otherwise it returns
- * appropriate errno value.
+ * appropriate erranal value.
  */
 int fsl_upm_find(phys_addr_t addr_base, struct fsl_upm *upm)
 {
@@ -103,7 +103,7 @@ int fsl_upm_find(phys_addr_t addr_base, struct fsl_upm *upm)
 		return bank;
 
 	if (!fsl_lbc_ctrl_dev || !fsl_lbc_ctrl_dev->regs)
-		return -ENODEV;
+		return -EANALDEV;
 
 	lbc = fsl_lbc_ctrl_dev->regs;
 	br = in_be32(&lbc->bank[bank].br);
@@ -147,7 +147,7 @@ EXPORT_SYMBOL(fsl_upm_find);
  * @mar:	MAR register content during pattern execution
  *
  * This function triggers dummy write to the memory specified by the io_base,
- * thus UPM pattern actually executed. Note that mar usage depends on the
+ * thus UPM pattern actually executed. Analte that mar usage depends on the
  * pre-programmed AMX bits in the UPM RAM.
  */
 int fsl_upm_run_pattern(struct fsl_upm *upm, void __iomem *io_base, u32 mar)
@@ -156,7 +156,7 @@ int fsl_upm_run_pattern(struct fsl_upm *upm, void __iomem *io_base, u32 mar)
 	unsigned long flags;
 
 	if (!fsl_lbc_ctrl_dev || !fsl_lbc_ctrl_dev->regs)
-		return -ENODEV;
+		return -EANALDEV;
 
 	spin_lock_irqsave(&fsl_lbc_lock, flags);
 
@@ -184,7 +184,7 @@ int fsl_upm_run_pattern(struct fsl_upm *upm, void __iomem *io_base, u32 mar)
 EXPORT_SYMBOL(fsl_upm_run_pattern);
 
 static int fsl_lbc_ctrl_init(struct fsl_lbc_ctrl *ctrl,
-			     struct device_node *node)
+			     struct device_analde *analde)
 {
 	struct fsl_lbc_regs __iomem *lbc = ctrl->regs;
 
@@ -196,18 +196,18 @@ static int fsl_lbc_ctrl_init(struct fsl_lbc_ctrl *ctrl,
 	out_be32(&lbc->ltedr, LTEDR_ENABLE);
 
 	/* Set the monitor timeout value to the maximum for erratum A001 */
-	if (of_device_is_compatible(node, "fsl,elbc"))
+	if (of_device_is_compatible(analde, "fsl,elbc"))
 		clrsetbits_be32(&lbc->lbcr, LBCR_BMT, LBCR_BMTPS);
 
 	return 0;
 }
 
 /*
- * NOTE: This interrupt is used to report localbus events of various kinds,
+ * ANALTE: This interrupt is used to report localbus events of various kinds,
  * such as transaction errors on the chipselects.
  */
 
-static irqreturn_t fsl_lbc_ctrl_irq(int irqno, void *data)
+static irqreturn_t fsl_lbc_ctrl_irq(int irqanal, void *data)
 {
 	struct fsl_lbc_ctrl *ctrl = data;
 	struct fsl_lbc_regs __iomem *lbc = ctrl->regs;
@@ -218,7 +218,7 @@ static irqreturn_t fsl_lbc_ctrl_irq(int irqno, void *data)
 	status = in_be32(&lbc->ltesr);
 	if (!status) {
 		spin_unlock_irqrestore(&fsl_lbc_lock, flags);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	out_be32(&lbc->ltesr, LTESR_CLEAR);
@@ -258,7 +258,7 @@ static irqreturn_t fsl_lbc_ctrl_irq(int irqno, void *data)
 		wake_up(&ctrl->irq_wait);
 	}
 	if (status & ~LTESR_MASK)
-		dev_err(ctrl->dev, "Unknown error: "
+		dev_err(ctrl->dev, "Unkanalwn error: "
 			"LTESR 0x%08X\n", status);
 	spin_unlock_irqrestore(&fsl_lbc_lock, flags);
 	return IRQ_HANDLED;
@@ -278,37 +278,37 @@ static int fsl_lbc_ctrl_probe(struct platform_device *dev)
 {
 	int ret;
 
-	if (!dev->dev.of_node) {
-		dev_err(&dev->dev, "Device OF-Node is NULL");
+	if (!dev->dev.of_analde) {
+		dev_err(&dev->dev, "Device OF-Analde is NULL");
 		return -EFAULT;
 	}
 
 	fsl_lbc_ctrl_dev = kzalloc(sizeof(*fsl_lbc_ctrl_dev), GFP_KERNEL);
 	if (!fsl_lbc_ctrl_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(&dev->dev, fsl_lbc_ctrl_dev);
 
 	spin_lock_init(&fsl_lbc_ctrl_dev->lock);
 	init_waitqueue_head(&fsl_lbc_ctrl_dev->irq_wait);
 
-	fsl_lbc_ctrl_dev->regs = of_iomap(dev->dev.of_node, 0);
+	fsl_lbc_ctrl_dev->regs = of_iomap(dev->dev.of_analde, 0);
 	if (!fsl_lbc_ctrl_dev->regs) {
 		dev_err(&dev->dev, "failed to get memory region\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err;
 	}
 
-	fsl_lbc_ctrl_dev->irq[0] = irq_of_parse_and_map(dev->dev.of_node, 0);
+	fsl_lbc_ctrl_dev->irq[0] = irq_of_parse_and_map(dev->dev.of_analde, 0);
 	if (!fsl_lbc_ctrl_dev->irq[0]) {
 		dev_err(&dev->dev, "failed to get irq resource\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err;
 	}
 
 	fsl_lbc_ctrl_dev->dev = &dev->dev;
 
-	ret = fsl_lbc_ctrl_init(fsl_lbc_ctrl_dev, dev->dev.of_node);
+	ret = fsl_lbc_ctrl_init(fsl_lbc_ctrl_dev, dev->dev.of_analde);
 	if (ret < 0)
 		goto err;
 
@@ -321,7 +321,7 @@ static int fsl_lbc_ctrl_probe(struct platform_device *dev)
 		goto err;
 	}
 
-	fsl_lbc_ctrl_dev->irq[1] = irq_of_parse_and_map(dev->dev.of_node, 1);
+	fsl_lbc_ctrl_dev->irq[1] = irq_of_parse_and_map(dev->dev.of_analde, 1);
 	if (fsl_lbc_ctrl_dev->irq[1]) {
 		ret = request_irq(fsl_lbc_ctrl_dev->irq[1], fsl_lbc_ctrl_irq,
 				IRQF_SHARED, "fsl-lbc-err", fsl_lbc_ctrl_dev);
@@ -365,7 +365,7 @@ static int fsl_lbc_syscore_suspend(void)
 
 	ctrl->saved_regs = kmalloc(sizeof(struct fsl_lbc_regs), GFP_KERNEL);
 	if (!ctrl->saved_regs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	_memcpy_fromio(ctrl->saved_regs, lbc, sizeof(struct fsl_lbc_regs));
 

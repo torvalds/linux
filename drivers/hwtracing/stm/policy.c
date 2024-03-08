@@ -26,7 +26,7 @@ struct stp_policy {
 	struct stm_device	*stm;
 };
 
-struct stp_policy_node {
+struct stp_policy_analde {
 	struct config_group	group;
 	struct stp_policy	*policy;
 	unsigned int		first_master;
@@ -37,7 +37,7 @@ struct stp_policy_node {
 	unsigned char		priv[];
 };
 
-void *stp_policy_node_priv(struct stp_policy_node *pn)
+void *stp_policy_analde_priv(struct stp_policy_analde *pn)
 {
 	if (!pn)
 		return NULL;
@@ -47,14 +47,14 @@ void *stp_policy_node_priv(struct stp_policy_node *pn)
 
 static struct configfs_subsystem stp_policy_subsys;
 
-void stp_policy_node_get_ranges(struct stp_policy_node *policy_node,
+void stp_policy_analde_get_ranges(struct stp_policy_analde *policy_analde,
 				unsigned int *mstart, unsigned int *mend,
 				unsigned int *cstart, unsigned int *cend)
 {
-	*mstart	= policy_node->first_master;
-	*mend	= policy_node->last_master;
-	*cstart	= policy_node->first_channel;
-	*cend	= policy_node->last_channel;
+	*mstart	= policy_analde->first_master;
+	*mend	= policy_analde->last_master;
+	*cstart	= policy_analde->first_channel;
+	*cend	= policy_analde->last_channel;
 }
 
 static inline struct stp_policy *to_stp_policy(struct config_item *item)
@@ -64,50 +64,50 @@ static inline struct stp_policy *to_stp_policy(struct config_item *item)
 		NULL;
 }
 
-static inline struct stp_policy_node *
-to_stp_policy_node(struct config_item *item)
+static inline struct stp_policy_analde *
+to_stp_policy_analde(struct config_item *item)
 {
 	return item ?
-		container_of(to_config_group(item), struct stp_policy_node,
+		container_of(to_config_group(item), struct stp_policy_analde,
 			     group) :
 		NULL;
 }
 
-void *to_pdrv_policy_node(struct config_item *item)
+void *to_pdrv_policy_analde(struct config_item *item)
 {
-	struct stp_policy_node *node = to_stp_policy_node(item);
+	struct stp_policy_analde *analde = to_stp_policy_analde(item);
 
-	return stp_policy_node_priv(node);
+	return stp_policy_analde_priv(analde);
 }
-EXPORT_SYMBOL_GPL(to_pdrv_policy_node);
+EXPORT_SYMBOL_GPL(to_pdrv_policy_analde);
 
 static ssize_t
-stp_policy_node_masters_show(struct config_item *item, char *page)
+stp_policy_analde_masters_show(struct config_item *item, char *page)
 {
-	struct stp_policy_node *policy_node = to_stp_policy_node(item);
+	struct stp_policy_analde *policy_analde = to_stp_policy_analde(item);
 	ssize_t count;
 
-	count = sprintf(page, "%u %u\n", policy_node->first_master,
-			policy_node->last_master);
+	count = sprintf(page, "%u %u\n", policy_analde->first_master,
+			policy_analde->last_master);
 
 	return count;
 }
 
 static ssize_t
-stp_policy_node_masters_store(struct config_item *item, const char *page,
+stp_policy_analde_masters_store(struct config_item *item, const char *page,
 			      size_t count)
 {
-	struct stp_policy_node *policy_node = to_stp_policy_node(item);
+	struct stp_policy_analde *policy_analde = to_stp_policy_analde(item);
 	unsigned int first, last;
 	struct stm_device *stm;
 	char *p = (char *)page;
-	ssize_t ret = -ENODEV;
+	ssize_t ret = -EANALDEV;
 
 	if (sscanf(p, "%u %u", &first, &last) != 2)
 		return -EINVAL;
 
 	mutex_lock(&stp_policy_subsys.su_mutex);
-	stm = policy_node->policy->stm;
+	stm = policy_analde->policy->stm;
 	if (!stm)
 		goto unlock;
 
@@ -119,8 +119,8 @@ stp_policy_node_masters_store(struct config_item *item, const char *page,
 	}
 
 	ret = count;
-	policy_node->first_master = first;
-	policy_node->last_master = last;
+	policy_analde->first_master = first;
+	policy_analde->last_master = last;
 
 unlock:
 	mutex_unlock(&stp_policy_subsys.su_mutex);
@@ -129,32 +129,32 @@ unlock:
 }
 
 static ssize_t
-stp_policy_node_channels_show(struct config_item *item, char *page)
+stp_policy_analde_channels_show(struct config_item *item, char *page)
 {
-	struct stp_policy_node *policy_node = to_stp_policy_node(item);
+	struct stp_policy_analde *policy_analde = to_stp_policy_analde(item);
 	ssize_t count;
 
-	count = sprintf(page, "%u %u\n", policy_node->first_channel,
-			policy_node->last_channel);
+	count = sprintf(page, "%u %u\n", policy_analde->first_channel,
+			policy_analde->last_channel);
 
 	return count;
 }
 
 static ssize_t
-stp_policy_node_channels_store(struct config_item *item, const char *page,
+stp_policy_analde_channels_store(struct config_item *item, const char *page,
 			       size_t count)
 {
-	struct stp_policy_node *policy_node = to_stp_policy_node(item);
+	struct stp_policy_analde *policy_analde = to_stp_policy_analde(item);
 	unsigned int first, last;
 	struct stm_device *stm;
 	char *p = (char *)page;
-	ssize_t ret = -ENODEV;
+	ssize_t ret = -EANALDEV;
 
 	if (sscanf(p, "%u %u", &first, &last) != 2)
 		return -EINVAL;
 
 	mutex_lock(&stp_policy_subsys.su_mutex);
-	stm = policy_node->policy->stm;
+	stm = policy_analde->policy->stm;
 	if (!stm)
 		goto unlock;
 
@@ -165,8 +165,8 @@ stp_policy_node_channels_store(struct config_item *item, const char *page,
 	}
 
 	ret = count;
-	policy_node->first_channel = first;
-	policy_node->last_channel = last;
+	policy_analde->first_channel = first;
+	policy_analde->last_channel = last;
 
 unlock:
 	mutex_unlock(&stp_policy_subsys.su_mutex);
@@ -174,41 +174,41 @@ unlock:
 	return ret;
 }
 
-static void stp_policy_node_release(struct config_item *item)
+static void stp_policy_analde_release(struct config_item *item)
 {
-	struct stp_policy_node *node = to_stp_policy_node(item);
+	struct stp_policy_analde *analde = to_stp_policy_analde(item);
 
-	kfree(node);
+	kfree(analde);
 }
 
-static struct configfs_item_operations stp_policy_node_item_ops = {
-	.release		= stp_policy_node_release,
+static struct configfs_item_operations stp_policy_analde_item_ops = {
+	.release		= stp_policy_analde_release,
 };
 
-CONFIGFS_ATTR(stp_policy_node_, masters);
-CONFIGFS_ATTR(stp_policy_node_, channels);
+CONFIGFS_ATTR(stp_policy_analde_, masters);
+CONFIGFS_ATTR(stp_policy_analde_, channels);
 
-static struct configfs_attribute *stp_policy_node_attrs[] = {
-	&stp_policy_node_attr_masters,
-	&stp_policy_node_attr_channels,
+static struct configfs_attribute *stp_policy_analde_attrs[] = {
+	&stp_policy_analde_attr_masters,
+	&stp_policy_analde_attr_channels,
 	NULL,
 };
 
 static const struct config_item_type stp_policy_type;
-static const struct config_item_type stp_policy_node_type;
+static const struct config_item_type stp_policy_analde_type;
 
 const struct config_item_type *
-get_policy_node_type(struct configfs_attribute **attrs)
+get_policy_analde_type(struct configfs_attribute **attrs)
 {
 	struct config_item_type *type;
 	struct configfs_attribute **merged;
 
-	type = kmemdup(&stp_policy_node_type, sizeof(stp_policy_node_type),
+	type = kmemdup(&stp_policy_analde_type, sizeof(stp_policy_analde_type),
 		       GFP_KERNEL);
 	if (!type)
 		return NULL;
 
-	merged = memcat_p(stp_policy_node_attrs, attrs);
+	merged = memcat_p(stp_policy_analde_attrs, attrs);
 	if (!merged) {
 		kfree(type);
 		return NULL;
@@ -220,65 +220,65 @@ get_policy_node_type(struct configfs_attribute **attrs)
 }
 
 static struct config_group *
-stp_policy_node_make(struct config_group *group, const char *name)
+stp_policy_analde_make(struct config_group *group, const char *name)
 {
-	const struct config_item_type *type = &stp_policy_node_type;
-	struct stp_policy_node *policy_node, *parent_node;
+	const struct config_item_type *type = &stp_policy_analde_type;
+	struct stp_policy_analde *policy_analde, *parent_analde;
 	const struct stm_protocol_driver *pdrv;
 	struct stp_policy *policy;
 
 	if (group->cg_item.ci_type == &stp_policy_type) {
 		policy = container_of(group, struct stp_policy, group);
 	} else {
-		parent_node = container_of(group, struct stp_policy_node,
+		parent_analde = container_of(group, struct stp_policy_analde,
 					   group);
-		policy = parent_node->policy;
+		policy = parent_analde->policy;
 	}
 
 	if (!policy->stm)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	pdrv = policy->stm->pdrv;
-	policy_node =
-		kzalloc(offsetof(struct stp_policy_node, priv[pdrv->priv_sz]),
+	policy_analde =
+		kzalloc(offsetof(struct stp_policy_analde, priv[pdrv->priv_sz]),
 			GFP_KERNEL);
-	if (!policy_node)
-		return ERR_PTR(-ENOMEM);
+	if (!policy_analde)
+		return ERR_PTR(-EANALMEM);
 
-	if (pdrv->policy_node_init)
-		pdrv->policy_node_init((void *)policy_node->priv);
+	if (pdrv->policy_analde_init)
+		pdrv->policy_analde_init((void *)policy_analde->priv);
 
-	if (policy->stm->pdrv_node_type)
-		type = policy->stm->pdrv_node_type;
+	if (policy->stm->pdrv_analde_type)
+		type = policy->stm->pdrv_analde_type;
 
-	config_group_init_type_name(&policy_node->group, name, type);
+	config_group_init_type_name(&policy_analde->group, name, type);
 
-	policy_node->policy = policy;
+	policy_analde->policy = policy;
 
 	/* default values for the attributes */
-	policy_node->first_master = policy->stm->data->sw_start;
-	policy_node->last_master = policy->stm->data->sw_end;
-	policy_node->first_channel = 0;
-	policy_node->last_channel = policy->stm->data->sw_nchannels - 1;
+	policy_analde->first_master = policy->stm->data->sw_start;
+	policy_analde->last_master = policy->stm->data->sw_end;
+	policy_analde->first_channel = 0;
+	policy_analde->last_channel = policy->stm->data->sw_nchannels - 1;
 
-	return &policy_node->group;
+	return &policy_analde->group;
 }
 
 static void
-stp_policy_node_drop(struct config_group *group, struct config_item *item)
+stp_policy_analde_drop(struct config_group *group, struct config_item *item)
 {
 	config_item_put(item);
 }
 
-static struct configfs_group_operations stp_policy_node_group_ops = {
-	.make_group	= stp_policy_node_make,
-	.drop_item	= stp_policy_node_drop,
+static struct configfs_group_operations stp_policy_analde_group_ops = {
+	.make_group	= stp_policy_analde_make,
+	.drop_item	= stp_policy_analde_drop,
 };
 
-static const struct config_item_type stp_policy_node_type = {
-	.ct_item_ops	= &stp_policy_node_item_ops,
-	.ct_group_ops	= &stp_policy_node_group_ops,
-	.ct_attrs	= stp_policy_node_attrs,
+static const struct config_item_type stp_policy_analde_type = {
+	.ct_item_ops	= &stp_policy_analde_item_ops,
+	.ct_group_ops	= &stp_policy_analde_group_ops,
+	.ct_attrs	= stp_policy_analde_attrs,
 	.ct_owner	= THIS_MODULE,
 };
 
@@ -294,7 +294,7 @@ static ssize_t stp_policy_device_show(struct config_item *item,
 	count = sprintf(page, "%s\n",
 			(policy && policy->stm) ?
 			policy->stm->data->name :
-			"<none>");
+			"<analne>");
 
 	return count;
 }
@@ -310,7 +310,7 @@ static ssize_t stp_policy_protocol_show(struct config_item *item,
 	count = sprintf(page, "%s\n",
 			(policy && policy->stm) ?
 			policy->stm->pdrv->name :
-			"<none>");
+			"<analne>");
 
 	return count;
 }
@@ -328,8 +328,8 @@ void stp_policy_unbind(struct stp_policy *policy)
 	struct stm_device *stm = policy->stm;
 
 	/*
-	 * stp_policy_release() will not call here if the policy is already
-	 * unbound; other users should not either, as no link exists between
+	 * stp_policy_release() will analt call here if the policy is already
+	 * unbound; other users should analt either, as anal link exists between
 	 * this policy and anything else in that case
 	 */
 	if (WARN_ON_ONCE(!policy->stm))
@@ -369,7 +369,7 @@ static struct configfs_item_operations stp_policy_item_ops = {
 };
 
 static struct configfs_group_operations stp_policy_group_ops = {
-	.make_group	= stp_policy_node_make,
+	.make_group	= stp_policy_analde_make,
 };
 
 static const struct config_item_type stp_policy_type = {
@@ -382,7 +382,7 @@ static const struct config_item_type stp_policy_type = {
 static struct config_group *
 stp_policy_make(struct config_group *group, const char *name)
 {
-	const struct config_item_type *pdrv_node_type;
+	const struct config_item_type *pdrv_analde_type;
 	const struct stm_protocol_driver *pdrv;
 	char *devname, *proto, *p;
 	struct config_group *ret;
@@ -391,13 +391,13 @@ stp_policy_make(struct config_group *group, const char *name)
 
 	devname = kasprintf(GFP_KERNEL, "%s", name);
 	if (!devname)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	/*
-	 * node must look like <device_name>.<policy_name>, where
+	 * analde must look like <device_name>.<policy_name>, where
 	 * <device_name> is the name of an existing stm device; may
 	 *               contain dots;
-	 * <policy_name> is an arbitrary string; may not contain dots
+	 * <policy_name> is an arbitrary string; may analt contain dots
 	 * <device_name>:<protocol_name>.<policy_name>
 	 */
 	p = strrchr(devname, '.');
@@ -410,8 +410,8 @@ stp_policy_make(struct config_group *group, const char *name)
 
 	/*
 	 * look for ":<protocol_name>":
-	 *  + no protocol suffix: fall back to whatever is available;
-	 *  + unknown protocol: fail the whole thing
+	 *  + anal protocol suffix: fall back to whatever is available;
+	 *  + unkanalwn protocol: fail the whole thing
 	 */
 	proto = strrchr(devname, ':');
 	if (proto)
@@ -420,15 +420,15 @@ stp_policy_make(struct config_group *group, const char *name)
 	stm = stm_find_device(devname);
 	if (!stm) {
 		kfree(devname);
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 	}
 
-	err = stm_lookup_protocol(proto, &pdrv, &pdrv_node_type);
+	err = stm_lookup_protocol(proto, &pdrv, &pdrv_analde_type);
 	kfree(devname);
 
 	if (err) {
 		stm_put_device(stm);
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 	}
 
 	mutex_lock(&stm->policy_mutex);
@@ -439,7 +439,7 @@ stp_policy_make(struct config_group *group, const char *name)
 
 	stm->policy = kzalloc(sizeof(*stm->policy), GFP_KERNEL);
 	if (!stm->policy) {
-		ret = ERR_PTR(-ENOMEM);
+		ret = ERR_PTR(-EANALMEM);
 		goto unlock_policy;
 	}
 
@@ -447,7 +447,7 @@ stp_policy_make(struct config_group *group, const char *name)
 				    &stp_policy_type);
 
 	stm->pdrv = pdrv;
-	stm->pdrv_node_type = pdrv_node_type;
+	stm->pdrv_analde_type = pdrv_analde_type;
 	stm->policy->stm = stm;
 	ret = &stm->policy->group;
 
@@ -487,10 +487,10 @@ static struct configfs_subsystem stp_policy_subsys = {
 /*
  * Lock the policy mutex from the outside
  */
-static struct stp_policy_node *
-__stp_policy_node_lookup(struct stp_policy *policy, char *s)
+static struct stp_policy_analde *
+__stp_policy_analde_lookup(struct stp_policy *policy, char *s)
 {
-	struct stp_policy_node *policy_node, *ret = NULL;
+	struct stp_policy_analde *policy_analde, *ret = NULL;
 	struct list_head *head = &policy->group.cg_children;
 	struct config_item *item;
 	char *start, *end = s;
@@ -508,16 +508,16 @@ next:
 			continue;
 
 		list_for_each_entry(item, head, ci_entry) {
-			policy_node = to_stp_policy_node(item);
+			policy_analde = to_stp_policy_analde(item);
 
 			if (!strcmp(start,
-				    policy_node->group.cg_item.ci_name)) {
-				ret = policy_node;
+				    policy_analde->group.cg_item.ci_name)) {
+				ret = policy_analde;
 
 				if (!end)
 					goto out;
 
-				head = &policy_node->group.cg_children;
+				head = &policy_analde->group.cg_children;
 				goto next;
 			}
 		}
@@ -529,32 +529,32 @@ out:
 }
 
 
-struct stp_policy_node *
-stp_policy_node_lookup(struct stm_device *stm, char *s)
+struct stp_policy_analde *
+stp_policy_analde_lookup(struct stm_device *stm, char *s)
 {
-	struct stp_policy_node *policy_node = NULL;
+	struct stp_policy_analde *policy_analde = NULL;
 
 	mutex_lock(&stp_policy_subsys.su_mutex);
 
 	mutex_lock(&stm->policy_mutex);
 	if (stm->policy)
-		policy_node = __stp_policy_node_lookup(stm->policy, s);
+		policy_analde = __stp_policy_analde_lookup(stm->policy, s);
 	mutex_unlock(&stm->policy_mutex);
 
-	if (policy_node)
-		config_item_get(&policy_node->group.cg_item);
+	if (policy_analde)
+		config_item_get(&policy_analde->group.cg_item);
 	else
 		mutex_unlock(&stp_policy_subsys.su_mutex);
 
-	return policy_node;
+	return policy_analde;
 }
 
-void stp_policy_node_put(struct stp_policy_node *policy_node)
+void stp_policy_analde_put(struct stp_policy_analde *policy_analde)
 {
 	lockdep_assert_held(&stp_policy_subsys.su_mutex);
 
 	mutex_unlock(&stp_policy_subsys.su_mutex);
-	config_item_put(&policy_node->group.cg_item);
+	config_item_put(&policy_analde->group.cg_item);
 }
 
 int __init stp_configfs_init(void)

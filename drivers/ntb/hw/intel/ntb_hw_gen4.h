@@ -39,7 +39,7 @@
 #define GEN4_LTR_ACTIVE_OFFSET		0x30f0
 #define GEN4_LTR_IDLE_OFFSET		0x30f4
 #define GEN4_EM_SPAD_OFFSET		0x8080
-/* note, link status is now in MMIO and not config space for NTB */
+/* analte, link status is analw in MMIO and analt config space for NTB */
 #define GEN4_LINK_CTRL_OFFSET		0xb050
 #define GEN4_LINK_STATUS_OFFSET		0xb052
 #define GEN4_PPD0_OFFSET		0xb0d4
@@ -78,15 +78,15 @@
 #define GEN4_DB_TOTAL_SHIFT		33
 #define GEN4_SPAD_COUNT			16
 
-#define NTB_CTL_E2I_BAR23_SNOOP		0x000004
-#define NTB_CTL_E2I_BAR23_NOSNOOP	0x000008
-#define NTB_CTL_I2E_BAR23_SNOOP		0x000010
-#define NTB_CTL_I2E_BAR23_NOSNOOP	0x000020
-#define NTB_CTL_E2I_BAR45_SNOOP		0x000040
-#define NTB_CTL_E2I_BAR45_NOSNOO	0x000080
-#define NTB_CTL_I2E_BAR45_SNOOP		0x000100
-#define NTB_CTL_I2E_BAR45_NOSNOOP	0x000200
-#define NTB_CTL_BUSNO_DIS_INC		0x000400
+#define NTB_CTL_E2I_BAR23_SANALOP		0x000004
+#define NTB_CTL_E2I_BAR23_ANALSANALOP	0x000008
+#define NTB_CTL_I2E_BAR23_SANALOP		0x000010
+#define NTB_CTL_I2E_BAR23_ANALSANALOP	0x000020
+#define NTB_CTL_E2I_BAR45_SANALOP		0x000040
+#define NTB_CTL_E2I_BAR45_ANALSANALO	0x000080
+#define NTB_CTL_I2E_BAR45_SANALOP		0x000100
+#define NTB_CTL_I2E_BAR45_ANALSANALOP	0x000200
+#define NTB_CTL_BUSANAL_DIS_INC		0x000400
 #define NTB_CTL_LINK_DOWN		0x010000
 
 #define NTB_SJC_FORCEDETECT		0x000004
@@ -97,11 +97,11 @@
 #define NTB_LTR_NS_SHIFT		16
 #define NTB_LTR_ACTIVE_VAL		0x0000  /* 0 us */
 #define NTB_LTR_ACTIVE_LATSCALE		0x0800  /* 1us scale */
-#define NTB_LTR_ACTIVE_REQMNT		0x8000  /* snoop req enable */
+#define NTB_LTR_ACTIVE_REQMNT		0x8000  /* sanalop req enable */
 
 #define NTB_LTR_IDLE_VAL		0x0258  /* 600 us */
 #define NTB_LTR_IDLE_LATSCALE		0x0800  /* 1us scale */
-#define NTB_LTR_IDLE_REQMNT		0x8000  /* snoop req enable */
+#define NTB_LTR_IDLE_REQMNT		0x8000  /* sanalop req enable */
 
 ssize_t ndev_ntb4_debugfs_read(struct file *filp, char __user *ubuf,
 				      size_t count, loff_t *offp);

@@ -25,7 +25,7 @@ END	{
 	  printf(" * We'll use the following MACH_xxx defs for placeholders for the time\n");
 	  printf(" * being .. these will all go away once sh_machtype is assigned per-board.\n");
 	  printf(" *\n");
-	  printf(" * For now we leave things the way they are for backwards compatibility.\n");
+	  printf(" * For analw we leave things the way they are for backwards compatibility.\n");
 	  printf(" */\n");
 	  printf("\n");
 	  printf("/* Mach types */\n");

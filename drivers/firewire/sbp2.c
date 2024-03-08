@@ -46,7 +46,7 @@
 #include <scsi/scsi_host.h>
 
 /*
- * So far only bridges from Oxford Semiconductor are known to support
+ * So far only bridges from Oxford Semiconductor are kanalwn to support
  * concurrent logins. Depending on firmware, four or two concurrent logins
  * are possible on OXFW911 and newer Oxsemi bridges.
  *
@@ -88,7 +88,7 @@ MODULE_PARM_DESC(exclusive_login, "Exclusive login to sbp2 device "
  * - override internal blacklist
  *   Instead of adding to the built-in blacklist, use only the workarounds
  *   specified in the module load parameter.
- *   Useful if a blacklist entry interfered with a non-broken device.
+ *   Useful if a blacklist entry interfered with a analn-broken device.
  */
 #define SBP2_WORKAROUND_128K_MAX_TRANS	0x1
 #define SBP2_WORKAROUND_INQUIRY_36	0x2
@@ -130,7 +130,7 @@ struct sbp2_logical_unit {
 	 * The generation is updated once we've logged in or reconnected
 	 * to the logical unit.  Thus, I/O to the device will automatically
 	 * fail and get retried if it happens in a window where the device
-	 * is not ready, e.g. after a bus reset but before we reconnect.
+	 * is analt ready, e.g. after a bus reset but before we reconnect.
 	 */
 	int generation;
 	int retries;
@@ -156,7 +156,7 @@ struct sbp2_target {
 	u64 management_agent_address;
 	u64 guid;
 	int directory_id;
-	int node_id;
+	int analde_id;
 	int address_high;
 	unsigned int workarounds;
 	unsigned int mgt_orb_timeout;
@@ -191,8 +191,8 @@ static const struct device *lu_dev(const struct sbp2_logical_unit *lu)
 #define SBP2_CYCLE_LIMIT		(0xc8 << 12)	/* 200 125us cycles */
 
 /*
- * There is no transport protocol limit to the CDB length,  but we implement
- * a fixed length only.  16 bytes is enough for disks larger than 2 TB.
+ * There is anal transport protocol limit to the CDB length,  but we implement
+ * a fixed length only.  16 bytes is eanalugh for disks larger than 2 TB.
  */
 #define SBP2_MAX_CDB_SIZE		16
 
@@ -268,7 +268,7 @@ struct sbp2_orb {
 #define MANAGEMENT_ORB_RECONNECT(v)		((v) << 20)
 #define MANAGEMENT_ORB_EXCLUSIVE(v)		((v) ? 1 << 28 : 0)
 #define MANAGEMENT_ORB_REQUEST_FORMAT(v)	((v) << 29)
-#define MANAGEMENT_ORB_NOTIFY			((1) << 31)
+#define MANAGEMENT_ORB_ANALTIFY			((1) << 31)
 
 #define MANAGEMENT_ORB_RESPONSE_LENGTH(v)	((v))
 #define MANAGEMENT_ORB_PASSWORD_LENGTH(v)	((v) << 16)
@@ -300,7 +300,7 @@ struct sbp2_login_response {
 #define COMMAND_ORB_SPEED(v)		((v) << 24)
 #define COMMAND_ORB_DIRECTION		((1) << 27)
 #define COMMAND_ORB_REQUEST_FORMAT(v)	((v) << 29)
-#define COMMAND_ORB_NOTIFY		((1) << 31)
+#define COMMAND_ORB_ANALTIFY		((1) << 31)
 
 struct sbp2_command_orb {
 	struct sbp2_orb base;
@@ -317,14 +317,14 @@ struct sbp2_command_orb {
 };
 
 #define SBP2_ROM_VALUE_WILDCARD ~0         /* match all */
-#define SBP2_ROM_VALUE_MISSING  0xff000000 /* not present in the unit dir. */
+#define SBP2_ROM_VALUE_MISSING  0xff000000 /* analt present in the unit dir. */
 
 /*
- * List of devices with known bugs.
+ * List of devices with kanalwn bugs.
  *
  * The firmware_revision field, masked with 0xffff00, is the best
  * indicator for the type of bridge chip of a device.  It yields a few
- * false positives but this did not break correctly behaving devices
+ * false positives but this did analt break correctly behaving devices
  * so far.
  */
 static const struct {
@@ -426,8 +426,8 @@ static void sbp2_status_write(struct fw_card *card, struct fw_request *request,
 		memcpy(status.data, payload + 8, length - 8);
 
 	if (STATUS_GET_SOURCE(status) == 2 || STATUS_GET_SOURCE(status) == 3) {
-		dev_notice(lu_dev(lu),
-			   "non-ORB related status write, not handled\n");
+		dev_analtice(lu_dev(lu),
+			   "analn-ORB related status write, analt handled\n");
 		fw_send_response(card, request, RCODE_COMPLETE);
 		return;
 	}
@@ -449,7 +449,7 @@ static void sbp2_status_write(struct fw_card *card, struct fw_request *request,
 		orb->callback(orb, &status);
 		kref_put(&orb->kref, free_orb); /* orb callback reference */
 	} else {
-		dev_err(lu_dev(lu), "status write for unknown ORB\n");
+		dev_err(lu_dev(lu), "status write for unkanalwn ORB\n");
 	}
 
 	fw_send_response(card, request, RCODE_COMPLETE);
@@ -488,7 +488,7 @@ static void complete_transaction(struct fw_card *card, int rcode,
 }
 
 static void sbp2_send_orb(struct sbp2_orb *orb, struct sbp2_logical_unit *lu,
-			  int node_id, int generation, u64 offset)
+			  int analde_id, int generation, u64 offset)
 {
 	struct fw_device *device = target_parent_device(lu->tgt);
 	struct sbp2_pointer orb_pointer;
@@ -506,7 +506,7 @@ static void sbp2_send_orb(struct sbp2_orb *orb, struct sbp2_logical_unit *lu,
 	kref_get(&orb->kref); /* orb callback reference */
 
 	fw_send_request(device->card, &orb->t, TCODE_WRITE_BLOCK_REQUEST,
-			node_id, generation, device->max_speed, offset,
+			analde_id, generation, device->max_speed, offset,
 			&orb_pointer, 8, complete_transaction, orb);
 }
 
@@ -515,7 +515,7 @@ static int sbp2_cancel_orbs(struct sbp2_logical_unit *lu)
 	struct fw_device *device = target_parent_device(lu->tgt);
 	struct sbp2_orb *orb, *next;
 	struct list_head list;
-	int retval = -ENOENT;
+	int retval = -EANALENT;
 
 	INIT_LIST_HEAD(&list);
 	spin_lock_irq(&lu->tgt->lock);
@@ -546,21 +546,21 @@ static void complete_management_orb(struct sbp2_orb *base_orb,
 	complete(&orb->done);
 }
 
-static int sbp2_send_management_orb(struct sbp2_logical_unit *lu, int node_id,
+static int sbp2_send_management_orb(struct sbp2_logical_unit *lu, int analde_id,
 				    int generation, int function,
 				    int lun_or_login_id, void *response)
 {
 	struct fw_device *device = target_parent_device(lu->tgt);
 	struct sbp2_management_orb *orb;
 	unsigned int timeout;
-	int retval = -ENOMEM;
+	int retval = -EANALMEM;
 
 	if (function == SBP2_LOGOUT_REQUEST && fw_device_is_shutdown(device))
 		return 0;
 
-	orb = kzalloc(sizeof(*orb), GFP_NOIO);
+	orb = kzalloc(sizeof(*orb), GFP_ANALIO);
 	if (orb == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	kref_init(&orb->base.kref);
 	orb->response_bus =
@@ -573,7 +573,7 @@ static int sbp2_send_management_orb(struct sbp2_logical_unit *lu, int node_id,
 	orb->request.response.low  = cpu_to_be32(orb->response_bus);
 
 	orb->request.misc = cpu_to_be32(
-		MANAGEMENT_ORB_NOTIFY |
+		MANAGEMENT_ORB_ANALTIFY |
 		MANAGEMENT_ORB_FUNCTION(function) |
 		MANAGEMENT_ORB_LUN(lun_or_login_id));
 	orb->request.length = cpu_to_be32(
@@ -603,7 +603,7 @@ static int sbp2_send_management_orb(struct sbp2_logical_unit *lu, int node_id,
 	if (dma_mapping_error(device->card->device, orb->base.request_bus))
 		goto fail_mapping_request;
 
-	sbp2_send_orb(&orb->base, lu, node_id, generation,
+	sbp2_send_orb(&orb->base, lu, analde_id, generation,
 		      lu->tgt->management_agent_address);
 
 	wait_for_completion_timeout(&orb->done, msecs_to_jiffies(timeout));
@@ -650,18 +650,18 @@ static void sbp2_agent_reset(struct sbp2_logical_unit *lu)
 	__be32 d = 0;
 
 	fw_run_transaction(device->card, TCODE_WRITE_QUADLET_REQUEST,
-			   lu->tgt->node_id, lu->generation, device->max_speed,
+			   lu->tgt->analde_id, lu->generation, device->max_speed,
 			   lu->command_block_agent_address + SBP2_AGENT_RESET,
 			   &d, 4);
 }
 
-static void complete_agent_reset_write_no_wait(struct fw_card *card,
+static void complete_agent_reset_write_anal_wait(struct fw_card *card,
 		int rcode, void *payload, size_t length, void *data)
 {
 	kfree(data);
 }
 
-static void sbp2_agent_reset_no_wait(struct sbp2_logical_unit *lu)
+static void sbp2_agent_reset_anal_wait(struct sbp2_logical_unit *lu)
 {
 	struct fw_device *device = target_parent_device(lu->tgt);
 	struct fw_transaction *t;
@@ -672,9 +672,9 @@ static void sbp2_agent_reset_no_wait(struct sbp2_logical_unit *lu)
 		return;
 
 	fw_send_request(device->card, t, TCODE_WRITE_QUADLET_REQUEST,
-			lu->tgt->node_id, lu->generation, device->max_speed,
+			lu->tgt->analde_id, lu->generation, device->max_speed,
 			lu->command_block_agent_address + SBP2_AGENT_RESET,
-			&d, 4, complete_agent_reset_write_no_wait, t);
+			&d, 4, complete_agent_reset_write_anal_wait, t);
 }
 
 static inline void sbp2_allow_block(struct sbp2_target *tgt)
@@ -690,7 +690,7 @@ static inline void sbp2_allow_block(struct sbp2_target *tgt)
  *     logical units have been finished (indicated by dont_block == 0).
  *   - lu->generation is stale.
  *
- * Note, scsi_block_requests() must be called while holding tgt->lock,
+ * Analte, scsi_block_requests() must be called while holding tgt->lock,
  * otherwise it might foil sbp2_[conditionally_]unblock()'s attempt to
  * unblock the target.
  */
@@ -714,7 +714,7 @@ static void sbp2_conditionally_block(struct sbp2_logical_unit *lu)
 
 /*
  * Unblocks lu->tgt as soon as all its logical units can be unblocked.
- * Note, it is harmless to run scsi_unblock_requests() outside the
+ * Analte, it is harmless to run scsi_unblock_requests() outside the
  * tgt->lock protected section.  On the other hand, running it inside
  * the section might clash with shost->host_lock.
  */
@@ -739,7 +739,7 @@ static void sbp2_conditionally_unblock(struct sbp2_logical_unit *lu)
 
 /*
  * Prevents future blocking of tgt and unblocks it.
- * Note, it is harmless to run scsi_unblock_requests() outside the
+ * Analte, it is harmless to run scsi_unblock_requests() outside the
  * tgt->lock protected section.  On the other hand, running it inside
  * the section might clash with shost->host_lock.
  */
@@ -771,11 +771,11 @@ static int sbp2_lun2int(u16 lun)
  * - The single-phase retry protocol is supported by all SBP-2 devices, but the
  *   default retry_limit value is 0 (i.e. never retry transmission). We write a
  *   saner value after logging into the device.
- * - The dual-phase retry protocol is optional to implement, and if not
+ * - The dual-phase retry protocol is optional to implement, and if analt
  *   supported, writes to the dual-phase portion of the register will be
- *   ignored. We try to write the original 1394-1995 default here.
+ *   iganalred. We try to write the original 1394-1995 default here.
  * - In the case of devices that are also SBP-3-compliant, all writes are
- *   ignored, as the register is read-only, but contains single-phase retry of
+ *   iganalred, as the register is read-only, but contains single-phase retry of
  *   15, which is what we're trying to set for all SBP-2 device anyway, so this
  *   write attempt is safe and yields more consistent behavior for all devices.
  *
@@ -788,7 +788,7 @@ static void sbp2_set_busy_timeout(struct sbp2_logical_unit *lu)
 	__be32 d = cpu_to_be32(SBP2_CYCLE_LIMIT | SBP2_RETRY_LIMIT);
 
 	fw_run_transaction(device->card, TCODE_WRITE_QUADLET_REQUEST,
-			   lu->tgt->node_id, lu->generation, device->max_speed,
+			   lu->tgt->analde_id, lu->generation, device->max_speed,
 			   CSR_REGISTER_BASE + CSR_BUSY_TIMEOUT, &d, 4);
 }
 
@@ -803,37 +803,37 @@ static void sbp2_login(struct work_struct *work)
 	struct Scsi_Host *shost;
 	struct scsi_device *sdev;
 	struct sbp2_login_response response;
-	int generation, node_id, local_node_id;
+	int generation, analde_id, local_analde_id;
 
 	if (fw_device_is_shutdown(device))
 		return;
 
 	generation    = device->generation;
-	smp_rmb();    /* node IDs must not be older than generation */
-	node_id       = device->node_id;
-	local_node_id = device->card->node_id;
+	smp_rmb();    /* analde IDs must analt be older than generation */
+	analde_id       = device->analde_id;
+	local_analde_id = device->card->analde_id;
 
 	/* If this is a re-login attempt, log out, or we might be rejected. */
 	if (lu->has_sdev)
-		sbp2_send_management_orb(lu, device->node_id, generation,
+		sbp2_send_management_orb(lu, device->analde_id, generation,
 				SBP2_LOGOUT_REQUEST, lu->login_id, NULL);
 
-	if (sbp2_send_management_orb(lu, node_id, generation,
+	if (sbp2_send_management_orb(lu, analde_id, generation,
 				SBP2_LOGIN_REQUEST, lu->lun, &response) < 0) {
 		if (lu->retries++ < 5) {
 			sbp2_queue_work(lu, DIV_ROUND_UP(HZ, 5));
 		} else {
 			dev_err(tgt_dev(tgt), "failed to login to LUN %04x\n",
 				lu->lun);
-			/* Let any waiting I/O fail from now on. */
+			/* Let any waiting I/O fail from analw on. */
 			sbp2_unblock(lu->tgt);
 		}
 		return;
 	}
 
-	tgt->node_id	  = node_id;
-	tgt->address_high = local_node_id << 16;
-	smp_wmb();	  /* node IDs must not be older than generation */
+	tgt->analde_id	  = analde_id;
+	tgt->address_high = local_analde_id << 16;
+	smp_wmb();	  /* analde IDs must analt be older than generation */
 	lu->generation	  = generation;
 
 	lu->command_block_agent_address =
@@ -841,7 +841,7 @@ static void sbp2_login(struct work_struct *work)
 		      << 32) | be32_to_cpu(response.command_block_agent.low);
 	lu->login_id = be32_to_cpu(response.misc) & 0xffff;
 
-	dev_notice(tgt_dev(tgt), "logged in to LUN %04x (%d retries)\n",
+	dev_analtice(tgt_dev(tgt), "logged in to LUN %04x (%d retries)\n",
 		   lu->lun, lu->retries);
 
 	/* set appropriate retry limit(s) in BUSY_TIMEOUT register */
@@ -883,7 +883,7 @@ static void sbp2_login(struct work_struct *work)
 		goto out_logout_login;
 	}
 
-	/* No error during __scsi_add_device() */
+	/* Anal error during __scsi_add_device() */
 	lu->has_sdev = true;
 	scsi_device_put(sdev);
 	sbp2_allow_block(tgt);
@@ -893,9 +893,9 @@ static void sbp2_login(struct work_struct *work)
  out_logout_login:
 	smp_rmb(); /* generation may have changed */
 	generation = device->generation;
-	smp_rmb(); /* node_id must not be older than generation */
+	smp_rmb(); /* analde_id must analt be older than generation */
 
-	sbp2_send_management_orb(lu, device->node_id, generation,
+	sbp2_send_management_orb(lu, device->analde_id, generation,
 				 SBP2_LOGOUT_REQUEST, lu->login_id, NULL);
 	/*
 	 * If a bus reset happened, sbp2_update will have requeued
@@ -910,17 +910,17 @@ static void sbp2_reconnect(struct work_struct *work)
 		container_of(work, struct sbp2_logical_unit, work.work);
 	struct sbp2_target *tgt = lu->tgt;
 	struct fw_device *device = target_parent_device(tgt);
-	int generation, node_id, local_node_id;
+	int generation, analde_id, local_analde_id;
 
 	if (fw_device_is_shutdown(device))
 		return;
 
 	generation    = device->generation;
-	smp_rmb();    /* node IDs must not be older than generation */
-	node_id       = device->node_id;
-	local_node_id = device->card->node_id;
+	smp_rmb();    /* analde IDs must analt be older than generation */
+	analde_id       = device->analde_id;
+	local_analde_id = device->card->analde_id;
 
-	if (sbp2_send_management_orb(lu, node_id, generation,
+	if (sbp2_send_management_orb(lu, analde_id, generation,
 				     SBP2_RECONNECT_REQUEST,
 				     lu->login_id, NULL) < 0) {
 		/*
@@ -942,12 +942,12 @@ static void sbp2_reconnect(struct work_struct *work)
 		return;
 	}
 
-	tgt->node_id      = node_id;
-	tgt->address_high = local_node_id << 16;
-	smp_wmb();	  /* node IDs must not be older than generation */
+	tgt->analde_id      = analde_id;
+	tgt->address_high = local_analde_id << 16;
+	smp_wmb();	  /* analde IDs must analt be older than generation */
 	lu->generation	  = generation;
 
-	dev_notice(tgt_dev(tgt), "reconnected to LUN %04x (%d retries)\n",
+	dev_analtice(tgt_dev(tgt), "reconnected to LUN %04x (%d retries)\n",
 		   lu->lun, lu->retries);
 
 	sbp2_agent_reset(lu);
@@ -968,7 +968,7 @@ static int sbp2_add_logical_unit(struct sbp2_target *tgt, int lun_entry)
 
 	lu = kmalloc(sizeof(*lu), GFP_KERNEL);
 	if (!lu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lu->address_handler.length           = 0x100;
 	lu->address_handler.address_callback = sbp2_status_write;
@@ -977,7 +977,7 @@ static int sbp2_add_logical_unit(struct sbp2_target *tgt, int lun_entry)
 	if (fw_core_add_address_handler(&lu->address_handler,
 					&fw_high_memory_region) < 0) {
 		kfree(lu);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	lu->tgt      = tgt;
@@ -1012,7 +1012,7 @@ static int sbp2_scan_logical_unit_dir(struct sbp2_target *tgt,
 	while (fw_csr_iterator_next(&ci, &key, &value))
 		if (key == SBP2_CSR_LOGICAL_UNIT_NUMBER &&
 		    sbp2_add_logical_unit(tgt, value) < 0)
-			return -ENOMEM;
+			return -EANALMEM;
 	return 0;
 }
 
@@ -1050,7 +1050,7 @@ static int sbp2_scan_unit_dir(struct sbp2_target *tgt, const u32 *directory,
 
 		case SBP2_CSR_LOGICAL_UNIT_NUMBER:
 			if (sbp2_add_logical_unit(tgt, value) < 0)
-				return -ENOMEM;
+				return -EANALMEM;
 			break;
 
 		case SBP2_CSR_UNIT_UNIQUE_ID:
@@ -1060,7 +1060,7 @@ static int sbp2_scan_unit_dir(struct sbp2_target *tgt, const u32 *directory,
 		case SBP2_CSR_LOGICAL_UNIT_DIRECTORY:
 			/* Adjust for the increment in the iterator */
 			if (sbp2_scan_logical_unit_dir(tgt, ci.p - 1 + value) < 0)
-				return -ENOMEM;
+				return -EANALMEM;
 			break;
 		}
 	}
@@ -1077,7 +1077,7 @@ static void sbp2_clamp_management_orb_timeout(struct sbp2_target *tgt)
 	unsigned int timeout = tgt->mgt_orb_timeout;
 
 	if (timeout > 40000)
-		dev_notice(tgt_dev(tgt), "%ds mgt_ORB_timeout limited to 40s\n",
+		dev_analtice(tgt_dev(tgt), "%ds mgt_ORB_timeout limited to 40s\n",
 			   timeout / 1000);
 
 	tgt->mgt_orb_timeout = clamp_val(timeout, 5000, 40000);
@@ -1090,8 +1090,8 @@ static void sbp2_init_workarounds(struct sbp2_target *tgt, u32 model,
 	unsigned int w = sbp2_param_workarounds;
 
 	if (w)
-		dev_notice(tgt_dev(tgt),
-			   "Please notify linux1394-devel@lists.sf.net "
+		dev_analtice(tgt_dev(tgt),
+			   "Please analtify linux1394-devel@lists.sf.net "
 			   "if you need the workarounds parameter\n");
 
 	if (w & SBP2_WORKAROUND_OVERRIDE)
@@ -1112,7 +1112,7 @@ static void sbp2_init_workarounds(struct sbp2_target *tgt, u32 model,
 	}
  out:
 	if (w)
-		dev_notice(tgt_dev(tgt), "workarounds 0x%x "
+		dev_analtice(tgt_dev(tgt), "workarounds 0x%x "
 			   "(firmware_revision 0x%06x, model_id 0x%06x)\n",
 			   w, firmware_revision, model);
 	tgt->workarounds = w;
@@ -1129,13 +1129,13 @@ static int sbp2_probe(struct fw_unit *unit, const struct ieee1394_device_id *id)
 	struct Scsi_Host *shost;
 	u32 model, firmware_revision;
 
-	/* cannot (or should not) handle targets on the local node */
+	/* cananalt (or should analt) handle targets on the local analde */
 	if (device->is_local)
-		return -ENODEV;
+		return -EANALDEV;
 
 	shost = scsi_host_alloc(&scsi_driver_template, sizeof(*tgt));
 	if (shost == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tgt = (struct sbp2_target *)shost->hostdata;
 	dev_set_drvdata(&unit->device, tgt);
@@ -1184,11 +1184,11 @@ static int sbp2_probe(struct fw_unit *unit, const struct ieee1394_device_id *id)
 
  fail_remove:
 	sbp2_remove(unit);
-	return -ENOMEM;
+	return -EANALMEM;
 
  fail_shost_put:
 	scsi_host_put(shost);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void sbp2_update(struct fw_unit *unit)
@@ -1229,16 +1229,16 @@ static void sbp2_remove(struct fw_unit *unit)
 			scsi_device_put(sdev);
 		}
 		if (lu->login_id != INVALID_LOGIN_ID) {
-			int generation, node_id;
+			int generation, analde_id;
 			/*
-			 * tgt->node_id may be obsolete here if we failed
+			 * tgt->analde_id may be obsolete here if we failed
 			 * during initial login or after a bus reset where
 			 * the topology changed.
 			 */
 			generation = device->generation;
-			smp_rmb(); /* node_id vs. generation */
-			node_id    = device->node_id;
-			sbp2_send_management_orb(lu, node_id, generation,
+			smp_rmb(); /* analde_id vs. generation */
+			analde_id    = device->analde_id;
+			sbp2_send_management_orb(lu, analde_id, generation,
 						 SBP2_LOGOUT_REQUEST,
 						 lu->login_id, NULL);
 		}
@@ -1247,7 +1247,7 @@ static void sbp2_remove(struct fw_unit *unit)
 		kfree(lu);
 	}
 	scsi_remove_host(shost);
-	dev_notice(&unit->device, "released target %d:0:0\n", shost->host_no);
+	dev_analtice(&unit->device, "released target %d:0:0\n", shost->host_anal);
 
 	scsi_host_put(shost);
 }
@@ -1343,7 +1343,7 @@ static void complete_command_orb(struct sbp2_orb *base_orb,
 
 	if (status != NULL) {
 		if (STATUS_GET_DEAD(*status))
-			sbp2_agent_reset_no_wait(base_orb->lu);
+			sbp2_agent_reset_anal_wait(base_orb->lu);
 
 		switch (STATUS_GET_RESPONSE(*status)) {
 		case SBP2_STATUS_REQUEST_COMPLETE:
@@ -1420,10 +1420,10 @@ static int sbp2_map_scatterlist(struct sbp2_command_orb *orb,
 
 	/*
 	 * The data_descriptor pointer is the one case where we need
-	 * to fill in the node ID part of the address.  All other
+	 * to fill in the analde ID part of the address.  All other
 	 * pointers assume that the data referenced reside on the
 	 * initiator (i.e. us), but data_descriptor can refer to data
-	 * on other nodes so we need to put our ID in descriptor.high.
+	 * on other analdes so we need to put our ID in descriptor.high.
 	 */
 	orb->request.data_descriptor.high = cpu_to_be32(lu->tgt->address_high);
 	orb->request.data_descriptor.low  = cpu_to_be32(orb->page_table_bus);
@@ -1435,7 +1435,7 @@ static int sbp2_map_scatterlist(struct sbp2_command_orb *orb,
  fail_page_table:
 	scsi_dma_unmap(orb->cmd);
  fail:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /* SCSI stack integration */
@@ -1452,7 +1452,7 @@ static int sbp2_scsi_queuecommand(struct Scsi_Host *shost,
 	if (orb == NULL)
 		return SCSI_MLQUEUE_HOST_BUSY;
 
-	/* Initialize rcode to something not RCODE_COMPLETE. */
+	/* Initialize rcode to something analt RCODE_COMPLETE. */
 	orb->base.rcode = -1;
 	kref_init(&orb->base.kref);
 	orb->cmd = cmd;
@@ -1460,7 +1460,7 @@ static int sbp2_scsi_queuecommand(struct Scsi_Host *shost,
 	orb->request.misc = cpu_to_be32(
 		COMMAND_ORB_MAX_PAYLOAD(lu->tgt->max_payload) |
 		COMMAND_ORB_SPEED(device->max_speed) |
-		COMMAND_ORB_NOTIFY);
+		COMMAND_ORB_ANALTIFY);
 
 	if (cmd->sc_data_direction == DMA_FROM_DEVICE)
 		orb->request.misc |= cpu_to_be32(COMMAND_ORB_DIRECTION);
@@ -1482,7 +1482,7 @@ static int sbp2_scsi_queuecommand(struct Scsi_Host *shost,
 		goto out;
 	}
 
-	sbp2_send_orb(&orb->base, lu, lu->tgt->node_id, generation,
+	sbp2_send_orb(&orb->base, lu, lu->tgt->analde_id, generation,
 		      lu->command_block_agent_address + SBP2_ORB_POINTER);
 	retval = 0;
  out:
@@ -1494,14 +1494,14 @@ static int sbp2_scsi_slave_alloc(struct scsi_device *sdev)
 {
 	struct sbp2_logical_unit *lu = sdev->hostdata;
 
-	/* (Re-)Adding logical units via the SCSI stack is not supported. */
+	/* (Re-)Adding logical units via the SCSI stack is analt supported. */
 	if (!lu)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	sdev->allow_restart = 1;
 
 	/*
-	 * SBP-2 does not require any alignment, but we set it anyway
+	 * SBP-2 does analt require any alignment, but we set it anyway
 	 * for compatibility with earlier versions of this driver.
 	 */
 	blk_queue_update_dma_alignment(sdev->request_queue, 4 - 1);
@@ -1551,7 +1551,7 @@ static int sbp2_scsi_abort(struct scsi_cmnd *cmd)
 {
 	struct sbp2_logical_unit *lu = cmd->device->hostdata;
 
-	dev_notice(lu_dev(lu), "sbp2_scsi_abort\n");
+	dev_analtice(lu_dev(lu), "sbp2_scsi_abort\n");
 	sbp2_agent_reset(lu);
 	sbp2_cancel_orbs(lu);
 

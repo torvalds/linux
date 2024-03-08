@@ -14,7 +14,7 @@
 #include <linux/file.h>
 #include <linux/fdtable.h>
 #include <linux/capability.h>
-#include <linux/dnotify.h>
+#include <linux/danaltify.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/pipe_fs_i.h>
@@ -32,32 +32,32 @@
 #include <asm/siginfo.h>
 #include <linux/uaccess.h>
 
-#define SETFL_MASK (O_APPEND | O_NONBLOCK | O_NDELAY | O_DIRECT | O_NOATIME)
+#define SETFL_MASK (O_APPEND | O_ANALNBLOCK | O_NDELAY | O_DIRECT | O_ANALATIME)
 
 static int setfl(int fd, struct file * filp, unsigned int arg)
 {
-	struct inode * inode = file_inode(filp);
+	struct ianalde * ianalde = file_ianalde(filp);
 	int error = 0;
 
 	/*
-	 * O_APPEND cannot be cleared if the file is marked as append-only
+	 * O_APPEND cananalt be cleared if the file is marked as append-only
 	 * and the file is open for write.
 	 */
-	if (((arg ^ filp->f_flags) & O_APPEND) && IS_APPEND(inode))
+	if (((arg ^ filp->f_flags) & O_APPEND) && IS_APPEND(ianalde))
 		return -EPERM;
 
-	/* O_NOATIME can only be set by the owner or superuser */
-	if ((arg & O_NOATIME) && !(filp->f_flags & O_NOATIME))
-		if (!inode_owner_or_capable(file_mnt_idmap(filp), inode))
+	/* O_ANALATIME can only be set by the owner or superuser */
+	if ((arg & O_ANALATIME) && !(filp->f_flags & O_ANALATIME))
+		if (!ianalde_owner_or_capable(file_mnt_idmap(filp), ianalde))
 			return -EPERM;
 
 	/* required for strict SunOS emulation */
-	if (O_NONBLOCK != O_NDELAY)
+	if (O_ANALNBLOCK != O_NDELAY)
 	       if (arg & O_NDELAY)
-		   arg |= O_NONBLOCK;
+		   arg |= O_ANALNBLOCK;
 
 	/* Pipe packetized mode is controlled by O_DIRECT flag */
-	if (!S_ISFIFO(inode->i_mode) &&
+	if (!S_ISFIFO(ianalde->i_mode) &&
 	    (arg & O_DIRECT) &&
 	    !(filp->f_mode & FMODE_CAN_ODIRECT))
 		return -EINVAL;
@@ -271,8 +271,8 @@ static int f_getowner_uids(struct file *filp, unsigned long arg)
 static bool rw_hint_valid(enum rw_hint hint)
 {
 	switch (hint) {
-	case RWH_WRITE_LIFE_NOT_SET:
-	case RWH_WRITE_LIFE_NONE:
+	case RWH_WRITE_LIFE_ANALT_SET:
+	case RWH_WRITE_LIFE_ANALNE:
 	case RWH_WRITE_LIFE_SHORT:
 	case RWH_WRITE_LIFE_MEDIUM:
 	case RWH_WRITE_LIFE_LONG:
@@ -286,14 +286,14 @@ static bool rw_hint_valid(enum rw_hint hint)
 static long fcntl_rw_hint(struct file *file, unsigned int cmd,
 			  unsigned long arg)
 {
-	struct inode *inode = file_inode(file);
+	struct ianalde *ianalde = file_ianalde(file);
 	u64 __user *argp = (u64 __user *)arg;
 	enum rw_hint hint;
 	u64 h;
 
 	switch (cmd) {
 	case F_GET_RW_HINT:
-		h = inode->i_write_hint;
+		h = ianalde->i_write_hint;
 		if (copy_to_user(argp, &h, sizeof(*argp)))
 			return -EFAULT;
 		return 0;
@@ -304,9 +304,9 @@ static long fcntl_rw_hint(struct file *file, unsigned int cmd,
 		if (!rw_hint_valid(hint))
 			return -EINVAL;
 
-		inode_lock(inode);
-		inode->i_write_hint = hint;
-		inode_unlock(inode);
+		ianalde_lock(ianalde);
+		ianalde->i_write_hint = hint;
+		ianalde_unlock(ianalde);
 		return 0;
 	default:
 		return -EINVAL;
@@ -404,8 +404,8 @@ static long do_fcntl(int fd, unsigned int cmd, unsigned long arg,
 	case F_SETLEASE:
 		err = fcntl_setlease(fd, filp, argi);
 		break;
-	case F_NOTIFY:
-		err = fcntl_dirnotify(fd, filp, argi);
+	case F_ANALTIFY:
+		err = fcntl_diranaltify(fd, filp, argi);
 		break;
 	case F_SETPIPE_SZ:
 	case F_GETPIPE_SZ:
@@ -690,9 +690,9 @@ COMPAT_SYSCALL_DEFINE3(fcntl, unsigned int, fd, unsigned int, cmd,
 /* Table to convert sigio signal codes into poll band bitmaps */
 
 static const __poll_t band_table[NSIGPOLL] = {
-	EPOLLIN | EPOLLRDNORM,			/* POLL_IN */
-	EPOLLOUT | EPOLLWRNORM | EPOLLWRBAND,	/* POLL_OUT */
-	EPOLLIN | EPOLLRDNORM | EPOLLMSG,		/* POLL_MSG */
+	EPOLLIN | EPOLLRDANALRM,			/* POLL_IN */
+	EPOLLOUT | EPOLLWRANALRM | EPOLLWRBAND,	/* POLL_OUT */
+	EPOLLIN | EPOLLRDANALRM | EPOLLMSG,		/* POLL_MSG */
 	EPOLLERR,				/* POLL_ERR */
 	EPOLLPRI | EPOLLRDBAND,			/* POLL_PRI */
 	EPOLLHUP | EPOLLERR			/* POLL_HUP */
@@ -732,14 +732,14 @@ static void send_sigio_to_task(struct task_struct *p,
 			kernel_siginfo_t si;
 
 			/* Queue a rt signal with the appropriate fd as its
-			   value.  We use SI_SIGIO as the source, not 
+			   value.  We use SI_SIGIO as the source, analt 
 			   SI_KERNEL, since kernel signals always get 
 			   delivered even if we can't queue.  Failure to
 			   queue in this case _should_ be reported; we fall
 			   back to SIGIO in that case. --sct */
 			clear_siginfo(&si);
-			si.si_signo = signum;
-			si.si_errno = 0;
+			si.si_siganal = signum;
+			si.si_erranal = 0;
 		        si.si_code  = reason;
 			/*
 			 * Posix definies POLL_IN and friends to be signal
@@ -854,10 +854,10 @@ static void fasync_free_rcu(struct rcu_head *head)
 
 /*
  * Remove a fasync entry. If successfully removed, return
- * positive and clear the FASYNC flag. If no entry exists,
- * do nothing and return 0.
+ * positive and clear the FASYNC flag. If anal entry exists,
+ * do analthing and return 0.
  *
- * NOTE! It is very important that the FASYNC flag always
+ * ANALTE! It is very important that the FASYNC flag always
  * match the state "is the filp on a fasync list".
  *
  */
@@ -893,7 +893,7 @@ struct fasync_struct *fasync_alloc(void)
 }
 
 /*
- * NOTE! This can be used only for unused fasync entries:
+ * ANALTE! This can be used only for unused fasync entries:
  * entries that actually got inserted on the fasync list
  * need to be released by rcu - see fasync_remove_entry.
  */
@@ -906,7 +906,7 @@ void fasync_free(struct fasync_struct *new)
  * Insert a new entry into the fasync list.  Return the pointer to the
  * old one if we didn't use the new one.
  *
- * NOTE! It is very important that the FASYNC flag always
+ * ANALTE! It is very important that the FASYNC flag always
  * match the state "is the filp on a fasync list".
  */
 struct fasync_struct *fasync_insert_entry(int fd, struct file *filp, struct fasync_struct **fapp, struct fasync_struct *new)
@@ -941,7 +941,7 @@ out:
 
 /*
  * Add a fasync entry. Return negative on error, positive if
- * added, and zero if did nothing but change an existing one.
+ * added, and zero if did analthing but change an existing one.
  */
 static int fasync_add_entry(int fd, struct file *filp, struct fasync_struct **fapp)
 {
@@ -949,14 +949,14 @@ static int fasync_add_entry(int fd, struct file *filp, struct fasync_struct **fa
 
 	new = fasync_alloc();
 	if (!new)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * fasync_insert_entry() returns the old (update) entry if
 	 * it existed.
 	 *
 	 * So free the (unused) new entry and return 0 to let the
-	 * caller know that we didn't add any new fasync entries.
+	 * caller kanalw that we didn't add any new fasync entries.
 	 */
 	if (fasync_insert_entry(fd, filp, fapp, new)) {
 		fasync_free(new);
@@ -969,7 +969,7 @@ static int fasync_add_entry(int fd, struct file *filp, struct fasync_struct **fa
 /*
  * fasync_helper() is used by almost all character device drivers
  * to set up the fasync queue, and for regular files by the file
- * lease code. It returns negative on error, 0 if it did no changes
+ * lease code. It returns negative on error, 0 if it did anal changes
  * and positive if it added/deleted the entry.
  */
 int fasync_helper(int fd, struct file * filp, int on, struct fasync_struct **fapp)
@@ -998,7 +998,7 @@ static void kill_fasync_rcu(struct fasync_struct *fa, int sig, int band)
 		read_lock_irqsave(&fa->fa_lock, flags);
 		if (fa->fa_file) {
 			fown = &fa->fa_file->f_owner;
-			/* Don't send SIGURG to processes which have not set a
+			/* Don't send SIGURG to processes which have analt set a
 			   queued signum: SIGURG has its own default signalling
 			   mechanism. */
 			if (!(sig == SIGURG && fown->signum == 0))
@@ -1026,13 +1026,13 @@ static int __init fcntl_init(void)
 {
 	/*
 	 * Please add new bits here to ensure allocation uniqueness.
-	 * Exceptions: O_NONBLOCK is a two bit define on parisc; O_NDELAY
-	 * is defined as O_NONBLOCK on some platforms and not on others.
+	 * Exceptions: O_ANALNBLOCK is a two bit define on parisc; O_NDELAY
+	 * is defined as O_ANALNBLOCK on some platforms and analt on others.
 	 */
 	BUILD_BUG_ON(21 - 1 /* for O_RDONLY being 0 */ !=
 		HWEIGHT32(
-			(VALID_OPEN_FLAGS & ~(O_NONBLOCK | O_NDELAY)) |
-			__FMODE_EXEC | __FMODE_NONOTIFY));
+			(VALID_OPEN_FLAGS & ~(O_ANALNBLOCK | O_NDELAY)) |
+			__FMODE_EXEC | __FMODE_ANALANALTIFY));
 
 	fasync_cache = kmem_cache_create("fasync_cache",
 					 sizeof(struct fasync_struct), 0,

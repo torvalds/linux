@@ -22,7 +22,7 @@
 	"vst $vr" #reg ", %[" #base "], " #offset "\n\t"
 #define XOR(dj, k)	"vxor.v $vr" #dj ", $vr" #dj ", $vr" #k "\n\t"
 
-#define LD_INOUT_LINE(base)	\
+#define LD_IANALUT_LINE(base)	\
 	LD(0, base, 0)		\
 	LD(1, base, 16)		\
 	LD(2, base, 32)		\
@@ -50,7 +50,7 @@
 #undef LD
 #undef ST
 #undef XOR
-#undef LD_INOUT_LINE
+#undef LD_IANALUT_LINE
 #undef LD_AND_XOR_LINE
 #undef ST_LINE
 #undef XOR_FUNC_NAME
@@ -65,7 +65,7 @@
 	"xvst $xr" #reg ", %[" #base "], " #offset "\n\t"
 #define XOR(dj, k)	"xvxor.v $xr" #dj ", $xr" #dj ", $xr" #k "\n\t"
 
-#define LD_INOUT_LINE(base)	\
+#define LD_IANALUT_LINE(base)	\
 	LD(0, base, 0)		\
 	LD(1, base, 32)
 
@@ -85,7 +85,7 @@
 #undef LD
 #undef ST
 #undef XOR
-#undef LD_INOUT_LINE
+#undef LD_IANALUT_LINE
 #undef LD_AND_XOR_LINE
 #undef ST_LINE
 #undef XOR_FUNC_NAME

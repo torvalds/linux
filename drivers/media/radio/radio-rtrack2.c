@@ -90,7 +90,7 @@ static int rtrack2_s_frequency(struct radio_isa_card *isa, u32 freq)
 
 static u32 rtrack2_g_signal(struct radio_isa_card *isa)
 {
-	/* bit set = no signal present	*/
+	/* bit set = anal signal present	*/
 	return (inb(isa->io) & 2) ? 0 : 0xffff;
 }
 

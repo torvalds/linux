@@ -5,7 +5,7 @@
 #include <linux/completion.h>
 #include <linux/delay.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
@@ -25,7 +25,7 @@
 #define CDNS_XSPI_NAME			"cadence-xspi"
 
 /*
- * Note: below are additional auxiliary registers to
+ * Analte: below are additional auxiliary registers to
  * configure XSPI controller pin-strap settings
  */
 
@@ -280,7 +280,7 @@ static int cdns_xspi_check_command_status(struct cdns_xspi_dev *cdns_xspi)
 			}
 		}
 	} else {
-		dev_err(cdns_xspi->dev, "Fatal err - command not completed\n");
+		dev_err(cdns_xspi->dev, "Fatal err - command analt completed\n");
 		ret = -EPROTO;
 	}
 
@@ -412,7 +412,7 @@ static int cdns_xspi_mem_op(struct cdns_xspi_dev *cdns_xspi,
 		cdns_xspi->cur_cs = spi_get_chipselect(mem->spi, 0);
 
 	return cdns_xspi_send_stig_command(cdns_xspi, op,
-					   (dir != SPI_MEM_NO_DATA));
+					   (dir != SPI_MEM_ANAL_DATA));
 }
 
 static int cdns_xspi_mem_op_execute(struct spi_mem *mem,
@@ -446,7 +446,7 @@ static irqreturn_t cdns_xspi_irq_handler(int this_irq, void *dev)
 {
 	struct cdns_xspi_dev *cdns_xspi = dev;
 	u32 irq_status;
-	irqreturn_t result = IRQ_NONE;
+	irqreturn_t result = IRQ_ANALNE;
 
 	irq_status = readl(cdns_xspi->iobase + CDNS_XSPI_INTR_STATUS_REG);
 	writel(irq_status, cdns_xspi->iobase + CDNS_XSPI_INTR_STATUS_REG);
@@ -485,21 +485,21 @@ static irqreturn_t cdns_xspi_irq_handler(int this_irq, void *dev)
 
 static int cdns_xspi_of_get_plat_data(struct platform_device *pdev)
 {
-	struct device_node *node_prop = pdev->dev.of_node;
-	struct device_node *node_child;
+	struct device_analde *analde_prop = pdev->dev.of_analde;
+	struct device_analde *analde_child;
 	unsigned int cs;
 
-	for_each_child_of_node(node_prop, node_child) {
-		if (!of_device_is_available(node_child))
+	for_each_child_of_analde(analde_prop, analde_child) {
+		if (!of_device_is_available(analde_child))
 			continue;
 
-		if (of_property_read_u32(node_child, "reg", &cs)) {
+		if (of_property_read_u32(analde_child, "reg", &cs)) {
 			dev_err(&pdev->dev, "Couldn't get memory chip select\n");
-			of_node_put(node_child);
+			of_analde_put(analde_child);
 			return -ENXIO;
 		} else if (cs >= CDNS_XSPI_MAX_BANKS) {
 			dev_err(&pdev->dev, "reg (cs) parameter value too large\n");
-			of_node_put(node_child);
+			of_analde_put(analde_child);
 			return -ENXIO;
 		}
 	}
@@ -534,14 +534,14 @@ static int cdns_xspi_probe(struct platform_device *pdev)
 
 	host = devm_spi_alloc_host(dev, sizeof(*cdns_xspi));
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	host->mode_bits = SPI_3WIRE | SPI_TX_DUAL  | SPI_TX_QUAD  |
 		SPI_RX_DUAL | SPI_RX_QUAD | SPI_TX_OCTAL | SPI_RX_OCTAL |
 		SPI_MODE_0  | SPI_MODE_3;
 
 	host->mem_ops = &cadence_xspi_mem_ops;
-	host->dev.of_node = pdev->dev.of_node;
+	host->dev.of_analde = pdev->dev.of_analde;
 	host->bus_num = -1;
 
 	platform_set_drvdata(pdev, host);
@@ -557,7 +557,7 @@ static int cdns_xspi_probe(struct platform_device *pdev)
 
 	ret = cdns_xspi_of_get_plat_data(pdev);
 	if (ret)
-		return -ENODEV;
+		return -EANALDEV;
 
 	cdns_xspi->iobase = devm_platform_ioremap_resource_byname(pdev, "io");
 	if (IS_ERR(cdns_xspi->iobase)) {
@@ -611,7 +611,7 @@ static int cdns_xspi_probe(struct platform_device *pdev)
 
 static const struct of_device_id cdns_xspi_of_match[] = {
 	{
-		.compatible = "cdns,xspi-nor",
+		.compatible = "cdns,xspi-analr",
 	},
 	{ /* end of table */}
 };

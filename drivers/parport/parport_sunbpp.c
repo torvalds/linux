@@ -22,7 +22,7 @@
 #include <linux/string.h>
 #include <linux/module.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ioport.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -280,21 +280,21 @@ static int bpp_probe(struct platform_device *op)
 			  resource_size(&op->resource[0]),
 			  "sunbpp");
 	if (!base)
-		return -ENODEV;
+		return -EANALDEV;
 
 	size = resource_size(&op->resource[0]);
-	dma = PARPORT_DMA_NONE;
+	dma = PARPORT_DMA_ANALNE;
 
 	ops = kmemdup(&parport_sunbpp_ops, sizeof(struct parport_operations),
 		      GFP_KERNEL);
 	if (!ops) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_unmap;
 	}
 
 	dprintk(("register_port\n"));
 	if (!(p = parport_register_port((unsigned long)base, irq, dma, ops))) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_free_ops;
 	}
 
@@ -318,7 +318,7 @@ static int bpp_probe(struct platform_device *op)
 
 	dev_set_drvdata(&op->dev, p);
 
-	parport_announce_port(p);
+	parport_ananalunce_port(p);
 
 	return 0;
 
@@ -341,7 +341,7 @@ static int bpp_remove(struct platform_device *op)
 
 	parport_remove_port(p);
 
-	if (p->irq != PARPORT_IRQ_NONE) {
+	if (p->irq != PARPORT_IRQ_ANALNE) {
 		parport_sunbpp_disable_irq(p);
 		free_irq(p->irq, p);
 	}

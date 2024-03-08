@@ -52,7 +52,7 @@ static inline struct crypto_tfm *crypto_sig_tfm(struct crypto_sig *tfm)
  *
  * @tfm: signature tfm handle allocated with crypto_alloc_sig()
  *
- * If @tfm is a NULL or error pointer, this function does nothing.
+ * If @tfm is a NULL or error pointer, this function does analthing.
  */
 static inline void crypto_free_sig(struct crypto_sig *tfm)
 {
@@ -109,13 +109,13 @@ int crypto_sig_verify(struct crypto_sig *tfm,
 /**
  * crypto_sig_set_pubkey() - Invoke set public key operation
  *
- * Function invokes the algorithm specific set key function, which knows
+ * Function invokes the algorithm specific set key function, which kanalws
  * how to decode and interpret the encoded key and parameters
  *
  * @tfm:	tfm handle
  * @key:	BER encoded public key, algo OID, paramlen, BER encoded
  *		parameters
- * @keylen:	length of the key (not including other data)
+ * @keylen:	length of the key (analt including other data)
  *
  * Return: zero on success; error code in case of error
  */
@@ -125,13 +125,13 @@ int crypto_sig_set_pubkey(struct crypto_sig *tfm,
 /**
  * crypto_sig_set_privkey() - Invoke set private key operation
  *
- * Function invokes the algorithm specific set key function, which knows
+ * Function invokes the algorithm specific set key function, which kanalws
  * how to decode and interpret the encoded key and parameters
  *
  * @tfm:	tfm handle
  * @key:	BER encoded private key, algo OID, paramlen, BER encoded
  *		parameters
- * @keylen:	length of the key (not including other data)
+ * @keylen:	length of the key (analt including other data)
  *
  * Return: zero on success; error code in case of error
  */

@@ -3,7 +3,7 @@
  *   Driver for KeyStream IEEE802.11 b/g wireless LAN cards.
  *
  *   Copyright (C) 2006-2008 KeyStream Corp.
- *   Copyright (C) 2009 Renesas Technology Corp.
+ *   Copyright (C) 2009 Renesas Techanallogy Corp.
  */
 
 #ifndef _KS_WLAN_H
@@ -215,7 +215,7 @@ struct local_ap {
 	} rate_set;
 	u16 capability;
 	u8 channel;
-	u8 noise;
+	u8 analise;
 	struct rsn_ie wpa_ie;
 	struct rsn_ie rsn_ie;
 	struct wps_ie wps_ie;
@@ -242,18 +242,18 @@ struct local_eeprom_sum {
 
 enum {
 	EEPROM_OK,
-	EEPROM_CHECKSUM_NONE,
-	EEPROM_FW_NOT_SUPPORT,
+	EEPROM_CHECKSUM_ANALNE,
+	EEPROM_FW_ANALT_SUPPORT,
 	EEPROM_NG,
 };
 
 /* Power Save Status */
 enum {
-	PS_NONE,
+	PS_ANALNE,
 	PS_ACTIVE_SET,
 	PS_SAVE_SET,
 	PS_CONF_WAIT,
-	PS_SNOOZE,
+	PS_SANALOZE,
 	PS_WAKEUP
 };
 
@@ -261,7 +261,7 @@ struct power_save_status {
 	atomic_t status;	/* initialvalue 0 */
 	struct completion wakeup_wait;
 	atomic_t confirm_wait;
-	atomic_t snooze_guard;
+	atomic_t sanaloze_guard;
 };
 
 struct sleep_status {
@@ -276,13 +276,13 @@ struct scan_ext {
 	char ssid[IW_ESSID_MAX_SIZE + 1];
 };
 
-#define CIPHER_ID_WPA_NONE    "\x00\x50\xf2\x00"
+#define CIPHER_ID_WPA_ANALNE    "\x00\x50\xf2\x00"
 #define CIPHER_ID_WPA_WEP40   "\x00\x50\xf2\x01"
 #define CIPHER_ID_WPA_TKIP    "\x00\x50\xf2\x02"
 #define CIPHER_ID_WPA_CCMP    "\x00\x50\xf2\x04"
 #define CIPHER_ID_WPA_WEP104  "\x00\x50\xf2\x05"
 
-#define CIPHER_ID_WPA2_NONE   "\x00\x0f\xac\x00"
+#define CIPHER_ID_WPA2_ANALNE   "\x00\x0f\xac\x00"
 #define CIPHER_ID_WPA2_WEP40  "\x00\x0f\xac\x01"
 #define CIPHER_ID_WPA2_TKIP   "\x00\x0f\xac\x02"
 #define CIPHER_ID_WPA2_CCMP   "\x00\x0f\xac\x04"
@@ -293,18 +293,18 @@ struct scan_ext {
 enum {
 	KEY_MGMT_802_1X,
 	KEY_MGMT_PSK,
-	KEY_MGMT_WPANONE,
+	KEY_MGMT_WPAANALNE,
 };
 
-#define KEY_MGMT_ID_WPA_NONE     "\x00\x50\xf2\x00"
+#define KEY_MGMT_ID_WPA_ANALNE     "\x00\x50\xf2\x00"
 #define KEY_MGMT_ID_WPA_1X       "\x00\x50\xf2\x01"
 #define KEY_MGMT_ID_WPA_PSK      "\x00\x50\xf2\x02"
-#define KEY_MGMT_ID_WPA_WPANONE  "\x00\x50\xf2\xff"
+#define KEY_MGMT_ID_WPA_WPAANALNE  "\x00\x50\xf2\xff"
 
-#define KEY_MGMT_ID_WPA2_NONE    "\x00\x0f\xac\x00"
+#define KEY_MGMT_ID_WPA2_ANALNE    "\x00\x0f\xac\x00"
 #define KEY_MGMT_ID_WPA2_1X      "\x00\x0f\xac\x01"
 #define KEY_MGMT_ID_WPA2_PSK     "\x00\x0f\xac\x02"
-#define KEY_MGMT_ID_WPA2_WPANONE "\x00\x0f\xac\xff"
+#define KEY_MGMT_ID_WPA2_WPAANALNE "\x00\x0f\xac\xff"
 
 #define KEY_MGMT_ID_LEN  4
 

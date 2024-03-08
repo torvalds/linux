@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Cache Monitoring Technology (CMT) test
+ * Cache Monitoring Techanallogy (CMT) test
  *
  * Copyright (C) 2018 Intel Corporation
  *
@@ -27,7 +27,7 @@ static int cmt_setup(struct resctrl_val_param *p)
 	return 0;
 }
 
-static int check_results(struct resctrl_val_param *param, size_t span, int no_of_bits)
+static int check_results(struct resctrl_val_param *param, size_t span, int anal_of_bits)
 {
 	char *token_array[8], temp[512];
 	unsigned long sum_llc_occu_resc = 0;
@@ -39,7 +39,7 @@ static int check_results(struct resctrl_val_param *param, size_t span, int no_of
 	if (!fp) {
 		perror("# Error in opening file\n");
 
-		return errno;
+		return erranal;
 	}
 
 	while (fgets(temp, sizeof(temp), fp)) {
@@ -58,7 +58,7 @@ static int check_results(struct resctrl_val_param *param, size_t span, int no_of
 	}
 	fclose(fp);
 
-	return show_cache_info(sum_llc_occu_resc, no_of_bits, span,
+	return show_cache_info(sum_llc_occu_resc, anal_of_bits, span,
 			       MAX_DIFF, MAX_DIFF_PERCENT, runs - 1,
 			       true, true);
 }
@@ -68,7 +68,7 @@ void cmt_test_cleanup(void)
 	remove(RESULT_FILE_NAME);
 }
 
-int cmt_resctrl_val(int cpu_no, int n, const char * const *benchmark_cmd)
+int cmt_resctrl_val(int cpu_anal, int n, const char * const *benchmark_cmd)
 {
 	const char * const *cmd = benchmark_cmd;
 	const char *new_cmd[BENCHMARK_ARGS];
@@ -86,7 +86,7 @@ int cmt_resctrl_val(int cpu_no, int n, const char * const *benchmark_cmd)
 
 	long_mask = strtoul(cbm_mask, NULL, 16);
 
-	ret = get_cache_size(cpu_no, "L3", &cache_size);
+	ret = get_cache_size(cpu_anal, "L3", &cache_size);
 	if (ret)
 		return ret;
 	ksft_print_msg("Cache size :%lu\n", cache_size);
@@ -103,7 +103,7 @@ int cmt_resctrl_val(int cpu_no, int n, const char * const *benchmark_cmd)
 		.resctrl_val	= CMT_STR,
 		.ctrlgrp	= "c1",
 		.mongrp		= "m1",
-		.cpu_no		= cpu_no,
+		.cpu_anal		= cpu_anal,
 		.filename	= RESULT_FILE_NAME,
 		.mask		= ~(long_mask << n) & long_mask,
 		.num_of_runs	= 0,

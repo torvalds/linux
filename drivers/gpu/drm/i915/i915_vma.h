@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -53,9 +53,9 @@ static inline bool i915_vma_is_active(const struct i915_vma *vma)
 	return !i915_active_is_idle(&vma->active);
 }
 
-/* do not reserve memory to prevent deadlocks */
-#define __EXEC_OBJECT_NO_RESERVE BIT(31)
-#define __EXEC_OBJECT_NO_REQUEST_AWAIT BIT(30)
+/* do analt reserve memory to prevent deadlocks */
+#define __EXEC_OBJECT_ANAL_RESERVE BIT(31)
+#define __EXEC_OBJECT_ANAL_REQUEST_AWAIT BIT(30)
 
 int __must_check _i915_vma_move_to_active(struct i915_vma *vma,
 					  struct i915_request *rq,
@@ -128,7 +128,7 @@ static inline bool i915_vma_is_closed(const struct i915_vma *vma)
 /* Internal use only. */
 static inline u64 __i915_vma_size(const struct i915_vma *vma)
 {
-	return vma->node.size - 2 * vma->guard;
+	return vma->analde.size - 2 * vma->guard;
 }
 
 /**
@@ -143,7 +143,7 @@ static inline u64 __i915_vma_size(const struct i915_vma *vma)
  */
 static inline u64 i915_vma_size(const struct i915_vma *vma)
 {
-	GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
+	GEM_BUG_ON(!drm_mm_analde_allocated(&vma->analde));
 	return __i915_vma_size(vma);
 }
 
@@ -151,7 +151,7 @@ static inline u64 i915_vma_size(const struct i915_vma *vma)
 static inline u64 __i915_vma_offset(const struct i915_vma *vma)
 {
 	/* The actual start of the vma->pages is after the guard pages. */
-	return vma->node.start + vma->guard;
+	return vma->analde.start + vma->guard;
 }
 
 /**
@@ -166,14 +166,14 @@ static inline u64 __i915_vma_offset(const struct i915_vma *vma)
  */
 static inline u64 i915_vma_offset(const struct i915_vma *vma)
 {
-	GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
+	GEM_BUG_ON(!drm_mm_analde_allocated(&vma->analde));
 	return __i915_vma_offset(vma);
 }
 
 static inline u32 i915_ggtt_offset(const struct i915_vma *vma)
 {
 	GEM_BUG_ON(!i915_vma_is_ggtt(vma));
-	GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
+	GEM_BUG_ON(!drm_mm_analde_allocated(&vma->analde));
 	GEM_BUG_ON(upper_32_bits(i915_vma_offset(vma)));
 	GEM_BUG_ON(upper_32_bits(i915_vma_offset(vma) +
 				 i915_vma_size(vma) - 1));
@@ -217,7 +217,7 @@ i915_vma_compare(struct i915_vma *vma,
 	if (cmp)
 		return cmp;
 
-	BUILD_BUG_ON(I915_GTT_VIEW_NORMAL != 0);
+	BUILD_BUG_ON(I915_GTT_VIEW_ANALRMAL != 0);
 	cmp = vma->gtt_view.type;
 	if (!view)
 		return cmp;
@@ -229,7 +229,7 @@ i915_vma_compare(struct i915_vma *vma,
 	assert_i915_gem_gtt_types();
 
 	/* gtt_view.type also encodes its size so that we both distinguish
-	 * different views using it as a "type" and also use a compact (no
+	 * different views using it as a "type" and also use a compact (anal
 	 * accessing of uninitialised padding bytes) memcmp without storing
 	 * an extra parameter or adding more code.
 	 *
@@ -238,7 +238,7 @@ i915_vma_compare(struct i915_vma *vma,
 	 * we assert above that all branches have the same address, and that
 	 * each branch has a unique type/size.
 	 */
-	BUILD_BUG_ON(I915_GTT_VIEW_NORMAL >= I915_GTT_VIEW_PARTIAL);
+	BUILD_BUG_ON(I915_GTT_VIEW_ANALRMAL >= I915_GTT_VIEW_PARTIAL);
 	BUILD_BUG_ON(I915_GTT_VIEW_PARTIAL >= I915_GTT_VIEW_ROTATED);
 	BUILD_BUG_ON(I915_GTT_VIEW_ROTATED >= I915_GTT_VIEW_REMAPPED);
 	BUILD_BUG_ON(offsetof(typeof(*view), rotated) !=
@@ -337,7 +337,7 @@ static inline void __i915_vma_unpin(struct i915_vma *vma)
 
 static inline void i915_vma_unpin(struct i915_vma *vma)
 {
-	GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
+	GEM_BUG_ON(!drm_mm_analde_allocated(&vma->analde));
 	__i915_vma_unpin(vma);
 }
 
@@ -347,10 +347,10 @@ static inline bool i915_vma_is_bound(const struct i915_vma *vma,
 	return atomic_read(&vma->flags) & where;
 }
 
-static inline bool i915_node_color_differs(const struct drm_mm_node *node,
+static inline bool i915_analde_color_differs(const struct drm_mm_analde *analde,
 					   unsigned long color)
 {
-	return drm_mm_node_allocated(node) && node->color != color;
+	return drm_mm_analde_allocated(analde) && analde->color != color;
 }
 
 /**
@@ -360,7 +360,7 @@ static inline bool i915_node_color_differs(const struct drm_mm_node *node,
  * The passed in VMA has to be pinned in the global GTT mappable region.
  * An extra pinning of the VMA is acquired for the return iomapping,
  * the caller must call i915_vma_unpin_iomap to relinquish the pinning
- * after the iomapping is no longer required.
+ * after the iomapping is anal longer required.
  *
  * Returns a valid iomapped pointer or ERR_PTR.
  */
@@ -382,7 +382,7 @@ void i915_vma_unpin_iomap(struct i915_vma *vma);
  * @vma: vma to pin fencing for
  *
  * This pins the fencing state (whether tiled or untiled) to make sure the
- * vma (and its object) is ready to be used as a scanout target. Fencing
+ * vma (and its object) is ready to be used as a scaanalut target. Fencing
  * status must be synchronize first by calling i915_vma_get_fence():
  *
  * The resulting fence pin reference must be released again with
@@ -409,7 +409,7 @@ static inline void __i915_vma_unpin_fence(struct i915_vma *vma)
  *
  * This releases the fence pin reference acquired through
  * i915_vma_pin_fence. It will handle both objects with and without an
- * attached fence correctly, callers do not need to distinguish this.
+ * attached fence correctly, callers do analt need to distinguish this.
  */
 static inline void
 i915_vma_unpin_fence(struct i915_vma *vma)
@@ -425,22 +425,22 @@ static inline int i915_vma_fence_id(const struct i915_vma *vma)
 
 void i915_vma_parked(struct intel_gt *gt);
 
-static inline bool i915_vma_is_scanout(const struct i915_vma *vma)
+static inline bool i915_vma_is_scaanalut(const struct i915_vma *vma)
 {
-	return test_bit(I915_VMA_SCANOUT_BIT, __i915_vma_flags(vma));
+	return test_bit(I915_VMA_SCAANALUT_BIT, __i915_vma_flags(vma));
 }
 
-static inline void i915_vma_mark_scanout(struct i915_vma *vma)
+static inline void i915_vma_mark_scaanalut(struct i915_vma *vma)
 {
-	set_bit(I915_VMA_SCANOUT_BIT, __i915_vma_flags(vma));
+	set_bit(I915_VMA_SCAANALUT_BIT, __i915_vma_flags(vma));
 }
 
-static inline void i915_vma_clear_scanout(struct i915_vma *vma)
+static inline void i915_vma_clear_scaanalut(struct i915_vma *vma)
 {
-	clear_bit(I915_VMA_SCANOUT_BIT, __i915_vma_flags(vma));
+	clear_bit(I915_VMA_SCAANALUT_BIT, __i915_vma_flags(vma));
 }
 
-void i915_ggtt_clear_scanout(struct drm_i915_gem_object *obj);
+void i915_ggtt_clear_scaanalut(struct drm_i915_gem_object *obj);
 
 #define for_each_until(cond) if (cond) break; else
 
@@ -465,7 +465,7 @@ int i915_vma_wait_for_bind(struct i915_vma *vma);
 
 static inline int i915_vma_sync(struct i915_vma *vma)
 {
-	/* Wait for the asynchronous bindings and pending GPU reads */
+	/* Wait for the asynchroanalus bindings and pending GPU reads */
 	return i915_active_wait(&vma->active);
 }
 
@@ -473,7 +473,7 @@ static inline int i915_vma_sync(struct i915_vma *vma)
  * i915_vma_get_current_resource - Get the current resource of the vma
  * @vma: The vma to get the current resource from.
  *
- * It's illegal to call this function if the vma is not bound.
+ * It's illegal to call this function if the vma is analt bound.
  *
  * Return: A refcounted pointer to the current vma resource
  * of the vma, assuming the vma is bound.

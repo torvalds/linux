@@ -32,7 +32,7 @@
 #define EHEA_HUGEPAGE_PFN_MASK ((EHEA_HUGEPAGE_SIZE - 1) >> PAGE_SHIFT)
 
 #if ((1UL << SECTION_SIZE_BITS) < EHEA_SECTSIZE)
-#error eHEA module cannot work if kernel sectionsize < ehea sectionsize
+#error eHEA module cananalt work if kernel sectionsize < ehea sectionsize
 #endif
 
 /* Some abbreviations used here:
@@ -104,7 +104,7 @@ struct ehea_swqe {
 		/*  Send WQE Format 1 */
 		struct {
 			struct ehea_vsgentry sg_list[EHEA_MAX_WQE_SG_ENTRIES];
-		} no_immediate_data;
+		} anal_immediate_data;
 
 		/*  Send WQE Format 2 */
 		struct {
@@ -118,7 +118,7 @@ struct ehea_swqe {
 		/*  Send WQE Format 3 */
 		struct {
 			u8 immediate_data[SWQE3_MAX_IMM];
-		} immdata_nodesc;
+		} immdata_analdesc;
 	} u;
 };
 
@@ -350,7 +350,7 @@ static inline struct ehea_cqe *ehea_poll_cq(struct ehea_cq *my_cq)
 
 enum ehea_eq_type {
 	EHEA_EQ = 0,		/* event queue              */
-	EHEA_NEQ		/* notification event queue */
+	EHEA_NEQ		/* analtification event queue */
 };
 
 struct ehea_eq *ehea_create_eq(struct ehea_adapter *adapter,

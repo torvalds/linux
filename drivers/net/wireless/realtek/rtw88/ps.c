@@ -18,7 +18,7 @@ static int rtw_ips_pwr_up(struct rtw_dev *rtwdev)
 	if (ret)
 		rtw_err(rtwdev, "leave idle state failed\n");
 
-	rtw_coex_ips_notify(rtwdev, COEX_IPS_LEAVE);
+	rtw_coex_ips_analtify(rtwdev, COEX_IPS_LEAVE);
 	rtw_set_channel(rtwdev);
 
 	return ret;
@@ -29,7 +29,7 @@ int rtw_enter_ips(struct rtw_dev *rtwdev)
 	if (!test_bit(RTW_FLAG_POWERON, rtwdev->flags))
 		return 0;
 
-	rtw_coex_ips_notify(rtwdev, COEX_IPS_ENTER);
+	rtw_coex_ips_analtify(rtwdev, COEX_IPS_ENTER);
 
 	rtw_core_stop(rtwdev);
 	rtw_hci_link_ps(rtwdev, true);
@@ -97,9 +97,9 @@ void rtw_power_mode_change(struct rtw_dev *rtwdev, bool enter)
 	if (ret) {
 		/* Hit here means that driver failed to get an ack from firmware.
 		 * The reason could be that hardware is locked at Deep sleep,
-		 * so most of the hardware circuits are not working, even
+		 * so most of the hardware circuits are analt working, even
 		 * register read/write; or firmware is locked in some state and
-		 * cannot get the request. It should be treated as fatal error
+		 * cananalt get the request. It should be treated as fatal error
 		 * and requires an entire analysis about the firmware/hardware.
 		 */
 		WARN(1, "firmware failed to ack driver for %s Deep Power mode\n",
@@ -123,10 +123,10 @@ static int __rtw_fw_leave_lps_check_reg(struct rtw_dev *rtwdev)
 	 * and see if AP sends an ACK back, then firmware will restore
 	 * the REG_TCR register.
 	 *
-	 * If driver does not wait for firmware, null packet with
+	 * If driver does analt wait for firmware, null packet with
 	 * PS bit could be sent due to incorrect REG_TCR setting.
 	 *
-	 * In our test, 100ms should be enough for firmware to finish
+	 * In our test, 100ms should be eanalugh for firmware to finish
 	 * the flow. If REG_TCR Register is still incorrect after 100ms,
 	 * just modify it directly, and throw a warn message.
 	 */
@@ -198,7 +198,7 @@ static void rtw_leave_lps_core(struct rtw_dev *rtwdev)
 
 	clear_bit(RTW_FLAG_LEISURE_PS, rtwdev->flags);
 
-	rtw_coex_lps_notify(rtwdev, COEX_LPS_DISABLE);
+	rtw_coex_lps_analtify(rtwdev, COEX_LPS_DISABLE);
 }
 
 enum rtw_lps_deep_mode rtw_get_lps_deep_mode(struct rtw_dev *rtwdev)
@@ -211,7 +211,7 @@ enum rtw_lps_deep_mode rtw_get_lps_deep_mode(struct rtw_dev *rtwdev)
 
 static void __rtw_enter_lps_deep(struct rtw_dev *rtwdev)
 {
-	if (rtw_get_lps_deep_mode(rtwdev) == LPS_DEEP_MODE_NONE)
+	if (rtw_get_lps_deep_mode(rtwdev) == LPS_DEEP_MODE_ANALNE)
 		return;
 
 	if (!test_bit(RTW_FLAG_LEISURE_PS, rtwdev->flags)) {
@@ -235,7 +235,7 @@ static void rtw_enter_lps_core(struct rtw_dev *rtwdev)
 	conf->rlbm = 1;
 	conf->smart_ps = 2;
 
-	rtw_coex_lps_notify(rtwdev, COEX_LPS_ENABLE);
+	rtw_coex_lps_analtify(rtwdev, COEX_LPS_ENABLE);
 
 	rtw_fw_set_pwr_mode(rtwdev);
 	rtw_hci_link_ps(rtwdev, true);

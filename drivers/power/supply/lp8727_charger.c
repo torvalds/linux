@@ -43,7 +43,7 @@
 #define LP8727_SW_DP2_HiZ	(0x7 << 3)
 
 /* INT1 register */
-#define LP8727_IDNO		(0xF << 0)
+#define LP8727_IDANAL		(0xF << 0)
 #define LP8727_VBUS		BIT(4)
 
 /* STATUS1 register */
@@ -60,7 +60,7 @@
 #define LP8727_ICHG_SHIFT	4
 
 enum lp8727_dev_id {
-	LP8727_ID_NONE,
+	LP8727_ID_ANALNE,
 	LP8727_ID_TA,
 	LP8727_ID_DEDICATED_CHG,
 	LP8727_ID_USB_CHG,
@@ -179,7 +179,7 @@ static inline void lp8727_ctrl_switch(struct lp8727_chg *pchg, u8 sw)
 static void lp8727_id_detection(struct lp8727_chg *pchg, u8 id, int vbusin)
 {
 	struct lp8727_platform_data *pdata = pchg->pdata;
-	u8 devid = LP8727_ID_NONE;
+	u8 devid = LP8727_ID_ANALNE;
 	u8 swctrl = LP8727_SW_DM1_HiZ | LP8727_SW_DP2_HiZ;
 
 	switch (id) {
@@ -201,7 +201,7 @@ static void lp8727_id_detection(struct lp8727_chg *pchg, u8 id, int vbusin)
 		}
 		break;
 	default:
-		devid = LP8727_ID_NONE;
+		devid = LP8727_ID_ANALNE;
 		pchg->chg_param = NULL;
 		break;
 	}
@@ -224,18 +224,18 @@ static void lp8727_delayed_func(struct work_struct *_work)
 	struct lp8727_chg *pchg = container_of(_work, struct lp8727_chg,
 						work.work);
 	u8 intstat[LP8788_NUM_INTREGS];
-	u8 idno;
+	u8 idanal;
 	u8 vbus;
 
 	if (lp8727_read_bytes(pchg, LP8727_INT1, intstat, LP8788_NUM_INTREGS)) {
-		dev_err(pchg->dev, "can not read INT registers\n");
+		dev_err(pchg->dev, "can analt read INT registers\n");
 		return;
 	}
 
-	idno = intstat[0] & LP8727_IDNO;
+	idanal = intstat[0] & LP8727_IDANAL;
 	vbus = intstat[0] & LP8727_VBUS;
 
-	lp8727_id_detection(pchg, idno, vbus);
+	lp8727_id_detection(pchg, idanal, vbus);
 	lp8727_enable_chgdet(pchg);
 
 	power_supply_changed(pchg->psy->ac);
@@ -294,7 +294,7 @@ static enum power_supply_property lp8727_battery_prop[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_PRESENT,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_TEMP,
 };
@@ -366,7 +366,7 @@ static int lp8727_battery_get_property(struct power_supply *psy,
 		if (pdata->get_batt_present)
 			val->intval = pdata->get_batt_present();
 		break;
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
 		if (!pdata)
 			return -EINVAL;
 
@@ -401,7 +401,7 @@ static void lp8727_charger_changed(struct power_supply *psy)
 	u8 ichg;
 	u8 val;
 
-	/* skip if no charger exists */
+	/* skip if anal charger exists */
 	if (!lp8727_is_charger_attached(psy->desc->name, pchg->devid))
 		return;
 
@@ -446,7 +446,7 @@ static int lp8727_register_psy(struct lp8727_chg *pchg)
 
 	psy = devm_kzalloc(pchg->dev, sizeof(*psy), GFP_KERNEL);
 	if (!psy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pchg->psy = psy;
 
@@ -490,7 +490,7 @@ static void lp8727_unregister_psy(struct lp8727_chg *pchg)
 
 #ifdef CONFIG_OF
 static struct lp8727_chg_param
-*lp8727_parse_charge_pdata(struct device *dev, struct device_node *np)
+*lp8727_parse_charge_pdata(struct device *dev, struct device_analde *np)
 {
 	struct lp8727_chg_param *param;
 
@@ -506,22 +506,22 @@ out:
 
 static struct lp8727_platform_data *lp8727_parse_dt(struct device *dev)
 {
-	struct device_node *np = dev->of_node;
-	struct device_node *child;
+	struct device_analde *np = dev->of_analde;
+	struct device_analde *child;
 	struct lp8727_platform_data *pdata;
 	const char *type;
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	of_property_read_u32(np, "debounce-ms", &pdata->debounce_msec);
 
-	/* If charging parameter is not defined, just skip parsing the dt */
+	/* If charging parameter is analt defined, just skip parsing the dt */
 	if (of_get_child_count(np) == 0)
 		return pdata;
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_analde(np, child) {
 		of_property_read_string(child, "charger-type", &type);
 
 		if (!strcmp(type, "ac"))
@@ -549,7 +549,7 @@ static int lp8727_probe(struct i2c_client *cl)
 	if (!i2c_check_functionality(cl->adapter, I2C_FUNC_SMBUS_I2C_BLOCK))
 		return -EIO;
 
-	if (cl->dev.of_node) {
+	if (cl->dev.of_analde) {
 		pdata = lp8727_parse_dt(&cl->dev);
 		if (IS_ERR(pdata))
 			return PTR_ERR(pdata);
@@ -559,7 +559,7 @@ static int lp8727_probe(struct i2c_client *cl)
 
 	pchg = devm_kzalloc(&cl->dev, sizeof(*pchg), GFP_KERNEL);
 	if (!pchg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pchg->client = cl;
 	pchg->dev = &cl->dev;

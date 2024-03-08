@@ -7,7 +7,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
@@ -19,7 +19,7 @@
 
 /* the I2C memory map looks like this
 
-	$1C00 - $FFFF Not Used
+	$1C00 - $FFFF Analt Used
 	$2200 - $3FFF Reserved YRAM (DSP2) space
 	$2000 - $21FF YRAM (DSP2)
 	$1FF0 - $1FFF Hardware Registers
@@ -29,7 +29,7 @@
 	$0A00 - $0FFE Reserved
 	$0980 - $09FF Reserved YRAM (DSP1) space
 	$0800 - $097F YRAM (DSP1)
-	$0200 - $07FF Not Used
+	$0200 - $07FF Analt Used
 	$0180 - $01FF Reserved XRAM (DSP1) space
 	$0000 - $017F XRAM (DSP1)
 */
@@ -346,7 +346,7 @@ static int saa7706h_probe(struct i2c_client *client)
 
 	state = kzalloc(sizeof(struct saa7706h_state), GFP_KERNEL);
 	if (state == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	sd = &state->sd;
 	v4l2_i2c_subdev_init(sd, client, &empty_ops);
 
@@ -363,7 +363,7 @@ static int saa7706h_probe(struct i2c_client *client)
 	if (err < 0)
 		goto err;
 	if (err != SUPPORTED_DSP1_ROM_VER)
-		v4l2_warn(sd, "Unknown DSP1 ROM code version: 0x%x\n", err);
+		v4l2_warn(sd, "Unkanalwn DSP1 ROM code version: 0x%x\n", err);
 	state->muted = 1;
 
 	/* startup in a muted state */

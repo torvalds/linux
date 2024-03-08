@@ -3,7 +3,7 @@
  * f_loopback.c - USB peripheral loopback configuration driver
  *
  * Copyright (C) 2003-2008 David Brownell
- * Copyright (C) 2008 by Nokia Corporation
+ * Copyright (C) 2008 by Analkia Corporation
  */
 
 /* #define VERBOSE_DEBUG */
@@ -189,7 +189,7 @@ static int loopback_bind(struct usb_configuration *c, struct usb_function *f)
 autoconf_fail:
 		ERROR(cdev, "%s: can't autoconfigure on %s\n",
 			f->name, cdev->gadget->name);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	loop->out_ep = usb_ep_autoconfig(cdev->gadget, &fs_loop_sink_desc);
@@ -237,7 +237,7 @@ static void loopback_complete(struct usb_ep *ep, struct usb_request *req)
 	int			status = req->status;
 
 	switch (status) {
-	case 0:				/* normal completion? */
+	case 0:				/* analrmal completion? */
 		if (ep == loop->out_ep) {
 			/*
 			 * We received some data from the host so let's
@@ -252,7 +252,7 @@ static void loopback_complete(struct usb_ep *ep, struct usb_request *req)
 		} else {
 			/*
 			 * We have just looped back a bunch of data
-			 * to host. Now let's wait for some more data.
+			 * to host. Analw let's wait for some more data.
 			 */
 			req = req->context;
 			ep = loop->out_ep;
@@ -274,7 +274,7 @@ static void loopback_complete(struct usb_ep *ep, struct usb_request *req)
 				status, req->actual, req->length);
 		fallthrough;
 
-	/* NOTE:  since this driver doesn't maintain an explicit record
+	/* ANALTE:  since this driver doesn't maintain an explicit record
 	 * of requests it submitted (just maintains qlen count), we
 	 * rely on the hardware driver to clean up on disconnect or
 	 * endpoint disable.
@@ -319,7 +319,7 @@ static int alloc_requests(struct usb_composite_dev *cdev,
 	 * our loopback functionality
 	 */
 	for (i = 0; i < loop->qlen && result == 0; i++) {
-		result = -ENOMEM;
+		result = -EANALMEM;
 
 		in_req = usb_ep_alloc_request(loop->in_ep, GFP_ATOMIC);
 		if (!in_req)
@@ -408,7 +408,7 @@ static int loopback_set_alt(struct usb_function *f,
 	struct f_loopback	*loop = func_to_loop(f);
 	struct usb_composite_dev *cdev = f->config->cdev;
 
-	/* we know alt is zero */
+	/* we kanalw alt is zero */
 	disable_loopback(loop);
 	return enable_loopback(cdev, loop);
 }
@@ -427,7 +427,7 @@ static struct usb_function *loopback_alloc(struct usb_function_instance *fi)
 
 	loop = kzalloc(sizeof *loop, GFP_KERNEL);
 	if (!loop)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	lb_opts = container_of(fi, struct f_lb_opts, func_inst);
 
@@ -570,7 +570,7 @@ static struct usb_function_instance *loopback_alloc_instance(void)
 
 	lb_opts = kzalloc(sizeof(*lb_opts), GFP_KERNEL);
 	if (!lb_opts)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	mutex_init(&lb_opts->lock);
 	lb_opts->func_inst.free_func_inst = lb_free_instance;
 	lb_opts->bulk_buflen = GZERO_BULK_BUFLEN;

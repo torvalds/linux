@@ -152,7 +152,7 @@ int mmc_io_rw_extended(struct mmc_card *card, int write, unsigned fn,
 	nents = DIV_ROUND_UP(left_size, seg_size);
 	if (nents > 1) {
 		if (sg_alloc_table(&sgtable, nents, GFP_KERNEL))
-			return -ENOMEM;
+			return -EANALMEM;
 
 		data.sg = sgtable.sgl;
 		data.sg_len = nents;

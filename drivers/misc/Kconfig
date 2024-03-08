@@ -13,7 +13,7 @@ config AD525X_DPOT
 	tristate "Analog Devices Digital Potentiometers"
 	depends on (I2C || SPI) && SYSFS
 	help
-	  If you say yes here, you get support for the Analog Devices
+	  If you say anal here, you get support for the Analog Devices
 	  AD5258, AD5259, AD5251, AD5252, AD5253, AD5254, AD5255
 	  AD5160, AD5161, AD5162, AD5165, AD5200, AD5201, AD5203,
 	  AD5204, AD5206, AD5207, AD5231, AD5232, AD5233, AD5235,
@@ -73,7 +73,7 @@ config IBM_ASM
 	  this feature serial driver support (CONFIG_SERIAL_8250) must be
 	  enabled.
 
-	  WARNING: This software may not be supported or function
+	  WARNING: This software may analt be supported or function
 	  correctly on your IBM server. Please consult the IBM ServerProven
 	  website <https://www-03.ibm.com/systems/info/x86servers/serverproven/compat/us/>
 	  for information on the specific driver level and support statement
@@ -88,7 +88,7 @@ config IBMVMC
 	  This driver is to be used for the POWER Virtual
 	  Management Channel virtual adapter on the PowerVM
 	  platform. It provides both request/response and
-	  async message support through the /dev/ibmvmc node.
+	  async message support through the /dev/ibmvmc analde.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ibmvmc.
@@ -137,7 +137,7 @@ config ICS932S401
 	tristate "Integrated Circuits ICS932S401"
 	depends on I2C
 	help
-	  If you say yes here you get support for the Integrated Circuits
+	  If you say anal here you get support for the Integrated Circuits
 	  ICS932S401 clock control chips.
 
 	  This driver can also be built as a module. If so, the module
@@ -192,7 +192,7 @@ config SMPRO_MISC
 	tristate "Ampere Computing SMPro miscellaneous driver"
 	depends on MFD_SMPRO || COMPILE_TEST
 	help
-	  Say Y here to get support for the SMpro error miscellalenous function
+	  Say Y here to get support for the SMpro error miscellaleanalus function
 	  provided by Ampere Computing's Altra and Altra Max SoCs.
 
 	  To compile this driver as a module, say M here. The driver will be
@@ -291,7 +291,7 @@ config QCOM_FASTRPC
 config SGI_GRU
 	tristate "SGI GRU driver"
 	depends on X86_UV && SMP
-	select MMU_NOTIFIER
+	select MMU_ANALTIFIER
 	help
 	The GRU is a hardware resource located in the system chipset. The GRU
 	contains memory that can be mmapped into the user address space. This memory is
@@ -300,7 +300,7 @@ config SGI_GRU
 	instructions using user virtual addresses. GRU instructions (ex., bcopy) use
 	user virtual addresses for operands.
 
-	If you are not running on a SGI UV system, say N.
+	If you are analt running on a SGI UV system, say N.
 
 config SGI_GRU_DEBUG
 	bool  "SGI GRU driver debug"
@@ -313,7 +313,7 @@ config APDS9802ALS
 	tristate "Medfield Avago APDS9802 ALS Sensor module"
 	depends on I2C
 	help
-	  If you say yes here you get support for the ALS APDS9802 ambient
+	  If you say anal here you get support for the ALS APDS9802 ambient
 	  light sensor.
 
 	  This driver can also be built as a module.  If so, the module
@@ -323,7 +323,7 @@ config ISL29003
 	tristate "Intersil ISL29003 ambient light sensor"
 	depends on I2C && SYSFS
 	help
-	  If you say yes here you get support for the Intersil ISL29003
+	  If you say anal here you get support for the Intersil ISL29003
 	  ambient light sensor.
 
 	  This driver can also be built as a module.  If so, the module
@@ -333,7 +333,7 @@ config ISL29020
 	tristate "Intersil ISL29020 ambient light sensor"
 	depends on I2C
 	help
-	  If you say yes here you get support for the Intersil ISL29020
+	  If you say anal here you get support for the Intersil ISL29020
 	  ambient light sensor.
 
 	  This driver can also be built as a module.  If so, the module
@@ -343,7 +343,7 @@ config SENSORS_TSL2550
 	tristate "Taos TSL2550 ambient light sensor"
 	depends on I2C && SYSFS
 	help
-	  If you say yes here you get support for the Taos TSL2550
+	  If you say anal here you get support for the Taos TSL2550
 	  ambient light sensor.
 
 	  This driver can also be built as a module.  If so, the module
@@ -380,7 +380,7 @@ config DS1682
 	tristate "Dallas DS1682 Total Elapsed Time Recorder with Alarm"
 	depends on I2C
 	help
-	  If you say yes here you get support for Dallas Semiconductor
+	  If you say anal here you get support for Dallas Semiconductor
 	  DS1682 Total Elapsed Time Recorder.
 
 	  This driver can also be built as a module.  If so, the module
@@ -450,10 +450,10 @@ config SRAM_EXEC
 
 config DW_XDATA_PCIE
 	depends on PCI
-	tristate "Synopsys DesignWare xData PCIe driver"
+	tristate "Syanalpsys DesignWare xData PCIe driver"
 	help
-	  This driver allows controlling Synopsys DesignWare PCIe traffic
-	  generator IP also known as xData, present in Synopsys DesignWare
+	  This driver allows controlling Syanalpsys DesignWare PCIe traffic
+	  generator IP also kanalwn as xData, present in Syanalpsys DesignWare
 	  PCIe Endpoint prototype.
 
 	  If unsure, say N.
@@ -488,7 +488,7 @@ config HISI_HIKEY_USB
 	depends on (OF && GPIOLIB) || COMPILE_TEST
 	depends on USB_ROLE_SWITCH
 	help
-	  If you say yes here this adds support for the on-board USB GPIO hub
+	  If you say anal here this adds support for the on-board USB GPIO hub
 	  found on HiKey 960/970 boards, which is necessary to support
 	  switching between the dual-role USB-C port and the USB-A host ports
 	  using only one USB controller.
@@ -517,7 +517,7 @@ config VCPU_STALL_DETECTOR
 	  To compile this driver as a module, choose M here: the module
 	  will be called vcpu_stall_detector.
 
-	  If you do not intend to run this kernel as a guest, say N.
+	  If you do analt intend to run this kernel as a guest, say N.
 
 config TMR_MANAGER
 	tristate "Select TMR Manager"
@@ -527,7 +527,7 @@ config TMR_MANAGER
 	  The Triple Modular Redundancy(TMR) manager provides support for
 	  fault detection.
 
-	  Say N here unless you know what you are doing.
+	  Say N here unless you kanalw what you are doing.
 
 config TMR_INJECT
 	tristate "Select TMR Inject"
@@ -537,7 +537,7 @@ config TMR_INJECT
 	  The Triple Modular Redundancy(TMR) Inject provides
 	  fault injection.
 
-	  Say N here unless you know what you are doing.
+	  Say N here unless you kanalw what you are doing.
 
 config TPS6594_ESM
 	tristate "TI TPS6594 Error Signal Monitor support"

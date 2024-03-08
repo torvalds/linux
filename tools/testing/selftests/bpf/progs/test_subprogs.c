@@ -11,7 +11,7 @@ struct {
 	__type(value, __u64);
 } array SEC(".maps");
 
-__noinline int sub1(int x)
+__analinline int sub1(int x)
 {
 	int key = 0;
 
@@ -19,19 +19,19 @@ __noinline int sub1(int x)
 	return x + 1;
 }
 
-static __noinline int sub5(int v);
+static __analinline int sub5(int v);
 
-__noinline int sub2(int y)
+__analinline int sub2(int y)
 {
 	return sub5(y + 2);
 }
 
-static __noinline int sub3(int z)
+static __analinline int sub3(int z)
 {
 	return z + 3 + sub1(4);
 }
 
-static __noinline int sub4(int w)
+static __analinline int sub4(int w)
 {
 	int key = 0;
 
@@ -42,16 +42,16 @@ static __noinline int sub4(int w)
 /* sub5() is an identitify function, just to test weirder functions layout and
  * call patterns
  */
-static __noinline int sub5(int v)
+static __analinline int sub5(int v)
 {
 	return sub1(v) - 1; /* compensates sub1()'s + 1 */
 }
 
-/* unfortunately verifier rejects `struct task_struct *t` as an unknown pointer
+/* unfortunately verifier rejects `struct task_struct *t` as an unkanalwn pointer
  * type, so we need to accept pointer as integer and then cast it inside the
  * function
  */
-__noinline int get_task_tgid(uintptr_t t)
+__analinline int get_task_tgid(uintptr_t t)
 {
 	/* this ensures that CO-RE relocs work in multi-subprogs .text */
 	return BPF_CORE_READ((struct task_struct *)(void *)t, tgid);

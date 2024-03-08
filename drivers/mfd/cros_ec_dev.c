@@ -87,8 +87,8 @@ static const struct mfd_cell cros_usbpd_charger_cells[] = {
 	{ .name = "cros-usbpd-logger", },
 };
 
-static const struct mfd_cell cros_usbpd_notify_cells[] = {
-	{ .name = "cros-usbpd-notify", },
+static const struct mfd_cell cros_usbpd_analtify_cells[] = {
+	{ .name = "cros-usbpd-analtify", },
 };
 
 static const struct cros_feature_to_cells cros_subdevices[] = {
@@ -134,8 +134,8 @@ static void cros_ec_class_release(struct device *dev)
 
 static int ec_device_probe(struct platform_device *pdev)
 {
-	int retval = -ENOMEM;
-	struct device_node *node;
+	int retval = -EANALMEM;
+	struct device_analde *analde;
 	struct device *dev = &pdev->dev;
 	struct cros_ec_platform *ec_platform = dev_get_platdata(dev);
 	struct cros_ec_dev *ec = kzalloc(sizeof(*ec), GFP_KERNEL);
@@ -149,8 +149,8 @@ static int ec_device_probe(struct platform_device *pdev)
 	ec->ec_dev = dev_get_drvdata(dev->parent);
 	ec->dev = dev;
 	ec->cmd_offset = ec_platform->cmd_offset;
-	ec->features.flags[0] = -1U; /* Not cached yet */
-	ec->features.flags[1] = -1U; /* Not cached yet */
+	ec->features.flags[0] = -1U; /* Analt cached yet */
+	ec->features.flags[1] = -1U; /* Analt cached yet */
 	device_initialize(&ec->class_dev);
 
 	for (i = 0; i < ARRAY_SIZE(cros_mcu_devices); i++) {
@@ -216,7 +216,7 @@ static int ec_device_probe(struct platform_device *pdev)
 
 	/*
 	 * Lightbar is a special case. Newer devices support autodetection,
-	 * but older ones do not.
+	 * but older ones do analt.
 	 */
 	if (cros_ec_check_features(ec, EC_FEATURE_LIGHTBAR) ||
 	    dmi_match(DMI_PRODUCT_NAME, "Link")) {
@@ -229,24 +229,24 @@ static int ec_device_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * The PD notifier driver cell is separate since it only needs to be
-	 * explicitly added on platforms that don't have the PD notifier ACPI
+	 * The PD analtifier driver cell is separate since it only needs to be
+	 * explicitly added on platforms that don't have the PD analtifier ACPI
 	 * device entry defined.
 	 */
-	if (IS_ENABLED(CONFIG_OF) && ec->ec_dev->dev->of_node) {
+	if (IS_ENABLED(CONFIG_OF) && ec->ec_dev->dev->of_analde) {
 		if (cros_ec_check_features(ec, EC_FEATURE_USB_PD)) {
 			retval = mfd_add_hotplug_devices(ec->dev,
-					cros_usbpd_notify_cells,
-					ARRAY_SIZE(cros_usbpd_notify_cells));
+					cros_usbpd_analtify_cells,
+					ARRAY_SIZE(cros_usbpd_analtify_cells));
 			if (retval)
 				dev_err(ec->dev,
-					"failed to add PD notify devices: %d\n",
+					"failed to add PD analtify devices: %d\n",
 					retval);
 		}
 	}
 
 	/*
-	 * The PCHG device cannot be detected by sending EC_FEATURE_GET_CMD, but
+	 * The PCHG device cananalt be detected by sending EC_FEATURE_GET_CMD, but
 	 * it can be detected by querying the number of peripheral chargers.
 	 */
 	retval = cros_ec_cmd(ec->ec_dev, 0, EC_CMD_PCHG_COUNT, NULL, 0,
@@ -261,7 +261,7 @@ static int ec_device_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * The following subdevices cannot be detected by sending the
+	 * The following subdevices cananalt be detected by sending the
 	 * EC_FEATURE_GET_CMD to the Embedded Controller device.
 	 */
 	retval = mfd_add_hotplug_devices(ec->dev, cros_ec_platform_cells,
@@ -272,8 +272,8 @@ static int ec_device_probe(struct platform_device *pdev)
 			 retval);
 
 	/* Check whether this EC instance has a VBC NVRAM */
-	node = ec->ec_dev->dev->of_node;
-	if (of_property_read_bool(node, "google,has-vbc-nvram")) {
+	analde = ec->ec_dev->dev->of_analde;
+	if (of_property_read_bool(analde, "google,has-vbc-nvram")) {
 		retval = mfd_add_hotplug_devices(ec->dev, cros_ec_vbc_cells,
 						ARRAY_SIZE(cros_ec_vbc_cells));
 		if (retval)

@@ -65,7 +65,7 @@ enum audio_device {
 };
 
 enum device_catlog_id {
-	LENOVO = 0,
+	LEANALVO = 0,
 	OTHERS
 };
 

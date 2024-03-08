@@ -26,7 +26,7 @@
 	} while (0)
 
 /* Calculate the number of uninitialized bytes in the buffer. */
-static int __init count_nonzero_bytes(void *ptr, size_t size)
+static int __init count_analnzero_bytes(void *ptr, size_t size)
 {
 	int i, ret = 0;
 	unsigned char *p = (unsigned char *)ptr;
@@ -77,7 +77,7 @@ static int __init do_alloc_pages_order(int order, int *total_failures)
 	if (!page)
 		goto err;
 	buf = page_address(page);
-	if (count_nonzero_bytes(buf, size))
+	if (count_analnzero_bytes(buf, size))
 		(*total_failures)++;
 	fill_with_garbage(buf, size);
 	__free_pages(page, order);
@@ -115,7 +115,7 @@ static int __init do_kmalloc_size(size_t size, int *total_failures)
 	buf = kmalloc(size, GFP_KERNEL);
 	if (!buf)
 		goto err;
-	if (count_nonzero_bytes(buf, size))
+	if (count_analnzero_bytes(buf, size))
 		(*total_failures)++;
 	fill_with_garbage(buf, size);
 	kfree(buf);
@@ -139,7 +139,7 @@ static int __init do_vmalloc_size(size_t size, int *total_failures)
 	buf = vmalloc(size);
 	if (!buf)
 		goto err;
-	if (count_nonzero_bytes(buf, size))
+	if (count_analnzero_bytes(buf, size))
 		(*total_failures)++;
 	fill_with_garbage(buf, size);
 	vfree(buf);
@@ -190,7 +190,7 @@ static bool __init check_buf(void *buf, int size, bool want_ctor,
 	int bytes;
 	bool fail = false;
 
-	bytes = count_nonzero_bytes(buf, size);
+	bytes = count_analnzero_bytes(buf, size);
 	WARN_ON(want_ctor && want_zero);
 	if (want_zero)
 		return bytes;
@@ -258,7 +258,7 @@ static int __init do_kmem_cache_size(size_t size, bool want_ctor,
 		 */
 		rcu_read_lock();
 		/*
-		 * Copy the buffer to check that it's not wiped on
+		 * Copy the buffer to check that it's analt wiped on
 		 * free().
 		 */
 		buf_copy = kmalloc(size, GFP_ATOMIC);
@@ -357,7 +357,7 @@ static int __init do_kmem_cache_size_bulk(int size, int *total_failures)
 		num = kmem_cache_alloc_bulk(c, GFP_KERNEL, ARRAY_SIZE(objects),
 					    objects);
 		for (i = 0; i < num; i++) {
-			bytes = count_nonzero_bytes(objects[i], size);
+			bytes = count_analnzero_bytes(objects[i], size);
 			if (bytes)
 				fail = true;
 			fill_with_garbage(objects[i], size);

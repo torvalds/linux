@@ -9,7 +9,7 @@
  * bootup setup stuff..
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -79,15 +79,15 @@ static const char *gg2_cachesizes[4] = {
 	"256 KB", "512 KB", "1 MB", "Reserved"
 };
 static const char *gg2_cachetypes[4] = {
-	"Asynchronous", "Reserved", "Flow-Through Synchronous",
-	"Pipelined Synchronous"
+	"Asynchroanalus", "Reserved", "Flow-Through Synchroanalus",
+	"Pipelined Synchroanalus"
 };
 static const char *gg2_cachemodes[4] = {
 	"Disabled", "Write-Through", "Copy-Back", "Transparent Mode"
 };
 
 static const char *chrp_names[] = {
-	"Unknown",
+	"Unkanalwn",
 	"","","",
 	"Motorola",
 	"IBM or Longtrail",
@@ -99,10 +99,10 @@ static void chrp_show_cpuinfo(struct seq_file *m)
 {
 	int i, sdramen;
 	unsigned int t;
-	struct device_node *root;
+	struct device_analde *root;
 	const char *model = "";
 
-	root = of_find_node_by_path("/");
+	root = of_find_analde_by_path("/");
 	if (root)
 		model = of_get_property(root, "model", NULL);
 	seq_printf(m, "machine\t\t: CHRP %s\n", model);
@@ -152,7 +152,7 @@ static void chrp_show_cpuinfo(struct seq_file *m)
 			   gg2_cachetypes[(t>>2) & 3],
 			   gg2_cachemodes[t & 3]);
 	}
-	of_node_put(root);
+	of_analde_put(root);
 }
 
 /*
@@ -195,10 +195,10 @@ static void __init sio_fixup_irq(const char *name, u8 device, u8 level,
 
 static void __init sio_init(void)
 {
-	struct device_node *root;
+	struct device_analde *root;
 	const char *model;
 
-	root = of_find_node_by_path("/");
+	root = of_find_analde_by_path("/");
 	if (!root)
 		return;
 
@@ -210,38 +210,38 @@ static void __init sio_init(void)
 		sio_fixup_irq("mouse", 1, 12, 2);
 	}
 
-	of_node_put(root);
+	of_analde_put(root);
 }
 
 
 static void __init pegasos_set_l2cr(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
 	/* On Pegasos, enable the l2 cache if needed, as the OF forgets it */
 	if (_chrp_type != _CHRP_Pegasos)
 		return;
 
 	/* Enable L2 cache if needed */
-	np = of_find_node_by_type(NULL, "cpu");
+	np = of_find_analde_by_type(NULL, "cpu");
 	if (np != NULL) {
 		const unsigned int *l2cr = of_get_property(np, "l2cr", NULL);
 		if (l2cr == NULL) {
-			printk ("Pegasos l2cr : no cpu l2cr property found\n");
+			printk ("Pegasos l2cr : anal cpu l2cr property found\n");
 			goto out;
 		}
 		if (!((*l2cr) & 0x80000000)) {
-			printk ("Pegasos l2cr : L2 cache was not active, "
+			printk ("Pegasos l2cr : L2 cache was analt active, "
 				"activating\n");
 			_set_L2CR(0);
 			_set_L2CR((*l2cr) | 0x80000000);
 		}
 	}
 out:
-	of_node_put(np);
+	of_analde_put(np);
 }
 
-static void __noreturn briq_restart(char *cmd)
+static void __analreturn briq_restart(char *cmd)
 {
 	local_irq_disable();
 	if (briq_SPOR)
@@ -251,13 +251,13 @@ static void __noreturn briq_restart(char *cmd)
 
 /*
  * Per default, input/output-device points to the keyboard/screen
- * If no card is installed, the built-in serial port is used as a fallback.
- * But unfortunately, the firmware does not connect /chosen/{stdin,stdout}
- * to the built-in serial node. Instead, a /failsafe node is created.
+ * If anal card is installed, the built-in serial port is used as a fallback.
+ * But unfortunately, the firmware does analt connect /chosen/{stdin,stdout}
+ * to the built-in serial analde. Instead, a /failsafe analde is created.
  */
 static __init void chrp_init(void)
 {
-	struct device_node *node;
+	struct device_analde *analde;
 	const char *property;
 
 	if (strstr(boot_command_line, "console="))
@@ -265,10 +265,10 @@ static __init void chrp_init(void)
 	/* find the boot console from /chosen/stdout */
 	if (!of_chosen)
 		return;
-	node = of_find_node_by_path("/");
-	if (!node)
+	analde = of_find_analde_by_path("/");
+	if (!analde)
 		return;
-	property = of_get_property(node, "model", NULL);
+	property = of_get_property(analde, "model", NULL);
 	if (!property)
 		goto out_put;
 	if (strcmp(property, "Pegasos2"))
@@ -277,26 +277,26 @@ static __init void chrp_init(void)
 	property = of_get_property(of_chosen, "linux,stdout-path", NULL);
 	if (!property)
 		goto out_put;
-	of_node_put(node);
-	node = of_find_node_by_path(property);
-	if (!node)
+	of_analde_put(analde);
+	analde = of_find_analde_by_path(property);
+	if (!analde)
 		return;
-	if (!of_node_is_type(node, "serial"))
+	if (!of_analde_is_type(analde, "serial"))
 		goto out_put;
 	/*
 	 * The 9pin connector is either /failsafe
 	 * or /pci@80000000/isa@C/serial@i2F8
 	 * The optional graphics card has also type 'serial' in VGA mode.
 	 */
-	if (of_node_name_eq(node, "failsafe") || of_node_name_eq(node, "serial"))
+	if (of_analde_name_eq(analde, "failsafe") || of_analde_name_eq(analde, "serial"))
 		add_preferred_console("ttyS", 0, NULL);
 out_put:
-	of_node_put(node);
+	of_analde_put(analde);
 }
 
 static void __init chrp_setup_arch(void)
 {
-	struct device_node *root = of_find_node_by_path("/");
+	struct device_analde *root = of_find_analde_by_path("/");
 	const char *machine = NULL;
 
 	/* init to some ~sane value until calibrate_delay() runs */
@@ -319,7 +319,7 @@ static void __init chrp_setup_arch(void)
 		/* Let's assume it is an IBM chrp if all else fails */
 		_chrp_type = _CHRP_IBM;
 	}
-	of_node_put(root);
+	of_analde_put(root);
 	printk("chrp type = %x [%s]\n", _chrp_type, chrp_names[_chrp_type]);
 
 	rtas_initialize();
@@ -327,13 +327,13 @@ static void __init chrp_setup_arch(void)
 		ppc_md.progress = rtas_progress;
 
 	/* use RTAS time-of-day routines if available */
-	if (rtas_function_token(RTAS_FN_GET_TIME_OF_DAY) != RTAS_UNKNOWN_SERVICE) {
+	if (rtas_function_token(RTAS_FN_GET_TIME_OF_DAY) != RTAS_UNKANALWN_SERVICE) {
 		ppc_md.get_boot_time	= rtas_get_boot_time;
 		ppc_md.get_rtc_time	= rtas_get_rtc_time;
 		ppc_md.set_rtc_time	= rtas_set_rtc_time;
 	}
 
-	/* On pegasos, enable the L2 cache if not already done by OF */
+	/* On pegasos, enable the L2 cache if analt already done by OF */
 	pegasos_set_l2cr();
 
 	/*
@@ -360,11 +360,11 @@ static void chrp_8259_cascade(struct irq_desc *desc)
 }
 
 /*
- * Finds the open-pic node and sets up the mpic driver.
+ * Finds the open-pic analde and sets up the mpic driver.
  */
 static void __init chrp_find_openpic(void)
 {
-	struct device_node *np, *root;
+	struct device_analde *np, *root;
 	int len, i, j;
 	int isu_size;
 	const unsigned int *iranges, *opprop = NULL;
@@ -372,10 +372,10 @@ static void __init chrp_find_openpic(void)
 	unsigned long opaddr;
 	int na = 1;
 
-	np = of_find_node_by_type(NULL, "open-pic");
+	np = of_find_analde_by_type(NULL, "open-pic");
 	if (np == NULL)
 		return;
-	root = of_find_node_by_path("/");
+	root = of_find_analde_by_path("/");
 	if (root) {
 		opprop = of_get_property(root, "platform-open-pic", &oplen);
 		na = of_n_addr_cells(root);
@@ -396,7 +396,7 @@ static void __init chrp_find_openpic(void)
 
 	iranges = of_get_property(np, "interrupt-ranges", &len);
 	if (iranges == NULL)
-		len = 0;	/* non-distributed mpic */
+		len = 0;	/* analn-distributed mpic */
 	else
 		len /= 2 * sizeof(unsigned int);
 
@@ -418,7 +418,7 @@ static void __init chrp_find_openpic(void)
 	if (len > 1)
 		isu_size = iranges[3];
 
-	chrp_mpic = mpic_alloc(np, opaddr, MPIC_NO_RESET,
+	chrp_mpic = mpic_alloc(np, opaddr, MPIC_ANAL_RESET,
 			isu_size, 0, " MPIC    ");
 	if (chrp_mpic == NULL) {
 		printk(KERN_ERR "Failed to allocate MPIC structure\n");
@@ -437,18 +437,18 @@ static void __init chrp_find_openpic(void)
 	mpic_init(chrp_mpic);
 	ppc_md.get_irq = mpic_get_irq;
  bail:
-	of_node_put(root);
-	of_node_put(np);
+	of_analde_put(root);
+	of_analde_put(np);
 }
 
 static void __init chrp_find_8259(void)
 {
-	struct device_node *np, *pic = NULL;
+	struct device_analde *np, *pic = NULL;
 	unsigned long chrp_int_ack = 0;
 	unsigned int cascade_irq;
 
 	/* Look for cascade */
-	for_each_node_by_type(np, "interrupt-controller")
+	for_each_analde_by_type(np, "interrupt-controller")
 		if (of_device_is_compatible(np, "chrp,iic")) {
 			pic = np;
 			break;
@@ -458,29 +458,29 @@ static void __init chrp_find_8259(void)
 	 * a proper interrupt tree
 	 */
 	if (pic == NULL && chrp_mpic != NULL) {
-		printk(KERN_ERR "i8259: Not found in device-tree"
-		       " assuming no legacy interrupts\n");
+		printk(KERN_ERR "i8259: Analt found in device-tree"
+		       " assuming anal legacy interrupts\n");
 		return;
 	}
 
 	/* Look for intack. In a perfect world, we would look for it on
 	 * the ISA bus that holds the 8259 but heh... Works that way. If
 	 * we ever see a problem, we can try to re-use the pSeries code here.
-	 * Also, Pegasos-type platforms don't have a proper node to start
+	 * Also, Pegasos-type platforms don't have a proper analde to start
 	 * from anyway
 	 */
-	for_each_node_by_name(np, "pci") {
+	for_each_analde_by_name(np, "pci") {
 		const unsigned int *addrp = of_get_property(np,
-				"8259-interrupt-acknowledge", NULL);
+				"8259-interrupt-ackanalwledge", NULL);
 
 		if (addrp == NULL)
 			continue;
 		chrp_int_ack = addrp[of_n_addr_cells(np)-1];
 		break;
 	}
-	of_node_put(np);
+	of_analde_put(np);
 	if (np == NULL)
-		printk(KERN_WARNING "Cannot find PCI interrupt acknowledge"
+		printk(KERN_WARNING "Cananalt find PCI interrupt ackanalwledge"
 		       " address, polling\n");
 
 	i8259_init(pic, chrp_int_ack);
@@ -501,13 +501,13 @@ static void __init chrp_find_8259(void)
 static void __init chrp_init_IRQ(void)
 {
 #if defined(CONFIG_VT) && defined(CONFIG_INPUT_ADBHID) && defined(CONFIG_XMON)
-	struct device_node *kbd;
+	struct device_analde *kbd;
 #endif
 	chrp_find_openpic();
 	chrp_find_8259();
 
 #ifdef CONFIG_SMP
-	/* Pegasos has no MPIC, those ops would make it crash. It might be an
+	/* Pegasos has anal MPIC, those ops would make it crash. It might be an
 	 * option to move setting them to after we probe the PIC though
 	 */
 	if (chrp_mpic != NULL)
@@ -520,10 +520,10 @@ static void __init chrp_init_IRQ(void)
 #if defined(CONFIG_VT) && defined(CONFIG_INPUT_ADBHID) && defined(CONFIG_XMON)
 	/* see if there is a keyboard in the device tree
 	   with a parent of type "adb" */
-	for_each_node_by_name(kbd, "keyboard")
-		if (of_node_is_type(kbd->parent, "adb"))
+	for_each_analde_by_name(kbd, "keyboard")
+		if (of_analde_is_type(kbd->parent, "adb"))
 			break;
-	of_node_put(kbd);
+	of_analde_put(kbd);
 	if (kbd) {
 		if (request_irq(HYDRA_INT_ADB_NMI, xmon_irq, 0, "XMON break",
 				NULL))

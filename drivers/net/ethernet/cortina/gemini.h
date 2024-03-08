@@ -12,7 +12,7 @@
 #include <linux/bitops.h>
 
 /* Base Registers */
-#define TOE_NONTOE_QUE_HDR_BASE		0x2000
+#define TOE_ANALNTOE_QUE_HDR_BASE		0x2000
 #define TOE_TOE_QUE_HDR_BASE		0x3000
 
 /* Queue ID */
@@ -544,8 +544,8 @@ union gmac_rxdesc_0 {
 
 #define	RX_CHKSUM_IP_UDP_TCP_OK			0
 #define	RX_CHKSUM_IP_OK_ONLY			1
-#define	RX_CHKSUM_NONE				2
-#define	RX_CHKSUM_IP_ERR_UNKNOWN		4
+#define	RX_CHKSUM_ANALNE				2
+#define	RX_CHKSUM_IP_ERR_UNKANALWN		4
 #define	RX_CHKSUM_IP_ERR			5
 #define	RX_CHKSUM_TCP_UDP_ERR			6
 #define RX_CHKSUM_NUM				8
@@ -553,7 +553,7 @@ union gmac_rxdesc_0 {
 #define RX_STATUS_GOOD_FRAME			0
 #define RX_STATUS_TOO_LONG_GOOD_CRC		1
 #define RX_STATUS_RUNT_FRAME			2
-#define RX_STATUS_SFD_NOT_FOUND			3
+#define RX_STATUS_SFD_ANALT_FOUND			3
 #define RX_STATUS_CRC_ERROR			4
 #define RX_STATUS_TOO_LONG_BAD_CRC		5
 #define RX_STATUS_ALIGNMENT_ERROR		6
@@ -601,7 +601,7 @@ union gmac_rxdesc_2 {
 	unsigned int	buf_adr;
 };
 
-#define RX_INSERT_NONE		0
+#define RX_INSERT_ANALNE		0
 #define RX_INSERT_1_BYTE	1
 #define RX_INSERT_2_BYTE	2
 #define RX_INSERT_3_BYTE	3
@@ -621,8 +621,8 @@ union gmac_rxdesc_3 {
 		unsigned int l7_offset:8;
 		/* bit 24 Duplicated ACK detected */
 		unsigned int dup_ack:1;
-		/* bit 25 abnormal case found */
-		unsigned int abnormal:1;
+		/* bit 25 abanalrmal case found */
+		unsigned int abanalrmal:1;
 		/* bit 26 IPV4 option or IPV6 extension header */
 		unsigned int option:1;
 		/* bit 27 Out of Sequence packet */
@@ -872,7 +872,7 @@ union gmac_status {
 
 /* Queue Header
  *	(1) TOE Queue Header
- *	(2) Non-TOE Queue Header
+ *	(2) Analn-TOE Queue Header
  *	(3) Interrupt Queue Header
  *
  * memory Layout
@@ -888,7 +888,7 @@ union gmac_status {
  *				|                           |
  *				+---------------------------+
  *
- *	Non TOE Queue Header
+ *	Analn TOE Queue Header
  *		     0x60002000 +---------------------------+ 0x0000
  *				|   Default Queue 0 Header  |
  *				|         2 * 4 Bytes       |
@@ -924,24 +924,24 @@ union gmac_status {
  */
 #define TOE_QUEUE_HDR_ADDR(n)	(TOE_TOE_QUE_HDR_BASE + n * 32)
 #define TOE_Q_HDR_AREA_END	(TOE_QUEUE_HDR_ADDR(TOE_TOE_QUEUE_MAX + 1))
-#define TOE_DEFAULT_Q_HDR_BASE(x) (TOE_NONTOE_QUE_HDR_BASE + 0x08 * (x))
-#define TOE_CLASS_Q_HDR_BASE	(TOE_NONTOE_QUE_HDR_BASE + 0x10)
-#define TOE_INTR_Q_HDR_BASE	(TOE_NONTOE_QUE_HDR_BASE + 0x80)
+#define TOE_DEFAULT_Q_HDR_BASE(x) (TOE_ANALNTOE_QUE_HDR_BASE + 0x08 * (x))
+#define TOE_CLASS_Q_HDR_BASE	(TOE_ANALNTOE_QUE_HDR_BASE + 0x10)
+#define TOE_INTR_Q_HDR_BASE	(TOE_ANALNTOE_QUE_HDR_BASE + 0x80)
 #define INTERRUPT_QUEUE_HDR_ADDR(n) (TOE_INTR_Q_HDR_BASE + n * 8)
-#define NONTOE_Q_HDR_AREA_END (INTERRUPT_QUEUE_HDR_ADDR(TOE_INTR_QUEUE_MAX + 1))
+#define ANALNTOE_Q_HDR_AREA_END (INTERRUPT_QUEUE_HDR_ADDR(TOE_INTR_QUEUE_MAX + 1))
 
-/* NONTOE Queue Header Word 0 */
-union nontoe_qhdr0 {
+/* ANALNTOE Queue Header Word 0 */
+union analntoe_qhdr0 {
 	unsigned int bits32;
 	unsigned int base_size;
 };
 
-#define NONTOE_QHDR0_BASE_MASK	(~0x0f)
+#define ANALNTOE_QHDR0_BASE_MASK	(~0x0f)
 
-/* NONTOE Queue Header Word 1 */
-union nontoe_qhdr1 {
+/* ANALNTOE Queue Header Word 1 */
+union analntoe_qhdr1 {
 	unsigned int bits32;
-	struct bit_nonqhdr1 {
+	struct bit_analnqhdr1 {
 		/* bit 15:0 */
 		unsigned int rptr:16;
 		/* bit 31:16 */
@@ -949,10 +949,10 @@ union nontoe_qhdr1 {
 	} bits;
 };
 
-/* Non-TOE Queue Header */
-struct nontoe_qhdr {
-	union nontoe_qhdr0 word0;
-	union nontoe_qhdr1 word1;
+/* Analn-TOE Queue Header */
+struct analntoe_qhdr {
+	union analntoe_qhdr0 word0;
+	union analntoe_qhdr1 word1;
 };
 
 #endif /* _GEMINI_ETHERNET_H */

@@ -41,7 +41,7 @@ static u32 drm_hdcp_get_revoked_ksv_count(const u8 *buf, u32 vrls_length)
 	}
 
 	/*
-	 * When vrls are not valid, ksvs are not considered.
+	 * When vrls are analt valid, ksvs are analt considered.
 	 * Hence SRM will be discarded.
 	 */
 	if (parsed_bytes != vrls_length)
@@ -94,9 +94,9 @@ static int drm_hdcp_parse_hdcp1_srm(const u8 *buf, size_t count,
 	}
 
 	header = (struct hdcp_srm_header *)buf;
-	DRM_DEBUG("SRM ID: 0x%x, SRM Ver: 0x%x, SRM Gen No: 0x%x\n",
+	DRM_DEBUG("SRM ID: 0x%x, SRM Ver: 0x%x, SRM Gen Anal: 0x%x\n",
 		  header->srm_id,
-		  be16_to_cpu(header->srm_version), header->srm_gen_no);
+		  be16_to_cpu(header->srm_version), header->srm_gen_anal);
 
 	WARN_ON(header->reserved);
 
@@ -114,7 +114,7 @@ static int drm_hdcp_parse_hdcp1_srm(const u8 *buf, size_t count,
 		       DRM_HDCP_1_4_DCP_SIG_SIZE);
 
 	if (!vrl_length) {
-		DRM_ERROR("No vrl found\n");
+		DRM_ERROR("Anal vrl found\n");
 		return -EINVAL;
 	}
 
@@ -128,7 +128,7 @@ static int drm_hdcp_parse_hdcp1_srm(const u8 *buf, size_t count,
 	*revoked_ksv_list = kcalloc(ksv_count, DRM_HDCP_KSV_LEN, GFP_KERNEL);
 	if (!*revoked_ksv_list) {
 		DRM_ERROR("Out of Memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (drm_hdcp_get_revoked_ksvs(buf, revoked_ksv_list,
@@ -155,9 +155,9 @@ static int drm_hdcp_parse_hdcp2_srm(const u8 *buf, size_t count,
 	}
 
 	header = (struct hdcp_srm_header *)buf;
-	DRM_DEBUG("SRM ID: 0x%x, SRM Ver: 0x%x, SRM Gen No: 0x%x\n",
+	DRM_DEBUG("SRM ID: 0x%x, SRM Ver: 0x%x, SRM Gen Anal: 0x%x\n",
 		  header->srm_id & DRM_HDCP_SRM_ID_MASK,
-		  be16_to_cpu(header->srm_version), header->srm_gen_no);
+		  be16_to_cpu(header->srm_version), header->srm_gen_anal);
 
 	if (header->reserved)
 		return -EINVAL;
@@ -177,7 +177,7 @@ static int drm_hdcp_parse_hdcp2_srm(const u8 *buf, size_t count,
 		       DRM_HDCP_2_DCP_SIG_SIZE);
 
 	if (!vrl_length) {
-		DRM_ERROR("No vrl found\n");
+		DRM_ERROR("Anal vrl found\n");
 		return -EINVAL;
 	}
 
@@ -191,11 +191,11 @@ static int drm_hdcp_parse_hdcp2_srm(const u8 *buf, size_t count,
 	*revoked_ksv_list = kcalloc(ksv_count, DRM_HDCP_KSV_LEN, GFP_KERNEL);
 	if (!*revoked_ksv_list) {
 		DRM_ERROR("Out of Memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ksv_sz = ksv_count * DRM_HDCP_KSV_LEN;
-	buf += DRM_HDCP_2_NO_OF_DEV_PLUS_RESERVED_SZ;
+	buf += DRM_HDCP_2_ANAL_OF_DEV_PLUS_RESERVED_SZ;
 
 	DRM_DEBUG("Revoked KSVs: %d\n", ksv_count);
 	memcpy(*revoked_ksv_list, buf, ksv_sz);
@@ -264,7 +264,7 @@ exit:
  *
  * This function reads the HDCP System renewability Message(SRM Table)
  * from userspace as a firmware and parses it for the revoked HDCP
- * KSVs(Receiver IDs) detected by DCP LLC. Once the revoked KSVs are known,
+ * KSVs(Receiver IDs) detected by DCP LLC. Once the revoked KSVs are kanalwn,
  * revoked state of the KSVs in the list passed in by display drivers are
  * decided and response is sent.
  *
@@ -331,10 +331,10 @@ DRM_ENUM_NAME_FN(drm_get_hdcp_content_type_name,
  *
  * This is used to add support for content protection on select connectors.
  * Content Protection is intentionally vague to allow for different underlying
- * technologies, however it is most implemented by HDCP.
+ * techanallogies, however it is most implemented by HDCP.
  *
  * When hdcp_content_type is true enum property called HDCP Content Type is
- * created (if it is not already) and attached to the connector.
+ * created (if it is analt already) and attached to the connector.
  *
  * This property is used for sending the protected content's stream type
  * from userspace to kernel on selected connectors. Protected content provider
@@ -350,7 +350,7 @@ DRM_ENUM_NAME_FN(drm_get_hdcp_content_type_name,
  * the content protection state of a connector.
  *
  * Returns:
- * Zero on success, negative errno on failure.
+ * Zero on success, negative erranal on failure.
  */
 int drm_connector_attach_content_protection_property(
 		struct drm_connector *connector, bool hdcp_content_type)
@@ -364,7 +364,7 @@ int drm_connector_attach_content_protection_property(
 						drm_cp_enum_list,
 						ARRAY_SIZE(drm_cp_enum_list));
 	if (!prop)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drm_object_attach_property(&connector->base, prop,
 				   DRM_MODE_CONTENT_PROTECTION_UNDESIRED);
@@ -380,7 +380,7 @@ int drm_connector_attach_content_protection_property(
 					ARRAY_SIZE(
 					drm_hdcp_content_type_enum_list));
 	if (!prop)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drm_object_attach_property(&connector->base, prop,
 				   DRM_MODE_HDCP_CONTENT_TYPE0);
@@ -399,10 +399,10 @@ EXPORT_SYMBOL(drm_connector_attach_content_protection_property);
  *
  * This function can be used by display drivers, to update the kernel triggered
  * content protection state changes of a drm_connector such as DESIRED->ENABLED
- * and ENABLED->DESIRED. No uevent for DESIRED->UNDESIRED or ENABLED->UNDESIRED,
+ * and ENABLED->DESIRED. Anal uevent for DESIRED->UNDESIRED or ENABLED->UNDESIRED,
  * as userspace is triggering such state change and kernel performs it without
  * fail.This function update the new state of the property into the connector's
- * state and generate an uevent to notify the userspace.
+ * state and generate an uevent to analtify the userspace.
  */
 void drm_hdcp_update_content_protection(struct drm_connector *connector,
 					u64 val)

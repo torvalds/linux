@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /* Microchip Sparx5 Switch driver
  *
- * Copyright (c) 2021 Microchip Technology Inc. and its subsidiaries.
+ * Copyright (c) 2021 Microchip Techanallogy Inc. and its subsidiaries.
  */
 
 #include <linux/module.h>
@@ -75,7 +75,7 @@ static u32 sparx5_target_bandwidth(struct sparx5 *sparx5)
 
 /* This is used in calendar configuration */
 enum sparx5_cal_bw {
-	SPX5_CAL_SPEED_NONE = 0,
+	SPX5_CAL_SPEED_ANALNE = 0,
 	SPX5_CAL_SPEED_1G   = 1,
 	SPX5_CAL_SPEED_2G5  = 2,
 	SPX5_CAL_SPEED_5G   = 3,
@@ -121,45 +121,45 @@ static u32 sparx5_bandwidth_to_calendar(u32 bw)
 	case SPEED_10000:   return SPX5_CAL_SPEED_10G;
 	case SPEED_12500:   return SPX5_CAL_SPEED_12G5;
 	case SPEED_25000:   return SPX5_CAL_SPEED_25G;
-	case SPEED_UNKNOWN: return SPX5_CAL_SPEED_1G;
-	default:            return SPX5_CAL_SPEED_NONE;
+	case SPEED_UNKANALWN: return SPX5_CAL_SPEED_1G;
+	default:            return SPX5_CAL_SPEED_ANALNE;
 	}
 }
 
 static enum sparx5_cal_bw sparx5_get_port_cal_speed(struct sparx5 *sparx5,
-						    u32 portno)
+						    u32 portanal)
 {
 	struct sparx5_port *port;
 
-	if (portno >= SPX5_PORTS) {
+	if (portanal >= SPX5_PORTS) {
 		/* Internal ports */
-		if (portno == SPX5_PORT_CPU_0 || portno == SPX5_PORT_CPU_1) {
+		if (portanal == SPX5_PORT_CPU_0 || portanal == SPX5_PORT_CPU_1) {
 			/* Equals 1.25G */
 			return SPX5_CAL_SPEED_2G5;
-		} else if (portno == SPX5_PORT_VD0) {
+		} else if (portanal == SPX5_PORT_VD0) {
 			/* IPMC only idle BW */
-			return SPX5_CAL_SPEED_NONE;
-		} else if (portno == SPX5_PORT_VD1) {
+			return SPX5_CAL_SPEED_ANALNE;
+		} else if (portanal == SPX5_PORT_VD1) {
 			/* OAM only idle BW */
-			return SPX5_CAL_SPEED_NONE;
-		} else if (portno == SPX5_PORT_VD2) {
+			return SPX5_CAL_SPEED_ANALNE;
+		} else if (portanal == SPX5_PORT_VD2) {
 			/* IPinIP gets only idle BW */
-			return SPX5_CAL_SPEED_NONE;
+			return SPX5_CAL_SPEED_ANALNE;
 		}
-		/* not in port map */
-		return SPX5_CAL_SPEED_NONE;
+		/* analt in port map */
+		return SPX5_CAL_SPEED_ANALNE;
 	}
 	/* Front ports - may be used */
-	port = sparx5->ports[portno];
+	port = sparx5->ports[portanal];
 	if (!port)
-		return SPX5_CAL_SPEED_NONE;
+		return SPX5_CAL_SPEED_ANALNE;
 	return sparx5_bandwidth_to_calendar(port->conf.bandwidth);
 }
 
 /* Auto configure the QSYS calendar based on port configuration */
 int sparx5_config_auto_calendar(struct sparx5 *sparx5)
 {
-	u32 cal[7], value, idx, portno;
+	u32 cal[7], value, idx, portanal;
 	u32 max_core_bw;
 	u32 total_bw = 0, used_port_bw = 0;
 	int err = 0;
@@ -169,26 +169,26 @@ int sparx5_config_auto_calendar(struct sparx5 *sparx5)
 
 	max_core_bw = sparx5_clk_to_bandwidth(sparx5->coreclock);
 	if (max_core_bw == 0) {
-		dev_err(sparx5->dev, "Core clock not supported");
+		dev_err(sparx5->dev, "Core clock analt supported");
 		return -EINVAL;
 	}
 
 	/* Setup the calendar with the bandwidth to each port */
-	for (portno = 0; portno < SPX5_PORTS_ALL; portno++) {
+	for (portanal = 0; portanal < SPX5_PORTS_ALL; portanal++) {
 		u64 reg, offset, this_bw;
 
-		spd = sparx5_get_port_cal_speed(sparx5, portno);
-		if (spd == SPX5_CAL_SPEED_NONE)
+		spd = sparx5_get_port_cal_speed(sparx5, portanal);
+		if (spd == SPX5_CAL_SPEED_ANALNE)
 			continue;
 
 		this_bw = sparx5_cal_speed_to_value(spd);
-		if (portno < SPX5_PORTS)
+		if (portanal < SPX5_PORTS)
 			used_port_bw += this_bw;
 		else
 			/* Internal ports are granted half the value */
 			this_bw = this_bw / 2;
 		total_bw += this_bw;
-		reg = portno;
+		reg = portanal;
 		offset = do_div(reg, SPX5_PORTS_PER_CALREG);
 		cal[reg] |= spd << (offset * SPX5_CALBITS_PER_PORT);
 	}
@@ -302,11 +302,11 @@ static int sparx5_dsm_calendar_calc(struct sparx5 *sparx5, u32 taxi,
 
 	/* Map ports to taxi positions */
 	for (idx = 0; idx < SPX5_DSM_CAL_MAX_DEVS_PER_TAXI; idx++) {
-		u32 portno = data->taxi_ports[idx];
+		u32 portanal = data->taxi_ports[idx];
 
-		if (portno < SPX5_TAXI_PORT_MAX) {
+		if (portanal < SPX5_TAXI_PORT_MAX) {
 			data->taxi_speeds[idx] = sparx5_cal_speed_to_value
-				(sparx5_get_port_cal_speed(sparx5, portno));
+				(sparx5_get_port_cal_speed(sparx5, portanal));
 		} else {
 			data->taxi_speeds[idx] = 0;
 		}
@@ -571,7 +571,7 @@ int sparx5_config_dsm_calendar(struct sparx5 *sparx5)
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (taxi = 0; taxi < SPX5_DSM_CAL_TAXIS; ++taxi) {
 		err = sparx5_dsm_calendar_calc(sparx5, taxi, data);

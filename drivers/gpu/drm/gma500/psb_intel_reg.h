@@ -50,7 +50,7 @@
 #define   GMBUS_SW_CLR_INT	(1<<31)
 #define   GMBUS_SW_RDY		(1<<30)
 #define   GMBUS_ENT		(1<<29) /* enable timeout */
-#define   GMBUS_CYCLE_NONE	(0<<25)
+#define   GMBUS_CYCLE_ANALNE	(0<<25)
 #define   GMBUS_CYCLE_WAIT	(1<<25)
 #define   GMBUS_CYCLE_INDEX	(2<<25)
 #define   GMBUS_CYCLE_STOP	(4<<25)
@@ -97,7 +97,7 @@
  * This is the number of cycles out of the backlight modulation cycle for which
  * the backlight is on.
  *
- * This field must be no greater than the number of cycles in the complete
+ * This field must be anal greater than the number of cycles in the complete
  * backlight modulation cycle.
  */
 #define BACKLIGHT_DUTY_CYCLE_SHIFT	(0)
@@ -157,7 +157,7 @@
  * - LVDS/DVOB/DVOC on
  */
 #define PP_READY			(1 << 30)
-#define PP_SEQUENCE_NONE		(0 << 28)
+#define PP_SEQUENCE_ANALNE		(0 << 28)
 #define PP_SEQUENCE_ON			(1 << 28)
 #define PP_SEQUENCE_OFF			(2 << 28)
 #define PP_SEQUENCE_MASK		0x30000000
@@ -253,7 +253,7 @@
 #define DPLL_FPA01_P1_POST_DIV_MASK_I830_LVDS	0x003f0000
 #define DPLL_FPA01_P1_POST_DIV_SHIFT	16
 #define PLL_P2_DIVIDE_BY_4		(1 << 23)	/* i830, required
-							 * in DVO non-gang */
+							 * in DVO analn-gang */
 # define PLL_P1_DIVIDE_BY_TWO		(1 << 21)	/* i830 */
 #define PLL_REF_INPUT_DREFCLK		(0 << 13)
 #define PLL_REF_INPUT_TVCLKINA		(1 << 13)	/* i830 */
@@ -272,7 +272,7 @@
 #define DISPLAY_RATE_SELECT_FPA1	(1 << 8)
 
 /*
- * SDVO multiplier for 945G/GM. Not used on 965.
+ * SDVO multiplier for 945G/GM. Analt used on 965.
  *
  * DPLL_MD_UDI_MULTIPLIER_MASK
  */
@@ -304,7 +304,7 @@
  * clock rate is 10 times the DPLL clock.  At low resolution/refresh rate
  * modes, the bus rate would be below the limits, so SDVO allows for stuffing
  * dummy bytes in the datastream at an increased clock rate, with both sides of
- * the link knowing how many bytes are fill.
+ * the link kanalwing how many bytes are fill.
  *
  * So, for a mode with a dotclock of 65Mhz, we would want to double the clock
  * rate to 130Mhz to get a bus rate of 1.30Ghz.  The DPLL clock rate would be
@@ -318,7 +318,7 @@
 #define DPLL_MD_UDI_MULTIPLIER_SHIFT	8
 /*
  * SDVO/UDI pixel multiplier for VGA, same as DPLL_MD_UDI_MULTIPLIER_MASK.
- * This best be set to the default value (3) or the CRT won't work. No,
+ * This best be set to the default value (3) or the CRT won't work. Anal,
  * I don't entirely understand what this does...
  */
 #define DPLL_MD_VGA_UDI_MULTIPLIER_MASK	0x0000003f
@@ -393,8 +393,8 @@
 #define TV_HOTPLUG_INT_STATUS		(1 << 10)
 #define CRT_HOTPLUG_MONITOR_MASK	(3 << 8)
 #define CRT_HOTPLUG_MONITOR_COLOR	(3 << 8)
-#define CRT_HOTPLUG_MONITOR_MONO	(2 << 8)
-#define CRT_HOTPLUG_MONITOR_NONE	(0 << 8)
+#define CRT_HOTPLUG_MONITOR_MOANAL	(2 << 8)
+#define CRT_HOTPLUG_MONITOR_ANALNE	(0 << 8)
 #define SDVOC_HOTPLUG_INT_STATUS	(1 << 7)
 #define SDVOB_HOTPLUG_INT_STATUS	(1 << 6)
 
@@ -597,7 +597,7 @@
 #define DISPPLANE_8BPP				(0x2 << 26)
 #define DISPPLANE_15_16BPP			(0x4 << 26)
 #define DISPPLANE_16BPP				(0x5 << 26)
-#define DISPPLANE_32BPP_NO_ALPHA		(0x6 << 26)
+#define DISPPLANE_32BPP_ANAL_ALPHA		(0x6 << 26)
 #define DISPPLANE_32BPP				(0x7 << 26)
 #define DISPPLANE_STEREO_ENABLE			(1 << 25)
 #define DISPPLANE_STEREO_DISABLE		0
@@ -608,7 +608,7 @@
 #define DISPPLANE_SRC_KEY_ENABLE		(1 << 22)
 #define DISPPLANE_SRC_KEY_DISABLE		0
 #define DISPPLANE_LINE_DOUBLE			(1 << 20)
-#define DISPPLANE_NO_LINE_DOUBLE		0
+#define DISPPLANE_ANAL_LINE_DOUBLE		0
 #define DISPPLANE_STEREO_POLARITY_FIRST		0
 #define DISPPLANE_STEREO_POLARITY_SECOND	(1 << 18)
 /* plane B only */
@@ -619,16 +619,16 @@
 #define DISPPLANE_BOTTOM			(4)
 
 #define DSPABASE		0x70184
-#define DSPALINOFF		0x70184
+#define DSPALIANALFF		0x70184
 #define DSPASTRIDE		0x70188
 
 #define DSPBBASE		0x71184
-#define DSPBLINOFF		0X71184
+#define DSPBLIANALFF		0X71184
 #define DSPBADDR		DSPBBASE
 #define DSPBSTRIDE		0x71188
 
 #define DSPCBASE		0x72184
-#define DSPCLINOFF		0x72184
+#define DSPCLIANALFF		0x72184
 #define DSPCSTRIDE		0x72188
 
 #define DSPAKEYVAL		0x70194
@@ -836,13 +836,13 @@
 #define RX_ECC_SINGLE_BIT_ERROR			(1 << 7)
 #define RX_ECC_MULTI_BIT_ERROR			(1 << 8)
 #define RX_CHECKSUM_ERROR			(1 << 9)
-#define RX_DSI_DATA_TYPE_NOT_RECOGNIZED		(1 << 10)
+#define RX_DSI_DATA_TYPE_ANALT_RECOGNIZED		(1 << 10)
 #define RX_DSI_VC_ID_INVALID			(1 << 11)
 #define TX_FALSE_CONTROL_ERROR			(1 << 12)
 #define TX_ECC_SINGLE_BIT_ERROR			(1 << 13)
 #define TX_ECC_MULTI_BIT_ERROR			(1 << 14)
 #define TX_CHECKSUM_ERROR			(1 << 15)
-#define TX_DSI_DATA_TYPE_NOT_RECOGNIZED		(1 << 16)
+#define TX_DSI_DATA_TYPE_ANALT_RECOGNIZED		(1 << 16)
 #define TX_DSI_VC_ID_INVALID			(1 << 17)
 #define HIGH_CONTENTION				(1 << 18)
 #define LOW_CONTENTION				(1 << 19)
@@ -850,7 +850,7 @@
 #define HS_TX_TIMEOUT				(1 << 21)
 #define LP_RX_TIMEOUT				(1 << 22)
 #define TURN_AROUND_ACK_TIMEOUT			(1 << 23)
-#define ACK_WITH_NO_ERROR			(1 << 24)
+#define ACK_WITH_ANAL_ERROR			(1 << 24)
 #define HS_GENERIC_WR_FIFO_FULL			(1 << 27)
 #define LP_GENERIC_WR_FIFO_FULL			(1 << 28)
 #define SPL_PKT_SENT				(1 << 30)
@@ -874,8 +874,8 @@
 #define VIRTUAL_CHANNEL_NUMBER_2		0x02	/* Virtual channel 2 */
 #define VIRTUAL_CHANNEL_NUMBER_3		0x03	/* Virtual channel 3 */
 
-#define DBI_NOT_SUPPORTED			0x00	/* command mode
-							 * is not supported
+#define DBI_ANALT_SUPPORTED			0x00	/* command mode
+							 * is analt supported
 							 */
 #define DBI_DATA_WIDTH_16BIT			0x01	/* 16 bit data */
 #define DBI_DATA_WIDTH_9BIT			0x02	/* 9 bit data */
@@ -990,9 +990,9 @@
 /*
  *	The display module returns the Display Signal Mode.
  */
-#define get_diagnostic_result		0x0f
+#define get_diaganalstic_result		0x0f
 /*
- *	The display module returns the self-diagnostic results following
+ *	The display module returns the self-diaganalstic results following
  *	a Sleep Out command.
  */
 #define enter_sleep_mode		0x10
@@ -1013,22 +1013,22 @@
  *	Mode. The Partial Display Mode window is described by the
  *	set_partial_area command.
  */
-#define enter_normal_mode		0x13
+#define enter_analrmal_mode		0x13
 /*
- *	This command causes the display module to enter the Normal mode.
- *	Normal Mode is defined as Partial Display mode and Scroll mode are off
+ *	This command causes the display module to enter the Analrmal mode.
+ *	Analrmal Mode is defined as Partial Display mode and Scroll mode are off
  */
 #define exit_invert_mode		0x20
 /*
  *	This command causes the display module to stop inverting the image
  *	data on the display device. The frame memory contents remain unchanged.
- *	No status bits are changed.
+ *	Anal status bits are changed.
  */
 #define enter_invert_mode		0x21
 /*
  *	This command causes the display module to invert the image data only on
  *	the display device. The frame memory contents remain unchanged.
- *	No status bits are changed.
+ *	Anal status bits are changed.
  */
 #define set_gamma_curve			0x26
 /*
@@ -1039,27 +1039,27 @@
 /* ************************************************************************* *\
 This command causes the display module to stop displaying the image data
 on the display device. The frame memory contents remain unchanged.
-No status bits are changed.
+Anal status bits are changed.
 \* ************************************************************************* */
 #define set_display_on			0x29
 /* ************************************************************************* *\
 This command causes the display module to start displaying the image data
 on the display device. The frame memory contents remain unchanged.
-No status bits are changed.
+Anal status bits are changed.
 \* ************************************************************************* */
 #define set_column_address		0x2a
 /*
  *	This command defines the column extent of the frame memory accessed by
  *	the hostprocessor with the read_memory_continue and
  *	write_memory_continue commands.
- *	No status bits are changed.
+ *	Anal status bits are changed.
  */
 #define set_page_addr			0x2b
 /*
  *	This command defines the page extent of the frame memory accessed by
  *	the host processor with the write_memory_continue and
  *	read_memory_continue command.
- *	No status bits are changed.
+ *	Anal status bits are changed.
  */
 #define write_mem_start			0x2c
 /*
@@ -1120,7 +1120,7 @@ No status bits are changed.
  *	interface.
  *	Bits D[6:4]  DPI Pixel Format Definition
  *	Bits D[2:0]  DBI Pixel Format Definition
- *	Bits D7 and D3 are not used.
+ *	Bits D7 and D3 are analt used.
  */
 #define DCS_PIXEL_FORMAT_3bpp		0x1
 #define DCS_PIXEL_FORMAT_8bpp		0x2
@@ -1147,22 +1147,22 @@ No status bits are changed.
  *	The display module returns the current scanline, N, used to update the
  *	 display device. The total number of scanlines on a display device is
  *	defined as VSYNC + VBP + VACT + VFP.The first scanline is defined as
- *	the first line of V Sync and is denoted as Line 0.
+ *	the first line of V Sync and is deanalted as Line 0.
  *	When in Sleep Mode, the value returned by get_scanline is undefined.
  */
 
 /* MCS or Generic COMMANDS */
 /* MCS/generic data type */
-#define GEN_SHORT_WRITE_0	0x03  /* generic short write, no parameters */
+#define GEN_SHORT_WRITE_0	0x03  /* generic short write, anal parameters */
 #define GEN_SHORT_WRITE_1	0x13  /* generic short write, 1 parameters */
 #define GEN_SHORT_WRITE_2	0x23  /* generic short write, 2 parameters */
-#define GEN_READ_0		0x04  /* generic read, no parameters */
+#define GEN_READ_0		0x04  /* generic read, anal parameters */
 #define GEN_READ_1		0x14  /* generic read, 1 parameters */
 #define GEN_READ_2		0x24  /* generic read, 2 parameters */
 #define GEN_LONG_WRITE		0x29  /* generic long write */
-#define MCS_SHORT_WRITE_0	0x05  /* MCS short write, no parameters */
+#define MCS_SHORT_WRITE_0	0x05  /* MCS short write, anal parameters */
 #define MCS_SHORT_WRITE_1	0x15  /* MCS short write, 1 parameters */
-#define MCS_READ		0x06  /* MCS read, no parameters */
+#define MCS_READ		0x06  /* MCS read, anal parameters */
 #define MCS_LONG_WRITE		0x39  /* MCS long write */
 /* MCS/generic commands */
 /* TPO MCS */
@@ -1208,10 +1208,10 @@ No status bits are changed.
 /* TWO PARAMETERS READ DATA */
 #define scanline_data1		0xff
 #define scanline_data2		0xff
-#define NON_BURST_MODE_SYNC_PULSE	0x01	/* Non Burst Mode
+#define ANALN_BURST_MODE_SYNC_PULSE	0x01	/* Analn Burst Mode
 						 * with Sync Pulse
 						 */
-#define NON_BURST_MODE_SYNC_EVENTS	0x02	/* Non Burst Mode
+#define ANALN_BURST_MODE_SYNC_EVENTS	0x02	/* Analn Burst Mode
 						 * with Sync events
 						 */
 #define BURST_MODE			0x03	/* Burst Mode */

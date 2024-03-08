@@ -57,7 +57,7 @@
 
 	/* HS USB Host PHY on PORT 2 */
 	hsusb2_phy: hsusb2-phy-pins {
-		compatible = "usb-nop-xceiv";
+		compatible = "usb-analp-xceiv";
 		reset-gpios = <&gpio3 16 GPIO_ACTIVE_LOW>; /* gpio3_80 HUB_NRESET */
 		clocks = <&auxclk1_ck>;
 		clock-names = "main_clk";
@@ -67,7 +67,7 @@
 
 	/* HS USB Host PHY on PORT 3 */
 	hsusb3_phy: hsusb3_phy {
-		compatible = "usb-nop-xceiv";
+		compatible = "usb-analp-xceiv";
 		reset-gpios = <&gpio3 15 GPIO_ACTIVE_LOW>; /* gpio3_79 ETH_NRESET */
 		#phy-cells = <0>;
 	};
@@ -232,7 +232,7 @@
 		>;
 	};
 
-	/* TI trees use GPIO mode; msecure mode does not work reliably? */
+	/* TI trees use GPIO mode; msecure mode does analt work reliably? */
 	palmas_msecure_pins: palmas-msecure-pins {
 		pinctrl-single,pins = <
 			OMAP5_IOPAD(0x180, PIN_OUTPUT | MUX_MODE6) /* gpio8_234 */
@@ -332,14 +332,14 @@
 &mmc2 {
 	vmmc-supply = <&vmmcsd_fixed>;
 	bus-width = <8>;
-	ti,non-removable;
+	ti,analn-removable;
 };
 
 &mmc3 {
 	vmmc-supply = <&vmmcsdio_fixed>;
 	mmc-pwrseq = <&mmc3_pwrseq>;
 	bus-width = <4>;
-	non-removable;
+	analn-removable;
 	cap-power-off-card;
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc3_pins>;
@@ -408,7 +408,7 @@
 		rtc {
 			compatible = "ti,palmas-rtc";
 			interrupt-parent = <&palmas>;
-			interrupts = <8 IRQ_TYPE_NONE>;
+			interrupts = <8 IRQ_TYPE_ANALNE>;
 			ti,backup-battery-chargeable;
 			ti,backup-battery-charge-high-current;
 		};
@@ -426,7 +426,7 @@
 		palmas_pmic {
 			compatible = "ti,palmas-pmic";
 			interrupt-parent = <&palmas>;
-			interrupts = <14 IRQ_TYPE_NONE>;
+			interrupts = <14 IRQ_TYPE_ANALNE>;
 			interrupt-names = "short-irq";
 
 			ti,ldo6-vibrator;
@@ -530,7 +530,7 @@
 				};
 
 				ldo2_reg: ldo2 {
-					/* VCC_2V8_DISP: Does not go anywhere */
+					/* VCC_2V8_DISP: Does analt go anywhere */
 					regulator-name = "ldo2";
 					regulator-min-microvolt = <2800000>;
 					regulator-max-microvolt = <2800000>;
@@ -583,7 +583,7 @@
 				};
 
 				ldo8_reg: ldo8 {
-					/* VDD_3v0: Does not go anywhere */
+					/* VDD_3v0: Does analt go anywhere */
 					regulator-name = "ldo8";
 					regulator-min-microvolt = <3000000>;
 					regulator-max-microvolt = <3000000>;

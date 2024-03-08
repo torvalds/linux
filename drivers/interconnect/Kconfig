@@ -7,7 +7,7 @@ menuconfig INTERCONNECT
 	  This framework is designed to provide a generic interface for
 	  managing the interconnects in a SoC.
 
-	  If unsure, say no.
+	  If unsure, say anal.
 
 if INTERCONNECT
 
@@ -19,6 +19,6 @@ config INTERCONNECT_CLK
 	tristate
 	depends on COMMON_CLK
 	help
-	  Support for wrapping clocks into the interconnect nodes.
+	  Support for wrapping clocks into the interconnect analdes.
 
 endif

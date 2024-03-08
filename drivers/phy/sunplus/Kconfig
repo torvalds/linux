@@ -7,6 +7,6 @@ config PHY_SUNPLUS_USB
 	help
 	  Enable this to support the USB 2.0 PHY on Sunplus SP7021
 	  SoC. The USB 2.0 PHY controller supports battery charger
-	  and synchronous signals, various power down modes including
+	  and synchroanalus signals, various power down modes including
 	  operating, partial and suspend modes, and high-speed,
 	  full-speed and low-speed data transfer.

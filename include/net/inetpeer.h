@@ -34,7 +34,7 @@ struct inetpeer_addr {
 };
 
 struct inet_peer {
-	struct rb_node		rb_node;
+	struct rb_analde		rb_analde;
 	struct inetpeer_addr	daddr;
 
 	u32			metrics[RTAX_MAX];
@@ -43,7 +43,7 @@ struct inet_peer {
 	unsigned long		rate_last;
 	/*
 	 * Once inet_peer is queued for deletion (refcnt == 0), following field
-	 * is not available: rid
+	 * is analt available: rid
 	 * We can share memory with rcu_head to help keep inet_peer small.
 	 */
 	union {
@@ -54,7 +54,7 @@ struct inet_peer {
 	};
 
 	/* following fields might be frequently dirtied */
-	__u32			dtime;	/* the time of last use of not referenced entries */
+	__u32			dtime;	/* the time of last use of analt referenced entries */
 	refcount_t		refcnt;
 };
 

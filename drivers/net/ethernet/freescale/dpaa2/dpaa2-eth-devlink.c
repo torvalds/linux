@@ -38,7 +38,7 @@ static int dpaa2_eth_dl_info_get(struct devlink *devlink,
 	struct dpaa2_eth_priv *priv = dl_priv->dpaa2_priv;
 	char buf[10];
 
-	scnprintf(buf, 10, "%d.%d", priv->dpni_ver_major, priv->dpni_ver_minor);
+	scnprintf(buf, 10, "%d.%d", priv->dpni_ver_major, priv->dpni_ver_mianalr);
 	return devlink_info_version_running_put(req, "dpni", buf);
 }
 
@@ -114,7 +114,7 @@ static int dpaa2_eth_dl_trap_init(struct devlink *devlink,
 
 	dpaa2_eth_trap_item = dpaa2_eth_dl_trap_item_lookup(priv, trap->id);
 	if (WARN_ON(!dpaa2_eth_trap_item))
-		return -ENOENT;
+		return -EANALENT;
 
 	dpaa2_eth_trap_item->trap_ctx = trap_ctx;
 
@@ -126,12 +126,12 @@ static int dpaa2_eth_dl_trap_action_set(struct devlink *devlink,
 					enum devlink_trap_action action,
 					struct netlink_ext_ack *extack)
 {
-	/* No support for changing the action of an independent packet trap,
+	/* Anal support for changing the action of an independent packet trap,
 	 * only per trap group - parser error drops
 	 */
 	NL_SET_ERR_MSG_MOD(extack,
-			   "Cannot change trap action independently of group");
-	return -EOPNOTSUPP;
+			   "Cananalt change trap action independently of group");
+	return -EOPANALTSUPP;
 }
 
 static int dpaa2_eth_dl_trap_group_action_set(struct devlink *devlink,
@@ -147,11 +147,11 @@ static int dpaa2_eth_dl_trap_group_action_set(struct devlink *devlink,
 	int err;
 
 	if (group->id != DEVLINK_TRAP_GROUP_GENERIC_ID_PARSER_ERROR_DROPS)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Configure handling of frames marked as errors from the parser */
 	err_cfg.errors = DPAA2_FAS_RX_ERR_MASK;
-	err_cfg.set_frame_annotation = 1;
+	err_cfg.set_frame_ananaltation = 1;
 
 	switch (action) {
 	case DEVLINK_TRAP_ACTION_DROP:
@@ -161,7 +161,7 @@ static int dpaa2_eth_dl_trap_group_action_set(struct devlink *devlink,
 		err_cfg.error_action = DPNI_ERROR_ACTION_SEND_TO_ERROR_QUEUE;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	err = dpni_set_errors_behavior(priv->mc_io, 0, priv->mc_token, &err_cfg);
@@ -190,7 +190,7 @@ int dpaa2_eth_dl_alloc(struct dpaa2_eth_priv *priv)
 		devlink_alloc(&dpaa2_eth_devlink_ops, sizeof(*dl_priv), dev);
 	if (!priv->devlink) {
 		dev_err(dev, "devlink_alloc failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	dl_priv = devlink_priv(priv->devlink);
 	dl_priv->dpaa2_priv = priv;
@@ -239,14 +239,14 @@ int dpaa2_eth_dl_traps_register(struct dpaa2_eth_priv *priv)
 
 	dpaa2_eth_trap_data = kzalloc(sizeof(*dpaa2_eth_trap_data), GFP_KERNEL);
 	if (!dpaa2_eth_trap_data)
-		return -ENOMEM;
+		return -EANALMEM;
 	priv->trap_data = dpaa2_eth_trap_data;
 
 	dpaa2_eth_trap_data->trap_items_arr = kcalloc(ARRAY_SIZE(dpaa2_eth_traps_arr),
 						      sizeof(struct dpaa2_eth_trap_item),
 						      GFP_KERNEL);
 	if (!dpaa2_eth_trap_data->trap_items_arr) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto trap_data_free;
 	}
 

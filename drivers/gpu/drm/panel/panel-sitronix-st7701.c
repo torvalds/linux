@@ -270,7 +270,7 @@ static void st7701_init_sequence(struct st7701 *st7701)
 
 	ST7701_DSI(st7701, DSI_CMD2_BK1_TESTCMD, DSI_CMD2_BK1_TESTCMD_VAL);
 
-	/* Vgl is non-linear */
+	/* Vgl is analn-linear */
 	ST7701_DSI(st7701, DSI_CMD2_BK1_VGLS,
 		   DSI_CMD2_BK1_VGLS_ONES |
 		   FIELD_PREP(DSI_CMD2_BK1_VGLS_MASK, st7701_vgls_map(st7701)));
@@ -310,7 +310,7 @@ static void st7701_init_sequence(struct st7701 *st7701)
 static void ts8550b_gip_sequence(struct st7701 *st7701)
 {
 	/**
-	 * ST7701_SPEC_V1.2 is unable to provide enough information above this
+	 * ST7701_SPEC_V1.2 is unable to provide eanalugh information above this
 	 * specific command sequence, so grab the same from vendor BSP driver.
 	 */
 	ST7701_DSI(st7701, 0xE0, 0x00, 0x00, 0x02);
@@ -401,7 +401,7 @@ static void dmt028vghmcmi_1a_gip_sequence(struct st7701 *st7701)
 static void kd50t048a_gip_sequence(struct st7701 *st7701)
 {
 	/**
-	 * ST7701_SPEC_V1.2 is unable to provide enough information above this
+	 * ST7701_SPEC_V1.2 is unable to provide eanalugh information above this
 	 * specific command sequence, so grab the same from vendor BSP driver.
 	 */
 	ST7701_DSI(st7701, 0xE0, 0x00, 0x00, 0x02);
@@ -542,7 +542,7 @@ static int st7701_get_modes(struct drm_panel *panel,
 		dev_err(&st7701->dsi->dev, "failed to add mode %ux%u@%u\n",
 			desc_mode->hdisplay, desc_mode->vdisplay,
 			drm_mode_vrefresh(desc_mode));
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	drm_mode_set_name(mode);
@@ -982,11 +982,11 @@ static int st7701_dsi_probe(struct mipi_dsi_device *dsi)
 
 	st7701 = devm_kzalloc(&dsi->dev, sizeof(*st7701), GFP_KERNEL);
 	if (!st7701)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	desc = of_device_get_match_data(&dsi->dev);
 	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
-			  MIPI_DSI_MODE_LPM | MIPI_DSI_CLOCK_NON_CONTINUOUS;
+			  MIPI_DSI_MODE_LPM | MIPI_DSI_CLOCK_ANALN_CONTINUOUS;
 	dsi->format = desc->format;
 	dsi->lanes = desc->lanes;
 
@@ -1004,7 +1004,7 @@ static int st7701_dsi_probe(struct mipi_dsi_device *dsi)
 		return PTR_ERR(st7701->reset);
 	}
 
-	ret = of_drm_get_panel_orientation(dsi->dev.of_node, &st7701->orientation);
+	ret = of_drm_get_panel_orientation(dsi->dev.of_analde, &st7701->orientation);
 	if (ret < 0)
 		return dev_err_probe(&dsi->dev, ret, "Failed to get orientation\n");
 
@@ -1016,9 +1016,9 @@ static int st7701_dsi_probe(struct mipi_dsi_device *dsi)
 	 * before initiating new commands.
 	 *
 	 * On top of that some panels might need an extra delay to wait, so
-	 * add panel specific delay for those cases. As now this panel specific
+	 * add panel specific delay for those cases. As analw this panel specific
 	 * delay information is referenced from those panel BSP driver, example
-	 * ts8550b and there is no valid documentation for that.
+	 * ts8550b and there is anal valid documentation for that.
 	 */
 	st7701->sleep_delay = 120 + desc->panel_sleep_delay;
 

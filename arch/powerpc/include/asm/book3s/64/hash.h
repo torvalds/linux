@@ -10,7 +10,7 @@
  * Additional bits may be defined in pgtable-hash64-*.h
  *
  */
-#define H_PTE_NONE_MASK		_PAGE_HPTEFLAGS
+#define H_PTE_ANALNE_MASK		_PAGE_HPTEFLAGS
 
 #ifdef CONFIG_PPC_64K_PAGES
 #include <asm/book3s/64/hash-64k.h>
@@ -34,7 +34,7 @@
 				 H_PUD_INDEX_SIZE + H_PGD_INDEX_SIZE + PAGE_SHIFT)
 #define H_PGTABLE_RANGE		(ASM_CONST(1) << H_PGTABLE_EADDR_SIZE)
 /*
- * Top 2 bits are ignored in page table walk.
+ * Top 2 bits are iganalred in page table walk.
  */
 #define EA_MASK			(~(0xcUL << 60))
 
@@ -87,16 +87,16 @@
 #define H_VMEMMAP_SIZE		H_KERN_MAP_SIZE
 #define H_VMEMMAP_END		(H_VMEMMAP_START + H_VMEMMAP_SIZE)
 
-#define NON_LINEAR_REGION_ID(ea)	((((unsigned long)ea - H_KERN_VIRT_START) >> REGION_SHIFT) + 2)
+#define ANALN_LINEAR_REGION_ID(ea)	((((unsigned long)ea - H_KERN_VIRT_START) >> REGION_SHIFT) + 2)
 
 /*
  * Region IDs
  */
 #define USER_REGION_ID		0
 #define LINEAR_MAP_REGION_ID	1
-#define VMALLOC_REGION_ID	NON_LINEAR_REGION_ID(H_VMALLOC_START)
-#define IO_REGION_ID		NON_LINEAR_REGION_ID(H_KERN_IO_START)
-#define VMEMMAP_REGION_ID	NON_LINEAR_REGION_ID(H_VMEMMAP_START)
+#define VMALLOC_REGION_ID	ANALN_LINEAR_REGION_ID(H_VMALLOC_START)
+#define IO_REGION_ID		ANALN_LINEAR_REGION_ID(H_KERN_IO_START)
+#define VMEMMAP_REGION_ID	ANALN_LINEAR_REGION_ID(H_VMEMMAP_START)
 #define INVALID_REGION_ID	(VMEMMAP_REGION_ID + 1)
 
 /*
@@ -126,9 +126,9 @@ static inline int get_region_id(unsigned long ea)
 	if (ea < H_KERN_VIRT_START)
 		return LINEAR_MAP_REGION_ID;
 
-	BUILD_BUG_ON(NON_LINEAR_REGION_ID(H_VMALLOC_START) != 2);
+	BUILD_BUG_ON(ANALN_LINEAR_REGION_ID(H_VMALLOC_START) != 2);
 
-	region_id = NON_LINEAR_REGION_ID(ea);
+	region_id = ANALN_LINEAR_REGION_ID(ea);
 	return region_id;
 }
 
@@ -222,9 +222,9 @@ static inline int hash__pte_same(pte_t pte_a, pte_t pte_b)
 	return (((pte_raw(pte_a) ^ pte_raw(pte_b)) & ~cpu_to_be64(_PAGE_HPTEFLAGS)) == 0);
 }
 
-static inline int hash__pte_none(pte_t pte)
+static inline int hash__pte_analne(pte_t pte)
 {
-	return (pte_val(pte) & ~H_PTE_NONE_MASK) == 0;
+	return (pte_val(pte) & ~H_PTE_ANALNE_MASK) == 0;
 }
 
 unsigned long pte_get_hash_gslot(unsigned long vpn, unsigned long shift,
@@ -232,15 +232,15 @@ unsigned long pte_get_hash_gslot(unsigned long vpn, unsigned long shift,
 
 /* This low level function performs the actual PTE insertion
  * Setting the PTE depends on the MMU type and other factors. It's
- * an horrible mess that I'm not going to try to clean up now but
+ * an horrible mess that I'm analt going to try to clean up analw but
  * I'm keeping it in one place rather than spread around
  */
 static inline void hash__set_pte_at(struct mm_struct *mm, unsigned long addr,
 				  pte_t *ptep, pte_t pte, int percpu)
 {
 	/*
-	 * Anything else just stores the PTE normally. That covers all 64-bit
-	 * cases, and 32-bit non-hash with 32-bit PTEs.
+	 * Anything else just stores the PTE analrmally. That covers all 64-bit
+	 * cases, and 32-bit analn-hash with 32-bit PTEs.
 	 */
 	*ptep = pte;
 }

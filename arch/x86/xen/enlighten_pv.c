@@ -101,13 +101,13 @@ struct tls_descs {
 	struct desc_struct desc[3];
 };
 
-DEFINE_PER_CPU(enum xen_lazy_mode, xen_lazy_mode) = XEN_LAZY_NONE;
+DEFINE_PER_CPU(enum xen_lazy_mode, xen_lazy_mode) = XEN_LAZY_ANALNE;
 DEFINE_PER_CPU(unsigned int, xen_lazy_nesting);
 
 enum xen_lazy_mode xen_get_lazy_mode(void)
 {
 	if (in_interrupt())
-		return XEN_LAZY_NONE;
+		return XEN_LAZY_ANALNE;
 
 	return this_cpu_read(xen_lazy_mode);
 }
@@ -205,7 +205,7 @@ static void __init xen_pv_init_platform(void)
 static void __init xen_pv_guest_late_init(void)
 {
 #ifndef CONFIG_SMP
-	/* Setup shared vcpu info for non-smp configurations */
+	/* Setup shared vcpu info for analn-smp configurations */
 	xen_setup_vcpu_info_placement();
 #endif
 }
@@ -271,7 +271,7 @@ static bool __init xen_check_mwait(void)
 		return false;
 
 	/*
-	 * When running under platform earlier than Xen4.2, do not expose
+	 * When running under platform earlier than Xen4.2, do analt expose
 	 * mwait, to avoid the risk of loading native acpi pad driver
 	 */
 	if (!xen_running_on_version_or_later(4, 2))
@@ -328,7 +328,7 @@ static bool __init xen_check_xsave(void)
 	xsave_mask = (1 << (X86_FEATURE_XSAVE % 32)) |
 		     (1 << (X86_FEATURE_OSXSAVE % 32));
 
-	/* Xen will set CR4.OSXSAVE if supported and not disabled by force */
+	/* Xen will set CR4.OSXSAVE if supported and analt disabled by force */
 	return (cx & xsave_mask) == xsave_mask;
 }
 
@@ -363,12 +363,12 @@ static void __init xen_init_capabilities(void)
 	}
 }
 
-static noinstr void xen_set_debugreg(int reg, unsigned long val)
+static analinstr void xen_set_debugreg(int reg, unsigned long val)
 {
 	HYPERVISOR_set_debugreg(reg, val);
 }
 
-static noinstr unsigned long xen_get_debugreg(int reg)
+static analinstr unsigned long xen_get_debugreg(int reg)
 {
 	return HYPERVISOR_get_debugreg(reg);
 }
@@ -401,7 +401,7 @@ static unsigned long xen_store_tr(void)
 
 /*
  * Set the page permissions for a particular virtual address.  If the
- * address is a vmalloc mapping (or other non-linear mapping), then
+ * address is a vmalloc mapping (or other analn-linear mapping), then
  * find the linear mapping of the page and also set its protections to
  * match.
  */
@@ -427,12 +427,12 @@ static void set_aliased_prot(void *v, pgprot_t prot)
 	 * tables), but we need to be careful about vmap space.  In
 	 * particular, the top level page table can lazily propagate
 	 * entries between processes, so if we've switched mms since we
-	 * vmapped the target in the first place, we might not have the
+	 * vmapped the target in the first place, we might analt have the
 	 * top-level page table entry populated.
 	 *
 	 * We disable preemption because we want the same mm active when
 	 * we probe the target and when we issue the hypercall.  We'll
-	 * have the same nominal mm, but if we're a kernel thread, lazy
+	 * have the same analminal mm, but if we're a kernel thread, lazy
 	 * mm dropping could change our pgd.
 	 *
 	 * Out of an abundance of caution, this uses __get_user() to fault
@@ -442,7 +442,7 @@ static void set_aliased_prot(void *v, pgprot_t prot)
 
 	preempt_disable();
 
-	copy_from_kernel_nofault(&dummy, v, 1);
+	copy_from_kernel_analfault(&dummy, v, 1);
 
 	if (HYPERVISOR_update_va_mapping((unsigned long)v, pte, 0))
 		BUG();
@@ -463,10 +463,10 @@ static void xen_alloc_ldt(struct desc_struct *ldt, unsigned entries)
 	/*
 	 * We need to mark the all aliases of the LDT pages RO.  We
 	 * don't need to call vm_flush_aliases(), though, since that's
-	 * only responsible for flushing aliases out the TLBs, not the
+	 * only responsible for flushing aliases out the TLBs, analt the
 	 * page tables, and Xen will flush the TLB for us if needed.
 	 *
-	 * To avoid confusing future readers: none of this is necessary
+	 * To avoid confusing future readers: analne of this is necessary
 	 * to load the LDT.  The hypervisor only checks this when the
 	 * LDT is faulted in due to subsequent descriptor access.
 	 */
@@ -629,7 +629,7 @@ static void xen_write_ldt_entry(struct desc_struct *dt, int entrynum,
 	preempt_enable();
 }
 
-void noist_exc_debug(struct pt_regs *regs);
+void analist_exc_debug(struct pt_regs *regs);
 
 DEFINE_IDTENTRY_RAW(xenpv_exc_nmi)
 {
@@ -646,20 +646,20 @@ DEFINE_IDTENTRY_RAW_ERRORCODE(xenpv_exc_double_fault)
 DEFINE_IDTENTRY_RAW(xenpv_exc_debug)
 {
 	/*
-	 * There's no IST on Xen PV, but we still need to dispatch
+	 * There's anal IST on Xen PV, but we still need to dispatch
 	 * to the correct handler.
 	 */
 	if (user_mode(regs))
-		noist_exc_debug(regs);
+		analist_exc_debug(regs);
 	else
 		exc_debug(regs);
 }
 
-DEFINE_IDTENTRY_RAW(exc_xen_unknown_trap)
+DEFINE_IDTENTRY_RAW(exc_xen_unkanalwn_trap)
 {
-	/* This should never happen and there is no way to handle it. */
+	/* This should never happen and there is anal way to handle it. */
 	instrumentation_begin();
-	pr_err("Unknown trap in Xen PV mode.");
+	pr_err("Unkanalwn trap in Xen PV mode.");
 	BUG();
 	instrumentation_end();
 }
@@ -668,11 +668,11 @@ DEFINE_IDTENTRY_RAW(exc_xen_unknown_trap)
 DEFINE_IDTENTRY_RAW(xenpv_exc_machine_check)
 {
 	/*
-	 * There's no IST on Xen PV, but we still need to dispatch
+	 * There's anal IST on Xen PV, but we still need to dispatch
 	 * to the correct handler.
 	 */
 	if (user_mode(regs))
-		noist_exc_machine_check(regs);
+		analist_exc_machine_check(regs);
 	else
 		exc_machine_check(regs);
 }
@@ -710,10 +710,10 @@ static struct trap_array_entry trap_array[] = {
 	TRAP_ENTRY(exc_divide_error,			false ),
 	TRAP_ENTRY(exc_bounds,				false ),
 	TRAP_ENTRY(exc_invalid_op,			false ),
-	TRAP_ENTRY(exc_device_not_available,		false ),
+	TRAP_ENTRY(exc_device_analt_available,		false ),
 	TRAP_ENTRY(exc_coproc_segment_overrun,		false ),
 	TRAP_ENTRY(exc_invalid_tss,			false ),
-	TRAP_ENTRY(exc_segment_not_present,		false ),
+	TRAP_ENTRY(exc_segment_analt_present,		false ),
 	TRAP_ENTRY(exc_stack_segment,			false ),
 	TRAP_ENTRY(exc_general_protection,		false ),
 	TRAP_ENTRY(exc_spurious_interrupt_bug,		false ),
@@ -733,7 +733,7 @@ static bool __ref get_trap_addr(void **addr, unsigned int ist)
 
 	/*
 	 * Replace trap handler addresses by Xen specific ones.
-	 * Check for known traps using IST and whitelist them.
+	 * Check for kanalwn traps using IST and whitelist them.
 	 * The debugger ones are the only ones we care about.
 	 * Xen will handle faults like double_fault, so we should never see
 	 * them.  Warn if there's an unexpected IST-using fault handler.
@@ -759,7 +759,7 @@ static bool __ref get_trap_addr(void **addr, unsigned int ist)
 	}
 
 	if (!found)
-		*addr = (void *)xen_asm_exc_xen_unknown_trap;
+		*addr = (void *)xen_asm_exc_xen_unkanalwn_trap;
 
 	if (WARN_ON(found && ist != 0 && !ist_okay))
 		return false;
@@ -876,7 +876,7 @@ static void xen_load_idt(const struct desc_ptr *desc)
 	spin_unlock(&lock);
 }
 
-/* Write a GDT descriptor entry.  Ignore LDT descriptors, since
+/* Write a GDT descriptor entry.  Iganalre LDT descriptors, since
    they're handled differently. */
 static void xen_write_gdt_entry(struct desc_struct *dt, int entry,
 				const void *desc, int type)
@@ -888,7 +888,7 @@ static void xen_write_gdt_entry(struct desc_struct *dt, int entry,
 	switch (type) {
 	case DESC_LDT:
 	case DESC_TSS:
-		/* ignore */
+		/* iganalre */
 		break;
 
 	default: {
@@ -916,7 +916,7 @@ static void __init xen_write_gdt_entry_boot(struct desc_struct *dt, int entry,
 	switch (type) {
 	case DESC_LDT:
 	case DESC_TSS:
-		/* ignore */
+		/* iganalre */
 		break;
 
 	default: {
@@ -994,7 +994,7 @@ static void xen_write_cr0(unsigned long cr0)
 	this_cpu_write(xen_cr0_value, cr0);
 
 	/* Only pay attention to cr0.TS; everything else is
-	   ignored. */
+	   iganalred. */
 	mcs = xen_mc_entry(0);
 
 	MULTI_fpu_taskswitch(mcs.mc, (cr0 & X86_CR0_TS) != 0);
@@ -1072,8 +1072,8 @@ static void xen_do_write_msr(unsigned int msr, unsigned int low,
 	case MSR_IA32_SYSENTER_ESP:
 	case MSR_IA32_SYSENTER_EIP:
 		/* Fast syscall setup is all done in hypercalls, so
-		   these are all ignored.  Stub them out here to stop
-		   Xen console noise. */
+		   these are all iganalred.  Stub them out here to stop
+		   Xen console analise. */
 		break;
 
 	default:
@@ -1159,7 +1159,7 @@ static const typeof(pv_ops) xen_cpu_ops __initconst = {
 
 		.read_pmc = xen_read_pmc,
 
-		.load_tr_desc = paravirt_nop,
+		.load_tr_desc = paravirt_analp,
 		.set_ldt = xen_set_ldt,
 		.load_gdt = xen_load_gdt,
 		.load_idt = xen_load_idt,
@@ -1283,7 +1283,7 @@ static void __init xen_boot_params_init_edd(void)
 
 /*
  * Set up the GDT and segment registers for -fstack-protector.  Until
- * we do this, we have to be careful not to call any stack-protected
+ * we do this, we have to be careful analt to call any stack-protected
  * function, which is most of the kernel.
  */
 static void __init xen_setup_gdt(int cpu)
@@ -1342,16 +1342,16 @@ asmlinkage __visible void __init xen_start_kernel(struct start_info *si)
 	 * local_irq_disable(), irqs_disabled(), e.g. in printk().
 	 *
 	 * Don't do the full vcpu_info placement stuff until we have
-	 * the cpu_possible_mask and a non-dummy shared_info.
+	 * the cpu_possible_mask and a analn-dummy shared_info.
 	 */
 	xen_vcpu_info_reset(0);
 
 	x86_platform.get_nmi_reason = xen_get_nmi_reason;
-	x86_platform.realmode_reserve = x86_init_noop;
-	x86_platform.realmode_init = x86_init_noop;
+	x86_platform.realmode_reserve = x86_init_analop;
+	x86_platform.realmode_init = x86_init_analop;
 
 	x86_init.resources.memory_setup = xen_memory_setup;
-	x86_init.irqs.intr_mode_select	= x86_init_noop;
+	x86_init.irqs.intr_mode_select	= x86_init_analop;
 	x86_init.irqs.intr_mode_init	= x86_64_probe_apic;
 	x86_init.oem.arch_setup = xen_arch_setup;
 	x86_init.oem.banner = xen_banner;
@@ -1410,7 +1410,7 @@ asmlinkage __visible void __init xen_start_kernel(struct start_info *si)
 
 #ifdef CONFIG_ACPI_NUMA
 	/*
-	 * The pages we from Xen are not related to machine pages, so
+	 * The pages we from Xen are analt related to machine pages, so
 	 * any NUMA information the kernel tries to get from ACPI will
 	 * be meaningless.  Prevent it from trying.
 	 */
@@ -1516,7 +1516,7 @@ static int xen_cpu_up_prepare_pv(unsigned int cpu)
 	int rc;
 
 	if (per_cpu(xen_vcpu, cpu) == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	xen_setup_timer(cpu);
 
@@ -1560,5 +1560,5 @@ const __initconst struct hypervisor_x86 x86_hyper_xen_pv = {
 	.detect                 = xen_platform_pv,
 	.type			= X86_HYPER_XEN_PV,
 	.runtime.pin_vcpu       = xen_pin_vcpu,
-	.ignore_nopv		= true,
+	.iganalre_analpv		= true,
 };

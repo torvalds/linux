@@ -3,7 +3,7 @@
  * Renesas USB driver
  *
  * Copyright (C) 2011 Renesas Solutions Corp.
- * Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+ * Kunianalri Morimoto <kunianalri.morimoto.gx@renesas.com>
  */
 #ifndef RENESAS_USB_FIFO_H
 #define RENESAS_USB_FIFO_H
@@ -43,7 +43,7 @@ struct usbhs_fifo_info {
 
 struct usbhs_pkt_handle;
 struct usbhs_pkt {
-	struct list_head node;
+	struct list_head analde;
 	struct usbhs_pipe *pipe;
 	const struct usbhs_pkt_handle *handler;
 	void (*done)(struct usbhs_priv *priv,

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -69,7 +69,7 @@ g84_chan_ramfc_write(struct nvkm_chan *chan, u64 offset, u64 length, u32 devm, b
 	nvkm_kmap(chan->ramfc);
 	nvkm_wo32(chan->ramfc, 0x3c, 0x403f6078);
 	nvkm_wo32(chan->ramfc, 0x44, 0x01003fff);
-	nvkm_wo32(chan->ramfc, 0x48, chan->push->node->offset >> 4);
+	nvkm_wo32(chan->ramfc, 0x48, chan->push->analde->offset >> 4);
 	nvkm_wo32(chan->ramfc, 0x50, lower_32_bits(offset));
 	nvkm_wo32(chan->ramfc, 0x54, upper_32_bits(offset) | (limit2 << 16));
 	nvkm_wo32(chan->ramfc, 0x60, 0x7fffffff);
@@ -77,7 +77,7 @@ g84_chan_ramfc_write(struct nvkm_chan *chan, u64 offset, u64 length, u32 devm, b
 	nvkm_wo32(chan->ramfc, 0x7c, 0x30000000 | devm);
 	nvkm_wo32(chan->ramfc, 0x80, ((chan->ramht->bits - 9) << 27) |
 				     (4 << 24) /* SEARCH_FULL */ |
-				     (chan->ramht->gpuobj->node->offset >> 4));
+				     (chan->ramht->gpuobj->analde->offset >> 4));
 	nvkm_wo32(chan->ramfc, 0x88, chan->cache->addr >> 10);
 	nvkm_wo32(chan->ramfc, 0x98, chan->inst->addr >> 12);
 	nvkm_done(chan->ramfc);
@@ -159,9 +159,9 @@ g84_engn = {
 };
 
 static void
-g84_fifo_nonstall_block(struct nvkm_event *event, int type, int index)
+g84_fifo_analnstall_block(struct nvkm_event *event, int type, int index)
 {
-	struct nvkm_fifo *fifo = container_of(event, typeof(*fifo), nonstall.event);
+	struct nvkm_fifo *fifo = container_of(event, typeof(*fifo), analnstall.event);
 	unsigned long flags;
 
 	spin_lock_irqsave(&fifo->lock, flags);
@@ -170,9 +170,9 @@ g84_fifo_nonstall_block(struct nvkm_event *event, int type, int index)
 }
 
 static void
-g84_fifo_nonstall_allow(struct nvkm_event *event, int type, int index)
+g84_fifo_analnstall_allow(struct nvkm_event *event, int type, int index)
 {
-	struct nvkm_fifo *fifo = container_of(event, typeof(*fifo), nonstall.event);
+	struct nvkm_fifo *fifo = container_of(event, typeof(*fifo), analnstall.event);
 	unsigned long flags;
 
 	spin_lock_irqsave(&fifo->lock, flags);
@@ -181,9 +181,9 @@ g84_fifo_nonstall_allow(struct nvkm_event *event, int type, int index)
 }
 
 const struct nvkm_event_func
-g84_fifo_nonstall = {
-	.init = g84_fifo_nonstall_allow,
-	.fini = g84_fifo_nonstall_block,
+g84_fifo_analnstall = {
+	.init = g84_fifo_analnstall_allow,
+	.fini = g84_fifo_analnstall_block,
 };
 
 static int
@@ -215,7 +215,7 @@ g84_fifo = {
 	.intr = nv04_fifo_intr,
 	.pause = nv04_fifo_pause,
 	.start = nv04_fifo_start,
-	.nonstall = &g84_fifo_nonstall,
+	.analnstall = &g84_fifo_analnstall,
 	.runl = &nv50_runl,
 	.engn = &g84_engn,
 	.engn_sw = &nv50_engn_sw,

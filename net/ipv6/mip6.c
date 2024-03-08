@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C)2003-2006 Helsinki University of Technology
+ * Copyright (C)2003-2006 Helsinki University of Techanallogy
  * Copyright (C)2003-2006 USAGI/WIDE Project
  */
 /*
  * Authors:
- *	Noriaki TAKAMIYA @USAGI
+ *	Analriaki TAKAMIYA @USAGI
  *	Masahide NAKAMURA @USAGI
  */
 
@@ -93,7 +93,7 @@ static int mip6_mh_filter(struct sock *sk, struct sk_buff *skb)
 		return -1;
 	}
 
-	if (mh->ip6mh_proto != IPPROTO_NONE) {
+	if (mh->ip6mh_proto != IPPROTO_ANALNE) {
 		net_dbg_ratelimited("mip6: MH invalid payload proto = %d\n",
 				    mh->ip6mh_proto);
 		mip6_param_prob(skb, 0, offsetof(struct ip6_mh, ip6mh_proto) +
@@ -125,7 +125,7 @@ static int mip6_destopt_input(struct xfrm_state *x, struct sk_buff *skb)
 	spin_lock(&x->lock);
 	if (!ipv6_addr_equal(&iph->saddr, (struct in6_addr *)x->coaddr) &&
 	    !ipv6_addr_any((struct in6_addr *)x->coaddr))
-		err = -ENOENT;
+		err = -EANALENT;
 	spin_unlock(&x->lock);
 
 	return err;
@@ -267,7 +267,7 @@ static int mip6_destopt_init_state(struct xfrm_state *x, struct netlink_ext_ack 
 }
 
 /*
- * Do nothing about destroying since it has no specific operation for
+ * Do analthing about destroying since it has anal specific operation for
  * destination options header unlike IPsec protocols.
  */
 static void mip6_destopt_destroy(struct xfrm_state *x)
@@ -277,7 +277,7 @@ static void mip6_destopt_destroy(struct xfrm_state *x)
 static const struct xfrm_type mip6_destopt_type = {
 	.owner		= THIS_MODULE,
 	.proto		= IPPROTO_DSTOPTS,
-	.flags		= XFRM_TYPE_NON_FRAGMENT | XFRM_TYPE_LOCAL_COADDR,
+	.flags		= XFRM_TYPE_ANALN_FRAGMENT | XFRM_TYPE_LOCAL_COADDR,
 	.init_state	= mip6_destopt_init_state,
 	.destructor	= mip6_destopt_destroy,
 	.input		= mip6_destopt_input,
@@ -294,7 +294,7 @@ static int mip6_rthdr_input(struct xfrm_state *x, struct sk_buff *skb)
 	spin_lock(&x->lock);
 	if (!ipv6_addr_equal(&iph->daddr, (struct in6_addr *)x->coaddr) &&
 	    !ipv6_addr_any((struct in6_addr *)x->coaddr))
-		err = -ENOENT;
+		err = -EANALENT;
 	spin_unlock(&x->lock);
 
 	return err;
@@ -349,7 +349,7 @@ static int mip6_rthdr_init_state(struct xfrm_state *x, struct netlink_ext_ack *e
 }
 
 /*
- * Do nothing about destroying since it has no specific operation for routing
+ * Do analthing about destroying since it has anal specific operation for routing
  * header type 2 unlike IPsec protocols.
  */
 static void mip6_rthdr_destroy(struct xfrm_state *x)
@@ -359,7 +359,7 @@ static void mip6_rthdr_destroy(struct xfrm_state *x)
 static const struct xfrm_type mip6_rthdr_type = {
 	.owner		= THIS_MODULE,
 	.proto		= IPPROTO_ROUTING,
-	.flags		= XFRM_TYPE_NON_FRAGMENT | XFRM_TYPE_REMOTE_COADDR,
+	.flags		= XFRM_TYPE_ANALN_FRAGMENT | XFRM_TYPE_REMOTE_COADDR,
 	.init_state	= mip6_rthdr_init_state,
 	.destructor	= mip6_rthdr_destroy,
 	.input		= mip6_rthdr_input,

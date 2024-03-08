@@ -17,7 +17,7 @@
 #include <linux/slab.h>
 #include <linux/nl80211.h>
 #include <linux/debugfs.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/device.h>
 #include <linux/etherdevice.h>
 #include <linux/rtnetlink.h>
@@ -100,7 +100,7 @@ static int cfg80211_dev_check_name(struct cfg80211_registered_device *rdev,
 	if (strlen(newname) > NL80211_WIPHY_NAME_MAXLEN)
 		return -EINVAL;
 
-	/* prohibit calling the thing phy%d when %d is not its number */
+	/* prohibit calling the thing phy%d when %d is analt its number */
 	sscanf(newname, PHY_NAME "%d%n", &wiphy_idx, &taken);
 	if (taken == strlen(newname) && wiphy_idx != rdev->wiphy_idx) {
 		/* count number of places needed to print wiphy_idx */
@@ -115,7 +115,7 @@ static int cfg80211_dev_check_name(struct cfg80211_registered_device *rdev,
 			return -EINVAL;
 	}
 
-	/* Ensure another device does not already have this name. */
+	/* Ensure aanalther device does analt already have this name. */
 	for_each_rdev(rdev2)
 		if (strcmp(newname, wiphy_name(&rdev2->wiphy)) == 0)
 			return -EINVAL;
@@ -131,7 +131,7 @@ int cfg80211_dev_rename(struct cfg80211_registered_device *rdev,
 	ASSERT_RTNL();
 	lockdep_assert_wiphy(&rdev->wiphy);
 
-	/* Ignore nop renames */
+	/* Iganalre analp renames */
 	if (strcmp(newname, wiphy_name(&rdev->wiphy)) == 0)
 		return 0;
 
@@ -148,7 +148,7 @@ int cfg80211_dev_rename(struct cfg80211_registered_device *rdev,
 			       rdev->wiphy.debugfsdir,
 			       rdev->wiphy.debugfsdir->d_parent, newname);
 
-	nl80211_notify_wiphy(rdev, NL80211_CMD_NEW_WIPHY);
+	nl80211_analtify_wiphy(rdev, NL80211_CMD_NEW_WIPHY);
 
 	return 0;
 }
@@ -160,7 +160,7 @@ int cfg80211_switch_netns(struct cfg80211_registered_device *rdev,
 	int err = 0;
 
 	if (!(rdev->wiphy.flags & WIPHY_FLAG_NETNS_OK))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	list_for_each_entry(wdev, &rdev->wiphy.wdev_list, list) {
 		if (!wdev->netdev)
@@ -195,22 +195,22 @@ int cfg80211_switch_netns(struct cfg80211_registered_device *rdev,
 	list_for_each_entry(wdev, &rdev->wiphy.wdev_list, list) {
 		if (!wdev->netdev)
 			continue;
-		nl80211_notify_iface(rdev, wdev, NL80211_CMD_DEL_INTERFACE);
+		nl80211_analtify_iface(rdev, wdev, NL80211_CMD_DEL_INTERFACE);
 	}
 
-	nl80211_notify_wiphy(rdev, NL80211_CMD_DEL_WIPHY);
+	nl80211_analtify_wiphy(rdev, NL80211_CMD_DEL_WIPHY);
 
 	wiphy_net_set(&rdev->wiphy, net);
 
 	err = device_rename(&rdev->wiphy.dev, dev_name(&rdev->wiphy.dev));
 	WARN_ON(err);
 
-	nl80211_notify_wiphy(rdev, NL80211_CMD_NEW_WIPHY);
+	nl80211_analtify_wiphy(rdev, NL80211_CMD_NEW_WIPHY);
 
 	list_for_each_entry(wdev, &rdev->wiphy.wdev_list, list) {
 		if (!wdev->netdev)
 			continue;
-		nl80211_notify_iface(rdev, wdev, NL80211_CMD_NEW_INTERFACE);
+		nl80211_analtify_iface(rdev, wdev, NL80211_CMD_NEW_INTERFACE);
 	}
 	wiphy_unlock(&rdev->wiphy);
 
@@ -243,9 +243,9 @@ void cfg80211_stop_p2p_device(struct cfg80211_registered_device *rdev,
 	rdev->opencount--;
 
 	if (rdev->scan_req && rdev->scan_req->wdev == wdev) {
-		if (WARN_ON(!rdev->scan_req->notified &&
+		if (WARN_ON(!rdev->scan_req->analtified &&
 			    (!rdev->int_scan_req ||
-			     !rdev->int_scan_req->notified)))
+			     !rdev->int_scan_req->analtified)))
 			rdev->scan_req->info.aborted = true;
 		___cfg80211_scan_done(rdev, false);
 	}
@@ -509,7 +509,7 @@ struct wiphy *wiphy_new_nm(const struct cfg80211_ops *ops, int sizeof_priv,
 		int rv;
 
 use_default_name:
-		/* NOTE:  This is *probably* safe w/out holding rtnl because of
+		/* ANALTE:  This is *probably* safe w/out holding rtnl because of
 		 * the restrictions on phy names.  Probably this call could
 		 * fail if some other part of the kernel (re)named a device
 		 * phyX.  But, might should add some locking and check return
@@ -656,9 +656,9 @@ static int wiphy_verify_combinations(struct wiphy *wiphy)
 				return -EINVAL;
 
 			/*
-			 * This isn't well-defined right now. If you have an
+			 * This isn't well-defined right analw. If you have an
 			 * IBSS interface, then its beacon interval may change
-			 * by joining other networks, and nothing prevents it
+			 * by joining other networks, and analthing prevents it
 			 * from doing that.
 			 * So technically we probably shouldn't even allow AP
 			 * and IBSS in the same interface, but it seems that
@@ -729,7 +729,7 @@ int wiphy_register(struct wiphy *wiphy)
 
 	if (wiphy->pmsr_capa && wiphy->pmsr_capa->ftm.supported) {
 		if (WARN_ON(!wiphy->pmsr_capa->ftm.asap &&
-			    !wiphy->pmsr_capa->ftm.non_asap))
+			    !wiphy->pmsr_capa->ftm.analn_asap))
 			return -EINVAL;
 		if (WARN_ON(!wiphy->pmsr_capa->ftm.preambles ||
 			    !wiphy->pmsr_capa->ftm.bandwidths))
@@ -742,12 +742,12 @@ int wiphy_register(struct wiphy *wiphy)
 				  BIT(NL80211_PREAMBLE_DMG))))
 			return -EINVAL;
 		if (WARN_ON((wiphy->pmsr_capa->ftm.trigger_based ||
-			     wiphy->pmsr_capa->ftm.non_trigger_based) &&
+			     wiphy->pmsr_capa->ftm.analn_trigger_based) &&
 			    !(wiphy->pmsr_capa->ftm.preambles &
 			      BIT(NL80211_PREAMBLE_HE))))
 			return -EINVAL;
 		if (WARN_ON(wiphy->pmsr_capa->ftm.bandwidths &
-				~(BIT(NL80211_CHAN_WIDTH_20_NOHT) |
+				~(BIT(NL80211_CHAN_WIDTH_20_ANALHT) |
 				  BIT(NL80211_CHAN_WIDTH_20) |
 				  BIT(NL80211_CHAN_WIDTH_40) |
 				  BIT(NL80211_CHAN_WIDTH_80) |
@@ -763,7 +763,7 @@ int wiphy_register(struct wiphy *wiphy)
 					(REGULATORY_CUSTOM_REG |
 					 REGULATORY_STRICT_REG |
 					 REGULATORY_COUNTRY_IE_FOLLOW_POWER |
-					 REGULATORY_COUNTRY_IE_IGNORE))))
+					 REGULATORY_COUNTRY_IE_IGANALRE))))
 		return -EINVAL;
 
 	if (WARN_ON(wiphy->coalesce &&
@@ -835,7 +835,7 @@ int wiphy_register(struct wiphy *wiphy)
 		if (WARN_ON(!sband->n_channels))
 			return -EINVAL;
 		/*
-		 * on 60GHz or sub-1Ghz band, there are no legacy rates, so
+		 * on 60GHz or sub-1Ghz band, there are anal legacy rates, so
 		 * n_bitrates is 0
 		 */
 		if (WARN_ON((band != NL80211_BAND_60GHZ &&
@@ -862,7 +862,7 @@ int wiphy_register(struct wiphy *wiphy)
 
 		/*
 		 * Since we use a u32 for rate bitmaps in
-		 * ieee80211_get_response_rate, we cannot
+		 * ieee80211_get_response_rate, we cananalt
 		 * have more than 32 legacy rates.
 		 */
 		if (WARN_ON(sband->n_bitrates > 32))
@@ -881,7 +881,7 @@ int wiphy_register(struct wiphy *wiphy)
 		}
 
 		for_each_sband_iftype_data(sband, i, iftd) {
-			bool has_ap, has_non_ap;
+			bool has_ap, has_analn_ap;
 			u32 ap_bits = BIT(NL80211_IFTYPE_AP) |
 				      BIT(NL80211_IFTYPE_P2P_GO);
 
@@ -903,16 +903,16 @@ int wiphy_register(struct wiphy *wiphy)
 					  iftd->he_cap.has_he;
 
 			has_ap = iftd->types_mask & ap_bits;
-			has_non_ap = iftd->types_mask & ~ap_bits;
+			has_analn_ap = iftd->types_mask & ~ap_bits;
 
 			/*
 			 * For EHT 20 MHz STA, the capabilities format differs
 			 * but to simplify, don't check 20 MHz but rather check
-			 * only if AP and non-AP were mentioned at the same time,
+			 * only if AP and analn-AP were mentioned at the same time,
 			 * reject if so.
 			 */
 			if (WARN_ON(iftd->eht_cap.has_eht &&
-				    has_ap && has_non_ap))
+				    has_ap && has_analn_ap))
 				return -EINVAL;
 		}
 
@@ -930,7 +930,7 @@ int wiphy_register(struct wiphy *wiphy)
 	for (i = 0; i < rdev->wiphy.n_vendor_commands; i++) {
 		/*
 		 * Validate we have a policy (can be explicitly set to
-		 * VENDOR_CMD_RAW_DATA which is non-NULL) and also that
+		 * VENDOR_CMD_RAW_DATA which is analn-NULL) and also that
 		 * we have at least one of doit/dumpit.
 		 */
 		if (WARN_ON(!rdev->wiphy.vendor_commands[i].policy))
@@ -976,7 +976,7 @@ int wiphy_register(struct wiphy *wiphy)
 						    ieee80211_debugfs_dir);
 
 	cfg80211_debugfs_rdev_add(rdev);
-	nl80211_notify_wiphy(rdev, NL80211_CMD_NEW_WIPHY);
+	nl80211_analtify_wiphy(rdev, NL80211_CMD_NEW_WIPHY);
 	wiphy_unlock(&rdev->wiphy);
 
 	/* set up regulatory info */
@@ -993,7 +993,7 @@ int wiphy_register(struct wiphy *wiphy)
 		nl80211_send_reg_change_event(&request);
 	}
 
-	/* Check that nobody globally advertises any capabilities they do not
+	/* Check that analbody globally advertises any capabilities they do analt
 	 * advertise on all possible interface types.
 	 */
 	if (wiphy->extended_capabilities_len &&
@@ -1095,7 +1095,7 @@ void wiphy_unregister(struct wiphy *wiphy)
 
 	rtnl_lock();
 	wiphy_lock(&rdev->wiphy);
-	nl80211_notify_wiphy(rdev, NL80211_CMD_DEL_WIPHY);
+	nl80211_analtify_wiphy(rdev, NL80211_CMD_DEL_WIPHY);
 	rdev->wiphy.registered = false;
 
 	WARN_ON(!list_empty(&rdev->wiphy.wdev_list));
@@ -1110,7 +1110,7 @@ void wiphy_unregister(struct wiphy *wiphy)
 
 	/*
 	 * If this device got a regulatory hint tell core its
-	 * free to listen now to a new shiny device regulatory hint
+	 * free to listen analw to a new shiny device regulatory hint
 	 */
 	wiphy_regulatory_deregister(wiphy);
 
@@ -1122,12 +1122,12 @@ void wiphy_unregister(struct wiphy *wiphy)
 		rdev_set_wakeup(rdev, false);
 #endif
 
-	/* surely nothing is reachable now, clean up work */
+	/* surely analthing is reachable analw, clean up work */
 	cfg80211_process_wiphy_works(rdev, NULL);
 	wiphy_unlock(&rdev->wiphy);
 	rtnl_unlock();
 
-	/* this has nothing to do now but make sure it's gone */
+	/* this has analthing to do analw but make sure it's gone */
 	cancel_work_sync(&rdev->wiphy_work);
 
 	cancel_work_sync(&rdev->conn_work);
@@ -1159,10 +1159,10 @@ void cfg80211_dev_free(struct cfg80211_registered_device *rdev)
 	mutex_destroy(&rdev->wiphy.mtx);
 
 	/*
-	 * The 'regd' can only be non-NULL if we never finished
+	 * The 'regd' can only be analn-NULL if we never finished
 	 * initializing the wiphy and thus never went through the
 	 * unregister path - e.g. in failure scenarios. Thus, it
-	 * cannot have been visible to anyone if non-NULL, so we
+	 * cananalt have been visible to anyone if analn-NULL, so we
 	 * can just free it here.
 	 */
 	kfree(rcu_dereference_raw(rdev->wiphy.regd));
@@ -1196,7 +1196,7 @@ static void _cfg80211_unregister_wdev(struct wireless_dev *wdev,
 	ASSERT_RTNL();
 	lockdep_assert_held(&rdev->wiphy.mtx);
 
-	nl80211_notify_iface(rdev, wdev, NL80211_CMD_DEL_INTERFACE);
+	nl80211_analtify_iface(rdev, wdev, NL80211_CMD_DEL_INTERFACE);
 
 	wdev->registered = false;
 
@@ -1321,11 +1321,11 @@ void cfg80211_leave(struct cfg80211_registered_device *rdev,
 		break;
 	case NL80211_IFTYPE_P2P_DEVICE:
 	case NL80211_IFTYPE_NAN:
-		/* cannot happen, has no netdev */
+		/* cananalt happen, has anal netdev */
 		break;
 	case NL80211_IFTYPE_AP_VLAN:
 	case NL80211_IFTYPE_MONITOR:
-		/* nothing to do */
+		/* analthing to do */
 		break;
 	case NL80211_IFTYPE_UNSPECIFIED:
 	case NL80211_IFTYPE_WDS:
@@ -1372,7 +1372,7 @@ void cfg80211_init_wdev(struct wireless_dev *wdev)
 	wdev->wext.connect.auth_type = NL80211_AUTHTYPE_AUTOMATIC;
 #endif
 
-	wiphy_work_init(&wdev->cqm_rssi_work, cfg80211_cqm_rssi_notify_work);
+	wiphy_work_init(&wdev->cqm_rssi_work, cfg80211_cqm_rssi_analtify_work);
 
 	if (wdev->wiphy->flags & WIPHY_FLAG_PS_ON_BY_DEFAULT)
 		wdev->ps = true;
@@ -1413,7 +1413,7 @@ void cfg80211_register_wdev(struct cfg80211_registered_device *rdev,
 			      "phy80211"))
 		pr_err("failed to add phy80211 symlink to netdev!\n");
 
-	nl80211_notify_iface(rdev, wdev, NL80211_CMD_NEW_INTERFACE);
+	nl80211_analtify_iface(rdev, wdev, NL80211_CMD_NEW_INTERFACE);
 }
 
 int cfg80211_register_netdevice(struct net_device *dev)
@@ -1448,16 +1448,16 @@ out:
 }
 EXPORT_SYMBOL(cfg80211_register_netdevice);
 
-static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
+static int cfg80211_netdev_analtifier_call(struct analtifier_block *nb,
 					 unsigned long state, void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_analtifier_info_to_dev(ptr);
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_registered_device *rdev;
 	struct cfg80211_sched_scan_request *pos, *tmp;
 
 	if (!wdev)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	rdev = wiphy_to_rdev(wdev->wiphy);
 
@@ -1495,7 +1495,7 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 		cfg80211_leave(rdev, wdev);
 		cfg80211_remove_links(wdev);
 		wiphy_unlock(&rdev->wiphy);
-		/* since we just did cfg80211_leave() nothing to do there */
+		/* since we just did cfg80211_leave() analthing to do there */
 		cancel_work_sync(&wdev->disconnect_wk);
 		cancel_work_sync(&wdev->pmsr_free_wk);
 		break;
@@ -1503,9 +1503,9 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 		wiphy_lock(&rdev->wiphy);
 		cfg80211_update_iface_num(rdev, wdev->iftype, -1);
 		if (rdev->scan_req && rdev->scan_req->wdev == wdev) {
-			if (WARN_ON(!rdev->scan_req->notified &&
+			if (WARN_ON(!rdev->scan_req->analtified &&
 				    (!rdev->int_scan_req ||
-				     !rdev->int_scan_req->notified)))
+				     !rdev->int_scan_req->analtified)))
 				rdev->scan_req->info.aborted = true;
 			___cfg80211_scan_done(rdev, false);
 		}
@@ -1571,22 +1571,22 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 	case NETDEV_PRE_UP:
 		if (!cfg80211_iftype_allowed(wdev->wiphy, wdev->iftype,
 					     wdev->use_4addr, 0))
-			return notifier_from_errno(-EOPNOTSUPP);
+			return analtifier_from_erranal(-EOPANALTSUPP);
 
 		if (rfkill_blocked(rdev->wiphy.rfkill))
-			return notifier_from_errno(-ERFKILL);
+			return analtifier_from_erranal(-ERFKILL);
 		break;
 	default:
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 
 	wireless_nlevent_flush();
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block cfg80211_netdev_notifier = {
-	.notifier_call = cfg80211_netdev_notifier_call,
+static struct analtifier_block cfg80211_netdev_analtifier = {
+	.analtifier_call = cfg80211_netdev_analtifier_call,
 };
 
 static void __net_exit cfg80211_pernet_exit(struct net *net)
@@ -1703,9 +1703,9 @@ static int __init cfg80211_init(void)
 	if (err)
 		goto out_fail_sysfs;
 
-	err = register_netdevice_notifier(&cfg80211_netdev_notifier);
+	err = register_netdevice_analtifier(&cfg80211_netdev_analtifier);
 	if (err)
-		goto out_fail_notifier;
+		goto out_fail_analtifier;
 
 	err = nl80211_init();
 	if (err)
@@ -1719,7 +1719,7 @@ static int __init cfg80211_init(void)
 
 	cfg80211_wq = alloc_ordered_workqueue("cfg80211", WQ_MEM_RECLAIM);
 	if (!cfg80211_wq) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_fail_wq;
 	}
 
@@ -1731,8 +1731,8 @@ out_fail_reg:
 	debugfs_remove(ieee80211_debugfs_dir);
 	nl80211_exit();
 out_fail_nl80211:
-	unregister_netdevice_notifier(&cfg80211_netdev_notifier);
-out_fail_notifier:
+	unregister_netdevice_analtifier(&cfg80211_netdev_analtifier);
+out_fail_analtifier:
 	wiphy_sysfs_exit();
 out_fail_sysfs:
 	unregister_pernet_device(&cfg80211_pernet_ops);
@@ -1745,7 +1745,7 @@ static void __exit cfg80211_exit(void)
 {
 	debugfs_remove(ieee80211_debugfs_dir);
 	nl80211_exit();
-	unregister_netdevice_notifier(&cfg80211_netdev_notifier);
+	unregister_netdevice_analtifier(&cfg80211_netdev_analtifier);
 	wiphy_sysfs_exit();
 	regulatory_exit();
 	unregister_pernet_device(&cfg80211_pernet_ops);

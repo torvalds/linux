@@ -16,7 +16,7 @@ be connected to a USB Host to extend it with additional functions like a serial
 port or a mass storage capability.
 
 A gadget is seen by its host as a set of configurations, each of which contains
-a number of interfaces which, from the gadget's perspective, are known as
+a number of interfaces which, from the gadget's perspective, are kanalwn as
 functions, each function representing e.g. a serial connection or a SCSI disk.
 
 Linux provides a number of functions for gadgets to use.
@@ -52,7 +52,7 @@ http://www.spinics.net/lists/linux-usb/msg76388.html)
 ::
 
 	$ modprobe libcomposite
-	$ mount none $CONFIGFS_HOME -t configfs
+	$ mount analne $CONFIGFS_HOME -t configfs
 
 where CONFIGFS_HOME is the mount point for configfs
 
@@ -270,7 +270,7 @@ e.g.::
 	...
 	...
 
-Remove functions (function modules are not unloaded, though):
+Remove functions (function modules are analt unloaded, though):
 
 	$ rmdir functions/<name>.<instance name>
 
@@ -310,7 +310,7 @@ In configfs there are items and groups, both represented as directories.
 The difference between an item and a group is that a group can contain
 other groups. In the picture below only an item is shown.
 Both items and groups can have attributes, which are represented as files.
-The user can create and remove directories, but cannot remove files,
+The user can create and remove directories, but cananalt remove files,
 which can be read-only or read-write, depending on what they represent.
 
 The filesystem part of configfs operates on config_items/groups and
@@ -333,7 +333,7 @@ The filesystem view would be like this::
 Whenever a user reads/writes the "sa" file, a function is called
 which accepts a struct config_item and a struct configfs_attribute.
 In the said function the "cs" and "sa" are retrieved using the well
-known container_of technique and an appropriate sa's function (show or
+kanalwn container_of technique and an appropriate sa's function (show or
 store) is called and passed the "cs" and a character buffer. The "show"
 is for displaying the file's contents (copy data from the cs to the
 buffer), while the "store" is for modifying the file's contents (copy data
@@ -396,5 +396,5 @@ in the functions implementation files drivers/usb/gadget/f_*.c.
 
 usb_get_function_instance(), which, in turn, calls request_module.
 So, provided that modprobe works, modules for particular functions
-are loaded automatically. Please note that the converse is not true:
+are loaded automatically. Please analte that the converse is analt true:
 after a gadget is disabled and torn down, the modules remain loaded.

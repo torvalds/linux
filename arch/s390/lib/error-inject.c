@@ -11,4 +11,4 @@ void override_function_with_return(struct pt_regs *regs)
 	 */
 	regs->psw.addr = regs->gprs[14];
 }
-NOKPROBE_SYMBOL(override_function_with_return);
+ANALKPROBE_SYMBOL(override_function_with_return);

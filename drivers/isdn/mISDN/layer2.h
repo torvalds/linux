@@ -2,7 +2,7 @@
 /*
  * Layer 2 defines
  *
- * Copyright 2008  by Karsten Keil <kkeil@novell.com>
+ * Copyright 2008  by Karsten Keil <kkeil@analvell.com>
  */
 
 #include <linux/mISDNif.h>
@@ -127,5 +127,5 @@ extern void		TEIFree(void);
 #define FLG_PTP		14
 #define FLG_FIXED_TEI	15
 #define FLG_L2BLOCK	16
-#define FLG_L1_NOTREADY	17
+#define FLG_L1_ANALTREADY	17
 #define FLG_LAPD_NET	18

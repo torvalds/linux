@@ -23,8 +23,8 @@
 #define	IDCODE_REV_MASK		0xf0000000
 #define	IDCODE_REV_SHIFT	28
 
-#define	NORADIO_ID		0xe4f5
-#define	NORADIO_IDCODE		0x4e4f5246
+#define	ANALRADIO_ID		0xe4f5
+#define	ANALRADIO_IDCODE		0x4e4f5246
 
 #define BCM2055_ID		0x2055
 #define BCM2055_IDCODE		0x02055000
@@ -64,22 +64,22 @@
 #define PHY_HOLD_FOR_RM		4
 #define PHY_HOLD_FOR_PLT	8
 #define PHY_HOLD_FOR_MUTE	16
-#define PHY_HOLD_FOR_NOT_ASSOC 0x20
+#define PHY_HOLD_FOR_ANALT_ASSOC 0x20
 
 #define PHY_MUTE_FOR_PREISM	1
 #define PHY_MUTE_ALL		0xffffffff
 
-#define PHY_NOISE_FIXED_VAL		(-95)
-#define PHY_NOISE_FIXED_VAL_NPHY	(-92)
-#define PHY_NOISE_FIXED_VAL_LCNPHY	(-92)
+#define PHY_ANALISE_FIXED_VAL		(-95)
+#define PHY_ANALISE_FIXED_VAL_NPHY	(-92)
+#define PHY_ANALISE_FIXED_VAL_LCNPHY	(-92)
 
 #define PHY_MODE_CAL		0x0002
-#define PHY_MODE_NOISEM		0x0004
+#define PHY_MODE_ANALISEM		0x0004
 
 #define BRCMS_TXPWR_DB_FACTOR	4
 
 /* a large TX Power as an init value to factor out of min() calculations,
- * keep low enough to fit in an s8, units are .25 dBm
+ * keep low eanalugh to fit in an s8, units are .25 dBm
  */
 #define BRCMS_TXPWR_MAX		(127)	/* ~32 dBm = 1,500 mW */
 
@@ -191,7 +191,7 @@ void wlc_phy_bw_state_set(struct brcms_phy_pub *ppi, u16 bw);
 
 int wlc_phy_rssi_compute(struct brcms_phy_pub *pih, struct d11rxhdr *rxh);
 void wlc_phy_por_inform(struct brcms_phy_pub *ppi);
-void wlc_phy_noise_sample_intr(struct brcms_phy_pub *ppi);
+void wlc_phy_analise_sample_intr(struct brcms_phy_pub *ppi);
 bool wlc_phy_bist_check_phy(struct brcms_phy_pub *ppi);
 
 void wlc_phy_set_deaf(struct brcms_phy_pub *ppi, bool user_flag);
@@ -234,7 +234,7 @@ s8 wlc_phy_stf_ssmode_get(struct brcms_phy_pub *pih, u16 chanspec);
 void wlc_phy_ldpc_override_set(struct brcms_phy_pub *ppi, bool val);
 
 void wlc_phy_cal_perical(struct brcms_phy_pub *ppi, u8 reason);
-void wlc_phy_noise_sample_request_external(struct brcms_phy_pub *ppi);
+void wlc_phy_analise_sample_request_external(struct brcms_phy_pub *ppi);
 void wlc_phy_edcrs_lock(struct brcms_phy_pub *pih, bool lock);
 void wlc_phy_cal_papd_recal(struct brcms_phy_pub *ppi);
 

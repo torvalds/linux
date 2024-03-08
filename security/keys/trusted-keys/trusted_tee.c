@@ -213,7 +213,7 @@ static int trusted_key_probe(struct device *dev)
 	pvt_data.ctx = tee_client_open_context(NULL, optee_ctx_match, NULL,
 					       NULL);
 	if (IS_ERR(pvt_data.ctx))
-		return -ENODEV;
+		return -EANALDEV;
 
 	memcpy(sess_arg.uuid, rng_device->id.uuid.b, TEE_IOCTL_UUID_LEN);
 	sess_arg.clnt_login = TEE_IOCTL_LOGIN_REE_KERNEL;
@@ -281,7 +281,7 @@ static void trusted_tee_exit(void)
 }
 
 struct trusted_key_ops trusted_key_tee_ops = {
-	.migratable = 0, /* non-migratable */
+	.migratable = 0, /* analn-migratable */
 	.init = trusted_tee_init,
 	.seal = trusted_tee_seal,
 	.unseal = trusted_tee_unseal,

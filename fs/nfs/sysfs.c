@@ -44,7 +44,7 @@ int nfs_sysfs_init(void)
 
 	nfs_kset = kzalloc(sizeof(*nfs_kset), GFP_KERNEL);
 	if (!nfs_kset)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = kobject_set_name(&nfs_kset->kobj, "nfs");
 	if (ret) {
@@ -108,7 +108,7 @@ static ssize_t nfs_netns_identifier_store(struct kobject *kobj,
 		return 0;
 	p = kmemdup_nul(buf, len, GFP_KERNEL);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 	old = rcu_dereference_protected(xchg(&c->identifier, (char __rcu *)p), 1);
 	if (old) {
 		synchronize_rcu();
@@ -284,7 +284,7 @@ void nfs_sysfs_link_rpc_client(struct nfs_server *server,
 	strcat(name, uniq ? uniq : "");
 	strcat(name, "_client");
 
-	ret = sysfs_create_link_nowarn(&server->kobj,
+	ret = sysfs_create_link_analwarn(&server->kobj,
 						&clnt->cl_sysfs->kobject, name);
 	if (ret < 0)
 		pr_warn("NFS: can't create link to %s in sysfs (%d)\n",
@@ -294,7 +294,7 @@ EXPORT_SYMBOL_GPL(nfs_sysfs_link_rpc_client);
 
 static void nfs_sysfs_sb_release(struct kobject *kobj)
 {
-	/* no-op: why? see lib/kobject.c kobject_cleanup() */
+	/* anal-op: why? see lib/kobject.c kobject_cleanup() */
 }
 
 static const void *nfs_netns_server_namespace(const struct kobject *kobj)
@@ -342,7 +342,7 @@ void nfs_sysfs_move_server_to_sb(struct super_block *s)
 void nfs_sysfs_move_sb_to_server(struct nfs_server *server)
 {
 	const char *s;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	s = kasprintf(GFP_KERNEL, "server-%d", server->s_sysfs_id);
 	if (s) {
@@ -354,7 +354,7 @@ void nfs_sysfs_move_sb_to_server(struct nfs_server *server)
 					server->kobj.name, ret);
 }
 
-/* unlink, not dec-ref */
+/* unlink, analt dec-ref */
 void nfs_sysfs_remove_server(struct nfs_server *server)
 {
 	kobject_del(&server->kobj);

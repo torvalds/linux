@@ -117,7 +117,7 @@ static int sdam_probe(struct platform_device *pdev)
 
 	sdam = devm_kzalloc(&pdev->dev, sizeof(*sdam), GFP_KERNEL);
 	if (!sdam)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sdam->regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!sdam->regmap) {
@@ -125,7 +125,7 @@ static int sdam_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
-	rc = of_property_read_u32(pdev->dev.of_node, "reg", &sdam->base);
+	rc = of_property_read_u32(pdev->dev.of_analde, "reg", &sdam->base);
 	if (rc < 0) {
 		dev_err(&pdev->dev, "Failed to get SDAM base, rc=%d\n", rc);
 		return -EINVAL;

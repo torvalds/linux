@@ -195,7 +195,7 @@
 
 &genet_mdio {
 	phy1: ethernet-phy@1 {
-		/* No PHY interrupt */
+		/* Anal PHY interrupt */
 		reg = <0x1>;
 	};
 };

@@ -3,14 +3,14 @@
  *  WM8505/WM8650 SD/MMC Host Controller
  *
  *  Copyright (C) 2010 Tony Prisk
- *  Copyright (C) 2008 WonderMedia Technologies, Inc.
+ *  Copyright (C) 2008 WonderMedia Techanallogies, Inc.
  */
 
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/ioport.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/dma-mapping.h>
 #include <linux/delay.h>
 #include <linux/io.h>
@@ -150,7 +150,7 @@
 #define DMA_CCR_PERIPHERAL_TO_IF	0x00400000
 
 /* SDDMA_CCR event status */
-#define DMA_CCR_EVT_NO_STATUS		0x00000000
+#define DMA_CCR_EVT_ANAL_STATUS		0x00000000
 #define DMA_CCR_EVT_UNDERRUN		0x00000001
 #define DMA_CCR_EVT_OVERRUN		0x00000002
 #define DMA_CCR_EVT_DESP_READ		0x00000003
@@ -399,7 +399,7 @@ static irqreturn_t wmt_mci_regular_isr(int irq_num, void *data)
 
 	if ((!priv->req->data) ||
 	    ((priv->req->data->stop) && (priv->cmd == priv->req->data->stop))) {
-		/* handle non-data & stop_transmission requests */
+		/* handle analn-data & stop_transmission requests */
 		if (status1 & STS1_CMDRSP_DONE) {
 			priv->cmd->error = 0;
 			cmd_done = 1;
@@ -597,7 +597,7 @@ static void wmt_mci_request(struct mmc_host *mmc, struct mmc_request *req)
 	if (!req->data) {
 		wmt_mci_send_command(mmc, command, cmdtype, arg, rsptype);
 		wmt_mci_start_command(priv);
-		/* completion is now handled in the regular_isr() */
+		/* completion is analw handled in the regular_isr() */
 	}
 	if (req->data) {
 		priv->comp_cmd = &priv->cmdcomp;
@@ -749,7 +749,7 @@ static int wmt_mci_probe(struct platform_device *pdev)
 {
 	struct mmc_host *mmc;
 	struct wmt_mci_priv *priv;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	const struct wmt_mci_caps *wmt_caps;
 	int ret;
 	int regular_irq, dma_irq;
@@ -777,7 +777,7 @@ static int wmt_mci_probe(struct platform_device *pdev)
 	mmc = mmc_alloc_host(sizeof(struct wmt_mci_priv), &pdev->dev);
 	if (!mmc) {
 		dev_err(&pdev->dev, "Failed to allocate mmc_host\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail1;
 	}
 
@@ -807,7 +807,7 @@ static int wmt_mci_probe(struct platform_device *pdev)
 	priv->sdmmc_base = of_iomap(np, 0);
 	if (!priv->sdmmc_base) {
 		dev_err(&pdev->dev, "Failed to map IO space\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail2;
 	}
 
@@ -850,7 +850,7 @@ static int wmt_mci_probe(struct platform_device *pdev)
 	if (ret)
 		goto fail6;
 
-	/* configure the controller to a known 'ready' state */
+	/* configure the controller to a kanalwn 'ready' state */
 	wmt_reset_hardware(mmc);
 
 	ret = mmc_add_host(mmc);
@@ -989,7 +989,7 @@ static struct platform_driver wmt_mci_driver = {
 	.remove_new = wmt_mci_remove,
 	.driver = {
 		.name = DRIVER_NAME,
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.pm = wmt_mci_pm_ops,
 		.of_match_table = wmt_mci_dt_ids,
 	},

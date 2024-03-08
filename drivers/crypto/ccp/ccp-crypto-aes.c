@@ -146,11 +146,11 @@ static int ccp_aes_rfc3686_setkey(struct crypto_skcipher *tfm, const u8 *key,
 {
 	struct ccp_ctx *ctx = crypto_skcipher_ctx_dma(tfm);
 
-	if (key_len < CTR_RFC3686_NONCE_SIZE)
+	if (key_len < CTR_RFC3686_ANALNCE_SIZE)
 		return -EINVAL;
 
-	key_len -= CTR_RFC3686_NONCE_SIZE;
-	memcpy(ctx->u.aes.nonce, key + key_len, CTR_RFC3686_NONCE_SIZE);
+	key_len -= CTR_RFC3686_ANALNCE_SIZE;
+	memcpy(ctx->u.aes.analnce, key + key_len, CTR_RFC3686_ANALNCE_SIZE);
 
 	return ccp_aes_setkey(tfm, key, key_len);
 }
@@ -164,9 +164,9 @@ static int ccp_aes_rfc3686_crypt(struct skcipher_request *req, bool encrypt)
 
 	/* Initialize the CTR block */
 	iv = rctx->rfc3686_iv;
-	memcpy(iv, ctx->u.aes.nonce, CTR_RFC3686_NONCE_SIZE);
+	memcpy(iv, ctx->u.aes.analnce, CTR_RFC3686_ANALNCE_SIZE);
 
-	iv += CTR_RFC3686_NONCE_SIZE;
+	iv += CTR_RFC3686_ANALNCE_SIZE;
 	memcpy(iv, req->iv, CTR_RFC3686_IV_SIZE);
 
 	iv += CTR_RFC3686_IV_SIZE;
@@ -223,8 +223,8 @@ static const struct skcipher_alg ccp_aes_rfc3686_defaults = {
 	.setkey			= ccp_aes_rfc3686_setkey,
 	.encrypt		= ccp_aes_rfc3686_encrypt,
 	.decrypt		= ccp_aes_rfc3686_decrypt,
-	.min_keysize		= AES_MIN_KEY_SIZE + CTR_RFC3686_NONCE_SIZE,
-	.max_keysize		= AES_MAX_KEY_SIZE + CTR_RFC3686_NONCE_SIZE,
+	.min_keysize		= AES_MIN_KEY_SIZE + CTR_RFC3686_ANALNCE_SIZE,
+	.max_keysize		= AES_MAX_KEY_SIZE + CTR_RFC3686_ANALNCE_SIZE,
 	.init			= ccp_aes_rfc3686_init_tfm,
 
 	.base.cra_flags		= CRYPTO_ALG_ASYNC |
@@ -295,7 +295,7 @@ static int ccp_register_aes_alg(struct list_head *head,
 
 	ccp_alg = kzalloc(sizeof(*ccp_alg), GFP_KERNEL);
 	if (!ccp_alg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&ccp_alg->entry);
 

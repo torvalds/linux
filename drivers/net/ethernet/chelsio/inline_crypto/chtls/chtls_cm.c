@@ -10,7 +10,7 @@
 #include <linux/workqueue.h>
 #include <linux/skbuff.h>
 #include <linux/timer.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/inetdevice.h>
 #include <linux/ip.h>
 #include <linux/tcp.h>
@@ -35,8 +35,8 @@
 #include "t4_tcb.h"
 
 /*
- * State transitions and actions for close.  Note that if we are in SYN_SENT
- * we remain in that state as we cannot control a connection while it's in
+ * State transitions and actions for close.  Analte that if we are in SYN_SENT
+ * we remain in that state as we cananalt control a connection while it's in
  * SYN_SENT; such connections are allowed to establish and are then aborted.
  */
 static unsigned char new_state[16] = {
@@ -205,7 +205,7 @@ static void abort_arp_failure(void *handle, struct sk_buff *skb)
 	struct chtls_dev *cdev;
 
 	cdev = (struct chtls_dev *)handle;
-	req->cmd = CPL_ABORT_NO_RST;
+	req->cmd = CPL_ABORT_ANAL_RST;
 	cxgb4_ofld_send(cdev->lldi->ports[0], skb);
 }
 
@@ -215,7 +215,7 @@ static struct sk_buff *alloc_ctrl_skb(struct sk_buff *skb, int len)
 		__skb_trim(skb, 0);
 		refcount_inc(&skb->users);
 	} else {
-		skb = alloc_skb(len, GFP_KERNEL | __GFP_NOFAIL);
+		skb = alloc_skb(len, GFP_KERNEL | __GFP_ANALFAIL);
 	}
 	return skb;
 }
@@ -236,7 +236,7 @@ static void chtls_send_abort(struct sock *sk, int mode, struct sk_buff *skb)
 	INIT_TP_WR_CPL(req, CPL_ABORT_REQ, csk->tid);
 	skb_set_queue_mapping(skb, (csk->txq_idx << 1) | CPL_PRIORITY_DATA);
 	req->rsvd0 = htonl(tp->snd_nxt);
-	req->rsvd1 = !csk_flag_nochk(csk, CSK_TX_DATA_SENT);
+	req->rsvd1 = !csk_flag_analchk(csk, CSK_TX_DATA_SENT);
 	req->cmd = mode;
 	t4_set_arp_err_handler(skb, csk->cdev, abort_arp_failure);
 	send_or_defer(sk, tp, skb, mode == CPL_ABORT_SEND_RST);
@@ -246,14 +246,14 @@ static void chtls_send_reset(struct sock *sk, int mode, struct sk_buff *skb)
 {
 	struct chtls_sock *csk = rcu_dereference_sk_user_data(sk);
 
-	if (unlikely(csk_flag_nochk(csk, CSK_ABORT_SHUTDOWN) ||
+	if (unlikely(csk_flag_analchk(csk, CSK_ABORT_SHUTDOWN) ||
 		     !csk->cdev)) {
 		if (sk->sk_state == TCP_SYN_RECV)
 			csk_set_flag(csk, CSK_RST_ABORTED);
 		goto out;
 	}
 
-	if (!csk_flag_nochk(csk, CSK_TX_DATA_SENT)) {
+	if (!csk_flag_analchk(csk, CSK_TX_DATA_SENT)) {
 		struct tcp_sock *tp = tcp_sk(sk);
 
 		if (send_tx_flowc_wr(sk, 0, tp->snd_nxt, tp->rcv_nxt) < 0)
@@ -287,8 +287,8 @@ static void tcp_uncork(struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 
-	if (tp->nonagle & TCP_NAGLE_CORK) {
-		tp->nonagle &= ~TCP_NAGLE_CORK;
+	if (tp->analnagle & TCP_NAGLE_CORK) {
+		tp->analnagle &= ~TCP_NAGLE_CORK;
 		chtls_tcp_push(sk, 0);
 	}
 }
@@ -305,7 +305,7 @@ static void chtls_close_conn(struct sock *sk)
 	csk = rcu_dereference_sk_user_data(sk);
 	tid = csk->tid;
 
-	skb = alloc_skb(len, GFP_KERNEL | __GFP_NOFAIL);
+	skb = alloc_skb(len, GFP_KERNEL | __GFP_ANALFAIL);
 	req = (struct cpl_close_con_req *)__skb_put(skb, len);
 	memset(req, 0, len);
 	req->wr.wr_hi = htonl(FW_WR_OP_V(FW_TP_WR) |
@@ -317,14 +317,14 @@ static void chtls_close_conn(struct sock *sk)
 	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_CLOSE_CON_REQ, tid));
 
 	tcp_uncork(sk);
-	skb_entail(sk, skb, ULPCB_FLAG_NO_HDR | ULPCB_FLAG_NO_APPEND);
+	skb_entail(sk, skb, ULPCB_FLAG_ANAL_HDR | ULPCB_FLAG_ANAL_APPEND);
 	if (sk->sk_state != TCP_SYN_SENT)
 		chtls_push_frames(csk, 1);
 }
 
 /*
  * Perform a state transition during close and return the actions indicated
- * for the transition.  Do not make this function inline, the main reason
+ * for the transition.  Do analt make this function inline, the main reason
  * it exists at all is to avoid multiple inlining of tcp_set_state.
  */
 static int make_close_transition(struct sock *sk)
@@ -409,7 +409,7 @@ static int wait_for_states(struct sock *sk, unsigned int states)
 	current_timeo = 200;
 
 	/*
-	 * We want this to work even when there's no associated struct socket.
+	 * We want this to work even when there's anal associated struct socket.
 	 * In that case we provide a temporary wait_queue_head_t.
 	 */
 	if (!sk->sk_wq) {
@@ -426,7 +426,7 @@ static int wait_for_states(struct sock *sk, unsigned int states)
 			break;
 		}
 		if (signal_pending(current)) {
-			err = sock_intr_errno(current_timeo);
+			err = sock_intr_erranal(current_timeo);
 			break;
 		}
 		set_current_state(TASK_UNINTERRUPTIBLE);
@@ -482,7 +482,7 @@ void chtls_destroy_sock(struct sock *sk)
 
 	csk = rcu_dereference_sk_user_data(sk);
 	chtls_purge_recv_queue(sk);
-	csk->ulp_mode = ULP_MODE_NONE;
+	csk->ulp_mode = ULP_MODE_ANALNE;
 	chtls_purge_write_queue(sk);
 	free_tls_keyid(sk);
 	kref_put(&csk->kref, chtls_sock_release);
@@ -668,7 +668,7 @@ int chtls_listen_start(struct chtls_dev *cdev, struct sock *sk)
 
 	ctx = kmalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	__module_get(THIS_MODULE);
 	ctx->lsk = sk;
@@ -708,7 +708,7 @@ int chtls_listen_start(struct chtls_dev *cdev, struct sock *sk)
 #endif
 	}
 	if (ret > 0)
-		ret = net_xmit_errno(ret);
+		ret = net_xmit_erranal(ret);
 	if (ret)
 		goto del_hash;
 	return 0;
@@ -772,7 +772,7 @@ static int chtls_pass_open_rpl(struct chtls_dev *cdev, struct sk_buff *skb)
 		return CPL_RET_BUF_DONE;
 	}
 
-	if (rpl->status != CPL_ERR_NONE) {
+	if (rpl->status != CPL_ERR_ANALNE) {
 		pr_info("Unexpected PASS_OPEN_RPL status %u for STID %u\n",
 			rpl->status, stid);
 	} else {
@@ -795,7 +795,7 @@ static int chtls_close_listsrv_rpl(struct chtls_dev *cdev, struct sk_buff *skb)
 	data = lookup_stid(cdev->tids, stid);
 	listen_ctx = (struct listen_ctx *)data;
 
-	if (rpl->status != CPL_ERR_NONE) {
+	if (rpl->status != CPL_ERR_ANALNE) {
 		pr_info("Unexpected CLOSE_LISTSRV_RPL status %u for STID %u\n",
 			rpl->status, stid);
 	} else {
@@ -864,8 +864,8 @@ static void do_abort_syn_rcv(struct sock *child, struct sock *parent)
 		cleanup_syn_rcv_conn(child, parent);
 		/* Without the below call to sock_orphan,
 		 * we leak the socket resource with syn_flood test
-		 * as inet_csk_destroy_sock will not be called
-		 * in tcp_done since SOCK_DEAD flag is not set.
+		 * as inet_csk_destroy_sock will analt be called
+		 * in tcp_done since SOCK_DEAD flag is analt set.
 		 * Kernel handles this differently where new socket is
 		 * created only after 3 way handshake is done.
 		 */
@@ -907,7 +907,7 @@ static void chtls_pass_open_arp_failure(struct sock *sk,
 
 	/*
 	 * If the connection is being aborted due to the parent listening
-	 * socket going away there's nothing to do, the ABORT_REQ will close
+	 * socket going away there's analthing to do, the ABORT_REQ will close
 	 * the connection.
 	 */
 	if (csk_flag(sk, CSK_ABORT_RPL_PENDING)) {
@@ -1035,7 +1035,7 @@ static void chtls_pass_accept_rpl(struct sk_buff *skb,
 	       WND_SCALE_V(RCV_WSCALE(tp)) |
 	       MSS_IDX_V(csk->mtu_idx) |
 	       L2T_IDX_V(csk->l2t_entry->idx) |
-	       NAGLE_V(!(tp->nonagle & TCP_NAGLE_OFF)) |
+	       NAGLE_V(!(tp->analnagle & TCP_NAGLE_OFF)) |
 	       TX_CHAN_V(csk->tx_chan) |
 	       SMAC_SEL_V(csk->smac_idx) |
 	       DSCP_V(csk->tos >> 2) |
@@ -1057,7 +1057,7 @@ static void chtls_pass_accept_rpl(struct sk_buff *skb,
 			T6_ETH_HDR_LEN_G(hlen) + T6_IP_HDR_LEN_G(hlen));
 	if (tcph->ece && tcph->cwr)
 		opt2 |= CCTRL_ECN_V(1);
-	opt2 |= CONG_CNTRL_V(CONG_ALG_NEWRENO);
+	opt2 |= CONG_CNTRL_V(CONG_ALG_NEWREANAL);
 	opt2 |= T5_ISS_F;
 	opt2 |= T5_OPT_2_VALID_F;
 	opt2 |= WND_SCALE_EN_V(WSCALE_OK(tp));
@@ -1390,7 +1390,7 @@ static void chtls_pass_accept_request(struct sock *sk,
 	inet_rsk(oreq)->ir_iif = sk->sk_bound_dev_if;
 	th_ecn = tcph->ece && tcph->cwr;
 	if (th_ecn) {
-		ect = !INET_ECN_is_not_ect(ip_dsfield);
+		ect = !INET_ECN_is_analt_ect(ip_dsfield);
 		ecn_ok = READ_ONCE(sock_net(sk)->ipv4.sysctl_tcp_ecn);
 		if ((!ect && ecn_ok) || tcp_ca_needs_ecn(sk))
 			inet_rsk(oreq)->ecn_ok = 1;
@@ -1578,7 +1578,7 @@ static int chtls_pass_establish(struct chtls_dev *cdev, struct sk_buff *skb)
 	hwtid = GET_TID(req);
 	sk = lookup_tid(cdev->tids, hwtid);
 	if (!sk)
-		return (CPL_RET_UNKNOWN_TID | CPL_RET_BUF_DONE);
+		return (CPL_RET_UNKANALWN_TID | CPL_RET_BUF_DONE);
 
 	bh_lock_sock(sk);
 	if (unlikely(sock_owned_by_user(sk))) {
@@ -1652,7 +1652,7 @@ static void handle_urg_ptr(struct sock *sk, u32 urg_seq)
 			chtls_free_skb(sk, skb);
 	}
 
-	tp->urg_data = TCP_URG_NOTYET;
+	tp->urg_data = TCP_URG_ANALTYET;
 	tp->urg_seq = urg_seq;
 }
 
@@ -1661,7 +1661,7 @@ static void check_sk_callbacks(struct chtls_sock *csk)
 	struct sock *sk = csk->sk;
 
 	if (unlikely(sk->sk_user_data &&
-		     !csk_flag_nochk(csk, CSK_CALLBACKS_CHKD)))
+		     !csk_flag_analchk(csk, CSK_CALLBACKS_CHKD)))
 		csk_set_flag(csk, CSK_CALLBACKS_CHKD);
 }
 
@@ -1693,7 +1693,7 @@ static void chtls_recv_data(struct sock *sk, struct sk_buff *skb)
 
 	ULP_SKB_CB(skb)->seq = ntohl(hdr->seq);
 	ULP_SKB_CB(skb)->psh = hdr->psh;
-	skb_ulp_mode(skb) = ULP_MODE_NONE;
+	skb_ulp_mode(skb) = ULP_MODE_ANALNE;
 
 	skb_reset_transport_header(skb);
 	__skb_pull(skb, sizeof(*hdr) + RSS_HDR);
@@ -1702,7 +1702,7 @@ static void chtls_recv_data(struct sock *sk, struct sk_buff *skb)
 
 	if (unlikely(hdr->urg))
 		handle_urg_ptr(sk, tp->rcv_nxt + ntohs(hdr->urg));
-	if (unlikely(tp->urg_data == TCP_URG_NOTYET &&
+	if (unlikely(tp->urg_data == TCP_URG_ANALTYET &&
 		     tp->urg_seq - tp->rcv_nxt < skb->len))
 		tp->urg_data = TCP_URG_VALID |
 			       skb->data[tp->urg_seq - tp->rcv_nxt];
@@ -1765,7 +1765,7 @@ static void chtls_recv_pdu(struct sock *sk, struct sk_buff *skb)
 		__skb_trim(skb,
 			   CPL_TLS_DATA_LENGTH_G(ntohl(hdr->length_pkd)));
 
-	if (unlikely(tp->urg_data == TCP_URG_NOTYET && tp->urg_seq -
+	if (unlikely(tp->urg_data == TCP_URG_ANALTYET && tp->urg_seq -
 		     tp->rcv_nxt < skb->len))
 		tp->urg_data = TCP_URG_VALID |
 			       skb->data[tp->urg_seq - tp->rcv_nxt];
@@ -1875,7 +1875,7 @@ static void chtls_peer_close(struct sock *sk, struct sk_buff *skb)
 {
 	struct chtls_sock *csk = rcu_dereference_sk_user_data(sk);
 
-	if (csk_flag_nochk(csk, CSK_ABORT_RPL_PENDING))
+	if (csk_flag_analchk(csk, CSK_ABORT_RPL_PENDING))
 		goto out;
 
 	sk->sk_shutdown |= RCV_SHUTDOWN;
@@ -1891,7 +1891,7 @@ static void chtls_peer_close(struct sock *sk, struct sk_buff *skb)
 		break;
 	case TCP_FIN_WAIT2:
 		chtls_release_resources(sk);
-		if (csk_flag_nochk(csk, CSK_ABORT_RPL_PENDING))
+		if (csk_flag_analchk(csk, CSK_ABORT_RPL_PENDING))
 			chtls_conn_done(sk);
 		else
 			chtls_timewait(sk);
@@ -1902,7 +1902,7 @@ static void chtls_peer_close(struct sock *sk, struct sk_buff *skb)
 
 	if (!sock_flag(sk, SOCK_DEAD)) {
 		sk->sk_state_change(sk);
-		/* Do not send POLL_HUP for half duplex close. */
+		/* Do analt send POLL_HUP for half duplex close. */
 
 		if ((sk->sk_shutdown & SEND_SHUTDOWN) ||
 		    sk->sk_state == TCP_CLOSE)
@@ -1922,7 +1922,7 @@ static void chtls_close_con_rpl(struct sock *sk, struct sk_buff *skb)
 
 	csk = rcu_dereference_sk_user_data(sk);
 
-	if (csk_flag_nochk(csk, CSK_ABORT_RPL_PENDING))
+	if (csk_flag_analchk(csk, CSK_ABORT_RPL_PENDING))
 		goto out;
 
 	tp = tcp_sk(sk);
@@ -1932,7 +1932,7 @@ static void chtls_close_con_rpl(struct sock *sk, struct sk_buff *skb)
 	switch (sk->sk_state) {
 	case TCP_CLOSING:
 		chtls_release_resources(sk);
-		if (csk_flag_nochk(csk, CSK_ABORT_RPL_PENDING))
+		if (csk_flag_analchk(csk, CSK_ABORT_RPL_PENDING))
 			chtls_conn_done(sk);
 		else
 			chtls_timewait(sk);
@@ -1948,9 +1948,9 @@ static void chtls_close_con_rpl(struct sock *sk, struct sk_buff *skb)
 		if (!sock_flag(sk, SOCK_DEAD))
 			sk->sk_state_change(sk);
 		else if (tcp_sk(sk)->linger2 < 0 &&
-			 !csk_flag_nochk(csk, CSK_ABORT_SHUTDOWN))
+			 !csk_flag_analchk(csk, CSK_ABORT_SHUTDOWN))
 			chtls_abort_conn(sk, skb);
-		else if (csk_flag_nochk(csk, CSK_TX_DATA_SENT))
+		else if (csk_flag_analchk(csk, CSK_TX_DATA_SENT))
 			chtls_set_quiesce_ctrl(sk, 0);
 		break;
 	default:
@@ -1963,7 +1963,7 @@ out:
 static struct sk_buff *get_cpl_skb(struct sk_buff *skb,
 				   size_t len, gfp_t gfp)
 {
-	if (likely(!skb_is_nonlinear(skb) && !skb_cloned(skb))) {
+	if (likely(!skb_is_analnlinear(skb) && !skb_cloned(skb))) {
 		WARN_ONCE(skb->len < len, "skb alloc error");
 		__skb_trim(skb, len);
 		skb_get(skb);
@@ -1990,10 +1990,10 @@ static void send_defer_abort_rpl(struct chtls_dev *cdev, struct sk_buff *skb)
 	struct sk_buff *reply_skb;
 
 	reply_skb = alloc_skb(sizeof(struct cpl_abort_rpl),
-			      GFP_KERNEL | __GFP_NOFAIL);
+			      GFP_KERNEL | __GFP_ANALFAIL);
 	__skb_put(reply_skb, sizeof(struct cpl_abort_rpl));
 	set_abort_rpl_wr(reply_skb, GET_TID(req),
-			 (req->status & CPL_ABORT_NO_RST));
+			 (req->status & CPL_ABORT_ANAL_RST));
 	set_wr_txq(reply_skb, CPL_PRIORITY_DATA, req->status >> 1);
 	cxgb4_ofld_send(cdev->lldi->ports[0], reply_skb);
 	kfree_skb(skb);
@@ -2062,7 +2062,7 @@ static void bl_abort_syn_rcv(struct sock *lsk, struct sk_buff *skb)
 
 	skb->sk	= NULL;
 	chtls_send_abort_rpl(child, skb, BLOG_SKB_CB(skb)->cdev,
-			     CPL_ABORT_NO_RST, queue);
+			     CPL_ABORT_ANAL_RST, queue);
 	do_abort_syn_rcv(child, lsk);
 }
 
@@ -2093,7 +2093,7 @@ static int abort_syn_rcv(struct sock *sk, struct sk_buff *skb)
 	if (!sock_owned_by_user(psk)) {
 		int queue = csk->txq_idx;
 
-		chtls_send_abort_rpl(sk, skb, cdev, CPL_ABORT_NO_RST, queue);
+		chtls_send_abort_rpl(sk, skb, cdev, CPL_ABORT_ANAL_RST, queue);
 		do_abort_syn_rcv(sk, psk);
 	} else {
 		skb->sk = sk;
@@ -2108,7 +2108,7 @@ static void chtls_abort_req_rss(struct sock *sk, struct sk_buff *skb)
 {
 	const struct cpl_abort_req_rss *req = cplhdr(skb) + RSS_HDR;
 	struct chtls_sock *csk = sk->sk_user_data;
-	int rst_status = CPL_ABORT_NO_RST;
+	int rst_status = CPL_ABORT_ANAL_RST;
 	int queue = csk->txq_idx;
 
 	if (is_neg_adv(req->status)) {
@@ -2118,8 +2118,8 @@ static void chtls_abort_req_rss(struct sock *sk, struct sk_buff *skb)
 
 	csk_reset_flag(csk, CSK_ABORT_REQ_RCVD);
 
-	if (!csk_flag_nochk(csk, CSK_ABORT_SHUTDOWN) &&
-	    !csk_flag_nochk(csk, CSK_TX_DATA_SENT)) {
+	if (!csk_flag_analchk(csk, CSK_ABORT_SHUTDOWN) &&
+	    !csk_flag_analchk(csk, CSK_TX_DATA_SENT)) {
 		struct tcp_sock *tp = tcp_sk(sk);
 
 		if (send_tx_flowc_wr(sk, 0, tp->snd_nxt, tp->rcv_nxt) < 0)
@@ -2129,7 +2129,7 @@ static void chtls_abort_req_rss(struct sock *sk, struct sk_buff *skb)
 
 	csk_set_flag(csk, CSK_ABORT_SHUTDOWN);
 
-	if (!csk_flag_nochk(csk, CSK_ABORT_RPL_PENDING)) {
+	if (!csk_flag_analchk(csk, CSK_ABORT_RPL_PENDING)) {
 		sk->sk_err = ETIMEDOUT;
 
 		if (!sock_flag(sk, SOCK_DEAD))
@@ -2155,9 +2155,9 @@ static void chtls_abort_rpl_rss(struct sock *sk, struct sk_buff *skb)
 	csk = rcu_dereference_sk_user_data(sk);
 	cdev = csk->cdev;
 
-	if (csk_flag_nochk(csk, CSK_ABORT_RPL_PENDING)) {
+	if (csk_flag_analchk(csk, CSK_ABORT_RPL_PENDING)) {
 		csk_reset_flag(csk, CSK_ABORT_RPL_PENDING);
-		if (!csk_flag_nochk(csk, CSK_ABORT_REQ_RCVD)) {
+		if (!csk_flag_analchk(csk, CSK_ABORT_REQ_RCVD)) {
 			if (sk->sk_state == TCP_SYN_SENT) {
 				cxgb4_remove_tid(cdev->tids,
 						 csk->port_id,
@@ -2238,8 +2238,8 @@ static void chtls_rx_ack(struct sock *sk, struct sk_buff *skb)
 		u32 csum;
 
 		if (unlikely(!pskb)) {
-			if (csk->wr_nondata)
-				csk->wr_nondata -= credits;
+			if (csk->wr_analndata)
+				csk->wr_analndata -= credits;
 			break;
 		}
 		csum = (__force u32)pskb->csum;
@@ -2261,7 +2261,7 @@ static void chtls_rx_ack(struct sock *sk, struct sk_buff *skb)
 			tp->snd_una = snd_una;
 			tp->rcv_tstamp = tcp_jiffies32;
 			if (tp->snd_una == tp->snd_nxt &&
-			    !csk_flag_nochk(csk, CSK_TX_FAILOVER))
+			    !csk_flag_analchk(csk, CSK_TX_FAILOVER))
 				csk_reset_flag(csk, CSK_TX_WAIT_IDLE);
 		}
 	}

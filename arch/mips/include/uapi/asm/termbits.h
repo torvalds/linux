@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -6,7 +6,7 @@
  *
  * Copyright (C) 1995, 96, 99, 2001, 06 Ralf Baechle
  * Copyright (C) 1999 Silicon Graphics, Inc.
- * Copyright (C) 2001 MIPS Technologies, Inc.
+ * Copyright (C) 2001 MIPS Techanallogies, Inc.
  */
 #ifndef _ASM_TERMBITS_H
 #define _ASM_TERMBITS_H
@@ -16,7 +16,7 @@
 typedef unsigned int	tcflag_t;
 
 /*
- * The ABI says nothing about NCC but seems to use NCCS as
+ * The ABI says analthing about NCC but seems to use NCCS as
  * replacement for it in struct termio
  */
 #define NCCS	23
@@ -54,11 +54,11 @@ struct ktermios {
 /* c_cc characters */
 #define VINTR		 0		/* Interrupt character [ISIG] */
 #define VQUIT		 1		/* Quit character [ISIG] */
-#define VERASE		 2		/* Erase character [ICANON] */
-#define VKILL		 3		/* Kill-line character [ICANON] */
-#define VMIN		 4		/* Minimum number of bytes read at once [!ICANON] */
-#define VTIME		 5		/* Time-out value (tenths of a second) [!ICANON] */
-#define VEOL2		 6		/* Second EOL character [ICANON] */
+#define VERASE		 2		/* Erase character [ICAANALN] */
+#define VKILL		 3		/* Kill-line character [ICAANALN] */
+#define VMIN		 4		/* Minimum number of bytes read at once [!ICAANALN] */
+#define VTIME		 5		/* Time-out value (tenths of a second) [!ICAANALN] */
+#define VEOL2		 6		/* Second EOL character [ICAANALN] */
 #define VSWTC		 7		/* ??? */
 #define VSWTCH		VSWTC
 #define VSTART		 8		/* Start (X-ON) character [IXON, IXOFF] */
@@ -66,16 +66,16 @@ struct ktermios {
 #define VSUSP		10		/* Suspend character [ISIG] */
 #if 0
 /*
- * VDSUSP is not supported
+ * VDSUSP is analt supported
  */
 #define VDSUSP		11		/* Delayed suspend character [ISIG] */
 #endif
-#define VREPRINT	12		/* Reprint-line character [ICANON] */
+#define VREPRINT	12		/* Reprint-line character [ICAANALN] */
 #define VDISCARD	13		/* Discard character [IEXTEN] */
-#define VWERASE		14		/* Word-erase character [ICANON] */
+#define VWERASE		14		/* Word-erase character [ICAANALN] */
 #define VLNEXT		15		/* Literal-next character [IEXTEN] */
-#define VEOF		16		/* End-of-file character [ICANON] */
-#define VEOL		17		/* End-of-line character [ICANON] */
+#define VEOF		16		/* End-of-file character [ICAANALN] */
+#define VEOL		17		/* End-of-line character [ICAANALN] */
 
 /* c_iflag bits */
 #define IUCLC	0x0200		/* Map upper case to lower case on input */
@@ -127,7 +127,7 @@ struct ktermios {
 #define PARENB		0x00000100	/* Parity enable */
 #define PARODD		0x00000200	/* Odd parity instead of even */
 #define HUPCL		0x00000400	/* Hang up on last close */
-#define CLOCAL		0x00000800	/* Ignore modem status lines */
+#define CLOCAL		0x00000800	/* Iganalre modem status lines */
 #define CBAUDEX		0x00001000
 #define BOTHER		0x00001000
 #define     B57600	0x00001001
@@ -149,13 +149,13 @@ struct ktermios {
 
 /* c_lflag bits */
 #define ISIG	0x00001		/* Enable signals */
-#define ICANON	0x00002		/* Do erase and kill processing */
+#define ICAANALN	0x00002		/* Do erase and kill processing */
 #define XCASE	0x00004
 #define ECHO	0x00008		/* Enable echo */
 #define ECHOE	0x00010		/* Visual erase for ERASE */
 #define ECHOK	0x00020		/* Echo NL after KILL */
 #define ECHONL	0x00040		/* Echo NL even if ECHO is off */
-#define NOFLSH	0x00080		/* Disable flush after interrupt */
+#define ANALFLSH	0x00080		/* Disable flush after interrupt */
 #define IEXTEN	0x00100		/* Enable DISCARD and LNEXT */
 #define ECHOCTL	0x00200		/* Echo control characters as ^X */
 #define ECHOPRT	0x00400		/* Hardcopy visual erase */
@@ -170,7 +170,7 @@ struct ktermios {
 #define TIOCSER_TEMT	0x01	/* Transmitter physically empty */
 
 /* tcsetattr uses these */
-#define TCSANOW		TCSETS	/* Change immediately */
+#define TCSAANALW		TCSETS	/* Change immediately */
 #define TCSADRAIN	TCSETSW /* Change when pending output is written */
 #define TCSAFLUSH	TCSETSF /* Flush pending input before changing */
 

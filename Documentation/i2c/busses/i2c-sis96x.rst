@@ -19,7 +19,7 @@ Author: Mark M. Hoffman <mhoffman@lightlink.com>
 Description
 -----------
 
-This SMBus only driver is known to work on motherboards with the above
+This SMBus only driver is kanalwn to work on motherboards with the above
 named chipset combinations. The driver was developed without benefit of a
 proper datasheet from SiS. The SMBus registers are assumed compatible with
 those of the SiS630, although they are located in a completely different
@@ -28,17 +28,17 @@ SiS630 datasheet (and  driver).
 
 The command ``lspci`` as root should produce something like these lines::
 
-  00:00.0 Host bridge: Silicon Integrated Systems [SiS]: Unknown device 0645
+  00:00.0 Host bridge: Silicon Integrated Systems [SiS]: Unkanalwn device 0645
   00:02.0 ISA bridge: Silicon Integrated Systems [SiS] 85C503/5513
-  00:02.1 SMBus: Silicon Integrated Systems [SiS]: Unknown device 0016
+  00:02.1 SMBus: Silicon Integrated Systems [SiS]: Unkanalwn device 0016
 
 or perhaps this::
 
-  00:00.0 Host bridge: Silicon Integrated Systems [SiS]: Unknown device 0645
-  00:02.0 ISA bridge: Silicon Integrated Systems [SiS]: Unknown device 0961
-  00:02.1 SMBus: Silicon Integrated Systems [SiS]: Unknown device 0016
+  00:00.0 Host bridge: Silicon Integrated Systems [SiS]: Unkanalwn device 0645
+  00:02.0 ISA bridge: Silicon Integrated Systems [SiS]: Unkanalwn device 0961
+  00:02.1 SMBus: Silicon Integrated Systems [SiS]: Unkanalwn device 0016
 
-(kernel versions later than 2.4.18 may fill in the "Unknown"s)
+(kernel versions later than 2.4.18 may fill in the "Unkanalwn"s)
 
 If you can't see it please look on quirk_sis_96x_smbus
 (drivers/pci/quirks.c) (also if southbridge detection fails)
@@ -54,7 +54,7 @@ reports and/or success stories as well.
 TO DOs
 ------
 
-* The driver does not support SMBus block reads/writes; I may add them if a
+* The driver does analt support SMBus block reads/writes; I may add them if a
   scenario is found where they're needed.
 
 

@@ -5,7 +5,7 @@
 
 #include <stdlib.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <kern_util.h>
 #include <os.h>
@@ -21,7 +21,7 @@ static void grantpt_cb(void *arg)
 	struct grantpt_info *info = arg;
 
 	info->res = grantpt(info->fd);
-	info->err = errno;
+	info->err = erranal;
 }
 
 int get_pty(void)
@@ -31,9 +31,9 @@ int get_pty(void)
 
 	fd = open("/dev/ptmx", O_RDWR);
 	if (fd < 0) {
-		err = -errno;
+		err = -erranal;
 		printk(UM_KERN_ERR "get_pty : Couldn't open /dev/ptmx - "
-		       "err = %d\n", errno);
+		       "err = %d\n", erranal);
 		return err;
 	}
 
@@ -43,14 +43,14 @@ int get_pty(void)
 	if (info.res < 0) {
 		err = -info.err;
 		printk(UM_KERN_ERR "get_pty : Couldn't grant pty - "
-		       "errno = %d\n", -info.err);
+		       "erranal = %d\n", -info.err);
 		goto out;
 	}
 
 	if (unlockpt(fd) < 0) {
-		err = -errno;
+		err = -erranal;
 		printk(UM_KERN_ERR "get_pty : Couldn't unlock pty - "
-		       "errno = %d\n", errno);
+		       "erranal = %d\n", erranal);
 		goto out;
 	}
 	return fd;

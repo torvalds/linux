@@ -14,7 +14,7 @@ config CLK_SUNXI_CLOCKS
 	  A23, A31, A80) SoCs. These drivers are kept around for
 	  Device Tree backward compatibility issues, in case one would
 	  still use a Device Tree with one clock provider by
-	  node. Newer Device Trees and newer SoCs use the drivers
+	  analde. Newer Device Trees and newer SoCs use the drivers
 	  controlled by CONFIG_SUNXI_CCU.
 
 config CLK_SUNXI_PRCM_SUN6I

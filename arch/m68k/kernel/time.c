@@ -11,7 +11,7 @@
  *		"A Kernel Model for Precision Timekeeping" by Dave Mills
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/export.h>
 #include <linux/module.h>
 #include <linux/sched.h>
@@ -100,7 +100,7 @@ static int rtc_generic_get_time(struct device *dev, struct rtc_time *tm)
 static int rtc_generic_set_time(struct device *dev, struct rtc_time *tm)
 {
 	if (mach_hwclk(1, tm) < 0)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	return 0;
 }
 
@@ -125,7 +125,7 @@ static int rtc_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 		return mach_set_rtc_pll(&pll);
 	}
 
-	return -ENOIOCTLCMD;
+	return -EANALIOCTLCMD;
 }
 
 static const struct rtc_class_ops generic_rtc_ops = {
@@ -139,7 +139,7 @@ static int __init rtc_init(void)
 	struct platform_device *pdev;
 
 	if (!mach_hwclk)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pdev = platform_device_register_data(NULL, "rtc-generic", -1,
 					     &generic_rtc_ops,

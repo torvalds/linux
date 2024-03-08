@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/sound/rt1019.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: RT1019 Mono Class-D Audio Amplifier
+title: RT1019 Moanal Class-D Audio Amplifier
 
 maintainers:
   - jack.yu@realtek.com

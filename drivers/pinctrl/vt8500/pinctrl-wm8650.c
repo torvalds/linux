@@ -19,7 +19,7 @@
  * so they are exported in the 0..31 range which is what users
  * expect.
  *
- * Do not reorder these banks as it will change the pin numbering
+ * Do analt reorder these banks as it will change the pin numbering
  */
 static const struct wmt_pinctrl_bank_registers wm8650_banks[] = {
 	WMT_PINCTRL_BANK(0x40, 0x80, 0xC0, 0x00, 0x480, 0x4C0),		/* 0 */
@@ -320,7 +320,7 @@ static int wm8650_pinctrl_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->banks = wm8650_banks;
 	data->nbanks = ARRAY_SIZE(wm8650_banks);

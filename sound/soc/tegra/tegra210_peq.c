@@ -70,7 +70,7 @@ static void tegra210_peq_read_ram(struct regmap *regmap, unsigned int reg_ctrl,
 	regmap_write(regmap, reg_ctrl, val);
 
 	/*
-	 * Since all ahub non-io modules work under same ahub clock it is not
+	 * Since all ahub analn-io modules work under same ahub clock it is analt
 	 * necessary to check ahub read busy bit after every read.
 	 */
 	for (i = 0; i < size; i++)
@@ -400,17 +400,17 @@ int tegra210_peq_regmap_init(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct tegra210_ope *ope = dev_get_drvdata(dev);
-	struct device_node *child;
+	struct device_analde *child;
 	struct resource mem;
 	void __iomem *regs;
 	int err;
 
-	child = of_get_child_by_name(dev->of_node, "equalizer");
+	child = of_get_child_by_name(dev->of_analde, "equalizer");
 	if (!child)
-		return -ENODEV;
+		return -EANALDEV;
 
 	err = of_address_to_resource(child, 0, &mem);
-	of_node_put(child);
+	of_analde_put(child);
 	if (err < 0) {
 		dev_err(dev, "fail to get PEQ resource\n");
 		return err;

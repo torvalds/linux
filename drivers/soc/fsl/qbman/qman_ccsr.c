@@ -3,11 +3,11 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *     * Redistributions of source code must retain the above copyright
- *	 notice, this list of conditions and the following disclaimer.
+ *	 analtice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright
- *	 notice, this list of conditions and the following disclaimer in the
+ *	 analtice, this list of conditions and the following disclaimer in the
  *	 documentation and/or other materials provided with the distribution.
- *     * Neither the name of Freescale Semiconductor nor the
+ *     * Neither the name of Freescale Semiconductor analr the
  *	 names of its contributors may be used to endorse or promote products
  *	 derived from this software without specific prior written permission.
  *
@@ -17,11 +17,11 @@
  * later version.
  *
  * THIS SOFTWARE IS PROVIDED BY Freescale Semiconductor ``AS IS'' AND ANY
- * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL Freescale Semiconductor BE LIABLE FOR ANY
+ * DISCLAIMED. IN ANAL EVENT SHALL Freescale Semiconductor BE LIABLE FOR ANY
  * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
  * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
@@ -263,7 +263,7 @@ static const struct qman_error_info_mdata error_mdata[] = {
 /*
  * TODO: unimplemented registers
  *
- * Keeping a list here of QMan registers I have not yet covered;
+ * Keeping a list here of QMan registers I have analt yet covered;
  * QCSP_DD_IHRSR, QCSP_DD_IHRFR, QCSP_DD_HASR,
  * DCP_DD_IHRSR, DCP_DD_IHRFR, DCP_DD_HASR, CM_CFG,
  * QMAN_EECC, QMAN_SBET, QMAN_EINJ, QMAN_SBEC0-12
@@ -332,12 +332,12 @@ static void qm_set_corenet_initiator(void)
 		    QM_CI_SCHED_CFG_BMAN_W);
 }
 
-static void qm_get_version(u16 *id, u8 *major, u8 *minor)
+static void qm_get_version(u16 *id, u8 *major, u8 *mianalr)
 {
 	u32 v = qm_ccsr_in(REG_IP_REV_1);
 	*id = (v >> 16);
 	*major = (v >> 8) & 0xff;
-	*minor = v & 0xff;
+	*mianalr = v & 0xff;
 }
 
 #define PFDR_AR_EN		BIT(31)
@@ -362,7 +362,7 @@ static int qm_set_memory(enum qm_memory memory, u64 ba, u32 size)
 		if (bare != upper_32_bits(ba) || bar != lower_32_bits(ba)) {
 			pr_err("Attempted to reinitialize QMan with different BAR, got 0x%llx read BARE=0x%x BAR=0x%x\n",
 			       ba, bare, bar);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		__qman_requires_cleanup = 1;
 		/* Return 1 to indicate memory was previously programmed */
@@ -372,14 +372,14 @@ static int qm_set_memory(enum qm_memory memory, u64 ba, u32 size)
 	ptr = memremap(ba, size, MEMREMAP_WB);
 	if (!ptr) {
 		pr_crit("memremap() of QMan private memory failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	memset(ptr, 0, size);
 
 #ifdef CONFIG_PPC
 	/*
 	 * PPC doesn't appear to flush the cache on memunmap() but the
-	 * cache must be flushed since QMan does non coherent accesses
+	 * cache must be flushed since QMan does analn coherent accesses
 	 * to this memory
 	 */
 	flush_dcache_range((unsigned long) ptr, (unsigned long) ptr+size);
@@ -435,7 +435,7 @@ static int qm_init_pfdr(struct device *dev, u32 pfdr_start, u32 num)
 	if (MCR_rslt_inval(rslt))
 		return -EINVAL;
 	dev_crit(dev, "Unexpected result from MCR_INIT_PFDR: %02x\n", rslt);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 /*
@@ -455,11 +455,11 @@ static size_t fqd_sz, pfdr_sz;
  */
 static int zero_priv_mem(phys_addr_t addr, size_t sz)
 {
-	/* map as cacheable, non-guarded */
+	/* map as cacheable, analn-guarded */
 	void __iomem *tmpp = ioremap_cache(addr, sz);
 
 	if (!tmpp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset_io(tmpp, 0, sz);
 	flush_dcache_range((unsigned long)tmpp,
@@ -578,7 +578,7 @@ static irqreturn_t qman_isr(int irq, void *ptr)
 	isr_mask = isr_val & ier_val;
 
 	if (!isr_mask)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	for (i = 0; i < ARRAY_SIZE(qman_hwerr_txts); i++) {
 		if (qman_hwerr_txts[i].mask & isr_mask) {
@@ -615,7 +615,7 @@ static int qman_init_ccsr(struct device *dev)
 	err = qm_set_memory(qm_memory_pfdr, pfdr_a, pfdr_sz);
 	if (err < 0)
 		return err;
-	/* Only initialize PFDRs if the QMan was not initialized before */
+	/* Only initialize PFDRs if the QMan was analt initialized before */
 	if (err == 0) {
 		err = qm_init_pfdr(dev, 8, pfdr_sz / 64 - 8);
 		if (err)
@@ -633,7 +633,7 @@ static int qman_init_ccsr(struct device *dev)
 	/* Set scheduling weights to defaults */
 	for (i = qm_wq_first; i <= qm_wq_last; i++)
 		qm_set_wq_scheduling(i, 0, 0, 0, 0, 0, 0, 0);
-	/* We are not prepared to accept ERNs for hardware enqueues */
+	/* We are analt prepared to accept ERNs for hardware enqueues */
 	qm_set_dc(qm_dc_portal_fman0, 1, 0);
 	qm_set_dc(qm_dc_portal_fman1, 1, 0);
 	return 0;
@@ -701,7 +701,7 @@ static int qman_resource_init(struct device *dev)
 		cgrid_num = 256;
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = gen_pool_add(qm_qpalloc, qm_channel_pool1 | DPAA_GENALLOC_OFF,
@@ -752,43 +752,43 @@ void qman_done_cleanup(void)
 static int fsl_qman_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node;
+	struct device_analde *analde = dev->of_analde;
 	struct resource *res;
 	int ret, err_irq;
 	u16 id;
-	u8 major, minor;
+	u8 major, mianalr;
 
 	__qman_probed = -1;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		dev_err(dev, "Can't get %pOF property 'IORESOURCE_MEM'\n",
-			node);
+			analde);
 		return -ENXIO;
 	}
 	qm_ccsr_start = devm_ioremap(dev, res->start, resource_size(res));
 	if (!qm_ccsr_start)
 		return -ENXIO;
 
-	qm_get_version(&id, &major, &minor);
-	if (major == 1 && minor == 0) {
-		dev_err(dev, "Rev1.0 on P4080 rev1 is not supported!\n");
-			return -ENODEV;
-	} else if (major == 1 && minor == 1)
+	qm_get_version(&id, &major, &mianalr);
+	if (major == 1 && mianalr == 0) {
+		dev_err(dev, "Rev1.0 on P4080 rev1 is analt supported!\n");
+			return -EANALDEV;
+	} else if (major == 1 && mianalr == 1)
 		qman_ip_rev = QMAN_REV11;
-	else if	(major == 1 && minor == 2)
+	else if	(major == 1 && mianalr == 2)
 		qman_ip_rev = QMAN_REV12;
-	else if (major == 2 && minor == 0)
+	else if (major == 2 && mianalr == 0)
 		qman_ip_rev = QMAN_REV20;
-	else if (major == 3 && minor == 0)
+	else if (major == 3 && mianalr == 0)
 		qman_ip_rev = QMAN_REV30;
-	else if (major == 3 && minor == 1)
+	else if (major == 3 && mianalr == 1)
 		qman_ip_rev = QMAN_REV31;
-	else if (major == 3 && minor == 2)
+	else if (major == 3 && mianalr == 2)
 		qman_ip_rev = QMAN_REV32;
 	else {
-		dev_err(dev, "Unknown QMan version\n");
-		return -ENODEV;
+		dev_err(dev, "Unkanalwn QMan version\n");
+		return -EANALDEV;
 	}
 
 	if ((qman_ip_rev & 0xff00) >= QMAN_REV30) {
@@ -804,7 +804,7 @@ static int fsl_qman_probe(struct platform_device *pdev)
 		 */
 		zero_priv_mem(fqd_a, fqd_sz);
 #else
-		WARN(1, "Unexpected architecture using non shared-dma-mem reservations");
+		WARN(1, "Unexpected architecture using analn shared-dma-mem reservations");
 #endif
 	} else {
 		/*
@@ -816,7 +816,7 @@ static int fsl_qman_probe(struct platform_device *pdev)
 		if (ret) {
 			dev_err(dev, "qbman_init_private_mem() for FQD failed 0x%x\n",
 				ret);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 	dev_dbg(dev, "Allocated FQD 0x%llx 0x%zx\n", fqd_a, fqd_sz);
@@ -827,7 +827,7 @@ static int fsl_qman_probe(struct platform_device *pdev)
 		if (ret) {
 			dev_err(dev, "qbman_init_private_mem() for PFDR failed 0x%x\n",
 				ret);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 	dev_dbg(dev, "Allocated PFDR 0x%llx 0x%zx\n", pfdr_a, pfdr_sz);
@@ -841,14 +841,14 @@ static int fsl_qman_probe(struct platform_device *pdev)
 	err_irq = platform_get_irq(pdev, 0);
 	if (err_irq <= 0) {
 		dev_info(dev, "Can't get %pOF property 'interrupts'\n",
-			 node);
-		return -ENODEV;
+			 analde);
+		return -EANALDEV;
 	}
 	ret = devm_request_irq(dev, err_irq, qman_isr, IRQF_SHARED, "qman-err",
 			       dev);
 	if (ret)  {
 		dev_err(dev, "devm_request_irq() failed %d for '%pOF'\n",
-			ret, node);
+			ret, analde);
 		return ret;
 	}
 

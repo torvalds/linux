@@ -51,8 +51,8 @@
 
 /*
   Define the maximum, maximum automatic, minimum automatic, and default Queue
-  Depth to allow for Target Devices depending on whether or not they support
-  Tagged Queuing and whether or not ISA Bounce Buffers are required.
+  Depth to allow for Target Devices depending on whether or analt they support
+  Tagged Queuing and whether or analt ISA Bounce Buffers are required.
 */
 
 #define BLOGIC_MAX_TAG_DEPTH		64
@@ -76,8 +76,8 @@
 /*
   Define the maximum number of Mailboxes that should be used for MultiMaster
   Host Adapters.  This number is chosen to be larger than the maximum Host
-  Adapter Queue Depth and small enough so that the Host Adapter structure
-  does not cross an allocation block size boundary.
+  Adapter Queue Depth and small eanalugh so that the Host Adapter structure
+  does analt cross an allocation block size boundary.
 */
 
 #define BLOGIC_MAX_MAILBOX		211
@@ -104,28 +104,28 @@
 */
 
 enum blogic_msglevel {
-	BLOGIC_ANNOUNCE_LEVEL = 0,
+	BLOGIC_ANANALUNCE_LEVEL = 0,
 	BLOGIC_INFO_LEVEL = 1,
-	BLOGIC_NOTICE_LEVEL = 2,
+	BLOGIC_ANALTICE_LEVEL = 2,
 	BLOGIC_WARN_LEVEL = 3,
 	BLOGIC_ERR_LEVEL = 4
 };
 
-static char *blogic_msglevelmap[] = { KERN_NOTICE, KERN_NOTICE, KERN_NOTICE, KERN_WARNING, KERN_ERR };
+static char *blogic_msglevelmap[] = { KERN_ANALTICE, KERN_ANALTICE, KERN_ANALTICE, KERN_WARNING, KERN_ERR };
 
 
 /*
   Define Driver Message macros.
 */
 
-#define blogic_announce(format, args...) \
-	blogic_msg(BLOGIC_ANNOUNCE_LEVEL, format, ##args)
+#define blogic_ananalunce(format, args...) \
+	blogic_msg(BLOGIC_ANANALUNCE_LEVEL, format, ##args)
 
 #define blogic_info(format, args...) \
 	blogic_msg(BLOGIC_INFO_LEVEL, format, ##args)
 
-#define blogic_notice(format, args...) \
-	blogic_msg(BLOGIC_NOTICE_LEVEL, format, ##args)
+#define blogic_analtice(format, args...) \
+	blogic_msg(BLOGIC_ANALTICE_LEVEL, format, ##args)
 
 #define blogic_warn(format, args...) \
 	blogic_msg(BLOGIC_WARN_LEVEL, format, ##args)
@@ -175,7 +175,7 @@ static int blogic_adapter_addr_count[3] = { 0, BLOGIC_MULTIMASTER_ADDR_COUNT, BL
 */
 
 enum blogic_adapter_bus_type {
-	BLOGIC_UNKNOWN_BUS = 0,
+	BLOGIC_UNKANALWN_BUS = 0,
 	BLOGIC_ISA_BUS = 1,
 	BLOGIC_EISA_BUS = 2,
 	BLOGIC_PCI_BUS = 3,
@@ -183,14 +183,14 @@ enum blogic_adapter_bus_type {
 	BLOGIC_MCA_BUS = 5
 } PACKED;
 
-static char *blogic_adapter_busnames[] = { "Unknown", "ISA", "EISA", "PCI", "VESA", "MCA" };
+static char *blogic_adapter_busnames[] = { "Unkanalwn", "ISA", "EISA", "PCI", "VESA", "MCA" };
 
 static enum blogic_adapter_bus_type blogic_adater_bus_types[] = {
 	BLOGIC_VESA_BUS,	/* BT-4xx */
 	BLOGIC_ISA_BUS,		/* BT-5xx */
 	BLOGIC_MCA_BUS,		/* BT-6xx */
 	BLOGIC_EISA_BUS,	/* BT-7xx */
-	BLOGIC_UNKNOWN_BUS,	/* BT-8xx */
+	BLOGIC_UNKANALWN_BUS,	/* BT-8xx */
 	BLOGIC_PCI_BUS		/* BT-9xx */
 };
 
@@ -199,7 +199,7 @@ static enum blogic_adapter_bus_type blogic_adater_bus_types[] = {
 */
 
 enum blogic_bios_diskgeometry {
-	BLOGIC_BIOS_NODISK = 0,
+	BLOGIC_BIOS_ANALDISK = 0,
 	BLOGIC_BIOS_DISK64x32 = 1,
 	BLOGIC_BIOS_DISK128x32 = 2,
 	BLOGIC_BIOS_DISK255x63 = 3
@@ -236,9 +236,9 @@ struct blogic_probeinfo {
 */
 
 struct blogic_probe_options {
-	bool noprobe:1;			/* Bit 0 */
-	bool noprobe_pci:1;		/* Bit 2 */
-	bool nosort_pci:1;		/* Bit 3 */
+	bool analprobe:1;			/* Bit 0 */
+	bool analprobe_pci:1;		/* Bit 2 */
+	bool analsort_pci:1;		/* Bit 3 */
 	bool multimaster_first:1;	/* Bit 4 */
 	bool flashpoint_first:1;	/* Bit 5 */
 };
@@ -362,7 +362,7 @@ enum blogic_opcode {
 	BLOGIC_INQ_FWVER_D3 = 0x84,
 	BLOGIC_INQ_FWVER_LETTER = 0x85,
 	BLOGIC_INQ_PCI_INFO = 0x86,
-	BLOGIC_INQ_MODELNO = 0x8B,
+	BLOGIC_INQ_MODELANAL = 0x8B,
 	BLOGIC_INQ_SYNC_PERIOD = 0x8C,
 	BLOGIC_INQ_EXTSETUP = 0x8D,
 	BLOGIC_STRICT_RR = 0x8F,
@@ -555,7 +555,7 @@ struct blogic_autoscsi {
 	bool low_term:1;			/* Byte 15 Bit 0 */
 	bool parity:1;				/* Byte 15 Bit 1 */
 	bool high_term:1;			/* Byte 15 Bit 2 */
-	bool noisy_cable:1;			/* Byte 15 Bit 3 */
+	bool analisy_cable:1;			/* Byte 15 Bit 3 */
 	bool fast_sync_neg:1;			/* Byte 15 Bit 4 */
 	bool reset_enabled:1;			/* Byte 15 Bit 5 */
 	bool:1;					/* Byte 15 Bit 6 */
@@ -576,7 +576,7 @@ struct blogic_autoscsi {
 	unsigned short sync_ok;			/* Bytes 25-26 */
 	unsigned short discon_ok;		/* Bytes 27-28 */
 	unsigned short send_start_unit;		/* Bytes 29-30 */
-	unsigned short ignore_bios_scan;	/* Bytes 31-32 */
+	unsigned short iganalre_bios_scan;	/* Bytes 31-32 */
 	unsigned char pci_int_pin:2;		/* Byte 33 Bits 0-1 */
 	unsigned char adapter_ioport:2;		/* Byte 33 Bits 2-3 */
 	bool strict_rr_enabled:1;		/* Byte 33 Bit 4 */
@@ -600,7 +600,7 @@ struct blogic_autoscsi {
 	unsigned char boot_ch:4;		/* Byte 44 Bits 4-7 */
 	unsigned char force_scan_order:1;	/* Byte 45 Bit 0 */
 	unsigned char:7;			/* Byte 45 Bits 1-7 */
-	unsigned short nontagged_to_alt_ok;	/* Bytes 46-47 */
+	unsigned short analntagged_to_alt_ok;	/* Bytes 46-47 */
 	unsigned short reneg_sync_on_check;	/* Bytes 48-49 */
 	unsigned char rsvd[10];			/* Bytes 50-59 */
 	unsigned char manuf_diag[2];		/* Bytes 60-61 */
@@ -652,7 +652,7 @@ enum blogic_action {
 
 /*
   Define the Incoming Mailbox Completion Codes.  The MultiMaster Firmware
-  only uses codes 0 - 4.  The FlashPoint SCCB Manager has no mailboxes, so
+  only uses codes 0 - 4.  The FlashPoint SCCB Manager has anal mailboxes, so
   completion codes are stored in the CCB; it only uses codes 1, 2, 4, and 5.
 */
 
@@ -660,7 +660,7 @@ enum blogic_cmplt_code {
 	BLOGIC_INBOX_FREE = 0x00,
 	BLOGIC_CMD_COMPLETE_GOOD = 0x01,
 	BLOGIC_CMD_ABORT_BY_HOST = 0x02,
-	BLOGIC_CMD_NOTFOUND = 0x03,
+	BLOGIC_CMD_ANALTFOUND = 0x03,
 	BLOGIC_CMD_COMPLETE_ERROR = 0x04,
 	BLOGIC_INVALID_CCB = 0x05
 } PACKED;
@@ -687,23 +687,23 @@ enum blogic_datadir {
 	BLOGIC_UNCHECKED_TX = 0,
 	BLOGIC_DATAIN_CHECKED = 1,
 	BLOGIC_DATAOUT_CHECKED = 2,
-	BLOGIC_NOTX = 3
+	BLOGIC_ANALTX = 3
 };
 
 
 /*
-  Define the Host Adapter Status Codes.  The MultiMaster Firmware does not
+  Define the Host Adapter Status Codes.  The MultiMaster Firmware does analt
   return status code 0x0C; it uses 0x12 for both overruns and underruns.
 */
 
 enum blogic_adapter_status {
-	BLOGIC_CMD_CMPLT_NORMAL = 0x00,
+	BLOGIC_CMD_CMPLT_ANALRMAL = 0x00,
 	BLOGIC_LINK_CMD_CMPLT = 0x0A,
 	BLOGIC_LINK_CMD_CMPLT_FLAG = 0x0B,
 	BLOGIC_DATA_UNDERRUN = 0x0C,
 	BLOGIC_SELECT_TIMEOUT = 0x11,
 	BLOGIC_DATA_OVERRUN = 0x12,
-	BLOGIC_NOEXPECT_BUSFREE = 0x13,
+	BLOGIC_ANALEXPECT_BUSFREE = 0x13,
 	BLOGIC_INVALID_BUSPHASE = 0x14,
 	BLOGIC_INVALID_OUTBOX_CODE = 0x15,
 	BLOGIC_INVALID_CMD_CODE = 0x16,
@@ -713,7 +713,7 @@ enum blogic_adapter_status {
 	BLOGIC_TAGQUEUE_REJECT = 0x1C,
 	BLOGIC_BAD_MSG_RCVD = 0x1D,
 	BLOGIC_HW_FAIL = 0x20,
-	BLOGIC_NORESPONSE_TO_ATN = 0x21,
+	BLOGIC_ANALRESPONSE_TO_ATN = 0x21,
 	BLOGIC_HW_RESET = 0x22,
 	BLOGIC_RST_FROM_OTHERDEV = 0x23,
 	BLOGIC_BAD_RECONNECT = 0x24,
@@ -982,7 +982,7 @@ struct blogic_adapter {
 	unsigned long io_addr;
 	unsigned long pci_addr;
 	unsigned short addr_count;
-	unsigned char host_no;
+	unsigned char host_anal;
 	unsigned char model[9];
 	unsigned char fw_ver[6];
 	unsigned char full_model[18];
@@ -1175,7 +1175,7 @@ static inline unsigned char blogic_rdgeom(struct blogic_adapter *adapter)
 
 /*
   blogic_execmbox issues an Execute Mailbox Command, which
-  notifies the Host Adapter that an entry has been made in an Outgoing
+  analtifies the Host Adapter that an entry has been made in an Outgoing
   Mailbox.
 */
 
@@ -1262,7 +1262,7 @@ static inline void blogic_incszbucket(unsigned int *cmdsz_buckets,
   Define the possible return values from FlashPoint_HandleInterrupt.
 */
 
-#define FPOINT_NORMAL_INT		0x00
+#define FPOINT_ANALRMAL_INT		0x00
 #define FPOINT_INTERN_ERR		0xFE
 #define FPOINT_EXT_RESET		0xFF
 

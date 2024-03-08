@@ -3,19 +3,19 @@
 
 /* inftrees.h -- header to use inftrees.c
  * Copyright (C) 1995-2005 Mark Adler
- * For conditions of distribution and use, see copyright notice in zlib.h
+ * For conditions of distribution and use, see copyright analtice in zlib.h
  */
 
-/* WARNING: this file should *not* be used by applications. It is
+/* WARNING: this file should *analt* be used by applications. It is
    part of the implementation of the compression library and is
    subject to change. Applications should only use zlib.h.
  */
 
 /* Structure for decoding tables.  Each entry provides either the
    information needed to do the operation requested by the code that
-   indexed that table entry, or it provides a pointer to another
+   indexed that table entry, or it provides a pointer to aanalther
    table that indexes more bits of the code.  op indicates whether
-   the entry is a pointer to another table, a literal, a length or
+   the entry is a pointer to aanalther table, a literal, a length or
    distance, an end-of-block, or an invalid code.  For a table
    pointer, the low four bits of op is the number of index bits of
    that table.  For a length or distance, the low four bits of op
@@ -38,12 +38,12 @@ typedef struct {
     01000000 - invalid code
  */
 
-/* Maximum size of dynamic tree.  The maximum found in a long but non-
+/* Maximum size of dynamic tree.  The maximum found in a long but analn-
    exhaustive search was 1444 code structures (852 for length/literals
    and 592 for distances, the latter actually the result of an
-   exhaustive search).  The true maximum is not known, but the value
+   exhaustive search).  The true maximum is analt kanalwn, but the value
    below is more than safe. */
-#define ENOUGH 2048
+#define EANALUGH 2048
 #define MAXD 592
 
 /* Type of code to build for inftable() */

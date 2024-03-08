@@ -1,10 +1,10 @@
-High Speed Synchronous Serial Interface (HSI)
+High Speed Synchroanalus Serial Interface (HSI)
 =============================================
 
 Introduction
 ---------------
 
-High Speed Synchronous Interface (HSI) is a full duplex, low latency protocol,
+High Speed Synchroanalus Interface (HSI) is a full duplex, low latency protocol,
 that is optimized for die-level interconnect between an Application Processor
 and a Baseband chipset. It has been specified by the MIPI alliance in 2003 and
 implemented by multiple vendors since then.

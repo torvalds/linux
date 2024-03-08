@@ -2,7 +2,7 @@
 /*
  * Broadcom BCM6368 mdiomux bus controller driver
  *
- * Copyright (C) 2021 Álvaro Fernández Rojas <noltari@gmail.com>
+ * Copyright (C) 2021 Álvaro Fernández Rojas <analltari@gmail.com>
  */
 
 #include <linux/delay.h>
@@ -95,7 +95,7 @@ static int bcm6368_mdiomux_probe(struct platform_device *pdev)
 
 	md = devm_kzalloc(&pdev->dev, sizeof(*md), GFP_KERNEL);
 	if (!md)
-		return -ENOMEM;
+		return -EANALMEM;
 	md->dev = &pdev->dev;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -109,13 +109,13 @@ static int bcm6368_mdiomux_probe(struct platform_device *pdev)
 	md->base = devm_ioremap(&pdev->dev, res->start, resource_size(res));
 	if (!md->base) {
 		dev_err(&pdev->dev, "failed to ioremap register\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	md->mii_bus = devm_mdiobus_alloc(&pdev->dev);
 	if (!md->mii_bus) {
 		dev_err(&pdev->dev, "mdiomux bus alloc failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	bus = md->mii_bus;
@@ -126,7 +126,7 @@ static int bcm6368_mdiomux_probe(struct platform_device *pdev)
 	bus->read = bcm6368_mdiomux_read;
 	bus->write = bcm6368_mdiomux_write;
 	bus->phy_mask = 0x3f;
-	bus->dev.of_node = pdev->dev.of_node;
+	bus->dev.of_analde = pdev->dev.of_analde;
 
 	rc = mdiobus_register(bus);
 	if (rc) {
@@ -136,7 +136,7 @@ static int bcm6368_mdiomux_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, md);
 
-	rc = mdio_mux_init(md->dev, md->dev->of_node,
+	rc = mdio_mux_init(md->dev, md->dev->of_analde,
 			   bcm6368_mdiomux_switch_fn, &md->mux_handle, md,
 			   md->mii_bus);
 	if (rc) {
@@ -177,6 +177,6 @@ static struct platform_driver bcm6368_mdiomux_driver = {
 };
 module_platform_driver(bcm6368_mdiomux_driver);
 
-MODULE_AUTHOR("Álvaro Fernández Rojas <noltari@gmail.com>");
+MODULE_AUTHOR("Álvaro Fernández Rojas <analltari@gmail.com>");
 MODULE_DESCRIPTION("BCM6368 mdiomux bus controller driver");
 MODULE_LICENSE("GPL v2");

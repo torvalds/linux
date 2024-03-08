@@ -16,7 +16,7 @@ struct ila_xlat_params {
 
 struct ila_map {
 	struct ila_xlat_params xp;
-	struct rhash_head node;
+	struct rhash_head analde;
 	struct ila_map __rcu *next;
 	struct rcu_head rcu;
 };
@@ -83,7 +83,7 @@ static inline int ila_order(struct ila_map *ila)
 
 static const struct rhashtable_params rht_params = {
 	.nelem_hint = 1024,
-	.head_offset = offsetof(struct ila_map, node),
+	.head_offset = offsetof(struct ila_map, analde),
 	.key_offset = offsetof(struct ila_map, xp.ip.locator_match),
 	.key_len = sizeof(u64), /* identifier */
 	.max_size = 1048576,
@@ -108,7 +108,7 @@ static int parse_nl_config(struct genl_info *info,
 	if (info->attrs[ILA_ATTR_CSUM_MODE])
 		xp->ip.csum_mode = nla_get_u8(info->attrs[ILA_ATTR_CSUM_MODE]);
 	else
-		xp->ip.csum_mode = ILA_CSUM_NO_ACTION;
+		xp->ip.csum_mode = ILA_CSUM_ANAL_ACTION;
 
 	if (info->attrs[ILA_ATTR_IDENT_TYPE])
 		xp->ip.ident_type = nla_get_u8(
@@ -163,7 +163,7 @@ static inline void ila_release(struct ila_map *ila)
 	kfree_rcu(ila, rcu);
 }
 
-static void ila_free_node(struct ila_map *ila)
+static void ila_free_analde(struct ila_map *ila)
 {
 	struct ila_map *next;
 
@@ -177,7 +177,7 @@ static void ila_free_node(struct ila_map *ila)
 
 static void ila_free_cb(void *ptr, void *arg)
 {
-	ila_free_node((struct ila_map *)ptr);
+	ila_free_analde((struct ila_map *)ptr);
 }
 
 static int ila_xlat_addr(struct sk_buff *skb, bool sir2ila);
@@ -221,7 +221,7 @@ static int ila_add_mapping(struct net *net, struct ila_xlat_params *xp)
 
 	ila = kzalloc(sizeof(*ila), GFP_KERNEL);
 	if (!ila)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ila_init_saved_csum(&xp->ip);
 
@@ -237,7 +237,7 @@ static int ila_add_mapping(struct net *net, struct ila_xlat_params *xp)
 	if (!head) {
 		/* New entry for the rhash_table */
 		err = rhashtable_lookup_insert_fast(&ilan->xlat.rhash_table,
-						    &ila->node, rht_params);
+						    &ila->analde, rht_params);
 	} else {
 		struct ila_map *tila = head, *prev = NULL;
 
@@ -263,8 +263,8 @@ static int ila_add_mapping(struct net *net, struct ila_xlat_params *xp)
 			/* Make this ila new head */
 			RCU_INIT_POINTER(ila->next, head);
 			err = rhashtable_replace_fast(&ilan->xlat.rhash_table,
-						      &head->node,
-						      &ila->node, rht_params);
+						      &head->analde,
+						      &ila->analde, rht_params);
 			if (err)
 				goto out;
 		}
@@ -284,7 +284,7 @@ static int ila_del_mapping(struct net *net, struct ila_xlat_params *xp)
 	struct ila_net *ilan = net_generic(net, ila_net_id);
 	struct ila_map *ila, *head, *prev;
 	spinlock_t *lock = ila_get_lock(ilan, xp->ip.locator_match);
-	int err = -ENOENT;
+	int err = -EANALENT;
 
 	spin_lock(lock);
 
@@ -305,7 +305,7 @@ static int ila_del_mapping(struct net *net, struct ila_xlat_params *xp)
 		err = 0;
 
 		if (prev) {
-			/* Not head, just delete from list */
+			/* Analt head, just delete from list */
 			rcu_assign_pointer(prev->next, ila->next);
 		} else {
 			/* It is the head. If there is something in the
@@ -318,15 +318,15 @@ static int ila_del_mapping(struct net *net, struct ila_xlat_params *xp)
 				 * table
 				 */
 				err = rhashtable_replace_fast(
-					&ilan->xlat.rhash_table, &ila->node,
-					&head->node, rht_params);
+					&ilan->xlat.rhash_table, &ila->analde,
+					&head->analde, rht_params);
 				if (err)
 					goto out;
 			} else {
-				/* Entry no longer used */
+				/* Entry anal longer used */
 				err = rhashtable_remove_fast(
 						&ilan->xlat.rhash_table,
-						&ila->node, rht_params);
+						&ila->analde, rht_params);
 			}
 		}
 
@@ -404,9 +404,9 @@ int ila_xlat_nl_cmd_flush(struct sk_buff *skb, struct genl_info *info)
 		spin_lock(lock);
 
 		ret = rhashtable_remove_fast(&ilan->xlat.rhash_table,
-					     &ila->node, rht_params);
+					     &ila->analde, rht_params);
 		if (!ret)
-			ila_free_node(ila);
+			ila_free_analde(ila);
 
 		spin_unlock(lock);
 
@@ -444,7 +444,7 @@ static int ila_dump_info(struct ila_map *ila,
 
 	hdr = genlmsg_put(skb, portid, seq, &ila_nl_family, flags, cmd);
 	if (!hdr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (ila_fill_info(ila, skb) < 0)
 		goto nla_put_failure;
@@ -472,7 +472,7 @@ int ila_xlat_nl_cmd_get_mapping(struct sk_buff *skb, struct genl_info *info)
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rcu_read_lock();
 
@@ -510,7 +510,7 @@ int ila_xlat_nl_dump_start(struct netlink_callback *cb)
 
 	iter = kmalloc(sizeof(*iter), GFP_KERNEL);
 	if (!iter)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rhashtable_walk_enter(&ilan->xlat.rhash_table, &iter->rhiter);
 
@@ -642,7 +642,7 @@ static int ila_xlat_addr(struct sk_buff *skb, bool sir2ila)
 
 	/* Assumes skb contains a valid IPv6 header that is pulled */
 
-	/* No check here that ILA type in the mapping matches what is in the
+	/* Anal check here that ILA type in the mapping matches what is in the
 	 * address. We assume that whatever sender gaves us can be translated.
 	 * The checksum mode however is relevant.
 	 */

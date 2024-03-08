@@ -5,10 +5,10 @@
 
 /*
  * Driver: usbduxfast
- * Description: University of Stirling USB DAQ & INCITE Technology Limited
+ * Description: University of Stirling USB DAQ & INCITE Techanallogy Limited
  * Devices: [ITL] USB-DUX-FAST (usbduxfast)
  * Author: Bernd Porr <mail@berndporr.me.uk>
- * Updated: 16 Nov 2019
+ * Updated: 16 Analv 2019
  * Status: stable
  */
 
@@ -25,7 +25,7 @@
  * 1.0: Fixed a rounding error in usbduxfast_ai_cmdtest
  * 0.9: Dropping the first data packet which seems to be from the last transfer.
  *      Buffer overflows in the FX2 are handed over to comedi.
- * 0.92: Dropping now 4 packets. The quad buffer has to be emptied.
+ * 0.92: Dropping analw 4 packets. The quad buffer has to be emptied.
  *       Added insn command basically for testing. Sample rate is
  *       1MHz/16ch=62.5kHz
  * 0.99: Ian Abbott pointed out a bug which has been corrected. Thanks!
@@ -125,10 +125,10 @@
 #define MAX_SAMPLING_PERIOD	500
 
 /*
- * number of received packets to ignore before we start handing data
- * over to comedi, it's quad buffering and we have to ignore 4 packets
+ * number of received packets to iganalre before we start handing data
+ * over to comedi, it's quad buffering and we have to iganalre 4 packets
  */
-#define PACKETS_TO_IGNORE	4
+#define PACKETS_TO_IGANALRE	4
 
 /*
  * comedi constants
@@ -144,14 +144,14 @@ static const struct comedi_lrange range_usbduxfast_ai_range = {
  * private structure of one subdevice
  *
  * this is the structure which holds all the data of this driver
- * one sub device just now: A/D
+ * one sub device just analw: A/D
  */
 struct usbduxfast_private {
 	struct urb *urb;	/* BULK-transfer handling: urb */
 	u8 *duxbuf;
 	s8 *inbuf;
-	short int ai_cmd_running;	/* asynchronous command is running */
-	int ignore;		/* counter which ignores the first buffers */
+	short int ai_cmd_running;	/* asynchroanalus command is running */
+	int iganalre;		/* counter which iganalres the first buffers */
 	struct mutex mut;
 };
 
@@ -175,7 +175,7 @@ static int usbduxfast_send_cmd(struct comedi_device *dev, int cmd_type)
 			   &nsent, 10000);
 	if (ret < 0)
 		dev_err(dev->class_dev,
-			"could not transmit command to the usb-device, err=%d\n",
+			"could analt transmit command to the usb-device, err=%d\n",
 			ret);
 	return ret;
 }
@@ -229,8 +229,8 @@ static void usbduxfast_ai_handle_urb(struct comedi_device *dev,
 	struct comedi_cmd *cmd = &async->cmd;
 	int ret;
 
-	if (devpriv->ignore) {
-		devpriv->ignore--;
+	if (devpriv->iganalre) {
+		devpriv->iganalre--;
 	} else {
 		unsigned int nsamples;
 
@@ -262,7 +262,7 @@ static void usbduxfast_ai_interrupt(struct urb *urb)
 	struct comedi_async *async = s->async;
 	struct usbduxfast_private *devpriv = dev->private;
 
-	/* exit if not running a command, do not resubmit urb */
+	/* exit if analt running a command, do analt resubmit urb */
 	if (!devpriv->ai_cmd_running)
 		return;
 
@@ -272,7 +272,7 @@ static void usbduxfast_ai_interrupt(struct urb *urb)
 		break;
 
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 	case -ECONNABORTED:
 		/* after an unlink command, unplug, ... etc */
@@ -282,14 +282,14 @@ static void usbduxfast_ai_interrupt(struct urb *urb)
 	default:
 		/* a real error */
 		dev_err(dev->class_dev,
-			"non-zero urb status received in ai intr context: %d\n",
+			"analn-zero urb status received in ai intr context: %d\n",
 			urb->status);
 		async->events |= COMEDI_CB_ERROR;
 		break;
 	}
 
 	/*
-	 * comedi_handle_events() cannot be used in this driver. The (*cancel)
+	 * comedi_handle_events() cananalt be used in this driver. The (*cancel)
 	 * operation would unlink the urb.
 	 */
 	if (async->events & COMEDI_CB_CANCEL_MASK)
@@ -334,7 +334,7 @@ static int usbduxfast_ai_check_chanlist(struct comedi_device *dev,
 
 		if (chan != i) {
 			dev_err(dev->class_dev,
-				"channels are not consecutive\n");
+				"channels are analt consecutive\n");
 			return -EINVAL;
 		}
 		if (gain != gain0 && cmd->chanlist_len > 3) {
@@ -358,11 +358,11 @@ static int usbduxfast_ai_cmdtest(struct comedi_device *dev,
 	/* Step 1 : check if triggers are trivially valid */
 
 	err |= comedi_check_trigger_src(&cmd->start_src,
-					TRIG_NOW | TRIG_EXT | TRIG_INT);
+					TRIG_ANALW | TRIG_EXT | TRIG_INT);
 	err |= comedi_check_trigger_src(&cmd->scan_begin_src, TRIG_FOLLOW);
 	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_TIMER);
 	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_ANALNE);
 
 	if (err)
 		return 1;
@@ -414,7 +414,7 @@ static int usbduxfast_ai_cmdtest(struct comedi_device *dev,
 
 	if (cmd->stop_src == TRIG_COUNT)
 		err |= comedi_check_trigger_arg_min(&cmd->stop_arg, 1);
-	else	/* TRIG_NONE */
+	else	/* TRIG_ANALNE */
 		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
@@ -477,10 +477,10 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 	}
 
 	/*
-	 * ignore the first buffers from the device if there
+	 * iganalre the first buffers from the device if there
 	 * is an error condition
 	 */
-	devpriv->ignore = PACKETS_TO_IGNORE;
+	devpriv->iganalre = PACKETS_TO_IGANALRE;
 
 	steps = (cmd->convert_arg * 30) / 1000;
 
@@ -640,7 +640,7 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 			 * of the delay
 			 */
 			/* data */
-			/* no change */
+			/* anal change */
 			usbduxfast_cmd_data(dev, index, steps / 2,
 					    0x02, rngmask, 0x00);
 
@@ -650,7 +650,7 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 				rngmask = 0xff;
 
 			/* do the second part of the delay */
-			/* no data */
+			/* anal data */
 			/* count */
 			usbduxfast_cmd_data(dev, index + 1, steps - steps / 2,
 					    0x00, 0xfe & rngmask, 0x00);
@@ -670,7 +670,7 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 			rngmask = 0xff;
 
 		/* do the second part of the delay */
-		/* no data */
+		/* anal data */
 		/* reset */
 		usbduxfast_cmd_data(dev, 5, steps_tmp - steps_tmp / 2,
 				    0x00, (0xff - 0x02) & rngmask, 0x00);
@@ -734,7 +734,7 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 	if (ret < 0)
 		goto cmd_exit;
 
-	if ((cmd->start_src == TRIG_NOW) || (cmd->start_src == TRIG_EXT)) {
+	if ((cmd->start_src == TRIG_ANALW) || (cmd->start_src == TRIG_EXT)) {
 		/* enable this acquisition operation */
 		devpriv->ai_cmd_running = 1;
 		ret = usbduxfast_submit_urb(dev);
@@ -774,7 +774,7 @@ static int usbduxfast_ai_insn_read(struct comedi_device *dev,
 
 	if (devpriv->ai_cmd_running) {
 		dev_err(dev->class_dev,
-			"ai_insn_read not possible, async cmd is running\n");
+			"ai_insn_read analt possible, async cmd is running\n");
 		mutex_unlock(&devpriv->mut);
 		return -EBUSY;
 	}
@@ -801,12 +801,12 @@ static int usbduxfast_ai_insn_read(struct comedi_device *dev,
 		return ret;
 	}
 
-	for (i = 0; i < PACKETS_TO_IGNORE; i++) {
+	for (i = 0; i < PACKETS_TO_IGANALRE; i++) {
 		ret = usb_bulk_msg(usb, usb_rcvbulkpipe(usb, BULKINEP),
 				   devpriv->inbuf, SIZEINBUF,
 				   &actual_length, 10000);
 		if (ret < 0) {
-			dev_err(dev->class_dev, "insn timeout, no data\n");
+			dev_err(dev->class_dev, "insn timeout, anal data\n");
 			mutex_unlock(&devpriv->mut);
 			return ret;
 		}
@@ -852,19 +852,19 @@ static int usbduxfast_upload_firmware(struct comedi_device *dev,
 
 	if (size > FIRMWARE_MAX_LEN) {
 		dev_err(dev->class_dev, "firmware binary too large for FX2\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* we generate a local buffer for the firmware */
 	buf = kmemdup(data, size, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* we need a malloc'ed buffer for usb_control_msg() */
 	tmp = kmalloc(1, GFP_KERNEL);
 	if (!tmp) {
 		kfree(buf);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* stop the current firmware on the device */
@@ -876,7 +876,7 @@ static int usbduxfast_upload_firmware(struct comedi_device *dev,
 			      tmp, 1,
 			      EZTIMEOUT);
 	if (ret < 0) {
-		dev_err(dev->class_dev, "can not stop firmware\n");
+		dev_err(dev->class_dev, "can analt stop firmware\n");
 		goto done;
 	}
 
@@ -901,7 +901,7 @@ static int usbduxfast_upload_firmware(struct comedi_device *dev,
 			      tmp, 1,
 			      EZTIMEOUT);
 	if (ret < 0)
-		dev_err(dev->class_dev, "can not start firmware\n");
+		dev_err(dev->class_dev, "can analt start firmware\n");
 
 done:
 	kfree(tmp);
@@ -921,35 +921,35 @@ static int usbduxfast_auto_attach(struct comedi_device *dev,
 	if (usb->speed != USB_SPEED_HIGH) {
 		dev_err(dev->class_dev,
 			"This driver needs USB 2.0 to operate. Aborting...\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&devpriv->mut);
 	usb_set_intfdata(intf, devpriv);
 
 	devpriv->duxbuf = kmalloc(SIZEOFDUXBUF, GFP_KERNEL);
 	if (!devpriv->duxbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = usb_set_interface(usb,
 				intf->altsetting->desc.bInterfaceNumber, 1);
 	if (ret < 0) {
 		dev_err(dev->class_dev,
-			"could not switch to alternate setting 1\n");
-		return -ENODEV;
+			"could analt switch to alternate setting 1\n");
+		return -EANALDEV;
 	}
 
 	devpriv->urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!devpriv->urb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	devpriv->inbuf = kmalloc(SIZEINBUF, GFP_KERNEL);
 	if (!devpriv->inbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = comedi_load_firmware(dev, &usb->dev, FIRMWARE,
 				   usbduxfast_upload_firmware, 0);

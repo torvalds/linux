@@ -6,7 +6,7 @@
  * Author(s): Alexander Yarygin <yarygin@linux.vnet.ibm.com>
  */
 
-#include <errno.h>
+#include <erranal.h>
 #include <string.h>
 #include "../../util/kvm-stat.h"
 #include "../../util/evsel.h"
@@ -15,7 +15,7 @@
 define_exit_reasons_table(sie_exit_reasons, sie_intercept_code);
 define_exit_reasons_table(sie_icpt_insn_codes, icpt_insn_codes);
 define_exit_reasons_table(sie_sigp_order_codes, sigp_order_codes);
-define_exit_reasons_table(sie_diagnose_codes, diagnose_codes);
+define_exit_reasons_table(sie_diaganalse_codes, diaganalse_codes);
 define_exit_reasons_table(sie_icpt_prog_codes, icpt_prog_codes);
 
 const char *vcpu_id_str = "id";
@@ -47,7 +47,7 @@ static void event_diag_get_key(struct evsel *evsel,
 			       struct event_key *key)
 {
 	key->key = evsel__intval(evsel, sample, "code");
-	key->exit_reasons = sie_diagnose_codes;
+	key->exit_reasons = sie_diaganalse_codes;
 }
 
 static void event_icpt_prog_get_key(struct evsel *evsel,
@@ -104,7 +104,7 @@ int cpu_isa_init(struct perf_kvm_stat *kvm, const char *cpuid)
 		kvm->exit_reasons = sie_exit_reasons;
 		kvm->exit_reasons_isa = "SIE";
 	} else
-		return -ENOTSUP;
+		return -EANALTSUP;
 
 	return 0;
 }

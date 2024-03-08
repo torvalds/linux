@@ -27,10 +27,10 @@ properties:
       The RPU MPCore can operate in split mode (Dual-processor performance), Safety
       lock-step mode(Both RPU cores execute the same code in lock-step,
       clock-for-clock) or Single CPU mode (RPU core 0 is held in reset while
-      core 1 runs normally). The processor does not support dynamic configuration.
+      core 1 runs analrmally). The processor does analt support dynamic configuration.
       Switching between modes is only permitted immediately after a processor reset.
       If set to  1 then lockstep mode and if 0 then split mode.
-      If set to  2 then single CPU mode. When not defined, default will be lockstep mode.
+      If set to  2 then single CPU mode. When analt defined, default will be lockstep mode.
       In summary,
       0: split mode
       1: lockstep mode (default)
@@ -43,7 +43,7 @@ patternProperties:
       The RPU is located in the Low Power Domain of the Processor Subsystem.
       Each processor includes separate L1 instruction and data caches and
       tightly coupled memories (TCM). System memory is cacheable, but the TCM
-      memory space is non-cacheable.
+      memory space is analn-cacheable.
 
       Each RPU contains one 64KB memory and two 32KB memories that
       are accessed via the TCM A and B port interfaces, for a total of 128KB
@@ -80,8 +80,8 @@ patternProperties:
           the RPU can execute instructions and access data from the OCM memory,
           the main DDR memory, and other system memories.
 
-          The regions should be defined as child nodes of the respective SRAM
-          node, and should be defined as per the generic bindings in
+          The regions should be defined as child analdes of the respective SRAM
+          analde, and should be defined as per the generic bindings in
           Documentation/devicetree/bindings/sram/sram.yaml
 
       memory-region:

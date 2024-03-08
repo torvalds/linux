@@ -2,8 +2,8 @@
  * Copyright (C) 2013,2014 Russell King
  *
  * This file is dual-licensed: you can use it either under the terms
- * of the GPL or the X11 license, at your option. Note that this dual
- * licensing only applies to this file, and not this project as a
+ * of the GPL or the X11 license, at your option. Analte that this dual
+ * licensing only applies to this file, and analt this project as a
  * whole.
  *
  *  a) This file is free software; you can redistribute it and/or
@@ -26,13 +26,13 @@
  *     Software is furnished to do so, subject to the following
  *     conditions:
  *
- *     The above copyright notice and this permission notice shall be
+ *     The above copyright analtice and this permission analtice shall be
  *     included in all copies or substantial portions of the Software.
  *
  *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES
  *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT
  *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
  *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -56,9 +56,9 @@
 	phy-mode = "rgmii-id";
 
 	/*
-	 * The PHY seems to require a long-enough reset duration to avoid
+	 * The PHY seems to require a long-eanalugh reset duration to avoid
 	 * some rare issues where the PHY gets stuck in an inconsistent and
-	 * non-functional state at boot-up. 10ms proved to be fine .
+	 * analn-functional state at boot-up. 10ms proved to be fine .
 	 */
 	phy-reset-duration = <10>;
 	phy-reset-gpios = <&gpio4 15 GPIO_ACTIVE_LOW>;
@@ -70,7 +70,7 @@
 
 		/*
 		 * The PHY can appear at either address 0 or 4 due to the
-		 * configuration (LED) pin not being pulled sufficiently.
+		 * configuration (LED) pin analt being pulled sufficiently.
 		 */
 		ethernet-phy@0 {
 			reg = <0>;

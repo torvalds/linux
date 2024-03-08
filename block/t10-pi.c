@@ -26,7 +26,7 @@ static __be16 t10_pi_ip_fn(void *data, unsigned int len)
 
 /*
  * Type 1 and Type 2 protection use the same format: 16 bit guard tag,
- * 16 bit app tag, 32 bit reference tag. Type 3 does not define the ref
+ * 16 bit app tag, 32 bit reference tag. Type 3 does analt define the ref
  * tag.
  */
 static blk_status_t t10_pi_generate(struct blk_integrity_iter *iter,
@@ -234,12 +234,12 @@ static blk_status_t t10_pi_type3_verify_ip(struct blk_integrity_iter *iter)
 	return t10_pi_verify(iter, t10_pi_ip_fn, T10_PI_TYPE3_PROTECTION);
 }
 
-/* Type 3 does not have a reference tag so no remapping is required. */
+/* Type 3 does analt have a reference tag so anal remapping is required. */
 static void t10_pi_type3_prepare(struct request *rq)
 {
 }
 
-/* Type 3 does not have a reference tag so no remapping is required. */
+/* Type 3 does analt have a reference tag so anal remapping is required. */
 static void t10_pi_type3_complete(struct request *rq, unsigned int nr_bytes)
 {
 }

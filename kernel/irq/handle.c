@@ -43,19 +43,19 @@ EXPORT_SYMBOL_GPL(handle_bad_irq);
 /*
  * Special, empty irq handler:
  */
-irqreturn_t no_action(int cpl, void *dev_id)
+irqreturn_t anal_action(int cpl, void *dev_id)
 {
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
-EXPORT_SYMBOL_GPL(no_action);
+EXPORT_SYMBOL_GPL(anal_action);
 
-static void warn_no_thread(unsigned int irq, struct irqaction *action)
+static void warn_anal_thread(unsigned int irq, struct irqaction *action)
 {
 	if (test_and_set_bit(IRQTF_WARNED, &action->thread_flags))
 		return;
 
 	printk(KERN_WARNING "IRQ %d device %s returned IRQ_WAKE_THREAD "
-	       "but no thread function available.", irq, action->name);
+	       "but anal thread function available.", irq, action->name);
 }
 
 void __irq_wake_thread(struct irq_desc *desc, struct irqaction *action)
@@ -63,14 +63,14 @@ void __irq_wake_thread(struct irq_desc *desc, struct irqaction *action)
 	/*
 	 * In case the thread crashed and was killed we just pretend that
 	 * we handled the interrupt. The hardirq handler has disabled the
-	 * device interrupt, so no irq storm is lurking.
+	 * device interrupt, so anal irq storm is lurking.
 	 */
 	if (action->thread->flags & PF_EXITING)
 		return;
 
 	/*
 	 * Wake up the handler thread for this action. If the
-	 * RUNTHREAD bit is already set, nothing to do.
+	 * RUNTHREAD bit is already set, analthing to do.
 	 */
 	if (test_and_set_bit(IRQTF_RUNTHREAD, &action->thread_flags))
 		return;
@@ -118,7 +118,7 @@ void __irq_wake_thread(struct irq_desc *desc, struct irqaction *action)
 	 * or we are waiting in the flow handler for desc->lock to be
 	 * released before we reach this point. The thread also checks
 	 * IRQTF_RUNTHREAD under desc->lock. If set it leaves
-	 * threads_oneshot untouched and runs the thread another time.
+	 * threads_oneshot untouched and runs the thread aanalther time.
 	 */
 	desc->threads_oneshot |= action->thread_mask;
 
@@ -138,7 +138,7 @@ void __irq_wake_thread(struct irq_desc *desc, struct irqaction *action)
 
 irqreturn_t __handle_irq_event_percpu(struct irq_desc *desc)
 {
-	irqreturn_t retval = IRQ_NONE;
+	irqreturn_t retval = IRQ_ANALNE;
 	unsigned int irq = desc->irq_data.irq;
 	struct irqaction *action;
 
@@ -151,7 +151,7 @@ irqreturn_t __handle_irq_event_percpu(struct irq_desc *desc)
 		 * If this IRQ would be threaded under force_irqthreads, mark it so.
 		 */
 		if (irq_settings_can_thread(desc) &&
-		    !(action->flags & (IRQF_NO_THREAD | IRQF_PERCPU | IRQF_ONESHOT)))
+		    !(action->flags & (IRQF_ANAL_THREAD | IRQF_PERCPU | IRQF_ONESHOT)))
 			lockdep_hardirq_threaded();
 
 		trace_irq_handler_entry(irq, action);
@@ -166,10 +166,10 @@ irqreturn_t __handle_irq_event_percpu(struct irq_desc *desc)
 		case IRQ_WAKE_THREAD:
 			/*
 			 * Catch drivers which return WAKE_THREAD but
-			 * did not set up a thread function
+			 * did analt set up a thread function
 			 */
 			if (unlikely(!action->thread_fn)) {
-				warn_no_thread(irq, action);
+				warn_anal_thread(irq, action);
 				break;
 			}
 
@@ -194,8 +194,8 @@ irqreturn_t handle_irq_event_percpu(struct irq_desc *desc)
 
 	add_interrupt_randomness(desc->irq_data.irq);
 
-	if (!irq_settings_no_debug(desc))
-		note_interrupt(desc, retval);
+	if (!irq_settings_anal_debug(desc))
+		analte_interrupt(desc, retval);
 	return retval;
 }
 
@@ -225,11 +225,11 @@ int __init set_handle_irq(void (*handle_irq)(struct pt_regs *))
 }
 
 /**
- * generic_handle_arch_irq - root irq handler for architectures which do no
+ * generic_handle_arch_irq - root irq handler for architectures which do anal
  *                           entry accounting themselves
  * @regs:	Register file coming from the low-level handling code
  */
-asmlinkage void noinstr generic_handle_arch_irq(struct pt_regs *regs)
+asmlinkage void analinstr generic_handle_arch_irq(struct pt_regs *regs)
 {
 	struct pt_regs *old_regs;
 

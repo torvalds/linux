@@ -15,11 +15,11 @@ Optional Properties:
 
 - ti,palmas-long-press-seconds: Duration in seconds which the power
   button should be kept pressed for Palmas to power off automatically.
-  NOTE: This depends on OTP support and POWERHOLD signal configuration
+  ANALTE: This depends on OTP support and POWERHOLD signal configuration
   on platform. Valid values are 6, 8, 10 and 12.
 - ti,palmas-pwron-debounce-milli-seconds: Duration in milliseconds
   which the power button should be kept pressed for Palmas to register
-  a press for debouncing purposes. NOTE: This depends on specific
+  a press for debouncing purposes. ANALTE: This depends on specific
   Palmas variation capability. Valid values are 15, 100, 500 and 1000.
 
 Example:

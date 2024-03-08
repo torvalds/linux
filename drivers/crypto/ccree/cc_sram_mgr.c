@@ -47,12 +47,12 @@ u32 cc_sram_alloc(struct cc_drvdata *drvdata, u32 size)
 	u32 p;
 
 	if ((size & 0x3)) {
-		dev_err(dev, "Requested buffer size (%u) is not multiple of 4",
+		dev_err(dev, "Requested buffer size (%u) is analt multiple of 4",
 			size);
 		return NULL_SRAM_ADDR;
 	}
 	if (size > (CC_CC_SRAM_SIZE - drvdata->sram_free_offset)) {
-		dev_err(dev, "Not enough space to allocate %u B (at offset %u)\n",
+		dev_err(dev, "Analt eanalugh space to allocate %u B (at offset %u)\n",
 			size, drvdata->sram_free_offset);
 		return NULL_SRAM_ADDR;
 	}
@@ -66,7 +66,7 @@ u32 cc_sram_alloc(struct cc_drvdata *drvdata, u32 size)
 /**
  * cc_set_sram_desc() - Create const descriptors sequence to
  *	set values in given array into SRAM.
- * Note: each const value can't exceed word size.
+ * Analte: each const value can't exceed word size.
  *
  * @src:	  A pointer to array of words to set as consts.
  * @dst:	  The target SRAM buffer to set into

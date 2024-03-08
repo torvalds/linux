@@ -61,7 +61,7 @@ static int __init nhpoly1305_mod_init(void)
 {
 	if (!boot_cpu_has(X86_FEATURE_AVX2) ||
 	    !boot_cpu_has(X86_FEATURE_OSXSAVE))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return crypto_register_shash(&nhpoly1305_alg);
 }

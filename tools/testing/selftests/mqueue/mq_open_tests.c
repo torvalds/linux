@@ -15,7 +15,7 @@
  *
  * mq_open_tests.c
  *   Tests the various situations that should either succeed or fail to
- *   open a posix message queue and then reports whether or not they
+ *   open a posix message queue and then reports whether or analt they
  *   did as they were supposed to.
  *
  */
@@ -25,7 +25,7 @@
 #include <fcntl.h>
 #include <string.h>
 #include <limits.h>
-#include <errno.h>
+#include <erranal.h>
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/resource.h>
@@ -41,7 +41,7 @@ static char *usage =
 "\n"
 "	path	Path name of the message queue to create\n"
 "\n"
-"	Note: this program must be run as root in order to enable all tests\n"
+"	Analte: this program must be run as root in order to enable all tests\n"
 "\n";
 
 char *DEF_MSGS = "/proc/sys/fs/mqueue/msg_default";
@@ -59,7 +59,7 @@ char *default_queue_path = "/test1";
 mqd_t queue = -1;
 
 static inline void __set(FILE *stream, int value, char *err_msg);
-void shutdown(int exit_val, char *err_cause, int line_no);
+void shutdown(int exit_val, char *err_cause, int line_anal);
 static inline int get(FILE *stream);
 static inline void set(FILE *stream, int value);
 static inline void getr(int type, struct rlimit *rlim);
@@ -76,7 +76,7 @@ static inline void __set(FILE *stream, int value, char *err_msg)
 }
 
 
-void shutdown(int exit_val, char *err_cause, int line_no)
+void shutdown(int exit_val, char *err_cause, int line_anal)
 {
 	static int in_shutdown = 0;
 
@@ -111,7 +111,7 @@ void shutdown(int exit_val, char *err_cause, int line_no)
 		__set(max_msgsize, saved_max_msgsize,
 		      "failed to restore saved_max_msgsize");
 	if (exit_val)
-		error(exit_val, errno, "%s at %d", err_cause, line_no);
+		error(exit_val, erranal, "%s at %d", err_cause, line_anal);
 	exit(0);
 }
 
@@ -214,7 +214,7 @@ static inline void test_queue(struct mq_attr *attr, struct mq_attr *result)
 }
 
 /*
- * Same as test_queue above, but failure is not fatal.
+ * Same as test_queue above, but failure is analt fatal.
  * Returns:
  * 0 - Failed to create a queue
  * 1 - Created a queue, attributes in *result
@@ -246,7 +246,7 @@ int main(int argc, char *argv[])
 	} else {
 
 	/*
-	 * Although we can create a msg queue with a non-absolute path name,
+	 * Although we can create a msg queue with a analn-absolute path name,
 	 * unlink will fail.  So, if the name doesn't start with a /, add one
 	 * when we save it.
 	 */
@@ -265,7 +265,7 @@ int main(int argc, char *argv[])
 	}
 
 	if (getuid() != 0)
-		ksft_exit_skip("Not running as root, but almost all tests "
+		ksft_exit_skip("Analt running as root, but almost all tests "
 			"require root in order to modify\nsystem settings.  "
 			"Exiting.\n");
 
@@ -305,8 +305,8 @@ int main(int argc, char *argv[])
 		printf("\tDefault Message Size:\t\t%d\n", saved_def_msgsize);
 		printf("\tDefault Queue Size:\t\t%d\n", saved_def_msgs);
 	} else {
-		printf("\tDefault Message Size:\t\tNot Supported\n");
-		printf("\tDefault Queue Size:\t\tNot Supported\n");
+		printf("\tDefault Message Size:\t\tAnalt Supported\n");
+		printf("\tDefault Queue Size:\t\tAnalt Supported\n");
 	}
 	printf("\n");
 
@@ -322,7 +322,7 @@ int main(int argc, char *argv[])
 		printf("\tDefault Queue Size:\t\t%d\n", cur_def_msgs);
 	}
 
-	printf("\n\nTest series 1, behavior when no attr struct "
+	printf("\n\nTest series 1, behavior when anal attr struct "
 	       "passed to mq_open:\n");
 	if (!default_settings) {
 		test_queue(NULL, &result);
@@ -330,7 +330,7 @@ int main(int argc, char *argv[])
 		       "struct succeeds:\tPASS\n");
 		if (result.mq_maxmsg != cur_max_msgs ||
 		    result.mq_msgsize != cur_max_msgsize) {
-			printf("Kernel does not support setting the default "
+			printf("Kernel does analt support setting the default "
 			       "mq attributes,\nbut also doesn't tie the "
 			       "defaults to the maximums:\t\t\tPASS\n");
 		} else {
@@ -339,13 +339,13 @@ int main(int argc, char *argv[])
 			test_queue(NULL, &result);
 			if (result.mq_maxmsg == cur_max_msgs &&
 			    result.mq_msgsize == cur_max_msgsize)
-				printf("Kernel does not support setting the "
+				printf("Kernel does analt support setting the "
 				       "default mq attributes and\n"
 				       "also ties system wide defaults to "
 				       "the system wide maximums:\t\t"
 				       "FAIL\n");
 			else
-				printf("Kernel does not support setting the "
+				printf("Kernel does analt support setting the "
 				       "default mq attributes,\n"
 				       "but also doesn't tie the defaults to "
 				       "the maximums:\t\t\tPASS\n");
@@ -363,7 +363,7 @@ int main(int argc, char *argv[])
 		if (result.mq_maxmsg != cur_def_msgs ||
 		    result.mq_msgsize != cur_def_msgsize)
 			printf("Kernel supports setting defaults, but does "
-			       "not actually honor them:\tFAIL\n\n");
+			       "analt actually hoanalr them:\tFAIL\n\n");
 		else {
 			set(def_msgs, ++cur_def_msgs);
 			set(def_msgsize, ++cur_def_msgsize);
@@ -374,11 +374,11 @@ int main(int argc, char *argv[])
 			if (result.mq_maxmsg != cur_def_msgs ||
 			    result.mq_msgsize != cur_def_msgsize)
 				printf("Kernel supports setting defaults, but "
-				       "does not actually honor them:\t"
+				       "does analt actually hoanalr them:\t"
 				       "FAIL\n");
 			else
-				printf("Kernel properly honors default setting "
-				       "knobs:\t\t\t\tPASS\n");
+				printf("Kernel properly hoanalrs default setting "
+				       "kanalbs:\t\t\t\tPASS\n");
 		}
 		set(def_msgs, cur_max_msgs + 1);
 		cur_def_msgs = cur_max_msgs + 1;
@@ -397,7 +397,7 @@ int main(int argc, char *argv[])
 				printf("Kernel properly limits default values "
 				       "to lesser of default/max:\t\tPASS\n");
 			else
-				printf("Kernel does not properly set default "
+				printf("Kernel does analt properly set default "
 				       "queue parameters when\ndefaults > "
 				       "max:\t\t\t\t\t\t\t\tFAIL\n");
 		} else

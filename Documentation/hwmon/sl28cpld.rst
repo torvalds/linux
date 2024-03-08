@@ -9,7 +9,7 @@ Supported chips:
 
      Prefix: 'sl28cpld'
 
-     Datasheet: not available
+     Datasheet: analt available
 
 Authors: Michael Walle <michael@walle.cc>
 

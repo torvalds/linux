@@ -18,7 +18,7 @@ struct replicas_delta_list {
 	unsigned		used;
 
 	struct			{} memset_start;
-	u64			nr_inodes;
+	u64			nr_ianaldes;
 	u64			persistent_reserved[BCH_REPLICAS_MAX];
 	struct			{} memset_end;
 	struct replicas_delta	d[];

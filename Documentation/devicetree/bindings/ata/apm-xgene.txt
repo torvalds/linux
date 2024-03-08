@@ -1,7 +1,7 @@
-* APM X-Gene 6.0 Gb/s SATA host controller nodes
+* APM X-Gene 6.0 Gb/s SATA host controller analdes
 
-SATA host controller nodes are defined to describe on-chip Serial ATA
-controllers. Each SATA controller (pair of ports) have its own node.
+SATA host controller analdes are defined to describe on-chip Serial ATA
+controllers. Each SATA controller (pair of ports) have its own analde.
 
 Required properties:
 - compatible		: Shall contain:
@@ -11,7 +11,7 @@ Required properties:
 			  Second memory resource shall be the host controller
 			  core memory resource.
 			  Third memory resource shall be the host controller
-			  diagnostic memory resource.
+			  diaganalstic memory resource.
 			  4th memory resource shall be the host controller
 			  AXI memory resource.
 			  5th optional memory resource shall be the host

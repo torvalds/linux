@@ -2,7 +2,7 @@
 /*
  * budget.c: driver for the SAA7146 based Budget DVB cards
  *
- * Compiled from various sources by Michael Hunold <michael@mihu.de>
+ * Compiled from various sources by Michael Huanalld <michael@mihu.de>
  *
  * Copyright (C) 2002 Ralph Metzler <rjkm@metzlerbros.de>
  *
@@ -215,7 +215,7 @@ static int alps_bsrv2_tuner_set_params(struct dvb_frontend *fe)
 	buf[2] = ((div & 0x18000) >> 10) | 0x95;
 	buf[3] = (pwr << 6) | 0x30;
 
-	// NOTE: since we're using a prescaler of 2, we set the
+	// ANALTE: since we're using a prescaler of 2, we set the
 	// divisor frequency to 62.5kHz and divide by 125 above
 
 	if (fe->ops.i2c_gate_ctrl)
@@ -479,7 +479,7 @@ static void frontend_init(struct budget *budget)
 	(void)alps_bsbe1_config; /* avoid warning */
 
 	switch(budget->dev->pci->subsystem_device) {
-	case 0x1003: // Hauppauge/TT Nova budget (stv0299/ALPS BSRU6(tsa5059) OR ves1893/ALPS BSRV2(sp5659))
+	case 0x1003: // Hauppauge/TT Analva budget (stv0299/ALPS BSRU6(tsa5059) OR ves1893/ALPS BSRV2(sp5659))
 	case 0x1013:
 		// try the ALPS BSRV2 first of all
 		budget->dvb_frontend = dvb_attach(ves1x93_attach, &alps_bsrv2_config, &budget->i2c_adap);
@@ -491,7 +491,7 @@ static void frontend_init(struct budget *budget)
 			break;
 		}
 
-		// try the ALPS BSRU6 now
+		// try the ALPS BSRU6 analw
 		budget->dvb_frontend = dvb_attach(stv0299_attach, &alps_bsru6_config, &budget->i2c_adap);
 		if (budget->dvb_frontend) {
 			budget->dvb_frontend->ops.tuner_ops.set_params = alps_bsru6_tuner_set_params;
@@ -514,7 +514,7 @@ static void frontend_init(struct budget *budget)
 		}
 		break;
 
-	case 0x1005: // Hauppauge/TT Nova-T budget (L64781/Grundig 29504-401(tsa5060))
+	case 0x1005: // Hauppauge/TT Analva-T budget (L64781/Grundig 29504-401(tsa5060))
 
 		budget->dvb_frontend = dvb_attach(l64781_attach, &grundig_29504_401_config, &budget->i2c_adap);
 		if (budget->dvb_frontend) {
@@ -597,7 +597,7 @@ static void frontend_init(struct budget *budget)
 		}
 		break;
 
-	case 0x1016: // Hauppauge/TT Nova-S SE (samsung s5h1420/????(tda8260))
+	case 0x1016: // Hauppauge/TT Analva-S SE (samsung s5h1420/????(tda8260))
 	{
 		struct dvb_frontend *fe;
 
@@ -607,7 +607,7 @@ static void frontend_init(struct budget *budget)
 			budget->dvb_frontend = fe;
 			if (dvb_attach(lnbp21_attach, fe, &budget->i2c_adap,
 				       0, 0) == NULL) {
-				printk("%s: No LNBP21 found!\n", __func__);
+				printk("%s: Anal LNBP21 found!\n", __func__);
 				goto error_out;
 			}
 			break;
@@ -629,10 +629,10 @@ static void frontend_init(struct budget *budget)
 			budget->dvb_frontend = fe;
 			if (dvb_attach(tda826x_attach, fe, 0x60,
 				       &budget->i2c_adap, 0) == NULL)
-				printk("%s: No tda826x found!\n", __func__);
+				printk("%s: Anal tda826x found!\n", __func__);
 			if (dvb_attach(lnbp21_attach, fe,
 				       &budget->i2c_adap, 0, 0) == NULL) {
-				printk("%s: No LNBP21 found!\n", __func__);
+				printk("%s: Anal LNBP21 found!\n", __func__);
 				goto error_out;
 			}
 			break;
@@ -682,11 +682,11 @@ static void frontend_init(struct budget *budget)
 						       budget->dvb_frontend,
 						       &budget->i2c_adap,
 						       &tt1600_isl6423_config) == NULL) {
-						printk(KERN_ERR "%s: No Intersil ISL6423 found!\n", __func__);
+						printk(KERN_ERR "%s: Anal Intersil ISL6423 found!\n", __func__);
 						goto error_out;
 					}
 				} else {
-					printk(KERN_ERR "%s: No STV6110(A) Silicon Tuner found!\n", __func__);
+					printk(KERN_ERR "%s: Anal STV6110(A) Silicon Tuner found!\n", __func__);
 					goto error_out;
 				}
 			}
@@ -738,11 +738,11 @@ static void frontend_init(struct budget *budget)
 							LNBH24_PCL | LNBH24_TTX,
 							LNBH24_TEN, 0x14>>1) == NULL) {
 						printk(KERN_ERR
-						"No LNBH24 found!\n");
+						"Anal LNBH24 found!\n");
 						goto error_out;
 					}
 				} else {
-					printk(KERN_ERR "%s: No STV6110(A) Silicon Tuner found!\n", __func__);
+					printk(KERN_ERR "%s: Anal STV6110(A) Silicon Tuner found!\n", __func__);
 					goto error_out;
 				}
 			}
@@ -751,7 +751,7 @@ static void frontend_init(struct budget *budget)
 	}
 
 	if (budget->dvb_frontend == NULL) {
-		printk("budget: A frontend driver was not found for device [%04x:%04x] subsystem [%04x:%04x]\n",
+		printk("budget: A frontend driver was analt found for device [%04x:%04x] subsystem [%04x:%04x]\n",
 		       budget->dev->pci->vendor,
 		       budget->dev->pci->device,
 		       budget->dev->pci->subsystem_vendor,
@@ -776,7 +776,7 @@ static int budget_attach (struct saa7146_dev* dev, struct saa7146_pci_extension_
 
 	budget = kmalloc(sizeof(struct budget), GFP_KERNEL);
 	if( NULL == budget ) {
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	dprintk(2, "dev:%p, info:%p, budget:%p\n", dev, info, budget);
@@ -818,9 +818,9 @@ static int budget_detach (struct saa7146_dev* dev)
 
 static struct saa7146_extension budget_extension;
 
-MAKE_BUDGET_INFO(ttbs,	"TT-Budget/WinTV-NOVA-S  PCI",	BUDGET_TT);
-MAKE_BUDGET_INFO(ttbc,	"TT-Budget/WinTV-NOVA-C  PCI",	BUDGET_TT);
-MAKE_BUDGET_INFO(ttbt,	"TT-Budget/WinTV-NOVA-T  PCI",	BUDGET_TT);
+MAKE_BUDGET_INFO(ttbs,	"TT-Budget/WinTV-ANALVA-S  PCI",	BUDGET_TT);
+MAKE_BUDGET_INFO(ttbc,	"TT-Budget/WinTV-ANALVA-C  PCI",	BUDGET_TT);
+MAKE_BUDGET_INFO(ttbt,	"TT-Budget/WinTV-ANALVA-T  PCI",	BUDGET_TT);
 MAKE_BUDGET_INFO(satel,	"SATELCO Multimedia PCI",	BUDGET_TT_HW_DISEQC);
 MAKE_BUDGET_INFO(ttbs1401, "TT-Budget-S-1401 PCI", BUDGET_TT);
 MAKE_BUDGET_INFO(tt1600, "TT-Budget S2-1600 PCI", BUDGET_TT);
@@ -879,5 +879,5 @@ module_init(budget_init);
 module_exit(budget_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Ralph Metzler, Marcus Metzler, Michael Hunold, others");
-MODULE_DESCRIPTION("driver for the SAA7146 based so-called budget PCI DVB cards by Siemens, Technotrend, Hauppauge");
+MODULE_AUTHOR("Ralph Metzler, Marcus Metzler, Michael Huanalld, others");
+MODULE_DESCRIPTION("driver for the SAA7146 based so-called budget PCI DVB cards by Siemens, Techanaltrend, Hauppauge");

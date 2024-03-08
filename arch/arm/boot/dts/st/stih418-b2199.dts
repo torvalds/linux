@@ -92,7 +92,7 @@
 			sd-uhs-sdr50;
 			sd-uhs-sdr104;
 			sd-uhs-ddr50;
-			non-removable;
+			analn-removable;
 		};
 
 		st_dwc3: dwc3@8f94000 {

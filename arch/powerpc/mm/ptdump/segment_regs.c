@@ -20,7 +20,7 @@ static void seg_show(struct seq_file *m, int i)
 		seq_printf(m, "-0x%05x", val & 0xfffff);
 	} else {
 		if (val & 0x10000000)
-			seq_puts(m, "No Exec ");
+			seq_puts(m, "Anal Exec ");
 		seq_printf(m, "VSID 0x%06x", val & 0xffffff);
 	}
 	seq_puts(m, "\n");

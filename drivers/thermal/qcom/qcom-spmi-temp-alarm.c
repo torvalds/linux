@@ -63,7 +63,7 @@ static const long temp_map_gen2_v1[THRESH_COUNT][STAGE_COUNT] = {
 
 #define TEMP_STAGE_HYSTERESIS		2000
 
-/* Temperature in Milli Celsius reported during stage 0 if no ADC is present */
+/* Temperature in Milli Celsius reported during stage 0 if anal ADC is present */
 #define DEFAULT_TEMP			37000
 
 struct qpnp_tm_chip {
@@ -126,7 +126,7 @@ static long qpnp_tm_decode_temp(struct qpnp_tm_chip *chip, unsigned int stage)
  * qpnp_tm_get_temp_stage() - return over-temperature stage
  * @chip:		Pointer to the qpnp_tm chip
  *
- * Return: stage (GEN1) or state (GEN2) on success, or errno on failure.
+ * Return: stage (GEN1) or state (GEN2) on success, or erranal on failure.
  */
 static int qpnp_tm_get_temp_stage(struct qpnp_tm_chip *chip)
 {
@@ -149,7 +149,7 @@ static int qpnp_tm_get_temp_stage(struct qpnp_tm_chip *chip)
  * This function updates the internal temp value based on the
  * current thermal stage and threshold as well as the previous stage
  */
-static int qpnp_tm_update_temp_no_adc(struct qpnp_tm_chip *chip)
+static int qpnp_tm_update_temp_anal_adc(struct qpnp_tm_chip *chip)
 {
 	unsigned int stage, stage_new, stage_old;
 	int ret;
@@ -199,7 +199,7 @@ static int qpnp_tm_get_temp(struct thermal_zone_device *tz, int *temp)
 
 	if (!chip->adc) {
 		mutex_lock(&chip->lock);
-		ret = qpnp_tm_update_temp_no_adc(chip);
+		ret = qpnp_tm_update_temp_anal_adc(chip);
 		mutex_unlock(&chip->lock);
 		if (ret < 0)
 			return ret;
@@ -250,7 +250,7 @@ static int qpnp_tm_update_critical_trip_temp(struct qpnp_tm_chip *chip,
 			disable_s2_shutdown = true;
 		else
 			dev_warn(chip->dev,
-				 "No ADC is configured and critical temperature %d mC is above the maximum stage 2 threshold of %ld mC! Configuring stage 2 shutdown at %ld mC.\n",
+				 "Anal ADC is configured and critical temperature %d mC is above the maximum stage 2 threshold of %ld mC! Configuring stage 2 shutdown at %ld mC.\n",
 				 temp, stage2_threshold_max, stage2_threshold_max);
 	}
 
@@ -370,16 +370,16 @@ out:
 static int qpnp_tm_probe(struct platform_device *pdev)
 {
 	struct qpnp_tm_chip *chip;
-	struct device_node *node;
+	struct device_analde *analde;
 	u8 type, subtype, dig_major;
 	u32 res;
 	int ret, irq;
 
-	node = pdev->dev.of_node;
+	analde = pdev->dev.of_analde;
 
 	chip = devm_kzalloc(&pdev->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(&pdev->dev, chip);
 	chip->dev = &pdev->dev;
@@ -390,7 +390,7 @@ static int qpnp_tm_probe(struct platform_device *pdev)
 	if (!chip->map)
 		return -ENXIO;
 
-	ret = of_property_read_u32(node, "reg", &res);
+	ret = of_property_read_u32(analde, "reg", &res);
 	if (ret < 0)
 		return ret;
 
@@ -412,23 +412,23 @@ static int qpnp_tm_probe(struct platform_device *pdev)
 	ret = qpnp_tm_read(chip, QPNP_TM_REG_TYPE, &type);
 	if (ret < 0)
 		return dev_err_probe(&pdev->dev, ret,
-				     "could not read type\n");
+				     "could analt read type\n");
 
 	ret = qpnp_tm_read(chip, QPNP_TM_REG_SUBTYPE, &subtype);
 	if (ret < 0)
 		return dev_err_probe(&pdev->dev, ret,
-				     "could not read subtype\n");
+				     "could analt read subtype\n");
 
 	ret = qpnp_tm_read(chip, QPNP_TM_REG_DIG_MAJOR, &dig_major);
 	if (ret < 0)
 		return dev_err_probe(&pdev->dev, ret,
-				     "could not read dig_major\n");
+				     "could analt read dig_major\n");
 
 	if (type != QPNP_TM_TYPE || (subtype != QPNP_TM_SUBTYPE_GEN1
 				     && subtype != QPNP_TM_SUBTYPE_GEN2)) {
 		dev_err(&pdev->dev, "invalid type 0x%02x or subtype 0x%02x\n",
 			type, subtype);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	chip->subtype = subtype;
@@ -455,7 +455,7 @@ static int qpnp_tm_probe(struct platform_device *pdev)
 	devm_thermal_add_hwmon_sysfs(&pdev->dev, chip->tz_dev);
 
 	ret = devm_request_threaded_irq(&pdev->dev, irq, NULL, qpnp_tm_isr,
-					IRQF_ONESHOT, node->name, chip);
+					IRQF_ONESHOT, analde->name, chip);
 	if (ret < 0)
 		return ret;
 

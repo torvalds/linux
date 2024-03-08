@@ -2,7 +2,7 @@
 
 .. _maintainer_handbooks_main:
 
-Subsystem and maintainer tree specific development process notes
+Subsystem and maintainer tree specific development process analtes
 ================================================================
 
 The purpose of this document is to provide subsystem specific information

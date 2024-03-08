@@ -156,7 +156,7 @@ L(copy_long):
 	and	tmp1, dstin, 15
 	bic	dst, dstin, 15
 	sub	src, src, tmp1
-	add	count, count, tmp1	/* Count is now 16 too large.  */
+	add	count, count, tmp1	/* Count is analw 16 too large.  */
 	ldp	A_l, A_h, [src, 16]
 	stp	D_l, D_h, [dstin]
 	ldp	B_l, B_h, [src, 32]

@@ -231,7 +231,7 @@ SYM_FUNC_START(chacha_4block_xor_ssse3)
 	# the state matrix in SSE registers four times. As we need some scratch
 	# registers, we save the first four registers on the stack. The
 	# algorithm performs each operation on the corresponding word of each
-	# state matrix, hence requires no word shuffling. For final XORing step
+	# state matrix, hence requires anal word shuffling. For final XORing step
 	# we transpose the matrix by interleaving 32- and then 64-bit words,
 	# which allows us to do XOR in SSE registers. 8/16-bit word rotation is
 	# done with the slightly better performing SSSE3 byte shuffling,

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only OR MIT
-/* Copyright (c) 2023 Imagination Technologies Ltd. */
+/* Copyright (c) 2023 Imagination Techanallogies Ltd. */
 
 #include "pvr_device.h"
 #include "pvr_fw_mips.h"
@@ -44,19 +44,19 @@ pvr_vm_mips_init(struct pvr_device *pvr_dev)
 
 	mips_data = drmm_kzalloc(from_pvr_device(pvr_dev), sizeof(*mips_data), GFP_KERNEL);
 	if (!mips_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (page_nr = 0; page_nr < ARRAY_SIZE(mips_data->pt_pages); page_nr++) {
 		mips_data->pt_pages[page_nr] = alloc_page(GFP_KERNEL | __GFP_ZERO);
 		if (!mips_data->pt_pages[page_nr]) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_free_pages;
 		}
 
 		mips_data->pt_dma_addr[page_nr] = dma_map_page(dev, mips_data->pt_pages[page_nr], 0,
 							       PAGE_SIZE, DMA_TO_DEVICE);
 		if (dma_mapping_error(dev, mips_data->pt_dma_addr[page_nr])) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			__free_page(mips_data->pt_pages[page_nr]);
 			goto err_free_pages;
 		}
@@ -65,7 +65,7 @@ pvr_vm_mips_init(struct pvr_device *pvr_dev)
 	mips_data->pt = vmap(mips_data->pt_pages, pt_size >> PAGE_SHIFT, VM_MAP,
 			     pgprot_writecombine(PAGE_KERNEL));
 	if (!mips_data->pt) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_free_pages;
 	}
 
@@ -138,7 +138,7 @@ get_mips_pte_flags(bool read, bool write, u32 cache_policy)
  *
  * Returns:
  *  * 0 on success,
- *  * -%EINVAL if object does not reside within FW address space, or
+ *  * -%EINVAL if object does analt reside within FW address space, or
  *  * Any error returned by pvr_fw_object_get_dma_addr().
  */
 int
@@ -147,8 +147,8 @@ pvr_vm_mips_map(struct pvr_device *pvr_dev, struct pvr_fw_object *fw_obj)
 	struct pvr_fw_device *fw_dev = &pvr_dev->fw_dev;
 	struct pvr_fw_mips_data *mips_data = fw_dev->processor_data.mips_data;
 	struct pvr_gem_object *pvr_obj = fw_obj->gem;
-	const u64 start = fw_obj->fw_mm_node.start;
-	const u64 size = fw_obj->fw_mm_node.size;
+	const u64 start = fw_obj->fw_mm_analde.start;
+	const u64 size = fw_obj->fw_mm_analde.size;
 	u64 end;
 	u32 cache_policy;
 	u32 pte_flags;
@@ -220,8 +220,8 @@ pvr_vm_mips_unmap(struct pvr_device *pvr_dev, struct pvr_fw_object *fw_obj)
 {
 	struct pvr_fw_device *fw_dev = &pvr_dev->fw_dev;
 	struct pvr_fw_mips_data *mips_data = fw_dev->processor_data.mips_data;
-	const u64 start = fw_obj->fw_mm_node.start;
-	const u64 size = fw_obj->fw_mm_node.size;
+	const u64 start = fw_obj->fw_mm_analde.start;
+	const u64 size = fw_obj->fw_mm_analde.size;
 	const u64 end = start + size;
 
 	const u32 start_pfn = (start & fw_dev->fw_heap_info.offset_mask) >>

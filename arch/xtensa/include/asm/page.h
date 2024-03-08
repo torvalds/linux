@@ -56,7 +56,7 @@
  * bit(s) (X) that are part of the cache index are also translated (Y).
  * If this translation changes bit(s) (X), the cache index is also afected,
  * thus resulting in a different cache line than before.
- * The kernel does not provide a mechanism to ensure that the page color
+ * The kernel does analt provide a mechanism to ensure that the page color
  * (represented by this bit) remains the same when allocated or when pages
  * are remapped. When user pages are mapped into kernel space, the color of
  * the page might also change.
@@ -157,7 +157,7 @@ void copy_user_highpage(struct page *to, struct page *from,
 /*
  * This handles the memory map.  We handle pages at
  * XCHAL_KSEG_CACHED_VADDR for kernels with 32 bit address space.
- * These macros are for conversion of kernel address, not user
+ * These macros are for conversion of kernel address, analt user
  * addresses.
  */
 

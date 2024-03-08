@@ -12,7 +12,7 @@ maintainers:
   - Luiz Augusto von Dentz <luiz.dentz@gmail.com>
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^bluetooth(@.*)?$"
 
   local-bd-address:

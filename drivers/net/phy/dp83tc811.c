@@ -47,7 +47,7 @@
 
 /* INT_STAT3 bits */
 #define DP83811_LPS_INT_EN	BIT(0)
-#define DP83811_NO_FRAME_INT_EN	BIT(3)
+#define DP83811_ANAL_FRAME_INT_EN	BIT(3)
 #define DP83811_POR_DONE_INT_EN	BIT(4)
 
 #define MII_DP83811_RXSOP1	0x04a5
@@ -187,7 +187,7 @@ static void dp83811_get_wol(struct phy_device *phydev,
 		wol->wolopts |= WAKE_MAGICSECURE;
 	}
 
-	/* WoL is not enabled so set wolopts to 0 */
+	/* WoL is analt enabled so set wolopts to 0 */
 	if (!(value & DP83811_WOL_EN))
 		wol->wolopts = 0;
 }
@@ -238,7 +238,7 @@ static int dp83811_config_intr(struct phy_device *phydev)
 			return misr_status;
 
 		misr_status |= (DP83811_LPS_INT_EN |
-				DP83811_NO_FRAME_INT_EN |
+				DP83811_ANAL_FRAME_INT_EN |
 				DP83811_POR_DONE_INT_EN);
 
 		err = phy_write(phydev, MII_DP83811_INT_STAT3, misr_status);
@@ -271,13 +271,13 @@ static irqreturn_t dp83811_handle_interrupt(struct phy_device *phydev)
 	 * in the upper half (15:8), while the lower half (7:0) is used for
 	 * controlling the interrupt enable state of those individual interrupt
 	 * sources. To determine the possible interrupt sources, just read the
-	 * INT_STAT* register and use it directly to know which interrupts have
-	 * been enabled previously or not.
+	 * INT_STAT* register and use it directly to kanalw which interrupts have
+	 * been enabled previously or analt.
 	 */
 	irq_status = phy_read(phydev, MII_DP83811_INT_STAT1);
 	if (irq_status < 0) {
 		phy_error(phydev);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 	if (irq_status & ((irq_status & GENMASK(7, 0)) << 8))
 		trigger_machine = true;
@@ -285,7 +285,7 @@ static irqreturn_t dp83811_handle_interrupt(struct phy_device *phydev)
 	irq_status = phy_read(phydev, MII_DP83811_INT_STAT2);
 	if (irq_status < 0) {
 		phy_error(phydev);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 	if (irq_status & ((irq_status & GENMASK(7, 0)) << 8))
 		trigger_machine = true;
@@ -293,13 +293,13 @@ static irqreturn_t dp83811_handle_interrupt(struct phy_device *phydev)
 	irq_status = phy_read(phydev, MII_DP83811_INT_STAT3);
 	if (irq_status < 0) {
 		phy_error(phydev);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 	if (irq_status & ((irq_status & GENMASK(7, 0)) << 8))
 		trigger_machine = true;
 
 	if (!trigger_machine)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	phy_trigger_machine(phydev);
 

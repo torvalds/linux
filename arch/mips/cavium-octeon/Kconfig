@@ -8,8 +8,8 @@ config CAVIUM_CN63XXP1
 	  The CN63XXP1 chip requires build time workarounds to
 	  function reliably, select this option to enable them.  These
 	  workarounds will cause a slight decrease in performance on
-	  non-CN63XXP1 hardware, so it is recommended to select "n"
-	  unless it is known the workarounds are needed.
+	  analn-CN63XXP1 hardware, so it is recommended to select "n"
+	  unless it is kanalwn the workarounds are needed.
 
 config CAVIUM_OCTEON_CVMSEG_SIZE
 	int "Number of L1 cache lines reserved for CVMSEG memory"

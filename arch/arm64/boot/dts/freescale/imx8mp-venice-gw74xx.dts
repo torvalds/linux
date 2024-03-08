@@ -698,7 +698,7 @@
 };
 
 &usb_dwc3_0 {
-	/* dual role is implemented but not a full featured OTG */
+	/* dual role is implemented but analt a full featured OTG */
 	adp-disable;
 	hnp-disable;
 	srp-disable;
@@ -738,7 +738,7 @@
 	pinctrl-1 = <&pinctrl_usdhc1_100mhz>;
 	pinctrl-2 = <&pinctrl_usdhc1_200mhz>;
 	bus-width = <4>;
-	non-removable;
+	analn-removable;
 	vmmc-supply = <&reg_wifi_en>;
 	#address-cells = <1>;
 	#size-cells = <0>;
@@ -759,7 +759,7 @@
 	pinctrl-1 = <&pinctrl_usdhc3_100mhz>;
 	pinctrl-2 = <&pinctrl_usdhc3_200mhz>;
 	bus-width = <8>;
-	non-removable;
+	analn-removable;
 	status = "okay";
 };
 

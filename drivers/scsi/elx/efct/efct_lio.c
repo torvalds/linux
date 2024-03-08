@@ -60,7 +60,7 @@ efct_lio_parse_npiv_wwn(const char *name, size_t size, u64 *wwpn, u64 *wwnn)
 	if (name[cnt - 1] == '\n' || name[cnt - 1] == 0)
 		cnt--;
 
-	/* validate we have enough characters for WWPN */
+	/* validate we have eanalugh characters for WWPN */
 	if ((cnt != (16 + 1 + 16)) || (name[16] != ':'))
 		return -EINVAL;
 
@@ -116,7 +116,7 @@ efct_lio_tpg_enable_store(struct config_item *item, const char *page,
 		ret = efct_xport_control(efct->xport, EFCT_XPORT_PORT_ONLINE);
 		if (ret) {
 			efct->tgt_efct.lio_nport = NULL;
-			efc_log_debug(efct, "cannot bring port online\n");
+			efc_log_debug(efct, "cananalt bring port online\n");
 			return ret;
 		}
 	} else if (op == 0) {
@@ -188,7 +188,7 @@ efct_lio_npiv_tpg_enable_store(struct config_item *item, const char *page,
 		if (!(efc_vport_create_spec(efc, lio_vport->npiv_wwnn,
 					    lio_vport->npiv_wwpn, U32_MAX,
 					    false, true, NULL, NULL)))
-			return -ENOMEM;
+			return -EANALMEM;
 
 	} else if (op == 0) {
 		efc_log_debug(efct, "disable portal group %d\n", tpg->tpgt);
@@ -338,16 +338,16 @@ static void efct_lio_release_cmd(struct se_cmd *se_cmd)
 
 static void efct_lio_close_session(struct se_session *se_sess)
 {
-	struct efc_node *node = se_sess->fabric_sess_ptr;
+	struct efc_analde *analde = se_sess->fabric_sess_ptr;
 
-	pr_debug("se_sess=%p node=%p", se_sess, node);
+	pr_debug("se_sess=%p analde=%p", se_sess, analde);
 
-	if (!node) {
-		pr_debug("node is NULL");
+	if (!analde) {
+		pr_debug("analde is NULL");
 		return;
 	}
 
-	efc_node_post_shutdown(node, NULL);
+	efc_analde_post_shutdown(analde, NULL);
 }
 
 static int efct_lio_get_cmd_state(struct se_cmd *cmd)
@@ -442,7 +442,7 @@ efct_lio_write_pending(struct se_cmd *cmd)
 	/* find current sg */
 	for (cnt = 0, sg = cmd->t_data_sg; cnt < ocp->cur_seg; cnt++,
 	     sg = sg_next(sg))
-		;/* do nothing */
+		;/* do analthing */
 
 	for (cnt = 0; cnt < curcnt; cnt++, sg = sg_next(sg)) {
 		sgl[cnt].addr = sg_dma_address(sg);
@@ -519,7 +519,7 @@ efct_lio_queue_data_in(struct se_cmd *cmd)
 
 	/* If there is residual, disable Auto Good Response */
 	if (cmd->residual_count)
-		flags |= EFCT_SCSI_NO_AUTO_RESPONSE;
+		flags |= EFCT_SCSI_ANAL_AUTO_RESPONSE;
 
 	efct_set_lio_io_state(io, EFCT_LIO_STATE_SCSI_SEND_RD_DATA);
 
@@ -594,7 +594,7 @@ efct_lio_datamove_done(struct efct_io *io, enum efct_scsi_io_status scsi_status,
 				return 0;
 
 			ocp->err = EFCT_SCSI_STATUS_ERROR;
-			efct_lio_io_printf(io, "could not continue command\n");
+			efct_lio_io_printf(io, "could analt continue command\n");
 		}
 		efct_lio_sg_unmap(io);
 	}
@@ -643,7 +643,7 @@ efct_lio_null_tmf_done(struct efct_io *tmfio,
 	efct_lio_tmfio_printf(tmfio, "cmd=%p status=%d, flags=0x%x\n",
 			      &tmfio->tgt_io.cmd, scsi_status, flags);
 
-	/* free struct efct_io only, no active se_cmd */
+	/* free struct efct_io only, anal active se_cmd */
 	efct_scsi_io_complete(tmfio);
 	return 0;
 }
@@ -697,10 +697,10 @@ static void efct_lio_queue_tm_rsp(struct se_cmd *cmd)
 	case TMR_FUNCTION_COMPLETE:
 		rspcode = EFCT_SCSI_TMF_FUNCTION_COMPLETE;
 		break;
-	case TMR_TASK_DOES_NOT_EXIST:
-		rspcode = EFCT_SCSI_TMF_FUNCTION_IO_NOT_FOUND;
+	case TMR_TASK_DOES_ANALT_EXIST:
+		rspcode = EFCT_SCSI_TMF_FUNCTION_IO_ANALT_FOUND;
 		break;
-	case TMR_LUN_DOES_NOT_EXIST:
+	case TMR_LUN_DOES_ANALT_EXIST:
 		rspcode = EFCT_SCSI_TMF_INCORRECT_LOGICAL_UNIT_NUMBER;
 		break;
 	case TMR_FUNCTION_REJECTED:
@@ -740,13 +740,13 @@ efct_lio_make_nport(struct target_fabric_configfs *tf,
 
 	efct = efct_find_wwpn(wwpn);
 	if (!efct) {
-		pr_err("cannot find EFCT for base wwpn %s\n", name);
+		pr_err("cananalt find EFCT for base wwpn %s\n", name);
 		return ERR_PTR(-ENXIO);
 	}
 
 	lio_nport = kzalloc(sizeof(*lio_nport), GFP_KERNEL);
 	if (!lio_nport)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	lio_nport->efct = efct;
 	lio_nport->wwpn = wwpn;
@@ -792,13 +792,13 @@ efct_lio_npiv_make_nport(struct target_fabric_configfs *tf,
 
 	efct = efct_find_wwpn(p_wwpn);
 	if (!efct) {
-		pr_err("cannot find EFCT for base wwpn %s\n", name);
+		pr_err("cananalt find EFCT for base wwpn %s\n", name);
 		return ERR_PTR(-ENXIO);
 	}
 
 	lio_vport = kzalloc(sizeof(*lio_vport), GFP_KERNEL);
 	if (!lio_vport)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	lio_vport->efct = efct;
 	lio_vport->wwpn = p_wwpn;
@@ -811,14 +811,14 @@ efct_lio_npiv_make_nport(struct target_fabric_configfs *tf,
 	vport_list = kzalloc(sizeof(*vport_list), GFP_KERNEL);
 	if (!vport_list) {
 		kfree(lio_vport);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	vport_list->lio_vport = lio_vport;
 
 	memset(&vport_id, 0, sizeof(vport_id));
 	vport_id.port_name = npiv_wwpn;
-	vport_id.node_name = npiv_wwnn;
+	vport_id.analde_name = npiv_wwnn;
 	vport_id.roles = FC_PORT_ROLE_FCP_INITIATOR;
 	vport_id.vport_type = FC_PORTTYPE_NPIV;
 	vport_id.disable = false;
@@ -828,7 +828,7 @@ efct_lio_npiv_make_nport(struct target_fabric_configfs *tf,
 		efc_log_err(efct, "fc_vport_create failed\n");
 		kfree(lio_vport);
 		kfree(vport_list);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	lio_vport->fc_vport = new_fc_vport;
@@ -897,13 +897,13 @@ efct_lio_make_tpg(struct se_wwn *wwn, const char *name)
 
 	tpg = kzalloc(sizeof(*tpg), GFP_KERNEL);
 	if (!tpg)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	tpg->nport = lio_nport;
 	tpg->tpgt = n;
 	tpg->enabled = false;
 
-	tpg->tpg_attrib.generate_node_acls = 1;
+	tpg->tpg_attrib.generate_analde_acls = 1;
 	tpg->tpg_attrib.demo_mode_write_protect = 1;
 	tpg->tpg_attrib.cache_dynamic_acls = 1;
 	tpg->tpg_attrib.demo_mode_login_only = 1;
@@ -960,13 +960,13 @@ efct_lio_npiv_make_tpg(struct se_wwn *wwn, const char *name)
 
 	tpg = kzalloc(sizeof(*tpg), GFP_KERNEL);
 	if (!tpg)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	tpg->vport = lio_vport;
 	tpg->tpgt = n;
 	tpg->enabled = false;
 
-	tpg->tpg_attrib.generate_node_acls = 1;
+	tpg->tpg_attrib.generate_analde_acls = 1;
 	tpg->tpg_attrib.demo_mode_write_protect = 1;
 	tpg->tpg_attrib.cache_dynamic_acls = 1;
 	tpg->tpg_attrib.demo_mode_login_only = 1;
@@ -997,7 +997,7 @@ efct_lio_npiv_drop_tpg(struct se_portal_group *se_tpg)
 }
 
 static int
-efct_lio_init_nodeacl(struct se_node_acl *se_nacl, const char *name)
+efct_lio_init_analdeacl(struct se_analde_acl *se_nacl, const char *name)
 {
 	struct efct_lio_nacl *nacl;
 	u64 wwnn;
@@ -1005,7 +1005,7 @@ efct_lio_init_nodeacl(struct se_node_acl *se_nacl, const char *name)
 	if (efct_lio_parse_wwn(name, &wwnn, 0) < 0)
 		return -EINVAL;
 
-	nacl = container_of(se_nacl, struct efct_lio_nacl, se_node_acl);
+	nacl = container_of(se_nacl, struct efct_lio_nacl, se_analde_acl);
 	nacl->nport_wwnn = wwnn;
 
 	efct_format_wwn(nacl->nport_name, sizeof(nacl->nport_name), "", wwnn);
@@ -1028,16 +1028,16 @@ efct_lio_npiv_check_demo_mode_login_only(struct se_portal_group *stpg)
 }
 
 static struct efct_lio_tpg *
-efct_get_vport_tpg(struct efc_node *node)
+efct_get_vport_tpg(struct efc_analde *analde)
 {
 	struct efct *efct;
-	u64 wwpn = node->nport->wwpn;
+	u64 wwpn = analde->nport->wwpn;
 	struct efct_lio_vport_list_t *vport, *next;
 	struct efct_lio_vport *lio_vport = NULL;
 	struct efct_lio_tpg *tpg = NULL;
 	unsigned long flags = 0;
 
-	efct = node->efc->base;
+	efct = analde->efc->base;
 	spin_lock_irqsave(&efct->tgt_efct.efct_lio_lock, flags);
 	list_for_each_entry_safe(vport, next, &efct->tgt_efct.vport_list,
 				 list_entry) {
@@ -1053,42 +1053,42 @@ efct_get_vport_tpg(struct efc_node *node)
 }
 
 static void
-_efct_tgt_node_free(struct kref *arg)
+_efct_tgt_analde_free(struct kref *arg)
 {
-	struct efct_node *tgt_node = container_of(arg, struct efct_node, ref);
-	struct efc_node *node = tgt_node->node;
+	struct efct_analde *tgt_analde = container_of(arg, struct efct_analde, ref);
+	struct efc_analde *analde = tgt_analde->analde;
 
-	efc_scsi_del_initiator_complete(node->efc, node);
-	kfree(tgt_node);
+	efc_scsi_del_initiator_complete(analde->efc, analde);
+	kfree(tgt_analde);
 }
 
 static int efct_session_cb(struct se_portal_group *se_tpg,
 			   struct se_session *se_sess, void *private)
 {
-	struct efc_node *node = private;
-	struct efct_node *tgt_node;
-	struct efct *efct = node->efc->base;
+	struct efc_analde *analde = private;
+	struct efct_analde *tgt_analde;
+	struct efct *efct = analde->efc->base;
 
-	tgt_node = kzalloc(sizeof(*tgt_node), GFP_KERNEL);
-	if (!tgt_node)
-		return -ENOMEM;
+	tgt_analde = kzalloc(sizeof(*tgt_analde), GFP_KERNEL);
+	if (!tgt_analde)
+		return -EANALMEM;
 
-	kref_init(&tgt_node->ref);
-	tgt_node->release = _efct_tgt_node_free;
+	kref_init(&tgt_analde->ref);
+	tgt_analde->release = _efct_tgt_analde_free;
 
-	tgt_node->session = se_sess;
-	node->tgt_node = tgt_node;
-	tgt_node->efct = efct;
+	tgt_analde->session = se_sess;
+	analde->tgt_analde = tgt_analde;
+	tgt_analde->efct = efct;
 
-	tgt_node->node = node;
+	tgt_analde->analde = analde;
 
-	tgt_node->node_fc_id = node->rnode.fc_id;
-	tgt_node->port_fc_id = node->nport->fc_id;
-	tgt_node->vpi = node->nport->indicator;
-	tgt_node->rpi = node->rnode.indicator;
+	tgt_analde->analde_fc_id = analde->ranalde.fc_id;
+	tgt_analde->port_fc_id = analde->nport->fc_id;
+	tgt_analde->vpi = analde->nport->indicator;
+	tgt_analde->rpi = analde->ranalde.indicator;
 
-	spin_lock_init(&tgt_node->active_ios_lock);
-	INIT_LIST_HEAD(&tgt_node->active_ios);
+	spin_lock_init(&tgt_analde->active_ios_lock);
+	INIT_LIST_HEAD(&tgt_analde->active_ios);
 
 	return 0;
 }
@@ -1155,10 +1155,10 @@ static void efct_lio_setup_session(struct work_struct *work)
 	struct efct_lio_wq_data *wq_data =
 		container_of(work, struct efct_lio_wq_data, work);
 	struct efct *efct = wq_data->efct;
-	struct efc_node *node = wq_data->ptr;
+	struct efc_analde *analde = wq_data->ptr;
 	char wwpn[WWN_NAME_LEN];
 	struct efct_lio_tpg *tpg;
-	struct efct_node *tgt_node;
+	struct efct_analde *tgt_analde;
 	struct se_portal_group *se_tpg;
 	struct se_session *se_sess;
 	int watermark;
@@ -1166,9 +1166,9 @@ static void efct_lio_setup_session(struct work_struct *work)
 	u64 id;
 
 	/* Check to see if it's belongs to vport,
-	 * if not get physical port
+	 * if analt get physical port
 	 */
-	tpg = efct_get_vport_tpg(node);
+	tpg = efct_get_vport_tpg(analde);
 	if (tpg) {
 		se_tpg = &tpg->tpg;
 	} else if (efct->tgt_efct.tpg) {
@@ -1182,29 +1182,29 @@ static void efct_lio_setup_session(struct work_struct *work)
 	/*
 	 * Format the FCP Initiator port_name into colon
 	 * separated values to match the format by our explicit
-	 * ConfigFS NodeACLs.
+	 * ConfigFS AnaldeACLs.
 	 */
-	efct_format_wwn(wwpn, sizeof(wwpn), "",	efc_node_get_wwpn(node));
+	efct_format_wwn(wwpn, sizeof(wwpn), "",	efc_analde_get_wwpn(analde));
 
-	se_sess = target_setup_session(se_tpg, 0, 0, TARGET_PROT_NORMAL, wwpn,
-				       node, efct_session_cb);
+	se_sess = target_setup_session(se_tpg, 0, 0, TARGET_PROT_ANALRMAL, wwpn,
+				       analde, efct_session_cb);
 	if (IS_ERR(se_sess)) {
 		efc_log_err(efct, "failed to setup session\n");
 		kfree(wq_data);
-		efc_scsi_sess_reg_complete(node, -EIO);
+		efc_scsi_sess_reg_complete(analde, -EIO);
 		return;
 	}
 
-	tgt_node = node->tgt_node;
-	id = (u64) tgt_node->port_fc_id << 32 | tgt_node->node_fc_id;
+	tgt_analde = analde->tgt_analde;
+	id = (u64) tgt_analde->port_fc_id << 32 | tgt_analde->analde_fc_id;
 
-	efc_log_debug(efct, "new initiator sess=%p node=%p id: %llx\n",
-		      se_sess, node, id);
+	efc_log_debug(efct, "new initiator sess=%p analde=%p id: %llx\n",
+		      se_sess, analde, id);
 
-	if (xa_err(xa_store(&efct->lookup, id, tgt_node, GFP_KERNEL)))
-		efc_log_err(efct, "Node lookup store failed\n");
+	if (xa_err(xa_store(&efct->lookup, id, tgt_analde, GFP_KERNEL)))
+		efc_log_err(efct, "Analde lookup store failed\n");
 
-	efc_scsi_sess_reg_complete(node, 0);
+	efc_scsi_sess_reg_complete(analde, 0);
 
 	/* update IO watermark: increment initiator count */
 	ini_count = atomic_add_return(1, &efct->tgt_efct.initiator_count);
@@ -1217,9 +1217,9 @@ static void efct_lio_setup_session(struct work_struct *work)
 	kfree(wq_data);
 }
 
-int efct_scsi_new_initiator(struct efc *efc, struct efc_node *node)
+int efct_scsi_new_initiator(struct efc *efc, struct efc_analde *analde)
 {
-	struct efct *efct = node->efc->base;
+	struct efct *efct = analde->efc->base;
 	struct efct_lio_wq_data *wq_data;
 
 	/*
@@ -1228,9 +1228,9 @@ int efct_scsi_new_initiator(struct efc *efc, struct efc_node *node)
 	 */
 	wq_data = kzalloc(sizeof(*wq_data), GFP_ATOMIC);
 	if (!wq_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	wq_data->ptr = node;
+	wq_data->ptr = analde;
 	wq_data->efct = efct;
 	INIT_WORK(&wq_data->work, efct_lio_setup_session);
 	queue_work(lio_wq, &wq_data->work);
@@ -1242,42 +1242,42 @@ static void efct_lio_remove_session(struct work_struct *work)
 	struct efct_lio_wq_data *wq_data =
 		container_of(work, struct efct_lio_wq_data, work);
 	struct efct *efct = wq_data->efct;
-	struct efc_node *node = wq_data->ptr;
-	struct efct_node *tgt_node;
+	struct efc_analde *analde = wq_data->ptr;
+	struct efct_analde *tgt_analde;
 	struct se_session *se_sess;
 
-	tgt_node = node->tgt_node;
-	if (!tgt_node) {
+	tgt_analde = analde->tgt_analde;
+	if (!tgt_analde) {
 		/* base driver has sent back-to-back requests
-		 * to unreg session with no intervening
+		 * to unreg session with anal intervening
 		 * register
 		 */
 		efc_log_err(efct, "unreg session for NULL session\n");
-		efc_scsi_del_initiator_complete(node->efc, node);
+		efc_scsi_del_initiator_complete(analde->efc, analde);
 		return;
 	}
 
-	se_sess = tgt_node->session;
-	efc_log_debug(efct, "unreg session se_sess=%p node=%p\n",
-		       se_sess, node);
+	se_sess = tgt_analde->session;
+	efc_log_debug(efct, "unreg session se_sess=%p analde=%p\n",
+		       se_sess, analde);
 
 	/* first flag all session commands to complete */
 	target_stop_session(se_sess);
 
-	/* now wait for session commands to complete */
+	/* analw wait for session commands to complete */
 	target_wait_for_sess_cmds(se_sess);
 	target_remove_session(se_sess);
-	tgt_node->session = NULL;
-	node->tgt_node = NULL;
-	kref_put(&tgt_node->ref, tgt_node->release);
+	tgt_analde->session = NULL;
+	analde->tgt_analde = NULL;
+	kref_put(&tgt_analde->ref, tgt_analde->release);
 
 	kfree(wq_data);
 }
 
-int efct_scsi_del_initiator(struct efc *efc, struct efc_node *node, int reason)
+int efct_scsi_del_initiator(struct efc *efc, struct efc_analde *analde, int reason)
 {
-	struct efct *efct = node->efc->base;
-	struct efct_node *tgt_node = node->tgt_node;
+	struct efct *efct = analde->efc->base;
+	struct efct_analde *tgt_analde = analde->tgt_analde;
 	struct efct_lio_wq_data *wq_data;
 	int watermark;
 	int ini_count;
@@ -1286,19 +1286,19 @@ int efct_scsi_del_initiator(struct efc *efc, struct efc_node *node, int reason)
 	if (reason == EFCT_SCSI_INITIATOR_MISSING)
 		return EFC_SCSI_CALL_COMPLETE;
 
-	if (!tgt_node) {
-		efc_log_err(efct, "tgt_node is NULL\n");
+	if (!tgt_analde) {
+		efc_log_err(efct, "tgt_analde is NULL\n");
 		return -EIO;
 	}
 
 	wq_data = kzalloc(sizeof(*wq_data), GFP_ATOMIC);
 	if (!wq_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	id = (u64) tgt_node->port_fc_id << 32 | tgt_node->node_fc_id;
+	id = (u64) tgt_analde->port_fc_id << 32 | tgt_analde->analde_fc_id;
 	xa_erase(&efct->lookup, id);
 
-	wq_data->ptr = node;
+	wq_data->ptr = analde;
 	wq_data->efct = efct;
 	INIT_WORK(&wq_data->work, efct_lio_remove_session);
 	queue_work(lio_wq, &wq_data->work);
@@ -1324,7 +1324,7 @@ void efct_scsi_recv_cmd(struct efct_io *io, uint64_t lun, u8 *cdb,
 	struct se_cmd *se_cmd = &io->tgt_io.cmd;
 	struct efct *efct = io->efct;
 	char *ddir;
-	struct efct_node *tgt_node;
+	struct efct_analde *tgt_analde;
 	struct se_session *se_sess;
 	int rc = 0;
 
@@ -1358,8 +1358,8 @@ void efct_scsi_recv_cmd(struct efct_io *io, uint64_t lun, u8 *cdb,
 		ocp->ddir = DMA_BIDIRECTIONAL;
 		break;
 	default:
-		ddir = "NONE";
-		ocp->ddir = DMA_NONE;
+		ddir = "ANALNE";
+		ocp->ddir = DMA_ANALNE;
 		break;
 	}
 
@@ -1367,10 +1367,10 @@ void efct_scsi_recv_cmd(struct efct_io *io, uint64_t lun, u8 *cdb,
 	efct_lio_io_printf(io, "new cmd=0x%x ddir=%s dl=%u\n",
 			   cdb[0], ddir, io->exp_xfer_len);
 
-	tgt_node = io->node;
-	se_sess = tgt_node->session;
+	tgt_analde = io->analde;
+	se_sess = tgt_analde->session;
 	if (!se_sess) {
-		efc_log_err(efct, "No session found to submit IO se_cmd: %p\n",
+		efc_log_err(efct, "Anal session found to submit IO se_cmd: %p\n",
 			    &ocp->cmd);
 		efct_scsi_io_free(io);
 		return;
@@ -1400,7 +1400,7 @@ efct_scsi_recv_tmf(struct efct_io *tmfio, u32 lun, enum efct_scsi_tmf_cmd cmd,
 	unsigned char tmr_func;
 	struct efct *efct = tmfio->efct;
 	struct efct_scsi_tgt_io *ocp = &tmfio->tgt_io;
-	struct efct_node *tgt_node;
+	struct efct_analde *tgt_analde;
 	struct se_session *se_sess;
 	int rc;
 
@@ -1429,7 +1429,7 @@ efct_scsi_recv_tmf(struct efct_io *tmfio, u32 lun, enum efct_scsi_tmf_cmd cmd,
 	case EFCT_SCSI_TMF_TARGET_RESET:
 		tmr_func = TMR_TARGET_WARM_RESET;
 		break;
-	case EFCT_SCSI_TMF_QUERY_ASYNCHRONOUS_EVENT:
+	case EFCT_SCSI_TMF_QUERY_ASYNCHROANALUS_EVENT:
 	case EFCT_SCSI_TMF_QUERY_TASK_SET:
 	default:
 		goto tmf_fail;
@@ -1439,9 +1439,9 @@ efct_scsi_recv_tmf(struct efct_io *tmfio, u32 lun, enum efct_scsi_tmf_cmd cmd,
 	tmfio->tgt_io.lun = lun;
 	tmfio->tgt_io.io_to_abort = io_to_abort;
 
-	tgt_node = tmfio->node;
+	tgt_analde = tmfio->analde;
 
-	se_sess = tgt_node->session;
+	se_sess = tgt_analde->session;
 	if (!se_sess)
 		return 0;
 
@@ -1501,7 +1501,7 @@ static ssize_t efct_lio_tpg_attrib_##name##_store(			  \
 }									  \
 CONFIGFS_ATTR(efct_lio_tpg_attrib_, name)
 
-DEF_EFCT_TPG_ATTRIB(generate_node_acls);
+DEF_EFCT_TPG_ATTRIB(generate_analde_acls);
 DEF_EFCT_TPG_ATTRIB(cache_dynamic_acls);
 DEF_EFCT_TPG_ATTRIB(demo_mode_write_protect);
 DEF_EFCT_TPG_ATTRIB(prod_mode_write_protect);
@@ -1509,7 +1509,7 @@ DEF_EFCT_TPG_ATTRIB(demo_mode_login_only);
 DEF_EFCT_TPG_ATTRIB(session_deletion_wait);
 
 static struct configfs_attribute *efct_lio_tpg_attrib_attrs[] = {
-	&efct_lio_tpg_attrib_attr_generate_node_acls,
+	&efct_lio_tpg_attrib_attr_generate_analde_acls,
 	&efct_lio_tpg_attrib_attr_cache_dynamic_acls,
 	&efct_lio_tpg_attrib_attr_demo_mode_write_protect,
 	&efct_lio_tpg_attrib_attr_prod_mode_write_protect,
@@ -1557,7 +1557,7 @@ static ssize_t efct_lio_npiv_tpg_attrib_##name##_store(			   \
 }									   \
 CONFIGFS_ATTR(efct_lio_npiv_tpg_attrib_, name)
 
-DEF_EFCT_NPIV_TPG_ATTRIB(generate_node_acls);
+DEF_EFCT_NPIV_TPG_ATTRIB(generate_analde_acls);
 DEF_EFCT_NPIV_TPG_ATTRIB(cache_dynamic_acls);
 DEF_EFCT_NPIV_TPG_ATTRIB(demo_mode_write_protect);
 DEF_EFCT_NPIV_TPG_ATTRIB(prod_mode_write_protect);
@@ -1565,7 +1565,7 @@ DEF_EFCT_NPIV_TPG_ATTRIB(demo_mode_login_only);
 DEF_EFCT_NPIV_TPG_ATTRIB(session_deletion_wait);
 
 static struct configfs_attribute *efct_lio_npiv_tpg_attrib_attrs[] = {
-	&efct_lio_npiv_tpg_attrib_attr_generate_node_acls,
+	&efct_lio_npiv_tpg_attrib_attr_generate_analde_acls,
 	&efct_lio_npiv_tpg_attrib_attr_cache_dynamic_acls,
 	&efct_lio_npiv_tpg_attrib_attr_demo_mode_write_protect,
 	&efct_lio_npiv_tpg_attrib_attr_prod_mode_write_protect,
@@ -1584,11 +1584,11 @@ static struct configfs_attribute *efct_lio_npiv_tpg_attrs[] = {
 static const struct target_core_fabric_ops efct_lio_ops = {
 	.module				= THIS_MODULE,
 	.fabric_name			= "efct",
-	.node_acl_size			= sizeof(struct efct_lio_nacl),
+	.analde_acl_size			= sizeof(struct efct_lio_nacl),
 	.max_data_sg_nents		= 65535,
 	.tpg_get_wwn			= efct_lio_get_fabric_wwn,
 	.tpg_get_tag			= efct_lio_get_tag,
-	.fabric_init_nodeacl		= efct_lio_init_nodeacl,
+	.fabric_init_analdeacl		= efct_lio_init_analdeacl,
 	.tpg_check_demo_mode		= efct_lio_check_demo_mode,
 	.tpg_check_demo_mode_cache      = efct_lio_check_demo_mode_cache,
 	.tpg_check_demo_mode_write_protect = efct_lio_check_demo_write_protect,
@@ -1618,11 +1618,11 @@ static const struct target_core_fabric_ops efct_lio_ops = {
 static const struct target_core_fabric_ops efct_lio_npiv_ops = {
 	.module				= THIS_MODULE,
 	.fabric_name			= "efct_npiv",
-	.node_acl_size			= sizeof(struct efct_lio_nacl),
+	.analde_acl_size			= sizeof(struct efct_lio_nacl),
 	.max_data_sg_nents		= 65535,
 	.tpg_get_wwn			= efct_lio_get_npiv_fabric_wwn,
 	.tpg_get_tag			= efct_lio_get_npiv_tag,
-	.fabric_init_nodeacl		= efct_lio_init_nodeacl,
+	.fabric_init_analdeacl		= efct_lio_init_analdeacl,
 	.tpg_check_demo_mode		= efct_lio_check_demo_mode,
 	.tpg_check_demo_mode_cache      = efct_lio_check_demo_mode_cache,
 	.tpg_check_demo_mode_write_protect =

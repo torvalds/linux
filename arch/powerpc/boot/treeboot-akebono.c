@@ -10,7 +10,7 @@
  *   Copyright 2002-2005 MontaVista Software Inc.
  *
  *   Eugene Surovegin <eugene.surovegin@zultys.com> or <ebs@ebshome.net>
- *   Copyright (c) 2003, 2004 Zultys Technologies
+ *   Copyright (c) 2003, 2004 Zultys Techanallogies
  *
  *    Copyright 2007 David Gibson, IBM Corporation.
  *    Copyright 2010 Ben. Herrenschmidt, IBM Corporation.
@@ -44,10 +44,10 @@ BSS_STACK(4096);
 #define CCTL0_MCO5	0x80000812U
 #define CCTL0_MCO6	0x80000813U
 
-static unsigned long long ibm_akebono_memsize;
+static unsigned long long ibm_akeboanal_memsize;
 static long long unsigned mac_addr;
 
-static unsigned long long ibm_akebono_detect_memsize(void)
+static unsigned long long ibm_akeboanal_detect_memsize(void)
 {
 	u32 reg;
 	unsigned i;
@@ -67,12 +67,12 @@ static unsigned long long ibm_akebono_detect_memsize(void)
 	return memsize;
 }
 
-static void ibm_akebono_fixups(void)
+static void ibm_akeboanal_fixups(void)
 {
 	void *emac;
 	u32 reg;
 
-	dt_fixup_memory(0x0ULL,  ibm_akebono_memsize);
+	dt_fixup_memory(0x0ULL,  ibm_akeboanal_memsize);
 
 	/* Fixup the SD timeout frequency */
 	mtdcrx(CCTL0_MCO4, 0x1);
@@ -94,7 +94,7 @@ void platform_init(char *userdata)
 {
 	unsigned long end_of_ram, avail_ram;
 	u32 pir_reg;
-	int node, size;
+	int analde, size;
 	const u32 *timebase;
 	int len, i, userdata_len;
 	char *end;
@@ -128,15 +128,15 @@ void platform_init(char *userdata)
 	loader_info.cmdline = userdata;
 	loader_info.cmdline_len = 256;
 
-	ibm_akebono_memsize = ibm_akebono_detect_memsize();
-	if (ibm_akebono_memsize >> 32)
+	ibm_akeboanal_memsize = ibm_akeboanal_detect_memsize();
+	if (ibm_akeboanal_memsize >> 32)
 		end_of_ram = ~0UL;
 	else
-		end_of_ram = ibm_akebono_memsize;
+		end_of_ram = ibm_akeboanal_memsize;
 	avail_ram = end_of_ram - (unsigned long)_end;
 
 	simple_alloc_init(_end, avail_ram, 128, 64);
-	platform_ops.fixups = ibm_akebono_fixups;
+	platform_ops.fixups = ibm_akeboanal_fixups;
 	platform_ops.exit = ibm44x_dbcr_reset;
 	pir_reg = mfspr(SPRN_PIR);
 
@@ -144,11 +144,11 @@ void platform_init(char *userdata)
 	if (fdt_check_header(_dtb_start) != 0)
 		fatal("Invalid device tree blob\n");
 
-	node = fdt_node_offset_by_prop_value(_dtb_start, -1, "device_type",
+	analde = fdt_analde_offset_by_prop_value(_dtb_start, -1, "device_type",
 					     "cpu", sizeof("cpu"));
-	if (!node)
-		fatal("Cannot find cpu node\n");
-	timebase = fdt_getprop(_dtb_start, node, "timebase-frequency", &size);
+	if (!analde)
+		fatal("Cananalt find cpu analde\n");
+	timebase = fdt_getprop(_dtb_start, analde, "timebase-frequency", &size);
 	if (timebase && (size == 4))
 		timebase_period_ns = 1000000000 / *timebase;
 

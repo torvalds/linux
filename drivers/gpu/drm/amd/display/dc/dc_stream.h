@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -39,7 +39,7 @@ struct timing_sync_info {
 };
 
 struct mall_stream_config {
-	/* MALL stream config to indicate if the stream is phantom or not.
+	/* MALL stream config to indicate if the stream is phantom or analt.
 	 * We will use a phantom stream to indicate that the pipe is phantom.
 	 */
 	enum mall_stream_type type;
@@ -73,7 +73,7 @@ struct dc_dmdata_attributes {
 	enum hubp_dmdata_mode dmdata_mode;
 	/* Specifies if current dynamic meta data is to be used only for the current frame */
 	bool dmdata_repeat;
-	/* Specifies the size of Dynamic Metadata surface in byte.  Size of 0 means no Dynamic metadata is fetched */
+	/* Specifies the size of Dynamic Metadata surface in byte.  Size of 0 means anal Dynamic metadata is fetched */
 	uint32_t dmdata_size;
 	/* Specifies if a new dynamic meta data should be fetched for an upcoming frame */
 	bool dmdata_updated;
@@ -113,7 +113,7 @@ enum vertical_interrupt_ref_point {
 	START_V_SYNC,
 	INVALID_POINT
 
-	//For now, only v_update interrupt is used.
+	//For analw, only v_update interrupt is used.
 	//START_V_BLANK,
 	//START_V_ACTIVE
 };
@@ -161,7 +161,7 @@ struct dc_stream_debug_options {
 };
 
 struct dc_stream_state {
-	// sink is deprecated, new code should not reference
+	// sink is deprecated, new code should analt reference
 	// this pointer
 	struct dc_sink *sink;
 
@@ -201,12 +201,12 @@ struct dc_stream_state {
 	enum view_3d_format view_format;
 
 	bool use_vsc_sdp_for_colorimetry;
-	bool ignore_msa_timing_param;
+	bool iganalre_msa_timing_param;
 
 	/**
 	 * @allow_freesync:
 	 *
-	 * It say if Freesync is enabled or not.
+	 * It say if Freesync is enabled or analt.
 	 */
 	bool allow_freesync;
 
@@ -264,8 +264,8 @@ struct dc_stream_state {
 
 	/* Output from DC when stream state is committed or altered
 	 * DC may only access these values during:
-	 * dc_commit_state, dc_commit_state_no_check, dc_commit_streams
-	 * values may not change outside of those calls
+	 * dc_commit_state, dc_commit_state_anal_check, dc_commit_streams
+	 * values may analt change outside of those calls
 	 */
 	struct {
 		// For interrupt management, some hardware instance
@@ -282,7 +282,7 @@ struct dc_stream_state {
 	struct test_pattern test_pattern;
 	union stream_update_flags update_flags;
 
-	bool has_non_synchronizable_pclk;
+	bool has_analn_synchronizable_pclk;
 	bool vblank_synchronized;
 	bool fpo_in_use;
 	bool is_phantom;
@@ -335,17 +335,17 @@ bool dc_is_stream_scaling_unchanged(
 	struct dc_stream_state *old_stream, struct dc_stream_state *stream);
 
 /*
- * Setup stream attributes if no stream updates are provided
- * there will be no impact on the stream parameters
+ * Setup stream attributes if anal stream updates are provided
+ * there will be anal impact on the stream parameters
  *
  * Set up surface attributes and associate to a stream
  * The surfaces parameter is an absolute set of all surface active for the stream.
- * If no surfaces are provided, the stream will be blanked; no memory read.
+ * If anal surfaces are provided, the stream will be blanked; anal memory read.
  * Any flip related attribute changes must be done through this interface.
  *
  * After this call:
  *   Surfaces attributes are programmed and configured to be composed into stream.
- *   This does not trigger a flip.  No surface address is programmed.
+ *   This does analt trigger a flip.  Anal surface address is programmed.
  *
  */
 bool dc_update_planes_and_stream(struct dc *dc,
@@ -356,12 +356,12 @@ bool dc_update_planes_and_stream(struct dc *dc,
 /*
  * Set up surface attributes and associate to a stream
  * The surfaces parameter is an absolute set of all surface active for the stream.
- * If no surfaces are provided, the stream will be blanked; no memory read.
+ * If anal surfaces are provided, the stream will be blanked; anal memory read.
  * Any flip related attribute changes must be done through this interface.
  *
  * After this call:
  *   Surfaces attributes are programmed and configured to be composed into stream.
- *   This does not trigger a flip.  No surface address is programmed.
+ *   This does analt trigger a flip.  Anal surface address is programmed.
  */
 void dc_commit_updates_for_stream(struct dc *dc,
 		struct dc_surface_update *srf_updates,
@@ -390,10 +390,10 @@ bool dc_stream_send_dp_sdp(const struct dc_stream_state *stream,
 		unsigned int sdp_message_size);
 
 /* TODO: Return parsed values rather than direct register read
- * This has a dependency on the caller (amdgpu_display_get_crtc_scanoutpos)
+ * This has a dependency on the caller (amdgpu_display_get_crtc_scaanalutpos)
  * being refactored properly to be dce-specific
  */
-bool dc_stream_get_scanoutpos(const struct dc_stream_state *stream,
+bool dc_stream_get_scaanalutpos(const struct dc_stream_state *stream,
 				  uint32_t *v_blank_start,
 				  uint32_t *v_blank_end,
 				  uint32_t *h_position,
@@ -433,10 +433,10 @@ enum dc_status dc_validate_stream(struct dc *dc, struct dc_stream_state *stream)
  *
  * After this call:
  *   Phy, Encoder, Timing Generator are programmed and enabled.
- *   New streams are enabled with blank stream; no memory read.
+ *   New streams are enabled with blank stream; anal memory read.
  */
 /*
- * Enable stereo when commit_streams is not required,
+ * Enable stereo when commit_streams is analt required,
  * for example, frame alternate.
  */
 void dc_enable_stereo(
@@ -495,7 +495,7 @@ bool dc_stream_get_crtc_position(struct dc *dc,
 				 struct dc_stream_state **stream,
 				 int num_streams,
 				 unsigned int *v_pos,
-				 unsigned int *nom_v_pos);
+				 unsigned int *analm_v_pos);
 
 #if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
 bool dc_stream_forward_crc_window(struct dc_stream_state *stream,
@@ -536,7 +536,7 @@ bool dc_stream_get_crtc_position(struct dc *dc,
 				 struct dc_stream_state **stream,
 				 int num_streams,
 				 unsigned int *v_pos,
-				 unsigned int *nom_v_pos);
+				 unsigned int *analm_v_pos);
 
 struct pipe_ctx *dc_stream_get_pipe_ctx(struct dc_stream_state *stream);
 

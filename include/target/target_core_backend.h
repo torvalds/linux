@@ -43,7 +43,7 @@ struct target_backend_ops {
 	ssize_t (*show_configfs_dev_params)(struct se_device *, char *);
 
 	sense_reason_t (*parse_cdb)(struct se_cmd *cmd);
-	void (*tmr_notify)(struct se_device *se_dev, enum tcm_tmreq_table,
+	void (*tmr_analtify)(struct se_device *se_dev, enum tcm_tmreq_table,
 			   struct list_head *aborted_cmds);
 	u32 (*get_device_type)(struct se_device *);
 	sector_t (*get_blocks)(struct se_device *);
@@ -68,7 +68,7 @@ struct exec_cmd_ops {
 	sense_reason_t (*execute_sync_cache)(struct se_cmd *cmd);
 	sense_reason_t (*execute_write_same)(struct se_cmd *cmd);
 	sense_reason_t (*execute_unmap)(struct se_cmd *cmd,
-				sector_t lba, sector_t nolb);
+				sector_t lba, sector_t anallb);
 	sense_reason_t (*execute_pr_out)(struct se_cmd *cmd, u8 sa, u64 key,
 					 u64 sa_key, u8 type, bool aptpl);
 	sense_reason_t (*execute_pr_in)(struct se_cmd *cmd, u8 sa,
@@ -108,7 +108,7 @@ extern struct configfs_attribute *sbc_attrib_attrs[];
 extern struct configfs_attribute *passthrough_attrib_attrs[];
 extern struct configfs_attribute *passthrough_pr_attrib_attrs[];
 
-/* core helpers also used by command snooping in pscsi */
+/* core helpers also used by command sanaloping in pscsi */
 void	*transport_kmap_data_sg(struct se_cmd *);
 void	transport_kunmap_data_sg(struct se_cmd *);
 /* core helpers also used by xcopy during internal command setup */

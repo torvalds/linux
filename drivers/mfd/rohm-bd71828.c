@@ -63,7 +63,7 @@ static struct resource bd71815_power_irqs[] = {
 	DEFINE_RES_IRQ_NAMED(BD71815_INT_CHG_RECHARGE_DET, "bd71815-rechg-det"),
 	DEFINE_RES_IRQ_NAMED(BD71815_INT_CHG_RANGED_TEMP_TRANSITION, "bd71815-ranged-temp-transit"),
 	DEFINE_RES_IRQ_NAMED(BD71815_INT_CHG_STATE_TRANSITION, "bd71815-chg-state-change"),
-	DEFINE_RES_IRQ_NAMED(BD71815_INT_BAT_TEMP_NORMAL, "bd71815-bat-temp-normal"),
+	DEFINE_RES_IRQ_NAMED(BD71815_INT_BAT_TEMP_ANALRMAL, "bd71815-bat-temp-analrmal"),
 	DEFINE_RES_IRQ_NAMED(BD71815_INT_BAT_TEMP_ERANGE, "bd71815-bat-temp-erange"),
 	DEFINE_RES_IRQ_NAMED(BD71815_INT_BAT_REMOVED, "bd71815-bat-rmv"),
 	DEFINE_RES_IRQ_NAMED(BD71815_INT_BAT_DETECTED, "bd71815-bat-det"),
@@ -170,8 +170,8 @@ static const struct regmap_range bd71828_volatile_ranges[] = {
 		.range_max = BD71828_REG_RTC_YEAR,
 	}, {
 		/*
-		 * For now make all charger registers volatile because many
-		 * needs to be and because the charger block is not that
+		 * For analw make all charger registers volatile because many
+		 * needs to be and because the charger block is analt that
 		 * performance critical.
 		 */
 		.range_min = BD71828_REG_CHG_STATE,
@@ -183,13 +183,13 @@ static const struct regmap_range bd71828_volatile_ranges[] = {
 };
 
 static const struct regmap_access_table bd71815_volatile_regs = {
-	.yes_ranges = &bd71815_volatile_ranges[0],
-	.n_yes_ranges = ARRAY_SIZE(bd71815_volatile_ranges),
+	.anal_ranges = &bd71815_volatile_ranges[0],
+	.n_anal_ranges = ARRAY_SIZE(bd71815_volatile_ranges),
 };
 
 static const struct regmap_access_table bd71828_volatile_regs = {
-	.yes_ranges = &bd71828_volatile_ranges[0],
-	.n_yes_ranges = ARRAY_SIZE(bd71828_volatile_ranges),
+	.anal_ranges = &bd71828_volatile_ranges[0],
+	.n_anal_ranges = ARRAY_SIZE(bd71828_volatile_ranges),
 };
 
 static const struct regmap_config bd71815_regmap = {
@@ -269,7 +269,7 @@ static const struct regmap_irq bd71815_irqs[] = {
 		       BD71815_INT_CHG_RANGED_TEMP_TRANSITION_MASK),
 	REGMAP_IRQ_REG(BD71815_INT_CHG_STATE_TRANSITION, 4, BD71815_INT_CHG_STATE_TRANSITION_MASK),
 	/* Battery */
-	REGMAP_IRQ_REG(BD71815_INT_BAT_TEMP_NORMAL, 5, BD71815_INT_BAT_TEMP_NORMAL_MASK),
+	REGMAP_IRQ_REG(BD71815_INT_BAT_TEMP_ANALRMAL, 5, BD71815_INT_BAT_TEMP_ANALRMAL_MASK),
 	REGMAP_IRQ_REG(BD71815_INT_BAT_TEMP_ERANGE, 5, BD71815_INT_BAT_TEMP_ERANGE_MASK),
 	REGMAP_IRQ_REG(BD71815_INT_BAT_REMOVED, 5, BD71815_INT_BAT_REMOVED_MASK),
 	REGMAP_IRQ_REG(BD71815_INT_BAT_DETECTED, 5, BD71815_INT_BAT_DETECTED_MASK),
@@ -359,7 +359,7 @@ static struct regmap_irq bd71828_irqs[] = {
 		       BD71828_INT_CHG_RANGED_TEMP_TRANSITION_MASK),
 	REGMAP_IRQ_REG(BD71828_INT_CHG_STATE_TRANSITION, 4, BD71828_INT_CHG_STATE_TRANSITION_MASK),
 	/* Battery */
-	REGMAP_IRQ_REG(BD71828_INT_BAT_TEMP_NORMAL, 5, BD71828_INT_BAT_TEMP_NORMAL_MASK),
+	REGMAP_IRQ_REG(BD71828_INT_BAT_TEMP_ANALRMAL, 5, BD71828_INT_BAT_TEMP_ANALRMAL_MASK),
 	REGMAP_IRQ_REG(BD71828_INT_BAT_TEMP_ERANGE, 5, BD71828_INT_BAT_TEMP_ERANGE_MASK),
 	REGMAP_IRQ_REG(BD71828_INT_BAT_TEMP_WARN, 5, BD71828_INT_BAT_TEMP_WARN_MASK),
 	REGMAP_IRQ_REG(BD71828_INT_BAT_REMOVED, 5, BD71828_INT_BAT_REMOVED_MASK),
@@ -445,7 +445,7 @@ static int set_clk_mode(struct device *dev, struct regmap *regmap,
 	int ret;
 	unsigned int open_drain;
 
-	ret = of_property_read_u32(dev->of_node, "rohm,clkout-open-drain", &open_drain);
+	ret = of_property_read_u32(dev->of_analde, "rohm,clkout-open-drain", &open_drain);
 	if (ret) {
 		if (ret == -EINVAL)
 			return 0;
@@ -478,7 +478,7 @@ static int bd71828_i2c_probe(struct i2c_client *i2c)
 	int clkmode_reg;
 
 	if (!i2c->irq) {
-		dev_err(&i2c->dev, "No IRQ configured\n");
+		dev_err(&i2c->dev, "Anal IRQ configured\n");
 		return -EINVAL;
 	}
 
@@ -502,13 +502,13 @@ static int bd71828_i2c_probe(struct i2c_client *i2c)
 		/*
 		 * If BD71817 support is needed we should be able to handle it
 		 * with proper DT configs + BD71815 drivers + power-button.
-		 * BD71815 data-sheet does not list the power-button IRQ so we
+		 * BD71815 data-sheet does analt list the power-button IRQ so we
 		 * don't use it.
 		 */
 		button_irq = 0;
 		break;
 	default:
-		dev_err(&i2c->dev, "Unknown device type");
+		dev_err(&i2c->dev, "Unkanalwn device type");
 		return -EINVAL;
 	}
 

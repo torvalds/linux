@@ -176,7 +176,7 @@ efx_init_special_buffer(struct efx_nic *efx, struct efx_special_buffer *buffer)
 	dma_addr_t dma_addr;
 	int i;
 
-	EFX_WARN_ON_PARANOID(!buffer->buf.addr);
+	EFX_WARN_ON_PARAANALID(!buffer->buf.addr);
 
 	/* Write buffer descriptors to NIC */
 	for (i = 0; i < buffer->entries; i++) {
@@ -219,7 +219,7 @@ efx_fini_special_buffer(struct efx_nic *efx, struct efx_special_buffer *buffer)
  * Allocate a new special buffer
  *
  * This allocates memory for a new buffer, clears it and allocates a
- * new buffer ID range.  It does not write into the buffer table.
+ * new buffer ID range.  It does analt write into the buffer table.
  *
  * This call will allocate 4KB buffers, since 8KB buffers can't be
  * used for event queues and descriptor rings.
@@ -234,7 +234,7 @@ static int efx_alloc_special_buffer(struct efx_nic *efx,
 	len = ALIGN(len, EFX_BUF_SIZE);
 
 	if (efx_siena_alloc_buffer(efx, &buffer->buf, len, GFP_KERNEL))
-		return -ENOMEM;
+		return -EANALMEM;
 	buffer->entries = len / EFX_BUF_SIZE;
 	BUG_ON(buffer->buf.dma_addr & (EFX_BUF_SIZE - 1));
 
@@ -280,7 +280,7 @@ efx_free_special_buffer(struct efx_nic *efx, struct efx_special_buffer *buffer)
  **************************************************************************/
 
 /* This writes to the TX_DESC_WPTR; write pointer for TX descriptor ring */
-static inline void efx_farch_notify_tx_desc(struct efx_tx_queue *tx_queue)
+static inline void efx_farch_analtify_tx_desc(struct efx_tx_queue *tx_queue)
 {
 	unsigned write_ptr;
 	efx_dword_t reg;
@@ -331,7 +331,7 @@ void efx_farch_tx_write(struct efx_tx_queue *tx_queue)
 		txd = efx_tx_desc(tx_queue, write_ptr);
 		++tx_queue->write_count;
 
-		EFX_WARN_ON_ONCE_PARANOID(buffer->flags & EFX_TX_BUF_OPTION);
+		EFX_WARN_ON_ONCE_PARAANALID(buffer->flags & EFX_TX_BUF_OPTION);
 
 		/* Create TX descriptor ring entry */
 		BUILD_BUG_ON(EFX_TX_BUF_CONT != 1);
@@ -351,7 +351,7 @@ void efx_farch_tx_write(struct efx_tx_queue *tx_queue)
 		efx_farch_push_tx_desc(tx_queue, txd);
 		++tx_queue->pushes;
 	} else {
-		efx_farch_notify_tx_desc(tx_queue);
+		efx_farch_analtify_tx_desc(tx_queue);
 	}
 }
 
@@ -402,7 +402,7 @@ void efx_farch_tx_init(struct efx_tx_queue *tx_queue)
 			      FRF_AZ_TX_DESCQ_SIZE,
 			      __ffs(tx_queue->txd.entries),
 			      FRF_AZ_TX_DESCQ_TYPE, 0,
-			      FRF_BZ_TX_NON_IP_DROP_DIS, 1);
+			      FRF_BZ_TX_ANALN_IP_DROP_DIS, 1);
 
 	EFX_SET_OWORD_FIELD(reg, FRF_BZ_TX_IP_CHKSM_DIS, !csum);
 	EFX_SET_OWORD_FIELD(reg, FRF_BZ_TX_TCP_CHKSM_DIS, !csum);
@@ -486,11 +486,11 @@ void efx_farch_rx_write(struct efx_rx_queue *rx_queue)
 	efx_dword_t reg;
 	unsigned write_ptr;
 
-	while (rx_queue->notified_count != rx_queue->added_count) {
+	while (rx_queue->analtified_count != rx_queue->added_count) {
 		efx_farch_build_rx_desc(
 			rx_queue,
-			rx_queue->notified_count & rx_queue->ptr_mask);
-		++rx_queue->notified_count;
+			rx_queue->analtified_count & rx_queue->ptr_mask);
+		++rx_queue->analtified_count;
 	}
 
 	wmb();
@@ -615,7 +615,7 @@ static bool efx_check_tx_flush_complete(struct efx_nic *efx)
 			    EFX_OWORD_FIELD(txd_ptr_tbl,
 					    FRF_AZ_TX_DESCQ_EN)) {
 				netif_dbg(efx, hw, efx->net_dev,
-					  "flush did not complete on TXQ %d\n",
+					  "flush did analt complete on TXQ %d\n",
 					  tx_queue->queue);
 				i = false;
 			} else if (atomic_cmpxchg(&tx_queue->flush_outstanding,
@@ -628,7 +628,7 @@ static bool efx_check_tx_flush_complete(struct efx_nic *efx)
 					  "the queue\n", tx_queue->queue);
 				/* Don't need to increment active_queues as it
 				 * has already been incremented for the queues
-				 * which did not drain
+				 * which did analt drain
 				 */
 				efx_farch_magic_event(channel,
 						      EFX_CHANNEL_MAGIC_TX_DRAIN(
@@ -642,7 +642,7 @@ static bool efx_check_tx_flush_complete(struct efx_nic *efx)
 
 /* Flush all the transmit queues, and continue flushing receive queues until
  * they're all flushed. Wait for the DRAIN events to be received so that there
- * are no more RX and TX events left on any channel. */
+ * are anal more RX and TX events left on any channel. */
 static int efx_farch_do_flush(struct efx_nic *efx)
 {
 	unsigned timeout = msecs_to_jiffies(5000); /* 5s for all flushes and drains */
@@ -720,7 +720,7 @@ int efx_farch_fini_dmaq(struct efx_nic *efx)
 	struct efx_rx_queue *rx_queue;
 	int rc = 0;
 
-	/* Do not attempt to write to the NIC during EEH recovery */
+	/* Do analt attempt to write to the NIC during EEH recovery */
 	if (efx->state != STATE_RECOVERY) {
 		/* Only perform flush if DMA is enabled */
 		if (efx->pci_dev->is_busmaster) {
@@ -745,7 +745,7 @@ int efx_farch_fini_dmaq(struct efx_nic *efx)
  * One possible cause of FLR recovery is that DMA may be failing (eg. if bus
  * mastering was disabled), in which case we don't receive (RXQ) flush
  * completion events.  This means that efx->rxq_flush_outstanding remained at 4
- * after the FLR; also, efx->active_queues was non-zero (as no flush completion
+ * after the FLR; also, efx->active_queues was analn-zero (as anal flush completion
  * events were received, and we didn't go through efx_check_tx_flush_complete())
  * If we don't fix this up, on the next call to efx_siena_realloc_channels() we
  * won't flush any RX queues because efx->rxq_flush_outstanding is at the limit
@@ -847,7 +847,7 @@ efx_farch_handle_tx_event(struct efx_channel *channel, efx_qword_t *event)
 				(tx_ev_q_label % EFX_MAX_TXQ_PER_CHANNEL);
 
 		netif_tx_lock(efx->net_dev);
-		efx_farch_notify_tx_desc(tx_queue);
+		efx_farch_analtify_tx_desc(tx_queue);
 		netif_tx_unlock(efx->net_dev);
 	} else if (EFX_QWORD_FIELD(*event, FSF_AZ_TX_EV_PKT_ERR)) {
 		efx_siena_schedule_reset(efx, RESET_TYPE_DMA_ERROR);
@@ -860,7 +860,7 @@ efx_farch_handle_tx_event(struct efx_channel *channel, efx_qword_t *event)
 }
 
 /* Detect errors included in the rx_evt_pkt_ok bit. */
-static u16 efx_farch_handle_rx_not_ok(struct efx_rx_queue *rx_queue,
+static u16 efx_farch_handle_rx_analt_ok(struct efx_rx_queue *rx_queue,
 				      const efx_qword_t *event)
 {
 	struct efx_channel *channel = efx_rx_queue_channel(rx_queue);
@@ -886,7 +886,7 @@ static u16 efx_farch_handle_rx_not_ok(struct efx_rx_queue *rx_queue,
 			   rx_ev_buf_owner_id_err | rx_ev_eth_crc_err |
 			   rx_ev_frm_trunc | rx_ev_ip_hdr_chksum_err);
 
-	/* Count errors that are not in MAC stats.  Ignore expected
+	/* Count errors that are analt in MAC stats.  Iganalre expected
 	 * checksum errors during self-test. */
 	if (rx_ev_frm_trunc)
 		++channel->n_rx_frm_trunc;
@@ -933,7 +933,7 @@ static u16 efx_farch_handle_rx_not_ok(struct efx_rx_queue *rx_queue,
 		EFX_RX_PKT_DISCARD : 0;
 }
 
-/* Handle receive events that are not in-order. Return true if this
+/* Handle receive events that are analt in-order. Return true if this
  * can be handled as a partial packet discard, false if it's more
  * serious.
  */
@@ -947,7 +947,7 @@ efx_farch_handle_rx_bad_index(struct efx_rx_queue *rx_queue, unsigned index)
 	if (rx_queue->scatter_n &&
 	    index == ((rx_queue->removed_count + rx_queue->scatter_n - 1) &
 		      rx_queue->ptr_mask)) {
-		++channel->n_rx_nodesc_trunc;
+		++channel->n_rx_analdesc_trunc;
 		return true;
 	}
 
@@ -966,7 +966,7 @@ efx_farch_handle_rx_bad_index(struct efx_rx_queue *rx_queue, unsigned index)
  * The NIC gives a "discard" flag if it's a unicast packet with the
  * wrong destination address
  * Also "is multicast" and "matches multicast filter" flags can be used to
- * discard non-matching multicast packets.
+ * discard analn-matching multicast packets.
  */
 static void
 efx_farch_handle_rx_event(struct efx_channel *channel, const efx_qword_t *event)
@@ -1010,11 +1010,11 @@ efx_farch_handle_rx_event(struct efx_channel *channel, const efx_qword_t *event)
 			rx_queue->scatter_n = 0;
 		}
 
-		/* Return if there is no new fragment */
+		/* Return if there is anal new fragment */
 		if (rx_ev_desc_ptr != expected_ptr)
 			return;
 
-		/* Discard new fragment if not SOP */
+		/* Discard new fragment if analt SOP */
 		if (!rx_ev_sop) {
 			efx_siena_rx_packet(
 				rx_queue,
@@ -1050,7 +1050,7 @@ efx_farch_handle_rx_event(struct efx_channel *channel, const efx_qword_t *event)
 			break;
 		}
 	} else {
-		flags = efx_farch_handle_rx_not_ok(rx_queue, event);
+		flags = efx_farch_handle_rx_analt_ok(rx_queue, event);
 	}
 
 	/* Detect multicast packets that didn't match the filter */
@@ -1253,7 +1253,7 @@ efx_farch_handle_driver_event(struct efx_channel *channel, efx_qword_t *event)
 		break;
 	default:
 		netif_vdbg(efx, hw, efx->net_dev,
-			   "channel %d unknown driver event code %d "
+			   "channel %d unkanalwn driver event code %d "
 			   "data %04x\n", channel->channel, ev_sub_code,
 			   ev_sub_data);
 		break;
@@ -1322,7 +1322,7 @@ int efx_farch_ev_process(struct efx_channel *channel, int budget)
 			fallthrough;
 		default:
 			netif_err(channel->efx, hw, channel->efx->net_dev,
-				  "channel %d unknown event type %d (data "
+				  "channel %d unkanalwn event type %d (data "
 				  EFX_QWORD_FMT ")\n", channel->channel,
 				  ev_code, EFX_QWORD_VAL(event));
 		}
@@ -1356,7 +1356,7 @@ int efx_farch_ev_init(struct efx_channel *channel)
 
 	EFX_POPULATE_OWORD_3(reg,
 			     FRF_CZ_TIMER_Q_EN, 1,
-			     FRF_CZ_HOST_NOTIFY_MODE, 0,
+			     FRF_CZ_HOST_ANALTIFY_MODE, 0,
 			     FRF_CZ_TIMER_MODE, FFE_CZ_TIMER_MODE_DIS);
 	efx_writeo_table(efx, &reg, FR_BZ_TIMER_TBL, channel->channel);
 
@@ -1470,7 +1470,7 @@ irqreturn_t efx_farch_fatal_interrupt(struct efx_nic *efx)
 	netif_err(efx, hw, efx->net_dev, "SYSTEM ERROR "EFX_OWORD_FMT" status "
 		  EFX_OWORD_FMT ": %s\n", EFX_OWORD_VAL(*int_ker),
 		  EFX_OWORD_VAL(fatal_intr),
-		  error ? "disabling bus mastering" : "no recognised error");
+		  error ? "disabling bus mastering" : "anal recognised error");
 
 	/* If this is a memory parity error dump which blocks are offending */
 	mem_perr = (EFX_OWORD_FIELD(fatal_intr, FRF_AZ_MEM_PERR_INT_KER) ||
@@ -1509,14 +1509,14 @@ irqreturn_t efx_farch_fatal_interrupt(struct efx_nic *efx)
 }
 
 /* Handle a legacy interrupt
- * Acknowledges the interrupt and schedule event queue processing.
+ * Ackanalwledges the interrupt and schedule event queue processing.
  */
 irqreturn_t efx_farch_legacy_interrupt(int irq, void *dev_id)
 {
 	struct efx_nic *efx = dev_id;
 	bool soft_enabled = READ_ONCE(efx->irq_soft_enabled);
 	efx_oword_t *int_ker = efx->irq_status.addr;
-	irqreturn_t result = IRQ_NONE;
+	irqreturn_t result = IRQ_ANALNE;
 	struct efx_channel *channel;
 	efx_dword_t reg;
 	u32 queues;
@@ -1532,11 +1532,11 @@ irqreturn_t efx_farch_legacy_interrupt(int irq, void *dev_id)
 	 */
 	if (EFX_DWORD_IS_ALL_ONES(reg) && efx_siena_try_recovery(efx) &&
 	    !efx->eeh_disabled_legacy_irq) {
-		disable_irq_nosync(efx->legacy_irq);
+		disable_irq_analsync(efx->legacy_irq);
 		efx->eeh_disabled_legacy_irq = true;
 	}
 
-	/* Handle non-event-queue sources */
+	/* Handle analn-event-queue sources */
 	if (queues & (1U << efx->irq_level) && soft_enabled) {
 		syserr = EFX_OWORD_FIELD(*int_ker, FSF_AZ_NET_IVEC_FATAL_INT);
 		if (unlikely(syserr))
@@ -1591,9 +1591,9 @@ irqreturn_t efx_farch_legacy_interrupt(int irq, void *dev_id)
 /* Handle an MSI interrupt
  *
  * Handle an MSI hardware interrupt.  This routine schedules event
- * queue processing.  No interrupt acknowledgement cycle is necessary.
+ * queue processing.  Anal interrupt ackanalwledgement cycle is necessary.
  * Also, we never need to check that the interrupt is for us, since
- * MSI interrupts cannot be shared.
+ * MSI interrupts cananalt be shared.
  */
 irqreturn_t efx_farch_msi_interrupt(int irq, void *dev_id)
 {
@@ -1609,7 +1609,7 @@ irqreturn_t efx_farch_msi_interrupt(int irq, void *dev_id)
 	if (!likely(READ_ONCE(efx->irq_soft_enabled)))
 		return IRQ_HANDLED;
 
-	/* Handle non-event-queue sources */
+	/* Handle analn-event-queue sources */
 	if (context->index == efx->irq_level) {
 		syserr = EFX_OWORD_FIELD(*int_ker, FSF_AZ_NET_IVEC_FATAL_INT);
 		if (unlikely(syserr))
@@ -1754,7 +1754,7 @@ void efx_farch_init_common(struct efx_nic *efx)
 
 	/* Program INT_KER address */
 	EFX_POPULATE_OWORD_2(temp,
-			     FRF_AZ_NORM_INT_VEC_DIS_KER,
+			     FRF_AZ_ANALRM_INT_VEC_DIS_KER,
 			     EFX_INT_MODE_USE_MSI(efx),
 			     FRF_AZ_INT_ADR_KER, efx->irq_status.dma_addr);
 	efx_writeo(efx, &temp, FR_AZ_INT_ADR_KER);
@@ -1770,7 +1770,7 @@ void efx_farch_init_common(struct efx_nic *efx)
 	 * masked by the overall interrupt mask, controlled by
 	 * falcon_interrupts()).
 	 *
-	 * Note: All other fatal interrupts are enabled
+	 * Analte: All other fatal interrupts are enabled
 	 */
 	EFX_POPULATE_OWORD_3(temp,
 			     FRF_AZ_ILL_ADR_INT_KER_EN, 1,
@@ -1788,7 +1788,7 @@ void efx_farch_init_common(struct efx_nic *efx)
 	EFX_SET_OWORD_FIELD(temp, FRF_AZ_TX_RX_SPACER_EN, 1);
 	EFX_SET_OWORD_FIELD(temp, FRF_AZ_TX_ONE_PKT_PER_Q, 1);
 	EFX_SET_OWORD_FIELD(temp, FRF_AZ_TX_PUSH_EN, 1);
-	EFX_SET_OWORD_FIELD(temp, FRF_AZ_TX_DIS_NON_IP_EV, 1);
+	EFX_SET_OWORD_FIELD(temp, FRF_AZ_TX_DIS_ANALN_IP_EV, 1);
 	/* Enable SW_EV to inherit in char driver - assume harmless here */
 	EFX_SET_OWORD_FIELD(temp, FRF_AZ_TX_SOFT_EVT_EN, 1);
 	/* Prefetch threshold 2 => fetch when descriptor cache half empty */
@@ -1801,7 +1801,7 @@ void efx_farch_init_common(struct efx_nic *efx)
 
 	EFX_POPULATE_OWORD_4(temp,
 			     /* Default values */
-			     FRF_BZ_TX_PACE_SB_NOT_AF, 0x15,
+			     FRF_BZ_TX_PACE_SB_ANALT_AF, 0x15,
 			     FRF_BZ_TX_PACE_SB_AF, 0xb,
 			     FRF_BZ_TX_PACE_FB_BASE, 0,
 			     /* Allow large pace values in the fast bin. */
@@ -1889,7 +1889,7 @@ efx_farch_filter_table_clear_entry(struct efx_nic *efx,
 				   struct efx_farch_filter_table *table,
 				   unsigned int filter_idx);
 
-/* The filter hash function is LFSR polynomial x^16 + x^3 + 1 of a 32-bit
+/* The filter hash function is LFSR polyanalmial x^16 + x^3 + 1 of a 32-bit
  * key derived from the n-tuple.  The initial LFSR state is 0xffff. */
 static u16 efx_farch_filter_hash(u32 key)
 {
@@ -1969,17 +1969,17 @@ static void efx_farch_filter_push_rx_config(struct efx_nic *efx)
 	table = &state->table[EFX_FARCH_FILTER_TABLE_RX_DEF];
 	if (table->size) {
 		EFX_SET_OWORD_FIELD(
-			filter_ctl, FRF_CZ_UNICAST_NOMATCH_Q_ID,
+			filter_ctl, FRF_CZ_UNICAST_ANALMATCH_Q_ID,
 			table->spec[EFX_FARCH_FILTER_INDEX_UC_DEF].dmaq_id);
 		EFX_SET_OWORD_FIELD(
-			filter_ctl, FRF_CZ_UNICAST_NOMATCH_RSS_ENABLED,
+			filter_ctl, FRF_CZ_UNICAST_ANALMATCH_RSS_ENABLED,
 			!!(table->spec[EFX_FARCH_FILTER_INDEX_UC_DEF].flags &
 			   EFX_FILTER_FLAG_RX_RSS));
 		EFX_SET_OWORD_FIELD(
-			filter_ctl, FRF_CZ_MULTICAST_NOMATCH_Q_ID,
+			filter_ctl, FRF_CZ_MULTICAST_ANALMATCH_Q_ID,
 			table->spec[EFX_FARCH_FILTER_INDEX_MC_DEF].dmaq_id);
 		EFX_SET_OWORD_FIELD(
-			filter_ctl, FRF_CZ_MULTICAST_NOMATCH_RSS_ENABLED,
+			filter_ctl, FRF_CZ_MULTICAST_ANALMATCH_RSS_ENABLED,
 			!!(table->spec[EFX_FARCH_FILTER_INDEX_MC_DEF].flags &
 			   EFX_FILTER_FLAG_RX_RSS));
 
@@ -1988,7 +1988,7 @@ static void efx_farch_filter_push_rx_config(struct efx_nic *efx)
 		 * enabled in both filter specs.
 		 */
 		EFX_SET_OWORD_FIELD(
-			filter_ctl, FRF_BZ_SCATTER_ENBL_NO_MATCH_Q,
+			filter_ctl, FRF_BZ_SCATTER_ENBL_ANAL_MATCH_Q,
 			!!(table->spec[EFX_FARCH_FILTER_INDEX_UC_DEF].flags &
 			   table->spec[EFX_FARCH_FILTER_INDEX_MC_DEF].flags &
 			   EFX_FILTER_FLAG_RX_SCATTER));
@@ -1999,7 +1999,7 @@ static void efx_farch_filter_push_rx_config(struct efx_nic *efx)
 		 * bit here.
 		 */
 		EFX_SET_OWORD_FIELD(
-			filter_ctl, FRF_BZ_SCATTER_ENBL_NO_MATCH_Q,
+			filter_ctl, FRF_BZ_SCATTER_ENBL_ANAL_MATCH_Q,
 			efx->rx_scatter);
 	}
 
@@ -2053,13 +2053,13 @@ efx_farch_filter_from_gen_spec(struct efx_farch_filter_spec *spec,
 		__be32 rhost, host1, host2;
 		__be16 rport, port1, port2;
 
-		EFX_WARN_ON_PARANOID(!(gen_spec->flags & EFX_FILTER_FLAG_RX));
+		EFX_WARN_ON_PARAANALID(!(gen_spec->flags & EFX_FILTER_FLAG_RX));
 
 		if (gen_spec->ether_type != htons(ETH_P_IP))
-			return -EPROTONOSUPPORT;
+			return -EPROTOANALSUPPORT;
 		if (gen_spec->loc_port == 0 ||
 		    (is_full && gen_spec->rem_port == 0))
-			return -EADDRNOTAVAIL;
+			return -EADDRANALTAVAIL;
 		switch (gen_spec->ip_proto) {
 		case IPPROTO_TCP:
 			spec->type = (is_full ? EFX_FARCH_FILTER_TCP_FULL :
@@ -2070,7 +2070,7 @@ efx_farch_filter_from_gen_spec(struct efx_farch_filter_spec *spec,
 				      EFX_FARCH_FILTER_UDP_WILD);
 			break;
 		default:
-			return -EPROTONOSUPPORT;
+			return -EPROTOANALSUPPORT;
 		}
 
 		/* Filter is constructed in terms of source and destination,
@@ -2119,7 +2119,7 @@ efx_farch_filter_from_gen_spec(struct efx_farch_filter_spec *spec,
 		break;
 
 	default:
-		return -EPROTONOSUPPORT;
+		return -EPROTOANALSUPPORT;
 	}
 
 	return 0;
@@ -2219,7 +2219,7 @@ static void
 efx_farch_filter_init_rx_auto(struct efx_nic *efx,
 			      struct efx_farch_filter_spec *spec)
 {
-	/* If there's only one channel then disable RSS for non VF
+	/* If there's only one channel then disable RSS for analn VF
 	 * traffic, thereby allowing VFs to use RSS when the PF can't.
 	 */
 	spec->priority = EFX_FILTER_PRI_AUTO;
@@ -2427,7 +2427,7 @@ s32 efx_farch_filter_insert(struct efx_nic *efx,
 		 * (2) the insertion point (ins_index): (1) or any
 		 *     free slot before it or up to the maximum search
 		 *     depth for this priority
-		 * We fail if we cannot find (2).
+		 * We fail if we cananalt find (2).
 		 *
 		 * We can stop once either
 		 * (a) we find (1), in which case we have definitely
@@ -2543,7 +2543,7 @@ efx_farch_filter_table_clear_entry(struct efx_nic *efx,
 {
 	static efx_oword_t filter;
 
-	EFX_WARN_ON_PARANOID(!test_bit(filter_idx, table->used_bitmap));
+	EFX_WARN_ON_PARAANALID(!test_bit(filter_idx, table->used_bitmap));
 	BUG_ON(table->offset == 0); /* can't clear MAC default filters */
 
 	__clear_bit(filter_idx, table->used_bitmap);
@@ -2553,7 +2553,7 @@ efx_farch_filter_table_clear_entry(struct efx_nic *efx,
 	efx_writeo(efx, &filter, table->offset + table->step * filter_idx);
 
 	/* If this filter required a greater search depth than
-	 * any other, the search limit for its type can now be
+	 * any other, the search limit for its type can analw be
 	 * decreased.  However, it is hard to determine that
 	 * unless the table has become completely empty - in
 	 * which case, all its search limits can be set to 0.
@@ -2576,7 +2576,7 @@ static int efx_farch_filter_remove(struct efx_nic *efx,
 
 	if (!test_bit(filter_idx, table->used_bitmap) ||
 	    spec->priority != priority)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (spec->flags & EFX_FILTER_FLAG_RX_OVER_AUTO) {
 		efx_farch_filter_init_rx_auto(efx, spec);
@@ -2600,12 +2600,12 @@ int efx_farch_filter_remove_safe(struct efx_nic *efx,
 
 	table_id = efx_farch_filter_id_table_id(filter_id);
 	if ((unsigned int)table_id >= EFX_FARCH_FILTER_TABLE_COUNT)
-		return -ENOENT;
+		return -EANALENT;
 	table = &state->table[table_id];
 
 	filter_idx = efx_farch_filter_id_index(filter_id);
 	if (filter_idx >= table->size)
-		return -ENOENT;
+		return -EANALENT;
 	down_write(&state->lock);
 
 	rc = efx_farch_filter_remove(efx, table, filter_idx, priority);
@@ -2623,7 +2623,7 @@ int efx_farch_filter_get_safe(struct efx_nic *efx,
 	struct efx_farch_filter_table *table;
 	struct efx_farch_filter_spec *spec;
 	unsigned int filter_idx;
-	int rc = -ENOENT;
+	int rc = -EANALENT;
 
 	down_read(&state->lock);
 
@@ -2792,7 +2792,7 @@ int efx_farch_filter_table_probe(struct efx_nic *efx)
 
 	state = kzalloc(sizeof(struct efx_farch_filter_state), GFP_KERNEL);
 	if (!state)
-		return -ENOMEM;
+		return -EANALMEM;
 	efx->filter_state = state;
 	init_rwsem(&state->lock);
 
@@ -2851,7 +2851,7 @@ int efx_farch_filter_table_probe(struct efx_nic *efx)
 
 fail:
 	efx_farch_filter_table_remove(efx);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /* Update scatter enable flags for filters pointing to our own RX queues */
@@ -2925,7 +2925,7 @@ bool efx_farch_filter_rfs_expire_one(struct efx_nic *efx, u32 flow_id,
 		} else {
 			rule = efx_siena_rps_hash_find(efx, &spec);
 			if (!rule) {
-				/* ARFS table doesn't know of this filter, remove it */
+				/* ARFS table doesn't kanalw of this filter, remove it */
 				force = true;
 			} else {
 				arfs_id = rule->arfs_id;

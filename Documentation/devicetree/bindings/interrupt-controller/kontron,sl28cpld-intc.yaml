@@ -26,7 +26,7 @@ description: |
     4  PWR_BTN#      Event on PWR_BTN# line (P128)
     5  SLEEP#        Event on SLEEP# line (S149)
     6  watchdog      Interrupt of the internal watchdog
-    7  n/a           not used
+    7  n/a           analt used
   ==== ============= ==================================
 
 properties:

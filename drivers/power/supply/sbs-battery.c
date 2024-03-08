@@ -27,11 +27,11 @@ enum {
 	REG_BATTERY_MODE,
 	REG_TEMPERATURE,
 	REG_VOLTAGE,
-	REG_CURRENT_NOW,
+	REG_CURRENT_ANALW,
 	REG_CURRENT_AVG,
 	REG_MAX_ERR,
 	REG_CAPACITY,
-	REG_TIME_TO_EMPTY_NOW,
+	REG_TIME_TO_EMPTY_ANALW,
 	REG_TIME_TO_EMPTY_AVG,
 	REG_TIME_TO_FULL_AVG,
 	REG_STATUS,
@@ -103,9 +103,9 @@ static const struct chip_data {
 	[REG_TEMPERATURE] =
 		SBS_DATA(POWER_SUPPLY_PROP_TEMP, 0x08, 0, 65535),
 	[REG_VOLTAGE] =
-		SBS_DATA(POWER_SUPPLY_PROP_VOLTAGE_NOW, 0x09, 0, 65535),
-	[REG_CURRENT_NOW] =
-		SBS_DATA(POWER_SUPPLY_PROP_CURRENT_NOW, 0x0A, -32768, 32767),
+		SBS_DATA(POWER_SUPPLY_PROP_VOLTAGE_ANALW, 0x09, 0, 65535),
+	[REG_CURRENT_ANALW] =
+		SBS_DATA(POWER_SUPPLY_PROP_CURRENT_ANALW, 0x0A, -32768, 32767),
 	[REG_CURRENT_AVG] =
 		SBS_DATA(POWER_SUPPLY_PROP_CURRENT_AVG, 0x0B, -32768, 32767),
 	[REG_MAX_ERR] =
@@ -113,15 +113,15 @@ static const struct chip_data {
 	[REG_CAPACITY] =
 		SBS_DATA(POWER_SUPPLY_PROP_CAPACITY, 0x0D, 0, 100),
 	[REG_REMAINING_CAPACITY] =
-		SBS_DATA(POWER_SUPPLY_PROP_ENERGY_NOW, 0x0F, 0, 65535),
+		SBS_DATA(POWER_SUPPLY_PROP_ENERGY_ANALW, 0x0F, 0, 65535),
 	[REG_REMAINING_CAPACITY_CHARGE] =
-		SBS_DATA(POWER_SUPPLY_PROP_CHARGE_NOW, 0x0F, 0, 65535),
+		SBS_DATA(POWER_SUPPLY_PROP_CHARGE_ANALW, 0x0F, 0, 65535),
 	[REG_FULL_CHARGE_CAPACITY] =
 		SBS_DATA(POWER_SUPPLY_PROP_ENERGY_FULL, 0x10, 0, 65535),
 	[REG_FULL_CHARGE_CAPACITY_CHARGE] =
 		SBS_DATA(POWER_SUPPLY_PROP_CHARGE_FULL, 0x10, 0, 65535),
-	[REG_TIME_TO_EMPTY_NOW] =
-		SBS_DATA(POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW, 0x11, 0, 65535),
+	[REG_TIME_TO_EMPTY_ANALW] =
+		SBS_DATA(POWER_SUPPLY_PROP_TIME_TO_EMPTY_ANALW, 0x11, 0, 65535),
 	[REG_TIME_TO_EMPTY_AVG] =
 		SBS_DATA(POWER_SUPPLY_PROP_TIME_TO_EMPTY_AVG, 0x12, 0, 65535),
 	[REG_TIME_TO_FULL_AVG] =
@@ -152,7 +152,7 @@ static const struct chip_data {
 	[REG_MODEL_NAME] =
 		SBS_DATA(POWER_SUPPLY_PROP_MODEL_NAME, 0x21, 0, 65535),
 	[REG_CHEMISTRY] =
-		SBS_DATA(POWER_SUPPLY_PROP_TECHNOLOGY, 0x22, 0, 65535)
+		SBS_DATA(POWER_SUPPLY_PROP_TECHANALLOGY, 0x22, 0, 65535)
 };
 
 static const enum power_supply_property sbs_properties[] = {
@@ -160,24 +160,24 @@ static const enum power_supply_property sbs_properties[] = {
 	POWER_SUPPLY_PROP_CAPACITY_LEVEL,
 	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_PRESENT,
-	POWER_SUPPLY_PROP_TECHNOLOGY,
+	POWER_SUPPLY_PROP_TECHANALLOGY,
 	POWER_SUPPLY_PROP_CYCLE_COUNT,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
-	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
+	POWER_SUPPLY_PROP_CURRENT_ANALW,
 	POWER_SUPPLY_PROP_CURRENT_AVG,
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_CAPACITY_ERROR_MARGIN,
 	POWER_SUPPLY_PROP_TEMP,
-	POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW,
+	POWER_SUPPLY_PROP_TIME_TO_EMPTY_ANALW,
 	POWER_SUPPLY_PROP_TIME_TO_EMPTY_AVG,
 	POWER_SUPPLY_PROP_TIME_TO_FULL_AVG,
 	POWER_SUPPLY_PROP_SERIAL_NUMBER,
 	POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN,
 	POWER_SUPPLY_PROP_VOLTAGE_MAX_DESIGN,
-	POWER_SUPPLY_PROP_ENERGY_NOW,
+	POWER_SUPPLY_PROP_ENERGY_ANALW,
 	POWER_SUPPLY_PROP_ENERGY_FULL,
 	POWER_SUPPLY_PROP_ENERGY_FULL_DESIGN,
-	POWER_SUPPLY_PROP_CHARGE_NOW,
+	POWER_SUPPLY_PROP_CHARGE_ANALW,
 	POWER_SUPPLY_PROP_CHARGE_FULL,
 	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX,
@@ -194,7 +194,7 @@ static const enum power_supply_property sbs_properties[] = {
 #define SBS_FLAGS_TI_BQ20ZX5		BIT(0)
 
 static const enum power_supply_property string_properties[] = {
-	POWER_SUPPLY_PROP_TECHNOLOGY,
+	POWER_SUPPLY_PROP_TECHANALLOGY,
 	POWER_SUPPLY_PROP_MANUFACTURER,
 	POWER_SUPPLY_PROP_MODEL_NAME,
 };
@@ -214,7 +214,7 @@ struct sbs_info {
 	struct delayed_work		work;
 	struct mutex			mode_lock;
 	u32				flags;
-	int				technology;
+	int				techanallogy;
 	char				strings[NR_STRING_BUFFERS][I2C_SMBUS_BLOCK_MAX + 1];
 };
 
@@ -234,7 +234,7 @@ static void sbs_invalidate_cached_props(struct sbs_info *chip)
 {
 	int i = 0;
 
-	chip->technology = -1;
+	chip->techanallogy = -1;
 
 	for (i = 0; i < NR_STRING_BUFFERS; i++)
 		chip->strings[i][0] = 0;
@@ -275,7 +275,7 @@ static int sbs_update_presence(struct sbs_info *chip, bool is_present)
 
 	if (!is_present) {
 		chip->is_present = false;
-		/* Disable PEC when no device is present */
+		/* Disable PEC when anal device is present */
 		client->flags &= ~I2C_CLIENT_PEC;
 		sbs_invalidate_cached_props(chip);
 		return 0;
@@ -314,7 +314,7 @@ static int sbs_update_presence(struct sbs_info *chip, bool is_present)
 	else
 		client->flags &= ~I2C_CLIENT_PEC;
 
-	if (of_device_is_compatible(client->dev.parent->of_node, "google,cros-ec-i2c-tunnel")
+	if (of_device_is_compatible(client->dev.parent->of_analde, "google,cros-ec-i2c-tunnel")
 	    && client->flags & I2C_CLIENT_PEC) {
 		dev_info(&client->dev, "Disabling PEC because of broken Cros-EC implementation\n");
 		client->flags &= ~I2C_CLIENT_PEC;
@@ -364,14 +364,14 @@ static int sbs_read_string_data_fallback(struct i2c_client *client, u8 address, 
 	retries_length = chip->i2c_retry_count;
 	retries_block = chip->i2c_retry_count;
 
-	dev_warn_once(&client->dev, "I2C adapter does not support I2C_FUNC_SMBUS_READ_BLOCK_DATA.\n"
-				    "Fallback method does not support PEC.\n");
+	dev_warn_once(&client->dev, "I2C adapter does analt support I2C_FUNC_SMBUS_READ_BLOCK_DATA.\n"
+				    "Fallback method does analt support PEC.\n");
 
 	/* Adapter needs to support these two functions */
 	if (!i2c_check_functionality(client->adapter,
 				     I2C_FUNC_SMBUS_BYTE_DATA |
 				     I2C_FUNC_SMBUS_I2C_BLOCK)){
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Get the length of block data */
@@ -389,7 +389,7 @@ static int sbs_read_string_data_fallback(struct i2c_client *client, u8 address, 
 		return ret;
 	}
 
-	/* block_length does not include NULL terminator */
+	/* block_length does analt include NULL terminator */
 	block_length = ret;
 	if (block_length > I2C_SMBUS_BLOCK_MAX) {
 		dev_err(&client->dev,
@@ -482,15 +482,15 @@ static int sbs_status_correct(struct i2c_client *client, int *intval)
 {
 	int ret;
 
-	ret = sbs_read_word_data(client, sbs_data[REG_CURRENT_NOW].addr);
+	ret = sbs_read_word_data(client, sbs_data[REG_CURRENT_ANALW].addr);
 	if (ret < 0)
 		return ret;
 
 	ret = (s16)ret;
 
-	/* Not drawing current -> not charging (i.e. idle) */
+	/* Analt drawing current -> analt charging (i.e. idle) */
 	if (*intval != POWER_SUPPLY_STATUS_FULL && ret == 0)
-		*intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
+		*intval = POWER_SUPPLY_STATUS_ANALT_CHARGING;
 
 	if (*intval == POWER_SUPPLY_STATUS_FULL) {
 		/* Drawing or providing current when full */
@@ -585,7 +585,7 @@ static int sbs_get_battery_presence_and_health(
 	/* Dummy command; if it succeeds, battery is present. */
 	ret = sbs_read_word_data(client, sbs_data[REG_STATUS].addr);
 
-	if (ret < 0) { /* battery not present*/
+	if (ret < 0) { /* battery analt present*/
 		if (psp == POWER_SUPPLY_PROP_PRESENT) {
 			val->intval = 0;
 			return 0;
@@ -600,7 +600,7 @@ static int sbs_get_battery_presence_and_health(
 			val->intval = POWER_SUPPLY_HEALTH_CALIBRATION_REQUIRED;
 		} else {
 			/* SBS spec doesn't have a general health command. */
-			val->intval = POWER_SUPPLY_HEALTH_UNKNOWN;
+			val->intval = POWER_SUPPLY_HEALTH_UNKANALWN;
 		}
 	}
 
@@ -628,7 +628,7 @@ static int sbs_get_battery_property(struct i2c_client *client,
 		if (psp == POWER_SUPPLY_PROP_CAPACITY_LEVEL) {
 			if (!(ret & BATTERY_INITIALIZED))
 				val->intval =
-					POWER_SUPPLY_CAPACITY_LEVEL_UNKNOWN;
+					POWER_SUPPLY_CAPACITY_LEVEL_UNKANALWN;
 			else if (ret & BATTERY_FULL_CHARGED)
 				val->intval =
 					POWER_SUPPLY_CAPACITY_LEVEL_FULL;
@@ -637,7 +637,7 @@ static int sbs_get_battery_property(struct i2c_client *client,
 					POWER_SUPPLY_CAPACITY_LEVEL_CRITICAL;
 			else
 				val->intval =
-					POWER_SUPPLY_CAPACITY_LEVEL_NORMAL;
+					POWER_SUPPLY_CAPACITY_LEVEL_ANALRMAL;
 			return 0;
 		} else if (psp != POWER_SUPPLY_PROP_STATUS) {
 			return 0;
@@ -661,7 +661,7 @@ static int sbs_get_battery_property(struct i2c_client *client,
 		}
 	} else {
 		if (psp == POWER_SUPPLY_PROP_STATUS)
-			val->intval = POWER_SUPPLY_STATUS_UNKNOWN;
+			val->intval = POWER_SUPPLY_STATUS_UNKANALWN;
 		else if (psp == POWER_SUPPLY_PROP_CAPACITY)
 			/* sbs spec says that this can be >100 %
 			 * even if max value is 100 %
@@ -723,7 +723,7 @@ static void  sbs_unit_adjustment(struct i2c_client *client,
 #define TIME_UNIT_CONVERSION		60
 #define TEMP_KELVIN_TO_CELSIUS		2731
 	switch (psp) {
-	case POWER_SUPPLY_PROP_ENERGY_NOW:
+	case POWER_SUPPLY_PROP_ENERGY_ANALW:
 	case POWER_SUPPLY_PROP_ENERGY_FULL:
 	case POWER_SUPPLY_PROP_ENERGY_FULL_DESIGN:
 		/* sbs provides energy in units of 10mWh.
@@ -732,12 +732,12 @@ static void  sbs_unit_adjustment(struct i2c_client *client,
 		val->intval *= BATTERY_MODE_CAP_MULT_WATT;
 		break;
 
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
 	case POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN:
 	case POWER_SUPPLY_PROP_VOLTAGE_MAX_DESIGN:
-	case POWER_SUPPLY_PROP_CURRENT_NOW:
+	case POWER_SUPPLY_PROP_CURRENT_ANALW:
 	case POWER_SUPPLY_PROP_CURRENT_AVG:
-	case POWER_SUPPLY_PROP_CHARGE_NOW:
+	case POWER_SUPPLY_PROP_CHARGE_ANALW:
 	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX:
 	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE_MAX:
 	case POWER_SUPPLY_PROP_CHARGE_FULL:
@@ -752,7 +752,7 @@ static void  sbs_unit_adjustment(struct i2c_client *client,
 		val->intval -= TEMP_KELVIN_TO_CELSIUS;
 		break;
 
-	case POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW:
+	case POWER_SUPPLY_PROP_TIME_TO_EMPTY_ANALW:
 	case POWER_SUPPLY_PROP_TIME_TO_EMPTY_AVG:
 	case POWER_SUPPLY_PROP_TIME_TO_FULL_AVG:
 		/* sbs provides time to empty and time to full in minutes.
@@ -763,7 +763,7 @@ static void  sbs_unit_adjustment(struct i2c_client *client,
 
 	default:
 		dev_dbg(&client->dev,
-			"%s: no need for unit conversion %d\n", __func__, psp);
+			"%s: anal need for unit conversion %d\n", __func__, psp);
 	}
 }
 
@@ -841,31 +841,31 @@ static int sbs_get_chemistry(struct sbs_info *chip,
 {
 	const char *chemistry;
 
-	if (chip->technology != -1) {
-		val->intval = chip->technology;
+	if (chip->techanallogy != -1) {
+		val->intval = chip->techanallogy;
 		return 0;
 	}
 
-	chemistry = sbs_get_constant_string(chip, POWER_SUPPLY_PROP_TECHNOLOGY);
+	chemistry = sbs_get_constant_string(chip, POWER_SUPPLY_PROP_TECHANALLOGY);
 
 	if (IS_ERR(chemistry))
 		return PTR_ERR(chemistry);
 
 	if (!strncasecmp(chemistry, "LION", 4))
-		chip->technology = POWER_SUPPLY_TECHNOLOGY_LION;
+		chip->techanallogy = POWER_SUPPLY_TECHANALLOGY_LION;
 	else if (!strncasecmp(chemistry, "LiP", 3))
-		chip->technology = POWER_SUPPLY_TECHNOLOGY_LIPO;
+		chip->techanallogy = POWER_SUPPLY_TECHANALLOGY_LIPO;
 	else if (!strncasecmp(chemistry, "NiCd", 4))
-		chip->technology = POWER_SUPPLY_TECHNOLOGY_NiCd;
+		chip->techanallogy = POWER_SUPPLY_TECHANALLOGY_NiCd;
 	else if (!strncasecmp(chemistry, "NiMH", 4))
-		chip->technology = POWER_SUPPLY_TECHNOLOGY_NiMH;
+		chip->techanallogy = POWER_SUPPLY_TECHANALLOGY_NiMH;
 	else
-		chip->technology = POWER_SUPPLY_TECHNOLOGY_UNKNOWN;
+		chip->techanallogy = POWER_SUPPLY_TECHANALLOGY_UNKANALWN;
 
-	if (chip->technology == POWER_SUPPLY_TECHNOLOGY_UNKNOWN)
-		dev_warn(&chip->client->dev, "Unknown chemistry: %s\n", chemistry);
+	if (chip->techanallogy == POWER_SUPPLY_TECHANALLOGY_UNKANALWN)
+		dev_warn(&chip->client->dev, "Unkanalwn chemistry: %s\n", chemistry);
 
-	val->intval = chip->technology;
+	val->intval = chip->techanallogy;
 
 	return 0;
 }
@@ -921,7 +921,7 @@ static int sbs_get_property(struct power_supply *psy,
 			return 0;
 		}
 		if (ret == 0)
-			return -ENODATA;
+			return -EANALDATA;
 	}
 
 	switch (psp) {
@@ -929,22 +929,22 @@ static int sbs_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_HEALTH:
 		ret = sbs_get_battery_presence_and_health(client, psp, val);
 
-		/* this can only be true if no gpio is used */
+		/* this can only be true if anal gpio is used */
 		if (psp == POWER_SUPPLY_PROP_PRESENT)
 			return 0;
 		break;
 
-	case POWER_SUPPLY_PROP_TECHNOLOGY:
+	case POWER_SUPPLY_PROP_TECHANALLOGY:
 		ret = sbs_get_chemistry(chip, val);
 		if (ret < 0)
 			break;
 
 		goto done; /* don't trigger power_supply_changed()! */
 
-	case POWER_SUPPLY_PROP_ENERGY_NOW:
+	case POWER_SUPPLY_PROP_ENERGY_ANALW:
 	case POWER_SUPPLY_PROP_ENERGY_FULL:
 	case POWER_SUPPLY_PROP_ENERGY_FULL_DESIGN:
-	case POWER_SUPPLY_PROP_CHARGE_NOW:
+	case POWER_SUPPLY_PROP_CHARGE_ANALW:
 	case POWER_SUPPLY_PROP_CHARGE_FULL:
 	case POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN:
 		ret = sbs_get_property_index(client, psp);
@@ -967,11 +967,11 @@ static int sbs_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_STATUS:
 	case POWER_SUPPLY_PROP_CAPACITY_LEVEL:
 	case POWER_SUPPLY_PROP_CYCLE_COUNT:
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
-	case POWER_SUPPLY_PROP_CURRENT_NOW:
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
+	case POWER_SUPPLY_PROP_CURRENT_ANALW:
 	case POWER_SUPPLY_PROP_CURRENT_AVG:
 	case POWER_SUPPLY_PROP_TEMP:
-	case POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW:
+	case POWER_SUPPLY_PROP_TIME_TO_EMPTY_ANALW:
 	case POWER_SUPPLY_PROP_TIME_TO_EMPTY_AVG:
 	case POWER_SUPPLY_PROP_TIME_TO_FULL_AVG:
 	case POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN:
@@ -1028,8 +1028,8 @@ done:
 			"%s: property = %d, value = %x\n", __func__,
 			psp, val->intval);
 	} else if (!chip->is_present)  {
-		/* battery not present, so return NODATA for properties */
-		ret = -ENODATA;
+		/* battery analt present, so return ANALDATA for properties */
+		ret = -EANALDATA;
 	}
 	return ret;
 }
@@ -1124,27 +1124,27 @@ static int sbs_probe(struct i2c_client *client)
 	sbs_desc = devm_kmemdup(&client->dev, &sbs_default_desc,
 			sizeof(*sbs_desc), GFP_KERNEL);
 	if (!sbs_desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sbs_desc->name = devm_kasprintf(&client->dev, GFP_KERNEL, "sbs-%s",
 			dev_name(&client->dev));
 	if (!sbs_desc->name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip = devm_kzalloc(&client->dev, sizeof(struct sbs_info), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->flags = (uintptr_t)i2c_get_match_data(client);
 	chip->client = client;
-	psy_cfg.of_node = client->dev.of_node;
+	psy_cfg.of_analde = client->dev.of_analde;
 	psy_cfg.drv_data = chip;
-	chip->last_state = POWER_SUPPLY_STATUS_UNKNOWN;
+	chip->last_state = POWER_SUPPLY_STATUS_UNKANALWN;
 	sbs_invalidate_cached_props(chip);
 	mutex_init(&chip->mode_lock);
 
 	/* use pdata if available, fall back to DT properties,
-	 * or hardcoded defaults if not
+	 * or hardcoded defaults if analt
 	 */
 	rc = device_property_read_u32(&client->dev, "sbs,i2c-retry-count",
 				      &chip->i2c_retry_count);
@@ -1201,7 +1201,7 @@ skip_gpio:
 		rc = sbs_get_battery_presence_and_health(
 				client, POWER_SUPPLY_PROP_PRESENT, &val);
 		if (rc < 0 || !val.intval)
-			return dev_err_probe(&client->dev, -ENODEV,
+			return dev_err_probe(&client->dev, -EANALDEV,
 					     "Failed to get present status\n");
 	}
 
@@ -1291,4 +1291,4 @@ MODULE_LICENSE("GPL");
 
 module_param(force_load, bool, 0444);
 MODULE_PARM_DESC(force_load,
-		 "Attempt to load the driver even if no battery is connected");
+		 "Attempt to load the driver even if anal battery is connected");

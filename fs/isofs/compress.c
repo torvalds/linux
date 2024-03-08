@@ -33,18 +33,18 @@ static void *zisofs_zlib_workspace;
 static DEFINE_MUTEX(zisofs_zlib_lock);
 
 /*
- * Read data of @inode from @block_start to @block_end and uncompress
+ * Read data of @ianalde from @block_start to @block_end and uncompress
  * to one zisofs block. Store the data in the @pages array with @pcount
  * entries. Start storing at offset @poffset of the first page.
  */
-static loff_t zisofs_uncompress_block(struct inode *inode, loff_t block_start,
+static loff_t zisofs_uncompress_block(struct ianalde *ianalde, loff_t block_start,
 				      loff_t block_end, int pcount,
 				      struct page **pages, unsigned poffset,
 				      int *errp)
 {
-	unsigned int zisofs_block_shift = ISOFS_I(inode)->i_format_parm[1];
-	unsigned int bufsize = ISOFS_BUFFER_SIZE(inode);
-	unsigned int bufshift = ISOFS_BUFFER_BITS(inode);
+	unsigned int zisofs_block_shift = ISOFS_I(ianalde)->i_format_parm[1];
+	unsigned int bufsize = ISOFS_BUFFER_SIZE(ianalde);
+	unsigned int bufshift = ISOFS_BUFFER_BITS(ianalde);
 	unsigned int bufmask = bufsize - 1;
 	int i, block_size = block_end - block_start;
 	z_stream stream = { .total_out = 0,
@@ -73,14 +73,14 @@ static loff_t zisofs_uncompress_block(struct inode *inode, loff_t block_start,
 		return ((loff_t)pcount) << PAGE_SHIFT;
 	}
 
-	/* Because zlib is not thread-safe, do all the I/O at the top. */
+	/* Because zlib is analt thread-safe, do all the I/O at the top. */
 	blocknum = block_start >> bufshift;
 	bhs = kcalloc(needblocks + 1, sizeof(*bhs), GFP_KERNEL);
 	if (!bhs) {
-		*errp = -ENOMEM;
+		*errp = -EANALMEM;
 		return 0;
 	}
-	haveblocks = isofs_get_blocks(inode, blocknum, bhs, needblocks);
+	haveblocks = isofs_get_blocks(ianalde, blocknum, bhs, needblocks);
 	bh_read_batch(haveblocks, bhs);
 
 	curbh = 0;
@@ -107,7 +107,7 @@ static loff_t zisofs_uncompress_block(struct inode *inode, loff_t block_start,
 	zerr = zlib_inflateInit(&stream);
 	if (zerr != Z_OK) {
 		if (zerr == Z_MEM_ERROR)
-			*errp = -ENOMEM;
+			*errp = -EANALMEM;
 		else
 			*errp = -EIO;
 		printk(KERN_DEBUG "zisofs: zisofs_inflateInit returned %d\n",
@@ -152,15 +152,15 @@ static loff_t zisofs_uncompress_block(struct inode *inode, loff_t block_start,
 			if (zerr != Z_OK) {
 				/* EOF, error, or trying to read beyond end of input */
 				if (zerr == Z_MEM_ERROR)
-					*errp = -ENOMEM;
+					*errp = -EANALMEM;
 				else {
 					printk(KERN_DEBUG
 					       "zisofs: zisofs_inflate returned"
-					       " %d, inode = %lu,"
+					       " %d, ianalde = %lu,"
 					       " page idx = %d, bh idx = %d,"
 					       " avail_in = %ld,"
 					       " avail_out = %ld\n",
-					       zerr, inode->i_ino, curpage,
+					       zerr, ianalde->i_ianal, curpage,
 					       curbh, stream.avail_in,
 					       stream.avail_out);
 					*errp = -EIO;
@@ -203,18 +203,18 @@ b_eio:
  * Uncompress data so that pages[full_page] is fully uptodate and possibly
  * fills in other pages if we have data for them.
  */
-static int zisofs_fill_pages(struct inode *inode, int full_page, int pcount,
+static int zisofs_fill_pages(struct ianalde *ianalde, int full_page, int pcount,
 			     struct page **pages)
 {
 	loff_t start_off, end_off;
 	loff_t block_start, block_end;
-	unsigned int header_size = ISOFS_I(inode)->i_format_parm[0];
-	unsigned int zisofs_block_shift = ISOFS_I(inode)->i_format_parm[1];
+	unsigned int header_size = ISOFS_I(ianalde)->i_format_parm[0];
+	unsigned int zisofs_block_shift = ISOFS_I(ianalde)->i_format_parm[1];
 	unsigned int blockptr;
 	loff_t poffset = 0;
 	blkcnt_t cstart_block, cend_block;
 	struct buffer_head *bh;
-	unsigned int blkbits = ISOFS_BUFFER_BITS(inode);
+	unsigned int blkbits = ISOFS_BUFFER_BITS(ianalde);
 	unsigned int blksize = 1 << blkbits;
 	int err;
 	loff_t ret;
@@ -227,7 +227,7 @@ static int zisofs_fill_pages(struct inode *inode, int full_page, int pcount,
 	 * pages with the data we have anyway...
 	 */
 	start_off = page_offset(pages[full_page]);
-	end_off = min_t(loff_t, start_off + PAGE_SIZE, inode->i_size);
+	end_off = min_t(loff_t, start_off + PAGE_SIZE, ianalde->i_size);
 
 	cstart_block = start_off >> zisofs_block_shift;
 	cend_block = (end_off + (1 << zisofs_block_shift) - 1)
@@ -237,10 +237,10 @@ static int zisofs_fill_pages(struct inode *inode, int full_page, int pcount,
 		((cstart_block << zisofs_block_shift) & PAGE_MASK));
 
 	/* Find the pointer to this specific chunk */
-	/* Note: we're not using isonum_731() here because the data is known aligned */
-	/* Note: header_size is in 32-bit words (4 bytes) */
+	/* Analte: we're analt using isonum_731() here because the data is kanalwn aligned */
+	/* Analte: header_size is in 32-bit words (4 bytes) */
 	blockptr = (header_size + cstart_block) << 2;
-	bh = isofs_bread(inode, blockptr >> blkbits);
+	bh = isofs_bread(ianalde, blockptr >> blkbits);
 	if (!bh)
 		return -EIO;
 	block_start = le32_to_cpu(*(__le32 *)
@@ -253,7 +253,7 @@ static int zisofs_fill_pages(struct inode *inode, int full_page, int pcount,
 		if (!(blockptr & (blksize - 1))) {
 			brelse(bh);
 
-			bh = isofs_bread(inode, blockptr >> blkbits);
+			bh = isofs_bread(ianalde, blockptr >> blkbits);
 			if (!bh)
 				return -EIO;
 		}
@@ -264,7 +264,7 @@ static int zisofs_fill_pages(struct inode *inode, int full_page, int pcount,
 			return -EIO;
 		}
 		err = 0;
-		ret = zisofs_uncompress_block(inode, block_start, block_end,
+		ret = zisofs_uncompress_block(ianalde, block_start, block_end,
 					      pcount, pages, poffset, &err);
 		poffset += ret;
 		pages += poffset >> PAGE_SHIFT;
@@ -302,18 +302,18 @@ static int zisofs_fill_pages(struct inode *inode, int full_page, int pcount,
 static int zisofs_read_folio(struct file *file, struct folio *folio)
 {
 	struct page *page = &folio->page;
-	struct inode *inode = file_inode(file);
-	struct address_space *mapping = inode->i_mapping;
+	struct ianalde *ianalde = file_ianalde(file);
+	struct address_space *mapping = ianalde->i_mapping;
 	int err;
 	int i, pcount, full_page;
-	unsigned int zisofs_block_shift = ISOFS_I(inode)->i_format_parm[1];
+	unsigned int zisofs_block_shift = ISOFS_I(ianalde)->i_format_parm[1];
 	unsigned int zisofs_pages_per_cblock =
 		PAGE_SHIFT <= zisofs_block_shift ?
 		(1 << (zisofs_block_shift - PAGE_SHIFT)) : 0;
 	struct page **pages;
 	pgoff_t index = page->index, end_index;
 
-	end_index = (inode->i_size + PAGE_SIZE - 1) >> PAGE_SHIFT;
+	end_index = (ianalde->i_size + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	/*
 	 * If this page is wholly outside i_size we just return zero;
 	 * do_generic_file_read() will handle this for us
@@ -339,20 +339,20 @@ static int zisofs_read_folio(struct file *file, struct folio *folio)
 					sizeof(*pages), GFP_KERNEL);
 	if (!pages) {
 		unlock_page(page);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	pages[full_page] = page;
 
 	for (i = 0; i < pcount; i++, index++) {
 		if (i != full_page)
-			pages[i] = grab_cache_page_nowait(mapping, index);
+			pages[i] = grab_cache_page_analwait(mapping, index);
 		if (pages[i])
 			ClearPageError(pages[i]);
 	}
 
-	err = zisofs_fill_pages(inode, full_page, pcount, pages);
+	err = zisofs_fill_pages(ianalde, full_page, pcount, pages);
 
-	/* Release any residual pages, do not SetPageUptodate */
+	/* Release any residual pages, do analt SetPageUptodate */
 	for (i = 0; i < pcount; i++) {
 		if (pages[i]) {
 			flush_dcache_page(pages[i]);
@@ -371,14 +371,14 @@ static int zisofs_read_folio(struct file *file, struct folio *folio)
 
 const struct address_space_operations zisofs_aops = {
 	.read_folio = zisofs_read_folio,
-	/* No bmap operation supported */
+	/* Anal bmap operation supported */
 };
 
 int __init zisofs_init(void)
 {
 	zisofs_zlib_workspace = vmalloc(zlib_inflate_workspacesize());
 	if ( !zisofs_zlib_workspace )
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }

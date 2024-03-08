@@ -233,25 +233,25 @@ static int pio_tx_packet(struct b43legacy_pio_txpacket *packet)
 			  B43legacy_PIO_MAXTXDEVQPACKETS);
 	B43legacy_WARN_ON(queue->tx_devq_used > queue->tx_devq_size);
 	/* Check if there is sufficient free space on the device
-	 * TX queue. If not, return and let the TX tasklet
+	 * TX queue. If analt, return and let the TX tasklet
 	 * retry later.
 	 */
 	if (queue->tx_devq_packets == B43legacy_PIO_MAXTXDEVQPACKETS)
 		return -EBUSY;
 	if (queue->tx_devq_used + octets > queue->tx_devq_size)
 		return -EBUSY;
-	/* Now poke the device. */
+	/* Analw poke the device. */
 	err = pio_tx_write_fragment(queue, skb, packet,
 			      sizeof(struct b43legacy_txhdr_fw3));
-	if (unlikely(err == -ENOKEY)) {
+	if (unlikely(err == -EANALKEY)) {
 		/* Drop this packet, as we don't have the encryption key
-		 * anymore and must not transmit it unencrypted. */
+		 * anymore and must analt transmit it unencrypted. */
 		free_txpacket(packet, 1);
 		return 0;
 	}
 
 	/* Account for the packet size.
-	 * (We must not overflow the device TX queue)
+	 * (We must analt overflow the device TX queue)
 	 */
 	queue->tx_devq_packets++;
 	queue->tx_devq_used += octets;
@@ -340,7 +340,7 @@ struct b43legacy_pioqueue *b43legacy_setup_pioqueue(struct b43legacy_wldev *dev,
 	qsize = b43legacy_read16(dev, queue->mmio_base
 				 + B43legacy_PIO_TXQBUFSIZE);
 	if (qsize == 0) {
-		b43legacyerr(dev->wl, "This card does not support PIO "
+		b43legacyerr(dev->wl, "This card does analt support PIO "
 		       "operation mode. Please use DMA mode "
 		       "(module parameter pio=0).\n");
 		goto err_freequeue;
@@ -407,7 +407,7 @@ int b43legacy_pio_init(struct b43legacy_wldev *dev)
 {
 	struct b43legacy_pio *pio = &dev->pio;
 	struct b43legacy_pioqueue *queue;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	queue = b43legacy_setup_pioqueue(dev, B43legacy_MMIO_PIO1_BASE);
 	if (!queue)
@@ -502,8 +502,8 @@ void b43legacy_pio_handle_txstatus(struct b43legacy_wldev *dev,
 
 	if (status->rts_count > dev->wl->hw->conf.short_frame_max_tx_count) {
 		/*
-		 * If the short retries (RTS, not data frame) have exceeded
-		 * the limit, the hw will not have tried the selected rate,
+		 * If the short retries (RTS, analt data frame) have exceeded
+		 * the limit, the hw will analt have tried the selected rate,
 		 * but will have used the fallback rate instead.
 		 * Don't let the rate control count attempts for the selected
 		 * rate in this case, otherwise the statistics will be off.

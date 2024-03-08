@@ -44,7 +44,7 @@
  *
  *     NLBL_MGMT_A_CV4DOI
  *
- *   If using NETLBL_NLTYPE_UNLABELED no other attributes are required,
+ *   If using NETLBL_NLTYPE_UNLABELED anal other attributes are required,
  *   however the following attribute may optionally be sent:
  *
  *     NLBL_MGMT_A_FAMILY
@@ -60,7 +60,7 @@
  * o LISTALL:
  *   This message can be sent either from an application or by the kernel in
  *   response to an application generated LISTALL message.  When sent by an
- *   application there is no payload and the NLM_F_DUMP flag should be set.
+ *   application there is anal payload and the NLM_F_DUMP flag should be set.
  *   The kernel should respond with a series of the following messages.
  *
  *   Required attributes:
@@ -68,7 +68,7 @@
  *     NLBL_MGMT_A_DOMAIN
  *     NLBL_MGMT_A_FAMILY
  *
- *   If the IP address selectors are not used the following attribute is
+ *   If the IP address selectors are analt used the following attribute is
  *   required:
  *
  *     NLBL_MGMT_A_PROTOCOL
@@ -83,7 +83,7 @@
  *
  *     NLBL_MGMT_A_CV4DOI
  *
- *   If the mapping is using the NETLBL_NLTYPE_UNLABELED type no other
+ *   If the mapping is using the NETLBL_NLTYPE_UNLABELED type anal other
  *   attributes are required.
  *
  * o ADDDEF:
@@ -98,14 +98,14 @@
  *
  *     NLBL_MGMT_A_CV4DOI
  *
- *   If using NETLBL_NLTYPE_UNLABELED no other attributes are required,
+ *   If using NETLBL_NLTYPE_UNLABELED anal other attributes are required,
  *   however the following attribute may optionally be sent:
  *
  *     NLBL_MGMT_A_FAMILY
  *
  * o REMOVEDEF:
  *   Sent by an application to remove the default domain mapping from the
- *   NetLabel system, there is no payload.
+ *   NetLabel system, there is anal payload.
  *
  * o LISTDEF:
  *   This message can be sent either from an application or by the kernel in
@@ -116,7 +116,7 @@
  *
  *   On success the kernel should send a response using the following format:
  *
- *   If the IP address selectors are not used the following attributes are
+ *   If the IP address selectors are analt used the following attributes are
  *   required:
  *
  *     NLBL_MGMT_A_PROTOCOL
@@ -132,12 +132,12 @@
  *
  *     NLBL_MGMT_A_CV4DOI
  *
- *   If the mapping is using the NETLBL_NLTYPE_UNLABELED type no other
+ *   If the mapping is using the NETLBL_NLTYPE_UNLABELED type anal other
  *   attributes are required.
  *
  * o PROTOCOLS:
  *   Sent by an application to request a list of configured NetLabel protocols
- *   in the kernel.  When sent by an application there is no payload and the
+ *   in the kernel.  When sent by an application there is anal payload and the
  *   NLM_F_DUMP flag should be set.  The kernel should respond with a series of
  *   the following messages.
  *
@@ -147,7 +147,7 @@
  *
  * o VERSION:
  *   Sent by an application to request the NetLabel version.  When sent by an
- *   application there is no payload.  This message type is also used by the
+ *   application there is anal payload.  This message type is also used by the
  *   kernel to respond to an VERSION request.
  *
  *   Required attributes:

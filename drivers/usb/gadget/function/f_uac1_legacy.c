@@ -253,12 +253,12 @@ static struct f_audio_buf *f_audio_buffer_alloc(int buf_size)
 
 	copy_buf = kzalloc(sizeof *copy_buf, GFP_ATOMIC);
 	if (!copy_buf)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	copy_buf->buf = kzalloc(buf_size, GFP_ATOMIC);
 	if (!copy_buf->buf) {
 		kfree(copy_buf);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	return copy_buf;
@@ -342,7 +342,7 @@ static int f_audio_out_ep_complete(struct usb_ep *ep, struct usb_request *req)
 		schedule_work(&audio->playback_work);
 		copy_buf = f_audio_buffer_alloc(audio_buf_size);
 		if (IS_ERR(copy_buf))
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	memcpy(copy_buf->buf + copy_buf->actual, req->buf, req->actual);
@@ -366,7 +366,7 @@ static void f_audio_complete(struct usb_ep *ep, struct usb_request *req)
 
 	switch (status) {
 
-	case 0:				/* normal completion? */
+	case 0:				/* analrmal completion? */
 		if (ep == out_ep)
 			f_audio_out_ep_complete(ep, req);
 		else if (audio->set_con) {
@@ -423,7 +423,7 @@ static int audio_get_intf_req(struct usb_function *f,
 	struct f_audio		*audio = func_to_audio(f);
 	struct usb_composite_dev *cdev = f->config->cdev;
 	struct usb_request	*req = cdev->req;
-	int			value = -EOPNOTSUPP;
+	int			value = -EOPANALTSUPP;
 	u8			id = ((le16_to_cpu(ctrl->wIndex) >> 8) & 0xFF);
 	u16			len = le16_to_cpu(ctrl->wLength);
 	u16			w_value = le16_to_cpu(ctrl->wValue);
@@ -459,7 +459,7 @@ static int audio_set_endpoint_req(struct usb_function *f,
 		const struct usb_ctrlrequest *ctrl)
 {
 	struct usb_composite_dev *cdev = f->config->cdev;
-	int			value = -EOPNOTSUPP;
+	int			value = -EOPANALTSUPP;
 	u16			ep = le16_to_cpu(ctrl->wIndex);
 	u16			len = le16_to_cpu(ctrl->wLength);
 	u16			w_value = le16_to_cpu(ctrl->wValue);
@@ -495,7 +495,7 @@ static int audio_get_endpoint_req(struct usb_function *f,
 		const struct usb_ctrlrequest *ctrl)
 {
 	struct usb_composite_dev *cdev = f->config->cdev;
-	int value = -EOPNOTSUPP;
+	int value = -EOPANALTSUPP;
 	u8 ep = ((le16_to_cpu(ctrl->wIndex) >> 8) & 0xFF);
 	u16 len = le16_to_cpu(ctrl->wLength);
 	u16 w_value = le16_to_cpu(ctrl->wValue);
@@ -524,7 +524,7 @@ f_audio_setup(struct usb_function *f, const struct usb_ctrlrequest *ctrl)
 {
 	struct usb_composite_dev *cdev = f->config->cdev;
 	struct usb_request	*req = cdev->req;
-	int			value = -EOPNOTSUPP;
+	int			value = -EOPANALTSUPP;
 	u16			w_index = le16_to_cpu(ctrl->wIndex);
 	u16			w_value = le16_to_cpu(ctrl->wValue);
 	u16			w_length = le16_to_cpu(ctrl->wLength);
@@ -588,7 +588,7 @@ static int f_audio_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 	req_count = opts->req_count;
 	audio_buf_size = opts->audio_buf_size;
 
-	/* No i/f has more than 2 alt settings */
+	/* Anal i/f has more than 2 alt settings */
 	if (alt > 1) {
 		ERROR(cdev, "%s:%d Error!\n", __func__, __LINE__);
 		return -EINVAL;
@@ -610,7 +610,7 @@ static int f_audio_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 			usb_ep_enable(out_ep);
 			audio->copy_buf = f_audio_buffer_alloc(audio_buf_size);
 			if (IS_ERR(audio->copy_buf))
-				return -ENOMEM;
+				return -EANALMEM;
 
 			/*
 			 * allocate a bunch of read buffers
@@ -633,9 +633,9 @@ static int f_audio_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 							"%s queue req: %d\n",
 							out_ep->name, err);
 					} else
-						err = -ENOMEM;
+						err = -EANALMEM;
 				} else
-					err = -ENOMEM;
+					err = -EANALMEM;
 			}
 
 		} else {
@@ -745,7 +745,7 @@ f_audio_bind(struct usb_configuration *c, struct usb_function *f)
 	audio->as_intf = status;
 	audio->as_alt = 0;
 
-	status = -ENODEV;
+	status = -EANALDEV;
 
 	/* allocate instance-specific endpoints */
 	ep = usb_ep_autoconfig(cdev->gadget, &as_out_ep_desc);
@@ -888,7 +888,7 @@ static ssize_t f_uac1_opts_##name##_store(struct config_item *item,	\
 									\
 	tmp = kstrndup(page, len, GFP_KERNEL);				\
 	if (tmp) {							\
-		ret = -ENOMEM;						\
+		ret = -EANALMEM;						\
 		goto end;						\
 	}								\
 	if (opts->name##_alloc)						\
@@ -944,7 +944,7 @@ static struct usb_function_instance *f_audio_alloc_inst(void)
 
 	opts = kzalloc(sizeof(*opts), GFP_KERNEL);
 	if (!opts)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mutex_init(&opts->lock);
 	opts->func_inst.free_func_inst = f_audio_free_inst;
@@ -987,7 +987,7 @@ static struct usb_function *f_audio_alloc(struct usb_function_instance *fi)
 	/* allocate and initialize one new instance */
 	audio = kzalloc(sizeof(*audio), GFP_KERNEL);
 	if (!audio)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	audio->card.func.name = "g_audio";
 

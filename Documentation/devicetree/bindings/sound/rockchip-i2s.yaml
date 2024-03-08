@@ -91,18 +91,18 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32
     default: 2
     description:
-      Max capture channels, if not set, 2 channels default.
+      Max capture channels, if analt set, 2 channels default.
 
   rockchip,playback-channels:
     $ref: /schemas/types.yaml#/definitions/uint32
     default: 8
     description:
-      Max playback channels, if not set, 8 channels default.
+      Max playback channels, if analt set, 8 channels default.
 
   rockchip,grf:
     $ref: /schemas/types.yaml#/definitions/phandle
     description:
-      The phandle of the syscon node for the GRF register.
+      The phandle of the syscon analde for the GRF register.
       Required property for controllers which support multi channel
       playback/capture.
 

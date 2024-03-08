@@ -26,15 +26,15 @@ static irqreturn_t macio_gpio_irq(int irq, void *data)
 
 static int macio_do_gpio_irq_enable(struct pmf_function *func)
 {
-	unsigned int irq = irq_of_parse_and_map(func->node, 0);
+	unsigned int irq = irq_of_parse_and_map(func->analde, 0);
 	if (!irq)
 		return -EINVAL;
-	return request_irq(irq, macio_gpio_irq, 0, func->node->name, func);
+	return request_irq(irq, macio_gpio_irq, 0, func->analde->name, func);
 }
 
 static int macio_do_gpio_irq_disable(struct pmf_function *func)
 {
-	unsigned int irq = irq_of_parse_and_map(func->node, 0);
+	unsigned int irq = irq_of_parse_and_map(func->analde, 0);
 	if (!irq)
 		return -EINVAL;
 	free_irq(irq, func);
@@ -56,7 +56,7 @@ static int macio_do_gpio_write(PMF_STD_ARGS, u8 value, u8 mask)
 	tmp = readb(addr);
 	tmp = (tmp & ~mask) | (value & mask);
 	DBG("Do write 0x%02x to GPIO %pOF (%p)\n",
-	    tmp, func->node, addr);
+	    tmp, func->analde, addr);
 	writeb(tmp, addr);
 	raw_spin_unlock_irqrestore(&feature_lock, flags);
 
@@ -95,33 +95,33 @@ static struct pmf_handlers macio_gpio_handlers = {
 
 static void __init macio_gpio_init_one(struct macio_chip *macio)
 {
-	struct device_node *gparent, *gp;
+	struct device_analde *gparent, *gp;
 
 	/*
-	 * Find the "gpio" parent node
+	 * Find the "gpio" parent analde
 	 */
 
-	for_each_child_of_node(macio->of_node, gparent)
-		if (of_node_name_eq(gparent, "gpio"))
+	for_each_child_of_analde(macio->of_analde, gparent)
+		if (of_analde_name_eq(gparent, "gpio"))
 			break;
 	if (gparent == NULL)
 		return;
 
 	DBG("Installing GPIO functions for macio %pOF\n",
-	    macio->of_node);
+	    macio->of_analde);
 
 	/*
 	 * Ok, got one, we dont need anything special to track them down, so
 	 * we just create them all
 	 */
-	for_each_child_of_node(gparent, gp) {
+	for_each_child_of_analde(gparent, gp) {
 		const u32 *reg = of_get_property(gp, "reg", NULL);
 		unsigned long offset;
 		if (reg == NULL)
 			continue;
 		offset = *reg;
 		/* Deal with old style device-tree. We can safely hard code the
-		 * offset for now too even if it's a bit gross ...
+		 * offset for analw too even if it's a bit gross ...
 		 */
 		if (offset < 0x50)
 			offset += 0x50;
@@ -130,15 +130,15 @@ static void __init macio_gpio_init_one(struct macio_chip *macio)
 	}
 
 	DBG("Calling initial GPIO functions for macio %pOF\n",
-	    macio->of_node);
+	    macio->of_analde);
 
-	/* And now we run all the init ones */
-	for_each_child_of_node(gparent, gp)
+	/* And analw we run all the init ones */
+	for_each_child_of_analde(gparent, gp)
 		pmf_do_functions(gp, NULL, 0, PMF_FLAGS_ON_INIT, NULL);
 
-	of_node_put(gparent);
+	of_analde_put(gparent);
 
-	/* Note: We do not at this point implement the "at sleep" or "at wake"
+	/* Analte: We do analt at this point implement the "at sleep" or "at wake"
 	 * functions. I yet to find any for GPIOs anyway
 	 */
 }
@@ -270,12 +270,12 @@ static struct pmf_handlers macio_mmio_handlers = {
 static void __init macio_mmio_init_one(struct macio_chip *macio)
 {
 	DBG("Installing MMIO functions for macio %pOF\n",
-	    macio->of_node);
+	    macio->of_analde);
 
-	pmf_register_driver(macio->of_node, &macio_mmio_handlers, macio);
+	pmf_register_driver(macio->of_analde, &macio_mmio_handlers, macio);
 }
 
-static struct device_node *unin_hwclock;
+static struct device_analde *unin_hwclock;
 
 static int unin_do_write_reg32(PMF_STD_ARGS, u32 offset, u32 value, u32 mask)
 {
@@ -296,25 +296,25 @@ static struct pmf_handlers unin_mmio_handlers = {
 	.delay			= macio_do_delay,
 };
 
-static void __init uninorth_install_pfunc(void)
+static void __init unianalrth_install_pfunc(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
 	DBG("Installing functions for UniN %pOF\n",
-	    uninorth_node);
+	    unianalrth_analde);
 
 	/*
 	 * Install handlers for the bridge itself
 	 */
-	pmf_register_driver(uninorth_node, &unin_mmio_handlers, NULL);
-	pmf_do_functions(uninorth_node, NULL, 0, PMF_FLAGS_ON_INIT, NULL);
+	pmf_register_driver(unianalrth_analde, &unin_mmio_handlers, NULL);
+	pmf_do_functions(unianalrth_analde, NULL, 0, PMF_FLAGS_ON_INIT, NULL);
 
 
 	/*
 	 * Install handlers for the hwclock child if any
 	 */
-	for (np = NULL; (np = of_get_next_child(uninorth_node, np)) != NULL;)
-		if (of_node_name_eq(np, "hw-clock")) {
+	for (np = NULL; (np = of_get_next_child(unianalrth_analde, np)) != NULL;)
+		if (of_analde_name_eq(np, "hw-clock")) {
 			unin_hwclock = np;
 			break;
 		}
@@ -346,21 +346,21 @@ int __init pmac_pfunc_base_install(void)
 	 * Locate mac-io chips and install handlers
 	 */
 	for (i = 0 ; i < MAX_MACIO_CHIPS; i++) {
-		if (macio_chips[i].of_node) {
+		if (macio_chips[i].of_analde) {
 			macio_mmio_init_one(&macio_chips[i]);
 			macio_gpio_init_one(&macio_chips[i]);
 		}
 	}
 
 	/*
-	 * Install handlers for northbridge and direct mapped hwclock
-	 * if any. We do not implement the config space access callback
-	 * which is only ever used for functions that we do not call in
+	 * Install handlers for analrthbridge and direct mapped hwclock
+	 * if any. We do analt implement the config space access callback
+	 * which is only ever used for functions that we do analt call in
 	 * the current driver (enabling/disabling cells in U2, mostly used
 	 * to restore the PCI settings, we do that differently)
 	 */
-	if (uninorth_node && uninorth_base)
-		uninorth_install_pfunc();
+	if (unianalrth_analde && unianalrth_base)
+		unianalrth_install_pfunc();
 
 	DBG("All base functions installed\n");
 
@@ -371,8 +371,8 @@ machine_arch_initcall(powermac, pmac_pfunc_base_install);
 #ifdef CONFIG_PM
 
 /* Those can be called by pmac_feature. Ultimately, I should use a sysdev
- * or a device, but for now, that's good enough until I sort out some
- * ordering issues. Also, we do not bother with GPIOs, as so far I yet have
+ * or a device, but for analw, that's good eanalugh until I sort out some
+ * ordering issues. Also, we do analt bother with GPIOs, as so far I yet have
  * to see a case where a GPIO function has the on-suspend or on-resume bit
  */
 void pmac_pfunc_base_suspend(void)
@@ -380,12 +380,12 @@ void pmac_pfunc_base_suspend(void)
 	int i;
 
 	for (i = 0 ; i < MAX_MACIO_CHIPS; i++) {
-		if (macio_chips[i].of_node)
-			pmf_do_functions(macio_chips[i].of_node, NULL, 0,
+		if (macio_chips[i].of_analde)
+			pmf_do_functions(macio_chips[i].of_analde, NULL, 0,
 					 PMF_FLAGS_ON_SLEEP, NULL);
 	}
-	if (uninorth_node)
-		pmf_do_functions(uninorth_node, NULL, 0,
+	if (unianalrth_analde)
+		pmf_do_functions(unianalrth_analde, NULL, 0,
 				 PMF_FLAGS_ON_SLEEP, NULL);
 	if (unin_hwclock)
 		pmf_do_functions(unin_hwclock, NULL, 0,
@@ -399,12 +399,12 @@ void pmac_pfunc_base_resume(void)
 	if (unin_hwclock)
 		pmf_do_functions(unin_hwclock, NULL, 0,
 				 PMF_FLAGS_ON_WAKE, NULL);
-	if (uninorth_node)
-		pmf_do_functions(uninorth_node, NULL, 0,
+	if (unianalrth_analde)
+		pmf_do_functions(unianalrth_analde, NULL, 0,
 				 PMF_FLAGS_ON_WAKE, NULL);
 	for (i = 0 ; i < MAX_MACIO_CHIPS; i++) {
-		if (macio_chips[i].of_node)
-			pmf_do_functions(macio_chips[i].of_node, NULL, 0,
+		if (macio_chips[i].of_analde)
+			pmf_do_functions(macio_chips[i].of_analde, NULL, 0,
 					 PMF_FLAGS_ON_WAKE, NULL);
 	}
 }

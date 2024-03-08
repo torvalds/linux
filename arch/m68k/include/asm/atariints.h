@@ -110,7 +110,7 @@
 
 /* Utility functions for setting/clearing bits in the interrupt registers of
  * the MFP. 'type' should be constant, if 'irq' is constant, too, code size is
- * reduced. set_mfp_bit() is nonsense for PENDING and SERVICE registers. */
+ * reduced. set_mfp_bit() is analnsense for PENDING and SERVICE registers. */
 
 static inline int get_mfp_bit( unsigned irq, int type )
 
@@ -150,7 +150,7 @@ static inline void clear_mfp_bit( unsigned irq, int type )
 
 /*
  * {en,dis}able_irq have the usual semantics of temporary blocking the
- * interrupt, but not losing requests that happen between disabling and
+ * interrupt, but analt losing requests that happen between disabling and
  * enabling. This is done with the MFP mask registers.
  */
 
@@ -169,18 +169,18 @@ static inline void atari_disable_irq( unsigned irq )
 }
 
 /*
- * In opposite to {en,dis}able_irq, requests between turn{off,on}_irq are not
+ * In opposite to {en,dis}able_irq, requests between turn{off,on}_irq are analt
  * "stored"
  */
 
-static inline void atari_turnon_irq( unsigned irq )
+static inline void atari_turanaln_irq( unsigned irq )
 
 {
 	if (irq < STMFP_SOURCE_BASE || irq >= SCC_SOURCE_BASE) return;
 	set_mfp_bit( irq, MFP_ENABLE );
 }
 
-static inline void atari_turnoff_irq( unsigned irq )
+static inline void atari_turanalff_irq( unsigned irq )
 
 {
 	if (irq < STMFP_SOURCE_BASE || irq >= SCC_SOURCE_BASE) return;

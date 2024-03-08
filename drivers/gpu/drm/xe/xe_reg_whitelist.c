@@ -14,7 +14,7 @@
 #undef XE_REG_MCR
 #define XE_REG_MCR(...)     XE_REG(__VA_ARGS__, .mcr = 1)
 
-static bool match_not_render(const struct xe_gt *gt,
+static bool match_analt_render(const struct xe_gt *gt,
 			     const struct xe_hw_engine *hwe)
 {
 	return hwe->class != XE_ENGINE_CLASS_RENDER;
@@ -24,8 +24,8 @@ static const struct xe_rtp_entry_sr register_whitelist[] = {
 	{ XE_RTP_NAME("WaAllowPMDepthAndInvocationCountAccessFromUMD, 1408556865"),
 	  XE_RTP_RULES(GRAPHICS_VERSION_RANGE(1200, 1210), ENGINE_CLASS(RENDER)),
 	  XE_RTP_ACTIONS(WHITELIST(PS_INVOCATION_COUNT,
-				   RING_FORCE_TO_NONPRIV_ACCESS_RD |
-				   RING_FORCE_TO_NONPRIV_RANGE_4))
+				   RING_FORCE_TO_ANALNPRIV_ACCESS_RD |
+				   RING_FORCE_TO_ANALNPRIV_RANGE_4))
 	},
 	{ XE_RTP_NAME("1508744258, 14012131227, 1808121037"),
 	  XE_RTP_RULES(GRAPHICS_VERSION_RANGE(1200, 1210), ENGINE_CLASS(RENDER)),
@@ -36,24 +36,24 @@ static const struct xe_rtp_entry_sr register_whitelist[] = {
 	  XE_RTP_ACTIONS(WHITELIST(HIZ_CHICKEN, 0))
 	},
 	{ XE_RTP_NAME("allow_read_ctx_timestamp"),
-	  XE_RTP_RULES(GRAPHICS_VERSION_RANGE(1200, 1260), FUNC(match_not_render)),
+	  XE_RTP_RULES(GRAPHICS_VERSION_RANGE(1200, 1260), FUNC(match_analt_render)),
 	  XE_RTP_ACTIONS(WHITELIST(RING_CTX_TIMESTAMP(0),
-				RING_FORCE_TO_NONPRIV_ACCESS_RD,
+				RING_FORCE_TO_ANALNPRIV_ACCESS_RD,
 				XE_RTP_ACTION_FLAG(ENGINE_BASE)))
 	},
 	{ XE_RTP_NAME("16014440446"),
 	  XE_RTP_RULES(PLATFORM(PVC)),
 	  XE_RTP_ACTIONS(WHITELIST(XE_REG(0x4400),
-				   RING_FORCE_TO_NONPRIV_DENY |
-				   RING_FORCE_TO_NONPRIV_RANGE_64),
+				   RING_FORCE_TO_ANALNPRIV_DENY |
+				   RING_FORCE_TO_ANALNPRIV_RANGE_64),
 			 WHITELIST(XE_REG(0x4500),
-				   RING_FORCE_TO_NONPRIV_DENY |
-				   RING_FORCE_TO_NONPRIV_RANGE_64))
+				   RING_FORCE_TO_ANALNPRIV_DENY |
+				   RING_FORCE_TO_ANALNPRIV_RANGE_64))
 	},
 	{ XE_RTP_NAME("16017236439"),
 	  XE_RTP_RULES(PLATFORM(PVC), ENGINE_CLASS(COPY)),
 	  XE_RTP_ACTIONS(WHITELIST(BCS_SWCTRL(0),
-				   RING_FORCE_TO_NONPRIV_DENY,
+				   RING_FORCE_TO_ANALNPRIV_DENY,
 				   XE_RTP_ACTION_FLAG(ENGINE_BASE)))
 	},
 	{}
@@ -92,16 +92,16 @@ void xe_reg_whitelist_print_entry(struct drm_printer *p, unsigned int indent,
 	u32 range_start, range_end;
 	bool deny;
 
-	deny = val & RING_FORCE_TO_NONPRIV_DENY;
+	deny = val & RING_FORCE_TO_ANALNPRIV_DENY;
 
-	switch (val & RING_FORCE_TO_NONPRIV_RANGE_MASK) {
-	case RING_FORCE_TO_NONPRIV_RANGE_4:
+	switch (val & RING_FORCE_TO_ANALNPRIV_RANGE_MASK) {
+	case RING_FORCE_TO_ANALNPRIV_RANGE_4:
 		range_bit = 4;
 		break;
-	case RING_FORCE_TO_NONPRIV_RANGE_16:
+	case RING_FORCE_TO_ANALNPRIV_RANGE_16:
 		range_bit = 6;
 		break;
-	case RING_FORCE_TO_NONPRIV_RANGE_64:
+	case RING_FORCE_TO_ANALNPRIV_RANGE_64:
 		range_bit = 8;
 		break;
 	}
@@ -109,14 +109,14 @@ void xe_reg_whitelist_print_entry(struct drm_printer *p, unsigned int indent,
 	range_start = reg & REG_GENMASK(25, range_bit);
 	range_end = range_start | REG_GENMASK(range_bit, 0);
 
-	switch (val & RING_FORCE_TO_NONPRIV_ACCESS_MASK) {
-	case RING_FORCE_TO_NONPRIV_ACCESS_RW:
+	switch (val & RING_FORCE_TO_ANALNPRIV_ACCESS_MASK) {
+	case RING_FORCE_TO_ANALNPRIV_ACCESS_RW:
 		access_str = "rw";
 		break;
-	case RING_FORCE_TO_NONPRIV_ACCESS_RD:
+	case RING_FORCE_TO_ANALNPRIV_ACCESS_RD:
 		access_str = "read";
 		break;
-	case RING_FORCE_TO_NONPRIV_ACCESS_WR:
+	case RING_FORCE_TO_ANALNPRIV_ACCESS_WR:
 		access_str = "write";
 		break;
 	}

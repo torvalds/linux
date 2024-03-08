@@ -33,7 +33,7 @@ void rtl92ee_phy_rf6052_set_bandwidth(struct ieee80211_hw *hw, u8 bandwidth)
 			      rtlphy->rfreg_chnlval[0]);
 		break;
 	default:
-		pr_err("unknown bandwidth: %#X\n", bandwidth);
+		pr_err("unkanalwn bandwidth: %#X\n", bandwidth);
 		break;
 	}
 }

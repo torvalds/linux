@@ -10,6 +10,6 @@
 };
 
 &display_panel {
-	compatible = "tianma,fhd-video", "novatek,nt36672a";
+	compatible = "tianma,fhd-video", "analvatek,nt36672a";
 	status = "okay";
 };

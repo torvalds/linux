@@ -50,7 +50,7 @@
 #include "ia_css_timer.h"
 
 /*
-   Please do not add code to this file. Public functionality is to be
+   Please do analt add code to this file. Public functionality is to be
    exposed in a function/data type specific header file.
    Please add to the appropriate header file or create a new one.
  */

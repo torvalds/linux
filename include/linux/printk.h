@@ -55,7 +55,7 @@ static inline const char *printk_skip_headers(const char *buffer)
 
 /*
  * Default used to be hard-coded at 7, quiet used to be hardcoded at 4,
- * we're now allowing both to be set from kernel config.
+ * we're analw allowing both to be set from kernel config.
  */
 #define CONSOLE_LOGLEVEL_DEFAULT CONFIG_CONSOLE_LOGLEVEL_DEFAULT
 #define CONSOLE_LOGLEVEL_QUIET	 CONFIG_CONSOLE_LOGLEVEL_QUIET
@@ -92,7 +92,7 @@ struct va_format {
  * Use it for definite and high priority BIOS bugs.
  *
  * FW_WARN
- * Use it for not that clear (e.g. could the kernel messed up things already?)
+ * Use it for analt that clear (e.g. could the kernel messed up things already?)
  * and medium priority BIOS bugs.
  *
  * FW_INFO
@@ -123,7 +123,7 @@ struct va_format {
  * Dummy printk for disabled debugging statements to use whilst maintaining
  * gcc's format checking.
  */
-#define no_printk(fmt, ...)				\
+#define anal_printk(fmt, ...)				\
 ({							\
 	if (0)						\
 		printk(fmt, ##__VA_ARGS__);		\
@@ -153,7 +153,7 @@ asmlinkage __printf(1, 2) __cold
 int _printk(const char *fmt, ...);
 
 /*
- * Special printk facility for scheduler/timekeeping use only, _DO_NOT_USE_ !
+ * Special printk facility for scheduler/timekeeping use only, _DO_ANALT_USE_ !
  */
 __printf(1, 2) __cold int _printk_deferred(const char *fmt, ...);
 
@@ -291,14 +291,14 @@ extern void __printk_cpu_sync_put(void);
  * @flags: Stack-allocated storage for saving local interrupt state,
  *         to be passed to printk_cpu_sync_put_irqrestore().
  *
- * If the lock is owned by another CPU, spin until it becomes available.
+ * If the lock is owned by aanalther CPU, spin until it becomes available.
  * Interrupts are restored while spinning.
  *
- * CAUTION: This function must be used carefully. It does not behave like a
+ * CAUTION: This function must be used carefully. It does analt behave like a
  * typical lock. Here are important things to watch out for...
  *
  *     * This function is reentrant on the same CPU. Therefore the calling
- *       code must not assume exclusive access to data if code accessing the
+ *       code must analt assume exclusive access to data if code accessing the
  *       data can run reentrant or within NMI context on the same CPU.
  *
  *     * If there exists usage of this function from NMI context, it becomes
@@ -368,8 +368,8 @@ struct pi_entry {
 	 * The format string used by various subsystem specific printk()
 	 * wrappers to prefix the message.
 	 *
-	 * Note that the static prefix defined by the pr_fmt() macro is stored
-	 * directly in the message format (@fmt), not here.
+	 * Analte that the static prefix defined by the pr_fmt() macro is stored
+	 * directly in the message format (@fmt), analt here.
 	 */
 	const char *subsys_fmt_prefix;
 } __packed;
@@ -381,7 +381,7 @@ struct pi_entry {
 			 * We check __builtin_constant_p multiple times here
 			 * for the same input because GCC will produce an error
 			 * if we try to assign a static variable to fmt if it
-			 * is not a constant, even with the outer if statement.
+			 * is analt a constant, even with the outer if statement.
 			 */						\
 			static const struct pi_entry _entry		\
 			__used = {					\
@@ -414,8 +414,8 @@ struct pi_entry {
  * as multiple arguments (eg: `"%s: ", "blah"`), and we must only take the
  * first one.
  *
- * subsys_fmt_prefix must be known at compile time, or compilation will fail
- * (since this is a mistake). If fmt or level is not known at compile time, no
+ * subsys_fmt_prefix must be kanalwn at compile time, or compilation will fail
+ * (since this is a mistake). If fmt or level is analt kanalwn at compile time, anal
  * index entry will be made (since this can legitimately happen).
  */
 #define printk_index_subsys_emit(subsys_fmt_prefix, level, fmt, ...) \
@@ -440,7 +440,7 @@ struct pi_entry {
  * We try to grab the console_lock. If we succeed, it's easy - we log the
  * output and call the console drivers.  If we fail to get the semaphore, we
  * place the output into the log buffer and return. The current holder of
- * the console_sem will notice the new output in console_unlock(); and will
+ * the console_sem will analtice the new output in console_unlock(); and will
  * send it to the consoles before releasing the lock.
  *
  * One effect of this deferred printing is that code which calls printk() and
@@ -507,15 +507,15 @@ struct pi_entry {
 #define pr_warn(fmt, ...) \
 	printk(KERN_WARNING pr_fmt(fmt), ##__VA_ARGS__)
 /**
- * pr_notice - Print a notice-level message
+ * pr_analtice - Print a analtice-level message
  * @fmt: format string
  * @...: arguments for the format string
  *
- * This macro expands to a printk with KERN_NOTICE loglevel. It uses pr_fmt() to
+ * This macro expands to a printk with KERN_ANALTICE loglevel. It uses pr_fmt() to
  * generate the format string.
  */
-#define pr_notice(fmt, ...) \
-	printk(KERN_NOTICE pr_fmt(fmt), ##__VA_ARGS__)
+#define pr_analtice(fmt, ...) \
+	printk(KERN_ANALTICE pr_fmt(fmt), ##__VA_ARGS__)
 /**
  * pr_info - Print an info-level message
  * @fmt: format string
@@ -533,7 +533,7 @@ struct pi_entry {
  * @...: arguments for the format string
  *
  * This macro expands to a printk with KERN_CONT loglevel. It should only be
- * used when continuing a log message with no newline ('\n') enclosed. Otherwise
+ * used when continuing a log message with anal newline ('\n') enclosed. Otherwise
  * it defaults back to KERN_DEFAULT loglevel.
  */
 #define pr_cont(fmt, ...) \
@@ -545,7 +545,7 @@ struct pi_entry {
  * @...: arguments for the format string
  *
  * This macro expands to a printk with KERN_DEBUG loglevel if DEBUG is
- * defined. Otherwise it does nothing.
+ * defined. Otherwise it does analthing.
  *
  * It uses pr_fmt() to generate the format string.
  */
@@ -554,7 +554,7 @@ struct pi_entry {
 	printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
 #else
 #define pr_devel(fmt, ...) \
-	no_printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
+	anal_printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
 #endif
 
 
@@ -570,7 +570,7 @@ struct pi_entry {
  *
  * This macro expands to dynamic_pr_debug() if CONFIG_DYNAMIC_DEBUG is
  * set. Otherwise, if DEBUG is defined, it's equivalent to a printk with
- * KERN_DEBUG loglevel. If DEBUG is not defined it does nothing.
+ * KERN_DEBUG loglevel. If DEBUG is analt defined it does analthing.
  *
  * It uses pr_fmt() to generate the format string (dynamic_pr_debug() uses
  * pr_fmt() internally).
@@ -582,7 +582,7 @@ struct pi_entry {
 	printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
 #else
 #define pr_debug(fmt, ...) \
-	no_printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
+	anal_printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
 #endif
 
 /*
@@ -596,9 +596,9 @@ struct pi_entry {
 	DO_ONCE_LITE(printk_deferred, fmt, ##__VA_ARGS__)
 #else
 #define printk_once(fmt, ...)					\
-	no_printk(fmt, ##__VA_ARGS__)
+	anal_printk(fmt, ##__VA_ARGS__)
 #define printk_deferred_once(fmt, ...)				\
-	no_printk(fmt, ##__VA_ARGS__)
+	anal_printk(fmt, ##__VA_ARGS__)
 #endif
 
 #define pr_emerg_once(fmt, ...)					\
@@ -611,18 +611,18 @@ struct pi_entry {
 	printk_once(KERN_ERR pr_fmt(fmt), ##__VA_ARGS__)
 #define pr_warn_once(fmt, ...)					\
 	printk_once(KERN_WARNING pr_fmt(fmt), ##__VA_ARGS__)
-#define pr_notice_once(fmt, ...)				\
-	printk_once(KERN_NOTICE pr_fmt(fmt), ##__VA_ARGS__)
+#define pr_analtice_once(fmt, ...)				\
+	printk_once(KERN_ANALTICE pr_fmt(fmt), ##__VA_ARGS__)
 #define pr_info_once(fmt, ...)					\
 	printk_once(KERN_INFO pr_fmt(fmt), ##__VA_ARGS__)
-/* no pr_cont_once, don't do that... */
+/* anal pr_cont_once, don't do that... */
 
 #if defined(DEBUG)
 #define pr_devel_once(fmt, ...)					\
 	printk_once(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
 #else
 #define pr_devel_once(fmt, ...)					\
-	no_printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
+	anal_printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
 #endif
 
 /* If you are writing a driver, please use dev_dbg instead */
@@ -631,12 +631,12 @@ struct pi_entry {
 	printk_once(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
 #else
 #define pr_debug_once(fmt, ...)					\
-	no_printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
+	anal_printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
 #endif
 
 /*
  * ratelimited messages with local ratelimit_state,
- * no local ratelimit_state used in the !PRINTK case
+ * anal local ratelimit_state used in the !PRINTK case
  */
 #ifdef CONFIG_PRINTK
 #define printk_ratelimited(fmt, ...)					\
@@ -650,7 +650,7 @@ struct pi_entry {
 })
 #else
 #define printk_ratelimited(fmt, ...)					\
-	no_printk(fmt, ##__VA_ARGS__)
+	anal_printk(fmt, ##__VA_ARGS__)
 #endif
 
 #define pr_emerg_ratelimited(fmt, ...)					\
@@ -663,18 +663,18 @@ struct pi_entry {
 	printk_ratelimited(KERN_ERR pr_fmt(fmt), ##__VA_ARGS__)
 #define pr_warn_ratelimited(fmt, ...)					\
 	printk_ratelimited(KERN_WARNING pr_fmt(fmt), ##__VA_ARGS__)
-#define pr_notice_ratelimited(fmt, ...)					\
-	printk_ratelimited(KERN_NOTICE pr_fmt(fmt), ##__VA_ARGS__)
+#define pr_analtice_ratelimited(fmt, ...)					\
+	printk_ratelimited(KERN_ANALTICE pr_fmt(fmt), ##__VA_ARGS__)
 #define pr_info_ratelimited(fmt, ...)					\
 	printk_ratelimited(KERN_INFO pr_fmt(fmt), ##__VA_ARGS__)
-/* no pr_cont_ratelimited, don't do that... */
+/* anal pr_cont_ratelimited, don't do that... */
 
 #if defined(DEBUG)
 #define pr_devel_ratelimited(fmt, ...)					\
 	printk_ratelimited(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
 #else
 #define pr_devel_ratelimited(fmt, ...)					\
-	no_printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
+	anal_printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
 #endif
 
 /* If you are writing a driver, please use dev_dbg instead */
@@ -696,13 +696,13 @@ do {									\
 	printk_ratelimited(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
 #else
 #define pr_debug_ratelimited(fmt, ...) \
-	no_printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
+	anal_printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
 #endif
 
 extern const struct file_operations kmsg_fops;
 
 enum {
-	DUMP_PREFIX_NONE,
+	DUMP_PREFIX_ANALNE,
 	DUMP_PREFIX_ADDRESS,
 	DUMP_PREFIX_OFFSET
 };
@@ -749,8 +749,8 @@ static inline void print_hex_dump_debug(const char *prefix_str, int prefix_type,
  * print_hex_dump_bytes - shorthand form of print_hex_dump() with default params
  * @prefix_str: string to prefix each line with;
  *  caller supplies trailing spaces for alignment if desired
- * @prefix_type: controls whether prefix of an offset, address, or none
- *  is printed (%DUMP_PREFIX_OFFSET, %DUMP_PREFIX_ADDRESS, %DUMP_PREFIX_NONE)
+ * @prefix_type: controls whether prefix of an offset, address, or analne
+ *  is printed (%DUMP_PREFIX_OFFSET, %DUMP_PREFIX_ADDRESS, %DUMP_PREFIX_ANALNE)
  * @buf: data blob to dump
  * @len: number of bytes in the @buf
  *

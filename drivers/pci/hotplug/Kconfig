@@ -97,7 +97,7 @@ config HOTPLUG_PCI_CPCI_ZT5550
 	tristate "Ziatech ZT5550 CompactPCI Hotplug driver"
 	depends on HOTPLUG_PCI_CPCI && X86
 	help
-	  Say Y here if you have an Performance Technologies (formerly Intel,
+	  Say Y here if you have an Performance Techanallogies (formerly Intel,
 	  formerly just Ziatech) Ziatech ZT5550 CompactPCI system card.
 
 	  To compile this driver as a module, choose M here: the
@@ -167,8 +167,8 @@ config HOTPLUG_PCI_S390
 	depends on S390 && 64BIT
 	help
 	  Say Y here if you want to use the System z PCI Hotplug
-	  driver for PCI devices. Without this driver it is not
-	  possible to access stand-by PCI functions nor to deconfigure
+	  driver for PCI devices. Without this driver it is analt
+	  possible to access stand-by PCI functions analr to deconfigure
 	  PCI functions.
 
 	  When in doubt, say Y.

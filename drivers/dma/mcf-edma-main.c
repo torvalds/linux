@@ -25,7 +25,7 @@ static irqreturn_t mcf_edma_tx_handler(int irq, void *dev_id)
 	intmap <<= 32;
 	intmap |= ioread32(regs->intl);
 	if (!intmap)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	for (ch = 0; ch < mcf_edma->n_chans; ch++) {
 		if (intmap & BIT(ch)) {
@@ -45,7 +45,7 @@ static irqreturn_t mcf_edma_err_handler(int irq, void *dev_id)
 
 	err = ioread32(regs->errl);
 	if (!err)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	for (ch = 0; ch < (EDMA_CHANNELS / 2); ch++) {
 		if (err & BIT(ch)) {
@@ -57,7 +57,7 @@ static irqreturn_t mcf_edma_err_handler(int irq, void *dev_id)
 
 	err = ioread32(regs->errh);
 	if (!err)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	for (ch = (EDMA_CHANNELS / 2); ch < EDMA_CHANNELS; ch++) {
 		if (err & (BIT(ch - (EDMA_CHANNELS / 2)))) {
@@ -159,7 +159,7 @@ static int mcf_edma_probe(struct platform_device *pdev)
 
 	pdata = dev_get_platdata(&pdev->dev);
 	if (!pdata) {
-		dev_err(&pdev->dev, "no platform data supplied\n");
+		dev_err(&pdev->dev, "anal platform data supplied\n");
 		return -EINVAL;
 	}
 
@@ -173,7 +173,7 @@ static int mcf_edma_probe(struct platform_device *pdev)
 	mcf_edma = devm_kzalloc(&pdev->dev, struct_size(mcf_edma, chans, chans),
 				GFP_KERNEL);
 	if (!mcf_edma)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mcf_edma->n_chans = chans;
 
@@ -197,7 +197,7 @@ static int mcf_edma_probe(struct platform_device *pdev)
 		mcf_chan->edma = mcf_edma;
 		mcf_chan->slave_id = i;
 		mcf_chan->idle = true;
-		mcf_chan->dma_dir = DMA_NONE;
+		mcf_chan->dma_dir = DMA_ANALNE;
 		mcf_chan->vchan.desc_free = fsl_edma_free_desc;
 		vchan_init(&mcf_chan->vchan, &mcf_edma->dma_dev);
 		mcf_chan->tcd = mcf_edma->membase + EDMA_TCD

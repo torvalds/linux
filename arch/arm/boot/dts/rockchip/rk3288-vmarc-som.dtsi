@@ -24,7 +24,7 @@
 	bus-width = <8>;
 	cap-mmc-highspeed;
 	disable-wp;
-	non-removable;
+	analn-removable;
 	pinctrl-names = "default";
 	pinctrl-0 = <&emmc_clk &emmc_cmd &emmc_pwr &emmc_bus8>;
 	vmmc-supply = <&vcc_io>;
@@ -268,7 +268,7 @@
 		};
 	};
 
-	pcfg_pull_none_drv_8ma: pcfg-pull-none-drv-8ma {
+	pcfg_pull_analne_drv_8ma: pcfg-pull-analne-drv-8ma {
 		drive-strength = <8>;
 	};
 
@@ -285,7 +285,7 @@
 
 	sdio-pwrseq {
 		wifi_enable_h: wifi-enable-h {
-			rockchip,pins = <4 RK_PD4 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <4 RK_PD4 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
@@ -299,7 +299,7 @@
 		};
 
 		sdmmc_clk: sdmmc-clk {
-			rockchip,pins = <6 RK_PC4 1 &pcfg_pull_none_drv_8ma>;
+			rockchip,pins = <6 RK_PC4 1 &pcfg_pull_analne_drv_8ma>;
 		};
 
 		sdmmc_cmd: sdmmc-cmd {

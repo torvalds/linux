@@ -74,14 +74,14 @@ static void __init xes_mpc85xx_configure_l2(void __iomem *l2_base)
 
 static void __init xes_mpc85xx_fixups(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	int err;
 
 	/*
-	 * Legacy xMon firmware on some X-ES boards does not enable L2
+	 * Legacy xMon firmware on some X-ES boards does analt enable L2
 	 * as cache.  We must ensure that they get enabled here.
 	 */
-	for_each_node_by_name(np, "l2-cache-controller") {
+	for_each_analde_by_name(np, "l2-cache-controller") {
 		struct resource r[2];
 		void __iomem *l2_base;
 
@@ -96,8 +96,8 @@ static void __init xes_mpc85xx_fixups(void)
 
 		err = of_address_to_resource(np, 0, &r[0]);
 		if (err) {
-			printk(KERN_WARNING "xes_mpc85xx: Could not get "
-			       "resource for device tree node '%pOF'",
+			printk(KERN_WARNING "xes_mpc85xx: Could analt get "
+			       "resource for device tree analde '%pOF'",
 			       np);
 			continue;
 		}
@@ -113,10 +113,10 @@ static void __init xes_mpc85xx_fixups(void)
  */
 static void __init xes_mpc85xx_setup_arch(void)
 {
-	struct device_node *root;
-	const char *model = "Unknown";
+	struct device_analde *root;
+	const char *model = "Unkanalwn";
 
-	root = of_find_node_by_path("/");
+	root = of_find_analde_by_path("/");
 	if (root == NULL)
 		return;
 

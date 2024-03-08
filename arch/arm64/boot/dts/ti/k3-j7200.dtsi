@@ -159,6 +159,6 @@
 	#include "k3-j7200-thermal.dtsi"
 };
 
-/* Now include the peripherals for each bus segments */
+/* Analw include the peripherals for each bus segments */
 #include "k3-j7200-main.dtsi"
 #include "k3-j7200-mcu-wakeup.dtsi"

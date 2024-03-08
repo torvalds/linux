@@ -6,7 +6,7 @@
  * Copyright (C) 1996 David S. Miller (davem@davemloft.net)
  * Copyright (C) 1997, 1998, 1999, 2000 Ralf Baechle ralf@gnu.org
  * Carsten Langgaard, carstenl@mips.com
- * Copyright (C) 2002 MIPS Technologies, Inc.  All rights reserved.
+ * Copyright (C) 2002 MIPS Techanallogies, Inc.  All rights reserved.
  */
 #include <linux/cpu_pm.h>
 #include <linux/init.h>
@@ -29,7 +29,7 @@
 /*
  * LOONGSON-2 has a 4 entry itlb which is a subset of jtlb, LOONGSON-3 has
  * a 4 entry itlb and a 4 entry dtlb which are subsets of jtlb. Unfortunately,
- * itlb/dtlb are not totally transparent to software.
+ * itlb/dtlb are analt totally transparent to software.
  */
 static inline void flush_micro_tlb(void)
 {
@@ -287,7 +287,7 @@ void local_flush_tlb_one(unsigned long page)
 
 /*
  * We will need multiple versions of update_mmu_cache(), one that just
- * updates the TLB with the new pte(s), and another which also checks
+ * updates the TLB with the new pte(s), and aanalther which also checks
  * for the R4k "end of page" hardware bug and does the needy.
  */
 void __update_tlb(struct vm_area_struct * vma, unsigned long address, pte_t pte)
@@ -347,7 +347,7 @@ void __update_tlb(struct vm_area_struct * vma, unsigned long address, pte_t pte)
 		ptemap = ptep = pte_offset_map(pmdp, address);
 		/*
 		 * update_mmu_cache() is called between pte_offset_map_lock()
-		 * and pte_unmap_unlock(), so we can assume that ptep is not
+		 * and pte_unmap_unlock(), so we can assume that ptep is analt
 		 * NULL here: and what should be done below if it were NULL?
 		 */
 
@@ -476,8 +476,8 @@ __init int add_temporary_entry(unsigned long entrylo0, unsigned long entrylo1,
 	wired = num_wired_entries();
 	if (--temp_tlb_entry < wired) {
 		printk(KERN_WARNING
-		       "No TLB space left for add_temporary_entry\n");
-		ret = -ENOSPC;
+		       "Anal TLB space left for add_temporary_entry\n");
+		ret = -EANALSPC;
 		goto out;
 	}
 
@@ -534,7 +534,7 @@ static void r4k_tlb_configure(void)
 
 	if (cpu_has_rixi) {
 		/*
-		 * Enable the no read, no exec bits, and enable large physical
+		 * Enable the anal read, anal exec bits, and enable large physical
 		 * address.
 		 */
 #ifdef CONFIG_64BIT
@@ -563,13 +563,13 @@ void tlb_init(void)
 			write_c0_index(wired-1);
 			printk("Restricting TLB to %d entries\n", ntlb);
 		} else
-			printk("Ignoring invalid argument ntlb=%d\n", ntlb);
+			printk("Iganalring invalid argument ntlb=%d\n", ntlb);
 	}
 
 	build_tlb_refill_handler();
 }
 
-static int r4k_tlb_pm_notifier(struct notifier_block *self, unsigned long cmd,
+static int r4k_tlb_pm_analtifier(struct analtifier_block *self, unsigned long cmd,
 			       void *v)
 {
 	switch (cmd) {
@@ -579,15 +579,15 @@ static int r4k_tlb_pm_notifier(struct notifier_block *self, unsigned long cmd,
 		break;
 	}
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block r4k_tlb_pm_notifier_block = {
-	.notifier_call = r4k_tlb_pm_notifier,
+static struct analtifier_block r4k_tlb_pm_analtifier_block = {
+	.analtifier_call = r4k_tlb_pm_analtifier,
 };
 
 static int __init r4k_tlb_init_pm(void)
 {
-	return cpu_pm_register_notifier(&r4k_tlb_pm_notifier_block);
+	return cpu_pm_register_analtifier(&r4k_tlb_pm_analtifier_block);
 }
 arch_initcall(r4k_tlb_init_pm);

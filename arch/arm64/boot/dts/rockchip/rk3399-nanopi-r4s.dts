@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * FriendlyElec NanoPC-T4 board device tree source
+ * FriendlyElec NaanalPC-T4 board device tree source
  *
  * Copyright (c) 2020 FriendlyElec Computer Tech. Co., Ltd.
  * (http://www.friendlyarm.com)
@@ -13,18 +13,18 @@
  */
 
 /dts-v1/;
-#include "rk3399-nanopi4.dtsi"
+#include "rk3399-naanalpi4.dtsi"
 
 / {
-	model = "FriendlyElec NanoPi R4S";
-	compatible = "friendlyarm,nanopi-r4s", "rockchip,rk3399";
+	model = "FriendlyElec NaanalPi R4S";
+	compatible = "friendlyarm,naanalpi-r4s", "rockchip,rk3399";
 
-	/delete-node/ display-subsystem;
+	/delete-analde/ display-subsystem;
 
 	gpio-leds {
 		pinctrl-0 = <&lan_led_pin>, <&sys_led_pin>, <&wan_led_pin>;
 
-		/delete-node/ led-0;
+		/delete-analde/ led-0;
 
 		lan_led: led-lan {
 			gpios = <&gpio1 RK_PA1 GPIO_ACTIVE_HIGH>;
@@ -46,7 +46,7 @@
 	gpio-keys {
 		pinctrl-0 = <&reset_button_pin>;
 
-		/delete-node/ key-power;
+		/delete-analde/ key-power;
 
 		key-reset {
 			debounce-interval = <50>;
@@ -80,23 +80,23 @@
 
 &pinctrl {
 	gpio-leds {
-		/delete-node/ status-led-pin;
+		/delete-analde/ status-led-pin;
 
 		lan_led_pin: lan-led-pin {
-			rockchip,pins = <1 RK_PA1 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <1 RK_PA1 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		sys_led_pin: sys-led-pin {
-			rockchip,pins = <0 RK_PB5 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PB5 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		wan_led_pin: wan-led-pin {
-			rockchip,pins = <1 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <1 RK_PA0 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	rockchip-key {
-		/delete-node/ power-key;
+		/delete-analde/ power-key;
 
 		reset_button_pin: reset-button-pin {
 			rockchip,pins = <1 RK_PC6 RK_FUNC_GPIO &pcfg_pull_up>;

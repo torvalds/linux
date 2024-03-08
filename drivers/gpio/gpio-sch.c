@@ -8,7 +8,7 @@
 
 #include <linux/acpi.h>
 #include <linux/bitops.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/gpio/driver.h>
 #include <linux/io.h>
 #include <linux/irq.h>
@@ -136,12 +136,12 @@ static int sch_gpio_direction_out(struct gpio_chip *gc, unsigned int gpio_num,
 	spin_unlock_irqrestore(&sch->lock, flags);
 
 	/*
-	 * according to the datasheet, writing to the level register has no
+	 * according to the datasheet, writing to the level register has anal
 	 * effect when GPIO is programmed as input.
 	 * Actually the level register is read-only when configured as input.
-	 * Thus presetting the output level before switching to output is _NOT_ possible.
+	 * Thus presetting the output level before switching to output is _ANALT_ possible.
 	 * Hence we set the level after configuring the GPIO as output.
-	 * But we cannot prevent a short low pulse if direction is set to high
+	 * But we cananalt prevent a short low pulse if direction is set to high
 	 * and an external pull-up is connected.
 	 */
 	sch_gpio_set(gc, gpio_num, val);
@@ -277,9 +277,9 @@ static u32 sch_gpio_gpe_handler(acpi_handle gpe_device, u32 gpe, void *context)
 		generic_handle_domain_irq(gc->irq.domain, offset);
 
 	/* Set returning value depending on whether we handled an interrupt */
-	ret = pending ? ACPI_INTERRUPT_HANDLED : ACPI_INTERRUPT_NOT_HANDLED;
+	ret = pending ? ACPI_INTERRUPT_HANDLED : ACPI_INTERRUPT_ANALT_HANDLED;
 
-	/* Acknowledge GPE to ACPICA */
+	/* Ackanalwledge GPE to ACPICA */
 	ret |= ACPI_REENABLE_GPE;
 
 	return ret;
@@ -303,7 +303,7 @@ static int sch_gpio_install_gpe_handler(struct sch_gpio *sch)
 	if (ACPI_FAILURE(status)) {
 		dev_err(dev, "Failed to install GPE handler for %u: %s\n",
 			sch->gpe, acpi_format_exception(status));
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	status = acpi_enable_gpe(NULL, sch->gpe);
@@ -311,7 +311,7 @@ static int sch_gpio_install_gpe_handler(struct sch_gpio *sch)
 		dev_err(dev, "Failed to enable GPE handler for %u: %s\n",
 			sch->gpe, acpi_format_exception(status));
 		acpi_remove_gpe_handler(NULL, sch->gpe, sch->gpe_handler);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return devm_add_action_or_reset(dev, sch_gpio_remove_gpe_handler, sch);
@@ -326,7 +326,7 @@ static int sch_gpio_probe(struct platform_device *pdev)
 
 	sch = devm_kzalloc(&pdev->dev, sizeof(*sch), GFP_KERNEL);
 	if (!sch)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
 	if (!res)
@@ -377,7 +377,7 @@ static int sch_gpio_probe(struct platform_device *pdev)
 		break;
 
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	girq = &sch->chip.irq;
@@ -385,7 +385,7 @@ static int sch_gpio_probe(struct platform_device *pdev)
 	girq->num_parents = 0;
 	girq->parents = NULL;
 	girq->parent_handler = NULL;
-	girq->default_type = IRQ_TYPE_NONE;
+	girq->default_type = IRQ_TYPE_ANALNE;
 	girq->handler = handle_bad_irq;
 
 	/* GPE setup is optional */
@@ -394,7 +394,7 @@ static int sch_gpio_probe(struct platform_device *pdev)
 
 	ret = sch_gpio_install_gpe_handler(sch);
 	if (ret)
-		dev_warn(&pdev->dev, "Can't setup GPE, no IRQ support\n");
+		dev_warn(&pdev->dev, "Can't setup GPE, anal IRQ support\n");
 
 	return devm_gpiochip_add_data(&pdev->dev, &sch->chip, sch);
 }

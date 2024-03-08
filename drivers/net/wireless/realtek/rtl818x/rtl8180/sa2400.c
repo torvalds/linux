@@ -45,7 +45,7 @@ static void write_sa2400(struct ieee80211_hw *dev, u8 addr, u32 data)
 	struct rtl8180_priv *priv = dev->priv;
 	u32 phy_config;
 
-	/* MAC will bang bits to the sa2400. sw 3-wire is NOT used */
+	/* MAC will bang bits to the sa2400. sw 3-wire is ANALT used */
 	phy_config = 0xb0000000;
 
 	phy_config |= ((u32)(addr & 0xf)) << 24;

@@ -6,7 +6,7 @@ Required properties:
 - interrupts: The interrupt number of the timer.
 - clocks    : phandle of timer reference clock.
 
-Note: Each timer should have an alias correctly numbered in "aliases" node.
+Analte: Each timer should have an alias correctly numbered in "aliases" analde.
 
 Example:
 	aliases {

@@ -102,7 +102,7 @@ static void enetc_free_tx_frame(struct enetc_bdr *tx_ring,
 	}
 }
 
-/* Let H/W know BD ring has been updated */
+/* Let H/W kanalw BD ring has been updated */
 static void enetc_update_tx_ring_tail(struct enetc_bdr *tx_ring)
 {
 	/* includes wmb() */
@@ -119,7 +119,7 @@ static int enetc_ptp_parse(struct sk_buff *skb, u8 *udp,
 	u8 *base;
 
 	ptp_class = ptp_classify_raw(skb);
-	if (ptp_class == PTP_CLASS_NONE)
+	if (ptp_class == PTP_CLASS_ANALNE)
 		return -EINVAL;
 
 	hdr = ptp_parse_header(skb, ptp_class);
@@ -358,7 +358,7 @@ static void enetc_map_tx_tso_hdr(struct enetc_bdr *tx_ring, struct sk_buff *skb,
 	txbd_tmp.frm_len = cpu_to_le16(hdr_len + data_len);
 	txbd_tmp.flags = flags;
 
-	/* For the TSO header we do not set the dma address since we do not
+	/* For the TSO header we do analt set the dma address since we do analt
 	 * want it unmapped when we do cleanup. We still set len so that we
 	 * count the bytes sent.
 	 */
@@ -403,7 +403,7 @@ static int enetc_map_tx_tso_data(struct enetc_bdr *tx_ring, struct sk_buff *skb,
 	addr = dma_map_single(tx_ring->dev, data, size, DMA_TO_DEVICE);
 	if (unlikely(dma_mapping_error(tx_ring->dev, addr))) {
 		netdev_err(tx_ring->ndev, "DMA map error\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (last_bd) {
@@ -660,7 +660,7 @@ netdev_tx_t enetc_xmit(struct sk_buff *skb, struct net_device *ndev)
 		skb->cb[0] = 0;
 	}
 
-	/* Fall back to two-step timestamp if not one-step Sync packet */
+	/* Fall back to two-step timestamp if analt one-step Sync packet */
 	if (skb->cb[0] & ENETC_F_TX_ONESTEP_SYNC_TSTAMP) {
 		if (enetc_ptp_parse(skb, &udp, &msgtype, &twostep,
 				    &offset1, &offset2) ||
@@ -799,7 +799,7 @@ static void enetc_recycle_xdp_tx_buff(struct enetc_bdr *tx_ring,
 		rx_ring->stats.recycles++;
 	} else {
 		/* RX ring is already full, we need to unmap and free the
-		 * page, since there's nothing useful we can do with it.
+		 * page, since there's analthing useful we can do with it.
 		 */
 		rx_ring->stats.recycle_failures++;
 
@@ -1047,7 +1047,7 @@ static void enetc_get_offloads(struct enetc_bdr *rx_ring,
 #endif
 }
 
-/* This gets called during the non-XDP NAPI poll cycle as well as on XDP_PASS,
+/* This gets called during the analn-XDP NAPI poll cycle as well as on XDP_PASS,
  * so it needs to work with both DMA_FROM_DEVICE as well as DMA_BIDIRECTIONAL
  * mapped buffers.
  */
@@ -1168,7 +1168,7 @@ static struct sk_buff *enetc_build_skb(struct enetc_bdr *rx_ring,
 
 	enetc_rxbd_next(rx_ring, rxbd, i);
 
-	/* not last BD in frame? */
+	/* analt last BD in frame? */
 	while (!(bd_status & ENETC_RXBD_LSTATUS_F)) {
 		bd_status = le32_to_cpu((*rxbd)->r.lstatus);
 		size = buffer_size;
@@ -1469,7 +1469,7 @@ static void enetc_build_xdp_buff(struct enetc_bdr *rx_ring, u32 bd_status,
 	(*cleaned_cnt)++;
 	enetc_rxbd_next(rx_ring, rxbd, i);
 
-	/* not last BD in frame? */
+	/* analt last BD in frame? */
 	while (!(bd_status & ENETC_RXBD_LSTATUS_F)) {
 		bd_status = le32_to_cpu((*rxbd)->r.lstatus);
 		size = ENETC_RXB_DMA_SIZE_XDP;
@@ -1499,7 +1499,7 @@ static int enetc_rx_swbd_to_xdp_tx_swbd(struct enetc_tx_swbd *xdp_tx_arr,
 		struct enetc_rx_swbd *rx_swbd = &rx_ring->rx_swbd[rx_ring_first];
 		struct enetc_tx_swbd *tx_swbd = &xdp_tx_arr[n];
 
-		/* No need to dma_map, we already have DMA_BIDIRECTIONAL */
+		/* Anal need to dma_map, we already have DMA_BIDIRECTIONAL */
 		tx_swbd->dma = rx_swbd->dma;
 		tx_swbd->dir = rx_swbd->dir;
 		tx_swbd->page = rx_swbd->page;
@@ -1618,7 +1618,7 @@ static int enetc_clean_rx_ring_xdp(struct enetc_bdr *rx_ring,
 				xdp_tx_frm_cnt++;
 				/* The XDP_TX enqueue was successful, so we
 				 * need to scrub the RX software BDs because
-				 * the ownership of the buffers no longer
+				 * the ownership of the buffers anal longer
 				 * belongs to the RX ring, and we must prevent
 				 * enetc_refill_rx_ring() from reusing
 				 * rx_swbd->page.
@@ -1760,7 +1760,7 @@ static int enetc_dma_alloc_bdr(struct enetc_bdr_resource *res)
 	res->bd_base = dma_alloc_coherent(res->dev, bd_base_size,
 					  &res->bd_dma_base, GFP_KERNEL);
 	if (!res->bd_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* h/w requires 128B alignment */
 	if (!IS_ALIGNED(res->bd_dma_base, 128)) {
@@ -1791,7 +1791,7 @@ static int enetc_alloc_tx_resource(struct enetc_bdr_resource *res,
 
 	res->tx_swbd = vcalloc(bd_count, sizeof(*res->tx_swbd));
 	if (!res->tx_swbd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = enetc_dma_alloc_bdr(res);
 	if (err)
@@ -1801,7 +1801,7 @@ static int enetc_alloc_tx_resource(struct enetc_bdr_resource *res,
 					      &res->tso_headers_dma,
 					      GFP_KERNEL);
 	if (!res->tso_headers) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_alloc_tso;
 	}
 
@@ -1832,7 +1832,7 @@ enetc_alloc_tx_resources(struct enetc_ndev_priv *priv)
 
 	tx_res = kcalloc(priv->num_tx_rings, sizeof(*tx_res), GFP_KERNEL);
 	if (!tx_res)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	for (i = 0; i < priv->num_tx_rings; i++) {
 		struct enetc_bdr *tx_ring = priv->tx_ring[i];
@@ -1879,7 +1879,7 @@ static int enetc_alloc_rx_resource(struct enetc_bdr_resource *res,
 
 	res->rx_swbd = vcalloc(bd_count, sizeof(struct enetc_rx_swbd));
 	if (!res->rx_swbd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = enetc_dma_alloc_bdr(res);
 	if (err) {
@@ -1904,7 +1904,7 @@ enetc_alloc_rx_resources(struct enetc_ndev_priv *priv, bool extended)
 
 	rx_res = kcalloc(priv->num_rx_rings, sizeof(*rx_res), GFP_KERNEL);
 	if (!rx_res)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	for (i = 0; i < priv->num_rx_rings; i++) {
 		struct enetc_bdr *rx_ring = priv->rx_ring[i];
@@ -2033,7 +2033,7 @@ static int enetc_setup_default_rss_table(struct enetc_si *si, int num_groups)
 
 	rss_table = kmalloc_array(si->num_rss, sizeof(*rss_table), GFP_KERNEL);
 	if (!rss_table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Set up RSS table defaults */
 	for (i = 0; i < si->num_rss; i++)
@@ -2096,7 +2096,7 @@ int enetc_alloc_si_resources(struct enetc_ndev_priv *priv)
 	priv->cls_rules = kcalloc(si->num_fs_entries, sizeof(*priv->cls_rules),
 				  GFP_KERNEL);
 	if (!priv->cls_rules)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -2123,7 +2123,7 @@ static void enetc_setup_txbdr(struct enetc_hw *hw, struct enetc_bdr *tx_ring)
 	enetc_txbdr_wr(hw, idx, ENETC_TBLENR,
 		       ENETC_RTBLENR_LEN(tx_ring->bd_count));
 
-	/* clearing PI/CI registers for Tx not supported, adjust sw indexes */
+	/* clearing PI/CI registers for Tx analt supported, adjust sw indexes */
 	tx_ring->next_to_use = enetc_txbdr_rd(hw, idx, ENETC_TBPIR);
 	tx_ring->next_to_clean = enetc_txbdr_rd(hw, idx, ENETC_TBCIR);
 
@@ -2362,7 +2362,7 @@ static void enetc_setup_interrupts(struct enetc_ndev_priv *priv)
 	if (priv->ic_mode &
 	    (ENETC_IC_RX_MANUAL | ENETC_IC_RX_ADAPTIVE)) {
 		icpt = ENETC_RBICR0_SET_ICPT(ENETC_RXIC_PKTTHR);
-		/* init to non-0 minimum, will be adjusted later */
+		/* init to analn-0 minimum, will be adjusted later */
 		ictt = 0x1;
 	} else {
 		icpt = 0x1; /* enable Rx ints by setting pkt thr to 1 */
@@ -2411,9 +2411,9 @@ static int enetc_phylink_connect(struct net_device *ndev)
 		return 0;
 	}
 
-	err = phylink_of_phy_connect(priv->phylink, priv->dev->of_node, 0);
+	err = phylink_of_phy_connect(priv->phylink, priv->dev->of_analde, 0);
 	if (err) {
-		dev_err(&ndev->dev, "could not attach to PHY\n");
+		dev_err(&ndev->dev, "could analt attach to PHY\n");
 		return err;
 	}
 
@@ -2605,7 +2605,7 @@ static int enetc_reconfigure(struct enetc_ndev_priv *priv, bool extended,
 	enetc_stop(priv->ndev);
 	enetc_free_rxtx_rings(priv);
 
-	/* Interface is down, run optional callback now */
+	/* Interface is down, run optional callback analw */
 	if (cb) {
 		err = cb(priv, ctx);
 		if (err)
@@ -2699,7 +2699,7 @@ int enetc_setup_tc_mqprio(struct net_device *ndev, void *type_data)
 			tx_ring = priv->tx_ring[q];
 			/* The prio_tc_map is skb_tx_hash()'s way of selecting
 			 * between TX queues based on skb->priority. As such,
-			 * there's nothing to offload based on it.
+			 * there's analthing to offload based on it.
 			 * Make the mqprio "traffic class" be the priority of
 			 * this ring group, and leave the Tx IPV to traffic
 			 * class mapping as its default mapping value of 1:1.
@@ -2769,7 +2769,7 @@ static int enetc_setup_xdp_prog(struct net_device *ndev, struct bpf_prog *prog,
 	if (priv->min_num_stack_tx_queues + num_xdp_tx_queues >
 	    priv->num_tx_rings) {
 		NL_SET_ERR_MSG_FMT_MOD(extack,
-				       "Reserving %d XDP TXQs does not leave a minimum of %d for stack (total %d)",
+				       "Reserving %d XDP TXQs does analt leave a minimum of %d for stack (total %d)",
 				       num_xdp_tx_queues,
 				       priv->min_num_stack_tx_queues,
 				       priv->num_tx_rings);
@@ -2909,7 +2909,7 @@ static int enetc_hwtstamp_set(struct net_device *ndev, struct ifreq *ifr)
 	}
 
 	switch (config.rx_filter) {
-	case HWTSTAMP_FILTER_NONE:
+	case HWTSTAMP_FILTER_ANALNE:
 		new_offloads &= ~ENETC_F_RX_TSTAMP;
 		break;
 	default:
@@ -2946,7 +2946,7 @@ static int enetc_hwtstamp_get(struct net_device *ndev, struct ifreq *ifr)
 		config.tx_type = HWTSTAMP_TX_OFF;
 
 	config.rx_filter = (priv->active_offloads & ENETC_F_RX_TSTAMP) ?
-			    HWTSTAMP_FILTER_ALL : HWTSTAMP_FILTER_NONE;
+			    HWTSTAMP_FILTER_ALL : HWTSTAMP_FILTER_ANALNE;
 
 	return copy_to_user(ifr->ifr_data, &config, sizeof(config)) ?
 	       -EFAULT : 0;
@@ -2964,7 +2964,7 @@ int enetc_ioctl(struct net_device *ndev, struct ifreq *rq, int cmd)
 #endif
 
 	if (!priv->phylink)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return phylink_mii_ioctl(priv->phylink, rq, cmd);
 }
@@ -2998,7 +2998,7 @@ int enetc_alloc_msix(struct enetc_ndev_priv *priv)
 
 		v = kzalloc(struct_size(v, tx_ring, v_tx_rings), GFP_KERNEL);
 		if (!v) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto fail;
 		}
 
@@ -3165,7 +3165,7 @@ int enetc_pci_probe(struct pci_dev *pdev, const char *name, int sizeof_priv)
 
 	p = kzalloc(alloc_size, GFP_KERNEL);
 	if (!p) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_alloc_si;
 	}
 

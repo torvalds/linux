@@ -28,7 +28,7 @@
 		PowerPC,7410 {
 			device_type = "cpu";
 			reg = <0x0>;
-			/* Following required by dtc but not used */
+			/* Following required by dtc but analt used */
 			d-cache-line-size = <32>;
 			i-cache-line-size = <32>;
 			i-cache-size = <32768>;
@@ -90,7 +90,7 @@
 		device_type = "pci";
 		compatible = "hawk-pci";
 		reg = <0xfec00000 0x400000>;
-		8259-interrupt-acknowledge = <0xfeff0030>;
+		8259-interrupt-ackanalwledge = <0xfeff0030>;
 		ranges = <0x1000000 0x0        0x0 0xfe000000 0x0 0x800000
 			  0x2000000 0x0 0x80000000 0x80000000 0x0 0x74000000>;
 		bus-range = <0 255>;
@@ -104,7 +104,7 @@
 			 * interrupts definition in the i8259
 			 * interrupt controller below.
 			 *
-			 * Do not change the interrupt sense/polarity from
+			 * Do analt change the interrupt sense/polarity from
 			 * 0x2 to anything else, doing so will cause endless
 			 * "spurious" i8259 interrupts to be fielded.
 			 */
@@ -114,7 +114,7 @@
 			0x5800 0x0 0x0 0x3 &mpic 0x0 0x2
 			0x5800 0x0 0x0 0x4 &mpic 0x0 0x2
 
-			/* IDSEL 12 - Not Used */
+			/* IDSEL 12 - Analt Used */
 
 			/* IDSEL 13 - Universe VME Bridge */
 			0x6800 0x0 0x0 0x1 &mpic 0x5 0x1
@@ -125,7 +125,7 @@
 			/* IDSEL 14 - ENET 1 */
 			0x7000 0x0 0x0 0x1 &mpic 0x2 0x1
 
-			/* IDSEL 15 - Not Used */
+			/* IDSEL 15 - Analt Used */
 
 			/* IDSEL 16 - PMC Slot 1 */
 			0x8000 0x0 0x0 0x1 &mpic 0x9 0x1
@@ -139,7 +139,7 @@
 			0x8800 0x0 0x0 0x3 &mpic 0xa 0x1
 			0x8800 0x0 0x0 0x4 &mpic 0xb 0x1
 
-			/* IDSEL 18 - Not Used */
+			/* IDSEL 18 - Analt Used */
 
 			/* IDSEL 19 - ENET 2 */
 			0x9800 0x0 0x0 0x1 &mpic 0xd 0x1

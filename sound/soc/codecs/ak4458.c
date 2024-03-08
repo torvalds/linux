@@ -254,7 +254,7 @@ static const struct snd_kcontrol_new ak4458_snd_controls[] = {
 /* ak4458 dapm widgets */
 static const struct snd_soc_dapm_widget ak4458_dapm_widgets[] = {
 	SND_SOC_DAPM_DAC("AK4458 DAC1", NULL, AK4458_0A_CONTROL6, 2, 0),/*pw*/
-	SND_SOC_DAPM_AIF_IN("AK4458 SDTI", "Playback", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("AK4458 SDTI", "Playback", 0, SND_SOC_ANALPM, 0, 0),
 	SND_SOC_DAPM_OUTPUT("AK4458 AOUTA"),
 
 	SND_SOC_DAPM_DAC("AK4458 DAC2", NULL, AK4458_0A_CONTROL6, 3, 0),/*pw*/
@@ -297,7 +297,7 @@ static const struct snd_kcontrol_new ak4497_snd_controls[] = {
 /* ak4497 dapm widgets */
 static const struct snd_soc_dapm_widget ak4497_dapm_widgets[] = {
 	SND_SOC_DAPM_DAC("AK4497 DAC", NULL, AK4458_0A_CONTROL6, 2, 0),
-	SND_SOC_DAPM_AIF_IN("AK4497 SDTI", "Playback", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("AK4497 SDTI", "Playback", 0, SND_SOC_ANALPM, 0, 0),
 	SND_SOC_DAPM_OUTPUT("AK4497 AOUT"),
 };
 
@@ -384,7 +384,7 @@ static int ak4458_hw_params(struct snd_pcm_substream *substream,
 				dsdsel0 = 1;
 				dsdsel1 = 1;
 			} else {
-				dev_err(dai->dev, "DSD512 not supported.\n");
+				dev_err(dai->dev, "DSD512 analt supported.\n");
 				return -EINVAL;
 			}
 			break;
@@ -476,7 +476,7 @@ static int ak4458_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
 	case SND_SOC_DAIFMT_CBC_CFC: /* Consumer Mode */
 		break;
-	case SND_SOC_DAIFMT_CBP_CFP: /* Provider Mode is not supported */
+	case SND_SOC_DAIFMT_CBP_CFP: /* Provider Mode is analt supported */
 	case SND_SOC_DAIFMT_CBC_CFP:
 	case SND_SOC_DAIFMT_CBP_CFC:
 	default:
@@ -603,7 +603,7 @@ static const struct snd_soc_dai_ops ak4458_dai_ops = {
 	.set_fmt	= ak4458_set_dai_fmt,
 	.mute_stream	= ak4458_set_dai_mute,
 	.set_tdm_slot	= ak4458_set_tdm_slot,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver ak4458_dai = {
@@ -612,7 +612,7 @@ static struct snd_soc_dai_driver ak4458_dai = {
 		.stream_name = "Playback",
 		.channels_min = 1,
 		.channels_max = 8,
-		.rates = SNDRV_PCM_RATE_KNOT,
+		.rates = SNDRV_PCM_RATE_KANALT,
 		.formats = AK4458_FORMATS,
 	},
 	.ops = &ak4458_dai_ops,
@@ -624,7 +624,7 @@ static struct snd_soc_dai_driver ak4497_dai = {
 		.stream_name = "Playback",
 		.channels_min = 1,
 		.channels_max = 2,
-		.rates = SNDRV_PCM_RATE_KNOT,
+		.rates = SNDRV_PCM_RATE_KANALT,
 		.formats = AK4458_FORMATS,
 	},
 	.ops = &ak4458_dai_ops,
@@ -744,7 +744,7 @@ static int ak4458_i2c_probe(struct i2c_client *i2c)
 
 	ak4458 = devm_kzalloc(&i2c->dev, sizeof(*ak4458), GFP_KERNEL);
 	if (!ak4458)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ak4458->regmap = devm_regmap_init_i2c(i2c, &ak4458_regmap);
 	if (IS_ERR(ak4458->regmap))
@@ -770,7 +770,7 @@ static int ak4458_i2c_probe(struct i2c_client *i2c)
 		return PTR_ERR(ak4458->mute_gpiod);
 
 	/* Optional property for ak4497 */
-	of_property_read_u32(i2c->dev.of_node, "dsd-path", &ak4458->dsd_path);
+	of_property_read_u32(i2c->dev.of_analde, "dsd-path", &ak4458->dsd_path);
 
 	for (i = 0; i < ARRAY_SIZE(ak4458->supplies); i++)
 		ak4458->supplies[i].supply = ak4458_supply_names[i];

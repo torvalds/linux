@@ -14,7 +14,7 @@
 #include <linux/clk-provider.h>
 #include <linux/regmap.h>
 
-struct device_node;
+struct device_analde;
 struct platform_device;
 
 struct owl_clk_common {

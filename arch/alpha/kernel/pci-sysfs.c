@@ -77,7 +77,7 @@ static int pci_mmap_resource(struct kobject *kobj,
 		if (res == &pdev->resource[i])
 			break;
 	if (i >= PCI_STD_NUM_BARS)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (res->flags & IORESOURCE_MEM && iomem_is_exclusive(res->start))
 		return -EINVAL;
@@ -178,7 +178,7 @@ static int pci_create_attr(struct pci_dev *pdev, int num)
 	struct pci_controller *hose = pdev->sysdata;
 	char *suffix, *attr_name;
 
-	suffix = "";	/* Assume bwx machine, normal resourceN files. */
+	suffix = "";	/* Assume bwx machine, analrmal resourceN files. */
 	nlen1 = 10;
 
 	if (pdev->resource[num].flags & IORESOURCE_MEM) {
@@ -205,7 +205,7 @@ static int pci_create_attr(struct pci_dev *pdev, int num)
 
 	attr = kzalloc(sizeof(*attr) * res_count + nlen1 + nlen2, GFP_ATOMIC);
 	if (!attr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Create bwx, sparse or single dense file */
 	attr_name = (char *)(attr + res_count);

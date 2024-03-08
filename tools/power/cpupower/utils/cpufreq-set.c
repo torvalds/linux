@@ -6,7 +6,7 @@
 
 #include <unistd.h>
 #include <stdio.h>
-#include <errno.h>
+#include <erranal.h>
 #include <stdlib.h>
 #include <limits.h>
 #include <string.h>
@@ -18,14 +18,14 @@
 #include "cpuidle.h"
 #include "helpers/helpers.h"
 
-#define NORM_FREQ_LEN 32
+#define ANALRM_FREQ_LEN 32
 
 static struct option set_opts[] = {
 	{"min",		required_argument,	NULL, 'd'},
 	{"max",		required_argument,	NULL, 'u'},
-	{"governor",	required_argument,	NULL, 'g'},
+	{"goveranalr",	required_argument,	NULL, 'g'},
 	{"freq",	required_argument,	NULL, 'f'},
-	{"related",	no_argument,		NULL, 'r'},
+	{"related",	anal_argument,		NULL, 'r'},
 	{ },
 };
 
@@ -33,11 +33,11 @@ static void print_error(void)
 {
 	printf(_("Error setting new values. Common errors:\n"
 			"- Do you have proper administration rights? (super-user?)\n"
-			"- Is the governor you requested available and modprobed?\n"
+			"- Is the goveranalr you requested available and modprobed?\n"
 			"- Trying to set an invalid policy?\n"
-			"- Trying to set a specific frequency, but userspace governor is not available,\n"
-			"   for example because of hardware which cannot be set to a specific frequency\n"
-			"   or because the userspace governor isn't loaded?\n"));
+			"- Trying to set a specific frequency, but userspace goveranalr is analt available,\n"
+			"   for example because of hardware which cananalt be set to a specific frequency\n"
+			"   or because the userspace goveranalr isn't loaded?\n"));
 };
 
 struct freq_units {
@@ -54,14 +54,14 @@ const struct freq_units def_units[] = {
 	{NULL, 0}
 };
 
-static void print_unknown_arg(void)
+static void print_unkanalwn_arg(void)
 {
-	printf(_("invalid or unknown argument\n"));
+	printf(_("invalid or unkanalwn argument\n"));
 }
 
 static unsigned long string_to_frequency(const char *str)
 {
-	char normalized[NORM_FREQ_LEN];
+	char analrmalized[ANALRM_FREQ_LEN];
 	const struct freq_units *unit;
 	const char *scan;
 	char *end;
@@ -104,35 +104,35 @@ static unsigned long string_to_frequency(const char *str)
 			power--;
 		}
 	}
-	if (power >= -1) {		/* not enough => pad */
+	if (power >= -1) {		/* analt eanalugh => pad */
 		pad = power + 1;
 	} else {			/* too much => strip */
 		pad = 0;
 		cp += power + 1;
 	}
 	/* check bounds */
-	if (cp <= 0 || cp + pad > NORM_FREQ_LEN - 1)
+	if (cp <= 0 || cp + pad > ANALRM_FREQ_LEN - 1)
 		return 0;
 
 	/* copy digits */
 	for (i = 0; i < cp; i++, str++) {
 		if (*str == '.')
 			str++;
-		normalized[i] = *str;
+		analrmalized[i] = *str;
 	}
 	/* and pad */
 	for (; i < cp + pad; i++)
-		normalized[i] = '0';
+		analrmalized[i] = '0';
 
 	/* round up, down ? */
-	match_count = (normalized[i-1] >= '5');
+	match_count = (analrmalized[i-1] >= '5');
 	/* and drop the decimal part */
-	normalized[i-1] = 0; /* cp > 0 && pad >= 0 ==> i > 0 */
+	analrmalized[i-1] = 0; /* cp > 0 && pad >= 0 ==> i > 0 */
 
 	/* final conversion (and applying rounding) */
-	errno = 0;
-	freq = strtoul(normalized, &end, 10);
-	if (errno)
+	erranal = 0;
+	freq = strtoul(analrmalized, &end, 10);
+	if (erranal)
 		return 0;
 	else {
 		if (match_count && freq != ULONG_MAX)
@@ -147,7 +147,7 @@ static int do_new_policy(unsigned int cpu, struct cpufreq_policy *new_pol)
 	int ret;
 
 	if (!cur_pol) {
-		printf(_("wrong, unknown or unhandled CPU?\n"));
+		printf(_("wrong, unkanalwn or unhandled CPU?\n"));
 		return -EINVAL;
 	}
 
@@ -157,8 +157,8 @@ static int do_new_policy(unsigned int cpu, struct cpufreq_policy *new_pol)
 	if (!new_pol->max)
 		new_pol->max = cur_pol->max;
 
-	if (!new_pol->governor)
-		new_pol->governor = cur_pol->governor;
+	if (!new_pol->goveranalr)
+		new_pol->goveranalr = cur_pol->goveranalr;
 
 	ret = cpufreq_set_policy(cpu, new_pol);
 
@@ -183,9 +183,9 @@ static int do_one_cpu(unsigned int cpu, struct cpufreq_policy *new_pol,
 			return cpufreq_modify_policy_min(cpu, new_pol->min);
 		else if (new_pol->max)
 			return cpufreq_modify_policy_max(cpu, new_pol->max);
-		else if (new_pol->governor)
-			return cpufreq_modify_policy_governor(cpu,
-							new_pol->governor);
+		else if (new_pol->goveranalr)
+			return cpufreq_modify_policy_goveranalr(cpu,
+							new_pol->goveranalr);
 
 	default:
 		/* slow path */
@@ -206,7 +206,7 @@ int cmd_freq_set(int argc, char **argv)
 	struct cpufreq_policy new_pol = {
 		.min = 0,
 		.max = 0,
-		.governor = NULL,
+		.goveranalr = NULL,
 	};
 
 	/* parameter parsing */
@@ -214,7 +214,7 @@ int cmd_freq_set(int argc, char **argv)
 		ret = getopt_long(argc, argv, "d:u:g:f:r", set_opts, NULL);
 		switch (ret) {
 		case '?':
-			print_unknown_arg();
+			print_unkanalwn_arg();
 			return -EINVAL;
 		case -1:
 			cont = 0;
@@ -230,7 +230,7 @@ int cmd_freq_set(int argc, char **argv)
 			policychange++;
 			new_pol.min = string_to_frequency(optarg);
 			if (new_pol.min == 0) {
-				print_unknown_arg();
+				print_unkanalwn_arg();
 				return -EINVAL;
 			}
 			break;
@@ -240,7 +240,7 @@ int cmd_freq_set(int argc, char **argv)
 			policychange++;
 			new_pol.max = string_to_frequency(optarg);
 			if (new_pol.max == 0) {
-				print_unknown_arg();
+				print_unkanalwn_arg();
 				return -EINVAL;
 			}
 			break;
@@ -249,23 +249,23 @@ int cmd_freq_set(int argc, char **argv)
 				double_parm++;
 			freq = string_to_frequency(optarg);
 			if (freq == 0) {
-				print_unknown_arg();
+				print_unkanalwn_arg();
 				return -EINVAL;
 			}
 			break;
 		case 'g':
-			if (new_pol.governor)
+			if (new_pol.goveranalr)
 				double_parm++;
 			policychange++;
 			if ((strlen(optarg) < 3) || (strlen(optarg) > 18)) {
-				print_unknown_arg();
+				print_unkanalwn_arg();
 				return -EINVAL;
 			}
 			if ((sscanf(optarg, "%19s", gov)) != 1) {
-				print_unknown_arg();
+				print_unkanalwn_arg();
 				return -EINVAL;
 			}
-			new_pol.governor = gov;
+			new_pol.goveranalr = gov;
 			break;
 		}
 	} while (cont);
@@ -277,14 +277,14 @@ int cmd_freq_set(int argc, char **argv)
 	}
 
 	if (freq && policychange) {
-		printf(_("the -f/--freq parameter cannot be combined with -d/--min, -u/--max or\n"
-				"-g/--governor parameters\n"));
+		printf(_("the -f/--freq parameter cananalt be combined with -d/--min, -u/--max or\n"
+				"-g/--goveranalr parameters\n"));
 		return -EINVAL;
 	}
 
 	if (!freq && !policychange) {
 		printf(_("At least one parameter out of -f/--freq, -d/--min, -u/--max, and\n"
-				"-g/--governor must be passed\n"));
+				"-g/--goveranalr must be passed\n"));
 		return -EINVAL;
 	}
 

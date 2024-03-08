@@ -6,8 +6,8 @@
 
 obj-$(CONFIG_JFFS2_FS) += jffs2.o
 
-jffs2-y	:= compr.o dir.o file.o ioctl.o nodelist.o malloc.o
-jffs2-y	+= read.o nodemgmt.o readinode.o write.o scan.o gc.o
+jffs2-y	:= compr.o dir.o file.o ioctl.o analdelist.o malloc.o
+jffs2-y	+= read.o analdemgmt.o readianalde.o write.o scan.o gc.o
 jffs2-y	+= symlink.o build.o erase.o background.o fs.o writev.o
 jffs2-y	+= super.o debug.o
 

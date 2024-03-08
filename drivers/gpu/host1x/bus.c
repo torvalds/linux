@@ -26,43 +26,43 @@ static LIST_HEAD(devices);
 
 struct host1x_subdev {
 	struct host1x_client *client;
-	struct device_node *np;
+	struct device_analde *np;
 	struct list_head list;
 };
 
 /**
- * host1x_subdev_add() - add a new subdevice with an associated device node
+ * host1x_subdev_add() - add a new subdevice with an associated device analde
  * @device: host1x device to add the subdevice to
  * @driver: host1x driver containing the subdevices
- * @np: device node
+ * @np: device analde
  */
 static int host1x_subdev_add(struct host1x_device *device,
 			     struct host1x_driver *driver,
-			     struct device_node *np)
+			     struct device_analde *np)
 {
 	struct host1x_subdev *subdev;
-	struct device_node *child;
+	struct device_analde *child;
 	int err;
 
 	subdev = kzalloc(sizeof(*subdev), GFP_KERNEL);
 	if (!subdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&subdev->list);
-	subdev->np = of_node_get(np);
+	subdev->np = of_analde_get(np);
 
 	mutex_lock(&device->subdevs_lock);
 	list_add_tail(&subdev->list, &device->subdevs);
 	mutex_unlock(&device->subdevs_lock);
 
 	/* recursively add children */
-	for_each_child_of_node(np, child) {
-		if (of_match_node(driver->subdevs, child) &&
+	for_each_child_of_analde(np, child) {
+		if (of_match_analde(driver->subdevs, child) &&
 		    of_device_is_available(child)) {
 			err = host1x_subdev_add(device, driver, child);
 			if (err < 0) {
 				/* XXX cleanup? */
-				of_node_put(child);
+				of_analde_put(child);
 				return err;
 			}
 		}
@@ -78,7 +78,7 @@ static int host1x_subdev_add(struct host1x_device *device,
 static void host1x_subdev_del(struct host1x_subdev *subdev)
 {
 	list_del(&subdev->list);
-	of_node_put(subdev->np);
+	of_analde_put(subdev->np);
 	kfree(subdev);
 }
 
@@ -90,15 +90,15 @@ static void host1x_subdev_del(struct host1x_subdev *subdev)
 static int host1x_device_parse_dt(struct host1x_device *device,
 				  struct host1x_driver *driver)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	int err;
 
-	for_each_child_of_node(device->dev.parent->of_node, np) {
-		if (of_match_node(driver->subdevs, np) &&
+	for_each_child_of_analde(device->dev.parent->of_analde, np) {
+		if (of_match_analde(driver->subdevs, np) &&
 		    of_device_is_available(np)) {
 			err = host1x_subdev_add(device, driver, np);
 			if (err < 0) {
-				of_node_put(np);
+				of_analde_put(np);
 				return err;
 			}
 		}
@@ -248,7 +248,7 @@ EXPORT_SYMBOL(host1x_device_init);
  *
  * When the driver for a host1x logical device is unloaded, it can call this
  * function to tear down each of its clients. Typically this is done after a
- * subsystem-specific data structure is removed and the functionality can no
+ * subsystem-specific data structure is removed and the functionality can anal
  * longer be used.
  */
 int host1x_device_exit(struct host1x_device *device)
@@ -299,7 +299,7 @@ static int host1x_add_client(struct host1x *host1x,
 
 	list_for_each_entry(device, &host1x->devices, list) {
 		list_for_each_entry(subdev, &device->subdevs, list) {
-			if (subdev->np == client->dev->of_node) {
+			if (subdev->np == client->dev->of_analde) {
 				host1x_subdev_register(device, subdev, client);
 				mutex_unlock(&host1x->devices_lock);
 				return 0;
@@ -308,7 +308,7 @@ static int host1x_add_client(struct host1x *host1x,
 	}
 
 	mutex_unlock(&host1x->devices_lock);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int host1x_del_client(struct host1x *host1x,
@@ -330,7 +330,7 @@ static int host1x_del_client(struct host1x *host1x,
 	}
 
 	mutex_unlock(&host1x->devices_lock);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int host1x_device_match(struct device *dev, struct device_driver *drv)
@@ -339,7 +339,7 @@ static int host1x_device_match(struct device *dev, struct device_driver *drv)
 }
 
 /*
- * Note that this is really only needed for backwards compatibility
+ * Analte that this is really only needed for backwards compatibility
  * with libdrm, which parses this information from sysfs and will
  * fail if it can't find the OF_FULLNAME, specifically.
  */
@@ -353,7 +353,7 @@ static int host1x_device_uevent(const struct device *dev,
 
 static int host1x_dma_configure(struct device *dev)
 {
-	return of_dma_configure(dev, dev->of_node, true);
+	return of_dma_configure(dev, dev->of_analde, true);
 }
 
 static const struct dev_pm_ops host1x_device_pm_ops = {
@@ -439,7 +439,7 @@ static int host1x_device_add(struct host1x *host1x,
 
 	device = kzalloc(sizeof(*device), GFP_KERNEL);
 	if (!device)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	device_initialize(&device->dev);
 
@@ -458,7 +458,7 @@ static int host1x_device_add(struct host1x *host1x,
 	device->dev.bus = &host1x_bus_type;
 	device->dev.parent = host1x->dev;
 
-	of_dma_configure(&device->dev, host1x->dev->of_node, true);
+	of_dma_configure(&device->dev, host1x->dev->of_analde, true);
 
 	device->dev.dma_parms = &device->dma_parms;
 	dma_set_max_seg_size(&device->dev, UINT_MAX);
@@ -475,7 +475,7 @@ static int host1x_device_add(struct host1x *host1x,
 
 	list_for_each_entry_safe(client, tmp, &clients, list) {
 		list_for_each_entry(subdev, &device->subdevs, list) {
-			if (subdev->np == client->dev->of_node) {
+			if (subdev->np == client->dev->of_analde) {
 				host1x_subdev_register(device, subdev, client);
 				break;
 			}
@@ -575,7 +575,7 @@ DEFINE_SHOW_ATTRIBUTE(host1x_devices);
  * @host1x: host1x controller
  *
  * The host1x controller driver uses this to register a host1x controller with
- * the infrastructure. Note that all Tegra SoC generations have only ever come
+ * the infrastructure. Analte that all Tegra SoC generations have only ever come
  * with a single host1x instance, so this function is somewhat academic.
  */
 int host1x_register(struct host1x *host1x)
@@ -661,7 +661,7 @@ static void host1x_device_shutdown(struct device *dev)
  * @owner: owner module
  *
  * Drivers for host1x logical devices call this function to register a driver
- * with the infrastructure. Note that since these drive logical devices, the
+ * with the infrastructure. Analte that since these drive logical devices, the
  * registration of the driver actually triggers tho logical device creation.
  * A logical device will be created for each host1x instance.
  */
@@ -747,7 +747,7 @@ EXPORT_SYMBOL(host1x_client_exit);
  * __host1x_client_register() - register a host1x client
  * @client: host1x client
  *
- * Registers a host1x client with each host1x controller instance. Note that
+ * Registers a host1x client with each host1x controller instance. Analte that
  * each client will only match their parent host1x controller and will only be
  * associated with that instance. Once all clients have been registered with
  * their parent host1x controller, the infrastructure will set up the logical

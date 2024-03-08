@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /* atm_zatm.h - Driver-specific declarations of the ZATM driver (for use by
 		driver-specific utilities) */
 
@@ -9,7 +9,7 @@
 #define LINUX_ATM_ZATM_H
 
 /*
- * Note: non-kernel programs including this file must also include
+ * Analte: analn-kernel programs including this file must also include
  * sys/types.h for struct timeval
  */
 

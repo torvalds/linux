@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -45,7 +45,7 @@
 #define ATOM_COND_BELOW		3
 #define ATOM_COND_BELOWOREQUAL	4
 #define ATOM_COND_EQUAL		5
-#define ATOM_COND_NOTEQUAL	6
+#define ATOM_COND_ANALTEQUAL	6
 
 #define ATOM_PORT_ATI	0
 #define ATOM_PORT_PCI	1
@@ -113,7 +113,7 @@ static uint32_t atom_iio_execute(struct atom_context *ctx, int base,
 
 	while (1)
 		switch (CU8(base)) {
-		case ATOM_IIO_NOP:
+		case ATOM_IIO_ANALP:
 			base++;
 			break;
 		case ATOM_IIO_READ:
@@ -173,7 +173,7 @@ static uint32_t atom_iio_execute(struct atom_context *ctx, int base,
 		case ATOM_IIO_END:
 			return temp;
 		default:
-			pr_info("Unknown IIO opcode\n");
+			pr_info("Unkanalwn IIO opcode\n");
 			return 0;
 		}
 }
@@ -197,10 +197,10 @@ static uint32_t atom_get_src_int(atom_exec_context *ctx, uint8_t attr,
 			val = gctx->card->reg_read(gctx->card, idx);
 			break;
 		case ATOM_IO_PCI:
-			pr_info("PCI registers are not implemented\n");
+			pr_info("PCI registers are analt implemented\n");
 			return 0;
 		case ATOM_IO_SYSIO:
-			pr_info("SYSIO registers are not implemented\n");
+			pr_info("SYSIO registers are analt implemented\n");
 			return 0;
 		default:
 			if (!(gctx->io_mode & 0x80)) {
@@ -222,7 +222,7 @@ static uint32_t atom_get_src_int(atom_exec_context *ctx, uint8_t attr,
 		idx = U8(*ptr);
 		(*ptr)++;
 		/* get_unaligned_le32 avoids unaligned accesses from atombios
-		 * tables, noticed on a DEC Alpha. */
+		 * tables, analticed on a DEC Alpha. */
 		val = get_unaligned_le32((u32 *)&ctx->ps[idx]);
 		if (print)
 			DEBUG("PS[0x%02X,0x%04X]", idx, val);
@@ -472,10 +472,10 @@ static void atom_put_dst(atom_exec_context *ctx, int arg, uint8_t attr,
 				gctx->card->reg_write(gctx->card, idx, val);
 			break;
 		case ATOM_IO_PCI:
-			pr_info("PCI registers are not implemented\n");
+			pr_info("PCI registers are analt implemented\n");
 			return;
 		case ATOM_IO_SYSIO:
-			pr_info("SYSIO registers are not implemented\n");
+			pr_info("SYSIO registers are analt implemented\n");
 			return;
 		default:
 			if (!(gctx->io_mode & 0x80)) {
@@ -708,7 +708,7 @@ static void atom_op_div32(atom_exec_context *ctx, int *ptr, int arg)
 
 static void atom_op_eot(atom_exec_context *ctx, int *ptr, int arg)
 {
-	/* functionally, a nop */
+	/* functionally, a analp */
 }
 
 static void atom_op_jump(atom_exec_context *ctx, int *ptr, int arg)
@@ -736,12 +736,12 @@ static void atom_op_jump(atom_exec_context *ctx, int *ptr, int arg)
 	case ATOM_COND_EQUAL:
 		execute = ctx->ctx->cs_equal;
 		break;
-	case ATOM_COND_NOTEQUAL:
+	case ATOM_COND_ANALTEQUAL:
 		execute = !ctx->ctx->cs_equal;
 		break;
 	}
 	if (arg != ATOM_COND_ALWAYS)
-		SDEBUG("   taken: %s\n", str_yes_no(execute));
+		SDEBUG("   taken: %s\n", str_anal_anal(execute));
 	SDEBUG("   target: 0x%04X\n", target);
 	if (execute) {
 		if (ctx->last_jump == (ctx->start + target)) {
@@ -824,9 +824,9 @@ static void atom_op_mul32(atom_exec_context *ctx, int *ptr, int arg)
 	ctx->ctx->divmul[1] = upper_32_bits(val64);
 }
 
-static void atom_op_nop(atom_exec_context *ctx, int *ptr, int arg)
+static void atom_op_analp(atom_exec_context *ctx, int *ptr, int arg)
 {
-	/* nothing */
+	/* analthing */
 }
 
 static void atom_op_or(atom_exec_context *ctx, int *ptr, int arg)
@@ -1147,7 +1147,7 @@ static struct {
 	atom_op_jump, ATOM_COND_ABOVE}, {
 	atom_op_jump, ATOM_COND_BELOWOREQUAL}, {
 	atom_op_jump, ATOM_COND_ABOVEOREQUAL}, {
-	atom_op_jump, ATOM_COND_NOTEQUAL}, {
+	atom_op_jump, ATOM_COND_ANALTEQUAL}, {
 	atom_op_test, ATOM_ARG_REG}, {
 	atom_op_test, ATOM_ARG_PS}, {
 	atom_op_test, ATOM_ARG_WS}, {
@@ -1164,7 +1164,7 @@ static struct {
 	atom_op_clear, ATOM_ARG_FB}, {
 	atom_op_clear, ATOM_ARG_PLL}, {
 	atom_op_clear, ATOM_ARG_MC}, {
-	atom_op_nop, 0}, {
+	atom_op_analp, 0}, {
 	atom_op_eot, 0}, {
 	atom_op_mask, ATOM_ARG_REG}, {
 	atom_op_mask, ATOM_ARG_PS}, {
@@ -1322,7 +1322,7 @@ static void atom_get_vbios_name(struct atom_context *ctx)
 
 		c_ptr = (unsigned char *)(p_rom + off_to_vbios_str);
 	} else {
-		/* do not know where to find name */
+		/* do analt kanalw where to find name */
 		memcpy(ctx->name, na, 7);
 		ctx->name[7] = 0;
 		return;
@@ -1455,7 +1455,7 @@ static void atom_get_vbios_version(struct atom_context *ctx)
 	/* Search till atom rom header start point */
 	end = *(unsigned short *)(p_rom + OFFSET_TO_ATOM_ROM_HEADER_POINTER);
 
-	/* Use hardcoded offsets, if the offsets are not populated */
+	/* Use hardcoded offsets, if the offsets are analt populated */
 	if (end <= start) {
 		start = 3;
 		end = 1024;
@@ -1467,7 +1467,7 @@ static void atom_get_vbios_version(struct atom_context *ctx)
 	if (vbios_ver != NULL) {
 		/* skip ATOMBIOSBK-AMD VER */
 		vbios_ver += 18;
-		memcpy(ctx->vbios_ver_str, vbios_ver, STRLEN_NORMAL);
+		memcpy(ctx->vbios_ver_str, vbios_ver, STRLEN_ANALRMAL);
 	} else {
 		ctx->vbios_ver_str[0] = '\0';
 	}

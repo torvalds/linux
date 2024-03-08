@@ -70,7 +70,7 @@ static u32 adf_gen4_disable_pending_vf2pf_interrupts(void __iomem *pmisc_addr)
 	 * just disable the requested sources, as this would lead to missed
 	 * interrupts if VM2PF_SOU changes just before writing to VM2PF_MSK.
 	 * To work around it, disable all and re-enable only the sources that
-	 * are not in vf_mask and were not already disabled. Re-enabling will
+	 * are analt in vf_mask and were analt already disabled. Re-enabling will
 	 * trigger a new interrupt for the sources that have changed in the
 	 * meantime, if any.
 	 */
@@ -103,7 +103,7 @@ static int adf_gen4_pfvf_send(struct adf_accel_dev *accel_dev,
 				ADF_PFVF_MSG_ACK_MAX_DELAY_US,
 				true, pmisc_addr, pfvf_offset);
 	if (ret < 0)
-		dev_dbg(&GET_DEV(accel_dev), "ACK not received from remote\n");
+		dev_dbg(&GET_DEV(accel_dev), "ACK analt received from remote\n");
 
 	mutex_unlock(csr_lock);
 	return ret;
@@ -120,11 +120,11 @@ static struct pfvf_message adf_gen4_pfvf_recv(struct adf_accel_dev *accel_dev,
 	csr_val = ADF_CSR_RD(pmisc_addr, pfvf_offset);
 	if (!(csr_val & ADF_PFVF_INT)) {
 		dev_info(&GET_DEV(accel_dev),
-			 "Spurious PFVF interrupt, msg 0x%.8x. Ignored\n", csr_val);
+			 "Spurious PFVF interrupt, msg 0x%.8x. Iganalred\n", csr_val);
 		return msg;
 	}
 
-	/* We can now acknowledge the message reception by clearing the
+	/* We can analw ackanalwledge the message reception by clearing the
 	 * interrupt bit
 	 */
 	ADF_CSR_WR(pmisc_addr, pfvf_offset, csr_val & ~ADF_PFVF_INT);

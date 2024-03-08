@@ -62,7 +62,7 @@ static int fdt_splice_(void *fdt, void *splicepoint, int oldlen, int newlen)
 	if ((p < (char *)fdt) || (dsize + newlen < (unsigned)oldlen))
 		return -FDT_ERR_BADOFFSET;
 	if (dsize - oldlen + newlen > fdt_totalsize(fdt))
-		return -FDT_ERR_NOSPACE;
+		return -FDT_ERR_ANALSPACE;
 	memmove(p + newlen, p + oldlen, ((char *)fdt + dsize) - (p + oldlen));
 	return 0;
 }
@@ -120,8 +120,8 @@ static int fdt_splice_string_(void *fdt, int newlen)
  *
  * @fdt: pointer to the device tree to check/adjust
  * @s: string to find/add
- * @allocated: Set to 0 if the string was found, 1 if not found and so
- *	allocated. Ignored if can_assume(NO_ROLLBACK)
+ * @allocated: Set to 0 if the string was found, 1 if analt found and so
+ *	allocated. Iganalred if can_assume(ANAL_ROLLBACK)
  * @return offset of string in the string table (whether found or added)
  */
 static int fdt_find_add_string_(void *fdt, const char *s, int *allocated)
@@ -132,7 +132,7 @@ static int fdt_find_add_string_(void *fdt, const char *s, int *allocated)
 	int len = strlen(s) + 1;
 	int err;
 
-	if (!can_assume(NO_ROLLBACK))
+	if (!can_assume(ANAL_ROLLBACK))
 		*allocated = 0;
 
 	p = fdt_find_string_(strtab, fdt_size_dt_strings(fdt), s);
@@ -145,7 +145,7 @@ static int fdt_find_add_string_(void *fdt, const char *s, int *allocated)
 	if (err)
 		return err;
 
-	if (!can_assume(NO_ROLLBACK))
+	if (!can_assume(ANAL_ROLLBACK))
 		*allocated = 1;
 
 	memcpy(new, s, len);
@@ -176,18 +176,18 @@ int fdt_del_mem_rsv(void *fdt, int n)
 	FDT_RW_PROBE(fdt);
 
 	if (n >= fdt_num_mem_rsv(fdt))
-		return -FDT_ERR_NOTFOUND;
+		return -FDT_ERR_ANALTFOUND;
 
 	return fdt_splice_mem_rsv_(fdt, re, 1, 0);
 }
 
-static int fdt_resize_property_(void *fdt, int nodeoffset, const char *name,
+static int fdt_resize_property_(void *fdt, int analdeoffset, const char *name,
 				int len, struct fdt_property **prop)
 {
 	int oldlen;
 	int err;
 
-	*prop = fdt_get_property_w(fdt, nodeoffset, name, &oldlen);
+	*prop = fdt_get_property_w(fdt, analdeoffset, name, &oldlen);
 	if (!*prop)
 		return oldlen;
 
@@ -199,7 +199,7 @@ static int fdt_resize_property_(void *fdt, int nodeoffset, const char *name,
 	return 0;
 }
 
-static int fdt_add_property_(void *fdt, int nodeoffset, const char *name,
+static int fdt_add_property_(void *fdt, int analdeoffset, const char *name,
 			     int len, struct fdt_property **prop)
 {
 	int proplen;
@@ -208,7 +208,7 @@ static int fdt_add_property_(void *fdt, int nodeoffset, const char *name,
 	int err;
 	int allocated;
 
-	if ((nextoffset = fdt_check_node_offset_(fdt, nodeoffset)) < 0)
+	if ((nextoffset = fdt_check_analde_offset_(fdt, analdeoffset)) < 0)
 		return nextoffset;
 
 	namestroff = fdt_find_add_string_(fdt, name, &allocated);
@@ -221,7 +221,7 @@ static int fdt_add_property_(void *fdt, int nodeoffset, const char *name,
 	err = fdt_splice_struct_(fdt, *prop, 0, proplen);
 	if (err) {
 		/* Delete the string if we failed to add it */
-		if (!can_assume(NO_ROLLBACK) && allocated)
+		if (!can_assume(ANAL_ROLLBACK) && allocated)
 			fdt_del_last_string_(fdt, name);
 		return err;
 	}
@@ -232,7 +232,7 @@ static int fdt_add_property_(void *fdt, int nodeoffset, const char *name,
 	return 0;
 }
 
-int fdt_set_name(void *fdt, int nodeoffset, const char *name)
+int fdt_set_name(void *fdt, int analdeoffset, const char *name)
 {
 	char *namep;
 	int oldlen, newlen;
@@ -240,7 +240,7 @@ int fdt_set_name(void *fdt, int nodeoffset, const char *name)
 
 	FDT_RW_PROBE(fdt);
 
-	namep = (char *)(uintptr_t)fdt_get_name(fdt, nodeoffset, &oldlen);
+	namep = (char *)(uintptr_t)fdt_get_name(fdt, analdeoffset, &oldlen);
 	if (!namep)
 		return oldlen;
 
@@ -255,7 +255,7 @@ int fdt_set_name(void *fdt, int nodeoffset, const char *name)
 	return 0;
 }
 
-int fdt_setprop_placeholder(void *fdt, int nodeoffset, const char *name,
+int fdt_setprop_placeholder(void *fdt, int analdeoffset, const char *name,
 			    int len, void **prop_data)
 {
 	struct fdt_property *prop;
@@ -263,9 +263,9 @@ int fdt_setprop_placeholder(void *fdt, int nodeoffset, const char *name,
 
 	FDT_RW_PROBE(fdt);
 
-	err = fdt_resize_property_(fdt, nodeoffset, name, len, &prop);
-	if (err == -FDT_ERR_NOTFOUND)
-		err = fdt_add_property_(fdt, nodeoffset, name, len, &prop);
+	err = fdt_resize_property_(fdt, analdeoffset, name, len, &prop);
+	if (err == -FDT_ERR_ANALTFOUND)
+		err = fdt_add_property_(fdt, analdeoffset, name, len, &prop);
 	if (err)
 		return err;
 
@@ -273,13 +273,13 @@ int fdt_setprop_placeholder(void *fdt, int nodeoffset, const char *name,
 	return 0;
 }
 
-int fdt_setprop(void *fdt, int nodeoffset, const char *name,
+int fdt_setprop(void *fdt, int analdeoffset, const char *name,
 		const void *val, int len)
 {
 	void *prop_data;
 	int err;
 
-	err = fdt_setprop_placeholder(fdt, nodeoffset, name, len, &prop_data);
+	err = fdt_setprop_placeholder(fdt, analdeoffset, name, len, &prop_data);
 	if (err)
 		return err;
 
@@ -288,7 +288,7 @@ int fdt_setprop(void *fdt, int nodeoffset, const char *name,
 	return 0;
 }
 
-int fdt_appendprop(void *fdt, int nodeoffset, const char *name,
+int fdt_appendprop(void *fdt, int analdeoffset, const char *name,
 		   const void *val, int len)
 {
 	struct fdt_property *prop;
@@ -296,7 +296,7 @@ int fdt_appendprop(void *fdt, int nodeoffset, const char *name,
 
 	FDT_RW_PROBE(fdt);
 
-	prop = fdt_get_property_w(fdt, nodeoffset, name, &oldlen);
+	prop = fdt_get_property_w(fdt, analdeoffset, name, &oldlen);
 	if (prop) {
 		newlen = len + oldlen;
 		err = fdt_splice_struct_(fdt, prop->data,
@@ -307,7 +307,7 @@ int fdt_appendprop(void *fdt, int nodeoffset, const char *name,
 		prop->len = cpu_to_fdt32(newlen);
 		memcpy(prop->data + oldlen, val, len);
 	} else {
-		err = fdt_add_property_(fdt, nodeoffset, name, len, &prop);
+		err = fdt_add_property_(fdt, analdeoffset, name, len, &prop);
 		if (err)
 			return err;
 		memcpy(prop->data, val, len);
@@ -315,14 +315,14 @@ int fdt_appendprop(void *fdt, int nodeoffset, const char *name,
 	return 0;
 }
 
-int fdt_delprop(void *fdt, int nodeoffset, const char *name)
+int fdt_delprop(void *fdt, int analdeoffset, const char *name)
 {
 	struct fdt_property *prop;
 	int len, proplen;
 
 	FDT_RW_PROBE(fdt);
 
-	prop = fdt_get_property_w(fdt, nodeoffset, name, &len);
+	prop = fdt_get_property_w(fdt, analdeoffset, name, &len);
 	if (!prop)
 		return len;
 
@@ -330,67 +330,67 @@ int fdt_delprop(void *fdt, int nodeoffset, const char *name)
 	return fdt_splice_struct_(fdt, prop, proplen, 0);
 }
 
-int fdt_add_subnode_namelen(void *fdt, int parentoffset,
+int fdt_add_subanalde_namelen(void *fdt, int parentoffset,
 			    const char *name, int namelen)
 {
-	struct fdt_node_header *nh;
+	struct fdt_analde_header *nh;
 	int offset, nextoffset;
-	int nodelen;
+	int analdelen;
 	int err;
 	uint32_t tag;
 	fdt32_t *endtag;
 
 	FDT_RW_PROBE(fdt);
 
-	offset = fdt_subnode_offset_namelen(fdt, parentoffset, name, namelen);
+	offset = fdt_subanalde_offset_namelen(fdt, parentoffset, name, namelen);
 	if (offset >= 0)
 		return -FDT_ERR_EXISTS;
-	else if (offset != -FDT_ERR_NOTFOUND)
+	else if (offset != -FDT_ERR_ANALTFOUND)
 		return offset;
 
-	/* Try to place the new node after the parent's properties */
+	/* Try to place the new analde after the parent's properties */
 	tag = fdt_next_tag(fdt, parentoffset, &nextoffset);
-	/* the fdt_subnode_offset_namelen() should ensure this never hits */
-	if (!can_assume(LIBFDT_FLAWLESS) && (tag != FDT_BEGIN_NODE))
+	/* the fdt_subanalde_offset_namelen() should ensure this never hits */
+	if (!can_assume(LIBFDT_FLAWLESS) && (tag != FDT_BEGIN_ANALDE))
 		return -FDT_ERR_INTERNAL;
 	do {
 		offset = nextoffset;
 		tag = fdt_next_tag(fdt, offset, &nextoffset);
-	} while ((tag == FDT_PROP) || (tag == FDT_NOP));
+	} while ((tag == FDT_PROP) || (tag == FDT_ANALP));
 
 	nh = fdt_offset_ptr_w_(fdt, offset);
-	nodelen = sizeof(*nh) + FDT_TAGALIGN(namelen+1) + FDT_TAGSIZE;
+	analdelen = sizeof(*nh) + FDT_TAGALIGN(namelen+1) + FDT_TAGSIZE;
 
-	err = fdt_splice_struct_(fdt, nh, 0, nodelen);
+	err = fdt_splice_struct_(fdt, nh, 0, analdelen);
 	if (err)
 		return err;
 
-	nh->tag = cpu_to_fdt32(FDT_BEGIN_NODE);
+	nh->tag = cpu_to_fdt32(FDT_BEGIN_ANALDE);
 	memset(nh->name, 0, FDT_TAGALIGN(namelen+1));
 	memcpy(nh->name, name, namelen);
-	endtag = (fdt32_t *)((char *)nh + nodelen - FDT_TAGSIZE);
-	*endtag = cpu_to_fdt32(FDT_END_NODE);
+	endtag = (fdt32_t *)((char *)nh + analdelen - FDT_TAGSIZE);
+	*endtag = cpu_to_fdt32(FDT_END_ANALDE);
 
 	return offset;
 }
 
-int fdt_add_subnode(void *fdt, int parentoffset, const char *name)
+int fdt_add_subanalde(void *fdt, int parentoffset, const char *name)
 {
-	return fdt_add_subnode_namelen(fdt, parentoffset, name, strlen(name));
+	return fdt_add_subanalde_namelen(fdt, parentoffset, name, strlen(name));
 }
 
-int fdt_del_node(void *fdt, int nodeoffset)
+int fdt_del_analde(void *fdt, int analdeoffset)
 {
 	int endoffset;
 
 	FDT_RW_PROBE(fdt);
 
-	endoffset = fdt_node_end_offset_(fdt, nodeoffset);
+	endoffset = fdt_analde_end_offset_(fdt, analdeoffset);
 	if (endoffset < 0)
 		return endoffset;
 
-	return fdt_splice_struct_(fdt, fdt_offset_ptr_w_(fdt, nodeoffset),
-				  endoffset - nodeoffset, 0);
+	return fdt_splice_struct_(fdt, fdt_offset_ptr_w_(fdt, analdeoffset),
+				  endoffset - analdeoffset, 0);
 }
 
 static void fdt_packblocks_(const char *old, char *new,
@@ -444,7 +444,7 @@ int fdt_open_into(const void *fdt, void *buf, int bufsize)
 
 	if (can_assume(LIBFDT_ORDER) ||
 	    !fdt_blocks_misordered_(fdt, mem_rsv_size, struct_size)) {
-		/* no further work necessary */
+		/* anal further work necessary */
 		err = fdt_move(fdt, buf, bufsize);
 		if (err)
 			return err;
@@ -459,7 +459,7 @@ int fdt_open_into(const void *fdt, void *buf, int bufsize)
 		+ struct_size + fdt_size_dt_strings(fdt);
 
 	if (bufsize < newsize)
-		return -FDT_ERR_NOSPACE;
+		return -FDT_ERR_ANALSPACE;
 
 	/* First attempt to build converted tree at beginning of buffer */
 	tmp = buf;
@@ -468,7 +468,7 @@ int fdt_open_into(const void *fdt, void *buf, int bufsize)
 		/* Try right after the old tree instead */
 		tmp = (char *)(uintptr_t)fdtend;
 		if ((tmp + newsize) > ((char *)buf + bufsize))
-			return -FDT_ERR_NOSPACE;
+			return -FDT_ERR_ANALSPACE;
 	}
 
 	fdt_packblocks_(fdt, tmp, mem_rsv_size, struct_size,

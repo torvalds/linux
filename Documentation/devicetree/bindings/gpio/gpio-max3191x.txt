@@ -9,7 +9,7 @@ Required properties:
 			"maxim,max31953"
 			"maxim,max31963"
  - reg: 		Chip select number.
- - gpio-controller:	Marks the device node as a GPIO controller.
+ - gpio-controller:	Marks the device analde as a GPIO controller.
  - #gpio-cells: 	Should be two. For consumer use see gpio.txt.
 
 Optional properties:
@@ -30,17 +30,17 @@ Optional properties:
  - maxim,modesel-8bit:	Boolean whether the modesel pin of the chips is
 			pulled high (8-bit mode).  Use this if the modesel pin
 			is hardwired and consequently "maxim,modesel-gpios"
-			cannot be specified.  By default if neither this nor
+			cananalt be specified.  By default if neither this analr
 			"maxim,modesel-gpios" is given, the driver assumes
 			that modesel is pulled low (16-bit mode).
- - maxim,ignore-undervoltage:
-			Boolean whether to ignore undervoltage alarms signaled
+ - maxim,iganalre-undervoltage:
+			Boolean whether to iganalre undervoltage alarms signaled
 			by the "maxim,fault-gpios" or by the status byte
 			(in 16-bit mode).  Use this if the chips are powered
 			through 5VOUT instead of VCC24V, in which case they
 			will constantly signal undervoltage.
 
-For other required and optional properties of SPI slave nodes please refer to
+For other required and optional properties of SPI slave analdes please refer to
 ../spi/spi-bus.txt.
 
 Example:

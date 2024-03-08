@@ -11,7 +11,7 @@
 
 #include <linux/kernel.h>
 #include <linux/mtd/mtd.h>
-#include "nodelist.h"
+#include "analdelist.h"
 
 int jffs2_flash_direct_writev(struct jffs2_sb_info *c, const struct kvec *vecs,
 			      unsigned long count, loff_t to, size_t *retlen)

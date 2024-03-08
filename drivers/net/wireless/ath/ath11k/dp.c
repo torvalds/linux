@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #include <crypto/hash.h>
@@ -48,7 +48,7 @@ int ath11k_dp_peer_setup(struct ath11k *ar, int vdev_id, const u8 *addr)
 	u32 reo_dest;
 	int ret = 0, tid;
 
-	/* NOTE: reo_dest ring id starts from 1 unlike mac_id which starts from 0 */
+	/* ANALTE: reo_dest ring id starts from 1 unlike mac_id which starts from 0 */
 	reo_dest = ar->dp.mac_id + 1;
 	ret = ath11k_wmi_set_peer_param(ar, addr, vdev_id,
 					WMI_PEER_SET_DEFAULT_ROUTING,
@@ -62,7 +62,7 @@ int ath11k_dp_peer_setup(struct ath11k *ar, int vdev_id, const u8 *addr)
 
 	for (tid = 0; tid <= IEEE80211_NUM_TIDS; tid++) {
 		ret = ath11k_peer_rx_tid_setup(ar, addr, vdev_id, tid, 1, 0,
-					       HAL_PN_TYPE_NONE);
+					       HAL_PN_TYPE_ANALNE);
 		if (ret) {
 			ath11k_warn(ab, "failed to setup rxd tid queue for tid %d: %d\n",
 				    tid, ret);
@@ -88,7 +88,7 @@ peer_clean:
 	if (!peer) {
 		ath11k_warn(ab, "failed to find the peer to del rx tid\n");
 		spin_unlock_bh(&ab->base_lock);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	for (; tid >= 0; tid--)
@@ -124,7 +124,7 @@ static int ath11k_dp_srng_find_ring_in_mask(int ring_num, const u8 *grp_mask)
 			return ext_group_num;
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static int ath11k_dp_srng_calculate_msi_group(struct ath11k_base *ab,
@@ -172,7 +172,7 @@ static int ath11k_dp_srng_calculate_msi_group(struct ath11k_base *ab,
 	case HAL_CE_DST:
 	case HAL_CE_DST_STATUS:
 	default:
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	return ath11k_dp_srng_find_ring_in_mask(ring_num, grp_mask);
@@ -196,7 +196,7 @@ static void ath11k_dp_srng_msi_setup(struct ath11k_base *ab,
 							      ring_num);
 	if (msi_group_number < 0) {
 		ath11k_dbg(ab, ATH11K_DBG_PCI,
-			   "ring not part of an ext_group; ring_type: %d,ring_num %d",
+			   "ring analt part of an ext_group; ring_type: %d,ring_num %d",
 			   type, ring_num);
 		ring_params->msi_addr = 0;
 		ring_params->msi_data = 0;
@@ -259,7 +259,7 @@ int ath11k_dp_srng_setup(struct ath11k_base *ab, struct dp_srng *ring,
 							   GFP_KERNEL);
 
 	if (!ring->vaddr_unaligned)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ring->vaddr = PTR_ALIGN(ring->vaddr_unaligned, HAL_RING_BASE_ALIGN);
 	ring->paddr = ring->paddr_unaligned + ((unsigned long)ring->vaddr -
@@ -313,7 +313,7 @@ int ath11k_dp_srng_setup(struct ath11k_base *ab, struct dp_srng *ring,
 	case HAL_RXDMA_DIR_BUF:
 		break;
 	default:
-		ath11k_warn(ab, "Not a valid ring type in dp :%d\n", type);
+		ath11k_warn(ab, "Analt a valid ring type in dp :%d\n", type);
 		return -EINVAL;
 	}
 
@@ -531,7 +531,7 @@ static int ath11k_dp_scatter_idle_link_desc_setup(struct ath11k_base *ab,
 						    HAL_WBM_IDLE_SCATTER_BUF_SIZE_MAX,
 						    &slist[i].paddr, GFP_KERNEL);
 		if (!slist[i].vaddr) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err;
 		}
 	}
@@ -611,7 +611,7 @@ static int ath11k_dp_link_desc_bank_alloc(struct ath11k_base *ab,
 							   &desc_bank[i].paddr_unaligned,
 							   GFP_KERNEL);
 		if (!desc_bank[i].vaddr_unaligned) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err;
 		}
 
@@ -1092,7 +1092,7 @@ int ath11k_dp_alloc(struct ath11k_base *ab)
 		dp->tx_ring[i].tx_status_tail = DP_TX_COMP_RING_SIZE - 1;
 		dp->tx_ring[i].tx_status = kmalloc(size, GFP_KERNEL);
 		if (!dp->tx_ring[i].tx_status) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto fail_cmn_srng_cleanup;
 		}
 	}
@@ -1125,7 +1125,7 @@ static void ath11k_dp_shadow_timer_handler(struct timer_list *t)
 
 	/* when the timer is fired, the handler checks whether there
 	 * are new TX happened. The handler updates HP only when there
-	 * are no TX operations during the timeout interval, and stop
+	 * are anal TX operations during the timeout interval, and stop
 	 * the timer. Timer will be started again when TX happens again.
 	 */
 	if (update_timer->timer_tx_num != update_timer->tx_num) {

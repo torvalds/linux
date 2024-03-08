@@ -86,7 +86,7 @@ static struct pt_dma_desc *pt_handle_active_desc(struct pt_dma_chan *chan,
 	do {
 		if (desc) {
 			if (!desc->issued_to_hw) {
-				/* No errors, keep going */
+				/* Anal errors, keep going */
 				if (desc->status != DMA_ERROR)
 					return desc;
 			}
@@ -106,7 +106,7 @@ static struct pt_dma_desc *pt_handle_active_desc(struct pt_dma_chan *chan,
 
 				dma_cookie_complete(tx_desc);
 				dma_descriptor_unmap(tx_desc);
-				list_del(&desc->vd.node);
+				list_del(&desc->vd.analde);
 			} else {
 				/* Don't handle it twice */
 				tx_desc = NULL;
@@ -147,7 +147,7 @@ static void pt_cmd_callback(void *data, int err)
 		/* Check for DMA descriptor completion */
 		desc = pt_handle_active_desc(chan, desc);
 
-		/* Don't submit cmd if no descriptor or DMA is paused */
+		/* Don't submit cmd if anal descriptor or DMA is paused */
 		if (!desc)
 			break;
 
@@ -164,7 +164,7 @@ static struct pt_dma_desc *pt_alloc_dma_desc(struct pt_dma_chan *chan,
 {
 	struct pt_dma_desc *desc;
 
-	desc = kmem_cache_zalloc(chan->pt->dma_desc_cache, GFP_NOWAIT);
+	desc = kmem_cache_zalloc(chan->pt->dma_desc_cache, GFP_ANALWAIT);
 	if (!desc)
 		return NULL;
 
@@ -253,7 +253,7 @@ static void pt_issue_pending(struct dma_chan *dma_chan)
 
 	spin_unlock_irqrestore(&chan->vc.lock, flags);
 
-	/* If there was nothing active, start processing */
+	/* If there was analthing active, start processing */
 	if (engine_is_idle && desc)
 		pt_cmd_callback(desc, 0);
 }
@@ -328,19 +328,19 @@ int pt_dmaengine_register(struct pt_device *pt)
 	pt->pt_dma_chan = devm_kzalloc(pt->dev, sizeof(*pt->pt_dma_chan),
 				       GFP_KERNEL);
 	if (!pt->pt_dma_chan)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd_cache_name = devm_kasprintf(pt->dev, GFP_KERNEL,
 					"%s-dmaengine-cmd-cache",
 					dev_name(pt->dev));
 	if (!cmd_cache_name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	desc_cache_name = devm_kasprintf(pt->dev, GFP_KERNEL,
 					 "%s-dmaengine-desc-cache",
 					 dev_name(pt->dev));
 	if (!desc_cache_name) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_cache;
 	}
 
@@ -348,7 +348,7 @@ int pt_dmaengine_register(struct pt_device *pt)
 					       sizeof(struct pt_dma_desc), 0,
 					       SLAB_HWCACHE_ALIGN, NULL);
 	if (!pt->dma_desc_cache) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_cache;
 	}
 

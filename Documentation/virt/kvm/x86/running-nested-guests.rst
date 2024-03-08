@@ -4,7 +4,7 @@
 Running nested guests with KVM
 ==============================
 
-A nested guest is the ability to run a guest inside another guest (it
+A nested guest is the ability to run a guest inside aanalther guest (it
 can be KVM-based or a different hypervisor).  The straightforward
 example is a KVM guest that in turn runs on a KVM guest (the rest of
 this document is built on this example)::
@@ -26,7 +26,7 @@ this document is built on this example)::
       |        Hardware (with virtualization extensions)     |
       '------------------------------------------------------'
 
-Terminology:
+Termianallogy:
 
 - L0 – level-0; the bare metal host, running KVM
 
@@ -35,17 +35,17 @@ Terminology:
 
 - L2 – level-2 guest; a VM running on L1, this is the "nested guest"
 
-.. note:: The above diagram is modelled after the x86 architecture;
+.. analte:: The above diagram is modelled after the x86 architecture;
           s390x, ppc64 and other architectures are likely to have
           a different design for nesting.
 
           For example, s390x always has an LPAR (LogicalPARtition)
-          hypervisor running on bare metal, adding another layer and
+          hypervisor running on bare metal, adding aanalther layer and
           resulting in at least four levels in a nested setup — L0 (bare
           metal, running the LPAR hypervisor), L1 (host hypervisor), L2
           (guest hypervisor), L3 (nested guest).
 
-          This document will stick with the three-level terminology (L0,
+          This document will stick with the three-level termianallogy (L0,
           L1, and L2) for all architectures; and will largely focus on
           x86.
 
@@ -58,7 +58,7 @@ few:
 
 - As a developer, you want to test your software on different operating
   systems (OSes).  Instead of renting multiple VMs from a Cloud
-  Provider, using nested KVM lets you rent a large enough "guest
+  Provider, using nested KVM lets you rent a large eanalugh "guest
   hypervisor" (level-1 guest).  This in turn allows you to create
   multiple nested guests (level-2 guests), running different OSes, on
   which you can develop and test your software.
@@ -136,7 +136,7 @@ metal host (L0).  Parameters for Intel hosts::
     $ cat /sys/module/kvm_intel/parameters/ept
     Y
 
-.. note:: If you suspect your L2 (i.e. nested guest) is running slower,
+.. analte:: If you suspect your L2 (i.e. nested guest) is running slower,
           ensure the above are enabled (particularly
           ``enable_shadow_vmcs`` and ``ept``).
 
@@ -153,7 +153,7 @@ The above will pass through the host CPU's capabilities as-is to the
 guest, or for better live migration compatibility, use a named CPU
 model supported by QEMU. e.g.::
 
-    $ qemu-kvm -cpu Haswell-noTSX-IBRS,vmx=on
+    $ qemu-kvm -cpu Haswell-analTSX-IBRS,vmx=on
 
 then the guest hypervisor will subsequently be capable of running a
 nested guest with accelerated KVM.
@@ -168,7 +168,7 @@ Enabling "nested" (s390x)
     $ rmmod kvm
     $ modprobe kvm nested=1
 
-.. note:: On s390x, the kernel parameter ``hpage`` is mutually exclusive
+.. analte:: On s390x, the kernel parameter ``hpage`` is mutually exclusive
           with the ``nested`` parameter — i.e. to be able to enable
           ``nested``, the ``hpage`` parameter *must* be disabled.
 
@@ -176,7 +176,7 @@ Enabling "nested" (s390x)
    feature — with QEMU, this can be done by using "host passthrough"
    (via the command-line ``-cpu host``).
 
-3. Now the KVM module can be loaded in the L1 (guest hypervisor)::
+3. Analw the KVM module can be loaded in the L1 (guest hypervisor)::
 
     $ modprobe kvm
 
@@ -184,28 +184,28 @@ Enabling "nested" (s390x)
 Live migration with nested KVM
 ------------------------------
 
-Migrating an L1 guest, with a  *live* nested guest in it, to another
+Migrating an L1 guest, with a  *live* nested guest in it, to aanalther
 bare metal host, works as of Linux kernel 5.3 and QEMU 4.2.0 for
 Intel x86 systems, and even on older versions for s390x.
 
 On AMD systems, once an L1 guest has started an L2 guest, the L1 guest
-should no longer be migrated or saved (refer to QEMU documentation on
+should anal longer be migrated or saved (refer to QEMU documentation on
 "savevm"/"loadvm") until the L2 guest shuts down.  Attempting to migrate
 or save-and-load an L1 guest while an L2 guest is running will result in
 undefined behavior.  You might see a ``kernel BUG!`` entry in ``dmesg``, a
 kernel 'oops', or an outright kernel panic.  Such a migrated or loaded L1
-guest can no longer be considered stable or secure, and must be restarted.
-Migrating an L1 guest merely configured to support nesting, while not
-actually running L2 guests, is expected to function normally even on AMD
+guest can anal longer be considered stable or secure, and must be restarted.
+Migrating an L1 guest merely configured to support nesting, while analt
+actually running L2 guests, is expected to function analrmally even on AMD
 systems but may fail once guests are started.
 
 Migrating an L2 guest is always expected to succeed, so all the following
 scenarios should work even on AMD systems:
 
-- Migrating a nested guest (L2) to another L1 guest on the *same* bare
+- Migrating a nested guest (L2) to aanalther L1 guest on the *same* bare
   metal host.
 
-- Migrating a nested guest (L2) to another L1 guest on a *different*
+- Migrating a nested guest (L2) to aanalther L1 guest on a *different*
   bare metal host.
 
 - Migrating a nested guest (L2) to a bare metal host.
@@ -222,7 +222,7 @@ reporter and the bug fixer.
   out because when reporting bugs, people tend to forget to even
   *mention* that they're using nested virtualization.
 
-- Ensure you are actually running KVM on KVM.  Sometimes people do not
+- Ensure you are actually running KVM on KVM.  Sometimes people do analt
   have KVM enabled for their guest hypervisor (L1), which results in
   them running with pure emulation or what QEMU calls it as "TCG", but
   they think they're running nested KVM.  Thus confusing "nested Virt"
@@ -231,7 +231,7 @@ reporter and the bug fixer.
 Information to collect (generic)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The following is not an exhaustive list, but a very good starting point:
+The following is analt an exhaustive list, but a very good starting point:
 
   - Kernel, libvirt, and QEMU version from L0
 

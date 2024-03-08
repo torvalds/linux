@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -30,7 +30,7 @@
 
 /*
  * DMA
- * Starting with R600, the GPU has an asynchronous
+ * Starting with R600, the GPU has an asynchroanalus
  * DMA engine.  The programming model is very similar
  * to the 3D engine (ring buffer, IBs, etc.), but the
  * DMA controller has it's own packet format that is
@@ -38,7 +38,7 @@
  * It supports copying data, writing embedded data,
  * solid fills, and a number of other things.  It also
  * has support for tiling/detiling of buffers.
- * Cayman and newer support two asynchronous DMA engines.
+ * Cayman and newer support two asynchroanalus DMA engines.
  */
 
 /**
@@ -136,10 +136,10 @@ void cayman_dma_ring_ib_execute(struct radeon_device *rdev,
 	}
 
 	/* The indirect buffer packet must end on an 8 DW boundary in the DMA ring.
-	 * Pad as necessary with NOPs.
+	 * Pad as necessary with ANALPs.
 	 */
 	while ((ring->wptr & 7) != 5)
-		radeon_ring_write(ring, DMA_PACKET(DMA_PACKET_NOP, 0, 0, 0));
+		radeon_ring_write(ring, DMA_PACKET(DMA_PACKET_ANALP, 0, 0, 0));
 	radeon_ring_write(ring, DMA_IB_PACKET(DMA_PACKET_INDIRECT_BUFFER, vm_id, 0));
 	radeon_ring_write(ring, (ib->gpu_addr & 0xFFFFFFE0));
 	radeon_ring_write(ring, (ib->length_dw << 12) | (upper_32_bits(ib->gpu_addr) & 0xFF));
@@ -217,7 +217,7 @@ int cayman_dma_resume(struct radeon_device *rdev)
 		WREG32(DMA_RB_RPTR + reg_offset, 0);
 		WREG32(DMA_RB_WPTR + reg_offset, 0);
 
-		/* set the wb address whether it's enabled or not */
+		/* set the wb address whether it's enabled or analt */
 		WREG32(DMA_RB_RPTR_ADDR_HI + reg_offset,
 		       upper_32_bits(rdev->wb.gpu_addr + wb_offset) & 0xFF);
 		WREG32(DMA_RB_RPTR_ADDR_LO + reg_offset,
@@ -281,7 +281,7 @@ void cayman_dma_fini(struct radeon_device *rdev)
  * @ring: radeon_ring structure holding ring information
  *
  * Check if the async DMA engine is locked up.
- * Returns true if the engine appears to be locked up, false if not.
+ * Returns true if the engine appears to be locked up, false if analt.
  */
 bool cayman_dma_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
 {
@@ -363,7 +363,7 @@ void cayman_dma_vm_write_pages(struct radeon_device *rdev,
 		if (ndw > 0xFFFFE)
 			ndw = 0xFFFFE;
 
-		/* for non-physically contiguous pages (system) */
+		/* for analn-physically contiguous pages (system) */
 		ib->ptr[ib->length_dw++] = DMA_PACKET(DMA_PACKET_WRITE,
 						      0, 0, ndw);
 		ib->ptr[ib->length_dw++] = pe;
@@ -442,7 +442,7 @@ void cayman_dma_vm_set_pages(struct radeon_device *rdev,
 void cayman_dma_vm_pad_ib(struct radeon_ib *ib)
 {
 	while (ib->length_dw & 0x7)
-		ib->ptr[ib->length_dw++] = DMA_PACKET(DMA_PACKET_NOP, 0, 0, 0);
+		ib->ptr[ib->length_dw++] = DMA_PACKET(DMA_PACKET_ANALP, 0, 0, 0);
 }
 
 void cayman_dma_vm_flush(struct radeon_device *rdev, struct radeon_ring *ring,

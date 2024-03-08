@@ -8,7 +8,7 @@
 
 #define _GNU_SOURCE
 #include <arpa/inet.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <linux/landlock.h>
 #include <linux/in.h>
@@ -31,7 +31,7 @@ static const char loopback_ipv6[] = "::1";
 const short backlog = 10;
 
 enum sandbox_type {
-	NO_SANDBOX,
+	ANAL_SANDBOX,
 	/* This may be used to test rules that allow *and* deny accesses. */
 	TCP_SANDBOX,
 };
@@ -136,7 +136,7 @@ static int socket_variant(const struct service_fixture *const srv)
 	ret = socket(srv->protocol.domain, srv->protocol.type | SOCK_CLOEXEC,
 		     0);
 	if (ret < 0)
-		return -errno;
+		return -erranal;
 	return ret;
 }
 
@@ -231,12 +231,12 @@ static int bind_variant_addrlen(const int sock_fd,
 		break;
 
 	default:
-		errno = EAFNOSUPPORT;
-		return -errno;
+		erranal = EAFANALSUPPORT;
+		return -erranal;
 	}
 
 	if (ret < 0)
-		return -errno;
+		return -erranal;
 	return ret;
 }
 
@@ -267,12 +267,12 @@ static int connect_variant_addrlen(const int sock_fd,
 		break;
 
 	default:
-		errno = -EAFNOSUPPORT;
-		return -errno;
+		erranal = -EAFANALSUPPORT;
+		return -erranal;
 	}
 
 	if (ret < 0)
-		return -errno;
+		return -erranal;
 	return ret;
 }
 
@@ -319,9 +319,9 @@ FIXTURE_TEARDOWN(protocol)
 }
 
 /* clang-format off */
-FIXTURE_VARIANT_ADD(protocol, no_sandbox_with_ipv4_tcp) {
+FIXTURE_VARIANT_ADD(protocol, anal_sandbox_with_ipv4_tcp) {
 	/* clang-format on */
-	.sandbox = NO_SANDBOX,
+	.sandbox = ANAL_SANDBOX,
 	.prot = {
 		.domain = AF_INET,
 		.type = SOCK_STREAM,
@@ -329,9 +329,9 @@ FIXTURE_VARIANT_ADD(protocol, no_sandbox_with_ipv4_tcp) {
 };
 
 /* clang-format off */
-FIXTURE_VARIANT_ADD(protocol, no_sandbox_with_ipv6_tcp) {
+FIXTURE_VARIANT_ADD(protocol, anal_sandbox_with_ipv6_tcp) {
 	/* clang-format on */
-	.sandbox = NO_SANDBOX,
+	.sandbox = ANAL_SANDBOX,
 	.prot = {
 		.domain = AF_INET6,
 		.type = SOCK_STREAM,
@@ -339,9 +339,9 @@ FIXTURE_VARIANT_ADD(protocol, no_sandbox_with_ipv6_tcp) {
 };
 
 /* clang-format off */
-FIXTURE_VARIANT_ADD(protocol, no_sandbox_with_ipv4_udp) {
+FIXTURE_VARIANT_ADD(protocol, anal_sandbox_with_ipv4_udp) {
 	/* clang-format on */
-	.sandbox = NO_SANDBOX,
+	.sandbox = ANAL_SANDBOX,
 	.prot = {
 		.domain = AF_INET,
 		.type = SOCK_DGRAM,
@@ -349,9 +349,9 @@ FIXTURE_VARIANT_ADD(protocol, no_sandbox_with_ipv4_udp) {
 };
 
 /* clang-format off */
-FIXTURE_VARIANT_ADD(protocol, no_sandbox_with_ipv6_udp) {
+FIXTURE_VARIANT_ADD(protocol, anal_sandbox_with_ipv6_udp) {
 	/* clang-format on */
-	.sandbox = NO_SANDBOX,
+	.sandbox = ANAL_SANDBOX,
 	.prot = {
 		.domain = AF_INET6,
 		.type = SOCK_DGRAM,
@@ -359,9 +359,9 @@ FIXTURE_VARIANT_ADD(protocol, no_sandbox_with_ipv6_udp) {
 };
 
 /* clang-format off */
-FIXTURE_VARIANT_ADD(protocol, no_sandbox_with_unix_stream) {
+FIXTURE_VARIANT_ADD(protocol, anal_sandbox_with_unix_stream) {
 	/* clang-format on */
-	.sandbox = NO_SANDBOX,
+	.sandbox = ANAL_SANDBOX,
 	.prot = {
 		.domain = AF_UNIX,
 		.type = SOCK_STREAM,
@@ -369,9 +369,9 @@ FIXTURE_VARIANT_ADD(protocol, no_sandbox_with_unix_stream) {
 };
 
 /* clang-format off */
-FIXTURE_VARIANT_ADD(protocol, no_sandbox_with_unix_datagram) {
+FIXTURE_VARIANT_ADD(protocol, anal_sandbox_with_unix_datagram) {
 	/* clang-format on */
-	.sandbox = NO_SANDBOX,
+	.sandbox = ANAL_SANDBOX,
 	.prot = {
 		.domain = AF_UNIX,
 		.type = SOCK_DGRAM,
@@ -450,7 +450,7 @@ static void test_bind_and_connect(struct __test_metadata *const _metadata,
 	inval_fd = socket_variant(srv);
 	ASSERT_LE(0, inval_fd)
 	{
-		TH_LOG("Failed to create socket: %s", strerror(errno));
+		TH_LOG("Failed to create socket: %s", strerror(erranal));
 	}
 
 	/* Tries to bind with zero as addrlen. */
@@ -467,7 +467,7 @@ static void test_bind_and_connect(struct __test_metadata *const _metadata,
 	} else {
 		EXPECT_EQ(0, ret)
 		{
-			TH_LOG("Failed to bind to socket: %s", strerror(errno));
+			TH_LOG("Failed to bind to socket: %s", strerror(erranal));
 		}
 	}
 	EXPECT_EQ(0, close(inval_fd));
@@ -490,13 +490,13 @@ static void test_bind_and_connect(struct __test_metadata *const _metadata,
 	} else if (deny_connect) {
 		EXPECT_EQ(-EACCES, ret);
 	} else if (srv->protocol.type == SOCK_STREAM) {
-		/* No listening server, whatever the value of deny_bind. */
+		/* Anal listening server, whatever the value of deny_bind. */
 		EXPECT_EQ(-ECONNREFUSED, ret);
 	} else {
 		EXPECT_EQ(0, ret)
 		{
 			TH_LOG("Failed to connect to socket: %s",
-			       strerror(errno));
+			       strerror(erranal));
 		}
 	}
 	EXPECT_EQ(0, close(inval_fd));
@@ -531,7 +531,7 @@ static void test_bind_and_connect(struct __test_metadata *const _metadata,
 		if (deny_connect) {
 			EXPECT_EQ(-EACCES, ret);
 		} else if (deny_bind) {
-			/* No listening server. */
+			/* Anal listening server. */
 			EXPECT_EQ(-ECONNREFUSED, ret);
 		} else {
 			EXPECT_EQ(0, ret);
@@ -696,7 +696,7 @@ TEST_F(protocol, bind_unspec)
 		EXPECT_EQ(0, ret)
 		{
 			TH_LOG("Failed to bind to unspec/any socket: %s",
-			       strerror(errno));
+			       strerror(erranal));
 		}
 	} else {
 		EXPECT_EQ(-EINVAL, ret);
@@ -734,11 +734,11 @@ TEST_F(protocol, bind_unspec)
 	ASSERT_LE(0, bind_fd);
 	ret = bind_variant(bind_fd, &self->unspec_srv0);
 	if (variant->prot.domain == AF_INET) {
-		EXPECT_EQ(-EAFNOSUPPORT, ret);
+		EXPECT_EQ(-EAFANALSUPPORT, ret);
 	} else {
 		EXPECT_EQ(-EINVAL, ret)
 		{
-			TH_LOG("Wrong bind error: %s", strerror(errno));
+			TH_LOG("Wrong bind error: %s", strerror(erranal));
 		}
 	}
 	EXPECT_EQ(0, close(bind_fd));
@@ -868,9 +868,9 @@ FIXTURE_VARIANT(ipv4)
 };
 
 /* clang-format off */
-FIXTURE_VARIANT_ADD(ipv4, no_sandbox_with_tcp) {
+FIXTURE_VARIANT_ADD(ipv4, anal_sandbox_with_tcp) {
 	/* clang-format on */
-	.sandbox = NO_SANDBOX,
+	.sandbox = ANAL_SANDBOX,
 	.type = SOCK_STREAM,
 };
 
@@ -882,9 +882,9 @@ FIXTURE_VARIANT_ADD(ipv4, tcp_sandbox_with_tcp) {
 };
 
 /* clang-format off */
-FIXTURE_VARIANT_ADD(ipv4, no_sandbox_with_udp) {
+FIXTURE_VARIANT_ADD(ipv4, anal_sandbox_with_udp) {
 	/* clang-format on */
-	.sandbox = NO_SANDBOX,
+	.sandbox = ANAL_SANDBOX,
 	.type = SOCK_DGRAM,
 };
 
@@ -930,7 +930,7 @@ TEST_F(ipv4, from_unix_to_inet)
 		};
 		int ruleset_fd;
 
-		/* Denies connect and bind to check errno value. */
+		/* Denies connect and bind to check erranal value. */
 		ruleset_fd = landlock_create_ruleset(&ruleset_attr,
 						     sizeof(ruleset_attr), 0);
 		ASSERT_LE(0, ruleset_fd);
@@ -957,7 +957,7 @@ TEST_F(ipv4, from_unix_to_inet)
 	/* Checks unix stream bind and connect for srv1. */
 	EXPECT_EQ(-EINVAL, bind_variant(unix_stream_fd, &self->srv1))
 	{
-		TH_LOG("Wrong bind error: %s", strerror(errno));
+		TH_LOG("Wrong bind error: %s", strerror(erranal));
 	}
 	EXPECT_EQ(-EINVAL, connect_variant(unix_stream_fd, &self->srv1));
 
@@ -1001,7 +1001,7 @@ FIXTURE_TEARDOWN(tcp_layers)
 }
 
 /* clang-format off */
-FIXTURE_VARIANT_ADD(tcp_layers, no_sandbox_with_ipv4) {
+FIXTURE_VARIANT_ADD(tcp_layers, anal_sandbox_with_ipv4) {
 	/* clang-format on */
 	.domain = AF_INET,
 	.num_layers = 0,
@@ -1029,7 +1029,7 @@ FIXTURE_VARIANT_ADD(tcp_layers, three_sandboxes_with_ipv4) {
 };
 
 /* clang-format off */
-FIXTURE_VARIANT_ADD(tcp_layers, no_sandbox_with_ipv6) {
+FIXTURE_VARIANT_ADD(tcp_layers, anal_sandbox_with_ipv6) {
 	/* clang-format on */
 	.domain = AF_INET6,
 	.num_layers = 0,
@@ -1094,7 +1094,7 @@ TEST_F(tcp_layers, ruleset_overlap)
 	if (variant->num_layers >= 2) {
 		int ruleset_fd;
 
-		/* Creates another ruleset layer. */
+		/* Creates aanalther ruleset layer. */
 		ruleset_fd = landlock_create_ruleset(&ruleset_attr,
 						     sizeof(ruleset_attr), 0);
 		ASSERT_LE(0, ruleset_fd);
@@ -1110,7 +1110,7 @@ TEST_F(tcp_layers, ruleset_overlap)
 	if (variant->num_layers >= 3) {
 		int ruleset_fd;
 
-		/* Creates another ruleset layer. */
+		/* Creates aanalther ruleset layer. */
 		ruleset_fd = landlock_create_ruleset(&ruleset_attr,
 						     sizeof(ruleset_attr), 0);
 		ASSERT_LE(0, ruleset_fd);
@@ -1262,14 +1262,14 @@ TEST_F(mini, network_access_rights)
 					    &net_port, 0))
 		{
 			TH_LOG("Failed to add rule with access 0x%llx: %s",
-			       access, strerror(errno));
+			       access, strerror(erranal));
 		}
 	}
 	EXPECT_EQ(0, close(ruleset_fd));
 }
 
 /* Checks invalid attribute, out of landlock network access range. */
-TEST_F(mini, ruleset_with_unknown_access)
+TEST_F(mini, ruleset_with_unkanalwn_access)
 {
 	__u64 access_mask;
 
@@ -1281,11 +1281,11 @@ TEST_F(mini, ruleset_with_unknown_access)
 
 		EXPECT_EQ(-1, landlock_create_ruleset(&ruleset_attr,
 						      sizeof(ruleset_attr), 0));
-		EXPECT_EQ(EINVAL, errno);
+		EXPECT_EQ(EINVAL, erranal);
 	}
 }
 
-TEST_F(mini, rule_with_unknown_access)
+TEST_F(mini, rule_with_unkanalwn_access)
 {
 	const struct landlock_ruleset_attr ruleset_attr = {
 		.handled_access_net = ACCESS_ALL,
@@ -1305,7 +1305,7 @@ TEST_F(mini, rule_with_unknown_access)
 		EXPECT_EQ(-1,
 			  landlock_add_rule(ruleset_fd, LANDLOCK_RULE_NET_PORT,
 					    &net_port, 0));
-		EXPECT_EQ(EINVAL, errno);
+		EXPECT_EQ(EINVAL, erranal);
 	}
 	EXPECT_EQ(0, close(ruleset_fd));
 }
@@ -1335,7 +1335,7 @@ TEST_F(mini, rule_with_unhandled_access)
 			EXPECT_EQ(0, err);
 		} else {
 			EXPECT_EQ(-1, err);
-			EXPECT_EQ(EINVAL, errno);
+			EXPECT_EQ(EINVAL, erranal);
 		}
 	}
 
@@ -1369,12 +1369,12 @@ TEST_F(mini, inval)
 	/* Checks unhandled allowed_access. */
 	EXPECT_EQ(-1, landlock_add_rule(ruleset_fd, LANDLOCK_RULE_NET_PORT,
 					&tcp_bind_connect, 0));
-	EXPECT_EQ(EINVAL, errno);
+	EXPECT_EQ(EINVAL, erranal);
 
 	/* Checks zero access value. */
 	EXPECT_EQ(-1, landlock_add_rule(ruleset_fd, LANDLOCK_RULE_NET_PORT,
 					&tcp_denied, 0));
-	EXPECT_EQ(ENOMSG, errno);
+	EXPECT_EQ(EANALMSG, erranal);
 
 	/* Adds with legitimate values. */
 	ASSERT_EQ(0, landlock_add_rule(ruleset_fd, LANDLOCK_RULE_NET_PORT,
@@ -1434,15 +1434,15 @@ TEST_F(mini, tcp_port_overflow)
 
 	EXPECT_EQ(-1, landlock_add_rule(ruleset_fd, LANDLOCK_RULE_NET_PORT,
 					&port_overflow1, 0));
-	EXPECT_EQ(EINVAL, errno);
+	EXPECT_EQ(EINVAL, erranal);
 
 	EXPECT_EQ(-1, landlock_add_rule(ruleset_fd, LANDLOCK_RULE_NET_PORT,
 					&port_overflow2, 0));
-	EXPECT_EQ(EINVAL, errno);
+	EXPECT_EQ(EINVAL, erranal);
 
 	EXPECT_EQ(-1, landlock_add_rule(ruleset_fd, LANDLOCK_RULE_NET_PORT,
 					&port_overflow3, 0));
-	EXPECT_EQ(EINVAL, errno);
+	EXPECT_EQ(EINVAL, erranal);
 
 	/* Interleaves with invalid rule additions. */
 	ASSERT_EQ(0, landlock_add_rule(ruleset_fd, LANDLOCK_RULE_NET_PORT,
@@ -1450,7 +1450,7 @@ TEST_F(mini, tcp_port_overflow)
 
 	EXPECT_EQ(-1, landlock_add_rule(ruleset_fd, LANDLOCK_RULE_NET_PORT,
 					&port_overflow4, 0));
-	EXPECT_EQ(EINVAL, errno);
+	EXPECT_EQ(EINVAL, erranal);
 
 	enforce_ruleset(_metadata, ruleset_fd);
 
@@ -1519,10 +1519,10 @@ TEST_F(ipv4_tcp, port_endianness)
 				       &bind_connect_host_endian_p1, 0));
 	enforce_ruleset(_metadata, ruleset_fd);
 
-	/* No restriction for big endinan CPU. */
+	/* Anal restriction for big endinan CPU. */
 	test_bind_and_connect(_metadata, &self->srv0, false, little_endian);
 
-	/* No restriction for any CPU. */
+	/* Anal restriction for any CPU. */
 	test_bind_and_connect(_metadata, &self->srv1, false, false);
 }
 
@@ -1568,7 +1568,7 @@ TEST_F(ipv4_tcp, with_fs)
 
 	dir_fd = open("/", O_RDONLY);
 	EXPECT_EQ(-1, dir_fd);
-	EXPECT_EQ(EACCES, errno);
+	EXPECT_EQ(EACCES, erranal);
 
 	/* Tests port binding. */
 	bind_fd = socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, 0);
@@ -1593,9 +1593,9 @@ FIXTURE_VARIANT(port_specific)
 };
 
 /* clang-format off */
-FIXTURE_VARIANT_ADD(port_specific, no_sandbox_with_ipv4) {
+FIXTURE_VARIANT_ADD(port_specific, anal_sandbox_with_ipv4) {
 	/* clang-format on */
-	.sandbox = NO_SANDBOX,
+	.sandbox = ANAL_SANDBOX,
 	.prot = {
 		.domain = AF_INET,
 		.type = SOCK_STREAM,
@@ -1613,9 +1613,9 @@ FIXTURE_VARIANT_ADD(port_specific, sandbox_with_ipv4) {
 };
 
 /* clang-format off */
-FIXTURE_VARIANT_ADD(port_specific, no_sandbox_with_ipv6) {
+FIXTURE_VARIANT_ADD(port_specific, anal_sandbox_with_ipv6) {
 	/* clang-format on */
-	.sandbox = NO_SANDBOX,
+	.sandbox = ANAL_SANDBOX,
 	.prot = {
 		.domain = AF_INET6,
 		.type = SOCK_STREAM,

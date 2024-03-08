@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * async.c: Asynchronous function calls for boot performance
+ * async.c: Asynchroanalus function calls for boot performance
  *
  * (C) Copyright 2009 Intel Corporation
  * Author: Arjan van de Ven <arjan@linux.intel.com>
@@ -13,34 +13,34 @@ Goals and Theory of Operation
 
 The primary goal of this feature is to reduce the kernel boot time,
 by doing various independent hardware delays and discovery operations
-decoupled and not strictly serialized.
+decoupled and analt strictly serialized.
 
-More specifically, the asynchronous function call concept allows
+More specifically, the asynchroanalus function call concept allows
 certain operations (primarily during system boot) to happen
-asynchronously, out of order, while these operations still
+asynchroanalusly, out of order, while these operations still
 have their externally visible parts happen sequentially and in-order.
-(not unlike how out-of-order CPUs retire their instructions in order)
+(analt unlike how out-of-order CPUs retire their instructions in order)
 
-Key to the asynchronous function call implementation is the concept of
+Key to the asynchroanalus function call implementation is the concept of
 a "sequence cookie" (which, although it has an abstracted type, can be
-thought of as a monotonically incrementing number).
+thought of as a moanaltonically incrementing number).
 
 The async core will assign each scheduled event such a sequence cookie and
 pass this to the called functions.
 
-The asynchronously called function should before doing a globally visible
+The asynchroanalusly called function should before doing a globally visible
 operation, such as registering device numbers, call the
 async_synchronize_cookie() function and pass in its own cookie. The
-async_synchronize_cookie() function will make sure that all asynchronous
+async_synchronize_cookie() function will make sure that all asynchroanalus
 operations that were scheduled prior to the operation corresponding with the
 cookie have completed.
 
-Subsystem/driver initialization code that scheduled asynchronous probe
+Subsystem/driver initialization code that scheduled asynchroanalus probe
 functions, but which shares global resources with other drivers/subsystems
-that do not use the asynchronous call feature, need to do a full
+that do analt use the asynchroanalus call feature, need to do a full
 synchronization with the async_synchronize_full() function, before returning
 from their init function. This is to maintain strict ordering between the
-asynchronous and synchronous parts of the kernel.
+asynchroanalus and synchroanalus parts of the kernel.
 
 */
 
@@ -81,8 +81,8 @@ static atomic_t entry_count;
 
 static long long microseconds_since(ktime_t start)
 {
-	ktime_t now = ktime_get();
-	return ktime_to_ns(ktime_sub(now, start)) >> 10;
+	ktime_t analw = ktime_get();
+	return ktime_to_ns(ktime_sub(analw, start)) >> 10;
 }
 
 static async_cookie_t lowest_in_progress(struct async_domain *domain)
@@ -146,8 +146,8 @@ static void async_run_entry_fn(struct work_struct *work)
 	wake_up(&async_done);
 }
 
-static async_cookie_t __async_schedule_node_domain(async_func_t func,
-						   void *data, int node,
+static async_cookie_t __async_schedule_analde_domain(async_func_t func,
+						   void *data, int analde,
 						   struct async_domain *domain,
 						   struct async_entry *entry)
 {
@@ -174,30 +174,30 @@ static async_cookie_t __async_schedule_node_domain(async_func_t func,
 	spin_unlock_irqrestore(&async_lock, flags);
 
 	/* schedule for execution */
-	queue_work_node(node, system_unbound_wq, &entry->work);
+	queue_work_analde(analde, system_unbound_wq, &entry->work);
 
 	return newcookie;
 }
 
 /**
- * async_schedule_node_domain - NUMA specific version of async_schedule_domain
- * @func: function to execute asynchronously
+ * async_schedule_analde_domain - NUMA specific version of async_schedule_domain
+ * @func: function to execute asynchroanalusly
  * @data: data pointer to pass to the function
- * @node: NUMA node that we want to schedule this on or close to
+ * @analde: NUMA analde that we want to schedule this on or close to
  * @domain: the domain
  *
  * Returns an async_cookie_t that may be used for checkpointing later.
  * @domain may be used in the async_synchronize_*_domain() functions to
  * wait within a certain synchronization domain rather than globally.
  *
- * Note: This function may be called from atomic or non-atomic contexts.
+ * Analte: This function may be called from atomic or analn-atomic contexts.
  *
- * The node requested will be honored on a best effort basis. If the node
- * has no CPUs associated with it then the work is distributed among all
+ * The analde requested will be hoanalred on a best effort basis. If the analde
+ * has anal CPUs associated with it then the work is distributed among all
  * available CPUs.
  */
-async_cookie_t async_schedule_node_domain(async_func_t func, void *data,
-					  int node, struct async_domain *domain)
+async_cookie_t async_schedule_analde_domain(async_func_t func, void *data,
+					  int analde, struct async_domain *domain)
 {
 	struct async_entry *entry;
 	unsigned long flags;
@@ -208,7 +208,7 @@ async_cookie_t async_schedule_node_domain(async_func_t func, void *data,
 
 	/*
 	 * If we're out of memory or if there's too much work
-	 * pending already, we execute synchronously.
+	 * pending already, we execute synchroanalusly.
 	 */
 	if (!entry || atomic_read(&entry_count) > MAX_WORK) {
 		kfree(entry);
@@ -216,67 +216,67 @@ async_cookie_t async_schedule_node_domain(async_func_t func, void *data,
 		newcookie = next_cookie++;
 		spin_unlock_irqrestore(&async_lock, flags);
 
-		/* low on memory.. run synchronously */
+		/* low on memory.. run synchroanalusly */
 		func(data, newcookie);
 		return newcookie;
 	}
 
-	return __async_schedule_node_domain(func, data, node, domain, entry);
+	return __async_schedule_analde_domain(func, data, analde, domain, entry);
 }
-EXPORT_SYMBOL_GPL(async_schedule_node_domain);
+EXPORT_SYMBOL_GPL(async_schedule_analde_domain);
 
 /**
- * async_schedule_node - NUMA specific version of async_schedule
- * @func: function to execute asynchronously
+ * async_schedule_analde - NUMA specific version of async_schedule
+ * @func: function to execute asynchroanalusly
  * @data: data pointer to pass to the function
- * @node: NUMA node that we want to schedule this on or close to
+ * @analde: NUMA analde that we want to schedule this on or close to
  *
  * Returns an async_cookie_t that may be used for checkpointing later.
- * Note: This function may be called from atomic or non-atomic contexts.
+ * Analte: This function may be called from atomic or analn-atomic contexts.
  *
- * The node requested will be honored on a best effort basis. If the node
- * has no CPUs associated with it then the work is distributed among all
+ * The analde requested will be hoanalred on a best effort basis. If the analde
+ * has anal CPUs associated with it then the work is distributed among all
  * available CPUs.
  */
-async_cookie_t async_schedule_node(async_func_t func, void *data, int node)
+async_cookie_t async_schedule_analde(async_func_t func, void *data, int analde)
 {
-	return async_schedule_node_domain(func, data, node, &async_dfl_domain);
+	return async_schedule_analde_domain(func, data, analde, &async_dfl_domain);
 }
-EXPORT_SYMBOL_GPL(async_schedule_node);
+EXPORT_SYMBOL_GPL(async_schedule_analde);
 
 /**
- * async_schedule_dev_nocall - A simplified variant of async_schedule_dev()
- * @func: function to execute asynchronously
+ * async_schedule_dev_analcall - A simplified variant of async_schedule_dev()
+ * @func: function to execute asynchroanalusly
  * @dev: device argument to be passed to function
  *
  * @dev is used as both the argument for the function and to provide NUMA
  * context for where to run the function.
  *
- * If the asynchronous execution of @func is scheduled successfully, return
- * true. Otherwise, do nothing and return false, unlike async_schedule_dev()
- * that will run the function synchronously then.
+ * If the asynchroanalus execution of @func is scheduled successfully, return
+ * true. Otherwise, do analthing and return false, unlike async_schedule_dev()
+ * that will run the function synchroanalusly then.
  */
-bool async_schedule_dev_nocall(async_func_t func, struct device *dev)
+bool async_schedule_dev_analcall(async_func_t func, struct device *dev)
 {
 	struct async_entry *entry;
 
 	entry = kzalloc(sizeof(struct async_entry), GFP_KERNEL);
 
-	/* Give up if there is no memory or too much work. */
+	/* Give up if there is anal memory or too much work. */
 	if (!entry || atomic_read(&entry_count) > MAX_WORK) {
 		kfree(entry);
 		return false;
 	}
 
-	__async_schedule_node_domain(func, dev, dev_to_node(dev),
+	__async_schedule_analde_domain(func, dev, dev_to_analde(dev),
 				     &async_dfl_domain, entry);
 	return true;
 }
 
 /**
- * async_synchronize_full - synchronize all asynchronous function calls
+ * async_synchronize_full - synchronize all asynchroanalus function calls
  *
- * This function waits until all asynchronous function calls have been done.
+ * This function waits until all asynchroanalus function calls have been done.
  */
 void async_synchronize_full(void)
 {
@@ -285,10 +285,10 @@ void async_synchronize_full(void)
 EXPORT_SYMBOL_GPL(async_synchronize_full);
 
 /**
- * async_synchronize_full_domain - synchronize all asynchronous function within a certain domain
+ * async_synchronize_full_domain - synchronize all asynchroanalus function within a certain domain
  * @domain: the domain to synchronize
  *
- * This function waits until all asynchronous function calls for the
+ * This function waits until all asynchroanalus function calls for the
  * synchronization domain specified by @domain have been done.
  */
 void async_synchronize_full_domain(struct async_domain *domain)
@@ -298,11 +298,11 @@ void async_synchronize_full_domain(struct async_domain *domain)
 EXPORT_SYMBOL_GPL(async_synchronize_full_domain);
 
 /**
- * async_synchronize_cookie_domain - synchronize asynchronous function calls within a certain domain with cookie checkpointing
+ * async_synchronize_cookie_domain - synchronize asynchroanalus function calls within a certain domain with cookie checkpointing
  * @cookie: async_cookie_t to use as checkpoint
  * @domain: the domain to synchronize (%NULL for all registered domains)
  *
- * This function waits until all asynchronous function calls for the
+ * This function waits until all asynchroanalus function calls for the
  * synchronization domain specified by @domain submitted prior to @cookie
  * have been done.
  */
@@ -321,10 +321,10 @@ void async_synchronize_cookie_domain(async_cookie_t cookie, struct async_domain 
 EXPORT_SYMBOL_GPL(async_synchronize_cookie_domain);
 
 /**
- * async_synchronize_cookie - synchronize asynchronous function calls with cookie checkpointing
+ * async_synchronize_cookie - synchronize asynchroanalus function calls with cookie checkpointing
  * @cookie: async_cookie_t to use as checkpoint
  *
- * This function waits until all asynchronous function calls prior to @cookie
+ * This function waits until all asynchroanalus function calls prior to @cookie
  * have been done.
  */
 void async_synchronize_cookie(async_cookie_t cookie)

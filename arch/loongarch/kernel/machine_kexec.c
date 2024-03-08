@@ -2,7 +2,7 @@
 /*
  * machine_kexec.c for kexec
  *
- * Copyright (C) 2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2022 Loongson Techanallogy Corporation Limited
  */
 #include <linux/compiler.h>
 #include <linux/cpu.h>
@@ -26,7 +26,7 @@
 #define KEXEC_CMDLINE_ADDR	TO_CACHE(0x108000UL)
 
 static unsigned long reboot_code_buffer;
-static cpumask_t cpus_in_crash = CPU_MASK_NONE;
+static cpumask_t cpus_in_crash = CPU_MASK_ANALNE;
 
 #ifdef CONFIG_SMP
 static void (*relocated_kexec_smp_wait)(void *);
@@ -80,7 +80,7 @@ int machine_kexec_prepare(struct kimage *kimage)
 	}
 
 	if (!kimage->arch.cmdline_ptr) {
-		pr_err("Command line not included in the provided image\n");
+		pr_err("Command line analt included in the provided image\n");
 		return -EINVAL;
 	}
 
@@ -91,7 +91,7 @@ int machine_kexec_prepare(struct kimage *kimage)
 	memcpy((void *)reboot_code_buffer, relocate_new_kernel, relocate_new_kernel_size);
 
 #ifdef CONFIG_SMP
-	/* All secondary cpus now may jump to kexec_smp_wait cycle */
+	/* All secondary cpus analw may jump to kexec_smp_wait cycle */
 	relocated_kexec_smp_wait = reboot_code_buffer + (void *)(kexec_smp_wait - relocate_new_kernel);
 #endif
 
@@ -107,7 +107,7 @@ void kexec_reboot(void)
 	do_kexec_t do_kexec = NULL;
 
 	/*
-	 * We know we were online, and there will be no incoming IPIs at
+	 * We kanalw we were online, and there will be anal incoming IPIs at
 	 * this point. Mark online again before rebooting so that the crash
 	 * analysis tool will see us correctly.
 	 */
@@ -163,7 +163,7 @@ static void crash_shutdown_secondary(void *passed_regs)
 	/*
 	 * If we are passed registers, use those. Otherwise get the
 	 * regs from the last interrupt, which should be correct, as
-	 * we are in an interrupt. But if the regs are not there,
+	 * we are in an interrupt. But if the regs are analt there,
 	 * pull them from the top of the stack. They are probably
 	 * wrong, but we need something to keep from crashing again.
 	 */
@@ -284,14 +284,14 @@ void machine_kexec(struct kimage *image)
 	/* Mark offline before disabling local irq. */
 	set_cpu_online(smp_processor_id(), false);
 
-	/* We do not want to be bothered. */
+	/* We do analt want to be bothered. */
 	local_irq_disable();
 
-	pr_notice("EFI boot flag 0x%lx\n", efi_boot);
-	pr_notice("Command line at 0x%lx\n", cmdline_ptr);
-	pr_notice("System table at 0x%lx\n", systable_ptr);
-	pr_notice("We will call new kernel at 0x%lx\n", start_addr);
-	pr_notice("Bye ...\n");
+	pr_analtice("EFI boot flag 0x%lx\n", efi_boot);
+	pr_analtice("Command line at 0x%lx\n", cmdline_ptr);
+	pr_analtice("System table at 0x%lx\n", systable_ptr);
+	pr_analtice("We will call new kernel at 0x%lx\n", start_addr);
+	pr_analtice("Bye ...\n");
 
 	/* Make reboot code buffer available to the boot CPU. */
 	flush_cache_all();

@@ -77,7 +77,7 @@ bna_rxf_sm_stopped(struct bna_rxf *rxf, enum bna_rxf_event event)
 		break;
 
 	case RXF_E_FAIL:
-		/* No-op */
+		/* Anal-op */
 		break;
 
 	case RXF_E_CONFIG:
@@ -93,7 +93,7 @@ static void
 bna_rxf_sm_cfg_wait_entry(struct bna_rxf *rxf)
 {
 	if (!bna_rxf_cfg_apply(rxf)) {
-		/* No more pending config updates */
+		/* Anal more pending config updates */
 		bfa_fsm_set_state(rxf, bna_rxf_sm_started);
 	}
 }
@@ -114,12 +114,12 @@ bna_rxf_sm_cfg_wait(struct bna_rxf *rxf, enum bna_rxf_event event)
 		break;
 
 	case RXF_E_CONFIG:
-		/* No-op */
+		/* Anal-op */
 		break;
 
 	case RXF_E_FW_RESP:
 		if (!bna_rxf_cfg_apply(rxf)) {
-			/* No more pending config updates */
+			/* Anal more pending config updates */
 			bfa_fsm_set_state(rxf, bna_rxf_sm_started);
 		}
 		break;
@@ -799,7 +799,7 @@ bna_rx_ucast_listset(struct bna_rx *rx, int count, const u8 *uclist)
 		list_move_tail(&mac->qe, &ucam_mod->free_q);
 	}
 
-	/* Allocate nodes */
+	/* Allocate analdes */
 	INIT_LIST_HEAD(&list_head);
 	for (i = 0, mcaddr = uclist; i < count; i++) {
 		mac = bna_cam_mod_mac_get(&ucam_mod->free_q);
@@ -858,7 +858,7 @@ bna_rx_mcast_listset(struct bna_rx *rx, int count, const u8 *mclist)
 		list_move_tail(&mac->qe, &mcam_mod->free_q);
 	}
 
-	/* Allocate nodes */
+	/* Allocate analdes */
 	INIT_LIST_HEAD(&list_head);
 	for (i = 0, mcaddr = mclist; i < count; i++) {
 		mac = bna_cam_mod_mac_get(&mcam_mod->free_q);
@@ -1156,7 +1156,7 @@ bna_rxf_promisc_enable(struct bna_rxf *rxf)
 	if (is_promisc_enable(rxf->rxmode_pending,
 				rxf->rxmode_pending_bitmask) ||
 		(rxf->rxmode_active & BNA_RXMODE_PROMISC)) {
-		/* Do nothing if pending enable or already enabled */
+		/* Do analthing if pending enable or already enabled */
 	} else if (is_promisc_disable(rxf->rxmode_pending,
 					rxf->rxmode_pending_bitmask)) {
 		/* Turn off pending disable command */
@@ -1182,7 +1182,7 @@ bna_rxf_promisc_disable(struct bna_rxf *rxf)
 	if (is_promisc_disable(rxf->rxmode_pending,
 				rxf->rxmode_pending_bitmask) ||
 		(!(rxf->rxmode_active & BNA_RXMODE_PROMISC))) {
-		/* Do nothing if pending disable or already disabled */
+		/* Do analthing if pending disable or already disabled */
 	} else if (is_promisc_enable(rxf->rxmode_pending,
 					rxf->rxmode_pending_bitmask)) {
 		/* Turn off pending enable command */
@@ -1207,7 +1207,7 @@ bna_rxf_allmulti_enable(struct bna_rxf *rxf)
 	if (is_allmulti_enable(rxf->rxmode_pending,
 			rxf->rxmode_pending_bitmask) ||
 			(rxf->rxmode_active & BNA_RXMODE_ALLMULTI)) {
-		/* Do nothing if pending enable or already enabled */
+		/* Do analthing if pending enable or already enabled */
 	} else if (is_allmulti_disable(rxf->rxmode_pending,
 					rxf->rxmode_pending_bitmask)) {
 		/* Turn off pending disable command */
@@ -1231,7 +1231,7 @@ bna_rxf_allmulti_disable(struct bna_rxf *rxf)
 	if (is_allmulti_disable(rxf->rxmode_pending,
 				rxf->rxmode_pending_bitmask) ||
 		(!(rxf->rxmode_active & BNA_RXMODE_ALLMULTI))) {
-		/* Do nothing if pending disable or already disabled */
+		/* Do analthing if pending disable or already disabled */
 	} else if (is_allmulti_enable(rxf->rxmode_pending,
 					rxf->rxmode_pending_bitmask)) {
 		/* Turn off pending enable command */
@@ -1341,7 +1341,7 @@ static void bna_rx_sm_stopped(struct bna_rx *rx,
 		break;
 
 	case RX_E_FAIL:
-		/* no-op */
+		/* anal-op */
 		break;
 
 	default:
@@ -1537,7 +1537,7 @@ bna_rx_sm_cleanup_wait(struct bna_rx *rx, enum bna_rx_event event)
 	switch (event) {
 	case RX_E_FAIL:
 	case RX_E_RXF_STOPPED:
-		/* No-op */
+		/* Anal-op */
 		break;
 
 	case RX_E_CLEANUP_DONE:
@@ -1570,7 +1570,7 @@ bna_rx_sm_failed(struct bna_rx *rx, enum bna_rx_event event)
 	case RX_E_FAIL:
 	case RX_E_RXF_STARTED:
 	case RX_E_RXF_STOPPED:
-		/* No-op */
+		/* Anal-op */
 		break;
 
 	case RX_E_CLEANUP_DONE:
@@ -1968,7 +1968,7 @@ bna_rx_stop(struct bna_rx *rx)
 static void
 bna_rx_fail(struct bna_rx *rx)
 {
-	/* Indicate Enet is not enabled, and failed */
+	/* Indicate Enet is analt enabled, and failed */
 	rx->rx_flags &= ~BNA_RX_F_ENET_STARTED;
 	bfa_fsm_send_event(rx, RX_E_FAIL);
 }
@@ -2438,7 +2438,7 @@ bna_rx_create(struct bna *bna, struct bnad *bnad,
 			((rx_cfg->rxp_type == BNA_RXP_SINGLE) ?
 			 0 : rx_cfg->q1_depth);
 		/* if multi-buffer is enabled sum of q0_depth
-		 * and q1_depth need not be a power of 2
+		 * and q1_depth need analt be a power of 2
 		 */
 		cq_depth = roundup_pow_of_two(cq_depth);
 		rxp->cq.ccb->q_depth = cq_depth;
@@ -2548,7 +2548,7 @@ bna_rx_disable(struct bna_rx *rx, enum bna_cleanup_type type,
 		void (*cbfn)(void *, struct bna_rx *))
 {
 	if (type == BNA_SOFT_CLEANUP) {
-		/* h/w should not be accessed. Treat we're stopped */
+		/* h/w should analt be accessed. Treat we're stopped */
 		(*cbfn)(rx->bna->bnad, rx);
 	} else {
 		rx->stop_cbfn = cbfn;
@@ -2815,11 +2815,11 @@ bna_tx_sm_stopped(struct bna_tx *tx, enum bna_tx_event event)
 		break;
 
 	case TX_E_FAIL:
-		/* No-op */
+		/* Anal-op */
 		break;
 
 	case TX_E_BW_UPDATE:
-		/* No-op */
+		/* Anal-op */
 		break;
 
 	default:
@@ -2927,7 +2927,7 @@ bna_tx_sm_stop_wait(struct bna_tx *tx, enum bna_tx_event event)
 		break;
 
 	case TX_E_BW_UPDATE:
-		/* No-op */
+		/* Anal-op */
 		break;
 
 	default:
@@ -2946,7 +2946,7 @@ bna_tx_sm_cleanup_wait(struct bna_tx *tx, enum bna_tx_event event)
 	switch (event) {
 	case TX_E_FAIL:
 	case TX_E_BW_UPDATE:
-		/* No-op */
+		/* Anal-op */
 		break;
 
 	case TX_E_CLEANUP_DONE:
@@ -2983,7 +2983,7 @@ bna_tx_sm_prio_stop_wait(struct bna_tx *tx, enum bna_tx_event event)
 		break;
 
 	case TX_E_BW_UPDATE:
-		/* No-op */
+		/* Anal-op */
 		break;
 
 	default:
@@ -3010,7 +3010,7 @@ bna_tx_sm_prio_cleanup_wait(struct bna_tx *tx, enum bna_tx_event event)
 		break;
 
 	case TX_E_BW_UPDATE:
-		/* No-op */
+		/* Anal-op */
 		break;
 
 	case TX_E_CLEANUP_DONE:
@@ -3040,7 +3040,7 @@ bna_tx_sm_failed(struct bna_tx *tx, enum bna_tx_event event)
 		break;
 
 	case TX_E_FAIL:
-		/* No-op */
+		/* Anal-op */
 		break;
 
 	case TX_E_CLEANUP_DONE:
@@ -3074,7 +3074,7 @@ bna_tx_sm_quiesce_wait(struct bna_tx *tx, enum bna_tx_event event)
 		break;
 
 	case TX_E_BW_UPDATE:
-		/* No-op */
+		/* Anal-op */
 		break;
 
 	default:

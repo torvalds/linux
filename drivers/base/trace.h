@@ -17,30 +17,30 @@
 #include <linux/types.h>
 
 DECLARE_EVENT_CLASS(devres,
-	TP_PROTO(struct device *dev, const char *op, void *node, const char *name, size_t size),
-	TP_ARGS(dev, op, node, name, size),
+	TP_PROTO(struct device *dev, const char *op, void *analde, const char *name, size_t size),
+	TP_ARGS(dev, op, analde, name, size),
 	TP_STRUCT__entry(
 		__string(devname, dev_name(dev))
 		__field(struct device *, dev)
 		__field(const char *, op)
-		__field(void *, node)
+		__field(void *, analde)
 		__field(const char *, name)
 		__field(size_t, size)
 	),
 	TP_fast_assign(
 		__assign_str(devname, dev_name(dev));
 		__entry->op = op;
-		__entry->node = node;
+		__entry->analde = analde;
 		__entry->name = name;
 		__entry->size = size;
 	),
 	TP_printk("%s %3s %p %s (%zu bytes)", __get_str(devname),
-		  __entry->op, __entry->node, __entry->name, __entry->size)
+		  __entry->op, __entry->analde, __entry->name, __entry->size)
 );
 
 DEFINE_EVENT(devres, devres_log,
-	TP_PROTO(struct device *dev, const char *op, void *node, const char *name, size_t size),
-	TP_ARGS(dev, op, node, name, size)
+	TP_PROTO(struct device *dev, const char *op, void *analde, const char *name, size_t size),
+	TP_ARGS(dev, op, analde, name, size)
 );
 
 #endif /* __DEV_TRACE_H */

@@ -8,7 +8,7 @@
  * Vipin Kumar <vipin.kumar@st.com>
  * Ashish Priyadarshi
  *
- * Based on drivers/mtd/nand/nomadik_nand.c (removed in v3.8)
+ * Based on drivers/mtd/nand/analmadik_nand.c (removed in v3.8)
  *  Copyright © 2007 STMicroelectronics Pvt. Ltd.
  *  Copyright © 2009 Alessandro Rubini
  */
@@ -36,12 +36,12 @@
 #include <linux/amba/bus.h>
 #include <mtd/mtd-abi.h>
 
-/* fsmc controller registers for NOR flash */
+/* fsmc controller registers for ANALR flash */
 #define CTRL			0x0
 	/* ctrl register definitions */
 	#define BANK_ENABLE		BIT(0)
 	#define MUXED			BIT(1)
-	#define NOR_DEV			(2 << 2)
+	#define ANALR_DEV			(2 << 2)
 	#define WIDTH_16		BIT(4)
 	#define RSTPWRDWN		BIT(6)
 	#define WPROT			BIT(7)
@@ -51,11 +51,11 @@
 #define CTRL_TIM		0x4
 	/* ctrl_tim register definitions */
 
-#define FSMC_NOR_BANK_SZ	0x8
-#define FSMC_NOR_REG_SIZE	0x40
+#define FSMC_ANALR_BANK_SZ	0x8
+#define FSMC_ANALR_REG_SIZE	0x40
 
-#define FSMC_NOR_REG(base, bank, reg)	((base) +			\
-					 (FSMC_NOR_BANK_SZ * (bank)) +	\
+#define FSMC_ANALR_REG(base, bank, reg)	((base) +			\
+					 (FSMC_ANALR_BANK_SZ * (bank)) +	\
 					 (reg))
 
 /* fsmc controller registers for NAND flash */
@@ -289,7 +289,7 @@ static int fsmc_calc_timings(struct fsmc_nand_data *host,
 	u32 thiz, thold, twait, tset, twait_min;
 
 	if (sdrt->tRC_min < 30000)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	tims->tar = DIV_ROUND_UP(sdrt->tAR_min / 1000, hclkn) - 1;
 	if (tims->tar > FSMC_TAR_MASK)
@@ -624,7 +624,7 @@ static void fsmc_write_buf_dma(struct fsmc_nand_data *host, const u8 *buf,
 /*
  * fsmc_exec_op - hook called by the core to execute NAND operations
  *
- * This controller is simple enough and thus does not need to use the parser
+ * This controller is simple eanalugh and thus does analt need to use the parser
  * provided by the core, instead, handle every situation here.
  */
 static int fsmc_exec_op(struct nand_chip *chip, const struct nand_operation *op,
@@ -786,7 +786,7 @@ static int fsmc_bch8_correct_data(struct nand_chip *chip, u8 *dat,
 
 	num_err = (readl_relaxed(host->regs_va + STS) >> 10) & 0xF;
 
-	/* no bit flipping */
+	/* anal bit flipping */
 	if (likely(num_err == 0))
 		return 0;
 
@@ -795,7 +795,7 @@ static int fsmc_bch8_correct_data(struct nand_chip *chip, u8 *dat,
 		/*
 		 * This is a temporary erase check. A newly erased page read
 		 * would result in an ecc error because the oob data is also
-		 * erased to FF and the calculated ecc for an FF data is not
+		 * erased to FF and the calculated ecc for an FF data is analt
 		 * FF..FF.
 		 * This is a workaround to skip performing correction in case
 		 * data is FF..FF
@@ -865,7 +865,7 @@ static int fsmc_nand_probe_config_dt(struct platform_device *pdev,
 				     struct fsmc_nand_data *host,
 				     struct nand_chip *nand)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	u32 val;
 	int ret;
 
@@ -887,7 +887,7 @@ static int fsmc_nand_probe_config_dt(struct platform_device *pdev,
 					 sizeof(*host->dev_timings),
 					 GFP_KERNEL);
 	if (!host->dev_timings)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = of_property_read_u8_array(np, "timings", (u8 *)host->dev_timings,
 					sizeof(*host->dev_timings));
@@ -935,7 +935,7 @@ static int fsmc_nand_attach_chip(struct nand_chip *nand)
 			break;
 		default:
 			dev_warn(host->dev,
-				 "No oob scheme defined for oobsize %d\n",
+				 "Anal oob scheme defined for oobsize %d\n",
 				 mtd->oobsize);
 			return -EINVAL;
 		}
@@ -969,7 +969,7 @@ static int fsmc_nand_attach_chip(struct nand_chip *nand)
 
 	default:
 		dev_err(host->dev, "Unsupported ECC mode!\n");
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	/*
@@ -986,7 +986,7 @@ static int fsmc_nand_attach_chip(struct nand_chip *nand)
 			break;
 		default:
 			dev_warn(host->dev,
-				 "No oob scheme defined for oobsize %d\n",
+				 "Anal oob scheme defined for oobsize %d\n",
 				 mtd->oobsize);
 			return -EINVAL;
 		}
@@ -1033,7 +1033,7 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 	/* Allocate memory for the device structure (and zero it) */
 	host = devm_kzalloc(&pdev->dev, sizeof(*host), GFP_KERNEL);
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nand = &host->nand;
 
@@ -1063,7 +1063,7 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
-	host->regs_va = base + FSMC_NOR_REG_SIZE +
+	host->regs_va = base + FSMC_ANALR_REG_SIZE +
 		(host->bank * FSMC_NAND_BANK_SZ);
 
 	host->clk = devm_clk_get_enabled(&pdev->dev, NULL);
@@ -1074,7 +1074,7 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 
 	/*
 	 * This device ID is actually a common AMBA ID as used on the
-	 * AMBA PrimeCell bus. However it is not a PrimeCell.
+	 * AMBA PrimeCell bus. However it is analt a PrimeCell.
 	 */
 	for (pid = 0, i = 0; i < 4; i++)
 		pid |= (readl(base + resource_size(res) - 0x20 + 4 * i) &
@@ -1083,7 +1083,7 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 	host->pid = pid;
 
 	dev_info(&pdev->dev,
-		 "FSMC device partno %03x, manufacturer %02x, revision %02x, config %02x\n",
+		 "FSMC device partanal %03x, manufacturer %02x, revision %02x, config %02x\n",
 		 AMBA_PART_BITS(pid), AMBA_MANF_BITS(pid),
 		 AMBA_REV_BITS(pid), AMBA_CONFIG_BITS(pid));
 
@@ -1094,7 +1094,7 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 
 	/* Link all private pointers */
 	mtd = nand_to_mtd(&host->nand);
-	nand_set_flash_node(nand, pdev->dev.of_node);
+	nand_set_flash_analde(nand, pdev->dev.of_analde);
 
 	mtd->dev.parent = &pdev->dev;
 
@@ -1106,13 +1106,13 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 		host->read_dma_chan = dma_request_channel(mask, filter, NULL);
 		if (!host->read_dma_chan) {
 			dev_err(&pdev->dev, "Unable to get read dma channel\n");
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			goto disable_fsmc;
 		}
 		host->write_dma_chan = dma_request_channel(mask, filter, NULL);
 		if (!host->write_dma_chan) {
 			dev_err(&pdev->dev, "Unable to get write dma channel\n");
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			goto release_dma_read_chan;
 		}
 	}

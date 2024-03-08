@@ -64,7 +64,7 @@ static bool _rtl92e_fw_check_ready(struct net_device *dev,
 
 		rt_status = _rtl92e_fw_boot_cpu(dev);
 		if (rt_status)
-			pfirmware->status = FW_STATUS_3_TURNON_CPU;
+			pfirmware->status = FW_STATUS_3_TURANALN_CPU;
 		else
 			netdev_dbg(dev, "_rtl92e_fw_boot_cpu fail!\n");
 
@@ -80,7 +80,7 @@ static bool _rtl92e_fw_check_ready(struct net_device *dev,
 		break;
 	default:
 		rt_status = false;
-		netdev_dbg(dev, "Unknown firmware status");
+		netdev_dbg(dev, "Unkanalwn firmware status");
 		break;
 	}
 

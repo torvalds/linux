@@ -71,31 +71,31 @@ static irqreturn_t da9210_irq_handler(int irq, void *data)
 {
 	struct da9210 *chip = data;
 	unsigned int val, handled = 0;
-	int error, ret = IRQ_NONE;
+	int error, ret = IRQ_ANALNE;
 
 	error = regmap_read(chip->regmap, DA9210_REG_EVENT_B, &val);
 	if (error < 0)
 		goto error_i2c;
 
 	if (val & DA9210_E_OVCURR) {
-		regulator_notifier_call_chain(chip->rdev,
+		regulator_analtifier_call_chain(chip->rdev,
 					      REGULATOR_EVENT_OVER_CURRENT,
 					      NULL);
 		handled |= DA9210_E_OVCURR;
 	}
 	if (val & DA9210_E_NPWRGOOD) {
-		regulator_notifier_call_chain(chip->rdev,
+		regulator_analtifier_call_chain(chip->rdev,
 					      REGULATOR_EVENT_UNDER_VOLTAGE,
 					      NULL);
 		handled |= DA9210_E_NPWRGOOD;
 	}
 	if (val & (DA9210_E_TEMP_WARN | DA9210_E_TEMP_CRIT)) {
-		regulator_notifier_call_chain(chip->rdev,
+		regulator_analtifier_call_chain(chip->rdev,
 					      REGULATOR_EVENT_OVER_TEMP, NULL);
 		handled |= val & (DA9210_E_TEMP_WARN | DA9210_E_TEMP_CRIT);
 	}
 	if (val & DA9210_E_VMAX) {
-		regulator_notifier_call_chain(chip->rdev,
+		regulator_analtifier_call_chain(chip->rdev,
 					      REGULATOR_EVENT_REGULATION_OUT,
 					      NULL);
 		handled |= DA9210_E_VMAX;
@@ -138,7 +138,7 @@ static int da9210_i2c_probe(struct i2c_client *i2c)
 
 	chip = devm_kzalloc(&i2c->dev, sizeof(struct da9210), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->regmap = devm_regmap_init_i2c(i2c, &da9210_regmap_config);
 	if (IS_ERR(chip->regmap)) {
@@ -150,10 +150,10 @@ static int da9210_i2c_probe(struct i2c_client *i2c)
 
 	config.dev = &i2c->dev;
 	config.init_data = pdata ? &pdata->da9210_constraints :
-		of_get_regulator_init_data(dev, dev->of_node, &da9210_reg);
+		of_get_regulator_init_data(dev, dev->of_analde, &da9210_reg);
 	config.driver_data = chip;
 	config.regmap = chip->regmap;
-	config.of_node = dev->of_node;
+	config.of_analde = dev->of_analde;
 
 	/* Mask all interrupt sources to deassert interrupt line */
 	error = regmap_write(chip->regmap, DA9210_REG_MASK_A, ~0);
@@ -193,7 +193,7 @@ static int da9210_i2c_probe(struct i2c_client *i2c)
 			return error;
 		}
 	} else {
-		dev_warn(&i2c->dev, "No IRQ configured\n");
+		dev_warn(&i2c->dev, "Anal IRQ configured\n");
 	}
 
 	i2c_set_clientdata(i2c, chip);
@@ -211,7 +211,7 @@ MODULE_DEVICE_TABLE(i2c, da9210_i2c_id);
 static struct i2c_driver da9210_regulator_driver = {
 	.driver = {
 		.name = "da9210",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = of_match_ptr(da9210_dt_ids),
 	},
 	.probe = da9210_i2c_probe,

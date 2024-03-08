@@ -68,7 +68,7 @@ intel_dump_buffer(struct drm_i915_private *i915,
 	if (!drm_debug_enabled(DRM_UT_KMS))
 		return;
 
-	print_hex_dump(KERN_DEBUG, prefix, DUMP_PREFIX_NONE,
+	print_hex_dump(KERN_DEBUG, prefix, DUMP_PREFIX_ANALNE,
 		       16, 0, buf, len, false);
 }
 
@@ -139,9 +139,9 @@ static void intel_dump_plane_state(const struct intel_plane_state *plane_state)
 
 	if (!fb) {
 		drm_dbg_kms(&i915->drm,
-			    "[PLANE:%d:%s] fb: [NOFB], visible: %s\n",
+			    "[PLANE:%d:%s] fb: [ANALFB], visible: %s\n",
 			    plane->base.base.id, plane->base.name,
-			    str_yes_no(plane_state->uapi.visible));
+			    str_anal_anal(plane_state->uapi.visible));
 		return;
 	}
 
@@ -149,7 +149,7 @@ static void intel_dump_plane_state(const struct intel_plane_state *plane_state)
 		    "[PLANE:%d:%s] fb: [FB:%d] %ux%u format = %p4cc modifier = 0x%llx, visible: %s\n",
 		    plane->base.base.id, plane->base.name,
 		    fb->base.id, fb->width, fb->height, &fb->format->format,
-		    fb->modifier, str_yes_no(plane_state->uapi.visible));
+		    fb->modifier, str_anal_anal(plane_state->uapi.visible));
 	drm_dbg_kms(&i915->drm, "\trotation: 0x%x, scaler: %d, scaling_filter: %d\n",
 		    plane_state->hw.rotation, plane_state->scaler_id, plane_state->hw.scaling_filter);
 	if (plane_state->uapi.visible)
@@ -211,7 +211,7 @@ void intel_crtc_state_dump(const struct intel_crtc_state *pipe_config,
 
 	drm_dbg_kms(&i915->drm, "[CRTC:%d:%s] enable: %s [%s]\n",
 		    crtc->base.base.id, crtc->base.name,
-		    str_yes_no(pipe_config->hw.enable), context);
+		    str_anal_anal(pipe_config->hw.enable), context);
 
 	if (!pipe_config->hw.enable)
 		goto dump_planes;
@@ -219,7 +219,7 @@ void intel_crtc_state_dump(const struct intel_crtc_state *pipe_config,
 	snprintf_output_types(buf, sizeof(buf), pipe_config->output_types);
 	drm_dbg_kms(&i915->drm,
 		    "active: %s, output_types: %s (0x%x), output format: %s, sink format: %s\n",
-		    str_yes_no(pipe_config->hw.active),
+		    str_anal_anal(pipe_config->hw.active),
 		    buf, pipe_config->output_types,
 		    intel_output_format_name(pipe_config->output_format),
 		    intel_output_format_name(pipe_config->sink_format));
@@ -239,7 +239,7 @@ void intel_crtc_state_dump(const struct intel_crtc_state *pipe_config,
 
 	drm_dbg_kms(&i915->drm, "bigjoiner: %s, pipes: 0x%x\n",
 		    intel_crtc_is_bigjoiner_slave(pipe_config) ? "slave" :
-		    intel_crtc_is_bigjoiner_master(pipe_config) ? "master" : "no",
+		    intel_crtc_is_bigjoiner_master(pipe_config) ? "master" : "anal",
 		    pipe_config->bigjoiner_pipes);
 
 	drm_dbg_kms(&i915->drm, "splitter: %s, link count %d, overlap %d\n",
@@ -309,7 +309,7 @@ void intel_crtc_state_dump(const struct intel_crtc_state *pipe_config,
 				  drm_eld_size(pipe_config->eld));
 
 	drm_dbg_kms(&i915->drm, "vrr: %s, vmin: %d, vmax: %d, pipeline full: %d, guardband: %d flipline: %d, vmin vblank: %d, vmax vblank: %d\n",
-		    str_yes_no(pipe_config->vrr.enable),
+		    str_anal_anal(pipe_config->vrr.enable),
 		    pipe_config->vrr.vmin, pipe_config->vrr.vmax,
 		    pipe_config->vrr.pipeline_full, pipe_config->vrr.guardband,
 		    pipe_config->vrr.flipline,
@@ -351,7 +351,7 @@ void intel_crtc_state_dump(const struct intel_crtc_state *pipe_config,
 			    "pch pfit: " DRM_RECT_FMT ", %s, force thru: %s\n",
 			    DRM_RECT_ARG(&pipe_config->pch_pfit.dst),
 			    str_enabled_disabled(pipe_config->pch_pfit.enabled),
-			    str_yes_no(pipe_config->pch_pfit.force_thru));
+			    str_anal_anal(pipe_config->pch_pfit.force_thru));
 
 	drm_dbg_kms(&i915->drm, "ips: %i, double wide: %i, drrs: %i\n",
 		    pipe_config->ips_enabled, pipe_config->double_wide,

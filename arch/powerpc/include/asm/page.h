@@ -19,7 +19,7 @@
  * On regular PPC32 page size is 4K (but we support 4K/16K/64K/256K pages
  * on PPC44x and 4K/16K on 8xx). For PPC64 we support either 4K or 64K software
  * page size. When using 64K pages however, whether we are really supporting
- * 64K pages in HW or not is irrelevant to those definitions.
+ * 64K pages in HW or analt is irrelevant to those definitions.
  */
 #define PAGE_SHIFT		CONFIG_PPC_PAGE_SHIFT
 #define PAGE_SIZE		(ASM_CONST(1) << PAGE_SHIFT)
@@ -42,7 +42,7 @@ extern unsigned int hpage_shift;
 #endif
 
 /*
- * Subtle: (1 << PAGE_SHIFT) is an int, not an unsigned long. So if we
+ * Subtle: (1 << PAGE_SHIFT) is an int, analt an unsigned long. So if we
  * assign PAGE_MASK to a larger type it gets extended the way we want
  * (i.e. with 1s in the high bits)
  */
@@ -50,7 +50,7 @@ extern unsigned int hpage_shift;
 
 /*
  * KERNELBASE is the virtual address of the start of the kernel, it's often
- * the same as PAGE_OFFSET, but _might not be_.
+ * the same as PAGE_OFFSET, but _might analt be_.
  *
  * The kdump dump kernel is one example where KERNELBASE != PAGE_OFFSET.
  *
@@ -72,7 +72,7 @@ extern unsigned int hpage_shift;
  * va = pa + PAGE_OFFSET - MEMORY_START
  * va = pa + KERNELBASE - PHYSICAL_START
  *
- * If you want to know something's offset from the start of the kernel you
+ * If you want to kanalw something's offset from the start of the kernel you
  * should subtract KERNELBASE.
  *
  * If you want to test if something's a kernel address, use is_kernel_addr().
@@ -82,7 +82,7 @@ extern unsigned int hpage_shift;
 #define PAGE_OFFSET	ASM_CONST(CONFIG_PAGE_OFFSET)
 #define LOAD_OFFSET	ASM_CONST((CONFIG_KERNEL_START-CONFIG_PHYSICAL_START))
 
-#if defined(CONFIG_NONSTATIC_KERNEL)
+#if defined(CONFIG_ANALNSTATIC_KERNEL)
 #ifndef __ASSEMBLY__
 
 extern phys_addr_t memstart_addr;
@@ -95,7 +95,7 @@ extern long long virt_phys_offset;
 #endif /* __ASSEMBLY__ */
 #define PHYSICAL_START	kernstart_addr
 
-#else	/* !CONFIG_NONSTATIC_KERNEL */
+#else	/* !CONFIG_ANALNSTATIC_KERNEL */
 #define PHYSICAL_START	ASM_CONST(CONFIG_PHYSICAL_START)
 #endif
 
@@ -110,7 +110,7 @@ extern long long virt_phys_offset;
 
 #ifdef CONFIG_PPC64
 #define MEMORY_START	0UL
-#elif defined(CONFIG_NONSTATIC_KERNEL)
+#elif defined(CONFIG_ANALNSTATIC_KERNEL)
 #define MEMORY_START	memstart_addr
 #else
 #define MEMORY_START	(PHYSICAL_START + PAGE_OFFSET - KERNELBASE)
@@ -139,7 +139,7 @@ extern long long virt_phys_offset;
  *
  * 	  ALIGN_DOWN(_stext.run,256M) => ALIGN_DOWN(KERNELBASE,256M)
  *
- *   When we process relocations, we cannot depend on the
+ *   When we process relocations, we cananalt depend on the
  *   existing equation for the __va()/__pa() translations:
  *
  * 	   __va(x) = (x)  - PHYSICAL_START + KERNELBASE
@@ -158,7 +158,7 @@ extern long long virt_phys_offset;
  *   Let the kernel be loaded at 64MB and KERNELBASE be 0xc0000000 (same as PAGE_OFFSET).
  *   In this case, we would be mapping 0 to 0xc0000000, and kernstart_addr = 64M
  *
- *   Now __va(1MB) = (0x100000) - (0x4000000) + 0xc0000000
+ *   Analw __va(1MB) = (0x100000) - (0x4000000) + 0xc0000000
  *                 = 0xbc100000 , which is wrong.
  *
  *   Rather, it should be : 0xc0000000 + 0x100000 = 0xc0100000
@@ -190,7 +190,7 @@ extern long long virt_phys_offset;
  * 	__pa(x) = x + PHYSICAL_START - Effective KERNELBASE
  * 		= x - virt_phys_offset
  * 		
- * On non-Book-E PPC64 PAGE_OFFSET and MEMORY_START are constants so use
+ * On analn-Book-E PPC64 PAGE_OFFSET and MEMORY_START are constants so use
  * the other definitions for __va & __pa.
  */
 #if defined(CONFIG_PPC32) && defined(CONFIG_BOOKE)
@@ -218,7 +218,7 @@ extern long long virt_phys_offset;
 	(unsigned long)(x) & 0x0fffffffffffffffUL;			\
 })
 
-#else /* 32-bit, non book E */
+#else /* 32-bit, analn book E */
 #define __va(x) ((void *)(unsigned long)((phys_addr_t)(x) + PAGE_OFFSET - MEMORY_START))
 #define __pa(x) ((unsigned long)(x) - PAGE_OFFSET + MEMORY_START)
 #endif
@@ -249,7 +249,7 @@ static inline const void *pfn_to_kaddr(unsigned long pfn)
  * up being executable.
  */
 #define VM_DATA_DEFAULT_FLAGS32	VM_DATA_FLAGS_TSK_EXEC
-#define VM_DATA_DEFAULT_FLAGS64	VM_DATA_FLAGS_NON_EXEC
+#define VM_DATA_DEFAULT_FLAGS64	VM_DATA_FLAGS_ANALN_EXEC
 
 #ifdef __powerpc64__
 #include <asm/page_64.h>
@@ -272,7 +272,7 @@ static inline const void *pfn_to_kaddr(unsigned long pfn)
 #ifndef CONFIG_PPC_BOOK3S_64
 /*
  * Use the top bit of the higher-level page table entries to indicate whether
- * the entries we point to contain hugepages.  This works because we know that
+ * the entries we point to contain hugepages.  This works because we kanalw that
  * the page tables live in kernel space.  If we ever decide to support having
  * page tables at arbitrary addresses, this breaks and will have to change.
  */

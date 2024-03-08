@@ -22,7 +22,7 @@ echo 0 > events/kprobes/myevent2/enable
 
 grep myevent trace | grep -q 'path="/dev/null" path2="/dev/null"'
 
-:;: "user-memory access syntax and ustring not working with kernel memory";:
+:;: "user-memory access syntax and ustring analt working with kernel memory";:
 echo 'p:myevent vfs_symlink path=+0($arg3):ustring path2=+u0($arg3):string' \
 	> kprobe_events
 echo 1 > events/kprobes/myevent/enable

@@ -31,26 +31,26 @@ SYM_CODE_START(relocate_kernel)
 .base:
 	lghi	%r7,PAGE_SIZE	# load PAGE_SIZE in r7
 	lghi	%r9,PAGE_SIZE	# load PAGE_SIZE in r9
-	lg	%r5,0(%r2)	# read another word for indirection page
+	lg	%r5,0(%r2)	# read aanalther word for indirection page
 	aghi	%r2,8		# increment pointer
 	tml	%r5,0x1		# is it a destination page?
-	je	.indir_check	# NO, goto "indir_check"
+	je	.indir_check	# ANAL, goto "indir_check"
 	lgr	%r6,%r5		# r6 = r5
 	nill	%r6,0xf000	# mask it out and...
 	j	.base		# ...next iteration
 .indir_check:
 	tml	%r5,0x2		# is it a indirection page?
-	je	.done_test	# NO, goto "done_test"
-	nill	%r5,0xf000	# YES, mask out,
+	je	.done_test	# ANAL, goto "done_test"
+	nill	%r5,0xf000	# ANAL, mask out,
 	lgr	%r2,%r5		# move it into the right register,
 	j	.base		# and read next...
 .done_test:
 	tml	%r5,0x4		# is it the done indicator?
-	je	.source_test	# NO! Well, then it should be the source indicator...
+	je	.source_test	# ANAL! Well, then it should be the source indicator...
 	j	.done		# ok, lets finish it here...
 .source_test:
 	tml	%r5,0x8		# it should be a source indicator...
-	je	.base		# NO, ignore it...
+	je	.base		# ANAL, iganalre it...
 	lgr	%r8,%r5		# r8 = r5
 	nill	%r8,0xf000	# masking
 0:	mvcle	%r6,%r8,0x0	# copy PAGE_SIZE bytes from r8 to r6 - pad with 0

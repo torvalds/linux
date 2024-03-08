@@ -19,7 +19,7 @@ Contact:	zhenwei pi <pizhenwei@bytedance.com>
 Description:
 		RW attribute. Set/get which features in-use. This attribute
 		is used to enable/disable feature(s) of pvpanic device.
-		Notice that this value should be a subset of capability.
+		Analtice that this value should be a subset of capability.
 
 		Format: %x.
 

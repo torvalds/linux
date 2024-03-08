@@ -23,11 +23,11 @@
  */
 #define EXP_FW_API_VER_BRANCH		0x00
 #define EXP_FW_API_VER_MAJOR		0x01
-#define EXP_FW_API_VER_MINOR		0x05
+#define EXP_FW_API_VER_MIANALR		0x05
 
 /* Different control queue types: These are mainly for SW consumption. */
 enum ice_ctl_q {
-	ICE_CTL_Q_UNKNOWN = 0,
+	ICE_CTL_Q_UNKANALWN = 0,
 	ICE_CTL_Q_ADMIN,
 	ICE_CTL_Q_MAILBOX,
 	ICE_CTL_Q_SB,

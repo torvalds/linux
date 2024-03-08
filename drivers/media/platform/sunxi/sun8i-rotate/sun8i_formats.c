@@ -5,7 +5,7 @@
 #include "sun8i-rotate.h"
 
 /*
- * Formats not included in array:
+ * Formats analt included in array:
  * ROTATE_FORMAT_BGR565
  * ROTATE_FORMAT_VYUV
  */
@@ -256,7 +256,7 @@ int rotate_enum_fmt(struct v4l2_fmtdesc *f, bool dst)
 	index = 0;
 
 	for (i = 0; i < ARRAY_SIZE(rotate_formats); i++) {
-		/* not all formats can be used for capture buffers */
+		/* analt all formats can be used for capture buffers */
 		if (dst && !(rotate_formats[i].flags & ROTATE_FLAG_OUTPUT))
 			continue;
 

@@ -5,12 +5,12 @@
  * This software may be used and distributed according to the terms of
  * the GNU General Public License (GPL), incorporated herein by reference.
  * Drivers based on or derived from this code fall under the GPL and must
- * retain the authorship, copyright and license notice.  This file is not
+ * retain the authorship, copyright and license analtice.  This file is analt
  * a complete program and may only be used when the entire operating
  * system is licensed under the GPL.
  * See the file COPYING in this distribution for more information.
  ************************************************************************/
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 #ifndef _S2IO_H
 #define _S2IO_H
 
@@ -289,7 +289,7 @@ struct stat_block {
 	__le32 tmac_vld_ip_oflow;
 	__le32 tmac_rst_tcp_oflow;
 	__le32 tmac_icmp_oflow;
-	__le32 tpa_unknown_protocol;
+	__le32 tpa_unkanalwn_protocol;
 	__le32 tmac_udp_oflow;
 	__le32 reserved_10;
 	__le32 tpa_parse_failure;
@@ -341,7 +341,7 @@ struct stat_block {
 };
 
 /* Default value for 'vlan_strip_tag' configuration parameter */
-#define NO_STRIP_IN_PROMISC 2
+#define ANAL_STRIP_IN_PROMISC 2
 
 /*
  * Structures representing different init time configuration
@@ -377,7 +377,7 @@ static const u16 fifo_selector[MAX_TX_FIFOS] = {0, 1, 3, 3, 7, 7, 7, 7};
 /* Maintains Per FIFO related information. */
 struct tx_fifo_config {
 #define	MAX_AVAILABLE_TXDS	8192
-	u32 fifo_len;		/* specifies len of FIFO up to 8192, ie no of TxDLs */
+	u32 fifo_len;		/* specifies len of FIFO up to 8192, ie anal of TxDLs */
 /* Priority definition */
 #define TX_FIFO_PRI_0               0	/*Highest */
 #define TX_FIFO_PRI_1               1
@@ -388,16 +388,16 @@ struct tx_fifo_config {
 #define TX_FIFO_PRI_6               6
 #define TX_FIFO_PRI_7               7	/*lowest */
 	u8 fifo_priority;	/* specifies pointer level for FIFO */
-	/* user should not set twos fifos with same pri */
-	u8 f_no_snoop;
-#define NO_SNOOP_TXD                0x01
-#define NO_SNOOP_TXD_BUFFER          0x02
+	/* user should analt set twos fifos with same pri */
+	u8 f_anal_sanalop;
+#define ANAL_SANALOP_TXD                0x01
+#define ANAL_SANALOP_TXD_BUFFER          0x02
 };
 
 
 /* Maintains per Ring related information */
 struct rx_ring_config {
-	u32 num_rxd;		/*No of RxDs per Rx Ring */
+	u32 num_rxd;		/*Anal of RxDs per Rx Ring */
 #define RX_RING_PRI_0               0	/* highest */
 #define RX_RING_PRI_1               1
 #define RX_RING_PRI_2               2
@@ -408,15 +408,15 @@ struct rx_ring_config {
 #define RX_RING_PRI_7               7	/* lowest */
 
 	u8 ring_priority;	/*Specifies service priority of ring */
-	/* OSM should not set any two rings with same priority */
+	/* OSM should analt set any two rings with same priority */
 	u8 ring_org;		/*Organization of ring */
 #define RING_ORG_BUFF1		0x01
 #define RX_RING_ORG_BUFF3	0x03
 #define RX_RING_ORG_BUFF5	0x05
 
-	u8 f_no_snoop;
-#define NO_SNOOP_RXD                0x01
-#define NO_SNOOP_RXD_BUFFER         0x02
+	u8 f_anal_sanalop;
+#define ANAL_SANALOP_RXD                0x01
+#define ANAL_SANALOP_RXD_BUFFER         0x02
 };
 
 /* This structure provides contains values of the tunable parameters
@@ -426,15 +426,15 @@ struct config_param {
 /* Tx Side */
 	u32 tx_fifo_num;	/*Number of Tx FIFOs */
 
-	/* 0-No steering, 1-Priority steering, 2-Default fifo map */
-#define	NO_STEERING				0
+	/* 0-Anal steering, 1-Priority steering, 2-Default fifo map */
+#define	ANAL_STEERING				0
 #define	TX_PRIORITY_STEERING			0x1
 #define TX_DEFAULT_STEERING 			0x2
 	u8 tx_steering_type;
 
 	u8 fifo_mapping[MAX_TX_FIFOS];
 	struct tx_fifo_config tx_cfg[MAX_TX_FIFOS];	/*Per-Tx FIFO config */
-	u32 max_txds;		/*Max no. of Tx buffer descriptor per TxDL */
+	u32 max_txds;		/*Max anal. of Tx buffer descriptor per TxDL */
 	u64 tx_intr_type;
 #define INTA	0
 #define MSI_X	2
@@ -485,8 +485,8 @@ struct TxFIFO_element {
 #define TX_FIFO_LAST_LIST              s2BIT(15)
 #define TX_FIFO_FIRSTNLAST_LIST        vBIT(3,14,2)
 #define TX_FIFO_SPECIAL_FUNC           s2BIT(23)
-#define TX_FIFO_DS_NO_SNOOP            s2BIT(31)
-#define TX_FIFO_BUFF_NO_SNOOP          s2BIT(30)
+#define TX_FIFO_DS_ANAL_SANALOP            s2BIT(31)
+#define TX_FIFO_BUFF_ANAL_SANALOP          s2BIT(30)
 };
 
 /* Tx descriptor structure */
@@ -691,7 +691,7 @@ struct lro {
 /* Ring specific structure */
 struct ring_info {
 	/* The ring number */
-	int ring_no;
+	int ring_anal;
 
 	/* per-ring buffer counter */
 	u32 rx_bufs_left;
@@ -750,7 +750,7 @@ struct ring_info {
 /* Fifo specific structure */
 struct fifo_info {
 	/* FIFO number */
-	int fifo_no;
+	int fifo_anal;
 
 	/* Maximum TxDs per TxDL */
 	int max_txds;
@@ -932,7 +932,7 @@ struct s2io_nic {
 	 */
 	u64 adapt_ctrl_org;
 
-	/* Last known link state. */
+	/* Last kanalwn link state. */
 	u16 last_link_state;
 #define	LINK_DOWN	1
 #define	LINK_UP		2
@@ -948,7 +948,7 @@ struct s2io_nic {
 	struct s2io_msix_entry *s2io_entries;
 	char desc[MAX_REQUESTED_MSI_X][25];
 
-	int avail_msix_vectors; /* No. of MSI-X vectors granted by system */
+	int avail_msix_vectors; /* Anal. of MSI-X vectors granted by system */
 
 	struct msix_info_st msix_info[0x3f];
 

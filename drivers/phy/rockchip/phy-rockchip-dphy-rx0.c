@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Rockchip MIPI Synopsys DPHY RX0 driver
+ * Rockchip MIPI Syanalpsys DPHY RX0 driver
  *
  * Copyright (C) 2019 Collabora, Ltd.
  *
@@ -190,7 +190,7 @@ static void rk_dphy_enable(struct rk_dphy *priv)
 	rk_dphy_write_grf(priv, GRF_DPHY_RX0_FORCERXMODE, 0);
 	rk_dphy_write_grf(priv, GRF_DPHY_RX0_FORCETXSTOPMODE, 0);
 
-	/* Disable lane turn around, which is ignored in receive mode */
+	/* Disable lane turn around, which is iganalred in receive mode */
 	rk_dphy_write_grf(priv, GRF_DPHY_RX0_TURNREQUEST, 0);
 	rk_dphy_write_grf(priv, GRF_DPHY_RX0_TURNDISABLE, 0xf);
 
@@ -219,7 +219,7 @@ static void rk_dphy_enable(struct rk_dphy *priv)
 	rk_dphy_write(priv, LANES_THS_SETTLE_CONTROL,
 		      THS_SETTLE_COUNTER_THRESHOLD);
 
-	/* Normal operation */
+	/* Analrmal operation */
 	rk_dphy_write(priv, 0x0, 0);
 }
 
@@ -323,7 +323,7 @@ MODULE_DEVICE_TABLE(of, rk_dphy_dt_ids);
 static int rk_dphy_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	const struct rk_dphy_drv_data *drv_data;
 	struct phy_provider *phy_provider;
 	struct rk_dphy *priv;
@@ -331,18 +331,18 @@ static int rk_dphy_probe(struct platform_device *pdev)
 	unsigned int i;
 	int ret;
 
-	if (!dev->parent || !dev->parent->of_node)
-		return -ENODEV;
+	if (!dev->parent || !dev->parent->of_analde)
+		return -EANALDEV;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 	priv->dev = dev;
 
-	priv->grf = syscon_node_to_regmap(dev->parent->of_node);
+	priv->grf = syscon_analde_to_regmap(dev->parent->of_analde);
 	if (IS_ERR(priv->grf)) {
 		dev_err(dev, "Can't find GRF syscon\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	drv_data = of_device_get_match_data(dev);
@@ -350,7 +350,7 @@ static int rk_dphy_probe(struct platform_device *pdev)
 	priv->clks = devm_kcalloc(&pdev->dev, drv_data->num_clks,
 				  sizeof(*priv->clks), GFP_KERNEL);
 	if (!priv->clks)
-		return -ENOMEM;
+		return -EANALMEM;
 	for (i = 0; i < drv_data->num_clks; i++)
 		priv->clks[i].id = drv_data->clks[i];
 	ret = devm_clk_bulk_get(&pdev->dev, drv_data->num_clks, priv->clks);
@@ -379,5 +379,5 @@ static struct platform_driver rk_dphy_driver = {
 module_platform_driver(rk_dphy_driver);
 
 MODULE_AUTHOR("Ezequiel Garcia <ezequiel@collabora.com>");
-MODULE_DESCRIPTION("Rockchip MIPI Synopsys DPHY RX0 driver");
+MODULE_DESCRIPTION("Rockchip MIPI Syanalpsys DPHY RX0 driver");
 MODULE_LICENSE("Dual MIT/GPL");

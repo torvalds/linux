@@ -8,7 +8,7 @@
 #include <sched.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
+#include <erranal.h>
 
 #include <bpf/bpf.h>
 #include <bpf/libbpf.h>
@@ -108,12 +108,12 @@ static void check_result(void)
 	idx = EGRESS_LINUM_IDX;
 	err = bpf_map_lookup_elem(linum_map_fd, &idx, &egress_linum);
 	CHECK(err < 0, "bpf_map_lookup_elem(linum_map_fd)",
-	      "err:%d errno:%d\n", err, errno);
+	      "err:%d erranal:%d\n", err, erranal);
 
 	idx = INGRESS_LINUM_IDX;
 	err = bpf_map_lookup_elem(linum_map_fd, &idx, &ingress_linum);
 	CHECK(err < 0, "bpf_map_lookup_elem(linum_map_fd)",
-	      "err:%d errno:%d\n", err, errno);
+	      "err:%d erranal:%d\n", err, erranal);
 
 	idx = READ_SK_DST_PORT_LINUM_IDX;
 	err = bpf_map_lookup_elem(linum_map_fd, &idx, &linum);
@@ -221,15 +221,15 @@ static void check_sk_pkt_out_cnt(int accept_fd, int cli_fd)
 					  &pkt_out_cnt10);
 
 	/* The bpf prog only counts for fullsock and
-	 * passive connection did not become fullsock until 3WHS
+	 * passive connection did analt become fullsock until 3WHS
 	 * had been finished, so the bpf prog only counted two data
 	 * packet out.
 	 */
 	CHECK(err || pkt_out_cnt.cnt < 0xeB9F + 2 ||
 	      pkt_out_cnt10.cnt < 0xeB9F + 20,
 	      "bpf_map_lookup_elem(sk_pkt_out_cnt, &accept_fd)",
-	      "err:%d errno:%d pkt_out_cnt:%u pkt_out_cnt10:%u\n",
-	      err, errno, pkt_out_cnt.cnt, pkt_out_cnt10.cnt);
+	      "err:%d erranal:%d pkt_out_cnt:%u pkt_out_cnt10:%u\n",
+	      err, erranal, pkt_out_cnt.cnt, pkt_out_cnt10.cnt);
 
 	pkt_out_cnt.cnt = ~0;
 	pkt_out_cnt10.cnt = ~0;
@@ -246,8 +246,8 @@ static void check_sk_pkt_out_cnt(int accept_fd, int cli_fd)
 	CHECK(err || pkt_out_cnt.cnt < 0xeB9F + 4 ||
 	      pkt_out_cnt10.cnt < 0xeB9F + 40,
 	      "bpf_map_lookup_elem(sk_pkt_out_cnt, &cli_fd)",
-	      "err:%d errno:%d pkt_out_cnt:%u pkt_out_cnt10:%u\n",
-	      err, errno, pkt_out_cnt.cnt, pkt_out_cnt10.cnt);
+	      "err:%d erranal:%d pkt_out_cnt:%u pkt_out_cnt10:%u\n",
+	      err, erranal, pkt_out_cnt.cnt, pkt_out_cnt10.cnt);
 }
 
 static int init_sk_storage(int sk_fd, __u32 pkt_out_cnt)
@@ -257,15 +257,15 @@ static int init_sk_storage(int sk_fd, __u32 pkt_out_cnt)
 
 	scnt.cnt = pkt_out_cnt;
 	err = bpf_map_update_elem(sk_pkt_out_cnt_fd, &sk_fd, &scnt,
-				  BPF_NOEXIST);
+				  BPF_ANALEXIST);
 	if (CHECK(err, "bpf_map_update_elem(sk_pkt_out_cnt_fd)",
-		  "err:%d errno:%d\n", err, errno))
+		  "err:%d erranal:%d\n", err, erranal))
 		return err;
 
 	err = bpf_map_update_elem(sk_pkt_out_cnt10_fd, &sk_fd, &scnt,
-				  BPF_NOEXIST);
+				  BPF_ANALEXIST);
 	if (CHECK(err, "bpf_map_update_elem(sk_pkt_out_cnt10_fd)",
-		  "err:%d errno:%d\n", err, errno))
+		  "err:%d erranal:%d\n", err, erranal))
 		return err;
 
 	return 0;
@@ -284,8 +284,8 @@ static void test(void)
 		goto done;
 
 	err = getsockname(listen_fd, (struct sockaddr *)&srv_sa6, &addrlen);
-	if (CHECK(err, "getsockname(listen_fd)", "err:%d errno:%d\n", err,
-		  errno))
+	if (CHECK(err, "getsockname(listen_fd)", "err:%d erranal:%d\n", err,
+		  erranal))
 		goto done;
 	memcpy(&skel->bss->srv_sa6, &srv_sa6, sizeof(srv_sa6));
 
@@ -294,14 +294,14 @@ static void test(void)
 		goto done;
 
 	err = getsockname(cli_fd, (struct sockaddr *)&cli_sa6, &addrlen);
-	if (CHECK(err, "getsockname(cli_fd)", "err:%d errno:%d\n",
-		  err, errno))
+	if (CHECK(err, "getsockname(cli_fd)", "err:%d erranal:%d\n",
+		  err, erranal))
 		goto done;
 
 	accept_fd = accept(listen_fd, NULL, NULL);
 	if (CHECK(accept_fd == -1, "accept(listen_fd)",
-		  "accept_fd:%d errno:%d\n",
-		  accept_fd, errno))
+		  "accept_fd:%d erranal:%d\n",
+		  accept_fd, erranal))
 		goto done;
 
 	if (init_sk_storage(accept_fd, 0xeB9F))
@@ -313,24 +313,24 @@ static void test(void)
 		 */
 		err = send(accept_fd, DATA, DATA_LEN, MSG_EOR);
 		if (CHECK(err != DATA_LEN, "send(accept_fd)",
-			  "err:%d errno:%d\n", err, errno))
+			  "err:%d erranal:%d\n", err, erranal))
 			goto done;
 
 		err = recv(cli_fd, buf, DATA_LEN, 0);
-		if (CHECK(err != DATA_LEN, "recv(cli_fd)", "err:%d errno:%d\n",
-			  err, errno))
+		if (CHECK(err != DATA_LEN, "recv(cli_fd)", "err:%d erranal:%d\n",
+			  err, erranal))
 			goto done;
 	}
 
 	shutdown(cli_fd, SHUT_WR);
 	err = recv(accept_fd, buf, 1, 0);
-	if (CHECK(err, "recv(accept_fd) for fin", "err:%d errno:%d\n",
-		  err, errno))
+	if (CHECK(err, "recv(accept_fd) for fin", "err:%d erranal:%d\n",
+		  err, erranal))
 		goto done;
 	shutdown(accept_fd, SHUT_WR);
 	err = recv(cli_fd, buf, 1, 0);
-	if (CHECK(err, "recv(cli_fd) for fin", "err:%d errno:%d\n",
-		  err, errno))
+	if (CHECK(err, "recv(cli_fd) for fin", "err:%d erranal:%d\n",
+		  err, erranal))
 		goto done;
 	check_sk_pkt_out_cnt(accept_fd, cli_fd);
 	check_result();

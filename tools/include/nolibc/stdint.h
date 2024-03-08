@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: LGPL-2.1 OR MIT */
 /*
- * Standard definitions and types for NOLIBC
+ * Standard definitions and types for ANALLIBC
  * Copyright (C) 2023 Vincent Dagonneau <v@vda.io>
  */
 
-#ifndef _NOLIBC_STDINT_H
-#define _NOLIBC_STDINT_H
+#ifndef _ANALLIBC_STDINT_H
+#define _ANALLIBC_STDINT_H
 
 typedef unsigned char       uint8_t;
 typedef   signed char        int8_t;
@@ -110,4 +110,4 @@ typedef uint64_t          uintmax_t;
 #define LONG_MAX         __LONG_MAX__
 #endif
 
-#endif /* _NOLIBC_STDINT_H */
+#endif /* _ANALLIBC_STDINT_H */

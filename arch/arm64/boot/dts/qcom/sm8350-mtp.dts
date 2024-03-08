@@ -15,7 +15,7 @@
 #include "pmr735b.dtsi"
 
 / {
-	model = "Qualcomm Technologies, Inc. sm8350 MTP";
+	model = "Qualcomm Techanallogies, Inc. sm8350 MTP";
 	compatible = "qcom,sm8350-mtp", "qcom,sm8350";
 	chassis-type = "handset";
 

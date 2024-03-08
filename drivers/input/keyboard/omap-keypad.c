@@ -4,8 +4,8 @@
  *
  * OMAP Keypad Driver
  *
- * Copyright (C) 2003 Nokia Corporation
- * Written by Timo Teräs <ext-timo.teras@nokia.com>
+ * Copyright (C) 2003 Analkia Corporation
+ * Written by Timo Teräs <ext-timo.teras@analkia.com>
  *
  * Added support for H2 & H3 Keypad
  * Copyright (C) 2004 Texas Instruments
@@ -19,7 +19,7 @@
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/mutex.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/platform_data/gpio-omap.h>
 #include <linux/platform_data/keypad-omap.h>
@@ -180,7 +180,7 @@ static int omap_kp_probe(struct platform_device *pdev)
 	unsigned int row_shift, keycodemax;
 
 	if (!pdata->rows || !pdata->cols || !pdata->keymap_data) {
-		printk(KERN_ERR "No rows, cols or keymap_data from pdata\n");
+		printk(KERN_ERR "Anal rows, cols or keymap_data from pdata\n");
 		return -EINVAL;
 	}
 
@@ -192,7 +192,7 @@ static int omap_kp_probe(struct platform_device *pdev)
 	if (!omap_kp || !input_dev) {
 		kfree(omap_kp);
 		input_free_device(input_dev);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	platform_set_drvdata(pdev, omap_kp);

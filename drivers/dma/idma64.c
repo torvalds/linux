@@ -20,7 +20,7 @@
 
 #include "idma64.h"
 
-/* For now we support only two channels */
+/* For analw we support only two channels */
 #define IDMA64_NR_CHAN		2
 
 /* ---------------------------------------------------------------------- */
@@ -121,7 +121,7 @@ static void idma64_start_transfer(struct idma64_chan *idma64c)
 		return;
 	}
 
-	list_del(&vdesc->node);
+	list_del(&vdesc->analde);
 	idma64c->desc = to_idma64_desc(vdesc);
 
 	/* Configure the channel */
@@ -175,7 +175,7 @@ static irqreturn_t idma64_irq(int irq, void *dev)
 
 	/* Check if we have any interrupt from the DMA controller */
 	if (!status)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	status_xfer = dma_readl(idma64, RAW(XFER));
 	status_err = dma_readl(idma64, RAW(ERROR));
@@ -192,11 +192,11 @@ static struct idma64_desc *idma64_alloc_desc(unsigned int ndesc)
 {
 	struct idma64_desc *desc;
 
-	desc = kzalloc(sizeof(*desc), GFP_NOWAIT);
+	desc = kzalloc(sizeof(*desc), GFP_ANALWAIT);
 	if (!desc)
 		return NULL;
 
-	desc->hw = kcalloc(ndesc, sizeof(*desc->hw), GFP_NOWAIT);
+	desc->hw = kcalloc(ndesc, sizeof(*desc->hw), GFP_ANALWAIT);
 	if (!desc->hw) {
 		kfree(desc);
 		return NULL;
@@ -311,7 +311,7 @@ static struct dma_async_tx_descriptor *idma64_prep_slave_sg(
 		struct idma64_hw_desc *hw = &desc->hw[i];
 
 		/* Allocate DMA capable memory for hardware descriptor */
-		hw->lli = dma_pool_alloc(idma64c->pool, GFP_NOWAIT, &hw->llp);
+		hw->lli = dma_pool_alloc(idma64c->pool, GFP_ANALWAIT, &hw->llp);
 		if (!hw->lli) {
 			desc->ndesc = i;
 			idma64_desc_free(idma64c, desc);
@@ -360,7 +360,7 @@ static size_t idma64_active_desc_size(struct idma64_chan *idma64c)
 	if (!i)
 		return bytes;
 
-	/* The current chunk is not fully transfered yet */
+	/* The current chunk is analt fully transfered yet */
 	bytes += desc->hw[--i].len;
 
 	return bytes - IDMA64C_CTLH_BLOCK_TS(ctlhi);
@@ -507,8 +507,8 @@ static int idma64_alloc_chan_resources(struct dma_chan *chan)
 					chan->device->dev,
 					sizeof(struct idma64_lli), 8, 0);
 	if (!idma64c->pool) {
-		dev_err(chan2dev(chan), "No memory for descriptors\n");
-		return -ENOMEM;
+		dev_err(chan2dev(chan), "Anal memory for descriptors\n");
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -539,7 +539,7 @@ static int idma64_probe(struct idma64_chip *chip)
 
 	idma64 = devm_kzalloc(chip->dev, sizeof(*idma64), GFP_KERNEL);
 	if (!idma64)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	idma64->regs = chip->regs;
 	chip->idma64 = idma64;
@@ -547,7 +547,7 @@ static int idma64_probe(struct idma64_chip *chip)
 	idma64->chan = devm_kcalloc(chip->dev, nr_chan, sizeof(*idma64->chan),
 				    GFP_KERNEL);
 	if (!idma64->chan)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	idma64->all_chan_mask = (1 << nr_chan) - 1;
 
@@ -635,7 +635,7 @@ static int idma64_platform_probe(struct platform_device *pdev)
 
 	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->irq = platform_get_irq(pdev, 0);
 	if (chip->irq < 0)

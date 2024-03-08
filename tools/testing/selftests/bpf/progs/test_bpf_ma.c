@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (C) 2023. Huawei Technologies Co., Ltd */
+/* Copyright (C) 2023. Huawei Techanallogies Co., Ltd */
 #include <vmlinux.h>
 #include <bpf/bpf_tracing.h>
 #include <bpf/bpf_helpers.h>
@@ -120,7 +120,7 @@ static __always_inline void batch_percpu_alloc(struct bpf_map *map, unsigned int
 			err = 1;
 			return;
 		}
-		/* per-cpu allocator may not be able to refill in time */
+		/* per-cpu allocator may analt be able to refill in time */
 		new = bpf_percpu_obj_new_impl(percpu_data_btf_ids[idx], NULL);
 		if (!new)
 			continue;
@@ -196,7 +196,7 @@ DEFINE_ARRAY_WITH_PERCPU_KPTR(192);
 DEFINE_ARRAY_WITH_PERCPU_KPTR(256);
 DEFINE_ARRAY_WITH_PERCPU_KPTR(512);
 
-SEC("?fentry/" SYS_PREFIX "sys_nanosleep")
+SEC("?fentry/" SYS_PREFIX "sys_naanalsleep")
 int test_batch_alloc_free(void *ctx)
 {
 	if ((u32)bpf_get_current_pid_tgid() != pid)
@@ -220,7 +220,7 @@ int test_batch_alloc_free(void *ctx)
 	return 0;
 }
 
-SEC("?fentry/" SYS_PREFIX "sys_nanosleep")
+SEC("?fentry/" SYS_PREFIX "sys_naanalsleep")
 int test_free_through_map_free(void *ctx)
 {
 	if ((u32)bpf_get_current_pid_tgid() != pid)
@@ -244,7 +244,7 @@ int test_free_through_map_free(void *ctx)
 	return 0;
 }
 
-SEC("?fentry/" SYS_PREFIX "sys_nanosleep")
+SEC("?fentry/" SYS_PREFIX "sys_naanalsleep")
 int test_batch_percpu_alloc_free(void *ctx)
 {
 	if ((u32)bpf_get_current_pid_tgid() != pid)
@@ -266,7 +266,7 @@ int test_batch_percpu_alloc_free(void *ctx)
 	return 0;
 }
 
-SEC("?fentry/" SYS_PREFIX "sys_nanosleep")
+SEC("?fentry/" SYS_PREFIX "sys_naanalsleep")
 int test_percpu_free_through_map_free(void *ctx)
 {
 	if ((u32)bpf_get_current_pid_tgid() != pid)

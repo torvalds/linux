@@ -32,7 +32,7 @@
 #include "intel_wm.h"
 #include "skl_watermark.h"
 
-static void intel_crtc_disable_noatomic_begin(struct intel_crtc *crtc,
+static void intel_crtc_disable_analatomic_begin(struct intel_crtc *crtc,
 					      struct drm_modeset_acquire_ctx *ctx)
 {
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
@@ -51,7 +51,7 @@ static void intel_crtc_disable_noatomic_begin(struct intel_crtc *crtc,
 			to_intel_plane_state(plane->base.state);
 
 		if (plane_state->uapi.visible)
-			intel_plane_disable_noatomic(crtc, plane);
+			intel_plane_disable_analatomic(crtc, plane);
 	}
 
 	state = drm_atomic_state_alloc(&i915->drm);
@@ -83,7 +83,7 @@ static void intel_crtc_disable_noatomic_begin(struct intel_crtc *crtc,
 	drm_atomic_state_put(state);
 
 	drm_dbg_kms(&i915->drm,
-		    "[CRTC:%d:%s] hw state adjusted, was enabled, now disabled\n",
+		    "[CRTC:%d:%s] hw state adjusted, was enabled, analw disabled\n",
 		    crtc->base.base.id, crtc->base.name);
 
 	crtc->active = false;
@@ -149,7 +149,7 @@ static void reset_crtc_encoder_state(struct intel_crtc *crtc)
 	}
 }
 
-static void intel_crtc_disable_noatomic_complete(struct intel_crtc *crtc)
+static void intel_crtc_disable_analatomic_complete(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 	struct intel_bw_state *bw_state =
@@ -263,7 +263,7 @@ static u8 get_bigjoiner_slave_pipes(struct drm_i915_private *i915, u8 master_pip
 	return pipes;
 }
 
-static void intel_crtc_disable_noatomic(struct intel_crtc *crtc,
+static void intel_crtc_disable_analatomic(struct intel_crtc *crtc,
 					struct drm_modeset_acquire_ctx *ctx)
 {
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
@@ -284,19 +284,19 @@ static void intel_crtc_disable_noatomic(struct intel_crtc *crtc,
 		    portsync_slaves_mask & bigjoiner_slaves_mask);
 
 	for_each_intel_crtc_in_pipe_mask(&i915->drm, temp_crtc, bigjoiner_slaves_mask)
-		intel_crtc_disable_noatomic_begin(temp_crtc, ctx);
+		intel_crtc_disable_analatomic_begin(temp_crtc, ctx);
 
 	for_each_intel_crtc_in_pipe_mask(&i915->drm, temp_crtc, portsync_slaves_mask)
-		intel_crtc_disable_noatomic_begin(temp_crtc, ctx);
+		intel_crtc_disable_analatomic_begin(temp_crtc, ctx);
 
 	for_each_intel_crtc_in_pipe_mask(&i915->drm, temp_crtc, portsync_master_mask)
-		intel_crtc_disable_noatomic_begin(temp_crtc, ctx);
+		intel_crtc_disable_analatomic_begin(temp_crtc, ctx);
 
 	for_each_intel_crtc_in_pipe_mask(&i915->drm, temp_crtc,
 					 bigjoiner_slaves_mask |
 					 portsync_slaves_mask |
 					 portsync_master_mask)
-		intel_crtc_disable_noatomic_complete(temp_crtc);
+		intel_crtc_disable_analatomic_complete(temp_crtc);
 }
 
 static void intel_modeset_update_connector_atomic_state(struct drm_i915_private *i915)
@@ -382,7 +382,7 @@ intel_sanitize_plane_mapping(struct drm_i915_private *i915)
 			    plane->base.base.id, plane->base.name);
 
 		plane_crtc = intel_crtc_for_pipe(i915, pipe);
-		intel_plane_disable_noatomic(plane_crtc, plane);
+		intel_plane_disable_analatomic(plane_crtc, plane);
 	}
 }
 
@@ -446,7 +446,7 @@ static void intel_sanitize_fifo_underrun_reporting(const struct intel_crtc_state
 	 * since otherwise we'll complain about the garbage we read when
 	 * e.g. coming up after runtime pm.
 	 *
-	 * No protection against concurrent access is required - at
+	 * Anal protection against concurrent access is required - at
 	 * worst a fifo underrun happens which also sets this to false.
 	 */
 	intel_init_fifo_underrun_reporting(i915, crtc,
@@ -471,11 +471,11 @@ static bool intel_sanitize_crtc(struct intel_crtc *crtc,
 
 			if (plane_state->uapi.visible &&
 			    plane->base.type != DRM_PLANE_TYPE_PRIMARY)
-				intel_plane_disable_noatomic(crtc, plane);
+				intel_plane_disable_analatomic(crtc, plane);
 		}
 
 		/* Disable any background color/etc. set by the BIOS */
-		intel_color_commit_noarm(crtc_state);
+		intel_color_commit_analarm(crtc_state);
 		intel_color_commit_arm(crtc_state);
 	}
 
@@ -492,7 +492,7 @@ static bool intel_sanitize_crtc(struct intel_crtc *crtc,
 	if (!needs_link_reset && intel_crtc_has_encoders(crtc))
 		return false;
 
-	intel_crtc_disable_noatomic(crtc, ctx);
+	intel_crtc_disable_analatomic(crtc, ctx);
 
 	/*
 	 * The HPD state on other active/disconnected TC ports may be stuck in
@@ -547,13 +547,13 @@ static bool has_bogus_dpll_config(const struct intel_crtc_state *crtc_state)
 	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
 
 	/*
-	 * Some SNB BIOSen (eg. ASUS K53SV) are known to misprogram
+	 * Some SNB BIOSen (eg. ASUS K53SV) are kanalwn to misprogram
 	 * the hardware when a high res displays plugged in. DPLL P
 	 * divider is zero, and the pipe timings are bonkers. We'll
 	 * try to disable everything in that case.
 	 *
 	 * FIXME would be nice to be able to sanitize this state
-	 * without several WARNs, but for now let's take the easy
+	 * without several WARNs, but for analw let's take the easy
 	 * road.
 	 */
 	return IS_SANDYBRIDGE(i915) &&
@@ -590,7 +590,7 @@ static void intel_sanitize_encoder(struct intel_encoder *encoder)
 	connector = intel_encoder_find_connector(encoder);
 	if (connector && !has_active_crtc) {
 		drm_dbg_kms(&i915->drm,
-			    "[ENCODER:%d:%s] has active connectors but no active pipe!\n",
+			    "[ENCODER:%d:%s] has active connectors but anal active pipe!\n",
 			    encoder->base.base.id,
 			    encoder->base.name);
 
@@ -599,7 +599,7 @@ static void intel_sanitize_encoder(struct intel_encoder *encoder)
 						pmdemand_state, false);
 
 		/*
-		 * Connector is active, but has no active pipe. This is fallout
+		 * Connector is active, but has anal active pipe. This is fallout
 		 * from our resume register restoring. Disable the encoder
 		 * manually again.
 		 */
@@ -637,8 +637,8 @@ static void intel_sanitize_encoder(struct intel_encoder *encoder)
 		connector->base.encoder = NULL;
 	}
 
-	/* notify opregion of the sanitized encoder state */
-	intel_opregion_notify_encoder(encoder, connector && has_active_crtc);
+	/* analtify opregion of the sanitized encoder state */
+	intel_opregion_analtify_encoder(encoder, connector && has_active_crtc);
 
 	if (HAS_DDI(i915))
 		intel_ddi_sanitize_encoder_pll_mapping(encoder);
@@ -910,7 +910,7 @@ static void intel_early_display_was(struct drm_i915_private *i915)
 {
 	/*
 	 * Display WA #1185 WaDisableDARBFClkGating:glk,icl,ehl,tgl
-	 * Also known as Wa_14010480278.
+	 * Also kanalwn as Wa_14010480278.
 	 */
 	if (IS_DISPLAY_VER(i915, 10, 12))
 		intel_de_rmw(i915, GEN9_CLKGATE_DIS_0, 0, DARBF_GATING_DIS);
@@ -944,7 +944,7 @@ void intel_modeset_setup_hw_state(struct drm_i915_private *i915,
 	intel_early_display_was(i915);
 	intel_modeset_readout_hw_state(i915);
 
-	/* HW state is read out, now we need to sanitize this mess. */
+	/* HW state is read out, analw we need to sanitize this mess. */
 	get_encoder_power_domains(i915);
 
 	intel_pch_sanitize(i915);

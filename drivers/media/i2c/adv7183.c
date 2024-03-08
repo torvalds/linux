@@ -6,7 +6,7 @@
  */
 
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
@@ -386,7 +386,7 @@ static int adv7183_querystd(struct v4l2_subdev *sd, v4l2_std_id *std)
 		*std &= V4L2_STD_SECAM;
 		break;
 	default:
-		*std = V4L2_STD_UNKNOWN;
+		*std = V4L2_STD_UNKANALWN;
 		break;
 	}
 
@@ -399,7 +399,7 @@ static int adv7183_g_input_status(struct v4l2_subdev *sd, u32 *status)
 {
 	int reg;
 
-	*status = V4L2_IN_ST_NO_SIGNAL;
+	*status = V4L2_IN_ST_ANAL_SIGNAL;
 	reg = adv7183_read(sd, ADV7183_STATUS_1);
 	if (reg < 0)
 		return reg;
@@ -538,7 +538,7 @@ static int adv7183_probe(struct i2c_client *client)
 
 	decoder = devm_kzalloc(&client->dev, sizeof(*decoder), GFP_KERNEL);
 	if (decoder == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * Requesting high will assert reset, the line should be

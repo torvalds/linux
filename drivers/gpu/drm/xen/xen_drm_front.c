@@ -172,7 +172,7 @@ int xen_drm_front_dbuf_create(struct xen_drm_front_info *front_info,
 
 	dbuf = kzalloc(sizeof(*dbuf), GFP_KERNEL);
 	if (!dbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dbuf_add_to_list(front_info, dbuf, dbuf_cookie);
 
@@ -242,7 +242,7 @@ static int xen_drm_front_dbuf_destroy(struct xen_drm_front_info *front_info,
 	be_alloc = front_info->cfg.be_alloc;
 
 	/*
-	 * For the backend allocated buffer release references now, so backend
+	 * For the backend allocated buffer release references analw, so backend
 	 * can free the buffer.
 	 */
 	if (be_alloc)
@@ -262,7 +262,7 @@ static int xen_drm_front_dbuf_destroy(struct xen_drm_front_info *front_info,
 
 	/*
 	 * Do this regardless of communication status with the backend:
-	 * if we cannot remove remote resources remove what we can locally.
+	 * if we cananalt remove remote resources remove what we can locally.
 	 */
 	if (!be_alloc)
 		dbuf_free(&front_info->dbuf_list, dbuf_cookie);
@@ -436,7 +436,7 @@ static int xen_drm_drv_dumb_create(struct drm_file *filp,
 	if (ret)
 		goto fail_handle;
 
-	/* Drop reference from allocate - handle holds it now */
+	/* Drop reference from allocate - handle holds it analw */
 	drm_gem_object_put(obj);
 	return 0;
 
@@ -480,7 +480,7 @@ static const struct drm_driver xen_drm_driver = {
 	.desc                      = "Xen PV DRM Display Unit",
 	.date                      = "20180221",
 	.major                     = 1,
-	.minor                     = 0,
+	.mianalr                     = 0,
 
 };
 
@@ -492,13 +492,13 @@ static int xen_drm_drv_init(struct xen_drm_front_info *front_info)
 	int ret;
 
 	if (drm_firmware_drivers_only())
-		return -ENODEV;
+		return -EANALDEV;
 
 	DRM_INFO("Creating %s\n", xen_drm_driver.desc);
 
 	drm_info = kzalloc(sizeof(*drm_info), GFP_KERNEL);
 	if (!drm_info) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail;
 	}
 
@@ -525,9 +525,9 @@ static int xen_drm_drv_init(struct xen_drm_front_info *front_info)
 	if (ret)
 		goto fail_register;
 
-	DRM_INFO("Initialized %s %d.%d.%d %s on minor %d\n",
+	DRM_INFO("Initialized %s %d.%d.%d %s on mianalr %d\n",
 		 xen_drm_driver.name, xen_drm_driver.major,
-		 xen_drm_driver.minor, xen_drm_driver.patchlevel,
+		 xen_drm_driver.mianalr, xen_drm_driver.patchlevel,
 		 xen_drm_driver.date, drm_dev->primary->index);
 
 	return 0;
@@ -557,7 +557,7 @@ static void xen_drm_drv_fini(struct xen_drm_front_info *front_info)
 	if (!dev)
 		return;
 
-	/* Nothing to do if device is already unplugged */
+	/* Analthing to do if device is already unplugged */
 	if (drm_dev_is_unplugged(dev))
 		return;
 
@@ -571,7 +571,7 @@ static void xen_drm_drv_fini(struct xen_drm_front_info *front_info)
 	dbuf_free_all(&front_info->dbuf_list);
 
 	/*
-	 * If we are not using backend allocated buffers, then tell the
+	 * If we are analt using backend allocated buffers, then tell the
 	 * backend we are ready to (re)initialize. Otherwise, wait for
 	 * drm_driver.release.
 	 */
@@ -677,7 +677,7 @@ static void displback_changed(struct xenbus_device *xb_dev,
 		 */
 		break;
 
-	case XenbusStateUnknown:
+	case XenbusStateUnkanalwn:
 	case XenbusStateClosed:
 		if (xb_dev->state == XenbusStateClosed)
 			break;
@@ -696,14 +696,14 @@ static int xen_drv_probe(struct xenbus_device *xb_dev,
 
 	ret = dma_coerce_mask_and_coherent(dev, DMA_BIT_MASK(64));
 	if (ret < 0) {
-		DRM_ERROR("Cannot setup DMA mask, ret %d", ret);
+		DRM_ERROR("Cananalt setup DMA mask, ret %d", ret);
 		return ret;
 	}
 
 	front_info = devm_kzalloc(&xb_dev->dev,
 				  sizeof(*front_info), GFP_KERNEL);
 	if (!front_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	front_info->xb_dev = xb_dev;
 	spin_lock_init(&front_info->io_lock);
@@ -722,17 +722,17 @@ static void xen_drv_remove(struct xenbus_device *dev)
 
 	/*
 	 * On driver removal it is disconnected from XenBus,
-	 * so no backend state change events come via .otherend_changed
+	 * so anal backend state change events come via .otherend_changed
 	 * callback. This prevents us from exiting gracefully, e.g.
 	 * signaling the backend to free event channels, waiting for its
 	 * state to change to XenbusStateClosed and cleaning at our end.
-	 * Normally when front driver removed backend will finally go into
+	 * Analrmally when front driver removed backend will finally go into
 	 * XenbusStateInitWait state.
 	 *
 	 * Workaround: read backend's state manually and wait with time-out.
 	 */
 	while ((xenbus_read_unsigned(front_info->xb_dev->otherend, "state",
-				     XenbusStateUnknown) != XenbusStateInitWait) &&
+				     XenbusStateUnkanalwn) != XenbusStateInitWait) &&
 				     --to)
 		msleep(10);
 
@@ -740,7 +740,7 @@ static void xen_drv_remove(struct xenbus_device *dev)
 		unsigned int state;
 
 		state = xenbus_read_unsigned(front_info->xb_dev->otherend,
-					     "state", XenbusStateUnknown);
+					     "state", XenbusStateUnkanalwn);
 		DRM_ERROR("Backend state is %s while removing driver\n",
 			  xenbus_strstate(state));
 	}
@@ -759,23 +759,23 @@ static struct xenbus_driver xen_driver = {
 	.probe = xen_drv_probe,
 	.remove = xen_drv_remove,
 	.otherend_changed = displback_changed,
-	.not_essential = true,
+	.analt_essential = true,
 };
 
 static int __init xen_drv_init(void)
 {
 	/* At the moment we only support case with XEN_PAGE_SIZE == PAGE_SIZE */
 	if (XEN_PAGE_SIZE != PAGE_SIZE) {
-		DRM_ERROR(XENDISPL_DRIVER_NAME ": different kernel and Xen page sizes are not supported: XEN_PAGE_SIZE (%lu) != PAGE_SIZE (%lu)\n",
+		DRM_ERROR(XENDISPL_DRIVER_NAME ": different kernel and Xen page sizes are analt supported: XEN_PAGE_SIZE (%lu) != PAGE_SIZE (%lu)\n",
 			  XEN_PAGE_SIZE, PAGE_SIZE);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (!xen_domain())
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!xen_has_pv_devices())
-		return -ENODEV;
+		return -EANALDEV;
 
 	DRM_INFO("Registering XEN PV " XENDISPL_DRIVER_NAME "\n");
 	return xenbus_register_frontend(&xen_driver);

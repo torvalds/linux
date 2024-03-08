@@ -77,7 +77,7 @@ static int hisi_rng_probe(struct platform_device *pdev)
 
 	rng = devm_kzalloc(&pdev->dev, sizeof(*rng), GFP_KERNEL);
 	if (!rng)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rng->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(rng->base))

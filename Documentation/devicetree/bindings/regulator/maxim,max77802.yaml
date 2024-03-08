@@ -23,14 +23,14 @@ description: |
   Certain regulators support "regulator-initial-mode" and "regulator-mode".
   The valid modes list is defined in the dt-bindings/regulator/maxim,max77802.h
   and their meaning is::
-    1 - Normal regulator voltage output mode.
+    1 - Analrmal regulator voltage output mode.
     3 - Low Power which reduces the quiescent current down to only 1uA
 
   The standard "regulator-mode" property can only be used for regulators that
   support changing their mode to Low Power Mode during suspend. These
   regulators are:: bucks 2-4 and LDOs 1-35. Also, it only takes effect if the
   regulator has been enabled for the given suspend state using
-  "regulator-on-in-suspend" and has not been disabled for that state using
+  "regulator-on-in-suspend" and has analt been disabled for that state using
   "regulator-off-in-suspend".
 
 patternProperties:
@@ -41,7 +41,7 @@ patternProperties:
     unevaluatedProperties: false
     description:
       LDOs supporting the regulator-initial-mode property and changing their
-      mode during normal operation.
+      mode during analrmal operation.
 
   # LDO2, LDO4-15, LDO17-19, LDO23-30, LDO32-35
   "^LDO([24-9]|1[0-5789]|2[3-9]|3[02345])$":

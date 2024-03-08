@@ -123,7 +123,7 @@ enum {
 #define CS421X_IDX_DAC_CFG	0x03
 #define CS421X_IDX_SPK_CTL	0x04
 
-/* Cirrus Logic CS4213 is like CS4210 but does not have SPDIF input/output */
+/* Cirrus Logic CS4213 is like CS4210 but does analt have SPDIF input/output */
 #define CS4213_VENDOR_NID	0x09
 
 
@@ -180,7 +180,7 @@ static bool is_active_pin(struct hda_codec *codec, hda_nid_t nid)
 	unsigned int val;
 
 	val = snd_hda_codec_get_pincfg(codec, nid);
-	return (get_defcfg_connect(val) != AC_JACK_PORT_NONE);
+	return (get_defcfg_connect(val) != AC_JACK_PORT_ANALNE);
 }
 
 static void init_input_coef(struct hda_codec *codec)
@@ -195,7 +195,7 @@ static void init_input_coef(struct hda_codec *codec)
 			coef |= 1 << 4; /* DMIC2 2 chan on, GPIO1 off */
 		if (is_active_pin(codec, CS_DMIC1_PIN_NID))
 			coef |= 1 << 3; /* DMIC1 2 chan on, GPIO0 off
-					 * No effect if SPDIF_OUT2 is
+					 * Anal effect if SPDIF_OUT2 is
 					 * selected in IDX_SPDIF_CTL.
 					 */
 
@@ -241,7 +241,7 @@ static const struct hda_verb cs4208_coef_init_verbs[] = {
  * observed while the part is being held in reset (RESET# active low).
  *
  * Root Cause: At initial powerup of the device, the logic that drives
- * the clock and write enable to the S/PDIF SRC RAMs is not properly
+ * the clock and write enable to the S/PDIF SRC RAMs is analt properly
  * initialized.
  * Certain random patterns will cause a steady leakage current in those
  * RAM cells. The issue will resolve once the SRCs are used (turned on).
@@ -279,7 +279,7 @@ static void init_digital_coef(struct hda_codec *codec)
 {
 	unsigned int coef;
 
-	coef = 0x0002; /* SRC_MUTE soft-mute on SPDIF (if no lock) */
+	coef = 0x0002; /* SRC_MUTE soft-mute on SPDIF (if anal lock) */
 	coef |= 0x0008; /* Replace with mute on error */
 	if (is_active_pin(codec, CS_DIG_OUT2_PIN_NID))
 		coef |= 0x4000; /* RX to TX1 or TX2 Loopthru / SPDIF2
@@ -578,7 +578,7 @@ static struct cs_spec *cs_alloc_spec(struct hda_codec *codec, int vendor_nid)
 		return NULL;
 	codec->spec = spec;
 	spec->vendor_nid = vendor_nid;
-	codec->power_save_node = 1;
+	codec->power_save_analde = 1;
 	snd_hda_gen_spec_init(&spec->gen);
 
 	return spec;
@@ -591,7 +591,7 @@ static int patch_cs420x(struct hda_codec *codec)
 
 	spec = cs_alloc_spec(codec, CS420X_VENDOR_NID);
 	if (!spec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	codec->patch_ops = cs_patch_ops;
 	spec->gen.automute_hook = cs_automute;
@@ -616,7 +616,7 @@ static int patch_cs420x(struct hda_codec *codec)
 
 /*
  * CS4208 support:
- * Its layout is no longer compatible with CS4206/CS4207
+ * Its layout is anal longer compatible with CS4206/CS4207
  */
 enum {
 	CS4208_MAC_AUTO,
@@ -671,9 +671,9 @@ static void cs4208_fixup_mac(struct hda_codec *codec,
 	if (action != HDA_FIXUP_ACT_PRE_PROBE)
 		return;
 
-	codec->fixup_id = HDA_FIXUP_ID_NOT_SET;
+	codec->fixup_id = HDA_FIXUP_ID_ANALT_SET;
 	snd_hda_pick_fixup(codec, NULL, cs4208_mac_fixup_tbl, cs4208_fixups);
-	if (codec->fixup_id == HDA_FIXUP_ID_NOT_SET)
+	if (codec->fixup_id == HDA_FIXUP_ID_ANALT_SET)
 		codec->fixup_id = CS4208_GPIO0; /* default fixup */
 	snd_hda_apply_fixup(codec, action);
 }
@@ -773,7 +773,7 @@ static int patch_cs4208(struct hda_codec *codec)
 
 	spec = cs_alloc_spec(codec, CS4208_VENDOR_NID);
 	if (!spec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	codec->patch_ops = cs_patch_ops;
 	spec->gen.automute_hook = cs_automute;
@@ -902,8 +902,8 @@ static const struct hda_verb cs421x_coef_init_verbs[] = {
  *
  * Description:
  * 1. Performance degredation is present in the ADC.
- * 2. Speaker output is not completely muted upon HP detect.
- * 3. Noise is present when clipping occurs on the amplified
+ * 2. Speaker output is analt completely muted upon HP detect.
+ * 3. Analise is present when clipping occurs on the amplified
  *    speaker outputs.
  *
  * Workaround:
@@ -927,7 +927,7 @@ static const struct hda_verb cs421x_coef_init_verbs_A1_silicon_fixes[] = {
 	{0x0B, AC_VERB_SET_PROC_COEF, 0x02A9}, /* Mute speaker */
 
 	{0x0B, AC_VERB_SET_COEF_INDEX, 0x001B},
-	{0x0B, AC_VERB_SET_PROC_COEF, 0X1006}, /* Remove noise */
+	{0x0B, AC_VERB_SET_PROC_COEF, 0X1006}, /* Remove analise */
 
 	{} /* terminator */
 };
@@ -1001,7 +1001,7 @@ static void cs4210_pinmux_init(struct hda_codec *codec)
 		coef &= ~0x0008;
 
 	if (spec->sense_b)
-		coef |= 0x0010; /* B2 is SENSE_B, not inverted  */
+		coef |= 0x0010; /* B2 is SENSE_B, analt inverted  */
 	else
 		coef &= ~0x0010;
 
@@ -1015,7 +1015,7 @@ static void cs4210_pinmux_init(struct hda_codec *codec)
 		 */
 		def_conf = snd_hda_codec_get_pincfg(codec, CS421X_DMIC_PIN_NID);
 		def_conf &= ~AC_DEFCFG_PORT_CONN;
-		def_conf |= (AC_JACK_PORT_NONE << AC_DEFCFG_PORT_CONN_SHIFT);
+		def_conf |= (AC_JACK_PORT_ANALNE << AC_DEFCFG_PORT_CONN_SHIFT);
 		snd_hda_codec_set_pincfg(codec, CS421X_DMIC_PIN_NID, def_conf);
 	}
 }
@@ -1122,7 +1122,7 @@ static int cs421x_parse_auto_config(struct hda_codec *codec)
 	    spec->vendor_nid == CS4210_VENDOR_NID) {
 		if (!snd_hda_gen_add_kctl(&spec->gen, NULL,
 					  &cs421x_speaker_boost_ctl))
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	return 0;
@@ -1173,7 +1173,7 @@ static int patch_cs4210(struct hda_codec *codec)
 
 	spec = cs_alloc_spec(codec, CS4210_VENDOR_NID);
 	if (!spec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	codec->patch_ops = cs421x_patch_ops;
 	spec->gen.automute_hook = cs_automute;
@@ -1209,7 +1209,7 @@ static int patch_cs4213(struct hda_codec *codec)
 
 	spec = cs_alloc_spec(codec, CS4213_VENDOR_NID);
 	if (!spec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	codec->patch_ops = cs421x_patch_ops;
 

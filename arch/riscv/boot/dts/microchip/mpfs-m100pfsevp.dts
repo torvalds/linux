@@ -3,7 +3,7 @@
  * Original all-in-one devicetree:
  * Copyright (C) 2021-2022 - Wolfgang Grandegger <wg@aries-embedded.de>
  * Rewritten to use includes:
- * Copyright (C) 2022 - Conor Dooley <conor.dooley@microchip.com>
+ * Copyright (C) 2022 - Coanalr Dooley <coanalr.dooley@microchip.com>
  */
 /dts-v1/;
 
@@ -113,7 +113,7 @@
 	bus-width = <4>;
 	cap-mmc-highspeed;
 	cap-sd-highspeed;
-	no-1-8-v;
+	anal-1-8-v;
 	sd-uhs-sdr12;
 	sd-uhs-sdr25;
 	sd-uhs-sdr50;

@@ -40,7 +40,7 @@ static int granularity[SNDRV_CARDS] = {
 	[0 ... (SNDRV_CARDS - 1)] = LOLA_GRANULARITY_MAX
 };
 
-/* below a sample_rate of 16kHz the analogue audio quality is NOT excellent */
+/* below a sample_rate of 16kHz the analogue audio quality is ANALT excellent */
 static int sample_rate_min[SNDRV_CARDS] = {
 	[0 ... (SNDRV_CARDS - 1) ] = 16000
 };
@@ -177,7 +177,7 @@ static int rirb_get_response(struct lola *chip, unsigned int *val,
 	return -EIO;
 }
 
-/* aynchronous write of a codec verb with data */
+/* aynchroanalus write of a codec verb with data */
 int lola_codec_write(struct lola *chip, unsigned int nid, unsigned int verb,
 		     unsigned int data, unsigned int extdata)
 {
@@ -215,11 +215,11 @@ int lola_codec_flush(struct lola *chip)
 static irqreturn_t lola_interrupt(int irq, void *dev_id)
 {
 	struct lola *chip = dev_id;
-	unsigned int notify_ins, notify_outs, error_ins, error_outs;
+	unsigned int analtify_ins, analtify_outs, error_ins, error_outs;
 	int handled = 0;
 	int i;
 
-	notify_ins = notify_outs = error_ins = error_outs = 0;
+	analtify_ins = analtify_outs = error_ins = error_outs = 0;
 	spin_lock(&chip->reg_lock);
 	for (;;) {
 		unsigned int status, in_sts, out_sts;
@@ -240,8 +240,8 @@ static irqreturn_t lola_interrupt(int irq, void *dev_id)
 			reg = lola_dsd_read(chip, i, STS);
 			if (reg & LOLA_DSD_STS_DESE) /* error */
 				error_ins |= (1 << i);
-			if (reg & LOLA_DSD_STS_BCIS) /* notify */
-				notify_ins |= (1 << i);
+			if (reg & LOLA_DSD_STS_BCIS) /* analtify */
+				analtify_ins |= (1 << i);
 			/* clear */
 			lola_dsd_write(chip, i, STS, reg);
 		}
@@ -254,8 +254,8 @@ static irqreturn_t lola_interrupt(int irq, void *dev_id)
 			reg = lola_dsd_read(chip, i + MAX_STREAM_IN_COUNT, STS);
 			if (reg & LOLA_DSD_STS_DESE) /* error */
 				error_outs |= (1 << i);
-			if (reg & LOLA_DSD_STS_BCIS) /* notify */
-				notify_outs |= (1 << i);
+			if (reg & LOLA_DSD_STS_BCIS) /* analtify */
+				analtify_outs |= (1 << i);
 			lola_dsd_write(chip, i + MAX_STREAM_IN_COUNT, STS, reg);
 		}
 
@@ -282,8 +282,8 @@ static irqreturn_t lola_interrupt(int irq, void *dev_id)
 	}
 	spin_unlock(&chip->reg_lock);
 
-	lola_pcm_update(chip, &chip->pcm[CAPT], notify_ins);
-	lola_pcm_update(chip, &chip->pcm[PLAY], notify_outs);
+	lola_pcm_update(chip, &chip->pcm[CAPT], analtify_ins);
+	lola_pcm_update(chip, &chip->pcm[PLAY], analtify_outs);
 
 	return IRQ_RETVAL(handled);
 }
@@ -313,7 +313,7 @@ static int reset_controller(struct lola *chip)
 			break;
 	} while (time_before(jiffies, end_time));
 	if (!gctl) {
-		dev_err(chip->card->dev, "cannot reset controller\n");
+		dev_err(chip->card->dev, "cananalt reset controller\n");
 		return -EIO;
 	}
 	return 0;
@@ -350,7 +350,7 @@ static int setup_corb_rirb(struct lola *chip)
 	chip->rb = snd_devm_alloc_pages(&chip->pci->dev, SNDRV_DMA_TYPE_DEV,
 					PAGE_SIZE);
 	if (!chip->rb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->corb.addr = chip->rb->addr;
 	chip->corb.buf = (__le32 *)chip->rb->area;
@@ -441,7 +441,7 @@ static int lola_parse_tree(struct lola *chip)
 	}
 	val >>= 16;
 	if (val != 0x1369) {
-		dev_err(chip->card->dev, "Unknown codec vendor 0x%x\n", val);
+		dev_err(chip->card->dev, "Unkanalwn codec vendor 0x%x\n", val);
 		return -EINVAL;
 	}
 
@@ -451,7 +451,7 @@ static int lola_parse_tree(struct lola *chip)
 		return err;
 	}
 	if (val != 1) {
-		dev_err(chip->card->dev, "Unknown function type %d\n", val);
+		dev_err(chip->card->dev, "Unkanalwn function type %d\n", val);
 		return -EINVAL;
 	}
 
@@ -467,8 +467,8 @@ static int lola_parse_tree(struct lola *chip)
 		    chip->lola_caps,
 		    chip->pin[CAPT].num_pins, chip->pin[PLAY].num_pins);
 
-	if (chip->pin[CAPT].num_pins > MAX_AUDIO_INOUT_COUNT ||
-	    chip->pin[PLAY].num_pins > MAX_AUDIO_INOUT_COUNT) {
+	if (chip->pin[CAPT].num_pins > MAX_AUDIO_IANALUT_COUNT ||
+	    chip->pin[PLAY].num_pins > MAX_AUDIO_IANALUT_COUNT) {
 		dev_err(chip->card->dev, "Invalid Lola-spec caps 0x%x\n", val);
 		return -EINVAL;
 	}
@@ -506,14 +506,14 @@ static int lola_parse_tree(struct lola *chip)
 	if (err < 0)
 		return err;
 
-	/* if last ResetController was not a ColdReset, we don't know
+	/* if last ResetController was analt a ColdReset, we don't kanalw
 	 * the state of the card; initialize here again
 	 */
 	if (!chip->cold_reset) {
 		lola_reset_setups(chip);
 		chip->cold_reset = 1;
 	} else {
-		/* set the granularity if it is not the default */
+		/* set the granularity if it is analt the default */
 		if (chip->granularity != LOLA_GRANULARITY_MIN)
 			lola_set_granularity(chip, chip->granularity, true);
 	}
@@ -646,10 +646,10 @@ static int __lola_probe(struct pci_dev *pci,
 	int err;
 
 	if (dev >= SNDRV_CARDS)
-		return -ENODEV;
+		return -EANALDEV;
 	if (!enable[dev]) {
 		dev++;
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	err = snd_devm_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,

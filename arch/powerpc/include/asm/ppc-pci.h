@@ -15,18 +15,18 @@ extern unsigned long isa_io_base;
 
 extern struct list_head hose_list;
 
-extern struct pci_dev *isa_bridge_pcidev;	/* may be NULL if no ISA bus */
+extern struct pci_dev *isa_bridge_pcidev;	/* may be NULL if anal ISA bus */
 
 /** Bus Unit ID macros; get low and hi 32-bits of the 64-bit BUID */
 #define BUID_HI(buid) upper_32_bits(buid)
 #define BUID_LO(buid) lower_32_bits(buid)
 
-/* PCI device_node operations */
-struct device_node;
+/* PCI device_analde operations */
+struct device_analde;
 struct pci_dn;
 
-void *pci_traverse_device_nodes(struct device_node *start,
-				void *(*fn)(struct device_node *, void *),
+void *pci_traverse_device_analdes(struct device_analde *start,
+				void *(*fn)(struct device_analde *, void *),
 				void *data);
 extern void pci_devs_phb_init_dynamic(struct pci_controller *phb);
 
@@ -42,7 +42,7 @@ static inline void ppc_iommu_unregister_device(struct pci_controller *phb) { }
 
 /* From rtas_pci.h */
 extern void init_pci_config_tokens (void);
-extern unsigned long get_phb_buid (struct device_node *);
+extern unsigned long get_phb_buid (struct device_analde *);
 extern int rtas_setup_phb(struct pci_controller *phb);
 
 int rtas_pci_dn_read_config(struct pci_dn *pdn, int where, int size, u32 *val);
@@ -72,7 +72,7 @@ void eeh_sysfs_remove_device(struct pci_dev *pdev);
 void __init uli_init(void);
 #endif /* CONFIG_FSL_ULI1575 */
 
-#define PCI_BUSNO(bdfn) ((bdfn >> 8) & 0xff)
+#define PCI_BUSANAL(bdfn) ((bdfn >> 8) & 0xff)
 
 #else /* CONFIG_PCI */
 static inline void init_pci_config_tokens(void) { }

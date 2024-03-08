@@ -19,7 +19,7 @@ struct gb_control {
 	struct gb_connection *connection;
 
 	u8 protocol_major;
-	u8 protocol_minor;
+	u8 protocol_mianalr;
 
 	bool has_bundle_activate;
 	bool has_bundle_version;

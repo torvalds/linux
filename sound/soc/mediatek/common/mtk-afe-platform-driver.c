@@ -32,7 +32,7 @@ int mtk_afe_combine_sub_dai(struct mtk_base_afe *afe)
 					sizeof(struct snd_soc_dai_driver),
 					GFP_KERNEL);
 	if (!afe->dai_drivers)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	list_for_each_entry(dai, &afe->sub_dais, list) {
 		/* dai driver */

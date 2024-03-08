@@ -2,7 +2,7 @@
 /*
  * Device driver for Hi6421 PMIC
  *
- * Copyright (c) <2011-2014> HiSilicon Technologies Co., Ltd.
+ * Copyright (c) <2011-2014> HiSilicon Techanallogies Co., Ltd.
  *              http://www.hisilicon.com
  * Copyright (c) <2013-2017> Linaro Ltd.
  *              https://www.linaro.org
@@ -60,7 +60,7 @@ static int hi6421_pmic_probe(struct platform_device *pdev)
 
 	pmic = devm_kzalloc(&pdev->dev, sizeof(*pmic), GFP_KERNEL);
 	if (!pmic)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	base = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(base))
@@ -94,12 +94,12 @@ static int hi6421_pmic_probe(struct platform_device *pdev)
 		n_subdevs = ARRAY_SIZE(hi6421v530_devs);
 		break;
 	default:
-		dev_err(&pdev->dev, "Unknown device type %d\n",
+		dev_err(&pdev->dev, "Unkanalwn device type %d\n",
 						(unsigned int)type);
 		return -EINVAL;
 	}
 
-	ret = devm_mfd_add_devices(&pdev->dev, PLATFORM_DEVID_NONE,
+	ret = devm_mfd_add_devices(&pdev->dev, PLATFORM_DEVID_ANALNE,
 				   subdevs, n_subdevs, NULL, 0, NULL);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to add child devices: %d\n", ret);

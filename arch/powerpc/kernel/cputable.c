@@ -75,7 +75,7 @@ static struct cpu_spec * __init setup_cpu_spec(unsigned long offset,
 		t->cpu_features |= old.cpu_features & CPU_FTR_PMAO_BUG;
 	}
 
-	/* Set kuap ON at startup, will be disabled later if cmdline has 'nosmap' */
+	/* Set kuap ON at startup, will be disabled later if cmdline has 'analsmap' */
 	if (IS_ENABLED(CONFIG_PPC_KUAP) && IS_ENABLED(CONFIG_PPC32))
 		t->mmu_features |= MMU_FTR_KUAP;
 
@@ -90,7 +90,7 @@ static struct cpu_spec * __init setup_cpu_spec(unsigned long offset,
 
 #if defined(CONFIG_PPC64) || defined(CONFIG_BOOKE)
 	/* ppc64 and booke expect identify_cpu to also call setup_cpu for
-	 * that processor. I will consolidate that at a later time, for now,
+	 * that processor. I will consolidate that at a later time, for analw,
 	 * just use #ifdef. We also don't need to PTRRELOC the function
 	 * pointer on ppc64 and booke as we are running at 0 in real mode
 	 * on ppc64 and reloc_offset is always 0 on booke.
@@ -125,7 +125,7 @@ struct cpu_spec * __init identify_cpu(unsigned long offset, unsigned int pvr)
 /*
  * Used by cpufeatures to get the name for CPUs with a PVR table.
  * If they don't hae a PVR table, cpufeatures gets the name from
- * cpu device-tree node.
+ * cpu device-tree analde.
  */
 void __init identify_cpu_name(unsigned int pvr)
 {

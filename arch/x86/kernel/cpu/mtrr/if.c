@@ -45,7 +45,7 @@ mtrr_file_add(unsigned long base, unsigned long size,
 	if (fcount == NULL) {
 		fcount = kcalloc(max, sizeof(*fcount), GFP_KERNEL);
 		if (!fcount)
-			return -ENOMEM;
+			return -EANALMEM;
 		FILE_FCOUNT(file) = fcount;
 	}
 	if (!page) {
@@ -85,7 +85,7 @@ mtrr_file_del(unsigned long base, unsigned long size,
 }
 
 /*
- * seq_file can seek but we ignore it.
+ * seq_file can seek but we iganalre it.
  *
  * Format of control line:
  *    "base=%Lx size=%Lx type=%s" or "disable=%d"
@@ -218,7 +218,7 @@ mtrr_ioctl(struct file *file, unsigned int cmd, unsigned long __arg)
 
 	switch (cmd) {
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	case MTRRIOC_ADD_ENTRY:
 #ifdef CONFIG_COMPAT
 	case MTRRIOC32_ADD_ENTRY:
@@ -335,7 +335,7 @@ mtrr_ioctl(struct file *file, unsigned int cmd, unsigned long __arg)
 	return err;
 }
 
-static int mtrr_close(struct inode *ino, struct file *file)
+static int mtrr_close(struct ianalde *ianal, struct file *file)
 {
 	unsigned int *fcount = FILE_FCOUNT(file);
 	int i, max;
@@ -351,7 +351,7 @@ static int mtrr_close(struct inode *ino, struct file *file)
 		kfree(fcount);
 		FILE_FCOUNT(file) = NULL;
 	}
-	return single_release(ino, file);
+	return single_release(ianal, file);
 }
 
 static int mtrr_seq_show(struct seq_file *seq, void *offset)
@@ -385,7 +385,7 @@ static int mtrr_seq_show(struct seq_file *seq, void *offset)
 	return 0;
 }
 
-static int mtrr_open(struct inode *inode, struct file *file)
+static int mtrr_open(struct ianalde *ianalde, struct file *file)
 {
 	if (!mtrr_if)
 		return -EIO;
@@ -416,7 +416,7 @@ static int __init mtrr_if_init(void)
 	    (!cpu_has(c, X86_FEATURE_K6_MTRR)) &&
 	    (!cpu_has(c, X86_FEATURE_CYRIX_ARR)) &&
 	    (!cpu_has(c, X86_FEATURE_CENTAUR_MCR)))
-		return -ENODEV;
+		return -EANALDEV;
 
 	proc_create("mtrr", S_IWUSR | S_IRUGO, NULL, &mtrr_proc_ops);
 	return 0;

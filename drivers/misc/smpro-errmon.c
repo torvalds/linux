@@ -269,7 +269,7 @@ static ssize_t smpro_error_data_read(struct device *dev, struct device_attribute
 		err_length = MAX_READ_BLOCK_LENGTH;
 
 	memset(err_data, 0x00, MAX_READ_BLOCK_LENGTH);
-	ret = regmap_noinc_read(errmon->regmap, err_info->data, err_data, err_length);
+	ret = regmap_analinc_read(errmon->regmap, err_info->data, err_data, err_length);
 	if (ret < 0)
 		return ret;
 
@@ -580,13 +580,13 @@ static int smpro_errmon_probe(struct platform_device *pdev)
 
 	errmon = devm_kzalloc(&pdev->dev, sizeof(struct smpro_errmon), GFP_KERNEL);
 	if (!errmon)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, errmon);
 
 	errmon->regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!errmon->regmap)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }

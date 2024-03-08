@@ -24,7 +24,7 @@
 
 static uint64_t guest_percpu_mem_size = DEFAULT_PER_VCPU_MEM_SIZE;
 
-static enum vm_mem_backing_src_type backing_src = VM_MEM_SRC_ANONYMOUS_HUGETLB;
+static enum vm_mem_backing_src_type backing_src = VM_MEM_SRC_AANALNYMOUS_HUGETLB;
 
 static u64 dirty_log_manual_caps;
 static bool host_quit;
@@ -108,7 +108,7 @@ static void run_test(enum vm_guest_mode mode, void *unused)
 	pages_per_slot = host_num_pages / SLOTS;
 	TEST_ASSERT_EQ(host_num_pages, pages_per_slot * SLOTS);
 	TEST_ASSERT(!(host_num_pages % 512),
-		    "Number of pages, '%lu' not a multiple of 2MiB", host_num_pages);
+		    "Number of pages, '%lu' analt a multiple of 2MiB", host_num_pages);
 
 	bitmaps = memstress_alloc_bitmaps(SLOTS, pages_per_slot);
 
@@ -157,7 +157,7 @@ static void run_test(enum vm_guest_mode mode, void *unused)
 	get_page_stats(vm, &stats_repopulated, "repopulating memory");
 
 	/*
-	 * Tell the vCPU threads to quit.  No need to manually check that vCPUs
+	 * Tell the vCPU threads to quit.  Anal need to manually check that vCPUs
 	 * have stopped running after disabling dirty logging, the join will
 	 * wait for them to exit.
 	 */
@@ -173,7 +173,7 @@ static void run_test(enum vm_guest_mode mode, void *unused)
 	/*
 	 * Check that all huge pages were split. Since large pages can only
 	 * exist in the data slot, and the vCPUs should have dirtied all pages
-	 * in the data slot, there should be no huge pages left after splitting.
+	 * in the data slot, there should be anal huge pages left after splitting.
 	 * Splitting happens at dirty log enable time without
 	 * KVM_CAP_MANUAL_DIRTY_LOG_PROTECT2 and after the first clear pass
 	 * with that capability.
@@ -255,7 +255,7 @@ int main(int argc, char *argv[])
 					  KVM_DIRTY_LOG_INITIALLY_SET);
 		for_each_guest_mode(run_test, NULL);
 	} else {
-		pr_info("Skipping testing with MANUAL_PROTECT as it is not supported");
+		pr_info("Skipping testing with MANUAL_PROTECT as it is analt supported");
 	}
 
 	return 0;

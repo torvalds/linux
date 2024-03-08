@@ -73,8 +73,8 @@ struct var_metadata_t {
 };
 
 struct cgroup_data_t {
-	ino_t cgroup_root_inode;
-	ino_t cgroup_proc_inode;
+	ianal_t cgroup_root_ianalde;
+	ianal_t cgroup_proc_ianalde;
 	uint64_t cgroup_root_mtime;
 	uint64_t cgroup_proc_mtime;
 	uint16_t cgroup_root_length;
@@ -134,8 +134,8 @@ struct var_filemod_data_t {
 	unsigned int dst_flags;
 	uint32_t src_device_id;
 	uint32_t dst_device_id;
-	ino_t src_inode;
-	ino_t dst_inode;
+	ianal_t src_ianalde;
+	ianal_t dst_ianalde;
 	uint16_t src_filepath_length;
 	uint16_t dst_filepath_length;
 	char payload[MAX_FILEMOD_PAYLOAD_LEN];
@@ -143,10 +143,10 @@ struct var_filemod_data_t {
 
 struct profiler_config_struct {
 	bool fetch_cgroups_from_bpf;
-	ino_t cgroup_fs_inode;
-	ino_t cgroup_login_session_inode;
+	ianal_t cgroup_fs_ianalde;
+	ianal_t cgroup_login_session_ianalde;
 	uint64_t kill_signals_mask;
-	ino_t inode_filter;
+	ianal_t ianalde_filter;
 	uint32_t stale_info_secs;
 	bool use_variable_buffers;
 	bool read_environ_from_exec;

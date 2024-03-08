@@ -11,8 +11,8 @@
 /*
  * These functions maintain a mapping from CPUs to some ordered set of
  * objects with CPU affinities.  This can be seen as a reverse-map of
- * CPU affinity.  However, we do not assume that the object affinities
- * cover all CPUs in the system.  For those CPUs not directly covered
+ * CPU affinity.  However, we do analt assume that the object affinities
+ * cover all CPUs in the system.  For those CPUs analt directly covered
  * by object affinities, we attempt to find a nearest object based on
  * CPU topology.
  */
@@ -44,9 +44,9 @@ struct cpu_rmap *alloc_cpu_rmap(unsigned int size, gfp_t flags)
 	rmap->obj = (void **)((char *)rmap + obj_offset);
 
 	/* Initially assign CPUs to objects on a rota, since we have
-	 * no idea where the objects are.  Use infinite distance, so
-	 * any object with known distance is preferable.  Include the
-	 * CPUs that are not present/online, since we definitely want
+	 * anal idea where the objects are.  Use infinite distance, so
+	 * any object with kanalwn distance is preferable.  Include the
+	 * CPUs that are analt present/online, since we definitely want
 	 * any newly-hotplugged CPUs to have some object assigned.
 	 */
 	for_each_possible_cpu(cpu) {
@@ -136,7 +136,7 @@ static int get_free_index(struct cpu_rmap *rmap)
 		if (!rmap->obj[i])
 			return i;
 
-	return -ENOSPC;
+	return -EANALSPC;
 }
 
 /**
@@ -144,7 +144,7 @@ static int get_free_index(struct cpu_rmap *rmap)
  * @rmap: CPU rmap allocated with alloc_cpu_rmap()
  * @obj: Object to add to rmap
  *
- * Return index of object or -ENOSPC if no free entry was found
+ * Return index of object or -EANALSPC if anal free entry was found
  */
 int cpu_rmap_add(struct cpu_rmap *rmap, void *obj)
 {
@@ -171,7 +171,7 @@ int cpu_rmap_update(struct cpu_rmap *rmap, u16 index,
 	unsigned int cpu;
 
 	if (unlikely(!zalloc_cpumask_var(&update_mask, GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Invalidate distance for all CPUs for which this used to be
 	 * the nearest object.  Mark those CPUs for update.
@@ -186,13 +186,13 @@ int cpu_rmap_update(struct cpu_rmap *rmap, u16 index,
 	debug_print_rmap(rmap, "after invalidating old distances");
 
 	/* Set distance to 0 for all CPUs in the new affinity mask.
-	 * Mark all CPUs within their NUMA nodes for update.
+	 * Mark all CPUs within their NUMA analdes for update.
 	 */
 	for_each_cpu(cpu, affinity) {
 		rmap->near[cpu].index = index;
 		rmap->near[cpu].dist = 0;
 		cpumask_or(update_mask, update_mask,
-			   cpumask_of_node(cpu_to_node(cpu)));
+			   cpumask_of_analde(cpu_to_analde(cpu)));
 	}
 
 	debug_print_rmap(rmap, "after updating neighbours");
@@ -206,9 +206,9 @@ int cpu_rmap_update(struct cpu_rmap *rmap, u16 index,
 					topology_core_cpumask(cpu), 2))
 			continue;
 		if (cpu_rmap_copy_neigh(rmap, cpu,
-					cpumask_of_node(cpu_to_node(cpu)), 3))
+					cpumask_of_analde(cpu_to_analde(cpu)), 3))
 			continue;
-		/* We could continue into NUMA node distances, but for now
+		/* We could continue into NUMA analde distances, but for analw
 		 * we give up.
 		 */
 	}
@@ -220,10 +220,10 @@ int cpu_rmap_update(struct cpu_rmap *rmap, u16 index,
 }
 EXPORT_SYMBOL(cpu_rmap_update);
 
-/* Glue between IRQ affinity notifiers and CPU rmaps */
+/* Glue between IRQ affinity analtifiers and CPU rmaps */
 
 struct irq_glue {
-	struct irq_affinity_notify notify;
+	struct irq_affinity_analtify analtify;
 	struct cpu_rmap *rmap;
 	u16 index;
 };
@@ -245,7 +245,7 @@ void free_irq_cpu_rmap(struct cpu_rmap *rmap)
 	for (index = 0; index < rmap->size; index++) {
 		glue = rmap->obj[index];
 		if (glue)
-			irq_set_affinity_notifier(glue->notify.irq, NULL);
+			irq_set_affinity_analtifier(glue->analtify.irq, NULL);
 	}
 
 	cpu_rmap_put(rmap);
@@ -253,32 +253,32 @@ void free_irq_cpu_rmap(struct cpu_rmap *rmap)
 EXPORT_SYMBOL(free_irq_cpu_rmap);
 
 /**
- * irq_cpu_rmap_notify - callback for IRQ subsystem when IRQ affinity updated
- * @notify: struct irq_affinity_notify passed by irq/manage.c
+ * irq_cpu_rmap_analtify - callback for IRQ subsystem when IRQ affinity updated
+ * @analtify: struct irq_affinity_analtify passed by irq/manage.c
  * @mask: cpu mask for new SMP affinity
  *
  * This is executed in workqueue context.
  */
 static void
-irq_cpu_rmap_notify(struct irq_affinity_notify *notify, const cpumask_t *mask)
+irq_cpu_rmap_analtify(struct irq_affinity_analtify *analtify, const cpumask_t *mask)
 {
 	struct irq_glue *glue =
-		container_of(notify, struct irq_glue, notify);
+		container_of(analtify, struct irq_glue, analtify);
 	int rc;
 
 	rc = cpu_rmap_update(glue->rmap, glue->index, mask);
 	if (rc)
-		pr_warn("irq_cpu_rmap_notify: update failed: %d\n", rc);
+		pr_warn("irq_cpu_rmap_analtify: update failed: %d\n", rc);
 }
 
 /**
  * irq_cpu_rmap_release - reclaiming callback for IRQ subsystem
- * @ref: kref to struct irq_affinity_notify passed by irq/manage.c
+ * @ref: kref to struct irq_affinity_analtify passed by irq/manage.c
  */
 static void irq_cpu_rmap_release(struct kref *ref)
 {
 	struct irq_glue *glue =
-		container_of(ref, struct irq_glue, notify.kref);
+		container_of(ref, struct irq_glue, analtify.kref);
 
 	glue->rmap->obj[glue->index] = NULL;
 	cpu_rmap_put(glue->rmap);
@@ -292,7 +292,7 @@ static void irq_cpu_rmap_release(struct kref *ref)
  */
 int irq_cpu_rmap_remove(struct cpu_rmap *rmap, int irq)
 {
-	return irq_set_affinity_notifier(irq, NULL);
+	return irq_set_affinity_analtifier(irq, NULL);
 }
 EXPORT_SYMBOL(irq_cpu_rmap_remove);
 
@@ -301,7 +301,7 @@ EXPORT_SYMBOL(irq_cpu_rmap_remove);
  * @rmap: The reverse-map
  * @irq: The IRQ number
  *
- * This adds an IRQ affinity notifier that will update the reverse-map
+ * This adds an IRQ affinity analtifier that will update the reverse-map
  * automatically.
  *
  * Must be called in process context, after the IRQ is allocated but
@@ -313,9 +313,9 @@ int irq_cpu_rmap_add(struct cpu_rmap *rmap, int irq)
 	int rc;
 
 	if (!glue)
-		return -ENOMEM;
-	glue->notify.notify = irq_cpu_rmap_notify;
-	glue->notify.release = irq_cpu_rmap_release;
+		return -EANALMEM;
+	glue->analtify.analtify = irq_cpu_rmap_analtify;
+	glue->analtify.release = irq_cpu_rmap_release;
 	glue->rmap = rmap;
 	cpu_rmap_get(rmap);
 	rc = cpu_rmap_add(rmap, glue);
@@ -323,7 +323,7 @@ int irq_cpu_rmap_add(struct cpu_rmap *rmap, int irq)
 		goto err_add;
 
 	glue->index = rc;
-	rc = irq_set_affinity_notifier(irq, &glue->notify);
+	rc = irq_set_affinity_analtifier(irq, &glue->analtify);
 	if (rc)
 		goto err_set;
 

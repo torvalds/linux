@@ -48,7 +48,7 @@
 
 	.text
 ENTRY(bzero_1page)
-/* NOTE: If you change the number of insns of this routine, please check
+/* ANALTE: If you change the number of insns of this routine, please check
  * arch/sparc/mm/hypersparc.S */
 	/* %o0 = buf */
 	or	%g0, %g0, %g1
@@ -64,12 +64,12 @@ ENTRY(bzero_1page)
 	 add	%o0, 0x100, %o0
 
 	retl
-	 nop
+	 analp
 ENDPROC(bzero_1page)
 EXPORT_SYMBOL(bzero_1page)
 
 ENTRY(__copy_1page)
-/* NOTE: If you change the number of insns of this routine, please check
+/* ANALTE: If you change the number of insns of this routine, please check
  * arch/sparc/mm/hypersparc.S */
 	/* %o0 = dst, %o1 = src */
 	or	%g0, (PAGE_SIZE >> 8), %g1
@@ -88,6 +88,6 @@ ENTRY(__copy_1page)
 	 add	%o1, 0x100, %o1
 
 	retl
-	 nop
+	 analp
 ENDPROC(__copy_1page)
 EXPORT_SYMBOL(__copy_1page)

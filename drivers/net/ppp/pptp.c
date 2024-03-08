@@ -9,7 +9,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/netdevice.h>
 #include <linux/net.h>
 #include <linux/skbuff.h>
@@ -19,7 +19,7 @@
 #include <linux/ppp_defs.h>
 #include <linux/if_pppox.h>
 #include <linux/ppp-ioctl.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/file.h>
 #include <linux/in.h>
 #include <linux/ip.h>
@@ -254,7 +254,7 @@ static int pptp_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 
 	nf_reset_ct(skb);
 
-	skb->ip_summed = CHECKSUM_NONE;
+	skb->ip_summed = CHECKSUM_ANALNE;
 	ip_select_ident(net, skb, NULL);
 	ip_send_check(iph);
 
@@ -283,7 +283,7 @@ static int pptp_rcv_core(struct sock *sk, struct sk_buff *skb)
 	header = (struct pptp_gre_header *)(skb->data);
 	headersize  = sizeof(*header);
 
-	/* test if acknowledgement present */
+	/* test if ackanalwledgement present */
 	if (GRE_IS_ACK(header->gre_hd.flags)) {
 		__u32 ack;
 
@@ -332,7 +332,7 @@ allow_packet:
 			skb_pull(skb, 2);
 		}
 
-		skb->ip_summed = CHECKSUM_NONE;
+		skb->ip_summed = CHECKSUM_ANALNE;
 		skb_set_network_header(skb, skb->head-skb->data);
 		ppp_input(&po->chan, skb);
 
@@ -540,7 +540,7 @@ static void pptp_sock_destruct(struct sock *sk)
 
 static int pptp_create(struct net *net, struct socket *sock, int kern)
 {
-	int error = -ENOMEM;
+	int error = -EANALMEM;
 	struct sock *sk;
 	struct pppox_sock *po;
 	struct pptp_opt *opt;
@@ -555,7 +555,7 @@ static int pptp_create(struct net *net, struct socket *sock, int kern)
 	sock->ops   = &pptp_ops;
 
 	sk->sk_backlog_rcv = pptp_rcv_core;
-	sk->sk_state       = PPPOX_NONE;
+	sk->sk_state       = PPPOX_ANALNE;
 	sk->sk_type        = SOCK_STREAM;
 	sk->sk_family      = PF_PPPOX;
 	sk->sk_protocol    = PX_PROTO_PPTP;
@@ -597,7 +597,7 @@ static int pptp_ppp_ioctl(struct ppp_channel *chan, unsigned int cmd,
 		err = 0;
 		break;
 	default:
-		err = -ENOTTY;
+		err = -EANALTTY;
 	}
 
 	return err;
@@ -620,14 +620,14 @@ static const struct proto_ops pptp_ops = {
 	.release    = pptp_release,
 	.bind       = pptp_bind,
 	.connect    = pptp_connect,
-	.socketpair = sock_no_socketpair,
-	.accept     = sock_no_accept,
+	.socketpair = sock_anal_socketpair,
+	.accept     = sock_anal_accept,
 	.getname    = pptp_getname,
-	.listen     = sock_no_listen,
-	.shutdown   = sock_no_shutdown,
-	.sendmsg    = sock_no_sendmsg,
-	.recvmsg    = sock_no_recvmsg,
-	.mmap       = sock_no_mmap,
+	.listen     = sock_anal_listen,
+	.shutdown   = sock_anal_shutdown,
+	.sendmsg    = sock_anal_sendmsg,
+	.recvmsg    = sock_anal_recvmsg,
+	.mmap       = sock_anal_mmap,
 	.ioctl      = pppox_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = pppox_compat_ioctl,
@@ -650,7 +650,7 @@ static int __init pptp_init_module(void)
 
 	callid_sock = vzalloc(array_size(sizeof(void *), (MAX_CALLID + 1)));
 	if (!callid_sock)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = gre_add_protocol(&gre_pptp_protocol, GREPROTO_PPTP);
 	if (err) {

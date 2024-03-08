@@ -65,7 +65,7 @@ struct nphy_gain_ctl_workaround_entry {
 	u16 wlclip;
 };
 
-/* Get entry with workaround values for gain ctl. Does not return NULL. */
+/* Get entry with workaround values for gain ctl. Does analt return NULL. */
 struct nphy_gain_ctl_workaround_entry *b43_nphy_get_gain_ctl_workaround_ent(
 	struct b43_wldev *dev, bool ghz5, bool ext_lna);
 
@@ -110,10 +110,10 @@ struct nphy_gain_ctl_workaround_entry *b43_nphy_get_gain_ctl_workaround_ent(
 #define B43_NTAB_MCS_SIZE		128
 
 /* Volatile N-PHY tables */
-#define B43_NTAB_NOISEVAR10		B43_NTAB32(0x10, 0x000) /* Noise Var Table 10 */
-#define B43_NTAB_NOISEVAR10_SIZE	256
-#define B43_NTAB_NOISEVAR11		B43_NTAB32(0x10, 0x080) /* Noise Var Table 11 */
-#define B43_NTAB_NOISEVAR11_SIZE	256
+#define B43_NTAB_ANALISEVAR10		B43_NTAB32(0x10, 0x000) /* Analise Var Table 10 */
+#define B43_NTAB_ANALISEVAR10_SIZE	256
+#define B43_NTAB_ANALISEVAR11		B43_NTAB32(0x10, 0x080) /* Analise Var Table 11 */
+#define B43_NTAB_ANALISEVAR11_SIZE	256
 #define B43_NTAB_C0_ESTPLT		B43_NTAB8 (0x1A, 0x000) /* Estimate Power Lookup Table Core 0 */
 #define B43_NTAB_C0_ESTPLT_SIZE		64
 #define B43_NTAB_C0_ADJPLT		B43_NTAB8 (0x1A, 0x040) /* Adjust Power Lookup Table Core 0 */
@@ -144,7 +144,7 @@ struct nphy_gain_ctl_workaround_entry *b43_nphy_get_gain_ctl_workaround_ent(
 #define B43_NTAB_TMAP_R3		B43_NTAB32(12,   0) /* TM AP  */
 #define B43_NTAB_INTLEVEL_R3		B43_NTAB32(13,   0) /* INT LV  */
 #define B43_NTAB_TDTRN_R3		B43_NTAB32(14,   0) /* TD TRN  */
-#define B43_NTAB_NOISEVAR_R3		B43_NTAB32(16,   0) /* noise variance */
+#define B43_NTAB_ANALISEVAR_R3		B43_NTAB32(16,   0) /* analise variance */
 #define B43_NTAB_MCS_R3			B43_NTAB16(18,   0) /* MCS  */
 #define B43_NTAB_TDI20A0_R3		B43_NTAB32(19, 128) /* TDI 20/0  */
 #define B43_NTAB_TDI20A1_R3		B43_NTAB32(19, 256) /* TDI 20/1  */
@@ -168,7 +168,7 @@ struct nphy_gain_ctl_workaround_entry *b43_nphy_get_gain_ctl_workaround_ent(
 
 /* Static N-PHY tables, PHY revision >= 7 */
 #define B43_NTAB_TMAP_R7		B43_NTAB32(12,   0) /* TM AP */
-#define B43_NTAB_NOISEVAR_R7		B43_NTAB32(16,   0) /* noise variance */
+#define B43_NTAB_ANALISEVAR_R7		B43_NTAB32(16,   0) /* analise variance */
 
 #define B43_NTAB_TX_IQLO_CAL_LOFT_LADDER_40_SIZE	18
 #define B43_NTAB_TX_IQLO_CAL_LOFT_LADDER_20_SIZE	18

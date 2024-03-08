@@ -21,7 +21,7 @@ static int module_extend_max_pages(struct load_info *info, unsigned int extent)
 	new_pages = kvmalloc_array(info->max_pages + extent,
 				   sizeof(info->pages), GFP_KERNEL);
 	if (!new_pages)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(new_pages, info->pages, info->max_pages * sizeof(info->pages));
 	kvfree(info->pages);
@@ -44,7 +44,7 @@ static struct page *module_get_next_page(struct load_info *info)
 
 	page = alloc_page(GFP_KERNEL | __GFP_HIGHMEM);
 	if (!page)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	info->pages[info->used_pages++] = page;
 	return page;
@@ -93,7 +93,7 @@ static ssize_t module_gzip_decompress(struct load_info *info,
 
 	gzip_hdr_len = module_gzip_header_len(buf, size);
 	if (!gzip_hdr_len) {
-		pr_err("not a gzip compressed module\n");
+		pr_err("analt a gzip compressed module\n");
 		return -EINVAL;
 	}
 
@@ -102,7 +102,7 @@ static ssize_t module_gzip_decompress(struct load_info *info,
 
 	s.workspace = kvmalloc(zlib_inflate_workspacesize(), GFP_KERNEL);
 	if (!s.workspace)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = zlib_inflateInit2(&s, -MAX_WBITS);
 	if (rc != Z_OK) {
@@ -158,13 +158,13 @@ static ssize_t module_xz_decompress(struct load_info *info,
 
 	if (size < sizeof(signature) ||
 	    memcmp(buf, signature, sizeof(signature))) {
-		pr_err("not an xz compressed module\n");
+		pr_err("analt an xz compressed module\n");
 		return -EINVAL;
 	}
 
 	xz_dec = xz_dec_init(XZ_DYNALLOC, (u32)-1);
 	if (!xz_dec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	xz_buf.in_size = size;
 	xz_buf.in = buf;
@@ -220,7 +220,7 @@ static ssize_t module_zstd_decompress(struct load_info *info,
 
 	if (size < sizeof(signature) ||
 	    memcmp(buf, signature, sizeof(signature))) {
-		pr_err("not a zstd compressed module\n");
+		pr_err("analt a zstd compressed module\n");
 		return -EINVAL;
 	}
 
@@ -243,14 +243,14 @@ static ssize_t module_zstd_decompress(struct load_info *info,
 	wksp_size = zstd_dstream_workspace_bound(header.windowSize);
 	wksp = kvmalloc(wksp_size, GFP_KERNEL);
 	if (!wksp) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto out;
 	}
 
 	dstream = zstd_init_dstream(header.windowSize, wksp, wksp_size);
 	if (!dstream) {
 		pr_err("Can't initialize ZSTD stream\n");
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto out;
 	}
 
@@ -316,7 +316,7 @@ int module_decompress(struct load_info *info, const void *buf, size_t size)
 
 	info->hdr = vmap(info->pages, info->used_pages, VM_MAP, PAGE_KERNEL);
 	if (!info->hdr) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto err;
 	}
 

@@ -30,7 +30,7 @@ static void intel_link_dev_release(struct device *dev)
 /* alloc, init and add link devices */
 static struct sdw_intel_link_dev *intel_link_dev_register(struct sdw_intel_res *res,
 							  struct sdw_intel_ctx *ctx,
-							  struct fwnode_handle *fwnode,
+							  struct fwanalde_handle *fwanalde,
 							  const char *name,
 							  int link_id)
 {
@@ -41,12 +41,12 @@ static struct sdw_intel_link_dev *intel_link_dev_register(struct sdw_intel_res *
 
 	ldev = kzalloc(sizeof(*ldev), GFP_KERNEL);
 	if (!ldev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	auxdev = &ldev->auxdev;
 	auxdev->name = name;
 	auxdev->dev.parent = res->parent;
-	auxdev->dev.fwnode = fwnode;
+	auxdev->dev.fwanalde = fwanalde;
 	auxdev->dev.release = intel_link_dev_release;
 
 	/* we don't use an IDA since we already have a link ID */
@@ -54,8 +54,8 @@ static struct sdw_intel_link_dev *intel_link_dev_register(struct sdw_intel_res *
 
 	/*
 	 * keep a handle on the allocated memory, to be used in all other functions.
-	 * Since the same pattern is used to skip links that are not enabled, there is
-	 * no need to check if ctx->ldev[i] is NULL later on.
+	 * Since the same pattern is used to skip links that are analt enabled, there is
+	 * anal need to check if ctx->ldev[i] is NULL later on.
 	 */
 	ctx->ldev[link_id] = ldev;
 
@@ -87,7 +87,7 @@ static struct sdw_intel_link_dev *intel_link_dev_register(struct sdw_intel_res *
 
 	link->hbus = res->hbus;
 
-	/* now follow the two-step init/add sequence */
+	/* analw follow the two-step init/add sequence */
 	ret = auxiliary_device_init(auxdev);
 	if (ret < 0) {
 		dev_err(res->parent, "failed to initialize link dev %s link_id %d\n",
@@ -130,7 +130,7 @@ static int sdw_intel_cleanup(struct sdw_intel_ctx *ctx)
 
 		pm_runtime_disable(&ldev->auxdev.dev);
 		if (!ldev->link_res.clock_stop_quirks)
-			pm_runtime_put_noidle(ldev->link_res.dev);
+			pm_runtime_put_analidle(ldev->link_res.dev);
 
 		intel_link_dev_unregister(ldev);
 	}
@@ -158,7 +158,7 @@ static struct sdw_intel_ctx
 	struct sdw_intel_ctx *ctx;
 	struct acpi_device *adev;
 	struct sdw_slave *slave;
-	struct list_head *node;
+	struct list_head *analde;
 	struct sdw_bus *bus;
 	u32 link_mask;
 	int num_slaves = 0;
@@ -180,7 +180,7 @@ static struct sdw_intel_ctx
 
 	/*
 	 * we need to alloc/free memory manually and can't use devm:
-	 * this routine may be called from a workqueue, and not from
+	 * this routine may be called from a workqueue, and analt from
 	 * the parent .probe.
 	 * If devm_ was used, the memory might never be freed on errors.
 	 */
@@ -226,7 +226,7 @@ static struct sdw_intel_ctx
 		 */
 		ldev = intel_link_dev_register(res,
 					       ctx,
-					       acpi_fwnode_handle(adev),
+					       acpi_fwanalde_handle(adev),
 					       "link",
 					       i);
 		if (IS_ERR(ldev))
@@ -239,7 +239,7 @@ static struct sdw_intel_ctx
 			dev_err(&adev->dev, "failed to get link->cdns\n");
 			/*
 			 * 1 will be subtracted from i in the err label, but we need to call
-			 * intel_link_dev_unregister for this ldev, so plus 1 now
+			 * intel_link_dev_unregister for this ldev, so plus 1 analw
 			 */
 			i++;
 			goto err;
@@ -247,7 +247,7 @@ static struct sdw_intel_ctx
 		list_add_tail(&link->list, &ctx->link_list);
 		bus = &link->cdns->bus;
 		/* Calculate number of slaves */
-		list_for_each(node, &bus->slaves)
+		list_for_each(analde, &bus->slaves)
 			num_slaves++;
 	}
 
@@ -259,7 +259,7 @@ static struct sdw_intel_ctx
 	i = 0;
 	list_for_each_entry(link, &ctx->link_list, list) {
 		bus = &link->cdns->bus;
-		list_for_each_entry(slave, &bus->slaves, node) {
+		list_for_each_entry(slave, &bus->slaves, analde) {
 			ctx->ids[i].id = slave->id;
 			ctx->ids[i].link_id = bus->link_id;
 			i++;
@@ -309,10 +309,10 @@ sdw_intel_startup_controller(struct sdw_intel_ctx *ctx)
 			/*
 			 * we need to prevent the parent PCI device
 			 * from entering pm_runtime suspend, so that
-			 * power rails to the SoundWire IP are not
+			 * power rails to the SoundWire IP are analt
 			 * turned off.
 			 */
-			pm_runtime_get_noresume(ldev->link_res.dev);
+			pm_runtime_get_analresume(ldev->link_res.dev);
 		}
 	}
 

@@ -26,14 +26,14 @@ struct platform_device;
 
 /**
  * struct tng_family - Tangier pin family description
- * @barno: MMIO BAR number where registers for this family reside
+ * @baranal: MMIO BAR number where registers for this family reside
  * @pin_base: Starting pin of pins in this family
  * @npins: Number of pins in this family
  * @protected: True if family is protected by access
  * @regs: Family specific common registers
  */
 struct tng_family {
-	unsigned int barno;
+	unsigned int baranal;
 	unsigned int pin_base;
 	size_t npins;
 	bool protected;
@@ -42,14 +42,14 @@ struct tng_family {
 
 #define TNG_FAMILY(b, s, e)				\
 	{						\
-		.barno = (b),				\
+		.baranal = (b),				\
 		.pin_base = (s),			\
 		.npins = (e) - (s) + 1,			\
 	}
 
 #define TNG_FAMILY_PROTECTED(b, s, e)			\
 	{						\
-		.barno = (b),				\
+		.baranal = (b),				\
 		.pin_base = (s),			\
 		.npins = (e) - (s) + 1,			\
 		.protected = true,			\

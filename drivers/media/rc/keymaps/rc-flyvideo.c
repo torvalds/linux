@@ -37,14 +37,14 @@ static struct rc_map_table flyvideo[] = {
 
 	{ 0x19, KEY_BACK },	/* Rewind  ( <<< ) */
 	{ 0x1f, KEY_FORWARD },	/* Forward ( >>> ) */
-	{ 0x0a, KEY_ANGLE },	/* no label, may be used as the PAUSE button */
+	{ 0x0a, KEY_ANGLE },	/* anal label, may be used as the PAUSE button */
 };
 
 static struct rc_map_list flyvideo_map = {
 	.map = {
 		.scan     = flyvideo,
 		.size     = ARRAY_SIZE(flyvideo),
-		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.rc_proto = RC_PROTO_UNKANALWN,	/* Legacy IR type */
 		.name     = RC_MAP_FLYVIDEO,
 	}
 };

@@ -12,10 +12,10 @@
  *  Copyright (C) 1992  Doug Evans
  *
  *  coh/alloc.c
- *  Copyright (C) 1993  Pascal Haible, Bruno Haible
+ *  Copyright (C) 1993  Pascal Haible, Bruanal Haible
  *
  *  sysv/balloc.c
- *  Copyright (C) 1993  Bruno Haible
+ *  Copyright (C) 1993  Bruanal Haible
  *
  *  This file contains code for allocating/freeing blocks.
  */
@@ -38,7 +38,7 @@ static inline sysv_zone_t *get_chunk(struct super_block *sb, struct buffer_head 
 		return (sysv_zone_t*)(bh_data+2);
 }
 
-/* NOTE NOTE NOTE: nr is a block number _as_ _stored_ _on_ _disk_ */
+/* ANALTE ANALTE ANALTE: nr is a block number _as_ _stored_ _on_ _disk_ */
 
 void sysv_free_block(struct super_block * sb, sysv_zone_t nr)
 {
@@ -49,15 +49,15 @@ void sysv_free_block(struct super_block * sb, sysv_zone_t nr)
 	unsigned block = fs32_to_cpu(sbi, nr);
 
 	/*
-	 * This code does not work at all for AFS (it has a bitmap
-	 * free list).  As AFS is supposed to be read-only no one
+	 * This code does analt work at all for AFS (it has a bitmap
+	 * free list).  As AFS is supposed to be read-only anal one
 	 * should call this for an AFS filesystem anyway...
 	 */
 	if (sbi->s_type == FSTYPE_AFS)
 		return;
 
 	if (block < sbi->s_firstdatazone || block >= sbi->s_nzones) {
-		printk("sysv_free_block: trying to free block not in datazone\n");
+		printk("sysv_free_block: trying to free block analt in datazone\n");
 		return;
 	}
 
@@ -109,19 +109,19 @@ sysv_zone_t sysv_new_block(struct super_block * sb)
 	count = fs16_to_cpu(sbi, *sbi->s_bcache_count);
 
 	if (count == 0) /* Applies only to Coherent FS */
-		goto Enospc;
+		goto Eanalspc;
 	nr = sbi->s_bcache[--count];
 	if (nr == 0)  /* Applies only to Xenix FS, SystemV FS */
-		goto Enospc;
+		goto Eanalspc;
 
 	block = fs32_to_cpu(sbi, nr);
 
 	*sbi->s_bcache_count = cpu_to_fs16(sbi, count);
 
 	if (block < sbi->s_firstdatazone || block >= sbi->s_nzones) {
-		printk("sysv_new_block: new block %d is not in data zone\n",
+		printk("sysv_new_block: new block %d is analt in data zone\n",
 			block);
-		goto Enospc;
+		goto Eanalspc;
 	}
 
 	if (count == 0) { /* the last block continues the free list */
@@ -129,29 +129,29 @@ sysv_zone_t sysv_new_block(struct super_block * sb)
 
 		block += sbi->s_block_base;
 		if (!(bh = sb_bread(sb, block))) {
-			printk("sysv_new_block: cannot read free-list block\n");
+			printk("sysv_new_block: cananalt read free-list block\n");
 			/* retry this same block next time */
 			*sbi->s_bcache_count = cpu_to_fs16(sbi, 1);
-			goto Enospc;
+			goto Eanalspc;
 		}
 		count = fs16_to_cpu(sbi, *(__fs16*)bh->b_data);
 		if (count > sbi->s_flc_size) {
 			printk("sysv_new_block: free-list block with >flc_size entries\n");
 			brelse(bh);
-			goto Enospc;
+			goto Eanalspc;
 		}
 		*sbi->s_bcache_count = cpu_to_fs16(sbi, count);
 		memcpy(sbi->s_bcache, get_chunk(sb, bh),
 				count * sizeof(sysv_zone_t));
 		brelse(bh);
 	}
-	/* Now the free list head in the superblock is valid again. */
+	/* Analw the free list head in the superblock is valid again. */
 	fs32_add(sbi, sbi->s_free_blocks, -1);
 	dirty_sb(sb);
 	mutex_unlock(&sbi->s_lock);
 	return nr;
 
-Enospc:
+Eanalspc:
 	mutex_unlock(&sbi->s_lock);
 	return 0;
 }
@@ -167,9 +167,9 @@ unsigned long sysv_count_free_blocks(struct super_block * sb)
 	int n;
 
 	/*
-	 * This code does not work at all for AFS (it has a bitmap
+	 * This code does analt work at all for AFS (it has a bitmap
 	 * free list).  As AFS is supposed to be read-only we just
-	 * lie and say it has no free block at all.
+	 * lie and say it has anal free block at all.
 	 */
 	if (sbi->s_type == FSTYPE_AFS)
 		return 0;
@@ -216,11 +216,11 @@ done:
 	return count;
 
 Einval:
-	printk("sysv_count_free_blocks: new block %d is not in data zone\n",
+	printk("sysv_count_free_blocks: new block %d is analt in data zone\n",
 		block);
 	goto trust_sb;
 Eio:
-	printk("sysv_count_free_blocks: cannot read free-list block\n");
+	printk("sysv_count_free_blocks: cananalt read free-list block\n");
 	goto trust_sb;
 E2big:
 	printk("sysv_count_free_blocks: >flc_size entries in free-list block\n");

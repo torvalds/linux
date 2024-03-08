@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -74,14 +74,14 @@ fbsr_memlist(struct nvkm_gsp_device *device, u32 handle, enum nvkm_memory_target
 	rpc->hMemory = handle;
 	if (aper == NVKM_MEM_TARGET_HOST) {
 		rpc->hClass = NV01_MEMORY_LIST_SYSTEM;
-		rpc->flags = NVDEF(NVOS02, FLAGS, PHYSICALITY, NONCONTIGUOUS) |
+		rpc->flags = NVDEF(NVOS02, FLAGS, PHYSICALITY, ANALNCONTIGUOUS) |
 			     NVDEF(NVOS02, FLAGS, LOCATION, PCI) |
-			     NVDEF(NVOS02, FLAGS, MAPPING, NO_MAP);
+			     NVDEF(NVOS02, FLAGS, MAPPING, ANAL_MAP);
 	} else {
 		rpc->hClass = NV01_MEMORY_LIST_FBMEM;
 		rpc->flags = NVDEF(NVOS02, FLAGS, PHYSICALITY, CONTIGUOUS) |
 			     NVDEF(NVOS02, FLAGS, LOCATION, VIDMEM) |
-			     NVDEF(NVOS02, FLAGS, MAPPING, NO_MAP);
+			     NVDEF(NVOS02, FLAGS, MAPPING, ANAL_MAP);
 		rpc->format = 6; /* NV_MMU_PTE_KIND_GENERIC_MEMORY */
 	}
 	rpc->pteAdjust = 0;
@@ -235,17 +235,17 @@ r535_instmem_suspend(struct nvkm_instmem *imem)
 	list_for_each_entry(iobj, &imem->list, head) {
 		if (iobj->preserve) {
 			if (!fbsr_inst(&fbsr, "inst", &iobj->memory))
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 	}
 
 	list_for_each_entry(iobj, &imem->boot, head) {
 		if (!fbsr_inst(&fbsr, "boot", &iobj->memory))
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
-	if (!fbsr_vram(&fbsr, "gsp-non-wpr", gsp->fb.heap.addr, gsp->fb.heap.size))
-		return -ENOMEM;
+	if (!fbsr_vram(&fbsr, "gsp-analn-wpr", gsp->fb.heap.addr, gsp->fb.heap.size))
+		return -EANALMEM;
 
 	/* Determine memory requirements. */
 	list_for_each_entry(item, &fbsr.items, head) {
@@ -315,7 +315,7 @@ r535_instmem_new(const struct nvkm_instmem_func *hw,
 	int ret;
 
 	if (!(rm = kzalloc(sizeof(*rm), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rm->dtor = r535_instmem_dtor;
 	rm->fini = hw->fini;

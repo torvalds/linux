@@ -12,7 +12,7 @@
 
 #include "bench.h"
 
-#include <errno.h>
+#include <erranal.h>
 #include <sched.h>
 #include <stdio.h>
 #include <assert.h>
@@ -56,7 +56,7 @@
 struct thread_data {
 	int			curr_cpu;
 	cpu_set_t		*bind_cpumask;
-	int			bind_node;
+	int			bind_analde;
 	u8			*process_data;
 	int			process_nr;
 	int			thread_nr;
@@ -123,11 +123,11 @@ struct params {
 
 	int			perturb_secs;
 	int			nr_cpus;
-	int			nr_nodes;
+	int			nr_analdes;
 
 	/* Affinity options -C and -N: */
 	char			*cpu_list_str;
-	char			*node_list_str;
+	char			*analde_list_str;
 };
 
 
@@ -162,7 +162,7 @@ struct global_info {
 static struct global_info	*g = NULL;
 
 static int parse_cpus_opt(const struct option *opt, const char *arg, int unset);
-static int parse_nodes_opt(const struct option *opt, const char *arg, int unset);
+static int parse_analdes_opt(const struct option *opt, const char *arg, int unset);
 
 struct params p0;
 
@@ -193,21 +193,21 @@ static const struct option options[] = {
 
 	OPT_INCR   ('d', "show_details"	, &p0.show_details,	"Show details"),
 	OPT_INCR   ('a', "all"		, &p0.run_all,		"Run all tests in the suite"),
-	OPT_INTEGER('H', "thp"		, &p0.thp,		"MADV_NOHUGEPAGE < 0 < MADV_HUGEPAGE"),
+	OPT_INTEGER('H', "thp"		, &p0.thp,		"MADV_ANALHUGEPAGE < 0 < MADV_HUGEPAGE"),
 	OPT_BOOLEAN('c', "show_convergence", &p0.show_convergence, "show convergence details, "
-		    "convergence is reached when each process (all its threads) is running on a single NUMA node."),
+		    "convergence is reached when each process (all its threads) is running on a single NUMA analde."),
 	OPT_BOOLEAN('m', "measure_convergence",	&p0.measure_convergence, "measure convergence latency"),
 	OPT_BOOLEAN('q', "quiet"	, &quiet,
-		    "quiet mode (do not show any warnings or messages)"),
+		    "quiet mode (do analt show any warnings or messages)"),
 	OPT_BOOLEAN('S', "serialize-startup", &p0.serialize_startup,"serialize thread startup"),
 
 	/* Special option string parsing callbacks: */
         OPT_CALLBACK('C', "cpus", NULL, "cpu[,cpu2,...cpuN]",
 			"bind the first N tasks to these specific cpus (the rest is unbound)",
 			parse_cpus_opt),
-        OPT_CALLBACK('M', "memnodes", NULL, "node[,node2,...nodeN]",
-			"bind the first N tasks to these specific memory nodes (the rest is unbound)",
-			parse_nodes_opt),
+        OPT_CALLBACK('M', "memanaldes", NULL, "analde[,analde2,...analdeN]",
+			"bind the first N tasks to these specific memory analdes (the rest is unbound)",
+			parse_analdes_opt),
 	OPT_END()
 };
 
@@ -222,39 +222,39 @@ static const char * const numa_usage[] = {
 };
 
 /*
- * To get number of numa nodes present.
+ * To get number of numa analdes present.
  */
-static int nr_numa_nodes(void)
+static int nr_numa_analdes(void)
 {
-	int i, nr_nodes = 0;
+	int i, nr_analdes = 0;
 
-	for (i = 0; i < g->p.nr_nodes; i++) {
-		if (numa_bitmask_isbitset(numa_nodes_ptr, i))
-			nr_nodes++;
+	for (i = 0; i < g->p.nr_analdes; i++) {
+		if (numa_bitmask_isbitset(numa_analdes_ptr, i))
+			nr_analdes++;
 	}
 
-	return nr_nodes;
+	return nr_analdes;
 }
 
 /*
- * To check if given numa node is present.
+ * To check if given numa analde is present.
  */
-static int is_node_present(int node)
+static int is_analde_present(int analde)
 {
-	return numa_bitmask_isbitset(numa_nodes_ptr, node);
+	return numa_bitmask_isbitset(numa_analdes_ptr, analde);
 }
 
 /*
- * To check given numa node has cpus.
+ * To check given numa analde has cpus.
  */
-static bool node_has_cpus(int node)
+static bool analde_has_cpus(int analde)
 {
 	struct bitmask *cpumask = numa_allocate_cpumask();
-	bool ret = false; /* fall back to nocpus */
+	bool ret = false; /* fall back to analcpus */
 	int cpu;
 
 	BUG_ON(!cpumask);
-	if (!numa_node_to_cpus(node, cpumask)) {
+	if (!numa_analde_to_cpus(analde, cpumask)) {
 		for (cpu = 0; cpu < (int)cpumask->size; cpu++) {
 			if (numa_bitmask_isbitset(cpumask, cpu)) {
 				ret = true;
@@ -314,7 +314,7 @@ err_out:
 	return NULL;
 }
 
-static cpu_set_t *bind_to_node(int target_node)
+static cpu_set_t *bind_to_analde(int target_analde)
 {
 	int nrcpus = numa_num_possible_cpus();
 	size_t size;
@@ -335,7 +335,7 @@ static cpu_set_t *bind_to_node(int target_node)
 
 	CPU_ZERO_S(size, mask);
 
-	if (target_node == NUMA_NO_NODE) {
+	if (target_analde == NUMA_ANAL_ANALDE) {
 		for (cpu = 0; cpu < g->p.nr_cpus; cpu++)
 			CPU_SET_S(cpu, size, mask);
 	} else {
@@ -344,7 +344,7 @@ static cpu_set_t *bind_to_node(int target_node)
 		if (!cpumask)
 			goto err;
 
-		if (!numa_node_to_cpus(target_node, cpumask)) {
+		if (!numa_analde_to_cpus(target_analde, cpumask)) {
 			for (cpu = 0; cpu < (int)cpumask->size; cpu++) {
 				if (numa_bitmask_isbitset(cpumask, cpu))
 					CPU_SET_S(cpu, size, mask);
@@ -384,29 +384,29 @@ static void mempol_restore(void)
 {
 	int ret;
 
-	ret = set_mempolicy(MPOL_DEFAULT, NULL, g->p.nr_nodes-1);
+	ret = set_mempolicy(MPOL_DEFAULT, NULL, g->p.nr_analdes-1);
 
 	BUG_ON(ret);
 }
 
-static void bind_to_memnode(int node)
+static void bind_to_memanalde(int analde)
 {
-	struct bitmask *node_mask;
+	struct bitmask *analde_mask;
 	int ret;
 
-	if (node == NUMA_NO_NODE)
+	if (analde == NUMA_ANAL_ANALDE)
 		return;
 
-	node_mask = numa_allocate_nodemask();
-	BUG_ON(!node_mask);
+	analde_mask = numa_allocate_analdemask();
+	BUG_ON(!analde_mask);
 
-	numa_bitmask_clearall(node_mask);
-	numa_bitmask_setbit(node_mask, node);
+	numa_bitmask_clearall(analde_mask);
+	numa_bitmask_setbit(analde_mask, analde);
 
-	ret = set_mempolicy(MPOL_BIND, node_mask->maskp, node_mask->size + 1);
-	dprintf("binding to node %d, mask: %016lx => %d\n", node, *node_mask->maskp, ret);
+	ret = set_mempolicy(MPOL_BIND, analde_mask->maskp, analde_mask->size + 1);
+	dprintf("binding to analde %d, mask: %016lx => %d\n", analde, *analde_mask->maskp, ret);
 
-	numa_bitmask_free(node_mask);
+	numa_bitmask_free(analde_mask);
 	BUG_ON(ret);
 }
 
@@ -433,15 +433,15 @@ static u8 *alloc_data(ssize_t bytes0, int map_flags,
 
 	/* Allocate and initialize all memory on CPU#0: */
 	if (init_cpu0) {
-		int node = numa_node_of_cpu(0);
+		int analde = numa_analde_of_cpu(0);
 
-		orig_mask = bind_to_node(node);
-		bind_to_memnode(node);
+		orig_mask = bind_to_analde(analde);
+		bind_to_memanalde(analde);
 	}
 
 	bytes = bytes0 + HPSIZE;
 
-	buf = (void *)mmap(0, bytes, PROT_READ|PROT_WRITE, MAP_ANON|map_flags, -1, 0);
+	buf = (void *)mmap(0, bytes, PROT_READ|PROT_WRITE, MAP_AANALN|map_flags, -1, 0);
 	BUG_ON(buf == (void *)-1);
 
 	if (map_flags == MAP_PRIVATE) {
@@ -449,14 +449,14 @@ static u8 *alloc_data(ssize_t bytes0, int map_flags,
 			ret = madvise(buf, bytes, MADV_HUGEPAGE);
 			if (ret && !g->print_once) {
 				g->print_once = 1;
-				printf("WARNING: Could not enable THP - do: 'echo madvise > /sys/kernel/mm/transparent_hugepage/enabled'\n");
+				printf("WARNING: Could analt enable THP - do: 'echo madvise > /sys/kernel/mm/transparent_hugepage/enabled'\n");
 			}
 		}
 		if (thp < 0) {
-			ret = madvise(buf, bytes, MADV_NOHUGEPAGE);
+			ret = madvise(buf, bytes, MADV_ANALHUGEPAGE);
 			if (ret && !g->print_once) {
 				g->print_once = 1;
-				printf("WARNING: Could not disable THP: run a CONFIG_TRANSPARENT_HUGEPAGE kernel?\n");
+				printf("WARNING: Could analt disable THP: run a CONFIG_TRANSPARENT_HUGEPAGE kernel?\n");
 			}
 		}
 	}
@@ -605,12 +605,12 @@ static int parse_setup_cpu_list(void)
 		dprintf("CPUs: %d_%d-%d#%dx%d\n", bind_cpu_0, bind_len, bind_cpu_1, step, mul);
 
 		if (bind_cpu_0 >= g->p.nr_cpus || bind_cpu_1 >= g->p.nr_cpus) {
-			printf("\nTest not applicable, system has only %d CPUs.\n", g->p.nr_cpus);
+			printf("\nTest analt applicable, system has only %d CPUs.\n", g->p.nr_cpus);
 			return -1;
 		}
 
 		if (is_cpu_online(bind_cpu_0) != 1 || is_cpu_online(bind_cpu_1) != 1) {
-			printf("\nTest not applicable, bind_cpu_0 or bind_cpu_1 is offline\n");
+			printf("\nTest analt applicable, bind_cpu_0 or bind_cpu_1 is offline\n");
 			return -1;
 		}
 
@@ -625,7 +625,7 @@ static int parse_setup_cpu_list(void)
 				int cpu;
 
 				if (t >= g->p.nr_tasks) {
-					printf("\n# NOTE: ignoring bind CPUs starting at CPU#%d\n #", bind_cpu);
+					printf("\n# ANALTE: iganalring bind CPUs starting at CPU#%d\n #", bind_cpu);
 					goto out;
 				}
 				td = g->threads + t;
@@ -657,7 +657,7 @@ out:
 	tprintf("\n");
 
 	if (t < g->p.nr_tasks)
-		printf("# NOTE: %d tasks bound, %d tasks unbound\n", t, g->p.nr_tasks - t);
+		printf("# ANALTE: %d tasks bound, %d tasks unbound\n", t, g->p.nr_tasks - t);
 
 	free(str0);
 	return 0;
@@ -672,36 +672,36 @@ static int parse_cpus_opt(const struct option *opt __maybe_unused,
 	return parse_cpu_list(arg);
 }
 
-static int parse_node_list(const char *arg)
+static int parse_analde_list(const char *arg)
 {
-	p0.node_list_str = strdup(arg);
+	p0.analde_list_str = strdup(arg);
 
-	dprintf("got NODE list: {%s}\n", p0.node_list_str);
+	dprintf("got ANALDE list: {%s}\n", p0.analde_list_str);
 
 	return 0;
 }
 
-static int parse_setup_node_list(void)
+static int parse_setup_analde_list(void)
 {
 	struct thread_data *td;
 	char *str0, *str;
 	int t;
 
-	if (!g->p.node_list_str)
+	if (!g->p.analde_list_str)
 		return 0;
 
 	dprintf("g->p.nr_tasks: %d\n", g->p.nr_tasks);
 
-	str0 = str = strdup(g->p.node_list_str);
+	str0 = str = strdup(g->p.analde_list_str);
 	t = 0;
 
 	BUG_ON(!str);
 
-	tprintf("# binding tasks to NODEs:\n");
+	tprintf("# binding tasks to ANALDEs:\n");
 	tprintf("# ");
 
 	while (true) {
-		int bind_node, bind_node_0, bind_node_1;
+		int bind_analde, bind_analde_0, bind_analde_1;
 		char *tok, *tok_end, *tok_step, *tok_mul;
 		int step;
 		int mul;
@@ -714,19 +714,19 @@ static int parse_setup_node_list(void)
 
 		dprintf("\ntoken: {%s}, end: {%s}\n", tok, tok_end);
 		if (!tok_end) {
-			/* Single NODE specified: */
-			bind_node_0 = bind_node_1 = atol(tok);
+			/* Single ANALDE specified: */
+			bind_analde_0 = bind_analde_1 = atol(tok);
 		} else {
-			/* NODE range specified (for example: "5-11"): */
-			bind_node_0 = atol(tok);
-			bind_node_1 = atol(tok_end + 1);
+			/* ANALDE range specified (for example: "5-11"): */
+			bind_analde_0 = atol(tok);
+			bind_analde_1 = atol(tok_end + 1);
 		}
 
 		step = 1;
 		tok_step = strstr(tok, "#");
 		if (tok_step) {
 			step = atol(tok_step + 1);
-			BUG_ON(step <= 0 || step >= g->p.nr_nodes);
+			BUG_ON(step <= 0 || step >= g->p.nr_analdes);
 		}
 
 		/* Multiplicator shortcut, "0x8" is a shortcut for: "0,0,0,0,0,0,0,0" */
@@ -737,32 +737,32 @@ static int parse_setup_node_list(void)
 			BUG_ON(mul <= 0);
 		}
 
-		dprintf("NODEs: %d-%d #%d\n", bind_node_0, bind_node_1, step);
+		dprintf("ANALDEs: %d-%d #%d\n", bind_analde_0, bind_analde_1, step);
 
-		if (bind_node_0 >= g->p.nr_nodes || bind_node_1 >= g->p.nr_nodes) {
-			printf("\nTest not applicable, system has only %d nodes.\n", g->p.nr_nodes);
+		if (bind_analde_0 >= g->p.nr_analdes || bind_analde_1 >= g->p.nr_analdes) {
+			printf("\nTest analt applicable, system has only %d analdes.\n", g->p.nr_analdes);
 			return -1;
 		}
 
-		BUG_ON(bind_node_0 < 0 || bind_node_1 < 0);
-		BUG_ON(bind_node_0 > bind_node_1);
+		BUG_ON(bind_analde_0 < 0 || bind_analde_1 < 0);
+		BUG_ON(bind_analde_0 > bind_analde_1);
 
-		for (bind_node = bind_node_0; bind_node <= bind_node_1; bind_node += step) {
+		for (bind_analde = bind_analde_0; bind_analde <= bind_analde_1; bind_analde += step) {
 			int i;
 
 			for (i = 0; i < mul; i++) {
-				if (t >= g->p.nr_tasks || !node_has_cpus(bind_node)) {
-					printf("\n# NOTE: ignoring bind NODEs starting at NODE#%d\n", bind_node);
+				if (t >= g->p.nr_tasks || !analde_has_cpus(bind_analde)) {
+					printf("\n# ANALTE: iganalring bind ANALDEs starting at ANALDE#%d\n", bind_analde);
 					goto out;
 				}
 				td = g->threads + t;
 
 				if (!t)
-					tprintf(" %2d", bind_node);
+					tprintf(" %2d", bind_analde);
 				else
-					tprintf(",%2d", bind_node);
+					tprintf(",%2d", bind_analde);
 
-				td->bind_node = bind_node;
+				td->bind_analde = bind_analde;
 				t++;
 			}
 		}
@@ -772,19 +772,19 @@ out:
 	tprintf("\n");
 
 	if (t < g->p.nr_tasks)
-		printf("# NOTE: %d tasks mem-bound, %d tasks unbound\n", t, g->p.nr_tasks - t);
+		printf("# ANALTE: %d tasks mem-bound, %d tasks unbound\n", t, g->p.nr_tasks - t);
 
 	free(str0);
 	return 0;
 }
 
-static int parse_nodes_opt(const struct option *opt __maybe_unused,
+static int parse_analdes_opt(const struct option *opt __maybe_unused,
 			  const char *arg, int unset __maybe_unused)
 {
 	if (!arg)
 		return -1;
 
-	return parse_node_list(arg);
+	return parse_analde_list(arg);
 }
 
 static inline uint32_t lfsr_32(uint32_t lfsr)
@@ -796,7 +796,7 @@ static inline uint32_t lfsr_32(uint32_t lfsr)
 /*
  * Make sure there's real data dependency to RAM (when read
  * accesses are enabled), so the compiler, the CPU and the
- * kernel (KSM, zero page, etc.) cannot optimize away RAM
+ * kernel (KSM, zero page, etc.) cananalt optimize away RAM
  * accesses:
  */
 static inline u64 access_data(u64 *data, u64 val)
@@ -812,7 +812,7 @@ static inline u64 access_data(u64 *data, u64 val)
  * The worker process does two types of work, a forwards going
  * loop and a backwards going loop.
  *
- * We do this so that on multiprocessor systems we do not create
+ * We do this so that on multiprocessor systems we do analt create
  * a 'train' of processing, with highly synchronized processes,
  * skewing the whole benchmark.
  */
@@ -914,58 +914,58 @@ static void update_curr_cpu(int task_nr, unsigned long bytes_worked)
 }
 
 /*
- * Count the number of nodes a process's threads
+ * Count the number of analdes a process's threads
  * are spread out on.
  *
  * A count of 1 means that the process is compressed
- * to a single node. A count of g->p.nr_nodes means it's
+ * to a single analde. A count of g->p.nr_analdes means it's
  * spread out on the whole system.
  */
-static int count_process_nodes(int process_nr)
+static int count_process_analdes(int process_nr)
 {
-	char *node_present;
-	int nodes;
+	char *analde_present;
+	int analdes;
 	int n, t;
 
-	node_present = (char *)malloc(g->p.nr_nodes * sizeof(char));
-	BUG_ON(!node_present);
-	for (nodes = 0; nodes < g->p.nr_nodes; nodes++)
-		node_present[nodes] = 0;
+	analde_present = (char *)malloc(g->p.nr_analdes * sizeof(char));
+	BUG_ON(!analde_present);
+	for (analdes = 0; analdes < g->p.nr_analdes; analdes++)
+		analde_present[analdes] = 0;
 
 	for (t = 0; t < g->p.nr_threads; t++) {
 		struct thread_data *td;
 		int task_nr;
-		int node;
+		int analde;
 
 		task_nr = process_nr*g->p.nr_threads + t;
 		td = g->threads + task_nr;
 
-		node = numa_node_of_cpu(td->curr_cpu);
-		if (node < 0) /* curr_cpu was likely still -1 */ {
-			free(node_present);
+		analde = numa_analde_of_cpu(td->curr_cpu);
+		if (analde < 0) /* curr_cpu was likely still -1 */ {
+			free(analde_present);
 			return 0;
 		}
 
-		node_present[node] = 1;
+		analde_present[analde] = 1;
 	}
 
-	nodes = 0;
+	analdes = 0;
 
-	for (n = 0; n < g->p.nr_nodes; n++)
-		nodes += node_present[n];
+	for (n = 0; n < g->p.nr_analdes; n++)
+		analdes += analde_present[n];
 
-	free(node_present);
-	return nodes;
+	free(analde_present);
+	return analdes;
 }
 
 /*
- * Count the number of distinct process-threads a node contains.
+ * Count the number of distinct process-threads a analde contains.
  *
- * A count of 1 means that the node contains only a single
- * process. If all nodes on the system contain at most one
+ * A count of 1 means that the analde contains only a single
+ * process. If all analdes on the system contain at most one
  * process then we are well-converged.
  */
-static int count_node_processes(int node)
+static int count_analde_processes(int analde)
 {
 	int processes = 0;
 	int t, p;
@@ -979,8 +979,8 @@ static int count_node_processes(int node)
 			task_nr = p*g->p.nr_threads + t;
 			td = g->threads + task_nr;
 
-			n = numa_node_of_cpu(td->curr_cpu);
-			if (n == node) {
+			n = numa_analde_of_cpu(td->curr_cpu);
+			if (n == analde) {
 				processes++;
 				break;
 			}
@@ -992,30 +992,30 @@ static int count_node_processes(int node)
 
 static void calc_convergence_compression(int *strong)
 {
-	unsigned int nodes_min, nodes_max;
+	unsigned int analdes_min, analdes_max;
 	int p;
 
-	nodes_min = -1;
-	nodes_max =  0;
+	analdes_min = -1;
+	analdes_max =  0;
 
 	for (p = 0; p < g->p.nr_proc; p++) {
-		unsigned int nodes = count_process_nodes(p);
+		unsigned int analdes = count_process_analdes(p);
 
-		if (!nodes) {
+		if (!analdes) {
 			*strong = 0;
 			return;
 		}
 
-		nodes_min = min(nodes, nodes_min);
-		nodes_max = max(nodes, nodes_max);
+		analdes_min = min(analdes, analdes_min);
+		analdes_max = max(analdes, analdes_max);
 	}
 
-	/* Strong convergence: all threads compress on a single node: */
-	if (nodes_min == 1 && nodes_max == 1) {
+	/* Strong convergence: all threads compress on a single analde: */
+	if (analdes_min == 1 && analdes_max == 1) {
 		*strong = 1;
 	} else {
 		*strong = 0;
-		tprintf(" {%d-%d}", nodes_min, nodes_max);
+		tprintf(" {%d-%d}", analdes_min, analdes_max);
 	}
 }
 
@@ -1023,24 +1023,24 @@ static void calc_convergence(double runtime_ns_max, double *convergence)
 {
 	unsigned int loops_done_min, loops_done_max;
 	int process_groups;
-	int *nodes;
+	int *analdes;
 	int distance;
 	int nr_min;
 	int nr_max;
 	int strong;
 	int sum;
 	int nr;
-	int node;
+	int analde;
 	int cpu;
 	int t;
 
 	if (!g->p.show_convergence && !g->p.measure_convergence)
 		return;
 
-	nodes = (int *)malloc(g->p.nr_nodes * sizeof(int));
-	BUG_ON(!nodes);
-	for (node = 0; node < g->p.nr_nodes; node++)
-		nodes[node] = 0;
+	analdes = (int *)malloc(g->p.nr_analdes * sizeof(int));
+	BUG_ON(!analdes);
+	for (analde = 0; analde < g->p.nr_analdes; analde++)
+		analdes[analde] = 0;
 
 	loops_done_min = -1;
 	loops_done_max = 0;
@@ -1051,13 +1051,13 @@ static void calc_convergence(double runtime_ns_max, double *convergence)
 
 		cpu = td->curr_cpu;
 
-		/* Not all threads have written it yet: */
+		/* Analt all threads have written it yet: */
 		if (cpu < 0)
 			continue;
 
-		node = numa_node_of_cpu(cpu);
+		analde = numa_analde_of_cpu(cpu);
 
-		nodes[node]++;
+		analdes[analde]++;
 
 		loops_done = td->loops_done;
 		loops_done_min = min(loops_done, loops_done_min);
@@ -1068,10 +1068,10 @@ static void calc_convergence(double runtime_ns_max, double *convergence)
 	nr_min = g->p.nr_tasks;
 	sum = 0;
 
-	for (node = 0; node < g->p.nr_nodes; node++) {
-		if (!is_node_present(node))
+	for (analde = 0; analde < g->p.nr_analdes; analde++) {
+		if (!is_analde_present(analde))
 			continue;
-		nr = nodes[node];
+		nr = analdes[analde];
 		nr_min = min(nr, nr_min);
 		nr_max = max(nr, nr_max);
 		sum += nr;
@@ -1081,24 +1081,24 @@ static void calc_convergence(double runtime_ns_max, double *convergence)
 	BUG_ON(sum > g->p.nr_tasks);
 
 	if (0 && (sum < g->p.nr_tasks)) {
-		free(nodes);
+		free(analdes);
 		return;
 	}
 
 	/*
 	 * Count the number of distinct process groups present
-	 * on nodes - when we are converged this will decrease
+	 * on analdes - when we are converged this will decrease
 	 * to g->p.nr_proc:
 	 */
 	process_groups = 0;
 
-	for (node = 0; node < g->p.nr_nodes; node++) {
+	for (analde = 0; analde < g->p.nr_analdes; analde++) {
 		int processes;
 
-		if (!is_node_present(node))
+		if (!is_analde_present(analde))
 			continue;
-		processes = count_node_processes(node);
-		nr = nodes[node];
+		processes = count_analde_processes(analde);
+		nr = analdes[analde];
 		tprintf(" %2d/%-2d", nr, processes);
 
 		process_groups += processes;
@@ -1136,7 +1136,7 @@ static void calc_convergence(double runtime_ns_max, double *convergence)
 		tprintf("\n");
 	}
 
-	free(nodes);
+	free(analdes);
 }
 
 static void show_summary(double runtime_ns_max, int l, double *convergence)
@@ -1172,7 +1172,7 @@ static void *worker_thread(void *__tdata)
 	struct rusage rusage;
 
 	bind_to_cpumask(td->bind_cpumask);
-	bind_to_memnode(td->bind_node);
+	bind_to_memanalde(td->bind_analde);
 
 	set_taskname("thread %d/%d", process_nr, thread_nr);
 
@@ -1367,7 +1367,7 @@ static void worker_process(int process_nr)
 	task_nr = process_nr*g->p.nr_threads;
 	td = g->threads + task_nr;
 
-	bind_to_memnode(td->bind_node);
+	bind_to_memanalde(td->bind_analde);
 	bind_to_cpumask(td->bind_cpumask);
 
 	pthreads = zalloc(g->p.nr_threads * sizeof(pthread_t));
@@ -1409,8 +1409,8 @@ static void print_summary(void)
 		return;
 
 	printf("\n ###\n");
-	printf(" # %d %s will execute (on %d nodes, %d CPUs):\n",
-		g->p.nr_tasks, g->p.nr_tasks == 1 ? "task" : "tasks", nr_numa_nodes(), g->p.nr_cpus);
+	printf(" # %d %s will execute (on %d analdes, %d CPUs):\n",
+		g->p.nr_tasks, g->p.nr_tasks == 1 ? "task" : "tasks", nr_numa_analdes(), g->p.nr_cpus);
 	printf(" #      %5dx %5ldMB global  shared mem operations\n",
 			g->p.nr_loops, g->p.bytes_global/1024/1024);
 	printf(" #      %5dx %5ldMB process shared mem operations\n",
@@ -1435,8 +1435,8 @@ static void init_thread_data(void)
 		size_t cpuset_size = CPU_ALLOC_SIZE(g->p.nr_cpus);
 		int cpu;
 
-		/* Allow all nodes by default: */
-		td->bind_node = NUMA_NO_NODE;
+		/* Allow all analdes by default: */
+		td->bind_analde = NUMA_ANAL_ANALDE;
 
 		/* Allow all CPUs by default: */
 		td->bind_cpumask = CPU_ALLOC(g->p.nr_cpus);
@@ -1470,10 +1470,10 @@ static int init(void)
 
 	g->p.nr_cpus = numa_num_configured_cpus();
 
-	g->p.nr_nodes = numa_max_node() + 1;
+	g->p.nr_analdes = numa_max_analde() + 1;
 
-	/* char array in count_process_nodes(): */
-	BUG_ON(g->p.nr_nodes < 0);
+	/* char array in count_process_analdes(): */
+	BUG_ON(g->p.nr_analdes < 0);
 
 	if (quiet && !g->p.show_details)
 		g->p.show_details = -1;
@@ -1525,7 +1525,7 @@ static int init(void)
 	init_thread_data();
 
 	tprintf("#\n");
-	if (parse_setup_cpu_list() || parse_setup_node_list())
+	if (parse_setup_cpu_list() || parse_setup_analde_list())
 		return -1;
 	tprintf("#\n");
 
@@ -1769,7 +1769,7 @@ static void init_params(struct params *p, const char *name, int argc, const char
 
 	memset(p, 0, sizeof(*p));
 
-	/* Initialize nonzero defaults: */
+	/* Initialize analnzero defaults: */
 
 	p->serialize_startup		= 1;
 	p->data_reads			= true;
@@ -1803,27 +1803,27 @@ err:
 	return -1;
 }
 
-#define OPT_BW_RAM		"-s",  "20", "-zZq",    "--thp", " 1", "--no-data_rand_walk"
-#define OPT_BW_RAM_NOTHP	OPT_BW_RAM,		"--thp", "-1"
+#define OPT_BW_RAM		"-s",  "20", "-zZq",    "--thp", " 1", "--anal-data_rand_walk"
+#define OPT_BW_RAM_ANALTHP	OPT_BW_RAM,		"--thp", "-1"
 
 #define OPT_CONV		"-s", "100", "-zZ0qcm", "--thp", " 1"
-#define OPT_CONV_NOTHP		OPT_CONV,		"--thp", "-1"
+#define OPT_CONV_ANALTHP		OPT_CONV,		"--thp", "-1"
 
 #define OPT_BW			"-s",  "20", "-zZ0q",   "--thp", " 1"
-#define OPT_BW_NOTHP		OPT_BW,			"--thp", "-1"
+#define OPT_BW_ANALTHP		OPT_BW,			"--thp", "-1"
 
 /*
  * The built-in test-suite executed by "perf bench numa -a".
  *
- * (A minimum of 4 nodes and 16 GB of RAM is recommended.)
+ * (A minimum of 4 analdes and 16 GB of RAM is recommended.)
  */
 static const char *tests[][MAX_ARGS] = {
    /* Basic single-stream NUMA bandwidth measurements: */
    { "RAM-bw-local,",     "mem",  "-p",  "1",  "-t",  "1", "-P", "1024",
 			  "-C" ,   "0", "-M",   "0", OPT_BW_RAM },
-   { "RAM-bw-local-NOTHP,",
+   { "RAM-bw-local-ANALTHP,",
 			  "mem",  "-p",  "1",  "-t",  "1", "-P", "1024",
-			  "-C" ,   "0", "-M",   "0", OPT_BW_RAM_NOTHP },
+			  "-C" ,   "0", "-M",   "0", OPT_BW_RAM_ANALTHP },
    { "RAM-bw-remote,",    "mem",  "-p",  "1",  "-t",  "1", "-P", "1024",
 			  "-C" ,   "0", "-M",   "1", OPT_BW_RAM },
 
@@ -1844,13 +1844,13 @@ static const char *tests[][MAX_ARGS] = {
    { " 2x3-convergence,", "mem",  "-p",  "2", "-t",  "3", "-P", "1020", OPT_CONV },
    { " 3x3-convergence,", "mem",  "-p",  "3", "-t",  "3", "-P", "1020", OPT_CONV },
    { " 4x4-convergence,", "mem",  "-p",  "4", "-t",  "4", "-P",  "512", OPT_CONV },
-   { " 4x4-convergence-NOTHP,",
-			  "mem",  "-p",  "4", "-t",  "4", "-P",  "512", OPT_CONV_NOTHP },
+   { " 4x4-convergence-ANALTHP,",
+			  "mem",  "-p",  "4", "-t",  "4", "-P",  "512", OPT_CONV_ANALTHP },
    { " 4x6-convergence,", "mem",  "-p",  "4", "-t",  "6", "-P", "1020", OPT_CONV },
    { " 4x8-convergence,", "mem",  "-p",  "4", "-t",  "8", "-P",  "512", OPT_CONV },
    { " 8x4-convergence,", "mem",  "-p",  "8", "-t",  "4", "-P",  "512", OPT_CONV },
-   { " 8x4-convergence-NOTHP,",
-			  "mem",  "-p",  "8", "-t",  "4", "-P",  "512", OPT_CONV_NOTHP },
+   { " 8x4-convergence-ANALTHP,",
+			  "mem",  "-p",  "8", "-t",  "4", "-P",  "512", OPT_CONV_ANALTHP },
    { " 3x1-convergence,", "mem",  "-p",  "3", "-t",  "1", "-P",  "512", OPT_CONV },
    { " 4x1-convergence,", "mem",  "-p",  "4", "-t",  "1", "-P",  "512", OPT_CONV },
    { " 8x1-convergence,", "mem",  "-p",  "8", "-t",  "1", "-P",  "512", OPT_CONV },
@@ -1862,8 +1862,8 @@ static const char *tests[][MAX_ARGS] = {
    { " 3x1-bw-process,",  "mem",  "-p",  "3", "-t",  "1", "-P", "1024", OPT_BW },
    { " 4x1-bw-process,",  "mem",  "-p",  "4", "-t",  "1", "-P", "1024", OPT_BW },
    { " 8x1-bw-process,",  "mem",  "-p",  "8", "-t",  "1", "-P", " 512", OPT_BW },
-   { " 8x1-bw-process-NOTHP,",
-			  "mem",  "-p",  "8", "-t",  "1", "-P", " 512", OPT_BW_NOTHP },
+   { " 8x1-bw-process-ANALTHP,",
+			  "mem",  "-p",  "8", "-t",  "1", "-P", " 512", OPT_BW_ANALTHP },
    { "16x1-bw-process,",  "mem",  "-p", "16", "-t",  "1", "-P",  "256", OPT_BW },
 
    { " 1x4-bw-thread,",   "mem",  "-p",  "1", "-t",  "4", "-T",  "256", OPT_BW },
@@ -1875,8 +1875,8 @@ static const char *tests[][MAX_ARGS] = {
    { " 4x4-bw-process,",  "mem",  "-p",  "4", "-t",  "4", "-P",  "512", OPT_BW },
    { " 4x6-bw-process,",  "mem",  "-p",  "4", "-t",  "6", "-P",  "512", OPT_BW },
    { " 4x8-bw-process,",  "mem",  "-p",  "4", "-t",  "8", "-P",  "512", OPT_BW },
-   { " 4x8-bw-process-NOTHP,",
-			  "mem",  "-p",  "4", "-t",  "8", "-P",  "512", OPT_BW_NOTHP },
+   { " 4x8-bw-process-ANALTHP,",
+			  "mem",  "-p",  "4", "-t",  "8", "-P",  "512", OPT_BW_ANALTHP },
    { " 3x3-bw-process,",  "mem",  "-p",  "3", "-t",  "3", "-P",  "512", OPT_BW },
    { " 5x5-bw-process,",  "mem",  "-p",  "5", "-t",  "5", "-P",  "512", OPT_BW },
 
@@ -1884,10 +1884,10 @@ static const char *tests[][MAX_ARGS] = {
    { "1x32-bw-process,",  "mem",  "-p",  "1", "-t", "32", "-P", "2048", OPT_BW },
 
    { "numa02-bw,",        "mem",  "-p",  "1", "-t", "32", "-T",   "32", OPT_BW },
-   { "numa02-bw-NOTHP,",  "mem",  "-p",  "1", "-t", "32", "-T",   "32", OPT_BW_NOTHP },
+   { "numa02-bw-ANALTHP,",  "mem",  "-p",  "1", "-t", "32", "-T",   "32", OPT_BW_ANALTHP },
    { "numa01-bw-thread,", "mem",  "-p",  "2", "-t", "16", "-T",  "192", OPT_BW },
-   { "numa01-bw-thread-NOTHP,",
-			  "mem",  "-p",  "2", "-t", "16", "-T",  "192", OPT_BW_NOTHP },
+   { "numa01-bw-thread-ANALTHP,",
+			  "mem",  "-p",  "2", "-t", "16", "-T",  "192", OPT_BW_ANALTHP },
 };
 
 static int bench_all(void)

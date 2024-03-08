@@ -150,7 +150,7 @@ static void dpu_hw_sspp_setup_multirect(struct dpu_sw_pipe *pipe)
 
 	if (pipe->multirect_index == DPU_SSPP_RECT_SOLO) {
 		/**
-		 * if rect index is RECT_SOLO, we cannot expect a
+		 * if rect index is RECT_SOLO, we cananalt expect a
 		 * virtual plane sharing the same SSPP id. So we go
 		 * and disable multirect
 		 */
@@ -683,7 +683,7 @@ struct dpu_hw_sspp *dpu_hw_sspp_init(struct drm_device *dev,
 
 	hw_pipe = drmm_kzalloc(dev, sizeof(*hw_pipe), GFP_KERNEL);
 	if (!hw_pipe)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	hw_pipe->hw.blk_addr = addr + cfg->base;
 	hw_pipe->hw.log_mask = DPU_DBG_MASK_SSPP;

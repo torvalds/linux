@@ -17,44 +17,44 @@
 #include "class.h"
 #include "retimer.h"
 
-static int retimer_fwnode_match(struct device *dev, const void *fwnode)
+static int retimer_fwanalde_match(struct device *dev, const void *fwanalde)
 {
-	return is_typec_retimer(dev) && device_match_fwnode(dev, fwnode);
+	return is_typec_retimer(dev) && device_match_fwanalde(dev, fwanalde);
 }
 
-static void *typec_retimer_match(const struct fwnode_handle *fwnode, const char *id, void *data)
+static void *typec_retimer_match(const struct fwanalde_handle *fwanalde, const char *id, void *data)
 {
 	struct device *dev;
 
-	if (id && !fwnode_property_present(fwnode, id))
+	if (id && !fwanalde_property_present(fwanalde, id))
 		return NULL;
 
-	dev = class_find_device(&retimer_class, NULL, fwnode,
-				retimer_fwnode_match);
+	dev = class_find_device(&retimer_class, NULL, fwanalde,
+				retimer_fwanalde_match);
 
 	return dev ? to_typec_retimer(dev) : ERR_PTR(-EPROBE_DEFER);
 }
 
 /**
- * fwnode_typec_retimer_get - Find USB Type-C retimer.
- * @fwnode: The caller device node.
+ * fwanalde_typec_retimer_get - Find USB Type-C retimer.
+ * @fwanalde: The caller device analde.
  *
  * Finds a retimer linked to the caller. This function is primarily meant for the
- * Type-C drivers. Returns a reference to the retimer on success, NULL if no
+ * Type-C drivers. Returns a reference to the retimer on success, NULL if anal
  * matching connection was found, or ERR_PTR(-EPROBE_DEFER) when a connection
- * was found but the retimer has not been enumerated yet.
+ * was found but the retimer has analt been enumerated yet.
  */
-struct typec_retimer *fwnode_typec_retimer_get(struct fwnode_handle *fwnode)
+struct typec_retimer *fwanalde_typec_retimer_get(struct fwanalde_handle *fwanalde)
 {
 	struct typec_retimer *retimer;
 
-	retimer = fwnode_connection_find_match(fwnode, "retimer-switch", NULL, typec_retimer_match);
+	retimer = fwanalde_connection_find_match(fwanalde, "retimer-switch", NULL, typec_retimer_match);
 	if (!IS_ERR_OR_NULL(retimer))
 		WARN_ON(!try_module_get(retimer->dev.parent->driver->owner));
 
 	return retimer;
 }
-EXPORT_SYMBOL_GPL(fwnode_typec_retimer_get);
+EXPORT_SYMBOL_GPL(fwanalde_typec_retimer_get);
 
 /**
  * typec_retimer_put - Release handle to a retimer.
@@ -112,13 +112,13 @@ typec_retimer_register(struct device *parent, const struct typec_retimer_desc *d
 
 	retimer = kzalloc(sizeof(*retimer), GFP_KERNEL);
 	if (!retimer)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	retimer->set = desc->set;
 
 	device_initialize(&retimer->dev);
 	retimer->dev.parent = parent;
-	retimer->dev.fwnode = desc->fwnode;
+	retimer->dev.fwanalde = desc->fwanalde;
 	retimer->dev.class = &retimer_class;
 	retimer->dev.type = &typec_retimer_dev_type;
 	retimer->dev.driver_data = desc->drvdata;

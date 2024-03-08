@@ -3,7 +3,7 @@
   Given the V4L controls for that CODEC will be part of
   the uABI, it will be required to have the driver in staging.
 
-  For this reason, we are keeping this driver in staging for now.
+  For this reason, we are keeping this driver in staging for analw.
 
 * Evaluate introducing a helper to consolidate duplicated
   code in rkvdec_request_validate and cedrus_request_validate.

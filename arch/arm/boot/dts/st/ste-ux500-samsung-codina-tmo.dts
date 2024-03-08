@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Devicetree for the Samsung Galaxy Exhibit SGH-T599 also known as Codina-TMO,
+ * Devicetree for the Samsung Galaxy Exhibit SGH-T599 also kanalwn as Codina-TMO,
  * the "TMO" shall be read "T-Mobile" as this phone was produced exlusively
  * for T-Mobile in the United States.
  *
  * This phone is closely related to the Codina, but has:
- * - No CPU speed cap, full ~1GHz rate
+ * - Anal CPU speed cap, full ~1GHz rate
  * - Different power management IC, AB8505
- * - As AB8505 has a micro USB phy, no TI TSU6111
+ * - As AB8505 has a micro USB phy, anal TI TSU6111
  * - Different power routing such as the removal of the external LDO for the
  *   touchscreen in favor of using the AB8505
  * - Using a regulator for the key backlight LED
@@ -118,7 +118,7 @@
 	 * This regulator is a GPIO line that drives the Broadcom WLAN
 	 * line WL_REG_ON high and enables the internal regulators
 	 * inside the chip. Unfortunatley it is erroneously named
-	 * WLAN_RST_N on the schematic but it is not a reset line.
+	 * WLAN_RST_N on the schematic but it is analt a reset line.
 	 *
 	 * The voltage specified here is only used to determine the OCR mask,
 	 * the for the SDIO connector, the chip is actually connected
@@ -319,7 +319,7 @@
 			arm,primecell-periphid = <0x10480180>;
 			max-frequency = <50000000>;
 			bus-width = <4>;
-			non-removable;
+			analn-removable;
 			cap-sd-highspeed;
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&mc1_a_2_default>;
@@ -352,15 +352,15 @@
 			arm,primecell-periphid = <0x10480180>;
 			max-frequency = <100000000>;
 			bus-width = <8>;
-			non-removable;
+			analn-removable;
 			cap-mmc-highspeed;
 			mmc-ddr-1_8v;
-			no-sdio;
-			no-sd;
+			anal-sdio;
+			anal-sd;
 			vmmc-supply = <&ldo_3v3_reg>;
 			pinctrl-names = "default", "sleep";
 			/*
-			 * GPIO130 will be set to input no pull-up resulting in a resistor
+			 * GPIO130 will be set to input anal pull-up resulting in a resistor
 			 * pulling the reset high and taking the memory out of reset.
 			 */
 			pinctrl-0 = <&mc2_a_1_default>;
@@ -396,7 +396,7 @@
 		serial@80121000 {
 			status = "okay";
 			pinctrl-names = "default", "sleep";
-			/* CTS/RTS is not used, CTS is repurposed as GPIO */
+			/* CTS/RTS is analt used, CTS is repurposed as GPIO */
 			pinctrl-0 = <&u1rxtx_a_1_default>;
 			pinctrl-1 = <&u1rxtx_a_1_sleep>;
 			/* FIXME: add a device for the GPS here */
@@ -470,7 +470,7 @@
 			};
 		};
 
-		/* I2C0 also known as "AGC I2C" */
+		/* I2C0 also kanalwn as "AGC I2C" */
 		i2c@80004000 {
 			status = "okay";
 			pinctrl-names = "default", "sleep";
@@ -577,7 +577,7 @@
 	sdi2 {
 		/*
 		 * GPIO130 should be set in GPIO mode and
-		 * pulled down. (Not connected.)
+		 * pulled down. (Analt connected.)
 		 */
 		mc2_a_1_default {
 			default_cfg2 {
@@ -617,7 +617,7 @@
 			codina_cfg2 {
 				/* ESD IRQ line "LCD detect" */
 				pins = "GPIO93_B7";
-				ste,config = <&gpio_in_nopull>;
+				ste,config = <&gpio_in_analpull>;
 			};
 		};
 	};
@@ -675,7 +675,7 @@
 		tsp_default: tsp_default {
 			codina_cfg1 {
 				pins = "GPIO218_AH11";	/* TSP_INT_1V8 */
-				ste,config = <&gpio_in_nopull>;
+				ste,config = <&gpio_in_analpull>;
 			};
 		};
 	};
@@ -684,7 +684,7 @@
 		tmd2672_codina_default: tmd2672_codina {
 			codina_cfg1 {
 				pins = "GPIO146_D13";
-				ste,config = <&gpio_in_nopull>;
+				ste,config = <&gpio_in_analpull>;
 			};
 		};
 	};
@@ -693,7 +693,7 @@
 		i2c_gpio_0_default: i2c_gpio_0 {
 			codina_cfg1 {
 				pins = "GPIO143_D12", "GPIO144_B13";
-				ste,config = <&gpio_in_nopull>;
+				ste,config = <&gpio_in_analpull>;
 			};
 		};
 	};
@@ -702,7 +702,7 @@
 		i2c_gpio_1_default: i2c_gpio_1 {
 			codina_cfg1 {
 				pins = "GPIO151_D17", "GPIO152_D16";
-				ste,config = <&gpio_in_nopull>;
+				ste,config = <&gpio_in_analpull>;
 			};
 		};
 	};
@@ -715,7 +715,7 @@
 			};
 			codina_cfg2 {
 				pins = "GPIO225_AG8";
-				/* Needs pull down, no pull down resistor on board */
+				/* Needs pull down, anal pull down resistor on board */
 				ste,config = <&gpio_in_pd>;
 			};
 		};
@@ -746,7 +746,7 @@
 			/* GPIO97 BT_HOST_WAKE */
 			codina_cfg2 {
 				pins = "GPIO97_D9";
-				ste,config = <&gpio_in_nopull>;
+				ste,config = <&gpio_in_analpull>;
 			};
 			/* GPIO209 BT_RST_N */
 			codina_cfg3 {
@@ -783,10 +783,10 @@
 				/* Clock line on GPIO150, DE, VSO, HSO on GPIO169..GPIO171 */
 				groups = "lcdaclk_b_1", "lcda_b_1";
 			};
-			/* Input, no pull-up is the default state for pins used for an alt function */
+			/* Input, anal pull-up is the default state for pins used for an alt function */
 			default_cfg1 {
 				pins = "GPIO150_C14", "GPIO169_D22", "GPIO170_C23", "GPIO171_D23";
-				ste,config = <&in_nopull>;
+				ste,config = <&in_analpull>;
 			};
 		};
 	};

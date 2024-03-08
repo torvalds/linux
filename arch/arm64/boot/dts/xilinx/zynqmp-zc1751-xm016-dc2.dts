@@ -122,7 +122,7 @@
 		reg = <0x20>;
 		gpio-controller;
 		#gpio-cells = <2>;
-		/* IRQ not connected */
+		/* IRQ analt connected */
 	};
 
 	rtc@68 {
@@ -452,7 +452,7 @@
 	spi0_flash0: flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "sst,sst25wf080", "jedec,spi-nor";
+		compatible = "sst,sst25wf080", "jedec,spi-analr";
 		spi-max-frequency = <50000000>;
 		reg = <0>;
 

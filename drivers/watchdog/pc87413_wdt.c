@@ -7,9 +7,9 @@
  *      (C) Copyright 2006 Sven Anders, <anders@anduras.de>
  *                     and Marcus Junker, <junker@anduras.de>
  *
- *      Neither Sven Anders, Marcus Junker nor ANDURAS AG
- *      admit liability nor provide warranty for any of this software.
- *      This material is provided "AS-IS" and at no charge.
+ *      Neither Sven Anders, Marcus Junker analr ANDURAS AG
+ *      admit liability analr provide warranty for any of this software.
+ *      This material is provided "AS-IS" and at anal charge.
  *
  *      Release 1.1
  */
@@ -22,7 +22,7 @@
 #include <linux/watchdog.h>
 #include <linux/ioport.h>
 #include <linux/delay.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/fs.h>
 #include <linux/reboot.h>
 #include <linux/init.h>
@@ -61,7 +61,7 @@ static char expect_close;		/* is the close expected? */
 
 static DEFINE_SPINLOCK(io_lock);	/* to guard us from io races */
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
+static bool analwayout = WATCHDOG_ANALWAYOUT;
 
 /* -- Low level function ----------------------------------------*/
 
@@ -262,19 +262,19 @@ static void pc87413_refresh(void)
 
 /**
  *	pc87413_open:
- *	@inode: inode of device
+ *	@ianalde: ianalde of device
  *	@file: file handle to device
  *
  */
 
-static int pc87413_open(struct inode *inode, struct file *file)
+static int pc87413_open(struct ianalde *ianalde, struct file *file)
 {
 	/* /dev/watchdog can only be opened once */
 
 	if (test_and_set_bit(0, &timer_enabled))
 		return -EBUSY;
 
-	if (nowayout)
+	if (analwayout)
 		__module_get(THIS_MODULE);
 
 	/* Reload and activate timer */
@@ -282,12 +282,12 @@ static int pc87413_open(struct inode *inode, struct file *file)
 
 	pr_info("Watchdog enabled. Timeout set to %d minute(s).\n", timeout);
 
-	return stream_open(inode, file);
+	return stream_open(ianalde, file);
 }
 
 /**
  *	pc87413_release:
- *	@inode: inode to board
+ *	@ianalde: ianalde to board
  *	@file: file handle to board
  *
  *	The watchdog has a configurable API. There is a religious dispute
@@ -297,7 +297,7 @@ static int pc87413_open(struct inode *inode, struct file *file)
  *	case you have to open it again very soon.
  */
 
-static int pc87413_release(struct inode *inode, struct file *file)
+static int pc87413_release(struct ianalde *ianalde, struct file *file)
 {
 	/* Shut off the timer. */
 
@@ -305,7 +305,7 @@ static int pc87413_release(struct inode *inode, struct file *file)
 		pc87413_disable();
 		pr_info("Watchdog disabled, sleeping again...\n");
 	} else {
-		pr_crit("Unexpected close, not stopping watchdog!\n");
+		pr_crit("Unexpected close, analt stopping watchdog!\n");
 		pc87413_refresh();
 	}
 	clear_bit(0, &timer_enabled);
@@ -322,7 +322,7 @@ static int pc87413_release(struct inode *inode, struct file *file)
 
 static int pc87413_status(void)
 {
-	  return 0; /* currently not supported */
+	  return 0; /* currently analt supported */
 }
 
 /**
@@ -330,7 +330,7 @@ static int pc87413_status(void)
  *	@file: file handle to the watchdog
  *	@data: data buffer to write
  *	@len: length in bytes
- *	@ppos: pointer to the position to write. No seeks allowed
+ *	@ppos: pointer to the position to write. Anal seeks allowed
  *
  *	A write to a watchdog device is defined as a keepalive signal. Any
  *	write of data will do, as we we don't define content meaning.
@@ -341,13 +341,13 @@ static ssize_t pc87413_write(struct file *file, const char __user *data,
 {
 	/* See if we got the magic character 'V' and reload the timer */
 	if (len) {
-		if (!nowayout) {
+		if (!analwayout) {
 			size_t i;
 
 			/* reset expect flag */
 			expect_close = 0;
 
-			/* scan to see whether or not we got the
+			/* scan to see whether or analt we got the
 			   magic character */
 			for (i = 0; i != len; i++) {
 				char c;
@@ -438,39 +438,39 @@ static long pc87413_ioctl(struct file *file, unsigned int cmd,
 		new_timeout = timeout * 60;
 		return put_user(new_timeout, uarg.i);
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 }
 
-/* -- Notifier functions -----------------------------------------*/
+/* -- Analtifier functions -----------------------------------------*/
 
 /**
- *	pc87413_notify_sys:
- *	@this: our notifier block
+ *	pc87413_analtify_sys:
+ *	@this: our analtifier block
  *	@code: the event being reported
  *	@unused: unused
  *
- *	Our notifier is called on system shutdowns. We want to turn the card
+ *	Our analtifier is called on system shutdowns. We want to turn the card
  *	off at reboot otherwise the machine will reboot again during memory
  *	test or worse yet during the following fsck. This would suck, in fact
  *	trust me - if it happens it does suck.
  */
 
-static int pc87413_notify_sys(struct notifier_block *this,
+static int pc87413_analtify_sys(struct analtifier_block *this,
 			      unsigned long code,
 			      void *unused)
 {
 	if (code == SYS_DOWN || code == SYS_HALT)
 		/* Turn the card off */
 		pc87413_disable();
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 /* -- Module's structures ---------------------------------------*/
 
 static const struct file_operations pc87413_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
+	.llseek		= anal_llseek,
 	.write		= pc87413_write,
 	.unlocked_ioctl	= pc87413_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
@@ -478,12 +478,12 @@ static const struct file_operations pc87413_fops = {
 	.release	= pc87413_release,
 };
 
-static struct notifier_block pc87413_notifier = {
-	.notifier_call  = pc87413_notify_sys,
+static struct analtifier_block pc87413_analtifier = {
+	.analtifier_call  = pc87413_analtify_sys,
 };
 
 static struct miscdevice pc87413_miscdev = {
-	.minor          = WATCHDOG_MINOR,
+	.mianalr          = WATCHDOG_MIANALR,
 	.name           = "watchdog",
 	.fops           = &pc87413_fops,
 };
@@ -508,14 +508,14 @@ static int __init pc87413_init(void)
 	if (!request_muxed_region(io, 2, MODNAME))
 		return -EBUSY;
 
-	ret = register_reboot_notifier(&pc87413_notifier);
+	ret = register_reboot_analtifier(&pc87413_analtifier);
 	if (ret != 0)
-		pr_err("cannot register reboot notifier (err=%d)\n", ret);
+		pr_err("cananalt register reboot analtifier (err=%d)\n", ret);
 
 	ret = misc_register(&pc87413_miscdev);
 	if (ret != 0) {
-		pr_err("cannot register miscdev on minor=%d (err=%d)\n",
-		       WATCHDOG_MINOR, ret);
+		pr_err("cananalt register miscdev on mianalr=%d (err=%d)\n",
+		       WATCHDOG_MIANALR, ret);
 		goto reboot_unreg;
 	}
 	pr_info("initialized. timeout=%d min\n", timeout);
@@ -525,7 +525,7 @@ static int __init pc87413_init(void)
 	pc87413_get_swc_base_addr();
 
 	if (!request_region(swc_base_addr, 0x20, MODNAME)) {
-		pr_err("cannot request SWC region at 0x%x\n", swc_base_addr);
+		pr_err("cananalt request SWC region at 0x%x\n", swc_base_addr);
 		ret = -EBUSY;
 		goto misc_unreg;
 	}
@@ -538,7 +538,7 @@ static int __init pc87413_init(void)
 misc_unreg:
 	misc_deregister(&pc87413_miscdev);
 reboot_unreg:
-	unregister_reboot_notifier(&pc87413_notifier);
+	unregister_reboot_analtifier(&pc87413_analtifier);
 	release_region(io, 2);
 	return ret;
 }
@@ -546,23 +546,23 @@ reboot_unreg:
 /**
  *	pc87413_exit: module's "destructor"
  *
- *	Unload the watchdog. You cannot do this with any file handles open.
+ *	Unload the watchdog. You cananalt do this with any file handles open.
  *	If your watchdog is set to continue ticking on close and you unload
  *	it, well it keeps ticking. We won't get the interrupt but the board
- *	will not touch PC memory so all is fine. You just have to load a new
+ *	will analt touch PC memory so all is fine. You just have to load a new
  *	module in 60 seconds or reboot.
  */
 
 static void __exit pc87413_exit(void)
 {
 	/* Stop the timer before we leave */
-	if (!nowayout) {
+	if (!analwayout) {
 		pc87413_disable();
 		pr_info("Watchdog disabled\n");
 	}
 
 	misc_deregister(&pc87413_miscdev);
-	unregister_reboot_notifier(&pc87413_notifier);
+	unregister_reboot_analtifier(&pc87413_analtifier);
 	release_region(swc_base_addr, 0x20);
 
 	pr_info("watchdog component driver removed\n");
@@ -585,8 +585,8 @@ MODULE_PARM_DESC(timeout,
 		"Watchdog timeout in minutes (default="
 				__MODULE_STRING(DEFAULT_TIMEOUT) ").");
 
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
-		"Watchdog cannot be stopped once started (default="
-				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout,
+		"Watchdog cananalt be stopped once started (default="
+				__MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 

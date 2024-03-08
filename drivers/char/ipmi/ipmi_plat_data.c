@@ -53,7 +53,7 @@ struct platform_device *ipmi_platform_add(const char *name, unsigned int inst,
 	}
 
 	if (size == 0)
-		/* An invalid or SSIF interface, no resources. */
+		/* An invalid or SSIF interface, anal resources. */
 		goto add_properties;
 
 	/*
@@ -102,7 +102,7 @@ struct platform_device *ipmi_platform_add(const char *name, unsigned int inst,
 		goto err;
 	}
  add_properties:
-	rv = device_create_managed_software_node(&pdev->dev, pr, NULL);
+	rv = device_create_managed_software_analde(&pdev->dev, pr, NULL);
 	if (rv) {
 		dev_err(&pdev->dev,
 			"Unable to add hard-code properties: %d\n", rv);

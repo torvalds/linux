@@ -9,7 +9,7 @@
  *
  * This code offers a very basic support for this EISA bus present in
  * the SGI Indigo-2. It currently only supports PIO (forget about DMA
- * for the time being). This is enough for a low-end ethernet card,
+ * for the time being). This is eanalugh for a low-end ethernet card,
  * but forget about your favorite SCSI card...
  *
  * TODO :
@@ -89,7 +89,7 @@ static irqreturn_t ip22_eisa_intr(int irq, void *dev_id)
 	outb(0x20, EISA_INT2_CTRL);
 	outb(0x20, EISA_INT1_CTRL);
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 int __init ip22_eisa_init(void)
@@ -98,7 +98,7 @@ int __init ip22_eisa_init(void)
 	char *str;
 
 	if (!(sgimc->systemid & SGIMC_SYSID_EPRESENT)) {
-		printk(KERN_INFO "EISA: bus not present.\n");
+		printk(KERN_INFO "EISA: bus analt present.\n");
 		return 1;
 	}
 
@@ -123,9 +123,9 @@ int __init ip22_eisa_init(void)
 	outl(1, EIU_QUIET_REG);
 	outl(0x40f3c07F, EIU_MODE_REG);
 
-	/* Now be nice to the EISA chipset */
+	/* Analw be nice to the EISA chipset */
 	outb(1, EISA_EXT_NMI_RESET_CTRL);
-	udelay(50);	/* Wait long enough for the dust to settle */
+	udelay(50);	/* Wait long eanalugh for the dust to settle */
 	outb(0, EISA_EXT_NMI_RESET_CTRL);
 	outb(0, EISA_DMA2_WRITE_SINGLE);
 

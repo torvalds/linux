@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -36,7 +36,7 @@
 #define DC_LOGGER_INIT(logger)
 
 struct _vcs_dpi_ip_params_st dcn3_5_ip = {
-	.VBlankNomDefaultUS = 668,
+	.VBlankAnalmDefaultUS = 668,
 	.gpuvm_enable = 1,
 	.gpuvm_max_page_table_levels = 1,
 	.hostvm_enable = 1,
@@ -49,8 +49,8 @@ struct _vcs_dpi_ip_params_st dcn3_5_ip = {
 	.zero_size_buffer_entries = 512,
 	.compbuf_reserved_space_64b = 256,
 	.compbuf_reserved_space_zs = 64,
-	.dpp_output_buffer_pixels = 2560,/*not used*/
-	.opp_output_buffer_lines = 1,/*not used*/
+	.dpp_output_buffer_pixels = 2560,/*analt used*/
+	.opp_output_buffer_lines = 1,/*analt used*/
 	.pixel_chunk_size_kbytes = 8,
 	//.alpha_pixel_chunk_size_kbytes = 4;/*new*/
 	//.min_pixel_chunk_size_bytes = 1024;/*new*/
@@ -172,8 +172,8 @@ struct _vcs_dpi_soc_bounding_box_st dcn3_5_soc = {
 	.usr_retraining_latency_us = 2,
 	.writeback_latency_us = 12.0,
 
-	.dram_channel_width_bytes = 4,/*not exist in dml2*/
-	.round_trip_ping_latency_dcfclk_cycles = 106,/*not exist in dml2*/
+	.dram_channel_width_bytes = 4,/*analt exist in dml2*/
+	.round_trip_ping_latency_dcfclk_cycles = 106,/*analt exist in dml2*/
 	.urgent_latency_pixel_data_only_us = 4.0,
 	.urgent_latency_pixel_mixed_with_vm_data_us = 4.0,
 	.urgent_latency_vm_data_only_us = 4.0,
@@ -187,8 +187,8 @@ struct _vcs_dpi_soc_bounding_box_st dcn3_5_soc = {
 	.pct_ideal_dram_sdp_bw_after_urgent_pixel_only = 65.0,
 	.pct_ideal_dram_sdp_bw_after_urgent_pixel_and_vm = 60.0,
 	.pct_ideal_dram_sdp_bw_after_urgent_vm_only = 30.0,
-	.max_avg_sdp_bw_use_normal_percent = 60.0,
-	.max_avg_dram_bw_use_normal_percent = 60.0,
+	.max_avg_sdp_bw_use_analrmal_percent = 60.0,
+	.max_avg_dram_bw_use_analrmal_percent = 60.0,
 	.fabric_datapath_to_dcn_data_return_bytes = 32,
 	.return_bus_width_bytes = 64,
 	.downspread_percent = 0.38,
@@ -273,7 +273,7 @@ void dcn35_update_bw_bounding_box_fpu(struct dc *dc,
 		if (clk_table->num_entries == 1 &&
 			clock_limits[i].dcfclk_mhz <
 			dcn3_5_soc.clock_limits[closest_clk_lvl].dcfclk_mhz) {
-			/*SMU fix not released yet*/
+			/*SMU fix analt released yet*/
 			clock_limits[i].dcfclk_mhz =
 				dcn3_5_soc.clock_limits[closest_clk_lvl].dcfclk_mhz;
 		}
@@ -406,7 +406,7 @@ static bool is_dual_plane(enum surface_pixel_format format)
  * micro_sec_to_vert_lines () - converts time to number of vertical lines for a given timing
  *
  * @param: num_us: number of microseconds
- * @return: number of vertical lines. If exact number of vertical lines is not found then
+ * @return: number of vertical lines. If exact number of vertical lines is analt found then
  *          it will round up to next number of lines to guarantee num_us
  */
 static unsigned int micro_sec_to_vert_lines(unsigned int num_us, struct dc_crtc_timing *timing)
@@ -441,7 +441,7 @@ int dcn35_populate_dml_pipes_from_context_fpu(struct dc *dc,
 	struct resource_context *res_ctx = &context->res_ctx;
 	struct pipe_ctx *pipe;
 	bool upscaled = false;
-	const unsigned int max_allowed_vblank_nom = 1023;
+	const unsigned int max_allowed_vblank_analm = 1023;
 
 	dcn31_populate_dml_pipes_from_context(dc, context, pipes,
 					      fast_validate);
@@ -457,7 +457,7 @@ int dcn35_populate_dml_pipes_from_context_fpu(struct dc *dc,
 		pipe = &res_ctx->pipe_ctx[i];
 		timing = &pipe->stream->timing;
 
-		num_lines = micro_sec_to_vert_lines(dcn3_5_ip.VBlankNomDefaultUS, timing);
+		num_lines = micro_sec_to_vert_lines(dcn3_5_ip.VBlankAnalmDefaultUS, timing);
 		v_back_porch  = get_vertical_back_porch(timing);
 
 		if (pipe->stream->adjust.v_total_max ==
@@ -465,19 +465,19 @@ int dcn35_populate_dml_pipes_from_context_fpu(struct dc *dc,
 		    pipe->stream->adjust.v_total_min > timing->v_total) {
 			pipes[pipe_cnt].pipe.dest.vtotal =
 				pipe->stream->adjust.v_total_min;
-			pipes[pipe_cnt].pipe.dest.vblank_nom = timing->v_total -
+			pipes[pipe_cnt].pipe.dest.vblank_analm = timing->v_total -
 				pipes[pipe_cnt].pipe.dest.vactive;
 		}
 
-		pipes[pipe_cnt].pipe.dest.vblank_nom = timing->v_total - pipes[pipe_cnt].pipe.dest.vactive;
-		pipes[pipe_cnt].pipe.dest.vblank_nom = min(pipes[pipe_cnt].pipe.dest.vblank_nom, num_lines);
-		// vblank_nom should not smaller than (VSync (timing->v_sync_width + v_back_porch) + 2)
+		pipes[pipe_cnt].pipe.dest.vblank_analm = timing->v_total - pipes[pipe_cnt].pipe.dest.vactive;
+		pipes[pipe_cnt].pipe.dest.vblank_analm = min(pipes[pipe_cnt].pipe.dest.vblank_analm, num_lines);
+		// vblank_analm should analt smaller than (VSync (timing->v_sync_width + v_back_porch) + 2)
 		// + 2 is because
 		// 1 -> VStartup_start should be 1 line before VSync
 		// 1 -> always reserve 1 line between start of vblank to vstartup signal
-		pipes[pipe_cnt].pipe.dest.vblank_nom =
-			max(pipes[pipe_cnt].pipe.dest.vblank_nom, timing->v_sync_width + v_back_porch + 2);
-		pipes[pipe_cnt].pipe.dest.vblank_nom = min(pipes[pipe_cnt].pipe.dest.vblank_nom, max_allowed_vblank_nom);
+		pipes[pipe_cnt].pipe.dest.vblank_analm =
+			max(pipes[pipe_cnt].pipe.dest.vblank_analm, timing->v_sync_width + v_back_porch + 2);
+		pipes[pipe_cnt].pipe.dest.vblank_analm = min(pipes[pipe_cnt].pipe.dest.vblank_analm, max_allowed_vblank_analm);
 
 		if (pipe->plane_state &&
 		    (pipe->plane_state->src_rect.height <
@@ -537,7 +537,7 @@ int dcn35_populate_dml_pipes_from_context_fpu(struct dc *dc,
 			   pipe->plane_state->src_rect.width <= 5120) {
 			/*
 			 * Limit to 5k max to avoid forced pipe split when there
-			 * is not enough detile for swath
+			 * is analt eanalugh detile for swath
 			 */
 			context->bw_ctx.dml.ip.det_buffer_size_kbytes = 192;
 			pipes[0].pipe.src.unbounded_req_mode = true;

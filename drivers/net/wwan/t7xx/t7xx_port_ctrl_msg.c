@@ -44,7 +44,7 @@ static int port_ctl_send_msg_to_md(struct t7xx_port *port, unsigned int msg, uns
 
 	skb = t7xx_ctrl_alloc_skb(0);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = t7xx_port_send_ctl_skb(port, skb, msg, ex_msg);
 	if (ret)
@@ -114,11 +114,11 @@ static int fsm_ee_message_handler(struct t7xx_port *port, struct t7xx_fsm_ctl *c
 }
 
 /**
- * t7xx_port_enum_msg_handler() - Parse the port enumeration message to create/remove nodes.
+ * t7xx_port_enum_msg_handler() - Parse the port enumeration message to create/remove analdes.
  * @md: Modem context.
  * @msg: Message.
  *
- * Used to control create/remove device node.
+ * Used to control create/remove device analde.
  *
  * Return:
  * * 0		- Success.
@@ -149,7 +149,7 @@ int t7xx_port_enum_msg_handler(struct t7xx_modem *md, void *msg)
 		ch_id = FIELD_GET(PORT_INFO_CH_ID, port_info);
 		en_flag = port_info & PORT_INFO_ENFLG;
 		if (t7xx_port_proxy_chl_enable_disable(md->port_prox, ch_id, en_flag))
-			dev_dbg(dev, "Port:%x not found\n", ch_id);
+			dev_dbg(dev, "Port:%x analt found\n", ch_id);
 	}
 
 	return 0;
@@ -202,7 +202,7 @@ static int control_msg_handler(struct t7xx_port *port, struct sk_buff *skb)
 
 	default:
 		ret = -EINVAL;
-		dev_err(port->dev, "Unknown control message ID to FSM %x\n",
+		dev_err(port->dev, "Unkanalwn control message ID to FSM %x\n",
 			le32_to_cpu(ctrl_msg_h->ctrl_msg_id));
 		break;
 	}

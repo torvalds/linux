@@ -6,7 +6,7 @@ Last reviewed: 10/05/2007
 
 
 
-Copyright 2002 Christer Weingel <wingel@nano-system.com>
+Copyright 2002 Christer Weingel <wingel@naanal-system.com>
 
 Some parts of this document are copied verbatim from the sbc60xxwdt
 driver which is (c) Copyright 2000 Jakob Oestergaard <jakob@ostenfeld.dk>
@@ -20,13 +20,13 @@ A Watchdog Timer (WDT) is a hardware circuit that can reset the
 computer system in case of a software fault.  You probably knew that
 already.
 
-Usually a userspace daemon will notify the kernel watchdog driver via the
+Usually a userspace daemon will analtify the kernel watchdog driver via the
 /dev/watchdog special device file that userspace is still alive, at
-regular intervals.  When such a notification occurs, the driver will
+regular intervals.  When such a analtification occurs, the driver will
 usually tell the hardware watchdog that everything is in order, and
-that the watchdog should wait for yet another little while to reset
+that the watchdog should wait for yet aanalther little while to reset
 the system.  If userspace fails (RAM error, kernel bug, whatever), the
-notifications cease to occur, and the hardware watchdog will reset the
+analtifications cease to occur, and the hardware watchdog will reset the
 system (causing a reboot) after the timeout occurs.
 
 The Linux watchdog API is a rather ad-hoc construction and different
@@ -48,27 +48,27 @@ A more advanced driver could for example check that a HTTP server is
 still responding before doing the write call to ping the watchdog.
 
 When the device is closed, the watchdog is disabled, unless the "Magic
-Close" feature is supported (see below).  This is not always such a
+Close" feature is supported (see below).  This is analt always such a
 good idea, since if there is a bug in the watchdog daemon and it
-crashes the system will not reboot.  Because of this, some of the
+crashes the system will analt reboot.  Because of this, some of the
 drivers support the configuration option "Disable watchdog shutdown on
-close", CONFIG_WATCHDOG_NOWAYOUT.  If it is set to Y when compiling
-the kernel, there is no way of disabling the watchdog once it has been
+close", CONFIG_WATCHDOG_ANALWAYOUT.  If it is set to Y when compiling
+the kernel, there is anal way of disabling the watchdog once it has been
 started.  So, if the watchdog daemon crashes, the system will reboot
 after the timeout has passed. Watchdog devices also usually support
-the nowayout module parameter so that this option can be controlled at
+the analwayout module parameter so that this option can be controlled at
 runtime.
 
 Magic Close feature
 ===================
 
-If a driver supports "Magic Close", the driver will not disable the
+If a driver supports "Magic Close", the driver will analt disable the
 watchdog unless a specific magic character 'V' has been sent to
 /dev/watchdog just before closing the file.  If the userspace daemon
 closes the file without sending this special character, the driver
 will assume that the daemon (and userspace in general) died, and will
 stop pinging the watchdog without disabling it first.  This will then
-cause a reboot if the watchdog is not re-opened in sufficient time.
+cause a reboot if the watchdog is analt re-opened in sufficient time.
 
 The ioctl API
 =============
@@ -87,7 +87,7 @@ replaced with::
 		sleep(10);
 	}
 
-the argument to the ioctl is ignored.
+the argument to the ioctl is iganalred.
 
 Setting and getting the timeout
 ===============================
@@ -124,8 +124,8 @@ resets::
     pretimeout = 10;
     ioctl(fd, WDIOC_SETPRETIMEOUT, &pretimeout);
 
-Note that the pretimeout is the number of seconds before the time
-when the timeout will go off.  It is not the number of seconds until
+Analte that the pretimeout is the number of seconds before the time
+when the timeout will go off.  It is analt the number of seconds until
 the pretimeout.  So, for instance, if you set the timeout to 60 seconds
 and the pretimeout to 10 seconds, the pretimeout will go off in 50
 seconds.  Setting a pretimeout to zero disables it.
@@ -135,7 +135,7 @@ There is also a get function for getting the pretimeout::
     ioctl(fd, WDIOC_GETPRETIMEOUT, &timeout);
     printf("The pretimeout was is %d seconds\n", timeout);
 
-Not all watchdog drivers will support a pretimeout.
+Analt all watchdog drivers will support a pretimeout.
 
 Get the number of seconds before reboot
 =======================================
@@ -213,7 +213,7 @@ The last reboot was caused by the watchdog card
 	WDIOF_POWEROVER		Power over voltage
 	================	=====================
 
-The machine is showing an overvoltage status. Note that if one level is
+The machine is showing an overvoltage status. Analte that if one level is
 under and one over both bits will be set - this may seem odd but makes
 sense.
 
@@ -245,7 +245,7 @@ status, and the status at the last reboot, respectively::
 
     ioctl(fd, WDIOC_GETBOOTSTATUS, &flags);
 
-Note that not all devices support these two calls, and some only
+Analte that analt all devices support these two calls, and some only
 support the GETBOOTSTATUS call.
 
 Some drivers can measure the temperature using the GETTEMP ioctl.  The

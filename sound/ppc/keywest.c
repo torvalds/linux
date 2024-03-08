@@ -40,7 +40,7 @@ static int keywest_attach_adapter(struct i2c_adapter *adapter)
 		return -EINVAL;
 
 	if (strncmp(adapter->name, "mac-io", 6))
-		return -EINVAL; /* ignored */
+		return -EINVAL; /* iganalred */
 
 	memset(&info, 0, sizeof(struct i2c_board_info));
 	strscpy(info.type, "keywest", I2C_NAME_SIZE);
@@ -51,14 +51,14 @@ static int keywest_attach_adapter(struct i2c_adapter *adapter)
 	keywest_ctx->client = client;
 
 	/*
-	 * We know the driver is already loaded, so the device should be
-	 * already bound. If not it means binding failed, and then there
-	 * is no point in keeping the device instantiated.
+	 * We kanalw the driver is already loaded, so the device should be
+	 * already bound. If analt it means binding failed, and then there
+	 * is anal point in keeping the device instantiated.
 	 */
 	if (!keywest_ctx->client->dev.driver) {
 		i2c_unregister_device(keywest_ctx->client);
 		keywest_ctx->client = NULL;
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	
 	/*
@@ -113,7 +113,7 @@ int snd_pmac_tumbler_post_init(void)
 
 	err = keywest_ctx->init_client(keywest_ctx);
 	if (err < 0) {
-		snd_printk(KERN_ERR "tumbler: %i :cannot initialize the MCS\n", err);
+		snd_printk(KERN_ERR "tumbler: %i :cananalt initialize the MCS\n", err);
 		return err;
 	}
 	return 0;
@@ -136,7 +136,7 @@ int snd_pmac_keywest_init(struct pmac_keywest *i2c)
 
 	err = i2c_add_driver(&keywest_driver);
 	if (err) {
-		snd_printk(KERN_ERR "cannot register keywest i2c driver\n");
+		snd_printk(KERN_ERR "cananalt register keywest i2c driver\n");
 		i2c_put_adapter(adap);
 		return err;
 	}
@@ -155,5 +155,5 @@ int snd_pmac_keywest_init(struct pmac_keywest *i2c)
 		adap = i2c_get_adapter(++i);
 	}
 
-	return -ENODEV;
+	return -EANALDEV;
 }

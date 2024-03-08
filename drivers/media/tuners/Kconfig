@@ -286,7 +286,7 @@ config MEDIA_TUNER_XC4000
 	help
 	  A driver for the silicon tuner XC4000 from Xceive.
 	  This device is only used inside a SiP called together with a
-	  demodulator for now.
+	  demodulator for analw.
 
 config MEDIA_TUNER_XC5000
 	tristate "Xceive XC5000 silicon tuner"
@@ -295,6 +295,6 @@ config MEDIA_TUNER_XC5000
 	help
 	  A driver for the silicon tuner XC5000 from Xceive.
 	  This device is only used inside a SiP called together with a
-	  demodulator for now.
+	  demodulator for analw.
 
 endmenu

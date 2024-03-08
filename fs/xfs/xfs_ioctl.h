@@ -8,7 +8,7 @@
 
 struct xfs_bstat;
 struct xfs_ibulk;
-struct xfs_inogrp;
+struct xfs_ianalgrp;
 
 int
 xfs_ioc_swapext(
@@ -29,10 +29,10 @@ xfs_readlink_by_handle(
 	struct file		*parfilp,
 	xfs_fsop_handlereq_t	*hreq);
 
-int xfs_ioc_attrmulti_one(struct file *parfilp, struct inode *inode,
+int xfs_ioc_attrmulti_one(struct file *parfilp, struct ianalde *ianalde,
 		uint32_t opcode, void __user *uname, void __user *value,
 		uint32_t *len, uint32_t flags);
-int xfs_ioc_attr_list(struct xfs_inode *dp, void __user *ubuf,
+int xfs_ioc_attr_list(struct xfs_ianalde *dp, void __user *ubuf,
 		      size_t bufsize, int flags,
 		      struct xfs_attrlist_cursor __user *ucursor);
 

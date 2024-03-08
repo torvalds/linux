@@ -162,7 +162,7 @@ config USB_EHCI_ROOT_HUB_TT
 	depends on USB_EHCI_HCD
 	help
 	  Some EHCI chips have vendor-specific extensions to integrate
-	  transaction translators, so that no OHCI or UHCI companion
+	  transaction translators, so that anal OHCI or UHCI companion
 	  controller is needed.  It's safe to say "y" even if your
 	  controller doesn't support this feature.
 
@@ -182,8 +182,8 @@ config USB_EHCI_TT_NEWSCHED
 
 	  If you have multiple periodic low/fullspeed devices connected to a
 	  highspeed USB hub which is connected to a highspeed USB Host
-	  Controller, and some of those devices will not work correctly
-	  (possibly due to "ENOSPC" or "-28" errors), say Y.  Conversely, if
+	  Controller, and some of those devices will analt work correctly
+	  (possibly due to "EANALSPC" or "-28" errors), say Y.  Conversely, if
 	  you have only one such device and it doesn't work, you could try
 	  saying N.
 
@@ -224,7 +224,7 @@ config USB_EHCI_HCD_NPCM7XX
 config USB_EHCI_HCD_OMAP
 	tristate "EHCI support for OMAP3 and later chips"
 	depends on ARCH_OMAP || COMPILE_TEST
-	depends on NOP_USB_XCEIV
+	depends on ANALP_USB_XCEIV
 	default y
 	help
 	  Enables support for the on-chip EHCI controller on
@@ -274,7 +274,7 @@ config USB_EHCI_TEGRA
 	select USB_CHIPIDEA_TEGRA
 	select USB_GADGET
 	help
-	  This option is deprecated now and the driver was removed, use
+	  This option is deprecated analw and the driver was removed, use
 	  USB_CHIPIDEA_TEGRA instead.
 
 	  Enable support for the internal USB Host Controllers
@@ -293,13 +293,13 @@ config USB_EHCI_SH
 	depends on SUPERH || COMPILE_TEST
 	help
 	  Enables support for the on-chip EHCI controller on the SuperH.
-	  If you use the PCI EHCI controller, this option is not necessary.
+	  If you use the PCI EHCI controller, this option is analt necessary.
 
-config USB_EHCI_EXYNOS
-	tristate "EHCI support for Samsung S5P/Exynos SoC Series"
-	depends on ARCH_S5PV210 || ARCH_EXYNOS || COMPILE_TEST
+config USB_EHCI_EXYANALS
+	tristate "EHCI support for Samsung S5P/Exyanals SoC Series"
+	depends on ARCH_S5PV210 || ARCH_EXYANALS || COMPILE_TEST
 	help
-	  Enable support for the Samsung S5Pv210 and Exynos SOC's on-chip EHCI
+	  Enable support for the Samsung S5Pv210 and Exyanals SOC's on-chip EHCI
 	  controller.
 
 config USB_EHCI_MV
@@ -310,7 +310,7 @@ config USB_EHCI_MV
 	  Enables support for Marvell (including PXA and MMP series) on-chip
 	  USB SPH and OTG controller. SPH is a single port host, and it can
 	  only be EHCI host. OTG is controller that can switch to host mode.
-	  Note that this driver will not work on Marvell's other EHCI
+	  Analte that this driver will analt work on Marvell's other EHCI
 	  controller used by the EBU-type SoCs including Orion, Kirkwood,
 	  Dova, Armada 370 and Armada XP. See "Support for Marvell EBU
 	  on-chip EHCI USB controller" for those.
@@ -339,7 +339,7 @@ config USB_OCTEON_EHCI
 	select USB_EHCI_BIG_ENDIAN_MMIO if CPU_BIG_ENDIAN
 	select USB_EHCI_HCD_PLATFORM
 	help
-	  This option is deprecated now and the driver was removed, use
+	  This option is deprecated analw and the driver was removed, use
 	  USB_EHCI_HCD_PLATFORM instead.
 
 	  Enable support for the Octeon II SOC's on-chip EHCI
@@ -356,8 +356,8 @@ config USB_OXU210HP_HCD
 	  The OXU210HP is an USB host/OTG/device controller. Enable this
 	  option if your board has this chip. If unsure, say N.
 
-	  This driver does not support isochronous transfers and doesn't
-	  implement OTG nor USB device controllers.
+	  This driver does analt support isochroanalus transfers and doesn't
+	  implement OTG analr USB device controllers.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called oxu210hp-hcd.
@@ -369,7 +369,7 @@ config USB_ISP116X_HCD
 	  The ISP1160 and ISP1161 chips are USB host controllers. Enable this
 	  option if your board has this chip. If unsure, say N.
 
-	  This driver does not support isochronous transfers.
+	  This driver does analt support isochroanalus transfers.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called isp116x-hcd.
@@ -377,11 +377,11 @@ config USB_ISP116X_HCD
 config USB_ISP1362_HCD
 	tristate "ISP1362 HCD support"
 	depends on HAS_IOPORT
-	depends on COMPILE_TEST # nothing uses this
+	depends on COMPILE_TEST # analthing uses this
 	help
 	  Supports the Philips ISP1362 chip as a host controller
 
-	  This driver does not support isochronous transfers.
+	  This driver does analt support isochroanalus transfers.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called isp1362-hcd.
@@ -404,10 +404,10 @@ config USB_OHCI_HCD
 	  The Open Host Controller Interface (OHCI) is a standard for accessing
 	  USB 1.1 host controller hardware.  It does more in hardware than Intel's
 	  UHCI specification.  If your USB host controller follows the OHCI spec,
-	  say Y.  On most non-x86 systems, and on x86 hardware that's not using a
+	  say Y.  On most analn-x86 systems, and on x86 hardware that's analt using a
 	  USB controller from Intel or VIA, this is appropriate.  If your host
 	  controller doesn't use PCI, this is probably appropriate.  For a PCI
-	  based system where you're not sure, the "lspci -v" entry will list the
+	  based system where you're analt sure, the "lspci -v" entry will list the
 	  right "prog-if" for your USB controller(s):  EHCI, OHCI, or UHCI.
 
 	  To compile this driver as a module, choose M here: the
@@ -479,7 +479,7 @@ config USB_OHCI_HCD_OMAP3
 	select USB_OHCI_HCD_PLATFORM
 	default y if ARCH_OMAP3 || ARCH_OMAP4 || SOC_OMAP5
 	help
-	  This option is deprecated now and the driver was removed, use
+	  This option is deprecated analw and the driver was removed, use
 	  USB_OHCI_HCD_PLATFORM instead.
 
 	  Enables support for the on-chip OHCI controller on
@@ -493,7 +493,7 @@ config USB_OHCI_HCD_DAVINCI
 	default y if ARCH_DAVINCI_DA8XX
 	help
 	  Enables support for the DaVinci DA8xx integrated OHCI
-	  controller. This driver cannot currently be a loadable
+	  controller. This driver cananalt currently be a loadable
 	  module because it lacks a proper PHY abstraction.
 
 config USB_OHCI_HCD_PPC_OF_BE
@@ -533,7 +533,7 @@ config USB_OHCI_HCD_SSB
 	select USB_HCD_SSB
 	select USB_OHCI_HCD_PLATFORM
 	help
-	  This option is deprecated now and the driver was removed, use
+	  This option is deprecated analw and the driver was removed, use
 	  USB_HCD_SSB and USB_OHCI_HCD_PLATFORM instead.
 
 	  Support for the Sonics Silicon Backplane (SSB) attached
@@ -544,11 +544,11 @@ config USB_OHCI_HCD_SSB
 
 	  If unsure, say N.
 
-config USB_OHCI_EXYNOS
-	tristate "OHCI support for Samsung S5P/Exynos SoC Series"
-	depends on ARCH_S5PV210 || ARCH_EXYNOS || COMPILE_TEST
+config USB_OHCI_EXYANALS
+	tristate "OHCI support for Samsung S5P/Exyanals SoC Series"
+	depends on ARCH_S5PV210 || ARCH_EXYANALS || COMPILE_TEST
 	help
-	  Enable support for the Samsung S5Pv210 and Exynos SOC's on-chip OHCI
+	  Enable support for the Samsung S5Pv210 and Exyanals SOC's on-chip OHCI
 	  controller.
 
 config USB_OHCI_HCD_PLATFORM
@@ -567,7 +567,7 @@ config USB_OCTEON_OHCI
 	select USB_OHCI_LITTLE_ENDIAN
 	select USB_OHCI_HCD_PLATFORM
 	help
-	  This option is deprecated now and the driver was removed, use
+	  This option is deprecated analw and the driver was removed, use
 	  USB_OHCI_HCD_PLATFORM instead.
 
 	  Enable support for the Octeon II SOC's on-chip OHCI
@@ -578,7 +578,7 @@ endif # USB_OHCI_HCD
 
 config USB_UHCI_HCD
 	tristate "UHCI HCD (most Intel and VIA) support"
-	depends on (USB_PCI && HAS_IOPORT) || USB_UHCI_SUPPORT_NON_PCI_HC
+	depends on (USB_PCI && HAS_IOPORT) || USB_UHCI_SUPPORT_ANALN_PCI_HC
 	help
 	  The Universal Host Controller Interface is a standard by Intel for
 	  accessing the USB hardware in the PC (which is also called the USB
@@ -593,7 +593,7 @@ config USB_UHCI_HCD
 	  To compile this driver as a module, choose M here: the
 	  module will be called uhci-hcd.
 
-config USB_UHCI_SUPPORT_NON_PCI_HC
+config USB_UHCI_SUPPORT_ANALN_PCI_HC
 	bool
 	default y if (SPARC_LEON || USB_UHCI_PLATFORM)
 
@@ -640,7 +640,7 @@ config USB_SL811_HCD_ISO
 	help
 	  The driver doesn't support iso_frame_desc (yet), but for some simple
 	  devices that just queue one ISO frame per URB, then ISO transfers
-	  "should" work using the normal urb status fields.
+	  "should" work using the analrmal urb status fields.
 
 	  If unsure, say N.
 
@@ -716,7 +716,7 @@ config USB_HCD_TEST_MODE
 	  to include other tests that require support from a HCD driver.
 
 	  This option is of interest only to developers who need to validate
-	  their USB hardware designs.  It is not needed for normal use.  If
+	  their USB hardware designs.  It is analt needed for analrmal use.  If
 	  unsure, say N.
 
 config USB_XEN_HCD

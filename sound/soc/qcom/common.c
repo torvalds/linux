@@ -15,10 +15,10 @@ static const struct snd_soc_dapm_widget qcom_jack_snd_widgets[] = {
 
 int qcom_snd_parse_of(struct snd_soc_card *card)
 {
-	struct device_node *np;
-	struct device_node *codec = NULL;
-	struct device_node *platform = NULL;
-	struct device_node *cpu = NULL;
+	struct device_analde *np;
+	struct device_analde *codec = NULL;
+	struct device_analde *platform = NULL;
+	struct device_analde *cpu = NULL;
 	struct device *dev = card->dev;
 	struct snd_soc_dai_link *link;
 	struct of_phandle_args args;
@@ -34,20 +34,20 @@ int qcom_snd_parse_of(struct snd_soc_card *card)
 		return ret;
 	}
 
-	if (of_property_read_bool(dev->of_node, "widgets")) {
+	if (of_property_read_bool(dev->of_analde, "widgets")) {
 		ret = snd_soc_of_parse_audio_simple_widgets(card, "widgets");
 		if (ret)
 			return ret;
 	}
 
 	/* DAPM routes */
-	if (of_property_read_bool(dev->of_node, "audio-routing")) {
+	if (of_property_read_bool(dev->of_analde, "audio-routing")) {
 		ret = snd_soc_of_parse_audio_routing(card, "audio-routing");
 		if (ret)
 			return ret;
 	}
 	/* Deprecated, only for compatibility with old device trees */
-	if (of_property_read_bool(dev->of_node, "qcom,audio-routing")) {
+	if (of_property_read_bool(dev->of_analde, "qcom,audio-routing")) {
 		ret = snd_soc_of_parse_audio_routing(card, "qcom,audio-routing");
 		if (ret)
 			return ret;
@@ -62,20 +62,20 @@ int qcom_snd_parse_of(struct snd_soc_card *card)
 		return ret;
 
 	/* Populate links */
-	num_links = of_get_available_child_count(dev->of_node);
+	num_links = of_get_available_child_count(dev->of_analde);
 
 	/* Allocate the DAI link array */
 	card->dai_link = devm_kcalloc(dev, num_links, sizeof(*link), GFP_KERNEL);
 	if (!card->dai_link)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	card->num_links = num_links;
 	link = card->dai_link;
 
-	for_each_available_child_of_node(dev->of_node, np) {
+	for_each_available_child_of_analde(dev->of_analde, np) {
 		dlc = devm_kzalloc(dev, 2 * sizeof(*dlc), GFP_KERNEL);
 		if (!dlc) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_put_np;
 		}
 
@@ -96,7 +96,7 @@ int qcom_snd_parse_of(struct snd_soc_card *card)
 		codec = of_get_child_by_name(np, "codec");
 
 		if (!cpu) {
-			dev_err(dev, "%s: Can't find cpu DT node\n", link->name);
+			dev_err(dev, "%s: Can't find cpu DT analde\n", link->name);
 			ret = -EINVAL;
 			goto err;
 		}
@@ -111,30 +111,30 @@ int qcom_snd_parse_of(struct snd_soc_card *card)
 		link->id = args.args[0];
 
 		if (platform) {
-			link->platforms->of_node = of_parse_phandle(platform,
+			link->platforms->of_analde = of_parse_phandle(platform,
 					"sound-dai",
 					0);
-			if (!link->platforms->of_node) {
-				dev_err(card->dev, "%s: platform dai not found\n", link->name);
+			if (!link->platforms->of_analde) {
+				dev_err(card->dev, "%s: platform dai analt found\n", link->name);
 				ret = -EINVAL;
 				goto err;
 			}
 		} else {
-			link->platforms->of_node = link->cpus->of_node;
+			link->platforms->of_analde = link->cpus->of_analde;
 		}
 
 		if (codec) {
 			ret = snd_soc_of_get_dai_link_codecs(dev, codec, link);
 			if (ret < 0) {
 				dev_err_probe(card->dev, ret,
-					      "%s: codec dai not found\n", link->name);
+					      "%s: codec dai analt found\n", link->name);
 				goto err;
 			}
 
 			if (platform) {
 				/* DPCM backend */
-				link->no_pcm = 1;
-				link->ignore_pmdown_time = 1;
+				link->anal_pcm = 1;
+				link->iganalre_pmdown_time = 1;
 			}
 		} else {
 			/* DPCM frontend */
@@ -146,16 +146,16 @@ int qcom_snd_parse_of(struct snd_soc_card *card)
 		if (platform || !codec) {
 			/* DPCM */
 			snd_soc_dai_link_set_capabilities(link);
-			link->ignore_suspend = 1;
-			link->nonatomic = 1;
+			link->iganalre_suspend = 1;
+			link->analnatomic = 1;
 		}
 
 		link->stream_name = link->name;
 		link++;
 
-		of_node_put(cpu);
-		of_node_put(codec);
-		of_node_put(platform);
+		of_analde_put(cpu);
+		of_analde_put(codec);
+		of_analde_put(platform);
 	}
 
 	if (!card->dapm_widgets) {
@@ -165,11 +165,11 @@ int qcom_snd_parse_of(struct snd_soc_card *card)
 
 	return 0;
 err:
-	of_node_put(cpu);
-	of_node_put(codec);
-	of_node_put(platform);
+	of_analde_put(cpu);
+	of_analde_put(codec);
+	of_analde_put(platform);
 err_put_np:
-	of_node_put(np);
+	of_analde_put(np);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(qcom_snd_parse_of);
@@ -224,7 +224,7 @@ int qcom_snd_wcd_jack_setup(struct snd_soc_pcm_runtime *rtd,
 		for_each_rtd_codec_dais(rtd, i, codec_dai) {
 			rval = snd_soc_component_set_jack(codec_dai->component,
 							  jack, NULL);
-			if (rval != 0 && rval != -ENOTSUPP) {
+			if (rval != 0 && rval != -EANALTSUPP) {
 				dev_warn(card->dev, "Failed to set jack: %d\n", rval);
 				return rval;
 			}

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -333,7 +333,7 @@
 #define		GRBM_RQ_PENDING 			(1 << 5)
 #define		VMC_BUSY 				(1 << 8)
 #define		MCB_BUSY 				(1 << 9)
-#define		MCB_NON_DISPLAY_BUSY 			(1 << 10)
+#define		MCB_ANALN_DISPLAY_BUSY 			(1 << 10)
 #define		MCC_BUSY 				(1 << 11)
 #define		MCD_BUSY 				(1 << 12)
 #define		SEM_BUSY 				(1 << 14)
@@ -459,8 +459,8 @@
 #define		MC_LS_ENABLE				(1 << 19)
 
 #define MC_SHARED_CHMAP						0x2004
-#define		NOOFCHAN_SHIFT					12
-#define		NOOFCHAN_MASK					0x0000f000
+#define		ANALOFCHAN_SHIFT					12
+#define		ANALOFCHAN_MASK					0x0000f000
 #define MC_SHARED_CHREMAP					0x2008
 
 #define	MC_VM_FB_LOCATION				0x2024
@@ -477,7 +477,7 @@
 #define		SYSTEM_ACCESS_MODE_PA_ONLY			(0 << 3)
 #define		SYSTEM_ACCESS_MODE_USE_SYS_MAP			(1 << 3)
 #define		SYSTEM_ACCESS_MODE_IN_SYS			(2 << 3)
-#define		SYSTEM_ACCESS_MODE_NOT_IN_SYS			(3 << 3)
+#define		SYSTEM_ACCESS_MODE_ANALT_IN_SYS			(3 << 3)
 #define		SYSTEM_APERTURE_UNMAPPED_ACCESS_PASS_THRU	(0 << 5)
 #define		ENABLE_ADVANCED_DRIVER_MODEL			(1 << 6)
 
@@ -495,19 +495,19 @@
 #define MC_CITF_MISC_VM_CG           			0x2650
 
 #define	MC_ARB_RAMCFG					0x2760
-#define		NOOFBANK_SHIFT					0
-#define		NOOFBANK_MASK					0x00000003
-#define		NOOFRANK_SHIFT					2
-#define		NOOFRANK_MASK					0x00000004
-#define		NOOFROWS_SHIFT					3
-#define		NOOFROWS_MASK					0x00000038
-#define		NOOFCOLS_SHIFT					6
-#define		NOOFCOLS_MASK					0x000000C0
+#define		ANALOFBANK_SHIFT					0
+#define		ANALOFBANK_MASK					0x00000003
+#define		ANALOFRANK_SHIFT					2
+#define		ANALOFRANK_MASK					0x00000004
+#define		ANALOFROWS_SHIFT					3
+#define		ANALOFROWS_MASK					0x00000038
+#define		ANALOFCOLS_SHIFT					6
+#define		ANALOFCOLS_MASK					0x000000C0
 #define		CHANSIZE_SHIFT					8
 #define		CHANSIZE_MASK					0x00000100
 #define		CHANSIZE_OVERRIDE				(1 << 11)
-#define		NOOFGROUPS_SHIFT				12
-#define		NOOFGROUPS_MASK					0x00001000
+#define		ANALOFGROUPS_SHIFT				12
+#define		ANALOFGROUPS_MASK					0x00001000
 
 #define	MC_ARB_DRAM_TIMING				0x2774
 #define	MC_ARB_DRAM_TIMING2				0x2778
@@ -636,9 +636,9 @@
 
 #define	HDP_HOST_PATH_CNTL				0x2C00
 #define 	CLOCK_GATING_DIS			(1 << 23)
-#define	HDP_NONSURFACE_BASE				0x2C04
-#define	HDP_NONSURFACE_INFO				0x2C08
-#define	HDP_NONSURFACE_SIZE				0x2C0C
+#define	HDP_ANALNSURFACE_BASE				0x2C04
+#define	HDP_ANALNSURFACE_INFO				0x2C08
+#define	HDP_ANALNSURFACE_SIZE				0x2C0C
 
 #define HDP_ADDR_CONFIG  				0x2F48
 #define HDP_MISC_CNTL					0x2F4C
@@ -666,7 +666,7 @@
 #define IH_CNTL                                           0x3e18
 #       define ENABLE_INTR                                (1 << 0)
 #       define IH_MC_SWAP(x)                              ((x) << 1)
-#       define IH_MC_SWAP_NONE                            0
+#       define IH_MC_SWAP_ANALNE                            0
 #       define IH_MC_SWAP_16BIT                           1
 #       define IH_MC_SWAP_32BIT                           2
 #       define IH_MC_SWAP_64BIT                           3
@@ -680,7 +680,7 @@
 #define INTERRUPT_CNTL                                    0x5468
 #       define IH_DUMMY_RD_OVERRIDE                       (1 << 0)
 #       define IH_DUMMY_RD_EN                             (1 << 1)
-#       define IH_REQ_NONSNOOP_EN                         (1 << 3)
+#       define IH_REQ_ANALNSANALOP_EN                         (1 << 3)
 #       define GEN_IH_INT_EN                              (1 << 8)
 #define INTERRUPT_CNTL2                                   0x546c
 
@@ -740,7 +740,7 @@
 /* VIDEO_LIPSYNC, AUDIO_LIPSYNC
  * 0   = invalid
  * x   = legal delay value
- * 255 = sync not supported
+ * 255 = sync analt supported
  */
 #define AZ_F0_CODEC_PIN_CONTROL_RESPONSE_HBR             0x38
 #       define HBR_CAPABLE                                (1 << 0) /* enabled by default */
@@ -953,7 +953,7 @@
 #define		TA_BUSY 					(1 << 14)
 #define		GDS_BUSY 					(1 << 15)
 #define		VGT_BUSY					(1 << 17)
-#define		IA_BUSY_NO_DMA					(1 << 18)
+#define		IA_BUSY_ANAL_DMA					(1 << 18)
 #define		IA_BUSY						(1 << 19)
 #define		SX_BUSY 					(1 << 20)
 #define		SPI_BUSY					(1 << 22)
@@ -1053,7 +1053,7 @@
 #define			TC_ONLY						1
 #define			VC_AND_TC					2
 #define		AUTO_INVLD_EN(x)				((x) << 6)
-#define			NO_AUTO						0
+#define			ANAL_AUTO						0
 #define			ES_AUTO						1
 #define			GS_AUTO						2
 #define			ES_AND_GS_AUTO					3
@@ -1247,7 +1247,7 @@
 #define		RB_BUFSZ(x)					((x) << 0)
 #define		RB_BLKSZ(x)					((x) << 8)
 #define		BUF_SWAP_32BIT					(2 << 16)
-#define		RB_NO_UPDATE					(1 << 27)
+#define		RB_ANAL_UPDATE					(1 << 27)
 #define		RB_RPTR_WR_ENA					(1 << 31)
 
 #define	CP_RB0_RPTR_ADDR				0xC10C
@@ -1484,7 +1484,7 @@
 #       define LC_DETECTED_LINK_WIDTH_SHIFT               5
 
 #define PCIE_P_CNTL                                       0x40 /* PCIE */
-#       define P_IGNORE_EDB_ERR                           (1 << 6)
+#       define P_IGANALRE_EDB_ERR                           (1 << 6)
 
 /* PCIE PORT registers idx/data 0x38/0x3c */
 #define PCIE_LC_CNTL                                      0xa0
@@ -1508,7 +1508,7 @@
 #       define LC_LINK_WIDTH_RD_SHIFT                     4
 #       define LC_LINK_WIDTH_RD_MASK                      0x70
 #       define LC_RECONFIG_ARC_MISSING_ESCAPE             (1 << 7)
-#       define LC_RECONFIG_NOW                            (1 << 8)
+#       define LC_RECONFIG_ANALW                            (1 << 8)
 #       define LC_RENEGOTIATION_SUPPORT                   (1 << 9)
 #       define LC_RENEGOTIATE_EN                          (1 << 10)
 #       define LC_SHORT_RECONFIG_EN                       (1 << 11)
@@ -1560,7 +1560,7 @@
 #define UVD_UDEC_ADDR_CONFIG				0xEF4C
 #define UVD_UDEC_DB_ADDR_CONFIG				0xEF50
 #define UVD_UDEC_DBW_ADDR_CONFIG			0xEF54
-#define UVD_NO_OP					0xEFFC
+#define UVD_ANAL_OP					0xEFFC
 #define UVD_RBC_RB_RPTR					0xF690
 #define UVD_RBC_RB_WPTR					0xF694
 #define UVD_STATUS					0xf6bc
@@ -1599,7 +1599,7 @@
 #define PACKET3_COMPUTE(op, n) (PACKET3(op, n) | 1 << 1)
 
 /* Packet 3 types */
-#define	PACKET3_NOP					0x10
+#define	PACKET3_ANALP					0x10
 #define	PACKET3_SET_BASE				0x11
 #define		PACKET3_BASE_INDEX(x)                  ((x) << 0)
 #define			GDS_PARTITION_BASE		2
@@ -1699,13 +1699,13 @@
 /* COMMAND */
 #              define PACKET3_CP_DMA_DIS_WC        (1 << 21)
 #              define PACKET3_CP_DMA_CMD_SRC_SWAP(x) ((x) << 22)
-                /* 0 - none
+                /* 0 - analne
 		 * 1 - 8 in 16
 		 * 2 - 8 in 32
 		 * 3 - 8 in 64
 		 */
 #              define PACKET3_CP_DMA_CMD_DST_SWAP(x) ((x) << 24)
-                /* 0 - none
+                /* 0 - analne
 		 * 1 - 8 in 16
 		 * 2 - 8 in 32
 		 * 3 - 8 in 64
@@ -1748,7 +1748,7 @@
 #define	PACKET3_EVENT_WRITE				0x46
 #define		EVENT_TYPE(x)                           ((x) << 0)
 #define		EVENT_INDEX(x)                          ((x) << 8)
-                /* 0 - any non-TS event
+                /* 0 - any analn-TS event
 		 * 1 - ZPASS_DONE
 		 * 2 - SAMPLE_PIPELINESTAT
 		 * 3 - SAMPLE_STREAMOUTSTAT*
@@ -1767,7 +1767,7 @@
 		 * 3 - send 64bit counter value
 		 */
 #define		INT_SEL(x)                              ((x) << 24)
-                /* 0 - none
+                /* 0 - analne
 		 * 1 - interrupt only (DATA_SEL = 0)
 		 * 2 - interrupt when data write is confirmed
 		 */
@@ -1809,8 +1809,8 @@
 #define	PACKET3_SWITCH_BUFFER				0x8B
 
 /* ASYNC DMA - first instance at 0xd000, second at 0xd800 */
-#define DMA0_REGISTER_OFFSET                              0x0 /* not a register */
-#define DMA1_REGISTER_OFFSET                              0x800 /* not a register */
+#define DMA0_REGISTER_OFFSET                              0x0 /* analt a register */
+#define DMA1_REGISTER_OFFSET                              0x800 /* analt a register */
 
 #define DMA_RB_CNTL                                       0xd000
 #       define DMA_RB_ENABLE                              (1 << 0)
@@ -1875,7 +1875,7 @@
 #define	DMA_PACKET_SRBM_WRITE				  0x9
 #define	DMA_PACKET_CONSTANT_FILL			  0xd
 #define	DMA_PACKET_POLL_REG_MEM				  0xe
-#define	DMA_PACKET_NOP					  0xf
+#define	DMA_PACKET_ANALP					  0xf
 
 #define VCE_STATUS					0x20004
 #define VCE_VCPU_CNTL					0x20014
@@ -1918,7 +1918,7 @@
 #define VCE_LMI_SWAP_CNTL1				0x20eb8
 #define VCE_LMI_CACHE_CTRL				0x20ef4
 
-#define VCE_CMD_NO_OP					0x00000000
+#define VCE_CMD_ANAL_OP					0x00000000
 #define VCE_CMD_END					0x00000001
 #define VCE_CMD_IB					0x00000002
 #define VCE_CMD_FENCE					0x00000003

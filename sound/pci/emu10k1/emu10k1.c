@@ -77,10 +77,10 @@ static int snd_card_emu10k1_probe(struct pci_dev *pci,
 	int err;
 
 	if (dev >= SNDRV_CARDS)
-        	return -ENODEV;
+        	return -EANALDEV;
 	if (!enable[dev]) {
 		dev++;
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	err = snd_devm_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
@@ -114,7 +114,7 @@ static int snd_card_emu10k1_probe(struct pci_dev *pci,
 		emu->p16v_buffer =
 			snd_devm_alloc_pages(&pci->dev, SNDRV_DMA_TYPE_DEV, 1024);
 		if (!emu->p16v_buffer)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	err = snd_emu10k1_mixer(emu, 0, 3);

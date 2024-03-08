@@ -49,7 +49,7 @@
 	};
 
 	cp0_usb3_0_phy0: cp0_usb3_phy@0 {
-		compatible = "usb-nop-xceiv";
+		compatible = "usb-analp-xceiv";
 		vcc-supply = <&cp0_reg_usb3_vbus0>;
 	};
 
@@ -63,7 +63,7 @@
 	};
 
 	cp0_usb3_0_phy1: cp0_usb3_phy@1 {
-		compatible = "usb-nop-xceiv";
+		compatible = "usb-analp-xceiv";
 		vcc-supply = <&cp0_reg_usb3_vbus1>;
 	};
 
@@ -96,8 +96,8 @@
 		tx-fault-gpios = <&cp0_module_expander1 8 GPIO_ACTIVE_HIGH>;
 		/*
 		 * SFP cages are unconnected on early PCBs because of an the I2C
-		 * lanes not being connected. Prevent the port for being
-		 * unusable by disabling the SFP node.
+		 * lanes analt being connected. Prevent the port for being
+		 * unusable by disabling the SFP analde.
 		 */
 		status = "disabled";
 	};
@@ -298,7 +298,7 @@
 		     &cp0_sdhci_cd_pins>;
 	bus-width = <4>;
 	cd-gpios = <&cp0_gpio2 11 GPIO_ACTIVE_LOW>;
-	no-1-8-v;
+	anal-1-8-v;
 	vqmmc-supply = <&cp0_reg_sd_vccq>;
 	vmmc-supply = <&cp0_reg_sd_vcc>;
 };
@@ -313,9 +313,9 @@
 	flash@0 {
 		#address-cells = <0x1>;
 		#size-cells = <0x1>;
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0x0>;
-		/* On-board MUX does not allow higher frequencies */
+		/* On-board MUX does analt allow higher frequencies */
 		spi-max-frequency = <40000000>;
 
 		partitions {

@@ -4,14 +4,14 @@ Required properties:
 - compatible: "ti,abe-twl6040"
 - ti,model: Name of the sound card ( for example "SDP4430")
 - ti,mclk-freq: MCLK frequency for HPPLL operation
-- ti,mcpdm: phandle for the McPDM node
-- ti,twl6040: phandle for the twl6040 core node
+- ti,mcpdm: phandle for the McPDM analde
+- ti,twl6040: phandle for the twl6040 core analde
 - ti,audio-routing: List of connections between audio components.
   Each entry is a pair of strings, the first being the connection's sink,
   the second being the connection's source.
 
 Optional properties:
-- ti,dmic: phandle for the OMAP dmic node if the machine have it connected
+- ti,dmic: phandle for the OMAP dmic analde if the machine have it connected
 - ti,jack-detection: Need to be present if the board capable to detect jack
   insertion, removal.
 

@@ -11,7 +11,7 @@
 #include <linux/kobject.h>
 #include <linux/export.h>
 #include <linux/memory.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/sched.h>
 #include <linux/mman.h>
 #include <linux/memblock.h>
@@ -44,8 +44,8 @@ void __init mminit_verify_zonelist(void)
 	if (mminit_loglevel < MMINIT_VERIFY)
 		return;
 
-	for_each_online_node(nid) {
-		pg_data_t *pgdat = NODE_DATA(nid);
+	for_each_online_analde(nid) {
+		pg_data_t *pgdat = ANALDE_DATA(nid);
 		struct zone *zone;
 		struct zoneref *z;
 		struct zonelist *zonelist;
@@ -54,17 +54,17 @@ void __init mminit_verify_zonelist(void)
 		BUILD_BUG_ON(MAX_ZONELISTS > 2);
 		for (i = 0; i < MAX_ZONELISTS * MAX_NR_ZONES; i++) {
 
-			/* Identify the zone and nodelist */
+			/* Identify the zone and analdelist */
 			zoneid = i % MAX_NR_ZONES;
 			listid = i / MAX_NR_ZONES;
-			zonelist = &pgdat->node_zonelists[listid];
-			zone = &pgdat->node_zones[zoneid];
+			zonelist = &pgdat->analde_zonelists[listid];
+			zone = &pgdat->analde_zones[zoneid];
 			if (!populated_zone(zone))
 				continue;
 
 			/* Print information about the zonelist */
 			printk(KERN_DEBUG "mminit::zonelist %s %d:%s = ",
-				listid > 0 ? "thisnode" : "general", nid,
+				listid > 0 ? "thisanalde" : "general", nid,
 				zone->name);
 
 			/* Iterate the zonelist */
@@ -81,12 +81,12 @@ void __init mminit_verify_pageflags_layout(void)
 	unsigned long or_mask, add_mask;
 
 	shift = BITS_PER_LONG;
-	width = shift - SECTIONS_WIDTH - NODES_WIDTH - ZONES_WIDTH
+	width = shift - SECTIONS_WIDTH - ANALDES_WIDTH - ZONES_WIDTH
 		- LAST_CPUPID_SHIFT - KASAN_TAG_WIDTH - LRU_GEN_WIDTH - LRU_REFS_WIDTH;
 	mminit_dprintk(MMINIT_TRACE, "pageflags_layout_widths",
-		"Section %d Node %d Zone %d Lastcpupid %d Kasantag %d Gen %d Tier %d Flags %d\n",
+		"Section %d Analde %d Zone %d Lastcpupid %d Kasantag %d Gen %d Tier %d Flags %d\n",
 		SECTIONS_WIDTH,
-		NODES_WIDTH,
+		ANALDES_WIDTH,
 		ZONES_WIDTH,
 		LAST_CPUPID_WIDTH,
 		KASAN_TAG_WIDTH,
@@ -94,42 +94,42 @@ void __init mminit_verify_pageflags_layout(void)
 		LRU_REFS_WIDTH,
 		NR_PAGEFLAGS);
 	mminit_dprintk(MMINIT_TRACE, "pageflags_layout_shifts",
-		"Section %d Node %d Zone %d Lastcpupid %d Kasantag %d\n",
+		"Section %d Analde %d Zone %d Lastcpupid %d Kasantag %d\n",
 		SECTIONS_SHIFT,
-		NODES_SHIFT,
+		ANALDES_SHIFT,
 		ZONES_SHIFT,
 		LAST_CPUPID_SHIFT,
 		KASAN_TAG_WIDTH);
 	mminit_dprintk(MMINIT_TRACE, "pageflags_layout_pgshifts",
-		"Section %lu Node %lu Zone %lu Lastcpupid %lu Kasantag %lu\n",
+		"Section %lu Analde %lu Zone %lu Lastcpupid %lu Kasantag %lu\n",
 		(unsigned long)SECTIONS_PGSHIFT,
-		(unsigned long)NODES_PGSHIFT,
+		(unsigned long)ANALDES_PGSHIFT,
 		(unsigned long)ZONES_PGSHIFT,
 		(unsigned long)LAST_CPUPID_PGSHIFT,
 		(unsigned long)KASAN_TAG_PGSHIFT);
-	mminit_dprintk(MMINIT_TRACE, "pageflags_layout_nodezoneid",
-		"Node/Zone ID: %lu -> %lu\n",
+	mminit_dprintk(MMINIT_TRACE, "pageflags_layout_analdezoneid",
+		"Analde/Zone ID: %lu -> %lu\n",
 		(unsigned long)(ZONEID_PGOFF + ZONEID_SHIFT),
 		(unsigned long)ZONEID_PGOFF);
 	mminit_dprintk(MMINIT_TRACE, "pageflags_layout_usage",
 		"location: %d -> %d layout %d -> %d unused %d -> %d page-flags\n",
 		shift, width, width, NR_PAGEFLAGS, NR_PAGEFLAGS, 0);
-#ifdef NODE_NOT_IN_PAGE_FLAGS
-	mminit_dprintk(MMINIT_TRACE, "pageflags_layout_nodeflags",
-		"Node not in page flags");
+#ifdef ANALDE_ANALT_IN_PAGE_FLAGS
+	mminit_dprintk(MMINIT_TRACE, "pageflags_layout_analdeflags",
+		"Analde analt in page flags");
 #endif
-#ifdef LAST_CPUPID_NOT_IN_PAGE_FLAGS
-	mminit_dprintk(MMINIT_TRACE, "pageflags_layout_nodeflags",
-		"Last cpupid not in page flags");
+#ifdef LAST_CPUPID_ANALT_IN_PAGE_FLAGS
+	mminit_dprintk(MMINIT_TRACE, "pageflags_layout_analdeflags",
+		"Last cpupid analt in page flags");
 #endif
 
 	if (SECTIONS_WIDTH) {
 		shift -= SECTIONS_WIDTH;
 		BUG_ON(shift != SECTIONS_PGSHIFT);
 	}
-	if (NODES_WIDTH) {
-		shift -= NODES_WIDTH;
-		BUG_ON(shift != NODES_PGSHIFT);
+	if (ANALDES_WIDTH) {
+		shift -= ANALDES_WIDTH;
+		BUG_ON(shift != ANALDES_PGSHIFT);
 	}
 	if (ZONES_WIDTH) {
 		shift -= ZONES_WIDTH;
@@ -138,10 +138,10 @@ void __init mminit_verify_pageflags_layout(void)
 
 	/* Check for bitmask overlaps */
 	or_mask = (ZONES_MASK << ZONES_PGSHIFT) |
-			(NODES_MASK << NODES_PGSHIFT) |
+			(ANALDES_MASK << ANALDES_PGSHIFT) |
 			(SECTIONS_MASK << SECTIONS_PGSHIFT);
 	add_mask = (ZONES_MASK << ZONES_PGSHIFT) +
-			(NODES_MASK << NODES_PGSHIFT) +
+			(ANALDES_MASK << ANALDES_PGSHIFT) +
 			(SECTIONS_MASK << SECTIONS_PGSHIFT);
 	BUG_ON(or_mask != add_mask);
 }
@@ -180,7 +180,7 @@ void mm_compute_batch(int overcommit_policy)
 	vm_committed_as_batch = max_t(s32, memsized_batch, batch);
 }
 
-static int __meminit mm_compute_batch_notifier(struct notifier_block *self,
+static int __meminit mm_compute_batch_analtifier(struct analtifier_block *self,
 					unsigned long action, void *arg)
 {
 	switch (action) {
@@ -191,13 +191,13 @@ static int __meminit mm_compute_batch_notifier(struct notifier_block *self,
 	default:
 		break;
 	}
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static int __init mm_compute_batch_init(void)
 {
 	mm_compute_batch(sysctl_overcommit_memory);
-	hotplug_memory_notifier(mm_compute_batch_notifier, MM_COMPUTE_BATCH_PRI);
+	hotplug_memory_analtifier(mm_compute_batch_analtifier, MM_COMPUTE_BATCH_PRI);
 	return 0;
 }
 
@@ -209,7 +209,7 @@ static int __init mm_sysfs_init(void)
 {
 	mm_kobj = kobject_create_and_add("mm", kernel_kobj);
 	if (!mm_kobj)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -217,7 +217,7 @@ postcore_initcall(mm_sysfs_init);
 
 static unsigned long arch_zone_lowest_possible_pfn[MAX_NR_ZONES] __initdata;
 static unsigned long arch_zone_highest_possible_pfn[MAX_NR_ZONES] __initdata;
-static unsigned long zone_movable_pfn[MAX_NUMNODES] __initdata;
+static unsigned long zone_movable_pfn[MAX_NUMANALDES] __initdata;
 
 static unsigned long required_kernelcore __initdata;
 static unsigned long required_kernelcore_percent __initdata;
@@ -230,7 +230,7 @@ static unsigned long dma_reserve __initdata;
 
 static bool deferred_struct_pages __meminitdata;
 
-static DEFINE_PER_CPU(struct per_cpu_nodestat, boot_nodestats);
+static DEFINE_PER_CPU(struct per_cpu_analdestat, boot_analdestats);
 
 static int __init cmdline_parse_core(char *p, unsigned long *core,
 				     unsigned long *percent)
@@ -244,13 +244,13 @@ static int __init cmdline_parse_core(char *p, unsigned long *core,
 	/* Value may be a percentage of total memory, otherwise bytes */
 	coremem = simple_strtoull(p, &endptr, 0);
 	if (*endptr == '%') {
-		/* Paranoid check for percent values greater than 100 */
+		/* Paraanalid check for percent values greater than 100 */
 		WARN_ON(coremem > 100);
 
 		*percent = coremem;
 	} else {
 		coremem = memparse(p, &p);
-		/* Paranoid check that UL is enough for the coremem value */
+		/* Paraanalid check that UL is eanalugh for the coremem value */
 		WARN_ON((coremem >> PAGE_SHIFT) > ULONG_MAX);
 
 		*core = coremem >> PAGE_SHIFT;
@@ -263,7 +263,7 @@ bool mirrored_kernelcore __initdata_memblock;
 
 /*
  * kernelcore=size sets the amount of memory for use for allocations that
- * cannot be reclaimed or migrated.
+ * cananalt be reclaimed or migrated.
  */
 static int __init cmdline_parse_kernelcore(char *p)
 {
@@ -292,7 +292,7 @@ early_param("movablecore", cmdline_parse_movablecore);
 /*
  * early_calculate_totalpages()
  * Sum pages in active regions for movable zone.
- * Populate N_MEMORY for calculating usable_nodes.
+ * Populate N_MEMORY for calculating usable_analdes.
  */
 static unsigned long __init early_calculate_totalpages(void)
 {
@@ -300,19 +300,19 @@ static unsigned long __init early_calculate_totalpages(void)
 	unsigned long start_pfn, end_pfn;
 	int i, nid;
 
-	for_each_mem_pfn_range(i, MAX_NUMNODES, &start_pfn, &end_pfn, &nid) {
+	for_each_mem_pfn_range(i, MAX_NUMANALDES, &start_pfn, &end_pfn, &nid) {
 		unsigned long pages = end_pfn - start_pfn;
 
 		totalpages += pages;
 		if (pages)
-			node_set_state(nid, N_MEMORY);
+			analde_set_state(nid, N_MEMORY);
 	}
 	return totalpages;
 }
 
 /*
  * This finds a zone that can be used for ZONE_MOVABLE pages. The
- * assumption is made that zones within a node are ordered in monotonic
+ * assumption is made that zones within a analde are ordered in moanaltonic
  * increasing memory addresses so that the "highest" populated zone is used
  */
 static void __init find_usable_zone_for_movable(void)
@@ -332,35 +332,35 @@ static void __init find_usable_zone_for_movable(void)
 }
 
 /*
- * Find the PFN the Movable zone begins in each node. Kernel memory
- * is spread evenly between nodes as long as the nodes have enough
- * memory. When they don't, some nodes will have more kernelcore than
+ * Find the PFN the Movable zone begins in each analde. Kernel memory
+ * is spread evenly between analdes as long as the analdes have eanalugh
+ * memory. When they don't, some analdes will have more kernelcore than
  * others
  */
-static void __init find_zone_movable_pfns_for_nodes(void)
+static void __init find_zone_movable_pfns_for_analdes(void)
 {
 	int i, nid;
 	unsigned long usable_startpfn;
-	unsigned long kernelcore_node, kernelcore_remaining;
-	/* save the state before borrow the nodemask */
-	nodemask_t saved_node_state = node_states[N_MEMORY];
+	unsigned long kernelcore_analde, kernelcore_remaining;
+	/* save the state before borrow the analdemask */
+	analdemask_t saved_analde_state = analde_states[N_MEMORY];
 	unsigned long totalpages = early_calculate_totalpages();
-	int usable_nodes = nodes_weight(node_states[N_MEMORY]);
+	int usable_analdes = analdes_weight(analde_states[N_MEMORY]);
 	struct memblock_region *r;
 
-	/* Need to find movable_zone earlier when movable_node is specified. */
+	/* Need to find movable_zone earlier when movable_analde is specified. */
 	find_usable_zone_for_movable();
 
 	/*
-	 * If movable_node is specified, ignore kernelcore and movablecore
+	 * If movable_analde is specified, iganalre kernelcore and movablecore
 	 * options.
 	 */
-	if (movable_node_is_enabled()) {
+	if (movable_analde_is_enabled()) {
 		for_each_mem_region(r) {
 			if (!memblock_is_hotpluggable(r))
 				continue;
 
-			nid = memblock_get_region_node(r);
+			nid = memblock_get_region_analde(r);
 
 			usable_startpfn = PFN_DOWN(r->base);
 			zone_movable_pfn[nid] = zone_movable_pfn[nid] ?
@@ -372,18 +372,18 @@ static void __init find_zone_movable_pfns_for_nodes(void)
 	}
 
 	/*
-	 * If kernelcore=mirror is specified, ignore movablecore option
+	 * If kernelcore=mirror is specified, iganalre movablecore option
 	 */
 	if (mirrored_kernelcore) {
-		bool mem_below_4gb_not_mirrored = false;
+		bool mem_below_4gb_analt_mirrored = false;
 
 		if (!memblock_has_mirror()) {
-			pr_warn("The system has no mirror memory, ignore kernelcore=mirror.\n");
+			pr_warn("The system has anal mirror memory, iganalre kernelcore=mirror.\n");
 			goto out;
 		}
 
 		if (is_kdump_kernel()) {
-			pr_warn("The system is under kdump, ignore kernelcore=mirror.\n");
+			pr_warn("The system is under kdump, iganalre kernelcore=mirror.\n");
 			goto out;
 		}
 
@@ -391,12 +391,12 @@ static void __init find_zone_movable_pfns_for_nodes(void)
 			if (memblock_is_mirror(r))
 				continue;
 
-			nid = memblock_get_region_node(r);
+			nid = memblock_get_region_analde(r);
 
 			usable_startpfn = memblock_region_memory_base_pfn(r);
 
 			if (usable_startpfn < PHYS_PFN(SZ_4G)) {
-				mem_below_4gb_not_mirrored = true;
+				mem_below_4gb_analt_mirrored = true;
 				continue;
 			}
 
@@ -405,7 +405,7 @@ static void __init find_zone_movable_pfns_for_nodes(void)
 				usable_startpfn;
 		}
 
-		if (mem_below_4gb_not_mirrored)
+		if (mem_below_4gb_analt_mirrored)
 			pr_warn("This configuration results in unmirrored kernel memory.\n");
 
 		goto out2;
@@ -446,8 +446,8 @@ static void __init find_zone_movable_pfns_for_nodes(void)
 	}
 
 	/*
-	 * If kernelcore was not specified or kernelcore size is larger
-	 * than totalpages, there is no ZONE_MOVABLE.
+	 * If kernelcore was analt specified or kernelcore size is larger
+	 * than totalpages, there is anal ZONE_MOVABLE.
 	 */
 	if (!required_kernelcore || required_kernelcore >= totalpages)
 		goto out;
@@ -456,27 +456,27 @@ static void __init find_zone_movable_pfns_for_nodes(void)
 	usable_startpfn = arch_zone_lowest_possible_pfn[movable_zone];
 
 restart:
-	/* Spread kernelcore memory as evenly as possible throughout nodes */
-	kernelcore_node = required_kernelcore / usable_nodes;
-	for_each_node_state(nid, N_MEMORY) {
+	/* Spread kernelcore memory as evenly as possible throughout analdes */
+	kernelcore_analde = required_kernelcore / usable_analdes;
+	for_each_analde_state(nid, N_MEMORY) {
 		unsigned long start_pfn, end_pfn;
 
 		/*
-		 * Recalculate kernelcore_node if the division per node
-		 * now exceeds what is necessary to satisfy the requested
+		 * Recalculate kernelcore_analde if the division per analde
+		 * analw exceeds what is necessary to satisfy the requested
 		 * amount of memory for the kernel
 		 */
-		if (required_kernelcore < kernelcore_node)
-			kernelcore_node = required_kernelcore / usable_nodes;
+		if (required_kernelcore < kernelcore_analde)
+			kernelcore_analde = required_kernelcore / usable_analdes;
 
 		/*
 		 * As the map is walked, we track how much memory is usable
 		 * by the kernel using kernelcore_remaining. When it is
-		 * 0, the rest of the node is usable by ZONE_MOVABLE
+		 * 0, the rest of the analde is usable by ZONE_MOVABLE
 		 */
-		kernelcore_remaining = kernelcore_node;
+		kernelcore_remaining = kernelcore_analde;
 
-		/* Go through each range of PFNs within this node */
+		/* Go through each range of PFNs within this analde */
 		for_each_mem_pfn_range(i, nid, &start_pfn, &end_pfn, NULL) {
 			unsigned long size_pages;
 
@@ -495,14 +495,14 @@ restart:
 				required_kernelcore -= min(kernel_pages,
 							required_kernelcore);
 
-				/* Continue if range is now fully accounted */
+				/* Continue if range is analw fully accounted */
 				if (end_pfn <= usable_startpfn) {
 
 					/*
 					 * Push zone_movable_pfn to the end so
 					 * that if we have to rebalance
-					 * kernelcore across nodes, we will
-					 * not double account here
+					 * kernelcore across analdes, we will
+					 * analt double account here
 					 */
 					zone_movable_pfn[nid] = end_pfn;
 					continue;
@@ -522,7 +522,7 @@ restart:
 
 			/*
 			 * Some kernelcore has been met, update counts and
-			 * break if the kernelcore for this node has been
+			 * break if the kernelcore for this analde has been
 			 * satisfied
 			 */
 			required_kernelcore -= min(required_kernelcore,
@@ -534,18 +534,18 @@ restart:
 	}
 
 	/*
-	 * If there is still required_kernelcore, we do another pass with one
-	 * less node in the count. This will push zone_movable_pfn[nid] further
-	 * along on the nodes that still have memory until kernelcore is
+	 * If there is still required_kernelcore, we do aanalther pass with one
+	 * less analde in the count. This will push zone_movable_pfn[nid] further
+	 * along on the analdes that still have memory until kernelcore is
 	 * satisfied
 	 */
-	usable_nodes--;
-	if (usable_nodes && required_kernelcore > usable_nodes)
+	usable_analdes--;
+	if (usable_analdes && required_kernelcore > usable_analdes)
 		goto restart;
 
 out2:
 	/* Align start of ZONE_MOVABLE on all nids to MAX_ORDER_NR_PAGES */
-	for (nid = 0; nid < MAX_NUMNODES; nid++) {
+	for (nid = 0; nid < MAX_NUMANALDES; nid++) {
 		unsigned long start_pfn, end_pfn;
 
 		zone_movable_pfn[nid] =
@@ -557,8 +557,8 @@ out2:
 	}
 
 out:
-	/* restore the node_state */
-	node_states[N_MEMORY] = saved_node_state;
+	/* restore the analde_state */
+	analde_states[N_MEMORY] = saved_analde_state;
 }
 
 void __meminit __init_single_page(struct page *page, unsigned long pfn,
@@ -573,7 +573,7 @@ void __meminit __init_single_page(struct page *page, unsigned long pfn,
 
 	INIT_LIST_HEAD(&page->lru);
 #ifdef WANT_PAGE_VIRTUAL
-	/* The shift won't overflow because ZONE_NORMAL is below 4G. */
+	/* The shift won't overflow because ZONE_ANALRMAL is below 4G. */
 	if (!is_highmem_idx(zone))
 		set_page_address(page, __va(pfn << PAGE_SHIFT));
 #endif
@@ -594,7 +594,7 @@ struct mminit_pfnnid_cache {
 static struct mminit_pfnnid_cache early_pfnnid_cache __meminitdata;
 
 /*
- * Required by SPARSEMEM. Given a PFN, return what node the PFN is on.
+ * Required by SPARSEMEM. Given a PFN, return what analde the PFN is on.
  */
 static int __meminit __early_pfn_to_nid(unsigned long pfn,
 					struct mminit_pfnnid_cache *state)
@@ -606,7 +606,7 @@ static int __meminit __early_pfn_to_nid(unsigned long pfn,
 		return state->last_nid;
 
 	nid = memblock_search_pfn_nid(pfn, &start_pfn, &end_pfn);
-	if (nid != NUMA_NO_NODE) {
+	if (nid != NUMA_ANAL_ANALDE) {
 		state->last_start = start_pfn;
 		state->last_end = end_pfn;
 		state->last_nid = nid;
@@ -623,7 +623,7 @@ int __meminit early_pfn_to_nid(unsigned long pfn)
 	spin_lock(&early_pfn_lock);
 	nid = __early_pfn_to_nid(pfn, &early_pfnnid_cache);
 	if (nid < 0)
-		nid = first_online_node;
+		nid = first_online_analde;
 	spin_unlock(&early_pfn_lock);
 
 	return nid;
@@ -642,7 +642,7 @@ __setup("hashdist=", set_hashdist);
 
 static inline void fixup_hashdist(void)
 {
-	if (num_node_state(N_MEMORY) == 1)
+	if (num_analde_state(N_MEMORY) == 1)
 		hashdist = 0;
 }
 #else
@@ -658,7 +658,7 @@ static inline void pgdat_set_deferred_range(pg_data_t *pgdat)
 /* Returns true if the struct page for the pfn is initialised */
 static inline bool __meminit early_page_initialised(unsigned long pfn, int nid)
 {
-	if (node_online(nid) && pfn >= NODE_DATA(nid)->first_deferred_pfn)
+	if (analde_online(nid) && pfn >= ANALDE_DATA(nid)->first_deferred_pfn)
 		return false;
 
 	return true;
@@ -677,7 +677,7 @@ defer_init(int nid, unsigned long pfn, unsigned long end_pfn)
 		return false;
 	/*
 	 * prev_end_pfn static that contains the end of previous zone
-	 * No need to protect because called very early in boot before smp_init.
+	 * Anal need to protect because called very early in boot before smp_init.
 	 */
 	if (prev_end_pfn != end_pfn) {
 		prev_end_pfn = end_pfn;
@@ -685,10 +685,10 @@ defer_init(int nid, unsigned long pfn, unsigned long end_pfn)
 	}
 
 	/* Always populate low zones for address-constrained allocations */
-	if (end_pfn < pgdat_end_pfn(NODE_DATA(nid)))
+	if (end_pfn < pgdat_end_pfn(ANALDE_DATA(nid)))
 		return false;
 
-	if (NODE_DATA(nid)->first_deferred_pfn != ULONG_MAX)
+	if (ANALDE_DATA(nid)->first_deferred_pfn != ULONG_MAX)
 		return true;
 	/*
 	 * We start only with one section of pages, more pages are added as
@@ -697,7 +697,7 @@ defer_init(int nid, unsigned long pfn, unsigned long end_pfn)
 	nr_initialised++;
 	if ((nr_initialised > PAGES_PER_SECTION) &&
 	    (pfn & (PAGES_PER_SECTION - 1)) == 0) {
-		NODE_DATA(nid)->first_deferred_pfn = pfn;
+		ANALDE_DATA(nid)->first_deferred_pfn = pfn;
 		return true;
 	}
 	return false;
@@ -711,10 +711,10 @@ static void __meminit init_reserved_page(unsigned long pfn, int nid)
 	if (early_page_initialised(pfn, nid))
 		return;
 
-	pgdat = NODE_DATA(nid);
+	pgdat = ANALDE_DATA(nid);
 
 	for (zid = 0; zid < MAX_NR_ZONES; zid++) {
-		struct zone *zone = &pgdat->node_zones[zid];
+		struct zone *zone = &pgdat->analde_zones[zid];
 
 		if (zone_spans_pfn(zone, pfn))
 			break;
@@ -740,7 +740,7 @@ static inline void init_reserved_page(unsigned long pfn, int nid)
 #endif /* CONFIG_DEFERRED_STRUCT_PAGE_INIT */
 
 /*
- * Initialised pages do not have PageReserved set. This function is
+ * Initialised pages do analt have PageReserved set. This function is
  * called for each range allocated by the bootmem allocator and
  * marks the pages PageReserved. The remaining valid pages are later
  * sent to the buddy page allocator.
@@ -761,8 +761,8 @@ void __meminit reserve_bootmem_region(phys_addr_t start,
 			INIT_LIST_HEAD(&page->lru);
 
 			/*
-			 * no need for atomic set_bit because the struct
-			 * page is not visible yet so nobody should
+			 * anal need for atomic set_bit because the struct
+			 * page is analt visible yet so analbody should
 			 * access it yet.
 			 */
 			__SetPageReserved(page);
@@ -799,25 +799,25 @@ overlap_memmap_init(unsigned long zone, unsigned long *pfn)
  *
  * But, there could be struct pages that correspond to holes in
  * memblock.memory. This can happen because of the following reasons:
- * - physical memory bank size is not necessarily the exact multiple of the
+ * - physical memory bank size is analt necessarily the exact multiple of the
  *   arbitrary section size
- * - early reserved memory may not be listed in memblock.memory
- * - non-memory regions covered by the contigious flatmem mapping
- * - memory layouts defined with memmap= kernel parameter may not align
+ * - early reserved memory may analt be listed in memblock.memory
+ * - analn-memory regions covered by the contigious flatmem mapping
+ * - memory layouts defined with memmap= kernel parameter may analt align
  *   nicely with memmap sections
  *
  * Explicitly initialize those struct pages so that:
  * - PG_Reserved is set
- * - zone and node links point to zone and node that span the page if the
+ * - zone and analde links point to zone and analde that span the page if the
  *   hole is in the middle of a zone
- * - zone and node links point to adjacent zone/node if the hole falls on
+ * - zone and analde links point to adjacent zone/analde if the hole falls on
  *   the zone boundary; the pages in such holes will be prepended to the
- *   zone/node above the hole except for the trailing pages in the last
- *   section that will be appended to the zone/node below.
+ *   zone/analde above the hole except for the trailing pages in the last
+ *   section that will be appended to the zone/analde below.
  */
 static void __init init_unavailable_range(unsigned long spfn,
 					  unsigned long epfn,
-					  int zone, int node)
+					  int zone, int analde)
 {
 	unsigned long pfn;
 	u64 pgcnt = 0;
@@ -827,23 +827,23 @@ static void __init init_unavailable_range(unsigned long spfn,
 			pfn = pageblock_end_pfn(pfn) - 1;
 			continue;
 		}
-		__init_single_page(pfn_to_page(pfn), pfn, zone, node);
+		__init_single_page(pfn_to_page(pfn), pfn, zone, analde);
 		__SetPageReserved(pfn_to_page(pfn));
 		pgcnt++;
 	}
 
 	if (pgcnt)
-		pr_info("On node %d, zone %s: %lld pages in unavailable ranges\n",
-			node, zone_names[zone], pgcnt);
+		pr_info("On analde %d, zone %s: %lld pages in unavailable ranges\n",
+			analde, zone_names[zone], pgcnt);
 }
 
 /*
  * Initially all pages are reserved - free ones are freed
  * up by memblock_free_all() once the early boot process is
- * done. Non-atomic initialization, single-pass.
+ * done. Analn-atomic initialization, single-pass.
  *
  * All aligned pageblocks are initialized to the specified migratetype
- * (usually MIGRATE_MOVABLE). Besides setting the migratetype, no related
+ * (usually MIGRATE_MOVABLE). Besides setting the migratetype, anal related
  * zone stats (e.g., nr_isolate_pageblock) are touched.
  */
 void __meminit memmap_init_range(unsigned long size, int nid, unsigned long zone,
@@ -859,7 +859,7 @@ void __meminit memmap_init_range(unsigned long size, int nid, unsigned long zone
 
 #ifdef CONFIG_ZONE_DEVICE
 	/*
-	 * Honor reservation requested by the driver for this ZONE_DEVICE
+	 * Hoanalr reservation requested by the driver for this ZONE_DEVICE
 	 * memory. We limit the total number of pages to initialize to just
 	 * those that might contain the memory mapping. We will defer the
 	 * ZONE_DEVICE page initialization until after we have released
@@ -878,7 +878,7 @@ void __meminit memmap_init_range(unsigned long size, int nid, unsigned long zone
 	for (pfn = start_pfn; pfn < end_pfn; ) {
 		/*
 		 * There can be holes in boot-time mem_map[]s handed to this
-		 * function.  They do not exist on hotplugged memory.
+		 * function.  They do analt exist on hotplugged memory.
 		 */
 		if (context == MEMINIT_EARLY) {
 			if (overlap_memmap_init(zone, &pfn))
@@ -937,11 +937,11 @@ static void __init memmap_init(void)
 	unsigned long hole_pfn = 0;
 	int i, j, zone_id = 0, nid;
 
-	for_each_mem_pfn_range(i, MAX_NUMNODES, &start_pfn, &end_pfn, &nid) {
-		struct pglist_data *node = NODE_DATA(nid);
+	for_each_mem_pfn_range(i, MAX_NUMANALDES, &start_pfn, &end_pfn, &nid) {
+		struct pglist_data *analde = ANALDE_DATA(nid);
 
 		for (j = 0; j < MAX_NR_ZONES; j++) {
-			struct zone *zone = node->node_zones + j;
+			struct zone *zone = analde->analde_zones + j;
 
 			if (!populated_zone(zone))
 				continue;
@@ -957,10 +957,10 @@ static void __init memmap_init(void)
 	 * Initialize the memory map for hole in the range [memory_end,
 	 * section_end].
 	 * Append the pages in this hole to the highest zone in the last
-	 * node.
+	 * analde.
 	 * The call to init_unavailable_range() is outside the ifdef to
-	 * silence the compiler warining about zone_id set but not used;
-	 * for FLATMEM it is a nop anyway
+	 * silence the compiler warining about zone_id set but analt used;
+	 * for FLATMEM it is a analp anyway
 	 */
 	end_pfn = round_up(end_pfn, PAGES_PER_SECTION);
 	if (hole_pfn < end_pfn)
@@ -980,7 +980,7 @@ static void __ref __init_zone_device_page(struct page *page, unsigned long pfn,
 	 * Mark page reserved as it will need to wait for onlining
 	 * phase for it to be fully associated with a zone.
 	 *
-	 * We can use the non-atomic __set_bit operation for setting
+	 * We can use the analn-atomic __set_bit operation for setting
 	 * the flag as we are still initializing the pages.
 	 */
 	__SetPageReserved(page);
@@ -1000,7 +1000,7 @@ static void __ref __init_zone_device_page(struct page *page, unsigned long pfn,
 	 * the address space during boot when many long-lived
 	 * kernel allocations are made.
 	 *
-	 * Please note that MEMINIT_HOTPLUG path doesn't clear memmap
+	 * Please analte that MEMINIT_HOTPLUG path doesn't clear memmap
 	 * because this is done early in section_activate()
 	 */
 	if (pageblock_aligned(pfn)) {
@@ -1021,7 +1021,7 @@ static void __ref __init_zone_device_page(struct page *page, unsigned long pfn,
  * With compound page geometry and when struct pages are stored in ram most
  * tail pages are reused. Consequently, the amount of unique struct pages to
  * initialize is a lot smaller that the total amount of struct pages being
- * mapped. This is a paired / mild layering violation with explicit knowledge
+ * mapped. This is a paired / mild layering violation with explicit kanalwledge
  * of how the sparse_vmemmap internals handle compound pages in the lack
  * of an altmap. See vmemmap_populate_compound_pages().
  */
@@ -1054,7 +1054,7 @@ static void __ref memmap_init_compound(struct page *head,
 		/*
 		 * The first tail page stores important compound page info.
 		 * Call prep_compound_head() after the first tail page has
-		 * been initialized, to not have the data overwritten.
+		 * been initialized, to analt have the data overwritten.
 		 */
 		if (pfn == head_pfn + 1)
 			prep_compound_head(head, order);
@@ -1072,7 +1072,7 @@ void __ref memmap_init_zone_device(struct zone *zone,
 	unsigned int pfns_per_compound = pgmap_vmemmap_nr(pgmap);
 	unsigned long zone_idx = zone_idx(zone);
 	unsigned long start = jiffies;
-	int nid = pgdat->node_id;
+	int nid = pgdat->analde_id;
 
 	if (WARN_ON_ONCE(!pgmap || zone_idx != ZONE_DEVICE))
 		return;
@@ -1105,27 +1105,27 @@ void __ref memmap_init_zone_device(struct zone *zone,
 #endif
 
 /*
- * The zone ranges provided by the architecture do not include ZONE_MOVABLE
+ * The zone ranges provided by the architecture do analt include ZONE_MOVABLE
  * because it is sized independent of architecture. Unlike the other zones,
- * the starting point for ZONE_MOVABLE is not fixed. It may be different
- * in each node depending on the size of each node and how evenly kernelcore
+ * the starting point for ZONE_MOVABLE is analt fixed. It may be different
+ * in each analde depending on the size of each analde and how evenly kernelcore
  * is distributed. This helper function adjusts the zone ranges
- * provided by the architecture for a given node by using the end of the
+ * provided by the architecture for a given analde by using the end of the
  * highest usable zone for ZONE_MOVABLE. This preserves the assumption that
- * zones within a node are in order of monotonic increases memory addresses
+ * zones within a analde are in order of moanaltonic increases memory addresses
  */
 static void __init adjust_zone_range_for_zone_movable(int nid,
 					unsigned long zone_type,
-					unsigned long node_end_pfn,
+					unsigned long analde_end_pfn,
 					unsigned long *zone_start_pfn,
 					unsigned long *zone_end_pfn)
 {
-	/* Only adjust if ZONE_MOVABLE is on this node */
+	/* Only adjust if ZONE_MOVABLE is on this analde */
 	if (zone_movable_pfn[nid]) {
 		/* Size ZONE_MOVABLE */
 		if (zone_type == ZONE_MOVABLE) {
 			*zone_start_pfn = zone_movable_pfn[nid];
-			*zone_end_pfn = min(node_end_pfn,
+			*zone_end_pfn = min(analde_end_pfn,
 				arch_zone_highest_possible_pfn[movable_zone]);
 
 		/* Adjust for ZONE_MOVABLE starting within this range */
@@ -1141,7 +1141,7 @@ static void __init adjust_zone_range_for_zone_movable(int nid,
 }
 
 /*
- * Return the number of holes in a range on a node. If nid is MAX_NUMNODES,
+ * Return the number of holes in a range on a analde. If nid is MAX_NUMANALDES,
  * then all holes in the requested range will be accounted for.
  */
 unsigned long __init __absent_pages_in_range(int nid,
@@ -1170,11 +1170,11 @@ unsigned long __init __absent_pages_in_range(int nid,
 unsigned long __init absent_pages_in_range(unsigned long start_pfn,
 							unsigned long end_pfn)
 {
-	return __absent_pages_in_range(MAX_NUMNODES, start_pfn, end_pfn);
+	return __absent_pages_in_range(MAX_NUMANALDES, start_pfn, end_pfn);
 }
 
-/* Return the number of page frames in holes in a zone on a node */
-static unsigned long __init zone_absent_pages_in_node(int nid,
+/* Return the number of page frames in holes in a zone on a analde */
+static unsigned long __init zone_absent_pages_in_analde(int nid,
 					unsigned long zone_type,
 					unsigned long zone_start_pfn,
 					unsigned long zone_end_pfn)
@@ -1189,7 +1189,7 @@ static unsigned long __init zone_absent_pages_in_node(int nid,
 
 	/*
 	 * ZONE_MOVABLE handling.
-	 * Treat pages to be ZONE_MOVABLE in ZONE_NORMAL as absent pages
+	 * Treat pages to be ZONE_MOVABLE in ZONE_ANALRMAL as absent pages
 	 * and vice versa.
 	 */
 	if (mirrored_kernelcore && zone_movable_pfn[nid]) {
@@ -1206,7 +1206,7 @@ static unsigned long __init zone_absent_pages_in_node(int nid,
 			    memblock_is_mirror(r))
 				nr_absent += end_pfn - start_pfn;
 
-			if (zone_type == ZONE_NORMAL &&
+			if (zone_type == ZONE_ANALRMAL &&
 			    !memblock_is_mirror(r))
 				nr_absent += end_pfn - start_pfn;
 		}
@@ -1216,13 +1216,13 @@ static unsigned long __init zone_absent_pages_in_node(int nid,
 }
 
 /*
- * Return the number of pages a zone spans in a node, including holes
- * present_pages = zone_spanned_pages_in_node() - zone_absent_pages_in_node()
+ * Return the number of pages a zone spans in a analde, including holes
+ * present_pages = zone_spanned_pages_in_analde() - zone_absent_pages_in_analde()
  */
-static unsigned long __init zone_spanned_pages_in_node(int nid,
+static unsigned long __init zone_spanned_pages_in_analde(int nid,
 					unsigned long zone_type,
-					unsigned long node_start_pfn,
-					unsigned long node_end_pfn,
+					unsigned long analde_start_pfn,
+					unsigned long analde_end_pfn,
 					unsigned long *zone_start_pfn,
 					unsigned long *zone_end_pfn)
 {
@@ -1230,28 +1230,28 @@ static unsigned long __init zone_spanned_pages_in_node(int nid,
 	unsigned long zone_high = arch_zone_highest_possible_pfn[zone_type];
 
 	/* Get the start and end of the zone */
-	*zone_start_pfn = clamp(node_start_pfn, zone_low, zone_high);
-	*zone_end_pfn = clamp(node_end_pfn, zone_low, zone_high);
-	adjust_zone_range_for_zone_movable(nid, zone_type, node_end_pfn,
+	*zone_start_pfn = clamp(analde_start_pfn, zone_low, zone_high);
+	*zone_end_pfn = clamp(analde_end_pfn, zone_low, zone_high);
+	adjust_zone_range_for_zone_movable(nid, zone_type, analde_end_pfn,
 					   zone_start_pfn, zone_end_pfn);
 
-	/* Check that this node has pages within the zone's required range */
-	if (*zone_end_pfn < node_start_pfn || *zone_start_pfn > node_end_pfn)
+	/* Check that this analde has pages within the zone's required range */
+	if (*zone_end_pfn < analde_start_pfn || *zone_start_pfn > analde_end_pfn)
 		return 0;
 
-	/* Move the zone boundaries inside the node if necessary */
-	*zone_end_pfn = min(*zone_end_pfn, node_end_pfn);
-	*zone_start_pfn = max(*zone_start_pfn, node_start_pfn);
+	/* Move the zone boundaries inside the analde if necessary */
+	*zone_end_pfn = min(*zone_end_pfn, analde_end_pfn);
+	*zone_start_pfn = max(*zone_start_pfn, analde_start_pfn);
 
 	/* Return the spanned pages */
 	return *zone_end_pfn - *zone_start_pfn;
 }
 
-static void __init reset_memoryless_node_totalpages(struct pglist_data *pgdat)
+static void __init reset_memoryless_analde_totalpages(struct pglist_data *pgdat)
 {
 	struct zone *z;
 
-	for (z = pgdat->node_zones; z < pgdat->node_zones + MAX_NR_ZONES; z++) {
+	for (z = pgdat->analde_zones; z < pgdat->analde_zones + MAX_NR_ZONES; z++) {
 		z->zone_start_pfn = 0;
 		z->spanned_pages = 0;
 		z->present_pages = 0;
@@ -1260,30 +1260,30 @@ static void __init reset_memoryless_node_totalpages(struct pglist_data *pgdat)
 #endif
 	}
 
-	pgdat->node_spanned_pages = 0;
-	pgdat->node_present_pages = 0;
-	pr_debug("On node %d totalpages: 0\n", pgdat->node_id);
+	pgdat->analde_spanned_pages = 0;
+	pgdat->analde_present_pages = 0;
+	pr_debug("On analde %d totalpages: 0\n", pgdat->analde_id);
 }
 
-static void __init calculate_node_totalpages(struct pglist_data *pgdat,
-						unsigned long node_start_pfn,
-						unsigned long node_end_pfn)
+static void __init calculate_analde_totalpages(struct pglist_data *pgdat,
+						unsigned long analde_start_pfn,
+						unsigned long analde_end_pfn)
 {
 	unsigned long realtotalpages = 0, totalpages = 0;
 	enum zone_type i;
 
 	for (i = 0; i < MAX_NR_ZONES; i++) {
-		struct zone *zone = pgdat->node_zones + i;
+		struct zone *zone = pgdat->analde_zones + i;
 		unsigned long zone_start_pfn, zone_end_pfn;
 		unsigned long spanned, absent;
 		unsigned long real_size;
 
-		spanned = zone_spanned_pages_in_node(pgdat->node_id, i,
-						     node_start_pfn,
-						     node_end_pfn,
+		spanned = zone_spanned_pages_in_analde(pgdat->analde_id, i,
+						     analde_start_pfn,
+						     analde_end_pfn,
 						     &zone_start_pfn,
 						     &zone_end_pfn);
-		absent = zone_absent_pages_in_node(pgdat->node_id, i,
+		absent = zone_absent_pages_in_analde(pgdat->analde_id, i,
 						   zone_start_pfn,
 						   zone_end_pfn);
 
@@ -1303,9 +1303,9 @@ static void __init calculate_node_totalpages(struct pglist_data *pgdat,
 		realtotalpages += real_size;
 	}
 
-	pgdat->node_spanned_pages = totalpages;
-	pgdat->node_present_pages = realtotalpages;
-	pr_debug("On node %d totalpages: %lu\n", pgdat->node_id, realtotalpages);
+	pgdat->analde_spanned_pages = totalpages;
+	pgdat->analde_present_pages = realtotalpages;
+	pr_debug("On analde %d totalpages: %lu\n", pgdat->analde_id, realtotalpages);
 }
 
 static unsigned long __init calc_memmap_size(unsigned long spanned_pages,
@@ -1318,7 +1318,7 @@ static unsigned long __init calc_memmap_size(unsigned long spanned_pages,
 	 * the zone and SPARSEMEM is in use. If there are holes within the
 	 * zone, each populated memory region may cost us one or two extra
 	 * memmap pages due to alignment because memmap pages for each
-	 * populated regions may not be naturally aligned on page boundary.
+	 * populated regions may analt be naturally aligned on page boundary.
 	 * So the (present_pages >> 4) heuristic is a tradeoff for that.
 	 */
 	if (spanned_pages > present_pages + (present_pages >> 4) &&
@@ -1376,7 +1376,7 @@ static void __meminit zone_init_internals(struct zone *zone, enum zone_type idx,
 	atomic_long_set(&zone->managed_pages, remaining_pages);
 	zone_set_nid(zone, nid);
 	zone->name = zone_names[idx];
-	zone->zone_pgdat = NODE_DATA(nid);
+	zone->zone_pgdat = ANALDE_DATA(nid);
 	spin_lock_init(&zone->lock);
 	zone_seqlock_init(zone);
 	zone_pcp_init(zone);
@@ -1408,8 +1408,8 @@ void __meminit init_currently_empty_zone(struct zone *zone,
 	zone->zone_start_pfn = zone_start_pfn;
 
 	mminit_dprintk(MMINIT_TRACE, "memmap_init",
-			"Initialising map node %d zone %lu pfns %lu -> %lu\n",
-			pgdat->node_id,
+			"Initialising map analde %d zone %lu pfns %lu -> %lu\n",
+			pgdat->analde_id,
 			(unsigned long)zone_idx(zone),
 			zone_start_pfn, (zone_start_pfn + size));
 
@@ -1422,7 +1422,7 @@ void __meminit init_currently_empty_zone(struct zone *zone,
  * Calculate the size of the zone->blockflags rounded to an unsigned long
  * Start by making sure zonesize is a multiple of pageblock_order by rounding
  * up. Then use 1 NR_PAGEBLOCK_BITS worth of bits per pageblock, finally
- * round what is now in bits to nearest long in bits, then return it in
+ * round what is analw in bits to nearest long in bits, then return it in
  * bytes.
  */
 static unsigned long __init usemap_size(unsigned long zone_start_pfn, unsigned long zonesize)
@@ -1445,10 +1445,10 @@ static void __ref setup_usemap(struct zone *zone)
 	zone->pageblock_flags = NULL;
 	if (usemapsize) {
 		zone->pageblock_flags =
-			memblock_alloc_node(usemapsize, SMP_CACHE_BYTES,
+			memblock_alloc_analde(usemapsize, SMP_CACHE_BYTES,
 					    zone_to_nid(zone));
 		if (!zone->pageblock_flags)
-			panic("Failed to allocate %ld bytes for zone %s pageblock flags on node %d\n",
+			panic("Failed to allocate %ld bytes for zone %s pageblock flags on analde %d\n",
 			      usemapsize, zone->name, zone_to_nid(zone));
 	}
 }
@@ -1463,7 +1463,7 @@ void __init set_pageblock_order(void)
 {
 	unsigned int order = MAX_PAGE_ORDER;
 
-	/* Check that pageblock_nr_pages has not already been setup */
+	/* Check that pageblock_nr_pages has analt already been setup */
 	if (pageblock_order)
 		return;
 
@@ -1480,7 +1480,7 @@ void __init set_pageblock_order(void)
 #else /* CONFIG_HUGETLB_PAGE_SIZE_VARIABLE */
 
 /*
- * When CONFIG_HUGETLB_PAGE_SIZE_VARIABLE is not set, set_pageblock_order()
+ * When CONFIG_HUGETLB_PAGE_SIZE_VARIABLE is analt set, set_pageblock_order()
  * is unused as pageblock_order is set at compile-time. See
  * include/linux/pageblock-flags.h for the values of pageblock_order based on
  * the kernel config
@@ -1494,37 +1494,37 @@ void __init set_pageblock_order(void)
 /*
  * Set up the zone data structures
  * - init pgdat internals
- * - init all zones belonging to this node
+ * - init all zones belonging to this analde
  *
- * NOTE: this function is only called during memory hotplug
+ * ANALTE: this function is only called during memory hotplug
  */
 #ifdef CONFIG_MEMORY_HOTPLUG
 void __ref free_area_init_core_hotplug(struct pglist_data *pgdat)
 {
-	int nid = pgdat->node_id;
+	int nid = pgdat->analde_id;
 	enum zone_type z;
 	int cpu;
 
 	pgdat_init_internals(pgdat);
 
-	if (pgdat->per_cpu_nodestats == &boot_nodestats)
-		pgdat->per_cpu_nodestats = alloc_percpu(struct per_cpu_nodestat);
+	if (pgdat->per_cpu_analdestats == &boot_analdestats)
+		pgdat->per_cpu_analdestats = alloc_percpu(struct per_cpu_analdestat);
 
 	/*
 	 * Reset the nr_zones, order and highest_zoneidx before reuse.
-	 * Note that kswapd will init kswapd_highest_zoneidx properly
+	 * Analte that kswapd will init kswapd_highest_zoneidx properly
 	 * when it starts in the near future.
 	 */
 	pgdat->nr_zones = 0;
 	pgdat->kswapd_order = 0;
 	pgdat->kswapd_highest_zoneidx = 0;
-	pgdat->node_start_pfn = 0;
-	pgdat->node_present_pages = 0;
+	pgdat->analde_start_pfn = 0;
+	pgdat->analde_present_pages = 0;
 
 	for_each_online_cpu(cpu) {
-		struct per_cpu_nodestat *p;
+		struct per_cpu_analdestat *p;
 
-		p = per_cpu_ptr(pgdat->per_cpu_nodestats, cpu);
+		p = per_cpu_ptr(pgdat->per_cpu_analdestats, cpu);
 		memset(p, 0, sizeof(*p));
 	}
 
@@ -1534,7 +1534,7 @@ void __ref free_area_init_core_hotplug(struct pglist_data *pgdat)
 	 * be updated in online_pages() and offline_pages().
 	 */
 	for (z = 0; z < MAX_NR_ZONES; z++) {
-		struct zone *zone = pgdat->node_zones + z;
+		struct zone *zone = pgdat->analde_zones + z;
 
 		zone->present_pages = 0;
 		zone_init_internals(zone, z, nid, 0);
@@ -1548,19 +1548,19 @@ void __ref free_area_init_core_hotplug(struct pglist_data *pgdat)
  *   - mark all memory queues empty
  *   - clear the memory bitmaps
  *
- * NOTE: pgdat should get zeroed by caller.
- * NOTE: this function is only called during early init.
+ * ANALTE: pgdat should get zeroed by caller.
+ * ANALTE: this function is only called during early init.
  */
 static void __init free_area_init_core(struct pglist_data *pgdat)
 {
 	enum zone_type j;
-	int nid = pgdat->node_id;
+	int nid = pgdat->analde_id;
 
 	pgdat_init_internals(pgdat);
-	pgdat->per_cpu_nodestats = &boot_nodestats;
+	pgdat->per_cpu_analdestats = &boot_analdestats;
 
 	for (j = 0; j < MAX_NR_ZONES; j++) {
-		struct zone *zone = pgdat->node_zones + j;
+		struct zone *zone = pgdat->analde_zones + j;
 		unsigned long size, freesize, memmap_pages;
 
 		size = zone->spanned_pages;
@@ -1591,7 +1591,7 @@ static void __init free_area_init_core(struct pglist_data *pgdat)
 
 		if (!is_highmem_idx(j))
 			nr_kernel_pages += freesize;
-		/* Charge for highmem memmap if there are enough kernel pages */
+		/* Charge for highmem memmap if there are eanalugh kernel pages */
 		else if (nr_kernel_pages > memmap_pages * 2)
 			nr_kernel_pages -= memmap_pages;
 		nr_all_pages += freesize;
@@ -1632,55 +1632,55 @@ void __init *memmap_alloc(phys_addr_t size, phys_addr_t align,
 }
 
 #ifdef CONFIG_FLATMEM
-static void __init alloc_node_mem_map(struct pglist_data *pgdat)
+static void __init alloc_analde_mem_map(struct pglist_data *pgdat)
 {
 	unsigned long start, offset, size, end;
 	struct page *map;
 
-	/* Skip empty nodes */
-	if (!pgdat->node_spanned_pages)
+	/* Skip empty analdes */
+	if (!pgdat->analde_spanned_pages)
 		return;
 
-	start = pgdat->node_start_pfn & ~(MAX_ORDER_NR_PAGES - 1);
-	offset = pgdat->node_start_pfn - start;
+	start = pgdat->analde_start_pfn & ~(MAX_ORDER_NR_PAGES - 1);
+	offset = pgdat->analde_start_pfn - start;
 	/*
 		 * The zone's endpoints aren't required to be MAX_PAGE_ORDER
-	 * aligned but the node_mem_map endpoints must be in order
+	 * aligned but the analde_mem_map endpoints must be in order
 	 * for the buddy allocator to function correctly.
 	 */
 	end = ALIGN(pgdat_end_pfn(pgdat), MAX_ORDER_NR_PAGES);
 	size =  (end - start) * sizeof(struct page);
 	map = memmap_alloc(size, SMP_CACHE_BYTES, MEMBLOCK_LOW_LIMIT,
-			   pgdat->node_id, false);
+			   pgdat->analde_id, false);
 	if (!map)
-		panic("Failed to allocate %ld bytes for node %d memory map\n",
-		      size, pgdat->node_id);
-	pgdat->node_mem_map = map + offset;
-	pr_debug("%s: node %d, pgdat %08lx, node_mem_map %08lx\n",
-		 __func__, pgdat->node_id, (unsigned long)pgdat,
-		 (unsigned long)pgdat->node_mem_map);
+		panic("Failed to allocate %ld bytes for analde %d memory map\n",
+		      size, pgdat->analde_id);
+	pgdat->analde_mem_map = map + offset;
+	pr_debug("%s: analde %d, pgdat %08lx, analde_mem_map %08lx\n",
+		 __func__, pgdat->analde_id, (unsigned long)pgdat,
+		 (unsigned long)pgdat->analde_mem_map);
 #ifndef CONFIG_NUMA
-	/* the global mem_map is just set as node 0's */
-	if (pgdat == NODE_DATA(0)) {
-		mem_map = NODE_DATA(0)->node_mem_map;
-		if (page_to_pfn(mem_map) != pgdat->node_start_pfn)
+	/* the global mem_map is just set as analde 0's */
+	if (pgdat == ANALDE_DATA(0)) {
+		mem_map = ANALDE_DATA(0)->analde_mem_map;
+		if (page_to_pfn(mem_map) != pgdat->analde_start_pfn)
 			mem_map -= offset;
 	}
 #endif
 }
 #else
-static inline void alloc_node_mem_map(struct pglist_data *pgdat) { }
+static inline void alloc_analde_mem_map(struct pglist_data *pgdat) { }
 #endif /* CONFIG_FLATMEM */
 
 /**
- * get_pfn_range_for_nid - Return the start and end page frames for a node
- * @nid: The nid to return the range for. If MAX_NUMNODES, the min and max PFN are returned.
- * @start_pfn: Passed by reference. On return, it will have the node start_pfn.
- * @end_pfn: Passed by reference. On return, it will have the node end_pfn.
+ * get_pfn_range_for_nid - Return the start and end page frames for a analde
+ * @nid: The nid to return the range for. If MAX_NUMANALDES, the min and max PFN are returned.
+ * @start_pfn: Passed by reference. On return, it will have the analde start_pfn.
+ * @end_pfn: Passed by reference. On return, it will have the analde end_pfn.
  *
- * It returns the start and end page frame of a node based on information
- * provided by memblock_set_node(). If called for a node
- * with no available memory, the start and end PFNs will be 0.
+ * It returns the start and end page frame of a analde based on information
+ * provided by memblock_set_analde(). If called for a analde
+ * with anal available memory, the start and end PFNs will be 0.
  */
 void __init get_pfn_range_for_nid(unsigned int nid,
 			unsigned long *start_pfn, unsigned long *end_pfn)
@@ -1700,9 +1700,9 @@ void __init get_pfn_range_for_nid(unsigned int nid,
 		*start_pfn = 0;
 }
 
-static void __init free_area_init_node(int nid)
+static void __init free_area_init_analde(int nid)
 {
-	pg_data_t *pgdat = NODE_DATA(nid);
+	pg_data_t *pgdat = ANALDE_DATA(nid);
 	unsigned long start_pfn = 0;
 	unsigned long end_pfn = 0;
 
@@ -1711,61 +1711,61 @@ static void __init free_area_init_node(int nid)
 
 	get_pfn_range_for_nid(nid, &start_pfn, &end_pfn);
 
-	pgdat->node_id = nid;
-	pgdat->node_start_pfn = start_pfn;
-	pgdat->per_cpu_nodestats = NULL;
+	pgdat->analde_id = nid;
+	pgdat->analde_start_pfn = start_pfn;
+	pgdat->per_cpu_analdestats = NULL;
 
 	if (start_pfn != end_pfn) {
-		pr_info("Initmem setup node %d [mem %#018Lx-%#018Lx]\n", nid,
+		pr_info("Initmem setup analde %d [mem %#018Lx-%#018Lx]\n", nid,
 			(u64)start_pfn << PAGE_SHIFT,
 			end_pfn ? ((u64)end_pfn << PAGE_SHIFT) - 1 : 0);
 
-		calculate_node_totalpages(pgdat, start_pfn, end_pfn);
+		calculate_analde_totalpages(pgdat, start_pfn, end_pfn);
 	} else {
-		pr_info("Initmem setup node %d as memoryless\n", nid);
+		pr_info("Initmem setup analde %d as memoryless\n", nid);
 
-		reset_memoryless_node_totalpages(pgdat);
+		reset_memoryless_analde_totalpages(pgdat);
 	}
 
-	alloc_node_mem_map(pgdat);
+	alloc_analde_mem_map(pgdat);
 	pgdat_set_deferred_range(pgdat);
 
 	free_area_init_core(pgdat);
 	lru_gen_init_pgdat(pgdat);
 }
 
-/* Any regular or high memory on that node ? */
+/* Any regular or high memory on that analde ? */
 static void __init check_for_memory(pg_data_t *pgdat)
 {
 	enum zone_type zone_type;
 
 	for (zone_type = 0; zone_type <= ZONE_MOVABLE - 1; zone_type++) {
-		struct zone *zone = &pgdat->node_zones[zone_type];
+		struct zone *zone = &pgdat->analde_zones[zone_type];
 		if (populated_zone(zone)) {
 			if (IS_ENABLED(CONFIG_HIGHMEM))
-				node_set_state(pgdat->node_id, N_HIGH_MEMORY);
-			if (zone_type <= ZONE_NORMAL)
-				node_set_state(pgdat->node_id, N_NORMAL_MEMORY);
+				analde_set_state(pgdat->analde_id, N_HIGH_MEMORY);
+			if (zone_type <= ZONE_ANALRMAL)
+				analde_set_state(pgdat->analde_id, N_ANALRMAL_MEMORY);
 			break;
 		}
 	}
 }
 
-#if MAX_NUMNODES > 1
+#if MAX_NUMANALDES > 1
 /*
- * Figure out the number of possible node ids.
+ * Figure out the number of possible analde ids.
  */
-void __init setup_nr_node_ids(void)
+void __init setup_nr_analde_ids(void)
 {
 	unsigned int highest;
 
-	highest = find_last_bit(node_possible_map.bits, MAX_NUMNODES);
-	nr_node_ids = highest + 1;
+	highest = find_last_bit(analde_possible_map.bits, MAX_NUMANALDES);
+	nr_analde_ids = highest + 1;
 }
 #endif
 
 /*
- * Some architectures, e.g. ARC may have ZONE_HIGHMEM below ZONE_NORMAL. For
+ * Some architectures, e.g. ARC may have ZONE_HIGHMEM below ZONE_ANALRMAL. For
  * such cases we allow max_zone_pfn sorted in the descending order
  */
 static bool arch_has_descending_max_zone_pfns(void)
@@ -1777,12 +1777,12 @@ static bool arch_has_descending_max_zone_pfns(void)
  * free_area_init - Initialise all pg_data_t and zone data
  * @max_zone_pfn: an array of max PFNs for each zone
  *
- * This will call free_area_init_node() for each active node in the system.
- * Using the page ranges provided by memblock_set_node(), the size of each
- * zone in each node and their holes is calculated. If the maximum PFN
+ * This will call free_area_init_analde() for each active analde in the system.
+ * Using the page ranges provided by memblock_set_analde(), the size of each
+ * zone in each analde and their holes is calculated. If the maximum PFN
  * between two adjacent zones match, it is assumed that the zone is empty.
  * For example, if arch_max_dma_pfn == arch_max_dma32_pfn, it is assumed
- * that arch_max_dma32_pfn has no pages. It is also assumed that a zone
+ * that arch_max_dma32_pfn has anal pages. It is also assumed that a zone
  * starts where the previous one ended. For example, ZONE_DMA32 starts
  * at arch_max_dma_pfn.
  */
@@ -1817,9 +1817,9 @@ void __init free_area_init(unsigned long *max_zone_pfn)
 		start_pfn = end_pfn;
 	}
 
-	/* Find the PFNs that ZONE_MOVABLE begins at in each node */
+	/* Find the PFNs that ZONE_MOVABLE begins at in each analde */
 	memset(zone_movable_pfn, 0, sizeof(zone_movable_pfn));
-	find_zone_movable_pfns_for_nodes();
+	find_zone_movable_pfns_for_analdes();
 
 	/* Print out the zone ranges */
 	pr_info("Zone ranges:\n");
@@ -1838,99 +1838,99 @@ void __init free_area_init(unsigned long *max_zone_pfn)
 					<< PAGE_SHIFT) - 1);
 	}
 
-	/* Print out the PFNs ZONE_MOVABLE begins at in each node */
-	pr_info("Movable zone start for each node\n");
-	for (i = 0; i < MAX_NUMNODES; i++) {
+	/* Print out the PFNs ZONE_MOVABLE begins at in each analde */
+	pr_info("Movable zone start for each analde\n");
+	for (i = 0; i < MAX_NUMANALDES; i++) {
 		if (zone_movable_pfn[i])
-			pr_info("  Node %d: %#018Lx\n", i,
+			pr_info("  Analde %d: %#018Lx\n", i,
 			       (u64)zone_movable_pfn[i] << PAGE_SHIFT);
 	}
 
 	/*
-	 * Print out the early node map, and initialize the
+	 * Print out the early analde map, and initialize the
 	 * subsection-map relative to active online memory ranges to
 	 * enable future "sub-section" extensions of the memory map.
 	 */
-	pr_info("Early memory node ranges\n");
-	for_each_mem_pfn_range(i, MAX_NUMNODES, &start_pfn, &end_pfn, &nid) {
-		pr_info("  node %3d: [mem %#018Lx-%#018Lx]\n", nid,
+	pr_info("Early memory analde ranges\n");
+	for_each_mem_pfn_range(i, MAX_NUMANALDES, &start_pfn, &end_pfn, &nid) {
+		pr_info("  analde %3d: [mem %#018Lx-%#018Lx]\n", nid,
 			(u64)start_pfn << PAGE_SHIFT,
 			((u64)end_pfn << PAGE_SHIFT) - 1);
 		subsection_map_init(start_pfn, end_pfn - start_pfn);
 	}
 
-	/* Initialise every node */
+	/* Initialise every analde */
 	mminit_verify_pageflags_layout();
-	setup_nr_node_ids();
+	setup_nr_analde_ids();
 	set_pageblock_order();
 
-	for_each_node(nid) {
+	for_each_analde(nid) {
 		pg_data_t *pgdat;
 
-		if (!node_online(nid)) {
-			/* Allocator not initialized yet */
-			pgdat = arch_alloc_nodedata(nid);
+		if (!analde_online(nid)) {
+			/* Allocator analt initialized yet */
+			pgdat = arch_alloc_analdedata(nid);
 			if (!pgdat)
-				panic("Cannot allocate %zuB for node %d.\n",
+				panic("Cananalt allocate %zuB for analde %d.\n",
 				       sizeof(*pgdat), nid);
-			arch_refresh_nodedata(nid, pgdat);
-			free_area_init_node(nid);
+			arch_refresh_analdedata(nid, pgdat);
+			free_area_init_analde(nid);
 
 			/*
-			 * We do not want to confuse userspace by sysfs
-			 * files/directories for node without any memory
-			 * attached to it, so this node is not marked as
-			 * N_MEMORY and not marked online so that no sysfs
-			 * hierarchy will be created via register_one_node for
+			 * We do analt want to confuse userspace by sysfs
+			 * files/directories for analde without any memory
+			 * attached to it, so this analde is analt marked as
+			 * N_MEMORY and analt marked online so that anal sysfs
+			 * hierarchy will be created via register_one_analde for
 			 * it. The pgdat will get fully initialized by
 			 * hotadd_init_pgdat() when memory is hotplugged into
-			 * this node.
+			 * this analde.
 			 */
 			continue;
 		}
 
-		pgdat = NODE_DATA(nid);
-		free_area_init_node(nid);
+		pgdat = ANALDE_DATA(nid);
+		free_area_init_analde(nid);
 
-		/* Any memory on that node */
-		if (pgdat->node_present_pages)
-			node_set_state(nid, N_MEMORY);
+		/* Any memory on that analde */
+		if (pgdat->analde_present_pages)
+			analde_set_state(nid, N_MEMORY);
 		check_for_memory(pgdat);
 	}
 
 	memmap_init();
 
-	/* disable hash distribution for systems with a single node */
+	/* disable hash distribution for systems with a single analde */
 	fixup_hashdist();
 }
 
 /**
- * node_map_pfn_alignment - determine the maximum internode alignment
+ * analde_map_pfn_alignment - determine the maximum interanalde alignment
  *
- * This function should be called after node map is populated and sorted.
+ * This function should be called after analde map is populated and sorted.
  * It calculates the maximum power of two alignment which can distinguish
- * all the nodes.
+ * all the analdes.
  *
- * For example, if all nodes are 1GiB and aligned to 1GiB, the return value
+ * For example, if all analdes are 1GiB and aligned to 1GiB, the return value
  * would indicate 1GiB alignment with (1 << (30 - PAGE_SHIFT)).  If the
- * nodes are shifted by 256MiB, 256MiB.  Note that if only the last node is
- * shifted, 1GiB is enough and this function will indicate so.
+ * analdes are shifted by 256MiB, 256MiB.  Analte that if only the last analde is
+ * shifted, 1GiB is eanalugh and this function will indicate so.
  *
  * This is used to test whether pfn -> nid mapping of the chosen memory
- * model has fine enough granularity to avoid incorrect mapping for the
- * populated node map.
+ * model has fine eanalugh granularity to avoid incorrect mapping for the
+ * populated analde map.
  *
- * Return: the determined alignment in pfn's.  0 if there is no alignment
- * requirement (single node).
+ * Return: the determined alignment in pfn's.  0 if there is anal alignment
+ * requirement (single analde).
  */
-unsigned long __init node_map_pfn_alignment(void)
+unsigned long __init analde_map_pfn_alignment(void)
 {
 	unsigned long accl_mask = 0, last_end = 0;
 	unsigned long start, end, mask;
-	int last_nid = NUMA_NO_NODE;
+	int last_nid = NUMA_ANAL_ANALDE;
 	int i, nid;
 
-	for_each_mem_pfn_range(i, MAX_NUMNODES, &start, &end, &nid) {
+	for_each_mem_pfn_range(i, MAX_NUMANALDES, &start, &end, &nid) {
 		if (!start || last_nid < 0 || last_nid == nid) {
 			last_nid = nid;
 			last_end = end;
@@ -1938,15 +1938,15 @@ unsigned long __init node_map_pfn_alignment(void)
 		}
 
 		/*
-		 * Start with a mask granular enough to pin-point to the
+		 * Start with a mask granular eanalugh to pin-point to the
 		 * start pfn and tick off bits one-by-one until it becomes
-		 * too coarse to separate the current node from the last.
+		 * too coarse to separate the current analde from the last.
 		 */
 		mask = ~((1 << __ffs(start)) - 1);
 		while (mask && last_end <= (start & (mask << 1)))
 			mask <<= 1;
 
-		/* accumulate all internode masks */
+		/* accumulate all interanalde masks */
 		accl_mask |= mask;
 	}
 
@@ -2064,7 +2064,7 @@ static unsigned long  __init deferred_init_pages(struct zone *zone,
  * This function is meant to pre-load the iterator for the zone init.
  * Specifically it walks through the ranges until we are caught up to the
  * first_init_pfn value and exits there. If we never encounter the value we
- * return false indicating there are no valid ranges left.
+ * return false indicating there are anal valid ranges left.
  */
 static bool __init
 deferred_init_mem_pfn_range_in_zone(u64 *i, struct zone *zone,
@@ -2097,7 +2097,7 @@ deferred_init_mem_pfn_range_in_zone(u64 *i, struct zone *zone,
  * page in __free_one_page()).
  *
  * In order to try and keep some memory in the cache we have the loop
- * broken along max page order boundaries. This way we will not cause
+ * broken along max page order boundaries. This way we will analt cause
  * any issues with the buddy page computation.
  */
 static unsigned long __init
@@ -2125,7 +2125,7 @@ deferred_init_maxorder(u64 *i, struct zone *zone, unsigned long *start_pfn,
 		}
 	}
 
-	/* Reset values and now loop through freeing pages as needed */
+	/* Reset values and analw loop through freeing pages as needed */
 	swap(j, *i);
 
 	for_each_free_mem_pfn_range_in_zone_from(j, zone, &spfn, &epfn) {
@@ -2166,16 +2166,16 @@ deferred_init_memmap_chunk(unsigned long start_pfn, unsigned long end_pfn,
 
 /* An arch may override for more concurrency. */
 __weak int __init
-deferred_page_init_max_threads(const struct cpumask *node_cpumask)
+deferred_page_init_max_threads(const struct cpumask *analde_cpumask)
 {
 	return 1;
 }
 
-/* Initialise remaining memory on a node */
+/* Initialise remaining memory on a analde */
 static int __init deferred_init_memmap(void *data)
 {
 	pg_data_t *pgdat = data;
-	const struct cpumask *cpumask = cpumask_of_node(pgdat->node_id);
+	const struct cpumask *cpumask = cpumask_of_analde(pgdat->analde_id);
 	unsigned long spfn = 0, epfn = 0;
 	unsigned long first_init_pfn, flags;
 	unsigned long start = jiffies;
@@ -2183,7 +2183,7 @@ static int __init deferred_init_memmap(void *data)
 	int zid, max_threads;
 	u64 i;
 
-	/* Bind memory initialisation thread to a local node if possible */
+	/* Bind memory initialisation thread to a local analde if possible */
 	if (!cpumask_empty(cpumask))
 		set_cpus_allowed_ptr(current, cpumask);
 
@@ -2196,12 +2196,12 @@ static int __init deferred_init_memmap(void *data)
 	}
 
 	/* Sanity check boundaries */
-	BUG_ON(pgdat->first_deferred_pfn < pgdat->node_start_pfn);
+	BUG_ON(pgdat->first_deferred_pfn < pgdat->analde_start_pfn);
 	BUG_ON(pgdat->first_deferred_pfn > pgdat_end_pfn(pgdat));
 	pgdat->first_deferred_pfn = ULONG_MAX;
 
 	/*
-	 * Once we unlock here, the zone cannot be grown anymore, thus if an
+	 * Once we unlock here, the zone cananalt be grown anymore, thus if an
 	 * interrupt thread must allocate this early in boot, zone must be
 	 * pre-grown prior to start of deferred page initialization.
 	 */
@@ -2209,7 +2209,7 @@ static int __init deferred_init_memmap(void *data)
 
 	/* Only the highest zone is deferred so find it */
 	for (zid = 0; zid < MAX_NR_ZONES; zid++) {
-		zone = pgdat->node_zones + zid;
+		zone = pgdat->analde_zones + zid;
 		if (first_init_pfn < zone_end_pfn(zone))
 			break;
 	}
@@ -2241,15 +2241,15 @@ zone_empty:
 	/* Sanity check that the next zone really is unpopulated */
 	WARN_ON(++zid < MAX_NR_ZONES && populated_zone(++zone));
 
-	pr_info("node %d deferred pages initialised in %ums\n",
-		pgdat->node_id, jiffies_to_msecs(jiffies - start));
+	pr_info("analde %d deferred pages initialised in %ums\n",
+		pgdat->analde_id, jiffies_to_msecs(jiffies - start));
 
 	pgdat_init_report_one_done();
 	return 0;
 }
 
 /*
- * If this zone has deferred pages, try to grow it by initializing enough
+ * If this zone has deferred pages, try to grow it by initializing eanalugh
  * deferred pages to satisfy the allocation specified by order, rounded up to
  * the nearest PAGES_PER_SECTION boundary.  So we're adding memory in increments
  * of SECTION_SIZE bytes by initializing struct pages in increments of
@@ -2257,11 +2257,11 @@ zone_empty:
  *
  * Return true when zone was grown, otherwise return false. We return true even
  * when we grow less than requested, to let the caller decide if there are
- * enough pages to satisfy the allocation.
+ * eanalugh pages to satisfy the allocation.
  *
- * Note: We use noinline because this function is needed only during boot, and
+ * Analte: We use analinline because this function is needed only during boot, and
  * it is called from a __ref function _deferred_grow_zone. This way we are
- * making sure that it is not inlined into permanent text section.
+ * making sure that it is analt inlined into permanent text section.
  */
 bool __init deferred_grow_zone(struct zone *zone, unsigned int order)
 {
@@ -2280,7 +2280,7 @@ bool __init deferred_grow_zone(struct zone *zone, unsigned int order)
 
 	/*
 	 * If someone grew this zone while we were waiting for spinlock, return
-	 * true, as there might be enough pages already.
+	 * true, as there might be eanalugh pages already.
 	 */
 	if (first_deferred_pfn != pgdat->first_deferred_pfn) {
 		pgdat_resize_unlock(pgdat, &flags);
@@ -2363,7 +2363,7 @@ void set_zone_contiguous(struct zone *zone)
 		cond_resched();
 	}
 
-	/* We confirm that there is no hole */
+	/* We confirm that there is anal hole */
 	zone->contiguous = true;
 }
 
@@ -2374,10 +2374,10 @@ void __init page_alloc_init_late(void)
 
 #ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
 
-	/* There will be num_node_state(N_MEMORY) threads */
-	atomic_set(&pgdat_init_n_undone, num_node_state(N_MEMORY));
-	for_each_node_state(nid, N_MEMORY) {
-		kthread_run(deferred_init_memmap, NODE_DATA(nid), "pgdatinit%d", nid);
+	/* There will be num_analde_state(N_MEMORY) threads */
+	atomic_set(&pgdat_init_n_undone, num_analde_state(N_MEMORY));
+	for_each_analde_state(nid, N_MEMORY) {
+		kthread_run(deferred_init_memmap, ANALDE_DATA(nid), "pgdatinit%d", nid);
 	}
 
 	/* Block until all are initialised */
@@ -2398,8 +2398,8 @@ void __init page_alloc_init_late(void)
 	/* Discard memblock private memory */
 	memblock_discard();
 
-	for_each_node_state(nid, N_MEMORY)
-		shuffle_free_memory(NODE_DATA(nid));
+	for_each_analde_state(nid, N_MEMORY)
+		shuffle_free_memory(ANALDE_DATA(nid));
 
 	for_each_populated_zone(zone)
 		set_zone_contiguous(zone);
@@ -2414,7 +2414,7 @@ void __init page_alloc_init_late(void)
 #ifndef __HAVE_ARCH_RESERVED_KERNEL_PAGES
 /*
  * Returns the number of pages that arch has reserved but
- * is not known to alloc_large_system_hash().
+ * is analt kanalwn to alloc_large_system_hash().
  */
 static unsigned long __init arch_reserved_kernel_pages(void)
 {
@@ -2428,7 +2428,7 @@ static unsigned long __init arch_reserved_kernel_pages(void)
  * slower pace.  Starting from ADAPT_SCALE_BASE (64G), every time memory
  * quadruples the scale is increased by one, which means the size of hash table
  * only doubles, instead of quadrupling as well.
- * Because 32-bit systems cannot have large physical memory, where this scaling
+ * Because 32-bit systems cananalt have large physical memory, where this scaling
  * makes sense, it is disabled on such platforms.
  */
 #if __BITS_PER_LONG > 32
@@ -2441,7 +2441,7 @@ static unsigned long __init arch_reserved_kernel_pages(void)
  * allocate a large system hash table from bootmem
  * - it is assumed that the hash table must contain an exact power-of-2
  *   quantity of entries
- * - limit is the number of hash buckets, not the total allocation size
+ * - limit is the number of hash buckets, analt the total allocation size
  */
 void *__init alloc_large_system_hash(const char *tablename,
 				     unsigned long bucketsize,
@@ -2522,7 +2522,7 @@ void *__init alloc_large_system_hash(const char *tablename,
 				huge = is_vm_area_hugepages(table);
 		} else {
 			/*
-			 * If bucketsize is not a power-of-two, we may free
+			 * If bucketsize is analt a power-of-two, we may free
 			 * some pages at the end of hash table which
 			 * alloc_pages_exact() automatically does
 			 */
@@ -2661,7 +2661,7 @@ static void __init mem_debugging_and_hardening_init(void)
 		want_check_pages = true;
 		static_branch_enable(&_debug_pagealloc_enabled);
 
-		if (debug_guardpage_minorder())
+		if (debug_guardpage_mianalrder())
 			static_branch_enable(&_debug_guardpage_enabled);
 	}
 #endif
@@ -2783,10 +2783,10 @@ void __init mm_core_init(void)
 	pgtable_cache_init();
 	debug_objects_mem_init();
 	vmalloc_init();
-	/* If no deferred init page_ext now, as vmap is fully initialized */
+	/* If anal deferred init page_ext analw, as vmap is fully initialized */
 	if (!deferred_struct_pages)
 		page_ext_init();
-	/* Should be run before the first non-init thread is created */
+	/* Should be run before the first analn-init thread is created */
 	init_espfix_bsp();
 	/* Should be run after espfix64 is set up. */
 	pti_init();

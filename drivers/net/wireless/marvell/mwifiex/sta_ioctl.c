@@ -20,8 +20,8 @@ module_param(disconnect_on_suspend, int, 0644);
 /*
  * Copies the multicast address list from device to driver.
  *
- * This function does not validate the destination memory for
- * size, and the calling function must ensure enough memory is
+ * This function does analt validate the destination memory for
+ * size, and the calling function must ensure eanalugh memory is
  * available.
  */
 int mwifiex_copy_mcast_addr(struct mwifiex_multicast_list *mlist,
@@ -43,7 +43,7 @@ int mwifiex_copy_mcast_addr(struct mwifiex_multicast_list *mlist,
  * request after waking up, in case of errors.
  */
 int mwifiex_wait_queue_complete(struct mwifiex_adapter *adapter,
-				struct cmd_ctrl_node *cmd_queued)
+				struct cmd_ctrl_analde *cmd_queued)
 {
 	int status;
 
@@ -145,7 +145,7 @@ int mwifiex_fill_new_bss_desc(struct mwifiex_private *priv,
 	if (!beacon_ie) {
 		mwifiex_dbg(priv->adapter, ERROR,
 			    " failed to alloc beacon_ie\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	memcpy(bss_desc->mac_address, bss->bssid, ETH_ALEN);
@@ -182,11 +182,11 @@ int mwifiex_fill_new_bss_desc(struct mwifiex_private *priv,
 
 void mwifiex_dnld_txpwr_table(struct mwifiex_private *priv)
 {
-	if (priv->adapter->dt_node) {
+	if (priv->adapter->dt_analde) {
 		char txpwr[] = {"marvell,00_txpwrlimit"};
 
 		memcpy(&txpwr[8], priv->adapter->country_code, 2);
-		mwifiex_dnld_dt_cfgdata(priv, priv->adapter->dt_node, txpwr);
+		mwifiex_dnld_dt_cfgdata(priv, priv->adapter->dt_analde, txpwr);
 	}
 }
 
@@ -234,7 +234,7 @@ static int mwifiex_process_country_ie(struct mwifiex_private *priv,
 
 	country_ie_len -= IEEE80211_COUNTRY_STRING_LEN;
 
-	domain_info->no_of_triplet =
+	domain_info->anal_of_triplet =
 		country_ie_len / sizeof(struct ieee80211_country_ie_triplet);
 
 	memcpy((u8 *)domain_info->triplet,
@@ -255,7 +255,7 @@ static int mwifiex_process_country_ie(struct mwifiex_private *priv,
 }
 
 /*
- * In Ad-Hoc mode, the IBSS is created if not found in scan list.
+ * In Ad-Hoc mode, the IBSS is created if analt found in scan list.
  * In both Ad-Hoc and infra mode, an deauthentication is performed
  * first.
  */
@@ -277,7 +277,7 @@ int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
 		bss_desc = kzalloc(sizeof(struct mwifiex_bssdescriptor),
 				   GFP_KERNEL);
 		if (!bss_desc)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ret = mwifiex_fill_new_bss_desc(priv, bss, bss_desc);
 		if (ret)
@@ -331,7 +331,7 @@ int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
 
 		/* If auth type is auto and association fails using open mode,
 		 * try to connect using shared mode */
-		if (ret == WLAN_STATUS_NOT_SUPPORTED_AUTH_ALG &&
+		if (ret == WLAN_STATUS_ANALT_SUPPORTED_AUTH_ALG &&
 		    priv->sec_info.is_authtype_auto &&
 		    priv->sec_info.wep_enabled) {
 			priv->sec_info.authentication_mode =
@@ -368,7 +368,7 @@ int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
 				cfg80211_put_bss(priv->adapter->wiphy, bss);
 		} else {
 			mwifiex_dbg(adapter, INFO,
-				    "info: Network not found in\t"
+				    "info: Network analt found in\t"
 				    "the list, creating adhoc with ssid = %s\n",
 				    req_ssid->ssid);
 			ret = mwifiex_adhoc_start(priv, req_ssid);
@@ -377,7 +377,7 @@ int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
 
 done:
 	/* beacon_ie buffer was allocated in function
-	 * mwifiex_fill_new_bss_desc(). Free it now.
+	 * mwifiex_fill_new_bss_desc(). Free it analw.
 	 */
 	if (bss_desc)
 		kfree(bss_desc->beacon_buf);
@@ -404,7 +404,7 @@ int mwifiex_set_hs_params(struct mwifiex_private *priv, u16 action,
 	u32 prev_cond = 0;
 
 	if (!hs_cfg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	switch (action) {
 	case HostCmd_ACT_GEN_SET:
@@ -434,7 +434,7 @@ int mwifiex_set_hs_params(struct mwifiex_private *priv, u16 action,
 					adapter->hs_cfg.gap = (u8)hs_cfg->gap;
 			} else if (adapter->hs_cfg.conditions ==
 				   cpu_to_le32(HS_CFG_CANCEL)) {
-				/* Return failure if no parameters for HS
+				/* Return failure if anal parameters for HS
 				   enable */
 				status = -1;
 				break;
@@ -651,7 +651,7 @@ int mwifiex_drv_get_data_rate(struct mwifiex_private *priv, u32 *rate)
  * This function prepares the correct firmware command and
  * issues it.
  *
- * For non-auto power mode, all the following power groups are set -
+ * For analn-auto power mode, all the following power groups are set -
  *      - Modulation class HR/DSSS
  *      - Modulation class OFDM
  *      - Modulation class HTBW20
@@ -681,7 +681,7 @@ int mwifiex_set_tx_power(struct mwifiex_private *priv,
 	}
 	buf = kzalloc(MWIFIEX_SIZE_OF_CMD_BUFFER, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	txp_cfg = (struct host_cmd_ds_txpwr_cfg *) buf;
 	txp_cfg->action = cpu_to_le16(HostCmd_ACT_GEN_SET);
@@ -862,7 +862,7 @@ static int mwifiex_set_wps_ie(struct mwifiex_private *priv,
 
 		priv->wps_ie = kzalloc(MWIFIEX_MAX_VSIE_LEN, GFP_KERNEL);
 		if (!priv->wps_ie)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		memcpy(priv->wps_ie, ie_data_ptr, ie_len);
 		priv->wps_ie_len = ie_len;
@@ -918,7 +918,7 @@ static int mwifiex_sec_ioctl_set_wep_key(struct mwifiex_private *priv,
 		wep_key = &priv->wep_key[index];
 		if (!wep_key->key_length) {
 			mwifiex_dbg(adapter, ERROR,
-				    "key not set, so cannot enable it\n");
+				    "key analt set, so cananalt enable it\n");
 			return -1;
 		}
 
@@ -1001,7 +1001,7 @@ static int mwifiex_sec_ioctl_set_wpa_key(struct mwifiex_private *priv,
 
 	if (priv->bss_mode == NL80211_IFTYPE_ADHOC) {
 		/*
-		 * IBSS/WPA-None uses only one key (Group) for both receiving
+		 * IBSS/WPA-Analne uses only one key (Group) for both receiving
 		 * and sending unicast and multicast packets.
 		 */
 		/* Send the key as PTK to firmware */
@@ -1160,7 +1160,7 @@ mwifiex_remain_on_chan_cfg(struct mwifiex_private *priv, u16 action,
 	roc_cfg.action = cpu_to_le16(action);
 	if (action == HostCmd_ACT_GEN_SET) {
 		roc_cfg.band_cfg = chan->band;
-		sc = mwifiex_chan_type_to_sec_chan_offset(NL80211_CHAN_NO_HT);
+		sc = mwifiex_chan_type_to_sec_chan_offset(NL80211_CHAN_ANAL_HT);
 		roc_cfg.band_cfg |= (sc << 2);
 
 		roc_cfg.channel =
@@ -1208,29 +1208,29 @@ static int mwifiex_reg_mem_ioctl_reg_rw(struct mwifiex_private *priv,
 					struct mwifiex_ds_reg_rw *reg_rw,
 					u16 action)
 {
-	u16 cmd_no;
+	u16 cmd_anal;
 
 	switch (reg_rw->type) {
 	case MWIFIEX_REG_MAC:
-		cmd_no = HostCmd_CMD_MAC_REG_ACCESS;
+		cmd_anal = HostCmd_CMD_MAC_REG_ACCESS;
 		break;
 	case MWIFIEX_REG_BBP:
-		cmd_no = HostCmd_CMD_BBP_REG_ACCESS;
+		cmd_anal = HostCmd_CMD_BBP_REG_ACCESS;
 		break;
 	case MWIFIEX_REG_RF:
-		cmd_no = HostCmd_CMD_RF_REG_ACCESS;
+		cmd_anal = HostCmd_CMD_RF_REG_ACCESS;
 		break;
 	case MWIFIEX_REG_PMIC:
-		cmd_no = HostCmd_CMD_PMIC_REG_ACCESS;
+		cmd_anal = HostCmd_CMD_PMIC_REG_ACCESS;
 		break;
 	case MWIFIEX_REG_CAU:
-		cmd_no = HostCmd_CMD_CAU_REG_ACCESS;
+		cmd_anal = HostCmd_CMD_CAU_REG_ACCESS;
 		break;
 	default:
 		return -1;
 	}
 
-	return mwifiex_send_cmd(priv, cmd_no, action, 0, reg_rw, true);
+	return mwifiex_send_cmd(priv, cmd_anal, action, 0, reg_rw, true);
 }
 
 /*
@@ -1346,7 +1346,7 @@ mwifiex_set_gen_ie_helper(struct mwifiex_private *priv, u8 *ie_data_ptr,
 		}
 
 		if (pvendor_ie->element_id == WLAN_EID_VENDOR_SPECIFIC) {
-			/* Test to see if it is a WPA IE, if not, then
+			/* Test to see if it is a WPA IE, if analt, then
 			 * it is a gen IE
 			 */
 			if (!memcmp(&pvendor_ie->oui, wpa_oui,
@@ -1375,7 +1375,7 @@ mwifiex_set_gen_ie_helper(struct mwifiex_private *priv, u8 *ie_data_ptr,
 
 		/* Saved in gen_ie, such as P2P IE.etc.*/
 
-		/* Verify that the passed length is not larger than the
+		/* Verify that the passed length is analt larger than the
 		 * available space remaining in the buffer
 		 */
 		if (cur_ie_len <

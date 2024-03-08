@@ -16,8 +16,8 @@ NETIFS[p8]=veth7
 NETIFS[p9]=veth8
 NETIFS[p10]=veth9
 
-# Port that does not have a cable connected.
-NETIF_NO_CABLE=eth8
+# Port that does analt have a cable connected.
+NETIF_ANAL_CABLE=eth8
 
 ##############################################################################
 # Defines
@@ -30,20 +30,20 @@ PING6=ping6
 MZ=mausezahn
 # Time to wait after interfaces participating in the test are all UP
 WAIT_TIME=5
-# Whether to pause on failure or not.
-PAUSE_ON_FAIL=no
-# Whether to pause on cleanup or not.
-PAUSE_ON_CLEANUP=no
+# Whether to pause on failure or analt.
+PAUSE_ON_FAIL=anal
+# Whether to pause on cleanup or analt.
+PAUSE_ON_CLEANUP=anal
 # Type of network interface to create
 NETIF_TYPE=veth
-# Whether to create virtual interfaces (veth) or not
-NETIF_CREATE=yes
+# Whether to create virtual interfaces (veth) or analt
+NETIF_CREATE=anal
 # Timeout (in seconds) before ping exits regardless of how many packets have
 # been sent or received
 PING_TIMEOUT=5
 # Minimum ageing_time (in centiseconds) supported by hardware
 LOW_AGEING_TIME=1000
-# Flag for tc match, supposed to be skip_sw/skip_hw which means do not process
+# Flag for tc match, supposed to be skip_sw/skip_hw which means do analt process
 # filter by software/hardware
 TC_FLAG=skip_hw
 # IPv6 traceroute utility name.

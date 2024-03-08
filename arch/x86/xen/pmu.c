@@ -411,7 +411,7 @@ int pmu_apic_update(uint32_t val)
 	struct xen_pmu_data *xenpmu_data = get_xenpmu_data();
 
 	if (!xenpmu_data) {
-		pr_warn_once("%s: pmudata not initialized\n", __func__);
+		pr_warn_once("%s: pmudata analt initialized\n", __func__);
 		return -EINVAL;
 	}
 
@@ -432,7 +432,7 @@ static unsigned int xen_guest_state(void)
 	unsigned int state = 0;
 
 	if (!xenpmu_data) {
-		pr_warn_once("%s: pmudata not initialized\n", __func__);
+		pr_warn_once("%s: pmudata analt initialized\n", __func__);
 		return state;
 	}
 
@@ -456,7 +456,7 @@ static unsigned long xen_get_guest_ip(void)
 	const struct xen_pmu_data *xenpmu_data = get_xenpmu_data();
 
 	if (!xenpmu_data) {
-		pr_warn_once("%s: pmudata not initialized\n", __func__);
+		pr_warn_once("%s: pmudata analt initialized\n", __func__);
 		return 0;
 	}
 
@@ -491,13 +491,13 @@ static void xen_convert_regs(const struct xen_pmu_regs *xen_regs,
 
 irqreturn_t xen_pmu_irq_handler(int irq, void *dev_id)
 {
-	int err, ret = IRQ_NONE;
+	int err, ret = IRQ_ANALNE;
 	struct pt_regs regs = {0};
 	const struct xen_pmu_data *xenpmu_data = get_xenpmu_data();
 	uint8_t xenpmu_flags = get_xenpmu_flags();
 
 	if (!xenpmu_data) {
-		pr_warn_once("%s: pmudata not initialized\n", __func__);
+		pr_warn_once("%s: pmudata analt initialized\n", __func__);
 		return ret;
 	}
 
@@ -513,7 +513,7 @@ irqreturn_t xen_pmu_irq_handler(int irq, void *dev_id)
 	this_cpu_ptr(&xenpmu_shared)->flags = xenpmu_flags;
 	if (err) {
 		pr_warn_once("%s: failed hypercall, err: %d\n", __func__, err);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	return ret;
@@ -535,7 +535,7 @@ void xen_pmu_init(int cpu)
 
 	xenpmu_data = (struct xen_pmu_data *)get_zeroed_page(GFP_KERNEL);
 	if (!xenpmu_data) {
-		pr_err("VPMU init: No memory\n");
+		pr_err("VPMU init: Anal memory\n");
 		return;
 	}
 	pfn = virt_to_pfn(xenpmu_data);
@@ -560,10 +560,10 @@ void xen_pmu_init(int cpu)
 	return;
 
 fail:
-	if (err == -EOPNOTSUPP || err == -ENOSYS)
+	if (err == -EOPANALTSUPP || err == -EANALSYS)
 		pr_info_once("VPMU disabled by hypervisor.\n");
 	else
-		pr_info_once("Could not initialize VPMU for cpu %d, error %d\n",
+		pr_info_once("Could analt initialize VPMU for cpu %d, error %d\n",
 			cpu, err);
 	free_pages((unsigned long)xenpmu_data, 0);
 }

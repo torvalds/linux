@@ -55,7 +55,7 @@ static int dac124s085_probe(struct spi_device *spi)
 
 	dac = devm_kzalloc(&spi->dev, sizeof(*dac), GFP_KERNEL);
 	if (!dac)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spi->bits_per_word = 16;
 

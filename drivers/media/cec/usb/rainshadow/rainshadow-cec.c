@@ -6,7 +6,7 @@
  */
 
 /*
- * Notes:
+ * Analtes:
  *
  * The higher level protocols are currently disabled. This can be added
  * later, similar to how this is done for the Pulse Eight CEC driver.
@@ -307,14 +307,14 @@ static int rain_connect(struct serio *serio, struct serio_driver *drv)
 {
 	u32 caps = CEC_CAP_DEFAULTS | CEC_CAP_PHYS_ADDR | CEC_CAP_MONITOR_ALL;
 	struct rain *rain;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 	struct cec_log_addrs log_addrs = {};
 	u16 pa = CEC_PHYS_ADDR_INVALID;
 
 	rain = kzalloc(sizeof(*rain), GFP_KERNEL);
 
 	if (!rain)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rain->serio = serio;
 	rain->adap = cec_allocate_adapter(&rain_cec_adap_ops, rain,
@@ -341,7 +341,7 @@ static int rain_connect(struct serio *serio, struct serio_driver *drv)
 	if (err < 0)
 		goto close_serio;
 
-	rain->dev = &rain->adap->devnode.dev;
+	rain->dev = &rain->adap->devanalde.dev;
 	return 0;
 
 close_serio:

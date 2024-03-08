@@ -3,7 +3,7 @@
  * An I2C driver for Ricoh RS5C372, R2025S/D and RV5C38[67] RTCs
  *
  * Copyright (C) 2005 Pavel Mironchik <pmironchik@optifacio.net>
- * Copyright (C) 2006 Tower Technologies
+ * Copyright (C) 2006 Tower Techanallogies
  * Copyright (C) 2008 Paul Mundt
  */
 
@@ -16,7 +16,7 @@
 
 /*
  * Ricoh has a family of I2C based RTCs, which differ only slightly from
- * each other.  Differences center on pinout (e.g. how many interrupts,
+ * each other.  Differences center on pianalut (e.g. how many interrupts,
  * output clock, etc) and how the control registers are used.  The '372
  * is significant only because that's the one this driver first supported.
  */
@@ -47,7 +47,7 @@
 #	define RV5C387_CTRL1_24		(1 << 5)
 #	define RS5C372A_CTRL1_SL1	(1 << 5)
 #	define RS5C_CTRL1_CT_MASK	(7 << 0)
-#	define RS5C_CTRL1_CT0		(0 << 0)	/* no periodic irq */
+#	define RS5C_CTRL1_CT0		(0 << 0)	/* anal periodic irq */
 #	define RS5C_CTRL1_CT4		(4 << 0)	/* 1 Hz level irq */
 #define RS5C_REG_CTRL2		15
 #	define RS5C372_CTRL2_24		(1 << 5)
@@ -115,9 +115,9 @@ static const __maybe_unused struct of_device_id rs5c372_of_match[] = {
 MODULE_DEVICE_TABLE(of, rs5c372_of_match);
 
 /* REVISIT:  this assumes that:
- *  - we're in the 21st century, so it's safe to ignore the century
+ *  - we're in the 21st century, so it's safe to iganalre the century
  *    bit for rv5c38[67] (REG_MONTH bit 7);
- *  - we should use ALARM_A not ALARM_B (may be wrong on some boards)
+ *  - we should use ALARM_A analt ALARM_B (may be wrong on some boards)
  */
 struct rs5c372 {
 	struct i2c_client	*client;
@@ -386,7 +386,7 @@ static int rs5c_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
 }
 
 
-/* NOTE:  Since RTC_WKALM_{RD,SET} were originally defined for EFI,
+/* ANALTE:  Since RTC_WKALM_{RD,SET} were originally defined for EFI,
  * which only exposes a polled programming interface; and since
  * these calls map directly to those EFI requests; we don't demand
  * we have an IRQ for this chip when we go through this API.
@@ -537,7 +537,7 @@ static int rs5c372_ioctl(struct device *dev, unsigned int cmd, unsigned long arg
 		}
 		return 0;
 	default:
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 	}
 	return 0;
 }
@@ -568,7 +568,7 @@ static int rs5c372_read_offset(struct device *dev, long *offset)
 	/* Only bits[0:5] repsents the time counts */
 	val &= 0x3F;
 
-	/* If bits[1:5] are all 0, it means no increment or decrement */
+	/* If bits[1:5] are all 0, it means anal increment or decrement */
 	if (!(val & 0x3E)) {
 		*offset = 0;
 	} else {
@@ -640,7 +640,7 @@ static int rs5c372_set_offset(struct device *dev, long offset)
 		/*
 		 * if offset is too small, set oscillation adjustment register
 		 * or time trimming register with its default value whic means
-		 * no increment or decrement. But for rs5c372[a|b], the XSL bit
+		 * anal increment or decrement. But for rs5c372[a|b], the XSL bit
 		 * should be kept unchanged.
 		 */
 		if (rs5c->type == rtc_rs5c372a || rs5c->type == rtc_rs5c372b)
@@ -729,7 +729,7 @@ static int rs5c_sysfs_register(struct device *dev)
 
 static void rs5c_sysfs_unregister(struct device *dev)
 {
-	/* nothing */
+	/* analthing */
 }
 #endif	/* SYSFS */
 
@@ -810,8 +810,8 @@ static int rs5c372_probe(struct i2c_client *client)
 				I2C_FUNC_SMBUS_I2C_BLOCK))
 			smbus_mode = 1;
 		else {
-			/* Still no good, give up */
-			err = -ENODEV;
+			/* Still anal good, give up */
+			err = -EANALDEV;
 			goto exit;
 		}
 	}
@@ -819,13 +819,13 @@ static int rs5c372_probe(struct i2c_client *client)
 	rs5c372 = devm_kzalloc(&client->dev, sizeof(struct rs5c372),
 				GFP_KERNEL);
 	if (!rs5c372) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto exit;
 	}
 
 	rs5c372->client = client;
 	i2c_set_clientdata(client, rs5c372);
-	if (client->dev.of_node) {
+	if (client->dev.of_analde) {
 		rs5c372->type = (uintptr_t)of_device_get_match_data(&client->dev);
 	} else {
 		const struct i2c_device_id *id = i2c_match_id(rs5c372_id, client);
@@ -861,11 +861,11 @@ static int rs5c372_probe(struct i2c_client *client)
 		 */
 		break;
 	default:
-		dev_err(&client->dev, "unknown RTC type\n");
+		dev_err(&client->dev, "unkanalwn RTC type\n");
 		goto exit;
 	}
 
-	/* if the oscillator lost power and no other software (like
+	/* if the oscillator lost power and anal other software (like
 	 * the bootloader) set it up, do it here.
 	 *
 	 * The R2025S/D does this a little differently than the other

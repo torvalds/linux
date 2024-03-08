@@ -3,7 +3,7 @@
 /*
  * EEPROM driver for RAVE SP
  *
- * Copyright (C) 2018 Zodiac Inflight Innovations
+ * Copyright (C) 2018 Zodiac Inflight Inanalvations
  *
  */
 #include <linux/kernel.h>
@@ -46,7 +46,7 @@ enum rave_sp_eeprom_header_size {
  * @success:	Success flag (Success = 1, Failure = 0)
  * @data:	Read data
  *
- * Note this structure corresponds to RSP_*_EEPROM payload from RAVE
+ * Analte this structure corresponds to RSP_*_EEPROM payload from RAVE
  * SP ICD
  */
 struct rave_sp_eeprom_page {
@@ -119,7 +119,7 @@ static int rave_sp_eeprom_io(struct rave_sp_eeprom *eeprom,
 	/*
 	 * Copy our data to write to command buffer first. In case of
 	 * a read data_size should be zero and memcpy would become a
-	 * no-op
+	 * anal-op
 	 */
 	memcpy(&cmd[offset], page->data, data_size);
 
@@ -146,7 +146,7 @@ static int rave_sp_eeprom_io(struct rave_sp_eeprom *eeprom,
  * @data_len:	Size of the data buffer
  *
  * This function performs a generic access to a single page or a
- * portion thereof. Requested access MUST NOT cross the EEPROM page
+ * portion thereof. Requested access MUST ANALT cross the EEPROM page
  * boundary.
  *
  * Returns zero in case of success or negative error code in
@@ -164,8 +164,8 @@ rave_sp_eeprom_page_access(struct rave_sp_eeprom *eeprom,
 	int ret;
 
 	/*
-	 * This function will not work if data access we've been asked
-	 * to do is crossing EEPROM page boundary. Normally this
+	 * This function will analt work if data access we've been asked
+	 * to do is crossing EEPROM page boundary. Analrmally this
 	 * should never happen and getting here would indicate a bug
 	 * in the code.
 	 */
@@ -211,8 +211,8 @@ rave_sp_eeprom_page_access(struct rave_sp_eeprom *eeprom,
  * @data_len:	Size of the data buffer
  *
  * This function performs a generic access (either read or write) at
- * arbitrary offset (not necessary page aligned) of arbitrary length
- * (is not constrained by EEPROM page size).
+ * arbitrary offset (analt necessary page aligned) of arbitrary length
+ * (is analt constrained by EEPROM page size).
  *
  * Returns zero in case of success or negative error code in case of
  * failure.
@@ -235,7 +235,7 @@ static int rave_sp_eeprom_access(struct rave_sp_eeprom *eeprom,
 	do {
 		/*
 		 * First iteration, if we are doing an access that is
-		 * not 32-byte aligned, we need to access only data up
+		 * analt 32-byte aligned, we need to access only data up
 		 * to a page boundary to avoid corssing it in
 		 * rave_sp_eeprom_page_access()
 		 */
@@ -245,7 +245,7 @@ static int rave_sp_eeprom_access(struct rave_sp_eeprom *eeprom,
 			 * This can only happen once per
 			 * rave_sp_eeprom_access() call, so we set
 			 * head to zero to process all the other
-			 * iterations normally.
+			 * iterations analrmally.
 			 */
 			head  = 0;
 		} else {
@@ -288,7 +288,7 @@ static int rave_sp_eeprom_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct rave_sp *sp = dev_get_drvdata(dev->parent);
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct nvmem_config config = { 0 };
 	struct rave_sp_eeprom *eeprom;
 	struct nvmem_device *nvmem;
@@ -301,7 +301,7 @@ static int rave_sp_eeprom_probe(struct platform_device *pdev)
 
 	size = reg[1];
 	/*
-	 * Per ICD, we have no more than 2 bytes to specify EEPROM
+	 * Per ICD, we have anal more than 2 bytes to specify EEPROM
 	 * page.
 	 */
 	if (size > U16_MAX * RAVE_SP_EEPROM_PAGE_SIZE) {
@@ -311,7 +311,7 @@ static int rave_sp_eeprom_probe(struct platform_device *pdev)
 
 	eeprom = devm_kzalloc(dev, sizeof(*eeprom), GFP_KERNEL);
 	if (!eeprom)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	eeprom->address = reg[0];
 	eeprom->sp      = sp;
@@ -358,5 +358,5 @@ module_platform_driver(rave_sp_eeprom_driver);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Andrey Vostrikov <andrey.vostrikov@cogentembedded.com>");
 MODULE_AUTHOR("Nikita Yushchenko <nikita.yoush@cogentembedded.com>");
-MODULE_AUTHOR("Andrey Smirnov <andrew.smirnov@gmail.com>");
+MODULE_AUTHOR("Andrey Smiranalv <andrew.smiranalv@gmail.com>");
 MODULE_DESCRIPTION("RAVE SP EEPROM driver");

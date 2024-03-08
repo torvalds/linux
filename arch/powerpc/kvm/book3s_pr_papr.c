@@ -12,7 +12,7 @@
  * processors.
  */
 
-#include <linux/anon_inodes.h>
+#include <linux/aanaln_ianaldes.h>
 
 #include <linux/uaccess.h>
 #include <asm/kvm_ppc.h>
@@ -100,7 +100,7 @@ static int kvmppc_h_pr_remove(struct kvm_vcpu *vcpu)
 	pte[0] = be64_to_cpu((__force __be64)pte[0]);
 	pte[1] = be64_to_cpu((__force __be64)pte[1]);
 
-	ret = H_NOT_FOUND;
+	ret = H_ANALT_FOUND;
 	if ((pte[0] & HPTE_V_VALID) == 0 ||
 	    ((flags & H_AVPN) && (pte[0] & ~0x7fUL) != avpn) ||
 	    ((flags & H_ANDCOND) && (pte[0] & avpn) != 0))
@@ -131,7 +131,7 @@ static int kvmppc_h_pr_remove(struct kvm_vcpu *vcpu)
 #define   H_BULK_REMOVE_END            0xc000000000000000ULL
 #define H_BULK_REMOVE_CODE             0x3000000000000000ULL
 #define   H_BULK_REMOVE_SUCCESS        0x0000000000000000ULL
-#define   H_BULK_REMOVE_NOT_FOUND      0x1000000000000000ULL
+#define   H_BULK_REMOVE_ANALT_FOUND      0x1000000000000000ULL
 #define   H_BULK_REMOVE_PARM           0x2000000000000000ULL
 #define   H_BULK_REMOVE_HW             0x3000000000000000ULL
 #define H_BULK_REMOVE_RC               0x0c00000000000000ULL
@@ -189,7 +189,7 @@ static int kvmppc_h_pr_bulk_remove(struct kvm_vcpu *vcpu)
 		if ((pte[0] & HPTE_V_VALID) == 0 ||
 		    ((flags & H_AVPN) && (pte[0] & ~0x7fUL) != tsl) ||
 		    ((flags & H_ANDCOND) && (pte[0] & tsl) != 0)) {
-			tsh |= H_BULK_REMOVE_NOT_FOUND;
+			tsh |= H_BULK_REMOVE_ANALT_FOUND;
 		} else {
 			/* Splat the pteg in (userland) hpt */
 			if (copy_to_user((void __user *)pteg, &v, sizeof(v))) {
@@ -228,7 +228,7 @@ static int kvmppc_h_pr_protect(struct kvm_vcpu *vcpu)
 	pte[0] = be64_to_cpu((__force __be64)pte[0]);
 	pte[1] = be64_to_cpu((__force __be64)pte[1]);
 
-	ret = H_NOT_FOUND;
+	ret = H_ANALT_FOUND;
 	if ((pte[0] & HPTE_V_VALID) == 0 ||
 	    ((flags & H_AVPN) && (pte[0] & ~0x7fUL) != avpn))
 		goto done;
@@ -287,7 +287,7 @@ static int kvmppc_h_pr_set_mode(struct kvm_vcpu *vcpu)
 	unsigned long resource = kvmppc_get_gpr(vcpu, 5);
 
 	if (resource == H_SET_MODE_RESOURCE_ADDR_TRANS_MODE) {
-		/* KVM PR does not provide AIL!=0 to guests */
+		/* KVM PR does analt provide AIL!=0 to guests */
 		if (mflags == 0)
 			kvmppc_set_gpr(vcpu, 3, H_SUCCESS);
 		else
@@ -459,7 +459,7 @@ int kvmppc_hcall_impl_pr(unsigned long cmd)
  * List of hcall numbers to enable by default.
  * For compatibility with old userspace, we enable by default
  * all hcalls that were implemented before the hcall-enabling
- * facility was added.  Note this list should not include H_RTAS.
+ * facility was added.  Analte this list should analt include H_RTAS.
  */
 static unsigned int default_hcall_list[] = {
 	H_ENTER,

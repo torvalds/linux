@@ -86,10 +86,10 @@ static int mvebu_pm_powerdown(unsigned long data)
 
 static phys_addr_t mvebu_internal_reg_base(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	__be32 in_addr[2];
 
-	np = of_find_node_by_name(NULL, "internal-regs");
+	np = of_find_analde_by_name(NULL, "internal-regs");
 	BUG_ON(!np);
 
 	/*
@@ -156,7 +156,7 @@ static int mvebu_pm_store_bootinfo(void)
 	if (of_machine_is_compatible("marvell,armadaxp"))
 		mvebu_pm_store_armadaxp_bootinfo(store_addr);
 	else
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -220,7 +220,7 @@ static int __init mvebu_pm_init(void)
 	    !of_machine_is_compatible("marvell,armada370") &&
 	    !of_machine_is_compatible("marvell,armada380") &&
 	    !of_machine_is_compatible("marvell,armada390"))
-		return -ENODEV;
+		return -EANALDEV;
 
 	suspend_set_ops(&mvebu_pm_ops);
 
@@ -233,33 +233,33 @@ late_initcall(mvebu_pm_init);
 int __init mvebu_pm_suspend_init(void (*board_pm_enter)(void __iomem *sdram_reg,
 							u32 srcmd))
 {
-	struct device_node *np;
+	struct device_analde *np;
 	struct resource res;
 
-	np = of_find_compatible_node(NULL, NULL,
+	np = of_find_compatible_analde(NULL, NULL,
 				     "marvell,armada-xp-sdram-controller");
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (of_address_to_resource(np, 0, &res)) {
-		of_node_put(np);
-		return -ENODEV;
+		of_analde_put(np);
+		return -EANALDEV;
 	}
 
 	if (!request_mem_region(res.start, resource_size(&res),
 				np->full_name)) {
-		of_node_put(np);
+		of_analde_put(np);
 		return -EBUSY;
 	}
 
 	sdram_ctrl = ioremap(res.start, resource_size(&res));
 	if (!sdram_ctrl) {
 		release_mem_region(res.start, resource_size(&res));
-		of_node_put(np);
-		return -ENOMEM;
+		of_analde_put(np);
+		return -EANALMEM;
 	}
 
-	of_node_put(np);
+	of_analde_put(np);
 
 	mvebu_board_pm_enter = board_pm_enter;
 

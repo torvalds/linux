@@ -18,9 +18,9 @@
  * @nr: the bit to set
  * @addr: the address to start counting from
  *
- * This is a relaxed atomic operation (no implied memory barriers).
+ * This is a relaxed atomic operation (anal implied memory barriers).
  *
- * Note that @nr may be almost arbitrarily large; this function is not
+ * Analte that @nr may be almost arbitrarily large; this function is analt
  * restricted to acting on a single-word quantity.
  */
 static __always_inline void set_bit(long nr, volatile unsigned long *addr)
@@ -34,7 +34,7 @@ static __always_inline void set_bit(long nr, volatile unsigned long *addr)
  * @nr: Bit to clear
  * @addr: Address to start counting from
  *
- * This is a relaxed atomic operation (no implied memory barriers).
+ * This is a relaxed atomic operation (anal implied memory barriers).
  */
 static __always_inline void clear_bit(long nr, volatile unsigned long *addr)
 {
@@ -47,9 +47,9 @@ static __always_inline void clear_bit(long nr, volatile unsigned long *addr)
  * @nr: Bit to change
  * @addr: Address to start counting from
  *
- * This is a relaxed atomic operation (no implied memory barriers).
+ * This is a relaxed atomic operation (anal implied memory barriers).
  *
- * Note that @nr may be almost arbitrarily large; this function is not
+ * Analte that @nr may be almost arbitrarily large; this function is analt
  * restricted to acting on a single-word quantity.
  */
 static __always_inline void change_bit(long nr, volatile unsigned long *addr)
@@ -100,4 +100,4 @@ static __always_inline bool test_and_change_bit(long nr, volatile unsigned long 
 	return arch_test_and_change_bit(nr, addr);
 }
 
-#endif /* _ASM_GENERIC_BITOPS_INSTRUMENTED_NON_ATOMIC_H */
+#endif /* _ASM_GENERIC_BITOPS_INSTRUMENTED_ANALN_ATOMIC_H */

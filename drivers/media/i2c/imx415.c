@@ -17,7 +17,7 @@
 #include <linux/videodev2.h>
 
 #include <media/v4l2-ctrls.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-subdev.h>
 
 #define IMX415_PIXEL_ARRAY_TOP	  0
@@ -257,7 +257,7 @@ struct imx415_mode_reg_list {
  * Mode : number of lanes, lane rate and frame rate dependent settings
  *
  * pixel_rate and hmax_pix are needed to calculate hblank for the v4l2 ctrl
- * interface. These values can not be found in the data sheet and should be
+ * interface. These values can analt be found in the data sheet and should be
  * treated as virtual values. Use following table when adding new modes.
  *
  * lane_rate  lanes    fps     hmax_pix   pixel_rate
@@ -367,10 +367,10 @@ struct imx415 {
 
 /*
  * This table includes fixed register settings and a bunch of undocumented
- * registers that have to be set to another value than default.
+ * registers that have to be set to aanalther value than default.
  */
 static const struct imx415_reg imx415_init_table[] = {
-	/* use all-pixel readout mode, no flip */
+	/* use all-pixel readout mode, anal flip */
 	{ IMX415_WINMODE, 0x00 },
 	{ IMX415_ADDMODE, 0x00 },
 	{ IMX415_REVERSE, 0x00 },
@@ -588,7 +588,7 @@ static const struct v4l2_ctrl_ops imx415_ctrl_ops = {
 
 static int imx415_ctrls_init(struct imx415 *sensor)
 {
-	struct v4l2_fwnode_device_properties props;
+	struct v4l2_fwanalde_device_properties props;
 	struct v4l2_ctrl *ctrl;
 	u64 pixel_rate = supported_modes[sensor->cur_mode].pixel_rate;
 	u64 lane_rate = supported_modes[sensor->cur_mode].lane_rate;
@@ -598,7 +598,7 @@ static int imx415_ctrls_init(struct imx415 *sensor)
 	unsigned int i;
 	int ret;
 
-	ret = v4l2_fwnode_device_parse(sensor->dev, &props);
+	ret = v4l2_fwanalde_device_parse(sensor->dev, &props);
 	if (ret < 0)
 		return ret;
 
@@ -610,7 +610,7 @@ static int imx415_ctrls_init(struct imx415 *sensor)
 	}
 	if (i == ARRAY_SIZE(link_freq_menu_items)) {
 		return dev_err_probe(sensor->dev, -EINVAL,
-				     "lane rate %llu not supported\n",
+				     "lane rate %llu analt supported\n",
 				     lane_rate);
 	}
 
@@ -647,7 +647,7 @@ static int imx415_ctrls_init(struct imx415 *sensor)
 
 	/*
 	 * The pixel rate used here is a virtual value and can be used for
-	 * calculating the frame rate together with hblank. It may not
+	 * calculating the frame rate together with hblank. It may analt
 	 * necessarily be the physically correct pixel clock.
 	 */
 	v4l2_ctrl_new_std(&sensor->ctrls, NULL, V4L2_CID_PIXEL_RATE, pixel_rate,
@@ -663,7 +663,7 @@ static int imx415_ctrls_init(struct imx415 *sensor)
 				     ARRAY_SIZE(imx415_test_pattern_menu) - 1,
 				     0, 0, imx415_test_pattern_menu);
 
-	v4l2_ctrl_new_fwnode_properties(&sensor->ctrls, &imx415_ctrl_ops,
+	v4l2_ctrl_new_fwanalde_properties(&sensor->ctrls, &imx415_ctrl_ops,
 					&props);
 
 	if (sensor->ctrls.error) {
@@ -684,7 +684,7 @@ static int imx415_set_mode(struct imx415 *sensor, int mode)
 	int ret = 0;
 
 	if (mode >= ARRAY_SIZE(supported_modes)) {
-		dev_err(sensor->dev, "Mode %d not supported\n", mode);
+		dev_err(sensor->dev, "Mode %d analt supported\n", mode);
 		return -EINVAL;
 	}
 
@@ -802,8 +802,8 @@ unlock:
 
 err_pm:
 	/*
-	 * In case of error, turn the power off synchronously as the device
-	 * likely has no other chance to recover.
+	 * In case of error, turn the power off synchroanalusly as the device
+	 * likely has anal other chance to recover.
 	 */
 	pm_runtime_put_sync(sensor->dev);
 
@@ -851,11 +851,11 @@ static int imx415_set_format(struct v4l2_subdev *sd,
 	format->width = fmt->format.width;
 	format->height = fmt->format.height;
 	format->code = MEDIA_BUS_FMT_SGBRG10_1X10;
-	format->field = V4L2_FIELD_NONE;
+	format->field = V4L2_FIELD_ANALNE;
 	format->colorspace = V4L2_COLORSPACE_RAW;
 	format->ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
 	format->quantization = V4L2_QUANTIZATION_DEFAULT;
-	format->xfer_func = V4L2_XFER_FUNC_NONE;
+	format->xfer_func = V4L2_XFER_FUNC_ANALNE;
 
 	fmt->format = *format;
 	return 0;
@@ -928,7 +928,7 @@ static int imx415_subdev_init(struct imx415 *sensor)
 	if (ret)
 		return ret;
 
-	sensor->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE |
+	sensor->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE |
 				V4L2_SUBDEV_FL_HAS_EVENTS;
 	sensor->pad.flags = MEDIA_PAD_FL_SOURCE;
 	sensor->subdev.entity.function = MEDIA_ENT_F_CAM_SENSOR;
@@ -995,7 +995,7 @@ static int imx415_identify_model(struct imx415 *sensor)
 
 	/*
 	 * While most registers can be read when the sensor is in standby, this
-	 * is not the case of the sensor info register :-(
+	 * is analt the case of the sensor info register :-(
 	 */
 	ret = imx415_wakeup(sensor);
 	if (ret)
@@ -1016,7 +1016,7 @@ static int imx415_identify_model(struct imx415 *sensor)
 		dev_info(sensor->dev, "Detected IMX415 image sensor\n");
 		break;
 	default:
-		ret = dev_err_probe(sensor->dev, -ENODEV,
+		ret = dev_err_probe(sensor->dev, -EANALDEV,
 				    "invalid device model 0x%04x\n", model);
 		goto done;
 	}
@@ -1046,10 +1046,10 @@ static int imx415_check_inck(unsigned long inck, u64 link_frequency)
 
 static int imx415_parse_hw_config(struct imx415 *sensor)
 {
-	struct v4l2_fwnode_endpoint bus_cfg = {
+	struct v4l2_fwanalde_endpoint bus_cfg = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY,
 	};
-	struct fwnode_handle *ep;
+	struct fwanalde_handle *ep;
 	u64 lane_rate;
 	unsigned long inck;
 	unsigned int i, j;
@@ -1075,12 +1075,12 @@ static int imx415_parse_hw_config(struct imx415 *sensor)
 		return dev_err_probe(sensor->dev, PTR_ERR(sensor->clk),
 				     "failed to get clock\n");
 
-	ep = fwnode_graph_get_next_endpoint(dev_fwnode(sensor->dev), NULL);
+	ep = fwanalde_graph_get_next_endpoint(dev_fwanalde(sensor->dev), NULL);
 	if (!ep)
 		return -ENXIO;
 
-	ret = v4l2_fwnode_endpoint_alloc_parse(ep, &bus_cfg);
-	fwnode_handle_put(ep);
+	ret = v4l2_fwanalde_endpoint_alloc_parse(ep, &bus_cfg);
+	fwanalde_handle_put(ep);
 	if (ret)
 		return ret;
 
@@ -1098,7 +1098,7 @@ static int imx415_parse_hw_config(struct imx415 *sensor)
 
 	if (!bus_cfg.nr_of_link_frequencies) {
 		ret = dev_err_probe(sensor->dev, -EINVAL,
-				    "no link frequencies defined");
+				    "anal link frequencies defined");
 		goto done_endpoint_free;
 	}
 
@@ -1110,7 +1110,7 @@ static int imx415_parse_hw_config(struct imx415 *sensor)
 	for (i = 0; i < bus_cfg.nr_of_link_frequencies; ++i) {
 		if (imx415_check_inck(inck, bus_cfg.link_frequencies[i])) {
 			dev_dbg(sensor->dev,
-				"INCK %lu Hz not supported for this link freq",
+				"INCK %lu Hz analt supported for this link freq",
 				inck);
 			continue;
 		}
@@ -1129,7 +1129,7 @@ static int imx415_parse_hw_config(struct imx415 *sensor)
 	}
 	if (i == bus_cfg.nr_of_link_frequencies) {
 		ret = dev_err_probe(sensor->dev, -EINVAL,
-				    "no valid sensor mode defined\n");
+				    "anal valid sensor mode defined\n");
 		goto done_endpoint_free;
 	}
 
@@ -1143,7 +1143,7 @@ static int imx415_parse_hw_config(struct imx415 *sensor)
 	}
 	if (i == ARRAY_SIZE(imx415_clk_params)) {
 		ret = dev_err_probe(sensor->dev, -EINVAL,
-				    "Mode %d not supported\n",
+				    "Mode %d analt supported\n",
 				    sensor->cur_mode);
 		goto done_endpoint_free;
 	}
@@ -1153,7 +1153,7 @@ static int imx415_parse_hw_config(struct imx415 *sensor)
 		inck, lane_rate, sensor->num_data_lanes);
 
 done_endpoint_free:
-	v4l2_fwnode_endpoint_free(&bus_cfg);
+	v4l2_fwanalde_endpoint_free(&bus_cfg);
 
 	return ret;
 }
@@ -1165,7 +1165,7 @@ static int imx415_probe(struct i2c_client *client)
 
 	sensor = devm_kzalloc(&client->dev, sizeof(*sensor), GFP_KERNEL);
 	if (!sensor)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sensor->dev = &client->dev;
 
@@ -1199,7 +1199,7 @@ static int imx415_probe(struct i2c_client *client)
 	 * as active, and increase the usage count without resuming the device.
 	 */
 	pm_runtime_set_active(sensor->dev);
-	pm_runtime_get_noresume(sensor->dev);
+	pm_runtime_get_analresume(sensor->dev);
 	pm_runtime_enable(sensor->dev);
 
 	ret = v4l2_async_register_subdev_sensor(&sensor->subdev);
@@ -1219,7 +1219,7 @@ static int imx415_probe(struct i2c_client *client)
 
 err_pm:
 	pm_runtime_disable(sensor->dev);
-	pm_runtime_put_noidle(sensor->dev);
+	pm_runtime_put_analidle(sensor->dev);
 	imx415_subdev_cleanup(sensor);
 err_power:
 	imx415_power_off(sensor);

@@ -1,6 +1,6 @@
 * Texas Instruments Davinci/Keystone I2C
 
-This file provides information, what the device node for the
+This file provides information, what the device analde for the
 davinci/keystone i2c interface contains.
 
 Required properties:
@@ -14,7 +14,7 @@ SoC-specific Required Properties:
 
 The following are mandatory properties for Keystone 2 66AK2G SoCs only:
 
-- power-domains:	Should contain a phandle to a PM domain provider node
+- power-domains:	Should contain a phandle to a PM domain provider analde
 			and an args specifier containing the I2C device id
 			value. This property is as per the binding,
 			Documentation/devicetree/bindings/soc/ti/sci-pm-domain.yaml

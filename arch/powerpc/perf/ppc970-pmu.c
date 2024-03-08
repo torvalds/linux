@@ -25,7 +25,7 @@
 #define PM_PMCSEL_MSK	0xf
 
 /* Values in PM_UNIT field */
-#define PM_NONE		0
+#define PM_ANALNE		0
 #define PM_FPU		1
 #define PM_VPU		2
 #define PM_ISU		3
@@ -140,7 +140,7 @@ static unsigned char direct_marked_event[8] = {
 
 /*
  * Returns 1 if event counts things relating to marked instructions
- * and thus needs the MMCRA_SAMPLE_ENABLE bit set, or 0 if not.
+ * and thus needs the MMCRA_SAMPLE_ENABLE bit set, or 0 if analt.
  */
 static int p970_marked_instr_event(u64 event)
 {
@@ -432,7 +432,7 @@ static int ppc970_generic_events[] = {
 
 /*
  * Table of generalized cache-related events.
- * 0 means not supported, -1 means nonsensical, other values
+ * 0 means analt supported, -1 means analnsensical, other values
  * are event codes.
  */
 static u64 ppc970_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
@@ -466,7 +466,7 @@ static u64 ppc970_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
 		[C(OP_WRITE)] = {	-1,		-1	},
 		[C(OP_PREFETCH)] = {	-1,		-1	},
 	},
-	[C(NODE)] = {		/* 	RESULT_ACCESS	RESULT_MISS */
+	[C(ANALDE)] = {		/* 	RESULT_ACCESS	RESULT_MISS */
 		[C(OP_READ)] = {	-1,		-1	},
 		[C(OP_WRITE)] = {	-1,		-1	},
 		[C(OP_PREFETCH)] = {	-1,		-1	},
@@ -486,7 +486,7 @@ static struct power_pmu ppc970_pmu = {
 	.n_generic		= ARRAY_SIZE(ppc970_generic_events),
 	.generic_events		= ppc970_generic_events,
 	.cache_events		= &ppc970_cache_events,
-	.flags			= PPMU_NO_SIPR | PPMU_NO_CONT_SAMPLING,
+	.flags			= PPMU_ANAL_SIPR | PPMU_ANAL_CONT_SAMPLING,
 };
 
 int __init init_ppc970_pmu(void)
@@ -495,7 +495,7 @@ int __init init_ppc970_pmu(void)
 
 	if (PVR_VER(pvr) != PVR_970 && PVR_VER(pvr) != PVR_970MP &&
 	    PVR_VER(pvr) != PVR_970FX && PVR_VER(pvr) != PVR_970GX)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return register_power_pmu(&ppc970_pmu);
 }

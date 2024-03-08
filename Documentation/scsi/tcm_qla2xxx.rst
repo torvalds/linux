@@ -1,12 +1,12 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 ========================
-tcm_qla2xxx Driver Notes
+tcm_qla2xxx Driver Analtes
 ========================
 
 tcm_qla2xxx jam_host attribute
 ------------------------------
-There is now a new module endpoint attribute called jam_host
+There is analw a new module endpoint attribute called jam_host
 attribute::
 
 	jam_host: boolean=0/1

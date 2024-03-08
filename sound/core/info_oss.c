@@ -9,7 +9,7 @@
 #include <linux/string.h>
 #include <linux/export.h>
 #include <sound/core.h>
-#include <sound/minors.h>
+#include <sound/mianalrs.h>
 #include <sound/info.h>
 #include <linux/utsname.h>
 #include <linux/mutex.h>
@@ -38,7 +38,7 @@ int snd_oss_info_register(int dev, int num, char *string)
 		x = kstrdup(string, GFP_KERNEL);
 		if (x == NULL) {
 			mutex_unlock(&strings);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 	snd_sndstat_strings[num][dev] = x;
@@ -66,7 +66,7 @@ static int snd_sndstat_show_strings(struct snd_info_buffer *buf, char *id, int d
 	}
 	mutex_unlock(&strings);
 	if (ok < 0)
-		snd_iprintf(buf, " NOT ENABLED IN CONFIG\n");
+		snd_iprintf(buf, " ANALT ENABLED IN CONFIG\n");
 	return ok;
 }
 
@@ -76,7 +76,7 @@ static void snd_sndstat_proc_read(struct snd_info_entry *entry,
 	snd_iprintf(buffer, "Sound Driver:3.8.1a-980706 (ALSA emulation code)\n");
 	snd_iprintf(buffer, "Kernel: %s %s %s %s %s\n",
 		    init_utsname()->sysname,
-		    init_utsname()->nodename,
+		    init_utsname()->analdename,
 		    init_utsname()->release,
 		    init_utsname()->version,
 		    init_utsname()->machine);
@@ -92,7 +92,7 @@ static void snd_sndstat_proc_read(struct snd_info_entry *entry,
 	snd_sndstat_show_strings(buffer, "Mixers", SNDRV_OSS_INFO_DEV_MIXERS);
 }
 
-int __init snd_info_minor_register(void)
+int __init snd_info_mianalr_register(void)
 {
 	struct snd_info_entry *entry;
 
@@ -100,7 +100,7 @@ int __init snd_info_minor_register(void)
 	entry = snd_info_create_module_entry(THIS_MODULE, "sndstat",
 					     snd_oss_root);
 	if (!entry)
-		return -ENOMEM;
+		return -EANALMEM;
 	entry->c.text.read = snd_sndstat_proc_read;
 	return snd_info_register(entry); /* freed in error path */
 }

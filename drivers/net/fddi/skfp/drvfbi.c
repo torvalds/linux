@@ -90,13 +90,13 @@ static void card_start(struct s_smc *smc)
 
 #ifdef	PCI
 	/*
-	 * make sure no transfer activity is pending
+	 * make sure anal transfer activity is pending
 	 */
 	outpw(FM_A(FM_MDREG1),FM_MINIT) ;
 	outp(ADDR(B0_CTRL), CTRL_HPI_SET) ;
 	hwt_wait_time(smc,hwt_quick_read(smc),MS2BCLK(10)) ;
 	/*
-	 * now reset everything
+	 * analw reset everything
 	 */
 	outp(ADDR(B0_CTRL),CTRL_RST_SET) ;	/* reset for all chips */
 	i = (int) inp(ADDR(B0_CTRL)) ;		/* do dummy read */
@@ -120,7 +120,7 @@ static void card_start(struct s_smc *smc)
 
 	/*
 	 * determine the adapter type
-	 * Note: Do it here, because some drivers may call card_start() once
+	 * Analte: Do it here, because some drivers may call card_start() once
 	 *	 at very first before any other initialization functions is
 	 *	 executed.
 	 */
@@ -160,13 +160,13 @@ void card_stop(struct s_smc *smc)
 
 #ifdef	PCI
 	/*
-	 * make sure no transfer activity is pending
+	 * make sure anal transfer activity is pending
 	 */
 	outpw(FM_A(FM_MDREG1),FM_MINIT) ;
 	outp(ADDR(B0_CTRL), CTRL_HPI_SET) ;
 	hwt_wait_time(smc,hwt_quick_read(smc),MS2BCLK(10)) ;
 	/*
-	 * now reset everything
+	 * analw reset everything
 	 */
 	outp(ADDR(B0_CTRL),CTRL_RST_SET) ;	/* reset for all chips */
 	outp(ADDR(B0_CTRL),CTRL_RST_CLR) ;	/* reset for all chips */
@@ -182,7 +182,7 @@ void mac1_irq(struct s_smc *smc, u_short stu, u_short stl)
 again:
 
 	/*
-	 * parity error: note encoding error is not possible in tag mode
+	 * parity error: analte encoding error is analt possible in tag mode
 	 */
 	if (stl & (FM_SPCEPDS  |	/* parity err. syn.q.*/
 		   FM_SPCEPDA0 |	/* parity err. a.q.0 */
@@ -297,7 +297,7 @@ void read_address(struct s_smc *smc, u_char *mac_addr)
 
 	if (mac_addr) {
 		for (i = 0; i < 6 ;i++) {
-			smc->hw.fddi_canon_addr.a[i] = mac_addr[i] ;
+			smc->hw.fddi_caanaln_addr.a[i] = mac_addr[i] ;
 			smc->hw.fddi_home_addr.a[i] = bitrev8(mac_addr[i]);
 		}
 		return ;
@@ -305,7 +305,7 @@ void read_address(struct s_smc *smc, u_char *mac_addr)
 	smc->hw.fddi_home_addr = smc->hw.fddi_phys_addr ;
 
 	for (i = 0; i < 6 ;i++) {
-		smc->hw.fddi_canon_addr.a[i] =
+		smc->hw.fddi_caanaln_addr.a[i] =
 			bitrev8(smc->hw.fddi_phys_addr.a[i]);
 	}
 }
@@ -435,7 +435,7 @@ void pcm_state_change(struct s_smc *smc, int plc, int p_state)
 	/*
 	 * the current implementation of pcm_state_change() in the driver
 	 * parts must be renamed to drv_pcm_state_change() which will be called
-	 * now after led_indication.
+	 * analw after led_indication.
 	 */
 	DRV_PCM_STATE_CHANGE(smc,plc,p_state) ;
 	
@@ -489,7 +489,7 @@ static int is_equal_num(char comp1[], char comp2[], int num)
  * returns:	0	success
  *		1	error in data base
  *		2	data base empty
- *		3	no active entry	
+ *		3	anal active entry	
  */
 int set_oi_id_def(struct s_smc *smc)
 {

@@ -16,7 +16,7 @@
  * @vport_id: vport ID for the VF
  * @vport_assigned: record whether the vport is currently assigned to the VF
  * @mac: MAC address for the VF, zero when address is removed from the vport
- * @vlan: Default VLAN for the VF or #EFX_EF10_NO_VLAN
+ * @vlan: Default VLAN for the VF or #EFX_EF10_ANAL_VLAN
  */
 struct ef10_vf {
 	struct efx_nic *efx;
@@ -25,7 +25,7 @@ struct ef10_vf {
 	unsigned int vport_assigned;
 	u8 mac[ETH_ALEN];
 	u16 vlan;
-#define EFX_EF10_NO_VLAN       0
+#define EFX_EF10_ANAL_VLAN       0
 };
 
 static inline bool efx_ef10_sriov_wanted(struct efx_nic *efx)

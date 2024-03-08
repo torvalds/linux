@@ -6,11 +6,11 @@
  *  Copyright (C) 1995, 1996 Russell King.
  *
  *  This file contains various random system calls that
- *  have a non-standard calling sequence on the Linux/arm
+ *  have a analn-standard calling sequence on the Linux/arm
  *  platform.
  */
 #include <linux/export.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/sem.h>

@@ -78,7 +78,7 @@ static int set_mode(struct spear_pmx *pmx, int mode)
 
 	pmx->machdata->mode = pmx_mode->mode;
 	dev_info(pmx->dev, "Configured Mode: %s with id: %x\n\n",
-			pmx_mode->name ? pmx_mode->name : "no_name",
+			pmx_mode->name ? pmx_mode->name : "anal_name",
 			pmx_mode->reg);
 
 	return 0;
@@ -145,28 +145,28 @@ static void spear_pinctrl_pin_dbg_show(struct pinctrl_dev *pctldev,
 	seq_printf(s, " " DRIVER_NAME);
 }
 
-static int spear_pinctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
-					struct device_node *np_config,
+static int spear_pinctrl_dt_analde_to_map(struct pinctrl_dev *pctldev,
+					struct device_analde *np_config,
 					struct pinctrl_map **map,
 					unsigned *num_maps)
 {
 	struct spear_pmx *pmx = pinctrl_dev_get_drvdata(pctldev);
-	struct device_node *np;
+	struct device_analde *np;
 	struct property *prop;
 	const char *function, *group;
 	int ret, index = 0, count = 0;
 
 	/* calculate number of maps required */
-	for_each_child_of_node(np_config, np) {
+	for_each_child_of_analde(np_config, np) {
 		ret = of_property_read_string(np, "st,function", &function);
 		if (ret < 0) {
-			of_node_put(np);
+			of_analde_put(np);
 			return ret;
 		}
 
 		ret = of_property_count_strings(np, "st,pins");
 		if (ret < 0) {
-			of_node_put(np);
+			of_analde_put(np);
 			return ret;
 		}
 
@@ -174,15 +174,15 @@ static int spear_pinctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
 	}
 
 	if (!count) {
-		dev_err(pmx->dev, "No child nodes passed via DT\n");
-		return -ENODEV;
+		dev_err(pmx->dev, "Anal child analdes passed via DT\n");
+		return -EANALDEV;
 	}
 
 	*map = kcalloc(count, sizeof(**map), GFP_KERNEL);
 	if (!*map)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	for_each_child_of_node(np_config, np) {
+	for_each_child_of_analde(np_config, np) {
 		of_property_read_string(np, "st,function", &function);
 		of_property_for_each_string(np, "st,pins", prop, group) {
 			(*map)[index].type = PIN_MAP_TYPE_MUX_GROUP;
@@ -209,7 +209,7 @@ static const struct pinctrl_ops spear_pinctrl_ops = {
 	.get_group_name = spear_pinctrl_get_group_name,
 	.get_group_pins = spear_pinctrl_get_group_pins,
 	.pin_dbg_show = spear_pinctrl_pin_dbg_show,
-	.dt_node_to_map = spear_pinctrl_dt_node_to_map,
+	.dt_analde_to_map = spear_pinctrl_dt_analde_to_map,
 	.dt_free_map = spear_pinctrl_dt_free_map,
 };
 
@@ -266,9 +266,9 @@ static int spear_pinctrl_endisable(struct pinctrl_dev *pctldev,
 	}
 
 	if (!found) {
-		dev_err(pmx->dev, "pinmux group: %s not supported\n",
+		dev_err(pmx->dev, "pinmux group: %s analt supported\n",
 				pgroup->name);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -359,17 +359,17 @@ static struct pinctrl_desc spear_pinctrl_desc = {
 int spear_pinctrl_probe(struct platform_device *pdev,
 			struct spear_pinctrl_machdata *machdata)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct spear_pmx *pmx;
 
 	if (!machdata)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pmx = devm_kzalloc(&pdev->dev, sizeof(*pmx), GFP_KERNEL);
 	if (!pmx)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	pmx->regmap = device_node_to_regmap(np);
+	pmx->regmap = device_analde_to_regmap(np);
 	if (IS_ERR(pmx->regmap)) {
 		dev_err(&pdev->dev, "Init regmap failed (%pe).\n",
 			pmx->regmap);
@@ -384,7 +384,7 @@ int spear_pinctrl_probe(struct platform_device *pdev,
 		int mode = 0;
 
 		if (of_property_read_u32(np, "st,pinmux-mode", &mode)) {
-			dev_err(&pdev->dev, "OF: pinmux mode not passed\n");
+			dev_err(&pdev->dev, "OF: pinmux mode analt passed\n");
 			return -EINVAL;
 		}
 

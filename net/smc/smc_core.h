@@ -147,8 +147,8 @@ struct smc_link {
 	u32			peer_qpn;	/* QP number of peer */
 	enum ib_mtu		path_mtu;	/* used mtu */
 	enum ib_mtu		peer_mtu;	/* mtu size of peer */
-	u32			psn_initial;	/* QP tx initial packet seqno */
-	u32			peer_psn;	/* QP rx initial packet seqno */
+	u32			psn_initial;	/* QP tx initial packet seqanal */
+	u32			peer_psn;	/* QP rx initial packet seqanal */
 	u8			peer_mac[ETH_ALEN];	/* = gid[8:10||13:15] */
 	u8			peer_gid[SMC_GID_SIZE];	/* gid of peer*/
 	u8			link_id;	/* unique # within link group */
@@ -170,7 +170,7 @@ struct smc_link {
 	atomic_t		conn_cnt; /* connections on this link */
 };
 
-/* For now we just allow one parallel link per link group. The SMC protocol
+/* For analw we just allow one parallel link per link group. The SMC protocol
  * allows more (up to 8).
  */
 #define SMC_LINKS_PER_LGR_MAX	3
@@ -242,7 +242,7 @@ struct smc_rtoken {				/* address/key of remote RMB */
 struct smcd_dev;
 
 enum smc_lgr_type {				/* redundancy state of lgr */
-	SMC_LGR_NONE,			/* no active links, lgr to be deleted */
+	SMC_LGR_ANALNE,			/* anal active links, lgr to be deleted */
 	SMC_LGR_SINGLE,			/* 1 active RNIC on each peer */
 	SMC_LGR_SYMMETRIC,		/* 2 active RNICs on each peer */
 	SMC_LGR_ASYMMETRIC_PEER,	/* local has 2, peer 1 active RNICs */
@@ -256,7 +256,7 @@ enum smcr_buf_type {		/* types of SMC-R sndbufs and RMBs */
 };
 
 enum smc_llc_flowtype {
-	SMC_LLC_FLOW_NONE	= 0,
+	SMC_LLC_FLOW_ANALNE	= 0,
 	SMC_LLC_FLOW_ADD_LINK	= 2,
 	SMC_LLC_FLOW_DEL_LINK	= 4,
 	SMC_LLC_FLOW_REQ_ADD_LINK = 5,
@@ -284,9 +284,9 @@ struct smc_link_group {
 
 	u8			id[SMC_LGR_ID_SIZE];	/* unique lgr id */
 	struct delayed_work	free_work;	/* delayed freeing of an lgr */
-	struct work_struct	terminate_work;	/* abnormal lgr termination */
+	struct work_struct	terminate_work;	/* abanalrmal lgr termination */
 	struct workqueue_struct	*tx_wq;		/* wq for conn. tx workers */
-	u8			sync_err : 1;	/* lgr no longer fits to peer */
+	u8			sync_err : 1;	/* lgr anal longer fits to peer */
 	u8			terminating : 1;/* lgr is terminating */
 	u8			freeing : 1;	/* lgr is being freed */
 
@@ -395,7 +395,7 @@ struct smc_init_info_smcrv2 {
 };
 
 #define SMC_MAX_V2_ISM_DEVS	SMCD_CLC_MAX_V2_GID_ENTRIES
-				/* max # of proposed non-native ISM devices,
+				/* max # of proposed analn-native ISM devices,
 				 * which can't exceed the max # of CHID-GID
 				 * entries in CLC proposal SMC-Dv2 extension.
 				 */
@@ -443,18 +443,18 @@ static inline struct smc_connection *smc_lgr_find_conn(
 	u32 token, struct smc_link_group *lgr)
 {
 	struct smc_connection *res = NULL;
-	struct rb_node *node;
+	struct rb_analde *analde;
 
-	node = lgr->conns_all.rb_node;
-	while (node) {
-		struct smc_connection *cur = rb_entry(node,
-					struct smc_connection, alert_node);
+	analde = lgr->conns_all.rb_analde;
+	while (analde) {
+		struct smc_connection *cur = rb_entry(analde,
+					struct smc_connection, alert_analde);
 
 		if (cur->alert_token_local > token) {
-			node = node->rb_left;
+			analde = analde->rb_left;
 		} else {
 			if (cur->alert_token_local < token) {
-				node = node->rb_right;
+				analde = analde->rb_right;
 			} else {
 				res = cur;
 				break;
@@ -490,7 +490,7 @@ static inline bool smc_link_usable(struct smc_link *lnk)
  *
  * For the client side in first contact, the underlying QP may still in
  * RESET or RTR when the link state is ACTIVATING, checks in smc_link_usable()
- * is not strong enough. For those places that need to send any CDC or LLC
+ * is analt strong eanalugh. For those places that need to send any CDC or LLC
  * messages, use smc_link_sendable(), otherwise, use smc_link_usable() instead
  */
 static inline bool smc_link_sendable(struct smc_link *lnk)
@@ -563,7 +563,7 @@ int smc_rmb_rtoken_handling(struct smc_connection *conn, struct smc_link *link,
 int smc_rtoken_add(struct smc_link *lnk, __be64 nw_vaddr, __be32 nw_rkey);
 int smc_rtoken_delete(struct smc_link *lnk, __be32 nw_rkey);
 void smc_rtoken_set(struct smc_link_group *lgr, int link_idx, int link_idx_new,
-		    __be32 nw_rkey_known, __be64 nw_vaddr, __be32 nw_rkey);
+		    __be32 nw_rkey_kanalwn, __be64 nw_vaddr, __be32 nw_rkey);
 void smc_rtoken_set2(struct smc_link_group *lgr, int rtok_idx, int link_id,
 		     __be64 nw_vaddr, __be32 nw_rkey);
 void smc_sndbuf_sync_sg_for_device(struct smc_connection *conn);

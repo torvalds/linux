@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2019-2020, Mellanox Technologies inc. All rights reserved. */
+/* Copyright (c) 2019-2020, Mellaanalx Techanallogies inc. All rights reserved. */
 
 #include <net/xdp_sock_drv.h>
 #include "pool.h"
@@ -26,7 +26,7 @@ static int mlx5e_xsk_get_pools(struct mlx5e_xsk *xsk)
 		xsk->pools = kcalloc(MLX5E_MAX_NUM_CHANNELS,
 				     sizeof(*xsk->pools), GFP_KERNEL);
 		if (unlikely(!xsk->pools))
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	xsk->refcnt++;
@@ -150,7 +150,7 @@ err_unmap_pool:
 
 validate_closed:
 	/* Check the configuration in advance, rather than fail at a later stage
-	 * (in mlx5e_xdp_set or on open) and end up with no channels.
+	 * (in mlx5e_xdp_set or on open) and end up with anal channels.
 	 */
 	if (!mlx5e_validate_xsk_param(params, &xsk, priv->mdev)) {
 		err = -EINVAL;

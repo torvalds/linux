@@ -15,7 +15,7 @@
 
 /**
  * DOC: Xe device sysfs
- * Xe driver requires exposing certain tunable knobs controlled by user space for
+ * Xe driver requires exposing certain tunable kanalbs controlled by user space for
  * each graphics device. Considering this, we need to add sysfs attributes at device
  * level granularity.
  * These sysfs attributes will be available under pci device kobj directory.

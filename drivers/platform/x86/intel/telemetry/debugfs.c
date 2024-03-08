@@ -617,7 +617,7 @@ static int telem_soc_states_show(struct seq_file *s, void *unused)
 		return ret;
 
 	seq_puts(s, "\n-----------------------------------------\n");
-	seq_puts(s, "North Idle Status\n");
+	seq_puts(s, "Analrth Idle Status\n");
 	seq_puts(s, "-----------------------------------------\n");
 	for (idx = 0; idx < conf->pss_idle_evts - 1; idx++) {
 		pss_idle[idx] =	(evtlog->telem_evtlog >>
@@ -699,9 +699,9 @@ static ssize_t telem_pss_trc_verb_write(struct file *file,
 	return count;
 }
 
-static int telem_pss_trc_verb_open(struct inode *inode, struct file *file)
+static int telem_pss_trc_verb_open(struct ianalde *ianalde, struct file *file)
 {
-	return single_open(file, telem_pss_trc_verb_show, inode->i_private);
+	return single_open(file, telem_pss_trc_verb_show, ianalde->i_private);
 }
 
 static const struct file_operations telem_pss_trc_verb_ops = {
@@ -747,9 +747,9 @@ static ssize_t telem_ioss_trc_verb_write(struct file *file,
 	return count;
 }
 
-static int telem_ioss_trc_verb_open(struct inode *inode, struct file *file)
+static int telem_ioss_trc_verb_open(struct ianalde *ianalde, struct file *file)
 {
-	return single_open(file, telem_ioss_trc_verb_show, inode->i_private);
+	return single_open(file, telem_ioss_trc_verb_show, ianalde->i_private);
 }
 
 static const struct file_operations telem_ioss_trc_verb_ops = {
@@ -789,7 +789,7 @@ static int pm_suspend_prep_cb(void)
 	}
 	suspend_prep_ok = 1;
 out:
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static int pm_suspend_exit_cb(void)
@@ -832,9 +832,9 @@ static int pm_suspend_exit_cb(void)
 
 	/*
 	 * Due to some design limitations in the firmware, sometimes the
-	 * counters do not get updated by the time we reach here. As a
+	 * counters do analt get updated by the time we reach here. As a
 	 * workaround, we try to see if this was a genuine case of sleep
-	 * failure or not by cross-checking from PMC GCR registers directly.
+	 * failure or analt by cross-checking from PMC GCR registers directly.
 	 */
 	if (suspend_shlw_ctr_exit == suspend_shlw_ctr_temp &&
 	    suspend_deep_ctr_exit == suspend_deep_ctr_temp) {
@@ -881,10 +881,10 @@ static int pm_suspend_exit_cb(void)
 
 out:
 	suspend_prep_ok = 0;
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static int pm_notification(struct notifier_block *this,
+static int pm_analtification(struct analtifier_block *this,
 			   unsigned long event, void *ptr)
 {
 	switch (event) {
@@ -894,11 +894,11 @@ static int pm_notification(struct notifier_block *this,
 		return pm_suspend_exit_cb();
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block pm_notifier = {
-	.notifier_call = pm_notification,
+static struct analtifier_block pm_analtifier = {
+	.analtifier_call = pm_analtification,
 };
 
 static int __init telemetry_debugfs_init(void)
@@ -907,16 +907,16 @@ static int __init telemetry_debugfs_init(void)
 	int err;
 	struct dentry *dir;
 
-	/* Only APL supported for now */
+	/* Only APL supported for analw */
 	id = x86_match_cpu(telemetry_debugfs_cpu_ids);
 	if (!id)
-		return -ENODEV;
+		return -EANALDEV;
 
 	debugfs_conf = (struct telemetry_debugfs_conf *)id->driver_data;
 
 	if (!telemetry_get_pltdata()) {
 		pr_info("Invalid pltconfig, ensure IPC1 device is enabled in BIOS\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	err = telemetry_debugfs_check_evts();
@@ -925,7 +925,7 @@ static int __init telemetry_debugfs_init(void)
 		return -EINVAL;
 	}
 
-	register_pm_notifier(&pm_notifier);
+	register_pm_analtifier(&pm_analtifier);
 
 	dir = debugfs_create_dir("telemetry", NULL);
 	debugfs_conf->telemetry_dbg_dir = dir;
@@ -949,7 +949,7 @@ static void __exit telemetry_debugfs_exit(void)
 {
 	debugfs_remove_recursive(debugfs_conf->telemetry_dbg_dir);
 	debugfs_conf->telemetry_dbg_dir = NULL;
-	unregister_pm_notifier(&pm_notifier);
+	unregister_pm_analtifier(&pm_analtifier);
 }
 
 late_initcall(telemetry_debugfs_init);

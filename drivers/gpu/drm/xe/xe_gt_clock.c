@@ -21,7 +21,7 @@ static u32 read_reference_ts_freq(struct xe_gt *gt)
 				  ts_override) + 1;
 	base_freq *= 1000000;
 
-	frac_freq = REG_FIELD_GET(TIMESTAMP_OVERRIDE_US_COUNTER_DENOMINATOR_MASK,
+	frac_freq = REG_FIELD_GET(TIMESTAMP_OVERRIDE_US_COUNTER_DEANALMINATOR_MASK,
 				  ts_override);
 	frac_freq = 1000000 / (frac_freq + 1);
 
@@ -47,7 +47,7 @@ static u32 get_crystal_clock_freq(u32 rpm_config_reg)
 	case RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_25_MHZ:
 		return f25_mhz;
 	default:
-		XE_WARN_ON("NOT_POSSIBLE");
+		XE_WARN_ON("ANALT_POSSIBLE");
 		return 0;
 	}
 }
@@ -68,7 +68,7 @@ int xe_gt_clock_init(struct xe_gt *gt)
 		freq = get_crystal_clock_freq(c0);
 
 		/*
-		 * Now figure out how the command stream's timestamp
+		 * Analw figure out how the command stream's timestamp
 		 * register increments from this frequency (it might
 		 * increment only every few clock cycle).
 		 */

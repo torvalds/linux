@@ -24,7 +24,7 @@ properties:
       can live with the consequences, this property can be used to enable
       interrupt handling.
 
-      Affected PHYs (as far as known) are GPY215B and GPY215C.
+      Affected PHYs (as far as kanalwn) are GPY215B and GPY215C.
     type: boolean
 
 dependencies:

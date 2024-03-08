@@ -28,8 +28,8 @@ static struct fb_var_screeninfo my_default_var = {
 	.green           = {0, 8, 0},
 	.blue            = {0, 8, 0},
 	.transp          = {0, 0, 0},
-	.nonstd          = 0,
-	.activate        = FB_ACTIVATE_NOW,
+	.analnstd          = 0,
+	.activate        = FB_ACTIVATE_ANALW,
 	.height          = -1,
 	.width           = -1,
 	.accel_flags     = 0,
@@ -41,10 +41,10 @@ static struct fb_var_screeninfo my_default_var = {
 	.hsync_len       = 0,
 	.vsync_len       = 0,
 	.sync            = 0,
-	.vmode           = FB_VMODE_NONINTERLACED,
+	.vmode           = FB_VMODE_ANALNINTERLACED,
 };
 
-#define MODE_INDEX_NONE           0  /* index for mode=none */
+#define MODE_INDEX_ANALNE           0  /* index for mode=analne */
 
 /* Boot-time parameters */
 static int sisfb_off = 0;
@@ -63,7 +63,7 @@ static int sisfb_crt2flags = 0;
 static int sisfb_pdc = 0xff;
 static int sisfb_pdca = 0xff;
 static int sisfb_scalelcd = -1;
-static int sisfb_specialtiming = CUT_NONE;
+static int sisfb_specialtiming = CUT_ANALNE;
 static int sisfb_lvdshl = -1;
 static int sisfb_dstn = 0;
 static int sisfb_fstn = 0;
@@ -71,7 +71,7 @@ static int sisfb_tvplug = -1;		/* Tv plug type (for overriding autodetection) */
 static int sisfb_tvstd  = -1;
 static int sisfb_tvxposoffset = 0;
 static int sisfb_tvyposoffset = 0;
-static int sisfb_nocrt2rate = 0;
+static int sisfb_analcrt2rate = 0;
 #if !defined(__i386__) && !defined(__x86_64__)
 static int sisfb_resetcard = 0;
 static int sisfb_videoram = 0;
@@ -124,9 +124,9 @@ MODULE_DEVICE_TABLE(pci, sisfb_pci_table);
 
 static struct sis_video_info *card_list = NULL;
 
-/* The memory heap is now handled card-wise, by using
+/* The memory heap is analw handled card-wise, by using
    sis_malloc_new/sis_free_new. However, the DRM does
-   not do this yet. Until it does, we keep a "global"
+   analt do this yet. Until it does, we keep a "global"
    heap which is actually the first card's one.
  */
 static struct SIS_HEAP	*sisfb_heap;
@@ -137,9 +137,9 @@ static struct SIS_HEAP	*sisfb_heap;
 /* Mode table */
 static const struct _sisbios_mode {
 	char name[15];
-	u8  mode_no[2];
-	u16 vesa_mode_no_1;  /* "SiS defined" VESA mode number */
-	u16 vesa_mode_no_2;  /* Real VESA mode numbers */
+	u8  mode_anal[2];
+	u16 vesa_mode_anal_1;  /* "SiS defined" VESA mode number */
+	u16 vesa_mode_anal_2;  /* Real VESA mode numbers */
 	u16 xres;
 	u16 yres;
 	u16 bpp;
@@ -148,7 +148,7 @@ static const struct _sisbios_mode {
 	u16 rows;
 	u8  chipset;
 } sisbios_mode[] = {
-/*0*/	{"none",         {0xff,0xff}, 0x0000, 0x0000,    0,    0,  0, 0,   0,  0, MD_SIS300|MD_SIS315},
+/*0*/	{"analne",         {0xff,0xff}, 0x0000, 0x0000,    0,    0,  0, 0,   0,  0, MD_SIS300|MD_SIS315},
 	{"320x200x8",    {0x59,0x59}, 0x0138, 0x0000,  320,  200,  8, 1,  40, 12, MD_SIS300|MD_SIS315},
 	{"320x200x16",   {0x41,0x41}, 0x010e, 0x0000,  320,  200, 16, 1,  40, 12, MD_SIS300|MD_SIS315},
 	{"320x200x24",   {0x4f,0x4f}, 0x0000, 0x0000,  320,  200, 32, 1,  40, 12, MD_SIS300|MD_SIS315},  /* That's for people who mix up color- and fb depth */
@@ -327,24 +327,24 @@ static struct _sis_lcd_data {
 
 /* CR36 evaluation */
 static unsigned short sis300paneltype[] = {
-	LCD_UNKNOWN,   LCD_800x600,   LCD_1024x768,  LCD_1280x1024,
+	LCD_UNKANALWN,   LCD_800x600,   LCD_1024x768,  LCD_1280x1024,
 	LCD_1280x960,  LCD_640x480,   LCD_1024x600,  LCD_1152x768,
-	LCD_UNKNOWN,   LCD_UNKNOWN,   LCD_UNKNOWN,   LCD_UNKNOWN,
-	LCD_UNKNOWN,   LCD_UNKNOWN,   LCD_UNKNOWN,   LCD_UNKNOWN
+	LCD_UNKANALWN,   LCD_UNKANALWN,   LCD_UNKANALWN,   LCD_UNKANALWN,
+	LCD_UNKANALWN,   LCD_UNKANALWN,   LCD_UNKANALWN,   LCD_UNKANALWN
 };
 
 static unsigned short sis310paneltype[] = {
-	LCD_UNKNOWN,   LCD_800x600,   LCD_1024x768,  LCD_1280x1024,
+	LCD_UNKANALWN,   LCD_800x600,   LCD_1024x768,  LCD_1280x1024,
 	LCD_640x480,   LCD_1024x600,  LCD_1152x864,  LCD_1280x960,
 	LCD_1152x768,  LCD_1400x1050, LCD_1280x768,  LCD_1600x1200,
-	LCD_320x240_2, LCD_320x240_3, LCD_UNKNOWN,   LCD_UNKNOWN
+	LCD_320x240_2, LCD_320x240_3, LCD_UNKANALWN,   LCD_UNKANALWN
 };
 
 static unsigned short sis661paneltype[] = {
-	LCD_UNKNOWN,   LCD_800x600,   LCD_1024x768,  LCD_1280x1024,
+	LCD_UNKANALWN,   LCD_800x600,   LCD_1024x768,  LCD_1280x1024,
 	LCD_640x480,   LCD_1024x600,  LCD_1152x864,  LCD_1280x960,
 	LCD_1280x854,  LCD_1400x1050, LCD_1280x768,  LCD_1600x1200,
-	LCD_1280x800,  LCD_1680x1050, LCD_1280x720,  LCD_UNKNOWN
+	LCD_1280x800,  LCD_1680x1050, LCD_1280x720,  LCD_UNKANALWN
 };
 
 #define FL_550_DSTN 0x01
@@ -354,11 +354,11 @@ static unsigned short sis661paneltype[] = {
 
 static struct _sis_crt2type {
 	char name[32];
-	u32 type_no;
-	u32 tvplug_no;
+	u32 type_anal;
+	u32 tvplug_anal;
 	u16 flags;
 } sis_crt2type[] __initdata = {
-	{"NONE", 	     0, 	-1,                     FL_300|FL_315},
+	{"ANALNE", 	     0, 	-1,                     FL_300|FL_315},
 	{"LCD",  	     CRT2_LCD, 	-1,                     FL_300|FL_315},
 	{"TV",   	     CRT2_TV, 	-1,                     FL_300|FL_315},
 	{"VGA",  	     CRT2_VGA, 	-1,                     FL_300|FL_315},
@@ -383,7 +383,7 @@ static struct _sis_crt2type {
 /* TV standard */
 static struct _sis_tvtype {
 	char name[6];
-	u32 type_no;
+	u32 type_anal;
 } sis_tvtype[] __initdata = {
 	{"PAL",  	TV_PAL},
 	{"NTSC", 	TV_NTSC},
@@ -552,7 +552,7 @@ static struct _customttable {
 	  0,
 	  { 0, 0, 0, 0, 0 },
 	  { 0, 0, 0, 0, 0 },
-	  0x1558, 0x0400,  /* possibly 401 and 402 as well; not panelsize specific (?) */
+	  0x1558, 0x0400,  /* possibly 401 and 402 as well; analt panelsize specific (?) */
 	  "Clevo", "D400S/D410S/D400H/D410H", CUT_CLEVO1400, "CLEVO_D4X0"
 	},
 	{ SIS_650, "", "",
@@ -612,7 +612,7 @@ static struct _customttable {
 	  "Compal", "??? (V2)", CUT_COMPAL1400_2, "COMPAL_1400_2"
 	},
 	{ SIS_650, "1.10.8o", "",
-	  0,	/* For EMI (unknown) */
+	  0,	/* For EMI (unkanalwn) */
 	  { 0, 0, 0, 0, 0 },
 	  { 0, 0, 0, 0, 0 },
 	  0x1043, 0x1612,
@@ -644,7 +644,7 @@ static struct _customttable {
 	  { 0, 0, 0, 0 },
 	  { 0, 0, 0, 0 },
 	  0, 0,
-	  "", "", CUT_NONE, ""
+	  "", "", CUT_ANALNE, ""
 	}
 };
 

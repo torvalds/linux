@@ -166,7 +166,7 @@ static int tda665x_set_frequency(struct dvb_frontend *fe,
 		       __func__, status);
 		state->frequency = frequency; /* cache successful state */
 	} else {
-		printk(KERN_ERR "%s: No Phase lock: status=%d\n",
+		printk(KERN_ERR "%s: Anal Phase lock: status=%d\n",
 		       __func__, status);
 	}
 

@@ -15,7 +15,7 @@
  *   - 0x0000 .. 0x07ff : IPL
  *   - 0x0800 .. 0x0fff : Data area
  *   - 0x1000 .. 0x17ff : Registers
- *   - 0x1800 .. 0x1fff : Unknown
+ *   - 0x1800 .. 0x1fff : Unkanalwn
  */
 #define DOC_IOSPACE_IPL			0x0000
 #define DOC_IOSPACE_DATA		0x0800
@@ -97,7 +97,7 @@
 #define DOC_FLASHCOMMAND		0x1034
 #define DOC_FLASHADDRESS		0x1036
 #define DOC_FLASHCONTROL		0x1038
-#define DOC_NOP				0x103e
+#define DOC_ANALP				0x103e
 
 #define DOC_ECCCONF0			0x1040
 #define DOC_ECCCONF1			0x1042
@@ -162,7 +162,7 @@
  */
 #define DOC_CTRL_VIOLATION		0x20
 #define DOC_CTRL_CE			0x10
-#define DOC_CTRL_UNKNOWN_BITS		0x08
+#define DOC_CTRL_UNKANALWN_BITS		0x08
 #define DOC_CTRL_PROTECTION_ERROR	0x04
 #define DOC_CTRL_SEQUENCE_ERROR		0x02
 #define DOC_CTRL_FLASHREADY		0x01
@@ -171,7 +171,7 @@
  * Flash register : DOC_ASICMODE
  */
 #define DOC_ASICMODE_RESET		0x00
-#define DOC_ASICMODE_NORMAL		0x01
+#define DOC_ASICMODE_ANALRMAL		0x01
 #define DOC_ASICMODE_POWERDOWN		0x02
 #define DOC_ASICMODE_MDWREN		0x04
 #define DOC_ASICMODE_BDETCT_RESET	0x08
@@ -275,9 +275,9 @@ struct docg3_cascade {
  * @device_id: number of the cascaded DoCG3 device (0, 1, 2 or 3)
  * @if_cfg: if true, reads are on 16bits, else reads are on 8bits
 
- * @reliable: if 0, docg3 in normal mode, if 1 docg3 in fast mode, if 2 in
+ * @reliable: if 0, docg3 in analrmal mode, if 1 docg3 in fast mode, if 2 in
  *            reliable mode
- *            Fast mode implies more errors than normal mode.
+ *            Fast mode implies more errors than analrmal mode.
  *            Reliable mode implies that page 2*n and 2*n+1 are clones.
  * @bbt: bad block table cache
  * @oob_write_ofs: offset of the MTD where this OOB should belong (ie. in next

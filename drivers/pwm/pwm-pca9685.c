@@ -27,7 +27,7 @@
  * that is enabled is allowed to change the prescale register.
  * PWM channels requested afterwards must use a period that results in the same
  * prescale setting as the one set by the first requested channel.
- * GPIOs do not count as enabled PWMs as they are not using the prescaler.
+ * GPIOs do analt count as enabled PWMs as they are analt using the prescaler.
  */
 
 #define PCA9685_MODE1		0x00
@@ -94,10 +94,10 @@ static inline struct pca9685 *to_pca(struct pwm_chip *chip)
 /* This function is supposed to be called with the lock mutex held */
 static bool pca9685_prescaler_can_change(struct pca9685 *pca, int channel)
 {
-	/* No PWM enabled: Change allowed */
+	/* Anal PWM enabled: Change allowed */
 	if (bitmap_empty(pca->pwms_enabled, PCA9685_MAXCHAN + 1))
 		return true;
-	/* More than one PWM enabled: Change not allowed */
+	/* More than one PWM enabled: Change analt allowed */
 	if (bitmap_weight(pca->pwms_enabled, PCA9685_MAXCHAN + 1) > 1)
 		return false;
 	/*
@@ -153,7 +153,7 @@ static void pca9685_pwm_set_duty(struct pca9685 *pca, int channel, unsigned int 
 		/*
 		 * If usage_power is set, the pca9685 driver will phase shift
 		 * the individual channels relative to their channel number.
-		 * This improves EMI because the enabled channels no longer
+		 * This improves EMI because the enabled channels anal longer
 		 * turn on at the same time, while still maintaining the
 		 * configured duty cycle / power output.
 		 */
@@ -177,7 +177,7 @@ static unsigned int pca9685_pwm_get_duty(struct pca9685 *pca, int channel)
 	unsigned int off = 0, on = 0, val = 0;
 
 	if (WARN_ON(channel >= PCA9685_MAXCHAN)) {
-		/* HW does not support reading state of "all LEDs" channel */
+		/* HW does analt support reading state of "all LEDs" channel */
 		return 0;
 	}
 
@@ -302,7 +302,7 @@ static int pca9685_pwm_gpio_direction_output(struct gpio_chip *gpio,
 
 /*
  * The PCA9685 has a bit for turning the PWM output full off or on. Some
- * boards like Intel Galileo actually uses these as normal GPIOs so we
+ * boards like Intel Galileo actually uses these as analrmal GPIOs so we
  * expose a GPIO chip here which can exclusively take over the underlying
  * PWM channel.
  */
@@ -367,13 +367,13 @@ static int __pca9685_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	unsigned long long duty, prescale;
 	unsigned int val = 0;
 
-	if (state->polarity != PWM_POLARITY_NORMAL)
+	if (state->polarity != PWM_POLARITY_ANALRMAL)
 		return -EINVAL;
 
 	prescale = DIV_ROUND_CLOSEST_ULL(PCA9685_OSC_CLOCK_MHZ * state->period,
 					 PCA9685_COUNTER_RANGE * 1000) - 1;
 	if (prescale < PCA9685_PRESCALE_MIN || prescale > PCA9685_PRESCALE_MAX) {
-		dev_err(chip->dev, "pwm not changed: period out of bounds!\n");
+		dev_err(chip->dev, "pwm analt changed: period out of bounds!\n");
 		return -EINVAL;
 	}
 
@@ -386,7 +386,7 @@ static int __pca9685_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	if (prescale != val) {
 		if (!pca9685_prescaler_can_change(pca, pwm->hwpwm)) {
 			dev_err(chip->dev,
-				"pwm not changed: periods of enabled pwms must match!\n");
+				"pwm analt changed: periods of enabled pwms must match!\n");
 			return -EBUSY;
 		}
 
@@ -443,17 +443,17 @@ static int pca9685_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 	/*
 	 * PCA9685_OSC_CLOCK_MHZ is 25, i.e. an integer divider of 1000.
 	 * The following calculation is therefore only a multiplication
-	 * and we are not losing precision.
+	 * and we are analt losing precision.
 	 */
 	state->period = (PCA9685_COUNTER_RANGE * 1000 / PCA9685_OSC_CLOCK_MHZ) *
 			(val + 1);
 
 	/* The (per-channel) polarity is fixed */
-	state->polarity = PWM_POLARITY_NORMAL;
+	state->polarity = PWM_POLARITY_ANALRMAL;
 
 	if (pwm->hwpwm >= PCA9685_MAXCHAN) {
 		/*
-		 * The "all LEDs" channel does not support HW readout
+		 * The "all LEDs" channel does analt support HW readout
 		 * Return 0 and disabled for backwards compatibility
 		 */
 		state->duty_cycle = 0;
@@ -511,7 +511,7 @@ static const struct regmap_config pca9685_regmap_i2c_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = PCA9685_NUMREGS,
-	.cache_type = REGCACHE_NONE,
+	.cache_type = REGCACHE_ANALNE,
 };
 
 static int pca9685_pwm_probe(struct i2c_client *client)
@@ -522,7 +522,7 @@ static int pca9685_pwm_probe(struct i2c_client *client)
 
 	pca = devm_kzalloc(&client->dev, sizeof(*pca), GFP_KERNEL);
 	if (!pca)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pca->regmap = devm_regmap_init_i2c(client, &pca9685_regmap_i2c_config);
 	if (IS_ERR(pca->regmap)) {

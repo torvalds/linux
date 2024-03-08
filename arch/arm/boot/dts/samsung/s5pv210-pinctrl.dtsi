@@ -9,7 +9,7 @@
  * Tomasz Figa <t.figa@samsung.com>
  *
  * Samsung's S5PV210 SoC pin banks, pin-mux and pin-config options are
- * listed as device tree nodes in this file.
+ * listed as device tree analdes in this file.
  */
 
 #include "s5pv210-pinctrl.h"
@@ -277,56 +277,56 @@
 	uart0_data: uart0-data-pins {
 		samsung,pins = "gpa0-0", "gpa0-1";
 		samsung,pin-function = <S5PV210_PIN_FUNC_2>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
 	uart0_fctl: uart0-fctl-pins {
 		samsung,pins = "gpa0-2", "gpa0-3";
 		samsung,pin-function = <S5PV210_PIN_FUNC_2>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
 	uart1_data: uart1-data-pins {
 		samsung,pins = "gpa0-4", "gpa0-5";
 		samsung,pin-function = <S5PV210_PIN_FUNC_2>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
 	uart1_fctl: uart1-fctl-pins {
 		samsung,pins = "gpa0-6", "gpa0-7";
 		samsung,pin-function = <S5PV210_PIN_FUNC_2>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
 	uart2_data: uart2-data-pins {
 		samsung,pins = "gpa1-0", "gpa1-1";
 		samsung,pin-function = <S5PV210_PIN_FUNC_2>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
 	uart2_fctl: uart2-fctl-pins {
 		samsung,pins = "gpa1-2", "gpa1-3";
 		samsung,pin-function = <S5PV210_PIN_FUNC_3>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
 	uart3_data: uart3-data-pins {
 		samsung,pins = "gpa1-2", "gpa1-3";
 		samsung,pin-function = <S5PV210_PIN_FUNC_2>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
 	uart_audio: uart-audio-pins {
 		samsung,pins = "gpa1-2", "gpa1-3";
 		samsung,pin-function = <S5PV210_PIN_FUNC_4>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
@@ -348,7 +348,7 @@
 		samsung,pins = "gpi-0", "gpi-1", "gpi-2", "gpi-3",
 				"gpi-4", "gpi-5", "gpi-6";
 		samsung,pin-function = <S5PV210_PIN_FUNC_2>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
@@ -356,7 +356,7 @@
 		samsung,pins = "gpc0-0", "gpc0-1", "gpc0-2", "gpc0-3",
 				"gpc0-4";
 		samsung,pin-function = <S5PV210_PIN_FUNC_2>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
@@ -364,7 +364,7 @@
 		samsung,pins = "gpc1-0", "gpc1-1", "gpc1-2", "gpc1-3",
 				"gpc1-4";
 		samsung,pin-function = <S5PV210_PIN_FUNC_4>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
@@ -372,7 +372,7 @@
 		samsung,pins = "gpc0-0", "gpc0-1", "gpc0-2", "gpc0-3",
 				"gpc0-4";
 		samsung,pin-function = <S5PV210_PIN_FUNC_3>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
@@ -380,7 +380,7 @@
 		samsung,pins = "gpc0-0", "gpc0-1", "gpc0-2", "gpc0-3",
 				"gpc0-4";
 		samsung,pin-function = <S5PV210_PIN_FUNC_4>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
@@ -388,7 +388,7 @@
 		samsung,pins = "gpc1-0", "gpc1-1", "gpc1-2", "gpc1-3",
 				"gpc1-4";
 		samsung,pin-function = <S5PV210_PIN_FUNC_2>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
@@ -396,14 +396,14 @@
 		samsung,pins = "gpc1-0", "gpc1-1", "gpc1-2", "gpc1-3",
 				"gpc1-4";
 		samsung,pin-function = <S5PV210_PIN_FUNC_3>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
 	spdif_bus: spdif-bus-pins {
 		samsung,pins = "gpc1-0", "gpc1-1";
 		samsung,pin-function = <S5PV210_PIN_FUNC_4>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
@@ -438,154 +438,154 @@
 	pwm0_out: pwm0-out-pins {
 		samsung,pins = "gpd0-0";
 		samsung,pin-function = <S5PV210_PIN_FUNC_2>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
 	pwm1_out: pwm1-out-pins {
 		samsung,pins = "gpd0-1";
 		samsung,pin-function = <S5PV210_PIN_FUNC_2>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
 	pwm2_out: pwm2-out-pins {
 		samsung,pins = "gpd0-2";
 		samsung,pin-function = <S5PV210_PIN_FUNC_2>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
 	pwm3_out: pwm3-out-pins {
 		samsung,pins = "gpd0-3";
 		samsung,pin-function = <S5PV210_PIN_FUNC_2>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
 	keypad_row0: keypad-row-0-pins {
 		samsung,pins = "gph3-0";
 		samsung,pin-function = <S5PV210_PIN_FUNC_3>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
 	keypad_row1: keypad-row-1-pins {
 		samsung,pins = "gph3-1";
 		samsung,pin-function = <S5PV210_PIN_FUNC_3>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
 	keypad_row2: keypad-row-2-pins {
 		samsung,pins = "gph3-2";
 		samsung,pin-function = <S5PV210_PIN_FUNC_3>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
 	keypad_row3: keypad-row-3-pins {
 		samsung,pins = "gph3-3";
 		samsung,pin-function = <S5PV210_PIN_FUNC_3>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
 	keypad_row4: keypad-row-4-pins {
 		samsung,pins = "gph3-4";
 		samsung,pin-function = <S5PV210_PIN_FUNC_3>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
 	keypad_row5: keypad-row-5-pins {
 		samsung,pins = "gph3-5";
 		samsung,pin-function = <S5PV210_PIN_FUNC_3>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
 	keypad_row6: keypad-row-6-pins {
 		samsung,pins = "gph3-6";
 		samsung,pin-function = <S5PV210_PIN_FUNC_3>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
 	keypad_row7: keypad-row-7-pins {
 		samsung,pins = "gph3-7";
 		samsung,pin-function = <S5PV210_PIN_FUNC_3>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
 	keypad_col0: keypad-col-0-pins {
 		samsung,pins = "gph2-0";
 		samsung,pin-function = <S5PV210_PIN_FUNC_3>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
 	keypad_col1: keypad-col-1-pins {
 		samsung,pins = "gph2-1";
 		samsung,pin-function = <S5PV210_PIN_FUNC_3>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
 	keypad_col2: keypad-col-2-pins {
 		samsung,pins = "gph2-2";
 		samsung,pin-function = <S5PV210_PIN_FUNC_3>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
 	keypad_col3: keypad-col-3-pins {
 		samsung,pins = "gph2-3";
 		samsung,pin-function = <S5PV210_PIN_FUNC_3>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
 	keypad_col4: keypad-col-4-pins {
 		samsung,pins = "gph2-4";
 		samsung,pin-function = <S5PV210_PIN_FUNC_3>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
 	keypad_col5: keypad-col-5-pins {
 		samsung,pins = "gph2-5";
 		samsung,pin-function = <S5PV210_PIN_FUNC_3>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
 	keypad_col6: keypad-col-6-pins {
 		samsung,pins = "gph2-6";
 		samsung,pin-function = <S5PV210_PIN_FUNC_3>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
 	keypad_col7: keypad-col-7-pins {
 		samsung,pins = "gph2-7";
 		samsung,pin-function = <S5PV210_PIN_FUNC_3>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
 	sd0_clk: sd0-clk-pins {
 		samsung,pins = "gpg0-0";
 		samsung,pin-function = <S5PV210_PIN_FUNC_2>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV4>;
 	};
 
 	sd0_cmd: sd0-cmd-pins {
 		samsung,pins = "gpg0-1";
 		samsung,pin-function = <S5PV210_PIN_FUNC_2>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV4>;
 	};
 
@@ -620,14 +620,14 @@
 	sd1_clk: sd1-clk-pins {
 		samsung,pins = "gpg1-0";
 		samsung,pin-function = <S5PV210_PIN_FUNC_2>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV4>;
 	};
 
 	sd1_cmd: sd1-cmd-pins {
 		samsung,pins = "gpg1-1";
 		samsung,pin-function = <S5PV210_PIN_FUNC_2>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV4>;
 	};
 
@@ -655,14 +655,14 @@
 	sd2_clk: sd2-clk-pins {
 		samsung,pins = "gpg2-0";
 		samsung,pin-function = <S5PV210_PIN_FUNC_2>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV4>;
 	};
 
 	sd2_cmd: sd2-cmd-pins {
 		samsung,pins = "gpg2-1";
 		samsung,pin-function = <S5PV210_PIN_FUNC_2>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV4>;
 	};
 
@@ -697,14 +697,14 @@
 	sd3_clk: sd3-clk-pins {
 		samsung,pins = "gpg3-0";
 		samsung,pin-function = <S5PV210_PIN_FUNC_2>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV4>;
 	};
 
 	sd3_cmd: sd3-cmd-pins {
 		samsung,pins = "gpg3-1";
 		samsung,pin-function = <S5PV210_PIN_FUNC_2>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV4>;
 	};
 
@@ -732,35 +732,35 @@
 	eint0: ext-int0-pins {
 		samsung,pins = "gph0-0";
 		samsung,pin-function = <S5PV210_PIN_FUNC_F>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
 	eint8: ext-int8-pins {
 		samsung,pins = "gph1-0";
 		samsung,pin-function = <S5PV210_PIN_FUNC_F>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
 	eint15: ext-int15-pins {
 		samsung,pins = "gph1-7";
 		samsung,pin-function = <S5PV210_PIN_FUNC_F>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
 	eint16: ext-int16-pins {
 		samsung,pins = "gph2-0";
 		samsung,pin-function = <S5PV210_PIN_FUNC_F>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
 	eint31: ext-int31-pins {
 		samsung,pins = "gph3-7";
 		samsung,pin-function = <S5PV210_PIN_FUNC_F>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
@@ -769,14 +769,14 @@
 				"gpe0-4", "gpe0-5", "gpe0-6", "gpe0-7",
 				"gpe1-0", "gpe1-1", "gpe1-2", "gpe1-4";
 		samsung,pin-function = <S5PV210_PIN_FUNC_2>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
 	cam_port_a_clk_active: cam-port-a-clk-active-pins {
 		samsung,pins = "gpe1-3";
 		samsung,pin-function = <S5PV210_PIN_FUNC_2>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV4>;
 	};
 
@@ -792,14 +792,14 @@
 				"gpj0-4", "gpj0-5", "gpj0-6", "gpj0-7",
 				"gpj1-0", "gpj1-1", "gpj1-2", "gpj1-4";
 		samsung,pin-function = <S5PV210_PIN_FUNC_3>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
 	cam_port_b_clk_active: cam-port-b-clk-active-pins {
 		samsung,pins = "gpj1-3";
 		samsung,pin-function = <S5PV210_PIN_FUNC_3>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV4>;
 	};
 
@@ -813,21 +813,21 @@
 	lcd_ctrl: lcd-ctrl-pins {
 		samsung,pins = "gpd0-0", "gpd0-1";
 		samsung,pin-function = <S5PV210_PIN_FUNC_3>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
 	lcd_sync: lcd-sync-pins {
 		samsung,pins = "gpf0-0", "gpf0-1";
 		samsung,pin-function = <S5PV210_PIN_FUNC_2>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
 	lcd_clk: lcd-clk-pins {
 		samsung,pins = "gpf0-0", "gpf0-1", "gpf0-2", "gpf0-3";
 		samsung,pin-function = <S5PV210_PIN_FUNC_2>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
@@ -839,7 +839,7 @@
 			       "gpf2-4", "gpf2-5", "gpf2-6", "gpf2-7",
 			       "gpf3-0", "gpf3-1", "gpf3-2", "gpf3-3";
 		samsung,pin-function = <S5PV210_PIN_FUNC_2>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 };

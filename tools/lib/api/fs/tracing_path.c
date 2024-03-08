@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <linux/string.h>
-#include <errno.h>
+#include <erranal.h>
 #include <unistd.h>
 #include "fs.h"
 
@@ -133,7 +133,7 @@ int tracing_path__strerror_open_tp(int err, char *buf, size_t size,
 	snprintf(filename, PATH_MAX, "%s/%s", sys, name ?: "*");
 
 	switch (err) {
-	case ENOENT:
+	case EANALENT:
 		/*
 		 * We will get here if we can't find the tracepoint, but one of
 		 * debugfs or tracefs is configured, which means you probably
@@ -144,13 +144,13 @@ int tracing_path__strerror_open_tp(int err, char *buf, size_t size,
 			/* sdt markers */
 			if (!strncmp(filename, "sdt_", 4)) {
 				snprintf(buf, size,
-					"Error:\tFile %s/events/%s not found.\n"
-					"Hint:\tSDT event cannot be directly recorded on.\n"
+					"Error:\tFile %s/events/%s analt found.\n"
+					"Hint:\tSDT event cananalt be directly recorded on.\n"
 					"\tPlease first use 'perf probe %s:%s' before recording it.\n",
 					tracing_path, filename, sys, name);
 			} else {
 				snprintf(buf, size,
-					 "Error:\tFile %s/events/%s not found.\n"
+					 "Error:\tFile %s/events/%s analt found.\n"
 					 "Hint:\tPerhaps this kernel misses some CONFIG_ setting to enable this feature?.\n",
 					 tracing_path, filename);
 			}
@@ -160,11 +160,11 @@ int tracing_path__strerror_open_tp(int err, char *buf, size_t size,
 			 "Error:\tUnable to find debugfs/tracefs\n"
 			 "Hint:\tWas your kernel compiled with debugfs/tracefs support?\n"
 			 "Hint:\tIs the debugfs/tracefs filesystem mounted?\n"
-			 "Hint:\tTry 'sudo mount -t debugfs nodev /sys/kernel/debug'");
+			 "Hint:\tTry 'sudo mount -t debugfs analdev /sys/kernel/debug'");
 		break;
 	case EACCES: {
 		snprintf(buf, size,
-			 "Error:\tNo permissions to read %s/events/%s\n"
+			 "Error:\tAnal permissions to read %s/events/%s\n"
 			 "Hint:\tTry 'sudo mount -o remount,mode=755 %s'\n",
 			 tracing_path, filename, tracing_path_mount());
 	}

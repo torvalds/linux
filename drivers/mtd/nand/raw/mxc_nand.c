@@ -111,7 +111,7 @@
 #define NFC_V3_CONFIG3_SBB(x)			(((x) & 0x7) << 8)
 #define NFC_V3_CONFIG3_NUM_OF_DEVICES(x)	(((x) & 0x7) << 12)
 #define NFC_V3_CONFIG3_RBB_MODE			(1 << 15)
-#define NFC_V3_CONFIG3_NO_SDMA			(1 << 20)
+#define NFC_V3_CONFIG3_ANAL_SDMA			(1 << 20)
 
 #define NFC_V3_IPC			(host->regs_ip + 0x2C)
 #define NFC_V3_IPC_CREQ			(1 << 0)
@@ -140,9 +140,9 @@ struct mxc_nand_devtype_data {
 	void (*enable_hwecc)(struct nand_chip *chip, bool enable);
 
 	/*
-	 * On i.MX21 the CONFIG2:INT bit cannot be read if interrupts are masked
+	 * On i.MX21 the CONFIG2:INT bit cananalt be read if interrupts are masked
 	 * (CONFIG1:INT_MSK is set). To handle this the driver uses
-	 * enable_irq/disable_irq_nosync instead of CONFIG1:INT_MSK
+	 * enable_irq/disable_irq_analsync instead of CONFIG1:INT_MSK
 	 */
 	int irqpending_quirk;
 	int needs_ip;
@@ -285,7 +285,7 @@ static void copy_spare(struct mtd_info *mtd, bool bfrom, void *buf)
  * MXC NANDFC can only perform full page+spare or spare-only read/write.  When
  * the upper layers perform a read/write buf operation, the saved column address
  * is used to index into the full page. So usually this function is called with
- * column == 0 (unless no column cycle is needed indicated by column == -1)
+ * column == 0 (unless anal column cycle is needed indicated by column == -1)
  */
 static void mxc_do_addr_cycle(struct mtd_info *mtd, int column, int page_addr)
 {
@@ -297,7 +297,7 @@ static void mxc_do_addr_cycle(struct mtd_info *mtd, int column, int page_addr)
 		host->devtype_data->send_addr(host, column & 0xff,
 					      page_addr == -1);
 		if (mtd->writesize > 512)
-			/* another col addr cycle for 2k page */
+			/* aanalther col addr cycle for 2k page */
 			host->devtype_data->send_addr(host,
 						      (column >> 8) & 0xff,
 						      false);
@@ -400,7 +400,7 @@ static void irq_control(struct mxc_nand_host *host, int activate)
 		if (activate)
 			enable_irq(host->irq);
 		else
-			disable_irq_nosync(host->irq);
+			disable_irq_analsync(host->irq);
 	} else {
 		host->devtype_data->irq_control(host, activate);
 	}
@@ -426,7 +426,7 @@ static irqreturn_t mxc_nfc_irq(int irq, void *dev_id)
 	struct mxc_nand_host *host = dev_id;
 
 	if (!host->devtype_data->check_int(host))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	irq_control(host, 0);
 
@@ -713,7 +713,7 @@ static int mxc_nand_read_page_v1(struct nand_chip *chip, void *buf, void *oob,
 	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct mxc_nand_host *host = nand_get_controller_data(chip);
 	unsigned int bitflips_corrected = 0;
-	int no_subpages;
+	int anal_subpages;
 	int i;
 
 	host->devtype_data->enable_hwecc(chip, ecc);
@@ -724,9 +724,9 @@ static int mxc_nand_read_page_v1(struct nand_chip *chip, void *buf, void *oob,
 	if (mtd->writesize > 512)
 		host->devtype_data->send_cmd(host, NAND_CMD_READSTART, true);
 
-	no_subpages = mtd->writesize >> 9;
+	anal_subpages = mtd->writesize >> 9;
 
-	for (i = 0; i < no_subpages; i++) {
+	for (i = 0; i < anal_subpages; i++) {
 		uint16_t ecc_stats;
 
 		/* NANDFC buffer 0 is used for page read/write */
@@ -772,7 +772,7 @@ static int mxc_nand_read_page_v2_v3(struct nand_chip *chip, void *buf,
 	struct mxc_nand_host *host = nand_get_controller_data(chip);
 	unsigned int max_bitflips = 0;
 	u32 ecc_stat, err;
-	int no_subpages;
+	int anal_subpages;
 	u8 ecc_bit_mask, err_limit;
 
 	host->devtype_data->enable_hwecc(chip, ecc);
@@ -794,7 +794,7 @@ static int mxc_nand_read_page_v2_v3(struct nand_chip *chip, void *buf,
 	ecc_bit_mask = (host->eccsize == 4) ? 0x7 : 0xf;
 	err_limit = (host->eccsize == 4) ? 0x4 : 0x8;
 
-	no_subpages = mtd->writesize >> 9;
+	anal_subpages = mtd->writesize >> 9;
 
 	ecc_stat = host->devtype_data->get_ecc_status(host);
 
@@ -808,7 +808,7 @@ static int mxc_nand_read_page_v2_v3(struct nand_chip *chip, void *buf,
 		}
 
 		ecc_stat >>= 4;
-	} while (--no_subpages);
+	} while (--anal_subpages);
 
 	return max_bitflips;
 }
@@ -1148,7 +1148,7 @@ static int mxc_nand_v2_setup_interface(struct nand_chip *chip, int csline,
 
 	timings = nand_get_sdr_timings(conf);
 	if (IS_ERR(timings))
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	config1 = readw(NFC_V1_V2_CONFIG1);
 
@@ -1206,7 +1206,7 @@ static int mxc_nand_v2_setup_interface(struct nand_chip *chip, int csline,
 
 	dev_dbg(host->dev, "Setting rate to %ldHz, %s mode\n", rate_round,
 		config1 & NFC_V2_CONFIG1_ONE_CYCLE ? "One cycle (EDO)" :
-		"normal");
+		"analrmal");
 
 	return 0;
 }
@@ -1315,7 +1315,7 @@ static void preset_v3(struct mtd_info *mtd)
 	writel(config2, NFC_V3_CONFIG2);
 
 	config3 = NFC_V3_CONFIG3_NUM_OF_DEVICES(0) |
-			NFC_V3_CONFIG3_NO_SDMA |
+			NFC_V3_CONFIG3_ANAL_SDMA |
 			NFC_V3_CONFIG3_RBB_MODE |
 			NFC_V3_CONFIG3_SBB(6) | /* Reset default */
 			NFC_V3_CONFIG3_ADD_OP(0);
@@ -1641,12 +1641,12 @@ static int mxcnd_attach_chip(struct nand_chip *chip)
 		chip->bbt_md = &bbt_mirror_descr;
 	}
 
-	/* Allocate the right size buffer now */
+	/* Allocate the right size buffer analw */
 	devm_kfree(dev, (void *)host->data_buf);
 	host->data_buf = devm_kzalloc(dev, mtd->writesize + mtd->oobsize,
 				      GFP_KERNEL);
 	if (!host->data_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Call preset again, with correct writesize chip time */
 	host->devtype_data->preset(mtd);
@@ -1660,7 +1660,7 @@ static int mxcnd_attach_chip(struct nand_chip *chip)
 
 	/*
 	 * Experimentation shows that i.MX NFC can only handle up to 218 oob
-	 * bytes. Limit used_oobsize to 218 so as to not confuse copy_spare()
+	 * bytes. Limit used_oobsize to 218 so as to analt confuse copy_spare()
 	 * into copying invalid data to/from the spare IO buffer, as this
 	 * might cause ECC data corruption when doing sub-page write to a
 	 * partially written page.
@@ -1701,12 +1701,12 @@ static int mxcnd_probe(struct platform_device *pdev)
 	host = devm_kzalloc(&pdev->dev, sizeof(struct mxc_nand_host),
 			GFP_KERNEL);
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* allocate a temporary buffer for the nand_scan_ident() */
 	host->data_buf = devm_kzalloc(&pdev->dev, PAGE_SIZE, GFP_KERNEL);
 	if (!host->data_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	host->dev = &pdev->dev;
 	/* structures must be linked */
@@ -1719,7 +1719,7 @@ static int mxcnd_probe(struct platform_device *pdev)
 	this->legacy.chip_delay = 5;
 
 	nand_set_controller_data(this, host);
-	nand_set_flash_node(this, pdev->dev.of_node);
+	nand_set_flash_analde(this, pdev->dev.of_analde);
 	this->legacy.dev_ready = mxc_nand_dev_ready;
 	this->legacy.cmdfunc = mxc_nand_command;
 	this->legacy.read_byte = mxc_nand_read_byte;
@@ -1768,7 +1768,7 @@ static int mxcnd_probe(struct platform_device *pdev)
 
 	/*
 	 * Use host->devtype_data->irq_control() here instead of irq_control()
-	 * because we must not disable_irq_nosync without having requested the
+	 * because we must analt disable_irq_analsync without having requested the
 	 * irq.
 	 */
 	host->devtype_data->irq_control(host, 0);
@@ -1784,12 +1784,12 @@ static int mxcnd_probe(struct platform_device *pdev)
 	host->clk_act = 1;
 
 	/*
-	 * Now that we "own" the interrupt make sure the interrupt mask bit is
+	 * Analw that we "own" the interrupt make sure the interrupt mask bit is
 	 * cleared on i.MX21. Otherwise we can't read the interrupt status bit
 	 * on this machine.
 	 */
 	if (host->devtype_data->irqpending_quirk) {
-		disable_irq_nosync(host->irq);
+		disable_irq_analsync(host->irq);
 		host->devtype_data->irq_control(host, 1);
 	}
 

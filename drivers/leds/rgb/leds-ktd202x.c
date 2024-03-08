@@ -39,7 +39,7 @@
 #define KTD202X_ENABLE_CTRL_WAKE	0x00 /* SCL High & SDA High */
 #define KTD202X_ENABLE_CTRL_SLEEP	0x08 /* SCL High & SDA Toggling */
 
-#define KTD202X_TRISE_FALL_SCALE_NORMAL		0x00
+#define KTD202X_TRISE_FALL_SCALE_ANALRMAL		0x00
 #define KTD202X_TRISE_FALL_SCALE_SLOW_X2	0x20
 #define KTD202X_TRISE_FALL_SCALE_SLOW_X4	0x40
 #define KTD202X_TRISE_FALL_SCALE_FAST_X8	0x60
@@ -72,7 +72,7 @@
 
 static const struct reg_default ktd202x_reg_defaults[] = {
 	{ KTD202X_REG_RESET_CONTROL, KTD202X_TIMER_SLOT_CONTROL_TSLOT1 |
-		KTD202X_ENABLE_CTRL_WAKE | KTD202X_TRISE_FALL_SCALE_NORMAL },
+		KTD202X_ENABLE_CTRL_WAKE | KTD202X_TRISE_FALL_SCALE_ANALRMAL },
 	{ KTD202X_REG_FLASH_PERIOD, KTD202X_FLASH_PERIOD_256_MS_LOG_RAMP },
 	{ KTD202X_REG_PWM1_TIMER, KTD202X_FLASH_ON_TIME_0_4_PERCENT },
 	{ KTD202X_REG_PWM2_TIMER, KTD202X_FLASH_ON_TIME_0_4_PERCENT },
@@ -180,7 +180,7 @@ static int ktd202x_brightness_set(struct ktd202x_led *led,
 
 	/*
 	 * In multicolor case, assume blink mode if PWM is set for at least one
-	 * channel because another channel cannot be in state ON at the same time
+	 * channel because aanalther channel cananalt be in state ON at the same time
 	 */
 	for (i = 0; i < num_channels; i++) {
 		int channel_state;
@@ -338,7 +338,7 @@ static int ktd202x_blink_single_set(struct led_classdev *cdev,
 			return ret;
 	}
 
-	/* If no blink specified, default to 1 Hz. */
+	/* If anal blink specified, default to 1 Hz. */
 	if (!*delay_off && !*delay_on) {
 		*delay_off = 500;
 		*delay_on = 500;
@@ -367,7 +367,7 @@ static int ktd202x_blink_mc_set(struct led_classdev *cdev,
 			return ret;
 	}
 
-	/* If no blink specified, default to 1 Hz. */
+	/* If anal blink specified, default to 1 Hz. */
 	if (!*delay_off && !*delay_on) {
 		*delay_off = 500;
 		*delay_on = 500;
@@ -381,11 +381,11 @@ static int ktd202x_blink_mc_set(struct led_classdev *cdev,
 				 mc->num_colors);
 }
 
-static int ktd202x_setup_led_rgb(struct ktd202x *chip, struct device_node *np,
+static int ktd202x_setup_led_rgb(struct ktd202x *chip, struct device_analde *np,
 				 struct ktd202x_led *led, struct led_init_data *init_data)
 {
 	struct led_classdev *cdev;
-	struct device_node *child;
+	struct device_analde *child;
 	struct mc_subled *info;
 	int num_channels;
 	int i = 0;
@@ -396,28 +396,28 @@ static int ktd202x_setup_led_rgb(struct ktd202x *chip, struct device_node *np,
 
 	info = devm_kcalloc(chip->dev, num_channels, sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	for_each_available_child_of_node(np, child) {
-		u32 mono_color;
+	for_each_available_child_of_analde(np, child) {
+		u32 moanal_color;
 		u32 reg;
 		int ret;
 
 		ret = of_property_read_u32(child, "reg", &reg);
 		if (ret != 0 || reg >= chip->num_leds) {
 			dev_err(chip->dev, "invalid 'reg' of %pOFn\n", child);
-			of_node_put(child);
+			of_analde_put(child);
 			return -EINVAL;
 		}
 
-		ret = of_property_read_u32(child, "color", &mono_color);
+		ret = of_property_read_u32(child, "color", &moanal_color);
 		if (ret < 0 && ret != -EINVAL) {
 			dev_err(chip->dev, "failed to parse 'color' of %pOF\n", child);
-			of_node_put(child);
+			of_analde_put(child);
 			return ret;
 		}
 
-		info[i].color_index = mono_color;
+		info[i].color_index = moanal_color;
 		info[i].channel = reg;
 		info[i].intensity = KTD202X_MAX_BRIGHTNESS;
 		i++;
@@ -433,7 +433,7 @@ static int ktd202x_setup_led_rgb(struct ktd202x *chip, struct device_node *np,
 	return devm_led_classdev_multicolor_register_ext(chip->dev, &led->mcdev, init_data);
 }
 
-static int ktd202x_setup_led_single(struct ktd202x *chip, struct device_node *np,
+static int ktd202x_setup_led_single(struct ktd202x *chip, struct device_analde *np,
 				    struct ktd202x_led *led, struct led_init_data *init_data)
 {
 	struct led_classdev *cdev;
@@ -454,7 +454,7 @@ static int ktd202x_setup_led_single(struct ktd202x *chip, struct device_node *np
 	return devm_led_classdev_register_ext(chip->dev, &led->cdev, init_data);
 }
 
-static int ktd202x_add_led(struct ktd202x *chip, struct device_node *np, unsigned int index)
+static int ktd202x_add_led(struct ktd202x *chip, struct device_analde *np, unsigned int index)
 {
 	struct ktd202x_led *led = &chip->leds[index];
 	struct led_init_data init_data = {};
@@ -470,7 +470,7 @@ static int ktd202x_add_led(struct ktd202x *chip, struct device_node *np, unsigne
 	}
 
 	led->chip = chip;
-	init_data.fwnode = of_fwnode_handle(np);
+	init_data.fwanalde = of_fwanalde_handle(np);
 
 	if (color == LED_COLOR_ID_RGB) {
 		cdev = &led->mcdev.led_cdev;
@@ -492,7 +492,7 @@ static int ktd202x_add_led(struct ktd202x *chip, struct device_node *np, unsigne
 
 static int ktd202x_probe_dt(struct ktd202x *chip)
 {
-	struct device_node *np = dev_of_node(chip->dev), *child;
+	struct device_analde *np = dev_of_analde(chip->dev), *child;
 	int count;
 	int i = 0;
 
@@ -507,11 +507,11 @@ static int ktd202x_probe_dt(struct ktd202x *chip)
 	/* Allow the device to execute the complete reset */
 	usleep_range(200, 300);
 
-	for_each_available_child_of_node(np, child) {
+	for_each_available_child_of_analde(np, child) {
 		int ret = ktd202x_add_led(chip, child, i);
 
 		if (ret) {
-			of_node_put(child);
+			of_analde_put(child);
 			return ret;
 		}
 		i++;
@@ -536,13 +536,13 @@ static int ktd202x_probe(struct i2c_client *client)
 	int count;
 	int ret;
 
-	count = device_get_child_node_count(dev);
+	count = device_get_child_analde_count(dev);
 	if (!count || count > KTD202X_MAX_LEDS)
 		return dev_err_probe(dev, -EINVAL, "Incorrect number of leds (%d)", count);
 
 	chip = devm_kzalloc(dev, struct_size(chip, leds, count), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->dev = dev;
 	i2c_set_clientdata(client, chip);

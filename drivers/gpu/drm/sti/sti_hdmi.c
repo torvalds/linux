@@ -96,9 +96,9 @@
 #define HDMI_IFRAME_CFG_DI_N(x, n)       ((x) << ((n-1)*4)) /* n from 1 to 6 */
 
 #define HDMI_CFG_DEVICE_EN              BIT(0)
-#define HDMI_CFG_HDMI_NOT_DVI           BIT(1)
+#define HDMI_CFG_HDMI_ANALT_DVI           BIT(1)
 #define HDMI_CFG_HDCP_EN                BIT(2)
-#define HDMI_CFG_ESS_NOT_OESS           BIT(3)
+#define HDMI_CFG_ESS_ANALT_OESS           BIT(3)
 #define HDMI_CFG_H_SYNC_POL_NEG         BIT(4)
 #define HDMI_CFG_V_SYNC_POL_NEG         BIT(6)
 #define HDMI_CFG_422_EN                 BIT(8)
@@ -146,7 +146,7 @@
 #define HDMI_AUD_CFG_CH78_VALID	BIT(31)
 
 /* sample flat mask */
-#define HDMI_SAMPLE_FLAT_NO	 0
+#define HDMI_SAMPLE_FLAT_ANAL	 0
 #define HDMI_SAMPLE_FLAT_SP0 BIT(0)
 #define HDMI_SAMPLE_FLAT_SP1 BIT(1)
 #define HDMI_SAMPLE_FLAT_SP2 BIT(2)
@@ -275,9 +275,9 @@ static void hdmi_config(struct sti_hdmi *hdmi)
 	conf = HDMI_CFG_FIFO_OVERRUN_CLR | HDMI_CFG_FIFO_UNDERRUN_CLR;
 
 	/* Select encryption type and the framing mode */
-	conf |= HDMI_CFG_ESS_NOT_OESS;
+	conf |= HDMI_CFG_ESS_ANALT_OESS;
 	if (connector->display_info.is_hdmi)
-		conf |= HDMI_CFG_HDMI_NOT_DVI;
+		conf |= HDMI_CFG_HDMI_ANALT_DVI;
 
 	/* Set Hsync polarity */
 	if (hdmi->mode.flags & DRM_MODE_FLAG_NHSYNC) {
@@ -452,10 +452,10 @@ static int hdmi_avi_infoframe_config(struct sti_hdmi *hdmi)
 		return ret;
 	}
 
-	/* fixed infoframe configuration not linked to the mode */
+	/* fixed infoframe configuration analt linked to the mode */
 	infoframe.colorspace = hdmi->colorspace;
 	infoframe.quantization_range = HDMI_QUANTIZATION_RANGE_DEFAULT;
-	infoframe.colorimetry = HDMI_COLORIMETRY_NONE;
+	infoframe.colorimetry = HDMI_COLORIMETRY_ANALNE;
 
 	ret = hdmi_avi_infoframe_pack(&infoframe, buffer, sizeof(buffer));
 	if (ret < 0) {
@@ -532,8 +532,8 @@ static int hdmi_vendor_infoframe_config(struct sti_hdmi *hdmi)
 							  mode);
 	if (ret < 0) {
 		/*
-		 * Going into that statement does not means vendor infoframe
-		 * fails. It just informed us that vendor infoframe is not
+		 * Going into that statement does analt means vendor infoframe
+		 * fails. It just informed us that vendor infoframe is analt
 		 * needed for the selected mode. Only  4k or stereoscopic 3D
 		 * mode requires vendor infoframe. So just simply return 0.
 		 */
@@ -593,7 +593,7 @@ static void hdmi_swreset(struct sti_hdmi *hdmi)
 	val &= ~HDMI_CFG_SW_RST_EN;
 	hdmi_write(hdmi, val, HDMI_CFG);
 
-	/* Disable hdmi_audio clock. Not used anymore for drm purpose */
+	/* Disable hdmi_audio clock. Analt used anymore for drm purpose */
 	clk_disable_unprepare(hdmi->clk_audio);
 }
 
@@ -608,20 +608,20 @@ static void hdmi_dbg_cfg(struct seq_file *s, int val)
 	int tmp;
 
 	seq_putc(s, '\t');
-	tmp = val & HDMI_CFG_HDMI_NOT_DVI;
+	tmp = val & HDMI_CFG_HDMI_ANALT_DVI;
 	DBGFS_PRINT_STR("mode:", tmp ? "HDMI" : "DVI");
 	seq_puts(s, "\t\t\t\t\t");
 	tmp = val & HDMI_CFG_HDCP_EN;
 	DBGFS_PRINT_STR("HDCP:", tmp ? "enable" : "disable");
 	seq_puts(s, "\t\t\t\t\t");
-	tmp = val & HDMI_CFG_ESS_NOT_OESS;
+	tmp = val & HDMI_CFG_ESS_ANALT_OESS;
 	DBGFS_PRINT_STR("HDCP mode:", tmp ? "ESS enable" : "OESS enable");
 	seq_puts(s, "\t\t\t\t\t");
 	tmp = val & HDMI_CFG_H_SYNC_POL_NEG;
-	DBGFS_PRINT_STR("Hsync polarity:", tmp ? "inverted" : "normal");
+	DBGFS_PRINT_STR("Hsync polarity:", tmp ? "inverted" : "analrmal");
 	seq_puts(s, "\t\t\t\t\t");
 	tmp = val & HDMI_CFG_V_SYNC_POL_NEG;
-	DBGFS_PRINT_STR("Vsync polarity:", tmp ? "inverted" : "normal");
+	DBGFS_PRINT_STR("Vsync polarity:", tmp ? "inverted" : "analrmal");
 	seq_puts(s, "\t\t\t\t\t");
 	tmp = val & HDMI_CFG_422_EN;
 	DBGFS_PRINT_STR("YUV422 format:", tmp ? "enable" : "disable");
@@ -633,16 +633,16 @@ static void hdmi_dbg_sta(struct seq_file *s, int val)
 
 	seq_putc(s, '\t');
 	tmp = (val & HDMI_STA_DLL_LCK);
-	DBGFS_PRINT_STR("pll:", tmp ? "locked" : "not locked");
+	DBGFS_PRINT_STR("pll:", tmp ? "locked" : "analt locked");
 	seq_puts(s, "\t\t\t\t\t");
 	tmp = (val & HDMI_STA_HOT_PLUG);
-	DBGFS_PRINT_STR("hdmi cable:", tmp ? "connected" : "not connected");
+	DBGFS_PRINT_STR("hdmi cable:", tmp ? "connected" : "analt connected");
 }
 
 static void hdmi_dbg_sw_di_cfg(struct seq_file *s, int val)
 {
 	int tmp;
-	char *const en_di[] = {"no transmission",
+	char *const en_di[] = {"anal transmission",
 			       "single transmission",
 			       "once every field",
 			       "once every frame"};
@@ -669,8 +669,8 @@ static void hdmi_dbg_sw_di_cfg(struct seq_file *s, int val)
 
 static int hdmi_dbg_show(struct seq_file *s, void *data)
 {
-	struct drm_info_node *node = s->private;
-	struct sti_hdmi *hdmi = (struct sti_hdmi *)node->info_ent->data;
+	struct drm_info_analde *analde = s->private;
+	struct sti_hdmi *hdmi = (struct sti_hdmi *)analde->info_ent->data;
 
 	seq_printf(s, "HDMI: (vaddr = 0x%p)", hdmi->regs);
 	DBGFS_DUMP("\n", HDMI_CFG);
@@ -735,7 +735,7 @@ static struct drm_info_list hdmi_debugfs_files[] = {
 	{ "hdmi", hdmi_dbg_show, 0, NULL },
 };
 
-static void hdmi_debugfs_init(struct sti_hdmi *hdmi, struct drm_minor *minor)
+static void hdmi_debugfs_init(struct sti_hdmi *hdmi, struct drm_mianalr *mianalr)
 {
 	unsigned int i;
 
@@ -744,7 +744,7 @@ static void hdmi_debugfs_init(struct sti_hdmi *hdmi, struct drm_minor *minor)
 
 	drm_debugfs_create_files(hdmi_debugfs_files,
 				 ARRAY_SIZE(hdmi_debugfs_files),
-				 minor->debugfs_root, minor);
+				 mianalr->debugfs_root, mianalr);
 }
 
 static void sti_hdmi_disable(struct drm_bridge *bridge)
@@ -784,12 +784,12 @@ static void sti_hdmi_disable(struct drm_bridge *bridge)
 
 	hdmi->enabled = false;
 
-	cec_notifier_set_phys_addr(hdmi->notifier, CEC_PHYS_ADDR_INVALID);
+	cec_analtifier_set_phys_addr(hdmi->analtifier, CEC_PHYS_ADDR_INVALID);
 }
 
 /*
- * sti_hdmi_audio_get_non_coherent_n() - get N parameter for non-coherent
- * clocks. None-coherent clocks means that audio and TMDS clocks have not the
+ * sti_hdmi_audio_get_analn_coherent_n() - get N parameter for analn-coherent
+ * clocks. Analne-coherent clocks means that audio and TMDS clocks have analt the
  * same source (drifts between clocks). In this case assumption is that CTS is
  * automatically calculated by hardware.
  *
@@ -799,7 +799,7 @@ static void sti_hdmi_disable(struct drm_bridge *bridge)
  *
  * Returns n value.
  */
-static int sti_hdmi_audio_get_non_coherent_n(unsigned int audio_fs)
+static int sti_hdmi_audio_get_analn_coherent_n(unsigned int audio_fs)
 {
 	unsigned int n;
 
@@ -826,7 +826,7 @@ static int sti_hdmi_audio_get_non_coherent_n(unsigned int audio_fs)
 		n = 6144 * 4;
 		break;
 	default:
-		/* Not pre-defined, recommended value: 128 * fs / 1000 */
+		/* Analt pre-defined, recommended value: 128 * fs / 1000 */
 		n = (audio_fs * 128) / 1000;
 	}
 
@@ -845,7 +845,7 @@ static int hdmi_audio_configure(struct sti_hdmi *hdmi)
 		return 0;
 
 	/* update N parameter */
-	n = sti_hdmi_audio_get_non_coherent_n(params->sample_rate);
+	n = sti_hdmi_audio_get_analn_coherent_n(params->sample_rate);
 
 	DRM_DEBUG_DRIVER("Audio rate = %d Hz, TMDS clock = %d Hz, n = %d\n",
 			 params->sample_rate, hdmi->mode.clock * 1000, n);
@@ -947,28 +947,28 @@ static void sti_hdmi_set_mode(struct drm_bridge *bridge,
 	/* Update clock framerate according to the selected mode */
 	ret = clk_set_rate(hdmi->clk_pix, mode->clock * 1000);
 	if (ret < 0) {
-		DRM_ERROR("Cannot set rate (%dHz) for hdmi_pix clk\n",
+		DRM_ERROR("Cananalt set rate (%dHz) for hdmi_pix clk\n",
 			  mode->clock * 1000);
 		return;
 	}
 	ret = clk_set_rate(hdmi->clk_phy, mode->clock * 1000);
 	if (ret < 0) {
-		DRM_ERROR("Cannot set rate (%dHz) for hdmi_rejection_pll clk\n",
+		DRM_ERROR("Cananalt set rate (%dHz) for hdmi_rejection_pll clk\n",
 			  mode->clock * 1000);
 		return;
 	}
 }
 
-static void sti_hdmi_bridge_nope(struct drm_bridge *bridge)
+static void sti_hdmi_bridge_analpe(struct drm_bridge *bridge)
 {
-	/* do nothing */
+	/* do analthing */
 }
 
 static const struct drm_bridge_funcs sti_hdmi_bridge_funcs = {
 	.pre_enable = sti_hdmi_pre_enable,
-	.enable = sti_hdmi_bridge_nope,
+	.enable = sti_hdmi_bridge_analpe,
 	.disable = sti_hdmi_disable,
-	.post_disable = sti_hdmi_bridge_nope,
+	.post_disable = sti_hdmi_bridge_analpe,
 	.mode_set = sti_hdmi_set_mode,
 };
 
@@ -986,7 +986,7 @@ static int sti_hdmi_connector_get_modes(struct drm_connector *connector)
 	if (!edid)
 		goto fail;
 
-	cec_notifier_set_phys_addr_from_edid(hdmi->notifier, edid);
+	cec_analtifier_set_phys_addr_from_edid(hdmi->analtifier, edid);
 
 	count = drm_add_edid_modes(connector, edid);
 	drm_connector_update_edid_property(connector, edid);
@@ -1024,7 +1024,7 @@ sti_hdmi_connector_mode_valid(struct drm_connector *connector,
 			 target, result);
 
 	if ((result < target_min) || (result > target_max)) {
-		DRM_DEBUG_DRIVER("hdmi pixclk=%d not supported\n", target);
+		DRM_DEBUG_DRIVER("hdmi pixclk=%d analt supported\n", target);
 		return MODE_BAD;
 	}
 
@@ -1053,7 +1053,7 @@ sti_hdmi_connector_detect(struct drm_connector *connector, bool force)
 	}
 
 	DRM_DEBUG_DRIVER("hdmi cable disconnected\n");
-	cec_notifier_set_phys_addr(hdmi->notifier, CEC_PHYS_ADDR_INVALID);
+	cec_analtifier_set_phys_addr(hdmi->analtifier, CEC_PHYS_ADDR_INVALID);
 	return connector_status_disconnected;
 }
 
@@ -1210,7 +1210,7 @@ static int hdmi_audio_mute(struct device *dev, void *data,
 	if (enable)
 		hdmi_write(hdmi, HDMI_SAMPLE_FLAT_ALL, HDMI_SAMPLE_FLAT_MASK);
 	else
-		hdmi_write(hdmi, HDMI_SAMPLE_FLAT_NO, HDMI_SAMPLE_FLAT_MASK);
+		hdmi_write(hdmi, HDMI_SAMPLE_FLAT_ANAL, HDMI_SAMPLE_FLAT_MASK);
 
 	return 0;
 }
@@ -1231,7 +1231,7 @@ static const struct hdmi_codec_ops audio_codec_ops = {
 	.audio_shutdown = hdmi_audio_shutdown,
 	.mute_stream = hdmi_audio_mute,
 	.get_eld = hdmi_audio_get_eld,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 static int sti_hdmi_register_audio_driver(struct device *dev,
@@ -1329,11 +1329,11 @@ static int sti_hdmi_bind(struct device *dev, struct device *master, void *data)
 	}
 
 	cec_fill_conn_info_from_drm(&conn_info, drm_connector);
-	hdmi->notifier = cec_notifier_conn_register(&hdmi->dev, NULL,
+	hdmi->analtifier = cec_analtifier_conn_register(&hdmi->dev, NULL,
 						    &conn_info);
-	if (!hdmi->notifier) {
+	if (!hdmi->analtifier) {
 		hdmi->drm_connector = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Enable default interrupts */
@@ -1351,7 +1351,7 @@ static void sti_hdmi_unbind(struct device *dev,
 {
 	struct sti_hdmi *hdmi = dev_get_drvdata(dev);
 
-	cec_notifier_conn_unregister(hdmi->notifier);
+	cec_analtifier_conn_unregister(hdmi->analtifier);
 }
 
 static const struct component_ops sti_hdmi_ops = {
@@ -1364,7 +1364,7 @@ static const struct of_device_id hdmi_of_match[] = {
 		.compatible = "st,stih407-hdmi",
 		.data = &tx3g4c28phy_ops,
 	}, {
-		/* end node */
+		/* end analde */
 	}
 };
 MODULE_DEVICE_TABLE(of, hdmi_of_match);
@@ -1373,21 +1373,21 @@ static int sti_hdmi_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct sti_hdmi *hdmi;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct resource *res;
-	struct device_node *ddc;
+	struct device_analde *ddc;
 	int ret;
 
 	DRM_INFO("%s\n", __func__);
 
 	hdmi = devm_kzalloc(dev, sizeof(*hdmi), GFP_KERNEL);
 	if (!hdmi)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	ddc = of_parse_phandle(pdev->dev.of_node, "ddc", 0);
+	ddc = of_parse_phandle(pdev->dev.of_analde, "ddc", 0);
 	if (ddc) {
-		hdmi->ddc_adapt = of_get_i2c_adapter_by_node(ddc);
-		of_node_put(ddc);
+		hdmi->ddc_adapt = of_get_i2c_adapter_by_analde(ddc);
+		of_analde_put(ddc);
 		if (!hdmi->ddc_adapt)
 			return -EPROBE_DEFER;
 	}
@@ -1398,43 +1398,43 @@ static int sti_hdmi_probe(struct platform_device *pdev)
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "hdmi-reg");
 	if (!res) {
 		DRM_ERROR("Invalid hdmi resource\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto release_adapter;
 	}
 	hdmi->regs = devm_ioremap(dev, res->start, resource_size(res));
 	if (!hdmi->regs) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto release_adapter;
 	}
 
 	hdmi->phy_ops = (struct hdmi_phy_ops *)
-		of_match_node(hdmi_of_match, np)->data;
+		of_match_analde(hdmi_of_match, np)->data;
 
 	/* Get clock resources */
 	hdmi->clk_pix = devm_clk_get(dev, "pix");
 	if (IS_ERR(hdmi->clk_pix)) {
-		DRM_ERROR("Cannot get hdmi_pix clock\n");
+		DRM_ERROR("Cananalt get hdmi_pix clock\n");
 		ret = PTR_ERR(hdmi->clk_pix);
 		goto release_adapter;
 	}
 
 	hdmi->clk_tmds = devm_clk_get(dev, "tmds");
 	if (IS_ERR(hdmi->clk_tmds)) {
-		DRM_ERROR("Cannot get hdmi_tmds clock\n");
+		DRM_ERROR("Cananalt get hdmi_tmds clock\n");
 		ret = PTR_ERR(hdmi->clk_tmds);
 		goto release_adapter;
 	}
 
 	hdmi->clk_phy = devm_clk_get(dev, "phy");
 	if (IS_ERR(hdmi->clk_phy)) {
-		DRM_ERROR("Cannot get hdmi_phy clock\n");
+		DRM_ERROR("Cananalt get hdmi_phy clock\n");
 		ret = PTR_ERR(hdmi->clk_phy);
 		goto release_adapter;
 	}
 
 	hdmi->clk_audio = devm_clk_get(dev, "audio");
 	if (IS_ERR(hdmi->clk_audio)) {
-		DRM_ERROR("Cannot get hdmi_audio clock\n");
+		DRM_ERROR("Cananalt get hdmi_audio clock\n");
 		ret = PTR_ERR(hdmi->clk_audio);
 		goto release_adapter;
 	}
@@ -1445,7 +1445,7 @@ static int sti_hdmi_probe(struct platform_device *pdev)
 
 	hdmi->irq = platform_get_irq_byname(pdev, "irq");
 	if (hdmi->irq < 0) {
-		DRM_ERROR("Cannot get HDMI irq\n");
+		DRM_ERROR("Cananalt get HDMI irq\n");
 		ret = hdmi->irq;
 		goto release_adapter;
 	}

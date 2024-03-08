@@ -32,7 +32,7 @@ static struct class *tape_class;
  * drivername
  *	The pointer to the drivers name for it's character devices.
  * dev
- *	The intended major/minor number. The major number may be 0 to
+ *	The intended major/mianalr number. The major number may be 0 to
  *	get a dynamic major number.
  * fops
  *	The pointer to the drivers file operations for the tape device.
@@ -52,7 +52,7 @@ struct tape_class_device *register_tape_dev(
 
 	tcd = kzalloc(sizeof(struct tape_class_device), GFP_KERNEL);
 	if (!tcd)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	strscpy(tcd->device_name, device_name, TAPECLASS_NAME_LEN);
 	for (s = strchr(tcd->device_name, '/'); s; s = strchr(s, '/'))
@@ -63,7 +63,7 @@ struct tape_class_device *register_tape_dev(
 
 	tcd->char_device = cdev_alloc();
 	if (!tcd->char_device) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto fail_with_tcd;
 	}
 

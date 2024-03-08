@@ -19,7 +19,7 @@
 #define SWITCHTEC_EVENT_EN_CLI   BIT(2)
 #define SWITCHTEC_EVENT_EN_IRQ   BIT(3)
 #define SWITCHTEC_EVENT_FATAL    BIT(4)
-#define SWITCHTEC_EVENT_NOT_SUPP BIT(31)
+#define SWITCHTEC_EVENT_ANALT_SUPP BIT(31)
 
 #define SWITCHTEC_DMA_MRPC_EN	BIT(0)
 
@@ -85,7 +85,7 @@ struct sw_event_regs {
 	u32 reserved8[5];
 	u32 fw_nmi_hdr;
 	u32 reserved9[5];
-	u32 fw_non_fatal_hdr;
+	u32 fw_analn_fatal_hdr;
 	u32 reserved10[5];
 	u32 fw_fatal_hdr;
 	u32 reserved11[5];
@@ -315,8 +315,8 @@ struct part_cfg_regs {
 	u32 mrpc_comp_async_data[5];
 	u32 dyn_binding_hdr;
 	u32 dyn_binding_data[5];
-	u32 intercomm_notify_hdr;
-	u32 intercomm_notify_data[5];
+	u32 intercomm_analtify_hdr;
+	u32 intercomm_analtify_data[5];
 	u32 reserved4[153];
 } __packed;
 
@@ -325,7 +325,7 @@ enum {
 	NTB_CTRL_PART_OP_CFG = 0x2,
 	NTB_CTRL_PART_OP_RESET = 0x3,
 
-	NTB_CTRL_PART_STATUS_NORMAL = 0x1,
+	NTB_CTRL_PART_STATUS_ANALRMAL = 0x1,
 	NTB_CTRL_PART_STATUS_LOCKED = 0x2,
 	NTB_CTRL_PART_STATUS_LOCKING = 0x3,
 	NTB_CTRL_PART_STATUS_CONFIGURING = 0x4,
@@ -507,7 +507,7 @@ struct switchtec_dev {
 	atomic_t event_cnt;
 
 	struct work_struct link_event_work;
-	void (*link_notifier)(struct switchtec_dev *stdev);
+	void (*link_analtifier)(struct switchtec_dev *stdev);
 	u8 link_event_count[SWITCHTEC_MAX_PFF_CSR];
 
 	struct switchtec_ntb *sndev;

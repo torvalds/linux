@@ -27,8 +27,8 @@ An intelligent thermal management application can make decisions based on
 inputs from thermal zone attributes (the current temperature and trip point
 temperature) and throttle appropriate devices.
 
-- `[0-*]`	denotes any positive number starting from 0
-- `[1-*]`	denotes any positive number starting from 1
+- `[0-*]`	deanaltes any positive number starting from 0
+- `[1-*]`	deanaltes any positive number starting from 1
 
 1. thermal sysfs driver interface functions
 ===========================================
@@ -115,15 +115,15 @@ temperature) and throttle appropriate devices.
 	This interface adds a new sensor to a DT thermal zone.
 	This function will search the list of thermal zones described in
 	device tree and look for the zone that refer to the sensor device
-	pointed by dev->of_node as temperature providers. For the zone
-	pointing to the sensor node, the sensor will be added to the DT
+	pointed by dev->of_analde as temperature providers. For the zone
+	pointing to the sensor analde, the sensor will be added to the DT
 	thermal zone device.
 
 	The parameters for this interface are:
 
 	dev:
-			Device node of sensor containing valid node pointer in
-			dev->of_node.
+			Device analde of sensor containing valid analde pointer in
+			dev->of_analde.
 	sensor_id:
 			a sensor identifier, in case the sensor IP has more
 			than one sensors
@@ -153,7 +153,7 @@ temperature) and throttle appropriate devices.
 
 	It returns error pointer if fails otherwise valid thermal zone device
 	handle. Caller should check the return handle with IS_ERR() for finding
-	whether success or not.
+	whether success or analt.
 
 	::
 
@@ -182,7 +182,7 @@ temperature) and throttle appropriate devices.
 	section 1.1.3 is applicable here.
 
 	The benefit of using this interface to register sensor is that it
-	is not require to explicitly call thermal_zone_of_sensor_unregister()
+	is analt require to explicitly call thermal_zone_of_sensor_unregister()
 	in error path or during driver unbinding as this is done by driver
 	resource manager.
 
@@ -195,7 +195,7 @@ temperature) and throttle appropriate devices.
 	thermal_zone_of_sensor_unregister().
 	All details of thermal_zone_of_sensor_unregister() described in
 	section 1.1.4 is applicable here.
-	Normally this function will not need to be called and the resource
+	Analrmally this function will analt need to be called and the resource
 	management code will ensure that the resource is freed.
 
 	::
@@ -274,11 +274,11 @@ temperature) and throttle appropriate devices.
 	  is associated with.
     upper:
 	  the Maximum cooling state for this trip point.
-	  THERMAL_NO_LIMIT means no upper limit,
+	  THERMAL_ANAL_LIMIT means anal upper limit,
 	  and the cooling device can be in max_state.
     lower:
 	  the Minimum cooling state can be used for this trip point.
-	  THERMAL_NO_LIMIT means no lower limit,
+	  THERMAL_ANAL_LIMIT means anal lower limit,
 	  and the cooling device can be in cooling state 0.
     weight:
 	  the influence of this cooling device in this thermal
@@ -310,15 +310,15 @@ temperature) and throttle appropriate devices.
 
     This structure defines the platform level parameters for a thermal zone.
     This data, for each thermal zone should come from the platform layer.
-    This is an optional feature where some platforms can choose not to
+    This is an optional feature where some platforms can choose analt to
     provide this data.
 
-    .governor_name:
-	       Name of the thermal governor used for this zone
-    .no_hwmon:
+    .goveranalr_name:
+	       Name of the thermal goveranalr used for this zone
+    .anal_hwmon:
 	       a boolean to indicate if the thermal to hwmon sysfs interface
-	       is required. when no_hwmon == false, a hwmon sysfs interface
-	       will be created. when no_hwmon == true, nothing will be done.
+	       is required. when anal_hwmon == false, a hwmon sysfs interface
+	       will be created. when anal_hwmon == true, analthing will be done.
 	       In case the thermal_zone_params is NULL, the hwmon interface
 	       will be created (for backward compatibility).
 
@@ -341,12 +341,12 @@ Thermal zone device sys I/F, created once it's registered::
     |---type:			Type of the thermal zone
     |---temp:			Current temperature
     |---mode:			Working mode of the thermal zone
-    |---policy:			Thermal governor used for this zone
-    |---available_policies:	Available thermal governors for this zone
+    |---policy:			Thermal goveranalr used for this zone
+    |---available_policies:	Available thermal goveranalrs for this zone
     |---trip_point_[0-*]_temp:	Trip point temperature
     |---trip_point_[0-*]_type:	Trip point type
     |---trip_point_[0-*]_hyst:	Hysteresis value for this trip point
-    |---emul_temp:		Emulated temperature set node
+    |---emul_temp:		Emulated temperature set analde
     |---sustainable_power:      Sustainable dissipatable power
     |---k_po:                   Proportional term during temperature overshoot
     |---k_pu:                   Proportional term during temperature undershoot
@@ -469,7 +469,7 @@ temperature values.
 
 This function returns the thermal_instance corresponding to a given
 {thermal_zone, cooling_device, trip_point} combination. Returns NULL
-if such an instance does not exist.
+if such an instance does analt exist.
 
 4.3. thermal_cdev_update
 ------------------------
@@ -490,6 +490,6 @@ or as last resort an emergency_restart.
 The delay should be carefully profiled so as to give adequate time for
 orderly poweroff.
 
-If the delay is set to 0 emergency poweroff will not be supported. So a
-carefully profiled non-zero positive value is a must for emergency
+If the delay is set to 0 emergency poweroff will analt be supported. So a
+carefully profiled analn-zero positive value is a must for emergency
 poweroff to be triggered.

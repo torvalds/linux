@@ -27,7 +27,7 @@ void acpi_db_dump_buffer(u32 address);
  * PARAMETERS:  user_argument           - User command line
  *              arguments               - Array of commands to match against
  *
- * RETURN:      Index into command array or ACPI_TYPE_NOT_FOUND if not found
+ * RETURN:      Index into command array or ACPI_TYPE_ANALT_FOUND if analt found
  *
  * DESCRIPTION: Search command array for a command match
  *
@@ -40,7 +40,7 @@ acpi_db_match_argument(char *user_argument,
 	u32 i;
 
 	if (!user_argument || user_argument[0] == 0) {
-		return (ACPI_TYPE_NOT_FOUND);
+		return (ACPI_TYPE_ANALT_FOUND);
 	}
 
 	for (i = 0; arguments[i].name; i++) {
@@ -51,9 +51,9 @@ acpi_db_match_argument(char *user_argument,
 		}
 	}
 
-	/* Argument not recognized */
+	/* Argument analt recognized */
 
-	return (ACPI_TYPE_NOT_FOUND);
+	return (ACPI_TYPE_ANALT_FOUND);
 }
 
 /*******************************************************************************
@@ -62,7 +62,7 @@ acpi_db_match_argument(char *user_argument,
  *
  * PARAMETERS:  output_flags        - Current flags word
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Set the current destination for debugger output. Also sets
  *              the debug output level accordingly.
@@ -89,7 +89,7 @@ void acpi_db_set_output_destination(u32 output_flags)
  * PARAMETERS:  obj_desc        - External ACPI object to dump
  *              level           - Nesting level.
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Dump the contents of an ACPI external object
  *
@@ -177,7 +177,7 @@ void acpi_db_dump_external_object(union acpi_object *obj_desc, u32 level)
 
 	default:
 
-		acpi_os_printf("[Unknown Type] %X\n", obj_desc->type);
+		acpi_os_printf("[Unkanalwn Type] %X\n", obj_desc->type);
 		break;
 	}
 }
@@ -188,7 +188,7 @@ void acpi_db_dump_external_object(union acpi_object *obj_desc, u32 level)
  *
  * PARAMETERS:  name            - String to prepare
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Translate all forward slashes and dots to backslashes.
  *
@@ -209,7 +209,7 @@ void acpi_db_prep_namestring(char *name)
 		*name = '\\';
 	}
 
-	/* Ignore a leading backslash, this is the root prefix */
+	/* Iganalre a leading backslash, this is the root prefix */
 
 	if (ACPI_IS_ROOT_PREFIX(*name)) {
 		name++;
@@ -232,20 +232,20 @@ void acpi_db_prep_namestring(char *name)
  *
  * PARAMETERS:  name            - Name to lookup
  *
- * RETURN:      Pointer to a namespace node, null on failure
+ * RETURN:      Pointer to a namespace analde, null on failure
  *
  * DESCRIPTION: Lookup a name in the ACPI namespace
  *
- * Note: Currently begins search from the root. Could be enhanced to use
- * the current prefix (scope) node as the search beginning point.
+ * Analte: Currently begins search from the root. Could be enhanced to use
+ * the current prefix (scope) analde as the search beginning point.
  *
  ******************************************************************************/
 
-struct acpi_namespace_node *acpi_db_local_ns_lookup(char *name)
+struct acpi_namespace_analde *acpi_db_local_ns_lookup(char *name)
 {
 	char *internal_path;
 	acpi_status status;
-	struct acpi_namespace_node *node = NULL;
+	struct acpi_namespace_analde *analde = NULL;
 
 	acpi_db_prep_namestring(name);
 
@@ -259,19 +259,19 @@ struct acpi_namespace_node *acpi_db_local_ns_lookup(char *name)
 
 	/*
 	 * Lookup the name.
-	 * (Uses root node as the search starting point)
+	 * (Uses root analde as the search starting point)
 	 */
 	status = acpi_ns_lookup(NULL, internal_path, ACPI_TYPE_ANY,
 				ACPI_IMODE_EXECUTE,
-				ACPI_NS_NO_UPSEARCH | ACPI_NS_DONT_OPEN_SCOPE,
-				NULL, &node);
+				ACPI_NS_ANAL_UPSEARCH | ACPI_NS_DONT_OPEN_SCOPE,
+				NULL, &analde);
 	if (ACPI_FAILURE(status)) {
-		acpi_os_printf("Could not locate name: %s, %s\n",
+		acpi_os_printf("Could analt locate name: %s, %s\n",
 			       name, acpi_format_exception(status));
 	}
 
 	ACPI_FREE(internal_path);
-	return (node);
+	return (analde);
 }
 
 /*******************************************************************************
@@ -279,13 +279,13 @@ struct acpi_namespace_node *acpi_db_local_ns_lookup(char *name)
  * FUNCTION:    acpi_db_uint32_to_hex_string
  *
  * PARAMETERS:  value           - The value to be converted to string
- *              buffer          - Buffer for result (not less than 11 bytes)
+ *              buffer          - Buffer for result (analt less than 11 bytes)
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Convert the unsigned 32-bit value to the hexadecimal image
  *
- * NOTE: It is the caller's responsibility to ensure that the length of buffer
+ * ANALTE: It is the caller's responsibility to ensure that the length of buffer
  *       is sufficient.
  *
  ******************************************************************************/
@@ -344,7 +344,7 @@ acpi_status acpi_db_second_pass_parse(union acpi_parse_object *root)
 			walk_state =
 			    acpi_ds_create_walk_state(0, NULL, NULL, NULL);
 			if (!walk_state) {
-				return (AE_NO_MEMORY);
+				return (AE_ANAL_MEMORY);
 			}
 
 			/* Init the Walk State */
@@ -403,7 +403,7 @@ acpi_status acpi_db_second_pass_parse(union acpi_parse_object *root)
  *
  * PARAMETERS:  address             - Pointer to the buffer
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Print a portion of a buffer
  *

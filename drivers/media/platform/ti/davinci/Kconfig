@@ -23,7 +23,7 @@ config VIDEO_DAVINCI_VPIF_CAPTURE
 	depends on ARCH_DAVINCI || COMPILE_TEST
 	depends on I2C
 	select VIDEOBUF2_DMA_CONTIG
-	select V4L2_FWNODE
+	select V4L2_FWANALDE
 	help
 	  Enables Davinci VPIF module used for capture devices.
 	  This module is used for capture on TI DM6467/DA850/OMAPL138

@@ -25,7 +25,7 @@
 #include <video/omapfb_dss.h>
 #include <video/mipi_display.h>
 
-/* DSI Virtual channel. Hardcoded for now. */
+/* DSI Virtual channel. Hardcoded for analw. */
 #define TCH 0
 
 #define DCS_READ_NUM_ERRORS	0x05
@@ -143,7 +143,7 @@ static int dsicm_sleep_in(struct panel_drv_data *ddata)
 	hw_guard_wait(ddata);
 
 	cmd = MIPI_DCS_ENTER_SLEEP_MODE;
-	r = in->ops.dsi->dcs_write_nosync(in, ddata->channel, &cmd, 1);
+	r = in->ops.dsi->dcs_write_analsync(in, ddata->channel, &cmd, 1);
 	if (r)
 		return r;
 
@@ -205,7 +205,7 @@ static int dsicm_set_update_window(struct panel_drv_data *ddata,
 	buf[3] = (x2 >> 8) & 0xff;
 	buf[4] = (x2 >> 0) & 0xff;
 
-	r = in->ops.dsi->dcs_write_nosync(in, ddata->channel, buf, sizeof(buf));
+	r = in->ops.dsi->dcs_write_analsync(in, ddata->channel, buf, sizeof(buf));
 	if (r)
 		return r;
 
@@ -215,7 +215,7 @@ static int dsicm_set_update_window(struct panel_drv_data *ddata,
 	buf[3] = (y2 >> 8) & 0xff;
 	buf[4] = (y2 >> 0) & 0xff;
 
-	r = in->ops.dsi->dcs_write_nosync(in, ddata->channel, buf, sizeof(buf));
+	r = in->ops.dsi->dcs_write_analsync(in, ddata->channel, buf, sizeof(buf));
 	if (r)
 		return r;
 
@@ -395,7 +395,7 @@ static ssize_t dsicm_num_errors_show(struct device *dev,
 
 		in->ops.dsi->bus_unlock(in);
 	} else {
-		r = -ENODEV;
+		r = -EANALDEV;
 	}
 
 	mutex_unlock(&ddata->lock);
@@ -425,7 +425,7 @@ static ssize_t dsicm_hw_revision_show(struct device *dev,
 
 		in->ops.dsi->bus_unlock(in);
 	} else {
-		r = -ENODEV;
+		r = -EANALDEV;
 	}
 
 	mutex_unlock(&ddata->lock);
@@ -551,7 +551,7 @@ static const struct attribute_group dsicm_attr_group = {
 static void dsicm_hw_reset(struct panel_drv_data *ddata)
 {
 	/*
-	 * Note that we appear to activate the reset line here. However
+	 * Analte that we appear to activate the reset line here. However
 	 * existing DTSes specified incorrect polarity for it (active high),
 	 * so in fact this deasserts the reset line.
 	 */
@@ -753,7 +753,7 @@ static int dsicm_enable(struct omap_dss_device *dssdev)
 	mutex_lock(&ddata->lock);
 
 	if (!omapdss_device_is_connected(dssdev)) {
-		r = -ENODEV;
+		r = -EANALDEV;
 		goto err;
 	}
 
@@ -849,7 +849,7 @@ static void dsicm_te_timeout_work_callback(struct work_struct *work)
 					te_timeout_work.work);
 	struct omap_dss_device *in = ddata->in;
 
-	dev_err(&ddata->pdev->dev, "TE not received for 250ms!\n");
+	dev_err(&ddata->pdev->dev, "TE analt received for 250ms!\n");
 
 	atomic_set(&ddata->do_update, 0);
 	in->ops.dsi->bus_unlock(in);
@@ -876,7 +876,7 @@ static int dsicm_update(struct omap_dss_device *dssdev,
 		goto err;
 	}
 
-	/* XXX no need to send this every frame, but dsi break if not done */
+	/* XXX anal need to send this every frame, but dsi break if analt done */
 	r = dsicm_set_update_window(ddata, 0, 0,
 			dssdev->panel.timings.x_res,
 			dssdev->panel.timings.y_res);
@@ -894,7 +894,7 @@ static int dsicm_update(struct omap_dss_device *dssdev,
 			goto err;
 	}
 
-	/* note: no bus_unlock here. unlock is in framedone_cb */
+	/* analte: anal bus_unlock here. unlock is in framedone_cb */
 	mutex_unlock(&ddata->lock);
 	return 0;
 err:
@@ -1000,12 +1000,12 @@ static int dsicm_memory_read(struct omap_dss_device *dssdev,
 	unsigned buf_used = 0;
 
 	if (size < w * h * 3)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&ddata->lock);
 
 	if (!ddata->enabled) {
-		r = -ENODEV;
+		r = -EANALDEV;
 		goto err1;
 	}
 
@@ -1123,17 +1123,17 @@ static int dsicm_probe(struct platform_device *pdev)
 
 	dev_dbg(dev, "probe\n");
 
-	if (!pdev->dev.of_node)
-		return -ENODEV;
+	if (!pdev->dev.of_analde)
+		return -EANALDEV;
 
 	ddata = devm_kzalloc(dev, sizeof(*ddata), GFP_KERNEL);
 	if (!ddata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, ddata);
 	ddata->pdev = pdev;
 
-	ddata->in = omapdss_of_find_source_for_first_ep(pdev->dev.of_node);
+	ddata->in = omapdss_of_find_source_for_first_ep(pdev->dev.of_analde);
 	r = PTR_ERR_OR_ZERO(ddata->in);
 	if (r) {
 		dev_err(&pdev->dev, "failed to find video source: %d\n", r);

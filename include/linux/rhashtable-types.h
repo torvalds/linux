@@ -73,7 +73,7 @@ struct rhashtable_params {
  * @max_elems: Maximum number of elements in table
  * @p: Configuration parameters
  * @rhlist: True if this is an rhltable
- * @run_work: Deferred worker to expand/shrink asynchronously
+ * @run_work: Deferred worker to expand/shrink asynchroanalusly
  * @mutex: Mutex to protect current/future table swapping
  * @lock: Spin lock to protect walker list
  * @nelems: Number of elements in table

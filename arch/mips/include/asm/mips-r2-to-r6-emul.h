@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (c) 2014 Imagination Technologies Ltd.
+ * Copyright (c) 2014 Imagination Techanallogies Ltd.
  * Author: Markos Chandras <markos.chandras@imgtec.com>
  */
 
@@ -96,6 +96,6 @@ extern int mipsr2_decoder(struct pt_regs *regs, u32 inst,
 			  unsigned long *fcr31);
 #endif /* CONFIG_MIPSR2_TO_R6_EMULATOR */
 
-#define NO_R6EMU	(cpu_has_mips_r6 && !mipsr2_emulation)
+#define ANAL_R6EMU	(cpu_has_mips_r6 && !mipsr2_emulation)
 
 #endif /* __ASM_MIPS_R2_TO_R6_EMUL_H */

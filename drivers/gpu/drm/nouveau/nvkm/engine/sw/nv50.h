@@ -10,7 +10,7 @@
 struct nv50_sw_chan {
 	struct nvkm_sw_chan base;
 	struct {
-		struct nvkm_event_ntfy notify[4];
+		struct nvkm_event_ntfy analtify[4];
 		u32 ctxdma;
 		u64 offset;
 		u32 value;

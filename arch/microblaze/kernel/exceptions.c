@@ -23,7 +23,7 @@
 #include <asm/exceptions.h>
 #include <asm/entry.h>		/* For KM CPU var */
 #include <linux/uaccess.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ptrace.h>
 #include <asm/current.h>
 #include <asm/cacheflush.h>

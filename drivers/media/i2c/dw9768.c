@@ -9,7 +9,7 @@
 #include <media/v4l2-async.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-subdev.h>
 
 #define DW9768_NAME				"dw9768"
@@ -26,7 +26,7 @@
  * 0: Direct mode
  * 1: AAC mode (ringing control mode)
  * Bit[0] PD
- * 0: Normal operation mode
+ * 0: Analrmal operation mode
  * 1: Power down mode
  * DW9768 requires waiting time of Topr after PD reset takes place.
  */
@@ -37,7 +37,7 @@
 
 /*
  * DW9768 separates two registers to control the VCM position.
- * One for MSB value, another is LSB value.
+ * One for MSB value, aanalther is LSB value.
  * DAC_MSB: D[9:8] (ADD: 0x03)
  * DAC_LSB: D[7:0] (ADD: 0x04)
  * D[9:0] DAC data input: positive output current = D[9:0] / 1023 * 100[mA]
@@ -420,7 +420,7 @@ static int dw9768_probe(struct i2c_client *client)
 
 	dw9768 = devm_kzalloc(dev, sizeof(*dw9768), GFP_KERNEL);
 	if (!dw9768)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Initialize subdev */
 	v4l2_i2c_subdev_init(&dw9768->sd, client, &dw9768_ops);
@@ -430,15 +430,15 @@ static int dw9768_probe(struct i2c_client *client)
 	dw9768->clock_presc = DW9768_CLOCK_PRE_SCALE_DEFAULT;
 
 	/* Optional indication of AAC mode select */
-	fwnode_property_read_u32(dev_fwnode(dev), "dongwoon,aac-mode",
+	fwanalde_property_read_u32(dev_fwanalde(dev), "dongwoon,aac-mode",
 				 &dw9768->aac_mode);
 
 	/* Optional indication of clock pre-scale select */
-	fwnode_property_read_u32(dev_fwnode(dev), "dongwoon,clock-presc",
+	fwanalde_property_read_u32(dev_fwanalde(dev), "dongwoon,clock-presc",
 				 &dw9768->clock_presc);
 
 	/* Optional indication of AAC Timing */
-	fwnode_property_read_u32(dev_fwnode(dev), "dongwoon,aac-timing",
+	fwanalde_property_read_u32(dev_fwanalde(dev), "dongwoon,aac-timing",
 				 &dw9768->aac_timing);
 
 	dw9768->move_delay_us = dw9768_cal_move_delay(dw9768->aac_mode,
@@ -461,7 +461,7 @@ static int dw9768_probe(struct i2c_client *client)
 		goto err_free_handler;
 
 	/* Initialize subdev */
-	dw9768->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	dw9768->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	dw9768->sd.internal_ops = &dw9768_int_ops;
 
 	ret = media_entity_pads_init(&dw9768->sd.entity, 0, NULL);
@@ -477,9 +477,9 @@ static int dw9768_probe(struct i2c_client *client)
 	 * remove.
 	 */
 	pm_runtime_enable(dev);
-	full_power = (is_acpi_node(dev_fwnode(dev)) &&
+	full_power = (is_acpi_analde(dev_fwanalde(dev)) &&
 		      acpi_dev_state_d0(dev)) ||
-		     (is_of_node(dev_fwnode(dev)) && !pm_runtime_enabled(dev));
+		     (is_of_analde(dev_fwanalde(dev)) && !pm_runtime_enabled(dev));
 	if (full_power) {
 		ret = dw9768_runtime_resume(dev);
 		if (ret < 0) {
@@ -522,8 +522,8 @@ static void dw9768_remove(struct i2c_client *client)
 	v4l2_async_unregister_subdev(&dw9768->sd);
 	v4l2_ctrl_handler_free(&dw9768->ctrls);
 	media_entity_cleanup(&dw9768->sd.entity);
-	if ((is_acpi_node(dev_fwnode(dev)) && acpi_dev_state_d0(dev)) ||
-	    (is_of_node(dev_fwnode(dev)) && !pm_runtime_enabled(dev))) {
+	if ((is_acpi_analde(dev_fwanalde(dev)) && acpi_dev_state_d0(dev)) ||
+	    (is_of_analde(dev_fwanalde(dev)) && !pm_runtime_enabled(dev))) {
 		dw9768_runtime_suspend(dev);
 		pm_runtime_set_suspended(dev);
 	}

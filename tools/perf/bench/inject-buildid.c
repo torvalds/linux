@@ -3,7 +3,7 @@
 #include <stddef.h>
 #include <ftw.h>
 #include <fcntl.h>
-#include <errno.h>
+#include <erranal.h>
 #include <unistd.h>
 #include <pthread.h>
 #include <sys/mman.h>
@@ -46,7 +46,7 @@ struct bench_data {
 struct bench_dso {
 	struct list_head	list;
 	char			*name;
-	int			ino;
+	int			ianal;
 };
 
 static int nr_dsos;
@@ -92,10 +92,10 @@ static int add_dso(const char *fpath, const struct stat *sb __maybe_unused,
 	if (dso->name == NULL)
 		return -1;
 
-	dso->ino = nr_dsos++;
+	dso->ianal = nr_dsos++;
 	pr_debug2("  Adding DSO: %s\n", fpath);
 
-	/* stop if we collected enough DSOs */
+	/* stop if we collected eanalugh DSOs */
 	if ((unsigned int)nr_dsos == DSO_MMAP_RATIO * nr_mmaps)
 		return 1;
 
@@ -131,7 +131,7 @@ static void release_dso(void)
 /* Fake address used by mmap and sample events */
 static u64 dso_map_addr(struct bench_dso *dso)
 {
-	return 0x400000ULL + dso->ino * 8192ULL;
+	return 0x400000ULL + dso->ianal * 8192ULL;
 }
 
 static ssize_t synthesize_attr(struct bench_data *data)
@@ -188,7 +188,7 @@ static ssize_t synthesize_mmap(struct bench_data *data, struct bench_dso *dso, u
 	event.mmap2.pid = data->pid;
 	event.mmap2.tid = data->pid;
 	event.mmap2.maj = MMAP_DEV_MAJOR;
-	event.mmap2.ino = dso->ino;
+	event.mmap2.ianal = dso->ianal;
 
 	strcpy(event.mmap2.filename, dso->name);
 
@@ -253,7 +253,7 @@ static void *data_reader(void *arg)
 	int n;
 
 	flag = fcntl(data->output_pipe[0], F_GETFL);
-	fcntl(data->output_pipe[0], F_SETFL, flag | O_NONBLOCK);
+	fcntl(data->output_pipe[0], F_SETFL, flag | O_ANALNBLOCK);
 
 	/* read out data from child */
 	while (true) {
@@ -263,7 +263,7 @@ static void *data_reader(void *arg)
 		if (n == 0)
 			break;
 
-		if (errno != EINTR && errno != EAGAIN)
+		if (erranal != EINTR && erranal != EAGAIN)
 			break;
 
 		usleep(100);
@@ -300,16 +300,16 @@ static int setup_injection(struct bench_data *data, bool build_id_all)
 		close(data->output_pipe[0]);
 		close(ready_pipe[0]);
 
-		dup2(data->input_pipe[0], STDIN_FILENO);
+		dup2(data->input_pipe[0], STDIN_FILEANAL);
 		close(data->input_pipe[0]);
-		dup2(data->output_pipe[1], STDOUT_FILENO);
+		dup2(data->output_pipe[1], STDOUT_FILEANAL);
 		close(data->output_pipe[1]);
 
 		dev_null_fd = open("/dev/null", O_WRONLY);
 		if (dev_null_fd < 0)
 			exit(1);
 
-		dup2(dev_null_fd, STDERR_FILENO);
+		dup2(dev_null_fd, STDERR_FILEANAL);
 
 		if (build_id_all)
 			inject_argc++;
@@ -459,7 +459,7 @@ static int do_inject_loops(struct bench_data *data)
 
 	collect_dso();
 	if (nr_dsos == 0) {
-		printf("  Cannot collect DSOs for injection\n");
+		printf("  Cananalt collect DSOs for injection\n");
 		return -1;
 	}
 

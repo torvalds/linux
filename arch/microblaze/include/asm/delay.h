@@ -2,7 +2,7 @@
 /*
  * Copyright (C) 2008 Michal Simek
  * Copyright (C) 2007 John Williams
- * Copyright (C) 2006 Atmark Techno, Inc.
+ * Copyright (C) 2006 Atmark Techanal, Inc.
  */
 
 #ifndef _ASM_MICROBLAZE_DELAY_H
@@ -15,13 +15,13 @@ static inline void __delay(unsigned long loops)
 	asm volatile ("# __delay		\n\t"		\
 			"1: addi	%0, %0, -1\t\n"		\
 			"bneid	%0, 1b		\t\n"		\
-			"nop			\t\n"
+			"analp			\t\n"
 			: "=r" (loops)
 			: "0" (loops));
 }
 
 /*
- * Note that 19 * 226 == 4294 ==~ 2^32 / 10^6, so
+ * Analte that 19 * 226 == 4294 ==~ 2^32 / 10^6, so
  * loops = (4294 * usecs * loops_per_jiffy * HZ) / 2^32.
  *
  * The mul instruction gives us loops = (a * b) / 2^32.

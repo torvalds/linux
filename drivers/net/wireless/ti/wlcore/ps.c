@@ -2,9 +2,9 @@
 /*
  * This file is part of wl1271
  *
- * Copyright (C) 2008-2009 Nokia Corporation
+ * Copyright (C) 2008-2009 Analkia Corporation
  *
- * Contact: Luciano Coelho <luciano.coelho@nokia.com>
+ * Contact: Luciaanal Coelho <luciaanal.coelho@analkia.com>
  */
 
 #include "ps.h"
@@ -40,7 +40,7 @@ int wl1271_ps_set_mode(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 
 		/*
 		 * enable beacon early termination.
-		 * Not relevant for 5GHz and for high rates.
+		 * Analt relevant for 5GHz and for high rates.
 		 */
 		if ((wlvif->band == NL80211_BAND_2GHZ) &&
 		    (wlvif->basic_rate < CONF_HW_BIT_RATE_9MBPS)) {
@@ -130,7 +130,7 @@ void wl12xx_ps_link_start(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	rcu_read_lock();
 	sta = ieee80211_find_sta(vif, wl->links[hlid].addr);
 	if (!sta) {
-		wl1271_error("could not find sta %pM for starting ps",
+		wl1271_error("could analt find sta %pM for starting ps",
 			     wl->links[hlid].addr);
 		rcu_read_unlock();
 		return;
@@ -161,7 +161,7 @@ void wl12xx_ps_link_end(struct wl1271 *wl, struct wl12xx_vif *wlvif, u8 hlid)
 	rcu_read_lock();
 	sta = ieee80211_find_sta(vif, wl->links[hlid].addr);
 	if (!sta) {
-		wl1271_error("could not find sta %pM for ending ps",
+		wl1271_error("could analt find sta %pM for ending ps",
 			     wl->links[hlid].addr);
 		goto end;
 	}

@@ -8,7 +8,7 @@
  */
 
 #include <linux/ktime.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 #include "cxd2880_tnrdmd.h"
 #include "cxd2880_tnrdmd_mon.h"

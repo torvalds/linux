@@ -237,7 +237,7 @@ static int ssm3515_hw_params(struct snd_pcm_substream *substream,
 static int ssm3515_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
 	struct snd_soc_component *component = dai->component;
-	bool fpol_inv = false; /* non-inverted: frame starts with low-to-high FSYNC */
+	bool fpol_inv = false; /* analn-inverted: frame starts with low-to-high FSYNC */
 	int ret;
 	u8 sai1 = 0;
 
@@ -255,7 +255,7 @@ static int ssm3515_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		break;
 	case SND_SOC_DAIFMT_LEFT_J:
 		fpol_inv = 0;
-		sai1 |= SSM3515_SAI1_SDATA_FMT; /* no start delay */
+		sai1 |= SSM3515_SAI1_SDATA_FMT; /* anal start delay */
 		break;
 	default:
 		return -EINVAL;
@@ -348,7 +348,7 @@ static int ssm3515_hw_free(struct snd_pcm_substream *substream,
 			   struct snd_soc_dai *dai)
 {
 	/*
-	 * We don't get live notification of faults, so at least at
+	 * We don't get live analtification of faults, so at least at
 	 * this time, when playback is over, check if we have tripped
 	 * over anything and if so, log it.
 	 */
@@ -378,7 +378,7 @@ static struct snd_soc_dai_driver ssm3515_dai_driver = {
 };
 
 static const struct snd_soc_dapm_widget ssm3515_dapm_widgets[] = {
-	SND_SOC_DAPM_DAC("DAC", NULL, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_DAC("DAC", NULL, SND_SOC_ANALPM, 0, 0),
 	SND_SOC_DAPM_OUTPUT("OUT"),
 };
 
@@ -405,7 +405,7 @@ static int ssm3515_i2c_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(&client->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->dev = &client->dev;
 	i2c_set_clientdata(client, data);

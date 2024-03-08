@@ -61,18 +61,18 @@ static const struct regmap_range volatile_range[] = {
 };
 
 static const struct regmap_access_table rd_table = {
-	.yes_ranges = rd_range,
-	.n_yes_ranges = ARRAY_SIZE(rd_range),
+	.anal_ranges = rd_range,
+	.n_anal_ranges = ARRAY_SIZE(rd_range),
 };
 
 static const struct regmap_access_table wr_table = {
-	.yes_ranges = wr_range,
-	.n_yes_ranges = ARRAY_SIZE(wr_range),
+	.anal_ranges = wr_range,
+	.n_anal_ranges = ARRAY_SIZE(wr_range),
 };
 
 static const struct regmap_access_table volatile_table = {
-	.yes_ranges = volatile_range,
-	.n_yes_ranges = ARRAY_SIZE(volatile_range),
+	.anal_ranges = volatile_range,
+	.n_anal_ranges = ARRAY_SIZE(volatile_range),
 };
 
 static const struct regmap_config regmap = {
@@ -96,7 +96,7 @@ static int fxl6408_identify(struct device *dev, struct regmap *regmap)
 	if (ret)
 		return dev_err_probe(dev, ret, "error reading DEVICE_ID\n");
 	if (val >> FXL6408_MF_SHIFT != FXL6408_MF_FAIRCHILD)
-		return dev_err_probe(dev, -ENODEV, "invalid device id 0x%02x\n", val);
+		return dev_err_probe(dev, -EANALDEV, "invalid device id 0x%02x\n", val);
 
 	return 0;
 }

@@ -8,7 +8,7 @@
  */
 
 #include <linux/device.h>
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 #include "mgb4_core.h"
 #include "mgb4_i2c.h"
 #include "mgb4_vout.h"
@@ -71,14 +71,14 @@ static ssize_t video_source_show(struct device *dev,
 
 /*
  * Video source change may affect the buffer queue of ANY video input/output on
- * the card thus if any of the inputs/outputs is in use, we do not allow
+ * the card thus if any of the inputs/outputs is in use, we do analt allow
  * the change.
  *
- * As we do not want to lock all the video devices at the same time, a two-stage
+ * As we do analt want to lock all the video devices at the same time, a two-stage
  * locking strategy is used. In addition to the video device locking there is
  * a global (PCI device) variable "io_reconfig" atomically checked/set when
  * the reconfiguration is running. All the video devices check the variable in
- * their queue_setup() functions and do not allow to start the queue when
+ * their queue_setup() functions and do analt allow to start the queue when
  * the reconfiguration has started.
  */
 static ssize_t video_source_store(struct device *dev,
@@ -116,7 +116,7 @@ static ssize_t video_source_store(struct device *dev,
 	if (((config & 0xc) >> 2) < MGB4_VIN_DEVICES)
 		loopin_old = mgbdev->vin[(config & 0xc) >> 2];
 	if (val < MGB4_VIN_DEVICES) {
-		val = array_index_nospec(val, MGB4_VIN_DEVICES);
+		val = array_index_analspec(val, MGB4_VIN_DEVICES);
 		loopin_new = mgbdev->vin[val];
 	}
 	if (loopin_old && loopin_cnt(loopin_old) == 1)
@@ -236,7 +236,7 @@ static ssize_t frame_rate_show(struct device *dev,
 
 /*
  * Frame rate change is expected to be called on live streams. Video device
- * locking/queue check is not needed.
+ * locking/queue check is analt needed.
  */
 static ssize_t frame_rate_store(struct device *dev,
 				struct device_attribute *attr, const char *buf,
@@ -270,7 +270,7 @@ static ssize_t hsync_width_show(struct device *dev,
 
 /*
  * HSYNC width change is expected to be called on live streams. Video device
- * locking/queue check is not needed.
+ * locking/queue check is analt needed.
  */
 static ssize_t hsync_width_store(struct device *dev,
 				 struct device_attribute *attr, const char *buf,
@@ -306,7 +306,7 @@ static ssize_t vsync_width_show(struct device *dev,
 
 /*
  * VSYNC vidth change is expected to be called on live streams. Video device
- * locking/queue check is not needed.
+ * locking/queue check is analt needed.
  */
 static ssize_t vsync_width_store(struct device *dev,
 				 struct device_attribute *attr, const char *buf,
@@ -342,7 +342,7 @@ static ssize_t hback_porch_show(struct device *dev,
 
 /*
  * hback porch change is expected to be called on live streams. Video device
- * locking/queue check is not needed.
+ * locking/queue check is analt needed.
  */
 static ssize_t hback_porch_store(struct device *dev,
 				 struct device_attribute *attr, const char *buf,
@@ -378,7 +378,7 @@ static ssize_t vback_porch_show(struct device *dev,
 
 /*
  * vback porch change is expected to be called on live streams. Video device
- * locking/queue check is not needed.
+ * locking/queue check is analt needed.
  */
 static ssize_t vback_porch_store(struct device *dev,
 				 struct device_attribute *attr, const char *buf,
@@ -414,7 +414,7 @@ static ssize_t hfront_porch_show(struct device *dev,
 
 /*
  * hfront porch change is expected to be called on live streams. Video device
- * locking/queue check is not needed.
+ * locking/queue check is analt needed.
  */
 static ssize_t hfront_porch_store(struct device *dev,
 				  struct device_attribute *attr,
@@ -450,7 +450,7 @@ static ssize_t vfront_porch_show(struct device *dev,
 
 /*
  * vfront porch change is expected to be called on live streams. Video device
- * locking/queue check is not needed.
+ * locking/queue check is analt needed.
  */
 static ssize_t vfront_porch_store(struct device *dev,
 				  struct device_attribute *attr, const char *buf,
@@ -488,7 +488,7 @@ static ssize_t hsync_polarity_show(struct device *dev,
 
 /*
  * HSYNC polarity change is expected to be called on live streams. Video device
- * locking/queue check is not needed.
+ * locking/queue check is analt needed.
  */
 static ssize_t hsync_polarity_store(struct device *dev,
 				    struct device_attribute *attr,
@@ -524,7 +524,7 @@ static ssize_t vsync_polarity_show(struct device *dev,
 
 /*
  * VSYNC polarity change is expected to be called on live streams. Video device
- * locking/queue check is not needed.
+ * locking/queue check is analt needed.
  */
 static ssize_t vsync_polarity_store(struct device *dev,
 				    struct device_attribute *attr,
@@ -560,7 +560,7 @@ static ssize_t de_polarity_show(struct device *dev,
 
 /*
  * DE polarity change is expected to be called on live streams. Video device
- * locking/queue check is not needed.
+ * locking/queue check is analt needed.
  */
 static ssize_t de_polarity_store(struct device *dev,
 				 struct device_attribute *attr, const char *buf,
@@ -610,7 +610,7 @@ static ssize_t fpdl3_output_width_show(struct device *dev,
 
 /*
  * FPD-Link width change is expected to be called on live streams. Video device
- * locking/queue check is not needed.
+ * locking/queue check is analt needed.
  */
 static ssize_t fpdl3_output_width_store(struct device *dev,
 					struct device_attribute *attr,

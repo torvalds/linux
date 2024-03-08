@@ -52,7 +52,7 @@ static void host1x_syncpt_base_free(struct host1x_syncpt_base *base)
  * Allocates a hardware syncpoint for the caller's use. The caller then has
  * the sole authority to mutate the syncpoint's value until it is freed again.
  *
- * If no free syncpoints are available, or a NULL name was specified, returns
+ * If anal free syncpoints are available, or a NULL name was specified, returns
  * NULL.
  */
 struct host1x_syncpt *host1x_syncpt_alloc(struct host1x *host,
@@ -286,12 +286,12 @@ int host1x_syncpt_init(struct host1x *host)
 	syncpt = devm_kcalloc(host->dev, host->info->nb_pts, sizeof(*syncpt),
 			      GFP_KERNEL);
 	if (!syncpt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bases = devm_kcalloc(host->dev, host->info->nb_bases, sizeof(*bases),
 			     GFP_KERNEL);
 	if (!bases)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < host->info->nb_pts; i++) {
 		syncpt[i].id = i;
@@ -306,9 +306,9 @@ int host1x_syncpt_init(struct host1x *host)
 	host->bases = bases;
 
 	/* Allocate sync point to use for clearing waits for expired fences */
-	host->nop_sp = host1x_syncpt_alloc(host, 0, "reserved-nop");
-	if (!host->nop_sp)
-		return -ENOMEM;
+	host->analp_sp = host1x_syncpt_alloc(host, 0, "reserved-analp");
+	if (!host->analp_sp)
+		return -EANALMEM;
 
 	if (host->info->reserve_vblank_syncpts) {
 		kref_init(&host->syncpt[26].ref);
@@ -325,7 +325,7 @@ int host1x_syncpt_init(struct host1x *host)
  *
  * host1x client drivers can use this function to allocate a syncpoint for
  * subsequent use. A syncpoint returned by this function will be reserved for
- * use by the client exclusively. When no longer using a syncpoint, a host1x
+ * use by the client exclusively. When anal longer using a syncpoint, a host1x
  * client driver needs to release it using host1x_syncpt_put().
  */
 struct host1x_syncpt *host1x_syncpt_request(struct host1x_client *client,
@@ -361,7 +361,7 @@ static void syncpt_release(struct kref *ref)
  * @sp: host1x syncpoint
  *
  * Release a syncpoint previously allocated using host1x_syncpt_request(). A
- * host1x client driver should call this when the syncpoint is no longer in
+ * host1x client driver should call this when the syncpoint is anal longer in
  * use.
  */
 void host1x_syncpt_put(struct host1x_syncpt *sp)
@@ -456,12 +456,12 @@ struct host1x_syncpt *host1x_syncpt_get_by_id(struct host1x *host,
 EXPORT_SYMBOL(host1x_syncpt_get_by_id);
 
 /**
- * host1x_syncpt_get_by_id_noref() - obtain a syncpoint by ID but don't
+ * host1x_syncpt_get_by_id_analref() - obtain a syncpoint by ID but don't
  * 	increase the refcount.
  * @host: host1x controller
  * @id: syncpoint ID
  */
-struct host1x_syncpt *host1x_syncpt_get_by_id_noref(struct host1x *host,
+struct host1x_syncpt *host1x_syncpt_get_by_id_analref(struct host1x *host,
 						    unsigned int id)
 {
 	if (id >= host->info->nb_pts)
@@ -469,7 +469,7 @@ struct host1x_syncpt *host1x_syncpt_get_by_id_noref(struct host1x *host,
 
 	return &host->syncpt[id];
 }
-EXPORT_SYMBOL(host1x_syncpt_get_by_id_noref);
+EXPORT_SYMBOL(host1x_syncpt_get_by_id_analref);
 
 /**
  * host1x_syncpt_get() - increment syncpoint refcount
@@ -503,7 +503,7 @@ u32 host1x_syncpt_base_id(struct host1x_syncpt_base *base)
 }
 EXPORT_SYMBOL(host1x_syncpt_base_id);
 
-static void do_nothing(struct kref *ref)
+static void do_analthing(struct kref *ref)
 {
 }
 
@@ -527,6 +527,6 @@ void host1x_syncpt_release_vblank_reservation(struct host1x_client *client,
 	if (!host->info->reserve_vblank_syncpts)
 		return;
 
-	kref_put(&host->syncpt[syncpt_id].ref, do_nothing);
+	kref_put(&host->syncpt[syncpt_id].ref, do_analthing);
 }
 EXPORT_SYMBOL(host1x_syncpt_release_vblank_reservation);

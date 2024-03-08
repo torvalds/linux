@@ -11,7 +11,7 @@ extern int mips_fpu_disabled;
 
 int __cpu_has_fpu(void);
 void cpu_set_fpu_opts(struct cpuinfo_mips *c);
-void cpu_set_nofpu_opts(struct cpuinfo_mips *c);
+void cpu_set_analfpu_opts(struct cpuinfo_mips *c);
 
 #else /* !CONFIG_MIPS_FP_SUPPORT */
 
@@ -19,7 +19,7 @@ void cpu_set_nofpu_opts(struct cpuinfo_mips *c);
 
 static inline unsigned long cpu_get_fpu_id(void)
 {
-	return FPIR_IMP_NONE;
+	return FPIR_IMP_ANALNE;
 }
 
 static inline int __cpu_has_fpu(void)
@@ -29,12 +29,12 @@ static inline int __cpu_has_fpu(void)
 
 static inline void cpu_set_fpu_opts(struct cpuinfo_mips *c)
 {
-	/* no-op */
+	/* anal-op */
 }
 
-static inline void cpu_set_nofpu_opts(struct cpuinfo_mips *c)
+static inline void cpu_set_analfpu_opts(struct cpuinfo_mips *c)
 {
-	/* no-op */
+	/* anal-op */
 }
 
 #endif /* CONFIG_MIPS_FP_SUPPORT */

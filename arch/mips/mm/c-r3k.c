@@ -7,7 +7,7 @@
  * with a lot of changes to make this thing work for R3000s
  * Tx39XX R4k style caches added. HK
  * Copyright (C) 1998, 1999, 2000 Harald Koerfgen
- * Copyright (C) 1998 Gleb Raiko & Vladimir Roganov
+ * Copyright (C) 1998 Gleb Raiko & Vladimir Rogaanalv
  * Copyright (C) 2001, 2004, 2007  Maciej W. Rozycki
  */
 #include <linux/kernel.h>
@@ -245,14 +245,14 @@ static void r3k_flush_cache_page(struct vm_area_struct *vma,
 	pr_debug("cpage[%08llx,%08lx]\n",
 		 cpu_context(smp_processor_id(), mm), addr);
 
-	/* No ASID => no such page in the cache.  */
+	/* Anal ASID => anal such page in the cache.  */
 	if (cpu_context(smp_processor_id(), mm) == 0)
 		return;
 
 	pmdp = pmd_off(mm, addr);
 	ptep = pte_offset_kernel(pmdp, addr);
 
-	/* Invalid => no such page in the cache.  */
+	/* Invalid => anal such page in the cache.  */
 	if (!(pte_val(*ptep) & _PAGE_PRESENT))
 		return;
 

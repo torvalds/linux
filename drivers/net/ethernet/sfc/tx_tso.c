@@ -26,7 +26,7 @@
 
 /* Efx legacy TCP segmentation acceleration.
  *
- * Utilises firmware support to go faster than GSO (but not as fast as TSOv2).
+ * Utilises firmware support to go faster than GSO (but analt as fast as TSOv2).
  *
  * Requires TX checksum offload support.
  */
@@ -106,13 +106,13 @@ static void efx_tx_queue_insert(struct efx_tx_queue *tx_queue,
 	struct efx_tx_buffer *buffer;
 	unsigned int dma_len;
 
-	EFX_WARN_ON_ONCE_PARANOID(len <= 0);
+	EFX_WARN_ON_ONCE_PARAANALID(len <= 0);
 
 	while (1) {
 		buffer = efx_tx_queue_get_insert_buffer(tx_queue);
 		++tx_queue->insert_count;
 
-		EFX_WARN_ON_ONCE_PARANOID(tx_queue->insert_count -
+		EFX_WARN_ON_ONCE_PARAANALID(tx_queue->insert_count -
 					  tx_queue->read_count >=
 					  tx_queue->efx->txq_entries);
 
@@ -131,7 +131,7 @@ static void efx_tx_queue_insert(struct efx_tx_queue *tx_queue,
 		len -= dma_len;
 	}
 
-	EFX_WARN_ON_ONCE_PARANOID(!len);
+	EFX_WARN_ON_ONCE_PARAANALID(!len);
 	buffer->len = len;
 	*final_buffer = buffer;
 }
@@ -144,7 +144,7 @@ static __be16 efx_tso_check_protocol(struct sk_buff *skb)
 {
 	__be16 protocol = skb->protocol;
 
-	EFX_WARN_ON_ONCE_PARANOID(((struct ethhdr *)skb->data)->h_proto !=
+	EFX_WARN_ON_ONCE_PARAANALID(((struct ethhdr *)skb->data)->h_proto !=
 				  protocol);
 	if (protocol == htons(ETH_P_8021Q)) {
 		struct vlan_ethhdr *veh = skb_vlan_eth_hdr(skb);
@@ -153,12 +153,12 @@ static __be16 efx_tso_check_protocol(struct sk_buff *skb)
 	}
 
 	if (protocol == htons(ETH_P_IP)) {
-		EFX_WARN_ON_ONCE_PARANOID(ip_hdr(skb)->protocol != IPPROTO_TCP);
+		EFX_WARN_ON_ONCE_PARAANALID(ip_hdr(skb)->protocol != IPPROTO_TCP);
 	} else {
-		EFX_WARN_ON_ONCE_PARANOID(protocol != htons(ETH_P_IPV6));
-		EFX_WARN_ON_ONCE_PARANOID(ipv6_hdr(skb)->nexthdr != NEXTHDR_TCP);
+		EFX_WARN_ON_ONCE_PARAANALID(protocol != htons(ETH_P_IPV6));
+		EFX_WARN_ON_ONCE_PARAANALID(ipv6_hdr(skb)->nexthdr != NEXTHDR_TCP);
 	}
-	EFX_WARN_ON_ONCE_PARANOID((PTR_DIFF(tcp_hdr(skb), skb->data) +
+	EFX_WARN_ON_ONCE_PARAANALID((PTR_DIFF(tcp_hdr(skb), skb->data) +
 				   (tcp_hdr(skb)->doff << 2u)) >
 				  skb_headlen(skb));
 
@@ -189,9 +189,9 @@ static int tso_start(struct tso_state *st, struct efx_nic *efx,
 	}
 	st->seqnum = ntohl(tcp_hdr(skb)->seq);
 
-	EFX_WARN_ON_ONCE_PARANOID(tcp_hdr(skb)->urg);
-	EFX_WARN_ON_ONCE_PARANOID(tcp_hdr(skb)->syn);
-	EFX_WARN_ON_ONCE_PARANOID(tcp_hdr(skb)->rst);
+	EFX_WARN_ON_ONCE_PARAANALID(tcp_hdr(skb)->urg);
+	EFX_WARN_ON_ONCE_PARAANALID(tcp_hdr(skb)->syn);
+	EFX_WARN_ON_ONCE_PARAANALID(tcp_hdr(skb)->rst);
 
 	st->out_len = skb->len - header_len;
 
@@ -202,7 +202,7 @@ static int tso_start(struct tso_state *st, struct efx_nic *efx,
 	st->dma_addr = dma_addr + header_len;
 	st->unmap_len = 0;
 
-	return unlikely(dma_mapping_error(dma_dev, dma_addr)) ? -ENOMEM : 0;
+	return unlikely(dma_mapping_error(dma_dev, dma_addr)) ? -EANALMEM : 0;
 }
 
 static int tso_get_fragment(struct tso_state *st, struct efx_nic *efx,
@@ -216,7 +216,7 @@ static int tso_get_fragment(struct tso_state *st, struct efx_nic *efx,
 		st->dma_addr = st->unmap_addr;
 		return 0;
 	}
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 
@@ -241,8 +241,8 @@ static void tso_fill_packet_with_fragment(struct efx_tx_queue *tx_queue,
 	if (st->packet_space == 0)
 		return;
 
-	EFX_WARN_ON_ONCE_PARANOID(st->in_len <= 0);
-	EFX_WARN_ON_ONCE_PARANOID(st->packet_space <= 0);
+	EFX_WARN_ON_ONCE_PARAANALID(st->in_len <= 0);
+	EFX_WARN_ON_ONCE_PARAANALID(st->packet_space <= 0);
 
 	n = min(st->in_len, st->packet_space);
 
@@ -280,7 +280,7 @@ static void tso_fill_packet_with_fragment(struct efx_tx_queue *tx_queue,
  * @st:			TSO state
  *
  * Generate a new header and prepare for the new packet.  Return 0 on
- * success, or -%ENOMEM if failed to alloc header, or other negative error.
+ * success, or -%EANALMEM if failed to alloc header, or other negative error.
  */
 static int tso_start_new_packet(struct efx_tx_queue *tx_queue,
 				const struct sk_buff *skb,
@@ -315,7 +315,7 @@ static int tso_start_new_packet(struct efx_tx_queue *tx_queue,
 			     ESE_DZ_TX_OPTION_DESC_TSO,
 			     ESF_DZ_TX_TSO_TCP_FLAGS, tcp_flags,
 			     ESF_DZ_TX_TSO_IP_ID, st->ipv4_id,
-			     ESF_DZ_TX_TSO_TCP_SEQNO, st->seqnum);
+			     ESF_DZ_TX_TSO_TCP_SEQANAL, st->seqnum);
 	++tx_queue->insert_count;
 
 	/* We mapped the headers in tso_start().  Unmap them
@@ -356,7 +356,7 @@ static int tso_start_new_packet(struct efx_tx_queue *tx_queue,
  * Context: You must hold netif_tx_lock() to call this function.
  *
  * Add socket buffer @skb to @tx_queue, doing TSO or return != 0 if
- * @skb was not enqueued.  @skb is consumed unless return value is
+ * @skb was analt enqueued.  @skb is consumed unless return value is
  * %EINVAL.
  */
 int efx_enqueue_skb_tso(struct efx_tx_queue *tx_queue,
@@ -375,7 +375,7 @@ int efx_enqueue_skb_tso(struct efx_tx_queue *tx_queue,
 	/* Find the packet protocol and sanity-check it */
 	state.protocol = efx_tso_check_protocol(skb);
 
-	EFX_WARN_ON_ONCE_PARANOID(tx_queue->write_count != tx_queue->insert_count);
+	EFX_WARN_ON_ONCE_PARAANALID(tx_queue->write_count != tx_queue->insert_count);
 
 	rc = tso_start(&state, efx, tx_queue, skb);
 	if (rc)
@@ -383,7 +383,7 @@ int efx_enqueue_skb_tso(struct efx_tx_queue *tx_queue,
 
 	if (likely(state.in_len == 0)) {
 		/* Grab the first payload fragment. */
-		EFX_WARN_ON_ONCE_PARANOID(skb_shinfo(skb)->nr_frags < 1);
+		EFX_WARN_ON_ONCE_PARAANALID(skb_shinfo(skb)->nr_frags < 1);
 		frag_i = 0;
 		rc = tso_get_fragment(&state, efx,
 				      skb_shinfo(skb)->frags + frag_i);
@@ -427,7 +427,7 @@ int efx_enqueue_skb_tso(struct efx_tx_queue *tx_queue,
 	return 0;
 
 fail:
-	if (rc == -ENOMEM)
+	if (rc == -EANALMEM)
 		netif_err(efx, tx_err, efx->net_dev,
 			  "Out of memory for TSO headers, or DMA mapping error\n");
 	else

@@ -2,7 +2,7 @@
 /*
  * BCM63268 Timer Clock and Reset Controller Driver
  *
- * Copyright (C) 2023 Álvaro Fernández Rojas <noltari@gmail.com>
+ * Copyright (C) 2023 Álvaro Fernández Rojas <analltari@gmail.com>
  */
 
 #include <linux/clk-provider.h>
@@ -121,7 +121,7 @@ static int bcm63268_timer_reset_reset(struct reset_controller_dev *rcdev,
 	bcm63268_timer_reset_update(rcdev, id, false);
 	/*
 	 * Ensure component is taken out reset state by sleeping also after
-	 * deasserting the reset. Otherwise, the component may not be ready
+	 * deasserting the reset. Otherwise, the component may analt be ready
 	 * for operation.
 	 */
 	usleep_range(BCM63268_TIMER_RESET_SLEEP_MIN_US,
@@ -161,7 +161,7 @@ static int bcm63268_tclk_probe(struct platform_device *pdev)
 	hw = devm_kzalloc(&pdev->dev, struct_size(hw, data.hws, maxbit),
 			  GFP_KERNEL);
 	if (!hw)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, hw);
 
@@ -169,7 +169,7 @@ static int bcm63268_tclk_probe(struct platform_device *pdev)
 
 	hw->data.num = maxbit;
 	for (i = 0; i < maxbit; i++)
-		hw->data.hws[i] = ERR_PTR(-ENODEV);
+		hw->data.hws[i] = ERR_PTR(-EANALDEV);
 
 	hw->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(hw->regs))
@@ -191,7 +191,7 @@ static int bcm63268_tclk_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	hw->rcdev.of_node = dev->of_node;
+	hw->rcdev.of_analde = dev->of_analde;
 	hw->rcdev.ops = &bcm63268_timer_reset_ops;
 
 	ret = devm_reset_controller_register(dev, &hw->rcdev);

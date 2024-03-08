@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Carsten Langgaard, carstenl@mips.com
- * Copyright (C) 2000 MIPS Technologies, Inc.  All rights reserved.
- * Copyright (C) 2013 Imagination Technologies Ltd.
+ * Copyright (C) 2000 MIPS Techanallogies, Inc.  All rights reserved.
+ * Copyright (C) 2013 Imagination Techanallogies Ltd.
  *
  * Register definitions for Intel PIIX4 South Bridge Device.
  */

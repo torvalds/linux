@@ -16,7 +16,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  * The full GNU General Public License is included in this distribution
  * in the file called LICENSE.GPL.
@@ -31,21 +31,21 @@
  * are met:
  *
  *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
+ *     analtice, this list of conditions and the following disclaimer.
  *   * Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in
+ *     analtice, this list of conditions and the following disclaimer in
  *     the documentation and/or other materials provided with the
  *     distribution.
- *   * Neither the name of Intel Corporation nor the names of its
+ *   * Neither the name of Intel Corporation analr the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -61,7 +61,7 @@
 #include <linux/efi.h>
 #include "isci.h"
 
-#define SCIC_SDS_PARM_NO_SPEED   0
+#define SCIC_SDS_PARM_ANAL_SPEED   0
 
 /* generation 1 (i.e. 1.5 Gb/s) */
 #define SCIC_SDS_PARM_GEN1_SPEED 1
@@ -77,16 +77,16 @@
 struct sci_user_parameters {
 	struct sci_phy_user_params {
 		/**
-		 * This field specifies the NOTIFY (ENABLE SPIN UP) primitive
+		 * This field specifies the ANALTIFY (ENABLE SPIN UP) primitive
 		 * insertion frequency for this phy index.
 		 */
-		u32 notify_enable_spin_up_insertion_frequency;
+		u32 analtify_enable_spin_up_insertion_frequency;
 
 		/**
 		 * This method specifies the number of transmitted DWORDs within which
 		 * to transmit a single ALIGN primitive.  This value applies regardless
 		 * of what type of device is attached or connection state.  A value of
-		 * 0 indicates that no ALIGN primitives will be inserted.
+		 * 0 indicates that anal ALIGN primitives will be inserted.
 		 */
 		u16 align_insertion_frequency;
 
@@ -116,13 +116,13 @@ struct sci_user_parameters {
 
 	/**
 	 * This field specifies the number of seconds to allow a phy to consume
-	 * power before yielding to another phy.
+	 * power before yielding to aanalther phy.
 	 *
 	 */
 	u8 phy_spin_up_delay_interval;
 
 	/**
-	 * These timer values specifies how long a link will remain open with no
+	 * These timer values specifies how long a link will remain open with anal
 	 * activity in increments of a microsecond, it can be in increments of
 	 * 100 microseconds if the upper most bit is set.
 	 *
@@ -139,11 +139,11 @@ struct sci_user_parameters {
 	u16 ssp_max_occupancy_timeout;
 
 	/**
-	 * This timer value specifies how long a link will remain open with no
+	 * This timer value specifies how long a link will remain open with anal
 	 * outbound traffic in increments of a microsecond.
 	 *
 	 */
-	u8 no_outbound_task_timeout;
+	u8 anal_outbound_task_timeout;
 
 };
 
@@ -162,7 +162,7 @@ struct isci_orom *isci_get_efi_var(struct pci_dev *pdev);
 struct isci_oem_hdr {
 	u8 sig[4];
 	u8 rev_major;
-	u8 rev_minor;
+	u8 rev_mianalr;
 	u16 len;
 	u8 checksum;
 	u8 reserved1;
@@ -195,12 +195,12 @@ struct isci_oem_hdr {
 #define ISCI_ROM_VER_LATEST	ISCI_ROM_VER_1_3
 
 /* Allowed PORT configuration modes APC Automatic PORT configuration mode is
- * defined by the OEM configuration parameters providing no PHY_MASK parameters
- * for any PORT. i.e. There are no phys assigned to any of the ports at start.
+ * defined by the OEM configuration parameters providing anal PHY_MASK parameters
+ * for any PORT. i.e. There are anal phys assigned to any of the ports at start.
  * MPC Manual PORT configuration mode is defined by the OEM configuration
  * parameters providing a PHY_MASK value for any PORT.  It is assumed that any
- * PORT with no PHY_MASK is an invalid port and not all PHYs must be assigned.
- * A PORT_PHY mask that assigns just a single PHY to a port and no other PHYs
+ * PORT with anal PHY_MASK is an invalid port and analt all PHYs must be assigned.
+ * A PORT_PHY mask that assigns just a single PHY to a port and anal other PHYs
  * being assigned is sufficient to declare manual PORT configuration.
  */
 enum sci_port_configuration_mode {
@@ -226,12 +226,12 @@ struct sci_oem_params {
 		/*
 		 * This bitfield indicates the OEM's desired default Tx
 		 * Spread Spectrum Clocking (SSC) settings for SATA and SAS.
-		 * NOTE: Default SSC Modulation Frequency is 31.5KHz.
+		 * ANALTE: Default SSC Modulation Frequency is 31.5KHz.
 		 */
 		union {
 			struct {
 			/*
-			 * NOTE: Max spread for SATA is +0 / -5000 PPM.
+			 * ANALTE: Max spread for SATA is +0 / -5000 PPM.
 			 * Down-spreading SSC (only method allowed for SATA):
 			 *  SATA SSC Tx Disabled                    = 0x0
 			 *  SATA SSC Tx at +0 / -1419 PPM Spread    = 0x2
@@ -243,13 +243,13 @@ struct sci_oem_params {
 			/*
 			 * SAS SSC Tx Disabled                     = 0x0
 			 *
-			 * NOTE: Max spread for SAS down-spreading +0 /
+			 * ANALTE: Max spread for SAS down-spreading +0 /
 			 *	 -2300 PPM
 			 * Down-spreading SSC:
 			 *  SAS SSC Tx at +0 / -1419 PPM Spread     = 0x2
 			 *  SAS SSC Tx at +0 / -2129 PPM Spread     = 0x3
 			 *
-			 * NOTE: Max spread for SAS center-spreading +2300 /
+			 * ANALTE: Max spread for SAS center-spreading +2300 /
 			 *	 -2300 PPM
 			 * Center-spreading SSC:
 			 *  SAS SSC Tx at +1064 / -1064 PPM Spread  = 0x3
@@ -257,7 +257,7 @@ struct sci_oem_params {
 			 */
 				uint8_t ssc_sas_tx_spread_level:3;
 			/*
-			 * NOTE: Refer to the SSC section of the SAS 2.x
+			 * ANALTE: Refer to the SSC section of the SAS 2.x
 			 * Specification for proper setting of this field.
 			 * For standard SAS Initiator SAS PHY operation it
 			 * should be 0 for Down-spreading.

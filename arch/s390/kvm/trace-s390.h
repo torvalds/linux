@@ -12,7 +12,7 @@
 
 /*
  * The TRACE_SYSTEM_VAR defaults to TRACE_SYSTEM, but must be a
- * legitimate C variable. It is not exported to user space.
+ * legitimate C variable. It is analt exported to user space.
  */
 #undef TRACE_SYSTEM_VAR
 #define TRACE_SYSTEM_VAR kvm_s390
@@ -305,11 +305,11 @@ TRACE_EVENT(kvm_s390_modify_ais_mode,
 		      (__entry->from == KVM_S390_AIS_MODE_ALL) ?
 		      "ALL-Interruptions Mode" :
 		      (__entry->from == KVM_S390_AIS_MODE_SINGLE) ?
-		      "Single-Interruption Mode" : "No-Interruptions Mode",
+		      "Single-Interruption Mode" : "Anal-Interruptions Mode",
 		      (__entry->to == KVM_S390_AIS_MODE_ALL) ?
 		      "ALL-Interruptions Mode" :
 		      (__entry->to == KVM_S390_AIS_MODE_SINGLE) ?
-		      "Single-Interruption Mode" : "No-Interruptions Mode")
+		      "Single-Interruption Mode" : "Anal-Interruptions Mode")
 	);
 
 /*
@@ -334,9 +334,9 @@ TRACE_EVENT(kvm_s390_airq_suppressed,
 	);
 
 /*
- * Trace point for gmap notifier calls.
+ * Trace point for gmap analtifier calls.
  */
-TRACE_EVENT(kvm_s390_gmap_notifier,
+TRACE_EVENT(kvm_s390_gmap_analtifier,
 	    TP_PROTO(unsigned long start, unsigned long end, unsigned int shadow),
 	    TP_ARGS(start, end, shadow),
 
@@ -352,7 +352,7 @@ TRACE_EVENT(kvm_s390_gmap_notifier,
 		    __entry->shadow = shadow;
 		    ),
 
-	    TP_printk("gmap notified (start:0x%lx end:0x%lx shadow:%d)",
+	    TP_printk("gmap analtified (start:0x%lx end:0x%lx shadow:%d)",
 		      __entry->start, __entry->end, __entry->shadow)
 	);
 

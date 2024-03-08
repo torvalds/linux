@@ -2,7 +2,7 @@
 /*
  * kexec.h for kexec
  *
- * Copyright (C) 2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2022 Loongson Techanallogy Corporation Limited
  */
 
 #ifndef _ASM_KEXEC_H

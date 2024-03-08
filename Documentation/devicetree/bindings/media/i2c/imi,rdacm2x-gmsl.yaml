@@ -24,7 +24,7 @@ description: -|
 
   The RDACM21 camera module encloses the same serializer, coupled with an
   OV10640 image sensor and an OV490 ISP. Only the OV490 ISP is interfaced to
-  the serializer local I2C bus while the image sensor is not accessible from
+  the serializer local I2C bus while the image sensor is analt accessible from
   the host SoC.
 
   They both connect to a remote GMSL endpoint through a coaxial cable.
@@ -49,13 +49,13 @@ description: -|
   receive and transmit I2C messages encapsulated and transmitted on the GMSL
   bidirectional control channel.
 
-  All I2C traffic received on the GMSL link not directed to the serializer is
+  All I2C traffic received on the GMSL link analt directed to the serializer is
   propagated on the local I2C bus to the remote device there connected. All the
-  I2C traffic generated on the local I2C bus not directed to the serializer is
+  I2C traffic generated on the local I2C bus analt directed to the serializer is
   propagated to the remote de-serializer encapsulated in the GMSL control
   channel.
 
-  The RDACM20 and RDACM21 DT node should be a direct child of the GMSL
+  The RDACM20 and RDACM21 DT analde should be a direct child of the GMSL
   deserializer's I2C bus corresponding to the GMSL link that the camera is
   attached to.
 
@@ -80,7 +80,7 @@ properties:
       OV10635 image sensor and the optional third one to the embedded MCU.
 
       For RDACM21 the second entry is assigned to the OV490 ISP and the optional
-      third one ignored.
+      third one iganalred.
 
     minItems: 2
     maxItems: 3

@@ -21,7 +21,7 @@ static int		sched_tgid_ref;
 static DEFINE_MUTEX(sched_register_mutex);
 
 static void
-probe_sched_switch(void *ignore, bool preempt,
+probe_sched_switch(void *iganalre, bool preempt,
 		   struct task_struct *prev, struct task_struct *next,
 		   unsigned int prev_state)
 {
@@ -36,7 +36,7 @@ probe_sched_switch(void *ignore, bool preempt,
 }
 
 static void
-probe_sched_wakeup(void *ignore, struct task_struct *wakee)
+probe_sched_wakeup(void *iganalre, struct task_struct *wakee)
 {
 	int flags;
 

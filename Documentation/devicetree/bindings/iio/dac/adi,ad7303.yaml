@@ -18,10 +18,10 @@ properties:
 
   Vdd-supply:
     description:
-      Used to calculate output channel scalling if REF-supply not specified.
+      Used to calculate output channel scalling if REF-supply analt specified.
   REF-supply:
     description:
-      If not provided, Vdd/2 is used as the reference voltage.
+      If analt provided, Vdd/2 is used as the reference voltage.
 
   spi-max-frequency:
     maximum: 30000000

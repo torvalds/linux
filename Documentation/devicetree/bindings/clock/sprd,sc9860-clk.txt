@@ -24,7 +24,7 @@ Required properties:
 
 - clocks : Should be the input parent clock(s) phandle for the clock, this
 	   property here just simply shows which clock group the clocks'
-	   parents are in, since each clk node would represent many clocks
+	   parents are in, since each clk analde would represent many clocks
 	   which are defined in the driver.  The detailed dependency
 	   relationship (i.e. how many parents and which are the parents)
 	   are implemented in driver code.
@@ -32,7 +32,7 @@ Required properties:
 Optional properties:
 
 - reg:	Contain the registers base address and length. It must be configured
-	only if no 'sprd,syscon' under the node.
+	only if anal 'sprd,syscon' under the analde.
 
 - sprd,syscon: phandle to the syscon which is in the same address area with
 	       the clock, and so we can get regmap for the clocks from the

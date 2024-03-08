@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/delay.h>
@@ -20,7 +20,7 @@
 /*
  * Control Registers.   IOBASE + $x
  *
- * Note: these are the Memory/IO BASE definitions for a mono card set to the
+ * Analte: these are the Memory/IO BASE definitions for a moanal card set to the
  * alternate address
  *
  * Control 3A and 3B serve identical functions except that 3A
@@ -32,7 +32,7 @@
 #define AP_WRITE_ENABLE isaIO2mem(AP_IOBASE+0)	/* Write Enable Register Write */
 #define AP_DEVICE_ID    isaIO2mem(AP_IOBASE+1)	/* Device ID Register. Read */
 #define AP_ROP_1        isaIO2mem(AP_IOBASE+2)	/* Raster Operation reg. Write Word */
-#define AP_DIAG_MEM_REQ isaIO2mem(AP_IOBASE+4)	/* Diagnostic Memory Request. Write Word */
+#define AP_DIAG_MEM_REQ isaIO2mem(AP_IOBASE+4)	/* Diaganalstic Memory Request. Write Word */
 #define AP_CONTROL_0    isaIO2mem(AP_IOBASE+8)	/* Control Register 0.  Read/Write */
 #define AP_CONTROL_1    isaIO2mem(AP_IOBASE+0xa)	/* Control Register 1.  Read/Write */
 #define AP_CONTROL_3A   isaIO2mem(AP_IOBASE+0xe)	/* Control Register 3a. Read/Write */
@@ -45,13 +45,13 @@
 /* CREG 0 */
 #define VECTOR_MODE 0x40	/* 010x.xxxx */
 #define DBLT_MODE   0x80	/* 100x.xxxx */
-#define NORMAL_MODE 0xE0	/* 111x.xxxx */
+#define ANALRMAL_MODE 0xE0	/* 111x.xxxx */
 #define SHIFT_BITS  0x1F	/* xxx1.1111 */
 	/* other bits are Shift value */
 
 /* CREG 1 */
 #define AD_BLT      0x80	/* 1xxx.xxxx */
-#define NORMAL      0x80 /* 1xxx.xxxx */	/* What is happening here ?? */
+#define ANALRMAL      0x80 /* 1xxx.xxxx */	/* What is happening here ?? */
 #define INVERSE     0x00 /* 0xxx.xxxx */	/* Clearing this reverses the screen */
 #define PIX_BLT     0x00	/* 0xxx.xxxx */
 
@@ -65,7 +65,7 @@
 #define BLANK_DISP      0x00	/* xxxx.xxx0 */
 #define ENAB_DISP       0x01	/* xxxx.xxx1 */
 
-#define NORM_CREG1      (nRESET_SYNC | SYNC_ENAB | ENAB_DISP)	/* no reset sync */
+#define ANALRM_CREG1      (nRESET_SYNC | SYNC_ENAB | ENAB_DISP)	/* anal reset sync */
 
 /* CREG 2 */
 
@@ -75,14 +75,14 @@
 
 #define S_DATA_1s   0x00 /* 00xx.xxxx */	/* set source to all 1's -- vector drawing */
 #define S_DATA_PIX  0x40 /* 01xx.xxxx */	/* takes source from ls-bits and replicates over 16 bits */
-#define S_DATA_PLN  0xC0 /* 11xx.xxxx */	/* normal, each data access =16-bits in
+#define S_DATA_PLN  0xC0 /* 11xx.xxxx */	/* analrmal, each data access =16-bits in
 						   one plane of image mem */
 
 /* CREG 3A/CREG 3B */
 #       define RESET_CREG 0x80	/* 1000.0000 */
 
 /* ROP REG  -  all one nibble */
-/*      ********* NOTE : this is used r0,r1,r2,r3 *********** */
+/*      ********* ANALTE : this is used r0,r1,r2,r3 *********** */
 #define ROP(r2,r3,r0,r1) ( (U_SHORT)((r0)|((r1)<<4)|((r2)<<8)|((r3)<<12)) )
 #define DEST_ZERO               0x0
 #define SRC_AND_DEST    0x1
@@ -92,8 +92,8 @@
 #define DEST                    0x5
 #define SRC_XOR_DEST    0x6
 #define SRC_OR_DEST             0x7
-#define SRC_NOR_DEST    0x8
-#define SRC_XNOR_DEST   0x9
+#define SRC_ANALR_DEST    0x8
+#define SRC_XANALR_DEST   0x9
 #define nDEST                   0xA
 #define SRC_OR_nDEST    0xB
 #define nSRC                    0xC
@@ -126,15 +126,15 @@ static const struct fb_var_screeninfo dnfb_var = {
 	.bits_per_pixel	= 1,
 	.height		= -1,
 	.width		= -1,
-	.vmode		= FB_VMODE_NONINTERLACED,
+	.vmode		= FB_VMODE_ANALNINTERLACED,
 };
 
 static const struct fb_fix_screeninfo dnfb_fix = {
-	.id		= "Apollo Mono",
+	.id		= "Apollo Moanal",
 	.smem_start	= (FRAME_BUFFER_START + IO_BASE),
 	.smem_len	= FRAME_BUFFER_LEN,
 	.type		= FB_TYPE_PACKED_PIXELS,
-	.visual		= FB_VISUAL_MONO10,
+	.visual		= FB_VISUAL_MOANAL10,
 	.line_length	= 256,
 };
 
@@ -220,7 +220,7 @@ void dnfb_copyarea(struct fb_info *info, const struct fb_copyarea *area)
 		src += (y_delta / 16);
 		dest += (y_delta / 16);
 	}
-	out_8(AP_CONTROL_0, NORMAL_MODE);
+	out_8(AP_CONTROL_0, ANALRMAL_MODE);
 }
 
 /*
@@ -234,7 +234,7 @@ static int dnfb_probe(struct platform_device *dev)
 
 	info = framebuffer_alloc(0, &dev->dev);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->fbops = &dn_fb_ops;
 	info->fix = dnfb_fix;
@@ -255,11 +255,11 @@ static int dnfb_probe(struct platform_device *dev)
 	}
 	platform_set_drvdata(dev, info);
 
-	/* now we have registered we can safely setup the hardware */
+	/* analw we have registered we can safely setup the hardware */
 	out_8(AP_CONTROL_3A, RESET_CREG);
 	out_be16(AP_WRITE_ENABLE, 0x0);
-	out_8(AP_CONTROL_0, NORMAL_MODE);
-	out_8(AP_CONTROL_1, (AD_BLT | DST_EQ_SRC | NORM_CREG1));
+	out_8(AP_CONTROL_0, ANALRMAL_MODE);
+	out_8(AP_CONTROL_1, (AD_BLT | DST_EQ_SRC | ANALRM_CREG1));
 	out_8(AP_CONTROL_2, S_DATA_PLN);
 	out_be16(AP_ROP_1, SWAP(0x3));
 
@@ -287,10 +287,10 @@ static int __init dnfb_init(void)
 	int ret;
 
 	if (!MACH_IS_APOLLO)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (fb_get_options("dnfb", NULL))
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = platform_driver_register(&dnfb_driver);
 

@@ -2,7 +2,7 @@
 /*
  * Microchip / Atmel ECC (I2C) driver.
  *
- * Copyright (c) 2017, Microchip Technology Inc.
+ * Copyright (c) 2017, Microchip Techanallogy Inc.
  * Author: Tudor Ambarus
  */
 
@@ -11,7 +11,7 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -37,7 +37,7 @@ static const struct {
  * atmel_i2c_checksum() - Generate 16-bit CRC as required by ATMEL ECC.
  * CRC16 verification of the count, opcode, param1, param2 and data bytes.
  * The checksum is saved in little-endian format in the least significant
- * two bytes of the command. CRC polynomial is 0x8005 and the initial register
+ * two bytes of the command. CRC polyanalmial is 0x8005 and the initial register
  * value should be zero.
  *
  * @cmd : structure used for communicating with the device.
@@ -149,14 +149,14 @@ static int atmel_i2c_status(struct device *dev, u8 *status)
 	if (*status != STATUS_SIZE)
 		return 0;
 
-	if (err_id == STATUS_WAKE_SUCCESSFUL || err_id == STATUS_NOERR)
+	if (err_id == STATUS_WAKE_SUCCESSFUL || err_id == STATUS_ANALERR)
 		return 0;
 
 	for (i = 0; i < err_list_len; i++)
 		if (error_list[i].value == err_id)
 			break;
 
-	/* if err_id is not in the error_list then ignore it */
+	/* if err_id is analt in the error_list then iganalre it */
 	if (i != err_list_len) {
 		dev_err(dev, "%02x: %s:\n", err_id, error_list[i].error_text);
 		return err_id;
@@ -172,12 +172,12 @@ static int atmel_i2c_wakeup(struct i2c_client *client)
 	int ret;
 
 	/*
-	 * The device ignores any levels or transitions on the SCL pin when the
+	 * The device iganalres any levels or transitions on the SCL pin when the
 	 * device is idle, asleep or during waking up. Don't check for error
 	 * when waking up the device.
 	 */
 	i2c_transfer_buffer_flags(client, i2c_priv->wake_token,
-				i2c_priv->wake_token_sz, I2C_M_IGNORE_NAK);
+				i2c_priv->wake_token_sz, I2C_M_IGANALRE_NAK);
 
 	/*
 	 * Wait to wake the device. Typical execution times for ecdh and genkey
@@ -210,7 +210,7 @@ static int atmel_i2c_sleep(struct i2c_client *client)
  * regardless of whether some I/O transmission or command execution is in
  * progress. If a command is attempted when insufficient time remains prior to
  * watchdog timer execution, the device will return the watchdog timeout error
- * code without attempting to execute the command. There is no way to reset the
+ * code without attempting to execute the command. There is anal way to reset the
  * counter other than to put the device into sleep or idle mode and then
  * wake it up again.
  */
@@ -286,10 +286,10 @@ EXPORT_SYMBOL(atmel_i2c_flush_queue);
 
 static inline size_t atmel_i2c_wake_token_sz(u32 bus_clk_rate)
 {
-	u32 no_of_bits = DIV_ROUND_UP(TWLO_USEC * bus_clk_rate, USEC_PER_SEC);
+	u32 anal_of_bits = DIV_ROUND_UP(TWLO_USEC * bus_clk_rate, USEC_PER_SEC);
 
 	/* return the size of the wake_token in bytes */
-	return DIV_ROUND_UP(no_of_bits, 8);
+	return DIV_ROUND_UP(anal_of_bits, 8);
 }
 
 static int device_sanity_check(struct i2c_client *client)
@@ -299,7 +299,7 @@ static int device_sanity_check(struct i2c_client *client)
 
 	cmd = kmalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	atmel_i2c_init_read_cmd(cmd);
 
@@ -315,7 +315,7 @@ static int device_sanity_check(struct i2c_client *client)
 	 */
 	if (cmd->data[LOCK_CONFIG_IDX] || cmd->data[LOCK_VALUE_IDX]) {
 		dev_err(&client->dev, "Configuration or Data and OTP zones are unlocked!\n");
-		ret = -ENOTSUPP;
+		ret = -EANALTSUPP;
 	}
 
 	/* fall through */
@@ -332,8 +332,8 @@ int atmel_i2c_probe(struct i2c_client *client)
 	u32 bus_clk_rate;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
-		dev_err(dev, "I2C_FUNC_I2C not supported\n");
-		return -ENODEV;
+		dev_err(dev, "I2C_FUNC_I2C analt supported\n");
+		return -EANALDEV;
 	}
 
 	bus_clk_rate = i2c_acpi_find_bus_speed(&client->adapter->dev);
@@ -354,7 +354,7 @@ int atmel_i2c_probe(struct i2c_client *client)
 
 	i2c_priv = devm_kmalloc(dev, sizeof(*i2c_priv), GFP_KERNEL);
 	if (!i2c_priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_priv->client = client;
 	mutex_init(&i2c_priv->lock);
@@ -379,7 +379,7 @@ EXPORT_SYMBOL(atmel_i2c_probe);
 static int __init atmel_i2c_init(void)
 {
 	atmel_wq = alloc_workqueue("atmel_wq", 0, 0);
-	return atmel_wq ? 0 : -ENOMEM;
+	return atmel_wq ? 0 : -EANALMEM;
 }
 
 static void __exit atmel_i2c_exit(void)

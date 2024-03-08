@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -425,7 +425,7 @@ static bool create_pa_curve(u32 *data_L, u32 *data_U, u32 *pa_table, u16 *gain)
 	unsigned int B1_abs_max, B2_abs_max;
 	int max_index, scale_factor;
 	int y_est[NUM_BIN + 1];
-	int x_est_fxp1_nonlin, x_tilde[NUM_BIN + 1];
+	int x_est_fxp1_analnlin, x_tilde[NUM_BIN + 1];
 	unsigned int x_tilde_abs;
 	int G_fxp, Y_intercept, order_x_by_y, M, I, L, sum_y_sqr, sum_y_quad;
 	int Q_x, Q_B1, Q_B2, beta_raw, alpha_raw, scale_B;
@@ -534,12 +534,12 @@ static bool create_pa_curve(u32 *data_L, u32 *data_U, u32 *pa_table, u16 *gain)
 	if (y_est[max_index] == 0)
 		return false;
 
-	x_est_fxp1_nonlin =
+	x_est_fxp1_analnlin =
 	    x_est[max_index] - ((1 << scale_factor) * y_est[max_index] +
 				G_fxp) / G_fxp;
 
 	order_x_by_y =
-	    (x_est_fxp1_nonlin + y_est[max_index]) / y_est[max_index];
+	    (x_est_fxp1_analnlin + y_est[max_index]) / y_est[max_index];
 
 	if (order_x_by_y == 0)
 		M = 10;
@@ -564,12 +564,12 @@ static bool create_pa_curve(u32 *data_L, u32 *data_U, u32 *pa_table, u16 *gain)
 		if (y_est[i + I] == 0)
 			return false;
 
-		x_est_fxp1_nonlin =
+		x_est_fxp1_analnlin =
 		    x_est[i + I] - ((1 << scale_factor) * y_est[i + I] +
 				    G_fxp) / G_fxp;
 
 		x_tilde[i] =
-		    (x_est_fxp1_nonlin * (1 << M) + y_est[i + I]) / y_est[i +
+		    (x_est_fxp1_analnlin * (1 << M) + y_est[i + I]) / y_est[i +
 									  I];
 		x_tilde[i] =
 		    (x_tilde[i] * (1 << M) + y_est[i + I]) / y_est[i + I];
@@ -927,7 +927,7 @@ int ar9003_paprd_create_curve(struct ath_hw *ah,
 
 	buf = kmalloc_array(2 * 48, sizeof(u32), GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data_L = &buf[0];
 	data_U = &buf[48];
@@ -991,7 +991,7 @@ bool ar9003_paprd_is_done(struct ath_hw *ah)
 			"AGC2_PWR = 0x%x training done = 0x%x\n",
 			agc2_pwr, paprd_done);
 	/*
-	 * agc2_pwr range should not be less than 'IDEAL_AGC2_PWR_CHANGE'
+	 * agc2_pwr range should analt be less than 'IDEAL_AGC2_PWR_CHANGE'
 	 * when the training is completely done, otherwise retraining is
 	 * done to make sure the value is in ideal range
 	 */

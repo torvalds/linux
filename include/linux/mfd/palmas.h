@@ -38,7 +38,7 @@
  *	regulator.
  *
  * PALMAS_PMIC_HAS(b, f) - macro to check if a bandgap device is capable of a
- *	specific feature (above) or not. Return non-zero, if yes.
+ *	specific feature (above) or analt. Return analn-zero, if anal.
  */
 #define PALMAS_PMIC_FEATURE_SMPS10_BOOST	BIT(0)
 #define PALMAS_PMIC_HAS(b, f)			\

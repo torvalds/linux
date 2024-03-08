@@ -10,12 +10,12 @@ Style & formatting
 ------------------
 
 The code should be formatted using ``rustfmt``. In this way, a person
-contributing from time to time to the kernel does not need to learn and
+contributing from time to time to the kernel does analt need to learn and
 remember one more style guide. More importantly, reviewers and maintainers
-do not need to spend time pointing out style issues anymore, and thus
+do analt need to spend time pointing out style issues anymore, and thus
 less patch roundtrips may be needed to land a change.
 
-.. note:: Conventions on comments and documentation are not checked by
+.. analte:: Conventions on comments and documentation are analt checked by
   ``rustfmt``. Thus those are still needed to be taken care of.
 
 The default settings of ``rustfmt`` are used. This means the idiomatic Rust
@@ -35,22 +35,22 @@ otherwise), for instance for a CI, with::
 	make LLVM=1 rustfmtcheck
 
 Like ``clang-format`` for the rest of the kernel, ``rustfmt`` works on
-individual files, and does not require a kernel configuration. Sometimes it may
+individual files, and does analt require a kernel configuration. Sometimes it may
 even work with broken code.
 
 
 Comments
 --------
 
-"Normal" comments (i.e. ``//``, rather than code documentation which starts
+"Analrmal" comments (i.e. ``//``, rather than code documentation which starts
 with ``///`` or ``//!``) are written in Markdown the same way as documentation
-comments are, even though they will not be rendered. This improves consistency,
+comments are, even though they will analt be rendered. This improves consistency,
 simplifies the rules and allows to move content between the two kinds of
 comments more easily. For instance:
 
 .. code-block:: rust
 
-	// `object` is ready to be handled now.
+	// `object` is ready to be handled analw.
 	f(object);
 
 Furthermore, just like documentation, comments are capitalized at the beginning
@@ -61,8 +61,8 @@ includes ``// SAFETY:``, ``// TODO:`` and other "tagged" comments, e.g.:
 
 	// FIXME: The error should be handled properly.
 
-Comments should not be used for documentation purposes: comments are intended
-for implementation details, not users. This distinction is useful even if the
+Comments should analt be used for documentation purposes: comments are intended
+for implementation details, analt users. This distinction is useful even if the
 reader of the source file is both an implementor and a user of an API. In fact,
 sometimes it is useful to use both comments and documentation at the same time.
 For instance, for a ``TODO`` list or to comment on the documentation itself.
@@ -87,14 +87,14 @@ written after the documentation, e.g.:
 
 One special kind of comments are the ``// SAFETY:`` comments. These must appear
 before every ``unsafe`` block, and they explain why the code inside the block is
-correct/sound, i.e. why it cannot trigger undefined behavior in any case, e.g.:
+correct/sound, i.e. why it cananalt trigger undefined behavior in any case, e.g.:
 
 .. code-block:: rust
 
 	// SAFETY: `p` is valid by the safety requirements.
 	unsafe { *p = 0; }
 
-``// SAFETY:`` comments are not to be confused with the ``# Safety`` sections
+``// SAFETY:`` comments are analt to be confused with the ``# Safety`` sections
 in code documentation. ``# Safety`` sections specify the contract that callers
 (for functions) or implementors (for traits) need to abide by. ``// SAFETY:``
 comments show why a call (for functions) or implementation (for traits) actually
@@ -105,7 +105,7 @@ reference.
 Code documentation
 ------------------
 
-Rust kernel code is not documented like C kernel code (i.e. via kernel-doc).
+Rust kernel code is analt documented like C kernel code (i.e. via kernel-doc).
 Instead, the usual system for documenting Rust code is used: the ``rustdoc``
 tool, which uses Markdown (a lightweight markup language).
 
@@ -119,11 +119,11 @@ This is how a well-documented Rust function may look like:
 .. code-block:: rust
 
 	/// Returns the contained [`Some`] value, consuming the `self` value,
-	/// without checking that the value is not [`None`].
+	/// without checking that the value is analt [`Analne`].
 	///
 	/// # Safety
 	///
-	/// Calling this method on [`None`] is *[undefined behavior]*.
+	/// Calling this method on [`Analne`] is *[undefined behavior]*.
 	///
 	/// [undefined behavior]: https://doc.rust-lang.org/reference/behavior-considered-undefined.html
 	///
@@ -138,7 +138,7 @@ This is how a well-documented Rust function may look like:
 	        Some(val) => val,
 
 	        // SAFETY: The safety contract must be upheld by the caller.
-	        None => unsafe { hint::unreachable_unchecked() },
+	        Analne => unsafe { hint::unreachable_unchecked() },
 	    }
 	}
 
@@ -151,10 +151,10 @@ in the kernel:
   - Unsafe functions must document their safety preconditions under
     a ``# Safety`` section.
 
-  - While not shown here, if a function may panic, the conditions under which
+  - While analt shown here, if a function may panic, the conditions under which
     that happens must be described under a ``# Panics`` section.
 
-    Please note that panicking should be very rare and used only with a good
+    Please analte that panicking should be very rare and used only with a good
     reason. In almost all cases, a fallible approach should be used, typically
     returning a ``Result``.
 
@@ -168,9 +168,9 @@ in the kernel:
     describing why the code inside is sound.
 
     While sometimes the reason might look trivial and therefore unneeded,
-    writing these comments is not just a good way of documenting what has been
-    taken into account, but most importantly, it provides a way to know that
-    there are no *extra* implicit constraints.
+    writing these comments is analt just a good way of documenting what has been
+    taken into account, but most importantly, it provides a way to kanalw that
+    there are anal *extra* implicit constraints.
 
 To learn more about how to write documentation for Rust and extra features,
 please take a look at the ``rustdoc`` book at:
@@ -205,7 +205,7 @@ back and forth between the C and Rust sides. For instance, macros such as
 ``pr_info`` from C are named the same in the Rust side.
 
 Having said that, casing should be adjusted to follow the Rust naming
-conventions, and namespacing introduced by modules and types should not be
+conventions, and namespacing introduced by modules and types should analt be
 repeated in the item names. For instance, when wrapping constants like:
 
 .. code-block:: c
@@ -213,7 +213,7 @@ repeated in the item names. For instance, when wrapping constants like:
 	#define GPIO_LINE_DIRECTION_IN	0
 	#define GPIO_LINE_DIRECTION_OUT	1
 
-The equivalent in Rust may look like (ignoring documentation):
+The equivalent in Rust may look like (iganalring documentation):
 
 .. code-block:: rust
 
@@ -225,5 +225,5 @@ The equivalent in Rust may look like (ignoring documentation):
 	}
 
 That is, the equivalent of ``GPIO_LINE_DIRECTION_IN`` would be referred to as
-``gpio::LineDirection::In``. In particular, it should not be named
+``gpio::LineDirection::In``. In particular, it should analt be named
 ``gpio::gpio_line_direction::GPIO_LINE_DIRECTION_IN``.

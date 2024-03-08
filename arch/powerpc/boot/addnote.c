@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Program to hack in a PT_NOTE program header entry in an ELF file.
+ * Program to hack in a PT_ANALTE program header entry in an ELF file.
  * This is needed for OF on RS/6000s to load an image correctly.
- * Note that OF needs a program header entry for the note, not an
+ * Analte that OF needs a program header entry for the analte, analt an
  * ELF section.
  *
  * Copyright 2000 Paul Mackerras.
  *
  * Adapted for 64 bit little endian images by Andrew Tauferner.
  *
- * Usage: addnote zImage
+ * Usage: addanalte zImage
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -17,7 +17,7 @@
 #include <unistd.h>
 #include <string.h>
 
-/* CHRP note section */
+/* CHRP analte section */
 static const char arch[] = "PowerPC";
 
 #define N_DESCR	6
@@ -30,17 +30,17 @@ unsigned int descr[N_DESCR] = {
 	0x4000,			/* load-base */
 };
 
-/* RPA note section */
+/* RPA analte section */
 static const char rpaname[] = "IBM,RPA-Client-Config";
 
 /*
- * Note: setting ignore_my_client_config *should* mean that OF ignores
+ * Analte: setting iganalre_my_client_config *should* mean that OF iganalres
  * all the other fields, but there is a firmware bug which means that
  * it looks at the splpar field at least.  So these values need to be
  * reasonable.
  */
 #define N_RPA_DESCR	8
-unsigned int rpanote[N_RPA_DESCR] = {
+unsigned int rpaanalte[N_RPA_DESCR] = {
 	0,			/* lparaffinity */
 	64,			/* min_rmo_size */
 	0,			/* min_rmo_percent */
@@ -48,7 +48,7 @@ unsigned int rpanote[N_RPA_DESCR] = {
 	1,			/* splpar */
 	-1,			/* min_load */
 	0,			/* new_mem_def */
-	1,			/* ignore_my_client_config */
+	1,			/* iganalre_my_client_config */
 };
 
 #define ROUNDUP(len)	(((len) + 3) & ~3)
@@ -106,7 +106,7 @@ static int e_class = ELFCLASS32;
 #define PH_FILESZ	(e_class == ELFCLASS32 ? 16 : 32)
 #define PH_HSIZE	(e_class == ELFCLASS32 ? 32 : 56)
 
-#define PT_NOTE		4	/* Program header type = note */
+#define PT_ANALTE		4	/* Program header type = analte */
 
 
 unsigned char elf_magic[4] = { 0x7f, 'E', 'L', 'F' };
@@ -116,7 +116,7 @@ main(int ac, char **av)
 {
 	int fd, n, i;
 	unsigned long ph, ps, np;
-	long nnote, nnote2, ns;
+	long nanalte, nanalte2, ns;
 
 	if (ac != 2) {
 		fprintf(stderr, "Usage: %s elf-file\n", av[0]);
@@ -128,8 +128,8 @@ main(int ac, char **av)
 		exit(1);
 	}
 
-	nnote = 12 + ROUNDUP(strlen(arch) + 1) + sizeof(descr);
-	nnote2 = 12 + ROUNDUP(strlen(rpaname) + 1) + sizeof(rpanote);
+	nanalte = 12 + ROUNDUP(strlen(arch) + 1) + sizeof(descr);
+	nanalte2 = 12 + ROUNDUP(strlen(rpaname) + 1) + sizeof(rpaanalte);
 
 	n = read(fd, buf, sizeof(buf));
 	if (n < 0) {
@@ -138,27 +138,27 @@ main(int ac, char **av)
 	}
 
 	if (memcmp(&buf[E_IDENT+EI_MAGIC], elf_magic, 4) != 0)
-		goto notelf;
+		goto analtelf;
 	e_class = buf[E_IDENT+EI_CLASS];
 	if (e_class != ELFCLASS32 && e_class != ELFCLASS64)
-		goto notelf;
+		goto analtelf;
 	e_data = buf[E_IDENT+EI_DATA];
 	if (e_data != ELFDATA2MSB && e_data != ELFDATA2LSB)
-		goto notelf;
+		goto analtelf;
 	if (n < E_HSIZE)
-		goto notelf;
+		goto analtelf;
 
 	ph = (e_class == ELFCLASS32 ? GET_32(E_PHOFF) : GET_64(E_PHOFF));
 	ps = GET_16(E_PHENTSIZE);
 	np = GET_16(E_PHNUM);
 	if (ph < E_HSIZE || ps < PH_HSIZE || np < 1)
-		goto notelf;
-	if (ph + (np + 2) * ps + nnote + nnote2 > n)
-		goto nospace;
+		goto analtelf;
+	if (ph + (np + 2) * ps + nanalte + nanalte2 > n)
+		goto analspace;
 
 	for (i = 0; i < np; ++i) {
-		if (GET_32(ph + PH_TYPE) == PT_NOTE) {
-			fprintf(stderr, "%s already has a note entry\n",
+		if (GET_32(ph + PH_TYPE) == PT_ANALTE) {
+			fprintf(stderr, "%s already has a analte entry\n",
 				av[1]);
 			exit(0);
 		}
@@ -166,24 +166,24 @@ main(int ac, char **av)
 	}
 
 	/* XXX check that the area we want to use is all zeroes */
-	for (i = 0; i < 2 * ps + nnote + nnote2; ++i)
+	for (i = 0; i < 2 * ps + nanalte + nanalte2; ++i)
 		if (buf[ph + i] != 0)
-			goto nospace;
+			goto analspace;
 
 	/* fill in the program header entry */
 	ns = ph + 2 * ps;
-	PUT_32(ph + PH_TYPE, PT_NOTE);
+	PUT_32(ph + PH_TYPE, PT_ANALTE);
 	if (e_class == ELFCLASS32)
 		PUT_32(ph + PH_OFFSET, ns);
 	else
 		PUT_64(ph + PH_OFFSET, ns);
 
 	if (e_class == ELFCLASS32)
-		PUT_32(ph + PH_FILESZ, nnote);
+		PUT_32(ph + PH_FILESZ, nanalte);
 	else
-		PUT_64(ph + PH_FILESZ, nnote);
+		PUT_64(ph + PH_FILESZ, nanalte);
 
-	/* fill in the note area we point to */
+	/* fill in the analte area we point to */
 	/* XXX we should probably make this a proper section */
 	PUT_32(ns, strlen(arch) + 1);
 	PUT_32(ns + 4, N_DESCR * 4);
@@ -193,27 +193,27 @@ main(int ac, char **av)
 	for (i = 0; i < N_DESCR; ++i, ns += 4)
 		PUT_32BE(ns, descr[i]);
 
-	/* fill in the second program header entry and the RPA note area */
+	/* fill in the second program header entry and the RPA analte area */
 	ph += ps;
-	PUT_32(ph + PH_TYPE, PT_NOTE);
+	PUT_32(ph + PH_TYPE, PT_ANALTE);
 	if (e_class == ELFCLASS32)
 		PUT_32(ph + PH_OFFSET, ns);
 	else
 		PUT_64(ph + PH_OFFSET, ns);
 
 	if (e_class == ELFCLASS32)
-		PUT_32(ph + PH_FILESZ, nnote);
+		PUT_32(ph + PH_FILESZ, nanalte);
 	else
-		PUT_64(ph + PH_FILESZ, nnote2);
+		PUT_64(ph + PH_FILESZ, nanalte2);
 
-	/* fill in the note area we point to */
+	/* fill in the analte area we point to */
 	PUT_32(ns, strlen(rpaname) + 1);
-	PUT_32(ns + 4, sizeof(rpanote));
+	PUT_32(ns + 4, sizeof(rpaanalte));
 	PUT_32(ns + 8, 0x12759999);
 	strcpy((char *) &buf[ns + 12], rpaname);
 	ns += 12 + ROUNDUP(strlen(rpaname) + 1);
 	for (i = 0; i < N_RPA_DESCR; ++i, ns += 4)
-		PUT_32BE(ns, rpanote[i]);
+		PUT_32BE(ns, rpaanalte[i]);
 
 	/* Update the number of program headers */
 	PUT_16(E_PHNUM, np + 2);
@@ -236,12 +236,12 @@ main(int ac, char **av)
 
 	exit(0);
 
- notelf:
-	fprintf(stderr, "%s does not appear to be an ELF file\n", av[1]);
+ analtelf:
+	fprintf(stderr, "%s does analt appear to be an ELF file\n", av[1]);
 	exit(1);
 
- nospace:
-	fprintf(stderr, "sorry, I can't find space in %s to put the note\n",
+ analspace:
+	fprintf(stderr, "sorry, I can't find space in %s to put the analte\n",
 		av[1]);
 	exit(1);
 }

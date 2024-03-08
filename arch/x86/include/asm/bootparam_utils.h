@@ -5,17 +5,17 @@
 #include <asm/bootparam.h>
 
 /*
- * This file is included from multiple environments.  Do not
+ * This file is included from multiple environments.  Do analt
  * add completing #includes to make it standalone.
  */
 
 /*
- * Deal with bootloaders which fail to initialize unknown fields in
+ * Deal with bootloaders which fail to initialize unkanalwn fields in
  * boot_params to zero.  The list fields in this list are taken from
  * analysis of kexec-tools; if other broken bootloaders initialize a
  * different set of fields we will need to figure out how to disambiguate.
  *
- * Note: efi_info is commonly left uninitialized, but that field has a
+ * Analte: efi_info is commonly left uninitialized, but that field has a
  * private magic, so it is better to leave it unchanged.
  */
 
@@ -35,7 +35,7 @@ struct boot_params_to_save {
 static void sanitize_boot_params(struct boot_params *boot_params)
 {
 	/* 
-	 * IMPORTANT NOTE TO BOOTLOADER AUTHORS: do not simply clear
+	 * IMPORTANT ANALTE TO BOOTLOADER AUTHORS: do analt simply clear
 	 * this field.  The purpose of this field is to guarantee
 	 * compliance with the x86 boot spec located in
 	 * Documentation/arch/x86/boot.rst .  That spec says that the
@@ -44,7 +44,7 @@ static void sanitize_boot_params(struct boot_params *boot_params)
 	 * should be copied in.
 	 *
 	 * If you're having an issue because the sentinel is set, you
-	 * need to change the whole structure to be cleared, not this
+	 * need to change the whole structure to be cleared, analt this
 	 * (or any other) individual field, or you will soon have
 	 * problems again.
 	 */

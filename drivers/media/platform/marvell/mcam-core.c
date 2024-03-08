@@ -37,7 +37,7 @@
 
 #ifdef MCAM_MODE_VMALLOC
 /*
- * Internal DMA buffer management.  Since the controller cannot do S/G I/O,
+ * Internal DMA buffer management.  Since the controller cananalt do S/G I/O,
  * we must have physically contiguous buffers to bring frames into.
  * These parameters control how many buffers we use, whether we
  * allocate them at load time (better chance of success, but nails down
@@ -52,7 +52,7 @@
 static bool alloc_bufs_at_read;
 module_param(alloc_bufs_at_read, bool, 0444);
 MODULE_PARM_DESC(alloc_bufs_at_read,
-		"Non-zero value causes DMA buffers to be allocated when the video capture device is read, rather than at module load time.  This saves memory, but decreases the chances of successfully getting those buffers.  This parameter is only used in the vmalloc buffer mode");
+		"Analn-zero value causes DMA buffers to be allocated when the video capture device is read, rather than at module load time.  This saves memory, but decreases the chances of successfully getting those buffers.  This parameter is only used in the vmalloc buffer mode");
 
 static int n_dma_bufs = 3;
 module_param(n_dma_bufs, uint, 0644);
@@ -95,8 +95,8 @@ MODULE_PARM_DESC(buffer_mode,
 #define sensor_call(cam, o, f, args...) \
 	v4l2_subdev_call(cam->sensor, o, f, ##args)
 
-#define notifier_to_mcam(notifier) \
-	container_of(notifier, struct mcam_camera, notifier)
+#define analtifier_to_mcam(analtifier) \
+	container_of(analtifier, struct mcam_camera, analtifier)
 
 static struct mcam_format_struct {
 	__u32 pixelformat;
@@ -156,7 +156,7 @@ static struct mcam_format_struct *mcam_find_format(u32 pixelformat)
 	for (i = 0; i < N_MCAM_FMTS; i++)
 		if (mcam_formats[i].pixelformat == pixelformat)
 			return mcam_formats + i;
-	/* Not found? Then return the first format. */
+	/* Analt found? Then return the first format. */
 	return mcam_formats;
 }
 
@@ -167,7 +167,7 @@ static const struct v4l2_pix_format mcam_def_pix_format = {
 	.width		= VGA_WIDTH,
 	.height		= VGA_HEIGHT,
 	.pixelformat	= V4L2_PIX_FMT_YUYV,
-	.field		= V4L2_FIELD_NONE,
+	.field		= V4L2_FIELD_ANALNE,
 	.bytesperline	= VGA_WIDTH*2,
 	.sizeimage	= VGA_WIDTH*VGA_HEIGHT*2,
 	.colorspace	= V4L2_COLORSPACE_SRGB,
@@ -188,7 +188,7 @@ struct mcam_dma_desc {
 };
 
 /*
- * Our buffer type for working with videobuf2.  Note that the vb2
+ * Our buffer type for working with videobuf2.  Analte that the vb2
  * developers have decreed that struct vb2_v4l2_buffer must be at the
  * beginning of this structure.
  */
@@ -212,7 +212,7 @@ static void mcam_buffer_done(struct mcam_camera *cam, int frame,
 {
 	vbuf->vb2_buf.planes[0].bytesused = cam->pix_format.sizeimage;
 	vbuf->sequence = cam->buf_seq[frame];
-	vbuf->field = V4L2_FIELD_NONE;
+	vbuf->field = V4L2_FIELD_ANALNE;
 	vbuf->vb2_buf.timestamp = ktime_get_ns();
 	vb2_set_plane_payload(&vbuf->vb2_buf, 0, cam->pix_format.sizeimage);
 	vb2_buffer_done(&vbuf->vb2_buf, VB2_BUF_STATE_DONE);
@@ -265,7 +265,7 @@ static void mcam_set_config_needed(struct mcam_camera *cam, int needed)
  */
 static void mcam_ctlr_start(struct mcam_camera *cam)
 {
-	/* set_bit performs a read, so no other barrier should be
+	/* set_bit performs a read, so anal other barrier should be
 	   needed here */
 	mcam_reg_set_bit(cam, REG_CTRL0, C0_ENABLE);
 }
@@ -391,8 +391,8 @@ static int mcam_alloc_dma_bufs(struct mcam_camera *cam, int loadtime)
 		cam->nbufs = 0;
 		fallthrough;
 	case 0:
-		cam_err(cam, "Insufficient DMA buffers, cannot operate\n");
-		return -ENOMEM;
+		cam_err(cam, "Insufficient DMA buffers, cananalt operate\n");
+		return -EANALMEM;
 
 	case 2:
 		if (n_dma_bufs > 2)
@@ -448,20 +448,20 @@ static void mcam_frame_tasklet(struct tasklet_struct *t)
 
 	spin_lock_irqsave(&cam->dev_lock, flags);
 	for (i = 0; i < cam->nbufs; i++) {
-		int bufno = cam->next_buf;
+		int bufanal = cam->next_buf;
 
-		if (cam->state != S_STREAMING || bufno < 0)
+		if (cam->state != S_STREAMING || bufanal < 0)
 			break;  /* I/O got stopped */
 		if (++(cam->next_buf) >= cam->nbufs)
 			cam->next_buf = 0;
-		if (!test_bit(bufno, &cam->flags))
+		if (!test_bit(bufanal, &cam->flags))
 			continue;
 		if (list_empty(&cam->buffers)) {
 			cam->frame_state.singles++;
 			break;  /* Leave it valid, hope for better later */
 		}
 		cam->frame_state.delivered++;
-		clear_bit(bufno, &cam->flags);
+		clear_bit(bufanal, &cam->flags);
 		buf = list_first_entry(&cam->buffers, struct mcam_vb_buffer,
 				queue);
 		list_del_init(&buf->queue);
@@ -470,9 +470,9 @@ static void mcam_frame_tasklet(struct tasklet_struct *t)
 		 */
 		spin_unlock_irqrestore(&cam->dev_lock, flags);
 		memcpy(vb2_plane_vaddr(&buf->vb_buf.vb2_buf, 0),
-				cam->dma_bufs[bufno],
+				cam->dma_bufs[bufanal],
 				cam->pix_format.sizeimage);
-		mcam_buffer_done(cam, bufno, &buf->vb_buf);
+		mcam_buffer_done(cam, bufanal, &buf->vb_buf);
 		spin_lock_irqsave(&cam->dev_lock, flags);
 	}
 	spin_unlock_irqrestore(&cam->dev_lock, flags);
@@ -526,7 +526,7 @@ static inline int mcam_check_dma_buffers(struct mcam_camera *cam)
 
 /*
  * Set up a contiguous buffer for the given frame.  Here also is where
- * the underrun strategy is set: if there is no buffer available, reuse
+ * the underrun strategy is set: if there is anal buffer available, reuse
  * the buffer from the other BAR and set the CF_SINGLE_BUFFER flag to
  * keep the interrupt handler from giving that buffer back to user
  * space.  In this way, we always have a buffer to DMA to and don't
@@ -539,7 +539,7 @@ static void mcam_set_contig_buffer(struct mcam_camera *cam, int frame)
 	struct vb2_v4l2_buffer *vb;
 
 	/*
-	 * If there are no available buffers, go into single mode
+	 * If there are anal available buffers, go into single mode
 	 */
 	if (list_empty(&cam->buffers)) {
 		buf = cam->vb_bufs[frame ^ 0x1];
@@ -609,7 +609,7 @@ static void mcam_sg_next_buffer(struct mcam_camera *cam)
 	list_del_init(&buf->queue);
 	sg_table = vb2_dma_sg_plane_desc(&buf->vb_buf.vb2_buf, 0);
 	/*
-	 * Very Bad Not Good Things happen if you don't clear
+	 * Very Bad Analt Good Things happen if you don't clear
 	 * C1_DESC_ENA before making any descriptor changes.
 	 */
 	mcam_reg_clear_bit(cam, REG_CTRL1, C1_DESC_ENA);
@@ -653,19 +653,19 @@ static void mcam_ctlr_dma_sg(struct mcam_camera *cam)
  * cleared.  So when running in S/G mode, the controller is "stopped"
  * on receipt of the start-of-frame interrupt.  That means we can
  * safely change the DMA descriptor array here and restart things
- * (assuming there's another buffer waiting to go).
+ * (assuming there's aanalther buffer waiting to go).
  */
 static void mcam_dma_sg_done(struct mcam_camera *cam, int frame)
 {
 	struct mcam_vb_buffer *buf = cam->vb_bufs[0];
 
 	/*
-	 * If we're no longer supposed to be streaming, don't do anything.
+	 * If we're anal longer supposed to be streaming, don't do anything.
 	 */
 	if (cam->state != S_STREAMING)
 		return;
 	/*
-	 * If we have another buffer available, put it in and
+	 * If we have aanalther buffer available, put it in and
 	 * restart the engine.
 	 */
 	if (!list_empty(&cam->buffers)) {
@@ -673,7 +673,7 @@ static void mcam_dma_sg_done(struct mcam_camera *cam, int frame)
 		mcam_ctlr_start(cam);
 	/*
 	 * Otherwise set CF_SG_RESTART and the controller will
-	 * be restarted once another buffer shows up.
+	 * be restarted once aanalther buffer shows up.
 	 */
 	} else {
 		set_bit(CF_SG_RESTART, &cam->flags);
@@ -681,7 +681,7 @@ static void mcam_dma_sg_done(struct mcam_camera *cam, int frame)
 		cam->vb_bufs[0] = NULL;
 	}
 	/*
-	 * Now we can give the completed frame back to user space.
+	 * Analw we can give the completed frame back to user space.
 	 */
 	cam->frame_state.delivered++;
 	mcam_buffer_done(cam, frame, &buf->vb_buf);
@@ -690,7 +690,7 @@ static void mcam_dma_sg_done(struct mcam_camera *cam, int frame)
 
 /*
  * Scatter/gather mode requires stopping the controller between
- * frames so we can put in a new DMA descriptor array.  If no new
+ * frames so we can put in a new DMA descriptor array.  If anal new
  * buffer exists at frame completion, the controller is left stopped;
  * this function is charged with getting things going again.
  */
@@ -761,7 +761,7 @@ static void mcam_ctlr_image(struct mcam_camera *cam)
 		break;
 	case V4L2_PIX_FMT_YUYV:
 		mcam_reg_write_mask(cam, REG_CTRL0,
-			C0_DF_YUV | C0_YUV_PACKED | C0_YUVE_NOSWAP, C0_DF_MASK);
+			C0_DF_YUV | C0_YUV_PACKED | C0_YUVE_ANALSWAP, C0_DF_MASK);
 		break;
 	case V4L2_PIX_FMT_YVYU:
 		mcam_reg_write_mask(cam, REG_CTRL0,
@@ -780,12 +780,12 @@ static void mcam_ctlr_image(struct mcam_camera *cam)
 			C0_DF_RGB | C0_RGB5_GRBG, C0_DF_MASK);
 		break;
 	default:
-		cam_err(cam, "camera: unknown format: %#x\n", fmt->pixelformat);
+		cam_err(cam, "camera: unkanalwn format: %#x\n", fmt->pixelformat);
 		break;
 	}
 
 	/*
-	 * Make sure it knows we want to use hsync/vsync.
+	 * Make sure it kanalws we want to use hsync/vsync.
 	 */
 	mcam_reg_write_mask(cam, REG_CTRL0, C0_SIF_HVSYNC, C0_SIFM_MASK);
 }
@@ -811,7 +811,7 @@ static int mcam_ctlr_configure(struct mcam_camera *cam)
 static void mcam_ctlr_irq_enable(struct mcam_camera *cam)
 {
 	/*
-	 * Clear any pending interrupts, since we do not
+	 * Clear any pending interrupts, since we do analt
 	 * expect to have I/O active prior to enabling.
 	 */
 	mcam_reg_write(cam, REG_IRQSTAT, FRAMEIRQS);
@@ -824,7 +824,7 @@ static void mcam_ctlr_irq_disable(struct mcam_camera *cam)
 }
 
 /*
- * Stop the controller, and don't return until we're really sure that no
+ * Stop the controller, and don't return until we're really sure that anal
  * further DMA is going on.
  */
 static void mcam_ctlr_stop_dma(struct mcam_camera *cam)
@@ -833,8 +833,8 @@ static void mcam_ctlr_stop_dma(struct mcam_camera *cam)
 
 	/*
 	 * Theory: stop the camera controller (whether it is operating
-	 * or not).  Delay briefly just in case we race with the SOF
-	 * interrupt, then wait until no DMA is active.
+	 * or analt).  Delay briefly just in case we race with the SOF
+	 * interrupt, then wait until anal DMA is active.
 	 */
 	spin_lock_irqsave(&cam->dev_lock, flags);
 	clear_bit(CF_SG_RESTART, &cam->flags);
@@ -851,7 +851,7 @@ static void mcam_ctlr_stop_dma(struct mcam_camera *cam)
 	msleep(150);
 	if (test_bit(CF_DMA_ACTIVE, &cam->flags))
 		cam_err(cam, "Timeout waiting for DMA to end\n");
-		/* This would be bad news - what now? */
+		/* This would be bad news - what analw? */
 	spin_lock_irqsave(&cam->dev_lock, flags);
 	mcam_ctlr_irq_disable(cam);
 	spin_unlock_irqrestore(&cam->dev_lock, flags);
@@ -884,7 +884,7 @@ static void mcam_ctlr_power_down(struct mcam_camera *cam)
 
 	spin_lock_irqsave(&cam->dev_lock, flags);
 	/*
-	 * School of hard knocks department: be sure we do any register
+	 * School of hard kanalcks department: be sure we do any register
 	 * twiddling on the controller *before* calling the platform
 	 * power down routine.
 	 */
@@ -983,7 +983,7 @@ static int mcam_cam_init(struct mcam_camera *cam)
 {
 	int ret;
 
-	if (cam->state != S_NOTREADY)
+	if (cam->state != S_ANALTREADY)
 		cam_warn(cam, "Cam init with device in funky state %d",
 				cam->state);
 	ret = __mcam_cam_reset(cam);
@@ -1039,7 +1039,7 @@ static int mcam_read_setup(struct mcam_camera *cam)
 	 */
 	if (cam->buffer_mode == B_vmalloc && cam->nbufs == 0 &&
 			mcam_alloc_dma_bufs(cam, 0))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (mcam_needs_config(cam)) {
 		mcam_cam_configure(cam);
@@ -1113,12 +1113,12 @@ static void mcam_vb_requeue_bufs(struct vb2_queue *vq,
 				 enum vb2_buffer_state state)
 {
 	struct mcam_camera *cam = vb2_get_drv_priv(vq);
-	struct mcam_vb_buffer *buf, *node;
+	struct mcam_vb_buffer *buf, *analde;
 	unsigned long flags;
 	unsigned i;
 
 	spin_lock_irqsave(&cam->dev_lock, flags);
-	list_for_each_entry_safe(buf, node, &cam->buffers, queue) {
+	list_for_each_entry_safe(buf, analde, &cam->buffers, queue) {
 		vb2_buffer_done(&buf->vb_buf.vb2_buf, state);
 		list_del(&buf->queue);
 	}
@@ -1225,7 +1225,7 @@ static int mcam_vb_sg_buf_init(struct vb2_buffer *vb)
 			&mvb->dma_desc_pa, GFP_KERNEL);
 	if (mvb->dma_desc == NULL) {
 		cam_err(cam, "Unable to get DMA descriptor array\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	return 0;
 }
@@ -1281,7 +1281,7 @@ static int mcam_setup_vb2(struct mcam_camera *cam)
 	vq->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	vq->drv_priv = cam;
 	vq->lock = &cam->s_mutex;
-	vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 	vq->io_modes = VB2_MMAP | VB2_USERPTR | VB2_DMABUF | VB2_READ;
 	vq->buf_struct_size = sizeof(struct mcam_vb_buffer);
 	vq->dev = cam->dev;
@@ -1385,7 +1385,7 @@ static int mcam_vidioc_s_fmt_vid_cap(struct file *filp, void *priv,
 	int ret;
 
 	/*
-	 * Can't do anything if the device is not idle
+	 * Can't do anything if the device is analt idle
 	 * Also can't if there are streaming buffers in place.
 	 */
 	if (cam->state != S_IDLE || vb2_is_busy(&cam->vb_queue))
@@ -1400,7 +1400,7 @@ static int mcam_vidioc_s_fmt_vid_cap(struct file *filp, void *priv,
 	if (ret)
 		return ret;
 	/*
-	 * Now we start to change things for real, so let's do it
+	 * Analw we start to change things for real, so let's do it
 	 * under lock.
 	 */
 	cam->pix_format = fmt->fmt.pix;
@@ -1420,9 +1420,9 @@ out:
 }
 
 /*
- * Return our stored notion of how the camera is/should be configured.
+ * Return our stored analtion of how the camera is/should be configured.
  * The V4l2 spec wants us to be smarter, and actually get this from
- * the camera (and not mess with it at open time).  Someday.
+ * the camera (and analt mess with it at open time).  Someday.
  */
 static int mcam_vidioc_g_fmt_vid_cap(struct file *filp, void *priv,
 		struct v4l2_format *f)
@@ -1434,7 +1434,7 @@ static int mcam_vidioc_g_fmt_vid_cap(struct file *filp, void *priv,
 }
 
 /*
- * We only have one input - the sensor - so minimize the nonsense here.
+ * We only have one input - the sensor - so minimize the analnsense here.
  */
 static int mcam_vidioc_enum_input(struct file *filp, void *priv,
 		struct v4l2_input *input)
@@ -1712,7 +1712,7 @@ int mccic_irq(struct mcam_camera *cam, unsigned int irqs)
 	mcam_reg_write(cam, REG_IRQSTAT, FRAMEIRQS); /* Clear'em all */
 	/*
 	 * Handle any frame completions.  There really should
-	 * not be more than one of these, or we have fallen
+	 * analt be more than one of these, or we have fallen
 	 * far behind.
 	 *
 	 * When running in S/G mode, the frame number lacks any
@@ -1730,7 +1730,7 @@ int mccic_irq(struct mcam_camera *cam, unsigned int irqs)
 				break;
 		}
 	/*
-	 * If a frame starts, note that we have DMA active.  This
+	 * If a frame starts, analte that we have DMA active.  This
 	 * code assumes that we won't get multiple frame interrupts
 	 * at once; may want to rethink that.
 	 */
@@ -1755,10 +1755,10 @@ EXPORT_SYMBOL_GPL(mccic_irq);
  * Registration and such.
  */
 
-static int mccic_notify_bound(struct v4l2_async_notifier *notifier,
+static int mccic_analtify_bound(struct v4l2_async_analtifier *analtifier,
 	struct v4l2_subdev *subdev, struct v4l2_async_connection *asd)
 {
-	struct mcam_camera *cam = notifier_to_mcam(notifier);
+	struct mcam_camera *cam = analtifier_to_mcam(analtifier);
 	int ret;
 
 	mutex_lock(&cam->s_mutex);
@@ -1800,14 +1800,14 @@ out:
 	return ret;
 }
 
-static void mccic_notify_unbind(struct v4l2_async_notifier *notifier,
+static void mccic_analtify_unbind(struct v4l2_async_analtifier *analtifier,
 	struct v4l2_subdev *subdev, struct v4l2_async_connection *asd)
 {
-	struct mcam_camera *cam = notifier_to_mcam(notifier);
+	struct mcam_camera *cam = analtifier_to_mcam(analtifier);
 
 	mutex_lock(&cam->s_mutex);
 	if (cam->sensor != subdev) {
-		cam_err(cam, "sensor %s not bound\n", subdev->name);
+		cam_err(cam, "sensor %s analt bound\n", subdev->name);
 		goto out;
 	}
 
@@ -1819,9 +1819,9 @@ out:
 	mutex_unlock(&cam->s_mutex);
 }
 
-static int mccic_notify_complete(struct v4l2_async_notifier *notifier)
+static int mccic_analtify_complete(struct v4l2_async_analtifier *analtifier)
 {
-	struct mcam_camera *cam = notifier_to_mcam(notifier);
+	struct mcam_camera *cam = analtifier_to_mcam(analtifier);
 	int ret;
 
 	/*
@@ -1834,10 +1834,10 @@ static int mccic_notify_complete(struct v4l2_async_notifier *notifier)
 	return ret;
 }
 
-static const struct v4l2_async_notifier_operations mccic_notify_ops = {
-	.bound = mccic_notify_bound,
-	.unbind = mccic_notify_unbind,
-	.complete = mccic_notify_complete,
+static const struct v4l2_async_analtifier_operations mccic_analtify_ops = {
+	.bound = mccic_analtify_bound,
+	.unbind = mccic_analtify_unbind,
+	.complete = mccic_analtify_complete,
 };
 
 int mccic_register(struct mcam_camera *cam)
@@ -1864,15 +1864,15 @@ int mccic_register(struct mcam_camera *cam)
 	}
 
 	mutex_init(&cam->s_mutex);
-	cam->state = S_NOTREADY;
+	cam->state = S_ANALTREADY;
 	mcam_set_config_needed(cam, 1);
 	cam->pix_format = mcam_def_pix_format;
 	cam->mbus_code = mcam_def_mbus_code;
 
-	cam->notifier.ops = &mccic_notify_ops;
-	ret = v4l2_async_nf_register(&cam->notifier);
+	cam->analtifier.ops = &mccic_analtify_ops;
+	ret = v4l2_async_nf_register(&cam->analtifier);
 	if (ret < 0) {
-		cam_warn(cam, "failed to register a sensor notifier");
+		cam_warn(cam, "failed to register a sensor analtifier");
 		goto out;
 	}
 
@@ -1884,7 +1884,7 @@ int mccic_register(struct mcam_camera *cam)
 	mclk_init.ops = &mclk_ops;
 	mclk_init.name = "mclk";
 
-	of_property_read_string(cam->dev->of_node, "clock-output-names",
+	of_property_read_string(cam->dev->of_analde, "clock-output-names",
 							&mclk_init.name);
 
 	cam->mclk_hw.init = &mclk_init;
@@ -1897,7 +1897,7 @@ int mccic_register(struct mcam_camera *cam)
 	}
 
 	/*
-	 * If so requested, try to get our DMA buffers now.
+	 * If so requested, try to get our DMA buffers analw.
 	 */
 	if (cam->buffer_mode == B_vmalloc && !alloc_bufs_at_read) {
 		if (mcam_alloc_dma_bufs(cam, 1))
@@ -1907,8 +1907,8 @@ int mccic_register(struct mcam_camera *cam)
 	return 0;
 
 out:
-	v4l2_async_nf_unregister(&cam->notifier);
-	v4l2_async_nf_cleanup(&cam->notifier);
+	v4l2_async_nf_unregister(&cam->analtifier);
+	v4l2_async_nf_cleanup(&cam->analtifier);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(mccic_register);
@@ -1916,7 +1916,7 @@ EXPORT_SYMBOL_GPL(mccic_register);
 void mccic_shutdown(struct mcam_camera *cam)
 {
 	/*
-	 * If we have no users (and we really, really should have no
+	 * If we have anal users (and we really, really should have anal
 	 * users) the device will already be powered down.  Trying to
 	 * take it down again will wedge the machine, which is frowned
 	 * upon.
@@ -1928,8 +1928,8 @@ void mccic_shutdown(struct mcam_camera *cam)
 	if (cam->buffer_mode == B_vmalloc)
 		mcam_free_dma_bufs(cam);
 	v4l2_ctrl_handler_free(&cam->ctrl_handler);
-	v4l2_async_nf_unregister(&cam->notifier);
-	v4l2_async_nf_cleanup(&cam->notifier);
+	v4l2_async_nf_unregister(&cam->analtifier);
+	v4l2_async_nf_cleanup(&cam->analtifier);
 }
 EXPORT_SYMBOL_GPL(mccic_shutdown);
 

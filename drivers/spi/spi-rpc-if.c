@@ -50,12 +50,12 @@ static void rpcif_spi_mem_prepare(struct spi_device *spi_dev,
 			rpc_op.data.dir = RPCIF_DATA_OUT;
 			rpc_op.data.buf.out = spi_op->data.buf.out;
 			break;
-		case SPI_MEM_NO_DATA:
-			rpc_op.data.dir = RPCIF_NO_DATA;
+		case SPI_MEM_ANAL_DATA:
+			rpc_op.data.dir = RPCIF_ANAL_DATA;
 			break;
 		}
 	} else	{
-		rpc_op.data.dir = RPCIF_NO_DATA;
+		rpc_op.data.dir = RPCIF_ANAL_DATA;
 	}
 
 	rpcif_prepare(rpc->dev, &rpc_op, offs, len);
@@ -95,16 +95,16 @@ static int rpcif_spi_mem_dirmap_create(struct spi_mem_dirmap_desc *desc)
 		spi_controller_get_devdata(desc->mem->spi->controller);
 
 	if (desc->info.offset + desc->info.length > U32_MAX)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	if (!rpcif_spi_mem_supports_op(desc->mem, &desc->info.op_tmpl))
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	if (!rpc->dirmap && desc->info.op_tmpl.data.dir == SPI_MEM_DATA_IN)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	if (desc->info.op_tmpl.data.dir == SPI_MEM_DATA_OUT)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	return 0;
 }
@@ -136,7 +136,7 @@ static int rpcif_spi_probe(struct platform_device *pdev)
 
 	ctlr = devm_spi_alloc_host(&pdev->dev, sizeof(*rpc));
 	if (!ctlr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rpc = spi_controller_get_devdata(ctlr);
 	error = rpcif_sw_init(rpc, parent);
@@ -145,7 +145,7 @@ static int rpcif_spi_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, ctlr);
 
-	ctlr->dev.of_node = parent->of_node;
+	ctlr->dev.of_analde = parent->of_analde;
 
 	pm_runtime_enable(rpc->dev);
 

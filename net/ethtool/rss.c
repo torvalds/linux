@@ -57,11 +57,11 @@ rss_prepare_data(const struct ethnl_req_info *req_base,
 
 	ops = dev->ethtool_ops;
 	if (!ops->get_rxfh)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Some drivers don't handle rss_context */
 	if (request->rss_context && !ops->cap_rss_ctx_supported)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = ethnl_ops_begin(dev);
 	if (ret < 0)
@@ -78,7 +78,7 @@ rss_prepare_data(const struct ethnl_req_info *req_base,
 	total_size = indir_bytes + data->hkey_size;
 	rss_config = kzalloc(total_size, GFP_KERNEL);
 	if (!rss_config) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_ops;
 	}
 

@@ -59,7 +59,7 @@
 #define REG_EFUSE_ACCESS			0x00CF
 #define REG_HPON_FSM				0x00EC
 #define REG_SYS_CFG1				0x00F0
-#define REG_MAC_PHY_CTRL_NORMAL			0x00F8
+#define REG_MAC_PHY_CTRL_ANALRMAL			0x00F8
 #define REG_SYS_CFG2				0x00FC
 
 #define REG_CR					0x0100
@@ -85,7 +85,7 @@
 #define REG_TC4_CTRL				0x0160
 #define REG_TCUNIT_BASE				0x0164
 #define REG_RSVD3				0x0168
-#define REG_C2HEVT_MSG_NORMAL			0x01A0
+#define REG_C2HEVT_MSG_ANALRMAL			0x01A0
 #define REG_C2HEVT_CLEAR			0x01AF
 #define REG_MCUTST_1				0x01c0
 #define REG_MCUTST_WOWLAN			0x01C7
@@ -200,8 +200,8 @@
 #define	REG_MDIO				0x03F4
 #define	REG_MDIO_DATA				0x03F8
 
-#define	REG_HDAQ_DESA_NODEF			0x0000
-#define	REG_CMDQ_DESA_NODEF			0x0000
+#define	REG_HDAQ_DESA_ANALDEF			0x0000
+#define	REG_CMDQ_DESA_ANALDEF			0x0000
 /* spec version 11
  *-----------------------------------------------------
  *
@@ -393,7 +393,7 @@
 #define	GPIO_IO_SEL				(REG_GPIO_PIN_CTRL + 2)
 #define	GPIO_MOD				(REG_GPIO_PIN_CTRL + 3)
 
-#define	MSR_NOLINK				0x00
+#define	MSR_ANALLINK				0x00
 #define	MSR_ADHOC				0x01
 #define	MSR_INFRA				0x02
 #define	MSR_AP					0x03
@@ -497,10 +497,10 @@
 #define	BW_OPMODE_20MHZ				BIT(2)
 #define	BW_OPMODE_5G				BIT(1)
 #define	CAM_VALID				BIT(15)
-#define	CAM_NOTVALID				0x0000
+#define	CAM_ANALTVALID				0x0000
 #define	CAM_USEDK				BIT(5)
 
-#define	CAM_NONE				0x0
+#define	CAM_ANALNE				0x0
 #define	CAM_WEP40				0x01
 #define	CAM_TKIP				0x02
 #define	CAM_AES					0x04
@@ -923,14 +923,14 @@
 
 #define _NETTYPE(x)				(((x) & 0x3) << 16)
 #define MASK_NETTYPE				0x30000
-#define NT_NO_LINK				0x0
+#define NT_ANAL_LINK				0x0
 #define NT_LINK_AD_HOC				0x1
 #define NT_LINK_AP				0x2
 #define NT_AS_AP				0x3
 
 #define _LBMODE(x)				(((x) & 0xF) << 24)
 #define MASK_LBMODE				0xF000000
-#define LOOPBACK_NORMAL				0x0
+#define LOOPBACK_ANALRMAL				0x0
 #define LOOPBACK_IMMEDIATELY			0xB
 #define LOOPBACK_MAC_DELAY			0x3
 #define LOOPBACK_PHY				0x1
@@ -974,10 +974,10 @@
 #define _TXDMA_VOQ_MAP(x)			(((x)&0x3) << 4)
 
 #define QUEUE_LOW				1
-#define QUEUE_NORMAL				2
+#define QUEUE_ANALRMAL				2
 #define QUEUE_HIGH				3
 
-#define _LLT_NO_ACTIVE				0x0
+#define _LLT_ANAL_ACTIVE				0x0
 #define _LLT_WRITE_ACCESS			0x1
 #define _LLT_READ_ACCESS			0x2
 
@@ -1091,7 +1091,7 @@
 
 #define STOP_BCNQ				BIT(6)
 
-#define	DIS_TSF_UDT0_NORMAL_CHIP		BIT(4)
+#define	DIS_TSF_UDT0_ANALRMAL_CHIP		BIT(4)
 #define	DIS_TSF_UDT0_TEST_CHIP			BIT(5)
 
 #define	ACMHW_HWEN				BIT(0)
@@ -1173,7 +1173,7 @@
 #define	SCR_TXENCENABLE				BIT(2)
 #define	SCR_RXDECENABLE				BIT(3)
 #define	SCR_SKBYA2				BIT(4)
-#define	SCR_NOSKMC				BIT(5)
+#define	SCR_ANALSKMC				BIT(5)
 #define SCR_TXBCUSEDK				BIT(6)
 #define SCR_RXBCUSEDK				BIT(7)
 
@@ -1181,8 +1181,8 @@
 #define USB_IS_FULL_SPEED			1
 #define USB_SPEED_MASK				BIT(5)
 
-#define USB_NORMAL_SIE_EP_MASK			0xF
-#define USB_NORMAL_SIE_EP_SHIFT			4
+#define USB_ANALRMAL_SIE_EP_MASK			0xF
+#define USB_ANALRMAL_SIE_EP_SHIFT			4
 
 #define USB_TEST_EP_MASK			0x30
 #define USB_TEST_EP_SHIFT			4
@@ -1417,7 +1417,7 @@
 #define	ROFDM0_TXCOEFF6				0xcb8
 
 #define	ROFDM0_RXHPPARAMETER			0xce0
-#define	ROFDM0_TXPSEUDONOISEWGT			0xce4
+#define	ROFDM0_TXPSEUDOANALISEWGT			0xce4
 #define	ROFDM0_FRAMESYNC			0xcf0
 #define	ROFDM0_DFSREPORT			0xcf4
 
@@ -1431,9 +1431,9 @@
 #define	ROFDM1_CFOTRACKING			0xd2c
 #define	ROFDM1_TRXMESAURE1			0xd34
 #define	ROFDM1_INTFDET				0xd3c
-#define	ROFDM1_PSEUDONOISESTATEAB		0xd50
-#define	ROFDM1_PSEUDONOISESTATECD		0xd54
-#define	ROFDM1_RXPSEUDONOISEWGT			0xd58
+#define	ROFDM1_PSEUDOANALISESTATEAB		0xd50
+#define	ROFDM1_PSEUDOANALISESTATECD		0xd54
+#define	ROFDM1_RXPSEUDOANALISEWGT			0xd58
 
 #define	ROFDM_PHYCOUNTER1			0xda0
 #define	ROFDM_PHYCOUNTER2			0xda4
@@ -1798,11 +1798,11 @@
 #define	BDEBUG_PAGE				0xfff
 #define	BDEBUG_ITEM				0xff
 #define	BANTL					0x10
-#define	BANT_NONHT				0x100
+#define	BANT_ANALNHT				0x100
 #define	BANT_HT1				0x1000
 #define	BANT_HT2				0x10000
 #define	BANT_HT1S1				0x100000
-#define	BANT_NONHTS1				0x1000000
+#define	BANT_ANALNHTS1				0x1000000
 
 #define	BCCK_BBMODE				0x3
 #define	BCCK_TXPOWERSAVING			0x80
@@ -1906,8 +1906,8 @@
 #define	BRXIQIMB_B				0xfc00
 #define	BRXIQIMB_C				0x3f0000
 #define	BRXIQIMB_D				0xffc00000
-#define	BDC_DC_NOTCH				0x60000
-#define	BRXNB_NOTCH				0x1f000000
+#define	BDC_DC_ANALTCH				0x60000
+#define	BRXNB_ANALTCH				0x1f000000
 #define	BPD_TH					0xf
 #define	BPD_TH_OPT2				0xc000
 #define	BPWED_TH				0x700
@@ -1949,11 +1949,11 @@
 #define	BTXIDCOFFSET				0xff
 #define	BTXIQDCOFFSET				0xff00
 #define	BTXDFIRMODE				0x10000
-#define	BTXPESUDO_NOISEON			0x4000000
-#define	BTXPESUDO_NOISE_A			0xff
-#define	BTXPESUDO_NOISE_B			0xff00
-#define	BTXPESUDO_NOISE_C			0xff0000
-#define	BTXPESUDO_NOISE_D			0xff000000
+#define	BTXPESUDO_ANALISEON			0x4000000
+#define	BTXPESUDO_ANALISE_A			0xff
+#define	BTXPESUDO_ANALISE_B			0xff00
+#define	BTXPESUDO_ANALISE_C			0xff0000
+#define	BTXPESUDO_ANALISE_D			0xff000000
 #define	BCCA_DROPOPTION				0x20000
 #define	BCCA_DROPTHRES				0xfff00000
 #define	BEDCCA_H				0xf
@@ -2057,7 +2057,7 @@
 #define	BCOUNTER_PARITYFAIL			0xffff0000
 #define	BCOUNTER_RATEILLEGAL			0xffff
 #define	BCOUNTER_CRC8FAIL			0xffff0000
-#define	BCOUNTER_MCSNOSUPPORT			0xffff
+#define	BCOUNTER_MCSANALSUPPORT			0xffff
 #define	BCOUNTER_FASTSYNC			0xffff
 #define	BSHORTCFO				0xfff
 #define	BSHORTCFOT_LENGTH			12
@@ -2068,7 +2068,7 @@
 #define	BTAILCFO				0x1fff
 #define	BTAILCFOT_LENGTH			13
 #define	BTAILCFOF_LENGTH			12
-#define	BNOISE_EN_PWDB				0xffff
+#define	BANALISE_EN_PWDB				0xffff
 #define	BCC_POWER_DB				0xffff0000
 #define	BMOISE_PWDB				0xffff
 #define	BPOWERMEAST_LENGTH			10
@@ -2107,7 +2107,7 @@
 #define	BSFACTOR_QMA9				0xf0000000
 #define	BCSI_SCHEME				0x100000
 
-#define	BNOISE_LVL_TOP_SET			0x3
+#define	BANALISE_LVL_TOP_SET			0x3
 #define	BCHSMOOTH				0x4
 #define	BCHSMOOTH_CFG1				0x38
 #define	BCHSMOOTH_CFG2				0x1c0
@@ -2132,15 +2132,15 @@
 #define	BUCHCFG					0x7000000
 #define	BUPDEQZ					0x8000000
 
-#define	BRX_PESUDO_NOISE_ON			0x20000000
-#define	BRX_PESUDO_NOISE_A			0xff
-#define	BRX_PESUDO_NOISE_B			0xff00
-#define	BRX_PESUDO_NOISE_C			0xff0000
-#define	BRX_PESUDO_NOISE_D			0xff000000
-#define	BRX_PESUDO_NOISESTATE_A			0xffff
-#define	BRX_PESUDO_NOISESTATE_B			0xffff0000
-#define	BRX_PESUDO_NOISESTATE_C			0xffff
-#define	BRX_PESUDO_NOISESTATE_D			0xffff0000
+#define	BRX_PESUDO_ANALISE_ON			0x20000000
+#define	BRX_PESUDO_ANALISE_A			0xff
+#define	BRX_PESUDO_ANALISE_B			0xff00
+#define	BRX_PESUDO_ANALISE_C			0xff0000
+#define	BRX_PESUDO_ANALISE_D			0xff000000
+#define	BRX_PESUDO_ANALISESTATE_A			0xffff
+#define	BRX_PESUDO_ANALISESTATE_B			0xffff0000
+#define	BRX_PESUDO_ANALISESTATE_C			0xffff
+#define	BRX_PESUDO_ANALISESTATE_D			0xffff0000
 
 #define	BZEBRA1_HSSIENABLE			0x8
 #define	BZEBRA1_TRXCONTROL			0xc00

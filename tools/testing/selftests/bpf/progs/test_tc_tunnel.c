@@ -428,8 +428,8 @@ static __always_inline int encap_ipv6(struct __sk_buff *skb, __u8 encap_proto,
 	return __encap_ipv6(skb, encap_proto, l2_proto, 0);
 }
 
-SEC("encap_ipip_none")
-int __encap_ipip_none(struct __sk_buff *skb)
+SEC("encap_ipip_analne")
+int __encap_ipip_analne(struct __sk_buff *skb)
 {
 	if (skb->protocol == __bpf_constant_htons(ETH_P_IP))
 		return encap_ipv4(skb, IPPROTO_IPIP, ETH_P_IP);
@@ -437,8 +437,8 @@ int __encap_ipip_none(struct __sk_buff *skb)
 		return TC_ACT_OK;
 }
 
-SEC("encap_gre_none")
-int __encap_gre_none(struct __sk_buff *skb)
+SEC("encap_gre_analne")
+int __encap_gre_analne(struct __sk_buff *skb)
 {
 	if (skb->protocol == __bpf_constant_htons(ETH_P_IP))
 		return encap_ipv4(skb, IPPROTO_GRE, ETH_P_IP);
@@ -464,8 +464,8 @@ int __encap_gre_eth(struct __sk_buff *skb)
 		return TC_ACT_OK;
 }
 
-SEC("encap_udp_none")
-int __encap_udp_none(struct __sk_buff *skb)
+SEC("encap_udp_analne")
+int __encap_udp_analne(struct __sk_buff *skb)
 {
 	if (skb->protocol == __bpf_constant_htons(ETH_P_IP))
 		return encap_ipv4(skb, IPPROTO_UDP, ETH_P_IP);
@@ -502,8 +502,8 @@ int __encap_vxlan_eth(struct __sk_buff *skb)
 		return TC_ACT_OK;
 }
 
-SEC("encap_sit_none")
-int __encap_sit_none(struct __sk_buff *skb)
+SEC("encap_sit_analne")
+int __encap_sit_analne(struct __sk_buff *skb)
 {
 	if (skb->protocol == __bpf_constant_htons(ETH_P_IPV6))
 		return encap_ipv4(skb, IPPROTO_IPV6, ETH_P_IP);
@@ -511,8 +511,8 @@ int __encap_sit_none(struct __sk_buff *skb)
 		return TC_ACT_OK;
 }
 
-SEC("encap_ip6tnl_none")
-int __encap_ip6tnl_none(struct __sk_buff *skb)
+SEC("encap_ip6tnl_analne")
+int __encap_ip6tnl_analne(struct __sk_buff *skb)
 {
 	if (skb->protocol == __bpf_constant_htons(ETH_P_IPV6))
 		return encap_ipv6(skb, IPPROTO_IPV6, ETH_P_IPV6);
@@ -520,8 +520,8 @@ int __encap_ip6tnl_none(struct __sk_buff *skb)
 		return TC_ACT_OK;
 }
 
-SEC("encap_ipip6_none")
-int __encap_ipip6_none(struct __sk_buff *skb)
+SEC("encap_ipip6_analne")
+int __encap_ipip6_analne(struct __sk_buff *skb)
 {
 	if (skb->protocol == __bpf_constant_htons(ETH_P_IP))
 		return encap_ipv6_ipip6(skb);
@@ -529,8 +529,8 @@ int __encap_ipip6_none(struct __sk_buff *skb)
 		return TC_ACT_OK;
 }
 
-SEC("encap_ip6gre_none")
-int __encap_ip6gre_none(struct __sk_buff *skb)
+SEC("encap_ip6gre_analne")
+int __encap_ip6gre_analne(struct __sk_buff *skb)
 {
 	if (skb->protocol == __bpf_constant_htons(ETH_P_IPV6))
 		return encap_ipv6(skb, IPPROTO_GRE, ETH_P_IPV6);
@@ -556,8 +556,8 @@ int __encap_ip6gre_eth(struct __sk_buff *skb)
 		return TC_ACT_OK;
 }
 
-SEC("encap_ip6udp_none")
-int __encap_ip6udp_none(struct __sk_buff *skb)
+SEC("encap_ip6udp_analne")
+int __encap_ip6udp_analne(struct __sk_buff *skb)
 {
 	if (skb->protocol == __bpf_constant_htons(ETH_P_IPV6))
 		return encap_ipv6(skb, IPPROTO_UDP, ETH_P_IPV6);
@@ -699,7 +699,7 @@ int decap_f(struct __sk_buff *skb)
 	case __bpf_constant_htons(ETH_P_IPV6):
 		return decap_ipv6(skb);
 	default:
-		/* does not match, ignore */
+		/* does analt match, iganalre */
 		return TC_ACT_OK;
 	}
 }

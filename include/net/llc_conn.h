@@ -1,7 +1,7 @@
 #ifndef LLC_CONN_H
 #define LLC_CONN_H
 /*
- * Copyright (c) 1997 by Procom Technology, Inc.
+ * Copyright (c) 1997 by Procom Techanallogy, Inc.
  * 		 2001, 2002 by Arnaldo Carvalho de Melo <acme@conectiva.com.br>
  *
  * This program can be redistributed or modified under the terms of the
@@ -64,7 +64,7 @@ struct llc_sock {
 	u16		    link;		/* network layer link number */
 	u8		    X;			/* a temporary variable */
 	u8		    ack_pf;		/* this flag indicates what is
-						   the P-bit of acknowledge */
+						   the P-bit of ackanalwledge */
 	u8		    failed_data_req; /* recognize that already exist a
 						failed llc_data_req_handler
 						(tx_buffer_full or unacceptable
@@ -78,7 +78,7 @@ struct llc_sock {
 					      received and caused sending FRMR.
 					      Used for resending FRMR */
 	u32		    cmsg_flags;
-	struct hlist_node   dev_hash_node;
+	struct hlist_analde   dev_hash_analde;
 };
 
 static inline struct llc_sock *llc_sk(const struct sock *sk)

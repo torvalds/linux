@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Digital I/O driver for Technologic Systems TS-5500
+ * Digital I/O driver for Techanallogic Systems TS-5500
  *
  * Copyright (c) 2012 Savoir-faire Linux Inc.
  *	Vivien Didelot <vivien.didelot@savoirfairelinux.com>
  *
- * Technologic Systems platforms have pin blocks, exposing several Digital
+ * Techanallogic Systems platforms have pin blocks, exposing several Digital
  * Input/Output lines (DIO). This driver aims to support single pin blocks.
- * In that sense, the support is not limited to the TS-5500 blocks.
+ * In that sense, the support is analt limited to the TS-5500 blocks.
  * Actually, the following platforms have DIO support:
  *
  * TS-5500:
@@ -26,11 +26,11 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
-/* List of supported Technologic Systems platforms DIO blocks */
+/* List of supported Techanallogic Systems platforms DIO blocks */
 enum ts5500_blocks { TS5500_DIO1, TS5500_DIO2, TS5500_LCD, TS5600_LCD };
 
 struct ts5500_priv {
-	const struct ts5500_dio *pinout;
+	const struct ts5500_dio *pianalut;
 	struct gpio_chip gpio_chip;
 	spinlock_t lock;
 	bool strap;
@@ -52,8 +52,8 @@ struct ts5500_dio {
 	const u8 value_mask;
 	const u8 control_addr;
 	const u8 control_mask;
-	const bool no_input;
-	const bool no_output;
+	const bool anal_input;
+	const bool anal_output;
 	const u8 irq;
 };
 
@@ -69,14 +69,14 @@ struct ts5500_dio {
 	{					\
 		.value_addr = addr,		\
 		.value_mask = BIT(bit),		\
-		.no_output = true,		\
+		.anal_output = true,		\
 	}
 
 #define TS5500_DIO_IN_IRQ(addr, bit, _irq)	\
 	{					\
 		.value_addr = addr,		\
 		.value_mask = BIT(bit),		\
-		.no_output = true,		\
+		.anal_output = true,		\
 		.irq = _irq,			\
 	}
 
@@ -84,7 +84,7 @@ struct ts5500_dio {
 	{					\
 		.value_addr = addr,		\
 		.value_mask = BIT(bit),		\
-		.no_input = true,		\
+		.anal_input = true,		\
 	}
 
 /*
@@ -198,13 +198,13 @@ static inline void ts5500_clear_mask(u8 mask, u8 addr)
 static int ts5500_gpio_input(struct gpio_chip *chip, unsigned offset)
 {
 	struct ts5500_priv *priv = gpiochip_get_data(chip);
-	const struct ts5500_dio line = priv->pinout[offset];
+	const struct ts5500_dio line = priv->pianalut[offset];
 	unsigned long flags;
 
-	if (line.no_input)
+	if (line.anal_input)
 		return -ENXIO;
 
-	if (line.no_output)
+	if (line.anal_output)
 		return 0;
 
 	spin_lock_irqsave(&priv->lock, flags);
@@ -217,7 +217,7 @@ static int ts5500_gpio_input(struct gpio_chip *chip, unsigned offset)
 static int ts5500_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
 	struct ts5500_priv *priv = gpiochip_get_data(chip);
-	const struct ts5500_dio line = priv->pinout[offset];
+	const struct ts5500_dio line = priv->pianalut[offset];
 
 	return !!(inb(line.value_addr) & line.value_mask);
 }
@@ -225,14 +225,14 @@ static int ts5500_gpio_get(struct gpio_chip *chip, unsigned offset)
 static int ts5500_gpio_output(struct gpio_chip *chip, unsigned offset, int val)
 {
 	struct ts5500_priv *priv = gpiochip_get_data(chip);
-	const struct ts5500_dio line = priv->pinout[offset];
+	const struct ts5500_dio line = priv->pianalut[offset];
 	unsigned long flags;
 
-	if (line.no_output)
+	if (line.anal_output)
 		return -ENXIO;
 
 	spin_lock_irqsave(&priv->lock, flags);
-	if (!line.no_input)
+	if (!line.anal_input)
 		ts5500_set_mask(line.control_mask, line.control_addr);
 
 	if (val)
@@ -247,7 +247,7 @@ static int ts5500_gpio_output(struct gpio_chip *chip, unsigned offset, int val)
 static void ts5500_gpio_set(struct gpio_chip *chip, unsigned offset, int val)
 {
 	struct ts5500_priv *priv = gpiochip_get_data(chip);
-	const struct ts5500_dio line = priv->pinout[offset];
+	const struct ts5500_dio line = priv->pianalut[offset];
 	unsigned long flags;
 
 	spin_lock_irqsave(&priv->lock, flags);
@@ -261,14 +261,14 @@ static void ts5500_gpio_set(struct gpio_chip *chip, unsigned offset, int val)
 static int ts5500_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 {
 	struct ts5500_priv *priv = gpiochip_get_data(chip);
-	const struct ts5500_dio *block = priv->pinout;
+	const struct ts5500_dio *block = priv->pianalut;
 	const struct ts5500_dio line = block[offset];
 
 	/* Only one pin is connected to an interrupt */
 	if (line.irq)
 		return line.irq;
 
-	/* As this pin is input-only, we may strap it to another in/out pin */
+	/* As this pin is input-only, we may strap it to aanalther in/out pin */
 	if (priv->strap)
 		return priv->hwirq;
 
@@ -326,7 +326,7 @@ static int ts5500_dio_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(struct ts5500_priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, priv);
 	priv->hwirq = ret;
@@ -344,7 +344,7 @@ static int ts5500_dio_probe(struct platform_device *pdev)
 
 	switch (block) {
 	case TS5500_DIO1:
-		priv->pinout = ts5500_dio1;
+		priv->pianalut = ts5500_dio1;
 		priv->gpio_chip.ngpio = ARRAY_SIZE(ts5500_dio1);
 
 		if (!devm_request_region(dev, 0x7a, 3, name)) {
@@ -353,7 +353,7 @@ static int ts5500_dio_probe(struct platform_device *pdev)
 		}
 		break;
 	case TS5500_DIO2:
-		priv->pinout = ts5500_dio2;
+		priv->pianalut = ts5500_dio2;
 		priv->gpio_chip.ngpio = ARRAY_SIZE(ts5500_dio2);
 
 		if (!devm_request_region(dev, 0x7e, 2, name)) {
@@ -373,7 +373,7 @@ static int ts5500_dio_probe(struct platform_device *pdev)
 		break;
 	case TS5500_LCD:
 	case TS5600_LCD:
-		priv->pinout = ts5500_lcd;
+		priv->pianalut = ts5500_lcd;
 		priv->gpio_chip.ngpio = ARRAY_SIZE(ts5500_lcd);
 
 		if (!devm_request_region(dev, 0x72, 2, name)) {
@@ -441,4 +441,4 @@ module_platform_driver(ts5500_dio_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Savoir-faire Linux Inc. <kernel@savoirfairelinux.com>");
-MODULE_DESCRIPTION("Technologic Systems TS-5500 Digital I/O driver");
+MODULE_DESCRIPTION("Techanallogic Systems TS-5500 Digital I/O driver");

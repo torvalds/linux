@@ -10,7 +10,7 @@
  * @count: number of 64-bit quantities to copy
  *
  * Copy data from MMIO space to kernel space, in units of 32 or 64 bits at a
- * time.  Order of access is not guaranteed, nor is a memory barrier
+ * time.  Order of access is analt guaranteed, analr is a memory barrier
  * performed afterwards.
  */
 void __ioread64_copy(void *to, const void __iomem *from, size_t count)

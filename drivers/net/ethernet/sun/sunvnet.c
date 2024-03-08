@@ -51,10 +51,10 @@ MODULE_VERSION(DRV_MODULE_VERSION);
 
 /* Ordered from largest major to lowest */
 static struct vio_version vnet_versions[] = {
-	{ .major = 1, .minor = 8 },
-	{ .major = 1, .minor = 7 },
-	{ .major = 1, .minor = 6 },
-	{ .major = 1, .minor = 0 },
+	{ .major = 1, .mianalr = 8 },
+	{ .major = 1, .mianalr = 7 },
+	{ .major = 1, .mianalr = 6 },
+	{ .major = 1, .mianalr = 0 },
 };
 
 static void vnet_get_drvinfo(struct net_device *dev,
@@ -106,7 +106,7 @@ static int vnet_get_sset_count(struct net_device *dev, int sset)
 		return ARRAY_SIZE(ethtool_stats_keys)
 			+ (NUM_VNET_PORT_STATS * vp->nports);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -291,7 +291,7 @@ static struct vnet *vnet_new(const u64 *local_mac,
 
 	dev = alloc_etherdev_mqs(sizeof(*vp), VNET_MAX_TXQS, 1);
 	if (!dev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	dev->needed_headroom = VNET_PACKET_SKIP + 8;
 	dev->needed_tailroom = 8;
 
@@ -326,7 +326,7 @@ static struct vnet *vnet_new(const u64 *local_mac,
 
 	err = register_netdev(dev);
 	if (err) {
-		pr_err("Cannot register net device, aborting\n");
+		pr_err("Cananalt register net device, aborting\n");
 		goto err_out_free_dev;
 	}
 
@@ -383,13 +383,13 @@ static void vnet_cleanup(void)
 static const char *local_mac_prop = "local-mac-address";
 
 static struct vnet *vnet_find_parent(struct mdesc_handle *hp,
-				     u64 port_node,
+				     u64 port_analde,
 				     struct vio_dev *vdev)
 {
 	const u64 *local_mac = NULL;
 	u64 a;
 
-	mdesc_for_each_arc(a, hp, port_node, MDESC_ARC_TYPE_BACK) {
+	mdesc_for_each_arc(a, hp, port_analde, MDESC_ARC_TYPE_BACK) {
 		u64 target = mdesc_arc_target(hp, a);
 		const char *name;
 
@@ -403,7 +403,7 @@ static struct vnet *vnet_find_parent(struct mdesc_handle *hp,
 			break;
 	}
 	if (!local_mac)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	return vnet_find_or_create(local_mac, vdev);
 }
@@ -434,24 +434,24 @@ static int vnet_port_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	hp = mdesc_grab();
 
 	if (!hp)
-		return -ENODEV;
+		return -EANALDEV;
 
 	vp = vnet_find_parent(hp, vdev->mp, vdev);
 	if (IS_ERR(vp)) {
-		pr_err("Cannot find port parent vnet\n");
+		pr_err("Cananalt find port parent vnet\n");
 		err = PTR_ERR(vp);
 		goto err_out_put_mdesc;
 	}
 
 	rmac = mdesc_get_property(hp, vdev->mp, remote_macaddr_prop, &len);
-	err = -ENODEV;
+	err = -EANALDEV;
 	if (!rmac) {
 		pr_err("Port lacks %s property\n", remote_macaddr_prop);
 		goto err_out_put_mdesc;
 	}
 
 	port = kzalloc(sizeof(*port), GFP_KERNEL);
-	err = -ENOMEM;
+	err = -EANALMEM;
 	if (!port)
 		goto err_out_put_mdesc;
 
@@ -472,7 +472,7 @@ static int vnet_port_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 
 	netif_napi_add(port->vp->dev, &port->napi, sunvnet_poll_common);
 
-	INIT_HLIST_NODE(&port->hash);
+	INIT_HLIST_ANALDE(&port->hash);
 	INIT_LIST_HEAD(&port->list);
 
 	switch_port = 0;

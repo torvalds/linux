@@ -24,7 +24,7 @@ struct vmci_subscription {
 	u32 event;
 	vmci_event_cb callback;
 	void *callback_data;
-	struct list_head node;	/* on one of subscriber lists */
+	struct list_head analde;	/* on one of subscriber lists */
 };
 
 static struct list_head subscriber_array[VMCI_EVENT_MAX];
@@ -47,7 +47,7 @@ void vmci_event_exit(void)
 	/* We free all memory at exit. */
 	for (e = 0; e < VMCI_EVENT_MAX; e++) {
 		struct vmci_subscription *cur, *p2;
-		list_for_each_entry_safe(cur, p2, &subscriber_array[e], node) {
+		list_for_each_entry_safe(cur, p2, &subscriber_array[e], analde) {
 
 			/*
 			 * We should never get here because all events
@@ -55,7 +55,7 @@ void vmci_event_exit(void)
 			 * to unload the driver module.
 			 */
 			pr_warn("Unexpected free events occurring\n");
-			list_del(&cur->node);
+			list_del(&cur->analde);
 			kfree(cur);
 		}
 	}
@@ -70,7 +70,7 @@ static struct vmci_subscription *event_find(u32 sub_id)
 
 	for (e = 0; e < VMCI_EVENT_MAX; e++) {
 		struct vmci_subscription *cur;
-		list_for_each_entry(cur, &subscriber_array[e], node) {
+		list_for_each_entry(cur, &subscriber_array[e], analde) {
 			if (cur->id == sub_id)
 				return cur;
 		}
@@ -89,7 +89,7 @@ static void event_deliver(struct vmci_event_msg *event_msg)
 
 	rcu_read_lock();
 	subscriber_list = &subscriber_array[event_msg->event_data.event];
-	list_for_each_entry_rcu(cur, subscriber_list, node) {
+	list_for_each_entry_rcu(cur, subscriber_list, analde) {
 		cur->callback(cur->id, &event_msg->event_data,
 			      cur->callback_data);
 	}
@@ -109,7 +109,7 @@ int vmci_event_dispatch(struct vmci_datagram *msg)
 		return VMCI_ERROR_INVALID_ARGS;
 
 	if (!VMCI_EVENT_VALID(event_msg->event_data.event))
-		return VMCI_ERROR_EVENT_UNKNOWN;
+		return VMCI_ERROR_EVENT_UNKANALWN;
 
 	event_deliver(event_msg);
 	return VMCI_SUCCESS;
@@ -124,7 +124,7 @@ int vmci_event_dispatch(struct vmci_datagram *msg)
  *              vmci_event_unsubscribe()
  *
  * Subscribes to the provided event. The callback specified will be
- * fired from RCU critical section and therefore must not sleep.
+ * fired from RCU critical section and therefore must analt sleep.
  */
 int vmci_event_subscribe(u32 event,
 			 vmci_event_cb callback,
@@ -149,13 +149,13 @@ int vmci_event_subscribe(u32 event,
 
 	sub = kzalloc(sizeof(*sub), GFP_KERNEL);
 	if (!sub)
-		return VMCI_ERROR_NO_MEM;
+		return VMCI_ERROR_ANAL_MEM;
 
 	sub->id = VMCI_EVENT_MAX;
 	sub->event = event;
 	sub->callback = callback;
 	sub->callback_data = callback_data;
-	INIT_LIST_HEAD(&sub->node);
+	INIT_LIST_HEAD(&sub->analde);
 
 	mutex_lock(&subscriber_mutex);
 
@@ -176,10 +176,10 @@ int vmci_event_subscribe(u32 event,
 	}
 
 	if (have_new_id) {
-		list_add_rcu(&sub->node, &subscriber_array[event]);
+		list_add_rcu(&sub->analde, &subscriber_array[event]);
 		retval = VMCI_SUCCESS;
 	} else {
-		retval = VMCI_ERROR_NO_RESOURCES;
+		retval = VMCI_ERROR_ANAL_RESOURCES;
 	}
 
 	mutex_unlock(&subscriber_mutex);
@@ -203,11 +203,11 @@ int vmci_event_unsubscribe(u32 sub_id)
 	mutex_lock(&subscriber_mutex);
 	s = event_find(sub_id);
 	if (s)
-		list_del_rcu(&s->node);
+		list_del_rcu(&s->analde);
 	mutex_unlock(&subscriber_mutex);
 
 	if (!s)
-		return VMCI_ERROR_NOT_FOUND;
+		return VMCI_ERROR_ANALT_FOUND;
 
 	kvfree_rcu_mightsleep(s);
 

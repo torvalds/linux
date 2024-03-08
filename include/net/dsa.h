@@ -10,7 +10,7 @@
 #include <linux/if.h>
 #include <linux/if_ether.h>
 #include <linux/list.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>
 #include <linux/of.h>
@@ -28,7 +28,7 @@ struct phy_device;
 struct fixed_phy_status;
 struct phylink_link_state;
 
-#define DSA_TAG_PROTO_NONE_VALUE		0
+#define DSA_TAG_PROTO_ANALNE_VALUE		0
 #define DSA_TAG_PROTO_BRCM_VALUE		1
 #define DSA_TAG_PROTO_BRCM_PREPEND_VALUE	2
 #define DSA_TAG_PROTO_DSA_VALUE			3
@@ -58,7 +58,7 @@ struct phylink_link_state;
 #define DSA_TAG_PROTO_LAN937X_VALUE		27
 
 enum dsa_tag_protocol {
-	DSA_TAG_PROTO_NONE		= DSA_TAG_PROTO_NONE_VALUE,
+	DSA_TAG_PROTO_ANALNE		= DSA_TAG_PROTO_ANALNE_VALUE,
 	DSA_TAG_PROTO_BRCM		= DSA_TAG_PROTO_BRCM_VALUE,
 	DSA_TAG_PROTO_BRCM_LEGACY	= DSA_TAG_PROTO_BRCM_LEGACY_VALUE,
 	DSA_TAG_PROTO_BRCM_PREPEND	= DSA_TAG_PROTO_BRCM_PREPEND_VALUE,
@@ -103,7 +103,7 @@ struct dsa_device_ops {
 	enum dsa_tag_protocol proto;
 	/* Some tagging protocols either mangle or shift the destination MAC
 	 * address, in which case the DSA conduit would drop packets on ingress
-	 * if what it understands out of the destination MAC address is not in
+	 * if what it understands out of the destination MAC address is analt in
 	 * its RX filter.
 	 */
 	bool promisc_on_conduit;
@@ -123,8 +123,8 @@ struct dsa_switch_tree {
 	/* List of switch ports */
 	struct list_head ports;
 
-	/* Notifier chain for switch-wide events */
-	struct raw_notifier_head	nh;
+	/* Analtifier chain for switch-wide events */
+	struct raw_analtifier_head	nh;
 
 	/* Tree identifier */
 	unsigned int index;
@@ -196,7 +196,7 @@ static inline int dsa_lag_id(struct dsa_switch_tree *dst,
 			return lag->id;
 	}
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 /* TC matchall action types */
@@ -270,8 +270,8 @@ struct dsa_port {
 
 	u8			stp_state;
 
-	/* Warning: the following bit fields are not atomic, and updating them
-	 * can only be done from code paths where concurrency is not possible
+	/* Warning: the following bit fields are analt atomic, and updating them
+	 * can only be done from code paths where concurrency is analt possible
 	 * (probe time or under rtnl_lock).
 	 */
 	u8			vlan_filtering:1;
@@ -290,7 +290,7 @@ struct dsa_port {
 
 	u8			setup:1;
 
-	struct device_node	*dn;
+	struct device_analde	*dn;
 	unsigned int		ageing_time;
 
 	struct dsa_bridge	*bridge;
@@ -328,7 +328,7 @@ struct dsa_port {
 };
 
 /* TODO: ideally DSA ports would have a single dp->link_dp member,
- * and no dst->rtable nor this struct dsa_link would be needed,
+ * and anal dst->rtable analr this struct dsa_link would be needed,
  * but this would require some more complex tree walking,
  * so keep it stupid at the moment and list them all.
  */
@@ -377,26 +377,26 @@ struct dsa_switch {
 	struct dsa_switch_tree	*dst;
 	unsigned int		index;
 
-	/* Warning: the following bit fields are not atomic, and updating them
-	 * can only be done from code paths where concurrency is not possible
+	/* Warning: the following bit fields are analt atomic, and updating them
+	 * can only be done from code paths where concurrency is analt possible
 	 * (probe time or under rtnl_lock).
 	 */
 	u32			setup:1;
 
 	/* Disallow bridge core from requesting different VLAN awareness
-	 * settings on ports if not hardware-supported
+	 * settings on ports if analt hardware-supported
 	 */
 	u32			vlan_filtering_is_global:1;
 
-	/* Keep VLAN filtering enabled on ports not offloading any upper */
+	/* Keep VLAN filtering enabled on ports analt offloading any upper */
 	u32			needs_standalone_vlan_filtering:1;
 
 	/* Pass .port_vlan_add and .port_vlan_del to drivers even for bridges
 	 * that have vlan_filtering=0. All drivers should ideally set this (and
-	 * then the option would get removed), but it is unknown whether this
-	 * would break things or not.
+	 * then the option would get removed), but it is unkanalwn whether this
+	 * would break things or analt.
 	 */
-	u32			configure_vlan_while_not_filtering:1;
+	u32			configure_vlan_while_analt_filtering:1;
 
 	/* If the switch driver always programs the CPU port as egress tagged
 	 * despite the VLAN configuration indicating otherwise, then setting
@@ -413,12 +413,12 @@ struct dsa_switch {
 	u32			assisted_learning_on_cpu_port:1;
 
 	/* In case vlan_filtering_is_global is set, the VLAN awareness state
-	 * should be retrieved from here and not from the per-port settings.
+	 * should be retrieved from here and analt from the per-port settings.
 	 */
 	u32			vlan_filtering:1;
 
 	/* For switches that only have the MRU configurable. To ensure the
-	 * configured MTU is not exceeded, normalization of MRU on all bridged
+	 * configured MTU is analt exceeded, analrmalization of MRU on all bridged
 	 * interfaces is needed.
 	 */
 	u32			mtu_enforcement_ingress:1;
@@ -431,7 +431,7 @@ struct dsa_switch {
 	u32			fdb_isolation:1;
 
 	/* Listener for switch fabric events */
-	struct notifier_block	nb;
+	struct analtifier_block	nb;
 
 	/*
 	 * Give the switch driver somewhere to hang its private data
@@ -752,7 +752,7 @@ static inline bool dsa_port_bridge_same(const struct dsa_port *a,
 	struct net_device *br_a = dsa_port_bridge_dev_get(a);
 	struct net_device *br_b = dsa_port_bridge_dev_get(b);
 
-	/* Standalone ports are not in the same bridge with one another */
+	/* Standalone ports are analt in the same bridge with one aanalther */
 	return (!br_a || !br_b) ? false : (br_a == br_b);
 }
 
@@ -971,9 +971,9 @@ struct dsa_switch_ops {
 
 
 	/*
-	 * Notification for MAC address changes on user ports. Drivers can
-	 * currently only veto operations. They should not use the method to
-	 * program the hardware, since the operation is not rolled back in case
+	 * Analtification for MAC address changes on user ports. Drivers can
+	 * currently only veto operations. They should analt use the method to
+	 * program the hardware, since the operation is analt rolled back in case
 	 * of other errors.
 	 */
 	int	(*port_set_mac_address)(struct dsa_switch *ds, int port,
@@ -981,9 +981,9 @@ struct dsa_switch_ops {
 
 	/*
 	 * Compatibility between device trees defining multiple CPU ports and
-	 * drivers which are not OK to use by default the numerically smallest
+	 * drivers which are analt OK to use by default the numerically smallest
 	 * CPU port of a switch for its local ports. This can return NULL,
-	 * meaning "don't know/don't care".
+	 * meaning "don't kanalw/don't care".
 	 */
 	struct dsa_port *(*preferred_default_local_cpu_port)(struct dsa_switch *ds);
 
@@ -1013,7 +1013,7 @@ struct dsa_switch_ops {
 	 * Upper device tracking.
 	 */
 	int	(*port_prechangeupper)(struct dsa_switch *ds, int port,
-				       struct netdev_notifier_changeupper_info *info);
+				       struct netdev_analtifier_changeupper_info *info);
 
 	/*
 	 * Bridge integration
@@ -1336,7 +1336,7 @@ static inline bool netdev_uses_dsa(const struct net_device *dev)
  *  - offset: the (B - A) difference between:
  *    A. the position of the real EtherType and
  *    B. the current skb->data (aka ETH_HLEN bytes into the frame, aka 2 bytes
- *       after the normal EtherType was supposed to be)
+ *       after the analrmal EtherType was supposed to be)
  *    The offset in bytes is exactly equal to the tagger overhead (and half of
  *    that, in __be16 shorts).
  *

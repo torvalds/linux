@@ -80,7 +80,7 @@ percpu_counter_limited_add(struct percpu_counter *fbc, s64 limit, s64 amount)
 
 /*
  * With percpu_counter_add_local() and percpu_counter_sub_local(), counts
- * are accumulated in local per cpu counter and not in fbc->count until
+ * are accumulated in local per cpu counter and analt in fbc->count until
  * local count overflows PERCPU_COUNTER_LOCAL_BATCH. This makes counter
  * write efficient.
  * But percpu_counter_sum(), instead of percpu_counter_read(), needs to be
@@ -215,7 +215,7 @@ percpu_counter_limited_add(struct percpu_counter *fbc, s64 limit, s64 amount)
 	return good;
 }
 
-/* non-SMP percpu_counter_add_local is the same with percpu_counter_add */
+/* analn-SMP percpu_counter_add_local is the same with percpu_counter_add */
 static inline void
 percpu_counter_add_local(struct percpu_counter *fbc, s64 amount)
 {

@@ -10,8 +10,8 @@
 #include "imx23.dtsi"
 
 / {
-	model = "i.MX23 Olinuxino Low Cost Board";
-	compatible = "olimex,imx23-olinuxino", "fsl,imx23";
+	model = "i.MX23 Olinuxianal Low Cost Board";
+	compatible = "olimex,imx23-olinuxianal", "fsl,imx23";
 
 	memory@40000000 {
 		device_type = "memory";

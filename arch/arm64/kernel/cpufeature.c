@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2015 ARM Ltd.
  *
- * A note for the weary kernel hacker: the code here is confusing and hard to
+ * A analte for the weary kernel hacker: the code here is confusing and hard to
  * follow! That's partly because it's solving a nasty problem, but also because
  * there's a little bit of over-abstraction that tends to obscure what's going
  * on behind a maze of helper functions and macros.
@@ -15,8 +15,8 @@
  * cores. We try to address this by snapshotting the feature registers of the
  * boot CPU and comparing these with the feature registers of each secondary
  * CPU when bringing them up. If there is a mismatch, then we update the
- * snapshot state to indicate the lowest-common denominator of the feature,
- * known as the "safe" value. This snapshot state can be queried to view the
+ * snapshot state to indicate the lowest-common deanalminator of the feature,
+ * kanalwn as the "safe" value. This snapshot state can be queried to view the
  * "sanitised" value of a feature register.
  *
  * The sanitised register values are used to decide which capabilities we
@@ -29,7 +29,7 @@
  * Some implementation details worth remembering:
  *
  * - Mismatched features are *always* sanitised to a "safe" value, which
- *   usually indicates that the feature is not supported.
+ *   usually indicates that the feature is analt supported.
  *
  * - A mismatched feature marked with FTR_STRICT will cause a "SANITY CHECK"
  *   warning when onlining an offending CPU and the kernel will be tainted
@@ -38,7 +38,7 @@
  * - Features marked as FTR_VISIBLE have their sanitised value visible to
  *   userspace. FTR_VISIBLE features in registers that are only visible
  *   to EL0 by trapping *must* have a corresponding HWCAP so that late
- *   onlining of CPUs cannot lead to features disappearing at runtime.
+ *   onlining of CPUs cananalt lead to features disappearing at runtime.
  *
  * - A "feature" is typically a 4-bit register field. A "capability" is the
  *   high-level description derived from the sanitised field value.
@@ -50,7 +50,7 @@
  * - KVM exposes its own view of the feature registers to guest operating
  *   systems regardless of FTR_VISIBLE. This is typically driven from the
  *   sanitised register values to allow virtual CPUs to be migrated between
- *   arbitrary physical CPUs, but some features not present on the host are
+ *   arbitrary physical CPUs, but some features analt present on the host are
  *   also advertised and emulated. Look at sys_reg_descs[] for the gory
  *   details.
  *
@@ -117,7 +117,7 @@ EXPORT_SYMBOL(arm64_use_ng_mappings);
 DEFINE_PER_CPU_READ_MOSTLY(const char *, this_cpu_vector) = vectors;
 
 /*
- * Permit PER_LINUX32 and execve() of 32-bit binaries even if not all CPUs
+ * Permit PER_LINUX32 and execve() of 32-bit binaries even if analt all CPUs
  * support it?
  */
 static bool __read_mostly allow_mismatched_32bit_el0;
@@ -176,7 +176,7 @@ static void cpu_enable_cnp(struct arm64_cpu_capabilities const *cap);
 static bool __system_matches_cap(unsigned int n);
 
 /*
- * NOTE: Any changes to the visibility of features should be kept in
+ * ANALTE: Any changes to the visibility of features should be kept in
  * sync with the documentation of the CPU feature register ABI.
  */
 static const struct arm64_ftr_bits ftr_id_aa64isar0[] = {
@@ -220,8 +220,8 @@ static const struct arm64_ftr_bits ftr_id_aa64isar1[] = {
 };
 
 static const struct arm64_ftr_bits ftr_id_aa64isar2[] = {
-	ARM64_FTR_BITS(FTR_VISIBLE, FTR_NONSTRICT, FTR_LOWER_SAFE, ID_AA64ISAR2_EL1_CSSC_SHIFT, 4, 0),
-	ARM64_FTR_BITS(FTR_VISIBLE, FTR_NONSTRICT, FTR_LOWER_SAFE, ID_AA64ISAR2_EL1_RPRFM_SHIFT, 4, 0),
+	ARM64_FTR_BITS(FTR_VISIBLE, FTR_ANALNSTRICT, FTR_LOWER_SAFE, ID_AA64ISAR2_EL1_CSSC_SHIFT, 4, 0),
+	ARM64_FTR_BITS(FTR_VISIBLE, FTR_ANALNSTRICT, FTR_LOWER_SAFE, ID_AA64ISAR2_EL1_RPRFM_SHIFT, 4, 0),
 	ARM64_FTR_BITS(FTR_HIDDEN, FTR_STRICT, FTR_LOWER_SAFE, ID_AA64ISAR2_EL1_CLRBHB_SHIFT, 4, 0),
 	ARM64_FTR_BITS(FTR_VISIBLE, FTR_STRICT, FTR_LOWER_SAFE, ID_AA64ISAR2_EL1_BC_SHIFT, 4, 0),
 	ARM64_FTR_BITS(FTR_VISIBLE, FTR_STRICT, FTR_LOWER_SAFE, ID_AA64ISAR2_EL1_MOPS_SHIFT, 4, 0),
@@ -229,28 +229,28 @@ static const struct arm64_ftr_bits ftr_id_aa64isar2[] = {
 		       FTR_STRICT, FTR_EXACT, ID_AA64ISAR2_EL1_APA3_SHIFT, 4, 0),
 	ARM64_FTR_BITS(FTR_VISIBLE_IF_IS_ENABLED(CONFIG_ARM64_PTR_AUTH),
 		       FTR_STRICT, FTR_LOWER_SAFE, ID_AA64ISAR2_EL1_GPA3_SHIFT, 4, 0),
-	ARM64_FTR_BITS(FTR_VISIBLE, FTR_NONSTRICT, FTR_LOWER_SAFE, ID_AA64ISAR2_EL1_RPRES_SHIFT, 4, 0),
-	ARM64_FTR_BITS(FTR_VISIBLE, FTR_NONSTRICT, FTR_LOWER_SAFE, ID_AA64ISAR2_EL1_WFxT_SHIFT, 4, 0),
+	ARM64_FTR_BITS(FTR_VISIBLE, FTR_ANALNSTRICT, FTR_LOWER_SAFE, ID_AA64ISAR2_EL1_RPRES_SHIFT, 4, 0),
+	ARM64_FTR_BITS(FTR_VISIBLE, FTR_ANALNSTRICT, FTR_LOWER_SAFE, ID_AA64ISAR2_EL1_WFxT_SHIFT, 4, 0),
 	ARM64_FTR_END,
 };
 
 static const struct arm64_ftr_bits ftr_id_aa64pfr0[] = {
-	ARM64_FTR_BITS(FTR_HIDDEN, FTR_NONSTRICT, FTR_LOWER_SAFE, ID_AA64PFR0_EL1_CSV3_SHIFT, 4, 0),
-	ARM64_FTR_BITS(FTR_HIDDEN, FTR_NONSTRICT, FTR_LOWER_SAFE, ID_AA64PFR0_EL1_CSV2_SHIFT, 4, 0),
+	ARM64_FTR_BITS(FTR_HIDDEN, FTR_ANALNSTRICT, FTR_LOWER_SAFE, ID_AA64PFR0_EL1_CSV3_SHIFT, 4, 0),
+	ARM64_FTR_BITS(FTR_HIDDEN, FTR_ANALNSTRICT, FTR_LOWER_SAFE, ID_AA64PFR0_EL1_CSV2_SHIFT, 4, 0),
 	ARM64_FTR_BITS(FTR_VISIBLE, FTR_STRICT, FTR_LOWER_SAFE, ID_AA64PFR0_EL1_DIT_SHIFT, 4, 0),
-	ARM64_FTR_BITS(FTR_HIDDEN, FTR_NONSTRICT, FTR_LOWER_SAFE, ID_AA64PFR0_EL1_AMU_SHIFT, 4, 0),
+	ARM64_FTR_BITS(FTR_HIDDEN, FTR_ANALNSTRICT, FTR_LOWER_SAFE, ID_AA64PFR0_EL1_AMU_SHIFT, 4, 0),
 	ARM64_FTR_BITS(FTR_HIDDEN, FTR_STRICT, FTR_LOWER_SAFE, ID_AA64PFR0_EL1_MPAM_SHIFT, 4, 0),
-	ARM64_FTR_BITS(FTR_HIDDEN, FTR_NONSTRICT, FTR_LOWER_SAFE, ID_AA64PFR0_EL1_SEL2_SHIFT, 4, 0),
+	ARM64_FTR_BITS(FTR_HIDDEN, FTR_ANALNSTRICT, FTR_LOWER_SAFE, ID_AA64PFR0_EL1_SEL2_SHIFT, 4, 0),
 	ARM64_FTR_BITS(FTR_VISIBLE_IF_IS_ENABLED(CONFIG_ARM64_SVE),
 				   FTR_STRICT, FTR_LOWER_SAFE, ID_AA64PFR0_EL1_SVE_SHIFT, 4, 0),
 	ARM64_FTR_BITS(FTR_HIDDEN, FTR_STRICT, FTR_LOWER_SAFE, ID_AA64PFR0_EL1_RAS_SHIFT, 4, 0),
 	ARM64_FTR_BITS(FTR_HIDDEN, FTR_STRICT, FTR_LOWER_SAFE, ID_AA64PFR0_EL1_GIC_SHIFT, 4, 0),
 	S_ARM64_FTR_BITS(FTR_VISIBLE, FTR_STRICT, FTR_LOWER_SAFE, ID_AA64PFR0_EL1_AdvSIMD_SHIFT, 4, ID_AA64PFR0_EL1_AdvSIMD_NI),
 	S_ARM64_FTR_BITS(FTR_VISIBLE, FTR_STRICT, FTR_LOWER_SAFE, ID_AA64PFR0_EL1_FP_SHIFT, 4, ID_AA64PFR0_EL1_FP_NI),
-	ARM64_FTR_BITS(FTR_HIDDEN, FTR_NONSTRICT, FTR_LOWER_SAFE, ID_AA64PFR0_EL1_EL3_SHIFT, 4, 0),
-	ARM64_FTR_BITS(FTR_HIDDEN, FTR_NONSTRICT, FTR_LOWER_SAFE, ID_AA64PFR0_EL1_EL2_SHIFT, 4, 0),
-	ARM64_FTR_BITS(FTR_HIDDEN, FTR_NONSTRICT, FTR_LOWER_SAFE, ID_AA64PFR0_EL1_EL1_SHIFT, 4, ID_AA64PFR0_EL1_ELx_64BIT_ONLY),
-	ARM64_FTR_BITS(FTR_HIDDEN, FTR_NONSTRICT, FTR_LOWER_SAFE, ID_AA64PFR0_EL1_EL0_SHIFT, 4, ID_AA64PFR0_EL1_ELx_64BIT_ONLY),
+	ARM64_FTR_BITS(FTR_HIDDEN, FTR_ANALNSTRICT, FTR_LOWER_SAFE, ID_AA64PFR0_EL1_EL3_SHIFT, 4, 0),
+	ARM64_FTR_BITS(FTR_HIDDEN, FTR_ANALNSTRICT, FTR_LOWER_SAFE, ID_AA64PFR0_EL1_EL2_SHIFT, 4, 0),
+	ARM64_FTR_BITS(FTR_HIDDEN, FTR_ANALNSTRICT, FTR_LOWER_SAFE, ID_AA64PFR0_EL1_EL1_SHIFT, 4, ID_AA64PFR0_EL1_ELx_64BIT_ONLY),
+	ARM64_FTR_BITS(FTR_HIDDEN, FTR_ANALNSTRICT, FTR_LOWER_SAFE, ID_AA64PFR0_EL1_EL0_SHIFT, 4, ID_AA64PFR0_EL1_ELx_64BIT_ONLY),
 	ARM64_FTR_END,
 };
 
@@ -261,7 +261,7 @@ static const struct arm64_ftr_bits ftr_id_aa64pfr1[] = {
 	ARM64_FTR_BITS(FTR_HIDDEN, FTR_STRICT, FTR_LOWER_SAFE, ID_AA64PFR1_EL1_RAS_frac_SHIFT, 4, 0),
 	ARM64_FTR_BITS(FTR_VISIBLE_IF_IS_ENABLED(CONFIG_ARM64_MTE),
 		       FTR_STRICT, FTR_LOWER_SAFE, ID_AA64PFR1_EL1_MTE_SHIFT, 4, ID_AA64PFR1_EL1_MTE_NI),
-	ARM64_FTR_BITS(FTR_VISIBLE, FTR_NONSTRICT, FTR_LOWER_SAFE, ID_AA64PFR1_EL1_SSBS_SHIFT, 4, ID_AA64PFR1_EL1_SSBS_NI),
+	ARM64_FTR_BITS(FTR_VISIBLE, FTR_ANALNSTRICT, FTR_LOWER_SAFE, ID_AA64PFR1_EL1_SSBS_SHIFT, 4, ID_AA64PFR1_EL1_SSBS_NI),
 	ARM64_FTR_BITS(FTR_VISIBLE_IF_IS_ENABLED(CONFIG_ARM64_BTI),
 				    FTR_STRICT, FTR_LOWER_SAFE, ID_AA64PFR1_EL1_BT_SHIFT, 4, 0),
 	ARM64_FTR_END,
@@ -324,49 +324,49 @@ static const struct arm64_ftr_bits ftr_id_aa64mmfr0[] = {
 	ARM64_FTR_BITS(FTR_HIDDEN, FTR_STRICT, FTR_LOWER_SAFE, ID_AA64MMFR0_EL1_FGT_SHIFT, 4, 0),
 	ARM64_FTR_BITS(FTR_HIDDEN, FTR_STRICT, FTR_LOWER_SAFE, ID_AA64MMFR0_EL1_EXS_SHIFT, 4, 0),
 	/*
-	 * Page size not being supported at Stage-2 is not fatal. You
+	 * Page size analt being supported at Stage-2 is analt fatal. You
 	 * just give up KVM if PAGE_SIZE isn't supported there. Go fix
 	 * your favourite nesting hypervisor.
 	 *
 	 * There is a small corner case where the hypervisor explicitly
 	 * advertises a given granule size at Stage-2 (value 2) on some
 	 * vCPUs, and uses the fallback to Stage-1 (value 0) for other
-	 * vCPUs. Although this is not forbidden by the architecture, it
+	 * vCPUs. Although this is analt forbidden by the architecture, it
 	 * indicates that the hypervisor is being silly (or buggy).
 	 *
-	 * We make no effort to cope with this and pretend that if these
+	 * We make anal effort to cope with this and pretend that if these
 	 * fields are inconsistent across vCPUs, then it isn't worth
 	 * trying to bring KVM up.
 	 */
-	ARM64_FTR_BITS(FTR_HIDDEN, FTR_NONSTRICT, FTR_EXACT, ID_AA64MMFR0_EL1_TGRAN4_2_SHIFT, 4, 1),
-	ARM64_FTR_BITS(FTR_HIDDEN, FTR_NONSTRICT, FTR_EXACT, ID_AA64MMFR0_EL1_TGRAN64_2_SHIFT, 4, 1),
-	ARM64_FTR_BITS(FTR_HIDDEN, FTR_NONSTRICT, FTR_EXACT, ID_AA64MMFR0_EL1_TGRAN16_2_SHIFT, 4, 1),
+	ARM64_FTR_BITS(FTR_HIDDEN, FTR_ANALNSTRICT, FTR_EXACT, ID_AA64MMFR0_EL1_TGRAN4_2_SHIFT, 4, 1),
+	ARM64_FTR_BITS(FTR_HIDDEN, FTR_ANALNSTRICT, FTR_EXACT, ID_AA64MMFR0_EL1_TGRAN64_2_SHIFT, 4, 1),
+	ARM64_FTR_BITS(FTR_HIDDEN, FTR_ANALNSTRICT, FTR_EXACT, ID_AA64MMFR0_EL1_TGRAN16_2_SHIFT, 4, 1),
 	/*
 	 * We already refuse to boot CPUs that don't support our configured
 	 * page size, so we can only detect mismatches for a page size other
 	 * than the one we're currently using. Unfortunately, SoCs like this
 	 * exist in the wild so, even though we don't like it, we'll have to go
-	 * along with it and treat them as non-strict.
+	 * along with it and treat them as analn-strict.
 	 */
-	S_ARM64_FTR_BITS(FTR_HIDDEN, FTR_NONSTRICT, FTR_LOWER_SAFE, ID_AA64MMFR0_EL1_TGRAN4_SHIFT, 4, ID_AA64MMFR0_EL1_TGRAN4_NI),
-	S_ARM64_FTR_BITS(FTR_HIDDEN, FTR_NONSTRICT, FTR_LOWER_SAFE, ID_AA64MMFR0_EL1_TGRAN64_SHIFT, 4, ID_AA64MMFR0_EL1_TGRAN64_NI),
-	ARM64_FTR_BITS(FTR_HIDDEN, FTR_NONSTRICT, FTR_LOWER_SAFE, ID_AA64MMFR0_EL1_TGRAN16_SHIFT, 4, ID_AA64MMFR0_EL1_TGRAN16_NI),
+	S_ARM64_FTR_BITS(FTR_HIDDEN, FTR_ANALNSTRICT, FTR_LOWER_SAFE, ID_AA64MMFR0_EL1_TGRAN4_SHIFT, 4, ID_AA64MMFR0_EL1_TGRAN4_NI),
+	S_ARM64_FTR_BITS(FTR_HIDDEN, FTR_ANALNSTRICT, FTR_LOWER_SAFE, ID_AA64MMFR0_EL1_TGRAN64_SHIFT, 4, ID_AA64MMFR0_EL1_TGRAN64_NI),
+	ARM64_FTR_BITS(FTR_HIDDEN, FTR_ANALNSTRICT, FTR_LOWER_SAFE, ID_AA64MMFR0_EL1_TGRAN16_SHIFT, 4, ID_AA64MMFR0_EL1_TGRAN16_NI),
 
 	ARM64_FTR_BITS(FTR_HIDDEN, FTR_STRICT, FTR_LOWER_SAFE, ID_AA64MMFR0_EL1_BIGENDEL0_SHIFT, 4, 0),
 	/* Linux shouldn't care about secure memory */
-	ARM64_FTR_BITS(FTR_HIDDEN, FTR_NONSTRICT, FTR_LOWER_SAFE, ID_AA64MMFR0_EL1_SNSMEM_SHIFT, 4, 0),
+	ARM64_FTR_BITS(FTR_HIDDEN, FTR_ANALNSTRICT, FTR_LOWER_SAFE, ID_AA64MMFR0_EL1_SNSMEM_SHIFT, 4, 0),
 	ARM64_FTR_BITS(FTR_HIDDEN, FTR_STRICT, FTR_LOWER_SAFE, ID_AA64MMFR0_EL1_BIGEND_SHIFT, 4, 0),
 	ARM64_FTR_BITS(FTR_HIDDEN, FTR_STRICT, FTR_LOWER_SAFE, ID_AA64MMFR0_EL1_ASIDBITS_SHIFT, 4, 0),
 	/*
 	 * Differing PARange is fine as long as all peripherals and memory are mapped
 	 * within the minimum PARange of all CPUs
 	 */
-	ARM64_FTR_BITS(FTR_HIDDEN, FTR_NONSTRICT, FTR_LOWER_SAFE, ID_AA64MMFR0_EL1_PARANGE_SHIFT, 4, 0),
+	ARM64_FTR_BITS(FTR_HIDDEN, FTR_ANALNSTRICT, FTR_LOWER_SAFE, ID_AA64MMFR0_EL1_PARANGE_SHIFT, 4, 0),
 	ARM64_FTR_END,
 };
 
 static const struct arm64_ftr_bits ftr_id_aa64mmfr1[] = {
-	ARM64_FTR_BITS(FTR_HIDDEN, FTR_NONSTRICT, FTR_LOWER_SAFE, ID_AA64MMFR1_EL1_TIDCP1_SHIFT, 4, 0),
+	ARM64_FTR_BITS(FTR_HIDDEN, FTR_ANALNSTRICT, FTR_LOWER_SAFE, ID_AA64MMFR1_EL1_TIDCP1_SHIFT, 4, 0),
 	ARM64_FTR_BITS(FTR_VISIBLE, FTR_STRICT, FTR_LOWER_SAFE, ID_AA64MMFR1_EL1_AFP_SHIFT, 4, 0),
 	ARM64_FTR_BITS(FTR_HIDDEN, FTR_STRICT, FTR_LOWER_SAFE, ID_AA64MMFR1_EL1_HCX_SHIFT, 4, 0),
 	ARM64_FTR_BITS(FTR_HIDDEN, FTR_STRICT, FTR_LOWER_SAFE, ID_AA64MMFR1_EL1_ETS_SHIFT, 4, 0),
@@ -383,7 +383,7 @@ static const struct arm64_ftr_bits ftr_id_aa64mmfr1[] = {
 };
 
 static const struct arm64_ftr_bits ftr_id_aa64mmfr2[] = {
-	ARM64_FTR_BITS(FTR_HIDDEN, FTR_NONSTRICT, FTR_LOWER_SAFE, ID_AA64MMFR2_EL1_E0PD_SHIFT, 4, 0),
+	ARM64_FTR_BITS(FTR_HIDDEN, FTR_ANALNSTRICT, FTR_LOWER_SAFE, ID_AA64MMFR2_EL1_E0PD_SHIFT, 4, 0),
 	ARM64_FTR_BITS(FTR_HIDDEN, FTR_STRICT, FTR_LOWER_SAFE, ID_AA64MMFR2_EL1_EVT_SHIFT, 4, 0),
 	ARM64_FTR_BITS(FTR_HIDDEN, FTR_STRICT, FTR_LOWER_SAFE, ID_AA64MMFR2_EL1_BBM_SHIFT, 4, 0),
 	ARM64_FTR_BITS(FTR_HIDDEN, FTR_STRICT, FTR_LOWER_SAFE, ID_AA64MMFR2_EL1_TTL_SHIFT, 4, 0),
@@ -394,7 +394,7 @@ static const struct arm64_ftr_bits ftr_id_aa64mmfr2[] = {
 	ARM64_FTR_BITS(FTR_HIDDEN, FTR_STRICT, FTR_LOWER_SAFE, ID_AA64MMFR2_EL1_NV_SHIFT, 4, 0),
 	ARM64_FTR_BITS(FTR_HIDDEN, FTR_STRICT, FTR_LOWER_SAFE, ID_AA64MMFR2_EL1_CCIDX_SHIFT, 4, 0),
 	ARM64_FTR_BITS(FTR_HIDDEN, FTR_STRICT, FTR_LOWER_SAFE, ID_AA64MMFR2_EL1_VARange_SHIFT, 4, 0),
-	ARM64_FTR_BITS(FTR_HIDDEN, FTR_NONSTRICT, FTR_LOWER_SAFE, ID_AA64MMFR2_EL1_IESB_SHIFT, 4, 0),
+	ARM64_FTR_BITS(FTR_HIDDEN, FTR_ANALNSTRICT, FTR_LOWER_SAFE, ID_AA64MMFR2_EL1_IESB_SHIFT, 4, 0),
 	ARM64_FTR_BITS(FTR_HIDDEN, FTR_STRICT, FTR_LOWER_SAFE, ID_AA64MMFR2_EL1_LSM_SHIFT, 4, 0),
 	ARM64_FTR_BITS(FTR_HIDDEN, FTR_STRICT, FTR_LOWER_SAFE, ID_AA64MMFR2_EL1_UAO_SHIFT, 4, 0),
 	ARM64_FTR_BITS(FTR_HIDDEN, FTR_STRICT, FTR_LOWER_SAFE, ID_AA64MMFR2_EL1_CnP_SHIFT, 4, 0),
@@ -402,8 +402,8 @@ static const struct arm64_ftr_bits ftr_id_aa64mmfr2[] = {
 };
 
 static const struct arm64_ftr_bits ftr_id_aa64mmfr3[] = {
-	ARM64_FTR_BITS(FTR_HIDDEN, FTR_NONSTRICT, FTR_LOWER_SAFE, ID_AA64MMFR3_EL1_S1PIE_SHIFT, 4, 0),
-	ARM64_FTR_BITS(FTR_HIDDEN, FTR_NONSTRICT, FTR_LOWER_SAFE, ID_AA64MMFR3_EL1_TCRX_SHIFT, 4, 0),
+	ARM64_FTR_BITS(FTR_HIDDEN, FTR_ANALNSTRICT, FTR_LOWER_SAFE, ID_AA64MMFR3_EL1_S1PIE_SHIFT, 4, 0),
+	ARM64_FTR_BITS(FTR_HIDDEN, FTR_ANALNSTRICT, FTR_LOWER_SAFE, ID_AA64MMFR3_EL1_TCRX_SHIFT, 4, 0),
 	ARM64_FTR_END,
 };
 
@@ -419,23 +419,23 @@ static const struct arm64_ftr_bits ftr_ctr[] = {
 	 * make use of *minLine.
 	 * If we have differing I-cache policies, report it as the weakest - VIPT.
 	 */
-	ARM64_FTR_BITS(FTR_VISIBLE, FTR_NONSTRICT, FTR_EXACT, CTR_EL0_L1Ip_SHIFT, 2, CTR_EL0_L1Ip_VIPT),	/* L1Ip */
+	ARM64_FTR_BITS(FTR_VISIBLE, FTR_ANALNSTRICT, FTR_EXACT, CTR_EL0_L1Ip_SHIFT, 2, CTR_EL0_L1Ip_VIPT),	/* L1Ip */
 	ARM64_FTR_BITS(FTR_VISIBLE, FTR_STRICT, FTR_LOWER_SAFE, CTR_EL0_IminLine_SHIFT, 4, 0),
 	ARM64_FTR_END,
 };
 
-static struct arm64_ftr_override __ro_after_init no_override = { };
+static struct arm64_ftr_override __ro_after_init anal_override = { };
 
 struct arm64_ftr_reg arm64_ftr_reg_ctrel0 = {
 	.name		= "SYS_CTR_EL0",
 	.ftr_bits	= ftr_ctr,
-	.override	= &no_override,
+	.override	= &anal_override,
 };
 
 static const struct arm64_ftr_bits ftr_id_mmfr0[] = {
 	S_ARM64_FTR_BITS(FTR_HIDDEN, FTR_STRICT, FTR_LOWER_SAFE, ID_MMFR0_EL1_InnerShr_SHIFT, 4, 0xf),
 	ARM64_FTR_BITS(FTR_HIDDEN, FTR_STRICT, FTR_LOWER_SAFE, ID_MMFR0_EL1_FCSE_SHIFT, 4, 0),
-	ARM64_FTR_BITS(FTR_HIDDEN, FTR_NONSTRICT, FTR_LOWER_SAFE, ID_MMFR0_EL1_AuxReg_SHIFT, 4, 0),
+	ARM64_FTR_BITS(FTR_HIDDEN, FTR_ANALNSTRICT, FTR_LOWER_SAFE, ID_MMFR0_EL1_AuxReg_SHIFT, 4, 0),
 	ARM64_FTR_BITS(FTR_HIDDEN, FTR_STRICT, FTR_LOWER_SAFE, ID_MMFR0_EL1_TCM_SHIFT, 4, 0),
 	ARM64_FTR_BITS(FTR_HIDDEN, FTR_STRICT, FTR_LOWER_SAFE, ID_MMFR0_EL1_ShareLvl_SHIFT, 4, 0),
 	S_ARM64_FTR_BITS(FTR_HIDDEN, FTR_STRICT, FTR_LOWER_SAFE, ID_MMFR0_EL1_OuterShr_SHIFT, 4, 0xf),
@@ -446,7 +446,7 @@ static const struct arm64_ftr_bits ftr_id_mmfr0[] = {
 
 static const struct arm64_ftr_bits ftr_id_aa64dfr0[] = {
 	S_ARM64_FTR_BITS(FTR_HIDDEN, FTR_STRICT, FTR_LOWER_SAFE, ID_AA64DFR0_EL1_DoubleLock_SHIFT, 4, 0),
-	ARM64_FTR_BITS(FTR_HIDDEN, FTR_NONSTRICT, FTR_LOWER_SAFE, ID_AA64DFR0_EL1_PMSVer_SHIFT, 4, 0),
+	ARM64_FTR_BITS(FTR_HIDDEN, FTR_ANALNSTRICT, FTR_LOWER_SAFE, ID_AA64DFR0_EL1_PMSVer_SHIFT, 4, 0),
 	ARM64_FTR_BITS(FTR_HIDDEN, FTR_STRICT, FTR_LOWER_SAFE, ID_AA64DFR0_EL1_CTX_CMPs_SHIFT, 4, 0),
 	ARM64_FTR_BITS(FTR_HIDDEN, FTR_STRICT, FTR_LOWER_SAFE, ID_AA64DFR0_EL1_WRPs_SHIFT, 4, 0),
 	ARM64_FTR_BITS(FTR_HIDDEN, FTR_STRICT, FTR_LOWER_SAFE, ID_AA64DFR0_EL1_BRPs_SHIFT, 4, 0),
@@ -454,7 +454,7 @@ static const struct arm64_ftr_bits ftr_id_aa64dfr0[] = {
 	 * We can instantiate multiple PMU instances with different levels
 	 * of support.
 	 */
-	S_ARM64_FTR_BITS(FTR_HIDDEN, FTR_NONSTRICT, FTR_EXACT, ID_AA64DFR0_EL1_PMUVer_SHIFT, 4, 0),
+	S_ARM64_FTR_BITS(FTR_HIDDEN, FTR_ANALNSTRICT, FTR_EXACT, ID_AA64DFR0_EL1_PMUVer_SHIFT, 4, 0),
 	ARM64_FTR_BITS(FTR_HIDDEN, FTR_STRICT, FTR_EXACT, ID_AA64DFR0_EL1_DebugVer_SHIFT, 4, 0x6),
 	ARM64_FTR_END,
 };
@@ -533,7 +533,7 @@ static const struct arm64_ftr_bits ftr_id_mmfr4[] = {
 	/*
 	 * SpecSEI = 1 indicates that the PE might generate an SError on an
 	 * external abort on speculative read. It is safe to assume that an
-	 * SError might be generated than it will not be. Hence it has been
+	 * SError might be generated than it will analt be. Hence it has been
 	 * classified as FTR_HIGHER_SAFE.
 	 */
 	ARM64_FTR_BITS(FTR_HIDDEN, FTR_STRICT, FTR_HIGHER_SAFE, ID_MMFR4_EL1_SpecSEI_SHIFT, 4, 0),
@@ -570,7 +570,7 @@ static const struct arm64_ftr_bits ftr_id_isar6[] = {
 
 static const struct arm64_ftr_bits ftr_id_pfr0[] = {
 	ARM64_FTR_BITS(FTR_HIDDEN, FTR_STRICT, FTR_LOWER_SAFE, ID_PFR0_EL1_DIT_SHIFT, 4, 0),
-	ARM64_FTR_BITS(FTR_HIDDEN, FTR_NONSTRICT, FTR_LOWER_SAFE, ID_PFR0_EL1_CSV2_SHIFT, 4, 0),
+	ARM64_FTR_BITS(FTR_HIDDEN, FTR_ANALNSTRICT, FTR_LOWER_SAFE, ID_PFR0_EL1_CSV2_SHIFT, 4, 0),
 	ARM64_FTR_BITS(FTR_HIDDEN, FTR_STRICT, FTR_LOWER_SAFE, ID_PFR0_EL1_State3_SHIFT, 4, 0),
 	ARM64_FTR_BITS(FTR_HIDDEN, FTR_STRICT, FTR_LOWER_SAFE, ID_PFR0_EL1_State2_SHIFT, 4, 0),
 	ARM64_FTR_BITS(FTR_HIDDEN, FTR_STRICT, FTR_LOWER_SAFE, ID_PFR0_EL1_State1_SHIFT, 4, 0),
@@ -591,14 +591,14 @@ static const struct arm64_ftr_bits ftr_id_pfr1[] = {
 };
 
 static const struct arm64_ftr_bits ftr_id_pfr2[] = {
-	ARM64_FTR_BITS(FTR_VISIBLE, FTR_NONSTRICT, FTR_LOWER_SAFE, ID_PFR2_EL1_SSBS_SHIFT, 4, 0),
-	ARM64_FTR_BITS(FTR_HIDDEN, FTR_NONSTRICT, FTR_LOWER_SAFE, ID_PFR2_EL1_CSV3_SHIFT, 4, 0),
+	ARM64_FTR_BITS(FTR_VISIBLE, FTR_ANALNSTRICT, FTR_LOWER_SAFE, ID_PFR2_EL1_SSBS_SHIFT, 4, 0),
+	ARM64_FTR_BITS(FTR_HIDDEN, FTR_ANALNSTRICT, FTR_LOWER_SAFE, ID_PFR2_EL1_CSV3_SHIFT, 4, 0),
 	ARM64_FTR_END,
 };
 
 static const struct arm64_ftr_bits ftr_id_dfr0[] = {
 	/* [31:28] TraceFilt */
-	S_ARM64_FTR_BITS(FTR_HIDDEN, FTR_NONSTRICT, FTR_EXACT, ID_DFR0_EL1_PerfMon_SHIFT, 4, 0),
+	S_ARM64_FTR_BITS(FTR_HIDDEN, FTR_ANALNSTRICT, FTR_EXACT, ID_DFR0_EL1_PerfMon_SHIFT, 4, 0),
 	ARM64_FTR_BITS(FTR_HIDDEN, FTR_STRICT, FTR_LOWER_SAFE, ID_DFR0_EL1_MProfDbg_SHIFT, 4, 0),
 	ARM64_FTR_BITS(FTR_HIDDEN, FTR_STRICT, FTR_LOWER_SAFE, ID_DFR0_EL1_MMapTrc_SHIFT, 4, 0),
 	ARM64_FTR_BITS(FTR_HIDDEN, FTR_STRICT, FTR_LOWER_SAFE, ID_DFR0_EL1_CopTrc_SHIFT, 4, 0),
@@ -653,7 +653,7 @@ static const struct arm64_ftr_bits ftr_raz[] = {
 	__ARM64_FTR_REG_OVERRIDE(#id, id, table, ovr)
 
 #define ARM64_FTR_REG(id, table)		\
-	__ARM64_FTR_REG_OVERRIDE(#id, id, table, &no_override)
+	__ARM64_FTR_REG_OVERRIDE(#id, id, table, &anal_override)
 
 struct arm64_ftr_override __ro_after_init id_aa64mmfr1_override;
 struct arm64_ftr_override __ro_after_init id_aa64pfr0_override;
@@ -742,7 +742,7 @@ static int search_cmp_ftr_reg(const void *id, const void *regp)
 }
 
 /*
- * get_arm64_ftr_reg_nowarn - Looks up a feature register entry using
+ * get_arm64_ftr_reg_analwarn - Looks up a feature register entry using
  * its sys_reg() encoding. With the array arm64_ftr_regs sorted in the
  * ascending order of sys_id, we use binary search to find a matching
  * entry.
@@ -751,7 +751,7 @@ static int search_cmp_ftr_reg(const void *id, const void *regp)
  *         - NULL on failure. It is upto the caller to decide
  *	     the impact of a failure.
  */
-static struct arm64_ftr_reg *get_arm64_ftr_reg_nowarn(u32 sys_id)
+static struct arm64_ftr_reg *get_arm64_ftr_reg_analwarn(u32 sys_id)
 {
 	const struct __ftr_reg_entry *ret;
 
@@ -767,7 +767,7 @@ static struct arm64_ftr_reg *get_arm64_ftr_reg_nowarn(u32 sys_id)
 
 /*
  * get_arm64_ftr_reg - Looks up a feature register entry using
- * its sys_reg() encoding. This calls get_arm64_ftr_reg_nowarn().
+ * its sys_reg() encoding. This calls get_arm64_ftr_reg_analwarn().
  *
  * returns - Upon success,  matching ftr_reg entry for id.
  *         - NULL on failure but with an WARN_ON().
@@ -776,10 +776,10 @@ struct arm64_ftr_reg *get_arm64_ftr_reg(u32 sys_id)
 {
 	struct arm64_ftr_reg *reg;
 
-	reg = get_arm64_ftr_reg_nowarn(sys_id);
+	reg = get_arm64_ftr_reg_analwarn(sys_id);
 
 	/*
-	 * Requesting a non-existent register search is an error. Warn
+	 * Requesting a analn-existent register search is an error. Warn
 	 * and let the caller handle it.
 	 */
 	WARN_ON(!reg);
@@ -833,7 +833,7 @@ static void __init sort_ftr_regs(void)
 
 		/*
 		 * Features here must be sorted in descending order with respect
-		 * to their shift values and should not overlap with each other.
+		 * to their shift values and should analt overlap with each other.
 		 */
 		for (; ftr_bits->width != 0; ftr_bits++, j++) {
 			unsigned int width = ftr_reg->ftr_bits[j].width;
@@ -845,8 +845,8 @@ static void __init sort_ftr_regs(void)
 				ftr_reg->name, shift);
 
 			/*
-			 * Skip the first feature. There is nothing to
-			 * compare against for now.
+			 * Skip the first feature. There is analthing to
+			 * compare against for analw.
 			 */
 			if (j == 0)
 				continue;
@@ -858,8 +858,8 @@ static void __init sort_ftr_regs(void)
 		}
 
 		/*
-		 * Skip the first register. There is nothing to
-		 * compare against for now.
+		 * Skip the first register. There is analthing to
+		 * compare against for analw.
 		 */
 		if (i == 0)
 			continue;
@@ -875,7 +875,7 @@ static void __init sort_ftr_regs(void)
 /*
  * Initialise the CPU feature register from Boot CPU values.
  * Also initiliases the strict_mask for the register.
- * Any bits that are not covered by an arm64_ftr_bits entry are considered
+ * Any bits that are analt covered by an arm64_ftr_bits entry are considered
  * RES0 for the system-wide value, and must strictly match.
  */
 static void init_cpu_ftr_reg(u32 sys_reg, u64 new)
@@ -905,7 +905,7 @@ static void init_cpu_ftr_reg(u32 sys_reg, u64 new)
 				reg->override->mask &= ~ftr_mask;
 				reg->override->val &= ~ftr_mask;
 				tmp = ftr_ovr;
-				str = "ignoring override";
+				str = "iganalring override";
 			} else if (ftr_new != tmp) {
 				/* Override was valid */
 				ftr_new = tmp;
@@ -922,7 +922,7 @@ static void init_cpu_ftr_reg(u32 sys_reg, u64 new)
 					ftrp->shift, str, tmp);
 		} else if ((ftr_mask & reg->override->val) == ftr_mask) {
 			reg->override->val &= ~ftr_mask;
-			pr_warn("%s[%d:%d]: impossible override, ignored\n",
+			pr_warn("%s[%d:%d]: impossible override, iganalred\n",
 				reg->name,
 				ftrp->shift + ftrp->width - 1,
 				ftrp->shift);
@@ -1010,7 +1010,7 @@ early_param("irqchip.gicv3_pseudo_nmi", early_enable_pseudo_nmi);
 
 static __init void detect_system_supports_pseudo_nmi(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
 	if (!enable_pseudo_nmi)
 		return;
@@ -1019,12 +1019,12 @@ static __init void detect_system_supports_pseudo_nmi(void)
 	 * Detect broken MediaTek firmware that doesn't properly save and
 	 * restore GIC priorities.
 	 */
-	np = of_find_compatible_node(NULL, NULL, "arm,gic-v3");
+	np = of_find_compatible_analde(NULL, NULL, "arm,gic-v3");
 	if (np && of_property_read_bool(np, "mediatek,broken-save-restore-fw")) {
 		pr_info("Pseudo-NMI disabled due to MediaTek Chromebook GICR save problem\n");
 		enable_pseudo_nmi = false;
 	}
-	of_node_put(np);
+	of_analde_put(np);
 }
 #else /* CONFIG_ARM64_PSEUDO_NMI */
 static inline void detect_system_supports_pseudo_nmi(void) { }
@@ -1070,7 +1070,7 @@ void __init init_cpu_features(struct cpuinfo_arm64 *info)
 
 		/*
 		 * We mask out SMPS since even if the hardware
-		 * supports priorities the kernel does not at present
+		 * supports priorities the kernel does analt at present
 		 * and we block access to them.
 		 */
 		info->reg_smidr = read_cpuid(SMIDR_EL1) & ~SMIDR_EL1_SMPS;
@@ -1223,7 +1223,7 @@ static int update_32bit_cpu_features(int cpu, struct cpuinfo_32bit *info,
 
 /*
  * Update system wide CPU feature registers with the values from a
- * non-boot CPU. Also performs SANITY checks to make sure that there
+ * analn-boot CPU. Also performs SANITY checks to make sure that there
  * aren't any insane variations from that of the boot CPU.
  */
 void update_cpu_features(int cpu,
@@ -1276,7 +1276,7 @@ void update_cpu_features(int cpu,
 	/*
 	 * Differing PARange support is fine as long as all peripherals and
 	 * memory are mapped within the minimum PARange of all CPUs.
-	 * Linux should not care about secure memory.
+	 * Linux should analt care about secure memory.
 	 */
 	taint |= check_update_ftr_reg(SYS_ID_AA64MMFR0_EL1, cpu,
 				      info->reg_id_aa64mmfr0, boot->reg_id_aa64mmfr0);
@@ -1316,7 +1316,7 @@ void update_cpu_features(int cpu,
 
 		/*
 		 * We mask out SMPS since even if the hardware
-		 * supports priorities the kernel does not at present
+		 * supports priorities the kernel does analt at present
 		 * and we block access to them.
 		 */
 		info->reg_smidr = read_cpuid(SMIDR_EL1) & ~SMIDR_EL1_SMPS;
@@ -1341,7 +1341,7 @@ void update_cpu_features(int cpu,
 
 	/*
 	 * If we don't have AArch32 at all then skip the checks entirely
-	 * as the register values may be UNKNOWN and we're not going to be
+	 * as the register values may be UNKANALWN and we're analt going to be
 	 * using them for anything.
 	 *
 	 * This relies on a sanitised view of the AArch64 ID registers
@@ -1498,7 +1498,7 @@ has_cpuid_feature(const struct arm64_cpu_capabilities *entry, int scope)
 const struct cpumask *system_32bit_el0_cpumask(void)
 {
 	if (!system_supports_32bit_el0())
-		return cpu_none_mask;
+		return cpu_analne_mask;
 
 	if (static_branch_unlikely(&arm64_mismatched_32bit_el0))
 		return cpu_32bit_el0_mask;
@@ -1623,10 +1623,10 @@ has_useable_cnp(const struct arm64_cpu_capabilities *entry, int scope)
 /*
  * This check is triggered during the early boot before the cpufeature
  * is initialised. Checking the status on the local CPU allows the boot
- * CPU to detect the need for non-global mappings and thus avoiding a
+ * CPU to detect the need for analn-global mappings and thus avoiding a
  * pagetable re-write after all the CPUs are booted. This check will be
  * anyway run on individual CPUs, allowing us to get the consistent
- * state once the SMP CPUs are up and thus make the switch to non-global
+ * state once the SMP CPUs are up and thus make the switch to analn-global
  * mappings if required.
  */
 bool kaslr_requires_kpti(void)
@@ -1661,12 +1661,12 @@ bool kaslr_requires_kpti(void)
 }
 
 static bool __meltdown_safe = true;
-static int __kpti_forced; /* 0: not forced, >0: forced on, <0: forced off */
+static int __kpti_forced; /* 0: analt forced, >0: forced on, <0: forced off */
 
 static bool unmap_kernel_at_el0(const struct arm64_cpu_capabilities *entry,
 				int scope)
 {
-	/* List of CPUs that are not vulnerable and don't need KPTI */
+	/* List of CPUs that are analt vulnerable and don't need KPTI */
 	static const struct midr_range kpti_safe_list[] = {
 		MIDR_ALL_VERSIONS(MIDR_CAVIUM_THUNDERX2),
 		MIDR_ALL_VERSIONS(MIDR_BRCM_VULCAN),
@@ -1700,9 +1700,9 @@ static bool unmap_kernel_at_el0(const struct arm64_cpu_capabilities *entry,
 	/*
 	 * For reasons that aren't entirely clear, enabling KPTI on Cavium
 	 * ThunderX leads to apparent I-cache corruption of kernel text, which
-	 * ends as well as you might imagine. Don't even try. We cannot rely
+	 * ends as well as you might imagine. Don't even try. We cananalt rely
 	 * on the cpus_have_*cap() helpers here to detect the CPU erratum
-	 * because cpucap detection order may change. However, since we know
+	 * because cpucap detection order may change. However, since we kanalw
 	 * affected CPUs are always in a homogeneous configuration, it is
 	 * safe to rely on this_cpu_has_cap() here.
 	 */
@@ -1849,7 +1849,7 @@ static void __init kpti_install_ng_mappings(void)
 
 	/*
 	 * We don't need to rewrite the page-tables if either we've done
-	 * it already or we have KASLR enabled and therefore have not
+	 * it already or we have KASLR enabled and therefore have analt
 	 * created any global mappings at all.
 	 */
 	if (arm64_use_ng_mappings)
@@ -1935,7 +1935,7 @@ static bool has_hw_dbm(const struct arm64_cpu_capabilities *cap,
 		       int __unused)
 {
 	/*
-	 * DBM is a non-conflicting feature. i.e, the kernel can safely
+	 * DBM is a analn-conflicting feature. i.e, the kernel can safely
 	 * run a mix of CPUs with and without the feature. So, we
 	 * unconditionally enable the capability to allow any late CPU
 	 * to use the feature. We only enable the control bits on the
@@ -1951,10 +1951,10 @@ static bool has_hw_dbm(const struct arm64_cpu_capabilities *cap,
 
 /*
  * The "amu_cpus" cpumask only signals that the CPU implementation for the
- * flagged CPUs supports the Activity Monitors Unit (AMU) but does not provide
+ * flagged CPUs supports the Activity Monitors Unit (AMU) but does analt provide
  * information regarding all the events that it supports. When a CPU bit is
  * set in the cpumask, the user of this feature can only rely on the presence
- * of the 4 fixed counters for that CPU. But this does not guarantee that the
+ * of the 4 fixed counters for that CPU. But this does analt guarantee that the
  * counters are enabled or access to these counters is enabled by code
  * executed at higher exception levels (firmware).
  */
@@ -1985,7 +1985,7 @@ static bool has_amu(const struct arm64_cpu_capabilities *cap,
 		    int __unused)
 {
 	/*
-	 * The AMU extension is a non-conflicting feature: the kernel can
+	 * The AMU extension is a analn-conflicting feature: the kernel can
 	 * safely run a mix of CPUs with and without support for the
 	 * activity monitors extension. Therefore, unconditionally enable
 	 * the capability to allow any late CPU to use the feature.
@@ -2082,7 +2082,7 @@ static bool has_address_auth_cpucap(const struct arm64_cpu_capabilities *entry, 
 	/* We don't expect to be called with SCOPE_SYSTEM */
 	WARN_ON(scope == SCOPE_SYSTEM);
 	/*
-	 * The ptr-auth feature levels are not intercompatible with lower
+	 * The ptr-auth feature levels are analt intercompatible with lower
 	 * levels. Hence we must match ptr-auth feature level of the secondary
 	 * CPUs with that of the boot CPU. The level of boot cpu is fetched
 	 * from the sanitised register whereas direct register read is done for
@@ -2095,7 +2095,7 @@ static bool has_address_auth_cpucap(const struct arm64_cpu_capabilities *entry, 
 					       entry->field_pos, entry->sign);
 	if (scope & SCOPE_BOOT_CPU)
 		return boot_val >= entry->min_field_value;
-	/* Now check for the secondary CPUs with SCOPE_LOCAL_CPU scope */
+	/* Analw check for the secondary CPUs with SCOPE_LOCAL_CPU scope */
 	sec_val = cpuid_feature_extract_field(__read_sysreg_by_encoding(entry->sys_reg),
 					      entry->field_pos, entry->sign);
 	return (sec_val >= entry->min_field_value) && (sec_val == boot_val);
@@ -2149,9 +2149,9 @@ static bool has_gic_prio_relaxed_sync(const struct arm64_cpu_capabilities *entry
 				      int scope)
 {
 	/*
-	 * If we're not using priority masking then we won't be poking PMR_EL1,
-	 * and there's no need to relax synchronization of writes to it, and
-	 * ICC_CTLR_EL1 might not be accessible and we must avoid reads from
+	 * If we're analt using priority masking then we won't be poking PMR_EL1,
+	 * and there's anal need to relax synchronization of writes to it, and
+	 * ICC_CTLR_EL1 might analt be accessible and we must avoid reads from
 	 * that.
 	 *
 	 * ARM64_HAS_GIC_PRIO_MASKING has a lower index, and is a boot CPU
@@ -2162,11 +2162,11 @@ static bool has_gic_prio_relaxed_sync(const struct arm64_cpu_capabilities *entry
 		return false;
 
 	/*
-	 * When Priority Mask Hint Enable (PMHE) == 0b0, PMR is not used as a
-	 * hint for interrupt distribution, a DSB is not necessary when
-	 * unmasking IRQs via PMR, and we can relax the barrier to a NOP.
+	 * When Priority Mask Hint Enable (PMHE) == 0b0, PMR is analt used as a
+	 * hint for interrupt distribution, a DSB is analt necessary when
+	 * unmasking IRQs via PMR, and we can relax the barrier to a ANALP.
 	 *
-	 * Linux itself doesn't use 1:N distribution, so has no need to
+	 * Linux itself doesn't use 1:N distribution, so has anal need to
 	 * set PMHE. The only reason to have it set is if EL3 requires it
 	 * (and we can't change it).
 	 */
@@ -2344,7 +2344,7 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		ARM64_CPUID_FIELDS(ID_AA64MMFR2_EL1, NV, NV2)
 	},
 	{
-		.capability = ARM64_HAS_32BIT_EL0_DO_NOT_USE,
+		.capability = ARM64_HAS_32BIT_EL0_DO_ANALT_USE,
 		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
 		.matches = has_32bit_el0,
 		ARM64_CPUID_FIELDS(ID_AA64PFR0_EL1, EL0, AARCH32)
@@ -2439,14 +2439,14 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 	},
 #endif /* CONFIG_ARM64_AMU_EXTN */
 	{
-		.desc = "Data cache clean to the PoU not required for I/D coherence",
+		.desc = "Data cache clean to the PoU analt required for I/D coherence",
 		.capability = ARM64_HAS_CACHE_IDC,
 		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
 		.matches = has_cache_idc,
 		.cpu_enable = cpu_emulate_effective_ctr,
 	},
 	{
-		.desc = "Instruction cache invalidation not required for I/D coherence",
+		.desc = "Instruction cache invalidation analt required for I/D coherence",
 		.capability = ARM64_HAS_CACHE_DIC,
 		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
 		.matches = has_cache_dic,
@@ -2499,7 +2499,7 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 	},
 #ifdef CONFIG_ARM64_CNP
 	{
-		.desc = "Common not Private translations",
+		.desc = "Common analt Private translations",
 		.capability = ARM64_HAS_CNP,
 		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
 		.matches = has_useable_cnp,
@@ -2897,7 +2897,7 @@ static bool compat_has_neon(const struct arm64_cpu_capabilities *cap, int scope)
 	/*
 	 * Check that all of MVFR1_EL1.{SIMDSP, SIMDInt, SIMDLS} are available,
 	 * in line with that of arm32 as in vfp_init(). We make sure that the
-	 * check is future proof, by making sure value is non-zero.
+	 * check is future proof, by making sure value is analn-zero.
 	 */
 	u32 mvfr1;
 
@@ -3018,10 +3018,10 @@ static void update_cpu_capabilities(u16 scope_mask)
  * Enable all the available capabilities on this CPU. The capabilities
  * with BOOT_CPU scope are handled separately and hence skipped here.
  */
-static int cpu_enable_non_boot_scope_capabilities(void *__unused)
+static int cpu_enable_analn_boot_scope_capabilities(void *__unused)
 {
 	int i;
-	u16 non_boot_scope = SCOPE_ALL & ~SCOPE_BOOT_CPU;
+	u16 analn_boot_scope = SCOPE_ALL & ~SCOPE_BOOT_CPU;
 
 	for_each_available_cap(i) {
 		const struct arm64_cpu_capabilities *cap = cpucap_ptrs[i];
@@ -3029,7 +3029,7 @@ static int cpu_enable_non_boot_scope_capabilities(void *__unused)
 		if (WARN_ON(!cap))
 			continue;
 
-		if (!(cap->type & non_boot_scope))
+		if (!(cap->type & analn_boot_scope))
 			continue;
 
 		if (cap->cpu_enable)
@@ -3075,13 +3075,13 @@ static void __init enable_cpu_capabilities(u16 scope_mask)
 	}
 
 	/*
-	 * For all non-boot scope capabilities, use stop_machine()
+	 * For all analn-boot scope capabilities, use stop_machine()
 	 * as it schedules the work allowing us to modify PSTATE,
 	 * instead of on_each_cpu() which uses an IPI, giving us a
 	 * PSTATE that disappears when we return.
 	 */
 	if (!boot_scope)
-		stop_machine(cpu_enable_non_boot_scope_capabilities,
+		stop_machine(cpu_enable_analn_boot_scope_capabilities,
 			     NULL, cpu_online_mask);
 }
 
@@ -3109,13 +3109,13 @@ static void verify_local_cpu_caps(u16 scope_mask)
 		if (system_has_cap) {
 			/*
 			 * Check if the new CPU misses an advertised feature,
-			 * which is not safe to miss.
+			 * which is analt safe to miss.
 			 */
 			if (!cpu_has_cap && !cpucap_late_cpu_optional(caps))
 				break;
 			/*
 			 * We have to issue cpu_enable() irrespective of
-			 * whether the CPU has it or not, as it is enabeld
+			 * whether the CPU has it or analt, as it is enabeld
 			 * system wide. It is upto the call back to take
 			 * appropriate action on this CPU.
 			 */
@@ -3235,8 +3235,8 @@ static void verify_hyp_capabilities(void)
  * Run through the enabled system capabilities and enable() it on this CPU.
  * The capabilities were decided based on the available CPUs at the boot time.
  * Any new CPU should match the system wide status of the capability. If the
- * new CPU doesn't have a capability which the system now has enabled, we
- * cannot do anything to fix it up and could cause unexpected failures. So
+ * new CPU doesn't have a capability which the system analw has enabled, we
+ * cananalt do anything to fix it up and could cause unexpected failures. So
  * we park the CPU.
  */
 static void verify_local_cpu_capabilities(void)
@@ -3295,7 +3295,7 @@ EXPORT_SYMBOL_GPL(this_cpu_has_cap);
 /*
  * This helper function is used in a narrow window when,
  * - The system wide safe registers are set with all the SMP CPUs and,
- * - The SYSTEM_FEATURE system_cpucaps may not have been set.
+ * - The SYSTEM_FEATURE system_cpucaps may analt have been set.
  */
 static bool __maybe_unused __system_matches_cap(unsigned int n)
 {
@@ -3323,7 +3323,7 @@ unsigned long cpu_get_elf_hwcap(void)
 {
 	/*
 	 * We currently only populate the first 32 bits of AT_HWCAP. Please
-	 * note that for userspace compatibility we guarantee that bits 62
+	 * analte that for userspace compatibility we guarantee that bits 62
 	 * and 63 will always be returned as 0.
 	 */
 	return elf_hwcap[0];
@@ -3408,7 +3408,7 @@ void __init setup_system_features(void)
 	 * Check for sane CTR_EL0.CWG value.
 	 */
 	if (!cache_type_cwg())
-		pr_warn("No Cache Writeback Granule information, assuming %d\n",
+		pr_warn("Anal Cache Writeback Granule information, assuming %d\n",
 			ARCH_DMA_MINALIGN);
 }
 
@@ -3429,7 +3429,7 @@ void __init setup_user_features(void)
 static int enable_mismatched_32bit_el0(unsigned int cpu)
 {
 	/*
-	 * The first 32-bit-capable CPU we detected and so can no longer
+	 * The first 32-bit-capable CPU we detected and so can anal longer
 	 * be offlined by userspace. -1 indicates we haven't yet onlined
 	 * a 32-bit-capable CPU.
 	 */
@@ -3470,7 +3470,7 @@ static int __init init_32bit_el0_mask(void)
 		return 0;
 
 	if (!zalloc_cpumask_var(&cpu_32bit_el0_mask, GFP_KERNEL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return cpuhp_setup_state(CPUHP_AP_ONLINE_DYN,
 				 "arm64/mismatched_32bit_el0:online",
@@ -3532,7 +3532,7 @@ static int emulate_sys_reg(u32 id, u64 *valp)
 	if (sys_reg_CRm(id) == 0)
 		return emulate_id_reg(id, valp);
 
-	regp = get_arm64_ftr_reg_nowarn(id);
+	regp = get_arm64_ftr_reg_analwarn(id);
 	if (regp)
 		*valp = arm64_ftr_reg_user_value(regp);
 	else
@@ -3589,7 +3589,7 @@ ssize_t cpu_show_meltdown(struct device *dev, struct device_attribute *attr,
 {
 	switch (arm64_get_meltdown_state()) {
 	case SPECTRE_UNAFFECTED:
-		return sprintf(buf, "Not affected\n");
+		return sprintf(buf, "Analt affected\n");
 
 	case SPECTRE_MITIGATED:
 		return sprintf(buf, "Mitigation: PTI\n");

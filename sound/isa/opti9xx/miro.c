@@ -117,7 +117,7 @@ struct snd_miro {
 static struct snd_miro_aci aci_device;
 
 static const char * const snd_opti9xx_names[] = {
-	"unknown",
+	"unkanalwn",
 	"82C928", "82C929",
 	"82C924", "82C925",
 	"82C930", "82C931", "82C933"
@@ -250,7 +250,7 @@ EXPORT_SYMBOL(snd_aci_get_aci);
  *  MIXER part
  */
 
-#define snd_miro_info_capture	snd_ctl_boolean_mono_info
+#define snd_miro_info_capture	snd_ctl_boolean_moanal_info
 
 static int snd_miro_get_capture(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
@@ -311,7 +311,7 @@ static int snd_miro_get_preamp(struct snd_kcontrol *kcontrol,
 	if (miro->aci->aci_version <= 176) {
 
 		/* 
-		   OSS says it's not readable with versions < 176.
+		   OSS says it's analt readable with versions < 176.
 		   But it doesn't work on my card,
 		   which is a PCM12 with aci_version = 176.
 		*/
@@ -353,7 +353,7 @@ static int snd_miro_put_preamp(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
-#define snd_miro_info_amp	snd_ctl_boolean_mono_info
+#define snd_miro_info_amp	snd_ctl_boolean_moanal_info
 
 static int snd_miro_get_amp(struct snd_kcontrol *kcontrol,
 			    struct snd_ctl_elem_value *ucontrol)
@@ -410,7 +410,7 @@ static int snd_miro_info_double(struct snd_kcontrol *kcontrol,
 		uinfo->value.integer.max = 0x7f;
 	} else {
 
-		/* non-equalizer elements */
+		/* analn-equalizer elements */
 
 		uinfo->value.integer.min = 0;
 		uinfo->value.integer.max = 0x20;
@@ -458,7 +458,7 @@ static int snd_miro_get_double(struct snd_kcontrol *kcontrol,
 
 	} else {
 
-		/* non-equalizer elements */
+		/* analn-equalizer elements */
 
 		uinfo->value.integer.value[0] = 0x20 - left_val;
 		uinfo->value.integer.value[1] = 0x20 - right_val;
@@ -546,7 +546,7 @@ static int snd_miro_put_double(struct snd_kcontrol *kcontrol,
 
 	} else {
 
-		/* non-equalizer elements */
+		/* analn-equalizer elements */
 
 		if (left < 0 || left > 0x20 ||
 		    right < 0 || right > 0x20)
@@ -805,8 +805,8 @@ static int snd_miro_init(struct snd_miro *chip,
 		break;
 
 	default:
-		snd_printk(KERN_ERR "sorry, no support for %d\n", hardware);
-		return -ENODEV;
+		snd_printk(KERN_ERR "sorry, anal support for %d\n", hardware);
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -836,7 +836,7 @@ static unsigned char snd_miro_read(struct snd_miro *chip,
 		break;
 
 	default:
-		snd_printk(KERN_ERR "sorry, no support for %d\n", chip->hardware);
+		snd_printk(KERN_ERR "sorry, anal support for %d\n", chip->hardware);
 	}
 
 	spin_unlock_irqrestore(&chip->lock, flags);
@@ -866,7 +866,7 @@ static void snd_miro_write(struct snd_miro *chip, unsigned char reg,
 		break;
 
 	default:
-		snd_printk(KERN_ERR "sorry, no support for %d\n", chip->hardware);
+		snd_printk(KERN_ERR "sorry, anal support for %d\n", chip->hardware);
 	}
 
 	spin_unlock_irqrestore(&chip->lock, flags);
@@ -889,7 +889,7 @@ static void snd_miro_proc_read(struct snd_info_entry * entry,
 {
 	struct snd_miro *miro = (struct snd_miro *) entry->private_data;
 	struct snd_miro_aci *aci = miro->aci;
-	char* model = "unknown";
+	char* model = "unkanalwn";
 
 	/* miroSOUND PCM1 pro, early PCM12 */
 
@@ -958,7 +958,7 @@ static void snd_miro_proc_read(struct snd_info_entry * entry,
 		snd_iprintf(buffer, "Miro\n");
 		break;
 	default:
-		snd_iprintf(buffer, "unknown (0x%x)\n", aci->aci_vendor);
+		snd_iprintf(buffer, "unkanalwn (0x%x)\n", aci->aci_vendor);
 		break;
 	}
 
@@ -974,7 +974,7 @@ static void snd_miro_proc_read(struct snd_info_entry * entry,
 		snd_iprintf(buffer, "miroSOUND PCM20 radio\n");
 		break;
 	default:
-		snd_iprintf(buffer, "unknown (0x%x)\n", aci->aci_product);
+		snd_iprintf(buffer, "unkanalwn (0x%x)\n", aci->aci_product);
 		break;
 	}
 
@@ -1022,7 +1022,7 @@ static int snd_miro_configure(struct snd_miro *chip)
 		snd_miro_write_mask(chip, OPTi9XX_MC_REG(4), 0x00, 0x0c);
 		break;
 	default:
-		snd_printk(KERN_ERR "chip %d not supported\n", chip->hardware);
+		snd_printk(KERN_ERR "chip %d analt supported\n", chip->hardware);
 		return -EINVAL;
 	}
 
@@ -1045,7 +1045,7 @@ static int snd_miro_configure(struct snd_miro *chip)
 		wss_base_bits = 0x02;
 		break;
 	default:
-		snd_printk(KERN_ERR "WSS port 0x%lx not valid\n", chip->wss_base);
+		snd_printk(KERN_ERR "WSS port 0x%lx analt valid\n", chip->wss_base);
 		goto __skip_base;
 	}
 	snd_miro_write_mask(chip, OPTi9XX_MC_REG(1), wss_base_bits << 4, 0x30);
@@ -1068,7 +1068,7 @@ __skip_base:
 		irq_bits = 0x04;
 		break;
 	default:
-		snd_printk(KERN_ERR "WSS irq # %d not valid\n", chip->irq);
+		snd_printk(KERN_ERR "WSS irq # %d analt valid\n", chip->irq);
 		goto __skip_resources;
 	}
 
@@ -1083,7 +1083,7 @@ __skip_base:
 		dma_bits = 0x03;
 		break;
 	default:
-		snd_printk(KERN_ERR "WSS dma1 # %d not valid\n", chip->dma1);
+		snd_printk(KERN_ERR "WSS dma1 # %d analt valid\n", chip->dma1);
 		goto __skip_resources;
 	}
 
@@ -1097,7 +1097,7 @@ __skip_base:
 	case 1:
 		break;
 	default:
-		snd_printk(KERN_ERR "WSS dma2 # %d not valid\n", chip->dma2);
+		snd_printk(KERN_ERR "WSS dma2 # %d analt valid\n", chip->dma2);
 		goto __skip_resources;
 	}
 	dma_bits |= 0x04;
@@ -1125,7 +1125,7 @@ __skip_resources:
 			mpu_port_bits = 0x00;
 			break;
 		default:
-			snd_printk(KERN_ERR "MPU-401 port 0x%lx not valid\n",
+			snd_printk(KERN_ERR "MPU-401 port 0x%lx analt valid\n",
 				   chip->mpu_port);
 			goto __skip_mpu;
 		}
@@ -1144,7 +1144,7 @@ __skip_resources:
 			mpu_irq_bits = 0x01;
 			break;
 		default:
-			snd_printk(KERN_ERR "MPU-401 irq # %d not valid\n",
+			snd_printk(KERN_ERR "MPU-401 irq # %d analt valid\n",
 				   chip->mpu_irq);
 			goto __skip_mpu;
 		}
@@ -1167,7 +1167,7 @@ static int snd_miro_opti_check(struct snd_card *card, struct snd_miro *chip)
 		devm_request_region(card->dev, chip->mc_base,
 				    chip->mc_base_size, "OPTi9xx MC");
 	if (chip->res_mc_base == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	value = snd_miro_read(chip, OPTi9XX_MC_REG(1));
 	if (value != 0xff && value != inb(chip->mc_base + OPTi9XX_MC_REG(1)))
@@ -1177,7 +1177,7 @@ static int snd_miro_opti_check(struct snd_card *card, struct snd_miro *chip)
 	devm_release_resource(card->dev, chip->res_mc_base);
 	chip->res_mc_base = NULL;
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int snd_card_miro_detect(struct snd_card *card,
@@ -1196,7 +1196,7 @@ static int snd_card_miro_detect(struct snd_card *card,
 			return 1;
 	}
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int snd_card_miro_aci_detect(struct snd_card *card,
@@ -1220,13 +1220,13 @@ static int snd_card_miro_aci_detect(struct snd_card *card,
 	if (miro->res_aci_port == NULL) {
 		snd_printk(KERN_ERR "aci i/o area 0x%lx-0x%lx already used.\n", 
 			   aci->aci_port, aci->aci_port+2);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
-        /* force ACI into a known state */
+        /* force ACI into a kanalwn state */
 	for (i = 0; i < 3; i++)
 		if (snd_aci_cmd(aci, ACI_ERROR_OP, -1, -1) < 0) {
-			snd_printk(KERN_ERR "can't force aci into known state.\n");
+			snd_printk(KERN_ERR "can't force aci into kanalwn state.\n");
 			return -ENXIO;
 		}
 
@@ -1269,14 +1269,14 @@ static int snd_miro_probe(struct snd_card *card)
 							"miro (OPTi9xx MC)");
 		if (miro->res_mc_base == NULL) {
 			snd_printk(KERN_ERR "request for OPTI9xx MC failed\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
 	error = snd_card_miro_aci_detect(card, miro);
 	if (error < 0) {
 		snd_printk(KERN_ERR "unable to detect aci chip\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	miro->wss_base = port;
@@ -1334,13 +1334,13 @@ static int snd_miro_probe(struct snd_card *card)
 			break;
 		default:
 			sprintf(card->shortname, 
-				"unknown miro");
-			snd_printk(KERN_INFO "unknown miro aci id\n");
+				"unkanalwn miro");
+			snd_printk(KERN_INFO "unkanalwn miro aci id\n");
 			break;
 		}
 	} else {
 		snd_printk(KERN_INFO "found unsupported aci card\n");
-		sprintf(card->shortname, "unknown Cardinal Technologies");
+		sprintf(card->shortname, "unkanalwn Cardinal Techanallogies");
 	}
 
 	strcpy(card->driver, "miro");
@@ -1355,7 +1355,7 @@ static int snd_miro_probe(struct snd_card *card)
 		error = snd_mpu401_uart_new(card, 0, MPU401_HW_MPU401,
 				mpu_port, 0, miro->mpu_irq, &rmidi);
 		if (error < 0)
-			snd_printk(KERN_WARNING "no MPU-401 device at 0x%lx?\n",
+			snd_printk(KERN_WARNING "anal MPU-401 device at 0x%lx?\n",
 				   mpu_port);
 	}
 
@@ -1365,7 +1365,7 @@ static int snd_miro_probe(struct snd_card *card)
 
 		if (snd_opl4_create(card, fm_port, fm_port - 8,
 				    2, &opl3, &opl4) < 0)
-			snd_printk(KERN_WARNING "no OPL4 device at 0x%lx\n",
+			snd_printk(KERN_WARNING "anal OPL4 device at 0x%lx\n",
 				   fm_port);
 	}
 
@@ -1411,7 +1411,7 @@ static int snd_miro_isa_probe(struct device *devptr, unsigned int n)
 	error = snd_card_miro_detect(card, miro);
 	if (error < 0) {
 		snd_printk(KERN_ERR "unable to detect OPTi9xx chip\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (port == SNDRV_AUTO_PORT) {
@@ -1520,7 +1520,7 @@ static int snd_card_miro_pnp(struct snd_miro *chip,
 	fm_port = pnp_port_start(pdev, 2) + 8;
 
 	/*
-	 * The MC(0) is never accessed and the miroSOUND PCM20 card does not
+	 * The MC(0) is never accessed and the miroSOUND PCM20 card does analt
 	 * include it in the PnP resource range. OPTI93x include it.
 	 */
 	chip->mc_base = pnp_port_start(devmc, 0) - 1;
@@ -1553,7 +1553,7 @@ static int snd_miro_pnp_probe(struct pnp_card_link *pcard,
 	if (snd_miro_pnp_is_probed)
 		return -EBUSY;
 	if (!isapnp)
-		return -ENODEV;
+		return -EANALDEV;
 	err = snd_devm_card_new(&pcard->card->dev, index, id, THIS_MODULE,
 				sizeof(struct snd_miro), &card);
 	if (err < 0)
@@ -1572,7 +1572,7 @@ static int snd_miro_pnp_probe(struct pnp_card_link *pcard,
 
 	err = snd_miro_opti_check(card, miro);
 	if (err) {
-		snd_printk(KERN_ERR "OPTI chip not found\n");
+		snd_printk(KERN_ERR "OPTI chip analt found\n");
 		return err;
 	}
 

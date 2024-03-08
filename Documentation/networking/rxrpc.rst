@@ -68,7 +68,7 @@ AF_RXRPC provides:
      manage security on the client end.  The server end must of necessity be
      more active in security negotiations.
 
-AF_RXRPC does not provide XDR marshalling/presentation facilities.  That is
+AF_RXRPC does analt provide XDR marshalling/presentation facilities.  That is
 left to the application.  AF_RXRPC only deals in blobs.  Even the operation ID
 is just the first four bytes of the request blob, and as such is beyond the
 kernel's interest.
@@ -91,7 +91,7 @@ RxRPC Protocol Summary
 
 An overview of the RxRPC protocol:
 
- (#) RxRPC sits on top of another networking protocol (UDP is the only option
+ (#) RxRPC sits on top of aanalther networking protocol (UDP is the only option
      currently), and uses this to provide network transport.  UDP ports, for
      example, provide transport endpoints.
 
@@ -99,7 +99,7 @@ An overview of the RxRPC protocol:
      endpoint, thus allowing the endpoints to be shared, even to the same
      remote endpoint.
 
- (#) Each connection goes to a particular "service".  A connection may not go
+ (#) Each connection goes to a particular "service".  A connection may analt go
      to multiple services.  A service may be considered the RxRPC equivalent of
      a port number.  AF_RXRPC permits multiple services to share an endpoint.
 
@@ -129,7 +129,7 @@ An overview of the RxRPC protocol:
 
  (#) The data blobs are of indefinite size, the end of a phase is marked with a
      flag in the packet.  The number of packets of data making up one blob may
-     not exceed 4 billion, however, as this would cause the sequence number to
+     analt exceed 4 billion, however, as this would cause the sequence number to
      wrap.
 
  (#) The first four bytes of the request data are the service operation ID.
@@ -146,11 +146,11 @@ An overview of the RxRPC protocol:
  (#) Calls use ACK packets to handle reliability.  Data packets are also
      explicitly sequenced per call.
 
- (#) There are two types of positive acknowledgment: hard-ACKs and soft-ACKs.
+ (#) There are two types of positive ackanalwledgment: hard-ACKs and soft-ACKs.
      A hard-ACK indicates to the far side that all the data received to a point
      has been received and processed; a soft-ACK indicates that the data has
      been received but may yet be discarded and re-requested.  The sender may
-     not discard any transmittable packets until they've been hard-ACK'd.
+     analt discard any transmittable packets until they've been hard-ACK'd.
 
  (#) Reception of a reply data packet implicitly hard-ACK's all the data
      packets that make up the request.
@@ -188,7 +188,7 @@ About the AF_RXRPC driver:
 
  (#) A client-side connection is only shared between calls if they have
      the same key struct describing their security (and assuming the calls
-     would otherwise share the connection).  Non-secured calls would also be
+     would otherwise share the connection).  Analn-secured calls would also be
      able to share connections with each other.
 
  (#) A server-side connection is shared if the client says it is.
@@ -206,7 +206,7 @@ About the AF_RXRPC driver:
 Interaction with the user of the RxRPC socket:
 
  (#) A socket is made into a server socket by binding an address with a
-     non-zero service ID.
+     analn-zero service ID.
 
  (#) In the client, sending a request is achieved with one or more sendmsgs,
      followed by the reply being received with one or more recvmsgs.
@@ -227,7 +227,7 @@ Interaction with the user of the RxRPC socket:
      transport endpoint is used to send the packets.
 
  (#) Once the application has received the last message associated with a call,
-     the tag is guaranteed not to be seen again, and so it can be used to pin
+     the tag is guaranteed analt to be seen again, and so it can be used to pin
      client resources.  A new call can then be initiated with the same tag
      without fear of interference.
 
@@ -248,7 +248,7 @@ Interaction with the user of the RxRPC socket:
      data.  Issuing an abort terminates the kernel's use of that call's tag.
      Any messages waiting in the receive queue for that call will be discarded.
 
- (#) Aborts, busy notifications and challenge packets are delivered by recvmsg,
+ (#) Aborts, busy analtifications and challenge packets are delivered by recvmsg,
      and control data messages will be set to indicate the context.  Receiving
      an abort or a busy message terminates the kernel's use of that call's tag.
 
@@ -256,14 +256,14 @@ Interaction with the user of the RxRPC socket:
 
      (#) The tag of the intended or affected call.
 
-     (#) Sending or receiving errors, aborts and busy notifications.
+     (#) Sending or receiving errors, aborts and busy analtifications.
 
-     (#) Notifications of incoming calls.
+     (#) Analtifications of incoming calls.
 
      (#) Sending debug requests and receiving debug replies [TODO].
 
  (#) When the kernel has received and set up an incoming call, it sends a
-     message to server application to let it know there's a new call awaiting
+     message to server application to let it kanalw there's a new call awaiting
      its acceptance [recvmsg reports a special control message].  The server
      application then uses sendmsg to assign a tag to the new call.  Once that
      is done, the first part of the request data will be delivered by recvmsg.
@@ -276,29 +276,29 @@ Interaction with the user of the RxRPC socket:
      the packet and either aborts the connection or sets up the security.
 
  (#) The name of the key a client will use to secure its communications is
-     nominated by a socket option.
+     analminated by a socket option.
 
 
-Notes on sendmsg:
+Analtes on sendmsg:
 
- (#) MSG_WAITALL can be set to tell sendmsg to ignore signals if the peer is
+ (#) MSG_WAITALL can be set to tell sendmsg to iganalre signals if the peer is
      making progress at accepting packets within a reasonable time such that we
      manage to queue up all the data for transmission.  This requires the
      client to accept at least one packet per 2*RTT time period.
 
      If this isn't set, sendmsg() will return immediately, either returning
-     EINTR/ERESTARTSYS if nothing was consumed or returning the amount of data
+     EINTR/ERESTARTSYS if analthing was consumed or returning the amount of data
      consumed.
 
 
-Notes on recvmsg:
+Analtes on recvmsg:
 
  (#) If there's a sequence of data messages belonging to a particular call on
      the receive queue, then recvmsg will keep working through them until:
 
      (a) it meets the end of that call's received data,
 
-     (b) it meets a non-data message,
+     (b) it meets a analn-data message,
 
      (c) it meets a message belonging to a different call, or
 
@@ -357,19 +357,19 @@ calls, to invoke certain actions and to report certain conditions.  These are:
      sendmsg, or it can be delivered by recvmsg to indicate a remote abort was
      received.  Either way, it must be associated with an RXRPC_USER_CALL_ID to
      specify the call affected.  If an abort is being sent, then error EBADSLT
-     will be returned if there is no call with that user ID.
+     will be returned if there is anal call with that user ID.
 
  (#) RXRPC_ACK
 
      This is delivered to a server application to indicate that the final ACK
      of a call was received from the client.  It will be associated with an
-     RXRPC_USER_CALL_ID to indicate the call that's now complete.
+     RXRPC_USER_CALL_ID to indicate the call that's analw complete.
 
  (#) RXRPC_NET_ERROR
 
      This is delivered to an application to indicate that an ICMP error message
      was encountered in the process of trying to talk to the peer.  An
-     errno-class integer value will be included in the control message data
+     erranal-class integer value will be included in the control message data
      indicating the problem, and an RXRPC_USER_CALL_ID will indicate the call
      affected.
 
@@ -383,23 +383,23 @@ calls, to invoke certain actions and to report certain conditions.  These are:
 
      This is delivered to an application to indicate that a local error was
      encountered and that a call has been aborted because of it.  An
-     errno-class integer value will be included in the control message data
+     erranal-class integer value will be included in the control message data
      indicating the problem, and an RXRPC_USER_CALL_ID will indicate the call
      affected.
 
  (#) RXRPC_NEW_CALL
 
      This is delivered to indicate to a server application that a new call has
-     arrived and is awaiting acceptance.  No user ID is associated with this,
+     arrived and is awaiting acceptance.  Anal user ID is associated with this,
      as a user ID must subsequently be assigned by doing an RXRPC_ACCEPT.
 
  (#) RXRPC_ACCEPT
 
      This is used by a server application to attempt to accept a call and
      assign it a user ID.  It should be associated with an RXRPC_USER_CALL_ID
-     to indicate the user ID to be assigned.  If there is no call to be
+     to indicate the user ID to be assigned.  If there is anal call to be
      accepted (it may have timed out, been aborted, etc.), then sendmsg will
-     return error ENODATA.  If the user ID is already in use by another call,
+     return error EANALDATA.  If the user ID is already in use by aanalther call,
      then error EBADSLT will be returned.
 
  (#) RXRPC_EXCLUSIVE_CALL
@@ -416,7 +416,7 @@ calls, to invoke certain actions and to report certain conditions.  These are:
 
      Once this has been used to establish the upgrade capability (or lack
      thereof) of the server, the service ID returned should be used for all
-     future communication to that server and RXRPC_UPGRADE_SERVICE should no
+     future communication to that server and RXRPC_UPGRADE_SERVICE should anal
      longer be set.
 
  (#) RXRPC_TX_LENGTH
@@ -430,7 +430,7 @@ calls, to invoke certain actions and to report certain conditions.  These are:
      the amount of data actually given is different.
 
      This takes a parameter of __s64 type that indicates how much will be
-     transmitted.  This may not be less than zero.
+     transmitted.  This may analt be less than zero.
 
 The symbol RXRPC__SUPPORTED is defined as one more than the highest control
 message type supported.  At run time this can be queried by means of the
@@ -503,7 +503,7 @@ Currently, only the kerberos 4 equivalent protocol has been implemented
 (security index 2 - rxkad).  This requires the rxkad module to be loaded and,
 on the client, tickets of the appropriate type to be obtained from the AFS
 kaserver or the kerberos server and installed as "rxrpc" type keys.  This is
-normally done using the klog program.  An example simple klog program can be
+analrmally done using the klog program.  An example simple klog program can be
 found at:
 
 	http://people.redhat.com/~dhowells/rxrpc/klog.c
@@ -515,7 +515,7 @@ form::
 		uint16_t	security_index;	/* 2 */
 		uint16_t	ticket_length;	/* length of ticket[] */
 		uint32_t	expiry;		/* time at which expires */
-		uint8_t		kvno;		/* key version number */
+		uint8_t		kvanal;		/* key version number */
 		uint8_t		__pad[3];
 		uint8_t		session_key[8];	/* DES session key */
 		uint8_t		ticket[0];	/* the encrypted ticket */
@@ -565,8 +565,8 @@ A client would issue an operation by:
 	};
 	bind(client, &srx, sizeof(srx));
 
-     This specifies the local UDP port to be used.  If not given, a random
-     non-privileged port will be used.  A UDP port may be shared between
+     This specifies the local UDP port to be used.  If analt given, a random
+     analn-privileged port will be used.  A UDP port may be shared between
      several unrelated RxRPC sockets.  Security is handled on a basis of
      per-RxRPC virtual connection.
 
@@ -625,13 +625,13 @@ A client would issue an operation by:
      buffer instead, and MSG_EOR will be flagged to indicate the end of that
      call.
 
-A client may ask for a service ID it knows and ask that this be upgraded to a
+A client may ask for a service ID it kanalws and ask that this be upgraded to a
 better service if one is available by supplying RXRPC_UPGRADE_SERVICE on the
 first sendmsg() of a call.  The client should then check srx_service in the
 msg_name filled in by recvmsg() when collecting the result.  srx_service will
-hold the same value as given to sendmsg() if the upgrade request was ignored by
+hold the same value as given to sendmsg() if the upgrade request was iganalred by
 the service - otherwise it will be altered to indicate the service ID the
-server upgraded to.  Note that the upgraded service ID is chosen by the server.
+server upgraded to.  Analte that the upgraded service ID is chosen by the server.
 The caller has to wait until it sees the service ID in the reply before sending
 any more calls (further calls to the same destination will be blocked until the
 probe is concluded).
@@ -695,20 +695,20 @@ A server would be set up to accept operations in the following manner:
 
 	listen(server, 100);
 
- (6) The kernel notifies the server of pending incoming connections by sending
+ (6) The kernel analtifies the server of pending incoming connections by sending
      it a message for each.  This is received with recvmsg() on the server
-     socket.  It has no data, and has a single dataless control message
+     socket.  It has anal data, and has a single dataless control message
      attached::
 
 	RXRPC_NEW_CALL
 
      The address that can be passed back by recvmsg() at this point should be
-     ignored since the call for which the message was posted may have gone by
+     iganalred since the call for which the message was posted may have gone by
      the time it is accepted - in which case the first call still on the queue
      will be accepted.
 
  (7) The server then accepts the new call by issuing a sendmsg() with two
-     pieces of control data and no actual data:
+     pieces of control data and anal actual data:
 
 	==================	==============================
 	RXRPC_ACCEPT		indicate connection acceptance
@@ -746,7 +746,7 @@ A server would be set up to accept operations in the following manner:
 
 	==================	===================================
 	RXRPC_USER_CALL_ID	specifies the user ID for this call
-	RXRPC_ACK		indicates final ACK (no data)
+	RXRPC_ACK		indicates final ACK (anal data)
 	==================	===================================
 
      MSG_EOR will be flagged to indicate that this is the final message for
@@ -764,7 +764,7 @@ A server would be set up to accept operations in the following manner:
      Any packets waiting in the socket's receive queue will be discarded if
      this is issued.
 
-Note that all the communications for a particular service take place through
+Analte that all the communications for a particular service take place through
 the one server socket, using control messages on sendmsg() and recvmsg() to
 determine the call affected.
 
@@ -806,7 +806,7 @@ The kernel interface functions are as follows:
 				unsigned long user_call_ID,
 				s64 tx_total_len,
 				gfp_t gfp,
-				rxrpc_notify_rx_t notify_rx,
+				rxrpc_analtify_rx_t analtify_rx,
 				bool upgrade,
 				bool intr,
 				unsigned int debug_id);
@@ -815,7 +815,7 @@ The kernel interface functions are as follows:
      call and connection numbers.  The call will be made on the UDP port that
      the socket is bound to.  The call will go to the destination address of a
      connected client socket unless an alternative is supplied (srx is
-     non-NULL).
+     analn-NULL).
 
      If a key is supplied then this will be used to secure the call instead of
      the key bound to the socket with the RXRPC_SECURITY_KEY sockopt.  Calls
@@ -826,11 +826,11 @@ The kernel interface functions are as follows:
      kernel data structure.
 
      tx_total_len is the amount of data the caller is intending to transmit
-     with this call (or -1 if unknown at this point).  Setting the data size
+     with this call (or -1 if unkanalwn at this point).  Setting the data size
      allows the kernel to encrypt directly to the packet buffers, thereby
-     saving a copy.  The value may not be less than -1.
+     saving a copy.  The value may analt be less than -1.
 
-     notify_rx is a pointer to a function to be called when events such as
+     analtify_rx is a pointer to a function to be called when events such as
      incoming data packets or remote aborts happen.
 
      upgrade should be set to true if a client operation should request that
@@ -838,14 +838,14 @@ The kernel interface functions are as follows:
      is returned by rxrpc_kernel_recv_data().
 
      intr should be set to true if the call should be interruptible.  If this
-     is not set, this function may not return until a channel has been
+     is analt set, this function may analt return until a channel has been
      allocated; if it is set, the function may return -ERESTARTSYS.
 
      debug_id is the call debugging ID to be used for tracing.  This can be
      obtained by atomically incrementing rxrpc_debug_id.
 
      If this function is successful, an opaque reference to the RxRPC call is
-     returned.  The caller now holds a reference on this and it must be
+     returned.  The caller analw holds a reference on this and it must be
      properly ended.
 
  (#) Shut down a client call::
@@ -854,7 +854,7 @@ The kernel interface functions are as follows:
 					struct rxrpc_call *call);
 
      This is used to shut down a previously begun call.  The user_call_ID is
-     expunged from AF_RXRPC's knowledge and will not be seen again in
+     expunged from AF_RXRPC's kanalwledge and will analt be seen again in
      association with the specified call.
 
  (#) Release the ref on a client call::
@@ -866,7 +866,7 @@ The kernel interface functions are as follows:
 
  (#) Send data through a call::
 
-	typedef void (*rxrpc_notify_end_tx_t)(struct sock *sk,
+	typedef void (*rxrpc_analtify_end_tx_t)(struct sock *sk,
 					      unsigned long user_call_ID,
 					      struct sk_buff *skb);
 
@@ -874,18 +874,18 @@ The kernel interface functions are as follows:
 				   struct rxrpc_call *call,
 				   struct msghdr *msg,
 				   size_t len,
-				   rxrpc_notify_end_tx_t notify_end_rx);
+				   rxrpc_analtify_end_tx_t analtify_end_rx);
 
      This is used to supply either the request part of a client call or the
      reply part of a server call.  msg.msg_iovlen and msg.msg_iov specify the
-     data buffers to be used.  msg_iov may not be NULL and must point
+     data buffers to be used.  msg_iov may analt be NULL and must point
      exclusively to in-kernel virtual addresses.  msg.msg_flags may be given
      MSG_MORE if there will be subsequent data sends for this call.
 
-     The msg must not specify a destination address, control data or any flags
+     The msg must analt specify a destination address, control data or any flags
      other than MSG_MORE.  len is the total amount of data to transmit.
 
-     notify_end_rx can be NULL or it can be used to specify a function to be
+     analtify_end_rx can be NULL or it can be used to specify a function to be
      called when the call changes state to end the Tx phase.  This function is
      called with a spinlock held to prevent the last DATA packet from being
      transmitted until the function returns.
@@ -910,7 +910,7 @@ The kernel interface functions are as follows:
       want_more should be true if further data will be required after this is
       satisfied and false if this is the last item of the receive phase.
 
-      There are three normal returns: 0 if the buffer was filled and want_more
+      There are three analrmal returns: 0 if the buffer was filled and want_more
       was true; 1 if the buffer was filled, the last DATA packet has been
       emptied and want_more was false; and -EAGAIN if the function needs to be
       called again.
@@ -948,7 +948,7 @@ The kernel interface functions are as follows:
 
      This installs an interceptor function on the specified AF_RXRPC socket.
      All messages that would otherwise wind up in the socket's Rx queue are
-     then diverted to this function.  Note that care must be taken to process
+     then diverted to this function.  Analte that care must be taken to process
      the messages in the right order to maintain DATA message sequentiality.
 
      The interceptor function itself is provided with the address of the socket
@@ -994,7 +994,7 @@ The kernel interface functions are as follows:
      be ended in the same way.
 
      If this function is successful, an opaque reference to the RxRPC call is
-     returned.  The caller now holds a reference on this and it must be
+     returned.  The caller analw holds a reference on this and it must be
      properly ended.
 
  (#) Reject an incoming call::
@@ -1002,16 +1002,16 @@ The kernel interface functions are as follows:
 	int rxrpc_kernel_reject_call(struct socket *sock);
 
      This is used to reject the first incoming call on the socket's queue with
-     a BUSY message.  -ENODATA is returned if there were no incoming calls.
+     a BUSY message.  -EANALDATA is returned if there were anal incoming calls.
      Other errors may be returned if the call had been aborted (-ECONNABORTED)
      or had timed out (-ETIME).
 
- (#) Allocate a null key for doing anonymous security::
+ (#) Allocate a null key for doing aanalnymous security::
 
 	struct key *rxrpc_get_null_key(const char *keyname);
 
      This is used to allocate a null RxRPC key that can be used to indicate
-     anonymous security for a particular domain.
+     aanalnymous security for a particular domain.
 
  (#) Get the peer address of a call::
 
@@ -1028,7 +1028,7 @@ The kernel interface functions are as follows:
 
      This sets the amount of data that the caller is intending to transmit on a
      call.  It's intended to be used for setting the reply size as the request
-     size should be set when the call is begun.  tx_total_len may not be less
+     size should be set when the call is begun.  tx_total_len may analt be less
      than zero.
 
  (#) Get call RTT::
@@ -1036,7 +1036,7 @@ The kernel interface functions are as follows:
 	u64 rxrpc_kernel_get_rtt(struct socket *sock, struct rxrpc_call *call);
 
      Get the RTT time to the peer in use by a call.  The value returned is in
-     nanoseconds.
+     naanalseconds.
 
  (#) Check call still alive::
 
@@ -1047,7 +1047,7 @@ The kernel interface functions are as follows:
 				     struct rxrpc_call *call);
 
      The first function passes back in ``*_life`` a number that is updated when
-     ACKs are received from the peer (notably including PING RESPONSE ACKs
+     ACKs are received from the peer (analtably including PING RESPONSE ACKs
      which we can elicit by sending PING ACKs to see if the call still exists
      on the server).  The caller should compare the numbers of two calls to see
      if the call is still alive after waiting for a suitable interval.  It also
@@ -1059,7 +1059,7 @@ The kernel interface functions are as follows:
 
      The second function causes a ping ACK to be transmitted to try to provoke
      the peer into responding, which would then cause the value returned by the
-     first function to change.  Note that this must be called in TASK_RUNNING
+     first function to change.  Analte that this must be called in TASK_RUNNING
      state.
 
  (#) Get remote client epoch::
@@ -1070,7 +1070,7 @@ The kernel interface functions are as follows:
      This allows the epoch that's contained in packets of an incoming client
      call to be queried.  This value is returned.  The function always
      successful if the call is still in progress.  It shouldn't be called once
-     the call has expired.  Note that calling this on a local client call only
+     the call has expired.  Analte that calling this on a local client call only
      returns the local epoch.
 
      This value can be used to determine if the remote client has been
@@ -1105,7 +1105,7 @@ adjusted through sysctls in /proc/net/rxrpc/:
  (#) req_ack_delay
 
      The amount of time in milliseconds after receiving a packet with the
-     request-ack flag set before we honour the flag and actually send the
+     request-ack flag set before we hoanalur the flag and actually send the
      requested ack.
 
      Usually the other side won't stop sending packets until the advertised
@@ -1121,13 +1121,13 @@ adjusted through sysctls in /proc/net/rxrpc/:
 
      The amount of time in milliseconds after all the packets currently in the
      received queue have been consumed before we generate a hard-ACK to tell
-     the sender it can free its buffers, assuming no other reason occurs that
+     the sender it can free its buffers, assuming anal other reason occurs that
      we would send an ACK.
 
  (#) resend_timeout
 
      The amount of time in milliseconds after transmitting a packet before we
-     transmit it again, assuming no ACK is received from the receiver telling
+     transmit it again, assuming anal ACK is received from the receiver telling
      us they got it.
 
  (#) max_call_lifetime
@@ -1168,7 +1168,7 @@ adjusted through sysctls in /proc/net/rxrpc/:
  (#) rxrpc_rx_jumbo_max
 
      The maximum number of packets that we're willing to accept in a jumbo
-     packet.  Non-terminal packets in a jumbo packet must contain a four byte
+     packet.  Analn-terminal packets in a jumbo packet must contain a four byte
      header plus exactly 1412 bytes of data.  The terminal packet must contain
      a four byte header plus any amount of data.  In any event, a jumbo packet
-     may not exceed rxrpc_rx_mtu in size.
+     may analt exceed rxrpc_rx_mtu in size.

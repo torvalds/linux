@@ -40,7 +40,7 @@ static const char *amd_pmf_uevent_as_str(unsigned int state)
 	case SYSTEM_STATE_SCREEN_LOCK:
 		return "SCREEN_LOCK";
 	default:
-		return "Unknown Smart PC event";
+		return "Unkanalwn Smart PC event";
 	}
 }
 
@@ -57,7 +57,7 @@ static void amd_pmf_prepare_args(struct amd_pmf_dev *dev, int cmd,
 
 	/* Fill invoke cmd params */
 	param[0].u.memref.size = sizeof(struct ta_pmf_shared_memory);
-	param[0].attr = TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_INOUT;
+	param[0].attr = TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_IANALUT;
 	param[0].u.memref.shm = dev->fw_shm_pool;
 	param[0].u.memref.shm_offs = 0;
 }
@@ -167,7 +167,7 @@ static int amd_pmf_invoke_cmd_enact(struct amd_pmf_dev *dev)
 	int ret = 0;
 
 	if (!dev->tee_ctx)
-		return -ENODEV;
+		return -EANALDEV;
 
 	memset(dev->shbuf, 0, dev->policy_sz);
 	ta_sm = dev->shbuf;
@@ -207,7 +207,7 @@ static int amd_pmf_invoke_cmd_init(struct amd_pmf_dev *dev)
 
 	if (!dev->tee_ctx) {
 		dev_err(dev->dev, "Failed to get TEE context\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	dev_dbg(dev->dev, "Policy Binary size: %u bytes\n", dev->policy_sz);
@@ -261,7 +261,7 @@ static int amd_pmf_start_policy_engine(struct amd_pmf_dev *dev)
 	dev->policy_sz = length + 512;
 	res = amd_pmf_invoke_cmd_init(dev);
 	if (res == TA_PMF_TYPE_SUCCESS) {
-		/* Now its safe to announce that smart pc is enabled */
+		/* Analw its safe to ananalunce that smart pc is enabled */
 		dev->smart_pc_enabled = true;
 		/*
 		 * Start collecting the data from TA FW after a small delay
@@ -291,14 +291,14 @@ static ssize_t amd_pmf_get_pb_data(struct file *filp, const char __user *buf,
 	unsigned char *new_policy_buf;
 	int ret;
 
-	/* Policy binary size cannot exceed POLICY_BUF_MAX_SZ */
+	/* Policy binary size cananalt exceed POLICY_BUF_MAX_SZ */
 	if (length > POLICY_BUF_MAX_SZ || length == 0)
 		return -EINVAL;
 
 	/* re-alloc to the new buffer length of the policy binary */
 	new_policy_buf = kzalloc(length, GFP_KERNEL);
 	if (!new_policy_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (copy_from_user(new_policy_buf, buf, length)) {
 		kfree(new_policy_buf);
@@ -423,12 +423,12 @@ int amd_pmf_init_smart_pc(struct amd_pmf_dev *dev)
 	ret = apmf_check_smart_pc(dev);
 	if (ret) {
 		/*
-		 * Lets not return from here if Smart PC bit is not advertised in
+		 * Lets analt return from here if Smart PC bit is analt advertised in
 		 * the BIOS. This way, there will be some amount of power savings
 		 * to the user with static slider (if enabled).
 		 */
-		dev_info(dev->dev, "PMF Smart PC not advertised in BIOS!:%d\n", ret);
-		return -ENODEV;
+		dev_info(dev->dev, "PMF Smart PC analt advertised in BIOS!:%d\n", ret);
+		return -EANALDEV;
 	}
 
 	ret = amd_pmf_tee_init(dev);
@@ -443,13 +443,13 @@ int amd_pmf_init_smart_pc(struct amd_pmf_dev *dev)
 
 	dev->policy_base = devm_ioremap(dev->dev, dev->policy_addr, dev->policy_sz);
 	if (!dev->policy_base) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error;
 	}
 
 	dev->policy_buf = kzalloc(dev->policy_sz, GFP_KERNEL);
 	if (!dev->policy_buf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error;
 	}
 
@@ -459,7 +459,7 @@ int amd_pmf_init_smart_pc(struct amd_pmf_dev *dev)
 
 	dev->prev_data = kzalloc(sizeof(*dev->prev_data), GFP_KERNEL);
 	if (!dev->prev_data) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error;
 	}
 

@@ -15,7 +15,7 @@ void iommufd_ioas_destroy(struct iommufd_object *obj)
 	int rc;
 
 	rc = iopt_unmap_all(&ioas->iopt, NULL);
-	WARN_ON(rc && rc != -ENOENT);
+	WARN_ON(rc && rc != -EANALENT);
 	iopt_destroy_table(&ioas->iopt);
 	mutex_destroy(&ioas->mutex);
 }
@@ -41,7 +41,7 @@ int iommufd_ioas_alloc_ioctl(struct iommufd_ucmd *ucmd)
 	int rc;
 
 	if (cmd->flags)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ioas = iommufd_ioas_alloc(ucmd->ictx);
 	if (IS_ERR(ioas))
@@ -69,7 +69,7 @@ int iommufd_ioas_iova_ranges(struct iommufd_ucmd *ucmd)
 	int rc;
 
 	if (cmd->__reserved)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ioas = iommufd_get_ioas(ucmd->ictx, cmd->ioas_id);
 	if (IS_ERR(ioas))
@@ -130,11 +130,11 @@ static int iommufd_ioas_load_iovas(struct rb_root_cached *itree,
 
 		allowed = kzalloc(sizeof(*allowed), GFP_KERNEL_ACCOUNT);
 		if (!allowed)
-			return -ENOMEM;
-		allowed->node.start = range.start;
-		allowed->node.last = range.last;
+			return -EANALMEM;
+		allowed->analde.start = range.start;
+		allowed->analde.last = range.last;
 
-		interval_tree_insert(&allowed->node, itree);
+		interval_tree_insert(&allowed->analde, itree);
 	}
 	return 0;
 }
@@ -143,13 +143,13 @@ int iommufd_ioas_allow_iovas(struct iommufd_ucmd *ucmd)
 {
 	struct iommu_ioas_allow_iovas *cmd = ucmd->cmd;
 	struct rb_root_cached allowed_iova = RB_ROOT_CACHED;
-	struct interval_tree_node *node;
+	struct interval_tree_analde *analde;
 	struct iommufd_ioas *ioas;
 	struct io_pagetable *iopt;
 	int rc = 0;
 
 	if (cmd->__reserved)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ioas = iommufd_get_ioas(ucmd->ictx, cmd->ioas_id);
 	if (IS_ERR(ioas))
@@ -164,16 +164,16 @@ int iommufd_ioas_allow_iovas(struct iommufd_ucmd *ucmd)
 
 	/*
 	 * We want the allowed tree update to be atomic, so we have to keep the
-	 * original nodes around, and keep track of the new nodes as we allocate
+	 * original analdes around, and keep track of the new analdes as we allocate
 	 * memory for them. The simplest solution is to have a new/old tree and
 	 * then swap new for old. On success we free the old tree, on failure we
 	 * free the new tree.
 	 */
 	rc = iopt_set_allow_iova(iopt, &allowed_iova);
 out_free:
-	while ((node = interval_tree_iter_first(&allowed_iova, 0, ULONG_MAX))) {
-		interval_tree_remove(node, &allowed_iova);
-		kfree(container_of(node, struct iopt_allowed, node));
+	while ((analde = interval_tree_iter_first(&allowed_iova, 0, ULONG_MAX))) {
+		interval_tree_remove(analde, &allowed_iova);
+		kfree(container_of(analde, struct iopt_allowed, analde));
 	}
 	iommufd_put_object(ucmd->ictx, &ioas->obj);
 	return rc;
@@ -182,7 +182,7 @@ out_free:
 static int conv_iommu_prot(u32 map_flags)
 {
 	/*
-	 * We provide no manual cache coherency ioctls to userspace and most
+	 * We provide anal manual cache coherency ioctls to userspace and most
 	 * architectures make the CPU ops for cache flushing privileged.
 	 * Therefore we require the underlying IOMMU to support CPU coherent
 	 * operation. Support for IOMMU_CACHE is enforced by the
@@ -209,7 +209,7 @@ int iommufd_ioas_map(struct iommufd_ucmd *ucmd)
 	     ~(IOMMU_IOAS_MAP_FIXED_IOVA | IOMMU_IOAS_MAP_WRITEABLE |
 	       IOMMU_IOAS_MAP_READABLE)) ||
 	    cmd->__reserved)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (cmd->iova >= ULONG_MAX || cmd->length >= ULONG_MAX)
 		return -EOVERFLOW;
 
@@ -248,7 +248,7 @@ int iommufd_ioas_copy(struct iommufd_ucmd *ucmd)
 	if ((cmd->flags &
 	     ~(IOMMU_IOAS_MAP_FIXED_IOVA | IOMMU_IOAS_MAP_WRITEABLE |
 	       IOMMU_IOAS_MAP_READABLE)))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (cmd->length >= ULONG_MAX || cmd->src_iova >= ULONG_MAX ||
 	    cmd->dst_iova >= ULONG_MAX)
 		return -EOVERFLOW;
@@ -323,7 +323,7 @@ int iommufd_option_rlimit_mode(struct iommu_option *cmd,
 			       struct iommufd_ctx *ictx)
 {
 	if (cmd->object_id)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (cmd->op == IOMMU_OPTION_OP_GET) {
 		cmd->val64 = ictx->account_mode == IOPT_PAGES_ACCOUNT_MM;
@@ -350,7 +350,7 @@ int iommufd_option_rlimit_mode(struct iommu_option *cmd,
 
 		return rc;
 	}
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int iommufd_ioas_option_huge_pages(struct iommu_option *cmd,
@@ -369,7 +369,7 @@ static int iommufd_ioas_option_huge_pages(struct iommu_option *cmd,
 		}
 		return -EINVAL;
 	}
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 int iommufd_ioas_option(struct iommufd_ucmd *ucmd)
@@ -379,7 +379,7 @@ int iommufd_ioas_option(struct iommufd_ucmd *ucmd)
 	int rc = 0;
 
 	if (cmd->__reserved)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ioas = iommufd_get_ioas(ucmd->ictx, cmd->object_id);
 	if (IS_ERR(ioas))
@@ -390,7 +390,7 @@ int iommufd_ioas_option(struct iommufd_ucmd *ucmd)
 		rc = iommufd_ioas_option_huge_pages(cmd, ioas);
 		break;
 	default:
-		rc = -EOPNOTSUPP;
+		rc = -EOPANALTSUPP;
 	}
 
 	iommufd_put_object(ucmd->ictx, &ioas->obj);

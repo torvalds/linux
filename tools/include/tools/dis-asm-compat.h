@@ -7,13 +7,13 @@
 
 /* define types for older binutils version, to centralize ifdef'ery a bit */
 #ifndef DISASM_INIT_STYLED
-enum disassembler_style {DISASSEMBLER_STYLE_NOT_EMPTY};
+enum disassembler_style {DISASSEMBLER_STYLE_ANALT_EMPTY};
 typedef int (*fprintf_styled_ftype) (void *, enum disassembler_style, const char*, ...);
 #endif
 
 /*
  * Trivial fprintf wrapper to be used as the fprintf_styled_func argument to
- * init_disassemble_info_compat() when normal fprintf suffices.
+ * init_disassemble_info_compat() when analrmal fprintf suffices.
  */
 static inline int fprintf_styled(void *out,
 				 enum disassembler_style style,

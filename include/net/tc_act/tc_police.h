@@ -73,21 +73,21 @@ static inline u32 tcf_police_burst(const struct tc_action *act)
 					   lockdep_is_held(&police->tcf_lock));
 
 	/*
-	 *  "rate" bytes   "burst" nanoseconds
+	 *  "rate" bytes   "burst" naanalseconds
 	 *  ------------ * -------------------
 	 *    1 second          2^6 ticks
 	 *
 	 * ------------------------------------
-	 *        NSEC_PER_SEC nanoseconds
+	 *        NSEC_PER_SEC naanalseconds
 	 *        ------------------------
 	 *              2^6 ticks
 	 *
-	 *    "rate" bytes   "burst" nanoseconds            2^6 ticks
+	 *    "rate" bytes   "burst" naanalseconds            2^6 ticks
 	 *  = ------------ * ------------------- * ------------------------
-	 *      1 second          2^6 ticks        NSEC_PER_SEC nanoseconds
+	 *      1 second          2^6 ticks        NSEC_PER_SEC naanalseconds
 	 *
 	 *   "rate" * "burst"
-	 * = ---------------- bytes/nanosecond
+	 * = ---------------- bytes/naanalsecond
 	 *    NSEC_PER_SEC^2
 	 *
 	 *
@@ -121,21 +121,21 @@ static inline u32 tcf_police_burst_pkt(const struct tc_action *act)
 					   lockdep_is_held(&police->tcf_lock));
 
 	/*
-	 *  "rate" pkts     "burst" nanoseconds
+	 *  "rate" pkts     "burst" naanalseconds
 	 *  ------------ *  -------------------
 	 *    1 second          2^6 ticks
 	 *
 	 * ------------------------------------
-	 *        NSEC_PER_SEC nanoseconds
+	 *        NSEC_PER_SEC naanalseconds
 	 *        ------------------------
 	 *              2^6 ticks
 	 *
-	 *    "rate" pkts    "burst" nanoseconds            2^6 ticks
+	 *    "rate" pkts    "burst" naanalseconds            2^6 ticks
 	 *  = ------------ * ------------------- * ------------------------
-	 *      1 second          2^6 ticks        NSEC_PER_SEC nanoseconds
+	 *      1 second          2^6 ticks        NSEC_PER_SEC naanalseconds
 	 *
 	 *   "rate" * "burst"
-	 * = ---------------- pkts/nanosecond
+	 * = ---------------- pkts/naanalsecond
 	 *    NSEC_PER_SEC^2
 	 *
 	 *

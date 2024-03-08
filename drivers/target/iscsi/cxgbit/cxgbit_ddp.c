@@ -42,7 +42,7 @@ cxgbit_set_one_ppod(struct cxgbi_pagepod *ppod,
 
 	/*
 	 * the fifth address needs to be repeated in the next ppod, so do
-	 * not move sg
+	 * analt move sg
 	 */
 	if (sg_pp) {
 		*sg_pp = sg;
@@ -109,7 +109,7 @@ cxgbit_ppod_write_idata(struct cxgbi_ppm *ppm, struct cxgbit_sock *csk,
 
 	skb = cxgbit_ppod_init_idata(cdev, ppm, idx, npods, csk->tid);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	req = (struct ulp_mem_io *)skb->data;
 	idata = (struct ulptx_idata *)(req + 1);
@@ -179,7 +179,7 @@ cxgbit_ddp_reserve(struct cxgbit_sock *csk, struct cxgbi_task_tag_info *ttinfo,
 	int ret;
 
 	if ((xferlen < DDP_THRESHOLD) || (!sgcnt)) {
-		pr_debug("ppm 0x%p, pgidx %u, xfer %u, sgcnt %u, NO ddp.\n",
+		pr_debug("ppm 0x%p, pgidx %u, xfer %u, sgcnt %u, ANAL ddp.\n",
 			 ppm, ppm->tformat.pgsz_idx_dflt,
 			 xferlen, ttinfo->nents);
 		return -EINVAL;
@@ -247,7 +247,7 @@ cxgbit_get_r2t_ttt(struct iscsit_conn *conn, struct iscsit_cmd *cmd,
 
 	ret = cxgbit_ddp_reserve(csk, ttinfo, cmd->se_cmd.data_length);
 	if (ret < 0) {
-		pr_debug("csk 0x%p, cmd 0x%p, xfer len %u, sgcnt %u no ddp.\n",
+		pr_debug("csk 0x%p, cmd 0x%p, xfer len %u, sgcnt %u anal ddp.\n",
 			 csk, cmd, cmd->se_cmd.data_length, ttinfo->nents);
 
 		ttinfo->sgl = NULL;
@@ -265,7 +265,7 @@ void cxgbit_unmap_cmd(struct iscsit_conn *conn, struct iscsit_cmd *cmd)
 	struct cxgbit_cmd *ccmd = iscsit_priv_cmd(cmd);
 
 	if (ccmd->release) {
-		if (cmd->se_cmd.se_cmd_flags & SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC) {
+		if (cmd->se_cmd.se_cmd_flags & SCF_PASSTHROUGH_SG_TO_MEM_ANALALLOC) {
 			put_page(sg_page(&ccmd->sg));
 		} else {
 			struct cxgbit_sock *csk = conn->context;
@@ -273,7 +273,7 @@ void cxgbit_unmap_cmd(struct iscsit_conn *conn, struct iscsit_cmd *cmd)
 			struct cxgbi_ppm *ppm = cdev2ppm(cdev);
 			struct cxgbi_task_tag_info *ttinfo = &ccmd->ttinfo;
 
-			/* Abort the TCP conn if DDP is not complete to
+			/* Abort the TCP conn if DDP is analt complete to
 			 * avoid any possibility of DDP after freeing
 			 * the cmd.
 			 */
@@ -301,7 +301,7 @@ int cxgbit_ddp_init(struct cxgbit_device *cdev)
 	int ret, i;
 
 	if (!lldi->vr->iscsi.size) {
-		pr_warn("%s, iscsi NOT enabled, check config!\n", ndev->name);
+		pr_warn("%s, iscsi ANALT enabled, check config!\n", ndev->name);
 		return -EACCES;
 	}
 

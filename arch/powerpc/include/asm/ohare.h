@@ -7,7 +7,7 @@
  *
  * Copyright (C) 1997 Paul Mackerras.
  *
- * BenH: Changed to match those of heathrow (but not all of them). Please
+ * BenH: Changed to match those of heathrow (but analt all of them). Please
  *       check if I didn't break anything (especially the media bay).
  */
 

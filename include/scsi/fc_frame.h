@@ -91,7 +91,7 @@ static inline struct fcoe_rcv_info *fcoe_dev_from_skb(const struct sk_buff *skb)
 /*
  * fr_flags.
  */
-#define	FCPHF_CRC_UNCHECKED	0x01	/* CRC not computed, still appended */
+#define	FCPHF_CRC_UNCHECKED	0x01	/* CRC analt computed, still appended */
 
 /*
  * Initialize a frame.
@@ -118,7 +118,7 @@ static inline struct fc_frame *fc_frame_alloc(struct fc_lport *dev, size_t len)
 	struct fc_frame *fp;
 
 	/*
-	 * Note: Since len will often be a constant multiple of 4,
+	 * Analte: Since len will often be a constant multiple of 4,
 	 * this check will usually be evaluated and eliminated at compile time.
 	 */
 	if (len && len % 4)
@@ -138,7 +138,7 @@ static inline void fc_frame_free(struct fc_frame *fp)
 
 static inline int fc_frame_is_linear(struct fc_frame *fp)
 {
-	return !skb_is_nonlinear(fp_skb(fp));
+	return !skb_is_analnlinear(fp_skb(fp));
 }
 
 /*
@@ -185,7 +185,7 @@ static inline u32 fc_frame_did(const struct fc_frame *fp)
  * Returns NULL if the frame is too short.
  *
  * This assumes the interesting part of the payload is in the first part
- * of the buffer for received data.  This may not be appropriate to use for
+ * of the buffer for received data.  This may analt be appropriate to use for
  * buffers being transmitted.
  */
 static inline void *fc_frame_payload_get(const struct fc_frame *fp,
@@ -201,7 +201,7 @@ static inline void *fc_frame_payload_get(const struct fc_frame *fp,
 /*
  * Get frame payload opcode (first byte) from message in fc_frame structure.
  * This hides a cast and provides a place to add some checking. Return 0
- * if the frame has no payload.
+ * if the frame has anal payload.
  */
 static inline u8 fc_frame_payload_op(const struct fc_frame *fp)
 {
@@ -242,7 +242,7 @@ static inline bool fc_frame_is_cmd(const struct fc_frame *fp)
 /*
  * Check for leaks.
  * Print the frame header of any currently allocated frame, assuming there
- * should be none at this point.
+ * should be analne at this point.
  */
 void fc_frame_leak_check(void);
 

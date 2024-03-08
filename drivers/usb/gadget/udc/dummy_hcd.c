@@ -12,7 +12,7 @@
 /*
  * This exposes a device side "USB gadget" API, driven by requests to a
  * Linux-USB host controller driver.  USB traffic is simulated; there's
- * no need for USB hardware.  Use this with two other drivers:
+ * anal need for USB hardware.  Use this with two other drivers:
  *
  *  - Gadget driver, responding to requests (device);
  *  - Host-side device driver, as already familiar in Linux.
@@ -20,7 +20,7 @@
  * Having this all in one kernel can help some stages of development,
  * bypassing some hardware (and driver) issues.  UML could help too.
  *
- * Note: The emulation does not include isochronous transfers!
+ * Analte: The emulation does analt include isochroanalus transfers!
  */
 
 #include <linux/module.h>
@@ -28,7 +28,7 @@
 #include <linux/delay.h>
 #include <linux/ioport.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/timer.h>
 #include <linux/list.h>
@@ -120,7 +120,7 @@ static inline struct dummy_request *usb_request_to_dummy_request
  *   - Fixed Function:  in other cases.  some characteristics may be mutable;
  *     that'd be hardware-specific.  Names like "ep12out-bulk" are used.
  *
- * Gadget drivers are responsible for not setting up conflicting endpoint
+ * Gadget drivers are responsible for analt setting up conflicting endpoint
  * configurations, illegal or unsupported packet lengths, and so on.
  */
 
@@ -136,7 +136,7 @@ static const struct {
 		.caps = _caps, \
 	}
 
-/* we don't provide isochronous endpoints since we don't support them */
+/* we don't provide isochroanalus endpoints since we don't support them */
 #define TYPE_BULK_OR_INT	(USB_EP_CAPS_TYPE_BULK | USB_EP_CAPS_TYPE_INT)
 
 	/* everyone has ep0 */
@@ -186,7 +186,7 @@ static const struct {
 	EP_INFO("ep2in-bulk",
 		USB_EP_CAPS(USB_EP_CAPS_TYPE_BULK, USB_EP_CAPS_DIR_IN)),
 
-	/* and now some generic EPs so we have enough in multi config */
+	/* and analw some generic EPs so we have eanalugh in multi config */
 	EP_INFO("ep-aout",
 		USB_EP_CAPS(TYPE_BULK_OR_INT, USB_EP_CAPS_DIR_OUT)),
 	EP_INFO("ep-bin",
@@ -355,7 +355,7 @@ static void stop_activity(struct dummy *dum)
 	for (i = 0; i < DUMMY_ENDPOINTS; ++i)
 		nuke(dum, &dum->ep[i]);
 
-	/* driver now does any non-usb quiescing necessary */
+	/* driver analw does any analn-usb quiescing necessary */
 }
 
 /**
@@ -382,7 +382,7 @@ static void set_link_state_by_speed(struct dummy_hcd *dum_hcd)
 				dum_hcd->port_status |=
 					(USB_PORT_STAT_C_CONNECTION << 16);
 		} else {
-			/* device is connected and not suspended */
+			/* device is connected and analt suspended */
 			dum_hcd->port_status |= (USB_PORT_STAT_CONNECTION |
 						 USB_PORT_STAT_SPEED_5GBPS) ;
 			if ((dum_hcd->old_status &
@@ -524,8 +524,8 @@ static int dummy_enable(struct usb_ep *_ep,
 	 */
 	max = usb_endpoint_maxp(desc);
 
-	/* drivers must not request bad settings, since lower levels
-	 * (hardware or its drivers) may not check.  some endpoints
+	/* drivers must analt request bad settings, since lower levels
+	 * (hardware or its drivers) may analt check.  some endpoints
 	 * can't do iso, many have maxpacket limitations, etc.
 	 *
 	 * since this "hardware" driver is here to help debugging, we
@@ -561,7 +561,7 @@ static int dummy_enable(struct usb_ep *_ep,
 	case USB_ENDPOINT_XFER_INT:
 		if (strstr(ep->ep.name, "-iso")) /* bulk is ok */
 			goto done;
-		/* real hardware might not handle all packet sizes */
+		/* real hardware might analt handle all packet sizes */
 		switch (dum->gadget.speed) {
 		case USB_SPEED_SUPER:
 		case USB_SPEED_HIGH:
@@ -584,7 +584,7 @@ static int dummy_enable(struct usb_ep *_ep,
 		if (strstr(ep->ep.name, "-bulk")
 				|| strstr(ep->ep.name, "-int"))
 			goto done;
-		/* real hardware might not handle all packet sizes */
+		/* real hardware might analt handle all packet sizes */
 		switch (dum->gadget.speed) {
 		case USB_SPEED_SUPER:
 		case USB_SPEED_HIGH:
@@ -610,7 +610,7 @@ static int dummy_enable(struct usb_ep *_ep,
 	if (usb_ss_max_streams(_ep->comp_desc)) {
 		if (!usb_endpoint_xfer_bulk(desc)) {
 			dev_err(udc_dev(dum), "Can't enable stream support on "
-					"non-bulk ep %s\n", _ep->name);
+					"analn-bulk ep %s\n", _ep->name);
 			return -EINVAL;
 		}
 		ep->stream_en = 1;
@@ -857,14 +857,14 @@ static int dummy_wakeup(struct usb_gadget *_gadget)
 				| (1 << USB_DEVICE_REMOTE_WAKEUP))))
 		return -EINVAL;
 	if ((dum_hcd->port_status & USB_PORT_STAT_CONNECTION) == 0)
-		return -ENOLINK;
+		return -EANALLINK;
 	if ((dum_hcd->port_status & USB_PORT_STAT_SUSPEND) == 0 &&
 			 dum_hcd->rh_state != DUMMY_RH_SUSPENDED)
 		return -EIO;
 
 	/* FIXME: What if the root hub is suspended but the port isn't? */
 
-	/* hub notices our request, issues downstream resume, etc */
+	/* hub analtices our request, issues downstream resume, etc */
 	dum_hcd->resuming = 1;
 	dum_hcd->re_timeout = jiffies + msecs_to_jiffies(20);
 	mod_timer(&dummy_hcd_to_hcd(dum_hcd)->rh_timer, dum_hcd->re_timeout);
@@ -979,7 +979,7 @@ static DEVICE_ATTR_RO(function);
  * Driver registration/unregistration.
  *
  * This is basically hardware-specific; there's usually only one real USB
- * device (not host) controller since that's how USB devices are intended
+ * device (analt host) controller since that's how USB devices are intended
  * to work.  So most implementations of these api calls will rely on the
  * fact that only one driver will ever bind to the hardware.  But curious
  * hardware can be built with discrete components, so the gadget API doesn't
@@ -1173,7 +1173,7 @@ static unsigned int dummy_get_ep_idx(const struct usb_endpoint_descriptor *desc)
  *
  * this uses the hcd framework to hook up to host side drivers.
  * its root hub will only have one device, otherwise it acts like
- * a normal host controller.
+ * a analrmal host controller.
  *
  * when urbs are queued, they're just stuck on a list that we
  * scan in a timer callback.  that callback connects writes from
@@ -1268,7 +1268,7 @@ static int dummy_urb_enqueue(
 
 	urbp = kmalloc(sizeof *urbp, mem_flags);
 	if (!urbp)
-		return -ENOMEM;
+		return -EANALMEM;
 	urbp->urb = urb;
 	urbp->miter_started = 0;
 
@@ -1404,7 +1404,7 @@ static int transfer(struct dummy_hcd *dum_hcd, struct urb *urb,
 	int			sent = 0;
 
 top:
-	/* if there's no request queued, the device is NAKing; return */
+	/* if there's anal request queued, the device is NAKing; return */
 	list_for_each_entry(req, &ep->queue, queue) {
 		unsigned	host_len, dev_len, len;
 		int		is_short, to_host;
@@ -1432,7 +1432,7 @@ top:
 		if (unlikely(len == 0))
 			is_short = 1;
 		else {
-			/* not enough bandwidth left? */
+			/* analt eanalugh bandwidth left? */
 			if (limit < ep->ep.maxpacket && limit < len)
 				break;
 			len = min_t(unsigned, len, limit);
@@ -1651,24 +1651,24 @@ static int handle_control_request(struct dummy_hcd *dum_hcd, struct urb *urb,
 				    HCD_USB3)
 					w_value = USB_DEV_STAT_U1_ENABLED;
 				else
-					ret_val = -EOPNOTSUPP;
+					ret_val = -EOPANALTSUPP;
 				break;
 			case USB_DEVICE_U2_ENABLE:
 				if (dummy_hcd_to_hcd(dum_hcd)->speed ==
 				    HCD_USB3)
 					w_value = USB_DEV_STAT_U2_ENABLED;
 				else
-					ret_val = -EOPNOTSUPP;
+					ret_val = -EOPANALTSUPP;
 				break;
 			case USB_DEVICE_LTM_ENABLE:
 				if (dummy_hcd_to_hcd(dum_hcd)->speed ==
 				    HCD_USB3)
 					w_value = USB_DEV_STAT_LTM_ENABLED;
 				else
-					ret_val = -EOPNOTSUPP;
+					ret_val = -EOPANALTSUPP;
 				break;
 			default:
-				ret_val = -EOPNOTSUPP;
+				ret_val = -EOPANALTSUPP;
 			}
 			if (ret_val == 0) {
 				dum->devstatus |= (1 << w_value);
@@ -1678,7 +1678,7 @@ static int handle_control_request(struct dummy_hcd *dum_hcd, struct urb *urb,
 			/* endpoint halt */
 			ep2 = find_endpoint(dum, w_index);
 			if (!ep2 || ep2->ep.name == ep0name) {
-				ret_val = -EOPNOTSUPP;
+				ret_val = -EOPANALTSUPP;
 				break;
 			}
 			ep2->halted = 1;
@@ -1698,24 +1698,24 @@ static int handle_control_request(struct dummy_hcd *dum_hcd, struct urb *urb,
 				    HCD_USB3)
 					w_value = USB_DEV_STAT_U1_ENABLED;
 				else
-					ret_val = -EOPNOTSUPP;
+					ret_val = -EOPANALTSUPP;
 				break;
 			case USB_DEVICE_U2_ENABLE:
 				if (dummy_hcd_to_hcd(dum_hcd)->speed ==
 				    HCD_USB3)
 					w_value = USB_DEV_STAT_U2_ENABLED;
 				else
-					ret_val = -EOPNOTSUPP;
+					ret_val = -EOPANALTSUPP;
 				break;
 			case USB_DEVICE_LTM_ENABLE:
 				if (dummy_hcd_to_hcd(dum_hcd)->speed ==
 				    HCD_USB3)
 					w_value = USB_DEV_STAT_LTM_ENABLED;
 				else
-					ret_val = -EOPNOTSUPP;
+					ret_val = -EOPANALTSUPP;
 				break;
 			default:
-				ret_val = -EOPNOTSUPP;
+				ret_val = -EOPANALTSUPP;
 				break;
 			}
 			if (ret_val == 0) {
@@ -1726,7 +1726,7 @@ static int handle_control_request(struct dummy_hcd *dum_hcd, struct urb *urb,
 			/* endpoint halt */
 			ep2 = find_endpoint(dum, w_index);
 			if (!ep2) {
-				ret_val = -EOPNOTSUPP;
+				ret_val = -EOPANALTSUPP;
 				break;
 			}
 			if (!ep2->wedged)
@@ -1742,7 +1742,7 @@ static int handle_control_request(struct dummy_hcd *dum_hcd, struct urb *urb,
 			char *buf;
 			/*
 			 * device: remote wakeup, selfpowered
-			 * interface: nothing
+			 * interface: analthing
 			 * endpoint: halt
 			 */
 			buf = (char *)urb->transfer_buffer;
@@ -1750,7 +1750,7 @@ static int handle_control_request(struct dummy_hcd *dum_hcd, struct urb *urb,
 				if (setup->bRequestType == Ep_InRequest) {
 					ep2 = find_endpoint(dum, w_index);
 					if (!ep2) {
-						ret_val = -EOPNOTSUPP;
+						ret_val = -EOPANALTSUPP;
 						break;
 					}
 					buf[0] = ep2->halted;
@@ -1815,7 +1815,7 @@ static void dummy_timer(struct timer_list *t)
 
 	if (!dum_hcd->udev) {
 		dev_err(dummy_dev(dum_hcd),
-				"timer fired with no URBs pending?\n");
+				"timer fired with anal URBs pending?\n");
 		spin_unlock_irqrestore(&dum->lock, flags);
 		return;
 	}
@@ -1857,7 +1857,7 @@ restart:
 		if (!ep) {
 			/* set_configuration() disagreement */
 			dev_dbg(dummy_dev(dum_hcd),
-				"no ep configured for urb %p\n",
+				"anal ep configured for urb %p\n",
 				urb);
 			status = -EPROTO;
 			goto return_urb;
@@ -1871,7 +1871,7 @@ restart:
 			urb->error_count = 0;
 		}
 		if (ep->halted && !ep->setup_stage) {
-			/* NOTE: must not be iso! */
+			/* ANALTE: must analt be iso! */
 			dev_dbg(dummy_dev(dum_hcd), "ep %s halted, urb %p\n",
 					ep->ep.name, urb);
 			status = -EPIPE;
@@ -1885,7 +1885,7 @@ restart:
 			int				value;
 
 			setup = *(struct usb_ctrlrequest *) urb->setup_packet;
-			/* paranoia, in case of stale queued data */
+			/* paraanalia, in case of stale queued data */
 			list_for_each_entry(req, &ep->queue, queue) {
 				list_del_init(&req->queue);
 				req->req.status = -EOVERFLOW;
@@ -1911,7 +1911,7 @@ restart:
 						       &status);
 
 			/* gadget driver handles all other requests.  block
-			 * until setup() returns; no reentrancy issues etc.
+			 * until setup() returns; anal reentrancy issues etc.
 			 */
 			if (value > 0) {
 				++dum->callback_usage;
@@ -1922,7 +1922,7 @@ restart:
 				--dum->callback_usage;
 
 				if (value >= 0) {
-					/* no delays (max 64KB data stage) */
+					/* anal delays (max 64KB data stage) */
 					limit = 64*1024;
 					goto treat_control_like_bulk;
 				}
@@ -1930,7 +1930,7 @@ restart:
 			}
 
 			if (value < 0) {
-				if (value != -EOPNOTSUPP)
+				if (value != -EOPANALTSUPP)
 					dev_dbg(udc_dev(dum),
 						"setup --> %d\n",
 						value);
@@ -1941,17 +1941,17 @@ restart:
 			goto return_urb;
 		}
 
-		/* non-control requests */
+		/* analn-control requests */
 		limit = total;
 		switch (usb_pipetype(urb->pipe)) {
-		case PIPE_ISOCHRONOUS:
+		case PIPE_ISOCHROANALUS:
 			/*
-			 * We don't support isochronous.  But if we did,
+			 * We don't support isochroanalus.  But if we did,
 			 * here are some of the issues we'd have to face:
 			 *
 			 * Is it urb->interval since the last xfer?
 			 * Use urb->iso_frame_desc[i].
-			 * Complete whether or not ep has requests queued.
+			 * Complete whether or analt ep has requests queued.
 			 * Report random errors, to debug drivers.
 			 */
 			limit = max(limit, periodic_bytes(dum, ep));
@@ -2115,7 +2115,7 @@ static int dummy_hub_control(
 		case USB_PORT_FEAT_SUSPEND:
 			if (hcd->speed == HCD_USB3) {
 				dev_dbg(dummy_dev(dum_hcd),
-					 "USB_PORT_FEAT_SUSPEND req not "
+					 "USB_PORT_FEAT_SUSPEND req analt "
 					 "supported for USB 3.0 roothub\n");
 				goto error;
 			}
@@ -2137,7 +2137,7 @@ static int dummy_hub_control(
 		case USB_PORT_FEAT_ENABLE:
 		case USB_PORT_FEAT_C_ENABLE:
 		case USB_PORT_FEAT_C_SUSPEND:
-			/* Not allowed for USB-3 */
+			/* Analt allowed for USB-3 */
 			if (hcd->speed == HCD_USB3)
 				goto error;
 			fallthrough;
@@ -2229,13 +2229,13 @@ static int dummy_hub_control(
 		case USB_PORT_FEAT_LINK_STATE:
 			if (hcd->speed != HCD_USB3) {
 				dev_dbg(dummy_dev(dum_hcd),
-					 "USB_PORT_FEAT_LINK_STATE req not "
+					 "USB_PORT_FEAT_LINK_STATE req analt "
 					 "supported for USB 2.0 roothub\n");
 				goto error;
 			}
 			/*
 			 * Since this is dummy we don't have an actual link so
-			 * there is nothing to do for the SET_LINK_STATE cmd
+			 * there is analthing to do for the SET_LINK_STATE cmd
 			 */
 			break;
 		case USB_PORT_FEAT_U1_TIMEOUT:
@@ -2243,7 +2243,7 @@ static int dummy_hub_control(
 			/* TODO: add suspend/resume support! */
 			if (hcd->speed != HCD_USB3) {
 				dev_dbg(dummy_dev(dum_hcd),
-					 "USB_PORT_FEAT_U1/2_TIMEOUT req not "
+					 "USB_PORT_FEAT_U1/2_TIMEOUT req analt "
 					 "supported for USB 2.0 roothub\n");
 				goto error;
 			}
@@ -2252,21 +2252,21 @@ static int dummy_hub_control(
 			/* Applicable only for USB2.0 hub */
 			if (hcd->speed == HCD_USB3) {
 				dev_dbg(dummy_dev(dum_hcd),
-					 "USB_PORT_FEAT_SUSPEND req not "
+					 "USB_PORT_FEAT_SUSPEND req analt "
 					 "supported for USB 3.0 roothub\n");
 				goto error;
 			}
 			if (dum_hcd->active) {
 				dum_hcd->port_status |= USB_PORT_STAT_SUSPEND;
 
-				/* HNP would happen here; for now we
+				/* HNP would happen here; for analw we
 				 * assume b_bus_req is always true.
 				 */
 				set_link_state(dum_hcd);
 				if (((1 << USB_DEVICE_B_HNP_ENABLE)
 						& dum_hcd->dum->devstatus) != 0)
 					dev_dbg(dummy_dev(dum_hcd),
-							"no HNP yet!\n");
+							"anal HNP yet!\n");
 			}
 			break;
 		case USB_PORT_FEAT_POWER:
@@ -2280,7 +2280,7 @@ static int dummy_hub_control(
 			/* Applicable only for USB3.0 hub */
 			if (hcd->speed != HCD_USB3) {
 				dev_dbg(dummy_dev(dum_hcd),
-					 "USB_PORT_FEAT_BH_PORT_RESET req not "
+					 "USB_PORT_FEAT_BH_PORT_RESET req analt "
 					 "supported for USB 2.0 roothub\n");
 				goto error;
 			}
@@ -2317,7 +2317,7 @@ static int dummy_hub_control(
 		case USB_PORT_FEAT_C_RESET:
 		case USB_PORT_FEAT_C_ENABLE:
 		case USB_PORT_FEAT_C_SUSPEND:
-			/* Not allowed for USB-3, and ignored for USB-2 */
+			/* Analt allowed for USB-3, and iganalred for USB-2 */
 			if (hcd->speed == HCD_USB3)
 				goto error;
 			break;
@@ -2329,7 +2329,7 @@ static int dummy_hub_control(
 	case GetPortErrorCount:
 		if (hcd->speed != HCD_USB3) {
 			dev_dbg(dummy_dev(dum_hcd),
-				 "GetPortErrorCount req not "
+				 "GetPortErrorCount req analt "
 				 "supported for USB 2.0 roothub\n");
 			goto error;
 		}
@@ -2339,7 +2339,7 @@ static int dummy_hub_control(
 	case SetHubDepth:
 		if (hcd->speed != HCD_USB3) {
 			dev_dbg(dummy_dev(dum_hcd),
-				 "SetHubDepth req not supported for "
+				 "SetHubDepth req analt supported for "
 				 "USB 2.0 roothub\n");
 			goto error;
 		}
@@ -2596,7 +2596,7 @@ out:
 	return ret_streams;
 }
 
-/* Reverts a group of bulk endpoints back to not using stream IDs. */
+/* Reverts a group of bulk endpoints back to analt using stream IDs. */
 static int dummy_free_streams(struct usb_hcd *hcd, struct usb_device *udev,
 	struct usb_host_endpoint **eps, unsigned int num_eps,
 	gfp_t mem_flags)
@@ -2669,7 +2669,7 @@ static int dummy_hcd_probe(struct platform_device *pdev)
 		dummy_hcd.flags = HCD_USB11;
 	hs_hcd = usb_create_hcd(&dummy_hcd, &pdev->dev, dev_name(&pdev->dev));
 	if (!hs_hcd)
-		return -ENOMEM;
+		return -EANALMEM;
 	hs_hcd->has_tt = 1;
 
 	retval = usb_add_hcd(hs_hcd, 0, 0);
@@ -2680,7 +2680,7 @@ static int dummy_hcd_probe(struct platform_device *pdev)
 		ss_hcd = usb_create_shared_hcd(&dummy_hcd, &pdev->dev,
 					dev_name(&pdev->dev), hs_hcd);
 		if (!ss_hcd) {
-			retval = -ENOMEM;
+			retval = -EANALMEM;
 			goto dealloc_usb2_hcd;
 		}
 
@@ -2765,12 +2765,12 @@ static struct platform_device *the_hcd_pdev[MAX_NUM_UDC];
 
 static int __init dummy_hcd_init(void)
 {
-	int	retval = -ENOMEM;
+	int	retval = -EANALMEM;
 	int	i;
 	struct	dummy *dum[MAX_NUM_UDC] = {};
 
 	if (usb_disabled())
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!mod_data.is_high_speed && mod_data.is_super_speed)
 		return -EINVAL;
@@ -2802,7 +2802,7 @@ static int __init dummy_hcd_init(void)
 	for (i = 0; i < mod_data.num; i++) {
 		dum[i] = kzalloc(sizeof(struct dummy), GFP_KERNEL);
 		if (!dum[i]) {
-			retval = -ENOMEM;
+			retval = -EANALMEM;
 			goto err_add_pdata;
 		}
 		retval = platform_device_add_data(the_hcd_pdev[i], &dum[i],

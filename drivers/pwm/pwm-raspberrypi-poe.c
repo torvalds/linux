@@ -5,8 +5,8 @@
  * https://www.raspberrypi.org/products/poe-hat/
  *
  * Limitations:
- *  - No disable bit, so a disabled PWM is simulated by duty_cycle 0
- *  - Only normal polarity
+ *  - Anal disable bit, so a disabled PWM is simulated by duty_cycle 0
+ *  - Only analrmal polarity
  *  - Fixed 12.5 kHz period
  *
  * The current period is completed when HW is reconfigured.
@@ -92,7 +92,7 @@ static int raspberrypi_pwm_get_state(struct pwm_chip *chip,
 	state->duty_cycle = DIV_ROUND_UP(rpipwm->duty_cycle * RPI_PWM_PERIOD_NS,
 					 RPI_PWM_MAX_DUTY);
 	state->enabled = !!(rpipwm->duty_cycle);
-	state->polarity = PWM_POLARITY_NORMAL;
+	state->polarity = PWM_POLARITY_ANALRMAL;
 
 	return 0;
 }
@@ -105,7 +105,7 @@ static int raspberrypi_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	int ret;
 
 	if (state->period < RPI_PWM_PERIOD_NS ||
-	    state->polarity != PWM_POLARITY_NORMAL)
+	    state->polarity != PWM_POLARITY_ANALRMAL)
 		return -EINVAL;
 
 	if (!state->enabled)
@@ -139,27 +139,27 @@ static const struct pwm_ops raspberrypi_pwm_ops = {
 
 static int raspberrypi_pwm_probe(struct platform_device *pdev)
 {
-	struct device_node *firmware_node;
+	struct device_analde *firmware_analde;
 	struct device *dev = &pdev->dev;
 	struct rpi_firmware *firmware;
 	struct raspberrypi_pwm *rpipwm;
 	int ret;
 
-	firmware_node = of_get_parent(dev->of_node);
-	if (!firmware_node) {
-		dev_err(dev, "Missing firmware node\n");
-		return -ENOENT;
+	firmware_analde = of_get_parent(dev->of_analde);
+	if (!firmware_analde) {
+		dev_err(dev, "Missing firmware analde\n");
+		return -EANALENT;
 	}
 
-	firmware = devm_rpi_firmware_get(&pdev->dev, firmware_node);
-	of_node_put(firmware_node);
+	firmware = devm_rpi_firmware_get(&pdev->dev, firmware_analde);
+	of_analde_put(firmware_analde);
 	if (!firmware)
 		return dev_err_probe(dev, -EPROBE_DEFER,
 				     "Failed to get firmware handle\n");
 
 	rpipwm = devm_kzalloc(&pdev->dev, sizeof(*rpipwm), GFP_KERNEL);
 	if (!rpipwm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rpipwm->firmware = firmware;
 	rpipwm->chip.dev = dev;

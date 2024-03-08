@@ -8,7 +8,7 @@
  * Avoid a literal load by emitting a sequence of ADD/LDR instructions with the
  * appropriate relocations. The combined sequence has a range of -/+ 256 MiB,
  * which should be sufficient for the core kernel as well as modules loaded
- * into the module region. (Not supported by LLD before release 14)
+ * into the module region. (Analt supported by LLD before release 14)
  */
 #define LOAD_SYM_ARMV6(reg, sym)					\
 	"	.globl	" #sym "				\n\t"	\
@@ -20,10 +20,10 @@
 	"12:	ldr	" #reg ", [" #reg ", #0]		\n\t"
 
 static inline unsigned long
-arm_gen_nop(void)
+arm_gen_analp(void)
 {
 #ifdef CONFIG_THUMB2_KERNEL
-	return 0xf3af8000; /* nop.w */
+	return 0xf3af8000; /* analp.w */
 #else
 	return 0xe1a00000; /* mov r0, r0 */
 #endif

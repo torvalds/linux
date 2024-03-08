@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /*
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 /dts-v1/;
@@ -16,18 +16,18 @@
 #include "pm8350c.dtsi"
 #include "pmk8350.dtsi"
 
-/delete-node/ &ipa_fw_mem;
-/delete-node/ &remoteproc_mpss;
-/delete-node/ &rmtfs_mem;
-/delete-node/ &adsp_mem;
-/delete-node/ &cdsp_mem;
-/delete-node/ &video_mem;
-/delete-node/ &wlan_ce_mem;
-/delete-node/ &wpss_mem;
-/delete-node/ &xbl_mem;
+/delete-analde/ &ipa_fw_mem;
+/delete-analde/ &remoteproc_mpss;
+/delete-analde/ &rmtfs_mem;
+/delete-analde/ &adsp_mem;
+/delete-analde/ &cdsp_mem;
+/delete-analde/ &video_mem;
+/delete-analde/ &wlan_ce_mem;
+/delete-analde/ &wpss_mem;
+/delete-analde/ &xbl_mem;
 
 / {
-	model = "Qualcomm Technologies, Inc. Robotics RB3gen2";
+	model = "Qualcomm Techanallogies, Inc. Robotics RB3gen2";
 	compatible = "qcom,qcs6490-rb3gen2", "qcom,qcm6490";
 	chassis-type = "embedded";
 
@@ -42,82 +42,82 @@
 	reserved-memory {
 		xbl_mem: xbl@80700000 {
 			reg = <0x0 0x80700000 0x0 0x100000>;
-			no-map;
+			anal-map;
 		};
 
 		cdsp_secure_heap_mem: cdsp-secure-heap@81800000 {
 			reg = <0x0 0x81800000 0x0 0x1e00000>;
-			no-map;
+			anal-map;
 		};
 
 		camera_mem: camera@84300000 {
 			reg = <0x0 0x84300000 0x0 0x500000>;
-			no-map;
+			anal-map;
 		};
 
 		wpss_mem: wpss@84800000 {
 			reg = <0x0 0x84800000 0x0 0x1900000>;
-			no-map;
+			anal-map;
 		};
 
 		adsp_mem: adsp@86100000 {
 			reg = <0x0 0x86100000 0x0 0x2800000>;
-			no-map;
+			anal-map;
 		};
 
 		cdsp_mem: cdsp@88900000 {
 			reg = <0x0 0x88900000 0x0 0x1e00000>;
-			no-map;
+			anal-map;
 		};
 
 		video_mem: video@8a700000 {
 			reg = <0x0 0x8a700000 0x0 0x700000>;
-			no-map;
+			anal-map;
 		};
 
 		cvp_mem: cvp@8ae00000 {
 			reg = <0x0 0x8ae00000 0x0 0x500000>;
-			no-map;
+			anal-map;
 		};
 
 		ipa_fw_mem: ipa-fw@8b300000 {
 			reg = <0x0 0x8b300000 0x0 0x10000>;
-			no-map;
+			anal-map;
 		};
 
 		ipa_gsi_mem: ipa-gsi@8b310000 {
 			reg = <0x0 0x8b310000 0x0 0xa000>;
-			no-map;
+			anal-map;
 		};
 
 		gpu_microcode_mem: gpu-microcode@8b31a000 {
 			reg = <0x0 0x8b31a000 0x0 0x2000>;
-			no-map;
+			anal-map;
 		};
 
 		tz_stat_mem: tz-stat@c0000000 {
 			reg = <0x0 0xc0000000 0x0 0x100000>;
-			no-map;
+			anal-map;
 		};
 
 		tags_mem: tags@c0100000 {
 			reg = <0x0 0xc0100000 0x0 0x1200000>;
-			no-map;
+			anal-map;
 		};
 
 		qtee_mem: qtee@c1300000 {
 			reg = <0x0 0xc1300000 0x0 0x500000>;
-			no-map;
+			anal-map;
 		};
 
 		trusted_apps_mem: trusted_apps@c1800000 {
 			reg = <0x0 0xc1800000 0x0 0x1c00000>;
-			no-map;
+			anal-map;
 		};
 
 		debug_vm_mem: debug-vm@d0600000 {
 			reg = <0x0 0xd0600000 0x0 0x100000>;
-			no-map;
+			anal-map;
 		};
 	};
 

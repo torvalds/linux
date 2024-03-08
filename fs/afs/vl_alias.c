@@ -116,7 +116,7 @@ static int afs_compare_cell_roots(struct afs_cell *cell)
 		if (p == cell || p->alias_of)
 			continue;
 		if (!p->root_volume)
-			continue; /* Ignore cells that don't have a root.cell volume. */
+			continue; /* Iganalre cells that don't have a root.cell volume. */
 
 		if (afs_compare_volume_slists(cell->root_volume, p->root_volume) != 0)
 			goto is_alias;
@@ -144,8 +144,8 @@ static int afs_query_for_alias_one(struct afs_cell *cell, struct key *key,
 	/* Arbitrarily pick a volume from the list. */
 	read_seqlock_excl(&p->volume_lock);
 	if (!RB_EMPTY_ROOT(&p->volumes))
-		pvol = afs_get_volume(rb_entry(p->volumes.rb_node,
-					       struct afs_volume, cell_node),
+		pvol = afs_get_volume(rb_entry(p->volumes.rb_analde,
+					       struct afs_volume, cell_analde),
 				      afs_volume_trace_get_query_alias);
 	read_sequnlock_excl(&p->volume_lock);
 	if (!pvol)
@@ -157,9 +157,9 @@ static int afs_query_for_alias_one(struct afs_cell *cell, struct key *key,
 	volume = afs_sample_volume(cell, key, pvol->name, pvol->name_len);
 	if (IS_ERR(volume)) {
 		afs_put_volume(pvol, afs_volume_trace_put_query_alias);
-		if (PTR_ERR(volume) != -ENOMEDIUM)
+		if (PTR_ERR(volume) != -EANALMEDIUM)
 			return PTR_ERR(volume);
-		/* That volume is not in the new cell, so not an alias */
+		/* That volume is analt in the new cell, so analt an alias */
 		return 0;
 	}
 
@@ -180,7 +180,7 @@ static int afs_query_for_alias_one(struct afs_cell *cell, struct key *key,
 }
 
 /*
- * Query the new cell for volumes we know exist in cells we're already using.
+ * Query the new cell for volumes we kanalw exist in cells we're already using.
  */
 static int afs_query_for_alias(struct afs_cell *cell, struct key *key)
 {
@@ -197,7 +197,7 @@ static int afs_query_for_alias(struct afs_cell *cell, struct key *key)
 		if (RB_EMPTY_ROOT(&p->volumes))
 			continue;
 		if (p->root_volume)
-			continue; /* Ignore cells that have a root.cell volume. */
+			continue; /* Iganalre cells that have a root.cell volume. */
 		afs_use_cell(p, afs_cell_trace_use_check_alias);
 		mutex_unlock(&cell->net->proc_cells_lock);
 
@@ -228,7 +228,7 @@ static char *afs_vl_get_cell_name(struct afs_cell *cell, struct key *key)
 {
 	struct afs_vl_cursor vc;
 	char *cell_name = ERR_PTR(-EDESTADDRREQ);
-	bool skipped = false, not_skipped = false;
+	bool skipped = false, analt_skipped = false;
 	int ret;
 
 	if (!afs_begin_vlserver_operation(&vc, cell, key))
@@ -236,21 +236,21 @@ static char *afs_vl_get_cell_name(struct afs_cell *cell, struct key *key)
 
 	while (afs_select_vlserver(&vc)) {
 		if (!test_bit(AFS_VLSERVER_FL_IS_YFS, &vc.server->flags)) {
-			vc.call_error = -EOPNOTSUPP;
+			vc.call_error = -EOPANALTSUPP;
 			skipped = true;
 			continue;
 		}
-		not_skipped = true;
+		analt_skipped = true;
 		cell_name = afs_yfsvl_get_cell_name(&vc);
 	}
 
 	ret = afs_end_vlserver_operation(&vc);
-	if (skipped && !not_skipped)
-		ret = -EOPNOTSUPP;
+	if (skipped && !analt_skipped)
+		ret = -EOPANALTSUPP;
 	return ret < 0 ? ERR_PTR(ret) : cell_name;
 }
 
-static int yfs_check_canonical_cell_name(struct afs_cell *cell, struct key *key)
+static int yfs_check_caanalnical_cell_name(struct afs_cell *cell, struct key *key)
 {
 	struct afs_cell *master;
 	char *cell_name;
@@ -281,8 +281,8 @@ static int afs_do_cell_detect_alias(struct afs_cell *cell, struct key *key)
 
 	_enter("%s", cell->name);
 
-	ret = yfs_check_canonical_cell_name(cell, key);
-	if (ret != -EOPNOTSUPP)
+	ret = yfs_check_caanalnical_cell_name(cell, key);
+	if (ret != -EOPANALTSUPP)
 		return ret;
 
 	/* Try and get the root.cell volume for comparison with other cells */
@@ -292,7 +292,7 @@ static int afs_do_cell_detect_alias(struct afs_cell *cell, struct key *key)
 		return afs_compare_cell_roots(cell);
 	}
 
-	if (PTR_ERR(root_volume) != -ENOMEDIUM)
+	if (PTR_ERR(root_volume) != -EANALMEDIUM)
 		return PTR_ERR(root_volume);
 
 	/* Okay, this cell doesn't have an root.cell volume.  We need to
@@ -328,7 +328,7 @@ int afs_cell_detect_alias(struct afs_cell *cell, struct key *key)
 	mutex_unlock(&net->cells_alias_lock);
 
 	if (ret == 1)
-		pr_notice("kAFS: Cell %s is an alias of %s\n",
+		pr_analtice("kAFS: Cell %s is an alias of %s\n",
 			  cell->name, cell->alias_of->name);
 	return ret;
 }

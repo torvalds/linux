@@ -26,14 +26,14 @@
  * may create additional DRM masters and 'lease' resources which it controls
  * to the new DRM master. This gives the new DRM master control over the
  * leased resources until the owner revokes the lease, or the new DRM master
- * is closed. Some helpful terminology:
+ * is closed. Some helpful termianallogy:
  *
- * - An 'owner' is a &struct drm_master that is not leasing objects from
- *   another &struct drm_master, and hence 'owns' the objects. The owner can be
+ * - An 'owner' is a &struct drm_master that is analt leasing objects from
+ *   aanalther &struct drm_master, and hence 'owns' the objects. The owner can be
  *   identified as the &struct drm_master for which &drm_master.lessor is NULL.
  *
  * - A 'lessor' is a &struct drm_master which is leasing objects to one or more
- *   other &struct drm_master. Currently, lessees are not allowed to
+ *   other &struct drm_master. Currently, lessees are analt allowed to
  *   create sub-leases, hence the lessor is the same as the owner.
  *
  * - A 'lessee' is a &struct drm_master which is leasing objects from some
@@ -44,19 +44,19 @@
  * - A 'lease' is a contract between the lessor and lessee that identifies
  *   which resources may be controlled by the lessee. All of the resources
  *   that are leased must be owned by or leased to the lessor, and lessors are
- *   not permitted to lease the same object to multiple lessees.
+ *   analt permitted to lease the same object to multiple lessees.
  *
  * The set of objects any &struct drm_master 'controls' is limited to the set
  * of objects it leases (for lessees) or all objects (for owners).
  *
- * Objects not controlled by a &struct drm_master cannot be modified through
+ * Objects analt controlled by a &struct drm_master cananalt be modified through
  * the various state manipulating ioctls, and any state reported back to user
  * space will be edited to make them appear idle and/or unusable. For
  * instance, connectors always report 'disconnected', while encoders
- * report no possible crtcs or clones.
+ * report anal possible crtcs or clones.
  *
  * Since each lessee may lease objects from a single lessor, display resource
- * leases form a tree of &struct drm_master. As lessees are currently not
+ * leases form a tree of &struct drm_master. As lessees are currently analt
  * allowed to create sub-leases, the tree depth is limited to 1. All of
  * these get activated simultaneously when the top level device owner changes
  * through the SETMASTER or DROPMASTER IOCTL, so &drm_device.master points to
@@ -199,10 +199,10 @@ out:
  * leasing them to the new drmmaster.
  *
  * 	ERR_PTR(-EACCES)	some other master holds the title to any object
- * 	ERR_PTR(-ENOENT)	some object is not a valid DRM object for this device
+ * 	ERR_PTR(-EANALENT)	some object is analt a valid DRM object for this device
  * 	ERR_PTR(-EBUSY)		some other lessee holds title to this object
  *	ERR_PTR(-EEXIST)	same object specified more than once in the provided list
- *	ERR_PTR(-ENOMEM)	allocation failed
+ *	ERR_PTR(-EANALMEM)	allocation failed
  */
 static struct drm_master *drm_lease_create(struct drm_master *lessor, struct idr *leases)
 {
@@ -218,7 +218,7 @@ static struct drm_master *drm_lease_create(struct drm_master *lessor, struct idr
 	lessee = drm_master_create(lessor->dev);
 	if (!lessee) {
 		drm_dbg_lease(dev, "drm_master_create failed\n");
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	mutex_lock(&dev->mode_config.idr_mutex);
@@ -226,7 +226,7 @@ static struct drm_master *drm_lease_create(struct drm_master *lessor, struct idr
 	idr_for_each_entry(leases, entry, object) {
 		error = 0;
 		if (!idr_find(&dev->mode_config.object_idr, object))
-			error = -ENOENT;
+			error = -EANALENT;
 		else if (_drm_has_leased(lessor, object))
 			error = -EBUSY;
 
@@ -271,7 +271,7 @@ void drm_lease_destroy(struct drm_master *master)
 
 	drm_dbg_lease(dev, "drm_lease_destroy %d\n", master->lessee_id);
 
-	/* This master is referenced by all lessees, hence it cannot be destroyed
+	/* This master is referenced by all lessees, hence it cananalt be destroyed
 	 * until all of them have been
 	 */
 	WARN_ON(!list_empty(&master->lessees));
@@ -389,7 +389,7 @@ static int fill_object_idr(struct drm_device *dev,
 	objects = kcalloc(object_count, sizeof(struct drm_mode_object *),
 			  GFP_KERNEL);
 	if (!objects)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* step one - get references to all the mode objects
 	   and check for validity. */
@@ -398,7 +398,7 @@ static int fill_object_idr(struct drm_device *dev,
 						  object_ids[o],
 						  DRM_MODE_OBJECT_ANY);
 		if (!objects[o]) {
-			ret = -ENOENT;
+			ret = -EANALENT;
 			goto out_free_objects;
 		}
 
@@ -428,12 +428,12 @@ static int fill_object_idr(struct drm_device *dev,
 		 * objects, but we don't need to point at the object's
 		 * data structure from the lease as the main object_idr
 		 * will be used to actually find that. Instead, all we
-		 * really want is a 'leased/not-leased' result, for
-		 * which any non-NULL pointer will work fine.
+		 * really want is a 'leased/analt-leased' result, for
+		 * which any analn-NULL pointer will work fine.
 		 */
 		ret = idr_alloc(leases, &drm_lease_idr_object , object_id, object_id + 1, GFP_KERNEL);
 		if (ret < 0) {
-			drm_dbg_lease(dev, "Object %d cannot be inserted into leases (%d)\n",
+			drm_dbg_lease(dev, "Object %d cananalt be inserted into leases (%d)\n",
 				      object_id, ret);
 			goto out_free_objects;
 		}
@@ -442,14 +442,14 @@ static int fill_object_idr(struct drm_device *dev,
 
 			ret = idr_alloc(leases, &drm_lease_idr_object, crtc->primary->base.id, crtc->primary->base.id + 1, GFP_KERNEL);
 			if (ret < 0) {
-				drm_dbg_lease(dev, "Object primary plane %d cannot be inserted into leases (%d)\n",
+				drm_dbg_lease(dev, "Object primary plane %d cananalt be inserted into leases (%d)\n",
 					      object_id, ret);
 				goto out_free_objects;
 			}
 			if (crtc->cursor) {
 				ret = idr_alloc(leases, &drm_lease_idr_object, crtc->cursor->base.id, crtc->cursor->base.id + 1, GFP_KERNEL);
 				if (ret < 0) {
-					drm_dbg_lease(dev, "Object cursor plane %d cannot be inserted into leases (%d)\n",
+					drm_dbg_lease(dev, "Object cursor plane %d cananalt be inserted into leases (%d)\n",
 						      object_id, ret);
 					goto out_free_objects;
 				}
@@ -490,17 +490,17 @@ int drm_mode_create_lease_ioctl(struct drm_device *dev,
 
 	/* Can't lease without MODESET */
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
-	if (cl->flags && (cl->flags & ~(O_CLOEXEC | O_NONBLOCK))) {
+	if (cl->flags && (cl->flags & ~(O_CLOEXEC | O_ANALNBLOCK))) {
 		drm_dbg_lease(dev, "invalid flags\n");
 		return -EINVAL;
 	}
 
 	lessor = drm_file_get_master(lessor_priv);
-	/* Do not allow sub-leases */
+	/* Do analt allow sub-leases */
 	if (lessor->lessor) {
-		drm_dbg_lease(dev, "recursive leasing not allowed\n");
+		drm_dbg_lease(dev, "recursive leasing analt allowed\n");
 		ret = -EINVAL;
 		goto out_lessor;
 	}
@@ -530,7 +530,7 @@ int drm_mode_create_lease_ioctl(struct drm_device *dev,
 	}
 
 	/* Allocate a file descriptor for the lease */
-	fd = get_unused_fd_flags(cl->flags & (O_CLOEXEC | O_NONBLOCK));
+	fd = get_unused_fd_flags(cl->flags & (O_CLOEXEC | O_ANALNBLOCK));
 	if (fd < 0) {
 		idr_destroy(&leases);
 		ret = fd;
@@ -601,7 +601,7 @@ int drm_mode_list_lessees_ioctl(struct drm_device *dev,
 
 	/* Can't lease without MODESET */
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	lessor = drm_file_get_master(lessor_priv);
 	drm_dbg_lease(dev, "List lessees for %d\n", lessor->lessee_id);
@@ -652,7 +652,7 @@ int drm_mode_get_lease_ioctl(struct drm_device *dev,
 
 	/* Can't lease without MODESET */
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	lessee = drm_file_get_master(lessee_priv);
 	drm_dbg_lease(dev, "get lease for %d\n", lessee->lessee_id);
@@ -704,20 +704,20 @@ int drm_mode_revoke_lease_ioctl(struct drm_device *dev,
 
 	/* Can't lease without MODESET */
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	lessor = drm_file_get_master(lessor_priv);
 	mutex_lock(&dev->mode_config.idr_mutex);
 
 	lessee = _drm_find_lessee(lessor, arg->lessee_id);
 
-	/* No such lessee */
+	/* Anal such lessee */
 	if (!lessee) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto fail;
 	}
 
-	/* Lease is not held by lessor */
+	/* Lease is analt held by lessor */
 	if (lessee->lessor != lessor) {
 		ret = -EACCES;
 		goto fail;

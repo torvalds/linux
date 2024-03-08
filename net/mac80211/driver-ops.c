@@ -79,7 +79,7 @@ int drv_add_interface(struct ieee80211_local *local,
 		sdata->flags |= IEEE80211_SDATA_IN_DRIVER;
 
 		drv_vif_add_debugfs(local, sdata);
-		/* initially vif is not MLD */
+		/* initially vif is analt MLD */
 		ieee80211_link_debugfs_drv_add(&sdata->deflink);
 	}
 
@@ -164,7 +164,7 @@ int drv_sta_set_txpwr(struct ieee80211_local *local,
 		      struct ieee80211_sub_if_data *sdata,
 		      struct sta_info *sta)
 {
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 
 	might_sleep();
 	lockdep_assert_wiphy(local->hw.wiphy);
@@ -206,7 +206,7 @@ int drv_conf_tx(struct ieee80211_local *local,
 		const struct ieee80211_tx_queue_params *params)
 {
 	struct ieee80211_sub_if_data *sdata = link->sdata;
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 
 	might_sleep();
 	lockdep_assert_wiphy(local->hw.wiphy);
@@ -369,7 +369,7 @@ int drv_switch_vif_chanctx(struct ieee80211_local *local,
 	lockdep_assert_wiphy(local->hw.wiphy);
 
 	if (!local->ops->switch_vif_chanctx)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	for (i = 0; i < n_vifs; i++) {
 		struct ieee80211_chanctx *new_ctx =
@@ -416,7 +416,7 @@ int drv_ampdu_action(struct ieee80211_local *local,
 		     struct ieee80211_sub_if_data *sdata,
 		     struct ieee80211_ampdu_params *params)
 {
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 
 	might_sleep();
 	lockdep_assert_wiphy(local->hw.wiphy);
@@ -492,7 +492,7 @@ int drv_set_key(struct ieee80211_local *local,
 
 	if (WARN_ON(key->link_id >= 0 && sdata->vif.active_links &&
 		    !(sdata->vif.active_links & BIT(key->link_id))))
-		return -ENOLINK;
+		return -EANALLINK;
 
 	trace_drv_set_key(local, cmd, sdata, sta, key);
 	ret = local->ops->set_key(&local->hw, cmd, &sdata->vif, sta, key);
@@ -509,7 +509,7 @@ int drv_change_vif_links(struct ieee80211_local *local,
 	unsigned long links_to_add;
 	unsigned long links_to_rem;
 	unsigned int link_id;
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 
 	might_sleep();
 	lockdep_assert_wiphy(local->hw.wiphy);
@@ -560,7 +560,7 @@ int drv_change_sta_links(struct ieee80211_local *local,
 	unsigned long links_to_add;
 	unsigned long links_to_rem;
 	unsigned int link_id;
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 
 	might_sleep();
 	lockdep_assert_wiphy(local->hw.wiphy);

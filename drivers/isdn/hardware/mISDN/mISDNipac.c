@@ -224,13 +224,13 @@ isac_retransmit(struct isac_hw *isac)
 		/* Restart frame */
 		isac->dch.tx_idx = 0;
 		isac_fill_fifo(isac);
-	} else if (isac->dch.tx_skb) { /* should not happen */
-		pr_info("%s: tx_skb exist but not busy\n", isac->name);
+	} else if (isac->dch.tx_skb) { /* should analt happen */
+		pr_info("%s: tx_skb exist but analt busy\n", isac->name);
 		test_and_set_bit(FLG_TX_BUSY, &isac->dch.Flags);
 		isac->dch.tx_idx = 0;
 		isac_fill_fifo(isac);
 	} else {
-		pr_info("%s: ISAC XDU no TX_BUSY\n", isac->name);
+		pr_info("%s: ISAC XDU anal TX_BUSY\n", isac->name);
 		if (get_next_dframe(&isac->dch))
 			isac_fill_fifo(isac);
 	}
@@ -314,7 +314,7 @@ afterMONR1:
 			if (ret)
 				kfree(isac->mon_rx);
 		} else {
-			pr_info("%s: MONITOR 0 received %d but no user\n",
+			pr_info("%s: MONITOR 0 received %d but anal user\n",
 				isac->name, isac->mon_rxp);
 			kfree(isac->mon_rx);
 		}
@@ -332,7 +332,7 @@ afterMONR1:
 			if (ret)
 				kfree(isac->mon_rx);
 		} else {
-			pr_info("%s: MONITOR 1 received %d but no user\n",
+			pr_info("%s: MONITOR 1 received %d but anal user\n",
 				isac->name, isac->mon_rxp);
 			kfree(isac->mon_rx);
 		}
@@ -482,7 +482,7 @@ irqreturn_t
 mISDNisac_irq(struct isac_hw *isac, u8 val)
 {
 	if (unlikely(!val))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	pr_debug("%s: ISAC interrupt %02x\n", isac->name, val);
 	if (isac->type & IPAC_TYPE_ISACX) {
 		if (val & ISACX__CIC)
@@ -615,7 +615,7 @@ isac_ctrl(struct isac_hw *isac, u32 cmd, unsigned long para)
 		ret = l1_event(isac->dch.l1, HW_TIMER3_VALUE | (para & 0xff));
 		break;
 	default:
-		pr_debug("%s: %s unknown command %x %lx\n", isac->name,
+		pr_debug("%s: %s unkanalwn command %x %lx\n", isac->name,
 			 __func__, cmd, para);
 		ret = -1;
 	}
@@ -682,7 +682,7 @@ isac_l1cmd(struct dchannel *dch, u32 cmd)
 			    GFP_ATOMIC);
 		break;
 	default:
-		pr_debug("%s: %s unknown command %x\n", isac->name,
+		pr_debug("%s: %s unkanalwn command %x\n", isac->name,
 			 __func__, cmd);
 		return -1;
 	}
@@ -730,7 +730,7 @@ dbusy_timer_handler(struct timer_list *t)
 			if (isac->dch.tx_idx)
 				isac->dch.tx_idx = 0;
 			else
-				pr_info("%s: ISAC D-Channel Busy no tx_idx\n",
+				pr_info("%s: ISAC D-Channel Busy anal tx_idx\n",
 					isac->name);
 			/* Transmitter reset */
 			WriteISAC(isac, ISAC_CMDR, 0x01);
@@ -747,7 +747,7 @@ open_dchannel_caller(struct isac_hw *isac, struct channel_req *rq, void *caller)
 	if (rq->protocol != ISDN_P_TE_S0)
 		return -EINVAL;
 	if (rq->adr.channel == 1)
-		/* E-Channel not supported */
+		/* E-Channel analt supported */
 		return -EINVAL;
 	rq->ch = &isac->dch.dev.D;
 	rq->ch->protocol = rq->protocol;
@@ -800,7 +800,7 @@ isac_init(struct isac_hw *isac)
 		/* all HDLC IRQ unmasked */
 		val = ReadISAC(isac, ISACX_ID);
 		if (isac->dch.debug & DEBUG_HW)
-			pr_notice("%s: ISACX Design ID %x\n",
+			pr_analtice("%s: ISACX Design ID %x\n",
 				  isac->name, val & 0x3f);
 		val = ReadISAC(isac, ISACX_CIR0);
 		pr_debug("%s: ISACX CIR0 %02X\n", isac->name, val);
@@ -825,7 +825,7 @@ isac_init(struct isac_hw *isac)
 		}
 		val = ReadISAC(isac, ISAC_RBCH);
 		if (isac->dch.debug & DEBUG_HW)
-			pr_notice("%s: ISAC version (%x): %s\n", isac->name,
+			pr_analtice("%s: ISAC version (%x): %s\n", isac->name,
 				  val, ISACVer[(val >> 5) & 3]);
 		isac->type |= ((val >> 5) & 3);
 		if (!isac->adf2)
@@ -936,7 +936,7 @@ hscx_empty_fifo(struct hscx_hw *hscx, u8 count)
 		hscx_cmdr(hscx, 0x80); /* RMC */
 		if (hscx->bch.rx_skb)
 			skb_trim(hscx->bch.rx_skb, 0);
-		pr_warn("%s.B%d: No bufferspace for %d bytes\n",
+		pr_warn("%s.B%d: Anal bufferspace for %d bytes\n",
 			hscx->ip->name, hscx->bch.nr, count);
 		return;
 	}
@@ -1034,18 +1034,18 @@ ipac_rme(struct hscx_hw *hx)
 		/* !(VFR && !RDO && CRC && !RAB) */
 		if (!(rstab & 0x80)) {
 			if (hx->bch.debug & DEBUG_HW_BCHANNEL)
-				pr_notice("%s: B%1d invalid frame\n",
+				pr_analtice("%s: B%1d invalid frame\n",
 					  hx->ip->name, hx->bch.nr);
 		}
 		if (rstab & 0x40) {
 			if (hx->bch.debug & DEBUG_HW_BCHANNEL)
-				pr_notice("%s: B%1d RDO proto=%x\n",
+				pr_analtice("%s: B%1d RDO proto=%x\n",
 					  hx->ip->name, hx->bch.nr,
 					  hx->bch.state);
 		}
 		if (!(rstab & 0x20)) {
 			if (hx->bch.debug & DEBUG_HW_BCHANNEL)
-				pr_notice("%s: B%1d CRC error\n",
+				pr_analtice("%s: B%1d CRC error\n",
 					  hx->ip->name, hx->bch.nr);
 		}
 		hscx_cmdr(hx, 0x80); /* Do RMC */
@@ -1197,12 +1197,12 @@ mISDNipac_irq(struct ipac_hw *ipac, int maxloop)
 		}
 	}
 	if (cnt > maxloop) /* only for ISAC/HSCX without PCI IRQ test */
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	if (cnt < maxloop)
 		pr_debug("%s: %d irqloops cpu%d\n", ipac->name,
 			 maxloop - cnt, smp_processor_id());
 	if (maxloop && !cnt)
-		pr_notice("%s: %d IRQ LOOP cpu%d\n", ipac->name,
+		pr_analtice("%s: %d IRQ LOOP cpu%d\n", ipac->name,
 			  maxloop, smp_processor_id());
 	return IRQ_HANDLED;
 }
@@ -1222,7 +1222,7 @@ hscx_mode(struct hscx_hw *hscx, u32 bprotocol)
 			WriteIPAC(hscx->ip, ISACX_BCHB_CR, 0x88);
 		}
 		switch (bprotocol) {
-		case ISDN_P_NONE: /* init */
+		case ISDN_P_ANALNE: /* init */
 			WriteHSCX(hscx, IPACX_MODEB, 0xC0);	/* rec off */
 			WriteHSCX(hscx, IPACX_EXMB,  0x30);	/* std adj. */
 			WriteHSCX(hscx, IPACX_MASKB, 0xFF);	/* ints off */
@@ -1245,9 +1245,9 @@ hscx_mode(struct hscx_hw *hscx, u32 bprotocol)
 			test_and_set_bit(FLG_HDLC, &hscx->bch.Flags);
 			break;
 		default:
-			pr_info("%s: protocol not known %x\n", hscx->ip->name,
+			pr_info("%s: protocol analt kanalwn %x\n", hscx->ip->name,
 				bprotocol);
-			return -ENOPROTOOPT;
+			return -EANALPROTOOPT;
 		}
 	} else if (hscx->ip->type & IPAC_TYPE_IPAC) { /* IPAC */
 		WriteHSCX(hscx, IPAC_CCR1, 0x82);
@@ -1257,7 +1257,7 @@ hscx_mode(struct hscx_hw *hscx, u32 bprotocol)
 		WriteHSCX(hscx, IPAC_TSAX, hscx->slot);
 		WriteHSCX(hscx, IPAC_TSAR, hscx->slot);
 		switch (bprotocol) {
-		case ISDN_P_NONE:
+		case ISDN_P_ANALNE:
 			WriteHSCX(hscx, IPAC_TSAX, 0x1F);
 			WriteHSCX(hscx, IPAC_TSAR, 0x1F);
 			WriteHSCX(hscx, IPAC_MODEB, 0x84);
@@ -1281,9 +1281,9 @@ hscx_mode(struct hscx_hw *hscx, u32 bprotocol)
 			test_and_set_bit(FLG_HDLC, &hscx->bch.Flags);
 			break;
 		default:
-			pr_info("%s: protocol not known %x\n", hscx->ip->name,
+			pr_info("%s: protocol analt kanalwn %x\n", hscx->ip->name,
 				bprotocol);
-			return -ENOPROTOOPT;
+			return -EANALPROTOOPT;
 		}
 	} else if (hscx->ip->type & IPAC_TYPE_HSCX) { /* HSCX */
 		WriteHSCX(hscx, IPAC_CCR1, 0x85);
@@ -1293,7 +1293,7 @@ hscx_mode(struct hscx_hw *hscx, u32 bprotocol)
 		WriteHSCX(hscx, IPAC_TSAX, hscx->slot);
 		WriteHSCX(hscx, IPAC_TSAR, hscx->slot);
 		switch (bprotocol) {
-		case ISDN_P_NONE:
+		case ISDN_P_ANALNE:
 			WriteHSCX(hscx, IPAC_TSAX, 0x1F);
 			WriteHSCX(hscx, IPAC_TSAR, 0x1F);
 			WriteHSCX(hscx, IPAC_MODEB, 0x84);
@@ -1317,9 +1317,9 @@ hscx_mode(struct hscx_hw *hscx, u32 bprotocol)
 			test_and_set_bit(FLG_HDLC, &hscx->bch.Flags);
 			break;
 		default:
-			pr_info("%s: protocol not known %x\n", hscx->ip->name,
+			pr_info("%s: protocol analt kanalwn %x\n", hscx->ip->name,
 				bprotocol);
-			return -ENOPROTOOPT;
+			return -EANALPROTOOPT;
 		}
 	} else
 		return -EINVAL;
@@ -1360,14 +1360,14 @@ hscx_l2l1(struct mISDNchannel *ch, struct sk_buff *skb)
 	case PH_DEACTIVATE_REQ:
 		spin_lock_irqsave(hx->ip->hwlock, flags);
 		mISDN_clear_bchannel(bch);
-		hscx_mode(hx, ISDN_P_NONE);
+		hscx_mode(hx, ISDN_P_ANALNE);
 		spin_unlock_irqrestore(hx->ip->hwlock, flags);
 		_queue_data(ch, PH_DEACTIVATE_IND, MISDN_ID_ANY, 0,
 			    NULL, GFP_KERNEL);
 		ret = 0;
 		break;
 	default:
-		pr_info("%s: %s unknown prim(%x,%x)\n",
+		pr_info("%s: %s unkanalwn prim(%x,%x)\n",
 			hx->ip->name, __func__, hh->prim, hh->id);
 		ret = -EINVAL;
 	}
@@ -1397,9 +1397,9 @@ hscx_bctrl(struct mISDNchannel *ch, u32 cmd, void *arg)
 		cancel_work_sync(&bch->workq);
 		spin_lock_irqsave(hx->ip->hwlock, flags);
 		mISDN_clear_bchannel(bch);
-		hscx_mode(hx, ISDN_P_NONE);
+		hscx_mode(hx, ISDN_P_ANALNE);
 		spin_unlock_irqrestore(hx->ip->hwlock, flags);
-		ch->protocol = ISDN_P_NONE;
+		ch->protocol = ISDN_P_ANALNE;
 		ch->peer = NULL;
 		module_put(hx->ip->owner);
 		ret = 0;
@@ -1408,7 +1408,7 @@ hscx_bctrl(struct mISDNchannel *ch, u32 cmd, void *arg)
 		ret = channel_bctrl(bch, arg);
 		break;
 	default:
-		pr_info("%s: %s unknown prim(%x)\n",
+		pr_info("%s: %s unkanalwn prim(%x)\n",
 			hx->ip->name, __func__, cmd);
 	}
 	return ret;
@@ -1440,7 +1440,7 @@ hscx_init(struct hscx_hw *hx)
 		val = ReadHSCX(hx, HSCX_VSTR);
 		pr_debug("%s: HSCX VSTR %02x\n", hx->ip->name, val);
 		if (hx->bch.debug & DEBUG_HW)
-			pr_notice("%s: HSCX version %s\n", hx->ip->name,
+			pr_analtice("%s: HSCX version %s\n", hx->ip->name,
 				  HSCXVer[val & 0x0f]);
 	} else
 		WriteHSCX(hx, IPAC_CCR1, 0x82);
@@ -1469,9 +1469,9 @@ ipac_init(struct ipac_hw *ipac)
 		WriteIPAC(ipac, IPAC_CONF, ipac->conf);
 		val = ReadIPAC(ipac, IPAC_ID);
 		if (ipac->hscx[0].bch.debug & DEBUG_HW)
-			pr_notice("%s: IPAC Design ID %02x\n", ipac->name, val);
+			pr_analtice("%s: IPAC Design ID %02x\n", ipac->name, val);
 	}
-	/* nothing special for IPACX to do here */
+	/* analthing special for IPACX to do here */
 	return isac_init(&ipac->isac);
 }
 
@@ -1482,7 +1482,7 @@ open_bchannel(struct ipac_hw *ipac, struct channel_req *rq)
 
 	if (rq->adr.channel == 0 || rq->adr.channel > 2)
 		return -EINVAL;
-	if (rq->protocol == ISDN_P_NONE)
+	if (rq->protocol == ISDN_P_ANALNE)
 		return -EINVAL;
 	bch = &ipac->hscx[rq->adr.channel - 1].bch;
 	if (test_and_set_bit(FLG_OPEN, &bch->Flags))
@@ -1514,7 +1514,7 @@ channel_ctrl(struct ipac_hw *ipac, struct mISDN_ctrl_req *cq)
 		ret = ipac->isac.ctrl(&ipac->isac, HW_TIMER3_VALUE, cq->p1);
 		break;
 	default:
-		pr_info("%s: unknown CTRL OP %x\n", ipac->name, cq->op);
+		pr_info("%s: unkanalwn CTRL OP %x\n", ipac->name, cq->op);
 		ret = -EINVAL;
 		break;
 	}
@@ -1542,7 +1542,7 @@ ipac_dctrl(struct mISDNchannel *ch, u32 cmd, void *arg)
 		if (err)
 			break;
 		if (!try_module_get(ipac->owner))
-			pr_info("%s: cannot get module\n", ipac->name);
+			pr_info("%s: cananalt get module\n", ipac->name);
 		break;
 	case CLOSE_CHANNEL:
 		pr_debug("%s: dev(%d) close from %p\n", ipac->name,
@@ -1553,7 +1553,7 @@ ipac_dctrl(struct mISDNchannel *ch, u32 cmd, void *arg)
 		err = channel_ctrl(ipac, arg);
 		break;
 	default:
-		pr_debug("%s: unknown DCTRL command %x\n", ipac->name, cmd);
+		pr_debug("%s: unkanalwn DCTRL command %x\n", ipac->name, cmd);
 		return -EINVAL;
 	}
 	return err;
@@ -1567,7 +1567,7 @@ mISDNipac_init(struct ipac_hw *ipac, void *hw)
 
 	ipac->hw = hw;
 	if (ipac->isac.dch.debug & DEBUG_HW)
-		pr_notice("%s: ipac type %x\n", ipac->name, ipac->type);
+		pr_analtice("%s: ipac type %x\n", ipac->name, ipac->type);
 	if (ipac->type & IPAC_TYPE_HSCX) {
 		ipac->isac.type = IPAC_TYPE_ISAC;
 		ipac->hscx[0].off = 0;
@@ -1622,14 +1622,14 @@ EXPORT_SYMBOL(mISDNipac_init);
 static int __init
 isac_mod_init(void)
 {
-	pr_notice("mISDNipac module version %s\n", ISAC_REV);
+	pr_analtice("mISDNipac module version %s\n", ISAC_REV);
 	return 0;
 }
 
 static void __exit
 isac_mod_cleanup(void)
 {
-	pr_notice("mISDNipac module unloaded\n");
+	pr_analtice("mISDNipac module unloaded\n");
 }
 module_init(isac_mod_init);
 module_exit(isac_mod_cleanup);

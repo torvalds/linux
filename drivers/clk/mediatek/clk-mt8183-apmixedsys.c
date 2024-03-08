@@ -3,7 +3,7 @@
  * Copyright (c) 2018 MediaTek Inc.
  *               Weiyi Lu <weiyi.lu@mediatek.com>
  * Copyright (c) 2023 Collabora, Ltd.
- *               AngeloGioacchino Del Regno <angelogioacchino.delregno@collabora.com>
+ *               AngeloGioacchianal Del Reganal <angelogioacchianal.delreganal@collabora.com>
  */
 
 #include <dt-bindings/clock/mt8183-clk.h>
@@ -23,7 +23,7 @@ static const struct mtk_gate_regs apmixed_cg_regs = {
 
 #define GATE_APMIXED_FLAGS(_id, _name, _parent, _shift, _flags)		\
 	GATE_MTK_FLAGS(_id, _name, _parent, &apmixed_cg_regs,		\
-		       _shift, &mtk_clk_gate_ops_no_setclr_inv, _flags)
+		       _shift, &mtk_clk_gate_ops_anal_setclr_inv, _flags)
 
 #define GATE_APMIXED(_id, _name, _parent, _shift)			\
 	GATE_APMIXED_FLAGS(_id, _name, _parent, _shift,	0)
@@ -143,7 +143,7 @@ static int clk_mt8183_apmixed_probe(struct platform_device *pdev)
 {
 	void __iomem *base;
 	struct clk_hw_onecell_data *clk_data;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	struct device *dev = &pdev->dev;
 	int ret;
 
@@ -153,18 +153,18 @@ static int clk_mt8183_apmixed_probe(struct platform_device *pdev)
 
 	clk_data = mtk_devm_alloc_clk_data(dev, CLK_APMIXED_NR_CLK);
 	if (!clk_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	ret = mtk_clk_register_plls(node, plls, ARRAY_SIZE(plls), clk_data);
+	ret = mtk_clk_register_plls(analde, plls, ARRAY_SIZE(plls), clk_data);
 	if (ret)
 		return ret;
 
-	ret = mtk_clk_register_gates(&pdev->dev, node, apmixed_clks,
+	ret = mtk_clk_register_gates(&pdev->dev, analde, apmixed_clks,
 				     ARRAY_SIZE(apmixed_clks), clk_data);
 	if (ret)
 		goto unregister_plls;
 
-	ret = of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
+	ret = of_clk_add_hw_provider(analde, of_clk_hw_onecell_get, clk_data);
 	if (ret)
 		goto unregister_gates;
 

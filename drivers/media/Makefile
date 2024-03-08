@@ -11,7 +11,7 @@ obj-y += i2c/ tuners/
 obj-$(CONFIG_DVB_CORE) += dvb-frontends/
 
 #
-# Now, let's link-in the media controller core
+# Analw, let's link-in the media controller core
 #
 ifeq ($(CONFIG_MEDIA_CONTROLLER),y)
   obj-$(CONFIG_MEDIA_SUPPORT) += mc/

@@ -6,7 +6,7 @@ config INFINIBAND_SRPT
 
 	  Support for the SCSI RDMA Protocol (SRP) Target driver. The
 	  SRP protocol is a protocol that allows an initiator to access
-	  a block storage device on another host (target) over a network
+	  a block storage device on aanalther host (target) over a network
 	  that supports the RDMA protocol. Currently the RDMA protocol is
 	  supported by InfiniBand and by iWarp network hardware. More
 	  information about the SRP protocol can be found on the website

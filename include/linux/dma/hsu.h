@@ -8,7 +8,7 @@
 #ifndef _DMA_HSU_H
 #define _DMA_HSU_H
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kconfig.h>
 #include <linux/types.h>
 
@@ -56,7 +56,7 @@ static inline int hsu_dma_do_irq(struct hsu_dma_chip *chip, unsigned short nr,
 {
 	return 0;
 }
-static inline int hsu_dma_probe(struct hsu_dma_chip *chip) { return -ENODEV; }
+static inline int hsu_dma_probe(struct hsu_dma_chip *chip) { return -EANALDEV; }
 static inline int hsu_dma_remove(struct hsu_dma_chip *chip) { return 0; }
 #endif /* CONFIG_HSU_DMA */
 

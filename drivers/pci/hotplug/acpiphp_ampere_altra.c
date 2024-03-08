@@ -48,13 +48,13 @@ static int set_attention_status(struct hotplug_slot *slot, u8 status)
 	bus = slot->pci_slot->bus;
 	root_port = pcie_find_root_port(bus->self);
 	if (!root_port)
-		return -ENODEV;
+		return -EANALDEV;
 
 	local_irq_save(flags);
 	arm_smccc_smc(HANDLE_OPEN, led_service_id[0], led_service_id[1],
 		      led_service_id[2], led_service_id[3], 0, 0, 0, &res);
 	if (res.a0) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 	}
 	handle = res.a1 & 0xffff0000;
@@ -63,7 +63,7 @@ static int set_attention_status(struct hotplug_slot *slot, u8 status)
 		 (PCI_SLOT(root_port->devfn) << 4) | (pci_domain_nr(bus) & 0xf),
 		 0, 0, handle, &res);
 	if (res.a0)
-		ret = -ENODEV;
+		ret = -EANALDEV;
 
 	arm_smccc_smc(HANDLE_CLOSE, handle, 0, 0, 0, 0, 0, 0, &res);
 
@@ -85,10 +85,10 @@ static struct acpiphp_attention_info ampere_altra_attn = {
 
 static int altra_led_probe(struct platform_device *pdev)
 {
-	struct fwnode_handle *fwnode = dev_fwnode(&pdev->dev);
+	struct fwanalde_handle *fwanalde = dev_fwanalde(&pdev->dev);
 	int ret;
 
-	ret = fwnode_property_read_u32_array(fwnode, "uuid", led_service_id, 4);
+	ret = fwanalde_property_read_u32_array(fwanalde, "uuid", led_service_id, 4);
 	if (ret) {
 		dev_err(&pdev->dev, "can't find uuid\n");
 		return ret;

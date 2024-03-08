@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 
 #ifndef _UAPI_LINUX_EXT4_H
 #define _UAPI_LINUX_EXT4_H
@@ -19,8 +19,8 @@
 #define EXT4_IOC_GROUP_EXTEND		_IOW('f', 7, unsigned long)
 #define EXT4_IOC_GROUP_ADD		_IOW('f', 8, struct ext4_new_group_input)
 #define EXT4_IOC_MIGRATE		_IO('f', 9)
- /* note ioctl 10 reserved for an early version of the FIEMAP ioctl */
- /* note ioctl 11 reserved for filesystem-independent FIEMAP ioctl */
+ /* analte ioctl 10 reserved for an early version of the FIEMAP ioctl */
+ /* analte ioctl 11 reserved for filesystem-independent FIEMAP ioctl */
 #define EXT4_IOC_ALLOC_DA_BLKS		_IO('f', 12)
 #define EXT4_IOC_MOVE_EXT		_IOWR('f', 15, struct move_extent)
 #define EXT4_IOC_RESIZE_FS		_IOW('f', 16, __u64)
@@ -83,9 +83,9 @@ struct fsuuid {
  */
 struct move_extent {
 	__u32 reserved;		/* should be zero */
-	__u32 donor_fd;		/* donor file descriptor */
+	__u32 doanalr_fd;		/* doanalr file descriptor */
 	__u64 orig_start;	/* logical start offset in block for orig */
-	__u64 donor_start;	/* logical start offset in block for donor */
+	__u64 doanalr_start;	/* logical start offset in block for doanalr */
 	__u64 len;		/* block length to be moved */
 	__u64 moved_len;	/* moved block length */
 };
@@ -94,15 +94,15 @@ struct move_extent {
  * Flags used by EXT4_IOC_SHUTDOWN
  */
 #define EXT4_GOING_FLAGS_DEFAULT		0x0	/* going down */
-#define EXT4_GOING_FLAGS_LOGFLUSH		0x1	/* flush log but not data */
-#define EXT4_GOING_FLAGS_NOLOGFLUSH		0x2	/* don't flush log nor data */
+#define EXT4_GOING_FLAGS_LOGFLUSH		0x1	/* flush log but analt data */
+#define EXT4_GOING_FLAGS_ANALLOGFLUSH		0x2	/* don't flush log analr data */
 
 /* Used to pass group descriptor data when online resize is done */
 struct ext4_new_group_input {
 	__u32 group;		/* Group number for this data */
 	__u64 block_bitmap;	/* Absolute block number of block bitmap */
-	__u64 inode_bitmap;	/* Absolute block number of inode bitmap */
-	__u64 inode_table;	/* Absolute block number of inode table start */
+	__u64 ianalde_bitmap;	/* Absolute block number of ianalde bitmap */
+	__u64 ianalde_table;	/* Absolute block number of ianalde table start */
 	__u32 blocks_count;	/* Total number of blocks in this group */
 	__u16 reserved_blocks;	/* Number of reserved blocks in this group */
 	__u16 unused;

@@ -12,6 +12,6 @@
 };
 
 &cluster0_opp {
-	/delete-node/ opp-1600000000;
-	/delete-node/ opp-1700000000;
+	/delete-analde/ opp-1600000000;
+	/delete-analde/ opp-1700000000;
 };

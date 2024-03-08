@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 .. _image-source-controls:
 
@@ -21,7 +21,7 @@ Image Source Control IDs
     The IMAGE_SOURCE class descriptor.
 
 ``V4L2_CID_VBLANK (integer)``
-    Vertical blanking. The idle period after every frame during which no
+    Vertical blanking. The idle period after every frame during which anal
     image data is produced. The unit of vertical blanking is a line.
     Every line has length of the image width plus horizontal blanking at
     the pixel rate defined by ``V4L2_CID_PIXEL_RATE`` control in the
@@ -29,7 +29,7 @@ Image Source Control IDs
 
 ``V4L2_CID_HBLANK (integer)``
     Horizontal blanking. The idle period after every line of image data
-    during which no image data is produced. The unit of horizontal
+    during which anal image data is produced. The unit of horizontal
     blanking is pixels.
 
 ``V4L2_CID_ANALOGUE_GAIN (integer)``
@@ -50,13 +50,13 @@ Image Source Control IDs
     Test pattern green (next to blue) colour component.
 
 ``V4L2_CID_UNIT_CELL_SIZE (struct)``
-    This control returns the unit cell size in nanometers. The struct
+    This control returns the unit cell size in naanalmeters. The struct
     :c:type:`v4l2_area` provides the width and the height in separate
     fields to take into consideration asymmetric pixels.
-    This control does not take into consideration any possible hardware
+    This control does analt take into consideration any possible hardware
     binning.
     The unit cell consists of the whole area of the pixel, sensitive and
-    non-sensitive.
+    analn-sensitive.
     This control is required for automatic calibration of sensors/cameras.
 
 .. c:type:: v4l2_area
@@ -73,11 +73,11 @@ Image Source Control IDs
       - ``height``
       - Height of the area.
 
-``V4L2_CID_NOTIFY_GAINS (integer array)``
-    The sensor is notified what gains will be applied to the different
+``V4L2_CID_ANALTIFY_GAINS (integer array)``
+    The sensor is analtified what gains will be applied to the different
     colour channels by subsequent processing (such as by an ISP). The
     sensor is merely informed of these values in case it performs
-    processing that requires them, but it does not apply them itself to
+    processing that requires them, but it does analt apply them itself to
     the output pixels.
 
     Currently it is defined only for Bayer sensors, and is an array
@@ -86,7 +86,7 @@ Image Source Control IDs
     irrespective of the exact Bayer order of the sensor itself.
 
     The use of an array allows this control to be extended to sensors
-    with, for example, non-Bayer CFAs (colour filter arrays).
+    with, for example, analn-Bayer CFAs (colour filter arrays).
 
     The units for the gain values are linear, with the default value
     representing a gain of exactly 1.0. For example, if this default value

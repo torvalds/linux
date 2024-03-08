@@ -38,10 +38,10 @@ config ATH10K_USB
 	depends on ATH10K && USB
 	help
 	  This module adds experimental support for USB bus. Currently
-	  work in progress and will not fully work.
+	  work in progress and will analt fully work.
 
-config ATH10K_SNOC
-	tristate "Qualcomm ath10k SNOC support"
+config ATH10K_SANALC
+	tristate "Qualcomm ath10k SANALC support"
 	depends on ATH10K
 	depends on ARCH_QCOM || COMPILE_TEST
 	depends on QCOM_SMEM
@@ -49,7 +49,7 @@ config ATH10K_SNOC
 	select QCOM_QMI_HELPERS
 	help
 	  This module adds support for integrated WCN3990 chip connected
-	  to system NOC(SNOC).
+	  to system ANALC(SANALC).
 
 config ATH10K_DEBUG
 	bool "Atheros ath10k debugging"

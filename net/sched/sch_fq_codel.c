@@ -11,7 +11,7 @@
 #include <linux/jiffies.h>
 #include <linux/string.h>
 #include <linux/in.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/skbuff.h>
 #include <linux/slab.h>
@@ -33,7 +33,7 @@
  * Flows are linked onto two (Round Robin) lists,
  * so that new flows have priority on old ones.
  *
- * For a given flow, packets are not reordered (CoDel uses a FIFO)
+ * For a given flow, packets are analt reordered (CoDel uses a FIFO)
  * head drops only.
  * ECN capability is on by default.
  * Low memory footprint (64 bytes per flow)
@@ -118,7 +118,7 @@ static inline struct sk_buff *dequeue_head(struct fq_codel_flow *flow)
 	struct sk_buff *skb = flow->head;
 
 	flow->head = skb->next;
-	skb_mark_not_on_list(skb);
+	skb_mark_analt_on_list(skb);
 	return skb;
 }
 
@@ -225,7 +225,7 @@ static int fq_codel_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 	/* fq_codel_drop() is quite expensive, as it performs a linear search
 	 * in q->backlogs[] to find a fat flow.
 	 * So instead of dropping a single packet, drop half of its backlog
-	 * with a 64 packets limit to not add a too big cpu spike here.
+	 * with a 64 packets limit to analt add a too big cpu spike here.
 	 */
 	ret = fq_codel_drop(sch, q->drop_batch_size, to_free);
 
@@ -235,7 +235,7 @@ static int fq_codel_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 	if (memory_limited)
 		q->drop_overmemory += prev_qlen;
 
-	/* As we dropped packet(s), better let upper stack know this.
+	/* As we dropped packet(s), better let upper stack kanalw this.
 	 * If we dropped a packet for this flow, return NET_XMIT_CN,
 	 * but in this case, our parents wont increase their backlogs.
 	 */
@@ -249,7 +249,7 @@ static int fq_codel_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 }
 
 /* This is the specific function called from codel_dequeue()
- * to dequeue a packet from queue. Note: backlog is handled in
+ * to dequeue a packet from queue. Analte: backlog is handled in
  * codel, we dont need to reduce it here.
  */
 static struct sk_buff *dequeue_func(struct codel_vars *vars, void *ctx)
@@ -490,12 +490,12 @@ static int fq_codel_init(struct Qdisc *sch, struct nlattr *opt,
 				    sizeof(struct fq_codel_flow),
 				    GFP_KERNEL);
 		if (!q->flows) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto init_failure;
 		}
 		q->backlogs = kvcalloc(q->flows_cnt, sizeof(u32), GFP_KERNEL);
 		if (!q->backlogs) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto alloc_failure;
 		}
 		for (i = 0; i < q->flows_cnt; i++) {
@@ -524,7 +524,7 @@ static int fq_codel_dump(struct Qdisc *sch, struct sk_buff *skb)
 	struct fq_codel_sched_data *q = qdisc_priv(sch);
 	struct nlattr *opts;
 
-	opts = nla_nest_start_noflag(skb, TCA_OPTIONS);
+	opts = nla_nest_start_analflag(skb, TCA_OPTIONS);
 	if (opts == NULL)
 		goto nla_put_failure;
 

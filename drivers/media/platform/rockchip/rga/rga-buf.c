@@ -87,7 +87,7 @@ static int rga_buf_init(struct vb2_buffer *vb)
 					    rbuf->n_desc * sizeof(*rbuf->dma_desc),
 					    &rbuf->dma_desc_pa, GFP_KERNEL);
 	if (!rbuf->dma_desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }

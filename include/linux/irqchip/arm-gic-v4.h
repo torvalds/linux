@@ -17,7 +17,7 @@ struct its_vpe;
 
 /* Embedded in kvm.arch */
 struct its_vm {
-	struct fwnode_handle	*fwnode;
+	struct fwanalde_handle	*fwanalde;
 	struct irq_domain	*domain;
 	struct page		*vprop_page;
 	struct its_vpe		**vpes;
@@ -51,7 +51,7 @@ struct its_vpe {
 		};
 		/* GICv4.1 implementations */
 		struct {
-			struct fwnode_handle	*fwnode;
+			struct fwanalde_handle	*fwanalde;
 			struct irq_domain	*sgi_domain;
 			struct {
 				u8	priority;
@@ -85,8 +85,8 @@ struct its_vpe {
  * it complements.  To be used as the vcpu_info passed to
  * irq_set_vcpu_affinity().
  *
- * @vm:		Pointer to the GICv4 notion of a VM
- * @vpe:	Pointer to the GICv4 notion of a virtual CPU (VPE)
+ * @vm:		Pointer to the GICv4 analtion of a VM
+ * @vpe:	Pointer to the GICv4 analtion of a virtual CPU (VPE)
  * @vintid:	Virtual LPI number
  * @properties:	Priority and enable bits (as written in the prop table)
  * @db_enabled:	Is the VPE doorbell to be generated?
@@ -131,7 +131,7 @@ struct its_cmd_info {
 int its_alloc_vcpu_irqs(struct its_vm *vm);
 void its_free_vcpu_irqs(struct its_vm *vm);
 int its_make_vpe_resident(struct its_vpe *vpe, bool g0en, bool g1en);
-int its_make_vpe_non_resident(struct its_vpe *vpe, bool db);
+int its_make_vpe_analn_resident(struct its_vpe *vpe, bool db);
 int its_commit_vpe(struct its_vpe *vpe);
 int its_invall_vpe(struct its_vpe *vpe);
 int its_map_vlpi(int irq, struct its_vlpi_map *map);

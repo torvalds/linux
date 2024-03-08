@@ -5,7 +5,7 @@
  */
 
 #include <linux/module.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/of.h>
 #include <linux/of_mdio.h>
 #include <linux/of_platform.h>
@@ -33,7 +33,7 @@
 #define MII_88E1318S_PHY_LED_POL_LED2		BIT(4)
 
 struct power_off_cfg {
-	char *mdio_node_name;
+	char *mdio_analde_name;
 	void (*phy_set_reg)(bool restart);
 };
 
@@ -66,7 +66,7 @@ static void linkstation_mvphy_reg_intn(bool restart)
 		__phy_read(phydev, MII_M1011_IEVENT);
 
 		/* If WOL was enabled and a magic packet was received before powering
-		 * off, we won't be able to wake up by sending another magic packet.
+		 * off, we won't be able to wake up by sending aanalther magic packet.
 		 * Clear WOL status.
 		 */
 		__phy_write(phydev, MII_MARVELL_PHY_PAGE, MII_MARVELL_WOL_PAGE);
@@ -97,7 +97,7 @@ static void readynas_mvphy_set_reg(bool restart)
 
 	if (!data) {
 		/* If WOL was enabled and a magic packet was received before powering
-		 * off, we won't be able to wake up by sending another magic packet.
+		 * off, we won't be able to wake up by sending aanalther magic packet.
 		 * Clear WOL status.
 		 */
 		__phy_write(phydev, MII_MARVELL_PHY_PAGE, MII_MARVELL_WOL_PAGE);
@@ -111,31 +111,31 @@ err:
 }
 
 static const struct power_off_cfg linkstation_power_off_cfg = {
-	.mdio_node_name = "mdio",
+	.mdio_analde_name = "mdio",
 	.phy_set_reg = linkstation_mvphy_reg_intn,
 };
 
 static const struct power_off_cfg readynas_power_off_cfg = {
-	.mdio_node_name = "mdio-bus",
+	.mdio_analde_name = "mdio-bus",
 	.phy_set_reg = readynas_mvphy_set_reg,
 };
 
-static int linkstation_reboot_notifier(struct notifier_block *nb,
+static int linkstation_reboot_analtifier(struct analtifier_block *nb,
 				       unsigned long action, void *unused)
 {
 	if (action == SYS_RESTART)
 		cfg->phy_set_reg(true);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block linkstation_reboot_nb = {
-	.notifier_call = linkstation_reboot_notifier,
+static struct analtifier_block linkstation_reboot_nb = {
+	.analtifier_call = linkstation_reboot_analtifier,
 };
 
 static void linkstation_poweroff(void)
 {
-	unregister_reboot_notifier(&linkstation_reboot_nb);
+	unregister_reboot_analtifier(&linkstation_reboot_nb);
 	cfg->phy_set_reg(false);
 
 	kernel_restart("Power off");
@@ -157,23 +157,23 @@ static const struct of_device_id ls_poweroff_of_match[] = {
 static int __init linkstation_poweroff_init(void)
 {
 	struct mii_bus *bus;
-	struct device_node *dn;
+	struct device_analde *dn;
 	const struct of_device_id *match;
 
-	dn = of_find_matching_node(NULL, ls_poweroff_of_match);
+	dn = of_find_matching_analde(NULL, ls_poweroff_of_match);
 	if (!dn)
-		return -ENODEV;
-	of_node_put(dn);
+		return -EANALDEV;
+	of_analde_put(dn);
 
-	match = of_match_node(ls_poweroff_of_match, dn);
+	match = of_match_analde(ls_poweroff_of_match, dn);
 	cfg = match->data;
 
-	dn = of_find_node_by_name(NULL, cfg->mdio_node_name);
+	dn = of_find_analde_by_name(NULL, cfg->mdio_analde_name);
 	if (!dn)
-		return -ENODEV;
+		return -EANALDEV;
 
 	bus = of_mdio_find_bus(dn);
-	of_node_put(dn);
+	of_analde_put(dn);
 	if (!bus)
 		return -EPROBE_DEFER;
 
@@ -182,7 +182,7 @@ static int __init linkstation_poweroff_init(void)
 	if (!phydev)
 		return -EPROBE_DEFER;
 
-	register_reboot_notifier(&linkstation_reboot_nb);
+	register_reboot_analtifier(&linkstation_reboot_nb);
 	pm_power_off = linkstation_poweroff;
 
 	return 0;
@@ -191,7 +191,7 @@ static int __init linkstation_poweroff_init(void)
 static void __exit linkstation_poweroff_exit(void)
 {
 	pm_power_off = NULL;
-	unregister_reboot_notifier(&linkstation_reboot_nb);
+	unregister_reboot_analtifier(&linkstation_reboot_nb);
 }
 
 module_init(linkstation_poweroff_init);

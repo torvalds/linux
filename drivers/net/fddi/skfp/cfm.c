@@ -26,7 +26,7 @@
  *		config_mux()
  *
  *	The following HW dependent events are required :
- *		NONE 
+ *		ANALNE 
  */
 
 #include "h/types.h"
@@ -57,15 +57,15 @@ static const char * const cfm_states[] = {
  * symbolic event names
  */
 static const char * const cfm_events[] = {
-	"NONE","CF_LOOP_A","CF_LOOP_B","CF_JOIN_A","CF_JOIN_B"
+	"ANALNE","CF_LOOP_A","CF_LOOP_B","CF_JOIN_A","CF_JOIN_B"
 } ;
 
 /*
  * map from state to downstream port type
  */
 static const unsigned char cf_to_ptype[] = {
-	TNONE,TNONE,TNONE,TNONE,TNONE,
-	TNONE,TB,TB,TS,
+	TANALNE,TANALNE,TANALNE,TANALNE,TANALNE,
+	TANALNE,TB,TB,TS,
 	TA,TB,TS,TB
 } ;
 
@@ -163,7 +163,7 @@ static void cem_priv_state(struct s_smc *smc, int event)
 	if (smc->y[np].cf_join) {
 		smc->y[np].cem_pst = CEM_PST_UP ;
 	} else if (!smc->y[np].wc_flag) {
-		/* set the port to done only if it is not withheld */
+		/* set the port to done only if it is analt withheld */
 		smc->y[np].cem_pst = CEM_PST_DOWN ;
 	}
 
@@ -171,7 +171,7 @@ static void cem_priv_state(struct s_smc *smc, int event)
 
 	/* Check all ports of restart conditions */
 	for (i = 0 ; i < 2 ; i ++ ) {
-		/* Check all port for PORT is on hold and no withhold is done */
+		/* Check all port for PORT is on hold and anal withhold is done */
 		if ( smc->y[i].cem_pst == CEM_PST_HOLD && !smc->y[i].wc_flag ) {
 			smc->y[i].cem_pst = CEM_PST_DOWN;
 			queue_event(smc,(int)(EVENT_PCM+i),PC_START) ;
@@ -213,7 +213,7 @@ void cfm(struct s_smc *smc, int event)
 
 	all_selection_criteria (smc);
 
-	/* We will check now whether a state transition is allowed or not */
+	/* We will check analw whether a state transition is allowed or analt */
 	/*  - change the portstates */
 	cem_priv_state (smc, event);
 
@@ -249,7 +249,7 @@ void cfm(struct s_smc *smc, int event)
 	 * to the primary path.
 	 */
 
-#endif	/* no SLIM_SMT */
+#endif	/* anal SLIM_SMT */
 
 	/*
 	 * set MAC port type

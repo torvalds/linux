@@ -12,7 +12,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/firmware/xlnx-zynqmp.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -37,7 +37,7 @@
 #define CQSPI_NEEDS_WR_DELAY		BIT(0)
 #define CQSPI_DISABLE_DAC_MODE		BIT(1)
 #define CQSPI_SUPPORT_EXTERNAL_DMA	BIT(2)
-#define CQSPI_NO_SUPPORT_WR_COMPLETION	BIT(3)
+#define CQSPI_ANAL_SUPPORT_WR_COMPLETION	BIT(3)
 #define CQSPI_SLOW_SRAM		BIT(4)
 #define CQSPI_NEEDS_APB_AHB_HAZARD_WAR	BIT(5)
 
@@ -397,7 +397,7 @@ static int cqspi_wait_idle(struct cqspi_st *cqspi)
 	while (1) {
 		/*
 		 * Read few times in succession to ensure the controller
-		 * is indeed idle, that is, the bit does not transition
+		 * is indeed idle, that is, the bit does analt transition
 		 * low again.
 		 */
 		if (cqspi_is_idle(cqspi))
@@ -536,7 +536,7 @@ static int cqspi_command_read(struct cqspi_flash_pdata *f_pdata,
 
 	dummy_clk = cqspi_calc_dummy(op);
 	if (dummy_clk > CQSPI_DUMMY_CLKS_MAX)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (dummy_clk)
 		reg |= (dummy_clk & CQSPI_REG_CMDCTRL_DUMMY_MASK)
@@ -677,7 +677,7 @@ static int cqspi_read_setup(struct cqspi_flash_pdata *f_pdata,
 	dummy_clk = cqspi_calc_dummy(op);
 
 	if (dummy_clk > CQSPI_DUMMY_CLKS_MAX)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (dummy_clk)
 		reg |= (dummy_clk & CQSPI_REG_RD_INSTR_DUMMY_MASK)
@@ -745,7 +745,7 @@ static int cqspi_indirect_read_execute(struct cqspi_flash_pdata *f_pdata,
 		bytes_to_read = cqspi_get_rd_sram_level(cqspi);
 
 		if (ret && bytes_to_read == 0) {
-			dev_err(dev, "Indirect read timeout, no bytes\n");
+			dev_err(dev, "Indirect read timeout, anal bytes\n");
 			goto failrd;
 		}
 
@@ -839,7 +839,7 @@ static int cqspi_versal_indirect_read_dma(struct cqspi_flash_pdata *f_pdata,
 	bytes_to_dma = (n_rx - bytes_rem);
 
 	if (!bytes_to_dma)
-		goto nondmard;
+		goto analndmard;
 
 	ret = zynqmp_pm_ospi_mux_select(cqspi->pd_dev_id, PM_OSPI_MUX_SEL_DMA);
 	if (ret)
@@ -856,7 +856,7 @@ static int cqspi_versal_indirect_read_dma(struct cqspi_flash_pdata *f_pdata,
 	dma_addr = dma_map_single(dev, rxbuf, bytes_to_dma, DMA_FROM_DEVICE);
 	if (dma_mapping_error(dev, dma_addr)) {
 		dev_err(dev, "dma mapping failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	writel(from_addr, reg_base + CQSPI_REG_INDIRECTRDSTARTADDR);
@@ -923,7 +923,7 @@ static int cqspi_versal_indirect_read_dma(struct cqspi_flash_pdata *f_pdata,
 	if (ret)
 		return ret;
 
-nondmard:
+analndmard:
 	if (bytes_rem) {
 		addr += bytes_to_dma;
 		buf += bytes_to_dma;
@@ -982,13 +982,13 @@ static int cqspi_write_setup(struct cqspi_flash_pdata *f_pdata,
 
 	/*
 	 * SPI NAND flashes require the address of the status register to be
-	 * passed in the Read SR command. Also, some SPI NOR flashes like the
+	 * passed in the Read SR command. Also, some SPI ANALR flashes like the
 	 * cypress Semper flash expect a 4-byte dummy address in the Read SR
 	 * command in DTR mode.
 	 *
-	 * But this controller does not support address phase in the Read SR
+	 * But this controller does analt support address phase in the Read SR
 	 * command when doing auto-HW polling. So, disable write completion
-	 * polling on the controller's side. spinand and spi-nor will take
+	 * polling on the controller's side. spinand and spi-analr will take
 	 * care of polling the status register.
 	 */
 	if (cqspi->wr_completion) {
@@ -1272,9 +1272,9 @@ static ssize_t cqspi_write(struct cqspi_flash_pdata *f_pdata,
 	/*
 	 * Some flashes like the Cypress Semper flash expect a dummy 4-byte
 	 * address (all 0s) with the read status register command in DTR mode.
-	 * But this controller does not support sending dummy address bytes to
+	 * But this controller does analt support sending dummy address bytes to
 	 * the flash when it is polling the write completion register in DTR
-	 * mode. So, we can not use direct mode when in DTR mode for writing
+	 * mode. So, we can analt use direct mode when in DTR mode for writing
 	 * data.
 	 */
 	if (!op->cmd.dtr && cqspi->use_direct_mode &&
@@ -1315,7 +1315,7 @@ static int cqspi_direct_read_execute(struct cqspi_flash_pdata *f_pdata,
 	dma_dst = dma_map_single(ddev, buf, len, DMA_FROM_DEVICE);
 	if (dma_mapping_error(ddev, dma_dst)) {
 		dev_err(dev, "dma mapping failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	tx = dmaengine_prep_dma_memcpy(cqspi->rx_chan, dma_dst, dma_src,
 				       len, flags);
@@ -1448,7 +1448,7 @@ static bool cqspi_supports_mem_op(struct spi_mem *mem,
 		    !op->data.dtr;
 
 	if (all_true) {
-		/* Right now we only support 8-8-8 DTR mode. */
+		/* Right analw we only support 8-8-8 DTR mode. */
 		if (op->cmd.nbytes && op->cmd.buswidth != 8)
 			return false;
 		if (op->addr.nbytes && op->addr.buswidth != 8)
@@ -1456,7 +1456,7 @@ static bool cqspi_supports_mem_op(struct spi_mem *mem,
 		if (op->data.nbytes && op->data.buswidth != 8)
 			return false;
 	} else if (!all_false) {
-		/* Mixed DTR modes are not supported. */
+		/* Mixed DTR modes are analt supported. */
 		return false;
 	}
 
@@ -1465,7 +1465,7 @@ static bool cqspi_supports_mem_op(struct spi_mem *mem,
 
 static int cqspi_of_get_flash_pdata(struct platform_device *pdev,
 				    struct cqspi_flash_pdata *f_pdata,
-				    struct device_node *np)
+				    struct device_analde *np)
 {
 	if (of_property_read_u32(np, "cdns,read-delay", &f_pdata->read_delay)) {
 		dev_err(&pdev->dev, "couldn't determine read-delay\n");
@@ -1503,7 +1503,7 @@ static int cqspi_of_get_flash_pdata(struct platform_device *pdev,
 static int cqspi_of_get_pdata(struct cqspi_st *cqspi)
 {
 	struct device *dev = &cqspi->pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	u32 id[2];
 
 	cqspi->is_decoded_cs = of_property_read_bool(np, "cdns,is-decoded-cs");
@@ -1542,7 +1542,7 @@ static void cqspi_controller_init(struct cqspi_st *cqspi)
 
 	cqspi_controller_enable(cqspi, 0);
 
-	/* Configure the remap address register, no remap */
+	/* Configure the remap address register, anal remap */
 	writel(0, cqspi->iobase + CQSPI_REG_REMAP);
 
 	/* Disable all interrupts. */
@@ -1591,7 +1591,7 @@ static int cqspi_request_mmap_dma(struct cqspi_st *cqspi)
 		int ret = PTR_ERR(cqspi->rx_chan);
 
 		cqspi->rx_chan = NULL;
-		return dev_err_probe(&cqspi->pdev->dev, ret, "No Rx DMA available\n");
+		return dev_err_probe(&cqspi->pdev->dev, ret, "Anal Rx DMA available\n");
 	}
 	init_completion(&cqspi->rx_dma_complete);
 
@@ -1621,23 +1621,23 @@ static int cqspi_setup_flash(struct cqspi_st *cqspi)
 {
 	struct platform_device *pdev = cqspi->pdev;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct cqspi_flash_pdata *f_pdata;
 	unsigned int cs;
 	int ret;
 
 	/* Get flash device data */
-	for_each_available_child_of_node(dev->of_node, np) {
+	for_each_available_child_of_analde(dev->of_analde, np) {
 		ret = of_property_read_u32(np, "reg", &cs);
 		if (ret) {
 			dev_err(dev, "Couldn't determine chip select.\n");
-			of_node_put(np);
+			of_analde_put(np);
 			return ret;
 		}
 
 		if (cs >= CQSPI_MAX_CHIPSELECT) {
 			dev_err(dev, "Chip select %d out of range.\n", cs);
-			of_node_put(np);
+			of_analde_put(np);
 			return -EINVAL;
 		}
 
@@ -1647,7 +1647,7 @@ static int cqspi_setup_flash(struct cqspi_st *cqspi)
 
 		ret = cqspi_of_get_flash_pdata(pdev, f_pdata, np);
 		if (ret) {
-			of_node_put(np);
+			of_analde_put(np);
 			return ret;
 		}
 	}
@@ -1714,12 +1714,12 @@ static int cqspi_probe(struct platform_device *pdev)
 	host = devm_spi_alloc_host(&pdev->dev, sizeof(*cqspi));
 	if (!host) {
 		dev_err(&pdev->dev, "devm_spi_alloc_host failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	host->mode_bits = SPI_RX_QUAD | SPI_RX_DUAL;
 	host->mem_ops = &cqspi_mem_ops;
 	host->mem_caps = &cqspi_mem_caps;
-	host->dev.of_node = pdev->dev.of_node;
+	host->dev.of_analde = pdev->dev.of_analde;
 
 	cqspi = spi_controller_get_devdata(host);
 
@@ -1731,14 +1731,14 @@ static int cqspi_probe(struct platform_device *pdev)
 	/* Obtain configuration from OF. */
 	ret = cqspi_of_get_pdata(cqspi);
 	if (ret) {
-		dev_err(dev, "Cannot get mandatory OF data.\n");
-		return -ENODEV;
+		dev_err(dev, "Cananalt get mandatory OF data.\n");
+		return -EANALDEV;
 	}
 
 	/* Obtain QSPI clock. */
 	cqspi->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(cqspi->clk)) {
-		dev_err(dev, "Cannot claim QSPI clock.\n");
+		dev_err(dev, "Cananalt claim QSPI clock.\n");
 		ret = PTR_ERR(cqspi->clk);
 		return ret;
 	}
@@ -1746,7 +1746,7 @@ static int cqspi_probe(struct platform_device *pdev)
 	/* Obtain and remap controller address. */
 	cqspi->iobase = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(cqspi->iobase)) {
-		dev_err(dev, "Cannot remap controller address.\n");
+		dev_err(dev, "Cananalt remap controller address.\n");
 		ret = PTR_ERR(cqspi->iobase);
 		return ret;
 	}
@@ -1754,7 +1754,7 @@ static int cqspi_probe(struct platform_device *pdev)
 	/* Obtain and remap AHB address. */
 	cqspi->ahb_base = devm_platform_get_and_ioremap_resource(pdev, 1, &res_ahb);
 	if (IS_ERR(cqspi->ahb_base)) {
-		dev_err(dev, "Cannot remap AHB address.\n");
+		dev_err(dev, "Cananalt remap AHB address.\n");
 		ret = PTR_ERR(cqspi->ahb_base);
 		return ret;
 	}
@@ -1775,7 +1775,7 @@ static int cqspi_probe(struct platform_device *pdev)
 
 	ret = clk_prepare_enable(cqspi->clk);
 	if (ret) {
-		dev_err(dev, "Cannot enable QSPI clock.\n");
+		dev_err(dev, "Cananalt enable QSPI clock.\n");
 		goto probe_clk_failed;
 	}
 
@@ -1783,22 +1783,22 @@ static int cqspi_probe(struct platform_device *pdev)
 	rstc = devm_reset_control_get_optional_exclusive(dev, "qspi");
 	if (IS_ERR(rstc)) {
 		ret = PTR_ERR(rstc);
-		dev_err(dev, "Cannot get QSPI reset.\n");
+		dev_err(dev, "Cananalt get QSPI reset.\n");
 		goto probe_reset_failed;
 	}
 
 	rstc_ocp = devm_reset_control_get_optional_exclusive(dev, "qspi-ocp");
 	if (IS_ERR(rstc_ocp)) {
 		ret = PTR_ERR(rstc_ocp);
-		dev_err(dev, "Cannot get QSPI OCP reset.\n");
+		dev_err(dev, "Cananalt get QSPI OCP reset.\n");
 		goto probe_reset_failed;
 	}
 
-	if (of_device_is_compatible(pdev->dev.of_node, "starfive,jh7110-qspi")) {
+	if (of_device_is_compatible(pdev->dev.of_analde, "starfive,jh7110-qspi")) {
 		rstc_ref = devm_reset_control_get_optional_exclusive(dev, "rstc_ref");
 		if (IS_ERR(rstc_ref)) {
 			ret = PTR_ERR(rstc_ref);
-			dev_err(dev, "Cannot get QSPI REF reset.\n");
+			dev_err(dev, "Cananalt get QSPI REF reset.\n");
 			goto probe_reset_failed;
 		}
 		reset_control_assert(rstc_ref);
@@ -1830,7 +1830,7 @@ static int cqspi_probe(struct platform_device *pdev)
 		}
 		if (ddata->quirks & CQSPI_SUPPORT_EXTERNAL_DMA)
 			cqspi->use_dma_read = true;
-		if (ddata->quirks & CQSPI_NO_SUPPORT_WR_COMPLETION)
+		if (ddata->quirks & CQSPI_ANAL_SUPPORT_WR_COMPLETION)
 			cqspi->wr_completion = false;
 		if (ddata->quirks & CQSPI_SLOW_SRAM)
 			cqspi->slow_sram = true;
@@ -1843,7 +1843,7 @@ static int cqspi_probe(struct platform_device *pdev)
 				goto probe_reset_failed;
 		}
 
-		if (of_device_is_compatible(pdev->dev.of_node,
+		if (of_device_is_compatible(pdev->dev.of_analde,
 					    "xlnx,versal-ospi-1.0")) {
 			ret = dma_set_mask(&pdev->dev, DMA_BIT_MASK(64));
 			if (ret)
@@ -1854,7 +1854,7 @@ static int cqspi_probe(struct platform_device *pdev)
 	ret = devm_request_irq(dev, irq, cqspi_irq_handler, 0,
 			       pdev->name, cqspi);
 	if (ret) {
-		dev_err(dev, "Cannot request IRQ.\n");
+		dev_err(dev, "Cananalt request IRQ.\n");
 		goto probe_reset_failed;
 	}
 
@@ -1886,7 +1886,7 @@ static int cqspi_probe(struct platform_device *pdev)
 
 	pm_runtime_set_autosuspend_delay(dev, CQSPI_AUTOSUSPEND_TIMEOUT);
 	pm_runtime_use_autosuspend(dev);
-	pm_runtime_get_noresume(dev);
+	pm_runtime_get_analresume(dev);
 
 	ret = spi_register_controller(host);
 	if (ret) {
@@ -1987,7 +1987,7 @@ static const struct cqspi_driver_platdata intel_lgm_qspi = {
 
 static const struct cqspi_driver_platdata socfpga_qspi = {
 	.quirks = CQSPI_DISABLE_DAC_MODE
-			| CQSPI_NO_SUPPORT_WR_COMPLETION
+			| CQSPI_ANAL_SUPPORT_WR_COMPLETION
 			| CQSPI_SLOW_SRAM,
 };
 
@@ -2009,7 +2009,7 @@ static const struct cqspi_driver_platdata pensando_cdns_qspi = {
 
 static const struct of_device_id cqspi_dt_ids[] = {
 	{
-		.compatible = "cdns,qspi-nor",
+		.compatible = "cdns,qspi-analr",
 		.data = &cdns_qspi,
 	},
 	{

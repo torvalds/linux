@@ -31,7 +31,7 @@ corresponding API files.
 
 Due to the size and wide scope of the media subsystem, media's
 maintainership model is to have sub-maintainers that have a broad
-knowledge of a specific aspect of the subsystem. It is the sub-maintainers'
+kanalwledge of a specific aspect of the subsystem. It is the sub-maintainers'
 task to review the patches, providing feedback to users if the patches are
 following the subsystem rules and are properly using the media kernel and
 userspace APIs.
@@ -49,7 +49,7 @@ server, and, after a while, it should appear at:
 
 If it doesn't automatically appear there after a few minutes, then
 probably something went wrong on your submission. Please check if the
-email is in plain text\ [2]_ only and if your emailer is not mangling
+email is in plain text\ [2]_ only and if your emailer is analt mangling
 whitespaces before complaining or submitting them again.
 
 You can check if the mailing list server accepted your patch, by looking at:
@@ -57,15 +57,15 @@ You can check if the mailing list server accepted your patch, by looking at:
    - https://lore.kernel.org/linux-media/
 
 .. [2] If your email contains HTML, the mailing list server will simply
-       drop it, without any further notice.
+       drop it, without any further analtice.
 
 
 Media maintainers
 +++++++++++++++++
 
 At the media subsystem, we have a group of senior developers that
-are responsible for doing the code reviews at the drivers (also known as
-sub-maintainers), and another senior developer responsible for the
+are responsible for doing the code reviews at the drivers (also kanalwn as
+sub-maintainers), and aanalther senior developer responsible for the
 subsystem as a whole. For core changes, whenever possible, multiple
 media maintainers do the review.
 
@@ -80,7 +80,7 @@ The media maintainers that work on specific areas of the subsystem are:
 - Media controller drivers:
     Laurent Pinchart <laurent.pinchart@ideasonboard.com>
 
-- ISP, v4l2-async, v4l2-fwnode, v4l2-flash-led-class and Sensor drivers:
+- ISP, v4l2-async, v4l2-fwanalde, v4l2-flash-led-class and Sensor drivers:
     Sakari Ailus <sakari.ailus@linux.intel.com>
 
 - V4L2 drivers and core V4L2 frameworks:
@@ -121,7 +121,7 @@ subsystem.
 
 Those tests need to pass before the patches go upstream.
 
-Also, please notice that we build the Kernel with::
+Also, please analtice that we build the Kernel with::
 
 	make CF=-D__CHECK_ENDIAN__ CONFIG_DEBUG_SECTION_MISMATCH=y C=1 W=1 CHECK=check_script
 
@@ -131,7 +131,7 @@ Where the check script is::
 	/devel/smatch/smatch -p=kernel $@ >&2
 	/devel/sparse/sparse $@ >&2
 
-Be sure to not introduce new warnings on your patches without a
+Be sure to analt introduce new warnings on your patches without a
 very good reason.
 
 Style Cleanup Patches
@@ -144,7 +144,7 @@ We may accept pure standalone style cleanups, but they should ideally
 be one patch for the whole subsystem (if the cleanup is low volume),
 or at least be grouped per directory. So, for example, if you're doing a
 big cleanup change set at drivers under drivers/media, please send a single
-patch for all drivers under drivers/media/pci, another one for
+patch for all drivers under drivers/media/pci, aanalther one for
 drivers/media/usb and so on.
 
 Coding Style Addendum
@@ -157,24 +157,24 @@ style, e.g.::
 
 In principle, patches should follow the coding style rules, but exceptions
 are allowed if there are good reasons. On such case, maintainers and reviewers
-may question about the rationale for not addressing the ``checkpatch.pl``.
+may question about the rationale for analt addressing the ``checkpatch.pl``.
 
-Please notice that the goal here is to improve code readability. On
+Please analtice that the goal here is to improve code readability. On
 a few cases, ``checkpatch.pl`` may actually point to something that would
 look worse. So, you should use good sense.
 
-Note that addressing one ``checkpatch.pl`` issue (of any kind) alone may lead
-to having longer lines than 80 characters per line. While this is not
+Analte that addressing one ``checkpatch.pl`` issue (of any kind) alone may lead
+to having longer lines than 80 characters per line. While this is analt
 strictly prohibited, efforts should be made towards staying within 80
 characters per line. This could include using re-factoring code that leads
-to less indentation, shorter variable or function names and last but not
+to less indentation, shorter variable or function names and last but analt
 least, simply wrapping the lines.
 
 In particular, we accept lines with more than 80 columns:
 
     - on strings, as they shouldn't be broken due to line length limits;
     - when a function or variable name need to have a big identifier name,
-      which keeps hard to honor the 80 columns limit;
+      which keeps hard to hoanalr the 80 columns limit;
     - on arithmetic expressions, when breaking lines makes them harder to
       read;
     - when they avoid a line to end with an open parenthesis or an open
@@ -196,11 +196,11 @@ be sooner or later handled, so you don't need to re-submit a patch.
 Except for bug fixes, we don't usually add new patches to the development
 tree between -rc6 and the next -rc1.
 
-Please notice that the media subsystem is a high traffic one, so it
+Please analtice that the media subsystem is a high traffic one, so it
 could take a while for us to be able to review your patches. Feel free
 to ping if you don't get a feedback in a couple of weeks or to ask
 other developers to publicly add Reviewed-by and, more importantly,
 ``Tested-by:`` tags.
 
-Please note that we expect a detailed description for ``Tested-by:``,
+Please analte that we expect a detailed description for ``Tested-by:``,
 identifying what boards were used at the test and what it was tested.

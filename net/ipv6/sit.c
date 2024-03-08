@@ -17,7 +17,7 @@
 
 #include <linux/module.h>
 #include <linux/capability.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/sockios.h>
@@ -258,7 +258,7 @@ static struct ip_tunnel *ipip6_tunnel_locate(struct net *net,
 	} else {
 		strcpy(name, "sit%d");
 	}
-	dev = alloc_netdev(sizeof(*t), name, NET_NAME_UNKNOWN,
+	dev = alloc_netdev(sizeof(*t), name, NET_NAME_UNKANALWN,
 			   ipip6_tunnel_setup);
 	if (!dev)
 		return NULL;
@@ -320,21 +320,21 @@ static int ipip6_tunnel_get_prl(struct net_device *dev, struct ip_tunnel_prl __u
 	 * we try harder to allocate.
 	 */
 	kp = (cmax <= 1 || capable(CAP_NET_ADMIN)) ?
-		kcalloc(cmax, sizeof(*kp), GFP_KERNEL_ACCOUNT | __GFP_NOWARN) :
+		kcalloc(cmax, sizeof(*kp), GFP_KERNEL_ACCOUNT | __GFP_ANALWARN) :
 		NULL;
 
 	ca = min(t->prl_count, cmax);
 
 	if (!kp) {
 		/* We don't try hard to allocate much memory for
-		 * non-root users.
-		 * For root users, retry allocating enough memory for
+		 * analn-root users.
+		 * For root users, retry allocating eanalugh memory for
 		 * the answer.
 		 */
 		kp = kcalloc(ca, sizeof(*kp), GFP_ATOMIC | __GFP_ACCOUNT |
-					      __GFP_NOWARN);
+					      __GFP_ANALWARN);
 		if (!kp) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
 	}
@@ -393,7 +393,7 @@ ipip6_tunnel_add_prl(struct ip_tunnel *t, struct ip_tunnel_prl *a, int chg)
 
 	p = kzalloc(sizeof(struct ip_tunnel_prl_entry), GFP_KERNEL);
 	if (!p) {
-		err = -ENOBUFS;
+		err = -EANALBUFS;
 		goto out;
 	}
 
@@ -490,16 +490,16 @@ isatap_chksrc(struct sk_buff *skb, const struct iphdr *iph, struct ip_tunnel *t)
 	p = __ipip6_tunnel_locate_prl(t, iph->saddr);
 	if (p) {
 		if (p->flags & PRL_DEFAULT)
-			skb->ndisc_nodetype = NDISC_NODETYPE_DEFAULT;
+			skb->ndisc_analdetype = NDISC_ANALDETYPE_DEFAULT;
 		else
-			skb->ndisc_nodetype = NDISC_NODETYPE_NODEFAULT;
+			skb->ndisc_analdetype = NDISC_ANALDETYPE_ANALDEFAULT;
 	} else {
 		const struct in6_addr *addr6 = &ipv6_hdr(skb)->saddr;
 
 		if (ipv6_addr_is_isatap(addr6) &&
 		    (addr6->s6_addr32[3] == iph->saddr) &&
 		    ipv6_chk_prefix(addr6, t->dev))
-			skb->ndisc_nodetype = NDISC_NODETYPE_HOST;
+			skb->ndisc_analdetype = NDISC_ANALDETYPE_HOST;
 		else
 			ok = 0;
 	}
@@ -559,7 +559,7 @@ static int ipip6_err(struct sk_buff *skb, u32 info)
 		break;
 	}
 
-	err = -ENOENT;
+	err = -EANALENT;
 
 	sifindex = netif_is_l3_master(skb->dev) ? IPCB(skb)->iif : 0;
 	t = ipip6_tunnel_lookup(dev_net(skb->dev), skb->dev,
@@ -703,7 +703,7 @@ static int ipip6_rcv(struct sk_buff *skb)
 			goto out;
 
 		/* skb can be uncloned in iptunnel_pull_header, so
-		 * old iph is no longer valid
+		 * old iph is anal longer valid
 		 */
 		iph = (const struct iphdr *)skb_mac_header(skb);
 		skb_reset_mac_header(skb);
@@ -711,7 +711,7 @@ static int ipip6_rcv(struct sk_buff *skb)
 		err = IP_ECN_decapsulate(iph, skb);
 		if (unlikely(err)) {
 			if (log_ecn_error)
-				net_info_ratelimited("non-ECT from %pI4 with TOS=%#x\n",
+				net_info_ratelimited("analn-ECT from %pI4 with TOS=%#x\n",
 						     &iph->saddr, iph->tos);
 			if (err > 1) {
 				DEV_STATS_INC(tunnel->dev, rx_frame_errors);
@@ -727,7 +727,7 @@ static int ipip6_rcv(struct sk_buff *skb)
 		return 0;
 	}
 
-	/* no tunnel matched,  let upstream know, ipsec may handle it */
+	/* anal tunnel matched,  let upstream kanalw, ipsec may handle it */
 	return 1;
 out:
 	kfree_skb(skb);
@@ -735,13 +735,13 @@ out:
 }
 
 static const struct tnl_ptk_info ipip_tpi = {
-	/* no tunnel info required for ipip. */
+	/* anal tunnel info required for ipip. */
 	.proto = htons(ETH_P_IP),
 };
 
 #if IS_ENABLED(CONFIG_MPLS)
 static const struct tnl_ptk_info mplsip_tpi = {
-	/* no tunnel info required for mplsip. */
+	/* anal tunnel info required for mplsip. */
 	.proto = htons(ETH_P_MPLS_UC),
 };
 #endif
@@ -981,7 +981,7 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 		}
 
 		if (tunnel->parms.iph.daddr)
-			skb_dst_update_pmtu_no_confirm(skb, mtu);
+			skb_dst_update_pmtu_anal_confirm(skb, mtu);
 
 		if (skb->len > mtu && !skb_is_gso(skb)) {
 			icmpv6_ndo_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu);
@@ -1000,7 +1000,7 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 	}
 
 	/*
-	 * Okay, now see if we can stuff it in the buffer as-is.
+	 * Okay, analw see if we can stuff it in the buffer as-is.
 	 */
 	max_headroom = LL_RESERVED_SPACE(tdev) + t_hlen;
 
@@ -1292,7 +1292,7 @@ ipip6_tunnel_add(struct net_device *dev, struct ip_tunnel_parm *p)
 
 	t = ipip6_tunnel_locate(t->net, p, 1);
 	if (!t)
-		return -ENOBUFS;
+		return -EANALBUFS;
 	return 0;
 }
 
@@ -1309,7 +1309,7 @@ ipip6_tunnel_change(struct net_device *dev, struct ip_tunnel_parm *p)
 	t = ipip6_tunnel_locate(t->net, p, 0);
 	if (dev == dev_to_sit_net(dev)->fb_tunnel_dev) {
 		if (!t)
-			return -ENOENT;
+			return -EANALENT;
 	} else {
 		if (t) {
 			if (t->dev != dev)
@@ -1338,7 +1338,7 @@ ipip6_tunnel_del(struct net_device *dev, struct ip_tunnel_parm *p)
 	if (dev == dev_to_sit_net(dev)->fb_tunnel_dev) {
 		t = ipip6_tunnel_locate(t->net, p, 0);
 		if (!t)
-			return -ENOENT;
+			return -EANALENT;
 		if (t == netdev_priv(dev_to_sit_net(dev)->fb_tunnel_dev))
 			return -EPERM;
 		dev = t->dev;
@@ -1431,7 +1431,7 @@ static void ipip6_tunnel_setup(struct net_device *dev)
 	dev->mtu		= ETH_DATA_LEN - t_hlen;
 	dev->min_mtu		= IPV6_MIN_MTU;
 	dev->max_mtu		= IP6_MAX_MTU - t_hlen;
-	dev->flags		= IFF_NOARP;
+	dev->flags		= IFF_ANALARP;
 	netif_keep_dst(dev);
 	dev->addr_len		= 4;
 	dev->features		|= NETIF_F_LLTX;
@@ -1451,7 +1451,7 @@ static int ipip6_tunnel_init(struct net_device *dev)
 	ipip6_tunnel_bind_dev(dev);
 	dev->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
 	if (!dev->tstats)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = dst_cache_init(&tunnel->dst_cache, GFP_KERNEL);
 	if (err) {
@@ -1844,16 +1844,16 @@ static int __net_init sit_init_net(struct net *net)
 		return 0;
 
 	sitn->fb_tunnel_dev = alloc_netdev(sizeof(struct ip_tunnel), "sit0",
-					   NET_NAME_UNKNOWN,
+					   NET_NAME_UNKANALWN,
 					   ipip6_tunnel_setup);
 	if (!sitn->fb_tunnel_dev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_alloc_dev;
 	}
 	dev_net_set(sitn->fb_tunnel_dev, net);
 	sitn->fb_tunnel_dev->rtnl_link_ops = &sit_link_ops;
 	/* FB netdevice is special: we have one, and only one per netns.
-	 * Allowing to move it to another netns is clearly unsafe.
+	 * Allowing to move it to aanalther netns is clearly unsafe.
 	 */
 	sitn->fb_tunnel_dev->features |= NETIF_F_NETNS_LOCAL;
 

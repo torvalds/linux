@@ -24,10 +24,10 @@
 
 #define PCL_PINCTRL0			0x002c
 #define PCL_PERST_PLDN_REGEN		BIT(12)
-#define PCL_PERST_NOE_REGEN		BIT(11)
+#define PCL_PERST_ANALE_REGEN		BIT(11)
 #define PCL_PERST_OUT_REGEN		BIT(8)
 #define PCL_PERST_PLDN_REGVAL		BIT(4)
-#define PCL_PERST_NOE_REGVAL		BIT(3)
+#define PCL_PERST_ANALE_REGVAL		BIT(3)
 #define PCL_PERST_OUT_REGVAL		BIT(0)
 
 #define PCL_PIPEMON			0x0044
@@ -102,9 +102,9 @@ static void uniphier_pcie_init_rc(struct uniphier_pcie *pcie)
 
 	/* assert PERST# */
 	val = readl(pcie->base + PCL_PINCTRL0);
-	val &= ~(PCL_PERST_NOE_REGVAL | PCL_PERST_OUT_REGVAL
+	val &= ~(PCL_PERST_ANALE_REGVAL | PCL_PERST_OUT_REGVAL
 		 | PCL_PERST_PLDN_REGVAL);
-	val |= PCL_PERST_NOE_REGEN | PCL_PERST_OUT_REGEN
+	val |= PCL_PERST_ANALE_REGEN | PCL_PERST_OUT_REGEN
 		| PCL_PERST_PLDN_REGEN;
 	writel(val, pcie->base + PCL_PINCTRL0);
 
@@ -238,7 +238,7 @@ static void uniphier_pcie_irq_handler(struct irq_desc *desc)
 	if (val & PCL_CFG_BW_MGT_STATUS)
 		dev_dbg(pci->dev, "Link Bandwidth Management Event\n");
 	if (val & PCL_CFG_LINK_AUTO_BW_STATUS)
-		dev_dbg(pci->dev, "Link Autonomous Bandwidth Event\n");
+		dev_dbg(pci->dev, "Link Autoanalmous Bandwidth Event\n");
 	if (val & PCL_CFG_AER_RC_ERR_MSI_STATUS)
 		dev_dbg(pci->dev, "Root Error\n");
 	if (val & PCL_CFG_PME_MSI_STATUS)
@@ -262,13 +262,13 @@ static int uniphier_pcie_config_intx_irq(struct dw_pcie_rp *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct uniphier_pcie *pcie = to_uniphier_pcie(pci);
-	struct device_node *np = pci->dev->of_node;
-	struct device_node *np_intc;
+	struct device_analde *np = pci->dev->of_analde;
+	struct device_analde *np_intc;
 	int ret = 0;
 
 	np_intc = of_get_child_by_name(np, "legacy-interrupt-controller");
 	if (!np_intc) {
-		dev_err(pci->dev, "Failed to get legacy-interrupt-controller node\n");
+		dev_err(pci->dev, "Failed to get legacy-interrupt-controller analde\n");
 		return -EINVAL;
 	}
 
@@ -276,22 +276,22 @@ static int uniphier_pcie_config_intx_irq(struct dw_pcie_rp *pp)
 	if (!pp->irq) {
 		dev_err(pci->dev, "Failed to get an IRQ entry in legacy-interrupt-controller\n");
 		ret = -EINVAL;
-		goto out_put_node;
+		goto out_put_analde;
 	}
 
 	pcie->intx_irq_domain = irq_domain_add_linear(np_intc, PCI_NUM_INTX,
 						&uniphier_intx_domain_ops, pp);
 	if (!pcie->intx_irq_domain) {
 		dev_err(pci->dev, "Failed to get INTx domain\n");
-		ret = -ENODEV;
-		goto out_put_node;
+		ret = -EANALDEV;
+		goto out_put_analde;
 	}
 
 	irq_set_chained_handler_and_data(pp->irq, uniphier_pcie_irq_handler,
 					 pp);
 
-out_put_node:
-	of_node_put(np_intc);
+out_put_analde:
+	of_analde_put(np_intc);
 	return ret;
 }
 
@@ -362,7 +362,7 @@ static int uniphier_pcie_probe(struct platform_device *pdev)
 
 	pcie = devm_kzalloc(dev, sizeof(*pcie), GFP_KERNEL);
 	if (!pcie)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pcie->pci.dev = dev;
 	pcie->pci.ops = &dw_pcie_ops;

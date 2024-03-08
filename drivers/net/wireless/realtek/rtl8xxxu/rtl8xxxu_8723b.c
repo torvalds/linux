@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2014 - 2017 Jes Sorensen <Jes.Sorensen@gmail.com>
  *
- * Portions, notably calibration code:
+ * Portions, analtably calibration code:
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
  *
  * This driver was written as a replacement for the vendor provided
@@ -16,7 +16,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
@@ -252,7 +252,7 @@ static const struct rtl8xxxu_rfregval rtl8723bu_radioa_1t_init_table[] = {
 	 * The 8723bu vendor driver indicates that bit 8 should be set in
 	 * 0x51 for package types TFBGA90, TFBGA80, and TFBGA79. However
 	 * they never actually check the package type - and just default
-	 * to not setting it.
+	 * to analt setting it.
 	 */
 	{0x51, 0x0006b04e},
 	{0x52, 0x000007d2}, {0x53, 0x00000000},
@@ -314,7 +314,7 @@ static int rtl8723bu_identify_chip(struct rtl8xxxu_priv *priv)
 	priv->chip_cut = u32_get_bits(sys_cfg, SYS_CFG_CHIP_VERSION_MASK);
 	if (sys_cfg & SYS_CFG_TRP_VAUX_EN) {
 		dev_info(dev, "Unsupported test chip\n");
-		ret = -ENOTSUPP;
+		ret = -EANALTSUPP;
 		goto out;
 	}
 
@@ -342,10 +342,10 @@ static int rtl8723bu_identify_chip(struct rtl8xxxu_priv *priv)
 	rtl8xxxu_config_endpoints_sie(priv);
 
 	/*
-	 * Fallback for devices that do not provide REG_NORMAL_SIE_EP_TX
+	 * Fallback for devices that do analt provide REG_ANALRMAL_SIE_EP_TX
 	 */
 	if (!priv->ep_tx_count)
-		ret = rtl8xxxu_config_endpoints_no_sie(priv);
+		ret = rtl8xxxu_config_endpoints_anal_sie(priv);
 
 out:
 	return ret;
@@ -651,7 +651,7 @@ static int rtl8723bu_iqk_path_a(struct rtl8xxxu_priv *priv)
 
 	/*
 	 * Bit 12 seems to be BT_GRANT, and is only found in the 8723bu.
-	 * No trace of this in the 8192eu or 8188eu vendor drivers.
+	 * Anal trace of this in the 8192eu or 8188eu vendor drivers.
 	 */
 	rtl8xxxu_write32(priv, REG_BT_CONTROL_8723BU, 0x00000800);
 
@@ -691,7 +691,7 @@ static int rtl8723bu_iqk_path_a(struct rtl8xxxu_priv *priv)
 	    ((reg_e94 & 0x03ff0000)  > 0x00f00000) &&
 	    val32 < 0xf)
 		result |= 0x01;
-	else	/* If TX not OK, ignore RX */
+	else	/* If TX analt OK, iganalre RX */
 		goto out;
 
 out:
@@ -761,7 +761,7 @@ static int rtl8723bu_rx_iqk_path_a(struct rtl8xxxu_priv *priv)
 
 	/*
 	 * Bit 12 seems to be BT_GRANT, and is only found in the 8723bu.
-	 * No trace of this in the 8192eu or 8188eu vendor drivers.
+	 * Anal trace of this in the 8192eu or 8188eu vendor drivers.
 	 */
 	rtl8xxxu_write32(priv, REG_BT_CONTROL_8723BU, 0x00000800);
 
@@ -801,7 +801,7 @@ static int rtl8723bu_rx_iqk_path_a(struct rtl8xxxu_priv *priv)
 	    ((reg_e94 & 0x03ff0000)  > 0x00f00000) &&
 	    val32 < 0xf)
 		result |= 0x01;
-	else	/* If TX not OK, ignore RX */
+	else	/* If TX analt OK, iganalre RX */
 		goto out;
 
 	val32 = 0x80007c00 | (reg_e94 &0x3ff0000) |
@@ -825,7 +825,7 @@ static int rtl8723bu_rx_iqk_path_a(struct rtl8xxxu_priv *priv)
 	 * PA, PAD setting
 	 */
 	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_GAIN_CCA, 0xf80);
-	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_UNKNOWN_55, 0x4021f);
+	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_UNKANALWN_55, 0x4021f);
 
 	/*
 	 * RX IQK setting
@@ -901,7 +901,7 @@ static int rtl8723bu_rx_iqk_path_a(struct rtl8xxxu_priv *priv)
 	    ((reg_ea4 & 0x03ff0000)  > 0x00f00000) &&
 	    val32 < 0xf)
 		result |= 0x02;
-	else	/* If TX not OK, ignore RX */
+	else	/* If TX analt OK, iganalre RX */
 		goto out;
 out:
 	return result;
@@ -938,7 +938,7 @@ static void rtl8723bu_phy_iqcalibrate(struct rtl8xxxu_priv *priv,
 	u8 xb_agc = rtl8xxxu_read32(priv, REG_OFDM0_XB_AGC_CORE1) & 0xff;
 
 	/*
-	 * Note: IQ calibration must be performed after loading
+	 * Analte: IQ calibration must be performed after loading
 	 *       PHY_REG.txt , and radio_a, radio_b.txt
 	 */
 
@@ -980,11 +980,11 @@ static void rtl8723bu_phy_iqcalibrate(struct rtl8xxxu_priv *priv,
 	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_TXPA_G1, 0x0001f);
 	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_TXPA_G2, 0xf7fb7);
 
-	val32 = rtl8xxxu_read_rfreg(priv, RF_A, RF6052_REG_UNKNOWN_ED);
+	val32 = rtl8xxxu_read_rfreg(priv, RF_A, RF6052_REG_UNKANALWN_ED);
 	val32 |= 0x20;
-	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_UNKNOWN_ED, val32);
+	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_UNKANALWN_ED, val32);
 
-	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_UNKNOWN_43, 0x60fbd);
+	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_UNKANALWN_43, 0x60fbd);
 
 	for (i = 0; i < retry; i++) {
 		path_a_ok = rtl8723bu_iqk_path_a(priv);
@@ -1026,7 +1026,7 @@ static void rtl8723bu_phy_iqcalibrate(struct rtl8xxxu_priv *priv,
 
 	if (priv->tx_paths > 1) {
 #if 1
-		dev_warn(dev, "%s: Path B not supported\n", __func__);
+		dev_warn(dev, "%s: Path B analt supported\n", __func__);
 #else
 
 		/*
@@ -1228,13 +1228,13 @@ static void rtl8723bu_phy_iq_calibrate(struct rtl8xxxu_priv *priv)
 	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_RCK_OS, 0x18000);
 	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_TXPA_G1, 0x0001f);
 	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_TXPA_G2, 0xe6177);
-	val32 = rtl8xxxu_read_rfreg(priv, RF_A, RF6052_REG_UNKNOWN_ED);
+	val32 = rtl8xxxu_read_rfreg(priv, RF_A, RF6052_REG_UNKANALWN_ED);
 	val32 |= 0x20;
-	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_UNKNOWN_ED, val32);
+	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_UNKANALWN_ED, val32);
 	rtl8xxxu_write_rfreg(priv, RF_A, 0x43, 0x300bd);
 
 	if (priv->rf_paths > 1)
-		dev_dbg(dev, "%s: 8723BU 2T not supported\n", __func__);
+		dev_dbg(dev, "%s: 8723BU 2T analt supported\n", __func__);
 
 	rtl8xxxu_gen2_prepare_calibrate(priv, 0);
 }
@@ -1527,7 +1527,7 @@ static void rtl8723b_enable_rf(struct rtl8xxxu_priv *priv)
 	rtl8xxxu_write32(priv, REG_RX_WAIT_CCA, val32);
 
 	/*
-	 * No indication anywhere as to what 0x0790 does. The 2 antenna
+	 * Anal indication anywhere as to what 0x0790 does. The 2 antenna
 	 * vendor code preserves bits 6-7 here.
 	 */
 	rtl8xxxu_write8(priv, 0x0790, 0x05);
@@ -1601,7 +1601,7 @@ static void rtl8723b_enable_rf(struct rtl8xxxu_priv *priv)
 
 	/*
 	 * Different settings per different antenna position.
-	 *      Antenna Position:   | Normal   Inverse
+	 *      Antenna Position:   | Analrmal   Inverse
 	 * --------------------------------------------------
 	 * Antenna switch to BT:    |  0x280,   0x00
 	 * Antenna switch to WiFi:  |  0x0,     0x280
@@ -1625,9 +1625,9 @@ static void rtl8723b_enable_rf(struct rtl8xxxu_priv *priv)
 	rtl8xxxu_gen2_h2c_cmd(priv, &h2c, sizeof(h2c.bt_info));
 
 	memset(&h2c, 0, sizeof(struct h2c_cmd));
-	h2c.ignore_wlan.cmd = H2C_8723B_BT_IGNORE_WLANACT;
-	h2c.ignore_wlan.data = 0;
-	rtl8xxxu_gen2_h2c_cmd(priv, &h2c, sizeof(h2c.ignore_wlan));
+	h2c.iganalre_wlan.cmd = H2C_8723B_BT_IGANALRE_WLANACT;
+	h2c.iganalre_wlan.data = 0;
+	rtl8xxxu_gen2_h2c_cmd(priv, &h2c, sizeof(h2c.iganalre_wlan));
 }
 
 static void rtl8723bu_init_aggregation(struct rtl8xxxu_priv *priv)
@@ -1636,7 +1636,7 @@ static void rtl8723bu_init_aggregation(struct rtl8xxxu_priv *priv)
 	u8 agg_ctrl;
 
 	/*
-	 * For now simply disable RX aggregation
+	 * For analw simply disable RX aggregation
 	 */
 	agg_ctrl = rtl8xxxu_read8(priv, REG_TRXDMA_CTRL);
 	agg_ctrl &= ~TRXDMA_CTRL_RXDMA_AGG_EN;
@@ -1755,5 +1755,5 @@ struct rtl8xxxu_fileops rtl8723bu_fops = {
 	.total_page_num = TX_TOTAL_PAGE_NUM_8723B,
 	.page_num_hi = TX_PAGE_NUM_HI_PQ_8723B,
 	.page_num_lo = TX_PAGE_NUM_LO_PQ_8723B,
-	.page_num_norm = TX_PAGE_NUM_NORM_PQ_8723B,
+	.page_num_analrm = TX_PAGE_NUM_ANALRM_PQ_8723B,
 };

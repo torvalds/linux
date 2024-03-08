@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-// Copyright (c) 2018 Mellanox Technologies
+// Copyright (c) 2018 Mellaanalx Techanallogies
 
 #include <linux/hyperv.h>
 #include "mlx5_core.h"
@@ -44,12 +44,12 @@ struct mlx5_hv_vhca *mlx5_hv_vhca_create(struct mlx5_core_dev *dev)
 
 	hv_vhca = kzalloc(sizeof(*hv_vhca), GFP_KERNEL);
 	if (!hv_vhca)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	hv_vhca->work_queue = create_singlethread_workqueue("mlx5_hv_vhca");
 	if (!hv_vhca->work_queue) {
 		kfree(hv_vhca);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	hv_vhca->dev = dev;
@@ -162,7 +162,7 @@ mlx5_hv_vhca_control_agent_invalidate(struct mlx5_hv_vhca_agent *agent,
 
 	mlx5_hv_vhca_capabilities(hv_vhca, &capabilities);
 
-	/* In case no capabilities, send empty block in return */
+	/* In case anal capabilities, send empty block in return */
 	if (!capabilities) {
 		memset(block, 0, sizeof(*block));
 		goto write;
@@ -261,7 +261,7 @@ mlx5_hv_vhca_agent_create(struct mlx5_hv_vhca *hv_vhca,
 	struct mlx5_hv_vhca_agent *agent;
 
 	if (IS_ERR_OR_NULL(hv_vhca))
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	if (type >= MLX5_HV_VHCA_AGENT_MAX)
 		return ERR_PTR(-EINVAL);
@@ -275,7 +275,7 @@ mlx5_hv_vhca_agent_create(struct mlx5_hv_vhca *hv_vhca,
 
 	agent = kzalloc(sizeof(*agent), GFP_KERNEL);
 	if (!agent)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	agent->type      = type;
 	agent->hv_vhca   = hv_vhca;
@@ -349,7 +349,7 @@ int mlx5_hv_vhca_agent_write(struct mlx5_hv_vhca_agent *agent,
 							buf + total,
 							len, &block_offset);
 		if (!bytes)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		err = mlx5_hv_write_config(agent->hv_vhca->dev, &data_block,
 					   sizeof(data_block), offset);

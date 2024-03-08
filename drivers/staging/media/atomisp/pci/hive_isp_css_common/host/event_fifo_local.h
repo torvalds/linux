@@ -18,7 +18,7 @@
 
 /*
  * All events come from connections mapped on the system
- * bus but do not use a global IRQ
+ * bus but do analt use a global IRQ
  */
 #include "event_fifo_global.h"
 

@@ -5,7 +5,7 @@
  * Copyright (C) 2004-9 Patrick Boettcher <patrick.boettcher@posteo.de>
  * based on skystar2-driver Copyright (C) 2003 Vadim Catana, skystar@moldova.cc
  *
- * Acknowledgements:
+ * Ackanalwledgements:
  *   John Jurrius from BBTI, Inc. for extensive support
  *                    with code examples and data books
  *   Bjarne Steinsbo, bjarne at steinsbo.com (some ideas for rewriting)
@@ -14,7 +14,7 @@
  *   Vincenzo Di Massa, hawk.it at tiscalinet.it (several DiSEqC fixes)
  *   Roberto Ragusa, r.ragusa at libero.it (polishing, restyling the code)
  *   Uwe Bugla, uwe.bugla at gmx.de (doing tests, restyling code, writing docu)
- *   Niklas Peinecke, peinecke at gdv.uni-hannover.de (hardware pid/mac
+ *   Niklas Peinecke, peinecke at gdv.uni-hananalver.de (hardware pid/mac
  *               filtering)
  */
 
@@ -26,7 +26,7 @@
 #ifdef CONFIG_DVB_B2C2_FLEXCOP_DEBUG
 #define DEBSTATUS ""
 #else
-#define DEBSTATUS " (debugging is not enabled)"
+#define DEBSTATUS " (debugging is analt enabled)"
 #endif
 
 int b2c2_flexcop_debug;
@@ -159,9 +159,9 @@ void flexcop_pass_dmx_data(struct flexcop_device *fc, u8 *buf, u32 len)
 }
 EXPORT_SYMBOL(flexcop_pass_dmx_data);
 
-void flexcop_pass_dmx_packets(struct flexcop_device *fc, u8 *buf, u32 no)
+void flexcop_pass_dmx_packets(struct flexcop_device *fc, u8 *buf, u32 anal)
 {
-	dvb_dmx_swfilter_packets(&fc->demux, buf, no);
+	dvb_dmx_swfilter_packets(&fc->demux, buf, anal);
 }
 EXPORT_SYMBOL(flexcop_pass_dmx_packets);
 
@@ -217,13 +217,13 @@ struct flexcop_device *flexcop_device_kmalloc(size_t bus_specific_len)
 	struct flexcop_device *fc = kzalloc(sizeof(struct flexcop_device),
 				GFP_KERNEL);
 	if (!fc) {
-		err("no memory");
+		err("anal memory");
 		return NULL;
 	}
 
 	bus = kzalloc(bus_specific_len, GFP_KERNEL);
 	if (!bus) {
-		err("no memory");
+		err("anal memory");
 		kfree(fc);
 		return NULL;
 	}

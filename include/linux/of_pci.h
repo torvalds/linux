@@ -3,24 +3,24 @@
 #define __OF_PCI_H
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 struct pci_dev;
-struct device_node;
+struct device_analde;
 
 #if IS_ENABLED(CONFIG_OF) && IS_ENABLED(CONFIG_PCI)
-struct device_node *of_pci_find_child_device(struct device_node *parent,
+struct device_analde *of_pci_find_child_device(struct device_analde *parent,
 					     unsigned int devfn);
-int of_pci_get_devfn(struct device_node *np);
+int of_pci_get_devfn(struct device_analde *np);
 void of_pci_check_probe_only(void);
 #else
-static inline struct device_node *of_pci_find_child_device(struct device_node *parent,
+static inline struct device_analde *of_pci_find_child_device(struct device_analde *parent,
 					     unsigned int devfn)
 {
 	return NULL;
 }
 
-static inline int of_pci_get_devfn(struct device_node *np)
+static inline int of_pci_get_devfn(struct device_analde *np)
 {
 	return -EINVAL;
 }

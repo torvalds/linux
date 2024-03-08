@@ -10,12 +10,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -205,14 +205,14 @@ extern struct amdgpu_mgpu_info mgpu_info;
 extern int amdgpu_ras_enable;
 extern uint amdgpu_ras_mask;
 extern int amdgpu_bad_page_threshold;
-extern bool amdgpu_ignore_bad_page_threshold;
+extern bool amdgpu_iganalre_bad_page_threshold;
 extern struct amdgpu_watchdog_timer amdgpu_watchdog_timer;
 extern int amdgpu_async_gfx_ring;
 extern int amdgpu_mcbp;
 extern int amdgpu_discovery;
 extern int amdgpu_mes;
 extern int amdgpu_mes_kiq;
-extern int amdgpu_noretry;
+extern int amdgpu_analretry;
 extern int amdgpu_force_asic_type;
 extern int amdgpu_smartshift_bias;
 extern int amdgpu_use_xgmi_p2p;
@@ -221,12 +221,12 @@ extern bool enforce_isolation;
 #ifdef CONFIG_HSA_AMD
 extern int sched_policy;
 extern bool debug_evictions;
-extern bool no_system_mem_limit;
+extern bool anal_system_mem_limit;
 extern int halt_if_hws_hang;
 #else
 static const int __maybe_unused sched_policy = KFD_SCHED_POLICY_HWS;
 static const bool __maybe_unused debug_evictions; /* = false */
-static const bool __maybe_unused no_system_mem_limit;
+static const bool __maybe_unused anal_system_mem_limit;
 static const int __maybe_unused halt_if_hws_hang;
 #endif
 #ifdef CONFIG_HSA_AMD_P2P
@@ -364,7 +364,7 @@ struct amdgpu_ip_block_status {
 struct amdgpu_ip_block_version {
 	const enum amd_ip_block_type type;
 	const u32 major;
-	const u32 minor;
+	const u32 mianalr;
 	const u32 rev;
 	const struct amd_ip_funcs *funcs;
 };
@@ -376,7 +376,7 @@ struct amdgpu_ip_block {
 
 int amdgpu_device_ip_block_version_cmp(struct amdgpu_device *adev,
 				       enum amd_ip_block_type type,
-				       u32 major, u32 minor);
+				       u32 major, u32 mianalr);
 
 struct amdgpu_ip_block *
 amdgpu_device_ip_get_ip_block(struct amdgpu_device *adev,
@@ -411,7 +411,7 @@ struct amdgpu_clock {
 	uint32_t max_pixel_clock;
 };
 
-/* sub-allocation manager, it has to be protected by another lock.
+/* sub-allocation manager, it has to be protected by aanalther lock.
  * By conception this is an helper for other part of the driver
  * like the indirect buffer or semaphore, which both have their
  * locking.
@@ -424,13 +424,13 @@ struct amdgpu_clock {
  * the end total_size - (last_object_offset + last_object_size) >=
  * alloc_size. If so we allocate new object there.
  *
- * When there is not enough room at the end, we start waiting for
+ * When there is analt eanalugh room at the end, we start waiting for
  * each sub object until we reach object_offset+object_size >=
  * alloc_size, this object then become the sub object we return.
  *
  * Alignment can't be bigger than page size.
  *
- * Hole are not considered for allocation to keep things simple.
+ * Hole are analt considered for allocation to keep things simple.
  * Assumption is that there won't be hole (all object on same
  * alignment).
  */
@@ -515,17 +515,17 @@ struct amdgpu_allowed_register_entry {
 /**
  * enum amd_reset_method - Methods for resetting AMD GPU devices
  *
- * @AMD_RESET_METHOD_NONE: The device will not be reset.
+ * @AMD_RESET_METHOD_ANALNE: The device will analt be reset.
  * @AMD_RESET_LEGACY: Method reserved for SI, CIK and VI ASICs.
- * @AMD_RESET_MODE0: Reset the entire ASIC. Not currently available for the
+ * @AMD_RESET_MODE0: Reset the entire ASIC. Analt currently available for the
  *                   any device.
  * @AMD_RESET_MODE1: Resets all IP blocks on the ASIC (SDMA, GFX, VCN, etc.)
- *                   individually. Suitable only for some discrete GPU, not
+ *                   individually. Suitable only for some discrete GPU, analt
  *                   available for all ASICs.
  * @AMD_RESET_MODE2: Resets a lesser level of IPs compared to MODE1. Which IPs
- *                   are reset depends on the ASIC. Notably doesn't reset IPs
+ *                   are reset depends on the ASIC. Analtably doesn't reset IPs
  *                   shared with the CPU on APUs or the memory controllers (so
- *                   VRAM is not lost). Not available on all ASICs.
+ *                   VRAM is analt lost). Analt available on all ASICs.
  * @AMD_RESET_BACO: BACO (Bus Alive, Chip Off) method powers off and on the card
  *                  but without powering off the PCI bus. Suitable only for
  *                  discrete GPUs.
@@ -533,12 +533,12 @@ struct amdgpu_allowed_register_entry {
  *                 and does a secondary bus reset or FLR, depending on what the
  *                 underlying hardware supports.
  *
- * Methods available for AMD GPU driver for resetting the device. Not all
+ * Methods available for AMD GPU driver for resetting the device. Analt all
  * methods are suitable for every device. User can override the method using
  * module parameter `reset_method`.
  */
 enum amd_reset_method {
-	AMD_RESET_METHOD_NONE = -1,
+	AMD_RESET_METHOD_ANALNE = -1,
 	AMD_RESET_METHOD_LEGACY = 0,
 	AMD_RESET_METHOD_MODE0,
 	AMD_RESET_METHOD_MODE1,
@@ -819,7 +819,7 @@ struct amdgpu_reset_info {
 };
 
 /*
- * Non-zero (true) if the GPU has VRAM. Zero (false) otherwise.
+ * Analn-zero (true) if the GPU has VRAM. Zero (false) otherwise.
  */
 #define AMDGPU_HAS_VRAM(_adev) ((_adev)->gmc.real_vram_size)
 
@@ -845,7 +845,7 @@ struct amdgpu_device {
 	bool				shutdown;
 	bool				need_swiotlb;
 	bool				accel_working;
-	struct notifier_block		acpi_nb;
+	struct analtifier_block		acpi_nb;
 	struct amdgpu_i2c_chan		*i2c_bus[AMDGPU_MAX_I2C_BUS];
 	struct debugfs_blob_wrapper     debugfs_vbios_blob;
 	struct debugfs_blob_wrapper     debugfs_discovery_blob;
@@ -1085,7 +1085,7 @@ struct amdgpu_device {
 	enum pp_mp1_state               mp1_state;
 	struct amdgpu_doorbell_index doorbell_index;
 
-	struct mutex			notifier_lock;
+	struct mutex			analtifier_lock;
 
 	int asic_reset_res;
 	struct work_struct		xgmi_reset_work;
@@ -1111,7 +1111,7 @@ struct amdgpu_device {
 	uint32_t                        ras_hw_enabled;
 	uint32_t                        ras_enabled;
 
-	bool                            no_hw_access;
+	bool                            anal_hw_access;
 	struct pci_saved_state          *pci_state;
 	pci_channel_state_t		pci_channel_state;
 
@@ -1153,7 +1153,7 @@ struct amdgpu_device {
 static inline uint32_t amdgpu_ip_version(const struct amdgpu_device *adev,
 					 uint8_t ip, uint8_t inst)
 {
-	/* This considers only major/minor/rev and ignores
+	/* This considers only major/mianalr/rev and iganalres
 	 * subrevision/variant fields.
 	 */
 	return adev->ip_versions[ip][inst] & ~0xFFU;
@@ -1162,7 +1162,7 @@ static inline uint32_t amdgpu_ip_version(const struct amdgpu_device *adev,
 static inline uint32_t amdgpu_ip_version_full(const struct amdgpu_device *adev,
 					      uint8_t ip, uint8_t inst)
 {
-	/* This returns full version - major/minor/rev/variant/subrevision */
+	/* This returns full version - major/mianalr/rev/variant/subrevision */
 	return adev->ip_versions[ip][inst];
 }
 
@@ -1248,11 +1248,11 @@ int emu_soc_asic_init(struct amdgpu_device *adev);
 /*
  * Registers read & write functions.
  */
-#define AMDGPU_REGS_NO_KIQ    (1<<1)
+#define AMDGPU_REGS_ANAL_KIQ    (1<<1)
 #define AMDGPU_REGS_RLC	(1<<2)
 
-#define RREG32_NO_KIQ(reg) amdgpu_device_rreg(adev, (reg), AMDGPU_REGS_NO_KIQ)
-#define WREG32_NO_KIQ(reg, v) amdgpu_device_wreg(adev, (reg), (v), AMDGPU_REGS_NO_KIQ)
+#define RREG32_ANAL_KIQ(reg) amdgpu_device_rreg(adev, (reg), AMDGPU_REGS_ANAL_KIQ)
+#define WREG32_ANAL_KIQ(reg, v) amdgpu_device_wreg(adev, (reg), (v), AMDGPU_REGS_ANAL_KIQ)
 
 #define RREG32_KIQ(reg) amdgpu_kiq_rreg(adev, (reg), 0)
 #define WREG32_KIQ(reg, v) amdgpu_kiq_wreg(adev, (reg), (v), 0)
@@ -1501,7 +1501,7 @@ struct amdgpu_numa_info {
 #define AMDGPU_ATCS_PSC_DEV_STATE_D0		0
 #define AMDGPU_ATCS_PSC_DEV_STATE_D3_HOT	3
 #define AMDGPU_ATCS_PSC_DRV_STATE_OPR		0
-#define AMDGPU_ATCS_PSC_DRV_STATE_NOT_OPR	1
+#define AMDGPU_ATCS_PSC_DRV_STATE_ANALT_OPR	1
 
 #if defined(CONFIG_ACPI)
 int amdgpu_acpi_init(struct amdgpu_device *adev);
@@ -1513,7 +1513,7 @@ int amdgpu_acpi_pcie_performance_request(struct amdgpu_device *adev,
 int amdgpu_acpi_power_shift_control(struct amdgpu_device *adev,
 				    u8 dev_state, bool drv_state);
 int amdgpu_acpi_smart_shift_update(struct drm_device *dev, enum amdgpu_ss ss_state);
-int amdgpu_acpi_pcie_notify_device_ready(struct amdgpu_device *adev);
+int amdgpu_acpi_pcie_analtify_device_ready(struct amdgpu_device *adev);
 int amdgpu_acpi_get_tmr_info(struct amdgpu_device *adev, u64 *tmr_offset,
 			     u64 *tmr_size);
 int amdgpu_acpi_get_mem_info(struct amdgpu_device *adev, int xcc_id,

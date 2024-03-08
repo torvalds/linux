@@ -38,12 +38,12 @@ static void bench_test(char *s)
 	struct timespec ts_start, ts_end;
 	int i;
 
-	clock_gettime(CLOCK_MONOTONIC, &ts_start);
+	clock_gettime(CLOCK_MOANALTONIC, &ts_start);
 
 	for (i = 0; i < ITERATIONS_BENCH; i++)
 		test_strlen(s);
 
-	clock_gettime(CLOCK_MONOTONIC, &ts_end);
+	clock_gettime(CLOCK_MOANALTONIC, &ts_end);
 
 	printf("len %3.3d : time = %.6f\n", test_strlen(s), ts_end.tv_sec - ts_start.tv_sec + (ts_end.tv_nsec - ts_start.tv_nsec) / 1e9);
 }

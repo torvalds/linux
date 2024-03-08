@@ -7,7 +7,7 @@ Measures the operating system timer latency
 
 :Manual section: 1
 
-SYNOPSIS
+SYANALPSIS
 ========
 **rtla timerlat** [*MODE*] ...
 
@@ -18,7 +18,7 @@ DESCRIPTION
 
 The *timerlat* tracer outputs information in two ways. It periodically
 prints the timer latency at the timer *IRQ* handler and the *Thread* handler.
-It also provides information for each noise via the **osnoise:** tracepoints.
+It also provides information for each analise via the **osanalise:** tracepoints.
 The **rtla timerlat top** mode displays a summary of the periodic output
 from the *timerlat* tracer. The **rtla hist hist** mode displays a histogram
 of each tracer event occurrence. For further details, please refer to the
@@ -34,7 +34,7 @@ MODES
 
         Prints a histogram of timerlat samples.
 
-If no *MODE* is given, the top mode is called, passing the arguments.
+If anal *MODE* is given, the top mode is called, passing the arguments.
 
 OPTIONS
 =======

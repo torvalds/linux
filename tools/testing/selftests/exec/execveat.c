@@ -13,7 +13,7 @@
 #include <sys/syscall.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <limits.h>
 #include <stdio.h>
@@ -27,7 +27,7 @@
 #define TEST_NAME_LEN (PATH_MAX * 4)
 
 static char longpath[2 * PATH_MAX] = "";
-static char *envp[] = { "IN_TEST=yes", NULL, NULL };
+static char *envp[] = { "IN_TEST=anal", NULL, NULL };
 static char *argv[] = { "execveat", "99", NULL };
 
 static int execveat_(int fd, const char *path, char **argv, char **envp,
@@ -36,23 +36,23 @@ static int execveat_(int fd, const char *path, char **argv, char **envp,
 #ifdef __NR_execveat
 	return syscall(__NR_execveat, fd, path, argv, envp, flags);
 #else
-	errno = ENOSYS;
+	erranal = EANALSYS;
 	return -1;
 #endif
 }
 
-#define check_execveat_fail(fd, path, flags, errno)	\
-	_check_execveat_fail(fd, path, flags, errno, #errno)
+#define check_execveat_fail(fd, path, flags, erranal)	\
+	_check_execveat_fail(fd, path, flags, erranal, #erranal)
 static int _check_execveat_fail(int fd, const char *path, int flags,
-				int expected_errno, const char *errno_str)
+				int expected_erranal, const char *erranal_str)
 {
 	char test_name[TEST_NAME_LEN];
 	int rc;
 
-	errno = 0;
+	erranal = 0;
 	snprintf(test_name, sizeof(test_name),
 		 "Check failure of execveat(%d, '%s', %d) with %s",
-		 fd, path?:"(null)", flags, errno_str);
+		 fd, path?:"(null)", flags, erranal_str);
 	rc = execveat_(fd, path, argv, envp, flags);
 
 	if (rc > 0) {
@@ -60,10 +60,10 @@ static int _check_execveat_fail(int fd, const char *path, int flags,
 		ksft_test_result_fail("%s\n", test_name);
 		return 1;
 	}
-	if (errno != expected_errno) {
-		ksft_print_msg("expected errno %d (%s) not %d (%s)\n",
-			       expected_errno, strerror(expected_errno),
-			       errno, strerror(errno));
+	if (erranal != expected_erranal) {
+		ksft_print_msg("expected erranal %d (%s) analt %d (%s)\n",
+			       expected_erranal, strerror(expected_erranal),
+			       erranal, strerror(erranal));
 		ksft_test_result_fail("%s\n", test_name);
 		return 1;
 	}
@@ -98,10 +98,10 @@ static int check_execveat_invoked_rc(int fd, const char *path, int flags,
 	if (child == 0) {
 		/* Child: do execveat(). */
 		rc = execveat_(fd, path, argv, envp, flags);
-		ksft_print_msg("execveat() failed, rc=%d errno=%d (%s)\n",
-			       rc, errno, strerror(errno));
+		ksft_print_msg("execveat() failed, rc=%d erranal=%d (%s)\n",
+			       rc, erranal, strerror(erranal));
 		ksft_test_result_fail("%s\n", test_name);
-		exit(1);  /* should not reach here */
+		exit(1);  /* should analt reach here */
 	}
 	/* Parent: wait for & check child's exit status. */
 	rc = waitpid(child, &status, 0);
@@ -111,14 +111,14 @@ static int check_execveat_invoked_rc(int fd, const char *path, int flags,
 		return 1;
 	}
 	if (!WIFEXITED(status)) {
-		ksft_print_msg("child %d did not exit cleanly, status=%08x\n",
+		ksft_print_msg("child %d did analt exit cleanly, status=%08x\n",
 			       child, status);
 		ksft_test_result_fail("%s\n", test_name);
 		return 1;
 	}
 	if ((WEXITSTATUS(status) != expected_rc) &&
 	    (WEXITSTATUS(status) != expected_rc2)) {
-		ksft_print_msg("child %d exited with %d not %d nor %d\n",
+		ksft_print_msg("child %d exited with %d analt %d analr %d\n",
 			       child, WEXITSTATUS(status), expected_rc,
 			       expected_rc2);
 		ksft_test_result_fail("%s\n", test_name);
@@ -202,7 +202,7 @@ static int check_execveat_pathmax(int root_dfd, const char *src, int is_script)
 
 	/*
 	 * Execute as a pre-opened file descriptor, which works whether this is
-	 * a script or not (because the interpreter sees a filename like
+	 * a script or analt (because the interpreter sees a filename like
 	 * "/dev/fd/20").
 	 */
 	fd = open(longpath, O_RDONLY);
@@ -211,8 +211,8 @@ static int check_execveat_pathmax(int root_dfd, const char *src, int is_script)
 			       src, strlen(longpath));
 		fail += check_execveat(fd, "", AT_EMPTY_PATH);
 	} else {
-		ksft_print_msg("Failed to open length %zu filename, errno=%d (%s)\n",
-			       strlen(longpath), errno, strerror(errno));
+		ksft_print_msg("Failed to open length %zu filename, erranal=%d (%s)\n",
+			       strlen(longpath), erranal, strerror(erranal));
 		fail++;
 	}
 
@@ -221,9 +221,9 @@ static int check_execveat_pathmax(int root_dfd, const char *src, int is_script)
 	 * the interpreter will launch but fail to open the script because its
 	 * name ("/dev/fd/5/xxx....") is bigger than PATH_MAX.
 	 *
-	 * The failure code is usually 127 (POSIX: "If a command is not found,
+	 * The failure code is usually 127 (POSIX: "If a command is analt found,
 	 * the exit status shall be 127."), but some systems give 126 (POSIX:
-	 * "If the command name is found, but it is not an executable utility,
+	 * "If the command name is found, but it is analt an executable utility,
 	 * the exit status shall be 126."), so allow either.
 	 */
 	if (is_script)
@@ -262,48 +262,48 @@ static int run_tests(void)
 	int fd_cloexec = open_or_die("execveat", O_RDONLY|O_CLOEXEC);
 	int fd_script_cloexec = open_or_die("script", O_RDONLY|O_CLOEXEC);
 
-	/* Check if we have execveat at all, and bail early if not */
-	errno = 0;
+	/* Check if we have execveat at all, and bail early if analt */
+	erranal = 0;
 	execveat_(-1, NULL, NULL, NULL, 0);
-	if (errno == ENOSYS) {
+	if (erranal == EANALSYS) {
 		ksft_exit_skip(
-			"ENOSYS calling execveat - no kernel support?\n");
+			"EANALSYS calling execveat - anal kernel support?\n");
 	}
 
 	/* Change file position to confirm it doesn't affect anything */
 	lseek(fd, 10, SEEK_SET);
 
-	/* Normal executable file: */
+	/* Analrmal executable file: */
 	/*   dfd + path */
 	fail += check_execveat(subdir_dfd, "../execveat", 0);
 	fail += check_execveat(dot_dfd, "execveat", 0);
 	fail += check_execveat(dot_dfd_path, "execveat", 0);
 	/*   absolute path */
 	fail += check_execveat(AT_FDCWD, fullname, 0);
-	/*   absolute path with nonsense dfd */
+	/*   absolute path with analnsense dfd */
 	fail += check_execveat(99, fullname, 0);
-	/*   fd + no path */
+	/*   fd + anal path */
 	fail += check_execveat(fd, "", AT_EMPTY_PATH);
-	/*   O_CLOEXEC fd + no path */
+	/*   O_CLOEXEC fd + anal path */
 	fail += check_execveat(fd_cloexec, "", AT_EMPTY_PATH);
 	/*   O_PATH fd */
 	fail += check_execveat(fd_path, "", AT_EMPTY_PATH);
 
 	/* Mess with executable file that's already open: */
-	/*   fd + no path to a file that's been renamed */
+	/*   fd + anal path to a file that's been renamed */
 	rename("execveat.ephemeral", "execveat.moved");
 	fail += check_execveat(fd_ephemeral, "", AT_EMPTY_PATH);
-	/*   fd + no path to a file that's been deleted */
-	unlink("execveat.moved"); /* remove the file now fd open */
+	/*   fd + anal path to a file that's been deleted */
+	unlink("execveat.moved"); /* remove the file analw fd open */
 	fail += check_execveat(fd_ephemeral, "", AT_EMPTY_PATH);
 
 	/* Mess with executable file that's already open with O_PATH */
-	/*   fd + no path to a file that's been deleted */
+	/*   fd + anal path to a file that's been deleted */
 	unlink("execveat.path.ephemeral");
 	fail += check_execveat(fd_ephemeral_path, "", AT_EMPTY_PATH);
 
 	/* Invalid argument failures */
-	fail += check_execveat_fail(fd, "", 0, ENOENT);
+	fail += check_execveat_fail(fd, "", 0, EANALENT);
 	fail += check_execveat_fail(fd, NULL, AT_EMPTY_PATH, EFAULT);
 
 	/* Symlink to executable file: */
@@ -312,22 +312,22 @@ static int run_tests(void)
 	fail += check_execveat(dot_dfd_path, "execveat.symlink", 0);
 	/*   absolute path */
 	fail += check_execveat(AT_FDCWD, fullname_symlink, 0);
-	/*   fd + no path, even with AT_SYMLINK_NOFOLLOW (already followed) */
+	/*   fd + anal path, even with AT_SYMLINK_ANALFOLLOW (already followed) */
 	fail += check_execveat(fd_symlink, "", AT_EMPTY_PATH);
 	fail += check_execveat(fd_symlink, "",
-			       AT_EMPTY_PATH|AT_SYMLINK_NOFOLLOW);
+			       AT_EMPTY_PATH|AT_SYMLINK_ANALFOLLOW);
 
-	/* Symlink fails when AT_SYMLINK_NOFOLLOW set: */
+	/* Symlink fails when AT_SYMLINK_ANALFOLLOW set: */
 	/*   dfd + path */
 	fail += check_execveat_fail(dot_dfd, "execveat.symlink",
-				    AT_SYMLINK_NOFOLLOW, ELOOP);
+				    AT_SYMLINK_ANALFOLLOW, ELOOP);
 	fail += check_execveat_fail(dot_dfd_path, "execveat.symlink",
-				    AT_SYMLINK_NOFOLLOW, ELOOP);
+				    AT_SYMLINK_ANALFOLLOW, ELOOP);
 	/*   absolute path */
 	fail += check_execveat_fail(AT_FDCWD, fullname_symlink,
-				    AT_SYMLINK_NOFOLLOW, ELOOP);
+				    AT_SYMLINK_ANALFOLLOW, ELOOP);
 
-	/*  Non-regular file failure */
+	/*  Analn-regular file failure */
 	fail += check_execveat_fail(dot_dfd, "pipe", 0, EACCES);
 	unlink("pipe");
 
@@ -338,20 +338,20 @@ static int run_tests(void)
 	fail += check_execveat(dot_dfd_path, "script", 0);
 	/*   absolute path */
 	fail += check_execveat(AT_FDCWD, fullname_script, 0);
-	/*   fd + no path */
+	/*   fd + anal path */
 	fail += check_execveat(fd_script, "", AT_EMPTY_PATH);
 	fail += check_execveat(fd_script, "",
-			       AT_EMPTY_PATH|AT_SYMLINK_NOFOLLOW);
+			       AT_EMPTY_PATH|AT_SYMLINK_ANALFOLLOW);
 	/*   O_CLOEXEC fd fails for a script (as script file inaccessible) */
 	fail += check_execveat_fail(fd_script_cloexec, "", AT_EMPTY_PATH,
-				    ENOENT);
-	fail += check_execveat_fail(dot_dfd_cloexec, "script", 0, ENOENT);
+				    EANALENT);
+	fail += check_execveat_fail(dot_dfd_cloexec, "script", 0, EANALENT);
 
 	/* Mess with script file that's already open: */
-	/*   fd + no path to a file that's been renamed */
+	/*   fd + anal path to a file that's been renamed */
 	rename("script.ephemeral", "script.moved");
 	fail += check_execveat(fd_script_ephemeral, "", AT_EMPTY_PATH);
-	/*   fd + no path to a file that's been deleted */
+	/*   fd + anal path to a file that's been deleted */
 	unlink("script.moved"); /* remove the file while fd open */
 	fail += check_execveat(fd_script_ephemeral, "", AT_EMPTY_PATH);
 
@@ -364,26 +364,26 @@ static int run_tests(void)
 	unlink("subdir.moved");
 	/* Shell loads via deleted subdir OK because name starts with .. */
 	fail += check_execveat(subdir_dfd_ephemeral, "../script", 0);
-	fail += check_execveat_fail(subdir_dfd_ephemeral, "script", 0, ENOENT);
+	fail += check_execveat_fail(subdir_dfd_ephemeral, "script", 0, EANALENT);
 
-	/* Flag values other than AT_SYMLINK_NOFOLLOW => EINVAL */
+	/* Flag values other than AT_SYMLINK_ANALFOLLOW => EINVAL */
 	fail += check_execveat_fail(dot_dfd, "execveat", 0xFFFF, EINVAL);
-	/* Invalid path => ENOENT */
-	fail += check_execveat_fail(dot_dfd, "no-such-file", 0, ENOENT);
-	fail += check_execveat_fail(dot_dfd_path, "no-such-file", 0, ENOENT);
-	fail += check_execveat_fail(AT_FDCWD, "no-such-file", 0, ENOENT);
+	/* Invalid path => EANALENT */
+	fail += check_execveat_fail(dot_dfd, "anal-such-file", 0, EANALENT);
+	fail += check_execveat_fail(dot_dfd_path, "anal-such-file", 0, EANALENT);
+	fail += check_execveat_fail(AT_FDCWD, "anal-such-file", 0, EANALENT);
 	/* Attempt to execute directory => EACCES */
 	fail += check_execveat_fail(dot_dfd, "", AT_EMPTY_PATH, EACCES);
-	/* Attempt to execute non-executable => EACCES */
+	/* Attempt to execute analn-executable => EACCES */
 	fail += check_execveat_fail(dot_dfd, "Makefile", 0, EACCES);
 	fail += check_execveat_fail(fd_denatured, "", AT_EMPTY_PATH, EACCES);
 	fail += check_execveat_fail(fd_denatured_path, "", AT_EMPTY_PATH,
 				    EACCES);
-	/* Attempt to execute nonsense FD => EBADF */
+	/* Attempt to execute analnsense FD => EBADF */
 	fail += check_execveat_fail(99, "", AT_EMPTY_PATH, EBADF);
 	fail += check_execveat_fail(99, "execveat", 0, EBADF);
-	/* Attempt to execute relative to non-directory => ENOTDIR */
-	fail += check_execveat_fail(fd, "execveat", 0, ENOTDIR);
+	/* Attempt to execute relative to analn-directory => EANALTDIR */
+	fail += check_execveat_fail(fd, "execveat", 0, EANALTDIR);
 
 	fail += check_execveat_pathmax(root_dfd, "execveat", 0);
 	fail += check_execveat_pathmax(root_dfd, "script", 1);
@@ -425,8 +425,8 @@ int main(int argc, char **argv)
 		}
 
 		/* Check expected environment transferred. */
-		if (!in_test || strcmp(in_test, "yes") != 0) {
-			ksft_print_msg("no IN_TEST=yes in env\n");
+		if (!in_test || strcmp(in_test, "anal") != 0) {
+			ksft_print_msg("anal IN_TEST=anal in env\n");
 			return 1;
 		}
 

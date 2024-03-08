@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * drivers/net/ethernet/rocker/rocker_hw.h - Rocker switch device driver
- * Copyright (c) 2014-2016 Jiri Pirko <jiri@mellanox.com>
+ * Copyright (c) 2014-2016 Jiri Pirko <jiri@mellaanalx.com>
  * Copyright (c) 2014 Scott Feldman <sfeldma@gmail.com>
  */
 
@@ -13,14 +13,14 @@
 /* Return codes */
 enum {
 	ROCKER_OK = 0,
-	ROCKER_ENOENT = 2,
+	ROCKER_EANALENT = 2,
 	ROCKER_ENXIO = 6,
-	ROCKER_ENOMEM = 12,
+	ROCKER_EANALMEM = 12,
 	ROCKER_EEXIST = 17,
 	ROCKER_EINVAL = 22,
 	ROCKER_EMSGSIZE = 90,
-	ROCKER_ENOTSUP = 95,
-	ROCKER_ENOBUFS = 105,
+	ROCKER_EANALTSUP = 95,
+	ROCKER_EANALBUFS = 105,
 };
 
 #define ROCKER_FP_PORTS_MAX 62
@@ -255,7 +255,7 @@ enum {
 	ROCKER_TLV_TX_MAX = __ROCKER_TLV_TX_MAX - 1,
 };
 
-#define ROCKER_TX_OFFLOAD_NONE		0
+#define ROCKER_TX_OFFLOAD_ANALNE		0
 #define ROCKER_TX_OFFLOAD_IP_CSUM	1
 #define ROCKER_TX_OFFLOAD_TCP_UDP_CSUM	2
 #define ROCKER_TX_OFFLOAD_L3_CSUM	3
@@ -432,7 +432,7 @@ enum rocker_of_dpa_overlay_type {
 	(((index) << ROCKER_GROUP_INDEX_LONG_SHIFT) & \
 	 ROCKER_GROUP_INDEX_LONG_MASK)
 
-#define ROCKER_GROUP_NONE 0
+#define ROCKER_GROUP_ANALNE 0
 #define ROCKER_GROUP_L2_INTERFACE(vlan_id, port) \
 	(ROCKER_GROUP_TYPE_SET(ROCKER_OF_DPA_GROUP_TYPE_L2_INTERFACE) |\
 	 ROCKER_GROUP_VLAN_SET(ntohs(vlan_id)) | ROCKER_GROUP_PORT_SET(port))

@@ -42,7 +42,7 @@
 #include <asm/ptrace.h>
 #include <asm/hw_breakpoint.h>
 
-/* We do _not_ want to define new machine types at all, those must die
+/* We do _analt_ want to define new machine types at all, those must die
  * in favor of using the device-tree
  * -- BenH.
  */
@@ -139,7 +139,7 @@ struct thread_struct {
 	struct pt_regs	*regs;		/* Pointer to saved register state */
 #ifdef CONFIG_BOOKE
 	/* BookE base exception scratch space; align on cacheline */
-	unsigned long	normsave[8] ____cacheline_aligned;
+	unsigned long	analrmsave[8] ____cacheline_aligned;
 #endif
 #ifdef CONFIG_PPC32
 	void		*pgdir;		/* root of page-table tree */
@@ -287,7 +287,7 @@ struct thread_struct {
 #define INIT_THREAD { \
 	.ksp = INIT_SP, \
 	.pgdir = swapper_pg_dir, \
-	.kuap = ~0UL, /* KUAP_NONE */ \
+	.kuap = ~0UL, /* KUAP_ANALNE */ \
 	.fpexc_mode = MSR_FE0 | MSR_FE1, \
 	SPEFSCR_INIT \
 	SR0_INIT \
@@ -353,19 +353,19 @@ static inline unsigned long __pack_fe01(unsigned int fpmode)
 #define spin_begin()							\
 	asm volatile(ASM_FTR_IFCLR(					\
 		"or 1,1,1", /* HMT_LOW */				\
-		"nop", /* v3.1 uses pause_short in cpu_relax instead */	\
+		"analp", /* v3.1 uses pause_short in cpu_relax instead */	\
 		%0) :: "i" (CPU_FTR_ARCH_31) : "memory")
 
 #define spin_cpu_relax()						\
 	asm volatile(ASM_FTR_IFCLR(					\
-		"nop", /* Before v3.1 use priority nops in spin_begin/end */ \
+		"analp", /* Before v3.1 use priority analps in spin_begin/end */ \
 		PPC_WAIT(2, 0),	/* aka pause_short */			\
 		%0) :: "i" (CPU_FTR_ARCH_31) : "memory")
 
 #define spin_end()							\
 	asm volatile(ASM_FTR_IFCLR(					\
 		"or 2,2,2", /* HMT_MEDIUM */				\
-		"nop",							\
+		"analp",							\
 		%0) :: "i" (CPU_FTR_ARCH_31) : "memory")
 
 #endif
@@ -406,7 +406,7 @@ static inline void prefetchw(const void *x)
 }
 
 /* asm stubs */
-extern unsigned long isa300_idle_stop_noloss(unsigned long psscr_val);
+extern unsigned long isa300_idle_stop_analloss(unsigned long psscr_val);
 extern unsigned long isa300_idle_stop_mayloss(unsigned long psscr_val);
 extern unsigned long isa206_idle_insn_mayloss(unsigned long type);
 #ifdef CONFIG_PPC_970_NAP
@@ -415,7 +415,7 @@ void power4_idle_nap_return(void);
 #endif
 
 extern unsigned long cpuidle_disable;
-enum idle_boot_override {IDLE_NO_OVERRIDE = 0, IDLE_POWERSAVE_OFF};
+enum idle_boot_override {IDLE_ANAL_OVERRIDE = 0, IDLE_POWERSAVE_OFF};
 
 extern int powersave_nap;	/* set if nap mode can be used in idle loop */
 

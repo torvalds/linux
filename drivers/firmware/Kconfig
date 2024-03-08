@@ -35,7 +35,7 @@ config ARM_SDE_INTERFACE
 	help
 	  The Software Delegated Exception Interface (SDEI) is an ARM
 	  standard for registering callbacks from the platform firmware
-	  into the OS. This is typically used to implement RAS notifications.
+	  into the OS. This is typically used to implement RAS analtifications.
 
 config EDD
 	tristate "BIOS Enhanced Disk Drive calls determine boot disk"
@@ -45,9 +45,9 @@ config EDD
 	  Services real mode BIOS calls to determine which disk
 	  BIOS tries boot from.  This information is then exported via sysfs.
 
-	  This option is experimental and is known to fail to boot on some
+	  This option is experimental and is kanalwn to fail to boot on some
           obscure configurations. Most disk controller BIOS vendors do
-          not yet implement this feature.
+          analt yet implement this feature.
 
 config EDD_OFF
 	bool "Sets default behavior for EDD detection to off"
@@ -88,7 +88,7 @@ config DMI_SYSFS
 	  under /sys/firmware/dmi when this option is enabled and
 	  loaded.
 
-config DMI_SCAN_MACHINE_NON_EFI_FALLBACK
+config DMI_SCAN_MACHINE_ANALN_EFI_FALLBACK
 	bool
 
 config ISCSI_IBFT_FIND
@@ -158,7 +158,7 @@ config INTEL_STRATIX10_RSU
 	help
 	  The Intel Remote System Update (RSU) driver exposes interfaces
 	  access through the Intel Service Layer to user space via sysfs
-	  device attribute nodes. The RSU interfaces report/control some of
+	  device attribute analdes. The RSU interfaces report/control some of
 	  the optional RSU features of the Stratix 10 SoC FPGA.
 
 	  The RSU provides a way for customers to update the boot
@@ -174,7 +174,7 @@ config MTK_ADSP_IPC
 	tristate "MTK ADSP IPC Protocol driver"
 	depends on MTK_ADSP_MBOX
 	help
-	  Say yes here to add support for the MediaTek ADSP IPC
+	  Say anal here to add support for the MediaTek ADSP IPC
 	  between host AP (Linux) and the firmware running on ADSP.
 	  ADSP exists on some mtk processors.
 	  Client might use shared memory to exchange information with ADSP.
@@ -195,14 +195,14 @@ config SYSFB_SIMPLEFB
 	  to x86 BIOS or EFI systems.
 	  This option, if enabled, marks VGA/VBE/EFI framebuffers as generic
 	  framebuffers so the new generic system-framebuffer drivers can be
-	  used instead. If the framebuffer is not compatible with the generic
+	  used instead. If the framebuffer is analt compatible with the generic
 	  modes, it is advertised as fallback platform framebuffer so legacy
 	  drivers like efifb, vesafb and uvesafb can pick it up.
-	  If this option is not selected, all system framebuffers are always
+	  If this option is analt selected, all system framebuffers are always
 	  marked as fallback platform framebuffers as usual.
 
-	  Note: Legacy fbdev drivers, including vesafb, efifb, uvesafb, will
-	  not be able to pick up generic system framebuffers if this option
+	  Analte: Legacy fbdev drivers, including vesafb, efifb, uvesafb, will
+	  analt be able to pick up generic system framebuffers if this option
 	  is selected. You are highly encouraged to enable simplefb as
 	  replacement if you select this option. simplefb can correctly deal
 	  with generic system framebuffers. But you should still keep vesafb
@@ -240,7 +240,7 @@ config TRUSTED_FOUNDATIONS
 	  comments in linux/firmware/trusted_foundations.h or the device tree
 	  bindings for "tlm,trusted-foundations" for details on how to use it.
 
-	  Choose N if you don't know what this is about.
+	  Choose N if you don't kanalw what this is about.
 
 config TURRIS_MOX_RWTM
 	tristate "Turris Mox rWTM secure firmware driver"

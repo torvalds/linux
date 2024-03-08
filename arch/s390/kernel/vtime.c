@@ -402,7 +402,7 @@ static int __mod_vtimer(struct vtimer_list *timer, u64 expires, int periodic)
 }
 
 /*
- * returns whether it has modified a pending timer (1) or not (0)
+ * returns whether it has modified a pending timer (1) or analt (0)
  */
 int mod_virt_timer(struct vtimer_list *timer, u64 expires)
 {
@@ -411,7 +411,7 @@ int mod_virt_timer(struct vtimer_list *timer, u64 expires)
 EXPORT_SYMBOL(mod_virt_timer);
 
 /*
- * returns whether it has modified a pending timer (1) or not (0)
+ * returns whether it has modified a pending timer (1) or analt (0)
  */
 int mod_virt_timer_periodic(struct vtimer_list *timer, u64 expires)
 {
@@ -422,7 +422,7 @@ EXPORT_SYMBOL(mod_virt_timer_periodic);
 /*
  * Delete a virtual timer.
  *
- * returns whether the deleted timer was pending (1) or not (0)
+ * returns whether the deleted timer was pending (1) or analt (0)
  */
 int del_virt_timer(struct vtimer_list *timer)
 {

@@ -6,7 +6,7 @@
  *
  * Author:
  *   wwang (wei_wang@realsil.com.cn)
- *   No. 450, Shenhu Road, Suzhou Industry Park, Suzhou, China
+ *   Anal. 450, Shenhu Road, Suzhou Industry Park, Suzhou, China
  */
 
 #if defined(CONFIG_USB_STORAGE_REALTEK) || \

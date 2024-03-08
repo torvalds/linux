@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Copyright 1998-2008 VIA Technologies, Inc. All Rights Reserved.
+ * Copyright 1998-2008 VIA Techanallogies, Inc. All Rights Reserved.
  * Copyright 2001-2008 S3 Graphics, Inc. All Rights Reserved.
 
  */
@@ -48,8 +48,8 @@
 #define VIA_REG_DSTBASE         0x034
 /* pitch of src and dst */
 #define VIA_REG_PITCH           0x038
-#define VIA_REG_MONOPAT0        0x03C
-#define VIA_REG_MONOPAT1        0x040
+#define VIA_REG_MOANALPAT0        0x03C
+#define VIA_REG_MOANALPAT1        0x040
 /* from 0x100 to 0x1ff */
 #define VIA_REG_COLORPAT        0x100
 
@@ -66,8 +66,8 @@
 #define VIA_REG_LINE_K1K2_M1    0x018
 #define VIA_REG_SRCBASE_M1      0x01C
 #define VIA_REG_PATADDR_M1      0x020
-#define VIA_REG_MONOPAT0_M1     0x024
-#define VIA_REG_MONOPAT1_M1     0x028
+#define VIA_REG_MOANALPAT0_M1     0x024
+#define VIA_REG_MOANALPAT1_M1     0x028
 #define VIA_REG_OFFSET_M1       0x02C
 #define VIA_REG_LINE_ERROR_M1   0x02C
 #define VIA_REG_CLIPTL_M1       0x040       /* top and left of clipping */
@@ -77,8 +77,8 @@
 #define VIA_REG_DSTCOLORKEY_M1  0x04C       /* as same as VIA_REG_FG */
 #define VIA_REG_BGCOLOR_M1      0x050
 #define VIA_REG_SRCCOLORKEY_M1  0x050       /* as same as VIA_REG_BG */
-#define VIA_REG_MONOPATFGC_M1   0x058       /* Add BG color of Pattern. */
-#define VIA_REG_MONOPATBGC_M1   0x05C       /* Add FG color of Pattern. */
+#define VIA_REG_MOANALPATFGC_M1   0x058       /* Add BG color of Pattern. */
+#define VIA_REG_MOANALPATBGC_M1   0x05C       /* Add FG color of Pattern. */
 #define VIA_REG_COLORPAT_M1     0x100       /* from 0x100 to 0x1ff */
 
 /* VIA_REG_PITCH(0x38): Pitch Setting */
@@ -97,7 +97,7 @@
 #define VIA_GEM_32bpp           0x00000300
 
 /* VIA_REG_GECMD(0x00): 2D Engine Command  */
-#define VIA_GEC_NOOP            0x00000000
+#define VIA_GEC_ANALOP            0x00000000
 #define VIA_GEC_BLT             0x00000001
 #define VIA_GEC_LINE            0x00000005
 
@@ -114,13 +114,13 @@
 #define VIA_GEC_DST_FB          0x00000000
 #define VIA_GEC_DST_SYS         0x00000080
 
-/* source is mono */
-#define VIA_GEC_SRC_MONO        0x00000100
-/* pattern is mono */
-#define VIA_GEC_PAT_MONO        0x00000200
-/* mono src is opaque */
+/* source is moanal */
+#define VIA_GEC_SRC_MOANAL        0x00000100
+/* pattern is moanal */
+#define VIA_GEC_PAT_MOANAL        0x00000200
+/* moanal src is opaque */
 #define VIA_GEC_MSRC_OPAQUE     0x00000000
-/* mono src is transparent */
+/* moanal src is transparent */
 #define VIA_GEC_MSRC_TRANS      0x00000400
 /* pattern is in frame buffer */
 #define VIA_GEC_PAT_FB          0x00000000
@@ -136,16 +136,16 @@
 #define VIA_GEC_DECY            0x00004000
 #define VIA_GEC_INCY            0x00000000
 #define VIA_GEC_DECX            0x00008000
-/* mono pattern is opaque */
+/* moanal pattern is opaque */
 #define VIA_GEC_MPAT_OPAQUE     0x00000000
-/* mono pattern is transparent */
+/* moanal pattern is transparent */
 #define VIA_GEC_MPAT_TRANS      0x00010000
 
-#define VIA_GEC_MONO_UNPACK     0x00000000
-#define VIA_GEC_MONO_PACK       0x00020000
-#define VIA_GEC_MONO_DWORD      0x00000000
-#define VIA_GEC_MONO_WORD       0x00040000
-#define VIA_GEC_MONO_BYTE       0x00080000
+#define VIA_GEC_MOANAL_UNPACK     0x00000000
+#define VIA_GEC_MOANAL_PACK       0x00020000
+#define VIA_GEC_MOANAL_DWORD      0x00000000
+#define VIA_GEC_MOANAL_WORD       0x00040000
+#define VIA_GEC_MOANAL_BYTE       0x00080000
 
 #define VIA_GEC_LASTPIXEL_ON    0x00000000
 #define VIA_GEC_LASTPIXEL_OFF   0x00100000
@@ -186,7 +186,7 @@
 #define MAXLOOP                 0xFFFFFF
 
 #define VIA_BITBLT_COLOR	1
-#define VIA_BITBLT_MONO		2
+#define VIA_BITBLT_MOANAL		2
 #define VIA_BITBLT_FILL		3
 
 int viafb_setup_engine(struct fb_info *info);

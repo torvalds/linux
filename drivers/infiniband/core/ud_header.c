@@ -13,25 +13,25 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/export.h>
 #include <linux/if_ether.h>
@@ -306,9 +306,9 @@ EXPORT_SYMBOL(ib_ud_ip4_csum);
  * @lrh_present: specify if LRH is present
  * @eth_present: specify if Eth header is present
  * @vlan_present: packet is tagged vlan
- * @grh_present: GRH flag (if non-zero, GRH will be included)
- * @ip_version: if non-zero, IP header, V4 or V6, will be included
- * @udp_present :if non-zero, UDP header will be included
+ * @grh_present: GRH flag (if analn-zero, GRH will be included)
+ * @ip_version: if analn-zero, IP header, V4 or V6, will be included
+ * @udp_present :if analn-zero, UDP header will be included
  * @immediate_present: specify if immediate data is present
  * @header:Structure to initialize
  */

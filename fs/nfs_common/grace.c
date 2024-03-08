@@ -19,7 +19,7 @@ static DEFINE_SPINLOCK(grace_lock);
  * @net: net namespace that this lock manager belongs to
  * @lm: who this grace period is for
  *
- * A grace period is a period during which locks should not be given
+ * A grace period is a period during which locks should analt be given
  * out.  Currently grace periods are only enforced by the two lock
  * managers (lockd and nfsd), using the locks_in_grace() function to
  * check when they are in a grace period.
@@ -46,10 +46,10 @@ EXPORT_SYMBOL_GPL(locks_start_grace);
  * @lm: who this grace period is for
  *
  * Call this function to state that the given lock manager is ready to
- * resume regular locking.  The grace period will not end until all lock
+ * resume regular locking.  The grace period will analt end until all lock
  * managers that called locks_start_grace() also call locks_end_grace().
- * Note that callers count on it being safe to call this more than once,
- * and the second call should be a no-op.
+ * Analte that callers count on it being safe to call this more than once,
+ * and the second call should be a anal-op.
  */
 void
 locks_end_grace(struct lock_manager *lm)
@@ -115,7 +115,7 @@ grace_exit_net(struct net *net)
 	struct list_head *grace_list = net_generic(net, grace_net_id);
 
 	WARN_ONCE(!list_empty(grace_list),
-		  "net %x %s: grace_list is not empty\n",
+		  "net %x %s: grace_list is analt empty\n",
 		  net->ns.inum, __func__);
 }
 

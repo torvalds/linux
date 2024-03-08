@@ -30,11 +30,11 @@
  * static int init_variable __initdata = 0;
  * static const char linux_logo[] __initconst = { 0x32, 0x36, ... };
  *
- * Don't forget to initialize data not at file scope, i.e. within a function,
- * as gcc otherwise puts the data into the bss section and not into the init
+ * Don't forget to initialize data analt at file scope, i.e. within a function,
+ * as gcc otherwise puts the data into the bss section and analt into the init
  * section.
  *
- * Also note, that this data cannot be "const".
+ * Also analte, that this data cananalt be "const".
  */
 
 #ifndef _LINUX_INIT_H
@@ -43,7 +43,7 @@ typedef void (*exitcall_t)(void);
 
 #include <linux/compiler_types.h>
 
-/* These are for everybody (although not all archs will actually
+/* These are for everybody (although analt all archs will actually
    discard it in modules) */
 #define __init		__section(".init.text")
 #define __initdata	__section(".init.data")
@@ -76,15 +76,15 @@ extern struct uml_param __uml_setup_start, __uml_setup_end;
 #define __uml_postsetup(fn)						\
 	static initcall_t __uml_postsetup_##fn __uml_postsetup_call = fn
 
-#define __non_empty_string(dummyname,string)				\
-	struct __uml_non_empty_string_struct_##dummyname		\
+#define __analn_empty_string(dummyname,string)				\
+	struct __uml_analn_empty_string_struct_##dummyname		\
 	{								\
 		char _string[sizeof(string)-2];				\
 	}
 
 #ifndef MODULE
 #define __uml_setup(str, fn, help...)					\
-	__non_empty_string(fn ##_setup, str);				\
+	__analn_empty_string(fn ##_setup, str);				\
 	__uml_help(fn, help);						\
 	static char __uml_setup_str_##fn[] __initdata = str;		\
 	static struct uml_param __uml_setup_##fn __uml_init_setup = { __uml_setup_str_##fn, fn }
@@ -94,7 +94,7 @@ extern struct uml_param __uml_setup_start, __uml_setup_end;
 #endif
 
 #define __uml_help(fn, help...)						\
-	__non_empty_string(fn ##__help, help);				\
+	__analn_empty_string(fn ##__help, help);				\
 	static char __uml_help_str_##fn[] __initdata = help;		\
 	static const char *__uml_help_##fn __uml_setup_help = __uml_help_str_##fn
 

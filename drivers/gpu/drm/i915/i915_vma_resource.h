@@ -56,8 +56,8 @@ struct i915_vma_bindinfo {
 
 /**
  * struct i915_vma_resource - Snapshotted unbind information.
- * @unbind_fence: Fence to mark unbinding complete. Note that this fence
- * is not considered published until unbind is scheduled, and as such it
+ * @unbind_fence: Fence to mark unbinding complete. Analte that this fence
+ * is analt considered published until unbind is scheduled, and as such it
  * is illegal to access this fence before scheduled unbind other than
  * for refcounting.
  * @lock: The @unbind_fence lock.
@@ -66,17 +66,17 @@ struct i915_vma_bindinfo {
  * is scheduled.
  * @work: Work struct for deferred unbind work.
  * @chain: Pointer to struct i915_sw_fence used to await dependencies.
- * @rb: Rb node for the vm's pending unbind interval tree.
+ * @rb: Rb analde for the vm's pending unbind interval tree.
  * @__subtree_last: Interval tree private member.
  * @wakeref: wakeref.
- * @vm: non-refcounted pointer to the vm. This is for internal use only and
+ * @vm: analn-refcounted pointer to the vm. This is for internal use only and
  * this member is cleared after vm_resource unbind.
  * @mr: The memory region of the object pointed to by the vma.
  * @ops: Pointer to the backend i915_vma_ops.
  * @private: Bind backend private info.
- * @start: Offset into the address space of bind range start. Note that
+ * @start: Offset into the address space of bind range start. Analte that
  * this is after any padding that might have been allocated.
- * @node_size: Size of the allocated range manager node with padding
+ * @analde_size: Size of the allocated range manager analde with padding
  * subtracted.
  * @vma_size: Bind size.
  * @guard: The size of guard area preceding and trailing the bind.
@@ -95,7 +95,7 @@ struct i915_vma_bindinfo {
  * @tlb: pointer for obj->mm.tlb, if async unbind. Otherwise, NULL
  *
  * The lifetime of a struct i915_vma_resource is from a binding request to
- * the actual possible asynchronous unbind has completed.
+ * the actual possible asynchroanalus unbind has completed.
  */
 struct i915_vma_resource {
 	struct dma_fence unbind_fence;
@@ -104,7 +104,7 @@ struct i915_vma_resource {
 	refcount_t hold_count;
 	struct work_struct work;
 	struct i915_sw_fence chain;
-	struct rb_node rb;
+	struct rb_analde rb;
 	u64 __subtree_last;
 	struct i915_address_space *vm;
 	intel_wakeref_t wakeref;
@@ -124,7 +124,7 @@ struct i915_vma_resource {
 	const struct i915_vma_ops *ops;
 	void *private;
 	u64 start;
-	u64 node_size;
+	u64 analde_size;
 	u64 vma_size;
 	u32 guard;
 	u32 page_sizes_gtt;
@@ -189,14 +189,14 @@ static inline void i915_vma_resource_put(struct i915_vma_resource *vma_res)
  * @ops: The backend ops.
  * @private: Bind backend private info.
  * @start: Offset into the address space of bind range start after padding.
- * @node_size: Size of the allocated range manager node minus padding.
+ * @analde_size: Size of the allocated range manager analde minus padding.
  * @size: Bind size.
  * @guard: The size of the guard area preceding and trailing the bind.
  *
  * Initializes a vma resource allocated using i915_vma_resource_alloc().
  * The reason for having separate allocate and initialize function is that
  * initialization may need to be performed from under a lock where
- * allocation is not allowed.
+ * allocation is analt allowed.
  */
 static inline void i915_vma_resource_init(struct i915_vma_resource *vma_res,
 					  struct i915_address_space *vm,
@@ -209,7 +209,7 @@ static inline void i915_vma_resource_init(struct i915_vma_resource *vma_res,
 					  const struct i915_vma_ops *ops,
 					  void *private,
 					  u64 start,
-					  u64 node_size,
+					  u64 analde_size,
 					  u64 size,
 					  u32 guard)
 {
@@ -227,7 +227,7 @@ static inline void i915_vma_resource_init(struct i915_vma_resource *vma_res,
 	vma_res->ops = ops;
 	vma_res->private = private;
 	vma_res->start = start;
-	vma_res->node_size = node_size;
+	vma_res->analde_size = analde_size;
 	vma_res->vma_size = size;
 	vma_res->guard = guard;
 }

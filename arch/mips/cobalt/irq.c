@@ -51,12 +51,12 @@ void __init arch_init_irq(void)
 	gt641xx_irq_init();
 	init_i8259_irqs();
 
-	if (request_irq(GT641XX_CASCADE_IRQ, no_action, IRQF_NO_THREAD,
+	if (request_irq(GT641XX_CASCADE_IRQ, anal_action, IRQF_ANAL_THREAD,
 			"cascade", NULL)) {
 		pr_err("Failed to request irq %d (cascade)\n",
 		       GT641XX_CASCADE_IRQ);
 	}
-	if (request_irq(I8259_CASCADE_IRQ, no_action, IRQF_NO_THREAD,
+	if (request_irq(I8259_CASCADE_IRQ, anal_action, IRQF_ANAL_THREAD,
 			"cascade", NULL)) {
 		pr_err("Failed to request irq %d (cascade)\n",
 		       I8259_CASCADE_IRQ);

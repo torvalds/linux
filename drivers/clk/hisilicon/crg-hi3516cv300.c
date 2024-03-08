@@ -2,7 +2,7 @@
 /*
  * Hi3516CV300 Clock and Reset Generator Driver
  *
- * Copyright (c) 2016 HiSilicon Technologies Co., Ltd.
+ * Copyright (c) 2016 HiSilicon Techanallogies Co., Ltd.
  */
 
 #include <dt-bindings/clock/hi3516cv300-clock.h>
@@ -134,7 +134,7 @@ static struct hisi_clock_data *hi3516cv300_clk_register(
 
 	clk_data = hisi_clk_alloc(pdev, HI3516CV300_CRG_NR_CLKS);
 	if (!clk_data)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ret = hisi_clk_register_fixed_rate(hi3516cv300_fixed_rate_clks,
 			ARRAY_SIZE(hi3516cv300_fixed_rate_clks), clk_data);
@@ -151,7 +151,7 @@ static struct hisi_clock_data *hi3516cv300_clk_register(
 	if (ret)
 		goto unregister_mux;
 
-	ret = of_clk_add_provider(pdev->dev.of_node,
+	ret = of_clk_add_provider(pdev->dev.of_analde,
 			of_clk_src_onecell_get, &clk_data->clk_data);
 	if (ret)
 		goto unregister_gate;
@@ -174,7 +174,7 @@ static void hi3516cv300_clk_unregister(struct platform_device *pdev)
 {
 	struct hisi_crg_dev *crg = platform_get_drvdata(pdev);
 
-	of_clk_del_provider(pdev->dev.of_node);
+	of_clk_del_provider(pdev->dev.of_analde);
 
 	hisi_clk_unregister_gate(hi3516cv300_gate_clks,
 			ARRAY_SIZE(hi3516cv300_gate_clks), crg->clk_data);
@@ -208,7 +208,7 @@ static struct hisi_clock_data *hi3516cv300_sysctrl_clk_register(
 
 	clk_data = hisi_clk_alloc(pdev, HI3516CV300_SYSCTRL_NR_CLKS);
 	if (!clk_data)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ret = hisi_clk_register_mux(hi3516cv300_sysctrl_mux_clks,
 			ARRAY_SIZE(hi3516cv300_sysctrl_mux_clks), clk_data);
@@ -216,7 +216,7 @@ static struct hisi_clock_data *hi3516cv300_sysctrl_clk_register(
 		return ERR_PTR(ret);
 
 
-	ret = of_clk_add_provider(pdev->dev.of_node,
+	ret = of_clk_add_provider(pdev->dev.of_analde,
 			of_clk_src_onecell_get, &clk_data->clk_data);
 	if (ret)
 		goto unregister_mux;
@@ -233,7 +233,7 @@ static void hi3516cv300_sysctrl_clk_unregister(struct platform_device *pdev)
 {
 	struct hisi_crg_dev *crg = platform_get_drvdata(pdev);
 
-	of_clk_del_provider(pdev->dev.of_node);
+	of_clk_del_provider(pdev->dev.of_analde);
 
 	hisi_clk_unregister_mux(hi3516cv300_sysctrl_mux_clks,
 			ARRAY_SIZE(hi3516cv300_sysctrl_mux_clks),
@@ -264,15 +264,15 @@ static int hi3516cv300_crg_probe(struct platform_device *pdev)
 
 	crg = devm_kmalloc(&pdev->dev, sizeof(*crg), GFP_KERNEL);
 	if (!crg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	crg->funcs = of_device_get_match_data(&pdev->dev);
 	if (!crg->funcs)
-		return -ENOENT;
+		return -EANALENT;
 
 	crg->rstc = hisi_reset_init(pdev);
 	if (!crg->rstc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	crg->clk_data = crg->funcs->register_clks(pdev);
 	if (IS_ERR(crg->clk_data)) {

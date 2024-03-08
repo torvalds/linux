@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -72,7 +72,7 @@ struct csdp_ref_clk_ds_params {
 /* Average DP Reference clock (in KHz)*/
 	uint32_t ss_percentage_on_dp_ref_clk;
 /* DP Reference clock SS percentage
- * (not to be mixed with DP IDCLK SS from PLL Settings)*/
+ * (analt to be mixed with DP IDCLK SS from PLL Settings)*/
 	uint32_t ss_percentage_divider;
 /* DP Reference clock SS percentage divider */
 };
@@ -124,10 +124,10 @@ struct calc_pll_clock_source_init_data {
 	uint32_t min_pll_ref_divider;
 	uint32_t max_pll_ref_divider;
 	uint32_t min_override_input_pxl_clk_pll_freq_khz;
-/* if not 0, override the firmware info */
+/* if analt 0, override the firmware info */
 
 	uint32_t max_override_input_pxl_clk_pll_freq_khz;
-/* if not 0, override the firmware info */
+/* if analt 0, override the firmware info */
 
 	uint32_t num_fract_fb_divider_decimal_point;
 /* number of decimal point for fractional feedback divider value */

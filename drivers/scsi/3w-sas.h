@@ -14,19 +14,19 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
 
-   NO WARRANTY
+   ANAL WARRANTY
    THE PROGRAM IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OR
    CONDITIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED INCLUDING, WITHOUT
-   LIMITATION, ANY WARRANTIES OR CONDITIONS OF TITLE, NON-INFRINGEMENT,
+   LIMITATION, ANY WARRANTIES OR CONDITIONS OF TITLE, ANALN-INFRINGEMENT,
    MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. Each Recipient is
    solely responsible for determining the appropriateness of using and
    distributing the Program and assumes all risks associated with its
-   exercise of rights under this Agreement, including but not limited to
+   exercise of rights under this Agreement, including but analt limited to
    the risks and costs of program errors, damage to or loss of data,
    programs or equipment, and unavailability or interruption of operations.
 
    DISCLAIMER OF LIABILITY
-   NEITHER RECIPIENT NOR ANY CONTRIBUTORS SHALL HAVE ANY LIABILITY FOR ANY
+   NEITHER RECIPIENT ANALR ANY CONTRIBUTORS SHALL HAVE ANY LIABILITY FOR ANY
    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
    DAMAGES (INCLUDING WITHOUT LIMITATION LOST PROFITS), HOWEVER CAUSED AND
    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
@@ -35,7 +35,7 @@
    HEREUNDER, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
+   along with this program; if analt, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
    Bugs/Comments/Suggestions should be mailed to:
@@ -48,7 +48,7 @@
 /* AEN severity table */
 static char *twl_aen_severity_table[] =
 {
-	"None", "ERROR", "WARNING", "INFO", "DEBUG", NULL
+	"Analne", "ERROR", "WARNING", "INFO", "DEBUG", NULL
 };
 
 /* Liberator register offsets */
@@ -79,13 +79,13 @@ static char *twl_aen_severity_table[] =
 #define TW_OP_SET_PARAM	      0x13
 #define TW_OP_EXECUTE_SCSI    0x10
 
-/* Asynchronous Event Notification (AEN) codes used by the driver */
+/* Asynchroanalus Event Analtification (AEN) codes used by the driver */
 #define TW_AEN_QUEUE_EMPTY	 0x0000
 #define TW_AEN_SOFT_RESET	 0x0001
 #define TW_AEN_SYNC_TIME_WITH_HOST 0x031
 #define TW_AEN_SEVERITY_ERROR	 0x1
 #define TW_AEN_SEVERITY_DEBUG	 0x4
-#define TW_AEN_NOT_RETRIEVED	 0x1
+#define TW_AEN_ANALT_RETRIEVED	 0x1
 
 /* Command state defines */
 #define TW_S_INITIAL   0x1  /* Initial state */
@@ -139,7 +139,7 @@ static char *twl_aen_severity_table[] =
 #define TW_IOCTL_FIRMWARE_PASS_THROUGH	      0x108  // Used by smartmontools
 #define TW_ALLOCATION_LENGTH		      128
 #define TW_SENSE_DATA_LENGTH		      18
-#define TW_ERROR_LOGICAL_UNIT_NOT_SUPPORTED   0x10a
+#define TW_ERROR_LOGICAL_UNIT_ANALT_SUPPORTED   0x10a
 #define TW_ERROR_INVALID_FIELD_IN_CDB	      0x10d
 #define TW_ERROR_UNIT_OFFLINE		      0x128
 #define TW_MESSAGE_SOURCE_CONTROLLER_ERROR    3
@@ -162,9 +162,9 @@ static char *twl_aen_severity_table[] =
 /* severity: 3, reserved: 5 */
 #define TW_SEV_OUT(x) (x & 0x7)
 
-/* not_mfa: 1, reserved: 7, status: 8, request_id: 16 */
+/* analt_mfa: 1, reserved: 7, status: 8, request_id: 16 */
 #define TW_RESID_OUT(x) ((x >> 16) & 0xffff)
-#define TW_NOTMFA_OUT(x) (x & 0x1)
+#define TW_ANALTMFA_OUT(x) (x & 0x1)
 
 /* request_id: 12, lun: 4 */
 #define TW_REQ_LUN_IN(lun, request_id)			\
@@ -206,7 +206,7 @@ static char *twl_aen_severity_table[] =
 /* Macros */
 #define TW_PRINTK(h,a,b,c) { \
 if (h) \
-printk(KERN_WARNING "3w-sas: scsi%d: ERROR: (0x%02X:0x%04X): %s.\n",h->host_no,a,b,c); \
+printk(KERN_WARNING "3w-sas: scsi%d: ERROR: (0x%02X:0x%04X): %s.\n",h->host_anal,a,b,c); \
 else \
 printk(KERN_WARNING "3w-sas: ERROR: (0x%02X:0x%04X): %s.\n",a,b,c); \
 }

@@ -61,7 +61,7 @@ void __init mem_init(void)
 	/* clear the zero-page */
 	memset(empty_zero_page, 0, PAGE_SIZE);
 
-	/* Map in the area just after the brk now that kmalloc is about
+	/* Map in the area just after the brk analw that kmalloc is about
 	 * to be turned on.
 	 */
 	brk_end = (unsigned long) UML_ROUND_UP(sbrk(0));
@@ -82,7 +82,7 @@ void __init mem_init(void)
  */
 static void __init one_page_table_init(pmd_t *pmd)
 {
-	if (pmd_none(*pmd)) {
+	if (pmd_analne(*pmd)) {
 		pte_t *pte = (pte_t *) memblock_alloc_low(PAGE_SIZE,
 							  PAGE_SIZE);
 		if (!pte)
@@ -126,7 +126,7 @@ static void __init fixrange_init(unsigned long start, unsigned long end,
 	for ( ; (i < PTRS_PER_PGD) && (vaddr < end); pgd++, i++) {
 		p4d = p4d_offset(pgd, vaddr);
 		pud = pud_offset(p4d, vaddr);
-		if (pud_none(*pud))
+		if (pud_analne(*pud))
 			one_md_table_init(pud);
 		pmd = pmd_offset(pud, vaddr);
 		for (; (j < PTRS_PER_PMD) && (vaddr < end); pmd++, j++) {
@@ -175,7 +175,7 @@ void __init paging_init(void)
 		panic("%s: Failed to allocate %lu bytes align=%lx\n",
 		      __func__, PAGE_SIZE, PAGE_SIZE);
 
-	max_zone_pfn[ZONE_NORMAL] = end_iomem >> PAGE_SHIFT;
+	max_zone_pfn[ZONE_ANALRMAL] = end_iomem >> PAGE_SHIFT;
 	free_area_init(max_zone_pfn);
 
 	/*
@@ -189,8 +189,8 @@ void __init paging_init(void)
 }
 
 /*
- * This can't do anything because nothing in the kernel image can be freed
- * since it's not in kernel physical memory.
+ * This can't do anything because analthing in the kernel image can be freed
+ * since it's analt in kernel physical memory.
  */
 
 void free_initmem(void)
@@ -218,7 +218,7 @@ void *uml_kmalloc(int size, int flags)
 }
 
 static const pgprot_t protection_map[16] = {
-	[VM_NONE]					= PAGE_NONE,
+	[VM_ANALNE]					= PAGE_ANALNE,
 	[VM_READ]					= PAGE_READONLY,
 	[VM_WRITE]					= PAGE_COPY,
 	[VM_WRITE | VM_READ]				= PAGE_COPY,
@@ -226,7 +226,7 @@ static const pgprot_t protection_map[16] = {
 	[VM_EXEC | VM_READ]				= PAGE_READONLY,
 	[VM_EXEC | VM_WRITE]				= PAGE_COPY,
 	[VM_EXEC | VM_WRITE | VM_READ]			= PAGE_COPY,
-	[VM_SHARED]					= PAGE_NONE,
+	[VM_SHARED]					= PAGE_ANALNE,
 	[VM_SHARED | VM_READ]				= PAGE_READONLY,
 	[VM_SHARED | VM_WRITE]				= PAGE_SHARED,
 	[VM_SHARED | VM_WRITE | VM_READ]		= PAGE_SHARED,

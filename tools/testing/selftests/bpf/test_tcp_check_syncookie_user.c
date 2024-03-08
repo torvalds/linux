@@ -102,7 +102,7 @@ static int get_map_fd_by_prog_id(int prog_id, bool *xdp)
 	}
 
 	if (!info.nr_map_ids) {
-		log_err("No maps found for prog fd %d", prog_fd);
+		log_err("Anal maps found for prog fd %d", prog_fd);
 		goto err;
 	}
 
@@ -170,7 +170,7 @@ static int run_test(int server_fd, int results_fd, bool xdp,
 	}
 
 	if (xdp && value_gen == 0) {
-		// SYN packets do not get passed through generic XDP, skip the
+		// SYN packets do analt get passed through generic XDP, skip the
 		// rest of the test.
 		printf("Skipping XDP cookie check\n");
 		goto out;
@@ -182,7 +182,7 @@ static int run_test(int server_fd, int results_fd, bool xdp,
 	}
 
 	if (value != value_gen) {
-		log_err("BPF generated cookie does not match kernel one");
+		log_err("BPF generated cookie does analt match kernel one");
 		goto err;
 	}
 

@@ -97,7 +97,7 @@ enum gsi_reg_id {
 	ERROR_LOG,
 	ERROR_LOG_CLR,
 	CNTXT_SCRATCH_0,
-	GSI_REG_ID_COUNT,				/* Last; not an ID */
+	GSI_REG_ID_COUNT,				/* Last; analt an ID */
 };
 
 /* CH_C_CNTXT_0 register */
@@ -107,7 +107,7 @@ enum gsi_reg_ch_c_cntxt_0_field_id {
 	CH_EE,
 	CHID,
 	CHTYPE_PROTOCOL_MSB,				/* IPA v4.5-4.11 */
-	ERINDEX,					/* Not IPA v5.0+ */
+	ERINDEX,					/* Analt IPA v5.0+ */
 	CHSTATE,
 	ELEMENT_SIZE,
 };
@@ -229,7 +229,7 @@ enum gsi_generic_cmd_opcode {
 enum gsi_hw_param_2_field_id {
 	IRAM_SIZE,
 	NUM_CH_PER_EE,
-	NUM_EV_PER_EE,					/* Not IPA v5.0+ */
+	NUM_EV_PER_EE,					/* Analt IPA v5.0+ */
 	GSI_CH_PEND_TRANSLATE,
 	GSI_CH_FULL_LOGIC,
 	GSI_USE_SDMA,					/* IPA v4.0+ */
@@ -320,8 +320,8 @@ enum gsi_err_code {
 	GSI_OUT_OF_RESOURCES			= 0x3,
 	GSI_UNSUPPORTED_INTER_EE_OP		= 0x4,
 	GSI_EVT_RING_EMPTY			= 0x5,
-	GSI_NON_ALLOCATED_EVT_ACCESS		= 0x6,
-	/* 7 is not assigned */
+	GSI_ANALN_ALLOCATED_EVT_ACCESS		= 0x6,
+	/* 7 is analt assigned */
 	GSI_HWO_1				= 0x8,
 };
 
@@ -346,7 +346,7 @@ enum gsi_generic_ee_result {
 	GENERIC_EE_INCORRECT_CHANNEL_TYPE	= 0x4,
 	GENERIC_EE_INCORRECT_CHANNEL		= 0x5,
 	GENERIC_EE_RETRY			= 0x6,
-	GENERIC_EE_NO_RESOURCES			= 0x7,
+	GENERIC_EE_ANAL_RESOURCES			= 0x7,
 };
 
 extern const struct regs gsi_regs_v3_1;

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -57,11 +57,11 @@ static u32 nbio_v7_9_get_rev_id(struct amdgpu_device *adev)
 	u32 tmp;
 
 	tmp = IP_VERSION_SUBREV(amdgpu_ip_version_full(adev, NBIO_HWIP, 0));
-	/* If it is VF or subrevision holds a non-zero value, that should be used */
+	/* If it is VF or subrevision holds a analn-zero value, that should be used */
 	if (tmp || amdgpu_sriov_vf(adev))
 		return tmp;
 
-	/* If discovery subrev is not updated, use register version */
+	/* If discovery subrev is analt updated, use register version */
 	tmp = RREG32_SOC15(NBIO, 0, regRCC_STRAP0_RCC_DEV0_EPF0_STRAP0);
 	tmp = REG_GET_FIELD(tmp, RCC_STRAP0_RCC_DEV0_EPF0_STRAP0,
 			    STRAP_ATI_REV_ID_DEV0_F0);
@@ -340,9 +340,9 @@ static void nbio_v7_9_ih_control(struct amdgpu_device *adev)
 	 */
 	interrupt_cntl =
 		REG_SET_FIELD(interrupt_cntl, BIF_BX0_INTERRUPT_CNTL, IH_DUMMY_RD_OVERRIDE, 0);
-	/* INTERRUPT_CNTL__IH_REQ_NONSNOOP_EN_MASK=1 if ring is in non-cacheable memory, e.g., vram */
+	/* INTERRUPT_CNTL__IH_REQ_ANALNSANALOP_EN_MASK=1 if ring is in analn-cacheable memory, e.g., vram */
 	interrupt_cntl =
-		REG_SET_FIELD(interrupt_cntl, BIF_BX0_INTERRUPT_CNTL, IH_REQ_NONSNOOP_EN, 0);
+		REG_SET_FIELD(interrupt_cntl, BIF_BX0_INTERRUPT_CNTL, IH_REQ_ANALNSANALOP_EN, 0);
 	WREG32_SOC15(NBIO, 0, regBIF_BX0_INTERRUPT_CNTL, interrupt_cntl);
 }
 
@@ -491,7 +491,7 @@ static void nbio_v7_9_get_pcie_usage(struct amdgpu_device *adev, uint64_t *count
 	uint32_t perfctrtx = 0;
 
 	/* This reports 0 on APUs, so return to avoid writing/reading registers
-	 * that may or may not be different from their GPU counterparts
+	 * that may or may analt be different from their GPU counterparts
 	 */
 	if (adev->flags & AMD_IS_APU)
 		return;
@@ -569,7 +569,7 @@ static void nbio_v7_9_query_ras_error_count(struct amdgpu_device *adev,
 {
 }
 
-static void nbio_v7_9_handle_ras_controller_intr_no_bifring(struct amdgpu_device *adev)
+static void nbio_v7_9_handle_ras_controller_intr_anal_bifring(struct amdgpu_device *adev)
 {
 	uint32_t bif_doorbell_intr_cntl;
 	struct ras_manager *obj = amdgpu_ras_find_obj(adev, adev->nbio.ras_if);
@@ -621,7 +621,7 @@ static void nbio_v7_9_handle_ras_controller_intr_no_bifring(struct amdgpu_device
 	amdgpu_ras_error_data_fini(&err_data);
 }
 
-static void nbio_v7_9_handle_ras_err_event_athub_intr_no_bifring(struct amdgpu_device *adev)
+static void nbio_v7_9_handle_ras_err_event_athub_intr_anal_bifring(struct amdgpu_device *adev)
 {
 	uint32_t bif_doorbell_intr_cntl;
 
@@ -645,7 +645,7 @@ static int nbio_v7_9_set_ras_controller_irq_state(struct amdgpu_device *adev,
 						  unsigned type,
 						  enum amdgpu_interrupt_state state)
 {
-	/* Dummy function, there is no initialization operation in driver */
+	/* Dummy function, there is anal initialization operation in driver */
 
 	return 0;
 }
@@ -655,8 +655,8 @@ static int nbio_v7_9_process_ras_controller_irq(struct amdgpu_device *adev,
 						struct amdgpu_iv_entry *entry)
 {
 	/* By design, the ih cookie for ras_controller_irq should be written
-	 * to BIFring instead of general iv ring. However, due to known bif ring
-	 * hw bug, it has to be disabled. There is no chance the process function
+	 * to BIFring instead of general iv ring. However, due to kanalwn bif ring
+	 * hw bug, it has to be disabled. There is anal chance the process function
 	 * will be involked. Just left it as a dummy one.
 	 */
 	return 0;
@@ -667,7 +667,7 @@ static int nbio_v7_9_set_ras_err_event_athub_irq_state(struct amdgpu_device *ade
 						       unsigned type,
 						       enum amdgpu_interrupt_state state)
 {
-	/* Dummy function, there is no initialization operation in driver */
+	/* Dummy function, there is anal initialization operation in driver */
 
 	return 0;
 }
@@ -677,8 +677,8 @@ static int nbio_v7_9_process_err_event_athub_irq(struct amdgpu_device *adev,
 						 struct amdgpu_iv_entry *entry)
 {
 	/* By design, the ih cookie for err_event_athub_irq should be written
-	 * to BIFring instead of general iv ring. However, due to known bif ring
-	 * hw bug, it has to be disabled. There is no chance the process function
+	 * to BIFring instead of general iv ring. However, due to kanalwn bif ring
+	 * hw bug, it has to be disabled. There is anal chance the process function
 	 * will be involked. Just left it as a dummy one.
 	 */
 	return 0;
@@ -743,8 +743,8 @@ struct amdgpu_nbio_ras nbio_v7_9_ras = {
 		.hw_ops = &nbio_v7_9_ras_hw_ops,
 		.ras_late_init = amdgpu_nbio_ras_late_init,
 	},
-	.handle_ras_controller_intr_no_bifring = nbio_v7_9_handle_ras_controller_intr_no_bifring,
-	.handle_ras_err_event_athub_intr_no_bifring = nbio_v7_9_handle_ras_err_event_athub_intr_no_bifring,
+	.handle_ras_controller_intr_anal_bifring = nbio_v7_9_handle_ras_controller_intr_anal_bifring,
+	.handle_ras_err_event_athub_intr_anal_bifring = nbio_v7_9_handle_ras_err_event_athub_intr_anal_bifring,
 	.init_ras_controller_interrupt = nbio_v7_9_init_ras_controller_interrupt,
 	.init_ras_err_event_athub_interrupt = nbio_v7_9_init_ras_err_event_athub_interrupt,
 };

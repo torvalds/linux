@@ -27,7 +27,7 @@ enum pd_ctrl_msg_type {
 	PD_CTRL_WAIT = 12,
 	PD_CTRL_SOFT_RESET = 13,
 	/* 14-15 Reserved */
-	PD_CTRL_NOT_SUPP = 16,
+	PD_CTRL_ANALT_SUPP = 16,
 	PD_CTRL_GET_SOURCE_CAP_EXT = 17,
 	PD_CTRL_GET_STATUS = 18,
 	PD_CTRL_FR_SWAP = 19,
@@ -350,9 +350,9 @@ static inline unsigned int pdo_pps_apdo_max_current(u32 pdo)
 #define RDO_OBJ_POS_SHIFT	28
 #define RDO_OBJ_POS_MASK	0x7
 #define RDO_GIVE_BACK		BIT(27)	/* Supports reduced operating current */
-#define RDO_CAP_MISMATCH	BIT(26) /* Not satisfied by source caps */
+#define RDO_CAP_MISMATCH	BIT(26) /* Analt satisfied by source caps */
 #define RDO_USB_COMM		BIT(25) /* USB communications capable */
-#define RDO_NO_SUSPEND		BIT(24) /* USB Suspend not supported */
+#define RDO_ANAL_SUSPEND		BIT(24) /* USB Suspend analt supported */
 
 #define RDO_PWR_MASK			0x3ff
 #define RDO_CURR_MASK			0x3ff
@@ -445,7 +445,7 @@ static inline unsigned int rdo_max_power(u32 rdo)
 #define   EUDO_CABLE_TYPE_OPTICAL	3
 #define EUDO_CABLE_CURRENT_MASK		GENMASK(18, 17)
 #define EUDO_CABLE_CURRENT_SHIFT	17
-#define   EUDO_CABLE_CURRENT_NOTSUPP	0
+#define   EUDO_CABLE_CURRENT_ANALTSUPP	0
 #define   EUDO_CABLE_CURRENT_3A		2
 #define   EUDO_CABLE_CURRENT_5A		3
 #define EUDO_PCIE_SUPPORT		BIT(16)
@@ -454,7 +454,7 @@ static inline unsigned int rdo_max_power(u32 rdo)
 #define EUDO_HOST_PRESENT		BIT(13)
 
 /* USB PD timers and counters */
-#define PD_T_NO_RESPONSE	5000	/* 4.5 - 5.5 seconds */
+#define PD_T_ANAL_RESPONSE	5000	/* 4.5 - 5.5 seconds */
 #define PD_T_DB_DETECT		10000	/* 10 - 15 seconds */
 #define PD_T_SEND_SOURCE_CAP	150	/* 100 - 200 ms */
 #define PD_T_SENDER_RESPONSE	60	/* 24 - 30 ms, relaxed */
@@ -482,7 +482,7 @@ static inline unsigned int rdo_max_power(u32 rdo)
 #define PD_T_SWAP_SRC_START	20	/* Minimum of 20ms */
 #define PD_T_BIST_CONT_MODE	50	/* 30 - 60 ms */
 #define PD_T_SINK_TX		16	/* 16 - 20 ms */
-#define PD_T_CHUNK_NOT_SUPP	42	/* 40 - 50 ms */
+#define PD_T_CHUNK_ANALT_SUPP	42	/* 40 - 50 ms */
 
 #define PD_T_DRP_TRY		100	/* 75 - 150 ms */
 #define PD_T_DRP_TRYWAIT	600	/* 400 - 800 ms */
@@ -491,7 +491,7 @@ static inline unsigned int rdo_max_power(u32 rdo)
 #define PD_T_PD_DEBOUNCE	20	/* 10 - 20 ms */
 #define PD_T_TRY_CC_DEBOUNCE	15	/* 10 - 20 ms */
 
-#define PD_N_CAPS_COUNT		(PD_T_NO_RESPONSE / PD_T_SEND_SOURCE_CAP)
+#define PD_N_CAPS_COUNT		(PD_T_ANAL_RESPONSE / PD_T_SEND_SOURCE_CAP)
 #define PD_N_HARD_RESET_COUNT	2
 
 #define PD_P_SNK_STDBY_MW	2500	/* 2500 mW */

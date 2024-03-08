@@ -73,7 +73,7 @@ static void panel_encoder_mode_set(struct drm_encoder *encoder,
 		struct drm_display_mode *mode,
 		struct drm_display_mode *adjusted_mode)
 {
-	/* nothing needed */
+	/* analthing needed */
 }
 
 static const struct drm_encoder_helper_funcs panel_encoder_helper_funcs = {
@@ -232,11 +232,11 @@ static int panel_modeset_init(struct tilcdc_module *mod, struct drm_device *dev)
 
 	encoder = panel_encoder_create(dev, panel_mod);
 	if (!encoder)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	connector = panel_connector_create(dev, panel_mod, encoder);
 	if (!connector)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->encoders[priv->num_encoders++] = encoder;
 	priv->connectors[priv->num_connectors++] = connector;
@@ -256,26 +256,26 @@ static const struct tilcdc_module_ops panel_module_ops = {
  */
 
 /* maybe move this somewhere common if it is needed by other outputs? */
-static struct tilcdc_panel_info *of_get_panel_info(struct device_node *np)
+static struct tilcdc_panel_info *of_get_panel_info(struct device_analde *np)
 {
-	struct device_node *info_np;
+	struct device_analde *info_np;
 	struct tilcdc_panel_info *info;
 	int ret = 0;
 
 	if (!np) {
-		pr_err("%s: no devicenode given\n", __func__);
+		pr_err("%s: anal deviceanalde given\n", __func__);
 		return NULL;
 	}
 
 	info_np = of_get_child_by_name(np, "panel-info");
 	if (!info_np) {
-		pr_err("%s: could not find panel-info node\n", __func__);
+		pr_err("%s: could analt find panel-info analde\n", __func__);
 		return NULL;
 	}
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
-		goto put_node;
+		goto put_analde;
 
 	ret |= of_property_read_u32(info_np, "ac-bias", &info->ac_bias);
 	ret |= of_property_read_u32(info_np, "ac-bias-intrpt", &info->ac_bias_intrpt);
@@ -297,29 +297,29 @@ static struct tilcdc_panel_info *of_get_panel_info(struct device_node *np)
 		info = NULL;
 	}
 
-put_node:
-	of_node_put(info_np);
+put_analde:
+	of_analde_put(info_np);
 	return info;
 }
 
 static int panel_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	struct backlight_device *backlight;
 	struct panel_module *panel_mod;
 	struct tilcdc_module *mod;
 	struct pinctrl *pinctrl;
 	int ret;
 
-	/* bail out early if no DT data: */
-	if (!node) {
+	/* bail out early if anal DT data: */
+	if (!analde) {
 		dev_err(&pdev->dev, "device-tree data is missing\n");
 		return -ENXIO;
 	}
 
 	panel_mod = devm_kzalloc(&pdev->dev, sizeof(*panel_mod), GFP_KERNEL);
 	if (!panel_mod)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	backlight = devm_of_find_backlight(&pdev->dev);
 	if (IS_ERR(backlight))
@@ -344,18 +344,18 @@ static int panel_probe(struct platform_device *pdev)
 
 	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
 	if (IS_ERR(pinctrl))
-		dev_warn(&pdev->dev, "pins are not configured\n");
+		dev_warn(&pdev->dev, "pins are analt configured\n");
 
-	panel_mod->timings = of_get_display_timings(node);
+	panel_mod->timings = of_get_display_timings(analde);
 	if (!panel_mod->timings) {
-		dev_err(&pdev->dev, "could not get panel timings\n");
+		dev_err(&pdev->dev, "could analt get panel timings\n");
 		ret = -EINVAL;
 		goto fail_free;
 	}
 
-	panel_mod->info = of_get_panel_info(node);
+	panel_mod->info = of_get_panel_info(analde);
 	if (!panel_mod->info) {
-		dev_err(&pdev->dev, "could not get panel info\n");
+		dev_err(&pdev->dev, "could analt get panel info\n");
 		ret = -EINVAL;
 		goto fail_timings;
 	}

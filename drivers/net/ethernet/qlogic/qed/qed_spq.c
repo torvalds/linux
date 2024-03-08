@@ -9,7 +9,7 @@
 #include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/pci.h>
@@ -111,7 +111,7 @@ static int qed_spq_block(struct qed_hwfn *p_hwfn,
 
 	p_ptt = qed_ptt_acquire(p_hwfn);
 	if (!p_ptt) {
-		DP_NOTICE(p_hwfn, "ptt, failed to acquire\n");
+		DP_ANALTICE(p_hwfn, "ptt, failed to acquire\n");
 		return -EAGAIN;
 	}
 
@@ -119,7 +119,7 @@ static int qed_spq_block(struct qed_hwfn *p_hwfn,
 	rc = qed_mcp_drain(p_hwfn, p_ptt);
 	qed_ptt_release(p_hwfn, p_ptt);
 	if (rc) {
-		DP_NOTICE(p_hwfn, "MCP drain failed\n");
+		DP_ANALTICE(p_hwfn, "MCP drain failed\n");
 		goto err;
 	}
 
@@ -138,7 +138,7 @@ err:
 	p_ptt = qed_ptt_acquire(p_hwfn);
 	if (!p_ptt)
 		return -EBUSY;
-	qed_hw_err_notify(p_hwfn, p_ptt, QED_HW_ERR_RAMROD_FAIL,
+	qed_hw_err_analtify(p_hwfn, p_ptt, QED_HW_ERR_RAMROD_FAIL,
 			  "Ramrod is stuck [CID %08x %s:%02x %s:%02x echo %04x]\n",
 			  le32_to_cpu(p_ent->elem.hdr.cid),
 			  qed_get_ramrod_cmd_id_str(p_ent->elem.hdr.protocol_id,
@@ -168,7 +168,7 @@ static int qed_spq_fill_entry(struct qed_hwfn *p_hwfn,
 	case QED_SPQ_MODE_CB:
 		break;
 	default:
-		DP_NOTICE(p_hwfn, "Unknown SPQE completion mode %d\n",
+		DP_ANALTICE(p_hwfn, "Unkanalwn SPQE completion mode %d\n",
 			  p_ent->comp_mode);
 		return -EINVAL;
 	}
@@ -206,7 +206,7 @@ static void qed_spq_hw_initialize(struct qed_hwfn *p_hwfn,
 	rc = qed_cxt_get_cid_info(p_hwfn, &cxt_info);
 
 	if (rc < 0) {
-		DP_NOTICE(p_hwfn, "Cannot find context info for cid=%d\n",
+		DP_ANALTICE(p_hwfn, "Cananalt find context info for cid=%d\n",
 			  p_spq->cid);
 		return;
 	}
@@ -241,7 +241,7 @@ static int qed_spq_hw_post(struct qed_hwfn *p_hwfn,
 	p_ent->elem.hdr.echo	= cpu_to_le16(echo);
 	elem = qed_chain_produce(p_chain);
 	if (!elem) {
-		DP_NOTICE(p_hwfn, "Failed to produce from SPQ chain\n");
+		DP_ANALTICE(p_hwfn, "Failed to produce from SPQ chain\n");
 		return -EINVAL;
 	}
 
@@ -269,7 +269,7 @@ static int qed_spq_hw_post(struct qed_hwfn *p_hwfn,
 }
 
 /***************************************************************************
- * Asynchronous events
+ * Asynchroanalus events
  ***************************************************************************/
 static int
 qed_async_event_completion(struct qed_hwfn *p_hwfn,
@@ -293,8 +293,8 @@ qed_async_event_completion(struct qed_hwfn *p_hwfn,
 		return cb(p_hwfn, p_eqe->opcode, p_eqe->echo,
 			  &p_eqe->data, p_eqe->fw_return_code);
 	} else {
-		DP_NOTICE(p_hwfn,
-			  "Unknown Async completion for %s:%d\n",
+		DP_ANALTICE(p_hwfn,
+			  "Unkanalwn Async completion for %s:%d\n",
 			  qed_get_protocol_type_str(p_eqe->protocol_id),
 			  p_eqe->protocol_id);
 
@@ -409,11 +409,11 @@ int qed_eq_alloc(struct qed_hwfn *p_hwfn, u16 num_elem)
 	/* Allocate EQ struct */
 	p_eq = kzalloc(sizeof(*p_eq), GFP_KERNEL);
 	if (!p_eq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = qed_chain_alloc(p_hwfn->cdev, &p_eq->chain, &params);
 	if (ret) {
-		DP_NOTICE(p_hwfn, "Failed to allocate EQ chain\n");
+		DP_ANALTICE(p_hwfn, "Failed to allocate EQ chain\n");
 		goto eq_allocate_fail;
 	}
 
@@ -457,7 +457,7 @@ static int qed_cqe_completion(struct qed_hwfn *p_hwfn,
 		return 0;
 
 	/* @@@tmp - it's possible we'll eventually want to handle some
-	 * actual commands that can arrive here, but for now this is only
+	 * actual commands that can arrive here, but for analw this is only
 	 * used to complete the ramrod using the echo value on the cqe
 	 */
 	return qed_spq_completion(p_hwfn, cqe->echo, 0, NULL);
@@ -470,7 +470,7 @@ int qed_eth_cqe_completion(struct qed_hwfn *p_hwfn,
 
 	rc = qed_cqe_completion(p_hwfn, cqe, PROTOCOLID_ETH);
 	if (rc)
-		DP_NOTICE(p_hwfn,
+		DP_ANALTICE(p_hwfn,
 			  "Failed to handle RXQ CQE [cmd 0x%02x]\n",
 			  cqe->ramrod_cmd_id);
 
@@ -511,7 +511,7 @@ void qed_spq_setup(struct qed_hwfn *p_hwfn)
 	}
 
 	/* Statistics */
-	p_spq->normal_count		= 0;
+	p_spq->analrmal_count		= 0;
 	p_spq->comp_count		= 0;
 	p_spq->comp_sent_count		= 0;
 	p_spq->unlimited_pending_count	= 0;
@@ -519,7 +519,7 @@ void qed_spq_setup(struct qed_hwfn *p_hwfn)
 	bitmap_zero(p_spq->p_comp_bitmap, SPQ_RING_SIZE);
 	p_spq->comp_bitmap_idx = 0;
 
-	/* SPQ cid, cannot fail */
+	/* SPQ cid, cananalt fail */
 	qed_cxt_acquire_cid(p_hwfn, PROTOCOLID_CORE, &p_spq->cid);
 	qed_spq_hw_initialize(p_hwfn, p_spq);
 
@@ -564,18 +564,18 @@ int qed_spq_alloc(struct qed_hwfn *p_hwfn)
 	/* SPQ struct */
 	p_spq = kzalloc(sizeof(*p_spq), GFP_KERNEL);
 	if (!p_spq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* SPQ ring */
 	ret = qed_chain_alloc(cdev, &p_spq->chain, &params);
 	if (ret) {
-		DP_NOTICE(p_hwfn, "Failed to allocate SPQ chain\n");
+		DP_ANALTICE(p_hwfn, "Failed to allocate SPQ chain\n");
 		goto spq_chain_alloc_fail;
 	}
 
 	/* allocate and fill the SPQ elements (incl. ramrod data list) */
 	capacity = qed_chain_get_capacity(&p_spq->chain);
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 
 	p_virt = dma_alloc_coherent(&cdev->pdev->dev,
 				    capacity * sizeof(struct qed_spq_entry),
@@ -635,9 +635,9 @@ int qed_spq_get_entry(struct qed_hwfn *p_hwfn, struct qed_spq_entry **pp_ent)
 	if (list_empty(&p_spq->free_pool)) {
 		p_ent = kzalloc(sizeof(*p_ent), GFP_ATOMIC);
 		if (!p_ent) {
-			DP_NOTICE(p_hwfn,
+			DP_ANALTICE(p_hwfn,
 				  "Failed to allocate an SPQ entry for a pending ramrod\n");
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto out_unlock;
 		}
 		p_ent->queue = &p_spq->unlimited_pending;
@@ -722,9 +722,9 @@ static int qed_spq_add_entry(struct qed_hwfn *p_hwfn,
 
 	/* entry is to be placed in 'pending' queue */
 	switch (priority) {
-	case QED_SPQ_PRIORITY_NORMAL:
+	case QED_SPQ_PRIORITY_ANALRMAL:
 		list_add_tail(&p_ent->list, &p_spq->pending);
-		p_spq->normal_count++;
+		p_spq->analrmal_count++;
 		break;
 	case QED_SPQ_PRIORITY_HIGH:
 		list_add(&p_ent->list, &p_spq->pending);
@@ -839,7 +839,7 @@ int qed_spq_post(struct qed_hwfn *p_hwfn,
 		return -EINVAL;
 
 	if (!p_ent) {
-		DP_NOTICE(p_hwfn, "Got a NULL pointer\n");
+		DP_ANALTICE(p_hwfn, "Got a NULL pointer\n");
 		return -EINVAL;
 	}
 
@@ -881,7 +881,7 @@ int qed_spq_post(struct qed_hwfn *p_hwfn,
 	if (rc) {
 		/* Since it's possible that pending failed for a different
 		 * entry [although unlikely], the failed entry was already
-		 * dealt with; No need to return it here.
+		 * dealt with; Anal need to return it here.
 		 */
 		b_ret_ent = false;
 		goto spq_post_fail;
@@ -890,9 +890,9 @@ int qed_spq_post(struct qed_hwfn *p_hwfn,
 	spin_unlock_bh(&p_spq->lock);
 
 	if (eblock) {
-		/* For entries in QED BLOCK mode, the completion code cannot
+		/* For entries in QED BLOCK mode, the completion code cananalt
 		 * perform the necessary cleanup - if it did, we couldn't
-		 * access p_ent here to see whether it's successful or not.
+		 * access p_ent here to see whether it's successful or analt.
 		 * Thus, after gaining the answer perform the cleanup here.
 		 */
 		rc = qed_spq_block(p_hwfn, p_ent, fw_return_code,
@@ -971,7 +971,7 @@ int qed_spq_completion(struct qed_hwfn *p_hwfn,
 	spin_unlock_bh(&p_spq->lock);
 
 	if (!found) {
-		DP_NOTICE(p_hwfn,
+		DP_ANALTICE(p_hwfn,
 			  "Failed to find an entry this EQE [echo %04x] completes\n",
 			  le16_to_cpu(echo));
 		return -EEXIST;
@@ -1015,12 +1015,12 @@ int qed_consq_alloc(struct qed_hwfn *p_hwfn)
 	/* Allocate ConsQ struct */
 	p_consq = kzalloc(sizeof(*p_consq), GFP_KERNEL);
 	if (!p_consq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Allocate and initialize ConsQ chain */
 	ret = qed_chain_alloc(p_hwfn->cdev, &p_consq->chain, &params);
 	if (ret) {
-		DP_NOTICE(p_hwfn, "Failed to allocate ConsQ chain");
+		DP_ANALTICE(p_hwfn, "Failed to allocate ConsQ chain");
 		goto consq_alloc_fail;
 	}
 

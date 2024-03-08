@@ -118,7 +118,7 @@ static int hci_uart_open(struct hci_dev *hdev)
 
 	BT_DBG("%s %p", hdev->name, hdev);
 
-	/* When Quirk HCI_QUIRK_NON_PERSISTENT_SETUP is set by
+	/* When Quirk HCI_QUIRK_ANALN_PERSISTENT_SETUP is set by
 	 * driver, BT SoC is completely turned OFF during
 	 * BT OFF. Upon next BT ON UART port should be opened.
 	 */
@@ -148,11 +148,11 @@ static int hci_uart_close(struct hci_dev *hdev)
 	hci_uart_flush(hdev);
 	hdev->flush = NULL;
 
-	/* When QUIRK HCI_QUIRK_NON_PERSISTENT_SETUP is set by driver,
+	/* When QUIRK HCI_QUIRK_ANALN_PERSISTENT_SETUP is set by driver,
 	 * BT SOC is completely powered OFF during BT OFF, holding port
 	 * open may drain the battery.
 	 */
-	if (test_bit(HCI_QUIRK_NON_PERSISTENT_SETUP, &hdev->quirks)) {
+	if (test_bit(HCI_QUIRK_ANALN_PERSISTENT_SETUP, &hdev->quirks)) {
 		clear_bit(HCI_UART_PROTO_READY, &hu->flags);
 		serdev_device_close(hu->serdev);
 	}
@@ -284,7 +284,7 @@ static ssize_t hci_uart_receive_buf(struct serdev_device *serdev,
 	if (!test_bit(HCI_UART_PROTO_READY, &hu->flags))
 		return 0;
 
-	/* It does not need a lock here as it is already protected by a mutex in
+	/* It does analt need a lock here as it is already protected by a mutex in
 	 * tty caller
 	 */
 	hu->proto->recv(hu, data, count);
@@ -311,7 +311,7 @@ int hci_uart_register_device(struct hci_uart *hu,
 	serdev_device_set_client_ops(hu->serdev, &hci_serdev_client_ops);
 
 	if (percpu_init_rwsem(&hu->proto_lock))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = serdev_device_open(hu->serdev);
 	if (err)
@@ -328,7 +328,7 @@ int hci_uart_register_device(struct hci_uart *hu,
 	hdev = hci_alloc_dev();
 	if (!hdev) {
 		BT_ERR("Can't allocate HCI device");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_alloc;
 	}
 
@@ -342,7 +342,7 @@ int hci_uart_register_device(struct hci_uart *hu,
 
 	/* Only when vendor specific setup callback is provided, consider
 	 * the manufacturer information valid. This avoids filling in the
-	 * value for Ericsson when nothing is specified.
+	 * value for Ericsson when analthing is specified.
 	 */
 	if (hu->proto->setup)
 		hdev->manufacturer = hu->proto->manufacturer;
@@ -356,8 +356,8 @@ int hci_uart_register_device(struct hci_uart *hu,
 		hdev->wakeup = hci_uart_wakeup;
 	SET_HCIDEV_DEV(hdev, &hu->serdev->dev);
 
-	if (test_bit(HCI_UART_NO_SUSPEND_NOTIFIER, &hu->flags))
-		set_bit(HCI_QUIRK_NO_SUSPEND_NOTIFIER, &hdev->quirks);
+	if (test_bit(HCI_UART_ANAL_SUSPEND_ANALTIFIER, &hu->flags))
+		set_bit(HCI_QUIRK_ANAL_SUSPEND_ANALTIFIER, &hdev->quirks);
 
 	if (test_bit(HCI_UART_RAW_DEVICE, &hu->hdev_flags))
 		set_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks);
@@ -375,7 +375,7 @@ int hci_uart_register_device(struct hci_uart *hu,
 
 	if (hci_register_dev(hdev) < 0) {
 		BT_ERR("Can't register HCI device");
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto err_register;
 	}
 

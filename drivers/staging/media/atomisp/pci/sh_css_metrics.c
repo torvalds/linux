@@ -23,7 +23,7 @@
 
 #define MULTIPLE_PCS 0
 #define SUSPEND      0
-#define NOF_PCS      1
+#define ANALF_PCS      1
 #define RESUME_MASK  0x8
 #define STOP_MASK    0x0
 

@@ -9,16 +9,16 @@ Memory at cx2341x chips
 This section describes the cx2341x memory map and documents some of the
 register space.
 
-.. note:: the memory long words are little-endian ('intel format').
+.. analte:: the memory long words are little-endian ('intel format').
 
 .. warning::
 
 	This information was figured out from searching through the memory
-	and registers, this information may not be correct and is certainly
-	not complete, and was not derived from anything more than searching
+	and registers, this information may analt be correct and is certainly
+	analt complete, and was analt derived from anything more than searching
 	through the memory space with commands like:
 
-	.. code-block:: none
+	.. code-block:: analne
 
 		ivtvctl -O min=0x02000000,max=0x020000ff
 
@@ -32,7 +32,7 @@ The cx2341x exposes its entire 64M memory space to the PCI host via the PCI BAR0
 (Base Address Register 0). The addresses here are offsets relative to the
 address held in BAR0.
 
-.. code-block:: none
+.. code-block:: analne
 
 	0x00000000-0x00ffffff Encoder memory space
 	0x00000000-0x0003ffff Encode.rom
@@ -54,7 +54,7 @@ Registers
 The registers occupy the 64k space starting at the 0x02000000 offset from BAR0.
 All of these registers are 32 bits wide.
 
-.. code-block:: none
+.. code-block:: analne
 
 	DMA Registers 0x000-0xff:
 
@@ -91,7 +91,7 @@ All of these registers are 32 bits wide.
 	0xe0 - first (and only) read linked list reg, for pci memory addr
 	0xe4 - first (and only) read linked list reg, for Decoder memory addr
 	0xe8 - first (and only) read linked list reg, for length of buffer
-	0xec-0xff - Nothing seems to be in these registers, 0xec-f4 are 0x00000000.
+	0xec-0xff - Analthing seems to be in these registers, 0xec-f4 are 0x00000000.
 
 Memory locations for Encoder Buffers 0x700-0x7ff:
 
@@ -140,7 +140,7 @@ execute.
 - bit 29 Encoder VBI capture
 - bit 28 Encoder Video Input Module reset event
 - bit 27 Encoder DMA complete
-- bit 24 Decoder audio mode change detection event (through event notification)
+- bit 24 Decoder audio mode change detection event (through event analtification)
 - bit 22 Decoder data request
 - bit 20 Decoder DMA complete
 - bit 19 Decoder VBI re-insertion
@@ -210,7 +210,7 @@ How to load
 How to call the firmware API
 ----------------------------
 
-The preferred calling convention is known as the firmware mailbox. The
+The preferred calling convention is kanalwn as the firmware mailbox. The
 mailboxes are basically a fixed length array that serves as the call-stack.
 
 Firmware mailboxes can be located by searching the encoder and decoder memory
@@ -218,14 +218,14 @@ for a 16 byte signature. That signature will be located on a 256-byte boundary.
 
 Signature:
 
-.. code-block:: none
+.. code-block:: analne
 
 	0x78, 0x56, 0x34, 0x12, 0x12, 0x78, 0x56, 0x34,
 	0x34, 0x12, 0x78, 0x56, 0x56, 0x34, 0x12, 0x78
 
 The firmware implements 20 mailboxes of 20 32-bit words. The first 10 are
 reserved for API calls. The second 10 are used by the firmware for event
-notification.
+analtification.
 
   ====== =================
   Index  Name
@@ -272,20 +272,20 @@ driver then sets the parameter ready bit (bit 1). The firmware scans the
 mailboxes for pending commands, processes them, sets the result code, populates
 the result value array with that call's return values and sets the call
 complete bit (bit 2). Once bit 2 is set, the driver should retrieve the results
-and clear all the flags. If the driver does not perform this task within the
+and clear all the flags. If the driver does analt perform this task within the
 time set in the timeout register, the firmware will reset that mailbox.
 
-Event notifications are sent from the firmware to the host. The host tells the
+Event analtifications are sent from the firmware to the host. The host tells the
 firmware which events it is interested in via an API call. That call tells the
-firmware which notification mailbox to use. The firmware signals the host via
+firmware which analtification mailbox to use. The firmware signals the host via
 an interrupt. Only the 16 Results fields are used, the Flags, Command, Return
-value and Timeout words are not used.
+value and Timeout words are analt used.
 
 
 OSD firmware API description
 ----------------------------
 
-.. note:: this API is part of the decoder firmware, so it's cx23415 only.
+.. analte:: this API is part of the decoder firmware, so it's cx23415 only.
 
 
 
@@ -645,7 +645,7 @@ BLT copy
 Param[0]
 ^^^^^^^^
 
-.. code-block:: none
+.. code-block:: analne
 
 	'0000'  zero
 	'0001' ~destination AND ~source
@@ -656,7 +656,7 @@ Param[0]
 	'0110'  destination XOR  source
 	'0111' ~destination OR  ~source
 	'1000' ~destination AND ~source
-	'1001'  destination XNOR source
+	'1001'  destination XANALR source
 	'1010'                   source
 	'1011' ~destination OR   source
 	'1100'  destination
@@ -678,7 +678,7 @@ Resulting alpha blending
 Param[2]
 ^^^^^^^^
 
-.. code-block:: none
+.. code-block:: analne
 
 	'00' output_pixel = source_pixel
 
@@ -968,7 +968,7 @@ Enum: 128/0x80
 Description
 ^^^^^^^^^^^
 
-Does nothing. Can be used to check if the firmware is responding.
+Does analthing. Can be used to check if the firmware is responding.
 
 
 
@@ -1007,7 +1007,7 @@ Bitmask:
 	  (same as param[0]=2)
 	- Bit 4 when set, the capture destination is the host
 
-.. note:: this parameter is only meaningful for RAW capture type.
+.. analte:: this parameter is only meaningful for RAW capture type.
 
 
 
@@ -1025,7 +1025,7 @@ Param[0]
 ^^^^^^^^
 
 - 0=stop at end of GOP (generates IRQ)
-- 1=stop immediate (no IRQ)
+- 1=stop immediate (anal IRQ)
 
 Param[1]
 ^^^^^^^^
@@ -1170,7 +1170,7 @@ Param[5]
 
 VBV Buffer used by encoder
 
-.. note::
+.. analte::
 
 	#) Param\[3\] and Param\[4\] seem to be always 0
 	#) Param\[5\] doesn't seem to be used.
@@ -1198,7 +1198,7 @@ Param[1]
 Number of B frames between the I and P frame, plus 1.
 For example: IBBPBBPBBPBB --> GOP size: 12, number of B frames: 2+1 = 3
 
-.. note::
+.. analte::
 
 	GOP size must be a multiple of (B-frames + 1).
 
@@ -1235,7 +1235,7 @@ Enum: 155/0x9B
 Description
 ^^^^^^^^^^^
 
-Assign Dynamic Noise Reduction operating mode
+Assign Dynamic Analise Reduction operating mode
 
 Param[0]
 ^^^^^^^^
@@ -1264,7 +1264,7 @@ Enum: 157/0x9D
 Description
 ^^^^^^^^^^^
 
-These Dynamic Noise Reduction filter values are only meaningful when
+These Dynamic Analise Reduction filter values are only meaningful when
 the respective filter is set to "manual" (See API 0x9B)
 
 Param[0]
@@ -1287,7 +1287,7 @@ Enum: 159/0x9F
 Description
 ^^^^^^^^^^^
 
-Assign Dynamic Noise Reduction median filter properties.
+Assign Dynamic Analise Reduction median filter properties.
 
 Param[0]
 ^^^^^^^^
@@ -1334,7 +1334,7 @@ Luminance filter
 - 1=1D Horizontal
 - 2=1D Vertical
 - 3=2D H/V Separable (default)
-- 4=2D Symmetric non-separable
+- 4=2D Symmetric analn-separable
 
 Param[1]
 ^^^^^^^^
@@ -1371,20 +1371,20 @@ VBI line information features: 0=disabled, 1=enabled
 Param[2]
 ^^^^^^^^
 
-Slicing: 0=None, 1=Closed Caption
-Almost certainly not implemented. Set to 0.
+Slicing: 0=Analne, 1=Closed Caption
+Almost certainly analt implemented. Set to 0.
 
 Param[3]
 ^^^^^^^^
 
 Luminance samples in this line.
-Almost certainly not implemented. Set to 0.
+Almost certainly analt implemented. Set to 0.
 
 Param[4]
 ^^^^^^^^
 
 Chrominance samples in this line
-Almost certainly not implemented. Set to 0.
+Almost certainly analt implemented. Set to 0.
 
 
 
@@ -1398,9 +1398,9 @@ Description
 
 Assign stream type
 
-.. note::
+.. analte::
 
-	Transport stream is not working in recent firmwares.
+	Transport stream is analt working in recent firmwares.
 	And in older firmwares the timestamps in the TS seem to be
 	unreliable.
 
@@ -1429,8 +1429,8 @@ Enum: 187/0xBB
 Description
 ^^^^^^^^^^^
 
-Assign stream output port. Normally 0 when the data is copied through
-the PCI bus (DMA), and 1 when the data is streamed to another chip
+Assign stream output port. Analrmally 0 when the data is copied through
+the PCI bus (DMA), and 1 when the data is streamed to aanalther chip
 (pvrusb and cx88-blackbird).
 
 Param[0]
@@ -1443,7 +1443,7 @@ Param[0]
 Param[1]
 ^^^^^^^^
 
-Unknown, but leaving this to 0 seems to work best. Indications are that
+Unkanalwn, but leaving this to 0 seems to work best. Indications are that
 this might have to do with USB support, although passing anything but 0
 only breaks things.
 
@@ -1459,7 +1459,7 @@ Description
 
 Set audio stream properties, may be called while encoding is in progress.
 
-.. note::
+.. analte::
 
 	All bitfields are consistent with ISO11172 documentation except
 	bits 2:3 which ISO docs define as:
@@ -1478,7 +1478,7 @@ Param[0]
 
 Bitmask:
 
-.. code-block:: none
+.. code-block:: analne
 
 	   0:1  '00' 44.1Khz
 		'01' 48Khz
@@ -1507,20 +1507,20 @@ Bitmask:
 		    '1101' | 416 kbit/s  | 320 kbit/s
 		    '1110' | 448 kbit/s  | 384 kbit/s
 
-		.. note::
+		.. analte::
 
-			For Layer II, not all combinations of total bitrate
+			For Layer II, analt all combinations of total bitrate
 			and mode are allowed. See ISO11172-3 3-Annex B,
 			Table 3-B.2
 
 	   8:9  '00'=Stereo
 		'01'=JointStereo
 		'10'=Dual
-		'11'=Mono
+		'11'=Moanal
 
-		.. note::
+		.. analte::
 
-			The cx23415 cannot decode Joint Stereo properly.
+			The cx23415 cananalt decode Joint Stereo properly.
 
 	  10:11 Mode Extension used in joint_stereo mode.
 		In Layer I and II they indicate which subbands are in
@@ -1531,7 +1531,7 @@ Bitmask:
 		    '11' subbands 16-31 in intensity_stereo, bound==16
 
 	  12:13 Emphasis:
-		    '00' None
+		    '00' Analne
 		    '01' 50/15uS
 		    '10' reserved
 		    '11' CCITT J.17
@@ -1558,7 +1558,7 @@ Enum: 195/0xC3
 Description
 ^^^^^^^^^^^
 
-The firmware is halted and no further API calls are serviced until the
+The firmware is halted and anal further API calls are serviced until the
 firmware is uploaded again.
 
 
@@ -1578,7 +1578,7 @@ Result[0]
 
 Version bitmask:
 - Bits  0:15 build
-- Bits 16:23 minor
+- Bits 16:23 mianalr
 - Bits 24:31 major
 
 
@@ -1657,18 +1657,18 @@ The information is stored as follows:
 The table_ptr is the encoder memory address in the table were
 *new* entries will be written.
 
-.. note:: This is a ringbuffer, so the table_ptr will wraparound.
+.. analte:: This is a ringbuffer, so the table_ptr will wraparound.
 
 Param[0]
 ^^^^^^^^
 
 Picture Mask:
-- 0=No index capture
+- 0=Anal index capture
 - 1=I frames
 - 3=I,P frames
 - 7=I,P,B frames
 
-(Seems to be ignored, it always indexes I, P and B frames)
+(Seems to be iganalred, it always indexes I, P and B frames)
 
 Param[1]
 ^^^^^^^^
@@ -1702,7 +1702,7 @@ Param[0]
 
 Bitmap:
 
-.. code-block:: none
+.. code-block:: analne
 
 	    0    Mode '0' Sliced, '1' Raw
 	    1:3  Insertion:
@@ -1710,7 +1710,7 @@ Bitmap:
 		     '001' insert in private packets
 		     '010' separate stream and user data
 		     '111' separate stream and private data
-	    8:15 Stream ID (normally 0xBD)
+	    8:15 Stream ID (analrmally 0xBD)
 
 Param[1]
 ^^^^^^^^
@@ -1948,12 +1948,12 @@ Param[0]
 ^^^^^^^^
 
 
-- 0=Stream is not copyrighted
+- 0=Stream is analt copyrighted
 - 1=Stream is copyrighted
 
 
 
-CX2341X_ENC_SET_EVENT_NOTIFICATION
+CX2341X_ENC_SET_EVENT_ANALTIFICATION
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Enum: 213/0xD5
@@ -1961,7 +1961,7 @@ Enum: 213/0xD5
 Description
 ^^^^^^^^^^^
 
-Setup firmware to notify the host about a particular event. Host must
+Setup firmware to analtify the host about a particular event. Host must
 unmask the interrupt bit.
 
 Param[0]
@@ -1972,7 +1972,7 @@ Event (0=refresh encoder input)
 Param[1]
 ^^^^^^^^
 
-Notification 0=disabled 1=enabled
+Analtification 0=disabled 1=enabled
 
 Param[2]
 ^^^^^^^^
@@ -1982,7 +1982,7 @@ Interrupt bit
 Param[3]
 ^^^^^^^^
 
-Mailbox slot, -1 if no mailbox required.
+Mailbox slot, -1 if anal mailbox required.
 
 
 
@@ -2104,9 +2104,9 @@ Param[0]
 
 Bit usage:
 
-.. code-block:: none
+.. code-block:: analne
 
-	 0    	'0'=video not muted
+	 0    	'0'=video analt muted
 		'1'=video muted, creates frames with the YUV color defined below
 	 1:7  	Unused
 	 8:15 	V chrominance information
@@ -2128,7 +2128,7 @@ Audio muting
 Param[0]
 ^^^^^^^^
 
-- 0=audio not muted
+- 0=audio analt muted
 - 1=audio muted (produces silent mpeg audio stream)
 
 
@@ -2159,7 +2159,7 @@ Enum: 220/0xDC
 Description
 ^^^^^^^^^^^
 
-Miscellaneous actions. Not known for 100% what it does. It's really a
+Miscellaneous actions. Analt kanalwn for 100% what it does. It's really a
 sort of ioctl call. The first parameter is a command number, the second
 the value.
 
@@ -2168,7 +2168,7 @@ Param[0]
 
 Command number:
 
-.. code-block:: none
+.. code-block:: analne
 
 	 1=set initial SCR value when starting encoding (works).
 	 2=set quality mode (apparently some test setting).
@@ -2186,8 +2186,8 @@ Command number:
 	 9=set history parameters of the video input module
 	10=set input field order of VIM
 	11=set quantization matrix
-	12=reset audio interface after channel change or input switch (has no argument).
-	   Needed for the cx2584x, not needed for the mspx4xx, but it doesn't seem to
+	12=reset audio interface after channel change or input switch (has anal argument).
+	   Needed for the cx2584x, analt needed for the mspx4xx, but it doesn't seem to
 	   do any harm calling it regardless.
 	13=set audio volume delay
 	14=set audio delay
@@ -2201,7 +2201,7 @@ Command value.
 Decoder firmware API description
 --------------------------------
 
-.. note:: this API is part of the decoder firmware, so it's cx23415 only.
+.. analte:: this API is part of the decoder firmware, so it's cx23415 only.
 
 
 
@@ -2213,7 +2213,7 @@ Enum: 0/0x00
 Description
 ^^^^^^^^^^^
 
-This API call does nothing. It may be used to check if the firmware
+This API call does analthing. It may be used to check if the firmware
 is responding.
 
 
@@ -2236,8 +2236,8 @@ Param[0]
 Param[1]
 ^^^^^^^^
 
-Specifies the number of muted audio frames to play before normal
-audio resumes. (This is not implemented in the firmware, leave at 0)
+Specifies the number of muted audio frames to play before analrmal
+audio resumes. (This is analt implemented in the firmware, leave at 0)
 
 
 
@@ -2249,7 +2249,7 @@ Enum: 2/0x02
 Description
 ^^^^^^^^^^^
 
-Ends playback and clears all decoder buffers. If PTS is not zero,
+Ends playback and clears all decoder buffers. If PTS is analt zero,
 playback stops at specified PTS.
 
 Param[0]
@@ -2257,11 +2257,11 @@ Param[0]
 
 Display 0=last frame, 1=black
 
-.. note::
+.. analte::
 
 	this takes effect immediately, so if you want to wait for a PTS,
 	then use '0', otherwise the screen goes to black at once.
-	You can call this later (even if there is no playback) with a 1 value
+	You can call this later (even if there is anal playback) with a 1 value
 	to set the screen to black.
 
 Param[1]
@@ -2284,7 +2284,7 @@ Enum: 3/0x03
 Description
 ^^^^^^^^^^^
 
-Playback stream at speed other than normal. There are two modes of
+Playback stream at speed other than analrmal. There are two modes of
 operation:
 
 	- Smooth: host transfers entire stream and firmware drops unused
@@ -2295,23 +2295,23 @@ operation:
 Param[0]
 ^^^^^^^^
 
-.. code-block:: none
+.. code-block:: analne
 
 	Bitmap:
-	    0:7  0 normal
+	    0:7  0 analrmal
 		 1 fast only "1.5 times"
 		 n nX fast, 1/nX slow
 	    30   Framedrop:
 		     '0' during 1.5 times play, every other B frame is dropped
 		     '1' during 1.5 times play, stream is unchanged (bitrate
-			 must not exceed 8mbps)
+			 must analt exceed 8mbps)
 	    31   Speed:
 		     '0' slow
 		     '1' fast
 
-.. note::
+.. analte::
 
-	n is limited to 2. Anything higher does not result in
+	n is limited to 2. Anything higher does analt result in
 	faster playback. Instead the host should start dropping frames.
 
 Param[1]
@@ -2319,7 +2319,7 @@ Param[1]
 
 Direction: 0=forward, 1=reverse
 
-.. note::
+.. analte::
 
 	to make reverse playback work you have to write full GOPs in
 	reverse order.
@@ -2327,7 +2327,7 @@ Direction: 0=forward, 1=reverse
 Param[2]
 ^^^^^^^^
 
-.. code-block:: none
+.. code-block:: analne
 
 	Picture mask:
 	    1=I frames
@@ -2339,7 +2339,7 @@ Param[3]
 
 B frames per GOP (for reverse play only)
 
-.. note::
+.. analte::
 
 	for reverse playback the Picture Mask should be set to I or I, P.
 	Adding B frames to the mask will result in corrupt video. This field
@@ -2358,8 +2358,8 @@ Display 0=frame, 1=field
 Param[6]
 ^^^^^^^^
 
-Specifies the number of muted audio frames to play before normal audio
-resumes. (Not implemented in the firmware, leave at 0)
+Specifies the number of muted audio frames to play before analrmal audio
+resumes. (Analt implemented in the firmware, leave at 0)
 
 
 
@@ -2491,7 +2491,7 @@ Description
 ^^^^^^^^^^^
 
 Freeze playback immediately. In this mode, when internal buffers are
-full, no more data will be accepted and data request IRQs will be
+full, anal more data will be accepted and data request IRQs will be
 masked.
 
 Param[0]
@@ -2509,7 +2509,7 @@ Enum: 14/0x0E
 Description
 ^^^^^^^^^^^
 
-The firmware is halted and no further API calls are serviced until
+The firmware is halted and anal further API calls are serviced until
 the firmware is uploaded again.
 
 
@@ -2546,7 +2546,7 @@ Result[0]
 
 Version bitmask:
 	- Bits  0:15 build
-	- Bits 16:23 minor
+	- Bits 16:23 mianalr
 	- Bits 24:31 major
 
 
@@ -2618,18 +2618,18 @@ Select audio mode
 Param[0]
 ^^^^^^^^
 
-Dual mono mode action
-	0=Stereo, 1=Left, 2=Right, 3=Mono, 4=Swap, -1=Unchanged
+Dual moanal mode action
+	0=Stereo, 1=Left, 2=Right, 3=Moanal, 4=Swap, -1=Unchanged
 
 Param[1]
 ^^^^^^^^
 
 Stereo mode action:
-	0=Stereo, 1=Left, 2=Right, 3=Mono, 4=Swap, -1=Unchanged
+	0=Stereo, 1=Left, 2=Right, 3=Moanal, 4=Swap, -1=Unchanged
 
 
 
-CX2341X_DEC_SET_EVENT_NOTIFICATION
+CX2341X_DEC_SET_EVENT_ANALTIFICATION
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Enum: 23/0x17
@@ -2637,22 +2637,22 @@ Enum: 23/0x17
 Description
 ^^^^^^^^^^^
 
-Setup firmware to notify the host about a particular event.
+Setup firmware to analtify the host about a particular event.
 Counterpart to API 0xD5
 
 Param[0]
 ^^^^^^^^
 
 Event:
-	- 0=Audio mode change between mono, (joint) stereo and dual channel.
+	- 0=Audio mode change between moanal, (joint) stereo and dual channel.
 	- 3=Decoder started
-	- 4=Unknown: goes off 10-15 times per second while decoding.
+	- 4=Unkanalwn: goes off 10-15 times per second while decoding.
 	- 5=Some sync event: goes off once per frame.
 
 Param[1]
 ^^^^^^^^
 
-Notification 0=disabled, 1=enabled
+Analtification 0=disabled, 1=enabled
 
 Param[2]
 ^^^^^^^^
@@ -2662,7 +2662,7 @@ Interrupt bit
 Param[3]
 ^^^^^^^^
 
-Mailbox slot, -1 if no mailbox required.
+Mailbox slot, -1 if anal mailbox required.
 
 
 
@@ -2771,7 +2771,7 @@ Date: 12 March 2007
 
 
 This list has been worked out through trial and error. There will be mistakes
-and omissions. Some registers have no obvious effect so it's hard to say what
+and omissions. Some registers have anal obvious effect so it's hard to say what
 they do, while others interact with each other, or require a certain load
 sequence. Horizontal filter setup is one example, with six registers working
 in unison and requiring a certain load sequence to correctly configure. The
@@ -2784,7 +2784,7 @@ is required. For registers containing size information, setting them to 0 is
 generally a bad idea. For other control registers i.e. 2878, you'll only find
 out what values are bad when it hangs.
 
-.. code-block:: none
+.. code-block:: analne
 
 	--------------------------------------------------------------------------------
 	2800
@@ -2870,7 +2870,7 @@ out what values are bad when it hangs.
 	bits 16:31
 		Decoder UV destination width in pixels
 
-	NOTE: For both registers, the resulting image must be fully visible on
+	ANALTE: For both registers, the resulting image must be fully visible on
 	screen. If the image exceeds the right edge both the source and destination
 	size must be adjusted to reflect the visible portion. For the source width,
 	you must take into account the scaling when calculating the new value.
@@ -2879,31 +2879,31 @@ out what values are bad when it hangs.
 	283C
 	bits 0:31
 		Decoder Y horizontal scaling
-			Normally = Reg 2854 >> 2
+			Analrmally = Reg 2854 >> 2
 	---------------
 	2840
 	bits 0:31
-		Decoder ?? unknown - horizontal scaling
+		Decoder ?? unkanalwn - horizontal scaling
 		Usually 0x00080514
 	---------------
 	2844
 	bits 0:31
 		Decoder UV horizontal scaling
-		Normally = Reg 2854 >> 2
+		Analrmally = Reg 2854 >> 2
 	---------------
 	2848
 	bits 0:31
-		Decoder ?? unknown - horizontal scaling
+		Decoder ?? unkanalwn - horizontal scaling
 		Usually 0x00100514
 	---------------
 	284C
 	bits 0:31
-		Decoder ?? unknown - Y plane
+		Decoder ?? unkanalwn - Y plane
 		Usually 0x00200020
 	---------------
 	2850
 	bits 0:31
-		Decoder ?? unknown - UV plane
+		Decoder ?? unkanalwn - UV plane
 		Usually 0x00200020
 	---------------
 	2854
@@ -2912,27 +2912,27 @@ out what values are bad when it hangs.
 	---------------
 	2858
 	bits 0:31
-		Decoder ?? unknown
+		Decoder ?? unkanalwn
 		Usually 0
 	---------------
 	285C
 	bits 0:31
-		Decoder ?? unknown
-		Normally = Reg 2854 >> 1
+		Decoder ?? unkanalwn
+		Analrmally = Reg 2854 >> 1
 	---------------
 	2860
 	bits 0:31
-		Decoder ?? unknown
+		Decoder ?? unkanalwn
 		Usually 0
 	---------------
 	2864
 	bits 0:31
-		Decoder ?? unknown
-		Normally = Reg 2854 >> 1
+		Decoder ?? unkanalwn
+		Analrmally = Reg 2854 >> 1
 	---------------
 	2868
 	bits 0:31
-		Decoder ?? unknown
+		Decoder ?? unkanalwn
 		Usually 0
 
 	Most of these registers either control horizontal scaling, or appear linked
@@ -2942,7 +2942,7 @@ out what values are bad when it hangs.
 
 	To enlarge:
 		Reg 2854 = (source_width * 0x00200000) / destination_width
-		Reg 2874 = No divide
+		Reg 2874 = Anal divide
 
 	To reduce from full size down to half size:
 		Reg 2854 = (source_width/2 * 0x00200000) / destination width
@@ -2981,30 +2981,30 @@ out what values are bad when it hangs.
 	2874
 	bits 0:1
 		Decoder horizontal Y output size divider
-		00 = No divide
+		00 = Anal divide
 		01 = Divide by 2
 		10 = Divide by 3
 
 	bits 4:5
 		Decoder horizontal UV output size divider
-		00 = No divide
+		00 = Anal divide
 		01 = Divide by 2
 		10 = Divide by 3
 
 	bit 8
-		Decoder ?? unknown
-		0 = Normal
+		Decoder ?? unkanalwn
+		0 = Analrmal
 		1 = Affects video output levels
 
 	bit 16
-		Decoder ?? unknown
-		0 = Normal
+		Decoder ?? unkanalwn
+		0 = Analrmal
 		1 = Disable horizontal filter
 
 	--------------------------------------------------------------------------------
 	2878
 	bit 0
-		?? unknown
+		?? unkanalwn
 
 	bit 1
 		osd on/off
@@ -3017,7 +3017,7 @@ out what values are bad when it hangs.
 		1 = PAL
 
 	bits 3:4
-		?? unknown
+		?? unkanalwn
 
 	bit 5
 		Decoder + osd
@@ -3026,43 +3026,43 @@ out what values are bad when it hangs.
 	--------------------------------------------------------------------------------
 	287C
 	bits 0:10
-		Decoder & osd ?? unknown
+		Decoder & osd ?? unkanalwn
 		Moves entire screen horizontally. Starts at 0x005 with the screen
 		shifted heavily to the right. Incrementing in steps of 0x004 will
 		gradually shift the screen to the left.
 
 	bits 11:31
-		?? unknown
+		?? unkanalwn
 
-	Normally contents are 0x00101111 (NTSC) or 0x1010111d (PAL)
+	Analrmally contents are 0x00101111 (NTSC) or 0x1010111d (PAL)
 
 	--------------------------------------------------------------------------------
-	2880  --------    ?? unknown
-	2884  --------    ?? unknown
+	2880  --------    ?? unkanalwn
+	2884  --------    ?? unkanalwn
 	--------------------------------------------------------------------------------
 	2888
 	bit 0
-		Decoder + osd ?? unknown
-		0 = Normal
+		Decoder + osd ?? unkanalwn
+		0 = Analrmal
 		1 = Misaligned fields (Correctable through 289C & 28A4)
 
 	bit 4
-		?? unknown
+		?? unkanalwn
 
 	bit 8
-		?? unknown
+		?? unkanalwn
 
 	Warning: Bad values will require a firmware reload to recover.
-			Known to be bad are 0x000,0x011,0x100,0x111
+			Kanalwn to be bad are 0x000,0x011,0x100,0x111
 	--------------------------------------------------------------------------------
 	288C
 	bits 0:15
-		osd ?? unknown
+		osd ?? unkanalwn
 		Appears to affect the osd position stability. The higher the value the
 		more unstable it becomes. Decoder output remains stable.
 
 	bits 16:31
-		osd ?? unknown
+		osd ?? unkanalwn
 		Same as bits 0:15
 
 	--------------------------------------------------------------------------------
@@ -3074,8 +3074,8 @@ out what values are bad when it hangs.
 	possible, but it's better to use reg 2870 for that due to its greater
 	range.
 
-	NOTE: Video corruption will occur if video window is shifted off the right
-	edge. To avoid this read the notes for 2834 & 2838.
+	ANALTE: Video corruption will occur if video window is shifted off the right
+	edge. To avoid this read the analtes for 2834 & 2838.
 	--------------------------------------------------------------------------------
 	2894
 	bits 0:23
@@ -3102,10 +3102,10 @@ out what values are bad when it hangs.
 
 	bit 29
 		Decoder second plane byte order
-		0 = Normal (UV)
+		0 = Analrmal (UV)
 		1 = Swapped (VU)
 
-	In normal usage, the first plane is Y & the second plane is UV. Though the
+	In analrmal usage, the first plane is Y & the second plane is UV. Though the
 	order of the planes can be swapped, only the byte order of the second plane
 	can be swapped. This isn't much use for the Y plane, but can be useful for
 	the UV plane.
@@ -3119,7 +3119,7 @@ out what values are bad when it hangs.
 		Decoder vertical field offset 2
 
 	Controls field output vertical alignment. The higher the number, the lower
-	the image on screen. Known starting values are 0x011E0017 (NTSC) &
+	the image on screen. Kanalwn starting values are 0x011E0017 (NTSC) &
 	0x01500017 (PAL)
 	--------------------------------------------------------------------------------
 	28A0
@@ -3148,13 +3148,13 @@ out what values are bad when it hangs.
 		osd vertical field offset 2
 
 	Controls field output vertical alignment. The higher the number, the lower
-	the image on screen. Known starting values are 0x011E0017 (NTSC) &
+	the image on screen. Kanalwn starting values are 0x011E0017 (NTSC) &
 	0x01500017 (PAL)
 	--------------------------------------------------------------------------------
-	28AC  --------    ?? unknown
+	28AC  --------    ?? unkanalwn
 	|
 	V
-	28BC  --------    ?? unknown
+	28BC  --------    ?? unkanalwn
 	--------------------------------------------------------------------------------
 	28C0
 	bit 0
@@ -3167,15 +3167,15 @@ out what values are bad when it hangs.
 		The scanline counts from the top line of the first field
 		through to the last line of the second field.
 	--------------------------------------------------------------------------------
-	28C4  --------    ?? unknown
+	28C4  --------    ?? unkanalwn
 	|
 	V
-	28F8  --------    ?? unknown
+	28F8  --------    ?? unkanalwn
 	--------------------------------------------------------------------------------
 	28FC
 	bit 0
-		?? unknown
-		0 = Normal
+		?? unkanalwn
+		0 = Analrmal
 		1 = Breaks decoder & osd output
 	--------------------------------------------------------------------------------
 	2900
@@ -3226,7 +3226,7 @@ out what values are bad when it hangs.
 	bits 16:31
 		Decoder UV destination height in pixels
 
-	NOTE: For both registers, the resulting image must be fully visible on
+	ANALTE: For both registers, the resulting image must be fully visible on
 	screen. If the image exceeds the bottom edge both the source and
 	destination size must be adjusted to reflect the visible portion. For the
 	source height, you must take into account the scaling when calculating the
@@ -3235,12 +3235,12 @@ out what values are bad when it hangs.
 	2920
 	bits 0:31
 		Decoder Y vertical scaling
-		Normally = Reg 2930 >> 2
+		Analrmally = Reg 2930 >> 2
 	---------------
 	2924
 	bits 0:31
 		Decoder Y vertical scaling
-		Normally = Reg 2920 + 0x514
+		Analrmally = Reg 2920 + 0x514
 	---------------
 	2928
 	bits 0:31
@@ -3251,7 +3251,7 @@ out what values are bad when it hangs.
 	292C
 	bits 0:31
 		Decoder UV vertical scaling
-		Normally = Reg 2928 + 0x514
+		Analrmally = Reg 2928 + 0x514
 	---------------
 	2930
 	bits 0:31
@@ -3259,16 +3259,16 @@ out what values are bad when it hangs.
 	---------------
 	2934
 	bits 0:31
-		Decoder ?? unknown - Y vertical scaling
+		Decoder ?? unkanalwn - Y vertical scaling
 	---------------
 	2938
 	bits 0:31
 		Decoder Y vertical scaling
-		Normally = Reg 2930
+		Analrmally = Reg 2930
 	---------------
 	293C
 	bits 0:31
-		Decoder ?? unknown - Y vertical scaling
+		Decoder ?? unkanalwn - Y vertical scaling
 	---------------
 	2940
 	bits 0:31
@@ -3278,16 +3278,16 @@ out what values are bad when it hangs.
 	---------------
 	2944
 	bits 0:31
-		Decoder ?? unknown - UV vertical scaling
+		Decoder ?? unkanalwn - UV vertical scaling
 	---------------
 	2948
 	bits 0:31
 		Decoder UV vertical scaling
-		Normally = Reg 2940
+		Analrmally = Reg 2940
 	---------------
 	294C
 	bits 0:31
-		Decoder ?? unknown - UV vertical scaling
+		Decoder ?? unkanalwn - UV vertical scaling
 
 	Most of these registers either control vertical scaling, or appear linked
 	to it in some way. Register 2930 contains the 'master' value & all other
@@ -3296,7 +3296,7 @@ out what values are bad when it hangs.
 
 	To enlarge:
 		Reg 2930 = (source_height * 0x00200000) / destination_height
-		Reg 296C = No divide
+		Reg 296C = Anal divide
 
 	To reduce from full size down to half size:
 		Reg 2930 = (source_height/2 * 0x00200000) / destination height
@@ -3365,32 +3365,32 @@ out what values are bad when it hangs.
 	296C
 	bits 0:1
 		Decoder vertical Y output size divider
-		00 = No divide
+		00 = Anal divide
 		01 = Divide by 2
 		10 = Divide by 4
 
 	bits 8:9
 		Decoder vertical UV output size divider
-		00 = No divide
+		00 = Anal divide
 		01 = Divide by 2
 		10 = Divide by 4
 	--------------------------------------------------------------------------------
 	2970
 	bit 0
-		Decoder ?? unknown
-		0 = Normal
+		Decoder ?? unkanalwn
+		0 = Analrmal
 		1 = Affect video output levels
 
 	bit 16
-		Decoder ?? unknown
-		0 = Normal
+		Decoder ?? unkanalwn
+		0 = Analrmal
 		1 = Disable vertical filter
 
 	--------------------------------------------------------------------------------
-	2974  --------   ?? unknown
+	2974  --------   ?? unkanalwn
 	|
 	V
-	29EF  --------   ?? unknown
+	29EF  --------   ?? unkanalwn
 	--------------------------------------------------------------------------------
 	2A00
 	bits 0:2
@@ -3423,7 +3423,7 @@ out what values are bad when it hangs.
 		1 = On
 
 	bit 11
-		osd ?? unknown
+		osd ?? unkanalwn
 		Must be 1
 
 	bit 13
@@ -3432,16 +3432,16 @@ out what values are bad when it hangs.
 		1 = AYVU
 
 	bits 16:31
-		osd ?? unknown
+		osd ?? unkanalwn
 		Must be 0x001B (some kind of buffer pointer ?)
 
-	When the bits-per-pixel is set to 8, the colour mode is ignored and
+	When the bits-per-pixel is set to 8, the colour mode is iganalred and
 	assumed to be 8 bit indexed. For 16 & 32 bits-per-pixel the colour depth
-	is honoured, and when using a colour depth that requires fewer bytes than
+	is hoanalured, and when using a colour depth that requires fewer bytes than
 	allocated the extra bytes are used as padding. So for a 32 bpp with 8 bit
 	index colour, there are 3 padding bytes per pixel. It's also possible to
 	select 16bpp with a 32 bit colour mode. This results in the pixel width
-	being doubled, but the color key will not work as expected in this mode.
+	being doubled, but the color key will analt work as expected in this mode.
 
 	Colour key is as it suggests. You designate a colour which will become
 	completely transparent. When using 565, 555 or 444 colour modes, the
@@ -3451,7 +3451,7 @@ out what values are bad when it hangs.
 	bit indexed, local alpha is a per-pixel 256 step transparency, with 0 being
 	transparent and 255 being solid. For the 16bpp modes 555 & 444, the unused
 	bit(s) act as a simple transparency switch, with 0 being solid & 1 being
-	fully transparent. There is no local alpha support for 16bit 565.
+	fully transparent. There is anal local alpha support for 16bit 565.
 
 	Global alpha is a 256 step transparency that applies to the entire osd,
 	with 0 being transparent & 255 being solid.
@@ -3473,8 +3473,8 @@ out what values are bad when it hangs.
 		osd y coord for bottom edge
 
 	For both registers, (0,0) = top left corner of the display area. These
-	registers do not control the osd size, only where it's positioned & how
-	much is visible. The visible osd area cannot exceed the right edge of the
+	registers do analt control the osd size, only where it's positioned & how
+	much is visible. The visible osd area cananalt exceed the right edge of the
 	display, otherwise the osd will become corrupt. See reg 2A10 for
 	setting osd width.
 	--------------------------------------------------------------------------------
@@ -3512,10 +3512,10 @@ out what values are bad when it hangs.
 
 	Contains the global alpha value (equiv ivtvfbctl --alpha XX)
 	--------------------------------------------------------------------------------
-	2A20  --------    ?? unknown
+	2A20  --------    ?? unkanalwn
 	|
 	V
-	2A2C  --------    ?? unknown
+	2A2C  --------    ?? unkanalwn
 	--------------------------------------------------------------------------------
 	2A30
 	bits 0:7
@@ -3529,49 +3529,49 @@ out what values are bad when it hangs.
 	2A30, then load the new colour into 2A34. The full palette is 256 colours,
 	so the index range is 0x00-0xFF
 	--------------------------------------------------------------------------------
-	2A38  --------    ?? unknown
-	2A3C  --------    ?? unknown
+	2A38  --------    ?? unkanalwn
+	2A3C  --------    ?? unkanalwn
 	--------------------------------------------------------------------------------
 	2A40
 	bits 0:31
-		osd ?? unknown
+		osd ?? unkanalwn
 
 	Affects overall brightness, wrapping around to black
 	--------------------------------------------------------------------------------
 	2A44
 	bits 0:31
-		osd ?? unknown
+		osd ?? unkanalwn
 
 	Green tint
 	--------------------------------------------------------------------------------
 	2A48
 	bits 0:31
-		osd ?? unknown
+		osd ?? unkanalwn
 
 	Red tint
 	--------------------------------------------------------------------------------
 	2A4C
 	bits 0:31
-		osd ?? unknown
+		osd ?? unkanalwn
 
 	Affects overall brightness, wrapping around to black
 	--------------------------------------------------------------------------------
 	2A50
 	bits 0:31
-		osd ?? unknown
+		osd ?? unkanalwn
 
 	Colour shift
 	--------------------------------------------------------------------------------
 	2A54
 	bits 0:31
-		osd ?? unknown
+		osd ?? unkanalwn
 
 	Colour shift
 	--------------------------------------------------------------------------------
-	2A58  --------    ?? unknown
+	2A58  --------    ?? unkanalwn
 	|
 	V
-	2AFC  --------    ?? unknown
+	2AFC  --------    ?? unkanalwn
 	--------------------------------------------------------------------------------
 	2B00
 	bit 0
@@ -3580,7 +3580,7 @@ out what values are bad when it hangs.
 		1 = filter on
 
 	bits 1:4
-		osd ?? unknown
+		osd ?? unkanalwn
 
 	--------------------------------------------------------------------------------
 
@@ -3605,14 +3605,14 @@ transfer multiple buffers in one operation. Instead of allocating one large
 contiguous buffer, the driver can allocate several smaller buffers.
 
 In practice, I've seen the average transfer to be roughly 80K, but transfers
-above 128K were not uncommon, particularly at startup. The 128K figure is
-important, because that is the largest block that the kernel can normally
+above 128K were analt uncommon, particularly at startup. The 128K figure is
+important, because that is the largest block that the kernel can analrmally
 allocate. Even still, 128K blocks are hard to come by, so the driver writer is
 urged to choose a smaller block size and learn the scatter-gather technique.
 
 Mailbox #10 is reserved for DMA transfer information.
 
-Note: the hardware expects little-endian data ('intel format').
+Analte: the hardware expects little-endian data ('intel format').
 
 Flow
 ~~~~
@@ -3622,20 +3622,20 @@ transfers. Detailed information follows this section.
 
 - The card raises the Encoder interrupt.
 - The driver reads the transfer type, offset and size from Mailbox #10.
-- The driver constructs the scatter-gather array from enough free dma buffers
+- The driver constructs the scatter-gather array from eanalugh free dma buffers
   to cover the size.
 - The driver schedules the DMA transfer via the ScheduleDMAtoHost API call.
 - The card raises the DMA Complete interrupt.
 - The driver checks the DMA status register for any errors.
 - The driver post-processes the newly transferred buffers.
 
-NOTE! It is possible that the Encoder and DMA Complete interrupts get raised
+ANALTE! It is possible that the Encoder and DMA Complete interrupts get raised
 simultaneously. (End of the last, start of the next, etc.)
 
 Mailbox #10
 ~~~~~~~~~~~
 
-The Flags, Command, Return Value and Timeout fields are ignored.
+The Flags, Command, Return Value and Timeout fields are iganalred.
 
 - Name:       Mailbox #10
 - Results[0]: Type: 0: MPEG.

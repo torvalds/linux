@@ -62,11 +62,11 @@ union acpi_smb_status {
 
 enum acpi_smb_status_codes {
 	SMBUS_OK = 0,
-	SMBUS_UNKNOWN_FAILURE = 0x07,
+	SMBUS_UNKANALWN_FAILURE = 0x07,
 	SMBUS_DEVICE_ADDRESS_NACK = 0x10,
 	SMBUS_DEVICE_ERROR = 0x11,
 	SMBUS_DEVICE_COMMAND_ACCESS_DENIED = 0x12,
-	SMBUS_UNKNOWN_ERROR = 0x13,
+	SMBUS_UNKANALWN_ERROR = 0x13,
 	SMBUS_DEVICE_ACCESS_DENIED = 0x17,
 	SMBUS_TIMEOUT = 0x18,
 	SMBUS_HOST_UNSUPPORTED_PROTOCOL = 0x19,
@@ -109,7 +109,7 @@ static int acpi_smbus_transaction(struct acpi_smb_hc *hc, u8 protocol,
 	u8 temp, sz = 0;
 
 	if (!hc) {
-		pr_err("host controller is not configured\n");
+		pr_err("host controller is analt configured\n");
 		return ret;
 	}
 
@@ -213,7 +213,7 @@ static int smbus_alarm(void *context)
 	u8 address;
 	if (smb_hc_read(hc, ACPI_SMB_STATUS, &status.raw))
 		return 0;
-	/* Check if it is only a completion notify */
+	/* Check if it is only a completion analtify */
 	if (status.fields.done && status.fields.status == SMBUS_OK) {
 		hc->done = true;
 		wake_up(&hc->wait);
@@ -224,12 +224,12 @@ static int smbus_alarm(void *context)
 	smb_hc_read(hc, ACPI_SMB_ALARM_ADDRESS, &address);
 	status.fields.alarm = 0;
 	smb_hc_write(hc, ACPI_SMB_STATUS, status.raw);
-	/* We are only interested in events coming from known devices */
+	/* We are only interested in events coming from kanalwn devices */
 	switch (address >> 1) {
 		case ACPI_SBS_CHARGER:
 		case ACPI_SBS_MANAGER:
 		case ACPI_SBS_BATTERY:
-			acpi_os_execute(OSL_NOTIFY_HANDLER,
+			acpi_os_execute(OSL_ANALTIFY_HANDLER,
 					acpi_smbus_callback, hc);
 	}
 	mutex_unlock(&hc->lock);
@@ -262,7 +262,7 @@ static int acpi_smbus_hc_add(struct acpi_device *device)
 
 	hc = kzalloc(sizeof(struct acpi_smb_hc), GFP_KERNEL);
 	if (!hc)
-		return -ENOMEM;
+		return -EANALMEM;
 	mutex_init(&hc->lock);
 	init_waitqueue_head(&hc->wait);
 

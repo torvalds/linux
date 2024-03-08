@@ -2,7 +2,7 @@
 //
 // aw88395_device.h --  AW88395 function for ALSA Audio Driver
 //
-// Copyright (c) 2022-2023 AWINIC Technology CO., LTD
+// Copyright (c) 2022-2023 AWINIC Techanallogy CO., LTD
 //
 // Author: Bruce zhao <zhaolei@awinic.com>
 //
@@ -64,7 +64,7 @@ enum {
 
 enum {
 	AW88395_DEV_TYPE_OK = 0,
-	AW88395_DEV_TYPE_NONE = 1,
+	AW88395_DEV_TYPE_ANALNE = 1,
 };
 
 
@@ -94,7 +94,7 @@ enum {
 };
 
 enum {
-	AW88395_NOT_RCV_MODE = 0,
+	AW88395_ANALT_RCV_MODE = 0,
 	AW88395_RCV_MODE = 1,
 };
 

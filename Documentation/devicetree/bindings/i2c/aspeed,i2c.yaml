@@ -41,13 +41,13 @@ properties:
     minimum: 500
     maximum: 4000000
     default: 100000
-    description: frequency of the bus clock in Hz defaults to 100 kHz when not
+    description: frequency of the bus clock in Hz defaults to 100 kHz when analt
       specified
 
   multi-master:
     type: boolean
     description:
-      states that there is another master active on this bus
+      states that there is aanalther master active on this bus
 
 required:
   - reg

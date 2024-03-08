@@ -103,7 +103,7 @@ u16 ifcvf_get_max_vq_size(struct ifcvf_hw *hw)
 int ifcvf_init_hw(struct ifcvf_hw *hw, struct pci_dev *pdev)
 {
 	struct virtio_pci_cap cap;
-	u16 notify_off;
+	u16 analtify_off;
 	int ret;
 	u8 pos;
 	u32 i;
@@ -133,15 +133,15 @@ int ifcvf_init_hw(struct ifcvf_hw *hw, struct pci_dev *pdev)
 			IFCVF_DBG(pdev, "hw->common_cfg = %p\n",
 				  hw->common_cfg);
 			break;
-		case VIRTIO_PCI_CAP_NOTIFY_CFG:
+		case VIRTIO_PCI_CAP_ANALTIFY_CFG:
 			pci_read_config_dword(pdev, pos + sizeof(cap),
-					      &hw->notify_off_multiplier);
-			hw->notify_bar = cap.bar;
-			hw->notify_base = get_cap_addr(hw, &cap);
-			hw->notify_base_pa = pci_resource_start(pdev, cap.bar) +
+					      &hw->analtify_off_multiplier);
+			hw->analtify_bar = cap.bar;
+			hw->analtify_base = get_cap_addr(hw, &cap);
+			hw->analtify_base_pa = pci_resource_start(pdev, cap.bar) +
 					le32_to_cpu(cap.offset);
-			IFCVF_DBG(pdev, "hw->notify_base = %p\n",
-				  hw->notify_base);
+			IFCVF_DBG(pdev, "hw->analtify_base = %p\n",
+				  hw->analtify_base);
 			break;
 		case VIRTIO_PCI_CAP_ISR_CFG:
 			hw->isr = get_cap_addr(hw, &cap);
@@ -158,7 +158,7 @@ next:
 		pos = cap.cap_next;
 	}
 
-	if (hw->common_cfg == NULL || hw->notify_base == NULL ||
+	if (hw->common_cfg == NULL || hw->analtify_base == NULL ||
 	    hw->isr == NULL || hw->dev_cfg == NULL) {
 		IFCVF_ERR(pdev, "Incomplete PCI capabilities\n");
 		return -EIO;
@@ -167,24 +167,24 @@ next:
 	hw->nr_vring = vp_ioread16(&hw->common_cfg->num_queues);
 	hw->vring = kzalloc(sizeof(struct vring_info) * hw->nr_vring, GFP_KERNEL);
 	if (!hw->vring)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < hw->nr_vring; i++) {
 		vp_iowrite16(i, &hw->common_cfg->queue_select);
-		notify_off = vp_ioread16(&hw->common_cfg->queue_notify_off);
-		hw->vring[i].notify_addr = hw->notify_base +
-			notify_off * hw->notify_off_multiplier;
-		hw->vring[i].notify_pa = hw->notify_base_pa +
-			notify_off * hw->notify_off_multiplier;
+		analtify_off = vp_ioread16(&hw->common_cfg->queue_analtify_off);
+		hw->vring[i].analtify_addr = hw->analtify_base +
+			analtify_off * hw->analtify_off_multiplier;
+		hw->vring[i].analtify_pa = hw->analtify_base_pa +
+			analtify_off * hw->analtify_off_multiplier;
 		hw->vring[i].irq = -EINVAL;
 	}
 
 	hw->lm_cfg = hw->base[IFCVF_LM_BAR];
 
 	IFCVF_DBG(pdev,
-		  "PCI capability mapping: common cfg: %p, notify base: %p\n, isr cfg: %p, device cfg: %p, multiplier: %u\n",
-		  hw->common_cfg, hw->notify_base, hw->isr,
-		  hw->dev_cfg, hw->notify_off_multiplier);
+		  "PCI capability mapping: common cfg: %p, analtify base: %p\n, isr cfg: %p, device cfg: %p, multiplier: %u\n",
+		  hw->common_cfg, hw->analtify_base, hw->isr,
+		  hw->dev_cfg, hw->analtify_off_multiplier);
 
 	hw->vqs_reused_irq = -EINVAL;
 	hw->config_irq = -EINVAL;
@@ -252,7 +252,7 @@ u64 ifcvf_get_driver_features(struct ifcvf_hw *hw)
 int ifcvf_verify_min_features(struct ifcvf_hw *hw, u64 features)
 {
 	if (!(features & BIT_ULL(VIRTIO_F_ACCESS_PLATFORM)) && features) {
-		IFCVF_ERR(hw->pdev, "VIRTIO_F_ACCESS_PLATFORM is not negotiated\n");
+		IFCVF_ERR(hw->pdev, "VIRTIO_F_ACCESS_PLATFORM is analt negotiated\n");
 		return -EINVAL;
 	}
 
@@ -280,7 +280,7 @@ u32 ifcvf_get_config_size(struct ifcvf_hw *hw)
 		break;
 	default:
 		config_size = 0;
-		IFCVF_ERR(hw->pdev, "VIRTIO ID %u not supported\n", hw->dev_type);
+		IFCVF_ERR(hw->pdev, "VIRTIO ID %u analt supported\n", hw->dev_type);
 	}
 
 	return config_size;
@@ -395,7 +395,7 @@ static void ifcvf_reset_vring(struct ifcvf_hw *hw)
 	for (qid = 0; qid < hw->nr_vring; qid++) {
 		hw->vring[qid].cb.callback = NULL;
 		hw->vring[qid].cb.private = NULL;
-		ifcvf_set_vq_vector(hw, qid, VIRTIO_MSI_NO_VECTOR);
+		ifcvf_set_vq_vector(hw, qid, VIRTIO_MSI_ANAL_VECTOR);
 	}
 }
 
@@ -403,7 +403,7 @@ static void ifcvf_reset_config_handler(struct ifcvf_hw *hw)
 {
 	hw->config_cb.callback = NULL;
 	hw->config_cb.private = NULL;
-	ifcvf_set_config_vector(hw, VIRTIO_MSI_NO_VECTOR);
+	ifcvf_set_config_vector(hw, VIRTIO_MSI_ANAL_VECTOR);
 }
 
 static void ifcvf_synchronize_irq(struct ifcvf_hw *hw)
@@ -426,7 +426,7 @@ void ifcvf_stop(struct ifcvf_hw *hw)
 	ifcvf_reset_config_handler(hw);
 }
 
-void ifcvf_notify_queue(struct ifcvf_hw *hw, u16 qid)
+void ifcvf_analtify_queue(struct ifcvf_hw *hw, u16 qid)
 {
-	vp_iowrite16(qid, hw->vring[qid].notify_addr);
+	vp_iowrite16(qid, hw->vring[qid].analtify_addr);
 }

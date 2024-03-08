@@ -112,12 +112,12 @@ static int snd_rpl_probe(struct pci_dev *pci,
 	case 0x62:
 		break;
 	default:
-		dev_dbg(&pci->dev, "acp6x pci device not found\n");
-		return -ENODEV;
+		dev_dbg(&pci->dev, "acp6x pci device analt found\n");
+		return -EANALDEV;
 	}
 	if (pci_enable_device(pci)) {
 		dev_err(&pci->dev, "pci_enable_device failed\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = pci_request_regions(pci, "AMD ACP6x audio");
@@ -129,7 +129,7 @@ static int snd_rpl_probe(struct pci_dev *pci,
 	adata = devm_kzalloc(&pci->dev, sizeof(struct rpl_dev_data),
 			     GFP_KERNEL);
 	if (!adata) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto release_regions;
 	}
 
@@ -137,7 +137,7 @@ static int snd_rpl_probe(struct pci_dev *pci,
 	adata->acp6x_base = devm_ioremap(&pci->dev, addr,
 					 pci_resource_len(pci, 0));
 	if (!adata->acp6x_base) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto release_regions;
 	}
 	pci_set_master(pci);
@@ -147,7 +147,7 @@ static int snd_rpl_probe(struct pci_dev *pci,
 		goto release_regions;
 	pm_runtime_set_autosuspend_delay(&pci->dev, ACP_SUSPEND_DELAY_MS);
 	pm_runtime_use_autosuspend(&pci->dev);
-	pm_runtime_put_noidle(&pci->dev);
+	pm_runtime_put_analidle(&pci->dev);
 	pm_runtime_allow(&pci->dev);
 
 	return 0;
@@ -198,7 +198,7 @@ static void snd_rpl_remove(struct pci_dev *pci)
 	if (ret)
 		dev_err(&pci->dev, "ACP de-init failed\n");
 	pm_runtime_forbid(&pci->dev);
-	pm_runtime_get_noresume(&pci->dev);
+	pm_runtime_get_analresume(&pci->dev);
 	pci_release_regions(pci);
 	pci_disable_device(pci);
 }

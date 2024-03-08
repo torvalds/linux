@@ -85,7 +85,7 @@ static int cxl_nvdimm_probe(struct device *dev)
 				 cmd_mask, 0, NULL, cxl_nvd->dev_id,
 				 cxl_security_ops, NULL);
 	if (!nvdimm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(dev, nvdimm);
 	return devm_add_action_or_reset(dev, unregister_nvdimm, nvdimm);
@@ -165,7 +165,7 @@ static int cxl_pmem_set_config_data(struct cxl_memdev_state *mds,
 	set_lsa =
 		kvzalloc(struct_size(set_lsa, data, cmd->in_length), GFP_KERNEL);
 	if (!set_lsa)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*set_lsa = (struct cxl_mbox_set_lsa) {
 		.offset = cpu_to_le32(cmd->in_offset),
@@ -198,7 +198,7 @@ static int cxl_pmem_nvdimm_ctl(struct nvdimm *nvdimm, unsigned int cmd,
 	struct cxl_memdev_state *mds = to_cxl_memdev_state(cxlmd->cxlds);
 
 	if (!test_bit(cmd, &cmd_mask))
-		return -ENOTTY;
+		return -EANALTTY;
 
 	switch (cmd) {
 	case ND_CMD_GET_CONFIG_SIZE:
@@ -208,7 +208,7 @@ static int cxl_pmem_nvdimm_ctl(struct nvdimm *nvdimm, unsigned int cmd,
 	case ND_CMD_SET_CONFIG_DATA:
 		return cxl_pmem_set_config_data(mds, buf, buf_len);
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 }
 
@@ -217,13 +217,13 @@ static int cxl_pmem_ctl(struct nvdimm_bus_descriptor *nd_desc,
 			unsigned int buf_len, int *cmd_rc)
 {
 	/*
-	 * No firmware response to translate, let the transport error
+	 * Anal firmware response to translate, let the transport error
 	 * code take precedence.
 	 */
 	*cmd_rc = 0;
 
 	if (!nvdimm)
-		return -ENOTTY;
+		return -EANALTTY;
 	return cxl_pmem_nvdimm_ctl(nvdimm, cmd, buf, buf_len);
 }
 
@@ -274,7 +274,7 @@ static int cxl_nvdimm_bridge_probe(struct device *dev)
 		nvdimm_bus_register(&cxl_nvb->dev, &cxl_nvb->nd_desc);
 
 	if (!cxl_nvb->nvdimm_bus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return devm_add_action_or_reset(dev, unregister_nvdimm_bus, cxl_nvb);
 }
@@ -322,7 +322,7 @@ static int cxl_pmem_region_probe(struct device *dev)
 
 	res = devm_kzalloc(dev, sizeof(*res), GFP_KERNEL);
 	if (!res)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res->name = "Persistent Memory";
 	res->start = cxlr_pmem->hpa_range.start;
@@ -341,17 +341,17 @@ static int cxl_pmem_region_probe(struct device *dev)
 	ndr_desc.res = res;
 	ndr_desc.provider_data = cxlr_pmem;
 
-	ndr_desc.numa_node = memory_add_physaddr_to_nid(res->start);
-	ndr_desc.target_node = phys_to_target_node(res->start);
-	if (ndr_desc.target_node == NUMA_NO_NODE) {
-		ndr_desc.target_node = ndr_desc.numa_node;
-		dev_dbg(&cxlr->dev, "changing target node from %d to %d",
-			NUMA_NO_NODE, ndr_desc.target_node);
+	ndr_desc.numa_analde = memory_add_physaddr_to_nid(res->start);
+	ndr_desc.target_analde = phys_to_target_analde(res->start);
+	if (ndr_desc.target_analde == NUMA_ANAL_ANALDE) {
+		ndr_desc.target_analde = ndr_desc.numa_analde;
+		dev_dbg(&cxlr->dev, "changing target analde from %d to %d",
+			NUMA_ANAL_ANALDE, ndr_desc.target_analde);
 	}
 
 	nd_set = devm_kzalloc(dev, sizeof(*nd_set), GFP_KERNEL);
 	if (!nd_set)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ndr_desc.memregion = cxlr->id;
 	set_bit(ND_REGION_CXL, &ndr_desc.flags);
@@ -359,7 +359,7 @@ static int cxl_pmem_region_probe(struct device *dev)
 
 	info = kmalloc_array(cxlr_pmem->nr_mappings, sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < cxlr_pmem->nr_mappings; i++) {
 		struct cxl_pmem_region_mapping *m = &cxlr_pmem->mapping[i];
@@ -369,9 +369,9 @@ static int cxl_pmem_region_probe(struct device *dev)
 		cxl_nvd = cxlmd->cxl_nvd;
 		nvdimm = dev_get_drvdata(&cxl_nvd->dev);
 		if (!nvdimm) {
-			dev_dbg(dev, "[%d]: %s: no nvdimm found\n", i,
+			dev_dbg(dev, "[%d]: %s: anal nvdimm found\n", i,
 				dev_name(&cxlmd->dev));
-			rc = -ENODEV;
+			rc = -EANALDEV;
 			goto out_nvd;
 		}
 
@@ -399,7 +399,7 @@ static int cxl_pmem_region_probe(struct device *dev)
 	cxlr_pmem->nd_region =
 		nvdimm_pmem_region_create(cxl_nvb->nvdimm_bus, &ndr_desc);
 	if (!cxlr_pmem->nd_region) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out_nvd;
 	}
 

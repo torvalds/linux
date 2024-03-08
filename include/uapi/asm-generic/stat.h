@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef __ASM_GENERIC_STAT_H
 #define __ASM_GENERIC_STAT_H
 
@@ -12,9 +12,9 @@
  * types.
  *
  * By convention, 64 bit architectures use the stat interface, while
- * 32 bit architectures use the stat64 interface. Note that we don't
+ * 32 bit architectures use the stat64 interface. Analte that we don't
  * provide an __old_kernel_stat here, which new architecture should
- * not have to start with.
+ * analt have to start with.
  */
 
 #include <asm/bitsperlong.h>
@@ -23,7 +23,7 @@
 
 struct stat {
 	unsigned long	st_dev;		/* Device.  */
-	unsigned long	st_ino;		/* File serial number.  */
+	unsigned long	st_ianal;		/* File serial number.  */
 	unsigned int	st_mode;	/* File mode.  */
 	unsigned int	st_nlink;	/* Link count.  */
 	unsigned int	st_uid;		/* User ID of the file's owner.  */
@@ -48,7 +48,7 @@ struct stat {
 #if __BITS_PER_LONG != 64 || defined(__ARCH_WANT_STAT64)
 struct stat64 {
 	unsigned long long st_dev;	/* Device.  */
-	unsigned long long st_ino;	/* File serial number.  */
+	unsigned long long st_ianal;	/* File serial number.  */
 	unsigned int	st_mode;	/* File mode.  */
 	unsigned int	st_nlink;	/* Link count.  */
 	unsigned int	st_uid;		/* User ID of the file's owner.  */

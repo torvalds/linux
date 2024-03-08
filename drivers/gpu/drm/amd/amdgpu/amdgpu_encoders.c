@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -155,10 +155,10 @@ u16 amdgpu_encoder_get_dp_bridge_encoder_id(struct drm_encoder *encoder)
 		case ENCODER_OBJECT_ID_NUTMEG:
 			return amdgpu_encoder->encoder_id;
 		default:
-			return ENCODER_OBJECT_ID_NONE;
+			return ENCODER_OBJECT_ID_ANALNE;
 		}
 	}
-	return ENCODER_OBJECT_ID_NONE;
+	return ENCODER_OBJECT_ID_ANALNE;
 }
 
 void amdgpu_panel_mode_fixup(struct drm_encoder *encoder,

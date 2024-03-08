@@ -20,18 +20,18 @@ description: |
   the serial interface.
 
   The mode of operation of the communication channel (parallel or serial) is
-  selected by the A0 and A1 input pins. In normal mode, data is latched by
+  selected by the A0 and A1 input pins. In analrmal mode, data is latched by
   toggling the SAMPLE line and can then be read directly. In configuration mode,
   data is read or written using a register access scheme (address byte with
   read/write flag and data byte).
 
     A1  A0  Result
-     0   0  Normal mode - position output
-     0   1  Normal mode - velocity output
+     0   0  Analrmal mode - position output
+     0   1  Analrmal mode - velocity output
      1   0  Reserved
      1   1  Configuration mode
 
-  In normal mode, the resolution of the digital output is selected using
+  In analrmal mode, the resolution of the digital output is selected using
   the RES0 and RES1 input pins. In configuration mode, the resolution is
   selected by setting the RES0 and RES1 bits in the control register.
 
@@ -41,7 +41,7 @@ description: |
      1     0  14
      1     1  16
 
-  Note on SPI connections: The CS line on the AD2S1210 should hard-wired to
+  Analte on SPI connections: The CS line on the AD2S1210 should hard-wired to
   logic low and the WR/FSYNC line on the AD2S1210 should be connected to the
   SPI CSn output of the SPI controller.
 

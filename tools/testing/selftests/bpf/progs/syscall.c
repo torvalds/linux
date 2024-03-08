@@ -7,7 +7,7 @@
 #include <../../../tools/include/linux/filter.h>
 #include <linux/btf.h>
 #include <string.h>
-#include <errno.h>
+#include <erranal.h>
 
 char _license[] SEC("license") = "GPL";
 

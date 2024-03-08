@@ -9,9 +9,9 @@
  *
  * mpi2_sas.h Version:  02.00.10
  *
- * NOTE: Names (typedefs, defines, etc.) beginning with an MPI25 or Mpi25
- *       prefix are for use only on MPI v2.5 products, and must not be used
- *       with MPI v2.0 products. Unless otherwise noted, names beginning with
+ * ANALTE: Names (typedefs, defines, etc.) beginning with an MPI25 or Mpi25
+ *       prefix are for use only on MPI v2.5 products, and must analt be used
+ *       with MPI v2.0 products. Unless otherwise analted, names beginning with
  *       MPI2 or Mpi2 are for use with both MPI v2.0 and MPI v2.5 products.
  *
  * Version History
@@ -46,20 +46,20 @@
  *Values for SASStatus.
  */
 #define MPI2_SASSTATUS_SUCCESS                          (0x00)
-#define MPI2_SASSTATUS_UNKNOWN_ERROR                    (0x01)
+#define MPI2_SASSTATUS_UNKANALWN_ERROR                    (0x01)
 #define MPI2_SASSTATUS_INVALID_FRAME                    (0x02)
 #define MPI2_SASSTATUS_UTC_BAD_DEST                     (0x03)
 #define MPI2_SASSTATUS_UTC_BREAK_RECEIVED               (0x04)
-#define MPI2_SASSTATUS_UTC_CONNECT_RATE_NOT_SUPPORTED   (0x05)
+#define MPI2_SASSTATUS_UTC_CONNECT_RATE_ANALT_SUPPORTED   (0x05)
 #define MPI2_SASSTATUS_UTC_PORT_LAYER_REQUEST           (0x06)
-#define MPI2_SASSTATUS_UTC_PROTOCOL_NOT_SUPPORTED       (0x07)
+#define MPI2_SASSTATUS_UTC_PROTOCOL_ANALT_SUPPORTED       (0x07)
 #define MPI2_SASSTATUS_UTC_STP_RESOURCES_BUSY           (0x08)
 #define MPI2_SASSTATUS_UTC_WRONG_DESTINATION            (0x09)
 #define MPI2_SASSTATUS_SHORT_INFORMATION_UNIT           (0x0A)
 #define MPI2_SASSTATUS_LONG_INFORMATION_UNIT            (0x0B)
 #define MPI2_SASSTATUS_XFER_RDY_INCORRECT_WRITE_DATA    (0x0C)
 #define MPI2_SASSTATUS_XFER_RDY_REQUEST_OFFSET_ERROR    (0x0D)
-#define MPI2_SASSTATUS_XFER_RDY_NOT_EXPECTED            (0x0E)
+#define MPI2_SASSTATUS_XFER_RDY_ANALT_EXPECTED            (0x0E)
 #define MPI2_SASSTATUS_DATA_INCORRECT_DATA_LENGTH       (0x0F)
 #define MPI2_SASSTATUS_DATA_TOO_MUCH_READ_DATA          (0x10)
 #define MPI2_SASSTATUS_DATA_OFFSET_ERROR                (0x11)
@@ -85,10 +85,10 @@
 #define MPI2_SAS_DEVICE_INFO_SATA_HOST          (0x00000008)
 
 #define MPI2_SAS_DEVICE_INFO_MASK_DEVICE_TYPE   (0x00000007)
-#define MPI2_SAS_DEVICE_INFO_NO_DEVICE          (0x00000000)
+#define MPI2_SAS_DEVICE_INFO_ANAL_DEVICE          (0x00000000)
 #define MPI2_SAS_DEVICE_INFO_END_DEVICE         (0x00000001)
 #define MPI2_SAS_DEVICE_INFO_EDGE_EXPANDER      (0x00000002)
-#define MPI2_SAS_DEVICE_INFO_FANOUT_EXPANDER    (0x00000003)
+#define MPI2_SAS_DEVICE_INFO_FAANALUT_EXPANDER    (0x00000003)
 
 /*****************************************************************************
 *

@@ -65,5 +65,5 @@ try_decompress '\002\041\114\030' xyy 'lz4 -d -l'
 try_decompress '\050\265\057\375' xxx unzstd
 
 # Bail out:
-echo "$me: Cannot find kernel config." >&2
+echo "$me: Cananalt find kernel config." >&2
 exit 1

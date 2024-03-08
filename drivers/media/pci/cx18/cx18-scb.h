@@ -11,7 +11,7 @@
 
 #include "cx18-mailbox.h"
 
-/* NOTE: All ACK interrupts are in the SW2 register.  All non-ACK interrupts
+/* ANALTE: All ACK interrupts are in the SW2 register.  All analn-ACK interrupts
    are in the SW1 register. */
 
 #define IRQ_APU_TO_CPU         0x00000001
@@ -61,7 +61,7 @@
 
 #define SCB_OFFSET  0xDC0000
 
-/* If Firmware uses fixed memory map, it shall not allocate the area
+/* If Firmware uses fixed memory map, it shall analt allocate the area
    between SCB_OFFSET and SCB_OFFSET+SCB_RESERVED_SIZE-1 inclusive */
 #define SCB_RESERVED_SIZE 0x10000
 
@@ -99,7 +99,7 @@ struct cx18_scb {
 
 	/* Fields for CPU: */
 
-	/* bit 0: 1/0 processor ready/not ready. Set other bits to 0. */
+	/* bit 0: 1/0 processor ready/analt ready. Set other bits to 0. */
 	u32 cpu_state;
 	u32 reserved1[7];
 	/* Offset to the mailbox used for sending commands from APU to CPU */

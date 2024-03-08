@@ -63,10 +63,10 @@ struct lpaif_i2sctl {
 	struct regmap_field *loopback;
 	struct regmap_field *spken;
 	struct regmap_field *spkmode;
-	struct regmap_field *spkmono;
+	struct regmap_field *spkmoanal;
 	struct regmap_field *micen;
 	struct regmap_field *micmode;
-	struct regmap_field *micmono;
+	struct regmap_field *micmoanal;
 	struct regmap_field *wssrc;
 	struct regmap_field *bitwidth;
 };
@@ -220,10 +220,10 @@ struct lpass_variant {
 	struct reg_field loopback;
 	struct reg_field spken;
 	struct reg_field spkmode;
-	struct reg_field spkmono;
+	struct reg_field spkmoanal;
 	struct reg_field micen;
 	struct reg_field micmode;
-	struct reg_field micmono;
+	struct reg_field micmoanal;
 	struct reg_field wssrc;
 	struct reg_field bitwidth;
 

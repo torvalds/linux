@@ -33,17 +33,17 @@ static struct kmem_cache	*xfs_rmapbt_cur_cache;
  * extent is mapped and removed when an extent is unmapped.  Owner records for
  * all other block types (i.e. metadata) are inserted when an extent is
  * allocated and removed when an extent is freed. There can only be one owner
- * of a metadata extent, usually an inode or some other metadata structure like
+ * of a metadata extent, usually an ianalde or some other metadata structure like
  * an AG btree.
  *
  * The rmap btree is part of the free space management, so blocks for the tree
  * are sourced from the agfl. Hence we need transaction reservation support for
- * this tree so that the freelist is always large enough. This also impacts on
+ * this tree so that the freelist is always large eanalugh. This also impacts on
  * the minimum space we need to leave free in the AG.
  *
  * The tree is ordered by [ag block, owner, offset]. This is a large key size,
  * but it is the only way to enforce unique keys when a block can be owned by
- * multiple files at any offset. There's no need to order/search by extent
+ * multiple files at any offset. There's anal need to order/search by extent
  * size for online updating/management of the tree. It is intended that most
  * reverse lookups will be to find the owner(s) of a particular block, or to
  * try to recover tree and file data from corrupt primary metadata.
@@ -87,27 +87,27 @@ xfs_rmapbt_alloc_block(
 	struct xfs_agf		*agf = agbp->b_addr;
 	struct xfs_perag	*pag = cur->bc_ag.pag;
 	int			error;
-	xfs_agblock_t		bno;
+	xfs_agblock_t		banal;
 
 	/* Allocate the new block from the freelist. If we can't, give up.  */
 	error = xfs_alloc_get_freelist(pag, cur->bc_tp, cur->bc_ag.agbp,
-				       &bno, 1);
+				       &banal, 1);
 	if (error)
 		return error;
 
-	trace_xfs_rmapbt_alloc_block(cur->bc_mp, pag->pag_agno, bno, 1);
-	if (bno == NULLAGBLOCK) {
+	trace_xfs_rmapbt_alloc_block(cur->bc_mp, pag->pag_aganal, banal, 1);
+	if (banal == NULLAGBLOCK) {
 		*stat = 0;
 		return 0;
 	}
 
-	xfs_extent_busy_reuse(cur->bc_mp, pag, bno, 1, false);
+	xfs_extent_busy_reuse(cur->bc_mp, pag, banal, 1, false);
 
-	new->s = cpu_to_be32(bno);
+	new->s = cpu_to_be32(banal);
 	be32_add_cpu(&agf->agf_rmap_blocks, 1);
 	xfs_alloc_log_agf(cur->bc_tp, agbp, XFS_AGF_RMAP_BLOCKS);
 
-	xfs_ag_resv_rmapbt_alloc(cur->bc_mp, pag->pag_agno);
+	xfs_ag_resv_rmapbt_alloc(cur->bc_mp, pag->pag_aganal);
 
 	*stat = 1;
 	return 0;
@@ -121,19 +121,19 @@ xfs_rmapbt_free_block(
 	struct xfs_buf		*agbp = cur->bc_ag.agbp;
 	struct xfs_agf		*agf = agbp->b_addr;
 	struct xfs_perag	*pag = cur->bc_ag.pag;
-	xfs_agblock_t		bno;
+	xfs_agblock_t		banal;
 	int			error;
 
-	bno = xfs_daddr_to_agbno(cur->bc_mp, xfs_buf_daddr(bp));
-	trace_xfs_rmapbt_free_block(cur->bc_mp, pag->pag_agno,
-			bno, 1);
+	banal = xfs_daddr_to_agbanal(cur->bc_mp, xfs_buf_daddr(bp));
+	trace_xfs_rmapbt_free_block(cur->bc_mp, pag->pag_aganal,
+			banal, 1);
 	be32_add_cpu(&agf->agf_rmap_blocks, -1);
 	xfs_alloc_log_agf(cur->bc_tp, agbp, XFS_AGF_RMAP_BLOCKS);
-	error = xfs_alloc_put_freelist(pag, cur->bc_tp, agbp, NULL, bno, 1);
+	error = xfs_alloc_put_freelist(pag, cur->bc_tp, agbp, NULL, banal, 1);
 	if (error)
 		return error;
 
-	xfs_extent_busy_insert(cur->bc_tp, pag, bno, 1,
+	xfs_extent_busy_insert(cur->bc_tp, pag, banal, 1,
 			      XFS_EXTENT_BUSY_SKIP_DISCARD);
 
 	xfs_ag_resv_free_extent(pag, XFS_AG_RESV_RMAPBT, NULL, 1);
@@ -197,7 +197,7 @@ xfs_rmapbt_init_high_key_from_rec(
 	be32_add_cpu(&key->rmap.rm_startblock, adj);
 	key->rmap.rm_owner = rec->rmap.rm_owner;
 	key->rmap.rm_offset = ondisk_rec_offset_to_key(rec);
-	if (XFS_RMAP_NON_INODE_OWNER(be64_to_cpu(rec->rmap.rm_owner)) ||
+	if (XFS_RMAP_ANALN_IANALDE_OWNER(be64_to_cpu(rec->rmap.rm_owner)) ||
 	    XFS_RMAP_IS_BMBT_BLOCK(be64_to_cpu(rec->rmap.rm_offset)))
 		return;
 	off = be64_to_cpu(key->rmap.rm_offset);
@@ -224,7 +224,7 @@ xfs_rmapbt_init_ptr_from_cur(
 {
 	struct xfs_agf		*agf = cur->bc_ag.agbp->b_addr;
 
-	ASSERT(cur->bc_ag.pag->pag_agno == be32_to_cpu(agf->agf_seqno));
+	ASSERT(cur->bc_ag.pag->pag_aganal == be32_to_cpu(agf->agf_seqanal));
 
 	ptr->s = agf->agf_roots[cur->bc_btnum];
 }
@@ -299,7 +299,7 @@ xfs_rmapbt_diff_two_keys(
 	}
 
 	if (!mask || mask->rmap.rm_offset) {
-		/* Doesn't make sense to allow offset but not owner */
+		/* Doesn't make sense to allow offset but analt owner */
 		ASSERT(!mask || mask->rmap.rm_owner);
 
 		x = offset_keymask(be64_to_cpu(kp1->rm_offset));
@@ -327,11 +327,11 @@ xfs_rmapbt_verify(
 	 * magic number and level verification
 	 *
 	 * During growfs operations, we can't verify the exact level or owner as
-	 * the perag is not fully initialised and hence not attached to the
+	 * the perag is analt fully initialised and hence analt attached to the
 	 * buffer.  In this case, check against the maximum tree depth.
 	 *
 	 * Similarly, during log recovery we will have a perag structure
-	 * attached, but the agf information will not yet have been initialised
+	 * attached, but the agf information will analt yet have been initialised
 	 * from the on disk AGF. Again, we can only check against maximum limits
 	 * in this case.
 	 */
@@ -397,7 +397,7 @@ const struct xfs_buf_ops xfs_rmapbt_buf_ops = {
 };
 
 STATIC int
-xfs_rmapbt_keys_inorder(
+xfs_rmapbt_keys_ianalrder(
 	struct xfs_btree_cur		*cur,
 	const union xfs_btree_key	*k1,
 	const union xfs_btree_key	*k2)
@@ -427,7 +427,7 @@ xfs_rmapbt_keys_inorder(
 }
 
 STATIC int
-xfs_rmapbt_recs_inorder(
+xfs_rmapbt_recs_ianalrder(
 	struct xfs_btree_cur		*cur,
 	const union xfs_btree_rec	*r1,
 	const union xfs_btree_rec	*r2)
@@ -493,8 +493,8 @@ static const struct xfs_btree_ops xfs_rmapbt_ops = {
 	.key_diff		= xfs_rmapbt_key_diff,
 	.buf_ops		= &xfs_rmapbt_buf_ops,
 	.diff_two_keys		= xfs_rmapbt_diff_two_keys,
-	.keys_inorder		= xfs_rmapbt_keys_inorder,
-	.recs_inorder		= xfs_rmapbt_recs_inorder,
+	.keys_ianalrder		= xfs_rmapbt_keys_ianalrder,
+	.recs_ianalrder		= xfs_rmapbt_recs_ianalrder,
 	.keys_contiguous	= xfs_rmapbt_keys_contiguous,
 };
 
@@ -649,7 +649,7 @@ xfs_rmapbt_compute_maxlevels(
 				mp->m_sb.sb_agblocks);
 	} else {
 		/*
-		 * If there's no block sharing, compute the maximum rmapbt
+		 * If there's anal block sharing, compute the maximum rmapbt
 		 * height assuming one rmap record per AG block.
 		 */
 		mp->m_rmap_maxlevels = xfs_btree_compute_maxlevels(
@@ -716,10 +716,10 @@ xfs_rmapbt_calc_reserves(
 	 * never be available for the kinds of things that would require btree
 	 * expansion.  We therefore can pretend the space isn't there.
 	 */
-	if (xfs_ag_contains_log(mp, pag->pag_agno))
+	if (xfs_ag_contains_log(mp, pag->pag_aganal))
 		agblocks -= mp->m_sb.sb_logblocks;
 
-	/* Reserve 1% of the AG or enough for 1 block per record. */
+	/* Reserve 1% of the AG or eanalugh for 1 block per record. */
 	*ask += max(agblocks / 100, xfs_rmapbt_max_size(mp, agblocks));
 	*used += tree_len;
 
@@ -734,7 +734,7 @@ xfs_rmapbt_init_cur_cache(void)
 			0, 0, NULL);
 
 	if (!xfs_rmapbt_cur_cache)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 

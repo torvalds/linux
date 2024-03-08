@@ -72,7 +72,7 @@ struct ns2_phy_data {
 static const unsigned int usb_extcon_cable[] = {
 	EXTCON_USB,
 	EXTCON_USB_HOST,
-	EXTCON_NONE,
+	EXTCON_ANALNE,
 };
 
 static inline int pll_lock_stat(u32 usb_reg, int reg_mask,
@@ -289,12 +289,12 @@ static int ns2_drd_phy_probe(struct platform_device *pdev)
 	driver = devm_kzalloc(dev, sizeof(struct ns2_phy_driver),
 			      GFP_KERNEL);
 	if (!driver)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	driver->data = devm_kzalloc(dev, sizeof(struct ns2_phy_data),
 				  GFP_KERNEL);
 	if (!driver->data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	driver->icfgdrd_regs = devm_platform_ioremap_resource_byname(pdev, "icfg");
 	if (IS_ERR(driver->icfgdrd_regs))
@@ -327,7 +327,7 @@ static int ns2_drd_phy_probe(struct platform_device *pdev)
 	driver->edev = devm_extcon_dev_allocate(dev, usb_extcon_cable);
 	if (IS_ERR(driver->edev)) {
 		dev_err(dev, "failed to allocate extcon device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = devm_extcon_dev_register(dev, driver->edev);
@@ -378,7 +378,7 @@ static int ns2_drd_phy_probe(struct platform_device *pdev)
 	writel(val, driver->crmu_usb2_ctrl);
 
 	data = driver->data;
-	data->phy = devm_phy_create(dev, dev->of_node, &ops);
+	data->phy = devm_phy_create(dev, dev->of_analde, &ops);
 	if (IS_ERR(data->phy)) {
 		dev_err(dev, "Failed to create usb drd phy\n");
 		return PTR_ERR(data->phy);

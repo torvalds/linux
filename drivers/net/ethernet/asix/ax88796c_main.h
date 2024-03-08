@@ -14,7 +14,7 @@
 
 #include "ax88796c_spi.h"
 
-/* These identify the driver base version and may not be removed. */
+/* These identify the driver base version and may analt be removed. */
 #define DRV_NAME	"ax88796c"
 #define ADP_NAME	"ASIX AX88796C SPI Ethernet Adapter"
 
@@ -117,7 +117,7 @@ struct ax88796c_device {
 	int			pause;
 	int			asym_pause;
 	int			flowctrl;
-		#define AX_FC_NONE		0
+		#define AX_FC_ANALNE		0
 		#define AX_FC_RX		BIT(0)
 		#define AX_FC_TX		BIT(1)
 		#define AX_FC_ANEG		BIT(2)
@@ -565,6 +565,6 @@ struct rx_header {
 	u16 flags;
 };
 
-extern unsigned long ax88796c_no_regs_mask[];
+extern unsigned long ax88796c_anal_regs_mask[];
 
 #endif /* #ifndef _AX88796C_MAIN_H */

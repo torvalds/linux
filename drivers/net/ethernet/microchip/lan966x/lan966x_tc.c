@@ -27,7 +27,7 @@ static int lan966x_tc_setup_qdisc_taprio(struct lan966x_port *port,
 	case TAPRIO_CMD_DESTROY:
 		return lan966x_taprio_del(port);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -40,10 +40,10 @@ static int lan966x_tc_setup_qdisc_tbf(struct lan966x_port *port,
 	case TC_TBF_DESTROY:
 		return lan966x_tbf_del(port, qopt);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int lan966x_tc_setup_qdisc_cbs(struct lan966x_port *port,
@@ -62,10 +62,10 @@ static int lan966x_tc_setup_qdisc_ets(struct lan966x_port *port,
 	case TC_ETS_DESTROY:
 		return lan966x_ets_del(port, qopt);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	};
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int lan966x_tc_block_cb(enum tc_setup_type type, void *type_data,
@@ -79,7 +79,7 @@ static int lan966x_tc_block_cb(enum tc_setup_type type, void *type_data,
 	case TC_SETUP_CLSFLOWER:
 		return lan966x_tc_flower(port, type_data, ingress);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -109,7 +109,7 @@ static int lan966x_tc_setup_block(struct lan966x_port *port,
 		cb = lan966x_tc_block_cb_egress;
 		ingress = false;
 	} else {
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return flow_block_cb_setup_simple(f, &lan966x_tc_block_cb_list,
@@ -135,7 +135,7 @@ int lan966x_tc_setup(struct net_device *dev, enum tc_setup_type type,
 	case TC_SETUP_BLOCK:
 		return lan966x_tc_setup_block(port, type_data);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;

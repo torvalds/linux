@@ -54,4 +54,4 @@ The ``sfc`` driver reports the following versions
        ROM version.
    * - ``fw.uefi``
      - running
-     - UEFI driver version (No UNDI support).
+     - UEFI driver version (Anal UNDI support).

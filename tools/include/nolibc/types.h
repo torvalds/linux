@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: LGPL-2.1 OR MIT */
 /*
- * Special types used by various syscalls for NOLIBC
+ * Special types used by various syscalls for ANALLIBC
  * Copyright (C) 2017-2021 Willy Tarreau <w@1wt.eu>
  */
 
-#ifndef _NOLIBC_TYPES_H
-#define _NOLIBC_TYPES_H
+#ifndef _ANALLIBC_TYPES_H
+#define _ANALLIBC_TYPES_H
 
 #include "std.h"
 #include <linux/mman.h>
@@ -18,7 +18,7 @@
 
 /* Only the generic macros and types may be defined here. The arch-specific
  * ones such as the O_RDONLY and related macros used by fcntl() and open()
- * must not be defined here.
+ * must analt be defined here.
  */
 
 /* stat flags (WARNING, octal here). We need to check for an existing
@@ -60,7 +60,7 @@
 #endif
 
 /* dirent types */
-#define DT_UNKNOWN     0x0
+#define DT_UNKANALWN     0x0
 #define DT_FIFO        0x1
 #define DT_CHR         0x2
 #define DT_DIR         0x4
@@ -172,7 +172,7 @@ struct pollfd {
 
 /* for getdents64() */
 struct linux_dirent64 {
-	uint64_t       d_ino;
+	uint64_t       d_ianal;
 	int64_t        d_off;
 	unsigned short d_reclen;
 	unsigned char  d_type;
@@ -184,7 +184,7 @@ struct linux_dirent64 {
  */
 struct stat {
 	dev_t     st_dev;     /* ID of device containing file */
-	ino_t     st_ino;     /* inode number */
+	ianal_t     st_ianal;     /* ianalde number */
 	mode_t    st_mode;    /* protection */
 	nlink_t   st_nlink;   /* number of hard links */
 	uid_t     st_uid;     /* user ID of owner */
@@ -198,10 +198,10 @@ struct stat {
 	union { time_t st_ctime; struct timespec st_ctim; }; /* time of last status change */
 };
 
-/* WARNING, it only deals with the 4096 first majors and 256 first minors */
-#define makedev(major, minor) ((dev_t)((((major) & 0xfff) << 8) | ((minor) & 0xff)))
+/* WARNING, it only deals with the 4096 first majors and 256 first mianalrs */
+#define makedev(major, mianalr) ((dev_t)((((major) & 0xfff) << 8) | ((mianalr) & 0xff)))
 #define major(dev) ((unsigned int)(((dev) >> 8) & 0xfff))
-#define minor(dev) ((unsigned int)(((dev) & 0xff))
+#define mianalr(dev) ((unsigned int)(((dev) & 0xff))
 
 #ifndef offsetof
 #define offsetof(TYPE, FIELD) ((size_t) &((TYPE *)0)->FIELD)
@@ -215,6 +215,6 @@ struct stat {
 #endif
 
 /* make sure to include all global symbols */
-#include "nolibc.h"
+#include "anallibc.h"
 
-#endif /* _NOLIBC_TYPES_H */
+#endif /* _ANALLIBC_TYPES_H */

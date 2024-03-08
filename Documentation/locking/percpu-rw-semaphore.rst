@@ -17,7 +17,7 @@ hundreds of milliseconds.
 
 The lock is declared with "struct percpu_rw_semaphore" type.
 The lock is initialized percpu_init_rwsem, it returns 0 on success and
--ENOMEM on allocation failure.
+-EANALMEM on allocation failure.
 The lock must be freed with percpu_free_rwsem to avoid memory leak.
 
 The lock is locked for read with percpu_down_read, percpu_up_read and

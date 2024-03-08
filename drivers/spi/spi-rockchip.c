@@ -156,7 +156,7 @@
 
 /*
  * SPI_CTRLR1 is 16-bits, so we should support lengths of 0xffff + 1. However,
- * the controller seems to hang when given 0x10000, so stick with this for now.
+ * the controller seems to hang when given 0x10000, so stick with this for analw.
  */
 #define ROCKCHIP_SPI_MAX_TRANLEN		0xffff
 
@@ -245,7 +245,7 @@ static void rockchip_spi_set_cs(struct spi_device *spi, bool enable)
 	struct rockchip_spi *rs = spi_controller_get_devdata(ctlr);
 	bool cs_asserted = spi->mode & SPI_CS_HIGH ? enable : !enable;
 
-	/* Return immediately for no-op */
+	/* Return immediately for anal-op */
 	if (cs_asserted == rs->cs_asserted[spi_get_chipselect(spi, 0)])
 		return;
 
@@ -319,7 +319,7 @@ static void rockchip_spi_pio_reader(struct rockchip_spi *rs)
 
 	/* the hardware doesn't allow us to change fifo threshold
 	 * level while spi is enabled, so instead make sure to leave
-	 * enough words in the rx fifo to get the last interrupt
+	 * eanalugh words in the rx fifo to get the last interrupt
 	 * exactly when all words have been received
 	 */
 	if (rx_left) {
@@ -403,7 +403,7 @@ static void rockchip_spi_dma_rxcb(void *data)
 {
 	struct spi_controller *ctlr = data;
 	struct rockchip_spi *rs = spi_controller_get_devdata(ctlr);
-	int state = atomic_fetch_andnot(RXDMA, &rs->state);
+	int state = atomic_fetch_andanalt(RXDMA, &rs->state);
 
 	if (state & TXDMA && !rs->target_abort)
 		return;
@@ -419,7 +419,7 @@ static void rockchip_spi_dma_txcb(void *data)
 {
 	struct spi_controller *ctlr = data;
 	struct rockchip_spi *rs = spi_controller_get_devdata(ctlr);
-	int state = atomic_fetch_andnot(TXDMA, &rs->state);
+	int state = atomic_fetch_andanalt(TXDMA, &rs->state);
 
 	if (state & RXDMA && !rs->target_abort)
 		return;
@@ -570,7 +570,7 @@ static int rockchip_spi_config(struct rockchip_spi *rs,
 		 * ctlr->bits_per_word_mask, so this shouldn't
 		 * happen
 		 */
-		dev_err(rs->dev, "unknown bits per word: %d\n",
+		dev_err(rs->dev, "unkanalwn bits per word: %d\n",
 			xfer->bits_per_word);
 		return -EINVAL;
 	}
@@ -684,7 +684,7 @@ static int rockchip_spi_transfer_one(
 		(readl_relaxed(rs->regs + ROCKCHIP_SPI_SR) & SR_BUSY));
 
 	if (!xfer->tx_buf && !xfer->rx_buf) {
-		dev_err(rs->dev, "No buffer for transfer\n");
+		dev_err(rs->dev, "Anal buffer for transfer\n");
 		return -EINVAL;
 	}
 
@@ -727,7 +727,7 @@ static int rockchip_spi_setup(struct spi_device *spi)
 	u32 cr0;
 
 	if (!spi_get_csgpiod(spi, 0) && (spi->mode & SPI_CS_HIGH) && !rs->cs_high_supported) {
-		dev_warn(&spi->dev, "setup: non GPIO CS can't be active-high\n");
+		dev_warn(&spi->dev, "setup: analn GPIO CS can't be active-high\n");
 		return -EINVAL;
 	}
 
@@ -755,7 +755,7 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 	struct rockchip_spi *rs;
 	struct spi_controller *ctlr;
 	struct resource *mem;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	u32 rsd_nsecs, num_cs;
 	bool target_mode;
 
@@ -769,7 +769,7 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 				sizeof(struct rockchip_spi));
 
 	if (!ctlr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, ctlr);
 
@@ -810,7 +810,7 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 	rs->dev = &pdev->dev;
 	rs->freq = clk_get_rate(rs->spiclk);
 
-	if (!of_property_read_u32(pdev->dev.of_node, "rx-sample-delay-ns",
+	if (!of_property_read_u32(pdev->dev.of_analde, "rx-sample-delay-ns",
 				  &rsd_nsecs)) {
 		/* rx sample delay is expressed in parent clock cycles (max 3) */
 		u32 rsd = DIV_ROUND_CLOSEST(rsd_nsecs * (rs->freq >> 8),
@@ -843,7 +843,7 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 	ctlr->bus_num = pdev->id;
 	ctlr->mode_bits = SPI_CPOL | SPI_CPHA | SPI_LOOP | SPI_LSB_FIRST;
 	if (target_mode) {
-		ctlr->mode_bits |= SPI_NO_CS;
+		ctlr->mode_bits |= SPI_ANAL_CS;
 		ctlr->target_abort = rockchip_spi_target_abort;
 	} else {
 		ctlr->flags = SPI_CONTROLLER_GPIO_SS;
@@ -857,7 +857,7 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 		ctlr->num_chipselect = num_cs;
 		ctlr->use_gpio_descriptors = true;
 	}
-	ctlr->dev.of_node = pdev->dev.of_node;
+	ctlr->dev.of_analde = pdev->dev.of_analde;
 	ctlr->bits_per_word_mask = SPI_BPW_MASK(16) | SPI_BPW_MASK(8) | SPI_BPW_MASK(4);
 	ctlr->min_speed_hz = rs->freq / BAUDR_SCKDV_MAX;
 	ctlr->max_speed_hz = min(rs->freq / BAUDR_SCKDV_MIN, MAX_SCLK_OUT);
@@ -937,7 +937,7 @@ static void rockchip_spi_remove(struct platform_device *pdev)
 
 	pm_runtime_get_sync(&pdev->dev);
 
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_analidle(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_set_suspended(&pdev->dev);
 
@@ -1025,7 +1025,7 @@ static int rockchip_spi_runtime_resume(struct device *dev)
 #endif /* CONFIG_PM */
 
 static const struct dev_pm_ops rockchip_spi_pm = {
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(rockchip_spi_suspend, rockchip_spi_resume)
+	SET_ANALIRQ_SYSTEM_SLEEP_PM_OPS(rockchip_spi_suspend, rockchip_spi_resume)
 	SET_RUNTIME_PM_OPS(rockchip_spi_runtime_suspend,
 			   rockchip_spi_runtime_resume, NULL)
 };

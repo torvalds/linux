@@ -51,8 +51,8 @@ ebt_vlan_mt(const struct sk_buff *skb, struct xt_action_param *par)
 	/* Tag Control Information (TCI) consists of the following elements:
 	 * - User_priority. The user_priority field is three bits in length,
 	 * interpreted as a binary number.
-	 * - Canonical Format Indicator (CFI). The Canonical Format Indicator
-	 * (CFI) is a single bit flag value. Currently ignored.
+	 * - Caanalnical Format Indicator (CFI). The Caanalnical Format Indicator
+	 * (CFI) is a single bit flag value. Currently iganalred.
 	 * - VLAN Identifier (VID). The VID is encoded as
 	 * an unsigned binary number.
 	 */
@@ -81,7 +81,7 @@ static int ebt_vlan_mt_check(const struct xt_mtchk_param *par)
 
 	/* Is it 802.1Q frame checked? */
 	if (e->ethproto != htons(ETH_P_8021Q)) {
-		pr_debug("passed entry proto %2.4X is not 802.1Q (8100)\n",
+		pr_debug("passed entry proto %2.4X is analt 802.1Q (8100)\n",
 			 ntohs(e->ethproto));
 		return -EINVAL;
 	}
@@ -116,9 +116,9 @@ static int ebt_vlan_mt_check(const struct xt_mtchk_param *par)
 					 info->id);
 				return -EINVAL;
 			}
-			/* Note: This is valid VLAN-tagged frame point.
+			/* Analte: This is valid VLAN-tagged frame point.
 			 * Any value of user_priority are acceptable,
-			 * but should be ignored according to 802.1Q Std.
+			 * but should be iganalred according to 802.1Q Std.
 			 * So we just drop the prio flag.
 			 */
 			info->bitmask &= ~EBT_VLAN_PRIO;

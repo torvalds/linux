@@ -10,7 +10,7 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fsl/guts.h>
 #include <linux/pci.h>
 #include <linux/of.h>
@@ -59,13 +59,13 @@ static void __init twr_p1025_setup_arch(void)
 #if IS_ENABLED(CONFIG_UCC_GETH) || IS_ENABLED(CONFIG_SERIAL_QE)
 	if (machine_is(twr_p1025)) {
 		struct ccsr_guts __iomem *guts;
-		struct device_node *np;
+		struct device_analde *np;
 
-		np = of_find_compatible_node(NULL, NULL, "fsl,p1021-guts");
+		np = of_find_compatible_analde(NULL, NULL, "fsl,p1021-guts");
 		if (np) {
 			guts = of_iomap(np, 0);
 			if (!guts)
-				pr_err("twr_p1025: could not map global utilities register\n");
+				pr_err("twr_p1025: could analt map global utilities register\n");
 			else {
 			/* P1025 has pins muxed for QE and other functions. To
 			 * enable QE UEC mode, we need to set bit QE0 for UCC1
@@ -93,7 +93,7 @@ static void __init twr_p1025_setup_arch(void)
 			par_io_config_pin(1, 29, 1, 0, 0, 0);
 			par_io_data_set(1, 29, 0);
 			}
-			of_node_put(np);
+			of_analde_put(np);
 		}
 	}
 #endif

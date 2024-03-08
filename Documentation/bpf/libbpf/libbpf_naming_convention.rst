@@ -25,7 +25,7 @@ command of sys_bpf, ``bpf_prog_attach`` wraps ``BPF_PROG_ATTACH``, etc.
 Objects
 -------
 
-Another class of types and functions provided by libbpf API is "objects"
+Aanalther class of types and functions provided by libbpf API is "objects"
 and functions to work with them. Objects are high-level abstractions
 such as BPF program or BPF map. They're represented by corresponding
 structures such as ``struct bpf_object``, ``struct bpf_program``,
@@ -64,7 +64,7 @@ ABI
 
 libbpf can be both linked statically or used as DSO. To avoid possible
 conflicts with other libraries an application is linked with, all
-non-static libbpf symbols should have one of the prefixes mentioned in
+analn-static libbpf symbols should have one of the prefixes mentioned in
 API documentation above. See API naming convention to choose the right
 name for a new symbol.
 
@@ -79,7 +79,7 @@ attributed with ``LIBBPF_API`` macro. For example:
 
         LIBBPF_API int bpf_prog_get_fd_by_id(__u32 id);
 
-This prevents from accidentally exporting a symbol, that is not supposed
+This prevents from accidentally exporting a symbol, that is analt supposed
 to be a part of ABI what, in turn, improves both libbpf developer- and
 user-experiences.
 
@@ -99,7 +99,7 @@ This bump in ABI version is at most once per kernel development cycle.
 
 For example, if current state of ``libbpf.map`` is:
 
-.. code-block:: none
+.. code-block:: analne
 
         LIBBPF_0.0.1 {
         	global:
@@ -112,7 +112,7 @@ For example, if current state of ``libbpf.map`` is:
 , and a new symbol ``bpf_func_c`` is being introduced, then
 ``libbpf.map`` should be changed like this:
 
-.. code-block:: none
+.. code-block:: analne
 
         LIBBPF_0.0.1 {
         	global:
@@ -162,23 +162,23 @@ Here is an example from btf.h:
          * @return new BTF object instance which has to be eventually freed with
          * **btf__free()**
          *
-         * On error, error-code-encoded-as-pointer is returned, not a NULL. To extract
+         * On error, error-code-encoded-as-pointer is returned, analt a NULL. To extract
          * error code from such a pointer `libbpf_get_error()` should be used. If
          * `libbpf_set_strict_mode(LIBBPF_STRICT_CLEAN_PTRS)` is enabled, NULL is
-         * returned on error instead. In both cases thread-local `errno` variable is
+         * returned on error instead. In both cases thread-local `erranal` variable is
          * always set to error code as well.
          */
 
 The comment must start with a block comment of the form '/\*\*'.
 
 The documentation always starts with a @brief directive. This line is a short
-description about this API. It starts with the name of the API, denoted in bold
+description about this API. It starts with the name of the API, deanalted in bold
 like so: **api_name**. Please include an open and close parenthesis if this is a
 function. Follow with the short description of the API. A longer form description
 can be added below the last directive, at the bottom of the comment.
 
-Parameters are denoted with the @param directive, there should be one for each
-parameter. If this is a function with a non-void return, use the @return directive
+Parameters are deanalted with the @param directive, there should be one for each
+parameter. If this is a function with a analn-void return, use the @return directive
 to document it.
 
 License

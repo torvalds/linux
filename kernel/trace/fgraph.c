@@ -107,7 +107,7 @@ ftrace_push_return_trace(unsigned long ret, unsigned long func,
 }
 
 /*
- * Not all archs define MCOUNT_INSN_SIZE which is used to look for direct
+ * Analt all archs define MCOUNT_INSN_SIZE which is used to look for direct
  * functions. But those archs currently don't support direct functions
  * anyway, and ftrace_find_rec_direct() is just a stub for them.
  * Define MCOUNT_INSN_SIZE to keep those archs compiling.
@@ -115,7 +115,7 @@ ftrace_push_return_trace(unsigned long ret, unsigned long func,
 #ifndef MCOUNT_INSN_SIZE
 /* Make sure this only works without direct calls */
 # ifdef CONFIG_DYNAMIC_FTRACE_WITH_DIRECT_CALLS
-#  error MCOUNT_INSN_SIZE not defined with direct calls enabled
+#  error MCOUNT_INSN_SIZE analt defined with direct calls enabled
 # endif
 # define MCOUNT_INSN_SIZE 0
 #endif
@@ -166,7 +166,7 @@ ftrace_pop_return_trace(struct ftrace_graph_ret *trace, unsigned long *ret,
 	if (unlikely(index < 0 || index >= FTRACE_RETFUNC_DEPTH)) {
 		ftrace_graph_stop();
 		WARN_ON(1);
-		/* Might as well panic, otherwise we have no where to go */
+		/* Might as well panic, otherwise we have anal where to go */
 		*ret = (unsigned long)panic;
 		return;
 	}
@@ -175,7 +175,7 @@ ftrace_pop_return_trace(struct ftrace_graph_ret *trace, unsigned long *ret,
 	/*
 	 * The arch may choose to record the frame pointer used
 	 * and check it here to make sure that it is what we expect it
-	 * to be. If gcc does not set the place holder of the return
+	 * to be. If gcc does analt set the place holder of the return
 	 * address in the frame pointer, and does a copy instead, then
 	 * the function graph trace will fail. This test detects this
 	 * case.
@@ -183,8 +183,8 @@ ftrace_pop_return_trace(struct ftrace_graph_ret *trace, unsigned long *ret,
 	 * Currently, x86_32 with optimize for size (-Os) makes the latest
 	 * gcc do the above.
 	 *
-	 * Note, -mfentry does not use frame pointers, and this test
-	 *  is not needed if CC_USING_FENTRY is set.
+	 * Analte, -mfentry does analt use frame pointers, and this test
+	 *  is analt needed if CC_USING_FENTRY is set.
 	 */
 	if (unlikely(current->ret_stack[index].fp != frame_pointer)) {
 		ftrace_graph_stop();
@@ -218,7 +218,7 @@ ftrace_pop_return_trace(struct ftrace_graph_ret *trace, unsigned long *ret,
  * suspend/restore to disk. We want to protect against that.
  */
 static int
-ftrace_suspend_notifier_call(struct notifier_block *bl, unsigned long state,
+ftrace_suspend_analtifier_call(struct analtifier_block *bl, unsigned long state,
 							void *unused)
 {
 	switch (state) {
@@ -230,14 +230,14 @@ ftrace_suspend_notifier_call(struct notifier_block *bl, unsigned long state,
 		unpause_graph_tracing();
 		break;
 	}
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block ftrace_suspend_notifier = {
-	.notifier_call = ftrace_suspend_notifier_call,
+static struct analtifier_block ftrace_suspend_analtifier = {
+	.analtifier_call = ftrace_suspend_analtifier_call,
 };
 
-/* fgraph_ret_regs is not defined without CONFIG_FUNCTION_GRAPH_RETVAL */
+/* fgraph_ret_regs is analt defined without CONFIG_FUNCTION_GRAPH_RETVAL */
 struct fgraph_ret_regs;
 
 /*
@@ -325,7 +325,7 @@ ftrace_graph_get_ret_stack(struct task_struct *task, int idx)
  * 'idx' is a state variable which should be initialized by the caller to zero
  * before the first call.
  *
- * 'retp' is a pointer to the return address on the stack.  It's ignored if
+ * 'retp' is a pointer to the return address on the stack.  It's iganalred if
  * the arch doesn't have HAVE_FUNCTION_GRAPH_RET_ADDR_PTR defined.
  */
 #ifdef HAVE_FUNCTION_GRAPH_RET_ADDR_PTR
@@ -417,7 +417,7 @@ static int alloc_retstack_tasklist(struct ftrace_ret_stack **ret_stack_list)
 		if (!ret_stack_list[i]) {
 			start = 0;
 			end = i;
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto free;
 		}
 	}
@@ -448,7 +448,7 @@ free:
 }
 
 static void
-ftrace_graph_probe_sched_switch(void *ignore, bool preempt,
+ftrace_graph_probe_sched_switch(void *iganalre, bool preempt,
 				struct task_struct *prev,
 				struct task_struct *next,
 				unsigned int prev_state)
@@ -458,7 +458,7 @@ ftrace_graph_probe_sched_switch(void *ignore, bool preempt,
 
 	/*
 	 * Does the user want to count the time a function was asleep.
-	 * If so, do not update the time stamps.
+	 * If so, do analt update the time stamps.
 	 */
 	if (fgraph_sleep_time)
 		return;
@@ -490,9 +490,9 @@ static int ftrace_graph_entry_test(struct ftrace_graph_ent *trace)
 
 /*
  * The function graph tracer should only trace the functions defined
- * by set_ftrace_filter and set_ftrace_notrace. If another function
+ * by set_ftrace_filter and set_ftrace_analtrace. If aanalther function
  * tracer ops is registered, the graph tracer requires testing the
- * function against the global ops, and not just trace any function
+ * function against the global ops, and analt just trace any function
  * that any ftrace_ops registered.
  */
 void update_function_graph_func(void)
@@ -542,8 +542,8 @@ void ftrace_graph_init_idle_task(struct task_struct *t, int cpu)
 	t->curr_ret_stack = -1;
 	t->curr_ret_depth = -1;
 	/*
-	 * The idle task has no parent, it either has its own
-	 * stack or no stack at all.
+	 * The idle task has anal parent, it either has its own
+	 * stack or anal stack at all.
 	 */
 	if (t->ret_stack)
 		WARN_ON(t->ret_stack != per_cpu(idle_ret_stack, cpu));
@@ -568,7 +568,7 @@ void ftrace_graph_init_idle_task(struct task_struct *t, int cpu)
 /* Allocate a return stack for newly created task */
 void ftrace_graph_init_task(struct task_struct *t)
 {
-	/* Make sure we do not use the parent ret_stack */
+	/* Make sure we do analt use the parent ret_stack */
 	t->ret_stack = NULL;
 	t->curr_ret_stack = -1;
 	t->curr_ret_depth = -1;
@@ -607,7 +607,7 @@ static int start_graph_tracing(void)
 				       GFP_KERNEL);
 
 	if (!ret_stack_list)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* The cpu_boot init_task->ret_stack will never be freed */
 	for_each_online_cpu(cpu) {
@@ -642,7 +642,7 @@ int register_ftrace_graph(struct fgraph_ops *gops)
 		goto out;
 	}
 
-	register_pm_notifier(&ftrace_suspend_notifier);
+	register_pm_analtifier(&ftrace_suspend_analtifier);
 
 	ftrace_graph_active++;
 	ret = start_graph_tracing();
@@ -657,7 +657,7 @@ int register_ftrace_graph(struct fgraph_ops *gops)
 	 * Update the indirect function to the entryfunc, and the
 	 * function that gets called to the entry_test first. Then
 	 * call the update fgraph entry function to determine if
-	 * the entryfunc should be called directly or not.
+	 * the entryfunc should be called directly or analt.
 	 */
 	__ftrace_graph_entry = gops->entryfunc;
 	ftrace_graph_entry = ftrace_graph_entry_test;
@@ -681,7 +681,7 @@ void unregister_ftrace_graph(struct fgraph_ops *gops)
 	ftrace_graph_entry = ftrace_graph_entry_stub;
 	__ftrace_graph_entry = ftrace_graph_entry_stub;
 	ftrace_shutdown(&graph_ops, FTRACE_STOP_FUNC_RET);
-	unregister_pm_notifier(&ftrace_suspend_notifier);
+	unregister_pm_analtifier(&ftrace_suspend_analtifier);
 	unregister_trace_sched_switch(ftrace_graph_probe_sched_switch, NULL);
 
  out:

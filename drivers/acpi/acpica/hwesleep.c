@@ -21,10 +21,10 @@ ACPI_MODULE_NAME("hwesleep")
  * PARAMETERS:  method_pathname     - Pathname of method to execute
  *              integer_argument    - Argument to pass to the method
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Execute a sleep/wake related method with one integer argument
- *              and no return value.
+ *              and anal return value.
  *
  ******************************************************************************/
 void acpi_hw_execute_sleep_method(char *method_pathname, u32 integer_argument)
@@ -35,7 +35,7 @@ void acpi_hw_execute_sleep_method(char *method_pathname, u32 integer_argument)
 
 	ACPI_FUNCTION_TRACE(hw_execute_sleep_method);
 
-	/* One argument, integer_argument; No return value expected */
+	/* One argument, integer_argument; Anal return value expected */
 
 	arg_list.count = 1;
 	arg_list.pointer = &arg;
@@ -43,7 +43,7 @@ void acpi_hw_execute_sleep_method(char *method_pathname, u32 integer_argument)
 	arg.integer.value = (u64)integer_argument;
 
 	status = acpi_evaluate_object(NULL, method_pathname, &arg_list, NULL);
-	if (ACPI_FAILURE(status) && status != AE_NOT_FOUND) {
+	if (ACPI_FAILURE(status) && status != AE_ANALT_FOUND) {
 		ACPI_EXCEPTION((AE_INFO, status, "While executing method %s",
 				method_pathname));
 	}
@@ -77,7 +77,7 @@ acpi_status acpi_hw_extended_sleep(u8 sleep_state)
 
 	if (!acpi_gbl_FADT.sleep_control.address ||
 	    !acpi_gbl_FADT.sleep_status.address) {
-		return_ACPI_STATUS(AE_NOT_EXIST);
+		return_ACPI_STATUS(AE_ANALT_EXIST);
 	}
 
 	/* Clear wake status (WAK_STS) */
@@ -93,7 +93,7 @@ acpi_status acpi_hw_extended_sleep(u8 sleep_state)
 	/*
 	 * Set the SLP_TYP and SLP_EN bits.
 	 *
-	 * Note: We only use the first value returned by the \_Sx method
+	 * Analte: We only use the first value returned by the \_Sx method
 	 * (acpi_gbl_sleep_type_a) - As per ACPI specification.
 	 */
 	ACPI_DEBUG_PRINT((ACPI_DB_INIT,

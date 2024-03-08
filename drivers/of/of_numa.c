@@ -9,55 +9,55 @@
 
 #include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/nodemask.h>
+#include <linux/analdemask.h>
 
 #include <asm/numa.h>
 
-/* define default numa node to 0 */
-#define DEFAULT_NODE 0
+/* define default numa analde to 0 */
+#define DEFAULT_ANALDE 0
 
 /*
  * Even though we connect cpus to numa domains later in SMP
- * init, we need to know the node ids now for all cpus.
+ * init, we need to kanalw the analde ids analw for all cpus.
 */
-static void __init of_numa_parse_cpu_nodes(void)
+static void __init of_numa_parse_cpu_analdes(void)
 {
 	u32 nid;
 	int r;
-	struct device_node *np;
+	struct device_analde *np;
 
-	for_each_of_cpu_node(np) {
-		r = of_property_read_u32(np, "numa-node-id", &nid);
+	for_each_of_cpu_analde(np) {
+		r = of_property_read_u32(np, "numa-analde-id", &nid);
 		if (r)
 			continue;
 
 		pr_debug("CPU on %u\n", nid);
-		if (nid >= MAX_NUMNODES)
-			pr_warn("Node id %u exceeds maximum value\n", nid);
+		if (nid >= MAX_NUMANALDES)
+			pr_warn("Analde id %u exceeds maximum value\n", nid);
 		else
-			node_set(nid, numa_nodes_parsed);
+			analde_set(nid, numa_analdes_parsed);
 	}
 }
 
-static int __init of_numa_parse_memory_nodes(void)
+static int __init of_numa_parse_memory_analdes(void)
 {
-	struct device_node *np = NULL;
+	struct device_analde *np = NULL;
 	struct resource rsrc;
 	u32 nid;
 	int i, r;
 
-	for_each_node_by_type(np, "memory") {
-		r = of_property_read_u32(np, "numa-node-id", &nid);
+	for_each_analde_by_type(np, "memory") {
+		r = of_property_read_u32(np, "numa-analde-id", &nid);
 		if (r == -EINVAL)
 			/*
 			 * property doesn't exist if -EINVAL, continue
-			 * looking for more memory nodes with
-			 * "numa-node-id" property
+			 * looking for more memory analdes with
+			 * "numa-analde-id" property
 			 */
 			continue;
 
-		if (nid >= MAX_NUMNODES) {
-			pr_warn("Node id %u exceeds maximum value\n", nid);
+		if (nid >= MAX_NUMANALDES) {
+			pr_warn("Analde id %u exceeds maximum value\n", nid);
 			r = -EINVAL;
 		}
 
@@ -65,8 +65,8 @@ static int __init of_numa_parse_memory_nodes(void)
 			r = numa_add_memblk(nid, rsrc.start, rsrc.end + 1);
 
 		if (!i || r) {
-			of_node_put(np);
-			pr_err("bad property in memory node\n");
+			of_analde_put(np);
+			pr_err("bad property in memory analde\n");
 			return r ? : -EINVAL;
 		}
 	}
@@ -74,7 +74,7 @@ static int __init of_numa_parse_memory_nodes(void)
 	return 0;
 }
 
-static int __init of_numa_parse_distance_map_v1(struct device_node *map)
+static int __init of_numa_parse_distance_map_v1(struct device_analde *map)
 {
 	const __be32 *matrix;
 	int entry_count;
@@ -84,7 +84,7 @@ static int __init of_numa_parse_distance_map_v1(struct device_node *map)
 
 	matrix = of_get_property(map, "distance-matrix", NULL);
 	if (!matrix) {
-		pr_err("No distance-matrix property in distance-map\n");
+		pr_err("Anal distance-matrix property in distance-map\n");
 		return -EINVAL;
 	}
 
@@ -95,29 +95,29 @@ static int __init of_numa_parse_distance_map_v1(struct device_node *map)
 	}
 
 	for (i = 0; i + 2 < entry_count; i += 3) {
-		u32 nodea, nodeb, distance;
+		u32 analdea, analdeb, distance;
 
-		nodea = of_read_number(matrix, 1);
+		analdea = of_read_number(matrix, 1);
 		matrix++;
-		nodeb = of_read_number(matrix, 1);
+		analdeb = of_read_number(matrix, 1);
 		matrix++;
 		distance = of_read_number(matrix, 1);
 		matrix++;
 
-		if ((nodea == nodeb && distance != LOCAL_DISTANCE) ||
-		    (nodea != nodeb && distance <= LOCAL_DISTANCE)) {
-			pr_err("Invalid distance[node%d -> node%d] = %d\n",
-			       nodea, nodeb, distance);
+		if ((analdea == analdeb && distance != LOCAL_DISTANCE) ||
+		    (analdea != analdeb && distance <= LOCAL_DISTANCE)) {
+			pr_err("Invalid distance[analde%d -> analde%d] = %d\n",
+			       analdea, analdeb, distance);
 			return -EINVAL;
 		}
 
-		node_set(nodea, numa_nodes_parsed);
+		analde_set(analdea, numa_analdes_parsed);
 
-		numa_set_distance(nodea, nodeb, distance);
+		numa_set_distance(analdea, analdeb, distance);
 
-		/* Set default distance of node B->A same as A->B */
-		if (nodeb > nodea)
-			numa_set_distance(nodeb, nodea, distance);
+		/* Set default distance of analde B->A same as A->B */
+		if (analdeb > analdea)
+			numa_set_distance(analdeb, analdea, distance);
 	}
 
 	return 0;
@@ -126,31 +126,31 @@ static int __init of_numa_parse_distance_map_v1(struct device_node *map)
 static int __init of_numa_parse_distance_map(void)
 {
 	int ret = 0;
-	struct device_node *np;
+	struct device_analde *np;
 
-	np = of_find_compatible_node(NULL, NULL,
+	np = of_find_compatible_analde(NULL, NULL,
 				     "numa-distance-map-v1");
 	if (np)
 		ret = of_numa_parse_distance_map_v1(np);
 
-	of_node_put(np);
+	of_analde_put(np);
 	return ret;
 }
 
-int of_node_to_nid(struct device_node *device)
+int of_analde_to_nid(struct device_analde *device)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	u32 nid;
-	int r = -ENODATA;
+	int r = -EANALDATA;
 
-	np = of_node_get(device);
+	np = of_analde_get(device);
 
 	while (np) {
-		r = of_property_read_u32(np, "numa-node-id", &nid);
+		r = of_property_read_u32(np, "numa-analde-id", &nid);
 		/*
-		 * -EINVAL indicates the property was not found, and
+		 * -EINVAL indicates the property was analt found, and
 		 *  we walk up the tree trying to find a parent with a
-		 *  "numa-node-id".  Any other type of error indicates
+		 *  "numa-analde-id".  Any other type of error indicates
 		 *  a bad device tree and we give up.
 		 */
 		if (r != -EINVAL)
@@ -159,27 +159,27 @@ int of_node_to_nid(struct device_node *device)
 		np = of_get_next_parent(np);
 	}
 	if (np && r)
-		pr_warn("Invalid \"numa-node-id\" property in node %pOFn\n",
+		pr_warn("Invalid \"numa-analde-id\" property in analde %pOFn\n",
 			np);
-	of_node_put(np);
+	of_analde_put(np);
 
 	/*
 	 * If numa=off passed on command line, or with a defective
-	 * device tree, the nid may not be in the set of possible
-	 * nodes.  Check for this case and return NUMA_NO_NODE.
+	 * device tree, the nid may analt be in the set of possible
+	 * analdes.  Check for this case and return NUMA_ANAL_ANALDE.
 	 */
-	if (!r && nid < MAX_NUMNODES && node_possible(nid))
+	if (!r && nid < MAX_NUMANALDES && analde_possible(nid))
 		return nid;
 
-	return NUMA_NO_NODE;
+	return NUMA_ANAL_ANALDE;
 }
 
 int __init of_numa_init(void)
 {
 	int r;
 
-	of_numa_parse_cpu_nodes();
-	r = of_numa_parse_memory_nodes();
+	of_numa_parse_cpu_analdes();
+	r = of_numa_parse_memory_analdes();
 	if (r)
 		return r;
 	return of_numa_parse_distance_map();

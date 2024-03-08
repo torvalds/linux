@@ -43,13 +43,13 @@ struct vdec_fb {
  * @used:	Capture buffer contain decoded frame data and keep in
  *			codec data structure
  * @queued_in_vb2:	Capture buffer is queue in vb2
- * @queued_in_v4l2:	Capture buffer is in v4l2 driver, but not in vb2
+ * @queued_in_v4l2:	Capture buffer is in v4l2 driver, but analt in vb2
  *			queue yet
  * @error:		An unrecoverable error occurs on this buffer.
  * @frame_buffer:	Decode status, and buffer information of Capture buffer
  * @bs_buffer:	Output buffer info
  *
- * Note : These status information help us track and debug buffer state
+ * Analte : These status information help us track and debug buffer state
  */
 struct mtk_video_dec_buf {
 	struct v4l2_m2m_buffer	m2m_buf;

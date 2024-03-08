@@ -19,12 +19,12 @@ const char *const arc_triplets[] = {
 const char *const arm_triplets[] = {
 	"arm-eabi-",
 	"arm-linux-androideabi-",
-	"arm-unknown-linux-",
-	"arm-unknown-linux-gnu-",
-	"arm-unknown-linux-gnueabi-",
+	"arm-unkanalwn-linux-",
+	"arm-unkanalwn-linux-gnu-",
+	"arm-unkanalwn-linux-gnueabi-",
 	"arm-linux-gnu-",
 	"arm-linux-gnueabihf-",
-	"arm-none-eabi-",
+	"arm-analne-eabi-",
 	NULL
 };
 
@@ -35,23 +35,23 @@ const char *const arm64_triplets[] = {
 };
 
 const char *const powerpc_triplets[] = {
-	"powerpc-unknown-linux-gnu-",
+	"powerpc-unkanalwn-linux-gnu-",
 	"powerpc-linux-gnu-",
-	"powerpc64-unknown-linux-gnu-",
+	"powerpc64-unkanalwn-linux-gnu-",
 	"powerpc64-linux-gnu-",
 	"powerpc64le-linux-gnu-",
 	NULL
 };
 
 const char *const riscv32_triplets[] = {
-	"riscv32-unknown-linux-gnu-",
+	"riscv32-unkanalwn-linux-gnu-",
 	"riscv32-linux-android-",
 	"riscv32-linux-gnu-",
 	NULL
 };
 
 const char *const riscv64_triplets[] = {
-	"riscv64-unknown-linux-gnu-",
+	"riscv64-unkanalwn-linux-gnu-",
 	"riscv64-linux-android-",
 	"riscv64-linux-gnu-",
 	NULL
@@ -64,21 +64,21 @@ const char *const s390_triplets[] = {
 };
 
 const char *const sh_triplets[] = {
-	"sh-unknown-linux-gnu-",
+	"sh-unkanalwn-linux-gnu-",
 	"sh-linux-gnu-",
 	NULL
 };
 
 const char *const sparc_triplets[] = {
-	"sparc-unknown-linux-gnu-",
-	"sparc64-unknown-linux-gnu-",
+	"sparc-unkanalwn-linux-gnu-",
+	"sparc64-unkanalwn-linux-gnu-",
 	"sparc64-linux-gnu-",
 	NULL
 };
 
 const char *const x86_triplets[] = {
 	"x86_64-pc-linux-gnu-",
-	"x86_64-unknown-linux-gnu-",
+	"x86_64-unkanalwn-linux-gnu-",
 	"i686-pc-linux-gnu-",
 	"i586-pc-linux-gnu-",
 	"i486-pc-linux-gnu-",
@@ -91,7 +91,7 @@ const char *const x86_triplets[] = {
 };
 
 const char *const mips_triplets[] = {
-	"mips-unknown-linux-gnu-",
+	"mips-unkanalwn-linux-gnu-",
 	"mipsel-linux-android-",
 	"mips-linux-gnu-",
 	"mips64-linux-gnu-",
@@ -193,7 +193,7 @@ static int perf_env__lookup_binutils_path(struct perf_env *env,
 	else if (!strcmp(arch, "mips"))
 		path_list = mips_triplets;
 	else {
-		ui__error("binutils for %s not supported.\n", arch);
+		ui__error("binutils for %s analt supported.\n", arch);
 		goto out_error;
 	}
 

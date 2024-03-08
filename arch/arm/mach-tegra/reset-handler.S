@@ -39,12 +39,12 @@ ENTRY(tegra_resume)
 	cpu_id	r0
 	cmp	r0, #0				@ CPU0?
  THUMB(	it	ne )
-	bne	cpu_resume			@ no
+	bne	cpu_resume			@ anal
 
 	tegra_get_soc_id TEGRA_APB_MISC_BASE, r6
 	/* Are we on Tegra20? */
 	cmp	r6, #TEGRA20
-	beq	1f				@ Yes
+	beq	1f				@ Anal
 	/* Clear the flow controller flags for this CPU. */
 	cpu_to_csr_reg r3, r0
 	mov32	r2, TEGRA_FLOW_CTRL_BASE
@@ -101,9 +101,9 @@ ENTRY(tegra_resume_trusted_foundations)
 
  .arch_extension sec
 	/*
-	 * First call after suspend wakes firmware. No arguments required
+	 * First call after suspend wakes firmware. Anal arguments required
 	 * for some firmware versions. Downstream kernel of ASUS TF300T uses
-	 * r0=3 for the wake-up notification.
+	 * r0=3 for the wake-up analtification.
 	 */
 	mov	r0, #3
 	smc	#0
@@ -131,7 +131,7 @@ ENTRY(__tegra_cpu_reset_handler_start)
  *      R11 = CPU mask
  *      R12 = pointer to reset handler data
  *
- * NOTE: This code is copied to IRAM. All code and data accesses
+ * ANALTE: This code is copied to IRAM. All code and data accesses
  *       must be position-independent.
  */
 
@@ -157,10 +157,10 @@ t20_errata:
 	mrc	p15, 0, r0, c1, c0, 0   @ read system control register
 	orr	r0, r0, #1 << 14        @ erratum 716044
 	mcr	p15, 0, r0, c1, c0, 0   @ write system control register
-	mrc	p15, 0, r0, c15, c0, 1  @ read diagnostic register
+	mrc	p15, 0, r0, c15, c0, 1  @ read diaganalstic register
 	orr	r0, r0, #1 << 4         @ erratum 742230
 	orr	r0, r0, #1 << 11        @ erratum 751472
-	mcr	p15, 0, r0, c15, c0, 1  @ write diagnostic register
+	mcr	p15, 0, r0, c15, c0, 1  @ write diaganalstic register
 	b	after_errata
 after_t20_check:
 #endif
@@ -170,10 +170,10 @@ t30_check:
 	bne	after_t30_check
 t30_errata:
 	# Tegra30 is a Cortex-A9 r2p9
-	mrc	p15, 0, r0, c15, c0, 1  @ read diagnostic register
+	mrc	p15, 0, r0, c15, c0, 1  @ read diaganalstic register
 	orr	r0, r0, #1 << 6         @ erratum 743622
 	orr	r0, r0, #1 << 11        @ erratum 751472
-	mcr	p15, 0, r0, c15, c0, 1  @ write diagnostic register
+	mcr	p15, 0, r0, c15, c0, 1  @ write diaganalstic register
 	b	after_errata
 after_t30_check:
 #endif
@@ -184,35 +184,35 @@ after_errata:
 	mov	r11, r11, lsl r10  		@ R11 = CPU mask
 
 #ifdef CONFIG_SMP
-	/* Does the OS know about this CPU? */
+	/* Does the OS kanalw about this CPU? */
 	ldr	r7, [r12, #RESET_DATA(MASK_PRESENT)]
 	tst	r7, r11 			@ if !present
-	bleq	__die				@ CPU not present (to OS)
+	bleq	__die				@ CPU analt present (to OS)
 #endif
 
 	/* Waking up from LP1? */
 	ldr	r8, [r12, #RESET_DATA(MASK_LP1)]
 	tst	r8, r11				@ if in_lp1
-	beq	__is_not_lp1
+	beq	__is_analt_lp1
 	cmp	r10, #0
 	bne	__die				@ only CPU0 can be here
 	ldr	lr, [r12, #RESET_DATA(STARTUP_LP1)]
 	cmp	lr, #0
-	bleq	__die				@ no LP1 startup handler
+	bleq	__die				@ anal LP1 startup handler
  THUMB(	add	lr, lr, #1 )			@ switch to Thumb mode
 	bx	lr
-__is_not_lp1:
+__is_analt_lp1:
 
 	/* Waking up from LP2? */
 	ldr	r9, [r12, #RESET_DATA(MASK_LP2)]
 	tst	r9, r11				@ if in_lp2
-	beq	__is_not_lp2
+	beq	__is_analt_lp2
 	ldr	lr, [r12, #RESET_DATA(STARTUP_LP2)]
 	cmp	lr, #0
-	bleq	__die				@ no LP2 startup handler
+	bleq	__die				@ anal LP2 startup handler
 	bx	lr
 
-__is_not_lp2:
+__is_analt_lp2:
 
 #ifdef CONFIG_SMP
 	/*
@@ -220,18 +220,18 @@ __is_not_lp2:
 	 * CPU0 can't be here for Tegra20/30
 	 */
 	cmp	r6, #TEGRA114
-	beq	__no_cpu0_chk
+	beq	__anal_cpu0_chk
 	cmp	r10, #0
-	bleq	__die				@ CPU0 cannot be here
-__no_cpu0_chk:
+	bleq	__die				@ CPU0 cananalt be here
+__anal_cpu0_chk:
 	ldr	lr, [r12, #RESET_DATA(STARTUP_SECONDARY)]
 	cmp	lr, #0
-	bleq	__die				@ no secondary startup handler
+	bleq	__die				@ anal secondary startup handler
 	bx	lr
 #endif
 
 /*
- * We don't know why the CPU reset. Just kill it.
+ * We don't kanalw why the CPU reset. Just kill it.
  * The LR register will contain the address we died at + 4.
  */
 
@@ -263,7 +263,7 @@ __die:
 	addne	r1, r1, #(FLOW_CTRL_HALT_CPU1_EVENTS-8)
 
 	/* Clear CPU "event" and "interrupt" flags and power gate
-	   it when halting but not before it is in the "WFI" state. */
+	   it when halting but analt before it is in the "WFI" state. */
 	ldr	r0, [r6, +r2]
 	orr	r0, r0, #FLOW_CTRL_CSR_INTR_FLAG | FLOW_CTRL_CSR_EVENT_FLAG
 	orr	r0, r0, #FLOW_CTRL_CSR_ENABLE

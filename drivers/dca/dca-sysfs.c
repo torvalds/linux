@@ -40,7 +40,7 @@ int dca_sysfs_add_provider(struct dca_provider *dca, struct device *dev)
 	idr_preload(GFP_KERNEL);
 	spin_lock(&dca_idr_lock);
 
-	ret = idr_alloc(&dca_idr, dca, 0, 0, GFP_NOWAIT);
+	ret = idr_alloc(&dca_idr, dca, 0, 0, GFP_ANALWAIT);
 	if (ret >= 0)
 		dca->id = ret;
 

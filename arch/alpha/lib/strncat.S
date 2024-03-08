@@ -3,7 +3,7 @@
  * arch/alpha/lib/strncat.S
  * Contributed by Richard Henderson (rth@tamu.edu)
  *
- * Append no more than COUNT characters from the null-terminated string SRC
+ * Append anal more than COUNT characters from the null-terminated string SRC
  * to the null-terminated string DST.  Always null-terminate the new DST.
  *
  * This differs slightly from the semantics in libc in that we never write
@@ -28,7 +28,7 @@ strncat:
 	ldq_u   $1, 0($16)	# load first quadword ($16 may be misaligned)
 	lda     $2, -1($31)
 	insqh   $2, $16, $2
-	andnot  $16, 7, $16
+	andanalt  $16, 7, $16
 	or      $2, $1, $1
 	cmpbge  $31, $1, $2	# bits set iff byte == 0
 	bne     $2, $found
@@ -51,13 +51,13 @@ $found:	negq    $2, $3		# clear all but least set bit
 	addq	$16, $5, $16
 	addq	$16, $3, $16
 
-	/* Now do the append.  */
+	/* Analw do the append.  */
 
 	bsr	$23, __stxncpy
 
 	/* Worry about the null termination.  */
 
-	zapnot	$1, $27, $2	# was last byte a null?
+	zapanalt	$1, $27, $2	# was last byte a null?
 	bne	$2, 0f
 	ret
 
@@ -65,7 +65,7 @@ $found:	negq    $2, $3		# clear all but least set bit
 	or	$2, $18, $2
 	bne	$2, 2f
 
-	and	$24, 0x80, $2	# no zero next byte
+	and	$24, 0x80, $2	# anal zero next byte
 	bne	$2, 1f
 
 	/* Here there are bytes left in the current word.  Clear one.  */

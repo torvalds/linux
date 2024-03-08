@@ -41,7 +41,7 @@ static void kbtab_irq(struct urb *urb)
 		/* success */
 		break;
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
 		dev_dbg(&kbtab->intf->dev,
@@ -50,7 +50,7 @@ static void kbtab_irq(struct urb *urb)
 		return;
 	default:
 		dev_dbg(&kbtab->intf->dev,
-			"%s - nonzero urb status received: %d\n",
+			"%s - analnzero urb status received: %d\n",
 			__func__, urb->status);
 		goto exit;
 	}
@@ -112,14 +112,14 @@ static int kbtab_probe(struct usb_interface *intf, const struct usb_device_id *i
 	struct usb_endpoint_descriptor *endpoint;
 	struct kbtab *kbtab;
 	struct input_dev *input_dev;
-	int error = -ENOMEM;
+	int error = -EANALMEM;
 
 	if (intf->cur_altsetting->desc.bNumEndpoints < 1)
-		return -ENODEV;
+		return -EANALDEV;
 
 	endpoint = &intf->cur_altsetting->endpoint[0].desc;
 	if (!usb_endpoint_is_int_in(endpoint))
-		return -ENODEV;
+		return -EANALDEV;
 
 	kbtab = kzalloc(sizeof(struct kbtab), GFP_KERNEL);
 	input_dev = input_allocate_device();
@@ -164,7 +164,7 @@ static int kbtab_probe(struct usb_interface *intf, const struct usb_device_id *i
 			 kbtab->data, 8,
 			 kbtab_irq, kbtab, endpoint->bInterval);
 	kbtab->irq->transfer_dma = kbtab->data_dma;
-	kbtab->irq->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+	kbtab->irq->transfer_flags |= URB_ANAL_TRANSFER_DMA_MAP;
 
 	error = input_register_device(kbtab->dev);
 	if (error)

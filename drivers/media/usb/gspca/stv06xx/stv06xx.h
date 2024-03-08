@@ -79,7 +79,7 @@ struct sd {
 	/* Sensor private data */
 	void *sensor_priv;
 
-	/* The first 4 lines produced by the stv6422 are no good, this keeps
+	/* The first 4 lines produced by the stv6422 are anal good, this keeps
 	   track of how many bytes we still need to skip during a frame */
 	int to_skip;
 

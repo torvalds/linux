@@ -112,12 +112,12 @@ struct ad799x_chip_config {
 /**
  * struct ad799x_chip_info - chip specific information
  * @num_channels:	number of channels
- * @noirq_config:	device configuration w/o IRQ
+ * @analirq_config:	device configuration w/o IRQ
  * @irq_config:		device configuration w/IRQ
  */
 struct ad799x_chip_info {
 	int				num_channels;
-	const struct ad799x_chip_config	noirq_config;
+	const struct ad799x_chip_config	analirq_config;
 	const struct ad799x_chip_config	irq_config;
 };
 
@@ -165,7 +165,7 @@ static int ad799x_read_config(struct ad799x_state *st)
 	case ad7994:
 		return i2c_smbus_read_byte_data(st->client, AD7998_CONF_REG);
 	default:
-		/* No readback support */
+		/* Anal readback support */
 		return st->config;
 	}
 }
@@ -222,7 +222,7 @@ static irqreturn_t ad799x_trigger_handler(int irq, void *p)
 	iio_push_to_buffers_with_timestamp(indio_dev, st->rx_buf,
 			iio_get_time_ns(indio_dev));
 out:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -235,7 +235,7 @@ static int ad799x_update_scan_mode(struct iio_dev *indio_dev,
 	kfree(st->rx_buf);
 	st->rx_buf = kmalloc(indio_dev->scan_bytes, GFP_KERNEL);
 	if (!st->rx_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st->transfer_size = bitmap_weight(scan_mask, indio_dev->masklength) * 2;
 
@@ -543,7 +543,7 @@ static const struct iio_info ad7991_info = {
 	.update_scan_mode = ad799x_update_scan_mode,
 };
 
-static const struct iio_info ad7993_4_7_8_noirq_info = {
+static const struct iio_info ad7993_4_7_8_analirq_info = {
 	.read_raw = &ad799x_read_raw,
 	.update_scan_mode = ad799x_update_scan_mode,
 };
@@ -604,7 +604,7 @@ static const struct iio_event_spec ad799x_events[] = {
 static const struct ad799x_chip_info ad799x_chip_info_tbl[] = {
 	[ad7991] = {
 		.num_channels = 5,
-		.noirq_config = {
+		.analirq_config = {
 			.channel = {
 				AD799X_CHANNEL(0, 12),
 				AD799X_CHANNEL(1, 12),
@@ -617,7 +617,7 @@ static const struct ad799x_chip_info ad799x_chip_info_tbl[] = {
 	},
 	[ad7995] = {
 		.num_channels = 5,
-		.noirq_config = {
+		.analirq_config = {
 			.channel = {
 				AD799X_CHANNEL(0, 10),
 				AD799X_CHANNEL(1, 10),
@@ -630,7 +630,7 @@ static const struct ad799x_chip_info ad799x_chip_info_tbl[] = {
 	},
 	[ad7999] = {
 		.num_channels = 5,
-		.noirq_config = {
+		.analirq_config = {
 			.channel = {
 				AD799X_CHANNEL(0, 8),
 				AD799X_CHANNEL(1, 8),
@@ -643,13 +643,13 @@ static const struct ad799x_chip_info ad799x_chip_info_tbl[] = {
 	},
 	[ad7992] = {
 		.num_channels = 3,
-		.noirq_config = {
+		.analirq_config = {
 			.channel = {
 				AD799X_CHANNEL(0, 12),
 				AD799X_CHANNEL(1, 12),
 				IIO_CHAN_SOFT_TIMESTAMP(3),
 			},
-			.info = &ad7993_4_7_8_noirq_info,
+			.info = &ad7993_4_7_8_analirq_info,
 		},
 		.irq_config = {
 			.channel = {
@@ -663,7 +663,7 @@ static const struct ad799x_chip_info ad799x_chip_info_tbl[] = {
 	},
 	[ad7993] = {
 		.num_channels = 5,
-		.noirq_config = {
+		.analirq_config = {
 			.channel = {
 				AD799X_CHANNEL(0, 10),
 				AD799X_CHANNEL(1, 10),
@@ -671,7 +671,7 @@ static const struct ad799x_chip_info ad799x_chip_info_tbl[] = {
 				AD799X_CHANNEL(3, 10),
 				IIO_CHAN_SOFT_TIMESTAMP(4),
 			},
-			.info = &ad7993_4_7_8_noirq_info,
+			.info = &ad7993_4_7_8_analirq_info,
 		},
 		.irq_config = {
 			.channel = {
@@ -687,7 +687,7 @@ static const struct ad799x_chip_info ad799x_chip_info_tbl[] = {
 	},
 	[ad7994] = {
 		.num_channels = 5,
-		.noirq_config = {
+		.analirq_config = {
 			.channel = {
 				AD799X_CHANNEL(0, 12),
 				AD799X_CHANNEL(1, 12),
@@ -695,7 +695,7 @@ static const struct ad799x_chip_info ad799x_chip_info_tbl[] = {
 				AD799X_CHANNEL(3, 12),
 				IIO_CHAN_SOFT_TIMESTAMP(4),
 			},
-			.info = &ad7993_4_7_8_noirq_info,
+			.info = &ad7993_4_7_8_analirq_info,
 		},
 		.irq_config = {
 			.channel = {
@@ -711,7 +711,7 @@ static const struct ad799x_chip_info ad799x_chip_info_tbl[] = {
 	},
 	[ad7997] = {
 		.num_channels = 9,
-		.noirq_config = {
+		.analirq_config = {
 			.channel = {
 				AD799X_CHANNEL(0, 10),
 				AD799X_CHANNEL(1, 10),
@@ -723,7 +723,7 @@ static const struct ad799x_chip_info ad799x_chip_info_tbl[] = {
 				AD799X_CHANNEL(7, 10),
 				IIO_CHAN_SOFT_TIMESTAMP(8),
 			},
-			.info = &ad7993_4_7_8_noirq_info,
+			.info = &ad7993_4_7_8_analirq_info,
 		},
 		.irq_config = {
 			.channel = {
@@ -743,7 +743,7 @@ static const struct ad799x_chip_info ad799x_chip_info_tbl[] = {
 	},
 	[ad7998] = {
 		.num_channels = 9,
-		.noirq_config = {
+		.analirq_config = {
 			.channel = {
 				AD799X_CHANNEL(0, 12),
 				AD799X_CHANNEL(1, 12),
@@ -755,7 +755,7 @@ static const struct ad799x_chip_info ad799x_chip_info_tbl[] = {
 				AD799X_CHANNEL(7, 12),
 				IIO_CHAN_SOFT_TIMESTAMP(8),
 			},
-			.info = &ad7993_4_7_8_noirq_info,
+			.info = &ad7993_4_7_8_analirq_info,
 		},
 		.irq_config = {
 			.channel = {
@@ -787,7 +787,7 @@ static int ad799x_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*st));
 	if (indio_dev == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st = iio_priv(indio_dev);
 	/* this is only used for device removal purposes */
@@ -797,7 +797,7 @@ static int ad799x_probe(struct i2c_client *client)
 	if (client->irq > 0 && chip_info->irq_config.info)
 		st->chip_config = &chip_info->irq_config;
 	else
-		st->chip_config = &chip_info->noirq_config;
+		st->chip_config = &chip_info->analirq_config;
 
 	/* TODO: Add pdata options for filtering and bit delay */
 
@@ -812,7 +812,7 @@ static int ad799x_probe(struct i2c_client *client)
 	st->vref = devm_regulator_get_optional(&client->dev, "vref");
 
 	if (IS_ERR(st->vref)) {
-		if (PTR_ERR(st->vref) == -ENODEV) {
+		if (PTR_ERR(st->vref) == -EANALDEV) {
 			st->vref = NULL;
 			dev_info(&client->dev, "Using VCC reference voltage\n");
 		} else {
@@ -834,7 +834,7 @@ static int ad799x_probe(struct i2c_client *client)
 				goto error_disable_reg;
 		} else {
 			st->vref = NULL;
-			dev_warn(&client->dev, "Supplied reference not supported\n");
+			dev_warn(&client->dev, "Supplied reference analt supported\n");
 		}
 	}
 

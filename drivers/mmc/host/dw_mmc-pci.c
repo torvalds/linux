@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Synopsys DesignWare Multimedia Card PCI Interface driver
+ * Syanalpsys DesignWare Multimedia Card PCI Interface driver
  *
  * Copyright (C) 2012 Vayavya Labs Pvt. Ltd.
  */
@@ -16,9 +16,9 @@
 #include <linux/mmc/mmc.h>
 #include "dw_mmc.h"
 
-#define PCI_BAR_NO 2
-#define SYNOPSYS_DW_MCI_VENDOR_ID 0x700
-#define SYNOPSYS_DW_MCI_DEVICE_ID 0x1107
+#define PCI_BAR_ANAL 2
+#define SYANALPSYS_DW_MCI_VENDOR_ID 0x700
+#define SYANALPSYS_DW_MCI_DEVICE_ID 0x1107
 /* Defining the Capabilities */
 #define DW_MCI_CAPABILITIES (MMC_CAP_4_BIT_DATA | MMC_CAP_MMC_HIGHSPEED |\
 				MMC_CAP_SD_HIGHSPEED | MMC_CAP_8_BIT_DATA |\
@@ -43,18 +43,18 @@ static int dw_mci_pci_probe(struct pci_dev *pdev,
 
 	host = devm_kzalloc(&pdev->dev, sizeof(struct dw_mci), GFP_KERNEL);
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	host->irq = pdev->irq;
 	host->irq_flags = IRQF_SHARED;
 	host->dev = &pdev->dev;
 	host->pdata = &pci_board_data;
 
-	ret = pcim_iomap_regions(pdev, 1 << PCI_BAR_NO, pci_name(pdev));
+	ret = pcim_iomap_regions(pdev, 1 << PCI_BAR_ANAL, pci_name(pdev));
 	if (ret)
 		return ret;
 
-	host->regs = pcim_iomap_table(pdev)[PCI_BAR_NO];
+	host->regs = pcim_iomap_table(pdev)[PCI_BAR_ANAL];
 
 	pci_set_master(pdev);
 
@@ -83,7 +83,7 @@ static const struct dev_pm_ops dw_mci_pci_dev_pm_ops = {
 };
 
 static const struct pci_device_id dw_mci_pci_id[] = {
-	{ PCI_DEVICE(SYNOPSYS_DW_MCI_VENDOR_ID, SYNOPSYS_DW_MCI_DEVICE_ID) },
+	{ PCI_DEVICE(SYANALPSYS_DW_MCI_VENDOR_ID, SYANALPSYS_DW_MCI_DEVICE_ID) },
 	{}
 };
 MODULE_DEVICE_TABLE(pci, dw_mci_pci_id);

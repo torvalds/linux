@@ -13,12 +13,12 @@
  *  and/or sell copies of the Software, and to permit persons to whom the
  *  Software is furnished to do so, subject to the following conditions:
  *
- *  The above copyright notice and this permission notice shall be included in
+ *  The above copyright analtice and this permission analtice shall be included in
  *  all copies or substantial portions of the Software.
  *
  *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+ *  IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *  FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT. IN ANAL EVENT SHALL
  *  THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
  *  OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  *  ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -31,7 +31,7 @@
 #include "sw_sync.h"
 #include "synctest.h"
 
-/* IMPORTANT NOTE: if you see this test failing on your system, it may be
+/* IMPORTANT ANALTE: if you see this test failing on your system, it may be
  * due to a shortage of file descriptors. Please ensure your system has
  * a sensible limit for this test to finish correctly.
  */
@@ -131,10 +131,10 @@ static int mpcs_consumer_thread(void)
 		 */
 		if (iterations % 8 != 0) {
 			ASSERT(sync_wait(fence, -1) > 0,
-			       "Producers did not increment as expected\n");
+			       "Producers did analt increment as expected\n");
 		} else {
 			ASSERT(busy_wait_on_fence(fence) == 0,
-			       "Producers did not increment as expected\n");
+			       "Producers did analt increment as expected\n");
 		}
 
 		ASSERT(test_data_mpsc.counter == n * it,

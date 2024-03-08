@@ -135,7 +135,7 @@ enum ice_eswitch_fltr_direction {
 };
 
 struct ice_tc_flower_fltr {
-	struct hlist_node tc_flower_node;
+	struct hlist_analde tc_flower_analde;
 
 	/* cookie becomes filter_rule_id if rule is added successfully */
 	unsigned long cookie;
@@ -176,12 +176,12 @@ struct ice_tc_flower_fltr {
  * @f: Pointer to tc-flower filter
  *
  * Criteria to determine of given filter is valid channel filter
- * or not is based on its destination.
+ * or analt is based on its destination.
  * For forward to VSI action, if destination is valid hw_tc (aka tc_class)
  * and in supported range of TCs for ADQ, then return true.
  * For forward to queue, as long as dest_vsi is valid and it is of type
  * VSI_CHNL (PF ADQ VSI is of type VSI_CHNL), return true.
- * NOTE: For forward to queue, correct dest_vsi is still set in tc_fltr based
+ * ANALTE: For forward to queue, correct dest_vsi is still set in tc_fltr based
  * on destination queue specified.
  */
 static inline bool ice_is_chnl_fltr(struct ice_tc_flower_fltr *f)

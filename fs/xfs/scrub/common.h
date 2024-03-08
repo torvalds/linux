@@ -7,9 +7,9 @@
 #define __XFS_SCRUB_COMMON_H__
 
 /*
- * We /could/ terminate a scrub/repair operation early.  If we're not
+ * We /could/ terminate a scrub/repair operation early.  If we're analt
  * in a good place to continue (fatal signal, etc.) then bail out.
- * Note that we're careful not to make any judgements about *error.
+ * Analte that we're careful analt to make any judgements about *error.
  */
 static inline bool
 xchk_should_terminate(
@@ -34,35 +34,35 @@ xchk_should_terminate(
 int xchk_trans_alloc(struct xfs_scrub *sc, uint resblks);
 void xchk_trans_cancel(struct xfs_scrub *sc);
 
-bool xchk_process_error(struct xfs_scrub *sc, xfs_agnumber_t agno,
-		xfs_agblock_t bno, int *error);
+bool xchk_process_error(struct xfs_scrub *sc, xfs_agnumber_t aganal,
+		xfs_agblock_t banal, int *error);
 bool xchk_fblock_process_error(struct xfs_scrub *sc, int whichfork,
 		xfs_fileoff_t offset, int *error);
 
 bool xchk_xref_process_error(struct xfs_scrub *sc,
-		xfs_agnumber_t agno, xfs_agblock_t bno, int *error);
+		xfs_agnumber_t aganal, xfs_agblock_t banal, int *error);
 bool xchk_fblock_xref_process_error(struct xfs_scrub *sc,
 		int whichfork, xfs_fileoff_t offset, int *error);
 
 void xchk_block_set_preen(struct xfs_scrub *sc,
 		struct xfs_buf *bp);
-void xchk_ino_set_preen(struct xfs_scrub *sc, xfs_ino_t ino);
+void xchk_ianal_set_preen(struct xfs_scrub *sc, xfs_ianal_t ianal);
 
 void xchk_set_corrupt(struct xfs_scrub *sc);
 void xchk_block_set_corrupt(struct xfs_scrub *sc,
 		struct xfs_buf *bp);
-void xchk_ino_set_corrupt(struct xfs_scrub *sc, xfs_ino_t ino);
+void xchk_ianal_set_corrupt(struct xfs_scrub *sc, xfs_ianal_t ianal);
 void xchk_fblock_set_corrupt(struct xfs_scrub *sc, int whichfork,
 		xfs_fileoff_t offset);
 
 void xchk_block_xref_set_corrupt(struct xfs_scrub *sc,
 		struct xfs_buf *bp);
-void xchk_ino_xref_set_corrupt(struct xfs_scrub *sc,
-		xfs_ino_t ino);
+void xchk_ianal_xref_set_corrupt(struct xfs_scrub *sc,
+		xfs_ianal_t ianal);
 void xchk_fblock_xref_set_corrupt(struct xfs_scrub *sc,
 		int whichfork, xfs_fileoff_t offset);
 
-void xchk_ino_set_warning(struct xfs_scrub *sc, xfs_ino_t ino);
+void xchk_ianal_set_warning(struct xfs_scrub *sc, xfs_ianal_t ianal);
 void xchk_fblock_set_warning(struct xfs_scrub *sc, int whichfork,
 		xfs_fileoff_t offset);
 
@@ -80,9 +80,9 @@ int xchk_setup_ag_allocbt(struct xfs_scrub *sc);
 int xchk_setup_ag_iallocbt(struct xfs_scrub *sc);
 int xchk_setup_ag_rmapbt(struct xfs_scrub *sc);
 int xchk_setup_ag_refcountbt(struct xfs_scrub *sc);
-int xchk_setup_inode(struct xfs_scrub *sc);
-int xchk_setup_inode_bmap(struct xfs_scrub *sc);
-int xchk_setup_inode_bmap_data(struct xfs_scrub *sc);
+int xchk_setup_ianalde(struct xfs_scrub *sc);
+int xchk_setup_ianalde_bmap(struct xfs_scrub *sc);
+int xchk_setup_ianalde_bmap_data(struct xfs_scrub *sc);
 int xchk_setup_directory(struct xfs_scrub *sc);
 int xchk_setup_xattr(struct xfs_scrub *sc);
 int xchk_setup_symlink(struct xfs_scrub *sc);
@@ -94,33 +94,33 @@ int xchk_setup_rtsummary(struct xfs_scrub *sc);
 static inline int
 xchk_setup_rtbitmap(struct xfs_scrub *sc)
 {
-	return -ENOENT;
+	return -EANALENT;
 }
 static inline int
 xchk_setup_rtsummary(struct xfs_scrub *sc)
 {
-	return -ENOENT;
+	return -EANALENT;
 }
 #endif
 #ifdef CONFIG_XFS_QUOTA
-int xchk_ino_dqattach(struct xfs_scrub *sc);
+int xchk_ianal_dqattach(struct xfs_scrub *sc);
 int xchk_setup_quota(struct xfs_scrub *sc);
 #else
 static inline int
-xchk_ino_dqattach(struct xfs_scrub *sc)
+xchk_ianal_dqattach(struct xfs_scrub *sc)
 {
 	return 0;
 }
 static inline int
 xchk_setup_quota(struct xfs_scrub *sc)
 {
-	return -ENOENT;
+	return -EANALENT;
 }
 #endif
 int xchk_setup_fscounters(struct xfs_scrub *sc);
 
 void xchk_ag_free(struct xfs_scrub *sc, struct xchk_ag *sa);
-int xchk_ag_init(struct xfs_scrub *sc, xfs_agnumber_t agno,
+int xchk_ag_init(struct xfs_scrub *sc, xfs_agnumber_t aganal,
 		struct xchk_ag *sa);
 
 /*
@@ -131,15 +131,15 @@ int xchk_ag_init(struct xfs_scrub *sc, xfs_agnumber_t agno,
 static inline int
 xchk_ag_init_existing(
 	struct xfs_scrub	*sc,
-	xfs_agnumber_t		agno,
+	xfs_agnumber_t		aganal,
 	struct xchk_ag		*sa)
 {
-	int			error = xchk_ag_init(sc, agno, sa);
+	int			error = xchk_ag_init(sc, aganal, sa);
 
-	return error == -ENOENT ? -EFSCORRUPTED : error;
+	return error == -EANALENT ? -EFSCORRUPTED : error;
 }
 
-int xchk_ag_read_headers(struct xfs_scrub *sc, xfs_agnumber_t agno,
+int xchk_ag_read_headers(struct xfs_scrub *sc, xfs_agnumber_t aganal,
 		struct xchk_ag *sa);
 void xchk_ag_btcur_free(struct xchk_ag *sa);
 void xchk_ag_btcur_init(struct xfs_scrub *sc, struct xchk_ag *sa);
@@ -148,33 +148,33 @@ int xchk_count_rmap_ownedby_ag(struct xfs_scrub *sc, struct xfs_btree_cur *cur,
 
 int xchk_setup_ag_btree(struct xfs_scrub *sc, bool force_log);
 int xchk_iget_for_scrubbing(struct xfs_scrub *sc);
-int xchk_setup_inode_contents(struct xfs_scrub *sc, unsigned int resblks);
-int xchk_install_live_inode(struct xfs_scrub *sc, struct xfs_inode *ip);
+int xchk_setup_ianalde_contents(struct xfs_scrub *sc, unsigned int resblks);
+int xchk_install_live_ianalde(struct xfs_scrub *sc, struct xfs_ianalde *ip);
 
 void xchk_ilock(struct xfs_scrub *sc, unsigned int ilock_flags);
-bool xchk_ilock_nowait(struct xfs_scrub *sc, unsigned int ilock_flags);
+bool xchk_ilock_analwait(struct xfs_scrub *sc, unsigned int ilock_flags);
 void xchk_iunlock(struct xfs_scrub *sc, unsigned int ilock_flags);
 
 void xchk_buffer_recheck(struct xfs_scrub *sc, struct xfs_buf *bp);
 
 /*
- * Grab the inode at @inum.  The caller must have created a scrub transaction
- * so that we can confirm the inumber by walking the inobt and not deadlock on
- * a loop in the inobt.
+ * Grab the ianalde at @inum.  The caller must have created a scrub transaction
+ * so that we can confirm the inumber by walking the ianalbt and analt deadlock on
+ * a loop in the ianalbt.
  */
-int xchk_iget(struct xfs_scrub *sc, xfs_ino_t inum, struct xfs_inode **ipp);
-int xchk_iget_agi(struct xfs_scrub *sc, xfs_ino_t inum,
-		struct xfs_buf **agi_bpp, struct xfs_inode **ipp);
-void xchk_irele(struct xfs_scrub *sc, struct xfs_inode *ip);
-int xchk_install_handle_inode(struct xfs_scrub *sc, struct xfs_inode *ip);
+int xchk_iget(struct xfs_scrub *sc, xfs_ianal_t inum, struct xfs_ianalde **ipp);
+int xchk_iget_agi(struct xfs_scrub *sc, xfs_ianal_t inum,
+		struct xfs_buf **agi_bpp, struct xfs_ianalde **ipp);
+void xchk_irele(struct xfs_scrub *sc, struct xfs_ianalde *ip);
+int xchk_install_handle_ianalde(struct xfs_scrub *sc, struct xfs_ianalde *ip);
 
 /*
  * Safe version of (untrusted) xchk_iget that uses an empty transaction to
- * avoid deadlocking on loops in the inobt.  This should only be used in a
+ * avoid deadlocking on loops in the ianalbt.  This should only be used in a
  * scrub or repair setup routine, and only prior to grabbing a transaction.
  */
 static inline int
-xchk_iget_safe(struct xfs_scrub *sc, xfs_ino_t inum, struct xfs_inode **ipp)
+xchk_iget_safe(struct xfs_scrub *sc, xfs_ianal_t inum, struct xfs_ianalde **ipp)
 {
 	int	error;
 
@@ -198,7 +198,7 @@ static inline bool xchk_skip_xref(struct xfs_scrub_metadata *sm)
 			       XFS_SCRUB_OFLAG_XCORRUPT);
 }
 
-bool xchk_dir_looks_zapped(struct xfs_inode *dp);
+bool xchk_dir_looks_zapped(struct xfs_ianalde *dp);
 
 #ifdef CONFIG_XFS_ONLINE_REPAIR
 /* Decide if a repair is required. */
@@ -212,7 +212,7 @@ static inline bool xchk_needs_repair(const struct xfs_scrub_metadata *sm)
 /*
  * "Should we prepare for a repair?"
  *
- * Return true if the caller permits us to repair metadata and we're not
+ * Return true if the caller permits us to repair metadata and we're analt
  * setting up for a post-repair evaluation.
  */
 static inline bool xchk_could_repair(const struct xfs_scrub *sc)
@@ -225,7 +225,7 @@ static inline bool xchk_could_repair(const struct xfs_scrub *sc)
 # define xchk_could_repair(sc)		(false)
 #endif /* CONFIG_XFS_ONLINE_REPAIR */
 
-int xchk_metadata_inode_forks(struct xfs_scrub *sc);
+int xchk_metadata_ianalde_forks(struct xfs_scrub *sc);
 
 /*
  * Helper macros to allocate and format xfile description strings.
@@ -237,12 +237,12 @@ int xchk_metadata_inode_forks(struct xfs_scrub *sc);
 #define xchk_xfile_ag_descr(sc, fmt, ...) \
 	kasprintf(XCHK_GFP_FLAGS, "XFS (%s): AG 0x%x " fmt, \
 			(sc)->mp->m_super->s_id, \
-			(sc)->sa.pag ? (sc)->sa.pag->pag_agno : (sc)->sm->sm_agno, \
+			(sc)->sa.pag ? (sc)->sa.pag->pag_aganal : (sc)->sm->sm_aganal, \
 			##__VA_ARGS__)
-#define xchk_xfile_ino_descr(sc, fmt, ...) \
-	kasprintf(XCHK_GFP_FLAGS, "XFS (%s): inode 0x%llx " fmt, \
+#define xchk_xfile_ianal_descr(sc, fmt, ...) \
+	kasprintf(XCHK_GFP_FLAGS, "XFS (%s): ianalde 0x%llx " fmt, \
 			(sc)->mp->m_super->s_id, \
-			(sc)->ip ? (sc)->ip->i_ino : (sc)->sm->sm_ino, \
+			(sc)->ip ? (sc)->ip->i_ianal : (sc)->sm->sm_ianal, \
 			##__VA_ARGS__)
 
 /*
@@ -259,7 +259,7 @@ static inline bool xchk_need_intent_drain(struct xfs_scrub *sc)
 
 void xchk_fsgates_enable(struct xfs_scrub *sc, unsigned int scrub_fshooks);
 
-int xchk_inode_is_allocated(struct xfs_scrub *sc, xfs_agino_t agino,
+int xchk_ianalde_is_allocated(struct xfs_scrub *sc, xfs_agianal_t agianal,
 		bool *inuse);
 
 #endif	/* __XFS_SCRUB_COMMON_H__ */

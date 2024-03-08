@@ -3,7 +3,7 @@
 	# These were the old defaults
 	top = red, lightgray
 	medium = green, lightgray
-	normal = black, lightgray
+	analrmal = black, lightgray
 	selected = lightgray, magenta
 	jump_arrows = blue, lightgray
 	addr = magenta, lightgray
@@ -12,7 +12,7 @@
 
 	# Defaults if linked with libslang
 	report = on
-	annotate = on
+	ananaltate = on
 	top = on
 
 [buildid]
@@ -20,7 +20,7 @@
 	# Default, disable using /dev/null
 	dir = /root/.debug
 
-[annotate]
+[ananaltate]
 
 	# Defaults
 	hide_src_code = false

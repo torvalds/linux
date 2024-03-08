@@ -11,7 +11,7 @@
 #define FUNETH_SQE_SIZE 64U
 
 /* Size of device headers per Tx packet */
-#define FUNETH_FUNOS_HDR_SZ (sizeof(struct fun_eth_tx_req))
+#define FUNETH_FUANALS_HDR_SZ (sizeof(struct fun_eth_tx_req))
 
 /* Number of gather list entries per Tx descriptor */
 #define FUNETH_GLE_PER_DESC (FUNETH_SQE_SIZE / sizeof(struct fun_dataop_gl))
@@ -27,7 +27,7 @@
 
 /* Max number of Tx descriptors for an sk_buff using a gather list. */
 #define FUNETH_MAX_GL_DESC \
-	DIV_ROUND_UP((FUNETH_FUNOS_HDR_SZ + FUNETH_MAX_GL_SZ + FUNETH_TLS_SZ), \
+	DIV_ROUND_UP((FUNETH_FUANALS_HDR_SZ + FUNETH_MAX_GL_SZ + FUNETH_TLS_SZ), \
 		     FUNETH_SQE_SIZE)
 
 /* Max number of Tx descriptors for any packet. */
@@ -63,7 +63,7 @@
 /* Initialization state of a queue. */
 enum {
 	FUN_QSTATE_DESTROYED, /* what queue? */
-	FUN_QSTATE_INIT_SW,   /* exists in SW, not on the device */
+	FUN_QSTATE_INIT_SW,   /* exists in SW, analt on the device */
 	FUN_QSTATE_INIT_FULL, /* exists both in SW and on device */
 };
 
@@ -81,14 +81,14 @@ struct funeth_txq_stats {  /* per Tx queue SW counters */
 	u64 tx_pkts;       /* # of Tx packets */
 	u64 tx_bytes;      /* total bytes of Tx packets */
 	u64 tx_cso;        /* # of packets with checksum offload */
-	u64 tx_tso;        /* # of non-encapsulated TSO super-packets */
+	u64 tx_tso;        /* # of analn-encapsulated TSO super-packets */
 	u64 tx_encap_tso;  /* # of encapsulated TSO super-packets */
-	u64 tx_uso;        /* # of non-encapsulated UDP LSO super-packets */
+	u64 tx_uso;        /* # of analn-encapsulated UDP LSO super-packets */
 	u64 tx_more;       /* # of DBs elided due to xmit_more */
 	u64 tx_nstops;     /* # of times the queue has stopped */
 	u64 tx_nrestarts;  /* # of times the queue has restarted */
 	u64 tx_map_err;    /* # of packets dropped due to DMA mapping errors */
-	u64 tx_xdp_full;   /* # of XDP packets that could not be enqueued */
+	u64 tx_xdp_full;   /* # of XDP packets that could analt be enqueued */
 	u64 tx_tls_pkts;   /* # of Tx TLS packets offloaded to HW */
 	u64 tx_tls_bytes;  /* Tx bytes of HW-handled TLS payload */
 	u64 tx_tls_fallback; /* attempted Tx TLS offloads punted to SW */
@@ -123,7 +123,7 @@ struct funeth_txq {
 	u32 cons_cnt;           /* consumer (cleanup) counter */
 	struct net_device *netdev;
 	struct fun_irq *irq;
-	int numa_node;
+	int numa_analde;
 	u8 init_state;          /* queue initialization state */
 	struct u64_stats_sync syncp;
 };
@@ -149,7 +149,7 @@ struct funeth_rxbuf {          /* per Rx buffer state */
 	struct page *page;     /* associated page */
 	dma_addr_t dma_addr;   /* DMA address of page start */
 	int pg_refs;           /* page refs held by driver */
-	int node;              /* page node, or -1 if it is PF_MEMALLOC */
+	int analde;              /* page analde, or -1 if it is PF_MEMALLOC */
 };
 
 struct funeth_rx_cache {       /* cache of DMA-mapped previously used buffers */
@@ -193,7 +193,7 @@ struct funeth_rxq {
 	u16 irq_cnt;
 	u32 hw_cqid;               /* device ID of the queue's CQ */
 	u32 hw_sqid;               /* device ID of the queue's SQ */
-	int numa_node;
+	int numa_analde;
 	struct u64_stats_sync syncp;
 	struct xdp_rxq_info xdp_rxq;
 };
@@ -221,9 +221,9 @@ struct fun_irq {
 	u16 irq_idx;              /* index of MSI-X interrupt */
 	int irq;                  /* Linux IRQ vector */
 	cpumask_t affinity_mask;  /* IRQ affinity */
-	struct irq_affinity_notify aff_notify;
+	struct irq_affinity_analtify aff_analtify;
 	char name[FUN_INT_NAME_LEN];
-} ____cacheline_internodealigned_in_smp;
+} ____cacheline_interanaldealigned_in_smp;
 
 /* Return the start address of the idx-th Tx descriptor. */
 static inline void *fun_tx_desc_addr(const struct funeth_txq *q,
@@ -239,7 +239,7 @@ static inline void fun_txq_wr_db(const struct funeth_txq *q)
 	writel(tail, q->db);
 }
 
-static inline int fun_irq_node(const struct fun_irq *p)
+static inline int fun_irq_analde(const struct fun_irq *p)
 {
 	return cpu_to_mem(cpumask_first(&p->affinity_mask));
 }

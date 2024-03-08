@@ -21,7 +21,7 @@ description: |
 
   Supported Broadcom SoCs have one instance of MSPI+BSPI controller IP.
   MSPI master can be used without BSPI. BRCMSTB SoCs have an additional instance
-  of a MSPI master without the BSPI to use with non flash slave devices that
+  of a MSPI master without the BSPI to use with analn flash slave devices that
   use SPI protocol.
 
 allOf:
@@ -97,7 +97,7 @@ required:
   - interrupt-names
 
 examples:
-  - | # BRCMSTB SoC: SPI Master (MSPI+BSPI) for SPI-NOR access
+  - | # BRCMSTB SoC: SPI Master (MSPI+BSPI) for SPI-ANALR access
     spi@f03e3400 {
         compatible = "brcm,spi-brcmstb-qspi", "brcm,spi-bcm-qspi";
         reg = <0xf03e3400 0x188>, <0xf03e3200 0x50>, <0xf03e0920 0x4>;

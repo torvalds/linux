@@ -32,7 +32,7 @@ int rvt_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 	spin_lock(&dev->n_pds_lock);
 	if (dev->n_pds_allocated == dev->dparms.props.max_pd) {
 		spin_unlock(&dev->n_pds_lock);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto bail;
 	}
 

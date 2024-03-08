@@ -54,9 +54,9 @@ static void iwl_dbgfs_update_pm(struct iwl_mvm *mvm,
 		IWL_DEBUG_POWER(mvm, "lprx_rssi_threshold=%d\n", val);
 		dbgfs_pm->lprx_rssi_threshold = val;
 		break;
-	case MVM_DEBUGFS_PM_SNOOZE_ENABLE:
-		IWL_DEBUG_POWER(mvm, "snooze_enable=%d\n", val);
-		dbgfs_pm->snooze_ena = val;
+	case MVM_DEBUGFS_PM_SANALOZE_ENABLE:
+		IWL_DEBUG_POWER(mvm, "sanaloze_enable=%d\n", val);
+		dbgfs_pm->sanaloze_ena = val;
 		break;
 	case MVM_DEBUGFS_PM_UAPSD_MISBEHAVING:
 		IWL_DEBUG_POWER(mvm, "uapsd_misbehaving_enable=%d\n", val);
@@ -108,10 +108,10 @@ static ssize_t iwl_dbgfs_pm_params_write(struct ieee80211_vif *vif, char *buf,
 		    POWER_LPRX_RSSI_THRESHOLD_MIN)
 			return -EINVAL;
 		param = MVM_DEBUGFS_PM_LPRX_RSSI_THRESHOLD;
-	} else if (!strncmp("snooze_enable=", buf, 14)) {
+	} else if (!strncmp("sanaloze_enable=", buf, 14)) {
 		if (sscanf(buf + 14, "%d", &val) != 1)
 			return -EINVAL;
-		param = MVM_DEBUGFS_PM_SNOOZE_ENABLE;
+		param = MVM_DEBUGFS_PM_SANALOZE_ENABLE;
 	} else if (!strncmp("uapsd_misbehaving=", buf, 18)) {
 		if (sscanf(buf + 18, "%d", &val) != 1)
 			return -EINVAL;
@@ -527,7 +527,7 @@ static ssize_t iwl_dbgfs_low_latency_read(struct file *file,
 			"dbgfs_force_enable=%d\ndbgfs_force=%d\nactual=%d\n";
 
 	/*
-	 * all values in format are boolean so the size of format is enough
+	 * all values in format are boolean so the size of format is eanalugh
 	 * for holding the result string
 	 */
 	char buf[sizeof(format) + 1] = {};
@@ -654,7 +654,7 @@ static ssize_t iwl_dbgfs_quota_min_write(struct ieee80211_vif *vif, char *buf,
 	mutex_lock(&mvm->mutex);
 
 	mvmvif->dbgfs_quota_min = 0;
-	ieee80211_iterate_interfaces(mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
+	ieee80211_iterate_interfaces(mvm->hw, IEEE80211_IFACE_ITER_ANALRMAL,
 				     iwl_dbgfs_quota_check, &ret);
 	if (ret == 0) {
 		mvmvif->dbgfs_quota_min = value;

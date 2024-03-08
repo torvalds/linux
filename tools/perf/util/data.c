@@ -6,7 +6,7 @@
 #include <linux/err.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <string.h>
@@ -36,7 +36,7 @@ void perf_data__close_dir(struct perf_data *data)
 
 int perf_data__create_dir(struct perf_data *data, int nr)
 {
-	enum rlimit_action set_rlimit = NO_CHANGE;
+	enum rlimit_action set_rlimit = ANAL_CHANGE;
 	struct perf_data_file *files = NULL;
 	int i, ret;
 
@@ -45,14 +45,14 @@ int perf_data__create_dir(struct perf_data *data, int nr)
 
 	files = zalloc(nr * sizeof(*files));
 	if (!files)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < nr; i++) {
 		struct perf_data_file *file = &files[i];
 
 		ret = asprintf(&file->path, "%s/data.%d", data->path, i);
 		if (ret < 0) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out_err;
 		}
 
@@ -64,13 +64,13 @@ retry_open:
 			 * perf record needs at least 6 fds per CPU.
 			 * When we run out of them try to increase the limits.
 			 */
-			if (errno == EMFILE && rlimit__increase_nofile(&set_rlimit))
+			if (erranal == EMFILE && rlimit__increase_analfile(&set_rlimit))
 				goto retry_open;
 
-			ret = -errno;
+			ret = -erranal;
 			goto out_err;
 		}
-		set_rlimit = NO_CHANGE;
+		set_rlimit = ANAL_CHANGE;
 
 		file->fd = ret;
 	}
@@ -95,7 +95,7 @@ int perf_data__open_dir(struct perf_data *data)
 
 	/*
 	 * Directory containing a single regular perf data file which is already
-	 * open, means there is nothing more to do here.
+	 * open, means there is analthing more to do here.
 	 */
 	if (perf_data__is_single_file(data))
 		return 0;
@@ -123,7 +123,7 @@ int perf_data__open_dir(struct perf_data *data)
 		if (!S_ISREG(st.st_mode) || strncmp(dent->d_name, "data.", 5))
 			continue;
 
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 
 		file = realloc(files, (nr + 1) * sizeof(*files));
 		if (!file)
@@ -183,7 +183,7 @@ static bool check_pipe(struct perf_data *data)
 	struct stat st;
 	bool is_pipe = false;
 	int fd = perf_data__is_read(data) ?
-		 STDIN_FILENO : STDOUT_FILENO;
+		 STDIN_FILEANAL : STDOUT_FILEANAL;
 
 	if (!data->path) {
 		if (!fstat(fd, &st) && S_ISFIFO(st.st_mode))
@@ -230,14 +230,14 @@ static int check_backup(struct perf_data *data)
 		if (ret) {
 			pr_err("Can't remove old data: %s (%s)\n",
 			       ret == -2 ?
-			       "Unknown file found" : strerror(errno),
+			       "Unkanalwn file found" : strerror(erranal),
 			       oldname);
 			return -1;
 		}
 
 		if (rename(data->path, oldname)) {
 			pr_err("Can't move data: %s (%s to %s)\n",
-			       strerror(errno),
+			       strerror(erranal),
 			       data->path, oldname);
 			return -1;
 		}
@@ -265,11 +265,11 @@ static int open_file_read(struct perf_data *data)
 
 	fd = open(data->file.path, flags);
 	if (fd < 0) {
-		int err = errno;
+		int err = erranal;
 
 		pr_err("failed to open %s: %s", data->file.path,
 			str_error_r(err, sbuf, sizeof(sbuf)));
-		if (err == ENOENT && !strcmp(data->file.path, "perf.data"))
+		if (err == EANALENT && !strcmp(data->file.path, "perf.data"))
 			pr_err("  (try 'perf record' first)");
 		pr_err("\n");
 		return -err;
@@ -279,13 +279,13 @@ static int open_file_read(struct perf_data *data)
 		goto out_close;
 
 	if (!data->force && st.st_uid && (st.st_uid != geteuid())) {
-		pr_err("File %s not owned by current user or root (use -f to override)\n",
+		pr_err("File %s analt owned by current user or root (use -f to override)\n",
 		       data->file.path);
 		goto out_close;
 	}
 
 	if (!st.st_size) {
-		pr_info("zero-sized data (%s), nothing to do!\n",
+		pr_info("zero-sized data (%s), analthing to do!\n",
 			data->file.path);
 		goto out_close;
 	}
@@ -308,7 +308,7 @@ static int open_file_write(struct perf_data *data)
 
 	if (fd < 0)
 		pr_err("failed to open %s : %s\n", data->file.path,
-			str_error_r(errno, sbuf, sizeof(sbuf)));
+			str_error_r(erranal, sbuf, sizeof(sbuf)));
 
 	return fd;
 }
@@ -333,7 +333,7 @@ static int open_file_dup(struct perf_data *data)
 {
 	data->file.path = strdup(data->path);
 	if (!data->file.path)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return open_file(data);
 }
@@ -436,7 +436,7 @@ int perf_data__switch(struct perf_data *data,
 		return -EINVAL;
 
 	if (asprintf(new_filepath, "%s.%s", data->path, postfix) < 0)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * Only fire a warning, don't return error, continue fill
@@ -452,9 +452,9 @@ int perf_data__switch(struct perf_data *data,
 			goto out;
 
 		if (lseek(data->file.fd, pos, SEEK_SET) == (off_t)-1) {
-			ret = -errno;
+			ret = -erranal;
 			pr_debug("Failed to lseek to %zu: %s",
-				 pos, strerror(errno));
+				 pos, strerror(erranal));
 			goto out;
 		}
 	}

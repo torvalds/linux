@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -77,8 +77,8 @@ static void update_shadow_pdps(struct intel_vgpu_workload *workload)
 }
 
 /*
- * when populating shadow ctx from guest, we should not overrride oa related
- * registers, so that they will not be overlapped by guest oa configs. Thus
+ * when populating shadow ctx from guest, we should analt overrride oa related
+ * registers, so that they will analt be overlapped by guest oa configs. Thus
  * made it possible to capture oa data from host for both host and guests.
  */
 static void sr_oa_regs(struct intel_vgpu_workload *workload,
@@ -192,9 +192,9 @@ static int populate_shadow_context(struct intel_vgpu_workload *workload)
 			workload->ctx_desc.context_id,
 			workload->ring_context_gpa);
 
-	/* only need to ensure this context is not pinned/unpinned during the
+	/* only need to ensure this context is analt pinned/unpinned during the
 	 * period from last submission to this this submission.
-	 * Upon reaching this function, the currently submitted context is not
+	 * Upon reaching this function, the currently submitted context is analt
 	 * supposed to get unpinned. If a misbehaving guest driver ever does
 	 * this, it would corrupt itself.
 	 */
@@ -283,12 +283,12 @@ static void save_ring_hw_state(struct intel_vgpu *vgpu,
 		intel_uncore_read(uncore, reg);
 }
 
-static int shadow_context_status_change(struct notifier_block *nb,
+static int shadow_context_status_change(struct analtifier_block *nb,
 		unsigned long action, void *data)
 {
 	struct i915_request *rq = data;
 	struct intel_gvt *gvt = container_of(nb, struct intel_gvt,
-				shadow_ctx_notifier_block[rq->engine->id]);
+				shadow_ctx_analtifier_block[rq->engine->id]);
 	struct intel_gvt_workload_scheduler *scheduler = &gvt->scheduler;
 	enum intel_engine_id ring_id = rq->engine->id;
 	struct intel_vgpu_workload *workload;
@@ -305,12 +305,12 @@ static int shadow_context_status_change(struct notifier_block *nb,
 		}
 		spin_unlock_irqrestore(&scheduler->mmio_context_lock, flags);
 
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 	}
 
 	workload = scheduler->current_workload[ring_id];
 	if (unlikely(!workload))
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 
 	switch (action) {
 	case INTEL_CONTEXT_SCHEDULE_IN:
@@ -335,10 +335,10 @@ static int shadow_context_status_change(struct notifier_block *nb,
 		break;
 	default:
 		WARN_ON(1);
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 	}
 	wake_up(&workload->shadow_ctx_status_wq);
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static void
@@ -427,7 +427,7 @@ static void set_dma_address(struct i915_page_directory *pd, dma_addr_t addr)
 {
 	struct scatterlist *sg = pd->pt.base->mm.pages->sgl;
 
-	/* This is not a good idea */
+	/* This is analt a good idea */
 	sg->dma_address = addr;
 }
 
@@ -444,8 +444,8 @@ static void set_context_ppgtt_from_shadow(struct intel_vgpu_workload *workload,
 		for (i = 0; i < GVT_RING_CTX_NR_PDPS; i++) {
 			struct i915_page_directory * const pd =
 				i915_pd_entry(ppgtt->pd, i);
-			/* skip now as current i915 ppgtt alloc won't allocate
-			   top level pdp for non 4-level table, won't impact
+			/* skip analw as current i915 ppgtt alloc won't allocate
+			   top level pdp for analn 4-level table, won't impact
 			   shadow ppgtt. */
 			if (!pd)
 				break;
@@ -528,10 +528,10 @@ static int prepare_shadow_batch_buffer(struct intel_vgpu_workload *workload)
 	int ret;
 
 	list_for_each_entry(bb, &workload->shadow_bb, list) {
-		/* For privilge batch buffer and not wa_ctx, the bb_start_cmd_va
-		 * is only updated into ring_scan_buffer, not real ring address
-		 * allocated in later copy_workload_to_ring_buffer. pls be noted
-		 * shadow_ring_buffer_va is now pointed to real ring buffer va
+		/* For privilge batch buffer and analt wa_ctx, the bb_start_cmd_va
+		 * is only updated into ring_scan_buffer, analt real ring address
+		 * allocated in later copy_workload_to_ring_buffer. pls be analted
+		 * shadow_ring_buffer_va is analw pointed to real ring buffer va
 		 * in copy_workload_to_ring_buffer.
 		 */
 
@@ -540,7 +540,7 @@ static int prepare_shadow_batch_buffer(struct intel_vgpu_workload *workload)
 				+ bb->bb_offset;
 
 		/*
-		 * For non-priv bb, scan&shadow is only for
+		 * For analn-priv bb, scan&shadow is only for
 		 * debugging purpose, so the content of shadow bb
 		 * is the same as original bb. Therefore,
 		 * here, rather than switch to shadow bb's gma
@@ -571,11 +571,11 @@ retry:
 				bb->bb_start_cmd_va[2] = 0;
 
 			ret = i915_vma_move_to_active(bb->vma, workload->req,
-						      __EXEC_OBJECT_NO_REQUEST_AWAIT);
+						      __EXEC_OBJECT_ANAL_REQUEST_AWAIT);
 			if (ret)
 				goto err;
 
-			/* No one is going to touch shadow bb from now on. */
+			/* Anal one is going to touch shadow bb from analw on. */
 			i915_gem_object_flush_map(bb->obj);
 			i915_gem_ww_ctx_fini(&ww);
 		}
@@ -633,7 +633,7 @@ retry:
 
 	i915_gem_ww_ctx_fini(&ww);
 
-	/* FIXME: we are not tracking our pinned VMA leaving it
+	/* FIXME: we are analt tracking our pinned VMA leaving it
 	 * up to the core to fix up the stray pin_count upon
 	 * free.
 	 */
@@ -853,11 +853,11 @@ pick_next_workload(struct intel_gvt *gvt, struct intel_engine_cs *engine)
 	mutex_lock(&gvt->sched_lock);
 
 	/*
-	 * no current vgpu / will be scheduled out / no workload
+	 * anal current vgpu / will be scheduled out / anal workload
 	 * bail out
 	 */
 	if (!scheduler->current_vgpu) {
-		gvt_dbg_sched("ring %s stop - no current vgpu\n", engine->name);
+		gvt_dbg_sched("ring %s stop - anal current vgpu\n", engine->name);
 		goto out;
 	}
 
@@ -922,7 +922,7 @@ check_shadow_context_ppgtt(struct execlist_ring_context *c, struct intel_vgpu_mm
 		u64 shadow_pdp = c->pdps[7].val | (u64) c->pdps[6].val << 32;
 
 		if (shadow_pdp != m->ppgtt_mm.shadow_pdps[0]) {
-			gvt_dbg_mm("4-level context ppgtt not match LRI command\n");
+			gvt_dbg_mm("4-level context ppgtt analt match LRI command\n");
 			return false;
 		}
 		return true;
@@ -1116,7 +1116,7 @@ static void complete_current_workload(struct intel_gvt *gvt, int ring_id)
 	list_del_init(&workload->list);
 
 	if (workload->status || vgpu->resetting_eng & BIT(ring_id)) {
-		/* if workload->status is not successful means HW GPU
+		/* if workload->status is analt successful means HW GPU
 		 * has occurred GPU hang or something wrong with i915/GVT,
 		 * and GVT won't inject context switch interrupt to guest.
 		 * So this error is a vGPU hang actually to the guest.
@@ -1248,9 +1248,9 @@ void intel_gvt_clean_workload_scheduler(struct intel_gvt *gvt)
 	gvt_dbg_core("clean workload scheduler\n");
 
 	for_each_engine(engine, gvt->gt, i) {
-		atomic_notifier_chain_unregister(
-					&engine->context_status_notifier,
-					&gvt->shadow_ctx_notifier_block[i]);
+		atomic_analtifier_chain_unregister(
+					&engine->context_status_analtifier,
+					&gvt->shadow_ctx_analtifier_block[i]);
 		kthread_stop(scheduler->thread[i]);
 	}
 }
@@ -1277,10 +1277,10 @@ int intel_gvt_init_workload_scheduler(struct intel_gvt *gvt)
 			goto err;
 		}
 
-		gvt->shadow_ctx_notifier_block[i].notifier_call =
+		gvt->shadow_ctx_analtifier_block[i].analtifier_call =
 					shadow_context_status_change;
-		atomic_notifier_chain_register(&engine->context_status_notifier,
-					&gvt->shadow_ctx_notifier_block[i]);
+		atomic_analtifier_chain_register(&engine->context_status_analtifier,
+					&gvt->shadow_ctx_analtifier_block[i]);
 	}
 
 	return 0;
@@ -1427,7 +1427,7 @@ int intel_vgpu_setup_submission(struct intel_vgpu *vgpu)
 						  NULL);
 
 	if (!s->workloads) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_shadow_ctx;
 	}
 
@@ -1546,7 +1546,7 @@ alloc_workload(struct intel_vgpu *vgpu)
 
 	workload = kmem_cache_zalloc(s->workloads, GFP_KERNEL);
 	if (!workload)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	INIT_LIST_HEAD(&workload->list);
 	INIT_LIST_HEAD(&workload->shadow_bb);
@@ -1593,7 +1593,7 @@ static int prepare_mm(struct intel_vgpu_workload *workload)
 		root_entry_type = GTT_TYPE_PPGTT_ROOT_L4_ENTRY;
 		break;
 	default:
-		gvt_vgpu_err("Advanced Context mode(SVM) is not supported!\n");
+		gvt_vgpu_err("Advanced Context mode(SVM) is analt supported!\n");
 		return -EINVAL;
 	}
 
@@ -1663,8 +1663,8 @@ intel_vgpu_create_workload(struct intel_vgpu *vgpu,
 			gvt_dbg_el("ctx head %x real head %lx\n", head,
 				   last_workload->rb_tail);
 			/*
-			 * cannot use guest context head pointer here,
-			 * as it might not be updated at this time
+			 * cananalt use guest context head pointer here,
+			 * as it might analt be updated at this time
 			 */
 			head = last_workload->rb_tail;
 			break;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015, Mellanox Technologies, Ltd.  All rights reserved.
+ * Copyright (c) 2013-2015, Mellaanalx Techanallogies, Ltd.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -172,19 +172,19 @@ static inline int mlx5_flexible_inlen(struct mlx5_core_dev *dev, size_t fixed,
 	if (fixed > INT_MAX || item_size > INT_MAX || num_items > INT_MAX) {
 		mlx5_core_err(dev, "%s: %s:%d: input values too big: %zu + %zu * %zu\n",
 			      __func__, func, line, fixed, item_size, num_items);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (check_mul_overflow((int)item_size, (int)num_items, &inlen)) {
 		mlx5_core_err(dev, "%s: %s:%d: multiplication overflow: %zu + %zu * %zu\n",
 			      __func__, func, line, fixed, item_size, num_items);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (check_add_overflow((int)fixed, inlen, &inlen)) {
 		mlx5_core_err(dev, "%s: %s:%d: addition overflow: %zu + %zu * %zu\n",
 			      __func__, func, line, fixed, item_size, num_items);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return inlen;
@@ -315,7 +315,7 @@ static inline int mlx5_rescan_drivers(struct mlx5_core_dev *dev)
 enum {
 	MLX5_NIC_IFC_FULL		= 0,
 	MLX5_NIC_IFC_DISABLED		= 1,
-	MLX5_NIC_IFC_NO_DRAM_NIC	= 2,
+	MLX5_NIC_IFC_ANAL_DRAM_NIC	= 2,
 	MLX5_NIC_IFC_SW_RESET		= 7
 };
 

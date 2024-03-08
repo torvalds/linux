@@ -19,9 +19,9 @@
 /* MMIO Device BAR0 Registers */
 #define IDXD_VER_OFFSET			0x00
 #define IDXD_VER_MAJOR_MASK		0xf0
-#define IDXD_VER_MINOR_MASK		0x0f
+#define IDXD_VER_MIANALR_MASK		0x0f
 #define GET_IDXD_VER_MAJOR(x)		(((x) & IDXD_VER_MAJOR_MASK) >> 4)
-#define GET_IDXD_VER_MINOR(x)		((x) & IDXD_VER_MINOR_MASK)
+#define GET_IDXD_VER_MIANALR(x)		((x) & IDXD_VER_MIANALR_MASK)
 
 union gen_cap_reg {
 	struct {
@@ -90,7 +90,7 @@ union engine_cap_reg {
 
 #define IDXD_ENGCAP_OFFSET		0x38
 
-#define IDXD_OPCAP_NOOP			0x0001
+#define IDXD_OPCAP_ANALOP			0x0001
 #define IDXD_OPCAP_BATCH			0x0002
 #define IDXD_OPCAP_MEMMOVE		0x0008
 struct opcap {
@@ -232,7 +232,7 @@ enum idxd_cmdsts_err {
 	IDXD_CMDSTS_ERR_GRP_CONFIG3,
 	IDXD_CMDSTS_ERR_GRP_CONFIG4,
 	/* enable wq errors */
-	IDXD_CMDSTS_ERR_DEV_NOTEN = 0x20,
+	IDXD_CMDSTS_ERR_DEV_ANALTEN = 0x20,
 	IDXD_CMDSTS_ERR_WQ_ENABLED,
 	IDXD_CMDSTS_ERR_WQ_SIZE,
 	IDXD_CMDSTS_ERR_WQ_PRIOR,
@@ -244,10 +244,10 @@ enum idxd_cmdsts_err {
 	/* disable device errors */
 	IDXD_CMDSTS_ERR_DIS_DEV_EN = 0x31,
 	/* disable WQ, drain WQ, abort WQ, reset WQ */
-	IDXD_CMDSTS_ERR_DEV_NOT_EN,
+	IDXD_CMDSTS_ERR_DEV_ANALT_EN,
 	/* request interrupt handle */
 	IDXD_CMDSTS_ERR_INVAL_INT_IDX = 0x41,
-	IDXD_CMDSTS_ERR_NO_HANDLE,
+	IDXD_CMDSTS_ERR_ANAL_HANDLE,
 };
 
 #define IDXD_CMDCAP_OFFSET		0xb0
@@ -326,7 +326,7 @@ union evlcfg_reg {
 union msix_perm {
 	struct {
 		u32 rsvd:2;
-		u32 ignore:1;
+		u32 iganalre:1;
 		u32 pasid_en:1;
 		u32 rsvd2:8;
 		u32 pasid:20;

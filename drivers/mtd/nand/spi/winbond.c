@@ -64,8 +64,8 @@ static int w25m02gv_select_target(struct spinand_device *spinand,
 				  unsigned int target)
 {
 	struct spi_mem_op op = SPI_MEM_OP(SPI_MEM_OP_CMD(0xc2, 1),
-					  SPI_MEM_OP_NO_ADDR,
-					  SPI_MEM_OP_NO_DUMMY,
+					  SPI_MEM_OP_ANAL_ADDR,
+					  SPI_MEM_OP_ANAL_DUMMY,
 					  SPI_MEM_OP_DATA_OUT(1,
 							spinand->scratchbuf,
 							1));
@@ -111,7 +111,7 @@ static int w25n02kv_ecc_get_status(struct spinand_device *spinand,
 	struct spi_mem_op op = SPINAND_GET_FEATURE_OP(0x30, spinand->scratchbuf);
 
 	switch (status & STATUS_ECC_MASK) {
-	case STATUS_ECC_NO_BITFLIPS:
+	case STATUS_ECC_ANAL_BITFLIPS:
 		return 0;
 
 	case STATUS_ECC_UNCOR_ERROR:
@@ -121,7 +121,7 @@ static int w25n02kv_ecc_get_status(struct spinand_device *spinand,
 		/*
 		 * Let's try to retrieve the real maximum number of bitflips
 		 * in order to avoid forcing the wear-leveling layer to move
-		 * data around if it's not necessary.
+		 * data around if it's analt necessary.
 		 */
 		if (spi_mem_exec_op(spinand->spimem, &op))
 			return nanddev_get_ecc_conf(nand)->strength;
@@ -222,7 +222,7 @@ static int winbond_spinand_init(struct spinand_device *spinand)
 	unsigned int i;
 
 	/*
-	 * Make sure all dies are in buffer read mode and not continuous read
+	 * Make sure all dies are in buffer read mode and analt continuous read
 	 * mode.
 	 */
 	for (i = 0; i < nand->memorg.ntargets; i++) {

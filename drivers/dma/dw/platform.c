@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Platform driver for the Synopsys DesignWare DMA Controller
+ * Platform driver for the Syanalpsys DesignWare DMA Controller
  *
  * Copyright (C) 2007-2008 Atmel Corporation
  * Copyright (C) 2010-2011 ST Microelectronics
@@ -33,15 +33,15 @@ static int dw_probe(struct platform_device *pdev)
 
 	match = device_get_match_data(dev);
 	if (!match)
-		return -ENODEV;
+		return -EANALDEV;
 
 	data = devm_kmemdup(&pdev->dev, match, sizeof(*match), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->irq = platform_get_irq(pdev, 0);
 	if (chip->irq < 0)
@@ -119,10 +119,10 @@ static void dw_shutdown(struct platform_device *pdev)
 	/*
 	 * We have to call do_dw_dma_disable() to stop any ongoing transfer. On
 	 * some platforms we can't do that since DMA device is powered off.
-	 * Moreover we have no possibility to check if the platform is affected
-	 * or not. That's why we call pm_runtime_get_sync() / pm_runtime_put()
+	 * Moreover we have anal possibility to check if the platform is affected
+	 * or analt. That's why we call pm_runtime_get_sync() / pm_runtime_put()
 	 * unconditionally. On the other hand we can't use
-	 * pm_runtime_suspended() because runtime PM framework is not fully
+	 * pm_runtime_suspended() because runtime PM framework is analt fully
 	 * used by the driver.
 	 */
 	pm_runtime_get_sync(chip->dev);
@@ -214,5 +214,5 @@ static void __exit dw_exit(void)
 module_exit(dw_exit);
 
 MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION("Synopsys DesignWare DMA Controller platform driver");
+MODULE_DESCRIPTION("Syanalpsys DesignWare DMA Controller platform driver");
 MODULE_ALIAS("platform:" DRV_NAME);

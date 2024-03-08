@@ -41,7 +41,7 @@ static int xilly_probe(struct pci_dev *pdev,
 	endpoint = xillybus_init_endpoint(&pdev->dev);
 
 	if (!endpoint)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pci_set_drvdata(pdev, endpoint);
 
@@ -54,14 +54,14 @@ static int xilly_probe(struct pci_dev *pdev,
 		return rc;
 	}
 
-	/* L0s has caused packet drops. No power saving, thank you. */
+	/* L0s has caused packet drops. Anal power saving, thank you. */
 
 	pci_disable_link_state(pdev, PCIE_LINK_STATE_L0S);
 
 	if (!(pci_resource_flags(pdev, 0) & IORESOURCE_MEM)) {
 		dev_err(endpoint->dev,
 			"Incorrect BAR configuration. Aborting.\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	rc = pcim_iomap_regions(pdev, 0x01, xillyname);
@@ -79,14 +79,14 @@ static int xilly_probe(struct pci_dev *pdev,
 	if (pci_enable_msi(pdev)) {
 		dev_err(endpoint->dev,
 			"Failed to enable MSI interrupts. Aborting.\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	rc = devm_request_irq(&pdev->dev, pdev->irq, xillybus_isr, 0,
 			      xillyname, endpoint);
 	if (rc) {
 		dev_err(endpoint->dev,
 			"Failed to register MSI handler. Aborting.\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/*
@@ -102,7 +102,7 @@ static int xilly_probe(struct pci_dev *pdev,
 		endpoint->dma_using_dac = 1;
 	} else {
 		dev_err(endpoint->dev, "Failed to set DMA mask. Aborting.\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return xillybus_endpoint_discovery(endpoint);

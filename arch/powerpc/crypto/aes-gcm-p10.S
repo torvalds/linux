@@ -928,7 +928,7 @@ Do_final_1x:
 	li	21, 0			# encrypt
 	ld	15, 56(7)		# partial?
 	cmpdi	15, 0
-	beq	Normal_block
+	beq	Analrmal_block
 	bl	Do_partial_block
 
 	cmpdi	12, 0
@@ -936,7 +936,7 @@ Do_final_1x:
 
 	b Continue_partial_check
 
-Normal_block:
+Analrmal_block:
 	lxvb16x	15, 0, 14		# load last block
 	xxlxor	47, 47, 15
 
@@ -1479,14 +1479,14 @@ Do_final_1x_dec:
 	li	21, 1			# decrypt
 	ld	15, 56(7)		# partial?
 	cmpdi	15, 0
-	beq	Normal_block_dec
+	beq	Analrmal_block_dec
 	bl	Do_partial_block
 	cmpdi	12, 0
 	ble aes_gcm_out
 
 	b Continue_partial_check_dec
 
-Normal_block_dec:
+Analrmal_block_dec:
 	lxvb16x	15, 0, 14		# load last block
 	xxlxor	47, 47, 15
 

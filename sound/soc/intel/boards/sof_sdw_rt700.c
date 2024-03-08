@@ -6,7 +6,7 @@
  */
 
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/input.h>
 #include <sound/control.h>
 #include <sound/soc.h>
@@ -58,7 +58,7 @@ static int rt700_rtd_init(struct snd_soc_pcm_runtime *rtd)
 					  "%s hs:rt700",
 					  card->components);
 	if (!card->components)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = snd_soc_add_card_controls(card, rt700_controls,
 					ARRAY_SIZE(rt700_controls));

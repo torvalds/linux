@@ -36,7 +36,7 @@ coresight_add_out_conn(struct device *dev,
 	 */
 	for (i = 0; i < pdata->nr_outconns; ++i) {
 		conn = pdata->out_conns[i];
-		/* Output == -1 means ignore the port for example for helpers */
+		/* Output == -1 means iganalre the port for example for helpers */
 		if (conn->src_port != -1 &&
 		    conn->src_port == new_conn->src_port) {
 			dev_warn(dev, "Duplicate output port %d\n",
@@ -50,12 +50,12 @@ coresight_add_out_conn(struct device *dev,
 		devm_krealloc_array(dev, pdata->out_conns, pdata->nr_outconns,
 				    sizeof(*pdata->out_conns), GFP_KERNEL);
 	if (!pdata->out_conns)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	conn = devm_kmalloc(dev, sizeof(struct coresight_connection),
 			    GFP_KERNEL);
 	if (!conn)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	/*
 	 * Copy the new connection into the allocation, save the pointer to the
@@ -91,94 +91,94 @@ int coresight_add_in_conn(struct coresight_connection *out_conn)
 		devm_krealloc_array(dev, pdata->in_conns, pdata->nr_inconns,
 				    sizeof(*pdata->in_conns), GFP_KERNEL);
 	if (!pdata->in_conns)
-		return -ENOMEM;
+		return -EANALMEM;
 	pdata->in_conns[pdata->nr_inconns - 1] = out_conn;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(coresight_add_in_conn);
 
 static struct device *
-coresight_find_device_by_fwnode(struct fwnode_handle *fwnode)
+coresight_find_device_by_fwanalde(struct fwanalde_handle *fwanalde)
 {
 	struct device *dev = NULL;
 
 	/*
-	 * If we have a non-configurable replicator, it will be found on the
+	 * If we have a analn-configurable replicator, it will be found on the
 	 * platform bus.
 	 */
-	dev = bus_find_device_by_fwnode(&platform_bus_type, fwnode);
+	dev = bus_find_device_by_fwanalde(&platform_bus_type, fwanalde);
 	if (dev)
 		return dev;
 
 	/*
 	 * We have a configurable component - circle through the AMBA bus
-	 * looking for the device that matches the endpoint node.
+	 * looking for the device that matches the endpoint analde.
 	 */
-	return bus_find_device_by_fwnode(&amba_bustype, fwnode);
+	return bus_find_device_by_fwanalde(&amba_bustype, fwanalde);
 }
 
 /*
- * Find a registered coresight device from a device fwnode.
- * The node info is associated with the AMBA parent, but the
+ * Find a registered coresight device from a device fwanalde.
+ * The analde info is associated with the AMBA parent, but the
  * csdev keeps a copy so iterate round the coresight bus to
  * find the device.
  */
 struct coresight_device *
-coresight_find_csdev_by_fwnode(struct fwnode_handle *r_fwnode)
+coresight_find_csdev_by_fwanalde(struct fwanalde_handle *r_fwanalde)
 {
 	struct device *dev;
 	struct coresight_device *csdev = NULL;
 
-	dev = bus_find_device_by_fwnode(&coresight_bustype, r_fwnode);
+	dev = bus_find_device_by_fwanalde(&coresight_bustype, r_fwanalde);
 	if (dev) {
 		csdev = to_coresight_device(dev);
 		put_device(dev);
 	}
 	return csdev;
 }
-EXPORT_SYMBOL_GPL(coresight_find_csdev_by_fwnode);
+EXPORT_SYMBOL_GPL(coresight_find_csdev_by_fwanalde);
 
 #ifdef CONFIG_OF
-static inline bool of_coresight_legacy_ep_is_input(struct device_node *ep)
+static inline bool of_coresight_legacy_ep_is_input(struct device_analde *ep)
 {
 	return of_property_read_bool(ep, "slave-mode");
 }
 
-static struct device_node *of_coresight_get_port_parent(struct device_node *ep)
+static struct device_analde *of_coresight_get_port_parent(struct device_analde *ep)
 {
-	struct device_node *parent = of_graph_get_port_parent(ep);
+	struct device_analde *parent = of_graph_get_port_parent(ep);
 
 	/*
-	 * Skip one-level up to the real device node, if we
+	 * Skip one-level up to the real device analde, if we
 	 * are using the new bindings.
 	 */
-	if (of_node_name_eq(parent, "in-ports") ||
-	    of_node_name_eq(parent, "out-ports"))
+	if (of_analde_name_eq(parent, "in-ports") ||
+	    of_analde_name_eq(parent, "out-ports"))
 		parent = of_get_next_parent(parent);
 
 	return parent;
 }
 
-static inline struct device_node *
-of_coresight_get_output_ports_node(const struct device_node *node)
+static inline struct device_analde *
+of_coresight_get_output_ports_analde(const struct device_analde *analde)
 {
-	return of_get_child_by_name(node, "out-ports");
+	return of_get_child_by_name(analde, "out-ports");
 }
 
 static int of_coresight_get_cpu(struct device *dev)
 {
 	int cpu;
-	struct device_node *dn;
+	struct device_analde *dn;
 
-	if (!dev->of_node)
-		return -ENODEV;
+	if (!dev->of_analde)
+		return -EANALDEV;
 
-	dn = of_parse_phandle(dev->of_node, "cpu", 0);
+	dn = of_parse_phandle(dev->of_analde, "cpu", 0);
 	if (!dn)
-		return -ENODEV;
+		return -EANALDEV;
 
-	cpu = of_cpu_node_to_id(dn);
-	of_node_put(dn);
+	cpu = of_cpu_analde_to_id(dn);
+	of_analde_put(dn);
 
 	return cpu;
 }
@@ -191,18 +191,18 @@ static int of_coresight_get_cpu(struct device *dev)
  *
  * Returns :
  *	 0	- If the parsing completed without any fatal errors.
- *	-Errno	- Fatal error, abort the scanning.
+ *	-Erranal	- Fatal error, abort the scanning.
  */
 static int of_coresight_parse_endpoint(struct device *dev,
-				       struct device_node *ep,
+				       struct device_analde *ep,
 				       struct coresight_platform_data *pdata)
 {
 	int ret = 0;
 	struct of_endpoint endpoint, rendpoint;
-	struct device_node *rparent = NULL;
-	struct device_node *rep = NULL;
+	struct device_analde *rparent = NULL;
+	struct device_analde *rep = NULL;
 	struct device *rdev = NULL;
-	struct fwnode_handle *rdev_fwnode;
+	struct fwanalde_handle *rdev_fwanalde;
 	struct coresight_connection conn = {};
 	struct coresight_connection *new_conn;
 
@@ -223,9 +223,9 @@ static int of_coresight_parse_endpoint(struct device *dev,
 		if (of_graph_parse_endpoint(rep, &rendpoint))
 			break;
 
-		rdev_fwnode = of_fwnode_handle(rparent);
-		/* If the remote device is not available, defer probing */
-		rdev = coresight_find_device_by_fwnode(rdev_fwnode);
+		rdev_fwanalde = of_fwanalde_handle(rparent);
+		/* If the remote device is analt available, defer probing */
+		rdev = coresight_find_device_by_fwanalde(rdev_fwanalde);
 		if (!rdev) {
 			ret = -EPROBE_DEFER;
 			break;
@@ -240,19 +240,19 @@ static int of_coresight_parse_endpoint(struct device *dev,
 		 * 2) While removing the target device via
 		 *    coresight_remove_match()
 		 */
-		conn.dest_fwnode = fwnode_handle_get(rdev_fwnode);
+		conn.dest_fwanalde = fwanalde_handle_get(rdev_fwanalde);
 		conn.dest_port = rendpoint.port;
 
 		new_conn = coresight_add_out_conn(dev, pdata, &conn);
 		if (IS_ERR_VALUE(new_conn)) {
-			fwnode_handle_put(conn.dest_fwnode);
+			fwanalde_handle_put(conn.dest_fwanalde);
 			return PTR_ERR(new_conn);
 		}
 		/* Connection record updated */
 	} while (0);
 
-	of_node_put(rparent);
-	of_node_put(rep);
+	of_analde_put(rparent);
+	of_analde_put(rep);
 	put_device(rdev);
 
 	return ret;
@@ -262,12 +262,12 @@ static int of_get_coresight_platform_data(struct device *dev,
 					  struct coresight_platform_data *pdata)
 {
 	int ret = 0;
-	struct device_node *ep = NULL;
-	const struct device_node *parent = NULL;
+	struct device_analde *ep = NULL;
+	const struct device_analde *parent = NULL;
 	bool legacy_binding = false;
-	struct device_node *node = dev->of_node;
+	struct device_analde *analde = dev->of_analde;
 
-	parent = of_coresight_get_output_ports_node(node);
+	parent = of_coresight_get_output_ports_analde(analde);
 	/*
 	 * If the DT uses obsoleted bindings, the ports are listed
 	 * under the device and we need to filter out the input
@@ -278,10 +278,10 @@ static int of_get_coresight_platform_data(struct device *dev,
 		 * Avoid warnings in of_graph_get_next_endpoint()
 		 * if the device doesn't have any graph connections
 		 */
-		if (!of_graph_is_present(node))
+		if (!of_graph_is_present(analde))
 			return 0;
 		legacy_binding = true;
-		parent = node;
+		parent = analde;
 		dev_warn_once(dev, "Uses obsolete Coresight DT bindings\n");
 	}
 
@@ -308,12 +308,12 @@ static inline int
 of_get_coresight_platform_data(struct device *dev,
 			       struct coresight_platform_data *pdata)
 {
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static inline int of_coresight_get_cpu(struct device *dev)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 #endif
 
@@ -396,7 +396,7 @@ static inline bool is_acpi_coresight_graph(const union acpi_object *obj)
  *	GraphID		- Integer, identifying a graph the device belongs to.
  *	UUID		- UUID identifying the specification that governs
  *			  this graph. (e.g, see is_acpi_coresight_graph())
- *	NumberOfLinks	- Number "N" of connections on this node of the graph.
+ *	NumberOfLinks	- Number "N" of connections on this analde of the graph.
  *	Links[1]
  *	...
  *	Links[N]
@@ -407,7 +407,7 @@ static inline bool is_acpi_coresight_graph(const union acpi_object *obj)
  * {
  *	SourcePortAddress	- Integer
  *	DestinationPortAddress	- Integer
- *	DestinationDeviceName	- Reference to another device
+ *	DestinationDeviceName	- Reference to aanalther device
  *	( --- CoreSight specific extensions below ---)
  *	DirectionOfFlow		- Integer 1 for output(master)
  *				  0 for input(slave)
@@ -518,7 +518,7 @@ acpi_get_dsd_graph(struct acpi_device *adev, struct acpi_buffer *buf)
 		/* All _DSD elements must have a UUID and a Package */
 		if (!is_acpi_guid(guid) || package->type != ACPI_TYPE_PACKAGE)
 			break;
-		/* Skip the non-Graph _DSD packages */
+		/* Skip the analn-Graph _DSD packages */
 		if (!is_acpi_dsd_graph_guid(guid))
 			continue;
 		if (acpi_validate_dsd_graph(package))
@@ -588,7 +588,7 @@ acpi_get_coresight_graph(struct acpi_device *adev, struct acpi_buffer *buf)
  *
  *	SourcePortAddress,	// Integer
  *	DestinationPortAddress,	// Integer
- *	DestinationDeviceName,	// Reference to another device
+ *	DestinationDeviceName,	// Reference to aanalther device
  *	DirectionOfFlow,	// 1 for output(master), 0 for input(slave)
  *
  * Returns the direction of the data flow [ Input(slave) or Output(master) ]
@@ -618,13 +618,13 @@ static int acpi_coresight_parse_link(struct acpi_device *adev,
 
 	r_adev = acpi_fetch_acpi_dev(fields[2].reference.handle);
 	if (!r_adev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dir = fields[3].integer.value;
 	if (dir == ACPI_CORESIGHT_LINK_MASTER) {
 		conn->src_port = fields[0].integer.value;
 		conn->dest_port = fields[1].integer.value;
-		rdev = coresight_find_device_by_fwnode(&r_adev->fwnode);
+		rdev = coresight_find_device_by_fwanalde(&r_adev->fwanalde);
 		if (!rdev)
 			return -EPROBE_DEFER;
 		/*
@@ -635,7 +635,7 @@ static int acpi_coresight_parse_link(struct acpi_device *adev,
 		 * 2) While removing the target device via
 		 *    coresight_remove_match().
 		 */
-		conn->dest_fwnode = fwnode_handle_get(&r_adev->fwnode);
+		conn->dest_fwanalde = fwanalde_handle_get(&r_adev->fwanalde);
 	} else if (dir == ACPI_CORESIGHT_LINK_SLAVE) {
 		/*
 		 * We are only interested in the port number
@@ -669,7 +669,7 @@ static int acpi_coresight_parse_graph(struct device *dev,
 
 	graph = acpi_get_coresight_graph(adev, &buf);
 	/*
-	 * There are no graph connections, which is fine for some components.
+	 * There are anal graph connections, which is fine for some components.
 	 * e.g., ETE
 	 */
 	if (!graph)
@@ -745,14 +745,14 @@ static int acpi_coresight_get_cpu(struct device *dev)
 	struct acpi_device *adev = ACPI_COMPANION(dev);
 
 	if (!adev)
-		return -ENODEV;
+		return -EANALDEV;
 	status = acpi_get_parent(adev->handle, &cpu_handle);
 	if (ACPI_FAILURE(status))
-		return -ENODEV;
+		return -EANALDEV;
 
 	cpu = acpi_handle_to_logical_cpuid(cpu_handle);
 	if (cpu >= nr_cpu_ids)
-		return -ENODEV;
+		return -EANALDEV;
 	return cpu;
 }
 
@@ -775,20 +775,20 @@ static inline int
 acpi_get_coresight_platform_data(struct device *dev,
 				 struct coresight_platform_data *pdata)
 {
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static inline int acpi_coresight_get_cpu(struct device *dev)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 #endif
 
 int coresight_get_cpu(struct device *dev)
 {
-	if (is_of_node(dev->fwnode))
+	if (is_of_analde(dev->fwanalde))
 		return of_coresight_get_cpu(dev);
-	else if (is_acpi_device_node(dev->fwnode))
+	else if (is_acpi_device_analde(dev->fwanalde))
 		return acpi_coresight_get_cpu(dev);
 	return 0;
 }
@@ -797,22 +797,22 @@ EXPORT_SYMBOL_GPL(coresight_get_cpu);
 struct coresight_platform_data *
 coresight_get_platform_data(struct device *dev)
 {
-	int ret = -ENOENT;
+	int ret = -EANALENT;
 	struct coresight_platform_data *pdata = NULL;
-	struct fwnode_handle *fwnode = dev_fwnode(dev);
+	struct fwanalde_handle *fwanalde = dev_fwanalde(dev);
 
-	if (IS_ERR_OR_NULL(fwnode))
+	if (IS_ERR_OR_NULL(fwanalde))
 		goto error;
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error;
 	}
 
-	if (is_of_node(fwnode))
+	if (is_of_analde(fwanalde))
 		ret = of_get_coresight_platform_data(dev, pdata);
-	else if (is_acpi_device_node(fwnode))
+	else if (is_acpi_device_analde(fwanalde))
 		ret = acpi_get_coresight_platform_data(dev, pdata);
 
 	if (!ret)

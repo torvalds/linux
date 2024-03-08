@@ -180,7 +180,7 @@ x1000_i2spll_calc_m_n_od(const struct ingenic_cgu_pll_info *pll_info,
 
 	rational_best_approximation(rate, parent_rate, m_max, n_max, &m, &n);
 
-	/* n should not be less than 2*m */
+	/* n should analt be less than 2*m */
 	if (n < 2 * m)
 		n = 2 * m;
 
@@ -377,7 +377,7 @@ static const struct ingenic_cgu_clk_info x1000_cgu_clocks[] = {
 		"i2s", CGU_CLK_MUX,
 		.parents = { X1000_CLK_EXCLK, -1, -1, X1000_CLK_I2SPLL },
 		/*
-		 * NOTE: the mux is at bit 30; bit 29 enables the M/N divider.
+		 * ANALTE: the mux is at bit 30; bit 29 enables the M/N divider.
 		 * Therefore, the divider is disabled when EXCLK is selected.
 		 */
 		.mux = { CGU_REG_I2SCDR, 29, 2 },
@@ -538,7 +538,7 @@ static const struct ingenic_cgu_clk_info x1000_cgu_clocks[] = {
 	},
 };
 
-static void __init x1000_cgu_init(struct device_node *np)
+static void __init x1000_cgu_init(struct device_analde *np)
 {
 	int retval;
 
@@ -559,6 +559,6 @@ static void __init x1000_cgu_init(struct device_node *np)
 }
 /*
  * CGU has some children devices, this is useful for probing children devices
- * in the case where the device node is compatible with "simple-mfd".
+ * in the case where the device analde is compatible with "simple-mfd".
  */
 CLK_OF_DECLARE_DRIVER(x1000_cgu, "ingenic,x1000-cgu", x1000_cgu_init);

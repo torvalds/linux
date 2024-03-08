@@ -10,13 +10,13 @@
  * of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be
+ * The above copyright analtice and this permission analtice shall be
  * included in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -76,7 +76,7 @@ typedef struct MKSGuestStatCounterTime {
  * Flags for MKSGuestStatInfoEntry::flags below
  */
 
-#define MKS_GUEST_STAT_FLAG_NONE    0
+#define MKS_GUEST_STAT_FLAG_ANALNE    0
 #define MKS_GUEST_STAT_FLAG_TIME    (1U << 0)
 
 typedef __attribute__((aligned(32))) struct MKSGuestStatInfoEntry {
@@ -124,14 +124,14 @@ typedef __attribute__((aligned(32))) struct MKSGuestStatInfoEntry {
  * beginning of these sections allowing the host side code to correctly
  * interpret the pointers.
  *
- * Because the host side code never acknowledges anything back to the
- * guest there is no strict requirement to maintain compatability
- * across releases.  If the interface changes the host might not be
- * able to log stats, but the guest will continue to run normally.
+ * Because the host side code never ackanalwledges anything back to the
+ * guest there is anal strict requirement to maintain compatability
+ * across releases.  If the interface changes the host might analt be
+ * able to log stats, but the guest will continue to run analrmally.
  */
 
 typedef struct MKSGuestStatInstanceDescriptor {
-	uint64 reservedMBZ; /* must be zero for now. */
+	uint64 reservedMBZ; /* must be zero for analw. */
 	uint64 statStartVA; /* VA of the start of the stats section. */
 	uint64 strsStartVA; /* VA of the start of the strings section. */
 	uint64 statLength;  /* length of the stats section in bytes. */

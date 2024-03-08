@@ -257,7 +257,7 @@ ia_css_get_dvs_statistics(
 	} else
 	{
 		IA_CSS_ERROR("out of memory");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 	}
 
 	IA_CSS_LEAVE_ERR(ret);
@@ -356,13 +356,13 @@ ia_css_isp_dvs_statistics_map_allocate(
     void *data_ptr)
 {
 	struct ia_css_isp_dvs_statistics_map *me;
-	/* Windows compiler does not like adding sizes to a void *
+	/* Windows compiler does analt like adding sizes to a void *
 	 * so we use a local char * instead. */
 	char *base_ptr;
 
 	me = kvmalloc(sizeof(*me), GFP_KERNEL);
 	if (!me) {
-		IA_CSS_LOG("cannot allocate memory");
+		IA_CSS_LOG("cananalt allocate memory");
 		goto err;
 	}
 
@@ -372,7 +372,7 @@ ia_css_isp_dvs_statistics_map_allocate(
 	if (!me->data_ptr) {
 		me->data_ptr = kvmalloc(isp_stats->size, GFP_KERNEL);
 		if (!me->data_ptr) {
-			IA_CSS_LOG("cannot allocate memory");
+			IA_CSS_LOG("cananalt allocate memory");
 			goto err;
 		}
 	}

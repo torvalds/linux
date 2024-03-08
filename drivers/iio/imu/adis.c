@@ -369,7 +369,7 @@ static int adis_self_test(struct adis *adis)
 
 	ret = __adis_check_status(adis);
 
-	if (adis->data->self_test_no_autoclear)
+	if (adis->data->self_test_anal_autoclear)
 		__adis_write_reg_16(adis, adis->data->self_test_reg, 0x00);
 
 	return ret;
@@ -380,7 +380,7 @@ static int adis_self_test(struct adis *adis)
  * @adis: The adis device
  *
  * The function performs a HW reset via a reset pin that should be specified
- * via GPIOLIB. If no pin is configured a SW reset will be performed.
+ * via GPIOLIB. If anal pin is configured a SW reset will be performed.
  * The RST pin for the ADIS devices should be configured as ACTIVE_LOW.
  *
  * After the self-test operation is performed, the function will also check
@@ -390,7 +390,7 @@ static int adis_self_test(struct adis *adis)
  * Returns 0 if the device is operational, a negative error code otherwise.
  *
  * This function should be called early on in the device initialization sequence
- * to ensure that the device is in a sane and known state and that it is usable.
+ * to ensure that the device is in a sane and kanalwn state and that it is usable.
  */
 int __adis_initial_startup(struct adis *adis)
 {
@@ -421,8 +421,8 @@ int __adis_initial_startup(struct adis *adis)
 
 	/*
 	 * don't bother calling this if we can't unmask the IRQ as in this case
-	 * the IRQ is most likely not yet requested and we will request it
-	 * with 'IRQF_NO_AUTOEN' anyways.
+	 * the IRQ is most likely analt yet requested and we will request it
+	 * with 'IRQF_ANAL_AUTOEN' anyways.
 	 */
 	if (!adis->data->unmasked_drdy)
 		__adis_enable_irq(adis, false);
@@ -436,7 +436,7 @@ int __adis_initial_startup(struct adis *adis)
 
 	if (prod_id != adis->data->prod_id)
 		dev_warn(&adis->spi->dev,
-			 "Device ID(%u) and product ID(%u) do not match.\n",
+			 "Device ID(%u) and product ID(%u) do analt match.\n",
 			 adis->data->prod_id, prod_id);
 
 	return 0;
@@ -455,7 +455,7 @@ EXPORT_SYMBOL_NS_GPL(__adis_initial_startup, IIO_ADISLIB);
  * The function performs a single conversion on a given channel and post
  * processes the value accordingly to the channel spec. If a error_mask is given
  * the function will check if the mask is set in the returned raw value. If it
- * is set the function will perform a self-check. If the device does not report
+ * is set the function will perform a self-check. If the device does analt report
  * a error bit in the channels raw value set error_mask to 0.
  */
 int adis_single_conversion(struct iio_dev *indio_dev,
@@ -507,7 +507,7 @@ int adis_init(struct adis *adis, struct iio_dev *indio_dev,
 	      struct spi_device *spi, const struct adis_data *data)
 {
 	if (!data || !data->timeouts) {
-		dev_err(&spi->dev, "No config data or timeouts not defined!\n");
+		dev_err(&spi->dev, "Anal config data or timeouts analt defined!\n");
 		return -EINVAL;
 	}
 

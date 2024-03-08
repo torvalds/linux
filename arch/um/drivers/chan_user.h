@@ -10,7 +10,7 @@
 #include <linux/types.h>
 
 struct chan_opts {
-	void (*const announce)(char *dev_name, int dev);
+	void (*const ananalunce)(char *dev_name, int dev);
 	char *xterm_title;
 	int raw;
 };

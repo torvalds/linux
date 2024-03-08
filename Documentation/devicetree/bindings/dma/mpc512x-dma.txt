@@ -10,7 +10,7 @@ the dma/dma.txt file for a more detailed description of binding.
 Required properties:
 - compatible: should be "fsl,mpc5121-dma" or "fsl,mpc8308-dma";
 - reg: should contain the DMA controller registers location and length;
-- interrupt for the DMA controller: syntax of interrupt client node
+- interrupt for the DMA controller: syntax of interrupt client analde
 	is described in interrupt-controller/interrupts.txt file.
 - #dma-cells: the length of the DMA specifier, must be <1>.
 	Each channel of this DMA controller has a peripheral request line,

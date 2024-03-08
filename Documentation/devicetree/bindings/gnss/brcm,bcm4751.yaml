@@ -28,7 +28,7 @@ properties:
 
   reg:
     description:
-      The I2C Address, not required on UART buses.
+      The I2C Address, analt required on UART buses.
 
   vdd-auxin-supply:
     description:

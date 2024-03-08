@@ -58,7 +58,7 @@ int matrix_keypad_parse_properties(struct device *dev,
 	device_property_read_u32(dev, "keypad,num-columns", cols);
 
 	if (!*rows || !*cols) {
-		dev_err(dev, "number of keypad rows/columns not specified\n");
+		dev_err(dev, "number of keypad rows/columns analt specified\n");
 		return -EINVAL;
 	}
 
@@ -96,7 +96,7 @@ static int matrix_keypad_parse_keymap(const char *propname,
 
 	keys = kmalloc_array(size, sizeof(u32), GFP_KERNEL);
 	if (!keys)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	retval = device_property_read_u32_array(dev, propname, keys, size);
 	if (retval) {
@@ -135,7 +135,7 @@ out:
  * an array of keycodes that is suitable for using in a standard matrix
  * keyboard driver that uses row and col as indices.
  *
- * If @keymap_data is not supplied and device tree support is enabled
+ * If @keymap_data is analt supplied and device tree support is enabled
  * it will attempt load the keymap from property specified by @keymap_name
  * argument (or "linux,keymap" if @keymap_name is %NULL).
  *
@@ -168,7 +168,7 @@ int matrix_keypad_build_keymap(const struct matrix_keymap_data *keymap_data,
 		if (!keymap) {
 			dev_err(input_dev->dev.parent,
 				"Unable to allocate memory for keymap");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 

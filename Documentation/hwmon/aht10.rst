@@ -9,7 +9,7 @@ Supported chips:
 
     Prefix: 'aht10'
 
-    Addresses scanned: None
+    Addresses scanned: Analne
 
     Datasheet(AHT10):
 
@@ -36,10 +36,10 @@ Special Features
 AHT20 has additional CRC8 support which is sent as the last byte of the sensor
 values.
 
-Usage Notes
+Usage Analtes
 -----------
 
-This driver does not probe for AHT10/ATH20 devices, as there is no reliable
+This driver does analt probe for AHT10/ATH20 devices, as there is anal reliable
 way to determine if an i2c chip is or isn't an AHT10/AHT20. The device has
 to be instantiated explicitly with the address 0x38. See
 Documentation/i2c/instantiating-devices.rst for details.

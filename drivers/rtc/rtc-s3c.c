@@ -213,7 +213,7 @@ static int s3c_rtc_settime(struct device *dev, struct rtc_time *tm)
 
 	/*
 	 * Convert actual date/time to internal representation.
-	 * We get around Y2K by simply not supporting it.
+	 * We get around Y2K by simply analt supporting it.
 	 */
 	rtc_tm.tm_year -= 100;
 	rtc_tm.tm_mon += 1;
@@ -402,7 +402,7 @@ static int s3c_rtc_probe(struct platform_device *pdev)
 
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->dev = &pdev->dev;
 	info->data = of_device_get_match_data(&pdev->dev);
@@ -461,7 +461,7 @@ static int s3c_rtc_probe(struct platform_device *pdev)
 	info->rtc = devm_rtc_allocate_device(&pdev->dev);
 	if (IS_ERR(info->rtc)) {
 		ret = PTR_ERR(info->rtc);
-		goto err_nortc;
+		goto err_analrtc;
 	}
 
 	info->rtc->ops = &s3c_rtcops;
@@ -470,20 +470,20 @@ static int s3c_rtc_probe(struct platform_device *pdev)
 
 	ret = devm_rtc_register_device(info->rtc);
 	if (ret)
-		goto err_nortc;
+		goto err_analrtc;
 
 	ret = devm_request_irq(&pdev->dev, info->irq_alarm, s3c_rtc_alarmirq,
 			       0, "s3c2410-rtc alarm", info);
 	if (ret) {
 		dev_err(&pdev->dev, "IRQ%d error %d\n", info->irq_alarm, ret);
-		goto err_nortc;
+		goto err_analrtc;
 	}
 
 	s3c_rtc_disable_clk(info);
 
 	return 0;
 
-err_nortc:
+err_analrtc:
 	if (info->data->disable)
 		info->data->disable(info);
 
@@ -588,7 +588,7 @@ static const __maybe_unused struct of_device_id s3c_rtc_dt_match[] = {
 		.compatible = "samsung,s3c6410-rtc",
 		.data = &s3c6410_rtc_data,
 	}, {
-		.compatible = "samsung,exynos3250-rtc",
+		.compatible = "samsung,exyanals3250-rtc",
 		.data = &s3c6410_rtc_data,
 	},
 	{ /* sentinel */ },

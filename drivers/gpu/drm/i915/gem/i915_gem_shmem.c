@@ -69,7 +69,7 @@ int shmem_sg_alloc_table(struct drm_i915_private *i915, struct sg_table *st,
 	unsigned long i;
 	struct scatterlist *sg;
 	unsigned long next_pfn = 0;	/* suppress gcc warning */
-	gfp_t noreclaim;
+	gfp_t analreclaim;
 	int ret;
 
 	if (overflows_type(size / PAGE_SIZE, page_count))
@@ -77,14 +77,14 @@ int shmem_sg_alloc_table(struct drm_i915_private *i915, struct sg_table *st,
 
 	page_count = size / PAGE_SIZE;
 	/*
-	 * If there's no chance of allocating enough pages for the whole
+	 * If there's anal chance of allocating eanalugh pages for the whole
 	 * object, bail early.
 	 */
 	if (size > resource_size(&mr->region))
-		return -ENOMEM;
+		return -EANALMEM;
 
-	if (sg_alloc_table(st, page_count, GFP_KERNEL | __GFP_NOWARN))
-		return -ENOMEM;
+	if (sg_alloc_table(st, page_count, GFP_KERNEL | __GFP_ANALWARN))
+		return -EANALMEM;
 
 	/*
 	 * Get the list of pages out of our struct file.  They'll be pinned
@@ -93,8 +93,8 @@ int shmem_sg_alloc_table(struct drm_i915_private *i915, struct sg_table *st,
 	 * Fail silently without starting the shrinker
 	 */
 	mapping_set_unevictable(mapping);
-	noreclaim = mapping_gfp_constraint(mapping, ~__GFP_RECLAIM);
-	noreclaim |= __GFP_NORETRY | __GFP_NOWARN;
+	analreclaim = mapping_gfp_constraint(mapping, ~__GFP_RECLAIM);
+	analreclaim |= __GFP_ANALRETRY | __GFP_ANALWARN;
 
 	sg = st->sgl;
 	st->nents = 0;
@@ -105,7 +105,7 @@ int shmem_sg_alloc_table(struct drm_i915_private *i915, struct sg_table *st,
 			I915_SHRINK_BOUND | I915_SHRINK_UNBOUND,
 			0,
 		}, *s = shrink;
-		gfp_t gfp = noreclaim;
+		gfp_t gfp = analreclaim;
 
 		do {
 			cond_resched();
@@ -122,32 +122,32 @@ int shmem_sg_alloc_table(struct drm_i915_private *i915, struct sg_table *st,
 
 			/*
 			 * We've tried hard to allocate the memory by reaping
-			 * our own buffer, now let the real VM do its job and
+			 * our own buffer, analw let the real VM do its job and
 			 * go down in flames if truly OOM.
 			 *
 			 * However, since graphics tend to be disposable,
-			 * defer the oom here by reporting the ENOMEM back
+			 * defer the oom here by reporting the EANALMEM back
 			 * to userspace.
 			 */
 			if (!*s) {
-				/* reclaim and warn, but no oom */
+				/* reclaim and warn, but anal oom */
 				gfp = mapping_gfp_mask(mapping);
 
 				/*
 				 * Our bo are always dirty and so we require
 				 * kswapd to reclaim our pages (direct reclaim
-				 * does not effectively begin pageout of our
+				 * does analt effectively begin pageout of our
 				 * buffers on its own). However, direct reclaim
 				 * only waits for kswapd when under allocation
 				 * congestion. So as a result __GFP_RECLAIM is
 				 * unreliable and fails to actually reclaim our
 				 * dirty pages -- unless you try over and over
-				 * again with !__GFP_NORETRY. However, we still
+				 * again with !__GFP_ANALRETRY. However, we still
 				 * want to fail this allocation rather than
 				 * trigger the out-of-memory killer and for
 				 * this we want __GFP_RETRY_MAYFAIL.
 				 */
-				gfp |= __GFP_RETRY_MAYFAIL | __GFP_NOWARN;
+				gfp |= __GFP_RETRY_MAYFAIL | __GFP_ANALWARN;
 			}
 		} while (1);
 
@@ -188,16 +188,16 @@ err_sg:
 	}
 
 	/*
-	 * shmemfs first checks if there is enough memory to allocate the page
-	 * and reports ENOSPC should there be insufficient, along with the usual
-	 * ENOMEM for a genuine allocation failure.
+	 * shmemfs first checks if there is eanalugh memory to allocate the page
+	 * and reports EANALSPC should there be insufficient, along with the usual
+	 * EANALMEM for a genuine allocation failure.
 	 *
-	 * We use ENOSPC in our driver to mean that we have run out of aperture
+	 * We use EANALSPC in our driver to mean that we have run out of aperture
 	 * space and so want to translate the error from shmemfs back to our
-	 * usual understanding of ENOMEM.
+	 * usual understanding of EANALMEM.
 	 */
-	if (ret == -ENOSPC)
-		ret = -ENOMEM;
+	if (ret == -EANALSPC)
+		ret = -EANALMEM;
 
 	return ret;
 }
@@ -214,7 +214,7 @@ static int shmem_get_pages(struct drm_i915_gem_object *obj)
 	int ret;
 
 	/*
-	 * Assert that the object is not currently in any GPU domain. As it
+	 * Assert that the object is analt currently in any GPU domain. As it
 	 * wasn't in the GTT, there shouldn't be any way it could have been in
 	 * a GPU cache
 	 */
@@ -222,9 +222,9 @@ static int shmem_get_pages(struct drm_i915_gem_object *obj)
 	GEM_BUG_ON(obj->write_domain & I915_GEM_GPU_DOMAINS);
 
 rebuild_st:
-	st = kmalloc(sizeof(*st), GFP_KERNEL | __GFP_NOWARN);
+	st = kmalloc(sizeof(*st), GFP_KERNEL | __GFP_ANALWARN);
 	if (!st)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = shmem_sg_alloc_table(i915, st, obj->base.size, mem, mapping,
 				   max_segment);
@@ -235,7 +235,7 @@ rebuild_st:
 	if (ret) {
 		/*
 		 * DMA remapping failed? One possible cause is that
-		 * it could not reserve enough large entries, asking
+		 * it could analt reserve eanalugh large entries, asking
 		 * for PAGE_SIZE chunks instead may be helpful.
 		 */
 		if (max_segment > PAGE_SIZE) {
@@ -267,17 +267,17 @@ rebuild_st:
 err_pages:
 	shmem_sg_free_table(st, mapping, false, false);
 	/*
-	 * shmemfs first checks if there is enough memory to allocate the page
-	 * and reports ENOSPC should there be insufficient, along with the usual
-	 * ENOMEM for a genuine allocation failure.
+	 * shmemfs first checks if there is eanalugh memory to allocate the page
+	 * and reports EANALSPC should there be insufficient, along with the usual
+	 * EANALMEM for a genuine allocation failure.
 	 *
-	 * We use ENOSPC in our driver to mean that we have run out of aperture
+	 * We use EANALSPC in our driver to mean that we have run out of aperture
 	 * space and so want to translate the error from shmemfs back to our
-	 * usual understanding of ENOMEM.
+	 * usual understanding of EANALMEM.
 	 */
 err_st:
-	if (ret == -ENOSPC)
-		ret = -ENOMEM;
+	if (ret == -EANALSPC)
+		ret = -EANALMEM;
 
 	kfree(st);
 
@@ -291,9 +291,9 @@ shmem_truncate(struct drm_i915_gem_object *obj)
 	 * Our goal here is to return as much of the memory as
 	 * is possible back to the system as we are called from OOM.
 	 * To do this we must instruct the shmfs to drop all of its
-	 * backing pages, *now*.
+	 * backing pages, *analw*.
 	 */
-	shmem_truncate_range(file_inode(obj->base.filp), 0, (loff_t)-1);
+	shmem_truncate_range(file_ianalde(obj->base.filp), 0, (loff_t)-1);
 	obj->mm.madv = __I915_MADV_PURGED;
 	obj->mm.pages = ERR_PTR(-EFAULT);
 
@@ -303,7 +303,7 @@ shmem_truncate(struct drm_i915_gem_object *obj)
 void __shmem_writeback(size_t size, struct address_space *mapping)
 {
 	struct writeback_control wbc = {
-		.sync_mode = WB_SYNC_NONE,
+		.sync_mode = WB_SYNC_ANALNE,
 		.nr_to_write = SWAP_CLUSTER_MAX,
 		.range_start = 0,
 		.range_end = LLONG_MAX,
@@ -315,7 +315,7 @@ void __shmem_writeback(size_t size, struct address_space *mapping)
 	 * Leave mmapings intact (GTT will have been revoked on unbinding,
 	 * leaving only CPU mmapings around) and add those pages to the LRU
 	 * instead of invoking writeback so they are aged and paged out
-	 * as normal.
+	 * as analrmal.
 	 */
 
 	/* Begin writeback on each dirty page */
@@ -382,10 +382,10 @@ __i915_gem_object_release_shmem(struct drm_i915_gem_object *obj,
 
 	__start_cpu_write(obj);
 	/*
-	 * On non-LLC igfx platforms, force the flush-on-acquire if this is ever
-	 * swapped-in. Our async flush path is not trust worthy enough yet(and
+	 * On analn-LLC igfx platforms, force the flush-on-acquire if this is ever
+	 * swapped-in. Our async flush path is analt trust worthy eanalugh yet(and
 	 * happens in the wrong order), and with some tricks it's conceivable
-	 * for userspace to change the cache-level to I915_CACHE_NONE after the
+	 * for userspace to change the cache-level to I915_CACHE_ANALNE after the
 	 * pages are swapped-in, and since execbuf binds the object before doing
 	 * the async flush, we have a race window.
 	 */
@@ -402,7 +402,7 @@ void i915_gem_object_put_pages_shmem(struct drm_i915_gem_object *obj, struct sg_
 	if (i915_gem_object_needs_bit17_swizzle(obj))
 		i915_gem_object_save_bit_17_swizzle(obj, pages);
 
-	shmem_sg_free_table(pages, file_inode(obj->base.filp)->i_mapping,
+	shmem_sg_free_table(pages, file_ianalde(obj->base.filp)->i_mapping,
 			    obj->mm.dirty, obj->mm.madv == I915_MADV_WILLNEED);
 	kfree(pages);
 	obj->mm.dirty = false;
@@ -443,7 +443,7 @@ shmem_pwrite(struct drm_i915_gem_object *obj,
 	 * or clearing-before-use) before it is overwritten.
 	 */
 	if (i915_gem_object_has_pages(obj))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (obj->mm.madv != I915_MADV_WILLNEED)
 		return -EFAULT;
@@ -500,7 +500,7 @@ shmem_pwrite(struct drm_i915_gem_object *obj,
 
 		/* We don't handle -EFAULT, leave it to the caller to check */
 		if (unwritten)
-			return -ENODEV;
+			return -EANALDEV;
 
 		remain -= len;
 		user_data += len;
@@ -518,7 +518,7 @@ shmem_pread(struct drm_i915_gem_object *obj,
 	if (!i915_gem_object_has_struct_page(obj))
 		return i915_gem_object_pread_phys(obj, arg);
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static void shmem_release(struct drm_i915_gem_object *obj)
@@ -548,7 +548,7 @@ static int __create_shmem(struct drm_i915_private *i915,
 			  struct drm_gem_object *obj,
 			  resource_size_t size)
 {
-	unsigned long flags = VM_NORESERVE;
+	unsigned long flags = VM_ANALRESERVE;
 	struct file *filp;
 
 	drm_gem_private_object_init(&i915->drm, obj, size);
@@ -599,7 +599,7 @@ static int shmem_object_init(struct intel_memory_region *mem,
 
 	mask = GFP_HIGHUSER | __GFP_RECLAIMABLE;
 	if (IS_I965GM(i915) || IS_I965G(i915)) {
-		/* 965gm cannot relocate objects above 4GiB. */
+		/* 965gm cananalt relocate objects above 4GiB. */
 		mask &= ~__GFP_HIGHMEM;
 		mask |= __GFP_DMA32;
 	}
@@ -614,7 +614,7 @@ static int shmem_object_init(struct intel_memory_region *mem,
 	obj->read_domains = I915_GEM_DOMAIN_CPU;
 
 	/*
-	 * MTL doesn't snoop CPU cache by default for GPU access (namely
+	 * MTL doesn't sanalop CPU cache by default for GPU access (namely
 	 * 1-way coherency). However some UMD's are currently depending on
 	 * that. Make 1-way coherent the default setting for MTL. A follow
 	 * up patch will extend the GEM_CREATE uAPI to allow UMD's specify
@@ -624,7 +624,7 @@ static int shmem_object_init(struct intel_memory_region *mem,
 		/* On some devices, we can have the GPU use the LLC (the CPU
 		 * cache) for about a 10% performance improvement
 		 * compared to uncached.  Graphics requests other than
-		 * display scanout are coherent with the CPU in
+		 * display scaanalut are coherent with the CPU in
 		 * accessing this cache.  This means in this mode we
 		 * don't need to clflush on the CPU side, and on the
 		 * GPU side we only need to flush internal caches to
@@ -635,7 +635,7 @@ static int shmem_object_init(struct intel_memory_region *mem,
 		 */
 		cache_level = I915_CACHE_LLC;
 	else
-		cache_level = I915_CACHE_NONE;
+		cache_level = I915_CACHE_ANALNE;
 
 	i915_gem_object_set_cache_coherency(obj, cache_level);
 

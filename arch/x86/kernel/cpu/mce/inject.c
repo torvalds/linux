@@ -20,7 +20,7 @@
 #include <linux/debugfs.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/pci.h>
 #include <linux/uaccess.h>
 
@@ -127,14 +127,14 @@ static void inject_mce(struct mce *m)
 {
 	struct mce *i = &per_cpu(injectm, m->extcpu);
 
-	/* Make sure no one reads partially written injectm */
+	/* Make sure anal one reads partially written injectm */
 	i->finished = 0;
 	mb();
 	m->finished = 0;
 	/* First set the fields after finished */
 	i->extcpu = m->extcpu;
 	mb();
-	/* Now write record in order, finished last (except above) */
+	/* Analw write record in order, finished last (except above) */
 	memcpy(i, m, sizeof(struct mce));
 	/* Finally activate it */
 	mb();
@@ -174,7 +174,7 @@ static void raise_exception(struct mce *m, struct pt_regs *pregs)
 static cpumask_var_t mce_inject_cpumask;
 static DEFINE_MUTEX(mce_inject_mutex);
 
-static int mce_raise_notify(unsigned int cmd, struct pt_regs *regs)
+static int mce_raise_analtify(unsigned int cmd, struct pt_regs *regs)
 {
 	int cpu = smp_processor_id();
 	struct mce *m = this_cpu_ptr(&injectm);
@@ -229,7 +229,7 @@ static int raise_local(void)
 	} else if (m->status) {
 		pr_info("Starting machine check poll CPU %d\n", cpu);
 		raise_poll(m);
-		mce_notify_irq();
+		mce_analtify_irq();
 		pr_info("Machine check poll done on CPU %d\n", cpu);
 	} else
 		m->finished = 0;
@@ -291,23 +291,23 @@ static void __maybe_unused raise_mce(struct mce *m)
 	}
 }
 
-static int mce_inject_raise(struct notifier_block *nb, unsigned long val,
+static int mce_inject_raise(struct analtifier_block *nb, unsigned long val,
 			    void *data)
 {
 	struct mce *m = (struct mce *)data;
 
 	if (!m)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	mutex_lock(&mce_inject_mutex);
 	raise_mce(m);
 	mutex_unlock(&mce_inject_mutex);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block inject_nb = {
-	.notifier_call  = mce_inject_raise,
+static struct analtifier_block inject_nb = {
+	.analtifier_call  = mce_inject_raise,
 };
 
 /*
@@ -428,24 +428,24 @@ static void trigger_thr_int(void *info)
 	asm volatile("int %0" :: "i" (THRESHOLD_APIC_VECTOR));
 }
 
-static u32 get_nbc_for_node(int node_id)
+static u32 get_nbc_for_analde(int analde_id)
 {
 	struct cpuinfo_x86 *c = &boot_cpu_data;
-	u32 cores_per_node;
+	u32 cores_per_analde;
 
-	cores_per_node = (c->x86_max_cores * smp_num_siblings) / amd_get_nodes_per_socket();
+	cores_per_analde = (c->x86_max_cores * smp_num_siblings) / amd_get_analdes_per_socket();
 
-	return cores_per_node * node_id;
+	return cores_per_analde * analde_id;
 }
 
 static void toggle_nb_mca_mst_cpu(u16 nid)
 {
-	struct amd_northbridge *nb;
+	struct amd_analrthbridge *nb;
 	struct pci_dev *F3;
 	u32 val;
 	int err;
 
-	nb = node_to_amd_nb(nid);
+	nb = analde_to_amd_nb(nid);
 	if (!nb)
 		return;
 
@@ -528,7 +528,7 @@ static void do_inject(void)
 	/*
 	 * Ensure necessary status bits for deferred errors:
 	 * - MCx_STATUS[Deferred]: make sure it is a deferred error
-	 * - MCx_STATUS[UC] cleared: deferred errors are _not_ UC
+	 * - MCx_STATUS[UC] cleared: deferred errors are _analt_ UC
 	 */
 	if (inj_type == DFR_INT_INJ) {
 		i_mce.status |= MCI_STATUS_DEFERRED;
@@ -536,15 +536,15 @@ static void do_inject(void)
 	}
 
 	/*
-	 * For multi node CPUs, logging and reporting of bank 4 errors happens
-	 * only on the node base core. Refer to D18F3x44[NbMcaToMstCpuEn] for
+	 * For multi analde CPUs, logging and reporting of bank 4 errors happens
+	 * only on the analde base core. Refer to D18F3x44[NbMcaToMstCpuEn] for
 	 * Fam10h and later BKDGs.
 	 */
 	if (boot_cpu_has(X86_FEATURE_AMD_DCM) &&
 	    b == 4 &&
 	    boot_cpu_data.x86 < 0x17) {
 		toggle_nb_mca_mst_cpu(topology_die_id(cpu));
-		cpu = get_nbc_for_node(topology_die_id(cpu));
+		cpu = get_nbc_for_analde(topology_die_id(cpu));
 	}
 
 	cpus_read_lock();
@@ -576,7 +576,7 @@ err:
 }
 
 /*
- * This denotes into which bank we're injecting and triggers
+ * This deanaltes into which bank we're injecting and triggers
  * the injection, at the same time.
  */
 static int inj_bank_set(void *data, u64 val)
@@ -585,12 +585,12 @@ static int inj_bank_set(void *data, u64 val)
 	u8 n_banks;
 	u64 cap;
 
-	/* Get bank count on target CPU so we can handle non-uniform values. */
+	/* Get bank count on target CPU so we can handle analn-uniform values. */
 	rdmsrl_on_cpu(m->extcpu, MSR_IA32_MCG_CAP, &cap);
 	n_banks = cap & MCG_BANKCNT_MASK;
 
 	if (val >= n_banks) {
-		pr_err("MCA bank %llu non-existent on CPU%d\n", val, m->extcpu);
+		pr_err("MCA bank %llu analn-existent on CPU%d\n", val, m->extcpu);
 		return -EINVAL;
 	}
 
@@ -616,8 +616,8 @@ static int inj_bank_set(void *data, u64 val)
 		}
 
 		if (!ipid) {
-			pr_err("Cannot inject into unpopulated bank %llu\n", val);
-			return -ENODEV;
+			pr_err("Cananalt inject into unpopulated bank %llu\n", val);
+			return -EANALDEV;
 		}
 	}
 
@@ -637,8 +637,8 @@ DEFINE_SIMPLE_ATTRIBUTE(bank_fops, inj_bank_get, inj_bank_set, "%llu\n");
 static const char readme_msg[] =
 "Description of the files and their usages:\n"
 "\n"
-"Note1: i refers to the bank number below.\n"
-"Note2: See respective BKDGs for the exact bit definitions of the files below\n"
+"Analte1: i refers to the bank number below.\n"
+"Analte2: See respective BKDGs for the exact bit definitions of the files below\n"
 "as they mirror the hardware registers.\n"
 "\n"
 "status:\t Set MCi_STATUS: the bits in that MSR control the error type and\n"
@@ -693,7 +693,7 @@ static const struct file_operations readme_fops = {
 	.read		= inj_readme_read,
 };
 
-static struct dfs_node {
+static struct dfs_analde {
 	char *name;
 	const struct file_operations *fops;
 	umode_t perm;
@@ -726,7 +726,7 @@ static void check_hw_inj_possible(void)
 	u8 bank;
 
 	/*
-	 * This behavior exists only on SMCA systems though its not directly
+	 * This behavior exists only on SMCA systems though its analt directly
 	 * related to SMCA.
 	 */
 	if (!cpu_feature_enabled(X86_FEATURE_SMCA))
@@ -750,7 +750,7 @@ static void check_hw_inj_possible(void)
 
 		if (!status) {
 			hw_injection_possible = false;
-			pr_warn("Platform does not allow *hardware* error injection."
+			pr_warn("Platform does analt allow *hardware* error injection."
 				"Try using APEI EINJ instead.\n");
 		}
 
@@ -765,13 +765,13 @@ static void check_hw_inj_possible(void)
 static int __init inject_init(void)
 {
 	if (!alloc_cpumask_var(&mce_inject_cpumask, GFP_KERNEL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	check_hw_inj_possible();
 
 	debugfs_init();
 
-	register_nmi_handler(NMI_LOCAL, mce_raise_notify, 0, "mce_notify");
+	register_nmi_handler(NMI_LOCAL, mce_raise_analtify, 0, "mce_analtify");
 	mce_register_injector_chain(&inject_nb);
 
 	setup_inj_struct(&i_mce);
@@ -785,7 +785,7 @@ static void __exit inject_exit(void)
 {
 
 	mce_unregister_injector_chain(&inject_nb);
-	unregister_nmi_handler(NMI_LOCAL, "mce_notify");
+	unregister_nmi_handler(NMI_LOCAL, "mce_analtify");
 
 	debugfs_remove_recursive(dfs_inj);
 	dfs_inj = NULL;

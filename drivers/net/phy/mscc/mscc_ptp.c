@@ -247,7 +247,7 @@ static void vsc85xx_ts_set_latencies(struct phy_device *phydev)
 	u32 val, ingr_latency, egr_latency;
 	u8 idx;
 
-	/* No need to set latencies of packets if the PHY is not connected */
+	/* Anal need to set latencies of packets if the PHY is analt connected */
 	if (!phydev->link)
 		return;
 
@@ -409,7 +409,7 @@ static int get_sig(struct sk_buff *skb, u8 *sig)
 	unsigned int i;
 
 	if (!ptphdr)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	sig[0] = (__force u16)ptphdr->seq_id >> 8;
 	sig[1] = (__force u16)ptphdr->seq_id & GENMASK(7, 0);
@@ -481,8 +481,8 @@ static void vsc85xx_dequeue_skb(struct vsc85xx_ptp *ptp)
 			return;
 		}
 
-		/* Valid signature but does not match the one of the
-		 * packet in the FIFO right now, reschedule it for later
+		/* Valid signature but does analt match the one of the
+		 * packet in the FIFO right analw, reschedule it for later
 		 * packets.
 		 */
 		__skb_queue_tail(&ptp->tx_queue, skb);
@@ -576,7 +576,7 @@ static int vsc85xx_ip_cmp1_init(struct phy_device *phydev, enum ts_blk blk)
 
 	vsc85xx_ts_write_csr(phydev, blk, MSCC_ANA_IP1_NXT_PROT_MATCH2_UPPER,
 			     PTP_EV_PORT);
-	/* Match on dest port only, ignore src */
+	/* Match on dest port only, iganalre src */
 	vsc85xx_ts_write_csr(phydev, blk, MSCC_ANA_IP1_NXT_PROT_MASK2_UPPER,
 			     0xffff);
 	vsc85xx_ts_write_csr(phydev, blk, MSCC_ANA_IP1_NXT_PROT_MATCH2_LOWER,
@@ -627,7 +627,7 @@ static int vsc85xx_adjfine(struct ptp_clock_info *info, long scaled_ppm)
 
 	mutex_lock(&priv->phc_lock);
 
-	/* Update the ppb val in nano seconds to the auto adjust reg. */
+	/* Update the ppb val in naanal seconds to the auto adjust reg. */
 	vsc85xx_ts_write_csr(phydev, PROCESSOR, MSCC_PHY_PTP_LTC_AUTO_ADJ,
 			     val);
 
@@ -751,13 +751,13 @@ static int vsc85xx_adjtime(struct ptp_clock_info *info, s64 delta)
 	/* Can't recover that big of an offset. Let's set the time directly. */
 	if (abs(delta) >= NSEC_PER_SEC) {
 		struct timespec64 ts;
-		u64 now;
+		u64 analw;
 
 		mutex_lock(&priv->phc_lock);
 
 		__vsc85xx_gettime(info, &ts);
-		now = ktime_to_ns(timespec64_to_ktime(ts));
-		ts = ns_to_timespec64(now + delta);
+		analw = ktime_to_ns(timespec64_to_ktime(ts));
+		ts = ns_to_timespec64(analw + delta);
 		__vsc85xx_settime(info, &ts);
 
 		mutex_unlock(&priv->phc_lock);
@@ -809,7 +809,7 @@ static int vsc85xx_ts_ptp_action_flow(struct phy_device *phydev, enum ts_blk blk
 {
 	u32 val;
 
-	/* Check non-zero reserved field */
+	/* Check analn-zero reserved field */
 	val = PTP_FLOW_PTP_0_FIELD_PTP_FRAME | PTP_FLOW_PTP_0_FIELD_RSVRD_CHECK;
 	vsc85xx_ts_write_csr(phydev, blk,
 			     MSCC_ANA_PTP_FLOW_PTP_0_FIELD(flow), val);
@@ -817,7 +817,7 @@ static int vsc85xx_ts_ptp_action_flow(struct phy_device *phydev, enum ts_blk blk
 	val = PTP_FLOW_PTP_ACTION_CORR_OFFSET(8) |
 	      PTP_FLOW_PTP_ACTION_TIME_OFFSET(8) |
 	      PTP_FLOW_PTP_ACTION_PTP_CMD(cmd == PTP_SAVE_IN_TS_FIFO ?
-					  PTP_NOP : cmd);
+					  PTP_ANALP : cmd);
 	if (cmd == PTP_SAVE_IN_TS_FIFO)
 		val |= PTP_FLOW_PTP_ACTION_SAVE_LOCAL_TIME;
 	else if (cmd == PTP_WRITE_NS)
@@ -831,7 +831,7 @@ static int vsc85xx_ts_ptp_action_flow(struct phy_device *phydev, enum ts_blk blk
 		val = PTP_FLOW_PTP_ACTION2_REWRITE_OFFSET(34) |
 		      PTP_FLOW_PTP_ACTION2_REWRITE_BYTES(10);
 	else if (cmd == PTP_SAVE_IN_TS_FIFO)
-		/* no rewrite */
+		/* anal rewrite */
 		val = PTP_FLOW_PTP_ACTION2_REWRITE_OFFSET(0) |
 		      PTP_FLOW_PTP_ACTION2_REWRITE_BYTES(0);
 	else
@@ -859,7 +859,7 @@ static int vsc85xx_ptp_conf(struct phy_device *phydev, enum ts_blk blk,
 			vsc85xx_ts_ptp_action_flow(phydev, blk, msgs[i],
 						   PTP_WRITE_NS);
 		else if (msgs[i] == PTP_MSGTYPE_SYNC && one_step)
-			/* no need to know Sync t when sending in one_step */
+			/* anal need to kanalw Sync t when sending in one_step */
 			vsc85xx_ts_ptp_action_flow(phydev, blk, msgs[i],
 						   PTP_WRITE_1588);
 		else
@@ -994,11 +994,11 @@ static int vsc85xx_ts_engine_init(struct phy_device *phydev, bool one_step)
 	}
 
 	vsc85xx_eth1_conf(phydev, INGRESS,
-			  vsc8531->ptp->rx_filter != HWTSTAMP_FILTER_NONE);
+			  vsc8531->ptp->rx_filter != HWTSTAMP_FILTER_ANALNE);
 	vsc85xx_ip1_conf(phydev, INGRESS,
-			 ptp_l4 && vsc8531->ptp->rx_filter != HWTSTAMP_FILTER_NONE);
+			 ptp_l4 && vsc8531->ptp->rx_filter != HWTSTAMP_FILTER_ANALNE);
 	vsc85xx_ptp_conf(phydev, INGRESS, one_step,
-			 vsc8531->ptp->rx_filter != HWTSTAMP_FILTER_NONE);
+			 vsc8531->ptp->rx_filter != HWTSTAMP_FILTER_ANALNE);
 
 	vsc85xx_eth1_conf(phydev, EGRESS,
 			  vsc8531->ptp->tx_type != HWTSTAMP_TX_OFF);
@@ -1012,7 +1012,7 @@ static int vsc85xx_ts_engine_init(struct phy_device *phydev, bool one_step)
 		val |= PTP_ANALYZER_MODE_EGR_ENA(BIT(eng_id));
 
 	val &= ~PTP_ANALYZER_MODE_INGR_ENA(BIT(eng_id));
-	if (vsc8531->ptp->rx_filter != HWTSTAMP_FILTER_NONE)
+	if (vsc8531->ptp->rx_filter != HWTSTAMP_FILTER_ANALNE)
 		val |= PTP_ANALYZER_MODE_INGR_ENA(BIT(eng_id));
 
 	vsc85xx_ts_write_csr(phydev, PROCESSOR, MSCC_PHY_PTP_ANALYZER_MODE,
@@ -1021,7 +1021,7 @@ static int vsc85xx_ts_engine_init(struct phy_device *phydev, bool one_step)
 	return 0;
 }
 
-void vsc85xx_link_change_notify(struct phy_device *phydev)
+void vsc85xx_link_change_analtify(struct phy_device *phydev)
 {
 	struct vsc8531_private *priv = phydev->priv;
 
@@ -1070,7 +1070,7 @@ static int vsc85xx_hwtstamp(struct mii_timestamper *mii_ts,
 	vsc8531->ptp->tx_type = cfg->tx_type;
 
 	switch (cfg->rx_filter) {
-	case HWTSTAMP_FILTER_NONE:
+	case HWTSTAMP_FILTER_ANALNE:
 		break;
 	case HWTSTAMP_FILTER_PTP_V2_L4_EVENT:
 		/* ETH->IP->UDP->PTP */
@@ -1106,7 +1106,7 @@ static int vsc85xx_hwtstamp(struct mii_timestamper *mii_ts,
 	val &= ~(PTP_IFACE_CTRL_EGR_BYPASS | PTP_IFACE_CTRL_INGR_BYPASS);
 	if (vsc8531->ptp->tx_type == HWTSTAMP_TX_OFF)
 		val |= PTP_IFACE_CTRL_EGR_BYPASS;
-	if (vsc8531->ptp->rx_filter == HWTSTAMP_FILTER_NONE)
+	if (vsc8531->ptp->rx_filter == HWTSTAMP_FILTER_ANALNE)
 		val |= PTP_IFACE_CTRL_INGR_BYPASS;
 	vsc85xx_ts_write_csr(phydev, PROCESSOR, MSCC_PHY_PTP_IFACE_CTRL, val);
 
@@ -1115,7 +1115,7 @@ static int vsc85xx_hwtstamp(struct mii_timestamper *mii_ts,
 
 	vsc85xx_ts_engine_init(phydev, one_step);
 
-	/* Re-enable predictors now */
+	/* Re-enable predictors analw */
 	val = vsc85xx_ts_read_csr(phydev, PROCESSOR,
 				  MSCC_PHY_PTP_INGR_PREDICTOR);
 	val |= PTP_INGR_PREDICTOR_EN;
@@ -1149,7 +1149,7 @@ static int vsc85xx_ts_info(struct mii_timestamper *mii_ts,
 		(1 << HWTSTAMP_TX_ON) |
 		(1 << HWTSTAMP_TX_ONESTEP_SYNC);
 	info->rx_filters =
-		(1 << HWTSTAMP_FILTER_NONE) |
+		(1 << HWTSTAMP_FILTER_ANALNE) |
 		(1 << HWTSTAMP_FILTER_PTP_V2_L2_EVENT) |
 		(1 << HWTSTAMP_FILTER_PTP_V2_L4_EVENT);
 
@@ -1190,8 +1190,8 @@ static bool vsc85xx_rxtstamp(struct mii_timestamper *mii_ts,
 	if (!vsc8531->ptp->configured)
 		return false;
 
-	if (vsc8531->ptp->rx_filter == HWTSTAMP_FILTER_NONE ||
-	    type == PTP_CLASS_NONE)
+	if (vsc8531->ptp->rx_filter == HWTSTAMP_FILTER_ANALNE ||
+	    type == PTP_CLASS_ANALNE)
 		return false;
 
 	vsc85xx_gettime(&vsc8531->ptp->caps, &ts);
@@ -1371,7 +1371,7 @@ static int __vsc8584_init_ptp(struct phy_device *phydev)
 	vsc85xx_ts_write_csr(phydev, PROCESSOR, MSCC_PHY_PTP_ACCUR_CFG_STATUS,
 			     val);
 
-	/* Do not access FIFO via SI */
+	/* Do analt access FIFO via SI */
 	val = vsc85xx_ts_read_csr(phydev, PROCESSOR,
 				  MSCC_PHY_PTP_TSTAMP_FIFO_SI);
 	val &= ~PTP_TSTAMP_FIFO_SI_EN;
@@ -1402,7 +1402,7 @@ static int __vsc8584_init_ptp(struct phy_device *phydev)
 	vsc85xx_ts_write_csr(phydev, PROCESSOR, MSCC_PHY_PTP_EGR_REWRITER_CTRL,
 			     val);
 
-	/* 30bit mode for RX timestamp, only the nanoseconds are kept in
+	/* 30bit mode for RX timestamp, only the naanalseconds are kept in
 	 * reserved field.
 	 */
 	val = vsc85xx_ts_read_csr(phydev, PROCESSOR,
@@ -1530,7 +1530,7 @@ irqreturn_t vsc8584_handle_ts_interrupt(struct phy_device *phydev)
 
 	if (!(rc & VSC85XX_1588_INT_MASK_MASK)) {
 		mutex_unlock(&priv->ts_lock);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (rc & VSC85XX_1588_INT_FIFO_ADD) {
@@ -1551,18 +1551,18 @@ int vsc8584_ptp_probe(struct phy_device *phydev)
 	vsc8531->ptp = devm_kzalloc(&phydev->mdio.dev, sizeof(*vsc8531->ptp),
 				    GFP_KERNEL);
 	if (!vsc8531->ptp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&vsc8531->phc_lock);
 	mutex_init(&vsc8531->ts_lock);
 
-	/* Retrieve the shared load/save GPIO. Request it as non exclusive as
+	/* Retrieve the shared load/save GPIO. Request it as analn exclusive as
 	 * the same GPIO can be requested by all the PHYs of the same package.
 	 * This GPIO must be used with the gpio_lock taken (the lock is shared
 	 * between all PHYs).
 	 */
 	vsc8531->load_save = devm_gpiod_get_optional(&phydev->mdio.dev, "load-save",
-						     GPIOD_FLAGS_BIT_NONEXCLUSIVE |
+						     GPIOD_FLAGS_BIT_ANALNEXCLUSIVE |
 						     GPIOD_OUT_LOW);
 	if (IS_ERR(vsc8531->load_save)) {
 		phydev_err(phydev, "Can't get load-save GPIO (%ld)\n",

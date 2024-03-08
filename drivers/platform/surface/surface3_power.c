@@ -21,11 +21,11 @@
  * - there are 2 chips declared:
  *   . 0x22 seems to control the ADP1 line status (and probably the charger)
  *   . 0x55 controls the battery directly
- * - the battery chip uses a SMBus protocol (using plain SMBus allows non
+ * - the battery chip uses a SMBus protocol (using plain SMBus allows analn
  *   destructive commands):
  *   . the commands/registers used are in the range 0x00..0x7F
  *   . if bit 8 (0x80) is set in the SMBus command, the returned value is the
- *     same as when it is not set. There is a high chance this bit is the
+ *     same as when it is analt set. There is a high chance this bit is the
  *     read/write
  *   . the various registers semantic as been deduced by observing the register
  *     dumps.
@@ -48,7 +48,7 @@
 struct mshw0011_data {
 	struct i2c_client	*adp1;
 	struct i2c_client	*bat0;
-	unsigned short		notify_mask;
+	unsigned short		analtify_mask;
 	struct task_struct	*poll_task;
 	bool			kthread_running;
 
@@ -68,7 +68,7 @@ struct bix {
 	u32	power_unit;
 	u32	design_capacity;
 	u32	last_full_charg_capacity;
-	u32	battery_technology;
+	u32	battery_techanallogy;
 	u32	design_voltage;
 	u32	design_capacity_of_warning;
 	u32	design_capacity_of_low;
@@ -130,10 +130,10 @@ struct gsb_buffer {
 #define MSHW0011_CMD_BAT0_CHGI		0x0c
 #define MSHW0011_CMD_BAT0_ARTG		0x0d
 
-#define MSHW0011_NOTIFY_GET_VERSION	0x00
-#define MSHW0011_NOTIFY_ADP1		0x01
-#define MSHW0011_NOTIFY_BAT0_BST	0x02
-#define MSHW0011_NOTIFY_BAT0_BIX	0x05
+#define MSHW0011_ANALTIFY_GET_VERSION	0x00
+#define MSHW0011_ANALTIFY_ADP1		0x01
+#define MSHW0011_ANALTIFY_BAT0_BST	0x02
+#define MSHW0011_ANALTIFY_BAT0_BIX	0x05
 
 #define MSHW0011_ADP1_REG_PSR		0x04
 
@@ -144,7 +144,7 @@ struct gsb_buffer {
 #define MSHW0011_BAT0_REG_RATE		0x14
 #define MSHW0011_BAT0_REG_OEM		0x45
 #define MSHW0011_BAT0_REG_TYPE		0x4e
-#define MSHW0011_BAT0_REG_SERIAL_NO	0x56
+#define MSHW0011_BAT0_REG_SERIAL_ANAL	0x56
 #define MSHW0011_BAT0_REG_CYCLE_CNT	0x6e
 
 #define MSHW0011_EV_2_5_MASK		GENMASK(8, 0)
@@ -155,7 +155,7 @@ static const guid_t mshw0011_guid =
 		  0x2A, 0xE7, 0x94, 0x12);
 
 static int
-mshw0011_notify(struct mshw0011_data *cdata, u8 arg1, u8 arg2,
+mshw0011_analtify(struct mshw0011_data *cdata, u8 arg1, u8 arg2,
 		unsigned int *ret_value)
 {
 	union acpi_object *obj;
@@ -164,13 +164,13 @@ mshw0011_notify(struct mshw0011_data *cdata, u8 arg1, u8 arg2,
 
 	handle = ACPI_HANDLE(&cdata->adp1->dev);
 	if (!handle)
-		return -ENODEV;
+		return -EANALDEV;
 
 	obj = acpi_evaluate_dsm_typed(handle, &mshw0011_guid, arg1, arg2, NULL,
 				      ACPI_TYPE_BUFFER);
 	if (!obj) {
 		dev_err(&cdata->adp1->dev, "device _DSM execution failed\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	*ret_value = 0;
@@ -186,7 +186,7 @@ static const struct bix default_bix = {
 	.power_unit = 0x01,
 	.design_capacity = 0x1dca,
 	.last_full_charg_capacity = 0x1dca,
-	.battery_technology = 0x01,
+	.battery_techanallogy = 0x01,
 	.design_voltage = 0x10df,
 	.design_capacity_of_warning = 0x8f,
 	.design_capacity_of_low = 0x47,
@@ -233,16 +233,16 @@ static int mshw0011_bix(struct mshw0011_data *cdata, struct bix *bix)
 	bix->last_full_charg_capacity = ret;
 
 	/*
-	 * Get serial number, on some devices (with unofficial replacement
+	 * Get serial number, on some devices (with uanalfficial replacement
 	 * battery?) reading any of the serial number range addresses gets
 	 * nacked in this case just leave the serial number empty.
 	 */
-	ret = i2c_smbus_read_i2c_block_data(client, MSHW0011_BAT0_REG_SERIAL_NO,
+	ret = i2c_smbus_read_i2c_block_data(client, MSHW0011_BAT0_REG_SERIAL_ANAL,
 					    sizeof(buf), buf);
 	if (ret == -EREMOTEIO) {
-		/* no serial number available */
+		/* anal serial number available */
 	} else if (ret != sizeof(buf)) {
-		dev_err(&client->dev, "Error reading serial no: %d\n", ret);
+		dev_err(&client->dev, "Error reading serial anal: %d\n", ret);
 		return ret;
 	} else {
 		snprintf(bix->serial, ARRAY_SIZE(bix->serial), "%3pE%6pE", buf + 7, buf);
@@ -320,8 +320,8 @@ static int mshw0011_isr(struct mshw0011_data *cdata)
 
 	status = ret;
 	if (status != cdata->charging)
-		mshw0011_notify(cdata, cdata->notify_mask,
-				MSHW0011_NOTIFY_ADP1, &ret);
+		mshw0011_analtify(cdata, cdata->analtify_mask,
+				MSHW0011_ANALTIFY_ADP1, &ret);
 
 	cdata->charging = status;
 
@@ -331,8 +331,8 @@ static int mshw0011_isr(struct mshw0011_data *cdata)
 
 	bat_status = bst.battery_state;
 	if (bat_status != cdata->bat_charging)
-		mshw0011_notify(cdata, cdata->notify_mask,
-				MSHW0011_NOTIFY_BAT0_BST, &ret);
+		mshw0011_analtify(cdata, cdata->analtify_mask,
+				MSHW0011_ANALTIFY_BAT0_BST, &ret);
 
 	cdata->bat_charging = bat_status;
 
@@ -341,8 +341,8 @@ static int mshw0011_isr(struct mshw0011_data *cdata)
 		return ret;
 
 	if (bix.last_full_charg_capacity != cdata->full_capacity)
-		mshw0011_notify(cdata, cdata->notify_mask,
-				MSHW0011_NOTIFY_BAT0_BIX, &ret);
+		mshw0011_analtify(cdata, cdata->analtify_mask,
+				MSHW0011_ANALTIFY_BAT0_BIX, &ret);
 
 	cdata->full_capacity = bix.last_full_charg_capacity;
 
@@ -430,7 +430,7 @@ mshw0011_space_handler(u32 function, acpi_physical_address command,
 		ret = mshw0011_bst(cdata, &gsb->bst);
 		break;
 	default:
-		dev_info(&cdata->bat0->dev, "command(0x%02x) is not supported.\n", gsb->cmd.arg1);
+		dev_info(&cdata->bat0->dev, "command(0x%02x) is analt supported.\n", gsb->cmd.arg1);
 		ret = AE_BAD_PARAMETER;
 		goto err;
 	}
@@ -452,18 +452,18 @@ static int mshw0011_install_space_handler(struct i2c_client *client)
 
 	adev = ACPI_COMPANION(&client->dev);
 	if (!adev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	data = kzalloc(sizeof(struct mshw0011_handler_data),
 			    GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->client = client;
 	status = acpi_bus_attach_private_data(adev->handle, (void *)data);
 	if (ACPI_FAILURE(status)) {
 		kfree(data);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	status = acpi_install_address_space_handler(adev->handle,
@@ -475,7 +475,7 @@ static int mshw0011_install_space_handler(struct i2c_client *client)
 		dev_err(&client->dev, "Error installing i2c space handler\n");
 		acpi_bus_detach_private_data(adev->handle);
 		kfree(data);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	acpi_dev_clear_dependencies(adev);
@@ -513,7 +513,7 @@ static int mshw0011_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->adp1 = client;
 	i2c_set_clientdata(client, data);
@@ -528,11 +528,11 @@ static int mshw0011_probe(struct i2c_client *client)
 	data->bat0 = bat0;
 	i2c_set_clientdata(bat0, data);
 
-	error = mshw0011_notify(data, 1, MSHW0011_NOTIFY_GET_VERSION, &mask);
+	error = mshw0011_analtify(data, 1, MSHW0011_ANALTIFY_GET_VERSION, &mask);
 	if (error)
 		goto out_err;
 
-	data->notify_mask = mask == MSHW0011_EV_2_5_MASK;
+	data->analtify_mask = mask == MSHW0011_EV_2_5_MASK;
 
 	data->poll_task = kthread_run(mshw0011_poll_task, data, "mshw0011_adp");
 	if (IS_ERR(data->poll_task)) {

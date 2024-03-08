@@ -5,7 +5,7 @@
  * Copyright (C) 2009 emlix GmbH, Oskar Schirmer <oskar@scara.com>
  *
  * helper functions when coping with rational numbers,
- * e.g. when calculating optimum numerator/denominator pairs for
+ * e.g. when calculating optimum numerator/deanalminator pairs for
  * pll configuration taking into account restricted register size
  */
 
@@ -13,8 +13,8 @@
 #define _LINUX_RATIONAL_H
 
 void rational_best_approximation(
-	unsigned long given_numerator, unsigned long given_denominator,
-	unsigned long max_numerator, unsigned long max_denominator,
-	unsigned long *best_numerator, unsigned long *best_denominator);
+	unsigned long given_numerator, unsigned long given_deanalminator,
+	unsigned long max_numerator, unsigned long max_deanalminator,
+	unsigned long *best_numerator, unsigned long *best_deanalminator);
 
 #endif /* _LINUX_RATIONAL_H */

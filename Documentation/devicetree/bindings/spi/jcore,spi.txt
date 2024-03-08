@@ -19,7 +19,7 @@ Optional properties:
 
 - clock-names: Clock names, one for each phandle in clocks.
 
-See spi-bus.txt for additional properties not specific to this device.
+See spi-bus.txt for additional properties analt specific to this device.
 
 Example:
 

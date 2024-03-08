@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 #include <linux/jiffies.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 
@@ -81,8 +81,8 @@ static struct us_unusual_dev ene_ub6250_unusual_dev_list[] = {
 #define REG_HW_TRAP1        0xFF89
 
 /* SRB Status */
-#define SS_SUCCESS		0x000000	/* No Sense */
-#define SS_NOT_READY		0x023A00	/* Medium not present */
+#define SS_SUCCESS		0x000000	/* Anal Sense */
+#define SS_ANALT_READY		0x023A00	/* Medium analt present */
 #define SS_MEDIUM_ERR		0x031100	/* Unrecovered read error */
 #define SS_HW_ERR		0x040800	/* Communication failure */
 #define SS_ILLEGAL_REQUEST	0x052000	/* Invalid command */
@@ -126,9 +126,9 @@ static struct us_unusual_dev ene_ub6250_unusual_dev_list[] = {
 #define MS_REG_OVR_PGST_DATA_ERROR	0x00        /* data error */
 #define MS_REG_OVR_UDST			0x10        /* update status */
 #define MS_REG_OVR_UDST_UPDATING	0x00        /* updating */
-#define MS_REG_OVR_UDST_NO_UPDATE	MS_REG_OVR_UDST
+#define MS_REG_OVR_UDST_ANAL_UPDATE	MS_REG_OVR_UDST
 #define MS_REG_OVR_RESERVED	0x08
-#define MS_REG_OVR_DEFAULT	(MS_REG_OVR_BKST_OK | MS_REG_OVR_PGST_OK | MS_REG_OVR_UDST_NO_UPDATE | MS_REG_OVR_RESERVED)
+#define MS_REG_OVR_DEFAULT	(MS_REG_OVR_BKST_OK | MS_REG_OVR_PGST_OK | MS_REG_OVR_UDST_ANAL_UPDATE | MS_REG_OVR_RESERVED)
 
 /* Management Flag */
 #define MS_REG_MNG_SCMS0	0x20    /* serial copy management system */
@@ -136,7 +136,7 @@ static struct us_unusual_dev ene_ub6250_unusual_dev_list[] = {
 #define MS_REG_MNG_SCMS_MASK		(MS_REG_MNG_SCMS0 | MS_REG_MNG_SCMS1)
 #define MS_REG_MNG_SCMS_COPY_OK		(MS_REG_MNG_SCMS0 | MS_REG_MNG_SCMS1)
 #define MS_REG_MNG_SCMS_ONE_COPY	MS_REG_MNG_SCMS1
-#define MS_REG_MNG_SCMS_NO_COPY	0x00
+#define MS_REG_MNG_SCMS_ANAL_COPY	0x00
 #define MS_REG_MNG_ATFLG	0x08    /* address transfer table flag */
 #define MS_REG_MNG_ATFLG_OTHER	MS_REG_MNG_ATFLG    /* other */
 #define MS_REG_MNG_ATFLG_ATTBL	0x00	/* address transfer table */
@@ -161,7 +161,7 @@ static struct us_unusual_dev ene_ub6250_unusual_dev_list[] = {
 #define MS_SYSINF_CARDTYPE_RDWR		2
 #define MS_SYSINF_CARDTYPE_HYBRID	3
 #define MS_SYSINF_SECURITY		0x01
-#define MS_SYSINF_SECURITY_NO_SUPPORT	MS_SYSINF_SECURITY
+#define MS_SYSINF_SECURITY_ANAL_SUPPORT	MS_SYSINF_SECURITY
 #define MS_SYSINF_SECURITY_SUPPORT	0
 
 #define MS_SYSINF_RESERVED1		1
@@ -183,12 +183,12 @@ static struct us_unusual_dev ene_ub6250_unusual_dev_list[] = {
 #define MS_LB_INITIAL_ERROR	0xfff2
 #define MS_STATUS_SUCCESS_WITH_ECC 0xfff3
 #define MS_LB_ACQUIRED_ERROR	0xfff4
-#define MS_LB_NOT_USED_ERASED	0xfff5
-#define MS_NOCARD_ERROR		0xfff8
-#define MS_NO_MEMORY_ERROR	0xfff9
+#define MS_LB_ANALT_USED_ERASED	0xfff5
+#define MS_ANALCARD_ERROR		0xfff8
+#define MS_ANAL_MEMORY_ERROR	0xfff9
 #define MS_STATUS_INT_ERROR	0xfffa
 #define MS_STATUS_ERROR		0xfffe
-#define MS_LB_NOT_USED		0xffff
+#define MS_LB_ANALT_USED		0xffff
 
 #define MS_REG_MNG_SYSFLG	0x04    /* system flag */
 #define MS_REG_MNG_SYSFLG_USER	MS_REG_MNG_SYSFLG   /* user block */
@@ -283,7 +283,7 @@ struct ms_bootblock_cis {
 	u8 bCistplCFTBLENT5[8]; /* 129 */
 	u8 bCistplCFTBLENT6[17];/* 137 */
 	u8 bCistplCFTBLENT7[8]; /* 154 */
-	u8 bCistplNOLINK[3];    /* 162 */
+	u8 bCistplANALLINK[3];    /* 162 */
 } ;
 
 struct ms_bootblock_idi {
@@ -554,7 +554,7 @@ static int ene_send_scsi_cmd(struct us_data *us, u8 fDir, void *buf, int use_sg)
 	 * try to compute the actual residue, based on how much data
 	 * was really transferred and what the device tells us
 	 */
-	if (residue && !(us->fflags & US_FL_IGNORE_RESIDUE)) {
+	if (residue && !(us->fflags & US_FL_IGANALRE_RESIDUE)) {
 		residue = min(residue, transfer_length);
 		if (us->srb != NULL)
 			scsi_set_resid(us->srb, max(scsi_get_resid(us->srb),
@@ -612,7 +612,7 @@ static int sd_scsi_test_unit_ready(struct us_data *us, struct scsi_cmnd *srb)
 static int sd_scsi_mode_sense(struct us_data *us, struct scsi_cmnd *srb)
 {
 	struct ene_ub6250_info *info = (struct ene_ub6250_info *) us->extra;
-	unsigned char mediaNoWP[12] = {
+	unsigned char mediaAnalWP[12] = {
 		0x0b, 0x00, 0x00, 0x08, 0x00, 0x00,
 		0x71, 0xc0, 0x00, 0x00, 0x02, 0x00 };
 	unsigned char mediaWP[12]   = {
@@ -622,7 +622,7 @@ static int sd_scsi_mode_sense(struct us_data *us, struct scsi_cmnd *srb)
 	if (info->SD_Status & SD_WtP)
 		usb_stor_set_xfer_buf(mediaWP, 12, srb);
 	else
-		usb_stor_set_xfer_buf(mediaNoWP, 12, srb);
+		usb_stor_set_xfer_buf(mediaAnalWP, 12, srb);
 
 
 	return USB_STOR_TRANSPORT_GOOD;
@@ -818,10 +818,10 @@ static int ms_lib_alloc_logicalmap(struct us_data *us)
 	}
 
 	for (i = 0; i < info->MS_Lib.NumberOfPhyBlock; i++)
-		info->MS_Lib.Phy2LogMap[i] = MS_LB_NOT_USED;
+		info->MS_Lib.Phy2LogMap[i] = MS_LB_ANALT_USED;
 
 	for (i = 0; i < info->MS_Lib.NumberOfLogBlock; i++)
-		info->MS_Lib.Log2PhyMap[i] = MS_LB_NOT_USED;
+		info->MS_Lib.Log2PhyMap[i] = MS_LB_ANALT_USED;
 
 	return 0;
 }
@@ -842,7 +842,7 @@ static void ms_lib_clear_writebuf(struct us_data *us)
 			info->MS_Lib.blkext[i].status1 = MS_REG_ST1_DEFAULT;
 			info->MS_Lib.blkext[i].ovrflg = MS_REG_OVR_DEFAULT;
 			info->MS_Lib.blkext[i].mngflg = MS_REG_MNG_DEFAULT;
-			info->MS_Lib.blkext[i].logadr = MS_LB_NOT_USED;
+			info->MS_Lib.blkext[i].logadr = MS_LB_ANALT_USED;
 		}
 	}
 }
@@ -855,8 +855,8 @@ static int ms_count_freeblock(struct us_data *us, u16 PhyBlock)
 	Ende = PhyBlock + MS_PHYSICAL_BLOCKS_PER_SEGMENT;
 	for (Count = 0; PhyBlock < Ende; PhyBlock++) {
 		switch (info->MS_Lib.Phy2LogMap[PhyBlock]) {
-		case MS_LB_NOT_USED:
-		case MS_LB_NOT_USED_ERASED:
+		case MS_LB_ANALT_USED:
+		case MS_LB_ANALT_USED_ERASED:
 			Count++;
 			break;
 		default:
@@ -918,10 +918,10 @@ static int ms_read_readpage(struct us_data *us, u32 PhyBlockAddr,
 		return USB_STOR_TRANSPORT_ERROR;
 
 	ExtraDat->reserved = 0;
-	ExtraDat->intr     = 0x80;  /* Not yet,fireware support */
-	ExtraDat->status0  = 0x10;  /* Not yet,fireware support */
+	ExtraDat->intr     = 0x80;  /* Analt yet,fireware support */
+	ExtraDat->status0  = 0x10;  /* Analt yet,fireware support */
 
-	ExtraDat->status1  = 0x00;  /* Not yet,fireware support */
+	ExtraDat->status1  = 0x00;  /* Analt yet,fireware support */
 	ExtraDat->ovrflg   = bbuf[0];
 	ExtraDat->mngflg   = bbuf[1];
 	ExtraDat->logadr   = memstick_logaddr(bbuf[2], bbuf[3]);
@@ -1078,12 +1078,12 @@ static void ms_lib_free_writebuf(struct us_data *us)
 	ms_lib_clear_pagemap(info); /* (pdx)->MS_Lib.pagemap memset 0 in ms.h */
 
 	if (info->MS_Lib.blkpag) {
-		kfree(info->MS_Lib.blkpag);  /* Arnold test ... */
+		kfree(info->MS_Lib.blkpag);  /* Aranalld test ... */
 		info->MS_Lib.blkpag = NULL;
 	}
 
 	if (info->MS_Lib.blkext) {
-		kfree(info->MS_Lib.blkext);  /* Arnold test ... */
+		kfree(info->MS_Lib.blkext);  /* Aranalld test ... */
 		info->MS_Lib.blkext = NULL;
 	}
 }
@@ -1137,7 +1137,7 @@ static int ms_lib_force_setlogical_pair(struct us_data *us, u16 logblk, u16 phyb
 {
 	struct ene_ub6250_info *info = (struct ene_ub6250_info *) us->extra;
 
-	if (logblk == MS_LB_NOT_USED)
+	if (logblk == MS_LB_ANALT_USED)
 		return 0;
 
 	if ((logblk >= info->MS_Lib.NumberOfLogBlock) ||
@@ -1220,14 +1220,14 @@ static int ms_lib_check_disableblock(struct us_data *us, u16 PhyBlock)
 
 	PageBuf = kmalloc(MS_BYTES_PER_PAGE, GFP_KERNEL);
 	if (PageBuf == NULL) {
-		result = MS_NO_MEMORY_ERROR;
+		result = MS_ANAL_MEMORY_ERROR;
 		goto exit;
 	}
 
 	ms_read_readpage(us, PhyBlock, 1, (u32 *)PageBuf, &extdat);
 	do {
 		blk = be16_to_cpu(PageBuf[index]);
-		if (blk == MS_LB_NOT_USED)
+		if (blk == MS_LB_ANALT_USED)
 			break;
 		if (blk == info->MS_Lib.Log2PhyMap[0]) {
 			result = MS_ERROR_FLASH_READ;
@@ -1252,7 +1252,7 @@ static int ms_lib_setacquired_errorblock(struct us_data *us, u16 phyblk)
 	log = info->MS_Lib.Phy2LogMap[phyblk];
 
 	if (log < info->MS_Lib.NumberOfLogBlock)
-		info->MS_Lib.Log2PhyMap[log] = MS_LB_NOT_USED;
+		info->MS_Lib.Log2PhyMap[log] = MS_LB_ANALT_USED;
 
 	if (info->MS_Lib.Phy2LogMap[phyblk] != MS_LB_INITIAL_ERROR)
 		info->MS_Lib.Phy2LogMap[phyblk] = MS_LB_ACQUIRED_ERROR;
@@ -1318,14 +1318,14 @@ static int ms_lib_erase_phyblock(struct us_data *us, u16 phyblk)
 	log = info->MS_Lib.Phy2LogMap[phyblk];
 
 	if (log < info->MS_Lib.NumberOfLogBlock)
-		info->MS_Lib.Log2PhyMap[log] = MS_LB_NOT_USED;
+		info->MS_Lib.Log2PhyMap[log] = MS_LB_ANALT_USED;
 
-	info->MS_Lib.Phy2LogMap[phyblk] = MS_LB_NOT_USED;
+	info->MS_Lib.Phy2LogMap[phyblk] = MS_LB_ANALT_USED;
 
 	if (ms_lib_iswritable(info)) {
 		switch (ms_read_eraseblock(us, phyblk)) {
 		case MS_STATUS_SUCCESS:
-			info->MS_Lib.Phy2LogMap[phyblk] = MS_LB_NOT_USED_ERASED;
+			info->MS_Lib.Phy2LogMap[phyblk] = MS_LB_ANALT_USED_ERASED;
 			return MS_STATUS_SUCCESS;
 		case MS_ERROR_FLASH_ERASE:
 		case MS_STATUS_INT_ERROR:
@@ -1369,9 +1369,9 @@ static int ms_lib_read_extra(struct us_data *us, u32 PhyBlock,
 		return USB_STOR_TRANSPORT_ERROR;
 
 	ExtraDat->reserved = 0;
-	ExtraDat->intr     = 0x80;  /* Not yet, waiting for fireware support */
-	ExtraDat->status0  = 0x10;  /* Not yet, waiting for fireware support */
-	ExtraDat->status1  = 0x00;  /* Not yet, waiting for fireware support */
+	ExtraDat->intr     = 0x80;  /* Analt yet, waiting for fireware support */
+	ExtraDat->status0  = 0x10;  /* Analt yet, waiting for fireware support */
+	ExtraDat->status1  = 0x00;  /* Analt yet, waiting for fireware support */
 	ExtraDat->ovrflg   = bbuf[0];
 	ExtraDat->mngflg   = bbuf[1];
 	ExtraDat->logadr   = memstick_logaddr(bbuf[2], bbuf[3]);
@@ -1393,15 +1393,15 @@ static int ms_libsearch_block_from_physical(struct us_data *us, u16 phyblk)
 		if ((blk & MS_PHYSICAL_BLOCKS_PER_SEGMENT_MASK) == 0)
 			blk -= MS_PHYSICAL_BLOCKS_PER_SEGMENT;
 
-		if (info->MS_Lib.Phy2LogMap[blk] == MS_LB_NOT_USED_ERASED) {
+		if (info->MS_Lib.Phy2LogMap[blk] == MS_LB_ANALT_USED_ERASED) {
 			return blk;
-		} else if (info->MS_Lib.Phy2LogMap[blk] == MS_LB_NOT_USED) {
+		} else if (info->MS_Lib.Phy2LogMap[blk] == MS_LB_ANALT_USED) {
 			switch (ms_lib_read_extra(us, blk, 0, &extdat)) {
 			case MS_STATUS_SUCCESS:
 			case MS_STATUS_SUCCESS_WITH_ECC:
 				break;
-			case MS_NOCARD_ERROR:
-				return MS_NOCARD_ERROR;
+			case MS_ANALCARD_ERROR:
+				return MS_ANALCARD_ERROR;
 			case MS_STATUS_INT_ERROR:
 				return MS_LB_ERROR;
 			case MS_ERROR_FLASH_READ:
@@ -1466,7 +1466,7 @@ static int ms_scsi_test_unit_ready(struct us_data *us, struct scsi_cmnd *srb)
 static int ms_scsi_mode_sense(struct us_data *us, struct scsi_cmnd *srb)
 {
 	struct ene_ub6250_info *info = (struct ene_ub6250_info *) us->extra;
-	unsigned char mediaNoWP[12] = {
+	unsigned char mediaAnalWP[12] = {
 		0x0b, 0x00, 0x00, 0x08, 0x00, 0x00,
 		0x71, 0xc0, 0x00, 0x00, 0x02, 0x00 };
 	unsigned char mediaWP[12]   = {
@@ -1476,7 +1476,7 @@ static int ms_scsi_mode_sense(struct us_data *us, struct scsi_cmnd *srb)
 	if (info->MS_Status & MS_WtP)
 		usb_stor_set_xfer_buf(mediaWP, 12, srb);
 	else
-		usb_stor_set_xfer_buf(mediaNoWP, 12, srb);
+		usb_stor_set_xfer_buf(mediaAnalWP, 12, srb);
 
 	return USB_STOR_TRANSPORT_GOOD;
 }
@@ -1597,7 +1597,7 @@ static int ms_lib_scan_logicalblocknumber(struct us_data *us, u16 btBlk1st)
 				continue;
 			}
 
-			if (extdat.logadr != MS_LB_NOT_USED) {
+			if (extdat.logadr != MS_LB_ANALT_USED) {
 				if ((extdat.logadr < LogStart) || (LogEnde <= extdat.logadr)) {
 					ms_lib_erase_phyblock(us, PhyBlock);
 					continue;
@@ -1605,7 +1605,7 @@ static int ms_lib_scan_logicalblocknumber(struct us_data *us, u16 btBlk1st)
 
 				newblk = ms_libconv_to_physical(info, extdat.logadr);
 
-				if (newblk != MS_LB_NOT_USED) {
+				if (newblk != MS_LB_ANALT_USED) {
 					if (extdat.logadr == 0) {
 						ms_lib_set_logicalpair(us, extdat.logadr, PhyBlock);
 						if (ms_lib_check_disableblock(us, btBlk1st)) {
@@ -1673,7 +1673,7 @@ static int ms_scsi_read(struct us_data *us, struct scsi_cmnd *srb)
 		u16 phyblk, logblk;
 		u8 PageNum;
 		u16 len;
-		u32 blkno;
+		u32 blkanal;
 
 		buf = kmalloc(blenByte, GFP_KERNEL);
 		if (buf == NULL)
@@ -1696,7 +1696,7 @@ static int ms_scsi_read(struct us_data *us, struct scsi_cmnd *srb)
 				len = blen;
 
 			phyblk = ms_libconv_to_physical(info, logblk);
-			blkno  = phyblk * 0x20 + PageNum;
+			blkanal  = phyblk * 0x20 + PageNum;
 
 			/* set up the command wrapper */
 			memset(bcb, 0, sizeof(struct bulk_cb_wrap));
@@ -1705,10 +1705,10 @@ static int ms_scsi_read(struct us_data *us, struct scsi_cmnd *srb)
 			bcb->Flags  = US_BULK_FLAG_IN;
 			bcb->CDB[0] = 0xF1;
 			bcb->CDB[1] = 0x02;
-			bcb->CDB[5] = (unsigned char)(blkno);
-			bcb->CDB[4] = (unsigned char)(blkno>>8);
-			bcb->CDB[3] = (unsigned char)(blkno>>16);
-			bcb->CDB[2] = (unsigned char)(blkno>>24);
+			bcb->CDB[5] = (unsigned char)(blkanal);
+			bcb->CDB[4] = (unsigned char)(blkanal>>8);
+			bcb->CDB[3] = (unsigned char)(blkanal>>16);
+			bcb->CDB[2] = (unsigned char)(blkanal>>24);
 
 			result = ene_send_scsi_cmd(us, FDIR_READ, buf+offset, 0);
 			if (result != USB_STOR_XFER_GOOD) {
@@ -1807,7 +1807,7 @@ static int ms_scsi_write(struct us_data *us, struct scsi_cmnd *srb)
 				goto exit;
 			}
 
-			info->MS_Lib.Phy2LogMap[oldphy] = MS_LB_NOT_USED_ERASED;
+			info->MS_Lib.Phy2LogMap[oldphy] = MS_LB_ANALT_USED_ERASED;
 			ms_lib_force_setlogical_pair(us, PhyBlockAddr, newphy);
 
 			blen -= len;
@@ -1915,18 +1915,18 @@ static int ene_load_bincode(struct us_data *us, unsigned char flag)
 		fw_name = MS_RW_FIRMWARE;
 		break;
 	default:
-		usb_stor_dbg(us, "----------- Unknown PATTERN ----------\n");
-		goto nofw;
+		usb_stor_dbg(us, "----------- Unkanalwn PATTERN ----------\n");
+		goto analfw;
 	}
 
 	err = request_firmware(&sd_fw, fw_name, &us->pusb_dev->dev);
 	if (err) {
 		usb_stor_dbg(us, "load firmware %s failed\n", fw_name);
-		goto nofw;
+		goto analfw;
 	}
 	buf = kmemdup(sd_fw->data, sd_fw->size, GFP_KERNEL);
 	if (buf == NULL)
-		goto nofw;
+		goto analfw;
 
 	memset(bcb, 0, sizeof(struct bulk_cb_wrap));
 	bcb->Signature = cpu_to_le32(US_BULK_CB_SIGN);
@@ -1940,7 +1940,7 @@ static int ene_load_bincode(struct us_data *us, unsigned char flag)
 	info->BIN_FLAG = flag;
 	kfree(buf);
 
-nofw:
+analfw:
 	release_firmware(sd_fw);
 	return result;
 }
@@ -1963,11 +1963,11 @@ static int ms_card_init(struct us_data *us)
 	PageBuffer0 = kmalloc(MS_BYTES_PER_PAGE, GFP_KERNEL);
 	PageBuffer1 = kmalloc(MS_BYTES_PER_PAGE, GFP_KERNEL);
 	if ((PageBuffer0 == NULL) || (PageBuffer1 == NULL)) {
-		result = MS_NO_MEMORY_ERROR;
+		result = MS_ANAL_MEMORY_ERROR;
 		goto exit;
 	}
 
-	btBlk1st = btBlk2nd = MS_LB_NOT_USED;
+	btBlk1st = btBlk2nd = MS_LB_ANALT_USED;
 	btBlk1stErred = 0;
 
 	for (TmpBlock = 0; TmpBlock < MS_MAX_INITIAL_ERROR_BLOCKS+2; TmpBlock++) {
@@ -1991,7 +1991,7 @@ static int ms_card_init(struct us_data *us)
 			(((struct ms_bootblock_page0 *)PageBuffer0)->header.bNumberOfDataEntry != MS_BOOT_BLOCK_DATA_ENTRIES))
 				continue;
 
-		if (btBlk1st != MS_LB_NOT_USED) {
+		if (btBlk1st != MS_LB_ANALT_USED) {
 			btBlk2nd = TmpBlock;
 			break;
 		}
@@ -2002,7 +2002,7 @@ static int ms_card_init(struct us_data *us)
 			btBlk1stErred = 1;
 	}
 
-	if (btBlk1st == MS_LB_NOT_USED) {
+	if (btBlk1st == MS_LB_ANALT_USED) {
 		result = MS_STATUS_ERROR;
 		goto exit;
 	}
@@ -2017,7 +2017,7 @@ static int ms_card_init(struct us_data *us)
 		result = ms_lib_process_bootblock(us, btBlk1st, PageBuffer1);
 		/* 1st */
 	/* 2nd Boot Block */
-	if (result && (btBlk2nd != MS_LB_NOT_USED))
+	if (result && (btBlk2nd != MS_LB_ANALT_USED))
 		result = ms_lib_process_bootblock(us, btBlk2nd, PageBuffer0);
 
 	if (result) {
@@ -2030,7 +2030,7 @@ static int ms_card_init(struct us_data *us)
 
 	info->MS_Lib.Phy2LogMap[btBlk1st] = MS_LB_BOOT_BLOCK;
 
-	if (btBlk2nd != MS_LB_NOT_USED) {
+	if (btBlk2nd != MS_LB_ANALT_USED) {
 		for (TmpBlock = btBlk1st + 1; TmpBlock < btBlk2nd; TmpBlock++)
 			info->MS_Lib.Phy2LogMap[TmpBlock] = MS_LB_INITIAL_ERROR;
 
@@ -2052,7 +2052,7 @@ static int ms_card_init(struct us_data *us)
 
 	/* write */
 	if (ms_lib_alloc_writebuf(us)) {
-		result = MS_NO_MEMORY_ERROR;
+		result = MS_ANAL_MEMORY_ERROR;
 		goto exit;
 	}
 
@@ -2116,7 +2116,7 @@ static int ene_ms_init(struct us_data *us)
 		}
 		usb_stor_dbg(us, "MS Init Code OK !!\n");
 	} else {
-		usb_stor_dbg(us, "MS Card Not Ready --- %x\n", bbuf[0]);
+		usb_stor_dbg(us, "MS Card Analt Ready --- %x\n", bbuf[0]);
 		return USB_STOR_TRANSPORT_ERROR;
 	}
 
@@ -2180,7 +2180,7 @@ static int ene_sd_init(struct us_data *us)
 		usb_stor_dbg(us, "HiSpeed    = %x\n", !!(s & SD_HiSpeed));
 		usb_stor_dbg(us, "WtP        = %x\n", !!(s & SD_WtP));
 	} else {
-		usb_stor_dbg(us, "SD Card Not Ready --- %x\n", bbuf[0]);
+		usb_stor_dbg(us, "SD Card Analt Ready --- %x\n", bbuf[0]);
 		return USB_STOR_TRANSPORT_ERROR;
 	}
 	return USB_STOR_TRANSPORT_GOOD;
@@ -2338,14 +2338,14 @@ static int ene_ub6250_probe(struct usb_interface *intf,
 	/* FIXME: where should the code alloc extra buf ? */
 	us->extra = kzalloc(sizeof(struct ene_ub6250_info), GFP_KERNEL);
 	if (!us->extra)
-		return -ENOMEM;
+		return -EANALMEM;
 	us->extra_destructor = ene_ub6250_info_destructor;
 
 	info = (struct ene_ub6250_info *)(us->extra);
 	info->bbuf = kmalloc(512, GFP_KERNEL);
 	if (!info->bbuf) {
 		kfree(us->extra);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	us->transport_name = "ene_ub6250";
@@ -2366,7 +2366,7 @@ static int ene_ub6250_probe(struct usb_interface *intf,
 	misc_reg03 = info->bbuf[0];
 	if (!(misc_reg03 & 0x01)) {
 		pr_info("ums_eneub6250: This driver only supports SD/MS cards. "
-			"It does not support SM cards.\n");
+			"It does analt support SM cards.\n");
 	}
 
 	return result;
@@ -2405,7 +2405,7 @@ static int ene_ub6250_reset_resume(struct usb_interface *iface)
 	usb_stor_reset_resume(iface);
 
 	/*
-	 * FIXME: Notify the subdrivers that they need to reinitialize
+	 * FIXME: Analtify the subdrivers that they need to reinitialize
 	 * the device
 	 */
 	info->Power_IsResum = true;
@@ -2435,7 +2435,7 @@ static struct usb_driver ene_ub6250_driver = {
 	.post_reset =	usb_stor_post_reset,
 	.id_table =	ene_ub6250_usb_ids,
 	.soft_unbind =	1,
-	.no_dynamic_id = 1,
+	.anal_dynamic_id = 1,
 };
 
 module_usb_stor_driver(ene_ub6250_driver, ene_ub6250_host_template, DRV_NAME);

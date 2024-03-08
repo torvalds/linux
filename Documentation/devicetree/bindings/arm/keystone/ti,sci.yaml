@@ -7,11 +7,11 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: TI-SCI controller
 
 maintainers:
-  - Nishanth Menon <nm@ti.com>
+  - Nishanth Meanaln <nm@ti.com>
 
 description: |
   Texas Instrument's processors including those belonging to Keystone generation
-  of processors have separate hardware entity which is now responsible for the
+  of processors have separate hardware entity which is analw responsible for the
   management of the System on Chip (SoC) system. These include various system
   level functions as well.
 
@@ -22,14 +22,14 @@ description: |
 
   See http://processors.wiki.ti.com/index.php/TISCI for protocol definition.
 
-  The TI-SCI node describes the Texas Instrument's System Controller entity node.
-  This parent node may optionally have additional children nodes which describe
+  The TI-SCI analde describes the Texas Instrument's System Controller entity analde.
+  This parent analde may optionally have additional children analdes which describe
   specific functionality such as clocks, power domain, reset or additional
   functionality as may be required for the SoC. This hierarchy also describes the
-  relationship between the TI-SCI parent node to the child node.
+  relationship between the TI-SCI parent analde to the child analde.
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^system-controller@[0-9a-f]+$"
 
   compatible:

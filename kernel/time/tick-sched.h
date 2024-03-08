@@ -14,14 +14,14 @@ struct tick_device {
 	enum tick_device_mode mode;
 };
 
-enum tick_nohz_mode {
-	NOHZ_MODE_INACTIVE,
-	NOHZ_MODE_LOWRES,
-	NOHZ_MODE_HIGHRES,
+enum tick_analhz_mode {
+	ANALHZ_MODE_INACTIVE,
+	ANALHZ_MODE_LOWRES,
+	ANALHZ_MODE_HIGHRES,
 };
 
 /**
- * struct tick_sched - sched tick emulation and no idle tick control/stats
+ * struct tick_sched - sched tick emulation and anal idle tick control/stats
  *
  * @inidle:		Indicator that the CPU is in the tick idle mode
  * @tick_stopped:	Indicator that the idle tick has been stopped
@@ -34,16 +34,16 @@ enum tick_nohz_mode {
  * @sched_timer:	hrtimer to schedule the periodic tick in high
  *			resolution mode
  * @last_tick:		Store the last tick expiry time when the tick
- *			timer is modified for nohz sleeps. This is necessary
+ *			timer is modified for analhz sleeps. This is necessary
  *			to resume the tick timer operation in the timeline
- *			when the CPU returns from nohz sleep.
+ *			when the CPU returns from analhz sleep.
  * @next_tick:		Next tick to be fired when in dynticks mode.
  * @idle_jiffies:	jiffies at the entry to idle for idle time accounting
  * @idle_waketime:	Time when the idle was interrupted
  * @idle_entrytime:	Time when the idle call was entered
- * @nohz_mode:		Mode - one state of tick_nohz_mode
+ * @analhz_mode:		Mode - one state of tick_analhz_mode
  * @last_jiffies:	Base jiffies snapshot when next event was last computed
- * @timer_expires_base:	Base time clock monotonic for @timer_expires
+ * @timer_expires_base:	Base time clock moanaltonic for @timer_expires
  * @timer_expires:	Anticipated timer expiration time (in case sched tick is stopped)
  * @next_timer:		Expiry time of next expiring timer for debugging purpose only
  * @idle_expires:	Next tick in idle, for debugging purpose only
@@ -53,7 +53,7 @@ enum tick_nohz_mode {
  * @idle_sleeptime:	Sum of the time slept in idle with sched tick stopped
  * @iowait_sleeptime:	Sum of the time slept in idle with sched tick stopped, with IO outstanding
  * @tick_dep_mask:	Tick dependency mask - is set, if someone needs the tick
- * @check_clocks:	Notification mechanism about clocksource changes
+ * @check_clocks:	Analtification mechanism about clocksource changes
  */
 struct tick_sched {
 	/* Common flags */
@@ -79,7 +79,7 @@ struct tick_sched {
 	ktime_t				idle_entrytime;
 
 	/* Tick stop */
-	enum tick_nohz_mode		nohz_mode;
+	enum tick_analhz_mode		analhz_mode;
 	unsigned long			last_jiffies;
 	u64				timer_expires_base;
 	u64				timer_expires;
@@ -103,7 +103,7 @@ struct tick_sched {
 extern struct tick_sched *tick_get_tick_sched(int cpu);
 
 extern void tick_setup_sched_timer(void);
-#if defined CONFIG_NO_HZ_COMMON || defined CONFIG_HIGH_RES_TIMERS
+#if defined CONFIG_ANAL_HZ_COMMON || defined CONFIG_HIGH_RES_TIMERS
 extern void tick_cancel_sched_timer(int cpu);
 #else
 static inline void tick_cancel_sched_timer(int cpu) { }

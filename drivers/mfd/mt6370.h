@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2022 Richtek Technology Corp.
+ * Copyright (C) 2022 Richtek Techanallogy Corp.
  *
  * Author: ChiYuan Huang <cy_huang@richtek.com>
  */
@@ -14,11 +14,11 @@
 #define MT6370_IRQ_CHG_AICR		5
 #define MT6370_IRQ_CHG_MIVR		6
 #define MT6370_IRQ_PWR_RDY		7
-#define MT6370_IRQ_FL_CHG_VINOVP	11
+#define MT6370_IRQ_FL_CHG_VIANALVP	11
 #define MT6370_IRQ_CHG_VSYSUV		12
 #define MT6370_IRQ_CHG_VSYSOV		13
 #define MT6370_IRQ_CHG_VBATOV		14
-#define MT6370_IRQ_CHG_VINOVPCHG	15
+#define MT6370_IRQ_CHG_VIANALVPCHG	15
 #define MT6370_IRQ_TS_BAT_COLD		20
 #define MT6370_IRQ_TS_BAT_COOL		21
 #define MT6370_IRQ_TS_BAT_WARM		22

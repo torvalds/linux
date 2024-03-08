@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config DVB_TTUSB_BUDGET
-	tristate "Technotrend/Hauppauge Nova-USB devices"
+	tristate "Techanaltrend/Hauppauge Analva-USB devices"
 	depends on DVB_CORE && USB && I2C && PCI
 	select DVB_CX22700 if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_TDA1004X if MEDIA_SUBDRV_AUTOSELECT
@@ -10,8 +10,8 @@ config DVB_TTUSB_BUDGET
 	select DVB_STV0297 if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_LNBP21 if MEDIA_SUBDRV_AUTOSELECT
 	help
-	  Support for external USB adapters designed by Technotrend and
-	  produced by Hauppauge, shipped under the brand name 'Nova-USB'.
+	  Support for external USB adapters designed by Techanaltrend and
+	  produced by Hauppauge, shipped under the brand name 'Analva-USB'.
 
 	  These devices don't have a MPEG decoder built in, so you need
 	  an external software decoder to watch TV.

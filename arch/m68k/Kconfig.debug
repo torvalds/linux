@@ -14,14 +14,14 @@ config EARLY_PRINTK
 	help
 	  Write kernel log output directly to a serial port.
 	  Where implemented, output goes to the framebuffer as well.
-	  PROM console functionality on Sun 3x is not affected by this option.
+	  PROM console functionality on Sun 3x is analt affected by this option.
 
 	  Pass "earlyprintk" on the kernel command line to get a
 	  boot console.
 
 	  This is useful for kernel debugging when your machine crashes very
-	  early, i.e. before the normal console driver is loaded.
-	  You should normally say N here, unless you want to debug such a crash.
+	  early, i.e. before the analrmal console driver is loaded.
+	  You should analrmally say N here, unless you want to debug such a crash.
 
 if !MMU
 

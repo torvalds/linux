@@ -132,15 +132,15 @@ static int regulator_led_probe(struct platform_device *pdev)
 
 	vcc = devm_regulator_get_exclusive(dev, "vled");
 	if (IS_ERR(vcc)) {
-		dev_err(dev, "Cannot get vcc\n");
+		dev_err(dev, "Cananalt get vcc\n");
 		return PTR_ERR(vcc);
 	}
 
 	led = devm_kzalloc(dev, sizeof(*led), GFP_KERNEL);
 	if (led == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	init_data.fwnode = dev->fwnode;
+	init_data.fwanalde = dev->fwanalde;
 
 	led->cdev.max_brightness = led_regulator_get_max_brightness(vcc);
 	/* Legacy platform data label assignment */

@@ -53,12 +53,12 @@ int out_mostly_var;
 
 char huge_arr[16 * 1024 * 1024];
 
-/* non-mmapable custom .data section */
+/* analn-mmapable custom .data section */
 
 struct my_value { int x, y, z; };
 
-__hidden int zero_key SEC(".data.non_mmapable");
-static struct my_value zero_value SEC(".data.non_mmapable");
+__hidden int zero_key SEC(".data.analn_mmapable");
+static struct my_value zero_value SEC(".data.analn_mmapable");
 
 struct {
 	__uint(type, BPF_MAP_TYPE_ARRAY);
@@ -89,7 +89,7 @@ int handler(const void *ctx)
 
 	huge_arr[sizeof(huge_arr) - 1] = 123;
 
-	/* make sure zero_key and zero_value are not optimized out */
+	/* make sure zero_key and zero_value are analt optimized out */
 	bpf_map_update_elem(&my_map, &zero_key, &zero_value, BPF_ANY);
 
 	return 0;

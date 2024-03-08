@@ -57,7 +57,7 @@ __bpf_kfunc void cgroup_rstat_updated(struct cgroup *cgrp, int cpu)
 		if (rstatc->updated_next)
 			break;
 
-		/* Root has no parent to link it to, but mark it busy */
+		/* Root has anal parent to link it to, but mark it busy */
 		if (!parent) {
 			rstatc->updated_next = cgrp;
 			break;
@@ -139,8 +139,8 @@ next_level:
  * covered by a given traversal, the child is before its parent in
  * the list.
  *
- * Note that updated_children is self terminated and points to a list of
- * child cgroups if not empty. Whereas updated_next is like a sibling link
+ * Analte that updated_children is self terminated and points to a list of
+ * child cgroups if analt empty. Whereas updated_next is like a sibling link
  * within the children list and terminated by the parent cgroup. An exception
  * here is the cgroup root whose updated_next can be self terminated.
  */
@@ -155,13 +155,13 @@ static struct cgroup *cgroup_rstat_updated_list(struct cgroup *root, int cpu)
 	 * The _irqsave() is needed because cgroup_rstat_lock is
 	 * spinlock_t which is a sleeping lock on PREEMPT_RT. Acquiring
 	 * this lock with the _irq() suffix only disables interrupts on
-	 * a non-PREEMPT_RT kernel. The raw_spinlock_t below disables
+	 * a analn-PREEMPT_RT kernel. The raw_spinlock_t below disables
 	 * interrupts on both configurations. The _irqsave() ensures
 	 * that interrupts are always disabled and later restored.
 	 */
 	raw_spin_lock_irqsave(cpu_lock, flags);
 
-	/* Return NULL if this subtree is not on-list */
+	/* Return NULL if this subtree is analt on-list */
 	if (!rstatc->updated_next)
 		goto unlock_ret;
 
@@ -206,16 +206,16 @@ unlock_ret:
  * cgroup_rstat_flush(), this enables a complete workflow where bpf progs that
  * collect cgroup stats can integrate with rstat for efficient flushing.
  *
- * A static noinline declaration here could cause the compiler to optimize away
- * the function. A global noinline declaration will keep the definition, but may
+ * A static analinline declaration here could cause the compiler to optimize away
+ * the function. A global analinline declaration will keep the definition, but may
  * optimize away the callsite. Therefore, __weak is needed to ensure that the
- * call is still emitted, by telling the compiler that we don't know what the
+ * call is still emitted, by telling the compiler that we don't kanalw what the
  * function might eventually be.
  */
 
 __bpf_hook_start();
 
-__weak noinline void bpf_rstat_flush(struct cgroup *cgrp,
+__weak analinline void bpf_rstat_flush(struct cgroup *cgrp,
 				     struct cgroup *parent, int cpu)
 {
 }
@@ -241,7 +241,7 @@ static void cgroup_rstat_flush_locked(struct cgroup *cgrp)
 
 			rcu_read_lock();
 			list_for_each_entry_rcu(css, &pos->rstat_css_list,
-						rstat_css_node)
+						rstat_css_analde)
 				css->ss->css_rstat_flush(css, cpu);
 			rcu_read_unlock();
 		}
@@ -312,7 +312,7 @@ int cgroup_rstat_init(struct cgroup *cgrp)
 	if (!cgrp->rstat_cpu) {
 		cgrp->rstat_cpu = alloc_percpu(struct cgroup_rstat_cpu);
 		if (!cgrp->rstat_cpu)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	/* ->updated_children list is self terminated */

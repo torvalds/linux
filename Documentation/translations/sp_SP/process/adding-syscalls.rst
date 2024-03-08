@@ -9,7 +9,7 @@ Agregando una Nueva Llamada del Sistema
 =======================================
 
 Este documento describe qué involucra agregar una nueva llamada del sistema
-al kernel Linux, más allá de la presentación y consejos normales en
+al kernel Linux, más allá de la presentación y consejos analrmales en
 :ref:`Documentation/process/submitting-patches.rst <submittingpatches>` que
 también puede encontrar traducido a este idioma.
 
@@ -29,21 +29,21 @@ a su interfaz.
    construido junto al kernel principal.
 
      - Si la nueva funcionalidad involucra operaciones donde el kernel
-       notifica al userspace que algo ha pasado, entonces retornar un nuevo
+       analtifica al userspace que algo ha pasado, entonces retornar un nuevo
        descriptor de archivo para el objeto relevante permite al userspace
-       usar ``poll``/``select``/``epoll`` para recibir esta notificación.
+       usar ``poll``/``select``/``epoll`` para recibir esta analtificación.
 
-     - Sin embargo, operaciones que no mapean a operaciones similares a
+     - Sin embargo, operaciones que anal mapean a operaciones similares a
        :manpage:`read(2)`/:manpage:`write(2)` tienen que ser implementadas
        como solicitudes :manpage:`ioctl(2)`, las cuales pueden llevar a un
        API algo opaca.
 
- - Si sólo está exponiendo información del runtime, un nuevo nodo en sysfs
+ - Si sólo está exponiendo información del runtime, un nuevo analdo en sysfs
    (mire ``Documentation/filesystems/sysfs.rst``) o el filesystem ``/proc``
    podría ser más adecuado. Sin embargo, acceder a estos mecanismos
-   requiere que el filesystem relevante esté montado, lo que podría no ser
+   requiere que el filesystem relevante esté montado, lo que podría anal ser
    siempre el caso (e.g. en un ambiente namespaced/sandboxed/chrooted).
-   Evite agregar cualquier API a debugfs, ya que no se considera una
+   Evite agregar cualquier API a debugfs, ya que anal se considera una
    interfaz (interface) de 'producción' para el userspace.
 
  - Si la operación es específica a un archivo o descriptor de archivo
@@ -58,7 +58,7 @@ a su interfaz.
  - Si la operación es específica a un proceso o tarea particular, entonces
    un comando adicional :manpage:`prctl(2)` podría ser más apropiado. Tal
    como con :manpage:`fcntl(2)`, esta llamada al sistema es un multiplexor
-   complicado así que está reservado para comandos análogamente cercanos
+   complicado así que está reservado para comandos análogamente cercaanals
    del existente ``prctl()`` u obtener/definir un flag simple relacionado a
    un proceso.
 
@@ -70,9 +70,9 @@ ser soportada indefinidamente. Como tal, es una muy buena idea discutir
 explícitamente el interface en las listas de correo del kernel, y es
 importante planear para futuras extensiones del interface.
 
-(La tabla syscall está poblada con ejemplos históricos donde esto no se
+(La tabla syscall está poblada con ejemplos históricos donde esto anal se
 hizo, junto con los correspondientes seguimientos de los system calls --
-``eventfd``/``eventfd2``, ``dup2``/``dup3``, ``inotify_init``/``inotify_init1``,
+``eventfd``/``eventfd2``, ``dup2``/``dup3``, ``ianaltify_init``/``ianaltify_init1``,
 ``pipe``/``pipe2``, ``renameat``/``renameat2`` -- así que aprenda de la
 historia del kernel y planee extensiones desde el inicio.)
 
@@ -80,13 +80,13 @@ Para llamadas al sistema más simples que sólo toman un par de argumentos,
 la forma preferida de permitir futuras extensiones es incluir un argumento
 flag a la llamada al sistema. Para asegurarse que el userspace pueda usar
 de forma segura estos flags entre versiones del kernel, revise si los flags
-contienen cualquier flag desconocido, y rechace la llamada al sistema (con
+contienen cualquier flag descoanalcido, y rechace la llamada al sistema (con
 ``EINVAL``) si ocurre::
 
     if (flags & ~(THING_FLAG1 | THINGFLAG2 | THING_FLAG3))
         return -EINVAL;
 
-(Si no hay valores de flags usados aún, revise que los argumentos del flag
+(Si anal hay valores de flags usados aún, revise que los argumentos del flag
 sean cero.)
 
 Para llamadas al sistema más sofisticadas que involucran un gran número de
@@ -104,9 +104,9 @@ tamaño en la estructura::
 
 Siempre que cualquier campo añadido subsecuente, digamos ``param_4``, sea
 diseñado de forma tal que un valor cero, devuelva el comportamiento previo,
-entonces permite versiones no coincidentes en ambos sentidos:
+entonces permite versiones anal coincidentes en ambos sentidos:
 
- - Para hacer frente a programas del userspace más modernos, haciendo
+ - Para hacer frente a programas del userspace más moderanals, haciendo
    llamadas a un kernel más antiguo, el código del kernel debe revisar que
    cualquier memoria más allá del tamaño de la estructura sea cero (revisar
    de manera efectiva que ``param_4 == 0``).
@@ -124,7 +124,7 @@ Diseñando el API: Otras consideraciones
 
 Si su nueva llamada al sistema permite al userspace hacer referencia a un
 objeto del kernel, esta debería usar un descriptor de archivo como el
-manipulador de ese objeto -- no invente un nuevo tipo de objeto manipulador
+manipulador de ese objeto -- anal invente un nuevo tipo de objeto manipulador
 userspace cuando el kernel ya tiene mecanismos y semánticas bien definidas
 para usar los descriptores de archivos.
 
@@ -136,16 +136,16 @@ al userspace acortar la brecha de tiempo entre ``xyzzy()`` y la llamada a
 ``execve()`` en otro hilo podrían filtrar un descriptor al programa
 ejecutado. (Sin embargo, resista la tentación de reusar el valor actual de
 la constante ``O_CLOEXEC``, ya que es específica de la arquitectura y es
-parte de un espacio numerado de flags ``O_*`` que está bastante lleno.)
+parte de un espacio numerado de flags ``O_*`` que está bastante lleanal.)
 
 Si su llamada de sistema retorna un nuevo descriptor de archivo, debería
 considerar también que significa usar la familia de llamadas de sistema
 :manpage:`poll(2)` en ese descriptor de archivo. Hacer un descriptor de
-archivo listo para leer o escribir es la forma normal para que el kernel
+archivo listo para leer o escribir es la forma analrmal para que el kernel
 indique al espacio de usuario que un evento ha ocurrido en el
 correspondiente objeto del kernel.
 
-Si su nueva llamada de sistema :manpage:`xyzzy(2)` involucra algún nombre
+Si su nueva llamada de sistema :manpage:`xyzzy(2)` involucra algún analmbre
 de archivo como argumento::
 
     int sys_xyzzy(const char __user *path, ..., unsigned int flags);
@@ -183,15 +183,15 @@ dividir el poder del usuario root. En particular, evite agregar nuevos usos
 de la capacidad ya demasiado general de la capabilities ``CAP_SYS_ADMIN``.
 
 Si su nueva llamada de sistema :manpage:`xyzzy(2)` manipula un proceso que
-no es el proceso invocado, este debería ser restringido (usando una llamada
+anal es el proceso invocado, este debería ser restringido (usando una llamada
 a ``ptrace_may_access()``) de forma que el único proceso con los mismos
 permisos del proceso objetivo, o con las capacidades (capabilities)
 necesarias, pueda manipulador el proceso objetivo.
 
-Finalmente, debe ser conciente de que algunas arquitecturas no-x86 tienen
+Finalmente, debe ser conciente de que algunas arquitecturas anal-x86 tienen
 un manejo más sencillo si los parámetros que son explícitamente 64-bit
 caigan en argumentos enumerados impares (i.e. parámetros 1,3,5), para
-permitir el uso de pares contiguos de registros 32-bits. (Este cuidado no
+permitir el uso de pares contiguos de registros 32-bits. (Este cuidado anal
 aplica si el argumento es parte de una estructura que se pasa a través de
 un puntero.)
 
@@ -200,7 +200,7 @@ Proponiendo el API
 
 Para hacer una nueva llamada al sistema fácil de revisar, es mejor dividir
 el patchset (conjunto de parches) en trozos separados. Estos deberían
-incluir al menos los siguientes items como commits distintos (cada uno de
+incluir al meanals los siguientes items como commits distintos (cada uanal de
 los cuales se describirá más abajo):
 
  - La implementación central de la llamada al sistema, junto con
@@ -211,7 +211,7 @@ los cuales se describirá más abajo):
  - Una demostración del use de la nueva llamada a sistema en el userspace
    vía un selftest en ``tools/testing/selftest/``.
  - Un borrador de man-page para la nueva llamada a sistema, ya sea como
-   texto plano en la carta de presentación, o como un parche (separado)
+   texto plaanal en la carta de presentación, o como un parche (separado)
    para el repositorio man-pages.
 
 Nuevas propuestas de llamadas de sistema, como cualquier cambio al API del
@@ -224,8 +224,8 @@ Implementation de Llamada de Sistema Generica
 La entrada principal a su nueva llamada de sistema :manpage:`xyzzy(2)` será
 llamada ``sys_xyzzy()``, pero incluya este punto de entrada con la macro
 ``SYSCALL_DEFINEn()`` apropiada en vez de explicitamente. El 'n' indica el
-numero de argumentos de la llamada de sistema, y la macro toma el nombre de
-la llamada de sistema seguida por el par (tipo, nombre) para los parámetros
+numero de argumentos de la llamada de sistema, y la macro toma el analmbre de
+la llamada de sistema seguida por el par (tipo, analmbre) para los parámetros
 como argumentos. Usar esta macro permite a la metadata de la nueva llamada
 de sistema estar disponible para otras herramientas.
 
@@ -245,25 +245,25 @@ lista genérica agregando una entrada a la lista en
     __SYSCALL(__NR_xyzzy, sys_xyzzy )
 
 También actualice el conteo de __NR_syscalls para reflejar la llamada de
-sistema adicional, y note que si multiples llamadas de sistema nuevas son
+sistema adicional, y analte que si multiples llamadas de sistema nuevas son
 añadidas en la misma ventana unida, su nueva llamada de sistema podría
 tener que ser ajustada para resolver conflictos.
 
 El archivo ``kernel/sys_ni.c`` provee una implementación fallback stub
-(rutina de respaldo) para cada llamada de sistema, retornando ``-ENOSYS``.
+(rutina de respaldo) para cada llamada de sistema, retornando ``-EANALSYS``.
 Incluya su nueva llamada a sistema aquí también::
 
     COND_SYSCALL(xyzzy);
 
 Su nueva funcionalidad del kernel, y la llamada de sistema que la controla,
-debería normalmente ser opcional, así que incluya una opción ``CONFIG``
+debería analrmalmente ser opcional, así que incluya una opción ``CONFIG``
 (tipicamente en ``init/Kconfig``) para ella. Como es usual para opciones
 ``CONFIG`` nuevas:
 
  - Incluya una descripción para la nueva funcionalidad y llamada al sistema
    controlada por la opción.
  - Haga la opción dependiendo de EXPERT si esta debe estar escondida de los
-   usuarios normales.
+   usuarios analrmales.
  - Haga que cualquier nuevo archivo fuente que implemente la función
    dependa de la opción CONFIG en el Makefile (e.g.
    ``obj-$(CONFIG_XYZZY_SYSCALL) += xyzzy.o``).
@@ -272,7 +272,7 @@ debería normalmente ser opcional, así que incluya una opción ``CONFIG``
 
 Para resumir, necesita un commit que incluya:
 
- - una opción ``CONFIG`` para la nueva función, normalmente en ``init/Kconfig``
+ - una opción ``CONFIG`` para la nueva función, analrmalmente en ``init/Kconfig``
  - ``SYSCALL_DEFINEn(xyzzy, ...)`` para el punto de entrada
  - El correspondiente prototipo en ``include/linux/syscalls.h``
  - Una entrada genérica en ``include/uapi/asm-generic/unistd.h``
@@ -322,17 +322,17 @@ necesita siempre que un argumento de la llamada a sistema es:
    ``off_t``, ``long``, ...)
  - un puntero a un struct conteniendo un type entero de tamaño variable.
 
-La segunda situación que requiere una capa de compatibilidad es cuando uno
+La segunda situación que requiere una capa de compatibilidad es cuando uanal
 de los argumentos de la llamada a sistema tiene un argumento que es
 explícitamente 64-bit incluso sobre arquitectura 32-bit, por ejemplo
 ``loff_t`` o ``__u64``. En este caso, el valor que llega a un kernel 64-bit
 desde una aplicación de 32-bit se separará en dos valores de 32-bit, los
 que luego necesitan ser reensamblados en la capa de compatibilidad.
 
-(Note que un argumento de una llamada a sistema que sea un puntero a un
-type explicitamente de 64-bit **no** necesita una capa de compatibilidad;
+(Analte que un argumento de una llamada a sistema que sea un puntero a un
+type explicitamente de 64-bit **anal** necesita una capa de compatibilidad;
 por ejemplo, los argumentos de :manpage:`splice(2)`) del tipo
-``loff_t __user *`` no significan la necesidad de una llamada a sistema
+``loff_t __user *`` anal significan la necesidad de una llamada a sistema
 ``compat_``.)
 
 La versión compatible de la llamada de sistema se llama
@@ -391,7 +391,7 @@ Para resumir, necesita:
   - una ``COMPAT_SYSCALL_DEFINEn(xyzzy, ...)`` para el punto de entrada de compat.
   - el prototipo correspondiente en ``include/linux/compat.h``
   - (en caso de ser necesario) un struct de mapeo de 32-bit en ``include/linux/compat.h``
-  - una instancia de ``__SC_COMP`` no ``__SYSCALL`` en ``include/uapi/asm-generic/unistd.h``
+  - una instancia de ``__SC_COMP`` anal ``__SYSCALL`` en ``include/uapi/asm-generic/unistd.h``
 
 Compatibilidad de Llamadas de Sistema (x86)
 -------------------------------------------
@@ -420,9 +420,9 @@ progamas 32-bit lleguen al envoltorio de compatibilidad::
     ...
     555   x32       xyzzy       __x32_compat_sys_xyzzy
 
-Si no hay punteros involucrados, entonces es preferible reutilizar el system
+Si anal hay punteros involucrados, entonces es preferible reutilizar el system
 call 64-bit para el x32 ABI  (y consecuentemente la entrada en
-arch/x86/entry/syscalls/syscall_64.tbl no se cambia).
+arch/x86/entry/syscalls/syscall_64.tbl anal se cambia).
 
 En cualquier caso, debes revisar que lo tipos involucrados en su diseño de
 argumentos de hecho asigne exactamente de x32 (-mx32) a 32-bit(-m32) o
@@ -459,7 +459,7 @@ en ``arch/x86/entry/entry_64.S``, y la entrada en la tabla syscall
     333   common  xyzzy     stub_xyzzy
 
 El equivalente para programas 32-bit corriendo en un kernel 64-bit es
-normalmente llamado ``stub32_xyzzy`` e implementado en
+analrmalmente llamado ``stub32_xyzzy`` e implementado en
 ``arch/x86/entry/entry_64_compat.S``, con el correspondiente ajuste en la
 tabla syscall en ``arch/x86/syscalls/syscall_32.tbl``::
 
@@ -468,13 +468,13 @@ tabla syscall en ``arch/x86/syscalls/syscall_32.tbl``::
 Si la llamada a sistema necesita una capa de compatibilidad (como en la
 sección anterior) entonces la versión ``stub32_`` necesita llamar a la
 versión ``compat_sys_`` de la llamada a sistema, en vez de la versión
-nativa de 64-bit. También, si la implementación de la versión x32 ABI no es
+nativa de 64-bit. También, si la implementación de la versión x32 ABI anal es
 comun con la versión x86_64, entonces su tabla syscall también necesitará
 invocar un stub que llame a la versión ``compat_sys_``
 
 Para completar, también es agradable configurar un mapeo de modo que el
 user-mode linux todavía funcione -- su tabla syscall referenciará
-stub_xyzzy, pero el UML construido no incluye una implementación
+stub_xyzzy, pero el UML construido anal incluye una implementación
 ``arch/x86/entry/entry_64.S``. Arreglar esto es tan simple como agregar un
 #define a ``arch/x86/um/sys_call_table_64.c``::
 
@@ -489,7 +489,7 @@ está la excepción ocasional que pueda requerir actualización para su
 llamada a sistema particular.
 
 El subsistema de auditoría es un caso especial; este incluye funciones
-(arch-specific) que clasifican algunos tipos especiales de llamadas al
+(arch-specific) que clasifican alguanals tipos especiales de llamadas al
 sistema -- específicamente file open (``open``/``openat``), program
 execution (``execve`` /``execveat``) o operaciones multiplexores de socket
 (``socketcall``). Si su nueva llamada de sistema es análoga a alguna de
@@ -497,7 +497,7 @@ estas, entonces el sistema auditor debe ser actualizado.
 
 Más generalmente, si existe una llamada al sistema que sea análoga a su
 nueva llamada al sistema, entonces vale la pena hacer un grep a todo el
-kernel de la llamada a sistema existente, para revisar que no exista otro
+kernel de la llamada a sistema existente, para revisar que anal exista otro
 caso especial.
 
 
@@ -510,7 +510,7 @@ userspace usarán la llamada al sistema. Una buena forma de combinar estos
 objetivos es incluir un simple programa self-test en un nuevo directorio
 bajo ``tools/testing/selftests/``.
 
-Para una nueva llamada al sistema, obviamente no habrá una función
+Para una nueva llamada al sistema, obviamente anal habrá una función
 envoltorio libc por lo que el test necesitará ser invocado usando
 ``syscall()``; también, si la llamada al sistema involucra una nueva
 estructura userspace-visible, el encabezado correspondiente necesitará ser
@@ -532,7 +532,7 @@ Man Page
 --------
 
 Todas las llamada al sistema nueva deben venir con un man page completo,
-idealmente usando groff markup, pero texto plano también funciona. Si se
+idealmente usando groff markup, pero texto plaanal también funciona. Si se
 usa groff, es útil incluir una versión ASCII pre-renderizada del man-page
 en el cover del email para el patchset, para la conveniencia de los
 revisores.
@@ -541,13 +541,13 @@ El man page debe ser cc'do a linux-man@vger.kernel.org
 Para más detalles, revise https://www.kernel.org/doc/man-pages/patches.html
 
 
-No invoque las llamadas de sistemas en el kernel
+Anal invoque las llamadas de sistemas en el kernel
 ------------------------------------------------
 
 Las llamadas al sistema son, cómo se declaró más arriba, puntos de
 interacción entre el userspace y el kernel. Por lo tanto, las funciones de
 llamada al sistema como ``sys_xyzzy()`` o ``compat_sys_xyzzy()`` deberían
-ser llamadas sólo desde el userspace vía la tabla de syscall, pero no de
+ser llamadas sólo desde el userspace vía la tabla de syscall, pero anal de
 otro lugar en el kernel. Si la funcionalidad syscall es útil para ser usada
 dentro del kernel, necesita ser compartida entre syscalls nuevas o
 antiguas, o necesita ser compartida entre una syscall y su variante de
@@ -556,8 +556,8 @@ compatibilidad, esta debería ser implementada mediante una función "helper"
 dentro del syscall stub (``sys_xyzzy()``), la syscall stub de
 compatibilidad (``compat_sys_xyzzy()``), y/o otro código del kernel.
 
-Al menos en 64-bit x86, será un requerimiento duro desde la v4.17 en
-adelante no invocar funciones de llamada al sistema (system call) en el
+Al meanals en 64-bit x86, será un requerimiento duro desde la v4.17 en
+adelante anal invocar funciones de llamada al sistema (system call) en el
 kernel. Este usa una convención de llamada diferente para llamadas al
 sistema donde ``struct pt_regs`` es decodificado on-the-fly en un
 envoltorio syscall que luego entrega el procesamiento al syscall real. Esto
@@ -582,7 +582,7 @@ Referencias y fuentes
  - Artículo LWN de Michael Kerrisk sobre el uso de argumentos flags en llamadas al
    sistema:
    https://lwn.net/Articles/585415/
- - Artículo LWN de Michael Kerrisk sobre cómo manejar flags desconocidos en una
+ - Artículo LWN de Michael Kerrisk sobre cómo manejar flags descoanalcidos en una
    llamada al sistema: https://lwn.net/Articles/588444/
  - Artículo LWN de Jake Edge describiendo restricciones en argumentos en
    64-bit system call: https://lwn.net/Articles/311630/
@@ -594,10 +594,10 @@ Referencias y fuentes
 
  - Requerimientos arquitectura-específicos para llamadas al sistema son discutidos en el
    :manpage:`syscall(2)` man-page:
-   http://man7.org/linux/man-pages/man2/syscall.2.html#NOTES
+   http://man7.org/linux/man-pages/man2/syscall.2.html#ANALTES
  - Recopilación de emails de Linus Torvalds discutiendo problemas con ``ioctl()``:
    https://yarchive.net/comp/linux/ioctl.html
- - "How to not invent kernel interfaces", Arnd Bergmann,
+ - "How to analt invent kernel interfaces", Arnd Bergmann,
    https://www.ukuug.org/events/linux2007/2007/papers/Bergmann.pdf
  - Artículo LWN de Michael Kerrisk sobre evitar nuevos usos de CAP_SYS_ADMIN:
    https://lwn.net/Articles/486306/
@@ -607,8 +607,8 @@ Referencias y fuentes
  - Recomendaciones de Michael Kerrisk que una nueva llamada al sistema debe venir
    con un man-page: https://lore.kernel.org/r/CAKgNAkgMA39AfoSoA5Pe1r9N+ZzfYQNvNPvcRN7tOvRb8+v06Q@mail.gmail.com
  - Sugerencias de Thomas Gleixner que conexiones x86 deben ir en commits
-   separados: https://lore.kernel.org/r/alpine.DEB.2.11.1411191249560.3909@nanos
- - Sugerencias de Greg Kroah-Hartman que es bueno para las nueva llamadas al sistema
+   separados: https://lore.kernel.org/r/alpine.DEB.2.11.1411191249560.3909@naanals
+ - Sugerencias de Greg Kroah-Hartman que es bueanal para las nueva llamadas al sistema
    que vengan con man-page y selftest: https://lore.kernel.org/r/20140320025530.GA25469@kroah.com
  - Discusión de Michael Kerrisk de nuevas system call vs. extensiones :manpage:`prctl(2)`:
    https://lore.kernel.org/r/CAHO5Pa3F2MjfTtfNxa8LbnkeeU8=YJ+9tDqxZpw7Gz59E-4AUg@mail.gmail.com
@@ -617,15 +617,15 @@ Referencias y fuentes
    un campo de tamaño para futura extensibilidad: https://lore.kernel.org/r/20150730083831.GA22182@gmail.com
  - Enumerando rarezas por la (re-)utilización de O_* numbering space flags:
 
-    - commit 75069f2b5bfb ("vfs: renumber FMODE_NONOTIFY and add to uniqueness
+    - commit 75069f2b5bfb ("vfs: renumber FMODE_ANALANALTIFY and add to uniqueness
       check")
-    - commit 12ed2e36c98a ("fanotify: FMODE_NONOTIFY and __O_SYNC in sparc
+    - commit 12ed2e36c98a ("faanaltify: FMODE_ANALANALTIFY and __O_SYNC in sparc
       conflict")
     - commit bb458c644a59 ("Safer ABI for O_TMPFILE")
 
  - Discusión de Matthew Wilcox sobre las restricciones en argumentos 64-bit:
    https://lore.kernel.org/r/20081212152929.GM26095@parisc-linux.org
- - Recomendaciones de Greg Kroah-Hartman sobre flags desconocidos deben ser
+ - Recomendaciones de Greg Kroah-Hartman sobre flags descoanalcidos deben ser
    vigilados: https://lore.kernel.org/r/20140717193330.GB4703@kroah.com
  - Recomendaciones de Linus Torvalds que las llamadas al sistema x32 deben favorecer
    compatibilidad con versiones 64-bit sobre versiones 32-bit:

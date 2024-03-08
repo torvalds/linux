@@ -20,14 +20,14 @@ ACPI_MODULE_NAME("nsdumpdv")
  *
  * FUNCTION:    acpi_ns_dump_one_device
  *
- * PARAMETERS:  handle              - Node to be dumped
+ * PARAMETERS:  handle              - Analde to be dumped
  *              level               - Nesting level of the handle
  *              context             - Passed into walk_namespace
- *              return_value        - Not used
+ *              return_value        - Analt used
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Dump a single Node that represents a device
+ * DESCRIPTION: Dump a single Analde that represents a device
  *              This procedure is a user_function called by acpi_ns_walk_namespace.
  *
  ******************************************************************************/
@@ -67,9 +67,9 @@ acpi_ns_dump_one_device(acpi_handle obj_handle,
  *
  * FUNCTION:    acpi_ns_dump_root_devices
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Dump all objects of type "device"
  *
@@ -97,7 +97,7 @@ void acpi_ns_dump_root_devices(void)
 			  "Display of all devices in the namespace:\n"));
 
 	status = acpi_ns_walk_namespace(ACPI_TYPE_DEVICE, sys_bus_handle,
-					ACPI_UINT32_MAX, ACPI_NS_WALK_NO_UNLOCK,
+					ACPI_UINT32_MAX, ACPI_NS_WALK_ANAL_UNLOCK,
 					acpi_ns_dump_one_device, NULL, NULL,
 					NULL);
 }

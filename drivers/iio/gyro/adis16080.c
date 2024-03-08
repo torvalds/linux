@@ -23,7 +23,7 @@
 
 /*
  * 1: Write contents on DIN to control register.
- * 0: No changes to control register.
+ * 0: Anal changes to control register.
  */
 
 #define ADIS16080_DIN_WRITE  (1 << 15)
@@ -193,7 +193,7 @@ static int adis16080_probe(struct spi_device *spi)
 	/* setup the industrialio driver allocated elements */
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 	st = iio_priv(indio_dev);
 
 	mutex_init(&st->lock);

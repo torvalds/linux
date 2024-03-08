@@ -40,10 +40,10 @@ static const struct proc_ns_operations *ns_entries[] = {
 };
 
 static const char *proc_ns_get_link(struct dentry *dentry,
-				    struct inode *inode,
+				    struct ianalde *ianalde,
 				    struct delayed_call *done)
 {
-	const struct proc_ns_operations *ns_ops = PROC_I(inode)->ns_ops;
+	const struct proc_ns_operations *ns_ops = PROC_I(ianalde)->ns_ops;
 	struct task_struct *task;
 	struct path ns_path;
 	int error = -EACCES;
@@ -51,7 +51,7 @@ static const char *proc_ns_get_link(struct dentry *dentry,
 	if (!dentry)
 		return ERR_PTR(-ECHILD);
 
-	task = get_proc_task(inode);
+	task = get_proc_task(ianalde);
 	if (!task)
 		return ERR_PTR(-EACCES);
 
@@ -70,13 +70,13 @@ out:
 
 static int proc_ns_readlink(struct dentry *dentry, char __user *buffer, int buflen)
 {
-	struct inode *inode = d_inode(dentry);
-	const struct proc_ns_operations *ns_ops = PROC_I(inode)->ns_ops;
+	struct ianalde *ianalde = d_ianalde(dentry);
+	const struct proc_ns_operations *ns_ops = PROC_I(ianalde)->ns_ops;
 	struct task_struct *task;
 	char name[50];
 	int res = -EACCES;
 
-	task = get_proc_task(inode);
+	task = get_proc_task(ianalde);
 	if (!task)
 		return res;
 
@@ -89,7 +89,7 @@ static int proc_ns_readlink(struct dentry *dentry, char __user *buffer, int bufl
 	return res;
 }
 
-static const struct inode_operations proc_ns_link_inode_operations = {
+static const struct ianalde_operations proc_ns_link_ianalde_operations = {
 	.readlink	= proc_ns_readlink,
 	.get_link	= proc_ns_get_link,
 	.setattr	= proc_setattr,
@@ -99,29 +99,29 @@ static struct dentry *proc_ns_instantiate(struct dentry *dentry,
 	struct task_struct *task, const void *ptr)
 {
 	const struct proc_ns_operations *ns_ops = ptr;
-	struct inode *inode;
-	struct proc_inode *ei;
+	struct ianalde *ianalde;
+	struct proc_ianalde *ei;
 
-	inode = proc_pid_make_inode(dentry->d_sb, task, S_IFLNK | S_IRWXUGO);
-	if (!inode)
-		return ERR_PTR(-ENOENT);
+	ianalde = proc_pid_make_ianalde(dentry->d_sb, task, S_IFLNK | S_IRWXUGO);
+	if (!ianalde)
+		return ERR_PTR(-EANALENT);
 
-	ei = PROC_I(inode);
-	inode->i_op = &proc_ns_link_inode_operations;
+	ei = PROC_I(ianalde);
+	ianalde->i_op = &proc_ns_link_ianalde_operations;
 	ei->ns_ops = ns_ops;
-	pid_update_inode(task, inode);
+	pid_update_ianalde(task, ianalde);
 
 	d_set_d_op(dentry, &pid_dentry_operations);
-	return d_splice_alias(inode, dentry);
+	return d_splice_alias(ianalde, dentry);
 }
 
 static int proc_ns_dir_readdir(struct file *file, struct dir_context *ctx)
 {
-	struct task_struct *task = get_proc_task(file_inode(file));
+	struct task_struct *task = get_proc_task(file_ianalde(file));
 	const struct proc_ns_operations **entry, **last;
 
 	if (!task)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (!dir_emit_dots(file, ctx))
 		goto out;
@@ -148,16 +148,16 @@ const struct file_operations proc_ns_dir_operations = {
 	.llseek		= generic_file_llseek,
 };
 
-static struct dentry *proc_ns_dir_lookup(struct inode *dir,
+static struct dentry *proc_ns_dir_lookup(struct ianalde *dir,
 				struct dentry *dentry, unsigned int flags)
 {
 	struct task_struct *task = get_proc_task(dir);
 	const struct proc_ns_operations **entry, **last;
 	unsigned int len = dentry->d_name.len;
-	struct dentry *res = ERR_PTR(-ENOENT);
+	struct dentry *res = ERR_PTR(-EANALENT);
 
 	if (!task)
-		goto out_no_task;
+		goto out_anal_task;
 
 	last = &ns_entries[ARRAY_SIZE(ns_entries)];
 	for (entry = ns_entries; entry < last; entry++) {
@@ -172,11 +172,11 @@ static struct dentry *proc_ns_dir_lookup(struct inode *dir,
 	res = proc_ns_instantiate(dentry, task, *entry);
 out:
 	put_task_struct(task);
-out_no_task:
+out_anal_task:
 	return res;
 }
 
-const struct inode_operations proc_ns_dir_inode_operations = {
+const struct ianalde_operations proc_ns_dir_ianalde_operations = {
 	.lookup		= proc_ns_dir_lookup,
 	.getattr	= pid_getattr,
 	.setattr	= proc_setattr,

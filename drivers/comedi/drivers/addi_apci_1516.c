@@ -116,13 +116,13 @@ static int apci1516_auto_attach(struct comedi_device *dev,
 	if (context < ARRAY_SIZE(apci1516_boardtypes))
 		board = &apci1516_boardtypes[context];
 	if (!board)
-		return -ENODEV;
+		return -EANALDEV;
 	dev->board_ptr = board;
 	dev->board_name = board->name;
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = comedi_pci_enable(dev);
 	if (ret)

@@ -12,8 +12,8 @@
  * This file implements code to handle symbolic links.
  *
  * The data contents of symbolic links are stored inside the symbolic
- * link inode within the inode table.  This allows the normally small symbolic
- * link to be compressed as part of the inode table, achieving much greater
+ * link ianalde within the ianalde table.  This allows the analrmally small symbolic
+ * link to be compressed as part of the ianalde table, achieving much greater
  * compression than if the symbolic link was compressed individually.
  */
 
@@ -33,13 +33,13 @@
 static int squashfs_symlink_read_folio(struct file *file, struct folio *folio)
 {
 	struct page *page = &folio->page;
-	struct inode *inode = page->mapping->host;
-	struct super_block *sb = inode->i_sb;
+	struct ianalde *ianalde = page->mapping->host;
+	struct super_block *sb = ianalde->i_sb;
 	struct squashfs_sb_info *msblk = sb->s_fs_info;
 	int index = page->index << PAGE_SHIFT;
-	u64 block = squashfs_i(inode)->start;
-	int offset = squashfs_i(inode)->offset;
-	int length = min_t(int, i_size_read(inode) - index, PAGE_SIZE);
+	u64 block = squashfs_i(ianalde)->start;
+	int offset = squashfs_i(ianalde)->offset;
+	int length = min_t(int, i_size_read(ianalde) - index, PAGE_SIZE);
 	int bytes, copied;
 	void *pageaddr;
 	struct squashfs_cache_entry *entry;
@@ -55,15 +55,15 @@ static int squashfs_symlink_read_folio(struct file *file, struct folio *folio)
 								index);
 		if (bytes < 0) {
 			ERROR("Unable to read symlink [%llx:%x]\n",
-				squashfs_i(inode)->start,
-				squashfs_i(inode)->offset);
+				squashfs_i(ianalde)->start,
+				squashfs_i(ianalde)->offset);
 			goto error_out;
 		}
 	}
 
 	/*
 	 * Read length bytes from symlink metadata.  Squashfs_read_metadata
-	 * is not used here because it can sleep and we want to use
+	 * is analt used here because it can sleep and we want to use
 	 * kmap_atomic to map the page.  Instead call the underlying
 	 * squashfs_cache_get routine.  As length bytes may overlap metadata
 	 * blocks, we may need to call squashfs_cache_get multiple times.
@@ -72,8 +72,8 @@ static int squashfs_symlink_read_folio(struct file *file, struct folio *folio)
 		entry = squashfs_cache_get(sb, msblk->block_cache, block, 0);
 		if (entry->error) {
 			ERROR("Unable to read symlink [%llx:%x]\n",
-				squashfs_i(inode)->start,
-				squashfs_i(inode)->offset);
+				squashfs_i(ianalde)->start,
+				squashfs_i(ianalde)->offset);
 			squashfs_cache_put(entry);
 			goto error_out;
 		}
@@ -105,7 +105,7 @@ const struct address_space_operations squashfs_symlink_aops = {
 	.read_folio = squashfs_symlink_read_folio
 };
 
-const struct inode_operations squashfs_symlink_inode_ops = {
+const struct ianalde_operations squashfs_symlink_ianalde_ops = {
 	.get_link = page_get_link,
 	.listxattr = squashfs_listxattr
 };

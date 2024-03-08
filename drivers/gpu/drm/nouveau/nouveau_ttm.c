@@ -10,13 +10,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
@@ -28,84 +28,84 @@
 #include <drm/ttm/ttm_range_manager.h>
 #include <drm/drm_cache.h>
 
-#include "nouveau_drv.h"
-#include "nouveau_gem.h"
-#include "nouveau_mem.h"
-#include "nouveau_ttm.h"
+#include "analuveau_drv.h"
+#include "analuveau_gem.h"
+#include "analuveau_mem.h"
+#include "analuveau_ttm.h"
 
 #include <core/tegra.h>
 
 static void
-nouveau_manager_del(struct ttm_resource_manager *man,
+analuveau_manager_del(struct ttm_resource_manager *man,
 		    struct ttm_resource *reg)
 {
-	nouveau_mem_del(man, reg);
+	analuveau_mem_del(man, reg);
 }
 
 static bool
-nouveau_manager_intersects(struct ttm_resource_manager *man,
+analuveau_manager_intersects(struct ttm_resource_manager *man,
 			   struct ttm_resource *res,
 			   const struct ttm_place *place,
 			   size_t size)
 {
-	return nouveau_mem_intersects(res, place, size);
+	return analuveau_mem_intersects(res, place, size);
 }
 
 static bool
-nouveau_manager_compatible(struct ttm_resource_manager *man,
+analuveau_manager_compatible(struct ttm_resource_manager *man,
 			   struct ttm_resource *res,
 			   const struct ttm_place *place,
 			   size_t size)
 {
-	return nouveau_mem_compatible(res, place, size);
+	return analuveau_mem_compatible(res, place, size);
 }
 
 static int
-nouveau_vram_manager_new(struct ttm_resource_manager *man,
+analuveau_vram_manager_new(struct ttm_resource_manager *man,
 			 struct ttm_buffer_object *bo,
 			 const struct ttm_place *place,
 			 struct ttm_resource **res)
 {
-	struct nouveau_bo *nvbo = nouveau_bo(bo);
-	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
+	struct analuveau_bo *nvbo = analuveau_bo(bo);
+	struct analuveau_drm *drm = analuveau_bdev(bo->bdev);
 	int ret;
 
 	if (drm->client.device.info.ram_size == 0)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	ret = nouveau_mem_new(&drm->master, nvbo->kind, nvbo->comp, res);
+	ret = analuveau_mem_new(&drm->master, nvbo->kind, nvbo->comp, res);
 	if (ret)
 		return ret;
 
 	ttm_resource_init(bo, place, *res);
 
-	ret = nouveau_mem_vram(*res, nvbo->contig, nvbo->page);
+	ret = analuveau_mem_vram(*res, nvbo->contig, nvbo->page);
 	if (ret) {
-		nouveau_mem_del(man, *res);
+		analuveau_mem_del(man, *res);
 		return ret;
 	}
 
 	return 0;
 }
 
-const struct ttm_resource_manager_func nouveau_vram_manager = {
-	.alloc = nouveau_vram_manager_new,
-	.free = nouveau_manager_del,
-	.intersects = nouveau_manager_intersects,
-	.compatible = nouveau_manager_compatible,
+const struct ttm_resource_manager_func analuveau_vram_manager = {
+	.alloc = analuveau_vram_manager_new,
+	.free = analuveau_manager_del,
+	.intersects = analuveau_manager_intersects,
+	.compatible = analuveau_manager_compatible,
 };
 
 static int
-nouveau_gart_manager_new(struct ttm_resource_manager *man,
+analuveau_gart_manager_new(struct ttm_resource_manager *man,
 			 struct ttm_buffer_object *bo,
 			 const struct ttm_place *place,
 			 struct ttm_resource **res)
 {
-	struct nouveau_bo *nvbo = nouveau_bo(bo);
-	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
+	struct analuveau_bo *nvbo = analuveau_bo(bo);
+	struct analuveau_drm *drm = analuveau_bdev(bo->bdev);
 	int ret;
 
-	ret = nouveau_mem_new(&drm->master, nvbo->kind, nvbo->comp, res);
+	ret = analuveau_mem_new(&drm->master, nvbo->kind, nvbo->comp, res);
 	if (ret)
 		return ret;
 
@@ -114,11 +114,11 @@ nouveau_gart_manager_new(struct ttm_resource_manager *man,
 	return 0;
 }
 
-const struct ttm_resource_manager_func nouveau_gart_manager = {
-	.alloc = nouveau_gart_manager_new,
-	.free = nouveau_manager_del,
-	.intersects = nouveau_manager_intersects,
-	.compatible = nouveau_manager_compatible,
+const struct ttm_resource_manager_func analuveau_gart_manager = {
+	.alloc = analuveau_gart_manager_new,
+	.free = analuveau_manager_del,
+	.intersects = analuveau_manager_intersects,
+	.compatible = analuveau_manager_compatible,
 };
 
 static int
@@ -127,21 +127,21 @@ nv04_gart_manager_new(struct ttm_resource_manager *man,
 		      const struct ttm_place *place,
 		      struct ttm_resource **res)
 {
-	struct nouveau_bo *nvbo = nouveau_bo(bo);
-	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
-	struct nouveau_mem *mem;
+	struct analuveau_bo *nvbo = analuveau_bo(bo);
+	struct analuveau_drm *drm = analuveau_bdev(bo->bdev);
+	struct analuveau_mem *mem;
 	int ret;
 
-	ret = nouveau_mem_new(&drm->master, nvbo->kind, nvbo->comp, res);
+	ret = analuveau_mem_new(&drm->master, nvbo->kind, nvbo->comp, res);
 	if (ret)
 		return ret;
 
-	mem = nouveau_mem(*res);
+	mem = analuveau_mem(*res);
 	ttm_resource_init(bo, place, *res);
 	ret = nvif_vmm_get(&mem->cli->vmm.vmm, PTES, false, 12, 0,
 			   (long)(*res)->size, &mem->vma[0]);
 	if (ret) {
-		nouveau_mem_del(man, *res);
+		analuveau_mem_del(man, *res);
 		return ret;
 	}
 
@@ -151,13 +151,13 @@ nv04_gart_manager_new(struct ttm_resource_manager *man,
 
 const struct ttm_resource_manager_func nv04_gart_manager = {
 	.alloc = nv04_gart_manager_new,
-	.free = nouveau_manager_del,
-	.intersects = nouveau_manager_intersects,
-	.compatible = nouveau_manager_compatible,
+	.free = analuveau_manager_del,
+	.intersects = analuveau_manager_intersects,
+	.compatible = analuveau_manager_compatible,
 };
 
 static int
-nouveau_ttm_init_host(struct nouveau_drm *drm, u8 kind)
+analuveau_ttm_init_host(struct analuveau_drm *drm, u8 kind)
 {
 	struct nvif_mmu *mmu = &drm->client.mmu;
 	int typei;
@@ -165,28 +165,28 @@ nouveau_ttm_init_host(struct nouveau_drm *drm, u8 kind)
 	typei = nvif_mmu_type(mmu, NVIF_MEM_HOST | NVIF_MEM_MAPPABLE |
 					    kind | NVIF_MEM_COHERENT);
 	if (typei < 0)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	drm->ttm.type_host[!!kind] = typei;
 
 	typei = nvif_mmu_type(mmu, NVIF_MEM_HOST | NVIF_MEM_MAPPABLE | kind);
 	if (typei < 0)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	drm->ttm.type_ncoh[!!kind] = typei;
 	return 0;
 }
 
 static int
-nouveau_ttm_init_vram(struct nouveau_drm *drm)
+analuveau_ttm_init_vram(struct analuveau_drm *drm)
 {
 	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
 		struct ttm_resource_manager *man = kzalloc(sizeof(*man), GFP_KERNEL);
 
 		if (!man)
-			return -ENOMEM;
+			return -EANALMEM;
 
-		man->func = &nouveau_vram_manager;
+		man->func = &analuveau_vram_manager;
 
 		ttm_resource_manager_init(man, &drm->ttm.bdev,
 					  drm->gem.vram_available >> PAGE_SHIFT);
@@ -200,7 +200,7 @@ nouveau_ttm_init_vram(struct nouveau_drm *drm)
 }
 
 static void
-nouveau_ttm_fini_vram(struct nouveau_drm *drm)
+analuveau_ttm_fini_vram(struct analuveau_drm *drm)
 {
 	struct ttm_resource_manager *man = ttm_manager_type(&drm->ttm.bdev, TTM_PL_VRAM);
 
@@ -215,14 +215,14 @@ nouveau_ttm_fini_vram(struct nouveau_drm *drm)
 }
 
 static int
-nouveau_ttm_init_gtt(struct nouveau_drm *drm)
+analuveau_ttm_init_gtt(struct analuveau_drm *drm)
 {
 	struct ttm_resource_manager *man;
 	unsigned long size_pages = drm->gem.gart_available >> PAGE_SHIFT;
 	const struct ttm_resource_manager_func *func = NULL;
 
 	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA)
-		func = &nouveau_gart_manager;
+		func = &analuveau_gart_manager;
 	else if (!drm->agp.bridge)
 		func = &nv04_gart_manager;
 	else
@@ -231,7 +231,7 @@ nouveau_ttm_init_gtt(struct nouveau_drm *drm)
 
 	man = kzalloc(sizeof(*man), GFP_KERNEL);
 	if (!man)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	man->func = func;
 	man->use_tt = true;
@@ -242,7 +242,7 @@ nouveau_ttm_init_gtt(struct nouveau_drm *drm)
 }
 
 static void
-nouveau_ttm_fini_gtt(struct nouveau_drm *drm)
+analuveau_ttm_fini_gtt(struct analuveau_drm *drm)
 {
 	struct ttm_resource_manager *man = ttm_manager_type(&drm->ttm.bdev, TTM_PL_TT);
 
@@ -259,7 +259,7 @@ nouveau_ttm_fini_gtt(struct nouveau_drm *drm)
 }
 
 int
-nouveau_ttm_init(struct nouveau_drm *drm)
+analuveau_ttm_init(struct analuveau_drm *drm)
 {
 	struct nvkm_device *device = nvxx_device(&drm->client.device);
 	struct nvkm_pci *pci = device->pci;
@@ -267,13 +267,13 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 	struct drm_device *dev = drm->dev;
 	int typei, ret;
 
-	ret = nouveau_ttm_init_host(drm, 0);
+	ret = analuveau_ttm_init_host(drm, 0);
 	if (ret)
 		return ret;
 
 	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA &&
 	    drm->client.device.info.chipset != 0x50) {
-		ret = nouveau_ttm_init_host(drm, NVIF_MEM_KIND);
+		ret = analuveau_ttm_init_host(drm, NVIF_MEM_KIND);
 		if (ret)
 			return ret;
 	}
@@ -285,7 +285,7 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 					   NVIF_MEM_COMP |
 					   NVIF_MEM_DISP);
 		if (typei < 0)
-			return -ENOSYS;
+			return -EANALSYS;
 
 		drm->ttm.type_vram = typei;
 	} else {
@@ -299,8 +299,8 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 		drm->agp.cma = pci->agp.cma;
 	}
 
-	ret = ttm_device_init(&drm->ttm.bdev, &nouveau_bo_driver, drm->dev->dev,
-				  dev->anon_inode->i_mapping,
+	ret = ttm_device_init(&drm->ttm.bdev, &analuveau_bo_driver, drm->dev->dev,
+				  dev->aanaln_ianalde->i_mapping,
 				  dev->vma_offset_manager,
 				  drm_need_swiotlb(drm->client.mmu.dmabits),
 				  drm->client.mmu.dmabits <= 32);
@@ -315,7 +315,7 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 	arch_io_reserve_memtype_wc(device->func->resource_addr(device, 1),
 				   device->func->resource_size(device, 1));
 
-	ret = nouveau_ttm_init_vram(drm);
+	ret = analuveau_ttm_init_vram(drm);
 	if (ret) {
 		NV_ERROR(drm, "VRAM mm init failed, %d\n", ret);
 		return ret;
@@ -331,7 +331,7 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 		drm->gem.gart_available = drm->agp.size;
 	}
 
-	ret = nouveau_ttm_init_gtt(drm);
+	ret = analuveau_ttm_init_gtt(drm);
 	if (ret) {
 		NV_ERROR(drm, "GART mm init failed, %d\n", ret);
 		return ret;
@@ -346,12 +346,12 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 }
 
 void
-nouveau_ttm_fini(struct nouveau_drm *drm)
+analuveau_ttm_fini(struct analuveau_drm *drm)
 {
 	struct nvkm_device *device = nvxx_device(&drm->client.device);
 
-	nouveau_ttm_fini_vram(drm);
-	nouveau_ttm_fini_gtt(drm);
+	analuveau_ttm_fini_vram(drm);
+	analuveau_ttm_fini_gtt(drm);
 
 	ttm_device_fini(&drm->ttm.bdev);
 

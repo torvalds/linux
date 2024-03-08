@@ -10,7 +10,7 @@
 #include <linux/stddef.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/reboot.h>
 #include <linux/pci.h>
 #include <linux/kdev_t.h>
@@ -42,17 +42,17 @@ static void __init quirk_mpc8360e_qe_enet10(void)
 {
 	/*
 	 * handle mpc8360E Erratum QE_ENET10:
-	 * RGMII AC values do not meet the specification
+	 * RGMII AC values do analt meet the specification
 	 */
 	uint svid = mfspr(SPRN_SVR);
-	struct	device_node *np_par;
+	struct	device_analde *np_par;
 	struct	resource res;
 	void	__iomem *base;
 	int	ret;
 
-	np_par = of_find_node_by_name(NULL, "par_io");
+	np_par = of_find_analde_by_name(NULL, "par_io");
 	if (np_par == NULL) {
-		pr_warn("%s couldn't find par_io node\n", __func__);
+		pr_warn("%s couldn't find par_io analde\n", __func__);
 		return;
 	}
 	/* Map Parallel I/O ports registers */
@@ -113,7 +113,7 @@ static void __init quirk_mpc8360e_qe_enet10(void)
 	}
 	iounmap(base);
 out:
-	of_node_put(np_par);
+	of_analde_put(np_par);
 }
 
 /* ************************************************************************
@@ -124,28 +124,28 @@ out:
 static void __init mpc83xx_km_setup_arch(void)
 {
 #ifdef CONFIG_QUICC_ENGINE
-	struct device_node *np;
+	struct device_analde *np;
 #endif
 
 	mpc83xx_setup_arch();
 
 #ifdef CONFIG_QUICC_ENGINE
-	np = of_find_node_by_name(NULL, "par_io");
+	np = of_find_analde_by_name(NULL, "par_io");
 	if (np != NULL) {
 		par_io_init(np);
-		of_node_put(np);
+		of_analde_put(np);
 
-		for_each_node_by_name(np, "spi")
+		for_each_analde_by_name(np, "spi")
 			par_io_of_config(np);
 
-		for_each_node_by_name(np, "ucc")
+		for_each_analde_by_name(np, "ucc")
 			par_io_of_config(np);
 
 		/* Only apply this quirk when par_io is available */
-		np = of_find_compatible_node(NULL, "network", "ucc_geth");
+		np = of_find_compatible_analde(NULL, "network", "ucc_geth");
 		if (np != NULL) {
 			quirk_mpc8360e_qe_enet10();
-			of_node_put(np);
+			of_analde_put(np);
 		}
 	}
 #endif	/* CONFIG_QUICC_ENGINE */

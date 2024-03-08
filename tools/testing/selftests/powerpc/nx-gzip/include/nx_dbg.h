@@ -31,7 +31,7 @@ pthread_mutex_t mutex_log;
 
 #define prt(fmt, ...) do { \
 	pthread_mutex_lock(&mutex_log);					\
-	flock(nx_gzip_log->_fileno, LOCK_EX);				\
+	flock(nx_gzip_log->_fileanal, LOCK_EX);				\
 	time_t t; struct tm *m; time(&t); m = localtime(&t);		\
 	fprintf(nx_gzip_log, "[%04d/%02d/%02d %02d:%02d:%02d] "		\
 		"pid %d: " fmt,	\
@@ -39,7 +39,7 @@ pthread_mutex_t mutex_log;
 		(int)m->tm_hour, (int)m->tm_min, (int)m->tm_sec,	\
 		(int)getpid(), ## __VA_ARGS__);				\
 	fflush(nx_gzip_log);						\
-	flock(nx_gzip_log->_fileno, LOCK_UN);				\
+	flock(nx_gzip_log->_fileanal, LOCK_UN);				\
 	pthread_mutex_unlock(&mutex_log);				\
 } while (0)
 
@@ -90,6 +90,6 @@ pthread_mutex_t mutex_log;
  *              GiB for gigabyte
  */
 uint64_t str_to_num(char *str);
-void nx_lib_debug(int onoff);
+void nx_lib_debug(int oanalff);
 
 #endif	/* _NXU_DBG_H_ */

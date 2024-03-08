@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -219,9 +219,9 @@ static void nbio_v2_3_ih_control(struct amdgpu_device *adev)
 	interrupt_cntl = REG_SET_FIELD(interrupt_cntl, INTERRUPT_CNTL,
 				       IH_DUMMY_RD_OVERRIDE, 0);
 
-	/* INTERRUPT_CNTL__IH_REQ_NONSNOOP_EN_MASK=1 if ring is in non-cacheable memory, e.g., vram */
+	/* INTERRUPT_CNTL__IH_REQ_ANALNSANALOP_EN_MASK=1 if ring is in analn-cacheable memory, e.g., vram */
 	interrupt_cntl = REG_SET_FIELD(interrupt_cntl, INTERRUPT_CNTL,
-				       IH_REQ_NONSNOOP_EN, 0);
+				       IH_REQ_ANALNSANALOP_EN, 0);
 
 	WREG32_SOC15(NBIO, 0, mmINTERRUPT_CNTL, interrupt_cntl);
 }
@@ -345,7 +345,7 @@ static void nbio_v2_3_init_registers(struct amdgpu_device *adev)
 			mmBIF_BX_DEV0_EPF0_VF0_HDP_MEM_COHERENCY_FLUSH_CNTL) << 2;
 }
 
-#define NAVI10_PCIE__LC_L0S_INACTIVITY_DEFAULT		0x00000000 // off by default, no gains over L1
+#define NAVI10_PCIE__LC_L0S_INACTIVITY_DEFAULT		0x00000000 // off by default, anal gains over L1
 #define NAVI10_PCIE__LC_L1_INACTIVITY_DEFAULT		0x0000000A // 1=1us, 9=1ms, 10=4ms
 #define NAVI10_PCIE__LC_L1_INACTIVITY_TBT_DEFAULT	0x0000000E // 400ms
 
@@ -394,7 +394,7 @@ static void nbio_v2_3_program_ltr(struct amdgpu_device *adev)
 		WREG32_SOC15(NBIO, 0, mmRCC_BIF_STRAP2, data);
 
 	def = data = RREG32_PCIE(smnRCC_EP_DEV0_0_EP_PCIE_TX_LTR_CNTL);
-	data &= ~EP_PCIE_TX_LTR_CNTL__LTR_PRIV_MSG_DIS_IN_PM_NON_D0_MASK;
+	data &= ~EP_PCIE_TX_LTR_CNTL__LTR_PRIV_MSG_DIS_IN_PM_ANALN_D0_MASK;
 	if (def != data)
 		WREG32_PCIE(smnRCC_EP_DEV0_0_EP_PCIE_TX_LTR_CNTL, data);
 
@@ -463,7 +463,7 @@ static void nbio_v2_3_program_aspm(struct amdgpu_device *adev)
 	if (def != data)
 		WREG32_PCIE(smnPCIE_LC_CNTL6, data);
 
-	/* Don't bother about LTR if LTR is not enabled
+	/* Don't bother about LTR if LTR is analt enabled
 	 * in the path */
 	if (adev->pdev->ltr_path)
 		nbio_v2_3_program_ltr(adev);

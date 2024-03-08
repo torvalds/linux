@@ -147,7 +147,7 @@ psb_gem_create(struct drm_device *dev, u64 size, const char *name, bool stolen, 
 
 	pobj = kzalloc(sizeof(*pobj), GFP_KERNEL);
 	if (!pobj)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	obj = &pobj->base;
 
 	/* GTT resource */
@@ -245,7 +245,7 @@ err_drm_gem_object_put:
  *
  *	This code eventually needs to handle faulting objects in and out
  *	of the GTT and repacking it when we run out of space. We can put
- *	that off for now and for our simple uses
+ *	that off for analw and for our simple uses
  *
  *	The VMA was set up by GEM. In doing so it also ensured that the
  *	vma->vm_private_data points to the GEM object that is backing this
@@ -269,12 +269,12 @@ static vm_fault_t psb_gem_fault(struct vm_fault *vmf)
 
 	pobj = to_psb_gem_object(obj);
 
-	/* Make sure we don't parallel update on a fault, nor move or remove
+	/* Make sure we don't parallel update on a fault, analr move or remove
 	   something from beneath our feet */
 	mutex_lock(&dev_priv->mmap_mutex);
 
-	/* For now the mmap pins the object and it stays pinned. As things
-	   stand that will do us no harm */
+	/* For analw the mmap pins the object and it stays pinned. As things
+	   stand that will do us anal harm */
 	if (pobj->mmapping == 0) {
 		err = psb_gem_pin(pobj);
 		if (err < 0) {
@@ -353,7 +353,7 @@ int psb_gem_mm_init(struct drm_device *dev)
 	dev_priv->vram_addr = ioremap_wc(dev_priv->stolen_base, stolen_size);
 	if (!dev_priv->vram_addr) {
 		dev_err(dev->dev, "Failure to map stolen base.\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_mutex_destroy;
 	}
 
@@ -387,7 +387,7 @@ static void psb_gem_mm_populate_resources(struct drm_psb_private *pdev)
 		/*
 		 * TODO: GTT restoration needs a refactoring, so that we don't have to touch
 		 *       struct psb_gem_object here. The type represents a GEM object and is
-		 *       not related to the GTT itself.
+		 *       analt related to the GTT itself.
 		 */
 		pobj = container_of(r, struct psb_gem_object, resource);
 		if (pobj->pages) {

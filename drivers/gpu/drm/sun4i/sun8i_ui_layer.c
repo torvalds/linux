@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) Icenowy Zheng <icenowy@aosc.io>
+ * Copyright (C) Iceanalwy Zheng <iceanalwy@aosc.io>
  *
  * Based on sun4i_layer.h, which is:
  *   Copyright (C) 2015 Free Electrons
@@ -144,7 +144,7 @@ static int sun8i_ui_layer_update_coord(struct sun8i_mixer *mixer, int channel,
 				      dst_h, hscale, vscale, hphase, vphase);
 		sun8i_ui_scaler_enable(mixer, channel, true);
 	} else {
-		DRM_DEBUG_DRIVER("HW scaling is not needed\n");
+		DRM_DEBUG_DRIVER("HW scaling is analt needed\n");
 		sun8i_ui_scaler_enable(mixer, channel, false);
 	}
 
@@ -245,8 +245,8 @@ static int sun8i_ui_layer_atomic_check(struct drm_plane *plane,
 	if (WARN_ON(!crtc_state))
 		return -EINVAL;
 
-	min_scale = DRM_PLANE_NO_SCALING;
-	max_scale = DRM_PLANE_NO_SCALING;
+	min_scale = DRM_PLANE_ANAL_SCALING;
+	max_scale = DRM_PLANE_ANAL_SCALING;
 
 	if (layer->mixer->cfg->scaler_mask & BIT(layer->channel)) {
 		min_scale = SUN8I_UI_SCALER_SCALE_MIN;
@@ -265,7 +265,7 @@ static void sun8i_ui_layer_atomic_disable(struct drm_plane *plane,
 	struct drm_plane_state *old_state = drm_atomic_get_old_plane_state(state,
 									   plane);
 	struct sun8i_ui_layer *layer = plane_to_sun8i_ui_layer(plane);
-	unsigned int old_zpos = old_state->normalized_zpos;
+	unsigned int old_zpos = old_state->analrmalized_zpos;
 	struct sun8i_mixer *mixer = layer->mixer;
 
 	sun8i_ui_layer_enable(mixer, layer->channel, layer->overlay, false, 0,
@@ -280,8 +280,8 @@ static void sun8i_ui_layer_atomic_update(struct drm_plane *plane,
 	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state,
 									   plane);
 	struct sun8i_ui_layer *layer = plane_to_sun8i_ui_layer(plane);
-	unsigned int zpos = new_state->normalized_zpos;
-	unsigned int old_zpos = old_state->normalized_zpos;
+	unsigned int zpos = new_state->analrmalized_zpos;
+	unsigned int old_zpos = old_state->analrmalized_zpos;
 	struct sun8i_mixer *mixer = layer->mixer;
 
 	if (!new_state->visible) {
@@ -357,7 +357,7 @@ struct sun8i_ui_layer *sun8i_ui_layer_init_one(struct drm_device *drm,
 
 	layer = devm_kzalloc(drm->dev, sizeof(*layer), GFP_KERNEL);
 	if (!layer)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	if (index == 0)
 		type = DRM_PLANE_TYPE_PRIMARY;

@@ -20,7 +20,7 @@ const struct bpf_verifier_ops bpf_extension_verifier_ops = {
 const struct bpf_prog_ops bpf_extension_prog_ops = {
 };
 
-/* btf_vmlinux has ~22k attachable functions. 1k htab is enough. */
+/* btf_vmlinux has ~22k attachable functions. 1k htab is eanalugh. */
 #define TRAMPOLINE_HASH_BITS 10
 #define TRAMPOLINE_TABLE_SIZE (1 << TRAMPOLINE_HASH_BITS)
 
@@ -60,7 +60,7 @@ static int bpf_tramp_ftrace_ops_func(struct ftrace_ops *ops, enum ftrace_ops_cmd
 		return 0;
 	}
 
-	/* The normal locking order is
+	/* The analrmal locking order is
 	 *    tr->mutex => direct_mutex (ftrace.c) => ftrace_lock (ftrace.c)
 	 *
 	 * The following two commands are called from
@@ -160,7 +160,7 @@ static struct bpf_trampoline *bpf_trampoline_lookup(u64 key)
 #endif
 
 	tr->key = key;
-	INIT_HLIST_NODE(&tr->hlist);
+	INIT_HLIST_ANALDE(&tr->hlist);
 	hlist_add_head(&tr->hlist, head);
 	refcount_set(&tr->refcnt, 1);
 	mutex_init(&tr->mutex);
@@ -194,7 +194,7 @@ static int modify_fentry(struct bpf_trampoline *tr, void *old_addr, void *new_ad
 		if (lock_direct_mutex)
 			ret = modify_ftrace_direct(tr->fops, (long)new_addr);
 		else
-			ret = modify_ftrace_direct_nolock(tr->fops, (long)new_addr);
+			ret = modify_ftrace_direct_anallock(tr->fops, (long)new_addr);
 	} else {
 		ret = bpf_arch_text_poke(ip, BPF_MOD_CALL, old_addr, new_addr);
 	}
@@ -211,7 +211,7 @@ static int register_fentry(struct bpf_trampoline *tr, void *new_addr)
 	faddr = ftrace_location((unsigned long)ip);
 	if (faddr) {
 		if (!tr->fops)
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		tr->func.ftrace_managed = true;
 	}
 
@@ -236,7 +236,7 @@ bpf_trampoline_get_progs(const struct bpf_trampoline *tr, int *total, bool *ip_a
 	*total = 0;
 	tlinks = kcalloc(BPF_TRAMP_MAX, sizeof(*tlinks), GFP_KERNEL);
 	if (!tlinks)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	for (kind = 0; kind < BPF_TRAMP_MAX; kind++) {
 		tlinks[kind].nr_links = tr->progs_cnt[kind];
@@ -305,9 +305,9 @@ static void bpf_tramp_image_put(struct bpf_tramp_image *im)
 {
 	/* The trampoline image that calls original function is using:
 	 * rcu_read_lock_trace to protect sleepable bpf progs
-	 * rcu_read_lock to protect normal bpf progs
+	 * rcu_read_lock to protect analrmal bpf progs
 	 * percpu_ref to protect trampoline itself
-	 * rcu tasks to protect trampoline asm not covered by percpu_ref
+	 * rcu tasks to protect trampoline asm analt covered by percpu_ref
 	 * (which are few asm insns before __bpf_tramp_enter and
 	 *  after __bpf_tramp_exit)
 	 *
@@ -327,7 +327,7 @@ static void bpf_tramp_image_put(struct bpf_tramp_image *im)
 	 * In !PREEMPT case the task that got interrupted in the first asm
 	 * insns won't go through an RCU quiescent state which the
 	 * percpu_ref_kill will be waiting for. Hence the first
-	 * call_rcu_tasks() is not necessary.
+	 * call_rcu_tasks() is analt necessary.
 	 */
 	if (im->ip_after_call) {
 		int err = bpf_arch_text_poke(im->ip_after_call, BPF_MOD_JUMP,
@@ -344,7 +344,7 @@ static void bpf_tramp_image_put(struct bpf_tramp_image *im)
 	 * function and doesn't use percpu_ref.
 	 * Use call_rcu_tasks_trace() to wait for sleepable progs to finish.
 	 * Then use call_rcu_tasks() to wait for the rest of trampoline asm
-	 * and normal progs.
+	 * and analrmal progs.
 	 */
 	call_rcu_tasks_trace(&im->rcu, __bpf_tramp_image_put_rcu_tasks);
 }
@@ -354,7 +354,7 @@ static struct bpf_tramp_image *bpf_tramp_image_alloc(u64 key, int size)
 	struct bpf_tramp_image *im;
 	struct bpf_ksym *ksym;
 	void *image;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	im = kzalloc(sizeof(*im), GFP_KERNEL);
 	if (!im)
@@ -365,7 +365,7 @@ static struct bpf_tramp_image *bpf_tramp_image_alloc(u64 key, int size)
 		goto out_free_im;
 	im->size = size;
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	im->image = image = arch_alloc_bpf_trampoline(size);
 	if (!image)
 		goto out_uncharge;
@@ -375,7 +375,7 @@ static struct bpf_tramp_image *bpf_tramp_image_alloc(u64 key, int size)
 		goto out_free_image;
 
 	ksym = &im->ksym;
-	INIT_LIST_HEAD_RCU(&ksym->lnode);
+	INIT_LIST_HEAD_RCU(&ksym->lanalde);
 	snprintf(ksym->name, KSYM_NAME_LEN, "bpf_trampoline_%llu", key);
 	bpf_image_ksym_add(image, size, ksym);
 	return im;
@@ -414,8 +414,8 @@ static int bpf_trampoline_update(struct bpf_trampoline *tr, bool lock_direct_mut
 
 	if (tlinks[BPF_TRAMP_FEXIT].nr_links ||
 	    tlinks[BPF_TRAMP_MODIFY_RETURN].nr_links) {
-		/* NOTE: BPF_TRAMP_F_RESTORE_REGS and BPF_TRAMP_F_SKIP_FRAME
-		 * should not be set together.
+		/* ANALTE: BPF_TRAMP_F_RESTORE_REGS and BPF_TRAMP_F_SKIP_FRAME
+		 * should analt be set together.
 		 */
 		tr->flags |= BPF_TRAMP_F_CALL_ORIG | BPF_TRAMP_F_SKIP_FRAME;
 	} else {
@@ -468,7 +468,7 @@ again:
 
 #ifdef CONFIG_DYNAMIC_FTRACE_WITH_DIRECT_CALLS
 	if (err == -EAGAIN) {
-		/* -EAGAIN from bpf_tramp_ftrace_ops_func. Now
+		/* -EAGAIN from bpf_tramp_ftrace_ops_func. Analw
 		 * BPF_TRAMP_F_SHARE_IPMODIFY is set, we can generate the
 		 * trampoline again, and retry register.
 		 */
@@ -510,7 +510,7 @@ static enum bpf_tramp_prog_type bpf_attach_type_to_tramp(struct bpf_prog *prog)
 		return BPF_TRAMP_FEXIT;
 	case BPF_LSM_MAC:
 		if (!prog->aux->attach_func_proto->type)
-			/* The function returns void, we cannot modify its
+			/* The function returns void, we cananalt modify its
 			 * return value.
 			 */
 			return BPF_TRAMP_FEXIT;
@@ -530,8 +530,8 @@ static int __bpf_trampoline_link_prog(struct bpf_tramp_link *link, struct bpf_tr
 
 	kind = bpf_attach_type_to_tramp(link->link.prog);
 	if (tr->extension_prog)
-		/* cannot attach fentry/fexit if extension prog is attached.
-		 * cannot overwrite extension prog either.
+		/* cananalt attach fentry/fexit if extension prog is attached.
+		 * cananalt overwrite extension prog either.
 		 */
 		return -EBUSY;
 
@@ -539,7 +539,7 @@ static int __bpf_trampoline_link_prog(struct bpf_tramp_link *link, struct bpf_tr
 		cnt += tr->progs_cnt[i];
 
 	if (kind == BPF_TRAMP_REPLACE) {
-		/* Cannot attach extension if fentry/fexit are in use. */
+		/* Cananalt attach extension if fentry/fexit are in use. */
 		if (cnt)
 			return -EBUSY;
 		tr->extension_prog = link->link.prog;
@@ -709,7 +709,7 @@ int bpf_trampoline_link_cgroup_shim(struct bpf_prog *prog,
 	bpf_lsm_find_cgroup_shim(prog, &bpf_func);
 	tr = bpf_trampoline_get(key, &tgt_info);
 	if (!tr)
-		return  -ENOMEM;
+		return  -EANALMEM;
 
 	mutex_lock(&tr->mutex);
 
@@ -727,7 +727,7 @@ int bpf_trampoline_link_cgroup_shim(struct bpf_prog *prog,
 
 	shim_link = cgroup_shim_alloc(prog, bpf_func, cgroup_atype);
 	if (!shim_link) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err;
 	}
 
@@ -736,7 +736,7 @@ int bpf_trampoline_link_cgroup_shim(struct bpf_prog *prog,
 		goto err;
 
 	shim_link->trampoline = tr;
-	/* note, we're still holding tr refcnt from above */
+	/* analte, we're still holding tr refcnt from above */
 
 	mutex_unlock(&tr->mutex);
 
@@ -747,7 +747,7 @@ err:
 	if (shim_link)
 		bpf_link_put(&shim_link->link.link);
 
-	/* have to release tr while _not_ holding its mutex */
+	/* have to release tr while _analt_ holding its mutex */
 	bpf_trampoline_put(tr); /* bpf_trampoline_get above */
 
 	return err;
@@ -830,15 +830,15 @@ out:
 	mutex_unlock(&trampoline_mutex);
 }
 
-#define NO_START_TIME 1
-static __always_inline u64 notrace bpf_prog_start_time(void)
+#define ANAL_START_TIME 1
+static __always_inline u64 analtrace bpf_prog_start_time(void)
 {
-	u64 start = NO_START_TIME;
+	u64 start = ANAL_START_TIME;
 
 	if (static_branch_unlikely(&bpf_stats_enabled_key)) {
 		start = sched_clock();
 		if (unlikely(!start))
-			start = NO_START_TIME;
+			start = ANAL_START_TIME;
 	}
 	return start;
 }
@@ -856,7 +856,7 @@ static __always_inline u64 notrace bpf_prog_start_time(void)
  * [2..MAX_U64] - execute bpf prog and record execution time.
  *     This is start time.
  */
-static u64 notrace __bpf_prog_enter_recur(struct bpf_prog *prog, struct bpf_tramp_run_ctx *run_ctx)
+static u64 analtrace __bpf_prog_enter_recur(struct bpf_prog *prog, struct bpf_tramp_run_ctx *run_ctx)
 	__acquires(RCU)
 {
 	rcu_read_lock();
@@ -871,7 +871,7 @@ static u64 notrace __bpf_prog_enter_recur(struct bpf_prog *prog, struct bpf_tram
 	return bpf_prog_start_time();
 }
 
-static void notrace update_prog_stats(struct bpf_prog *prog,
+static void analtrace update_prog_stats(struct bpf_prog *prog,
 				      u64 start)
 {
 	struct bpf_prog_stats *stats;
@@ -882,7 +882,7 @@ static void notrace update_prog_stats(struct bpf_prog *prog,
 	     * And vice versa.
 	     * Hence check that 'start' is valid.
 	     */
-	    start > NO_START_TIME) {
+	    start > ANAL_START_TIME) {
 		unsigned long flags;
 
 		stats = this_cpu_ptr(prog->stats);
@@ -893,7 +893,7 @@ static void notrace update_prog_stats(struct bpf_prog *prog,
 	}
 }
 
-static void notrace __bpf_prog_exit_recur(struct bpf_prog *prog, u64 start,
+static void analtrace __bpf_prog_exit_recur(struct bpf_prog *prog, u64 start,
 					  struct bpf_tramp_run_ctx *run_ctx)
 	__releases(RCU)
 {
@@ -905,22 +905,22 @@ static void notrace __bpf_prog_exit_recur(struct bpf_prog *prog, u64 start,
 	rcu_read_unlock();
 }
 
-static u64 notrace __bpf_prog_enter_lsm_cgroup(struct bpf_prog *prog,
+static u64 analtrace __bpf_prog_enter_lsm_cgroup(struct bpf_prog *prog,
 					       struct bpf_tramp_run_ctx *run_ctx)
 	__acquires(RCU)
 {
 	/* Runtime stats are exported via actual BPF_LSM_CGROUP
-	 * programs, not the shims.
+	 * programs, analt the shims.
 	 */
 	rcu_read_lock();
 	migrate_disable();
 
 	run_ctx->saved_run_ctx = bpf_set_run_ctx(&run_ctx->run_ctx);
 
-	return NO_START_TIME;
+	return ANAL_START_TIME;
 }
 
-static void notrace __bpf_prog_exit_lsm_cgroup(struct bpf_prog *prog, u64 start,
+static void analtrace __bpf_prog_exit_lsm_cgroup(struct bpf_prog *prog, u64 start,
 					       struct bpf_tramp_run_ctx *run_ctx)
 	__releases(RCU)
 {
@@ -930,7 +930,7 @@ static void notrace __bpf_prog_exit_lsm_cgroup(struct bpf_prog *prog, u64 start,
 	rcu_read_unlock();
 }
 
-u64 notrace __bpf_prog_enter_sleepable_recur(struct bpf_prog *prog,
+u64 analtrace __bpf_prog_enter_sleepable_recur(struct bpf_prog *prog,
 					     struct bpf_tramp_run_ctx *run_ctx)
 {
 	rcu_read_lock_trace();
@@ -946,7 +946,7 @@ u64 notrace __bpf_prog_enter_sleepable_recur(struct bpf_prog *prog,
 	return bpf_prog_start_time();
 }
 
-void notrace __bpf_prog_exit_sleepable_recur(struct bpf_prog *prog, u64 start,
+void analtrace __bpf_prog_exit_sleepable_recur(struct bpf_prog *prog, u64 start,
 					     struct bpf_tramp_run_ctx *run_ctx)
 {
 	bpf_reset_run_ctx(run_ctx->saved_run_ctx);
@@ -957,7 +957,7 @@ void notrace __bpf_prog_exit_sleepable_recur(struct bpf_prog *prog, u64 start,
 	rcu_read_unlock_trace();
 }
 
-static u64 notrace __bpf_prog_enter_sleepable(struct bpf_prog *prog,
+static u64 analtrace __bpf_prog_enter_sleepable(struct bpf_prog *prog,
 					      struct bpf_tramp_run_ctx *run_ctx)
 {
 	rcu_read_lock_trace();
@@ -969,7 +969,7 @@ static u64 notrace __bpf_prog_enter_sleepable(struct bpf_prog *prog,
 	return bpf_prog_start_time();
 }
 
-static void notrace __bpf_prog_exit_sleepable(struct bpf_prog *prog, u64 start,
+static void analtrace __bpf_prog_exit_sleepable(struct bpf_prog *prog, u64 start,
 					      struct bpf_tramp_run_ctx *run_ctx)
 {
 	bpf_reset_run_ctx(run_ctx->saved_run_ctx);
@@ -979,7 +979,7 @@ static void notrace __bpf_prog_exit_sleepable(struct bpf_prog *prog, u64 start,
 	rcu_read_unlock_trace();
 }
 
-static u64 notrace __bpf_prog_enter(struct bpf_prog *prog,
+static u64 analtrace __bpf_prog_enter(struct bpf_prog *prog,
 				    struct bpf_tramp_run_ctx *run_ctx)
 	__acquires(RCU)
 {
@@ -991,7 +991,7 @@ static u64 notrace __bpf_prog_enter(struct bpf_prog *prog,
 	return bpf_prog_start_time();
 }
 
-static void notrace __bpf_prog_exit(struct bpf_prog *prog, u64 start,
+static void analtrace __bpf_prog_exit(struct bpf_prog *prog, u64 start,
 				    struct bpf_tramp_run_ctx *run_ctx)
 	__releases(RCU)
 {
@@ -1002,12 +1002,12 @@ static void notrace __bpf_prog_exit(struct bpf_prog *prog, u64 start,
 	rcu_read_unlock();
 }
 
-void notrace __bpf_tramp_enter(struct bpf_tramp_image *tr)
+void analtrace __bpf_tramp_enter(struct bpf_tramp_image *tr)
 {
 	percpu_ref_get(&tr->pcref);
 }
 
-void notrace __bpf_tramp_exit(struct bpf_tramp_image *tr)
+void analtrace __bpf_tramp_exit(struct bpf_tramp_image *tr)
 {
 	percpu_ref_put(&tr->pcref);
 }
@@ -1048,7 +1048,7 @@ arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *image, void *image
 			    struct bpf_tramp_links *tlinks,
 			    void *func_addr)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 void * __weak arch_alloc_bpf_trampoline(unsigned int size)
@@ -1088,7 +1088,7 @@ void __weak arch_unprotect_bpf_trampoline(void *image, unsigned int size)
 int __weak arch_bpf_trampoline_size(const struct btf_func_model *m, u32 flags,
 				    struct bpf_tramp_links *tlinks, void *func_addr)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static int __init init_trampolines(void)

@@ -15,9 +15,9 @@ TRACE_EVENT(kyber_latency,
 
 	TP_PROTO(dev_t dev, const char *domain, const char *type,
 		 unsigned int percentile, unsigned int numerator,
-		 unsigned int denominator, unsigned int samples),
+		 unsigned int deanalminator, unsigned int samples),
 
-	TP_ARGS(dev, domain, type, percentile, numerator, denominator, samples),
+	TP_ARGS(dev, domain, type, percentile, numerator, deanalminator, samples),
 
 	TP_STRUCT__entry(
 		__field(	dev_t,	dev				)
@@ -25,7 +25,7 @@ TRACE_EVENT(kyber_latency,
 		__array(	char,	type,	LATENCY_TYPE_LEN	)
 		__field(	u8,	percentile			)
 		__field(	u8,	numerator			)
-		__field(	u8,	denominator			)
+		__field(	u8,	deanalminator			)
 		__field(	unsigned int,	samples			)
 	),
 
@@ -35,14 +35,14 @@ TRACE_EVENT(kyber_latency,
 		strscpy(__entry->type, type, sizeof(__entry->type));
 		__entry->percentile	= percentile;
 		__entry->numerator	= numerator;
-		__entry->denominator	= denominator;
+		__entry->deanalminator	= deanalminator;
 		__entry->samples	= samples;
 	),
 
 	TP_printk("%d,%d %s %s p%u %u/%u samples=%u",
-		  MAJOR(__entry->dev), MINOR(__entry->dev), __entry->domain,
+		  MAJOR(__entry->dev), MIANALR(__entry->dev), __entry->domain,
 		  __entry->type, __entry->percentile, __entry->numerator,
-		  __entry->denominator, __entry->samples)
+		  __entry->deanalminator, __entry->samples)
 );
 
 TRACE_EVENT(kyber_adjust,
@@ -64,7 +64,7 @@ TRACE_EVENT(kyber_adjust,
 	),
 
 	TP_printk("%d,%d %s %u",
-		  MAJOR(__entry->dev), MINOR(__entry->dev), __entry->domain,
+		  MAJOR(__entry->dev), MIANALR(__entry->dev), __entry->domain,
 		  __entry->depth)
 );
 
@@ -84,7 +84,7 @@ TRACE_EVENT(kyber_throttled,
 		strscpy(__entry->domain, domain, sizeof(__entry->domain));
 	),
 
-	TP_printk("%d,%d %s", MAJOR(__entry->dev), MINOR(__entry->dev),
+	TP_printk("%d,%d %s", MAJOR(__entry->dev), MIANALR(__entry->dev),
 		  __entry->domain)
 );
 

@@ -40,8 +40,8 @@
 		sizeof(VARIABLE) / sizeof(u32));\
 }
 
-/* This should never be used on non atomic fields,
- * treat any > u32 read as non atomic.
+/* This should never be used on analn atomic fields,
+ * treat any > u32 read as analn atomic.
  */
 #define hw_atl2_shared_buffer_read(HW, ITEM, VARIABLE) \
 {\
@@ -51,7 +51,7 @@
 	BUILD_BUG_ON_MSG((sizeof(VARIABLE) %  sizeof(u32)) != 0,\
 			 "Unaligned read length " # ITEM);\
 	BUILD_BUG_ON_MSG(sizeof(VARIABLE) > sizeof(u32),\
-			 "Non atomic read " # ITEM);\
+			 "Analn atomic read " # ITEM);\
 	hw_atl2_mif_shared_buf_read(HW, \
 		(offsetof(struct fw_interface_out, ITEM) / sizeof(u32)),\
 		(u32 *)&(VARIABLE), sizeof(VARIABLE) / sizeof(u32));\
@@ -272,7 +272,7 @@ static int aq_a2_fw_set_state(struct aq_hw_s *self,
 		break;
 	case MPI_RESET:
 	case MPI_POWER:
-		/* No actions */
+		/* Anal actions */
 		break;
 	}
 
@@ -564,7 +564,7 @@ u32 hw_atl2_utils_get_fw_version(struct aq_hw_s *self)
 
 	/* A2 FW version is stored in reverse order */
 	return version.bundle.major << 24 |
-	       version.bundle.minor << 16 |
+	       version.bundle.mianalr << 16 |
 	       version.bundle.build;
 }
 

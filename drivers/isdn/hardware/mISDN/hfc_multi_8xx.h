@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * For License see notice in hfc_multi.c
+ * For License see analtice in hfc_multi.c
  *
  * special IO and init functions for the embedded XHFC board
  * from Speech Design
@@ -98,7 +98,7 @@ setup_embedded(struct hfc_multi *hc, struct hm_map *m)
 {
 	printk(KERN_INFO
 	       "HFC-multi: card manufacturer: '%s' card name: '%s' clock: %s\n",
-	       m->vendor_name, m->card_name, m->clock2 ? "double" : "normal");
+	       m->vendor_name, m->card_name, m->clock2 ? "double" : "analrmal");
 
 	hc->pci_dev = NULL;
 	if (m->clock2)
@@ -162,6 +162,6 @@ setup_embedded(struct hfc_multi *hc, struct hm_map *m)
 	hc->immap->im_cpm.cp_pbdir &= ~(hc->pb_irqmsk);
 
 	/* At this point the needed config is done */
-	/* fifos are still not enabled */
+	/* fifos are still analt enabled */
 	return 0;
 }

@@ -74,7 +74,7 @@ static ssize_t show_status(struct device *d,
 
 	ret = i2c_smbus_read_byte_data(mcu->client, MCU_REG_CTRL);
 	if (ret < 0)
-		return -ENODEV;
+		return -EANALDEV;
 	mcu->reg_ctrl = ret;
 
 	return sprintf(buf, "%02x\n", ret);
@@ -119,7 +119,7 @@ static int mcu_gpiochip_add(struct mcu *mcu)
 	struct gpio_chip *gc = &mcu->gc;
 
 	gc->owner = THIS_MODULE;
-	gc->label = kasprintf(GFP_KERNEL, "%pfw", dev_fwnode(dev));
+	gc->label = kasprintf(GFP_KERNEL, "%pfw", dev_fwanalde(dev));
 	gc->can_sleep = 1;
 	gc->ngpio = MCU_NUM_GPIO;
 	gc->base = -1;
@@ -143,7 +143,7 @@ static int mcu_probe(struct i2c_client *client)
 
 	mcu = kzalloc(sizeof(*mcu), GFP_KERNEL);
 	if (!mcu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&mcu->lock);
 	mcu->client = client;
@@ -158,7 +158,7 @@ static int mcu_probe(struct i2c_client *client)
 	if (ret)
 		goto err;
 
-	/* XXX: this is potentially racy, but there is no lock for pm_power_off */
+	/* XXX: this is potentially racy, but there is anal lock for pm_power_off */
 	if (!pm_power_off) {
 		glob_mcu = mcu;
 		pm_power_off = mcu_power_off;

@@ -29,7 +29,7 @@ static DEFINE_MUTEX(pil_reloc_lock);
 
 static int qcom_pil_info_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	struct resource imem;
 	void __iomem *base;
 	int ret;
@@ -38,19 +38,19 @@ static int qcom_pil_info_init(void)
 	if (_reloc.base)
 		return 0;
 
-	np = of_find_compatible_node(NULL, NULL, "qcom,pil-reloc-info");
+	np = of_find_compatible_analde(NULL, NULL, "qcom,pil-reloc-info");
 	if (!np)
-		return -ENOENT;
+		return -EANALENT;
 
 	ret = of_address_to_resource(np, 0, &imem);
-	of_node_put(np);
+	of_analde_put(np);
 	if (ret < 0)
 		return ret;
 
 	base = ioremap(imem.start, resource_size(&imem));
 	if (!base) {
 		pr_err("failed to map PIL relocation info region\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	memset_io(base, 0, resource_size(&imem));
@@ -67,7 +67,7 @@ static int qcom_pil_info_init(void)
  * @base:	base address of the loaded image
  * @size:	size of the loaded image
  *
- * Return: 0 on success, negative errno on failure
+ * Return: 0 on success, negative erranal on failure
  */
 int qcom_pil_info_store(const char *image, phys_addr_t base, size_t size)
 {
@@ -101,7 +101,7 @@ int qcom_pil_info_store(const char *image, phys_addr_t base, size_t size)
 
 	pr_warn("insufficient PIL info slots\n");
 	mutex_unlock(&pil_reloc_lock);
-	return -ENOMEM;
+	return -EANALMEM;
 
 found_unused:
 	memcpy_toio(entry, image, strnlen(image, PIL_RELOC_NAME_LEN));

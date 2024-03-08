@@ -37,7 +37,7 @@ static inline void highbank_clear_core_pwr(void)
 {
 	int cpu = MPIDR_AFFINITY_LEVEL(cpu_logical_map(smp_processor_id()), 0);
 	if (scu_base_addr)
-		scu_power_mode(scu_base_addr, SCU_PM_NORMAL);
+		scu_power_mode(scu_base_addr, SCU_PM_ANALRMAL);
 	else
 		writel_relaxed(0, sregs_base + SREG_CPU_PWR_CTRL(cpu));
 }

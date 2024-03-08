@@ -2,7 +2,7 @@
 /* Copyright(c) 2023 Intel Corporation */
 
 #include <linux/debugfs.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/export.h>
 #include <linux/fs.h>
 #include <linux/kernel.h>

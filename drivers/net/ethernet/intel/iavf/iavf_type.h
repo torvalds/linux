@@ -63,7 +63,7 @@ enum iavf_debug_mask {
 
 /* These are structs for managing the hardware information and the operations.
  * The structures of function pointers are filled out at init time when we
- * know for sure exactly which hardware we're working with.  This gives us the
+ * kanalw for sure exactly which hardware we're working with.  This gives us the
  * flexibility of using the same main driver code but adapting to slightly
  * different hardware needs as new parts are developed.  For this architecture,
  * the Firmware and AdminQ are intended to insulate the driver from most of the
@@ -78,14 +78,14 @@ enum iavf_vsi_type {
 	IAVF_VSI_MIRROR	= 5,
 	IAVF_VSI_SRIOV	= 6,
 	IAVF_VSI_FDIR	= 7,
-	IAVF_VSI_TYPE_UNKNOWN
+	IAVF_VSI_TYPE_UNKANALWN
 };
 
 enum iavf_queue_type {
 	IAVF_QUEUE_TYPE_RX = 0,
 	IAVF_QUEUE_TYPE_TX,
 	IAVF_QUEUE_TYPE_PE_CEQ,
-	IAVF_QUEUE_TYPE_UNKNOWN
+	IAVF_QUEUE_TYPE_UNKANALWN
 };
 
 #define IAVF_HW_CAP_MAX_GPIO		30
@@ -107,7 +107,7 @@ struct iavf_mac_info {
 
 /* PCI bus types */
 enum iavf_bus_type {
-	iavf_bus_type_unknown = 0,
+	iavf_bus_type_unkanalwn = 0,
 	iavf_bus_type_pci,
 	iavf_bus_type_pcix,
 	iavf_bus_type_pci_express,
@@ -116,7 +116,7 @@ enum iavf_bus_type {
 
 /* PCI bus speeds */
 enum iavf_bus_speed {
-	iavf_bus_speed_unknown	= 0,
+	iavf_bus_speed_unkanalwn	= 0,
 	iavf_bus_speed_33	= 33,
 	iavf_bus_speed_66	= 66,
 	iavf_bus_speed_100	= 100,
@@ -130,7 +130,7 @@ enum iavf_bus_speed {
 
 /* PCI bus widths */
 enum iavf_bus_width {
-	iavf_bus_width_unknown	= 0,
+	iavf_bus_width_unkanalwn	= 0,
 	iavf_bus_width_pcie_x1	= 1,
 	iavf_bus_width_pcie_x2	= 2,
 	iavf_bus_width_pcie_x4	= 4,
@@ -258,7 +258,7 @@ union iavf_32byte_rx_desc {
 };
 
 enum iavf_rx_desc_status_bits {
-	/* Note: These are predefined bit offsets */
+	/* Analte: These are predefined bit offsets */
 	IAVF_RX_DESC_STATUS_DD_SHIFT		= 0,
 	IAVF_RX_DESC_STATUS_EOF_SHIFT		= 1,
 	IAVF_RX_DESC_STATUS_L2TAG1P_SHIFT	= 2,
@@ -266,7 +266,7 @@ enum iavf_rx_desc_status_bits {
 	IAVF_RX_DESC_STATUS_CRCP_SHIFT		= 4,
 	IAVF_RX_DESC_STATUS_TSYNINDX_SHIFT	= 5, /* 2 BITS */
 	IAVF_RX_DESC_STATUS_TSYNVALID_SHIFT	= 7,
-	/* Note: Bit 8 is reserved in X710 and XL710 */
+	/* Analte: Bit 8 is reserved in X710 and XL710 */
 	IAVF_RX_DESC_STATUS_EXT_UDP_0_SHIFT	= 8,
 	IAVF_RX_DESC_STATUS_UMBCAST_SHIFT	= 9, /* 2 BITS */
 	IAVF_RX_DESC_STATUS_FLM_SHIFT		= 11,
@@ -274,7 +274,7 @@ enum iavf_rx_desc_status_bits {
 	IAVF_RX_DESC_STATUS_LPBK_SHIFT		= 14,
 	IAVF_RX_DESC_STATUS_IPV6EXADD_SHIFT	= 15,
 	IAVF_RX_DESC_STATUS_RESERVED_SHIFT	= 16, /* 2 BITS */
-	/* Note: For non-tunnel packets INT_UDP_0 is the right status for
+	/* Analte: For analn-tunnel packets INT_UDP_0 is the right status for
 	 * UDP header
 	 */
 	IAVF_RX_DESC_STATUS_INT_UDP_0_SHIFT	= 18,
@@ -294,7 +294,7 @@ enum iavf_rx_desc_status_bits {
 				    BIT_ULL(IAVF_RXD_QW1_STATUS_TSYNVALID_SHIFT)
 
 enum iavf_rx_desc_fltstat_values {
-	IAVF_RX_DESC_FLTSTAT_NO_DATA	= 0,
+	IAVF_RX_DESC_FLTSTAT_ANAL_DATA	= 0,
 	IAVF_RX_DESC_FLTSTAT_RSV_FD_ID	= 1, /* 16byte desc? FD_ID : RSV */
 	IAVF_RX_DESC_FLTSTAT_RSV	= 2,
 	IAVF_RX_DESC_FLTSTAT_RSS_HASH	= 3,
@@ -304,7 +304,7 @@ enum iavf_rx_desc_fltstat_values {
 #define IAVF_RXD_QW1_ERROR_MASK		(0xFFUL << IAVF_RXD_QW1_ERROR_SHIFT)
 
 enum iavf_rx_desc_error_bits {
-	/* Note: These are predefined bit offsets */
+	/* Analte: These are predefined bit offsets */
 	IAVF_RX_DESC_ERROR_RXE_SHIFT		= 0,
 	IAVF_RX_DESC_ERROR_RECIPE_SHIFT		= 1,
 	IAVF_RX_DESC_ERROR_HBO_SHIFT		= 2,
@@ -317,7 +317,7 @@ enum iavf_rx_desc_error_bits {
 };
 
 enum iavf_rx_desc_error_l3l4e_fcoe_masks {
-	IAVF_RX_DESC_ERROR_L3L4E_NONE		= 0,
+	IAVF_RX_DESC_ERROR_L3L4E_ANALNE		= 0,
 	IAVF_RX_DESC_ERROR_L3L4E_PROT		= 1,
 	IAVF_RX_DESC_ERROR_L3L4E_FC		= 2,
 	IAVF_RX_DESC_ERROR_L3L4E_DMAC_ERR	= 3,
@@ -327,7 +327,7 @@ enum iavf_rx_desc_error_l3l4e_fcoe_masks {
 #define IAVF_RXD_QW1_PTYPE_SHIFT	30
 #define IAVF_RXD_QW1_PTYPE_MASK		(0xFFULL << IAVF_RXD_QW1_PTYPE_SHIFT)
 
-/* Packet type non-ip values */
+/* Packet type analn-ip values */
 enum iavf_rx_l2_ptype {
 	IAVF_RX_PTYPE_L2_RESERVED			= 0,
 	IAVF_RX_PTYPE_L2_MAC_PAY2			= 1,
@@ -358,7 +358,7 @@ enum iavf_rx_l2_ptype {
 };
 
 struct iavf_rx_ptype_decoded {
-	u32 known:1;
+	u32 kanalwn:1;
 	u32 outer_ip:1;
 	u32 outer_ip_ver:1;
 	u32 outer_frag:1;
@@ -375,18 +375,18 @@ enum iavf_rx_ptype_outer_ip {
 };
 
 enum iavf_rx_ptype_outer_ip_ver {
-	IAVF_RX_PTYPE_OUTER_NONE	= 0,
+	IAVF_RX_PTYPE_OUTER_ANALNE	= 0,
 	IAVF_RX_PTYPE_OUTER_IPV4	= 0,
 	IAVF_RX_PTYPE_OUTER_IPV6	= 1
 };
 
 enum iavf_rx_ptype_outer_fragmented {
-	IAVF_RX_PTYPE_NOT_FRAG	= 0,
+	IAVF_RX_PTYPE_ANALT_FRAG	= 0,
 	IAVF_RX_PTYPE_FRAG	= 1
 };
 
 enum iavf_rx_ptype_tunnel_type {
-	IAVF_RX_PTYPE_TUNNEL_NONE		= 0,
+	IAVF_RX_PTYPE_TUNNEL_ANALNE		= 0,
 	IAVF_RX_PTYPE_TUNNEL_IP_IP		= 1,
 	IAVF_RX_PTYPE_TUNNEL_IP_GRENAT		= 2,
 	IAVF_RX_PTYPE_TUNNEL_IP_GRENAT_MAC	= 3,
@@ -394,13 +394,13 @@ enum iavf_rx_ptype_tunnel_type {
 };
 
 enum iavf_rx_ptype_tunnel_end_prot {
-	IAVF_RX_PTYPE_TUNNEL_END_NONE	= 0,
+	IAVF_RX_PTYPE_TUNNEL_END_ANALNE	= 0,
 	IAVF_RX_PTYPE_TUNNEL_END_IPV4	= 1,
 	IAVF_RX_PTYPE_TUNNEL_END_IPV6	= 2,
 };
 
 enum iavf_rx_ptype_inner_prot {
-	IAVF_RX_PTYPE_INNER_PROT_NONE		= 0,
+	IAVF_RX_PTYPE_INNER_PROT_ANALNE		= 0,
 	IAVF_RX_PTYPE_INNER_PROT_UDP		= 1,
 	IAVF_RX_PTYPE_INNER_PROT_TCP		= 2,
 	IAVF_RX_PTYPE_INNER_PROT_SCTP		= 3,
@@ -409,7 +409,7 @@ enum iavf_rx_ptype_inner_prot {
 };
 
 enum iavf_rx_ptype_payload_layer {
-	IAVF_RX_PTYPE_PAYLOAD_LAYER_NONE	= 0,
+	IAVF_RX_PTYPE_PAYLOAD_LAYER_ANALNE	= 0,
 	IAVF_RX_PTYPE_PAYLOAD_LAYER_PAY2	= 1,
 	IAVF_RX_PTYPE_PAYLOAD_LAYER_PAY3	= 2,
 	IAVF_RX_PTYPE_PAYLOAD_LAYER_PAY4	= 3,
@@ -427,7 +427,7 @@ enum iavf_rx_ptype_payload_layer {
 #define IAVF_RXD_QW1_LENGTH_SPH_MASK	BIT_ULL(IAVF_RXD_QW1_LENGTH_SPH_SHIFT)
 
 enum iavf_rx_desc_ext_status_bits {
-	/* Note: These are predefined bit offsets */
+	/* Analte: These are predefined bit offsets */
 	IAVF_RX_DESC_EXT_STATUS_L2TAG2P_SHIFT	= 0,
 	IAVF_RX_DESC_EXT_STATUS_L2TAG3P_SHIFT	= 1,
 	IAVF_RX_DESC_EXT_STATUS_FLEXBL_SHIFT	= 2, /* 2 BITS */
@@ -438,7 +438,7 @@ enum iavf_rx_desc_ext_status_bits {
 };
 
 enum iavf_rx_desc_pe_status_bits {
-	/* Note: These are predefined bit offsets */
+	/* Analte: These are predefined bit offsets */
 	IAVF_RX_DESC_PE_STATUS_QPID_SHIFT	= 0, /* 18 BITS */
 	IAVF_RX_DESC_PE_STATUS_L4PORT_SHIFT	= 0, /* 16 BITS */
 	IAVF_RX_DESC_PE_STATUS_IPINDEX_SHIFT	= 16, /* 8 BITS */
@@ -462,7 +462,7 @@ enum iavf_rx_desc_pe_status_bits {
 				IAVF_RX_PROG_STATUS_DESC_QW1_ERROR_SHIFT)
 
 enum iavf_rx_prog_status_desc_status_bits {
-	/* Note: These are predefined bit offsets */
+	/* Analte: These are predefined bit offsets */
 	IAVF_RX_PROG_STATUS_DESC_DD_SHIFT	= 0,
 	IAVF_RX_PROG_STATUS_DESC_PROG_ID_SHIFT	= 2 /* 3 BITS */
 };
@@ -474,9 +474,9 @@ enum iavf_rx_prog_status_desc_prog_id_masks {
 };
 
 enum iavf_rx_prog_status_desc_error_bits {
-	/* Note: These are predefined bit offsets */
+	/* Analte: These are predefined bit offsets */
 	IAVF_RX_PROG_STATUS_DESC_FD_TBL_FULL_SHIFT	= 0,
-	IAVF_RX_PROG_STATUS_DESC_NO_FD_ENTRY_SHIFT	= 1,
+	IAVF_RX_PROG_STATUS_DESC_ANAL_FD_ENTRY_SHIFT	= 1,
 	IAVF_RX_PROG_STATUS_DESC_FCOE_TBL_FULL_SHIFT	= 2,
 	IAVF_RX_PROG_STATUS_DESC_FCOE_CONFLICT_SHIFT	= 3
 };
@@ -492,7 +492,7 @@ struct iavf_tx_desc {
 
 enum iavf_tx_desc_dtype_value {
 	IAVF_TX_DESC_DTYPE_DATA		= 0x0,
-	IAVF_TX_DESC_DTYPE_NOP		= 0x1, /* same as Context desc */
+	IAVF_TX_DESC_DTYPE_ANALP		= 0x1, /* same as Context desc */
 	IAVF_TX_DESC_DTYPE_CONTEXT	= 0x1,
 	IAVF_TX_DESC_DTYPE_FCOE_CTX	= 0x2,
 	IAVF_TX_DESC_DTYPE_FILTER_PROG	= 0x8,
@@ -512,7 +512,7 @@ enum iavf_tx_desc_cmd_bits {
 	IAVF_TX_DESC_CMD_ICRC			= 0x0004,
 	IAVF_TX_DESC_CMD_IL2TAG1		= 0x0008,
 	IAVF_TX_DESC_CMD_DUMMY			= 0x0010,
-	IAVF_TX_DESC_CMD_IIPT_NONIP		= 0x0000, /* 2 BITS */
+	IAVF_TX_DESC_CMD_IIPT_ANALNIP		= 0x0000, /* 2 BITS */
 	IAVF_TX_DESC_CMD_IIPT_IPV6		= 0x0020, /* 2 BITS */
 	IAVF_TX_DESC_CMD_IIPT_IPV4		= 0x0040, /* 2 BITS */
 	IAVF_TX_DESC_CMD_IIPT_IPV4_CSUM		= 0x0060, /* 2 BITS */
@@ -532,7 +532,7 @@ enum iavf_tx_desc_cmd_bits {
 					 IAVF_TXD_QW1_OFFSET_SHIFT)
 
 enum iavf_tx_desc_length_fields {
-	/* Note: These are predefined bit offsets */
+	/* Analte: These are predefined bit offsets */
 	IAVF_TX_DESC_LENGTH_MACLEN_SHIFT	= 0, /* 7 BITS */
 	IAVF_TX_DESC_LENGTH_IPLEN_SHIFT		= 7, /* 7 BITS */
 	IAVF_TX_DESC_LENGTH_L4_FC_LEN_SHIFT	= 14 /* 4 BITS */
@@ -561,7 +561,7 @@ enum iavf_tx_ctx_desc_cmd_bits {
 	IAVF_TX_CTX_DESC_TSYN		= 0x02,
 	IAVF_TX_CTX_DESC_IL2TAG2	= 0x04,
 	IAVF_TX_CTX_DESC_IL2TAG2_IL2H	= 0x08,
-	IAVF_TX_CTX_DESC_SWTCH_NOTAG	= 0x00,
+	IAVF_TX_CTX_DESC_SWTCH_ANALTAG	= 0x00,
 	IAVF_TX_CTX_DESC_SWTCH_UPLINK	= 0x10,
 	IAVF_TX_CTX_DESC_SWTCH_LOCAL	= 0x20,
 	IAVF_TX_CTX_DESC_SWTCH_VSI	= 0x30,
@@ -570,33 +570,33 @@ enum iavf_tx_ctx_desc_cmd_bits {
 
 /* Packet Classifier Types for filters */
 enum iavf_filter_pctype {
-	/* Note: Values 0-28 are reserved for future use.
-	 * Value 29, 30, 32 are not supported on XL710 and X710.
+	/* Analte: Values 0-28 are reserved for future use.
+	 * Value 29, 30, 32 are analt supported on XL710 and X710.
 	 */
-	IAVF_FILTER_PCTYPE_NONF_UNICAST_IPV4_UDP	= 29,
-	IAVF_FILTER_PCTYPE_NONF_MULTICAST_IPV4_UDP	= 30,
-	IAVF_FILTER_PCTYPE_NONF_IPV4_UDP		= 31,
-	IAVF_FILTER_PCTYPE_NONF_IPV4_TCP_SYN_NO_ACK	= 32,
-	IAVF_FILTER_PCTYPE_NONF_IPV4_TCP		= 33,
-	IAVF_FILTER_PCTYPE_NONF_IPV4_SCTP		= 34,
-	IAVF_FILTER_PCTYPE_NONF_IPV4_OTHER		= 35,
+	IAVF_FILTER_PCTYPE_ANALNF_UNICAST_IPV4_UDP	= 29,
+	IAVF_FILTER_PCTYPE_ANALNF_MULTICAST_IPV4_UDP	= 30,
+	IAVF_FILTER_PCTYPE_ANALNF_IPV4_UDP		= 31,
+	IAVF_FILTER_PCTYPE_ANALNF_IPV4_TCP_SYN_ANAL_ACK	= 32,
+	IAVF_FILTER_PCTYPE_ANALNF_IPV4_TCP		= 33,
+	IAVF_FILTER_PCTYPE_ANALNF_IPV4_SCTP		= 34,
+	IAVF_FILTER_PCTYPE_ANALNF_IPV4_OTHER		= 35,
 	IAVF_FILTER_PCTYPE_FRAG_IPV4			= 36,
-	/* Note: Values 37-38 are reserved for future use.
-	 * Value 39, 40, 42 are not supported on XL710 and X710.
+	/* Analte: Values 37-38 are reserved for future use.
+	 * Value 39, 40, 42 are analt supported on XL710 and X710.
 	 */
-	IAVF_FILTER_PCTYPE_NONF_UNICAST_IPV6_UDP	= 39,
-	IAVF_FILTER_PCTYPE_NONF_MULTICAST_IPV6_UDP	= 40,
-	IAVF_FILTER_PCTYPE_NONF_IPV6_UDP		= 41,
-	IAVF_FILTER_PCTYPE_NONF_IPV6_TCP_SYN_NO_ACK	= 42,
-	IAVF_FILTER_PCTYPE_NONF_IPV6_TCP		= 43,
-	IAVF_FILTER_PCTYPE_NONF_IPV6_SCTP		= 44,
-	IAVF_FILTER_PCTYPE_NONF_IPV6_OTHER		= 45,
+	IAVF_FILTER_PCTYPE_ANALNF_UNICAST_IPV6_UDP	= 39,
+	IAVF_FILTER_PCTYPE_ANALNF_MULTICAST_IPV6_UDP	= 40,
+	IAVF_FILTER_PCTYPE_ANALNF_IPV6_UDP		= 41,
+	IAVF_FILTER_PCTYPE_ANALNF_IPV6_TCP_SYN_ANAL_ACK	= 42,
+	IAVF_FILTER_PCTYPE_ANALNF_IPV6_TCP		= 43,
+	IAVF_FILTER_PCTYPE_ANALNF_IPV6_SCTP		= 44,
+	IAVF_FILTER_PCTYPE_ANALNF_IPV6_OTHER		= 45,
 	IAVF_FILTER_PCTYPE_FRAG_IPV6			= 46,
-	/* Note: Value 47 is reserved for future use */
+	/* Analte: Value 47 is reserved for future use */
 	IAVF_FILTER_PCTYPE_FCOE_OX			= 48,
 	IAVF_FILTER_PCTYPE_FCOE_RX			= 49,
 	IAVF_FILTER_PCTYPE_FCOE_OTHER			= 50,
-	/* Note: Values 51-62 are reserved for future use */
+	/* Analte: Values 51-62 are reserved for future use */
 	IAVF_FILTER_PCTYPE_L2_PAYLOAD			= 63,
 };
 
@@ -616,9 +616,9 @@ enum iavf_filter_pctype {
 					 IAVF_TXD_CTX_QW0_EXT_IP_SHIFT)
 
 enum iavf_tx_ctx_desc_eipt_offload {
-	IAVF_TX_CTX_EXT_IP_NONE		= 0x0,
+	IAVF_TX_CTX_EXT_IP_ANALNE		= 0x0,
 	IAVF_TX_CTX_EXT_IP_IPV6		= 0x1,
-	IAVF_TX_CTX_EXT_IP_IPV4_NO_CSUM	= 0x2,
+	IAVF_TX_CTX_EXT_IP_IPV4_ANAL_CSUM	= 0x2,
 	IAVF_TX_CTX_EXT_IP_IPV4		= 0x3
 };
 
@@ -632,11 +632,11 @@ enum iavf_tx_ctx_desc_eipt_offload {
 #define IAVF_TXD_CTX_UDP_TUNNELING	BIT_ULL(IAVF_TXD_CTX_QW0_NATT_SHIFT)
 #define IAVF_TXD_CTX_GRE_TUNNELING	(0x2ULL << IAVF_TXD_CTX_QW0_NATT_SHIFT)
 
-#define IAVF_TXD_CTX_QW0_EIP_NOINC_SHIFT	11
-#define IAVF_TXD_CTX_QW0_EIP_NOINC_MASK \
-				       BIT_ULL(IAVF_TXD_CTX_QW0_EIP_NOINC_SHIFT)
+#define IAVF_TXD_CTX_QW0_EIP_ANALINC_SHIFT	11
+#define IAVF_TXD_CTX_QW0_EIP_ANALINC_MASK \
+				       BIT_ULL(IAVF_TXD_CTX_QW0_EIP_ANALINC_SHIFT)
 
-#define IAVF_TXD_CTX_EIP_NOINC_IPID_CONST	IAVF_TXD_CTX_QW0_EIP_NOINC_MASK
+#define IAVF_TXD_CTX_EIP_ANALINC_IPID_CONST	IAVF_TXD_CTX_QW0_EIP_ANALINC_MASK
 
 #define IAVF_TXD_CTX_QW0_NATLEN_SHIFT	12
 #define IAVF_TXD_CTX_QW0_NATLEN_MASK	(0X7FULL << \
@@ -656,7 +656,7 @@ struct iavf_eth_stats {
 	u64 rx_multicast;		/* mprc */
 	u64 rx_broadcast;		/* bprc */
 	u64 rx_discards;		/* rdpc */
-	u64 rx_unknown_protocol;	/* rupp */
+	u64 rx_unkanalwn_protocol;	/* rupp */
 	u64 tx_bytes;			/* gotc */
 	u64 tx_unicast;			/* uptc */
 	u64 tx_multicast;		/* mptc */

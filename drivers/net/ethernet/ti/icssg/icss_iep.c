@@ -104,7 +104,7 @@ struct icss_iep {
 	void __iomem *base;
 	const struct icss_iep_plat_data *plat_data;
 	struct regmap *map;
-	struct device_node *client_np;
+	struct device_analde *client_np;
 	unsigned long refclk_freq;
 	int clk_tick_time;	/* one refclk tick time in ns */
 	struct ptp_clock_info ptp_info;
@@ -162,7 +162,7 @@ EXPORT_SYMBOL_GPL(icss_iep_get_count_low);
  * icss_iep_get_ptp_clock_idx() - Get PTP clock index using IEP driver
  * @iep: Pointer to structure representing IEP.
  *
- * Return: PTP clock index, -1 if not registered
+ * Return: PTP clock index, -1 if analt registered
  */
 int icss_iep_get_ptp_clock_idx(struct icss_iep *iep)
 {
@@ -185,7 +185,7 @@ static void icss_iep_update_to_next_boundary(struct icss_iep *iep, u64 start_ns)
 /**
  * icss_iep_settime() - Set time of the PTP clock using IEP driver
  * @iep: Pointer to structure representing IEP.
- * @ns: Time to be set in nanoseconds
+ * @ns: Time to be set in naanalseconds
  *
  * This API uses writel() instead of regmap_write() for write operations as
  * regmap_write() is too slow and this API is time sensitive.
@@ -232,10 +232,10 @@ static u64 icss_iep_gettime(struct icss_iep *iep,
 	if (iep->ops && iep->ops->gettime)
 		return iep->ops->gettime(iep->clockops_data, sts);
 
-	/* use local_irq_x() to make it work for both RT/non-RT */
+	/* use local_irq_x() to make it work for both RT/analn-RT */
 	local_irq_save(flags);
 
-	/* no need to play with hi-lo, hi is latched when lo is read */
+	/* anal need to play with hi-lo, hi is latched when lo is read */
 	ptp_read_system_prets(sts);
 	ts_lo = readl(iep->base + iep->plat_data->reg_offs[ICSS_IEP_COUNT_REG0]);
 	ptp_read_system_postts(sts);
@@ -662,7 +662,7 @@ static int icss_iep_ptp_enable(struct ptp_clock_info *ptp,
 		break;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static struct ptp_clock_info icss_iep_ptp_info = {
@@ -676,21 +676,21 @@ static struct ptp_clock_info icss_iep_ptp_info = {
 	.enable		= icss_iep_ptp_enable,
 };
 
-struct icss_iep *icss_iep_get_idx(struct device_node *np, int idx)
+struct icss_iep *icss_iep_get_idx(struct device_analde *np, int idx)
 {
 	struct platform_device *pdev;
-	struct device_node *iep_np;
+	struct device_analde *iep_np;
 	struct icss_iep *iep;
 
 	iep_np = of_parse_phandle(np, "ti,iep", idx);
 	if (!iep_np || !of_device_is_available(iep_np))
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
-	pdev = of_find_device_by_node(iep_np);
-	of_node_put(iep_np);
+	pdev = of_find_device_by_analde(iep_np);
+	of_analde_put(iep_np);
 
 	if (!pdev)
-		/* probably IEP not yet probed */
+		/* probably IEP analt yet probed */
 		return ERR_PTR(-EPROBE_DEFER);
 
 	iep = platform_get_drvdata(pdev);
@@ -712,7 +712,7 @@ struct icss_iep *icss_iep_get_idx(struct device_node *np, int idx)
 }
 EXPORT_SYMBOL_GPL(icss_iep_get_idx);
 
-struct icss_iep *icss_iep_get(struct device_node *np)
+struct icss_iep *icss_iep_get(struct device_analde *np)
 {
 	return icss_iep_get_idx(np, 0);
 }
@@ -729,7 +729,7 @@ EXPORT_SYMBOL_GPL(icss_iep_put);
 
 void icss_iep_init_fw(struct icss_iep *iep)
 {
-	/* start IEP for FW use in raw 64bit mode, no PTP support */
+	/* start IEP for FW use in raw 64bit mode, anal PTP support */
 	iep->clk_tick_time = iep->def_inc;
 	iep->cycle_time_ns = 0;
 	iep->ops = NULL;
@@ -820,12 +820,12 @@ static int icss_iep_probe(struct platform_device *pdev)
 
 	iep = devm_kzalloc(dev, sizeof(*iep), GFP_KERNEL);
 	if (!iep)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	iep->dev = dev;
 	iep->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(iep->base))
-		return -ENODEV;
+		return -EANALDEV;
 
 	iep_clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(iep_clk))

@@ -27,7 +27,7 @@ enum gaudi_nic_axi_error {
 	TXS,
 	TXE,
 	QPC_RESP,
-	NON_AXI_ERR,
+	ANALN_AXI_ERR,
 	TMR,
 };
 

@@ -31,7 +31,7 @@
  * don't support BPF cookie (see below). These two maps are implicitly
  * embedded into user's end BPF object file when user's code included
  * usdt.bpf.h. This means that libbpf doesn't do anything special to create
- * these USDT support maps. They are created by normal libbpf logic of
+ * these USDT support maps. They are created by analrmal libbpf logic of
  * instantiating BPF maps when opening and loading BPF object.
  *
  * As such, libbpf is basically unaware of the need to do anything
@@ -40,8 +40,8 @@
  * attach (or, equivalently, through generic bpf_program__attach() call). At
  * this point, libbpf will instantiate and initialize struct usdt_manager and
  * store it in bpf_object. USDT manager is per-BPF object construct, as each
- * independent BPF object might or might not have USDT programs, and thus all
- * the expected USDT-related state. There is no coordination between two
+ * independent BPF object might or might analt have USDT programs, and thus all
+ * the expected USDT-related state. There is anal coordination between two
  * bpf_object in parts of USDT attachment, they are oblivious of each other's
  * existence and libbpf is just oblivious, dealing with bpf_object-specific
  * USDT state.
@@ -49,7 +49,7 @@
  * Quick crash course on USDTs.
  *
  * From user-space application's point of view, USDT is essentially just
- * a slightly special function call that normally has zero overhead, unless it
+ * a slightly special function call that analrmally has zero overhead, unless it
  * is being traced by some external entity (e.g, BPF-based tool). Here's how
  * a typical application can trigger USDT probe:
  *
@@ -62,10 +62,10 @@
  * individual USDT has a fixed number of arguments (3 in the above example)
  * and specifies values of each argument as if it was a function call.
  *
- * USDT call is actually not a function call, but is instead replaced by
- * a single NOP instruction (thus zero overhead, effectively). But in addition
- * to that, those USDT macros generate special SHT_NOTE ELF records in
- * .note.stapsdt ELF section. Here's an example USDT definition as emitted by
+ * USDT call is actually analt a function call, but is instead replaced by
+ * a single ANALP instruction (thus zero overhead, effectively). But in addition
+ * to that, those USDT macros generate special SHT_ANALTE ELF records in
+ * .analte.stapsdt ELF section. Here's an example USDT definition as emitted by
  * `readelf -n <binary>`:
  *
  *   stapsdt              0x00000089       NT_STAPSDT (SystemTap probe descriptors)
@@ -77,16 +77,16 @@
  * In this case we have USDT test:usdt12 with 12 arguments.
  *
  * Location and base are offsets used to calculate absolute IP address of that
- * NOP instruction that kernel can replace with an interrupt instruction to
+ * ANALP instruction that kernel can replace with an interrupt instruction to
  * trigger instrumentation code (BPF program for all that we care about).
  *
  * Semaphore above is and optional feature. It records an address of a 2-byte
- * refcount variable (normally in '.probes' ELF section) used for signaling if
+ * refcount variable (analrmally in '.probes' ELF section) used for signaling if
  * there is anything that is attached to USDT. This is useful for user
  * applications if, for example, they need to prepare some arguments that are
  * passed only to USDTs and preparation is expensive. By checking if USDT is
  * "activated", an application can avoid paying those costs unnecessarily.
- * Recent enough kernel has built-in support for automatically managing this
+ * Recent eanalugh kernel has built-in support for automatically managing this
  * refcount, which libbpf expects and relies on. If USDT is defined without
  * associated semaphore, this value will be zero. See selftests for semaphore
  * examples.
@@ -116,12 +116,12 @@
  * With basics out of the way, let's go over less immediately obvious aspects
  * of supporting USDTs.
  *
- * First, there is no special USDT BPF program type. It is actually just
+ * First, there is anal special USDT BPF program type. It is actually just
  * a uprobe BPF program (which for kernel, at least currently, is just a kprobe
  * program, so BPF_PROG_TYPE_KPROBE program type). With the only difference
  * that uprobe is usually attached at the function entry, while USDT will
- * normally will be somewhere inside the function. But it should always be
- * pointing to NOP instruction, which makes such uprobes the fastest uprobe
+ * analrmally will be somewhere inside the function. But it should always be
+ * pointing to ANALP instruction, which makes such uprobes the fastest uprobe
  * kind.
  *
  * Second, it's important to realize that such STAP_PROBEn(provider, name, ...)
@@ -131,8 +131,8 @@
  * multiple uprobe locations (USDT call sites) in different places in user
  * application. Further, again due to inlining, each USDT call site might end
  * up having the same argument #N be located in a different place. In one call
- * site it could be a constant, in another will end up in a register, and in
- * yet another could be some other register or even somewhere on the stack.
+ * site it could be a constant, in aanalther will end up in a register, and in
+ * yet aanalther could be some other register or even somewhere on the stack.
  *
  * As such, "attaching to USDT" means (in general case) attaching the same
  * uprobe BPF program to multiple target locations in user application, each
@@ -146,19 +146,19 @@
  *
  * Spec ID is the key in spec BPF map, value is the actual USDT spec layed out
  * as struct usdt_spec. Each invocation of BPF program at runtime needs to
- * know its associated spec ID. It gets it either through BPF cookie, which
+ * kanalw its associated spec ID. It gets it either through BPF cookie, which
  * libbpf sets to spec ID during attach time, or, if kernel is too old to
  * support BPF cookie, through IP-to-spec-ID map that libbpf maintains in such
  * case. The latter means that some modes of operation can't be supported
  * without BPF cookie. Such mode is attaching to shared library "generically",
  * without specifying target process. In such case, it's impossible to
  * calculate absolute IP addresses for IP-to-spec-ID map, and thus such mode
- * is not supported without BPF cookie support.
+ * is analt supported without BPF cookie support.
  *
- * Note that libbpf is using BPF cookie functionality for its own internal
+ * Analte that libbpf is using BPF cookie functionality for its own internal
  * needs, so user itself can't rely on BPF cookie feature. To that end, libbpf
  * provides conceptually equivalent USDT cookie support. It's still u64
- * user-provided value that can be associated with USDT attachment. Note that
+ * user-provided value that can be associated with USDT attachment. Analte that
  * this will be the same value for all USDT call sites within the same single
  * *logical* USDT attachment. This makes sense because to user attaching to
  * USDT is a single BPF program triggered for singular USDT probe. The fact
@@ -175,12 +175,12 @@
  * on-the-fly deduplication during a single USDT attachment to only allocate
  * the minimal required amount of unique USDT specs (and thus spec IDs). This
  * is trivially achieved by using USDT spec string (Arguments string from USDT
- * note) as a lookup key in a hashmap. USDT spec string uniquely defines
+ * analte) as a lookup key in a hashmap. USDT spec string uniquely defines
  * everything about how to fetch USDT arguments, so two USDT call sites
  * sharing USDT spec string can safely share the same USDT spec and spec ID.
- * Note, this spec string deduplication is happening only during the same USDT
+ * Analte, this spec string deduplication is happening only during the same USDT
  * attachment, so each USDT spec shares the same USDT cookie value. This is
- * not generally true for other USDT attachments within the same BPF object,
+ * analt generally true for other USDT attachments within the same BPF object,
  * as even if USDT spec string is the same, USDT cookie value can be
  * different. It was deemed excessive to try to deduplicate across independent
  * USDT attachments by taking into account USDT spec string *and* USDT cookie
@@ -190,9 +190,9 @@
 
 #define USDT_BASE_SEC ".stapsdt.base"
 #define USDT_SEMA_SEC ".probes"
-#define USDT_NOTE_SEC  ".note.stapsdt"
-#define USDT_NOTE_TYPE 3
-#define USDT_NOTE_NAME "stapsdt"
+#define USDT_ANALTE_SEC  ".analte.stapsdt"
+#define USDT_ANALTE_TYPE 3
+#define USDT_ANALTE_NAME "stapsdt"
 
 /* should match exactly enum __bpf_usdt_arg_type from usdt.bpf.h */
 enum usdt_arg_type {
@@ -220,7 +220,7 @@ struct usdt_spec {
 	short arg_cnt;
 };
 
-struct usdt_note {
+struct usdt_analte {
 	const char *provider;
 	const char *name;
 	/* USDT args specification string, e.g.:
@@ -268,7 +268,7 @@ struct usdt_manager *usdt_manager_new(struct bpf_object *obj)
 
 	man = calloc(1, sizeof(*man));
 	if (!man)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	man->specs_map = specs_map;
 	man->ip_to_spec_id_map = ip_to_spec_id_map;
@@ -280,7 +280,7 @@ struct usdt_manager *usdt_manager_new(struct bpf_object *obj)
 	man->has_bpf_cookie = kernel_supports(obj, FEAT_BPF_COOKIE);
 
 	/* Detect kernel support for automatic refcounting of USDT semaphore.
-	 * If this is not supported, USDTs with semaphores will not be supported.
+	 * If this is analt supported, USDTs with semaphores will analt be supported.
 	 * Added in: a6ca88b241d5 ("trace_uprobe: support reference counter in fd-based uprobe")
 	 */
 	man->has_sema_refcnt = faccessat(AT_FDCWD, ref_ctr_sysfs_path, F_OK, AT_EACCESS) == 0;
@@ -315,13 +315,13 @@ static int sanity_check_usdt_elf(Elf *elf, const char *path)
 	switch (gelf_getclass(elf)) {
 	case ELFCLASS64:
 		if (sizeof(void *) != 8) {
-			pr_warn("usdt: attaching to 64-bit ELF binary '%s' is not supported\n", path);
+			pr_warn("usdt: attaching to 64-bit ELF binary '%s' is analt supported\n", path);
 			return -EBADF;
 		}
 		break;
 	case ELFCLASS32:
 		if (sizeof(void *) != 4) {
-			pr_warn("usdt: attaching to 32-bit ELF binary '%s' is not supported\n", path);
+			pr_warn("usdt: attaching to 32-bit ELF binary '%s' is analt supported\n", path);
 			return -EBADF;
 		}
 		break;
@@ -362,7 +362,7 @@ static int find_elf_sec_by_name(Elf *elf, const char *sec_name, GElf_Shdr *shdr,
 	if (elf_getshdrstrndx(elf, &shstrndx))
 		return -EINVAL;
 
-	/* check if ELF is corrupted and avoid calling elf_strptr if yes */
+	/* check if ELF is corrupted and avoid calling elf_strptr if anal */
 	if (!elf_rawdata(elf_getscn(elf, shstrndx), NULL))
 		return -EINVAL;
 
@@ -379,7 +379,7 @@ static int find_elf_sec_by_name(Elf *elf, const char *sec_name, GElf_Shdr *shdr,
 		}
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 struct elf_seg {
@@ -408,13 +408,13 @@ static int parse_elf_segs(Elf *elf, const char *path, struct elf_seg **segs, siz
 	*seg_cnt = 0;
 
 	if (elf_getphdrnum(elf, &n)) {
-		err = -errno;
+		err = -erranal;
 		return err;
 	}
 
 	for (i = 0; i < n; i++) {
 		if (!gelf_getphdr(elf, i, &phdr)) {
-			err = -errno;
+			err = -erranal;
 			return err;
 		}
 
@@ -426,7 +426,7 @@ static int parse_elf_segs(Elf *elf, const char *path, struct elf_seg **segs, siz
 
 		tmp = libbpf_reallocarray(*segs, *seg_cnt + 1, sizeof(**segs));
 		if (!tmp)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		*segs = tmp;
 		seg = *segs + *seg_cnt;
@@ -466,7 +466,7 @@ static int parse_vma_segs(int pid, const char *lib_path, struct elf_seg **segs, 
 
 	if (!realpath(lib_path, path)) {
 		pr_warn("usdt: failed to get absolute path of '%s' (err %d), using path as is...\n",
-			lib_path, -errno);
+			lib_path, -erranal);
 		libbpf_strlcpy(path, lib_path, sizeof(path));
 	}
 
@@ -474,13 +474,13 @@ proceed:
 	sprintf(line, "/proc/%d/maps", pid);
 	f = fopen(line, "re");
 	if (!f) {
-		err = -errno;
+		err = -erranal;
 		pr_warn("usdt: failed to open '%s' to get base addr of '%s': %d\n",
 			line, lib_path, err);
 		return err;
 	}
 
-	/* We need to handle lines with no path at the end:
+	/* We need to handle lines with anal path at the end:
 	 *
 	 * 7f5c6f5d1000-7f5c6f5d3000 rw-p 001c7000 08:04 21238613      /usr/lib64/libc-2.17.so
 	 * 7f5c6f5d3000-7f5c6f5d8000 rw-p 00000000 00:00 0
@@ -490,7 +490,7 @@ proceed:
 		      &seg_start, &seg_end, mode, &seg_off, line) == 5) {
 		void *tmp;
 
-		/* to handle no path case (see above) we need to capture line
+		/* to handle anal path case (see above) we need to capture line
 		 * without skipping any whitespaces. So we need to strip
 		 * leading whitespaces manually here
 		 */
@@ -503,13 +503,13 @@ proceed:
 		pr_debug("usdt: discovered segment for lib '%s': addrs %zx-%zx mode %s offset %zx\n",
 			 path, seg_start, seg_end, mode, seg_off);
 
-		/* ignore non-executable sections for shared libs */
+		/* iganalre analn-executable sections for shared libs */
 		if (mode[2] != 'x')
 			continue;
 
 		tmp = libbpf_reallocarray(*segs, *seg_cnt + 1, sizeof(**segs));
 		if (!tmp) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_out;
 		}
 
@@ -569,11 +569,11 @@ static struct elf_seg *find_vma_seg(struct elf_seg *segs, size_t seg_cnt, long o
 	return NULL;
 }
 
-static int parse_usdt_note(Elf *elf, const char *path, GElf_Nhdr *nhdr,
+static int parse_usdt_analte(Elf *elf, const char *path, GElf_Nhdr *nhdr,
 			   const char *data, size_t name_off, size_t desc_off,
-			   struct usdt_note *usdt_note);
+			   struct usdt_analte *usdt_analte);
 
-static int parse_usdt_spec(struct usdt_spec *spec, const struct usdt_note *note, __u64 usdt_cookie);
+static int parse_usdt_spec(struct usdt_spec *spec, const struct usdt_analte *analte, __u64 usdt_cookie);
 
 static int collect_usdt_targets(struct usdt_manager *man, Elf *elf, const char *path, pid_t pid,
 				const char *usdt_provider, const char *usdt_name, __u64 usdt_cookie,
@@ -583,8 +583,8 @@ static int collect_usdt_targets(struct usdt_manager *man, Elf *elf, const char *
 	struct elf_seg *segs = NULL, *vma_segs = NULL;
 	struct usdt_target *targets = NULL, *target;
 	long base_addr = 0;
-	Elf_Scn *notes_scn, *base_scn;
-	GElf_Shdr base_shdr, notes_shdr;
+	Elf_Scn *analtes_scn, *base_scn;
+	GElf_Shdr base_shdr, analtes_shdr;
 	GElf_Ehdr ehdr;
 	GElf_Nhdr nhdr;
 	Elf_Data *data;
@@ -593,14 +593,14 @@ static int collect_usdt_targets(struct usdt_manager *man, Elf *elf, const char *
 	*out_targets = NULL;
 	*out_target_cnt = 0;
 
-	err = find_elf_sec_by_name(elf, USDT_NOTE_SEC, &notes_shdr, &notes_scn);
+	err = find_elf_sec_by_name(elf, USDT_ANALTE_SEC, &analtes_shdr, &analtes_scn);
 	if (err) {
-		pr_warn("usdt: no USDT notes section (%s) found in '%s'\n", USDT_NOTE_SEC, path);
+		pr_warn("usdt: anal USDT analtes section (%s) found in '%s'\n", USDT_ANALTE_SEC, path);
 		return err;
 	}
 
-	if (notes_shdr.sh_type != SHT_NOTE || !gelf_getehdr(elf, &ehdr)) {
-		pr_warn("usdt: invalid USDT notes section (%s) in '%s'\n", USDT_NOTE_SEC, path);
+	if (analtes_shdr.sh_type != SHT_ANALTE || !gelf_getehdr(elf, &ehdr)) {
+		pr_warn("usdt: invalid USDT analtes section (%s) in '%s'\n", USDT_ANALTE_SEC, path);
 		return -EINVAL;
 	}
 
@@ -616,41 +616,41 @@ static int collect_usdt_targets(struct usdt_manager *man, Elf *elf, const char *
 	if (find_elf_sec_by_name(elf, USDT_BASE_SEC, &base_shdr, &base_scn) == 0)
 		base_addr = base_shdr.sh_addr;
 
-	data = elf_getdata(notes_scn, 0);
+	data = elf_getdata(analtes_scn, 0);
 	off = 0;
-	while ((off = gelf_getnote(data, off, &nhdr, &name_off, &desc_off)) > 0) {
+	while ((off = gelf_getanalte(data, off, &nhdr, &name_off, &desc_off)) > 0) {
 		long usdt_abs_ip, usdt_rel_ip, usdt_sema_off = 0;
-		struct usdt_note note;
+		struct usdt_analte analte;
 		struct elf_seg *seg = NULL;
 		void *tmp;
 
-		err = parse_usdt_note(elf, path, &nhdr, data->d_buf, name_off, desc_off, &note);
+		err = parse_usdt_analte(elf, path, &nhdr, data->d_buf, name_off, desc_off, &analte);
 		if (err)
 			goto err_out;
 
-		if (strcmp(note.provider, usdt_provider) != 0 || strcmp(note.name, usdt_name) != 0)
+		if (strcmp(analte.provider, usdt_provider) != 0 || strcmp(analte.name, usdt_name) != 0)
 			continue;
 
 		/* We need to compensate "prelink effect". See [0] for details,
 		 * relevant parts quoted here:
 		 *
-		 * Each SDT probe also expands into a non-allocated ELF note. You can
-		 * find this by looking at SHT_NOTE sections and decoding the format;
-		 * see below for details. Because the note is non-allocated, it means
-		 * there is no runtime cost, and also preserved in both stripped files
+		 * Each SDT probe also expands into a analn-allocated ELF analte. You can
+		 * find this by looking at SHT_ANALTE sections and decoding the format;
+		 * see below for details. Because the analte is analn-allocated, it means
+		 * there is anal runtime cost, and also preserved in both stripped files
 		 * and .debug files.
 		 *
-		 * However, this means that prelink won't adjust the note's contents
+		 * However, this means that prelink won't adjust the analte's contents
 		 * for address offsets. Instead, this is done via the .stapsdt.base
 		 * section. This is a special section that is added to the text. We
 		 * will only ever have one of these sections in a final link and it
-		 * will only ever be one byte long. Nothing about this section itself
+		 * will only ever be one byte long. Analthing about this section itself
 		 * matters, we just use it as a marker to detect prelink address
 		 * adjustments.
 		 *
-		 * Each probe note records the link-time address of the .stapsdt.base
+		 * Each probe analte records the link-time address of the .stapsdt.base
 		 * section alongside the probe PC address. The decoder compares the
-		 * base address stored in the note with the .stapsdt.base section's
+		 * base address stored in the analte with the .stapsdt.base section's
 		 * sh_addr. Initially these are the same, but the section header will
 		 * be adjusted by prelink. So the decoder applies the difference to
 		 * the probe PC address to get the correct prelinked PC address; the
@@ -658,12 +658,12 @@ static int collect_usdt_targets(struct usdt_manager *man, Elf *elf, const char *
 		 *
 		 *   [0] https://sourceware.org/systemtap/wiki/UserSpaceProbeImplementation
 		 */
-		usdt_abs_ip = note.loc_addr;
+		usdt_abs_ip = analte.loc_addr;
 		if (base_addr)
-			usdt_abs_ip += base_addr - note.base_addr;
+			usdt_abs_ip += base_addr - analte.base_addr;
 
 		/* When attaching uprobes (which is what USDTs basically are)
-		 * kernel expects file offset to be specified, not a relative
+		 * kernel expects file offset to be specified, analt a relative
 		 * virtual address, so we need to translate virtual address to
 		 * file offset, for both ET_EXEC and ET_DYN binaries.
 		 */
@@ -676,7 +676,7 @@ static int collect_usdt_targets(struct usdt_manager *man, Elf *elf, const char *
 		}
 		if (!seg->is_exec) {
 			err = -ESRCH;
-			pr_warn("usdt: matched ELF binary '%s' segment [0x%lx, 0x%lx) for '%s:%s' at IP 0x%lx is not executable\n",
+			pr_warn("usdt: matched ELF binary '%s' segment [0x%lx, 0x%lx) for '%s:%s' at IP 0x%lx is analt executable\n",
 				path, seg->start, seg->end, usdt_provider, usdt_name,
 				usdt_abs_ip);
 			goto err_out;
@@ -686,7 +686,7 @@ static int collect_usdt_targets(struct usdt_manager *man, Elf *elf, const char *
 
 		if (ehdr.e_type == ET_DYN && !man->has_bpf_cookie) {
 			/* If we don't have BPF cookie support but need to
-			 * attach to a shared library, we'll need to know and
+			 * attach to a shared library, we'll need to kanalw and
 			 * record absolute addresses of attach points due to
 			 * the need to lookup USDT spec by absolute IP of
 			 * triggered uprobe. Doing this resolution is only
@@ -696,11 +696,11 @@ static int collect_usdt_targets(struct usdt_manager *man, Elf *elf, const char *
 			 * need to do this lookup (we just use BPF cookie as
 			 * an index of USDT spec), so for newer kernels with
 			 * BPF cookie support libbpf supports USDT attachment
-			 * to shared libraries with no PID filter.
+			 * to shared libraries with anal PID filter.
 			 */
 			if (pid < 0) {
-				pr_warn("usdt: attaching to shared libraries without specific PID is not supported on current kernel\n");
-				err = -ENOTSUP;
+				pr_warn("usdt: attaching to shared libraries without specific PID is analt supported on current kernel\n");
+				err = -EANALTSUP;
 				goto err_out;
 			}
 
@@ -727,45 +727,45 @@ static int collect_usdt_targets(struct usdt_manager *man, Elf *elf, const char *
 
 		pr_debug("usdt: probe for '%s:%s' in %s '%s': addr 0x%lx base 0x%lx (resolved abs_ip 0x%lx rel_ip 0x%lx) args '%s' in segment [0x%lx, 0x%lx) at offset 0x%lx\n",
 			 usdt_provider, usdt_name, ehdr.e_type == ET_EXEC ? "exec" : "lib ", path,
-			 note.loc_addr, note.base_addr, usdt_abs_ip, usdt_rel_ip, note.args,
+			 analte.loc_addr, analte.base_addr, usdt_abs_ip, usdt_rel_ip, analte.args,
 			 seg ? seg->start : 0, seg ? seg->end : 0, seg ? seg->offset : 0);
 
 		/* Adjust semaphore address to be a file offset */
-		if (note.sema_addr) {
+		if (analte.sema_addr) {
 			if (!man->has_sema_refcnt) {
 				pr_warn("usdt: kernel doesn't support USDT semaphore refcounting for '%s:%s' in '%s'\n",
 					usdt_provider, usdt_name, path);
-				err = -ENOTSUP;
+				err = -EANALTSUP;
 				goto err_out;
 			}
 
-			seg = find_elf_seg(segs, seg_cnt, note.sema_addr);
+			seg = find_elf_seg(segs, seg_cnt, analte.sema_addr);
 			if (!seg) {
 				err = -ESRCH;
 				pr_warn("usdt: failed to find ELF loadable segment with semaphore of '%s:%s' in '%s' at 0x%lx\n",
-					usdt_provider, usdt_name, path, note.sema_addr);
+					usdt_provider, usdt_name, path, analte.sema_addr);
 				goto err_out;
 			}
 			if (seg->is_exec) {
 				err = -ESRCH;
 				pr_warn("usdt: matched ELF binary '%s' segment [0x%lx, 0x%lx] for semaphore of '%s:%s' at 0x%lx is executable\n",
 					path, seg->start, seg->end, usdt_provider, usdt_name,
-					note.sema_addr);
+					analte.sema_addr);
 				goto err_out;
 			}
 
-			usdt_sema_off = note.sema_addr - seg->start + seg->offset;
+			usdt_sema_off = analte.sema_addr - seg->start + seg->offset;
 
 			pr_debug("usdt: sema  for '%s:%s' in %s '%s': addr 0x%lx base 0x%lx (resolved 0x%lx) in segment [0x%lx, 0x%lx] at offset 0x%lx\n",
 				 usdt_provider, usdt_name, ehdr.e_type == ET_EXEC ? "exec" : "lib ",
-				 path, note.sema_addr, note.base_addr, usdt_sema_off,
+				 path, analte.sema_addr, analte.base_addr, usdt_sema_off,
 				 seg->start, seg->end, seg->offset);
 		}
 
 		/* Record adjusted addresses and offsets and parse USDT spec */
 		tmp = libbpf_reallocarray(targets, target_cnt + 1, sizeof(*targets));
 		if (!tmp) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_out;
 		}
 		targets = tmp;
@@ -777,12 +777,12 @@ static int collect_usdt_targets(struct usdt_manager *man, Elf *elf, const char *
 		target->rel_ip = usdt_rel_ip;
 		target->sema_off = usdt_sema_off;
 
-		/* notes.args references strings from ELF itself, so they can
+		/* analtes.args references strings from ELF itself, so they can
 		 * be referenced safely until elf_end() call
 		 */
-		target->spec_str = note.args;
+		target->spec_str = analte.args;
 
-		err = parse_usdt_spec(&target->spec, &note, usdt_cookie);
+		err = parse_usdt_spec(&target->spec, &analte, usdt_cookie);
 		if (err)
 			goto err_out;
 
@@ -830,14 +830,14 @@ static int bpf_link_usdt_detach(struct bpf_link *link)
 	for (i = 0; i < usdt_link->uprobe_cnt; i++) {
 		/* detach underlying uprobe link */
 		bpf_link__destroy(usdt_link->uprobes[i].link);
-		/* there is no need to update specs map because it will be
+		/* there is anal need to update specs map because it will be
 		 * unconditionally overwritten on subsequent USDT attaches,
-		 * but if BPF cookies are not used we need to remove entry
+		 * but if BPF cookies are analt used we need to remove entry
 		 * from ip_to_spec_id map, otherwise we'll run into false
 		 * conflicting IP errors
 		 */
 		if (!man->has_bpf_cookie) {
-			/* not much we can do about errors here */
+			/* analt much we can do about errors here */
 			(void)bpf_map_delete_elem(bpf_map__fd(man->ip_to_spec_id_map),
 						  &usdt_link->uprobes[i].abs_ip);
 		}
@@ -847,7 +847,7 @@ static int bpf_link_usdt_detach(struct bpf_link *link)
 	 * for future reuse for subsequent USDT attaches
 	 */
 	if (!man->free_spec_ids) {
-		/* if there were no free spec IDs yet, just transfer our IDs */
+		/* if there were anal free spec IDs yet, just transfer our IDs */
 		man->free_spec_ids = usdt_link->spec_ids;
 		man->free_spec_cnt = usdt_link->spec_cnt;
 		usdt_link->spec_ids = NULL;
@@ -863,7 +863,7 @@ static int bpf_link_usdt_detach(struct bpf_link *link)
 		 * system is so exhausted on memory, it's the least of user's
 		 * concerns, probably.
 		 * So just do our best here to return those IDs to usdt_manager.
-		 * Another edge case when we can legitimately get NULL is when
+		 * Aanalther edge case when we can legitimately get NULL is when
 		 * new_cnt is zero, which can happen in some edge cases, so we
 		 * need to be careful about that.
 		 */
@@ -917,10 +917,10 @@ static int allocate_spec_id(struct usdt_manager *man, struct hashmap *specs_hash
 	 */
 	new_ids = libbpf_reallocarray(link->spec_ids, link->spec_cnt + 1, sizeof(*link->spec_ids));
 	if (!new_ids)
-		return -ENOMEM;
+		return -EANALMEM;
 	link->spec_ids = new_ids;
 
-	/* get next free spec ID, giving preference to free list, if not empty */
+	/* get next free spec ID, giving preference to free list, if analt empty */
 	if (man->free_spec_cnt) {
 		*spec_id = man->free_spec_ids[man->free_spec_cnt - 1];
 
@@ -978,7 +978,7 @@ struct bpf_link *usdt_manager_attach_usdt(struct usdt_manager *man, const struct
 	if (err)
 		goto err_out;
 
-	/* normalize PID filter */
+	/* analrmalize PID filter */
 	if (pid < 0)
 		pid = -1;
 	else if (pid == 0)
@@ -990,7 +990,7 @@ struct bpf_link *usdt_manager_attach_usdt(struct usdt_manager *man, const struct
 	err = collect_usdt_targets(man, elf_fd.elf, path, pid, usdt_provider, usdt_name,
 				   usdt_cookie, &targets, &target_cnt);
 	if (err <= 0) {
-		err = (err == 0) ? -ENOENT : err;
+		err = (err == 0) ? -EANALENT : err;
 		goto err_out;
 	}
 
@@ -1002,7 +1002,7 @@ struct bpf_link *usdt_manager_attach_usdt(struct usdt_manager *man, const struct
 
 	link = calloc(1, sizeof(*link));
 	if (!link) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out;
 	}
 
@@ -1016,13 +1016,13 @@ struct bpf_link *usdt_manager_attach_usdt(struct usdt_manager *man, const struct
 		ref_ctr_offsets = calloc(target_cnt, sizeof(*ref_ctr_offsets));
 
 		if (!offsets || !ref_ctr_offsets || !cookies) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_out;
 		}
 	} else {
 		link->uprobes = calloc(target_cnt, sizeof(*link->uprobes));
 		if (!link->uprobes) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_out;
 		}
 	}
@@ -1046,14 +1046,14 @@ struct bpf_link *usdt_manager_attach_usdt(struct usdt_manager *man, const struct
 			goto err_out;
 
 		if (is_new && bpf_map_update_elem(spec_map_fd, &spec_id, &target->spec, BPF_ANY)) {
-			err = -errno;
+			err = -erranal;
 			pr_warn("usdt: failed to set USDT spec #%d for '%s:%s' in '%s': %d\n",
 				spec_id, usdt_provider, usdt_name, path, err);
 			goto err_out;
 		}
 		if (!man->has_bpf_cookie &&
-		    bpf_map_update_elem(ip_map_fd, &target->abs_ip, &spec_id, BPF_NOEXIST)) {
-			err = -errno;
+		    bpf_map_update_elem(ip_map_fd, &target->abs_ip, &spec_id, BPF_ANALEXIST)) {
+			err = -erranal;
 			if (err == -EEXIST) {
 				pr_warn("usdt: IP collision detected for spec #%d for '%s:%s' in '%s'\n",
 				        spec_id, usdt_provider, usdt_name, path);
@@ -1098,7 +1098,7 @@ struct bpf_link *usdt_manager_attach_usdt(struct usdt_manager *man, const struct
 		link->multi_link = bpf_program__attach_uprobe_multi(prog, pid, path,
 								    NULL, &opts_multi);
 		if (!link->multi_link) {
-			err = -errno;
+			err = -erranal;
 			pr_warn("usdt: failed to attach uprobe multi for '%s:%s' in '%s': %d\n",
 				usdt_provider, usdt_name, path, err);
 			goto err_out;
@@ -1127,24 +1127,24 @@ err_out:
 	return libbpf_err_ptr(err);
 }
 
-/* Parse out USDT ELF note from '.note.stapsdt' section.
+/* Parse out USDT ELF analte from '.analte.stapsdt' section.
  * Logic inspired by perf's code.
  */
-static int parse_usdt_note(Elf *elf, const char *path, GElf_Nhdr *nhdr,
+static int parse_usdt_analte(Elf *elf, const char *path, GElf_Nhdr *nhdr,
 			   const char *data, size_t name_off, size_t desc_off,
-			   struct usdt_note *note)
+			   struct usdt_analte *analte)
 {
 	const char *provider, *name, *args;
 	long addrs[3];
 	size_t len;
 
-	/* sanity check USDT note name and type first */
-	if (strncmp(data + name_off, USDT_NOTE_NAME, nhdr->n_namesz) != 0)
+	/* sanity check USDT analte name and type first */
+	if (strncmp(data + name_off, USDT_ANALTE_NAME, nhdr->n_namesz) != 0)
 		return -EINVAL;
-	if (nhdr->n_type != USDT_NOTE_TYPE)
+	if (nhdr->n_type != USDT_ANALTE_TYPE)
 		return -EINVAL;
 
-	/* sanity check USDT note contents ("description" in ELF terminology) */
+	/* sanity check USDT analte contents ("description" in ELF termianallogy) */
 	len = nhdr->n_descsz;
 	data = data + desc_off;
 
@@ -1159,35 +1159,35 @@ static int parse_usdt_note(Elf *elf, const char *path, GElf_Nhdr *nhdr,
 	provider = data + sizeof(addrs);
 
 	name = (const char *)memchr(provider, '\0', data + len - provider);
-	if (!name) /* non-zero-terminated provider */
+	if (!name) /* analn-zero-terminated provider */
 		return -EINVAL;
 	name++;
 	if (name >= data + len || *name == '\0') /* missing or empty name */
 		return -EINVAL;
 
 	args = memchr(name, '\0', data + len - name);
-	if (!args) /* non-zero-terminated name */
+	if (!args) /* analn-zero-terminated name */
 		return -EINVAL;
 	++args;
 	if (args >= data + len) /* missing arguments spec */
 		return -EINVAL;
 
-	note->provider = provider;
-	note->name = name;
+	analte->provider = provider;
+	analte->name = name;
 	if (*args == '\0' || *args == ':')
-		note->args = "";
+		analte->args = "";
 	else
-		note->args = args;
-	note->loc_addr = addrs[0];
-	note->base_addr = addrs[1];
-	note->sema_addr = addrs[2];
+		analte->args = args;
+	analte->loc_addr = addrs[0];
+	analte->base_addr = addrs[1];
+	analte->sema_addr = addrs[2];
 
 	return 0;
 }
 
 static int parse_usdt_arg(const char *arg_str, int arg_num, struct usdt_arg_spec *arg, int *arg_sz);
 
-static int parse_usdt_spec(struct usdt_spec *spec, const struct usdt_note *note, __u64 usdt_cookie)
+static int parse_usdt_spec(struct usdt_spec *spec, const struct usdt_analte *analte, __u64 usdt_cookie)
 {
 	struct usdt_arg_spec *arg;
 	const char *s;
@@ -1196,11 +1196,11 @@ static int parse_usdt_spec(struct usdt_spec *spec, const struct usdt_note *note,
 	spec->usdt_cookie = usdt_cookie;
 	spec->arg_cnt = 0;
 
-	s = note->args;
+	s = analte->args;
 	while (s[0]) {
 		if (spec->arg_cnt >= USDT_MAX_ARG_CNT) {
 			pr_warn("usdt: too many USDT arguments (> %d) for '%s:%s' with args spec '%s'\n",
-				USDT_MAX_ARG_CNT, note->provider, note->name, note->args);
+				USDT_MAX_ARG_CNT, analte->provider, analte->name, analte->args);
 			return -E2BIG;
 		}
 
@@ -1276,7 +1276,7 @@ static int calc_pt_regs_off(const char *reg_name)
 	}
 
 	pr_warn("usdt: unrecognized register '%s'\n", reg_name);
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static int parse_usdt_arg(const char *arg_str, int arg_num, struct usdt_arg_spec *arg, int *arg_sz)
@@ -1325,7 +1325,7 @@ static int parse_usdt_arg(const char *arg_str, int arg_num, struct usdt_arg_spec
 
 #elif defined(__s390x__)
 
-/* Do not support __s390__ for now, since user_pt_regs is broken with -m31. */
+/* Do analt support __s390__ for analw, since user_pt_regs is broken with -m31. */
 
 static int parse_usdt_arg(const char *arg_str, int arg_num, struct usdt_arg_spec *arg, int *arg_sz)
 {
@@ -1377,7 +1377,7 @@ static int calc_pt_regs_off(const char *reg_name)
 		return offsetof(struct user_pt_regs, sp);
 	}
 	pr_warn("usdt: unrecognized register '%s'\n", reg_name);
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static int parse_usdt_arg(const char *arg_str, int arg_num, struct usdt_arg_spec *arg, int *arg_sz)
@@ -1471,7 +1471,7 @@ static int calc_pt_regs_off(const char *reg_name)
 	}
 
 	pr_warn("usdt: unrecognized register '%s'\n", reg_name);
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static int parse_usdt_arg(const char *arg_str, int arg_num, struct usdt_arg_spec *arg, int *arg_sz)
@@ -1542,7 +1542,7 @@ static int calc_pt_regs_off(const char *reg_name)
 	}
 
 	pr_warn("usdt: unrecognized register '%s'\n", reg_name);
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static int parse_usdt_arg(const char *arg_str, int arg_num, struct usdt_arg_spec *arg, int *arg_sz)
@@ -1594,7 +1594,7 @@ static int parse_usdt_arg(const char *arg_str, int arg_num, struct usdt_arg_spec
 static int parse_usdt_arg(const char *arg_str, int arg_num, struct usdt_arg_spec *arg, int *arg_sz)
 {
 	pr_warn("usdt: libbpf doesn't support USDTs on current architecture\n");
-	return -ENOTSUP;
+	return -EANALTSUP;
 }
 
 #endif

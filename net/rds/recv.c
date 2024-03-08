@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -89,7 +89,7 @@ static void rds_recv_rcvbuf_delta(struct rds_sock *rs, struct sock *sk,
 				  struct rds_cong_map *map,
 				  int delta, __be16 port)
 {
-	int now_congested;
+	int analw_congested;
 
 	if (delta == 0)
 		return;
@@ -104,16 +104,16 @@ static void rds_recv_rcvbuf_delta(struct rds_sock *rs, struct sock *sk,
 	if (rs->rs_transport->t_type == RDS_TRANS_LOOP)
 		return;
 
-	now_congested = rs->rs_rcv_bytes > rds_sk_rcvbuf(rs);
+	analw_congested = rs->rs_rcv_bytes > rds_sk_rcvbuf(rs);
 
 	rdsdebug("rs %p (%pI6c:%u) recv bytes %d buf %d "
-	  "now_cong %d delta %d\n",
+	  "analw_cong %d delta %d\n",
 	  rs, &rs->rs_bound_addr,
 	  ntohs(rs->rs_bound_port), rs->rs_rcv_bytes,
-	  rds_sk_rcvbuf(rs), now_congested, delta);
+	  rds_sk_rcvbuf(rs), analw_congested, delta);
 
 	/* wasn't -> am congested */
-	if (!rs->rs_congested && now_congested) {
+	if (!rs->rs_congested && analw_congested) {
 		rs->rs_congested = 1;
 		rds_cong_set_bit(map, port);
 		rds_cong_queue_updates(map);
@@ -127,7 +127,7 @@ static void rds_recv_rcvbuf_delta(struct rds_sock *rs, struct sock *sk,
 		rds_cong_queue_updates(map);
 	}
 
-	/* do nothing if no change in cong state */
+	/* do analthing if anal change in cong state */
 }
 
 static void rds_conn_peer_gen_update(struct rds_connection *conn,
@@ -176,7 +176,7 @@ static void rds_recv_incoming_exthdrs(struct rds_incoming *inc, struct rds_sock 
 	while (1) {
 		len = sizeof(buffer);
 		type = rds_message_next_extension(hdr, &pos, &buffer, &len);
-		if (type == RDS_EXTHDR_NONE)
+		if (type == RDS_EXTHDR_ANALNE)
 			break;
 		/* Process extension header here */
 		switch (type) {
@@ -185,7 +185,7 @@ static void rds_recv_incoming_exthdrs(struct rds_incoming *inc, struct rds_sock 
 			break;
 
 		case RDS_EXTHDR_RDMA_DEST:
-			/* We ignore the size for now. We could stash it
+			/* We iganalre the size for analw. We could stash it
 			 * somewhere and use it for error checking. */
 			inc->i_usercopy.rdma_cookie = rds_rdma_make_cookie(
 					be32_to_cpu(buffer.rdma_dest.h_rdma_rkey),
@@ -210,7 +210,7 @@ static void rds_recv_hs_exthdrs(struct rds_header *hdr,
 	while (1) {
 		len = sizeof(buffer);
 		type = rds_message_next_extension(hdr, &pos, &buffer, &len);
-		if (type == RDS_EXTHDR_NONE)
+		if (type == RDS_EXTHDR_ANALNE)
 			break;
 		/* Process extension header here */
 		switch (type) {
@@ -222,29 +222,29 @@ static void rds_recv_hs_exthdrs(struct rds_header *hdr,
 			new_peer_gen_num = be32_to_cpu(buffer.rds_gen_num);
 			break;
 		default:
-			pr_warn_ratelimited("ignoring unknown exthdr type "
+			pr_warn_ratelimited("iganalring unkanalwn exthdr type "
 					     "0x%x\n", type);
 		}
 	}
-	/* if RDS_EXTHDR_NPATHS was not found, default to a single-path */
+	/* if RDS_EXTHDR_NPATHS was analt found, default to a single-path */
 	conn->c_npaths = max_t(int, conn->c_npaths, 1);
 	conn->c_ping_triggered = 0;
 	rds_conn_peer_gen_update(conn, new_peer_gen_num);
 }
 
-/* rds_start_mprds() will synchronously start multiple paths when appropriate.
+/* rds_start_mprds() will synchroanalusly start multiple paths when appropriate.
  * The scheme is based on the following rules:
  *
  * 1. rds_sendmsg on first connect attempt sends the probe ping, with the
  *    sender's npaths (s_npaths)
- * 2. rcvr of probe-ping knows the mprds_paths = min(s_npaths, r_npaths). It
+ * 2. rcvr of probe-ping kanalws the mprds_paths = min(s_npaths, r_npaths). It
  *    sends back a probe-pong with r_npaths. After that, if rcvr is the
  *    smaller ip addr, it starts rds_conn_path_connect_if_down on all
  *    mprds_paths.
  * 3. sender gets woken up, and can move to rds_conn_path_connect_if_down.
  *    If it is the smaller ipaddr, rds_conn_path_connect_if_down can be
  *    called after reception of the probe-pong on all mprds_paths.
- *    Otherwise (sender of probe-ping is not the smaller ip addr): just call
+ *    Otherwise (sender of probe-ping is analt the smaller ip addr): just call
  *    rds_conn_path_connect_if_down on the hashed path. (see rule 4)
  * 4. rds_connect_worker must only trigger a connection if laddr < faddr.
  * 5. sender may end up queuing the packet on the cp. will get sent out later.
@@ -312,10 +312,10 @@ void rds_recv_incoming(struct rds_connection *conn, struct in6_addr *saddr,
 	 * sequence number as they're queued in a sending conn.  They
 	 * can be dropped, though, if the sending socket is closed before
 	 * they hit the wire.  So sequence numbers can skip forward
-	 * under normal operation.  They can also drop back in the conn
+	 * under analrmal operation.  They can also drop back in the conn
 	 * failover case as previously sent messages are resent down the
 	 * new instance of a conn.  We drop those, otherwise we have
-	 * to assume that the next valid seq does not come after a
+	 * to assume that the next valid seq does analt come after a
 	 * hole in the fragment stream.
 	 *
 	 * The headers don't give us a way to realize if fragments of
@@ -336,7 +336,7 @@ void rds_recv_incoming(struct rds_connection *conn, struct in6_addr *saddr,
 
 	if (rds_sysctl_ping_enable && inc->i_hdr.h_dport == 0) {
 		if (inc->i_hdr.h_sport == 0) {
-			rdsdebug("ignore ping with 0 sport from %pI6c\n",
+			rdsdebug("iganalre ping with 0 sport from %pI6c\n",
 				 saddr);
 			goto out;
 		}
@@ -362,7 +362,7 @@ void rds_recv_incoming(struct rds_connection *conn, struct in6_addr *saddr,
 
 	rs = rds_find_bound(daddr, inc->i_hdr.h_dport, conn->c_bound_if);
 	if (!rs) {
-		rds_stats_inc(s_recv_drop_no_sock);
+		rds_stats_inc(s_recv_drop_anal_sock);
 		goto out;
 	}
 
@@ -452,10 +452,10 @@ static int rds_still_queued(struct rds_sock *rs, struct rds_incoming *inc,
  * Pull errors off the error queue.
  * If msghdr is NULL, we will just purge the error queue.
  */
-int rds_notify_queue_get(struct rds_sock *rs, struct msghdr *msghdr)
+int rds_analtify_queue_get(struct rds_sock *rs, struct msghdr *msghdr)
 {
-	struct rds_notifier *notifier;
-	struct rds_rdma_notify cmsg;
+	struct rds_analtifier *analtifier;
+	struct rds_rdma_analtify cmsg;
 	unsigned int count = 0, max_messages = ~0U;
 	unsigned long flags;
 	LIST_HEAD(copy);
@@ -464,10 +464,10 @@ int rds_notify_queue_get(struct rds_sock *rs, struct msghdr *msghdr)
 	memset(&cmsg, 0, sizeof(cmsg));	/* fill holes with zero */
 
 	/* put_cmsg copies to user space and thus may sleep. We can't do this
-	 * with rs_lock held, so first grab as many notifications as we can stuff
+	 * with rs_lock held, so first grab as many analtifications as we can stuff
 	 * in the user provided cmsg buffer. We don't try to copy more, to avoid
-	 * losing notifications - except when the buffer is so small that it wouldn't
-	 * even hold a single notification. Then we give him as much of this single
+	 * losing analtifications - except when the buffer is so small that it wouldn't
+	 * even hold a single analtification. Then we give him as much of this single
 	 * msg as we can squeeze in, and set MSG_CTRUNC.
 	 */
 	if (msghdr) {
@@ -477,10 +477,10 @@ int rds_notify_queue_get(struct rds_sock *rs, struct msghdr *msghdr)
 	}
 
 	spin_lock_irqsave(&rs->rs_lock, flags);
-	while (!list_empty(&rs->rs_notify_queue) && count < max_messages) {
-		notifier = list_entry(rs->rs_notify_queue.next,
-				struct rds_notifier, n_list);
-		list_move(&notifier->n_list, &copy);
+	while (!list_empty(&rs->rs_analtify_queue) && count < max_messages) {
+		analtifier = list_entry(rs->rs_analtify_queue.next,
+				struct rds_analtifier, n_list);
+		list_move(&analtifier->n_list, &copy);
 		count++;
 	}
 	spin_unlock_irqrestore(&rs->rs_lock, flags);
@@ -489,11 +489,11 @@ int rds_notify_queue_get(struct rds_sock *rs, struct msghdr *msghdr)
 		return 0;
 
 	while (!list_empty(&copy)) {
-		notifier = list_entry(copy.next, struct rds_notifier, n_list);
+		analtifier = list_entry(copy.next, struct rds_analtifier, n_list);
 
 		if (msghdr) {
-			cmsg.user_token = notifier->n_user_token;
-			cmsg.status = notifier->n_status;
+			cmsg.user_token = analtifier->n_user_token;
+			cmsg.status = analtifier->n_status;
 
 			err = put_cmsg(msghdr, SOL_RDS, RDS_CMSG_RDMA_STATUS,
 				       sizeof(cmsg), &cmsg);
@@ -501,16 +501,16 @@ int rds_notify_queue_get(struct rds_sock *rs, struct msghdr *msghdr)
 				break;
 		}
 
-		list_del_init(&notifier->n_list);
-		kfree(notifier);
+		list_del_init(&analtifier->n_list);
+		kfree(analtifier);
 	}
 
 	/* If we bailed out because of an error in put_cmsg,
-	 * we may be left with one or more notifications that we
+	 * we may be left with one or more analtifications that we
 	 * didn't process. Return them to the head of the list. */
 	if (!list_empty(&copy)) {
 		spin_lock_irqsave(&rs->rs_lock, flags);
-		list_splice(&copy, &rs->rs_notify_queue);
+		list_splice(&copy, &rs->rs_analtify_queue);
 		spin_unlock_irqrestore(&rs->rs_lock, flags);
 	}
 
@@ -518,21 +518,21 @@ int rds_notify_queue_get(struct rds_sock *rs, struct msghdr *msghdr)
 }
 
 /*
- * Queue a congestion notification
+ * Queue a congestion analtification
  */
-static int rds_notify_cong(struct rds_sock *rs, struct msghdr *msghdr)
+static int rds_analtify_cong(struct rds_sock *rs, struct msghdr *msghdr)
 {
-	uint64_t notify = rs->rs_cong_notify;
+	uint64_t analtify = rs->rs_cong_analtify;
 	unsigned long flags;
 	int err;
 
 	err = put_cmsg(msghdr, SOL_RDS, RDS_CMSG_CONG_UPDATE,
-			sizeof(notify), &notify);
+			sizeof(analtify), &analtify);
 	if (err)
 		return err;
 
 	spin_lock_irqsave(&rs->rs_lock, flags);
-	rs->rs_cong_notify &= ~notify;
+	rs->rs_cong_analtify &= ~analtify;
 	spin_unlock_irqrestore(&rs->rs_lock, flags);
 
 	return 0;
@@ -641,13 +641,13 @@ int rds_recvmsg(struct socket *sock, struct msghdr *msg, size_t size,
 	struct sock *sk = sock->sk;
 	struct rds_sock *rs = rds_sk_to_rs(sk);
 	long timeo;
-	int ret = 0, nonblock = msg_flags & MSG_DONTWAIT;
+	int ret = 0, analnblock = msg_flags & MSG_DONTWAIT;
 	DECLARE_SOCKADDR(struct sockaddr_in6 *, sin6, msg->msg_name);
 	DECLARE_SOCKADDR(struct sockaddr_in *, sin, msg->msg_name);
 	struct rds_incoming *inc = NULL;
 
 	/* udp_recvmsg()->sock_recvtimeo() gets away without locking too.. */
-	timeo = sock_rcvtimeo(sk, nonblock);
+	timeo = sock_rcvtimeo(sk, analnblock);
 
 	rdsdebug("size %zu flags 0x%x timeo %ld\n", size, msg_flags, timeo);
 
@@ -657,19 +657,19 @@ int rds_recvmsg(struct socket *sock, struct msghdr *msg, size_t size,
 		return sock_recv_errqueue(sk, msg, size, SOL_IP, IP_RECVERR);
 
 	while (1) {
-		/* If there are pending notifications, do those - and nothing else */
-		if (!list_empty(&rs->rs_notify_queue)) {
-			ret = rds_notify_queue_get(rs, msg);
+		/* If there are pending analtifications, do those - and analthing else */
+		if (!list_empty(&rs->rs_analtify_queue)) {
+			ret = rds_analtify_queue_get(rs, msg);
 			break;
 		}
 
-		if (rs->rs_cong_notify) {
-			ret = rds_notify_cong(rs, msg);
+		if (rs->rs_cong_analtify) {
+			ret = rds_analtify_cong(rs, msg);
 			break;
 		}
 
 		if (!rds_next_incoming(rs, &inc)) {
-			if (nonblock) {
+			if (analnblock) {
 				bool reaped = rds_recvmsg_zcookie(rs, msg);
 
 				ret = reaped ?  0 : -EAGAIN;
@@ -677,8 +677,8 @@ int rds_recvmsg(struct socket *sock, struct msghdr *msg, size_t size,
 			}
 
 			timeo = wait_event_interruptible_timeout(*sk_sleep(sk),
-					(!list_empty(&rs->rs_notify_queue) ||
-					 rs->rs_cong_notify ||
+					(!list_empty(&rs->rs_analtify_queue) ||
+					 rs->rs_cong_analtify ||
 					 rds_next_incoming(rs, &inc)), timeo);
 			rdsdebug("recvmsg woke inc %p timeo %ld\n", inc,
 				 timeo);

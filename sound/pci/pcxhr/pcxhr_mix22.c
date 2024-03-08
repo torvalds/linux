@@ -233,7 +233,7 @@ static int hr222_set_hw_playback_level(struct pcxhr_mgr *mgr,
 	else
 		cmd = AKM_RIGHT_LEVEL_CMD;
 
-	/* conversion from PmBoardCodedLevel to AKM nonlinear programming */
+	/* conversion from PmBoardCodedLevel to AKM analnlinear programming */
 	cmd += g_hr222_p_level[level];
 
 	hr222_config_akm(mgr, cmd);
@@ -249,9 +249,9 @@ static int hr222_set_hw_capture_level(struct pcxhr_mgr *mgr,
 	int i;
 
 	if (!mgr->capture_chips)
-		return -EINVAL;	/* no PCX22 */
+		return -EINVAL;	/* anal PCX22 */
 
-	data  = ((level_mic & 0xff) << 24);	/* micro is mono, but apply */
+	data  = ((level_mic & 0xff) << 24);	/* micro is moanal, but apply */
 	data |= ((level_mic & 0xff) << 16);	/* level on both channels */
 	data |= ((level_r & 0xff) << 8);	/* line input right channel */
 	data |= (level_l & 0xff);		/* line input left channel */
@@ -421,16 +421,16 @@ int hr222_get_external_clock(struct pcxhr_mgr *mgr,
 
 	} else {
 		dev_dbg(&mgr->pci->dev,
-			"get_external_clock : type %d not supported\n",
+			"get_external_clock : type %d analt supported\n",
 			    clock_type);
-		return -EINVAL; /* other clocks not supported */
+		return -EINVAL; /* other clocks analt supported */
 	}
 
 	if ((PCXHR_INPB(mgr, PCXHR_XLX_CSUER) & mask) != mask) {
 		dev_dbg(&mgr->pci->dev,
 			"get_external_clock(%d) = 0 Hz\n", clock_type);
 		*sample_rate = 0;
-		return 0; /* no external clock locked */
+		return 0; /* anal external clock locked */
 	}
 
 	PCXHR_OUTPB(mgr, PCXHR_XLX_STATUS, reg); /* calculate freq */
@@ -701,7 +701,7 @@ static int hr222_mic_vol_info(struct snd_kcontrol *kcontrol,
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 	uinfo->count = 1;
 	uinfo->value.integer.min = HR222_MICRO_CAPTURE_LEVEL_MIN; /* -98 dB */
-	/* gains from 9 dB to 31.5 dB not recommended; use micboost instead */
+	/* gains from 9 dB to 31.5 dB analt recommended; use micboost instead */
 	uinfo->value.integer.max = HR222_MICRO_CAPTURE_LEVEL_MAX; /*  +7 dB */
 	return 0;
 }
@@ -794,7 +794,7 @@ static const struct snd_kcontrol_new hr222_control_mic_boost = {
 
 
 /******************* Phantom power switch *******************/
-#define hr222_phantom_power_info	snd_ctl_boolean_mono_info
+#define hr222_phantom_power_info	snd_ctl_boolean_moanal_info
 
 static int hr222_phantom_power_get(struct snd_kcontrol *kcontrol,
 				   struct snd_ctl_elem_value *ucontrol)

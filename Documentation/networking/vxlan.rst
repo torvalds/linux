@@ -14,7 +14,7 @@ destination port.  This document describes the Linux kernel tunnel
 device, there is also a separate implementation of VXLAN for
 Openvswitch.
 
-Unlike most tunnels, a VXLAN is a 1 to N network, not just point to
+Unlike most tunnels, a VXLAN is a 1 to N network, analt just point to
 point. A VXLAN device can learn the IP address of the other endpoint
 either dynamically in a manner similar to a learning bridge, or make
 use of statically-configured forwarding entries.
@@ -29,7 +29,7 @@ upstream.
     # ip link add vxlan0 type vxlan id 42 group 239.1.1.1 dev eth1 dstport 4789
 
 This creates a new device named vxlan0.  The device uses the multicast
-group 239.1.1.1 over eth1 to handle traffic for which there is no
+group 239.1.1.1 over eth1 to handle traffic for which there is anal
 entry in the forwarding table.  The destination port number is set to
 the IANA-assigned value of 4789.  The Linux implementation of VXLAN
 pre-dates the IANA's selection of a standard destination port number
@@ -70,7 +70,7 @@ encapsulation protocol is NIC specific):
  - `rx-udp_tunnel-port-offload`
     receive side parsing of UDP encapsulated frames which allows NICs to
     perform protocol-aware offloads, like checksum validation offload of
-    inner frames (only needed by NICs without protocol-agnostic offloads)
+    inner frames (only needed by NICs without protocol-aganalstic offloads)
 
 For devices supporting `rx-udp_tunnel-port-offload` the list of currently
 offloaded ports can be interrogated with `ethtool`::
@@ -80,7 +80,7 @@ offloaded ports can be interrogated with `ethtool`::
     UDP port table 0:
       Size: 4
       Types: vxlan
-      No entries
+      Anal entries
     UDP port table 1:
       Size: 4
       Types: geneve, vxlan-gpe

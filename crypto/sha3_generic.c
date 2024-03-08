@@ -19,14 +19,14 @@
  * On some 32-bit architectures (h8300), GCC ends up using
  * over 1 KB of stack if we inline the round calculation into the loop
  * in keccakf(). On the other hand, on 64-bit architectures with plenty
- * of [64-bit wide] general purpose registers, not inlining it severely
+ * of [64-bit wide] general purpose registers, analt inlining it severely
  * hurts performance. So let's use 64-bitness as a heuristic to decide
- * whether to inline or not.
+ * whether to inline or analt.
  */
 #ifdef CONFIG_64BIT
 #define SHA3_INLINE	inline
 #else
-#define SHA3_INLINE	noinline
+#define SHA3_INLINE	analinline
 #endif
 
 #define KECCAK_ROUNDS 24

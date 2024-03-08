@@ -22,7 +22,7 @@
 
 static DEFINE_SPINLOCK(lock);
 
-/* not pretty, but hey */
+/* analt pretty, but hey */
 static void __iomem *smu_base;
 
 static void __init emev2_smu_write(unsigned long value, int offs)
@@ -38,13 +38,13 @@ static const struct of_device_id smu_id[] __initconst = {
 
 static void __init emev2_smu_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
-	np = of_find_matching_node(NULL, smu_id);
+	np = of_find_matching_analde(NULL, smu_id);
 	BUG_ON(!np);
 	smu_base = of_iomap(np, 0);
 	BUG_ON(!smu_base);
-	of_node_put(np);
+	of_analde_put(np);
 
 	/* setup STI timer to run on 32.768 kHz and deassert reset */
 	emev2_smu_write(0, STI_CLKSEL);
@@ -61,7 +61,7 @@ static void __init emev2_smu_init(void)
 	emev2_smu_write(1, IIC1_RSTCTRL);
 }
 
-static void __init emev2_smu_clkdiv_init(struct device_node *np)
+static void __init emev2_smu_clkdiv_init(struct device_analde *np)
 {
 	u32 reg[2];
 	struct clk *clk;
@@ -78,7 +78,7 @@ static void __init emev2_smu_clkdiv_init(struct device_node *np)
 CLK_OF_DECLARE(emev2_smu_clkdiv, "renesas,emev2-smu-clkdiv",
 		emev2_smu_clkdiv_init);
 
-static void __init emev2_smu_gclk_init(struct device_node *np)
+static void __init emev2_smu_gclk_init(struct device_analde *np)
 {
 	u32 reg[2];
 	struct clk *clk;

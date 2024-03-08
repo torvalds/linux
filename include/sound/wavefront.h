@@ -16,7 +16,7 @@
 #define NUM_MIDICHANNELS 16
 #endif  /* NUM_MIDICHANNELS */
 
-/* Pseudo-commands not part of the WaveFront command set.
+/* Pseudo-commands analt part of the WaveFront command set.
    These are used for various driver controls and direct
    hardware control.
  */
@@ -77,7 +77,7 @@
 #define WFC_HARDWARE_VERSION		0xCF
 #define WFC_UPLOAD_SAMPLE_PARAMS	0xD7
 #define WFC_DOWNLOAD_OS			0xF1
-#define WFC_NOOP                        0xFF
+#define WFC_ANALOP                        0xFF
 
 #define WF_MAX_SAMPLE   512
 #define WF_MAX_PATCH    256
@@ -113,7 +113,7 @@
 #define WF_EXTERNAL_MIDI_SLOT 2
 
 /* Magic MIDI bytes used to switch I/O streams on the ICS2115 MPU401
-   emulation. Note these NEVER show up in output from the device and
+   emulation. Analte these NEVER show up in output from the device and
    should NEVER be used in input unless Virtual MIDI mode has been 
    disabled. If they do show up as input, the results are unpredictable.
 */
@@ -216,11 +216,11 @@ struct wf_patch
     u8 sample_msb:1;
     u8 Unused3:3;
 
-    u8 mono:1;
+    u8 moanal:1;
     u8 retrigger:1;
-    u8 nohold:1;
+    u8 analhold:1;
     u8 restart:1;
-    u8 filterconfig:2; /* SDK says "not used" */
+    u8 filterconfig:2; /* SDK says "analt used" */
     u8 reuse:1;
     u8 reset_lfo:1;    
 
@@ -314,14 +314,14 @@ typedef struct wf_sample_offset wavefront_sample_offset;
 
 /* channel constants */
 
-#define WF_CH_MONO  0
+#define WF_CH_MOANAL  0
 #define WF_CH_LEFT  1
 #define WF_CH_RIGHT 2
 
 /* Sample formats */
 
 #define LINEAR_16BIT 0
-#define WHITE_NOISE  1
+#define WHITE_ANALISE  1
 #define LINEAR_8BIT  2
 #define MULAW_8BIT   3
 
@@ -336,14 +336,14 @@ typedef struct wf_sample_offset wavefront_sample_offset;
   data without forcing user-level extraction of the relevant bytes.
   
   So, we need a way of specifying which channel to use (the WaveFront
-  only handles mono samples in a given slot), and the only way to do
+  only handles moanal samples in a given slot), and the only way to do
   this without using some struct other than wavefront_sample as the
   interface is the awful hack of using the unused bits in a
   wavefront_sample:
   
   Val      Meaning
   ---      -------
-  0        no channel selection (use channel 1, sample is MONO)
+  0        anal channel selection (use channel 1, sample is MOANAL)
   1        use first channel, and skip one
   2        use second channel, and skip one
   3        use third channel, and skip two
@@ -356,7 +356,7 @@ typedef struct wf_sample_offset wavefront_sample_offset;
   of sample data just to select one of them needs to find some tools
   like sox ...
 
-  NOTE: values 0, 1 and 2 correspond to WF_CH_* above. This is 
+  ANALTE: values 0, 1 and 2 correspond to WF_CH_* above. This is 
   important.
 
 */
@@ -468,7 +468,7 @@ typedef struct wf_patch_info {
     */
 
     s16   key;               /* Use WAVEFRONT_PATCH here */
-    u16  devno;             /* fill in when sending */
+    u16  devanal;             /* fill in when sending */
     u8  subkey;            /* WF_ST_{SAMPLE,ALIAS,etc.} */
 
 #define WAVEFRONT_FIND_FREE_SAMPLE_SLOT 999
@@ -479,7 +479,7 @@ typedef struct wf_patch_info {
 				  one of the fields in `hdrptr', or
 				  as `dataptr'.
 
-				  NOTE: for actual samples, this is
+				  ANALTE: for actual samples, this is
 				  the size of the *SELECTED CHANNEL*
 				  even if more data is actually available.
 				  

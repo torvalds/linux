@@ -14,18 +14,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -52,22 +52,22 @@
  *   -- CH_PCI_DEVICE_ID_FUNCTION and CH_PCI_DEVICE_ID_FUNCTION2 populated.
  *
  * CH_PCI_ID_TABLE_ENTRY(DeviceID)
- *   -- Used for the individual PCI Device ID entries.  Note that we will
+ *   -- Used for the individual PCI Device ID entries.  Analte that we will
  *   -- be adding a trailing comma (",") after all of the entries (and
  *   -- between the pairs of entries if CH_PCI_DEVICE_ID_FUNCTION2 is defined).
  *
  * CH_PCI_DEVICE_ID_TABLE_DEFINE_END
- *   -- Used to finish the definition of the PCI ID Table.  Note that we
+ *   -- Used to finish the definition of the PCI ID Table.  Analte that we
  *   -- will be adding a trailing semi-colon (";") here.
  */
 #ifndef CH_PCI_DEVICE_ID_FUNCTION
-#error CH_PCI_DEVICE_ID_FUNCTION not defined!
+#error CH_PCI_DEVICE_ID_FUNCTION analt defined!
 #endif
 #ifndef CH_PCI_ID_TABLE_ENTRY
-#error CH_PCI_ID_TABLE_ENTRY not defined!
+#error CH_PCI_ID_TABLE_ENTRY analt defined!
 #endif
 #ifndef CH_PCI_DEVICE_ID_TABLE_DEFINE_END
-#error CH_PCI_DEVICE_ID_TABLE_DEFINE_END not defined!
+#error CH_PCI_DEVICE_ID_TABLE_DEFINE_END analt defined!
 #endif
 
 /* T4 and later ASICs use a PCI Device ID scheme of 0xVFPP where:

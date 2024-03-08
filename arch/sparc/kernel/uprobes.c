@@ -20,7 +20,7 @@
 
 /* Compute the address of the breakpoint instruction and return it.
  *
- * Note that uprobe_get_swbp_addr is defined as a weak symbol in
+ * Analte that uprobe_get_swbp_addr is defined as a weak symbol in
  * kernel/events/uprobe.c.
  */
 unsigned long uprobe_get_swbp_addr(struct pt_regs *regs)
@@ -41,7 +41,7 @@ static void copy_to_page(struct page *page, unsigned long vaddr,
  * single-step trap.  Some fixups in the copied instruction are
  * performed at this point.
  *
- * Note that uprobe_xol_copy is defined as a weak symbol in
+ * Analte that uprobe_xol_copy is defined as a weak symbol in
  * kernel/events/uprobe.c.
  */
 void arch_uprobe_copy_ixol(struct page *page, unsigned long vaddr,
@@ -50,7 +50,7 @@ void arch_uprobe_copy_ixol(struct page *page, unsigned long vaddr,
 	const u32 stp_insn = UPROBE_STP_INSN;
 	u32 insn = *(u32 *) src;
 
-	/* Branches annulling their delay slot must be fixed to not do
+	/* Branches annulling their delay slot must be fixed to analt do
 	 * so.  Clearing the annul bit on these instructions we can be
 	 * sure the single-step breakpoint in the XOL slot will be
 	 * executed.
@@ -83,7 +83,7 @@ int arch_uprobe_analyze_insn(struct arch_uprobe *auprobe,
 /* If INSN is a relative control transfer instruction, return the
  * corrected branch destination value.
  *
- * Note that regs->tpc and regs->tnpc still hold the values of the
+ * Analte that regs->tpc and regs->tnpc still hold the values of the
  * program counters at the time of the single-step trap due to the
  * execution of the UPROBE_STP_INSN at utask->xol_vaddr + 4.
  *
@@ -91,7 +91,7 @@ int arch_uprobe_analyze_insn(struct arch_uprobe *auprobe,
 static unsigned long relbranch_fixup(u32 insn, struct uprobe_task *utask,
 				     struct pt_regs *regs)
 {
-	/* Branch not taken, no mods necessary.  */
+	/* Branch analt taken, anal mods necessary.  */
 	if (regs->tnpc == regs->tpc + 0x4UL)
 		return utask->autask.saved_tnpc + 0x4UL;
 
@@ -158,7 +158,7 @@ static int retpc_fixup(struct pt_regs *regs, u32 insn,
 	return rc;
 }
 
-/* Single-stepping can be avoided for certain instructions: NOPs and
+/* Single-stepping can be avoided for certain instructions: ANALPs and
  * instructions that can be emulated.  This function determines
  * whether the instruction where the uprobe is installed falls in one
  * of these cases and emulates it.
@@ -168,7 +168,7 @@ static int retpc_fixup(struct pt_regs *regs, u32 insn,
  */
 bool arch_uprobe_skip_sstep(struct arch_uprobe *auprobe, struct pt_regs *regs)
 {
-	/* We currently only emulate NOP instructions.
+	/* We currently only emulate ANALP instructions.
 	 */
 
 	if (auprobe->ixol == (1 << 24)) {
@@ -232,7 +232,7 @@ int arch_uprobe_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 }
 
 /* Handler for uprobe traps.  This is called from the traps table and
- * triggers the proper die notification.
+ * triggers the proper die analtification.
  */
 asmlinkage void uprobe_trap(struct pt_regs *regs,
 			    unsigned long trap_level)
@@ -240,7 +240,7 @@ asmlinkage void uprobe_trap(struct pt_regs *regs,
 	BUG_ON(trap_level != 0x173 && trap_level != 0x174);
 
 	/* We are only interested in user-mode code.  Uprobe traps
-	 * shall not be present in kernel code.
+	 * shall analt be present in kernel code.
 	 */
 	if (!user_mode(regs)) {
 		local_irq_enable();
@@ -251,33 +251,33 @@ asmlinkage void uprobe_trap(struct pt_regs *regs,
 	/* trap_level == 0x173 --> ta 0x73
 	 * trap_level == 0x174 --> ta 0x74
 	 */
-	if (notify_die((trap_level == 0x173) ? DIE_BPT : DIE_SSTEP,
+	if (analtify_die((trap_level == 0x173) ? DIE_BPT : DIE_SSTEP,
 				(trap_level == 0x173) ? "bpt" : "sstep",
-				regs, 0, trap_level, SIGTRAP) != NOTIFY_STOP)
+				regs, 0, trap_level, SIGTRAP) != ANALTIFY_STOP)
 		bad_trap(regs, trap_level);
 }
 
-/* Callback routine for handling die notifications.
+/* Callback routine for handling die analtifications.
 */
-int arch_uprobe_exception_notify(struct notifier_block *self,
+int arch_uprobe_exception_analtify(struct analtifier_block *self,
 				 unsigned long val, void *data)
 {
-	int ret = NOTIFY_DONE;
+	int ret = ANALTIFY_DONE;
 	struct die_args *args = (struct die_args *)data;
 
 	/* We are only interested in userspace traps */
 	if (args->regs && !user_mode(args->regs))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	switch (val) {
 	case DIE_BPT:
-		if (uprobe_pre_sstep_notifier(args->regs))
-			ret = NOTIFY_STOP;
+		if (uprobe_pre_sstep_analtifier(args->regs))
+			ret = ANALTIFY_STOP;
 		break;
 
 	case DIE_SSTEP:
-		if (uprobe_post_sstep_notifier(args->regs))
-			ret = NOTIFY_STOP;
+		if (uprobe_post_sstep_analtifier(args->regs))
+			ret = ANALTIFY_STOP;
 
 	default:
 		break;

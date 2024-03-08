@@ -78,7 +78,7 @@
 
 #define USBC_STATUS1_DET_ONGOING	BIT(6)
 #define USBC_STATUS1_RSLT(r)		((r) & 0xf)
-#define USBC_RSLT_NOTHING		0
+#define USBC_RSLT_ANALTHING		0
 #define USBC_RSLT_SRC_DEFAULT		1
 #define USBC_RSLT_SRC_1_5A		2
 #define USBC_RSLT_SRC_3_0A		3
@@ -87,7 +87,7 @@
 #define USBC_RSLT_AUDIO_ACC		6
 #define USBC_RSLT_UNDEF			15
 #define USBC_STATUS1_ORIENT(r)		(((r) >> 4) & 0x3)
-#define USBC_ORIENT_NORMAL		1
+#define USBC_ORIENT_ANALRMAL		1
 #define USBC_ORIENT_REVERSE		2
 
 #define USBC_STATUS2_VBUS_REQ		BIT(5)
@@ -135,7 +135,7 @@
 
 #define USBC_TXCMD_BUF_RDY		BIT(0)
 #define USBC_TXCMD_START		BIT(1)
-#define USBC_TXCMD_NOP			(0 << 5)
+#define USBC_TXCMD_ANALP			(0 << 5)
 #define USBC_TXCMD_MSG			(1 << 5)
 #define USBC_TXCMD_CR			(2 << 5)
 #define USBC_TXCMD_HR			(3 << 5)
@@ -165,7 +165,7 @@ enum wcove_typec_func {
 };
 
 enum wcove_typec_orientation {
-	WCOVE_ORIENTATION_NORMAL,
+	WCOVE_ORIENTATION_ANALRMAL,
 	WCOVE_ORIENTATION_REVERSE,
 };
 
@@ -408,7 +408,7 @@ static int wcove_pd_transmit(struct tcpc_dev *tcpc,
 		return -EINVAL;
 	}
 
-	/* NOTE Setting maximum number of retries (7) */
+	/* ANALTE Setting maximum number of retries (7) */
 	ret = regmap_write(wcove->regmap, USBC_TXINFO,
 			   info | USBC_TXINFO_RETRIES(7));
 	if (ret)
@@ -425,7 +425,7 @@ static int wcove_start_toggling(struct tcpc_dev *tcpc,
 	unsigned int usbc_ctrl;
 
 	if (port_type != TYPEC_PORT_DRP)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	usbc_ctrl = USBC_CONTROL1_MODE_DRP | USBC_CONTROL1_DRPTOGGLE_RANDOM;
 
@@ -611,7 +611,7 @@ static int wcove_typec_probe(struct platform_device *pdev)
 
 	wcove = devm_kzalloc(&pdev->dev, sizeof(*wcove), GFP_KERNEL);
 	if (!wcove)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&wcove->lock);
 	wcove->dev = &pdev->dev;
@@ -631,7 +631,7 @@ static int wcove_typec_probe(struct platform_device *pdev)
 
 	if (!acpi_check_dsm(ACPI_HANDLE(&pdev->dev), &wcove->guid, 0, 0x1f)) {
 		dev_err(&pdev->dev, "Missing _DSM functions\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	wcove->tcpc.init = wcove_init;
@@ -648,13 +648,13 @@ static int wcove_typec_probe(struct platform_device *pdev)
 	wcove->tcpc.set_roles = wcove_set_roles;
 	wcove->tcpc.pd_transmit = wcove_pd_transmit;
 
-	wcove->tcpc.fwnode = fwnode_create_software_node(wcove_props, NULL);
-	if (IS_ERR(wcove->tcpc.fwnode))
-		return PTR_ERR(wcove->tcpc.fwnode);
+	wcove->tcpc.fwanalde = fwanalde_create_software_analde(wcove_props, NULL);
+	if (IS_ERR(wcove->tcpc.fwanalde))
+		return PTR_ERR(wcove->tcpc.fwanalde);
 
 	wcove->tcpm = tcpm_register_port(wcove->dev, &wcove->tcpc);
 	if (IS_ERR(wcove->tcpm)) {
-		fwnode_remove_software_node(wcove->tcpc.fwnode);
+		fwanalde_remove_software_analde(wcove->tcpc.fwanalde);
 		return PTR_ERR(wcove->tcpm);
 	}
 
@@ -663,7 +663,7 @@ static int wcove_typec_probe(struct platform_device *pdev)
 					"wcove_typec", wcove);
 	if (ret) {
 		tcpm_unregister_port(wcove->tcpm);
-		fwnode_remove_software_node(wcove->tcpc.fwnode);
+		fwanalde_remove_software_analde(wcove->tcpc.fwanalde);
 		return ret;
 	}
 
@@ -683,7 +683,7 @@ static void wcove_typec_remove(struct platform_device *pdev)
 	regmap_write(wcove->regmap, USBC_IRQMASK2, val | USBC_IRQMASK2_ALL);
 
 	tcpm_unregister_port(wcove->tcpm);
-	fwnode_remove_software_node(wcove->tcpc.fwnode);
+	fwanalde_remove_software_analde(wcove->tcpc.fwanalde);
 }
 
 static struct platform_driver wcove_typec_driver = {

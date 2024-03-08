@@ -56,7 +56,7 @@ static const struct snd_soc_dapm_widget card_widgets[] = {
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
 	SND_SOC_DAPM_MIC("Internal Mic", NULL),
 
-	SND_SOC_DAPM_SUPPLY("Speaker Power", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SUPPLY("Speaker Power", SND_SOC_ANALPM, 0, 0,
 			    avs_es8336_speaker_power_event,
 			    SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMU),
 };
@@ -66,7 +66,7 @@ static const struct snd_soc_dapm_route card_routes[] = {
 	{"Headphone", NULL, "HPOR"},
 
 	/*
-	 * There is no separate speaker output instead the speakers are muxed to
+	 * There is anal separate speaker output instead the speakers are muxed to
 	 * the HP outputs. The mux is controlled by the "Speaker Power" widget.
 	 */
 	{"Speaker", NULL, "HPOL"},
@@ -111,7 +111,7 @@ static int avs_es8336_codec_init(struct snd_soc_pcm_runtime *runtime)
 
 	pins = devm_kmemdup(card->dev, card_headset_pins, sizeof(*pins) * num_pins, GFP_KERNEL);
 	if (!pins)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = snd_soc_card_jack_new_pins(card, "Headset", SND_JACK_HEADSET | SND_JACK_BTN_0,
 					 &data->jack, pins, num_pins);
@@ -189,7 +189,7 @@ static int avs_es8336_be_fixup(struct snd_soc_pcm_runtime *runtime,
 	channels->min = channels->max = 2;
 
 	/* set SSPN to 24 bit */
-	snd_mask_none(fmt);
+	snd_mask_analne(fmt);
 	snd_mask_set_format(fmt, SNDRV_PCM_FORMAT_S24_3LE);
 
 	return 0;
@@ -203,7 +203,7 @@ static int avs_create_dai_link(struct device *dev, const char *platform_name, in
 	dl = devm_kzalloc(dev, sizeof(*dl), GFP_KERNEL);
 	platform = devm_kzalloc(dev, sizeof(*platform), GFP_KERNEL);
 	if (!dl || !platform)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform->name = platform_name;
 
@@ -212,14 +212,14 @@ static int avs_create_dai_link(struct device *dev, const char *platform_name, in
 	dl->cpus = devm_kzalloc(dev, sizeof(*dl->cpus), GFP_KERNEL);
 	dl->codecs = devm_kzalloc(dev, sizeof(*dl->codecs), GFP_KERNEL);
 	if (!dl->name || !dl->cpus || !dl->codecs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dl->cpus->dai_name = devm_kasprintf(dev, GFP_KERNEL,
 					    AVS_STRING_FMT("SSP", " Pin", ssp_port, tdm_slot));
 	dl->codecs->name = devm_kasprintf(dev, GFP_KERNEL, "i2c-ESSX8336:00");
 	dl->codecs->dai_name = devm_kasprintf(dev, GFP_KERNEL, ES8336_CODEC_DAI);
 	if (!dl->cpus->dai_name || !dl->codecs->name || !dl->codecs->dai_name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dl->num_cpus = 1;
 	dl->num_codecs = 1;
@@ -231,8 +231,8 @@ static int avs_create_dai_link(struct device *dev, const char *platform_name, in
 	dl->exit = avs_es8336_codec_exit;
 	dl->be_hw_params_fixup = avs_es8336_be_fixup;
 	dl->ops = &avs_es8336_ops;
-	dl->nonatomic = 1;
-	dl->no_pcm = 1;
+	dl->analnatomic = 1;
+	dl->anal_pcm = 1;
 	dl->dpcm_capture = 1;
 	dl->dpcm_playback = 1;
 
@@ -282,7 +282,7 @@ static int avs_es8336_probe(struct platform_device *pdev)
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	card = devm_kzalloc(dev, sizeof(*card), GFP_KERNEL);
 	if (!data || !card)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	card->name = "avs_es8336";
 	card->dev = dev;

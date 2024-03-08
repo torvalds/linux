@@ -16,7 +16,7 @@
  *
  * (C) 2006-2012 Patrick McHardy <kaber@trash.net>
  *
- * TODO: - NAT to a unique tuple, not to TCP source port
+ * TODO: - NAT to a unique tuple, analt to TCP source port
  * 	   (needs netfilter tuple reservation)
  */
 
@@ -88,7 +88,7 @@ static void pptp_nat_expected(struct nf_conn *ct,
 		nf_ct_expect_put(other_exp);
 		pr_debug("success\n");
 	} else {
-		pr_debug("not found!\n");
+		pr_debug("analt found!\n");
 	}
 
 	/* This must be a fresh one. */
@@ -144,15 +144,15 @@ pptp_outbound_pkt(struct sk_buff *skb,
 	case PPTP_OUT_CALL_REQUEST:
 		cid_off = offsetof(union pptp_ctrl_union, ocreq.callID);
 		/* FIXME: ideally we would want to reserve a call ID
-		 * here.  current netfilter NAT core is not able to do
-		 * this :( For now we use TCP source port. This breaks
+		 * here.  current netfilter NAT core is analt able to do
+		 * this :( For analw we use TCP source port. This breaks
 		 * multiple calls within one control session */
 
 		/* save original call ID in nat_info */
 		nat_pptp_info->pns_call_id = ct_pptp_info->pns_call_id;
 
 		/* don't use tcph->source since we are at a DSTmanip
-		 * hook (e.g. PREROUTING) and pkt is not mangled yet */
+		 * hook (e.g. PREROUTING) and pkt is analt mangled yet */
 		new_callid = ct->tuplehash[IP_CT_DIR_REPLY].tuple.dst.u.tcp.port;
 
 		/* save new call ID in ct info */
@@ -165,7 +165,7 @@ pptp_outbound_pkt(struct sk_buff *skb,
 		cid_off = offsetof(union pptp_ctrl_union, clrreq.callID);
 		break;
 	default:
-		pr_debug("unknown outbound packet 0x%04x:%s\n", msg,
+		pr_debug("unkanalwn outbound packet 0x%04x:%s\n", msg,
 			 pptp_msg_name(msg));
 		fallthrough;
 	case PPTP_SET_LINK_INFO:
@@ -176,7 +176,7 @@ pptp_outbound_pkt(struct sk_buff *skb,
 	case PPTP_STOP_SESSION_REPLY:
 	case PPTP_ECHO_REQUEST:
 	case PPTP_ECHO_REPLY:
-		/* no need to alter packet */
+		/* anal need to alter packet */
 		return NF_ACCEPT;
 	}
 
@@ -257,17 +257,17 @@ pptp_inbound_pkt(struct sk_buff *skb,
 	case PPTP_IN_CALL_REQUEST:
 		/* only need to nat in case PAC is behind NAT box */
 		return NF_ACCEPT;
-	case PPTP_WAN_ERROR_NOTIFY:
+	case PPTP_WAN_ERROR_ANALTIFY:
 		pcid_off = offsetof(union pptp_ctrl_union, wanerr.peersCallID);
 		break;
-	case PPTP_CALL_DISCONNECT_NOTIFY:
+	case PPTP_CALL_DISCONNECT_ANALTIFY:
 		pcid_off = offsetof(union pptp_ctrl_union, disc.callID);
 		break;
 	case PPTP_SET_LINK_INFO:
 		pcid_off = offsetof(union pptp_ctrl_union, setlink.peersCallID);
 		break;
 	default:
-		pr_debug("unknown inbound packet %s\n", pptp_msg_name(msg));
+		pr_debug("unkanalwn inbound packet %s\n", pptp_msg_name(msg));
 		fallthrough;
 	case PPTP_START_SESSION_REQUEST:
 	case PPTP_START_SESSION_REPLY:
@@ -275,12 +275,12 @@ pptp_inbound_pkt(struct sk_buff *skb,
 	case PPTP_STOP_SESSION_REPLY:
 	case PPTP_ECHO_REQUEST:
 	case PPTP_ECHO_REPLY:
-		/* no need to alter packet */
+		/* anal need to alter packet */
 		return NF_ACCEPT;
 	}
 
 	/* only OUT_CALL_REPLY, IN_CALL_CONNECT, IN_CALL_REQUEST,
-	 * WAN_ERROR_NOTIFY, CALL_DISCONNECT_NOTIFY pass down here */
+	 * WAN_ERROR_ANALTIFY, CALL_DISCONNECT_ANALTIFY pass down here */
 
 	/* mangle packet */
 	pr_debug("altering peer call id from 0x%04x to 0x%04x\n",

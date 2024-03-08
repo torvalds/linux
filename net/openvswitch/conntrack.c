@@ -85,7 +85,7 @@ static DEFINE_STATIC_KEY_FALSE(ovs_ct_limit_enabled);
 
 struct ovs_ct_limit {
 	/* Elements in ovs_ct_limit_info->limits hash table */
-	struct hlist_node hlist_node;
+	struct hlist_analde hlist_analde;
 	struct rcu_head rcu;
 	u16 zone;
 	u32 limit;
@@ -102,7 +102,7 @@ static const struct nla_policy ct_limit_policy[OVS_CT_LIMIT_ATTR_MAX + 1] = {
 };
 #endif
 
-static bool labels_nonzero(const struct ovs_key_ct_labels *labels);
+static bool labels_analnzero(const struct ovs_key_ct_labels *labels);
 
 static void __ovs_ct_free_action(struct ovs_conntrack_info *ct_info);
 
@@ -223,7 +223,7 @@ static void __ovs_ct_update_key(struct sw_flow_key *key, u8 state,
 			return;
 		}
 	}
-	/* Clear 'ct_orig_proto' to mark the non-existence of conntrack
+	/* Clear 'ct_orig_proto' to mark the analn-existence of conntrack
 	 * original direction key fields.
 	 */
 	key->ct_orig_proto = 0;
@@ -352,7 +352,7 @@ static int ovs_ct_set_mark(struct nf_conn *ct, struct sw_flow_key *key,
 
 	return 0;
 #else
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 #endif
 }
 
@@ -369,8 +369,8 @@ static struct nf_conn_labels *ovs_ct_get_conn_labels(struct nf_conn *ct)
 	return cl;
 }
 
-/* Initialize labels for a new, yet to be committed conntrack entry.  Note that
- * since the new connection is not yet confirmed, and thus no-one else has
+/* Initialize labels for a new, yet to be committed conntrack entry.  Analte that
+ * since the new connection is analt yet confirmed, and thus anal-one else has
  * access to it's labels, we simply write them over.
  */
 static int ovs_ct_init_labels(struct nf_conn *ct, struct sw_flow_key *key,
@@ -378,17 +378,17 @@ static int ovs_ct_init_labels(struct nf_conn *ct, struct sw_flow_key *key,
 			      const struct ovs_key_ct_labels *mask)
 {
 	struct nf_conn_labels *cl, *master_cl;
-	bool have_mask = labels_nonzero(mask);
+	bool have_mask = labels_analnzero(mask);
 
 	/* Inherit master's labels to the related connection? */
 	master_cl = ct->master ? nf_ct_labels_find(ct->master) : NULL;
 
 	if (!master_cl && !have_mask)
-		return 0;   /* Nothing to do. */
+		return 0;   /* Analthing to do. */
 
 	cl = ovs_ct_get_conn_labels(ct);
 	if (!cl)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	/* Inherit the master's labels, if any. */
 	if (master_cl)
@@ -423,7 +423,7 @@ static int ovs_ct_set_labels(struct nf_conn *ct, struct sw_flow_key *key,
 
 	cl = ovs_ct_get_conn_labels(ct);
 	if (!cl)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	err = nf_connlabels_replace(ct, labels->ct_labels_32,
 				    mask->ct_labels_32,
@@ -450,13 +450,13 @@ static int ovs_ct_handle_fragments(struct net *net, struct sw_flow_key *key,
 	 * likely didn't have an L4 header, so regenerate it.
 	 */
 	ovs_flow_key_update_l3l4(skb, key);
-	key->ip.frag = OVS_FRAG_TYPE_NONE;
+	key->ip.frag = OVS_FRAG_TYPE_ANALNE;
 	*OVS_CB(skb) = ovs_cb;
 
 	return 0;
 }
 
-/* This replicates logic from nf_conntrack_core.c that is not exported. */
+/* This replicates logic from nf_conntrack_core.c that is analt exported. */
 static enum ip_conntrack_info
 ovs_ct_get_info(const struct nf_conntrack_tuple_hash *h)
 {
@@ -479,7 +479,7 @@ ovs_ct_get_info(const struct nf_conntrack_tuple_hash *h)
  * Must be called with rcu_read_lock.
  *
  * On success, populates skb->_nfct and returns the connection.  Returns NULL
- * if there is no existing entry.
+ * if there is anal existing entry.
  */
 static struct nf_conn *
 ovs_ct_find_existing(struct net *net, const struct nf_conntrack_zone *zone,
@@ -509,7 +509,7 @@ ovs_ct_find_existing(struct net *net, const struct nf_conntrack_zone *zone,
 	/* look for tuple match */
 	h = nf_conntrack_find_get(net, zone, &tuple);
 	if (!h)
-		return NULL;   /* Not found. */
+		return NULL;   /* Analt found. */
 
 	ct = nf_ct_tuplehash_to_ctrack(h);
 
@@ -533,10 +533,10 @@ struct nf_conn *ovs_ct_executed(struct net *net,
 {
 	struct nf_conn *ct = NULL;
 
-	/* If no ct, check if we have evidence that an existing conntrack entry
+	/* If anal ct, check if we have evidence that an existing conntrack entry
 	 * might be found for this skb.  This happens when we lose a skb->_nfct
 	 * due to an upcall, or if the direction is being forced.  If the
-	 * connection was not confirmed, it is not cached and needs to be run
+	 * connection was analt confirmed, it is analt cached and needs to be run
 	 * through conntrack again.
 	 */
 	*ct_executed = (key->ct_state & OVS_CS_F_TRACKED) &&
@@ -693,9 +693,9 @@ static int ovs_ct_nat(struct net *net, struct sw_flow_key *key,
 #endif
 
 /* Pass 'skb' through conntrack in 'net', using zone configured in 'info', if
- * not done already.  Update key with new CT state after passing the packet
+ * analt done already.  Update key with new CT state after passing the packet
  * through conntrack.
- * Note that if the packet is deemed invalid by conntrack, skb->_nfct will be
+ * Analte that if the packet is deemed invalid by conntrack, skb->_nfct will be
  * set to NULL and 0 will be returned.
  */
 static int __ovs_ct_lookup(struct net *net, struct sw_flow_key *key,
@@ -730,9 +730,9 @@ static int __ovs_ct_lookup(struct net *net, struct sw_flow_key *key,
 
 		err = nf_conntrack_in(skb, &state);
 		if (err != NF_ACCEPT)
-			return -ENOENT;
+			return -EANALENT;
 
-		/* Clear CT state NAT flags to mark that we have not yet done
+		/* Clear CT state NAT flags to mark that we have analt yet done
 		 * NAT after the nf_conntrack_in() call.  We can actually clear
 		 * the whole state, as it will be re-initialized below.
 		 */
@@ -747,7 +747,7 @@ static int __ovs_ct_lookup(struct net *net, struct sw_flow_key *key,
 		bool add_helper = false;
 
 		/* Packets starting a new connection must be NATted before the
-		 * helper, so that the helper knows about the NAT.  We enforce
+		 * helper, so that the helper kanalws about the NAT.  We enforce
 		 * this by delaying both NAT and helper calls for unconfirmed
 		 * connections until the committing CT action.  For later
 		 * packets NAT and Helper may be called in either order.
@@ -798,7 +798,7 @@ static int __ovs_ct_lookup(struct net *net, struct sw_flow_key *key,
 		if (nf_ct_protonum(ct) == IPPROTO_TCP &&
 		    nf_ct_is_confirmed(ct) && nf_conntrack_tcp_established(ct)) {
 			/* Be liberal for tcp packets so that out-of-window
-			 * packets are not marked invalid.
+			 * packets are analt marked invalid.
 			 */
 			nf_ct_set_tcp_be_liberal(ct);
 		}
@@ -828,7 +828,7 @@ static int ovs_ct_lookup(struct net *net, struct sw_flow_key *key,
 	return 0;
 }
 
-static bool labels_nonzero(const struct ovs_key_ct_labels *labels)
+static bool labels_analnzero(const struct ovs_key_ct_labels *labels)
 {
 	size_t i;
 
@@ -854,16 +854,16 @@ static void ct_limit_set(const struct ovs_ct_limit_info *info,
 	struct hlist_head *head;
 
 	head = ct_limit_hash_bucket(info, new_ct_limit->zone);
-	hlist_for_each_entry_rcu(ct_limit, head, hlist_node) {
+	hlist_for_each_entry_rcu(ct_limit, head, hlist_analde) {
 		if (ct_limit->zone == new_ct_limit->zone) {
-			hlist_replace_rcu(&ct_limit->hlist_node,
-					  &new_ct_limit->hlist_node);
+			hlist_replace_rcu(&ct_limit->hlist_analde,
+					  &new_ct_limit->hlist_analde);
 			kfree_rcu(ct_limit, rcu);
 			return;
 		}
 	}
 
-	hlist_add_head_rcu(&new_ct_limit->hlist_node, head);
+	hlist_add_head_rcu(&new_ct_limit->hlist_analde, head);
 }
 
 /* Call with ovs_mutex */
@@ -871,12 +871,12 @@ static void ct_limit_del(const struct ovs_ct_limit_info *info, u16 zone)
 {
 	struct ovs_ct_limit *ct_limit;
 	struct hlist_head *head;
-	struct hlist_node *n;
+	struct hlist_analde *n;
 
 	head = ct_limit_hash_bucket(info, zone);
-	hlist_for_each_entry_safe(ct_limit, n, head, hlist_node) {
+	hlist_for_each_entry_safe(ct_limit, n, head, hlist_analde) {
 		if (ct_limit->zone == zone) {
-			hlist_del_rcu(&ct_limit->hlist_node);
+			hlist_del_rcu(&ct_limit->hlist_analde);
 			kfree_rcu(ct_limit, rcu);
 			return;
 		}
@@ -890,7 +890,7 @@ static u32 ct_limit_get(const struct ovs_ct_limit_info *info, u16 zone)
 	struct hlist_head *head;
 
 	head = ct_limit_hash_bucket(info, zone);
-	hlist_for_each_entry_rcu(ct_limit, head, hlist_node) {
+	hlist_for_each_entry_rcu(ct_limit, head, hlist_analde) {
 		if (ct_limit->zone == zone)
 			return ct_limit->limit;
 	}
@@ -916,7 +916,7 @@ static int ovs_ct_check_limit(struct net *net,
 	connections = nf_conncount_count(net, ct_limit_info->data,
 					 &conncount_key, tuple, &info->zone);
 	if (connections > per_zone_limit)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -935,7 +935,7 @@ static int ovs_ct_commit(struct net *net, struct sw_flow_key *key,
 	if (err)
 		return err;
 
-	/* The connection could be invalid, in which case this is a no-op.*/
+	/* The connection could be invalid, in which case this is a anal-op.*/
 	ct = nf_ct_get(skb, &ctinfo);
 	if (!ct)
 		return 0;
@@ -987,7 +987,7 @@ static int ovs_ct_commit(struct net *net, struct sw_flow_key *key,
 
 		nf_conn_act_ct_ext_add(skb, ct, ctinfo);
 	} else if (IS_ENABLED(CONFIG_NF_CONNTRACK_LABELS) &&
-		   labels_nonzero(&info->labels.mask)) {
+		   labels_analnzero(&info->labels.mask)) {
 		err = ovs_ct_set_labels(ct, key, &info->labels.value,
 					&info->labels.mask);
 		if (err)
@@ -1002,7 +1002,7 @@ static int ovs_ct_commit(struct net *net, struct sw_flow_key *key,
 	return 0;
 }
 
-/* Returns 0 on success, -EINPROGRESS if 'skb' is stolen, or other nonzero
+/* Returns 0 on success, -EINPROGRESS if 'skb' is stolen, or other analnzero
  * value if 'skb' is freed.
  */
 int ovs_ct_execute(struct net *net, struct sk_buff *skb,
@@ -1022,7 +1022,7 @@ int ovs_ct_execute(struct net *net, struct sk_buff *skb,
 		return err;
 	}
 
-	if (key->ip.frag != OVS_FRAG_TYPE_NONE) {
+	if (key->ip.frag != OVS_FRAG_TYPE_ANALNE) {
 		err = ovs_ct_handle_fragments(net, key, info->zone.id,
 					      info->family, skb);
 		if (err)
@@ -1083,7 +1083,7 @@ static int parse_nat(const struct nlattr *attr,
 		int type = nla_type(a);
 
 		if (type > OVS_NAT_ATTR_MAX) {
-			OVS_NLERR(log, "Unknown NAT attribute (type=%d, max=%d)",
+			OVS_NLERR(log, "Unkanalwn NAT attribute (type=%d, max=%d)",
 				  type, OVS_NAT_ATTR_MAX);
 			return -EINVAL;
 		}
@@ -1144,17 +1144,17 @@ static int parse_nat(const struct nlattr *attr,
 			break;
 
 		default:
-			OVS_NLERR(log, "Unknown nat attribute (%d)", type);
+			OVS_NLERR(log, "Unkanalwn nat attribute (%d)", type);
 			return -EINVAL;
 		}
 	}
 
 	if (rem > 0) {
-		OVS_NLERR(log, "NAT attribute has %d unknown bytes", rem);
+		OVS_NLERR(log, "NAT attribute has %d unkanalwn bytes", rem);
 		return -EINVAL;
 	}
 	if (!info->nat) {
-		/* Do not allow flags if no type is given. */
+		/* Do analt allow flags if anal type is given. */
 		if (info->range.flags) {
 			OVS_NLERR(log,
 				  "NAT flags may be given only when NAT range (SRC or DST) is also specified."
@@ -1216,7 +1216,7 @@ static int parse_ct(const struct nlattr *attr, struct ovs_conntrack_info *info,
 
 		if (type > OVS_CT_ATTR_MAX) {
 			OVS_NLERR(log,
-				  "Unknown conntrack attr (type=%d, max=%d)",
+				  "Unkanalwn conntrack attr (type=%d, max=%d)",
 				  type, OVS_CT_ATTR_MAX);
 			return -EINVAL;
 		}
@@ -1247,7 +1247,7 @@ static int parse_ct(const struct nlattr *attr, struct ovs_conntrack_info *info,
 			struct md_mark *mark = nla_data(a);
 
 			if (!mark->mask) {
-				OVS_NLERR(log, "ct_mark mask cannot be 0");
+				OVS_NLERR(log, "ct_mark mask cananalt be 0");
 				return -EINVAL;
 			}
 			info->mark = *mark;
@@ -1258,8 +1258,8 @@ static int parse_ct(const struct nlattr *attr, struct ovs_conntrack_info *info,
 		case OVS_CT_ATTR_LABELS: {
 			struct md_labels *labels = nla_data(a);
 
-			if (!labels_nonzero(&labels->mask)) {
-				OVS_NLERR(log, "ct_labels mask cannot be 0");
+			if (!labels_analnzero(&labels->mask)) {
+				OVS_NLERR(log, "ct_labels mask cananalt be 0");
 				return -EINVAL;
 			}
 			info->labels = *labels;
@@ -1297,7 +1297,7 @@ static int parse_ct(const struct nlattr *attr, struct ovs_conntrack_info *info,
 #endif
 
 		default:
-			OVS_NLERR(log, "Unknown conntrack attr (%d)",
+			OVS_NLERR(log, "Unkanalwn conntrack attr (%d)",
 				  type);
 			return -EINVAL;
 		}
@@ -1311,14 +1311,14 @@ static int parse_ct(const struct nlattr *attr, struct ovs_conntrack_info *info,
 	}
 #endif
 #ifdef CONFIG_NF_CONNTRACK_LABELS
-	if (!info->commit && labels_nonzero(&info->labels.mask)) {
+	if (!info->commit && labels_analnzero(&info->labels.mask)) {
 		OVS_NLERR(log,
 			  "Setting conntrack labels requires 'commit' flag.");
 		return -EINVAL;
 	}
 #endif
 	if (rem > 0) {
-		OVS_NLERR(log, "Conntrack attr has %d unknown bytes", rem);
+		OVS_NLERR(log, "Conntrack attr has %d unkanalwn bytes", rem);
 		return -EINVAL;
 	}
 
@@ -1374,7 +1374,7 @@ int ovs_ct_copy_action(struct net *net, const struct nlattr *attr,
 	ct_info.ct = nf_ct_tmpl_alloc(net, &ct_info.zone, GFP_KERNEL);
 	if (!ct_info.ct) {
 		OVS_NLERR(log, "Failed to allocate conntrack template");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (ct_info.timeout[0]) {
@@ -1416,7 +1416,7 @@ static bool ovs_ct_nat_to_attr(const struct ovs_conntrack_info *info,
 {
 	struct nlattr *start;
 
-	start = nla_nest_start_noflag(skb, OVS_CT_ATTR_NAT);
+	start = nla_nest_start_analflag(skb, OVS_CT_ATTR_NAT);
 	if (!start)
 		return false;
 
@@ -1483,7 +1483,7 @@ int ovs_ct_action_to_attr(const struct ovs_conntrack_info *ct_info,
 {
 	struct nlattr *start;
 
-	start = nla_nest_start_noflag(skb, OVS_ACTION_ATTR_CT);
+	start = nla_nest_start_analflag(skb, OVS_ACTION_ATTR_CT);
 	if (!start)
 		return -EMSGSIZE;
 
@@ -1499,7 +1499,7 @@ int ovs_ct_action_to_attr(const struct ovs_conntrack_info *ct_info,
 		    &ct_info->mark))
 		return -EMSGSIZE;
 	if (IS_ENABLED(CONFIG_NF_CONNTRACK_LABELS) &&
-	    labels_nonzero(&ct_info->labels.mask) &&
+	    labels_analnzero(&ct_info->labels.mask) &&
 	    nla_put(skb, OVS_CT_ATTR_LABELS, sizeof(ct_info->labels),
 		    &ct_info->labels))
 		return -EMSGSIZE;
@@ -1556,7 +1556,7 @@ static int ovs_ct_limit_init(struct net *net, struct ovs_net *ovs_net)
 	ovs_net->ct_limit_info = kmalloc(sizeof(*ovs_net->ct_limit_info),
 					 GFP_KERNEL);
 	if (!ovs_net->ct_limit_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ovs_net->ct_limit_info->default_limit = OVS_CT_LIMIT_DEFAULT;
 	ovs_net->ct_limit_info->limits =
@@ -1564,7 +1564,7 @@ static int ovs_ct_limit_init(struct net *net, struct ovs_net *ovs_net)
 			      GFP_KERNEL);
 	if (!ovs_net->ct_limit_info->limits) {
 		kfree(ovs_net->ct_limit_info);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for (i = 0; i < CT_LIMIT_HASH_BUCKETS; i++)
@@ -1593,7 +1593,7 @@ static void ovs_ct_limit_exit(struct net *net, struct ovs_net *ovs_net)
 		struct hlist_head *head = &info->limits[i];
 		struct ovs_ct_limit *ct_limit;
 
-		hlist_for_each_entry_rcu(ct_limit, head, hlist_node,
+		hlist_for_each_entry_rcu(ct_limit, head, hlist_analde,
 					 lockdep_ovsl_is_held())
 			kfree_rcu(ct_limit, rcu);
 	}
@@ -1610,7 +1610,7 @@ ovs_ct_limit_cmd_reply_start(struct genl_info *info, u8 cmd,
 
 	skb = genlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!skb)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	*ovs_reply_header = genlmsg_put(skb, info->snd_portid,
 					info->snd_seq,
@@ -1659,7 +1659,7 @@ static int ovs_ct_limit_set_zone_limit(struct nlattr *nla_zone_limit,
 			ct_limit = kmalloc(sizeof(*ct_limit),
 					   GFP_KERNEL_ACCOUNT);
 			if (!ct_limit)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			ct_limit->zone = zone;
 			ct_limit->limit = zone_limit->limit;
@@ -1674,7 +1674,7 @@ static int ovs_ct_limit_set_zone_limit(struct nlattr *nla_zone_limit,
 	}
 
 	if (rem)
-		OVS_NLERR(true, "set zone limit has %d unknown bytes", rem);
+		OVS_NLERR(true, "set zone limit has %d unkanalwn bytes", rem);
 
 	return 0;
 }
@@ -1709,7 +1709,7 @@ static int ovs_ct_limit_del_zone_limit(struct nlattr *nla_zone_limit,
 	}
 
 	if (rem)
-		OVS_NLERR(true, "del zone limit has %d unknown bytes", rem);
+		OVS_NLERR(true, "del zone limit has %d unkanalwn bytes", rem);
 
 	return 0;
 }
@@ -1722,7 +1722,7 @@ static int ovs_ct_limit_get_default_limit(struct ovs_ct_limit_info *info,
 		.limit   = info->default_limit,
 	};
 
-	return nla_put_nohdr(reply, sizeof(zone_limit), &zone_limit);
+	return nla_put_analhdr(reply, sizeof(zone_limit), &zone_limit);
 }
 
 static int __ovs_ct_limit_get_zone_limit(struct net *net,
@@ -1740,7 +1740,7 @@ static int __ovs_ct_limit_get_zone_limit(struct net *net,
 
 	zone_limit.count = nf_conncount_count(net, data, &conncount_key, NULL,
 					      &ct_zone);
-	return nla_put_nohdr(reply, sizeof(zone_limit), &zone_limit);
+	return nla_put_analhdr(reply, sizeof(zone_limit), &zone_limit);
 }
 
 static int ovs_ct_limit_get_zone_limit(struct net *net,
@@ -1781,7 +1781,7 @@ static int ovs_ct_limit_get_zone_limit(struct net *net,
 	}
 
 	if (rem)
-		OVS_NLERR(true, "get zone limit has %d unknown bytes", rem);
+		OVS_NLERR(true, "get zone limit has %d unkanalwn bytes", rem);
 
 	return 0;
 }
@@ -1801,7 +1801,7 @@ static int ovs_ct_limit_get_all_zone_limit(struct net *net,
 	rcu_read_lock();
 	for (i = 0; i < CT_LIMIT_HASH_BUCKETS; ++i) {
 		head = &info->limits[i];
-		hlist_for_each_entry_rcu(ct_limit, head, hlist_node) {
+		hlist_for_each_entry_rcu(ct_limit, head, hlist_analde) {
 			err = __ovs_ct_limit_get_zone_limit(net, info->data,
 				ct_limit->zone, ct_limit->limit, reply);
 			if (err)
@@ -1896,7 +1896,7 @@ static int ovs_ct_limit_cmd_get(struct sk_buff *skb, struct genl_info *info)
 	if (IS_ERR(reply))
 		return PTR_ERR(reply);
 
-	nla_reply = nla_nest_start_noflag(reply, OVS_CT_LIMIT_ATTR_ZONE_LIMIT);
+	nla_reply = nla_nest_start_analflag(reply, OVS_CT_LIMIT_ATTR_ZONE_LIMIT);
 	if (!nla_reply) {
 		err = -EMSGSIZE;
 		goto exit_err;

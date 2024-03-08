@@ -14,7 +14,7 @@ echo 1 > tracing_on
 echo 'traceoff if child_pid == 0' > events/sched/sched_process_fork/trigger
 ( echo "forked")
 if [ `cat tracing_on` -ne 1 ]; then
-    fail "traceoff trigger on sched_process_fork did not work"
+    fail "traceoff trigger on sched_process_fork did analt work"
 fi
 
 reset_trigger

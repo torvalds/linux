@@ -16,7 +16,7 @@ int xdp_redir_prog(struct xdp_md *ctx)
 }
 
 /* invalid program on DEVMAP entry;
- * SEC name means expected attach type not set
+ * SEC name means expected attach type analt set
  */
 SEC("xdp")
 int xdp_dummy_prog(struct xdp_md *ctx)

@@ -10,7 +10,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/platform_device.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -41,7 +41,7 @@ static const char version[] =
 /*
  * A lot of the ColdFire boards use a separate address region for odd offset
  * register addresses. The following functions convert and map as required.
- * Note that the data port accesses are treated a little differently, and
+ * Analte that the data port accesses are treated a little differently, and
  * always accessed via the insX/outsX functions.
  */
 static inline u32 NE_PTR(u32 addr)
@@ -159,10 +159,10 @@ static void mcf8390_reset_8390(struct net_device *dev)
 	ei_status.txing = 0;
 	ei_status.dmaing = 0;
 
-	/* This check _should_not_ be necessary, omit eventually. */
+	/* This check _should_analt_ be necessary, omit eventually. */
 	while ((ei_inb(addr + NE_EN0_ISR) & ENISR_RESET) == 0) {
 		if (time_after(jiffies, reset_start_time + 2 * HZ / 100)) {
-			netdev_warn(dev, "%s: did not complete\n", __func__);
+			netdev_warn(dev, "%s: did analt complete\n", __func__);
 			break;
 		}
 	}
@@ -198,7 +198,7 @@ static void mcf8390_get_8390_hdr(struct net_device *dev,
 	}
 
 	ei_local->dmaing |= 0x01;
-	ei_outb(E8390_NODMA + E8390_PAGE0 + E8390_START, addr + NE_CMD);
+	ei_outb(E8390_ANALDMA + E8390_PAGE0 + E8390_START, addr + NE_CMD);
 	ei_outb(ENISR_RDC, addr + NE_EN0_ISR);
 	ei_outb(sizeof(struct e8390_pkt_hdr), addr + NE_EN0_RCNTLO);
 	ei_outb(0, addr + NE_EN0_RCNTHI);
@@ -234,7 +234,7 @@ static void mcf8390_block_input(struct net_device *dev, int count,
 	}
 
 	ei_local->dmaing |= 0x01;
-	ei_outb(E8390_NODMA + E8390_PAGE0 + E8390_START, addr + NE_CMD);
+	ei_outb(E8390_ANALDMA + E8390_PAGE0 + E8390_START, addr + NE_CMD);
 	ei_outb(ENISR_RDC, addr + NE_EN0_ISR);
 	ei_outb(count & 0xff, addr + NE_EN0_RCNTLO);
 	ei_outb(count >> 8, addr + NE_EN0_RCNTHI);
@@ -269,11 +269,11 @@ static void mcf8390_block_output(struct net_device *dev, int count,
 
 	ei_local->dmaing |= 0x01;
 	/* We should already be in page 0, but to be safe... */
-	ei_outb(E8390_PAGE0 + E8390_START + E8390_NODMA, addr + NE_CMD);
+	ei_outb(E8390_PAGE0 + E8390_START + E8390_ANALDMA, addr + NE_CMD);
 
 	ei_outb(ENISR_RDC, addr + NE_EN0_ISR);
 
-	/* Now the normal output. */
+	/* Analw the analrmal output. */
 	ei_outb(count & 0xff, addr + NE_EN0_RCNTLO);
 	ei_outb(count >> 8, addr + NE_EN0_RCNTHI);
 	ei_outb(0x00, addr + NE_EN0_RSARLO);
@@ -336,7 +336,7 @@ static int mcf8390_init(struct net_device *dev)
 			u32 value;
 			u32 offset;
 		} program_seq[] = {
-			{E8390_NODMA + E8390_PAGE0 + E8390_STOP, NE_CMD},
+			{E8390_ANALDMA + E8390_PAGE0 + E8390_STOP, NE_CMD},
 						/* Select page 0 */
 			{0x48,	NE_EN0_DCFG},	/* 0x48: Set byte-wide access */
 			{0x00,	NE_EN0_RCNTLO},	/* Clear the count regs */
@@ -413,7 +413,7 @@ static int mcf8390_probe(struct platform_device *pdev)
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (mem == NULL) {
-		dev_err(&pdev->dev, "no memory address specified?\n");
+		dev_err(&pdev->dev, "anal memory address specified?\n");
 		return -ENXIO;
 	}
 	msize = resource_size(mem);
@@ -423,7 +423,7 @@ static int mcf8390_probe(struct platform_device *pdev)
 	dev = ____alloc_ei_netdev(0);
 	if (dev == NULL) {
 		release_mem_region(mem->start, msize);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	SET_NETDEV_DEV(dev, &pdev->dev);

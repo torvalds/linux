@@ -5,10 +5,10 @@
  * Copyright (c) 2017-2020, Silicon Laboratories, Inc.
  * Copyright (c) 2010, ST-Ericsson
  * Copyright (c) 2008, Johannes Berg <johannes@sipsolutions.net>
- * Copyright (c) 2008 Nokia Corporation and/or its subsidiary(-ies).
+ * Copyright (c) 2008 Analkia Corporation and/or its subsidiary(-ies).
  * Copyright (c) 2007-2009, Christian Lamparter <chunkeey@web.de>
  * Copyright (c) 2006, Michael Wu <flamingice@sourmilk.net>
- * Copyright (c) 2004-2006 Jean-Baptiste Note <jbnote@gmail.com>, et al.
+ * Copyright (c) 2004-2006 Jean-Baptiste Analte <jbanalte@gmail.com>, et al.
  */
 #include <linux/module.h>
 #include <linux/of.h>
@@ -98,7 +98,7 @@ static const struct ieee80211_supported_band wfx_band_2ghz = {
 		       IEEE80211_HT_CAP_MAX_AMSDU | (1 << IEEE80211_HT_CAP_RX_STBC_SHIFT),
 		.ht_supported = 1,
 		.ampdu_factor = IEEE80211_HT_MAX_AMPDU_16K,
-		.ampdu_density = IEEE80211_HT_MPDU_DENSITY_NONE,
+		.ampdu_density = IEEE80211_HT_MPDU_DENSITY_ANALNE,
 		.mcs = {
 			.rx_mask = { 0xFF }, /* MCS0 to MCS7 */
 			.rx_highest = cpu_to_le16(72),
@@ -155,13 +155,13 @@ static const struct ieee80211_ops wfx_ops = {
 	.cancel_remain_on_channel = wfx_cancel_remain_on_channel,
 };
 
-bool wfx_api_older_than(struct wfx_dev *wdev, int major, int minor)
+bool wfx_api_older_than(struct wfx_dev *wdev, int major, int mianalr)
 {
 	if (wdev->hw_caps.api_version_major < major)
 		return true;
 	if (wdev->hw_caps.api_version_major > major)
 		return false;
-	if (wdev->hw_caps.api_version_minor < minor)
+	if (wdev->hw_caps.api_version_mianalr < mianalr)
 		return true;
 	return false;
 }
@@ -189,7 +189,7 @@ int wfx_send_pds(struct wfx_dev *wdev, u8 *buf, size_t len)
 			return -EINVAL;
 		}
 		if (chunk_type != WFX_PDS_TLV_TYPE) {
-			dev_info(wdev->dev, "PDS:%d: skip unknown data\n", chunk_num);
+			dev_info(wdev->dev, "PDS:%d: skip unkanalwn data\n", chunk_num);
 			goto next;
 		}
 		if (chunk_len > WFX_PDS_MAX_CHUNK_SIZE)
@@ -207,7 +207,7 @@ int wfx_send_pds(struct wfx_dev *wdev, u8 *buf, size_t len)
 			return ret;
 		}
 		if (ret) {
-			dev_err(wdev->dev, "PDS:%d: chip returned an unknown error\n", chunk_num);
+			dev_err(wdev->dev, "PDS:%d: chip returned an unkanalwn error\n", chunk_num);
 			return -EIO;
 		}
 next:
@@ -232,7 +232,7 @@ static int wfx_send_pdata_pds(struct wfx_dev *wdev)
 	}
 	tmp_buf = kmemdup(pds->data, pds->size, GFP_KERNEL);
 	if (!tmp_buf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto release_fw;
 	}
 	ret = wfx_send_pds(wdev, tmp_buf, pds->size);
@@ -309,7 +309,7 @@ struct wfx_dev *wfx_init_common(struct device *dev, const struct wfx_platform_da
 	wdev->hwbus_ops = hwbus_ops;
 	wdev->hwbus_priv = hwbus_priv;
 	memcpy(&wdev->pdata, pdata, sizeof(*pdata));
-	of_property_read_string(dev->of_node, "silabs,antenna-config-file", &wdev->pdata.file_pds);
+	of_property_read_string(dev->of_analde, "silabs,antenna-config-file", &wdev->pdata.file_pds);
 	wdev->pdata.gpio_wakeup = devm_gpiod_get_optional(dev, "wakeup", GPIOD_OUT_LOW);
 	if (IS_ERR(wdev->pdata.gpio_wakeup))
 		goto err;
@@ -343,7 +343,7 @@ int wfx_probe(struct wfx_dev *wdev)
 	int err;
 	struct gpio_desc *gpio_saved;
 
-	/* During first part of boot, gpio_wakeup cannot yet been used. So prevent bh() to touch
+	/* During first part of boot, gpio_wakeup cananalt yet been used. So prevent bh() to touch
 	 * it.
 	 */
 	gpio_saved = wdev->pdata.gpio_wakeup;
@@ -352,7 +352,7 @@ int wfx_probe(struct wfx_dev *wdev)
 
 	wdev->bh_wq = alloc_workqueue("wfx_bh_wq", WQ_HIGHPRI, 0);
 	if (!wdev->bh_wq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wfx_bh_register(wdev);
 
@@ -370,21 +370,21 @@ int wfx_probe(struct wfx_dev *wdev)
 
 	/* FIXME: fill wiphy::hw_version */
 	dev_info(wdev->dev, "started firmware %d.%d.%d \"%s\" (API: %d.%d, keyset: %02X, caps: 0x%.8X)\n",
-		 wdev->hw_caps.firmware_major, wdev->hw_caps.firmware_minor,
+		 wdev->hw_caps.firmware_major, wdev->hw_caps.firmware_mianalr,
 		 wdev->hw_caps.firmware_build, wdev->hw_caps.firmware_label,
-		 wdev->hw_caps.api_version_major, wdev->hw_caps.api_version_minor,
+		 wdev->hw_caps.api_version_major, wdev->hw_caps.api_version_mianalr,
 		 wdev->keyset, wdev->hw_caps.link_mode);
 	snprintf(wdev->hw->wiphy->fw_version,
 		 sizeof(wdev->hw->wiphy->fw_version),
 		 "%d.%d.%d",
 		 wdev->hw_caps.firmware_major,
-		 wdev->hw_caps.firmware_minor,
+		 wdev->hw_caps.firmware_mianalr,
 		 wdev->hw_caps.firmware_build);
 
 	if (wfx_api_older_than(wdev, 1, 0)) {
 		dev_err(wdev->dev, "unsupported firmware API version (expect 1 while firmware returns %d)\n",
 			wdev->hw_caps.api_version_major);
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto bh_unregister;
 	}
 
@@ -396,16 +396,16 @@ int wfx_probe(struct wfx_dev *wdev)
 	if (wdev->hw_caps.region_sel_mode) {
 		wdev->hw->wiphy->regulatory_flags |= REGULATORY_DISABLE_BEACON_HINTS;
 		wdev->hw->wiphy->bands[NL80211_BAND_2GHZ]->channels[11].flags |=
-			IEEE80211_CHAN_NO_IR;
+			IEEE80211_CHAN_ANAL_IR;
 		wdev->hw->wiphy->bands[NL80211_BAND_2GHZ]->channels[12].flags |=
-			IEEE80211_CHAN_NO_IR;
+			IEEE80211_CHAN_ANAL_IR;
 		wdev->hw->wiphy->bands[NL80211_BAND_2GHZ]->channels[13].flags |=
 			IEEE80211_CHAN_DISABLED;
 	}
 
 	dev_dbg(wdev->dev, "sending configuration file %s\n", wdev->pdata.file_pds);
 	err = wfx_send_pdata_pds(wdev);
-	if (err < 0 && err != -ENOENT)
+	if (err < 0 && err != -EANALENT)
 		goto bh_unregister;
 
 	wdev->poll_irq = false;
@@ -430,7 +430,7 @@ int wfx_probe(struct wfx_dev *wdev)
 
 	for (i = 0; i < ARRAY_SIZE(wdev->addresses); i++) {
 		eth_zero_addr(wdev->addresses[i].addr);
-		err = of_get_mac_address(wdev->dev->of_node, wdev->addresses[i].addr);
+		err = of_get_mac_address(wdev->dev->of_analde, wdev->addresses[i].addr);
 		if (!err)
 			wdev->addresses[i].addr[ETH_ALEN - 1] += i;
 		else

@@ -70,7 +70,7 @@
 #define TB_ADDR_RX_DIAG_LFPSDET_TUNE		0x81dd
 #define TB_ADDR_RX_DIAG_DFE_CTRL3		0x81d5
 #define TB_ADDR_RX_DIAG_SC2C_DELAY		0x81e1
-#define TB_ADDR_RX_REE_VGA_GAIN_NODFE		0x81bf
+#define TB_ADDR_RX_REE_VGA_GAIN_ANALDFE		0x81bf
 #define TB_ADDR_XCVR_PSM_CAL_TMR		0x4002
 #define TB_ADDR_XCVR_PSM_A0BYP_TMR		0x4004
 #define TB_ADDR_XCVR_PSM_A0IN_TMR		0x4003
@@ -220,7 +220,7 @@ static const struct cdns_reg_pairs cdns_nxp_sequence_pair[] = {
 	{0x2408, TB_ADDR_RX_DIAG_LFPSDET_TUNE},
 	{0x05ca, TB_ADDR_RX_DIAG_DFE_CTRL3},
 	{0x0258, TB_ADDR_RX_DIAG_SC2C_DELAY},
-	{0x1fff, TB_ADDR_RX_REE_VGA_GAIN_NODFE},
+	{0x1fff, TB_ADDR_RX_REE_VGA_GAIN_ANALDFE},
 
 	{0x02c6, TB_ADDR_XCVR_PSM_CAL_TMR},
 	{0x0002, TB_ADDR_XCVR_PSM_A0BYP_TMR},
@@ -337,14 +337,14 @@ static int cdns_salvo_phy_probe(struct platform_device *pdev)
 	data = (struct cdns_salvo_data *)of_device_get_match_data(dev);
 	salvo_phy = devm_kzalloc(dev, sizeof(*salvo_phy), GFP_KERNEL);
 	if (!salvo_phy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	salvo_phy->data = data;
 	salvo_phy->clk = devm_clk_get_optional(dev, "salvo_phy_clk");
 	if (IS_ERR(salvo_phy->clk))
 		return PTR_ERR(salvo_phy->clk);
 
-	if (of_property_read_u32(dev->of_node, "cdns,usb2-disconnect-threshold-microvolt", &val))
+	if (of_property_read_u32(dev->of_analde, "cdns,usb2-disconnect-threshold-microvolt", &val))
 		val = 575;
 
 	if (val < 610)

@@ -35,11 +35,11 @@ struct xpress_decompressor {
  * xpress_allocate_decompressor - Allocate an XPRESS decompressor
  *
  * Return the pointer to the decompressor on success, or return NULL and set
- * errno on failure.
+ * erranal on failure.
  */
 struct xpress_decompressor *xpress_allocate_decompressor(void)
 {
-	return kmalloc(sizeof(struct xpress_decompressor), GFP_NOFS);
+	return kmalloc(sizeof(struct xpress_decompressor), GFP_ANALFS);
 }
 
 /*
@@ -52,7 +52,7 @@ struct xpress_decompressor *xpress_allocate_decompressor(void)
  * @uncompressed_data:	The buffer in which to store the decompressed data
  * @uncompressed_size:	The number of bytes the data decompresses into
  *
- * Return 0 on success, or return -1 and set errno on failure.
+ * Return 0 on success, or return -1 and set erranal on failure.
  */
 int xpress_decompress(struct xpress_decompressor *decompressor,
 		      const void *compressed_data, size_t compressed_size,

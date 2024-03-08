@@ -107,14 +107,14 @@ static int rc5t583_regulator_probe(struct platform_device *pdev)
 	int id;
 
 	if (!pdata) {
-		dev_err(&pdev->dev, "No platform data, exiting...\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "Anal platform data, exiting...\n");
+		return -EANALDEV;
 	}
 
 	for (id = 0; id < RC5T583_REGULATOR_MAX; ++id) {
 		ri = &rc5t583_reg_info[id];
 
-		if (ri->deepsleep_id == RC5T583_DS_NONE)
+		if (ri->deepsleep_id == RC5T583_DS_ANALNE)
 			goto skip_ext_pwr_config;
 
 		ret = rc5t583_ext_power_req_config(rc5t583->dev,
@@ -122,7 +122,7 @@ static int rc5t583_regulator_probe(struct platform_device *pdev)
 				pdata->regulator_ext_pwr_control[id],
 				pdata->regulator_deepsleep_slot[id]);
 		/*
-		 * Configuring external control is not a major issue,
+		 * Configuring external control is analt a major issue,
 		 * just give warning.
 		 */
 		if (ret < 0)
@@ -148,7 +148,7 @@ skip_ext_pwr_config:
 static struct platform_driver rc5t583_regulator_driver = {
 	.driver	= {
 		.name	= "rc5t583-regulator",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.probe		= rc5t583_regulator_probe,
 };

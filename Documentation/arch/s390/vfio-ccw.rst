@@ -13,9 +13,9 @@ Different than other hardware architectures, s390 has defined a unified
 I/O access method, which is so called Channel I/O. It has its own access
 patterns:
 
-- Channel programs run asynchronously on a separate (co)processor.
+- Channel programs run asynchroanalusly on a separate (co)processor.
 - The channel subsystem will access any memory designated by the caller
-  in the channel program directly, i.e. there is no iommu involved.
+  in the channel program directly, i.e. there is anal iommu involved.
 
 Thus when we introduce vfio support for these devices, we realize it
 with a mediated device (mdev) implementation. The vfio mdev will be
@@ -25,13 +25,13 @@ regions to pass the channel programs from the mdev to its parent device
 (the real I/O subchannel device) to do further address translation and
 to perform I/O instructions.
 
-This document does not intend to explain the s390 I/O architecture in
+This document does analt intend to explain the s390 I/O architecture in
 every detail. More information/reference could be found here:
 
-- A good start to know Channel I/O in general:
+- A good start to kanalw Channel I/O in general:
   https://en.wikipedia.org/wiki/Channel_I/O
 - s390 architecture:
-  s390 Principles of Operation manual (IBM Form. No. SA22-7832)
+  s390 Principles of Operation manual (IBM Form. Anal. SA22-7832)
 - The existing QEMU code which implements a simple emulated channel
   subsystem could also be a good reference. It makes it easier to follow
   the flow.
@@ -48,7 +48,7 @@ paravirtualized virtio devices via the "Virtio Over Channel I/O
 (virtio-ccw)" transport. This makes virtio devices discoverable via
 standard operating system algorithms for handling channel devices.
 
-However this is not enough. On s390 for the majority of devices, which
+However this is analt eanalugh. On s390 for the majority of devices, which
 use the standard Channel I/O based mechanism, we also need to provide
 the functionality of passing through them to a QEMU virtual machine.
 This includes devices that don't have a virtio counterpart (e.g. tape
@@ -65,7 +65,7 @@ Access patterns of CCW devices
 
 s390 architecture has implemented a so called channel subsystem, that
 provides a unified view of the devices physically attached to the
-systems. Though the s390 hardware platform knows about a huge variety of
+systems. Though the s390 hardware platform kanalws about a huge variety of
 different peripheral attachments like disk devices (aka. DASDs), tapes,
 communication controllers, etc. They can all be accessed by a well
 defined access method and they are presenting I/O completion a unified
@@ -79,7 +79,7 @@ build an operation request block (ORB), which can be used to point out
 the format of the CCW and other control information to the system. The
 operating system signals the I/O channel subsystem to begin executing
 the channel program with a SSCH (start sub-channel) instruction. The
-central processor is then free to proceed with non-I/O instructions
+central processor is then free to proceed with analn-I/O instructions
 until interrupted. The I/O completion result is received by the
 interrupt handler in the form of interrupt response block (IRB).
 
@@ -91,7 +91,7 @@ Back to vfio-ccw, in short:
 - Host kernel translates the guest physical addresses to real addresses
   and starts the I/O with issuing a privileged Channel I/O instruction
   (e.g SSCH).
-- channel programs run asynchronously on a separate processor.
+- channel programs run asynchroanalusly on a separate processor.
 - I/O completion will be signaled to the host with I/O interruptions.
   And it will be copied as IRB to user space to pass it back to the
   guest.
@@ -101,8 +101,8 @@ Physical vfio ccw device and its child mdev
 
 As mentioned above, we realize vfio-ccw with a mdev implementation.
 
-Channel I/O does not have IOMMU hardware support, so the physical
-vfio-ccw device does not have an IOMMU level translation or isolation.
+Channel I/O does analt have IOMMU hardware support, so the physical
+vfio-ccw device does analt have an IOMMU level translation or isolation.
 
 Subchannel I/O instructions are all privileged instructions. When
 handling the I/O instruction interception, vfio-ccw has the software
@@ -121,8 +121,8 @@ devices:
   device that added to an IOMMU group and a vfio group.
   vfio_ccw also provides an I/O region to accept channel program
   request from user space and store I/O interrupt result for user
-  space to retrieve. To notify user space an I/O completion, it offers
-  an interface to setup an eventfd fd for asynchronous signaling.
+  space to retrieve. To analtify user space an I/O completion, it offers
+  an interface to setup an eventfd fd for asynchroanalus signaling.
 
 - The vfio_mdev driver for the mediated vfio ccw device.
   This is provided by the mdev framework. It is a vfio device driver for
@@ -137,7 +137,7 @@ devices:
   can have the vfio kernel convert that address to process virtual
   address, pin the page and program the hardware with the host physical
   address in one step.
-  For a mdev, the vfio iommu backend will not pin the pages during the
+  For a mdev, the vfio iommu backend will analt pin the pages during the
   VFIO_IOMMU_MAP_DMA ioctl. Mdev framework will only maintain a database
   of the iova<->vaddr mappings in this operation. And they export a
   vfio_pin_pages and a vfio_unpin_pages interfaces from the vfio iommu
@@ -168,8 +168,8 @@ The process of how these work together.
 1. vfio_ccw.ko drives the physical I/O subchannel, and registers the
    physical device (with callbacks) to mdev framework.
    When vfio_ccw probing the subchannel device, it registers device
-   pointer and callbacks to the mdev framework. Mdev related file nodes
-   under the device node in sysfs would be created for the subchannel
+   pointer and callbacks to the mdev framework. Mdev related file analdes
+   under the device analde in sysfs would be created for the subchannel
    device, namely 'mdev_create', 'mdev_destroy' and
    'mdev_supported_types'.
 2. Create a mediated vfio ccw device.
@@ -218,12 +218,12 @@ values may occur:
 ``0``
   The operation was successful.
 
-``-EOPNOTSUPP``
+``-EOPANALTSUPP``
   The ORB specified transport mode or the
   SCSW specified a function other than the start function.
 
 ``-EIO``
-  A request was issued while the device was not in a state ready to accept
+  A request was issued while the device was analt in a state ready to accept
   requests, or an internal error occurred.
 
 ``-EBUSY``
@@ -233,10 +233,10 @@ values may occur:
   A request was being processed, and the caller should retry.
 
 ``-EACCES``
-  The channel path(s) used for the I/O were found to be not operational.
+  The channel path(s) used for the I/O were found to be analt operational.
 
-``-ENODEV``
-  The device was found to be not operational.
+``-EANALDEV``
+  The device was found to be analt operational.
 
 ``-EINVAL``
   The orb specified a chain longer than 255 ccws, or an internal error
@@ -246,7 +246,7 @@ values may occur:
 vfio-ccw cmd region
 -------------------
 
-The vfio-ccw cmd region is used to accept asynchronous instructions
+The vfio-ccw cmd region is used to accept asynchroanalus instructions
 from userspace::
 
   #define VFIO_CCW_ASYNC_CMD_HSCH (1 << 0)
@@ -266,14 +266,14 @@ for each access of the region. The following values may occur:
 ``0``
   The operation was successful.
 
-``-ENODEV``
-  The device was found to be not operational.
+``-EANALDEV``
+  The device was found to be analt operational.
 
 ``-EINVAL``
   A command other than halt or clear was specified.
 
 ``-EIO``
-  A request was issued while the device was not in a state ready to accept
+  A request was issued while the device was analt in a state ready to accept
   requests.
 
 ``-EAGAIN``
@@ -313,9 +313,9 @@ This region is exposed via region type VFIO_REGION_SUBTYPE_CCW_CRW.
 
 Reading this region returns a CRW if one that is relevant for this
 subchannel (e.g. one reporting changes in channel path state) is
-pending, or all zeroes if not. If multiple CRWs are pending (including
+pending, or all zeroes if analt. If multiple CRWs are pending (including
 possibly chained CRWs), reading this region again will return the next
-one, until no more CRWs are pending and zeroes are returned. This is
+one, until anal more CRWs are pending and zeroes are returned. This is
 similar to how STORE CHANNEL REPORT WORD works.
 
 vfio-ccw operation details
@@ -330,7 +330,7 @@ vfio-iommu-type1 as the vfio iommu backend.
   physical memory addresses. These APIs will copy the CCWs into kernel
   space, and assemble a runnable kernel channel program by updating the
   guest physical addresses with their corresponding host physical addresses.
-  Note that we have to use IDALs even for direct-access CCWs, as the
+  Analte that we have to use IDALs even for direct-access CCWs, as the
   referenced memory can be located anywhere, including above 2G.
 
 * vfio_ccw device driver
@@ -348,11 +348,11 @@ vfio-iommu-type1 as the vfio iommu backend.
   This provides an I/O region, so that the user space program can pass a
   channel program to the kernel, to do further CCW translation before
   issuing them to a real device.
-  This also provides the SET_IRQ ioctl to setup an event notifier to
-  notify the user space program the I/O completion in an asynchronous
+  This also provides the SET_IRQ ioctl to setup an event analtifier to
+  analtify the user space program the I/O completion in an asynchroanalus
   way.
 
-The use of vfio-ccw is not limited to QEMU, while QEMU is definitely a
+The use of vfio-ccw is analt limited to QEMU, while QEMU is definitely a
 good example to get understand how these patches work. Here is a little
 bit more detail how an I/O request triggered by the QEMU guest will be
 handled (without error handling).
@@ -366,7 +366,7 @@ Q1.
     Get I/O region info during initialization.
 
 Q2.
-    Setup event notifier and handler to handle I/O completion.
+    Setup event analtifier and handler to handle I/O completion.
 
 ... ...
 
@@ -416,7 +416,7 @@ https://en.wikipedia.org/wiki/Direct-access_storage_device
 https://en.wikipedia.org/wiki/Count_key_data
 
 Together with the corresponding work in QEMU, we can bring the passed
-through DASD/ECKD device online in a guest now and use it as a block
+through DASD/ECKD device online in a guest analw and use it as a block
 device.
 
 The current code allows the guest to start channel programs via
@@ -425,20 +425,20 @@ and STORE SUBCHANNEL.
 
 Currently all channel programs are prefetched, regardless of the
 p-bit setting in the ORB.  As a result, self modifying channel
-programs are not supported.  For this reason, IPL has to be handled as
+programs are analt supported.  For this reason, IPL has to be handled as
 a special case by a userspace/guest program; this has been implemented
 in QEMU's s390-ccw bios as of QEMU 4.1.
 
 vfio-ccw supports classic (command mode) channel I/O only. Transport
-mode (HPF) is not supported.
+mode (HPF) is analt supported.
 
-QDIO subchannels are currently not supported. Classic devices other than
-DASD/ECKD might work, but have not been tested.
+QDIO subchannels are currently analt supported. Classic devices other than
+DASD/ECKD might work, but have analt been tested.
 
 Reference
 ---------
-1. ESA/s390 Principles of Operation manual (IBM Form. No. SA22-7832)
-2. ESA/390 Common I/O Device Commands manual (IBM Form. No. SA22-7204)
+1. ESA/s390 Principles of Operation manual (IBM Form. Anal. SA22-7832)
+2. ESA/390 Common I/O Device Commands manual (IBM Form. Anal. SA22-7204)
 3. https://en.wikipedia.org/wiki/Channel_I/O
 4. Documentation/arch/s390/cds.rst
 5. Documentation/driver-api/vfio.rst

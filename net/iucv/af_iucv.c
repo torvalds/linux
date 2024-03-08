@@ -19,7 +19,7 @@
 #include <linux/types.h>
 #include <linux/limits.h>
 #include <linux/list.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/sched/signal.h>
 #include <linux/slab.h>
@@ -65,7 +65,7 @@ do {									\
 			break;						\
 		}							\
 		if (signal_pending(current)) {				\
-			ret = sock_intr_errno(__timeo);			\
+			ret = sock_intr_erranal(__timeo);			\
 			break;						\
 		}							\
 		release_sock(sk);					\
@@ -91,7 +91,7 @@ static struct sock *iucv_accept_dequeue(struct sock *parent,
 static void iucv_sock_kill(struct sock *sk);
 static void iucv_sock_close(struct sock *sk);
 
-static void afiucv_hs_callback_txnotify(struct sock *sk, enum iucv_tx_notify);
+static void afiucv_hs_callback_txanaltify(struct sock *sk, enum iucv_tx_analtify);
 
 static struct iucv_sock_list iucv_sk_list = {
 	.lock = __RW_LOCK_UNLOCKED(iucv_sk_list.lock),
@@ -110,7 +110,7 @@ static inline void low_nmcpy(unsigned char *dst, char *src)
 
 /**
  * iucv_msg_length() - Returns the length of an iucv message.
- * @msg:	Pointer to struct iucv_message, MUST NOT be NULL
+ * @msg:	Pointer to struct iucv_message, MUST ANALT be NULL
  *
  * The function returns the length of the specified iucv message @msg of data
  * stored in a buffer and of data stored in the parameter list (PRMDATA).
@@ -123,7 +123,7 @@ static inline void low_nmcpy(unsigned char *dst, char *src)
  * The socket data length is computed by subtracting the socket data length
  * value from 0xFF.
  * If the socket data len is greater 7, then PRMDATA can be used for special
- * notifications (see iucv_sock_shutdown); and further,
+ * analtifications (see iucv_sock_shutdown); and further,
  * if the socket data len is > 7, the function returns 8.
  *
  * Use this function to allocate socket buffers to store iucv message data.
@@ -157,7 +157,7 @@ static int iucv_sock_in_state(struct sock *sk, int state, int state2)
  * @sk:		sock structure
  *
  * Returns true if the send queue length is lower than the message limit.
- * Always returns true if the socket is not connected (no iucv path for
+ * Always returns true if the socket is analt connected (anal iucv path for
  * checking the message limit).
  */
 static inline int iucv_below_msglim(struct sock *sk)
@@ -226,7 +226,7 @@ static int afiucv_hs_send(struct iucv_message *imsg, struct sock *sock,
 
 	skb->dev = iucv->hs_dev;
 	if (!skb->dev) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto err_free;
 	}
 
@@ -294,7 +294,7 @@ static void iucv_sock_cleanup_listen(struct sock *parent)
 {
 	struct sock *sk;
 
-	/* Close non-accepted connections */
+	/* Close analn-accepted connections */
 	while ((sk = iucv_accept_dequeue(parent, NULL))) {
 		iucv_sock_close(sk);
 		iucv_sock_kill(sk);
@@ -306,14 +306,14 @@ static void iucv_sock_cleanup_listen(struct sock *parent)
 static void iucv_sock_link(struct iucv_sock_list *l, struct sock *sk)
 {
 	write_lock_bh(&l->lock);
-	sk_add_node(sk, &l->head);
+	sk_add_analde(sk, &l->head);
 	write_unlock_bh(&l->lock);
 }
 
 static void iucv_sock_unlink(struct iucv_sock_list *l, struct sock *sk)
 {
 	write_lock_bh(&l->lock);
-	sk_del_node_init(sk);
+	sk_del_analde_init(sk);
 	write_unlock_bh(&l->lock);
 }
 
@@ -471,7 +471,7 @@ static struct sock *iucv_sock_alloc(struct socket *sock, int proto, gfp_t prio, 
 	atomic_set(&iucv->msg_sent, 0);
 	atomic_set(&iucv->msg_recv, 0);
 	iucv->path = NULL;
-	iucv->sk_txnotify = afiucv_hs_callback_txnotify;
+	iucv->sk_txanaltify = afiucv_hs_callback_txanaltify;
 	memset(&iucv->init, 0, sizeof(iucv->init));
 	if (pr_iucv)
 		iucv->transport = AF_IUCV_TRANS_IUCV;
@@ -633,8 +633,8 @@ vm_bind:
 			iucv->msglimit = IUCV_QUEUELEN_DEFAULT;
 		goto done_unlock;
 	}
-	/* found no dev to bind */
-	err = -ENODEV;
+	/* found anal dev to bind */
+	err = -EANALDEV;
 done_unlock:
 	/* Release the socket list lock */
 	write_unlock_bh(&iucv_sk_list.lock);
@@ -682,7 +682,7 @@ static int afiucv_path_connect(struct socket *sock, struct sockaddr *addr)
 	iucv->path = iucv_path_alloc(iucv->msglimit,
 				     IUCV_IPRMDATA, GFP_KERNEL);
 	if (!iucv->path) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto done;
 	}
 	err = pr_iucv->path_connect(iucv->path, &af_iucv_handler,
@@ -692,7 +692,7 @@ static int afiucv_path_connect(struct socket *sock, struct sockaddr *addr)
 		iucv_path_free(iucv->path);
 		iucv->path = NULL;
 		switch (err) {
-		case 0x0b:	/* Target communicator is not logged on */
+		case 0x0b:	/* Target communicator is analt logged on */
 			err = -ENETUNREACH;
 			break;
 		case 0x0d:	/* Max connections for this guest exceeded */
@@ -755,7 +755,7 @@ static int iucv_sock_connect(struct socket *sock, struct sockaddr *addr,
 	if (sk->sk_state != IUCV_CONNECTED)
 		err = iucv_sock_wait(sk, iucv_sock_in_state(sk, IUCV_CONNECTED,
 							    IUCV_DISCONN),
-				     sock_sndtimeo(sk, flags & O_NONBLOCK));
+				     sock_sndtimeo(sk, flags & O_ANALNBLOCK));
 
 	if (sk->sk_state == IUCV_DISCONN || sk->sk_state == IUCV_CLOSED)
 		err = -ECONNREFUSED;
@@ -809,7 +809,7 @@ static int iucv_sock_accept(struct socket *sock, struct socket *newsock,
 		goto done;
 	}
 
-	timeo = sock_rcvtimeo(sk, flags & O_NONBLOCK);
+	timeo = sock_rcvtimeo(sk, flags & O_ANALNBLOCK);
 
 	/* Wait for an incoming connection */
 	add_wait_queue_exclusive(sk_sleep(sk), &wait);
@@ -830,7 +830,7 @@ static int iucv_sock_accept(struct socket *sock, struct socket *newsock,
 		}
 
 		if (signal_pending(current)) {
-			err = sock_intr_errno(timeo);
+			err = sock_intr_erranal(timeo);
 			break;
 		}
 	}
@@ -866,7 +866,7 @@ static int iucv_sock_getname(struct socket *sock, struct sockaddr *addr,
 	}
 	memset(&siucv->siucv_port, 0, sizeof(siucv->siucv_port));
 	memset(&siucv->siucv_addr, 0, sizeof(siucv->siucv_addr));
-	memset(&siucv->siucv_nodeid, 0, sizeof(siucv->siucv_nodeid));
+	memset(&siucv->siucv_analdeid, 0, sizeof(siucv->siucv_analdeid));
 
 	return sizeof(struct sockaddr_iucv);
 }
@@ -910,18 +910,18 @@ static int iucv_sock_sendmsg(struct socket *sock, struct msghdr *msg,
 	char user_id[9];
 	char appl_id[9];
 	int err;
-	int noblock = msg->msg_flags & MSG_DONTWAIT;
+	int analblock = msg->msg_flags & MSG_DONTWAIT;
 
 	err = sock_error(sk);
 	if (err)
 		return err;
 
 	if (msg->msg_flags & MSG_OOB)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
-	/* SOCK_SEQPACKET: we do not support segmented records */
+	/* SOCK_SEQPACKET: we do analt support segmented records */
 	if (sk->sk_type == SOCK_SEQPACKET && !(msg->msg_flags & MSG_EOR))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	lock_sock(sk);
 
@@ -930,9 +930,9 @@ static int iucv_sock_sendmsg(struct socket *sock, struct msghdr *msg,
 		goto out;
 	}
 
-	/* Return if the socket is not in connected state */
+	/* Return if the socket is analt in connected state */
 	if (sk->sk_state != IUCV_CONNECTED) {
-		err = -ENOTCONN;
+		err = -EANALTCONN;
 		goto out;
 	}
 
@@ -986,7 +986,7 @@ static int iucv_sock_sendmsg(struct socket *sock, struct msghdr *msg,
 		if (len < PAGE_SIZE) {
 			linear = len;
 		} else {
-			/* In nonlinear "classic" iucv skb,
+			/* In analnlinear "classic" iucv skb,
 			 * reserve space for iucv_array
 			 */
 			headroom = sizeof(struct iucv_array) *
@@ -995,7 +995,7 @@ static int iucv_sock_sendmsg(struct socket *sock, struct msghdr *msg,
 		}
 	}
 	skb = sock_alloc_send_pskb(sk, headroom + linear, len - linear,
-				   noblock, &err, 0);
+				   analblock, &err, 0);
 	if (!skb)
 		goto out;
 	if (headroom)
@@ -1008,12 +1008,12 @@ static int iucv_sock_sendmsg(struct socket *sock, struct msghdr *msg,
 		goto fail;
 
 	/* wait if outstanding messages for iucv path has reached */
-	timeo = sock_sndtimeo(sk, noblock);
+	timeo = sock_sndtimeo(sk, analblock);
 	err = iucv_sock_wait(sk, iucv_below_msglim(sk), timeo);
 	if (err)
 		goto fail;
 
-	/* return -ECONNRESET if the socket is no longer connected */
+	/* return -ECONNRESET if the socket is anal longer connected */
 	if (sk->sk_state != IUCV_CONNECTED) {
 		err = -ECONNRESET;
 		goto fail;
@@ -1038,7 +1038,7 @@ static int iucv_sock_sendmsg(struct socket *sock, struct msghdr *msg,
 		    skb->len <= 7) {
 			err = iucv_send_iprm(iucv->path, &txmsg, skb);
 
-			/* on success: there is no message_complete callback */
+			/* on success: there is anal message_complete callback */
 			/* for an IPRMDATA msg; remove skb from send queue   */
 			if (err == 0) {
 				atomic_dec(&iucv->skbs_in_xmit);
@@ -1055,7 +1055,7 @@ static int iucv_sock_sendmsg(struct socket *sock, struct msghdr *msg,
 				err = -EPIPE;
 				goto fail;
 			}
-		} else if (skb_is_nonlinear(skb)) {
+		} else if (skb_is_analnlinear(skb)) {
 			struct iucv_array *iba = (struct iucv_array *)skb->head;
 			int i;
 
@@ -1072,7 +1072,7 @@ static int iucv_sock_sendmsg(struct socket *sock, struct msghdr *msg,
 			err = pr_iucv->message_send(iucv->path, &txmsg,
 						    IUCV_IPBUFLST, 0,
 						    (void *)iba, skb->len);
-		} else { /* non-IPRM Linear skb */
+		} else { /* analn-IPRM Linear skb */
 			err = pr_iucv->message_send(iucv->path, &txmsg,
 					0, 0, (void *)skb->data, skb->len);
 		}
@@ -1148,7 +1148,7 @@ static void iucv_process_message(struct sock *sk, struct sk_buff *skb,
 	len = iucv_msg_length(msg);
 
 	/* store msg target class in the second 4 bytes of skb ctrl buffer */
-	/* Note: the first 4 bytes are reserved for msg tag */
+	/* Analte: the first 4 bytes are reserved for msg tag */
 	IUCV_SKB_CB(skb)->class = msg->class;
 
 	/* check for special IPRM messages (e.g. iucv_sock_shutdown) */
@@ -1158,7 +1158,7 @@ static void iucv_process_message(struct sock *sk, struct sk_buff *skb,
 			skb->len = 0;
 		}
 	} else {
-		if (skb_is_nonlinear(skb)) {
+		if (skb_is_analnlinear(skb)) {
 			struct iucv_array *iba = (struct iucv_array *)skb->head;
 			int i;
 
@@ -1235,10 +1235,10 @@ static int iucv_sock_recvmsg(struct socket *sock, struct msghdr *msg,
 		return 0;
 
 	if (flags & (MSG_OOB))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* receive/dequeue next skb:
-	 * the function understands MSG_PEEK and, thus, does not dequeue skb */
+	 * the function understands MSG_PEEK and, thus, does analt dequeue skb */
 	skb = skb_recv_datagram(sk, flags, &err);
 	if (!skb) {
 		if (sk->sk_shutdown & RCV_SHUTDOWN)
@@ -1346,7 +1346,7 @@ static inline __poll_t iucv_accept_poll(struct sock *parent)
 		sk = (struct sock *) isk;
 
 		if (sk->sk_state == IUCV_CONNECTED)
-			return EPOLLIN | EPOLLRDNORM;
+			return EPOLLIN | EPOLLRDANALRM;
 	}
 
 	return 0;
@@ -1375,7 +1375,7 @@ static __poll_t iucv_sock_poll(struct file *file, struct socket *sock,
 
 	if (!skb_queue_empty(&sk->sk_receive_queue) ||
 	    (sk->sk_shutdown & RCV_SHUTDOWN))
-		mask |= EPOLLIN | EPOLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDANALRM;
 
 	if (sk->sk_state == IUCV_CLOSED)
 		mask |= EPOLLHUP;
@@ -1384,9 +1384,9 @@ static __poll_t iucv_sock_poll(struct file *file, struct socket *sock,
 		mask |= EPOLLIN;
 
 	if (sock_writeable(sk) && iucv_below_msglim(sk))
-		mask |= EPOLLOUT | EPOLLWRNORM | EPOLLWRBAND;
+		mask |= EPOLLOUT | EPOLLWRANALRM | EPOLLWRBAND;
 	else
-		sk_set_bit(SOCKWQ_ASYNC_NOSPACE, sk);
+		sk_set_bit(SOCKWQ_ASYNC_ANALSPACE, sk);
 
 	return mask;
 }
@@ -1409,7 +1409,7 @@ static int iucv_sock_shutdown(struct socket *sock, int how)
 	case IUCV_DISCONN:
 	case IUCV_CLOSING:
 	case IUCV_CLOSED:
-		err = -ENOTCONN;
+		err = -EANALTCONN;
 		goto fail;
 	default:
 		break;
@@ -1425,13 +1425,13 @@ static int iucv_sock_shutdown(struct socket *sock, int how)
 			if (err) {
 				switch (err) {
 				case 1:
-					err = -ENOTCONN;
+					err = -EANALTCONN;
 					break;
 				case 2:
 					err = -ECONNRESET;
 					break;
 				default:
-					err = -ENOTCONN;
+					err = -EANALTCONN;
 					break;
 				}
 			}
@@ -1445,7 +1445,7 @@ static int iucv_sock_shutdown(struct socket *sock, int how)
 		    iucv->path) {
 			err = pr_iucv->path_quiesce(iucv->path, NULL);
 			if (err)
-				err = -ENOTCONN;
+				err = -EANALTCONN;
 /*			skb_queue_purge(&sk->sk_receive_queue); */
 		}
 		skb_queue_purge(&sk->sk_receive_queue);
@@ -1484,7 +1484,7 @@ static int iucv_sock_setsockopt(struct socket *sock, int level, int optname,
 	int rc;
 
 	if (level != SOL_IUCV)
-		return -ENOPROTOOPT;
+		return -EANALPROTOOPT;
 
 	if (optlen < sizeof(int))
 		return -EINVAL;
@@ -1517,7 +1517,7 @@ static int iucv_sock_setsockopt(struct socket *sock, int level, int optname,
 		}
 		break;
 	default:
-		rc = -ENOPROTOOPT;
+		rc = -EANALPROTOOPT;
 		break;
 	}
 	release_sock(sk);
@@ -1534,7 +1534,7 @@ static int iucv_sock_getsockopt(struct socket *sock, int level, int optname,
 	int len;
 
 	if (level != SOL_IUCV)
-		return -ENOPROTOOPT;
+		return -EANALPROTOOPT;
 
 	if (get_user(len, optlen))
 		return -EFAULT;
@@ -1562,7 +1562,7 @@ static int iucv_sock_getsockopt(struct socket *sock, int level, int optname,
 				0x7fffffff;
 		break;
 	default:
-		return -ENOPROTOOPT;
+		return -EANALPROTOOPT;
 	}
 
 	if (put_user(len, optlen))
@@ -1603,7 +1603,7 @@ static int iucv_callback_connreq(struct iucv_path *path,
 		}
 	read_unlock(&iucv_sk_list.lock);
 	if (!iucv)
-		/* No socket found, not one of our paths. */
+		/* Anal socket found, analt one of our paths. */
 		return -EINVAL;
 
 	bh_lock_sock(sk);
@@ -1841,7 +1841,7 @@ static int afiucv_hs_callback_syn(struct sock *sk, struct sk_buff *skb)
 
 	iucv = iucv_sk(sk);
 	if (!iucv) {
-		/* no sock - connection refused */
+		/* anal sock - connection refused */
 		afiucv_swap_src_dest(skb);
 		trans_hdr->flags = AF_IUCV_FLAG_SYN | AF_IUCV_FLAG_FIN;
 		err = dev_queue_xmit(skb);
@@ -2078,14 +2078,14 @@ static int afiucv_hs_rcv(struct sk_buff *skb, struct net_device *dev,
 	if (!iucv)
 		sk = NULL;
 
-	/* no sock
-	how should we send with no sock
-	1) send without sock no send rc checking?
+	/* anal sock
+	how should we send with anal sock
+	1) send without sock anal send rc checking?
 	2) introduce default sock to handle this cases
 
 	 SYN -> send SYN|ACK in good case, send SYN|FIN in bad case
 	 data -> send FIN
-	 SYN|ACK, SYN|FIN, FIN -> no action? */
+	 SYN|ACK, SYN|FIN, FIN -> anal action? */
 
 	switch (trans_hdr->flags) {
 	case AF_IUCV_FLAG_SYN:
@@ -2110,7 +2110,7 @@ static int afiucv_hs_rcv(struct sk_buff *skb, struct net_device *dev,
 			consume_skb(skb);
 			break;
 		}
-		fallthrough;	/* and receive non-zero length data */
+		fallthrough;	/* and receive analn-zero length data */
 	case (AF_IUCV_FLAG_SHT):
 		/* shutdown request */
 		fallthrough;	/* and receive zero length data */
@@ -2127,10 +2127,10 @@ static int afiucv_hs_rcv(struct sk_buff *skb, struct net_device *dev,
 }
 
 /*
- * afiucv_hs_callback_txnotify() - handle send notifications from HiperSockets
+ * afiucv_hs_callback_txanaltify() - handle send analtifications from HiperSockets
  *                                 transport
  */
-static void afiucv_hs_callback_txnotify(struct sock *sk, enum iucv_tx_notify n)
+static void afiucv_hs_callback_txanaltify(struct sock *sk, enum iucv_tx_analtify n)
 {
 	struct iucv_sock *iucv = iucv_sk(sk);
 
@@ -2138,14 +2138,14 @@ static void afiucv_hs_callback_txnotify(struct sock *sk, enum iucv_tx_notify n)
 		return;
 
 	switch (n) {
-	case TX_NOTIFY_OK:
+	case TX_ANALTIFY_OK:
 		atomic_dec(&iucv->skbs_in_xmit);
 		iucv_sock_wake_msglim(sk);
 		break;
-	case TX_NOTIFY_PENDING:
+	case TX_ANALTIFY_PENDING:
 		atomic_inc(&iucv->pendings);
 		break;
-	case TX_NOTIFY_DELAYED_OK:
+	case TX_ANALTIFY_DELAYED_OK:
 		atomic_dec(&iucv->skbs_in_xmit);
 		if (atomic_dec_return(&iucv->pendings) <= 0)
 			iucv_sock_wake_msglim(sk);
@@ -2167,12 +2167,12 @@ static void afiucv_hs_callback_txnotify(struct sock *sk, enum iucv_tx_notify n)
 }
 
 /*
- * afiucv_netdev_event: handle netdev notifier chain events
+ * afiucv_netdev_event: handle netdev analtifier chain events
  */
-static int afiucv_netdev_event(struct notifier_block *this,
+static int afiucv_netdev_event(struct analtifier_block *this,
 			       unsigned long event, void *ptr)
 {
-	struct net_device *event_dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *event_dev = netdev_analtifier_info_to_dev(ptr);
 	struct sock *sk;
 	struct iucv_sock *iucv;
 
@@ -2195,11 +2195,11 @@ static int afiucv_netdev_event(struct notifier_block *this,
 	default:
 		break;
 	}
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block afiucv_netdev_notifier = {
-	.notifier_call = afiucv_netdev_event,
+static struct analtifier_block afiucv_netdev_analtifier = {
+	.analtifier_call = afiucv_netdev_event,
 };
 
 static const struct proto_ops iucv_sock_ops = {
@@ -2214,9 +2214,9 @@ static const struct proto_ops iucv_sock_ops = {
 	.sendmsg	= iucv_sock_sendmsg,
 	.recvmsg	= iucv_sock_recvmsg,
 	.poll		= iucv_sock_poll,
-	.ioctl		= sock_no_ioctl,
-	.mmap		= sock_no_mmap,
-	.socketpair	= sock_no_socketpair,
+	.ioctl		= sock_anal_ioctl,
+	.mmap		= sock_anal_mmap,
+	.socketpair	= sock_anal_socketpair,
 	.shutdown	= iucv_sock_shutdown,
 	.setsockopt	= iucv_sock_setsockopt,
 	.getsockopt	= iucv_sock_getsockopt,
@@ -2228,7 +2228,7 @@ static int iucv_sock_create(struct net *net, struct socket *sock, int protocol,
 	struct sock *sk;
 
 	if (protocol && protocol != PF_IUCV)
-		return -EPROTONOSUPPORT;
+		return -EPROTOANALSUPPORT;
 
 	sock->state = SS_UNCONNECTED;
 
@@ -2239,12 +2239,12 @@ static int iucv_sock_create(struct net *net, struct socket *sock, int protocol,
 		sock->ops = &iucv_sock_ops;
 		break;
 	default:
-		return -ESOCKTNOSUPPORT;
+		return -ESOCKTANALSUPPORT;
 	}
 
 	sk = iucv_sock_alloc(sock, protocol, GFP_KERNEL, kern);
 	if (!sk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	iucv_sock_init(sk, NULL);
 
@@ -2270,7 +2270,7 @@ static int __init afiucv_init(void)
 		cpcmd("QUERY USERID", iucv_userid, sizeof(iucv_userid), &err);
 		if (unlikely(err)) {
 			WARN_ON(err);
-			err = -EPROTONOSUPPORT;
+			err = -EPROTOANALSUPPORT;
 			goto out;
 		}
 
@@ -2293,14 +2293,14 @@ static int __init afiucv_init(void)
 			goto out_sock;
 	}
 
-	err = register_netdevice_notifier(&afiucv_netdev_notifier);
+	err = register_netdevice_analtifier(&afiucv_netdev_analtifier);
 	if (err)
-		goto out_notifier;
+		goto out_analtifier;
 
 	dev_add_pack(&iucv_packet_type);
 	return 0;
 
-out_notifier:
+out_analtifier:
 	if (pr_iucv)
 		pr_iucv->iucv_unregister(&af_iucv_handler, 0);
 out_sock:
@@ -2316,7 +2316,7 @@ static void __exit afiucv_exit(void)
 	if (pr_iucv)
 		pr_iucv->iucv_unregister(&af_iucv_handler, 0);
 
-	unregister_netdevice_notifier(&afiucv_netdev_notifier);
+	unregister_netdevice_analtifier(&afiucv_netdev_analtifier);
 	dev_remove_pack(&iucv_packet_type);
 	sock_unregister(PF_IUCV);
 	proto_unregister(&iucv_proto);

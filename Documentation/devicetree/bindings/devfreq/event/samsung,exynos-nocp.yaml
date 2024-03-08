@@ -1,32 +1,32 @@
 # SPDX-License-Identifier: GPL-2.0
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/devfreq/event/samsung,exynos-nocp.yaml#
+$id: http://devicetree.org/schemas/devfreq/event/samsung,exyanals-analcp.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Samsung Exynos NoC (Network on Chip) Probe
+title: Samsung Exyanals AnalC (Network on Chip) Probe
 
 maintainers:
   - Chanwoo Choi <cw00.choi@samsung.com>
   - Krzysztof Kozlowski <krzk@kernel.org>
 
 description: |
-  The Samsung Exynos542x SoC has a NoC (Network on Chip) Probe for NoC bus.
-  NoC provides the primitive values to get the performance data. The packets
-  that the Network on Chip (NoC) probes detects are transported over the
+  The Samsung Exyanals542x SoC has a AnalC (Network on Chip) Probe for AnalC bus.
+  AnalC provides the primitive values to get the performance data. The packets
+  that the Network on Chip (AnalC) probes detects are transported over the
   network infrastructure to observer units. You can configure probes to capture
   packets with header or data on the data request response network, or as
-  traffic debug or statistic collectors. Exynos542x bus has multiple NoC probes
+  traffic debug or statistic collectors. Exyanals542x bus has multiple AnalC probes
   to provide bandwidth information about behavior of the SoC that you can use
   while analyzing system performance.
 
 properties:
   compatible:
-    const: samsung,exynos5420-nocp
+    const: samsung,exyanals5420-analcp
 
   clock-names:
     items:
-      - const: nocp
+      - const: analcp
 
   clocks:
     maxItems: 1
@@ -42,7 +42,7 @@ additionalProperties: false
 
 examples:
   - |
-    nocp_mem0_0: nocp@10ca1000 {
-        compatible = "samsung,exynos5420-nocp";
+    analcp_mem0_0: analcp@10ca1000 {
+        compatible = "samsung,exyanals5420-analcp";
         reg = <0x10ca1000 0x200>;
     };

@@ -14,7 +14,7 @@
  * loops (PLLs) to multiply the incoming external clock signal to much
  * higher frequencies that are then divided down by programmable dividers
  * to produce the needed clocks.  The PLLs operate independently of one
- * another.
+ * aanalther.
  */
 #define EP93XX_EXT_CLK_RATE	14745600
 #define EP93XX_EXT_RTC_RATE	32768

@@ -109,7 +109,7 @@ int adfs_dir_read_buffers(struct super_block *sb, u32 indaddr,
 
 		bhs = kcalloc(num, sizeof(*bhs), GFP_KERNEL);
 		if (!bhs)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		if (dir->nr_buffers)
 			memcpy(bhs, dir->bhs, dir->nr_buffers * sizeof(*bhs));
@@ -153,19 +153,19 @@ static int adfs_dir_read(struct super_block *sb, u32 indaddr,
 	return ADFS_SB(sb)->s_dir->read(sb, indaddr, size, dir);
 }
 
-static int adfs_dir_read_inode(struct super_block *sb, struct inode *inode,
+static int adfs_dir_read_ianalde(struct super_block *sb, struct ianalde *ianalde,
 			       struct adfs_dir *dir)
 {
 	int ret;
 
-	ret = adfs_dir_read(sb, ADFS_I(inode)->indaddr, inode->i_size, dir);
+	ret = adfs_dir_read(sb, ADFS_I(ianalde)->indaddr, ianalde->i_size, dir);
 	if (ret)
 		return ret;
 
-	if (ADFS_I(inode)->parent_id != dir->parent_id) {
+	if (ADFS_I(ianalde)->parent_id != dir->parent_id) {
 		adfs_error(sb,
 			   "parent directory id changed under me! (%06x but got %06x)\n",
-			   ADFS_I(inode)->parent_id, dir->parent_id);
+			   ADFS_I(ianalde)->parent_id, dir->parent_id);
 		adfs_dir_relse(dir);
 		ret = -EIO;
 	}
@@ -226,7 +226,7 @@ void adfs_object_fixup(struct adfs_dir *dir, struct object_info *obj)
 	if (!(obj->attr & ADFS_NDA_DIRECTORY) && ADFS_SB(dir->sb)->s_ftsuffix) {
 		u16 filetype = adfs_filetype(obj->loadaddr);
 
-		if (filetype != ADFS_FILETYPE_NONE) {
+		if (filetype != ADFS_FILETYPE_ANALNE) {
 			obj->name[obj->name_len++] = ',';
 			obj->name[obj->name_len++] = hex_asc_lo(filetype >> 8);
 			obj->name[obj->name_len++] = hex_asc_lo(filetype >> 4);
@@ -237,14 +237,14 @@ void adfs_object_fixup(struct adfs_dir *dir, struct object_info *obj)
 
 static int adfs_iterate(struct file *file, struct dir_context *ctx)
 {
-	struct inode *inode = file_inode(file);
-	struct super_block *sb = inode->i_sb;
+	struct ianalde *ianalde = file_ianalde(file);
+	struct super_block *sb = ianalde->i_sb;
 	const struct adfs_dir_ops *ops = ADFS_SB(sb)->s_dir;
 	struct adfs_dir dir;
 	int ret;
 
 	down_read(&adfs_dir_rwsem);
-	ret = adfs_dir_read_inode(sb, inode, &dir);
+	ret = adfs_dir_read_ianalde(sb, ianalde, &dir);
 	if (ret)
 		goto unlock;
 
@@ -312,7 +312,7 @@ adfs_dir_update(struct super_block *sb, struct object_info *obj, int wait)
 	 * the dirtied buffers so they aren't written back to the media.
 	 */
 forget:
-	if (ret == -ENOENT)
+	if (ret == -EANALENT)
 		adfs_dir_relse(&dir);
 	else
 		adfs_dir_forget(&dir);
@@ -344,10 +344,10 @@ static int __adfs_compare(const unsigned char *qstr, u32 qlen,
 	return 0;
 }
 
-static int adfs_dir_lookup_byname(struct inode *inode, const struct qstr *qstr,
+static int adfs_dir_lookup_byname(struct ianalde *ianalde, const struct qstr *qstr,
 				  struct object_info *obj)
 {
-	struct super_block *sb = inode->i_sb;
+	struct super_block *sb = ianalde->i_sb;
 	const struct adfs_dir_ops *ops = ADFS_SB(sb)->s_dir;
 	const unsigned char *name;
 	struct adfs_dir dir;
@@ -355,7 +355,7 @@ static int adfs_dir_lookup_byname(struct inode *inode, const struct qstr *qstr,
 	int ret;
 
 	down_read(&adfs_dir_rwsem);
-	ret = adfs_dir_read_inode(sb, inode, &dir);
+	ret = adfs_dir_read_ianalde(sb, ianalde, &dir);
 	if (ret)
 		goto unlock;
 
@@ -363,7 +363,7 @@ static int adfs_dir_lookup_byname(struct inode *inode, const struct qstr *qstr,
 	if (ret)
 		goto unlock_relse;
 
-	ret = -ENOENT;
+	ret = -EANALENT;
 	name = qstr->name;
 	name_len = qstr->len;
 	while (ops->getnext(&dir, obj) == 0) {
@@ -372,7 +372,7 @@ static int adfs_dir_lookup_byname(struct inode *inode, const struct qstr *qstr,
 			break;
 		}
 	}
-	obj->parent_id = ADFS_I(inode)->indaddr;
+	obj->parent_id = ADFS_I(ianalde)->indaddr;
 
 unlock_relse:
 	up_read(&adfs_dir_rwsem);
@@ -412,7 +412,7 @@ adfs_hash(const struct dentry *parent, struct qstr *qstr)
 }
 
 /*
- * Compare two names, taking note of the name length
+ * Compare two names, taking analte of the name length
  * requirements of the underlying filesystem.
  */
 static int adfs_compare(const struct dentry *dentry, unsigned int len,
@@ -427,31 +427,31 @@ const struct dentry_operations adfs_dentry_operations = {
 };
 
 static struct dentry *
-adfs_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
+adfs_lookup(struct ianalde *dir, struct dentry *dentry, unsigned int flags)
 {
-	struct inode *inode = NULL;
+	struct ianalde *ianalde = NULL;
 	struct object_info obj;
 	int error;
 
 	error = adfs_dir_lookup_byname(dir, &dentry->d_name, &obj);
 	if (error == 0) {
 		/*
-		 * This only returns NULL if get_empty_inode
+		 * This only returns NULL if get_empty_ianalde
 		 * fails.
 		 */
-		inode = adfs_iget(dir->i_sb, &obj);
-		if (!inode)
-			inode = ERR_PTR(-EACCES);
-	} else if (error != -ENOENT) {
-		inode = ERR_PTR(error);
+		ianalde = adfs_iget(dir->i_sb, &obj);
+		if (!ianalde)
+			ianalde = ERR_PTR(-EACCES);
+	} else if (error != -EANALENT) {
+		ianalde = ERR_PTR(error);
 	}
-	return d_splice_alias(inode, dentry);
+	return d_splice_alias(ianalde, dentry);
 }
 
 /*
  * directories can handle most operations...
  */
-const struct inode_operations adfs_dir_inode_operations = {
+const struct ianalde_operations adfs_dir_ianalde_operations = {
 	.lookup		= adfs_lookup,
-	.setattr	= adfs_notify_change,
+	.setattr	= adfs_analtify_change,
 };

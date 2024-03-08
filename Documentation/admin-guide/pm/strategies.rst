@@ -13,7 +13,7 @@ Power Management Strategies
 The Linux kernel supports two major high-level power management strategies.
 
 One of them is based on using global low-power states of the whole system in
-which user space code cannot be executed and the overall system activity is
+which user space code cananalt be executed and the overall system activity is
 significantly reduced, referred to as :doc:`sleep states <sleep-states>`.  The
 kernel puts the system into one of these states when requested by user space
 and the system stays in it until a special signal is received from one of
@@ -25,13 +25,13 @@ is affected by the state changes, this strategy is referred to as the
 The other strategy, referred to as the :doc:`working-state power management
 <working-state>`, is based on adjusting the power states of individual hardware
 components of the system, as needed, in the working state.  In consequence, if
-this strategy is in use, the working state of the system usually does not
+this strategy is in use, the working state of the system usually does analt
 correspond to any particular physical configuration of it, but can be treated as
 a metastate covering a range of different power states of the system in which
 the individual components of it can be either ``active`` (in use) or
 ``inactive`` (idle).  If they are active, they have to be in power states
 allowing them to process data and to be accessed by software.  In turn, if they
-are inactive, ideally, they should be in low-power states in which they may not
+are inactive, ideally, they should be in low-power states in which they may analt
 be accessible.
 
 If all of the system components are active, the system as a whole is regarded as
@@ -47,7 +47,7 @@ runtime idle in one go.  For this reason, systems usually use less energy in
 sleep states than when they are runtime idle most of the time.
 
 Moreover, the two power management strategies address different usage scenarios.
-Namely, if the user indicates that the system will not be in use going forward,
+Namely, if the user indicates that the system will analt be in use going forward,
 for example by closing its lid (if the system is a laptop), it probably should
 go into a sleep state at that point.  On the other hand, if the user simply goes
 away from the laptop keyboard, it probably should stay in the working state and

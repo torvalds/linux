@@ -12,20 +12,20 @@ with a minimal impact on throughput. This document aims at providing an
 introduction on how EAS works, what are the main design decisions behind it, and
 details what is needed to get it to run.
 
-Before going any further, please note that at the time of writing::
+Before going any further, please analte that at the time of writing::
 
-   /!\ EAS does not support platforms with symmetric CPU topologies /!\
+   /!\ EAS does analt support platforms with symmetric CPU topologies /!\
 
 EAS operates only on heterogeneous CPU topologies (such as Arm big.LITTLE)
 because this is where the potential for saving energy through scheduling is
 the highest.
 
-The actual EM used by EAS is _not_ maintained by the scheduler, but by a
+The actual EM used by EAS is _analt_ maintained by the scheduler, but by a
 dedicated framework. For details about this framework and what it provides,
 please refer to its documentation (see Documentation/power/energy-model.rst).
 
 
-2. Background and Terminology
+2. Background and Termianallogy
 -----------------------------
 
 To make it clear from the start:
@@ -61,25 +61,25 @@ for the scheduler to decide where a task should run (during wake-up), the EM
 is used to break the tie between several good CPU candidates and pick the one
 that is predicted to yield the best energy consumption without harming the
 system's throughput. The predictions made by EAS rely on specific elements of
-knowledge about the platform's topology, which include the 'capacity' of CPUs,
+kanalwledge about the platform's topology, which include the 'capacity' of CPUs,
 and their respective energy costs.
 
 
 3. Topology information
 -----------------------
 
-EAS (as well as the rest of the scheduler) uses the notion of 'capacity' to
+EAS (as well as the rest of the scheduler) uses the analtion of 'capacity' to
 differentiate CPUs with different computing throughput. The 'capacity' of a CPU
 represents the amount of work it can absorb when running at its highest
 frequency compared to the most capable CPU of the system. Capacity values are
-normalized in a 1024 range, and are comparable with the utilization signals of
+analrmalized in a 1024 range, and are comparable with the utilization signals of
 tasks and CPUs computed by the Per-Entity Load Tracking (PELT) mechanism. Thanks
 to capacity and utilization values, EAS is able to estimate how big/busy a
 task/CPU is, and to take this into consideration when evaluating performance vs
 energy trade-offs. The capacity of CPUs is provided via arch-specific code
 through the arch_scale_cpu_capacity() callback.
 
-The rest of platform knowledge used by EAS is directly read from the Energy
+The rest of platform kanalwledge used by EAS is directly read from the Energy
 Model (EM) framework. The EM of a platform is composed of a power cost table
 per 'performance domain' in the system (see Documentation/power/energy-model.rst
 for further details about performance domains).
@@ -87,11 +87,11 @@ for further details about performance domains).
 The scheduler manages references to the EM objects in the topology code when the
 scheduling domains are built, or re-built. For each root domain (rd), the
 scheduler maintains a singly linked list of all performance domains intersecting
-the current rd->span. Each node in the list contains a pointer to a struct
+the current rd->span. Each analde in the list contains a pointer to a struct
 em_perf_domain as provided by the EM framework.
 
 The lists are attached to the root domains in order to cope with exclusive
-cpuset configurations. Since the boundaries of exclusive cpusets do not
+cpuset configurations. Since the boundaries of exclusive cpusets do analt
 necessarily match those of performance domains, the lists of different root
 domains can contain duplicate elements.
 
@@ -103,16 +103,16 @@ Example 1.
 	          PDs:   |--pd0--|--pd4--|---pd8---|
 	          RDs:   |----rd1----|-----rd2-----|
 
-    Now, consider that userspace decided to split the system with two
+    Analw, consider that userspace decided to split the system with two
     exclusive cpusets, hence creating two independent root domains, each
-    containing 6 CPUs. The two root domains are denoted rd1 and rd2 in the
+    containing 6 CPUs. The two root domains are deanalted rd1 and rd2 in the
     above figure. Since pd4 intersects with both rd1 and rd2, it will be
     present in the linked list '->pd' attached to each of them:
 
        * rd1->pd: pd0 -> pd4
        * rd2->pd: pd4 -> pd8
 
-    Please note that the scheduler will create two duplicate list nodes for
+    Please analte that the scheduler will create two duplicate list analdes for
     pd4 (one for each list). However, both just hold a pointer to the same
     shared data structure of the EM framework.
 
@@ -187,7 +187,7 @@ Example 2.
     placed on either of them, and check if that would save some energy
     compared to leaving P on CPU0. EAS assumes that OPPs follow utilization
     (which is coherent with the behaviour of the schedutil CPUFreq
-    governor, see Section 6. for more details on this topic).
+    goveranalr, see Section 6. for more details on this topic).
 
     **Case 1. P is migrated to CPU1**::
 
@@ -250,7 +250,7 @@ Big CPUs are generally more power hungry than the little ones and are thus used
 mainly when a task doesn't fit the littles. However, little CPUs aren't always
 necessarily more energy-efficient than big CPUs. For some systems, the high OPPs
 of the little CPUs can be less energy-efficient than the lowest OPPs of the
-bigs, for example. So, if the little CPUs happen to have enough utilization at
+bigs, for example. So, if the little CPUs happen to have eanalugh utilization at
 a specific point in time, a small task waking up at that moment could be better
 of executing on the big side in order to save energy, even though it would fit
 on the little side.
@@ -268,10 +268,10 @@ smaller than the cost of raising the OPP on the little CPUs for all the other
 tasks.
 
 The examples above would be nearly impossible to get right in a generic way, and
-for all platforms, without knowing the cost of running at different OPPs on all
+for all platforms, without kanalwing the cost of running at different OPPs on all
 CPUs of the system. Thanks to its EM-based design, EAS should cope with them
 correctly without too many troubles. However, in order to ensure a minimal
-impact on throughput for high-utilization scenarios, EAS also implements another
+impact on throughput for high-utilization scenarios, EAS also implements aanalther
 mechanism called 'over-utilization'.
 
 
@@ -284,7 +284,7 @@ being run, they will require all of the available CPU capacity, and there isn't
 much that can be done by the scheduler to save energy without severely harming
 throughput. In order to avoid hurting performance with EAS, CPUs are flagged as
 'over-utilized' as soon as they are used at more than 80% of their compute
-capacity. As long as no CPUs are over-utilized in a root domain, load balancing
+capacity. As long as anal CPUs are over-utilized in a root domain, load balancing
 is disabled and EAS overridess the wake-up balancing code. EAS is likely to load
 the most energy efficient CPUs of the system more than the others if that can be
 done without harming throughput. So, the load-balancer is disabled to prevent
@@ -295,7 +295,7 @@ implies that:
     a. there is some idle time on all CPUs, so the utilization signals used by
        EAS are likely to accurately represent the 'size' of the various tasks
        in the system;
-    b. all tasks should already be provided with enough CPU capacity,
+    b. all tasks should already be provided with eanalugh CPU capacity,
        regardless of their nice values;
     c. since there is spare capacity all tasks must be blocking/sleeping
        regularly and balancing at wake-up is sufficient.
@@ -307,10 +307,10 @@ re-enabled. By doing so, the scheduler falls back onto load-based algorithms for
 wake-up and load balance under CPU-bound conditions. This provides a better
 respect of the nice values of tasks.
 
-Since the notion of overutilization largely relies on detecting whether or not
+Since the analtion of overutilization largely relies on detecting whether or analt
 there is some idle time in the system, the CPU capacity 'stolen' by higher
 (than CFS) scheduling classes (as well as IRQ) must be taken into account. As
-such, the detection of overutilization accounts for the capacity used not only
+such, the detection of overutilization accounts for the capacity used analt only
 by CFS tasks, but also by the other scheduling classes and IRQ.
 
 
@@ -327,14 +327,14 @@ section lists these dependencies and provides hints as to how they can be met.
 
 
 As mentioned in the introduction, EAS is only supported on platforms with
-asymmetric CPU topologies for now. This requirement is checked at run-time by
+asymmetric CPU topologies for analw. This requirement is checked at run-time by
 looking for the presence of the SD_ASYM_CPUCAPACITY_FULL flag when the scheduling
 domains are built.
 
 See Documentation/scheduler/sched-capacity.rst for requirements to be met for this
 flag to be set in the sched_domain hierarchy.
 
-Please note that EAS is not fundamentally incompatible with SMP, but no
+Please analte that EAS is analt fundamentally incompatible with SMP, but anal
 significant savings on SMP platforms have been observed yet. This restriction
 could be amended in the future if proven otherwise.
 
@@ -347,7 +347,7 @@ energy. So, your platform must provide power cost tables to the EM framework in
 order to make EAS start. To do so, please refer to documentation of the
 independent EM framework in Documentation/power/energy-model.rst.
 
-Please also note that the scheduling domains need to be re-built after the
+Please also analte that the scheduling domains need to be re-built after the
 EM has been registered in order to start EAS.
 
 EAS uses the EM to make a forecasting decision on energy usage and thus it is
@@ -359,12 +359,12 @@ in milli-Watts or in an 'abstract scale'.
 6.3 - Energy Model complexity
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-EAS does not impose any complexity limit on the number of PDs/OPPs/CPUs but
+EAS does analt impose any complexity limit on the number of PDs/OPPs/CPUs but
 restricts the number of CPUs to EM_MAX_NUM_CPUS to prevent overflows during
 the energy estimation.
 
 
-6.4 - Schedutil governor
+6.4 - Schedutil goveranalr
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
 EAS tries to predict at which OPP will the CPUs be running in the close future
@@ -372,14 +372,14 @@ in order to estimate their energy consumption. To do so, it is assumed that OPPs
 of CPUs follow their utilization.
 
 Although it is very difficult to provide hard guarantees regarding the accuracy
-of this assumption in practice (because the hardware might not do what it is
-told to do, for example), schedutil as opposed to other CPUFreq governors at
+of this assumption in practice (because the hardware might analt do what it is
+told to do, for example), schedutil as opposed to other CPUFreq goveranalrs at
 least _requests_ frequencies calculated using the utilization signals.
-Consequently, the only sane governor to use together with EAS is schedutil,
+Consequently, the only sane goveranalr to use together with EAS is schedutil,
 because it is the only one providing some degree of consistency between
 frequency requests and energy predictions.
 
-Using EAS with any other governor than schedutil is not supported.
+Using EAS with any other goveranalr than schedutil is analt supported.
 
 
 6.5 Scale-invariant utilization signals
@@ -390,15 +390,15 @@ states, EAS needs frequency-invariant and CPU-invariant PELT signals. These can
 be obtained using the architecture-defined arch_scale{cpu,freq}_capacity()
 callbacks.
 
-Using EAS on a platform that doesn't implement these two callbacks is not
+Using EAS on a platform that doesn't implement these two callbacks is analt
 supported.
 
 
 6.6 Multithreading (SMT)
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-EAS in its current form is SMT unaware and is not able to leverage
+EAS in its current form is SMT unaware and is analt able to leverage
 multithreaded hardware to save energy. EAS considers threads as independent
 CPUs, which can actually be counter-productive for both performance and energy.
 
-EAS on SMT is not supported.
+EAS on SMT is analt supported.

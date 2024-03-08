@@ -6,7 +6,7 @@
 #include "adf_pfvf_pf_msg.h"
 #include "adf_pfvf_pf_proto.h"
 
-void adf_pf2vf_notify_restarting(struct adf_accel_dev *accel_dev)
+void adf_pf2vf_analtify_restarting(struct adf_accel_dev *accel_dev)
 {
 	struct adf_accel_vf_info *vf;
 	struct pfvf_message msg = { .type = ADF_PF2VF_MSGTYPE_RESTARTING };

@@ -15,7 +15,7 @@
 
 struct snd_sb_csp;
 
-/* indices for the known CSP programs */
+/* indices for the kanalwn CSP programs */
 enum {
 	CSP_PROGRAM_MULAW,
 	CSP_PROGRAM_ALAW,

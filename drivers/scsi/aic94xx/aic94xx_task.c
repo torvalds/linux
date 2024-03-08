@@ -30,7 +30,7 @@ static const u8 data_dir_flags[] = {
 	[DMA_BIDIRECTIONAL]	= DATA_DIR_BYRECIPIENT,	/* UNSPECIFIED */
 	[DMA_TO_DEVICE]		= DATA_DIR_OUT,		/* OUTBOUND */
 	[DMA_FROM_DEVICE]	= DATA_DIR_IN,		/* INBOUND */
-	[DMA_NONE]		= DATA_DIR_NONE,	/* NO TRANSFER */
+	[DMA_ANALNE]		= DATA_DIR_ANALNE,	/* ANAL TRANSFER */
 };
 
 static int asd_map_scatterlist(struct sas_task *task,
@@ -42,7 +42,7 @@ static int asd_map_scatterlist(struct sas_task *task,
 	struct scatterlist *sc;
 	int num_sg, res;
 
-	if (task->data_dir == DMA_NONE)
+	if (task->data_dir == DMA_ANALNE)
 		return 0;
 
 	if (task->num_scatter == 0) {
@@ -51,7 +51,7 @@ static int asd_map_scatterlist(struct sas_task *task,
 						task->total_xfer_len,
 						task->data_dir);
 		if (dma_mapping_error(&asd_ha->pcidev->dev, dma))
-			return -ENOMEM;
+			return -EANALMEM;
 
 		sg_arr[0].bus_addr = cpu_to_le64((u64)dma);
 		sg_arr[0].size = cpu_to_le32(task->total_xfer_len);
@@ -67,7 +67,7 @@ static int asd_map_scatterlist(struct sas_task *task,
 		num_sg = dma_map_sg(&asd_ha->pcidev->dev, task->scatter,
 				    task->num_scatter, task->data_dir);
 	if (num_sg == 0)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (num_sg > 3) {
 		int i;
@@ -76,7 +76,7 @@ static int asd_map_scatterlist(struct sas_task *task,
 						  num_sg*sizeof(struct sg_el),
 						  gfp_flags);
 		if (!ascb->sg_arr) {
-			res = -ENOMEM;
+			res = -EANALMEM;
 			goto err_unmap;
 		}
 		for_each_sg(task->scatter, sc, num_sg, i) {
@@ -121,7 +121,7 @@ static void asd_unmap_scatterlist(struct asd_ascb *ascb)
 	struct asd_ha_struct *asd_ha = ascb->ha;
 	struct sas_task *task = ascb->uldd_task;
 
-	if (task->data_dir == DMA_NONE)
+	if (task->data_dir == DMA_ANALNE)
 		return;
 
 	if (task->num_scatter == 0) {
@@ -165,7 +165,7 @@ static void asd_get_response_tasklet(struct asd_ascb *ascb,
 	spin_unlock_irqrestore(&asd_ha->seq.tc_index_lock, flags);
 
 	if (!escb) {
-		ASD_DPRINTK("Uh-oh! No escb for this dl?!\n");
+		ASD_DPRINTK("Uh-oh! Anal escb for this dl?!\n");
 		return;
 	}
 
@@ -206,7 +206,7 @@ static void asd_task_tasklet_complete(struct asd_ascb *ascb,
 
 Again:
 	switch (opcode) {
-	case TC_NO_ERROR:
+	case TC_ANAL_ERROR:
 		ts->resp = SAS_TASK_COMPLETE;
 		ts->stat = SAS_SAM_STAT_GOOD;
 		break;
@@ -234,7 +234,7 @@ Again:
 		else if (dl->status_block[1] & 1)
 			ts->open_rej_reason = (dl->status_block[2] >> 4)+10;
 		else
-			ts->open_rej_reason = SAS_OREJ_UNKNOWN;
+			ts->open_rej_reason = SAS_OREJ_UNKANALWN;
 		break;
 	case TF_OPEN_TO:
 		ts->resp = SAS_TASK_UNDELIVERED;
@@ -263,7 +263,7 @@ Again:
 	case TU_ACK_NAK_TO:
 	case TF_SMPRSP_TO:
 		ts->resp = SAS_TASK_UNDELIVERED;
-		ts->stat = SAS_DEV_NO_RESPONSE;
+		ts->stat = SAS_DEV_ANAL_RESPONSE;
 		break;
 	case TF_NAK_RECV:
 		ts->resp = SAS_TASK_COMPLETE;
@@ -274,7 +274,7 @@ Again:
 		goto Again;
 	case TF_INV_CONN_HANDLE:
 		ts->resp = SAS_TASK_UNDELIVERED;
-		ts->stat = SAS_DEVICE_UNKNOWN;
+		ts->stat = SAS_DEVICE_UNKANALWN;
 		break;
 	case TF_REQUESTED_N_PENDING:
 		ts->resp = SAS_TASK_UNDELIVERED;
@@ -286,17 +286,17 @@ Again:
 		ts->stat = SAS_ABORTED_TASK;
 		break;
 
-	case TF_NO_SMP_CONN:
-	case TF_TMF_NO_CTX:
-	case TF_TMF_NO_TAG:
+	case TF_ANAL_SMP_CONN:
+	case TF_TMF_ANAL_CTX:
+	case TF_TMF_ANAL_TAG:
 	case TF_TMF_TAG_FREE:
 	case TF_TMF_TASK_DONE:
-	case TF_TMF_NO_CONN_HANDLE:
+	case TF_TMF_ANAL_CONN_HANDLE:
 	case TF_IRTT_TO:
 	case TF_IU_SHORT:
 	case TF_DATA_OFFS_ERR:
 		ts->resp = SAS_TASK_UNDELIVERED;
-		ts->stat = SAS_DEV_NO_RESPONSE;
+		ts->stat = SAS_DEV_ANAL_RESPONSE;
 		break;
 
 	case TC_LINK_ADM_RESP:
@@ -534,7 +534,7 @@ int asd_execute_task(struct sas_task *task, gfp_t gfp_flags)
 	res = 1;
 	ascb = asd_ascb_alloc_list(asd_ha, &res, gfp_flags);
 	if (res) {
-		res = -ENOMEM;
+		res = -EANALMEM;
 		goto out_err;
 	}
 
@@ -561,9 +561,9 @@ int asd_execute_task(struct sas_task *task, gfp_t gfp_flags)
 			res = asd_build_ssp_ascb(a, t, gfp_flags);
 			break;
 		default:
-			asd_printk("unknown sas_task proto: 0x%x\n",
+			asd_printk("unkanalwn sas_task proto: 0x%x\n",
 				   t->task_proto);
-			res = -ENOMEM;
+			res = -EANALMEM;
 			break;
 		}
 		if (res)

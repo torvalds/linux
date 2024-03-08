@@ -16,7 +16,7 @@
 #include "efistub.h"
 
 enum efi_cmdline_option {
-	EFI_CMDLINE_NONE,
+	EFI_CMDLINE_ANALNE,
 	EFI_CMDLINE_MODE_NUM,
 	EFI_CMDLINE_RES,
 	EFI_CMDLINE_AUTO,
@@ -33,7 +33,7 @@ static struct {
 			u8 depth;
 		} res;
 	};
-} cmdline = { .option = EFI_CMDLINE_NONE };
+} cmdline = { .option = EFI_CMDLINE_ANALNE };
 
 static bool parse_modenum(char *option, char **next)
 {
@@ -477,7 +477,7 @@ find_gop(efi_guid_t *proto, unsigned long size, void **handles)
 		efi_graphics_output_protocol_mode_t *mode;
 		efi_graphics_output_mode_info_t *info;
 
-		efi_guid_t conout_proto = EFI_CONSOLE_OUT_DEVICE_GUID;
+		efi_guid_t coanalut_proto = EFI_CONSOLE_OUT_DEVICE_GUID;
 		void *dummy = NULL;
 
 		status = efi_bs_call(handle_protocol, h, proto, (void **)&gop);
@@ -492,7 +492,7 @@ find_gop(efi_guid_t *proto, unsigned long size, void **handles)
 
 		/*
 		 * Systems that use the UEFI Console Splitter may
-		 * provide multiple GOP devices, not all of which are
+		 * provide multiple GOP devices, analt all of which are
 		 * backed by real hardware. The workaround is to search
 		 * for a GOP implementing the ConOut protocol, and if
 		 * one isn't found, to just fall back to the first GOP.
@@ -500,7 +500,7 @@ find_gop(efi_guid_t *proto, unsigned long size, void **handles)
 		 * Once we've found a GOP supporting ConOut,
 		 * don't bother looking any further.
 		 */
-		status = efi_bs_call(handle_protocol, h, &conout_proto, &dummy);
+		status = efi_bs_call(handle_protocol, h, &coanalut_proto, &dummy);
 		if (status == EFI_SUCCESS)
 			return gop;
 
@@ -522,7 +522,7 @@ static efi_status_t setup_gop(struct screen_info *si, efi_guid_t *proto,
 
 	/* Did we find any GOPs? */
 	if (!gop)
-		return EFI_NOT_FOUND;
+		return EFI_ANALT_FOUND;
 
 	/* Change mode if requested */
 	set_mode(gop);

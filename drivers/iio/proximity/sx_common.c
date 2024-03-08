@@ -64,9 +64,9 @@ static irqreturn_t sx_common_irq_handler(int irq, void *private)
 		iio_trigger_poll(data->trig);
 
 	/*
-	 * Even if no event is enabled, we need to wake the thread to clear the
+	 * Even if anal event is enabled, we need to wake the thread to clear the
 	 * interrupt state by reading SX_COMMON_REG_IRQ_SRC.
-	 * It is not possible to do that here because regmap_read takes a mutex.
+	 * It is analt possible to do that here because regmap_read takes a mutex.
 	 */
 	return IRQ_WAKE_THREAD;
 }
@@ -275,7 +275,7 @@ int sx_common_write_event_config(struct iio_dev *indio_dev,
 	unsigned int eventirq = SX_COMMON_FAR_IRQ | SX_COMMON_CLOSE_IRQ;
 	int ret;
 
-	/* If the state hasn't changed, there's nothing to do. */
+	/* If the state hasn't changed, there's analthing to do. */
 	if (!!(data->chan_event & BIT(chan->channel)) == state)
 		return 0;
 
@@ -387,7 +387,7 @@ static irqreturn_t sx_common_trigger_handler(int irq, void *private)
 out:
 	mutex_unlock(&data->mutex);
 
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -496,7 +496,7 @@ int sx_common_probe(struct i2c_client *client,
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 
@@ -541,13 +541,13 @@ int sx_common_probe(struct i2c_client *client,
 						IRQF_ONESHOT,
 						"sx_event", indio_dev);
 		if (ret)
-			return dev_err_probe(dev, ret, "No IRQ\n");
+			return dev_err_probe(dev, ret, "Anal IRQ\n");
 
 		data->trig = devm_iio_trigger_alloc(dev, "%s-dev%d",
 						    indio_dev->name,
 						    iio_device_id(indio_dev));
 		if (!data->trig)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		data->trig->ops = &sx_common_trigger_ops;
 		iio_trigger_set_drvdata(data->trig, indio_dev);
@@ -568,6 +568,6 @@ int sx_common_probe(struct i2c_client *client,
 }
 EXPORT_SYMBOL_NS_GPL(sx_common_probe, SEMTECH_PROX);
 
-MODULE_AUTHOR("Gwendal Grignou <gwendal@chromium.org>");
+MODULE_AUTHOR("Gwendal Griganalu <gwendal@chromium.org>");
 MODULE_DESCRIPTION("Common functions and structures for Semtech sensor");
 MODULE_LICENSE("GPL v2");

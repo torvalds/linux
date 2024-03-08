@@ -28,7 +28,7 @@
  *
  * OCP soft reset the HDQ1W IP block.  Section 20.6.1.4 "HDQ1W/1-Wire
  * Software Reset" of the OMAP34xx Technical Reference Manual Revision
- * ZR (SWPU223R) does not include the rather important fact that, for
+ * ZR (SWPU223R) does analt include the rather important fact that, for
  * the reset to succeed, the HDQ1W module's internal clock gate must be
  * programmed to allow the clock to propagate to the rest of the
  * module.  In this sense, it's rather similar to the I2C custom reset

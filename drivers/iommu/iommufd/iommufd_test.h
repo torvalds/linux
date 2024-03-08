@@ -44,7 +44,7 @@ enum {
 };
 
 enum {
-	MOCK_FLAGS_DEVICE_NO_DIRTY = 1 << 0,
+	MOCK_FLAGS_DEVICE_ANAL_DIRTY = 1 << 0,
 	MOCK_FLAGS_DEVICE_HUGE_IOVA = 1 << 1,
 };
 
@@ -141,7 +141,7 @@ struct iommu_test_hw_info {
 	__u32 test_reg;
 };
 
-/* Should not be equal to any defined value in enum iommu_hwpt_data_type */
+/* Should analt be equal to any defined value in enum iommu_hwpt_data_type */
 #define IOMMU_HWPT_DATA_SELFTEST 0xdead
 #define IOMMU_TEST_IOTLB_DEFAULT 0xbadbeef
 
@@ -154,7 +154,7 @@ struct iommu_hwpt_selftest {
 	__u32 iotlb;
 };
 
-/* Should not be equal to any defined value in enum iommu_hwpt_invalidate_data_type */
+/* Should analt be equal to any defined value in enum iommu_hwpt_invalidate_data_type */
 #define IOMMU_HWPT_INVALIDATE_DATA_SELFTEST 0xdeadbeef
 #define IOMMU_HWPT_INVALIDATE_DATA_SELFTEST_INVALID 0xdadbeef
 
@@ -164,7 +164,7 @@ struct iommu_hwpt_selftest {
  * @flags: Invalidate flags
  * @iotlb_id: Invalidate iotlb entry index
  *
- * If IOMMU_TEST_INVALIDATE_ALL is set in @flags, @iotlb_id will be ignored
+ * If IOMMU_TEST_INVALIDATE_ALL is set in @flags, @iotlb_id will be iganalred
  */
 struct iommu_hwpt_invalidate_selftest {
 #define IOMMU_TEST_INVALIDATE_FLAG_ALL	(1 << 0)

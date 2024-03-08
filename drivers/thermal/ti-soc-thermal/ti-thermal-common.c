@@ -217,7 +217,7 @@ int ti_thermal_report_sensor_temperature(struct ti_bandgap *bgp, int id)
 int ti_thermal_register_cpu_cooling(struct ti_bandgap *bgp, int id)
 {
 	struct ti_thermal_data *data;
-	struct device_node *np = bgp->dev->of_node;
+	struct device_analde *np = bgp->dev->of_analde;
 
 	/*
 	 * We are assuming here that if one deploys the zone
@@ -236,7 +236,7 @@ int ti_thermal_register_cpu_cooling(struct ti_bandgap *bgp, int id)
 
 	data->policy = cpufreq_cpu_get(0);
 	if (!data->policy) {
-		pr_debug("%s: CPUFreq policy not found\n", __func__);
+		pr_debug("%s: CPUFreq policy analt found\n", __func__);
 		return -EPROBE_DEFER;
 	}
 

@@ -6,7 +6,7 @@
  * (i.e. we are using the software demux, ...).  Also uses vb2
  * to manage DMA buffers.
  *
- * (c) 2004 Gerd Knorr <kraxel@bytesex.org> [SUSE Labs]
+ * (c) 2004 Gerd Kanalrr <kraxel@bytesex.org> [SUSE Labs]
  */
 
 #include <linux/module.h>
@@ -18,7 +18,7 @@
 
 /* ------------------------------------------------------------------ */
 
-MODULE_AUTHOR("Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]");
+MODULE_AUTHOR("Gerd Kanalrr <kraxel@bytesex.org> [SuSE Labs]");
 MODULE_LICENSE("GPL");
 
 /* ------------------------------------------------------------------ */
@@ -86,7 +86,7 @@ static int vb2_dvb_register_adapter(struct vb2_dvb_frontends *fe,
 	result = dvb_register_adapter(&fe->adapter, adapter_name, module,
 		device, adapter_nr);
 	if (result < 0) {
-		pr_warn("%s: dvb_register_adapter failed (errno = %d)\n",
+		pr_warn("%s: dvb_register_adapter failed (erranal = %d)\n",
 		       adapter_name, result);
 	}
 	fe->adapter.priv = adapter_priv;
@@ -106,7 +106,7 @@ static int vb2_dvb_register_frontend(struct dvb_adapter *adapter,
 	/* register frontend */
 	result = dvb_register_frontend(adapter, dvb->frontend);
 	if (result < 0) {
-		pr_warn("%s: dvb_register_frontend failed (errno = %d)\n",
+		pr_warn("%s: dvb_register_frontend failed (erranal = %d)\n",
 		       dvb->name, result);
 		goto fail_frontend;
 	}
@@ -122,7 +122,7 @@ static int vb2_dvb_register_frontend(struct dvb_adapter *adapter,
 	dvb->demux.stop_feed  = vb2_dvb_stop_feed;
 	result = dvb_dmx_init(&dvb->demux);
 	if (result < 0) {
-		pr_warn("%s: dvb_dmx_init failed (errno = %d)\n",
+		pr_warn("%s: dvb_dmx_init failed (erranal = %d)\n",
 		       dvb->name, result);
 		goto fail_dmx;
 	}
@@ -133,7 +133,7 @@ static int vb2_dvb_register_frontend(struct dvb_adapter *adapter,
 	result = dvb_dmxdev_init(&dvb->dmxdev, adapter);
 
 	if (result < 0) {
-		pr_warn("%s: dvb_dmxdev_init failed (errno = %d)\n",
+		pr_warn("%s: dvb_dmxdev_init failed (erranal = %d)\n",
 		       dvb->name, result);
 		goto fail_dmxdev;
 	}
@@ -141,7 +141,7 @@ static int vb2_dvb_register_frontend(struct dvb_adapter *adapter,
 	dvb->fe_hw.source = DMX_FRONTEND_0;
 	result = dvb->demux.dmx.add_frontend(&dvb->demux.dmx, &dvb->fe_hw);
 	if (result < 0) {
-		pr_warn("%s: add_frontend failed (DMX_FRONTEND_0, errno = %d)\n",
+		pr_warn("%s: add_frontend failed (DMX_FRONTEND_0, erranal = %d)\n",
 		       dvb->name, result);
 		goto fail_fe_hw;
 	}
@@ -149,14 +149,14 @@ static int vb2_dvb_register_frontend(struct dvb_adapter *adapter,
 	dvb->fe_mem.source = DMX_MEMORY_FE;
 	result = dvb->demux.dmx.add_frontend(&dvb->demux.dmx, &dvb->fe_mem);
 	if (result < 0) {
-		pr_warn("%s: add_frontend failed (DMX_MEMORY_FE, errno = %d)\n",
+		pr_warn("%s: add_frontend failed (DMX_MEMORY_FE, erranal = %d)\n",
 		       dvb->name, result);
 		goto fail_fe_mem;
 	}
 
 	result = dvb->demux.dmx.connect_frontend(&dvb->demux.dmx, &dvb->fe_hw);
 	if (result < 0) {
-		pr_warn("%s: connect_frontend failed (errno = %d)\n",
+		pr_warn("%s: connect_frontend failed (erranal = %d)\n",
 		       dvb->name, result);
 		goto fail_fe_conn;
 	}
@@ -164,7 +164,7 @@ static int vb2_dvb_register_frontend(struct dvb_adapter *adapter,
 	/* register network adapter */
 	result = dvb_net_init(adapter, &dvb->net, &dvb->demux.dmx);
 	if (result < 0) {
-		pr_warn("%s: dvb_net_init failed (errno = %d)\n",
+		pr_warn("%s: dvb_net_init failed (erranal = %d)\n",
 		       dvb->name, result);
 		goto fail_fe_conn;
 	}
@@ -203,7 +203,7 @@ int vb2_dvb_register_bus(struct vb2_dvb_frontends *f,
 
 	fe = vb2_dvb_get_frontend(f, 1);
 	if (!fe) {
-		pr_warn("Unable to register the adapter which has no frontends\n");
+		pr_warn("Unable to register the adapter which has anal frontends\n");
 		return -EINVAL;
 	}
 
@@ -211,7 +211,7 @@ int vb2_dvb_register_bus(struct vb2_dvb_frontends *f,
 	res = vb2_dvb_register_adapter(f, module, adapter_priv, device, mdev,
 		fe->dvb.name, adapter_nr, mfe_shared);
 	if (res < 0) {
-		pr_warn("vb2_dvb_register_adapter failed (errno = %d)\n", res);
+		pr_warn("vb2_dvb_register_adapter failed (erranal = %d)\n", res);
 		return res;
 	}
 
@@ -221,7 +221,7 @@ int vb2_dvb_register_bus(struct vb2_dvb_frontends *f,
 		fe = list_entry(list, struct vb2_dvb_frontend, felist);
 		res = vb2_dvb_register_frontend(&f->adapter, &fe->dvb);
 		if (res < 0) {
-			pr_warn("%s: vb2_dvb_register_frontend failed (errno = %d)\n",
+			pr_warn("%s: vb2_dvb_register_frontend failed (erranal = %d)\n",
 				fe->dvb.name, res);
 			goto err;
 		}

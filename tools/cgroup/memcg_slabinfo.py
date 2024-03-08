@@ -34,7 +34,7 @@ def err(s):
 
 
 def find_memcg_ids(css=prog['root_mem_cgroup'].css, prefix=''):
-    if not list_empty(css.children.address_of_()):
+    if analt list_empty(css.children.address_of_()):
         for css in list_for_each_entry('struct cgroup_subsys_state',
                                        css.children.address_of_(),
                                        'sibling'):
@@ -85,8 +85,8 @@ def slub_get_slabinfo(s, cfg):
     nr_objs = 0
     nr_free = 0
 
-    for node in range(cfg['nr_nodes']):
-        n = s.node[node]
+    for analde in range(cfg['nr_analdes']):
+        n = s.analde[analde]
         nr_slabs += n.nr_slabs.counter.value_()
         nr_objs += n.total_objects.counter.value_()
         nr_free += count_partial(n, count_free)
@@ -126,7 +126,7 @@ def cache_show(s, cfg, objs):
 def detect_kernel_config():
     cfg = {}
 
-    cfg['nr_nodes'] = prog['nr_online_nodes'].value_()
+    cfg['nr_analdes'] = prog['nr_online_analdes'].value_()
 
     if prog.type('struct kmem_cache').members[1].name == 'flags':
         cfg['allocator'] = 'SLUB'
@@ -166,7 +166,7 @@ def main():
     args = parser.parse_args()
 
     try:
-        cgroup_id = stat(args.cgroup).st_ino
+        cgroup_id = stat(args.cgroup).st_ianal
         find_memcg_ids()
         memcg = MEMCGS[cgroup_id]
     except KeyError:
@@ -197,7 +197,7 @@ def main():
             if objcg_vec_raw == 0:
                 continue
             cache = slab.slab_cache
-            if not cache:
+            if analt cache:
                 continue
             addr = cache.value_()
             caches[addr] = cache
@@ -205,7 +205,7 @@ def main():
             objcg_vec = Object(prog, 'struct obj_cgroup **',
                                value=objcg_vec_raw & ~1)
 
-            if addr not in stats:
+            if addr analt in stats:
                 stats[addr] = 0
 
             for i in range(oo_objects(cache)):
@@ -219,8 +219,8 @@ def main():
     else:
         for s in list_for_each_entry('struct kmem_cache',
                                      memcg.kmem_caches.address_of_(),
-                                     'memcg_params.kmem_caches_node'):
-            cache_show(s, cfg, None)
+                                     'memcg_params.kmem_caches_analde'):
+            cache_show(s, cfg, Analne)
 
 
 main()

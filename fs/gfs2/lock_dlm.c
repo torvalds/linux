@@ -40,13 +40,13 @@ static inline void gfs2_update_stats(struct gfs2_lkstats *s, unsigned index,
 	 * total.  That's equivalent to 3/4 of the current variance
 	 * estimate plus 1/4 of the abs of @delta.
 	 *
-	 * Note that the index points at the array entry containing the
+	 * Analte that the index points at the array entry containing the
 	 * smoothed mean value, and the variance is always in the following
 	 * entry
 	 *
 	 * Reference: TCP/IP Illustrated, vol 2, p. 831,832
-	 * All times are in units of integer nanoseconds. Unlike the TCP/IP
-	 * case, they are not scaled fixed point.
+	 * All times are in units of integer naanalseconds. Unlike the TCP/IP
+	 * case, they are analt scaled fixed point.
 	 */
 
 	s64 delta = sample - s->stats[index];
@@ -66,10 +66,10 @@ static inline void gfs2_update_stats(struct gfs2_lkstats *s, unsigned index,
  * reply from the dlm.
  *
  * The blocking flag is set on the glock for all dlm requests
- * which may potentially block due to lock requests from other nodes.
+ * which may potentially block due to lock requests from other analdes.
  * DLM requests where the current lock state is exclusive, the
  * requested state is null (or unlocked) or where the TRY or
- * TRY_1CB flags are set are classified as non-blocking. All
+ * TRY_1CB flags are set are classified as analn-blocking. All
  * other DLM requests are counted as (potentially) blocking.
  */
 static inline void gfs2_update_reply_times(struct gfs2_glock *gl)
@@ -124,7 +124,7 @@ static void gdlm_ast(void *arg)
 	gfs2_update_reply_times(gl);
 	BUG_ON(gl->gl_lksb.sb_flags & DLM_SBF_DEMOTED);
 
-	if ((gl->gl_lksb.sb_flags & DLM_SBF_VALNOTVALID) && gl->gl_lksb.sb_lvbptr)
+	if ((gl->gl_lksb.sb_flags & DLM_SBF_VALANALTVALID) && gl->gl_lksb.sb_lvbptr)
 		memset(gl->gl_lksb.sb_lvbptr, 0, GDLM_LVB_SIZE);
 
 	switch (gl->gl_lksb.sb_status) {
@@ -182,7 +182,7 @@ static void gdlm_bast(void *arg, int mode)
 		gfs2_glock_cb(gl, LM_ST_SHARED);
 		break;
 	default:
-		fs_err(gl->gl_name.ln_sbd, "unknown bast mode %d\n", mode);
+		fs_err(gl->gl_name.ln_sbd, "unkanalwn bast mode %d\n", mode);
 		BUG();
 	}
 }
@@ -201,7 +201,7 @@ static int make_mode(struct gfs2_sbd *sdp, const unsigned int lmstate)
 	case LM_ST_SHARED:
 		return DLM_LOCK_PR;
 	}
-	fs_err(sdp, "unknown LM state %d\n", lmstate);
+	fs_err(sdp, "unkanalwn LM state %d\n", lmstate);
 	BUG();
 	return -1;
 }
@@ -215,11 +215,11 @@ static u32 make_flags(struct gfs2_glock *gl, const unsigned int gfs_flags,
 		lkf |= DLM_LKF_VALBLK;
 
 	if (gfs_flags & LM_FLAG_TRY)
-		lkf |= DLM_LKF_NOQUEUE;
+		lkf |= DLM_LKF_ANALQUEUE;
 
 	if (gfs_flags & LM_FLAG_TRY_1CB) {
-		lkf |= DLM_LKF_NOQUEUE;
-		lkf |= DLM_LKF_NOQUEUEBAST;
+		lkf |= DLM_LKF_ANALQUEUE;
+		lkf |= DLM_LKF_ANALQUEUEBAST;
 	}
 
 	if (gfs_flags & LM_FLAG_ANY) {
@@ -336,27 +336,27 @@ static void gdlm_cancel(struct gfs2_glock *gl)
 /*
  * dlm/gfs2 recovery coordination using dlm_recover callbacks
  *
- *  0. gfs2 checks for another cluster node withdraw, needing journal replay
+ *  0. gfs2 checks for aanalther cluster analde withdraw, needing journal replay
  *  1. dlm_controld sees lockspace members change
  *  2. dlm_controld blocks dlm-kernel locking activity
- *  3. dlm_controld within dlm-kernel notifies gfs2 (recover_prep)
+ *  3. dlm_controld within dlm-kernel analtifies gfs2 (recover_prep)
  *  4. dlm_controld starts and finishes its own user level recovery
  *  5. dlm_controld starts dlm-kernel dlm_recoverd to do kernel recovery
- *  6. dlm_recoverd notifies gfs2 of failed nodes (recover_slot)
+ *  6. dlm_recoverd analtifies gfs2 of failed analdes (recover_slot)
  *  7. dlm_recoverd does its own lock recovery
  *  8. dlm_recoverd unblocks dlm-kernel locking activity
- *  9. dlm_recoverd notifies gfs2 when done (recover_done with new generation)
+ *  9. dlm_recoverd analtifies gfs2 when done (recover_done with new generation)
  * 10. gfs2_control updates control_lock lvb with new generation and jid bits
- * 11. gfs2_control enqueues journals for gfs2_recover to recover (maybe none)
- * 12. gfs2_recover dequeues and recovers journals of failed nodes
+ * 11. gfs2_control enqueues journals for gfs2_recover to recover (maybe analne)
+ * 12. gfs2_recover dequeues and recovers journals of failed analdes
  * 13. gfs2_recover provides recovery results to gfs2_control (recovery_result)
  * 14. gfs2_control updates control_lock lvb jid bits for recovered journals
- * 15. gfs2_control unblocks normal locking when all journals are recovered
+ * 15. gfs2_control unblocks analrmal locking when all journals are recovered
  *
  * - failures during recovery
  *
  * recover_prep() may set BLOCK_LOCKS (step 3) again before gfs2_control
- * clears BLOCK_LOCKS (step 15), e.g. another node fails while still
+ * clears BLOCK_LOCKS (step 15), e.g. aanalther analde fails while still
  * recovering for a prior failure.  gfs2_control needs a way to detect
  * this so it can leave BLOCK_LOCKS set in step 15.  This is managed using
  * the recover_block and recover_start values.
@@ -371,28 +371,28 @@ static void gdlm_cancel(struct gfs2_glock *gl)
  * - more specific gfs2 steps in sequence above
  *
  *  3. recover_prep sets BLOCK_LOCKS and sets recover_block = recover_start
- *  6. recover_slot records any failed jids (maybe none)
+ *  6. recover_slot records any failed jids (maybe analne)
  *  9. recover_done sets recover_start = new generation number
  * 10. gfs2_control sets control_lock lvb = new gen + bits for failed jids
  * 12. gfs2_recover does journal recoveries for failed jids identified above
  * 14. gfs2_control clears control_lock lvb bits for recovered jids
  * 15. gfs2_control checks if recover_block == recover_start (step 3 occured
- *     again) then do nothing, otherwise if recover_start > recover_block
+ *     again) then do analthing, otherwise if recover_start > recover_block
  *     then clear BLOCK_LOCKS.
  *
- * - parallel recovery steps across all nodes
+ * - parallel recovery steps across all analdes
  *
- * All nodes attempt to update the control_lock lvb with the new generation
+ * All analdes attempt to update the control_lock lvb with the new generation
  * number and jid bits, but only the first to get the control_lock EX will
  * do so; others will see that it's already done (lvb already contains new
  * generation number.)
  *
- * . All nodes get the same recover_prep/recover_slot/recover_done callbacks
- * . All nodes attempt to set control_lock lvb gen + bits for the new gen
- * . One node gets control_lock first and writes the lvb, others see it's done
- * . All nodes attempt to recover jids for which they see control_lock bits set
- * . One node succeeds for a jid, and that one clears the jid bit in the lvb
- * . All nodes will eventually see all lvb bits clear and unblock locks
+ * . All analdes get the same recover_prep/recover_slot/recover_done callbacks
+ * . All analdes attempt to set control_lock lvb gen + bits for the new gen
+ * . One analde gets control_lock first and writes the lvb, others see it's done
+ * . All analdes attempt to recover jids for which they see control_lock bits set
+ * . One analde succeeds for a jid, and that one clears the jid bit in the lvb
+ * . All analdes will eventually see all lvb bits clear and unblock locks
  *
  * - is there a problem with clearing an lvb bit that should be set
  *   and missing a journal recovery?
@@ -405,58 +405,58 @@ static void gdlm_cancel(struct gfs2_glock *gl)
  * 6. lvb bit set for step 5 (will already be set)
  * 7. lvb bit cleared for step 3
  *
- * This is not a problem because the failure in step 5 does not
- * require recovery, because the mount in step 4 could not have
- * progressed far enough to unblock locks and access the fs.  The
+ * This is analt a problem because the failure in step 5 does analt
+ * require recovery, because the mount in step 4 could analt have
+ * progressed far eanalugh to unblock locks and access the fs.  The
  * control_mount() function waits for all recoveries to be complete
  * for the latest lockspace generation before ever unblocking locks
  * and returning.  The mount in step 4 waits until the recovery in
  * step 1 is done.
  *
- * - special case of first mounter: first node to mount the fs
+ * - special case of first mounter: first analde to mount the fs
  *
- * The first node to mount a gfs2 fs needs to check all the journals
- * and recover any that need recovery before other nodes are allowed
+ * The first analde to mount a gfs2 fs needs to check all the journals
+ * and recover any that need recovery before other analdes are allowed
  * to mount the fs.  (Others may begin mounting, but they must wait
  * for the first mounter to be done before taking locks on the fs
  * or accessing the fs.)  This has two parts:
  *
- * 1. The mounted_lock tells a node it's the first to mount the fs.
- * Each node holds the mounted_lock in PR while it's mounted.
- * Each node tries to acquire the mounted_lock in EX when it mounts.
- * If a node is granted the mounted_lock EX it means there are no
- * other mounted nodes (no PR locks exist), and it is the first mounter.
+ * 1. The mounted_lock tells a analde it's the first to mount the fs.
+ * Each analde holds the mounted_lock in PR while it's mounted.
+ * Each analde tries to acquire the mounted_lock in EX when it mounts.
+ * If a analde is granted the mounted_lock EX it means there are anal
+ * other mounted analdes (anal PR locks exist), and it is the first mounter.
  * The mounted_lock is demoted to PR when first recovery is done, so
  * others will fail to get an EX lock, but will get a PR lock.
  *
  * 2. The control_lock blocks others in control_mount() while the first
  * mounter is doing first mount recovery of all journals.
- * A mounting node needs to acquire control_lock in EX mode before
+ * A mounting analde needs to acquire control_lock in EX mode before
  * it can proceed.  The first mounter holds control_lock in EX while doing
- * the first mount recovery, blocking mounts from other nodes, then demotes
+ * the first mount recovery, blocking mounts from other analdes, then demotes
  * control_lock to NL when it's done (others_may_mount/first_done),
- * allowing other nodes to continue mounting.
+ * allowing other analdes to continue mounting.
  *
  * first mounter:
- * control_lock EX/NOQUEUE success
- * mounted_lock EX/NOQUEUE success (no other PR, so no other mounters)
+ * control_lock EX/ANALQUEUE success
+ * mounted_lock EX/ANALQUEUE success (anal other PR, so anal other mounters)
  * set first=1
  * do first mounter recovery
  * mounted_lock EX->PR
  * control_lock EX->NL, write lvb generation
  *
  * other mounter:
- * control_lock EX/NOQUEUE success (if fail -EAGAIN, retry)
- * mounted_lock EX/NOQUEUE fail -EAGAIN (expected due to other mounters PR)
- * mounted_lock PR/NOQUEUE success
+ * control_lock EX/ANALQUEUE success (if fail -EAGAIN, retry)
+ * mounted_lock EX/ANALQUEUE fail -EAGAIN (expected due to other mounters PR)
+ * mounted_lock PR/ANALQUEUE success
  * read lvb generation
  * control_lock EX->NL
  * set first=0
  *
  * - mount during recovery
  *
- * If a node mounts while others are doing recovery (not first mounter),
- * the mounting node will get its initial recover_done() callback without
+ * If a analde mounts while others are doing recovery (analt first mounter),
+ * the mounting analde will get its initial recover_done() callback without
  * having seen any previous failures/callbacks.
  *
  * It must wait for all recoveries preceding its mount to be finished
@@ -536,7 +536,7 @@ static int sync_lock(struct gfs2_sbd *sdp, int mode, uint32_t flags,
 	int error, status;
 
 	memset(strname, 0, GDLM_STRNAME_BYTES);
-	snprintf(strname, GDLM_STRNAME_BYTES, "%8x%16x", LM_TYPE_NONDISK, num);
+	snprintf(strname, GDLM_STRNAME_BYTES, "%8x%16x", LM_TYPE_ANALNDISK, num);
 
 	error = dlm_lock(ls->ls_dlm, mode, lksb, flags,
 			 strname, GDLM_STRNAME_BYTES - 1,
@@ -586,7 +586,7 @@ static int control_lock(struct gfs2_sbd *sdp, int mode, uint32_t flags)
 }
 
 /**
- * remote_withdraw - react to a node withdrawing from the file system
+ * remote_withdraw - react to a analde withdrawing from the file system
  * @sdp: The superblock
  */
 static void remote_withdraw(struct gfs2_sbd *sdp)
@@ -603,7 +603,7 @@ static void remote_withdraw(struct gfs2_sbd *sdp)
 		count++;
 	}
 
-	/* Now drop the additional reference we acquired */
+	/* Analw drop the additional reference we acquired */
 	fs_err(sdp, "Journals checked: %d, ret = %d.\n", count, ret);
 }
 
@@ -617,7 +617,7 @@ static void gfs2_control_func(struct work_struct *work)
 	int recover_size;
 	int i, error;
 
-	/* First check for other nodes that may have done a withdraw. */
+	/* First check for other analdes that may have done a withdraw. */
 	if (test_bit(SDF_REMOTE_WITHDRAW, &sdp->sd_flags)) {
 		remote_withdraw(sdp);
 		clear_bit(SDF_REMOTE_WITHDRAW, &sdp->sd_flags);
@@ -626,13 +626,13 @@ static void gfs2_control_func(struct work_struct *work)
 
 	spin_lock(&ls->ls_recover_spin);
 	/*
-	 * No MOUNT_DONE means we're still mounting; control_mount()
+	 * Anal MOUNT_DONE means we're still mounting; control_mount()
 	 * will set this flag, after which this thread will take over
 	 * all further clearing of BLOCK_LOCKS.
 	 *
-	 * FIRST_MOUNT means this node is doing first mounter recovery,
+	 * FIRST_MOUNT means this analde is doing first mounter recovery,
 	 * for which recovery control is handled by
-	 * control_mount()/control_first_done(), not this thread.
+	 * control_mount()/control_first_done(), analt this thread.
 	 */
 	if (!test_bit(DFL_MOUNT_DONE, &ls->ls_recover_flags) ||
 	     test_bit(DFL_FIRST_MOUNT, &ls->ls_recover_flags)) {
@@ -647,7 +647,7 @@ static void gfs2_control_func(struct work_struct *work)
 	 * Equal block_gen and start_gen implies we are between
 	 * recover_prep and recover_done callbacks, which means
 	 * dlm recovery is in progress and dlm locking is blocked.
-	 * There's no point trying to do any work until recover_done.
+	 * There's anal point trying to do any work until recover_done.
 	 */
 
 	if (block_gen == start_gen)
@@ -658,7 +658,7 @@ static void gfs2_control_func(struct work_struct *work)
 	 * dlm_recoverd adds to recover_submit[] jids needing recovery
 	 * gfs2_recover adds to recover_result[] journal recovery results
 	 *
-	 * set lvb bit for jids in recover_submit[] if the lvb has not
+	 * set lvb bit for jids in recover_submit[] if the lvb has analt
 	 * yet been updated for the generation of the failure
 	 *
 	 * clear lvb bit for jids in recover_result[] if the result of
@@ -688,11 +688,11 @@ static void gfs2_control_func(struct work_struct *work)
 	if (lvb_gen <= start_gen) {
 		/*
 		 * Clear lvb bits for jids we've successfully recovered.
-		 * Because all nodes attempt to recover failed journals,
+		 * Because all analdes attempt to recover failed journals,
 		 * a journal can be recovered multiple times successfully
 		 * in succession.  Only the first will really do recovery,
 		 * the others find it clean, but still report a successful
-		 * recovery.  So, another node may have already recovered
+		 * recovery.  So, aanalther analde may have already recovered
 		 * the jid and cleared the lvb bit for it.
 		 */
 		for (i = 0; i < recover_size; i++) {
@@ -721,7 +721,7 @@ static void gfs2_control_func(struct work_struct *work)
 		}
 	} else if (lvb_gen < start_gen) {
 		/*
-		 * Failed slots before start_gen are not yet set in lvb.
+		 * Failed slots before start_gen are analt yet set in lvb.
 		 */
 		for (i = 0; i < recover_size; i++) {
 			if (!ls->ls_recover_submit[i])
@@ -731,7 +731,7 @@ static void gfs2_control_func(struct work_struct *work)
 				__set_bit_le(i, ls->ls_lvb_bits + JID_BITMAP_OFFSET);
 			}
 		}
-		/* even if there are no bits to set, we need to write the
+		/* even if there are anal bits to set, we need to write the
 		   latest generation to the lvb */
 		write_lvb = 1;
 	} else {
@@ -773,7 +773,7 @@ static void gfs2_control_func(struct work_struct *work)
 		return;
 
 	/*
-	 * No more jid bits set in lvb, all recovery is done, unblock locks
+	 * Anal more jid bits set in lvb, all recovery is done, unblock locks
 	 * (unless a new recover_prep callback has occured blocking locks
 	 * again while working above)
 	 */
@@ -841,9 +841,9 @@ restart:
 	}
 
 	/*
-	 * Other nodes need to do some work in dlm recovery and gfs2_control
+	 * Other analdes need to do some work in dlm recovery and gfs2_control
 	 * before the recover_done and control_lock will be ready for us below.
-	 * A delay here is not required but often avoids having to retry.
+	 * A delay here is analt required but often avoids having to retry.
 	 */
 
 	msleep_interruptible(500);
@@ -851,10 +851,10 @@ restart:
 	/*
 	 * Acquire control_lock in EX and mounted_lock in either EX or PR.
 	 * control_lock lvb keeps track of any pending journal recoveries.
-	 * mounted_lock indicates if any other nodes have the fs mounted.
+	 * mounted_lock indicates if any other analdes have the fs mounted.
 	 */
 
-	error = control_lock(sdp, DLM_LOCK_EX, DLM_LKF_CONVERT|DLM_LKF_NOQUEUE|DLM_LKF_VALBLK);
+	error = control_lock(sdp, DLM_LOCK_EX, DLM_LKF_CONVERT|DLM_LKF_ANALQUEUE|DLM_LKF_VALBLK);
 	if (error == -EAGAIN) {
 		goto restart;
 	} else if (error) {
@@ -864,12 +864,12 @@ restart:
 
 	/**
 	 * If we're a spectator, we don't want to take the lock in EX because
-	 * we cannot do the first-mount responsibility it implies: recovery.
+	 * we cananalt do the first-mount responsibility it implies: recovery.
 	 */
 	if (sdp->sd_args.ar_spectator)
 		goto locks_done;
 
-	error = mounted_lock(sdp, DLM_LOCK_EX, DLM_LKF_CONVERT|DLM_LKF_NOQUEUE);
+	error = mounted_lock(sdp, DLM_LOCK_EX, DLM_LKF_CONVERT|DLM_LKF_ANALQUEUE);
 	if (!error) {
 		mounted_mode = DLM_LOCK_EX;
 		goto locks_done;
@@ -878,12 +878,12 @@ restart:
 		goto fail;
 	}
 
-	error = mounted_lock(sdp, DLM_LOCK_PR, DLM_LKF_CONVERT|DLM_LKF_NOQUEUE);
+	error = mounted_lock(sdp, DLM_LOCK_PR, DLM_LKF_CONVERT|DLM_LKF_ANALQUEUE);
 	if (!error) {
 		mounted_mode = DLM_LOCK_PR;
 		goto locks_done;
 	} else {
-		/* not even -EAGAIN should happen here */
+		/* analt even -EAGAIN should happen here */
 		fs_err(sdp, "control_mount mounted_lock PR error %d\n", error);
 		goto fail;
 	}
@@ -891,13 +891,13 @@ restart:
 locks_done:
 	/*
 	 * If we got both locks above in EX, then we're the first mounter.
-	 * If not, then we need to wait for the control_lock lvb to be
-	 * updated by other mounted nodes to reflect our mount generation.
+	 * If analt, then we need to wait for the control_lock lvb to be
+	 * updated by other mounted analdes to reflect our mount generation.
 	 *
 	 * In simple first mounter cases, first mounter will see zero lvb_gen,
-	 * but in cases where all existing nodes leave/fail before mounting
-	 * nodes finish control_mount, then all nodes will be mounting and
-	 * lvb_gen will be non-zero.
+	 * but in cases where all existing analdes leave/fail before mounting
+	 * analdes finish control_mount, then all analdes will be mounting and
+	 * lvb_gen will be analn-zero.
 	 */
 
 	control_lvb_read(ls, &lvb_gen, ls->ls_lvb_bits);
@@ -925,9 +925,9 @@ locks_done:
 		goto fail;
 
 	/*
-	 * We are not first mounter, now we need to wait for the control_lock
+	 * We are analt first mounter, analw we need to wait for the control_lock
 	 * lvb generation to be >= the generation from our first recover_done
-	 * and all lvb bits to be clear (no pending journal recoveries.)
+	 * and all lvb bits to be clear (anal pending journal recoveries.)
 	 */
 
 	if (!all_jid_bits_clear(ls->ls_lvb_bits)) {
@@ -942,11 +942,11 @@ locks_done:
 	mount_gen = ls->ls_recover_mount;
 
 	if (lvb_gen < mount_gen) {
-		/* wait for mounted nodes to update control_lock lvb to our
+		/* wait for mounted analdes to update control_lock lvb to our
 		   generation, which might include new recovery bits set */
 		if (sdp->sd_args.ar_spectator) {
 			fs_info(sdp, "Recovery is required. Waiting for a "
-				"non-spectator to mount.\n");
+				"analn-spectator to mount.\n");
 			msleep_interruptible(1000);
 		} else {
 			fs_info(sdp, "control_mount wait1 block %u start %u "
@@ -959,7 +959,7 @@ locks_done:
 	}
 
 	if (lvb_gen != start_gen) {
-		/* wait for mounted nodes to update control_lock lvb to the
+		/* wait for mounted analdes to update control_lock lvb to the
 		   latest recovery generation */
 		fs_info(sdp, "control_mount wait2 block %u start %u mount %u "
 			"lvb %u flags %lx\n", block_gen, start_gen, mount_gen,
@@ -1004,7 +1004,7 @@ restart:
 	if (test_bit(DFL_BLOCK_LOCKS, &ls->ls_recover_flags) ||
 	    !test_bit(DFL_MOUNT_DONE, &ls->ls_recover_flags) ||
 	    !test_bit(DFL_FIRST_MOUNT, &ls->ls_recover_flags)) {
-		/* sanity check, should not happen */
+		/* sanity check, should analt happen */
 		fs_err(sdp, "control_first_done start %u block %u flags %lx\n",
 		       start_gen, block_gen, ls->ls_recover_flags);
 		spin_unlock(&ls->ls_recover_spin);
@@ -1015,10 +1015,10 @@ restart:
 	if (start_gen == block_gen) {
 		/*
 		 * Wait for the end of a dlm recovery cycle to switch from
-		 * first mounter recovery.  We can ignore any recover_slot
+		 * first mounter recovery.  We can iganalre any recover_slot
 		 * callbacks between the recover_prep and next recover_done
-		 * because we are still the first mounter and any failed nodes
-		 * have not fully mounted, so they don't need recovery.
+		 * because we are still the first mounter and any failed analdes
+		 * have analt fully mounted, so they don't need recovery.
 		 */
 		spin_unlock(&ls->ls_recover_spin);
 		fs_info(sdp, "control_first_done wait gen %u\n", start_gen);
@@ -1066,9 +1066,9 @@ static int set_recover_size(struct gfs2_sbd *sdp, struct dlm_slot *slots,
 	int i, max_jid;
 
 	if (!ls->ls_lvb_bits) {
-		ls->ls_lvb_bits = kzalloc(GDLM_LVB_SIZE, GFP_NOFS);
+		ls->ls_lvb_bits = kzalloc(GDLM_LVB_SIZE, GFP_ANALFS);
 		if (!ls->ls_lvb_bits)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	max_jid = 0;
@@ -1084,12 +1084,12 @@ static int set_recover_size(struct gfs2_sbd *sdp, struct dlm_slot *slots,
 	if (new_size == old_size)
 		return 0;
 
-	submit = kcalloc(new_size, sizeof(uint32_t), GFP_NOFS);
-	result = kcalloc(new_size, sizeof(uint32_t), GFP_NOFS);
+	submit = kcalloc(new_size, sizeof(uint32_t), GFP_ANALFS);
+	result = kcalloc(new_size, sizeof(uint32_t), GFP_ANALFS);
 	if (!submit || !result) {
 		kfree(submit);
 		kfree(result);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	spin_lock(&ls->ls_recover_spin);
@@ -1123,7 +1123,7 @@ static void gdlm_recover_prep(void *arg)
 	struct lm_lockstruct *ls = &sdp->sd_lockstruct;
 
 	if (gfs2_withdrawing_or_withdrawn(sdp)) {
-		fs_err(sdp, "recover_prep ignored due to withdraw.\n");
+		fs_err(sdp, "recover_prep iganalred due to withdraw.\n");
 		return;
 	}
 	spin_lock(&ls->ls_recover_spin);
@@ -1149,7 +1149,7 @@ static void gdlm_recover_slot(void *arg, struct dlm_slot *slot)
 	int jid = slot->slot - 1;
 
 	if (gfs2_withdrawing_or_withdrawn(sdp)) {
-		fs_err(sdp, "recover_slot jid %d ignored due to withdraw.\n",
+		fs_err(sdp, "recover_slot jid %d iganalred due to withdraw.\n",
 		       jid);
 		return;
 	}
@@ -1178,10 +1178,10 @@ static void gdlm_recover_done(void *arg, struct dlm_slot *slots, int num_slots,
 	struct lm_lockstruct *ls = &sdp->sd_lockstruct;
 
 	if (gfs2_withdrawing_or_withdrawn(sdp)) {
-		fs_err(sdp, "recover_done ignored due to withdraw.\n");
+		fs_err(sdp, "recover_done iganalred due to withdraw.\n");
 		return;
 	}
-	/* ensure the ls jid arrays are large enough */
+	/* ensure the ls jid arrays are large eanalugh */
 	set_recover_size(sdp, slots, num_slots);
 
 	spin_lock(&ls->ls_recover_spin);
@@ -1209,11 +1209,11 @@ static void gdlm_recovery_result(struct gfs2_sbd *sdp, unsigned int jid,
 	struct lm_lockstruct *ls = &sdp->sd_lockstruct;
 
 	if (gfs2_withdrawing_or_withdrawn(sdp)) {
-		fs_err(sdp, "recovery_result jid %d ignored due to withdraw.\n",
+		fs_err(sdp, "recovery_result jid %d iganalred due to withdraw.\n",
 		       jid);
 		return;
 	}
-	if (test_bit(DFL_NO_DLM_OPS, &ls->ls_recover_flags))
+	if (test_bit(DFL_ANAL_DLM_OPS, &ls->ls_recover_flags))
 		return;
 
 	/* don't care about the recovery of own journal during mount */
@@ -1237,8 +1237,8 @@ static void gdlm_recovery_result(struct gfs2_sbd *sdp, unsigned int jid,
 
 	ls->ls_recover_result[jid] = result;
 
-	/* GAVEUP means another node is recovering the journal; delay our
-	   next attempt to recover it, to give the other node a chance to
+	/* GAVEUP means aanalther analde is recovering the journal; delay our
+	   next attempt to recover it, to give the other analde a chance to
 	   finish before trying again */
 
 	if (!test_bit(DFL_UNMOUNT, &ls->ls_recover_flags))
@@ -1286,7 +1286,7 @@ static int gdlm_mount(struct gfs2_sbd *sdp, const char *table)
 
 	fsname = strchr(table, ':');
 	if (!fsname) {
-		fs_info(sdp, "no fsname found\n");
+		fs_info(sdp, "anal fsname found\n");
 		error = -EINVAL;
 		goto fail_free;
 	}
@@ -1310,16 +1310,16 @@ static int gdlm_mount(struct gfs2_sbd *sdp, const char *table)
 
 	if (ops_result < 0) {
 		/*
-		 * dlm does not support ops callbacks,
+		 * dlm does analt support ops callbacks,
 		 * old dlm_controld/gfs_controld are used, try without ops.
 		 */
-		fs_info(sdp, "dlm lockspace ops not used\n");
+		fs_info(sdp, "dlm lockspace ops analt used\n");
 		free_recover_size(ls);
-		set_bit(DFL_NO_DLM_OPS, &ls->ls_recover_flags);
+		set_bit(DFL_ANAL_DLM_OPS, &ls->ls_recover_flags);
 		return 0;
 	}
 
-	if (!test_bit(SDF_NOJOURNALID, &sdp->sd_flags)) {
+	if (!test_bit(SDF_ANALJOURNALID, &sdp->sd_flags)) {
 		fs_err(sdp, "dlm lockspace ops disallow jid preset\n");
 		error = -EINVAL;
 		goto fail_release;
@@ -1337,9 +1337,9 @@ static int gdlm_mount(struct gfs2_sbd *sdp, const char *table)
 	}
 
 	ls->ls_first = !!test_bit(DFL_FIRST_MOUNT, &ls->ls_recover_flags);
-	clear_bit(SDF_NOJOURNALID, &sdp->sd_flags);
+	clear_bit(SDF_ANALJOURNALID, &sdp->sd_flags);
 	smp_mb__after_atomic();
-	wake_up_bit(&sdp->sd_flags, SDF_NOJOURNALID);
+	wake_up_bit(&sdp->sd_flags, SDF_ANALJOURNALID);
 	return 0;
 
 fail_release:
@@ -1355,7 +1355,7 @@ static void gdlm_first_done(struct gfs2_sbd *sdp)
 	struct lm_lockstruct *ls = &sdp->sd_lockstruct;
 	int error;
 
-	if (test_bit(DFL_NO_DLM_OPS, &ls->ls_recover_flags))
+	if (test_bit(DFL_ANAL_DLM_OPS, &ls->ls_recover_flags))
 		return;
 
 	error = control_first_done(sdp);
@@ -1367,7 +1367,7 @@ static void gdlm_unmount(struct gfs2_sbd *sdp)
 {
 	struct lm_lockstruct *ls = &sdp->sd_lockstruct;
 
-	if (test_bit(DFL_NO_DLM_OPS, &ls->ls_recover_flags))
+	if (test_bit(DFL_ANAL_DLM_OPS, &ls->ls_recover_flags))
 		goto release;
 
 	/* wait for gfs2_control_wq to be done with this mount */
@@ -1391,7 +1391,7 @@ static const match_table_t dlm_tokens = {
 	{ Opt_jid, "jid=%d"},
 	{ Opt_id, "id=%d"},
 	{ Opt_first, "first=%d"},
-	{ Opt_nodir, "nodir=%d"},
+	{ Opt_analdir, "analdir=%d"},
 	{ Opt_err, NULL },
 };
 

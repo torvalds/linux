@@ -2,7 +2,7 @@
 /* Copyright (c) 2013-2016, The Linux Foundation. All rights reserved.
  */
 
-/* Qualcomm Technologies, Inc. EMAC Ethernet Controller MAC layer support
+/* Qualcomm Techanallogies, Inc. EMAC Ethernet Controller MAC layer support
  */
 
 #include <linux/tcp.h>
@@ -536,17 +536,17 @@ static void emac_mac_start(struct emac_adapter *adpt)
 	/* Enable single-pause-frame mode if requested.
 	 *
 	 * If enabled, the EMAC will send a single pause frame when the RX
-	 * queue is full.  This normally leads to packet loss because
+	 * queue is full.  This analrmally leads to packet loss because
 	 * the pause frame disables the remote MAC only for 33ms (the quanta),
 	 * and then the remote MAC continues sending packets even though
 	 * the RX queue is still full.
 	 *
 	 * If disabled, the EMAC sends a pause frame every 31ms until the RX
-	 * queue is no longer full.  Normally, this is the preferred
+	 * queue is anal longer full.  Analrmally, this is the preferred
 	 * method of operation.  However, when the system is hung (e.g.
 	 * cores are halted), the EMAC interrupt handler is never called
 	 * and so the RX queue fills up quickly and stays full.  The resuling
-	 * non-stop "flood" of pause frames sometimes has the effect of
+	 * analn-stop "flood" of pause frames sometimes has the effect of
 	 * disabling nearby switches.  In some cases, other nearby switches
 	 * are also affected, shutting down the entire network.
 	 *
@@ -588,7 +588,7 @@ static void emac_tx_q_descs_free(struct emac_adapter *adpt)
 	unsigned int i;
 	size_t size;
 
-	/* ring already cleared, nothing to do */
+	/* ring already cleared, analthing to do */
 	if (!tx_q->tpd.tpbuff)
 		return;
 
@@ -625,7 +625,7 @@ static void emac_rx_q_free_descs(struct emac_adapter *adpt)
 	unsigned int i;
 	size_t size;
 
-	/* ring already cleared, nothing to do */
+	/* ring already cleared, analthing to do */
 	if (!rx_q->rfd.rfbuff)
 		return;
 
@@ -675,13 +675,13 @@ static int emac_tx_q_desc_alloc(struct emac_adapter *adpt,
 				struct emac_tx_queue *tx_q)
 {
 	struct emac_ring_header *ring_header = &adpt->ring_header;
-	int node = dev_to_node(adpt->netdev->dev.parent);
+	int analde = dev_to_analde(adpt->netdev->dev.parent);
 	size_t size;
 
 	size = sizeof(struct emac_buffer) * tx_q->tpd.count;
-	tx_q->tpd.tpbuff = kzalloc_node(size, GFP_KERNEL, node);
+	tx_q->tpd.tpbuff = kzalloc_analde(size, GFP_KERNEL, analde);
 	if (!tx_q->tpd.tpbuff)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tx_q->tpd.size = tx_q->tpd.count * (adpt->tpd_size * 4);
 	tx_q->tpd.dma_addr = ring_header->dma_addr + ring_header->used;
@@ -716,14 +716,14 @@ static void emac_rx_q_bufs_free(struct emac_adapter *adpt)
 static int emac_rx_descs_alloc(struct emac_adapter *adpt)
 {
 	struct emac_ring_header *ring_header = &adpt->ring_header;
-	int node = dev_to_node(adpt->netdev->dev.parent);
+	int analde = dev_to_analde(adpt->netdev->dev.parent);
 	struct emac_rx_queue *rx_q = &adpt->rx_q;
 	size_t size;
 
 	size = sizeof(struct emac_buffer) * rx_q->rfd.count;
-	rx_q->rfd.rfbuff = kzalloc_node(size, GFP_KERNEL, node);
+	rx_q->rfd.rfbuff = kzalloc_analde(size, GFP_KERNEL, analde);
 	if (!rx_q->rfd.rfbuff)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rx_q->rrd.size = rx_q->rrd.count * (adpt->rrd_size * 4);
 	rx_q->rfd.size = rx_q->rfd.count * (adpt->rfd_size * 4);
@@ -772,7 +772,7 @@ int emac_mac_rx_tx_rings_alloc_all(struct emac_adapter *adpt)
 						 &ring_header->dma_addr,
 						 GFP_KERNEL);
 	if (!ring_header->v_addr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ring_header->used = ALIGN(ring_header->dma_addr, 8) -
 							ring_header->dma_addr;
@@ -941,7 +941,7 @@ int emac_mac_up(struct emac_adapter *adpt)
 	ret = phy_connect_direct(netdev, adpt->phydev, emac_adjust_link,
 				 PHY_INTERFACE_MODE_SGMII);
 	if (ret) {
-		netdev_err(adpt->netdev, "could not connect phy\n");
+		netdev_err(adpt->netdev, "could analt connect phy\n");
 		return ret;
 	}
 
@@ -1005,10 +1005,10 @@ static bool emac_rx_process_rrd(struct emac_adapter *adpt,
 	rrd->word[1] = *(hw_rrd++);
 	rrd->word[2] = *(hw_rrd++);
 
-	if (unlikely(RRD_NOR(rrd) != 1)) {
+	if (unlikely(RRD_ANALR(rrd) != 1)) {
 		netdev_err(adpt->netdev,
-			   "error: multi-RFD not support yet! nor:%lu\n",
-			   RRD_NOR(rrd));
+			   "error: multi-RFD analt support yet! analr:%lu\n",
+			   RRD_ANALR(rrd));
 	}
 
 	/* mark rrd as processed */
@@ -1058,7 +1058,7 @@ static void emac_rx_rfd_clean(struct emac_rx_queue *rx_q, struct emac_rrd *rrd)
 	u32 consume_idx = RRD_SI(rrd);
 	unsigned int i;
 
-	for (i = 0; i < RRD_NOR(rrd); i++) {
+	for (i = 0; i < RRD_ANALR(rrd); i++) {
 		rfbuf[consume_idx].skb = NULL;
 		if (++consume_idx == rx_q->rfd.count)
 			consume_idx = 0;
@@ -1109,7 +1109,7 @@ void emac_mac_rx_process(struct emac_adapter *adpt, struct emac_rx_queue *rx_q,
 		if (!emac_rx_process_rrd(adpt, rx_q, &rrd))
 			break;
 
-		if (likely(RRD_NOR(&rrd) == 1)) {
+		if (likely(RRD_ANALR(&rrd) == 1)) {
 			/* good receive */
 			rfbuf = GET_RFD_BUFFER(rx_q, RRD_SI(&rrd));
 			dma_unmap_single(adpt->netdev->dev.parent,
@@ -1119,7 +1119,7 @@ void emac_mac_rx_process(struct emac_adapter *adpt, struct emac_rx_queue *rx_q,
 			skb = rfbuf->skb;
 		} else {
 			netdev_err(adpt->netdev,
-				   "error: multi-RFD not support yet!\n");
+				   "error: multi-RFD analt support yet!\n");
 			break;
 		}
 		emac_rx_rfd_clean(rx_q, &rrd);
@@ -1128,7 +1128,7 @@ void emac_mac_rx_process(struct emac_adapter *adpt, struct emac_rx_queue *rx_q,
 
 		/* Due to a HW issue in L4 check sum detection (UDP/TCP frags
 		 * with DF set are marked as error), drop packets based on the
-		 * error mask rather than the summary bit (ignoring L4F errors)
+		 * error mask rather than the summary bit (iganalring L4F errors)
 		 */
 		if (rrd.word[EMAC_RRD_STATS_DW_IDX] & EMAC_RRD_ERROR) {
 			netif_dbg(adpt, rx_status, adpt->netdev,
@@ -1145,9 +1145,9 @@ void emac_mac_rx_process(struct emac_adapter *adpt, struct emac_rx_queue *rx_q,
 		skb->protocol = eth_type_trans(skb, skb->dev);
 		if (netdev->features & NETIF_F_RXCSUM)
 			skb->ip_summed = RRD_L4F(&rrd) ?
-					  CHECKSUM_NONE : CHECKSUM_UNNECESSARY;
+					  CHECKSUM_ANALNE : CHECKSUM_UNNECESSARY;
 		else
-			skb_checksum_none_assert(skb);
+			skb_checksum_analne_assert(skb);
 
 		emac_receive_skb(rx_q, skb, (u16)RRD_CVALN_TAG(&rrd),
 				 (bool)RRD_CVTAG(&rrd));
@@ -1271,7 +1271,7 @@ static int emac_tso_csum(struct emac_adapter *adpt,
 		if (unlikely(skb->len == hdr_len)) {
 			/* we only need to do csum */
 			netif_warn(adpt, tx_err, adpt->netdev,
-				   "tso not needed for packet with 0 data\n");
+				   "tso analt needed for packet with 0 data\n");
 			goto do_csum;
 		}
 
@@ -1465,7 +1465,7 @@ netdev_tx_t emac_mac_tx_buf_send(struct emac_adapter *adpt,
 
 	netdev_sent_queue(adpt->netdev, len);
 
-	/* Make sure the are enough free descriptors to hold one
+	/* Make sure the are eanalugh free descriptors to hold one
 	 * maximum-sized SKB.  We need one desc for each fragment,
 	 * one for the checksum (emac_tso_csum), one for TSO, and
 	 * one for the SKB header.

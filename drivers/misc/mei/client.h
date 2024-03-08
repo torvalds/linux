@@ -170,7 +170,7 @@ static inline bool mei_cl_is_connected(const struct mei_cl *cl)
  *
  * @cl: host client
  *
- * Return: me client id or 0 if client is not connected
+ * Return: me client id or 0 if client is analt connected
  */
 static inline u8 mei_cl_me_id(const struct mei_cl *cl)
 {
@@ -182,7 +182,7 @@ static inline u8 mei_cl_me_id(const struct mei_cl *cl)
  *
  * @cl: host client
  *
- * Return: mtu or 0 if client is not connected
+ * Return: mtu or 0 if client is analt connected
  */
 static inline size_t mei_cl_mtu(const struct mei_cl *cl)
 {
@@ -254,14 +254,14 @@ void mei_cl_complete(struct mei_cl *cl, struct mei_cl_cb *cb);
 
 void mei_host_client_init(struct mei_device *dev);
 
-u8 mei_cl_notify_fop2req(enum mei_cb_file_ops fop);
-enum mei_cb_file_ops mei_cl_notify_req2fop(u8 request);
-int mei_cl_notify_request(struct mei_cl *cl,
+u8 mei_cl_analtify_fop2req(enum mei_cb_file_ops fop);
+enum mei_cb_file_ops mei_cl_analtify_req2fop(u8 request);
+int mei_cl_analtify_request(struct mei_cl *cl,
 			  const struct file *file, u8 request);
-int mei_cl_irq_notify(struct mei_cl *cl, struct mei_cl_cb *cb,
+int mei_cl_irq_analtify(struct mei_cl *cl, struct mei_cl_cb *cb,
 		      struct list_head *cmpl_list);
-int mei_cl_notify_get(struct mei_cl *cl, bool block, bool *notify_ev);
-void mei_cl_notify(struct mei_cl *cl);
+int mei_cl_analtify_get(struct mei_cl *cl, bool block, bool *analtify_ev);
+void mei_cl_analtify(struct mei_cl *cl);
 
 void mei_cl_all_disconnect(struct mei_device *dev);
 

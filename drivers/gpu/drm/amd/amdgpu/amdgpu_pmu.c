@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -212,11 +212,11 @@ static int amdgpu_perf_event_init(struct perf_event *event)
 
 	/* test the event attr type check for PMU enumeration */
 	if (event->attr.type != event->pmu->type)
-		return -ENOENT;
+		return -EANALENT;
 
 	/* update the hw_perf_event struct with config data */
 	hwc->config = event->attr.config;
-	hwc->config_base = AMDGPU_PMU_PERF_TYPE_NONE;
+	hwc->config_base = AMDGPU_PMU_PERF_TYPE_ANALNE;
 
 	return 0;
 }
@@ -435,7 +435,7 @@ static void amdgpu_pmu_create_attrs(struct attribute_group *attr_group,
 				int num_events)
 {
 	amdgpu_pmu_create_event_attrs_by_type(attr_group, pmu_attr, events, 0,
-				num_events, AMDGPU_PMU_EVENT_CONFIG_TYPE_NONE);
+				num_events, AMDGPU_PMU_EVENT_CONFIG_TYPE_ANALNE);
 }
 
 
@@ -450,7 +450,7 @@ static int amdgpu_pmu_alloc_pmu_attrs(
 								GFP_KERNEL);
 
 	if (!(*fmt_attr))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fmt_attr_group->attrs = kcalloc(config->num_formats + 1,
 				sizeof(*fmt_attr_group->attrs), GFP_KERNEL);
@@ -476,7 +476,7 @@ err_evt_attr:
 	kfree(fmt_attr_group->attrs);
 err_fmt_attr_grp:
 	kfree(*fmt_attr);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /* init pmu tracking per pmu type */
@@ -538,7 +538,7 @@ static int init_pmu_entry_by_type_and_add(struct amdgpu_pmu_entry *pmu_entry,
 								GFP_KERNEL);
 
 	if (!pmu_entry->pmu.attr_groups) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_attr_group;
 	}
 
@@ -628,7 +628,7 @@ int amdgpu_pmu_init(struct amdgpu_device *adev)
 						"DF", "amdgpu_df");
 
 		if (!pmu_entry_df)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ret = init_pmu_entry_by_type_and_add(pmu_entry_df,
 							&df_vega20_config);
@@ -643,7 +643,7 @@ int amdgpu_pmu_init(struct amdgpu_device *adev)
 
 		if (!pmu_entry) {
 			amdgpu_pmu_fini(adev);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		ret = init_pmu_entry_by_type_and_add(pmu_entry,
@@ -660,14 +660,14 @@ int amdgpu_pmu_init(struct amdgpu_device *adev)
 		pmu_entry = create_pmu_entry(adev, AMDGPU_PMU_PERF_TYPE_ALL,
 						"", "amdgpu");
 		if (!pmu_entry)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ret = init_pmu_entry_by_type_and_add(pmu_entry,
 							&arcturus_config);
 
 		if (ret) {
 			kfree(pmu_entry);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		break;

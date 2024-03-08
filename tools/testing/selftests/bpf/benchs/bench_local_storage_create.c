@@ -58,7 +58,7 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 		}
 		break;
 	default:
-		return ARGP_ERR_UNKNOWN;
+		return ARGP_ERR_UNKANALWN;
 	}
 
 	return 0;
@@ -73,7 +73,7 @@ static void validate(void)
 {
 	if (env.consumer_cnt != 0) {
 		fprintf(stderr,
-			"local-storage-create benchmark does not need consumer\n");
+			"local-storage-create benchmark does analt need consumer\n");
 		exit(1);
 	}
 }
@@ -109,7 +109,7 @@ static void setup(void)
 	threads = calloc(env.producer_cnt, sizeof(*threads));
 
 	if (!threads) {
-		fprintf(stderr, "cannot alloc thread_res\n");
+		fprintf(stderr, "cananalt alloc thread_res\n");
 		exit(1);
 	}
 
@@ -119,18 +119,18 @@ static void setup(void)
 		if (storage_type == BPF_MAP_TYPE_SK_STORAGE) {
 			t->fds = malloc(batch_sz * sizeof(*t->fds));
 			if (!t->fds) {
-				fprintf(stderr, "cannot alloc t->fds\n");
+				fprintf(stderr, "cananalt alloc t->fds\n");
 				exit(1);
 			}
 		} else {
 			t->pthds = malloc(batch_sz * sizeof(*t->pthds));
 			if (!t->pthds) {
-				fprintf(stderr, "cannot alloc t->pthds\n");
+				fprintf(stderr, "cananalt alloc t->pthds\n");
 				exit(1);
 			}
 			t->pthd_results = malloc(batch_sz * sizeof(*t->pthd_results));
 			if (!t->pthd_results) {
-				fprintf(stderr, "cannot alloc t->pthd_results\n");
+				fprintf(stderr, "cananalt alloc t->pthd_results\n");
 				exit(1);
 			}
 		}

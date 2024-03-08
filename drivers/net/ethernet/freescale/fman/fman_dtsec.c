@@ -28,7 +28,7 @@
 #define TBICON_DISABLE_TX_DIS	0x1000	/* Disable transmit disparity */
 #define TBICON_AN_SENSE		0x0100	/* Auto-negotiation sense enable */
 #define TBICON_CLK_SELECT	0x0020	/* Clock select */
-#define TBICON_MI_MODE		0x0010	/* GMII mode (TBI if not set) */
+#define TBICON_MI_MODE		0x0010	/* GMII mode (TBI if analt set) */
 
 /* Interrupt Mask Register (IMASK) */
 #define DTSEC_IMASK_BREN	0x80000000
@@ -79,8 +79,8 @@
 #define DEFAULT_RX_PREPEND			0
 #define DEFAULT_PREAMBLE_LEN			7
 #define DEFAULT_TX_PAUSE_TIME_EXTD		0
-#define DEFAULT_NON_BACK_TO_BACK_IPG1		0x40
-#define DEFAULT_NON_BACK_TO_BACK_IPG2		0x60
+#define DEFAULT_ANALN_BACK_TO_BACK_IPG1		0x40
+#define DEFAULT_ANALN_BACK_TO_BACK_IPG2		0x60
 #define DEFAULT_MIN_IFG_ENFORCEMENT		0x50
 #define DEFAULT_BACK_TO_BACK_IPG		0x60
 #define DEFAULT_MAXIMUM_FRAME			0x600
@@ -121,12 +121,12 @@
 #define MACCFG2_PREAMBLE_LENGTH_MASK	0x0000f000
 #define MACCFG2_PREAMBLE_LENGTH_SHIFT	12
 
-#define IPGIFG_NON_BACK_TO_BACK_IPG_1_SHIFT	24
-#define IPGIFG_NON_BACK_TO_BACK_IPG_2_SHIFT	16
+#define IPGIFG_ANALN_BACK_TO_BACK_IPG_1_SHIFT	24
+#define IPGIFG_ANALN_BACK_TO_BACK_IPG_2_SHIFT	16
 #define IPGIFG_MIN_IFG_ENFORCEMENT_SHIFT	8
 
-#define IPGIFG_NON_BACK_TO_BACK_IPG_1	0x7F000000
-#define IPGIFG_NON_BACK_TO_BACK_IPG_2	0x007F0000
+#define IPGIFG_ANALN_BACK_TO_BACK_IPG_1	0x7F000000
+#define IPGIFG_ANALN_BACK_TO_BACK_IPG_2	0x007F0000
 #define IPGIFG_MIN_IFG_ENFORCEMENT	0x0000FF00
 #define IPGIFG_BACK_TO_BACK_IPG	0x0000007F
 
@@ -202,7 +202,7 @@ struct dtsec_regs {
 	u32 rbca;	/* 0x22C Rx broadcast packet counter */
 	u32 rxcf;	/* 0x230 Rx control frame packet counter */
 	u32 rxpf;	/* 0x234 Rx pause frame packet counter */
-	u32 rxuo;	/* 0x238 Rx unknown OP code counter */
+	u32 rxuo;	/* 0x238 Rx unkanalwn OP code counter */
 	u32 raln;	/* 0x23C Rx alignment error counter */
 	u32 rflr;	/* 0x240 Rx frame length error counter */
 	u32 rcde;	/* 0x244 Rx code error counter */
@@ -286,8 +286,8 @@ struct dtsec_cfg {
 	u32 rx_prepend;
 	u16 tx_pause_time_extd;
 	u16 maximum_frame;
-	u32 non_back_to_back_ipg1;
-	u32 non_back_to_back_ipg2;
+	u32 analn_back_to_back_ipg1;
+	u32 analn_back_to_back_ipg2;
 	u32 min_ifg_enforcement;
 	u32 back_to_back_ipg;
 };
@@ -333,8 +333,8 @@ static void set_dflts(struct dtsec_cfg *cfg)
 	cfg->ptp_exception_en = true;
 	cfg->preamble_len = DEFAULT_PREAMBLE_LEN;
 	cfg->tx_pause_time_extd = DEFAULT_TX_PAUSE_TIME_EXTD;
-	cfg->non_back_to_back_ipg1 = DEFAULT_NON_BACK_TO_BACK_IPG1;
-	cfg->non_back_to_back_ipg2 = DEFAULT_NON_BACK_TO_BACK_IPG2;
+	cfg->analn_back_to_back_ipg1 = DEFAULT_ANALN_BACK_TO_BACK_IPG1;
+	cfg->analn_back_to_back_ipg2 = DEFAULT_ANALN_BACK_TO_BACK_IPG2;
 	cfg->min_ifg_enforcement = DEFAULT_MIN_IFG_ENFORCEMENT;
 	cfg->back_to_back_ipg = DEFAULT_BACK_TO_BACK_IPG;
 	cfg->maximum_frame = DEFAULT_MAXIMUM_FRAME;
@@ -378,7 +378,7 @@ static int init(struct dtsec_regs __iomem *regs, struct dtsec_cfg *cfg,
 	iowrite32be(tmp, &regs->rctrl);
 
 	/* Assign a Phy Address to the TBI (TBIPA).
-	 * Done also in cases where TBI is not selected to avoid conflict with
+	 * Done also in cases where TBI is analt selected to avoid conflict with
 	 * the external PHY's Physical address
 	 */
 	iowrite32be(tbi_addr, &regs->tbipa);
@@ -410,12 +410,12 @@ static int init(struct dtsec_regs __iomem *regs, struct dtsec_cfg *cfg,
 		tmp |= MACCFG2_PAD_CRC_EN;
 	iowrite32be(tmp, &regs->maccfg2);
 
-	tmp = (((cfg->non_back_to_back_ipg1 <<
-		 IPGIFG_NON_BACK_TO_BACK_IPG_1_SHIFT)
-		& IPGIFG_NON_BACK_TO_BACK_IPG_1)
-	       | ((cfg->non_back_to_back_ipg2 <<
-		   IPGIFG_NON_BACK_TO_BACK_IPG_2_SHIFT)
-		 & IPGIFG_NON_BACK_TO_BACK_IPG_2)
+	tmp = (((cfg->analn_back_to_back_ipg1 <<
+		 IPGIFG_ANALN_BACK_TO_BACK_IPG_1_SHIFT)
+		& IPGIFG_ANALN_BACK_TO_BACK_IPG_1)
+	       | ((cfg->analn_back_to_back_ipg2 <<
+		   IPGIFG_ANALN_BACK_TO_BACK_IPG_2_SHIFT)
+		 & IPGIFG_ANALN_BACK_TO_BACK_IPG_2)
 	       | ((cfg->min_ifg_enforcement << IPGIFG_MIN_IFG_ENFORCEMENT_SHIFT)
 		 & IPGIFG_MIN_IFG_ENFORCEMENT)
 	       | (cfg->back_to_back_ipg & IPGIFG_BACK_TO_BACK_IPG));
@@ -482,9 +482,9 @@ static int check_init_parameters(struct fman_mac *dtsec)
 		       MAX_PACKET_ALIGNMENT);
 		return -EINVAL;
 	}
-	if (((dtsec->dtsec_drv_param)->non_back_to_back_ipg1 >
+	if (((dtsec->dtsec_drv_param)->analn_back_to_back_ipg1 >
 	     MAX_INTER_PACKET_GAP) ||
-	    ((dtsec->dtsec_drv_param)->non_back_to_back_ipg2 >
+	    ((dtsec->dtsec_drv_param)->analn_back_to_back_ipg2 >
 	     MAX_INTER_PACKET_GAP) ||
 	     ((dtsec->dtsec_drv_param)->back_to_back_ipg >
 	      MAX_INTER_PACKET_GAP)) {
@@ -590,7 +590,7 @@ static void dtsec_isr(void *handle)
 	struct dtsec_regs __iomem *regs = dtsec->regs;
 	u32 event;
 
-	/* do not handle MDIO events */
+	/* do analt handle MDIO events */
 	event = ioread32be(&regs->ievent) &
 		(u32)(~(DTSEC_IMASK_MMRDEN | DTSEC_IMASK_MMWREN));
 
@@ -634,7 +634,7 @@ static void dtsec_isr(void *handle)
 			 */
 			if ((tmp_reg1 & 0x007F0000) !=
 				(tmp_reg1 & 0x0000007F)) {
-				/* If they are not equal, save the value of
+				/* If they are analt equal, save the value of
 				 * this register and wait for at least
 				 * MAXFRM*16 ns
 				 */
@@ -739,7 +739,7 @@ static void free_init_resources(struct fman_mac *dtsec)
 	fman_unregister_intr(dtsec->fm, FMAN_MOD_MAC, dtsec->mac_id,
 			     FMAN_INTR_TYPE_ERR);
 	fman_unregister_intr(dtsec->fm, FMAN_MOD_MAC, dtsec->mac_id,
-			     FMAN_INTR_TYPE_NORMAL);
+			     FMAN_INTR_TYPE_ANALRMAL);
 
 	/* release the driver's group hash table */
 	free_hash_table(dtsec->multicast_addr_hash);
@@ -814,8 +814,8 @@ static void graceful_stop(struct fman_mac *dtsec)
 
 	/* Graceful stop - Assert the graceful Tx stop bit */
 	if (dtsec->fm_rev_info.major == 2) {
-		/* dTSEC Errata A004: Do not use TCTRL[GTS]=1 */
-		pr_debug("GTS not supported due to DTSEC_A004 Errata.\n");
+		/* dTSEC Errata A004: Do analt use TCTRL[GTS]=1 */
+		pr_debug("GTS analt supported due to DTSEC_A004 Errata.\n");
 	} else {
 		tmp = ioread32be(&regs->tctrl) | TCTRL_GTS;
 		iowrite32be(tmp, &regs->tctrl);
@@ -918,7 +918,7 @@ static void dtsec_mac_config(struct phylink_config *config, unsigned int mode,
 		tmp = DTSEC_ECNTRL_TBIM | DTSEC_ECNTRL_SGMIIM;
 		break;
 	default:
-		dev_warn(mac_dev->dev, "cannot configure dTSEC for %s\n",
+		dev_warn(mac_dev->dev, "cananalt configure dTSEC for %s\n",
 			 phy_modes(state->interface));
 		return;
 	}
@@ -1023,9 +1023,9 @@ static int dtsec_add_hash_mac_address(struct fman_mac *dtsec,
 	ghtx = (bool)((ioread32be(&regs->rctrl) & RCTRL_GHTX) ? true : false);
 	mcast = (bool)((addr & MAC_GROUP_ADDRESS) ? true : false);
 
-	/* Cannot handle unicast mac addr when GHTX is on */
+	/* Cananalt handle unicast mac addr when GHTX is on */
 	if (ghtx && !mcast) {
-		pr_err("Could not compute hash bucket\n");
+		pr_err("Could analt compute hash bucket\n");
 		return -EINVAL;
 	}
 	crc = crc32_le(crc, (u8 *)eth_addr, ETH_ALEN);
@@ -1057,16 +1057,16 @@ static int dtsec_add_hash_mac_address(struct fman_mac *dtsec,
 	/* Create element to be added to the driver hash table */
 	hash_entry = kmalloc(sizeof(*hash_entry), GFP_ATOMIC);
 	if (!hash_entry)
-		return -ENOMEM;
+		return -EANALMEM;
 	hash_entry->addr = addr;
-	INIT_LIST_HEAD(&hash_entry->node);
+	INIT_LIST_HEAD(&hash_entry->analde);
 
 	if (addr & MAC_GROUP_ADDRESS)
 		/* Group Address */
-		list_add_tail(&hash_entry->node,
+		list_add_tail(&hash_entry->analde,
 			      &dtsec->multicast_addr_hash->lsts[bucket]);
 	else
-		list_add_tail(&hash_entry->node,
+		list_add_tail(&hash_entry->analde,
 			      &dtsec->unicast_addr_hash->lsts[bucket]);
 
 	return 0;
@@ -1126,9 +1126,9 @@ static int dtsec_del_hash_mac_address(struct fman_mac *dtsec,
 	ghtx = (bool)((ioread32be(&regs->rctrl) & RCTRL_GHTX) ? true : false);
 	mcast = (bool)((addr & MAC_GROUP_ADDRESS) ? true : false);
 
-	/* Cannot handle unicast mac addr when GHTX is on */
+	/* Cananalt handle unicast mac addr when GHTX is on */
 	if (ghtx && !mcast) {
-		pr_err("Could not compute hash bucket\n");
+		pr_err("Could analt compute hash bucket\n");
 		return -EINVAL;
 	}
 	crc = crc32_le(crc, (u8 *)eth_addr, ETH_ALEN);
@@ -1151,7 +1151,7 @@ static int dtsec_del_hash_mac_address(struct fman_mac *dtsec,
 			      &dtsec->multicast_addr_hash->lsts[bucket]) {
 			hash_entry = ETH_HASH_ENTRY_OBJ(pos);
 			if (hash_entry && hash_entry->addr == addr) {
-				list_del_init(&hash_entry->node);
+				list_del_init(&hash_entry->analde);
 				kfree(hash_entry);
 				break;
 			}
@@ -1164,7 +1164,7 @@ static int dtsec_del_hash_mac_address(struct fman_mac *dtsec,
 			      &dtsec->unicast_addr_hash->lsts[bucket]) {
 			hash_entry = ETH_HASH_ENTRY_OBJ(pos);
 			if (hash_entry && hash_entry->addr == addr) {
-				list_del_init(&hash_entry->node);
+				list_del_init(&hash_entry->analde);
 				kfree(hash_entry);
 				break;
 			}
@@ -1173,7 +1173,7 @@ static int dtsec_del_hash_mac_address(struct fman_mac *dtsec,
 			set_bucket(dtsec->regs, bucket, false);
 	}
 
-	/* address does not exist */
+	/* address does analt exist */
 	WARN_ON(!hash_entry);
 
 	return 0;
@@ -1305,22 +1305,22 @@ static int dtsec_init(struct fman_mac *dtsec)
 	if (!dtsec->multicast_addr_hash) {
 		free_init_resources(dtsec);
 		pr_err("MC hash table is failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	dtsec->unicast_addr_hash = alloc_hash_table(DTSEC_HASH_TABLE_SIZE);
 	if (!dtsec->unicast_addr_hash) {
 		free_init_resources(dtsec);
 		pr_err("UC hash table is failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* register err intr handler for dtsec to FPM (err) */
 	fman_register_intr(dtsec->fm, FMAN_MOD_MAC, dtsec->mac_id,
 			   FMAN_INTR_TYPE_ERR, dtsec_isr, dtsec);
-	/* register 1588 intr handler for TMR to FPM (normal) */
+	/* register 1588 intr handler for TMR to FPM (analrmal) */
 	fman_register_intr(dtsec->fm, FMAN_MOD_MAC, dtsec->mac_id,
-			   FMAN_INTR_TYPE_NORMAL, dtsec_1588_isr, dtsec);
+			   FMAN_INTR_TYPE_ANALRMAL, dtsec_1588_isr, dtsec);
 
 	kfree(dtsec_drv_param);
 	dtsec->dtsec_drv_param = NULL;
@@ -1398,12 +1398,12 @@ err_dtsec:
 }
 
 int dtsec_initialization(struct mac_device *mac_dev,
-			 struct device_node *mac_node,
+			 struct device_analde *mac_analde,
 			 struct fman_mac_params *params)
 {
 	int			err;
 	struct fman_mac		*dtsec;
-	struct device_node	*phy_node;
+	struct device_analde	*phy_analde;
 	unsigned long		 capabilities;
 	unsigned long		*supported;
 
@@ -1429,21 +1429,21 @@ int dtsec_initialization(struct mac_device *mac_dev,
 	dtsec->dtsec_drv_param->maximum_frame = fman_get_max_frm();
 	dtsec->dtsec_drv_param->tx_pad_crc = true;
 
-	phy_node = of_parse_phandle(mac_node, "tbi-handle", 0);
-	if (!phy_node || !of_device_is_available(phy_node)) {
-		of_node_put(phy_node);
+	phy_analde = of_parse_phandle(mac_analde, "tbi-handle", 0);
+	if (!phy_analde || !of_device_is_available(phy_analde)) {
+		of_analde_put(phy_analde);
 		err = -EINVAL;
 		dev_err_probe(mac_dev->dev, err,
-			      "TBI PCS node is not available\n");
+			      "TBI PCS analde is analt available\n");
 		goto _return_fm_mac_free;
 	}
 
-	dtsec->tbidev = of_mdio_find_device(phy_node);
-	of_node_put(phy_node);
+	dtsec->tbidev = of_mdio_find_device(phy_analde);
+	of_analde_put(phy_analde);
 	if (!dtsec->tbidev) {
 		err = -EPROBE_DEFER;
 		dev_err_probe(mac_dev->dev, err,
-			      "could not find mdiodev for PCS\n");
+			      "could analt find mdiodev for PCS\n");
 		goto _return_fm_mac_free;
 	}
 	dtsec->pcs.ops = &dtsec_pcs_ops;
@@ -1453,7 +1453,7 @@ int dtsec_initialization(struct mac_device *mac_dev,
 	supported = mac_dev->phylink_config.supported_interfaces;
 
 	/* FIXME: Can we use DTSEC_ID2_INT_FULL_OFF to determine if these are
-	 * supported? If not, we can determine support via the phy if SerDes
+	 * supported? If analt, we can determine support via the phy if SerDes
 	 * support is added.
 	 */
 	if (mac_dev->phy_if == PHY_INTERFACE_MODE_SGMII ||
@@ -1470,7 +1470,7 @@ int dtsec_initialization(struct mac_device *mac_dev,
 		/* DTSEC_ID2_INT_REDUCED_OFF indicates that the dTSEC supports
 		 * RMII and RGMII. However, the only SoCs which support RMII
 		 * are the P1017 and P1023. Avoid advertising this mode on
-		 * other SoCs. This is a bit of a moot point, since there's no
+		 * other SoCs. This is a bit of a moot point, since there's anal
 		 * in-tree support for ethernet on these platforms...
 		 */
 		if (of_machine_is_compatible("fsl,P1023") ||

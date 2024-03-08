@@ -103,7 +103,7 @@ examples:
         #interrupt-cells = <1>;
 
         interconnects = <&mmrt_virt MASTER_MDP0 &bimc SLAVE_EBI1>,
-                        <&bimc MASTER_APPSS_PROC &config_noc SLAVE_DISPLAY_CFG>;
+                        <&bimc MASTER_APPSS_PROC &config_analc SLAVE_DISPLAY_CFG>;
         interconnect-names = "mdp0-mem",
                              "cpu-cfg";
 

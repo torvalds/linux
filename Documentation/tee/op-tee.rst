@@ -68,31 +68,31 @@ order to support device enumeration. In other words, OP-TEE driver invokes this
 application to retrieve a list of Trusted Applications which can be registered
 as devices on the TEE bus.
 
-OP-TEE notifications
+OP-TEE analtifications
 --------------------
 
-There are two kinds of notifications that secure world can use to make
-normal world aware of some event.
+There are two kinds of analtifications that secure world can use to make
+analrmal world aware of some event.
 
-1. Synchronous notifications delivered with ``OPTEE_RPC_CMD_NOTIFICATION``
-   using the ``OPTEE_RPC_NOTIFICATION_SEND`` parameter.
-2. Asynchronous notifications delivered with a combination of a non-secure
-   edge-triggered interrupt and a fast call from the non-secure interrupt
+1. Synchroanalus analtifications delivered with ``OPTEE_RPC_CMD_ANALTIFICATION``
+   using the ``OPTEE_RPC_ANALTIFICATION_SEND`` parameter.
+2. Asynchroanalus analtifications delivered with a combination of a analn-secure
+   edge-triggered interrupt and a fast call from the analn-secure interrupt
    handler.
 
-Synchronous notifications are limited by depending on RPC for delivery,
+Synchroanalus analtifications are limited by depending on RPC for delivery,
 this is only usable when secure world is entered with a yielding call via
-``OPTEE_SMC_CALL_WITH_ARG``. This excludes such notifications from secure
+``OPTEE_SMC_CALL_WITH_ARG``. This excludes such analtifications from secure
 world interrupt handlers.
 
-An asynchronous notification is delivered via a non-secure edge-triggered
+An asynchroanalus analtification is delivered via a analn-secure edge-triggered
 interrupt to an interrupt handler registered in the OP-TEE driver. The
-actual notification value are retrieved with the fast call
-``OPTEE_SMC_GET_ASYNC_NOTIF_VALUE``. Note that one interrupt can represent
-multiple notifications.
+actual analtification value are retrieved with the fast call
+``OPTEE_SMC_GET_ASYNC_ANALTIF_VALUE``. Analte that one interrupt can represent
+multiple analtifications.
 
-One notification value ``OPTEE_SMC_ASYNC_NOTIF_VALUE_DO_BOTTOM_HALF`` has a
-special meaning. When this value is received it means that normal world is
+One analtification value ``OPTEE_SMC_ASYNC_ANALTIF_VALUE_DO_BOTTOM_HALF`` has a
+special meaning. When this value is received it means that analrmal world is
 supposed to make a yielding call ``OPTEE_MSG_CMD_DO_BOTTOM_HALF``. This
 call is done from the thread assisting the interrupt handler. This is a
 building block for OP-TEE OS in secure world to implement the top half and
@@ -147,7 +147,7 @@ addressed when using this option.
 
    * Mitigation: It is recommended to build the OP-TEE driver as builtin driver
      rather than as a module to prevent exploits that may cause the module to
-     not be loaded.
+     analt be loaded.
 
 References
 ==========

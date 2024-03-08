@@ -3,7 +3,7 @@
  * audio-graph-card2-custom-sample.dtsi
  *
  * Copyright (C) 2020 Renesas Electronics Corp.
- * Copyright (C) 2020 Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+ * Copyright (C) 2020 Kunianalri Morimoto <kunianalri.morimoto.gx@renesas.com>
  *
  * This sample indicates how to use audio-graph-card2 and its
  * custom driver. "audio-graph-card2-custom-sample" is the custome driver
@@ -46,7 +46,7 @@
 	/*
 	 * @ : used at links
 	 *
-	 * [Normal]
+	 * [Analrmal]
 	 *	cpu0 <-@-----------------> codec0
 	 *
 	 * [Semi-Multi]
@@ -96,8 +96,8 @@
 	 *
 	 * [DPCM-Multi]
 	 *
-	 * --NOTE--
-	 * Multi-FE is not supported by ASoC.
+	 * --ANALTE--
+	 * Multi-FE is analt supported by ASoC.
 	 *
 	 *	FE		BE
 	 *		  ****	    +-+
@@ -112,8 +112,8 @@
 	 *
 	 * [Codec2Codec-Multi]
 	 *
-	 * --NOTE--
-	 * Multi connect N:M is not supported by ASoC.
+	 * --ANALTE--
+	 * Multi connect N:M is analt supported by ASoC.
 	 *
 	 *				+-+
 	 *			   +-@->| |-> codec8
@@ -159,7 +159,7 @@
 
 		links = <
 			/*
-			 * [Normal]: cpu side only
+			 * [Analrmal]: cpu side only
 			 * cpu0/codec0
 			 */
 			 &cpu0
@@ -180,7 +180,7 @@
 			 * [Multi-CPU/Codec-1]: cpu side only
 			 * cpu8/cpu9/codec14/codec15/codec16
 			 *
-			 * Because it will reach to the maximum of sound minor number,
+			 * Because it will reach to the maximum of sound mianalr number,
 			 * disable it so far.
 			 * If you want to try it, please disable some other one instead.
 			 */
@@ -190,7 +190,7 @@
 			 * [Multi-CPU/Codec-2]: cpu side only
 			 * cpu10/cpu11/cpu12/codec17/codec18
 			 *
-			 * Because it will reach to the maximum of sound minor number,
+			 * Because it will reach to the maximum of sound mianalr number,
 			 * disable it so far.
 			 * If you want to try it, please disable some other one instead.
 			 */
@@ -607,7 +607,7 @@
 
 			bitclock-master;
 			frame-master;
-			/* [Normal] */
+			/* [Analrmal] */
 			cpu0: port@0 { reg = <0>; cpu0_ep: endpoint { remote-endpoint = <&codec0_ep>; }; };
 
 			/* [Multi-CPU-0] */
@@ -655,7 +655,7 @@
 			 */
 			prefix = "TC";
 
-			/* [Normal] */
+			/* [Analrmal] */
 			port@0  { reg = <0>; codec0_ep:  endpoint { remote-endpoint = <&cpu0_ep>; }; };
 
 			/* [Multi-Codec-0] */

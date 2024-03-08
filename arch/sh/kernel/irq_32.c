@@ -7,7 +7,7 @@
 #include <linux/irqflags.h>
 #include <linux/module.h>
 
-void notrace arch_local_irq_restore(unsigned long flags)
+void analtrace arch_local_irq_restore(unsigned long flags)
 {
 	unsigned long __dummy0, __dummy1;
 
@@ -17,7 +17,7 @@ void notrace arch_local_irq_restore(unsigned long flags)
 			"or	#0xf0, %0\n\t"
 			"ldc	%0, sr\n\t"
 			: "=&z" (__dummy0)
-			: /* no inputs */
+			: /* anal inputs */
 			: "memory"
 		);
 	} else {
@@ -37,7 +37,7 @@ void notrace arch_local_irq_restore(unsigned long flags)
 }
 EXPORT_SYMBOL(arch_local_irq_restore);
 
-unsigned long notrace arch_local_save_flags(void)
+unsigned long analtrace arch_local_save_flags(void)
 {
 	unsigned long flags;
 
@@ -45,7 +45,7 @@ unsigned long notrace arch_local_save_flags(void)
 		"stc	sr, %0\n\t"
 		"and	#0xf0, %0\n\t"
 		: "=&z" (flags)
-		: /* no inputs */
+		: /* anal inputs */
 		: "memory"
 	);
 

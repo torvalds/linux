@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
  * FB driver for the SH1106 OLED Controller
- * Based on the SSD1306 driver by Noralf Tronnes
+ * Based on the SSD1306 driver by Analralf Tronnes
  *
  * Copyright (C) 2017 Heiner Kallweit
  */
@@ -17,7 +17,7 @@
 #define WIDTH		128
 #define HEIGHT		64
 
-/* Init sequence based on the Adafruit SSD1306 Arduino library */
+/* Init sequence based on the Adafruit SSD1306 Arduianal library */
 static int init_display(struct fbtft_par *par)
 {
 	if (!par->info->var.xres || par->info->var.xres > WIDTH ||
@@ -28,7 +28,7 @@ static int init_display(struct fbtft_par *par)
 	}
 
 	if (par->info->var.rotate) {
-		dev_err(par->info->device, "Display rotation not supported\n");
+		dev_err(par->info->device, "Display rotation analt supported\n");
 		return -EINVAL;
 	}
 
@@ -173,7 +173,7 @@ static struct fbtft_display display = {
 	},
 };
 
-FBTFT_REGISTER_SPI_DRIVER(DRVNAME, "sinowealth", "sh1106", &display);
+FBTFT_REGISTER_SPI_DRIVER(DRVNAME, "sianalwealth", "sh1106", &display);
 
 MODULE_DESCRIPTION("SH1106 OLED Driver");
 MODULE_AUTHOR("Heiner Kallweit");

@@ -12,7 +12,7 @@
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 
-#define CPCAP_LED_NO_CURRENT 0x0001
+#define CPCAP_LED_ANAL_CURRENT 0x0001
 
 struct cpcap_led_info {
 	u16 reg;
@@ -117,7 +117,7 @@ static int cpcap_led_set(struct led_classdev *ledc, enum led_brightness value)
 	if (value == LED_OFF) {
 		/* Avoid HW issue by turning off current before duty cycle */
 		err = regmap_update_bits(led->regmap,
-			led->info->reg, led->info->mask, CPCAP_LED_NO_CURRENT);
+			led->info->reg, led->info->mask, CPCAP_LED_ANAL_CURRENT);
 		if (err) {
 			dev_err(led->dev, "regmap failed: %d", err);
 			goto exit;
@@ -163,19 +163,19 @@ static int cpcap_led_probe(struct platform_device *pdev)
 
 	led = devm_kzalloc(&pdev->dev, sizeof(*led), GFP_KERNEL);
 	if (!led)
-		return -ENOMEM;
+		return -EANALMEM;
 	platform_set_drvdata(pdev, led);
 	led->info = device_get_match_data(&pdev->dev);
 	led->dev = &pdev->dev;
 
 	if (led->info->reg == 0x0000) {
 		dev_err(led->dev, "Unsupported LED");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	led->regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!led->regmap)
-		return -ENODEV;
+		return -EANALDEV;
 
 	led->vdd = devm_regulator_get(&pdev->dev, "vdd");
 	if (IS_ERR(led->vdd)) {

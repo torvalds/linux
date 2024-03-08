@@ -41,7 +41,7 @@
 
 #define WUSB3801_CTRL0_DIS_ACC_SUPPORT	BIT(7)
 #define WUSB3801_CTRL0_TRY		GENMASK(6, 5)
-#define WUSB3801_CTRL0_TRY_NONE		(0x0 << 5)
+#define WUSB3801_CTRL0_TRY_ANALNE		(0x0 << 5)
 #define WUSB3801_CTRL0_TRY_SNK		(0x1 << 5)
 #define WUSB3801_CTRL0_TRY_SRC		(0x2 << 5)
 #define WUSB3801_CTRL0_CURRENT		GENMASK(4, 3) /* SRC */
@@ -70,7 +70,7 @@
 #define WUSB3801_STAT_PARTNER_AUDIO	(0x3 << 2)
 #define WUSB3801_STAT_PARTNER_DEBUG	(0x4 << 2)
 #define WUSB3801_STAT_ORIENTATION	GENMASK(1, 0)
-#define WUSB3801_STAT_ORIENTATION_NONE	(0x0 << 0)
+#define WUSB3801_STAT_ORIENTATION_ANALNE	(0x0 << 0)
 #define WUSB3801_STAT_ORIENTATION_CC1	(0x1 << 0)
 #define WUSB3801_STAT_ORIENTATION_CC2	(0x2 << 0)
 #define WUSB3801_STAT_ORIENTATION_BOTH	(0x3 << 0)
@@ -140,9 +140,9 @@ static int wusb3801_map_pwr_opmode(enum typec_pwr_opmode mode)
 static unsigned int wusb3801_map_try_role(int role)
 {
 	switch (role) {
-	case TYPEC_NO_PREFERRED_ROLE:
+	case TYPEC_ANAL_PREFERRED_ROLE:
 	default:
-		return WUSB3801_CTRL0_TRY_NONE;
+		return WUSB3801_CTRL0_TRY_ANALNE;
 	case TYPEC_SINK:
 		return WUSB3801_CTRL0_TRY_SNK;
 	case TYPEC_SOURCE:
@@ -153,12 +153,12 @@ static unsigned int wusb3801_map_try_role(int role)
 static enum typec_orientation wusb3801_unmap_orientation(unsigned int status)
 {
 	switch (status & WUSB3801_STAT_ORIENTATION) {
-	case WUSB3801_STAT_ORIENTATION_NONE:
+	case WUSB3801_STAT_ORIENTATION_ANALNE:
 	case WUSB3801_STAT_ORIENTATION_BOTH:
 	default:
-		return TYPEC_ORIENTATION_NONE;
+		return TYPEC_ORIENTATION_ANALNE;
 	case WUSB3801_STAT_ORIENTATION_CC1:
-		return TYPEC_ORIENTATION_NORMAL;
+		return TYPEC_ORIENTATION_ANALRMAL;
 	case WUSB3801_STAT_ORIENTATION_CC2:
 		return TYPEC_ORIENTATION_REVERSE;
 	}
@@ -322,14 +322,14 @@ static const struct regmap_config config = {
 static int wusb3801_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
-	struct fwnode_handle *connector;
+	struct fwanalde_handle *connector;
 	struct wusb3801 *wusb3801;
 	const char *cap_str;
 	int ret;
 
 	wusb3801 = devm_kzalloc(dev, sizeof(*wusb3801), GFP_KERNEL);
 	if (!wusb3801)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, wusb3801);
 
@@ -343,16 +343,16 @@ static int wusb3801_probe(struct i2c_client *client)
 	if (IS_ERR(wusb3801->vbus_supply))
 		return PTR_ERR(wusb3801->vbus_supply);
 
-	connector = device_get_named_child_node(dev, "connector");
+	connector = device_get_named_child_analde(dev, "connector");
 	if (!connector)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = typec_get_fw_cap(&wusb3801->cap, connector);
 	if (ret)
 		goto err_put_connector;
 	wusb3801->port_type = wusb3801->cap.type;
 
-	ret = fwnode_property_read_string(connector, "typec-power-opmode", &cap_str);
+	ret = fwanalde_property_read_string(connector, "typec-power-opmode", &cap_str);
 	if (ret)
 		goto err_put_connector;
 
@@ -387,14 +387,14 @@ static int wusb3801_probe(struct i2c_client *client)
 	if (ret)
 		goto err_unregister_port;
 
-	fwnode_handle_put(connector);
+	fwanalde_handle_put(connector);
 
 	return 0;
 
 err_unregister_port:
 	typec_unregister_port(wusb3801->port);
 err_put_connector:
-	fwnode_handle_put(connector);
+	fwanalde_handle_put(connector);
 
 	return ret;
 }

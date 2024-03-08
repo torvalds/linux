@@ -10,45 +10,45 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial
  * portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
- * IN NO EVENT SHALL THE COPYRIGHT OWNER(S) AND/OR ITS SUPPLIERS BE
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.
+ * IN ANAL EVENT SHALL THE COPYRIGHT OWNER(S) AND/OR ITS SUPPLIERS BE
  * LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  */
 
-#include "nouveau_drv.h"
-#include "nouveau_encoder.h"
-#include "nouveau_crtc.h"
+#include "analuveau_drv.h"
+#include "analuveau_encoder.h"
+#include "analuveau_crtc.h"
 #include "hw.h"
 #include "tvnv17.h"
 
-const char * const nv17_tv_norm_names[NUM_TV_NORMS] = {
-	[TV_NORM_PAL] = "PAL",
-	[TV_NORM_PAL_M] = "PAL-M",
-	[TV_NORM_PAL_N] = "PAL-N",
-	[TV_NORM_PAL_NC] = "PAL-Nc",
-	[TV_NORM_NTSC_M] = "NTSC-M",
-	[TV_NORM_NTSC_J] = "NTSC-J",
-	[TV_NORM_HD480I] = "hd480i",
-	[TV_NORM_HD480P] = "hd480p",
-	[TV_NORM_HD576I] = "hd576i",
-	[TV_NORM_HD576P] = "hd576p",
-	[TV_NORM_HD720P] = "hd720p",
-	[TV_NORM_HD1080I] = "hd1080i"
+const char * const nv17_tv_analrm_names[NUM_TV_ANALRMS] = {
+	[TV_ANALRM_PAL] = "PAL",
+	[TV_ANALRM_PAL_M] = "PAL-M",
+	[TV_ANALRM_PAL_N] = "PAL-N",
+	[TV_ANALRM_PAL_NC] = "PAL-Nc",
+	[TV_ANALRM_NTSC_M] = "NTSC-M",
+	[TV_ANALRM_NTSC_J] = "NTSC-J",
+	[TV_ANALRM_HD480I] = "hd480i",
+	[TV_ANALRM_HD480P] = "hd480p",
+	[TV_ANALRM_HD576I] = "hd576i",
+	[TV_ANALRM_HD576P] = "hd576p",
+	[TV_ANALRM_HD720P] = "hd720p",
+	[TV_ANALRM_HD1080I] = "hd1080i"
 };
 
 /* TV standard specific parameters */
 
-struct nv17_tv_norm_params nv17_tv_norms[NUM_TV_NORMS] = {
-	[TV_NORM_PAL] = { TV_ENC_MODE, {
+struct nv17_tv_analrm_params nv17_tv_analrms[NUM_TV_ANALRMS] = {
+	[TV_ANALRM_PAL] = { TV_ENC_MODE, {
 			.tv_enc_mode = { 720, 576, 50000, {
 					0x2a, 0x9, 0x8a, 0xcb, 0x0, 0x0, 0xb, 0x18,
 					0x7e, 0x40, 0x8a, 0x35, 0x27, 0x0, 0x34, 0x3,
@@ -60,7 +60,7 @@ struct nv17_tv_norm_params nv17_tv_norms[NUM_TV_NORMS] = {
 					0xbd, 0x15, 0x5, 0x15, 0x3e, 0x3, 0x0, 0x0
 				} } } },
 
-	[TV_NORM_PAL_M] = { TV_ENC_MODE, {
+	[TV_ANALRM_PAL_M] = { TV_ENC_MODE, {
 			.tv_enc_mode = { 720, 480, 59940, {
 					0x21, 0xe6, 0xef, 0xe3, 0x0, 0x0, 0xb, 0x18,
 					0x7e, 0x44, 0x76, 0x32, 0x25, 0x0, 0x3c, 0x0,
@@ -72,7 +72,7 @@ struct nv17_tv_norm_params nv17_tv_norms[NUM_TV_NORMS] = {
 					0xc8, 0x15, 0x5, 0x15, 0x3c, 0x0, 0x0, 0x0
 				} } } },
 
-	[TV_NORM_PAL_N] = { TV_ENC_MODE, {
+	[TV_ANALRM_PAL_N] = { TV_ENC_MODE, {
 			.tv_enc_mode = { 720, 576, 50000, {
 					0x2a, 0x9, 0x8a, 0xcb, 0x0, 0x0, 0xb, 0x18,
 					0x7e, 0x40, 0x8a, 0x32, 0x25, 0x0, 0x3c, 0x0,
@@ -84,7 +84,7 @@ struct nv17_tv_norm_params nv17_tv_norms[NUM_TV_NORMS] = {
 					0xbd, 0x15, 0x5, 0x15, 0x3c, 0x0, 0x0, 0x0
 				} } } },
 
-	[TV_NORM_PAL_NC] = { TV_ENC_MODE, {
+	[TV_ANALRM_PAL_NC] = { TV_ENC_MODE, {
 			.tv_enc_mode = { 720, 576, 50000, {
 					0x21, 0xf6, 0x94, 0x46, 0x0, 0x0, 0xb, 0x18,
 					0x7e, 0x44, 0x8a, 0x35, 0x27, 0x0, 0x34, 0x3,
@@ -96,7 +96,7 @@ struct nv17_tv_norm_params nv17_tv_norms[NUM_TV_NORMS] = {
 					0xbd, 0x15, 0x5, 0x15, 0x3e, 0x3, 0x0, 0x0
 				} } } },
 
-	[TV_NORM_NTSC_M] = { TV_ENC_MODE, {
+	[TV_ANALRM_NTSC_M] = { TV_ENC_MODE, {
 			.tv_enc_mode = { 720, 480, 59940, {
 					0x21, 0xf0, 0x7c, 0x1f, 0x0, 0x0, 0xb, 0x18,
 					0x7e, 0x44, 0x76, 0x48, 0x0, 0x0, 0x3c, 0x0,
@@ -108,7 +108,7 @@ struct nv17_tv_norm_params nv17_tv_norms[NUM_TV_NORMS] = {
 					0xc8, 0x15, 0x5, 0x15, 0x3c, 0x0, 0x0, 0x0
 				} } } },
 
-	[TV_NORM_NTSC_J] = { TV_ENC_MODE, {
+	[TV_ANALRM_NTSC_J] = { TV_ENC_MODE, {
 			.tv_enc_mode = { 720, 480, 59940, {
 					0x21, 0xf0, 0x7c, 0x1f, 0x0, 0x0, 0xb, 0x18,
 					0x7e, 0x44, 0x76, 0x48, 0x0, 0x0, 0x32, 0x0,
@@ -120,7 +120,7 @@ struct nv17_tv_norm_params nv17_tv_norms[NUM_TV_NORMS] = {
 					0xc8, 0x15, 0x5, 0x15, 0x3c, 0x0, 0x0, 0x0
 				} } } },
 
-	[TV_NORM_HD480I] = { TV_ENC_MODE, {
+	[TV_ANALRM_HD480I] = { TV_ENC_MODE, {
 			.tv_enc_mode = { 720, 480, 59940, {
 					0x21, 0xf0, 0x7c, 0x1f, 0x0, 0x0, 0xb, 0x18,
 					0x7e, 0x44, 0x76, 0x48, 0x0, 0x0, 0x32, 0x0,
@@ -132,7 +132,7 @@ struct nv17_tv_norm_params nv17_tv_norms[NUM_TV_NORMS] = {
 					0xc8, 0x15, 0x5, 0x15, 0x3c, 0x0, 0x0, 0x0
 				} } } },
 
-	[TV_NORM_HD576I] = { TV_ENC_MODE, {
+	[TV_ANALRM_HD576I] = { TV_ENC_MODE, {
 			.tv_enc_mode = { 720, 576, 50000, {
 					0x2a, 0x9, 0x8a, 0xcb, 0x0, 0x0, 0xb, 0x18,
 					0x7e, 0x40, 0x8a, 0x35, 0x27, 0x0, 0x34, 0x3,
@@ -145,7 +145,7 @@ struct nv17_tv_norm_params nv17_tv_norms[NUM_TV_NORMS] = {
 				} } } },
 
 
-	[TV_NORM_HD480P] = { CTV_ENC_MODE, {
+	[TV_ANALRM_HD480P] = { CTV_ENC_MODE, {
 			.ctv_enc_mode = {
 				.mode = { DRM_MODE("720x480", DRM_MODE_TYPE_DRIVER, 27000,
 						   720, 735, 743, 858, 0, 480, 490, 494, 525, 0,
@@ -161,7 +161,7 @@ struct nv17_tv_norm_params nv17_tv_norms[NUM_TV_NORMS] = {
 					      0x2019, 0x600, 0x32060019, 0x0, 0x0, 0x400
 				} } } },
 
-	[TV_NORM_HD576P] = { CTV_ENC_MODE, {
+	[TV_ANALRM_HD576P] = { CTV_ENC_MODE, {
 			.ctv_enc_mode = {
 				.mode = { DRM_MODE("720x576", DRM_MODE_TYPE_DRIVER, 27000,
 						   720, 730, 738, 864, 0, 576, 581, 585, 625, 0,
@@ -177,7 +177,7 @@ struct nv17_tv_norm_params nv17_tv_norms[NUM_TV_NORMS] = {
 					      0x2019, 0x600, 0x32060019, 0x0, 0x0, 0x400
 				} } } },
 
-	[TV_NORM_HD720P] = { CTV_ENC_MODE, {
+	[TV_ANALRM_HD720P] = { CTV_ENC_MODE, {
 			.ctv_enc_mode = {
 				.mode = { DRM_MODE("1280x720", DRM_MODE_TYPE_DRIVER, 74250,
 						   1280, 1349, 1357, 1650, 0, 720, 725, 730, 750, 0,
@@ -193,7 +193,7 @@ struct nv17_tv_norm_params nv17_tv_norms[NUM_TV_NORMS] = {
 					      0xc0002039, 0x600, 0x32060039, 0x0, 0x0, 0x0
 				} } } },
 
-	[TV_NORM_HD1080I] = { CTV_ENC_MODE, {
+	[TV_ANALRM_HD1080I] = { CTV_ENC_MODE, {
 			.ctv_enc_mode = {
 				.mode = { DRM_MODE("1920x1080", DRM_MODE_TYPE_DRIVER, 74250,
 						   1920, 1961, 2049, 2200, 0, 1080, 1084, 1088, 1125, 0,
@@ -219,9 +219,9 @@ struct nv17_tv_norm_params nv17_tv_norms[NUM_TV_NORMS] = {
  * through the registers at NV_PTV_HFILTER and NV_PTV_VFILTER, they
  * control the horizontal and vertical stage respectively, there is
  * also NV_PTV_HFILTER2 the blob fills identically to NV_PTV_HFILTER,
- * but they seem to do nothing. A rough guess might be that they could
+ * but they seem to do analthing. A rough guess might be that they could
  * be used to independently control the filtering of each interlaced
- * field, but I don't know how they are enabled. The whole filtering
+ * field, but I don't kanalw how they are enabled. The whole filtering
  * process seems to be disabled with bits 26:27 of PTV_200, but we
  * aren't doing that.
  *
@@ -314,7 +314,7 @@ static struct filter_params{
 static void tv_setup_filter(struct drm_encoder *encoder)
 {
 	struct nv17_tv_encoder *tv_enc = to_tv_enc(encoder);
-	struct nv17_tv_norm_params *tv_norm = get_tv_norm(encoder);
+	struct nv17_tv_analrm_params *tv_analrm = get_tv_analrm(encoder);
 	struct drm_display_mode *mode = &encoder->crtc->mode;
 	uint32_t (*filters[])[4][7] = {&tv_enc->state.hfilter,
 				       &tv_enc->state.vfilter};
@@ -324,8 +324,8 @@ static void tv_setup_filter(struct drm_encoder *encoder)
 	uint64_t rs[] = {mode->hdisplay * id3,
 			 mode->vdisplay * id3};
 
-	do_div(rs[0], overscan * tv_norm->tv_enc_mode.hdisplay);
-	do_div(rs[1], overscan * tv_norm->tv_enc_mode.vdisplay);
+	do_div(rs[0], overscan * tv_analrm->tv_enc_mode.hdisplay);
+	do_div(rs[1], overscan * tv_analrm->tv_enc_mode.vdisplay);
 
 	for (k = 0; k < 2; k++) {
 		rs[k] = max((int64_t)rs[k], id2);
@@ -472,7 +472,7 @@ void nv17_tv_update_properties(struct drm_encoder *encoder)
 	struct drm_device *dev = encoder->dev;
 	struct nv17_tv_encoder *tv_enc = to_tv_enc(encoder);
 	struct nv17_tv_state *regs = &tv_enc->state;
-	struct nv17_tv_norm_params *tv_norm = get_tv_norm(encoder);
+	struct nv17_tv_analrm_params *tv_analrm = get_tv_analrm(encoder);
 	int subconnector = tv_enc->select_subconnector ?
 						tv_enc->select_subconnector :
 						tv_enc->subconnector;
@@ -509,9 +509,9 @@ void nv17_tv_update_properties(struct drm_encoder *encoder)
 		break;
 	}
 
-	regs->tv_enc[0x20] = interpolate(0, tv_norm->tv_enc_mode.tv_enc[0x20],
+	regs->tv_enc[0x20] = interpolate(0, tv_analrm->tv_enc_mode.tv_enc[0x20],
 					 255, tv_enc->saturation);
-	regs->tv_enc[0x22] = interpolate(0, tv_norm->tv_enc_mode.tv_enc[0x22],
+	regs->tv_enc[0x22] = interpolate(0, tv_analrm->tv_enc_mode.tv_enc[0x22],
 					 255, tv_enc->saturation);
 	regs->tv_enc[0x25] = tv_enc->hue * 255 / 100;
 
@@ -542,11 +542,11 @@ void nv17_ctv_update_rescaler(struct drm_encoder *encoder)
 {
 	struct drm_device *dev = encoder->dev;
 	struct nv17_tv_encoder *tv_enc = to_tv_enc(encoder);
-	int head = nouveau_crtc(encoder->crtc)->index;
+	int head = analuveau_crtc(encoder->crtc)->index;
 	struct nv04_crtc_reg *regs = &nv04_display(dev)->mode_reg.crtc_reg[head];
 	struct drm_display_mode *crtc_mode = &encoder->crtc->mode;
 	struct drm_display_mode *output_mode =
-		&get_tv_norm(encoder)->ctv_enc_mode.mode;
+		&get_tv_analrm(encoder)->ctv_enc_mode.mode;
 	int overscan, hmargin, vmargin, hratio, vratio;
 
 	/* The rescaler doesn't do the right thing for interlaced modes. */

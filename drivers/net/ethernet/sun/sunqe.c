@@ -10,7 +10,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fcntl.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
@@ -75,7 +75,7 @@ static inline int qec_global_reset(void __iomem *gregs)
 	}
 	if (tries)
 		return 0;
-	printk(KERN_ERR "QuadEther: AIEEE cannot reset the QEC!\n");
+	printk(KERN_ERR "QuadEther: AIEEE cananalt reset the QEC!\n");
 	return -1;
 }
 
@@ -100,7 +100,7 @@ static inline int qe_stop(struct sunqe *qep)
 		break;
 	}
 	if (!tries) {
-		printk(KERN_ERR "QuadEther: AIEEE cannot reset the MACE!\n");
+		printk(KERN_ERR "QuadEther: AIEEE cananalt reset the MACE!\n");
 		return -1;
 	}
 
@@ -115,7 +115,7 @@ static inline int qe_stop(struct sunqe *qep)
 		break;
 	}
 	if (!tries) {
-		printk(KERN_ERR "QuadEther: Cannot reset QE channel!\n");
+		printk(KERN_ERR "QuadEther: Cananalt reset QE channel!\n");
 		return -1;
 	}
 	return 0;
@@ -177,10 +177,10 @@ static int qe_init(struct sunqe *qep, int from_irq)
 	/* Clear the channel collision counter. */
 	sbus_writel(0, cregs + CREG_CCNT);
 
-	/* For 10baseT, inter frame space nor throttle seems to be necessary. */
+	/* For 10baseT, inter frame space analr throttle seems to be necessary. */
 	sbus_writel(0, cregs + CREG_PIPG);
 
-	/* Now dork with the AMD MACE. */
+	/* Analw dork with the AMD MACE. */
 	sbus_writeb(MREGS_PHYCONFIG_AUTO, mregs + MREGS_PHYCONFIG);
 	sbus_writeb(MREGS_TXFCNTL_AUTOPAD, mregs + MREGS_TXFCNTL);
 	sbus_writeb(0, mregs + MREGS_RXFCNTL);
@@ -218,7 +218,7 @@ static int qe_init(struct sunqe *qep, int from_irq)
 	for (i = 0; i < 8; i++)
 		sbus_writeb(0, mregs + MREGS_FILTER);
 
-	/* Address changes are now complete. */
+	/* Address changes are analw complete. */
 	sbus_writeb(0, mregs + MREGS_IACONFIG);
 
 	qe_init_rings(qep);
@@ -238,7 +238,7 @@ static int qe_init(struct sunqe *qep, int from_irq)
 				break;
 		}
 		if (tries == 0)
-			printk(KERN_NOTICE "%s: Warning, link state is down.\n", qep->dev->name);
+			printk(KERN_ANALTICE "%s: Warning, link state is down.\n", qep->dev->name);
 	}
 
 	/* Missed packet counter is cleared on a read. */
@@ -249,7 +249,7 @@ static int qe_init(struct sunqe *qep, int from_irq)
 	 */
 	qe_set_multicast(qep->dev);
 
-	/* QEC should now start to show interrupts. */
+	/* QEC should analw start to show interrupts. */
 	return 0;
 }
 
@@ -471,7 +471,7 @@ static irqreturn_t qec_interrupt(int irq, void *dev_id)
 	u32 qec_status;
 	int channel = 0;
 
-	/* Latch the status now. */
+	/* Latch the status analw. */
 	qec_status = sbus_readl(qecp->gregs + GLOB_STAT);
 	while (channel < 4) {
 		if (qec_status & 0xf) {
@@ -688,7 +688,7 @@ static void qe_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 	strscpy(info->version, "3.0", sizeof(info->version));
 
 	op = qep->op;
-	regs = of_get_property(op->dev.of_node, "reg", NULL);
+	regs = of_get_property(op->dev.of_analde, "reg", NULL);
 	if (regs)
 		snprintf(info->bus_info, sizeof(info->bus_info), "SBUS:%d",
 			 regs->which_io);
@@ -744,7 +744,7 @@ static void qec_init_once(struct sunqec *qecp, struct platform_device *op)
 		    qecp->gregs + GLOB_RSIZE);
 }
 
-static u8 qec_get_burst(struct device_node *dp)
+static u8 qec_get_burst(struct device_analde *dp)
 {
 	u8 bsizes, bsizes_more;
 
@@ -786,14 +786,14 @@ static struct sunqec *get_qec(struct platform_device *child)
 			ctrl = sbus_readl(qecp->gregs + GLOB_CTRL);
 			ctrl &= 0xf0000000;
 			if (ctrl != GLOB_CTRL_MMODE) {
-				printk(KERN_ERR "qec: Not in MACE mode!\n");
+				printk(KERN_ERR "qec: Analt in MACE mode!\n");
 				goto fail;
 			}
 
 			if (qec_global_reset(qecp->gregs))
 				goto fail;
 
-			qecp->qec_bursts = qec_get_burst(op->dev.of_node);
+			qecp->qec_bursts = qec_get_burst(op->dev.of_analde);
 
 			qec_init_once(qecp, op);
 
@@ -842,15 +842,15 @@ static int qec_ether_init(struct platform_device *op)
 
 	dev = alloc_etherdev(sizeof(struct sunqe));
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	eth_hw_addr_set(dev, idprom->id_ethaddr);
 
 	qe = netdev_priv(dev);
 
-	res = -ENODEV;
+	res = -EANALDEV;
 
-	i = of_getintprop_default(op->dev.of_node, "channel#", -1);
+	i = of_getintprop_default(op->dev.of_analde, "channel#", -1);
 	if (i == -1)
 		goto fail;
 	qe->channel = i;
@@ -865,18 +865,18 @@ static int qec_ether_init(struct platform_device *op)
 	qe->parent = qecp;
 	qe->op = op;
 
-	res = -ENOMEM;
+	res = -EANALMEM;
 	qe->qcregs = of_ioremap(&op->resource[0], 0,
 				CREG_REG_SIZE, "QEC Channel Registers");
 	if (!qe->qcregs) {
-		printk(KERN_ERR "qe: Cannot map channel registers.\n");
+		printk(KERN_ERR "qe: Cananalt map channel registers.\n");
 		goto fail;
 	}
 
 	qe->mregs = of_ioremap(&op->resource[1], 0,
 			       MREGS_REG_SIZE, "QE MACE Registers");
 	if (!qe->mregs) {
-		printk(KERN_ERR "qe: Cannot map MACE registers.\n");
+		printk(KERN_ERR "qe: Cananalt map MACE registers.\n");
 		goto fail;
 	}
 

@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
-/* Copyright (C) 2015-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2015-2018 Netroanalme Systems, Inc. */
 
 /*
  * nfp_cpp.h
  * Interface for low-level NFP CPP access.
- * Authors: Jason McMullan <jason.mcmullan@netronome.com>
- *          Rolf Neugebauer <rolf.neugebauer@netronome.com>
+ * Authors: Jason McMullan <jason.mcmullan@netroanalme.com>
+ *          Rolf Neugebauer <rolf.neugebauer@netroanalme.com>
  */
 #ifndef __NFP_CPP_H__
 #define __NFP_CPP_H__
@@ -52,7 +52,7 @@ struct resource;
  * The action used will be either read or write depending on whether a
  * read or write instruction/call is performed on the NFP_CPP_ID.  It
  * is recomended that the RW action is used even if all actions to be
- * performed on a NFP_CPP_ID are known to be only reads or writes.
+ * performed on a NFP_CPP_ID are kanalwn to be only reads or writes.
  * Doing so will in many cases save NFP CPP internal software
  * resources.
  */
@@ -214,7 +214,7 @@ nfp_cpp_area_alloc_acquire(struct nfp_cpp *cpp, const char *name, u32 cpp_id,
 			   unsigned long long address, unsigned long size);
 void nfp_cpp_area_free(struct nfp_cpp_area *area);
 int nfp_cpp_area_acquire(struct nfp_cpp_area *area);
-int nfp_cpp_area_acquire_nonblocking(struct nfp_cpp_area *area);
+int nfp_cpp_area_acquire_analnblocking(struct nfp_cpp_area *area);
 void nfp_cpp_area_release(struct nfp_cpp_area *area);
 void nfp_cpp_area_release_free(struct nfp_cpp_area *area);
 int nfp_cpp_area_read(struct nfp_cpp_area *area, unsigned long offset,
@@ -315,13 +315,13 @@ struct nfp_cpp_explicit_command {
  * @free:               Free the bus
  * @read_serial:	Read serial number to memory provided
  * @get_interface:	Return CPP interface
- * @area_init:          Initialize a new NFP CPP area (not serialized)
- * @area_cleanup:       Clean up a NFP CPP area (not serialized)
+ * @area_init:          Initialize a new NFP CPP area (analt serialized)
+ * @area_cleanup:       Clean up a NFP CPP area (analt serialized)
  * @area_acquire:       Acquire the NFP CPP area (serialized)
  * @area_release:       Release area (serialized)
- * @area_resource:      Get resource range of area (not serialized)
- * @area_phys:          Get physical address of area (not serialized)
- * @area_iomem:         Get iomem of area (not serialized)
+ * @area_resource:      Get resource range of area (analt serialized)
+ * @area_phys:          Get physical address of area (analt serialized)
+ * @area_iomem:         Get iomem of area (analt serialized)
  * @area_read:          Perform a read from a NFP CPP area (serialized)
  * @area_write:         Perform a write to a NFP CPP area (serialized)
  * @explicit_priv_size: Size of an explicit's private area
@@ -390,7 +390,7 @@ struct device *nfp_cpp_device(struct nfp_cpp *cpp);
 #define NFP_SIGNAL_MASK_B	BIT(1)	/* Signal B fired */
 
 enum nfp_cpp_explicit_signal_mode {
-	NFP_SIGNAL_NONE = 0,
+	NFP_SIGNAL_ANALNE = 0,
 	NFP_SIGNAL_PUSH = 1,
 	NFP_SIGNAL_PUSH_OPTIONAL = -1,
 	NFP_SIGNAL_PULL = 2,

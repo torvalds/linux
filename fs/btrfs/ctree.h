@@ -29,20 +29,20 @@ struct reloc_control;
 
 /* Read ahead values for struct btrfs_path.reada */
 enum {
-	READA_NONE,
+	READA_ANALNE,
 	READA_BACK,
 	READA_FORWARD,
 	/*
 	 * Similar to READA_FORWARD but unlike it:
 	 *
-	 * 1) It will trigger readahead even for leaves that are not close to
+	 * 1) It will trigger readahead even for leaves that are analt close to
 	 *    each other on disk;
-	 * 2) It also triggers readahead for nodes;
-	 * 3) During a search, even when a node or leaf is already in memory, it
-	 *    will still trigger readahead for other nodes and leaves that follow
+	 * 2) It also triggers readahead for analdes;
+	 * 3) During a search, even when a analde or leaf is already in memory, it
+	 *    will still trigger readahead for other analdes and leaves that follow
 	 *    it.
 	 *
-	 * This is meant to be used only when we know we are iterating over the
+	 * This is meant to be used only when we kanalw we are iterating over the
 	 * entire tree or a very large part of it.
 	 */
 	READA_FORWARD_ALWAYS,
@@ -50,14 +50,14 @@ enum {
 
 /*
  * btrfs_paths remember the path taken from the root down to the leaf.
- * level 0 is always the leaf, and nodes[1...BTRFS_MAX_LEVEL] will point
+ * level 0 is always the leaf, and analdes[1...BTRFS_MAX_LEVEL] will point
  * to any other levels that are present.
  *
  * The slots array records the index of the item or block pointer
  * used while walking the tree.
  */
 struct btrfs_path {
-	struct extent_buffer *nodes[BTRFS_MAX_LEVEL];
+	struct extent_buffer *analdes[BTRFS_MAX_LEVEL];
 	int slots[BTRFS_MAX_LEVEL];
 	/* if there is real range locking, this locks field will change */
 	u8 locks[BTRFS_MAX_LEVEL];
@@ -67,7 +67,7 @@ struct btrfs_path {
 
 	/*
 	 * set by btrfs_split_item, tells search_slot to keep all locks
-	 * and to force calls to keep space in the nodes
+	 * and to force calls to keep space in the analdes
 	 */
 	unsigned int search_for_split:1;
 	unsigned int keep_locks:1;
@@ -77,12 +77,12 @@ struct btrfs_path {
 	unsigned int skip_release_on_error:1;
 	/*
 	 * Indicate that new item (btrfs_search_slot) is extending already
-	 * existing item and ins_len contains only the data size and not item
-	 * header (ie. sizeof(struct btrfs_item) is not included).
+	 * existing item and ins_len contains only the data size and analt item
+	 * header (ie. sizeof(struct btrfs_item) is analt included).
 	 */
 	unsigned int search_for_extension:1;
 	/* Stop search if any locks need to be taken (for read) */
-	unsigned int nowait:1;
+	unsigned int analwait:1;
 };
 
 /*
@@ -109,12 +109,12 @@ enum {
 	 *   replacement for balance, and need various pre/post hooks for
 	 *   snapshot creation to handle them.
 	 *
-	 *   While for non-shareable trees, we just simply do a tree search
+	 *   While for analn-shareable trees, we just simply do a tree search
 	 *   with COW.
 	 *
 	 * - How dirty roots are tracked
 	 *   For shareable roots, btrfs_record_root_in_trans() is needed to
-	 *   track them, while non-subvolume roots have TRACK_DIRTY bit, they
+	 *   track them, while analn-subvolume roots have TRACK_DIRTY bit, they
 	 *   don't need to set this manually.
 	 */
 	BTRFS_ROOT_SHAREABLE,
@@ -163,9 +163,9 @@ struct btrfs_qgroup_swapped_blocks {
  * and for the extent tree extent_root root.
  */
 struct btrfs_root {
-	struct rb_node rb_node;
+	struct rb_analde rb_analde;
 
-	struct extent_buffer *node;
+	struct extent_buffer *analde;
 
 	struct extent_buffer *commit_root;
 	struct btrfs_root *log_root;
@@ -186,10 +186,10 @@ struct btrfs_root {
 	wait_queue_head_t log_writer_wait;
 	wait_queue_head_t log_commit_wait[2];
 	struct list_head log_ctxs[2];
-	/* Used only for log trees of subvolumes, not for the log root tree */
+	/* Used only for log trees of subvolumes, analt for the log root tree */
 	atomic_t log_writers;
 	atomic_t log_commit[2];
-	/* Used only for log trees of subvolumes, not for the log root tree */
+	/* Used only for log trees of subvolumes, analt for the log root tree */
 	atomic_t log_batch;
 	/*
 	 * Protected by the 'log_mutex' lock but can be read without holding
@@ -200,7 +200,7 @@ struct btrfs_root {
 	 * trees where the field can be updated directly.
 	 */
 	int log_transid;
-	/* No matter the commit succeeds or not*/
+	/* Anal matter the commit succeeds or analt*/
 	int log_transid_committed;
 	/*
 	 * Just be updated when the commit succeeds. Use
@@ -217,25 +217,25 @@ struct btrfs_root {
 	struct btrfs_key defrag_progress;
 	struct btrfs_key defrag_max;
 
-	/* The dirty list is only used by non-shareable roots */
+	/* The dirty list is only used by analn-shareable roots */
 	struct list_head dirty_list;
 
 	struct list_head root_list;
 
-	spinlock_t inode_lock;
-	/* red-black tree that keeps track of in-memory inodes */
-	struct rb_root inode_tree;
+	spinlock_t ianalde_lock;
+	/* red-black tree that keeps track of in-memory ianaldes */
+	struct rb_root ianalde_tree;
 
 	/*
-	 * Xarray that keeps track of delayed nodes of every inode, protected
-	 * by @inode_lock.
+	 * Xarray that keeps track of delayed analdes of every ianalde, protected
+	 * by @ianalde_lock.
 	 */
-	struct xarray delayed_nodes;
+	struct xarray delayed_analdes;
 	/*
-	 * right now this just gets used so that a root has its own devid
+	 * right analw this just gets used so that a root has its own devid
 	 * for stat.  It may be used for more later
 	 */
-	dev_t anon_dev;
+	dev_t aanaln_dev;
 
 	spinlock_t root_item_lock;
 	refcount_t refs;
@@ -243,13 +243,13 @@ struct btrfs_root {
 	struct mutex delalloc_mutex;
 	spinlock_t delalloc_lock;
 	/*
-	 * all of the inodes that have delalloc bytes.  It is possible for
+	 * all of the ianaldes that have delalloc bytes.  It is possible for
 	 * this list to be empty even when there is still dirty data=ordered
 	 * extents waiting to finish IO.
 	 */
-	struct list_head delalloc_inodes;
+	struct list_head delalloc_ianaldes;
 	struct list_head delalloc_root;
-	u64 nr_delalloc_inodes;
+	u64 nr_delalloc_ianaldes;
 
 	struct mutex ordered_extent_mutex;
 	/*
@@ -261,14 +261,14 @@ struct btrfs_root {
 	/*
 	 * all of the data=ordered extents pending writeback
 	 * these can span multiple transactions and basically include
-	 * every dirty data page that isn't from nodatacow
+	 * every dirty data page that isn't from analdatacow
 	 */
 	struct list_head ordered_extents;
 	struct list_head ordered_root;
 	u64 nr_ordered_extents;
 
 	/*
-	 * Not empty if this subvolume root has gone through tree block swap
+	 * Analt empty if this subvolume root has gone through tree block swap
 	 * (relocation)
 	 *
 	 * Will be used by reloc_control::dirty_subvol_roots.
@@ -282,11 +282,11 @@ struct btrfs_root {
 	int send_in_progress;
 	/*
 	 * Number of currently running deduplication operations that have a
-	 * destination inode belonging to this root. Protected by the lock
+	 * destination ianalde belonging to this root. Protected by the lock
 	 * root_item_lock.
 	 */
 	int dedupe_in_progress;
-	/* For exclusion of snapshot creation and nocow writes */
+	/* For exclusion of snapshot creation and analcow writes */
 	struct btrfs_drew_lock snapshot_lock;
 
 	atomic_t snapshot_force_cow;
@@ -373,7 +373,7 @@ struct btrfs_replace_extent_info {
 	 * existing extent into a file range.
 	 */
 	bool is_new_extent;
-	/* Indicate if we should update the inode's mtime and ctime. */
+	/* Indicate if we should update the ianalde's mtime and ctime. */
 	bool update_times;
 	/* Meaningful only if is_new_extent is true. */
 	int qgroup_reserved;
@@ -381,7 +381,7 @@ struct btrfs_replace_extent_info {
 	 * Meaningful only if is_new_extent is true.
 	 * Used to track how many extent items we have already inserted in a
 	 * subvolume tree that refer to the extent described by this structure,
-	 * so that we know when to create a new delayed ref or update an existing
+	 * so that we kanalw when to create a new delayed ref or update an existing
 	 * one.
 	 */
 	int insertions;
@@ -393,7 +393,7 @@ struct btrfs_drop_extents_args {
 
 	/*
 	 * If NULL, btrfs_drop_extents() will allocate and free its own path.
-	 * If 'replace_extent' is true, this must not be NULL. Also the path
+	 * If 'replace_extent' is true, this must analt be NULL. Also the path
 	 * is always released except if 'replace_extent' is true and
 	 * btrfs_drop_extents() sets 'extent_inserted' to true, in which case
 	 * the path is kept locked.
@@ -411,7 +411,7 @@ struct btrfs_drop_extents_args {
 	 * parameter must be set as well and the 'extent_inserted' field will
 	 * be set to true by btrfs_drop_extents() if it could insert the new
 	 * extent.
-	 * Note: when this is set to true the path must not be NULL.
+	 * Analte: when this is set to true the path must analt be NULL.
 	 */
 	bool replace_extent;
 	/*
@@ -452,7 +452,7 @@ struct btrfs_file_private {
 
 static inline u32 BTRFS_LEAF_DATA_SIZE(const struct btrfs_fs_info *info)
 {
-	return info->nodesize - sizeof(struct btrfs_header);
+	return info->analdesize - sizeof(struct btrfs_header);
 }
 
 static inline u32 BTRFS_MAX_ITEM_SIZE(const struct btrfs_fs_info *info)
@@ -460,7 +460,7 @@ static inline u32 BTRFS_MAX_ITEM_SIZE(const struct btrfs_fs_info *info)
 	return BTRFS_LEAF_DATA_SIZE(info) - sizeof(struct btrfs_item);
 }
 
-static inline u32 BTRFS_NODEPTRS_PER_BLOCK(const struct btrfs_fs_info *info)
+static inline u32 BTRFS_ANALDEPTRS_PER_BLOCK(const struct btrfs_fs_info *info)
 {
 	return BTRFS_LEAF_DATA_SIZE(info) / sizeof(struct btrfs_key_ptr);
 }
@@ -530,14 +530,14 @@ int btrfs_previous_extent_item(struct btrfs_root *root,
 void btrfs_set_item_key_safe(struct btrfs_trans_handle *trans,
 			     struct btrfs_path *path,
 			     const struct btrfs_key *new_key);
-struct extent_buffer *btrfs_root_node(struct btrfs_root *root);
+struct extent_buffer *btrfs_root_analde(struct btrfs_root *root);
 int btrfs_find_next_key(struct btrfs_root *root, struct btrfs_path *path,
 			struct btrfs_key *key, int lowest_level,
 			u64 min_trans);
 int btrfs_search_forward(struct btrfs_root *root, struct btrfs_key *min_key,
 			 struct btrfs_path *path,
 			 u64 min_trans);
-struct extent_buffer *btrfs_read_node_slot(struct extent_buffer *parent,
+struct extent_buffer *btrfs_read_analde_slot(struct extent_buffer *parent,
 					   int slot);
 
 int btrfs_cow_block(struct btrfs_trans_handle *trans,
@@ -616,7 +616,7 @@ struct btrfs_item_batch {
 	 * than having btrfs_insert_empty_items() or setup_item_for_insert()
 	 * doing it, as it would avoid an extra loop over a potentially large
 	 * array, and in the case of setup_item_for_insert(), we would be doing
-	 * it while holding a write lock on a leaf and often on upper level nodes
+	 * it while holding a write lock on a leaf and often on upper level analdes
 	 * too, unnecessarily increasing the size of a critical section.
 	 */
 	u32 total_data_size;
@@ -664,7 +664,7 @@ int btrfs_get_next_valid_item(struct btrfs_root *root, struct btrfs_key *key,
 /*
  * Search in @root for a given @key, and store the slot found in @found_key.
  *
- * @root:	The root node of the tree.
+ * @root:	The root analde of the tree.
  * @key:	The key we are looking for.
  * @found_key:	Will hold the found item.
  * @path:	Holds the current slot/leaf.
@@ -674,10 +674,10 @@ int btrfs_get_next_valid_item(struct btrfs_root *root, struct btrfs_key *key,
  * The @iter_ret is an output variable that will contain the return value of
  * btrfs_search_slot, if it encountered an error, or the value returned from
  * btrfs_get_next_valid_item otherwise. That return value can be 0, if a valid
- * slot was found, 1 if there were no more leaves, and <0 if there was an error.
+ * slot was found, 1 if there were anal more leaves, and <0 if there was an error.
  *
  * It's recommended to use a separate variable for iter_ret and then use it to
- * set the function return value so there's no confusion of the 0/1/errno
+ * set the function return value so there's anal confusion of the 0/1/erranal
  * values stemming from btrfs_search_slot.
  */
 #define btrfs_for_each_slot(root, key, found_key, path, iter_ret)		\
@@ -692,7 +692,7 @@ int btrfs_next_old_item(struct btrfs_root *root, struct btrfs_path *path, u64 ti
 /*
  * Search the tree again to find a leaf with greater keys.
  *
- * Returns 0 if it found something or 1 if there are no greater leaves.
+ * Returns 0 if it found something or 1 if there are anal greater leaves.
  * Returns < 0 on error.
  */
 static inline int btrfs_next_leaf(struct btrfs_root *root, struct btrfs_path *path)

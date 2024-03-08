@@ -454,7 +454,7 @@ static int wm8350_dcdc_set_suspend_mode(struct regulator_dev *rdev,
 	}
 
 	switch (mode) {
-	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_ANALRMAL:
 		*hib_mode = WM8350_DCDC_HIB_MODE_IMAGE;
 		break;
 	case REGULATOR_MODE_IDLE:
@@ -657,7 +657,7 @@ int wm8350_dcdc25_set_mode(struct wm8350 *wm8350, int dcdc, u16 mode,
 	u16 val;
 
 	dev_dbg(wm8350->dev, "%s %d mode: %s %s\n", __func__, dcdc,
-		mode ? "normal" : "boost", ilim ? "low" : "normal");
+		mode ? "analrmal" : "boost", ilim ? "low" : "analrmal");
 
 	switch (dcdc) {
 	case WM8350_DCDC_2:
@@ -739,7 +739,7 @@ static int wm8350_dcdc_set_mode(struct regulator_dev *rdev, unsigned int mode)
 		wm8350_clear_bits(wm8350, WM8350_DCDC_SLEEP_OPTIONS, val);
 		force_continuous_enable(wm8350, dcdc, 1);
 		break;
-	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_ANALRMAL:
 		/* active / pulse skipping */
 		wm8350_set_bits(wm8350, WM8350_DCDC_ACTIVE_OPTIONS, val);
 		wm8350_clear_bits(wm8350, WM8350_DCDC_SLEEP_OPTIONS, val);
@@ -766,7 +766,7 @@ static unsigned int wm8350_dcdc_get_mode(struct regulator_dev *rdev)
 	struct wm8350 *wm8350 = rdev_get_drvdata(rdev);
 	int dcdc = rdev_get_id(rdev);
 	u16 mask, sleep, active, force;
-	int mode = REGULATOR_MODE_NORMAL;
+	int mode = REGULATOR_MODE_ANALRMAL;
 	int reg;
 
 	switch (dcdc) {
@@ -798,7 +798,7 @@ static unsigned int wm8350_dcdc_get_mode(struct regulator_dev *rdev)
 		if (force)
 			mode = REGULATOR_MODE_FAST;
 		else
-			mode = REGULATOR_MODE_NORMAL;
+			mode = REGULATOR_MODE_ANALRMAL;
 	} else if (!active && !sleep)
 		mode = REGULATOR_MODE_IDLE;
 	else if (sleep)
@@ -809,7 +809,7 @@ static unsigned int wm8350_dcdc_get_mode(struct regulator_dev *rdev)
 
 static unsigned int wm8350_ldo_get_mode(struct regulator_dev *rdev)
 {
-	return REGULATOR_MODE_NORMAL;
+	return REGULATOR_MODE_ANALRMAL;
 }
 
 struct wm8350_dcdc_efficiency {
@@ -821,15 +821,15 @@ struct wm8350_dcdc_efficiency {
 static const struct wm8350_dcdc_efficiency dcdc1_6_efficiency[] = {
 	{0, 10000, REGULATOR_MODE_STANDBY},       /* 0 - 10mA - LDO */
 	{10000, 100000, REGULATOR_MODE_IDLE},     /* 10mA - 100mA - Standby */
-	{100000, 1000000, REGULATOR_MODE_NORMAL}, /* > 100mA - Active */
-	{-1, -1, REGULATOR_MODE_NORMAL},
+	{100000, 1000000, REGULATOR_MODE_ANALRMAL}, /* > 100mA - Active */
+	{-1, -1, REGULATOR_MODE_ANALRMAL},
 };
 
 static const struct wm8350_dcdc_efficiency dcdc3_4_efficiency[] = {
 	{0, 10000, REGULATOR_MODE_STANDBY},      /* 0 - 10mA - LDO */
 	{10000, 100000, REGULATOR_MODE_IDLE},    /* 10mA - 100mA - Standby */
-	{100000, 800000, REGULATOR_MODE_NORMAL}, /* > 100mA - Active */
-	{-1, -1, REGULATOR_MODE_NORMAL},
+	{100000, 800000, REGULATOR_MODE_ANALRMAL}, /* > 100mA - Active */
+	{-1, -1, REGULATOR_MODE_ANALRMAL},
 };
 
 static unsigned int get_mode(int uA, const struct wm8350_dcdc_efficiency *eff)
@@ -841,7 +841,7 @@ static unsigned int get_mode(int uA, const struct wm8350_dcdc_efficiency *eff)
 			return eff[i].mode;
 		i++;
 	}
-	return REGULATOR_MODE_NORMAL;
+	return REGULATOR_MODE_ANALRMAL;
 }
 
 /* Query the regulator for it's most efficient mode @ uV,uA
@@ -864,7 +864,7 @@ static unsigned int wm8350_dcdc_get_optimum_mode(struct regulator_dev *rdev,
 		mode = get_mode(output_uA, dcdc3_4_efficiency);
 		break;
 	default:
-		mode = REGULATOR_MODE_NORMAL;
+		mode = REGULATOR_MODE_ANALRMAL;
 		break;
 	}
 	return mode;
@@ -1090,11 +1090,11 @@ static irqreturn_t pmic_uv_handler(int irq, void *data)
 	struct regulator_dev *rdev = (struct regulator_dev *)data;
 
 	if (irq == WM8350_IRQ_CS1 || irq == WM8350_IRQ_CS2)
-		regulator_notifier_call_chain(rdev,
+		regulator_analtifier_call_chain(rdev,
 					      REGULATOR_EVENT_REGULATION_OUT,
 					      NULL);
 	else
-		regulator_notifier_call_chain(rdev,
+		regulator_analtifier_call_chain(rdev,
 					      REGULATOR_EVENT_UNDER_VOLTAGE,
 					      NULL);
 
@@ -1110,7 +1110,7 @@ static int wm8350_regulator_probe(struct platform_device *pdev)
 	u16 val;
 
 	if (pdev->id < WM8350_DCDC_1 || pdev->id > WM8350_ISINK_B)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* do any regulator specific init */
 	switch (pdev->id) {
@@ -1179,14 +1179,14 @@ int wm8350_register_regulator(struct wm8350 *wm8350, int reg,
 
 	if (reg >= WM8350_DCDC_1 && reg <= WM8350_DCDC_6 &&
 	    reg > wm8350->pmic.max_dcdc)
-		return -ENODEV;
+		return -EANALDEV;
 	if (reg >= WM8350_ISINK_A && reg <= WM8350_ISINK_B &&
 	    reg > wm8350->pmic.max_isink)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pdev = platform_device_alloc("wm8350-regulator", reg);
 	if (!pdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wm8350->pmic.pdev[reg] = pdev;
 
@@ -1234,7 +1234,7 @@ int wm8350_register_led(struct wm8350 *wm8350, int lednum, int dcdc, int isink,
 
 	if (lednum >= ARRAY_SIZE(wm8350->pmic.led) || lednum < 0) {
 		dev_err(wm8350->dev, "Invalid LED index %d\n", lednum);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	led = &wm8350->pmic.led[lednum];
@@ -1247,7 +1247,7 @@ int wm8350_register_led(struct wm8350 *wm8350, int lednum, int dcdc, int isink,
 	pdev = platform_device_alloc("wm8350-led", lednum);
 	if (pdev == NULL) {
 		dev_err(wm8350->dev, "Failed to allocate LED %d\n", lednum);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	led->isink_consumer.dev_name = dev_name(&pdev->dev);
@@ -1258,7 +1258,7 @@ int wm8350_register_led(struct wm8350 *wm8350, int lednum, int dcdc, int isink,
 	led->isink_init.constraints.max_uA = pdata->max_uA;
 	led->isink_init.constraints.valid_ops_mask
 		= REGULATOR_CHANGE_CURRENT | REGULATOR_CHANGE_STATUS;
-	led->isink_init.constraints.valid_modes_mask = REGULATOR_MODE_NORMAL;
+	led->isink_init.constraints.valid_modes_mask = REGULATOR_MODE_ANALRMAL;
 	ret = wm8350_register_regulator(wm8350, isink, &led->isink_init);
 	if (ret != 0) {
 		platform_device_put(pdev);
@@ -1269,7 +1269,7 @@ int wm8350_register_led(struct wm8350 *wm8350, int lednum, int dcdc, int isink,
 	led->dcdc_consumer.supply = "led_vcc";
 	led->dcdc_init.num_consumer_supplies = 1;
 	led->dcdc_init.consumer_supplies = &led->dcdc_consumer;
-	led->dcdc_init.constraints.valid_modes_mask = REGULATOR_MODE_NORMAL;
+	led->dcdc_init.constraints.valid_modes_mask = REGULATOR_MODE_ANALRMAL;
 	led->dcdc_init.constraints.valid_ops_mask =  REGULATOR_CHANGE_STATUS;
 	ret = wm8350_register_regulator(wm8350, dcdc, &led->dcdc_init);
 	if (ret != 0) {
@@ -1307,7 +1307,7 @@ static struct platform_driver wm8350_regulator_driver = {
 	.remove_new = wm8350_regulator_remove,
 	.driver		= {
 		.name	= "wm8350-regulator",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 };
 

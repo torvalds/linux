@@ -1,7 +1,7 @@
 /*
  * Copyright 2012 Red Hat Inc.
  * Parts based on xf86-video-ast
- * Copyright (c) 2005 ASPEED Technology Inc.
+ * Copyright (c) 2005 ASPEED Techanallogy Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -12,14 +12,14 @@
  * the following conditions:
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -383,7 +383,7 @@ static void ast_set_crtc_reg(struct ast_device *ast,
 	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xAC, 0x00, jregAC);
 	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xAD, 0x00, jregAD);
 
-	// Workaround for HSync Time non octave pixels (1920x1080@60Hz HSync 44 pixels);
+	// Workaround for HSync Time analn octave pixels (1920x1080@60Hz HSync 44 pixels);
 	if (IS_AST_GEN7(ast) && (mode->crtc_vdisplay == 1080))
 		ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xFC, 0xFD, 0x02);
 	else
@@ -608,13 +608,13 @@ static int ast_primary_plane_helper_atomic_check(struct drm_plane *plane,
 		new_crtc_state = drm_atomic_get_new_crtc_state(state, new_plane_state->crtc);
 
 	ret = drm_atomic_helper_check_plane_state(new_plane_state, new_crtc_state,
-						  DRM_PLANE_NO_SCALING,
-						  DRM_PLANE_NO_SCALING,
+						  DRM_PLANE_ANAL_SCALING,
+						  DRM_PLANE_ANAL_SCALING,
 						  false, true);
 	if (ret) {
 		return ret;
 	} else if (!new_plane_state->visible) {
-		if (drm_WARN_ON(dev, new_plane_state->crtc)) /* cannot legally happen */
+		if (drm_WARN_ON(dev, new_plane_state->crtc)) /* cananalt legally happen */
 			return -EINVAL;
 		else
 			return 0;
@@ -684,7 +684,7 @@ static void ast_primary_plane_helper_atomic_enable(struct drm_plane *plane,
 
 	/*
 	 * Some BMCs stop scanning out the video signal after the driver
-	 * reprogrammed the scanout address. This stalls display
+	 * reprogrammed the scaanalut address. This stalls display
 	 * output for several seconds and makes the display unusable.
 	 * Therefore only reprogram the address after enabling the plane.
 	 */
@@ -864,8 +864,8 @@ static int ast_cursor_plane_helper_atomic_check(struct drm_plane *plane,
 		new_crtc_state = drm_atomic_get_new_crtc_state(state, new_plane_state->crtc);
 
 	ret = drm_atomic_helper_check_plane_state(new_plane_state, new_crtc_state,
-						  DRM_PLANE_NO_SCALING,
-						  DRM_PLANE_NO_SCALING,
+						  DRM_PLANE_ANAL_SCALING,
+						  DRM_PLANE_ANAL_SCALING,
 						  true, true);
 	if (ret || !new_plane_state->visible)
 		return ret;
@@ -896,7 +896,7 @@ static void ast_cursor_plane_helper_atomic_update(struct drm_plane *plane,
 	u8 x_offset, y_offset;
 
 	/*
-	 * Do data transfer to hardware buffer and point the scanout
+	 * Do data transfer to hardware buffer and point the scaanalut
 	 * engine to the offset.
 	 */
 
@@ -976,7 +976,7 @@ static int ast_cursor_plane_init(struct ast_device *ast)
 	size = roundup(AST_HWC_SIZE + AST_HWC_SIGNATURE_SIZE, PAGE_SIZE);
 
 	if (ast->vram_fb_available < size)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vaddr = ast->vram + ast->vram_fb_available - size;
 	offset = ast->vram_fb_available - size;
@@ -1078,8 +1078,8 @@ ast_crtc_helper_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode 
 		if ((mode->hdisplay == 1152) && (mode->vdisplay == 864))
 			return MODE_OK;
 
-		if ((ast->chip == AST2100) || // GEN2, but not AST1100 (?)
-		    (ast->chip == AST2200) || // GEN3, but not AST2150 (?)
+		if ((ast->chip == AST2100) || // GEN2, but analt AST1100 (?)
+		    (ast->chip == AST2200) || // GEN3, but analt AST2150 (?)
 		    IS_AST_GEN4(ast) || IS_AST_GEN5(ast) ||
 		    IS_AST_GEN6(ast) || IS_AST_GEN7(ast)) {
 			if ((mode->hdisplay == 1920) && (mode->vdisplay == 1080))
@@ -1088,14 +1088,14 @@ ast_crtc_helper_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode 
 			if ((mode->hdisplay == 1920) && (mode->vdisplay == 1200)) {
 				jtemp = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xd1, 0xff);
 				if (jtemp & 0x01)
-					return MODE_NOMODE;
+					return MODE_ANALMODE;
 				else
 					return MODE_OK;
 			}
 		}
 	}
 
-	status = MODE_NOMODE;
+	status = MODE_ANALMODE;
 
 	switch (mode->hdisplay) {
 	case 640:
@@ -1239,18 +1239,18 @@ static void ast_crtc_helper_atomic_disable(struct drm_crtc *crtc, struct drm_ato
 
 	/*
 	 * HW cursors require the underlying primary plane and CRTC to
-	 * display a valid mode and image. This is not the case during
+	 * display a valid mode and image. This is analt the case during
 	 * full modeset operations. So we temporarily disable any active
 	 * plane, including the HW cursor. Each plane's atomic_update()
 	 * helper will re-enable it if necessary.
 	 *
-	 * We only do this during *full* modesets. It does not affect
+	 * We only do this during *full* modesets. It does analt affect
 	 * simple pageflips on the planes.
 	 */
 	drm_atomic_helper_disable_planes_on_crtc(old_crtc_state, false);
 
 	/*
-	 * Ensure that no scanout takes place before reprogramming mode
+	 * Ensure that anal scaanalut takes place before reprogramming mode
 	 * and format registers.
 	 */
 	ast_wait_for_vretrace(ast);
@@ -1775,10 +1775,10 @@ static int ast_bmc_connector_helper_detect_ctx(struct drm_connector *connector,
 	struct drm_connector *physical_connector = bmc_connector->physical_connector;
 
 	/*
-	 * Most user-space compositors cannot handle more than one connected
+	 * Most user-space compositors cananalt handle more than one connected
 	 * connector per CRTC. Hence, we only mark the BMC as connected if the
 	 * physical connector is disconnected. If the physical connector's status
-	 * is connected or unknown, the BMC remains disconnected. This has no
+	 * is connected or unkanalwn, the BMC remains disconnected. This has anal
 	 * effect on the output of the BMC.
 	 *
 	 * FIXME: Remove this logic once user-space compositors can handle more
@@ -1793,7 +1793,7 @@ static int ast_bmc_connector_helper_detect_ctx(struct drm_connector *connector,
 
 static int ast_bmc_connector_helper_get_modes(struct drm_connector *connector)
 {
-	return drm_add_modes_noedid(connector, 4096, 4096);
+	return drm_add_modes_analedid(connector, 4096, 4096);
 }
 
 static const struct drm_connector_helper_funcs ast_bmc_connector_helper_funcs = {
@@ -1923,8 +1923,8 @@ int ast_mode_config_init(struct ast_device *ast)
 	dev->mode_config.min_height = 0;
 	dev->mode_config.preferred_depth = 24;
 
-	if (ast->chip == AST2100 || // GEN2, but not AST1100 (?)
-	    ast->chip == AST2200 || // GEN3, but not AST2150 (?)
+	if (ast->chip == AST2100 || // GEN2, but analt AST1100 (?)
+	    ast->chip == AST2200 || // GEN3, but analt AST2150 (?)
 	    IS_AST_GEN7(ast) ||
 	    IS_AST_GEN6(ast) ||
 	    IS_AST_GEN5(ast) ||
@@ -1948,7 +1948,7 @@ int ast_mode_config_init(struct ast_device *ast)
 
 	ast_crtc_init(dev);
 
-	if (ast->tx_chip_types & AST_TX_NONE_BIT) {
+	if (ast->tx_chip_types & AST_TX_ANALNE_BIT) {
 		ret = ast_vga_output_init(ast);
 		if (ret)
 			return ret;

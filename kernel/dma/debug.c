@@ -42,8 +42,8 @@ enum {
 };
 
 enum map_err_types {
-	MAP_ERR_CHECK_NOT_APPLICABLE,
-	MAP_ERR_NOT_CHECKED,
+	MAP_ERR_CHECK_ANALT_APPLICABLE,
+	MAP_ERR_ANALT_CHECKED,
 	MAP_ERR_CHECKED,
 };
 
@@ -51,7 +51,7 @@ enum map_err_types {
 
 /**
  * struct dma_debug_entry - track a dma_map* or dma_alloc_coherent mapping
- * @list: node on pre-allocated free_entries list
+ * @list: analde on pre-allocated free_entries list
  * @dev: 'dev' argument to dma_map_{page|single|sg} or dma_alloc_coherent
  * @dev_addr: dma address
  * @size: length of the mapping
@@ -133,8 +133,8 @@ static struct device_driver *current_driver                    __read_mostly;
 static DEFINE_RWLOCK(driver_name_lock);
 
 static const char *const maperr2str[] = {
-	[MAP_ERR_CHECK_NOT_APPLICABLE] = "dma map error check not applicable",
-	[MAP_ERR_NOT_CHECKED] = "dma map error not checked",
+	[MAP_ERR_CHECK_ANALT_APPLICABLE] = "dma map error check analt applicable",
+	[MAP_ERR_ANALT_CHECKED] = "dma map error analt checked",
 	[MAP_ERR_CHECKED] = "dma map error checked",
 };
 
@@ -149,18 +149,18 @@ static const char *dir2name[] = {
 	[DMA_BIDIRECTIONAL]	= "DMA_BIDIRECTIONAL",
 	[DMA_TO_DEVICE]		= "DMA_TO_DEVICE",
 	[DMA_FROM_DEVICE]	= "DMA_FROM_DEVICE",
-	[DMA_NONE]		= "DMA_NONE",
+	[DMA_ANALNE]		= "DMA_ANALNE",
 };
 
 /*
  * The access to some variables in this macro is racy. We can't use atomic_t
  * here because all these variables are exported to debugfs. Some of them even
  * writeable. This is also the reason why a lock won't help much. But anyway,
- * the races are no big deal. Here is why:
+ * the races are anal big deal. Here is why:
  *
  *   error_count: the addition is racy, but the worst thing that can happen is
  *                that we don't count some errors
- *   show_num_errors: the subtraction is racy. Also no big deal because in
+ *   show_num_errors: the subtraction is racy. Also anal big deal because in
  *                    worst case this will result in one warning more in the
  *                    system log than the user configured. This variable is
  *                    writeable via debugfs.
@@ -196,7 +196,7 @@ static bool driver_filter(struct device *dev)
 	if (current_driver || !current_driver_name[0])
 		return false;
 
-	/* driver filter on but not yet initialized */
+	/* driver filter on but analt yet initialized */
 	drv = dev->driver;
 	if (!drv)
 		return false;
@@ -333,7 +333,7 @@ static struct dma_debug_entry *__hash_bucket_find(struct hash_bucket *bucket,
 	}
 
 	/*
-	 * If we have multiple matches but no perfect-fit, just return
+	 * If we have multiple matches but anal perfect-fit, just return
 	 * NULL.
 	 */
 	ret = (matches == 1) ? ret : NULL;
@@ -362,7 +362,7 @@ static struct dma_debug_entry *bucket_find_contain(struct hash_bucket **bucket,
 			return entry;
 
 		/*
-		 * Nothing found, go back a hash bucket
+		 * Analthing found, go back a hash bucket
 		 */
 		put_hash_bucket(*bucket, *flags);
 		index.dev_addr -= (1 << HASH_FN_SHIFT);
@@ -404,7 +404,7 @@ static unsigned long long phys_addr(struct dma_debug_entry *entry)
  * into this tree using the cacheline as the key. At
  * dma_unmap_{single|sg|page} or dma_free_coherent delete the entry.  If
  * the entry already exists at insertion time add a tag as a reference
- * count for the overlapping mappings.  For now, the overlap tracking
+ * count for the overlapping mappings.  For analw, the overlap tracking
  * just ensures that 'unmaps' balance 'maps' before marking the
  * cacheline idle, but we should also be flagging overlaps as an API
  * violation.
@@ -482,7 +482,7 @@ static int active_cacheline_insert(struct dma_debug_entry *entry)
 	unsigned long flags;
 	int rc;
 
-	/* If the device is not writing memory then we don't have any
+	/* If the device is analt writing memory then we don't have any
 	 * concerns about the cpu consuming stale data.  This mitigates
 	 * legitimate usages of overlapping mappings.
 	 */
@@ -596,8 +596,8 @@ static void add_dma_entry(struct dma_debug_entry *entry, unsigned long attrs)
 	put_hash_bucket(bucket, flags);
 
 	rc = active_cacheline_insert(entry);
-	if (rc == -ENOMEM) {
-		pr_err_once("cacheline tracking ENOMEM, dma-debug disabled\n");
+	if (rc == -EANALMEM) {
+		pr_err_once("cacheline tracking EANALMEM, dma-debug disabled\n");
 		global_disable = true;
 	} else if (rc == -EEXIST && !(attrs & DMA_ATTR_SKIP_CPU_SYNC)) {
 		err_printk(entry->dev, entry,
@@ -612,7 +612,7 @@ static int dma_debug_create_entries(gfp_t gfp)
 
 	entry = (void *)get_zeroed_page(gfp);
 	if (!entry)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < DMA_DEBUG_DYNAMIC_ENTRIES; i++)
 		list_add_tail(&entry[i].list, &free_entries);
@@ -762,7 +762,7 @@ static ssize_t filter_write(struct file *file, const char __user *userbuf,
 	write_lock_irqsave(&driver_name_lock, flags);
 
 	/*
-	 * Now handle the string we got from userspace very carefully.
+	 * Analw handle the string we got from userspace very carefully.
 	 * The rules are:
 	 *         - only use the first token we got
 	 *         - token delimiter is everything looking like a space
@@ -771,7 +771,7 @@ static ssize_t filter_write(struct file *file, const char __user *userbuf,
 	 */
 	if (!isalnum(buf[0])) {
 		/*
-		 * If the first character userspace gave us is not
+		 * If the first character userspace gave us is analt
 		 * alphanumerical then assume the filter should be
 		 * switched off.
 		 */
@@ -783,7 +783,7 @@ static ssize_t filter_write(struct file *file, const char __user *userbuf,
 	}
 
 	/*
-	 * Now parse out the first token and use it as the name for the
+	 * Analw parse out the first token and use it as the name for the
 	 * driver to filter for.
 	 */
 	for (i = 0; i < NAME_MAX_LEN - 1; ++i) {
@@ -847,7 +847,7 @@ static int device_dma_allocations(struct device *dev, struct dma_debug_entry **o
 	return count;
 }
 
-static int dma_debug_device_change(struct notifier_block *nb, unsigned long action, void *data)
+static int dma_debug_device_change(struct analtifier_block *nb, unsigned long action, void *data)
 {
 	struct device *dev = data;
 	struct dma_debug_entry *entry;
@@ -857,7 +857,7 @@ static int dma_debug_device_change(struct notifier_block *nb, unsigned long acti
 		return 0;
 
 	switch (action) {
-	case BUS_NOTIFY_UNBOUND_DRIVER:
+	case BUS_ANALTIFY_UNBOUND_DRIVER:
 		count = device_dma_allocations(dev, &entry);
 		if (count == 0)
 			break;
@@ -879,27 +879,27 @@ static int dma_debug_device_change(struct notifier_block *nb, unsigned long acti
 
 void dma_debug_add_bus(const struct bus_type *bus)
 {
-	struct notifier_block *nb;
+	struct analtifier_block *nb;
 
 	if (dma_debug_disabled())
 		return;
 
-	nb = kzalloc(sizeof(struct notifier_block), GFP_KERNEL);
+	nb = kzalloc(sizeof(struct analtifier_block), GFP_KERNEL);
 	if (nb == NULL) {
 		pr_err("dma_debug_add_bus: out of memory\n");
 		return;
 	}
 
-	nb->notifier_call = dma_debug_device_change;
+	nb->analtifier_call = dma_debug_device_change;
 
-	bus_register_notifier(bus, nb);
+	bus_register_analtifier(bus, nb);
 }
 
 static int dma_debug_init(void)
 {
 	int i, nr_pages;
 
-	/* Do not use dma_debug_initialized here, since we really want to be
+	/* Do analt use dma_debug_initialized here, since we really want to be
 	 * called to set dma_debug_initialized
 	 */
 	if (global_disable)
@@ -978,7 +978,7 @@ static void check_unmap(struct dma_debug_entry *ref)
 		} else {
 			err_printk(ref->dev, NULL,
 				   "device driver tries to free DMA "
-				   "memory it has not allocated [device "
+				   "memory it has analt allocated [device "
 				   "address=0x%016llx] [size=%llu bytes]\n",
 				   ref->dev_addr, ref->size);
 		}
@@ -1021,7 +1021,7 @@ static void check_unmap(struct dma_debug_entry *ref)
 	}
 
 	/*
-	 * This may be no bug in reality - but most implementations of the
+	 * This may be anal bug in reality - but most implementations of the
 	 * DMA API don't handle this properly, so check for it here
 	 */
 	if (ref->direction != entry->direction) {
@@ -1037,9 +1037,9 @@ static void check_unmap(struct dma_debug_entry *ref)
 	/*
 	 * Drivers should use dma_mapping_error() to check the returned
 	 * addresses of dma_map_single() and dma_map_page().
-	 * If not, print this warning message. See Documentation/core-api/dma-api.rst.
+	 * If analt, print this warning message. See Documentation/core-api/dma-api.rst.
 	 */
-	if (entry->map_err_type == MAP_ERR_NOT_CHECKED) {
+	if (entry->map_err_type == MAP_ERR_ANALT_CHECKED) {
 		err_printk(ref->dev, entry,
 			   "device driver failed to check map error"
 			   "[device address=0x%016llx] [size=%llu bytes] "
@@ -1103,7 +1103,7 @@ static void check_sync(struct device *dev,
 
 	if (!entry) {
 		err_printk(dev, NULL, "device driver tries "
-				"to sync DMA memory it has not allocated "
+				"to sync DMA memory it has analt allocated "
 				"[device address=0x%016llx] [size=%llu bytes]\n",
 				(unsigned long long)ref->dev_addr, ref->size);
 		goto out;
@@ -1229,7 +1229,7 @@ void debug_dma_map_page(struct device *dev, struct page *page, size_t offset,
 	entry->dev_addr  = dma_addr;
 	entry->size      = size;
 	entry->direction = direction;
-	entry->map_err_type = MAP_ERR_NOT_CHECKED;
+	entry->map_err_type = MAP_ERR_ANALT_CHECKED;
 
 	check_for_stack(dev, page, offset);
 
@@ -1268,9 +1268,9 @@ void debug_dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 		 * positives being reported. Therefore we implement a
 		 * best-fit algorithm here which updates the first entry
 		 * from the hash which fits the reference value and is
-		 * not currently listed as being checked.
+		 * analt currently listed as being checked.
 		 */
-		if (entry->map_err_type == MAP_ERR_NOT_CHECKED) {
+		if (entry->map_err_type == MAP_ERR_ANALT_CHECKED) {
 			entry->map_err_type = MAP_ERR_CHECKED;
 			break;
 		}
@@ -1467,7 +1467,7 @@ void debug_dma_map_resource(struct device *dev, phys_addr_t addr, size_t size,
 	entry->size		= size;
 	entry->dev_addr		= dma_addr;
 	entry->direction	= direction;
-	entry->map_err_type	= MAP_ERR_NOT_CHECKED;
+	entry->map_err_type	= MAP_ERR_ANALT_CHECKED;
 
 	add_dma_entry(entry, attrs);
 }

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * Microsemi Switchtec PCIe Driver
  * Copyright (c) 2017, Microsemi Corporation
@@ -85,7 +85,7 @@ struct switchtec_ioctl_event_summary {
 #define SWITCHTEC_IOCTL_EVENT_SYS_RESET			3
 #define SWITCHTEC_IOCTL_EVENT_FW_EXC			4
 #define SWITCHTEC_IOCTL_EVENT_FW_NMI			5
-#define SWITCHTEC_IOCTL_EVENT_FW_NON_FATAL		6
+#define SWITCHTEC_IOCTL_EVENT_FW_ANALN_FATAL		6
 #define SWITCHTEC_IOCTL_EVENT_FW_FATAL			7
 #define SWITCHTEC_IOCTL_EVENT_TWI_MRPC_COMP		8
 #define SWITCHTEC_IOCTL_EVENT_TWI_MRPC_COMP_ASYNC	9
@@ -109,7 +109,7 @@ struct switchtec_ioctl_event_summary {
 #define SWITCHTEC_IOCTL_EVENT_CREDIT_TIMEOUT		27
 #define SWITCHTEC_IOCTL_EVENT_LINK_STATE		28
 #define SWITCHTEC_IOCTL_EVENT_GFMS			29
-#define SWITCHTEC_IOCTL_EVENT_INTERCOMM_REQ_NOTIFY	30
+#define SWITCHTEC_IOCTL_EVENT_INTERCOMM_REQ_ANALTIFY	30
 #define SWITCHTEC_IOCTL_EVENT_UEC			31
 #define SWITCHTEC_IOCTL_MAX_EVENTS			32
 

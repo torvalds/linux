@@ -8,7 +8,7 @@
 
 #include <linux/limits.h>
 #include <linux/cgroup.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/atomic.h>
 #include <linux/slab.h>
 #include <linux/misc_cgroup.h>
@@ -31,7 +31,7 @@ static struct misc_cg root_cg;
 
 /*
  * Miscellaneous resources capacity for the entire machine. 0 capacity means
- * resource is not initialized or not present in the host.
+ * resource is analt initialized or analt present in the host.
  *
  * root_cg.max and capacity are independent of each other. root_cg.max can be
  * more than the actual capacity. We are using Limits resource distribution
@@ -46,7 +46,7 @@ static u64 misc_res_capacity[MISC_CG_RES_TYPES];
  * Context: Any context.
  * Return:
  * * struct misc_cg* - Parent of the @cgroup.
- * * %NULL - If @cgroup is null or the passed cgroup does not have a parent.
+ * * %NULL - If @cgroup is null or the passed cgroup does analt have a parent.
  */
 static struct misc_cg *parent_misc(struct misc_cg *cgroup)
 {
@@ -54,13 +54,13 @@ static struct misc_cg *parent_misc(struct misc_cg *cgroup)
 }
 
 /**
- * valid_type() - Check if @type is valid or not.
+ * valid_type() - Check if @type is valid or analt.
  * @type: misc res type.
  *
  * Context: Any context.
  * Return:
  * * true - If valid type.
- * * false - If not valid type.
+ * * false - If analt valid type.
  */
 static inline bool valid_type(enum misc_res_type type)
 {
@@ -165,7 +165,7 @@ int misc_cg_try_charge(enum misc_res_type type, struct misc_cg *cg, u64 amount)
 err_charge:
 	for (j = i; j; j = parent_misc(j)) {
 		atomic64_inc(&j->res[type].events);
-		cgroup_file_notify(&j->events_file);
+		cgroup_file_analtify(&j->events_file);
 	}
 
 	for (j = cg; j != i; j = parent_misc(j))
@@ -201,7 +201,7 @@ EXPORT_SYMBOL_GPL(misc_cg_uncharge);
  * @v: Arguments passed
  *
  * Context: Any context.
- * Return: 0 to denote successful print.
+ * Return: 0 to deanalte successful print.
  */
 static int misc_cg_max_show(struct seq_file *sf, void *v)
 {
@@ -238,7 +238,7 @@ static int misc_cg_max_show(struct seq_file *sf, void *v)
  * Context: Any context.
  * Return:
  * * >= 0 - Number of bytes processed in the input.
- * * -EINVAL - If buf is not valid.
+ * * -EINVAL - If buf is analt valid.
  * * -ERANGE - If number is bigger than the u64 capacity.
  */
 static ssize_t misc_cg_max_write(struct kernfs_open_file *of, char *buf,
@@ -290,7 +290,7 @@ static ssize_t misc_cg_max_write(struct kernfs_open_file *of, char *buf,
  * @v: Arguments passed
  *
  * Context: Any context.
- * Return: 0 to denote successful print.
+ * Return: 0 to deanalte successful print.
  */
 static int misc_cg_current_show(struct seq_file *sf, void *v)
 {
@@ -315,7 +315,7 @@ static int misc_cg_current_show(struct seq_file *sf, void *v)
  * Only present in the root cgroup directory.
  *
  * Context: Any context.
- * Return: 0 to denote successful print.
+ * Return: 0 to deanalte successful print.
  */
 static int misc_cg_capacity_show(struct seq_file *sf, void *v)
 {
@@ -351,7 +351,7 @@ static struct cftype misc_cg_files[] = {
 		.name = "max",
 		.write = misc_cg_max_write,
 		.seq_show = misc_cg_max_show,
-		.flags = CFTYPE_NOT_ON_ROOT,
+		.flags = CFTYPE_ANALT_ON_ROOT,
 	},
 	{
 		.name = "current",
@@ -364,7 +364,7 @@ static struct cftype misc_cg_files[] = {
 	},
 	{
 		.name = "events",
-		.flags = CFTYPE_NOT_ON_ROOT,
+		.flags = CFTYPE_ANALT_ON_ROOT,
 		.file_offset = offsetof(struct misc_cg, events_file),
 		.seq_show = misc_events_show,
 	},
@@ -378,7 +378,7 @@ static struct cftype misc_cg_files[] = {
  * Context: Process context.
  * Return:
  * * struct cgroup_subsys_state* - css of the allocated cgroup.
- * * ERR_PTR(-ENOMEM) - No memory available to allocate.
+ * * ERR_PTR(-EANALMEM) - Anal memory available to allocate.
  */
 static struct cgroup_subsys_state *
 misc_cg_alloc(struct cgroup_subsys_state *parent_css)
@@ -391,7 +391,7 @@ misc_cg_alloc(struct cgroup_subsys_state *parent_css)
 	} else {
 		cg = kzalloc(sizeof(*cg), GFP_KERNEL);
 		if (!cg)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 	}
 
 	for (i = 0; i < MISC_CG_RES_TYPES; i++) {

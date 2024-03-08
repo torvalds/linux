@@ -7,7 +7,7 @@
 
 /************************************
  ** This is an auto-generated file **
- **       DO NOT EDIT BELOW        **
+ **       DO ANALT EDIT BELOW        **
  ************************************/
 
 #ifndef ASIC_REG_MME0_QM_MASKS_H_
@@ -91,27 +91,27 @@
 #define MME0_QM_GLBL_SECURE_PROPS_4_MMBP_SHIFT                       10
 #define MME0_QM_GLBL_SECURE_PROPS_4_MMBP_MASK                        0x400
 
-/* MME0_QM_GLBL_NON_SECURE_PROPS */
-#define MME0_QM_GLBL_NON_SECURE_PROPS_0_ASID_SHIFT                   0
-#define MME0_QM_GLBL_NON_SECURE_PROPS_0_ASID_MASK                    0x3FF
-#define MME0_QM_GLBL_NON_SECURE_PROPS_1_ASID_SHIFT                   0
-#define MME0_QM_GLBL_NON_SECURE_PROPS_1_ASID_MASK                    0x3FF
-#define MME0_QM_GLBL_NON_SECURE_PROPS_2_ASID_SHIFT                   0
-#define MME0_QM_GLBL_NON_SECURE_PROPS_2_ASID_MASK                    0x3FF
-#define MME0_QM_GLBL_NON_SECURE_PROPS_3_ASID_SHIFT                   0
-#define MME0_QM_GLBL_NON_SECURE_PROPS_3_ASID_MASK                    0x3FF
-#define MME0_QM_GLBL_NON_SECURE_PROPS_4_ASID_SHIFT                   0
-#define MME0_QM_GLBL_NON_SECURE_PROPS_4_ASID_MASK                    0x3FF
-#define MME0_QM_GLBL_NON_SECURE_PROPS_0_MMBP_SHIFT                   10
-#define MME0_QM_GLBL_NON_SECURE_PROPS_0_MMBP_MASK                    0x400
-#define MME0_QM_GLBL_NON_SECURE_PROPS_1_MMBP_SHIFT                   10
-#define MME0_QM_GLBL_NON_SECURE_PROPS_1_MMBP_MASK                    0x400
-#define MME0_QM_GLBL_NON_SECURE_PROPS_2_MMBP_SHIFT                   10
-#define MME0_QM_GLBL_NON_SECURE_PROPS_2_MMBP_MASK                    0x400
-#define MME0_QM_GLBL_NON_SECURE_PROPS_3_MMBP_SHIFT                   10
-#define MME0_QM_GLBL_NON_SECURE_PROPS_3_MMBP_MASK                    0x400
-#define MME0_QM_GLBL_NON_SECURE_PROPS_4_MMBP_SHIFT                   10
-#define MME0_QM_GLBL_NON_SECURE_PROPS_4_MMBP_MASK                    0x400
+/* MME0_QM_GLBL_ANALN_SECURE_PROPS */
+#define MME0_QM_GLBL_ANALN_SECURE_PROPS_0_ASID_SHIFT                   0
+#define MME0_QM_GLBL_ANALN_SECURE_PROPS_0_ASID_MASK                    0x3FF
+#define MME0_QM_GLBL_ANALN_SECURE_PROPS_1_ASID_SHIFT                   0
+#define MME0_QM_GLBL_ANALN_SECURE_PROPS_1_ASID_MASK                    0x3FF
+#define MME0_QM_GLBL_ANALN_SECURE_PROPS_2_ASID_SHIFT                   0
+#define MME0_QM_GLBL_ANALN_SECURE_PROPS_2_ASID_MASK                    0x3FF
+#define MME0_QM_GLBL_ANALN_SECURE_PROPS_3_ASID_SHIFT                   0
+#define MME0_QM_GLBL_ANALN_SECURE_PROPS_3_ASID_MASK                    0x3FF
+#define MME0_QM_GLBL_ANALN_SECURE_PROPS_4_ASID_SHIFT                   0
+#define MME0_QM_GLBL_ANALN_SECURE_PROPS_4_ASID_MASK                    0x3FF
+#define MME0_QM_GLBL_ANALN_SECURE_PROPS_0_MMBP_SHIFT                   10
+#define MME0_QM_GLBL_ANALN_SECURE_PROPS_0_MMBP_MASK                    0x400
+#define MME0_QM_GLBL_ANALN_SECURE_PROPS_1_MMBP_SHIFT                   10
+#define MME0_QM_GLBL_ANALN_SECURE_PROPS_1_MMBP_MASK                    0x400
+#define MME0_QM_GLBL_ANALN_SECURE_PROPS_2_MMBP_SHIFT                   10
+#define MME0_QM_GLBL_ANALN_SECURE_PROPS_2_MMBP_MASK                    0x400
+#define MME0_QM_GLBL_ANALN_SECURE_PROPS_3_MMBP_SHIFT                   10
+#define MME0_QM_GLBL_ANALN_SECURE_PROPS_3_MMBP_MASK                    0x400
+#define MME0_QM_GLBL_ANALN_SECURE_PROPS_4_MMBP_SHIFT                   10
+#define MME0_QM_GLBL_ANALN_SECURE_PROPS_4_MMBP_MASK                    0x400
 
 /* MME0_QM_GLBL_STS0 */
 #define MME0_QM_GLBL_STS0_PQF_IDLE_SHIFT                             0
@@ -550,10 +550,10 @@
 /* MME0_QM_CP_DBG_0 */
 #define MME0_QM_CP_DBG_0_CS_SHIFT                                    0
 #define MME0_QM_CP_DBG_0_CS_MASK                                     0xF
-#define MME0_QM_CP_DBG_0_EB_CNT_NOT_ZERO_SHIFT                       4
-#define MME0_QM_CP_DBG_0_EB_CNT_NOT_ZERO_MASK                        0x10
-#define MME0_QM_CP_DBG_0_BULK_CNT_NOT_ZERO_SHIFT                     5
-#define MME0_QM_CP_DBG_0_BULK_CNT_NOT_ZERO_MASK                      0x20
+#define MME0_QM_CP_DBG_0_EB_CNT_ANALT_ZERO_SHIFT                       4
+#define MME0_QM_CP_DBG_0_EB_CNT_ANALT_ZERO_MASK                        0x10
+#define MME0_QM_CP_DBG_0_BULK_CNT_ANALT_ZERO_SHIFT                     5
+#define MME0_QM_CP_DBG_0_BULK_CNT_ANALT_ZERO_MASK                      0x20
 #define MME0_QM_CP_DBG_0_MREB_STALL_SHIFT                            6
 #define MME0_QM_CP_DBG_0_MREB_STALL_MASK                             0x40
 #define MME0_QM_CP_DBG_0_STALL_SHIFT                                 7
@@ -576,8 +576,8 @@
 #define MME0_QM_ARB_CFG_0_EN_MASK                                    0x100
 #define MME0_QM_ARB_CFG_0_MASK_SHIFT                                 12
 #define MME0_QM_ARB_CFG_0_MASK_MASK                                  0xF000
-#define MME0_QM_ARB_CFG_0_MST_MSG_NOSTALL_SHIFT                      16
-#define MME0_QM_ARB_CFG_0_MST_MSG_NOSTALL_MASK                       0x10000
+#define MME0_QM_ARB_CFG_0_MST_MSG_ANALSTALL_SHIFT                      16
+#define MME0_QM_ARB_CFG_0_MST_MSG_ANALSTALL_MASK                       0x10000
 
 /* MME0_QM_ARB_CHOISE_Q_PUSH */
 #define MME0_QM_ARB_CHOISE_Q_PUSH_VAL_SHIFT                          0
@@ -637,11 +637,11 @@
 #define MME0_QM_ARB_MSG_AWUSER_SEC_PROP_MMBP_SHIFT                   10
 #define MME0_QM_ARB_MSG_AWUSER_SEC_PROP_MMBP_MASK                    0x400
 
-/* MME0_QM_ARB_MSG_AWUSER_NON_SEC_PROP */
-#define MME0_QM_ARB_MSG_AWUSER_NON_SEC_PROP_ASID_SHIFT               0
-#define MME0_QM_ARB_MSG_AWUSER_NON_SEC_PROP_ASID_MASK                0x3FF
-#define MME0_QM_ARB_MSG_AWUSER_NON_SEC_PROP_MMBP_SHIFT               10
-#define MME0_QM_ARB_MSG_AWUSER_NON_SEC_PROP_MMBP_MASK                0x400
+/* MME0_QM_ARB_MSG_AWUSER_ANALN_SEC_PROP */
+#define MME0_QM_ARB_MSG_AWUSER_ANALN_SEC_PROP_ASID_SHIFT               0
+#define MME0_QM_ARB_MSG_AWUSER_ANALN_SEC_PROP_ASID_MASK                0x3FF
+#define MME0_QM_ARB_MSG_AWUSER_ANALN_SEC_PROP_MMBP_SHIFT               10
+#define MME0_QM_ARB_MSG_AWUSER_ANALN_SEC_PROP_MMBP_MASK                0x400
 
 /* MME0_QM_ARB_BASE_LO */
 #define MME0_QM_ARB_BASE_LO_VAL_SHIFT                                0
@@ -662,8 +662,8 @@
 /* MME0_QM_ARB_MSG_STS */
 #define MME0_QM_ARB_MSG_STS_FULL_SHIFT                               0
 #define MME0_QM_ARB_MSG_STS_FULL_MASK                                0x1
-#define MME0_QM_ARB_MSG_STS_NO_INFLIGHT_SHIFT                        1
-#define MME0_QM_ARB_MSG_STS_NO_INFLIGHT_MASK                         0x2
+#define MME0_QM_ARB_MSG_STS_ANAL_INFLIGHT_SHIFT                        1
+#define MME0_QM_ARB_MSG_STS_ANAL_INFLIGHT_MASK                         0x2
 
 /* MME0_QM_ARB_SLV_CHOISE_Q_HEAD */
 #define MME0_QM_ARB_SLV_CHOISE_Q_HEAD_VAL_SHIFT                      0

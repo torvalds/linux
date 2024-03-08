@@ -24,7 +24,7 @@ int ipc_coredump_collect(struct iosm_devlink *devlink, u8 **data, int entry,
 
 	data_ptr = vmalloc(region_size);
 	if (!data_ptr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	remaining = devlink->cd_file_info[entry].actual_size;
 	ret = ipc_devlink_send_cmd(devlink, rpsi_cmd_coredump_get, entry);
@@ -71,7 +71,7 @@ int ipc_coredump_get_list(struct iosm_devlink *devlink, u16 cmd)
 
 	cd_table = kzalloc(MAX_CD_LIST_SIZE, GFP_KERNEL);
 	if (!cd_table) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto  cd_init_fail;
 	}
 
@@ -93,7 +93,7 @@ int ipc_coredump_get_list(struct iosm_devlink *devlink, u16 cmd)
 
 	if (cmd == rpsi_cmd_coredump_start) {
 		num_entries = le32_to_cpu(cd_table->list.num_entries);
-		if (num_entries == 0 || num_entries > IOSM_NOF_CD_REGION) {
+		if (num_entries == 0 || num_entries > IOSM_ANALF_CD_REGION) {
 			ret = -EINVAL;
 			goto cd_init_fail;
 		}
@@ -110,11 +110,11 @@ int ipc_coredump_get_list(struct iosm_devlink *devlink, u16 cmd)
 			devlink->cd_file_info[i].actual_size = file_size;
 			dev_dbg(devlink->dev, "file: %s actual size %d",
 				filename, file_size);
-			devlink_flash_update_status_notify(devlink->devlink_ctx,
+			devlink_flash_update_status_analtify(devlink->devlink_ctx,
 							   filename,
 							   "FILENAME", 0, 0);
 			snprintf(size, sizeof(size), "%d", file_size);
-			devlink_flash_update_status_notify(devlink->devlink_ctx,
+			devlink_flash_update_status_analtify(devlink->devlink_ctx,
 							   size, "FILE SIZE",
 							   0, 0);
 		}

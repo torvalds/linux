@@ -15,7 +15,7 @@
 #define PCANFD_ECHO_SKB_MAX		24
 
 /* bittiming ranges of the PEAK-System PC CAN-FD interfaces */
-static const struct can_bittiming_const peak_canfd_nominal_const = {
+static const struct can_bittiming_const peak_canfd_analminal_const = {
 	.name = "peak_canfd",
 	.tseg1_min = 1,
 	.tseg1_max = (1 << PUCAN_TSLOW_TSGEG1_BITS),
@@ -90,11 +90,11 @@ static int pucan_set_reset_mode(struct peak_canfd_priv *priv)
 	return pucan_write_cmd(priv);
 }
 
-static int pucan_set_normal_mode(struct peak_canfd_priv *priv)
+static int pucan_set_analrmal_mode(struct peak_canfd_priv *priv)
 {
 	int err;
 
-	pucan_add_cmd(pucan_init_cmd(priv), PUCAN_CMD_NORMAL_MODE);
+	pucan_add_cmd(pucan_init_cmd(priv), PUCAN_CMD_ANALRMAL_MODE);
 	err = pucan_write_cmd(priv);
 	if (!err)
 		priv->can.state = CAN_STATE_ERROR_ACTIVE;
@@ -131,7 +131,7 @@ static int pucan_set_timing_slow(struct peak_canfd_priv *priv,
 	cmd->ewl = 96;	/* default */
 
 	netdev_dbg(priv->ndev,
-		   "nominal: brp=%u tseg1=%u tseg2=%u sjw=%u\n",
+		   "analminal: brp=%u tseg1=%u tseg2=%u sjw=%u\n",
 		   le16_to_cpu(cmd->brp), cmd->tseg1, cmd->tseg2, cmd->sjw_t);
 
 	return pucan_write_cmd(priv);
@@ -290,7 +290,7 @@ static int pucan_handle_can_rx(struct peak_canfd_priv *priv,
 		/* CANFD frame case */
 		skb = alloc_canfd_skb(priv->ndev, &cf);
 		if (!skb)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		if (rx_msg_flags & PUCAN_MSG_BITRATE_SWITCH)
 			cf->flags |= CANFD_BRS;
@@ -301,7 +301,7 @@ static int pucan_handle_can_rx(struct peak_canfd_priv *priv,
 		/* CAN 2.0 frame case */
 		skb = alloc_can_skb(priv->ndev, (struct can_frame **)&cf);
 		if (!skb)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	cf->can_id = le32_to_cpu(msg->can_id);
@@ -324,7 +324,7 @@ static int pucan_handle_can_rx(struct peak_canfd_priv *priv,
 	return 0;
 }
 
-/* handle rx/tx error counters notification */
+/* handle rx/tx error counters analtification */
 static int pucan_handle_error(struct peak_canfd_priv *priv,
 			      struct pucan_error_msg *msg)
 {
@@ -334,7 +334,7 @@ static int pucan_handle_error(struct peak_canfd_priv *priv,
 	return 0;
 }
 
-/* handle status notification */
+/* handle status analtification */
 static int pucan_handle_status(struct peak_canfd_priv *priv,
 			       struct pucan_status_msg *msg)
 {
@@ -407,7 +407,7 @@ static int pucan_handle_status(struct peak_canfd_priv *priv,
 
 	if (!skb) {
 		stats->rx_dropped++;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	pucan_netif_rx(skb, msg->ts_low, msg->ts_high);
@@ -415,7 +415,7 @@ static int pucan_handle_status(struct peak_canfd_priv *priv,
 	return 0;
 }
 
-/* handle uCAN Rx overflow notification */
+/* handle uCAN Rx overflow analtification */
 static int pucan_handle_cache_critical(struct peak_canfd_priv *priv)
 {
 	struct net_device_stats *stats = &priv->ndev->stats;
@@ -428,7 +428,7 @@ static int pucan_handle_cache_critical(struct peak_canfd_priv *priv)
 	skb = alloc_can_err_skb(priv->ndev, &cf);
 	if (!skb) {
 		stats->rx_dropped++;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	cf->can_id |= CAN_ERR_CRTL | CAN_ERR_CNT;
@@ -515,10 +515,10 @@ static int peak_canfd_start(struct peak_canfd_priv *priv)
 	priv->bec.txerr = 0;
 	priv->bec.rxerr = 0;
 
-	if (priv->can.ctrlmode & CAN_CTRLMODE_LISTENONLY)
+	if (priv->can.ctrlmode & CAN_CTRLMODE_LISTEANALNLY)
 		err = pucan_set_listen_only_mode(priv);
 	else
-		err = pucan_set_normal_mode(priv);
+		err = pucan_set_analrmal_mode(priv);
 
 err_exit:
 	return err;
@@ -549,7 +549,7 @@ static int peak_canfd_set_mode(struct net_device *ndev, enum can_mode mode)
 		netif_wake_queue(ndev);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -580,7 +580,7 @@ static int peak_canfd_open(struct net_device *ndev)
 		goto err_close;
 
 	if (priv->can.ctrlmode & CAN_CTRLMODE_FD) {
-		if (priv->can.ctrlmode & CAN_CTRLMODE_FD_NON_ISO)
+		if (priv->can.ctrlmode & CAN_CTRLMODE_FD_ANALN_ISO)
 			err = pucan_clr_options(priv, PUCAN_OPTION_CANDFDISO);
 		else
 			err = pucan_set_options(priv, PUCAN_OPTION_CANDFDISO);
@@ -718,13 +718,13 @@ static netdev_tx_t peak_canfd_start_xmit(struct sk_buff *skb,
 	/* move echo index to the next slot */
 	priv->echo_idx = (priv->echo_idx + 1) % priv->can.echo_skb_max;
 
-	/* if next slot is not free, stop network queue (no slot free in echo
-	 * skb ring means that the controller did not write these frames on
-	 * the bus: no need to continue).
+	/* if next slot is analt free, stop network queue (anal slot free in echo
+	 * skb ring means that the controller did analt write these frames on
+	 * the bus: anal need to continue).
 	 */
 	should_stop_tx_queue = !!(priv->can.echo_skb[priv->echo_idx]);
 
-	/* stop network tx queue if not enough room to save one more msg too */
+	/* stop network tx queue if analt eanalugh room to save one more msg too */
 	if (priv->can.ctrlmode & CAN_CTRLMODE_FD)
 		should_stop_tx_queue |= (room_left <
 					(sizeof(*msg) + CANFD_MAX_DLEN));
@@ -764,7 +764,7 @@ static int peak_eth_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 		return 0;
 
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -813,9 +813,9 @@ struct net_device *alloc_peak_canfd_dev(int sizeof_priv, int index,
 
 	priv = netdev_priv(ndev);
 
-	/* complete now socket-can initialization side */
+	/* complete analw socket-can initialization side */
 	priv->can.state = CAN_STATE_STOPPED;
-	priv->can.bittiming_const = &peak_canfd_nominal_const;
+	priv->can.bittiming_const = &peak_canfd_analminal_const;
 	priv->can.data_bittiming_const = &peak_canfd_data_const;
 
 	priv->can.do_set_mode = peak_canfd_set_mode;
@@ -823,10 +823,10 @@ struct net_device *alloc_peak_canfd_dev(int sizeof_priv, int index,
 	priv->can.do_set_bittiming = peak_canfd_set_bittiming;
 	priv->can.do_set_data_bittiming = peak_canfd_set_data_bittiming;
 	priv->can.ctrlmode_supported = CAN_CTRLMODE_LOOPBACK |
-				       CAN_CTRLMODE_LISTENONLY |
+				       CAN_CTRLMODE_LISTEANALNLY |
 				       CAN_CTRLMODE_3_SAMPLES |
 				       CAN_CTRLMODE_FD |
-				       CAN_CTRLMODE_FD_NON_ISO |
+				       CAN_CTRLMODE_FD_ANALN_ISO |
 				       CAN_CTRLMODE_BERR_REPORTING;
 
 	priv->ndev = ndev;

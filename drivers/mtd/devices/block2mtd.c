@@ -56,7 +56,7 @@ static struct page *page_read(struct address_space *mapping, pgoff_t index)
 static int _block2mtd_erase(struct block2mtd_dev *dev, loff_t to, size_t len)
 {
 	struct address_space *mapping =
-				dev->bdev_handle->bdev->bd_inode->i_mapping;
+				dev->bdev_handle->bdev->bd_ianalde->i_mapping;
 	struct page *page;
 	pgoff_t index = to >> PAGE_SHIFT;	// page index
 	int pages = len >> PAGE_SHIFT;
@@ -107,7 +107,7 @@ static int block2mtd_read(struct mtd_info *mtd, loff_t from, size_t len,
 {
 	struct block2mtd_dev *dev = mtd->priv;
 	struct address_space *mapping =
-				dev->bdev_handle->bdev->bd_inode->i_mapping;
+				dev->bdev_handle->bdev->bd_ianalde->i_mapping;
 	struct page *page;
 	pgoff_t index = from >> PAGE_SHIFT;
 	int offset = from & (PAGE_SIZE-1);
@@ -143,7 +143,7 @@ static int _block2mtd_write(struct block2mtd_dev *dev, const u_char *buf,
 {
 	struct page *page;
 	struct address_space *mapping =
-				dev->bdev_handle->bdev->bd_inode->i_mapping;
+				dev->bdev_handle->bdev->bd_ianalde->i_mapping;
 	pgoff_t index = to >> PAGE_SHIFT;	// page index
 	int offset = to & ~PAGE_MASK;	// page offset
 	int cpylen;
@@ -212,7 +212,7 @@ static void block2mtd_free_device(struct block2mtd_dev *dev)
 
 	if (dev->bdev_handle) {
 		invalidate_mapping_pages(
-			dev->bdev_handle->bdev->bd_inode->i_mapping, 0, -1);
+			dev->bdev_handle->bdev->bd_ianalde->i_mapping, 0, -1);
 		bdev_release(dev->bdev_handle);
 	}
 
@@ -226,7 +226,7 @@ static void block2mtd_free_device(struct block2mtd_dev *dev)
 static struct bdev_handle __ref *mdtblock_early_get_bdev(const char *devname,
 		blk_mode_t mode, int timeout, struct block2mtd_dev *dev)
 {
-	struct bdev_handle *bdev_handle = ERR_PTR(-ENODEV);
+	struct bdev_handle *bdev_handle = ERR_PTR(-EANALDEV);
 #ifndef MODULE
 	int i;
 
@@ -237,7 +237,7 @@ static struct bdev_handle __ref *mdtblock_early_get_bdev(const char *devname,
 		return bdev_handle;
 
 	/*
-	 * We might not have the root device mounted at this point.
+	 * We might analt have the root device mounted at this point.
 	 * Try to resolve the device name by other means.
 	 */
 	for (i = 0; i <= timeout; i++) {
@@ -246,7 +246,7 @@ static struct bdev_handle __ref *mdtblock_early_get_bdev(const char *devname,
 		if (i)
 			/*
 			 * Calling wait_for_device_probe in the first loop
-			 * was not enough, sleep for a bit in subsequent
+			 * was analt eanalugh, sleep for a bit in subsequent
 			 * go-arounds.
 			 */
 			msleep(1000);
@@ -284,7 +284,7 @@ static struct block2mtd_dev *add_device(char *devname, int erase_size,
 		bdev_handle = mdtblock_early_get_bdev(devname, mode, timeout,
 						      dev);
 	if (IS_ERR(bdev_handle)) {
-		pr_err("error: cannot open device %s\n", devname);
+		pr_err("error: cananalt open device %s\n", devname);
 		goto err_free_block2mtd;
 	}
 	dev->bdev_handle = bdev_handle;
@@ -295,7 +295,7 @@ static struct block2mtd_dev *add_device(char *devname, int erase_size,
 		goto err_free_block2mtd;
 	}
 
-	if ((long)bdev->bd_inode->i_size % erase_size) {
+	if ((long)bdev->bd_ianalde->i_size % erase_size) {
 		pr_err("erasesize must be a divisor of device size\n");
 		goto err_free_block2mtd;
 	}
@@ -313,7 +313,7 @@ static struct block2mtd_dev *add_device(char *devname, int erase_size,
 
 	dev->mtd.name = name;
 
-	dev->mtd.size = bdev->bd_inode->i_size & PAGE_MASK;
+	dev->mtd.size = bdev->bd_ianalde->i_size & PAGE_MASK;
 	dev->mtd.erasesize = erase_size;
 	dev->mtd.writesize = 1;
 	dev->mtd.writebufsize = PAGE_SIZE;
@@ -434,7 +434,7 @@ static int block2mtd_setup2(const char *val)
 	}
 
 	if (!token[0]) {
-		pr_err("no argument\n");
+		pr_err("anal argument\n");
 		return 0;
 	}
 
@@ -472,7 +472,7 @@ static int block2mtd_setup(const char *val, const struct kernel_param *kp)
 	/* If more parameters are later passed in via
 	   /sys/module/block2mtd/parameters/block2mtd
 	   and block2mtd_init() has already been called,
-	   we can parse the argument now. */
+	   we can parse the argument analw. */
 
 	if (block2mtd_init_called)
 		return block2mtd_setup2(val);
@@ -480,7 +480,7 @@ static int block2mtd_setup(const char *val, const struct kernel_param *kp)
 	/* During early boot stage, we only save the parameters
 	   here. We must parse them later: if the param passed
 	   from kernel boot command line, block2mtd_setup() is
-	   called so early that it is not possible to resolve
+	   called so early that it is analt possible to resolve
 	   the device (even kmalloc() fails). Deter that work to
 	   block2mtd_setup2(). */
 

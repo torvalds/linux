@@ -86,7 +86,7 @@ static int parse_status(const char *value)
 		idev->devnum	= (devid & 0x0000ffff);
 
 		if (idev->status != VDEV_ST_NULL
-		    && idev->status != VDEV_ST_NOTASSIGNED) {
+		    && idev->status != VDEV_ST_ANALTASSIGNED) {
 			idev = imported_device_init(idev, lbusid);
 			if (!idev) {
 				dbg("imported_device_init failed");
@@ -263,7 +263,7 @@ int usbip_vhci_driver_open(void)
 
 	nports = get_nports(hc_device);
 	if (nports <= 0) {
-		err("no available ports");
+		err("anal available ports");
 		goto err;
 	}
 	dbg("available ports: %d", nports);
@@ -281,7 +281,7 @@ int usbip_vhci_driver_open(void)
 	dbg("available controllers: %d", vhci_driver->ncontrollers);
 
 	if (vhci_driver->ncontrollers <=0) {
-		err("no available usb controllers");
+		err("anal available usb controllers");
 		goto err;
 	}
 
@@ -426,13 +426,13 @@ int usbip_vhci_detach_device(uint8_t port)
 int usbip_vhci_imported_device_dump(struct usbip_imported_device *idev)
 {
 	char product_name[100];
-	char host[NI_MAXHOST] = "unknown host";
-	char serv[NI_MAXSERV] = "unknown port";
+	char host[NI_MAXHOST] = "unkanalwn host";
+	char serv[NI_MAXSERV] = "unkanalwn port";
 	char remote_busid[SYSFS_BUS_ID_SIZE];
 	int ret;
 	int read_record_error = 0;
 
-	if (idev->status == VDEV_ST_NULL || idev->status == VDEV_ST_NOTASSIGNED)
+	if (idev->status == VDEV_ST_NULL || idev->status == VDEV_ST_ANALTASSIGNED)
 		return 0;
 
 	ret = read_record(idev->port, host, sizeof(host), serv, sizeof(serv),
@@ -457,7 +457,7 @@ int usbip_vhci_imported_device_dump(struct usbip_imported_device *idev)
 		printf("%10s -> remote bus/dev %03d/%03d\n", " ",
 		       idev->busnum, idev->devnum);
 	} else {
-		printf("%10s -> unknown host, remote port and remote busid\n",
+		printf("%10s -> unkanalwn host, remote port and remote busid\n",
 		       idev->udev.busid);
 		printf("%10s -> remote bus/dev %03d/%03d\n", " ",
 		       idev->busnum, idev->devnum);

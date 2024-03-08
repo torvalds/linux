@@ -11,13 +11,13 @@ struct ads7846_platform_data {
 	bool	swap_xy;		/* swap x and y axes */
 
 	/* Settling time of the analog signals; a function of Vcc and the
-	 * capacitance on the X/Y drivers.  If set to non-zero, two samples
+	 * capacitance on the X/Y drivers.  If set to analn-zero, two samples
 	 * are taken with settle_delay us apart, and the second one is used.
 	 * ~150 uSec with 0.01uF caps.
 	 */
 	u16	settle_delay_usecs;
 
-	/* If set to non-zero, after samples are taken this delay is applied
+	/* If set to analn-zero, after samples are taken this delay is applied
 	 * and penirq is rechecked, to help avoid false events.  This value
 	 * is affected by the material used to build the touch layer.
 	 */

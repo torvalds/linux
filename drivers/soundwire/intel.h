@@ -30,7 +30,7 @@ struct hdac_bus;
 struct sdw_intel_link_res {
 	const struct sdw_intel_hw_ops *hw_ops;
 
-	void __iomem *mmio_base; /* not strictly needed, useful for debug */
+	void __iomem *mmio_base; /* analt strictly needed, useful for debug */
 	void __iomem *registers;
 	u32 ip_offset;
 	void __iomem *shim;
@@ -119,7 +119,7 @@ static inline int sdw_intel_register_dai(struct sdw_intel *sdw)
 {
 	if (SDW_INTEL_CHECK_OPS(sdw, register_dai))
 		return SDW_INTEL_OPS(sdw, register_dai)(sdw);
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static inline void sdw_intel_check_clock_stop(struct sdw_intel *sdw)
@@ -132,49 +132,49 @@ static inline int sdw_intel_start_bus(struct sdw_intel *sdw)
 {
 	if (SDW_INTEL_CHECK_OPS(sdw, start_bus))
 		return SDW_INTEL_OPS(sdw, start_bus)(sdw);
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static inline int sdw_intel_start_bus_after_reset(struct sdw_intel *sdw)
 {
 	if (SDW_INTEL_CHECK_OPS(sdw, start_bus_after_reset))
 		return SDW_INTEL_OPS(sdw, start_bus_after_reset)(sdw);
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static inline int sdw_intel_start_bus_after_clock_stop(struct sdw_intel *sdw)
 {
 	if (SDW_INTEL_CHECK_OPS(sdw, start_bus_after_clock_stop))
 		return SDW_INTEL_OPS(sdw, start_bus_after_clock_stop)(sdw);
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static inline int sdw_intel_stop_bus(struct sdw_intel *sdw, bool clock_stop)
 {
 	if (SDW_INTEL_CHECK_OPS(sdw, stop_bus))
 		return SDW_INTEL_OPS(sdw, stop_bus)(sdw, clock_stop);
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static inline int sdw_intel_link_power_up(struct sdw_intel *sdw)
 {
 	if (SDW_INTEL_CHECK_OPS(sdw, link_power_up))
 		return SDW_INTEL_OPS(sdw, link_power_up)(sdw);
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static inline int sdw_intel_link_power_down(struct sdw_intel *sdw)
 {
 	if (SDW_INTEL_CHECK_OPS(sdw, link_power_down))
 		return SDW_INTEL_OPS(sdw, link_power_down)(sdw);
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static inline int sdw_intel_shim_check_wake(struct sdw_intel *sdw)
 {
 	if (SDW_INTEL_CHECK_OPS(sdw, shim_check_wake))
 		return SDW_INTEL_OPS(sdw, shim_check_wake)(sdw);
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static inline void sdw_intel_shim_wake(struct sdw_intel *sdw, bool wake_enable)
@@ -193,14 +193,14 @@ static inline int sdw_intel_sync_go_unlocked(struct sdw_intel *sdw)
 {
 	if (SDW_INTEL_CHECK_OPS(sdw, sync_go_unlocked))
 		return SDW_INTEL_OPS(sdw, sync_go_unlocked)(sdw);
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static inline int sdw_intel_sync_go(struct sdw_intel *sdw)
 {
 	if (SDW_INTEL_CHECK_OPS(sdw, sync_go))
 		return SDW_INTEL_OPS(sdw, sync_go)(sdw);
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static inline bool sdw_intel_sync_check_cmdsync_unlocked(struct sdw_intel *sdw)

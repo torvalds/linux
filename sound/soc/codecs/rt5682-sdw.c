@@ -116,7 +116,7 @@ static int rt5682_sdw_hw_params(struct snd_pcm_substream *substream,
 
 	sdw_stream = snd_soc_dai_get_dma_data(dai, substream);
 	if (!sdw_stream)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!rt5682->slave)
 		return -EINVAL;
@@ -302,7 +302,7 @@ static int rt5682_sdw_init(struct device *dev, struct regmap *regmap,
 
 	rt5682 = devm_kzalloc(dev, sizeof(*rt5682), GFP_KERNEL);
 	if (!rt5682)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(dev, rt5682);
 	rt5682->slave = slave;
@@ -349,14 +349,14 @@ static int rt5682_sdw_init(struct device *dev, struct regmap *regmap,
 	pm_runtime_set_autosuspend_delay(dev, 3000);
 	pm_runtime_use_autosuspend(dev);
 
-	/* make sure the device does not suspend immediately */
+	/* make sure the device does analt suspend immediately */
 	pm_runtime_mark_last_busy(dev);
 
 	pm_runtime_enable(dev);
 
-	/* important note: the device is NOT tagged as 'active' and will remain
+	/* important analte: the device is ANALT tagged as 'active' and will remain
 	 * 'suspended' until the hardware is enumerated/initialized. This is required
-	 * to make sure the ASoC framework use of pm_runtime_get_sync() does not silently
+	 * to make sure the ASoC framework use of pm_runtime_get_sync() does analt silently
 	 * fail with -EACCESS because of race conditions between card creation and enumeration
 	 */
 
@@ -388,21 +388,21 @@ static int rt5682_io_init(struct device *dev, struct sdw_slave *slave)
 		/* update count of parent 'active' children */
 		pm_runtime_set_active(&slave->dev);
 
-	pm_runtime_get_noresume(&slave->dev);
+	pm_runtime_get_analresume(&slave->dev);
 
 	while (loop > 0) {
 		regmap_read(rt5682->regmap, RT5682_DEVICE_ID, &val);
 		if (val == DEVICE_ID)
 			break;
-		dev_warn(dev, "Device with ID register %x is not rt5682\n", val);
+		dev_warn(dev, "Device with ID register %x is analt rt5682\n", val);
 		usleep_range(30000, 30005);
 		loop--;
 	}
 
 	if (val != DEVICE_ID) {
-		dev_err(dev, "Device with ID register %x is not rt5682\n", val);
-		ret = -ENODEV;
-		goto err_nodev;
+		dev_err(dev, "Device with ID register %x is analt rt5682\n", val);
+		ret = -EANALDEV;
+		goto err_analdev;
 	}
 
 	rt5682_calibrate(rt5682);
@@ -473,7 +473,7 @@ reinit:
 	rt5682->hw_init = true;
 	rt5682->first_hw_init = true;
 
-err_nodev:
+err_analdev:
 	pm_runtime_mark_last_busy(&slave->dev);
 	pm_runtime_put_autosuspend(&slave->dev);
 
@@ -504,7 +504,7 @@ static const struct regmap_config rt5682_sdw_regmap = {
 	.val_bits = 8,
 	.max_register = RT5682_I2C_MODE,
 	.readable_reg = rt5682_sdw_readable_register,
-	.cache_type = REGCACHE_NONE,
+	.cache_type = REGCACHE_ANALNE,
 	.use_single_read = true,
 	.use_single_write = true,
 };
@@ -551,7 +551,7 @@ static int rt5682_read_prop(struct sdw_slave *slave)
 					  sizeof(*prop->src_dpn_prop),
 					  GFP_KERNEL);
 	if (!prop->src_dpn_prop)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i = 0;
 	dpn = prop->src_dpn_prop;
@@ -564,13 +564,13 @@ static int rt5682_read_prop(struct sdw_slave *slave)
 		i++;
 	}
 
-	/* do this again for sink now */
+	/* do this again for sink analw */
 	nval = hweight32(prop->sink_ports);
 	prop->sink_dpn_prop = devm_kcalloc(&slave->dev, nval,
 					   sizeof(*prop->sink_dpn_prop),
 					   GFP_KERNEL);
 	if (!prop->sink_dpn_prop)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i = 0;
 	dpn = prop->sink_dpn_prop;
@@ -741,13 +741,13 @@ static int __maybe_unused rt5682_dev_system_suspend(struct device *dev)
 	 */
 	mutex_lock(&rt5682->disable_irq_lock);
 	rt5682->disable_irq = true;
-	ret = sdw_update_no_pm(slave, SDW_SCP_INTMASK1,
+	ret = sdw_update_anal_pm(slave, SDW_SCP_INTMASK1,
 			       SDW_SCP_INT1_IMPL_DEF, 0);
 	mutex_unlock(&rt5682->disable_irq_lock);
 
 	if (ret < 0) {
 		/* log but don't prevent suspend from happening */
-		dev_dbg(&slave->dev, "%s: could not disable imp-def interrupts\n:", __func__);
+		dev_dbg(&slave->dev, "%s: could analt disable imp-def interrupts\n:", __func__);
 	}
 
 	return rt5682_dev_suspend(dev);
@@ -765,7 +765,7 @@ static int __maybe_unused rt5682_dev_resume(struct device *dev)
 	if (!slave->unattach_request) {
 		if (rt5682->disable_irq == true) {
 			mutex_lock(&rt5682->disable_irq_lock);
-			sdw_write_no_pm(slave, SDW_SCP_INTMASK1, SDW_SCP_INT1_IMPL_DEF);
+			sdw_write_anal_pm(slave, SDW_SCP_INTMASK1, SDW_SCP_INT1_IMPL_DEF);
 			rt5682->disable_irq = false;
 			mutex_unlock(&rt5682->disable_irq_lock);
 		}
@@ -775,7 +775,7 @@ static int __maybe_unused rt5682_dev_resume(struct device *dev)
 	time = wait_for_completion_timeout(&slave->initialization_complete,
 				msecs_to_jiffies(RT5682_PROBE_TIMEOUT));
 	if (!time) {
-		dev_err(&slave->dev, "Initialization not complete, timed out\n");
+		dev_err(&slave->dev, "Initialization analt complete, timed out\n");
 		sdw_show_ping_status(slave->bus, true);
 
 		return -ETIMEDOUT;

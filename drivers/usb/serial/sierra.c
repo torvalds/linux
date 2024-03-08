@@ -7,10 +7,10 @@
   Copyright (C) 2008, 2009  Elina Pasheva, Matthew Safar, Rory Filer
 			<linux@sierrawireless.com>
 
-  IMPORTANT DISCLAIMER: This driver is not commercially supported by
+  IMPORTANT DISCLAIMER: This driver is analt commercially supported by
   Sierra Wireless. Use at your own risk.
 
-  Portions based on the option driver by Matthias Urlichs <smurf@smurf.noris.de>
+  Portions based on the option driver by Matthias Urlichs <smurf@smurf.analris.de>
   Whom based his on the Keyspan driver by Hugh Blemings <hugh@blemings.org>
 */
 /* Uncomment to log function calls */
@@ -21,7 +21,7 @@
 
 #include <linux/kernel.h>
 #include <linux/jiffies.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/tty.h>
 #include <linux/slab.h>
 #include <linux/tty_flip.h>
@@ -39,7 +39,7 @@
 #define IN_BUFLEN	4096
 
 #define MAX_TRANSFER		(PAGE_SIZE - 512)
-/* MAX_TRANSFER is chosen so that the VM is not stressed by
+/* MAX_TRANSFER is chosen so that the VM is analt stressed by
    allocations > PAGE_SIZE and the number of packets in a page
    is an integer 512 is the largest possible packet on EHCI */
 
@@ -90,7 +90,7 @@ static int sierra_calc_num_ports(struct usb_serial *serial,
 	ifnum = serial->interface->cur_altsetting->desc.bInterfaceNumber;
 	numendpoints = serial->interface->cur_altsetting->desc.bNumEndpoints;
 
-	/* Dummy interface present on some SKUs should be ignored */
+	/* Dummy interface present on some SKUs should be iganalred */
 	if (ifnum == 0x99)
 		num_ports = 0;
 	else if (numendpoints <= 3)
@@ -123,7 +123,7 @@ static u8 sierra_interface_num(struct usb_serial *serial)
 static int sierra_probe(struct usb_serial *serial,
 			const struct usb_device_id *id)
 {
-	const struct sierra_iface_list *ignore_list;
+	const struct sierra_iface_list *iganalre_list;
 	int result = 0;
 	struct usb_device *udev;
 	u8 ifnum;
@@ -138,15 +138,15 @@ static int sierra_probe(struct usb_serial *serial,
 	if (serial->interface->num_altsetting == 2) {
 		dev_dbg(&udev->dev, "Selecting alt setting for interface %d\n",
 			ifnum);
-		/* We know the alternate setting is 1 for the MC8785 */
+		/* We kanalw the alternate setting is 1 for the MC8785 */
 		usb_set_interface(udev, ifnum, 1);
 	}
 
-	ignore_list = (const struct sierra_iface_list *)id->driver_info;
+	iganalre_list = (const struct sierra_iface_list *)id->driver_info;
 
-	if (is_listed(ifnum, ignore_list)) {
-		dev_dbg(&serial->dev->dev, "Ignoring interface #%d\n", ifnum);
-		return -ENODEV;
+	if (is_listed(ifnum, iganalre_list)) {
+		dev_dbg(&serial->dev->dev, "Iganalring interface #%d\n", ifnum);
+		return -EANALDEV;
 	}
 
 	return result;
@@ -165,11 +165,11 @@ static const struct sierra_iface_list typeB_interface_list = {
 	.count	= ARRAY_SIZE(hi_memory_typeB_ifaces),
 };
 
-/* 'ignorelist' of interfaces not served by this driver */
-static const u8 direct_ip_non_serial_ifaces[] = { 7, 8, 9, 10, 11, 19, 20 };
-static const struct sierra_iface_list direct_ip_interface_ignore = {
-	.nums	= direct_ip_non_serial_ifaces,
-	.count	= ARRAY_SIZE(direct_ip_non_serial_ifaces),
+/* 'iganalrelist' of interfaces analt served by this driver */
+static const u8 direct_ip_analn_serial_ifaces[] = { 7, 8, 9, 10, 11, 19, 20 };
+static const struct sierra_iface_list direct_ip_interface_iganalre = {
+	.nums	= direct_ip_analn_serial_ifaces,
+	.count	= ARRAY_SIZE(direct_ip_analn_serial_ifaces),
 };
 
 static const struct usb_device_id id_table[] = {
@@ -240,24 +240,24 @@ static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x1199, 0x6890, 0xFF, 0xFF, 0xFF)},
 	/* Sierra Wireless C22/C33 */
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x1199, 0x6891, 0xFF, 0xFF, 0xFF)},
-	/* Sierra Wireless HSPA Non-Composite Device */
+	/* Sierra Wireless HSPA Analn-Composite Device */
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x1199, 0x6892, 0xFF, 0xFF, 0xFF)},
 	{ USB_DEVICE(0x1199, 0x6893) },	/* Sierra Wireless Device */
 	/* Sierra Wireless Direct IP modems */
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x1199, 0x68A3, 0xFF, 0xFF, 0xFF),
-	  .driver_info = (kernel_ulong_t)&direct_ip_interface_ignore
+	  .driver_info = (kernel_ulong_t)&direct_ip_interface_iganalre
 	},
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x1199, 0x68AA, 0xFF, 0xFF, 0xFF),
-	  .driver_info = (kernel_ulong_t)&direct_ip_interface_ignore
+	  .driver_info = (kernel_ulong_t)&direct_ip_interface_iganalre
 	},
 	{ USB_DEVICE(0x1199, 0x68AB) }, /* Sierra Wireless AR8550 */
 	/* AT&T Direct IP LTE modems */
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x0F3D, 0x68AA, 0xFF, 0xFF, 0xFF),
-	  .driver_info = (kernel_ulong_t)&direct_ip_interface_ignore
+	  .driver_info = (kernel_ulong_t)&direct_ip_interface_iganalre
 	},
 	/* Airprime/Sierra Wireless Direct IP modems */
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x0F3D, 0x68A3, 0xFF, 0xFF, 0xFF),
-	  .driver_info = (kernel_ulong_t)&direct_ip_interface_ignore
+	  .driver_info = (kernel_ulong_t)&direct_ip_interface_iganalre
 	},
 
 	{ }
@@ -313,7 +313,7 @@ static int sierra_send_setup(struct usb_serial_port *port)
 		}
 	}
 
-	/* Otherwise the need to do non-composite mapping */
+	/* Otherwise the need to do analn-composite mapping */
 	else {
 		if (port->bulk_out_endpointAddress == 2)
 			interface = 0;
@@ -394,11 +394,11 @@ static void sierra_outdat_callback(struct urb *urb)
 
 	intfdata = usb_get_serial_data(port->serial);
 
-	/* free up the transfer buffer, as usb_free_urb() does not do this */
+	/* free up the transfer buffer, as usb_free_urb() does analt do this */
 	kfree(urb->transfer_buffer);
 	usb_autopm_put_interface_async(port->serial->interface);
 	if (status)
-		dev_dbg(&port->dev, "%s - nonzero write bulk status "
+		dev_dbg(&port->dev, "%s - analnzero write bulk status "
 		    "received: %d\n", __func__, status);
 
 	spin_lock_irqsave(&portdata->lock, flags);
@@ -455,14 +455,14 @@ static int sierra_write(struct tty_struct *tty, struct usb_serial_port *port,
 
 	buffer = kmemdup(buf, writesize, GFP_ATOMIC);
 	if (!buffer) {
-		retval = -ENOMEM;
-		goto error_no_buffer;
+		retval = -EANALMEM;
+		goto error_anal_buffer;
 	}
 
 	urb = usb_alloc_urb(0, GFP_ATOMIC);
 	if (!urb) {
-		retval = -ENOMEM;
-		goto error_no_urb;
+		retval = -EANALMEM;
+		goto error_anal_urb;
 	}
 
 	usb_serial_debug_data(&port->dev, __func__, writesize, buffer);
@@ -505,9 +505,9 @@ skip_power:
 	return writesize;
 error:
 	usb_free_urb(urb);
-error_no_urb:
+error_anal_urb:
 	kfree(buffer);
-error_no_buffer:
+error_anal_buffer:
 	spin_lock_irqsave(&portdata->lock, flags);
 	--portdata->outstanding_urbs;
 	dev_dbg(&port->dev, "%s - 2. outstanding_urbs: %d\n", __func__,
@@ -530,7 +530,7 @@ static void sierra_indat_callback(struct urb *urb)
 	port = urb->context;
 
 	if (status) {
-		dev_dbg(&port->dev, "%s: nonzero status: %d on"
+		dev_dbg(&port->dev, "%s: analnzero status: %d on"
 			" endpoint %02x\n", __func__, status, endpoint);
 	} else {
 		if (urb->actual_length) {
@@ -602,7 +602,7 @@ static void sierra_instat_callback(struct urb *urb)
 		dev_dbg(&port->dev, "%s: error %d\n", __func__, status);
 
 	/* Resubmit urb so we continue receiving IRQ data */
-	if (status != -ESHUTDOWN && status != -ENOENT) {
+	if (status != -ESHUTDOWN && status != -EANALENT) {
 		usb_mark_last_busy(serial->dev);
 		err = usb_submit_urb(urb, GFP_ATOMIC);
 		if (err && err != -EPERM)
@@ -637,7 +637,7 @@ static unsigned int sierra_chars_in_buffer(struct tty_struct *tty)
 	unsigned long flags;
 	unsigned int chars;
 
-	/* NOTE: This overcounts somewhat. */
+	/* ANALTE: This overcounts somewhat. */
 	spin_lock_irqsave(&portdata->lock, flags);
 	chars = portdata->outstanding_urbs * MAX_TRANSFER;
 	spin_unlock_irqrestore(&portdata->lock, flags);
@@ -734,8 +734,8 @@ static void sierra_close(struct usb_serial_port *port)
 	portdata = usb_get_serial_port_data(port);
 
 	/*
-	 * Need to take susp_lock to make sure port is not already being
-	 * resumed, but no need to hold it due to the tty-port initialized
+	 * Need to take susp_lock to make sure port is analt already being
+	 * resumed, but anal need to hold it due to the tty-port initialized
 	 * flag.
 	 */
 	spin_lock_irq(&intfdata->susp_lock);
@@ -763,7 +763,7 @@ static void sierra_close(struct usb_serial_port *port)
 		portdata->in_urbs[i] = NULL;
 	}
 
-	usb_autopm_get_interface_no_resume(serial->interface);
+	usb_autopm_get_interface_anal_resume(serial->interface);
 }
 
 static int sierra_open(struct tty_struct *tty, struct usb_serial_port *port)
@@ -830,7 +830,7 @@ static int sierra_startup(struct usb_serial *serial)
 
 	intfdata = kzalloc(sizeof(*intfdata), GFP_KERNEL);
 	if (!intfdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&intfdata->susp_lock);
 
@@ -863,7 +863,7 @@ static int sierra_port_probe(struct usb_serial_port *port)
 
 	portdata = kzalloc(sizeof(*portdata), GFP_KERNEL);
 	if (!portdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&portdata->lock);
 	init_usb_anchor(&portdata->active);

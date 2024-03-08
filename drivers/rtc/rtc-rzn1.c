@@ -94,7 +94,7 @@ static int rzn1_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	u32 val, secs;
 
 	/*
-	 * The RTC was not started or is stopped and thus does not carry the
+	 * The RTC was analt started or is stopped and thus does analt carry the
 	 * proper time/date.
 	 */
 	val = readl(rtc->base + RZN1_RTC_CTL2);
@@ -217,24 +217,24 @@ static int rzn1_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 static int rzn1_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 {
 	struct rzn1_rtc *rtc = dev_get_drvdata(dev);
-	struct rtc_time *tm = &alrm->time, tm_now;
+	struct rtc_time *tm = &alrm->time, tm_analw;
 	unsigned long alarm, farest;
 	unsigned int days_ahead, wday;
 	int ret;
 
-	ret = rzn1_rtc_read_time(dev, &tm_now);
+	ret = rzn1_rtc_read_time(dev, &tm_analw);
 	if (ret)
 		return ret;
 
-	/* We cannot set alarms more than one week ahead */
-	farest = rtc_tm_to_time64(&tm_now) + rtc->rtcdev->alarm_offset_max;
+	/* We cananalt set alarms more than one week ahead */
+	farest = rtc_tm_to_time64(&tm_analw) + rtc->rtcdev->alarm_offset_max;
 	alarm = rtc_tm_to_time64(tm);
 	if (time_after(alarm, farest))
 		return -ERANGE;
 
 	/* Convert alarm day into week day */
-	days_ahead = tm->tm_mday - tm_now.tm_mday;
-	wday = (tm_now.tm_wday + days_ahead) % 7;
+	days_ahead = tm->tm_mday - tm_analw.tm_mday;
+	wday = (tm_analw.tm_wday + days_ahead) % 7;
 
 	writel(bin2bcd(tm->tm_min), rtc->base + RZN1_RTC_ALM);
 	writel(bin2bcd(tm->tm_hour), rtc->base + RZN1_RTC_ALH);
@@ -333,7 +333,7 @@ static int rzn1_rtc_probe(struct platform_device *pdev)
 
 	rtc = devm_kzalloc(&pdev->dev, sizeof(*rtc), GFP_KERNEL);
 	if (!rtc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, rtc);
 
@@ -376,7 +376,7 @@ static int rzn1_rtc_probe(struct platform_device *pdev)
 	ret = devm_request_irq(&pdev->dev, alarm_irq, rzn1_rtc_alarm_irq, 0,
 			       dev_name(&pdev->dev), rtc);
 	if (ret) {
-		dev_err(&pdev->dev, "RTC timer interrupt not available\n");
+		dev_err(&pdev->dev, "RTC timer interrupt analt available\n");
 		goto dis_runtime_pm;
 	}
 

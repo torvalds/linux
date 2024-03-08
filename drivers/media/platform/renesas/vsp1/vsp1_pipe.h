@@ -89,7 +89,7 @@ struct vsp1_partition {
  * @frame_end: frame end interrupt handler
  * @lock: protects the pipeline use count and stream count
  * @kref: pipeline reference count
- * @stream_count: number of streaming video nodes
+ * @stream_count: number of streaming video analdes
  * @buffers_ready: bitmask of RPFs and WPFs with at least one buffer available
  * @sequence: frame sequence number
  * @num_inputs: number of RPFs

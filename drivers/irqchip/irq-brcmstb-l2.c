@@ -45,7 +45,7 @@ static const struct brcmstb_intc_init_params l2_edge_intc_init = {
 static const struct brcmstb_intc_init_params l2_lvl_intc_init = {
 	.handler		= handle_level_irq,
 	.cpu_status		= 0x00,
-	.cpu_clear		= -1, /* Register not present */
+	.cpu_clear		= -1, /* Register analt present */
 	.cpu_mask_status	= 0x04,
 	.cpu_mask_set		= 0x08,
 	.cpu_mask_clear		= 0x0C
@@ -66,9 +66,9 @@ struct brcmstb_l2_intc_data {
  * @d: irq_data
  *
  * Chip has separate enable/disable registers instead of a single mask
- * register and pending interrupt is acknowledged by setting a bit.
+ * register and pending interrupt is ackanalwledged by setting a bit.
  *
- * Note: This function is generic and could easily be added to the
+ * Analte: This function is generic and could easily be added to the
  * generic irqchip implementation if there ever becomes a will to do so.
  * Perhaps with a name like irq_gc_mask_disable_and_ack_set().
  *
@@ -146,7 +146,7 @@ static void brcmstb_l2_intc_resume(struct irq_data *d)
 
 	irq_gc_lock_irqsave(gc, flags);
 	if (ct->chip.irq_ack) {
-		/* Clear unmasked non-wakeup interrupts */
+		/* Clear unmasked analn-wakeup interrupts */
 		irq_reg_writel(gc, ~b->saved_mask & ~gc->wake_active,
 				ct->regs.ack);
 	}
@@ -157,12 +157,12 @@ static void brcmstb_l2_intc_resume(struct irq_data *d)
 	irq_gc_unlock_irqrestore(gc, flags);
 }
 
-static int __init brcmstb_l2_intc_of_init(struct device_node *np,
-					  struct device_node *parent,
+static int __init brcmstb_l2_intc_of_init(struct device_analde *np,
+					  struct device_analde *parent,
 					  const struct brcmstb_intc_init_params
 					  *init_params)
 {
-	unsigned int clr = IRQ_NOREQUEST | IRQ_NOPROBE | IRQ_NOAUTOEN;
+	unsigned int clr = IRQ_ANALREQUEST | IRQ_ANALPROBE | IRQ_ANALAUTOEN;
 	unsigned int set = 0;
 	struct brcmstb_l2_intc_data *data;
 	struct irq_chip_type *ct;
@@ -173,12 +173,12 @@ static int __init brcmstb_l2_intc_of_init(struct device_node *np,
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	base = of_iomap(np, 0);
 	if (!base) {
 		pr_err("failed to remap intc L2 registers\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_free;
 	}
 
@@ -200,7 +200,7 @@ static int __init brcmstb_l2_intc_of_init(struct device_node *np,
 	data->domain = irq_domain_add_linear(np, 32,
 				&irq_generic_chip_ops, NULL);
 	if (!data->domain) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_unmap;
 	}
 
@@ -214,7 +214,7 @@ static int __init brcmstb_l2_intc_of_init(struct device_node *np,
 	if (init_params->handler == handle_level_irq)
 		set |= IRQ_LEVEL;
 
-	/* Allocate a single Generic IRQ chip for this node */
+	/* Allocate a single Generic IRQ chip for this analde */
 	ret = irq_alloc_domain_generic_chips(data->domain, 32, 1,
 			np->full_name, init_params->handler, clr, set, flags);
 	if (ret) {
@@ -239,7 +239,7 @@ static int __init brcmstb_l2_intc_of_init(struct device_node *np,
 		ct->chip.irq_ack = irq_gc_ack_set_bit;
 		ct->chip.irq_mask_ack = brcmstb_l2_mask_and_ack;
 	} else {
-		/* No Ack - but still slightly more efficient to define this */
+		/* Anal Ack - but still slightly more efficient to define this */
 		ct->chip.irq_mask_ack = irq_gc_mask_disable_reg;
 	}
 
@@ -276,14 +276,14 @@ out_free:
 	return ret;
 }
 
-static int __init brcmstb_l2_edge_intc_of_init(struct device_node *np,
-	struct device_node *parent)
+static int __init brcmstb_l2_edge_intc_of_init(struct device_analde *np,
+	struct device_analde *parent)
 {
 	return brcmstb_l2_intc_of_init(np, parent, &l2_edge_intc_init);
 }
 
-static int __init brcmstb_l2_lvl_intc_of_init(struct device_node *np,
-	struct device_node *parent)
+static int __init brcmstb_l2_lvl_intc_of_init(struct device_analde *np,
+	struct device_analde *parent)
 {
 	return brcmstb_l2_intc_of_init(np, parent, &l2_lvl_intc_init);
 }

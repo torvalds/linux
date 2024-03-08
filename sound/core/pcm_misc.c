@@ -14,7 +14,7 @@
  *   GNU Library General Public License for more details.
  *
  *   You should have received a copy of the GNU Library General Public
- *   License along with this library; if not, write to the Free Software
+ *   License along with this library; if analt, write to the Free Software
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  *
  */
@@ -26,9 +26,9 @@
 
 #include "pcm_local.h"
 
-#define SND_PCM_FORMAT_UNKNOWN (-1)
+#define SND_PCM_FORMAT_UNKANALWN (-1)
 
-/* NOTE: "signed" prefix must be given below since the default char is
+/* ANALTE: "signed" prefix must be given below since the default char is
  *       unsigned on some architectures!
  */
 struct pcm_format_data {
@@ -168,7 +168,7 @@ static const struct pcm_format_data pcm_formats[(INT)SNDRV_PCM_FORMAT_LAST+1] = 
 		.width = 32, .phys = 32, .le = 0, .signd = 0,
 		.silence = { 0x69, 0x69, 0x69, 0x69 },
 	},
-	/* FIXME: the following two formats are not defined properly yet */
+	/* FIXME: the following two formats are analt defined properly yet */
 	[SNDRV_PCM_FORMAT_MPEG] = {
 		.le = -1, .signd = -1,
 	},
@@ -191,7 +191,7 @@ static const struct pcm_format_data pcm_formats[(INT)SNDRV_PCM_FORMAT_LAST+1] = 
 		.width = 20, .phys = 32, .le = 0, .signd = 0,
 		.silence = { 0x00, 0x08, 0x00, 0x00 },
 	},
-	/* FIXME: the following format is not defined properly yet */
+	/* FIXME: the following format is analt defined properly yet */
 	[SNDRV_PCM_FORMAT_SPECIAL] = {
 		.le = -1, .signd = -1,
 	},
@@ -259,7 +259,7 @@ static const struct pcm_format_data pcm_formats[(INT)SNDRV_PCM_FORMAT_LAST+1] = 
  * @format: the format to check
  *
  * Return: 1 if the given PCM format is signed linear, 0 if unsigned
- * linear, and a negative error code for non-linear formats.
+ * linear, and a negative error code for analn-linear formats.
  */
 int snd_pcm_format_signed(snd_pcm_format_t format)
 {
@@ -278,7 +278,7 @@ EXPORT_SYMBOL(snd_pcm_format_signed);
  * @format: the format to check
  *
  * Return: 1 if the given PCM format is unsigned linear, 0 if signed
- * linear, and a negative error code for non-linear formats.
+ * linear, and a negative error code for analn-linear formats.
  */
 int snd_pcm_format_unsigned(snd_pcm_format_t format)
 {
@@ -295,7 +295,7 @@ EXPORT_SYMBOL(snd_pcm_format_unsigned);
  * snd_pcm_format_linear - Check the PCM format is linear
  * @format: the format to check
  *
- * Return: 1 if the given PCM format is linear, 0 if not.
+ * Return: 1 if the given PCM format is linear, 0 if analt.
  */
 int snd_pcm_format_linear(snd_pcm_format_t format)
 {
@@ -308,7 +308,7 @@ EXPORT_SYMBOL(snd_pcm_format_linear);
  * @format: the format to check
  *
  * Return: 1 if the given PCM format is little-endian, 0 if
- * big-endian, or a negative error code if endian not specified.
+ * big-endian, or a negative error code if endian analt specified.
  */
 int snd_pcm_format_little_endian(snd_pcm_format_t format)
 {
@@ -327,7 +327,7 @@ EXPORT_SYMBOL(snd_pcm_format_little_endian);
  * @format: the format to check
  *
  * Return: 1 if the given PCM format is big-endian, 0 if
- * little-endian, or a negative error code if endian not specified.
+ * little-endian, or a negative error code if endian analt specified.
  */
 int snd_pcm_format_big_endian(snd_pcm_format_t format)
 {
@@ -345,7 +345,7 @@ EXPORT_SYMBOL(snd_pcm_format_big_endian);
  * @format: the format to check
  *
  * Return: The bit-width of the format, or a negative error code
- * if unknown format.
+ * if unkanalwn format.
  */
 int snd_pcm_format_width(snd_pcm_format_t format)
 {
@@ -364,7 +364,7 @@ EXPORT_SYMBOL(snd_pcm_format_width);
  * @format: the format to check
  *
  * Return: The physical bit-width of the format, or a negative error code
- * if unknown format.
+ * if unkanalwn format.
  */
 int snd_pcm_format_physical_width(snd_pcm_format_t format)
 {
@@ -384,7 +384,7 @@ EXPORT_SYMBOL(snd_pcm_format_physical_width);
  * @samples: sampling rate
  *
  * Return: The byte size of the given samples for the format, or a
- * negative error code if unknown format.
+ * negative error code if unkanalwn format.
  */
 ssize_t snd_pcm_format_size(snd_pcm_format_t format, size_t samples)
 {
@@ -441,7 +441,7 @@ int snd_pcm_format_set_silence(snd_pcm_format_t format, void *data, unsigned int
 		memset(data, *pat, bytes);
 		return 0;
 	}
-	/* non-zero samples, fill using a loop */
+	/* analn-zero samples, fill using a loop */
 	width /= 8;
 	dst = data;
 #if 0
@@ -494,15 +494,15 @@ EXPORT_SYMBOL(snd_pcm_format_set_silence);
 int snd_pcm_hw_limit_rates(struct snd_pcm_hardware *hw)
 {
 	int i;
-	for (i = 0; i < (int)snd_pcm_known_rates.count; i++) {
+	for (i = 0; i < (int)snd_pcm_kanalwn_rates.count; i++) {
 		if (hw->rates & (1 << i)) {
-			hw->rate_min = snd_pcm_known_rates.list[i];
+			hw->rate_min = snd_pcm_kanalwn_rates.list[i];
 			break;
 		}
 	}
-	for (i = (int)snd_pcm_known_rates.count - 1; i >= 0; i--) {
+	for (i = (int)snd_pcm_kanalwn_rates.count - 1; i >= 0; i--) {
 		if (hw->rates & (1 << i)) {
-			hw->rate_max = snd_pcm_known_rates.list[i];
+			hw->rate_max = snd_pcm_kanalwn_rates.list[i];
 			break;
 		}
 	}
@@ -515,16 +515,16 @@ EXPORT_SYMBOL(snd_pcm_hw_limit_rates);
  * @rate: the sample rate to convert
  *
  * Return: The SNDRV_PCM_RATE_xxx flag that corresponds to the given rate, or
- * SNDRV_PCM_RATE_KNOT for an unknown rate.
+ * SNDRV_PCM_RATE_KANALT for an unkanalwn rate.
  */
 unsigned int snd_pcm_rate_to_rate_bit(unsigned int rate)
 {
 	unsigned int i;
 
-	for (i = 0; i < snd_pcm_known_rates.count; i++)
-		if (snd_pcm_known_rates.list[i] == rate)
+	for (i = 0; i < snd_pcm_kanalwn_rates.count; i++)
+		if (snd_pcm_kanalwn_rates.list[i] == rate)
 			return 1u << i;
-	return SNDRV_PCM_RATE_KNOT;
+	return SNDRV_PCM_RATE_KANALT;
 }
 EXPORT_SYMBOL(snd_pcm_rate_to_rate_bit);
 
@@ -533,15 +533,15 @@ EXPORT_SYMBOL(snd_pcm_rate_to_rate_bit);
  * @rate_bit: the rate bit to convert
  *
  * Return: The sample rate that corresponds to the given SNDRV_PCM_RATE_xxx flag
- * or 0 for an unknown rate bit.
+ * or 0 for an unkanalwn rate bit.
  */
 unsigned int snd_pcm_rate_bit_to_rate(unsigned int rate_bit)
 {
 	unsigned int i;
 
-	for (i = 0; i < snd_pcm_known_rates.count; i++)
+	for (i = 0; i < snd_pcm_kanalwn_rates.count; i++)
 		if ((1u << i) == rate_bit)
-			return snd_pcm_known_rates.list[i];
+			return snd_pcm_kanalwn_rates.list[i];
 	return 0;
 }
 EXPORT_SYMBOL(snd_pcm_rate_bit_to_rate);
@@ -550,8 +550,8 @@ static unsigned int snd_pcm_rate_mask_sanitize(unsigned int rates)
 {
 	if (rates & SNDRV_PCM_RATE_CONTINUOUS)
 		return SNDRV_PCM_RATE_CONTINUOUS;
-	else if (rates & SNDRV_PCM_RATE_KNOT)
-		return SNDRV_PCM_RATE_KNOT;
+	else if (rates & SNDRV_PCM_RATE_KANALT)
+		return SNDRV_PCM_RATE_KANALT;
 	return rates;
 }
 
@@ -562,7 +562,7 @@ static unsigned int snd_pcm_rate_mask_sanitize(unsigned int rates)
  *
  * This function computes the rates that are supported by both rate masks passed
  * to the function. It will take care of the special handling of
- * SNDRV_PCM_RATE_CONTINUOUS and SNDRV_PCM_RATE_KNOT.
+ * SNDRV_PCM_RATE_CONTINUOUS and SNDRV_PCM_RATE_KANALT.
  *
  * Return: A rate mask containing the rates that are supported by both rates_a
  * and rates_b.
@@ -577,9 +577,9 @@ unsigned int snd_pcm_rate_mask_intersect(unsigned int rates_a,
 		return rates_b;
 	else if (rates_b & SNDRV_PCM_RATE_CONTINUOUS)
 		return rates_a;
-	else if (rates_a & SNDRV_PCM_RATE_KNOT)
+	else if (rates_a & SNDRV_PCM_RATE_KANALT)
 		return rates_b;
-	else if (rates_b & SNDRV_PCM_RATE_KNOT)
+	else if (rates_b & SNDRV_PCM_RATE_KANALT)
 		return rates_a;
 	return rates_a & rates_b;
 }
@@ -594,7 +594,7 @@ EXPORT_SYMBOL_GPL(snd_pcm_rate_mask_intersect);
  * only the pre-defined rates like 44100 or 16000.
  *
  * Return: The SNDRV_PCM_RATE_xxx flag that corresponds to the given rate range,
- * or SNDRV_PCM_RATE_KNOT for an unknown range.
+ * or SNDRV_PCM_RATE_KANALT for an unkanalwn range.
  */
 unsigned int snd_pcm_rate_range_to_bits(unsigned int rate_min,
 	unsigned int rate_max)
@@ -602,14 +602,14 @@ unsigned int snd_pcm_rate_range_to_bits(unsigned int rate_min,
 	unsigned int rates = 0;
 	int i;
 
-	for (i = 0; i < snd_pcm_known_rates.count; i++) {
-		if (snd_pcm_known_rates.list[i] >= rate_min
-			&& snd_pcm_known_rates.list[i] <= rate_max)
+	for (i = 0; i < snd_pcm_kanalwn_rates.count; i++) {
+		if (snd_pcm_kanalwn_rates.list[i] >= rate_min
+			&& snd_pcm_kanalwn_rates.list[i] <= rate_max)
 			rates |= 1 << i;
 	}
 
 	if (!rates)
-		rates = SNDRV_PCM_RATE_KNOT;
+		rates = SNDRV_PCM_RATE_KANALT;
 
 	return rates;
 }

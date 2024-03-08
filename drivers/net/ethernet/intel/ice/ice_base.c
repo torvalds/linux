@@ -11,7 +11,7 @@
  * __ice_vsi_get_qs_contig - Assign a contiguous chunk of queues to VSI
  * @qs_cfg: gathered variables needed for PF->VSI queues assignment
  *
- * Return 0 on success and -ENOMEM in case of no left space in PF queue bitmap
+ * Return 0 on success and -EANALMEM in case of anal left space in PF queue bitmap
  */
 static int __ice_vsi_get_qs_contig(struct ice_qs_cfg *qs_cfg)
 {
@@ -22,7 +22,7 @@ static int __ice_vsi_get_qs_contig(struct ice_qs_cfg *qs_cfg)
 					    0, qs_cfg->q_count, 0);
 	if (offset >= qs_cfg->pf_map_size) {
 		mutex_unlock(qs_cfg->qs_mutex);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	bitmap_set(qs_cfg->pf_map, offset, qs_cfg->q_count);
@@ -37,7 +37,7 @@ static int __ice_vsi_get_qs_contig(struct ice_qs_cfg *qs_cfg)
  * __ice_vsi_get_qs_sc - Assign a scattered queues from PF to VSI
  * @qs_cfg: gathered variables needed for pf->vsi queues assignment
  *
- * Return 0 on success and -ENOMEM in case of no left space in PF queue bitmap
+ * Return 0 on success and -EANALMEM in case of anal left space in PF queue bitmap
  */
 static int __ice_vsi_get_qs_sc(struct ice_qs_cfg *qs_cfg)
 {
@@ -62,7 +62,7 @@ err_scatter:
 	}
 	mutex_unlock(qs_cfg->qs_mutex);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /**
@@ -97,7 +97,7 @@ static int ice_pf_rxq_wait(struct ice_pf *pf, int pf_q, bool ena)
  * @v_idx: index of the vector in the VSI struct
  *
  * We allocate one q_vector and set default value for ITR setting associated
- * with this q_vector. If allocation fails we return -ENOMEM.
+ * with this q_vector. If allocation fails we return -EANALMEM.
  */
 static int ice_vsi_alloc_q_vector(struct ice_vsi *vsi, u16 v_idx)
 {
@@ -108,7 +108,7 @@ static int ice_vsi_alloc_q_vector(struct ice_vsi *vsi, u16 v_idx)
 	/* allocate q_vector */
 	q_vector = kzalloc(sizeof(*q_vector), GFP_KERNEL);
 	if (!q_vector)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	q_vector->vsi = vsi;
 	q_vector->v_idx = v_idx;
@@ -118,7 +118,7 @@ static int ice_vsi_alloc_q_vector(struct ice_vsi *vsi, u16 v_idx)
 	q_vector->rx.itr_mode = ITR_DYNAMIC;
 	q_vector->tx.type = ICE_TX_CONTAINER;
 	q_vector->rx.type = ICE_RX_CONTAINER;
-	q_vector->irq.index = -ENOENT;
+	q_vector->irq.index = -EANALENT;
 
 	if (vsi->type == ICE_VSI_VF) {
 		q_vector->reg_idx = ice_calc_vf_reg_idx(vsi->vf, q_vector);
@@ -128,7 +128,7 @@ static int ice_vsi_alloc_q_vector(struct ice_vsi *vsi, u16 v_idx)
 
 		if (ctrl_vsi) {
 			if (unlikely(!ctrl_vsi->q_vectors)) {
-				err = -ENOENT;
+				err = -EANALENT;
 				goto err_free_q_vector;
 			}
 
@@ -139,7 +139,7 @@ static int ice_vsi_alloc_q_vector(struct ice_vsi *vsi, u16 v_idx)
 
 	q_vector->irq = ice_alloc_irq(pf, vsi->irq_dyn_alloc);
 	if (q_vector->irq.index < 0) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_free_q_vector;
 	}
 
@@ -150,8 +150,8 @@ skip_alloc:
 	if (cpu_online(v_idx))
 		cpumask_set_cpu(v_idx, &q_vector->affinity_mask);
 
-	/* This will not be called in the driver load path because the netdev
-	 * will not be created yet. All other cases with register the NAPI
+	/* This will analt be called in the driver load path because the netdev
+	 * will analt be created yet. All other cases with register the NAPI
 	 * handler here (i.e. resume, reset/rebuild, etc.)
 	 */
 	if (vsi->netdev)
@@ -184,7 +184,7 @@ static void ice_free_q_vector(struct ice_vsi *vsi, int v_idx)
 
 	dev = ice_pf_to_dev(pf);
 	if (!vsi->q_vectors[v_idx]) {
-		dev_dbg(dev, "Queue vector at index %d not found\n", v_idx);
+		dev_dbg(dev, "Queue vector at index %d analt found\n", v_idx);
 		return;
 	}
 	q_vector = vsi->q_vectors[v_idx];
@@ -221,14 +221,14 @@ free_q_vector:
 }
 
 /**
- * ice_cfg_itr_gran - set the ITR granularity to 2 usecs if not already set
+ * ice_cfg_itr_gran - set the ITR granularity to 2 usecs if analt already set
  * @hw: board specific structure
  */
 static void ice_cfg_itr_gran(struct ice_hw *hw)
 {
 	u32 regval = rd32(hw, GLINT_CTL);
 
-	/* no need to update global register if ITR gran is already set */
+	/* anal need to update global register if ITR gran is already set */
 	if (!(regval & GLINT_CTL_DIS_AUTOMASK_M) &&
 	    (FIELD_GET(GLINT_CTL_ITR_GRAN_200_M, regval) == ICE_ITR_GRAN_US) &&
 	    (FIELD_GET(GLINT_CTL_ITR_GRAN_100_M, regval) == ICE_ITR_GRAN_US) &&
@@ -299,7 +299,7 @@ static void ice_cfg_xps_tx_ring(struct ice_tx_ring *ring)
 	if (!ring->q_vector || !ring->netdev)
 		return;
 
-	/* We only initialize XPS once, so as not to overwrite user settings */
+	/* We only initialize XPS once, so as analt to overwrite user settings */
 	if (test_and_set_bit(ICE_TX_XPS_INIT_DONE, ring->xps_state))
 		return;
 
@@ -444,7 +444,7 @@ static int ice_setup_rx_ctx(struct ice_rx_ring *ring)
 	rlan_ctx.crcstrip = !(ring->flags & ICE_RX_FLAGS_CRC_STRIP_DIS);
 
 	/* L2TSEL flag defines the reported L2 Tags in the receive descriptor
-	 * and it needs to remain 1 for non-DVM capable configurations to not
+	 * and it needs to remain 1 for analn-DVM capable configurations to analt
 	 * break backward compatibility for VF drivers. Setting this field to 0
 	 * will cause the single/outer VLAN tag to be stripped to the L2TAG2_2ND
 	 * field in the Rx descriptor. Setting it to 1 allows the VLAN tag to
@@ -460,9 +460,9 @@ static int ice_setup_rx_ctx(struct ice_rx_ring *ring)
 	else
 		rlan_ctx.l2tsel = 1;
 
-	rlan_ctx.dtype = ICE_RX_DTYPE_NO_SPLIT;
-	rlan_ctx.hsplit_0 = ICE_RLAN_RX_HSPLIT_0_NO_SPLIT;
-	rlan_ctx.hsplit_1 = ICE_RLAN_RX_HSPLIT_1_NO_SPLIT;
+	rlan_ctx.dtype = ICE_RX_DTYPE_ANAL_SPLIT;
+	rlan_ctx.hsplit_0 = ICE_RLAN_RX_HSPLIT_0_ANAL_SPLIT;
+	rlan_ctx.hsplit_1 = ICE_RLAN_RX_HSPLIT_1_ANAL_SPLIT;
 
 	/* This controls whether VLAN is stripped from inner headers
 	 * The VLAN in the inner L2 header is stripped to the receive
@@ -470,7 +470,7 @@ static int ice_setup_rx_ctx(struct ice_rx_ring *ring)
 	 */
 	rlan_ctx.showiv = 0;
 
-	/* Max packet size for this queue - must not be set to a larger value
+	/* Max packet size for this queue - must analt be set to a larger value
 	 * than 5 x DBUF
 	 */
 	rlan_ctx.rxmax = min_t(u32, vsi->max_frame,
@@ -608,7 +608,7 @@ int ice_vsi_cfg_rxq(struct ice_rx_ring *ring)
 		bool ok;
 
 		if (!xsk_buff_can_alloc(ring->xsk_pool, num_bufs)) {
-			dev_warn(dev, "XSK buffer pool does not provide enough addresses to fill %d buffers on Rx ring %d\n",
+			dev_warn(dev, "XSK buffer pool does analt provide eanalugh addresses to fill %d buffers on Rx ring %d\n",
 				 num_bufs, ring->q_index);
 			dev_warn(dev, "Change Rx ring/fill queue size to avoid performance issues\n");
 
@@ -635,10 +635,10 @@ int ice_vsi_cfg_rxq(struct ice_rx_ring *ring)
  * __ice_vsi_get_qs - helper function for assigning queues from PF to VSI
  * @qs_cfg: gathered variables needed for pf->vsi queues assignment
  *
- * This function first tries to find contiguous space. If it is not successful,
+ * This function first tries to find contiguous space. If it is analt successful,
  * it tries with the scatter approach.
  *
- * Return 0 on success and -ENOMEM in case of no left space in PF queue bitmap
+ * Return 0 on success and -EANALMEM in case of anal left space in PF queue bitmap
  */
 int __ice_vsi_get_qs(struct ice_qs_cfg *qs_cfg)
 {
@@ -656,7 +656,7 @@ int __ice_vsi_get_qs(struct ice_qs_cfg *qs_cfg)
 }
 
 /**
- * ice_vsi_ctrl_one_rx_ring - start/stop VSI's Rx ring with no busy wait
+ * ice_vsi_ctrl_one_rx_ring - start/stop VSI's Rx ring with anal busy wait
  * @vsi: the VSI being configured
  * @ena: start or stop the Rx ring
  * @rxq_idx: 0-based Rx queue index for the VSI passed in
@@ -716,7 +716,7 @@ int ice_vsi_wait_one_rx_ring(struct ice_vsi *vsi, bool ena, u16 rxq_idx)
  * @vsi: the VSI being configured
  *
  * We allocate one q_vector per queue interrupt. If allocation fails we
- * return -ENOMEM.
+ * return -EANALMEM.
  */
 int ice_vsi_alloc_q_vectors(struct ice_vsi *vsi)
 {
@@ -867,7 +867,7 @@ ice_vsi_cfg_txq(struct ice_vsi *vsi, struct ice_tx_ring *ring,
 		ring->q_handle = ice_eswitch_calc_txq_handle(ring);
 
 		if (ring->q_handle == ICE_INVAL_Q_INDEX)
-			return -ENODEV;
+			return -EANALDEV;
 	} else {
 		ring->q_handle = ice_calc_txq_handle(vsi, ring, tc);
 	}
@@ -985,7 +985,7 @@ ice_cfg_rxq_interrupt(struct ice_vsi *vsi, u16 rxq, u16 msix_idx, u16 itr_idx)
 void ice_trigger_sw_intr(struct ice_hw *hw, const struct ice_q_vector *q_vector)
 {
 	wr32(hw, GLINT_DYN_CTL(q_vector->reg_idx),
-	     (ICE_ITR_NONE << GLINT_DYN_CTL_ITR_INDX_S) |
+	     (ICE_ITR_ANALNE << GLINT_DYN_CTL_ITR_INDX_S) |
 	     GLINT_DYN_CTL_SWINT_TRIG_M |
 	     GLINT_DYN_CTL_INTENA_M);
 }
@@ -1031,13 +1031,13 @@ ice_vsi_stop_tx_ring(struct ice_vsi *vsi, enum ice_disq_rst_src rst_src,
 
 	/* if the disable queue command was exercised during an
 	 * active reset flow, -EBUSY is returned.
-	 * This is not an error as the reset operation disables
+	 * This is analt an error as the reset operation disables
 	 * queues at the hardware level anyway.
 	 */
 	if (status == -EBUSY) {
 		dev_dbg(ice_pf_to_dev(vsi->back), "Reset in progress. LAN Tx queues already disabled\n");
-	} else if (status == -ENOENT) {
-		dev_dbg(ice_pf_to_dev(vsi->back), "LAN Tx queues do not exist, nothing to disable\n");
+	} else if (status == -EANALENT) {
+		dev_dbg(ice_pf_to_dev(vsi->back), "LAN Tx queues do analt exist, analthing to disable\n");
 	} else if (status) {
 		dev_dbg(ice_pf_to_dev(vsi->back), "Failed to disable LAN Tx queues, error: %d\n",
 			status);

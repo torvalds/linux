@@ -347,7 +347,7 @@
 	rockchip,default-sample-phase = <90>;
 	keep-power-in-suspend;
 	mmc-pwrseq = <&sdio_pwrseq>;
-	non-removable;
+	analn-removable;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdio_clk &sdio_cmd &sdio_bus4>;
 	sd-uhs-sdr12;
@@ -393,7 +393,7 @@
 &pinctrl {
 	leds {
 		led_ctl: led-ctl {
-			rockchip,pins = <2 RK_PD6 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PD6 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
@@ -411,13 +411,13 @@
 
 	sdmmc {
 		sdmmc_pwr: sdmmc-pwr {
-			rockchip,pins = <2 RK_PD4 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PD4 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	suspend {
 		global_pwroff: global-pwroff {
-			rockchip,pins = <2 RK_PA7 1 &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PA7 1 &pcfg_pull_analne>;
 		};
 	};
 };

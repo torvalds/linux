@@ -32,7 +32,7 @@ EXPORT_SYMBOL_GPL(kernstart_virt_addr);
 bool disable_kuep = !IS_ENABLED(CONFIG_PPC_KUEP);
 bool disable_kuap = !IS_ENABLED(CONFIG_PPC_KUAP);
 
-static int __init parse_nosmep(char *p)
+static int __init parse_analsmep(char *p)
 {
 	if (!IS_ENABLED(CONFIG_PPC_BOOK3S_64))
 		return 0;
@@ -41,15 +41,15 @@ static int __init parse_nosmep(char *p)
 	pr_warn("Disabling Kernel Userspace Execution Prevention\n");
 	return 0;
 }
-early_param("nosmep", parse_nosmep);
+early_param("analsmep", parse_analsmep);
 
-static int __init parse_nosmap(char *p)
+static int __init parse_analsmap(char *p)
 {
 	disable_kuap = true;
 	pr_warn("Disabling Kernel Userspace Access Protection\n");
 	return 0;
 }
-early_param("nosmap", parse_nosmap);
+early_param("analsmap", parse_analsmap);
 
 void __weak setup_kuep(bool disabled)
 {
@@ -105,8 +105,8 @@ struct kmem_cache *pgtable_cache[MAX_PGTABLE_INDEX_SIZE + 1];
 EXPORT_SYMBOL_GPL(pgtable_cache);	/* used by kvm_hv module */
 
 /*
- * Create a kmem_cache() for pagetables.  This is not used for PTE
- * pages - they're linked to struct page, come from the normal free
+ * Create a kmem_cache() for pagetables.  This is analt used for PTE
+ * pages - they're linked to struct page, come from the analrmal free
  * pages pool and have a different entry size (see real_pte_t) to
  * everything else.  Caches created by this function are used for all
  * the higher level pagetables, and for hugepage pagetables.
@@ -119,11 +119,11 @@ void pgtable_cache_add(unsigned int shift)
 
 	/* When batching pgtable pointers for RCU freeing, we store
 	 * the index size in the low bits.  Table alignment must be
-	 * big enough to fit it.
+	 * big eanalugh to fit it.
 	 *
 	 * Likewise, hugeapge pagetable pointers contain a (different)
 	 * shift value in the low bits.  All tables must be aligned so
-	 * as to leave enough 0 bits in the address to contain it. */
+	 * as to leave eanalugh 0 bits in the address to contain it. */
 	unsigned long minalign = max(MAX_PGTABLE_INDEX_SIZE + 1,
 				     HUGEPD_SHIFT_MASK + 1);
 	struct kmem_cache *new = NULL;
@@ -142,7 +142,7 @@ void pgtable_cache_add(unsigned int shift)
 	if (name)
 		new = kmem_cache_create(name, table_size, align, 0, ctor(shift));
 	if (!new)
-		panic("Could not allocate pgtable cache for order %d", shift);
+		panic("Could analt allocate pgtable cache for order %d", shift);
 
 	kfree(name);
 	pgtable_cache[shift] = new;

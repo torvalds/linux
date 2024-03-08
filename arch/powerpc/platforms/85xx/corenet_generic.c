@@ -34,7 +34,7 @@ static void __init corenet_gen_pic_init(void)
 {
 	struct mpic *mpic;
 	unsigned int flags = MPIC_BIG_ENDIAN | MPIC_SINGLE_DEST_CPU |
-		MPIC_NO_RESET;
+		MPIC_ANAL_RESET;
 
 	if (!IS_ENABLED(CONFIG_HOTPLUG_CPU) && !IS_ENABLED(CONFIG_KEXEC_CORE))
 		flags |= MPIC_ENABLE_COREINT;

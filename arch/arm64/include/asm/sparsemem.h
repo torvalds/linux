@@ -20,7 +20,7 @@
 /*
  * Section size must be at least 128MB for 4K base
  * page size config. Otherwise PMD based huge page
- * entries could not be created for vmemmap mappings.
+ * entries could analt be created for vmemmap mappings.
  * 16K follows 4K for simplicity.
  */
 #define SECTION_SIZE_BITS 27

@@ -43,7 +43,7 @@ static int hl_get_pb_block(struct hl_device *hdev, u32 mm_reg_addr,
 			return i;
 	}
 
-	dev_err(hdev->dev, "No protection domain was found for 0x%x\n",
+	dev_err(hdev->dev, "Anal protection domain was found for 0x%x\n",
 			mm_reg_addr);
 	return -EDOM;
 }
@@ -300,7 +300,7 @@ int hl_init_pb_with_mask(struct hl_device *hdev, u32 num_dcores,
 			sizeof(struct hl_block_glbl_sec),
 			GFP_KERNEL);
 	if (!glbl_sec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hl_secure_block(hdev, glbl_sec, blocks_array_size);
 	hl_unsecure_registers(hdev, user_regs_array, user_regs_array_size, 0,
@@ -381,7 +381,7 @@ int hl_init_pb_ranges_with_mask(struct hl_device *hdev, u32 num_dcores,
 			sizeof(struct hl_block_glbl_sec),
 			GFP_KERNEL);
 	if (!glbl_sec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hl_secure_block(hdev, glbl_sec, blocks_array_size);
 	rc = hl_unsecure_registers_range(hdev, user_regs_range_array,
@@ -464,7 +464,7 @@ int hl_init_pb_single_dcore(struct hl_device *hdev, u32 dcore_offset,
 			sizeof(struct hl_block_glbl_sec),
 			GFP_KERNEL);
 	if (!glbl_sec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hl_secure_block(hdev, glbl_sec, blocks_array_size);
 	rc = hl_unsecure_registers(hdev, user_regs_array, user_regs_array_size,
@@ -512,7 +512,7 @@ int hl_init_pb_ranges_single_dcore(struct hl_device *hdev, u32 dcore_offset,
 			sizeof(struct hl_block_glbl_sec),
 			GFP_KERNEL);
 	if (!glbl_sec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hl_secure_block(hdev, glbl_sec, blocks_array_size);
 	hl_unsecure_registers_range(hdev, user_regs_range_array,
@@ -615,12 +615,12 @@ void hl_ack_pb_single_dcore(struct hl_device *hdev, u32 dcore_offset,
 
 static u32 hl_automated_get_block_base_addr(struct hl_device *hdev,
 		struct hl_special_block_info *block_info,
-		u32 major, u32 minor, u32 sub_minor)
+		u32 major, u32 mianalr, u32 sub_mianalr)
 {
 	u32 fw_block_base_address = block_info->base_addr +
 			major * block_info->major_offset +
-			minor * block_info->minor_offset +
-			sub_minor * block_info->sub_minor_offset;
+			mianalr * block_info->mianalr_offset +
+			sub_mianalr * block_info->sub_mianalr_offset;
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 
 	/* Calculation above returns an address for FW use, and therefore should
@@ -645,13 +645,13 @@ static bool hl_check_block_type_exclusion(struct hl_skip_blocks_cfg *skip_blocks
 static bool hl_check_block_range_exclusion(struct hl_device *hdev,
 		struct hl_skip_blocks_cfg *skip_blocks_cfg,
 		struct hl_special_block_info *block_info,
-		u32 major, u32 minor, u32 sub_minor)
+		u32 major, u32 mianalr, u32 sub_mianalr)
 {
 	u32 blocks_in_range, block_base_addr_in_range, block_base_addr;
 	int i, j;
 
 	block_base_addr = hl_automated_get_block_base_addr(hdev, block_info,
-			major, minor, sub_minor);
+			major, mianalr, sub_mianalr);
 
 	for (i = 0 ; i < skip_blocks_cfg->block_ranges_len ; i++) {
 		blocks_in_range = (skip_blocks_cfg->block_ranges[i].end -
@@ -669,7 +669,7 @@ static bool hl_check_block_range_exclusion(struct hl_device *hdev,
 }
 
 static int hl_read_glbl_errors(struct hl_device *hdev,
-		u32 blk_idx, u32 major, u32 minor, u32 sub_minor, void *data)
+		u32 blk_idx, u32 major, u32 mianalr, u32 sub_mianalr, void *data)
 {
 	struct hl_special_block_info *special_blocks = hdev->asic_prop.special_blocks;
 	struct hl_special_block_info *current_block = &special_blocks[blk_idx];
@@ -678,8 +678,8 @@ static int hl_read_glbl_errors(struct hl_device *hdev,
 	int i;
 
 	block_base = base + major * current_block->major_offset +
-			minor * current_block->minor_offset +
-			sub_minor * current_block->sub_minor_offset;
+			mianalr * current_block->mianalr_offset +
+			sub_mianalr * current_block->sub_mianalr_offset;
 
 	glbl_err_cause = block_base + HL_GLBL_ERR_CAUSE_OFFSET;
 	cause_val = RREG32(glbl_err_cause);
@@ -719,7 +719,7 @@ void hl_check_for_glbl_errors(struct hl_device *hdev)
 	rc = hl_iterate_special_blocks(hdev, &glbl_err_iter);
 	if (rc)
 		dev_err_ratelimited(hdev->dev,
-			"Could not iterate special blocks, glbl error check failed\n");
+			"Could analt iterate special blocks, glbl error check failed\n");
 }
 
 int hl_iterate_special_blocks(struct hl_device *hdev, struct iterate_special_ctx *ctx)
@@ -728,7 +728,7 @@ int hl_iterate_special_blocks(struct hl_device *hdev, struct iterate_special_ctx
 			(struct hl_special_blocks_cfg *)ctx->data;
 	struct hl_skip_blocks_cfg *skip_blocks_cfg =
 			special_blocks_cfg->skip_blocks_cfg;
-	u32 major, minor, sub_minor, blk_idx, num_blocks;
+	u32 major, mianalr, sub_mianalr, blk_idx, num_blocks;
 	struct hl_special_block_info *block_info_arr;
 	int rc;
 
@@ -743,31 +743,31 @@ int hl_iterate_special_blocks(struct hl_device *hdev, struct iterate_special_ctx
 			continue;
 
 		for (major = 0 ; major < block_info_arr->major ; major++) {
-			minor = 0;
+			mianalr = 0;
 			do {
-				sub_minor = 0;
+				sub_mianalr = 0;
 				do {
 					if ((hl_check_block_range_exclusion(hdev,
 							skip_blocks_cfg, block_info_arr,
-							major, minor, sub_minor)) ||
+							major, mianalr, sub_mianalr)) ||
 						(skip_blocks_cfg->skip_block_hook &&
 						skip_blocks_cfg->skip_block_hook(hdev,
 							special_blocks_cfg,
-							blk_idx, major, minor, sub_minor))) {
-						sub_minor++;
+							blk_idx, major, mianalr, sub_mianalr))) {
+						sub_mianalr++;
 						continue;
 					}
 
-					rc = ctx->fn(hdev, blk_idx, major, minor,
-								sub_minor, ctx->data);
+					rc = ctx->fn(hdev, blk_idx, major, mianalr,
+								sub_mianalr, ctx->data);
 					if (rc)
 						return rc;
 
-					sub_minor++;
-				} while (sub_minor < block_info_arr->sub_minor);
+					sub_mianalr++;
+				} while (sub_mianalr < block_info_arr->sub_mianalr);
 
-				minor++;
-			} while (minor < block_info_arr->minor);
+				mianalr++;
+			} while (mianalr < block_info_arr->mianalr);
 		}
 	}
 

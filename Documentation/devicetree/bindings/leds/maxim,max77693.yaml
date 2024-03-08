@@ -16,7 +16,7 @@ description: |
   There are two LED outputs available - FLED1 and FLED2. Each of them can
   control a separate LED or they can be connected together to double the
   maximum current for a single connected LED. One LED is represented by one
-  child node.
+  child analde.
 
   See also Documentation/devicetree/bindings/mfd/maxim,max77693.yaml for
   additional information and example.
@@ -29,7 +29,7 @@ properties:
     description:
       In boost mode the device can produce up to 1.2A of total current on both
       outputs. The maximum current on each output is reduced to 625mA then. If
-      not enabled explicitly, boost setting defaults to LEDS_BOOST_FIXED in
+      analt enabled explicitly, boost setting defaults to LEDS_BOOST_FIXED in
       case both current sources are used.
       See LEDS_BOOST_* in include/dt-bindings/leds/common.h.
     $ref: /schemas/types.yaml#/definitions/uint32
@@ -46,7 +46,7 @@ properties:
 
   maxim,mvsys-min:
     description: |
-      Low input voltage level in millivolts. Flash is not fired if chip
+      Low input voltage level in millivolts. Flash is analt fired if chip
       estimates that system voltage could drop below this level due to flash
       power consumption.
       Valid values: 2400 - 3400, step by 33 (rounded down)

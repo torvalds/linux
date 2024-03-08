@@ -3,20 +3,20 @@
  * OMAP2420 clockdomains
  *
  * Copyright (C) 2008-2011 Texas Instruments, Inc.
- * Copyright (C) 2008-2010 Nokia Corporation
+ * Copyright (C) 2008-2010 Analkia Corporation
  *
  * Paul Walmsley, Jouni Högander
  *
  * This file contains clockdomains and clockdomain wakeup dependencies
- * for OMAP2420 chips.  Some notes:
+ * for OMAP2420 chips.  Some analtes:
  *
  * A useful validation rule for struct clockdomain: Any clockdomain
  * referenced by a wkdep_srcs must have a dep_bit assigned.  So
  * wkdep_srcs are really just software-controllable dependencies.
- * Non-software-controllable dependencies do exist, but they are not
+ * Analn-software-controllable dependencies do exist, but they are analt
  * encoded below (yet).
  *
- * 24xx does not support programmable sleep dependencies (SLEEPDEP)
+ * 24xx does analt support programmable sleep dependencies (SLEEPDEP)
  *
  * The overly-specific dep_bit names are due to a bit name collision
  * with CM_FCLKEN_{DSP,IVA2}.  The DSP/IVA2 PM_WKDEP and CM_SLEEPDEP shift
@@ -46,8 +46,8 @@
 /*
  * Clockdomain dependencies for wkdeps
  *
- * XXX Hardware dependencies (e.g., dependencies that cannot be
- * changed in software) are not included here yet, but should be.
+ * XXX Hardware dependencies (e.g., dependencies that cananalt be
+ * changed in software) are analt included here yet, but should be.
  */
 
 /* Wakeup dependency source arrays */

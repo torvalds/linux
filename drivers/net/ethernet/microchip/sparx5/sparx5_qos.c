@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /* Microchip Sparx5 Switch driver
  *
- * Copyright (c) 2022 Microchip Technology Inc. and its subsidiaries.
+ * Copyright (c) 2022 Microchip Techanallogy Inc. and its subsidiaries.
  */
 
 #include <net/pkt_cls.h>
@@ -181,7 +181,7 @@ static int sparx5_lg_get_group_by_index(struct sparx5 *sparx5, u32 layer,
 				return 0; /* Found it */
 			}
 			if (itr == next)
-				break; /* Was not found */
+				break; /* Was analt found */
 
 			itr = next;
 		}
@@ -224,7 +224,7 @@ static int sparx5_lg_get_adjacent(struct sparx5 *sparx5, u32 layer, u32 group,
 			return 0; /* Found it */
 
 		if (itr == *next)
-			return -1; /* Was not found */
+			return -1; /* Was analt found */
 
 		*prev = itr;
 		itr = *next;
@@ -275,7 +275,7 @@ static int sparx5_lg_del(struct sparx5 *sparx5, u32 layer, u32 group, u32 idx)
 	if (sparx5_lg_is_singular(sparx5, layer, group)) {
 		empty = true;
 	} else if (sparx5_lg_is_last(sparx5, layer, group, idx)) {
-		/* idx is removed, prev is now last */
+		/* idx is removed, prev is analw last */
 		idx = prev;
 		next = prev;
 	} else if (sparx5_lg_is_first(sparx5, layer, group, idx)) {
@@ -283,7 +283,7 @@ static int sparx5_lg_del(struct sparx5 *sparx5, u32 layer, u32 group, u32 idx)
 		first = next;
 		next = idx;
 	} else {
-		/* Next is not touched */
+		/* Next is analt touched */
 		idx = prev;
 	}
 
@@ -305,7 +305,7 @@ static int sparx5_lg_add(struct sparx5 *sparx5, u32 layer, u32 new_group,
 			/* Delete from old group */
 			sparx5_lg_del(sparx5, layer, old_group, idx);
 		} else {
-			/* Nothing to do here */
+			/* Analthing to do here */
 			return 0;
 		}
 	}
@@ -365,14 +365,14 @@ static int sparx5_dwrr_conf_set(struct sparx5_port *port,
 	int i;
 
 	spx5_rmw(HSCH_HSCH_CFG_CFG_HSCH_LAYER_SET(2) |
-		 HSCH_HSCH_CFG_CFG_CFG_SE_IDX_SET(port->portno),
+		 HSCH_HSCH_CFG_CFG_CFG_SE_IDX_SET(port->portanal),
 		 HSCH_HSCH_CFG_CFG_HSCH_LAYER | HSCH_HSCH_CFG_CFG_CFG_SE_IDX,
 		 port->sparx5, HSCH_HSCH_CFG_CFG);
 
 	/* Number of *lower* indexes that are arbitrated dwrr */
 	spx5_rmw(HSCH_SE_CFG_SE_DWRR_CNT_SET(dwrr->count),
 		 HSCH_SE_CFG_SE_DWRR_CNT, port->sparx5,
-		 HSCH_SE_CFG(port->portno));
+		 HSCH_SE_CFG(port->portanal));
 
 	for (i = 0; i < dwrr->count; i++) {
 		spx5_rmw(HSCH_DWRR_ENTRY_DWRR_COST_SET(dwrr->cost[i]),
@@ -500,7 +500,7 @@ int sparx5_tc_tbf_add(struct sparx5_port *port,
 
 	/* Find suitable group for this se */
 	if (sparx5_lg_get_group_by_rate(layer, sh.rate, &group) < 0) {
-		pr_debug("Could not find leak group for se with rate: %d",
+		pr_debug("Could analt find leak group for se with rate: %d",
 			 sh.rate);
 		return -EINVAL;
 	}

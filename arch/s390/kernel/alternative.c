@@ -5,7 +5,7 @@
 #include <asm/text-patching.h>
 #include <asm/alternative.h>
 #include <asm/facility.h>
-#include <asm/nospec-branch.h>
+#include <asm/analspec-branch.h>
 
 static int __initdata_or_module alt_instr_disabled;
 
@@ -15,7 +15,7 @@ static int __init disable_alternative_instructions(char *str)
 	return 0;
 }
 
-early_param("noaltinstr", disable_alternative_instructions);
+early_param("analaltinstr", disable_alternative_instructions);
 
 static void __init_or_module __apply_alternatives(struct alt_instr *start,
 						  struct alt_instr *end)

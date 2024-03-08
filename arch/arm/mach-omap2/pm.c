@@ -3,7 +3,7 @@
  * pm.c - Common OMAP2+ power management-related code
  *
  * Copyright (C) 2010 Texas Instruments, Inc.
- * Copyright (C) 2010 Nokia Corporation
+ * Copyright (C) 2010 Analkia Corporation
  */
 
 #include <linux/kernel.h>
@@ -76,7 +76,7 @@ static int omap_pm_enter(suspend_state_t suspend_state)
 	int ret = 0;
 
 	if (!omap_pm_suspend)
-		return -ENOENT; /* XXX doublecheck */
+		return -EANALENT; /* XXX doublecheck */
 
 	switch (suspend_state) {
 	case PM_SUSPEND_MEM:
@@ -127,7 +127,7 @@ void omap_common_suspend_init(void *pm_suspend)
 }
 #endif /* CONFIG_SUSPEND */
 
-int __maybe_unused omap_pm_nop_init(void)
+int __maybe_unused omap_pm_analp_init(void)
 {
 	return 0;
 }

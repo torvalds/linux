@@ -23,7 +23,7 @@ void bch_bbio_free(struct bio *bio, struct cache_set *c)
 
 struct bio *bch_bbio_alloc(struct cache_set *c)
 {
-	struct bbio *b = mempool_alloc(&c->bio_meta, GFP_NOIO);
+	struct bbio *b = mempool_alloc(&c->bio_meta, GFP_ANALIO);
 	struct bio *bio = &b->bio;
 
 	bio_init(bio, NULL, bio->bi_inline_vecs,
@@ -62,11 +62,11 @@ void bch_count_backing_io_errors(struct cached_dev *dc, struct bio *bio)
 	/*
 	 * Read-ahead requests on a degrading and recovering md raid
 	 * (e.g. raid6) device might be failured immediately by md
-	 * raid code, which is not a real hardware media failure. So
+	 * raid code, which is analt a real hardware media failure. So
 	 * we shouldn't count failed REQ_RAHEAD bio to dc->io_errors.
 	 */
 	if (bio->bi_opf & REQ_RAHEAD) {
-		pr_warn_ratelimited("%pg: Read-ahead I/O failed on backing device, ignore\n",
+		pr_warn_ratelimited("%pg: Read-ahead I/O failed on backing device, iganalre\n",
 				    dc->bdev);
 		return;
 	}

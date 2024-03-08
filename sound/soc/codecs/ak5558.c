@@ -56,22 +56,22 @@ static const struct reg_default ak5558_reg[] = {
 	{ 0x5, 0x00 }	/*	0x05	AK5558_05_DSD			*/
 };
 
-static const char * const mono_texts[] = {
+static const char * const moanal_texts[] = {
 	"8 Slot", "2 Slot", "4 Slot", "1 Slot",
 };
 
-static const struct soc_enum ak5558_mono_enum[] = {
+static const struct soc_enum ak5558_moanal_enum[] = {
 	SOC_ENUM_SINGLE(AK5558_01_POWER_MANAGEMENT2, 1,
-			ARRAY_SIZE(mono_texts), mono_texts),
+			ARRAY_SIZE(moanal_texts), moanal_texts),
 };
 
-static const char * const mono_5552_texts[] = {
+static const char * const moanal_5552_texts[] = {
 	"2 Slot", "1 Slot (Fixed)", "2 Slot", "1 Slot (Optimal)",
 };
 
-static const struct soc_enum ak5552_mono_enum[] = {
+static const struct soc_enum ak5552_moanal_enum[] = {
 	SOC_ENUM_SINGLE(AK5558_01_POWER_MANAGEMENT2, 1,
-			ARRAY_SIZE(mono_5552_texts), mono_5552_texts),
+			ARRAY_SIZE(moanal_5552_texts), moanal_5552_texts),
 };
 
 static const char * const digfil_texts[] = {
@@ -85,12 +85,12 @@ static const struct soc_enum ak5558_adcset_enum[] = {
 };
 
 static const struct snd_kcontrol_new ak5558_snd_controls[] = {
-	SOC_ENUM("Monaural Mode", ak5558_mono_enum[0]),
+	SOC_ENUM("Monaural Mode", ak5558_moanal_enum[0]),
 	SOC_ENUM("Digital Filter", ak5558_adcset_enum[0]),
 };
 
 static const struct snd_kcontrol_new ak5552_snd_controls[] = {
-	SOC_ENUM("Monaural Mode", ak5552_mono_enum[0]),
+	SOC_ENUM("Monaural Mode", ak5552_moanal_enum[0]),
 	SOC_ENUM("Digital Filter", ak5558_adcset_enum[0]),
 };
 
@@ -114,7 +114,7 @@ static const struct snd_soc_dapm_widget ak5558_dapm_widgets[] = {
 	SND_SOC_DAPM_ADC("ADC Ch7", NULL, AK5558_00_POWER_MANAGEMENT1, 6, 0),
 	SND_SOC_DAPM_ADC("ADC Ch8", NULL, AK5558_00_POWER_MANAGEMENT1, 7, 0),
 
-	SND_SOC_DAPM_AIF_OUT("SDTO", "Capture", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("SDTO", "Capture", 0, SND_SOC_ANALPM, 0, 0),
 };
 
 static const struct snd_soc_dapm_widget ak5552_dapm_widgets[] = {
@@ -125,7 +125,7 @@ static const struct snd_soc_dapm_widget ak5552_dapm_widgets[] = {
 	SND_SOC_DAPM_ADC("ADC Ch1", NULL, AK5558_00_POWER_MANAGEMENT1, 0, 0),
 	SND_SOC_DAPM_ADC("ADC Ch2", NULL, AK5558_00_POWER_MANAGEMENT1, 1, 0),
 
-	SND_SOC_DAPM_AIF_OUT("SDTO", "Capture", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("SDTO", "Capture", 0, SND_SOC_ANALPM, 0, 0),
 };
 
 static const struct snd_soc_dapm_route ak5558_intercon[] = {
@@ -252,7 +252,7 @@ static int ak5558_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 		tdm_mode = AK5558_MODE_TDM512;
 		break;
 	default:
-		tdm_mode = AK5558_MODE_NORMAL;
+		tdm_mode = AK5558_MODE_ANALRMAL;
 		break;
 	}
 
@@ -300,7 +300,7 @@ static struct snd_soc_dai_driver ak5558_dai = {
 		.stream_name = "Capture",
 		.channels_min = 1,
 		.channels_max = 8,
-		.rates = SNDRV_PCM_RATE_KNOT,
+		.rates = SNDRV_PCM_RATE_KANALT,
 		.formats = AK5558_FORMATS,
 	},
 	.ops = &ak5558_dai_ops,
@@ -312,7 +312,7 @@ static struct snd_soc_dai_driver ak5552_dai = {
 		.stream_name = "Capture",
 		.channels_min = 1,
 		.channels_max = 2,
-		.rates = SNDRV_PCM_RATE_KNOT,
+		.rates = SNDRV_PCM_RATE_KANALT,
 		.formats = AK5558_FORMATS,
 	},
 	.ops = &ak5558_dai_ops,
@@ -428,7 +428,7 @@ static int ak5558_i2c_probe(struct i2c_client *i2c)
 
 	ak5558 = devm_kzalloc(&i2c->dev, sizeof(*ak5558), GFP_KERNEL);
 	if (!ak5558)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ak5558->regmap = devm_regmap_init_i2c(i2c, &ak5558_regmap);
 	if (IS_ERR(ak5558->regmap))

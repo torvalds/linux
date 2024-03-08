@@ -1,4 +1,4 @@
-perf-y += annotate.o
+perf-y += ananaltate.o
 perf-y += hists.o
 perf-y += map.o
 perf-y += scripts.o

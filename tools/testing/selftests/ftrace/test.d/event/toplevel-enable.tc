@@ -21,7 +21,7 @@ echo 0 > tracing_on
 
 count=`head -n 128 trace | grep -v ^# | wc -l`
 if [ $count -eq 0 ]; then
-    fail "none of events are recorded"
+    fail "analne of events are recorded"
 fi
 
 do_reset
@@ -34,7 +34,7 @@ yield
 echo 0 > tracing_on
 count=`head -n 128 trace | grep -v ^# | wc -l`
 if [ $count -eq 0 ]; then
-    fail "none of events are recorded"
+    fail "analne of events are recorded"
 fi
 
 do_reset
@@ -45,7 +45,7 @@ yield
 
 count=`cat trace | grep -v ^# | wc -l`
 if [ $count -ne 0 ]; then
-    fail "any of events should not be recorded"
+    fail "any of events should analt be recorded"
 fi
 
 exit 0

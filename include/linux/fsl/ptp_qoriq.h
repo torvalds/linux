@@ -152,7 +152,7 @@ struct ptp_qoriq {
 	bool etsec;
 	int irq;
 	int phc_index;
-	u32 tclk_period;  /* nanoseconds */
+	u32 tclk_period;  /* naanalseconds */
 	u32 tmr_prsc;
 	u32 tmr_add;
 	u32 cksel;

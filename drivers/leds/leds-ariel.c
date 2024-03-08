@@ -89,11 +89,11 @@ static int ariel_led_probe(struct platform_device *pdev)
 
 	ec_ram = dev_get_regmap(dev->parent, "ec_ram");
 	if (!ec_ram)
-		return -ENODEV;
+		return -EANALDEV;
 
 	leds = devm_kcalloc(dev, NLEDS, sizeof(*leds), GFP_KERNEL);
 	if (!leds)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	leds[0].ec_index = EC_BLUE_LED;
 	leds[0].led_cdev.name = "blue:power";

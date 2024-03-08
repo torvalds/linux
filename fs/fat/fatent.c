@@ -72,7 +72,7 @@ static int fat12_ent_bread(struct super_block *sb, struct fat_entry *fatent,
 	struct buffer_head **bhs = fatent->bhs;
 
 	WARN_ON(blocknr < MSDOS_SB(sb)->fat_start);
-	fatent->fat_inode = MSDOS_SB(sb)->fat_inode;
+	fatent->fat_ianalde = MSDOS_SB(sb)->fat_ianalde;
 
 	bhs[0] = sb_bread(sb, blocknr);
 	if (!bhs[0])
@@ -105,7 +105,7 @@ static int fat_ent_bread(struct super_block *sb, struct fat_entry *fatent,
 	const struct fatent_operations *ops = MSDOS_SB(sb)->fatent_ops;
 
 	WARN_ON(blocknr < MSDOS_SB(sb)->fat_start);
-	fatent->fat_inode = MSDOS_SB(sb)->fat_inode;
+	fatent->fat_ianalde = MSDOS_SB(sb)->fat_ianalde;
 	fatent->bhs[0] = sb_bread(sb, blocknr);
 	if (!fatent->bhs[0]) {
 		fat_msg_ratelimit(sb, KERN_ERR, "FAT read failed (blocknr %llu)",
@@ -170,9 +170,9 @@ static void fat12_ent_put(struct fat_entry *fatent, int new)
 	}
 	spin_unlock(&fat12_entry_lock);
 
-	mark_buffer_dirty_inode(fatent->bhs[0], fatent->fat_inode);
+	mark_buffer_dirty_ianalde(fatent->bhs[0], fatent->fat_ianalde);
 	if (fatent->nr_bhs == 2)
-		mark_buffer_dirty_inode(fatent->bhs[1], fatent->fat_inode);
+		mark_buffer_dirty_ianalde(fatent->bhs[1], fatent->fat_ianalde);
 }
 
 static void fat16_ent_put(struct fat_entry *fatent, int new)
@@ -181,7 +181,7 @@ static void fat16_ent_put(struct fat_entry *fatent, int new)
 		new = EOF_FAT16;
 
 	*fatent->u.ent16_p = cpu_to_le16(new);
-	mark_buffer_dirty_inode(fatent->bhs[0], fatent->fat_inode);
+	mark_buffer_dirty_ianalde(fatent->bhs[0], fatent->fat_ianalde);
 }
 
 static void fat32_ent_put(struct fat_entry *fatent, int new)
@@ -189,7 +189,7 @@ static void fat32_ent_put(struct fat_entry *fatent, int new)
 	WARN_ON(new & 0xf0000000);
 	new |= le32_to_cpu(*fatent->u.ent32_p) & ~0x0fffffff;
 	*fatent->u.ent32_p = cpu_to_le32(new);
-	mark_buffer_dirty_inode(fatent->bhs[0], fatent->fat_inode);
+	mark_buffer_dirty_ianalde(fatent->bhs[0], fatent->fat_ianalde);
 }
 
 static int fat12_ent_next(struct fat_entry *fatent)
@@ -313,7 +313,7 @@ static void mark_fsinfo_dirty(struct super_block *sb)
 	if (sb_rdonly(sb) || !is_fat32(sbi))
 		return;
 
-	__mark_inode_dirty(sbi->fsinfo_inode, I_DIRTY_SYNC);
+	__mark_ianalde_dirty(sbi->fsinfo_ianalde, I_DIRTY_SYNC);
 }
 
 static inline int fat_ent_update_ptr(struct super_block *sb,
@@ -346,10 +346,10 @@ static inline int fat_ent_update_ptr(struct super_block *sb,
 	return 1;
 }
 
-int fat_ent_read(struct inode *inode, struct fat_entry *fatent, int entry)
+int fat_ent_read(struct ianalde *ianalde, struct fat_entry *fatent, int entry)
 {
-	struct super_block *sb = inode->i_sb;
-	struct msdos_sb_info *sbi = MSDOS_SB(inode->i_sb);
+	struct super_block *sb = ianalde->i_sb;
+	struct msdos_sb_info *sbi = MSDOS_SB(ianalde->i_sb);
 	const struct fatent_operations *ops = sbi->fatent_ops;
 	int err, offset;
 	sector_t blocknr;
@@ -387,7 +387,7 @@ static int fat_mirror_bhs(struct super_block *sb, struct buffer_head **bhs,
 		for (n = 0; n < nr_bhs; n++) {
 			c_bh = sb_getblk(sb, backup_fat + bhs[n]->b_blocknr);
 			if (!c_bh) {
-				err = -ENOMEM;
+				err = -EANALMEM;
 				goto error;
 			}
 			/* Avoid race with userspace read via bdev */
@@ -395,8 +395,8 @@ static int fat_mirror_bhs(struct super_block *sb, struct buffer_head **bhs,
 			memcpy(c_bh->b_data, bhs[n]->b_data, sb->s_blocksize);
 			set_buffer_uptodate(c_bh);
 			unlock_buffer(c_bh);
-			mark_buffer_dirty_inode(c_bh, sbi->fat_inode);
-			if (sb->s_flags & SB_SYNCHRONOUS)
+			mark_buffer_dirty_ianalde(c_bh, sbi->fat_ianalde);
+			if (sb->s_flags & SB_SYNCHROANALUS)
 				err = sync_dirty_buffer(c_bh);
 			brelse(c_bh);
 			if (err)
@@ -407,10 +407,10 @@ error:
 	return err;
 }
 
-int fat_ent_write(struct inode *inode, struct fat_entry *fatent,
+int fat_ent_write(struct ianalde *ianalde, struct fat_entry *fatent,
 		  int new, int wait)
 {
-	struct super_block *sb = inode->i_sb;
+	struct super_block *sb = ianalde->i_sb;
 	const struct fatent_operations *ops = MSDOS_SB(sb)->fatent_ops;
 	int err;
 
@@ -463,9 +463,9 @@ static void fat_collect_bhs(struct buffer_head **bhs, int *nr_bhs,
 	}
 }
 
-int fat_alloc_clusters(struct inode *inode, int *cluster, int nr_cluster)
+int fat_alloc_clusters(struct ianalde *ianalde, int *cluster, int nr_cluster)
 {
-	struct super_block *sb = inode->i_sb;
+	struct super_block *sb = ianalde->i_sb;
 	struct msdos_sb_info *sbi = MSDOS_SB(sb);
 	const struct fatent_operations *ops = sbi->fatent_ops;
 	struct fat_entry fatent, prev_ent;
@@ -478,7 +478,7 @@ int fat_alloc_clusters(struct inode *inode, int *cluster, int nr_cluster)
 	if (sbi->free_clusters != -1 && sbi->free_clus_valid &&
 	    sbi->free_clusters < nr_cluster) {
 		unlock_fat(sbi);
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	err = nr_bhs = idx_clus = 0;
@@ -530,14 +530,14 @@ int fat_alloc_clusters(struct inode *inode, int *cluster, int nr_cluster)
 	/* Couldn't allocate the free entries */
 	sbi->free_clusters = 0;
 	sbi->free_clus_valid = 1;
-	err = -ENOSPC;
+	err = -EANALSPC;
 
 out:
 	unlock_fat(sbi);
 	mark_fsinfo_dirty(sb);
 	fatent_brelse(&fatent);
 	if (!err) {
-		if (inode_needs_sync(inode))
+		if (ianalde_needs_sync(ianalde))
 			err = fat_sync_bhs(bhs, nr_bhs);
 		if (!err)
 			err = fat_mirror_bhs(sb, bhs, nr_bhs);
@@ -546,14 +546,14 @@ out:
 		brelse(bhs[i]);
 
 	if (err && idx_clus)
-		fat_free_clusters(inode, cluster[0]);
+		fat_free_clusters(ianalde, cluster[0]);
 
 	return err;
 }
 
-int fat_free_clusters(struct inode *inode, int cluster)
+int fat_free_clusters(struct ianalde *ianalde, int cluster)
 {
-	struct super_block *sb = inode->i_sb;
+	struct super_block *sb = ianalde->i_sb;
 	struct msdos_sb_info *sbi = MSDOS_SB(sb);
 	const struct fatent_operations *ops = sbi->fatent_ops;
 	struct fat_entry fatent;
@@ -565,7 +565,7 @@ int fat_free_clusters(struct inode *inode, int cluster)
 	fatent_init(&fatent);
 	lock_fat(sbi);
 	do {
-		cluster = fat_ent_read(inode, &fatent, cluster);
+		cluster = fat_ent_read(ianalde, &fatent, cluster);
 		if (cluster < 0) {
 			err = cluster;
 			goto error;
@@ -578,7 +578,7 @@ int fat_free_clusters(struct inode *inode, int cluster)
 
 		if (sbi->options.discard) {
 			/*
-			 * Issue discard for the sectors we no longer
+			 * Issue discard for the sectors we anal longer
 			 * care about, batching contiguous clusters
 			 * into one request
 			 */
@@ -588,7 +588,7 @@ int fat_free_clusters(struct inode *inode, int cluster)
 				sb_issue_discard(sb,
 					fat_clus_to_blknr(sbi, first_cl),
 					nr_clus * sbi->sec_per_clus,
-					GFP_NOFS, 0);
+					GFP_ANALFS, 0);
 
 				first_cl = cluster;
 			}
@@ -601,7 +601,7 @@ int fat_free_clusters(struct inode *inode, int cluster)
 		}
 
 		if (nr_bhs + fatent.nr_bhs > MAX_BUF_PER_PAGE) {
-			if (sb->s_flags & SB_SYNCHRONOUS) {
+			if (sb->s_flags & SB_SYNCHROANALUS) {
 				err = fat_sync_bhs(bhs, nr_bhs);
 				if (err)
 					goto error;
@@ -616,7 +616,7 @@ int fat_free_clusters(struct inode *inode, int cluster)
 		fat_collect_bhs(bhs, &nr_bhs, &fatent);
 	} while (cluster != FAT_ENT_EOF);
 
-	if (sb->s_flags & SB_SYNCHRONOUS) {
+	if (sb->s_flags & SB_SYNCHROANALUS) {
 		err = fat_sync_bhs(bhs, nr_bhs);
 		if (err)
 			goto error;
@@ -756,12 +756,12 @@ static int fat_trim_clusters(struct super_block *sb, u32 clus, u32 nr_clus)
 {
 	struct msdos_sb_info *sbi = MSDOS_SB(sb);
 	return sb_issue_discard(sb, fat_clus_to_blknr(sbi, clus),
-				nr_clus * sbi->sec_per_clus, GFP_NOFS, 0);
+				nr_clus * sbi->sec_per_clus, GFP_ANALFS, 0);
 }
 
-int fat_trim_fs(struct inode *inode, struct fstrim_range *range)
+int fat_trim_fs(struct ianalde *ianalde, struct fstrim_range *range)
 {
-	struct super_block *sb = inode->i_sb;
+	struct super_block *sb = ianalde->i_sb;
 	struct msdos_sb_info *sbi = MSDOS_SB(sb);
 	const struct fatent_operations *ops = sbi->fatent_ops;
 	struct fat_entry fatent;
@@ -774,7 +774,7 @@ int fat_trim_fs(struct inode *inode, struct fstrim_range *range)
 	 * FAT data is organized as clusters, trim at the granulary of cluster.
 	 *
 	 * fstrim_range is in byte, convert values to cluster index.
-	 * Treat sectors before data region as all used, not to trim them.
+	 * Treat sectors before data region as all used, analt to trim them.
 	 */
 	ent_start = max_t(u64, range->start>>sbi->cluster_bits, FAT_START_ENT);
 	ent_end = ent_start + (range->len >> sbi->cluster_bits) - 1;
@@ -804,7 +804,7 @@ int fat_trim_fs(struct inode *inode, struct fstrim_range *range)
 					u32 clus = fatent.entry - free;
 
 					err = fat_trim_clusters(sb, clus, free);
-					if (err && err != -EOPNOTSUPP)
+					if (err && err != -EOPANALTSUPP)
 						goto error;
 					if (!err)
 						trimmed += free;
@@ -831,7 +831,7 @@ int fat_trim_fs(struct inode *inode, struct fstrim_range *range)
 		u32 clus = fatent.entry - free;
 
 		err = fat_trim_clusters(sb, clus, free);
-		if (err && err != -EOPNOTSUPP)
+		if (err && err != -EOPANALTSUPP)
 			goto error;
 		if (!err)
 			trimmed += free;

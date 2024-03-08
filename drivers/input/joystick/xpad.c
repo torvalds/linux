@@ -28,7 +28,7 @@
  *
  * TODO:
  *  - fine tune axes (especially trigger axes)
- *  - fix "analog" buttons (reported as digital now)
+ *  - fix "analog" buttons (reported as digital analw)
  *  - get rumble working
  *  - need USB IDs for other dance pads
  *
@@ -38,13 +38,13 @@
  *
  * 2002-07-02 - 0.0.2 : basic working version
  *  - all axes and 9 of the 10 buttons work (german InterAct device)
- *  - the black button does not work
+ *  - the black button does analt work
  *
  * 2002-07-14 - 0.0.3 : rework by Vojtech Pavlik
  *  - indentation fixes
  *  - usb + input init sequence fixes
  *
- * 2002-07-16 - 0.0.4 : minor changes, merge with Vojtech's v0.0.3
+ * 2002-07-16 - 0.0.4 : mianalr changes, merge with Vojtech's v0.0.3
  *  - verified the lack of HID and report descriptors
  *  - verified that ALL buttons WORK
  *  - fixed d-pad to axes mapping
@@ -54,9 +54,9 @@
  * 2004-10-02 - 0.0.6 : DDR pad support
  *  - borrowed from the Xbox Linux kernel
  *  - USB id's for commonly used dance pads are present
- *  - dance pads will map D-PAD to buttons, not axes
+ *  - dance pads will map D-PAD to buttons, analt axes
  *  - pass the module paramater 'dpad_to_buttons' to force
- *    the D-PAD to map to buttons if your pad is not detected
+ *    the D-PAD to map to buttons if your pad is analt detected
  *
  * Later changes can be tracked in SCM.
  */
@@ -91,7 +91,7 @@
 #define XTYPE_XBOX360     1
 #define XTYPE_XBOX360W    2
 #define XTYPE_XBOXONE     3
-#define XTYPE_UNKNOWN     4
+#define XTYPE_UNKANALWN     4
 
 /* Send power-off packet to xpad360w after holding the mode button for this many
  * seconds
@@ -106,15 +106,15 @@
 
 static bool dpad_to_buttons;
 module_param(dpad_to_buttons, bool, S_IRUGO);
-MODULE_PARM_DESC(dpad_to_buttons, "Map D-PAD to buttons rather than axes for unknown pads");
+MODULE_PARM_DESC(dpad_to_buttons, "Map D-PAD to buttons rather than axes for unkanalwn pads");
 
 static bool triggers_to_buttons;
 module_param(triggers_to_buttons, bool, S_IRUGO);
-MODULE_PARM_DESC(triggers_to_buttons, "Map triggers to buttons rather than axes for unknown pads");
+MODULE_PARM_DESC(triggers_to_buttons, "Map triggers to buttons rather than axes for unkanalwn pads");
 
 static bool sticks_to_null;
 module_param(sticks_to_null, bool, S_IRUGO);
-MODULE_PARM_DESC(sticks_to_null, "Do not map sticks at all for unknown pads");
+MODULE_PARM_DESC(sticks_to_null, "Do analt map sticks at all for unkanalwn pads");
 
 static bool auto_poweroff = true;
 module_param(auto_poweroff, bool, S_IWUSR | S_IRUGO);
@@ -274,7 +274,7 @@ static const struct xpad_device {
 	{ 0x1038, 0x1431, "SteelSeries Stratus Duo", 0, XTYPE_XBOX360 },
 	{ 0x11c9, 0x55f0, "Nacon GC-100XF", 0, XTYPE_XBOX360 },
 	{ 0x11ff, 0x0511, "PXN V900", 0, XTYPE_XBOX360 },
-	{ 0x1209, 0x2882, "Ardwiino Controller", 0, XTYPE_XBOX360 },
+	{ 0x1209, 0x2882, "Ardwiianal Controller", 0, XTYPE_XBOX360 },
 	{ 0x12ab, 0x0004, "Honey Bee Xbox360 dancepad", MAP_DPAD_TO_BUTTONS, XTYPE_XBOX360 },
 	{ 0x12ab, 0x0301, "PDP AFTERGLOW AX.1", 0, XTYPE_XBOX360 },
 	{ 0x12ab, 0x0303, "Mortal Kombat Klassic FightStick", MAP_TRIGGERS_TO_BUTTONS, XTYPE_XBOX360 },
@@ -294,7 +294,7 @@ static const struct xpad_device {
 	{ 0x1689, 0xfd00, "Razer Onza Tournament Edition", 0, XTYPE_XBOX360 },
 	{ 0x1689, 0xfd01, "Razer Onza Classic Edition", 0, XTYPE_XBOX360 },
 	{ 0x1689, 0xfe00, "Razer Sabertooth", 0, XTYPE_XBOX360 },
-	{ 0x17ef, 0x6182, "Lenovo Legion Controller for Windows", 0, XTYPE_XBOX360 },
+	{ 0x17ef, 0x6182, "Leanalvo Legion Controller for Windows", 0, XTYPE_XBOX360 },
 	{ 0x1949, 0x041a, "Amazon Game Controller", 0, XTYPE_XBOX360 },
 	{ 0x1bad, 0x0002, "Harmonix Rock Band Guitar", 0, XTYPE_XBOX360 },
 	{ 0x1bad, 0x0003, "Harmonix Rock Band Drumkit", MAP_DPAD_TO_BUTTONS, XTYPE_XBOX360 },
@@ -373,7 +373,7 @@ static const struct xpad_device {
 	{ 0x3537, 0x1004, "GameSir T4 Kaleid", 0, XTYPE_XBOX360 },
 	{ 0x3767, 0x0101, "Fanatec Speedster 3 Forceshock Wheel", 0, XTYPE_XBOX },
 	{ 0xffff, 0xffff, "Chinese-made Xbox Controller", 0, XTYPE_XBOX },
-	{ 0x0000, 0x0000, "Generic X-Box pad", 0, XTYPE_UNKNOWN }
+	{ 0x0000, 0x0000, "Generic X-Box pad", 0, XTYPE_UNKANALWN }
 };
 
 /* buttons shared with xbox and xbox360 */
@@ -434,7 +434,7 @@ static const signed short xpad_btn_paddles[] = {
 };
 
 /*
- * Xbox 360 has a vendor-specific class, so we cannot match it with only
+ * Xbox 360 has a vendor-specific class, so we cananalt match it with only
  * USB_INTERFACE_INFO (also specifically refused by USB subsystem), so we
  * match against vendor id as well. Wired Xbox 360 devices have protocol 1,
  * wireless controllers have protocol 129.
@@ -460,7 +460,7 @@ static const signed short xpad_btn_paddles[] = {
 	{ XPAD_XBOXONE_VENDOR_PROTOCOL((vend), 208) }
 
 static const struct usb_device_id xpad_table[] = {
-	{ USB_INTERFACE_INFO('X', 'B', 0) },	/* Xbox USB-IF not-approved class */
+	{ USB_INTERFACE_INFO('X', 'B', 0) },	/* Xbox USB-IF analt-approved class */
 	XPAD_XBOX360_VENDOR(0x0079),		/* GPD Win 2 controller */
 	XPAD_XBOX360_VENDOR(0x03eb),		/* Wooting Keyboards (Legacy) */
 	XPAD_XBOXONE_VENDOR(0x03f0),		/* HP HyperX Xbox One controllers */
@@ -483,7 +483,7 @@ static const struct usb_device_id xpad_table[] = {
 	XPAD_XBOXONE_VENDOR(0x10f5),		/* Turtle Beach Controllers */
 	XPAD_XBOX360_VENDOR(0x11c9),		/* Nacon GC100XF */
 	XPAD_XBOX360_VENDOR(0x11ff),		/* PXN V900 */
-	XPAD_XBOX360_VENDOR(0x1209),		/* Ardwiino Controllers */
+	XPAD_XBOX360_VENDOR(0x1209),		/* Ardwiianal Controllers */
 	XPAD_XBOX360_VENDOR(0x12ab),		/* Xbox 360 dance pads */
 	XPAD_XBOX360_VENDOR(0x1430),		/* RedOctane Xbox 360 controllers */
 	XPAD_XBOX360_VENDOR(0x146b),		/* Bigben Interactive controllers */
@@ -492,7 +492,7 @@ static const struct usb_device_id xpad_table[] = {
 	XPAD_XBOX360_VENDOR(0x15e4),		/* Numark Xbox 360 controllers */
 	XPAD_XBOX360_VENDOR(0x162e),		/* Joytech Xbox 360 controllers */
 	XPAD_XBOX360_VENDOR(0x1689),		/* Razer Onza */
-	XPAD_XBOX360_VENDOR(0x17ef),		/* Lenovo */
+	XPAD_XBOX360_VENDOR(0x17ef),		/* Leanalvo */
 	XPAD_XBOX360_VENDOR(0x1949),		/* Amazon controllers */
 	XPAD_XBOX360_VENDOR(0x1bad),		/* Harmonix Rock Band guitar and drums */
 	XPAD_XBOX360_VENDOR(0x20d6),		/* PowerA controllers */
@@ -554,7 +554,7 @@ struct xboxone_init_packet {
 /*
  * length of the command payload encoded with
  * https://en.wikipedia.org/wiki/LEB128
- * which is a no-op for N < 128
+ * which is a anal-op for N < 128
  */
 #define GIP_PL_LEN(N) (N)
 
@@ -594,7 +594,7 @@ static const u8 xboxone_s_init[] = {
 /*
  * This packet is required to get additional input data
  * from Xbox One Elite Series 2 (0x045e:0x0b00) pads.
- * We mostly do this right now to get paddle data
+ * We mostly do this right analw to get paddle data
  */
 static const u8 extra_input_packet_init[] = {
 	0x4d, 0x10, 0x01, 0x02, 0x07, 0x00
@@ -640,8 +640,8 @@ static const u8 xboxone_rumblebegin_init[] = {
 /*
  * A rumble packet with zero FF intensity will immediately
  * terminate the rumbling required to init PowerA pads.
- * This should happen fast enough that the motors don't
- * spin up to enough speed to actually vibrate the gamepad.
+ * This should happen fast eanalugh that the motors don't
+ * spin up to eanalugh speed to actually vibrate the gamepad.
  */
 static const u8 xboxone_rumbleend_init[] = {
 	GIP_CMD_RUMBLE, 0x00, GIP_SEQ0, GIP_PL_LEN(9),
@@ -699,7 +699,7 @@ struct usb_xpad {
 
 	struct urb *irq_out;		/* urb for interrupt out report */
 	struct usb_anchor irq_out_anchor;
-	bool irq_out_active;		/* we must not use an active URB */
+	bool irq_out_active;		/* we must analt use an active URB */
 	u8 odata_serial;		/* serial number for xbox one protocol */
 	unsigned char *odata;		/* output data */
 	dma_addr_t odata_dma;
@@ -827,8 +827,8 @@ static void xpad360_process_packet(struct usb_xpad *xpad, struct input_dev *dev,
 
 	/*
 	 * This should be a simple else block. However historically
-	 * xbox360w has mapped DPAD to buttons while xbox360 did not. This
-	 * made no sense, but now we can not just switch back and have to
+	 * xbox360w has mapped DPAD to buttons while xbox360 did analt. This
+	 * made anal sense, but analw we can analt just switch back and have to
 	 * support both behaviors.
 	 */
 	if (!(xpad->mapping & MAP_DPAD_TO_BUTTONS) ||
@@ -907,7 +907,7 @@ static void xpad_presence_work(struct work_struct *work)
 	if (xpad->pad_present) {
 		error = xpad_init_input(xpad);
 		if (error) {
-			/* complain only, not much else we can do here */
+			/* complain only, analt much else we can do here */
 			dev_err(&xpad->dev->dev,
 				"unable to init device: %d\n", error);
 		} else {
@@ -917,7 +917,7 @@ static void xpad_presence_work(struct work_struct *work)
 		RCU_INIT_POINTER(xpad->x360w_dev, NULL);
 		synchronize_rcu();
 		/*
-		 * Now that we are sure xpad360w_process_packet is not
+		 * Analw that we are sure xpad360w_process_packet is analt
 		 * using input device we can get rid of it.
 		 */
 		xpad_deinit_input(xpad);
@@ -1143,14 +1143,14 @@ static void xpad_irq_in(struct urb *urb)
 		/* success */
 		break;
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
 		dev_dbg(dev, "%s - urb shutting down with status: %d\n",
 			__func__, status);
 		return;
 	default:
-		dev_dbg(dev, "%s - nonzero urb status received: %d\n",
+		dev_dbg(dev, "%s - analnzero urb status received: %d\n",
 			__func__, status);
 		goto exit;
 	}
@@ -1281,7 +1281,7 @@ static void xpad_irq_out(struct urb *urb)
 		break;
 
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
 		dev_dbg(dev, "%s - urb shutting down with status: %d\n",
@@ -1290,7 +1290,7 @@ static void xpad_irq_out(struct urb *urb)
 		break;
 
 	default:
-		dev_dbg(dev, "%s - nonzero urb status received: %d\n",
+		dev_dbg(dev, "%s - analnzero urb status received: %d\n",
 			__func__, status);
 		break;
 	}
@@ -1315,7 +1315,7 @@ static int xpad_init_output(struct usb_interface *intf, struct usb_xpad *xpad,
 {
 	int error;
 
-	if (xpad->xtype == XTYPE_UNKNOWN)
+	if (xpad->xtype == XTYPE_UNKANALWN)
 		return 0;
 
 	init_usb_anchor(&xpad->irq_out_anchor);
@@ -1323,13 +1323,13 @@ static int xpad_init_output(struct usb_interface *intf, struct usb_xpad *xpad,
 	xpad->odata = usb_alloc_coherent(xpad->udev, XPAD_PKT_LEN,
 					 GFP_KERNEL, &xpad->odata_dma);
 	if (!xpad->odata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&xpad->odata_lock);
 
 	xpad->irq_out = usb_alloc_urb(0, GFP_KERNEL);
 	if (!xpad->irq_out) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto err_free_coherent;
 	}
 
@@ -1338,7 +1338,7 @@ static int xpad_init_output(struct usb_interface *intf, struct usb_xpad *xpad,
 			 xpad->odata, XPAD_PKT_LEN,
 			 xpad_irq_out, xpad, ep_irq_out->bInterval);
 	xpad->irq_out->transfer_dma = xpad->odata_dma;
-	xpad->irq_out->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+	xpad->irq_out->transfer_flags |= URB_ANAL_TRANSFER_DMA_MAP;
 
 	return 0;
 
@@ -1349,7 +1349,7 @@ err_free_coherent:
 
 static void xpad_stop_output(struct usb_xpad *xpad)
 {
-	if (xpad->xtype != XTYPE_UNKNOWN) {
+	if (xpad->xtype != XTYPE_UNKANALWN) {
 		if (!usb_wait_anchor_empty_timeout(&xpad->irq_out_anchor,
 						   5000)) {
 			dev_warn(&xpad->intf->dev,
@@ -1361,7 +1361,7 @@ static void xpad_stop_output(struct usb_xpad *xpad)
 
 static void xpad_deinit_output(struct usb_xpad *xpad)
 {
-	if (xpad->xtype != XTYPE_UNKNOWN) {
+	if (xpad->xtype != XTYPE_UNKANALWN) {
 		usb_free_urb(xpad->irq_out);
 		usb_free_coherent(xpad->udev, XPAD_PKT_LEN,
 				xpad->odata, xpad->odata_dma);
@@ -1453,7 +1453,7 @@ static void xpadone_ack_mode_report(struct usb_xpad *xpad, u8 seq_num)
 	packet->data[2] = seq_num;
 	packet->pending = true;
 
-	/* Reset the sequence so we send out the ack now */
+	/* Reset the sequence so we send out the ack analw */
 	xpad->last_out_packet = -1;
 	xpad_try_sending_next_out_packet(xpad);
 
@@ -1555,7 +1555,7 @@ out:
 
 static int xpad_init_ff(struct usb_xpad *xpad)
 {
-	if (xpad->xtype == XTYPE_UNKNOWN)
+	if (xpad->xtype == XTYPE_UNKANALWN)
 		return 0;
 
 	input_set_capability(xpad->dev, EV_FF, FF_RUMBLE);
@@ -1670,7 +1670,7 @@ static int xpad_led_probe(struct usb_xpad *xpad)
 
 	xpad->led = led = kzalloc(sizeof(struct xpad_led), GFP_KERNEL);
 	if (!led)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	xpad->pad_nr = ida_alloc(&xpad_pad_seq, GFP_KERNEL);
 	if (xpad->pad_nr < 0) {
@@ -1784,7 +1784,7 @@ static void xpad360w_poweroff_controller(struct usb_xpad *xpad)
 	packet->len = 12;
 	packet->pending = true;
 
-	/* Reset the sequence so we send out poweroff now */
+	/* Reset the sequence so we send out poweroff analw */
 	xpad->last_out_packet = -1;
 	xpad_try_sending_next_out_packet(xpad);
 
@@ -1884,7 +1884,7 @@ static int xpad_init_input(struct usb_xpad *xpad)
 
 	input_dev = input_allocate_device();
 	if (!input_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	xpad->dev = input_dev;
 	input_dev->name = xpad->name;
@@ -1941,8 +1941,8 @@ static int xpad_init_input(struct usb_xpad *xpad)
 
 	/*
 	 * This should be a simple else block. However historically
-	 * xbox360w has mapped DPAD to buttons while xbox360 did not. This
-	 * made no sense, but now we can not just switch back and have to
+	 * xbox360w has mapped DPAD to buttons while xbox360 did analt. This
+	 * made anal sense, but analw we can analt just switch back and have to
 	 * support both behaviors.
 	 */
 	if (!(xpad->mapping & MAP_DPAD_TO_BUTTONS) ||
@@ -1996,7 +1996,7 @@ static int xpad_probe(struct usb_interface *intf, const struct usb_device_id *id
 	int i, error;
 
 	if (intf->cur_altsetting->desc.bNumEndpoints != 2)
-		return -ENODEV;
+		return -EANALDEV;
 
 	for (i = 0; xpad_device[i].idVendor; i++) {
 		if ((le16_to_cpu(udev->descriptor.idVendor) == xpad_device[i].idVendor) &&
@@ -2006,7 +2006,7 @@ static int xpad_probe(struct usb_interface *intf, const struct usb_device_id *id
 
 	xpad = kzalloc(sizeof(struct usb_xpad), GFP_KERNEL);
 	if (!xpad)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	usb_make_path(udev, xpad->phys, sizeof(xpad->phys));
 	strlcat(xpad->phys, "/input0", sizeof(xpad->phys));
@@ -2014,13 +2014,13 @@ static int xpad_probe(struct usb_interface *intf, const struct usb_device_id *id
 	xpad->idata = usb_alloc_coherent(udev, XPAD_PKT_LEN,
 					 GFP_KERNEL, &xpad->idata_dma);
 	if (!xpad->idata) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto err_free_mem;
 	}
 
 	xpad->irq_in = usb_alloc_urb(0, GFP_KERNEL);
 	if (!xpad->irq_in) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto err_free_idata;
 	}
 
@@ -2032,7 +2032,7 @@ static int xpad_probe(struct usb_interface *intf, const struct usb_device_id *id
 	xpad->packet_type = PKT_XB;
 	INIT_WORK(&xpad->work, xpad_presence_work);
 
-	if (xpad->xtype == XTYPE_UNKNOWN) {
+	if (xpad->xtype == XTYPE_UNKANALWN) {
 		if (intf->cur_altsetting->desc.bInterfaceClass == USB_CLASS_VENDOR_SPEC) {
 			if (intf->cur_altsetting->desc.bInterfaceProtocol == 129)
 				xpad->xtype = XTYPE_XBOX360W;
@@ -2059,7 +2059,7 @@ static int xpad_probe(struct usb_interface *intf, const struct usb_device_id *id
 		 * same interface class, subclass and protocol. Differentiate by
 		 * interface number.
 		 */
-		error = -ENODEV;
+		error = -EANALDEV;
 		goto err_free_in_urb;
 	}
 
@@ -2078,7 +2078,7 @@ static int xpad_probe(struct usb_interface *intf, const struct usb_device_id *id
 	}
 
 	if (!ep_irq_in || !ep_irq_out) {
-		error = -ENODEV;
+		error = -EANALDEV;
 		goto err_free_in_urb;
 	}
 
@@ -2091,7 +2091,7 @@ static int xpad_probe(struct usb_interface *intf, const struct usb_device_id *id
 			 xpad->idata, XPAD_PKT_LEN, xpad_irq_in,
 			 xpad, ep_irq_in->bInterval);
 	xpad->irq_in->transfer_dma = xpad->idata_dma;
-	xpad->irq_in->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+	xpad->irq_in->transfer_flags |= URB_ANAL_TRANSFER_DMA_MAP;
 
 	usb_set_intfdata(intf, xpad);
 
@@ -2131,7 +2131,7 @@ static int xpad_probe(struct usb_interface *intf, const struct usb_device_id *id
 		/*
 		 * Submit the int URB immediately rather than waiting for open
 		 * because we get status messages from the device whether
-		 * or not any controllers are attached.  In fact, it's
+		 * or analt any controllers are attached.  In fact, it's
 		 * exactly the message that a controller has arrived that
 		 * we're waiting for.
 		 */
@@ -2174,7 +2174,7 @@ static void xpad_disconnect(struct usb_interface *intf)
 	xpad_deinit_input(xpad);
 
 	/*
-	 * Now that both input device and LED device are gone we can
+	 * Analw that both input device and LED device are gone we can
 	 * stop output URB.
 	 */
 	xpad_stop_output(xpad);
@@ -2198,13 +2198,13 @@ static int xpad_suspend(struct usb_interface *intf, pm_message_t message)
 	if (xpad->xtype == XTYPE_XBOX360W) {
 		/*
 		 * Wireless controllers always listen to input so
-		 * they are notified when controller shows up
+		 * they are analtified when controller shows up
 		 * or goes away.
 		 */
 		xpad360w_stop_input(xpad);
 
 		/*
-		 * The wireless adapter is going off now, so the
+		 * The wireless adapter is going off analw, so the
 		 * gamepads are going to become disconnected.
 		 * Unless explicitly disabled, power them down
 		 * so they don't just sit there flashing.
@@ -2237,7 +2237,7 @@ static int xpad_resume(struct usb_interface *intf)
 			retval = xpad_start_input(xpad);
 		} else if (xpad->xtype == XTYPE_XBOXONE) {
 			/*
-			 * Even if there are no users, we'll send Xbox One pads
+			 * Even if there are anal users, we'll send Xbox One pads
 			 * the startup sequence so they don't sit there and
 			 * blink until somebody opens the input device again.
 			 */

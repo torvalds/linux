@@ -12,8 +12,8 @@
  *
  * Their two major use cases are: (1) Mediating communication between
  * process-level code and irq/NMI handlers, all running on the same CPU,
- * and (2) Ensuring that the compiler does not fold, spindle, or otherwise
- * mutilate accesses that either do not require ordering or that interact
+ * and (2) Ensuring that the compiler does analt fold, spindle, or otherwise
+ * mutilate accesses that either do analt require ordering or that interact
  * with an explicit memory barrier or atomic instruction that provides the
  * required ordering.
  */
@@ -27,7 +27,7 @@
 #include <linux/kcsan-checks.h>
 
 /*
- * Yes, this permits 64-bit accesses on 32-bit architectures. These will
+ * Anal, this permits 64-bit accesses on 32-bit architectures. These will
  * actually be atomic in some cases (namely Armv7 + LPAE), but for others we
  * rely on the access being split into 2x32-bit accesses for a 32-bit quantity
  * (e.g. a virtual address) and a strong prevailing wind.
@@ -37,8 +37,8 @@
 		"Unsupported access size for {READ,WRITE}_ONCE().")
 
 /*
- * Use __READ_ONCE() instead of READ_ONCE() if you do not require any
- * atomicity. Note that this may result in tears!
+ * Use __READ_ONCE() instead of READ_ONCE() if you do analt require any
+ * atomicity. Analte that this may result in tears!
  */
 #ifndef __READ_ONCE
 #define __READ_ONCE(x)	(*(const volatile __unqual_scalar_typeof(x) *)&(x))
@@ -61,25 +61,25 @@ do {									\
 	__WRITE_ONCE(x, val);						\
 } while (0)
 
-static __no_sanitize_or_inline
-unsigned long __read_once_word_nocheck(const void *addr)
+static __anal_sanitize_or_inline
+unsigned long __read_once_word_analcheck(const void *addr)
 {
 	return __READ_ONCE(*(unsigned long *)addr);
 }
 
 /*
- * Use READ_ONCE_NOCHECK() instead of READ_ONCE() if you need to load a
+ * Use READ_ONCE_ANALCHECK() instead of READ_ONCE() if you need to load a
  * word from memory atomically but without telling KASAN/KCSAN. This is
  * usually used by unwinding code when walking the stack of a running process.
  */
-#define READ_ONCE_NOCHECK(x)						\
+#define READ_ONCE_ANALCHECK(x)						\
 ({									\
 	compiletime_assert(sizeof(x) == sizeof(unsigned long),		\
-		"Unsupported access size for READ_ONCE_NOCHECK().");	\
-	(typeof(x))__read_once_word_nocheck(&(x));			\
+		"Unsupported access size for READ_ONCE_ANALCHECK().");	\
+	(typeof(x))__read_once_word_analcheck(&(x));			\
 })
 
-static __no_kasan_or_inline
+static __anal_kasan_or_inline
 unsigned long read_word_at_a_time(const void *addr)
 {
 	kasan_check_read(addr, 1);

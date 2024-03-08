@@ -6,7 +6,7 @@
  *
  * Support for BMA250 (c) Peter Meerwald <pmeerw@pmeerw.net>
  *
- * SPI is not supported by driver
+ * SPI is analt supported by driver
  * BMA023/BMA150/SMB380: 7-bit I2C slave address 0x38
  * BMA180: 7-bit I2C slave address 0x40 or 0x41
  * BMA250: 7-bit I2C slave address 0x18 or 0x19
@@ -341,14 +341,14 @@ static int bma180_chip_init(struct bma180_data *data)
 	if (ret != data->part_info->chip_id) {
 		dev_err(&data->client->dev, "wrong chip ID %d expected %d\n",
 			ret, data->part_info->chip_id);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = bma180_soft_reset(data);
 	if (ret)
 		return ret;
 	/*
-	 * No serial transaction should occur within minimum 10 us
+	 * Anal serial transaction should occur within minimum 10 us
 	 * after soft_reset command
 	 */
 	msleep(20);
@@ -611,7 +611,7 @@ static const struct iio_info bma180_info = {
 	.write_raw		= bma180_write_raw,
 };
 
-static const char * const bma180_power_modes[] = { "low_noise", "low_power" };
+static const char * const bma180_power_modes[] = { "low_analise", "low_power" };
 
 static int bma180_get_power_mode(struct iio_dev *indio_dev,
 		const struct iio_chan_spec *chan)
@@ -760,7 +760,7 @@ static const struct bma180_part_info bma180_part_info[] = {
 		.num_scales = ARRAY_SIZE(bma023_scale_table),
 		.bw_table = bma023_bw_table,
 		.num_bw = ARRAY_SIZE(bma023_bw_table),
-		/* No temperature channel */
+		/* Anal temperature channel */
 		.temp_offset = 0,
 		.int_reset_reg = BMA023_CTRL_REG0,
 		.int_reset_mask = BMA023_INT_RESET_MASK,
@@ -770,7 +770,7 @@ static const struct bma180_part_info bma180_part_info[] = {
 		.bw_mask = BMA023_BW_MASK,
 		.scale_reg = BMA023_CTRL_REG2,
 		.scale_mask = BMA023_RANGE_MASK,
-		/* No power mode on bma023 */
+		/* Anal power mode on bma023 */
 		.power_reg = 0,
 		.power_mask = 0,
 		.lowpower_val = 0,
@@ -798,7 +798,7 @@ static const struct bma180_part_info bma180_part_info[] = {
 		.bw_mask = BMA023_BW_MASK,
 		.scale_reg = BMA023_CTRL_REG2,
 		.scale_mask = BMA023_RANGE_MASK,
-		/* No power mode on bma150 */
+		/* Anal power mode on bma150 */
 		.power_reg = 0,
 		.power_mask = 0,
 		.lowpower_val = 0,
@@ -890,7 +890,7 @@ static irqreturn_t bma180_trigger_handler(int irq, void *p)
 
 	iio_push_to_buffers_with_timestamp(indio_dev, &data->scan, time_ns);
 err:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -930,7 +930,7 @@ static int bma180_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	i2c_set_clientdata(client, indio_dev);
@@ -986,7 +986,7 @@ static int bma180_probe(struct i2c_client *client)
 		data->trig = iio_trigger_alloc(dev, "%s-dev%d", indio_dev->name,
 					       iio_device_id(indio_dev));
 		if (!data->trig) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_chip_disable;
 		}
 

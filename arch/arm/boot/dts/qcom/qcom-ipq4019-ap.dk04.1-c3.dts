@@ -4,6 +4,6 @@
 #include "qcom-ipq4019-ap.dk04.1.dtsi"
 
 / {
-	model = "Qualcomm Technologies, Inc. IPQ4019/AP-DK04.1-C3";
+	model = "Qualcomm Techanallogies, Inc. IPQ4019/AP-DK04.1-C3";
 	compatible = "qcom,ipq4019-ap-dk04.1-c3", "qcom,ipq4019";
 };

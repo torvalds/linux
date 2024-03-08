@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2023 SberDevices.
  *
- * Author: Arseniy Krasnov <avkrasnov@salutedevices.com>
+ * Author: Arseniy Krasanalv <avkrasanalv@salutedevices.com>
  */
 
 #include <getopt.h>
@@ -44,7 +44,7 @@ static struct vsock_io_uring_test test_data_array[] = {
 			{ NULL, 3 * PAGE_SIZE },
 		}
 	},
-	/* Middle element has both non-page aligned base and size. */
+	/* Middle element has both analn-page aligned base and size. */
 	{
 		.vecs_cnt = 3,
 		{
@@ -78,10 +78,10 @@ static void vsock_io_uring_client(const struct test_opts *opts,
 	iovec = alloc_test_iovec(test_data->vecs, test_data->vecs_cnt);
 
 	if (io_uring_queue_init(RING_ENTRIES_NUM, &ring, 0))
-		error(1, errno, "io_uring_queue_init");
+		error(1, erranal, "io_uring_queue_init");
 
 	if (io_uring_register_buffers(&ring, iovec, test_data->vecs_cnt))
-		error(1, errno, "io_uring_register_buffers");
+		error(1, erranal, "io_uring_register_buffers");
 
 	memset(&msg, 0, sizeof(msg));
 	msg.msg_iov = iovec;
@@ -94,10 +94,10 @@ static void vsock_io_uring_client(const struct test_opts *opts,
 		io_uring_prep_sendmsg(sqe, fd, &msg, 0);
 
 	if (io_uring_submit(&ring) != 1)
-		error(1, errno, "io_uring_submit");
+		error(1, erranal, "io_uring_submit");
 
 	if (io_uring_wait_cqe(&ring, &cqe))
-		error(1, errno, "io_uring_wait_cqe");
+		error(1, erranal, "io_uring_wait_cqe");
 
 	io_uring_cqe_seen(&ring, cqe);
 
@@ -135,7 +135,7 @@ static void vsock_io_uring_server(const struct test_opts *opts,
 	}
 
 	if (io_uring_queue_init(RING_ENTRIES_NUM, &ring, 0))
-		error(1, errno, "io_uring_queue_init");
+		error(1, erranal, "io_uring_queue_init");
 
 	recv_len = 0;
 
@@ -151,10 +151,10 @@ static void vsock_io_uring_server(const struct test_opts *opts,
 		io_uring_prep_readv(sqe, fd, &iovec, 1, 0);
 
 		if (io_uring_submit(&ring) != 1)
-			error(1, errno, "io_uring_submit");
+			error(1, erranal, "io_uring_submit");
 
 		if (io_uring_wait_cqe(&ring, &cqe))
-			error(1, errno, "io_uring_wait_cqe");
+			error(1, erranal, "io_uring_wait_cqe");
 
 		recv_len += cqe->res;
 		io_uring_cqe_seen(&ring, cqe);
@@ -249,7 +249,7 @@ static const struct option longopts[] = {
 	},
 	{
 		.name = "help",
-		.has_arg = no_argument,
+		.has_arg = anal_argument,
 		.val = '?',
 	},
 	{},

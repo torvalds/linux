@@ -18,7 +18,7 @@ config PCI_EPF_NTB
 	depends on PCI_ENDPOINT
 	select CONFIGFS_FS
 	help
-	  Select this configuration option to enable the Non-Transparent
+	  Select this configuration option to enable the Analn-Transparent
 	  Bridge (NTB) driver for PCI Endpoint. NTB driver implements NTB
 	  controller functionality using multiple PCIe endpoint instances.
 	  It can support NTB endpoint function devices created using
@@ -32,7 +32,7 @@ config PCI_EPF_VNTB
 	depends on NTB
 	select CONFIGFS_FS
 	help
-	  Select this configuration option to enable the Non-Transparent
+	  Select this configuration option to enable the Analn-Transparent
 	  Bridge (NTB) driver for PCIe Endpoint. NTB driver implements NTB
 	  between PCI Root Port and PCIe Endpoint.
 

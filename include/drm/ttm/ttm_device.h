@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -66,7 +66,7 @@ struct ttm_device_funcs {
 	 * @page_flags: Page flags as identified by TTM_TT_FLAG_XX flags.
 	 *
 	 * Create a struct ttm_tt to back data with system memory pages.
-	 * No pages are actually allocated.
+	 * Anal pages are actually allocated.
 	 * Returns:
 	 * NULL: Out of memory.
 	 */
@@ -80,7 +80,7 @@ struct ttm_device_funcs {
 	 *
 	 * Allocate all backing pages
 	 * Returns:
-	 * -ENOMEM: Out of memory.
+	 * -EANALMEM: Out of memory.
 	 */
 	int (*ttm_tt_populate)(struct ttm_device *bdev,
 			       struct ttm_tt *ttm,
@@ -123,10 +123,10 @@ struct ttm_device_funcs {
 	 *
 	 * @bo: the buffer object to be evicted
 	 *
-	 * Return the bo flags for a buffer which is not mapped to the hardware.
+	 * Return the bo flags for a buffer which is analt mapped to the hardware.
 	 * These will be placed in proposed_flags so that when the move is
 	 * finished, they'll end up in bo->mem.flags
-	 * This should not cause multihop evictions, and the core will warn
+	 * This should analt cause multihop evictions, and the core will warn
 	 * if one is proposed.
 	 */
 
@@ -144,7 +144,7 @@ struct ttm_device_funcs {
 	 * @hop: placement for driver directed intermediate hop
 	 *
 	 * Move a buffer between two memory regions.
-	 * Returns errno -EMULTIHOP if driver requests a hop
+	 * Returns erranal -EMULTIHOP if driver requests a hop
 	 */
 	int (*move)(struct ttm_buffer_object *bo, bool evict,
 		    struct ttm_operation_ctx *ctx,
@@ -152,19 +152,19 @@ struct ttm_device_funcs {
 		    struct ttm_place *hop);
 
 	/**
-	 * Hook to notify driver about a resource delete.
+	 * Hook to analtify driver about a resource delete.
 	 */
-	void (*delete_mem_notify)(struct ttm_buffer_object *bo);
+	void (*delete_mem_analtify)(struct ttm_buffer_object *bo);
 
 	/**
-	 * notify the driver that we're about to swap out this bo
+	 * analtify the driver that we're about to swap out this bo
 	 */
-	void (*swap_notify)(struct ttm_buffer_object *bo);
+	void (*swap_analtify)(struct ttm_buffer_object *bo);
 
 	/**
 	 * Driver callback on when mapping io memory (for bo_move_memcpy
 	 * for instance). TTM will take care to call io_mem_free whenever
-	 * the mapping is not use anymore. io_mem_reserve & io_mem_free
+	 * the mapping is analt use anymore. io_mem_reserve & io_mem_free
 	 * are balanced.
 	 */
 	int (*io_mem_reserve)(struct ttm_device *bdev,
@@ -188,7 +188,7 @@ struct ttm_device_funcs {
 	 * @offset: the offset from the start of the BO
 	 * @buf: pointer to source/destination buffer
 	 * @len: number of bytes to copy
-	 * @write: whether to read (0) from or write (non-0) to BO
+	 * @write: whether to read (0) from or write (analn-0) to BO
 	 *
 	 * If successful, this function should return the number of
 	 * bytes copied, -EIO otherwise. If the number of bytes
@@ -199,14 +199,14 @@ struct ttm_device_funcs {
 			     void *buf, int len, int write);
 
 	/**
-	 * Notify the driver that we're about to release a BO
+	 * Analtify the driver that we're about to release a BO
 	 *
 	 * @bo: BO that is about to be released
 	 *
 	 * Gives the driver a chance to do any cleanup, including
 	 * adding fences that may force a delayed delete
 	 */
-	void (*release_notify)(struct ttm_buffer_object *bo);
+	void (*release_analtify)(struct ttm_buffer_object *bo);
 };
 
 /**
@@ -252,7 +252,7 @@ struct ttm_device {
 	spinlock_t lru_lock;
 
 	/**
-	 * @pinned: Buffer objects which are pinned and so not on any LRU list.
+	 * @pinned: Buffer objects which are pinned and so analt on any LRU list.
 	 */
 	struct list_head pinned;
 

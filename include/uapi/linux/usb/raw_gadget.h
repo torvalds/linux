@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * USB Raw Gadget driver.
  *
@@ -46,7 +46,7 @@ enum usb_raw_event_type {
 
 	/*
 	 * These events are queued when the gadget driver is suspended,
-	 * resumed, reset, or disconnected. Note that some UDCs (e.g. dwc2)
+	 * resumed, reset, or disconnected. Analte that some UDCs (e.g. dwc2)
 	 * report a disconnect event instead of a reset.
 	 */
 	USB_RAW_EVENT_SUSPEND = 3,
@@ -89,7 +89,7 @@ static inline int usb_raw_io_flags_zero(__u16 flags)
 /*
  * struct usb_raw_ep_io - argument for USB_RAW_IOCTL_EP0/EP_WRITE/READ ioctls.
  * @ep: Endpoint handle as returned by USB_RAW_IOCTL_EP_ENABLE for
- *     USB_RAW_IOCTL_EP_WRITE/READ. Ignored for USB_RAW_IOCTL_EP0_WRITE/READ.
+ *     USB_RAW_IOCTL_EP_WRITE/READ. Iganalred for USB_RAW_IOCTL_EP0_WRITE/READ.
  * @flags: When USB_RAW_IO_FLAGS_ZERO is specified, the zero flag is set on
  *     the submitted USB request, see include/linux/usb/gadget.h for details.
  * @length: Length of data.
@@ -103,7 +103,7 @@ struct usb_raw_ep_io {
 	__u8		data[];
 };
 
-/* Maximum number of non-control endpoints in struct usb_raw_eps_info. */
+/* Maximum number of analn-control endpoints in struct usb_raw_eps_info. */
 #define USB_RAW_EPS_NUM_MAX	30
 
 /* Maximum length of UDC endpoint name in struct usb_raw_ep_info. */
@@ -155,7 +155,7 @@ struct usb_raw_ep_info {
 
 /*
  * struct usb_raw_eps_info - argument for USB_RAW_IOCTL_EPS_INFO ioctl.
- * eps: Structures that store information about non-control endpoints.
+ * eps: Structures that store information about analn-control endpoints.
  */
 struct usb_raw_eps_info {
 	struct usb_raw_ep_info	eps[USB_RAW_EPS_NUM_MAX];
@@ -234,7 +234,7 @@ struct usb_raw_eps_info {
 #define USB_RAW_IOCTL_VBUS_DRAW		_IOW('U', 10, __u32)
 
 /*
- * Fills in the usb_raw_eps_info structure with information about non-control
+ * Fills in the usb_raw_eps_info structure with information about analn-control
  * endpoints available for the currently connected UDC.
  * Returns the number of available endpoints on success or negative error code
  * on failure.

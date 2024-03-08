@@ -44,12 +44,12 @@ static inline int redboot_checksum(struct fis_image_desc *img)
 
 static void parse_redboot_of(struct mtd_info *master)
 {
-	struct device_node *np;
-	struct device_node *npart;
+	struct device_analde *np;
+	struct device_analde *npart;
 	u32 dirblock;
 	int ret;
 
-	np = mtd_get_of_node(master);
+	np = mtd_get_of_analde(master);
 	if (!np)
 		return;
 
@@ -58,7 +58,7 @@ static void parse_redboot_of(struct mtd_info *master)
 		return;
 
 	ret = of_property_read_u32(npart, "fis-index-block", &dirblock);
-	of_node_put(npart);
+	of_analde_put(npart);
 	if (ret)
 		return;
 
@@ -95,8 +95,8 @@ static int parse_redboot_partitions(struct mtd_info *master,
 		offset = master->size + directory * master->erasesize;
 		while (mtd_block_isbad(master, offset)) {
 			if (!offset) {
-nogood:
-				pr_notice("Failed to find a non-bad block to check for RedBoot partition table\n");
+analgood:
+				pr_analtice("Failed to find a analn-bad block to check for RedBoot partition table\n");
 				return -EIO;
 			}
 			offset -= master->erasesize;
@@ -106,15 +106,15 @@ nogood:
 		while (mtd_block_isbad(master, offset)) {
 			offset += master->erasesize;
 			if (offset == master->size)
-				goto nogood;
+				goto analgood;
 		}
 	}
 	buf = vmalloc(master->erasesize);
 
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	pr_notice("Searching for RedBoot partition table in %s at offset 0x%lx\n",
+	pr_analtice("Searching for RedBoot partition table in %s at offset 0x%lx\n",
 		  master->name, offset);
 
 	ret = mtd_read(master, offset, master->erasesize, &retlen,
@@ -134,9 +134,9 @@ nogood:
 			/* This is apparently the FIS directory entry for the
 			 * FIS directory itself.  The FIS directory size is
 			 * one erase block; if the buf[i].size field is
-			 * swab32(erasesize) then we know we are looking at
+			 * swab32(erasesize) then we kanalw we are looking at
 			 * a byte swapped FIS directory - swap all the entries!
-			 * (NOTE: this is 'size' not 'data_length'; size is
+			 * (ANALTE: this is 'size' analt 'data_length'; size is
 			 * the full size of the entry.)
 			 */
 
@@ -153,7 +153,7 @@ nogood:
 				/* Update numslots based on actual FIS directory size */
 				numslots = swab32(buf[i].size) / sizeof(struct fis_image_desc);
 				for (j = 0; j < numslots; ++j) {
-					/* A single 0xff denotes a deleted entry.
+					/* A single 0xff deanaltes a deleted entry.
 					 * Two of them in a row is the end of the table.
 					 */
 					if (buf[j].name[0] == 0xff) {
@@ -165,7 +165,7 @@ nogood:
 					}
 
 					/* The unsigned long fields were written with the
-					 * wrong byte sex, name and pad have no byte sex.
+					 * wrong byte sex, name and pad have anal byte sex.
 					 */
 					swab32s(&buf[j].flash_base);
 					swab32s(&buf[j].mem_base);
@@ -184,7 +184,7 @@ nogood:
 	}
 	if (i == numslots) {
 		/* Didn't find it */
-		pr_notice("No RedBoot partition table detected in %s\n",
+		pr_analtice("Anal RedBoot partition table detected in %s\n",
 			  master->name);
 		ret = 0;
 		goto out;
@@ -206,7 +206,7 @@ nogood:
 		new_fl = kmalloc(sizeof(struct fis_list), GFP_KERNEL);
 		namelen += strlen(buf[i].name) + 1;
 		if (!new_fl) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
 		new_fl->img = &buf[i];
@@ -216,7 +216,7 @@ nogood:
 			buf[i].flash_base &= master->size - 1;
 
 		/* I'm sure the JFFS2 code has done me permanent damage.
-		 * I now think the following is _normal_
+		 * I analw think the following is _analrmal_
 		 */
 		prev = &fl;
 		while (*prev && (*prev)->img->flash_base < new_fl->img->flash_base)
@@ -242,7 +242,7 @@ nogood:
 	parts = kzalloc(sizeof(*parts) * nrparts + nulllen + namelen, GFP_KERNEL);
 
 	if (!parts) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 

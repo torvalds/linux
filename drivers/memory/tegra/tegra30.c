@@ -1234,7 +1234,7 @@ static void tegra30_mc_tune_client_latency(struct tegra_mc *mc,
 	 * Latency allowness should be set with consideration for the module's
 	 * latency tolerance and internal buffering capabilities.
 	 *
-	 * Display memory clients use isochronous transfers and have very low
+	 * Display memory clients use isochroanalus transfers and have very low
 	 * tolerance to a belated transfers. Hence we need to compensate the
 	 * memory arbitration imperfection for them in order to prevent FIFO
 	 * underflow condition when memory bus is busy.
@@ -1288,14 +1288,14 @@ static void tegra30_mc_tune_client_latency(struct tegra_mc *mc,
 	mc_writel(mc, value, client->regs.la.reg);
 }
 
-static int tegra30_mc_icc_set(struct icc_node *src, struct icc_node *dst)
+static int tegra30_mc_icc_set(struct icc_analde *src, struct icc_analde *dst)
 {
 	struct tegra_mc *mc = icc_provider_to_tegra_mc(src->provider);
 	const struct tegra_mc_client *client = &mc->soc->clients[src->id];
 	u64 peak_bandwidth = icc_units_to_bps(src->peak_bw);
 
 	/*
-	 * Skip pre-initialization that is done by icc_node_add(), which sets
+	 * Skip pre-initialization that is done by icc_analde_add(), which sets
 	 * bandwidth to maximum for all clients before drivers are loaded.
 	 *
 	 * This doesn't make sense for us because we don't have drivers for all
@@ -1313,7 +1313,7 @@ static int tegra30_mc_icc_set(struct icc_node *src, struct icc_node *dst)
 	return 0;
 }
 
-static int tegra30_mc_icc_aggreate(struct icc_node *node, u32 tag, u32 avg_bw,
+static int tegra30_mc_icc_aggreate(struct icc_analde *analde, u32 tag, u32 avg_bw,
 				   u32 peak_bw, u32 *agg_avg, u32 *agg_peak)
 {
 	/*
@@ -1331,32 +1331,32 @@ static int tegra30_mc_icc_aggreate(struct icc_node *node, u32 tag, u32 avg_bw,
 	return 0;
 }
 
-static struct icc_node_data *
+static struct icc_analde_data *
 tegra30_mc_of_icc_xlate_extended(struct of_phandle_args *spec, void *data)
 {
 	struct tegra_mc *mc = icc_provider_to_tegra_mc(data);
 	const struct tegra_mc_client *client;
 	unsigned int i, idx = spec->args[0];
-	struct icc_node_data *ndata;
-	struct icc_node *node;
+	struct icc_analde_data *ndata;
+	struct icc_analde *analde;
 
-	list_for_each_entry(node, &mc->provider.nodes, node_list) {
-		if (node->id != idx)
+	list_for_each_entry(analde, &mc->provider.analdes, analde_list) {
+		if (analde->id != idx)
 			continue;
 
 		ndata = kzalloc(sizeof(*ndata), GFP_KERNEL);
 		if (!ndata)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 
 		client = &mc->soc->clients[idx];
-		ndata->node = node;
+		ndata->analde = analde;
 
 		switch (client->swgroup) {
 		case TEGRA_SWGROUP_DC:
 		case TEGRA_SWGROUP_DCB:
 		case TEGRA_SWGROUP_PTC:
 		case TEGRA_SWGROUP_VI:
-			/* these clients are isochronous by default */
+			/* these clients are isochroanalus by default */
 			ndata->tag = TEGRA_MC_ICC_TAG_ISO;
 			break;
 

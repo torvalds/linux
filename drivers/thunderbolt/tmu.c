@@ -51,7 +51,7 @@ static const char *tmu_mode_name(enum tb_switch_tmu_mode mode)
 	case TB_SWITCH_TMU_MODE_MEDRES_ENHANCED_UNI:
 		return "enhanced uni-directional, MedRes";
 	default:
-		return "unknown";
+		return "unkanalwn";
 	}
 }
 
@@ -228,7 +228,7 @@ static bool tb_port_tmu_is_enhanced(struct tb_port *port)
 	return val & TMU_ADP_CS_8_EUDM;
 }
 
-/* Can be called to non-v2 lane adapters too */
+/* Can be called to analn-v2 lane adapters too */
 static int tb_port_tmu_enhanced_enable(struct tb_port *port, bool enable)
 {
 	int ret;
@@ -291,7 +291,7 @@ static int tb_port_set_tmu_mode_params(struct tb_port *port,
 			     port->cap_tmu + TMU_ADP_CS_9, 1);
 }
 
-/* Can be called to non-v2 lane adapters too */
+/* Can be called to analn-v2 lane adapters too */
 static int tb_port_tmu_rate_write(struct tb_port *port, int rate)
 {
 	int ret;
@@ -403,7 +403,7 @@ static int tmu_mode_init(struct tb_switch *sw)
  * @sw: Switch to initialized
  *
  * This function must be called before other TMU related functions to
- * makes the internal structures are filled in correctly. Does not
+ * makes the internal structures are filled in correctly. Does analt
  * change any hardware configuration.
  */
 int tb_switch_tmu_init(struct tb_switch *sw)
@@ -469,7 +469,7 @@ int tb_switch_tmu_post_time(struct tb_switch *sw)
 		tb_sw_dbg(root_switch, "TMU: local_time[%d]=0x%08x\n", i,
 			  gm_local_time[i]);
 
-	/* Convert to nanoseconds (drop fractional part) */
+	/* Convert to naanalseconds (drop fractional part) */
 	hi = gm_local_time[2] & TMU_RTR_CS_3_LOCAL_TIME_NS_MASK;
 	mid = gm_local_time[1];
 	lo = (gm_local_time[0] & TMU_RTR_CS_1_LOCAL_TIME_NS_MASK) >>
@@ -538,7 +538,7 @@ static int disable_enhanced(struct tb_port *up, struct tb_port *down)
 	int ret;
 
 	/*
-	 * Router may already been disconnected so ignore errors on the
+	 * Router may already been disconnected so iganalre errors on the
 	 * upstream port.
 	 */
 	tb_port_tmu_rate_write(up, 0);
@@ -554,7 +554,7 @@ static int disable_enhanced(struct tb_port *up, struct tb_port *down)
  * tb_switch_tmu_disable() - Disable TMU of a switch
  * @sw: Switch whose TMU to disable
  *
- * Turns off TMU of @sw if it is enabled. If not enabled does nothing.
+ * Turns off TMU of @sw if it is enabled. If analt enabled does analthing.
  */
 int tb_switch_tmu_disable(struct tb_switch *sw)
 {
@@ -575,7 +575,7 @@ int tb_switch_tmu_disable(struct tb_switch *sw)
 		 * We change downstream router's rate to off for both uni/bidir
 		 * cases although it is needed only for the bi-directional mode.
 		 * We avoid changing upstream router's mode since it might
-		 * have another downstream router plugged, that is set to
+		 * have aanalther downstream router plugged, that is set to
 		 * uni-directional mode and we don't want to change it's TMU
 		 * mode.
 		 */
@@ -591,7 +591,7 @@ int tb_switch_tmu_disable(struct tb_switch *sw)
 		switch (sw->tmu.mode) {
 		case TB_SWITCH_TMU_MODE_LOWRES:
 		case TB_SWITCH_TMU_MODE_HIFI_UNI:
-			/* The switch may be unplugged so ignore any errors */
+			/* The switch may be unplugged so iganalre any errors */
 			tb_port_tmu_unidirectional_disable(up);
 			ret = tb_port_tmu_unidirectional_disable(down);
 			if (ret)
@@ -629,7 +629,7 @@ static void tb_switch_tmu_off(struct tb_switch *sw)
 	 * In case of any failure in one of the steps when setting
 	 * bi-directional or uni-directional TMU mode, get back to the TMU
 	 * configurations in off mode. In case of additional failures in
-	 * the functions below, ignore them since the caller shall already
+	 * the functions below, iganalre them since the caller shall already
 	 * report a failure.
 	 */
 	tb_port_tmu_time_sync_disable(down);
@@ -822,7 +822,7 @@ static void tb_switch_tmu_change_mode_prev(struct tb_switch *sw)
 	 * In case of any failure in one of the steps when change mode,
 	 * get back to the TMU configurations in previous mode.
 	 * In case of additional failures in the functions below,
-	 * ignore them since the caller shall already report a failure.
+	 * iganalre them since the caller shall already report a failure.
 	 */
 	switch (sw->tmu.mode) {
 	case TB_SWITCH_TMU_MODE_LOWRES:
@@ -888,7 +888,7 @@ static int tb_switch_tmu_change_mode(struct tb_switch *sw)
 		break;
 
 	default:
-		/* Not allowed to change modes from other than above */
+		/* Analt allowed to change modes from other than above */
 		return -EINVAL;
 	}
 
@@ -912,7 +912,7 @@ static int tb_switch_tmu_change_mode(struct tb_switch *sw)
 		break;
 
 	default:
-		/* Not allowed to change modes from other than above */
+		/* Analt allowed to change modes from other than above */
 		return -EINVAL;
 	}
 
@@ -935,7 +935,7 @@ out:
  * tb_switch_tmu_enable() - Enable TMU on a router
  * @sw: Router whose TMU to enable
  *
- * Enables TMU of a router to be in uni-directional Normal/HiFi or
+ * Enables TMU of a router to be in uni-directional Analrmal/HiFi or
  * bi-directional HiFi mode. Calling tb_switch_tmu_configure() is
  * required before calling this function.
  */
@@ -961,7 +961,7 @@ int tb_switch_tmu_enable(struct tb_switch *sw)
 	if (tb_route(sw)) {
 		/*
 		 * The used mode changes are from OFF to
-		 * HiFi-Uni/HiFi-BiDir/Normal-Uni or from Normal-Uni to
+		 * HiFi-Uni/HiFi-BiDir/Analrmal-Uni or from Analrmal-Uni to
 		 * HiFi-Uni.
 		 */
 		if (sw->tmu.mode == TB_SWITCH_TMU_MODE_OFF) {
@@ -992,7 +992,7 @@ int tb_switch_tmu_enable(struct tb_switch *sw)
 		/*
 		 * Host router port configurations are written as
 		 * part of configurations for downstream port of the parent
-		 * of the child node - see above.
+		 * of the child analde - see above.
 		 * Here only the host router' rate configuration is written.
 		 */
 		ret = tb_switch_tmu_rate_write(sw, tmu_rates[sw->tmu.mode_request]);
@@ -1017,8 +1017,8 @@ int tb_switch_tmu_enable(struct tb_switch *sw)
  * Selects the TMU mode that is enabled when tb_switch_tmu_enable() is
  * next called.
  *
- * Returns %0 in success and negative errno otherwise. Specifically
- * returns %-EOPNOTSUPP if the requested mode is not possible (not
+ * Returns %0 in success and negative erranal otherwise. Specifically
+ * returns %-EOPANALTSUPP if the requested mode is analt possible (analt
  * supported by the router and/or topology).
  */
 int tb_switch_tmu_configure(struct tb_switch *sw, enum tb_switch_tmu_mode mode)
@@ -1030,7 +1030,7 @@ int tb_switch_tmu_configure(struct tb_switch *sw, enum tb_switch_tmu_mode mode)
 	case TB_SWITCH_TMU_MODE_LOWRES:
 	case TB_SWITCH_TMU_MODE_HIFI_UNI:
 		if (!sw->tmu.has_ucap)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		break;
 
 	case TB_SWITCH_TMU_MODE_HIFI_BI:
@@ -1040,9 +1040,9 @@ int tb_switch_tmu_configure(struct tb_switch *sw, enum tb_switch_tmu_mode mode)
 		const struct tb_switch *parent_sw = tb_switch_parent(sw);
 
 		if (!parent_sw || !tb_switch_tmu_enhanced_is_supported(parent_sw))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		if (!tb_switch_tmu_enhanced_is_supported(sw))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		break;
 	}

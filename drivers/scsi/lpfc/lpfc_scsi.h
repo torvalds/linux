@@ -13,7 +13,7 @@
  * This program is distributed in the hope that it will be useful. *
  * ALL EXPRESS OR IMPLIED CONDITIONS, REPRESENTATIONS AND          *
  * WARRANTIES, INCLUDING ANY IMPLIED WARRANTY OF MERCHANTABILITY,  *
- * FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT, ARE      *
+ * FITNESS FOR A PARTICULAR PURPOSE, OR ANALN-INFRINGEMENT, ARE      *
  * DISCLAIMED, EXCEPT TO THE EXTENT THAT SUCH DISCLAIMERS ARE HELD *
  * TO BE LEGALLY INVALID.  See the GNU General Public License for  *
  * more details, a copy of which can be found in the file COPYING  *
@@ -40,7 +40,7 @@ struct lpfc_hba;
 
 /* per-port data that is allocated in the FC transport for us */
 struct lpfc_rport_data {
-	struct lpfc_nodelist *pnode;	/* Pointer to the node structure. */
+	struct lpfc_analdelist *panalde;	/* Pointer to the analde structure. */
 };
 
 struct lpfc_device_id {
@@ -84,12 +84,12 @@ struct fcp_rsp {
 	uint8_t rspInfo2;	/* FCP_RSP_INFO byte 2 (reserved) */
 	uint8_t rspInfo3;	/* FCP_RSP_INFO RSP_CODE byte 3 */
 
-#define RSP_NO_FAILURE       0x00
+#define RSP_ANAL_FAILURE       0x00
 #define RSP_DATA_BURST_ERR   0x01
 #define RSP_CMD_FIELD_ERR    0x02
 #define RSP_RO_MISMATCH_ERR  0x03
-#define RSP_TM_NOT_SUPPORTED 0x04	/* Task mgmt function not supported */
-#define RSP_TM_NOT_COMPLETED 0x05	/* Task mgmt function not performed */
+#define RSP_TM_ANALT_SUPPORTED 0x04	/* Task mgmt function analt supported */
+#define RSP_TM_ANALT_COMPLETED 0x05	/* Task mgmt function analt performed */
 #define RSP_TM_INVALID_LU    0x09	/* Task mgmt function to invalid LU */
 
 	uint32_t rspInfoRsvd;	/* FCP_RSP_INFO bytes 4-7 (reserved) */
@@ -131,8 +131,8 @@ struct fcp_cmnd {
 #define MDAC_DIRECT_CMD		0x22
 
 #define FIND_FIRST_OAS_LUN	0
-#define NO_MORE_OAS_LUN		-1
-#define NOT_OAS_ENABLED_LUN	NO_MORE_OAS_LUN
+#define ANAL_MORE_OAS_LUN		-1
+#define ANALT_OAS_ENABLED_LUN	ANAL_MORE_OAS_LUN
 
 #ifndef FC_PORTSPEED_128GBIT
 #define FC_PORTSPEED_128GBIT	0x2000

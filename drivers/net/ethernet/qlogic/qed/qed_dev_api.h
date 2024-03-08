@@ -65,7 +65,7 @@ int qed_resc_alloc(struct qed_dev *cdev);
 void qed_resc_setup(struct qed_dev *cdev);
 
 enum qed_override_force_load {
-	QED_OVERRIDE_FORCE_LOAD_NONE,
+	QED_OVERRIDE_FORCE_LOAD_ANALNE,
 	QED_OVERRIDE_FORCE_LOAD_ALWAYS,
 	QED_OVERRIDE_FORCE_LOAD_NEVER,
 };
@@ -80,11 +80,11 @@ struct qed_drv_load_params {
 
 	/* The timeout value that the MFW should use when locking the engine for
 	 * the driver load process.
-	 * A value of '0' means the default value, and '255' means no timeout.
+	 * A value of '0' means the default value, and '255' means anal timeout.
 	 */
 	u8 mfw_timeout_val;
 #define QED_LOAD_REQ_LOCK_TO_DEFAULT    0
-#define QED_LOAD_REQ_LOCK_TO_NONE       255
+#define QED_LOAD_REQ_LOCK_TO_ANALNE       255
 
 	/* Avoid engine reset when first PF loads on it */
 	bool avoid_eng_reset;
@@ -143,7 +143,7 @@ int qed_hw_stop(struct qed_dev *cdev);
 /**
  * qed_hw_stop_fastpath(): Should be called incase
  *		           slowpath is still required for the device,
- *		           but fastpath is not.
+ *		           but fastpath is analt.
  *
  * @cdev: Qed dev pointer.
  *
@@ -194,13 +194,13 @@ void qed_hw_remove(struct qed_dev *cdev);
 struct qed_ptt *qed_ptt_acquire(struct qed_hwfn *p_hwfn);
 
 /**
- * qed_ptt_acquire_context(): Allocate a PTT window honoring the context
+ * qed_ptt_acquire_context(): Allocate a PTT window hoanalring the context
  *			      atomicy.
  *
  * @p_hwfn: HW device data.
- * @is_atomic: Hint from the caller - if the func can sleep or not.
+ * @is_atomic: Hint from the caller - if the func can sleep or analt.
  *
- * Context: The function should not sleep in case is_atomic == true.
+ * Context: The function should analt sleep in case is_atomic == true.
  * Return: struct qed_ptt.
  *
  * Should be called at the entry point to the driver
@@ -513,7 +513,7 @@ int qed_db_recovery_add(struct qed_dev *cdev,
 
 /**
  * qed_db_recovery_del() - remove doorbell information from the doorbell
- * recovery mechanism. db_data serves as key (db_addr is not unique).
+ * recovery mechanism. db_data serves as key (db_addr is analt unique).
  *
  * @cdev: Qed dev pointer.
  * @db_addr: doorbell address.

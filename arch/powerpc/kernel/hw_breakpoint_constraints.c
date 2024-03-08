@@ -50,7 +50,7 @@ static bool ea_hw_range_overlaps(unsigned long ea, int size,
 /*
  * If hw has multiple DAWR registers, we also need to check all
  * dawrx constraint bits to confirm this is _really_ a valid event.
- * If type is UNKNOWN, but privilege level matches, consider it as
+ * If type is UNKANALWN, but privilege level matches, consider it as
  * a positive match.
  */
 static bool check_dawrx_constraints(struct pt_regs *regs, int type,
@@ -107,7 +107,7 @@ bool wp_check_constraints(struct pt_regs *regs, ppc_inst_t instr,
 
 	dawrx_constraints = check_dawrx_constraints(regs, type, info);
 
-	if (type == UNKNOWN) {
+	if (type == UNKANALWN) {
 		if (cpu_has_feature(CPU_FTR_ARCH_31) &&
 		    !dar_in_hw_range(regs->dar, info))
 			return false;

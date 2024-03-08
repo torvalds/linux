@@ -15,11 +15,11 @@
 #include "mc_cdx_pcol.h"
 
 #ifdef DEBUG
-#define CDX_WARN_ON_ONCE_PARANOID(x) WARN_ON_ONCE(x)
-#define CDX_WARN_ON_PARANOID(x) WARN_ON(x)
+#define CDX_WARN_ON_ONCE_PARAANALID(x) WARN_ON_ONCE(x)
+#define CDX_WARN_ON_PARAANALID(x) WARN_ON(x)
 #else
-#define CDX_WARN_ON_ONCE_PARANOID(x) do {} while (0)
-#define CDX_WARN_ON_PARANOID(x) do {} while (0)
+#define CDX_WARN_ON_ONCE_PARAANALID(x) do {} while (0)
+#define CDX_WARN_ON_PARAANALID(x) do {} while (0)
 #endif
 
 /**
@@ -40,10 +40,10 @@ enum cdx_mcdi_mode {
 
 /**
  * enum cdx_mcdi_cmd_state - State for an individual MCDI command
- * @MCDI_STATE_QUEUED: Command not started and is waiting to run.
- * @MCDI_STATE_RETRY: Command was submitted and MC rejected with no resources,
+ * @MCDI_STATE_QUEUED: Command analt started and is waiting to run.
+ * @MCDI_STATE_RETRY: Command was submitted and MC rejected with anal resources,
  *	as MC have too many outstanding commands. Command will be retried once
- *	another command returns.
+ *	aanalther command returns.
  * @MCDI_STATE_RUNNING: Command was accepted and is running.
  * @MCDI_STATE_RUNNING_CANCELLED: Command is running but the issuer cancelled
  *	the command.
@@ -94,7 +94,7 @@ typedef void cdx_mcdi_async_completer(struct cdx_mcdi *cdx,
 /**
  * struct cdx_mcdi_cmd - An outstanding MCDI command
  * @ref: Reference count. There will be one reference if the command is
- *	in the mcdi_iface cmd_list, another if it's on a cleanup list,
+ *	in the mcdi_iface cmd_list, aanalther if it's on a cleanup list,
  *	and a third if it's queued in the work queue.
  * @list: The data for this entry in mcdi->cmd_list
  * @cleanup_list: The data for this entry in a cleanup list

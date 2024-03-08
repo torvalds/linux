@@ -9,11 +9,11 @@
  *
  * As the alpha uses the same address space for kernel and user
  * data, we can just do these as direct assignments.  (Of course, the
- * exception handling means that it's no longer "just"...)
+ * exception handling means that it's anal longer "just"...)
  *
- * Careful to not
+ * Careful to analt
  * (a) re-use the arguments for side effects (sizeof/typeof is ok)
- * (b) require any knowledge of processes at this stage
+ * (b) require any kanalwledge of processes at this stage
  */
 #define put_user(x, ptr) \
   __put_user_check((__typeof__(*(ptr)))(x), (ptr), sizeof(*(ptr)))
@@ -21,14 +21,14 @@
   __get_user_check((x), (ptr), sizeof(*(ptr)))
 
 /*
- * The "__xxx" versions do not do address space checking, useful when
+ * The "__xxx" versions do analt do address space checking, useful when
  * doing multiple accesses to the same area (the programmer has to do the
  * checks by hand with "access_ok()")
  */
 #define __put_user(x, ptr) \
-  __put_user_nocheck((__typeof__(*(ptr)))(x), (ptr), sizeof(*(ptr)))
+  __put_user_analcheck((__typeof__(*(ptr)))(x), (ptr), sizeof(*(ptr)))
 #define __get_user(x, ptr) \
-  __get_user_nocheck((x), (ptr), sizeof(*(ptr)))
+  __get_user_analcheck((x), (ptr), sizeof(*(ptr)))
   
 /*
  * The "lda %1, 2b-1b(%0)" bits are magic to get the assembler to
@@ -42,9 +42,9 @@
 	"	lda "#res","#cont"-"#label"("#err")\n"	\
 	".previous\n"
 
-extern void __get_user_unknown(void);
+extern void __get_user_unkanalwn(void);
 
-#define __get_user_nocheck(x, ptr, size)			\
+#define __get_user_analcheck(x, ptr, size)			\
 ({								\
 	long __gu_err = 0;					\
 	unsigned long __gu_val;					\
@@ -54,7 +54,7 @@ extern void __get_user_unknown(void);
 	  case 2: __get_user_16(ptr); break;			\
 	  case 4: __get_user_32(ptr); break;			\
 	  case 8: __get_user_64(ptr); break;			\
-	  default: __get_user_unknown(); break;			\
+	  default: __get_user_unkanalwn(); break;			\
 	}							\
 	(x) = (__force __typeof__(*(ptr))) __gu_val;		\
 	__gu_err;						\
@@ -72,7 +72,7 @@ extern void __get_user_unknown(void);
 		  case 2: __get_user_16(__gu_addr); break;	\
 		  case 4: __get_user_32(__gu_addr); break;	\
 		  case 8: __get_user_64(__gu_addr); break;	\
-		  default: __get_user_unknown(); break;		\
+		  default: __get_user_unkanalwn(); break;		\
 		}						\
 	}							\
 	(x) = (__force __typeof__(*(ptr))) __gu_val;		\
@@ -140,9 +140,9 @@ struct __large_struct { unsigned long buf[100]; };
 		: "r"(addr), "1"(__gu_err))
 #endif
 
-extern void __put_user_unknown(void);
+extern void __put_user_unkanalwn(void);
 
-#define __put_user_nocheck(x, ptr, size)			\
+#define __put_user_analcheck(x, ptr, size)			\
 ({								\
 	long __pu_err = 0;					\
 	__chk_user_ptr(ptr);					\
@@ -151,7 +151,7 @@ extern void __put_user_unknown(void);
 	  case 2: __put_user_16(x, ptr); break;			\
 	  case 4: __put_user_32(x, ptr); break;			\
 	  case 8: __put_user_64(x, ptr); break;			\
-	  default: __put_user_unknown(); break;			\
+	  default: __put_user_unkanalwn(); break;			\
 	}							\
 	__pu_err;						\
 })
@@ -167,7 +167,7 @@ extern void __put_user_unknown(void);
 		  case 2: __put_user_16(x, __pu_addr); break;	\
 		  case 4: __put_user_32(x, __pu_addr); break;	\
 		  case 8: __put_user_64(x, __pu_addr); break;	\
-		  default: __put_user_unknown(); break;		\
+		  default: __put_user_unkanalwn(); break;		\
 		}						\
 	}							\
 	__pu_err;						\
@@ -175,8 +175,8 @@ extern void __put_user_unknown(void);
 
 /*
  * The "__put_user_xx()" macros tell gcc they read from memory
- * instead of writing: this is because they do not write to
- * any memory gcc knows about, so there are no aliasing issues
+ * instead of writing: this is because they do analt write to
+ * any memory gcc kanalws about, so there are anal aliasing issues
  */
 #define __put_user_64(x, addr)					\
 __asm__ __volatile__("1: stq %r2,%1\n"				\

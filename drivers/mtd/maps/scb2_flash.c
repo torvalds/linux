@@ -4,10 +4,10 @@
  * Copyright (C) 2002 Sun Microsystems, Inc.
  * Tim Hockin <thockin@sun.com>
  *
- * A few notes on this MTD map:
+ * A few analtes on this MTD map:
  *
  * This was developed with a small number of SCB2 boards to test on.
- * Hopefully, Intel has not introducted too many unaccounted variables in the
+ * Hopefully, Intel has analt introducted too many unaccounted variables in the
  * making of this board.
  *
  * The BIOS marks its own memory region as 'reserved' in the e820 map.  We
@@ -17,27 +17,27 @@
  * * a 4 MiB (32 Mib) 16 bit chip
  * * a 1 MiB memory region
  * * A20 and A21 pulled up
- * * D8-D15 ignored
+ * * D8-D15 iganalred
  * What this means is that, while we are addressing bytes linearly, we are
  * really addressing words, and discarding the other byte.  This means that
  * the chip MUST BE at least 2 MiB.  This also means that every block is
  * actually half as big as the chip reports.  It also means that accesses of
- * logical address 0 hit higher-address sections of the chip, not physical 0.
+ * logical address 0 hit higher-address sections of the chip, analt physical 0.
  * One can only hope that these 4MiB x16 chips were a lot cheaper than 1MiB x8
  * chips.
  *
- * This driver assumes the chip is not write-protected by an external signal.
+ * This driver assumes the chip is analt write-protected by an external signal.
  * As of the this writing, that is true, but may change, just to spite me.
  *
  * The actual BIOS layout has been mostly reverse engineered.  Intel BIOS
  * updates for this board include 10 related (*.bio - &.bi9) binary files and
- * another separate (*.bbo) binary file.  The 10 files are 64k of data + a
+ * aanalther separate (*.bbo) binary file.  The 10 files are 64k of data + a
  * small header.  If the headers are stripped off, the 10 64k files can be
  * concatenated into a 640k image.  This is your BIOS image, proper.  The
  * separate .bbo file also has a small header.  It is the 'Boot Block'
- * recovery BIOS.  Once the header is stripped, no further prep is needed.
+ * recovery BIOS.  Once the header is stripped, anal further prep is needed.
  * As best I can tell, the BIOS is arranged as such:
- * offset 0x00000 to 0x4ffff (320k):  unknown - SCSI BIOS, etc?
+ * offset 0x00000 to 0x4ffff (320k):  unkanalwn - SCSI BIOS, etc?
  * offset 0x50000 to 0xeffff (640k):  BIOS proper
  * offset 0xf0000 ty 0xfffff (64k):   Boot Block region
  *
@@ -157,7 +157,7 @@ static int scb2_flash_probe(struct pci_dev *dev,
 		printk(KERN_ERR MODNAME ": Failed to ioremap window!\n");
 		if (!region_fail)
 			release_mem_region(SCB2_ADDR, SCB2_WINDOW);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	scb2_map.phys = SCB2_ADDR;
@@ -174,7 +174,7 @@ static int scb2_flash_probe(struct pci_dev *dev,
 		iounmap(scb2_ioaddr);
 		if (!region_fail)
 			release_mem_region(SCB2_ADDR, SCB2_WINDOW);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	scb2_mtd->owner = THIS_MODULE;
@@ -184,10 +184,10 @@ static int scb2_flash_probe(struct pci_dev *dev,
 		iounmap(scb2_ioaddr);
 		if (!region_fail)
 			release_mem_region(SCB2_ADDR, SCB2_WINDOW);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
-	printk(KERN_NOTICE MODNAME ": chip size 0x%llx at offset 0x%llx\n",
+	printk(KERN_ANALTICE MODNAME ": chip size 0x%llx at offset 0x%llx\n",
 	       (unsigned long long)scb2_mtd->size,
 	       (unsigned long long)(SCB2_WINDOW - scb2_mtd->size));
 

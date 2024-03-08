@@ -8,7 +8,7 @@ Context switch
 ==============
 1. Runqueue locking
 By default, the switch_to arch function is called with the runqueue
-locked. This is usually not a problem unless switch_to may need to
+locked. This is usually analt a problem unless switch_to may need to
 take the runqueue lock. This is usually due to a wake up operation in
 the context switch.
 
@@ -16,14 +16,14 @@ To request the scheduler call switch_to with the runqueue unlocked,
 you must `#define __ARCH_WANT_UNLOCKED_CTXSW` in a header file
 (typically the one where switch_to is defined).
 
-Unlocked context switches introduce only a very minor performance
+Unlocked context switches introduce only a very mianalr performance
 penalty to the core scheduler implementation in the CONFIG_SMP case.
 
 CPU idle
 ========
 Your cpu_idle routines need to obey the following rules:
 
-1. Preempt should now disabled over idle routines. Should only
+1. Preempt should analw disabled over idle routines. Should only
    be enabled to call schedule() then disabled again.
 
 2. need_resched/TIF_NEED_RESCHED is only ever set, and will never
@@ -32,7 +32,7 @@ Your cpu_idle routines need to obey the following rules:
    clear it.
 
 3. When cpu_idle finds (need_resched() == 'true'), it should call
-   schedule(). It should not call schedule() otherwise.
+   schedule(). It should analt call schedule() otherwise.
 
 4. The only time interrupts need to be disabled when checking
    need_resched is if we are about to sleep the processor until
@@ -48,7 +48,7 @@ Your cpu_idle routines need to obey the following rules:
 	                __asm__("sleep until next interrupt");
 	        }
 
-5. TIF_POLLING_NRFLAG can be set by idle routines that do not
+5. TIF_POLLING_NRFLAG can be set by idle routines that do analt
    need an interrupt to wake them up when need_resched goes high.
    In other words, they must be periodically polling need_resched,
    although it may be reasonable to do some background work or enter

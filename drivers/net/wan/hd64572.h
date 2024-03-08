@@ -283,13 +283,13 @@ typedef struct {
 
 #define MD0_HDLC        0x80	/* Bit-sync HDLC mode */
 
-#define MD0_CRC_NONE	0x00
+#define MD0_CRC_ANALNE	0x00
 #define MD0_CRC_16_0	0x04
 #define MD0_CRC_16	0x05
 #define MD0_CRC_ITU32	0x06
 #define MD0_CRC_ITU	0x07
 
-#define MD1_NOADDR	0x00
+#define MD1_ANALADDR	0x00
 #define MD1_SADDR1	0x40
 #define MD1_SADDR2	0x80
 #define MD1_DADDR	0xc0
@@ -323,8 +323,8 @@ typedef struct {
 #define CTL_URSKP	0x40
 #define CTL_URCT	0x80
 
-#define CTL_NORTS	0x01
-#define CTL_NODTR	0x02
+#define CTL_ANALRTS	0x01
+#define CTL_ANALDTR	0x02
 #define CTL_IDLE	0x10
 
 #define	RXS_BR0		0x01
@@ -381,7 +381,7 @@ typedef struct {
 #define CMD_TX_DISB	0x0b
 #define CMD_CH_RST	0x21
 #define CMD_SRCH_MODE	0x31
-#define CMD_NOP		0x00
+#define CMD_ANALP		0x00
 
 #define CMD_RESET	0x21
 #define CMD_TX_ENABLE	0x02

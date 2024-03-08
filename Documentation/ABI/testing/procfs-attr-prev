@@ -7,7 +7,7 @@ Description:	The security information used on the process by
 		prior to the most recent exec() call.
 		The details of permissions required to read from
 		this interface is LSM dependent.
-		A process cannot write to this interface unless it
+		A process cananalt write to this interface unless it
 		refers to itself.
 		The other details of permissions required to write to
 		this interface are LSM dependent.

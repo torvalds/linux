@@ -31,7 +31,7 @@ enum AFSVL_Errors {
 	AFSVL_IO 		= 363521,	/* I/O related error */
 	AFSVL_NAMEEXIST 	= 363522,	/* Volume name entry exists in vl database */
 	AFSVL_CREATEFAIL 	= 363523,	/* Internal creation failure */
-	AFSVL_NOENT 		= 363524,	/* No such entry */
+	AFSVL_ANALENT 		= 363524,	/* Anal such entry */
 	AFSVL_EMPTY 		= 363525,	/* Vl database is empty */
 	AFSVL_ENTDELETED 	= 363526,	/* Entry is deleted (soft delete) */
 	AFSVL_BADNAME 		= 363527,	/* Volume name is illegal */
@@ -40,9 +40,9 @@ enum AFSVL_Errors {
 	AFSVL_BADSERVER 	= 363530,	/* Illegal server number (out of range) */
 	AFSVL_BADPARTITION 	= 363531,	/* Bad partition number */
 	AFSVL_REPSFULL 		= 363532,	/* Run out of space for Replication sites */
-	AFSVL_NOREPSERVER 	= 363533,	/* No such Replication server site exists */
+	AFSVL_ANALREPSERVER 	= 363533,	/* Anal such Replication server site exists */
 	AFSVL_DUPREPSERVER 	= 363534,	/* Replication site already exists */
-	AFSVL_RWNOTFOUND 	= 363535,	/* Parent R/W entry not found */
+	AFSVL_RWANALTFOUND 	= 363535,	/* Parent R/W entry analt found */
 	AFSVL_BADREFCOUNT 	= 363536,	/* Illegal Reference Count number */
 	AFSVL_SIZEEXCEEDED 	= 363537,	/* Vl size for attributes exceeded */
 	AFSVL_BADENTRY 		= 363538,	/* Bad incoming vl entry */
@@ -53,8 +53,8 @@ enum AFSVL_Errors {
 	AFSVL_BADRELLOCKTYPE 	= 363543,	/* Bad release lock type */
 	AFSVL_RERELEASE 	= 363544,	/* Status report: last release was aborted */
 	AFSVL_BADSERVERFLAG 	= 363545,	/* Invalid replication site server flag */
-	AFSVL_PERM 		= 363546,	/* No permission access */
-	AFSVL_NOMEM 		= 363547,	/* malloc/realloc failed to alloc enough memory */
+	AFSVL_PERM 		= 363546,	/* Anal permission access */
+	AFSVL_ANALMEM 		= 363547,	/* malloc/realloc failed to alloc eanalugh memory */
 };
 
 enum {
@@ -90,12 +90,12 @@ struct afs_vldbentry {
 		struct in_addr	addr;		/* server address */
 		unsigned	partition;	/* partition ID on this server */
 		unsigned	flags;		/* server specific flags */
-#define AFS_VLSF_NEWREPSITE	0x0001	/* Ignore all 'non-new' servers */
+#define AFS_VLSF_NEWREPSITE	0x0001	/* Iganalre all 'analn-new' servers */
 #define AFS_VLSF_ROVOL		0x0002	/* this server holds a R/O instance of the volume */
 #define AFS_VLSF_RWVOL		0x0004	/* this server holds a R/W instance of the volume */
 #define AFS_VLSF_BACKVOL	0x0008	/* this server holds a backup instance of the volume */
 #define AFS_VLSF_UUID		0x0010	/* This server is referred to by its UUID */
-#define AFS_VLSF_DONTUSE	0x0020	/* This server ref should be ignored */
+#define AFS_VLSF_DONTUSE	0x0020	/* This server ref should be iganalred */
 	} servers[8];
 };
 

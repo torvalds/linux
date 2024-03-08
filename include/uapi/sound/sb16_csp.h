@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
  *  Copyright (c) 1999 by Uros Bizjak <uros@kss-loka.si>
  *                        Takashi Iwai <tiwai@suse.de>
@@ -10,7 +10,7 @@
 
 
 /* CSP modes */
-#define SNDRV_SB_CSP_MODE_NONE		0x00
+#define SNDRV_SB_CSP_MODE_ANALNE		0x00
 #define SNDRV_SB_CSP_MODE_DSP_READ	0x01	/* Record from DSP */
 #define SNDRV_SB_CSP_MODE_DSP_WRITE	0x02	/* Play to DSP */
 #define SNDRV_SB_CSP_MODE_QSOUND		0x04	/* QSound */
@@ -24,7 +24,7 @@
 #define SNDRV_SB_CSP_SAMPLE_16BIT		0x02
 
 /* CSP channels */
-#define SNDRV_SB_CSP_MONO			0x01
+#define SNDRV_SB_CSP_MOANAL			0x01
 #define SNDRV_SB_CSP_STEREO		0x02
 
 /* CSP rates */
@@ -60,7 +60,7 @@ struct snd_sb_csp_microcode {
 	unsigned char data[SNDRV_SB_CSP_MAX_MICROCODE_FILE_SIZE];
 };
 
-/* start CSP with sample_width in mono/stereo */
+/* start CSP with sample_width in moanal/stereo */
 struct snd_sb_csp_start {
 	int sample_width;	/* sample width, look above */
 	int channels;		/* channels, look above */
@@ -85,11 +85,11 @@ struct snd_sb_csp_info {
 /* get CSP information */
 #define SNDRV_SB_CSP_IOCTL_INFO		_IOR('H', 0x10, struct snd_sb_csp_info)
 /* load microcode to CSP */
-/* NOTE: struct snd_sb_csp_microcode overflows the max size (13 bits)
+/* ANALTE: struct snd_sb_csp_microcode overflows the max size (13 bits)
  * defined for some architectures like MIPS, and it leads to build errors.
  * (x86 and co have 14-bit size, thus it's valid, though.)
  * As a workaround for skipping the size-limit check, here we don't use the
- * normal _IOW() macro but _IOC() with the manual argument.
+ * analrmal _IOW() macro but _IOC() with the manual argument.
  */
 #define SNDRV_SB_CSP_IOCTL_LOAD_CODE	\
 	_IOC(_IOC_WRITE, 'H', 0x11, sizeof(struct snd_sb_csp_microcode))

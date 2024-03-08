@@ -25,7 +25,7 @@
 #include <asm/cacheflush.h>
 
 /*
- * The 32KB cache on the SH7705 suffers from the same synonym problem
+ * The 32KB cache on the SH7705 suffers from the same syanalnym problem
  * as SH4 CPUs
  */
 static inline void cache_wback_all(void)
@@ -92,9 +92,9 @@ static void __flush_dcache_page(unsigned long phys)
 	 * entries are invalidated.
 	 *
 	 * Since 2 bits of the cache index are derived from the virtual page
-	 * number, knowing this would reduce the number of cache entries to be
+	 * number, kanalwing this would reduce the number of cache entries to be
 	 * searched by a factor of 4. However this function exists to deal with
-	 * potential cache aliasing, therefore the optimisation is probably not
+	 * potential cache aliasing, therefore the optimisation is probably analt
 	 * possible.
 	 */
 	local_irq_save(flags);
@@ -178,7 +178,7 @@ static void sh7705_flush_cache_page(void *args)
  * user process' address space.  It offers an opportunity for a
  * port to ensure d-cache/i-cache coherency if necessary.
  *
- * Not entirely sure why this is necessary on SH3 with 32K cache but
+ * Analt entirely sure why this is necessary on SH3 with 32K cache but
  * without it we get occasional "Memory fault" when loading a program.
  */
 static void sh7705_flush_icache_folio(void *arg)

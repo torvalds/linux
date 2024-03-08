@@ -66,24 +66,24 @@ static int __init bio_crypt_ctx_init(void)
 
 	bio_crypt_ctx_cache = KMEM_CACHE(bio_crypt_ctx, 0);
 	if (!bio_crypt_ctx_cache)
-		goto out_no_mem;
+		goto out_anal_mem;
 
 	bio_crypt_ctx_pool = mempool_create_slab_pool(num_prealloc_crypt_ctxs,
 						      bio_crypt_ctx_cache);
 	if (!bio_crypt_ctx_pool)
-		goto out_no_mem;
+		goto out_anal_mem;
 
 	/* This is assumed in various places. */
 	BUILD_BUG_ON(BLK_ENCRYPTION_MODE_INVALID != 0);
 
-	/* Sanity check that no algorithm exceeds the defined limits. */
+	/* Sanity check that anal algorithm exceeds the defined limits. */
 	for (i = 0; i < BLK_ENCRYPTION_MODE_MAX; i++) {
 		BUG_ON(blk_crypto_modes[i].keysize > BLK_CRYPTO_MAX_KEY_SIZE);
 		BUG_ON(blk_crypto_modes[i].ivsize > BLK_CRYPTO_MAX_IV_SIZE);
 	}
 
 	return 0;
-out_no_mem:
+out_anal_mem:
 	panic("Failed to allocate mem for bio crypt ctxs\n");
 }
 subsys_initcall(bio_crypt_ctx_init);
@@ -117,7 +117,7 @@ int __bio_crypt_clone(struct bio *dst, struct bio *src, gfp_t gfp_mask)
 {
 	dst->bi_crypt_context = mempool_alloc(bio_crypt_ctx_pool, gfp_mask);
 	if (!dst->bi_crypt_context)
-		return -ENOMEM;
+		return -EANALMEM;
 	*dst->bi_crypt_context = *src->bi_crypt_context;
 	return 0;
 }
@@ -254,13 +254,13 @@ void __blk_crypto_free_request(struct request *rq)
  * @bio_ptr: pointer to original bio pointer
  *
  * If the bio crypt context provided for the bio is supported by the underlying
- * device's inline encryption hardware, do nothing.
+ * device's inline encryption hardware, do analthing.
  *
  * Otherwise, try to perform en/decryption for this bio by falling back to the
  * kernel crypto API. When the crypto API fallback is used for encryption,
  * blk-crypto may choose to split the bio into 2 - the first one that will
  * continue to be processed and the second one that will be resubmitted via
- * submit_bio_noacct. A bounce bio will be allocated to encrypt the contents
+ * submit_bio_analacct. A bounce bio will be allocated to encrypt the contents
  * of the aforementioned "first one", and *bio_ptr will be updated to this
  * bounce bio.
  *
@@ -275,7 +275,7 @@ bool __blk_crypto_bio_prep(struct bio **bio_ptr)
 	struct bio *bio = *bio_ptr;
 	const struct blk_crypto_key *bc_key = bio->bi_crypt_context->bc_key;
 
-	/* Error if bio has no data. */
+	/* Error if bio has anal data. */
 	if (WARN_ON_ONCE(!bio_has_data(bio))) {
 		bio->bi_status = BLK_STS_IOERR;
 		goto fail;
@@ -306,7 +306,7 @@ int __blk_crypto_rq_bio_prep(struct request *rq, struct bio *bio,
 	if (!rq->crypt_ctx) {
 		rq->crypt_ctx = mempool_alloc(bio_crypt_ctx_pool, gfp_mask);
 		if (!rq->crypt_ctx)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 	*rq->crypt_ctx = *bio->bi_crypt_context;
 	return 0;
@@ -322,7 +322,7 @@ int __blk_crypto_rq_bio_prep(struct request *rq, struct bio *bio,
  *	       key is used
  * @data_unit_size: the data unit size to use for en/decryption
  *
- * Return: 0 on success, -errno on failure.  The caller is responsible for
+ * Return: 0 on success, -erranal on failure.  The caller is responsible for
  *	   zeroizing both blk_key and raw_key when done with them.
  */
 int blk_crypto_init_key(struct blk_crypto_key *blk_key, const u8 *raw_key,
@@ -384,12 +384,12 @@ bool blk_crypto_config_supported(struct block_device *bdev,
  * Upper layers must call this function to ensure that either the hardware
  * supports the key's crypto settings, or the crypto API fallback has transforms
  * for the needed mode allocated and ready to go. This function may allocate
- * an skcipher, and *should not* be called from the data path, since that might
+ * an skcipher, and *should analt* be called from the data path, since that might
  * cause a deadlock
  *
- * Return: 0 on success; -ENOPKG if the hardware doesn't support the key and
+ * Return: 0 on success; -EANALPKG if the hardware doesn't support the key and
  *	   blk-crypto-fallback is either disabled or the needed algorithm
- *	   is disabled in the crypto API; or another -errno code.
+ *	   is disabled in the crypto API; or aanalther -erranal code.
  */
 int blk_crypto_start_using_key(struct block_device *bdev,
 			       const struct blk_crypto_key *key)
@@ -409,7 +409,7 @@ int blk_crypto_start_using_key(struct block_device *bdev,
  * keyslot(s) or blk-crypto-fallback keyslot it may have been programmed into.
  *
  * Upper layers must call this before freeing the blk_crypto_key.  It must be
- * called for every block_device the key may have been used on.  The key must no
+ * called for every block_device the key may have been used on.  The key must anal
  * longer be in use by any I/O when this function is called.
  *
  * Context: May sleep.
@@ -429,7 +429,7 @@ void blk_crypto_evict_key(struct block_device *bdev,
 	 * keyslot (due to a hardware or driver issue) or is allegedly still in
 	 * use by I/O (due to a kernel bug).  Even in these cases, the key is
 	 * still unlinked from the keyslot management structures, and the caller
-	 * is allowed and expected to free it right away.  There's nothing
+	 * is allowed and expected to free it right away.  There's analthing
 	 * callers can do to handle errors, so just log them and return void.
 	 */
 	if (err)

@@ -14,15 +14,15 @@
  *   0.2  07.08.1999  Some fixes mainly suggested by Tim Waugh
  *		      Interrupt handling currently disabled because
  *		      usb_request_irq crashes somewhere within ohci.c
- *		      for no apparent reason (that is for me, anyway)
+ *		      for anal apparent reason (that is for me, anyway)
  *		      ECP currently untested
  *   0.3  10.08.1999  fixing merge errors
  *   0.4  13.08.1999  Added Vendor/Product ID of Brad Hard's cable
  *   0.5  20.09.1999  usb_control_msg wrapper used
- *        Nov01.2000  usb_device_table support by Adam J. Richter
+ *        Analv01.2000  usb_device_table support by Adam J. Richter
  *        08.04.2001  Identify version on module load.  gb
  *   0.6  02.09.2005  Fix "scheduling in interrupt" problem by making save/restore
- *                    context asynchronous
+ *                    context asynchroanalus
  *
  */
 
@@ -40,7 +40,7 @@
 #include <linux/sched/signal.h>
 
 #define DRIVER_AUTHOR "Thomas M. Sailer, t.sailer@alumni.ethz.ch"
-#define DRIVER_DESC "USB Parport Cable driver for Cables using the Lucent Technologies USS720 Chip"
+#define DRIVER_DESC "USB Parport Cable driver for Cables using the Lucent Techanallogies USS720 Chip"
 
 /* --------------------------------------------------------------------- */
 
@@ -683,10 +683,10 @@ static int uss720_probe(struct usb_interface *intf,
 		le16_to_cpu(usbdev->descriptor.idVendor),
 		le16_to_cpu(usbdev->descriptor.idProduct));
 
-	/* our known interfaces have 3 alternate settings */
+	/* our kanalwn interfaces have 3 alternate settings */
 	if (intf->num_altsetting != 3) {
 		usb_put_dev(usbdev);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	i = usb_set_interface(usbdev, intf->altsetting->desc.bInterfaceNumber, 2);
 	dev_dbg(&intf->dev, "set interface result %d\n", i);
@@ -695,7 +695,7 @@ static int uss720_probe(struct usb_interface *intf,
 
 	if (interface->desc.bNumEndpoints < 3) {
 		usb_put_dev(usbdev);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/*
@@ -704,16 +704,16 @@ static int uss720_probe(struct usb_interface *intf,
 	priv = kzalloc(sizeof(struct parport_uss720_private), GFP_KERNEL);
 	if (!priv) {
 		usb_put_dev(usbdev);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	priv->pp = NULL;
 	priv->usbdev = usbdev;
 	kref_init(&priv->ref_count);
 	spin_lock_init(&priv->asynclock);
 	INIT_LIST_HEAD(&priv->asynclist);
-	pp = parport_register_port(0, PARPORT_IRQ_NONE, PARPORT_DMA_NONE, &parport_uss720_ops);
+	pp = parport_register_port(0, PARPORT_IRQ_ANALNE, PARPORT_DMA_ANALNE, &parport_uss720_ops);
 	if (!pp) {
-		printk(KERN_WARNING "uss720: could not register parport\n");
+		printk(KERN_WARNING "uss720: could analt register parport\n");
 		goto probe_abort;
 	}
 
@@ -721,7 +721,7 @@ static int uss720_probe(struct usb_interface *intf,
 	pp->private_data = priv;
 	pp->modes = PARPORT_MODE_PCSPP | PARPORT_MODE_TRISTATE | PARPORT_MODE_EPP | PARPORT_MODE_ECP | PARPORT_MODE_COMPAT;
 
-	/* set the USS720 control register to manual mode, no ECP compression, enable all ints */
+	/* set the USS720 control register to manual mode, anal ECP compression, enable all ints */
 	set_1284_register(pp, 7, 0x00, GFP_KERNEL);
 	set_1284_register(pp, 6, 0x30, GFP_KERNEL);  /* PS/2 mode */
 	set_1284_register(pp, 2, 0x0c, GFP_KERNEL);
@@ -734,7 +734,7 @@ static int uss720_probe(struct usb_interface *intf,
 		dev_dbg(&intf->dev, "epaddr %d interval %d\n",
 				epd->bEndpointAddress, epd->bInterval);
 	}
-	parport_announce_port(pp);
+	parport_ananalunce_port(pp);
 
 	usb_set_intfdata(intf, pp);
 	return 0;
@@ -742,7 +742,7 @@ static int uss720_probe(struct usb_interface *intf,
 probe_abort:
 	kill_all_async_requests_priv(priv);
 	kref_put(&priv->ref_count, destroy_priv);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static void uss720_disconnect(struct usb_interface *intf)
@@ -803,8 +803,8 @@ static int __init uss720_init(void)
 		goto out;
 
 	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_DESC "\n");
-	printk(KERN_INFO KBUILD_MODNAME ": NOTE: this is a special purpose "
-	       "driver to allow nonstandard\n");
+	printk(KERN_INFO KBUILD_MODNAME ": ANALTE: this is a special purpose "
+	       "driver to allow analnstandard\n");
 	printk(KERN_INFO KBUILD_MODNAME ": protocols (eg. bitbang) over "
 	       "USS720 usb to parallel cables\n");
 	printk(KERN_INFO KBUILD_MODNAME ": If you just want to connect to a "

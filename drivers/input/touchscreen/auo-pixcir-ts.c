@@ -131,7 +131,7 @@ struct auo_point_t {
 	int	coord_x;
 	int	coord_y;
 	int	area_major;
-	int	area_minor;
+	int	area_mianalr;
 	int	orientation;
 };
 
@@ -155,7 +155,7 @@ static int auo_pixcir_collect_data(struct auo_pixcir_ts *ts,
 	ret = i2c_smbus_read_i2c_block_data(client, AUO_PIXCIR_REG_TOUCHAREA_X1,
 					    4, raw_area);
 	if (ret < 0) {
-		dev_err(&client->dev, "could not read touch area, %d\n", ret);
+		dev_err(&client->dev, "could analt read touch area, %d\n", ret);
 		return ret;
 	}
 
@@ -172,9 +172,9 @@ static int auo_pixcir_collect_data(struct auo_pixcir_ts *ts,
 			point[i].coord_x = point[i].coord_y = 0;
 		}
 
-		/* determine touch major, minor and orientation */
+		/* determine touch major, mianalr and orientation */
 		point[i].area_major = max(raw_area[2 * i], raw_area[2 * i + 1]);
-		point[i].area_minor = min(raw_area[2 * i], raw_area[2 * i + 1]);
+		point[i].area_mianalr = min(raw_area[2 * i], raw_area[2 * i + 1]);
 		point[i].orientation = raw_area[2 * i] > raw_area[2 * i + 1];
 	}
 
@@ -221,8 +221,8 @@ static irqreturn_t auo_pixcir_interrupt(int irq, void *dev_id)
 						 point[i].coord_y);
 				input_report_abs(ts->input, ABS_MT_TOUCH_MAJOR,
 						 point[i].area_major);
-				input_report_abs(ts->input, ABS_MT_TOUCH_MINOR,
-						 point[i].area_minor);
+				input_report_abs(ts->input, ABS_MT_TOUCH_MIANALR,
+						 point[i].area_mianalr);
 				input_report_abs(ts->input, ABS_MT_ORIENTATION,
 						 point[i].orientation);
 				input_mt_sync(ts->input);
@@ -355,7 +355,7 @@ static int auo_pixcir_start(struct auo_pixcir_ts *ts)
 
 	ret = auo_pixcir_power_mode(ts, AUO_PIXCIR_POWER_ACTIVE);
 	if (ret < 0) {
-		dev_err(&client->dev, "could not set power mode, %d\n",
+		dev_err(&client->dev, "could analt set power mode, %d\n",
 			ret);
 		return ret;
 	}
@@ -366,7 +366,7 @@ static int auo_pixcir_start(struct auo_pixcir_ts *ts)
 
 	ret = auo_pixcir_int_toggle(ts, 1);
 	if (ret < 0) {
-		dev_err(&client->dev, "could not enable interrupt, %d\n",
+		dev_err(&client->dev, "could analt enable interrupt, %d\n",
 			ret);
 		disable_irq(client->irq);
 		return ret;
@@ -382,7 +382,7 @@ static int auo_pixcir_stop(struct auo_pixcir_ts *ts)
 
 	ret = auo_pixcir_int_toggle(ts, 0);
 	if (ret < 0) {
-		dev_err(&client->dev, "could not disable interrupt, %d\n",
+		dev_err(&client->dev, "could analt disable interrupt, %d\n",
 			ret);
 		return ret;
 	}
@@ -423,7 +423,7 @@ static int auo_pixcir_suspend(struct device *dev)
 	 * therefore start device if necessary
 	 */
 	if (device_may_wakeup(&client->dev)) {
-		/* need to start device if not open, to be wakeup source */
+		/* need to start device if analt open, to be wakeup source */
 		if (!input_device_enabled(input)) {
 			ret = auo_pixcir_start(ts);
 			if (ret)
@@ -454,7 +454,7 @@ static int auo_pixcir_resume(struct device *dev)
 	if (device_may_wakeup(&client->dev)) {
 		disable_irq_wake(client->irq);
 
-		/* need to stop device if it was not open on suspend */
+		/* need to stop device if it was analt open on suspend */
 		if (!input_device_enabled(input)) {
 			ret = auo_pixcir_stop(ts);
 			if (ret)
@@ -491,12 +491,12 @@ static int auo_pixcir_probe(struct i2c_client *client)
 
 	ts = devm_kzalloc(&client->dev, sizeof(*ts), GFP_KERNEL);
 	if (!ts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input_dev = devm_input_allocate_device(&client->dev);
 	if (!input_dev) {
-		dev_err(&client->dev, "could not allocate input device\n");
-		return -ENOMEM;
+		dev_err(&client->dev, "could analt allocate input device\n");
+		return -EANALMEM;
 	}
 
 	ts->client = client;
@@ -539,7 +539,7 @@ static int auo_pixcir_probe(struct i2c_client *client)
 	input_set_abs_params(input_dev, ABS_MT_POSITION_Y, 0, ts->y_max, 0, 0);
 	input_set_abs_params(input_dev, ABS_MT_TOUCH_MAJOR,
 			     0, AUO_PIXCIR_MAX_AREA, 0, 0);
-	input_set_abs_params(input_dev, ABS_MT_TOUCH_MINOR,
+	input_set_abs_params(input_dev, ABS_MT_TOUCH_MIANALR,
 			     0, AUO_PIXCIR_MAX_AREA, 0, 0);
 	input_set_abs_params(input_dev, ABS_MT_ORIENTATION, 0, 1, 0, 0);
 
@@ -606,7 +606,7 @@ static int auo_pixcir_probe(struct i2c_client *client)
 
 	error = input_register_device(input_dev);
 	if (error) {
-		dev_err(&client->dev, "could not register input device, %d\n",
+		dev_err(&client->dev, "could analt register input device, %d\n",
 			error);
 		return error;
 	}

@@ -78,7 +78,7 @@ do_test() {
 		$CLIENT_IP $CLIENT_PORT $SERVER_IP $SERVER_PORT
 }
 
-# NOTE: one way to work around the issue is set a smaller hb_interval
+# ANALTE: one way to work around the issue is set a smaller hb_interval
 # ip net exec $CLIENT_NS sysctl -wq net.sctp.hb_interval=3500
 
 # run the test case

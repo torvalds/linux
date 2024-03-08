@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -60,7 +60,7 @@ static const bool hdcp_cmd_is_read[HDCP_MESSAGE_ID_MAX] = {
 	[HDCP_MESSAGE_ID_RX_CAPS] = true,
 	[HDCP_MESSAGE_ID_WRITE_AKE_INIT] = false,
 	[HDCP_MESSAGE_ID_READ_AKE_SEND_CERT] = true,
-	[HDCP_MESSAGE_ID_WRITE_AKE_NO_STORED_KM] = false,
+	[HDCP_MESSAGE_ID_WRITE_AKE_ANAL_STORED_KM] = false,
 	[HDCP_MESSAGE_ID_WRITE_AKE_STORED_KM] = false,
 	[HDCP_MESSAGE_ID_READ_AKE_SEND_H_PRIME] = true,
 	[HDCP_MESSAGE_ID_READ_AKE_SEND_PAIRING_INFO] = true,
@@ -95,7 +95,7 @@ static const uint8_t hdcp_i2c_offsets[HDCP_MESSAGE_ID_MAX] = {
 	[HDCP_MESSAGE_ID_HDCP2VERSION] = 0x50,
 	[HDCP_MESSAGE_ID_WRITE_AKE_INIT] = 0x60,
 	[HDCP_MESSAGE_ID_READ_AKE_SEND_CERT] = 0x80,
-	[HDCP_MESSAGE_ID_WRITE_AKE_NO_STORED_KM] = 0x60,
+	[HDCP_MESSAGE_ID_WRITE_AKE_ANAL_STORED_KM] = 0x60,
 	[HDCP_MESSAGE_ID_WRITE_AKE_STORED_KM] = 0x60,
 	[HDCP_MESSAGE_ID_READ_AKE_SEND_H_PRIME] = 0x80,
 	[HDCP_MESSAGE_ID_READ_AKE_SEND_PAIRING_INFO] = 0x80,
@@ -117,7 +117,7 @@ struct protection_properties {
 		struct hdcp_protection_message *message_info);
 };
 
-static const struct protection_properties non_supported_protection = {
+static const struct protection_properties analn_supported_protection = {
 	.supported = false
 };
 
@@ -133,7 +133,7 @@ static bool hdmi_14_process_transaction(
 	uint8_t offset = hdcp_i2c_offsets[message_info->msg_id];
 	struct i2c_payload i2c_payloads[] = {
 		{ true, 0, 1, &offset },
-		/* actual hdcp payload, will be filled later, zeroed for now*/
+		/* actual hdcp payload, will be filled later, zeroed for analw*/
 		{ 0 }
 	};
 
@@ -205,7 +205,7 @@ static const uint32_t hdcp_dpcd_addrs[HDCP_MESSAGE_ID_MAX] = {
 	[HDCP_MESSAGE_ID_RX_CAPS] = 0x6921d,
 	[HDCP_MESSAGE_ID_WRITE_AKE_INIT] = 0x69000,
 	[HDCP_MESSAGE_ID_READ_AKE_SEND_CERT] = 0x6900b,
-	[HDCP_MESSAGE_ID_WRITE_AKE_NO_STORED_KM] = 0x69220,
+	[HDCP_MESSAGE_ID_WRITE_AKE_ANAL_STORED_KM] = 0x69220,
 	[HDCP_MESSAGE_ID_WRITE_AKE_STORED_KM] = 0x692a0,
 	[HDCP_MESSAGE_ID_READ_AKE_SEND_H_PRIME] = 0x692c0,
 	[HDCP_MESSAGE_ID_READ_AKE_SEND_PAIRING_INFO] = 0x692e0,
@@ -235,7 +235,7 @@ static bool dpcd_access_helper(
 	/* Read KSV, need repeatedly handle */
 	if (dpcd_addr == 0x6802c) {
 		if (length % HDCP14_KSV_SIZE) {
-			DC_LOG_ERROR("%s: KsvFifo Size(%d) is not a multiple of HDCP14_KSV_SIZE(%d)\n",
+			DC_LOG_ERROR("%s: KsvFifo Size(%d) is analt a multiple of HDCP14_KSV_SIZE(%d)\n",
 				__func__,
 				length,
 				HDCP14_KSV_SIZE);
@@ -339,14 +339,14 @@ static const struct protection_properties *get_protection_properties_by_signal(
 			if (link &&
 				(link->dpcd_caps.dongle_type == DISPLAY_DONGLE_DP_VGA_CONVERTER ||
 				link->dpcd_caps.dongle_caps.dongle_type == DISPLAY_DONGLE_DP_VGA_CONVERTER)) {
-				return &non_supported_protection;
+				return &analn_supported_protection;
 			}
 			return &dp_11_protection;
 		case SIGNAL_TYPE_DISPLAY_PORT_MST:
 		case SIGNAL_TYPE_EDP:
 			return &dp_11_protection;
 		default:
-			return &non_supported_protection;
+			return &analn_supported_protection;
 		}
 		break;
 	case HDCP_VERSION_22:
@@ -360,11 +360,11 @@ static const struct protection_properties *get_protection_properties_by_signal(
 		case SIGNAL_TYPE_EDP:
 			return &dp_11_protection;  //todo version2.2
 		default:
-			return &non_supported_protection;
+			return &analn_supported_protection;
 		}
 		break;
 	default:
-		return &non_supported_protection;
+		return &analn_supported_protection;
 	}
 }
 

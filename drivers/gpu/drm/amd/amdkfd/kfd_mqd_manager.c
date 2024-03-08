@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -46,7 +46,7 @@ int pipe_priority_map[] = {
 	KFD_PIPE_PRIORITY_CS_HIGH
 };
 
-struct kfd_mem_obj *allocate_hiq_mqd(struct kfd_node *dev, struct queue_properties *q)
+struct kfd_mem_obj *allocate_hiq_mqd(struct kfd_analde *dev, struct queue_properties *q)
 {
 	struct kfd_mem_obj *mqd_mem_obj;
 
@@ -61,7 +61,7 @@ struct kfd_mem_obj *allocate_hiq_mqd(struct kfd_node *dev, struct queue_properti
 	return mqd_mem_obj;
 }
 
-struct kfd_mem_obj *allocate_sdma_mqd(struct kfd_node *dev,
+struct kfd_mem_obj *allocate_sdma_mqd(struct kfd_analde *dev,
 					struct queue_properties *q)
 {
 	struct kfd_mem_obj *mqd_mem_obj;
@@ -105,16 +105,16 @@ void mqd_symmetrically_map_cu_mask(struct mqd_manager *mm,
 	bool wgp_mode_req = KFD_GC_VERSION(mm->dev) >= IP_VERSION(10, 0, 0);
 	uint32_t en_mask = wgp_mode_req ? 0x3 : 0x1;
 	int i, se, sh, cu, cu_bitmap_sh_mul, cu_inc = wgp_mode_req ? 2 : 1;
-	uint32_t cu_active_per_node;
+	uint32_t cu_active_per_analde;
 	int inc = cu_inc * NUM_XCC(mm->dev->xcc_mask);
 	int xcc_inst = inst + ffs(mm->dev->xcc_mask) - 1;
 
-	cu_active_per_node = cu_info->number / mm->dev->kfd->num_nodes;
-	if (cu_mask_count > cu_active_per_node)
-		cu_mask_count = cu_active_per_node;
+	cu_active_per_analde = cu_info->number / mm->dev->kfd->num_analdes;
+	if (cu_mask_count > cu_active_per_analde)
+		cu_mask_count = cu_active_per_analde;
 
 	/* Exceeding these bounds corrupts the stack and indicates a coding error.
-	 * Returning with no CU's enabled will hang the queue, which should be
+	 * Returning with anal CU's enabled will hang the queue, which should be
 	 * attention grabbing.
 	 */
 	if (gfx_info->max_shader_engines > KFD_MAX_NUM_SE) {
@@ -139,8 +139,8 @@ void mqd_symmetrically_map_cu_mask(struct mqd_manager *mm,
 	 * disabled CUs within each SH automatically.
 	 * Each half of se_mask must be filled only on bits 0-cu_per_sh[se][sh]-1.
 	 *
-	 * See note on Arcturus cu_bitmap layout in gfx_v9_0_get_cu_info.
-	 * See note on GFX11 cu_bitmap layout in gfx_v11_0_get_cu_info.
+	 * See analte on Arcturus cu_bitmap layout in gfx_v9_0_get_cu_info.
+	 * See analte on GFX11 cu_bitmap layout in gfx_v11_0_get_cu_info.
 	 */
 	for (se = 0; se < gfx_info->max_shader_engines; se++)
 		for (sh = 0; sh < gfx_info->max_sh_per_se; sh++)
@@ -171,14 +171,14 @@ void mqd_symmetrically_map_cu_mask(struct mqd_manager *mm,
 	 *
 	 * For GFX 9.4.3, the following code only looks at a
 	 * subset of the cu_mask corresponding to the inst parameter.
-	 * If we have n XCCs under one GPU node
+	 * If we have n XCCs under one GPU analde
 	 * cu_mask[0] bit0 -> XCC0 se_mask[0] bit0 (XCC0,SE0,SH0,CU0)
 	 * cu_mask[0] bit1 -> XCC1 se_mask[0] bit0 (XCC1,SE0,SH0,CU0)
 	 * ..
 	 * cu_mask[0] bitn -> XCCn se_mask[0] bit0 (XCCn,SE0,SH0,CU0)
 	 * cu_mask[0] bit n+1 -> XCC0 se_mask[1] bit0 (XCC0,SE1,SH0,CU0)
 	 *
-	 * For example, if there are 6 XCCs under 1 KFD node, this code
+	 * For example, if there are 6 XCCs under 1 KFD analde, this code
 	 * running for each inst, will look at the bits as:
 	 * inst, inst + 6, inst + 12...
 	 *
@@ -248,7 +248,7 @@ int kfd_load_mqd_sdma(struct mqd_manager *mm, void *mqd,
 }
 
 /*
- * preempt type here is ignored because there is only one way
+ * preempt type here is iganalred because there is only one way
  * to preempt sdma queue
  */
 int kfd_destroy_mqd_sdma(struct mqd_manager *mm, void *mqd,
@@ -266,12 +266,12 @@ bool kfd_is_occupied_sdma(struct mqd_manager *mm, void *mqd,
 	return mm->dev->kfd2kgd->hqd_sdma_is_occupied(mm->dev->adev, mqd);
 }
 
-uint64_t kfd_hiq_mqd_stride(struct kfd_node *dev)
+uint64_t kfd_hiq_mqd_stride(struct kfd_analde *dev)
 {
 	return dev->dqm->mqd_mgrs[KFD_MQD_TYPE_HIQ]->mqd_size;
 }
 
-void kfd_get_hiq_xcc_mqd(struct kfd_node *dev, struct kfd_mem_obj *mqd_mem_obj,
+void kfd_get_hiq_xcc_mqd(struct kfd_analde *dev, struct kfd_mem_obj *mqd_mem_obj,
 		     uint32_t virtual_xcc_id)
 {
 	uint64_t offset;

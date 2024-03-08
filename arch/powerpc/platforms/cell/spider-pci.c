@@ -79,15 +79,15 @@ static int __init spiderpci_pci_setup_chip(struct pci_controller *phb,
 
 	/* setup dummy read */
 	/*
-	 * On CellBlade, we can't know that which XDR memory is used by
+	 * On CellBlade, we can't kanalw that which XDR memory is used by
 	 * kmalloc() to allocate dummy_page_va.
 	 * In order to improve the performance, the XDR which is used to
 	 * allocate dummy_page_va is the nearest the spider-pci.
 	 * We have to select the CBE which is the nearest the spider-pci
-	 * to allocate memory from the best XDR, but I don't know that
+	 * to allocate memory from the best XDR, but I don't kanalw that
 	 * how to do.
 	 *
-	 * Celleb does not have this problem, because it has only one XDR.
+	 * Celleb does analt have this problem, because it has only one XDR.
 	 */
 	dummy_page_va = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!dummy_page_va) {
@@ -112,7 +112,7 @@ int __init spiderpci_iowa_init(struct iowa_bus *bus, void *data)
 {
 	void __iomem *regs = NULL;
 	struct spiderpci_iowa_private *priv;
-	struct device_node *np = bus->phb->dn;
+	struct device_analde *np = bus->phb->dn;
 	struct resource r;
 	unsigned long offset = (unsigned long)data;
 

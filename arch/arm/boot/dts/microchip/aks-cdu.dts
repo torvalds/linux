@@ -2,7 +2,7 @@
 /*
  * aks-cdu.dts - Device Tree file for AK signal CDU
  *
- * Copyright (C) 2012 AK signal Brno a.s.
+ * Copyright (C) 2012 AK signal Branal a.s.
  *               2012 Jiri Prchal <jiri.prchal@aksignal.cz>
  */
 
@@ -100,23 +100,23 @@
 
 		red {
 			gpios = <&pioC 10 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "none";
+			linux,default-trigger = "analne";
 		};
 
 		green {
 			gpios = <&pioA 5 GPIO_ACTIVE_LOW>;
-			linux,default-trigger = "none";
+			linux,default-trigger = "analne";
 			default-state = "on";
 		};
 
 		yellow {
 			gpios = <&pioB 20 GPIO_ACTIVE_LOW>;
-			linux,default-trigger = "none";
+			linux,default-trigger = "analne";
 		};
 
 		blue {
 			gpios = <&pioB 21 GPIO_ACTIVE_LOW>;
-			linux,default-trigger = "none";
+			linux,default-trigger = "analne";
 		};
 	};
 };

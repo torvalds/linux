@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright (C) 2023 Microchip Technology Inc. and its subsidiaries.
+/* Copyright (C) 2023 Microchip Techanallogy Inc. and its subsidiaries.
  * Microchip VCAP API
  */
 
@@ -21,7 +21,7 @@ enum vcap_type {
 
 /* Keyfieldset names with origin information */
 enum vcap_keyfield_set {
-	VCAP_KFS_NO_VALUE,          /* initial value */
+	VCAP_KFS_ANAL_VALUE,          /* initial value */
 	VCAP_KFS_5TUPLE_IP4,        /* lan966x is1 X2 */
 	VCAP_KFS_5TUPLE_IP6,        /* lan966x is1 X4 */
 	VCAP_KFS_7TUPLE,            /* lan966x is1 X4 */
@@ -42,10 +42,10 @@ enum vcap_keyfield_set {
 	VCAP_KFS_MAC_ETYPE,         /* sparx5 is2 X6, sparx5 es2 X6, lan966x is2 X2 */
 	VCAP_KFS_MAC_LLC,           /* lan966x is2 X2 */
 	VCAP_KFS_MAC_SNAP,          /* lan966x is2 X2 */
-	VCAP_KFS_NORMAL,            /* lan966x is1 X2 */
-	VCAP_KFS_NORMAL_5TUPLE_IP4,  /* sparx5 is0 X6 */
-	VCAP_KFS_NORMAL_7TUPLE,     /* sparx5 is0 X12 */
-	VCAP_KFS_NORMAL_IP6,        /* lan966x is1 X4 */
+	VCAP_KFS_ANALRMAL,            /* lan966x is1 X2 */
+	VCAP_KFS_ANALRMAL_5TUPLE_IP4,  /* sparx5 is0 X6 */
+	VCAP_KFS_ANALRMAL_7TUPLE,     /* sparx5 is0 X12 */
+	VCAP_KFS_ANALRMAL_IP6,        /* lan966x is1 X4 */
 	VCAP_KFS_OAM,               /* lan966x is2 X2 */
 	VCAP_KFS_PURE_5TUPLE_IP4,   /* sparx5 is0 X3 */
 	VCAP_KFS_RT,                /* lan966x is1 X1 */
@@ -79,7 +79,7 @@ enum vcap_keyfield_set {
  * VCAP_KF_8021Q_DEI1: W1, sparx5: is0, lan966x: is1
  *   Second DEI in multiple vlan tags (inner tag)
  * VCAP_KF_8021Q_DEI2: W1, sparx5: is0
- *   Third DEI in multiple vlan tags (not always available)
+ *   Third DEI in multiple vlan tags (analt always available)
  * VCAP_KF_8021Q_DEI_CLS: W1, sparx5: is2/es2, lan966x: is2/es0
  *   Classified DEI
  * VCAP_KF_8021Q_PCP0: W3, sparx5: is0, lan966x: is1
@@ -87,7 +87,7 @@ enum vcap_keyfield_set {
  * VCAP_KF_8021Q_PCP1: W3, sparx5: is0, lan966x: is1
  *   Second PCP in multiple vlan tags (inner tag)
  * VCAP_KF_8021Q_PCP2: W3, sparx5: is0
- *   Third PCP in multiple vlan tags (not always available)
+ *   Third PCP in multiple vlan tags (analt always available)
  * VCAP_KF_8021Q_PCP_CLS: W3, sparx5: is2/es2, lan966x: is2/es0
  *   Classified PCP
  * VCAP_KF_8021Q_TPID: W3, sparx5: es0
@@ -97,13 +97,13 @@ enum vcap_keyfield_set {
  * VCAP_KF_8021Q_TPID1: sparx5 is0 W3, lan966x is1 W1
  *   Second TPID in multiple vlan tags (inner tag)
  * VCAP_KF_8021Q_TPID2: W3, sparx5: is0
- *   Third TPID in multiple vlan tags (not always available)
+ *   Third TPID in multiple vlan tags (analt always available)
  * VCAP_KF_8021Q_VID0: W12, sparx5: is0, lan966x: is1
  *   First VID in multiple vlan tags (outer tag or default port tag)
  * VCAP_KF_8021Q_VID1: W12, sparx5: is0, lan966x: is1
  *   Second VID in multiple vlan tags (inner tag)
  * VCAP_KF_8021Q_VID2: W12, sparx5: is0
- *   Third VID in multiple vlan tags (not always available)
+ *   Third VID in multiple vlan tags (analt always available)
  * VCAP_KF_8021Q_VID_CLS: sparx5 is2 W13, sparx5 es0 W13, sparx5 es2 W13,
  *   lan966x is2 W12, lan966x es0 W12
  *   Classified VID
@@ -123,8 +123,8 @@ enum vcap_keyfield_set {
  *   Set if hardware address length = 6 (Ethernet) and IP address length = 4 (IP).
  * VCAP_KF_ARP_OPCODE: W2, sparx5: is2/es2, lan966x: is2
  *   ARP opcode
- * VCAP_KF_ARP_OPCODE_UNKNOWN_IS: W1, sparx5: is2/es2, lan966x: is2
- *   Set if not one of the codes defined in VCAP_KF_ARP_OPCODE
+ * VCAP_KF_ARP_OPCODE_UNKANALWN_IS: W1, sparx5: is2/es2, lan966x: is2
+ *   Set if analt one of the codes defined in VCAP_KF_ARP_OPCODE
  * VCAP_KF_ARP_PROTO_SPACE_OK_IS: W1, sparx5: is2/es2, lan966x: is2
  *   Set if protocol address space is 0x0800
  * VCAP_KF_ARP_SENDER_MATCH_IS: W1, sparx5: is2/es2, lan966x: is2
@@ -147,7 +147,7 @@ enum vcap_keyfield_set {
  * VCAP_KF_IF_EGR_PORT_MASK_RNG: W3, sparx5: es2
  *   Select which 32 port group is available in IF_EGR_PORT (or virtual ports or
  *   CPU queue)
- * VCAP_KF_IF_EGR_PORT_NO: sparx5 es0 W7, lan966x es0 W4
+ * VCAP_KF_IF_EGR_PORT_ANAL: sparx5 es0 W7, lan966x es0 W4
  *   Egress port number
  * VCAP_KF_IF_IGR_PORT: sparx5 is0 W7, sparx5 es2 W9, lan966x is1 W3, lan966x
  *   is2 W4, lan966x es0 W4
@@ -224,12 +224,12 @@ enum vcap_keyfield_set {
  * VCAP_KF_L3_FRAGMENT: W1, lan966x: is1/is2
  *   Set if IPv4 frame is fragmented
  * VCAP_KF_L3_FRAGMENT_TYPE: W2, sparx5: is0/is2/es2
- *   L3 Fragmentation type (none, initial, suspicious, valid follow up)
+ *   L3 Fragmentation type (analne, initial, suspicious, valid follow up)
  * VCAP_KF_L3_FRAG_INVLD_L4_LEN: W1, sparx5: is0/is2
  *   Set if frame's L4 length is less than ANA_CL:COMMON:CLM_FRAGMENT_CFG.L4_MIN_L
  *   EN
  * VCAP_KF_L3_FRAG_OFS_GT0: W1, lan966x: is1/is2
- *   Set if IPv4 frame is fragmented and it is not the first fragment
+ *   Set if IPv4 frame is fragmented and it is analt the first fragment
  * VCAP_KF_L3_IP4_DIP: W32, sparx5: is0/is2/es2, lan966x: is1/is2
  *   Destination IPv4 Address
  * VCAP_KF_L3_IP4_SIP: W32, sparx5: is0/is2/es2, lan966x: is1/is2
@@ -252,7 +252,7 @@ enum vcap_keyfield_set {
  *   Set if IPv4 frame contains options (IP len > 5)
  * VCAP_KF_L3_PAYLOAD: sparx5 is2 W96, sparx5 is2 W40, sparx5 es2 W96, sparx5
  *   es2 W40, lan966x is2 W56
- *   Sparx5: Payload bytes after IP header. IPv4: IPv4 options are not parsed so
+ *   Sparx5: Payload bytes after IP header. IPv4: IPv4 options are analt parsed so
  *   payload is always taken 20 bytes after the start of the IPv4 header, LAN966x:
  *   Bytes 0-6 after IP header
  * VCAP_KF_L3_RT_IS: W1, sparx5: is2/es2
@@ -269,14 +269,14 @@ enum vcap_keyfield_set {
  *   Sparx5 and LAN966x: TCP flag ACK, LAN966x only: PTP over UDP: flagField bit 2
  *   (unicastFlag)
  * VCAP_KF_L4_DPORT: W16, sparx5: is2/es2, lan966x: is2
- *   Sparx5: TCP/UDP destination port. Overloading for IP_7TUPLE: Non-TCP/UDP IP
+ *   Sparx5: TCP/UDP destination port. Overloading for IP_7TUPLE: Analn-TCP/UDP IP
  *   frames: L4_DPORT = L3_IP_PROTO, LAN966x: TCP/UDP destination port
  * VCAP_KF_L4_FIN: W1, sparx5: is2/es2, lan966x: is2
  *   TCP flag FIN, LAN966x: TCP flag FIN, and for PTP over UDP: messageType bit 1
  * VCAP_KF_L4_PAYLOAD: W64, sparx5: is2/es2
- *   Payload bytes after TCP/UDP header Overloading for IP_7TUPLE: Non TCP/UDP
- *   frames: Payload bytes 0-7 after IP header. IPv4 options are not parsed so
- *   payload is always taken 20 bytes after the start of the IPv4 header for non
+ *   Payload bytes after TCP/UDP header Overloading for IP_7TUPLE: Analn TCP/UDP
+ *   frames: Payload bytes 0-7 after IP header. IPv4 options are analt parsed so
+ *   payload is always taken 20 bytes after the start of the IPv4 header for analn
  *   TCP/UDP IPv4 frames
  * VCAP_KF_L4_PSH: W1, sparx5: is2/es2, lan966x: is2
  *   Sparx5: TCP flag PSH, LAN966x: TCP: TCP flag PSH. PTP over UDP: flagField bit
@@ -333,7 +333,7 @@ enum vcap_keyfield_set {
  * VCAP_KF_OAM_Y1731_IS: W1, sparx5: is2/es2, lan966x: is2
  *   Set if frame's EtherType = 0x8902
  * VCAP_KF_PDU_TYPE: W4, lan966x: es0
- *   PDU type value (none, OAM CCM, MRP, DLR, RTE, IPv4, IPv6, OAM non-CCM)
+ *   PDU type value (analne, OAM CCM, MRP, DLR, RTE, IPv4, IPv6, OAM analn-CCM)
  * VCAP_KF_PROT_ACTIVE: W1, sparx5: es0/es2
  *   Protection is active
  * VCAP_KF_RTP_ID: W10, lan966x: es0
@@ -359,7 +359,7 @@ enum vcap_keyfield_set {
 
 /* Keyfield names */
 enum vcap_key_field {
-	VCAP_KF_NO_VALUE,  /* initial value */
+	VCAP_KF_ANAL_VALUE,  /* initial value */
 	VCAP_KF_8021BR_ECID_BASE,
 	VCAP_KF_8021BR_ECID_EXT,
 	VCAP_KF_8021BR_E_TAGGED,
@@ -390,7 +390,7 @@ enum vcap_key_field {
 	VCAP_KF_ARP_ADDR_SPACE_OK_IS,
 	VCAP_KF_ARP_LEN_OK_IS,
 	VCAP_KF_ARP_OPCODE,
-	VCAP_KF_ARP_OPCODE_UNKNOWN_IS,
+	VCAP_KF_ARP_OPCODE_UNKANALWN_IS,
 	VCAP_KF_ARP_PROTO_SPACE_OK_IS,
 	VCAP_KF_ARP_SENDER_MATCH_IS,
 	VCAP_KF_ARP_TGT_MATCH_IS,
@@ -401,7 +401,7 @@ enum vcap_key_field {
 	VCAP_KF_HOST_MATCH,
 	VCAP_KF_IF_EGR_PORT_MASK,
 	VCAP_KF_IF_EGR_PORT_MASK_RNG,
-	VCAP_KF_IF_EGR_PORT_NO,
+	VCAP_KF_IF_EGR_PORT_ANAL,
 	VCAP_KF_IF_IGR_PORT,
 	VCAP_KF_IF_IGR_PORT_MASK,
 	VCAP_KF_IF_IGR_PORT_MASK_L3,
@@ -489,7 +489,7 @@ enum vcap_key_field {
 
 /* Actionset names with origin information */
 enum vcap_actionfield_set {
-	VCAP_AFS_NO_VALUE,          /* initial value */
+	VCAP_AFS_ANAL_VALUE,          /* initial value */
 	VCAP_AFS_BASE_TYPE,         /* sparx5 is2 X3, sparx5 es2 X3, lan966x is2 X2 */
 	VCAP_AFS_CLASSIFICATION,    /* sparx5 is0 X2 */
 	VCAP_AFS_CLASS_REDUCED,     /* sparx5 is0 X1 */
@@ -507,7 +507,7 @@ enum vcap_actionfield_set {
  *   CPU extraction header. Only applicable to actions with CPU_COPY_ENA or
  *   HIT_ME_ONCE set.
  * VCAP_AF_CLS_VID_SEL: W3, sparx5: is0
- *   Controls the classified VID: 0: VID_NONE: No action. 1: VID_ADD: New VID =
+ *   Controls the classified VID: 0: VID_ANALNE: Anal action. 1: VID_ADD: New VID =
  *   old VID + VID_VAL. 2: VID_REPLACE: New VID = VID_VAL. 3: VID_FIRST_TAG: New
  *   VID = VID from frame's first tag (outer tag) if available, otherwise VID_VAL.
  *   4: VID_SECOND_TAG: New VID = VID from frame's second tag (middle tag) if
@@ -544,7 +544,7 @@ enum vcap_actionfield_set {
  * VCAP_AF_DEI_VAL: W1, sparx5: is0, lan966x: is1
  *   See DEI_ENA
  * VCAP_AF_DLR_SEL: W2, lan966x: is1
- *   0: No changes to port-based selection in ANA:PORT:OAM_CFG.DLR_ENA.  1: Enable
+ *   0: Anal changes to port-based selection in ANA:PORT:OAM_CFG.DLR_ENA.  1: Enable
  *   DLR frame processing 2: Disable DLR processing
  * VCAP_AF_DP_ENA: W1, sparx5: is0, lan966x: is1
  *   If set, use DP_VAL as classified drop precedence level. Otherwise, drop
@@ -563,7 +563,7 @@ enum vcap_actionfield_set {
  * VCAP_AF_DSCP_VAL: W6, sparx5: is0/es0, lan966x: is1
  *   See DSCP_ENA.
  * VCAP_AF_ES2_REW_CMD: W3, sparx5: es2
- *   Command forwarded to REW: 0: No action. 1: SWAP MAC addresses. 2: Do L2CP
+ *   Command forwarded to REW: 0: Anal action. 1: SWAP MAC addresses. 2: Do L2CP
  *   DMAC translation when entering or leaving a tunnel.
  * VCAP_AF_ESDX: sparx5 es0 W13, lan966x es0 W8
  *   Egress counter index. Used to index egress counter set as defined in
@@ -574,20 +574,20 @@ enum vcap_actionfield_set {
  * VCAP_AF_FWD_MODE: W2, sparx5: es2
  *   Forward selector: 0: Forward. 1: Discard. 2: Redirect. 3: Copy.
  * VCAP_AF_FWD_SEL: W2, sparx5: es0
- *   ES0 Forward selector. 0: No action. 1: Copy to loopback interface. 2:
+ *   ES0 Forward selector. 0: Anal action. 1: Copy to loopback interface. 2:
  *   Redirect to loopback interface. 3: Discard
  * VCAP_AF_HIT_ME_ONCE: W1, sparx5: is2/es2, lan966x: is2
  *   Setting this bit to 1 causes the first frame that hits this action where the
  *   HIT_CNT counter is zero to be copied to the CPU extraction queue specified in
  *   CPU_QUEUE_NUM. The HIT_CNT counter is then incremented and any frames that
- *   hit this action later are not copied to the CPU. To re-enable the HIT_ME_ONCE
+ *   hit this action later are analt copied to the CPU. To re-enable the HIT_ME_ONCE
  *   functionality, the HIT_CNT counter must be cleared.
  * VCAP_AF_HOST_MATCH: W1, lan966x: is2
  *   Used for IP source guarding. If set, it signals that the host is a valid (for
  *   instance a valid combination of source MAC address and source IP address).
  *   HOST_MATCH is input to the IS2 keys.
- * VCAP_AF_IGNORE_PIPELINE_CTRL: W1, sparx5: is2/es2
- *   Ignore ingress pipeline control. This enforces the use of the VCAP IS2 action
+ * VCAP_AF_IGANALRE_PIPELINE_CTRL: W1, sparx5: is2/es2
+ *   Iganalre ingress pipeline control. This enforces the use of the VCAP IS2 action
  *   even when the pipeline control has terminated the frame before VCAP IS2.
  * VCAP_AF_INTR_ENA: W1, sparx5: is2/es2
  *   If set, an interrupt is triggered when this rule is hit
@@ -615,18 +615,18 @@ enum vcap_actionfield_set {
  * VCAP_AF_MAP_KEY: W3, sparx5: is0
  *   Key type for QoS mapping table lookup. 0: DEI0, PCP0 (outer tag). 1: DEI1,
  *   PCP1 (middle tag). 2: DEI2, PCP2 (inner tag). 3: MPLS TC. 4: PCP0 (outer
- *   tag). 5: E-DEI, E-PCP (E-TAG). 6: DSCP if available, otherwise none. 7: DSCP
+ *   tag). 5: E-DEI, E-PCP (E-TAG). 6: DSCP if available, otherwise analne. 7: DSCP
  *   if available, otherwise DEI0, PCP0 (outer tag) if available using MAP_IDX+8,
- *   otherwise none
+ *   otherwise analne
  * VCAP_AF_MAP_LOOKUP_SEL: W2, sparx5: is0
  *   Selects which of the two QoS Mapping Table lookups that MAP_KEY and MAP_IDX
- *   are applied to. 0: No changes to the QoS Mapping Table lookup. 1: Update key
+ *   are applied to. 0: Anal changes to the QoS Mapping Table lookup. 1: Update key
  *   type and index for QoS Mapping Table lookup #0. 2: Update key type and index
  *   for QoS Mapping Table lookup #1. 3: Reserved.
  * VCAP_AF_MASK_MODE: sparx5 is0 W3, sparx5 is2 W3, lan966x is2 W2
  *   Controls the PORT_MASK use. Sparx5: 0: OR_DSTMASK, 1: AND_VLANMASK, 2:
  *   REPLACE_PGID, 3: REPLACE_ALL, 4: REDIR_PGID, 5: OR_PGID_MASK, 6: VSTAX, 7:
- *   Not applicable. LAN966X: 0: No action, 1: Permit/deny (AND), 2: Policy
+ *   Analt applicable. LAN966X: 0: Anal action, 1: Permit/deny (AND), 2: Policy
  *   forwarding (DMAC lookup), 3: Redirect. The CPU port is untouched by
  *   MASK_MODE.
  * VCAP_AF_MATCH_ID: W16, sparx5: is2
@@ -639,20 +639,20 @@ enum vcap_actionfield_set {
  *   Setting this bit to 1 causes frames to be mirrored to the mirror target port
  *   (ANA::MIRRPORPORTS).
  * VCAP_AF_MIRROR_PROBE: W2, sparx5: is2
- *   Mirroring performed according to configuration of a mirror probe. 0: No
+ *   Mirroring performed according to configuration of a mirror probe. 0: Anal
  *   mirroring. 1: Mirror probe 0. 2: Mirror probe 1. 3: Mirror probe 2
  * VCAP_AF_MIRROR_PROBE_ID: W2, sparx5: es2
  *   Signals a mirror probe to be placed in the IFH. Only possible when FWD_MODE
- *   is copy. 0: No mirroring. 1-3: Use mirror probe 0-2.
+ *   is copy. 0: Anal mirroring. 1-3: Use mirror probe 0-2.
  * VCAP_AF_MRP_SEL: W2, lan966x: is1
- *   0: No changes to port-based selection in ANA:PORT:OAM_CFG.MRP_ENA.  1: Enable
+ *   0: Anal changes to port-based selection in ANA:PORT:OAM_CFG.MRP_ENA.  1: Enable
  *   MRP frame processing 2: Disable MRP processing
  * VCAP_AF_NXT_IDX: W12, sparx5: is0
  *   Index used as part of key (field G_IDX) in the next lookup.
  * VCAP_AF_NXT_IDX_CTRL: W3, sparx5: is0
  *   Controls the generation of the G_IDX used in the VCAP CLM next lookup
  * VCAP_AF_OAM_SEL: W3, lan966x: is1
- *   0: No changes to port-based selection in ANA:PORT:OAM_CFG.OAM_CFG 1: Enable
+ *   0: Anal changes to port-based selection in ANA:PORT:OAM_CFG.OAM_CFG 1: Enable
  *   OAM frame processing for untagged frames 2: Enable OAM frame processing for
  *   single frames 3: Enable OAM frame processing for double frames 4: Disable OAM
  *   frame processing
@@ -676,8 +676,8 @@ enum vcap_actionfield_set {
  *   Pipeline action when FWD_SEL > 0. 0: XTR. CPU_QU selects CPU extraction queue
  *   1: LBK_ASM.
  * VCAP_AF_PIPELINE_FORCE_ENA: W1, sparx5: is2
- *   If set, use PIPELINE_PT unconditionally and set PIPELINE_ACT = NONE if
- *   PIPELINE_PT == NONE. Overrules previous settings of pipeline point.
+ *   If set, use PIPELINE_PT unconditionally and set PIPELINE_ACT = ANALNE if
+ *   PIPELINE_PT == ANALNE. Overrules previous settings of pipeline point.
  * VCAP_AF_PIPELINE_PT: sparx5 is2 W5, sparx5 es0 W2
  *   Pipeline point used if PIPELINE_FORCE_ENA is set
  * VCAP_AF_POLICE_ENA: W1, sparx5: is2/es2, lan966x: is1/is2
@@ -686,7 +686,7 @@ enum vcap_actionfield_set {
  *   W9
  *   Policer index.
  * VCAP_AF_POLICE_REMARK: W1, sparx5: es2
- *   If set, frames exceeding policer rates are marked as yellow but not
+ *   If set, frames exceeding policer rates are marked as yellow but analt
  *   discarded.
  * VCAP_AF_POLICE_VCAP_ONLY: W1, lan966x: is2
  *   Disable policing from QoS, and port policers. Only the VCAP policer selected
@@ -697,16 +697,16 @@ enum vcap_actionfield_set {
  * VCAP_AF_PORT_MASK: sparx5 is0 W65, sparx5 is2 W68, lan966x is2 W8
  *   Port mask applied to the forwarding decision based on MASK_MODE.
  * VCAP_AF_PUSH_CUSTOMER_TAG: W2, sparx5: es0
- *   Selects tag C mode: 0: Do not push tag C. 1: Push tag C if
+ *   Selects tag C mode: 0: Do analt push tag C. 1: Push tag C if
  *   IFH.VSTAX.TAG.WAS_TAGGED = 1. 2: Push tag C if IFH.VSTAX.TAG.WAS_TAGGED = 0.
  *   3: Push tag C if UNTAG_VID_ENA = 0 or (C-TAG.VID ! = VID_C_VAL).
  * VCAP_AF_PUSH_INNER_TAG: W1, sparx5: es0, lan966x: es0
- *   Controls inner tagging. 0: Do not push ES0 tag B as inner tag. 1: Push ES0
+ *   Controls inner tagging. 0: Do analt push ES0 tag B as inner tag. 1: Push ES0
  *   tag B as inner tag.
  * VCAP_AF_PUSH_OUTER_TAG: W2, sparx5: es0, lan966x: es0
- *   Controls outer tagging. 0: No ES0 tag A: Port tag is allowed if enabled on
- *   port. 1: ES0 tag A: Push ES0 tag A. No port tag. 2: Force port tag: Always
- *   push port tag. No ES0 tag A. 3: Force untag: Never push port tag or ES0 tag
+ *   Controls outer tagging. 0: Anal ES0 tag A: Port tag is allowed if enabled on
+ *   port. 1: ES0 tag A: Push ES0 tag A. Anal port tag. 2: Force port tag: Always
+ *   push port tag. Anal ES0 tag A. 3: Force untag: Never push port tag or ES0 tag
  *   A.
  * VCAP_AF_QOS_ENA: W1, sparx5: is0, lan966x: is1
  *   If set, use QOS_VAL as classified QoS class. Otherwise, QoS class from basic
@@ -728,7 +728,7 @@ enum vcap_actionfield_set {
  *   Stream gate identifier.
  * VCAP_AF_SWAP_MACS_ENA: W1, sparx5: es0
  *   This setting is only active when FWD_SEL = 1 or FWD_SEL = 2 and PIPELINE_ACT
- *   = LBK_ASM. 0: No action. 1: Swap MACs and clear bit 40 in new SMAC.
+ *   = LBK_ASM. 0: Anal action. 1: Swap MACs and clear bit 40 in new SMAC.
  * VCAP_AF_TAG_A_DEI_SEL: sparx5 es0 W3, lan966x es0 W2
  *   Selects PCP for ES0 tag A. 0: Classified DEI. 1: DEI_A_VAL. 2: DP and QoS
  *   mapped to PCP (per port table). 3: DP.
@@ -802,7 +802,7 @@ enum vcap_actionfield_set {
 
 /* Actionfield names */
 enum vcap_action_field {
-	VCAP_AF_NO_VALUE,  /* initial value */
+	VCAP_AF_ANAL_VALUE,  /* initial value */
 	VCAP_AF_ACL_ID,
 	VCAP_AF_CLS_VID_SEL,
 	VCAP_AF_CNT_ID,
@@ -830,7 +830,7 @@ enum vcap_action_field {
 	VCAP_AF_FWD_SEL,
 	VCAP_AF_HIT_ME_ONCE,
 	VCAP_AF_HOST_MATCH,
-	VCAP_AF_IGNORE_PIPELINE_CTRL,
+	VCAP_AF_IGANALRE_PIPELINE_CTRL,
 	VCAP_AF_INTR_ENA,
 	VCAP_AF_ISDX_ADD_REPLACE_SEL,
 	VCAP_AF_ISDX_ADD_VAL,

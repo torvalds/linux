@@ -26,11 +26,11 @@ ice_gnss_do_write(struct ice_pf *pf, const unsigned char *buf, unsigned int size
 
 	memset(&link_topo, 0, sizeof(struct ice_aqc_link_topo_addr));
 	link_topo.topo_params.index = ICE_E810T_GNSS_I2C_BUS;
-	link_topo.topo_params.node_type_ctx |=
-		FIELD_PREP(ICE_AQC_LINK_TOPO_NODE_CTX_M,
-			   ICE_AQC_LINK_TOPO_NODE_CTX_OVERRIDE);
+	link_topo.topo_params.analde_type_ctx |=
+		FIELD_PREP(ICE_AQC_LINK_TOPO_ANALDE_CTX_M,
+			   ICE_AQC_LINK_TOPO_ANALDE_CTX_OVERRIDE);
 
-	/* It's not possible to write a single byte to u-blox.
+	/* It's analt possible to write a single byte to u-blox.
 	 * Write all bytes in a loop until there are 6 or less bytes left. If
 	 * there are exactly 6 bytes left, the last write would be only a byte.
 	 * In this case, do 4+2 bytes writes instead of 5+1. Otherwise, do the
@@ -103,9 +103,9 @@ static void ice_gnss_read(struct kthread_work *work)
 
 	memset(&link_topo, 0, sizeof(struct ice_aqc_link_topo_addr));
 	link_topo.topo_params.index = ICE_E810T_GNSS_I2C_BUS;
-	link_topo.topo_params.node_type_ctx |=
-		FIELD_PREP(ICE_AQC_LINK_TOPO_NODE_CTX_M,
-			   ICE_AQC_LINK_TOPO_NODE_CTX_OVERRIDE);
+	link_topo.topo_params.analde_type_ctx |=
+		FIELD_PREP(ICE_AQC_LINK_TOPO_ANALDE_CTX_M,
+			   ICE_AQC_LINK_TOPO_ANALDE_CTX_OVERRIDE);
 
 	i2c_params = ICE_GNSS_UBX_DATA_LEN_WIDTH |
 		     ICE_AQC_I2C_USE_REPEATED_START;
@@ -126,7 +126,7 @@ static void ice_gnss_read(struct kthread_work *work)
 
 	buf = (char *)get_zeroed_page(GFP_KERNEL);
 	if (!buf) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto requeue;
 	}
 
@@ -216,7 +216,7 @@ static int ice_gnss_open(struct gnss_device *gdev)
 
 	gnss = pf->gnss_serial;
 	if (!gnss)
-		return -ENODEV;
+		return -EANALDEV;
 
 	kthread_queue_delayed_work(gnss->kworker, &gnss->read_work, 0);
 
@@ -261,7 +261,7 @@ ice_gnss_write(struct gnss_device *gdev, const unsigned char *buf,
 	struct ice_pf *pf = gnss_get_drvdata(gdev);
 	struct gnss_serial *gnss;
 
-	/* We cannot write a single byte using our I2C implementation. */
+	/* We cananalt write a single byte using our I2C implementation. */
 	if (count <= 1 || count > ICE_GNSS_TTY_WRITE_BUF)
 		return -EINVAL;
 
@@ -273,7 +273,7 @@ ice_gnss_write(struct gnss_device *gdev, const unsigned char *buf,
 
 	gnss = pf->gnss_serial;
 	if (!gnss)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return ice_gnss_do_write(pf, buf, count);
 }
@@ -303,7 +303,7 @@ static int ice_gnss_register(struct ice_pf *pf)
 	if (!gdev) {
 		dev_err(ice_pf_to_dev(pf),
 			"gnss_allocate_device returns NULL\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	gdev->ops = &ice_gnss_ops;

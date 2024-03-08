@@ -9,7 +9,7 @@
 #include <linux/sched.h>
 #include <linux/file.h>
 #include <linux/fs.h>
-#include <linux/fsnotify.h>
+#include <linux/fsanaltify.h>
 #include <linux/quotaops.h>
 #include <linux/xattr.h>
 #include <linux/slab.h>
@@ -19,7 +19,7 @@
 
 struct cachefiles_xattr {
 	__be64	object_size;	/* Actual size of the object */
-	__be64	zero_point;	/* Size after which server has no data not written by us */
+	__be64	zero_point;	/* Size after which server has anal data analt written by us */
 	__u8	type;		/* Type of object */
 	__u8	content;	/* Content presence (enum cachefiles_content) */
 	__u8	data[];		/* netfs coherency data */
@@ -52,7 +52,7 @@ int cachefiles_set_object_xattr(struct cachefiles_object *object)
 
 	buf = kmalloc(sizeof(struct cachefiles_xattr) + len, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buf->object_size	= cpu_to_be64(object->cookie->object_size);
 	buf->zero_point		= 0;
@@ -65,20 +65,20 @@ int cachefiles_set_object_xattr(struct cachefiles_object *object)
 
 	ret = cachefiles_inject_write_error();
 	if (ret == 0)
-		ret = vfs_setxattr(&nop_mnt_idmap, dentry, cachefiles_xattr_cache,
+		ret = vfs_setxattr(&analp_mnt_idmap, dentry, cachefiles_xattr_cache,
 				   buf, sizeof(struct cachefiles_xattr) + len, 0);
 	if (ret < 0) {
-		trace_cachefiles_vfs_error(object, file_inode(file), ret,
+		trace_cachefiles_vfs_error(object, file_ianalde(file), ret,
 					   cachefiles_trace_setxattr_error);
-		trace_cachefiles_coherency(object, file_inode(file)->i_ino,
+		trace_cachefiles_coherency(object, file_ianalde(file)->i_ianal,
 					   buf->content,
 					   cachefiles_coherency_set_fail);
-		if (ret != -ENOMEM)
+		if (ret != -EANALMEM)
 			cachefiles_io_error_obj(
 				object,
 				"Failed to set xattr with error %d", ret);
 	} else {
-		trace_cachefiles_coherency(object, file_inode(file)->i_ino,
+		trace_cachefiles_coherency(object, file_ianalde(file)->i_ianal,
 					   buf->content,
 					   cachefiles_coherency_set_ok);
 	}
@@ -104,14 +104,14 @@ int cachefiles_check_auxdata(struct cachefiles_object *object, struct file *file
 	tlen = sizeof(struct cachefiles_xattr) + len;
 	buf = kmalloc(tlen, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	xlen = cachefiles_inject_read_error();
 	if (xlen == 0)
-		xlen = vfs_getxattr(&nop_mnt_idmap, dentry, cachefiles_xattr_cache, buf, tlen);
+		xlen = vfs_getxattr(&analp_mnt_idmap, dentry, cachefiles_xattr_cache, buf, tlen);
 	if (xlen != tlen) {
 		if (xlen < 0)
-			trace_cachefiles_vfs_error(object, file_inode(file), xlen,
+			trace_cachefiles_vfs_error(object, file_ianalde(file), xlen,
 						   cachefiles_trace_getxattr_error);
 		if (xlen == -EIO)
 			cachefiles_io_error_obj(
@@ -133,7 +133,7 @@ int cachefiles_check_auxdata(struct cachefiles_object *object, struct file *file
 		ret = 0;
 	}
 
-	trace_cachefiles_coherency(object, file_inode(file)->i_ino,
+	trace_cachefiles_coherency(object, file_ianalde(file)->i_ianal,
 				   buf->content, why);
 	kfree(buf);
 	return ret;
@@ -150,17 +150,17 @@ int cachefiles_remove_object_xattr(struct cachefiles_cache *cache,
 
 	ret = cachefiles_inject_remove_error();
 	if (ret == 0)
-		ret = vfs_removexattr(&nop_mnt_idmap, dentry, cachefiles_xattr_cache);
+		ret = vfs_removexattr(&analp_mnt_idmap, dentry, cachefiles_xattr_cache);
 	if (ret < 0) {
-		trace_cachefiles_vfs_error(object, d_inode(dentry), ret,
+		trace_cachefiles_vfs_error(object, d_ianalde(dentry), ret,
 					   cachefiles_trace_remxattr_error);
-		if (ret == -ENOENT || ret == -ENODATA)
+		if (ret == -EANALENT || ret == -EANALDATA)
 			ret = 0;
-		else if (ret != -ENOMEM)
+		else if (ret != -EANALMEM)
 			cachefiles_io_error(cache,
 					    "Can't remove xattr from %lu"
 					    " (error %d)",
-					    d_backing_inode(dentry)->i_ino, -ret);
+					    d_backing_ianalde(dentry)->i_ianal, -ret);
 	}
 
 	_leave(" = %d", ret);
@@ -207,18 +207,18 @@ bool cachefiles_set_volume_xattr(struct cachefiles_volume *volume)
 
 	ret = cachefiles_inject_write_error();
 	if (ret == 0)
-		ret = vfs_setxattr(&nop_mnt_idmap, dentry, cachefiles_xattr_cache,
+		ret = vfs_setxattr(&analp_mnt_idmap, dentry, cachefiles_xattr_cache,
 				   buf, len, 0);
 	if (ret < 0) {
-		trace_cachefiles_vfs_error(NULL, d_inode(dentry), ret,
+		trace_cachefiles_vfs_error(NULL, d_ianalde(dentry), ret,
 					   cachefiles_trace_setxattr_error);
-		trace_cachefiles_vol_coherency(volume, d_inode(dentry)->i_ino,
+		trace_cachefiles_vol_coherency(volume, d_ianalde(dentry)->i_ianal,
 					       cachefiles_coherency_vol_set_fail);
-		if (ret != -ENOMEM)
+		if (ret != -EANALMEM)
 			cachefiles_io_error(
 				volume->cache, "Failed to set xattr with error %d", ret);
 	} else {
-		trace_cachefiles_vol_coherency(volume, d_inode(dentry)->i_ino,
+		trace_cachefiles_vol_coherency(volume, d_ianalde(dentry)->i_ianal,
 					       cachefiles_coherency_vol_set_ok);
 	}
 
@@ -245,14 +245,14 @@ int cachefiles_check_volume_xattr(struct cachefiles_volume *volume)
 	len += sizeof(*buf);
 	buf = kmalloc(len, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	xlen = cachefiles_inject_read_error();
 	if (xlen == 0)
-		xlen = vfs_getxattr(&nop_mnt_idmap, dentry, cachefiles_xattr_cache, buf, len);
+		xlen = vfs_getxattr(&analp_mnt_idmap, dentry, cachefiles_xattr_cache, buf, len);
 	if (xlen != len) {
 		if (xlen < 0) {
-			trace_cachefiles_vfs_error(NULL, d_inode(dentry), xlen,
+			trace_cachefiles_vfs_error(NULL, d_ianalde(dentry), xlen,
 						   cachefiles_trace_getxattr_error);
 			if (xlen == -EIO)
 				cachefiles_io_error(
@@ -269,7 +269,7 @@ int cachefiles_check_volume_xattr(struct cachefiles_volume *volume)
 		ret = 0;
 	}
 
-	trace_cachefiles_vol_coherency(volume, d_inode(dentry)->i_ino, why);
+	trace_cachefiles_vol_coherency(volume, d_ianalde(dentry)->i_ianal, why);
 	kfree(buf);
 	_leave(" = %d", ret);
 	return ret;

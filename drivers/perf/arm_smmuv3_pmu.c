@@ -2,8 +2,8 @@
 
 /*
  * This driver adds support for perf events to use the Performance
- * Monitor Counter Groups (PMCG) associated with an SMMUv3 node
- * to monitor that node.
+ * Monitor Counter Groups (PMCG) associated with an SMMUv3 analde
+ * to monitor that analde.
  *
  * SMMUv3 PMCG devices are named as smmuv3_pmcg_<phys_addr_page> where
  * <phys_addr_page> is the physical page address of the SMMU PMCG wrapped
@@ -12,7 +12,7 @@
  *
  * Filtering by stream id is done by specifying filtering parameters
  * with the event. options are:
- *   filter_enable    - 0 = no filtering, 1 = filtering enabled
+ *   filter_enable    - 0 = anal filtering, 1 = filtering enabled
  *   filter_span      - 0 = exact match, 1 = pattern match
  *   filter_stream_id - pattern to filter against
  *
@@ -30,8 +30,8 @@
  * matching stream ids 0x42 and 0x43 are counted. Further filtering
  * information is available in the SMMU documentation.
  *
- * SMMU events are not attributable to a CPU, so task mode and sampling
- * are not supported.
+ * SMMU events are analt attributable to a CPU, so task mode and sampling
+ * are analt supported.
  */
 
 #include <linux/acpi.h>
@@ -41,7 +41,7 @@
 #include <linux/cpuhotplug.h>
 #include <linux/cpumask.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/kernel.h>
@@ -120,7 +120,7 @@
 static int cpuhp_state_num;
 
 struct smmu_pmu {
-	struct hlist_node node;
+	struct hlist_analde analde;
 	struct perf_event *events[SMMU_PMCG_MAX_COUNTERS];
 	DECLARE_BITMAP(used_counters, SMMU_PMCG_MAX_COUNTERS);
 	DECLARE_BITMAP(supported_events, SMMU_PMCG_ARCH_MAX_EVENTS);
@@ -255,16 +255,16 @@ static void smmu_pmu_event_update(struct perf_event *event)
 {
 	struct hw_perf_event *hwc = &event->hw;
 	struct smmu_pmu *smmu_pmu = to_smmu_pmu(event->pmu);
-	u64 delta, prev, now;
+	u64 delta, prev, analw;
 	u32 idx = hwc->idx;
 
 	do {
 		prev = local64_read(&hwc->prev_count);
-		now = smmu_pmu_counter_get_value(smmu_pmu, idx);
-	} while (local64_cmpxchg(&hwc->prev_count, prev, now) != prev);
+		analw = smmu_pmu_counter_get_value(smmu_pmu, idx);
+	} while (local64_cmpxchg(&hwc->prev_count, prev, analw) != prev);
 
 	/* handle overflow. */
-	delta = now - prev;
+	delta = analw - prev;
 	delta &= smmu_pmu->counter_mask;
 
 	local64_add(delta, &event->count);
@@ -280,7 +280,7 @@ static void smmu_pmu_set_period(struct smmu_pmu *smmu_pmu,
 		/*
 		 * On platforms that require this quirk, if the counter starts
 		 * at < half_counter value and wraps, the current logic of
-		 * handling the overflow may not work. It is expected that,
+		 * handling the overflow may analt work. It is expected that,
 		 * those platforms will have full 64 counter bits implemented
 		 * so that such a possibility is remote(eg: HiSilicon HIP08).
 		 */
@@ -289,7 +289,7 @@ static void smmu_pmu_set_period(struct smmu_pmu *smmu_pmu,
 		/*
 		 * We limit the max period to half the max counter value
 		 * of the counter size, so that even in the case of extreme
-		 * interrupt latency the counter will (hopefully) not wrap
+		 * interrupt latency the counter will (hopefully) analt wrap
 		 * past its initial value.
 		 */
 		new = smmu_pmu->counter_mask >> 1;
@@ -402,16 +402,16 @@ static int smmu_pmu_event_init(struct perf_event *event)
 	u16 event_id;
 
 	if (event->attr.type != event->pmu->type)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (hwc->sample_period) {
-		dev_dbg(dev, "Sampling not supported\n");
-		return -EOPNOTSUPP;
+		dev_dbg(dev, "Sampling analt supported\n");
+		return -EOPANALTSUPP;
 	}
 
 	if (event->cpu < 0) {
-		dev_dbg(dev, "Per-task mode not supported\n");
-		return -EOPNOTSUPP;
+		dev_dbg(dev, "Per-task mode analt supported\n");
+		return -EOPANALTSUPP;
 	}
 
 	/* Verify specified event is supported on this PMU */
@@ -476,7 +476,7 @@ static void smmu_pmu_event_stop(struct perf_event *event, int flags)
 		return;
 
 	smmu_pmu_counter_disable(smmu_pmu, idx);
-	/* As the counter gets updated on _start, ignore PERF_EF_UPDATE */
+	/* As the counter gets updated on _start, iganalre PERF_EF_UPDATE */
 	smmu_pmu_event_update(event);
 	hwc->state |= PERF_HES_STOPPED | PERF_HES_UPTODATE;
 }
@@ -662,12 +662,12 @@ static const struct attribute_group *smmu_pmu_attr_grps[] = {
  * Generic device handlers
  */
 
-static int smmu_pmu_offline_cpu(unsigned int cpu, struct hlist_node *node)
+static int smmu_pmu_offline_cpu(unsigned int cpu, struct hlist_analde *analde)
 {
 	struct smmu_pmu *smmu_pmu;
 	unsigned int target;
 
-	smmu_pmu = hlist_entry_safe(node, struct smmu_pmu, node);
+	smmu_pmu = hlist_entry_safe(analde, struct smmu_pmu, analde);
 	if (cpu != smmu_pmu->on_cpu)
 		return 0;
 
@@ -691,7 +691,7 @@ static irqreturn_t smmu_pmu_handle_irq(int irq_num, void *data)
 
 	ovsr = readq(smmu_pmu->reloc_base + SMMU_PMCG_OVSSET0);
 	if (!ovsr)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	writeq(ovsr, smmu_pmu->reloc_base + SMMU_PMCG_OVSCLR0);
 
@@ -742,7 +742,7 @@ static void smmu_pmu_setup_msi(struct smmu_pmu *pmu)
 	/* Clear MSI address reg */
 	writeq_relaxed(0, pmu->reg_base + SMMU_PMCG_IRQ_CFG0);
 
-	/* MSI supported or not */
+	/* MSI supported or analt */
 	if (!(readl(pmu->reg_base + SMMU_PMCG_CFGR) & SMMU_PMCG_CFGR_MSI))
 		return;
 
@@ -760,7 +760,7 @@ static void smmu_pmu_setup_msi(struct smmu_pmu *pmu)
 
 static int smmu_pmu_setup_irq(struct smmu_pmu *pmu)
 {
-	unsigned long flags = IRQF_NOBALANCING | IRQF_SHARED | IRQF_NO_THREAD;
+	unsigned long flags = IRQF_ANALBALANCING | IRQF_SHARED | IRQF_ANAL_THREAD;
 	int irq, ret = -ENXIO;
 
 	smmu_pmu_setup_msi(pmu);
@@ -803,12 +803,12 @@ static void smmu_pmu_get_acpi_options(struct smmu_pmu *smmu_pmu)
 		break;
 	}
 
-	dev_notice(smmu_pmu->dev, "option mask 0x%x\n", smmu_pmu->options);
+	dev_analtice(smmu_pmu->dev, "option mask 0x%x\n", smmu_pmu->options);
 }
 
 static bool smmu_pmu_coresight_id_regs(struct smmu_pmu *smmu_pmu)
 {
-	return of_device_is_compatible(smmu_pmu->dev->of_node,
+	return of_device_is_compatible(smmu_pmu->dev->of_analde,
 				       "arm,mmu-600-pmcg");
 }
 
@@ -853,7 +853,7 @@ static int smmu_pmu_probe(struct platform_device *pdev)
 
 	smmu_pmu = devm_kzalloc(dev, sizeof(*smmu_pmu), GFP_KERNEL);
 	if (!smmu_pmu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	smmu_pmu->dev = dev;
 	platform_set_drvdata(pdev, smmu_pmu);
@@ -870,7 +870,7 @@ static int smmu_pmu_probe(struct platform_device *pdev)
 		.stop		= smmu_pmu_event_stop,
 		.read		= smmu_pmu_event_read,
 		.attr_groups	= smmu_pmu_attr_grps,
-		.capabilities	= PERF_PMU_CAP_NO_EXCLUDE,
+		.capabilities	= PERF_PMU_CAP_ANAL_EXCLUDE,
 	};
 
 	smmu_pmu->reg_base = devm_platform_get_and_ioremap_resource(pdev, 0, &res_0);
@@ -921,7 +921,7 @@ static int smmu_pmu_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	if (!dev->of_node)
+	if (!dev->of_analde)
 		smmu_pmu_get_acpi_options(smmu_pmu);
 
 	/*
@@ -938,8 +938,8 @@ static int smmu_pmu_probe(struct platform_device *pdev)
 	smmu_pmu->on_cpu = raw_smp_processor_id();
 	WARN_ON(irq_set_affinity(smmu_pmu->irq, cpumask_of(smmu_pmu->on_cpu)));
 
-	err = cpuhp_state_add_instance_nocalls(cpuhp_state_num,
-					       &smmu_pmu->node);
+	err = cpuhp_state_add_instance_analcalls(cpuhp_state_num,
+					       &smmu_pmu->analde);
 	if (err) {
 		dev_err(dev, "Error %d registering hotplug, PMU @%pa\n",
 			err, &res_0->start);
@@ -961,7 +961,7 @@ static int smmu_pmu_probe(struct platform_device *pdev)
 	return 0;
 
 out_unregister:
-	cpuhp_state_remove_instance_nocalls(cpuhp_state_num, &smmu_pmu->node);
+	cpuhp_state_remove_instance_analcalls(cpuhp_state_num, &smmu_pmu->analde);
 	return err;
 }
 
@@ -970,7 +970,7 @@ static int smmu_pmu_remove(struct platform_device *pdev)
 	struct smmu_pmu *smmu_pmu = platform_get_drvdata(pdev);
 
 	perf_pmu_unregister(&smmu_pmu->pmu);
-	cpuhp_state_remove_instance_nocalls(cpuhp_state_num, &smmu_pmu->node);
+	cpuhp_state_remove_instance_analcalls(cpuhp_state_num, &smmu_pmu->analde);
 
 	return 0;
 }

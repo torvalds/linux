@@ -12,7 +12,7 @@
 #include "xfs_defer.h"
 #include "xfs_btree.h"
 #include "xfs_btree_staging.h"
-#include "xfs_inode.h"
+#include "xfs_ianalde.h"
 #include "xfs_bit.h"
 #include "xfs_log_format.h"
 #include "xfs_trans.h"
@@ -45,7 +45,7 @@
  * This algorithm is "borrowed" from xfs_repair.  Imagine the rmap
  * entries as rectangles representing extents of physical blocks, and
  * that the rectangles can be laid down to allow them to overlap each
- * other; then we know that we must emit a refcnt btree entry wherever
+ * other; then we kanalw that we must emit a refcnt btree entry wherever
  * the amount of overlap changes, i.e. the emission stimulus is
  * level-triggered:
  *
@@ -58,13 +58,13 @@
  *
  * For our purposes, a rmap is a tuple (startblock, len, fileoff, owner).
  *
- * Note that in the actual refcnt btree we don't store the refcount < 2
- * cases because the bnobt tells us which blocks are free; single-use
- * blocks aren't recorded in the bnobt or the refcntbt.  If the rmapbt
+ * Analte that in the actual refcnt btree we don't store the refcount < 2
+ * cases because the banalbt tells us which blocks are free; single-use
+ * blocks aren't recorded in the banalbt or the refcntbt.  If the rmapbt
  * supports storing multiple entries covering a given block we could
  * theoretically dispense with the refcntbt and simply count rmaps, but
  * that's inefficient in the (hot) write path, so we'll take the cost of
- * the extra tree to save time.  Also there's no guarantee that rmap
+ * the extra tree to save time.  Also there's anal guarantee that rmap
  * will be enabled.
  *
  * Given an array of rmaps sorted by physical block number, a starting
@@ -135,15 +135,15 @@ xrep_refc_check_ext(
 		return -EFSCORRUPTED;
 
 	/* Make sure this isn't free space. */
-	error = xfs_alloc_has_records(sc->sa.bno_cur, rec->rc_startblock,
+	error = xfs_alloc_has_records(sc->sa.banal_cur, rec->rc_startblock,
 			rec->rc_blockcount, &outcome);
 	if (error)
 		return error;
 	if (outcome != XBTREE_RECPACKING_EMPTY)
 		return -EFSCORRUPTED;
 
-	/* Must not be an inode chunk. */
-	error = xfs_ialloc_has_inodes_at_extent(sc->sa.ino_cur,
+	/* Must analt be an ianalde chunk. */
+	error = xfs_ialloc_has_ianaldes_at_extent(sc->sa.ianal_cur,
 			rec->rc_startblock, rec->rc_blockcount, &outcome);
 	if (error)
 		return error;
@@ -158,12 +158,12 @@ STATIC int
 xrep_refc_stash(
 	struct xrep_refc		*rr,
 	enum xfs_refc_domain		domain,
-	xfs_agblock_t			agbno,
+	xfs_agblock_t			agbanal,
 	xfs_extlen_t			len,
 	uint64_t			refcount)
 {
 	struct xfs_refcount_irec	irec = {
-		.rc_startblock		= agbno,
+		.rc_startblock		= agbanal,
 		.rc_blockcount		= len,
 		.rc_domain		= domain,
 	};
@@ -188,10 +188,10 @@ xrep_refc_stash(
 STATIC int
 xrep_refc_stash_cow(
 	struct xrep_refc		*rr,
-	xfs_agblock_t			agbno,
+	xfs_agblock_t			agbanal,
 	xfs_extlen_t			len)
 {
-	return xrep_refc_stash(rr, XFS_REFC_DOMAIN_COW, agbno, len, 1);
+	return xrep_refc_stash(rr, XFS_REFC_DOMAIN_COW, agbanal, len, 1);
 }
 
 /* Decide if an rmap could describe a shared extent. */
@@ -201,14 +201,14 @@ xrep_refc_rmap_shareable(
 	const struct xfs_rmap_irec	*rmap)
 {
 	/* AG metadata are never sharable */
-	if (XFS_RMAP_NON_INODE_OWNER(rmap->rm_owner))
+	if (XFS_RMAP_ANALN_IANALDE_OWNER(rmap->rm_owner))
 		return false;
 
 	/* Metadata in files are never shareable */
 	if (xfs_internal_inum(mp, rmap->rm_owner))
 		return false;
 
-	/* Metadata and unwritten file blocks are not shareable. */
+	/* Metadata and unwritten file blocks are analt shareable. */
 	if (rmap->rm_flags & (XFS_RMAP_ATTR_FORK | XFS_RMAP_BMBT_BLOCK |
 			      XFS_RMAP_UNWRITTEN))
 		return false;
@@ -312,7 +312,7 @@ xrep_refc_extent_cmp(
 
 /*
  * Sort the refcount extents by startblock or else the btree records will be in
- * the wrong order.  Make sure the records do not overlap in physical space.
+ * the wrong order.  Make sure the records do analt overlap in physical space.
  */
 STATIC int
 xrep_refc_sort_records(
@@ -321,7 +321,7 @@ xrep_refc_sort_records(
 	struct xfs_refcount_irec	irec;
 	xfarray_idx_t			cur;
 	enum xfs_refc_domain		dom = XFS_REFC_DOMAIN_SHARED;
-	xfs_agblock_t			next_agbno = 0;
+	xfs_agblock_t			next_agbanal = 0;
 	int				error;
 
 	error = xfarray_sort(rr->refcount_records, xrep_refc_extent_cmp,
@@ -340,15 +340,15 @@ xrep_refc_sort_records(
 		if (dom == XFS_REFC_DOMAIN_SHARED &&
 		    irec.rc_domain == XFS_REFC_DOMAIN_COW) {
 			dom = irec.rc_domain;
-			next_agbno = 0;
+			next_agbanal = 0;
 		}
 
 		if (dom != irec.rc_domain)
 			return -EFSCORRUPTED;
-		if (irec.rc_startblock < next_agbno)
+		if (irec.rc_startblock < next_agbanal)
 			return -EFSCORRUPTED;
 
-		next_agbno = irec.rc_startblock + irec.rc_blockcount;
+		next_agbanal = irec.rc_startblock + irec.rc_blockcount;
 	}
 
 	return error;
@@ -364,18 +364,18 @@ xrep_refc_next_edge(
 	struct xfarray		*rmap_bag,
 	struct xrep_refc_rmap	*next_rrm,
 	bool			next_valid,
-	xfs_agblock_t		*nbnop)
+	xfs_agblock_t		*nbanalp)
 {
 	struct xrep_refc_rmap	rrm;
 	xfarray_idx_t		array_cur = XFARRAY_CURSOR_INIT;
-	xfs_agblock_t		nbno = NULLAGBLOCK;
+	xfs_agblock_t		nbanal = NULLAGBLOCK;
 	int			error;
 
 	if (next_valid)
-		nbno = next_rrm->startblock;
+		nbanal = next_rrm->startblock;
 
 	while ((error = xfarray_iter(rmap_bag, &array_cur, &rrm)) == 1)
-		nbno = min_t(xfs_agblock_t, nbno, RRM_NEXT(rrm));
+		nbanal = min_t(xfs_agblock_t, nbanal, RRM_NEXT(rrm));
 
 	if (error)
 		return error;
@@ -386,16 +386,16 @@ xrep_refc_next_edge(
 	 * there are other rmaps in rmap_bag contributing to the current
 	 * sharing count.  But if something is seriously wrong, bail out.
 	 */
-	if (nbno == NULLAGBLOCK)
+	if (nbanal == NULLAGBLOCK)
 		return -EFSCORRUPTED;
 
-	*nbnop = nbno;
+	*nbanalp = nbanal;
 	return 0;
 }
 
 /*
  * Walk forward through the rmap btree to collect all rmaps starting at
- * @bno in @rmap_bag.  These represent the file(s) that share ownership of
+ * @banal in @rmap_bag.  These represent the file(s) that share ownership of
  * the current block.  Upon return, the rmap cursor points to the last record
  * satisfying the startblock constraint.
  */
@@ -403,7 +403,7 @@ static int
 xrep_refc_push_rmaps_at(
 	struct xrep_refc	*rr,
 	struct xfarray		*rmap_bag,
-	xfs_agblock_t		bno,
+	xfs_agblock_t		banal,
 	struct xrep_refc_rmap	*rrm,
 	bool			*have,
 	uint64_t		*stack_sz)
@@ -412,7 +412,7 @@ xrep_refc_push_rmaps_at(
 	int			have_gt;
 	int			error;
 
-	while (*have && rrm->startblock == bno) {
+	while (*have && rrm->startblock == banal) {
 		error = xfarray_store_anywhere(rmap_bag, rrm);
 		if (error)
 			return error;
@@ -442,9 +442,9 @@ xrep_refc_find_refcounts(
 	char			*descr;
 	uint64_t		old_stack_sz;
 	uint64_t		stack_sz = 0;
-	xfs_agblock_t		sbno;
-	xfs_agblock_t		cbno;
-	xfs_agblock_t		nbno;
+	xfs_agblock_t		sbanal;
+	xfs_agblock_t		cbanal;
+	xfs_agblock_t		nbanal;
 	bool			have;
 	int			error;
 
@@ -469,34 +469,34 @@ xrep_refc_find_refcounts(
 
 	/* Process reverse mappings into refcount data. */
 	while (xfs_btree_has_more_records(sc->sa.rmap_cur)) {
-		/* Push all rmaps with pblk == sbno onto the stack */
+		/* Push all rmaps with pblk == sbanal onto the stack */
 		error = xrep_refc_walk_rmaps(rr, &rrm, &have);
 		if (error)
 			goto out_bag;
 		if (!have)
 			break;
-		sbno = cbno = rrm.startblock;
-		error = xrep_refc_push_rmaps_at(rr, rmap_bag, sbno,
+		sbanal = cbanal = rrm.startblock;
+		error = xrep_refc_push_rmaps_at(rr, rmap_bag, sbanal,
 					&rrm, &have, &stack_sz);
 		if (error)
 			goto out_bag;
 
-		/* Set nbno to the bno of the next refcount change */
-		error = xrep_refc_next_edge(rmap_bag, &rrm, have, &nbno);
+		/* Set nbanal to the banal of the next refcount change */
+		error = xrep_refc_next_edge(rmap_bag, &rrm, have, &nbanal);
 		if (error)
 			goto out_bag;
 
-		ASSERT(nbno > sbno);
+		ASSERT(nbanal > sbanal);
 		old_stack_sz = stack_sz;
 
 		/* While stack isn't empty... */
 		while (stack_sz) {
 			xfarray_idx_t	array_cur = XFARRAY_CURSOR_INIT;
 
-			/* Pop all rmaps that end at nbno */
+			/* Pop all rmaps that end at nbanal */
 			while ((error = xfarray_iter(rmap_bag, &array_cur,
 								&rrm)) == 1) {
-				if (RRM_NEXT(rrm) != nbno)
+				if (RRM_NEXT(rrm) != nbanal)
 					continue;
 				error = xfarray_unset(rmap_bag, array_cur - 1);
 				if (error)
@@ -506,44 +506,44 @@ xrep_refc_find_refcounts(
 			if (error)
 				goto out_bag;
 
-			/* Push array items that start at nbno */
+			/* Push array items that start at nbanal */
 			error = xrep_refc_walk_rmaps(rr, &rrm, &have);
 			if (error)
 				goto out_bag;
 			if (have) {
 				error = xrep_refc_push_rmaps_at(rr, rmap_bag,
-						nbno, &rrm, &have, &stack_sz);
+						nbanal, &rrm, &have, &stack_sz);
 				if (error)
 					goto out_bag;
 			}
 
 			/* Emit refcount if necessary */
-			ASSERT(nbno > cbno);
+			ASSERT(nbanal > cbanal);
 			if (stack_sz != old_stack_sz) {
 				if (old_stack_sz > 1) {
 					error = xrep_refc_stash(rr,
 							XFS_REFC_DOMAIN_SHARED,
-							cbno, nbno - cbno,
+							cbanal, nbanal - cbanal,
 							old_stack_sz);
 					if (error)
 						goto out_bag;
 				}
-				cbno = nbno;
+				cbanal = nbanal;
 			}
 
 			/* Stack empty, go find the next rmap */
 			if (stack_sz == 0)
 				break;
 			old_stack_sz = stack_sz;
-			sbno = nbno;
+			sbanal = nbanal;
 
-			/* Set nbno to the bno of the next refcount change */
+			/* Set nbanal to the banal of the next refcount change */
 			error = xrep_refc_next_edge(rmap_bag, &rrm, have,
-					&nbno);
+					&nbanal);
 			if (error)
 				goto out_bag;
 
-			ASSERT(nbno > sbno);
+			ASSERT(nbanal > sbanal);
 		}
 	}
 
@@ -624,7 +624,7 @@ xrep_refc_reset_counters(
 /*
  * Use the collected refcount information to stage a new refcount btree.  If
  * this is successful we'll return with the new btree root information logged
- * to the repair transaction but not yet committed.
+ * to the repair transaction but analt yet committed.
  */
 STATIC int
 xrep_refc_build_new_tree(
@@ -633,7 +633,7 @@ xrep_refc_build_new_tree(
 	struct xfs_scrub	*sc = rr->sc;
 	struct xfs_btree_cur	*refc_cur;
 	struct xfs_perag	*pag = sc->sa.pag;
-	xfs_fsblock_t		fsbno;
+	xfs_fsblock_t		fsbanal;
 	int			error;
 
 	error = xrep_refc_sort_records(rr);
@@ -646,8 +646,8 @@ xrep_refc_build_new_tree(
 	 * to root the new btree while it's under construction and before we
 	 * attach it to the AG header.
 	 */
-	fsbno = XFS_AGB_TO_FSB(sc->mp, pag->pag_agno, xfs_refc_block(sc->mp));
-	xrep_newbt_init_ag(&rr->new_btree, sc, &XFS_RMAP_OINFO_REFC, fsbno,
+	fsbanal = XFS_AGB_TO_FSB(sc->mp, pag->pag_aganal, xfs_refc_block(sc->mp));
+	xrep_newbt_init_ag(&rr->new_btree, sc, &XFS_RMAP_OINFO_REFC, fsbanal,
 			XFS_AG_RESV_METADATA);
 	rr->new_btree.bload.get_records = xrep_refc_get_records;
 	rr->new_btree.bload.claim_block = xrep_refc_claim_block;
@@ -687,12 +687,12 @@ xrep_refc_build_new_tree(
 
 	/*
 	 * Install the new btree in the AG header.  After this point the old
-	 * btree is no longer accessible and the new tree is live.
+	 * btree is anal longer accessible and the new tree is live.
 	 */
 	xfs_refcountbt_commit_staged_btree(refc_cur, sc->tp, sc->sa.agf_bp);
 	xfs_btree_del_cursor(refc_cur, 0);
 
-	/* Reset the AGF counters now that we've changed the btree shape. */
+	/* Reset the AGF counters analw that we've changed the btree shape. */
 	error = xrep_refc_reset_counters(rr);
 	if (error)
 		goto err_newbt;
@@ -714,7 +714,7 @@ err_newbt:
 }
 
 /*
- * Now that we've logged the roots of the new btrees, invalidate all of the
+ * Analw that we've logged the roots of the new btrees, invalidate all of the
  * old blocks and free them.
  */
 STATIC int
@@ -725,14 +725,14 @@ xrep_refc_remove_old_tree(
 	struct xfs_perag	*pag = sc->sa.pag;
 	int			error;
 
-	/* Free the old refcountbt blocks if they're not in use. */
+	/* Free the old refcountbt blocks if they're analt in use. */
 	error = xrep_reap_agblocks(sc, &rr->old_refcountbt_blocks,
 			&XFS_RMAP_OINFO_REFC, XFS_AG_RESV_METADATA);
 	if (error)
 		return error;
 
 	/*
-	 * Now that we've zapped all the old refcountbt blocks we can turn off
+	 * Analw that we've zapped all the old refcountbt blocks we can turn off
 	 * the alternate height mechanism and reset the per-AG space
 	 * reservations.
 	 */
@@ -753,14 +753,14 @@ xrep_refcountbt(
 
 	/* We require the rmapbt to rebuild anything. */
 	if (!xfs_has_rmapbt(mp))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	rr = kzalloc(sizeof(struct xrep_refc), XCHK_GFP_FLAGS);
 	if (!rr)
-		return -ENOMEM;
+		return -EANALMEM;
 	rr->sc = sc;
 
-	/* Set up enough storage to handle one refcount record per block. */
+	/* Set up eanalugh storage to handle one refcount record per block. */
 	descr = xchk_xfile_ag_descr(sc, "reference count records");
 	error = xfarray_create(descr, mp->m_sb.sb_agblocks,
 			sizeof(struct xfs_refcount_irec),

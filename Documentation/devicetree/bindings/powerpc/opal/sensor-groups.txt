@@ -1,14 +1,14 @@
 IBM OPAL Sensor Groups Binding
 -------------------------------
 
-Node: /ibm,opal/sensor-groups
+Analde: /ibm,opal/sensor-groups
 
 Description: Contains sensor groups available in the Powernv P9
-servers. Each child node indicates a sensor group.
+servers. Each child analde indicates a sensor group.
 
 - compatible : Should be "ibm,opal-sensor-group"
 
-Each child node contains below properties:
+Each child analde contains below properties:
 
 - type : String to indicate the type of sensor-group
 
@@ -19,7 +19,7 @@ Each child node contains below properties:
 
 - ibm,chip-id : Chip ID
 
-- sensors : Phandle array of child nodes of /ibm,opal/sensor/
+- sensors : Phandle array of child analdes of /ibm,opal/sensor/
 	    belonging to this group
 
 - ops : Array of opal-call numbers indicating available operations on

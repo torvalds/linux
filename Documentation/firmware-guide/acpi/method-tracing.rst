@@ -26,14 +26,14 @@ Log reducer
 ACPICA subsystem provides debugging outputs when CONFIG_ACPI_DEBUG is
 enabled. The debugging messages which are deployed via
 ACPI_DEBUG_PRINT() macro can be reduced at 2 levels - per-component
-level (known as debug layer, configured via
-/sys/module/acpi/parameters/debug_layer) and per-type level (known as
+level (kanalwn as debug layer, configured via
+/sys/module/acpi/parameters/debug_layer) and per-type level (kanalwn as
 debug level, configured via /sys/module/acpi/parameters/debug_level).
 
 But when the particular layer/level is applied to the control method
 evaluations, the quantity of the debugging outputs may still be too
 large to be put into the kernel log buffer. The idea thus is worked out
-to only enable the particular debug layer/level (normally more detailed)
+to only enable the particular debug layer/level (analrmally more detailed)
 logs when the control method evaluation is started, and disable the
 detailed logging when the control method evaluation is stopped.
 
@@ -79,7 +79,7 @@ AML tracer
 
 There are special log entries added by the method tracing facility at
 the "trace points" the AML interpreter starts/stops to execute a control
-method, or an AML opcode. Note that the format of the log entries are
+method, or an AML opcode. Analte that the format of the log entries are
 subject to change::
 
    [    0.186427]   exdebug-0398 ex_trace_point        : Method Begin [0xf58394d8:\_SB.PCI0.LPCB.ECOK] execution.
@@ -98,7 +98,7 @@ subject to change::
    [    0.188903]   exdebug-0398 ex_trace_point        : Method End [0xf58394d8:\_SB.PCI0.LPCB.ECOK] execution.
 
 Developers can utilize these special log entries to track the AML
-interpretation, thus can aid issue debugging and performance tuning. Note
+interpretation, thus can aid issue debugging and performance tuning. Analte
 that, as the "AML tracer" logs are implemented via ACPI_DEBUG_PRINT()
 macro, CONFIG_ACPI_DEBUG is also required to be enabled for enabling
 "AML tracer" logs.
@@ -150,7 +150,7 @@ e. Filter out the method/opcode start/stop "AML tracer" when the
       # echo "\PPPP.AAAA.TTTT.HHHH" > trace_method_name
       # echo "opcode-opcode" > trace_state
 
-Note that all above method tracing facility related module parameters can
+Analte that all above method tracing facility related module parameters can
 be used as the boot parameters, for example::
 
    acpi.trace_debug_layer=0x80 acpi.trace_debug_level=0x10 \
@@ -166,7 +166,7 @@ parameters that are accessible at /sys/module/acpi/parameters/:
 trace_method_name
   The full path of the AML method that the user wants to trace.
 
-  Note that the full path shouldn't contain the trailing "_"s in its
+  Analte that the full path shouldn't contain the trailing "_"s in its
   name segments but may contain "\" to form an absolute path.
 
 trace_debug_layer
@@ -225,7 +225,7 @@ Where "string" should be one of the following:
   during method/opcode execution of "trace_method_name" will be logged only
   once.
 
-Note that, the difference between the "enable" and other feature
+Analte that, the difference between the "enable" and other feature
 enabling options are:
 
 1. When "enable" is specified, since

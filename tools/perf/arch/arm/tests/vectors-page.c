@@ -14,7 +14,7 @@ static int test__vectors_page(struct test_suite *test __maybe_unused, int subtes
 	void *start, *end;
 
 	if (find_map(&start, &end, VECTORS__MAP_NAME)) {
-		pr_err("%s not found, is CONFIG_KUSER_HELPERS enabled?\n",
+		pr_err("%s analt found, is CONFIG_KUSER_HELPERS enabled?\n",
 		       VECTORS__MAP_NAME);
 		return TEST_FAIL;
 	}

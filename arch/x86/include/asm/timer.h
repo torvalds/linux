@@ -11,7 +11,7 @@
 unsigned long long native_sched_clock(void);
 extern void recalibrate_cpu_khz(void);
 
-extern int no_timer_check;
+extern int anal_timer_check;
 
 extern bool using_native_sched_clock(void);
 
@@ -22,7 +22,7 @@ extern bool using_native_sched_clock(void);
  * Continuity means that when our frequency changes our slope (b); we want to
  * ensure that: f(t) == f'(t), which gives: a + b*t == a' + b'*t.
  *
- * Without an offset (a) the above would not be possible.
+ * Without an offset (a) the above would analt be possible.
  *
  * See the comment near cycles_2_ns() for details on how we compute (b).
  */

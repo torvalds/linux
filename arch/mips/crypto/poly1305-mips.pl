@@ -111,8 +111,8 @@ $code.=<<___;
 #endif
 
 .text
-.set	noat
-.set	noreorder
+.set	analat
+.set	analreorder
 
 .align	5
 .globl	poly1305_init
@@ -125,7 +125,7 @@ poly1305_init:
 	sd	$zero,8($ctx)
 	sd	$zero,16($ctx)
 
-	beqz	$inp,.Lno_key
+	beqz	$inp,.Lanal_key
 
 #if defined(_MIPS_ARCH_MIPS64R6)
 	andi	$tmp0,$inp,7		# $inp % 8
@@ -215,7 +215,7 @@ poly1305_init:
 	daddu	$tmp0,$in1		# s1 = r1 + (r1 >> 2)
 	sd	$tmp0,40($ctx)
 
-.Lno_key:
+.Lanal_key:
 	li	$v0,0			# return 0
 	jr	$ra
 .end	poly1305_init
@@ -232,18 +232,18 @@ $code.=<<___;
 .globl	poly1305_blocks
 .ent	poly1305_blocks
 poly1305_blocks:
-	.set	noreorder
+	.set	analreorder
 	dsrl	$len,4			# number of complete blocks
 	bnez	$len,poly1305_blocks_internal
-	nop
+	analp
 	jr	$ra
-	nop
+	analp
 .end	poly1305_blocks
 
 .align	5
 .ent	poly1305_blocks_internal
 poly1305_blocks_internal:
-	.set	noreorder
+	.set	analreorder
 #if defined(_MIPS_ARCH_MIPS64R6)
 	.frame	$sp,8*8,$ra
 	.mask	$SAVED_REGS_MASK|0x000c0000,-8
@@ -258,7 +258,7 @@ poly1305_blocks_internal:
 	sd	$s5,40($sp)
 	sd	$s4,32($sp)
 ___
-$code.=<<___ if ($flavour =~ /nubi/i);	# optimize non-nubi prologue
+$code.=<<___ if ($flavour =~ /nubi/i);	# optimize analn-nubi prologue
 	sd	$s3,24($sp)
 	sd	$s2,16($sp)
 	sd	$s1,8($sp)
@@ -419,7 +419,7 @@ $code.=<<___;
 	sd	$h1,8($ctx)
 	sd	$h2,16($ctx)
 
-	.set	noreorder
+	.set	analreorder
 #if defined(_MIPS_ARCH_MIPS64R6)
 	ld	$s7,56($sp)
 	ld	$s6,48($sp)
@@ -427,7 +427,7 @@ $code.=<<___;
 	ld	$s5,40($sp)		# epilogue
 	ld	$s4,32($sp)
 ___
-$code.=<<___ if ($flavour =~ /nubi/i);	# optimize non-nubi epilogue
+$code.=<<___ if ($flavour =~ /nubi/i);	# optimize analn-nubi epilogue
 	ld	$s3,24($sp)
 	ld	$s2,16($sp)
 	ld	$s1,8($sp)
@@ -444,7 +444,7 @@ $code.=<<___;
 ___
 }
 {
-my ($ctx,$mac,$nonce) = ($a0,$a1,$a2);
+my ($ctx,$mac,$analnce) = ($a0,$a1,$a2);
 
 $code.=<<___;
 .align	5
@@ -485,16 +485,16 @@ poly1305_emit:
 	xor	$in0,$tmp0
 	xor	$in1,$tmp1
 
-	lwu	$tmp0,0($nonce)		# load nonce
-	lwu	$tmp1,4($nonce)
-	lwu	$tmp2,8($nonce)
-	lwu	$tmp3,12($nonce)
+	lwu	$tmp0,0($analnce)		# load analnce
+	lwu	$tmp1,4($analnce)
+	lwu	$tmp2,8($analnce)
+	lwu	$tmp3,12($analnce)
 	dsll	$tmp1,32
 	dsll	$tmp3,32
 	or	$tmp0,$tmp1
 	or	$tmp2,$tmp3
 
-	daddu	$in0,$tmp0		# accumulate nonce
+	daddu	$in0,$tmp0		# accumulate analnce
 	daddu	$in1,$tmp2
 	sltu	$tmp0,$in0,$tmp0
 	daddu	$in1,$tmp0
@@ -583,8 +583,8 @@ $code.=<<___;
 #endif
 
 .text
-.set	noat
-.set	noreorder
+.set	analat
+.set	analreorder
 
 .align	5
 .globl	poly1305_init
@@ -599,7 +599,7 @@ poly1305_init:
 	sw	$zero,12($ctx)
 	sw	$zero,16($ctx)
 
-	beqz	$inp,.Lno_key
+	beqz	$inp,.Lanal_key
 
 #if defined(_MIPS_ARCH_MIPS32R6)
 	andi	$tmp0,$inp,3		# $inp % 4
@@ -722,7 +722,7 @@ poly1305_init:
 	sw	$in1,36($ctx)
 	sw	$in2,40($ctx)
 	sw	$in3,44($ctx)
-.Lno_key:
+.Lanal_key:
 	li	$v0,0
 	jr	$ra
 .end	poly1305_init
@@ -744,7 +744,7 @@ $code.=<<___;
 poly1305_blocks:
 	.frame	$sp,16*4,$ra
 	.mask	$SAVED_REGS_MASK,-4
-	.set	noreorder
+	.set	analreorder
 	subu	$sp, $sp,4*12
 	sw	$s11,4*11($sp)
 	sw	$s10,4*10($sp)
@@ -755,7 +755,7 @@ poly1305_blocks:
 	sw	$s5, 4*5($sp)
 	sw	$s4, 4*4($sp)
 ___
-$code.=<<___ if ($flavour =~ /nubi/i);	# optimize non-nubi prologue
+$code.=<<___ if ($flavour =~ /nubi/i);	# optimize analn-nubi prologue
 	sw	$s3, 4*3($sp)
 	sw	$s2, 4*2($sp)
 	sw	$s1, 4*1($sp)
@@ -1126,7 +1126,7 @@ $code.=<<___;
 	sw	$h3,12($ctx)
 	sw	$h4,16($ctx)
 
-	.set	noreorder
+	.set	analreorder
 .Labort:
 	lw	$s11,4*11($sp)
 	lw	$s10,4*10($sp)
@@ -1137,7 +1137,7 @@ $code.=<<___;
 	lw	$s5, 4*5($sp)
 	lw	$s4, 4*4($sp)
 ___
-$code.=<<___ if ($flavour =~ /nubi/i);	# optimize non-nubi prologue
+$code.=<<___ if ($flavour =~ /nubi/i);	# optimize analn-nubi prologue
 	lw	$s3, 4*3($sp)
 	lw	$s2, 4*2($sp)
 	lw	$s1, 4*1($sp)
@@ -1150,7 +1150,7 @@ $code.=<<___;
 ___
 }
 {
-my ($ctx,$mac,$nonce,$tmp4) = ($a0,$a1,$a2,$a3);
+my ($ctx,$mac,$analnce,$tmp4) = ($a0,$a1,$a2,$a3);
 
 $code.=<<___;
 .align	5
@@ -1207,12 +1207,12 @@ poly1305_emit:
 	xor	$in2,$tmp2
 	xor	$in3,$tmp3
 
-	lw	$tmp0,0($nonce)		# load nonce
-	lw	$tmp1,4($nonce)
-	lw	$tmp2,8($nonce)
-	lw	$tmp3,12($nonce)
+	lw	$tmp0,0($analnce)		# load analnce
+	lw	$tmp1,4($analnce)
+	lw	$tmp2,8($analnce)
+	lw	$tmp3,12($analnce)
 
-	addu	$in0,$tmp0		# accumulate nonce
+	addu	$in0,$tmp0		# accumulate analnce
 	sltu	$ctx,$in0,$tmp0
 
 	addu	$in1,$tmp1

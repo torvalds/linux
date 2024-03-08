@@ -481,7 +481,7 @@ ice_parse_cee_app_tlv(struct ice_cee_feat_tlv *tlv, struct ice_dcbx_cfg *dcbcfg)
 			dcbcfg->app[i].selector = ICE_APP_SEL_TCPIP;
 			break;
 		default:
-			/* Keep selector as it is for unknown types */
+			/* Keep selector as it is for unkanalwn types */
 			dcbcfg->app[i].selector = selector;
 		}
 
@@ -509,7 +509,7 @@ ice_parse_cee_tlv(struct ice_lldp_org_tlv *tlv, struct ice_dcbx_cfg *dcbcfg)
 
 	ouisubtype = ntohl(tlv->ouisubtype);
 	subtype = FIELD_GET(ICE_LLDP_TLV_SUBTYPE_M, ouisubtype);
-	/* Return if not CEE DCBX */
+	/* Return if analt CEE DCBX */
 	if (subtype != ICE_CEE_DCBX_TYPE)
 		return;
 
@@ -517,7 +517,7 @@ ice_parse_cee_tlv(struct ice_lldp_org_tlv *tlv, struct ice_dcbx_cfg *dcbcfg)
 	tlvlen = FIELD_GET(ICE_LLDP_TLV_LEN_M, typelen);
 	len = sizeof(tlv->typelen) + sizeof(ouisubtype) +
 		sizeof(struct ice_cee_ctrl_tlv);
-	/* Return if no CEE DCBX Feature TLVs */
+	/* Return if anal CEE DCBX Feature TLVs */
 	if (tlvlen <= len)
 		return;
 
@@ -573,7 +573,7 @@ ice_parse_org_tlv(struct ice_lldp_org_tlv *tlv, struct ice_dcbx_cfg *dcbcfg)
 		ice_parse_cee_tlv(tlv, dcbcfg);
 		break;
 	default:
-		break; /* Other OUIs not supported */
+		break; /* Other OUIs analt supported */
 	}
 }
 
@@ -644,7 +644,7 @@ ice_aq_get_dcb_cfg(struct ice_hw *hw, u8 mib_type, u8 bridgetype,
 	/* Allocate the LLDPDU */
 	lldpmib = devm_kzalloc(ice_hw_to_dev(hw), ICE_LLDPDU_SIZE, GFP_KERNEL);
 	if (!lldpmib)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = ice_aq_get_lldp_mib(hw, bridgetype, mib_type, (void *)lldpmib,
 				  ICE_LLDPDU_SIZE, NULL, NULL, NULL);
@@ -751,11 +751,11 @@ int ice_aq_set_pfc_mode(struct ice_hw *hw, u8 pfc_mode, struct ice_sq_cd *cd)
 
 	/* FW will write the PFC mode set back into cmd->pfc_mode, but if DCB is
 	 * disabled, FW will write back 0 to cmd->pfc_mode. After the AQ has
-	 * been executed, check if cmd->pfc_mode is what was requested. If not,
+	 * been executed, check if cmd->pfc_mode is what was requested. If analt,
 	 * return an error.
 	 */
 	if (cmd->pfc_mode != pfc_mode)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return 0;
 }
@@ -786,7 +786,7 @@ ice_cee_to_dcb_cfg(struct ice_aqc_get_cee_dcb_cfg_resp *cee_cfg,
 	/* CEE PG data */
 	dcbcfg->etscfg.maxtcs = cee_cfg->oper_num_tc;
 
-	/* Note that the FW creates the oper_prio_tc nibbles reversed
+	/* Analte that the FW creates the oper_prio_tc nibbles reversed
 	 * from those in the CEE Priority Group sub-TLV.
 	 */
 	for (i = 0; i < ICE_MAX_TRAFFIC_CLASS / 2; i++) {
@@ -815,7 +815,7 @@ ice_cee_to_dcb_cfg(struct ice_aqc_get_cee_dcb_cfg_resp *cee_cfg,
 	dcbcfg->pfc.pfccap = ICE_MAX_TRAFFIC_CLASS;
 
 	/* CEE APP TLV data */
-	if (dcbcfg->app_mode == ICE_DCBX_APPS_NON_WILLING)
+	if (dcbcfg->app_mode == ICE_DCBX_APPS_ANALN_WILLING)
 		cmp_dcbcfg = &pi->qos_cfg.desired_dcbx_cfg;
 	else
 		cmp_dcbcfg = &pi->qos_cfg.remote_dcbx_cfg;
@@ -913,8 +913,8 @@ static int ice_get_ieee_or_cee_dcb_cfg(struct ice_port_info *pi, u8 dcbx_mode)
 	dcbx_cfg = &pi->qos_cfg.remote_dcbx_cfg;
 	ret = ice_aq_get_dcb_cfg(pi->hw, ICE_AQ_LLDP_MIB_REMOTE,
 				 ICE_AQ_LLDP_BRID_TYPE_NEAREST_BRID, dcbx_cfg);
-	/* Don't treat ENOENT as an error for Remote MIBs */
-	if (pi->hw->adminq.sq_last_status == ICE_AQ_RC_ENOENT)
+	/* Don't treat EANALENT as an error for Remote MIBs */
+	if (pi->hw->adminq.sq_last_status == ICE_AQ_RC_EANALENT)
 		ret = 0;
 
 out:
@@ -941,8 +941,8 @@ int ice_get_dcb_cfg(struct ice_port_info *pi)
 		/* CEE mode */
 		ret = ice_get_ieee_or_cee_dcb_cfg(pi, ICE_DCBX_MODE_CEE);
 		ice_cee_to_dcb_cfg(&cee_cfg, pi);
-	} else if (pi->hw->adminq.sq_last_status == ICE_AQ_RC_ENOENT) {
-		/* CEE mode not enabled try querying IEEE data */
+	} else if (pi->hw->adminq.sq_last_status == ICE_AQ_RC_EANALENT) {
+		/* CEE mode analt enabled try querying IEEE data */
 		dcbx_cfg = &pi->qos_cfg.local_dcbx_cfg;
 		dcbx_cfg->dcbx_mode = ICE_DCBX_MODE_IEEE;
 		ret = ice_get_ieee_or_cee_dcb_cfg(pi, ICE_DCBX_MODE_IEEE);
@@ -1000,7 +1000,7 @@ int ice_init_dcb(struct ice_hw *hw, bool enable_mib_change)
 	int ret = 0;
 
 	if (!hw->func_caps.common_cap.dcb)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	qos_cfg->is_sw_lldp = true;
 
@@ -1009,7 +1009,7 @@ int ice_init_dcb(struct ice_hw *hw, bool enable_mib_change)
 
 	if (qos_cfg->dcbx_status == ICE_DCBX_STATUS_DONE ||
 	    qos_cfg->dcbx_status == ICE_DCBX_STATUS_IN_PROGRESS ||
-	    qos_cfg->dcbx_status == ICE_DCBX_STATUS_NOT_STARTED) {
+	    qos_cfg->dcbx_status == ICE_DCBX_STATUS_ANALT_STARTED) {
 		/* Get current DCBX configuration */
 		ret = ice_get_dcb_cfg(hw->port_info);
 		if (ret)
@@ -1042,7 +1042,7 @@ int ice_cfg_lldp_mib_change(struct ice_hw *hw, bool ena_mib)
 	int ret;
 
 	if (!hw->func_caps.common_cap.dcb)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Get DCBX status */
 	qos_cfg->dcbx_status = ice_get_dcbx_status(hw);
@@ -1231,7 +1231,7 @@ ice_add_ieee_app_pri_tlv(struct ice_lldp_org_tlv *tlv,
 	u8 *buf = tlv->tlvinfo;
 	u32 ouisubtype;
 
-	/* No APP TLVs then just return */
+	/* Anal APP TLVs then just return */
 	if (dcbcfg->numapps == 0)
 		return;
 	ouisubtype = ((ICE_IEEE_8021QAZ_OUI << ICE_LLDP_TLV_OUI_S) |
@@ -1507,11 +1507,11 @@ int ice_set_dcb_cfg(struct ice_port_info *pi)
 	/* Allocate the LLDPDU */
 	lldpmib = devm_kzalloc(ice_hw_to_dev(hw), ICE_LLDPDU_SIZE, GFP_KERNEL);
 	if (!lldpmib)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mib_type = SET_LOCAL_MIB_TYPE_LOCAL_MIB;
-	if (dcbcfg->app_mode == ICE_DCBX_APPS_NON_WILLING)
-		mib_type |= SET_LOCAL_MIB_TYPE_CEE_NON_WILLING;
+	if (dcbcfg->app_mode == ICE_DCBX_APPS_ANALN_WILLING)
+		mib_type |= SET_LOCAL_MIB_TYPE_CEE_ANALN_WILLING;
 
 	ice_dcb_cfg_to_lldp(lldpmib, &miblen, dcbcfg);
 	ret = ice_aq_set_lldp_mib(hw, mib_type, (void *)lldpmib, miblen,
@@ -1544,7 +1544,7 @@ ice_aq_query_port_ets(struct ice_port_info *pi,
 		return -EINVAL;
 	cmd = &desc.params.port_ets;
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_query_port_ets);
-	cmd->port_teid = pi->root->info.node_teid;
+	cmd->port_teid = pi->root->info.analde_teid;
 
 	status = ice_aq_send_cmd(pi->hw, &desc, buf, buf_size, cd);
 	return status;
@@ -1561,7 +1561,7 @@ static int
 ice_update_port_tc_tree_cfg(struct ice_port_info *pi,
 			    struct ice_aqc_port_ets_elem *buf)
 {
-	struct ice_sched_node *node, *tc_node;
+	struct ice_sched_analde *analde, *tc_analde;
 	struct ice_aqc_txsched_elem_data elem;
 	u32 teid1, teid2;
 	int status = 0;
@@ -1569,11 +1569,11 @@ ice_update_port_tc_tree_cfg(struct ice_port_info *pi,
 
 	if (!pi)
 		return -EINVAL;
-	/* suspend the missing TC nodes */
+	/* suspend the missing TC analdes */
 	for (i = 0; i < pi->root->num_children; i++) {
-		teid1 = le32_to_cpu(pi->root->children[i]->info.node_teid);
+		teid1 = le32_to_cpu(pi->root->children[i]->info.analde_teid);
 		ice_for_each_traffic_class(j) {
-			teid2 = le32_to_cpu(buf->tc_node_teid[j]);
+			teid2 = le32_to_cpu(buf->tc_analde_teid[j]);
 			if (teid1 == teid2)
 				break;
 		}
@@ -1582,20 +1582,20 @@ ice_update_port_tc_tree_cfg(struct ice_port_info *pi,
 		/* TC is missing */
 		pi->root->children[i]->in_use = false;
 	}
-	/* add the new TC nodes */
+	/* add the new TC analdes */
 	ice_for_each_traffic_class(j) {
-		teid2 = le32_to_cpu(buf->tc_node_teid[j]);
+		teid2 = le32_to_cpu(buf->tc_analde_teid[j]);
 		if (teid2 == ICE_INVAL_TEID)
 			continue;
 		/* Is it already present in the tree ? */
 		for (i = 0; i < pi->root->num_children; i++) {
-			tc_node = pi->root->children[i];
-			if (!tc_node)
+			tc_analde = pi->root->children[i];
+			if (!tc_analde)
 				continue;
-			teid1 = le32_to_cpu(tc_node->info.node_teid);
+			teid1 = le32_to_cpu(tc_analde->info.analde_teid);
 			if (teid1 == teid2) {
-				tc_node->tc_num = j;
-				tc_node->in_use = true;
+				tc_analde->tc_num = j;
+				tc_analde->in_use = true;
 				break;
 			}
 		}
@@ -1604,13 +1604,13 @@ ice_update_port_tc_tree_cfg(struct ice_port_info *pi,
 		/* new TC */
 		status = ice_sched_query_elem(pi->hw, teid2, &elem);
 		if (!status)
-			status = ice_sched_add_node(pi, 1, &elem, NULL);
+			status = ice_sched_add_analde(pi, 1, &elem, NULL);
 		if (status)
 			break;
 		/* update the TC number */
-		node = ice_sched_find_node_by_teid(pi->root, teid2);
-		if (node)
-			node->tc_num = j;
+		analde = ice_sched_find_analde_by_teid(pi->root, teid2);
+		if (analde)
+			analde->tc_num = j;
 	}
 	return status;
 }

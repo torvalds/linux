@@ -15,7 +15,7 @@ allOf:
 
 # Select every compatible, including the deprecated ones. This way, we
 # will be able to report a warning when we have that compatible, since
-# we will validate the node thanks to the select, but won't report it
+# we will validate the analde thanks to the select, but won't report it
 # as a valid value in the compatible property description
 select:
   properties:

@@ -14,7 +14,7 @@
  * appearing to the host as a disk drive or as a CD-ROM drive.  In
  * addition to providing an example of a genuinely useful gadget
  * driver for a USB device, it also illustrates a technique of
- * double-buffering for increased throughput.  Last but not least, it
+ * double-buffering for increased throughput.  Last but analt least, it
  * gives an easy way to probe the behavior of the Mass Storage drivers
  * in a USB host.
  *
@@ -34,10 +34,10 @@
 #define DRIVER_VERSION		"2009/09/11"
 
 /*
- * Thanks to NetChip Technologies for donating this product ID.
+ * Thanks to NetChip Techanallogies for donating this product ID.
  *
- * DO NOT REUSE THESE IDs with any other driver!!  Ever!!
- * Instead:  allocate your own, using normal USB-IF procedures.
+ * DO ANALT REUSE THESE IDs with any other driver!!  Ever!!
+ * Instead:  allocate your own, using analrmal USB-IF procedures.
  */
 #define FSG_VENDOR_ID	0x0525	/* NetChip */
 #define FSG_PRODUCT_ID	0xa4a5	/* Linux-USB File-backed Storage Gadget */
@@ -95,13 +95,13 @@ static unsigned int fsg_num_buffers = CONFIG_USB_GADGET_STORAGE_NUM_BUFFERS;
 
 /*
  * Number of buffers we will use.
- * 2 is usually enough for good buffering pipeline
+ * 2 is usually eanalugh for good buffering pipeline
  */
 #define fsg_num_buffers	CONFIG_USB_GADGET_STORAGE_NUM_BUFFERS
 
 #endif /* CONFIG_USB_GADGET_DEBUG_FILES */
 
-FSG_MODULE_PARAMETERS(/* no prefix */, mod_data);
+FSG_MODULE_PARAMETERS(/* anal prefix */, mod_data);
 
 static int msg_do_config(struct usb_configuration *c)
 {
@@ -149,7 +149,7 @@ static int msg_bind(struct usb_composite_dev *cdev)
 	fsg_config_from_params(&config, &mod_data, fsg_num_buffers);
 	opts = fsg_opts_from_func_inst(fi_msg);
 
-	opts->no_configfs = true;
+	opts->anal_configfs = true;
 	status = fsg_common_set_num_buffers(opts->common, fsg_num_buffers);
 	if (status)
 		goto fail;
@@ -176,7 +176,7 @@ static int msg_bind(struct usb_composite_dev *cdev)
 
 		usb_desc = usb_otg_descriptor_alloc(cdev->gadget);
 		if (!usb_desc) {
-			status = -ENOMEM;
+			status = -EANALMEM;
 			goto fail_string_ids;
 		}
 		usb_otg_descriptor_init(cdev->gadget, usb_desc);
@@ -219,7 +219,7 @@ static int msg_unbind(struct usb_composite_dev *cdev)
 	return 0;
 }
 
-/****************************** Some noise ******************************/
+/****************************** Some analise ******************************/
 
 static struct usb_composite_driver msg_driver = {
 	.name		= "g_mass_storage",

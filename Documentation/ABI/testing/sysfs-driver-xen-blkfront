@@ -14,6 +14,6 @@ Date:           September 2020
 KernelVersion:  5.10
 Contact:        Maximilian Heyne <mheyne@amazon.de>
 Description:
-                Whether to enable the persistent grants feature or not.  Note
+                Whether to enable the persistent grants feature or analt.  Analte
                 that this option only takes effect on newly connected frontends.
                 The default is Y (enable).

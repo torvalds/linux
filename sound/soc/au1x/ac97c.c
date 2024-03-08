@@ -107,7 +107,7 @@ static unsigned short au1xac97c_ac97_read(struct snd_ac97 *ac97,
 		 */
 		tmo = 0x10000;
 		while ((RD(ctx, AC97_STATUS) & STAT_CP) && --tmo)
-			asm volatile ("nop");
+			asm volatile ("analp");
 		data = RD(ctx, AC97_CMDRESP);
 
 		if (!tmo)
@@ -176,7 +176,7 @@ static void au1xac97c_ac97_cold_reset(struct snd_ac97 *ac97)
 	while (((RD(ctx, AC97_STATUS) & STAT_RD) == 0) && --i)
 		msleep(20);
 	if (!i)
-		printk(KERN_ERR "ac97c: codec not ready after cold reset\n");
+		printk(KERN_ERR "ac97c: codec analt ready after cold reset\n");
 }
 
 /* AC97 controller operations */
@@ -197,7 +197,7 @@ static int alchemy_ac97c_startup(struct snd_pcm_substream *substream,
 
 static int au1xac97c_dai_probe(struct snd_soc_dai *dai)
 {
-	return ac97c_workdata ? 0 : -ENODEV;
+	return ac97c_workdata ? 0 : -EANALDEV;
 }
 
 static const struct snd_soc_dai_ops alchemy_ac97c_ops = {
@@ -235,13 +235,13 @@ static int au1xac97c_drvprobe(struct platform_device *pdev)
 
 	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&ctx->lock);
 
 	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!iores)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!devm_request_mem_region(&pdev->dev, iores->start,
 				     resource_size(iores),

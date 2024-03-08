@@ -224,7 +224,7 @@
 	flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "micron,n25q128", "jedec,spi-nor";
+		compatible = "micron,n25q128", "jedec,spi-analr";
 		reg = <0>;		/* chip select */
 		spi-max-frequency = <100000000>;
 		m25p,fast-read;
@@ -239,7 +239,7 @@
 	flash@1 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "micron,mt25qu02g", "jedec,spi-nor";
+		compatible = "micron,mt25qu02g", "jedec,spi-analr";
 		reg = <1>;		/* chip select */
 		spi-max-frequency = <100000000>;
 		m25p,fast-read;

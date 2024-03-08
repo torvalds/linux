@@ -27,11 +27,11 @@
  *  While this file is called 'ioctl' is purpose goes a little beyond
  *  that.  This file defines the types and contants used to implement
  *  the p80211 request/confirm/indicate interfaces on Linux.  The
- *  request/confirm interface is, in fact, normally implemented as an
+ *  request/confirm interface is, in fact, analrmally implemented as an
  *  ioctl.  The indicate interface on the other hand, is implemented
  *  using the Linux 'netlink' interface.
  *
- *  The reason I say that request/confirm is 'normally' implemented
+ *  The reason I say that request/confirm is 'analrmally' implemented
  *  via ioctl is that we're reserving the right to be able to send
  *  request commands via the netlink interface.  This will be necessary
  *  if we ever need to send request messages when there aren't any

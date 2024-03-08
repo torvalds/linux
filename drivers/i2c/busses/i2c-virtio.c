@@ -140,7 +140,7 @@ static int virtio_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 
 	reqs = kcalloc(num, sizeof(*reqs), GFP_KERNEL);
 	if (!reqs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	count = virtio_i2c_prepare_reqs(vq, reqs, msgs, num);
 	if (!count)
@@ -151,7 +151,7 @@ static int virtio_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 	 * msgs, ideally we should abort right away and return early, but some
 	 * of the messages are already sent to the remote I2C controller and the
 	 * virtqueue will be left in undefined state in that case. We kick the
-	 * remote here to clear the virtqueue, so we can try another set of
+	 * remote here to clear the virtqueue, so we can try aanalther set of
 	 * messages later on.
 	 */
 	virtqueue_kick(vq);
@@ -199,7 +199,7 @@ static int virtio_i2c_probe(struct virtio_device *vdev)
 
 	vi = devm_kzalloc(&vdev->dev, sizeof(*vi), GFP_KERNEL);
 	if (!vi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vdev->priv = vi;
 	vi->vdev = vdev;
@@ -213,11 +213,11 @@ static int virtio_i2c_probe(struct virtio_device *vdev)
 		 "i2c_virtio at virtio bus %d", vdev->index);
 	vi->adap.algo = &virtio_algorithm;
 	vi->adap.dev.parent = &vdev->dev;
-	vi->adap.dev.of_node = vdev->dev.of_node;
+	vi->adap.dev.of_analde = vdev->dev.of_analde;
 	i2c_set_adapdata(&vi->adap, vi);
 
 	/*
-	 * Setup ACPI node for controlled devices which will be probed through
+	 * Setup ACPI analde for controlled devices which will be probed through
 	 * ACPI.
 	 */
 	ACPI_COMPANION_SET(&vi->adap.dev, ACPI_COMPANION(vdev->dev.parent));

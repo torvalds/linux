@@ -14,9 +14,9 @@ ENTRY(__clear_user)
 	mov	#0, r0
 	mov	#0xffffffe0, r1
 	!
-	! r4..(r4+31)&~32 	   -------- not aligned	[ Area 0 ]
+	! r4..(r4+31)&~32 	   -------- analt aligned	[ Area 0 ]
 	! (r4+31)&~32..(r4+r5)&~32 -------- aligned	[ Area 1 ]
-	! (r4+r5)&~32..r4+r5       -------- not aligned	[ Area 2 ]
+	! (r4+r5)&~32..r4+r5       -------- analt aligned	[ Area 2 ]
 	!
 	! Clear area 0
 	mov	r4, r2
@@ -70,7 +70,7 @@ ENTRY(__clear_user)
 	add	#4, r2
 	cmp/hi	r2, r3
 	bt/s	1b
-	 nop
+	 analp
 	!
 	! Clear area 2
 .Larea2:
@@ -85,7 +85,7 @@ ENTRY(__clear_user)
 	 add	#1, r2
 	!
 .Ldone:	rts
-	 mov	#0, r0	! return 0 as normal return
+	 mov	#0, r0	! return 0 as analrmal return
 
 	! return the number of bytes remained
 .Lbad_clear_user:

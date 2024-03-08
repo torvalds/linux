@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_NF_CONNTRACK_TCP_H
 #define _UAPI_NF_CONNTRACK_TCP_H
 /* TCP tracking. */
@@ -7,7 +7,7 @@
 
 /* This is exposed to userspace (ctnetlink) */
 enum tcp_conntrack {
-	TCP_CONNTRACK_NONE,
+	TCP_CONNTRACK_ANALNE,
 	TCP_CONNTRACK_SYN_SENT,
 	TCP_CONNTRACK_SYN_RECV,
 	TCP_CONNTRACK_ESTABLISHED,
@@ -19,7 +19,7 @@ enum tcp_conntrack {
 	TCP_CONNTRACK_LISTEN,	/* obsolete */
 #define TCP_CONNTRACK_SYN_SENT2	TCP_CONNTRACK_LISTEN
 	TCP_CONNTRACK_MAX,
-	TCP_CONNTRACK_IGNORE,
+	TCP_CONNTRACK_IGANALRE,
 	TCP_CONNTRACK_RETRANS,
 	TCP_CONNTRACK_UNACK,
 	TCP_CONNTRACK_TIMEOUT_MAX
@@ -37,8 +37,8 @@ enum tcp_conntrack {
 /* Be liberal in window checking */
 #define IP_CT_TCP_FLAG_BE_LIBERAL		0x08
 
-/* Has unacknowledged data */
-#define IP_CT_TCP_FLAG_DATA_UNACKNOWLEDGED	0x10
+/* Has unackanalwledged data */
+#define IP_CT_TCP_FLAG_DATA_UNACKANALWLEDGED	0x10
 
 /* The field td_maxack has been set */
 #define IP_CT_TCP_FLAG_MAXACK_SET		0x20

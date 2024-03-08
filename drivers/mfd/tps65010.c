@@ -42,7 +42,7 @@ static struct i2c_driver tps65010_driver;
  * or digital cameras.
  *
  * The tps65011 and tps65013 have different voltage settings compared
- * to tps65010 and tps65012.  The tps65013 has a NO_CHG status/irq.
+ * to tps65010 and tps65012.  The tps65013 has a ANAL_CHG status/irq.
  * All except tps65010 have "wait" mode, possibly defaulted so that
  * battery-insert != device-on.
  *
@@ -105,10 +105,10 @@ static void dbg_regstat(char *buf, size_t len, u8 regstatus)
 {
 	snprintf(buf, len, "%02x %s%s%s%s%s%s%s%s\n",
 		regstatus,
-		(regstatus & TPS_REG_ONOFF) ? "off" : "(on)",
+		(regstatus & TPS_REG_OANALFF) ? "off" : "(on)",
 		(regstatus & TPS_REG_COVER) ? " uncover" : "",
 		(regstatus & TPS_REG_UVLO) ? " UVLO" : "",
-		(regstatus & TPS_REG_NO_CHG) ? " NO_CHG" : "",
+		(regstatus & TPS_REG_ANAL_CHG) ? " ANAL_CHG" : "",
 		(regstatus & TPS_REG_PG_LD02) ? " ld02_bad" : "",
 		(regstatus & TPS_REG_PG_LD01) ? " ld01_bad" : "",
 		(regstatus & TPS_REG_PG_MAIN) ? " main_bad" : "",
@@ -138,7 +138,7 @@ static void dbg_chgconf(int por, char *buf, size_t len, u8 chgconfig)
 		(chgconfig & TPS_VBUS_CHARGING)
 			? ((chgconfig & TPS_VBUS_500MA) ? 500 : 100)
 			: 0,
-		(chgconfig & TPS_CHARGE_ENABLE) ? "" : "No");
+		(chgconfig & TPS_CHARGE_ENABLE) ? "" : "Anal");
 }
 
 #endif
@@ -203,10 +203,10 @@ static int dbg_show(struct seq_file *s, void *_)
 	 * likely involves a charge gauging chip (like BQ26501).
 	 */
 
-	seq_printf(s, "%scharging\n\n", tps->charging ? "" : "(not) ");
+	seq_printf(s, "%scharging\n\n", tps->charging ? "" : "(analt) ");
 
 
-	/* registers for monitoring battery charging and status; note
+	/* registers for monitoring battery charging and status; analte
 	 * that reading chgstat and regstat may ack IRQs...
 	 */
 	value = i2c_smbus_read_byte_data(tps->client, TPS_CHGCONFIG);
@@ -219,7 +219,7 @@ static int dbg_show(struct seq_file *s, void *_)
 	value = i2c_smbus_read_byte_data(tps->client, TPS_MASK1);
 	dbg_chgstat(buf, sizeof buf, value);
 	seq_printf(s, "mask1     %s", buf);
-	/* ignore ackint1 */
+	/* iganalre ackint1 */
 
 	value = i2c_smbus_read_byte_data(tps->client, TPS_REGSTATUS);
 	dbg_regstat(buf, sizeof buf, value);
@@ -227,7 +227,7 @@ static int dbg_show(struct seq_file *s, void *_)
 	value = i2c_smbus_read_byte_data(tps->client, TPS_MASK2);
 	dbg_regstat(buf, sizeof buf, value);
 	seq_printf(s, "mask2     %s\n", buf);
-	/* ignore ackint2 */
+	/* iganalre ackint2 */
 
 	queue_delayed_work(system_power_efficient_wq, &tps->work,
 			   POWER_POLL_DELAY);
@@ -275,7 +275,7 @@ static int dbg_show(struct seq_file *s, void *_)
 		else
 			seq_printf(s, "  gpio%d-in  %s %s %s\n", i + 1,
 				(value & (1 << i)) ? "hi " : "low",
-				(v2 & (1 << i)) ? "no-irq" : "irq",
+				(v2 & (1 << i)) ? "anal-irq" : "irq",
 				(v2 & (1 << (4 + i))) ? "rising" : "falling");
 	}
 
@@ -283,9 +283,9 @@ static int dbg_show(struct seq_file *s, void *_)
 	return 0;
 }
 
-static int dbg_tps_open(struct inode *inode, struct file *file)
+static int dbg_tps_open(struct ianalde *ianalde, struct file *file)
 {
-	return single_open(file, dbg_show, inode->i_private);
+	return single_open(file, dbg_show, ianalde->i_private);
 }
 
 static const struct file_operations debug_fops = {
@@ -309,7 +309,7 @@ static void tps65010_interrupt(struct tps65010 *tps)
 	u8 tmp = 0, mask, poll;
 
 	/* IRQs won't trigger for certain events, but we can get
-	 * others by polling (normally, with external power applied).
+	 * others by polling (analrmally, with external power applied).
 	 */
 	poll = 0;
 
@@ -326,7 +326,7 @@ static void tps65010_interrupt(struct tps65010 *tps)
 		/* may need to shut something down ... */
 
 		/* "off" usually means deep sleep */
-		if (tmp & TPS_REG_ONOFF) {
+		if (tmp & TPS_REG_OANALFF) {
 			pr_info("%s: power off button\n", DRIVER_NAME);
 #if 0
 			/* REVISIT:  this might need its own workqueue
@@ -376,12 +376,12 @@ static void tps65010_interrupt(struct tps65010 *tps)
 			pr_info("%s: battery %scharging\n",
 				DRIVER_NAME, charging ? "" :
 				((tps->chgstatus & (TPS_CHG_USB|TPS_CHG_AC))
-					? "NOT " : "dis"));
+					? "ANALT " : "dis"));
 		}
 	}
 
 	/* always poll to detect (a) power removal, without tps65013
-	 * NO_CHG IRQ; or (b) restart of charging after stop.
+	 * ANAL_CHG IRQ; or (b) restart of charging after stop.
 	 */
 	if ((tps->model != TPS65013 || !tps->charging)
 			&& (tps->chgstatus & (TPS_CHG_USB|TPS_CHG_AC)))
@@ -393,7 +393,7 @@ static void tps65010_interrupt(struct tps65010 *tps)
 	/* also potentially gpio-in rise or fall */
 }
 
-/* handle IRQs and polling using keventd for now */
+/* handle IRQs and polling using keventd for analw */
 static void tps65010_work(struct work_struct *work)
 {
 	struct tps65010		*tps;
@@ -433,7 +433,7 @@ static irqreturn_t tps65010_irq(int irq, void *_tps)
 {
 	struct tps65010		*tps = _tps;
 
-	disable_irq_nosync(irq);
+	disable_irq_analsync(irq);
 	set_bit(FLAG_IRQ_ENABLE, &tps->flags);
 	queue_delayed_work(system_power_efficient_wq, &tps->work, 0);
 	return IRQ_HANDLED;
@@ -442,7 +442,7 @@ static irqreturn_t tps65010_irq(int irq, void *_tps)
 /*-------------------------------------------------------------------------*/
 
 /* offsets 0..3 == GPIO1..GPIO4
- * offsets 4..5 == LED1/nPG, LED2 (we set one of the non-BLINK modes)
+ * offsets 4..5 == LED1/nPG, LED2 (we set one of the analn-BLINK modes)
  * offset 6 == vibrator motor driver
  */
 static void
@@ -524,7 +524,7 @@ static int tps65010_probe(struct i2c_client *client)
 
 	if (the_tps) {
 		dev_dbg(&client->dev, "only one tps6501x chip allowed\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
@@ -532,7 +532,7 @@ static int tps65010_probe(struct i2c_client *client)
 
 	tps = devm_kzalloc(&client->dev, sizeof(*tps), GFP_KERNEL);
 	if (!tps)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&tps->lock);
 	INIT_DELAYED_WORK(&tps->work, tps65010_work);
@@ -550,14 +550,14 @@ static int tps65010_probe(struct i2c_client *client)
 					client->irq, status);
 			return status;
 		}
-		/* annoying race here, ideally we'd have an option
-		 * to claim the irq now and enable it later.
-		 * FIXME genirq IRQF_NOAUTOEN now solves that ...
+		/* ananalying race here, ideally we'd have an option
+		 * to claim the irq analw and enable it later.
+		 * FIXME genirq IRQF_ANALAUTOEN analw solves that ...
 		 */
 		disable_irq(client->irq);
 		set_bit(FLAG_IRQ_ENABLE, &tps->flags);
 	} else
-		dev_warn(&client->dev, "IRQ not configured!\n");
+		dev_warn(&client->dev, "IRQ analt configured!\n");
 
 
 	switch (tps->model) {
@@ -601,9 +601,9 @@ static int tps65010_probe(struct i2c_client *client)
 	tps->nmask1 = ~0;
 	(void) i2c_smbus_write_byte_data(client, TPS_MASK1, ~tps->nmask1);
 
-	tps->nmask2 = TPS_REG_ONOFF;
+	tps->nmask2 = TPS_REG_OANALFF;
 	if (tps->model == TPS65013)
-		tps->nmask2 |= TPS_REG_NO_CHG;
+		tps->nmask2 |= TPS_REG_ANAL_CHG;
 	(void) i2c_smbus_write_byte_data(client, TPS_MASK2, ~tps->nmask2);
 
 	(void) i2c_smbus_write_byte_data(client, TPS_MASK3, 0x0f
@@ -625,7 +625,7 @@ static int tps65010_probe(struct i2c_client *client)
 		tps->chip.set = tps65010_gpio_set;
 		tps->chip.direction_output = tps65010_output;
 
-		/* NOTE:  only partial support for inputs; nyet IRQs */
+		/* ANALTE:  only partial support for inputs; nyet IRQs */
 		tps->chip.get = tps65010_gpio_get;
 
 		tps->chip.base = -1;
@@ -681,9 +681,9 @@ int tps65010_set_vbus_draw(unsigned mA)
 	unsigned long	flags;
 
 	if (!the_tps)
-		return -ENODEV;
+		return -EANALDEV;
 
-	/* assumes non-SMP */
+	/* assumes analn-SMP */
 	local_irq_save(flags);
 	if (mA >= 500)
 		mA = 500;
@@ -716,7 +716,7 @@ int tps65010_set_gpio_out_value(unsigned gpio, unsigned value)
 	unsigned defgpio;
 
 	if (!the_tps)
-		return -ENODEV;
+		return -EANALDEV;
 	if ((gpio < GPIO1) || (gpio > GPIO4))
 		return -EINVAL;
 
@@ -761,7 +761,7 @@ int tps65010_set_led(unsigned led, unsigned mode)
 	unsigned led_on, led_per, offs;
 
 	if (!the_tps)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (led == LED1)
 		offs = 0;
@@ -843,7 +843,7 @@ int tps65010_set_vib(unsigned value)
 	unsigned vdcdc2;
 
 	if (!the_tps)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mutex_lock(&the_tps->lock);
 
@@ -871,7 +871,7 @@ int tps65010_set_low_pwr(unsigned mode)
 	unsigned vdcdc1;
 
 	if (!the_tps)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mutex_lock(&the_tps->lock);
 
@@ -910,14 +910,14 @@ EXPORT_SYMBOL(tps65010_set_low_pwr);
 /*-------------------------------------------------------------------------*/
 /* tps65010_config_vregs1 parameter:
  * value to be written to VREGS1 register
- * Note: The complete register is written, set all bits you need
+ * Analte: The complete register is written, set all bits you need
  */
 int tps65010_config_vregs1(unsigned value)
 {
 	int	 status;
 
 	if (!the_tps)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mutex_lock(&the_tps->lock);
 
@@ -946,7 +946,7 @@ int tps65010_config_vdcdc2(unsigned value)
 	int	 status;
 
 	if (!the_tps)
-		return -ENODEV;
+		return -EANALDEV;
 
 	c = the_tps->client;
 	mutex_lock(&the_tps->lock);
@@ -973,7 +973,7 @@ EXPORT_SYMBOL(tps65010_config_vdcdc2);
  * mode: ON or OFF
  */
 
-/* FIXME: Assumes AC or USB power is present. Setting AUA bit is not
+/* FIXME: Assumes AC or USB power is present. Setting AUA bit is analt
 	required if power supply is through a battery */
 
 int tps65013_set_low_pwr(unsigned mode)
@@ -982,7 +982,7 @@ int tps65013_set_low_pwr(unsigned mode)
 	unsigned vdcdc1, chgconfig;
 
 	if (!the_tps || the_tps->por)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mutex_lock(&the_tps->lock);
 
@@ -1042,7 +1042,7 @@ static int __init tps_init(void)
 {
 	return i2c_add_driver(&tps65010_driver);
 }
-/* NOTE:  this MUST be initialized before the other parts of the system
+/* ANALTE:  this MUST be initialized before the other parts of the system
  * that rely on it ... but after the i2c bus on which this relies.
  * That is, much earlier than on PC-type systems, which don't often use
  * I2C as a core system bus.

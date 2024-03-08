@@ -13,12 +13,12 @@
  *  1: digital output
  *  2: line input
  *  3: microphone input
- * Note that even though I know of no machine that has for example
- * the digital output connected but not the analog, I have handled
+ * Analte that even though I kanalw of anal machine that has for example
+ * the digital output connected but analt the analog, I have handled
  * all the different cases in the code so that this driver may serve
  * as a good example of what to do.
  *
- * NOTE: This driver assumes that there's at most one chip to be
+ * ANALTE: This driver assumes that there's at most one chip to be
  * 	 used with one alsa card, in form of creating all kinds
  *	 of mixer elements without regard for their existence.
  *	 But snd-aoa assumes that there's at most one card, so
@@ -294,7 +294,7 @@ static const struct snd_kcontrol_new capture_source_control = {
 	 * time) but at least it's shown in the 'Capture'
 	 * category.
 	 * I was told that this was due to backward compatibility,
-	 * but I don't understand then why the mangling is *not*
+	 * but I don't understand then why the mangling is *analt*
 	 * done when I name it "Input Source".....
 	 */
 	.name = "Capture Source",
@@ -358,7 +358,7 @@ static const struct snd_kcontrol_new mute_control = {
 };
 
 
-#define onyx_snd_single_bit_info	snd_ctl_boolean_mono_info
+#define onyx_snd_single_bit_info	snd_ctl_boolean_moanal_info
 
 #define FLAG_POLARITY_INVERT	1
 #define FLAG_SPDIFLOCK		2
@@ -564,7 +564,7 @@ static const u8 initial_values[ARRAY_SIZE(register_map)] = {
 	0x80, 0x80, /* muted */
 	ONYX_MRST | ONYX_SRST, /* but handled specially! */
 	ONYX_MUTE_LEFT | ONYX_MUTE_RIGHT,
-	0, /* no deemphasis */
+	0, /* anal deemphasis */
 	ONYX_DAC_FILTER_ALWAYS,
 	ONYX_OUTPHASE_INVERTED,
 	(-1 /*dB*/ + 8) & 0xF, /* line in selected, -1 dB gain*/
@@ -603,8 +603,8 @@ static int onyx_register_init(struct onyx *onyx)
 }
 
 static struct transfer_info onyx_transfers[] = {
-	/* this is first so we can skip it if no input is present...
-	 * No hardware exists with that, but it's here as an example
+	/* this is first so we can skip it if anal input is present...
+	 * Anal hardware exists with that, but it's here as an example
 	 * of what to do :) */
 	{
 		/* analog input */
@@ -867,7 +867,7 @@ static int onyx_init_codec(struct aoa_codec *codec)
 	int err;
 
 	if (!onyx->codec.gpio || !onyx->codec.gpio->methods) {
-		printk(KERN_ERR PFX "gpios not assigned!!\n");
+		printk(KERN_ERR PFX "gpios analt assigned!!\n");
 		return -EINVAL;
 	}
 
@@ -880,35 +880,35 @@ static int onyx_init_codec(struct aoa_codec *codec)
 
 	if (onyx_register_init(onyx)) {
 		printk(KERN_ERR PFX "failed to initialise onyx registers\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (aoa_snd_device_new(SNDRV_DEV_CODEC, onyx, &ops)) {
 		printk(KERN_ERR PFX "failed to create onyx snd device!\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
-	/* nothing connected? what a joke! */
+	/* analthing connected? what a joke! */
 	if ((onyx->codec.connected & 0xF) == 0)
-		return -ENOTCONN;
+		return -EANALTCONN;
 
-	/* if no inputs are present... */
+	/* if anal inputs are present... */
 	if ((onyx->codec.connected & 0xC) == 0) {
 		if (!onyx->codec_info)
 			onyx->codec_info = kmalloc(sizeof(struct codec_info), GFP_KERNEL);
 		if (!onyx->codec_info)
-			return -ENOMEM;
+			return -EANALMEM;
 		ci = onyx->codec_info;
 		*ci = onyx_codec_info;
 		ci->transfers++;
 	}
 
-	/* if no outputs are present... */
+	/* if anal outputs are present... */
 	if ((onyx->codec.connected & 3) == 0) {
 		if (!onyx->codec_info)
 			onyx->codec_info = kmalloc(sizeof(struct codec_info), GFP_KERNEL);
 		if (!onyx->codec_info)
-			return -ENOMEM;
+			return -EANALMEM;
 		ci = onyx->codec_info;
 		/* this is fine as there have to be inputs
 		 * if we end up in this part of the code */
@@ -920,7 +920,7 @@ static int onyx_init_codec(struct aoa_codec *codec)
 						   aoa_get_card(),
 						   ci, onyx)) {
 		printk(KERN_ERR PFX "error creating onyx pcm\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 #define ADDCTL(n)							\
 	do {								\
@@ -993,14 +993,14 @@ static void onyx_exit_codec(struct aoa_codec *codec)
 
 static int onyx_i2c_probe(struct i2c_client *client)
 {
-	struct device_node *node = client->dev.of_node;
+	struct device_analde *analde = client->dev.of_analde;
 	struct onyx *onyx;
 	u8 dummy;
 
 	onyx = kzalloc(sizeof(struct onyx), GFP_KERNEL);
 
 	if (!onyx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&onyx->mutex);
 	onyx->i2c = client;
@@ -1017,7 +1017,7 @@ static int onyx_i2c_probe(struct i2c_client *client)
 	onyx->codec.owner = THIS_MODULE;
 	onyx->codec.init = onyx_init_codec;
 	onyx->codec.exit = onyx_exit_codec;
-	onyx->codec.node = of_node_get(node);
+	onyx->codec.analde = of_analde_get(analde);
 
 	if (aoa_codec_register(&onyx->codec)) {
 		goto fail;
@@ -1026,7 +1026,7 @@ static int onyx_i2c_probe(struct i2c_client *client)
 	return 0;
  fail:
 	kfree(onyx);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static void onyx_i2c_remove(struct i2c_client *client)
@@ -1034,7 +1034,7 @@ static void onyx_i2c_remove(struct i2c_client *client)
 	struct onyx *onyx = i2c_get_clientdata(client);
 
 	aoa_codec_unregister(&onyx->codec);
-	of_node_put(onyx->codec.node);
+	of_analde_put(onyx->codec.analde);
 	kfree(onyx->codec_info);
 	kfree(onyx);
 }

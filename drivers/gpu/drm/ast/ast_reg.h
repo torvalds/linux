@@ -42,7 +42,7 @@
  */
 
 #define TX_TYPE_MASK			GENMASK(3, 1)
-#define NO_TX				(0 << 1)
+#define ANAL_TX				(0 << 1)
 #define ITE66121_VBIOS_TX		(1 << 1)
 #define SI164_VBIOS_TX			(2 << 1)
 #define CH7003_VBIOS_TX			(3 << 1)

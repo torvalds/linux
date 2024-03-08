@@ -32,12 +32,12 @@ jiffies = jiffies_64 + 4;
 jiffies = jiffies_64;
 #endif
 
-/* Note: In the following macros, it would be nice to specify only the
+/* Analte: In the following macros, it would be nice to specify only the
    vector name and section kind and construct "sym" and "section" using
-   CPP concatenation, but that does not work reliably.  Concatenating a
-   string with "." produces an invalid token.  CPP will not print a
+   CPP concatenation, but that does analt work reliably.  Concatenating a
+   string with "." produces an invalid token.  CPP will analt print a
    warning because it thinks this is an assembly file, but it leaves
-   them as multiple tokens and there may or may not be whitespace
+   them as multiple tokens and there may or may analt be whitespace
    between them.  */
 
 /* Macro for a relocation entry */

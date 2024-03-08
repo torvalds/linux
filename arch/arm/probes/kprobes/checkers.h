@@ -11,8 +11,8 @@
 #include <linux/types.h>
 #include "../decode.h"
 
-extern probes_check_t checker_stack_use_none;
-extern probes_check_t checker_stack_use_unknown;
+extern probes_check_t checker_stack_use_analne;
+extern probes_check_t checker_stack_use_unkanalwn;
 #ifdef CONFIG_THUMB2_KERNEL
 extern probes_check_t checker_stack_use_imm_0xx;
 #else
@@ -22,8 +22,8 @@ extern probes_check_t checker_stack_use_imm_xxx;
 extern probes_check_t checker_stack_use_stmdx;
 
 enum {
-	STACK_USE_NONE,
-	STACK_USE_UNKNOWN,
+	STACK_USE_ANALNE,
+	STACK_USE_UNKANALWN,
 #ifdef CONFIG_THUMB2_KERNEL
 	STACK_USE_FIXED_0XX,
 	STACK_USE_T32STRD,

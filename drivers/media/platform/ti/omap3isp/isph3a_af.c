@@ -4,7 +4,7 @@
  *
  * TI OMAP3 ISP - H3A AF module
  *
- * Copyright (C) 2010 Nokia Corporation
+ * Copyright (C) 2010 Analkia Corporation
  * Copyright (C) 2009 Texas Instruments, Inc.
  *
  * Contacts: David Cohen <dacohen@gmail.com>
@@ -215,7 +215,7 @@ static int h3a_af_validate_params(struct ispstat *af, void *new_conf)
 
 	buf_size = h3a_af_get_buf_size(user_cfg);
 	if (buf_size > user_cfg->buf_size)
-		/* User buf_size request wasn't enough */
+		/* User buf_size request wasn't eanalugh */
 		user_cfg->buf_size = buf_size;
 	else if (user_cfg->buf_size > OMAP3ISP_AF_MAX_BUF_SIZE)
 		user_cfg->buf_size = OMAP3ISP_AF_MAX_BUF_SIZE;
@@ -319,7 +319,7 @@ static long h3a_af_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	}
 	}
 
-	return -ENOIOCTLCMD;
+	return -EANALIOCTLCMD;
 
 }
 
@@ -356,7 +356,7 @@ int omap3isp_h3a_af_init(struct isp_device *isp)
 
 	af_cfg = kzalloc(sizeof(*af_cfg), GFP_KERNEL);
 	if (af_cfg == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	af->ops = &h3a_af_ops;
 	af->priv = af_cfg;
@@ -367,8 +367,8 @@ int omap3isp_h3a_af_init(struct isp_device *isp)
 	af_recover_cfg = kzalloc(sizeof(*af_recover_cfg), GFP_KERNEL);
 	if (!af_recover_cfg) {
 		dev_err(af->isp->dev,
-			"AF: cannot allocate memory for recover configuration.\n");
-		ret = -ENOMEM;
+			"AF: cananalt allocate memory for recover configuration.\n");
+		ret = -EANALMEM;
 		goto err;
 	}
 

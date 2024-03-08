@@ -7,7 +7,7 @@
 
 /************************************
  ** This is an auto-generated file **
- **       DO NOT EDIT BELOW        **
+ **       DO ANALT EDIT BELOW        **
  ************************************/
 
 #ifndef ASIC_REG_DMA_CH_0_MASKS_H_
@@ -92,8 +92,8 @@
 #define DMA_CH_0_COMIT_TRANSFER_RD_COMP_EN_MASK                      0x2
 #define DMA_CH_0_COMIT_TRANSFER_WR_COMP_EN_SHIFT                     2
 #define DMA_CH_0_COMIT_TRANSFER_WR_COMP_EN_MASK                      0x4
-#define DMA_CH_0_COMIT_TRANSFER_NOSNOOP_SHIFT                        3
-#define DMA_CH_0_COMIT_TRANSFER_NOSNOOP_MASK                         0x8
+#define DMA_CH_0_COMIT_TRANSFER_ANALSANALOP_SHIFT                        3
+#define DMA_CH_0_COMIT_TRANSFER_ANALSANALOP_MASK                         0x8
 #define DMA_CH_0_COMIT_TRANSFER_SRC_ADDR_INC_DIS_SHIFT               4
 #define DMA_CH_0_COMIT_TRANSFER_SRC_ADDR_INC_DIS_MASK                0x10
 #define DMA_CH_0_COMIT_TRANSFER_DST_ADDR_INC_DIS_SHIFT               5

@@ -9,9 +9,9 @@
    published by the Free Software Foundation;
 
    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-   OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF THIRD PARTY RIGHTS.
-   IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) AND AUTHOR(S) BE LIABLE FOR ANY
+   OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT OF THIRD PARTY RIGHTS.
+   IN ANAL EVENT SHALL THE COPYRIGHT HOLDER(S) AND AUTHOR(S) BE LIABLE FOR ANY
    CLAIM, OR ANY SPECIAL INDIRECT OR CONSEQUENTIAL DAMAGES, OR ANY DAMAGES
    WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
    ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -203,7 +203,7 @@ static void sco_conn_del(struct hci_conn *hcon, int err)
 		sock_put(sk);
 	}
 
-	/* Ensure no more work items will run before freeing conn. */
+	/* Ensure anal more work items will run before freeing conn. */
 	cancel_delayed_work_sync(&conn->timeout_work);
 
 	hcon->sco_data = NULL;
@@ -259,7 +259,7 @@ static int sco_connect(struct sock *sk)
 
 	if (sco_pi(sk)->setting == BT_VOICE_TRANSPARENT &&
 	    (!lmp_transp_capable(hdev) || !lmp_esco_capable(hdev))) {
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto unlock;
 	}
 
@@ -273,7 +273,7 @@ static int sco_connect(struct sock *sk)
 	conn = sco_conn_add(hcon);
 	if (!conn) {
 		hci_conn_drop(hcon);
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto unlock;
 	}
 
@@ -400,7 +400,7 @@ static void sco_sock_cleanup_listen(struct sock *parent)
 
 	BT_DBG("parent %p", parent);
 
-	/* Close not yet accepted channels */
+	/* Close analt yet accepted channels */
 	while ((sk = bt_accept_dequeue(parent, NULL))) {
 		sco_sock_close(sk);
 		sco_sock_kill(sk);
@@ -519,13 +519,13 @@ static int sco_sock_create(struct net *net, struct socket *sock, int protocol,
 	sock->state = SS_UNCONNECTED;
 
 	if (sock->type != SOCK_SEQPACKET)
-		return -ESOCKTNOSUPPORT;
+		return -ESOCKTANALSUPPORT;
 
 	sock->ops = &sco_sock_ops;
 
 	sk = sco_sock_alloc(net, sock, protocol, GFP_ATOMIC, kern);
 	if (!sk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sco_sock_init(sk, NULL);
 	return 0;
@@ -595,7 +595,7 @@ static int sco_sock_connect(struct socket *sock, struct sockaddr *addr, int alen
 	lock_sock(sk);
 
 	err = bt_sock_wait_state(sk, BT_CONNECTED,
-				 sock_sndtimeo(sk, flags & O_NONBLOCK));
+				 sock_sndtimeo(sk, flags & O_ANALNBLOCK));
 
 	release_sock(sk);
 	return err;
@@ -651,7 +651,7 @@ static int sco_sock_accept(struct socket *sock, struct socket *newsock,
 
 	lock_sock(sk);
 
-	timeo = sock_rcvtimeo(sk, flags & O_NONBLOCK);
+	timeo = sock_rcvtimeo(sk, flags & O_ANALNBLOCK);
 
 	BT_DBG("sk %p timeo %ld", sk, timeo);
 
@@ -673,7 +673,7 @@ static int sco_sock_accept(struct socket *sock, struct socket *newsock,
 		}
 
 		if (signal_pending(current)) {
-			err = sock_intr_errno(timeo);
+			err = sock_intr_erranal(timeo);
 			break;
 		}
 
@@ -728,7 +728,7 @@ static int sco_sock_sendmsg(struct socket *sock, struct msghdr *msg,
 		return err;
 
 	if (msg->msg_flags & MSG_OOB)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	skb = bt_skb_sendmsg(sk, msg, len, len, 0, 0);
 	if (IS_ERR(skb))
@@ -739,7 +739,7 @@ static int sco_sock_sendmsg(struct socket *sock, struct msghdr *msg,
 	if (sk->sk_state == BT_CONNECTED)
 		err = sco_send_frame(sk, skb);
 	else
-		err = -ENOTCONN;
+		err = -EANALTCONN;
 
 	release_sock(sk);
 
@@ -760,7 +760,7 @@ static void sco_conn_defer_accept(struct hci_conn *conn, u16 setting)
 		struct hci_cp_accept_conn_req cp;
 
 		bacpy(&cp.bdaddr, &conn->dst);
-		cp.role = 0x00; /* Ignored */
+		cp.role = 0x00; /* Iganalred */
 
 		hci_send_cmd(hdev, HCI_OP_ACCEPT_CONN_REQ, sizeof(cp), &cp);
 	} else {
@@ -916,13 +916,13 @@ static int sco_sock_setsockopt(struct socket *sock, int level, int optname,
 
 		if (!hci_dev_test_flag(hdev, HCI_OFFLOAD_CODECS_ENABLED)) {
 			hci_dev_put(hdev);
-			err = -EOPNOTSUPP;
+			err = -EOPANALTSUPP;
 			break;
 		}
 
 		if (!hdev->get_data_path_id) {
 			hci_dev_put(hdev);
-			err = -EOPNOTSUPP;
+			err = -EOPANALTSUPP;
 			break;
 		}
 
@@ -952,7 +952,7 @@ static int sco_sock_setsockopt(struct socket *sock, int level, int optname,
 		break;
 
 	default:
-		err = -ENOPROTOOPT;
+		err = -EANALPROTOOPT;
 		break;
 	}
 
@@ -980,7 +980,7 @@ static int sco_sock_getsockopt_old(struct socket *sock, int optname,
 		if (sk->sk_state != BT_CONNECTED &&
 		    !(sk->sk_state == BT_CONNECT2 &&
 		      test_bit(BT_SK_DEFER_SETUP, &bt_sk(sk)->flags))) {
-			err = -ENOTCONN;
+			err = -EANALTCONN;
 			break;
 		}
 
@@ -998,7 +998,7 @@ static int sco_sock_getsockopt_old(struct socket *sock, int optname,
 		if (sk->sk_state != BT_CONNECTED &&
 		    !(sk->sk_state == BT_CONNECT2 &&
 		      test_bit(BT_SK_DEFER_SETUP, &bt_sk(sk)->flags))) {
-			err = -ENOTCONN;
+			err = -EANALTCONN;
 			break;
 		}
 
@@ -1013,7 +1013,7 @@ static int sco_sock_getsockopt_old(struct socket *sock, int optname,
 		break;
 
 	default:
-		err = -ENOPROTOOPT;
+		err = -EANALPROTOOPT;
 		break;
 	}
 
@@ -1070,7 +1070,7 @@ static int sco_sock_getsockopt(struct socket *sock, int level, int optname,
 
 	case BT_PHY:
 		if (sk->sk_state != BT_CONNECTED) {
-			err = -ENOTCONN;
+			err = -EANALTCONN;
 			break;
 		}
 
@@ -1089,7 +1089,7 @@ static int sco_sock_getsockopt(struct socket *sock, int level, int optname,
 	case BT_SNDMTU:
 	case BT_RCVMTU:
 		if (sk->sk_state != BT_CONNECTED) {
-			err = -ENOTCONN;
+			err = -EANALTCONN;
 			break;
 		}
 
@@ -1109,13 +1109,13 @@ static int sco_sock_getsockopt(struct socket *sock, int level, int optname,
 
 		if (!hci_dev_test_flag(hdev, HCI_OFFLOAD_CODECS_ENABLED)) {
 			hci_dev_put(hdev);
-			err = -EOPNOTSUPP;
+			err = -EOPANALTSUPP;
 			break;
 		}
 
 		if (!hdev->get_data_path_id) {
 			hci_dev_put(hdev);
-			err = -EOPNOTSUPP;
+			err = -EOPANALTSUPP;
 			break;
 		}
 
@@ -1138,7 +1138,7 @@ static int sco_sock_getsockopt(struct socket *sock, int level, int optname,
 		buf_len += sizeof(struct bt_codecs);
 		if (buf_len > len) {
 			hci_dev_put(hdev);
-			return -ENOBUFS;
+			return -EANALBUFS;
 		}
 		ptr = optval;
 
@@ -1195,7 +1195,7 @@ static int sco_sock_getsockopt(struct socket *sock, int level, int optname,
 		break;
 
 	default:
-		err = -ENOPROTOOPT;
+		err = -EANALPROTOOPT;
 		break;
 	}
 
@@ -1358,7 +1358,7 @@ static void sco_connect_cfm(struct hci_conn *hcon, __u8 status)
 		if (conn)
 			sco_conn_ready(conn);
 	} else
-		sco_conn_del(hcon, bt_to_errno(status));
+		sco_conn_del(hcon, bt_to_erranal(status));
 }
 
 static void sco_disconn_cfm(struct hci_conn *hcon, __u8 reason)
@@ -1368,7 +1368,7 @@ static void sco_disconn_cfm(struct hci_conn *hcon, __u8 reason)
 
 	BT_DBG("hcon %p reason %d", hcon, reason);
 
-	sco_conn_del(hcon, bt_to_errno(reason));
+	sco_conn_del(hcon, bt_to_erranal(reason));
 }
 
 void sco_recv_scodata(struct hci_conn *hcon, struct sk_buff *skb)
@@ -1429,8 +1429,8 @@ static const struct proto_ops sco_sock_ops = {
 	.poll		= bt_sock_poll,
 	.ioctl		= bt_sock_ioctl,
 	.gettstamp	= sock_gettstamp,
-	.mmap		= sock_no_mmap,
-	.socketpair	= sock_no_socketpair,
+	.mmap		= sock_anal_mmap,
+	.socketpair	= sock_anal_socketpair,
 	.shutdown	= sco_sock_shutdown,
 	.setsockopt	= sco_sock_setsockopt,
 	.getsockopt	= sco_sock_getsockopt

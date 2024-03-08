@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: V4L
 
 .. _VIDIOC_REQBUFS:
@@ -12,7 +12,7 @@ Name
 
 VIDIOC_REQBUFS - Initiate Memory Mapping, User Pointer I/O or DMA buffer I/O
 
-Synopsis
+Syanalpsis
 ========
 
 .. c:macro:: VIDIOC_REQBUFS
@@ -55,11 +55,11 @@ number is also possible when the driver requires more buffers to
 function correctly. For example video output requires at least two
 buffers, one displayed and one filled by the application.
 
-When the I/O method is not supported the ioctl returns an ``EINVAL`` error
+When the I/O method is analt supported the ioctl returns an ``EINVAL`` error
 code.
 
 Applications can call :ref:`VIDIOC_REQBUFS` again to change the number of
-buffers. Note that if any buffers are still mapped or exported via DMABUF,
+buffers. Analte that if any buffers are still mapped or exported via DMABUF,
 then :ref:`VIDIOC_REQBUFS` can only succeed if the
 ``V4L2_BUF_CAP_SUPPORTS_ORPHANED_BUFS`` capability is set. Otherwise
 :ref:`VIDIOC_REQBUFS` will return the ``EBUSY`` error code.
@@ -94,9 +94,9 @@ aborting or finishing any DMA in progress, an implicit
     * - __u32
       - ``capabilities``
       - Set by the driver. If 0, then the driver doesn't support
-        capabilities. In that case all you know is that the driver is
+        capabilities. In that case all you kanalw is that the driver is
 	guaranteed to support ``V4L2_MEMORY_MMAP`` and *might* support
-	other :c:type:`v4l2_memory` types. It will not support any other
+	other :c:type:`v4l2_memory` types. It will analt support any other
 	capabilities.
 
 	If you want to query the capabilities with a minimum of side-effects,
@@ -124,7 +124,7 @@ aborting or finishing any DMA in progress, an implicit
 
 .. raw:: latex
 
-   \footnotesize
+   \footanaltesize
 
 .. tabularcolumns:: |p{8.1cm}|p{2.2cm}|p{7.0cm}|
 
@@ -162,21 +162,21 @@ aborting or finishing any DMA in progress, an implicit
       - This capability is set by the driver to indicate that the queue supports
         cache and memory management hints. However, it's only valid when the
         queue is used for :ref:`memory mapping <mmap>` streaming I/O. See
-        :ref:`V4L2_BUF_FLAG_NO_CACHE_INVALIDATE <V4L2-BUF-FLAG-NO-CACHE-INVALIDATE>`,
-        :ref:`V4L2_BUF_FLAG_NO_CACHE_CLEAN <V4L2-BUF-FLAG-NO-CACHE-CLEAN>` and
-        :ref:`V4L2_MEMORY_FLAG_NON_COHERENT <V4L2-MEMORY-FLAG-NON-COHERENT>`.
+        :ref:`V4L2_BUF_FLAG_ANAL_CACHE_INVALIDATE <V4L2-BUF-FLAG-ANAL-CACHE-INVALIDATE>`,
+        :ref:`V4L2_BUF_FLAG_ANAL_CACHE_CLEAN <V4L2-BUF-FLAG-ANAL-CACHE-CLEAN>` and
+        :ref:`V4L2_MEMORY_FLAG_ANALN_COHERENT <V4L2-MEMORY-FLAG-ANALN-COHERENT>`.
 
 .. raw:: latex
 
-   \normalsize
+   \analrmalsize
 
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
 EINVAL
     The buffer type (``type`` field) or the requested I/O method
-    (``memory``) is not supported.
+    (``memory``) is analt supported.

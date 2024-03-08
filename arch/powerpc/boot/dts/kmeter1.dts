@@ -320,7 +320,7 @@
 				interrupts = <32>;
 				interrupt-parent = <&qeic>;
 				local-mac-address = [ 00 00 00 00 00 00 ];
-				rx-clock-name = "none";
+				rx-clock-name = "analne";
 				tx-clock-name = "clk9";
 				phy-handle = <&phy_estar1>;
 				phy-connection-type = "rgmii-id";
@@ -336,7 +336,7 @@
 				interrupts = <33>;
 				interrupt-parent = <&qeic>;
 				local-mac-address = [ 00 00 00 00 00 00 ];
-				rx-clock-name = "none";
+				rx-clock-name = "analne";
 				tx-clock-name = "clk4";
 				phy-handle = <&phy_estar2>;
 				phy-connection-type = "rgmii-id";
@@ -352,7 +352,7 @@
 				interrupts = <35>;
 				interrupt-parent = <&qeic>;
 				local-mac-address = [ 00 00 00 00 00 00 ];
-				rx-clock-name = "none";
+				rx-clock-name = "analne";
 				tx-clock-name = "clk17";
 				phy-handle = <&phy_piggy2>;
 				phy-connection-type = "rmii";
@@ -368,7 +368,7 @@
 				interrupts = <40>;
 				interrupt-parent = <&qeic>;
 				local-mac-address = [ 00 00 00 00 00 00 ];
-				rx-clock-name = "none";
+				rx-clock-name = "analne";
 				tx-clock-name = "clk16";
 				phy-handle = <&phy_eth1>;
 				phy-connection-type = "rmii";
@@ -384,7 +384,7 @@
 				interrupts = <41>;
 				interrupt-parent = <&qeic>;
 				local-mac-address = [ 00 00 00 00 00 00 ];
-				rx-clock-name = "none";
+				rx-clock-name = "analne";
 				tx-clock-name = "clk16";
 				phy-handle = <&phy_eth2>;
 				phy-connection-type = "rmii";
@@ -400,7 +400,7 @@
 				interrupts = <42>;
 				interrupt-parent = <&qeic>;
 				local-mac-address = [ 00 00 00 00 00 00 ];
-				rx-clock-name = "none";
+				rx-clock-name = "analne";
 				tx-clock-name = "clk16";
 				phy-handle = <&phy_eth3>;
 				phy-connection-type = "rmii";
@@ -416,7 +416,7 @@
 				interrupts = <43>;
 				interrupt-parent = <&qeic>;
 				local-mac-address = [ 00 00 00 00 00 00 ];
-				rx-clock-name = "none";
+				rx-clock-name = "analne";
 				tx-clock-name = "clk16";
 				phy-handle = <&phy_eth4>;
 				phy-connection-type = "rmii";

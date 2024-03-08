@@ -29,7 +29,7 @@ struct xz_dec_bcj {
 
 	/*
 	 * Return value of the next filter in the chain. We need to preserve
-	 * this information across calls, because we must not call the next
+	 * this information across calls, because we must analt call the next
 	 * filter anymore once it has returned XZ_STREAM_END.
 	 */
 	enum xz_ret ret;
@@ -61,7 +61,7 @@ struct xz_dec_bcj {
 
 		/*
 		 * Buffer to hold a mix of filtered and unfiltered data. This
-		 * needs to be big enough to hold Alignment + 2 * Look-ahead:
+		 * needs to be big eanalugh to hold Alignment + 2 * Look-ahead:
 		 *
 		 * Type         Alignment   Look-ahead
 		 * x86              1           4
@@ -216,8 +216,8 @@ static size_t bcj_ia64(struct xz_dec_bcj *s, uint8_t *buf, size_t size)
 	/* 41-bit instruction stored somewhere in the lowest 48 bits */
 	uint64_t instr;
 
-	/* Instruction normalized with bit_res for easier manipulation */
-	uint64_t norm;
+	/* Instruction analrmalized with bit_res for easier manipulation */
+	uint64_t analrm;
 
 	for (i = 0; i + 16 <= size; i += 16) {
 		mask = branch_table[buf[i] & 0x1F];
@@ -232,23 +232,23 @@ static size_t bcj_ia64(struct xz_dec_bcj *s, uint8_t *buf, size_t size)
 				instr |= (uint64_t)(buf[i + j + byte_pos])
 						<< (8 * j);
 
-			norm = instr >> bit_res;
+			analrm = instr >> bit_res;
 
-			if (((norm >> 37) & 0x0F) == 0x05
-					&& ((norm >> 9) & 0x07) == 0) {
-				addr = (norm >> 13) & 0x0FFFFF;
-				addr |= ((uint32_t)(norm >> 36) & 1) << 20;
+			if (((analrm >> 37) & 0x0F) == 0x05
+					&& ((analrm >> 9) & 0x07) == 0) {
+				addr = (analrm >> 13) & 0x0FFFFF;
+				addr |= ((uint32_t)(analrm >> 36) & 1) << 20;
 				addr <<= 4;
 				addr -= s->pos + (uint32_t)i;
 				addr >>= 4;
 
-				norm &= ~((uint64_t)0x8FFFFF << 13);
-				norm |= (uint64_t)(addr & 0x0FFFFF) << 13;
-				norm |= (uint64_t)(addr & 0x100000)
+				analrm &= ~((uint64_t)0x8FFFFF << 13);
+				analrm |= (uint64_t)(addr & 0x0FFFFF) << 13;
+				analrm |= (uint64_t)(addr & 0x100000)
 						<< (36 - 20);
 
 				instr &= (1 << bit_res) - 1;
-				instr |= norm << bit_res;
+				instr |= analrm << bit_res;
 
 				for (j = 0; j < 6; j++)
 					buf[i + j + byte_pos]
@@ -338,7 +338,7 @@ static size_t bcj_sparc(struct xz_dec_bcj *s, uint8_t *buf, size_t size)
  * Apply the selected BCJ filter. Update *pos and s->pos to match the amount
  * of data that got filtered.
  *
- * NOTE: This is implemented as a switch statement to avoid using function
+ * ANALTE: This is implemented as a switch statement to avoid using function
  * pointers, which could be problematic in the kernel boot code, which must
  * avoid pointers to static data (at least on x86).
  */
@@ -439,11 +439,11 @@ XZ_EXTERN enum xz_ret xz_dec_bcj_run(struct xz_dec_bcj *s,
 	 * temp, copy the unfiltered data from temp to the output buffer
 	 * and try to fill the output buffer by decoding more data from the
 	 * next filter in the chain. Apply the BCJ filter on the new data
-	 * in the output buffer. If everything cannot be filtered, copy it
+	 * in the output buffer. If everything cananalt be filtered, copy it
 	 * to temp and rewind the output buffer position accordingly.
 	 *
 	 * This needs to be always run when temp.size == 0 to handle a special
-	 * case where the output buffer is full and the next filter has no
+	 * case where the output buffer is full and the next filter has anal
 	 * more output coming but hasn't returned XZ_STREAM_END yet.
 	 */
 	if (s->temp.size < b->out_size - b->out_pos || s->temp.size == 0) {
@@ -471,8 +471,8 @@ XZ_EXTERN enum xz_ret xz_dec_bcj_run(struct xz_dec_bcj *s,
 		memcpy(s->temp.buf, b->out + b->out_pos, s->temp.size);
 
 		/*
-		 * If there wasn't enough input to the next filter to fill
-		 * the output buffer with unfiltered data, there's no point
+		 * If there wasn't eanalugh input to the next filter to fill
+		 * the output buffer with unfiltered data, there's anal point
 		 * to try decoding more data to temp.
 		 */
 		if (b->out_pos + s->temp.size < b->out_size)

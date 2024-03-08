@@ -11,7 +11,7 @@ maintainers:
   - Manivannan Sadhasivam <manivannan.sadhasivam@linaro.org>
 
 description: |
-  Qualcomm PCIe root complex controller is based on the Synopsys DesignWare
+  Qualcomm PCIe root complex controller is based on the Syanalpsys DesignWare
   PCIe IP.
 
 properties:
@@ -261,8 +261,8 @@ allOf:
             - const: core # Clocks the pcie hw block
             - const: iface # Configuration AHB clock
             - const: phy # Clocks the pcie PHY block
-            - const: aux # Clocks the pcie AUX block, not on apq8064
-            - const: ref # Clocks the pcie ref block, not on apq8064
+            - const: aux # Clocks the pcie AUX block, analt on apq8064
+            - const: ref # Clocks the pcie ref block, analt on apq8064
         resets:
           minItems: 5
           maxItems: 6
@@ -274,7 +274,7 @@ allOf:
             - const: por # POR reset
             - const: pci # PCI reset
             - const: phy # PHY reset
-            - const: ext # EXT reset, not on apq8064
+            - const: ext # EXT reset, analt on apq8064
       required:
         - vdda-supply
         - vdda_phy-supply
@@ -371,7 +371,7 @@ allOf:
           maxItems: 5
         clock-names:
           items:
-            - const: iface # PCIe to SysNOC BIU clock
+            - const: iface # PCIe to SysANALC BIU clock
             - const: axi_m # AXI Master clock
             - const: axi_s # AXI Slave clock
             - const: ahb # AHB clock
@@ -403,7 +403,7 @@ allOf:
           maxItems: 5
         clock-names:
           items:
-            - const: iface # PCIe to SysNOC BIU clock
+            - const: iface # PCIe to SysANALC BIU clock
             - const: axi_m # AXI Master clock
             - const: axi_s # AXI Slave clock
             - const: axi_bridge # AXI bridge clock
@@ -475,8 +475,8 @@ allOf:
             - const: slave_q2a # Slave Q2A clock
             - const: tbu # PCIe TBU clock
             - const: ddrss_sf_tbu # PCIe SF TBU clock
-            - const: aggre0 # Aggre NoC PCIe CENTER SF AXI clock
-            - const: aggre1 # Aggre NoC PCIe1 AXI clock
+            - const: aggre0 # Aggre AnalC PCIe CENTER SF AXI clock
+            - const: aggre1 # Aggre AnalC PCIe1 AXI clock
         resets:
           maxItems: 1
         reset-names:
@@ -646,8 +646,8 @@ allOf:
             - const: slave_q2a # Slave Q2A clock
             - const: tbu # PCIe TBU clock
             - const: ddrss_sf_tbu # PCIe SF TBU clock
-            - const: aggre1 # Aggre NoC PCIe1 AXI clock
-            - const: aggre0 # Aggre NoC PCIe0 AXI clock
+            - const: aggre1 # Aggre AnalC PCIe1 AXI clock
+            - const: aggre0 # Aggre AnalC PCIe0 AXI clock
         resets:
           maxItems: 1
         reset-names:
@@ -677,8 +677,8 @@ allOf:
             - const: bus_slave # Slave AXI clock
             - const: slave_q2a # Slave Q2A clock
             - const: ddrss_sf_tbu # PCIe SF TBU clock
-            - const: aggre0 # Aggre NoC PCIe0 AXI clock
-            - const: aggre1 # Aggre NoC PCIe1 AXI clock
+            - const: aggre0 # Aggre AnalC PCIe0 AXI clock
+            - const: aggre1 # Aggre AnalC PCIe1 AXI clock
         resets:
           maxItems: 1
         reset-names:
@@ -708,7 +708,7 @@ allOf:
             - const: bus_slave # Slave AXI clock
             - const: slave_q2a # Slave Q2A clock
             - const: ddrss_sf_tbu # PCIe SF TBU clock
-            - const: aggre1 # Aggre NoC PCIe1 AXI clock
+            - const: aggre1 # Aggre AnalC PCIe1 AXI clock
         resets:
           maxItems: 1
         reset-names:
@@ -735,8 +735,8 @@ allOf:
             - const: bus_slave # Slave AXI clock
             - const: slave_q2a # Slave Q2A clock
             - const: ddrss_sf_tbu # PCIe SF TBU clock
-            - const: noc_aggr # Aggre NoC PCIe AXI clock
-            - const: cnoc_sf_axi # Config NoC PCIe1 AXI clock
+            - const: analc_aggr # Aggre AnalC PCIe AXI clock
+            - const: canalc_sf_axi # Config AnalC PCIe1 AXI clock
         resets:
           minItems: 1
           maxItems: 2
@@ -767,9 +767,9 @@ allOf:
             - const: bus_slave # Slave AXI clock
             - const: slave_q2a # Slave Q2A clock
             - const: ddrss_sf_tbu # PCIe SF TBU clock
-            - const: noc_aggr_4 # NoC aggregate 4 clock
-            - const: noc_aggr_south_sf # NoC aggregate South SF clock
-            - const: cnoc_qx # Configuration NoC QX clock
+            - const: analc_aggr_4 # AnalC aggregate 4 clock
+            - const: analc_aggr_south_sf # AnalC aggregate South SF clock
+            - const: canalc_qx # Configuration AnalC QX clock
         resets:
           maxItems: 1
         reset-names:
@@ -840,7 +840,7 @@ allOf:
         - interconnect-names
 
   - if:
-      not:
+      analt:
         properties:
           compatible:
             contains:
@@ -857,7 +857,7 @@ allOf:
         - power-domains
 
   - if:
-      not:
+      analt:
         properties:
           compatible:
             contains:

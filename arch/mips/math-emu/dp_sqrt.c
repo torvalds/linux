@@ -50,10 +50,10 @@ union ieee754dp ieee754dp_sqrt(union ieee754dp x)
 		/* sqrt(+Inf) = Inf */
 		return x;
 
-	case IEEE754_CLASS_DNORM:
-		DPDNORMX;
+	case IEEE754_CLASS_DANALRM:
+		DPDANALRMX;
 		fallthrough;
-	case IEEE754_CLASS_NORM:
+	case IEEE754_CLASS_ANALRM:
 		if (xs) {
 			/* sqrt(-x) = Nan */
 			ieee754_setcx(IEEE754_INVALID_OPERATION);

@@ -78,7 +78,7 @@ static void cdns_exit_roles(struct cdns *cdns)
  * cdns_core_init_role - initialize role of operation
  * @cdns: Pointer to cdns structure
  *
- * Returns 0 on success otherwise negative errno
+ * Returns 0 on success otherwise negative erranal
  */
 static int cdns_core_init_role(struct cdns *cdns)
 {
@@ -88,14 +88,14 @@ static int cdns_core_init_role(struct cdns *cdns)
 	int ret;
 
 	dr_mode = usb_get_dr_mode(dev);
-	cdns->role = USB_ROLE_NONE;
+	cdns->role = USB_ROLE_ANALNE;
 
 	/*
 	 * If driver can't read mode by means of usb_get_dr_mode function then
 	 * chooses mode according with Kernel configuration. This setting
 	 * can be restricted later depending on strap pin configuration.
 	 */
-	if (dr_mode == USB_DR_MODE_UNKNOWN) {
+	if (dr_mode == USB_DR_MODE_UNKANALWN) {
 		if (cdns->version == CDNSP_CONTROLLER_V2) {
 			if (IS_ENABLED(CONFIG_USB_CDNSP_HOST) &&
 			    IS_ENABLED(CONFIG_USB_CDNSP_GADGET))
@@ -172,7 +172,7 @@ static int cdns_core_init_role(struct cdns *cdns)
 		goto err;
 
 	/* Initialize idle role to start with */
-	ret = cdns_role_start(cdns, USB_ROLE_NONE);
+	ret = cdns_role_start(cdns, USB_ROLE_ANALNE);
 	if (ret)
 		goto err;
 
@@ -211,7 +211,7 @@ err:
  */
 static enum usb_role cdns_hw_role_state_machine(struct cdns *cdns)
 {
-	enum usb_role role = USB_ROLE_NONE;
+	enum usb_role role = USB_ROLE_ANALNE;
 	int id, vbus;
 
 	if (cdns->dr_mode != USB_DR_MODE_OTG) {
@@ -235,9 +235,9 @@ static enum usb_role cdns_hw_role_state_machine(struct cdns *cdns)
 	role = cdns->role;
 
 	switch (role) {
-	case USB_ROLE_NONE:
+	case USB_ROLE_ANALNE:
 		/*
-		 * Driver treats USB_ROLE_NONE synonymous to IDLE state from
+		 * Driver treats USB_ROLE_ANALNE syanalnymous to IDLE state from
 		 * controller specification.
 		 */
 		if (!id)
@@ -245,13 +245,13 @@ static enum usb_role cdns_hw_role_state_machine(struct cdns *cdns)
 		else if (vbus)
 			role = USB_ROLE_DEVICE;
 		break;
-	case USB_ROLE_HOST: /* from HOST, we can only change to NONE */
+	case USB_ROLE_HOST: /* from HOST, we can only change to ANALNE */
 		if (id)
-			role = USB_ROLE_NONE;
+			role = USB_ROLE_ANALNE;
 		break;
-	case USB_ROLE_DEVICE: /* from GADGET, we can only change to NONE*/
+	case USB_ROLE_DEVICE: /* from GADGET, we can only change to ANALNE*/
 		if (!vbus)
-			role = USB_ROLE_NONE;
+			role = USB_ROLE_ANALNE;
 		break;
 	}
 
@@ -277,7 +277,7 @@ static int cdns_idle_init(struct cdns *cdns)
 
 	rdrv = devm_kzalloc(cdns->dev, sizeof(*rdrv), GFP_KERNEL);
 	if (!rdrv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rdrv->start = cdns_idle_role_start;
 	rdrv->stop = cdns_idle_role_stop;
@@ -286,7 +286,7 @@ static int cdns_idle_init(struct cdns *cdns)
 	rdrv->resume = NULL;
 	rdrv->name = "idle";
 
-	cdns->roles[USB_ROLE_NONE] = rdrv;
+	cdns->roles[USB_ROLE_ANALNE] = rdrv;
 
 	return 0;
 }
@@ -309,7 +309,7 @@ int cdns_hw_role_switch(struct cdns *cdns)
 	current_role = cdns->role;
 	real_role = cdns_hw_role_state_machine(cdns);
 
-	/* Do nothing if nothing changed */
+	/* Do analthing if analthing changed */
 	if (current_role == real_role)
 		goto exit;
 
@@ -353,7 +353,7 @@ static enum usb_role cdns_role_get(struct usb_role_switch *sw)
  * @role: the previous role
  * Handles below events:
  * - Role switch for dual-role devices
- * - USB_ROLE_GADGET <--> USB_ROLE_NONE for peripheral-only devices
+ * - USB_ROLE_GADGET <--> USB_ROLE_ANALNE for peripheral-only devices
  */
 static int cdns_role_set(struct usb_role_switch *sw, enum usb_role role)
 {
@@ -367,7 +367,7 @@ static int cdns_role_set(struct usb_role_switch *sw, enum usb_role role)
 
 	if (cdns->dr_mode == USB_DR_MODE_HOST) {
 		switch (role) {
-		case USB_ROLE_NONE:
+		case USB_ROLE_ANALNE:
 		case USB_ROLE_HOST:
 			break;
 		default:
@@ -377,7 +377,7 @@ static int cdns_role_set(struct usb_role_switch *sw, enum usb_role role)
 
 	if (cdns->dr_mode == USB_DR_MODE_PERIPHERAL) {
 		switch (role) {
-		case USB_ROLE_NONE:
+		case USB_ROLE_ANALNE:
 		case USB_ROLE_DEVICE:
 			break;
 		default:
@@ -400,14 +400,14 @@ pm_put:
  * @irq: irq number for cdns3/cdnsp core device
  * @data: structure of cdns
  *
- * Returns IRQ_HANDLED or IRQ_NONE
+ * Returns IRQ_HANDLED or IRQ_ANALNE
  */
 static irqreturn_t cdns_wakeup_irq(int irq, void *data)
 {
 	struct cdns *cdns = data;
 
 	if (cdns->in_lpm) {
-		disable_irq_nosync(irq);
+		disable_irq_analsync(irq);
 		cdns->wakeup_pending = true;
 		if ((cdns->role == USB_ROLE_HOST) && cdns->host_dev)
 			pm_request_resume(&cdns->host_dev->dev);
@@ -415,14 +415,14 @@ static irqreturn_t cdns_wakeup_irq(int irq, void *data)
 		return IRQ_HANDLED;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 /**
  * cdns_init - probe for cdns3/cdnsp core device
  * @cdns: Pointer to cdns structure.
  *
- * Returns 0 on success otherwise negative errno
+ * Returns 0 on success otherwise negative erranal
  */
 int cdns_init(struct cdns *cdns)
 {
@@ -444,7 +444,7 @@ int cdns_init(struct cdns *cdns)
 		sw_desc.get = cdns_role_get;
 		sw_desc.allow_userspace_control = true;
 		sw_desc.driver_data = cdns;
-		sw_desc.fwnode = dev->fwnode;
+		sw_desc.fwanalde = dev->fwanalde;
 
 		cdns->role_sw = usb_role_switch_register(dev, &sw_desc);
 		if (IS_ERR(cdns->role_sw)) {
@@ -492,7 +492,7 @@ EXPORT_SYMBOL_GPL(cdns_init);
  * cdns_remove - unbind drd driver and clean up
  * @cdns: Pointer to cdns structure.
  *
- * Returns 0 on success otherwise negative errno
+ * Returns 0 on success otherwise negative erranal
  */
 int cdns_remove(struct cdns *cdns)
 {

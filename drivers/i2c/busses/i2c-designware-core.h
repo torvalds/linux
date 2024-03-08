@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Synopsys DesignWare I2C adapter driver.
+ * Syanalpsys DesignWare I2C adapter driver.
  *
  * Based on the TI DAVINCI I2C adapter driver.
  *
@@ -13,7 +13,7 @@
 #include <linux/compiler_types.h>
 #include <linux/completion.h>
 #include <linux/dev_printk.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/i2c.h>
 #include <linux/regmap.h>
 #include <linux/types.h>
@@ -147,41 +147,41 @@
  * Only expected abort codes are listed here
  * refer to the datasheet for the full list
  */
-#define ABRT_7B_ADDR_NOACK			0
-#define ABRT_10ADDR1_NOACK			1
-#define ABRT_10ADDR2_NOACK			2
-#define ABRT_TXDATA_NOACK			3
-#define ABRT_GCALL_NOACK			4
+#define ABRT_7B_ADDR_ANALACK			0
+#define ABRT_10ADDR1_ANALACK			1
+#define ABRT_10ADDR2_ANALACK			2
+#define ABRT_TXDATA_ANALACK			3
+#define ABRT_GCALL_ANALACK			4
 #define ABRT_GCALL_READ				5
 #define ABRT_SBYTE_ACKDET			7
-#define ABRT_SBYTE_NORSTRT			9
-#define ABRT_10B_RD_NORSTRT			10
+#define ABRT_SBYTE_ANALRSTRT			9
+#define ABRT_10B_RD_ANALRSTRT			10
 #define ABRT_MASTER_DIS				11
 #define ARB_LOST				12
 #define ABRT_SLAVE_FLUSH_TXFIFO			13
 #define ABRT_SLAVE_ARBLOST			14
 #define ABRT_SLAVE_RD_INTX			15
 
-#define DW_IC_TX_ABRT_7B_ADDR_NOACK		BIT(ABRT_7B_ADDR_NOACK)
-#define DW_IC_TX_ABRT_10ADDR1_NOACK		BIT(ABRT_10ADDR1_NOACK)
-#define DW_IC_TX_ABRT_10ADDR2_NOACK		BIT(ABRT_10ADDR2_NOACK)
-#define DW_IC_TX_ABRT_TXDATA_NOACK		BIT(ABRT_TXDATA_NOACK)
-#define DW_IC_TX_ABRT_GCALL_NOACK		BIT(ABRT_GCALL_NOACK)
+#define DW_IC_TX_ABRT_7B_ADDR_ANALACK		BIT(ABRT_7B_ADDR_ANALACK)
+#define DW_IC_TX_ABRT_10ADDR1_ANALACK		BIT(ABRT_10ADDR1_ANALACK)
+#define DW_IC_TX_ABRT_10ADDR2_ANALACK		BIT(ABRT_10ADDR2_ANALACK)
+#define DW_IC_TX_ABRT_TXDATA_ANALACK		BIT(ABRT_TXDATA_ANALACK)
+#define DW_IC_TX_ABRT_GCALL_ANALACK		BIT(ABRT_GCALL_ANALACK)
 #define DW_IC_TX_ABRT_GCALL_READ		BIT(ABRT_GCALL_READ)
 #define DW_IC_TX_ABRT_SBYTE_ACKDET		BIT(ABRT_SBYTE_ACKDET)
-#define DW_IC_TX_ABRT_SBYTE_NORSTRT		BIT(ABRT_SBYTE_NORSTRT)
-#define DW_IC_TX_ABRT_10B_RD_NORSTRT		BIT(ABRT_10B_RD_NORSTRT)
+#define DW_IC_TX_ABRT_SBYTE_ANALRSTRT		BIT(ABRT_SBYTE_ANALRSTRT)
+#define DW_IC_TX_ABRT_10B_RD_ANALRSTRT		BIT(ABRT_10B_RD_ANALRSTRT)
 #define DW_IC_TX_ABRT_MASTER_DIS		BIT(ABRT_MASTER_DIS)
 #define DW_IC_TX_ARB_LOST			BIT(ARB_LOST)
 #define DW_IC_RX_ABRT_SLAVE_RD_INTX		BIT(ABRT_SLAVE_RD_INTX)
 #define DW_IC_RX_ABRT_SLAVE_ARBLOST		BIT(ABRT_SLAVE_ARBLOST)
 #define DW_IC_RX_ABRT_SLAVE_FLUSH_TXFIFO	BIT(ABRT_SLAVE_FLUSH_TXFIFO)
 
-#define DW_IC_TX_ABRT_NOACK			(DW_IC_TX_ABRT_7B_ADDR_NOACK | \
-						 DW_IC_TX_ABRT_10ADDR1_NOACK | \
-						 DW_IC_TX_ABRT_10ADDR2_NOACK | \
-						 DW_IC_TX_ABRT_TXDATA_NOACK | \
-						 DW_IC_TX_ABRT_GCALL_NOACK)
+#define DW_IC_TX_ABRT_ANALACK			(DW_IC_TX_ABRT_7B_ADDR_ANALACK | \
+						 DW_IC_TX_ABRT_10ADDR1_ANALACK | \
+						 DW_IC_TX_ABRT_10ADDR2_ANALACK | \
+						 DW_IC_TX_ABRT_TXDATA_ANALACK | \
+						 DW_IC_TX_ABRT_GCALL_ANALACK)
 
 struct clk;
 struct device;
@@ -189,7 +189,7 @@ struct reset_control;
 
 /**
  * struct dw_i2c_dev - private i2c-designware data
- * @dev: driver model device node
+ * @dev: driver model device analde
  * @map: IO registers map
  * @sysmap: System controller registers map
  * @base: IO registers pointer
@@ -214,7 +214,7 @@ struct reset_control;
  * @abort_source: copy of the TX_ABRT_SOURCE register
  * @irq: interrupt number for the i2c master
  * @flags: platform specific flags like type of IO accessors or model
- * @adapter: i2c subsystem adapter node
+ * @adapter: i2c subsystem adapter analde
  * @functionality: I2C_FUNC_* ORed bits to reflect what controller does support
  * @master_cfg: configuration for the master device
  * @slave_cfg: configuration for the slave device
@@ -234,7 +234,7 @@ struct reset_control;
  * @acquire_lock: function to acquire a hardware lock on the bus
  * @release_lock: function to release a hardware lock on the bus
  * @semaphore_idx: Index of table with semaphore type attached to the bus. It's
- *	-1 if there is no semaphore.
+ *	-1 if there is anal semaphore.
  * @shared_with_punit: true if this bus is shared with the SoCs PUNIT
  * @disable: function to disable the controller
  * @init: function to initialize the I2C hardware
@@ -242,9 +242,9 @@ struct reset_control;
  * @mode: operation mode - DW_IC_MASTER or DW_IC_SLAVE
  * @rinfo: I²C GPIO recovery information
  *
- * HCNT and LCNT parameters can be used if the platform knows more accurate
+ * HCNT and LCNT parameters can be used if the platform kanalws more accurate
  * values than the one computed based only on the input clock frequency.
- * Leave them to be %0 if not used.
+ * Leave them to be %0 if analt used.
  */
 struct dw_i2c_dev {
 	struct device		*dev;
@@ -301,7 +301,7 @@ struct dw_i2c_dev {
 };
 
 #define ACCESS_INTR_MASK			BIT(0)
-#define ACCESS_NO_IRQ_SUSPEND			BIT(1)
+#define ACCESS_ANAL_IRQ_SUSPEND			BIT(1)
 #define ARBITRATION_SEMAPHORE			BIT(2)
 
 #define MODEL_MSCC_OCELOT			BIT(8)
@@ -333,7 +333,7 @@ u32 i2c_dw_clk_rate(struct dw_i2c_dev *dev);
 int i2c_dw_prepare_clk(struct dw_i2c_dev *dev, bool prepare);
 int i2c_dw_acquire_lock(struct dw_i2c_dev *dev);
 void i2c_dw_release_lock(struct dw_i2c_dev *dev);
-int i2c_dw_wait_bus_not_busy(struct dw_i2c_dev *dev);
+int i2c_dw_wait_bus_analt_busy(struct dw_i2c_dev *dev);
 int i2c_dw_handle_tx_abort(struct dw_i2c_dev *dev);
 int i2c_dw_set_fifo_size(struct dw_i2c_dev *dev);
 u32 i2c_dw_func(struct i2c_adapter *adap);
@@ -345,7 +345,7 @@ static inline void __i2c_dw_enable(struct dw_i2c_dev *dev)
 	regmap_write(dev->map, DW_IC_ENABLE, 1);
 }
 
-static inline void __i2c_dw_disable_nowait(struct dw_i2c_dev *dev)
+static inline void __i2c_dw_disable_analwait(struct dw_i2c_dev *dev)
 {
 	regmap_write(dev->map, DW_IC_ENABLE, 0);
 	dev->status &= ~STATUS_ACTIVE;
@@ -399,5 +399,5 @@ void i2c_dw_adjust_bus_speed(struct dw_i2c_dev *dev);
 #if IS_ENABLED(CONFIG_ACPI)
 int i2c_dw_acpi_configure(struct device *device);
 #else
-static inline int i2c_dw_acpi_configure(struct device *device) { return -ENODEV; }
+static inline int i2c_dw_acpi_configure(struct device *device) { return -EANALDEV; }
 #endif

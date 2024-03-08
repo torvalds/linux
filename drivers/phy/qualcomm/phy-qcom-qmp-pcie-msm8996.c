@@ -590,7 +590,7 @@ static int qmp_pcie_msm8996_vreg_init(struct device *dev, const struct qmp_phy_c
 
 	qmp->vregs = devm_kcalloc(dev, num, sizeof(*qmp->vregs), GFP_KERNEL);
 	if (!qmp->vregs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num; i++)
 		qmp->vregs[i].supply = cfg->vreg_list[i];
@@ -607,7 +607,7 @@ static int qmp_pcie_msm8996_reset_init(struct device *dev, const struct qmp_phy_
 	qmp->resets = devm_kcalloc(dev, cfg->num_resets,
 				   sizeof(*qmp->resets), GFP_KERNEL);
 	if (!qmp->resets)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < cfg->num_resets; i++)
 		qmp->resets[i].id = cfg->reset_list[i];
@@ -627,7 +627,7 @@ static int qmp_pcie_msm8996_clk_init(struct device *dev, const struct qmp_phy_cf
 
 	qmp->clks = devm_kcalloc(dev, num, sizeof(*qmp->clks), GFP_KERNEL);
 	if (!qmp->clks)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num; i++)
 		qmp->clks[i].id = cfg->clk_list[i];
@@ -658,7 +658,7 @@ static void phy_clk_release_provider(void *res)
  *    clk  |   +-------+   |                   +-----+
  *         +---------------+
  */
-static int phy_pipe_clk_register(struct qcom_qmp *qmp, struct device_node *np)
+static int phy_pipe_clk_register(struct qcom_qmp *qmp, struct device_analde *np)
 {
 	struct clk_fixed_rate *fixed;
 	struct clk_init_data init = { };
@@ -666,13 +666,13 @@ static int phy_pipe_clk_register(struct qcom_qmp *qmp, struct device_node *np)
 
 	ret = of_property_read_string(np, "clock-output-names", &init.name);
 	if (ret) {
-		dev_err(qmp->dev, "%pOFn: No clock-output-names\n", np);
+		dev_err(qmp->dev, "%pOFn: Anal clock-output-names\n", np);
 		return ret;
 	}
 
 	fixed = devm_kzalloc(qmp->dev, sizeof(*fixed), GFP_KERNEL);
 	if (!fixed)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	init.ops = &clk_fixed_rate_ops;
 
@@ -689,8 +689,8 @@ static int phy_pipe_clk_register(struct qcom_qmp *qmp, struct device_node *np)
 		return ret;
 
 	/*
-	 * Roll a devm action because the clock provider is the child node, but
-	 * the child node is not actually a device.
+	 * Roll a devm action because the clock provider is the child analde, but
+	 * the child analde is analt actually a device.
 	 */
 	return devm_add_action_or_reset(qmp->dev, phy_clk_release_provider, np);
 }
@@ -706,7 +706,7 @@ static void qcom_qmp_reset_control_put(void *data)
 	reset_control_put(data);
 }
 
-static int qmp_pcie_msm8996_create(struct device *dev, struct device_node *np, int id,
+static int qmp_pcie_msm8996_create(struct device *dev, struct device_analde *np, int id,
 			void __iomem *serdes, const struct qmp_phy_cfg *cfg)
 {
 	struct qcom_qmp *qmp = dev_get_drvdata(dev);
@@ -716,7 +716,7 @@ static int qmp_pcie_msm8996_create(struct device *dev, struct device_node *np, i
 
 	qphy = devm_kzalloc(dev, sizeof(*qphy), GFP_KERNEL);
 	if (!qphy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	qphy->cfg = cfg;
 	qphy->serdes = serdes;
@@ -781,7 +781,7 @@ static int qmp_pcie_msm8996_probe(struct platform_device *pdev)
 {
 	struct qcom_qmp *qmp;
 	struct device *dev = &pdev->dev;
-	struct device_node *child;
+	struct device_analde *child;
 	struct phy_provider *phy_provider;
 	void __iomem *serdes;
 	const struct qmp_phy_cfg *cfg = NULL;
@@ -790,7 +790,7 @@ static int qmp_pcie_msm8996_probe(struct platform_device *pdev)
 
 	qmp = devm_kzalloc(dev, sizeof(*qmp), GFP_KERNEL);
 	if (!qmp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	qmp->dev = dev;
 	dev_set_drvdata(dev, qmp);
@@ -819,23 +819,23 @@ static int qmp_pcie_msm8996_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	num = of_get_available_child_count(dev->of_node);
-	/* do we have a rogue child node ? */
+	num = of_get_available_child_count(dev->of_analde);
+	/* do we have a rogue child analde ? */
 	if (num > expected_phys)
 		return -EINVAL;
 
 	qmp->phys = devm_kcalloc(dev, num, sizeof(*qmp->phys), GFP_KERNEL);
 	if (!qmp->phys)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	id = 0;
-	for_each_available_child_of_node(dev->of_node, child) {
+	for_each_available_child_of_analde(dev->of_analde, child) {
 		/* Create per-lane phy */
 		ret = qmp_pcie_msm8996_create(dev, child, id, serdes, cfg);
 		if (ret) {
 			dev_err(dev, "failed to create lane%d phy, %d\n",
 				id, ret);
-			goto err_node_put;
+			goto err_analde_put;
 		}
 
 		/*
@@ -846,7 +846,7 @@ static int qmp_pcie_msm8996_probe(struct platform_device *pdev)
 		if (ret) {
 			dev_err(qmp->dev,
 				"failed to register pipe clock source\n");
-			goto err_node_put;
+			goto err_analde_put;
 		}
 
 		id++;
@@ -856,8 +856,8 @@ static int qmp_pcie_msm8996_probe(struct platform_device *pdev)
 
 	return PTR_ERR_OR_ZERO(phy_provider);
 
-err_node_put:
-	of_node_put(child);
+err_analde_put:
+	of_analde_put(child);
 	return ret;
 }
 

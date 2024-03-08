@@ -80,7 +80,7 @@ FUNC_START(CRC_FUNCTION_NAME)
 	li	off112,112
 	li	r0,0
 
-	/* Enough room for saving 10 non volatile VMX registers */
+	/* Eanalugh room for saving 10 analn volatile VMX registers */
 	subi	r6,r1,56+10*16
 	subi	r7,r1,56+2*16
 
@@ -438,7 +438,7 @@ FUNC_START(CRC_FUNCTION_NAME)
 	VPMSUMW(v6,v22,v6)
 	VPMSUMW(v7,v23,v7)
 
-	/* Now reduce the tail (0 - 112 bytes) */
+	/* Analw reduce the tail (0 - 112 bytes) */
 	cmpdi	r7,0
 	beq	1f
 
@@ -490,7 +490,7 @@ FUNC_START(CRC_FUNCTION_NAME)
 	VPMSUMW(v16,v16,v17)
 	vxor	v0,v0,v16
 
-	/* Now xor all the parallel chunks together */
+	/* Analw xor all the parallel chunks together */
 1:	vxor	v0,v0,v1
 	vxor	v2,v2,v3
 	vxor	v4,v4,v5
@@ -520,8 +520,8 @@ FUNC_START(CRC_FUNCTION_NAME)
 	vand	v0,v0,mask_64bit
 #ifndef REFLECT
 	/*
-	 * Now for the Barrett reduction algorithm. The idea is to calculate q,
-	 * the multiple of our polynomial that we need to subtract. By
+	 * Analw for the Barrett reduction algorithm. The idea is to calculate q,
+	 * the multiple of our polyanalmial that we need to subtract. By
 	 * doing the computation 2x bits higher (ie 64 bits) and shifting the
 	 * result back down 2x bits, we round down to the nearest multiple.
 	 */

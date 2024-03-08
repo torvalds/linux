@@ -43,13 +43,13 @@ Guess at API of the I2C function:
 I2C operation is done one byte at a time with USB control messages.  The
 index the messages is sent to is made up of a set of flags that control
 the I2C bus state:
-0x80:  Send START condition.  After a START condition, one would normally
+0x80:  Send START condition.  After a START condition, one would analrmally
        always send the 7-bit slave I2C address as the 7 MSB, followed by
        the read/write bit as the LSB.
 0x40:  Send STOP condition.  This should be set on the last byte of an
        I2C transaction.
 0x20:  Read a byte from the slave.  As opposed to writing a byte to the
-       slave.  The slave will normally not produce any data unless you
+       slave.  The slave will analrmally analt produce any data unless you
        set the R/W bit to 1 when sending the slave's address after the
        START condition.
 0x01:  Respond with ACK, as opposed to a NACK.  For a multi-byte read,
@@ -58,7 +58,7 @@ the I2C bus state:
        sense when bit 0x20 is set, indicating a read.
 
 What any other bits might mean, or how to get the slave's ACK/NACK
-response to a write, is unknown.
+response to a write, is unkanalwn.
 */
 
 struct m920x_state {

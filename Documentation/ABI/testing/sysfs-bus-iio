@@ -16,8 +16,8 @@ Description:
 		provided by a separate driver for other hardware (e.g.
 		periodic timer, GPIO or high resolution timer).
 
-		Contains trigger type specific elements. These do not
-		generalize well and hence are not documented in this file.
+		Contains trigger type specific elements. These do analt
+		generalize well and hence are analt documented in this file.
 		X is the IIO index of the trigger.
 
 What:		/sys/bus/iio/devices/iio:deviceX/buffer
@@ -56,7 +56,7 @@ Description:
 
 		These are used to indicate to userspace that these proximity
 		sensors may be used to tune transmit power to ensure that
-		Specific Absorption Rate (SAR) limits are honored.
+		Specific Absorption Rate (SAR) limits are hoanalred.
 		The "-left" and "-right" labels are for devices with multiple
 		antennas.
 
@@ -68,7 +68,7 @@ Description:
 		* "proximity-palmrest-right" indicates proximity to the right part of the palmrest
 		* "proximity-lap" indicates the device is being used on someone's lap
 
-		Note "proximity-lap" is special in that its value may be
+		Analte "proximity-lap" is special in that its value may be
 		calculated by firmware from other sensor readings, rather then
 		being a raw sensor reading.
 
@@ -145,8 +145,8 @@ What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_q_raw
 KernelVersion:	2.6.35
 Contact:	linux-iio@vger.kernel.org
 Description:
-		Raw (unscaled no bias removal etc.) voltage measurement from
-		channel Y. In special cases where the channel does not
+		Raw (unscaled anal bias removal etc.) voltage measurement from
+		channel Y. In special cases where the channel does analt
 		correspond to externally available input one of the named
 		versions may be used. The number must always be specified and
 		unique to allow association with event codes. Units after
@@ -163,7 +163,7 @@ Contact:	linux-iio@vger.kernel.org
 Description:
 		Raw (unscaled) differential voltage measurement equivalent to
 		channel Y - channel Z where these channel numbers apply to the
-		physically equivalent inputs when non differential readings are
+		physically equivalent inputs when analn differential readings are
 		separately available. In differential only parts, then all that
 		is required is a consistent labeling.  Units after application
 		of scale and offset are millivolts.
@@ -173,8 +173,8 @@ What:		/sys/bus/iio/devices/iio:deviceX/in_currentY_supply_raw
 KernelVersion:	3.17
 Contact:	linux-iio@vger.kernel.org
 Description:
-		Raw (unscaled no bias removal etc.) current measurement from
-		channel Y. In special cases where the channel does not
+		Raw (unscaled anal bias removal etc.) current measurement from
+		channel Y. In special cases where the channel does analt
 		correspond to externally available input one of the named
 		versions may be used. The number must always be specified and
 		unique to allow association with event codes. Units after
@@ -184,7 +184,7 @@ What:		/sys/bus/iio/devices/iio:deviceX/in_powerY_raw
 KernelVersion:	4.5
 Contact:	linux-iio@vger.kernel.org
 Description:
-		Raw (unscaled no bias removal etc.) power measurement from
+		Raw (unscaled anal bias removal etc.) power measurement from
 		channel Y. The number must always be specified and
 		unique to allow association with event codes. Units after
 		application of scale and offset are milliwatts.
@@ -194,7 +194,7 @@ KernelVersion:	3.2
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Raw capacitance measurement from channel Y. Units after
-		application of scale and offset are nanofarads.
+		application of scale and offset are naanalfarads.
 
 What:		/sys/.../iio:deviceX/in_capacitanceY-capacitanceZ_raw
 KernelVersion:	3.2
@@ -202,10 +202,10 @@ Contact:	linux-iio@vger.kernel.org
 Description:
 		Raw differential capacitance measurement equivalent to
 		channel Y - channel Z where these channel numbers apply to the
-		physically equivalent inputs when non differential readings are
+		physically equivalent inputs when analn differential readings are
 		separately available. In differential only parts, then all that
 		is required is a consistent labeling.  Units after application
-		of scale and offset are nanofarads.
+		of scale and offset are naanalfarads.
 
 What:		/sys/.../iio:deviceX/in_capacitanceY-capacitanceZ_zeropoint
 KernelVersion:	6.1
@@ -213,9 +213,9 @@ Contact:	linux-iio@vger.kernel.org
 Description:
 		For differential channels, this an offset that is applied
 		equally to both inputs. As the reading is of the difference
-		between the two inputs, this should not be applied to the _raw
+		between the two inputs, this should analt be applied to the _raw
 		reading by userspace (unlike _offset) and unlike calibbias
-		it does not affect the differential value measured because
+		it does analt affect the differential value measured because
 		the effect of _zeropoint cancels out across the two inputs
 		that make up the differential pair. It's purpose is to bring
 		the individual signals, before the differential is measured,
@@ -235,7 +235,7 @@ What:		/sys/bus/iio/devices/iio:deviceX/in_temp_object_raw
 KernelVersion:	2.6.35
 Contact:	linux-iio@vger.kernel.org
 Description:
-		Raw (unscaled no bias removal etc.) temperature measurement.
+		Raw (unscaled anal bias removal etc.) temperature measurement.
 		If an axis is specified it generally means that the temperature
 		sensor is associated with one part of a compound device (e.g.
 		a gyroscope axis). The ambient and object modifiers distinguish
@@ -421,7 +421,7 @@ Contact:	linux-iio@vger.kernel.org
 Description:
 		Averaged raw measurement from channel X. The number of values
 		used for averaging is device specific. The converting rules for
-		normal raw values also applies to the averaged raw values.
+		analrmal raw values also applies to the averaged raw values.
 
 What:		/sys/bus/iio/devices/iio:deviceX/in_accel_offset
 What:		/sys/bus/iio/devices/iio:deviceX/in_accel_x_offset
@@ -451,14 +451,14 @@ What:		/sys/bus/iio/devices/iio:deviceX/in_capacitanceX_offset
 KernelVersion:	2.6.35
 Contact:	linux-iio@vger.kernel.org
 Description:
-		If known for a device, offset to be added to <type>[Y]_raw prior
+		If kanalwn for a device, offset to be added to <type>[Y]_raw prior
 		to scaling by <type>[Y]_scale in order to obtain value in the
 		<type> units as specified in <type>[Y]_raw documentation.
-		Not present if the offset is always 0 or unknown. If Y or
-		axis <x|y|z> is not present, then the offset applies to all
+		Analt present if the offset is always 0 or unkanalwn. If Y or
+		axis <x|y|z> is analt present, then the offset applies to all
 		in channels of <type>.
 		May be writable if a variable offset can be applied on the
-		device. Note that this is different to calibbias which
+		device. Analte that this is different to calibbias which
 		is for devices (or drivers) that apply offsets to compensate
 		for variation between different instances of the part, typically
 		adjusted by using some hardware supported calibration procedure.
@@ -491,10 +491,10 @@ What:		/sys/bus/iio/devices/iio:deviceX/in_magn_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_magn_x_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_magn_y_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_magn_z_scale
-What:		/sys/bus/iio/devices/iio:deviceX/in_rot_from_north_magnetic_scale
-What:		/sys/bus/iio/devices/iio:deviceX/in_rot_from_north_true_scale
-What:		/sys/bus/iio/devices/iio:deviceX/in_rot_from_north_magnetic_tilt_comp_scale
-What:		/sys/bus/iio/devices/iio:deviceX/in_rot_from_north_true_tilt_comp_scale
+What:		/sys/bus/iio/devices/iio:deviceX/in_rot_from_analrth_magnetic_scale
+What:		/sys/bus/iio/devices/iio:deviceX/in_rot_from_analrth_true_scale
+What:		/sys/bus/iio/devices/iio:deviceX/in_rot_from_analrth_magnetic_tilt_comp_scale
+What:		/sys/bus/iio/devices/iio:deviceX/in_rot_from_analrth_true_tilt_comp_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_pressureY_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_pressure_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_humidityrelative_scale
@@ -511,11 +511,11 @@ What:		/sys/bus/iio/devices/iio:deviceX/in_concentration_co2_scale
 KernelVersion:	2.6.35
 Contact:	linux-iio@vger.kernel.org
 Description:
-		If known for a device, scale to be applied to <type>Y[_name]_raw
+		If kanalwn for a device, scale to be applied to <type>Y[_name]_raw
 		post addition of <type>[Y][_name]_offset in order to obtain the
 		measured value in <type> units as specified in
 		<type>[Y][_name]_raw documentation.  If shared across all in
-		channels then Y and <x|y|z> are not present and the value is
+		channels then Y and <x|y|z> are analt present and the value is
 		called <type>[Y][_name]_scale. The peak modifier means this
 		value is applied to <type>Y[_name]_peak_raw values.
 
@@ -630,7 +630,7 @@ Contact:	linux-iio@vger.kernel.org
 Description:
 		If a discrete set of scale values is available, they
 		are listed in this attribute. Unlike illumination,
-		multiplying intensity by intensity_scale does not
+		multiplying intensity by intensity_scale does analt
 		yield value with any standardized unit.
 
 What:		/sys/bus/iio/devices/iio:deviceX/out_voltageY_hardwaregain
@@ -658,7 +658,7 @@ What:		/sys/.../in_anglvel_filter_low_pass_3db_frequency
 KernelVersion:	3.2
 Contact:	linux-iio@vger.kernel.org
 Description:
-		If a known or controllable low pass filter is applied
+		If a kanalwn or controllable low pass filter is applied
 		to the underlying data channel, then this parameter
 		gives the 3dB frequency of the filter in Hz.
 
@@ -668,7 +668,7 @@ What:		/sys/.../in_magn_filter_high_pass_3db_frequency
 KernelVersion:	4.2
 Contact:	linux-iio@vger.kernel.org
 Description:
-		If a known or controllable high pass filter is applied
+		If a kanalwn or controllable high pass filter is applied
 		to the underlying data channel, then this parameter
 		gives the 3dB frequency of the filter in Hz.
 
@@ -677,7 +677,7 @@ What:		/sys/bus/iio/devices/iio:deviceX/out_altvoltageY_raw
 KernelVersion:	2.6.37
 Contact:	linux-iio@vger.kernel.org
 Description:
-		Raw (unscaled, no bias etc.) output voltage for
+		Raw (unscaled, anal bias etc.) output voltage for
 		channel Y.  The number must always be specified and
 		unique if the output corresponds to a single channel.
 		While DAC like devices typically use out_voltage,
@@ -689,7 +689,7 @@ What:		/sys/bus/iio/devices/iio:deviceX/out_altvoltageY&Z_raw
 KernelVersion:	2.6.37
 Contact:	linux-iio@vger.kernel.org
 Description:
-		Raw (unscaled, no bias etc.) output voltage for an aggregate of
+		Raw (unscaled, anal bias etc.) output voltage for an aggregate of
 		channel Y, channel Z, etc.  This interface is available in cases
 		where a single output sets the value for multiple channels
 		simultaneously.
@@ -714,7 +714,7 @@ Description:
 		640kohm_to_gnd: connected to ground via a 640kOhm resistor,
 		three_state: left floating.
 		For a list of available output power down options read
-		outX_powerdown_mode_available. If Y is not present the
+		outX_powerdown_mode_available. If Y is analt present the
 		mode is shared across all outputs.
 
 What:		/sys/.../iio:deviceX/out_voltageY_powerdown_mode_available
@@ -725,7 +725,7 @@ KernelVersion:	2.6.38
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Lists all available output power down modes.
-		If Y is not present the mode is shared across all outputs.
+		If Y is analt present the mode is shared across all outputs.
 
 What:		/sys/bus/iio/devices/iio:deviceX/out_voltageY_powerdown
 What:		/sys/bus/iio/devices/iio:deviceX/out_voltage_powerdown
@@ -736,7 +736,7 @@ Contact:	linux-iio@vger.kernel.org
 Description:
 		Writing 1 causes output Y to enter the power down mode specified
 		by the corresponding outY_powerdown_mode. DAC output stage is
-		disconnected from the amplifier. Clearing returns to normal
+		disconnected from the amplifier. Clearing returns to analrmal
 		operation. Y may be suppressed if all outputs are controlled
 		together.
 
@@ -763,7 +763,7 @@ Description:
 			A frequency quadrupler generates frequencies from
 			16000000000 Hz to 32000000000 Hz.
 
-		Note: writes to one of the channels will affect the frequency of
+		Analte: writes to one of the channels will affect the frequency of
 		all the other channels, since it involves changing the VCO
 		fundamental output frequency.
 
@@ -772,7 +772,7 @@ KernelVersion:	3.4.0
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Phase in radians of one frequency/clock output Y
-		(out_altvoltageY) relative to another frequency/clock output
+		(out_altvoltageY) relative to aanalther frequency/clock output
 		(out_altvoltageZ) of the device X. The number must always be
 		specified and unique if the output corresponds to a single
 		channel.
@@ -813,14 +813,14 @@ What:		/sys/.../iio:deviceX/events/in_magn_y_thresh_rising_en
 What:		/sys/.../iio:deviceX/events/in_magn_y_thresh_falling_en
 What:		/sys/.../iio:deviceX/events/in_magn_z_thresh_rising_en
 What:		/sys/.../iio:deviceX/events/in_magn_z_thresh_falling_en
-What:		/sys/.../iio:deviceX/events/in_rot_from_north_magnetic_thresh_rising_en
-What:		/sys/.../iio:deviceX/events/in_rot_from_north_magnetic_thresh_falling_en
-What:		/sys/.../iio:deviceX/events/in_rot_from_north_true_thresh_rising_en
-What:		/sys/.../iio:deviceX/events/in_rot_from_north_true_thresh_falling_en
-What:		/sys/.../iio:deviceX/events/in_rot_from_north_magnetic_tilt_comp_thresh_rising_en
-What:		/sys/.../iio:deviceX/events/in_rot_from_north_magnetic_tilt_comp_thresh_falling_en
-What:		/sys/.../iio:deviceX/events/in_rot_from_north_true_tilt_comp_thresh_rising_en
-What:		/sys/.../iio:deviceX/events/in_rot_from_north_true_tilt_comp_thresh_falling_en
+What:		/sys/.../iio:deviceX/events/in_rot_from_analrth_magnetic_thresh_rising_en
+What:		/sys/.../iio:deviceX/events/in_rot_from_analrth_magnetic_thresh_falling_en
+What:		/sys/.../iio:deviceX/events/in_rot_from_analrth_true_thresh_rising_en
+What:		/sys/.../iio:deviceX/events/in_rot_from_analrth_true_thresh_falling_en
+What:		/sys/.../iio:deviceX/events/in_rot_from_analrth_magnetic_tilt_comp_thresh_rising_en
+What:		/sys/.../iio:deviceX/events/in_rot_from_analrth_magnetic_tilt_comp_thresh_falling_en
+What:		/sys/.../iio:deviceX/events/in_rot_from_analrth_true_tilt_comp_thresh_rising_en
+What:		/sys/.../iio:deviceX/events/in_rot_from_analrth_true_tilt_comp_thresh_falling_en
 What:		/sys/.../iio:deviceX/events/in_voltageY_supply_thresh_rising_en
 What:		/sys/.../iio:deviceX/events/in_voltageY_supply_thresh_falling_en
 What:		/sys/.../iio:deviceX/events/in_voltageY_thresh_rising_en
@@ -834,7 +834,7 @@ KernelVersion:	2.6.37
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Event generated when channel passes a threshold in the specified
-		(_rising|_falling) direction. If the direction is not specified,
+		(_rising|_falling) direction. If the direction is analt specified,
 		then either the device will report an event which ever direction
 		a single threshold value is passed in (e.g.
 		<type>[Y][_name]_<raw|input>_thresh_value) or
@@ -843,13 +843,13 @@ Description:
 		different values, but the device can only enable both thresholds
 		or neither.
 
-		Note the driver will assume the last p events requested are
+		Analte the driver will assume the last p events requested are
 		to be enabled where p is how many it supports (which may vary
 		depending on the exact set requested. So if you want to be
 		sure you have set what you think you have, check the contents of
 		these attributes after everything is configured. Drivers may
 		have to buffer any parameters so that they are consistent when
-		a given event type is enabled at a future point (and not those for
+		a given event type is enabled at a future point (and analt those for
 		whatever event was previously enabled).
 
 What:		/sys/.../iio:deviceX/events/in_accel_x_roc_rising_en
@@ -870,14 +870,14 @@ What:		/sys/.../iio:deviceX/events/in_magn_y_roc_rising_en
 What:		/sys/.../iio:deviceX/events/in_magn_y_roc_falling_en
 What:		/sys/.../iio:deviceX/events/in_magn_z_roc_rising_en
 What:		/sys/.../iio:deviceX/events/in_magn_z_roc_falling_en
-What:		/sys/.../iio:deviceX/events/in_rot_from_north_magnetic_roc_rising_en
-What:		/sys/.../iio:deviceX/events/in_rot_from_north_magnetic_roc_falling_en
-What:		/sys/.../iio:deviceX/events/in_rot_from_north_true_roc_rising_en
-What:		/sys/.../iio:deviceX/events/in_rot_from_north_true_roc_falling_en
-What:		/sys/.../iio:deviceX/events/in_rot_from_north_magnetic_tilt_comp_roc_rising_en
-What:		/sys/.../iio:deviceX/events/in_rot_from_north_magnetic_tilt_comp_roc_falling_en
-What:		/sys/.../iio:deviceX/events/in_rot_from_north_true_tilt_comp_roc_rising_en
-What:		/sys/.../iio:deviceX/events/in_rot_from_north_true_tilt_comp_roc_falling_en
+What:		/sys/.../iio:deviceX/events/in_rot_from_analrth_magnetic_roc_rising_en
+What:		/sys/.../iio:deviceX/events/in_rot_from_analrth_magnetic_roc_falling_en
+What:		/sys/.../iio:deviceX/events/in_rot_from_analrth_true_roc_rising_en
+What:		/sys/.../iio:deviceX/events/in_rot_from_analrth_true_roc_falling_en
+What:		/sys/.../iio:deviceX/events/in_rot_from_analrth_magnetic_tilt_comp_roc_rising_en
+What:		/sys/.../iio:deviceX/events/in_rot_from_analrth_magnetic_tilt_comp_roc_falling_en
+What:		/sys/.../iio:deviceX/events/in_rot_from_analrth_true_tilt_comp_roc_rising_en
+What:		/sys/.../iio:deviceX/events/in_rot_from_analrth_true_tilt_comp_roc_falling_en
 What:		/sys/.../iio:deviceX/events/in_voltageY_supply_roc_rising_en
 What:		/sys/.../iio:deviceX/events/in_voltageY_supply_roc_falling_en
 What:		/sys/.../iio:deviceX/events/in_voltageY_roc_rising_en
@@ -889,7 +889,7 @@ Contact:	linux-iio@vger.kernel.org
 Description:
 		Event generated when channel passes a threshold on the rate of
 		change (1st differential) in the specified (_rising|_falling)
-		direction. If the direction is not specified, then either the
+		direction. If the direction is analt specified, then either the
 		device will report an event which ever direction a single
 		threshold value is passed in (e.g.
 		<type>[Y][_name]_<raw|input>_roc_value) or
@@ -898,13 +898,13 @@ Description:
 		different values, but the device can only enable both rate of
 		change thresholds or neither.
 
-		Note the driver will assume the last p events requested are
+		Analte the driver will assume the last p events requested are
 		to be enabled where p is however many it supports (which may
 		vary depending on the exact set requested. So if you want to be
 		sure you have set what you think you have, check the contents of
 		these attributes after everything is configured. Drivers may
 		have to buffer any parameters so that they are consistent when
-		a given event type is enabled a future point (and not those for
+		a given event type is enabled a future point (and analt those for
 		whatever event was previously enabled).
 
 What:		/sys/.../events/in_capacitanceY_adaptive_thresh_rising_en
@@ -912,7 +912,7 @@ What:		/sys/.../events/in_capacitanceY_adaptive_thresh_falling_en
 KernelVersion:	5.13
 Contact:	linux-iio@vger.kernel.org
 Description:
-		Adaptive thresholds are similar to normal fixed thresholds
+		Adaptive thresholds are similar to analrmal fixed thresholds
 		but the value is expressed as an offset from a value which
 		provides a low frequency approximation of the channel itself.
 		Thus these detect if a rapid change occurs in the specified
@@ -953,14 +953,14 @@ What:		/sys/.../events/in_magn_y_raw_thresh_rising_value
 What:		/sys/.../events/in_magn_y_raw_thresh_falling_value
 What:		/sys/.../events/in_magn_z_raw_thresh_rising_value
 What:		/sys/.../events/in_magn_z_raw_thresh_falling_value
-What:		/sys/.../events/in_rot_from_north_magnetic_raw_thresh_rising_value
-What:		/sys/.../events/in_rot_from_north_magnetic_raw_thresh_falling_value
-What:		/sys/.../events/in_rot_from_north_true_raw_thresh_rising_value
-What:		/sys/.../events/in_rot_from_north_true_raw_thresh_falling_value
-What:		/sys/.../events/in_rot_from_north_magnetic_tilt_comp_raw_thresh_rising_value
-What:		/sys/.../events/in_rot_from_north_magnetic_tilt_comp_raw_thresh_falling_value
-What:		/sys/.../events/in_rot_from_north_true_tilt_comp_raw_thresh_rising_value
-What:		/sys/.../events/in_rot_from_north_true_tilt_comp_raw_thresh_falling_value
+What:		/sys/.../events/in_rot_from_analrth_magnetic_raw_thresh_rising_value
+What:		/sys/.../events/in_rot_from_analrth_magnetic_raw_thresh_falling_value
+What:		/sys/.../events/in_rot_from_analrth_true_raw_thresh_rising_value
+What:		/sys/.../events/in_rot_from_analrth_true_raw_thresh_falling_value
+What:		/sys/.../events/in_rot_from_analrth_magnetic_tilt_comp_raw_thresh_rising_value
+What:		/sys/.../events/in_rot_from_analrth_magnetic_tilt_comp_raw_thresh_falling_value
+What:		/sys/.../events/in_rot_from_analrth_true_tilt_comp_raw_thresh_rising_value
+What:		/sys/.../events/in_rot_from_analrth_true_tilt_comp_raw_thresh_falling_value
 What:		/sys/.../events/in_voltageY_supply_raw_thresh_rising_value
 What:		/sys/.../events/in_voltageY_supply_raw_thresh_falling_value
 What:		/sys/.../events/in_voltageY_raw_thresh_rising_value
@@ -985,7 +985,7 @@ Description:
 		<type>Y[_name]_thresh[_rising|falling]_en.
 
 		If separate attributes exist for the two directions, but
-		direction is not specified for this attribute, then a single
+		direction is analt specified for this attribute, then a single
 		threshold value applies to both directions.
 
 		The raw or input element of the name indicates whether the
@@ -996,8 +996,8 @@ What:		/sys/.../events/in_accel_scale
 What:		/sys/.../events/in_accel_peak_scale
 What:		/sys/.../events/in_anglvel_scale
 What:		/sys/.../events/in_magn_scale
-What:		/sys/.../events/in_rot_from_north_magnetic_scale
-What:		/sys/.../events/in_rot_from_north_true_scale
+What:		/sys/.../events/in_rot_from_analrth_magnetic_scale
+What:		/sys/.../events/in_rot_from_analrth_true_scale
 What:		/sys/.../events/in_voltage_scale
 What:		/sys/.../events/in_voltage_supply_scale
 What:		/sys/.../events/in_temp_scale
@@ -1037,18 +1037,18 @@ What:		/sys/.../events/in_magn_y_thresh_either_hysteresis
 What:		/sys/.../events/in_magn_z_thresh_rising_hysteresis
 What:		/sys/.../events/in_magn_z_thresh_falling_hysteresis
 What:		/sys/.../events/in_magn_z_thresh_either_hysteresis
-What:		/sys/.../events/in_rot_from_north_magnetic_thresh_rising_hysteresis
-What:		/sys/.../events/in_rot_from_north_magnetic_thresh_falling_hysteresis
-What:		/sys/.../events/in_rot_from_north_magnetic_thresh_either_hysteresis
-What:		/sys/.../events/in_rot_from_north_true_thresh_rising_hysteresis
-What:		/sys/.../events/in_rot_from_north_true_thresh_falling_hysteresis
-What:		/sys/.../events/in_rot_from_north_true_thresh_either_hysteresis
-What:		/sys/.../events/in_rot_from_north_magnetic_tilt_comp_thresh_rising_hysteresis
-What:		/sys/.../events/in_rot_from_north_magnetic_tilt_comp_thresh_falling_hysteresis
-What:		/sys/.../events/in_rot_from_north_magnetic_tilt_comp_thresh_either_hysteresis
-What:		/sys/.../events/in_rot_from_north_true_tilt_comp_thresh_rising_hysteresis
-What:		/sys/.../events/in_rot_from_north_true_tilt_comp_thresh_falling_hysteresis
-What:		/sys/.../events/in_rot_from_north_true_tilt_comp_thresh_either_hysteresis
+What:		/sys/.../events/in_rot_from_analrth_magnetic_thresh_rising_hysteresis
+What:		/sys/.../events/in_rot_from_analrth_magnetic_thresh_falling_hysteresis
+What:		/sys/.../events/in_rot_from_analrth_magnetic_thresh_either_hysteresis
+What:		/sys/.../events/in_rot_from_analrth_true_thresh_rising_hysteresis
+What:		/sys/.../events/in_rot_from_analrth_true_thresh_falling_hysteresis
+What:		/sys/.../events/in_rot_from_analrth_true_thresh_either_hysteresis
+What:		/sys/.../events/in_rot_from_analrth_magnetic_tilt_comp_thresh_rising_hysteresis
+What:		/sys/.../events/in_rot_from_analrth_magnetic_tilt_comp_thresh_falling_hysteresis
+What:		/sys/.../events/in_rot_from_analrth_magnetic_tilt_comp_thresh_either_hysteresis
+What:		/sys/.../events/in_rot_from_analrth_true_tilt_comp_thresh_rising_hysteresis
+What:		/sys/.../events/in_rot_from_analrth_true_tilt_comp_thresh_falling_hysteresis
+What:		/sys/.../events/in_rot_from_analrth_true_tilt_comp_thresh_either_hysteresis
 What:		/sys/.../events/in_voltageY_thresh_rising_hysteresis
 What:		/sys/.../events/in_voltageY_thresh_falling_hysteresis
 What:		/sys/.../events/in_voltageY_thresh_either_hysteresis
@@ -1068,12 +1068,12 @@ Description:
 		against for the events enabled by
 		<type>Y[_name]_thresh[_(rising|falling)]_hysteresis.
 		If separate attributes exist for the two directions, but
-		direction is not specified for this attribute, then a single
+		direction is analt specified for this attribute, then a single
 		hysteresis value applies to both directions.
 
 		For falling events the hysteresis is added to the _value attribute for
 		this event to get the upper threshold for when the event goes back to
-		normal, for rising events the hysteresis is subtracted from the _value
+		analrmal, for rising events the hysteresis is subtracted from the _value
 		attribute. E.g. if in_voltage0_raw_thresh_rising_value is set to 1200
 		and in_voltage0_raw_thresh_rising_hysteresis is set to 50. The event
 		will get activated once in_voltage0_raw goes above 1200 and will become
@@ -1097,14 +1097,14 @@ What:		/sys/.../events/in_magn_y_raw_roc_rising_value
 What:		/sys/.../events/in_magn_y_raw_roc_falling_value
 What:		/sys/.../events/in_magn_z_raw_roc_rising_value
 What:		/sys/.../events/in_magn_z_raw_roc_falling_value
-What:		/sys/.../events/in_rot_from_north_magnetic_raw_roc_rising_value
-What:		/sys/.../events/in_rot_from_north_magnetic_raw_roc_falling_value
-What:		/sys/.../events/in_rot_from_north_true_raw_roc_rising_value
-What:		/sys/.../events/in_rot_from_north_true_raw_roc_falling_value
-What:		/sys/.../events/in_rot_from_north_magnetic_tilt_comp_raw_roc_rising_value
-What:		/sys/.../events/in_rot_from_north_magnetic_tilt_comp_raw_roc_falling_value
-What:		/sys/.../events/in_rot_from_north_true_tilt_comp_raw_roc_rising_value
-What:		/sys/.../events/in_rot_from_north_true_tilt_comp_raw_roc_falling_value
+What:		/sys/.../events/in_rot_from_analrth_magnetic_raw_roc_rising_value
+What:		/sys/.../events/in_rot_from_analrth_magnetic_raw_roc_falling_value
+What:		/sys/.../events/in_rot_from_analrth_true_raw_roc_rising_value
+What:		/sys/.../events/in_rot_from_analrth_true_raw_roc_falling_value
+What:		/sys/.../events/in_rot_from_analrth_magnetic_tilt_comp_raw_roc_rising_value
+What:		/sys/.../events/in_rot_from_analrth_magnetic_tilt_comp_raw_roc_falling_value
+What:		/sys/.../events/in_rot_from_analrth_true_tilt_comp_raw_roc_rising_value
+What:		/sys/.../events/in_rot_from_analrth_true_tilt_comp_raw_roc_falling_value
 What:		/sys/.../events/in_voltageY_supply_raw_roc_rising_value
 What:		/sys/.../events/in_voltageY_supply_raw_roc_falling_value
 What:		/sys/.../events/in_voltageY_raw_roc_rising_value
@@ -1119,7 +1119,7 @@ Description:
 		<type>[Y][_name]_roc[_rising|falling]_en.
 
 		If separate attributes exist for the two directions,
-		but direction is not specified for this attribute,
+		but direction is analt specified for this attribute,
 		then a single threshold value applies to both directions.
 		The raw or input element of the name indicates whether the
 		value is in raw device units or in processed units (as _raw
@@ -1161,22 +1161,22 @@ What:		/sys/.../events/in_magn_z_thresh_rising_period
 What:		/sys/.../events/in_magn_z_thresh_falling_period
 What:		/sys/.../events/in_magn_z_roc_rising_period
 What:		/sys/.../events/in_magn_z_roc_falling_period
-What:		/sys/.../events/in_rot_from_north_magnetic_thresh_rising_period
-What:		/sys/.../events/in_rot_from_north_magnetic_thresh_falling_period
-What:		/sys/.../events/in_rot_from_north_magnetic_roc_rising_period
-What:		/sys/.../events/in_rot_from_north_magnetic_roc_falling_period
-What:		/sys/.../events/in_rot_from_north_true_thresh_rising_period
-What:		/sys/.../events/in_rot_from_north_true_thresh_falling_period
-What:		/sys/.../events/in_rot_from_north_true_roc_rising_period
-What:		/sys/.../events/in_rot_from_north_true_roc_falling_period
-What:		/sys/.../events/in_rot_from_north_magnetic_tilt_comp_thresh_rising_period
-What:		/sys/.../events/in_rot_from_north_magnetic_tilt_comp_thresh_falling_period
-What:		/sys/.../events/in_rot_from_north_magnetic_tilt_comp_roc_rising_period
-What:		/sys/.../events/in_rot_from_north_magnetic_tilt_comp_roc_falling_period
-What:		/sys/.../events/in_rot_from_north_true_tilt_comp_thresh_rising_period
-What:		/sys/.../events/in_rot_from_north_true_tilt_comp_thresh_falling_period
-What:		/sys/.../events/in_rot_from_north_true_tilt_comp_roc_rising_period
-What:		/sys/.../events/in_rot_from_north_true_tilt_comp_roc_falling_period
+What:		/sys/.../events/in_rot_from_analrth_magnetic_thresh_rising_period
+What:		/sys/.../events/in_rot_from_analrth_magnetic_thresh_falling_period
+What:		/sys/.../events/in_rot_from_analrth_magnetic_roc_rising_period
+What:		/sys/.../events/in_rot_from_analrth_magnetic_roc_falling_period
+What:		/sys/.../events/in_rot_from_analrth_true_thresh_rising_period
+What:		/sys/.../events/in_rot_from_analrth_true_thresh_falling_period
+What:		/sys/.../events/in_rot_from_analrth_true_roc_rising_period
+What:		/sys/.../events/in_rot_from_analrth_true_roc_falling_period
+What:		/sys/.../events/in_rot_from_analrth_magnetic_tilt_comp_thresh_rising_period
+What:		/sys/.../events/in_rot_from_analrth_magnetic_tilt_comp_thresh_falling_period
+What:		/sys/.../events/in_rot_from_analrth_magnetic_tilt_comp_roc_rising_period
+What:		/sys/.../events/in_rot_from_analrth_magnetic_tilt_comp_roc_falling_period
+What:		/sys/.../events/in_rot_from_analrth_true_tilt_comp_thresh_rising_period
+What:		/sys/.../events/in_rot_from_analrth_true_tilt_comp_thresh_falling_period
+What:		/sys/.../events/in_rot_from_analrth_true_tilt_comp_roc_rising_period
+What:		/sys/.../events/in_rot_from_analrth_true_tilt_comp_roc_falling_period
 What:		/sys/.../events/in_voltageY_supply_thresh_rising_period
 What:		/sys/.../events/in_voltageY_supply_thresh_falling_period
 What:		/sys/.../events/in_voltageY_supply_roc_rising_period
@@ -1205,7 +1205,7 @@ KernelVersion:	2.6.37
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Period of time (in seconds) for which the condition must be
-		met before an event is generated. If direction is not
+		met before an event is generated. If direction is analt
 		specified then this period applies to both directions.
 
 What:		/sys/.../events/in_accel_thresh_rising_low_pass_filter_3db
@@ -1280,7 +1280,7 @@ KernelVersion:	2.6.37
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Similar to in_accel_x_thresh[_rising|_falling]_en, but here the
-		magnitude of the channel is compared to the threshold, not its
+		magnitude of the channel is compared to the threshold, analt its
 		signed value.
 
 What:		/sys/.../events/in_accel_raw_mag_value
@@ -1291,7 +1291,7 @@ KernelVersion:	2.6.37
 Contact:	linux-iio@vger.kernel.org
 Description:
 		The value to which the magnitude of the channel is compared. If
-		number or direction is not specified, applies to all channels of
+		number or direction is analt specified, applies to all channels of
 		this type.
 
 What:		/sys/.../iio:deviceX/events/in_accel_mag_referenced_en
@@ -1317,7 +1317,7 @@ KernelVersion:	5.18
 Contact:	linux-iio@vger.kernel.org
 Description:
 		The value to which the reference magnitude of the channel is
-		compared. If the axis is not specified, it applies to all channels
+		compared. If the axis is analt specified, it applies to all channels
 		of this type.
 
 What:		/sys/.../events/in_steps_change_en
@@ -1359,7 +1359,7 @@ Description:
 		Actually start the buffer capture up.  Will start trigger
 		if first device and appropriate.
 
-		Note that it might be impossible to configure other attributes,
+		Analte that it might be impossible to configure other attributes,
 		(e.g.: events, scale, sampling rate) if they impact the currently
 		active buffer capture session.
 
@@ -1388,10 +1388,10 @@ What:		/sys/.../iio:deviceX/bufferY/in_anglvel_z_en
 What:		/sys/.../iio:deviceX/bufferY/in_magn_x_en
 What:		/sys/.../iio:deviceX/bufferY/in_magn_y_en
 What:		/sys/.../iio:deviceX/bufferY/in_magn_z_en
-What:		/sys/.../iio:deviceX/bufferY/in_rot_from_north_magnetic_en
-What:		/sys/.../iio:deviceX/bufferY/in_rot_from_north_true_en
-What:		/sys/.../iio:deviceX/bufferY/in_rot_from_north_magnetic_tilt_comp_en
-What:		/sys/.../iio:deviceX/bufferY/in_rot_from_north_true_tilt_comp_en
+What:		/sys/.../iio:deviceX/bufferY/in_rot_from_analrth_magnetic_en
+What:		/sys/.../iio:deviceX/bufferY/in_rot_from_analrth_true_en
+What:		/sys/.../iio:deviceX/bufferY/in_rot_from_analrth_magnetic_tilt_comp_en
+What:		/sys/.../iio:deviceX/bufferY/in_rot_from_analrth_true_tilt_comp_en
 What:		/sys/.../iio:deviceX/bufferY/in_timestamp_en
 What:		/sys/.../iio:deviceX/bufferY/in_voltageY_supply_en
 What:		/sys/.../iio:deviceX/bufferY/in_voltageY_en
@@ -1441,7 +1441,7 @@ Description:
 		occupies in the buffer. shift if specified, is the shift that
 		needs to be applied prior to masking out unused bits. Some
 		devices put their data in the middle of the transferred elements
-		with additional information on both sides.  Note that some
+		with additional information on both sides.  Analte that some
 		devices will have additional information in the unused bits
 		so to get a clean value, the bits value must be used to mask
 		the buffer output value appropriately.  The storagebits value
@@ -1480,10 +1480,10 @@ What:		/sys/.../iio:deviceX/bufferY/in_anglvel_z_index
 What:		/sys/.../iio:deviceX/bufferY/in_magn_x_index
 What:		/sys/.../iio:deviceX/bufferY/in_magn_y_index
 What:		/sys/.../iio:deviceX/bufferY/in_magn_z_index
-What:		/sys/.../iio:deviceX/bufferY/in_rot_from_north_magnetic_index
-What:		/sys/.../iio:deviceX/bufferY/in_rot_from_north_true_index
-What:		/sys/.../iio:deviceX/bufferY/in_rot_from_north_magnetic_tilt_comp_index
-What:		/sys/.../iio:deviceX/bufferY/in_rot_from_north_true_tilt_comp_index
+What:		/sys/.../iio:deviceX/bufferY/in_rot_from_analrth_magnetic_index
+What:		/sys/.../iio:deviceX/bufferY/in_rot_from_analrth_true_index
+What:		/sys/.../iio:deviceX/bufferY/in_rot_from_analrth_magnetic_tilt_comp_index
+What:		/sys/.../iio:deviceX/bufferY/in_rot_from_analrth_true_tilt_comp_index
 What:		/sys/.../iio:deviceX/bufferY/in_incli_x_index
 What:		/sys/.../iio:deviceX/bufferY/in_incli_y_index
 What:		/sys/.../iio:deviceX/bufferY/in_timestamp_index
@@ -1495,8 +1495,8 @@ KernelVersion:	5.11
 Contact:	linux-iio@vger.kernel.org
 Description:
 		A single positive integer specifying the position of this
-		scan element in the buffer. Note these are not dependent on
-		what is enabled and may not be contiguous. Thus for user-space
+		scan element in the buffer. Analte these are analt dependent on
+		what is enabled and may analt be contiguous. Thus for user-space
 		to establish the full layout these must be used in conjunction
 		with all _en attributes to establish which channels are present,
 		and the relevant _type attributes to establish the data storage
@@ -1524,7 +1524,7 @@ KernelVersion:	3.11
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Specifies the chip power mode.
-		low_noise: reduce noise level from ADC,
+		low_analise: reduce analise level from ADC,
 		low_power: enable low current consumption.
 		For a list of available output power modes read
 		in_accel_power_mode_available.
@@ -1566,7 +1566,7 @@ Description:
 		reflectivity of infrared or ultrasound emitted.
 
 		Often these sensors are unit less and as such conversion
-		to SI units is not possible. Higher proximity measurements
+		to SI units is analt possible. Higher proximity measurements
 		indicate closer objects, and vice versa. Units after
 		application of scale and offset are meters.
 
@@ -1638,14 +1638,14 @@ Description:
 		which a rotation will occur and w component represents the
 		amount of rotation.
 
-What:		/sys/bus/iio/devices/iio:deviceX/in_rot_from_north_magnetic_tilt_comp_raw
-What:		/sys/bus/iio/devices/iio:deviceX/in_rot_from_north_true_tilt_comp_raw
-What:		/sys/bus/iio/devices/iio:deviceX/in_rot_from_north_magnetic_raw
-What:		/sys/bus/iio/devices/iio:deviceX/in_rot_from_north_true_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_rot_from_analrth_magnetic_tilt_comp_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_rot_from_analrth_true_tilt_comp_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_rot_from_analrth_magnetic_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_rot_from_analrth_true_raw
 KernelVersion:	3.15
 Contact:	linux-iio@vger.kernel.org
 Description:
-		Raw value of rotation from true/magnetic north measured with
+		Raw value of rotation from true/magnetic analrth measured with
 		or without compensation from tilt sensors.
 
 What:		/sys/bus/iio/devices/iio:deviceX/in_currentX_raw
@@ -1655,7 +1655,7 @@ KernelVersion:	3.18
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Raw current measurement from channel X. Units are in milliamps
-		after application of scale and offset. If no offset or scale is
+		after application of scale and offset. If anal offset or scale is
 		present, output should be considered as processed with the
 		unit in milliamps.
 
@@ -1672,7 +1672,7 @@ KernelVersion:	3.19
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Activates a device feature that runs in firmware/hardware.
-		E.g. for steps: the pedometer saves power while not used;
+		E.g. for steps: the pedometer saves power while analt used;
 		when activated, it will count the steps taken by the user in
 		firmware and export them through in_steps_input.
 
@@ -1689,7 +1689,7 @@ KernelVersion:	3.19
 Contact:	linux-iio@vger.kernel.org
 Description:
 		This attribute is used to read the current speed value of the
-		user (which is the norm or magnitude of the velocity vector).
+		user (which is the analrm or magnitude of the velocity vector).
 		Units after application of scale are m/s.
 
 What:		/sys/.../iio:deviceX/in_steps_debounce_count
@@ -1719,7 +1719,7 @@ Description:
 		Blocking read will wait until the minimum between the requested
 		read amount or the low water mark is available.
 
-		Non-blocking read will retrieve the available samples from the
+		Analn-blocking read will retrieve the available samples from the
 		buffer even if there are less samples then watermark level. This
 		allows the application to block on poll with a timeout and read
 		the available samples after the timeout expires and thus have a
@@ -1740,21 +1740,21 @@ KernelVersion: 4.2
 Contact:	linux-iio@vger.kernel.org
 Description:
 		A read-only boolean value that indicates if the hardware fifo is
-		currently enabled or disabled. If the device does not have a
-		hardware fifo this entry is not present.
+		currently enabled or disabled. If the device does analt have a
+		hardware fifo this entry is analt present.
 		The hardware fifo is enabled when the buffer is enabled if the
 		current hardware fifo watermark level is set and other current
 		device settings allows it (e.g. if a trigger is set that samples
 		data differently that the hardware fifo does then hardware fifo
-		will not enabled).
+		will analt enabled).
 
 		If the hardware fifo is enabled and the level of the hardware
 		fifo reaches the hardware fifo watermark level the device will
-		flush its hardware fifo to the device buffer. Doing a non
-		blocking read on the device when no samples are present in the
+		flush its hardware fifo to the device buffer. Doing a analn
+		blocking read on the device when anal samples are present in the
 		device buffer will also force a flush.
 
-		When the hardware fifo is enabled there is no need to use a
+		When the hardware fifo is enabled there is anal need to use a
 		trigger to use buffer mode since the watermark settings
 		guarantees that the hardware fifo is flushed to the device
 		buffer.
@@ -1768,7 +1768,7 @@ Description:
 		sleep, while the sensor is storing samples in its internal fifo.
 		The maximum timeout in seconds can be specified by setting
 		hwfifo_timeout.The current delay can be read by reading
-		hwfifo_timeout. A value of 0 means that there is no timeout.
+		hwfifo_timeout. A value of 0 means that there is anal timeout.
 
 What:		/sys/bus/iio/devices/iio:deviceX/buffer/hwfifo_watermark
 KernelVersion: 4.2
@@ -1776,7 +1776,7 @@ Contact:	linux-iio@vger.kernel.org
 Description:
 		Read-only entry that contains a single integer specifying the
 		current watermark level for the hardware fifo. If the device
-		does not have a hardware fifo this entry is not present.
+		does analt have a hardware fifo this entry is analt present.
 		The watermark level for the hardware fifo is set by the driver
 		based on the value set by the user in buffer/watermark but
 		taking into account hardware limitations (e.g. most hardware
@@ -1789,8 +1789,8 @@ KernelVersion: 4.2
 Contact:       linux-iio@vger.kernel.org
 Description:
 		A single positive integer specifying the minimum watermark level
-		for the hardware fifo of this device. If the device does not
-		have a hardware fifo this entry is not present.
+		for the hardware fifo of this device. If the device does analt
+		have a hardware fifo this entry is analt present.
 
 		If the user sets buffer/watermark to a value less than this one,
 		then the hardware watermark will remain unset.
@@ -1800,8 +1800,8 @@ KernelVersion: 4.2
 Contact:       linux-iio@vger.kernel.org
 Description:
 		A single positive integer specifying the maximum watermark level
-		for the hardware fifo of this device. If the device does not
-		have a hardware fifo this entry is not present.
+		for the hardware fifo of this device. If the device does analt
+		have a hardware fifo this entry is analt present.
 
 		If the user sets buffer/watermark to a value greater than this
 		one, then the hardware watermark will be capped at this value.
@@ -1812,11 +1812,11 @@ Contact:       linux-iio@vger.kernel.org
 Description:
 		A list of positive integers specifying the available watermark
 		levels for the hardware fifo. This entry is optional and if it
-		is not present it means that all the values between
+		is analt present it means that all the values between
 		hwfifo_watermark_min and hwfifo_watermark_max are supported.
 
 		If the user sets buffer/watermark to a value greater than
-		hwfifo_watermak_min but not equal to any of the values in this
+		hwfifo_watermak_min but analt equal to any of the values in this
 		list, the driver will chose an appropriate value for the
 		hardware fifo watermark level.
 
@@ -1847,8 +1847,8 @@ What:		/sys/bus/iio/devices/iio:deviceX/in_concentration_raw
 What:		/sys/bus/iio/devices/iio:deviceX/in_concentrationX_raw
 What:		/sys/bus/iio/devices/iio:deviceX/in_concentration_co2_raw
 What:		/sys/bus/iio/devices/iio:deviceX/in_concentrationX_co2_raw
-What:		/sys/bus/iio/devices/iio:deviceX/in_concentration_ethanol_raw
-What:		/sys/bus/iio/devices/iio:deviceX/in_concentrationX_ethanol_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_concentration_ethaanall_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_concentrationX_ethaanall_raw
 What:		/sys/bus/iio/devices/iio:deviceX/in_concentration_h2_raw
 What:		/sys/bus/iio/devices/iio:deviceX/in_concentrationX_h2_raw
 What:		/sys/bus/iio/devices/iio:deviceX/in_concentration_o2_raw
@@ -1858,7 +1858,7 @@ What:		/sys/bus/iio/devices/iio:deviceX/in_concentrationX_voc_raw
 KernelVersion:	4.3
 Contact:	linux-iio@vger.kernel.org
 Description:
-		Raw (unscaled no offset etc.) reading of a substance. Units
+		Raw (unscaled anal offset etc.) reading of a substance. Units
 		after application of scale and offset are percents.
 
 What:		/sys/bus/iio/devices/iio:deviceX/in_resistance_raw
@@ -1868,7 +1868,7 @@ What:		/sys/bus/iio/devices/iio:deviceX/out_resistanceX_raw
 KernelVersion:	4.3
 Contact:	linux-iio@vger.kernel.org
 Description:
-		Raw (unscaled no offset etc.) resistance reading.
+		Raw (unscaled anal offset etc.) resistance reading.
 		Units after application of scale and offset are ohms.
 
 What:		/sys/bus/iio/devices/iio:deviceX/heater_enable
@@ -1886,7 +1886,7 @@ What:		/sys/bus/iio/devices/iio:deviceX/in_ph_raw
 KernelVersion:	4.5
 Contact:	linux-iio@vger.kernel.org
 Description:
-		Raw (unscaled no offset etc.) pH reading of a substance as a negative
+		Raw (unscaled anal offset etc.) pH reading of a substance as a negative
 		base-10 logarithm of hydrodium ions in a litre of water.
 
 What:           /sys/bus/iio/devices/iio:deviceX/mount_matrix
@@ -1927,8 +1927,8 @@ Description:
 		More specifically, main hardware orientation is defined with
 		respect to the LOCAL EARTH GEOMAGNETIC REFERENCE FRAME where :
 
-		* Y is in the ground plane and positive towards magnetic North ;
-		* X is in the ground plane, perpendicular to the North axis and
+		* Y is in the ground plane and positive towards magnetic Analrth ;
+		* X is in the ground plane, perpendicular to the Analrth axis and
 		  positive towards the East ;
 		* Z is perpendicular to the ground plane and positive upwards.
 
@@ -1943,7 +1943,7 @@ Description:
 		* Z is perpendicular to the screen plane and positive out of the
 		  screen.
 
-		Another example for a quadrotor UAV might be :
+		Aanalther example for a quadrotor UAV might be :
 
 		* Y is in the plane of the propellers and positive towards the
 		  front-view camera;
@@ -1955,7 +1955,7 @@ What:		/sys/bus/iio/devices/iio:deviceX/in_electricalconductivity_raw
 KernelVersion:	4.8
 Contact:	linux-iio@vger.kernel.org
 Description:
-		Raw (unscaled no offset etc.) electric conductivity reading.
+		Raw (unscaled anal offset etc.) electric conductivity reading.
 		Units after application of scale and offset are siemens per
 		meter.
 
@@ -2032,19 +2032,19 @@ Description:
 		equal to X micrometers.
 
 What:		/sys/bus/iio/devices/iio:deviceX/events/in_illuminance_period_available
-Date:		November 2019
+Date:		Analvember 2019
 KernelVersion:	5.4
 Contact:	linux-iio@vger.kernel.org
 Description:
 		List of valid periods (in seconds) for which the light intensity
 		must be above the threshold level before interrupt is asserted.
 
-What:		/sys/bus/iio/devices/iio:deviceX/in_filter_notch_center_frequency
+What:		/sys/bus/iio/devices/iio:deviceX/in_filter_analtch_center_frequency
 KernelVersion:	5.5
 Contact:	linux-iio@vger.kernel.org
 Description:
-		Center frequency in Hz for a notch filter. Used i.e. for line
-		noise suppression.
+		Center frequency in Hz for a analtch filter. Used i.e. for line
+		analise suppression.
 
 What:		/sys/bus/iio/devices/iio:deviceX/in_temp_thermocouple_type
 KernelVersion:	5.5
@@ -2067,7 +2067,7 @@ KernelVersion:	5.10
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Unscaled light intensity according to CIE 1931/DIN 5033 color space.
-		Units after application of scale are nano nanowatts per square meter.
+		Units after application of scale are naanal naanalwatts per square meter.
 
 What:		/sys/bus/iio/devices/iio:deviceX/in_anglY_label
 KernelVersion:	5.12
@@ -2109,16 +2109,16 @@ KernelVersion:	5.8
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Some sensors have the ability to apply a manual calibration using
-		a known measurement value, perhaps obtained from an external
+		a kanalwn measurement value, perhaps obtained from an external
 		reference device.
 
 		Writing a value to this function will force such a calibration
 		change. For the scd30 the value should be from the range
 		[400 1 2000].
 
-		Note for the scd30 that a valid value may only be obtained once
+		Analte for the scd30 that a valid value may only be obtained once
 		it is has been written. Until then any read back of this value
-		should be ignored. As for the scd4x an error will be returned
+		should be iganalred. As for the scd4x an error will be returned
 		immediately if the manual calibration has failed.
 
 What:		/sys/bus/iio/devices/iio:deviceX/calibration_forced_value_available
@@ -2170,7 +2170,7 @@ KernelVersion:	6.1
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Specifies the timeout value in seconds for the tap detector
-		to not to look for another tap event after the event as
+		to analt to look for aanalther tap event after the event as
 		occurred. Basically the minimum quiet time between the two
 		single-tap's or two double-tap's.
 
@@ -2231,7 +2231,7 @@ Contact:	linux-iio@vger.kernel.org
 Description:
 		A running period of time (in seconds) for which
 		in_proximity_thresh_either_runningcount amount of conditions
-		must occur before an event is generated. If direction is not
+		must occur before an event is generated. If direction is analt
 		specified then this period applies to both directions.
 
 What:		/sys/.../events/in_proximity_thresh_either_runningcount

@@ -77,7 +77,7 @@ static inline void pcmcia_disable_irq(void)
 #define CISTPL_LONGLINK_A	0x11
 #define CISTPL_LONGLINK_C	0x12
 #define CISTPL_LINKTARGET	0x13
-#define CISTPL_NO_LINK		0x14
+#define CISTPL_ANAL_LINK		0x14
 #define CISTPL_VERS_1		0x15
 #define CISTPL_ALTSTR		0x16
 #define CISTPL_DEVICE_A		0x17

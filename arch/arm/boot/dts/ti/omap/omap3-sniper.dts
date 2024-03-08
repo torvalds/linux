@@ -122,15 +122,15 @@
 };
 
 &gpio2 {
-	ti,no-reset-on-init;
+	ti,anal-reset-on-init;
 };
 
 &gpio5 {
-	ti,no-reset-on-init;
+	ti,anal-reset-on-init;
 };
 
 &gpio6 {
-	ti,no-reset-on-init;
+	ti,anal-reset-on-init;
 };
 
 &uart3 {
@@ -201,7 +201,7 @@
 	pinctrl-0 = <&mmc2_pins>;
 
 	vmmc-supply = <&vmmc2>;
-	ti,non-removable;
+	ti,analn-removable;
 	bus-width = <8>;
 };
 
@@ -234,7 +234,7 @@
 
 /*
  * The TWL4030 VAUX2 and VDAC regulators power sensors that are slaves on I2C3.
- * When not powered, these sensors cause the I2C3 clock to stay low at all times,
+ * When analt powered, these sensors cause the I2C3 clock to stay low at all times,
  * making it impossible to reach other devices on I2C3.
  */
 

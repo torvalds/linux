@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -79,7 +79,7 @@ nv50_dmaobj_new(struct nvkm_dma *dma, const struct nvkm_oclass *oclass,
 	int ret;
 
 	if (!(dmaobj = kzalloc(sizeof(*dmaobj), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	*pdmaobj = &dmaobj->base;
 
 	ret = nvkm_dmaobj_ctor(&nv50_dmaobj_func, dma, oclass,
@@ -87,7 +87,7 @@ nv50_dmaobj_new(struct nvkm_dma *dma, const struct nvkm_oclass *oclass,
 	if (ret)
 		return ret;
 
-	ret  = -ENOSYS;
+	ret  = -EANALSYS;
 	args = data;
 
 	nvif_ioctl(parent, "create nv50 dma size %d\n", size);
@@ -105,7 +105,7 @@ nv50_dmaobj_new(struct nvkm_dma *dma, const struct nvkm_oclass *oclass,
 		if (dmaobj->base.target != NV_MEM_TARGET_VM) {
 			user = NV50_DMA_V0_PRIV_US;
 			part = NV50_DMA_V0_PART_256;
-			comp = NV50_DMA_V0_COMP_NONE;
+			comp = NV50_DMA_V0_COMP_ANALNE;
 			kind = NV50_DMA_V0_KIND_PITCH;
 		} else {
 			user = NV50_DMA_V0_PRIV_VM;
@@ -132,7 +132,7 @@ nv50_dmaobj_new(struct nvkm_dma *dma, const struct nvkm_oclass *oclass,
 	case NV_MEM_TARGET_PCI:
 		dmaobj->flags0 |= 0x00020000;
 		break;
-	case NV_MEM_TARGET_PCI_NOSNOOP:
+	case NV_MEM_TARGET_PCI_ANALSANALOP:
 		dmaobj->flags0 |= 0x00030000;
 		break;
 	default:

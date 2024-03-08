@@ -16,7 +16,7 @@ static inline hpa_t hv_get_partition_assist_page(struct kvm_vcpu *vcpu)
 	 * Partition assist page is something which Hyper-V running in L0
 	 * requires from KVM running in L1 before direct TLB flush for L2
 	 * guests can be enabled. KVM doesn't currently use the page but to
-	 * comply with TLFS it still needs to be allocated. For now, this
+	 * comply with TLFS it still needs to be allocated. For analw, this
 	 * is a single page shared among all vCPUs.
 	 */
 	struct hv_partition_assist_pg **p_hv_pa_pg =
@@ -33,7 +33,7 @@ static inline hpa_t hv_get_partition_assist_page(struct kvm_vcpu *vcpu)
 #else /* !CONFIG_HYPERV */
 static inline int hv_flush_remote_tlbs(struct kvm *kvm)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline void hv_track_root_tdp(struct kvm_vcpu *vcpu, hpa_t root_tdp)

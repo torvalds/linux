@@ -11,7 +11,7 @@
 #define ACI_SET_MUTE		0x0d
 #define ACI_SET_POWERAMP	0x0f
 #define ACI_SET_TUNERMUTE	0xa3
-#define ACI_SET_TUNERMONO	0xa4
+#define ACI_SET_TUNERMOANAL	0xa4
 #define ACI_SET_IDE		0xd0
 #define ACI_SET_WSS		0xd1
 #define ACI_SET_SOLOMODE	0xd2

@@ -217,7 +217,7 @@ static bool set_inc_field(struct pack_state *state, unsigned field, u64 v)
 }
 
 /*
- * Note: does NOT set out->format (we don't know what it should be here!)
+ * Analte: does ANALT set out->format (we don't kanalw what it should be here!)
  *
  * Also: doesn't work on extents - it doesn't preserve the invariant that
  * if k is packed bkey_start_pos(k) will successfully pack
@@ -298,7 +298,7 @@ struct bpos __bkey_unpack_pos(const struct bkey_format *format,
 	EBUG_ON(in->u64s < format->key_u64s);
 	EBUG_ON(in->format != KEY_FORMAT_LOCAL_BTREE);
 
-	out.inode	= get_inc_field(&state, BKEY_FIELD_INODE);
+	out.ianalde	= get_inc_field(&state, BKEY_FIELD_IANALDE);
 	out.offset	= get_inc_field(&state, BKEY_FIELD_OFFSET);
 	out.snapshot	= get_inc_field(&state, BKEY_FIELD_SNAPSHOT);
 
@@ -307,7 +307,7 @@ struct bpos __bkey_unpack_pos(const struct bkey_format *format,
 #endif
 
 /**
- * bch2_bkey_pack_key -- pack just the key, not the value
+ * bch2_bkey_pack_key -- pack just the key, analt the value
  * @out:	packed result
  * @in:		key to pack
  * @format:	format of packed result
@@ -341,7 +341,7 @@ bool bch2_bkey_pack_key(struct bkey_packed *out, const struct bkey *in,
 
 /**
  * bch2_bkey_unpack -- unpack the key and the value
- * @b:		btree node of @src key (for packed format)
+ * @b:		btree analde of @src key (for packed format)
  * @dst:	unpacked result
  * @src:	packed input
  */
@@ -481,7 +481,7 @@ enum bkey_pack_pos_ret bch2_bkey_pack_pos_lossy(struct bkey_packed *out,
 	/*
 	 * bch2_bkey_pack_key() will write to all of f->key_u64s, minus the 3
 	 * byte header, but pack_pos() won't if the len/version fields are big
-	 * enough - we need to make sure to zero them out:
+	 * eanalugh - we need to make sure to zero them out:
 	 */
 	for (i = 0; i < f->key_u64s; i++)
 		w[i] = 0;
@@ -489,7 +489,7 @@ enum bkey_pack_pos_ret bch2_bkey_pack_pos_lossy(struct bkey_packed *out,
 	if (unlikely(in.snapshot <
 		     le64_to_cpu(f->field_offset[BKEY_FIELD_SNAPSHOT]))) {
 		if (!in.offset-- &&
-		    !in.inode--)
+		    !in.ianalde--)
 			return BKEY_PACK_POS_FAIL;
 		in.snapshot	= KEY_SNAPSHOT_MAX;
 		exact = false;
@@ -497,18 +497,18 @@ enum bkey_pack_pos_ret bch2_bkey_pack_pos_lossy(struct bkey_packed *out,
 
 	if (unlikely(in.offset <
 		     le64_to_cpu(f->field_offset[BKEY_FIELD_OFFSET]))) {
-		if (!in.inode--)
+		if (!in.ianalde--)
 			return BKEY_PACK_POS_FAIL;
 		in.offset	= KEY_OFFSET_MAX;
 		in.snapshot	= KEY_SNAPSHOT_MAX;
 		exact = false;
 	}
 
-	if (unlikely(in.inode <
-		     le64_to_cpu(f->field_offset[BKEY_FIELD_INODE])))
+	if (unlikely(in.ianalde <
+		     le64_to_cpu(f->field_offset[BKEY_FIELD_IANALDE])))
 		return BKEY_PACK_POS_FAIL;
 
-	if (unlikely(!set_inc_field_lossy(&state, BKEY_FIELD_INODE, in.inode))) {
+	if (unlikely(!set_inc_field_lossy(&state, BKEY_FIELD_IANALDE, in.ianalde))) {
 		in.offset	= KEY_OFFSET_MAX;
 		in.snapshot	= KEY_SNAPSHOT_MAX;
 		exact = false;
@@ -561,7 +561,7 @@ void bch2_bkey_format_add_pos(struct bkey_format_state *s, struct bpos p)
 {
 	unsigned field = 0;
 
-	__bkey_format_add(s, field++, p.inode);
+	__bkey_format_add(s, field++, p.ianalde);
 	__bkey_format_add(s, field++, p.offset);
 	__bkey_format_add(s, field++, p.snapshot);
 }
@@ -612,7 +612,7 @@ struct bkey_format bch2_bkey_format_done(struct bkey_format_state *s)
 
 	ret.key_u64s = DIV_ROUND_UP(bits, 64);
 
-	/* if we have enough spare bits, round fields up to nearest byte */
+	/* if we have eanalugh spare bits, round fields up to nearest byte */
 	bits = ret.key_u64s * 64 - bits;
 
 	for (i = 0; i < ARRAY_SIZE(ret.bits_per_field); i++) {

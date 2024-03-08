@@ -57,16 +57,16 @@ bool rtl92e_check_adapter(struct pci_dev *pdev, struct net_device *dev)
 			break;
 		default:
 			dev_info(&pdev->dev,
-				 "UNKNOWN nic type(%4x:%4x)\n",
+				 "UNKANALWN nic type(%4x:%4x)\n",
 				 pdev->vendor, pdev->device);
-			priv->card_8192 = NIC_UNKNOWN;
+			priv->card_8192 = NIC_UNKANALWN;
 			return false;
 		}
 	}
 
 	if (priv->card_8192 != NIC_8192E) {
 		dev_info(&pdev->dev,
-			 "Detect info(%x) and hardware info(%x) not match!\n",
+			 "Detect info(%x) and hardware info(%x) analt match!\n",
 			 NIC_8192E, priv->card_8192);
 		dev_info(&pdev->dev,
 			 "Please select proper driver before install!!!!\n");

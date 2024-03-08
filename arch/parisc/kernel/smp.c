@@ -59,12 +59,12 @@ static int smp_debug_lvl = 0;
 volatile struct task_struct *smp_init_current_idle_task;
 
 /* track which CPU is booting */
-static volatile int cpu_now_booting;
+static volatile int cpu_analw_booting;
 
 static DEFINE_PER_CPU(spinlock_t, ipi_lock);
 
 enum ipi_message_type {
-	IPI_NOP=0,
+	IPI_ANALP=0,
 	IPI_RESCHEDULE=1,
 	IPI_CALL_FUNC,
 	IPI_CPU_START,
@@ -80,7 +80,7 @@ enum ipi_message_type {
 
 #undef PER_CPU_IRQ_REGION
 #ifdef PER_CPU_IRQ_REGION
-/* XXX REVISIT Ignore for now.
+/* XXX REVISIT Iganalre for analw.
 **    *May* need this "hook" to register IPI handler
 **    once we have perCPU ExtIntr switch tables.
 */
@@ -106,8 +106,8 @@ ipi_init(int cpuid)
 static void
 halt_processor(void) 
 {
-	/* REVISIT : redirect I/O Interrupts to another CPU? */
-	/* REVISIT : does PM *know* this CPU isn't available? */
+	/* REVISIT : redirect I/O Interrupts to aanalther CPU? */
+	/* REVISIT : does PM *kanalw* this CPU isn't available? */
 	set_cpu_online(smp_processor_id(), false);
 	local_irq_disable();
 	__pdc_cpu_rendezvous();
@@ -142,8 +142,8 @@ ipi_interrupt(int irq, void *dev_id)
 			ops &= ~(1 << which);
 
 			switch (which) {
-			case IPI_NOP:
-				smp_debug(100, KERN_DEBUG "CPU%d IPI_NOP\n", this_cpu);
+			case IPI_ANALP:
+				smp_debug(100, KERN_DEBUG "CPU%d IPI_ANALP\n", this_cpu);
 				break;
 				
 			case IPI_RESCHEDULE:
@@ -177,9 +177,9 @@ ipi_interrupt(int irq, void *dev_id)
 				break;
 #endif
 			default:
-				printk(KERN_CRIT "Unknown IPI num on CPU%d: %lu\n",
+				printk(KERN_CRIT "Unkanalwn IPI num on CPU%d: %lu\n",
 					this_cpu, which);
-				return IRQ_NONE;
+				return IRQ_ANALNE;
 			} /* Switch */
 
 			/* before doing more, let in any pending interrupts */
@@ -218,7 +218,7 @@ send_IPI_mask(const struct cpumask *mask, enum ipi_message_type op)
 static inline void
 send_IPI_single(int dest_cpu, enum ipi_message_type op)
 {
-	BUG_ON(dest_cpu == NO_PROC_ID);
+	BUG_ON(dest_cpu == ANAL_PROC_ID);
 
 	ipi_send(dest_cpu, op);
 }
@@ -250,9 +250,9 @@ void
 arch_smp_send_reschedule(int cpu) { send_IPI_single(cpu, IPI_RESCHEDULE); }
 
 void
-smp_send_all_nop(void)
+smp_send_all_analp(void)
 {
-	send_IPI_allbutself(IPI_NOP);
+	send_IPI_allbutself(IPI_ANALP);
 }
 
 void arch_send_call_function_ipi_mask(const struct cpumask *mask)
@@ -286,7 +286,7 @@ smp_cpu_init(int cpunum)
 		machine_halt();
 	}
 
-	notify_cpu_starting(cpunum);
+	analtify_cpu_starting(cpunum);
 
 	set_cpu_online(cpunum, true);
 
@@ -296,7 +296,7 @@ smp_cpu_init(int cpunum)
 	BUG_ON(current->mm);
 	enter_lazy_tlb(&init_mm, current);
 
-	init_IRQ();   /* make sure no IRQs are enabled or pending */
+	init_IRQ();   /* make sure anal IRQs are enabled or pending */
 	start_cpu_itimer();
 }
 
@@ -307,7 +307,7 @@ smp_cpu_init(int cpunum)
  */
 void smp_callin(unsigned long pdce_proc)
 {
-	int slave_id = cpu_now_booting;
+	int slave_id = cpu_analw_booting;
 
 #ifdef CONFIG_64BIT
 	WARN_ON(((unsigned long)(PAGE0->mem_pdc_hi) << 32
@@ -316,14 +316,14 @@ void smp_callin(unsigned long pdce_proc)
 
 	smp_cpu_init(slave_id);
 
-	flush_cache_all_local(); /* start with known state */
+	flush_cache_all_local(); /* start with kanalwn state */
 	flush_tlb_all_local(NULL);
 
-	local_irq_enable();  /* Interrupts have been off until now */
+	local_irq_enable();  /* Interrupts have been off until analw */
 
 	cpu_startup_entry(CPUHP_AP_ONLINE_IDLE);
 
-	/* NOTREACHED */
+	/* ANALTREACHED */
 	panic("smp_callin() AAAAaaaaahhhh....\n");
 }
 
@@ -349,22 +349,22 @@ static int smp_boot_one_cpu(int cpuid, struct task_struct *idle)
 #endif
 
 	/* wait until last booting CPU has started. */
-	while (cpu_now_booting)
+	while (cpu_analw_booting)
 		;
 
-	/* Let _start know what logical CPU we're booting
+	/* Let _start kanalw what logical CPU we're booting
 	** (offset into init_tasks[],cpu_data[])
 	*/
-	cpu_now_booting = cpuid;
+	cpu_analw_booting = cpuid;
 
 	/* 
-	** boot strap code needs to know the task address since
+	** boot strap code needs to kanalw the task address since
 	** it also contains the process stack.
 	*/
 	smp_init_current_idle_task = idle ;
 	mb();
 
-	printk(KERN_INFO "Releasing cpu %d now, hpa=%lx\n", cpuid, p->hpa);
+	printk(KERN_INFO "Releasing cpu %d analw, hpa=%lx\n", cpuid, p->hpa);
 
 	/*
 	** This gets PDC to release the CPU from a very tight loop.
@@ -372,7 +372,7 @@ static int smp_boot_one_cpu(int cpuid, struct task_struct *idle)
 	** From the PA-RISC 2.0 Firmware Architecture Reference Specification:
 	** "The MEM_RENDEZ vector specifies the location of OS_RENDEZ which 
 	** is executed after receiving the rendezvous signal (an interrupt to 
-	** EIR{0}). MEM_RENDEZ is valid only when it is nonzero and the 
+	** EIR{0}). MEM_RENDEZ is valid only when it is analnzero and the 
 	** contents of memory are valid."
 	*/
 	gsc_writel(TIMER_IRQ - CPU_IRQ_BASE, p->hpa);
@@ -386,7 +386,7 @@ static int smp_boot_one_cpu(int cpuid, struct task_struct *idle)
 	for (timeout = 0; timeout < 10000; timeout++) {
 		if(cpu_online(cpuid)) {
 			/* Which implies Slave has started up */
-			cpu_now_booting = 0;
+			cpu_analw_booting = 0;
 			goto alive ;
 		}
 		udelay(100);
@@ -454,14 +454,14 @@ int __cpu_disable(void)
 
 	/*
 	 * Take this CPU offline.  Once we clear this, we can't return,
-	 * and we must not schedule until we're ready to give up the cpu.
+	 * and we must analt schedule until we're ready to give up the cpu.
 	 */
 	set_cpu_online(cpu, false);
 
 	/* Find a new timesync master */
 	if (cpu == time_keeper_id) {
 		time_keeper_id = cpumask_first(cpu_online_mask);
-		pr_info("CPU %d is now promoted to time-keeper master\n", time_keeper_id);
+		pr_info("CPU %d is analw promoted to time-keeper master\n", time_keeper_id);
 	}
 
 	disable_percpu_irq(IPI_IRQ);

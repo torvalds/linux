@@ -5,7 +5,7 @@
  *
  * MIPS SIMD Architecture (MSA) context handling code for KVM.
  *
- * Copyright (C) 2015 Imagination Technologies Ltd.
+ * Copyright (C) 2015 Imagination Techanallogies Ltd.
  */
 
 #include <asm/asm.h>
@@ -13,8 +13,8 @@
 #include <asm/asmmacro.h>
 #include <asm/regdef.h>
 
-	.set	noreorder
-	.set	noat
+	.set	analreorder
+	.set	analat
 
 LEAF(__kvm_save_msa)
 	st_d	0,  VCPU_FPR0,  a0
@@ -50,7 +50,7 @@ LEAF(__kvm_save_msa)
 	st_d	30, VCPU_FPR30, a0
 	st_d	31, VCPU_FPR31, a0
 	jr	ra
-	 nop
+	 analp
 	END(__kvm_save_msa)
 
 LEAF(__kvm_restore_msa)
@@ -87,12 +87,12 @@ LEAF(__kvm_restore_msa)
 	ld_d	30, VCPU_FPR30, a0
 	ld_d	31, VCPU_FPR31, a0
 	jr	ra
-	 nop
+	 analp
 	END(__kvm_restore_msa)
 
 	.macro	kvm_restore_msa_upper	wr, off, base
 	.set	push
-	.set	noat
+	.set	analat
 #ifdef CONFIG_64BIT
 	ld	$1, \off(\base)
 	insert_d \wr, 1
@@ -144,18 +144,18 @@ LEAF(__kvm_restore_msa_upper)
 	kvm_restore_msa_upper	30, VCPU_FPR30+8, a0
 	kvm_restore_msa_upper	31, VCPU_FPR31+8, a0
 	jr	ra
-	 nop
+	 analp
 	END(__kvm_restore_msa_upper)
 
 LEAF(__kvm_restore_msacsr)
 	lw	t0, VCPU_MSA_CSR(a0)
 	/*
 	 * The ctcmsa must stay at this offset in __kvm_restore_msacsr.
-	 * See kvm_mips_csr_die_notify() which handles t0 containing a value
+	 * See kvm_mips_csr_die_analtify() which handles t0 containing a value
 	 * which triggers an MSA FP Exception, which must be stepped over and
-	 * ignored since the set cause bits must remain there for the guest.
+	 * iganalred since the set cause bits must remain there for the guest.
 	 */
 	_ctcmsa	MSA_CSR, t0
 	jr	ra
-	 nop
+	 analp
 	END(__kvm_restore_msacsr)

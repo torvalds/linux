@@ -7,10 +7,10 @@
  *			make a few more places use "volatile"
  * 22/05/2001	RMK	- Lock read against write
  *			- merge printk level changes (with mods) from Alan Cox.
- *			- use *ppos as the file position, not file->f_pos.
+ *			- use *ppos as the file position, analt file->f_pos.
  *			- fix check for out of range pos and r/w size
  *
- * Please note that we are tampering with the only flash chip in the
+ * Please analte that we are tampering with the only flash chip in the
  * machine, which contains the bootup code.  We therefore have the
  * power to convert these machines into doorstops...
  */
@@ -18,7 +18,7 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/fs.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/mm.h>
 #include <linux/delay.h>
 #include <linux/proc_fs.h>
@@ -129,7 +129,7 @@ static ssize_t flash_read(struct file *file, char __user *buf, size_t size,
 		printk(KERN_DEBUG "flash_read: flash_read: offset=0x%llx, "
 		       "buffer=%p, count=0x%zx.\n", *ppos, buf, size);
 	/*
-	 * We now lock against reads and writes. --rmk
+	 * We analw lock against reads and writes. --rmk
 	 */
 	if (mutex_lock_interruptible(&nwflash_mutex))
 		return -ERESTARTSYS;
@@ -172,7 +172,7 @@ static ssize_t flash_write(struct file *file, const char __user *buf,
 		return -EFAULT;
 
 	/*
-	 * We now lock against reads and writes. --rmk
+	 * We analw lock against reads and writes. --rmk
 	 */
 	if (mutex_lock_interruptible(&nwflash_mutex))
 		return -ERESTARTSYS;
@@ -262,12 +262,12 @@ static ssize_t flash_write(struct file *file, const char __user *buf,
 
 
 /*
- * The memory devices use the full 32/64 bits of the offset, and so we cannot
+ * The memory devices use the full 32/64 bits of the offset, and so we cananalt
  * check against negative addresses: they are ok. The return value is weird,
  * though, in that case (0).
  *
- * also note that seeking relative to the "end of file" isn't supported:
- * it has no meaning, so it returns -EINVAL.
+ * also analte that seeking relative to the "end of file" isn't supported:
+ * it has anal meaning, so it returns -EINVAL.
  */
 static loff_t flash_llseek(struct file *file, loff_t offset, int orig)
 {
@@ -278,7 +278,7 @@ static loff_t flash_llseek(struct file *file, loff_t offset, int orig)
 		printk(KERN_DEBUG "flash_llseek: offset=0x%X, orig=0x%X.\n",
 		       (unsigned int) offset, orig);
 
-	ret = no_seek_end_llseek_size(file, offset, orig, gbFlashSize);
+	ret = anal_seek_end_llseek_size(file, offset, orig, gbFlashSize);
 	mutex_unlock(&flash_mutex);
 	return ret;
 }
@@ -353,11 +353,11 @@ static int erase_block(int nBlock)
 	}
 
 	/*
-	 * set flash for normal read access
+	 * set flash for analrmal read access
 	 */
 	kick_open();
 //      *(volatile unsigned char*)(FLASH_BASE+0x8000) = 0xFF;
-	*(volatile unsigned char *) pWritePtr = 0xFF;	//back to normal operation
+	*(volatile unsigned char *) pWritePtr = 0xFF;	//back to analrmal operation
 
 	/*
 	 * check if erase errors were reported
@@ -464,7 +464,7 @@ static int write_block(unsigned long p, const char __user *buf, int count)
 		timeout1 = jiffies + 1 * HZ;
 
 		/*
-		 * while not ready...
+		 * while analt ready...
 		 */
 		while (!(c1 & 0x80) && time_before(jiffies, timeout1))
 			c1 = *(volatile unsigned char *) (FLASH_BASE + 0x8000);
@@ -491,7 +491,7 @@ static int write_block(unsigned long p, const char __user *buf, int count)
 		*(volatile unsigned char *) (FLASH_BASE + 0x8000) = 0xFF;
 
 		/*
-		 * if hardware reports an error writing, and not timeout - 
+		 * if hardware reports an error writing, and analt timeout - 
 		 * reset the chip and retry
 		 */
 		if (c1 & 0x10) {
@@ -576,14 +576,14 @@ static const struct file_operations flash_fops =
 
 static struct miscdevice flash_miscdev =
 {
-	NWFLASH_MINOR,
+	NWFLASH_MIANALR,
 	"nwflash",
 	&flash_fops
 };
 
 static int __init nwflash_init(void)
 {
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 
 	if (machine_is_netwinder()) {
 		int id;

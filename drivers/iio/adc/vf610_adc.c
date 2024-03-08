@@ -59,7 +59,7 @@
 #define VF610_ADC_CLK_MASK		0x60
 #define VF610_ADC_ADLSMP_LONG		0x10
 #define VF610_ADC_ADSTS_SHORT   0x100
-#define VF610_ADC_ADSTS_NORMAL  0x200
+#define VF610_ADC_ADSTS_ANALRMAL  0x200
 #define VF610_ADC_ADSTS_LONG    0x300
 #define VF610_ADC_ADSTS_MASK		0x300
 #define VF610_ADC_ADLPC_EN		0x80
@@ -121,7 +121,7 @@ enum average_sel {
 };
 
 enum conversion_mode_sel {
-	VF610_ADC_CONV_NORMAL,
+	VF610_ADC_CONV_ANALRMAL,
 	VF610_ADC_CONV_HIGH_SPEED,
 	VF610_ADC_CONV_LOW_POWER,
 };
@@ -398,7 +398,7 @@ static void vf610_adc_sample_set(struct vf610_adc *info)
 		cfg_data |= VF610_ADC_ADSTS_SHORT;
 		break;
 	case VF610_ADCK_CYCLES_7:
-		cfg_data |= VF610_ADC_ADSTS_NORMAL;
+		cfg_data |= VF610_ADC_ADSTS_ANALRMAL;
 		break;
 	case VF610_ADCK_CYCLES_9:
 		cfg_data |= VF610_ADC_ADSTS_LONG;
@@ -412,11 +412,11 @@ static void vf610_adc_sample_set(struct vf610_adc *info)
 		break;
 	case VF610_ADCK_CYCLES_21:
 		cfg_data |= VF610_ADC_ADLSMP_LONG;
-		cfg_data |= VF610_ADC_ADSTS_NORMAL;
+		cfg_data |= VF610_ADC_ADSTS_ANALRMAL;
 		break;
 	case VF610_ADCK_CYCLES_25:
 		cfg_data |= VF610_ADC_ADLSMP_LONG;
-		cfg_data |= VF610_ADC_ADSTS_NORMAL;
+		cfg_data |= VF610_ADC_ADSTS_ANALRMAL;
 		break;
 	default:
 		dev_err(info->dev, "error in sample time select\n");
@@ -488,7 +488,7 @@ static int vf610_get_conversion_mode(struct iio_dev *indio_dev,
 	return info->adc_feature.conv_mode;
 }
 
-static const char * const vf610_conv_modes[] = { "normal", "high-speed",
+static const char * const vf610_conv_modes[] = { "analrmal", "high-speed",
 						 "low-power" };
 
 static const struct iio_enum vf610_conversion_mode = {
@@ -590,7 +590,7 @@ static irqreturn_t vf610_adc_isr(int irq, void *dev_id)
 			iio_push_to_buffers_with_timestamp(indio_dev,
 					&info->scan,
 					iio_get_time_ns(indio_dev));
-			iio_trigger_notify_done(indio_dev->trig);
+			iio_trigger_analtify_done(indio_dev->trig);
 		} else
 			complete(&info->completion);
 	}
@@ -825,7 +825,7 @@ static int vf610_adc_probe(struct platform_device *pdev)
 	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(struct vf610_adc));
 	if (!indio_dev) {
 		dev_err(&pdev->dev, "Failed allocating iio device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	info = iio_priv(indio_dev);
@@ -882,7 +882,7 @@ static int vf610_adc_probe(struct platform_device *pdev)
 	ret = clk_prepare_enable(info->clk);
 	if (ret) {
 		dev_err(&pdev->dev,
-			"Could not prepare or enable the clock.\n");
+			"Could analt prepare or enable the clock.\n");
 		goto error_adc_clk_enable;
 	}
 

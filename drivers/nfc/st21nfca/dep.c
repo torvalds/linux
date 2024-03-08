@@ -149,7 +149,7 @@ static int st21nfca_tm_send_atr_res(struct nfc_hci_dev *hdev,
 	gb_len = atr_req->length - sizeof(struct st21nfca_atr_req);
 	skb = alloc_skb(atr_req->length + 1, GFP_KERNEL);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_put(skb, sizeof(struct st21nfca_atr_res));
 
@@ -231,7 +231,7 @@ static int st21nfca_tm_send_psl_res(struct nfc_hci_dev *hdev,
 
 	skb = alloc_skb(sizeof(struct st21nfca_psl_res), GFP_KERNEL);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 	skb_put(skb, sizeof(struct st21nfca_psl_res));
 
 	psl_res = (struct st21nfca_psl_res *)skb->data;
@@ -249,7 +249,7 @@ static int st21nfca_tm_send_psl_res(struct nfc_hci_dev *hdev,
 	/*
 	 * ST21NFCA only support P2P passive.
 	 * PSL_REQ BRS value != 0 has only a meaning to
-	 * change technology to type F.
+	 * change techanallogy to type F.
 	 * We change to BITRATE 424Kbits.
 	 * In other case switch to BITRATE 106Kbits.
 	 */
@@ -378,7 +378,7 @@ static int st21nfca_tm_event_send_data(struct nfc_hci_dev *hdev,
 /*
  * Returns:
  * <= 0: driver handled the event, skb consumed
- *    1: driver does not handle the event, please do standard processing
+ *    1: driver does analt handle the event, please do standard processing
  */
 int st21nfca_dep_event_received(struct nfc_hci_dev *hdev,
 				u8 event, struct sk_buff *skb)
@@ -506,7 +506,7 @@ int st21nfca_im_send_atr_req(struct nfc_hci_dev *hdev, u8 *gb, size_t gb_len)
 	skb =
 	    alloc_skb(sizeof(struct st21nfca_atr_req) + gb_len + 1, GFP_KERNEL);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_reserve(skb, 1);
 

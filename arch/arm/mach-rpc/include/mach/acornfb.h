@@ -104,9 +104,9 @@ acornfb_vidc20_find_rates(struct vidc_timing *vidc,
 
 	/*
 	 * With VRAM, the FIFO can be set to the highest possible setting
-	 * because there are no latency considerations for other memory
+	 * because there are anal latency considerations for other memory
 	 * accesses. However, in 64 bit bus mode the FIFO preload value
-	 * must not be set to VIDC20_CTRL_FIFO_28 because this will let
+	 * must analt be set to VIDC20_CTRL_FIFO_28 because this will let
 	 * the FIFO overflow. See VIDC20 manual page 33 (6.0 Setting the
 	 * FIFO preload value).
 	 */

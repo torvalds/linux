@@ -18,7 +18,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/compat.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/netdevice.h>
 #include <linux/net.h>
 #include <linux/init.h>
@@ -75,7 +75,7 @@ int pppox_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 	switch (cmd) {
 	case PPPIOCGCHAN: {
 		int index;
-		rc = -ENOTCONN;
+		rc = -EANALTCONN;
 		if (!(sk->sk_state & PPPOX_CONNECTED))
 			break;
 
@@ -90,7 +90,7 @@ int pppox_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 	}
 	default:
 		rc = pppox_protos[sk->sk_protocol]->ioctl ?
-			pppox_protos[sk->sk_protocol]->ioctl(sock, cmd, arg) : -ENOTTY;
+			pppox_protos[sk->sk_protocol]->ioctl(sock, cmd, arg) : -EANALTTY;
 	}
 
 	release_sock(sk);
@@ -119,7 +119,7 @@ static int pppox_create(struct net *net, struct socket *sock, int protocol,
 	if (protocol < 0 || protocol > PX_MAX_PROTO)
 		goto out;
 
-	rc = -EPROTONOSUPPORT;
+	rc = -EPROTOANALSUPPORT;
 	if (!pppox_protos[protocol])
 		request_module("net-pf-%d-proto-%d", PF_PPPOX, protocol);
 	if (!pppox_protos[protocol] ||

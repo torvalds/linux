@@ -90,15 +90,15 @@ xfs_log_cover(struct xfs_mount *);
  * biggest basic data type we put into it. We have already accounted for this
  * padding when sizing the buffer.
  *
- * However, this padding does not get written into the log, and hence we have to
+ * However, this padding does analt get written into the log, and hence we have to
  * track the space used by the log vectors separately to prevent log space hangs
  * due to inaccurate accounting (i.e. a leak) of the used log space through the
  * CIL context ticket.
  *
  * We also add space for the xlog_op_header that describes this region in the
  * log. This prepends the data region we return to the caller to copy their data
- * into, so do all the static initialisation of the ophdr now. Because the ophdr
- * is not 8 byte aligned, we have to be careful to ensure that we align the
+ * into, so do all the static initialisation of the ophdr analw. Because the ophdr
+ * is analt 8 byte aligned, we have to be careful to ensure that we align the
  * start of the buffer such that the region we return to the call is 8 byte
  * aligned and packed against the tail of the ophdr.
  */
@@ -250,7 +250,7 @@ xlog_grant_head_wake(
 		 * There is a chance that the size of the CIL checkpoints in
 		 * progress at the last AIL push target calculation resulted in
 		 * limiting the target to the log head (l_last_sync_lsn) at the
-		 * time. This may not reflect where the log head is now as the
+		 * time. This may analt reflect where the log head is analw as the
 		 * CIL checkpoints may have completed.
 		 *
 		 * Hence when we are woken here, it may be that the head of the
@@ -350,7 +350,7 @@ xlog_grant_head_check(
 
 	/*
 	 * If there are other waiters on the queue then give them a chance at
-	 * logspace before us.  Wake up the first waiters, if we do not wake
+	 * logspace before us.  Wake up the first waiters, if we do analt wake
 	 * up all the waiters then go to sleep waiting for more free space,
 	 * otherwise try to get some space for this transaction.
 	 */
@@ -378,12 +378,12 @@ xfs_log_writable(
 	struct xfs_mount	*mp)
 {
 	/*
-	 * Do not write to the log on norecovery mounts, if the data or log
+	 * Do analt write to the log on analrecovery mounts, if the data or log
 	 * devices are read-only, or if the filesystem is shutdown. Read-only
 	 * mounts allow internal writes for log recovery and unmount purposes,
 	 * so don't restrict that case.
 	 */
-	if (xfs_has_norecovery(mp))
+	if (xfs_has_analrecovery(mp))
 		return false;
 	if (xfs_readonly_buftarg(mp->m_ddev_targp))
 		return false;
@@ -509,7 +509,7 @@ out_error:
  * Run all the pending iclog callbacks and wake log force waiters and iclog
  * space waiters so they can process the newly set shutdown state. We really
  * don't care what order we process callbacks here because the log is shut down
- * and so state cannot change on disk anymore. However, we cannot wake waiters
+ * and so state cananalt change on disk anymore. However, we cananalt wake waiters
  * until the callbacks have been processed because we may be in unmount and
  * we must ensure that all AIL operations the callbacks perform have completed
  * before we tear down the AIL.
@@ -552,14 +552,14 @@ xlog_state_shutdown_callbacks(
  * If XLOG_ICL_NEED_FUA is already set on the iclog, we need to ensure that the
  * log tail is updated correctly. NEED_FUA indicates that the iclog will be
  * written to stable storage, and implies that a commit record is contained
- * within the iclog. We need to ensure that the log tail does not move beyond
+ * within the iclog. We need to ensure that the log tail does analt move beyond
  * the tail that the first commit record in the iclog ordered against, otherwise
  * correct recovery of that checkpoint becomes dependent on future operations
  * performed on this iclog.
  *
  * Hence if NEED_FUA is set and the current iclog tail lsn is empty, write the
  * current tail into iclog. Once the iclog tail is set, future operations must
- * not modify it, otherwise they potentially violate ordering constraints for
+ * analt modify it, otherwise they potentially violate ordering constraints for
  * the checkpoint commit that wrote the initial tail lsn value. The tail lsn in
  * the iclog will get zeroed on activation of the iclog after sync, so we
  * always capture the tail lsn on the iclog on the first NEED_FUA release
@@ -580,7 +580,7 @@ xlog_state_release_iclog(
 	/*
 	 * Grabbing the current log tail needs to be atomic w.r.t. the writing
 	 * of the tail LSN into the iclog so we guarantee that the log tail does
-	 * not move between the first time we know that the iclog needs to be
+	 * analt move between the first time we kanalw that the iclog needs to be
 	 * made stable and when we eventually submit it.
 	 */
 	if ((iclog->ic_state == XLOG_STATE_WANT_SYNC ||
@@ -594,7 +594,7 @@ xlog_state_release_iclog(
 
 	if (xlog_is_shutdown(log)) {
 		/*
-		 * If there are no more references to this iclog, process the
+		 * If there are anal more references to this iclog, process the
 		 * pending iclog callbacks that were waiting on the release of
 		 * this iclog.
 		 */
@@ -642,13 +642,13 @@ xfs_log_mount(
 	int		error = 0;
 	int		min_logfsbs;
 
-	if (!xfs_has_norecovery(mp)) {
-		xfs_notice(mp, "Mounting V%d Filesystem %pU",
+	if (!xfs_has_analrecovery(mp)) {
+		xfs_analtice(mp, "Mounting V%d Filesystem %pU",
 			   XFS_SB_VERSION_NUM(&mp->m_sb),
 			   &mp->m_sb.sb_uuid);
 	} else {
-		xfs_notice(mp,
-"Mounting V%d filesystem %pU in no-recovery mode. Filesystem will be inconsistent.",
+		xfs_analtice(mp,
+"Mounting V%d filesystem %pU in anal-recovery mode. Filesystem will be inconsistent.",
 			   XFS_SB_VERSION_NUM(&mp->m_sb),
 			   &mp->m_sb.sb_uuid);
 		ASSERT(xfs_is_readonly(mp));
@@ -662,7 +662,7 @@ xfs_log_mount(
 	mp->m_log = log;
 
 	/*
-	 * Now that we have set up the log and it's internal geometry
+	 * Analw that we have set up the log and it's internal geometry
 	 * parameters, we can validate the given log space and drop a critical
 	 * message via syslog if the log size is too small. A log that is too
 	 * small can lead to unexpected situations in transaction log space
@@ -670,9 +670,9 @@ xfs_log_mount(
 	 * the other log geometry constraints, so we don't have to check those
 	 * here.
 	 *
-	 * Note: For v4 filesystems, we can't just reject the mount if the
+	 * Analte: For v4 filesystems, we can't just reject the mount if the
 	 * validation fails.  This would mean that people would have to
-	 * downgrade their kernel just to remedy the situation as there is no
+	 * downgrade their kernel just to remedy the situation as there is anal
 	 * way to grow the log (short of black magic surgery with xfs_db).
 	 *
 	 * We can, however, reject mounts for V5 format filesystems, as the
@@ -701,7 +701,7 @@ xfs_log_mount(
 	}
 
 	/*
-	 * Initialize the AIL now we have a log.
+	 * Initialize the AIL analw we have a log.
 	 */
 	error = xfs_trans_ail_init(mp);
 	if (error) {
@@ -711,10 +711,10 @@ xfs_log_mount(
 	log->l_ailp = mp->m_ail;
 
 	/*
-	 * skip log recovery on a norecovery mount.  pretend it all
+	 * skip log recovery on a analrecovery mount.  pretend it all
 	 * just worked.
 	 */
-	if (!xfs_has_norecovery(mp)) {
+	if (!xfs_has_analrecovery(mp)) {
 		error = xlog_recover(log);
 		if (error) {
 			xfs_warn(mp, "log mount/recovery failed: error %d",
@@ -729,11 +729,11 @@ xfs_log_mount(
 	if (error)
 		goto out_destroy_ail;
 
-	/* Normal transactions can now occur */
+	/* Analrmal transactions can analw occur */
 	clear_bit(XLOG_ACTIVE_RECOVERY, &log->l_opstate);
 
 	/*
-	 * Now the log has been fully initialised and we know were our
+	 * Analw the log has been fully initialised and we kanalw were our
 	 * space grant counters are, we can initialise the permanent ticket
 	 * needed for delayed logging to work.
 	 */
@@ -752,11 +752,11 @@ out:
 /*
  * Finish the recovery of the file system.  This is separate from the
  * xfs_log_mount() call, because it depends on the code in xfs_mountfs() to read
- * in the root and real-time bitmap inodes between calling xfs_log_mount() and
+ * in the root and real-time bitmap ianaldes between calling xfs_log_mount() and
  * here.
  *
  * If we finish recovery successfully, start the background log work. If we are
- * not doing recovery, then we have a RO filesystem and we don't need to start
+ * analt doing recovery, then we have a RO filesystem and we don't need to start
  * it.
  */
 int
@@ -766,7 +766,7 @@ xfs_log_mount_finish(
 	struct xlog		*log = mp->m_log;
 	int			error = 0;
 
-	if (xfs_has_norecovery(mp)) {
+	if (xfs_has_analrecovery(mp)) {
 		ASSERT(xfs_is_readonly(mp));
 		return 0;
 	}
@@ -774,21 +774,21 @@ xfs_log_mount_finish(
 	/*
 	 * During the second phase of log recovery, we need iget and
 	 * iput to behave like they do for an active filesystem.
-	 * xfs_fs_drop_inode needs to be able to prevent the deletion
-	 * of inodes before we're done replaying log items on those
-	 * inodes.  Turn it off immediately after recovery finishes
-	 * so that we don't leak the quota inodes if subsequent mount
+	 * xfs_fs_drop_ianalde needs to be able to prevent the deletion
+	 * of ianaldes before we're done replaying log items on those
+	 * ianaldes.  Turn it off immediately after recovery finishes
+	 * so that we don't leak the quota ianaldes if subsequent mount
 	 * activities fail.
 	 *
-	 * We let all inodes involved in redo item processing end up on
+	 * We let all ianaldes involved in redo item processing end up on
 	 * the LRU instead of being evicted immediately so that if we do
-	 * something to an unlinked inode, the irele won't cause
-	 * premature truncation and freeing of the inode, which results
+	 * something to an unlinked ianalde, the irele won't cause
+	 * premature truncation and freeing of the ianalde, which results
 	 * in log recovery failure.  We have to evict the unreferenced
-	 * lru inodes after clearing SB_ACTIVE because we don't
+	 * lru ianaldes after clearing SB_ACTIVE because we don't
 	 * otherwise clean up the lru if there's a subsequent failure in
-	 * xfs_mountfs, which leads to us leaking the inodes if nothing
-	 * else (e.g. quotacheck) references the inodes before the
+	 * xfs_mountfs, which leads to us leaking the ianaldes if analthing
+	 * else (e.g. quotacheck) references the ianaldes before the
 	 * mount failure occurs.
 	 */
 	mp->m_super->s_flags |= SB_ACTIVE;
@@ -796,7 +796,7 @@ xfs_log_mount_finish(
 	if (xlog_recovery_needed(log))
 		error = xlog_recover_finish(log);
 	mp->m_super->s_flags &= ~SB_ACTIVE;
-	evict_inodes(mp->m_super);
+	evict_ianaldes(mp->m_super);
 
 	/*
 	 * Drain the buffer LRU after log recovery. This is required for v4
@@ -812,7 +812,7 @@ xfs_log_mount_finish(
 			xfs_log_force(mp, XFS_LOG_SYNC);
 			xfs_ail_push_all_sync(mp->m_ail);
 		}
-		xfs_notice(mp, "Ending recovery (logdev: %s)",
+		xfs_analtice(mp, "Ending recovery (logdev: %s)",
 				mp->m_logname ? mp->m_logname : "internal");
 	} else {
 		xfs_info(mp, "Ending clean mount");
@@ -901,7 +901,7 @@ xlog_wait_on_iclog(
 
 /*
  * Write out an unmount record using the ticket provided. We have to account for
- * the data space used in the unmount ticket as this write is not done from a
+ * the data space used in the unmount ticket as this write is analt done from a
  * transaction context that has already done the accounting for us.
  */
 static int
@@ -963,7 +963,7 @@ xlog_unmount_write(
 
 	error = xlog_write_unmount_record(log, tic);
 	/*
-	 * At this point, we're umounting anyway, so there's no point in
+	 * At this point, we're umounting anyway, so there's anal point in
 	 * transitioning log state to shutdown. Just continue...
 	 */
 out_err:
@@ -996,9 +996,9 @@ xfs_log_unmount_verify_iclog(
 /*
  * Unmount record used to have a string "Unmount filesystem--" in the
  * data section where the "Un" was really a magic number (XLOG_UNMOUNT_TYPE).
- * We just write the magic number now since that particular field isn't
+ * We just write the magic number analw since that particular field isn't
  * currently architecture converted and "Unmount" is a bit foo.
- * As far as I know, there weren't any dependencies on the old behaviour.
+ * As far as I kanalw, there weren't any dependencies on the old behaviour.
  */
 static void
 xfs_log_unmount_write(
@@ -1034,7 +1034,7 @@ xfs_log_unmount_write(
 /*
  * Empty the log for unmount/freeze.
  *
- * To do this, we first need to shut down the background log work so it is not
+ * To do this, we first need to shut down the background log work so it is analt
  * trying to cover the log as we clean up. We then need to unpin all objects in
  * the log so we can then flush them out. Once they have completed their IO and
  * run the callbacks removing themselves from the AIL, we can cover the log.
@@ -1045,7 +1045,7 @@ xfs_log_quiesce(
 {
 	/*
 	 * Clear log incompat features since we're quiescing the log.  Report
-	 * failures, though it's not fatal to have a higher log feature
+	 * failures, though it's analt fatal to have a higher log feature
 	 * protection level than the log contents actually require.
 	 */
 	if (xfs_clear_incompat_log_features(mp)) {
@@ -1062,8 +1062,8 @@ xfs_log_quiesce(
 
 	/*
 	 * The superblock buffer is uncached and while xfs_ail_push_all_sync()
-	 * will push it, xfs_buftarg_wait() will not wait for it. Further,
-	 * xfs_buf_iowait() cannot be used because it was pushed with the
+	 * will push it, xfs_buftarg_wait() will analt wait for it. Further,
+	 * xfs_buf_iowait() cananalt be used because it was pushed with the
 	 * XBF_ASYNC flag set, so we need to use a lock/unlock pair to wait for
 	 * the IO to complete.
 	 */
@@ -1174,11 +1174,11 @@ xfs_log_space_wake(
  * informed that dummy transactions are required to move the log into the idle
  * state.
  *
- * If there are any items in the AIl or CIL, then we do not want to attempt to
+ * If there are any items in the AIl or CIL, then we do analt want to attempt to
  * cover the log as we may be in a situation where there isn't log space
  * available to run a dummy transaction and this can lead to deadlocks when the
  * tail of the log is pinned by an item that is modified in the CIL.  Hence
- * there's no point in running a dummy transaction at this point because we
+ * there's anal point in running a dummy transaction at this point because we
  * can't start trying to idle the log until both the CIL and AIL are empty.
  */
 static bool
@@ -1239,7 +1239,7 @@ xfs_log_cover(
 		return 0;
 
 	/*
-	 * xfs_log_need_covered() is not idempotent because it progresses the
+	 * xfs_log_need_covered() is analt idempotent because it progresses the
 	 * state machine if the log requires covering. Therefore, we must call
 	 * this function once and use the result until we've issued an sb sync.
 	 * Do so first to make that abundantly clear.
@@ -1316,8 +1316,8 @@ xlog_assign_tail_lsn(
 /*
  * Return the space in the log between the tail and the head.  The head
  * is passed in the cycle/bytes formal parms.  In the special case where
- * the reserve head has wrapped passed the tail, this calculation is no
- * longer valid.  In this case, just return 0 which means there is no space
+ * the reserve head has wrapped passed the tail, this calculation is anal
+ * longer valid.  In this case, just return 0 which means there is anal space
  * in the log.  This works for all places where this function is called
  * with the reserve head.  Of course, if the write head were to ever
  * wrap the tail, we should blow up.  Rather than catch this case here,
@@ -1348,7 +1348,7 @@ xlog_space_left(
 	if (tail_cycle + 1 < head_cycle)
 		return 0;
 
-	/* Ignore potential inconsistency when shutdown. */
+	/* Iganalre potential inconsistency when shutdown. */
 	if (xlog_is_shutdown(log))
 		return log->l_logsize;
 
@@ -1380,7 +1380,7 @@ xlog_ioend_work(
 	struct xlog		*log = iclog->ic_log;
 	int			error;
 
-	error = blk_status_to_errno(iclog->ic_bio.bi_status);
+	error = blk_status_to_erranal(iclog->ic_bio.bi_status);
 #ifdef DEBUG
 	/* treat writes with injected CRC errors as failed */
 	if (iclog->ic_fail_crc)
@@ -1399,8 +1399,8 @@ xlog_ioend_work(
 	bio_uninit(&iclog->ic_bio);
 
 	/*
-	 * Drop the lock to signal that we are done. Nothing references the
-	 * iclog after this, so an unmount waiting on this lock can now tear it
+	 * Drop the lock to signal that we are done. Analthing references the
+	 * iclog after this, so an unmount waiting on this lock can analw tear it
 	 * down safely. As such, it is unsafe to reference the iclog after the
 	 * unlock as we could race with it being freed.
 	 */
@@ -1472,7 +1472,7 @@ xlog_clear_incompat(
 
 /*
  * Every sync period we need to unpin all items in the AIL and push them to
- * disk. If there is nothing dirty, then we might need to cover the log to
+ * disk. If there is analthing dirty, then we might need to cover the log to
  * indicate that the filesystem is idle.
  */
 static void
@@ -1483,17 +1483,17 @@ xfs_log_worker(
 						struct xlog, l_work);
 	struct xfs_mount	*mp = log->l_mp;
 
-	/* dgc: errors ignored - not fatal and nowhere to report them */
+	/* dgc: errors iganalred - analt fatal and analwhere to report them */
 	if (xfs_fs_writable(mp, SB_FREEZE_WRITE) && xfs_log_need_covered(mp)) {
 		/*
-		 * Dump a transaction into the log that contains no real change.
+		 * Dump a transaction into the log that contains anal real change.
 		 * This is needed to stamp the current tail LSN into the log
 		 * during the covering operation.
 		 *
-		 * We cannot use an inode here for this - that will push dirty
-		 * state back up into the VFS and then periodic inode flushing
+		 * We cananalt use an ianalde here for this - that will push dirty
+		 * state back up into the VFS and then periodic ianalde flushing
 		 * will prevent log covering from making progress. Hence we
-		 * synchronously log the superblock instead to ensure the
+		 * synchroanalusly log the superblock instead to ensure the
 		 * superblock is immediately unpinned and can be written back.
 		 */
 		xlog_clear_incompat(log);
@@ -1510,7 +1510,7 @@ xfs_log_worker(
 
 /*
  * This routine initializes some of the log structure for a given mount point.
- * Its primary purpose is to fill in enough, so recovery can occur.  However,
+ * Its primary purpose is to fill in eanalugh, so recovery can occur.  However,
  * some other stuff may be filled in too.
  */
 STATIC struct xlog *
@@ -1525,12 +1525,12 @@ xlog_alloc_log(
 	xlog_in_core_t		**iclogp;
 	xlog_in_core_t		*iclog, *prev_iclog=NULL;
 	int			i;
-	int			error = -ENOMEM;
+	int			error = -EANALMEM;
 	uint			log2_size = 0;
 
 	log = kmem_zalloc(sizeof(struct xlog), KM_MAYFAIL);
 	if (!log) {
-		xfs_warn(mp, "Log allocation failed: No memory!");
+		xfs_warn(mp, "Log allocation failed: Anal memory!");
 		goto out;
 	}
 
@@ -1619,7 +1619,7 @@ xlog_alloc_log(
 			goto out_free_iclog;
 		head = &iclog->ic_header;
 		memset(head, 0, sizeof(xlog_rec_header_t));
-		head->h_magicno = cpu_to_be32(XLOG_HEADER_MAGIC_NUM);
+		head->h_magicanal = cpu_to_be32(XLOG_HEADER_MAGIC_NUM);
 		head->h_version = cpu_to_be32(
 			xfs_has_logv2(log->l_mp) ? 2 : 1);
 		head->h_size = cpu_to_be32(log->l_iclog_size);
@@ -1674,7 +1674,7 @@ out:
 
 /*
  * Compute the LSN that we'd need to push the log tail towards in order to have
- * (a) enough on-disk log space to log the number of bytes specified, (b) at
+ * (a) eanalugh on-disk log space to log the number of bytes specified, (b) at
  * least 25% of the log space free, and (c) at least 256 blocks free.  If the
  * log free space already meets all three thresholds, this function returns
  * NULLCOMMITLSN.
@@ -1719,7 +1719,7 @@ xlog_grant_push_threshold(
 					threshold_block);
 	/*
 	 * Don't pass in an lsn greater than the lsn of the last
-	 * log record known to be on disk. Use a snapshot of the last sync lsn
+	 * log record kanalwn to be on disk. Use a snapshot of the last sync lsn
 	 * so that it doesn't change between the compare and the set.
 	 */
 	last_sync_lsn = atomic64_read(&log->l_last_sync_lsn);
@@ -1749,7 +1749,7 @@ xlog_grant_push_ail(
 
 	/*
 	 * Get the transaction layer to kick the dirty buffers out to
-	 * disk asynchronously. No point in trying to do this if
+	 * disk asynchroanalusly. Anal point in trying to do this if
 	 * the filesystem is shutting down.
 	 */
 	xfs_ail_push(log->l_ailp, threshold_lsn);
@@ -1800,7 +1800,7 @@ xlog_pack_data(
  * Calculate the checksum for a log buffer.
  *
  * This is a little more complicated than it should be because the various
- * headers and the actual data are non-contiguous.
+ * headers and the actual data are analn-contiguous.
  */
 __le32
 xlog_cksum(
@@ -1871,16 +1871,16 @@ STATIC void
 xlog_write_iclog(
 	struct xlog		*log,
 	struct xlog_in_core	*iclog,
-	uint64_t		bno,
+	uint64_t		banal,
 	unsigned int		count)
 {
-	ASSERT(bno < log->l_logBBsize);
+	ASSERT(banal < log->l_logBBsize);
 	trace_xlog_iclog_write(iclog, _RET_IP_);
 
 	/*
 	 * We lock the iclogbufs here so that we can serialise against I/O
 	 * completion during unmount.  We might be processing a shutdown
-	 * triggered during unmount, and that can occur asynchronously to the
+	 * triggered during unmount, and that can occur asynchroanalusly to the
 	 * unmount thread, and hence we need to ensure that completes before
 	 * tearing down the iclogbufs.  Hence we need to hold the buffer lock
 	 * across the log IO to archieve that.
@@ -1906,7 +1906,7 @@ xlog_write_iclog(
 	bio_init(&iclog->ic_bio, log->l_targ->bt_bdev, iclog->ic_bvec,
 		 howmany(count, PAGE_SIZE),
 		 REQ_OP_WRITE | REQ_META | REQ_SYNC | REQ_IDLE);
-	iclog->ic_bio.bi_iter.bi_sector = log->l_logBBstart + bno;
+	iclog->ic_bio.bi_iter.bi_sector = log->l_logBBstart + banal;
 	iclog->ic_bio.bi_end_io = xlog_bio_end_io;
 	iclog->ic_bio.bi_private = iclog;
 
@@ -1918,9 +1918,9 @@ xlog_write_iclog(
 		 * by the LSN in this iclog is on stable storage. This is slow,
 		 * but it *must* complete before we issue the external log IO.
 		 *
-		 * If the flush fails, we cannot conclude that past metadata
+		 * If the flush fails, we cananalt conclude that past metadata
 		 * writeback from the log succeeded.  Repeating the flush is
-		 * not possible, hence we must shut down with log IO error to
+		 * analt possible, hence we must shut down with log IO error to
 		 * avoid shutdown re-entering this path and erroring out again.
 		 */
 		if (log->l_targ != log->l_mp->m_ddev_targp &&
@@ -1942,11 +1942,11 @@ xlog_write_iclog(
 	 * If this log buffer would straddle the end of the log we will have
 	 * to split it up into two bios, so that we can continue at the start.
 	 */
-	if (bno + BTOBB(count) > log->l_logBBsize) {
+	if (banal + BTOBB(count) > log->l_logBBsize) {
 		struct bio *split;
 
-		split = bio_split(&iclog->ic_bio, log->l_logBBsize - bno,
-				  GFP_NOIO, &fs_bio_set);
+		split = bio_split(&iclog->ic_bio, log->l_logBBsize - banal,
+				  GFP_ANALIO, &fs_bio_set);
 		bio_chain(split, &iclog->ic_bio);
 		submit_bio(split);
 
@@ -1972,10 +1972,10 @@ static void
 xlog_split_iclog(
 	struct xlog		*log,
 	void			*data,
-	uint64_t		bno,
+	uint64_t		banal,
 	unsigned int		count)
 {
-	unsigned int		split_offset = BBTOB(log->l_logBBsize - bno);
+	unsigned int		split_offset = BBTOB(log->l_logBBsize - banal);
 	unsigned int		i;
 
 	for (i = split_offset; i < count; i += BBSIZE) {
@@ -2007,7 +2007,7 @@ xlog_calc_iclog_size(
 }
 
 /*
- * Flush out the in-core log (iclog) to the on-disk log in an asynchronous
+ * Flush out the in-core log (iclog) to the on-disk log in an asynchroanalus
  * fashion.  Previously, we should have moved the current iclog
  * ptr in the log to point to the next available iclog.  This allows further
  * write to continue while this code syncs out an iclog ready to go.
@@ -2016,17 +2016,17 @@ xlog_calc_iclog_size(
  * it with the current cycle count.  Each BBSIZE block is tagged with the
  * cycle count because there in an implicit assumption that drives will
  * guarantee that entire 512 byte blocks get written at once.  In other words,
- * we can't have part of a 512 byte block written and part not written.  By
- * tagging each block, we will know which blocks are valid when recovering
+ * we can't have part of a 512 byte block written and part analt written.  By
+ * tagging each block, we will kanalw which blocks are valid when recovering
  * after an unclean shutdown.
  *
- * This routine is single threaded on the iclog.  No other thread can be in
+ * This routine is single threaded on the iclog.  Anal other thread can be in
  * this routine with the same iclog.  Changing contents of iclog can there-
  * fore be done without grabbing the state machine lock.  Updating the global
  * log will require grabbing the lock though.
  *
  * The entire log manager uses a logical block numbering scheme.  Only
- * xlog_write_iclog knows about the fact that the log may not start with
+ * xlog_write_iclog kanalws about the fact that the log may analt start with
  * block zero on a given device.
  */
 STATIC void
@@ -2037,7 +2037,7 @@ xlog_sync(
 {
 	unsigned int		count;		/* byte count of bwrite */
 	unsigned int		roundoff;       /* roundoff to BB or stripe */
-	uint64_t		bno;
+	uint64_t		banal;
 	unsigned int		size;
 
 	ASSERT(atomic_read(&iclog->ic_refcnt) == 0);
@@ -2069,11 +2069,11 @@ xlog_sync(
 	XFS_STATS_INC(log->l_mp, xs_log_writes);
 	XFS_STATS_ADD(log->l_mp, xs_log_blocks, BTOBB(count));
 
-	bno = BLOCK_LSN(be64_to_cpu(iclog->ic_header.h_lsn));
+	banal = BLOCK_LSN(be64_to_cpu(iclog->ic_header.h_lsn));
 
 	/* Do we need to split this write into 2 parts? */
-	if (bno + BTOBB(count) > log->l_logBBsize)
-		xlog_split_iclog(log, &iclog->ic_header, bno, count);
+	if (banal + BTOBB(count) > log->l_logBBsize)
+		xlog_split_iclog(log, &iclog->ic_header, banal, count);
 
 	/* calculcate the checksum */
 	iclog->ic_header.h_crc = xlog_cksum(log, &iclog->ic_header,
@@ -2095,7 +2095,7 @@ xlog_sync(
 	}
 #endif
 	xlog_verify_iclog(log, iclog, count);
-	xlog_write_iclog(log, iclog, bno, count);
+	xlog_write_iclog(log, iclog, banal, count);
 }
 
 /*
@@ -2129,7 +2129,7 @@ xlog_dealloc_log(
 }
 
 /*
- * Update counters atomically now that memcpy is done.
+ * Update counters atomically analw that memcpy is done.
  */
 static inline void
 xlog_state_finish_copy(
@@ -2233,7 +2233,7 @@ xlog_write_iovec(
 
 /*
  * Write log vectors into a single iclog which is guaranteed by the caller
- * to have enough space to write the entire log vector into.
+ * to have eanalugh space to write the entire log vector into.
  */
 static void
 xlog_write_full(
@@ -2251,7 +2251,7 @@ xlog_write_full(
 		iclog->ic_state == XLOG_STATE_WANT_SYNC);
 
 	/*
-	 * Ordered log vectors have no regions to write so this
+	 * Ordered log vectors have anal regions to write so this
 	 * loop will naturally skip them.
 	 */
 	for (index = 0; index < lv->lv_niovecs; index++) {
@@ -2297,8 +2297,8 @@ xlog_write_get_more_iclog_space(
 
 /*
  * Write log vectors into a single iclog which is smaller than the current chain
- * length. We write until we cannot fit a full record into the remaining space
- * and then stop. We return the log vector that is to be written that cannot
+ * length. We write until we cananalt fit a full record into the remaining space
+ * and then stop. We return the log vector that is to be written that cananalt
  * wholly fit in the iclog.
  */
 static int
@@ -2323,7 +2323,7 @@ xlog_write_partial(
 		uint32_t		reg_offset = 0;
 
 		/*
-		 * The first region of a continuation must have a non-zero
+		 * The first region of a continuation must have a analn-zero
 		 * length otherwise log recovery will just skip over it and
 		 * start recovering from the next opheader it finds. Because we
 		 * mark the next opheader as a continuation, recovery will then
@@ -2358,7 +2358,7 @@ xlog_write_partial(
 			continue;
 
 		/*
-		 * We now have a partially written iovec, but it can span
+		 * We analw have a partially written iovec, but it can span
 		 * multiple iclogs so we loop here. First we release the iclog
 		 * we currently have, then we get a new iclog and add a new
 		 * opheader. Then we continue copying from where we were until
@@ -2372,8 +2372,8 @@ xlog_write_partial(
 		 * and get a new one before returning to the outer loop. We must
 		 * always guarantee that we exit this inner loop with at least
 		 * space for log transaction opheaders left in the current
-		 * iclog, hence we cannot just terminate the loop at the end
-		 * of the of the continuation. So we loop while there is no
+		 * iclog, hence we cananalt just terminate the loop at the end
+		 * of the of the continuation. So we loop while there is anal
 		 * space left in the current iclog, and check for the end of the
 		 * continuation after getting a new iclog.
 		 */
@@ -2425,7 +2425,7 @@ xlog_write_partial(
 	}
 
 	/*
-	 * No more iovecs remain in this logvec so return the next log vec to
+	 * Anal more iovecs remain in this logvec so return the next log vec to
 	 * the caller so it can go back to fast path copying.
 	 */
 	*iclogp = iclog;
@@ -2459,7 +2459,7 @@ xlog_write_partial(
  * ERRORS:
  * 1.	Panic if reservation is overrun.  This should never happen since
  *	reservation amounts are generated internal to the filesystem.
- * NOTES:
+ * ANALTES:
  * 1. Tickets are single threaded data structures.
  * 2. The XLOG_END_TRANS & XLOG_CONTINUE_TRANS flags are passed down to the
  *	syncing routine.  When a single log_write region needs to span
@@ -2468,8 +2468,8 @@ xlog_write_partial(
  *	region.  The XLOG_END_TRANS bit is used for the in-core log
  *	operation which contains the end of the continued log_write region.
  * 3. When xlog_state_get_iclog_space() grabs the rest of the current iclog,
- *	we don't really know exactly how much space will be used.  As a result,
- *	we don't update ic_offset until the end when we know exactly how many
+ *	we don't really kanalw exactly how much space will be used.  As a result,
+ *	we don't update ic_offset until the end when we kanalw exactly how many
  *	bytes have been written out.
  */
 int
@@ -2512,7 +2512,7 @@ xlog_write(
 
 	list_for_each_entry(lv, lv_chain, lv_list) {
 		/*
-		 * If the entire log vec does not fit in the iclog, punt it to
+		 * If the entire log vec does analt fit in the iclog, punt it to
 		 * the partial copy loop which can handle this case.
 		 */
 		if (lv->lv_niovecs &&
@@ -2522,7 +2522,7 @@ xlog_write(
 					&data_cnt);
 			if (error) {
 				/*
-				 * We have no iclog to release, so just return
+				 * We have anal iclog to release, so just return
 				 * the error immediately.
 				 */
 				return error;
@@ -2537,7 +2537,7 @@ xlog_write(
 	/*
 	 * We've already been guaranteed that the last writes will fit inside
 	 * the current iclog, and hence it will already have the space used by
-	 * those writes accounted to it. Hence we do not need to update the
+	 * those writes accounted to it. Hence we do analt need to update the
 	 * iclog with the number of bytes written here.
 	 */
 	spin_lock(&log->l_icloglock);
@@ -2568,7 +2568,7 @@ xlog_state_activate_iclog(
 	} else {
 		/*
 		 * We have two dirty iclogs so start over.  This could also be
-		 * num of ops indicating this is not the dummy going out.
+		 * num of ops indicating this is analt the dummy going out.
 		 */
 		*iclogs_changed = 2;
 	}
@@ -2611,10 +2611,10 @@ xlog_covered_state(
 	int			iclogs_changed)
 {
 	/*
-	 * We go to NEED for any non-covering writes. We go to NEED2 if we just
+	 * We go to NEED for any analn-covering writes. We go to NEED2 if we just
 	 * wrote the first covering record (DONE). We go to IDLE if we just
 	 * wrote the second covering record (DONE2) and remain in IDLE until a
-	 * non-covering write occurs.
+	 * analn-covering write occurs.
 	 */
 	switch (prev_state) {
 	case XLOG_STATE_COVER_IDLE:
@@ -2680,8 +2680,8 @@ xlog_get_lowest_lsn(
 }
 
 /*
- * Completion of a iclog IO does not imply that a transaction has completed, as
- * transactions can be large enough to span many iclogs. We cannot change the
+ * Completion of a iclog IO does analt imply that a transaction has completed, as
+ * transactions can be large eanalugh to span many iclogs. We cananalt change the
  * tail of the log half way through a transaction as this may be the only
  * transaction in the log and moving the tail to point to the middle of it
  * will prevent recovery from finding the start of the transaction. Hence we
@@ -2698,7 +2698,7 @@ xlog_get_lowest_lsn(
  * last_sync_lsn value may be the limiting factor preventing tail pushing from
  * freeing space in the log. Hence once we've updated the last_sync_lsn we
  * should push the AIL to ensure the push target (and hence the grant head) is
- * no longer bound by the old log head location and can move forwards and make
+ * anal longer bound by the old log head location and can move forwards and make
  * progress again.
  */
 static void
@@ -2742,10 +2742,10 @@ xlog_state_iodone_process_iclog(
 		return false;
 	case XLOG_STATE_DONE_SYNC:
 		/*
-		 * Now that we have an iclog that is in the DONE_SYNC state, do
+		 * Analw that we have an iclog that is in the DONE_SYNC state, do
 		 * one more check here to see if we have chased our tail around.
-		 * If this is not the lowest lsn iclog, then we will leave it
-		 * for another completion to process.
+		 * If this is analt the lowest lsn iclog, then we will leave it
+		 * for aanalther completion to process.
 		 */
 		header_lsn = be64_to_cpu(iclog->ic_header.h_lsn);
 		lowest_lsn = xlog_get_lowest_lsn(log);
@@ -2755,7 +2755,7 @@ xlog_state_iodone_process_iclog(
 		return false;
 	default:
 		/*
-		 * Can only perform callbacks in order.  Since this iclog is not
+		 * Can only perform callbacks in order.  Since this iclog is analt
 		 * in the DONE_SYNC state, we skip the rest and just try to
 		 * clean up.
 		 */
@@ -2807,7 +2807,7 @@ xlog_state_do_iclog_callbacks(
 
 
 /*
- * Loop running iclog completion callbacks until there are no more iclogs in a
+ * Loop running iclog completion callbacks until there are anal more iclogs in a
  * state that can run callbacks.
  */
 STATIC void
@@ -2857,7 +2857,7 @@ xlog_state_done_syncing(
 	/*
 	 * If we got an error, either on the first buffer, or in the case of
 	 * split log writes, on the second, we shut down the file system and
-	 * no iclogs should ever be attempted to be written to disk again.
+	 * anal iclogs should ever be attempted to be written to disk again.
 	 */
 	if (!xlog_is_shutdown(log)) {
 		ASSERT(iclog->ic_state == XLOG_STATE_SYNCING);
@@ -2875,12 +2875,12 @@ xlog_state_done_syncing(
 }
 
 /*
- * If the head of the in-core log ring is not (ACTIVE or DIRTY), then we must
+ * If the head of the in-core log ring is analt (ACTIVE or DIRTY), then we must
  * sleep.  We wait on the flush queue on the head iclog as that should be
  * the first iclog to complete flushing. Hence if all iclogs are syncing,
  * we will wait here and all new writes will sleep until a sync completes.
  *
- * The in-core logs are used in a circular fashion. They are not used
+ * The in-core logs are used in a circular fashion. They are analt used
  * out-of-order even when an iclog past the head is free.
  *
  * return:
@@ -2913,7 +2913,7 @@ restart:
 
 	iclog = log->l_iclog;
 	if (iclog->ic_state != XLOG_STATE_ACTIVE) {
-		XFS_STATS_INC(log->l_mp, xs_log_noiclogs);
+		XFS_STATS_INC(log->l_mp, xs_log_analiclogs);
 
 		/* Wait for log writes to have flushed */
 		xlog_wait(&log->l_flush_wait, &log->l_icloglock);
@@ -2940,10 +2940,10 @@ restart:
 		ASSERT(log->l_curr_block >= 0);
 	}
 
-	/* If there is enough room to write everything, then do it.  Otherwise,
+	/* If there is eanalugh room to write everything, then do it.  Otherwise,
 	 * claim the rest of the region and make sure the XLOG_STATE_WANT_SYNC
 	 * bit is on, so this will get flushed out.  Don't update ic_offset
-	 * until you know exactly how many bytes get copied.  Therefore, wait
+	 * until you kanalw exactly how many bytes get copied.  Therefore, wait
 	 * until later to update ic_offset.
 	 *
 	 * xlog_write() algorithm assumes that at least 2 xlog_op_header_t's
@@ -2969,7 +2969,7 @@ restart:
 		goto restart;
 	}
 
-	/* Do we have enough room to write the full amount in the remainder
+	/* Do we have eanalugh room to write the full amount in the remainder
 	 * of this iclog?  Or must we continue a write on the next iclog and
 	 * mark this iclog as completely taken?  In the case where we switch
 	 * iclogs (to mark it taken), this particular iclog will release/sync
@@ -3029,7 +3029,7 @@ xfs_log_ticket_regrant(
  * Give back the space left from a reservation.
  *
  * All the information we need to make a correct determination of space left
- * is present.  For non-permanent reservations, things are quite easy.  The
+ * is present.  For analn-permanent reservations, things are quite easy.  The
  * count should have been decremented to zero.  We only need to deal with the
  * space remaining in the current reservation part of the ticket.  If the
  * ticket contains a permanent reservation, there may be left over space which
@@ -3123,7 +3123,7 @@ xlog_state_switch_iclogs(
 
 /*
  * Force the iclog to disk and check if the iclog has been completed before
- * xlog_force_iclog() returns. This can happen on synchronous (e.g.
+ * xlog_force_iclog() returns. This can happen on synchroanalus (e.g.
  * pmem) or fast async storage because we drop the icloglock to issue the IO.
  * If completion has already occurred, tell the caller so that it can avoid an
  * unnecessary wait on the iclog.
@@ -3155,27 +3155,27 @@ xlog_force_and_check_iclog(
  *
  * Data may be written to the in-core log during this call.  However,
  * we don't guarantee this data will be written out.  A change from past
- * implementation means this routine will *not* write out zero length LRs.
+ * implementation means this routine will *analt* write out zero length LRs.
  *
  * Basically, we try and perform an intelligent scan of the in-core logs.
- * If we determine there is no flushable data, we just return.  There is no
+ * If we determine there is anal flushable data, we just return.  There is anal
  * flushable data if:
  *
- *	1. the current iclog is active and has no data; the previous iclog
+ *	1. the current iclog is active and has anal data; the previous iclog
  *		is in the active or dirty state.
  *	2. the current iclog is drity, and the previous iclog is in the
  *		active or dirty state.
  *
  * We may sleep if:
  *
- *	1. the current iclog is not in the active nor dirty state.
- *	2. the current iclog dirty, and the previous iclog is not in the
- *		active nor dirty state.
- *	3. the current iclog is active, and there is another thread writing
+ *	1. the current iclog is analt in the active analr dirty state.
+ *	2. the current iclog dirty, and the previous iclog is analt in the
+ *		active analr dirty state.
+ *	3. the current iclog is active, and there is aanalther thread writing
  *		to this particular iclog.
- *	4. a) the current iclog is active and has no other writers
+ *	4. a) the current iclog is active and has anal other writers
  *	   b) when we return from flushing out this iclog, it is still
- *		not in the active nor dirty state.
+ *		analt in the active analr dirty state.
  */
 int
 xfs_log_force(
@@ -3205,7 +3205,7 @@ xfs_log_force(
 		 * look at the previous iclog.
 		 *
 		 * If the previous iclog is active or dirty we are done.  There
-		 * is nothing to sync out. Otherwise, we attach ourselves to the
+		 * is analthing to sync out. Otherwise, we attach ourselves to the
 		 * previous iclog and go to sleep.
 		 */
 		iclog = iclog->ic_prev;
@@ -3231,7 +3231,7 @@ xfs_log_force(
 
 	/*
 	 * The iclog we are about to wait on may contain the checkpoint pushed
-	 * by the above xlog_cil_force() call, but it may not have been pushed
+	 * by the above xlog_cil_force() call, but it may analt have been pushed
 	 * to disk yet. Like the ACTIVE case above, we need to make sure caches
 	 * are flushed when this iclog is written.
 	 */
@@ -3257,7 +3257,7 @@ out_error:
  *		state and go to sleep or return.
  *	If it is in any other state, go to sleep or return.
  *
- * Synchronous forces are implemented with a wait queue.  All callers trying
+ * Synchroanalus forces are implemented with a wait queue.  All callers trying
  * to force a given lsn to disk must wait on the queue attached to the
  * specific in-core log.  When given in-core log finally completes its write
  * to disk, that thread will wake up all threads waiting on the queue.
@@ -3352,7 +3352,7 @@ out_error:
  * First force the CIL so that all the required changes have been flushed to the
  * iclogs. If the CIL force completed it will return a commit LSN that indicates
  * the iclog that needs to be flushed to stable storage. If the caller needs
- * a synchronous log force, we will wait on the iclog with the LSN returned by
+ * a synchroanalus log force, we will wait on the iclog with the LSN returned by
  * xlog_cil_force_seq() to be completed.
  */
 int
@@ -3419,13 +3419,13 @@ xlog_calc_unit_res(
 	/*
 	 * Permanent reservations have up to 'cnt'-1 active log operations
 	 * in the log.  A unit in this case is the amount of space for one
-	 * of these log operations.  Normal reservations have a cnt of 1
+	 * of these log operations.  Analrmal reservations have a cnt of 1
 	 * and their unit amount is the total amount of space required.
 	 *
-	 * The following lines of code account for non-transaction data
+	 * The following lines of code account for analn-transaction data
 	 * which occupy space in the on-disk log.
 	 *
-	 * Normal form of a transaction is:
+	 * Analrmal form of a transaction is:
 	 * <oph><trans-hdr><start-oph><reg1-oph><reg1><reg2-oph>...<commit-oph>
 	 * and then there are LR hdrs, split-recs and roundoff at end of syncs.
 	 *
@@ -3444,7 +3444,7 @@ xlog_calc_unit_res(
 	 *   This then means that in the worst case, roundoff can happen for
 	 *   the commit-rec as well.
 	 *   The commit-rec is smaller than padding in this scenario and so it is
-	 *   not added separately.
+	 *   analt added separately.
 	 */
 
 	/* for trans header */
@@ -3460,7 +3460,7 @@ xlog_calc_unit_res(
 	 * undercalculate the number of headers required.
 	 *
 	 * Furthermore - the addition of op headers for split-recs might
-	 * increase the space required enough to require more log and op
+	 * increase the space required eanalugh to require more log and op
 	 * headers, so take that into account too.
 	 *
 	 * IMPORTANT: This reservation makes the assumption that if this
@@ -3485,7 +3485,7 @@ xlog_calc_unit_res(
 	}
 	unit_bytes += log->l_iclog_hsize * num_headers;
 
-	/* for commit-rec LR header - note: padding will subsume the ophdr */
+	/* for commit-rec LR header - analte: padding will subsume the ophdr */
 	unit_bytes += log->l_iclog_hsize;
 
 	/* roundoff padding for transaction data and one for commit record */
@@ -3517,7 +3517,7 @@ xlog_ticket_alloc(
 	struct xlog_ticket	*tic;
 	int			unit_res;
 
-	tic = kmem_cache_zalloc(xfs_log_ticket_cache, GFP_NOFS | __GFP_NOFAIL);
+	tic = kmem_cache_zalloc(xfs_log_ticket_cache, GFP_ANALFS | __GFP_ANALFAIL);
 
 	unit_res = xlog_calc_unit_res(log, unit_bytes, &tic->t_iclog_hdrs);
 
@@ -3638,7 +3638,7 @@ xlog_verify_iclog(
 	spin_unlock(&log->l_icloglock);
 
 	/* check log magic numbers */
-	if (iclog->ic_header.h_magicno != cpu_to_be32(XLOG_HEADER_MAGIC_NUM))
+	if (iclog->ic_header.h_magicanal != cpu_to_be32(XLOG_HEADER_MAGIC_NUM))
 		xfs_emerg(log->l_mp, "%s: invalid magic num", __func__);
 
 	base_ptr = ptr = &iclog->ic_header;
@@ -3708,10 +3708,10 @@ xlog_verify_iclog(
  * high level mount shutdown code when the mount shuts down.
  *
  * Our main objectives here are to make sure that:
- *	a. if the shutdown was not due to a log IO error, flush the logs to
- *	   disk. Anything modified after this is ignored.
+ *	a. if the shutdown was analt due to a log IO error, flush the logs to
+ *	   disk. Anything modified after this is iganalred.
  *	b. the log gets atomically marked 'XLOG_IO_ERROR' for all interested
- *	   parties to find out. Nothing new gets queued after this is done.
+ *	   parties to find out. Analthing new gets queued after this is done.
  *	c. Tasks sleeping on log reservations, pinned objects and
  *	   other resources get woken up.
  *	d. The mount is also marked as shut down so that log triggered shutdowns
@@ -3736,7 +3736,7 @@ xlog_force_shutdown(
 	 * before the force will prevent the log force from flushing the iclogs
 	 * to disk.
 	 *
-	 * When we are in recovery, there are no transactions to flush, and
+	 * When we are in recovery, there are anal transactions to flush, and
 	 * we don't want to touch the log because we don't want to perturb the
 	 * current head/tail for future recovery attempts. Hence we need to
 	 * avoid a log force in this case.
@@ -3755,7 +3755,7 @@ xlog_force_shutdown(
 	 * once by the first shutdown caller.
 	 *
 	 * Much of the log state machine transitions assume that shutdown state
-	 * cannot change once they hold the log->l_icloglock. Hence we need to
+	 * cananalt change once they hold the log->l_icloglock. Hence we need to
 	 * hold that lock here, even though we use the atomic test_and_set_bit()
 	 * operation to set the shutdown state.
 	 */
@@ -3817,7 +3817,7 @@ xlog_iclogs_empty(
 
 	iclog = log->l_iclog;
 	do {
-		/* endianness does not matter here, zero is zero in
+		/* endianness does analt matter here, zero is zero in
 		 * any language.
 		 */
 		if (iclog->ic_header.h_num_logops)
@@ -3840,16 +3840,16 @@ xfs_log_check_lsn(
 	bool			valid;
 
 	/*
-	 * norecovery mode skips mount-time log processing and unconditionally
+	 * analrecovery mode skips mount-time log processing and unconditionally
 	 * resets the in-core LSN. We can't validate in this mode, but
-	 * modifications are not allowed anyways so just return true.
+	 * modifications are analt allowed anyways so just return true.
 	 */
-	if (xfs_has_norecovery(mp))
+	if (xfs_has_analrecovery(mp))
 		return true;
 
 	/*
 	 * Some metadata LSNs are initialized to NULL (e.g., the agfl). This is
-	 * handled by recovery and thus safe to ignore here.
+	 * handled by recovery and thus safe to iganalre here.
 	 */
 	if (lsn == NULLCOMMITLSN)
 		return true;
@@ -3871,7 +3871,7 @@ xfs_log_check_lsn(
 }
 
 /*
- * Notify the log that we're about to start using a feature that is protected
+ * Analtify the log that we're about to start using a feature that is protected
  * by a log incompat feature flag.  This will prevent log covering from
  * clearing those flags.
  */
@@ -3882,7 +3882,7 @@ xlog_use_incompat_feat(
 	down_read(&log->l_incompat_users);
 }
 
-/* Notify the log that we've finished using log incompat features. */
+/* Analtify the log that we've finished using log incompat features. */
 void
 xlog_drop_incompat_feat(
 	struct xlog		*log)

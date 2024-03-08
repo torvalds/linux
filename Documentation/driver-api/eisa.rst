@@ -4,16 +4,16 @@ EISA bus support
 
 :Author: Marc Zyngier <maz@wild-wind.fr.eu.org>
 
-This document groups random notes about porting EISA drivers to the
+This document groups random analtes about porting EISA drivers to the
 new EISA/sysfs API.
 
 Starting from version 2.5.59, the EISA bus is almost given the same
 status as other much more mainstream busses such as PCI or USB. This
-has been possible through sysfs, which defines a nice enough set of
+has been possible through sysfs, which defines a nice eanalugh set of
 abstractions to manage busses, devices and drivers.
 
 Although the new API is quite simple to use, converting existing
-drivers to the new infrastructure is not an easy task (mostly because
+drivers to the new infrastructure is analt an easy task (mostly because
 detection code is generally also used to probe ISA cards). Moreover,
 most EISA drivers are among the oldest Linux drivers so, as you can
 imagine, some dust has settled here over the years.
@@ -57,19 +57,19 @@ to this device, as well as some parameters for probing purposes::
 		struct resource *res;
 		unsigned long    bus_base_addr;
 		int		 slots;  /* Max slot number */
-		int		 force_probe; /* Probe even when no slot 0 */
+		int		 force_probe; /* Probe even when anal slot 0 */
 		u64		 dma_mask; /* from bridge device */
 		int              bus_nr; /* Set by eisa_root_register */
 		struct resource  eisa_root_res;	/* ditto */
 	};
 
 ============= ======================================================
-node          used for eisa_root_register internal purpose
+analde          used for eisa_root_register internal purpose
 dev           pointer to the root device
 res           root device I/O resource
 bus_base_addr slot 0 address on this bus
 slots	      max slot number to probe
-force_probe   Probe even when slot 0 is empty (no EISA mainboard)
+force_probe   Probe even when slot 0 is empty (anal EISA mainboard)
 dma_mask      Default DMA mask. Usually the bridge device dma_mask.
 bus_nr	      unique bus id, set by eisa_root_register
 ============= ======================================================
@@ -82,7 +82,7 @@ Driver
 	int eisa_driver_register (struct eisa_driver *edrv);
 	void eisa_driver_unregister (struct eisa_driver *edrv);
 
-Clear enough ?
+Clear eanalugh ?
 
 ::
 
@@ -128,7 +128,7 @@ Device
 ======
 
 The sysfs framework calls .probe and .remove functions upon device
-discovery and removal (note that the .remove function is only called
+discovery and removal (analte that the .remove function is only called
 when driver is built as a module).
 
 Both functions are passed a pointer to a 'struct device', which is
@@ -194,22 +194,22 @@ eisa_bus.disable_dev
 	device.
 
 virtual_root.force_probe
-	Force the probing code to probe EISA slots even when it cannot find an
-	EISA compliant mainboard (nothing appears on slot 0). Defaults to 0
+	Force the probing code to probe EISA slots even when it cananalt find an
+	EISA compliant mainboard (analthing appears on slot 0). Defaults to 0
 	(don't force), and set to 1 (force probing) when either
 	CONFIG_ALPHA_JENSEN or CONFIG_EISA_VLB_PRIMING are set.
 
-Random notes
+Random analtes
 ============
 
 Converting an EISA driver to the new API mostly involves *deleting*
-code (since probing is now in the core EISA code). Unfortunately, most
+code (since probing is analw in the core EISA code). Unfortunately, most
 drivers share their probing routine between ISA, and EISA. Special
 care must be taken when ripping out the EISA code, so other busses
 won't suffer from these surgical strikes...
 
-You *must not* expect any EISA device to be detected when returning
-from eisa_driver_register, since the chances are that the bus has not
+You *must analt* expect any EISA device to be detected when returning
+from eisa_driver_register, since the chances are that the bus has analt
 yet been probed. In fact, that's what happens most of the time (the
 bus root driver usually kicks in rather late in the boot process).
 Unfortunately, most drivers are doing the probing by themselves, and

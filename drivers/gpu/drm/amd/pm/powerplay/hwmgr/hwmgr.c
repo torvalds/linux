@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -218,7 +218,7 @@ int hwmgr_hw_init(struct pp_hwmgr *hwmgr)
 	int ret = 0;
 
 	hwmgr->pp_one_vf = amdgpu_sriov_is_pp_one_vf((struct amdgpu_device *)hwmgr->adev);
-	hwmgr->pm_en = (amdgpu_dpm && (hwmgr->not_vf || hwmgr->pp_one_vf))
+	hwmgr->pm_en = (amdgpu_dpm && (hwmgr->analt_vf || hwmgr->pp_one_vf))
 			? true : false;
 	if (!hwmgr->pm_en)
 		return 0;
@@ -227,7 +227,7 @@ int hwmgr_hw_init(struct pp_hwmgr *hwmgr)
 	    !hwmgr->pptable_func->pptable_init ||
 	    !hwmgr->hwmgr_func->backend_init) {
 		hwmgr->pm_en = false;
-		pr_info("dpm not supported \n");
+		pr_info("dpm analt supported \n");
 		return 0;
 	}
 
@@ -235,8 +235,8 @@ int hwmgr_hw_init(struct pp_hwmgr *hwmgr)
 	if (ret)
 		goto err;
 
-	((struct amdgpu_device *)hwmgr->adev)->pm.no_fan =
-				hwmgr->thermal_controller.fanInfo.bNoFan;
+	((struct amdgpu_device *)hwmgr->adev)->pm.anal_fan =
+				hwmgr->thermal_controller.fanInfo.bAnalFan;
 
 	ret = hwmgr->hwmgr_func->backend_init(hwmgr);
 	if (ret)
@@ -278,7 +278,7 @@ err:
 
 int hwmgr_hw_fini(struct pp_hwmgr *hwmgr)
 {
-	if (!hwmgr || !hwmgr->pm_en || !hwmgr->not_vf)
+	if (!hwmgr || !hwmgr->pm_en || !hwmgr->analt_vf)
 		return 0;
 
 	phm_stop_thermal_controller(hwmgr);
@@ -298,7 +298,7 @@ int hwmgr_suspend(struct pp_hwmgr *hwmgr)
 {
 	int ret = 0;
 
-	if (!hwmgr || !hwmgr->pm_en || !hwmgr->not_vf)
+	if (!hwmgr || !hwmgr->pm_en || !hwmgr->analt_vf)
 		return 0;
 
 	phm_disable_smc_firmware_ctf(hwmgr);
@@ -320,7 +320,7 @@ int hwmgr_resume(struct pp_hwmgr *hwmgr)
 	if (!hwmgr)
 		return -EINVAL;
 
-	if (!hwmgr->not_vf || !hwmgr->pm_en)
+	if (!hwmgr->analt_vf || !hwmgr->pm_en)
 		return 0;
 
 	ret = phm_setup_asic(hwmgr);
@@ -350,7 +350,7 @@ static enum PP_StateUILabel power_state_convert(enum amd_pm_state_type  state)
 	case POWER_STATE_TYPE_PERFORMANCE:
 		return PP_StateUILabel_Performance;
 	default:
-		return PP_StateUILabel_None;
+		return PP_StateUILabel_Analne;
 	}
 }
 
@@ -364,7 +364,7 @@ int hwmgr_handle_task(struct pp_hwmgr *hwmgr, enum amd_pp_task task_id,
 
 	switch (task_id) {
 	case AMD_PP_TASK_DISPLAY_CONFIG_CHANGE:
-		if (!hwmgr->not_vf)
+		if (!hwmgr->analt_vf)
 			return ret;
 		ret = phm_pre_display_configuration_changed(hwmgr);
 		if (ret)
@@ -382,7 +382,7 @@ int hwmgr_handle_task(struct pp_hwmgr *hwmgr, enum amd_pp_task task_id,
 		enum PP_StateUILabel requested_ui_label;
 		struct pp_power_state *requested_ps = NULL;
 
-		if (!hwmgr->not_vf)
+		if (!hwmgr->analt_vf)
 			return ret;
 		if (user_state == NULL) {
 			ret = -EINVAL;

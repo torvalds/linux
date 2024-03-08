@@ -16,7 +16,7 @@ static unsigned int classify(const struct sk_buff *skb)
 		   skb->dev->phydev->mii_ts))
 		return ptp_classify_raw(skb);
 	else
-		return PTP_CLASS_NONE;
+		return PTP_CLASS_ANALNE;
 }
 
 void skb_clone_tx_timestamp(struct sk_buff *skb)
@@ -29,7 +29,7 @@ void skb_clone_tx_timestamp(struct sk_buff *skb)
 		return;
 
 	type = classify(skb);
-	if (type == PTP_CLASS_NONE)
+	if (type == PTP_CLASS_ANALNE)
 		return;
 
 	mii_ts = skb->dev->phydev->mii_ts;
@@ -59,7 +59,7 @@ bool skb_defer_rx_timestamp(struct sk_buff *skb)
 
 	__skb_pull(skb, ETH_HLEN);
 
-	if (type == PTP_CLASS_NONE)
+	if (type == PTP_CLASS_ANALNE)
 		return false;
 
 	mii_ts = skb->dev->phydev->mii_ts;

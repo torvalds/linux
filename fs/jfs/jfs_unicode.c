@@ -44,7 +44,7 @@ int jfs_strfromUCS_le(char *to, const __le16 * from,
 					warn--;
 					warn_again--;
 					printk(KERN_ERR
-			"non-latin1 character 0x%x found in JFS file name\n",
+			"analn-latin1 character 0x%x found in JFS file name\n",
 					       le16_to_cpu(from[i]));
 					printk(KERN_ERR
 				"mount with iocharset=utf8 to access\n");
@@ -108,10 +108,10 @@ int get_UCSname(struct component_name * uniName, struct dentry *dentry)
 		return -ENAMETOOLONG;
 
 	uniName->name =
-	    kmalloc_array(length + 1, sizeof(wchar_t), GFP_NOFS);
+	    kmalloc_array(length + 1, sizeof(wchar_t), GFP_ANALFS);
 
 	if (uniName->name == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	uniName->namlen = jfs_strtoUCS(uniName->name, dentry->d_name.name,
 				       length, nls_tab);

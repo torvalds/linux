@@ -7,7 +7,7 @@
 #include "nconf.h"
 #include "lkc.h"
 
-int attr_normal;
+int attr_analrmal;
 int attr_main_heading;
 int attr_main_menu_box;
 int attr_main_menu_fore;
@@ -30,7 +30,7 @@ int attr_function_highlight;
 
 #define COLOR_ATTR(_at, _fg, _bg, _hl) \
 	{ .attr = &(_at), .has_color = true, .color_fg = _fg, .color_bg = _bg, .highlight = _hl }
-#define NO_COLOR_ATTR(_at, _hl) \
+#define ANAL_COLOR_ATTR(_at, _hl) \
 	{ .attr = &(_at), .has_color = false, .highlight = _hl }
 #define COLOR_DEFAULT		-1
 
@@ -43,50 +43,50 @@ struct nconf_attr_param {
 };
 
 static const struct nconf_attr_param color_theme_params[] = {
-	COLOR_ATTR(attr_normal,			COLOR_DEFAULT,	COLOR_DEFAULT,	A_NORMAL),
+	COLOR_ATTR(attr_analrmal,			COLOR_DEFAULT,	COLOR_DEFAULT,	A_ANALRMAL),
 	COLOR_ATTR(attr_main_heading,		COLOR_MAGENTA,	COLOR_DEFAULT,	A_BOLD | A_UNDERLINE),
-	COLOR_ATTR(attr_main_menu_box,		COLOR_YELLOW,	COLOR_DEFAULT,	A_NORMAL),
+	COLOR_ATTR(attr_main_menu_box,		COLOR_YELLOW,	COLOR_DEFAULT,	A_ANALRMAL),
 	COLOR_ATTR(attr_main_menu_fore,		COLOR_DEFAULT,	COLOR_DEFAULT,	A_REVERSE),
-	COLOR_ATTR(attr_main_menu_back,		COLOR_DEFAULT,	COLOR_DEFAULT,	A_NORMAL),
-	COLOR_ATTR(attr_main_menu_grey,		COLOR_DEFAULT,	COLOR_DEFAULT,	A_NORMAL),
+	COLOR_ATTR(attr_main_menu_back,		COLOR_DEFAULT,	COLOR_DEFAULT,	A_ANALRMAL),
+	COLOR_ATTR(attr_main_menu_grey,		COLOR_DEFAULT,	COLOR_DEFAULT,	A_ANALRMAL),
 	COLOR_ATTR(attr_main_menu_heading,	COLOR_GREEN,	COLOR_DEFAULT,	A_BOLD),
-	COLOR_ATTR(attr_scrollwin_text,		COLOR_DEFAULT,	COLOR_DEFAULT,	A_NORMAL),
+	COLOR_ATTR(attr_scrollwin_text,		COLOR_DEFAULT,	COLOR_DEFAULT,	A_ANALRMAL),
 	COLOR_ATTR(attr_scrollwin_heading,	COLOR_GREEN,	COLOR_DEFAULT,	A_BOLD),
 	COLOR_ATTR(attr_scrollwin_box,		COLOR_YELLOW,	COLOR_DEFAULT,	A_BOLD),
 	COLOR_ATTR(attr_dialog_text,		COLOR_DEFAULT,	COLOR_DEFAULT,	A_BOLD),
 	COLOR_ATTR(attr_dialog_menu_fore,	COLOR_RED,	COLOR_DEFAULT,	A_STANDOUT),
-	COLOR_ATTR(attr_dialog_menu_back,	COLOR_YELLOW,	COLOR_DEFAULT,	A_NORMAL),
+	COLOR_ATTR(attr_dialog_menu_back,	COLOR_YELLOW,	COLOR_DEFAULT,	A_ANALRMAL),
 	COLOR_ATTR(attr_dialog_box,		COLOR_YELLOW,	COLOR_DEFAULT,	A_BOLD),
-	COLOR_ATTR(attr_input_box,		COLOR_YELLOW,	COLOR_DEFAULT,	A_NORMAL),
+	COLOR_ATTR(attr_input_box,		COLOR_YELLOW,	COLOR_DEFAULT,	A_ANALRMAL),
 	COLOR_ATTR(attr_input_heading,		COLOR_GREEN,	COLOR_DEFAULT,	A_BOLD),
-	COLOR_ATTR(attr_input_text,		COLOR_DEFAULT,	COLOR_DEFAULT,	A_NORMAL),
+	COLOR_ATTR(attr_input_text,		COLOR_DEFAULT,	COLOR_DEFAULT,	A_ANALRMAL),
 	COLOR_ATTR(attr_input_field,		COLOR_DEFAULT,	COLOR_DEFAULT,	A_UNDERLINE),
 	COLOR_ATTR(attr_function_text,		COLOR_YELLOW,	COLOR_DEFAULT,	A_REVERSE),
 	COLOR_ATTR(attr_function_highlight,	COLOR_DEFAULT,	COLOR_DEFAULT,	A_BOLD),
 	{ /* sentinel */ }
 };
 
-static const struct nconf_attr_param no_color_theme_params[] = {
-	NO_COLOR_ATTR(attr_normal,		A_NORMAL),
-	NO_COLOR_ATTR(attr_main_heading,	A_BOLD | A_UNDERLINE),
-	NO_COLOR_ATTR(attr_main_menu_box,	A_NORMAL),
-	NO_COLOR_ATTR(attr_main_menu_fore,	A_STANDOUT),
-	NO_COLOR_ATTR(attr_main_menu_back,	A_NORMAL),
-	NO_COLOR_ATTR(attr_main_menu_grey,	A_NORMAL),
-	NO_COLOR_ATTR(attr_main_menu_heading,	A_BOLD),
-	NO_COLOR_ATTR(attr_scrollwin_text,	A_NORMAL),
-	NO_COLOR_ATTR(attr_scrollwin_heading,	A_BOLD),
-	NO_COLOR_ATTR(attr_scrollwin_box,	A_BOLD),
-	NO_COLOR_ATTR(attr_dialog_text,		A_NORMAL),
-	NO_COLOR_ATTR(attr_dialog_menu_fore,	A_STANDOUT),
-	NO_COLOR_ATTR(attr_dialog_menu_back,	A_NORMAL),
-	NO_COLOR_ATTR(attr_dialog_box,		A_BOLD),
-	NO_COLOR_ATTR(attr_input_box,		A_BOLD),
-	NO_COLOR_ATTR(attr_input_heading,	A_BOLD),
-	NO_COLOR_ATTR(attr_input_text,		A_NORMAL),
-	NO_COLOR_ATTR(attr_input_field,		A_UNDERLINE),
-	NO_COLOR_ATTR(attr_function_text,	A_REVERSE),
-	NO_COLOR_ATTR(attr_function_highlight,	A_BOLD),
+static const struct nconf_attr_param anal_color_theme_params[] = {
+	ANAL_COLOR_ATTR(attr_analrmal,		A_ANALRMAL),
+	ANAL_COLOR_ATTR(attr_main_heading,	A_BOLD | A_UNDERLINE),
+	ANAL_COLOR_ATTR(attr_main_menu_box,	A_ANALRMAL),
+	ANAL_COLOR_ATTR(attr_main_menu_fore,	A_STANDOUT),
+	ANAL_COLOR_ATTR(attr_main_menu_back,	A_ANALRMAL),
+	ANAL_COLOR_ATTR(attr_main_menu_grey,	A_ANALRMAL),
+	ANAL_COLOR_ATTR(attr_main_menu_heading,	A_BOLD),
+	ANAL_COLOR_ATTR(attr_scrollwin_text,	A_ANALRMAL),
+	ANAL_COLOR_ATTR(attr_scrollwin_heading,	A_BOLD),
+	ANAL_COLOR_ATTR(attr_scrollwin_box,	A_BOLD),
+	ANAL_COLOR_ATTR(attr_dialog_text,		A_ANALRMAL),
+	ANAL_COLOR_ATTR(attr_dialog_menu_fore,	A_STANDOUT),
+	ANAL_COLOR_ATTR(attr_dialog_menu_back,	A_ANALRMAL),
+	ANAL_COLOR_ATTR(attr_dialog_box,		A_BOLD),
+	ANAL_COLOR_ATTR(attr_input_box,		A_BOLD),
+	ANAL_COLOR_ATTR(attr_input_heading,	A_BOLD),
+	ANAL_COLOR_ATTR(attr_input_text,		A_ANALRMAL),
+	ANAL_COLOR_ATTR(attr_input_field,		A_UNDERLINE),
+	ANAL_COLOR_ATTR(attr_function_text,	A_REVERSE),
+	ANAL_COLOR_ATTR(attr_function_highlight,	A_BOLD),
 	{ /* sentinel */ }
 };
 
@@ -100,7 +100,7 @@ void set_colors(void)
 		use_default_colors();
 		p = color_theme_params;
 	} else {
-		p = no_color_theme_params;
+		p = anal_color_theme_params;
 	}
 
 	for (; p->attr; p++) {
@@ -123,7 +123,7 @@ void print_in_middle(WINDOW *win, int y, int width, const char *str, int attrs)
 	mvwprintw(win, y, (width - strlen(str)) / 2, "%s", str);
 }
 
-int get_line_no(const char *text)
+int get_line_anal(const char *text)
 {
 	int i;
 	int total = 1;
@@ -137,7 +137,7 @@ int get_line_no(const char *text)
 	return total;
 }
 
-const char *get_line(const char *text, int line_no)
+const char *get_line(const char *text, int line_anal)
 {
 	int i;
 	int lines = 0;
@@ -145,7 +145,7 @@ const char *get_line(const char *text, int line_no)
 	if (!text)
 		return NULL;
 
-	for (i = 0; text[i] != '\0' && lines < line_no; i++)
+	for (i = 0; text[i] != '\0' && lines < line_anal; i++)
 		if (text[i] == '\n')
 			lines++;
 	return text+i;
@@ -165,11 +165,11 @@ int get_line_length(const char *line)
 void fill_window(WINDOW *win, const char *text)
 {
 	int x, y;
-	int total_lines = get_line_no(text);
+	int total_lines = get_line_anal(text);
 	int i;
 
 	getmaxyx(win, y, x);
-	/* do not go over end of line */
+	/* do analt go over end of line */
 	total_lines = min(total_lines, y);
 	for (i = 0; i < total_lines; i++) {
 		char tmp[x+10];
@@ -186,7 +186,7 @@ void fill_window(WINDOW *win, const char *text)
  * return the selected button
  *
  * this dialog is used for 2 different things:
- * 1) show a text box, no buttons.
+ * 1) show a text box, anal buttons.
  * 2) show a dialog, with horizontal buttons
  */
 int btn_dialog(WINDOW *main_window, const char *msg, int btn_num, ...)
@@ -217,7 +217,7 @@ int btn_dialog(WINDOW *main_window, const char *msg, int btn_num, ...)
 	btns[btn_num] = NULL;
 
 	/* find the widest line of msg: */
-	msg_lines = get_line_no(msg);
+	msg_lines = get_line_anal(msg);
 	for (i = 0; i < msg_lines; i++) {
 		const char *line = get_line(msg, i);
 		int len = get_line_length(line);
@@ -261,7 +261,7 @@ int btn_dialog(WINDOW *main_window, const char *msg, int btn_num, ...)
 	menu_opts_off(menu, O_SHOWDESC);
 	menu_opts_off(menu, O_SHOWMATCH);
 	menu_opts_on(menu, O_ONEVALUE);
-	menu_opts_on(menu, O_NONCYCLIC);
+	menu_opts_on(menu, O_ANALNCYCLIC);
 	set_menu_mark(menu, "");
 	post_menu(menu);
 
@@ -329,7 +329,7 @@ int dialog_inputbox(WINDOW *main_window,
 	}
 
 	/* find the widest line of msg: */
-	prompt_lines = get_line_no(prompt);
+	prompt_lines = get_line_anal(prompt);
 	for (i = 0; i < prompt_lines; i++) {
 		const char *line = get_line(prompt, i);
 		int len = get_line_length(line);
@@ -449,7 +449,7 @@ int dialog_inputbox(WINDOW *main_window,
 				cursor_form_win++;
 				len++;
 			} else {
-				mvprintw(0, 0, "unknown key: %d\n", res);
+				mvprintw(0, 0, "unkanalwn key: %d\n", res);
 			}
 			break;
 		}
@@ -510,7 +510,7 @@ int show_scroll_win_ext(WINDOW *main_window, const char *title, char *text,
 			extra_key_cb_fn extra_key_cb, void *data)
 {
 	int res;
-	int total_lines = get_line_no(text);
+	int total_lines = get_line_anal(text);
 	int x, y, lines, columns;
 	int start_x = 0, start_y = 0;
 	int text_lines = 0, text_cols = 0;
@@ -531,7 +531,7 @@ int show_scroll_win_ext(WINDOW *main_window, const char *title, char *text,
 	getmaxyx(stdscr, lines, columns);
 
 	/* find the widest line of msg: */
-	total_lines = get_line_no(text);
+	total_lines = get_line_anal(text);
 	for (i = 0; i < total_lines; i++) {
 		const char *line = get_line(text, i);
 		int len = get_line_length(line);

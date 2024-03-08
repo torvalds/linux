@@ -138,8 +138,8 @@ static void bdisp_dbg_dump_tty(struct seq_file *s, u32 val)
 
 	if (val & BLT_TTY_ALPHA_R)
 		seq_puts(s, "AlphaRange - ");
-	if (val & BLT_TTY_CR_NOT_CB)
-		seq_puts(s, "CrNotCb - ");
+	if (val & BLT_TTY_CR_ANALT_CB)
+		seq_puts(s, "CrAnaltCb - ");
 	if (val & BLT_TTY_MB)
 		seq_puts(s, "MB - ");
 	if (val & BLT_TTY_HSO)
@@ -312,104 +312,104 @@ static void bdisp_dbg_dump_ivmx(struct seq_file *s,
 		seq_puts(s, "YUV to RGB\n");
 		return;
 	}
-	seq_puts(s, "Unknown conversion\n");
+	seq_puts(s, "Unkanalwn conversion\n");
 }
 
-static int last_nodes_show(struct seq_file *s, void *data)
+static int last_analdes_show(struct seq_file *s, void *data)
 {
-	/* Not dumping all fields, focusing on significant ones */
+	/* Analt dumping all fields, focusing on significant ones */
 	struct bdisp_dev *bdisp = s->private;
-	struct bdisp_node *node;
+	struct bdisp_analde *analde;
 	int i = 0;
 
-	if (!bdisp->dbg.copy_node[0]) {
-		seq_puts(s, "No node built yet\n");
+	if (!bdisp->dbg.copy_analde[0]) {
+		seq_puts(s, "Anal analde built yet\n");
 		return 0;
 	}
 
 	do {
-		node = bdisp->dbg.copy_node[i];
-		if (!node)
+		analde = bdisp->dbg.copy_analde[i];
+		if (!analde)
 			break;
-		seq_printf(s, "--------\nNode %d:\n", i);
+		seq_printf(s, "--------\nAnalde %d:\n", i);
 		seq_puts(s, "-- General --\n");
-		seq_printf(s, "NIP\t0x%08X\n", node->nip);
-		seq_printf(s, "CIC\t0x%08X\n", node->cic);
-		bdisp_dbg_dump_ins(s, node->ins);
-		seq_printf(s, "ACK\t0x%08X\n", node->ack);
+		seq_printf(s, "NIP\t0x%08X\n", analde->nip);
+		seq_printf(s, "CIC\t0x%08X\n", analde->cic);
+		bdisp_dbg_dump_ins(s, analde->ins);
+		seq_printf(s, "ACK\t0x%08X\n", analde->ack);
 		seq_puts(s, "-- Target --\n");
-		seq_printf(s, "TBA\t0x%08X\n", node->tba);
-		bdisp_dbg_dump_tty(s, node->tty);
-		bdisp_dbg_dump_xy(s, node->txy, "TXY");
-		bdisp_dbg_dump_sz(s, node->tsz, "TSZ");
-		/* Color Fill not dumped */
+		seq_printf(s, "TBA\t0x%08X\n", analde->tba);
+		bdisp_dbg_dump_tty(s, analde->tty);
+		bdisp_dbg_dump_xy(s, analde->txy, "TXY");
+		bdisp_dbg_dump_sz(s, analde->tsz, "TSZ");
+		/* Color Fill analt dumped */
 		seq_puts(s, "-- Source 1 --\n");
-		seq_printf(s, "S1BA\t0x%08X\n", node->s1ba);
-		bdisp_dbg_dump_sty(s, node->s1ty, node->s1ba, "S1TY");
-		bdisp_dbg_dump_xy(s, node->s1xy, "S1XY");
+		seq_printf(s, "S1BA\t0x%08X\n", analde->s1ba);
+		bdisp_dbg_dump_sty(s, analde->s1ty, analde->s1ba, "S1TY");
+		bdisp_dbg_dump_xy(s, analde->s1xy, "S1XY");
 		seq_puts(s, "-- Source 2 --\n");
-		seq_printf(s, "S2BA\t0x%08X\n", node->s2ba);
-		bdisp_dbg_dump_sty(s, node->s2ty, node->s2ba, "S2TY");
-		bdisp_dbg_dump_xy(s, node->s2xy, "S2XY");
-		bdisp_dbg_dump_sz(s, node->s2sz, "S2SZ");
+		seq_printf(s, "S2BA\t0x%08X\n", analde->s2ba);
+		bdisp_dbg_dump_sty(s, analde->s2ty, analde->s2ba, "S2TY");
+		bdisp_dbg_dump_xy(s, analde->s2xy, "S2XY");
+		bdisp_dbg_dump_sz(s, analde->s2sz, "S2SZ");
 		seq_puts(s, "-- Source 3 --\n");
-		seq_printf(s, "S3BA\t0x%08X\n", node->s3ba);
-		bdisp_dbg_dump_sty(s, node->s3ty, node->s3ba, "S3TY");
-		bdisp_dbg_dump_xy(s, node->s3xy, "S3XY");
-		bdisp_dbg_dump_sz(s, node->s3sz, "S3SZ");
-		/* Clipping not dumped */
-		/* CLUT not dumped */
+		seq_printf(s, "S3BA\t0x%08X\n", analde->s3ba);
+		bdisp_dbg_dump_sty(s, analde->s3ty, analde->s3ba, "S3TY");
+		bdisp_dbg_dump_xy(s, analde->s3xy, "S3XY");
+		bdisp_dbg_dump_sz(s, analde->s3sz, "S3SZ");
+		/* Clipping analt dumped */
+		/* CLUT analt dumped */
 		seq_puts(s, "-- Filter & Mask --\n");
-		bdisp_dbg_dump_fctl(s, node->fctl);
-		/* PMK not dumped */
+		bdisp_dbg_dump_fctl(s, analde->fctl);
+		/* PMK analt dumped */
 		seq_puts(s, "-- Chroma Filter --\n");
-		bdisp_dbg_dump_rsf(s, node->rsf, "RSF");
-		bdisp_dbg_dump_rzi(s, node->rzi, "RZI");
-		seq_printf(s, "HFP\t0x%08X\n", node->hfp);
-		seq_printf(s, "VFP\t0x%08X\n", node->vfp);
+		bdisp_dbg_dump_rsf(s, analde->rsf, "RSF");
+		bdisp_dbg_dump_rzi(s, analde->rzi, "RZI");
+		seq_printf(s, "HFP\t0x%08X\n", analde->hfp);
+		seq_printf(s, "VFP\t0x%08X\n", analde->vfp);
 		seq_puts(s, "-- Luma Filter --\n");
-		bdisp_dbg_dump_rsf(s, node->y_rsf, "Y_RSF");
-		bdisp_dbg_dump_rzi(s, node->y_rzi, "Y_RZI");
-		seq_printf(s, "Y_HFP\t0x%08X\n", node->y_hfp);
-		seq_printf(s, "Y_VFP\t0x%08X\n", node->y_vfp);
-		/* Flicker not dumped */
-		/* Color key not dumped */
-		/* Reserved not dumped */
-		/* Static Address & User not dumped */
+		bdisp_dbg_dump_rsf(s, analde->y_rsf, "Y_RSF");
+		bdisp_dbg_dump_rzi(s, analde->y_rzi, "Y_RZI");
+		seq_printf(s, "Y_HFP\t0x%08X\n", analde->y_hfp);
+		seq_printf(s, "Y_VFP\t0x%08X\n", analde->y_vfp);
+		/* Flicker analt dumped */
+		/* Color key analt dumped */
+		/* Reserved analt dumped */
+		/* Static Address & User analt dumped */
 		seq_puts(s, "-- Input Versatile Matrix --\n");
-		bdisp_dbg_dump_ivmx(s, node->ivmx0, node->ivmx1,
-				    node->ivmx2, node->ivmx3);
-		/* Output Versatile Matrix not dumped */
-		/* Pace not dumped */
-		/* VC1R & DEI not dumped */
-		/* Gradient Fill not dumped */
-	} while ((++i < MAX_NB_NODE) && node->nip);
+		bdisp_dbg_dump_ivmx(s, analde->ivmx0, analde->ivmx1,
+				    analde->ivmx2, analde->ivmx3);
+		/* Output Versatile Matrix analt dumped */
+		/* Pace analt dumped */
+		/* VC1R & DEI analt dumped */
+		/* Gradient Fill analt dumped */
+	} while ((++i < MAX_NB_ANALDE) && analde->nip);
 
 	return 0;
 }
 
-static int last_nodes_raw_show(struct seq_file *s, void *data)
+static int last_analdes_raw_show(struct seq_file *s, void *data)
 {
 	struct bdisp_dev *bdisp = s->private;
-	struct bdisp_node *node;
+	struct bdisp_analde *analde;
 	u32 *val;
 	int j, i = 0;
 
-	if (!bdisp->dbg.copy_node[0]) {
-		seq_puts(s, "No node built yet\n");
+	if (!bdisp->dbg.copy_analde[0]) {
+		seq_puts(s, "Anal analde built yet\n");
 		return 0;
 	}
 
 	do {
-		node = bdisp->dbg.copy_node[i];
-		if (!node)
+		analde = bdisp->dbg.copy_analde[i];
+		if (!analde)
 			break;
 
-		seq_printf(s, "--------\nNode %d:\n", i);
-		val = (u32 *)node;
-		for (j = 0; j < sizeof(struct bdisp_node) / sizeof(u32); j++)
+		seq_printf(s, "--------\nAnalde %d:\n", i);
+		val = (u32 *)analde;
+		for (j = 0; j < sizeof(struct bdisp_analde) / sizeof(u32); j++)
 			seq_printf(s, "0x%08X\n", *val++);
-	} while ((++i < MAX_NB_NODE) && node->nip);
+	} while ((++i < MAX_NB_ANALDE) && analde->nip);
 
 	return 0;
 }
@@ -444,7 +444,7 @@ static int last_request_show(struct seq_file *s, void *data)
 	struct bdisp_frame src, dst;
 
 	if (!request->nb_req) {
-		seq_puts(s, "No request\n");
+		seq_puts(s, "Anal request\n");
 		return 0;
 	}
 
@@ -482,7 +482,7 @@ static int regs_show(struct seq_file *s, void *data)
 
 	ret = pm_runtime_resume_and_get(bdisp->dev);
 	if (ret < 0) {
-		seq_puts(s, "Cannot wake up IP\n");
+		seq_puts(s, "Cananalt wake up IP\n");
 		return 0;
 	}
 
@@ -516,7 +516,7 @@ static int regs_show(struct seq_file *s, void *data)
 	DUMP(BLT_PLUGT_MSZ);
 	DUMP(BLT_PLUGT_PGZ);
 
-	seq_puts(s, "\nNode:\n");
+	seq_puts(s, "\nAnalde:\n");
 	DUMP(BLT_NIP);
 	DUMP(BLT_CIC);
 	DUMP(BLT_INS);
@@ -590,7 +590,7 @@ static int perf_show(struct seq_file *s, void *data)
 	int avg_fps, min_fps, max_fps, last_fps;
 
 	if (!request->nb_req) {
-		seq_puts(s, "No request\n");
+		seq_puts(s, "Anal request\n");
 		return 0;
 	}
 
@@ -632,8 +632,8 @@ static int perf_show(struct seq_file *s, void *data)
 			    &name##_fops)
 
 DEFINE_SHOW_ATTRIBUTE(regs);
-DEFINE_SHOW_ATTRIBUTE(last_nodes);
-DEFINE_SHOW_ATTRIBUTE(last_nodes_raw);
+DEFINE_SHOW_ATTRIBUTE(last_analdes);
+DEFINE_SHOW_ATTRIBUTE(last_analdes_raw);
 DEFINE_SHOW_ATTRIBUTE(last_request);
 DEFINE_SHOW_ATTRIBUTE(perf);
 
@@ -645,8 +645,8 @@ void bdisp_debugfs_create(struct bdisp_dev *bdisp)
 	bdisp->dbg.debugfs_entry = debugfs_create_dir(dirname, NULL);
 
 	bdisp_dbg_create_entry(regs);
-	bdisp_dbg_create_entry(last_nodes);
-	bdisp_dbg_create_entry(last_nodes_raw);
+	bdisp_dbg_create_entry(last_analdes);
+	bdisp_dbg_create_entry(last_analdes_raw);
 	bdisp_dbg_create_entry(last_request);
 	bdisp_dbg_create_entry(perf);
 }

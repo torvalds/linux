@@ -4,7 +4,7 @@
  */
 
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <sound/core.h>
 #include <sound/ump.h>
@@ -78,13 +78,13 @@ static unsigned char get_ump_group(struct snd_seq_client_port *port)
 
 /* MIDI 1.0 CVM */
 
-/* encode note event */
-static void ump_midi1_to_note_ev(const union snd_ump_midi1_msg *val,
+/* encode analte event */
+static void ump_midi1_to_analte_ev(const union snd_ump_midi1_msg *val,
 				 struct snd_seq_event *ev)
 {
-	ev->data.note.channel = val->note.channel;
-	ev->data.note.note = val->note.note;
-	ev->data.note.velocity = val->note.velocity;
+	ev->data.analte.channel = val->analte.channel;
+	ev->data.analte.analte = val->analte.analte;
+	ev->data.analte.velocity = val->analte.velocity;
 }
 
 /* encode one parameter controls */
@@ -121,9 +121,9 @@ struct seq_ump_midi1_to_ev {
 
 /* Encoders for MIDI1 status 0x80-0xe0 */
 static struct seq_ump_midi1_to_ev midi1_msg_encoders[] = {
-	{SNDRV_SEQ_EVENT_NOTEOFF,	ump_midi1_to_note_ev},	/* 0x80 */
-	{SNDRV_SEQ_EVENT_NOTEON,	ump_midi1_to_note_ev},	/* 0x90 */
-	{SNDRV_SEQ_EVENT_KEYPRESS,	ump_midi1_to_note_ev},	/* 0xa0 */
+	{SNDRV_SEQ_EVENT_ANALTEOFF,	ump_midi1_to_analte_ev},	/* 0x80 */
+	{SNDRV_SEQ_EVENT_ANALTEON,	ump_midi1_to_analte_ev},	/* 0x90 */
+	{SNDRV_SEQ_EVENT_KEYPRESS,	ump_midi1_to_analte_ev},	/* 0xa0 */
 	{SNDRV_SEQ_EVENT_CONTROLLER,	ump_midi1_to_cc_ev},	/* 0xb0 */
 	{SNDRV_SEQ_EVENT_PGMCHANGE,	ump_midi1_to_ctrl_ev},	/* 0xc0 */
 	{SNDRV_SEQ_EVENT_CHANPRESS,	ump_midi1_to_ctrl_ev},	/* 0xd0 */
@@ -133,7 +133,7 @@ static struct seq_ump_midi1_to_ev midi1_msg_encoders[] = {
 static int cvt_ump_midi1_to_event(const union snd_ump_midi1_msg *val,
 				  struct snd_seq_event *ev)
 {
-	unsigned char status = val->note.status;
+	unsigned char status = val->analte.status;
 
 	if (status < 0x8 || status > 0xe)
 		return 0; /* invalid - skip */
@@ -162,20 +162,20 @@ static void ump_system_to_songpos_ev(const union snd_ump_midi1_msg *val,
 
 /* Encoders for 0xf0 - 0xff */
 static struct seq_ump_midi1_to_ev system_msg_encoders[] = {
-	{SNDRV_SEQ_EVENT_NONE,		NULL},	 /* 0xf0 */
+	{SNDRV_SEQ_EVENT_ANALNE,		NULL},	 /* 0xf0 */
 	{SNDRV_SEQ_EVENT_QFRAME,	ump_system_to_one_param_ev}, /* 0xf1 */
 	{SNDRV_SEQ_EVENT_SONGPOS,	ump_system_to_songpos_ev}, /* 0xf2 */
 	{SNDRV_SEQ_EVENT_SONGSEL,	ump_system_to_one_param_ev}, /* 0xf3 */
-	{SNDRV_SEQ_EVENT_NONE,		NULL}, /* 0xf4 */
-	{SNDRV_SEQ_EVENT_NONE,		NULL}, /* 0xf5 */
+	{SNDRV_SEQ_EVENT_ANALNE,		NULL}, /* 0xf4 */
+	{SNDRV_SEQ_EVENT_ANALNE,		NULL}, /* 0xf5 */
 	{SNDRV_SEQ_EVENT_TUNE_REQUEST,	NULL}, /* 0xf6 */
-	{SNDRV_SEQ_EVENT_NONE,		NULL}, /* 0xf7 */
+	{SNDRV_SEQ_EVENT_ANALNE,		NULL}, /* 0xf7 */
 	{SNDRV_SEQ_EVENT_CLOCK,		NULL}, /* 0xf8 */
-	{SNDRV_SEQ_EVENT_NONE,		NULL}, /* 0xf9 */
+	{SNDRV_SEQ_EVENT_ANALNE,		NULL}, /* 0xf9 */
 	{SNDRV_SEQ_EVENT_START,		NULL}, /* 0xfa */
 	{SNDRV_SEQ_EVENT_CONTINUE,	NULL}, /* 0xfb */
 	{SNDRV_SEQ_EVENT_STOP,		NULL}, /* 0xfc */
-	{SNDRV_SEQ_EVENT_NONE,		NULL}, /* 0xfd */
+	{SNDRV_SEQ_EVENT_ANALNE,		NULL}, /* 0xfd */
 	{SNDRV_SEQ_EVENT_SENSING,	NULL}, /* 0xfe */
 	{SNDRV_SEQ_EVENT_RESET,		NULL}, /* 0xff */
 };
@@ -190,7 +190,7 @@ static int cvt_ump_system_to_event(const union snd_ump_midi1_msg *val,
 	status &= 0x0f;
 	ev->type = system_msg_encoders[status].seq_type;
 	ev->flags = SNDRV_SEQ_EVENT_LENGTH_FIXED;
-	if (ev->type == SNDRV_SEQ_EVENT_NONE)
+	if (ev->type == SNDRV_SEQ_EVENT_ANALNE)
 		return 0;
 	if (system_msg_encoders[status].encode)
 		system_msg_encoders[status].encode(val, ev);
@@ -199,19 +199,19 @@ static int cvt_ump_system_to_event(const union snd_ump_midi1_msg *val,
 
 /* MIDI 2.0 CVM */
 
-/* encode note event */
-static int ump_midi2_to_note_ev(const union snd_ump_midi2_msg *val,
+/* encode analte event */
+static int ump_midi2_to_analte_ev(const union snd_ump_midi2_msg *val,
 				struct snd_seq_event *ev)
 {
-	ev->data.note.channel = val->note.channel;
-	ev->data.note.note = val->note.note;
-	ev->data.note.velocity = downscale_16_to_7bit(val->note.velocity);
-	/* correct note-on velocity 0 to 1;
-	 * it's no longer equivalent as not-off for MIDI 2.0
+	ev->data.analte.channel = val->analte.channel;
+	ev->data.analte.analte = val->analte.analte;
+	ev->data.analte.velocity = downscale_16_to_7bit(val->analte.velocity);
+	/* correct analte-on velocity 0 to 1;
+	 * it's anal longer equivalent as analt-off for MIDI 2.0
 	 */
-	if (ev->type == SNDRV_SEQ_EVENT_NOTEON &&
-	    !ev->data.note.velocity)
-		ev->data.note.velocity = 1;
+	if (ev->type == SNDRV_SEQ_EVENT_ANALTEON &&
+	    !ev->data.analte.velocity)
+		ev->data.analte.velocity = 1;
 	return 1;
 }
 
@@ -282,31 +282,31 @@ struct seq_ump_midi2_to_ev {
 
 /* Encoders for MIDI2 status 0x00-0xf0 */
 static struct seq_ump_midi2_to_ev midi2_msg_encoders[] = {
-	{SNDRV_SEQ_EVENT_NONE,		NULL},			/* 0x00 */
-	{SNDRV_SEQ_EVENT_NONE,		NULL},			/* 0x10 */
+	{SNDRV_SEQ_EVENT_ANALNE,		NULL},			/* 0x00 */
+	{SNDRV_SEQ_EVENT_ANALNE,		NULL},			/* 0x10 */
 	{SNDRV_SEQ_EVENT_REGPARAM,	ump_midi2_to_rpn_ev},	/* 0x20 */
-	{SNDRV_SEQ_EVENT_NONREGPARAM,	ump_midi2_to_rpn_ev},	/* 0x30 */
-	{SNDRV_SEQ_EVENT_NONE,		NULL},			/* 0x40 */
-	{SNDRV_SEQ_EVENT_NONE,		NULL},			/* 0x50 */
-	{SNDRV_SEQ_EVENT_NONE,		NULL},			/* 0x60 */
-	{SNDRV_SEQ_EVENT_NONE,		NULL},			/* 0x70 */
-	{SNDRV_SEQ_EVENT_NOTEOFF,	ump_midi2_to_note_ev},	/* 0x80 */
-	{SNDRV_SEQ_EVENT_NOTEON,	ump_midi2_to_note_ev},	/* 0x90 */
-	{SNDRV_SEQ_EVENT_KEYPRESS,	ump_midi2_to_note_ev},	/* 0xa0 */
+	{SNDRV_SEQ_EVENT_ANALNREGPARAM,	ump_midi2_to_rpn_ev},	/* 0x30 */
+	{SNDRV_SEQ_EVENT_ANALNE,		NULL},			/* 0x40 */
+	{SNDRV_SEQ_EVENT_ANALNE,		NULL},			/* 0x50 */
+	{SNDRV_SEQ_EVENT_ANALNE,		NULL},			/* 0x60 */
+	{SNDRV_SEQ_EVENT_ANALNE,		NULL},			/* 0x70 */
+	{SNDRV_SEQ_EVENT_ANALTEOFF,	ump_midi2_to_analte_ev},	/* 0x80 */
+	{SNDRV_SEQ_EVENT_ANALTEON,	ump_midi2_to_analte_ev},	/* 0x90 */
+	{SNDRV_SEQ_EVENT_KEYPRESS,	ump_midi2_to_analte_ev},	/* 0xa0 */
 	{SNDRV_SEQ_EVENT_CONTROLLER,	ump_midi2_to_cc_ev},	/* 0xb0 */
 	{SNDRV_SEQ_EVENT_PGMCHANGE,	ump_midi2_to_pgm_ev},	/* 0xc0 */
 	{SNDRV_SEQ_EVENT_CHANPRESS,	ump_midi2_to_ctrl_ev},	/* 0xd0 */
 	{SNDRV_SEQ_EVENT_PITCHBEND,	ump_midi2_to_pitchbend_ev}, /* 0xe0 */
-	{SNDRV_SEQ_EVENT_NONE,		NULL},			/* 0xf0 */
+	{SNDRV_SEQ_EVENT_ANALNE,		NULL},			/* 0xf0 */
 };
 
 static int cvt_ump_midi2_to_event(const union snd_ump_midi2_msg *val,
 				  struct snd_seq_event *ev)
 {
-	unsigned char status = val->note.status;
+	unsigned char status = val->analte.status;
 
 	ev->type = midi2_msg_encoders[status].seq_type;
-	if (ev->type == SNDRV_SEQ_EVENT_NONE)
+	if (ev->type == SNDRV_SEQ_EVENT_ANALNE)
 		return 0; /* skip */
 	ev->flags = SNDRV_SEQ_EVENT_LENGTH_FIXED;
 	return midi2_msg_encoders[status].encode(val, ev);
@@ -372,18 +372,18 @@ static int cvt_ump_midi1_to_midi2(struct snd_seq_client *dest,
 	ev_cvt = *event;
 	memset(&ev_cvt.ump, 0, sizeof(ev_cvt.ump));
 
-	midi2->note.type = UMP_MSG_TYPE_MIDI2_CHANNEL_VOICE;
-	midi2->note.group = midi1->note.group;
-	midi2->note.status = midi1->note.status;
-	midi2->note.channel = midi1->note.channel;
-	switch (midi1->note.status) {
-	case UMP_MSG_STATUS_NOTE_ON:
-	case UMP_MSG_STATUS_NOTE_OFF:
-		midi2->note.note = midi1->note.note;
-		midi2->note.velocity = upscale_7_to_16bit(midi1->note.velocity);
+	midi2->analte.type = UMP_MSG_TYPE_MIDI2_CHANNEL_VOICE;
+	midi2->analte.group = midi1->analte.group;
+	midi2->analte.status = midi1->analte.status;
+	midi2->analte.channel = midi1->analte.channel;
+	switch (midi1->analte.status) {
+	case UMP_MSG_STATUS_ANALTE_ON:
+	case UMP_MSG_STATUS_ANALTE_OFF:
+		midi2->analte.analte = midi1->analte.analte;
+		midi2->analte.velocity = upscale_7_to_16bit(midi1->analte.velocity);
 		break;
 	case UMP_MSG_STATUS_POLY_PRESSURE:
-		midi2->paf.note = midi1->paf.note;
+		midi2->paf.analte = midi1->paf.analte;
 		midi2->paf.data = upscale_7_to_32bit(midi1->paf.data);
 		break;
 	case UMP_MSG_STATUS_CC:
@@ -424,18 +424,18 @@ static int cvt_ump_midi2_to_midi1(struct snd_seq_client *dest,
 	ev_cvt = *event;
 	memset(&ev_cvt.ump, 0, sizeof(ev_cvt.ump));
 
-	midi1->note.type = UMP_MSG_TYPE_MIDI1_CHANNEL_VOICE;
-	midi1->note.group = midi2->note.group;
-	midi1->note.status = midi2->note.status;
-	midi1->note.channel = midi2->note.channel;
-	switch (midi2->note.status << 4) {
-	case UMP_MSG_STATUS_NOTE_ON:
-	case UMP_MSG_STATUS_NOTE_OFF:
-		midi1->note.note = midi2->note.note;
-		midi1->note.velocity = downscale_16_to_7bit(midi2->note.velocity);
+	midi1->analte.type = UMP_MSG_TYPE_MIDI1_CHANNEL_VOICE;
+	midi1->analte.group = midi2->analte.group;
+	midi1->analte.status = midi2->analte.status;
+	midi1->analte.channel = midi2->analte.channel;
+	switch (midi2->analte.status << 4) {
+	case UMP_MSG_STATUS_ANALTE_ON:
+	case UMP_MSG_STATUS_ANALTE_OFF:
+		midi1->analte.analte = midi2->analte.analte;
+		midi1->analte.velocity = downscale_16_to_7bit(midi2->analte.velocity);
 		break;
 	case UMP_MSG_STATUS_POLY_PRESSURE:
-		midi1->paf.note = midi2->paf.note;
+		midi1->paf.analte = midi2->paf.analte;
 		midi1->paf.data = downscale_32_to_7bit(midi2->paf.data);
 		break;
 	case UMP_MSG_STATUS_CC:
@@ -551,7 +551,7 @@ int snd_seq_deliver_from_ump(struct snd_seq_client *source,
 	unsigned char type;
 
 	if (snd_seq_ev_is_variable(event))
-		return 0; // skip, no variable event for UMP, so far
+		return 0; // skip, anal variable event for UMP, so far
 	if (ump_event_filtered(dest, ump_ev))
 		return 0; // skip if group filter is set and matching
 	type = ump_message_type(ump_ev->ump[0]);
@@ -565,7 +565,7 @@ int snd_seq_deliver_from_ump(struct snd_seq_client *source,
 			 type == UMP_MSG_TYPE_MIDI2_CHANNEL_VOICE)
 			return cvt_ump_midi2_to_midi1(dest, dest_port,
 						      event, atomic, hop);
-		/* non-EP port and different group is set? */
+		/* analn-EP port and different group is set? */
 		if (dest_port->ump_group &&
 		    !ump_is_groupless_msg(type) &&
 		    ump_message_group(*ump_ev->ump) + 1 != dest_port->ump_group)
@@ -585,18 +585,18 @@ int snd_seq_deliver_from_ump(struct snd_seq_client *source,
 
 /* Conversion to UMP MIDI 1.0 */
 
-/* convert note on/off event to MIDI 1.0 UMP */
-static int note_ev_to_ump_midi1(const struct snd_seq_event *event,
+/* convert analte on/off event to MIDI 1.0 UMP */
+static int analte_ev_to_ump_midi1(const struct snd_seq_event *event,
 				struct snd_seq_client_port *dest_port,
 				union snd_ump_midi1_msg *data,
 				unsigned char status)
 {
-	if (!event->data.note.velocity)
-		status = UMP_MSG_STATUS_NOTE_OFF;
-	data->note.status = status;
-	data->note.channel = event->data.note.channel & 0x0f;
-	data->note.velocity = event->data.note.velocity & 0x7f;
-	data->note.note = event->data.note.note & 0x7f;
+	if (!event->data.analte.velocity)
+		status = UMP_MSG_STATUS_ANALTE_OFF;
+	data->analte.status = status;
+	data->analte.channel = event->data.analte.channel & 0x0f;
+	data->analte.velocity = event->data.analte.velocity & 0x7f;
+	data->analte.analte = event->data.analte.analte & 0x7f;
 	return 1;
 }
 
@@ -720,18 +720,18 @@ static int system_2p_ev_to_ump_midi1(const struct snd_seq_event *event,
 
 /* Conversion to UMP MIDI 2.0 */
 
-/* convert note on/off event to MIDI 2.0 UMP */
-static int note_ev_to_ump_midi2(const struct snd_seq_event *event,
+/* convert analte on/off event to MIDI 2.0 UMP */
+static int analte_ev_to_ump_midi2(const struct snd_seq_event *event,
 				struct snd_seq_client_port *dest_port,
 				union snd_ump_midi2_msg *data,
 				unsigned char status)
 {
-	if (!event->data.note.velocity)
-		status = UMP_MSG_STATUS_NOTE_OFF;
-	data->note.status = status;
-	data->note.channel = event->data.note.channel & 0x0f;
-	data->note.note = event->data.note.note & 0x7f;
-	data->note.velocity = upscale_7_to_16bit(event->data.note.velocity & 0x7f);
+	if (!event->data.analte.velocity)
+		status = UMP_MSG_STATUS_ANALTE_OFF;
+	data->analte.status = status;
+	data->analte.channel = event->data.analte.channel & 0x0f;
+	data->analte.analte = event->data.analte.analte & 0x7f;
+	data->analte.velocity = upscale_7_to_16bit(event->data.analte.velocity & 0x7f);
 	return 1;
 }
 
@@ -742,9 +742,9 @@ static int paf_ev_to_ump_midi2(const struct snd_seq_event *event,
 			       unsigned char status)
 {
 	data->paf.status = status;
-	data->paf.channel = event->data.note.channel & 0x0f;
-	data->paf.note = event->data.note.note & 0x7f;
-	data->paf.data = upscale_7_to_32bit(event->data.note.velocity & 0x7f);
+	data->paf.channel = event->data.analte.channel & 0x0f;
+	data->paf.analte = event->data.analte.analte & 0x7f;
+	data->paf.data = upscale_7_to_32bit(event->data.analte.velocity & 0x7f);
 	return 1;
 }
 
@@ -997,12 +997,12 @@ struct seq_ev_to_ump {
 };
 
 static const struct seq_ev_to_ump seq_ev_ump_encoders[] = {
-	{ SNDRV_SEQ_EVENT_NOTEON, UMP_MSG_STATUS_NOTE_ON,
-	  note_ev_to_ump_midi1, note_ev_to_ump_midi2 },
-	{ SNDRV_SEQ_EVENT_NOTEOFF, UMP_MSG_STATUS_NOTE_OFF,
-	  note_ev_to_ump_midi1, note_ev_to_ump_midi2 },
+	{ SNDRV_SEQ_EVENT_ANALTEON, UMP_MSG_STATUS_ANALTE_ON,
+	  analte_ev_to_ump_midi1, analte_ev_to_ump_midi2 },
+	{ SNDRV_SEQ_EVENT_ANALTEOFF, UMP_MSG_STATUS_ANALTE_OFF,
+	  analte_ev_to_ump_midi1, analte_ev_to_ump_midi2 },
 	{ SNDRV_SEQ_EVENT_KEYPRESS, UMP_MSG_STATUS_POLY_PRESSURE,
-	  note_ev_to_ump_midi1, paf_ev_to_ump_midi2 },
+	  analte_ev_to_ump_midi1, paf_ev_to_ump_midi2 },
 	{ SNDRV_SEQ_EVENT_CONTROLLER, UMP_MSG_STATUS_CC,
 	  cc_ev_to_ump_midi1, cc_ev_to_ump_midi2 },
 	{ SNDRV_SEQ_EVENT_PGMCHANGE, UMP_MSG_STATUS_PROGRAM,
@@ -1013,7 +1013,7 @@ static const struct seq_ev_to_ump seq_ev_ump_encoders[] = {
 	  pitchbend_ev_to_ump_midi1, pitchbend_ev_to_ump_midi2 },
 	{ SNDRV_SEQ_EVENT_CONTROL14, 0,
 	  ctrl14_ev_to_ump_midi1, ctrl14_ev_to_ump_midi2 },
-	{ SNDRV_SEQ_EVENT_NONREGPARAM, UMP_MSG_STATUS_NRPN,
+	{ SNDRV_SEQ_EVENT_ANALNREGPARAM, UMP_MSG_STATUS_NRPN,
 	  rpn_ev_to_ump_midi1, rpn_ev_to_ump_midi2 },
 	{ SNDRV_SEQ_EVENT_REGPARAM, UMP_MSG_STATUS_RPN,
 	  rpn_ev_to_ump_midi1, rpn_ev_to_ump_midi2 },

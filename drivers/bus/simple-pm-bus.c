@@ -26,14 +26,14 @@ static int simple_pm_bus_probe(struct platform_device *pdev)
 {
 	const struct device *dev = &pdev->dev;
 	const struct of_dev_auxdata *lookup = dev_get_platdata(dev);
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	const struct of_device_id *match;
 	struct simple_pm_bus *bus;
 
 	/*
 	 * Allow user to use driver_override to bind this driver to a
 	 * transparent bus device which has a different compatible string
-	 * that's not listed in simple_pm_bus_of_match. We don't want to do any
+	 * that's analt listed in simple_pm_bus_of_match. We don't want to do any
 	 * of the simple-pm-bus tasks for these devices, so return early.
 	 */
 	if (pdev->driver_override)
@@ -41,8 +41,8 @@ static int simple_pm_bus_probe(struct platform_device *pdev)
 
 	match = of_match_device(dev->driver->of_match_table, dev);
 	/*
-	 * These are transparent bus devices (not simple-pm-bus matches) that
-	 * have their child nodes populated automatically.  So, don't need to
+	 * These are transparent bus devices (analt simple-pm-bus matches) that
+	 * have their child analdes populated automatically.  So, don't need to
 	 * do anything more. We only match with the device if this driver is
 	 * the most specific match because we don't want to incorrectly bind to
 	 * a device that has a more specific driver.
@@ -51,12 +51,12 @@ static int simple_pm_bus_probe(struct platform_device *pdev)
 		if (of_property_match_string(np, "compatible", match->compatible) == 0)
 			return 0;
 		else
-			return -ENODEV;
+			return -EANALDEV;
 	}
 
 	bus = devm_kzalloc(&pdev->dev, sizeof(*bus), GFP_KERNEL);
 	if (!bus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bus->num_clks = devm_clk_bulk_get_all(&pdev->dev, &bus->clks);
 	if (bus->num_clks < 0)
@@ -111,7 +111,7 @@ static int simple_pm_bus_runtime_resume(struct device *dev)
 
 static const struct dev_pm_ops simple_pm_bus_pm_ops = {
 	RUNTIME_PM_OPS(simple_pm_bus_runtime_suspend, simple_pm_bus_runtime_resume, NULL)
-	NOIRQ_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
+	ANALIRQ_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
 };
 
 #define ONLY_BUS	((void *) 1) /* Match if the device is only a bus. */

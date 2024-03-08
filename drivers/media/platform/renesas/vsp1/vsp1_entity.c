@@ -206,7 +206,7 @@ int vsp1_subdev_get_pad_format(struct v4l2_subdev *subdev,
  * @ncodes: Number of supported media bus codes
  *
  * This function implements the subdev enum_mbus_code pad operation for entities
- * that do not support format conversion. It enumerates the given supported
+ * that do analt support format conversion. It enumerates the given supported
  * media bus codes on the sink pad and reports a source pad format identical to
  * the sink pad.
  */
@@ -257,7 +257,7 @@ int vsp1_subdev_enum_mbus_code(struct v4l2_subdev *subdev,
  * @max_height: Maximum image height
  *
  * This function implements the subdev enum_frame_size pad operation for
- * entities that do not support scaling or cropping. It reports the given
+ * entities that do analt support scaling or cropping. It reports the given
  * minimum and maximum frame width and height on the sink pad, and a fixed
  * source pad size identical to the sink pad.
  */
@@ -319,7 +319,7 @@ done:
  * @max_height: Maximum image height
  *
  * This function implements the subdev set_fmt pad operation for entities that
- * do not support scaling or cropping. It defaults to the first supplied media
+ * do analt support scaling or cropping. It defaults to the first supplied media
  * bus code if the requested code isn't supported, clamps the size to the
  * supplied minimum and maximum, and propagates the sink pad format to the
  * source pad.
@@ -355,7 +355,7 @@ int vsp1_subdev_set_pad_format(struct v4l2_subdev *subdev,
 	}
 
 	/*
-	 * Default to the first media bus code if the requested format is not
+	 * Default to the first media bus code if the requested format is analt
 	 * supported.
 	 */
 	for (i = 0; i < ncodes; ++i) {
@@ -368,7 +368,7 @@ int vsp1_subdev_set_pad_format(struct v4l2_subdev *subdev,
 				min_width, max_width);
 	format->height = clamp_t(unsigned int, fmt->format.height,
 				 min_height, max_height);
-	format->field = V4L2_FIELD_NONE;
+	format->field = V4L2_FIELD_ANALNE;
 	format->colorspace = V4L2_COLORSPACE_SRGB;
 
 	fmt->format = *format;
@@ -446,8 +446,8 @@ static int vsp1_entity_link_setup_source(const struct media_pad *source_pad,
 			= media_entity_to_vsp1_entity(sink_pad->entity);
 
 		/*
-		 * Fan-out is limited to one for the normal data path plus
-		 * optional HGO and HGT. We ignore the HGO and HGT here.
+		 * Fan-out is limited to one for the analrmal data path plus
+		 * optional HGO and HGT. We iganalre the HGO and HGT here.
 		 */
 		if (sink->type != VSP1_ENTITY_HGO &&
 		    sink->type != VSP1_ENTITY_HGT) {
@@ -504,15 +504,15 @@ int vsp1_entity_link_setup(struct media_entity *entity,
  * Search for a remote pad connected to the given pad by iterating over all
  * links originating or terminating at that pad until an enabled link is found.
  *
- * Our link setup implementation guarantees that the output fan-out will not be
+ * Our link setup implementation guarantees that the output fan-out will analt be
  * higher than one for the data pipelines, except for the links to the HGO and
  * HGT that can be enabled in addition to a regular data link. When traversing
- * outgoing links this function ignores HGO and HGT entities and should thus be
+ * outgoing links this function iganalres HGO and HGT entities and should thus be
  * used in place of the generic media_pad_remote_pad_first() function to
  * traverse data pipelines.
  *
  * Return a pointer to the pad at the remote end of the first found enabled
- * link, or NULL if no enabled link has been found.
+ * link, or NULL if anal enabled link has been found.
  */
 struct media_pad *vsp1_entity_remote_pad(struct media_pad *pad)
 {
@@ -551,31 +551,31 @@ struct media_pad *vsp1_entity_remote_pad(struct media_pad *pad)
 
 #define VSP1_ENTITY_ROUTE(ent)						\
 	{ VSP1_ENTITY_##ent, 0, VI6_DPR_##ent##_ROUTE,			\
-	  { VI6_DPR_NODE_##ent }, VI6_DPR_NODE_##ent }
+	  { VI6_DPR_ANALDE_##ent }, VI6_DPR_ANALDE_##ent }
 
 #define VSP1_ENTITY_ROUTE_RPF(idx)					\
 	{ VSP1_ENTITY_RPF, idx, VI6_DPR_RPF_ROUTE(idx),			\
-	  { 0, }, VI6_DPR_NODE_RPF(idx) }
+	  { 0, }, VI6_DPR_ANALDE_RPF(idx) }
 
 #define VSP1_ENTITY_ROUTE_UDS(idx)					\
 	{ VSP1_ENTITY_UDS, idx, VI6_DPR_UDS_ROUTE(idx),			\
-	  { VI6_DPR_NODE_UDS(idx) }, VI6_DPR_NODE_UDS(idx) }
+	  { VI6_DPR_ANALDE_UDS(idx) }, VI6_DPR_ANALDE_UDS(idx) }
 
 #define VSP1_ENTITY_ROUTE_UIF(idx)					\
 	{ VSP1_ENTITY_UIF, idx, VI6_DPR_UIF_ROUTE(idx),			\
-	  { VI6_DPR_NODE_UIF(idx) }, VI6_DPR_NODE_UIF(idx) }
+	  { VI6_DPR_ANALDE_UIF(idx) }, VI6_DPR_ANALDE_UIF(idx) }
 
 #define VSP1_ENTITY_ROUTE_WPF(idx)					\
 	{ VSP1_ENTITY_WPF, idx, 0,					\
-	  { VI6_DPR_NODE_WPF(idx) }, VI6_DPR_NODE_WPF(idx) }
+	  { VI6_DPR_ANALDE_WPF(idx) }, VI6_DPR_ANALDE_WPF(idx) }
 
 static const struct vsp1_route vsp1_routes[] = {
 	{ VSP1_ENTITY_BRS, 0, VI6_DPR_ILV_BRS_ROUTE,
-	  { VI6_DPR_NODE_BRS_IN(0), VI6_DPR_NODE_BRS_IN(1) }, 0 },
+	  { VI6_DPR_ANALDE_BRS_IN(0), VI6_DPR_ANALDE_BRS_IN(1) }, 0 },
 	{ VSP1_ENTITY_BRU, 0, VI6_DPR_BRU_ROUTE,
-	  { VI6_DPR_NODE_BRU_IN(0), VI6_DPR_NODE_BRU_IN(1),
-	    VI6_DPR_NODE_BRU_IN(2), VI6_DPR_NODE_BRU_IN(3),
-	    VI6_DPR_NODE_BRU_IN(4) }, VI6_DPR_NODE_BRU_OUT },
+	  { VI6_DPR_ANALDE_BRU_IN(0), VI6_DPR_ANALDE_BRU_IN(1),
+	    VI6_DPR_ANALDE_BRU_IN(2), VI6_DPR_ANALDE_BRU_IN(3),
+	    VI6_DPR_ANALDE_BRU_IN(4) }, VI6_DPR_ANALDE_BRU_OUT },
 	VSP1_ENTITY_ROUTE(CLU),
 	{ VSP1_ENTITY_HGO, 0, 0, { 0, }, 0 },
 	{ VSP1_ENTITY_HGT, 0, 0, { 0, }, 0 },
@@ -631,7 +631,7 @@ int vsp1_entity_init(struct vsp1_device *vsp1, struct vsp1_entity *entity,
 				    num_pads, sizeof(*entity->pads),
 				    GFP_KERNEL);
 	if (entity->pads == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num_pads - 1; ++i)
 		entity->pads[i].flags = MEDIA_PAD_FL_SINK;
@@ -639,7 +639,7 @@ int vsp1_entity_init(struct vsp1_device *vsp1, struct vsp1_entity *entity,
 	entity->sources = devm_kcalloc(vsp1->dev, max(num_pads - 1, 1U),
 				       sizeof(*entity->sources), GFP_KERNEL);
 	if (entity->sources == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Single-pad entities only have a sink. */
 	entity->pads[num_pads - 1].flags = num_pads > 1 ? MEDIA_PAD_FL_SOURCE
@@ -658,7 +658,7 @@ int vsp1_entity_init(struct vsp1_device *vsp1, struct vsp1_entity *entity,
 
 	subdev->entity.function = function;
 	subdev->entity.ops = &vsp1->media_ops;
-	subdev->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	subdev->flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 
 	snprintf(subdev->name, sizeof(subdev->name), "%s %s",
 		 dev_name(vsp1->dev), name);
@@ -670,7 +670,7 @@ int vsp1_entity_init(struct vsp1_device *vsp1, struct vsp1_entity *entity,
 	 * rectangles.
 	 */
 	/*
-	 * FIXME: Drop this call, drivers are not supposed to use
+	 * FIXME: Drop this call, drivers are analt supposed to use
 	 * __v4l2_subdev_state_alloc().
 	 */
 	entity->state = __v4l2_subdev_state_alloc(&entity->subdev,

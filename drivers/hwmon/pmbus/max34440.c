@@ -118,7 +118,7 @@ static int max34440_read_word_data(struct i2c_client *client, int page,
 		ret = 0;
 		break;
 	default:
-		ret = -ENODATA;
+		ret = -EANALDATA;
 		break;
 	}
 	return ret;
@@ -173,7 +173,7 @@ static int max34440_write_word_data(struct i2c_client *client, int page,
 					MAX34446_MFR_TEMPERATURE_AVG, 0);
 		break;
 	default:
-		ret = -ENODATA;
+		ret = -EANALDATA;
 		break;
 	}
 	return ret;
@@ -212,7 +212,7 @@ static int max34440_read_byte_data(struct i2c_client *client, int page, int reg)
 			ret |= PB_TEMP_OT_FAULT;
 		break;
 	default:
-		ret = -ENODATA;
+		ret = -EANALDATA;
 		break;
 	}
 	return ret;
@@ -225,7 +225,7 @@ static int max34451_set_supported_funcs(struct i2c_client *client,
 	 * Each of the channel 0-15 can be configured to monitor the following
 	 * functions based on MFR_CHANNEL_CONFIG[5:0]
 	 * 0x10: Sequencing + voltage monitoring (only valid for PAGES 0–11)
-	 * 0x20: Voltage monitoring (no sequencing)
+	 * 0x20: Voltage monitoring (anal sequencing)
 	 * 0x21: Voltage read only
 	 * 0x22: Current monitoring
 	 * 0x23: Current read only
@@ -491,7 +491,7 @@ static int max34440_probe(struct i2c_client *client)
 	data = devm_kzalloc(&client->dev, sizeof(struct max34440_data),
 			    GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 	data->id = i2c_match_id(max34440_id, client)->driver_data;
 	data->info = max34440_info[data->id];
 

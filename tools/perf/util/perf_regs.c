@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <errno.h>
+#include <erranal.h>
 #include <string.h>
 #include "perf_regs.h"
 #include "util/sample.h"
@@ -46,7 +46,7 @@ const char *perf_reg_name(int id, const char *arch)
 	else if (!strcmp(arch, "arm64"))
 		reg_name = __perf_reg_name_arm64(id);
 
-	return reg_name ?: "unknown";
+	return reg_name ?: "unkanalwn";
 }
 
 int perf_reg_value(u64 *valp, struct regs_dump *regs, int id)

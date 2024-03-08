@@ -23,7 +23,7 @@ it.
    printk-formats
    printk-index
    symbol-namespaces
-   asm-annotations
+   asm-ananaltations
 
 Data structures and low-level utilities
 =======================================
@@ -90,7 +90,7 @@ Cache management, managing CPU hotplug, etc.
 Memory management
 =================
 
-How to allocate and use memory in the kernel.  Note that there is a lot
+How to allocate and use memory in the kernel.  Analte that there is a lot
 more memory-management documentation in Documentation/mm/index.rst.
 
 .. toctree::

@@ -5,12 +5,12 @@ menuconfig PM_DEVFREQ
 	help
 	  A device may have a list of frequencies and voltages available.
 	  devfreq, a generic DVFS framework can be registered for a device
-	  in order to let the governor provided to devfreq choose an
+	  in order to let the goveranalr provided to devfreq choose an
 	  operating frequency based on the device driver's policy.
 
-	  Each device may have its own governor and policy. Devfreq can
+	  Each device may have its own goveranalr and policy. Devfreq can
 	  reevaluate the device state periodically and/or based on the
-	  notification to "nb", a notifier block, of devfreq.
+	  analtification to "nb", a analtifier block, of devfreq.
 
 	  Like some CPUs with CPUfreq, a device may have multiple clocks.
 	  However, because the clock frequencies of a single device are
@@ -23,28 +23,28 @@ menuconfig PM_DEVFREQ
 	  given to devfreq.
 
 	  When OPP is used with the devfreq device, it is recommended to
-	  register devfreq's nb to the OPP's notifier head.  If OPP is
+	  register devfreq's nb to the OPP's analtifier head.  If OPP is
 	  used with the devfreq device, you may use OPP helper
 	  functions defined in devfreq.h.
 
 if PM_DEVFREQ
 
-comment "DEVFREQ Governors"
+comment "DEVFREQ Goveranalrs"
 
 config DEVFREQ_GOV_SIMPLE_ONDEMAND
 	tristate "Simple Ondemand"
 	help
 	  Chooses frequency based on the recent load on the device. Works
-	  similar as ONDEMAND governor of CPUFREQ does. A device with
+	  similar as ONDEMAND goveranalr of CPUFREQ does. A device with
 	  Simple-Ondemand should be able to provide busy/total counter
 	  values that imply the usage rate. A device may provide tuned
-	  values to the governor with data field at devfreq_add_device().
+	  values to the goveranalr with data field at devfreq_add_device().
 
 config DEVFREQ_GOV_PERFORMANCE
 	tristate "Performance"
 	help
 	  Sets the frequency at the maximum available frequency.
-	  This governor always returns UINT_MAX as frequency so that
+	  This goveranalr always returns UINT_MAX as frequency so that
 	  the DEVFREQ framework returns the highest frequency available
 	  at any time.
 
@@ -52,7 +52,7 @@ config DEVFREQ_GOV_POWERSAVE
 	tristate "Powersave"
 	help
 	  Sets the frequency at the minimum available frequency.
-	  This governor always returns 0 as frequency so that
+	  This goveranalr always returns 0 as frequency so that
 	  the DEVFREQ framework returns the lowest frequency available
 	  at any time.
 
@@ -60,35 +60,35 @@ config DEVFREQ_GOV_USERSPACE
 	tristate "Userspace"
 	help
 	  Sets the frequency at the user specified one.
-	  This governor returns the user configured frequency if there
+	  This goveranalr returns the user configured frequency if there
 	  has been an input to /sys/devices/.../userspace/set_freq.
-	  Otherwise, the governor does not change the frequency
+	  Otherwise, the goveranalr does analt change the frequency
 	  given at the initialization.
 
 config DEVFREQ_GOV_PASSIVE
 	tristate "Passive"
 	help
 	  Sets the frequency based on the frequency of its parent devfreq
-	  device. This governor does not change the frequency by itself
-	  through sysfs entries. The passive governor recommends that
+	  device. This goveranalr does analt change the frequency by itself
+	  through sysfs entries. The passive goveranalr recommends that
 	  devfreq device uses the OPP table to get the frequency/voltage.
 
 comment "DEVFREQ Drivers"
 
-config ARM_EXYNOS_BUS_DEVFREQ
-	tristate "ARM Exynos Generic Memory Bus DEVFREQ Driver"
-	depends on ARCH_EXYNOS || COMPILE_TEST
+config ARM_EXYANALS_BUS_DEVFREQ
+	tristate "ARM Exyanals Generic Memory Bus DEVFREQ Driver"
+	depends on ARCH_EXYANALS || COMPILE_TEST
 	select DEVFREQ_GOV_SIMPLE_ONDEMAND
 	select DEVFREQ_GOV_PASSIVE
-	select DEVFREQ_EVENT_EXYNOS_PPMU
+	select DEVFREQ_EVENT_EXYANALS_PPMU
 	select PM_DEVFREQ_EVENT
 	help
-	  This adds the common DEVFREQ driver for Exynos Memory bus. Exynos
+	  This adds the common DEVFREQ driver for Exyanals Memory bus. Exyanals
 	  Memory bus has one more group of memory bus (e.g, MIF and INT block).
 	  Each memory bus group could contain many memoby bus block. It reads
 	  PPMU counters of memory controllers by using DEVFREQ-event device
 	  and adjusts the operating frequencies and voltages with OPP support.
-	  This does not yet operate with optimal voltages.
+	  This does analt yet operate with optimal voltages.
 
 config ARM_IMX_BUS_DEVFREQ
 	tristate "i.MX Generic Bus DEVFREQ Driver"
@@ -96,7 +96,7 @@ config ARM_IMX_BUS_DEVFREQ
 	select DEVFREQ_GOV_USERSPACE
 	help
 	  This adds the generic DEVFREQ driver for i.MX interconnects. It
-	  allows adjusting NIC/NOC frequency.
+	  allows adjusting NIC/ANALC frequency.
 
 config ARM_IMX8M_DDRC_DEVFREQ
 	tristate "i.MX8M DDRC DEVFREQ Driver"
@@ -126,7 +126,7 @@ config ARM_MEDIATEK_CCI_DEVFREQ
 	help
 	  This adds a devfreq driver for MediaTek Cache Coherent Interconnect
 	  which is shared the same regulators with the cpu cluster. It can track
-	  buck voltages and update a proper CCI frequency. Use the notification
+	  buck voltages and update a proper CCI frequency. Use the analtification
 	  to get the regulator status.
 
 config ARM_RK3399_DMC_DEVFREQ

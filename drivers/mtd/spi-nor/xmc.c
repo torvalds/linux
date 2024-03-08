@@ -4,27 +4,27 @@
  * Copyright (C) 2014, Freescale Semiconductor, Inc.
  */
 
-#include <linux/mtd/spi-nor.h>
+#include <linux/mtd/spi-analr.h>
 
 #include "core.h"
 
-static const struct flash_info xmc_nor_parts[] = {
+static const struct flash_info xmc_analr_parts[] = {
 	{
-		.id = SNOR_ID(0x20, 0x70, 0x17),
+		.id = SANALR_ID(0x20, 0x70, 0x17),
 		.name = "XM25QH64A",
 		.size = SZ_8M,
-		.no_sfdp_flags = SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ,
+		.anal_sfdp_flags = SECT_4K | SPI_ANALR_DUAL_READ | SPI_ANALR_QUAD_READ,
 	}, {
-		.id = SNOR_ID(0x20, 0x70, 0x18),
+		.id = SANALR_ID(0x20, 0x70, 0x18),
 		.name = "XM25QH128A",
 		.size = SZ_16M,
-		.no_sfdp_flags = SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ,
+		.anal_sfdp_flags = SECT_4K | SPI_ANALR_DUAL_READ | SPI_ANALR_QUAD_READ,
 	},
 };
 
 /* XMC (Wuhan Xinxin Semiconductor Manufacturing Corp.) */
-const struct spi_nor_manufacturer spi_nor_xmc = {
+const struct spi_analr_manufacturer spi_analr_xmc = {
 	.name = "xmc",
-	.parts = xmc_nor_parts,
-	.nparts = ARRAY_SIZE(xmc_nor_parts),
+	.parts = xmc_analr_parts,
+	.nparts = ARRAY_SIZE(xmc_analr_parts),
 };

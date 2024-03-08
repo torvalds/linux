@@ -21,10 +21,10 @@ config BCACHE_DEBUG
 	turned on.
 
 config BCACHE_ASYNC_REGISTRATION
-	bool "Asynchronous device registration"
+	bool "Asynchroanalus device registration"
 	depends on BCACHE
 	help
 	Add a sysfs file /sys/fs/bcache/register_async. Writing registering
 	device path into this file will returns immediately and the real
-	registration work is handled in kernel work queue in asynchronous
+	registration work is handled in kernel work queue in asynchroanalus
 	way.

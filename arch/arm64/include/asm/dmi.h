@@ -18,7 +18,7 @@
 #include <linux/slab.h>
 
 /*
- * According to section 2.3.6 of the UEFI spec, the firmware should not
+ * According to section 2.3.6 of the UEFI spec, the firmware should analt
  * request a virtual mapping for configuration tables such as SMBIOS.
  * This means we have to map them before use.
  */

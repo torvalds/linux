@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/ufs/samsung,exynos-ufs.yaml#
+$id: http://devicetree.org/schemas/ufs/samsung,exyanals-ufs.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: Samsung SoC series UFS host controller
@@ -10,7 +10,7 @@ maintainers:
   - Alim Akhtar <alim.akhtar@samsung.com>
 
 description: |
-  Each Samsung UFS host controller instance should have its own node.
+  Each Samsung UFS host controller instance should have its own analde.
 
 allOf:
   - $ref: ufs-common.yaml
@@ -18,9 +18,9 @@ allOf:
 properties:
   compatible:
     enum:
-      - samsung,exynos7-ufs
-      - samsung,exynosautov9-ufs
-      - samsung,exynosautov9-ufs-vh
+      - samsung,exyanals7-ufs
+      - samsung,exyanalsautov9-ufs
+      - samsung,exyanalsautov9-ufs-vh
       - tesla,fsd-ufs
 
   reg:
@@ -57,7 +57,7 @@ properties:
     $ref: /schemas/types.yaml#/definitions/phandle-array
     items:
       - items:
-          - description: phandle to FSYSx sysreg node
+          - description: phandle to FSYSx sysreg analde
           - description: offset of the control register for UFS io coherency setting
     description:
       Phandle and offset to the FSYSx sysreg for UFS io coherency setting.
@@ -77,10 +77,10 @@ unevaluatedProperties: false
 examples:
   - |
     #include <dt-bindings/interrupt-controller/arm-gic.h>
-    #include <dt-bindings/clock/exynos7-clk.h>
+    #include <dt-bindings/clock/exyanals7-clk.h>
 
     ufs: ufs@15570000 {
-       compatible = "samsung,exynos7-ufs";
+       compatible = "samsung,exyanals7-ufs";
        reg = <0x15570000 0x100>,
              <0x15570100 0x100>,
              <0x15571000 0x200>,

@@ -101,7 +101,7 @@ static inline void __tlb_flush_mm_lazy(struct mm_struct * mm)
  * flush_tlb_mm goes together with ptep_set_wrprotect for the
  * copy_page_range operation and flush_tlb_range is related to
  * ptep_get_and_clear for change_protection. ptep_set_wrprotect and
- * ptep_get_and_clear do not flush the TLBs directly if the mm has
+ * ptep_get_and_clear do analt flush the TLBs directly if the mm has
  * only one user. At the end of the update the flush_tlb_mm and
  * flush_tlb_range functions need to do the flush.
  */

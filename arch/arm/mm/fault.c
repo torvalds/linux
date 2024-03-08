@@ -48,7 +48,7 @@ void show_pte(const char *lvl, struct mm_struct *mm, unsigned long addr)
 		pte_t *pte;
 
 		p4d = p4d_offset(pgd, addr);
-		if (p4d_none(*p4d))
+		if (p4d_analne(*p4d))
 			break;
 
 		if (p4d_bad(*p4d)) {
@@ -60,7 +60,7 @@ void show_pte(const char *lvl, struct mm_struct *mm, unsigned long addr)
 		if (PTRS_PER_PUD != 1)
 			pr_cont(", *pud=%08llx", (long long)pud_val(*pud));
 
-		if (pud_none(*pud))
+		if (pud_analne(*pud))
 			break;
 
 		if (pud_bad(*pud)) {
@@ -72,7 +72,7 @@ void show_pte(const char *lvl, struct mm_struct *mm, unsigned long addr)
 		if (PTRS_PER_PMD != 1)
 			pr_cont(", *pmd=%08llx", (long long)pmd_val(*pmd));
 
-		if (pmd_none(*pmd))
+		if (pmd_analne(*pmd))
 			break;
 
 		if (pmd_bad(*pmd)) {
@@ -80,7 +80,7 @@ void show_pte(const char *lvl, struct mm_struct *mm, unsigned long addr)
 			break;
 		}
 
-		/* We must not map this if we have highmem enabled */
+		/* We must analt map this if we have highmem enabled */
 		if (PageHighMem(pfn_to_page(pmd_val(*pmd) >> PAGE_SHIFT)))
 			break;
 
@@ -112,7 +112,7 @@ static inline bool is_translation_fault(unsigned int fsr)
 {
 	int fs = fsr_fs(fsr);
 #ifdef CONFIG_ARM_LPAE
-	if ((fs & FS_MMU_NOLL_MASK) == FS_TRANS_NOLL)
+	if ((fs & FS_MMU_ANALLL_MASK) == FS_TRANS_ANALLL)
 		return true;
 #else
 	if (fs == FS_L1_TRANS || fs == FS_L2_TRANS)
@@ -152,7 +152,7 @@ __do_kernel_fault(struct mm_struct *mm, unsigned long addr, unsigned int fsr,
 		return;
 
 	/*
-	 * No handler, we'll have to terminate things with extreme prejudice.
+	 * Anal handler, we'll have to terminate things with extreme prejudice.
 	 */
 	if (addr < PAGE_SIZE) {
 		msg = "NULL pointer dereference";
@@ -199,7 +199,7 @@ __do_user_fault(unsigned long addr, unsigned int fsr, unsigned int sig,
 
 	tsk->thread.address = addr;
 	tsk->thread.error_code = fsr;
-	tsk->thread.trap_no = 14;
+	tsk->thread.trap_anal = 14;
 	force_sig_fault(sig, code, (void __user *)addr);
 }
 
@@ -210,7 +210,7 @@ void do_bad_area(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 
 	/*
 	 * If we are in kernel mode at this point, we
-	 * have no context to handle this fault with.
+	 * have anal context to handle this fault with.
 	 */
 	if (user_mode(regs))
 		__do_user_fault(addr, fsr, SIGSEGV, SEGV_MAPERR, regs);
@@ -226,7 +226,7 @@ static inline bool is_permission_fault(unsigned int fsr)
 {
 	int fs = fsr_fs(fsr);
 #ifdef CONFIG_ARM_LPAE
-	if ((fs & FS_MMU_NOLL_MASK) == FS_PERM_NOLL)
+	if ((fs & FS_MMU_ANALLL_MASK) == FS_PERM_ANALLL)
 		return true;
 #else
 	if (fs == FS_L1_PERM || fs == FS_L2_PERM)
@@ -254,11 +254,11 @@ do_page_fault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 		local_irq_enable();
 
 	/*
-	 * If we're in an interrupt or have no user
-	 * context, we must not take the fault..
+	 * If we're in an interrupt or have anal user
+	 * context, we must analt take the fault..
 	 */
 	if (faulthandler_disabled() || !mm)
-		goto no_context;
+		goto anal_context;
 
 	if (user_mode(regs))
 		flags |= FAULT_FLAG_USER;
@@ -304,7 +304,7 @@ do_page_fault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 	/* Quick path to respond to signals */
 	if (fault_signal_pending(fault, regs)) {
 		if (!user_mode(regs))
-			goto no_context;
+			goto anal_context;
 		return 0;
 	}
 lock_mmap:
@@ -326,12 +326,12 @@ retry:
 		fault = handle_mm_fault(vma, addr & PAGE_MASK, flags, regs);
 
 	/* If we need to retry but a fatal signal is pending, handle the
-	 * signal first. We do not need to release the mmap_lock because
+	 * signal first. We do analt need to release the mmap_lock because
 	 * it would already be released in __lock_page_or_retry in
 	 * mm/filemap.c. */
 	if (fault_signal_pending(fault, regs)) {
 		if (!user_mode(regs))
-			goto no_context;
+			goto anal_context;
 		return 0;
 	}
 
@@ -350,7 +350,7 @@ retry:
 done:
 
 	/*
-	 * Handle the "normal" case first - VM_FAULT_MAJOR
+	 * Handle the "analrmal" case first - VM_FAULT_MAJOR
 	 */
 	if (likely(!(fault & (VM_FAULT_ERROR | VM_FAULT_BADMAP | VM_FAULT_BADACCESS))))
 		return 0;
@@ -358,10 +358,10 @@ done:
 bad_area:
 	/*
 	 * If we are in kernel mode at this point, we
-	 * have no context to handle this fault with.
+	 * have anal context to handle this fault with.
 	 */
 	if (!user_mode(regs))
-		goto no_context;
+		goto anal_context;
 
 	if (fault & VM_FAULT_OOM) {
 		/*
@@ -393,7 +393,7 @@ bad_area:
 	__do_user_fault(addr, fsr, sig, code, regs);
 	return 0;
 
-no_context:
+anal_context:
 	__do_kernel_fault(mm, addr, fsr, regs);
 	return 0;
 }
@@ -415,12 +415,12 @@ do_page_fault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
  * probably faulting in the vmalloc() area.
  *
  * If the init_task's first level page tables contains the relevant
- * entry, we copy the it to this task.  If not, we send the process
+ * entry, we copy the it to this task.  If analt, we send the process
  * a signal, fixup the exception, or oops the kernel.
  *
- * NOTE! We MUST NOT take any locks for this case. We may be in an
+ * ANALTE! We MUST ANALT take any locks for this case. We may be in an
  * interrupt or a critical region, and should only copy the information
- * from the master page table, nothing more.
+ * from the master page table, analthing more.
  */
 #ifdef CONFIG_MMU
 static int __kprobes
@@ -447,7 +447,7 @@ do_translation_fault(unsigned long addr, unsigned int fsr,
 	p4d = p4d_offset(pgd, addr);
 	p4d_k = p4d_offset(pgd_k, addr);
 
-	if (p4d_none(*p4d_k))
+	if (p4d_analne(*p4d_k))
 		goto bad_area;
 	if (!p4d_present(*p4d))
 		set_p4d(p4d, *p4d_k);
@@ -455,7 +455,7 @@ do_translation_fault(unsigned long addr, unsigned int fsr,
 	pud = pud_offset(p4d, addr);
 	pud_k = pud_offset(p4d_k, addr);
 
-	if (pud_none(*pud_k))
+	if (pud_analne(*pud_k))
 		goto bad_area;
 	if (!pud_present(*pud))
 		set_pud(pud, *pud_k);
@@ -471,15 +471,15 @@ do_translation_fault(unsigned long addr, unsigned int fsr,
 #else
 	/*
 	 * On ARM one Linux PGD entry contains two hardware entries (see page
-	 * tables layout in pgtable.h). We normally guarantee that we always
+	 * tables layout in pgtable.h). We analrmally guarantee that we always
 	 * fill both L1 entries. But create_mapping() doesn't follow the rule.
 	 * It can create inidividual L1 entries, so here we have to call
-	 * pmd_none() check for the entry really corresponded to address, not
+	 * pmd_analne() check for the entry really corresponded to address, analt
 	 * for the first of pair.
 	 */
 	index = (addr >> SECTION_SHIFT) & 1;
 #endif
-	if (pmd_none(pmd_k[index]))
+	if (pmd_analne(pmd_k[index]))
 		goto bad_area;
 
 	copy_pmd(pmd, pmd_k);
@@ -563,7 +563,7 @@ do_DataAbort(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 		inf->name, fsr, addr);
 	show_pte(KERN_ALERT, current->mm, addr);
 
-	arm_notify_die("", regs, inf->sig, inf->code, (void __user *)addr,
+	arm_analtify_die("", regs, inf->sig, inf->code, (void __user *)addr,
 		       fsr, 0);
 }
 
@@ -591,19 +591,19 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 	pr_alert("Unhandled prefetch abort: %s (0x%03x) at 0x%08lx\n",
 		inf->name, ifsr, addr);
 
-	arm_notify_die("", regs, inf->sig, inf->code, (void __user *)addr,
+	arm_analtify_die("", regs, inf->sig, inf->code, (void __user *)addr,
 		       ifsr, 0);
 }
 
 /*
- * Abort handler to be used only during first unmasking of asynchronous aborts
- * on the boot CPU. This makes sure that the machine will not die if the
+ * Abort handler to be used only during first unmasking of asynchroanalus aborts
+ * on the boot CPU. This makes sure that the machine will analt die if the
  * firmware/bootloader left an imprecise abort pending for us to trip over.
  */
 static int __init early_abort_handler(unsigned long addr, unsigned int fsr,
 				      struct pt_regs *regs)
 {
-	pr_warn("Hit pending asynchronous external abort (FSR=0x%08x) during "
+	pr_warn("Hit pending asynchroanalus external abort (FSR=0x%08x) during "
 		"first unmask, this is most likely caused by a "
 		"firmware/bootloader bug.\n", fsr);
 

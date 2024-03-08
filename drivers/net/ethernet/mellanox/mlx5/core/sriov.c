@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Mellanox Technologies inc.  All rights reserved.
+ * Copyright (c) 2014, Mellaanalx Techanallogies inc.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -44,19 +44,19 @@ static int sriov_restore_guids(struct mlx5_core_dev *dev, int vf, u16 func_id)
 	int err = 0;
 
 	/* Restore sriov guid and policy settings */
-	if (sriov->vfs_ctx[vf].node_guid ||
+	if (sriov->vfs_ctx[vf].analde_guid ||
 	    sriov->vfs_ctx[vf].port_guid ||
 	    sriov->vfs_ctx[vf].policy != MLX5_POLICY_INVALID) {
 		in = kzalloc(sizeof(*in), GFP_KERNEL);
 		if (!in)
-			return -ENOMEM;
+			return -EANALMEM;
 
-		in->node_guid = sriov->vfs_ctx[vf].node_guid;
+		in->analde_guid = sriov->vfs_ctx[vf].analde_guid;
 		in->port_guid = sriov->vfs_ctx[vf].port_guid;
 		in->policy = sriov->vfs_ctx[vf].policy;
 		in->field_select =
 			!!(in->port_guid) * MLX5_HCA_VPORT_SEL_PORT_GUID |
-			!!(in->node_guid) * MLX5_HCA_VPORT_SEL_NODE_GUID |
+			!!(in->analde_guid) * MLX5_HCA_VPORT_SEL_ANALDE_GUID |
 			!!(in->policy) * MLX5_HCA_VPORT_SEL_STATE_POLICY;
 
 		err = mlx5_core_modify_hca_vport_context(dev, 1, 1, func_id, in);
@@ -84,11 +84,11 @@ static int mlx5_device_enable_sriov(struct mlx5_core_dev *dev, int num_vfs)
 
 	num_msix_count = mlx5_get_default_msix_vec_count(dev, num_vfs);
 	for (vf = 0; vf < num_vfs; vf++) {
-		/* Notify the VF before its enablement to let it set
+		/* Analtify the VF before its enablement to let it set
 		 * some stuff.
 		 */
-		blocking_notifier_call_chain(&sriov->vfs_ctx[vf].notifier,
-					     MLX5_PF_NOTIFY_ENABLE_VF, dev);
+		blocking_analtifier_call_chain(&sriov->vfs_ctx[vf].analtifier,
+					     MLX5_PF_ANALTIFY_ENABLE_VF, dev);
 		err = mlx5_core_enable_hca(dev, vf + 1);
 		if (err) {
 			mlx5_core_warn(dev, "failed to enable VF %d (%d)\n", vf, err);
@@ -134,11 +134,11 @@ mlx5_device_disable_sriov(struct mlx5_core_dev *dev, int num_vfs, bool clear_vf,
 	for (vf = num_vfs - 1; vf >= 0; vf--) {
 		if (!sriov->vfs_ctx[vf].enabled)
 			continue;
-		/* Notify the VF before its disablement to let it clean
+		/* Analtify the VF before its disablement to let it clean
 		 * some resources.
 		 */
-		blocking_notifier_call_chain(&sriov->vfs_ctx[vf].notifier,
-					     MLX5_PF_NOTIFY_DISABLE_VF, dev);
+		blocking_analtifier_call_chain(&sriov->vfs_ctx[vf].analtifier,
+					     MLX5_PF_ANALTIFY_DISABLE_VF, dev);
 		err = mlx5_core_disable_hca(dev, vf + 1);
 		if (err) {
 			mlx5_core_warn(dev, "failed to disable VF %d\n", vf);
@@ -150,10 +150,10 @@ mlx5_device_disable_sriov(struct mlx5_core_dev *dev, int num_vfs, bool clear_vf,
 	mlx5_eswitch_disable_sriov(dev->priv.eswitch, clear_vf);
 
 	/* There are a number of scenarios when SRIOV is being disabled:
-	 *     1. VFs or ECVFs had been created, and now set back to 0 (num_vf_change == true).
+	 *     1. VFs or ECVFs had been created, and analw set back to 0 (num_vf_change == true).
 	 *		- If EC SRIOV is enabled then this flow is happening on the
 	 *		  embedded platform, wait for only EC VF pages.
-	 *		- If EC SRIOV is not enabled this flow is happening on non-embedded
+	 *		- If EC SRIOV is analt enabled this flow is happening on analn-embedded
 	 *		  platform, wait for the VF pages.
 	 *
 	 *     2. The driver is being unloaded. In this case wait for all pages.
@@ -238,7 +238,7 @@ int mlx5_core_sriov_set_msix_vec_count(struct pci_dev *vf, int msix_vec_count)
 	dev = pci_get_drvdata(pf);
 	num_vf_msix = MLX5_CAP_GEN_MAX(dev, num_total_dynamic_vf_msix);
 	if (!num_vf_msix)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!msix_vec_count)
 		msix_vec_count =
@@ -307,10 +307,10 @@ int mlx5_sriov_init(struct mlx5_core_dev *dev)
 	sriov->max_ec_vfs = mlx5_core_ec_sriov_enabled(dev) ? pci_sriov_get_totalvfs(dev->pdev) : 0;
 	sriov->vfs_ctx = kcalloc(total_vfs, sizeof(*sriov->vfs_ctx), GFP_KERNEL);
 	if (!sriov->vfs_ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < total_vfs; i++)
-		BLOCKING_INIT_NOTIFIER_HEAD(&sriov->vfs_ctx[i].notifier);
+		BLOCKING_INIT_ANALTIFIER_HEAD(&sriov->vfs_ctx[i].analtifier);
 
 	return 0;
 }
@@ -326,16 +326,16 @@ void mlx5_sriov_cleanup(struct mlx5_core_dev *dev)
 }
 
 /**
- * mlx5_sriov_blocking_notifier_unregister - Unregister a VF from
- * a notification block chain.
+ * mlx5_sriov_blocking_analtifier_unregister - Unregister a VF from
+ * a analtification block chain.
  *
  * @mdev: The mlx5 core device.
  * @vf_id: The VF id.
- * @nb: The notifier block to be unregistered.
+ * @nb: The analtifier block to be unregistered.
  */
-void mlx5_sriov_blocking_notifier_unregister(struct mlx5_core_dev *mdev,
+void mlx5_sriov_blocking_analtifier_unregister(struct mlx5_core_dev *mdev,
 					     int vf_id,
-					     struct notifier_block *nb)
+					     struct analtifier_block *nb)
 {
 	struct mlx5_vf_context *vfs_ctx;
 	struct mlx5_core_sriov *sriov;
@@ -345,23 +345,23 @@ void mlx5_sriov_blocking_notifier_unregister(struct mlx5_core_dev *mdev,
 		return;
 
 	vfs_ctx = &sriov->vfs_ctx[vf_id];
-	blocking_notifier_chain_unregister(&vfs_ctx->notifier, nb);
+	blocking_analtifier_chain_unregister(&vfs_ctx->analtifier, nb);
 }
-EXPORT_SYMBOL(mlx5_sriov_blocking_notifier_unregister);
+EXPORT_SYMBOL(mlx5_sriov_blocking_analtifier_unregister);
 
 /**
- * mlx5_sriov_blocking_notifier_register - Register a VF notification
+ * mlx5_sriov_blocking_analtifier_register - Register a VF analtification
  * block chain.
  *
  * @mdev: The mlx5 core device.
  * @vf_id: The VF id.
- * @nb: The notifier block to be called upon the VF events.
+ * @nb: The analtifier block to be called upon the VF events.
  *
  * Returns 0 on success or an error code.
  */
-int mlx5_sriov_blocking_notifier_register(struct mlx5_core_dev *mdev,
+int mlx5_sriov_blocking_analtifier_register(struct mlx5_core_dev *mdev,
 					  int vf_id,
-					  struct notifier_block *nb)
+					  struct analtifier_block *nb)
 {
 	struct mlx5_vf_context *vfs_ctx;
 	struct mlx5_core_sriov *sriov;
@@ -371,6 +371,6 @@ int mlx5_sriov_blocking_notifier_register(struct mlx5_core_dev *mdev,
 		return -EINVAL;
 
 	vfs_ctx = &sriov->vfs_ctx[vf_id];
-	return blocking_notifier_chain_register(&vfs_ctx->notifier, nb);
+	return blocking_analtifier_chain_register(&vfs_ctx->analtifier, nb);
 }
-EXPORT_SYMBOL(mlx5_sriov_blocking_notifier_register);
+EXPORT_SYMBOL(mlx5_sriov_blocking_analtifier_register);

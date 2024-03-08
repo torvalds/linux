@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -154,7 +154,7 @@ mcp77_clk_read(struct nvkm_clk *base, enum nv_clk_src src)
 		break;
 	}
 
-	nvkm_debug(subdev, "unknown clock source %d %08x\n", src, mast);
+	nvkm_debug(subdev, "unkanalwn clock source %d %08x\n", src, mast);
 	return 0;
 }
 
@@ -325,7 +325,7 @@ mcp77_clk_prog(struct nvkm_clk *base)
 		mast |= 0x00000003;
 		break;
 	default:
-		nvkm_warn(subdev, "Reclocking failed: unknown core clock\n");
+		nvkm_warn(subdev, "Reclocking failed: unkanalwn core clock\n");
 		goto resume;
 	}
 
@@ -346,7 +346,7 @@ mcp77_clk_prog(struct nvkm_clk *base)
 		mast |= 0x00000030;
 		break;
 	default:
-		nvkm_warn(subdev, "Reclocking failed: unknown sclk clock\n");
+		nvkm_warn(subdev, "Reclocking failed: unkanalwn sclk clock\n");
 		goto resume;
 	}
 
@@ -415,7 +415,7 @@ mcp77_clk_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 	struct mcp77_clk *clk;
 
 	if (!(clk = kzalloc(sizeof(*clk), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	*pclk = &clk->base;
 
 	return nvkm_clk_ctor(&mcp77_clk, device, type, inst, true, &clk->base);

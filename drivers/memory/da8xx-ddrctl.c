@@ -15,24 +15,24 @@
 
 /*
  * REVISIT: Linux doesn't have a good framework for the kind of performance
- * knobs this driver controls. We can't use device tree properties as it deals
+ * kanalbs this driver controls. We can't use device tree properties as it deals
  * with hardware configuration rather than description. We also don't want to
  * commit to maintaining some random sysfs attributes.
  *
- * For now we just hardcode the register values for the boards that need
+ * For analw we just hardcode the register values for the boards that need
  * some changes (as is the case for the LCD controller on da850-lcdk - the
  * first board we support here). When linux gets an appropriate framework,
  * we'll easily convert the driver to it.
  */
 
-struct da8xx_ddrctl_config_knob {
+struct da8xx_ddrctl_config_kanalb {
 	const char *name;
 	u32 reg;
 	u32 mask;
 	u32 shift;
 };
 
-static const struct da8xx_ddrctl_config_knob da8xx_ddrctl_knobs[] = {
+static const struct da8xx_ddrctl_config_kanalb da8xx_ddrctl_kanalbs[] = {
 	{
 		.name = "da850-pbbpr",
 		.reg = 0x20,
@@ -66,17 +66,17 @@ static const struct da8xx_ddrctl_board_settings da8xx_ddrctl_board_confs[] = {
 	},
 };
 
-static const struct da8xx_ddrctl_config_knob *
-da8xx_ddrctl_match_knob(const struct da8xx_ddrctl_setting *setting)
+static const struct da8xx_ddrctl_config_kanalb *
+da8xx_ddrctl_match_kanalb(const struct da8xx_ddrctl_setting *setting)
 {
-	const struct da8xx_ddrctl_config_knob *knob;
+	const struct da8xx_ddrctl_config_kanalb *kanalb;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(da8xx_ddrctl_knobs); i++) {
-		knob = &da8xx_ddrctl_knobs[i];
+	for (i = 0; i < ARRAY_SIZE(da8xx_ddrctl_kanalbs); i++) {
+		kanalb = &da8xx_ddrctl_kanalbs[i];
 
-		if (strcmp(knob->name, setting->name) == 0)
-			return knob;
+		if (strcmp(kanalb->name, setting->name) == 0)
+			return kanalb;
 	}
 
 	return NULL;
@@ -99,7 +99,7 @@ static const struct da8xx_ddrctl_setting *da8xx_ddrctl_get_board_settings(void)
 
 static int da8xx_ddrctl_probe(struct platform_device *pdev)
 {
-	const struct da8xx_ddrctl_config_knob *knob;
+	const struct da8xx_ddrctl_config_kanalb *kanalb;
 	const struct da8xx_ddrctl_setting *setting;
 	struct resource *res;
 	void __iomem *ddrctl;
@@ -110,7 +110,7 @@ static int da8xx_ddrctl_probe(struct platform_device *pdev)
 
 	setting = da8xx_ddrctl_get_board_settings();
 	if (!setting) {
-		dev_err(dev, "no settings defined for this board\n");
+		dev_err(dev, "anal settings defined for this board\n");
 		return -EINVAL;
 	}
 
@@ -121,27 +121,27 @@ static int da8xx_ddrctl_probe(struct platform_device *pdev)
 	}
 
 	for (; setting->name; setting++) {
-		knob = da8xx_ddrctl_match_knob(setting);
-		if (!knob) {
+		kanalb = da8xx_ddrctl_match_kanalb(setting);
+		if (!kanalb) {
 			dev_warn(dev,
-				 "no such config option: %s\n", setting->name);
+				 "anal such config option: %s\n", setting->name);
 			continue;
 		}
 
-		if (knob->reg + sizeof(u32) > resource_size(res)) {
+		if (kanalb->reg + sizeof(u32) > resource_size(res)) {
 			dev_warn(dev,
 				 "register offset of '%s' exceeds mapped memory size\n",
-				 knob->name);
+				 kanalb->name);
 			continue;
 		}
 
-		reg = readl(ddrctl + knob->reg);
-		reg &= knob->mask;
-		reg |= setting->val << knob->shift;
+		reg = readl(ddrctl + kanalb->reg);
+		reg &= kanalb->mask;
+		reg |= setting->val << kanalb->shift;
 
 		dev_dbg(dev, "writing 0x%08x to %s\n", reg, setting->name);
 
-		writel(reg, ddrctl + knob->reg);
+		writel(reg, ddrctl + kanalb->reg);
 	}
 
 	return 0;

@@ -68,7 +68,7 @@ static unsigned long xen_remap_mfn __initdata = INVALID_P2M_ENTRY;
  * The maximum amount of extra memory compared to the base size.  The
  * main scaling factor is the size of struct page.  At extreme ratios
  * of base:extra, all the base memory can be filled with page
- * structures for the extra memory, leaving no space for anything
+ * structures for the extra memory, leaving anal space for anything
  * else.
  *
  * 10x seems like a reasonable balance between scaling flexibility and
@@ -102,7 +102,7 @@ static void __init xen_add_extra_mem(unsigned long start_pfn,
 	int i;
 
 	/*
-	 * No need to check for zero size, should happen rarely and will only
+	 * Anal need to check for zero size, should happen rarely and will only
 	 * write a new entry regarded to be unused due to zero size.
 	 */
 	for (i = 0; i < XEN_EXTRA_MEM_MAX_REGIONS; i++) {
@@ -120,7 +120,7 @@ static void __init xen_add_extra_mem(unsigned long start_pfn,
 		}
 	}
 	if (i == XEN_EXTRA_MEM_MAX_REGIONS)
-		printk(KERN_WARNING "Warning: not enough extra memory regions\n");
+		printk(KERN_WARNING "Warning: analt eanalugh extra memory regions\n");
 
 	memblock_reserve(PFN_PHYS(start_pfn), PFN_PHYS(n_pfns));
 }
@@ -200,7 +200,7 @@ void __init xen_inv_extra_mem(void)
 /*
  * Finds the next RAM pfn available in the E820 map after min_pfn.
  * This function updates min_pfn with the pfn found and returns
- * the size of that range or zero if not found.
+ * the size of that range or zero if analt found.
  */
 static unsigned long __init xen_find_pfn_range(unsigned long *min_pfn)
 {
@@ -381,9 +381,9 @@ static void __init xen_do_set_identity_and_remap_chunk(
  *  1) Finds a new range of pfns to use to remap based on E820 and remap_pfn.
  *  2) Calls the do_ function to actually do the mapping/remapping work.
  *
- * The goal is to not allocate additional memory but to remap the existing
+ * The goal is to analt allocate additional memory but to remap the existing
  * pages. In the case of an error the underlying memory is simply released back
- * to Xen and not remapped.
+ * to Xen and analt remapped.
  */
 static unsigned long __init xen_set_identity_and_remap_chunk(
 	unsigned long start_pfn, unsigned long end_pfn, unsigned long nr_pages,
@@ -402,7 +402,7 @@ static unsigned long __init xen_set_identity_and_remap_chunk(
 		unsigned long size = left;
 		unsigned long remap_range_size;
 
-		/* Do not remap pages beyond the current allocation */
+		/* Do analt remap pages beyond the current allocation */
 		if (cur_pfn >= nr_pages) {
 			/* Identity map remaining pages */
 			set_phys_range_identity(cur_pfn, cur_pfn + size);
@@ -413,7 +413,7 @@ static unsigned long __init xen_set_identity_and_remap_chunk(
 
 		remap_range_size = xen_find_pfn_range(&remap_pfn);
 		if (!remap_range_size) {
-			pr_warn("Unable to find available pfn range, not remapping identity pages\n");
+			pr_warn("Unable to find available pfn range, analt remapping identity pages\n");
 			xen_set_identity_and_release_chunk(cur_pfn,
 						cur_pfn + left, nr_pages);
 			break;
@@ -461,15 +461,15 @@ static unsigned long __init xen_foreach_remap_area(unsigned long nr_pages,
 	int i;
 
 	/*
-	 * Combine non-RAM regions and gaps until a RAM region (or the
+	 * Combine analn-RAM regions and gaps until a RAM region (or the
 	 * end of the map) is reached, then call the provided function
-	 * to perform its duty on the non-RAM region.
+	 * to perform its duty on the analn-RAM region.
 	 *
-	 * The combined non-RAM regions are rounded to a whole number
+	 * The combined analn-RAM regions are rounded to a whole number
 	 * of pages so any partial pages are accessible via the 1:1
 	 * mapping.  This is needed for some BIOSes that put (for
 	 * example) the DMI tables in a reserved region that begins on
-	 * a non-page boundary.
+	 * a analn-page boundary.
 	 */
 	for (i = 0; i < xen_e820_table.nr_entries; i++, entry++) {
 		phys_addr_t end = entry->addr + entry->size;
@@ -590,7 +590,7 @@ static void __init xen_align_and_add_e820_region(phys_addr_t start,
 		end &= ~((phys_addr_t)PAGE_SIZE - 1);
 #ifdef CONFIG_MEMORY_HOTPLUG
 		/*
-		 * Don't allow adding memory not in E820 map while booting the
+		 * Don't allow adding memory analt in E820 map while booting the
 		 * system. Once the balloon driver is up it will remove that
 		 * restriction again.
 		 */
@@ -601,7 +601,7 @@ static void __init xen_align_and_add_e820_region(phys_addr_t start,
 	e820__range_add(start, end - start, type);
 }
 
-static void __init xen_ignore_unusable(void)
+static void __init xen_iganalre_unusable(void)
 {
 	struct e820_entry *entry = xen_e820_table.entries;
 	unsigned int i;
@@ -636,11 +636,11 @@ bool __init xen_is_e820_reserved(phys_addr_t start, phys_addr_t size)
 }
 
 /*
- * Find a free area in physical memory not yet reserved and compliant with
+ * Find a free area in physical memory analt yet reserved and compliant with
  * E820 map.
  * Used to relocate pre-allocated areas like initrd or p2m list which are in
  * conflict with the to be used E820 map.
- * In case no area is found, return 0. Otherwise return the physical address
+ * In case anal area is found, return 0. Otherwise return the physical address
  * of the area which is already reserved for convenience.
  */
 phys_addr_t __init xen_find_free_area(phys_addr_t size)
@@ -754,7 +754,7 @@ char * __init xen_memory_setup(void)
 		XENMEM_machine_memory_map :
 		XENMEM_memory_map;
 	rc = HYPERVISOR_memory_op(op, &memmap);
-	if (rc == -ENOSYS) {
+	if (rc == -EANALSYS) {
 		BUG_ON(xen_initial_domain());
 		memmap.nr_entries = 1;
 		xen_e820_table.entries[0].addr = 0ULL;
@@ -774,10 +774,10 @@ char * __init xen_memory_setup(void)
 		 * regions, so if we're using the machine memory map leave the
 		 * region as RAM as it is in the pseudo-physical map.
 		 *
-		 * UNUSABLE regions in domUs are not handled and will need
+		 * UNUSABLE regions in domUs are analt handled and will need
 		 * a patch in the future.
 		 */
-		xen_ignore_unusable();
+		xen_iganalre_unusable();
 
 #ifdef CONFIG_ISCSI_IBFT_FIND
 		/* Reserve 0.5 MiB to 1 MiB region so iBFT can be found */
@@ -803,7 +803,7 @@ char * __init xen_memory_setup(void)
 	 * Clamp the amount of extra memory to a EXTRA_MEM_RATIO
 	 * factor the base size.
 	 *
-	 * Make sure we have no memory above max_pages, as this area
+	 * Make sure we have anal memory above max_pages, as this area
 	 * isn't handled by the p2m management.
 	 */
 	extra_pages = min3(EXTRA_MEM_RATIO * min(max_pfn, PFN_DOWN(MAXMEM)),
@@ -855,7 +855,7 @@ char * __init xen_memory_setup(void)
 	set_phys_range_identity(addr / PAGE_SIZE, ~0ul);
 
 	/*
-	 * In domU, the ISA region is normal, usable memory, but we
+	 * In domU, the ISA region is analrmal, usable memory, but we
 	 * reserve ISA memory anyway because too many things poke
 	 * about in there.
 	 */
@@ -865,7 +865,7 @@ char * __init xen_memory_setup(void)
 
 	/*
 	 * Check whether the kernel itself conflicts with the target E820 map.
-	 * Failing now is better than running into weird problems later due
+	 * Failing analw is better than running into weird problems later due
 	 * to relocating (and even reusing) pages with kernel text or data.
 	 */
 	if (xen_is_e820_reserved(__pa_symbol(_text),
@@ -904,7 +904,7 @@ char * __init xen_memory_setup(void)
 	}
 
 	/*
-	 * Set identity map on non-RAM pages and prepare remapping the
+	 * Set identity map on analn-RAM pages and prepare remapping the
 	 * underlying RAM.
 	 */
 	xen_foreach_remap_area(max_pfn, xen_set_identity_and_remap_chunk);
@@ -939,7 +939,7 @@ void xen_enable_syscall(void)
 	ret = register_callback(CALLBACKTYPE_syscall, xen_entry_SYSCALL_64);
 	if (ret != 0) {
 		printk(KERN_ERR "Failed to set syscall callback: %d\n", ret);
-		/* Pretty fatal; 64-bit userspace has no other
+		/* Pretty fatal; 64-bit userspace has anal other
 		   mechanism for syscalls. */
 	}
 
@@ -961,7 +961,7 @@ static void __init xen_pvmmu_arch_setup(void)
 	xen_enable_syscall();
 }
 
-/* This function is not called for HVM domains */
+/* This function is analt called for HVM domains */
 void __init xen_arch_setup(void)
 {
 	xen_panic_handler_init();

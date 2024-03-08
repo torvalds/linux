@@ -43,7 +43,7 @@ static int usbhs_rcar2_power_ctrl(struct platform_device *pdev,
 				void __iomem *base, int enable)
 {
 	struct usbhs_priv *priv = usbhs_pdev_to_priv(pdev);
-	int retval = -ENODEV;
+	int retval = -EANALDEV;
 
 	if (priv->phy) {
 		if (enable) {

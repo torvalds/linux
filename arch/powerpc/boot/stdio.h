@@ -4,9 +4,9 @@
 
 #include <stdarg.h>
 
-#define	ENOMEM		12	/* Out of Memory */
+#define	EANALMEM		12	/* Out of Memory */
 #define	EINVAL		22	/* Invalid argument */
-#define ENOSPC		28	/* No space left on device */
+#define EANALSPC		28	/* Anal space left on device */
 
 extern int printf(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
 

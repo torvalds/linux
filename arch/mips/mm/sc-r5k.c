@@ -44,7 +44,7 @@ static void r5k_dma_cache_inv_sc(unsigned long addr, unsigned long size)
 		return;
 	}
 
-	/* On the R5000 secondary cache we cannot
+	/* On the R5000 secondary cache we cananalt
 	 * invalidate less than a page at a time.
 	 * The secondary cache is physically indexed, write-through.
 	 */

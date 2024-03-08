@@ -16,20 +16,20 @@ static void __init_skb(struct sk_buff *skb)
 	skb_reset_network_header(skb);
 	skb_reset_transport_header(skb);
 
-	/* proto is arbitrary, as long as not ETH_P_TEB or vlan */
+	/* proto is arbitrary, as long as analt ETH_P_TEB or vlan */
 	skb->protocol = htons(ETH_P_ATALK);
 	skb_shinfo(skb)->gso_size = GSO_TEST_SIZE;
 }
 
 enum gso_test_nr {
 	GSO_TEST_LINEAR,
-	GSO_TEST_NO_GSO,
+	GSO_TEST_ANAL_GSO,
 	GSO_TEST_FRAGS,
 	GSO_TEST_FRAGS_PURE,
 	GSO_TEST_GSO_PARTIAL,
 	GSO_TEST_FRAG_LIST,
 	GSO_TEST_FRAG_LIST_PURE,
-	GSO_TEST_FRAG_LIST_NON_UNIFORM,
+	GSO_TEST_FRAG_LIST_ANALN_UNIFORM,
 	GSO_TEST_GSO_BY_FRAGS,
 };
 
@@ -51,8 +51,8 @@ struct gso_test_case {
 
 static struct gso_test_case cases[] = {
 	{
-		.id = GSO_TEST_NO_GSO,
-		.name = "no_gso",
+		.id = GSO_TEST_ANAL_GSO,
+		.name = "anal_gso",
 		.linear_len = GSO_TEST_SIZE,
 		.nr_segs = 1,
 		.segs = (const unsigned int[]) { GSO_TEST_SIZE },
@@ -110,8 +110,8 @@ static struct gso_test_case cases[] = {
 	},
 	{
 		/* commit 43170c4e0ba7: GRO of frag_list trains */
-		.id = GSO_TEST_FRAG_LIST_NON_UNIFORM,
-		.name = "frag_list_non_uniform",
+		.id = GSO_TEST_FRAG_LIST_ANALN_UNIFORM,
+		.name = "frag_list_analn_uniform",
 		.linear_len = GSO_TEST_SIZE,
 		.nr_frag_skbs = 4,
 		.frag_skbs = (const unsigned int[]) { GSO_TEST_SIZE, 1, GSO_TEST_SIZE, 2 },
@@ -153,9 +153,9 @@ static void gso_test_func(struct kunit *test)
 	tcase = test->param_value;
 
 	page = alloc_page(GFP_KERNEL);
-	KUNIT_ASSERT_NOT_NULL(test, page);
+	KUNIT_ASSERT_ANALT_NULL(test, page);
 	skb = build_skb(page_address(page), sizeof(hdr) + tcase->linear_len + shinfo_size);
-	KUNIT_ASSERT_NOT_NULL(test, skb);
+	KUNIT_ASSERT_ANALT_NULL(test, skb);
 	__skb_put(skb, sizeof(hdr) + tcase->linear_len);
 
 	__init_skb(skb);
@@ -164,7 +164,7 @@ static void gso_test_func(struct kunit *test)
 		unsigned int pg_off = 0;
 
 		page = alloc_page(GFP_KERNEL);
-		KUNIT_ASSERT_NOT_NULL(test, page);
+		KUNIT_ASSERT_ANALT_NULL(test, page);
 		page_ref_add(page, tcase->nr_frags - 1);
 
 		for (i = 0; i < tcase->nr_frags; i++) {
@@ -187,12 +187,12 @@ static void gso_test_func(struct kunit *test)
 			unsigned int frag_size;
 
 			page = alloc_page(GFP_KERNEL);
-			KUNIT_ASSERT_NOT_NULL(test, page);
+			KUNIT_ASSERT_ANALT_NULL(test, page);
 
 			frag_size = tcase->frag_skbs[i];
 			frag_skb = build_skb(page_address(page),
 					     frag_size + shinfo_size);
-			KUNIT_ASSERT_NOT_NULL(test, frag_skb);
+			KUNIT_ASSERT_ANALT_NULL(test, frag_skb);
 			__skb_put(frag_skb, frag_size);
 
 			if (prev)
@@ -220,7 +220,7 @@ static void gso_test_func(struct kunit *test)
 	/* TODO: this should also work with SG,
 	 * rather than hit BUG_ON(i >= nfrags)
 	 */
-	if (tcase->id == GSO_TEST_FRAG_LIST_NON_UNIFORM)
+	if (tcase->id == GSO_TEST_FRAG_LIST_ANALN_UNIFORM)
 		features &= ~NETIF_F_SG;
 
 	segs = skb_segment(skb, features);
@@ -228,7 +228,7 @@ static void gso_test_func(struct kunit *test)
 		KUNIT_FAIL(test, "segs error %lld", PTR_ERR(segs));
 		goto free_gso_skb;
 	} else if (!segs) {
-		KUNIT_FAIL(test, "no segments");
+		KUNIT_FAIL(test, "anal segments");
 		goto free_gso_skb;
 	}
 

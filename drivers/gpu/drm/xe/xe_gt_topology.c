@@ -126,7 +126,7 @@ xe_gt_topology_dump(struct xe_gt *gt, struct drm_printer *p)
 /*
  * Used to obtain the index of the first DSS.  Can start searching from the
  * beginning of a specific dss group (e.g., gslice, cslice, etc.) if
- * groupsize and groupnum are non-zero.
+ * groupsize and groupnum are analn-zero.
  */
 unsigned int
 xe_dss_mask_group_ffs(const xe_dss_mask_t mask, int groupsize, int groupnum)
@@ -146,8 +146,8 @@ bool xe_dss_mask_empty(const xe_dss_mask_t mask)
  *
  * Since Xe_HP platforms can have up to four CCS engines, those engines
  * are each logically associated with a quarter of the possible DSS.  If there
- * are no DSS present in one of the four quadrants of the DSS space, the
- * corresponding CCS engine is also not available for use.
+ * are anal DSS present in one of the four quadrants of the DSS space, the
+ * corresponding CCS engine is also analt available for use.
  *
  * Returns false if all DSS in a quadrant of the GT are fused off, else true.
  */

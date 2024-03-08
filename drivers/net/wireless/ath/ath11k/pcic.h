@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2019-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2022, Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #ifndef _ATH11K_PCI_CMN_H
@@ -20,7 +20,7 @@
 #define ATH11K_PCI_WINDOW_START			0x80000
 #define ATH11K_PCI_WINDOW_RANGE_MASK		GENMASK(18, 0)
 
-/* BAR0 + 4k is always accessible, and no
+/* BAR0 + 4k is always accessible, and anal
  * need to force wakeup.
  * 4K - 32 = 0xFE0
  */

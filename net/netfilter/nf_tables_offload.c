@@ -103,17 +103,17 @@ struct nft_flow_rule *nft_flow_rule_create(struct net *net,
 	}
 
 	if (num_actions == 0)
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 
 	flow = nft_flow_rule_alloc(num_actions);
 	if (!flow)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	expr = nft_expr_first(rule);
 
 	ctx = kzalloc(sizeof(struct nft_offload_ctx), GFP_KERNEL);
 	if (!ctx) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out;
 	}
 	ctx->net = net;
@@ -121,7 +121,7 @@ struct nft_flow_rule *nft_flow_rule_create(struct net *net,
 
 	while (nft_expr_more(rule, expr)) {
 		if (!expr->ops->offload) {
-			err = -EOPNOTSUPP;
+			err = -EOPANALTSUPP;
 			goto err_out;
 		}
 		err = expr->ops->offload(ctx, flow, expr);
@@ -271,7 +271,7 @@ static int nft_flow_offload_cmd(const struct nft_chain *chain,
 	struct nft_base_chain *basechain;
 
 	if (!nft_is_base_chain(chain))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	basechain = nft_base_chain(chain);
 	nft_flow_cls_offload_setup(cls_flow, basechain, rule, flow, &extack,
@@ -358,7 +358,7 @@ static int nft_block_setup(struct nft_base_chain *basechain,
 		break;
 	default:
 		WARN_ON_ONCE(1);
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 	}
 
 	return err;
@@ -432,7 +432,7 @@ static int nft_indr_block_offload_cmd(struct nft_base_chain *basechain,
 		return err;
 
 	if (list_empty(&bo.cb_list))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return nft_block_setup(basechain, &bo, cmd);
 }
@@ -494,14 +494,14 @@ static int nft_flow_offload_chain(struct nft_chain *chain, u8 *ppolicy,
 	u8 policy;
 
 	if (!nft_is_base_chain(chain))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	basechain = nft_base_chain(chain);
 	policy = ppolicy ? *ppolicy : basechain->policy;
 
-	/* Only default policy to accept is supported for now. */
+	/* Only default policy to accept is supported for analw. */
 	if (cmd == FLOW_BLOCK_BIND && policy == NF_DROP)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return nft_flow_block_chain(basechain, NULL, cmd);
 }
@@ -591,7 +591,7 @@ int nft_flow_rule_offload_commit(struct net *net)
 
 			if (trans->ctx.flags & NLM_F_REPLACE ||
 			    !(trans->ctx.flags & NLM_F_APPEND)) {
-				err = -EOPNOTSUPP;
+				err = -EOPANALTSUPP;
 				break;
 			}
 			err = nft_flow_offload_rule(trans->ctx.chain,
@@ -654,16 +654,16 @@ static struct nft_chain *__nft_offload_get_chain(const struct nftables_pernet *n
 	return NULL;
 }
 
-static int nft_offload_netdev_event(struct notifier_block *this,
+static int nft_offload_netdev_event(struct analtifier_block *this,
 				    unsigned long event, void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_analtifier_info_to_dev(ptr);
 	struct nftables_pernet *nft_net;
 	struct net *net = dev_net(dev);
 	struct nft_chain *chain;
 
 	if (event != NETDEV_UNREGISTER)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	nft_net = nft_pernet(net);
 	mutex_lock(&nft_net->commit_mutex);
@@ -674,19 +674,19 @@ static int nft_offload_netdev_event(struct notifier_block *this,
 
 	mutex_unlock(&nft_net->commit_mutex);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block nft_offload_netdev_notifier = {
-	.notifier_call	= nft_offload_netdev_event,
+static struct analtifier_block nft_offload_netdev_analtifier = {
+	.analtifier_call	= nft_offload_netdev_event,
 };
 
 int nft_offload_init(void)
 {
-	return register_netdevice_notifier(&nft_offload_netdev_notifier);
+	return register_netdevice_analtifier(&nft_offload_netdev_analtifier);
 }
 
 void nft_offload_exit(void)
 {
-	unregister_netdevice_notifier(&nft_offload_netdev_notifier);
+	unregister_netdevice_analtifier(&nft_offload_netdev_analtifier);
 }

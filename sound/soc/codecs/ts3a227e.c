@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * TS3A227E Autonomous Audio Accessory Detection and Configuration Switch
+ * TS3A227E Autoanalmous Audio Accessory Detection and Configuration Switch
  *
  * Copyright (C) 2014 Google, Inc.
  */
@@ -204,7 +204,7 @@ static irqreturn_t ts3a227e_interrupt(int irq, void *data)
 	ret = regmap_read(regmap, TS3A227E_REG_INTERRUPT, &int_reg);
 	if (ret) {
 		dev_err(dev, "failed to clear interrupt ret=%d\n", ret);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (int_reg & (DETECTION_COMPLETE_EVENT | INS_REM_EVENT)) {
@@ -216,7 +216,7 @@ static irqreturn_t ts3a227e_interrupt(int irq, void *data)
 	ret = regmap_read(regmap, TS3A227E_REG_KP_INTERRUPT, &kp_int_reg);
 	if (ret) {
 		dev_err(dev, "failed to clear key interrupt ret=%d\n", ret);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	for (i = 0; i < TS3A227E_NUM_BUTTONS; i++) {
@@ -358,7 +358,7 @@ static int ts3a227e_i2c_probe(struct i2c_client *i2c)
 
 	ts3a227e = devm_kzalloc(&i2c->dev, sizeof(*ts3a227e), GFP_KERNEL);
 	if (ts3a227e == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(i2c, ts3a227e);
 	ts3a227e->dev = dev;
@@ -378,7 +378,7 @@ static int ts3a227e_i2c_probe(struct i2c_client *i2c)
 					IRQF_TRIGGER_LOW | IRQF_ONESHOT,
 					"TS3A227E", ts3a227e);
 	if (ret) {
-		dev_err(dev, "Cannot request irq %d (%d)\n", i2c->irq, ret);
+		dev_err(dev, "Cananalt request irq %d (%d)\n", i2c->irq, ret);
 		return ret;
 	}
 
@@ -392,7 +392,7 @@ static int ts3a227e_i2c_probe(struct i2c_client *i2c)
 			   INTB_DISABLE | ADC_COMPLETE_INT_DISABLE,
 			   ADC_COMPLETE_INT_DISABLE);
 
-	/* Read jack status because chip might not trigger interrupt at boot. */
+	/* Read jack status because chip might analt trigger interrupt at boot. */
 	regmap_read(ts3a227e->regmap, TS3A227E_REG_ACCESSORY_STATUS, &acc_reg);
 	ts3a227e_new_jack_state(ts3a227e, acc_reg);
 	ts3a227e_jack_report(ts3a227e);

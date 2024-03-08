@@ -27,7 +27,7 @@
 
 #include <linux/kernel.h>
 #include <linux/jiffies.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -198,7 +198,7 @@ struct edgeport_serial {
 	struct edge_boot_descriptor	boot_descriptor;	/* the boot firmware descriptor */
 	struct edgeport_product_info	product_info;		/* Product Info */
 	struct edge_compatibility_descriptor epic_descriptor;	/* Edgeport compatible descriptor */
-	int			is_epic;			/* flag if EPiC device or not */
+	int			is_epic;			/* flag if EPiC device or analt */
 
 	__u8			interrupt_in_endpoint;		/* the interrupt endpoint handle */
 	unsigned char		*interrupt_in_buffer;		/* the buffer we use for the interrupt endpoint */
@@ -311,7 +311,7 @@ static void update_edgeport_E2PROM(struct edgeport_serial *edge_serial)
 	__u32 BootCurVer;
 	__u32 BootNewVer;
 	__u8 BootMajorVersion;
-	__u8 BootMinorVersion;
+	__u8 BootMianalrVersion;
 	__u16 BootBuildNumber;
 	__u32 Bootaddr;
 	const struct ihex_binrec *rec;
@@ -340,30 +340,30 @@ static void update_edgeport_E2PROM(struct edgeport_serial *edge_serial)
 
 	rec = (const struct ihex_binrec *)fw->data;
 	BootMajorVersion = rec->data[0];
-	BootMinorVersion = rec->data[1];
+	BootMianalrVersion = rec->data[1];
 	BootBuildNumber = (rec->data[2] << 8) | rec->data[3];
 
 	/* Check Boot Image Version */
 	BootCurVer = (edge_serial->boot_descriptor.MajorVersion << 24) +
-		     (edge_serial->boot_descriptor.MinorVersion << 16) +
+		     (edge_serial->boot_descriptor.MianalrVersion << 16) +
 		      le16_to_cpu(edge_serial->boot_descriptor.BuildNumber);
 
 	BootNewVer = (BootMajorVersion << 24) +
-		     (BootMinorVersion << 16) +
+		     (BootMianalrVersion << 16) +
 		      BootBuildNumber;
 
 	dev_dbg(dev, "Current Boot Image version %d.%d.%d\n",
 	    edge_serial->boot_descriptor.MajorVersion,
-	    edge_serial->boot_descriptor.MinorVersion,
+	    edge_serial->boot_descriptor.MianalrVersion,
 	    le16_to_cpu(edge_serial->boot_descriptor.BuildNumber));
 
 
 	if (BootNewVer > BootCurVer) {
 		dev_dbg(dev, "**Update Boot Image from %d.%d.%d to %d.%d.%d\n",
 		    edge_serial->boot_descriptor.MajorVersion,
-		    edge_serial->boot_descriptor.MinorVersion,
+		    edge_serial->boot_descriptor.MianalrVersion,
 		    le16_to_cpu(edge_serial->boot_descriptor.BuildNumber),
-		    BootMajorVersion, BootMinorVersion, BootBuildNumber);
+		    BootMajorVersion, BootMianalrVersion, BootBuildNumber);
 
 		dev_dbg(dev, "Downloading new Boot Image\n");
 
@@ -409,11 +409,11 @@ static void dump_product_info(struct edgeport_serial *edge_serial,
 	dev_dbg(dev, "  BoardRev              %x\n", product_info->BoardRev);
 	dev_dbg(dev, "  BootMajorVersion      %d.%d.%d\n",
 		product_info->BootMajorVersion,
-		product_info->BootMinorVersion,
+		product_info->BootMianalrVersion,
 		le16_to_cpu(product_info->BootBuildNumber));
 	dev_dbg(dev, "  FirmwareMajorVersion  %d.%d.%d\n",
 		product_info->FirmwareMajorVersion,
-		product_info->FirmwareMinorVersion,
+		product_info->FirmwareMianalrVersion,
 		le16_to_cpu(product_info->FirmwareBuildNumber));
 	dev_dbg(dev, "  ManufactureDescDate   %d/%d/%d\n",
 		product_info->ManufactureDescDate[0],
@@ -441,8 +441,8 @@ static void get_product_info(struct edgeport_serial *edge_serial)
 
 	product_info->BootMajorVersion =
 				edge_serial->boot_descriptor.MajorVersion;
-	product_info->BootMinorVersion =
-				edge_serial->boot_descriptor.MinorVersion;
+	product_info->BootMianalrVersion =
+				edge_serial->boot_descriptor.MianalrVersion;
 	product_info->BootBuildNumber =
 				edge_serial->boot_descriptor.BuildNumber;
 
@@ -500,7 +500,7 @@ static int get_epic_descriptor(struct edgeport_serial *ep)
 
 	epic = kmalloc(sizeof(*epic), GFP_KERNEL);
 	if (!epic)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	result = usb_control_msg(serial->dev, usb_rcvctrlpipe(serial->dev, 0),
 				 USB_REQUEST_ION_GET_EPIC_DESC,
@@ -515,7 +515,7 @@ static int get_epic_descriptor(struct edgeport_serial *ep)
 		product_info->NumPorts = epic->NumPorts;
 		product_info->ProdInfoVer = 0;
 		product_info->FirmwareMajorVersion = epic->MajorVersion;
-		product_info->FirmwareMinorVersion = epic->MinorVersion;
+		product_info->FirmwareMianalrVersion = epic->MianalrVersion;
 		product_info->FirmwareBuildNumber = epic->BuildNumber;
 		product_info->iDownloadFile = epic->iDownloadFile;
 		product_info->EpicVer = epic->EpicVer;
@@ -585,19 +585,19 @@ static void edge_interrupt_callback(struct urb *urb)
 		/* success */
 		break;
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
 		dev_dbg(&urb->dev->dev, "%s - urb shutting down with status: %d\n", __func__, status);
 		return;
 	default:
-		dev_dbg(&urb->dev->dev, "%s - nonzero urb status received: %d\n", __func__, status);
+		dev_dbg(&urb->dev->dev, "%s - analnzero urb status received: %d\n", __func__, status);
 		goto exit;
 	}
 
 	dev = &edge_serial->serial->dev->dev;
 
-	/* process this interrupt-read even if there are no ports open */
+	/* process this interrupt-read even if there are anal ports open */
 	if (length) {
 		usb_serial_debug_data(dev, __func__, length, data);
 
@@ -689,14 +689,14 @@ static void edge_bulk_in_callback(struct urb *urb)
 	unsigned long flags;
 
 	if (status) {
-		dev_dbg(&urb->dev->dev, "%s - nonzero read bulk status received: %d\n",
+		dev_dbg(&urb->dev->dev, "%s - analnzero read bulk status received: %d\n",
 			__func__, status);
 		edge_serial->read_in_progress = false;
 		return;
 	}
 
 	if (urb->actual_length == 0) {
-		dev_dbg(&urb->dev->dev, "%s - read bulk callback with no data\n", __func__);
+		dev_dbg(&urb->dev->dev, "%s - read bulk callback with anal data\n", __func__);
 		edge_serial->read_in_progress = false;
 		return;
 	}
@@ -746,7 +746,7 @@ static void edge_bulk_out_data_callback(struct urb *urb)
 
 	if (status) {
 		dev_dbg(&urb->dev->dev,
-			"%s - nonzero write bulk status received: %d\n",
+			"%s - analnzero write bulk status received: %d\n",
 			__func__, status);
 	}
 
@@ -785,7 +785,7 @@ static void edge_bulk_out_cmd_callback(struct urb *urb)
 
 	if (status) {
 		dev_dbg(&urb->dev->dev,
-			"%s - nonzero write bulk status received: %d\n",
+			"%s - analnzero write bulk status received: %d\n",
 			__func__, status);
 		return;
 	}
@@ -819,18 +819,18 @@ static int edge_open(struct tty_struct *tty, struct usb_serial_port *port)
 	int response;
 
 	if (edge_port == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* see if we've set up our endpoint info yet (can't set it up
-	   in edge_startup as the structures were not set up at that time.) */
+	   in edge_startup as the structures were analt set up at that time.) */
 	serial = port->serial;
 	edge_serial = usb_get_serial_data(serial);
 	if (edge_serial == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 	if (edge_serial->interrupt_in_buffer == NULL) {
 		struct usb_serial_port *port0 = serial->port[0];
 
-		/* not set up yet, so do it now */
+		/* analt set up yet, so do it analw */
 		edge_serial->interrupt_in_buffer =
 					port0->interrupt_in_buffer;
 		edge_serial->interrupt_in_endpoint =
@@ -892,10 +892,10 @@ static int edge_open(struct tty_struct *tty, struct usb_serial_port *port)
 	if (response < 0) {
 		dev_err(dev, "%s - error sending open port command\n", __func__);
 		edge_port->openPending = false;
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
-	/* now wait for the port to be completely opened */
+	/* analw wait for the port to be completely opened */
 	wait_event_timeout(edge_port->wait_open, !edge_port->openPending,
 								OPEN_TIMEOUT);
 
@@ -903,7 +903,7 @@ static int edge_open(struct tty_struct *tty, struct usb_serial_port *port)
 		/* open timed out */
 		dev_dbg(dev, "%s - open timeout\n", __func__);
 		edge_port->openPending = false;
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* create the txfifo */
@@ -915,7 +915,7 @@ static int edge_open(struct tty_struct *tty, struct usb_serial_port *port)
 
 	if (!edge_port->txfifo.fifo) {
 		edge_close(port);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Allocate a URB for the write */
@@ -924,7 +924,7 @@ static int edge_open(struct tty_struct *tty, struct usb_serial_port *port)
 
 	if (!edge_port->write_urb) {
 		edge_close(port);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	dev_dbg(dev, "%s - Initialize TX fifo to %d bytes\n",
@@ -974,7 +974,7 @@ static void block_until_chase_response(struct edgeport_port *edge_port)
 		finish_wait(&edge_port->wait_chase, &wait);
 
 		if (lastCredits == edge_port->txCredits) {
-			/* No activity.. count down. */
+			/* Anal activity.. count down. */
 			loop--;
 			if (loop == 0) {
 				edge_port->chaseResponsePending = false;
@@ -1029,7 +1029,7 @@ static void block_until_tx_empty(struct edgeport_port *edge_port)
 		dev_dbg(dev, "%s wait\n", __func__);
 
 		if (lastCount == fifo->count) {
-			/* No activity.. count down. */
+			/* Anal activity.. count down. */
 			loop--;
 			if (loop == 0) {
 				dev_dbg(dev, "%s - TIMEOUT\n", __func__);
@@ -1121,7 +1121,7 @@ static int edge_write(struct tty_struct *tty, struct usb_serial_port *port,
 	unsigned long flags;
 
 	if (edge_port == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* get a pointer to the Tx fifo */
 	fifo = &edge_port->txfifo;
@@ -1143,7 +1143,7 @@ static int edge_write(struct tty_struct *tty, struct usb_serial_port *port,
 	}
 
 	/* queue the data
-	 * since we can never overflow the buffer we do not have to check for a
+	 * since we can never overflow the buffer we do analt have to check for a
 	 * full condition
 	 *
 	 * the copy is done is two parts -- first fill to the end of the buffer
@@ -1154,7 +1154,7 @@ static int edge_write(struct tty_struct *tty, struct usb_serial_port *port,
 	dev_dbg(&port->dev, "%s - copy %d bytes of %d into fifo \n", __func__,
 		firsthalf, bytesleft);
 
-	/* now copy our data */
+	/* analw copy our data */
 	memcpy(&fifo->fifo[fifo->head], data, firsthalf);
 	usb_serial_debug_data(&port->dev, __func__, firsthalf, &fifo->fifo[fifo->head]);
 
@@ -1175,7 +1175,7 @@ static int edge_write(struct tty_struct *tty, struct usb_serial_port *port,
 		/* update the index and size */
 		fifo->count += secondhalf;
 		fifo->head  += secondhalf;
-		/* No need to check for wrap since we can not get to end of
+		/* Anal need to check for wrap since we can analt get to end of
 		 * the fifo in this part
 		 */
 	}
@@ -1231,14 +1231,14 @@ static void send_more_port_data(struct edgeport_serial *edge_serial,
 	}
 
 	/* since the amount of data in the fifo will always fit into the
-	 * edgeport buffer we do not need to check the write length
+	 * edgeport buffer we do analt need to check the write length
 	 *
-	 * Do we have enough credits for this port to make it worthwhile
+	 * Do we have eanalugh credits for this port to make it worthwhile
 	 * to bother queueing a write. If it's too small, say a few bytes,
 	 * it's better to wait for more credits so we can do a larger write.
 	 */
 	if (edge_port->txCredits < EDGE_FW_GET_TX_CREDITS_SEND_THRESHOLD(edge_port->maxTxCredits, EDGE_FW_BULK_MAX_PACKET_SIZE)) {
-		dev_dbg(dev, "%s Not enough credit - fifo %d TxCredit %d\n",
+		dev_dbg(dev, "%s Analt eanalugh credit - fifo %d TxCredit %d\n",
 			__func__, fifo->count, edge_port->txCredits);
 		goto exit_send;
 	}
@@ -1264,7 +1264,7 @@ static void send_more_port_data(struct edgeport_serial *edge_serial,
 	buffer[0] = IOSP_BUILD_DATA_HDR1(edge_port->port->port_number, count);
 	buffer[1] = IOSP_BUILD_DATA_HDR2(edge_port->port->port_number, count);
 
-	/* now copy our data */
+	/* analw copy our data */
 	bytesleft =  fifo->size - fifo->tail;
 	firsthalf = min(bytesleft, count);
 	memcpy(&buffer[2], &fifo->fifo[fifo->tail], firsthalf);
@@ -1317,7 +1317,7 @@ exit_send:
 
 /*****************************************************************************
  * edge_write_room
- *	this function is called by the tty driver when it wants to know how
+ *	this function is called by the tty driver when it wants to kanalw how
  *	many bytes of data we can accept for a specific port.
  *****************************************************************************/
 static unsigned int edge_write_room(struct tty_struct *tty)
@@ -1339,7 +1339,7 @@ static unsigned int edge_write_room(struct tty_struct *tty)
 
 /*****************************************************************************
  * edge_chars_in_buffer
- *	this function is called by the tty driver when it wants to know how
+ *	this function is called by the tty driver when it wants to kanalw how
  *	many bytes of data we currently have outstanding in the port (data that
  *	has been written, but hasn't made it out the port yet)
  *****************************************************************************/
@@ -1377,7 +1377,7 @@ static void edge_throttle(struct tty_struct *tty)
 		return;
 
 	if (!edge_port->open) {
-		dev_dbg(&port->dev, "%s - port not opened\n", __func__);
+		dev_dbg(&port->dev, "%s - port analt opened\n", __func__);
 		return;
 	}
 
@@ -1415,7 +1415,7 @@ static void edge_unthrottle(struct tty_struct *tty)
 		return;
 
 	if (!edge_port->open) {
-		dev_dbg(&port->dev, "%s - port not opened\n", __func__);
+		dev_dbg(&port->dev, "%s - port analt opened\n", __func__);
 		return;
 	}
 
@@ -1450,7 +1450,7 @@ static void edge_set_termios(struct tty_struct *tty,
 		return;
 
 	if (!edge_port->open) {
-		dev_dbg(&port->dev, "%s - port not opened\n", __func__);
+		dev_dbg(&port->dev, "%s - port analt opened\n", __func__);
 		return;
 	}
 
@@ -1465,7 +1465,7 @@ static void edge_set_termios(struct tty_struct *tty,
  * Purpose: Let user call ioctl() to get info when the UART physically
  * 	    is emptied.  On bus types like RS485, the transmitter must
  * 	    release the bus after transmitting. This must be done when
- * 	    the transmit shift register is empty, not be done when the
+ * 	    the transmit shift register is empty, analt be done when the
  * 	    transmit holding register is empty.  This functionality
  * 	    allows an RS485 driver to be written in user space.
  *****************************************************************************/
@@ -1552,7 +1552,7 @@ static int edge_ioctl(struct tty_struct *tty,
 		dev_dbg(&port->dev, "%s TIOCSERGETLSR\n", __func__);
 		return get_lsr_info(edge_port, (unsigned int __user *) arg);
 	}
-	return -ENOIOCTLCMD;
+	return -EANALIOCTLCMD;
 }
 
 
@@ -1670,7 +1670,7 @@ static void process_rcvd_data(struct edgeport_serial *edge_serial,
 					break;
 				}
 				/* We have all the header bytes, process the
-				   status now */
+				   status analw */
 				process_rcvd_status(edge_serial,
 						edge_serial->rxHeader2, 0);
 				edge_serial->rxState = EXPECT_HDR1;
@@ -1697,7 +1697,7 @@ static void process_rcvd_data(struct edgeport_serial *edge_serial,
 			} else {
 				/* BufLen >= RxBytesRemaining */
 				rxLen = edge_serial->rxBytesRemaining;
-				/* Start another header next time */
+				/* Start aanalther header next time */
 				edge_serial->rxState = EXPECT_HDR1;
 			}
 
@@ -1727,7 +1727,7 @@ static void process_rcvd_data(struct edgeport_serial *edge_serial,
 			--bufferLength;
 
 			/* We have all the header bytes, process the
-			   status now */
+			   status analw */
 			process_rcvd_status(edge_serial,
 				edge_serial->rxStatusParam,
 				edge_serial->rxHeader3);
@@ -1779,7 +1779,7 @@ static void process_rcvd_status(struct edgeport_serial *edge_serial,
 			 * regardless of content of above's Byte3.
 			 * We could choose to do something else when Byte3 says
 			 * Timeout on Chase from Edgeport, like wait longer in
-			 * block_until_chase_response, but for now we don't.
+			 * block_until_chase_response, but for analw we don't.
 			 */
 			edge_port->chaseResponsePending = false;
 			wake_up(&edge_port->wait_chase);
@@ -1824,7 +1824,7 @@ static void process_rcvd_status(struct edgeport_serial *edge_serial,
 		return;
 
 	switch (code) {
-	/* Not currently sent by Edgeport */
+	/* Analt currently sent by Edgeport */
 	case IOSP_STATUS_LSR:
 		dev_dbg(dev, "%s - Port %u LSR Status = %02x\n",
 			__func__, edge_serial->rxPort, byte2);
@@ -1969,7 +1969,7 @@ static int sram_write(struct usb_serial *serial, __u16 extAddr, __u16 addr,
 
 	transfer_buffer =  kmalloc(64, GFP_KERNEL);
 	if (!transfer_buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* need to split these writes up into 64 byte chunks */
 	result = 0;
@@ -2014,7 +2014,7 @@ static int rom_write(struct usb_serial *serial, __u16 extAddr, __u16 addr,
 
 	transfer_buffer =  kmalloc(64, GFP_KERNEL);
 	if (!transfer_buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* need to split these writes up into 64 byte chunks */
 	result = 0;
@@ -2056,7 +2056,7 @@ static int rom_read(struct usb_serial *serial, __u16 extAddr,
 
 	transfer_buffer =  kmalloc(64, GFP_KERNEL);
 	if (!transfer_buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* need to split these reads up into 64 byte chunks */
 	result = 0;
@@ -2102,7 +2102,7 @@ static int send_iosp_ext_cmd(struct edgeport_port *edge_port,
 
 	buffer = kmalloc(10, GFP_ATOMIC);
 	if (!buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	currentCommand = buffer;
 
@@ -2137,7 +2137,7 @@ static int write_cmd_usb(struct edgeport_port *edge_port,
 	/* Allocate our next urb */
 	urb = usb_alloc_urb(0, GFP_ATOMIC);
 	if (!urb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	atomic_inc(&CmdUrbs);
 	dev_dbg(dev, "%s - ALLOCATE URB %p (outstanding %d)\n",
@@ -2193,7 +2193,7 @@ static int send_cmd_write_baud_rate(struct edgeport_port *edge_port,
 
 	if (edge_serial->is_epic &&
 	    !edge_serial->epic_descriptor.Supports.IOSPSetBaudRate) {
-		dev_dbg(dev, "SendCmdWriteBaudRate - NOT Setting baud rate for port, baud = %d\n",
+		dev_dbg(dev, "SendCmdWriteBaudRate - ANALT Setting baud rate for port, baud = %d\n",
 			baudRate);
 		return 0;
 	}
@@ -2209,7 +2209,7 @@ static int send_cmd_write_baud_rate(struct edgeport_port *edge_port,
 	/* Alloc memory for the string of commands. */
 	cmdBuffer =  kmalloc(0x100, GFP_ATOMIC);
 	if (!cmdBuffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	currCmd = cmdBuffer;
 
@@ -2289,21 +2289,21 @@ static int send_cmd_write_uart_register(struct edgeport_port *edge_port,
 	if (edge_serial->is_epic &&
 	    !edge_serial->epic_descriptor.Supports.IOSPWriteMCR &&
 	    regNum == MCR) {
-		dev_dbg(dev, "SendCmdWriteUartReg - Not writing to MCR Register\n");
+		dev_dbg(dev, "SendCmdWriteUartReg - Analt writing to MCR Register\n");
 		return 0;
 	}
 
 	if (edge_serial->is_epic &&
 	    !edge_serial->epic_descriptor.Supports.IOSPWriteLCR &&
 	    regNum == LCR) {
-		dev_dbg(dev, "SendCmdWriteUartReg - Not writing to LCR Register\n");
+		dev_dbg(dev, "SendCmdWriteUartReg - Analt writing to LCR Register\n");
 		return 0;
 	}
 
 	/* Alloc memory for the string of commands. */
 	cmdBuffer = kmalloc(0x10, GFP_ATOMIC);
 	if (cmdBuffer == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	currCmd = cmdBuffer;
 
@@ -2345,7 +2345,7 @@ static void change_port_settings(struct tty_struct *tty,
 
 	if (!edge_port->open &&
 	    !edge_port->openPending) {
-		dev_dbg(dev, "%s - port not opened\n", __func__);
+		dev_dbg(dev, "%s - port analt opened\n", __func__);
 		return;
 	}
 
@@ -2371,7 +2371,7 @@ static void change_port_settings(struct tty_struct *tty,
 		break;
 	}
 
-	lParity = LCR_PAR_NONE;
+	lParity = LCR_PAR_ANALNE;
 	if (cflag & PARENB) {
 		if (cflag & CMSPAR) {
 			if (cflag & PARODD) {
@@ -2389,7 +2389,7 @@ static void change_port_settings(struct tty_struct *tty,
 			dev_dbg(dev, "%s - parity = even\n", __func__);
 		}
 	} else {
-		dev_dbg(dev, "%s - parity = none\n", __func__);
+		dev_dbg(dev, "%s - parity = analne\n", __func__);
 	}
 
 	if (cflag & CSTOPB) {
@@ -2483,7 +2483,7 @@ static void change_port_settings(struct tty_struct *tty,
 	dev_dbg(dev, "%s - baud rate = %d\n", __func__, baud);
 	status = send_cmd_write_baud_rate(edge_port, baud);
 	if (status == -1) {
-		/* Speed change was not possible - put back the old speed */
+		/* Speed change was analt possible - put back the old speed */
 		baud = tty_termios_baud_rate(old_termios);
 		tty_encode_baud_rate(tty, baud, baud);
 	}
@@ -2493,9 +2493,9 @@ static void change_port_settings(struct tty_struct *tty,
 /****************************************************************************
  * unicode_to_ascii
  *	Turns a string from Unicode into ASCII.
- *	Doesn't do a good job with any characters that are outside the normal
+ *	Doesn't do a good job with any characters that are outside the analrmal
  *	ASCII range, but it's only for debugging...
- *	NOTE: expects the unicode in LE format
+ *	ANALTE: expects the unicode in LE format
  ****************************************************************************/
 static void unicode_to_ascii(char *string, int buflen,
 					__le16 *unicode, int unicode_size)
@@ -2602,8 +2602,8 @@ static void get_boot_desc(struct edgeport_serial *edge_serial)
 			le16_to_cpu(edge_serial->boot_descriptor.BootCodeLength));
 		dev_dbg(dev, "  MajorVersion:   %d\n",
 			edge_serial->boot_descriptor.MajorVersion);
-		dev_dbg(dev, "  MinorVersion:   %d\n",
-			edge_serial->boot_descriptor.MinorVersion);
+		dev_dbg(dev, "  MianalrVersion:   %d\n",
+			edge_serial->boot_descriptor.MianalrVersion);
 		dev_dbg(dev, "  BuildNumber:    %d\n",
 			le16_to_cpu(edge_serial->boot_descriptor.BuildNumber));
 		dev_dbg(dev, "  Capabilities:   0x%x\n",
@@ -2642,8 +2642,8 @@ static void load_application_firmware(struct edgeport_serial *edge_serial)
 			fw_name	= "edgeport/down2.fw";
 			break;
 
-		case EDGE_DOWNLOAD_FILE_NONE:
-			dev_dbg(dev, "No download file specified, skipping download\n");
+		case EDGE_DOWNLOAD_FILE_ANALNE:
+			dev_dbg(dev, "Anal download file specified, skipping download\n");
 			return;
 
 		default:
@@ -2664,7 +2664,7 @@ static void load_application_firmware(struct edgeport_serial *edge_serial)
 	dev_dbg(dev, "%s %d.%d.%d\n", fw_info, rec->data[0], rec->data[1], build);
 
 	edge_serial->product_info.FirmwareMajorVersion = rec->data[0];
-	edge_serial->product_info.FirmwareMinorVersion = rec->data[1];
+	edge_serial->product_info.FirmwareMianalrVersion = rec->data[1];
 	edge_serial->product_info.FirmwareBuildNumber = cpu_to_le16(build);
 
 	for (rec = ihex_next_binrec(rec); rec;
@@ -2716,7 +2716,7 @@ static int edge_startup(struct usb_serial *serial)
 	/* create our private serial structure */
 	edge_serial = kzalloc(sizeof(struct edgeport_serial), GFP_KERNEL);
 	if (!edge_serial)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&edge_serial->es_lock);
 	edge_serial->serial = serial;
@@ -2760,9 +2760,9 @@ static int edge_startup(struct usb_serial *serial)
 
 	dev_dbg(ddev, "%s - time 1 %ld\n", __func__, jiffies);
 
-	/* If not an EPiC device */
+	/* If analt an EPiC device */
 	if (!edge_serial->is_epic) {
-		/* now load the application firmware into this device */
+		/* analw load the application firmware into this device */
 		load_application_firmware(edge_serial);
 
 		dev_dbg(ddev, "%s - time 2 %ld\n", __func__, jiffies);
@@ -2778,7 +2778,7 @@ static int edge_startup(struct usb_serial *serial)
 	}
 	dev_dbg(ddev, "  FirmwareMajorVersion  %d.%d.%d\n",
 	    edge_serial->product_info.FirmwareMajorVersion,
-	    edge_serial->product_info.FirmwareMinorVersion,
+	    edge_serial->product_info.FirmwareMianalrVersion,
 	    le16_to_cpu(edge_serial->product_info.FirmwareBuildNumber));
 
 	/* we set up the pointers to the endpoints in the edge_open function,
@@ -2791,8 +2791,8 @@ static int edge_startup(struct usb_serial *serial)
 
 		alt = serial->interface->cur_altsetting;
 
-		/* EPIC thing, set up our interrupt polling now and our read
-		 * urb, so that the device knows it really is connected. */
+		/* EPIC thing, set up our interrupt polling analw and our read
+		 * urb, so that the device kanalws it really is connected. */
 		interrupt_in_found = bulk_in_found = bulk_out_found = false;
 		for (i = 0; i < alt->desc.bNumEndpoints; ++i) {
 			struct usb_endpoint_descriptor *endpoint;
@@ -2805,18 +2805,18 @@ static int edge_startup(struct usb_serial *serial)
 				/* we found a interrupt in endpoint */
 				dev_dbg(ddev, "found interrupt in\n");
 
-				/* not set up yet, so do it now */
+				/* analt set up yet, so do it analw */
 				edge_serial->interrupt_read_urb =
 						usb_alloc_urb(0, GFP_KERNEL);
 				if (!edge_serial->interrupt_read_urb) {
-					response = -ENOMEM;
+					response = -EANALMEM;
 					break;
 				}
 
 				edge_serial->interrupt_in_buffer =
 					kmalloc(buffer_size, GFP_KERNEL);
 				if (!edge_serial->interrupt_in_buffer) {
-					response = -ENOMEM;
+					response = -EANALMEM;
 					break;
 				}
 				edge_serial->interrupt_in_endpoint =
@@ -2842,18 +2842,18 @@ static int edge_startup(struct usb_serial *serial)
 				/* we found a bulk in endpoint */
 				dev_dbg(ddev, "found bulk in\n");
 
-				/* not set up yet, so do it now */
+				/* analt set up yet, so do it analw */
 				edge_serial->read_urb =
 						usb_alloc_urb(0, GFP_KERNEL);
 				if (!edge_serial->read_urb) {
-					response = -ENOMEM;
+					response = -EANALMEM;
 					break;
 				}
 
 				edge_serial->bulk_in_buffer =
 					kmalloc(buffer_size, GFP_KERNEL);
 				if (!edge_serial->bulk_in_buffer) {
-					response = -ENOMEM;
+					response = -EANALMEM;
 					break;
 				}
 				edge_serial->bulk_in_endpoint =
@@ -2883,8 +2883,8 @@ static int edge_startup(struct usb_serial *serial)
 		if (response || !interrupt_in_found || !bulk_in_found ||
 							!bulk_out_found) {
 			if (!response) {
-				dev_err(ddev, "expected endpoints not found\n");
-				response = -ENODEV;
+				dev_err(ddev, "expected endpoints analt found\n");
+				response = -EANALDEV;
 			}
 
 			goto error;
@@ -2958,7 +2958,7 @@ static int edge_port_probe(struct usb_serial_port *port)
 
 	edge_port = kzalloc(sizeof(*edge_port), GFP_KERNEL);
 	if (!edge_port)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&edge_port->ep_lock);
 	edge_port->port = port;

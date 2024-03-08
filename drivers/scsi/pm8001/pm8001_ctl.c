@@ -8,14 +8,14 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    analtice, this list of conditions, and the following disclaimer,
  *    without modification.
  * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
+ *    substantially similar to the "ANAL WARRANTY" disclaimer below
  *    ("Disclaimer") and any redistribution must be conditioned upon
  *    including a substantially similar Disclaimer requirement for further
  *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
+ * 3. Neither the names of the above-listed copyright holders analr the names
  *    of any contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -23,13 +23,13 @@
  * GNU General Public License ("GPL") version 2 as published by the Free
  * Software Foundation.
  *
- * NO WARRANTY
+ * ANAL WARRANTY
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
@@ -224,7 +224,7 @@ static ssize_t pm8001_ctl_max_devices_show(struct device *cdev,
 }
 static DEVICE_ATTR(max_devices, S_IRUGO, pm8001_ctl_max_devices_show, NULL);
 /**
- * pm8001_ctl_max_sg_list_show - max sg list supported iff not 0.0 for no
+ * pm8001_ctl_max_sg_list_show - max sg list supported iff analt 0.0 for anal
  * hardware limitation
  * @cdev: pointer to embedded class device
  * @attr: device attribute (unused)
@@ -479,15 +479,15 @@ static ssize_t pm8001_ctl_bios_version_show(struct device *cdev,
 	struct pm8001_ioctl_payload payload;
 
 	pm8001_ha->nvmd_completion = &completion;
-	payload.minor_function = 7;
+	payload.mianalr_function = 7;
 	payload.offset = 0;
 	payload.rd_length = 4096;
 	payload.func_specific = kzalloc(4096, GFP_KERNEL);
 	if (!payload.func_specific)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (PM8001_CHIP_DISP->get_nvmd_req(pm8001_ha, &payload)) {
 		kfree(payload.func_specific);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	wait_for_completion(&completion);
 	for (bios_index = BIOSOFFSET; bios_index < BIOS_OFFSET_LIMIT;
@@ -576,24 +576,24 @@ static ssize_t pm8001_ctl_fatal_log_show(struct device *cdev,
 static DEVICE_ATTR(fatal_log, S_IRUGO, pm8001_ctl_fatal_log_show, NULL);
 
 /**
- * non_fatal_log_show - non fatal error logging
+ * analn_fatal_log_show - analn fatal error logging
  * @cdev:pointer to embedded class device
  * @attr: device attribute
  * @buf: the buffer returned
  *
  * A sysfs 'read-only' shost attribute.
  */
-static ssize_t non_fatal_log_show(struct device *cdev,
+static ssize_t analn_fatal_log_show(struct device *cdev,
 	struct device_attribute *attr, char *buf)
 {
 	u32 count;
 
-	count = pm80xx_get_non_fatal_dump(cdev, attr, buf);
+	count = pm80xx_get_analn_fatal_dump(cdev, attr, buf);
 	return count;
 }
-static DEVICE_ATTR_RO(non_fatal_log);
+static DEVICE_ATTR_RO(analn_fatal_log);
 
-static ssize_t non_fatal_count_show(struct device *cdev,
+static ssize_t analn_fatal_count_show(struct device *cdev,
 		struct device_attribute *attr, char *buf)
 {
 	struct Scsi_Host *shost = class_to_shost(cdev);
@@ -601,10 +601,10 @@ static ssize_t non_fatal_count_show(struct device *cdev,
 	struct pm8001_hba_info *pm8001_ha = sha->lldd_ha;
 
 	return sysfs_emit(buf, "%08x\n",
-			pm8001_ha->non_fatal_count);
+			pm8001_ha->analn_fatal_count);
 }
 
-static ssize_t non_fatal_count_store(struct device *cdev,
+static ssize_t analn_fatal_count_store(struct device *cdev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct Scsi_Host *shost = class_to_shost(cdev);
@@ -615,10 +615,10 @@ static ssize_t non_fatal_count_store(struct device *cdev,
 	if (kstrtoint(buf, 16, &val) != 0)
 		return -EINVAL;
 
-	pm8001_ha->non_fatal_count = val;
+	pm8001_ha->analn_fatal_count = val;
 	return strlen(buf);
 }
-static DEVICE_ATTR_RW(non_fatal_count);
+static DEVICE_ATTR_RW(analn_fatal_count);
 
 /**
  * pm8001_ctl_gsm_log_show - gsm dump collection
@@ -639,7 +639,7 @@ static ssize_t pm8001_ctl_gsm_log_show(struct device *cdev,
 
 static DEVICE_ATTR(gsm_log, S_IRUGO, pm8001_ctl_gsm_log_show, NULL);
 
-#define FLASH_CMD_NONE      0x00
+#define FLASH_CMD_ANALNE      0x00
 #define FLASH_CMD_UPDATE    0x01
 #define FLASH_CMD_SET_NVMD    0x02
 
@@ -651,7 +651,7 @@ struct flash_command {
 static const struct flash_command flash_command_table[] = {
      {"set_nvmd",    FLASH_CMD_SET_NVMD},
      {"update",      FLASH_CMD_UPDATE},
-     {"",            FLASH_CMD_NONE} /* Last entry should be NULL. */
+     {"",            FLASH_CMD_ANALNE} /* Last entry should be NULL. */
 };
 
 struct error_fw {
@@ -666,7 +666,7 @@ static const struct error_fw flash_error_table[] = {
      {"image CRC Error",		FLASH_UPDATE_CRC_ERR},
      {"image length Error.",		FLASH_UPDATE_LENGTH_ERR},
      {"Failed to program flash chip",	FLASH_UPDATE_HW_ERR},
-     {"Flash chip not supported.",	FLASH_UPDATE_DNLD_NOT_SUPPORTED},
+     {"Flash chip analt supported.",	FLASH_UPDATE_DNLD_ANALT_SUPPORTED},
      {"Flash update disabled.",		FLASH_UPDATE_DISABLED},
      {"Flash in progress",		FLASH_IN_PROGRESS},
      {"Image file size Error",		FAIL_FILE_SIZE},
@@ -691,14 +691,14 @@ static int pm8001_set_nvmd(struct pm8001_hba_info *pm8001_ha)
 	ioctlbuffer = kzalloc(length, GFP_KERNEL);
 	if (!ioctlbuffer) {
 		pm8001_ha->fw_status = FAIL_OUT_MEMORY;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	payload = (struct pm8001_ioctl_payload *)ioctlbuffer;
 	memcpy((u8 *)&payload->func_specific, (u8 *)pm8001_ha->fw_image->data,
 				pm8001_ha->fw_image->size);
 	payload->wr_length = pm8001_ha->fw_image->size;
 	payload->id = 0;
-	payload->minor_function = 0x1;
+	payload->mianalr_function = 0x1;
 	pm8001_ha->nvmd_completion = &completion;
 	ret = PM8001_CHIP_DISP->set_nvmd_req(pm8001_ha, payload);
 	if (ret) {
@@ -734,7 +734,7 @@ static int pm8001_update_flash(struct pm8001_hba_info *pm8001_ha)
 	ioctlbuffer = kzalloc(length, GFP_KERNEL);
 	if (!ioctlbuffer) {
 		pm8001_ha->fw_status = FAIL_OUT_MEMORY;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	image_hdr = (struct pm8001_fw_image_header *)pm8001_ha->fw_image->data;
 	while (sizeRead < pm8001_ha->fw_image->size) {
@@ -756,7 +756,7 @@ static int pm8001_update_flash(struct pm8001_hba_info *pm8001_ha)
 
 			/*
 			 * for the last chunk of data in case file size is
-			 * not even with 4k, load only the rest
+			 * analt even with 4k, load only the rest
 			 */
 
 			read_buf  = (u8 *)pm8001_ha->fw_image->data + sizeRead;
@@ -798,7 +798,7 @@ static ssize_t pm8001_store_update_fw(struct device *cdev,
 	struct pm8001_hba_info *pm8001_ha = sha->lldd_ha;
 	char *cmd_ptr, *filename_ptr;
 	int res, i;
-	int flash_command = FLASH_CMD_NONE;
+	int flash_command = FLASH_CMD_ANALNE;
 	int ret;
 
 	if (!capable(CAP_SYS_ADMIN))
@@ -813,7 +813,7 @@ static ssize_t pm8001_store_update_fw(struct device *cdev,
 	cmd_ptr = kcalloc(count, 2, GFP_KERNEL);
 	if (!cmd_ptr) {
 		pm8001_ha->fw_status = FAIL_OUT_MEMORY;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	filename_ptr = cmd_ptr + count;
@@ -824,14 +824,14 @@ static ssize_t pm8001_store_update_fw(struct device *cdev,
 		goto out;
 	}
 
-	for (i = 0; flash_command_table[i].code != FLASH_CMD_NONE; i++) {
+	for (i = 0; flash_command_table[i].code != FLASH_CMD_ANALNE; i++) {
 		if (!memcmp(flash_command_table[i].command,
 				 cmd_ptr, strlen(cmd_ptr))) {
 			flash_command = flash_command_table[i].code;
 			break;
 		}
 	}
-	if (flash_command == FLASH_CMD_NONE) {
+	if (flash_command == FLASH_CMD_ANALNE) {
 		pm8001_ha->fw_status = FAIL_PARAMETERS;
 		ret = -EINVAL;
 		goto out;
@@ -888,7 +888,7 @@ static DEVICE_ATTR(update_fw, S_IRUGO|S_IWUSR|S_IWGRP,
 	pm8001_show_update_fw, pm8001_store_update_fw);
 
 static const char *const mpiStateText[] = {
-	"MPI is not initialized",
+	"MPI is analt initialized",
 	"MPI is successfully initialized",
 	"MPI termination is in progress",
 	"MPI initialization failed with error in [31:16]"
@@ -1008,8 +1008,8 @@ static struct attribute *pm8001_host_attrs[] = {
 	&dev_attr_aap_log.attr,
 	&dev_attr_iop_log.attr,
 	&dev_attr_fatal_log.attr,
-	&dev_attr_non_fatal_log.attr,
-	&dev_attr_non_fatal_count.attr,
+	&dev_attr_analn_fatal_log.attr,
+	&dev_attr_analn_fatal_count.attr,
 	&dev_attr_gsm_log.attr,
 	&dev_attr_max_out_io.attr,
 	&dev_attr_max_devices.attr,

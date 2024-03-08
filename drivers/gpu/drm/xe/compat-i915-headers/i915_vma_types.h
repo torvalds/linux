@@ -36,7 +36,7 @@ struct intel_rotation_info {
 } __packed;
 
 enum i915_gtt_view_type {
-	I915_GTT_VIEW_NORMAL = 0,
+	I915_GTT_VIEW_ANALRMAL = 0,
 	I915_GTT_VIEW_ROTATED = sizeof(struct intel_rotation_info),
 	I915_GTT_VIEW_REMAPPED = sizeof(struct intel_remapped_info),
 };
@@ -56,7 +56,7 @@ static inline void assert_i915_gem_gtt_types(void)
 	 * we have to be careful that each branch has a unique size.
 	 */
 	switch ((enum i915_gtt_view_type)0) {
-	case I915_GTT_VIEW_NORMAL:
+	case I915_GTT_VIEW_ANALRMAL:
 	case I915_GTT_VIEW_ROTATED:
 	case I915_GTT_VIEW_REMAPPED:
 		/* gcc complains if these are identical cases */
@@ -67,7 +67,7 @@ static inline void assert_i915_gem_gtt_types(void)
 struct i915_gtt_view {
 	enum i915_gtt_view_type type;
 	union {
-		/* Members need to contain no holes/padding */
+		/* Members need to contain anal holes/padding */
 		struct intel_rotation_info rotated;
 		struct intel_remapped_info remapped;
 	};

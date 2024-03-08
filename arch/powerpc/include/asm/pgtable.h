@@ -17,7 +17,7 @@ struct mm_struct;
 #ifdef CONFIG_PPC_BOOK3S
 #include <asm/book3s/pgtable.h>
 #else
-#include <asm/nohash/pgtable.h>
+#include <asm/analhash/pgtable.h>
 #endif /* !CONFIG_PPC_BOOK3S */
 
 /*

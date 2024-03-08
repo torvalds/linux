@@ -4,7 +4,7 @@ NXP SPIFI is a specialized SPI interface for serial Flash devices.
 It supports one Flash device with 1-, 2- and 4-bits width in SPI
 mode 0 or 3. The controller operates in either command or memory
 mode. In memory mode the Flash is accessible from the CPU as
-normal memory.
+analrmal memory.
 
 Required properties:
   - compatible : Should be "nxp,lpc1773-spifi"
@@ -18,13 +18,13 @@ Required properties:
 Optional properties:
  - resets : phandle + reset specifier
 
-The SPI Flash must be a child of the SPIFI node and must have a
-compatible property as specified in bindings/mtd/jedec,spi-nor.txt
+The SPI Flash must be a child of the SPIFI analde and must have a
+compatible property as specified in bindings/mtd/jedec,spi-analr.txt
 
 Optionally it can also contain the following properties.
  - spi-cpol : Controller only supports mode 0 and 3 so either
               both spi-cpol and spi-cpha should be present or
-              none of them
+              analne of them
  - spi-cpha : See above
  - spi-rx-bus-width : Used to select how many pins that are used
                       for input on the controller
@@ -42,7 +42,7 @@ spifi: spifi@40003000 {
 	resets = <&rgu 53>;
 
 	flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		spi-cpol;
 		spi-cpha;
 		spi-rx-bus-width = <4>;

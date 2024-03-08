@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -49,7 +49,7 @@ struct abm_save_restore;
 /* forward declaration */
 struct aux_payload;
 struct set_config_cmd_payload;
-struct dmub_notification;
+struct dmub_analtification;
 
 #define DC_VER "3.2.266"
 
@@ -68,7 +68,7 @@ struct dc_versions {
 enum dp_protocol_version {
 	DP_VERSION_1_4 = 0,
 	DP_VERSION_2_1,
-	DP_VERSION_UNKNOWN,
+	DP_VERSION_UNKANALWN,
 };
 
 enum dc_plane_type {
@@ -125,7 +125,7 @@ struct dc_plane_cap {
  * **Color management caps (DPP and MPC)**
  *
  * Modules/color calculates various color operations which are translated to
- * abstracted HW. DCE 5-12 had almost no important changes, but starting with
+ * abstracted HW. DCE 5-12 had almost anal important changes, but starting with
  * DCN1, every new generation comes with fairly major differences in color
  * pipeline. Therefore, we abstract color pipe capabilities so modules/DM can
  * decide mapping to HW block based on logical capabilities.
@@ -166,7 +166,7 @@ struct rom_curve_caps {
  * @dgam_rom_caps: pre-definied curve caps for degamma 1D LUT
  * @ogam_rom_caps: pre-definied curve caps for regamma 1D LUT
  *
- * Note: hdr_mult and gamut remap (CTM) are always available in DPP (in that order)
+ * Analte: hdr_mult and gamut remap (CTM) are always available in DPP (in that order)
  */
 struct dpp_color_caps {
 	uint16_t dcn_arch : 1;
@@ -284,7 +284,7 @@ struct dc_caps {
 };
 
 struct dc_bug_wa {
-	bool no_connect_phy_config;
+	bool anal_connect_phy_config;
 	bool dedcn20_305_wa;
 	bool skip_clock_update;
 	bool lt_early_cr_pattern;
@@ -347,15 +347,15 @@ struct dc_static_screen_params {
  * on parameters passed in and decides how much programming (or updating) is
  * going to be done during the call.
  *
- * UPDATE_TYPE_FAST is used for really fast updates that do not require much
+ * UPDATE_TYPE_FAST is used for really fast updates that do analt require much
  * logical calculations or hardware register programming. This update MUST be
  * ISR safe on windows. Currently fast update will only be used to flip surface
  * address.
  *
  * UPDATE_TYPE_MED is used for slower updates which require significant hw
- * re-programming however do not affect bandwidth consumption or clock
+ * re-programming however do analt affect bandwidth consumption or clock
  * requirements. At present, this is the level at which front end updates
- * that do not require us to run bw_calcs happen. These are in/out transfer func
+ * that do analt require us to run bw_calcs happen. These are in/out transfer func
  * updates, viewport offset changes, recout size changes and pixel depth changes.
  * This update can be done at ISR, but we want to minimize how often this happens.
  *
@@ -363,14 +363,14 @@ struct dc_static_screen_params {
  * bandwidth and clocks, possibly rearrange some pipes and reprogram anything front
  * end related. Any time viewport dimensions, recout dimensions, scaling ratios or
  * gamma need to be adjusted or pipe needs to be turned on (or disconnected) we do
- * a full update. This cannot be done at ISR level and should be a rare event.
+ * a full update. This cananalt be done at ISR level and should be a rare event.
  * Unless someone is stress testing mpo enter/exit, playing with colour or adjusting
  * underscan we don't expect to see this call at all.
  */
 
 enum surface_update_type {
 	UPDATE_TYPE_FAST, /* super fast, safe to execute in isr */
-	UPDATE_TYPE_MED,  /* ISR safe, most of programming needed, no bw/clk change*/
+	UPDATE_TYPE_MED,  /* ISR safe, most of programming needed, anal bw/clk change*/
 	UPDATE_TYPE_FULL, /* may need to shuffle resources */
 };
 
@@ -389,7 +389,7 @@ struct dc_cap_funcs {
 
 struct link_training_settings;
 
-union allow_lttpr_non_transparent_mode {
+union allow_lttpr_analn_transparent_mode {
 	struct {
 		bool DP1_4A : 1;
 		bool DP2_0 : 1;
@@ -405,11 +405,11 @@ struct dc_config {
 	bool disable_fractional_pwm;
 	bool allow_seamless_boot_optimization;
 	bool seamless_boot_edp_requested;
-	bool edp_not_connected;
-	bool edp_no_power_sequencing;
+	bool edp_analt_connected;
+	bool edp_anal_power_sequencing;
 	bool force_enum_edp;
 	bool forced_clocks;
-	union allow_lttpr_non_transparent_mode allow_lttpr_non_transparent_mode;
+	union allow_lttpr_analn_transparent_mode allow_lttpr_analn_transparent_mode;
 	bool multi_mon_pp_mclk_switch;
 	bool disable_dmcu;
 	bool enable_4to1MPC;
@@ -423,7 +423,7 @@ struct dc_config {
 	bool is_single_rank_dimm;
 	bool is_vmin_only_asic;
 	bool use_pipe_ctx_sync_logic;
-	bool ignore_dpref_ss;
+	bool iganalre_dpref_ss;
 	bool enable_mipi_converter_optimization;
 	bool use_default_clock_table;
 	bool force_bios_enable_lttpr;
@@ -459,7 +459,7 @@ enum dc_psr_power_opts {
 };
 
 enum dml_hostvm_override_opts {
-	DML_HOSTVM_NO_OVERRIDE = 0x0,
+	DML_HOSTVM_ANAL_OVERRIDE = 0x0,
 	DML_HOSTVM_OVERRIDE_FALSE = 0x1,
 	DML_HOSTVM_OVERRIDE_TRUE = 0x2,
 };
@@ -491,7 +491,7 @@ enum pipe_split_policy {
 	MPC_SPLIT_DYNAMIC = 0,
 
 	/**
-	 * @MPC_SPLIT_AVOID: Avoid pipe split, which means that DC will not
+	 * @MPC_SPLIT_AVOID: Avoid pipe split, which means that DC will analt
 	 * try any sort of split optimization.
 	 */
 	MPC_SPLIT_AVOID = 1,
@@ -517,13 +517,13 @@ enum dtm_pstate{
 };
 
 enum dcn_pwr_state {
-	DCN_PWR_STATE_UNKNOWN = -1,
+	DCN_PWR_STATE_UNKANALWN = -1,
 	DCN_PWR_STATE_MISSION_MODE = 0,
 	DCN_PWR_STATE_LOW_POWER = 3,
 };
 
 enum dcn_zstate_support_state {
-	DCN_ZSTATE_SUPPORT_UNKNOWN,
+	DCN_ZSTATE_SUPPORT_UNKANALWN,
 	DCN_ZSTATE_SUPPORT_ALLOW,
 	DCN_ZSTATE_SUPPORT_ALLOW_Z8_ONLY,
 	DCN_ZSTATE_SUPPORT_ALLOW_Z8_Z10_ONLY,
@@ -556,7 +556,7 @@ struct dc_clocks {
 	bool fclk_p_state_change_support;
 	enum dcn_pwr_state pwr_state;
 	/*
-	 * Elements below are not compared for the purposes of
+	 * Elements below are analt compared for the purposes of
 	 * optimization required
 	 */
 	bool prev_p_state_change_support;
@@ -570,7 +570,7 @@ struct dc_clocks {
 	 * memory clock in cases that we have a large latency to achieve the
 	 * memory clock change and a short vblank window. DC has some
 	 * requirements to enable this feature, and this field describes if the
-	 * system support or not such a feature.
+	 * system support or analt such a feature.
 	 */
 	bool fw_based_mclk_switching;
 	bool fw_based_mclk_switching_shut_down;
@@ -715,7 +715,7 @@ struct pg_block_update {
 union dpia_debug_options {
 	struct {
 		uint32_t disable_dpia:1; /* bit 0 */
-		uint32_t force_non_lttpr:1; /* bit 1 */
+		uint32_t force_analn_lttpr:1; /* bit 1 */
 		uint32_t extend_aux_rd_interval:1; /* bit 2 */
 		uint32_t disable_mst_dsc_work_around:1; /* bit 3 */
 		uint32_t enable_force_tbt3_work_around:1; /* bit 4 */
@@ -806,7 +806,7 @@ struct link_service;
  * This struct provides a simple mechanism for developers to change some
  * configurations, enable/disable features, and activate extra debug options.
  * This can be very handy to narrow down whether some specific feature is
- * causing an issue or not.
+ * causing an issue or analt.
  */
 struct dc_debug_options {
 	bool native422_support;
@@ -898,7 +898,7 @@ struct dc_debug_options {
 	bool disable_fec;
 	bool disable_48mhz_pwrdwn;
 	/* This forces a hard min on the DCFCLK requested to SMU/PP
-	 * watermarks are not affected.
+	 * watermarks are analt affected.
 	 */
 	unsigned int force_min_dcfclk_mhz;
 	int dwb_fi_phase;
@@ -916,7 +916,7 @@ struct dc_debug_options {
 	bool set_mst_en_for_sst;
 	bool disable_uhbr;
 	bool force_dp2_lt_fallback_method;
-	bool ignore_cable_id;
+	bool iganalre_cable_id;
 	union mem_low_power_enable_options enable_mem_low_power;
 	union root_clock_optimization_options root_clock_optimization;
 	union fine_grain_clock_gating_enable_options enable_fine_grain_clock_gating;
@@ -983,7 +983,7 @@ struct dc_debug_options {
 	bool enable_legacy_fast_update;
 	bool disable_dc_mode_overwrite;
 	bool replay_skip_crtc_disabled;
-	bool ignore_pg;/*do nothing, let pmfw control it*/
+	bool iganalre_pg;/*do analthing, let pmfw control it*/
 	bool psp_disabled_wa;
 	unsigned int ips2_eval_delay_us;
 	unsigned int ips2_entry_delay_us;
@@ -1093,8 +1093,8 @@ struct dc_init_data {
 
 	int num_virtual_links;
 	/*
-	 * If 'vbios_override' not NULL, it will be called instead
-	 * of the real VBIOS. Intended use is Diagnostics on FPGA.
+	 * If 'vbios_override' analt NULL, it will be called instead
+	 * of the real VBIOS. Intended use is Diaganalstics on FPGA.
 	 */
 	struct dc_bios *vbios_override;
 	enum dce_environment dce_environment;
@@ -1106,12 +1106,12 @@ struct dc_init_data {
 	uint64_t log_mask;
 
 	struct dpcd_vendor_signature vendor_signature;
-	bool force_smu_not_present;
+	bool force_smu_analt_present;
 	/*
 	 * IP offset for run time initializaion of register addresses
 	 *
 	 * DCN3.5+ will fail dc_create() if these fields are null for them. They are
-	 * applicable starting with DCN32/321 and are not used for ASICs upstreamed
+	 * applicable starting with DCN32/321 and are analt used for ASICs upstreamed
 	 * before them.
 	 */
 	uint32_t *dcn_reg_offsets;
@@ -1295,7 +1295,7 @@ struct dc_plane_state {
 	struct fixed31_32 hdr_mult;
 	struct colorspace_transform gamut_remap_matrix;
 
-	// TODO: No longer used, remove
+	// TODO: Anal longer used, remove
 	struct dc_hdr_static_metadata hdr_static_ctx;
 
 	enum dc_color_space color_space;
@@ -1378,13 +1378,13 @@ struct dc_fast_update {
 struct dc_surface_update {
 	struct dc_plane_state *surface;
 
-	/* isr safe update parameters.  null means no updates */
+	/* isr safe update parameters.  null means anal updates */
 	const struct dc_flip_addrs *flip_addr;
 	const struct dc_plane_info *plane_info;
 	const struct dc_scaling_info *scaling_info;
 	struct fixed31_32 hdr_mult;
-	/* following updates require alloc/sleep/spin that is not isr safe,
-	 * null means no updates
+	/* following updates require alloc/sleep/spin that is analt isr safe,
+	 * null means anal updates
 	 */
 	const struct dc_gamma *gamma;
 	const struct dc_transfer_func *in_transfer_func;
@@ -1515,7 +1515,7 @@ struct dc_link {
 	/**
 	 * @link_state_valid:
 	 *
-	 * If there is no link and local sink, this variable should be set to
+	 * If there is anal link and local sink, this variable should be set to
 	 * false. Otherwise, it should be set to true; usually, the function
 	 * core_link_enable_stream sets this field to true.
 	 */
@@ -1561,7 +1561,7 @@ struct dc_link {
 
 	uint8_t link_enc_hw_inst;
 	/* DIG link encoder ID. Used as index in link encoder resource pool.
-	 * For links with fixed mapping to DIG, this is not changed after dc_link
+	 * For links with fixed mapping to DIG, this is analt changed after dc_link
 	 * object creation.
 	 */
 	enum engine_id eng_id;
@@ -1587,7 +1587,7 @@ struct dc_link {
 	struct panel_cntl *panel_cntl;
 	struct link_encoder *link_enc;
 	struct graphics_object_id link_id;
-	/* Endpoint type distinguishes display endpoints which do not have entries
+	/* Endpoint type distinguishes display endpoints which do analt have entries
 	 * in the BIOS connector table from those that do. Helps when tracking link
 	 * encoder to display endpoint assignments.
 	 */
@@ -1620,7 +1620,7 @@ struct dc_link {
 		bool dp_skip_reset_segment;
 		bool dp_skip_fs_144hz;
 		bool dp_mot_reset_segment;
-		/* Some USB4 docks do not handle turning off MST DSC once it has been enabled. */
+		/* Some USB4 docks do analt handle turning off MST DSC once it has been enabled. */
 		bool dpia_mst_dsc_always_on;
 		/* Forced DPIA into TBT3 compatibility mode. */
 		bool dpia_forced_tbt3_mode;
@@ -1646,7 +1646,7 @@ struct dc_link {
 
 /* Return an enumerated dc_link.
  * dc_link order is constant and determined at
- * boot time.  They cannot be created or destroyed.
+ * boot time.  They cananalt be created or destroyed.
  * Use dc_get_caps() to get number of links.
  */
 struct dc_link *dc_get_link_at_index(struct dc *dc, uint32_t link_index);
@@ -1677,7 +1677,7 @@ void dc_set_edp_power(const struct dc *dc, struct dc_link *edp_link,
  *
  * @reason - Indicate which event triggers this detection. dc may customize
  * detection flow depending on the triggering events.
- * return false - if detection is not fully completed. This could happen when
+ * return false - if detection is analt fully completed. This could happen when
  * there is an unrecoverable error during detection or detection is partially
  * completed (detection has been delegated to dm mst manager ie.
  * link->connection_type == dc_connection_mst_branch when returning false).
@@ -1720,10 +1720,10 @@ void dc_link_disable_hpd(const struct dc_link *link);
 
 /* determine if there is a sink connected to the link
  *
- * @type - dc_connection_single if connected, dc_connection_none otherwise.
+ * @type - dc_connection_single if connected, dc_connection_analne otherwise.
  * return - false if an unexpected error occurs, true otherwise.
  *
- * NOTE: This function doesn't detect downstream sink connections i.e
+ * ANALTE: This function doesn't detect downstream sink connections i.e
  * dc_connection_mst_branch, dc_connection_sst_branch. In this case, it will
  * return dc_connection_single if the branch device is connected despite of
  * downstream sink's connection status.
@@ -1744,14 +1744,14 @@ const struct dc_link_status *dc_link_get_status(const struct dc_link *link);
  *
  * @link - The link the HPD pin is associated with.
  * @enable = true - enable hardware HPD filter. HPD event will only queued to irq
- * handler once after no HPD change has been detected within dc default HPD
+ * handler once after anal HPD change has been detected within dc default HPD
  * filtering interval since last HPD event. i.e if display keeps toggling hpd
- * pulses within default HPD interval, no HPD event will be received until HPD
+ * pulses within default HPD interval, anal HPD event will be received until HPD
  * toggles have stopped. Then HPD event will be queued to irq handler once after
  * dc default HPD filtering interval since last HPD event.
  *
  * @enable = false - disable hardware HPD filter. HPD event will be queued
- * immediately to irq handler after no HPD change has been detected within
+ * immediately to irq handler after anal HPD change has been detected within
  * IRQ_HPD (aka HPD short pulse) interval (i.e 2ms).
  */
 void dc_link_enable_hpd_filter(struct dc_link *link, bool enable);
@@ -1776,7 +1776,7 @@ bool dc_submit_i2c_oem(
 		struct i2c_command *cmd);
 
 enum aux_return_code_type;
-/* Attempt to transfer the given aux payload. This function does not perform
+/* Attempt to transfer the given aux payload. This function does analt perform
  * retries or handle error states. The reply is returned in the payload->reply
  * and the result through operation_result. Returns the number of bytes
  * transferred,or -1 on a failure.
@@ -1794,16 +1794,16 @@ bool dc_is_oem_i2c_device_present(
 bool dc_link_is_hdcp14(struct dc_link *link, enum signal_type signal);
 bool dc_link_is_hdcp22(struct dc_link *link, enum signal_type signal);
 
-/* Notify DC about DP RX Interrupt (aka DP IRQ_HPD).
+/* Analtify DC about DP RX Interrupt (aka DP IRQ_HPD).
  *
  * TODO - When defer_handling is true the function will have a different purpose.
- * It no longer does complete hpd rx irq handling. We should create a separate
+ * It anal longer does complete hpd rx irq handling. We should create a separate
  * interface specifically for this case.
  *
  * Return:
  * true - Downstream port status changed. DM should call DC to do the
  * detection.
- * false - no change in Downstream port status. No further action required
+ * false - anal change in Downstream port status. Anal further action required
  * from DM.
  */
 bool dc_link_handle_hpd_rx_irq(struct dc_link *dc_link,
@@ -1817,9 +1817,9 @@ void dc_link_dp_handle_automated_test(struct dc_link *link);
  */
 void dc_link_dp_handle_link_loss(struct dc_link *link);
 
-/* Determine if hpd rx irq should be handled or ignored
+/* Determine if hpd rx irq should be handled or iganalred
  * return true - hpd rx irq should be handled.
- * return false - it is safe to ignore hpd rx irq event
+ * return false - it is safe to iganalre hpd rx irq event
  */
 bool dc_link_dp_allow_hpd_rx_irq(const struct dc_link *link);
 
@@ -1852,7 +1852,7 @@ void dc_link_clear_dprx_states(struct dc_link *link);
 
 /* Destruct the mst topology of the link and reset the allocated payload table
  *
- * NOTE: this should only be called if DM chooses not to call dc_link_detect but
+ * ANALTE: this should only be called if DM chooses analt to call dc_link_detect but
  * still wants to reset MST topology on an unplug event */
 bool dc_link_reset_cur_dp_mst_topology(struct dc_link *link);
 
@@ -1898,7 +1898,7 @@ void dc_get_cur_link_res_map(const struct dc *dc, uint32_t *map);
  */
 void dc_restore_link_res_map(const struct dc *dc, uint32_t *map);
 
-/* TODO: this is not meant to be exposed to DM. Should switch to stream update
+/* TODO: this is analt meant to be exposed to DM. Should switch to stream update
  * interface i.e stream_update->dsc_config
  */
 bool dc_link_update_dsc_config(struct pipe_ctx *pipe_ctx);
@@ -1958,7 +1958,7 @@ enum dc_link_encoding_format dc_link_get_highest_encoding_format(const struct dc
  */
 bool dc_link_is_dp_sink_present(struct dc_link *link);
 
-/* Force DP lane settings update to main-link video signal and notify the change
+/* Force DP lane settings update to main-link video signal and analtify the change
  * to DP RX via DPCD. This is a debug interface used for video signal integrity
  * tuning purpose. The interface assumes link has already been enabled with DP
  * signal.
@@ -1974,7 +1974,7 @@ void dc_link_set_drive_settings(struct dc *dc,
  *
  * @link - active link with DP signal output enabled.
  * @test_pattern - desired test pattern to output.
- * NOTE: set to DP_TEST_PATTERN_VIDEO_MODE to disable previous test pattern.
+ * ANALTE: set to DP_TEST_PATTERN_VIDEO_MODE to disable previous test pattern.
  * @test_pattern_color_space - for video test pattern choose a desired color
  * space.
  * @p_link_settings - For PHY pattern choose a desired link settings
@@ -2005,11 +2005,11 @@ void dc_link_set_preferred_link_settings(struct dc *dc,
  * display specific link training issues or apply some display specific
  * workaround in link training.
  *
- * @link_settings - if not NULL, force preferred link settings to the link.
- * @lt_override - a set of override pointers. If any pointer is none NULL, dc
+ * @link_settings - if analt NULL, force preferred link settings to the link.
+ * @lt_override - a set of override pointers. If any pointer is analne NULL, dc
  * will apply this particular override in future link training. If NULL is
  * passed in, dc resets previous overrides.
- * NOTE: DM must keep the memory from override pointers until DM resets preferred
+ * ANALTE: DM must keep the memory from override pointers until DM resets preferred
  * training settings.
  */
 void dc_link_set_preferred_training_settings(struct dc *dc,
@@ -2034,7 +2034,7 @@ enum lttpr_mode dc_link_decide_lttpr_mode(struct dc_link *link,
 		struct dc_link_settings *link_setting);
 
 /* Force DP RX to update its power state.
- * NOTE: this interface doesn't update dp main-link. Calling this function will
+ * ANALTE: this interface doesn't update dp main-link. Calling this function will
  * cause DP TX main-link and DP RX power states out of sync. DM has to restore
  * RX power state back upon finish DM specific execution requiring DP RX in a
  * specific power state.
@@ -2102,7 +2102,7 @@ bool dc_link_set_replay_allow_active(struct dc_link *dc_link, const bool *enable
 bool dc_link_get_replay_state(const struct dc_link *dc_link, uint64_t *state);
 
 /* On eDP links this function call will stall until T12 has elapsed.
- * If the panel is not in power off state, this function will return
+ * If the panel is analt in power off state, this function will return
  * immediately.
  */
 bool dc_link_wait_for_t12(struct dc_link *link);
@@ -2158,7 +2158,7 @@ unsigned int dc_dp_trace_get_link_loss_count(struct dc_link *link);
  * @link: pointer to the dc_link struct instance
  * @req_bw: The requested bw in Kbyte to allocated
  *
- * return: none
+ * return: analne
  */
 void dc_link_set_usb4_req_bw_req(struct dc_link *link, int req_bw);
 
@@ -2170,7 +2170,7 @@ void dc_link_set_usb4_req_bw_req(struct dc_link *link, int req_bw);
  * @bw: Allocated or Estimated BW depending on the result
  * @result: Response type
  *
- * return: none
+ * return: analne
  */
 void dc_link_handle_usb4_bw_alloc_response(struct dc_link *link,
 		uint8_t bw, uint8_t result);
@@ -2221,7 +2221,7 @@ struct dc_sink_dsc_caps {
 	bool is_virtual_dpcd_dsc;
 #if defined(CONFIG_DRM_AMD_DC_FP)
 	// 'true' if MST topology supports DSC passthrough for sink
-	// 'false' if MST topology does not support DSC passthrough
+	// 'false' if MST topology does analt support DSC passthrough
 	bool is_dsc_passthrough_supported;
 #endif
 	struct dsc_dec_dpcd_caps dsc_dec_caps;
@@ -2264,7 +2264,7 @@ struct dc_sink {
 
 	/* private to dc_sink.c */
 	// refcount must be the last member in dc_sink, since we want the
-	// sink structure to be logically cloneable up to (but not including)
+	// sink structure to be logically cloneable up to (but analt including)
 	// refcount
 	struct kref refcount;
 };
@@ -2298,7 +2298,7 @@ void dc_interrupt_ack(struct dc *dc, enum dc_irq_source src);
 enum dc_irq_source dc_get_hpd_irq_source_at_index(
 		struct dc *dc, uint32_t link_index);
 
-void dc_notify_vsync_int_state(struct dc *dc, struct dc_stream_state *stream, bool enable);
+void dc_analtify_vsync_int_state(struct dc *dc, struct dc_stream_state *stream, bool enable);
 
 /* Power Interfaces */
 
@@ -2350,7 +2350,7 @@ void dc_z10_restore(const struct dc *dc);
 void dc_z10_save_init(struct dc *dc);
 
 bool dc_is_dmub_outbox_supported(struct dc *dc);
-bool dc_enable_dmub_notifications(struct dc *dc);
+bool dc_enable_dmub_analtifications(struct dc *dc);
 
 bool dc_abm_save_restore(
 		struct dc *dc,
@@ -2370,7 +2370,7 @@ uint8_t get_link_index_from_dpia_port_index(const struct dc *dc,
 bool dc_process_dmub_set_config_async(struct dc *dc,
 				uint32_t link_index,
 				struct set_config_cmd_payload *payload,
-				struct dmub_notification *notify);
+				struct dmub_analtification *analtify);
 
 enum dc_status dc_process_dmub_set_mst_slots(const struct dc *dc,
 				uint32_t link_index,
@@ -2380,7 +2380,7 @@ enum dc_status dc_process_dmub_set_mst_slots(const struct dc *dc,
 void dc_process_dmub_dpia_hpd_int_enable(const struct dc *dc,
 				uint32_t hpd_int_enable);
 
-void dc_print_dmub_diagnostic_data(const struct dc *dc);
+void dc_print_dmub_diaganalstic_data(const struct dc *dc);
 
 void dc_query_current_properties(struct dc *dc, struct dc_current_properties *properties);
 

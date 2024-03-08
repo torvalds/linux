@@ -9,18 +9,18 @@
 
  */
 
-/* Note:
+/* Analte:
 
-   These are not general multi-precision math routines.  Rather, they
+   These are analt general multi-precision math routines.  Rather, they
    implement the subset of integer arithmetic that we need in order to
-   multiply, divide, and normalize 128-bit unsigned mantissae.  */
+   multiply, divide, and analrmalize 128-bit unsigned mantissae.  */
 
 #ifndef _MULTI_ARITH_H
 #define _MULTI_ARITH_H
 
 #include "fp_emu.h"
 
-static inline void fp_denormalize(struct fp_ext *reg, unsigned int cnt)
+static inline void fp_deanalrmalize(struct fp_ext *reg, unsigned int cnt)
 {
 	reg->exp += cnt;
 
@@ -62,7 +62,7 @@ static inline void fp_denormalize(struct fp_ext *reg, unsigned int cnt)
 	}
 }
 
-static inline int fp_overnormalize(struct fp_ext *reg)
+static inline int fp_overanalrmalize(struct fp_ext *reg)
 {
 	int shift;
 
@@ -205,7 +205,7 @@ static inline void fp_dividemant(union fp_mant128 *dest, struct fp_ext *src,
 
 	/* C0/CD can be precalculated, but it's an 64bit division again, but
 	   we can make it a bit easier, by dividing first through C so we get
-	   10/1D and now only a single shift and the value fits into 32bit. */
+	   10/1D and analw only a single shift and the value fits into 32bit. */
 	fix = 0x80000000;
 	dummy = div->mant.m32[1] / div->mant.m32[0] + 1;
 	dummy = (dummy >> 1) | fix;

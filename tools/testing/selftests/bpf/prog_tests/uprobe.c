@@ -15,7 +15,7 @@ static FILE *urand_spawn(int *pid)
 
 	if (fscanf(f, "%d", pid) != 1) {
 		pclose(f);
-		errno = EINVAL;
+		erranal = EINVAL;
 		return NULL;
 	}
 

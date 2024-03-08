@@ -38,14 +38,14 @@ struct ti_sci_genpd_provider {
  * @exclusive: Permissions for exclusive request or shared request of the
  *	       device.
  * @pd: generic_pm_domain for use with the genpd framework
- * @node: link for the genpd list
+ * @analde: link for the genpd list
  * @parent: link to the parent TI SCI genpd provider
  */
 struct ti_sci_pm_domain {
 	int idx;
 	u8 exclusive;
 	struct generic_pm_domain pd;
-	struct list_head node;
+	struct list_head analde;
 	struct ti_sci_genpd_provider *parent;
 };
 
@@ -100,7 +100,7 @@ static struct generic_pm_domain *ti_sci_pd_xlate(
 	}
 
 	if (!genpd_data->domains[idx])
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 
 	genpd_to_ti_sci_pd(genpd_data->domains[idx])->exclusive =
 		genpdspec->args[1];
@@ -119,7 +119,7 @@ static int ti_sci_pm_domain_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct ti_sci_genpd_provider *pd_provider;
 	struct ti_sci_pm_domain *pd;
-	struct device_node *np;
+	struct device_analde *np;
 	struct of_phandle_args args;
 	int ret;
 	u32 max_id = 0;
@@ -127,7 +127,7 @@ static int ti_sci_pm_domain_probe(struct platform_device *pdev)
 
 	pd_provider = devm_kzalloc(dev, sizeof(*pd_provider), GFP_KERNEL);
 	if (!pd_provider)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pd_provider->ti_sci = devm_ti_sci_get_handle(dev);
 	if (IS_ERR(pd_provider->ti_sci))
@@ -138,7 +138,7 @@ static int ti_sci_pm_domain_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&pd_provider->pd_list);
 
 	/* Find highest device ID used for power domains */
-	for_each_node_with_property(np, "power-domains") {
+	for_each_analde_with_property(np, "power-domains") {
 		index = 0;
 
 		while (1) {
@@ -148,22 +148,22 @@ static int ti_sci_pm_domain_probe(struct platform_device *pdev)
 			if (ret)
 				break;
 
-			if (args.args_count >= 1 && args.np == dev->of_node) {
+			if (args.args_count >= 1 && args.np == dev->of_analde) {
 				if (args.args[0] > max_id)
 					max_id = args.args[0];
 
 				pd = devm_kzalloc(dev, sizeof(*pd), GFP_KERNEL);
 				if (!pd) {
-					of_node_put(np);
-					return -ENOMEM;
+					of_analde_put(np);
+					return -EANALMEM;
 				}
 
 				pd->pd.name = devm_kasprintf(dev, GFP_KERNEL,
 							     "pd:%d",
 							     args.args[0]);
 				if (!pd->pd.name) {
-					of_node_put(np);
-					return -ENOMEM;
+					of_analde_put(np);
+					return -EANALMEM;
 				}
 
 				pd->pd.power_off = ti_sci_pd_power_off;
@@ -173,7 +173,7 @@ static int ti_sci_pm_domain_probe(struct platform_device *pdev)
 
 				pm_genpd_init(&pd->pd, NULL, true);
 
-				list_add(&pd->node, &pd_provider->pd_list);
+				list_add(&pd->analde, &pd_provider->pd_list);
 			}
 			index++;
 		}
@@ -184,15 +184,15 @@ static int ti_sci_pm_domain_probe(struct platform_device *pdev)
 			     sizeof(*pd_provider->data.domains),
 			     GFP_KERNEL);
 	if (!pd_provider->data.domains)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pd_provider->data.num_domains = max_id + 1;
 	pd_provider->data.xlate = ti_sci_pd_xlate;
 
-	list_for_each_entry(pd, &pd_provider->pd_list, node)
+	list_for_each_entry(pd, &pd_provider->pd_list, analde)
 		pd_provider->data.domains[pd->idx] = &pd->pd;
 
-	return of_genpd_add_provider_onecell(dev->of_node, &pd_provider->data);
+	return of_genpd_add_provider_onecell(dev->of_analde, &pd_provider->data);
 }
 
 static struct platform_driver ti_sci_pm_domains_driver = {

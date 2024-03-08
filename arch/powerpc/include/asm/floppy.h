@@ -93,7 +93,7 @@ static void vdma_disable_dma(unsigned int dummy)
 	virtual_dma_count=0;
 }
 
-static void vdma_nop(unsigned int dummy)
+static void vdma_analp(unsigned int dummy)
 {
 }
 
@@ -174,7 +174,7 @@ static struct fd_dma_ops real_dma_ops =
 static struct fd_dma_ops virt_dma_ops =
 {
 	._disable_dma = vdma_disable_dma,
-	._free_dma = vdma_nop,
+	._free_dma = vdma_analp,
 	._get_dma_residue = vdma_get_dma_residue,
 	._dma_setup = vdma_dma_setup
 };
@@ -195,7 +195,7 @@ static int FDC1 = 0x3f0;
 static int FDC2 = -1;
 
 /*
- * Again, the CMOS information not available
+ * Again, the CMOS information analt available
  */
 #define FLOPPY0_TYPE 6
 #define FLOPPY1_TYPE 0
@@ -204,7 +204,7 @@ static int FDC2 = -1;
 #define N_DRIVE 8
 
 /*
- * The PowerPC has no problems with floppy DMA crossing 64k borders.
+ * The PowerPC has anal problems with floppy DMA crossing 64k borders.
  */
 #define CROSS_64KB(a,s)	(0)
 

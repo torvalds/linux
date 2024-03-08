@@ -173,7 +173,7 @@ static int hellcreek_wait_until_ready(struct hellcreek *hellcreek)
 {
 	u16 val;
 
-	/* Wait up to 1ms, although 3 us should be enough */
+	/* Wait up to 1ms, although 3 us should be eanalugh */
 	return readx_poll_timeout(hellcreek_read_ctrl, hellcreek,
 				  val, val & HR_CTRL_C_READY,
 				  3, 1000);
@@ -211,7 +211,7 @@ static int hellcreek_detect(struct hellcreek *hellcreek)
 	tgd_ver   = hellcreek_read(hellcreek, TR_TGDVER);
 
 	if (id != hellcreek->pdata->module_id)
-		return -ENODEV;
+		return -EANALDEV;
 
 	rel	= rel_low | (rel_high << 16);
 	date	= date_low | (date_high << 16);
@@ -358,9 +358,9 @@ static int hellcreek_vlan_prepare(struct dsa_switch *ds, int port,
 
 	dev_dbg(hellcreek->dev, "VLAN prepare for port %d\n", port);
 
-	/* Restriction: Make sure that nobody uses the "private" VLANs. These
+	/* Restriction: Make sure that analbody uses the "private" VLANs. These
 	 * VLANs are internally used by the driver to ensure port
-	 * separation. Thus, they cannot be used by someone else.
+	 * separation. Thus, they cananalt be used by someone else.
 	 */
 	for (i = 0; i < hellcreek->pdata->num_ports; ++i) {
 		const u16 restricted_vid = hellcreek_private_vid(i);
@@ -399,7 +399,7 @@ static void hellcreek_select_vlan_params(struct hellcreek *hellcreek, int port,
 		break;
 	default:
 		*shift = *mask = 0;
-		dev_err(hellcreek->dev, "Unknown port %d selected!\n", port);
+		dev_err(hellcreek->dev, "Unkanalwn port %d selected!\n", port);
 	}
 }
 
@@ -448,7 +448,7 @@ static void hellcreek_unapply_vlan(struct hellcreek *hellcreek, int port,
 	hellcreek_select_vlan_params(hellcreek, port, &shift, &mask);
 	val = hellcreek->vidmbrcfg[vid];
 	val &= ~mask;
-	val |= HELLCREEK_VLAN_NO_MEMBER << shift;
+	val |= HELLCREEK_VLAN_ANAL_MEMBER << shift;
 
 	hellcreek_write(hellcreek, val, HR_VIDMBRCFG);
 	hellcreek->vidmbrcfg[vid] = val;
@@ -471,7 +471,7 @@ static int hellcreek_vlan_add(struct dsa_switch *ds, int port,
 
 	dev_dbg(hellcreek->dev, "Add VLAN %d on port %d, %s, %s\n",
 		vlan->vid, port, untagged ? "untagged" : "tagged",
-		pvid ? "PVID" : "no PVID");
+		pvid ? "PVID" : "anal PVID");
 
 	hellcreek_apply_vlan(hellcreek, port, vlan->vid, pvid, untagged);
 
@@ -530,7 +530,7 @@ static void hellcreek_port_stp_state_set(struct dsa_switch *ds, int port,
 		val |= HR_PTCFG_LEARNING_EN;
 		break;
 	default:
-		new_state = "UNKNOWN";
+		new_state = "UNKANALWN";
 	}
 
 	hellcreek_select_port(hellcreek, port);
@@ -833,7 +833,7 @@ static int hellcreek_fdb_get(struct hellcreek *hellcreek,
 		return 0;
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static int hellcreek_fdb_add(struct dsa_switch *ds, int port,
@@ -850,7 +850,7 @@ static int hellcreek_fdb_add(struct dsa_switch *ds, int port,
 
 	ret = hellcreek_fdb_get(hellcreek, addr, &entry);
 	if (ret) {
-		/* Not found */
+		/* Analt found */
 		memcpy(entry.mac, addr, sizeof(entry.mac));
 		entry.portmask = BIT(port);
 
@@ -896,8 +896,8 @@ static int hellcreek_fdb_del(struct dsa_switch *ds, int port,
 
 	ret = hellcreek_fdb_get(hellcreek, addr, &entry);
 	if (ret) {
-		/* Not found */
-		dev_err(hellcreek->dev, "FDB entry for deletion not found!\n");
+		/* Analt found */
+		dev_err(hellcreek->dev, "FDB entry for deletion analt found!\n");
 	} else {
 		/* Found */
 		ret = __hellcreek_fdb_del(hellcreek, &entry);
@@ -979,7 +979,7 @@ static int hellcreek_vlan_filtering(struct dsa_switch *ds, int port,
 	dev_dbg(hellcreek->dev, "%s VLAN filtering on port %d\n",
 		vlan_filtering ? "Enable" : "Disable", port);
 
-	/* Configure port to drop packages with not known vids */
+	/* Configure port to drop packages with analt kanalwn vids */
 	hellcreek_setup_ingressflt(hellcreek, port, vlan_filtering);
 
 	/* Enable VLAN awareness on the switch. This save due to
@@ -1271,7 +1271,7 @@ static int hellcreek_devlink_region_vlan_snapshot(struct devlink *dl,
 
 	table = kcalloc(VLAN_N_VID, sizeof(*entry), GFP_KERNEL);
 	if (!table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	entry = table;
 
@@ -1299,7 +1299,7 @@ static int hellcreek_devlink_region_fdb_snapshot(struct devlink *dl,
 
 	table = kcalloc(hellcreek->fdb_entries, sizeof(*entry), GFP_KERNEL);
 	if (!table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	entry = table;
 
@@ -1423,7 +1423,7 @@ static int hellcreek_setup(struct dsa_switch *ds)
 	hellcreek_setup_tc_identity_mapping(hellcreek);
 
 	/* The VLAN awareness is a global switch setting. Therefore, mixed vlan
-	 * filtering setups are not supported.
+	 * filtering setups are analt supported.
 	 */
 	ds->vlan_filtering_is_global = true;
 	ds->needs_standalone_vlan_filtering = true;
@@ -1473,13 +1473,13 @@ static void hellcreek_phylink_get_caps(struct dsa_switch *ds, int port,
 	__set_bit(PHY_INTERFACE_MODE_MII, config->supported_interfaces);
 	__set_bit(PHY_INTERFACE_MODE_RGMII, config->supported_interfaces);
 
-	/* Include GMII - the hardware does not support this interface
+	/* Include GMII - the hardware does analt support this interface
 	 * mode, but it's the default interface mode for phylib, so we
 	 * need it for compatibility with existing DT.
 	 */
 	__set_bit(PHY_INTERFACE_MODE_GMII, config->supported_interfaces);
 
-	/* The MAC settings are a hardware configuration option and cannot be
+	/* The MAC settings are a hardware configuration option and cananalt be
 	 * changed at run time or by strapping. Therefore the attached PHYs
 	 * should be programmed to only advertise settings which are supported
 	 * by the hardware.
@@ -1492,7 +1492,7 @@ static void hellcreek_phylink_get_caps(struct dsa_switch *ds, int port,
 
 static int
 hellcreek_port_prechangeupper(struct dsa_switch *ds, int port,
-			      struct netdev_notifier_changeupper_info *info)
+			      struct netdev_analtifier_changeupper_info *info)
 {
 	struct hellcreek *hellcreek = ds->priv;
 	bool used = true;
@@ -1506,7 +1506,7 @@ hellcreek_port_prechangeupper(struct dsa_switch *ds, int port,
 	 * Deny VLAN devices on top of lan ports with the same VLAN ids, because
 	 * it breaks the port separation due to the private VLANs. Example:
 	 *
-	 * lan0.100 *and* lan1.100 cannot be used in parallel. However, lan0.99
+	 * lan0.100 *and* lan1.100 cananalt be used in parallel. However, lan0.99
 	 * and lan1.100 works.
 	 */
 
@@ -1658,7 +1658,7 @@ static bool hellcreek_schedule_startable(struct hellcreek *hellcreek, int port)
 
 	/* The switch allows a schedule to be started only eight seconds within
 	 * the future. Therefore, check the current PTP time if the schedule is
-	 * startable or not.
+	 * startable or analt.
 	 */
 
 	/* Use the "cached" time. That should be alright, as it's updated quite
@@ -1846,7 +1846,7 @@ static bool hellcreek_validate_schedule(struct hellcreek *hellcreek,
 	if (schedule->cycle_time > (u32)-1)
 		return false;
 
-	/* cycle time extension is not supported */
+	/* cycle time extension is analt supported */
 	if (schedule->cycle_time_extension)
 		return false;
 
@@ -1869,7 +1869,7 @@ static int hellcreek_tc_query_caps(struct tc_query_caps_base *base)
 		return 0;
 	}
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1887,17 +1887,17 @@ static int hellcreek_port_setup_tc(struct dsa_switch *ds, int port,
 		switch (taprio->cmd) {
 		case TAPRIO_CMD_REPLACE:
 			if (!hellcreek_validate_schedule(hellcreek, taprio))
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 
 			return hellcreek_port_set_schedule(ds, port, taprio);
 		case TAPRIO_CMD_DESTROY:
 			return hellcreek_port_del_schedule(ds, port);
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 	}
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1941,13 +1941,13 @@ static int hellcreek_probe(struct platform_device *pdev)
 
 	hellcreek = devm_kzalloc(dev, sizeof(*hellcreek), GFP_KERNEL);
 	if (!hellcreek)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hellcreek->vidmbrcfg = devm_kcalloc(dev, VLAN_N_VID,
 					    sizeof(*hellcreek->vidmbrcfg),
 					    GFP_KERNEL);
 	if (!hellcreek->vidmbrcfg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hellcreek->pdata = of_device_get_match_data(dev);
 
@@ -1955,7 +1955,7 @@ static int hellcreek_probe(struct platform_device *pdev)
 					sizeof(*hellcreek->ports),
 					GFP_KERNEL);
 	if (!hellcreek->ports)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < hellcreek->pdata->num_ports; ++i) {
 		struct hellcreek_port *port = &hellcreek->ports[i];
@@ -1966,12 +1966,12 @@ static int hellcreek_probe(struct platform_device *pdev)
 				     sizeof(*port->counter_values),
 				     GFP_KERNEL);
 		if (!port->counter_values)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		port->vlan_dev_bitmap = devm_bitmap_zalloc(dev, VLAN_N_VID,
 							   GFP_KERNEL);
 		if (!port->vlan_dev_bitmap)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		port->hellcreek	= hellcreek;
 		port->port	= i;
@@ -1988,8 +1988,8 @@ static int hellcreek_probe(struct platform_device *pdev)
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "tsn");
 	if (!res) {
-		dev_err(dev, "No memory region provided!\n");
-		return -ENODEV;
+		dev_err(dev, "Anal memory region provided!\n");
+		return -EANALDEV;
 	}
 
 	hellcreek->base = devm_ioremap_resource(dev, res);
@@ -1998,8 +1998,8 @@ static int hellcreek_probe(struct platform_device *pdev)
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "ptp");
 	if (!res) {
-		dev_err(dev, "No PTP memory region provided!\n");
-		return -ENODEV;
+		dev_err(dev, "Anal PTP memory region provided!\n");
+		return -EANALDEV;
 	}
 
 	hellcreek->ptp_base = devm_ioremap_resource(dev, res);
@@ -2008,7 +2008,7 @@ static int hellcreek_probe(struct platform_device *pdev)
 
 	ret = hellcreek_detect(hellcreek);
 	if (ret) {
-		dev_err(dev, "No (known) chip found!\n");
+		dev_err(dev, "Anal (kanalwn) chip found!\n");
 		return ret;
 	}
 
@@ -2022,7 +2022,7 @@ static int hellcreek_probe(struct platform_device *pdev)
 
 	hellcreek->ds = devm_kzalloc(dev, sizeof(*hellcreek->ds), GFP_KERNEL);
 	if (!hellcreek->ds)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hellcreek->ds->dev	     = dev;
 	hellcreek->ds->priv	     = hellcreek;

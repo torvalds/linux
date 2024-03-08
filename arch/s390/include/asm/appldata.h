@@ -17,7 +17,7 @@
 #define APPLDATA_START_CONFIG_REC	0x83
 
 /*
- * Parameter list for DIAGNOSE X'DC'
+ * Parameter list for DIAGANALSE X'DC'
  */
 struct appldata_parameter_list {
 	u16 diag;
@@ -49,7 +49,7 @@ static inline int appldata_asm(struct appldata_parameter_list *parm_list,
 	int ry;
 
 	if (!MACHINE_IS_VM)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	parm_list->diag = 0xdc;
 	parm_list->function = fn;
 	parm_list->parlist_length = sizeof(*parm_list);

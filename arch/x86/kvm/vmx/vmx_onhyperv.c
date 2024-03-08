@@ -6,10 +6,10 @@
 DEFINE_STATIC_KEY_FALSE(__kvm_is_using_evmcs);
 
 /*
- * KVM on Hyper-V always uses the latest known eVMCSv1 revision, the assumption
+ * KVM on Hyper-V always uses the latest kanalwn eVMCSv1 revision, the assumption
  * is: in case a feature has corresponding fields in eVMCS described and it was
  * exposed in VMX feature MSRs, KVM is free to use it. Warn if KVM meets a
- * feature which has no corresponding eVMCS field, this likely means that KVM
+ * feature which has anal corresponding eVMCS field, this likely means that KVM
  * needs to be updated.
  */
 #define evmcs_check_vmcs_conf(field, ctrl)					\

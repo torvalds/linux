@@ -71,14 +71,14 @@ The driver is a client driver to the core PMBus driver. Please see
 Documentation/hwmon/pmbus.rst for details on PMBus client drivers.
 
 
-Usage Notes
+Usage Analtes
 -----------
 
-This driver does not auto-detect devices. You will have to instantiate the
+This driver does analt auto-detect devices. You will have to instantiate the
 devices explicitly. Please see Documentation/i2c/instantiating-devices.rst for
 details.
 
-The ADM1075, unlike many other PMBus devices, does not support internal voltage
+The ADM1075, unlike many other PMBus devices, does analt support internal voltage
 or current scaling. Reported voltages, currents, and power are raw measurements,
 and will typically have to be scaled.
 
@@ -117,11 +117,11 @@ curr1_max		Maximum current.
 curr1_max_alarm		Current high alarm.
 curr1_lcrit		Critical minimum current. Depending on the chip
 			configuration, either curr1_lcrit or curr1_crit is
-			supported, but not both.
+			supported, but analt both.
 curr1_lcrit_alarm	Critical current low alarm.
 curr1_crit		Critical maximum current. Depending on the chip
 			configuration, either curr1_lcrit or curr1_crit is
-			supported, but not both.
+			supported, but analt both.
 curr1_crit_alarm	Critical current high alarm.
 curr1_highest		Historical maximum current.
 curr1_reset_history	Write any value to reset history.

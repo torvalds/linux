@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -197,8 +197,8 @@
 #define regVPEC_QUEUE0_RB_RPTR_ADDR_LO_BASE_IDX                                                         0
 #define regVPEC_QUEUE0_RB_AQL_CNTL                                                                      0x008a
 #define regVPEC_QUEUE0_RB_AQL_CNTL_BASE_IDX                                                             0
-#define regVPEC_QUEUE0_MINOR_PTR_UPDATE                                                                 0x008b
-#define regVPEC_QUEUE0_MINOR_PTR_UPDATE_BASE_IDX                                                        0
+#define regVPEC_QUEUE0_MIANALR_PTR_UPDATE                                                                 0x008b
+#define regVPEC_QUEUE0_MIANALR_PTR_UPDATE_BASE_IDX                                                        0
 #define regVPEC_QUEUE0_CD_INFO                                                                          0x008c
 #define regVPEC_QUEUE0_CD_INFO_BASE_IDX                                                                 0
 #define regVPEC_QUEUE0_RB_PREEMPT                                                                       0x008d
@@ -277,8 +277,8 @@
 #define regVPEC_QUEUE1_RB_RPTR_ADDR_LO_BASE_IDX                                                         0
 #define regVPEC_QUEUE1_RB_AQL_CNTL                                                                      0x00e2
 #define regVPEC_QUEUE1_RB_AQL_CNTL_BASE_IDX                                                             0
-#define regVPEC_QUEUE1_MINOR_PTR_UPDATE                                                                 0x00e3
-#define regVPEC_QUEUE1_MINOR_PTR_UPDATE_BASE_IDX                                                        0
+#define regVPEC_QUEUE1_MIANALR_PTR_UPDATE                                                                 0x00e3
+#define regVPEC_QUEUE1_MIANALR_PTR_UPDATE_BASE_IDX                                                        0
 #define regVPEC_QUEUE1_CD_INFO                                                                          0x00e4
 #define regVPEC_QUEUE1_CD_INFO_BASE_IDX                                                                 0
 #define regVPEC_QUEUE1_RB_PREEMPT                                                                       0x00e5
@@ -357,8 +357,8 @@
 #define regVPEC_QUEUE2_RB_RPTR_ADDR_LO_BASE_IDX                                                         0
 #define regVPEC_QUEUE2_RB_AQL_CNTL                                                                      0x013a
 #define regVPEC_QUEUE2_RB_AQL_CNTL_BASE_IDX                                                             0
-#define regVPEC_QUEUE2_MINOR_PTR_UPDATE                                                                 0x013b
-#define regVPEC_QUEUE2_MINOR_PTR_UPDATE_BASE_IDX                                                        0
+#define regVPEC_QUEUE2_MIANALR_PTR_UPDATE                                                                 0x013b
+#define regVPEC_QUEUE2_MIANALR_PTR_UPDATE_BASE_IDX                                                        0
 #define regVPEC_QUEUE2_CD_INFO                                                                          0x013c
 #define regVPEC_QUEUE2_CD_INFO_BASE_IDX                                                                 0
 #define regVPEC_QUEUE2_RB_PREEMPT                                                                       0x013d
@@ -437,8 +437,8 @@
 #define regVPEC_QUEUE3_RB_RPTR_ADDR_LO_BASE_IDX                                                         0
 #define regVPEC_QUEUE3_RB_AQL_CNTL                                                                      0x0192
 #define regVPEC_QUEUE3_RB_AQL_CNTL_BASE_IDX                                                             0
-#define regVPEC_QUEUE3_MINOR_PTR_UPDATE                                                                 0x0193
-#define regVPEC_QUEUE3_MINOR_PTR_UPDATE_BASE_IDX                                                        0
+#define regVPEC_QUEUE3_MIANALR_PTR_UPDATE                                                                 0x0193
+#define regVPEC_QUEUE3_MIANALR_PTR_UPDATE_BASE_IDX                                                        0
 #define regVPEC_QUEUE3_CD_INFO                                                                          0x0194
 #define regVPEC_QUEUE3_CD_INFO_BASE_IDX                                                                 0
 #define regVPEC_QUEUE3_RB_PREEMPT                                                                       0x0195
@@ -517,8 +517,8 @@
 #define regVPEC_QUEUE4_RB_RPTR_ADDR_LO_BASE_IDX                                                         0
 #define regVPEC_QUEUE4_RB_AQL_CNTL                                                                      0x01ea
 #define regVPEC_QUEUE4_RB_AQL_CNTL_BASE_IDX                                                             0
-#define regVPEC_QUEUE4_MINOR_PTR_UPDATE                                                                 0x01eb
-#define regVPEC_QUEUE4_MINOR_PTR_UPDATE_BASE_IDX                                                        0
+#define regVPEC_QUEUE4_MIANALR_PTR_UPDATE                                                                 0x01eb
+#define regVPEC_QUEUE4_MIANALR_PTR_UPDATE_BASE_IDX                                                        0
 #define regVPEC_QUEUE4_CD_INFO                                                                          0x01ec
 #define regVPEC_QUEUE4_CD_INFO_BASE_IDX                                                                 0
 #define regVPEC_QUEUE4_RB_PREEMPT                                                                       0x01ed
@@ -597,8 +597,8 @@
 #define regVPEC_QUEUE5_RB_RPTR_ADDR_LO_BASE_IDX                                                         0
 #define regVPEC_QUEUE5_RB_AQL_CNTL                                                                      0x0242
 #define regVPEC_QUEUE5_RB_AQL_CNTL_BASE_IDX                                                             0
-#define regVPEC_QUEUE5_MINOR_PTR_UPDATE                                                                 0x0243
-#define regVPEC_QUEUE5_MINOR_PTR_UPDATE_BASE_IDX                                                        0
+#define regVPEC_QUEUE5_MIANALR_PTR_UPDATE                                                                 0x0243
+#define regVPEC_QUEUE5_MIANALR_PTR_UPDATE_BASE_IDX                                                        0
 #define regVPEC_QUEUE5_CD_INFO                                                                          0x0244
 #define regVPEC_QUEUE5_CD_INFO_BASE_IDX                                                                 0
 #define regVPEC_QUEUE5_RB_PREEMPT                                                                       0x0245
@@ -677,8 +677,8 @@
 #define regVPEC_QUEUE6_RB_RPTR_ADDR_LO_BASE_IDX                                                         0
 #define regVPEC_QUEUE6_RB_AQL_CNTL                                                                      0x029a
 #define regVPEC_QUEUE6_RB_AQL_CNTL_BASE_IDX                                                             0
-#define regVPEC_QUEUE6_MINOR_PTR_UPDATE                                                                 0x029b
-#define regVPEC_QUEUE6_MINOR_PTR_UPDATE_BASE_IDX                                                        0
+#define regVPEC_QUEUE6_MIANALR_PTR_UPDATE                                                                 0x029b
+#define regVPEC_QUEUE6_MIANALR_PTR_UPDATE_BASE_IDX                                                        0
 #define regVPEC_QUEUE6_CD_INFO                                                                          0x029c
 #define regVPEC_QUEUE6_CD_INFO_BASE_IDX                                                                 0
 #define regVPEC_QUEUE6_RB_PREEMPT                                                                       0x029d
@@ -757,8 +757,8 @@
 #define regVPEC_QUEUE7_RB_RPTR_ADDR_LO_BASE_IDX                                                         0
 #define regVPEC_QUEUE7_RB_AQL_CNTL                                                                      0x02f2
 #define regVPEC_QUEUE7_RB_AQL_CNTL_BASE_IDX                                                             0
-#define regVPEC_QUEUE7_MINOR_PTR_UPDATE                                                                 0x02f3
-#define regVPEC_QUEUE7_MINOR_PTR_UPDATE_BASE_IDX                                                        0
+#define regVPEC_QUEUE7_MIANALR_PTR_UPDATE                                                                 0x02f3
+#define regVPEC_QUEUE7_MIANALR_PTR_UPDATE_BASE_IDX                                                        0
 #define regVPEC_QUEUE7_CD_INFO                                                                          0x02f4
 #define regVPEC_QUEUE7_CD_INFO_BASE_IDX                                                                 0
 #define regVPEC_QUEUE7_RB_PREEMPT                                                                       0x02f5
@@ -1315,8 +1315,8 @@
 #define regVPMPCC_MCM_3DLUT_DATA_30BIT_BASE_IDX                                                         0
 #define regVPMPCC_MCM_3DLUT_READ_WRITE_CONTROL                                                          0x107d
 #define regVPMPCC_MCM_3DLUT_READ_WRITE_CONTROL_BASE_IDX                                                 0
-#define regVPMPCC_MCM_3DLUT_OUT_NORM_FACTOR                                                             0x107e
-#define regVPMPCC_MCM_3DLUT_OUT_NORM_FACTOR_BASE_IDX                                                    0
+#define regVPMPCC_MCM_3DLUT_OUT_ANALRM_FACTOR                                                             0x107e
+#define regVPMPCC_MCM_3DLUT_OUT_ANALRM_FACTOR_BASE_IDX                                                    0
 #define regVPMPCC_MCM_3DLUT_OUT_OFFSET_R                                                                0x107f
 #define regVPMPCC_MCM_3DLUT_OUT_OFFSET_R_BASE_IDX                                                       0
 #define regVPMPCC_MCM_3DLUT_OUT_OFFSET_G                                                                0x1080
@@ -1415,12 +1415,12 @@
 #define regVPMPC_OUT0_MUX_BASE_IDX                                                                      0
 #define regVPMPC_OUT0_FLOAT_CONTROL                                                                     0x0fcd
 #define regVPMPC_OUT0_FLOAT_CONTROL_BASE_IDX                                                            0
-#define regVPMPC_OUT0_DENORM_CONTROL                                                                    0x0fce
-#define regVPMPC_OUT0_DENORM_CONTROL_BASE_IDX                                                           0
-#define regVPMPC_OUT0_DENORM_CLAMP_G_Y                                                                  0x0fcf
-#define regVPMPC_OUT0_DENORM_CLAMP_G_Y_BASE_IDX                                                         0
-#define regVPMPC_OUT0_DENORM_CLAMP_B_CB                                                                 0x0fd0
-#define regVPMPC_OUT0_DENORM_CLAMP_B_CB_BASE_IDX                                                        0
+#define regVPMPC_OUT0_DEANALRM_CONTROL                                                                    0x0fce
+#define regVPMPC_OUT0_DEANALRM_CONTROL_BASE_IDX                                                           0
+#define regVPMPC_OUT0_DEANALRM_CLAMP_G_Y                                                                  0x0fcf
+#define regVPMPC_OUT0_DEANALRM_CLAMP_G_Y_BASE_IDX                                                         0
+#define regVPMPC_OUT0_DEANALRM_CLAMP_B_CB                                                                 0x0fd0
+#define regVPMPC_OUT0_DEANALRM_CLAMP_B_CB_BASE_IDX                                                        0
 #define regVPMPC_OUT_CSC_COEF_FORMAT                                                                    0x0fe4
 #define regVPMPC_OUT_CSC_COEF_FORMAT_BASE_IDX                                                           0
 #define regVPMPC_OUT0_CSC_MODE                                                                          0x0fe5

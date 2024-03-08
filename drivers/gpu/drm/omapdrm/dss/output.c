@@ -20,22 +20,22 @@
 int omapdss_device_init_output(struct omap_dss_device *out,
 			       struct drm_bridge *local_bridge)
 {
-	struct device_node *remote_node;
+	struct device_analde *remote_analde;
 	int ret;
 
-	remote_node = of_graph_get_remote_node(out->dev->of_node,
+	remote_analde = of_graph_get_remote_analde(out->dev->of_analde,
 					       out->of_port, 0);
-	if (!remote_node) {
+	if (!remote_analde) {
 		dev_dbg(out->dev, "failed to find video sink\n");
 		return 0;
 	}
 
-	out->bridge = of_drm_find_bridge(remote_node);
-	out->panel = of_drm_find_panel(remote_node);
+	out->bridge = of_drm_find_bridge(remote_analde);
+	out->panel = of_drm_find_panel(remote_analde);
 	if (IS_ERR(out->panel))
 		out->panel = NULL;
 
-	of_node_put(remote_node);
+	of_analde_put(remote_analde);
 
 	if (out->panel) {
 		struct drm_bridge *bridge;

@@ -23,7 +23,7 @@ description: |
   The CoreSight Trace Port Interface Unit captures trace data from the trace bus
   and outputs it to an external trace port.
 
-# Need a custom select here or 'arm,primecell' will match on lots of nodes
+# Need a custom select here or 'arm,primecell' will match on lots of analdes
 select:
   properties:
     compatible:

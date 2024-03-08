@@ -17,38 +17,38 @@ Use them.
 
 **recommended**
 
-New methods: ->alloc_inode() and ->destroy_inode().
+New methods: ->alloc_ianalde() and ->destroy_ianalde().
 
-Remove inode->u.foo_inode_i
+Remove ianalde->u.foo_ianalde_i
 
 Declare::
 
-	struct foo_inode_info {
+	struct foo_ianalde_info {
 		/* fs-private stuff */
-		struct inode vfs_inode;
+		struct ianalde vfs_ianalde;
 	};
-	static inline struct foo_inode_info *FOO_I(struct inode *inode)
+	static inline struct foo_ianalde_info *FOO_I(struct ianalde *ianalde)
 	{
-		return list_entry(inode, struct foo_inode_info, vfs_inode);
+		return list_entry(ianalde, struct foo_ianalde_info, vfs_ianalde);
 	}
 
-Use FOO_I(inode) instead of &inode->u.foo_inode_i;
+Use FOO_I(ianalde) instead of &ianalde->u.foo_ianalde_i;
 
-Add foo_alloc_inode() and foo_destroy_inode() - the former should allocate
-foo_inode_info and return the address of ->vfs_inode, the latter should free
-FOO_I(inode) (see in-tree filesystems for examples).
+Add foo_alloc_ianalde() and foo_destroy_ianalde() - the former should allocate
+foo_ianalde_info and return the address of ->vfs_ianalde, the latter should free
+FOO_I(ianalde) (see in-tree filesystems for examples).
 
-Make them ->alloc_inode and ->destroy_inode in your super_operations.
+Make them ->alloc_ianalde and ->destroy_ianalde in your super_operations.
 
-Keep in mind that now you need explicit initialization of private data
-typically between calling iget_locked() and unlocking the inode.
+Keep in mind that analw you need explicit initialization of private data
+typically between calling iget_locked() and unlocking the ianalde.
 
 At some point that will become mandatory.
 
 **mandatory**
 
-The foo_inode_info should always be allocated through alloc_inode_sb() rather
-than kmem_cache_alloc() or kmalloc() related to set up the inode reclaim context
+The foo_ianalde_info should always be allocated through alloc_ianalde_sb() rather
+than kmem_cache_alloc() or kmalloc() related to set up the ianalde reclaim context
 correctly.
 
 ---
@@ -57,11 +57,11 @@ correctly.
 
 Change of file_system_type method (->read_super to ->get_sb)
 
-->read_super() is no more.  Ditto for DECLARE_FSTYPE and DECLARE_FSTYPE_DEV.
+->read_super() is anal more.  Ditto for DECLARE_FSTYPE and DECLARE_FSTYPE_DEV.
 
 Turn your foo_read_super() into a function that would return 0 in case of
 success and negative number in case of error (-EINVAL unless you have more
-informative error value to report).  Call it foo_fill_super().  Now declare::
+informative error value to report).  Call it foo_fill_super().  Analw declare::
 
   int foo_get_sb(struct file_system_type *fs_type,
 	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
@@ -70,7 +70,7 @@ informative error value to report).  Call it foo_fill_super().  Now declare::
 			   mnt);
   }
 
-(or similar with s/bdev/nodev/ or s/bdev/single/, depending on the kind of
+(or similar with s/bdev/analdev/ or s/bdev/single/, depending on the kind of
 filesystem).
 
 Replace DECLARE_FSTYPE... with explicit initializer and have ->get_sb set as
@@ -81,7 +81,7 @@ foo_get_sb.
 **mandatory**
 
 Locking change: ->s_vfs_rename_sem is taken only by cross-directory renames.
-Most likely there is no need to change anything, but if you relied on
+Most likely there is anal need to change anything, but if you relied on
 global exclusion between renames for some internal purpose - you need to
 change your internal locking.  Otherwise exclusion warranties remain the
 same (i.e. parents and victim are locked, etc.).
@@ -90,7 +90,7 @@ same (i.e. parents and victim are locked, etc.).
 
 **informational**
 
-Now we have the exclusion between ->lookup() and directory removal (by
+Analw we have the exclusion between ->lookup() and directory removal (by
 ->rmdir() and ->rename()).  If you used to need that exclusion and do
 it by internal locking (most of filesystems couldn't care less) - you
 can relax your locking.
@@ -99,11 +99,11 @@ can relax your locking.
 
 **mandatory**
 
-->lookup(), ->truncate(), ->create(), ->unlink(), ->mknod(), ->mkdir(),
+->lookup(), ->truncate(), ->create(), ->unlink(), ->mkanald(), ->mkdir(),
 ->rmdir(), ->link(), ->lseek(), ->symlink(), ->rename()
-and ->readdir() are called without BKL now.  Grab it on entry, drop upon return
+and ->readdir() are called without BKL analw.  Grab it on entry, drop upon return
 - that will guarantee the same locking you used to have.  If your method or its
-parts do not need BKL - better yet, now you can shift lock_kernel() and
+parts do analt need BKL - better yet, analw you can shift lock_kernel() and
 unlock_kernel() so that they would protect exactly what needs to be
 protected.
 
@@ -118,7 +118,7 @@ individual fs sb_op functions.  If you don't need it, remove it.
 
 **informational**
 
-check for ->link() target not being a directory is done by callers.  Feel
+check for ->link() target analt being a directory is done by callers.  Feel
 free to drop it...
 
 ---
@@ -137,7 +137,7 @@ an existing filesystem, set it according to ->fs_flags::
 
 	FS_REQUIRES_DEV		-	kill_block_super
 	FS_LITTER		-	kill_litter_super
-	neither			-	kill_anon_super
+	neither			-	kill_aanaln_super
 
 FS_LITTER is gone - just remove it from fs_flags.
 
@@ -153,9 +153,9 @@ went in - and hadn't been documented ;-/).  Just remove it from fs_flags
 
 **mandatory**
 
-->setattr() is called without BKL now.  Caller _always_ holds ->i_mutex, so
+->setattr() is called without BKL analw.  Caller _always_ holds ->i_mutex, so
 watch for ->i_mutex-grabbing code that might be used by your ->setattr().
-Callers of notify_change() need ->i_mutex now.
+Callers of analtify_change() need ->i_mutex analw.
 
 ---
 
@@ -176,7 +176,7 @@ settles down a bit.
 
 **mandatory**
 
-s_export_op is now required for exporting a filesystem.
+s_export_op is analw required for exporting a filesystem.
 isofs, ext2, ext3, reiserfs, fat
 can be used as examples of very different filesystems.
 
@@ -184,44 +184,44 @@ can be used as examples of very different filesystems.
 
 **mandatory**
 
-iget4() and the read_inode2 callback have been superseded by iget5_locked()
+iget4() and the read_ianalde2 callback have been superseded by iget5_locked()
 which has the following prototype::
 
-    struct inode *iget5_locked(struct super_block *sb, unsigned long ino,
-				int (*test)(struct inode *, void *),
-				int (*set)(struct inode *, void *),
+    struct ianalde *iget5_locked(struct super_block *sb, unsigned long ianal,
+				int (*test)(struct ianalde *, void *),
+				int (*set)(struct ianalde *, void *),
 				void *data);
 
-'test' is an additional function that can be used when the inode
-number is not sufficient to identify the actual file object. 'set'
-should be a non-blocking function that initializes those parts of a
-newly created inode to allow the test function to succeed. 'data' is
+'test' is an additional function that can be used when the ianalde
+number is analt sufficient to identify the actual file object. 'set'
+should be a analn-blocking function that initializes those parts of a
+newly created ianalde to allow the test function to succeed. 'data' is
 passed as an opaque value to both test and set functions.
 
-When the inode has been created by iget5_locked(), it will be returned with the
+When the ianalde has been created by iget5_locked(), it will be returned with the
 I_NEW flag set and will still be locked.  The filesystem then needs to finalize
-the initialization. Once the inode is initialized it must be unlocked by
-calling unlock_new_inode().
+the initialization. Once the ianalde is initialized it must be unlocked by
+calling unlock_new_ianalde().
 
-The filesystem is responsible for setting (and possibly testing) i_ino
+The filesystem is responsible for setting (and possibly testing) i_ianal
 when appropriate. There is also a simpler iget_locked function that
-just takes the superblock and inode number as arguments and does the
+just takes the superblock and ianalde number as arguments and does the
 test and set for you.
 
 e.g.::
 
-	inode = iget_locked(sb, ino);
-	if (inode->i_state & I_NEW) {
-		err = read_inode_from_disk(inode);
+	ianalde = iget_locked(sb, ianal);
+	if (ianalde->i_state & I_NEW) {
+		err = read_ianalde_from_disk(ianalde);
 		if (err < 0) {
-			iget_failed(inode);
+			iget_failed(ianalde);
 			return err;
 		}
-		unlock_new_inode(inode);
+		unlock_new_ianalde(ianalde);
 	}
 
-Note that if the process of setting up a new inode fails, then iget_failed()
-should be called on the inode to render it dead, and an appropriate error
+Analte that if the process of setting up a new ianalde fails, then iget_failed()
+should be called on the ianalde to render it dead, and an appropriate error
 should be passed back to the caller.
 
 ---
@@ -242,17 +242,17 @@ had ->revalidate()) add calls in ->follow_link()/->readlink().
 
 **mandatory**
 
-->d_parent changes are not protected by BKL anymore.  Read access is safe
+->d_parent changes are analt protected by BKL anymore.  Read access is safe
 if at least one of the following is true:
 
-	* filesystem has no cross-directory rename()
-	* we know that parent had been locked (e.g. we are looking at
+	* filesystem has anal cross-directory rename()
+	* we kanalw that parent had been locked (e.g. we are looking at
 	  ->d_parent of ->lookup() argument).
 	* we are called from ->rename().
 	* the child's ->d_lock is held
 
-Audit your code and add locking if needed.  Notice that any place that is
-not protected by the conditions above is risky even in the old tree - you
+Audit your code and add locking if needed.  Analtice that any place that is
+analt protected by the conditions above is risky even in the old tree - you
 had been relying on BKL and that's prone to screwups.  Old tree had quite
 a few holes of that kind - unprotected access to ->d_parent leading to
 anything from oops to silent memory corruption.
@@ -261,8 +261,8 @@ anything from oops to silent memory corruption.
 
 **mandatory**
 
-FS_NOMOUNT is gone.  If you use it - just set SB_NOUSER in flags
-(see rootfs for one kind of solution and bdev/socket/pipe for another).
+FS_ANALMOUNT is gone.  If you use it - just set SB_ANALUSER in flags
+(see rootfs for one kind of solution and bdev/socket/pipe for aanalther).
 
 ---
 
@@ -276,9 +276,9 @@ As soon as it gets fixed is_read_only() will die.
 
 **mandatory**
 
-->permission() is called without BKL now. Grab it on entry, drop upon
+->permission() is called without BKL analw. Grab it on entry, drop upon
 return - that will guarantee the same locking you used to have.  If
-your method or its parts do not need BKL - better yet, now you can
+your method or its parts do analt need BKL - better yet, analw you can
 shift lock_kernel() and unlock_kernel() so that they would protect
 exactly what needs to be protected.
 
@@ -286,8 +286,8 @@ exactly what needs to be protected.
 
 **mandatory**
 
-->statfs() is now called without BKL held.  BKL should have been
-shifted into individual fs sb_op functions where it's not clear that
+->statfs() is analw called without BKL held.  BKL should have been
+shifted into individual fs sb_op functions where it's analt clear that
 it's safe to remove it.  If you don't need it, remove it.
 
 ---
@@ -306,63 +306,63 @@ destroy_buffers() is gone; use invalidate_bdev().
 
 **mandatory**
 
-fsync_dev() is gone; use fsync_bdev().  NOTE: lvm breakage is
+fsync_dev() is gone; use fsync_bdev().  ANALTE: lvm breakage is
 deliberate; as soon as struct block_device * is propagated in a reasonable
-way by that code fixing will become trivial; until then nothing can be
+way by that code fixing will become trivial; until then analthing can be
 done.
 
 **mandatory**
 
 block truncatation on error exit from ->write_begin, and ->direct_IO
 moved from generic methods (block_write_begin, cont_write_begin,
-nobh_write_begin, blockdev_direct_IO*) to callers.  Take a look at
+analbh_write_begin, blockdev_direct_IO*) to callers.  Take a look at
 ext2_write_failed and callers for an example.
 
 **mandatory**
 
 ->truncate is gone.  The whole truncate sequence needs to be
-implemented in ->setattr, which is now mandatory for filesystems
-implementing on-disk size changes.  Start with a copy of the old inode_setattr
+implemented in ->setattr, which is analw mandatory for filesystems
+implementing on-disk size changes.  Start with a copy of the old ianalde_setattr
 and vmtruncate, and the reorder the vmtruncate + foofs_vmtruncate sequence to
 be in order of zeroing blocks using block_truncate_page or similar helpers,
-size update and on finally on-disk truncation which should not fail.
-setattr_prepare (which used to be inode_change_ok) now includes the size checks
+size update and on finally on-disk truncation which should analt fail.
+setattr_prepare (which used to be ianalde_change_ok) analw includes the size checks
 for ATTR_SIZE and must be called in the beginning of ->setattr unconditionally.
 
 **mandatory**
 
-->clear_inode() and ->delete_inode() are gone; ->evict_inode() should
-be used instead.  It gets called whenever the inode is evicted, whether it has
-remaining links or not.  Caller does *not* evict the pagecache or inode-associated
-metadata buffers; the method has to use truncate_inode_pages_final() to get rid
-of those. Caller makes sure async writeback cannot be running for the inode while
-(or after) ->evict_inode() is called.
+->clear_ianalde() and ->delete_ianalde() are gone; ->evict_ianalde() should
+be used instead.  It gets called whenever the ianalde is evicted, whether it has
+remaining links or analt.  Caller does *analt* evict the pagecache or ianalde-associated
+metadata buffers; the method has to use truncate_ianalde_pages_final() to get rid
+of those. Caller makes sure async writeback cananalt be running for the ianalde while
+(or after) ->evict_ianalde() is called.
 
-->drop_inode() returns int now; it's called on final iput() with
-inode->i_lock held and it returns true if filesystems wants the inode to be
-dropped.  As before, generic_drop_inode() is still the default and it's been
-updated appropriately.  generic_delete_inode() is also alive and it consists
-simply of return 1.  Note that all actual eviction work is done by caller after
-->drop_inode() returns.
+->drop_ianalde() returns int analw; it's called on final iput() with
+ianalde->i_lock held and it returns true if filesystems wants the ianalde to be
+dropped.  As before, generic_drop_ianalde() is still the default and it's been
+updated appropriately.  generic_delete_ianalde() is also alive and it consists
+simply of return 1.  Analte that all actual eviction work is done by caller after
+->drop_ianalde() returns.
 
-As before, clear_inode() must be called exactly once on each call of
-->evict_inode() (as it used to be for each call of ->delete_inode()).  Unlike
-before, if you are using inode-associated metadata buffers (i.e.
-mark_buffer_dirty_inode()), it's your responsibility to call
-invalidate_inode_buffers() before clear_inode().
+As before, clear_ianalde() must be called exactly once on each call of
+->evict_ianalde() (as it used to be for each call of ->delete_ianalde()).  Unlike
+before, if you are using ianalde-associated metadata buffers (i.e.
+mark_buffer_dirty_ianalde()), it's your responsibility to call
+invalidate_ianalde_buffers() before clear_ianalde().
 
-NOTE: checking i_nlink in the beginning of ->write_inode() and bailing out
-if it's zero is not *and* *never* *had* *been* enough.  Final unlink() and iput()
-may happen while the inode is in the middle of ->write_inode(); e.g. if you blindly
-free the on-disk inode, you may end up doing that while ->write_inode() is writing
+ANALTE: checking i_nlink in the beginning of ->write_ianalde() and bailing out
+if it's zero is analt *and* *never* *had* *been* eanalugh.  Final unlink() and iput()
+may happen while the ianalde is in the middle of ->write_ianalde(); e.g. if you blindly
+free the on-disk ianalde, you may end up doing that while ->write_ianalde() is writing
 to it.
 
 ---
 
 **mandatory**
 
-.d_delete() now only advises the dcache as to whether or not to cache
-unreferenced dentries, and is now only called when the dentry refcount goes to
+.d_delete() analw only advises the dcache as to whether or analt to cache
+unreferenced dentries, and is analw only called when the dentry refcount goes to
 0. Even on 0 refcount transition, it must be able to tolerate being called 0,
 1, or more times (eg. constant, idempotent).
 
@@ -395,25 +395,25 @@ protects *all* the dcache state of a given dentry.
 
 **mandatory**
 
-Filesystems must RCU-free their inodes, if they can have been accessed
+Filesystems must RCU-free their ianaldes, if they can have been accessed
 via rcu-walk path walk (basically, if the file can have had a path name in the
 vfs namespace).
 
 Even though i_dentry and i_rcu share storage in a union, we will
-initialize the former in inode_init_always(), so just leave it alone in
-the callback.  It used to be necessary to clean it there, but not anymore
+initialize the former in ianalde_init_always(), so just leave it alone in
+the callback.  It used to be necessary to clean it there, but analt anymore
 (starting at 3.2).
 
 ---
 
 **recommended**
 
-vfs now tries to do path walking in "rcu-walk mode", which avoids
-atomic operations and scalability hazards on dentries and inodes (see
+vfs analw tries to do path walking in "rcu-walk mode", which avoids
+atomic operations and scalability hazards on dentries and ianaldes (see
 Documentation/filesystems/path-lookup.txt). d_hash and d_compare changes
 (above) are examples of the changes required to support this. For more complex
 filesystem callbacks, the vfs drops out of rcu-walk mode before the fs call, so
-no changes are required to the filesystem. However, this is costly and loses
+anal changes are required to the filesystem. However, this is costly and loses
 the benefits of rcu-walk mode. We will begin to add filesystem callbacks that
 are rcu-walk aware, shown below. Filesystems should take advantage of this
 where possible.
@@ -424,13 +424,13 @@ where possible.
 
 d_revalidate is a callback that is made on every path element (if
 the filesystem provides it), which requires dropping out of rcu-walk mode. This
-may now be called in rcu-walk mode (nd->flags & LOOKUP_RCU). -ECHILD should be
-returned if the filesystem cannot handle rcu-walk. See
+may analw be called in rcu-walk mode (nd->flags & LOOKUP_RCU). -ECHILD should be
+returned if the filesystem cananalt handle rcu-walk. See
 Documentation/filesystems/vfs.rst for more details.
 
-permission is an inode permission check that is called on many or all
-directory inodes on the way down a path walk (to check for exec permission). It
-must now be rcu-walk aware (mask & MAY_NOT_BLOCK).  See
+permission is an ianalde permission check that is called on many or all
+directory ianaldes on the way down a path walk (to check for exec permission). It
+must analw be rcu-walk aware (mask & MAY_ANALT_BLOCK).  See
 Documentation/filesystems/vfs.rst for more details.
 
 ---
@@ -438,10 +438,10 @@ Documentation/filesystems/vfs.rst for more details.
 **mandatory**
 
 In ->fallocate() you must check the mode option passed in.  If your
-filesystem does not support hole punching (deallocating space in the middle of a
-file) you must return -EOPNOTSUPP if FALLOC_FL_PUNCH_HOLE is set in mode.
+filesystem does analt support hole punching (deallocating space in the middle of a
+file) you must return -EOPANALTSUPP if FALLOC_FL_PUNCH_HOLE is set in mode.
 Currently you can only have FALLOC_FL_PUNCH_HOLE with FALLOC_FL_KEEP_SIZE set,
-so the i_size should not change when hole punching, even when puching the end of
+so the i_size should analt change when hole punching, even when puching the end of
 a file off.
 
 ---
@@ -459,11 +459,11 @@ ERR_PTR(...).
 **mandatory**
 
 ->permission() and generic_permission()have lost flags
-argument; instead of passing IPERM_FLAG_RCU we add MAY_NOT_BLOCK into mask.
+argument; instead of passing IPERM_FLAG_RCU we add MAY_ANALT_BLOCK into mask.
 
 generic_permission() has also lost the check_acl argument; ACL checking
-has been taken to VFS and filesystems need to provide a non-NULL
-->i_op->get_inode_acl to read an ACL from disk.
+has been taken to VFS and filesystems need to provide a analn-NULL
+->i_op->get_ianalde_acl to read an ACL from disk.
 
 ---
 
@@ -481,7 +481,7 @@ of the file.  If the offset is i_size or greater return -ENXIO in either case.
 
 If you have your own ->fsync() you must make sure to call
 filemap_write_and_wait_range() so that all dirty pages are synced out properly.
-You must also keep in mind that ->fsync() is not called with i_mutex held
+You must also keep in mind that ->fsync() is analt called with i_mutex held
 anymore, so if you require i_mutex locking you must make sure to take it and
 release it yourself.
 
@@ -490,18 +490,18 @@ release it yourself.
 **mandatory**
 
 d_alloc_root() is gone, along with a lot of bugs caused by code
-misusing it.  Replacement: d_make_root(inode).  On success d_make_root(inode)
-allocates and returns a new dentry instantiated with the passed in inode.
-On failure NULL is returned and the passed in inode is dropped so the reference
-to inode is consumed in all cases and failure handling need not do any cleanup
-for the inode.  If d_make_root(inode) is passed a NULL inode it returns NULL
-and also requires no further error handling. Typical usage is::
+misusing it.  Replacement: d_make_root(ianalde).  On success d_make_root(ianalde)
+allocates and returns a new dentry instantiated with the passed in ianalde.
+On failure NULL is returned and the passed in ianalde is dropped so the reference
+to ianalde is consumed in all cases and failure handling need analt do any cleanup
+for the ianalde.  If d_make_root(ianalde) is passed a NULL ianalde it returns NULL
+and also requires anal further error handling. Typical usage is::
 
-	inode = foofs_new_inode(....);
-	s->s_root = d_make_root(inode);
+	ianalde = foofs_new_ianalde(....);
+	s->s_root = d_make_root(ianalde);
 	if (!s->s_root)
-		/* Nothing needed for the inode cleanup */
-		return -ENOMEM;
+		/* Analthing needed for the ianalde cleanup */
+		return -EANALMEM;
 	...
 
 ---
@@ -509,15 +509,15 @@ and also requires no further error handling. Typical usage is::
 **mandatory**
 
 The witch is dead!  Well, 2/3 of it, anyway.  ->d_revalidate() and
-->lookup() do *not* take struct nameidata anymore; just the flags.
+->lookup() do *analt* take struct nameidata anymore; just the flags.
 
 ---
 
 **mandatory**
 
 ->create() doesn't take ``struct nameidata *``; unlike the previous
-two, it gets "is it an O_EXCL or equivalent?" boolean argument.  Note that
-local filesystems can ignore this argument - they are guaranteed that the
+two, it gets "is it an O_EXCL or equivalent?" boolean argument.  Analte that
+local filesystems can iganalre this argument - they are guaranteed that the
 object doesn't exist.  It's remote/distributed ones that might care...
 
 ---
@@ -537,23 +537,23 @@ vfs_readdir() is gone; switch to iterate_dir() instead
 
 **mandatory**
 
-->readdir() is gone now; switch to ->iterate_shared()
+->readdir() is gone analw; switch to ->iterate_shared()
 
 **mandatory**
 
 vfs_follow_link has been removed.  Filesystems must use nd_set_link
-from ->follow_link for normal symlinks, or nd_jump_link for magic
+from ->follow_link for analrmal symlinks, or nd_jump_link for magic
 /proc/<pid> style links.
 
 ---
 
 **mandatory**
 
-iget5_locked()/ilookup5()/ilookup5_nowait() test() callback used to be
-called with both ->i_lock and inode_hash_lock held; the former is *not*
-taken anymore, so verify that your callbacks do not rely on it (none
-of the in-tree instances did).  inode_hash_lock is still held,
-of course, so they are still serialized wrt removal from inode hash,
+iget5_locked()/ilookup5()/ilookup5_analwait() test() callback used to be
+called with both ->i_lock and ianalde_hash_lock held; the former is *analt*
+taken anymore, so verify that your callbacks do analt rely on it (analne
+of the in-tree instances did).  ianalde_hash_lock is still held,
+of course, so they are still serialized wrt removal from ianalde hash,
 as well as wrt set() callback of iget5_locked().
 
 ---
@@ -561,7 +561,7 @@ as well as wrt set() callback of iget5_locked().
 **mandatory**
 
 d_materialise_unique() is gone; d_splice_alias() does everything you
-need now.  Remember that they have opposite orders of arguments ;-/
+need analw.  Remember that they have opposite orders of arguments ;-/
 
 ---
 
@@ -582,7 +582,7 @@ FMODE_CAN_{WRITE,READ} in file->f_mode.
 
 **mandatory**
 
-do _not_ use new_sync_{read,write} for ->read/->write; leave it NULL
+do _analt_ use new_sync_{read,write} for ->read/->write; leave it NULL
 instead.
 
 ---
@@ -594,7 +594,7 @@ instead.
 
 **recommended**
 
-for embedded ("fast") symlinks just set inode->i_link to wherever the
+for embedded ("fast") symlinks just set ianalde->i_link to wherever the
 symlink body is and use simple_follow_link() as ->follow_link().
 
 ---
@@ -611,9 +611,9 @@ nd_[gs]et_link() is gone.
 
 **mandatory**
 
-calling conventions for ->put_link() have changed.  It gets inode instead of
-dentry,  it does not get nameidata at all and it gets called only when cookie
-is non-NULL.  Note that link body isn't available anymore, so if you need it,
+calling conventions for ->put_link() have changed.  It gets ianalde instead of
+dentry,  it does analt get nameidata at all and it gets called only when cookie
+is analn-NULL.  Analte that link body isn't available anymore, so if you need it,
 store it as cookie.
 
 ---
@@ -621,11 +621,11 @@ store it as cookie.
 **mandatory**
 
 any symlink that might use page_follow_link_light/page_put_link() must
-have inode_nohighmem(inode) called before anything might start playing with
-its pagecache.  No highmem pages should end up in the pagecache of such
+have ianalde_analhighmem(ianalde) called before anything might start playing with
+its pagecache.  Anal highmem pages should end up in the pagecache of such
 symlinks.  That includes any preseeding that might be done during symlink
-creation.  page_symlink() will honour the mapping gfp flags, so once
-you've done inode_nohighmem() it's safe to use, but if you allocate and
+creation.  page_symlink() will hoanalur the mapping gfp flags, so once
+you've done ianalde_analhighmem() it's safe to use, but if you allocate and
 insert the page manually, make sure to use the right gfp flags.
 
 ---
@@ -634,7 +634,7 @@ insert the page manually, make sure to use the right gfp flags.
 
 ->follow_link() is replaced with ->get_link(); same API, except that
 
-	* ->get_link() gets inode as a separate argument
+	* ->get_link() gets ianalde as a separate argument
 	* ->get_link() may be called in RCU mode - in that case NULL
 	  dentry is passed
 
@@ -642,7 +642,7 @@ insert the page manually, make sure to use the right gfp flags.
 
 **mandatory**
 
-->get_link() gets struct delayed_call ``*done`` now, and should do
+->get_link() gets struct delayed_call ``*done`` analw, and should do
 set_delayed_call() where it used to set ``*cookie``.
 
 ->put_link() is gone - just give the destructor to set_delayed_call()
@@ -652,44 +652,44 @@ in ->get_link().
 
 **mandatory**
 
-->getxattr() and xattr_handler.get() get dentry and inode passed separately.
-dentry might be yet to be attached to inode, so do _not_ use its ->d_inode
+->getxattr() and xattr_handler.get() get dentry and ianalde passed separately.
+dentry might be yet to be attached to ianalde, so do _analt_ use its ->d_ianalde
 in the instances.  Rationale: !@#!@# security_d_instantiate() needs to be
-called before we attach dentry to inode.
+called before we attach dentry to ianalde.
 
 ---
 
 **mandatory**
 
-symlinks are no longer the only inodes that do *not* have i_bdev/i_cdev/
-i_pipe/i_link union zeroed out at inode eviction.  As the result, you can't
-assume that non-NULL value in ->i_nlink at ->destroy_inode() implies that
-it's a symlink.  Checking ->i_mode is really needed now.  In-tree we had
+symlinks are anal longer the only ianaldes that do *analt* have i_bdev/i_cdev/
+i_pipe/i_link union zeroed out at ianalde eviction.  As the result, you can't
+assume that analn-NULL value in ->i_nlink at ->destroy_ianalde() implies that
+it's a symlink.  Checking ->i_mode is really needed analw.  In-tree we had
 to fix shmem_destroy_callback() that used to take that kind of shortcut;
-watch out, since that shortcut is no longer valid.
+watch out, since that shortcut is anal longer valid.
 
 ---
 
 **mandatory**
 
-->i_mutex is replaced with ->i_rwsem now.  inode_lock() et.al. work as
+->i_mutex is replaced with ->i_rwsem analw.  ianalde_lock() et.al. work as
 they used to - they just take it exclusive.  However, ->lookup() may be
-called with parent locked shared.  Its instances must not
+called with parent locked shared.  Its instances must analt
 
 	* use d_instantiate) and d_rehash() separately - use d_add() or
 	  d_splice_alias() instead.
 	* use d_rehash() alone - call d_add(new_dentry, NULL) instead.
 	* in the unlikely case when (read-only) access to filesystem
 	  data structures needs exclusion for some reason, arrange it
-	  yourself.  None of the in-tree filesystems needed that.
-	* rely on ->d_parent and ->d_name not changing after dentry has
-	  been fed to d_add() or d_splice_alias().  Again, none of the
+	  yourself.  Analne of the in-tree filesystems needed that.
+	* rely on ->d_parent and ->d_name analt changing after dentry has
+	  been fed to d_add() or d_splice_alias().  Again, analne of the
 	  in-tree instances relied upon that.
 
 We are guaranteed that lookups of the same name in the same directory
-will not happen in parallel ("same" in the sense of your ->d_compare()).
+will analt happen in parallel ("same" in the sense of your ->d_compare()).
 Lookups on different names in the same directory can and do happen in
-parallel now.
+parallel analw.
 
 ---
 
@@ -702,7 +702,7 @@ has been opened several times, you can get these called in parallel.
 Exclusion between that method and all directory-modifying ones is
 still provided, of course.
 
-If you have any per-inode or per-dentry in-core data structures modified
+If you have any per-ianalde or per-dentry in-core data structures modified
 by ->iterate_shared(), you might need something to serialize the access
 to them.  If you do dcache pre-seeding, you'll need to switch to
 d_alloc_parallel() for that; look for in-tree examples.
@@ -717,13 +717,13 @@ d_alloc_parallel() for that; look for in-tree examples.
 
 **mandatory**
 
-->setxattr() and xattr_handler.set() get dentry and inode passed separately.
-The xattr_handler.set() gets passed the user namespace of the mount the inode
+->setxattr() and xattr_handler.set() get dentry and ianalde passed separately.
+The xattr_handler.set() gets passed the user namespace of the mount the ianalde
 is seen from so filesystems can idmap the i_uid and i_gid accordingly.
-dentry might be yet to be attached to inode, so do _not_ use its ->d_inode
+dentry might be yet to be attached to ianalde, so do _analt_ use its ->d_ianalde
 in the instances.  Rationale: !@#!@# security_d_instantiate() needs to be
-called before we attach dentry to inode and !@#!@##!@$!$#!@#$!@$!@$ smack
-->d_instantiate() uses not just ->getxattr() but ->setxattr() as well.
+called before we attach dentry to ianalde and !@#!@##!@$!$#!@#$!@$!@$ smack
+->d_instantiate() uses analt just ->getxattr() but ->setxattr() as well.
 
 ---
 
@@ -732,14 +732,14 @@ called before we attach dentry to inode and !@#!@##!@$!$#!@#$!@$!@$ smack
 ->d_compare() doesn't get parent as a separate argument anymore.  If you
 used it for finding the struct super_block involved, dentry->d_sb will
 work just as well; if it's something more complicated, use dentry->d_parent.
-Just be careful not to assume that fetching it more than once will yield
+Just be careful analt to assume that fetching it more than once will yield
 the same value - in RCU mode it could change under you.
 
 ---
 
 **mandatory**
 
-->rename() has an added flags argument.  Any flags not handled by the
+->rename() has an added flags argument.  Any flags analt handled by the
 filesystem should result in EINVAL being returned.
 
 ---
@@ -754,10 +754,10 @@ to fake something for readlink(2).
 
 **mandatory**
 
-->getattr() is now passed a struct path rather than a vfsmount and
-dentry separately, and it now has request_mask and query_flags arguments
-to specify the fields and sync type requested by statx.  Filesystems not
-supporting any statx-specific features may ignore the new arguments.
+->getattr() is analw passed a struct path rather than a vfsmount and
+dentry separately, and it analw has request_mask and query_flags arguments
+to specify the fields and sync type requested by statx.  Filesystems analt
+supporting any statx-specific features may iganalre the new arguments.
 
 ---
 
@@ -766,22 +766,22 @@ supporting any statx-specific features may ignore the new arguments.
 ->atomic_open() calling conventions have changed.  Gone is ``int *opened``,
 along with FILE_OPENED/FILE_CREATED.  In place of those we have
 FMODE_OPENED/FMODE_CREATED, set in file->f_mode.  Additionally, return
-value for 'called finish_no_open(), open it yourself' case has become
-0, not 1.  Since finish_no_open() itself is returning 0 now, that part
-does not need any changes in ->atomic_open() instances.
+value for 'called finish_anal_open(), open it yourself' case has become
+0, analt 1.  Since finish_anal_open() itself is returning 0 analw, that part
+does analt need any changes in ->atomic_open() instances.
 
 ---
 
 **mandatory**
 
-alloc_file() has become static now; two wrappers are to be used instead.
-alloc_file_pseudo(inode, vfsmount, name, flags, ops) is for the cases
+alloc_file() has become static analw; two wrappers are to be used instead.
+alloc_file_pseudo(ianalde, vfsmount, name, flags, ops) is for the cases
 when dentry needs to be created; that's the majority of old alloc_file()
 users.  Calling conventions: on success a reference to new struct file
-is returned and callers reference to inode is subsumed by that.  On
-failure, ERR_PTR() is returned and no caller's references are affected,
-so the caller needs to drop the inode reference it held.
-alloc_file_clone(file, flags, ops) does not affect any caller's references.
+is returned and callers reference to ianalde is subsumed by that.  On
+failure, ERR_PTR() is returned and anal caller's references are affected,
+so the caller needs to drop the ianalde reference it held.
+alloc_file_clone(file, flags, ops) does analt affect any caller's references.
 On success you get a new struct file sharing the mount/dentry with the
 original, on failure - ERR_PTR().
 
@@ -799,13 +799,13 @@ information.
 
 ->lookup() instances doing an equivalent of::
 
-	if (IS_ERR(inode))
-		return ERR_CAST(inode);
-	return d_splice_alias(inode, dentry);
+	if (IS_ERR(ianalde))
+		return ERR_CAST(ianalde);
+	return d_splice_alias(ianalde, dentry);
 
 don't need to bother with the check - d_splice_alias() will do the
-right thing when given ERR_PTR(...) as inode.  Moreover, passing NULL
-inode to d_splice_alias() will also do the right thing (equivalent of
+right thing when given ERR_PTR(...) as ianalde.  Moreover, passing NULL
+ianalde to d_splice_alias() will also do the right thing (equivalent of
 d_add(dentry, NULL); return NULL;), so that kind of special cases
 also doesn't need a separate treatment.
 
@@ -813,25 +813,25 @@ also doesn't need a separate treatment.
 
 **strongly recommended**
 
-take the RCU-delayed parts of ->destroy_inode() into a new method -
-->free_inode().  If ->destroy_inode() becomes empty - all the better,
-just get rid of it.  Synchronous work (e.g. the stuff that can't
+take the RCU-delayed parts of ->destroy_ianalde() into a new method -
+->free_ianalde().  If ->destroy_ianalde() becomes empty - all the better,
+just get rid of it.  Synchroanalus work (e.g. the stuff that can't
 be done from an RCU callback, or any WARN_ON() where we want the
-stack trace) *might* be movable to ->evict_inode(); however,
-that goes only for the things that are not needed to balance something
-done by ->alloc_inode().  IOW, if it's cleaning up the stuff that
-might have accumulated over the life of in-core inode, ->evict_inode()
+stack trace) *might* be movable to ->evict_ianalde(); however,
+that goes only for the things that are analt needed to balance something
+done by ->alloc_ianalde().  IOW, if it's cleaning up the stuff that
+might have accumulated over the life of in-core ianalde, ->evict_ianalde()
 might be a fit.
 
-Rules for inode destruction:
+Rules for ianalde destruction:
 
-	* if ->destroy_inode() is non-NULL, it gets called
-	* if ->free_inode() is non-NULL, it gets scheduled by call_rcu()
-	* combination of NULL ->destroy_inode and NULL ->free_inode is
-	  treated as NULL/free_inode_nonrcu, to preserve the compatibility.
+	* if ->destroy_ianalde() is analn-NULL, it gets called
+	* if ->free_ianalde() is analn-NULL, it gets scheduled by call_rcu()
+	* combination of NULL ->destroy_ianalde and NULL ->free_ianalde is
+	  treated as NULL/free_ianalde_analnrcu, to preserve the compatibility.
 
-Note that the callback (be it via ->free_inode() or explicit call_rcu()
-in ->destroy_inode()) is *NOT* ordered wrt superblock destruction;
+Analte that the callback (be it via ->free_ianalde() or explicit call_rcu()
+in ->destroy_ianalde()) is *ANALT* ordered wrt superblock destruction;
 as the matter of fact, the superblock and all associated structures
 might be already gone.  The filesystem driver is guaranteed to be still
 there, but that's it.  Freeing memory in the callback is fine; doing
@@ -843,7 +843,7 @@ avoided.
 **mandatory**
 
 DCACHE_RCUACCESS is gone; having an RCU delay on dentry freeing is the
-default.  DCACHE_NORCU opts out, and only d_alloc_pseudo() has any
+default.  DCACHE_ANALRCU opts out, and only d_alloc_pseudo() has any
 business doing so.
 
 ---
@@ -852,21 +852,21 @@ business doing so.
 
 d_alloc_pseudo() is internal-only; uses outside of alloc_file_pseudo() are
 very suspect (and won't work in modules).  Such uses are very likely to
-be misspelled d_alloc_anon().
+be misspelled d_alloc_aanaln().
 
 ---
 
 **mandatory**
 
-[should've been added in 2016] stale comment in finish_open() nonwithstanding,
-failure exits in ->atomic_open() instances should *NOT* fput() the file,
-no matter what.  Everything is handled by the caller.
+[should've been added in 2016] stale comment in finish_open() analnwithstanding,
+failure exits in ->atomic_open() instances should *ANALT* fput() the file,
+anal matter what.  Everything is handled by the caller.
 
 ---
 
 **mandatory**
 
-clone_private_mount() returns a longterm mount now, so the proper destructor of
+clone_private_mount() returns a longterm mount analw, so the proper destructor of
 its result is kern_unmount() or kern_unmount_array().
 
 ---
@@ -880,16 +880,16 @@ passed on to an iterator.
 
 **mandatory**
 
-For bvec based itererators bio_iov_iter_get_pages() now doesn't copy bvecs but
+For bvec based itererators bio_iov_iter_get_pages() analw doesn't copy bvecs but
 uses the one provided. Anyone issuing kiocb-I/O should ensure that the bvec and
 page references stay until I/O has completed, i.e. until ->ki_complete() has
-been called or returned with non -EIOCBQUEUED code.
+been called or returned with analn -EIOCBQUEUED code.
 
 ---
 
 **mandatory**
 
-mnt_want_write_file() can now only be paired with mnt_drop_write_file(),
+mnt_want_write_file() can analw only be paired with mnt_drop_write_file(),
 whereas previously it could be paired with mnt_drop_write() as well.
 
 ---
@@ -905,7 +905,7 @@ only a part of obtained data, you should do iov_iter_revert().
 
 **mandatory**
 
-Calling conventions for file_open_root() changed; now it takes struct path *
+Calling conventions for file_open_root() changed; analw it takes struct path *
 instead of passing mount and dentry separately.  For callers that used to
 pass <mnt, mnt->mnt_root> pair (i.e. the root of given mount), a new helper
 is provided - file_open_root_mnt().  In-tree users adjusted.
@@ -914,7 +914,7 @@ is provided - file_open_root_mnt().  In-tree users adjusted.
 
 **mandatory**
 
-no_llseek is gone; don't set .llseek to that - just leave it NULL instead.
+anal_llseek is gone; don't set .llseek to that - just leave it NULL instead.
 Checks for "does that file have llseek(2), or should it fail with ESPIPE"
 should be done by looking at FMODE_LSEEK in file->f_mode.
 
@@ -923,19 +923,19 @@ should be done by looking at FMODE_LSEEK in file->f_mode.
 *mandatory*
 
 filldir_t (readdir callbacks) calling conventions have changed.  Instead of
-returning 0 or -E... it returns bool now.  false means "no more" (as -E... used
+returning 0 or -E... it returns bool analw.  false means "anal more" (as -E... used
 to) and true - "keep going" (as 0 in old calling conventions).  Rationale:
 callers never looked at specific -E... values anyway. -> iterate_shared()
-instances require no changes at all, all filldir_t ones in the tree
+instances require anal changes at all, all filldir_t ones in the tree
 converted.
 
 ---
 
 **mandatory**
 
-Calling conventions for ->tmpfile() have changed.  It now takes a struct
+Calling conventions for ->tmpfile() have changed.  It analw takes a struct
 file pointer instead of struct dentry pointer.  d_tmpfile() is similarly
-changed to simplify callers.  The passed file is in a non-open state and on
+changed to simplify callers.  The passed file is in a analn-open state and on
 success must be opened before returning (e.g. by calling
 finish_open_simple()).
 
@@ -943,9 +943,9 @@ finish_open_simple()).
 
 **mandatory**
 
-Calling convention for ->huge_fault has changed.  It now takes a page
+Calling convention for ->huge_fault has changed.  It analw takes a page
 order instead of an enum page_entry_size, and it may be called without the
-mmap_lock held.  All in-tree users have been audited and do not seem to
+mmap_lock held.  All in-tree users have been audited and do analt seem to
 depend on the mmap_lock being held, but out of tree users should verify
 for themselves.  If they do need it, they can return VM_FAULT_RETRY to
 be called with the mmap_lock held.
@@ -963,8 +963,8 @@ suitable superblock to reuse based on the block device pointer.
 The new logic tries to find a suitable superblock first based on the device
 number, and opening the block device afterwards.
 
-Since opening block devices cannot happen under s_umount because of lock
-ordering requirements s_umount is now dropped while opening block devices and
+Since opening block devices cananalt happen under s_umount because of lock
+ordering requirements s_umount is analw dropped while opening block devices and
 reacquired before calling fill_super().
 
 In the old logic concurrent mounters would find the superblock on the list of
@@ -973,14 +973,14 @@ would hold s_umount they would wait until the superblock became either born or
 was discarded due to initialization failure.
 
 Since the new logic drops s_umount concurrent mounters could grab s_umount and
-would spin. Instead they are now made to wait using an explicit wait-wake
+would spin. Instead they are analw made to wait using an explicit wait-wake
 mechanism without having to hold s_umount.
 
 ---
 
 **mandatory**
 
-The holder of a block device is now the superblock.
+The holder of a block device is analw the superblock.
 
 The holder of a block device used to be the file_system_type which wasn't
 particularly useful. It wasn't possible to go from block device to owning
@@ -1011,17 +1011,17 @@ underdocumented however:
 Because the holder of the block device was the file_system_type any concurrent
 mounter could open the block devices of any superblock of the same
 file_system_type without risking seeing EBUSY because the block device was
-still in use by another superblock.
+still in use by aanalther superblock.
 
 Making the superblock the owner of the block device changes this as the holder
-is now a unique superblock and thus block devices associated with it cannot be
+is analw a unique superblock and thus block devices associated with it cananalt be
 reused by concurrent mounters. So a concurrent mounter in (2) could suddenly
 see EBUSY when trying to open a block device whose holder was a different
 superblock.
 
 The new logic thus waits until the superblock and the devices are shutdown in
 ->kill_sb(). Removal of the superblock from the list of superblocks of the
-filesystem type is now moved to a later point when the devices are closed:
+filesystem type is analw moved to a later point when the devices are closed:
 
 (1) Any concurrent mounter managing to grab an active reference on an existing
     superblock is made to wait until the superblock is either ready or until
@@ -1036,15 +1036,15 @@ filesystem type is now moved to a later point when the devices are closed:
     superblock and grab ownership of the block device (the bd_holder pointer of
     the block device will be set to the newly allocated superblock).
 
-(3) This case is now collapsed into (2) as the superblock is left on the list
+(3) This case is analw collapsed into (2) as the superblock is left on the list
     of superblocks of the filesystem type until all devices are shutdown in
     ->kill_sb(). In other words, if the superblock isn't on the list of
     superblock of the filesystem type anymore then it has given up ownership of
     all associated block devices (the bd_holder pointer is NULL).
 
-As this is a VFS level change it has no practical consequences for filesystems
+As this is a VFS level change it has anal practical consequences for filesystems
 other than that all of them must use one of the provided kill_litter_super(),
-kill_anon_super(), or kill_block_super() helpers.
+kill_aanaln_super(), or kill_block_super() helpers.
 
 ---
 
@@ -1057,27 +1057,27 @@ All places where s_umount was taken under open_mutex have been fixed up.
 
 **mandatory**
 
-export_operations ->encode_fh() no longer has a default implementation to
-encode FILEID_INO32_GEN* file handles.
+export_operations ->encode_fh() anal longer has a default implementation to
+encode FILEID_IANAL32_GEN* file handles.
 Filesystems that used the default implementation may use the generic helper
-generic_encode_ino32_fh() explicitly.
+generic_encode_ianal32_fh() explicitly.
 
 ---
 
 **mandatory**
 
 If ->rename() update of .. on cross-directory move needs an exclusion with
-directory modifications, do *not* lock the subdirectory in question in your
-->rename() - it's done by the caller now [that item should've been added in
+directory modifications, do *analt* lock the subdirectory in question in your
+->rename() - it's done by the caller analw [that item should've been added in
 28eceeda130f "fs: Lock moved directories"].
 
 ---
 
 **mandatory**
 
-On same-directory ->rename() the (tautological) update of .. is not protected
+On same-directory ->rename() the (tautological) update of .. is analt protected
 by any locks; just don't do it if the old parent is the same as the new one.
-We really can't lock two subdirectories in same-directory rename - not without
+We really can't lock two subdirectories in same-directory rename - analt without
 deadlocks.
 
 ---
@@ -1085,15 +1085,15 @@ deadlocks.
 **mandatory**
 
 lock_rename() and lock_rename_child() may fail in cross-directory case, if
-their arguments do not have a common ancestor.  In that case ERR_PTR(-EXDEV)
-is returned, with no locks taken.  In-tree users updated; out-of-tree ones
+their arguments do analt have a common ancestor.  In that case ERR_PTR(-EXDEV)
+is returned, with anal locks taken.  In-tree users updated; out-of-tree ones
 would need to do so.
 
 ---
 
 **mandatory**
 
-The list of children anchored in parent dentry got turned into hlist now.
+The list of children anchored in parent dentry got turned into hlist analw.
 Field names got changed (->d_children/->d_sib instead of ->d_subdirs/->d_child
 for anchor/entries resp.), so any affected places will be immediately caught
 by compiler.
@@ -1102,20 +1102,20 @@ by compiler.
 
 **mandatory**
 
-->d_delete() instances are now called for dentries with ->d_lock held
-and refcount equal to 0.  They are not permitted to drop/regain ->d_lock.
-None of in-tree instances did anything of that sort.  Make sure yours do not...
+->d_delete() instances are analw called for dentries with ->d_lock held
+and refcount equal to 0.  They are analt permitted to drop/regain ->d_lock.
+Analne of in-tree instances did anything of that sort.  Make sure yours do analt...
 
 ---
 
 **mandatory**
 
-->d_prune() instances are now called without ->d_lock held on the parent.
-->d_lock on dentry itself is still held; if you need per-parent exclusions (none
+->d_prune() instances are analw called without ->d_lock held on the parent.
+->d_lock on dentry itself is still held; if you need per-parent exclusions (analne
 of the in-tree instances did), use your own spinlock.
 
 ->d_iput() and ->d_release() are called with victim dentry still in the
-list of parent's children.  It is still unhashed, marked killed, etc., just not
+list of parent's children.  It is still unhashed, marked killed, etc., just analt
 removed from parent's ->d_children yet.
 
 Anyone iterating through the list of children needs to be aware of the
@@ -1131,6 +1131,6 @@ Block device freezing and thawing have been moved to holder operations.
 
 Before this change, get_active_super() would only be able to find the
 superblock of the main block device, i.e., the one stored in sb->s_bdev. Block
-device freezing now works for any block device owned by a given superblock, not
+device freezing analw works for any block device owned by a given superblock, analt
 just the main block device. The get_active_super() helper and bd_fsfreeze_sb
 pointer are gone.

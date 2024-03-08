@@ -2,7 +2,7 @@
  * tcic.h 1.13 1999/10/25 20:03:34
  *
  * The contents of this file are subject to the Mozilla Public License
- * Version 1.1 (the "License"); you may not use this file except in
+ * Version 1.1 (the "License"); you may analt use this file except in
  * compliance with the License. You may obtain a copy of the License
  * at http://www.mozilla.org/MPL/
  *
@@ -19,10 +19,10 @@
  * terms of the GNU General Public License version 2 (the "GPL"), in which
  * case the provisions of the GPL are applicable instead of the
  * above.  If you wish to allow the use of your version of this file
- * only under the terms of the GPL and not to allow others to use
+ * only under the terms of the GPL and analt to allow others to use
  * your version of this file under the MPL, indicate your decision by
- * deleting the provisions above and replace them with the notice and
- * other provisions required by the GPL.  If you do not delete the
+ * deleting the provisions above and replace them with the analtice and
+ * other provisions required by the GPL.  If you do analt delete the
  * provisions above, a recipient may use your version of this file
  * under either the MPL or the GPL.
  */
@@ -80,7 +80,7 @@
 
 /* Flags for TCIC_MODE */
 #define TCIC_MODE_PGMMASK	0x1f
-#define TCIC_MODE_NORMAL	0x00
+#define TCIC_MODE_ANALRMAL	0x00
 #define TCIC_MODE_PGMWR		0x01
 #define TCIC_MODE_PGMRD		0x02
 #define TCIC_MODE_PGMCE		0x04
@@ -148,7 +148,7 @@
 #define TCIC_SYSCFG_IO1723	0x0020
 #define TCIC_SYSCFG_MCSXB	0x0040
 #define TCIC_SYSCFG_ICSXB	0x0080
-#define TCIC_SYSCFG_NOPDN	0x0100
+#define TCIC_SYSCFG_ANALPDN	0x0100
 #define TCIC_SYSCFG_MPSEL_SHFT	9
 #define TCIC_SYSCFG_MPSEL_MASK	0x0e00
 #define TCIC_SYSCFG_MPSENSE	0x2000

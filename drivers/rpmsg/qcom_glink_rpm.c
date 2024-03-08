@@ -226,7 +226,7 @@ static int glink_rpm_parse_toc(struct device *dev,
 
 	buf = kzalloc(RPM_TOC_SIZE, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	__ioread32_copy(buf, msg_ram + msg_ram_size - RPM_TOC_SIZE,
 			RPM_TOC_SIZE / sizeof(u32));
@@ -289,7 +289,7 @@ static int glink_rpm_probe(struct platform_device *pdev)
 {
 	struct qcom_glink *glink;
 	struct glink_rpm *rpm;
-	struct device_node *np;
+	struct device_analde *np;
 	void __iomem *msg_ram;
 	size_t msg_ram_size;
 	struct device *dev = &pdev->dev;
@@ -298,27 +298,27 @@ static int glink_rpm_probe(struct platform_device *pdev)
 
 	rpm = devm_kzalloc(&pdev->dev, sizeof(*rpm), GFP_KERNEL);
 	if (!rpm)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	np = of_parse_phandle(dev->of_node, "qcom,rpm-msg-ram", 0);
+	np = of_parse_phandle(dev->of_analde, "qcom,rpm-msg-ram", 0);
 	ret = of_address_to_resource(np, 0, &r);
-	of_node_put(np);
+	of_analde_put(np);
 	if (ret)
 		return ret;
 
 	msg_ram = devm_ioremap(dev, r.start, resource_size(&r));
 	msg_ram_size = resource_size(&r);
 	if (!msg_ram)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = glink_rpm_parse_toc(dev, msg_ram, msg_ram_size,
 				  &rpm->rx_pipe, &rpm->tx_pipe);
 	if (ret)
 		return ret;
 
-	rpm->irq = of_irq_get(dev->of_node, 0);
+	rpm->irq = of_irq_get(dev->of_analde, 0);
 	ret = devm_request_irq(dev, rpm->irq, qcom_glink_rpm_intr,
-			       IRQF_NO_SUSPEND | IRQF_NO_AUTOEN,
+			       IRQF_ANAL_SUSPEND | IRQF_ANAL_AUTOEN,
 			       "glink-rpm", rpm);
 	if (ret) {
 		dev_err(dev, "failed to request IRQ\n");
@@ -326,7 +326,7 @@ static int glink_rpm_probe(struct platform_device *pdev)
 	}
 
 	rpm->mbox_client.dev = dev;
-	rpm->mbox_client.knows_txdone = true;
+	rpm->mbox_client.kanalws_txdone = true;
 	rpm->mbox_chan = mbox_request_channel(&rpm->mbox_client, 0);
 	if (IS_ERR(rpm->mbox_chan))
 		return dev_err_probe(dev, PTR_ERR(rpm->mbox_chan), "failed to acquire IPC channel\n");

@@ -8,8 +8,8 @@
 #define NV03_PFIFO_INTR_0                                  0x00002100
 #define NV03_PFIFO_INTR_EN_0                               0x00002140
 #    define NV_PFIFO_INTR_CACHE_ERROR                          (1<<0)
-#    define NV_PFIFO_INTR_RUNOUT                               (1<<4)
-#    define NV_PFIFO_INTR_RUNOUT_OVERFLOW                      (1<<8)
+#    define NV_PFIFO_INTR_RUANALUT                               (1<<4)
+#    define NV_PFIFO_INTR_RUANALUT_OVERFLOW                      (1<<8)
 #    define NV_PFIFO_INTR_DMA_PUSHER                          (1<<12)
 #    define NV_PFIFO_INTR_DMA_PT                              (1<<16)
 #    define NV_PFIFO_INTR_SEMAPHORE                           (1<<20)

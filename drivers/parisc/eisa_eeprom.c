@@ -15,7 +15,7 @@
 #include <linux/uaccess.h>
 #include <asm/eisa_eeprom.h>
 
-#define 	EISA_EEPROM_MINOR 241
+#define 	EISA_EEPROM_MIANALR 241
 
 static loff_t eisa_eeprom_llseek(struct file *file, loff_t offset, int origin)
 {
@@ -44,12 +44,12 @@ static ssize_t eisa_eeprom_read(struct file * file,
 			ret = count;
 		kfree (tmp);
 	} else
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 	
 	return ret;
 }
 
-static int eisa_eeprom_open(struct inode *inode, struct file *file)
+static int eisa_eeprom_open(struct ianalde *ianalde, struct file *file)
 {
 	if (file->f_mode & FMODE_WRITE)
 		return -EINVAL;
@@ -57,7 +57,7 @@ static int eisa_eeprom_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int eisa_eeprom_release(struct inode *inode, struct file *file)
+static int eisa_eeprom_release(struct ianalde *ianalde, struct file *file)
 {
 	return 0;
 }
@@ -74,7 +74,7 @@ static const struct file_operations eisa_eeprom_fops = {
 };
 
 static struct miscdevice eisa_eeprom_dev = {
-	EISA_EEPROM_MINOR,
+	EISA_EEPROM_MIANALR,
 	"eisa_eeprom",
 	&eisa_eeprom_fops
 };
@@ -84,11 +84,11 @@ static int __init eisa_eeprom_init(void)
 	int retval;
 
 	if (!eisa_eeprom_addr)
-		return -ENODEV;
+		return -EANALDEV;
 
 	retval = misc_register(&eisa_eeprom_dev);
 	if (retval < 0) {
-		printk(KERN_ERR "EISA EEPROM: cannot register misc device.\n");
+		printk(KERN_ERR "EISA EEPROM: cananalt register misc device.\n");
 		return retval;
 	}
 

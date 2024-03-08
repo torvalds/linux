@@ -4,7 +4,7 @@
 
 /* Taken over from libbitmask, a project initiated from sgi:
  * Url:            http://oss.sgi.com/projects/cpusets/
- * Unfortunately it's not very widespread, therefore relevant parts are
+ * Unfortunately it's analt very widespread, therefore relevant parts are
  * pasted here.
  */
 

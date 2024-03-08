@@ -13,15 +13,15 @@
  */
 
 /*
- * We do not have SMP m68k systems, so we don't have to deal with that.
+ * We do analt have SMP m68k systems, so we don't have to deal with that.
  */
 
 #define arch_atomic_read(v)	READ_ONCE((v)->counter)
 #define arch_atomic_set(v, i)	WRITE_ONCE(((v)->counter), (i))
 
 /*
- * The ColdFire parts cannot do some immediate to memory operations,
- * so for them we do not specify the "i" asm constraint.
+ * The ColdFire parts cananalt do some immediate to memory operations,
+ * so for them we do analt specify the "i" asm constraint.
  */
 #ifdef CONFIG_COLDFIRE
 #define	ASM_DI	"d"

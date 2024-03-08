@@ -14,25 +14,25 @@ enum integrity_status {
 	INTEGRITY_PASS_IMMUTABLE,
 	INTEGRITY_FAIL,
 	INTEGRITY_FAIL_IMMUTABLE,
-	INTEGRITY_NOLABEL,
-	INTEGRITY_NOXATTRS,
-	INTEGRITY_UNKNOWN,
+	INTEGRITY_ANALLABEL,
+	INTEGRITY_ANALXATTRS,
+	INTEGRITY_UNKANALWN,
 };
 
 /* List of EVM protected security xattrs */
 #ifdef CONFIG_INTEGRITY
-extern struct integrity_iint_cache *integrity_inode_get(struct inode *inode);
-extern void integrity_inode_free(struct inode *inode);
+extern struct integrity_iint_cache *integrity_ianalde_get(struct ianalde *ianalde);
+extern void integrity_ianalde_free(struct ianalde *ianalde);
 extern void __init integrity_load_keys(void);
 
 #else
 static inline struct integrity_iint_cache *
-				integrity_inode_get(struct inode *inode)
+				integrity_ianalde_get(struct ianalde *ianalde)
 {
 	return NULL;
 }
 
-static inline void integrity_inode_free(struct inode *inode)
+static inline void integrity_ianalde_free(struct ianalde *ianalde)
 {
 	return;
 }

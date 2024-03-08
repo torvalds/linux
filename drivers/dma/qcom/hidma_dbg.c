@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Qualcomm Technologies HIDMA debug file
+ * Qualcomm Techanallogies HIDMA debug file
  *
  * Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
  */
@@ -91,15 +91,15 @@ static int hidma_chan_show(struct seq_file *s, void *unused)
 	seq_printf(s, "paused=%u\n", mchan->paused);
 	seq_printf(s, "dma_sig=%u\n", mchan->dma_sig);
 	seq_puts(s, "prepared\n");
-	list_for_each_entry(mdesc, &mchan->prepared, node)
+	list_for_each_entry(mdesc, &mchan->prepared, analde)
 		hidma_ll_chstats(s, mchan->dmadev->lldev, mdesc->tre_ch);
 
 	seq_puts(s, "active\n");
-	list_for_each_entry(mdesc, &mchan->active, node)
+	list_for_each_entry(mdesc, &mchan->active, analde)
 		hidma_ll_chstats(s, mchan->dmadev->lldev, mdesc->tre_ch);
 
 	seq_puts(s, "completed\n");
-	list_for_each_entry(mdesc, &mchan->completed, node)
+	list_for_each_entry(mdesc, &mchan->completed, analde)
 		hidma_ll_chstats(s, mchan->dmadev->lldev, mdesc->tre_ch);
 
 	hidma_ll_devstats(s, mchan->dmadev->lldev);
@@ -151,7 +151,7 @@ void hidma_debug_init(struct hidma_dev *dmadev)
 		struct hidma_chan *chan;
 
 		chan = list_entry(position, struct hidma_chan,
-				  chan.device_node);
+				  chan.device_analde);
 		sprintf(chan->dbg_name, "chan%d", chidx);
 		dir = debugfs_create_dir(chan->dbg_name,
 						   dmadev->debugfs);

@@ -52,7 +52,7 @@ kvmppc_handler_trampoline_enter:
 	 * R1 = host R1
 	 * R2 = host R2
 	 * R4 = guest shadow MSR
-	 * R5 = normal host MSR
+	 * R5 = analrmal host MSR
 	 * R6 = current host MSR (EE, IR, DR off)
 	 * LR = highmem guest exit code
 	 * all other volatile GPRS = free
@@ -101,12 +101,12 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 	 */
 	lbz	r0, HSTATE_RESTORE_HID5(r3)
 	cmpwi	r0, 0
-	beq	no_dcbz32_on
+	beq	anal_dcbz32_on
 
 	mfspr   r0,SPRN_HID5
 	ori     r0, r0, 0x80		/* XXX HID5_dcbz32 = 0x80 */
 	mtspr   SPRN_HID5,r0
-no_dcbz32_on:
+anal_dcbz32_on:
 
 #endif /* CONFIG_PPC_BOOK3S_64 */
 
@@ -174,7 +174,7 @@ kvmppc_interrupt_pr:
 	/* Match 32-bit entry */
 	ld	r9,HSTATE_SCRATCH2(r13)
 	rotldi	r12, r12, 32		  /* Flip R12 halves for stw */
-	stw	r12, HSTATE_SCRATCH1(r13) /* CR is now in the low half */
+	stw	r12, HSTATE_SCRATCH1(r13) /* CR is analw in the low half */
 	srdi	r12, r12, 32		  /* shift trap into low half */
 #endif
 
@@ -276,7 +276,7 @@ BEGIN_FTR_SECTION
 END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 #endif
 
-	b	no_ld_last_inst
+	b	anal_ld_last_inst
 
 ld_last_prev_inst:
 	addi	r3, r3, -4
@@ -308,10 +308,10 @@ ld_last_inst:
 #endif
 	stw	r0, SVCPU_LAST_INST(r13)
 
-no_ld_last_inst:
+anal_ld_last_inst:
 
 	/* Unset guest mode */
-	li	r9, KVM_GUEST_MODE_NONE
+	li	r9, KVM_GUEST_MODE_ANALNE
 	stb	r9, HSTATE_IN_GUEST(r13)
 
 	/* Switch back to host MMU */
@@ -321,22 +321,22 @@ no_ld_last_inst:
 
 	lbz	r5, HSTATE_RESTORE_HID5(r13)
 	cmpwi	r5, 0
-	beq	no_dcbz32_off
+	beq	anal_dcbz32_off
 
 	li	r4, 0
 	mfspr   r5,SPRN_HID5
 	rldimi  r5,r4,6,56
 	mtspr   SPRN_HID5,r5
 
-no_dcbz32_off:
+anal_dcbz32_off:
 
 BEGIN_FTR_SECTION
 	/* Save guest FSCR on a FAC_UNAVAIL interrupt */
 	cmpwi	r12, BOOK3S_INTERRUPT_FAC_UNAVAIL
-	bne+	no_fscr_save
+	bne+	anal_fscr_save
 	mfspr	r7, SPRN_FSCR
 	std	r7, SVCPU_SHADOW_FSCR(r13)
-no_fscr_save:
+anal_fscr_save:
 	/* Restore host FSCR */
 	ld	r8, HSTATE_HOST_FSCR(r13)
 	mtspr	SPRN_FSCR, r8
@@ -377,7 +377,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 	 * The actual TM handling logic will be in host with
 	 * recovered DR/IR bits after HSTATE_VMHANDLER.
 	 * And MSR_TM can be enabled in HOST_MSR so rfid may
-	 * not suppress this change and can lead to exception.
+	 * analt suppress this change and can lead to exception.
 	 * Manually set MSR to prevent TS state change here.
 	 */
 	mfmsr   r7

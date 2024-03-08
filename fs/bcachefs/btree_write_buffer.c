@@ -57,7 +57,7 @@ static inline bool wb_key_eq(const void *_l, const void *_r)
 		 ((l->lo >> 24) ^ (r->lo >> 24)));
 }
 
-static noinline void wb_sort(struct wb_key_ref *base, size_t num)
+static analinline void wb_sort(struct wb_key_ref *base, size_t num)
 {
 	size_t n = num, a = num / 2;
 
@@ -88,10 +88,10 @@ static noinline void wb_sort(struct wb_key_ref *base, size_t num)
 		 */
 		for (b = a; c = 2*b + 1, (d = c + 1) < n;)
 			b = wb_key_ref_cmp(base + c, base + d) ? c : d;
-		if (d == n)		/* Special case last leaf with no sibling */
+		if (d == n)		/* Special case last leaf with anal sibling */
 			b = c;
 
-		/* Now backtrack from "b" to the correct location for "a" */
+		/* Analw backtrack from "b" to the correct location for "a" */
 		while (b != a && wb_key_ref_cmp(base + a, base + b))
 			b = (b - 1) / 2;
 		c = b;			/* Where "a" belongs */
@@ -102,22 +102,22 @@ static noinline void wb_sort(struct wb_key_ref *base, size_t num)
 	}
 }
 
-static noinline int wb_flush_one_slowpath(struct btree_trans *trans,
+static analinline int wb_flush_one_slowpath(struct btree_trans *trans,
 					  struct btree_iter *iter,
 					  struct btree_write_buffered_key *wb)
 {
 	struct btree_path *path = btree_iter_path(trans, iter);
 
-	bch2_btree_node_unlock_write(trans, path, path->l[0].b);
+	bch2_btree_analde_unlock_write(trans, path, path->l[0].b);
 
 	trans->journal_res.seq = wb->journal_seq;
 
 	return bch2_trans_update(trans, iter, &wb->k,
-				 BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE) ?:
+				 BTREE_UPDATE_INTERNAL_SNAPSHOT_ANALDE) ?:
 		bch2_trans_commit(trans, NULL, NULL,
-				  BCH_TRANS_COMMIT_no_enospc|
-				  BCH_TRANS_COMMIT_no_check_rw|
-				  BCH_TRANS_COMMIT_no_journal_res|
+				  BCH_TRANS_COMMIT_anal_eanalspc|
+				  BCH_TRANS_COMMIT_anal_check_rw|
+				  BCH_TRANS_COMMIT_anal_journal_res|
 				  BCH_TRANS_COMMIT_journal_reclaim);
 }
 
@@ -137,7 +137,7 @@ static inline int wb_flush_one(struct btree_trans *trans, struct btree_iter *ite
 		return ret;
 
 	/*
-	 * We can't clone a path that has write locks: unshare it now, before
+	 * We can't clone a path that has write locks: unshare it analw, before
 	 * set_pos and traverse():
 	 */
 	if (btree_iter_path(trans, iter)->ref > 1)
@@ -146,15 +146,15 @@ static inline int wb_flush_one(struct btree_trans *trans, struct btree_iter *ite
 	path = btree_iter_path(trans, iter);
 
 	if (!*write_locked) {
-		ret = bch2_btree_node_lock_write(trans, path, &path->l[0].b->c);
+		ret = bch2_btree_analde_lock_write(trans, path, &path->l[0].b->c);
 		if (ret)
 			return ret;
 
-		bch2_btree_node_prep_for_write(trans, path, path->l[0].b);
+		bch2_btree_analde_prep_for_write(trans, path, path->l[0].b);
 		*write_locked = true;
 	}
 
-	if (unlikely(!bch2_btree_node_insert_fits(path->l[0].b, wb->k.k.u64s))) {
+	if (unlikely(!bch2_btree_analde_insert_fits(path->l[0].b, wb->k.k.u64s))) {
 		*write_locked = false;
 		return wb_flush_one_slowpath(trans, iter, wb);
 	}
@@ -168,7 +168,7 @@ static inline int wb_flush_one(struct btree_trans *trans, struct btree_iter *ite
  * Update a btree with a write buffered key using the journal seq of the
  * original write buffer insert.
  *
- * It is not safe to rejournal the key once it has been inserted into the write
+ * It is analt safe to rejournal the key once it has been inserted into the write
  * buffer because that may break recovery ordering. For example, the key may
  * have already been modified in the active write buffer in a seq that comes
  * before the current transaction. If we were to journal this key again and
@@ -188,7 +188,7 @@ btree_write_buffered_insert(struct btree_trans *trans,
 
 	ret   = bch2_btree_iter_traverse(&iter) ?:
 		bch2_trans_update(trans, &iter, &wb->k,
-				  BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE);
+				  BTREE_UPDATE_INTERNAL_SNAPSHOT_ANALDE);
 	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }
@@ -271,7 +271,7 @@ static int bch2_btree_write_buffer_flush_locked(struct btree_trans *trans)
 	 * then we attempt to flush in sorted btree order, as this is most
 	 * efficient.
 	 *
-	 * However, since we're not flushing in the order they appear in the
+	 * However, since we're analt flushing in the order they appear in the
 	 * journal we won't be able to drop our journal pin until everything is
 	 * flushed - which means this could deadlock the journal if we weren't
 	 * passing BCH_TRANS_COMMIT_journal_reclaim. This causes the update to fail
@@ -305,7 +305,7 @@ static int bch2_btree_write_buffer_flush_locked(struct btree_trans *trans)
 
 			if (path->btree_id != i->btree ||
 			    bpos_gt(k->k.k.p, path->l[0].b->key.k.p)) {
-				bch2_btree_node_unlock_write(trans, path, path->l[0].b);
+				bch2_btree_analde_unlock_write(trans, path, path->l[0].b);
 				write_locked = false;
 			}
 		}
@@ -341,7 +341,7 @@ static int bch2_btree_write_buffer_flush_locked(struct btree_trans *trans)
 
 	if (write_locked) {
 		struct btree_path *path = btree_iter_path(trans, &iter);
-		bch2_btree_node_unlock_write(trans, path, path->l[0].b);
+		bch2_btree_analde_unlock_write(trans, path, path->l[0].b);
 	}
 	bch2_trans_iter_exit(trans, &iter);
 
@@ -368,9 +368,9 @@ static int bch2_btree_write_buffer_flush_locked(struct btree_trans *trans)
 
 			ret = commit_do(trans, NULL, NULL,
 					BCH_WATERMARK_reclaim|
-					BCH_TRANS_COMMIT_no_check_rw|
-					BCH_TRANS_COMMIT_no_enospc|
-					BCH_TRANS_COMMIT_no_journal_res|
+					BCH_TRANS_COMMIT_anal_check_rw|
+					BCH_TRANS_COMMIT_anal_eanalspc|
+					BCH_TRANS_COMMIT_anal_journal_res|
 					BCH_TRANS_COMMIT_journal_reclaim,
 					btree_write_buffered_insert(trans, i));
 			if (ret)
@@ -412,7 +412,7 @@ static int btree_write_buffer_flush_seq(struct btree_trans *trans, u64 seq)
 
 		/*
 		 * On memory allocation failure, bch2_btree_write_buffer_flush_locked()
-		 * is not guaranteed to empty wb->inc:
+		 * is analt guaranteed to empty wb->inc:
 		 */
 		mutex_lock(&wb->flushing.lock);
 		ret = bch2_btree_write_buffer_flush_locked(trans);
@@ -442,7 +442,7 @@ int bch2_btree_write_buffer_flush_sync(struct btree_trans *trans)
 	return btree_write_buffer_flush_seq(trans, journal_cur_seq(&c->journal));
 }
 
-int bch2_btree_write_buffer_flush_nocheck_rw(struct btree_trans *trans)
+int bch2_btree_write_buffer_flush_analcheck_rw(struct btree_trans *trans)
 {
 	struct bch_fs *c = trans->c;
 	struct btree_write_buffer *wb = &c->btree_write_buffer;
@@ -461,9 +461,9 @@ int bch2_btree_write_buffer_tryflush(struct btree_trans *trans)
 	struct bch_fs *c = trans->c;
 
 	if (!bch2_write_ref_tryget(c, BCH_WRITE_REF_btree_write_buffer))
-		return -BCH_ERR_erofs_no_writes;
+		return -BCH_ERR_erofs_anal_writes;
 
-	int ret = bch2_btree_write_buffer_flush_nocheck_rw(trans);
+	int ret = bch2_btree_write_buffer_flush_analcheck_rw(trans);
 	bch2_write_ref_put(c, BCH_WRITE_REF_btree_write_buffer);
 	return ret;
 }

@@ -109,7 +109,7 @@ IOFUNC_IND(ISAC, sfax_hw, p_isac)
 IOFUNC_IND(ISAR, sfax_hw, p_isar)
 
 static irqreturn_t
-speedfax_irq(int intno, void *dev_id)
+speedfax_irq(int intanal, void *dev_id)
 {
 	struct sfax_hw	*sf = dev_id;
 	u8 val;
@@ -119,7 +119,7 @@ speedfax_irq(int intno, void *dev_id)
 	val = inb(sf->cfg + TIGER_AUX_STATUS);
 	if (val & SFAX_TIGER_IRQ_BIT) { /* for us or shared ? */
 		spin_unlock(&sf->lock);
-		return IRQ_NONE; /* shared */
+		return IRQ_ANALNE; /* shared */
 	}
 	sf->irqcnt++;
 	val = ReadISAR_IND(sf, ISAR_IRQBIT);
@@ -136,7 +136,7 @@ Start_ISAR:
 		pr_debug("%s: %d irqloops cpu%d\n", sf->name,
 			 irqloops - cnt, smp_processor_id());
 	if (irqloops && !cnt)
-		pr_notice("%s: %d IRQ LOOP cpu%d\n", sf->name,
+		pr_analtice("%s: %d IRQ LOOP cpu%d\n", sf->name,
 			  irqloops, smp_processor_id());
 	spin_unlock(&sf->lock);
 	return IRQ_HANDLED;
@@ -196,7 +196,7 @@ sfax_ctrl(struct sfax_hw  *sf, u32 cmd, u_long arg)
 		outb(sf->aux_data, sf->cfg + TIGER_AUX_DATA);
 		break;
 	default:
-		pr_info("%s: %s unknown command %x %lx\n",
+		pr_info("%s: %s unkanalwn command %x %lx\n",
 			sf->name, __func__, cmd, arg);
 		ret = -EINVAL;
 		break;
@@ -225,7 +225,7 @@ channel_ctrl(struct sfax_hw  *sf, struct mISDN_ctrl_req *cq)
 		ret = sf->isac.ctrl(&sf->isac, HW_TIMER3_VALUE, cq->p1);
 		break;
 	default:
-		pr_info("%s: unknown Op %x\n", sf->name, cq->op);
+		pr_info("%s: unkanalwn Op %x\n", sf->name, cq->op);
 		ret = -EINVAL;
 		break;
 	}
@@ -252,7 +252,7 @@ sfax_dctrl(struct mISDNchannel *ch, u32 cmd, void *arg)
 		if (err)
 			break;
 		if (!try_module_get(THIS_MODULE))
-			pr_info("%s: cannot get module\n", sf->name);
+			pr_info("%s: cananalt get module\n", sf->name);
 		break;
 	case CLOSE_CHANNEL:
 		pr_debug("%s: dev(%d) close from %p\n", sf->name,
@@ -263,7 +263,7 @@ sfax_dctrl(struct mISDNchannel *ch, u32 cmd, void *arg)
 		err = channel_ctrl(sf, arg);
 		break;
 	default:
-		pr_debug("%s: unknown command %x\n", sf->name, cmd);
+		pr_debug("%s: unkanalwn command %x\n", sf->name, cmd);
 		return -EINVAL;
 	}
 	return err;
@@ -295,10 +295,10 @@ init_card(struct sfax_hw *sf)
 		spin_unlock_irqrestore(&sf->lock, flags);
 		msleep_interruptible(10);
 		if (debug & DEBUG_HW)
-			pr_notice("%s: IRQ %d count %d\n", sf->name,
+			pr_analtice("%s: IRQ %d count %d\n", sf->name,
 				  sf->irq, sf->irqcnt);
 		if (!sf->irqcnt) {
-			pr_info("%s: IRQ(%d) got no requests during init %d\n",
+			pr_info("%s: IRQ(%d) got anal requests during init %d\n",
 				sf->name, sf->irq, 3 - cnt);
 		} else
 			return 0;
@@ -385,7 +385,7 @@ setup_instance(struct sfax_hw *card)
 		goto error_fw;
 	}
 	if (debug & DEBUG_HW)
-		pr_notice("%s: got firmware %zu bytes\n",
+		pr_analtice("%s: got firmware %zu bytes\n",
 			  card->name, firmware->size);
 
 	mISDNisac_init(&card->isac, card);
@@ -416,7 +416,7 @@ setup_instance(struct sfax_hw *card)
 	if (!err)  {
 		release_firmware(firmware);
 		sfax_cnt++;
-		pr_notice("SpeedFax %d cards installed\n", sfax_cnt);
+		pr_analtice("SpeedFax %d cards installed\n", sfax_cnt);
 		return 0;
 	}
 	disable_hwirq(card);
@@ -441,11 +441,11 @@ error_fw:
 static int
 sfaxpci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 	struct sfax_hw *card = kzalloc(sizeof(struct sfax_hw), GFP_KERNEL);
 
 	if (!card) {
-		pr_info("No memory for Speedfax+ PCI\n");
+		pr_info("Anal memory for Speedfax+ PCI\n");
 		return err;
 	}
 	card->pdev = pdev;
@@ -455,7 +455,7 @@ sfaxpci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return err;
 	}
 
-	pr_notice("mISDN: Speedfax found adapter %s at %s\n",
+	pr_analtice("mISDN: Speedfax found adapter %s at %s\n",
 		  (char *)ent->driver_data, pci_name(pdev));
 
 	card->cfg = pci_resource_start(pdev, 0);
@@ -503,7 +503,7 @@ Speedfax_init(void)
 {
 	int err;
 
-	pr_notice("Sedlbauer Speedfax+ Driver Rev. %s\n",
+	pr_analtice("Sedlbauer Speedfax+ Driver Rev. %s\n",
 		  SPEEDFAX_REV);
 	err = pci_register_driver(&sfaxpci_driver);
 	return err;

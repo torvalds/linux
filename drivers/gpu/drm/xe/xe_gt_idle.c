@@ -48,7 +48,7 @@ static const char *gt_idle_state_to_string(enum xe_gt_idle_state state)
 	case GT_IDLE_C6:
 		return "gt-c6";
 	default:
-		return "unknown";
+		return "unkanalwn";
 	}
 }
 
@@ -140,7 +140,7 @@ void xe_gt_idle_sysfs_init(struct xe_gt_idle *gtidle)
 
 	kobj = kobject_create_and_add("gtidle", gt->sysfs);
 	if (!kobj) {
-		drm_warn(&xe->drm, "%s failed, err: %d\n", __func__, -ENOMEM);
+		drm_warn(&xe->drm, "%s failed, err: %d\n", __func__, -EANALMEM);
 		return;
 	}
 

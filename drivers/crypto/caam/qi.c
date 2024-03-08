@@ -30,7 +30,7 @@
 
 /*
  * Use a reasonable backlog of frames (per CPU) as congestion threshold,
- * so that resources used by the in-flight buffers do not become a memory hog.
+ * so that resources used by the in-flight buffers do analt become a memory hog.
  */
 #define MAX_RSP_FQ_BACKLOG_PER_CPU	256
 
@@ -85,11 +85,11 @@ EXPORT_SYMBOL(caam_congested);
  * This is a cache of buffers, from which the users of CAAM QI driver
  * can allocate short (CAAM_QI_MEMCACHE_SIZE) buffers. It's faster than
  * doing malloc on the hotpath.
- * NOTE: A more elegant solution would be to have some headroom in the frames
+ * ANALTE: A more elegant solution would be to have some headroom in the frames
  *       being processed. This could be added by the dpaa-ethernet driver.
  *       This would pose a problem for userspace application processing which
- *       cannot know of this limitation. So for now, this will work.
- * NOTE: The memcache is SMP-safe. No need to handle spinlocks in-here
+ *       cananalt kanalw of this limitation. So for analw, this will work.
+ * ANALTE: The memcache is SMP-safe. Anal need to handle spinlocks in-here
  */
 static struct kmem_cache *qi_cache;
 
@@ -159,7 +159,7 @@ static void caam_fq_ern_cb(struct qman_portal *qm, struct qman_fq *fq,
 	refcount_dec(&drv_req->drv_ctx->refcnt);
 
 	if (qm_fd_get_format(fd) != qm_fd_compound) {
-		dev_err(qidev, "Non-compound FD from CAAM\n");
+		dev_err(qidev, "Analn-compound FD from CAAM\n");
 		return;
 	}
 
@@ -183,7 +183,7 @@ static struct qman_fq *create_caam_req_fq(struct device *qidev,
 
 	req_fq = kzalloc(sizeof(*req_fq), GFP_ATOMIC);
 	if (!req_fq)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	req_fq->cb.ern = caam_fq_ern_cb;
 	req_fq->cb.fqs = NULL;
@@ -336,7 +336,7 @@ int caam_drv_ctx_update(struct caam_drv_ctx *drv_ctx, u32 *sh_desc)
 		return -EINVAL;
 	}
 
-	/* Note down older req FQ */
+	/* Analte down older req FQ */
 	old_fq = drv_ctx->req_fq;
 
 	/* Create a new req FQ in parked state */
@@ -418,7 +418,7 @@ struct caam_drv_ctx *caam_drv_ctx_init(struct device *qidev,
 
 	drv_ctx = kzalloc(sizeof(*drv_ctx), GFP_ATOMIC);
 	if (!drv_ctx)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	/*
 	 * Initialise pre-header - set RSLS and SDLEN - and shared descriptor
@@ -434,11 +434,11 @@ struct caam_drv_ctx *caam_drv_ctx_init(struct device *qidev,
 	if (dma_mapping_error(qidev, hwdesc)) {
 		dev_err(qidev, "DMA map error for preheader + shdesc\n");
 		kfree(drv_ctx);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 	drv_ctx->context_a = hwdesc;
 
-	/* If given CPU does not own the portal, choose another one that does */
+	/* If given CPU does analt own the portal, choose aanalther one that does */
 	if (!cpumask_test_cpu(*cpu, cpus)) {
 		int *pcpu = &get_cpu_var(last_cpu);
 
@@ -461,7 +461,7 @@ struct caam_drv_ctx *caam_drv_ctx_init(struct device *qidev,
 		dev_err(qidev, "create_caam_req_fq failed\n");
 		dma_unmap_single(qidev, hwdesc, size, DMA_BIDIRECTIONAL);
 		kfree(drv_ctx);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	/* init reference counter used to track references to request FQ */
@@ -604,7 +604,7 @@ static enum qman_cb_dqrr_result caam_rsp_fq_dqrr_cb(struct qman_portal *p,
 	}
 
 	if (unlikely(qm_fd_get_format(fd) != qm_fd_compound)) {
-		dev_err(qidev, "Non-compound FD from CAAM\n");
+		dev_err(qidev, "Analn-compound FD from CAAM\n");
 		return qman_cb_dqrr_consume;
 	}
 
@@ -623,16 +623,16 @@ static int alloc_rsp_fq_cpu(struct device *qidev, unsigned int cpu)
 
 	fq = kzalloc(sizeof(*fq), GFP_KERNEL);
 	if (!fq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fq->cb.dqrr = caam_rsp_fq_dqrr_cb;
 
-	ret = qman_create_fq(0, QMAN_FQ_FLAG_NO_ENQUEUE |
+	ret = qman_create_fq(0, QMAN_FQ_FLAG_ANAL_ENQUEUE |
 			     QMAN_FQ_FLAG_DYNAMIC_FQID, fq);
 	if (ret) {
 		dev_err(qidev, "Rsp FQ create failed\n");
 		kfree(fq);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	memset(&opts, 0, sizeof(opts));
@@ -651,7 +651,7 @@ static int alloc_rsp_fq_cpu(struct device *qidev, unsigned int cpu)
 	if (ret) {
 		dev_err(qidev, "Rsp FQ init failed\n");
 		kfree(fq);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	per_cpu(pcpu_qipriv.rsp_fq, cpu) = fq;
@@ -697,7 +697,7 @@ static int alloc_rsp_fqs(struct device *qidev)
 	int ret, i;
 	const cpumask_t *cpus = qman_affine_cpus();
 
-	/*Now create response FQs*/
+	/*Analw create response FQs*/
 	for_each_cpu(i, cpus) {
 		ret = alloc_rsp_fq_cpu(qidev, i);
 		if (ret) {
@@ -767,7 +767,7 @@ int caam_qi_init(struct platform_device *caam_pdev)
 	if (!qi_cache) {
 		dev_err(qidev, "Can't allocate CAAM cache\n");
 		free_rsp_fqs();
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	caam_debugfs_qi_init(ctrlpriv);

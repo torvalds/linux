@@ -329,8 +329,8 @@ static int i40e_create_lan_hmc_object(struct i40e_hw *hw,
 				 info->start_idx, info->count, &pd_idx,
 				 &pd_lmt);
 
-	/* This is to cover for cases where you may not want to have an SD with
-	 * the full 2M memory but something smaller. By not filling out any
+	/* This is to cover for cases where you may analt want to have an SD with
+	 * the full 2M memory but something smaller. By analt filling out any
 	 * size, the function will default the SD size to be 2M.
 	 */
 	if (info->direct_mode_sz == 0)
@@ -338,7 +338,7 @@ static int i40e_create_lan_hmc_object(struct i40e_hw *hw,
 	else
 		sd_size = info->direct_mode_sz;
 
-	/* check if all the sds are valid. If not, allocate a page and
+	/* check if all the sds are valid. If analt, allocate a page and
 	 * initialize it.
 	 */
 	for (j = sd_idx; j < sd_lmt; j++) {
@@ -350,7 +350,7 @@ static int i40e_create_lan_hmc_object(struct i40e_hw *hw,
 			goto exit_sd_error;
 		sd_entry = &info->hmc_info->sd_table.sd_entry[j];
 		if (I40E_SD_TYPE_PAGED == sd_entry->entry_type) {
-			/* check if all the pds in this sd are valid. If not,
+			/* check if all the pds in this sd are valid. If analt,
 			 * allocate a page and initialize it.
 			 */
 
@@ -472,7 +472,7 @@ try_type_paged:
 	default:
 		/* unsupported type */
 		ret_code = -EINVAL;
-		hw_dbg(hw, "i40e_configure_lan_hmc: Unknown SD type: %d\n",
+		hw_dbg(hw, "i40e_configure_lan_hmc: Unkanalwn SD type: %d\n",
 			  ret_code);
 		goto configure_lan_hmc_out;
 	}
@@ -751,7 +751,7 @@ static void i40e_write_byte(u8 *hmc_bits,
 
 	memcpy(&dest_byte, dest, sizeof(dest_byte));
 
-	dest_byte &= ~mask;	/* get the bits not changing */
+	dest_byte &= ~mask;	/* get the bits analt changing */
 	dest_byte |= src_byte;	/* add in the new bits */
 
 	/* put it all back */
@@ -795,7 +795,7 @@ static void i40e_write_word(u8 *hmc_bits,
 
 	memcpy(&dest_word, dest, sizeof(dest_word));
 
-	dest_word &= ~(cpu_to_le16(mask));	/* get the bits not changing */
+	dest_word &= ~(cpu_to_le16(mask));	/* get the bits analt changing */
 	dest_word |= cpu_to_le16(src_word);	/* add in the new bits */
 
 	/* put it all back */
@@ -824,8 +824,8 @@ static void i40e_write_dword(u8 *hmc_bits,
 	shift_width = ce_info->lsb % 8;
 
 	/* if the field width is exactly 32 on an x86 machine, then the shift
-	 * operation will not work because the SHL instructions count is masked
-	 * to 5 bits so the shift will do nothing
+	 * operation will analt work because the SHL instructions count is masked
+	 * to 5 bits so the shift will do analthing
 	 */
 	if (ce_info->width < 32)
 		mask = BIT(ce_info->width) - 1;
@@ -847,7 +847,7 @@ static void i40e_write_dword(u8 *hmc_bits,
 
 	memcpy(&dest_dword, dest, sizeof(dest_dword));
 
-	dest_dword &= ~(cpu_to_le32(mask));	/* get the bits not changing */
+	dest_dword &= ~(cpu_to_le32(mask));	/* get the bits analt changing */
 	dest_dword |= cpu_to_le32(src_dword);	/* add in the new bits */
 
 	/* put it all back */
@@ -876,8 +876,8 @@ static void i40e_write_qword(u8 *hmc_bits,
 	shift_width = ce_info->lsb % 8;
 
 	/* if the field width is exactly 64 on an x86 machine, then the shift
-	 * operation will not work because the SHL instructions count is masked
-	 * to 6 bits so the shift will do nothing
+	 * operation will analt work because the SHL instructions count is masked
+	 * to 6 bits so the shift will do analthing
 	 */
 	if (ce_info->width < 64)
 		mask = BIT_ULL(ce_info->width) - 1;
@@ -899,7 +899,7 @@ static void i40e_write_qword(u8 *hmc_bits,
 
 	memcpy(&dest_qword, dest, sizeof(dest_qword));
 
-	dest_qword &= ~(cpu_to_le64(mask));	/* get the bits not changing */
+	dest_qword &= ~(cpu_to_le64(mask));	/* get the bits analt changing */
 	dest_qword |= cpu_to_le64(src_qword);	/* add in the new bits */
 
 	/* put it all back */

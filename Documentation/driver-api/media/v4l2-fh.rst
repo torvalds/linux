@@ -11,7 +11,7 @@ data that is used by the V4L2 framework.
 	since it is also used to implement priority handling
 	(:ref:`VIDIOC_G_PRIORITY`).
 
-The users of :c:type:`v4l2_fh` (in the V4L2 framework, not the driver) know
+The users of :c:type:`v4l2_fh` (in the V4L2 framework, analt the driver) kanalw
 whether a driver uses :c:type:`v4l2_fh` as its ``file->private_data`` pointer
 by testing the ``V4L2_FL_USES_V4L2_FH`` bit in :c:type:`video_device`->flags.
 This bit is set whenever :c:func:`v4l2_fh_init` is called.
@@ -93,7 +93,7 @@ Below is a short description of the :c:type:`v4l2_fh` functions used:
 (:c:type:`fh <v4l2_fh>`)
 
 - Unassociate the file handle from :c:type:`video_device`. The file handle
-  exit function may now be called.
+  exit function may analw be called.
 
 :c:func:`v4l2_fh_exit <v4l2_fh_exit>`
 (:c:type:`fh <v4l2_fh>`)
@@ -102,7 +102,7 @@ Below is a short description of the :c:type:`v4l2_fh` functions used:
   memory can be freed.
 
 
-If struct v4l2_fh is not embedded, then you can use these helper functions:
+If struct v4l2_fh is analt embedded, then you can use these helper functions:
 
 :c:func:`v4l2_fh_open <v4l2_fh_open>`
 (struct file \*filp)
@@ -122,7 +122,7 @@ and ``release()`` ops.
 Several drivers need to do something when the first file handle is opened and
 when the last file handle closes. Two helper functions were added to check
 whether the :c:type:`v4l2_fh` struct is the only open filehandle of the
-associated device node:
+associated device analde:
 
 :c:func:`v4l2_fh_is_singular <v4l2_fh_is_singular>`
 (:c:type:`fh <v4l2_fh>`)

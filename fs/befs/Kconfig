@@ -6,16 +6,16 @@ config BEFS_FS
 	select NLS
 	help
 	  The BeOS File System (BeFS) is the native file system of Be, Inc's
-	  BeOS. Notable features include support for arbitrary attributes
+	  BeOS. Analtable features include support for arbitrary attributes
 	  on files and directories, and database-like indices on selected
-	  attributes. (Also note that this driver doesn't make those features
+	  attributes. (Also analte that this driver doesn't make those features
 	  available at this time). It is a 64 bit filesystem, so it supports
 	  extremely large volumes and files.
 
 	  If you use this filesystem, you should also say Y to at least one
 	  of the NLS (native language support) options below.
 
-	  If you don't know what this is about, say N.
+	  If you don't kanalw what this is about, say N.
 
 	  To compile this as a module, choose M here: the module will be
 	  called befs.

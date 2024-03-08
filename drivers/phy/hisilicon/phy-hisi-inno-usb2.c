@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * HiSilicon INNO USB2 PHY Driver.
+ * HiSilicon INANAL USB2 PHY Driver.
  *
- * Copyright (c) 2016-2017 HiSilicon Technologies Co., Ltd.
+ * Copyright (c) 2016-2017 HiSilicon Techanallogies Co., Ltd.
  */
 
 #include <linux/clk.h>
@@ -14,7 +14,7 @@
 #include <linux/platform_device.h>
 #include <linux/reset.h>
 
-#define INNO_PHY_PORT_NUM	2
+#define INANAL_PHY_PORT_NUM	2
 #define REF_CLK_STABLE_TIME	100	/* unit:us */
 #define UTMI_CLK_STABLE_TIME	200	/* unit:us */
 #define TEST_CLK_STABLE_TIME	2	/* unit:ms */
@@ -42,20 +42,20 @@
 
 #define PHY_CLK_ENABLE		BIT(2)
 
-struct hisi_inno_phy_port {
+struct hisi_inanal_phy_port {
 	struct reset_control *utmi_rst;
-	struct hisi_inno_phy_priv *priv;
+	struct hisi_inanal_phy_priv *priv;
 };
 
-struct hisi_inno_phy_priv {
+struct hisi_inanal_phy_priv {
 	void __iomem *mmio;
 	struct clk *ref_clk;
 	struct reset_control *por_rst;
 	unsigned int type;
-	struct hisi_inno_phy_port ports[INNO_PHY_PORT_NUM];
+	struct hisi_inanal_phy_port ports[INANAL_PHY_PORT_NUM];
 };
 
-static void hisi_inno_phy_write_reg(struct hisi_inno_phy_priv *priv,
+static void hisi_inanal_phy_write_reg(struct hisi_inanal_phy_priv *priv,
 				    u8 port, u32 addr, u32 data)
 {
 	void __iomem *reg = priv->mmio;
@@ -84,17 +84,17 @@ static void hisi_inno_phy_write_reg(struct hisi_inno_phy_priv *priv,
 	writel(val, reg);
 }
 
-static void hisi_inno_phy_setup(struct hisi_inno_phy_priv *priv)
+static void hisi_inanal_phy_setup(struct hisi_inanal_phy_priv *priv)
 {
 	/* The phy clk is controlled by the port0 register 0x06. */
-	hisi_inno_phy_write_reg(priv, 0, 0x06, PHY_CLK_ENABLE);
+	hisi_inanal_phy_write_reg(priv, 0, 0x06, PHY_CLK_ENABLE);
 	msleep(PHY_CLK_STABLE_TIME);
 }
 
-static int hisi_inno_phy_init(struct phy *phy)
+static int hisi_inanal_phy_init(struct phy *phy)
 {
-	struct hisi_inno_phy_port *port = phy_get_drvdata(phy);
-	struct hisi_inno_phy_priv *priv = port->priv;
+	struct hisi_inanal_phy_port *port = phy_get_drvdata(phy);
+	struct hisi_inanal_phy_priv *priv = port->priv;
 	int ret;
 
 	ret = clk_prepare_enable(priv->ref_clk);
@@ -106,7 +106,7 @@ static int hisi_inno_phy_init(struct phy *phy)
 	udelay(POR_RST_COMPLETE_TIME);
 
 	/* Set up phy registers */
-	hisi_inno_phy_setup(priv);
+	hisi_inanal_phy_setup(priv);
 
 	reset_control_deassert(port->utmi_rst);
 	udelay(UTMI_RST_COMPLETE_TIME);
@@ -114,10 +114,10 @@ static int hisi_inno_phy_init(struct phy *phy)
 	return 0;
 }
 
-static int hisi_inno_phy_exit(struct phy *phy)
+static int hisi_inanal_phy_exit(struct phy *phy)
 {
-	struct hisi_inno_phy_port *port = phy_get_drvdata(phy);
-	struct hisi_inno_phy_priv *priv = port->priv;
+	struct hisi_inanal_phy_port *port = phy_get_drvdata(phy);
+	struct hisi_inanal_phy_priv *priv = port->priv;
 
 	reset_control_assert(port->utmi_rst);
 	reset_control_assert(priv->por_rst);
@@ -126,25 +126,25 @@ static int hisi_inno_phy_exit(struct phy *phy)
 	return 0;
 }
 
-static const struct phy_ops hisi_inno_phy_ops = {
-	.init = hisi_inno_phy_init,
-	.exit = hisi_inno_phy_exit,
+static const struct phy_ops hisi_inanal_phy_ops = {
+	.init = hisi_inanal_phy_init,
+	.exit = hisi_inanal_phy_exit,
 	.owner = THIS_MODULE,
 };
 
-static int hisi_inno_phy_probe(struct platform_device *pdev)
+static int hisi_inanal_phy_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
-	struct hisi_inno_phy_priv *priv;
+	struct device_analde *np = dev->of_analde;
+	struct hisi_inanal_phy_priv *priv;
 	struct phy_provider *provider;
-	struct device_node *child;
+	struct device_analde *child;
 	int i = 0;
 	int ret;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->mmio = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->mmio)) {
@@ -162,22 +162,22 @@ static int hisi_inno_phy_probe(struct platform_device *pdev)
 
 	priv->type = (uintptr_t) of_device_get_match_data(dev);
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_analde(np, child) {
 		struct reset_control *rst;
 		struct phy *phy;
 
 		rst = of_reset_control_get_exclusive(child, NULL);
 		if (IS_ERR(rst)) {
-			of_node_put(child);
+			of_analde_put(child);
 			return PTR_ERR(rst);
 		}
 
 		priv->ports[i].utmi_rst = rst;
 		priv->ports[i].priv = priv;
 
-		phy = devm_phy_create(dev, child, &hisi_inno_phy_ops);
+		phy = devm_phy_create(dev, child, &hisi_inanal_phy_ops);
 		if (IS_ERR(phy)) {
-			of_node_put(child);
+			of_analde_put(child);
 			return PTR_ERR(phy);
 		}
 
@@ -185,9 +185,9 @@ static int hisi_inno_phy_probe(struct platform_device *pdev)
 		phy_set_drvdata(phy, &priv->ports[i]);
 		i++;
 
-		if (i >= INNO_PHY_PORT_NUM) {
+		if (i >= INANAL_PHY_PORT_NUM) {
 			dev_warn(dev, "Support %d ports in maximum\n", i);
-			of_node_put(child);
+			of_analde_put(child);
 			break;
 		}
 	}
@@ -196,8 +196,8 @@ static int hisi_inno_phy_probe(struct platform_device *pdev)
 	return PTR_ERR_OR_ZERO(provider);
 }
 
-static const struct of_device_id hisi_inno_phy_of_match[] = {
-	{ .compatible = "hisilicon,inno-usb2-phy",
+static const struct of_device_id hisi_inanal_phy_of_match[] = {
+	{ .compatible = "hisilicon,inanal-usb2-phy",
 	  .data = (void *) PHY_TYPE_0 },
 	{ .compatible = "hisilicon,hi3798cv200-usb2-phy",
 	  .data = (void *) PHY_TYPE_0 },
@@ -205,16 +205,16 @@ static const struct of_device_id hisi_inno_phy_of_match[] = {
 	  .data = (void *) PHY_TYPE_1 },
 	{ },
 };
-MODULE_DEVICE_TABLE(of, hisi_inno_phy_of_match);
+MODULE_DEVICE_TABLE(of, hisi_inanal_phy_of_match);
 
-static struct platform_driver hisi_inno_phy_driver = {
-	.probe	= hisi_inno_phy_probe,
+static struct platform_driver hisi_inanal_phy_driver = {
+	.probe	= hisi_inanal_phy_probe,
 	.driver = {
-		.name	= "hisi-inno-phy",
-		.of_match_table	= hisi_inno_phy_of_match,
+		.name	= "hisi-inanal-phy",
+		.of_match_table	= hisi_inanal_phy_of_match,
 	}
 };
-module_platform_driver(hisi_inno_phy_driver);
+module_platform_driver(hisi_inanal_phy_driver);
 
-MODULE_DESCRIPTION("HiSilicon INNO USB2 PHY Driver");
+MODULE_DESCRIPTION("HiSilicon INANAL USB2 PHY Driver");
 MODULE_LICENSE("GPL v2");

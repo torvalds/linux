@@ -22,7 +22,7 @@ release history looks like this:
 	5.1	May 5, 2019
 	5.2	July 7, 2019
 	5.3	September 15, 2019
-	5.4	November 24, 2019
+	5.4	Analvember 24, 2019
 	5.5	January 6, 2020
 	======  =================
 
@@ -41,8 +41,8 @@ new development cycle (and all of the major changes) will be merged during
 this time, at a rate approaching 1,000 changes ("patches," or "changesets")
 per day.
 
-(As an aside, it is worth noting that the changes integrated during the
-merge window do not come out of thin air; they have been collected, tested,
+(As an aside, it is worth analting that the changes integrated during the
+merge window do analt come out of thin air; they have been collected, tested,
 and staged ahead of time.  How that process works will be described in
 detail later on).
 
@@ -61,11 +61,11 @@ features outside of the merge window tend to get an unfriendly reception.
 As a general rule, if you miss the merge window for a given feature, the
 best thing to do is to wait for the next development cycle.  (An occasional
 exception is made for drivers for previously-unsupported hardware; if they
-touch no in-tree code, they cannot cause regressions and should be safe to
+touch anal in-tree code, they cananalt cause regressions and should be safe to
 add at any time).
 
 As fixes make their way into the mainline, the patch rate will slow over
-time.  Linus releases new -rc kernels about once a week; a normal series
+time.  Linus releases new -rc kernels about once a week; a analrmal series
 will get up to somewhere between -rc6 and -rc9 before the kernel is
 considered to be sufficiently stable and the final release is made.
 At that point the whole process starts over again.
@@ -80,27 +80,27 @@ As an example, here is how the 5.4 development cycle went (all dates in
 	October 13	5.4-rc3
 	October 20	5.4-rc4
 	October 27	5.4-rc5
-	November 3	5.4-rc6
-	November 10	5.4-rc7
-	November 17	5.4-rc8
-	November 24	5.4 stable release
+	Analvember 3	5.4-rc6
+	Analvember 10	5.4-rc7
+	Analvember 17	5.4-rc8
+	Analvember 24	5.4 stable release
 	==============  ===============================
 
 How do the developers decide when to close the development cycle and create
 the stable release?  The most significant metric used is the list of
-regressions from previous releases.  No bugs are welcome, but those which
+regressions from previous releases.  Anal bugs are welcome, but those which
 break systems which worked in the past are considered to be especially
 serious.  For this reason, patches which cause regressions are looked upon
 unfavorably and are quite likely to be reverted during the stabilization
 period.
 
-The developers' goal is to fix all known regressions before the stable
+The developers' goal is to fix all kanalwn regressions before the stable
 release is made.  In the real world, this kind of perfection is hard to
 achieve; there are just too many variables in a project of this size.
 There comes a point where delaying the final release just makes the problem
 worse; the pile of changes waiting for the next merge window will grow
 larger, creating even more regressions the next time around.  So most 5.x
-kernels go out with a handful of known regressions though, hopefully, none
+kernels go out with a handful of kanalwn regressions though, hopefully, analne
 of them are serious.
 
 Once a stable release is made, its ongoing maintenance is passed off to the
@@ -133,18 +133,18 @@ long term kernel versions and their maintainers:
 
 The selection of a kernel for long-term support is purely a matter of a
 maintainer having the need and the time to maintain that release.  There
-are no known plans for long-term support for any specific upcoming
+are anal kanalwn plans for long-term support for any specific upcoming
 release.
 
 
 The lifecycle of a patch
 ------------------------
 
-Patches do not go directly from the developer's keyboard into the mainline
+Patches do analt go directly from the developer's keyboard into the mainline
 kernel.  There is, instead, a somewhat involved (if somewhat informal)
 process designed to ensure that each patch is reviewed for quality and that
 each patch implements a change which is desirable to have in the mainline.
-This process can happen quickly for minor fixes, or, in the case of large
+This process can happen quickly for mianalr fixes, or, in the case of large
 and controversial changes, go on for years.  Much developer frustration
 comes from a lack of understanding of this process or from attempts to
 circumvent it.
@@ -169,18 +169,18 @@ The stages that a patch goes through are, generally:
 
  - Wider review.  When the patch is getting close to ready for mainline
    inclusion, it should be accepted by a relevant subsystem maintainer -
-   though this acceptance is not a guarantee that the patch will make it
+   though this acceptance is analt a guarantee that the patch will make it
    all the way to the mainline.  The patch will show up in the maintainer's
    subsystem tree and into the -next trees (described below).  When the
    process works, this step leads to more extensive review of the patch and
    the discovery of any problems resulting from the integration of this
    patch with work being done by others.
 
--  Please note that most maintainers also have day jobs, so merging
-   your patch may not be their highest priority.  If your patch is
+-  Please analte that most maintainers also have day jobs, so merging
+   your patch may analt be their highest priority.  If your patch is
    getting feedback about changes that are needed, you should either
-   make those changes or justify why they should not be made.  If your
-   patch has no review complaints but is not being merged by its
+   make those changes or justify why they should analt be made.  If your
+   patch has anal review complaints but is analt being merged by its
    appropriate subsystem or driver maintainer, you should be persistent
    in updating the patch to the current kernel so that it applies cleanly
    and keep sending it for review and merging.
@@ -191,7 +191,7 @@ The stages that a patch goes through are, generally:
    the developer be responsive to these and fix any issues which arise.
 
  - Stable release.  The number of users potentially affected by the patch
-   is now large, so, once again, new problems may arise.
+   is analw large, so, once again, new problems may arise.
 
  - Long-term maintenance.  While it is certainly possible for a developer
    to forget about code after merging it, that sort of behavior tends to
@@ -213,7 +213,7 @@ There is exactly one person who can merge patches into the mainline kernel
 repository: Linus Torvalds. But, for example, of the over 9,500 patches
 which went into the 2.6.38 kernel, only 112 (around 1.3%) were directly
 chosen by Linus himself. The kernel project has long since grown to a size
-where no single developer could possibly inspect and select every patch
+where anal single developer could possibly inspect and select every patch
 unassisted. The way the kernel developers have addressed this growth is
 through the use of a lieutenant system built around a chain of trust.
 
@@ -226,11 +226,11 @@ of the kernel they manage; they are the ones who will (usually) accept a
 patch for inclusion into the mainline kernel.
 
 Subsystem maintainers each manage their own version of the kernel source
-tree, usually (but certainly not always) using the git source management
+tree, usually (but certainly analt always) using the git source management
 tool.  Tools like git (and related tools like quilt or mercurial) allow
 maintainers to track a list of patches, including authorship information
 and other metadata.  At any given time, the maintainer can identify which
-patches in his or her repository are not found in the mainline.
+patches in his or her repository are analt found in the mainline.
 
 When the merge window opens, top-level maintainers will ask Linus to "pull"
 the patches they have selected for merging from their repositories.  If
@@ -238,19 +238,19 @@ Linus agrees, the stream of patches will flow up into his repository,
 becoming part of the mainline kernel.  The amount of attention that Linus
 pays to specific patches received in a pull operation varies.  It is clear
 that, sometimes, he looks quite closely.  But, as a general rule, Linus
-trusts the subsystem maintainers to not send bad patches upstream.
+trusts the subsystem maintainers to analt send bad patches upstream.
 
 Subsystem maintainers, in turn, can pull patches from other maintainers.
 For example, the networking tree is built from patches which accumulated
 first in trees dedicated to network device drivers, wireless networking,
 etc.  This chain of repositories can be arbitrarily long, though it rarely
 exceeds two or three links.  Since each maintainer in the chain trusts
-those managing lower-level trees, this process is known as the "chain of
+those managing lower-level trees, this process is kanalwn as the "chain of
 trust."
 
 Clearly, in a system like this, getting patches into the kernel depends on
-finding the right maintainer.  Sending patches directly to Linus is not
-normally the right way to go.
+finding the right maintainer.  Sending patches directly to Linus is analt
+analrmally the right way to go.
 
 
 Next trees
@@ -277,8 +277,8 @@ trees; it also has some patches aimed at helping with debugging.
 Beyond that, -mm contains a significant collection of patches which have
 been selected by Andrew directly.  These patches may have been posted on a
 mailing list, or they may apply to a part of the kernel for which there is
-no designated subsystem tree.  As a result, -mm operates as a sort of
-subsystem tree of last resort; if there is no other obvious path for a
+anal designated subsystem tree.  As a result, -mm operates as a sort of
+subsystem tree of last resort; if there is anal other obvious path for a
 patch into the mainline, it is likely to end up in -mm.  Miscellaneous
 patches which accumulate in -mm will eventually either be forwarded on to
 an appropriate subsystem tree or be sent directly to Linus.  In a typical
@@ -291,12 +291,12 @@ directory at:
 	https://www.ozlabs.org/~akpm/mmotm/
 
 Use of the MMOTM tree is likely to be a frustrating experience, though;
-there is a definite chance that it will not even compile.
+there is a definite chance that it will analt even compile.
 
 The primary tree for next-cycle patch merging is linux-next, maintained by
 Stephen Rothwell.  The linux-next tree is, by design, a snapshot of what
 the mainline is expected to look like after the next merge window closes.
-Linux-next trees are announced on the linux-kernel and linux-next mailing
+Linux-next trees are ananalunced on the linux-kernel and linux-next mailing
 lists when they are assembled; they can be downloaded from:
 
 	https://www.kernel.org/pub/linux/kernel/next/
@@ -328,8 +328,8 @@ must, at a minimum, compile properly.
 
 Staging can be a relatively easy way to get new drivers into the mainline
 where, with luck, they will come to the attention of other developers and
-improve quickly.  Entry into staging is not the end of the story, though;
-code in staging which is not seeing regular progress will eventually be
+improve quickly.  Entry into staging is analt the end of the story, though;
+code in staging which is analt seeing regular progress will eventually be
 removed.  Distributors also tend to be relatively reluctant to enable
 staging drivers.  So staging is, at best, a stop on the way toward becoming
 a proper mainline driver.
@@ -340,7 +340,7 @@ Tools
 
 As can be seen from the above text, the kernel development process depends
 heavily on the ability to herd collections of patches in various
-directions.  The whole thing would not work anywhere near as well as it
+directions.  The whole thing would analt work anywhere near as well as it
 does without suitably powerful tools.  Tutorials on how to use these tools
 are well beyond the scope of this document, but there is space for a few
 pointers.
@@ -352,17 +352,17 @@ for kernel development, in that it performs quite well when dealing with
 large repositories and large numbers of patches.  It also has a reputation
 for being difficult to learn and use, though it has gotten better over
 time.  Some sort of familiarity with git is almost a requirement for kernel
-developers; even if they do not use it for their own work, they'll need git
+developers; even if they do analt use it for their own work, they'll need git
 to keep up with what other developers (and the mainline) are doing.
 
-Git is now packaged by almost all Linux distributions.  There is a home
+Git is analw packaged by almost all Linux distributions.  There is a home
 page at:
 
 	https://git-scm.com/
 
 That page has pointers to documentation and tutorials.
 
-Among the kernel developers who do not use git, the most popular choice is
+Among the kernel developers who do analt use git, the most popular choice is
 almost certainly Mercurial:
 
 	https://www.selenic.com/mercurial/
@@ -370,12 +370,12 @@ almost certainly Mercurial:
 Mercurial shares many features with git, but it provides an interface which
 many find easier to use.
 
-The other tool worth knowing about is Quilt:
+The other tool worth kanalwing about is Quilt:
 
-	https://savannah.nongnu.org/projects/quilt/
+	https://savannah.analngnu.org/projects/quilt/
 
 Quilt is a patch management system, rather than a source code management
-system.  It does not track history over time; it is, instead, oriented
+system.  It does analt track history over time; it is, instead, oriented
 toward tracking a specific set of changes against an evolving code base.
 Some major subsystem maintainers use quilt to manage patches intended to go
 upstream.  For the management of certain kinds of trees (-mm, for example),
@@ -402,26 +402,26 @@ redhat.com/mailman/listinfo.
 
 The core mailing list for kernel development is, of course, linux-kernel.
 This list is an intimidating place to be; volume can reach 500 messages per
-day, the amount of noise is high, the conversation can be severely
-technical, and participants are not always concerned with showing a high
-degree of politeness.  But there is no other place where the kernel
+day, the amount of analise is high, the conversation can be severely
+technical, and participants are analt always concerned with showing a high
+degree of politeness.  But there is anal other place where the kernel
 development community comes together as a whole; developers who avoid this
 list will miss important information.
 
 There are a few hints which can help with linux-kernel survival:
 
 - Have the list delivered to a separate folder, rather than your main
-  mailbox.  One must be able to ignore the stream for sustained periods of
+  mailbox.  One must be able to iganalre the stream for sustained periods of
   time.
 
-- Do not try to follow every conversation - nobody else does.  It is
-  important to filter on both the topic of interest (though note that
+- Do analt try to follow every conversation - analbody else does.  It is
+  important to filter on both the topic of interest (though analte that
   long-running conversations can drift away from the original subject
   without changing the email subject line) and the people who are
   participating.
 
-- Do not feed the trolls.  If somebody is trying to stir up an angry
-  response, ignore them.
+- Do analt feed the trolls.  If somebody is trying to stir up an angry
+  response, iganalre them.
 
 - When responding to linux-kernel email (or that on other lists) preserve
   the Cc: header for all involved.  In the absence of a strong reason (such
@@ -432,7 +432,7 @@ There are a few hints which can help with linux-kernel survival:
 
 - Search the list archives (and the net as a whole) before asking
   questions.  Some developers can get impatient with people who clearly
-  have not done their homework.
+  have analt done their homework.
 
 - Use interleaved ("inline") replies, which makes your response easier to
   read. (i.e. avoid top-posting -- the practice of putting your answer above
@@ -440,7 +440,7 @@ There are a few hints which can help with linux-kernel survival:
   :ref:`Documentation/process/submitting-patches.rst <interleaved_replies>`.
 
 - Ask on the correct mailing list.  Linux-kernel may be the general meeting
-  point, but it is not the best place to find developers from all
+  point, but it is analt the best place to find developers from all
   subsystems.
 
 The last point - finding the correct mailing list - is a common place for
@@ -459,9 +459,9 @@ Questions about how to get started with the kernel development process are
 common - from both individuals and companies.  Equally common are missteps
 which make the beginning of the relationship harder than it has to be.
 
-Companies often look to hire well-known developers to get a development
+Companies often look to hire well-kanalwn developers to get a development
 group started.  This can, in fact, be an effective technique.  But it also
-tends to be expensive and does not do much to grow the pool of experienced
+tends to be expensive and does analt do much to grow the pool of experienced
 kernel developers.  It is possible to bring in-house developers up to speed
 on Linux kernel development, given the investment of a bit of time.  Taking
 this time can endow an employer with a group of developers who understand
@@ -472,10 +472,10 @@ Individual developers are often, understandably, at a loss for a place to
 start.  Beginning with a large project can be intimidating; one often wants
 to test the waters with something smaller first.  This is the point where
 some developers jump into the creation of patches fixing spelling errors or
-minor coding style issues.  Unfortunately, such patches create a level of
-noise which is distracting for the development community as a whole, so,
+mianalr coding style issues.  Unfortunately, such patches create a level of
+analise which is distracting for the development community as a whole, so,
 increasingly, they are looked down upon.  New developers wishing to
-introduce themselves to the community will not get the sort of reception
+introduce themselves to the community will analt get the sort of reception
 they wish for by these means.
 
 Andrew Morton gives this advice for aspiring kernel developers

@@ -3,7 +3,7 @@
  * (c) 1998  Grant R. Guenther <grant@torque.net>
  *
  * fit2.c is a low-level protocol driver for the older version
- * of the Fidelity International Technology parallel port adapter.
+ * of the Fidelity International Techanallogy parallel port adapter.
  * This adapter is used in their TransDisk 2000 and older TransDisk
  * 3000 portable hard-drives.  As far as I can tell, this device
  * supports 4-bit mode _only_.
@@ -27,9 +27,9 @@
  * cont = 0 - access the IDE register file
  * cont = 1 - access the IDE command set
  *
- * NB: The FIT adapter does not appear to use the control registers.
- * So, we map ALT_STATUS to STATUS and NO-OP writes to the device
- * control register - this means that IDE reset will not work on these
+ * NB: The FIT adapter does analt appear to use the control registers.
+ * So, we map ALT_STATUS to STATUS and ANAL-OP writes to the device
+ * control register - this means that IDE reset will analt work on these
  * devices.
  */
 
@@ -133,6 +133,6 @@ static struct pi_protocol fit2 = {
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Grant R. Guenther <grant@torque.net>");
-MODULE_DESCRIPTION("Fidelity International Technology parallel port IDE adapter"
+MODULE_DESCRIPTION("Fidelity International Techanallogy parallel port IDE adapter"
 		   "(older models) protocol driver");
 module_pata_parport_driver(fit2);

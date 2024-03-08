@@ -23,7 +23,7 @@
 
 struct mmc_pwrseq_emmc {
 	struct mmc_pwrseq pwrseq;
-	struct notifier_block reset_nb;
+	struct analtifier_block reset_nb;
 	struct gpio_desc *reset_gpio;
 };
 
@@ -39,7 +39,7 @@ static void mmc_pwrseq_emmc_reset(struct mmc_host *host)
 	udelay(200);
 }
 
-static int mmc_pwrseq_emmc_reset_nb(struct notifier_block *this,
+static int mmc_pwrseq_emmc_reset_nb(struct analtifier_block *this,
 				    unsigned long mode, void *cmd)
 {
 	struct mmc_pwrseq_emmc *pwrseq = container_of(this,
@@ -49,7 +49,7 @@ static int mmc_pwrseq_emmc_reset_nb(struct notifier_block *this,
 	gpiod_set_value(pwrseq->reset_gpio, 0);
 	udelay(200);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static const struct mmc_pwrseq_ops mmc_pwrseq_emmc_ops = {
@@ -63,7 +63,7 @@ static int mmc_pwrseq_emmc_probe(struct platform_device *pdev)
 
 	pwrseq = devm_kzalloc(dev, sizeof(*pwrseq), GFP_KERNEL);
 	if (!pwrseq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pwrseq->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(pwrseq->reset_gpio))
@@ -75,11 +75,11 @@ static int mmc_pwrseq_emmc_probe(struct platform_device *pdev)
 		 * emergency_reboot(), priority 255 is the highest priority
 		 * so it will be executed before any system reboot handler.
 		 */
-		pwrseq->reset_nb.notifier_call = mmc_pwrseq_emmc_reset_nb;
+		pwrseq->reset_nb.analtifier_call = mmc_pwrseq_emmc_reset_nb;
 		pwrseq->reset_nb.priority = 255;
 		register_restart_handler(&pwrseq->reset_nb);
 	} else {
-		dev_notice(dev, "EMMC reset pin tied to a sleepy GPIO driver; reset on emergency-reboot disabled\n");
+		dev_analtice(dev, "EMMC reset pin tied to a sleepy GPIO driver; reset on emergency-reboot disabled\n");
 	}
 
 	pwrseq->pwrseq.ops = &mmc_pwrseq_emmc_ops;

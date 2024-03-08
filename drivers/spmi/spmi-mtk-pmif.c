@@ -460,7 +460,7 @@ static int mtk_spmi_probe(struct platform_device *pdev)
 	arb = spmi_controller_get_drvdata(ctrl);
 	arb->data = device_get_match_data(&pdev->dev);
 	if (!arb->data) {
-		dev_err(&pdev->dev, "Cannot get drv_data\n");
+		dev_err(&pdev->dev, "Cananalt get drv_data\n");
 		return -EINVAL;
 	}
 

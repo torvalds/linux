@@ -14,7 +14,7 @@ struct xe_guc_pc;
 enum xe_gt_idle_state {
 	GT_IDLE_C0,
 	GT_IDLE_C6,
-	GT_IDLE_UNKNOWN,
+	GT_IDLE_UNKANALWN,
 };
 
 /**

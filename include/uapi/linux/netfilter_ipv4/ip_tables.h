@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * 25-Jul-1998 Major changes to allow for ip chain table
  *
@@ -67,7 +67,7 @@
 	XT_ENTRY_ITERATE(struct ipt_entry, entries, size, fn, ## args)
 #endif
 
-/* Yes, Virginia, you have to zero the padding. */
+/* Anal, Virginia, you have to zero the padding. */
 struct ipt_ip {
 	/* Source and destination IP addr */
 	struct in_addr src, dst;
@@ -202,7 +202,7 @@ struct ipt_replace {
 	/* The old entries' counters. */
 	struct xt_counters __user *counters;
 
-	/* The entries (hang off end: not really an array). */
+	/* The entries (hang off end: analt really an array). */
 	struct ipt_entry entries[];
 };
 

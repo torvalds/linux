@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef __LINUX_PKT_CLS_H
 #define __LINUX_PKT_CLS_H
 
@@ -23,11 +23,11 @@ enum {
 #define TCA_OLD_COMPAT (TCA_ACT_MAX+1)
 #define TCA_ACT_MAX_PRIO 32
 #define TCA_ACT_BIND	1
-#define TCA_ACT_NOBIND	0
+#define TCA_ACT_ANALBIND	0
 #define TCA_ACT_UNBIND	1
-#define TCA_ACT_NOUNBIND	0
+#define TCA_ACT_ANALUNBIND	0
 #define TCA_ACT_REPLACE		1
-#define TCA_ACT_NOREPLACE	0
+#define TCA_ACT_ANALREPLACE	0
 
 #define TC_ACT_UNSPEC	(-1)
 #define TC_ACT_OK		0
@@ -130,7 +130,7 @@ enum {
 #define TCA_CLS_FLAGS_SKIP_HW	(1 << 0) /* don't offload filter to HW */
 #define TCA_CLS_FLAGS_SKIP_SW	(1 << 1) /* don't use filter in SW */
 #define TCA_CLS_FLAGS_IN_HW	(1 << 2) /* filter is offloaded to HW */
-#define TCA_CLS_FLAGS_NOT_IN_HW (1 << 3) /* filter isn't offloaded to HW */
+#define TCA_CLS_FLAGS_ANALT_IN_HW (1 << 3) /* filter isn't offloaded to HW */
 #define TCA_CLS_FLAGS_VERBOSE	(1 << 4) /* verbose logging */
 
 /* U32 filters */
@@ -138,7 +138,7 @@ enum {
 #define TC_U32_HTID(h) ((h)&0xFFF00000)
 #define TC_U32_USERHTID(h) (TC_U32_HTID(h)>>20)
 #define TC_U32_HASH(h) (((h)>>12)&0xFF)
-#define TC_U32_NODE(h) ((h)&0xFFF)
+#define TC_U32_ANALDE(h) ((h)&0xFFF)
 #define TC_U32_KEY(h) ((h)&0xFFFFF)
 #define TC_U32_UNSPEC	0
 #define TC_U32_ROOT	(0xFFF00000)
@@ -538,7 +538,7 @@ enum {
 
 /* Ematch type assignments
  *   1..32767		Reserved for ematches inside kernel tree
- *   32768..65535	Free to use, not reliable
+ *   32768..65535	Free to use, analt reliable
  */
 #define	TCF_EM_CONTAINER	0
 #define	TCF_EM_CMP		1

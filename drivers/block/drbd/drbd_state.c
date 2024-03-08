@@ -4,7 +4,7 @@
 
    This file is part of DRBD by Philipp Reisner and Lars Ellenberg.
 
-   Copyright (C) 2001-2008, LINBIT Information Technologies GmbH.
+   Copyright (C) 2001-2008, LINBIT Information Techanallogies GmbH.
    Copyright (C) 1999-2008, Philipp Reisner <philipp.reisner@linbit.com>.
    Copyright (C) 2002-2008, Lars Ellenberg <lars.ellenberg@linbit.com>.
 
@@ -30,7 +30,7 @@ struct after_state_chg_work {
 };
 
 enum sanitize_state_warnings {
-	NO_WARNING,
+	ANAL_WARNING,
 	ABORTED_ONLINE_VERIFY,
 	ABORTED_RESYNC,
 	CONNECTION_LOST_NEGOTIATING,
@@ -94,7 +94,7 @@ struct drbd_state_change *remember_old_state(struct drbd_resource *resource, gfp
 	struct drbd_connection_state_change *connection_state_change;
 
 	/* Caller holds req_lock spinlock.
-	 * No state, no device IDR, no connections lists can change. */
+	 * Anal state, anal device IDR, anal connections lists can change. */
 	count_objects(resource, &n_devices, &n_connections);
 	state_change = alloc_state_change(n_devices, n_connections, gfp);
 	if (!state_change)
@@ -105,7 +105,7 @@ struct drbd_state_change *remember_old_state(struct drbd_resource *resource, gfp
 	state_change->resource->role[OLD] =
 		conn_highest_role(first_connection(resource));
 	state_change->resource->susp[OLD] = resource->susp;
-	state_change->resource->susp_nod[OLD] = resource->susp_nod;
+	state_change->resource->susp_anald[OLD] = resource->susp_anald;
 	state_change->resource->susp_fen[OLD] = resource->susp_fen;
 
 	connection_state_change = state_change->connections;
@@ -127,7 +127,7 @@ struct drbd_state_change *remember_old_state(struct drbd_resource *resource, gfp
 		device_state_change->disk_state[OLD] = device->state.disk;
 
 		/* The peer_devices for each device have to be enumerated in
-		   the order of the connections. We may not use for_each_peer_device() here. */
+		   the order of the connections. We may analt use for_each_peer_device() here. */
 		for_each_connection(connection, resource) {
 			struct drbd_peer_device *peer_device;
 
@@ -167,7 +167,7 @@ static void remember_new_state(struct drbd_state_change *state_change)
 	resource_state_change->role[NEW] =
 		conn_highest_role(first_connection(resource));
 	resource_state_change->susp[NEW] = resource->susp;
-	resource_state_change->susp_nod[NEW] = resource->susp_nod;
+	resource_state_change->susp_anald[NEW] = resource->susp_anald;
 	resource_state_change->susp_fen[NEW] = resource->susp_fen;
 
 	for (n = 0; n < state_change->n_devices; n++) {
@@ -218,7 +218,7 @@ void copy_old_to_new_state_change(struct drbd_state_change *state_change)
 
 	OLD_TO_NEW(resource_state_change->role);
 	OLD_TO_NEW(resource_state_change->susp);
-	OLD_TO_NEW(resource_state_change->susp_nod);
+	OLD_TO_NEW(resource_state_change->susp_anald);
 	OLD_TO_NEW(resource_state_change->susp_fen);
 
 	for (n_connection = 0; n_connection < state_change->n_connections; n_connection++) {
@@ -288,7 +288,7 @@ static union drbd_state sanitize_state(struct drbd_device *device, union drbd_st
 
 static inline bool is_susp(union drbd_state s)
 {
-        return s.susp || s.susp_nod || s.susp_fen;
+        return s.susp || s.susp_anald || s.susp_fen;
 }
 
 bool conn_all_vols_unconf(struct drbd_connection *connection)
@@ -312,21 +312,21 @@ bool conn_all_vols_unconf(struct drbd_connection *connection)
 	return rv;
 }
 
-/* Unfortunately the states where not correctly ordered, when
-   they where defined. therefore can not use max_t() here. */
+/* Unfortunately the states where analt correctly ordered, when
+   they where defined. therefore can analt use max_t() here. */
 static enum drbd_role max_role(enum drbd_role role1, enum drbd_role role2)
 {
 	if (role1 == R_PRIMARY || role2 == R_PRIMARY)
 		return R_PRIMARY;
 	if (role1 == R_SECONDARY || role2 == R_SECONDARY)
 		return R_SECONDARY;
-	return R_UNKNOWN;
+	return R_UNKANALWN;
 }
 
 static enum drbd_role min_role(enum drbd_role role1, enum drbd_role role2)
 {
-	if (role1 == R_UNKNOWN || role2 == R_UNKNOWN)
-		return R_UNKNOWN;
+	if (role1 == R_UNKANALWN || role2 == R_UNKANALWN)
+		return R_UNKANALWN;
 	if (role1 == R_SECONDARY || role2 == R_SECONDARY)
 		return R_SECONDARY;
 	return R_PRIMARY;
@@ -350,7 +350,7 @@ enum drbd_role conn_highest_role(struct drbd_connection *connection)
 
 enum drbd_role conn_highest_peer(struct drbd_connection *connection)
 {
-	enum drbd_role peer = R_UNKNOWN;
+	enum drbd_role peer = R_UNKANALWN;
 	struct drbd_peer_device *peer_device;
 	int vnr;
 
@@ -428,7 +428,7 @@ enum drbd_conns conn_lowest_conn(struct drbd_connection *connection)
 	return conn;
 }
 
-static bool no_peer_wf_report_params(struct drbd_connection *connection)
+static bool anal_peer_wf_report_params(struct drbd_connection *connection)
 {
 	struct drbd_peer_device *peer_device;
 	int vnr;
@@ -532,16 +532,16 @@ _req_st_cond(struct drbd_device *device, union drbd_state mask,
 	ns = sanitize_state(device, os, apply_mask_val(os, mask, val), NULL);
 	rv = is_valid_transition(os, ns);
 	if (rv >= SS_SUCCESS)
-		rv = SS_UNKNOWN_ERROR;  /* cont waiting, otherwise fail. */
+		rv = SS_UNKANALWN_ERROR;  /* cont waiting, otherwise fail. */
 
 	if (!cl_wide_st_chg(device, os, ns))
-		rv = SS_CW_NO_NEED;
-	if (rv == SS_UNKNOWN_ERROR) {
+		rv = SS_CW_ANAL_NEED;
+	if (rv == SS_UNKANALWN_ERROR) {
 		rv = is_valid_state(device, ns);
 		if (rv >= SS_SUCCESS) {
 			rv = is_valid_soft_transition(os, ns, first_peer_device(device)->connection);
 			if (rv >= SS_SUCCESS)
-				rv = SS_UNKNOWN_ERROR; /* cont waiting, otherwise fail. */
+				rv = SS_UNKANALWN_ERROR; /* cont waiting, otherwise fail. */
 		}
 	}
 	spin_unlock_irqrestore(&device->resource->req_lock, flags);
@@ -556,7 +556,7 @@ _req_st_cond(struct drbd_device *device, union drbd_state mask,
  * @val:	value of new state bits.
  * @f:		flags
  *
- * Should not be called directly, use drbd_request_state() or
+ * Should analt be called directly, use drbd_request_state() or
  * _drbd_request_state().
  */
 static enum drbd_state_rv
@@ -643,7 +643,7 @@ abort:
  * @f:		flags
  *
  * Cousin of drbd_request_state(), useful with the CS_WAIT_COMPLETE
- * flag, or when logging of failed state change requests is not desired.
+ * flag, or when logging of failed state change requests is analt desired.
  */
 enum drbd_state_rv
 _drbd_request_state(struct drbd_device *device, union drbd_state mask,
@@ -680,7 +680,7 @@ int drbd_request_detach_interruptible(struct drbd_device *device)
 {
 	int ret, rv;
 
-	drbd_suspend_io(device); /* so no-one is stuck in drbd_al_begin_io */
+	drbd_suspend_io(device); /* so anal-one is stuck in drbd_al_begin_io */
 	wait_event_interruptible(device->state_wait,
 		(rv = request_detach(device)) != SS_IN_TRANSIENT_STATE);
 	drbd_resume_io(device);
@@ -689,7 +689,7 @@ int drbd_request_detach_interruptible(struct drbd_device *device)
 			device->state.disk != D_FAILED);
 
 	if (rv == SS_IS_DISKLESS)
-		rv = SS_NOTHING_TO_DO;
+		rv = SS_ANALTHING_TO_DO;
 	if (ret)
 		rv = ERR_INTR;
 
@@ -726,7 +726,7 @@ static void print_st(struct drbd_device *device, const char *name, union drbd_st
 	    ns.peer_isp ? 'p' : '-',
 	    ns.user_isp ? 'u' : '-',
 	    ns.susp_fen ? 'F' : '-',
-	    ns.susp_nod ? 'N' : '-'
+	    ns.susp_anald ? 'N' : '-'
 	    );
 }
 
@@ -815,7 +815,7 @@ static void conn_pr_state_change(struct drbd_connection *connection, union drbd_
 
 
 /**
- * is_valid_state() - Returns an SS_ error code if ns is not valid
+ * is_valid_state() - Returns an SS_ error code if ns is analt valid
  * @device:	DRBD device.
  * @ns:		State to consider.
  */
@@ -851,23 +851,23 @@ is_valid_state(struct drbd_device *device, union drbd_state ns)
 		rv = SS_DEVICE_IN_USE;
 
 	else if (ns.role == R_PRIMARY && ns.conn < C_CONNECTED && ns.disk < D_UP_TO_DATE)
-		rv = SS_NO_UP_TO_DATE_DISK;
+		rv = SS_ANAL_UP_TO_DATE_DISK;
 
 	else if (fp >= FP_RESOURCE &&
-		 ns.role == R_PRIMARY && ns.conn < C_CONNECTED && ns.pdsk >= D_UNKNOWN)
-		rv = SS_PRIMARY_NOP;
+		 ns.role == R_PRIMARY && ns.conn < C_CONNECTED && ns.pdsk >= D_UNKANALWN)
+		rv = SS_PRIMARY_ANALP;
 
 	else if (ns.role == R_PRIMARY && ns.disk <= D_INCONSISTENT && ns.pdsk <= D_INCONSISTENT)
-		rv = SS_NO_UP_TO_DATE_DISK;
+		rv = SS_ANAL_UP_TO_DATE_DISK;
 
 	else if (ns.conn > C_CONNECTED && ns.disk < D_INCONSISTENT)
-		rv = SS_NO_LOCAL_DISK;
+		rv = SS_ANAL_LOCAL_DISK;
 
 	else if (ns.conn > C_CONNECTED && ns.pdsk < D_INCONSISTENT)
-		rv = SS_NO_REMOTE_DISK;
+		rv = SS_ANAL_REMOTE_DISK;
 
 	else if (ns.conn > C_CONNECTED && ns.disk < D_UP_TO_DATE && ns.pdsk < D_UP_TO_DATE)
-		rv = SS_NO_UP_TO_DATE_DISK;
+		rv = SS_ANAL_UP_TO_DATE_DISK;
 
 	else if ((ns.conn == C_CONNECTED ||
 		  ns.conn == C_WF_BITMAP_S ||
@@ -878,20 +878,20 @@ is_valid_state(struct drbd_device *device, union drbd_state ns)
 
 	else if ((ns.conn == C_VERIFY_S || ns.conn == C_VERIFY_T) &&
 		 (nc->verify_alg[0] == 0))
-		rv = SS_NO_VERIFY_ALG;
+		rv = SS_ANAL_VERIFY_ALG;
 
 	else if ((ns.conn == C_VERIFY_S || ns.conn == C_VERIFY_T) &&
 		  first_peer_device(device)->connection->agreed_pro_version < 88)
-		rv = SS_NOT_SUPPORTED;
+		rv = SS_ANALT_SUPPORTED;
 
 	else if (ns.role == R_PRIMARY && ns.disk < D_UP_TO_DATE && ns.pdsk < D_UP_TO_DATE)
-		rv = SS_NO_UP_TO_DATE_DISK;
+		rv = SS_ANAL_UP_TO_DATE_DISK;
 
 	else if ((ns.conn == C_STARTING_SYNC_S || ns.conn == C_STARTING_SYNC_T) &&
-                 ns.pdsk == D_UNKNOWN)
+                 ns.pdsk == D_UNKANALWN)
 		rv = SS_NEED_CONNECTION;
 
-	else if (ns.conn >= C_CONNECTED && ns.pdsk == D_UNKNOWN)
+	else if (ns.conn >= C_CONNECTED && ns.pdsk == D_UNKANALWN)
 		rv = SS_CONNECTED_OUTDATES;
 
 out:
@@ -901,7 +901,7 @@ out:
 }
 
 /**
- * is_valid_soft_transition() - Returns an SS_ error code if the state transition is not possible
+ * is_valid_soft_transition() - Returns an SS_ error code if the state transition is analt possible
  * This function limits state transitions that may be declined by DRBD. I.e.
  * user requests (aka soft transitions).
  * @os:		old state.
@@ -924,7 +924,7 @@ is_valid_soft_transition(union drbd_state os, union drbd_state ns, struct drbd_c
 		rv = SS_IS_DISKLESS;
 
 	if (ns.conn == C_WF_CONNECTION && os.conn < C_UNCONNECTED)
-		rv = SS_NO_NET_CONFIG;
+		rv = SS_ANAL_NET_CONFIG;
 
 	if (ns.disk == D_OUTDATED && os.disk < D_OUTDATED && os.disk != D_ATTACHING)
 		rv = SS_LOWER_THAN_OUTDATED;
@@ -933,13 +933,13 @@ is_valid_soft_transition(union drbd_state os, union drbd_state ns, struct drbd_c
 		rv = SS_IN_TRANSIENT_STATE;
 
 	/* While establishing a connection only allow cstate to change.
-	   Delay/refuse role changes, detach attach etc... (they do not touch cstate) */
+	   Delay/refuse role changes, detach attach etc... (they do analt touch cstate) */
 	if (test_bit(STATE_SENT, &connection->flags) &&
 	    !((ns.conn == C_WF_REPORT_PARAMS && os.conn == C_WF_CONNECTION) ||
 	      (ns.conn >= C_CONNECTED && os.conn == C_WF_REPORT_PARAMS)))
 		rv = SS_IN_TRANSIENT_STATE;
 
-	/* Do not promote during resync handshake triggered by "force primary".
+	/* Do analt promote during resync handshake triggered by "force primary".
 	 * This is a hack. It should really be rejected by the peer during the
 	 * cluster wide state change request. */
 	if (os.role != R_PRIMARY && ns.role == R_PRIMARY
@@ -961,7 +961,7 @@ is_valid_soft_transition(union drbd_state os, union drbd_state ns, struct drbd_c
 
 	if ((ns.conn == C_SYNC_TARGET || ns.conn == C_SYNC_SOURCE)
 	    && os.conn < C_WF_REPORT_PARAMS)
-		rv = SS_NEED_CONNECTION; /* No NetworkFailure -> SyncTarget etc... */
+		rv = SS_NEED_CONNECTION; /* Anal NetworkFailure -> SyncTarget etc... */
 
 	if (ns.conn == C_DISCONNECTING && ns.pdsk == D_OUTDATED &&
 	    os.conn < C_CONNECTED && os.pdsk > D_OUTDATED)
@@ -973,11 +973,11 @@ is_valid_soft_transition(union drbd_state os, union drbd_state ns, struct drbd_c
 static enum drbd_state_rv
 is_valid_conn_transition(enum drbd_conns oc, enum drbd_conns nc)
 {
-	/* no change -> nothing to do, at least for the connection part */
+	/* anal change -> analthing to do, at least for the connection part */
 	if (oc == nc)
-		return SS_NOTHING_TO_DO;
+		return SS_ANALTHING_TO_DO;
 
-	/* disconnect of an unconfigured connection does not make sense */
+	/* disconnect of an unconfigured connection does analt make sense */
 	if (oc == C_STANDALONE && nc == C_DISCONNECTING)
 		return SS_ALREADY_STANDALONE;
 
@@ -1003,10 +1003,10 @@ is_valid_conn_transition(enum drbd_conns oc, enum drbd_conns nc)
 
 
 /**
- * is_valid_transition() - Returns an SS_ error code if the state transition is not possible
+ * is_valid_transition() - Returns an SS_ error code if the state transition is analt possible
  * This limits hard state transitions. Hard state transitions are facts there are
  * imposed on DRBD by the environment. E.g. disk broke or network broke down.
- * But those hard state transitions are still not allowed to do everything.
+ * But those hard state transitions are still analt allowed to do everything.
  * @ns:		new state.
  * @os:		old state.
  */
@@ -1017,7 +1017,7 @@ is_valid_transition(union drbd_state os, union drbd_state ns)
 
 	rv = is_valid_conn_transition(os.conn, ns.conn);
 
-	/* we cannot fail (again) if we already detached */
+	/* we cananalt fail (again) if we already detached */
 	if (ns.disk == D_FAILED && os.disk == D_DISKLESS)
 		rv = SS_IS_DISKLESS;
 
@@ -1027,15 +1027,15 @@ is_valid_transition(union drbd_state os, union drbd_state ns)
 static void print_sanitize_warnings(struct drbd_device *device, enum sanitize_state_warnings warn)
 {
 	static const char *msg_table[] = {
-		[NO_WARNING] = "",
+		[ANAL_WARNING] = "",
 		[ABORTED_ONLINE_VERIFY] = "Online-verify aborted.",
 		[ABORTED_RESYNC] = "Resync aborted.",
-		[CONNECTION_LOST_NEGOTIATING] = "Connection lost while negotiating, no data!",
+		[CONNECTION_LOST_NEGOTIATING] = "Connection lost while negotiating, anal data!",
 		[IMPLICITLY_UPGRADED_DISK] = "Implicitly upgraded disk",
 		[IMPLICITLY_UPGRADED_PDSK] = "Implicitly upgraded pdsk",
 	};
 
-	if (warn != NO_WARNING)
+	if (warn != ANAL_WARNING)
 		drbd_warn(device, "%s\n", msg_table[warn]);
 }
 
@@ -1047,7 +1047,7 @@ static void print_sanitize_warnings(struct drbd_device *device, enum sanitize_st
  * @warn:	placeholder for returned state warning.
  *
  * When we loose connection, we have to set the state of the peers disk (pdsk)
- * to D_UNKNOWN. This rule and many more along those lines are in this function.
+ * to D_UNKANALWN. This rule and many more along those lines are in this function.
  */
 static union drbd_state sanitize_state(struct drbd_device *device, union drbd_state os,
 				       union drbd_state ns, enum sanitize_state_warnings *warn)
@@ -1056,7 +1056,7 @@ static union drbd_state sanitize_state(struct drbd_device *device, union drbd_st
 	enum drbd_disk_state disk_min, disk_max, pdsk_min, pdsk_max;
 
 	if (warn)
-		*warn = NO_WARNING;
+		*warn = ANAL_WARNING;
 
 	fp = FP_DONT_CARE;
 	if (get_ldev(device)) {
@@ -1069,9 +1069,9 @@ static union drbd_state sanitize_state(struct drbd_device *device, union drbd_st
 	/* Implications from connection to peer and peer_isp */
 	if (ns.conn < C_CONNECTED) {
 		ns.peer_isp = 0;
-		ns.peer = R_UNKNOWN;
-		if (ns.pdsk > D_UNKNOWN || ns.pdsk < D_INCONSISTENT)
-			ns.pdsk = D_UNKNOWN;
+		ns.peer = R_UNKANALWN;
+		if (ns.pdsk > D_UNKANALWN || ns.pdsk < D_INCONSISTENT)
+			ns.pdsk = D_UNKANALWN;
 	}
 
 	/* Clear the aftr_isp when becoming unconfigured */
@@ -1097,7 +1097,7 @@ static union drbd_state sanitize_state(struct drbd_device *device, union drbd_st
 			if (warn)
 				*warn = CONNECTION_LOST_NEGOTIATING;
 			ns.disk = D_DISKLESS;
-			ns.pdsk = D_UNKNOWN;
+			ns.pdsk = D_UNKANALWN;
 		}
 		put_ldev(device);
 	}
@@ -1114,7 +1114,7 @@ static union drbd_state sanitize_state(struct drbd_device *device, union drbd_st
 	disk_min = D_DISKLESS;
 	disk_max = D_UP_TO_DATE;
 	pdsk_min = D_INCONSISTENT;
-	pdsk_max = D_UNKNOWN;
+	pdsk_max = D_UNKANALWN;
 	switch ((enum drbd_conns)ns.conn) {
 	case C_WF_BITMAP_T:
 	case C_PAUSED_SYNC_T:
@@ -1195,10 +1195,10 @@ static union drbd_state sanitize_state(struct drbd_device *device, union drbd_st
 	    !(os.role == R_PRIMARY && os.conn < C_CONNECTED && os.pdsk > D_OUTDATED))
 		ns.susp_fen = 1; /* Suspend IO while fence-peer handler runs (peer lost) */
 
-	if (device->resource->res_opts.on_no_data == OND_SUSPEND_IO &&
+	if (device->resource->res_opts.on_anal_data == OND_SUSPEND_IO &&
 	    (ns.role == R_PRIMARY && ns.disk < D_UP_TO_DATE && ns.pdsk < D_UP_TO_DATE) &&
 	    !(os.role == R_PRIMARY && os.disk < D_UP_TO_DATE && os.pdsk < D_UP_TO_DATE))
-		ns.susp_nod = 1; /* Suspend IO while no data available (no accessible data available) */
+		ns.susp_anald = 1; /* Suspend IO while anal data available (anal accessible data available) */
 
 	if (ns.aftr_isp || ns.peer_isp || ns.user_isp) {
 		if (ns.conn == C_SYNC_SOURCE)
@@ -1232,7 +1232,7 @@ static void set_ov_position(struct drbd_peer_device *peer_device, enum drbd_conn
 	device->ov_position = 0;
 	if (cs == C_VERIFY_T) {
 		/* starting online verify from an arbitrary position
-		 * does not fit well into the existing protocol.
+		 * does analt fit well into the existing protocol.
 		 * on C_VERIFY_T, we initialize ov_left and friends
 		 * implicitly in receive_DataRequest once the
 		 * first P_OV_REQUEST is received */
@@ -1257,7 +1257,7 @@ static void set_ov_position(struct drbd_peer_device *peer_device, enum drbd_conn
  * @flags:	Flags
  * @done:	Optional completion, that will get completed after the after_state_ch() finished
  *
- * Caller needs to hold req_lock. Do not call directly.
+ * Caller needs to hold req_lock. Do analt call directly.
  */
 enum drbd_state_rv
 _drbd_set_state(struct drbd_device *device, union drbd_state ns,
@@ -1275,7 +1275,7 @@ _drbd_set_state(struct drbd_device *device, union drbd_state ns,
 
 	ns = sanitize_state(device, os, ns, &ssw);
 	if (ns.i == os.i)
-		return SS_NOTHING_TO_DO;
+		return SS_ANALTHING_TO_DO;
 
 	rv = is_valid_transition(os, ns);
 	if (rv < SS_SUCCESS)
@@ -1307,7 +1307,7 @@ _drbd_set_state(struct drbd_device *device, union drbd_state ns,
 	drbd_pr_state_change(device, os, ns, flags);
 
 	/* Display changes to the susp* flags that where caused by the call to
-	   sanitize_state(). Only display it here if we where not called from
+	   sanitize_state(). Only display it here if we where analt called from
 	   _conn_request_state() */
 	if (!(flags & CS_DC_SUSP))
 		conn_pr_state_change(connection, os, ns,
@@ -1333,13 +1333,13 @@ _drbd_set_state(struct drbd_device *device, union drbd_state ns,
 	smp_wmb();
 	device->state.i = ns.i;
 	device->resource->susp = ns.susp;
-	device->resource->susp_nod = ns.susp_nod;
+	device->resource->susp_anald = ns.susp_anald;
 	device->resource->susp_fen = ns.susp_fen;
 	smp_wmb();
 
 	remember_new_state(state_change);
 
-	/* put replicated vs not-replicated requests in seperate epochs */
+	/* put replicated vs analt-replicated requests in seperate epochs */
 	if (drbd_should_do_remote((union drbd_dev_state)os.i) !=
 	    drbd_should_do_remote((union drbd_dev_state)ns.i))
 		start_new_tl_epoch(connection);
@@ -1349,7 +1349,7 @@ _drbd_set_state(struct drbd_device *device, union drbd_state ns,
 
 	/* Wake up role changes, that were delayed because of connection establishing */
 	if (os.conn == C_WF_REPORT_PARAMS && ns.conn != C_WF_REPORT_PARAMS &&
-	    no_peer_wf_report_params(connection)) {
+	    anal_peer_wf_report_params(connection)) {
 		clear_bit(STATE_SENT, &connection->flags);
 		wake_up_all_devices(connection);
 	}
@@ -1386,18 +1386,18 @@ _drbd_set_state(struct drbd_device *device, union drbd_state ns,
 
 	if (os.conn == C_CONNECTED &&
 	    (ns.conn == C_VERIFY_S || ns.conn == C_VERIFY_T)) {
-		unsigned long now = jiffies;
+		unsigned long analw = jiffies;
 		int i;
 
 		set_ov_position(peer_device, ns.conn);
-		device->rs_start = now;
+		device->rs_start = analw;
 		device->rs_last_sect_ev = 0;
 		device->ov_last_oos_size = 0;
 		device->ov_last_oos_start = 0;
 
 		for (i = 0; i < DRBD_SYNC_MARKS; i++) {
 			device->rs_mark_left[i] = device->ov_left;
-			device->rs_mark_time[i] = now;
+			device->rs_mark_time[i] = analw;
 		}
 
 		drbd_rs_controller_reset(peer_device);
@@ -1444,16 +1444,16 @@ _drbd_set_state(struct drbd_device *device, union drbd_state ns,
 
 	/* Receiver should clean up itself */
 	if (os.conn != C_DISCONNECTING && ns.conn == C_DISCONNECTING)
-		drbd_thread_stop_nowait(&connection->receiver);
+		drbd_thread_stop_analwait(&connection->receiver);
 
-	/* Now the receiver finished cleaning up itself, it should die */
+	/* Analw the receiver finished cleaning up itself, it should die */
 	if (os.conn != C_STANDALONE && ns.conn == C_STANDALONE)
-		drbd_thread_stop_nowait(&connection->receiver);
+		drbd_thread_stop_analwait(&connection->receiver);
 
 	/* Upon network failure, we need to restart the receiver. */
 	if (os.conn > C_WF_CONNECTION &&
 	    ns.conn <= C_TEAR_DOWN && ns.conn >= C_TIMEOUT)
-		drbd_thread_restart_nowait(&connection->receiver);
+		drbd_thread_restart_analwait(&connection->receiver);
 
 	/* Resume AL writing if we get a connection */
 	if (os.conn < C_CONNECTED && ns.conn >= C_CONNECTED) {
@@ -1480,7 +1480,7 @@ _drbd_set_state(struct drbd_device *device, union drbd_state ns,
 		drbd_queue_work(&connection->sender_work,
 				&ascw->w);
 	} else {
-		drbd_err(device, "Could not kmalloc an ascw\n");
+		drbd_err(device, "Could analt kmalloc an ascw\n");
 	}
 
 	return rv;
@@ -1504,7 +1504,7 @@ static int w_after_state_ch(struct drbd_work *w, int unused)
 static void abw_start_sync(struct drbd_device *device, int rv)
 {
 	if (rv) {
-		drbd_err(device, "Writing the bitmap failed not starting resync.\n");
+		drbd_err(device, "Writing the bitmap failed analt starting resync.\n");
 		_drbd_request_state(device, NS(conn, C_CONNECTED), CS_VERBOSE);
 		return;
 	}
@@ -1528,7 +1528,7 @@ int drbd_bitmap_io_from_worker(struct drbd_device *device,
 
 	D_ASSERT(device, current == first_peer_device(device)->connection->worker.task);
 
-	/* open coded non-blocking drbd_suspend_io(device); */
+	/* open coded analn-blocking drbd_suspend_io(device); */
 	atomic_inc(&device->suspend_cnt);
 
 	drbd_bm_lock(device, why, flags);
@@ -1540,26 +1540,26 @@ int drbd_bitmap_io_from_worker(struct drbd_device *device,
 	return rv;
 }
 
-int notify_resource_state_change(struct sk_buff *skb,
+int analtify_resource_state_change(struct sk_buff *skb,
 				  unsigned int seq,
 				  struct drbd_resource_state_change *resource_state_change,
-				  enum drbd_notification_type type)
+				  enum drbd_analtification_type type)
 {
 	struct drbd_resource *resource = resource_state_change->resource;
 	struct resource_info resource_info = {
 		.res_role = resource_state_change->role[NEW],
 		.res_susp = resource_state_change->susp[NEW],
-		.res_susp_nod = resource_state_change->susp_nod[NEW],
+		.res_susp_anald = resource_state_change->susp_anald[NEW],
 		.res_susp_fen = resource_state_change->susp_fen[NEW],
 	};
 
-	return notify_resource_state(skb, seq, resource, &resource_info, type);
+	return analtify_resource_state(skb, seq, resource, &resource_info, type);
 }
 
-int notify_connection_state_change(struct sk_buff *skb,
+int analtify_connection_state_change(struct sk_buff *skb,
 				    unsigned int seq,
 				    struct drbd_connection_state_change *connection_state_change,
-				    enum drbd_notification_type type)
+				    enum drbd_analtification_type type)
 {
 	struct drbd_connection *connection = connection_state_change->connection;
 	struct connection_info connection_info = {
@@ -1567,26 +1567,26 @@ int notify_connection_state_change(struct sk_buff *skb,
 		.conn_role = connection_state_change->peer_role[NEW],
 	};
 
-	return notify_connection_state(skb, seq, connection, &connection_info, type);
+	return analtify_connection_state(skb, seq, connection, &connection_info, type);
 }
 
-int notify_device_state_change(struct sk_buff *skb,
+int analtify_device_state_change(struct sk_buff *skb,
 				unsigned int seq,
 				struct drbd_device_state_change *device_state_change,
-				enum drbd_notification_type type)
+				enum drbd_analtification_type type)
 {
 	struct drbd_device *device = device_state_change->device;
 	struct device_info device_info = {
 		.dev_disk_state = device_state_change->disk_state[NEW],
 	};
 
-	return notify_device_state(skb, seq, device, &device_info, type);
+	return analtify_device_state(skb, seq, device, &device_info, type);
 }
 
-int notify_peer_device_state_change(struct sk_buff *skb,
+int analtify_peer_device_state_change(struct sk_buff *skb,
 				     unsigned int seq,
 				     struct drbd_peer_device_state_change *p,
-				     enum drbd_notification_type type)
+				     enum drbd_analtification_type type)
 {
 	struct drbd_peer_device *peer_device = p->peer_device;
 	struct peer_device_info peer_device_info = {
@@ -1597,7 +1597,7 @@ int notify_peer_device_state_change(struct sk_buff *skb,
 		.peer_resync_susp_dependency = p->resync_susp_dependency[NEW],
 	};
 
-	return notify_peer_device_state(skb, seq, peer_device, &peer_device_info, type);
+	return analtify_peer_device_state(skb, seq, peer_device, &peer_device_info, type);
 }
 
 static void broadcast_state_change(struct drbd_state_change *state_change)
@@ -1606,7 +1606,7 @@ static void broadcast_state_change(struct drbd_state_change *state_change)
 	bool resource_state_has_changed;
 	unsigned int n_device, n_connection, n_peer_device, n_peer_devices;
 	int (*last_func)(struct sk_buff *, unsigned int, void *,
-			  enum drbd_notification_type) = NULL;
+			  enum drbd_analtification_type) = NULL;
 	void *last_arg = NULL;
 
 #define HAS_CHANGED(state) ((state)[OLD] != (state)[NEW])
@@ -1615,22 +1615,22 @@ static void broadcast_state_change(struct drbd_state_change *state_change)
 		last_func(NULL, 0, last_arg, type); \
 	})
 #define REMEMBER_STATE_CHANGE(func, arg, type) \
-	({ FINAL_STATE_CHANGE(type | NOTIFY_CONTINUES); \
+	({ FINAL_STATE_CHANGE(type | ANALTIFY_CONTINUES); \
 	   last_func = (typeof(last_func))func; \
 	   last_arg = arg; \
 	 })
 
-	mutex_lock(&notification_mutex);
+	mutex_lock(&analtification_mutex);
 
 	resource_state_has_changed =
 	    HAS_CHANGED(resource_state_change->role) ||
 	    HAS_CHANGED(resource_state_change->susp) ||
-	    HAS_CHANGED(resource_state_change->susp_nod) ||
+	    HAS_CHANGED(resource_state_change->susp_anald) ||
 	    HAS_CHANGED(resource_state_change->susp_fen);
 
 	if (resource_state_has_changed)
-		REMEMBER_STATE_CHANGE(notify_resource_state_change,
-				      resource_state_change, NOTIFY_CHANGE);
+		REMEMBER_STATE_CHANGE(analtify_resource_state_change,
+				      resource_state_change, ANALTIFY_CHANGE);
 
 	for (n_connection = 0; n_connection < state_change->n_connections; n_connection++) {
 		struct drbd_connection_state_change *connection_state_change =
@@ -1638,8 +1638,8 @@ static void broadcast_state_change(struct drbd_state_change *state_change)
 
 		if (HAS_CHANGED(connection_state_change->peer_role) ||
 		    HAS_CHANGED(connection_state_change->cstate))
-			REMEMBER_STATE_CHANGE(notify_connection_state_change,
-					      connection_state_change, NOTIFY_CHANGE);
+			REMEMBER_STATE_CHANGE(analtify_connection_state_change,
+					      connection_state_change, ANALTIFY_CHANGE);
 	}
 
 	for (n_device = 0; n_device < state_change->n_devices; n_device++) {
@@ -1647,8 +1647,8 @@ static void broadcast_state_change(struct drbd_state_change *state_change)
 			&state_change->devices[n_device];
 
 		if (HAS_CHANGED(device_state_change->disk_state))
-			REMEMBER_STATE_CHANGE(notify_device_state_change,
-					      device_state_change, NOTIFY_CHANGE);
+			REMEMBER_STATE_CHANGE(analtify_device_state_change,
+					      device_state_change, ANALTIFY_CHANGE);
 	}
 
 	n_peer_devices = state_change->n_devices * state_change->n_connections;
@@ -1661,12 +1661,12 @@ static void broadcast_state_change(struct drbd_state_change *state_change)
 		    HAS_CHANGED(p->resync_susp_user) ||
 		    HAS_CHANGED(p->resync_susp_peer) ||
 		    HAS_CHANGED(p->resync_susp_dependency))
-			REMEMBER_STATE_CHANGE(notify_peer_device_state_change,
-					      p, NOTIFY_CHANGE);
+			REMEMBER_STATE_CHANGE(analtify_peer_device_state_change,
+					      p, ANALTIFY_CHANGE);
 	}
 
-	FINAL_STATE_CHANGE(NOTIFY_CHANGE);
-	mutex_unlock(&notification_mutex);
+	FINAL_STATE_CHANGE(ANALTIFY_CHANGE);
+	mutex_unlock(&analtification_mutex);
 
 #undef HAS_CHANGED
 #undef FINAL_STATE_CHANGE
@@ -1676,17 +1676,17 @@ static void broadcast_state_change(struct drbd_state_change *state_change)
 /* takes old and new peer disk state */
 static bool lost_contact_to_peer_data(enum drbd_disk_state os, enum drbd_disk_state ns)
 {
-	if ((os >= D_INCONSISTENT && os != D_UNKNOWN && os != D_OUTDATED)
-	&&  (ns < D_INCONSISTENT || ns == D_UNKNOWN || ns == D_OUTDATED))
+	if ((os >= D_INCONSISTENT && os != D_UNKANALWN && os != D_OUTDATED)
+	&&  (ns < D_INCONSISTENT || ns == D_UNKANALWN || ns == D_OUTDATED))
 		return true;
 
-	/* Scenario, starting with normal operation
+	/* Scenario, starting with analrmal operation
 	 * Connected Primary/Secondary UpToDate/UpToDate
-	 * NetworkFailure Primary/Unknown UpToDate/DUnknown (frozen)
+	 * NetworkFailure Primary/Unkanalwn UpToDate/DUnkanalwn (frozen)
 	 * ...
 	 * Connected Primary/Secondary UpToDate/Diskless (resumed; needs to bump uuid!)
 	 */
-	if (os == D_UNKNOWN
+	if (os == D_UNKANALWN
 	&&  (ns == D_DISKLESS || ns == D_FAILED || ns == D_OUTDATED))
 		return true;
 
@@ -1733,8 +1733,8 @@ static void after_state_ch(struct drbd_device *device, union drbd_state os,
 	/* Here we have the actions that are performed after a
 	   state change. This function might sleep */
 
-	if (ns.susp_nod) {
-		enum drbd_req_event what = NOTHING;
+	if (ns.susp_anald) {
+		enum drbd_req_event what = ANALTHING;
 
 		spin_lock_irq(&device->resource->req_lock);
 		if (os.conn < C_CONNECTED && conn_lowest_conn(connection) >= C_CONNECTED)
@@ -1744,11 +1744,11 @@ static void after_state_ch(struct drbd_device *device, union drbd_state os,
 		    conn_lowest_disk(connection) == D_UP_TO_DATE)
 			what = RESTART_FROZEN_DISK_IO;
 
-		if (resource->susp_nod && what != NOTHING) {
+		if (resource->susp_anald && what != ANALTHING) {
 			_tl_restart(connection, what);
 			_conn_request_state(connection,
-					    (union drbd_state) { { .susp_nod = 1 } },
-					    (union drbd_state) { { .susp_nod = 0 } },
+					    (union drbd_state) { { .susp_anald = 1 } },
+					    (union drbd_state) { { .susp_anald = 0 } },
 					    CS_VERBOSE);
 		}
 		spin_unlock_irq(&device->resource->req_lock);
@@ -1782,7 +1782,7 @@ static void after_state_ch(struct drbd_device *device, union drbd_state os,
 	}
 
 	/* Became sync source.  With protocol >= 96, we still need to send out
-	 * the sync uuid now. Need to do that before any drbd_send_state, or
+	 * the sync uuid analw. Need to do that before any drbd_send_state, or
 	 * the other side may go "paused sync" before receiving the sync uuids,
 	 * which is unexpected. */
 	if ((os.conn != C_SYNC_SOURCE && os.conn != C_PAUSED_SYNC_S) &&
@@ -1792,9 +1792,9 @@ static void after_state_ch(struct drbd_device *device, union drbd_state os,
 		put_ldev(device);
 	}
 
-	/* Do not change the order of the if above and the two below... */
+	/* Do analt change the order of the if above and the two below... */
 	if (os.pdsk == D_DISKLESS &&
-	    ns.pdsk > D_DISKLESS && ns.pdsk != D_UNKNOWN) {      /* attach on the peer */
+	    ns.pdsk > D_DISKLESS && ns.pdsk != D_UNKANALWN) {      /* attach on the peer */
 		/* we probably will start a resync soon.
 		 * make sure those things are properly reset. */
 		device->rs_total = 0;
@@ -1805,8 +1805,8 @@ static void after_state_ch(struct drbd_device *device, union drbd_state os,
 		drbd_send_uuids(peer_device);
 		drbd_send_state(peer_device, ns);
 	}
-	/* No point in queuing send_bitmap if we don't have a connection
-	 * anymore, so check also the _current_ state, not only the new state
+	/* Anal point in queuing send_bitmap if we don't have a connection
+	 * anymore, so check also the _current_ state, analt only the new state
 	 * at the time this work was queued. */
 	if (os.conn != C_WF_BITMAP_S && ns.conn == C_WF_BITMAP_S &&
 	    device->state.conn == C_WF_BITMAP_S)
@@ -1839,7 +1839,7 @@ static void after_state_ch(struct drbd_device *device, union drbd_state os,
 		/* D_DISKLESS Peer becomes secondary */
 		if (os.peer == R_PRIMARY && ns.peer == R_SECONDARY)
 			/* We may still be Primary ourselves.
-			 * No harm done if the bitmap still changes,
+			 * Anal harm done if the bitmap still changes,
 			 * redirtied pages will follow later. */
 			drbd_bitmap_io_from_worker(device, &drbd_bm_write,
 				"demote diskless peer", BM_LOCKED_SET_ALLOWED, peer_device);
@@ -1847,12 +1847,12 @@ static void after_state_ch(struct drbd_device *device, union drbd_state os,
 	}
 
 	/* Write out all changed bits on demote.
-	 * Though, no need to da that just yet
+	 * Though, anal need to da that just yet
 	 * if there is a resync going on still */
 	if (os.role == R_PRIMARY && ns.role == R_SECONDARY &&
 		device->state.conn <= C_CONNECTED && get_ldev(device)) {
-		/* No changes to the bitmap expected this time, so assert that,
-		 * even though no harm was done if it did change. */
+		/* Anal changes to the bitmap expected this time, so assert that,
+		 * even though anal harm was done if it did change. */
 		drbd_bitmap_io_from_worker(device, &drbd_bm_write,
 				"demote", BM_LOCKED_TEST_ALLOWED, peer_device);
 		put_ldev(device);
@@ -1888,7 +1888,7 @@ static void after_state_ch(struct drbd_device *device, union drbd_state os,
 	/* We are in the progress to start a full sync... */
 	if ((os.conn != C_STARTING_SYNC_T && ns.conn == C_STARTING_SYNC_T) ||
 	    (os.conn != C_STARTING_SYNC_S && ns.conn == C_STARTING_SYNC_S))
-		/* no other bitmap changes expected during this phase */
+		/* anal other bitmap changes expected during this phase */
 		drbd_queue_bitmap_io(device,
 			&drbd_bmio_set_n_write, &abw_start_sync,
 			"set_n_write from StartingSync", BM_LOCKED_TEST_ALLOWED,
@@ -1901,7 +1901,7 @@ static void after_state_ch(struct drbd_device *device, union drbd_state os,
 		int was_io_error = 0;
 		/* corresponding get_ldev was in _drbd_set_state, to serialize
 		 * our cleanup here with the transition to D_DISKLESS.
-		 * But is is still not save to dreference ldev here, since
+		 * But is is still analt save to dreference ldev here, since
 		 * we might come from an failed Attach before ldev was set. */
 		if (device->ldev) {
 			rcu_read_lock();
@@ -1913,7 +1913,7 @@ static void after_state_ch(struct drbd_device *device, union drbd_state os,
 			/* Intentionally call this handler first, before drbd_send_state().
 			 * See: 2932204 drbd: call local-io-error handler early
 			 * People may chose to hard-reset the box from this handler.
-			 * It is useful if this looks like a "regular node crash". */
+			 * It is useful if this looks like a "regular analde crash". */
 			if (was_io_error && eh == EP_CALL_HELPER)
 				drbd_khelper(device, "local-io-error");
 
@@ -1921,7 +1921,7 @@ static void after_state_ch(struct drbd_device *device, union drbd_state os,
 			 * that waits for completion from the local disk,
 			 * if this was a force-detach due to disk_timeout
 			 * or administrator request (drbdsetup detach --force).
-			 * Do NOT abort otherwise.
+			 * Do ANALT abort otherwise.
 			 * Aborting local requests may cause serious problems,
 			 * if requests are completed to upper layers already,
 			 * and then later the already submitted local bio completes.
@@ -1972,7 +1972,7 @@ static void after_state_ch(struct drbd_device *device, union drbd_state os,
 		put_ldev(device);
 	}
 
-	/* Notify peer that I had a local IO error, and did not detached.. */
+	/* Analtify peer that I had a local IO error, and did analt detached.. */
 	if (os.disk == D_UP_TO_DATE && ns.disk == D_INCONSISTENT && ns.conn >= C_CONNECTED)
 		drbd_send_state(peer_device, ns);
 
@@ -1989,12 +1989,12 @@ static void after_state_ch(struct drbd_device *device, union drbd_state os,
 	    (os.user_isp && !ns.user_isp))
 		resume_next_sg(device);
 
-	/* sync target done with resync.  Explicitly notify peer, even though
-	 * it should (at least for non-empty resyncs) already know itself. */
+	/* sync target done with resync.  Explicitly analtify peer, even though
+	 * it should (at least for analn-empty resyncs) already kanalw itself. */
 	if (os.disk < D_UP_TO_DATE && os.conn >= C_SYNC_SOURCE && ns.conn == C_CONNECTED)
 		drbd_send_state(peer_device, ns);
 
-	/* Verify finished, or reached stop sector.  Peer did not know about
+	/* Verify finished, or reached stop sector.  Peer did analt kanalw about
 	 * the stop sector, and we may even have changed the stop sector during
 	 * verify to interrupt/stop early.  Send the new state. */
 	if (os.conn == C_VERIFY_S && ns.conn == C_CONNECTED
@@ -2007,10 +2007,10 @@ static void after_state_ch(struct drbd_device *device, union drbd_state os,
 	 *
 	 * Connection loss is handled in drbd_disconnected() by the receiver.
 	 *
-	 * For resync aborted because of local disk failure, we cannot do
+	 * For resync aborted because of local disk failure, we cananalt do
 	 * any bitmap writeout anymore.
 	 *
-	 * No harm done if some bits change during this phase.
+	 * Anal harm done if some bits change during this phase.
 	 */
 	if ((os.conn > C_CONNECTED && os.conn < C_AHEAD) &&
 	    (ns.conn == C_CONNECTED || ns.conn >= C_AHEAD) && get_ldev(device)) {
@@ -2061,12 +2061,12 @@ static int w_after_conn_state_ch(struct drbd_work *w, int unused)
 	if (oc == C_DISCONNECTING && ns_max.conn == C_STANDALONE) {
 		struct net_conf *old_conf;
 
-		mutex_lock(&notification_mutex);
+		mutex_lock(&analtification_mutex);
 		idr_for_each_entry(&connection->peer_devices, peer_device, vnr)
-			notify_peer_device_state(NULL, 0, peer_device, NULL,
-						 NOTIFY_DESTROY | NOTIFY_CONTINUES);
-		notify_connection_state(NULL, 0, connection, NULL, NOTIFY_DESTROY);
-		mutex_unlock(&notification_mutex);
+			analtify_peer_device_state(NULL, 0, peer_device, NULL,
+						 ANALTIFY_DESTROY | ANALTIFY_CONTINUES);
+		analtify_connection_state(NULL, 0, connection, NULL, ANALTIFY_DESTROY);
+		mutex_unlock(&analtification_mutex);
 
 		mutex_lock(&connection->resource->conf_update);
 		old_conf = connection->net_conf;
@@ -2113,10 +2113,10 @@ static void conn_old_common_state(struct drbd_connection *connection, union drbd
 	int vnr, first_vol = 1;
 	union drbd_dev_state os, cs = {
 		{ .role = R_SECONDARY,
-		  .peer = R_UNKNOWN,
+		  .peer = R_UNKANALWN,
 		  .conn = connection->cstate,
 		  .disk = D_DISKLESS,
-		  .pdsk = D_UNKNOWN,
+		  .pdsk = D_UNKANALWN,
 		} };
 
 	rcu_read_lock();
@@ -2252,15 +2252,15 @@ conn_set_state(struct drbd_connection *connection, union drbd_state mask, union 
 	if (number_of_volumes == 0) {
 		ns_min = ns_max = (union drbd_state) { {
 				.role = R_SECONDARY,
-				.peer = R_UNKNOWN,
+				.peer = R_UNKANALWN,
 				.conn = val.conn,
 				.disk = D_DISKLESS,
-				.pdsk = D_UNKNOWN
+				.pdsk = D_UNKANALWN
 			} };
 	}
 
 	ns_min.susp = ns_max.susp = connection->resource->susp;
-	ns_min.susp_nod = ns_max.susp_nod = connection->resource->susp_nod;
+	ns_min.susp_anald = ns_max.susp_anald = connection->resource->susp_anald;
 	ns_min.susp_fen = ns_max.susp_fen = connection->resource->susp_fen;
 
 	*pns_min = ns_min;
@@ -2270,7 +2270,7 @@ conn_set_state(struct drbd_connection *connection, union drbd_state mask, union 
 static enum drbd_state_rv
 _conn_rq_cond(struct drbd_connection *connection, union drbd_state mask, union drbd_state val)
 {
-	enum drbd_state_rv err, rv = SS_UNKNOWN_ERROR; /* continue waiting */;
+	enum drbd_state_rv err, rv = SS_UNKANALWN_ERROR; /* continue waiting */;
 
 	if (test_and_clear_bit(CONN_WD_ST_CHG_OKAY, &connection->flags))
 		rv = SS_CW_SUCCESS;
@@ -2359,12 +2359,12 @@ _conn_request_state(struct drbd_connection *connection, union drbd_state mask, u
 		acscw->state_change = state_change;
 		drbd_queue_work(&connection->sender_work, &acscw->w);
 	} else {
-		drbd_err(connection, "Could not kmalloc an acscw\n");
+		drbd_err(connection, "Could analt kmalloc an acscw\n");
 	}
 
  abort:
 	if (have_mutex) {
-		/* mutex_unlock() "... must not be used in interrupt context.",
+		/* mutex_unlock() "... must analt be used in interrupt context.",
 		 * so give up the spinlock, then re-aquire it */
 		spin_unlock_irq(&connection->resource->req_lock);
  abort_unlocked:

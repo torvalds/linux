@@ -28,14 +28,14 @@ static int cavium_rng_probe(struct pci_dev *pdev,
 
 	rng = devm_kzalloc(&pdev->dev, sizeof(*rng), GFP_KERNEL);
 	if (!rng)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*Map the RNG control */
 	rng->control_status = pcim_iomap(pdev, 0, 0);
 	if (!rng->control_status) {
 		dev_err(&pdev->dev,
 			"Error iomap failed retrieving control_status.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Enable the RNG hardware and entropy source */

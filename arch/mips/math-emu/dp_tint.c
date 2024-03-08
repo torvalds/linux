@@ -36,8 +36,8 @@ int ieee754dp_tint(union ieee754dp x)
 	case IEEE754_CLASS_ZERO:
 		return 0;
 
-	case IEEE754_CLASS_DNORM:
-	case IEEE754_CLASS_NORM:
+	case IEEE754_CLASS_DANALRM:
+	case IEEE754_CLASS_ANALRM:
 		break;
 	}
 	if (xe > 31) {
@@ -61,7 +61,7 @@ int ieee754dp_tint(union ieee754dp x)
 			sticky = (residue << 1) != 0;
 			xm >>= DP_FBITS - xe;
 		}
-		/* Note: At this point upper 32 bits of xm are guaranteed
+		/* Analte: At this point upper 32 bits of xm are guaranteed
 		   to be zero */
 		odd = (xm & 0x1) != 0x0;
 		switch (ieee754_csr.rm) {

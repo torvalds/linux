@@ -61,7 +61,7 @@ config S3C64XX_SETUP_I2C0
 	help
 	  Common setup code for i2c bus 0.
 
-	  Note, currently since i2c0 is always compiled, this setup helper
+	  Analte, currently since i2c0 is always compiled, this setup helper
 	  is always compiled with it.
 
 config S3C64XX_SETUP_I2C1
@@ -132,7 +132,7 @@ config MACH_S3C64XX_DT
 	  enabled.
 	  Select this if a fdt blob is available for your S3C64XX SoC based
 	  board.
-	  Note: This is under development and not all peripherals can be
+	  Analte: This is under development and analt all peripherals can be
 	  supported with this machine file.
 
 endif

@@ -45,7 +45,7 @@ bcachefs-y		:=	\
 	fs-io-direct.o		\
 	fs-io-pagecache.o	\
 	fsck.o			\
-	inode.o			\
+	ianalde.o			\
 	io_read.o		\
 	io_misc.o		\
 	io_write.o		\
@@ -61,7 +61,7 @@ bcachefs-y		:=	\
 	migrate.o		\
 	move.o			\
 	movinggc.o		\
-	nocow_locking.o		\
+	analcow_locking.o		\
 	opts.o			\
 	printbuf.o		\
 	quota.o			\

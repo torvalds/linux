@@ -6,10 +6,10 @@
  * Permission is granted to use, copy, create derivative works
  * and redistribute this software and such derivative works
  * for any purpose, so long as the name of The University of
- * Michigan is not used in any advertising or publicity
+ * Michigan is analt used in any advertising or publicity
  * pertaining to the use of distribution of this software
  * without specific, written prior authorization.  If the
- * above copyright notice or any other identification of the
+ * above copyright analtice or any other identification of the
  * University of Michigan is included in any copy of any
  * portion of this software, then the disclaimer below must
  * also be included.
@@ -20,7 +20,7 @@
  * MICHIGAN OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING
  * WITHOUT LIMITATION THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE. THE
- * REGENTS OF THE UNIVERSITY OF MICHIGAN SHALL NOT BE LIABLE
+ * REGENTS OF THE UNIVERSITY OF MICHIGAN SHALL ANALT BE LIABLE
  * FOR ANY DAMAGES, INCLUDING SPECIAL, INDIRECT, INCIDENTAL, OR
  * CONSEQUENTIAL DAMAGES, WITH RESPECT TO ANY CLAIM ARISING
  * OUT OF OR IN CONNECTION WITH THE USE OF THE SOFTWARE, EVEN
@@ -41,11 +41,11 @@
  * WITHIN THAT CONSTRAINT, permission to use, copy, modify, and
  * distribute this software and its documentation for any purpose and
  * without fee is hereby granted, provided that the above copyright
- * notice appear in all copies and that both that copyright notice and
- * this permission notice appear in supporting documentation, and that
- * the name of FundsXpress. not be used in advertising or publicity pertaining
+ * analtice appear in all copies and that both that copyright analtice and
+ * this permission analtice appear in supporting documentation, and that
+ * the name of FundsXpress. analt be used in advertising or publicity pertaining
  * to distribution of the software without specific, written prior
- * permission.  FundsXpress makes no representations about the suitability of
+ * permission.  FundsXpress makes anal representations about the suitability of
  * this software for any purpose.  It is provided "as is" without express
  * or implied warranty.
  *
@@ -94,7 +94,7 @@ void krb5_nfold(u32 inbits, const u8 *in, u32 outbits, u8 *out)
 	/* first compute lcm(n,k) */
 	ulcm = lcm(inbits, outbits);
 
-	/* now do the real work */
+	/* analw do the real work */
 
 	memset(out, 0, outbits);
 	byte = 0;
@@ -170,7 +170,7 @@ static int krb5_DK(const struct gss_krb5_enctype *gk5e,
 	if (crypto_sync_skcipher_setkey(cipher, inkey->data, inkey->len))
 		goto err_return;
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	inblockdata = kmalloc(blocksize, gfp_mask);
 	if (inblockdata == NULL)
 		goto err_free_cipher;
@@ -194,7 +194,7 @@ static int krb5_DK(const struct gss_krb5_enctype *gk5e,
 			   inblock.len * 8, inblock.data);
 	}
 
-	/* loop encrypting the blocks until enough key bytes are generated */
+	/* loop encrypting the blocks until eanalugh key bytes are generated */
 
 	n = 0;
 	while (n < keybytes) {
@@ -261,7 +261,7 @@ err_out:
  *
  * Caller sets @outkey->len to the desired length of the derived key.
  *
- * On success, returns 0 and fills in @outkey. A negative errno value
+ * On success, returns 0 and fills in @outkey. A negative erranal value
  * is returned on failure.
  */
 int krb5_derive_key_v2(const struct gss_krb5_enctype *gk5e,
@@ -276,7 +276,7 @@ int krb5_derive_key_v2(const struct gss_krb5_enctype *gk5e,
 	inblock.len = gk5e->keybytes;
 	inblock.data = kmalloc(inblock.len, gfp_mask);
 	if (!inblock.data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = krb5_DK(gk5e, inkey, inblock.data, label, gfp_mask);
 	if (!ret)
@@ -361,7 +361,7 @@ out_err:
  *
  * Caller sets @outkey->len to the desired length of the derived key (k).
  *
- * On success, returns 0 and fills in @outkey. A negative errno value
+ * On success, returns 0 and fills in @outkey. A negative erranal value
  * is returned on failure.
  */
 int
@@ -396,7 +396,7 @@ krb5_kdf_feedback_cmac(const struct gss_krb5_enctype *gk5e,
 	n = (outkey->len + blocksize - 1) / blocksize;
 
 	/* K(0) is all zeroes */
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	step.len = blocksize;
 	step.data = kzalloc(step.len, gfp_mask);
 	if (!step.data)
@@ -407,7 +407,7 @@ krb5_kdf_feedback_cmac(const struct gss_krb5_enctype *gk5e,
 	if (!DR.data)
 		goto out_free_tfm;
 
-	/* XXX: Does not handle partial-block key sizes */
+	/* XXX: Does analt handle partial-block key sizes */
 	for (offset = 0, count = 1; count <= n; count++) {
 		ret = krb5_cmac_Ki(tfm, constant, outkey->len, count, &step);
 		if (ret)
@@ -493,7 +493,7 @@ out_err:
  *
  * Caller sets @outkey->len to the desired length of the derived key.
  *
- * On success, returns 0 and fills in @outkey. A negative errno value
+ * On success, returns 0 and fills in @outkey. A negative erranal value
  * is returned on failure.
  */
 int
@@ -527,7 +527,7 @@ krb5_kdf_hmac_sha2(const struct gss_krb5_enctype *gk5e,
 	K1.len = crypto_shash_digestsize(tfm);
 	K1.data = kmalloc(K1.len, gfp_mask);
 	if (!K1.data) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_free_tfm;
 	}
 

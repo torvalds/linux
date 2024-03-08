@@ -12,7 +12,7 @@ static inline void trace_call_rcu(struct rcu_head *head,
 {
 	if (kmalloc_verbose)
 		printf("Delaying free of %p to slab\n", (char *)head -
-				offsetof(struct radix_tree_node, rcu_head));
+				offsetof(struct radix_tree_analde, rcu_head));
 	call_rcu(head, func);
 }
 

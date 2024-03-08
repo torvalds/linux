@@ -164,7 +164,7 @@ EXPORT_SYMBOL(ishtp_cl_free);
  * @cl: client device instance
  *
  * This allocates a single bit in the hostmap. This function will make sure
- * that not many client sessions are opened at the same time. Once allocated
+ * that analt many client sessions are opened at the same time. Once allocated
  * the client device instance is added to the ishtp device in the current
  * client list
  *
@@ -193,14 +193,14 @@ int ishtp_cl_link(struct ishtp_cl *cl)
 	if (id >= ISHTP_CLIENTS_MAX) {
 		spin_unlock_irqrestore(&dev->device_lock, flags);
 		dev_err(&cl->device->dev, "id exceeded %d", ISHTP_CLIENTS_MAX);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	dev->open_handle_count++;
 	cl->host_client_id = id;
 	spin_lock_irqsave(&dev->cl_list_lock, flags_cl);
 	if (dev->dev_state != ISHTP_DEV_ENABLED) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto unlock_cl;
 	}
 	list_add_tail(&cl->link, &dev->cl_list);
@@ -268,7 +268,7 @@ int ishtp_cl_disconnect(struct ishtp_cl *cl)
 	struct ishtp_device *dev;
 
 	if (WARN_ON(!cl || !cl->dev))
-		return -ENODEV;
+		return -EANALDEV;
 
 	dev = cl->dev;
 
@@ -282,7 +282,7 @@ int ishtp_cl_disconnect(struct ishtp_cl *cl)
 	if (ishtp_hbm_cl_disconnect_req(dev, cl)) {
 		dev->print_log(dev, "%s() Failed to disconnect\n", __func__);
 		dev_err(&cl->device->dev, "failed to disconnect.\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	wait_event_interruptible_timeout(cl->wait_ctrl_res,
@@ -297,7 +297,7 @@ int ishtp_cl_disconnect(struct ishtp_cl *cl)
 	if (dev->dev_state != ISHTP_DEV_ENABLED) {
 		dev->print_log(dev, "%s() dev_state != ISHTP_DEV_ENABLED\n",
 			       __func__);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (cl->state == ISHTP_CL_DISCONNECTED) {
@@ -305,7 +305,7 @@ int ishtp_cl_disconnect(struct ishtp_cl *cl)
 		return 0;
 	}
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 EXPORT_SYMBOL(ishtp_cl_disconnect);
 
@@ -357,7 +357,7 @@ static int ishtp_cl_connect_to_fw(struct ishtp_cl *cl)
 	int rets;
 
 	if (WARN_ON(!cl || !cl->dev))
-		return -ENODEV;
+		return -EANALDEV;
 
 	dev = cl->dev;
 
@@ -368,7 +368,7 @@ static int ishtp_cl_connect_to_fw(struct ishtp_cl *cl)
 
 	if (ishtp_hbm_cl_connect_req(dev, cl)) {
 		dev->print_log(dev, "%s() HBM connect req fail\n", __func__);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	rets = wait_event_interruptible_timeout(cl->wait_ctrl_res,
@@ -426,7 +426,7 @@ int ishtp_cl_connect(struct ishtp_cl *cl)
 	int rets;
 
 	if (!cl || !cl->dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dev = cl->dev;
 
@@ -493,7 +493,7 @@ int ishtp_cl_establish_connection(struct ishtp_cl *cl, const guid_t *uuid,
 	int rets;
 
 	if (!cl || !cl->dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dev = cl->dev;
 
@@ -535,8 +535,8 @@ int ishtp_cl_establish_connection(struct ishtp_cl *cl, const guid_t *uuid,
 	fw_client = ishtp_fw_cl_get_client(dev, uuid);
 	if (!fw_client) {
 		dev->print_log(dev,
-			       "%s() ish client uuid not found\n", __func__);
-		return -ENOENT;
+			       "%s() ish client uuid analt found\n", __func__);
+		return -EANALENT;
 	}
 
 	ishtp_set_tx_ring_size(cl, tx_size);
@@ -547,7 +547,7 @@ int ishtp_cl_establish_connection(struct ishtp_cl *cl, const guid_t *uuid,
 	ishtp_set_connection_state(cl, ISHTP_CL_CONNECTING);
 
 	/*
-	 * For reset case, not allocate tx/rx ring buffer which are already
+	 * For reset case, analt allocate tx/rx ring buffer which are already
 	 * done in ishtp_cl_connect() during first connection.
 	 */
 	if (reset) {
@@ -568,7 +568,7 @@ EXPORT_SYMBOL(ishtp_cl_establish_connection);
 /**
  * ishtp_cl_destroy_connection() - Disconnect with the firmware
  * @cl: client device instance
- * @reset: true if called for firmware reset, false for normal disconnection
+ * @reset: true if called for firmware reset, false for analrmal disconnection
  *
  * This is a helper function for client driver to disconnect with firmware,
  * unlink to bus and flush message queue.
@@ -581,7 +581,7 @@ void ishtp_cl_destroy_connection(struct ishtp_cl *cl, bool reset)
 	if (reset) {
 		/*
 		 * For reset case, connection is already lost during fw reset.
-		 * Just set state to DISCONNECTED is enough.
+		 * Just set state to DISCONNECTED is eanalugh.
 		 */
 		ishtp_set_connection_state(cl, ISHTP_CL_DISCONNECTED);
 	} else {
@@ -616,21 +616,21 @@ int ishtp_cl_read_start(struct ishtp_cl *cl)
 	unsigned long	dev_flags;
 
 	if (WARN_ON(!cl || !cl->dev))
-		return -ENODEV;
+		return -EANALDEV;
 
 	dev = cl->dev;
 
 	if (cl->state != ISHTP_CL_CONNECTED)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (dev->dev_state != ISHTP_DEV_ENABLED)
-		return -ENODEV;
+		return -EANALDEV;
 
 	i = ishtp_fw_cl_by_id(dev, cl->fw_client_id);
 	if (i < 0) {
-		dev_err(&cl->device->dev, "no such fw client %d\n",
+		dev_err(&cl->device->dev, "anal such fw client %d\n",
 			cl->fw_client_id);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* The current rb is the head of the free rb list */
@@ -638,7 +638,7 @@ int ishtp_cl_read_start(struct ishtp_cl *cl)
 	if (list_empty(&cl->free_rb_list.list)) {
 		dev_warn(&cl->device->dev,
 			 "[ishtp-ish] Rx buffers pool is empty\n");
-		rets = -ENOMEM;
+		rets = -EANALMEM;
 		rb = NULL;
 		spin_unlock_irqrestore(&cl->free_list_spinlock, flags);
 		goto out;
@@ -661,7 +661,7 @@ int ishtp_cl_read_start(struct ishtp_cl *cl)
 	list_add_tail(&rb->list, &dev->read_list.list);
 	spin_unlock_irqrestore(&dev->read_list_spinlock, dev_flags);
 	if (ishtp_hbm_cl_flow_control_req(dev, cl)) {
-		rets = -ENODEV;
+		rets = -EANALDEV;
 		goto out;
 	}
 out:
@@ -699,7 +699,7 @@ int ishtp_cl_send(struct ishtp_cl *cl, uint8_t *buf, size_t length)
 	unsigned long	tx_flags, tx_free_flags;
 
 	if (WARN_ON(!cl || !cl->dev))
-		return -ENODEV;
+		return -EANALDEV;
 
 	dev = cl->dev;
 
@@ -710,14 +710,14 @@ int ishtp_cl_send(struct ishtp_cl *cl, uint8_t *buf, size_t length)
 
 	if (dev->dev_state != ISHTP_DEV_ENABLED) {
 		++cl->err_send_msg;
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Check if we have fw client device */
 	id = ishtp_fw_cl_by_id(dev, cl->fw_client_id);
 	if (id < 0) {
 		++cl->err_send_msg;
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	if (length > dev->fw_clients[id].props.max_msg_length) {
@@ -725,13 +725,13 @@ int ishtp_cl_send(struct ishtp_cl *cl, uint8_t *buf, size_t length)
 		return -EMSGSIZE;
 	}
 
-	/* No free bufs */
+	/* Anal free bufs */
 	spin_lock_irqsave(&cl->tx_free_list_spinlock, tx_free_flags);
 	if (list_empty(&cl->tx_free_list.list)) {
 		spin_unlock_irqrestore(&cl->tx_free_list_spinlock,
 			tx_free_flags);
 		++cl->err_send_msg;
-		return	-ENOMEM;
+		return	-EANALMEM;
 	}
 
 	cl_msg = list_first_entry(&cl->tx_free_list.list,
@@ -740,10 +740,10 @@ int ishtp_cl_send(struct ishtp_cl *cl, uint8_t *buf, size_t length)
 		spin_unlock_irqrestore(&cl->tx_free_list_spinlock,
 			tx_free_flags);
 		return	-EIO;
-		/* Should not happen, as free list is pre-allocated */
+		/* Should analt happen, as free list is pre-allocated */
 	}
 	/*
-	 * This is safe, as 'length' is already checked for not exceeding
+	 * This is safe, as 'length' is already checked for analt exceeding
 	 * max ISHTP message size per client
 	 */
 	list_del_init(&cl_msg->list);
@@ -853,7 +853,7 @@ static void ipc_tx_send(void *prm)
 			/* Last fragment or only one packet */
 			ishtp_hdr.length = rem;
 			ishtp_hdr.msg_complete = 1;
-			/* Submit to IPC queue with no callback */
+			/* Submit to IPC queue with anal callback */
 			ishtp_write_message(dev, &ishtp_hdr, pmsg);
 			cl->tx_offs = 0;
 			cl->sending = 0;
@@ -863,7 +863,7 @@ static void ipc_tx_send(void *prm)
 			/* Send ipc fragment */
 			ishtp_hdr.length = dev->mtu;
 			ishtp_hdr.msg_complete = 0;
-			/* All fregments submitted to IPC queue with no callback */
+			/* All fregments submitted to IPC queue with anal callback */
 			ishtp_write_message(dev, &ishtp_hdr, pmsg);
 			cl->tx_offs += dev->mtu;
 			rem = cl_msg->send_buf.size - cl->tx_offs;
@@ -885,7 +885,7 @@ static void ipc_tx_send(void *prm)
  * @dev: ISHTP device instance
  * @cl: Pointer to client device instance
  *
- * Send message over IPC not using DMA
+ * Send message over IPC analt using DMA
  */
 static void ishtp_cl_send_msg_ipc(struct ishtp_device *dev,
 				  struct ishtp_cl *cl)
@@ -949,11 +949,11 @@ static void ishtp_cl_send_msg_dma(struct ishtp_device *dev,
 	memcpy(msg_addr, cl_msg->send_buf.data, cl_msg->send_buf.size);
 
 	/*
-	 * if current fw don't support cache snooping, driver have to
+	 * if current fw don't support cache sanaloping, driver have to
 	 * flush the cache manually.
 	 */
-	if (dev->ops->dma_no_cache_snooping &&
-		dev->ops->dma_no_cache_snooping(dev))
+	if (dev->ops->dma_anal_cache_sanaloping &&
+		dev->ops->dma_anal_cache_sanaloping(dev))
 		clflush_cache_range(msg_addr, cl_msg->send_buf.size);
 
 	/* send dma_xfer hbm msg */
@@ -1026,14 +1026,14 @@ void recv_ishtp_cl_msg(struct ishtp_device *dev,
 				!(cl->state == ISHTP_CL_CONNECTED))
 			continue;
 
-		 /* If no Rx buffer is allocated, disband the rb */
+		 /* If anal Rx buffer is allocated, disband the rb */
 		if (rb->buffer.size == 0 || rb->buffer.data == NULL) {
 			spin_unlock_irqrestore(&dev->read_list_spinlock, flags);
 			dev_err(&cl->device->dev,
-				"Rx buffer is not allocated.\n");
+				"Rx buffer is analt allocated.\n");
 			list_del(&rb->list);
 			ishtp_io_rb_free(rb);
-			cl->status = -ENOMEM;
+			cl->status = -EANALMEM;
 			goto	eoi;
 		}
 
@@ -1099,11 +1099,11 @@ void recv_ishtp_cl_msg(struct ishtp_device *dev,
 	}
 
 	spin_unlock_irqrestore(&dev->read_list_spinlock, flags);
-	/* If it's nobody's message, just read and discard it */
+	/* If it's analbody's message, just read and discard it */
 	if (!buffer) {
 		uint8_t	rd_msg_buf[ISHTP_RD_MSG_BUF_SIZE];
 
-		dev_err(dev->devc, "Dropped Rx msg - no request\n");
+		dev_err(dev->devc, "Dropped Rx msg - anal request\n");
 		dev->ops->ishtp_read(dev, rd_msg_buf, ishtp_hdr->length);
 		goto	eoi;
 	}
@@ -1147,15 +1147,15 @@ void recv_ishtp_cl_msg_dma(struct ishtp_device *dev, void *msg,
 			continue;
 
 		/*
-		 * If no Rx buffer is allocated, disband the rb
+		 * If anal Rx buffer is allocated, disband the rb
 		 */
 		if (rb->buffer.size == 0 || rb->buffer.data == NULL) {
 			spin_unlock_irqrestore(&dev->read_list_spinlock, flags);
 			dev_err(&cl->device->dev,
-				"response buffer is not allocated.\n");
+				"response buffer is analt allocated.\n");
 			list_del(&rb->list);
 			ishtp_io_rb_free(rb);
-			cl->status = -ENOMEM;
+			cl->status = -EANALMEM;
 			goto	eoi;
 		}
 
@@ -1179,11 +1179,11 @@ void recv_ishtp_cl_msg_dma(struct ishtp_device *dev, void *msg,
 		buffer = rb->buffer.data;
 
 		/*
-		 * if current fw don't support cache snooping, driver have to
+		 * if current fw don't support cache sanaloping, driver have to
 		 * flush the cache manually.
 		 */
-		if (dev->ops->dma_no_cache_snooping &&
-			dev->ops->dma_no_cache_snooping(dev))
+		if (dev->ops->dma_anal_cache_sanaloping &&
+			dev->ops->dma_anal_cache_sanaloping(dev))
 			clflush_cache_range(msg, hbm->msg_length);
 
 		memcpy(buffer, msg, hbm->msg_length);
@@ -1228,9 +1228,9 @@ void recv_ishtp_cl_msg_dma(struct ishtp_device *dev, void *msg,
 	}
 
 	spin_unlock_irqrestore(&dev->read_list_spinlock, flags);
-	/* If it's nobody's message, just read and discard it */
+	/* If it's analbody's message, just read and discard it */
 	if (!buffer) {
-		dev_err(dev->devc, "Dropped Rx (DMA) msg - no request\n");
+		dev_err(dev->devc, "Dropped Rx (DMA) msg - anal request\n");
 		goto	eoi;
 	}
 

@@ -348,7 +348,7 @@ static int ov2640_camera_settings(struct gspca_dev *gspca_dev)
 	s32 flip   = (((sd->vcur.flip   > 0) ^ sd->mirrorMask) == 0);
 
 	if (backlight != sd->vold.backlight) {
-		/* No sd->vold.backlight=backlight; (to be done again later) */
+		/* Anal sd->vold.backlight=backlight; (to be done again later) */
 		if (backlight < 0 || backlight > sd->vmax.backlight)
 			backlight = 0;
 

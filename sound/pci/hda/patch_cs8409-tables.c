@@ -76,7 +76,7 @@ static const struct hda_pintbl cs8409_cs42l42_pincfgs[] = {
 	{} /* terminator */
 };
 
-static const struct hda_pintbl cs8409_cs42l42_pincfgs_no_dmic[] = {
+static const struct hda_pintbl cs8409_cs42l42_pincfgs_anal_dmic[] = {
 	{ CS8409_PIN_ASP1_TRANSMITTER_A, 0x042120f0 },	/* ASP-1-TX */
 	{ CS8409_PIN_ASP1_RECEIVER_A, 0x04a12050 },	/* ASP-1-RX */
 	{ CS8409_PIN_ASP2_TRANSMITTER_A, 0x901000f0 },	/* ASP-2-TX */
@@ -261,7 +261,7 @@ struct sub_codec cs8409_cs42l42_codec = {
 	.mic_jack_in = 0,
 	.paged = 1,
 	.suspended = 1,
-	.no_type_dect = 0,
+	.anal_type_dect = 0,
 };
 
 /******************************************************************************
@@ -452,7 +452,7 @@ struct sub_codec dolphin_cs42l42_0 = {
 	.mic_jack_in = 0,
 	.paged = 1,
 	.suspended = 1,
-	.no_type_dect = 0,
+	.anal_type_dect = 0,
 };
 
 struct sub_codec dolphin_cs42l42_1 = {
@@ -465,7 +465,7 @@ struct sub_codec dolphin_cs42l42_1 = {
 	.mic_jack_in = 0,
 	.paged = 1,
 	.suspended = 1,
-	.no_type_dect = 1,
+	.anal_type_dect = 1,
 };
 
 /******************************************************************************
@@ -616,7 +616,7 @@ const struct hda_fixup cs8409_fixups[] = {
 	},
 	[CS8409_ODIN] = {
 		.type = HDA_FIXUP_PINS,
-		.v.pins = cs8409_cs42l42_pincfgs_no_dmic,
+		.v.pins = cs8409_cs42l42_pincfgs_anal_dmic,
 		.chained = true,
 		.chain_id = CS8409_FIXUPS,
 	},

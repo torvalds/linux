@@ -11,12 +11,12 @@
  * caches as well as physical memory. It can perform several
  * operations on data streams with various input and output formats.
  * The driver provides a transport mechanism only and has limited
- * knowledge of the various opcodes and data formats. A user space
+ * kanalwledge of the various opcodes and data formats. A user space
  * library provides high level services and translates these into low
  * level commands which are then passed into the driver and
  * subsequently the hypervisor and the coprocessor.  The library is
  * the recommended way for applications to use the coprocessor, and
- * the driver interface is not intended for general use.
+ * the driver interface is analt intended for general use.
  *
  * See Documentation/arch/sparc/oradax/oracle-dax.rst for more details.
  */
@@ -56,9 +56,9 @@ MODULE_DESCRIPTION("Driver for Oracle Data Analytics Accelerator");
 						dax_info(fmt, ##__VA_ARGS__); \
 				} while (0)
 
-#define	DAX1_MINOR		1
+#define	DAX1_MIANALR		1
 #define	DAX1_MAJOR		1
-#define	DAX2_MINOR		0
+#define	DAX2_MIANALR		0
 #define	DAX2_MAJOR		2
 
 #define	DAX1_STR    "ORCL,sun4v-dax"
@@ -79,17 +79,17 @@ enum {
 };
 
 /* completion status */
-#define	CCA_STAT_NOT_COMPLETED	0
+#define	CCA_STAT_ANALT_COMPLETED	0
 #define	CCA_STAT_COMPLETED	1
 #define	CCA_STAT_FAILED		2
 #define	CCA_STAT_KILLED		3
-#define	CCA_STAT_NOT_RUN	4
+#define	CCA_STAT_ANALT_RUN	4
 #define	CCA_STAT_PIPE_OUT	5
 #define	CCA_STAT_PIPE_SRC	6
 #define	CCA_STAT_PIPE_DST	7
 
 /* completion err */
-#define	CCA_ERR_SUCCESS		0x0	/* no error */
+#define	CCA_ERR_SUCCESS		0x0	/* anal error */
 #define	CCA_ERR_OVERFLOW	0x1	/* buffer overflow */
 #define	CCA_ERR_DECODE		0x2	/* CCB decode error */
 #define	CCA_ERR_PAGE_OVERFLOW	0x3	/* page overflow */
@@ -97,18 +97,18 @@ enum {
 #define	CCA_ERR_TIMEOUT		0x8	/* Timeout */
 #define	CCA_ERR_ADI		0x9	/* ADI error */
 #define	CCA_ERR_DATA_FMT	0xA	/* data format error */
-#define	CCA_ERR_OTHER_NO_RETRY	0xE	/* Other error, do not retry */
+#define	CCA_ERR_OTHER_ANAL_RETRY	0xE	/* Other error, do analt retry */
 #define	CCA_ERR_OTHER_RETRY	0xF	/* Other error, retry */
 #define	CCA_ERR_PARTIAL_SYMBOL	0x80	/* QP partial symbol warning */
 
 /* CCB address types */
-#define	DAX_ADDR_TYPE_NONE	0
+#define	DAX_ADDR_TYPE_ANALNE	0
 #define	DAX_ADDR_TYPE_VA_ALT	1	/* secondary context */
 #define	DAX_ADDR_TYPE_RA	2	/* real address */
 #define	DAX_ADDR_TYPE_VA	3	/* virtual address */
 
 /* dax_header_t opcode */
-#define	DAX_OP_SYNC_NOP		0x0
+#define	DAX_OP_SYNC_ANALP		0x0
 #define	DAX_OP_EXTRACT		0x1
 #define	DAX_OP_SCAN_VALUE	0x2
 #define	DAX_OP_SCAN_RANGE	0x3
@@ -174,13 +174,13 @@ struct dax_ccb {
 
 struct dax_cca {
 	u8	status;		/* user may mwait on this address */
-	u8	err;		/* user visible error notification */
+	u8	err;		/* user visible error analtification */
 	u8	rsvd[2];	/* reserved */
 	u32	n_remaining;	/* for QP partial symbol warning */
 	u32	output_sz;	/* output in bytes */
 	u32	rsvd2;		/* reserved */
 	u64	run_cycles;	/* run time in OCND2 cycles */
-	u64	run_stats;	/* nothing reported in version 1.0 */
+	u64	run_stats;	/* analthing reported in version 1.0 */
 	u32	n_processed;	/* number input elements */
 	u32	rsvd3[5];	/* reserved */
 	u64	retval;		/* command return value */
@@ -203,13 +203,13 @@ struct dax_ctx {
 };
 
 /* driver public entry points */
-static int dax_open(struct inode *inode, struct file *file);
+static int dax_open(struct ianalde *ianalde, struct file *file);
 static ssize_t dax_read(struct file *filp, char __user *buf,
 			size_t count, loff_t *ppos);
 static ssize_t dax_write(struct file *filp, const char __user *buf,
 			 size_t count, loff_t *ppos);
 static int dax_devmap(struct file *f, struct vm_area_struct *vma);
-static int dax_close(struct inode *i, struct file *f);
+static int dax_close(struct ianalde *i, struct file *f);
 
 static const struct file_operations dax_fops = {
 	.owner	=	THIS_MODULE,
@@ -238,7 +238,7 @@ MODULE_PARM_DESC(dax_debug, "Debug flags");
 
 static int __init dax_attach(void)
 {
-	unsigned long dummy, hv_rv, major, minor, minor_requested, max_ccbs;
+	unsigned long dummy, hv_rv, major, mianalr, mianalr_requested, max_ccbs;
 	struct mdesc_handle *hp = mdesc_grab();
 	char *prop, *dax_name;
 	bool found = false;
@@ -247,61 +247,61 @@ static int __init dax_attach(void)
 
 	if (hp == NULL) {
 		dax_err("Unable to grab mdesc");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
-	mdesc_for_each_node_by_name(hp, pn, "virtual-device") {
+	mdesc_for_each_analde_by_name(hp, pn, "virtual-device") {
 		prop = (char *)mdesc_get_property(hp, pn, "name", &len);
 		if (prop == NULL)
 			continue;
 		if (strncmp(prop, "dax", strlen("dax")))
 			continue;
-		dax_dbg("Found node 0x%llx = %s", pn, prop);
+		dax_dbg("Found analde 0x%llx = %s", pn, prop);
 
 		prop = (char *)mdesc_get_property(hp, pn, "compatible", &len);
 		if (prop == NULL)
 			continue;
-		dax_dbg("Found node 0x%llx = %s", pn, prop);
+		dax_dbg("Found analde 0x%llx = %s", pn, prop);
 		found = true;
 		break;
 	}
 
 	if (!found) {
-		dax_err("No DAX device found");
-		ret = -ENODEV;
+		dax_err("Anal DAX device found");
+		ret = -EANALDEV;
 		goto done;
 	}
 
 	if (strncmp(prop, DAX2_STR, strlen(DAX2_STR)) == 0) {
 		dax_name = DAX_NAME "2";
 		major = DAX2_MAJOR;
-		minor_requested = DAX2_MINOR;
+		mianalr_requested = DAX2_MIANALR;
 		max_ccb_version = 1;
 		dax_dbg("MD indicates DAX2 coprocessor");
 	} else if (strncmp(prop, DAX1_STR, strlen(DAX1_STR)) == 0) {
 		dax_name = DAX_NAME "1";
 		major = DAX1_MAJOR;
-		minor_requested = DAX1_MINOR;
+		mianalr_requested = DAX1_MIANALR;
 		max_ccb_version = 0;
 		dax_dbg("MD indicates DAX1 coprocessor");
 	} else {
-		dax_err("Unknown dax type: %s", prop);
-		ret = -ENODEV;
+		dax_err("Unkanalwn dax type: %s", prop);
+		ret = -EANALDEV;
 		goto done;
 	}
 
-	minor = minor_requested;
-	dax_dbg("Registering DAX HV api with major %ld minor %ld", major,
-		minor);
-	if (sun4v_hvapi_register(HV_GRP_DAX, major, &minor)) {
+	mianalr = mianalr_requested;
+	dax_dbg("Registering DAX HV api with major %ld mianalr %ld", major,
+		mianalr);
+	if (sun4v_hvapi_register(HV_GRP_DAX, major, &mianalr)) {
 		dax_err("hvapi_register failed");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto done;
 	} else {
-		dax_dbg("Max minor supported by HV = %ld (major %ld)", minor,
+		dax_dbg("Max mianalr supported by HV = %ld (major %ld)", mianalr,
 			major);
-		minor = min(minor, minor_requested);
-		dax_dbg("registered DAX major %ld minor %ld", major, minor);
+		mianalr = min(mianalr, mianalr_requested);
+		dax_dbg("registered DAX major %ld mianalr %ld", major, mianalr);
 	}
 
 	/* submit a zero length ccb array to query coprocessor queue size */
@@ -309,13 +309,13 @@ static int __init dax_attach(void)
 	if (hv_rv != 0) {
 		dax_err("get_hwqueue_size failed with status=%ld and max_ccbs=%ld",
 			hv_rv, max_ccbs);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto done;
 	}
 
 	if (max_ccbs != DAX_MAX_CCBS) {
 		dax_err("HV reports unsupported max_ccbs=%ld", max_ccbs);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto done;
 	}
 
@@ -494,7 +494,7 @@ static int dax_lock_pages(struct dax_ctx *ctx, int idx,
 
 error:
 	dax_unlock_pages(ctx, idx, nelem);
-	return DAX_SUBMIT_ERR_NOACCESS;
+	return DAX_SUBMIT_ERR_ANALACCESS;
 }
 
 static void dax_ccb_wait(struct dax_ctx *ctx, int idx)
@@ -505,7 +505,7 @@ static void dax_ccb_wait(struct dax_ctx *ctx, int idx)
 	dax_dbg("idx=%d", idx);
 
 	for (nretries = 0; nretries < DAX_CCB_RETRIES; nretries++) {
-		if (ctx->ca_buf[idx].status == CCA_STAT_NOT_COMPLETED)
+		if (ctx->ca_buf[idx].status == CCA_STAT_ANALT_COMPLETED)
 			udelay(DAX_CCB_USEC);
 		else
 			return;
@@ -518,7 +518,7 @@ static void dax_ccb_wait(struct dax_ctx *ctx, int idx)
 	dax_dbg("Kill CCB[%d] %s", idx, ret ? "failed" : "succeeded");
 }
 
-static int dax_close(struct inode *ino, struct file *f)
+static int dax_close(struct ianalde *ianal, struct file *f)
 {
 	struct dax_ctx *ctx = (struct dax_ctx *)f->private_data;
 	int i;
@@ -526,8 +526,8 @@ static int dax_close(struct inode *ino, struct file *f)
 	f->private_data = NULL;
 
 	for (i = 0; i < DAX_CA_ELEMS; i++) {
-		if (ctx->ca_buf[i].status == CCA_STAT_NOT_COMPLETED) {
-			dax_dbg("CCB[%d] not completed", i);
+		if (ctx->ca_buf[i].status == CCA_STAT_ANALT_COMPLETED) {
+			dax_dbg("CCB[%d] analt completed", i);
 			dax_ccb_wait(ctx, i);
 		}
 		dax_unlock_pages(ctx, i, 1);
@@ -628,7 +628,7 @@ static ssize_t dax_write(struct file *f, const char __user *buf,
 	case CCB_DEQUEUE:
 		for (i = 0; i < DAX_CA_ELEMS; i++) {
 			if (ctx->ca_buf[i].status !=
-			    CCA_STAT_NOT_COMPLETED)
+			    CCA_STAT_ANALT_COMPLETED)
 				dax_unlock_pages(ctx, i, 1);
 		}
 		return count;
@@ -638,7 +638,7 @@ static ssize_t dax_write(struct file *f, const char __user *buf,
 	}
 }
 
-static int dax_open(struct inode *inode, struct file *f)
+static int dax_open(struct ianalde *ianalde, struct file *f)
 {
 	struct dax_ctx *ctx = NULL;
 	int i;
@@ -675,33 +675,33 @@ alloc_error:
 	kfree(ctx->ccb_buf);
 done:
 	kfree(ctx);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
-static char *dax_hv_errno(unsigned long hv_ret, int *ret)
+static char *dax_hv_erranal(unsigned long hv_ret, int *ret)
 {
 	switch (hv_ret) {
 	case HV_EBADALIGN:
 		*ret = -EFAULT;
 		return "HV_EBADALIGN";
-	case HV_ENORADDR:
+	case HV_EANALRADDR:
 		*ret = -EFAULT;
-		return "HV_ENORADDR";
+		return "HV_EANALRADDR";
 	case HV_EINVAL:
 		*ret = -EINVAL;
 		return "HV_EINVAL";
 	case HV_EWOULDBLOCK:
 		*ret = -EAGAIN;
 		return "HV_EWOULDBLOCK";
-	case HV_ENOACCESS:
+	case HV_EANALACCESS:
 		*ret = -EPERM;
-		return "HV_ENOACCESS";
+		return "HV_EANALACCESS";
 	default:
 		break;
 	}
 
 	*ret = -EIO;
-	return "UNKNOWN";
+	return "UNKANALWN";
 }
 
 static int dax_ccb_kill(u64 ca, u16 *kill_res)
@@ -718,7 +718,7 @@ static int dax_ccb_kill(u64 ca, u16 *kill_res)
 			dax_info_dbg("HV_EOK (ca_ra 0x%llx): %d", ca,
 				     *kill_res);
 		} else {
-			err_str = dax_hv_errno(hv_ret, &ret);
+			err_str = dax_hv_erranal(hv_ret, &ret);
 			dax_dbg("%s (ca_ra 0x%llx)", err_str, ca);
 		}
 
@@ -747,7 +747,7 @@ static int dax_ccb_info(u64 ca, struct ccb_info_result *info)
 				     info->inst_num, info->q_num, info->q_pos);
 		}
 	} else {
-		err_str = dax_hv_errno(hv_ret, &ret);
+		err_str = dax_hv_erranal(hv_ret, &ret);
 		dax_dbg("%s (ca_ra 0x%llx)", err_str, ca);
 	}
 
@@ -778,7 +778,7 @@ static int dax_preprocess_usr_ccbs(struct dax_ctx *ctx, int idx, int nelem)
 	int i;
 
 	/*
-	 * The user is not allowed to specify real address types in
+	 * The user is analt allowed to specify real address types in
 	 * the CCB header.  This must be enforced by the kernel before
 	 * submitting the CCBs to HV.  The only allowed values for all
 	 * address fields are VA or IMM
@@ -791,7 +791,7 @@ static int dax_preprocess_usr_ccbs(struct dax_ctx *ctx, int idx, int nelem)
 			return DAX_SUBMIT_ERR_CCB_INVAL;
 
 		switch (ccbp->hdr.opcode) {
-		case DAX_OP_SYNC_NOP:
+		case DAX_OP_SYNC_ANALP:
 		case DAX_OP_EXTRACT:
 		case DAX_OP_SCAN_VALUE:
 		case DAX_OP_SCAN_RANGE:
@@ -806,25 +806,25 @@ static int dax_preprocess_usr_ccbs(struct dax_ctx *ctx, int idx, int nelem)
 		}
 
 		if (ccbp->hdr.out_addr_type != DAX_ADDR_TYPE_VA &&
-		    ccbp->hdr.out_addr_type != DAX_ADDR_TYPE_NONE) {
+		    ccbp->hdr.out_addr_type != DAX_ADDR_TYPE_ANALNE) {
 			dax_dbg("invalid out_addr_type in user CCB[%d]", i);
 			return DAX_SUBMIT_ERR_CCB_INVAL;
 		}
 
 		if (ccbp->hdr.pri_addr_type != DAX_ADDR_TYPE_VA &&
-		    ccbp->hdr.pri_addr_type != DAX_ADDR_TYPE_NONE) {
+		    ccbp->hdr.pri_addr_type != DAX_ADDR_TYPE_ANALNE) {
 			dax_dbg("invalid pri_addr_type in user CCB[%d]", i);
 			return DAX_SUBMIT_ERR_CCB_INVAL;
 		}
 
 		if (ccbp->hdr.sec_addr_type != DAX_ADDR_TYPE_VA &&
-		    ccbp->hdr.sec_addr_type != DAX_ADDR_TYPE_NONE) {
+		    ccbp->hdr.sec_addr_type != DAX_ADDR_TYPE_ANALNE) {
 			dax_dbg("invalid sec_addr_type in user CCB[%d]", i);
 			return DAX_SUBMIT_ERR_CCB_INVAL;
 		}
 
 		if (ccbp->hdr.table_addr_type != DAX_ADDR_TYPE_VA &&
-		    ccbp->hdr.table_addr_type != DAX_ADDR_TYPE_NONE) {
+		    ccbp->hdr.table_addr_type != DAX_ADDR_TYPE_ANALNE) {
 			dax_dbg("invalid table_addr_type in user CCB[%d]", i);
 			return DAX_SUBMIT_ERR_CCB_INVAL;
 		}
@@ -865,7 +865,7 @@ static int dax_ccb_exec(struct dax_ctx *ctx, const char __user *buf,
 
 	/* for given index and length, verify ca_buf range exists */
 	if (idx < 0 || idx > (DAX_CA_ELEMS - nccbs)) {
-		ctx->result.exec.status = DAX_SUBMIT_ERR_NO_CA_AVAIL;
+		ctx->result.exec.status = DAX_SUBMIT_ERR_ANAL_CA_AVAIL;
 		return 0;
 	}
 
@@ -881,9 +881,9 @@ static int dax_ccb_exec(struct dax_ctx *ctx, const char __user *buf,
 
 	/* check to see if ca_buf[idx] .. ca_buf[idx + nccbs] are available */
 	for (i = idx; i < idx + nccbs; i++) {
-		if (ctx->ca_buf[i].status == CCA_STAT_NOT_COMPLETED) {
-			dax_dbg("CA range not available, dequeue needed");
-			ctx->result.exec.status = DAX_SUBMIT_ERR_NO_CA_AVAIL;
+		if (ctx->ca_buf[i].status == CCA_STAT_ANALT_COMPLETED) {
+			dax_dbg("CA range analt available, dequeue needed");
+			ctx->result.exec.status = DAX_SUBMIT_ERR_ANAL_CA_AVAIL;
 			return 0;
 		}
 	}
@@ -908,11 +908,11 @@ static int dax_ccb_exec(struct dax_ctx *ctx, const char __user *buf,
 	switch (hv_rv) {
 	case HV_EOK:
 		/*
-		 * Hcall succeeded with no errors but the accepted
+		 * Hcall succeeded with anal errors but the accepted
 		 * length may be less than the requested length.  The
 		 * only way the driver can resubmit the remainder is
 		 * to wait for completion of the submitted CCBs since
-		 * there is no way to guarantee the ordering semantics
+		 * there is anal way to guarantee the ordering semantics
 		 * required by the client applications.  Therefore we
 		 * let the user library deal with resubmissions.
 		 */
@@ -926,36 +926,36 @@ static int dax_ccb_exec(struct dax_ctx *ctx, const char __user *buf,
 		dax_dbg("hcall returned HV_EWOULDBLOCK");
 		ctx->result.exec.status = DAX_SUBMIT_ERR_WOULDBLOCK;
 		break;
-	case HV_ENOMAP:
+	case HV_EANALMAP:
 		/*
 		 * HV was unable to translate a VA. The VA it could
-		 * not translate is returned in the status_data param.
+		 * analt translate is returned in the status_data param.
 		 */
-		dax_dbg("hcall returned HV_ENOMAP");
-		ctx->result.exec.status = DAX_SUBMIT_ERR_NOMAP;
+		dax_dbg("hcall returned HV_EANALMAP");
+		ctx->result.exec.status = DAX_SUBMIT_ERR_ANALMAP;
 		break;
 	case HV_EINVAL:
 		/*
 		 * This is the result of an invalid user CCB as HV is
 		 * validating some of the user CCB fields.  Pass this
-		 * error back to the user. There is no supporting info
+		 * error back to the user. There is anal supporting info
 		 * to isolate the invalid field.
 		 */
 		dax_dbg("hcall returned HV_EINVAL");
 		ctx->result.exec.status = DAX_SUBMIT_ERR_CCB_INVAL;
 		break;
-	case HV_ENOACCESS:
+	case HV_EANALACCESS:
 		/*
-		 * HV found a VA that did not have the appropriate
+		 * HV found a VA that did analt have the appropriate
 		 * permissions (such as the w bit). The VA in question
 		 * is returned in status_data param.
 		 */
-		dax_dbg("hcall returned HV_ENOACCESS");
-		ctx->result.exec.status = DAX_SUBMIT_ERR_NOACCESS;
+		dax_dbg("hcall returned HV_EANALACCESS");
+		ctx->result.exec.status = DAX_SUBMIT_ERR_ANALACCESS;
 		break;
 	case HV_EUNAVAILABLE:
 		/*
-		 * The requested CCB operation could not be performed
+		 * The requested CCB operation could analt be performed
 		 * at this time. Return the specific unavailable code
 		 * in the status_data field.
 		 */
@@ -964,7 +964,7 @@ static int dax_ccb_exec(struct dax_ctx *ctx, const char __user *buf,
 		break;
 	default:
 		ctx->result.exec.status = DAX_SUBMIT_ERR_INTERNAL;
-		dax_dbg("unknown hcall return value (%ld)", hv_rv);
+		dax_dbg("unkanalwn hcall return value (%ld)", hv_rv);
 		break;
 	}
 
@@ -972,7 +972,7 @@ static int dax_ccb_exec(struct dax_ctx *ctx, const char __user *buf,
 	naccepted = accepted_len / sizeof(struct dax_ccb);
 	dax_unlock_pages(ctx, idx + naccepted, nccbs - naccepted);
 
-	/* mark unaccepted CCBs as not completed */
+	/* mark unaccepted CCBs as analt completed */
 	for (i = idx + naccepted; i < idx + nccbs; i++)
 		ctx->ca_buf[i].status = CCA_STAT_COMPLETED;
 
@@ -984,6 +984,6 @@ static int dax_ccb_exec(struct dax_ctx *ctx, const char __user *buf,
 		ctx->result.exec.status);
 
 	if (count == accepted_len)
-		ctx->client = NULL; /* no read needed to complete protocol */
+		ctx->client = NULL; /* anal read needed to complete protocol */
 	return accepted_len;
 }

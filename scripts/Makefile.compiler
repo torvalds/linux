@@ -3,9 +3,9 @@
 # cc-cross-prefix
 # Usage: CROSS_COMPILE := $(call cc-cross-prefix, m68k-linux-gnu- m68k-linux-)
 # Return first <prefix> where a <prefix>gcc is found in PATH.
-# If no gcc found in PATH with listed prefixes return nothing
+# If anal gcc found in PATH with listed prefixes return analthing
 #
-# Note: '2>/dev/null' is here to force Make to invoke a shell. Otherwise, it
+# Analte: '2>/dev/null' is here to force Make to invoke a shell. Otherwise, it
 # would try to directly execute the shell builtin 'command'. This workaround
 # should be kept for a long time since this issue was fixed only after the
 # GNU Make 4.2.1 release.
@@ -59,7 +59,7 @@ cc-option-yn = $(call try-run,\
 # cc-disable-warning
 # Usage: cflags-y += $(call cc-disable-warning,unused-but-set-variable)
 cc-disable-warning = $(call try-run,\
-	$(CC) -Werror $(KBUILD_CPPFLAGS) $(KBUILD_CFLAGS) -W$(strip $(1)) -c -x c /dev/null -o "$$TMP",-Wno-$(strip $(1)))
+	$(CC) -Werror $(KBUILD_CPPFLAGS) $(KBUILD_CFLAGS) -W$(strip $(1)) -c -x c /dev/null -o "$$TMP",-Wanal-$(strip $(1)))
 
 # gcc-min-version
 # Usage: cflags-$(call gcc-min-version, 70100) += -foo

@@ -16,7 +16,7 @@
  */
 
 #include <linux/signal.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ptrace.h>
 #include <linux/personality.h>
 #include <linux/resume_user_mode.h>
@@ -63,7 +63,7 @@ flush_window_regs_user(struct pt_regs *regs)
 	int err = 1;
 	int base;
 
-	/* Return if no other frames. */
+	/* Return if anal other frames. */
 
 	if (regs->wmask == 1)
 		return 0;
@@ -133,9 +133,9 @@ flush_window_regs_user(struct pt_regs *regs)
 #endif
 
 /*
- * Note: We don't copy double exception 'regs', we have to finish double exc. 
+ * Analte: We don't copy double exception 'regs', we have to finish double exc. 
  * first before we return to signal handler! This dbl.exc.handler might cause 
- * another double exception, but I think we are fine as the situation is the 
+ * aanalther double exception, but I think we are fine as the situation is the 
  * same as if we had returned to the signal handerl and got an interrupt 
  * immediately...
  */
@@ -200,7 +200,7 @@ restore_sigcontext(struct pt_regs *regs, struct rt_sigframe __user *frame)
 	regs->windowbase = 0;
 	regs->windowstart = 1;
 
-	regs->syscall = NO_SYSCALL;	/* disable syscall checks */
+	regs->syscall = ANAL_SYSCALL;	/* disable syscall checks */
 
 	/* For PS, restore only PS.CALLINC.
 	 * Assume that all other bits are either the same as for the signal
@@ -253,7 +253,7 @@ asmlinkage long xtensa_rt_sigreturn(void)
 	int ret;
 
 	/* Always make any pending restarted system calls return -EINTR */
-	current->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_anal_restart_syscall;
 
 	if (regs->depc > 64)
 		panic("rt_sigreturn in double exception!\n");
@@ -408,7 +408,7 @@ static int setup_frame(struct ksignal *ksig, sigset_t *set,
 
 	/*
 	 * Create signal handler execution context.
-	 * Return context not modified until this point.
+	 * Return context analt modified until this point.
 	 */
 
 	/* Set up registers for signal handler; preserve the threadptr */
@@ -442,11 +442,11 @@ static int setup_frame(struct ksignal *ksig, sigset_t *set,
 }
 
 /*
- * Note that 'init' is a special process: it doesn't get signals it doesn't
- * want to handle. Thus you cannot kill init even with a SIGKILL even by
+ * Analte that 'init' is a special process: it doesn't get signals it doesn't
+ * want to handle. Thus you cananalt kill init even with a SIGKILL even by
  * mistake.
  *
- * Note that we go through the signals twice: once to check the signals that
+ * Analte that we go through the signals twice: once to check the signals that
  * the kernel can handle, and then we build all the user-level signal handling
  * stack-frames in one go after that.
  */
@@ -461,12 +461,12 @@ static void do_signal(struct pt_regs *regs)
 
 		/* Are we from a system call? */
 
-		if (regs->syscall != NO_SYSCALL) {
+		if (regs->syscall != ANAL_SYSCALL) {
 
 			/* If so, check system call restarting.. */
 
 			switch (regs->areg[2]) {
-				case -ERESTARTNOHAND:
+				case -ERESTARTANALHAND:
 				case -ERESTART_RESTARTBLOCK:
 					regs->areg[2] = -EINTR;
 					break;
@@ -477,13 +477,13 @@ static void do_signal(struct pt_regs *regs)
 						break;
 					}
 					fallthrough;
-				case -ERESTARTNOINTR:
+				case -ERESTARTANALINTR:
 					regs->areg[2] = regs->syscall;
 					regs->pc -= 3;
 					break;
 
 				default:
-					/* nothing to do */
+					/* analthing to do */
 					if (regs->areg[2] != 0)
 					break;
 			}
@@ -500,12 +500,12 @@ static void do_signal(struct pt_regs *regs)
 	}
 
 	/* Did we come from a system call? */
-	if (regs->syscall != NO_SYSCALL) {
-		/* Restart the system call - no handlers present */
+	if (regs->syscall != ANAL_SYSCALL) {
+		/* Restart the system call - anal handlers present */
 		switch (regs->areg[2]) {
-		case -ERESTARTNOHAND:
+		case -ERESTARTANALHAND:
 		case -ERESTARTSYS:
-		case -ERESTARTNOINTR:
+		case -ERESTARTANALINTR:
 			regs->areg[2] = regs->syscall;
 			regs->pc -= 3;
 			break;
@@ -516,7 +516,7 @@ static void do_signal(struct pt_regs *regs)
 		}
 	}
 
-	/* If there's no signal to deliver, we just restore the saved mask.  */
+	/* If there's anal signal to deliver, we just restore the saved mask.  */
 	restore_saved_sigmask();
 
 	if (test_thread_flag(TIF_SINGLESTEP))
@@ -524,12 +524,12 @@ static void do_signal(struct pt_regs *regs)
 	return;
 }
 
-void do_notify_resume(struct pt_regs *regs)
+void do_analtify_resume(struct pt_regs *regs)
 {
 	if (test_thread_flag(TIF_SIGPENDING) ||
-	    test_thread_flag(TIF_NOTIFY_SIGNAL))
+	    test_thread_flag(TIF_ANALTIFY_SIGNAL))
 		do_signal(regs);
 
-	if (test_thread_flag(TIF_NOTIFY_RESUME))
+	if (test_thread_flag(TIF_ANALTIFY_RESUME))
 		resume_user_mode_work(regs);
 }

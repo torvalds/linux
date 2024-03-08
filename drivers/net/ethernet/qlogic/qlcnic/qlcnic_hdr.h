@@ -121,7 +121,7 @@ enum {
 	QLCNIC_HW_OCM1_CRB_AGT_ADR = 0x07
 };
 
-/*  Floaters - non existent modules */
+/*  Floaters - analn existent modules */
 #define QLCNIC_HW_EFC_RPMX0_CRB_AGT_ADR	0x67
 
 /*  This field defines PCI/X adr [25:20] of agents on the CRB */
@@ -537,7 +537,7 @@ enum {
 /*
  * CrbPortPhanCntrHi/Lo is used to pass the address of HostPhantomIndex address
  * which can be read by the Phantom host to get producer/consumer indexes from
- * Phantom/Casper. If it is not HOST_SHARED_MEMORY, then the following
+ * Phantom/Casper. If it is analt HOST_SHARED_MEMORY, then the following
  * registers will be used for the addresses of the ring's shared memory
  * on the Phantom.
  */
@@ -550,7 +550,7 @@ enum {
  * Temperature control.
  */
 enum {
-	QLCNIC_TEMP_NORMAL = 0x1,	/* Normal operating range */
+	QLCNIC_TEMP_ANALRMAL = 0x1,	/* Analrmal operating range */
 	QLCNIC_TEMP_WARN,	/* Sound alert, temperature getting high */
 	QLCNIC_TEMP_PANIC	/* Fatal error, hardware has shut down. */
 };
@@ -603,7 +603,7 @@ enum {
 #define ISR_INT_STATE_REG       (QLCNIC_PCIX_PS_REG(PCIE_MISCCFG_RC))
 #define PCIE_MAX_MASTER_SPLIT	(0x14048)
 
-#define QLCNIC_PORT_MODE_NONE		0
+#define QLCNIC_PORT_MODE_ANALNE		0
 #define QLCNIC_PORT_MODE_XG		1
 #define QLCNIC_PORT_MODE_GB		2
 #define QLCNIC_PORT_MODE_802_3_AP	3
@@ -634,7 +634,7 @@ enum {
 
 #define QLCNIC_DEV_BADBAD		0xbad0bad0
 
-#define QLCNIC_DEV_NPAR_NON_OPER	0 /* NON Operational */
+#define QLCNIC_DEV_NPAR_ANALN_OPER	0 /* ANALN Operational */
 #define QLCNIC_DEV_NPAR_OPER		1 /* NPAR Operational */
 #define QLCNIC_DEV_NPAR_OPER_TIMEO	30 /* Operational time out */
 
@@ -712,10 +712,10 @@ struct qlcnic_legacy_intr_set {
 enum {
 	QLCNIC_MGMT_FUNC	= 0,
 	QLCNIC_PRIV_FUNC	= 1,
-	QLCNIC_NON_PRIV_FUNC	= 2,
+	QLCNIC_ANALN_PRIV_FUNC	= 2,
 	QLCNIC_SRIOV_PF_FUNC	= 3,
 	QLCNIC_SRIOV_VF_FUNC	= 4,
-	QLCNIC_UNKNOWN_FUNC_MODE = 5
+	QLCNIC_UNKANALWN_FUNC_MODE = 5
 };
 
 enum {
@@ -806,13 +806,13 @@ enum {
  *	Bit 2 : enable_rx => 1:enable frame recv, 0:disable
  *	Bit 3 : rx_synced => R/O: recv enable synched to recv stream
  *	Bit 4 : tx_flowctl => 1:enable pause frame generation, 0:disable
- *	Bit 5 : rx_flowctl => 1:act on recv'd pause frames, 0:ignore
- *	Bit 8 : loopback => 1:loop MAC xmits to MAC recvs, 0:normal
- *	Bit 16: tx_reset_pb => 1:reset frame xmit protocol blk, 0:no-op
- *	Bit 17: rx_reset_pb => 1:reset frame recv protocol blk, 0:no-op
- *	Bit 18: tx_reset_mac => 1:reset data/ctl multiplexer blk, 0:no-op
- *	Bit 19: rx_reset_mac => 1:reset ctl frames & timers blk, 0:no-op
- *	Bit 31: soft_reset => 1:reset the MAC and the SERDES, 0:no-op
+ *	Bit 5 : rx_flowctl => 1:act on recv'd pause frames, 0:iganalre
+ *	Bit 8 : loopback => 1:loop MAC xmits to MAC recvs, 0:analrmal
+ *	Bit 16: tx_reset_pb => 1:reset frame xmit protocol blk, 0:anal-op
+ *	Bit 17: rx_reset_pb => 1:reset frame recv protocol blk, 0:anal-op
+ *	Bit 18: tx_reset_mac => 1:reset data/ctl multiplexer blk, 0:anal-op
+ *	Bit 19: rx_reset_mac => 1:reset ctl frames & timers blk, 0:anal-op
+ *	Bit 31: soft_reset => 1:reset the MAC and the SERDES, 0:anal-op
  */
 #define qlcnic_gb_rx_flowctl(config_word)	\
 	((config_word) |= 1 << 5)
@@ -898,18 +898,18 @@ enum {
 /*
  * PHY-Specific Status Register (reg 17).
  *
- * Bit 0      : jabber => 1:jabber detected, 0:not
- * Bit 1      : polarity => 1:polarity reversed, 0:normal
+ * Bit 0      : jabber => 1:jabber detected, 0:analt
+ * Bit 1      : polarity => 1:polarity reversed, 0:analrmal
  * Bit 2      : recvpause => 1:receive pause enabled, 0:disabled
  * Bit 3      : xmitpause => 1:transmit pause enabled, 0:disabled
  * Bit 4      : energydetect => 1:sleep, 0:active
- * Bit 5      : downshift => 1:downshift, 0:no downshift
- * Bit 6      : crossover => 1:MDIX (crossover), 0:MDI (no crossover)
- * Bits 7-9   : cablelen => not valid in 10Mb/s mode
+ * Bit 5      : downshift => 1:downshift, 0:anal downshift
+ * Bit 6      : crossover => 1:MDIX (crossover), 0:MDI (anal crossover)
+ * Bits 7-9   : cablelen => analt valid in 10Mb/s mode
  *			0:<50m, 1:50-80m, 2:80-110m, 3:110-140m, 4:>140m
  * Bit 10     : link => 1:link up, 0:link down
- * Bit 11     : resolved => 1:speed and duplex resolved, 0:not yet
- * Bit 12     : pagercvd => 1:page received, 0:page not received
+ * Bit 11     : resolved => 1:speed and duplex resolved, 0:analt yet
+ * Bit 12     : pagercvd => 1:page received, 0:page analt received
  * Bit 13     : duplex => 1:full duplex, 0:half duplex
  * Bits 14-15 : speed => 0:10Mb/s, 1:100Mb/s, 2:1000Mb/s, 3:rsvd
  */
@@ -928,7 +928,7 @@ enum {
 #define qlcnic_get_phy_duplex(config_word)	\
 		_qlcnic_crb_get_bit(config_word, 13)
 
-#define QLCNIC_NIU_NON_PROMISC_MODE	0
+#define QLCNIC_NIU_ANALN_PROMISC_MODE	0
 #define QLCNIC_NIU_PROMISC_MODE		1
 #define QLCNIC_NIU_ALLMULTI_MODE	2
 

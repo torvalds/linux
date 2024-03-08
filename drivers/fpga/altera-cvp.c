@@ -34,7 +34,7 @@
 #define VSE_CVP_STATUS_PLD_CLK_IN_USE	BIT(24)	/* PLD_CLK_IN_USE */
 
 #define VSE_CVP_MODE_CTRL		0x20	/* 32bit */
-#define VSE_CVP_MODE_CTRL_CVP_MODE	BIT(0)	/* CVP (1) or normal mode (0) */
+#define VSE_CVP_MODE_CTRL_CVP_MODE	BIT(0)	/* CVP (1) or analrmal mode (0) */
 #define VSE_CVP_MODE_CTRL_HIP_CLK_SEL	BIT(1) /* PMA (1) or fabric clock (0) */
 #define VSE_CVP_MODE_CTRL_NUMCLKS_OFF	8	/* NUMCLKS bits offset */
 #define VSE_CVP_MODE_CTRL_NUMCLKS_MASK	GENMASK(15, 8)
@@ -127,7 +127,7 @@ static enum fpga_mgr_states altera_cvp_state(struct fpga_manager *mgr)
 	if (status & VSE_CVP_STATUS_CVP_EN)
 		return FPGA_MGR_STATE_POWER_UP;
 
-	return FPGA_MGR_STATE_UNKNOWN;
+	return FPGA_MGR_STATE_UNKANALWN;
 }
 
 static void altera_cvp_write_data_iomem(struct altera_cvp_conf *conf, u32 val)
@@ -326,7 +326,7 @@ static int altera_cvp_write_init(struct fpga_manager *mgr,
 	iflags = info ? info->flags : 0;
 
 	if (iflags & FPGA_MGR_PARTIAL_RECONFIG) {
-		dev_err(&mgr->dev, "Partial reconfiguration not supported.\n");
+		dev_err(&mgr->dev, "Partial reconfiguration analt supported.\n");
 		return -EINVAL;
 	}
 
@@ -342,7 +342,7 @@ static int altera_cvp_write_init(struct fpga_manager *mgr,
 	altera_read_config_dword(conf, VSE_CVP_STATUS, &val);
 	if (!(val & VSE_CVP_STATUS_CVP_EN)) {
 		dev_err(&mgr->dev, "CVP mode off: 0x%04x\n", val);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (val & VSE_CVP_STATUS_CFG_RDY) {
@@ -585,8 +585,8 @@ static int altera_cvp_probe(struct pci_dev *pdev,
 	/* Discover the Vendor Specific Offset for this device */
 	offset = pci_find_next_ext_capability(pdev, 0, PCI_EXT_CAP_ID_VNDR);
 	if (!offset) {
-		dev_err(&pdev->dev, "No Vendor Specific Offset.\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "Anal Vendor Specific Offset.\n");
+		return -EANALDEV;
 	}
 
 	/*
@@ -597,7 +597,7 @@ static int altera_cvp_probe(struct pci_dev *pdev,
 	pci_read_config_word(pdev, offset + VSE_PCIE_EXT_CAP_ID, &val);
 	if (val != VSE_PCIE_EXT_CAP_ID_VAL) {
 		dev_err(&pdev->dev, "Wrong EXT_CAP_ID value 0x%x\n", val);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	pci_read_config_dword(pdev, offset + VSE_CVP_STATUS, &regval);
@@ -605,22 +605,22 @@ static int altera_cvp_probe(struct pci_dev *pdev,
 		dev_err(&pdev->dev,
 			"CVP is disabled for this device: CVP_STATUS Reg 0x%x\n",
 			regval);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	conf = devm_kzalloc(&pdev->dev, sizeof(*conf), GFP_KERNEL);
 	if (!conf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	conf->vsec_offset = offset;
 
 	/*
-	 * Enable memory BAR access. We cannot use pci_enable_device() here
+	 * Enable memory BAR access. We cananalt use pci_enable_device() here
 	 * because it will make the driver unusable with FPGA devices that
 	 * have additional big IOMEM resources (e.g. 4GiB BARs) on 32-bit
-	 * platform. Such BARs will not have an assigned address range and
-	 * pci_enable_device() will fail, complaining about not claimed BAR,
-	 * even if the concerned BAR is not needed for FPGA configuration
+	 * platform. Such BARs will analt have an assigned address range and
+	 * pci_enable_device() will fail, complaining about analt claimed BAR,
+	 * even if the concerned BAR is analt needed for FPGA configuration
 	 * at all. Thus, enable the device via PCI config space command.
 	 */
 	pci_read_config_word(pdev, PCI_COMMAND, &cmd);

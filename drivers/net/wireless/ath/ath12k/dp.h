@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #ifndef ATH12K_DP_H
@@ -94,7 +94,7 @@ struct dp_link_desc_bank {
 #define DP_RX_DESC_COOKIE_POOL_ID_MAX		0x1c0000
 #define DP_RX_DESC_COOKIE_MAX	\
 	(DP_RX_DESC_COOKIE_INDEX_MAX | DP_RX_DESC_COOKIE_POOL_ID_MAX)
-#define DP_NOT_PPDU_ID_WRAP_AROUND 20000
+#define DP_ANALT_PPDU_ID_WRAP_AROUND 20000
 
 enum ath12k_dp_ppdu_state {
 	DP_PPDU_STATUS_START,
@@ -116,7 +116,7 @@ struct ath12k_mon_data {
 	u32 mon_ppdu_status;
 	u32 mon_last_buf_cookie;
 	u64 mon_last_linkdesc_paddr;
-	u16 chan_noise_floor;
+	u16 chan_analise_floor;
 
 	struct ath12k_pdev_mon_stats rx_mon_stats;
 	/* lock for monitor data */
@@ -251,7 +251,7 @@ struct ath12k_pdev_dp {
 #define DP_MAX_PEER_ID		2047
 
 /* Total size of the LUT is based on 2K peers, each having reference
- * for 17tids, note each entry is of type ath12k_reo_queue_ref
+ * for 17tids, analte each entry is of type ath12k_reo_queue_ref
  * hence total size is 2048 * 17 * 8 = 278528
  */
 #define DP_REOQ_LUT_SIZE	278528
@@ -317,7 +317,7 @@ struct ath12k_dp {
 	enum ath12k_htc_ep_id eid;
 	struct completion htt_tgt_version_received;
 	u8 htt_tgt_ver_major;
-	u8 htt_tgt_ver_minor;
+	u8 htt_tgt_ver_mianalr;
 	struct dp_link_desc_bank link_desc_banks[DP_LINK_DESC_BANKS_MAX];
 	struct dp_srng wbm_idle_ring;
 	struct dp_srng wbm_desc_rel_ring;
@@ -426,7 +426,7 @@ enum htt_srng_ring_id {
 	HTT_RXDMA_MONITOR_DEST_RING,
 	HTT_HOST1_TO_FW_RXBUF_RING,
 	HTT_HOST2_TO_FW_RXBUF_RING,
-	HTT_RXDMA_NON_MONITOR_DEST_RING,
+	HTT_RXDMA_ANALN_MONITOR_DEST_RING,
 	HTT_TX_MON_HOST2MON_BUF_RING,
 	HTT_TX_MON_MON2HOST_DEST_RING,
 };
@@ -827,9 +827,9 @@ enum htt_rx_mgmt_pkt_filter_tlv_flags1 {
 	HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS1_ACTION		= BIT(9),
 	HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS1_ACTION		= BIT(10),
 	HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS1_ACTION		= BIT(11),
-	HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS1_ACTION_NOACK	= BIT(12),
-	HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS1_ACTION_NOACK	= BIT(13),
-	HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS1_ACTION_NOACK	= BIT(14),
+	HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS1_ACTION_ANALACK	= BIT(12),
+	HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS1_ACTION_ANALACK	= BIT(13),
+	HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS1_ACTION_ANALACK	= BIT(14),
 	HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS1_RESERVED_15	= BIT(15),
 	HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS1_RESERVED_15	= BIT(16),
 	HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS1_RESERVED_15	= BIT(17),
@@ -938,19 +938,19 @@ enum htt_rx_data_pkt_filter_tlv_flasg3 {
 				     | HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS1_AUTH \
 				     | HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS1_DEAUTH \
 				     | HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS1_ACTION \
-				     | HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS1_ACTION_NOACK)
+				     | HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS1_ACTION_ANALACK)
 
 #define HTT_RX_MD_MGMT_FILTER_FLAGS1 (HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS1_DISASSOC \
 				     | HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS1_AUTH \
 				     | HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS1_DEAUTH \
 				     | HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS1_ACTION \
-				     | HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS1_ACTION_NOACK)
+				     | HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS1_ACTION_ANALACK)
 
 #define HTT_RX_MO_MGMT_FILTER_FLAGS1 (HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS1_DISASSOC \
 				     | HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS1_AUTH \
 				     | HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS1_DEAUTH \
 				     | HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS1_ACTION \
-				     | HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS1_ACTION_NOACK)
+				     | HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS1_ACTION_ANALACK)
 
 #define HTT_RX_FP_CTRL_FILTER_FLASG2 (HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_WRAPPER \
 				     | HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS2_BAR \
@@ -1067,7 +1067,7 @@ enum htt_rx_data_pkt_filter_tlv_flasg3 {
 		HTT_RX_FILTER_TLV_FLAGS_PER_MSDU_HEADER | \
 		HTT_RX_FILTER_TLV_FLAGS_ATTENTION)
 
-/* msdu start. mpdu end, attention, rx hdr tlv's are not subscribed */
+/* msdu start. mpdu end, attention, rx hdr tlv's are analt subscribed */
 #define HTT_RX_TLV_FLAGS_RXDMA_RING \
 		(HTT_RX_FILTER_TLV_FLAGS_MPDU_START | \
 		HTT_RX_FILTER_TLV_FLAGS_RX_PACKET | \
@@ -1209,7 +1209,7 @@ enum htt_t2h_msg_type {
 #define HTT_TARGET_VERSION_MAJOR 3
 
 #define HTT_T2H_MSG_TYPE		GENMASK(7, 0)
-#define HTT_T2H_VERSION_CONF_MINOR	GENMASK(15, 8)
+#define HTT_T2H_VERSION_CONF_MIANALR	GENMASK(15, 8)
 #define HTT_T2H_VERSION_CONF_MAJOR	GENMASK(23, 16)
 
 struct htt_t2h_version_conf_msg {
@@ -1458,7 +1458,7 @@ struct htt_ppdu_stats_user_rate {
 	__le16 resp_ru_start;
 	__le32 info1; /* %HTT_PPDU_STATS_USER_RATE_INFO1_ */
 	__le32 rate_flags; /* %HTT_PPDU_STATS_USER_RATE_FLAGS_ */
-	/* Note: resp_rate_info is only valid for if resp_type is UL */
+	/* Analte: resp_rate_info is only valid for if resp_type is UL */
 	__le32 resp_rate_flags; /* %HTT_PPDU_STATS_USER_RATE_RESP_FLAGS_ */
 } __packed;
 
@@ -1514,7 +1514,7 @@ struct htt_ppdu_stats_usr_cmpltn_cmn {
 	u8 status;
 	u8 tid_num;
 	__le16 sw_peer_id;
-	/* RSSI value of last ack packet (units = dB above noise floor) */
+	/* RSSI value of last ack packet (units = dB above analise floor) */
 	__le32 ack_rssi;
 	__le16 mpdu_tried;
 	__le16 mpdu_success;
@@ -1525,7 +1525,7 @@ struct htt_ppdu_stats_usr_cmpltn_cmn {
 #define HTT_PPDU_STATS_ACK_BA_INFO_NUM_MSDU_M	GENMASK(24, 9)
 #define HTT_PPDU_STATS_ACK_BA_INFO_TID_NUM	GENMASK(31, 25)
 
-#define HTT_PPDU_STATS_NON_QOS_TID	16
+#define HTT_PPDU_STATS_ANALN_QOS_TID	16
 
 struct htt_ppdu_stats_usr_cmpltn_ack_ba_status {
 	__le32 ppdu_id;

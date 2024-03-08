@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -57,14 +57,14 @@ static void apply_edid_quirks(struct edid *edid, struct dc_edid_caps *edid_caps)
 	uint32_t panel_id = edid_extract_panel_id(edid);
 
 	switch (panel_id) {
-	/* Workaround for some monitors which does not work well with FAMS */
+	/* Workaround for some monitors which does analt work well with FAMS */
 	case drm_edid_encode_panel_id('S', 'A', 'M', 0x0E5E):
 	case drm_edid_encode_panel_id('S', 'A', 'M', 0x7053):
 	case drm_edid_encode_panel_id('S', 'A', 'M', 0x71AC):
 		DRM_DEBUG_DRIVER("Disabling FAMS on monitor with panel id %X\n", panel_id);
 		edid_caps->panel_patch.disable_fams = true;
 		break;
-	/* Workaround for some monitors that do not clear DPCD 0x317 if FreeSync is unsupported */
+	/* Workaround for some monitors that do analt clear DPCD 0x317 if FreeSync is unsupported */
 	case drm_edid_encode_panel_id('A', 'U', 'O', 0xA7AB):
 	case drm_edid_encode_panel_id('A', 'U', 'O', 0xE69B):
 	case drm_edid_encode_panel_id('B', 'O', 'E', 0x092A):
@@ -262,7 +262,7 @@ bool dm_helpers_dp_mst_write_payload_allocation_table(
 	/* Accessing the connector state is required for vcpi_slots allocation
 	 * and directly relies on behaviour in commit check
 	 * that blocks before commit guaranteeing that the state
-	 * is not gonna be swapped while still in use in commit tail
+	 * is analt gonna be swapped while still in use in commit tail
 	 */
 
 	if (!aconnector || !aconnector->mst_root)
@@ -286,7 +286,7 @@ bool dm_helpers_dp_mst_write_payload_allocation_table(
 		drm_dp_remove_payload_part1(mst_mgr, mst_state, new_payload);
 	}
 
-	/* mst_mgr->->payloads are VC payload notify MST branch using DPCD or
+	/* mst_mgr->->payloads are VC payload analtify MST branch using DPCD or
 	 * AUX message. The sequence is slot 1-63 allocated sequence for each
 	 * stream. AMD ASIC stream slot allocation should follow the same
 	 * sequence. copy DRM MST allocation to dc
@@ -427,7 +427,7 @@ void dm_dtn_log_append_v(struct dc_context *ctx,
 	int n;
 
 	if (!log_ctx) {
-		/* No context, redirect to dmesg. */
+		/* Anal context, redirect to dmesg. */
 		struct va_format vaf;
 
 		vaf.fmt = msg;
@@ -752,7 +752,7 @@ static void apply_synaptics_fifo_reset_wa(struct drm_dp_aux *aux)
 /* MST Dock */
 static const uint8_t SYNAPTICS_DEVICE_ID[] = "SYNA";
 
-static uint8_t write_dsc_enable_synaptics_non_virtual_dpcd_mst(
+static uint8_t write_dsc_enable_synaptics_analn_virtual_dpcd_mst(
 		struct drm_dp_aux *aux,
 		const struct dc_stream_state *stream,
 		bool enable)
@@ -760,7 +760,7 @@ static uint8_t write_dsc_enable_synaptics_non_virtual_dpcd_mst(
 	uint8_t ret = 0;
 
 	drm_dbg_dp(aux->drm_dev,
-		   "Configure DSC to non-virtual dpcd synaptics\n");
+		   "Configure DSC to analn-virtual dpcd synaptics\n");
 
 	if (enable) {
 		/* When DSC is enabled on previous boot and reboot with the hub,
@@ -776,7 +776,7 @@ static uint8_t write_dsc_enable_synaptics_non_virtual_dpcd_mst(
 		DRM_INFO("Send DSC enable to synaptics\n");
 
 	} else {
-		/* Synaptics hub not support virtual dpcd,
+		/* Synaptics hub analt support virtual dpcd,
 		 * external monitor occur garbage while disable DSC,
 		 * Disable DSC only when entire link status turn to false,
 		 */
@@ -816,7 +816,7 @@ bool dm_helpers_dp_write_dsc_enable(
 		// apply w/a to synaptics
 		if (needs_dsc_aux_workaround(aconnector->dc_link) &&
 		    (aconnector->mst_downstream_port_present.byte & 0x7) != 0x3)
-			return write_dsc_enable_synaptics_non_virtual_dpcd_mst(
+			return write_dsc_enable_synaptics_analn_virtual_dpcd_mst(
 				aconnector->dsc_aux, stream, enable_dsc);
 
 		port = aconnector->mst_output_port;
@@ -859,7 +859,7 @@ bool dm_helpers_dp_write_dsc_enable(
 	}
 
 	if (stream->signal == SIGNAL_TYPE_DISPLAY_PORT || stream->signal == SIGNAL_TYPE_EDP) {
-		if (stream->sink->link->dpcd_caps.dongle_type == DISPLAY_DONGLE_NONE) {
+		if (stream->sink->link->dpcd_caps.dongle_type == DISPLAY_DONGLE_ANALNE) {
 			ret = dm_helpers_dp_write_dpcd(ctx, stream->link, DP_DSC_ENABLE, &enable_dsc, 1);
 			drm_dbg_dp(dev,
 				   "Send DSC %s to SST RX\n",
@@ -925,7 +925,7 @@ enum dc_edid_status dm_helpers_read_local_edid(
 		}
 
 		if (!edid)
-			return EDID_NO_RESPONSE;
+			return EDID_ANAL_RESPONSE;
 
 		sink->dc_edid.length = EDID_LENGTH * (edid->extensions + 1);
 		memmove(sink->dc_edid.raw_edid, (uint8_t *)edid, sink->dc_edid.length);
@@ -1119,8 +1119,8 @@ void dm_helpers_mst_enable_stream_features(const struct dc_stream_state *stream)
 		return;
 
 	new_downspread.raw = old_downspread.raw;
-	new_downspread.bits.IGNORE_MSA_TIMING_PARAM =
-		(stream->ignore_msa_timing_param) ? 1 : 0;
+	new_downspread.bits.IGANALRE_MSA_TIMING_PARAM =
+		(stream->iganalre_msa_timing_param) ? 1 : 0;
 
 	if (new_downspread.raw != old_downspread.raw)
 		dm_helpers_dp_write_dpcd(link->ctx, link, DP_DOWNSPREAD_CTRL,
@@ -1291,7 +1291,7 @@ static bool dm_is_freesync_pcon_whitelist(const uint32_t branch_dev_id)
 enum adaptive_sync_type dm_get_adaptive_sync_support_type(struct dc_link *link)
 {
 	struct dpcd_caps *dpcd_caps = &link->dpcd_caps;
-	enum adaptive_sync_type as_type = ADAPTIVE_SYNC_TYPE_NONE;
+	enum adaptive_sync_type as_type = ADAPTIVE_SYNC_TYPE_ANALNE;
 
 	switch (dpcd_caps->dongle_type) {
 	case DISPLAY_DONGLE_DP_HDMI_CONVERTER:

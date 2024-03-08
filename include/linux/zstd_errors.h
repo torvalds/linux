@@ -28,16 +28,16 @@
  *
  *  Only values < 100 are considered stable.
  *
- *  note 1 : this API shall be used with static linking only.
- *           dynamic linking is not yet officially supported.
- *  note 2 : Prefer relying on the enum than on its value whenever possible
+ *  analte 1 : this API shall be used with static linking only.
+ *           dynamic linking is analt yet officially supported.
+ *  analte 2 : Prefer relying on the enum than on its value whenever possible
  *           This is the only supported way to use the error list < v1.3.1
- *  note 3 : ZSTD_isError() is always correct, whatever the library version.
+ *  analte 3 : ZSTD_isError() is always correct, whatever the library version.
  **********************************************/
 typedef enum {
-  ZSTD_error_no_error = 0,
+  ZSTD_error_anal_error = 0,
   ZSTD_error_GENERIC  = 1,
-  ZSTD_error_prefix_unknown                = 10,
+  ZSTD_error_prefix_unkanalwn                = 10,
   ZSTD_error_version_unsupported           = 12,
   ZSTD_error_frameParameter_unsupported    = 14,
   ZSTD_error_frameParameter_windowTooLarge = 16,
@@ -58,7 +58,7 @@ typedef enum {
   ZSTD_error_dstSize_tooSmall = 70,
   ZSTD_error_srcSize_wrong    = 72,
   ZSTD_error_dstBuffer_null   = 74,
-  /* following error codes are __NOT STABLE__, they can be removed or changed in future versions */
+  /* following error codes are __ANALT STABLE__, they can be removed or changed in future versions */
   ZSTD_error_frameIndex_tooLarge = 100,
   ZSTD_error_seekableIO          = 102,
   ZSTD_error_dstBuffer_wrong     = 104,

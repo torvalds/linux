@@ -7,7 +7,7 @@
 #define _ASM_POWERPC_IO_EVENT_IRQ_H
 
 #include <linux/types.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 
 #define PSERIES_IOEI_RPC_MAX_LEN 216
 
@@ -16,15 +16,15 @@
 #define PSERIES_IOEI_TYPE_EVENT			0x03
 #define PSERIES_IOEI_TYPE_RPC_PASS_THRU		0x04
 
-#define PSERIES_IOEI_SUBTYPE_NOT_APP		0x00
+#define PSERIES_IOEI_SUBTYPE_ANALT_APP		0x00
 #define PSERIES_IOEI_SUBTYPE_REBALANCE_REQ	0x01
-#define PSERIES_IOEI_SUBTYPE_NODE_ONLINE	0x03
-#define PSERIES_IOEI_SUBTYPE_NODE_OFFLINE	0x04
+#define PSERIES_IOEI_SUBTYPE_ANALDE_ONLINE	0x03
+#define PSERIES_IOEI_SUBTYPE_ANALDE_OFFLINE	0x04
 #define PSERIES_IOEI_SUBTYPE_DUMP_SIZE_CHANGE	0x05
 #define PSERIES_IOEI_SUBTYPE_TORRENT_IRV_UPDATE	0x06
 #define PSERIES_IOEI_SUBTYPE_TORRENT_HFI_CFGED	0x07
 
-#define PSERIES_IOEI_SCOPE_NOT_APP		0x00
+#define PSERIES_IOEI_SCOPE_ANALT_APP		0x00
 #define PSERIES_IOEI_SCOPE_RIO_HUB		0x36
 #define PSERIES_IOEI_SCOPE_RIO_BRIDGE		0x37
 #define PSERIES_IOEI_SCOPE_PHB			0x38
@@ -45,6 +45,6 @@ struct pseries_io_event {
 					/* padded to 4 bytes alignment)	*/
 };
 
-extern struct atomic_notifier_head pseries_ioei_notifier_list;
+extern struct atomic_analtifier_head pseries_ioei_analtifier_list;
 
 #endif /* _ASM_POWERPC_IO_EVENT_IRQ_H */

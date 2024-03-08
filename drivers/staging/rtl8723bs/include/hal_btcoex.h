@@ -30,16 +30,16 @@ void hal_btcoex_Initialize(void *padapter);
 void hal_btcoex_PowerOnSetting(struct adapter *padapter);
 void hal_btcoex_InitHwConfig(struct adapter *padapter, u8 bWifiOnly);
 
-void hal_btcoex_IpsNotify(struct adapter *padapter, u8 type);
-void hal_btcoex_LpsNotify(struct adapter *padapter, u8 type);
-void hal_btcoex_ScanNotify(struct adapter *padapter, u8 type);
-void hal_btcoex_ConnectNotify(struct adapter *padapter, u8 action);
-void hal_btcoex_MediaStatusNotify(struct adapter *padapter, u8 mediaStatus);
-void hal_btcoex_SpecialPacketNotify(struct adapter *padapter, u8 pktType);
-void hal_btcoex_IQKNotify(struct adapter *padapter, u8 state);
-void hal_btcoex_BtInfoNotify(struct adapter *padapter, u8 length, u8 *tmpBuf);
-void hal_btcoex_SuspendNotify(struct adapter *padapter, u8 state);
-void hal_btcoex_HaltNotify(struct adapter *padapter);
+void hal_btcoex_IpsAnaltify(struct adapter *padapter, u8 type);
+void hal_btcoex_LpsAnaltify(struct adapter *padapter, u8 type);
+void hal_btcoex_ScanAnaltify(struct adapter *padapter, u8 type);
+void hal_btcoex_ConnectAnaltify(struct adapter *padapter, u8 action);
+void hal_btcoex_MediaStatusAnaltify(struct adapter *padapter, u8 mediaStatus);
+void hal_btcoex_SpecialPacketAnaltify(struct adapter *padapter, u8 pktType);
+void hal_btcoex_IQKAnaltify(struct adapter *padapter, u8 state);
+void hal_btcoex_BtInfoAnaltify(struct adapter *padapter, u8 length, u8 *tmpBuf);
+void hal_btcoex_SuspendAnaltify(struct adapter *padapter, u8 state);
+void hal_btcoex_HaltAnaltify(struct adapter *padapter);
 
 void hal_btcoex_Handler(struct adapter *padapter);
 

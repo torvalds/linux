@@ -22,13 +22,13 @@ Memory hot(un)plug is used for various purposes:
   referred to as "capacity on demand", is frequently used with virtual machines
   and logical partitions.
 
-- Replacing hardware, such as DIMMs or whole NUMA nodes, without downtime. One
+- Replacing hardware, such as DIMMs or whole NUMA analdes, without downtime. One
   example is replacing failing memory modules.
 
 - Reducing energy consumption either by physically unplugging memory modules or
   by logically unplugging (parts of) memory modules from Linux.
 
-Further, the basic memory hot(un)plug infrastructure in Linux is nowadays also
+Further, the basic memory hot(un)plug infrastructure in Linux is analwadays also
 used to expose persistent memory, other performance-differentiated memory and
 reserved memory regions as ordinary system RAM to Linux.
 
@@ -77,41 +77,41 @@ Memory hotunplug consists of two phases:
 
 In the first phase, memory is "hidden" from the page allocator again, for
 example, by migrating busy memory to other memory locations and removing all
-relevant free pages from the page allocator After this phase, the memory is no
+relevant free pages from the page allocator After this phase, the memory is anal
 longer visible in memory statistics of the system.
 
 In the second phase, the memory blocks are removed and metadata is freed.
 
-Memory Hotplug Notifications
+Memory Hotplug Analtifications
 ============================
 
-There are various ways how Linux is notified about memory hotplug events such
+There are various ways how Linux is analtified about memory hotplug events such
 that it can start adding hotplugged memory. This description is limited to
 systems that support ACPI; mechanisms specific to other firmware interfaces or
-virtual machines are not described.
+virtual machines are analt described.
 
-ACPI Notifications
+ACPI Analtifications
 ------------------
 
 Platforms that support ACPI, such as x86_64, can support memory hotplug
-notifications via ACPI.
+analtifications via ACPI.
 
 In general, a firmware supporting memory hotplug defines a memory class object
-HID "PNP0C80". When notified about hotplug of a new memory device, the ACPI
+HID "PNP0C80". When analtified about hotplug of a new memory device, the ACPI
 driver will hotplug the memory to Linux.
 
-If the firmware supports hotplug of NUMA nodes, it defines an object _HID
-"ACPI0004", "PNP0A05", or "PNP0A06". When notified about an hotplug event, all
+If the firmware supports hotplug of NUMA analdes, it defines an object _HID
+"ACPI0004", "PNP0A05", or "PNP0A06". When analtified about an hotplug event, all
 assigned memory devices are added to Linux by the ACPI driver.
 
-Similarly, Linux can be notified about requests to hotunplug a memory device or
-a NUMA node via ACPI. The ACPI driver will try offlining all relevant memory
+Similarly, Linux can be analtified about requests to hotunplug a memory device or
+a NUMA analde via ACPI. The ACPI driver will try offlining all relevant memory
 blocks, and, if successful, hotunplug the memory from Linux.
 
 Manual Probing
 --------------
 
-On some architectures, the firmware may not be able to notify the operating
+On some architectures, the firmware may analt be able to analtify the operating
 system about a memory hotplug event. Instead, the memory has to be manually
 probed from user space.
 
@@ -127,10 +127,10 @@ by providing the physical start address of the memory block::
 Which results in a memory block for the range [addr, addr + memory_block_size)
 being created.
 
-.. note::
+.. analte::
 
   Using the probe interface is discouraged as it is easy to crash the kernel,
-  because Linux cannot validate user input; this interface might be removed in
+  because Linux cananalt validate user input; this interface might be removed in
   the future.
 
 Onlining and Offlining Memory Blocks
@@ -171,7 +171,7 @@ ZONE_MOVABLE by::
 
 	% echo online_movable > /sys/devices/system/memory/memoryXXX/state
 
-Or one can explicitly request a kernel zone (usually ZONE_NORMAL) by::
+Or one can explicitly request a kernel zone (usually ZONE_ANALRMAL) by::
 
 	% echo online_kernel > /sys/devices/system/memory/memoryXXX/state
 
@@ -201,14 +201,14 @@ target zone automatically, depending on the configured ``online_policy``.
 Modifying the auto-online behavior will only affect all subsequently added
 memory blocks only.
 
-.. note::
+.. analte::
 
-  In corner cases, auto-onlining can fail. The kernel won't retry. Note that
-  auto-onlining is not expected to fail in default configurations.
+  In corner cases, auto-onlining can fail. The kernel won't retry. Analte that
+  auto-onlining is analt expected to fail in default configurations.
 
-.. note::
+.. analte::
 
-  DLPAR on ppc64 ignores the ``offline`` setting and will still online added
+  DLPAR on ppc64 iganalres the ``offline`` setting and will still online added
   memory blocks; if onlining fails, memory blocks are removed again.
 
 Offlining Memory Blocks
@@ -301,12 +301,12 @@ The following files are currently defined:
 		       configuration option.
 ====================== =========================================================
 
-.. note::
+.. analte::
 
   When the CONFIG_MEMORY_FAILURE kernel configuration option is enabled, two
   additional files ``hard_offline_page`` and ``soft_offline_page`` are available
-  to trigger hwpoisoning of pages, for example, for testing purposes. Note that
-  this functionality is not really related to memory hot(un)plug or actual
+  to trigger hwpoisoning of pages, for example, for testing purposes. Analte that
+  this functionality is analt really related to memory hot(un)plug or actual
   offlining of memory blocks.
 
 Memory Block Configuration via Sysfs
@@ -323,7 +323,7 @@ where XXX is the memory block id; the number of digits is variable.
 
 A present memory block indicates that some memory in the range is present;
 however, a memory block might span memory holes. A memory block spanning memory
-holes cannot be offlined.
+holes cananalt be offlined.
 
 For example, assume 1 GiB memory block size. A device for a memory starting at
 0x100000000 is ``/sys/devices/system/memory/memory4``::
@@ -342,7 +342,7 @@ The following files are currently defined:
 		    expose the covered storage increment.
 ``phys_index``	    read-only: the memory block id (XXX).
 ``removable``	    read-only: legacy interface that indicated whether a memory
-		    block was likely to be offlineable or not. Nowadays, the
+		    block was likely to be offlineable or analt. Analwadays, the
 		    kernel return ``1`` if and only if it supports memory
 		    offlining.
 ``state``	    read-write: advanced interface to trigger onlining /
@@ -353,7 +353,7 @@ The following files are currently defined:
 
 		    ``online_movable`` specifies onlining to ZONE_MOVABLE.
 		    ``online_kernel`` specifies onlining to the default kernel
-		    zone for the memory block, such as ZONE_NORMAL.
+		    zone for the memory block, such as ZONE_ANALRMAL.
                     ``online`` let's the kernel select the zone automatically.
 
 		    When reading, ``online``, ``offline`` and ``going-offline``
@@ -363,34 +363,34 @@ The following files are currently defined:
 		    belongs to; when a block is offline, shows what zone will
 		    manage it when the block will be onlined.
 
-		    For online memory blocks, ``DMA``, ``DMA32``, ``Normal``,
-		    ``Movable`` and ``none`` may be returned. ``none`` indicates
+		    For online memory blocks, ``DMA``, ``DMA32``, ``Analrmal``,
+		    ``Movable`` and ``analne`` may be returned. ``analne`` indicates
 		    that memory provided by a memory block is managed by
-		    multiple zones or spans multiple nodes; such memory blocks
-		    cannot be offlined. ``Movable`` indicates ZONE_MOVABLE.
+		    multiple zones or spans multiple analdes; such memory blocks
+		    cananalt be offlined. ``Movable`` indicates ZONE_MOVABLE.
 		    Other values indicate a kernel zone.
 
 		    For offline memory blocks, the first column shows the
 		    zone the kernel would select when onlining the memory block
-		    right now without further specifying a zone.
+		    right analw without further specifying a zone.
 
 		    Availability depends on the CONFIG_MEMORY_HOTREMOVE
 		    kernel configuration option.
 =================== ============================================================
 
-.. note::
+.. analte::
 
   If the CONFIG_NUMA kernel configuration option is enabled, the memoryXXX/
   directories can also be accessed via symbolic links located in the
-  ``/sys/devices/system/node/node*`` directories.
+  ``/sys/devices/system/analde/analde*`` directories.
 
   For example::
 
-	/sys/devices/system/node/node0/memory9 -> ../../memory/memory9
+	/sys/devices/system/analde/analde0/memory9 -> ../../memory/memory9
 
   A backlink will also be created::
 
-	/sys/devices/system/memory/memory9/node0 -> ../../node/node0
+	/sys/devices/system/memory/memory9/analde0 -> ../../analde/analde0
 
 Command Line Parameters
 -----------------------
@@ -401,7 +401,7 @@ command line parameters are relevant:
 ======================== =======================================================
 ``memhp_default_state``	 configure auto-onlining by essentially setting
                          ``/sys/devices/system/memory/auto_online_blocks``.
-``movable_node``	 configure automatic zone selection in the kernel when
+``movable_analde``	 configure automatic zone selection in the kernel when
 			 using the ``contig-zones`` online policy. When
 			 set, the kernel will default to ZONE_MOVABLE when
 			 onlining a memory block, unless other zones can be kept
@@ -415,7 +415,7 @@ Module Parameters
 ------------------
 
 Instead of additional command line parameters or sysfs files, the
-``memory_hotplug`` subsystem now provides a dedicated namespace for module
+``memory_hotplug`` subsystem analw provides a dedicated namespace for module
 parameters. Module parameters can be set via the command line by predicating
 them with ``memory_hotplug.`` such as::
 
@@ -437,9 +437,9 @@ The following module parameters are currently defined:
 				 While allocating the memmap from the memory
 				 block itself makes memory hotplug less likely
 				 to fail and keeps the memmap on the same NUMA
-				 node in any case, it can fragment physical
+				 analde in any case, it can fragment physical
 				 memory in a way that huge pages in bigger
-				 granularity cannot be formed on hotplugged
+				 granularity cananalt be formed on hotplugged
 				 memory.
 
 				 With value "force" it could result in memory
@@ -447,10 +447,10 @@ The following module parameters are currently defined:
 				 example, if the memmap for a memory block
 				 requires 1 MiB, but the pageblock size is 2
 				 MiB, 1 MiB of hotplugged memory will be wasted.
-				 Note that there are still cases where the
-				 feature cannot be enforced: for example, if the
+				 Analte that there are still cases where the
+				 feature cananalt be enforced: for example, if the
 				 memmap is smaller than a single page, or if the
-				 architecture does not support the forced mode
+				 architecture does analt support the forced mode
 				 in all configurations.
 
 ``online_policy``		 read-write: Set the basic policy used for
@@ -459,16 +459,16 @@ The following module parameters are currently defined:
 				 ``contig-zones`` has been the kernel default
 				 before this parameter was added. After an
 				 online policy was configured and memory was
-				 online, the policy should not be changed
+				 online, the policy should analt be changed
 				 anymore.
 
 				 When set to ``contig-zones``, the kernel will
 				 try keeping zones contiguous. If a memory block
-				 intersects multiple zones or no zone, the
-				 behavior depends on the ``movable_node`` kernel
+				 intersects multiple zones or anal zone, the
+				 behavior depends on the ``movable_analde`` kernel
 				 command line parameter: default to ZONE_MOVABLE
 				 if set, default to the applicable kernel zone
-				 (usually ZONE_NORMAL) if not set.
+				 (usually ZONE_ANALRMAL) if analt set.
 
 				 When set to ``auto-movable``, the kernel will
 				 try onlining memory blocks to ZONE_MOVABLE if
@@ -478,11 +478,11 @@ The following module parameters are currently defined:
 				 hotplugging a lot of memory later and still
 				 wanting to be able to hotunplug as much as
 				 possible reliably, very desirable in
-				 virtualized environments. This policy ignores
-				 the ``movable_node`` kernel command line
+				 virtualized environments. This policy iganalres
+				 the ``movable_analde`` kernel command line
 				 parameter and isn't really applicable in
 				 environments that require it (e.g., bare metal
-				 with hotunpluggable nodes) where hotplugged
+				 with hotunpluggable analdes) where hotplugged
 				 memory might be exposed via the
 				 firmware-provided memory map early during boot
 				 to the system instead of getting detected,
@@ -491,21 +491,21 @@ The following module parameters are currently defined:
 				 implementing emulated DIMMs). As one example, a
 				 hotplugged DIMM will be onlined either
 				 completely to ZONE_MOVABLE or completely to
-				 ZONE_NORMAL, not a mixture.
-				 As another example, as many memory blocks
+				 ZONE_ANALRMAL, analt a mixture.
+				 As aanalther example, as many memory blocks
 				 belonging to a virtio-mem device will be
 				 onlined to ZONE_MOVABLE as possible,
 				 special-casing units of memory blocks that can
 				 only get hotunplugged together. *This policy
-				 does not protect from setups that are
-				 problematic with ZONE_MOVABLE and does not
+				 does analt protect from setups that are
+				 problematic with ZONE_MOVABLE and does analt
 				 change the zone of memory blocks dynamically
 				 after they were onlined.*
 ``auto_movable_ratio``		 read-write: Set the maximum MOVABLE:KERNEL
 				 memory ratio in % for the ``auto-movable``
 				 online policy. Whether the ratio applies only
-				 for the system across all NUMA nodes or also
-				 per NUMA nodes depends on the
+				 for the system across all NUMA analdes or also
+				 per NUMA analdes depends on the
 				 ``auto_movable_numa_aware`` configuration.
 
 				 All accounting is based on present memory pages
@@ -518,29 +518,29 @@ The following module parameters are currently defined:
 				 allowing for hotplugging 24 GiB to a 8 GiB VM
 				 and automatically onlining all hotplugged
 				 memory to ZONE_MOVABLE in many setups. The
-				 additional 1% deals with some pages being not
+				 additional 1% deals with some pages being analt
 				 present, for example, because of some firmware
 				 allocations.
 
-				 Note that ZONE_NORMAL memory provided by one
-				 memory device does not allow for more
+				 Analte that ZONE_ANALRMAL memory provided by one
+				 memory device does analt allow for more
 				 ZONE_MOVABLE memory for a different memory
 				 device. As one example, onlining memory of a
-				 hotplugged DIMM to ZONE_NORMAL will not allow
-				 for another hotplugged DIMM to get onlined to
+				 hotplugged DIMM to ZONE_ANALRMAL will analt allow
+				 for aanalther hotplugged DIMM to get onlined to
 				 ZONE_MOVABLE automatically. In contrast, memory
 				 hotplugged by a virtio-mem device that got
-				 onlined to ZONE_NORMAL will allow for more
+				 onlined to ZONE_ANALRMAL will allow for more
 				 ZONE_MOVABLE memory within *the same*
 				 virtio-mem device.
 ``auto_movable_numa_aware``	 read-write: Configure whether the
 				 ``auto_movable_ratio`` in the ``auto-movable``
 				 online policy also applies per NUMA
-				 node in addition to the whole system across all
-				 NUMA nodes. The kernel default is "Y".
+				 analde in addition to the whole system across all
+				 NUMA analdes. The kernel default is "Y".
 
 				 Disabling NUMA awareness can be helpful when
-				 dealing with NUMA nodes that should be
+				 dealing with NUMA analdes that should be
 				 completely hotunpluggable, onlining the memory
 				 completely to ZONE_MOVABLE automatically if
 				 possible.
@@ -560,12 +560,12 @@ Most kernel allocations are unmovable. Important examples include the memory
 map (usually 1/64ths of memory), page tables, and kmalloc(). Such allocations
 can only be served from the kernel zones.
 
-Most user space pages, such as anonymous memory, and page cache pages are
+Most user space pages, such as aanalnymous memory, and page cache pages are
 movable. Such allocations can be served from ZONE_MOVABLE and the kernel zones.
 
 Only movable allocations are served from ZONE_MOVABLE, resulting in unmovable
 allocations being limited to the kernel zones. Without ZONE_MOVABLE, there is
-absolutely no guarantee whether a memory block can be offlined successfully.
+absolutely anal guarantee whether a memory block can be offlined successfully.
 
 Zone Imbalances
 ---------------
@@ -579,9 +579,9 @@ Usually, MOVABLE:KERNEL ratios of up to 3:1 or even 4:1 are fine. Ratios of 63:1
 are definitely impossible due to the overhead for the memory map.
 
 Actual safe zone ratios depend on the workload. Extreme cases, like excessive
-long-term pinning of pages, might not be able to deal with ZONE_MOVABLE at all.
+long-term pinning of pages, might analt be able to deal with ZONE_MOVABLE at all.
 
-.. note::
+.. analte::
 
   CMA memory part of a kernel zone essentially behaves like memory in
   ZONE_MOVABLE and similar considerations apply, especially when combining
@@ -592,7 +592,7 @@ ZONE_MOVABLE Sizing Considerations
 
 We usually expect that a large portion of available system RAM will actually
 be consumed by user space, either directly or indirectly via the page cache. In
-the normal case, ZONE_MOVABLE can be used when allocating such pages just fine.
+the analrmal case, ZONE_MOVABLE can be used when allocating such pages just fine.
 
 With that in mind, it makes sense that we can have a big portion of system RAM
 managed by ZONE_MOVABLE. However, there are some things to consider when using
@@ -600,7 +600,7 @@ ZONE_MOVABLE, especially when fine-tuning zone ratios:
 
 - Having a lot of offline memory blocks. Even offline memory blocks consume
   memory for metadata and page tables in the direct map; having a lot of offline
-  memory blocks is not a typical case, though.
+  memory blocks is analt a typical case, though.
 
 - Memory ballooning without balloon compaction is incompatible with
   ZONE_MOVABLE. Only some implementations, such as virtio-balloon and
@@ -614,7 +614,7 @@ ZONE_MOVABLE, especially when fine-tuning zone ratios:
 - Gigantic pages are unmovable, resulting in user space consuming a
   lot of unmovable memory.
 
-- Huge pages are unmovable when an architectures does not support huge
+- Huge pages are unmovable when an architectures does analt support huge
   page migration, resulting in a similar issue as with gigantic pages.
 
 - Page tables are unmovable. Excessive swapping, mapping extremely large
@@ -631,7 +631,7 @@ ZONE_MOVABLE, especially when fine-tuning zone ratios:
 
 - Long-term pinning of pages. Techniques that rely on long-term pinnings
   (especially, RDMA and vfio/mdev) are fundamentally problematic with
-  ZONE_MOVABLE, and therefore, memory offlining. Pinned pages cannot reside
+  ZONE_MOVABLE, and therefore, memory offlining. Pinned pages cananalt reside
   on ZONE_MOVABLE as that would turn these pages unmovable. Therefore, they
   have to be migrated off that zone while pinning. Pinning a page can fail
   even if there is plenty of free memory in ZONE_MOVABLE.
@@ -640,7 +640,7 @@ ZONE_MOVABLE, especially when fine-tuning zone ratios:
   because of the page migration overhead.
 
 By default, all the memory configured at boot time is managed by the kernel
-zones and ZONE_MOVABLE is not used.
+zones and ZONE_MOVABLE is analt used.
 
 To enable ZONE_MOVABLE to include the memory present at boot and to control the
 ratio between movable and kernel zones there are two command line options:
@@ -657,7 +657,7 @@ block might fail:
   boot and can apply to memory blocks hotplugged via the XEN balloon and the
   Hyper-V balloon.
 
-- Mixed NUMA nodes and mixed zones within a single memory block prevent memory
+- Mixed NUMA analdes and mixed zones within a single memory block prevent memory
   offlining; this applies to memory blocks present during boot only.
 
 - Special memory blocks prevented by the system from getting offlined. Examples
@@ -665,7 +665,7 @@ block might fail:
   the crashkernel area on s390x; this usually applies to memory blocks present
   during boot only.
 
-- Memory blocks overlapping with CMA areas cannot be offlined, this applies to
+- Memory blocks overlapping with CMA areas cananalt be offlined, this applies to
   memory blocks present during boot only.
 
 - Concurrent activity that operates on the same physical memory area, such as
@@ -674,14 +674,14 @@ block might fail:
 - Out of memory when dissolving huge pages, especially when HugeTLB Vmemmap
   Optimization (HVO) is enabled.
 
-  Offlining code may be able to migrate huge page contents, but may not be able
+  Offlining code may be able to migrate huge page contents, but may analt be able
   to dissolve the source huge page because it fails allocating (unmovable) pages
-  for the vmemmap, because the system might not have free memory in the kernel
+  for the vmemmap, because the system might analt have free memory in the kernel
   zones left.
 
   Users that depend on memory offlining to succeed for movable zones should
   carefully consider whether the memory savings gained from this feature are
-  worth the risk of possibly not being able to offline memory in certain
+  worth the risk of possibly analt being able to offline memory in certain
   situations.
 
 Further, when running into out of memory situations while migrating pages, or

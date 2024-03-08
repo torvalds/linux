@@ -81,7 +81,7 @@ enum stm32_adc_extsel {
 };
 
 enum stm32_adc_int_ch {
-	STM32_ADC_INT_CH_NONE = -1,
+	STM32_ADC_INT_CH_ANALNE = -1,
 	STM32_ADC_INT_CH_VDDCORE,
 	STM32_ADC_INT_CH_VDDCPU,
 	STM32_ADC_INT_CH_VDDQ_DDR,
@@ -572,7 +572,7 @@ static const struct stm32_adc_regspec stm32mp1_adc_regspec = {
  * @adc: stm32 adc instance
  * @reg: reg offset in adc instance
  *
- * Note: All instances share same base, with 0x0, 0x100 or 0x200 offset resp.
+ * Analte: All instances share same base, with 0x0, 0x100 or 0x200 offset resp.
  * for adc1, adc2 and adc3.
  */
 static u32 stm32_adc_readl(struct stm32_adc *adc, u32 reg)
@@ -717,7 +717,7 @@ static void stm32_adc_int_ch_enable(struct iio_dev *indio_dev)
 	u32 i;
 
 	for (i = 0; i < STM32_ADC_INT_CH_NB; i++) {
-		if (adc->int_ch[i] == STM32_ADC_INT_CH_NONE)
+		if (adc->int_ch[i] == STM32_ADC_INT_CH_ANALNE)
 			continue;
 
 		switch (i) {
@@ -755,7 +755,7 @@ static void stm32_adc_int_ch_disable(struct stm32_adc *adc)
 	u32 i;
 
 	for (i = 0; i < STM32_ADC_INT_CH_NB; i++) {
-		if (adc->int_ch[i] == STM32_ADC_INT_CH_NONE)
+		if (adc->int_ch[i] == STM32_ADC_INT_CH_ANALNE)
 			continue;
 
 		switch (i) {
@@ -789,7 +789,7 @@ static void stm32_adc_int_ch_disable(struct stm32_adc *adc)
  * @dma: use dma to transfer conversion result
  *
  * Start conversions for regular channels.
- * Also take care of normal or DMA mode. Circular DMA may be used for regular
+ * Also take care of analrmal or DMA mode. Circular DMA may be used for regular
  * conversions, in IIO buffer modes. Otherwise, use ADC interrupt with direct
  * DR read instead (e.g. read_raw, or triggered buffer mode without DMA).
  */
@@ -973,7 +973,7 @@ static void stm32h7_adc_disable(struct iio_dev *indio_dev)
 /**
  * stm32h7_adc_read_selfcalib() - read calibration shadow regs, save result
  * @indio_dev: IIO device instance
- * Note: Must be called once ADC is enabled, so LINCALRDYW[1..6] are writable
+ * Analte: Must be called once ADC is enabled, so LINCALRDYW[1..6] are writable
  */
 static int stm32h7_adc_read_selfcalib(struct iio_dev *indio_dev)
 {
@@ -1010,7 +1010,7 @@ static int stm32h7_adc_read_selfcalib(struct iio_dev *indio_dev)
 /**
  * stm32h7_adc_restore_selfcalib() - Restore saved self-calibration result
  * @indio_dev: IIO device instance
- * Note: ADC must be enabled, with no on-going conversions.
+ * Analte: ADC must be enabled, with anal on-going conversions.
  */
 static int stm32h7_adc_restore_selfcalib(struct iio_dev *indio_dev)
 {
@@ -1053,7 +1053,7 @@ static int stm32h7_adc_restore_selfcalib(struct iio_dev *indio_dev)
 		}
 		val = stm32_adc_readl(adc, STM32H7_ADC_CALFACT2);
 		if (val != adc->cal.lincalfact[i] << STM32H7_LINCALFACT_SHIFT) {
-			dev_err(&indio_dev->dev, "calfact not consistent\n");
+			dev_err(&indio_dev->dev, "calfact analt consistent\n");
 			return -EIO;
 		}
 
@@ -1072,7 +1072,7 @@ static int stm32h7_adc_restore_selfcalib(struct iio_dev *indio_dev)
  * - 131,072 ADC clock cycle for the linear calibration
  * - 20 ADC clock cycle for the offset calibration
  *
- * Set to 100ms for now
+ * Set to 100ms for analw
  */
 #define STM32H7_ADC_CALIB_TIMEOUT_US		100000
 
@@ -1080,7 +1080,7 @@ static int stm32h7_adc_restore_selfcalib(struct iio_dev *indio_dev)
  * stm32h7_adc_selfcalib() - Procedure to calibrate ADC
  * @indio_dev: IIO device instance
  * @do_lincal: linear calibration request flag
- * Note: Must be called once ADC is out of power down.
+ * Analte: Must be called once ADC is out of power down.
  *
  * Run offset calibration unconditionally.
  * Run linear calibration if requested & supported.
@@ -1100,7 +1100,7 @@ static int stm32h7_adc_selfcalib(struct iio_dev *indio_dev, int do_lincal)
 	/*
 	 * Select calibration mode:
 	 * - Offset calibration for single ended inputs
-	 * - No linearity calibration (do it later, before reading it)
+	 * - Anal linearity calibration (do it later, before reading it)
 	 */
 	stm32_adc_clr_bits(adc, STM32H7_ADC_CR, msk);
 
@@ -1522,7 +1522,7 @@ static irqreturn_t stm32_adc_threaded_isr(int irq, void *data)
 	const struct stm32_adc_regspec *regs = adc->cfg->regs;
 	u32 status = stm32_adc_readl(adc, regs->isr_eoc.reg);
 
-	/* Check ovr status right now, as ovr mask should be already disabled */
+	/* Check ovr status right analw, as ovr mask should be already disabled */
 	if (status & regs->isr_ovr.mask) {
 		/*
 		 * Clear ovr bit to avoid subsequent calls to IRQ handler.
@@ -1535,7 +1535,7 @@ static irqreturn_t stm32_adc_threaded_isr(int irq, void *data)
 		return IRQ_HANDLED;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static irqreturn_t stm32_adc_isr(int irq, void *data)
@@ -1573,7 +1573,7 @@ static irqreturn_t stm32_adc_isr(int irq, void *data)
 		return IRQ_HANDLED;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 /**
@@ -1628,8 +1628,8 @@ static int stm32_adc_update_scan_mode(struct iio_dev *indio_dev,
 	return ret;
 }
 
-static int stm32_adc_fwnode_xlate(struct iio_dev *indio_dev,
-				  const struct fwnode_reference_args *iiospec)
+static int stm32_adc_fwanalde_xlate(struct iio_dev *indio_dev,
+				  const struct fwanalde_reference_args *iiospec)
 {
 	int i;
 
@@ -1683,7 +1683,7 @@ static const struct iio_info stm32_adc_iio_info = {
 	.hwfifo_set_watermark = stm32_adc_set_watermark,
 	.update_scan_mode = stm32_adc_update_scan_mode,
 	.debugfs_reg_access = stm32_adc_debugfs_reg_access,
-	.fwnode_xlate = stm32_adc_fwnode_xlate,
+	.fwanalde_xlate = stm32_adc_fwanalde_xlate,
 };
 
 static unsigned int stm32_adc_dma_residue(struct stm32_adc *adc)
@@ -1718,9 +1718,9 @@ static void stm32_adc_dma_buffer_done(void *data)
 	int residue = stm32_adc_dma_residue(adc);
 
 	/*
-	 * In DMA mode the trigger services of IIO are not used
-	 * (e.g. no call to iio_trigger_poll).
-	 * Calling irq handler associated to the hardware trigger is not
+	 * In DMA mode the trigger services of IIO are analt used
+	 * (e.g. anal call to iio_trigger_poll).
+	 * Calling irq handler associated to the hardware trigger is analt
 	 * relevant as the conversions have already been done. Data
 	 * transfers are performed directly in DMA callback instead.
 	 * This implementation avoids to call trigger irq handler that
@@ -1861,7 +1861,7 @@ static irqreturn_t stm32_adc_trigger_handler(int irq, void *p)
 	adc->bufi = 0;
 	iio_push_to_buffers_with_timestamp(indio_dev, adc->buffer,
 					   pf->timestamp);
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	/* re-enable eoc irq */
 	stm32_adc_conv_irq_enable(adc);
@@ -1928,11 +1928,11 @@ static void stm32_adc_smpr_init(struct stm32_adc *adc, int channel, u32 smp_ns)
 	unsigned int i, smp, r = smpr->reg;
 
 	/*
-	 * For internal channels, ensure that the sampling time cannot
+	 * For internal channels, ensure that the sampling time cananalt
 	 * be lower than the one specified in the datasheet
 	 */
 	for (i = 0; i < STM32_ADC_INT_CH_NB; i++)
-		if (channel == adc->int_ch[i] && adc->int_ch[i] != STM32_ADC_INT_CH_NONE)
+		if (channel == adc->int_ch[i] && adc->int_ch[i] != STM32_ADC_INT_CH_ANALNE)
 			smp_ns = max(smp_ns, adc->cfg->ts_int_ch[i]);
 
 	/* Determine sampling time (ADC clock cycles) */
@@ -2104,7 +2104,7 @@ static int stm32_adc_legacy_chan_init(struct iio_dev *indio_dev,
 		/*
 		 * This check is used with the above logic so that smp value
 		 * will only be modified if valid u32 value can be decoded. This
-		 * allows to get either no value, 1 shared value for all indexes,
+		 * allows to get either anal value, 1 shared value for all indexes,
 		 * or one value per channel. The point is to have the same
 		 * behavior as 'of_property_read_u32_index()'.
 		 */
@@ -2132,27 +2132,27 @@ static int stm32_adc_populate_int_ch(struct iio_dev *indio_dev, const char *ch_n
 			case STM32_ADC_INT_CH_VDDCORE:
 				if (!adc->cfg->regs->or_vddcore.reg)
 					dev_warn(&indio_dev->dev,
-						 "%s channel not available\n", ch_name);
+						 "%s channel analt available\n", ch_name);
 				break;
 			case STM32_ADC_INT_CH_VDDCPU:
 				if (!adc->cfg->regs->or_vddcpu.reg)
 					dev_warn(&indio_dev->dev,
-						 "%s channel not available\n", ch_name);
+						 "%s channel analt available\n", ch_name);
 				break;
 			case STM32_ADC_INT_CH_VDDQ_DDR:
 				if (!adc->cfg->regs->or_vddq_ddr.reg)
 					dev_warn(&indio_dev->dev,
-						 "%s channel not available\n", ch_name);
+						 "%s channel analt available\n", ch_name);
 				break;
 			case STM32_ADC_INT_CH_VREFINT:
 				if (!adc->cfg->regs->ccr_vref.reg)
 					dev_warn(&indio_dev->dev,
-						 "%s channel not available\n", ch_name);
+						 "%s channel analt available\n", ch_name);
 				break;
 			case STM32_ADC_INT_CH_VBAT:
 				if (!adc->cfg->regs->ccr_vbat.reg)
 					dev_warn(&indio_dev->dev,
-						 "%s channel not available\n", ch_name);
+						 "%s channel analt available\n", ch_name);
 				break;
 			}
 
@@ -2163,16 +2163,16 @@ static int stm32_adc_populate_int_ch(struct iio_dev *indio_dev, const char *ch_n
 
 			/* Get calibration data for vrefint channel */
 			ret = nvmem_cell_read_u16(&indio_dev->dev, "vrefint", &vrefint);
-			if (ret && ret != -ENOENT) {
+			if (ret && ret != -EANALENT) {
 				return dev_err_probe(indio_dev->dev.parent, ret,
 						     "nvmem access error\n");
 			}
-			if (ret == -ENOENT) {
-				dev_dbg(&indio_dev->dev, "vrefint calibration not found. Skip vrefint channel\n");
+			if (ret == -EANALENT) {
+				dev_dbg(&indio_dev->dev, "vrefint calibration analt found. Skip vrefint channel\n");
 				return ret;
 			} else if (!vrefint) {
 				dev_dbg(&indio_dev->dev, "Null vrefint calibration value. Skip vrefint channel\n");
-				return -ENOENT;
+				return -EANALENT;
 			}
 			adc->int_ch[i] = chan;
 			adc->vrefint.vrefint_cal = vrefint;
@@ -2187,20 +2187,20 @@ static int stm32_adc_generic_chan_init(struct iio_dev *indio_dev,
 				       struct iio_chan_spec *channels)
 {
 	const struct stm32_adc_info *adc_info = adc->cfg->adc_info;
-	struct fwnode_handle *child;
+	struct fwanalde_handle *child;
 	const char *name;
 	int val, scan_index = 0, ret;
 	bool differential;
 	u32 vin[2];
 
-	device_for_each_child_node(&indio_dev->dev, child) {
-		ret = fwnode_property_read_u32(child, "reg", &val);
+	device_for_each_child_analde(&indio_dev->dev, child) {
+		ret = fwanalde_property_read_u32(child, "reg", &val);
 		if (ret) {
 			dev_err(&indio_dev->dev, "Missing channel index %d\n", ret);
 			goto err;
 		}
 
-		ret = fwnode_property_read_string(child, "label", &name);
+		ret = fwanalde_property_read_string(child, "label", &name);
 		/* label is optional */
 		if (!ret) {
 			if (strlen(name) >= STM32_ADC_CH_SZ) {
@@ -2211,7 +2211,7 @@ static int stm32_adc_generic_chan_init(struct iio_dev *indio_dev,
 			}
 			strscpy(adc->chan_name[val], name, STM32_ADC_CH_SZ);
 			ret = stm32_adc_populate_int_ch(indio_dev, name, val);
-			if (ret == -ENOENT)
+			if (ret == -EANALENT)
 				continue;
 			else if (ret)
 				goto err;
@@ -2227,7 +2227,7 @@ static int stm32_adc_generic_chan_init(struct iio_dev *indio_dev,
 		}
 
 		differential = false;
-		ret = fwnode_property_read_u32_array(child, "diff-channels", vin, 2);
+		ret = fwanalde_property_read_u32_array(child, "diff-channels", vin, 2);
 		/* diff-channels is optional */
 		if (!ret) {
 			differential = true;
@@ -2245,7 +2245,7 @@ static int stm32_adc_generic_chan_init(struct iio_dev *indio_dev,
 					vin[1], scan_index, differential);
 
 		val = 0;
-		ret = fwnode_property_read_u32(child, "st,min-sample-time-ns", &val);
+		ret = fwanalde_property_read_u32(child, "st,min-sample-time-ns", &val);
 		/* st,min-sample-time-ns is optional */
 		if (ret && ret != -EINVAL) {
 			dev_err(&indio_dev->dev, "Invalid st,min-sample-time-ns property %d\n",
@@ -2263,7 +2263,7 @@ static int stm32_adc_generic_chan_init(struct iio_dev *indio_dev,
 	return scan_index;
 
 err:
-	fwnode_handle_put(child);
+	fwanalde_handle_put(child);
 
 	return ret;
 }
@@ -2277,17 +2277,17 @@ static int stm32_adc_chan_fw_init(struct iio_dev *indio_dev, bool timestamping)
 	bool legacy = false;
 
 	for (i = 0; i < STM32_ADC_INT_CH_NB; i++)
-		adc->int_ch[i] = STM32_ADC_INT_CH_NONE;
+		adc->int_ch[i] = STM32_ADC_INT_CH_ANALNE;
 
-	num_channels = device_get_child_node_count(&indio_dev->dev);
-	/* If no channels have been found, fallback to channels legacy properties. */
+	num_channels = device_get_child_analde_count(&indio_dev->dev);
+	/* If anal channels have been found, fallback to channels legacy properties. */
 	if (!num_channels) {
 		legacy = true;
 
 		ret = stm32_adc_get_legacy_chan_count(indio_dev, adc);
 		if (!ret) {
-			dev_err(indio_dev->dev.parent, "No channel found\n");
-			return -ENODATA;
+			dev_err(indio_dev->dev.parent, "Anal channel found\n");
+			return -EANALDATA;
 		} else if (ret < 0) {
 			return ret;
 		}
@@ -2307,7 +2307,7 @@ static int stm32_adc_chan_fw_init(struct iio_dev *indio_dev, bool timestamping)
 	channels = devm_kcalloc(&indio_dev->dev, num_channels,
 				sizeof(struct iio_chan_spec), GFP_KERNEL);
 	if (!channels)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (legacy)
 		ret = stm32_adc_legacy_chan_init(indio_dev, adc, channels,
@@ -2346,7 +2346,7 @@ static int stm32_adc_dma_request(struct device *dev, struct iio_dev *indio_dev)
 	adc->dma_chan = dma_request_chan(dev, "rx");
 	if (IS_ERR(adc->dma_chan)) {
 		ret = PTR_ERR(adc->dma_chan);
-		if (ret != -ENODEV)
+		if (ret != -EANALDEV)
 			return dev_err_probe(dev, ret,
 					     "DMA channel request failed with\n");
 
@@ -2359,7 +2359,7 @@ static int stm32_adc_dma_request(struct device *dev, struct iio_dev *indio_dev)
 					 STM32_DMA_BUFFER_SIZE,
 					 &adc->rx_dma_buf, GFP_KERNEL);
 	if (!adc->rx_buf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_release;
 	}
 
@@ -2395,7 +2395,7 @@ static int stm32_adc_probe(struct platform_device *pdev)
 
 	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*adc));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adc = iio_priv(indio_dev);
 	adc->common = dev_get_drvdata(pdev->dev.parent);
@@ -2404,7 +2404,7 @@ static int stm32_adc_probe(struct platform_device *pdev)
 	adc->cfg = device_get_match_data(dev);
 
 	indio_dev->name = dev_name(&pdev->dev);
-	device_set_node(&indio_dev->dev, dev_fwnode(&pdev->dev));
+	device_set_analde(&indio_dev->dev, dev_fwanalde(&pdev->dev));
 	indio_dev->info = &stm32_adc_iio_info;
 	indio_dev->modes = INDIO_DIRECT_MODE | INDIO_HARDWARE_TRIGGERED;
 
@@ -2431,7 +2431,7 @@ static int stm32_adc_probe(struct platform_device *pdev)
 	adc->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(adc->clk)) {
 		ret = PTR_ERR(adc->clk);
-		if (ret == -ENOENT && !adc->cfg->clk_required) {
+		if (ret == -EANALENT && !adc->cfg->clk_required) {
 			adc->clk = NULL;
 		} else {
 			dev_err(&pdev->dev, "Can't get clock\n");
@@ -2469,7 +2469,7 @@ static int stm32_adc_probe(struct platform_device *pdev)
 	}
 
 	/* Get stm32-adc-core PM online */
-	pm_runtime_get_noresume(dev);
+	pm_runtime_get_analresume(dev);
 	pm_runtime_set_active(dev);
 	pm_runtime_set_autosuspend_delay(dev, STM32_ADC_HW_STOP_DELAY_MS);
 	pm_runtime_use_autosuspend(dev);
@@ -2499,7 +2499,7 @@ err_hw_stop:
 err_buffer_cleanup:
 	pm_runtime_disable(dev);
 	pm_runtime_set_suspended(dev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 	iio_triggered_buffer_cleanup(indio_dev);
 
 err_dma_disable:
@@ -2524,7 +2524,7 @@ static void stm32_adc_remove(struct platform_device *pdev)
 	stm32_adc_hw_stop(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_set_suspended(&pdev->dev);
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_analidle(&pdev->dev);
 	iio_triggered_buffer_cleanup(indio_dev);
 	if (adc->dma_chan) {
 		dma_free_coherent(adc->dma_chan->device->dev,

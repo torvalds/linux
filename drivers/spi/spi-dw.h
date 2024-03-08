@@ -11,11 +11,11 @@
 #include <linux/spi/spi-mem.h>
 #include <linux/bitfield.h>
 
-/* Synopsys DW SSI IP-core virtual IDs */
+/* Syanalpsys DW SSI IP-core virtual IDs */
 #define DW_PSSI_ID			0
 #define DW_HSSI_ID			1
 
-/* Synopsys DW SSI component versions (FourCC sequence) */
+/* Syanalpsys DW SSI component versions (FourCC sequence) */
 #define DW_HSSI_102A			0x3130322a
 
 /* DW SSI IP-core ID and version check helpers */
@@ -101,9 +101,9 @@
 /* Bit fields in SR, 7 bits */
 #define DW_SPI_SR_MASK				GENMASK(6, 0)
 #define DW_SPI_SR_BUSY				BIT(0)
-#define DW_SPI_SR_TF_NOT_FULL			BIT(1)
+#define DW_SPI_SR_TF_ANALT_FULL			BIT(1)
 #define DW_SPI_SR_TF_EMPT			BIT(2)
-#define DW_SPI_SR_RF_NOT_EMPT			BIT(3)
+#define DW_SPI_SR_RF_ANALT_EMPT			BIT(3)
 #define DW_SPI_SR_RF_FULL			BIT(4)
 #define DW_SPI_SR_TX_ERR			BIT(5)
 #define DW_SPI_SR_DCOL				BIT(6)
@@ -151,8 +151,8 @@ struct dw_spi_dma_ops {
 struct dw_spi {
 	struct spi_controller	*host;
 
-	u32			ip;		/* Synopsys DW SSI IP-core ID */
-	u32			ver;		/* Synopsys component version */
+	u32			ip;		/* Syanalpsys DW SSI IP-core ID */
+	u32			ver;		/* Syanalpsys component version */
 	u32			caps;		/* DW SPI capabilities */
 
 	void __iomem		*regs;

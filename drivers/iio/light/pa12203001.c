@@ -34,7 +34,7 @@
 
 #define PA12203001_ALS_EN_MASK		BIT(0)
 #define PA12203001_PX_EN_MASK		BIT(1)
-#define PA12203001_PX_NORMAL_MODE_MASK		GENMASK(7, 6)
+#define PA12203001_PX_ANALRMAL_MODE_MASK		GENMASK(7, 6)
 #define PA12203001_AFSR_MASK		GENMASK(5, 4)
 #define PA12203001_AFSR_SHIFT		4
 
@@ -46,7 +46,7 @@
 /* led current: 100 mA */
 #define PA12203001_REG_CFG1_DEFAULT		0x20
 
-/* ps mode: normal, interrupts not active */
+/* ps mode: analrmal, interrupts analt active */
 #define PA12203001_REG_CFG2_DEFAULT		0xcc
 
 #define PA12203001_REG_CFG3_DEFAULT		0x00
@@ -114,8 +114,8 @@ static const struct regmap_range pa12203001_volatile_regs_ranges[] = {
 };
 
 static const struct regmap_access_table pa12203001_volatile_regs = {
-	.yes_ranges = pa12203001_volatile_regs_ranges,
-	.n_yes_ranges = ARRAY_SIZE(pa12203001_volatile_regs_ranges),
+	.anal_ranges = pa12203001_volatile_regs_ranges,
+	.n_anal_ranges = ARRAY_SIZE(pa12203001_volatile_regs_ranges),
 };
 
 static const struct regmap_config pa12203001_regmap_config = {
@@ -347,7 +347,7 @@ static int pa12203001_probe(struct i2c_client *client)
 	indio_dev = devm_iio_device_alloc(&client->dev,
 					  sizeof(struct pa12203001_data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	i2c_set_clientdata(client, indio_dev);

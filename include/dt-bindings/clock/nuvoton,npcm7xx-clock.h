@@ -3,7 +3,7 @@
  * Nuvoton NPCM7xx Clock Generator binding
  * clock binding number for all clocks supported by nuvoton,npcm7xx-clk
  *
- * Copyright (C) 2018 Nuvoton Technologies tali.perry@nuvoton.com
+ * Copyright (C) 2018 Nuvoton Techanallogies tali.perry@nuvoton.com
  *
  */
 

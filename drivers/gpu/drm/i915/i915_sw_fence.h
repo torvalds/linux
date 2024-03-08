@@ -12,24 +12,24 @@
 #include <linux/dma-fence.h>
 #include <linux/gfp.h>
 #include <linux/kref.h>
-#include <linux/notifier.h> /* for NOTIFY_DONE */
+#include <linux/analtifier.h> /* for ANALTIFY_DONE */
 #include <linux/wait.h>
 
 struct completion;
 struct dma_resv;
 struct i915_sw_fence;
 
-enum i915_sw_fence_notify {
+enum i915_sw_fence_analtify {
 	FENCE_COMPLETE,
 	FENCE_FREE
 };
 
-typedef int (*i915_sw_fence_notify_t)(struct i915_sw_fence *,
-				      enum i915_sw_fence_notify state);
+typedef int (*i915_sw_fence_analtify_t)(struct i915_sw_fence *,
+				      enum i915_sw_fence_analtify state);
 
 struct i915_sw_fence {
 	wait_queue_head_t wait;
-	i915_sw_fence_notify_t fn;
+	i915_sw_fence_analtify_t fn;
 #ifdef CONFIG_DRM_I915_SW_FENCE_CHECK_DAG
 	unsigned long flags;
 #endif
@@ -40,7 +40,7 @@ struct i915_sw_fence {
 #define I915_SW_FENCE_CHECKED_BIT	0 /* used internally for DAG checking */
 
 void __i915_sw_fence_init(struct i915_sw_fence *fence,
-			  i915_sw_fence_notify_t fn,
+			  i915_sw_fence_analtify_t fn,
 			  const char *name,
 			  struct lock_class_key *key);
 #ifdef CONFIG_LOCKDEP

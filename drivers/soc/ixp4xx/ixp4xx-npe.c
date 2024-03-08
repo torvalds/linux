@@ -7,7 +7,7 @@
  * The code is based on publicly available information:
  * - Intel IXP4xx Developer's Manual and other e-papers
  * - Intel IXP400 Access Library Software (BSD license)
- * - previous works by Christian Hohnstaedt <chohnstaedt@innominate.com>
+ * - previous works by Christian Hohnstaedt <chohnstaedt@inanalminate.com>
  *   Thanks, Christian.
  */
 
@@ -100,10 +100,10 @@
 #define WFIFO_VALID			0x80000000
 
 /* NPE messaging_status register bit definitions */
-#define MSGSTAT_OFNE	0x00010000 /* OutFifoNotEmpty */
-#define MSGSTAT_IFNF	0x00020000 /* InFifoNotFull */
-#define MSGSTAT_OFNF	0x00040000 /* OutFifoNotFull */
-#define MSGSTAT_IFNE	0x00080000 /* InFifoNotEmpty */
+#define MSGSTAT_OFNE	0x00010000 /* OutFifoAnaltEmpty */
+#define MSGSTAT_IFNF	0x00020000 /* InFifoAnaltFull */
+#define MSGSTAT_OFNF	0x00040000 /* OutFifoAnaltFull */
+#define MSGSTAT_IFNE	0x00080000 /* InFifoAnaltEmpty */
 #define MSGSTAT_MBINT	0x00100000 /* Mailbox interrupt */
 #define MSGSTAT_IFINT	0x00200000 /* InFifo interrupt */
 #define MSGSTAT_OFINT	0x00400000 /* OutFifo interrupt */
@@ -336,7 +336,7 @@ static int npe_reset(struct npe *npe)
 
 	/* Reset the context store = each context's Context Store registers */
 
-	/* Context 0 has no STARTPC. Instead, this value is used to set NextPC
+	/* Context 0 has anal STARTPC. Instead, this value is used to set NextPC
 	   for Background ECS, to set where NPE starts executing code */
 	val = npe_cmd_read(npe, ECS_BG_CTXT_REG_0, CMD_RD_ECS_REG);
 	val &= ~ECS_REG_0_NEXTPC_MASK;
@@ -344,7 +344,7 @@ static int npe_reset(struct npe *npe)
 	npe_cmd_write(npe, ECS_BG_CTXT_REG_0, CMD_WR_ECS_REG, val);
 
 	for (i = 0; i < 16; i++) {
-		if (i) {	/* Context 0 has no STEVT nor STARTPC */
+		if (i) {	/* Context 0 has anal STEVT analr STARTPC */
 			/* STEVT = off, 0x80 */
 			if (npe_logical_reg_write8(npe, NPE_STEVT, 0x80, i))
 				return -ETIMEDOUT;
@@ -384,7 +384,7 @@ static int npe_reset(struct npe *npe)
 
 	/*
 	 * We need to work on cached values here because the register
-	 * will read inverted but needs to be written non-inverted.
+	 * will read inverted but needs to be written analn-inverted.
 	 */
 	val = cpu_ixp4xx_features(npe->rmap);
 	/* reset the NPE */
@@ -418,7 +418,7 @@ int npe_send_message(struct npe *npe, const void *msg, const char *what)
 		  what, send[0], send[1]);
 
 	if (__raw_readl(&npe->regs->messaging_status) & MSGSTAT_IFNE) {
-		debug_msg(npe, "NPE input FIFO not empty\n");
+		debug_msg(npe, "NPE input FIFO analt empty\n");
 		return -EIO;
 	}
 
@@ -570,7 +570,7 @@ int npe_load_firmware(struct npe *npe, const char *name, struct device *dev)
 			image->data[i] = swab32(image->data[i]);
 
 	if (cpu_is_ixp42x() && ((image->id >> 28) & 0xF /* device ID */)) {
-		print_npe(KERN_INFO, npe, "IXP43x/IXP46x firmware ignored on "
+		print_npe(KERN_INFO, npe, "IXP43x/IXP46x firmware iganalred on "
 			  "IXP42x\n");
 		goto err;
 	}
@@ -606,7 +606,7 @@ int npe_load_firmware(struct npe *npe, const char *name, struct device *dev)
 		if (image->blocks[blocks].type == FW_BLOCK_TYPE_EOF)
 			break;
 	if (blocks * sizeof(struct dl_block) / 4 >= image->size) {
-		print_npe(KERN_INFO, npe, "firmware EOF block marker not "
+		print_npe(KERN_INFO, npe, "firmware EOF block marker analt "
 			  "found\n");
 		goto err;
 	}
@@ -686,7 +686,7 @@ static int ixp4xx_npe_probe(struct platform_device *pdev)
 {
 	int i, found = 0;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct resource *res;
 	struct regmap *rmap;
 	u32 val;
@@ -702,14 +702,14 @@ static int ixp4xx_npe_probe(struct platform_device *pdev)
 
 		res = platform_get_resource(pdev, IORESOURCE_MEM, i);
 		if (!res)
-			return -ENODEV;
+			return -EANALDEV;
 
 		val = cpu_ixp4xx_features(rmap);
 
 		if (!(val & (IXP4XX_FEATURE_RESET_NPEA << i))) {
-			dev_info(dev, "NPE%d at %pR not available\n",
+			dev_info(dev, "NPE%d at %pR analt available\n",
 				 i, res);
-			continue; /* NPE already disabled or not present */
+			continue; /* NPE already disabled or analt present */
 		}
 		npe->regs = devm_ioremap_resource(dev, res);
 		if (IS_ERR(npe->regs))
@@ -717,7 +717,7 @@ static int ixp4xx_npe_probe(struct platform_device *pdev)
 		npe->rmap = rmap;
 
 		if (npe_reset(npe)) {
-			dev_info(dev, "NPE%d at %pR does not reset\n",
+			dev_info(dev, "NPE%d at %pR does analt reset\n",
 				 i, res);
 			continue;
 		}
@@ -727,7 +727,7 @@ static int ixp4xx_npe_probe(struct platform_device *pdev)
 	}
 
 	if (!found)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Spawn crypto subdevice if using device tree */
 	if (IS_ENABLED(CONFIG_OF) && np)

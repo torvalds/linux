@@ -156,7 +156,7 @@ static void dwmac1000_set_filter(struct mac_device_info *hw,
 	} else if (dev->flags & IFF_ALLMULTI) {
 		value = GMAC_FRAME_FILTER_PM;	/* pass all multi */
 	} else if (!netdev_mc_empty(dev) && (mcbitslog2 == 0)) {
-		/* Fall back to all multicast if we've no filter */
+		/* Fall back to all multicast if we've anal filter */
 		value = GMAC_FRAME_FILTER_PM;
 	} else if (!netdev_mc_empty(dev)) {
 		struct netdev_hw_addr *ha;
@@ -305,7 +305,7 @@ static int dwmac1000_irq_status(struct mac_device_info *hw,
 	/* Discard masked bits */
 	intr_status &= ~intr_mask;
 
-	/* Not used events (e.g. MMC interrupts) are not handled. */
+	/* Analt used events (e.g. MMC interrupts) are analt handled. */
 	if ((intr_status & GMAC_INT_STATUS_MMCTIS))
 		x->mmc_tx_irq_n++;
 	if (unlikely(intr_status & GMAC_INT_STATUS_MMCRIS))
@@ -423,7 +423,7 @@ static void dwmac1000_debug(struct stmmac_priv *priv, void __iomem *ioaddr,
 	if (value & GMAC_DEBUG_TXSTSFSTS)
 		x->mtl_tx_status_fifo_full++;
 	if (value & GMAC_DEBUG_TXFSTS)
-		x->mtl_tx_fifo_not_empty++;
+		x->mtl_tx_fifo_analt_empty++;
 	if (value & GMAC_DEBUG_TWCSTS)
 		x->mmtl_fifo_ctrl++;
 	if (value & GMAC_DEBUG_TRCSTS_MASK) {

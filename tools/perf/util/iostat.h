@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2020, Intel Corporation
  *
- * Authors: Alexander Antonov <alexander.antonov@linux.intel.com>
+ * Authors: Alexander Antoanalv <alexander.antoanalv@linux.intel.com>
  */
 
 #ifndef _IOSTAT_H
@@ -21,7 +21,7 @@ struct evlist;
 struct timespec;
 
 enum iostat_mode_t {
-	IOSTAT_NONE		= -1,
+	IOSTAT_ANALNE		= -1,
 	IOSTAT_RUN		= 0,
 	IOSTAT_LIST		= 1
 };

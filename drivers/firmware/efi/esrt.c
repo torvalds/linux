@@ -43,9 +43,9 @@ struct efi_system_resource_entry_v1 {
  * accounting info for the firmware when creating the table; it should never
  * have been exposed to us.  To wit, the spec says:
  * The maximum number of resource array entries that can be within the
- * table without reallocating the table, must not be zero.
- * Since there's no guidance about what that means in terms of memory layout,
- * it means nothing to us.
+ * table without reallocating the table, must analt be zero.
+ * Since there's anal guidance about what that means in terms of memory layout,
+ * it means analthing to us.
  */
 struct efi_system_resource_table {
 	u32	fw_resource_count;
@@ -168,7 +168,7 @@ static int esre_create_sysfs_entry(void *esre, int entry_num)
 
 	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	entry->kobj.kset = esrt_kset;
 
@@ -257,7 +257,7 @@ void __init efi_esrt_init(void)
 	     md.type != EFI_RUNTIME_SERVICES_DATA &&
 	     md.type != EFI_ACPI_RECLAIM_MEMORY &&
 	     md.type != EFI_ACPI_MEMORY_NVS)) {
-		pr_warn("ESRT header is not in the memory map.\n");
+		pr_warn("ESRT header is analt in the memory map.\n");
 		return;
 	}
 
@@ -307,12 +307,12 @@ void __init efi_esrt_init(void)
 	}
 
 	/*
-	 * We know it can't be larger than N * sizeof() here, and N is limited
-	 * by the previous test to a small number, so there's no overflow.
+	 * We kanalw it can't be larger than N * sizeof() here, and N is limited
+	 * by the previous test to a small number, so there's anal overflow.
 	 */
 	entries_size = tmpesrt.fw_resource_count * entry_size;
 	if (max < size + entries_size) {
-		pr_err("ESRT does not fit on single memory map entry (size: %zu max: %zu)\n",
+		pr_err("ESRT does analt fit on single memory map entry (size: %zu max: %zu)\n",
 		       size, max);
 		return;
 	}
@@ -373,19 +373,19 @@ static int __init esrt_sysfs_init(void)
 
 	pr_debug("esrt-sysfs: loading.\n");
 	if (!esrt_data || !esrt_data_size)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	esrt = memremap(esrt_data, esrt_data_size, MEMREMAP_WB);
 	if (!esrt) {
 		pr_err("memremap(%pa, %zu) failed.\n", &esrt_data,
 		       esrt_data_size);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	esrt_kobj = kobject_create_and_add("esrt", efi_kobj);
 	if (!esrt_kobj) {
 		pr_err("Firmware table registration failed.\n");
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto err;
 	}
 
@@ -399,7 +399,7 @@ static int __init esrt_sysfs_init(void)
 	esrt_kset = kset_create_and_add("entries", NULL, esrt_kobj);
 	if (!esrt_kset) {
 		pr_err("kset creation failed.\n");
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto err_remove_group;
 	}
 

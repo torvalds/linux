@@ -10,7 +10,7 @@
 #include <poll.h>
 #include <signal.h>
 
-#define WORKLOAD_NOTIFICATION_DELAY_ATTRIBUTE "/sys/bus/pci/devices/0000:00:04.0/workload_hint/notification_delay_ms"
+#define WORKLOAD_ANALTIFICATION_DELAY_ATTRIBUTE "/sys/bus/pci/devices/0000:00:04.0/workload_hint/analtification_delay_ms"
 #define WORKLOAD_ENABLE_ATTRIBUTE "/sys/bus/pci/devices/0000:00:04.0/workload_hint/workload_hint_enable"
 #define WORKLOAD_TYPE_INDEX_ATTRIBUTE  "/sys/bus/pci/devices/0000:00:04.0/workload_hint/workload_type_index"
 
@@ -28,7 +28,7 @@ void workload_hint_exit(int signum)
 {
 	int fd;
 
-	/* Disable feature via sysfs knob */
+	/* Disable feature via sysfs kanalb */
 
 	fd = open(WORKLOAD_ENABLE_ATTRIBUTE, O_RDWR);
 	if (fd < 0) {
@@ -54,7 +54,7 @@ int main(int argc, char **argv)
 	char delay_str[64];
 	int delay = 0;
 
-	printf("Usage: workload_hint_test [notification delay in milli seconds]\n");
+	printf("Usage: workload_hint_test [analtification delay in milli seconds]\n");
 
 	if (argc > 1) {
 		ret = sscanf(argv[1], "%d", &delay);
@@ -63,16 +63,16 @@ int main(int argc, char **argv)
 			exit(1);
 		}
 
-		printf("Setting notification delay to %d ms\n", delay);
+		printf("Setting analtification delay to %d ms\n", delay);
 		if (delay < 0)
 			exit(1);
 
 		sprintf(delay_str, "%s\n", argv[1]);
 
 		sprintf(delay_str, "%s\n", argv[1]);
-		fd = open(WORKLOAD_NOTIFICATION_DELAY_ATTRIBUTE, O_RDWR);
+		fd = open(WORKLOAD_ANALTIFICATION_DELAY_ATTRIBUTE, O_RDWR);
 		if (fd < 0) {
-			perror("Unable to open workload notification delay\n");
+			perror("Unable to open workload analtification delay\n");
 			exit(1);
 		}
 
@@ -91,7 +91,7 @@ int main(int argc, char **argv)
 	if (signal(SIGTERM, workload_hint_exit) == SIG_IGN)
 		signal(SIGTERM, SIG_IGN);
 
-	/* Enable feature via sysfs knob */
+	/* Enable feature via sysfs kanalb */
 	fd = open(WORKLOAD_ENABLE_ATTRIBUTE, O_RDWR);
 	if (fd < 0) {
 		perror("Unable to open workload type feature enable file\n");

@@ -24,7 +24,7 @@
 	.set .Lxchal_ofs_, 0
 .endm
 
-.macro	xchal_sa_align  ptr minofs maxofs ofsalign totalign
+.macro	xchal_sa_align  ptr mianalfs maxofs ofsalign totalign
 	.set	.Lxchal_ofs_, .Lxchal_ofs_ + .Lxchal_pofs_ + \totalign - 1
 	.set	.Lxchal_ofs_, (.Lxchal_ofs_ & -\totalign) - .Lxchal_pofs_
 .endm
@@ -49,7 +49,7 @@
 #undef _SELECT
 
 #define _SELECT	(  XTHAL_SAS_TIE | XTHAL_SAS_OPT \
-		 | XTHAL_SAS_NOCC \
+		 | XTHAL_SAS_ANALCC \
 		 | XTHAL_SAS_CALR | XTHAL_SAS_CALE | XTHAL_SAS_GLOB )
 
 .macro save_xtregs_user ptr clb at1 at2 at3 at4 offset

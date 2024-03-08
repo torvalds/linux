@@ -19,7 +19,7 @@ __modfinal: $(modules:%.o=%.ko)
 	@:
 
 # modname and part-of-module are set to make c_flags define proper module flags
-modname = $(notdir $(@:.mod.o=))
+modname = $(analtdir $(@:.mod.o=))
 part-of-module = y
 
 quiet_cmd_cc_o_c = CC [M]  $@
@@ -68,11 +68,11 @@ FORCE:
 
 # Read all saved command lines and dependencies for the $(targets) we
 # may be building above, using $(if_changed{,_dep}). As an
-# optimization, we don't need to read them if the target does not
+# optimization, we don't need to read them if the target does analt
 # exist, we will rebuild anyway in that case.
 
 existing-targets := $(wildcard $(sort $(targets)))
 
--include $(foreach f,$(existing-targets),$(dir $(f)).$(notdir $(f)).cmd)
+-include $(foreach f,$(existing-targets),$(dir $(f)).$(analtdir $(f)).cmd)
 
 .PHONY: $(PHONY)

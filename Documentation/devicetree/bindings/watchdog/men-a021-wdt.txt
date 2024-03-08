@@ -11,7 +11,7 @@ Required properties:
   6: Watchdog reset cause bit 2
 
 Optional properties:
-- None
+- Analne
 
 Example:
 	watchdog {

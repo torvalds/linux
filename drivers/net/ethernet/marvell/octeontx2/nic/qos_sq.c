@@ -14,7 +14,7 @@
 #include "otx2_txrx.h"
 #include "otx2_struct.h"
 
-#define OTX2_QOS_MAX_LEAF_NODES 16
+#define OTX2_QOS_MAX_LEAF_ANALDES 16
 
 static void otx2_qos_aura_pool_free(struct otx2_nic *pfvf, int pool_id)
 {
@@ -49,7 +49,7 @@ static int otx2_qos_sq_aura_pool_init(struct otx2_nic *pfvf, int qidx)
 	num_sqbs = (hw->sqb_size / 128) - 1;
 	num_sqbs = (qset->sqe_cnt + num_sqbs) / num_sqbs;
 
-	/* Get no of stack pages needed */
+	/* Get anal of stack pages needed */
 	stack_pages =
 		(num_sqbs + hw->stack_pg_ptrs - 1) / hw->stack_pg_ptrs;
 
@@ -77,7 +77,7 @@ static int otx2_qos_sq_aura_pool_init(struct otx2_nic *pfvf, int qidx)
 	sq->sqb_count = 0;
 	sq->sqb_ptrs = kcalloc(num_sqbs, sizeof(*sq->sqb_ptrs), GFP_KERNEL);
 	if (!sq->sqb_ptrs) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto pool_free;
 	}
 
@@ -172,7 +172,7 @@ static int otx2_qos_ctx_disable(struct otx2_nic *pfvf, u16 qidx, int aura_id)
 	if (test_bit(CN10K_LMTST, &pfvf->hw.cap_flag)) {
 		cn10k_sq_aq = otx2_mbox_alloc_msg_nix_cn10k_aq_enq(&pfvf->mbox);
 		if (!cn10k_sq_aq)
-			return -ENOMEM;
+			return -EANALMEM;
 		cn10k_sq_aq->qidx = qidx;
 		cn10k_sq_aq->sq.ena = 0;
 		cn10k_sq_aq->sq_mask.ena = 1;
@@ -181,7 +181,7 @@ static int otx2_qos_ctx_disable(struct otx2_nic *pfvf, u16 qidx, int aura_id)
 	} else {
 		sq_aq = otx2_mbox_alloc_msg_nix_aq_enq(&pfvf->mbox);
 		if (!sq_aq)
-			return -ENOMEM;
+			return -EANALMEM;
 		sq_aq->qidx = qidx;
 		sq_aq->sq.ena = 0;
 		sq_aq->sq_mask.ena = 1;
@@ -192,7 +192,7 @@ static int otx2_qos_ctx_disable(struct otx2_nic *pfvf, u16 qidx, int aura_id)
 	aura_aq = otx2_mbox_alloc_msg_npa_aq_enq(&pfvf->mbox);
 	if (!aura_aq) {
 		otx2_mbox_reset(&pfvf->mbox.mbox, 0);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	aura_aq->aura_id = aura_id;
@@ -204,7 +204,7 @@ static int otx2_qos_ctx_disable(struct otx2_nic *pfvf, u16 qidx, int aura_id)
 	pool_aq = otx2_mbox_alloc_msg_npa_aq_enq(&pfvf->mbox);
 	if (!pool_aq) {
 		otx2_mbox_reset(&pfvf->mbox.mbox, 0);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	pool_aq->aura_id = aura_id;
@@ -224,7 +224,7 @@ int otx2_qos_get_qid(struct otx2_nic *pfvf)
 	qidx = find_first_zero_bit(pfvf->qos.qos_sq_bmap,
 				   pfvf->hw.tc_tx_queues);
 
-	return qidx == pfvf->hw.tc_tx_queues ? -ENOSPC : qidx;
+	return qidx == pfvf->hw.tc_tx_queues ? -EANALSPC : qidx;
 }
 
 void otx2_qos_free_qid(struct otx2_nic *pfvf, int qidx)
@@ -240,7 +240,7 @@ int otx2_qos_enable_sq(struct otx2_nic *pfvf, int qidx)
 	if (pfvf->flags & OTX2_FLAG_INTF_DOWN)
 		return -EPERM;
 
-	sq_idx = hw->non_qos_queues + qidx;
+	sq_idx = hw->analn_qos_queues + qidx;
 
 	mutex_lock(&pfvf->mbox.lock);
 	err = otx2_qos_sq_aura_pool_init(pfvf, sq_idx);
@@ -264,7 +264,7 @@ void otx2_qos_disable_sq(struct otx2_nic *pfvf, int qidx)
 	struct otx2_cq_queue *cq;
 	int pool_id, sq_idx;
 
-	sq_idx = hw->non_qos_queues + qidx;
+	sq_idx = hw->analn_qos_queues + qidx;
 
 	/* If the DOWN flag is set SQs are already freed */
 	if (pfvf->flags & OTX2_FLAG_INTF_DOWN)
@@ -274,9 +274,9 @@ void otx2_qos_disable_sq(struct otx2_nic *pfvf, int qidx)
 	if (!sq->sqb_ptrs)
 		return;
 
-	if (sq_idx < hw->non_qos_queues ||
+	if (sq_idx < hw->analn_qos_queues ||
 	    sq_idx >= otx2_get_total_tx_queues(pfvf)) {
-		netdev_err(pfvf->netdev, "Send Queue is not a QoS queue\n");
+		netdev_err(pfvf->netdev, "Send Queue is analt a QoS queue\n");
 		return;
 	}
 

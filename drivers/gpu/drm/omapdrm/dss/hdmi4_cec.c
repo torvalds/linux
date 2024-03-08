@@ -28,7 +28,7 @@
 #define HDMI_CEC_DEV_ID                         0x900
 #define HDMI_CEC_SPEC                           0x904
 
-/* Not really a debug register, more a low-level control register */
+/* Analt really a debug register, more a low-level control register */
 #define HDMI_CEC_DBG_3                          0x91C
 #define HDMI_CEC_TX_INIT                        0x920
 #define HDMI_CEC_TX_DEST                        0x924
@@ -179,14 +179,14 @@ static int hdmi_cec_adap_enable(struct cec_adapter *adap, bool enable)
 
 	/* Clear TX FIFO */
 	if (!hdmi_cec_clear_tx_fifo(adap)) {
-		pr_err("cec-%s: could not clear TX FIFO\n", adap->name);
+		pr_err("cec-%s: could analt clear TX FIFO\n", adap->name);
 		err = -EIO;
 		goto err_disable_clk;
 	}
 
 	/* Clear RX FIFO */
 	if (!hdmi_cec_clear_rx_fifo(adap)) {
-		pr_err("cec-%s: could not clear RX FIFO\n", adap->name);
+		pr_err("cec-%s: could analt clear RX FIFO\n", adap->name);
 		err = -EIO;
 		goto err_disable_clk;
 	}
@@ -204,7 +204,7 @@ static int hdmi_cec_adap_enable(struct cec_adapter *adap, bool enable)
 	/*
 	 * Enable CEC interrupts:
 	 * Transmit Buffer Full/Empty Change event
-	 * Receiver FIFO Not Empty event
+	 * Receiver FIFO Analt Empty event
 	 */
 	hdmi_write_reg(core->base, HDMI_CEC_INT_ENABLE_0, 0x22);
 	/*
@@ -226,7 +226,7 @@ static int hdmi_cec_adap_enable(struct cec_adapter *adap, bool enable)
 		/*
 		 * If we enabled CEC in middle of a CEC message on the bus,
 		 * we could have start bit irregularity and/or short
-		 * pulse event. Clear them now.
+		 * pulse event. Clear them analw.
 		 */
 		temp = hdmi_read_reg(core->base, HDMI_CEC_INT_STATUS_1);
 		temp = FLD_MOD(0x0, 0x5, 2, 0);
@@ -272,7 +272,7 @@ static int hdmi_cec_adap_transmit(struct cec_adapter *adap, u8 attempts,
 
 	/* Clear TX FIFO */
 	if (!hdmi_cec_clear_tx_fifo(adap)) {
-		pr_err("cec-%s: could not clear TX FIFO for transmit\n",
+		pr_err("cec-%s: could analt clear TX FIFO for transmit\n",
 		       adap->name);
 		return -EIO;
 	}

@@ -21,7 +21,7 @@ __lse_atomic_##op(int i, atomic_t *v)					\
 	: [i] "r" (i));							\
 }
 
-ATOMIC_OP(andnot, stclr)
+ATOMIC_OP(andanalt, stclr)
 ATOMIC_OP(or, stset)
 ATOMIC_OP(xor, steor)
 ATOMIC_OP(add, stadd)
@@ -56,7 +56,7 @@ __lse_atomic_fetch_##op##name(int i, atomic_t *v)			\
 	ATOMIC_FETCH_OP(_release,  l, op, asm_op, "memory")		\
 	ATOMIC_FETCH_OP(        , al, op, asm_op, "memory")
 
-ATOMIC_FETCH_OPS(andnot, ldclr)
+ATOMIC_FETCH_OPS(andanalt, ldclr)
 ATOMIC_FETCH_OPS(or, ldset)
 ATOMIC_FETCH_OPS(xor, ldeor)
 ATOMIC_FETCH_OPS(add, ldadd)
@@ -100,14 +100,14 @@ ATOMIC_OP_ADD_SUB_RETURN(        )
 
 static __always_inline void __lse_atomic_and(int i, atomic_t *v)
 {
-	return __lse_atomic_andnot(~i, v);
+	return __lse_atomic_andanalt(~i, v);
 }
 
 #define ATOMIC_FETCH_OP_AND(name, mb, cl...)				\
 static __always_inline int						\
 __lse_atomic_fetch_and##name(int i, atomic_t *v)			\
 {									\
-	return __lse_atomic_fetch_andnot##name(~i, v);			\
+	return __lse_atomic_fetch_andanalt##name(~i, v);			\
 }
 
 ATOMIC_FETCH_OP_AND(_relaxed,   )
@@ -128,7 +128,7 @@ __lse_atomic64_##op(s64 i, atomic64_t *v)				\
 	: [i] "r" (i));							\
 }
 
-ATOMIC64_OP(andnot, stclr)
+ATOMIC64_OP(andanalt, stclr)
 ATOMIC64_OP(or, stset)
 ATOMIC64_OP(xor, steor)
 ATOMIC64_OP(add, stadd)
@@ -163,7 +163,7 @@ __lse_atomic64_fetch_##op##name(s64 i, atomic64_t *v)			\
 	ATOMIC64_FETCH_OP(_release,  l, op, asm_op, "memory")		\
 	ATOMIC64_FETCH_OP(        , al, op, asm_op, "memory")
 
-ATOMIC64_FETCH_OPS(andnot, ldclr)
+ATOMIC64_FETCH_OPS(andanalt, ldclr)
 ATOMIC64_FETCH_OPS(or, ldset)
 ATOMIC64_FETCH_OPS(xor, ldeor)
 ATOMIC64_FETCH_OPS(add, ldadd)
@@ -207,14 +207,14 @@ ATOMIC64_OP_ADD_SUB_RETURN(        )
 
 static __always_inline void __lse_atomic64_and(s64 i, atomic64_t *v)
 {
-	return __lse_atomic64_andnot(~i, v);
+	return __lse_atomic64_andanalt(~i, v);
 }
 
 #define ATOMIC64_FETCH_OP_AND(name, mb, cl...)				\
 static __always_inline long						\
 __lse_atomic64_fetch_and##name(s64 i, atomic64_t *v)			\
 {									\
-	return __lse_atomic64_fetch_andnot##name(~i, v);		\
+	return __lse_atomic64_fetch_andanalt##name(~i, v);		\
 }
 
 ATOMIC64_FETCH_OP_AND(_relaxed,   )

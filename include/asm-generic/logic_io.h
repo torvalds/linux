@@ -13,7 +13,7 @@
 
 #ifdef CONFIG_INDIRECT_IOMEM_FALLBACK
 /*
- * If you want emulated IO memory to fall back to 'normal' IO memory
+ * If you want emulated IO memory to fall back to 'analrmal' IO memory
  * if a region wasn't registered as emulated, then you need to have
  * all of the real_* functions implemented.
  */

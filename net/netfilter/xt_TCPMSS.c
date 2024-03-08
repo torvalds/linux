@@ -34,7 +34,7 @@ static inline unsigned int
 optlen(const u_int8_t *opt, unsigned int offset)
 {
 	/* Beware zero-length options: make finite progress */
-	if (opt[offset] <= TCPOPT_NOP || opt[offset+1] == 0)
+	if (opt[offset] <= TCPOPT_ANALP || opt[offset+1] == 0)
 		return 1;
 	else
 		return opt[offset+1];
@@ -82,7 +82,7 @@ tcpmss_mangle_packet(struct sk_buff *skb,
 	u16 newmss;
 	u8 *opt;
 
-	/* This is a fragment, no TCP header is available */
+	/* This is a fragment, anal TCP header is available */
 	if (par->fragoff != 0)
 		return 0;
 
@@ -105,7 +105,7 @@ tcpmss_mangle_packet(struct sk_buff *skb,
 		unsigned int min_mtu = min(dst_mtu(skb_dst(skb)), in_mtu);
 
 		if (min_mtu <= minlen) {
-			net_err_ratelimited("unknown or invalid path-MTU (%u)\n",
+			net_err_ratelimited("unkanalwn or invalid path-MTU (%u)\n",
 					    min_mtu);
 			return -1;
 		}
@@ -144,12 +144,12 @@ tcpmss_mangle_packet(struct sk_buff *skb,
 	if (len > tcp_hdrlen)
 		return 0;
 
-	/* tcph->doff has 4 bits, do not wrap it to 0 */
+	/* tcph->doff has 4 bits, do analt wrap it to 0 */
 	if (tcp_hdrlen >= 15 * 4)
 		return 0;
 
 	/*
-	 * MSS Option not found ?! add it..
+	 * MSS Option analt found ?! add it..
 	 */
 	if (skb_tailroom(skb) < TCPOLEN_MSS) {
 		if (pskb_expand_head(skb, 0,
@@ -162,11 +162,11 @@ tcpmss_mangle_packet(struct sk_buff *skb,
 	skb_put(skb, TCPOLEN_MSS);
 
 	/*
-	 * IPv4: RFC 1122 states "If an MSS option is not received at
+	 * IPv4: RFC 1122 states "If an MSS option is analt received at
 	 * connection setup, TCP MUST assume a default send MSS of 536".
 	 * IPv6: RFC 2460 states IPv6 has a minimum MTU of 1280 and a minimum
 	 * length IPv6 header of 60, ergo the default MSS value is 1220
-	 * Since no MSS was provided, we must use the default values
+	 * Since anal MSS was provided, we must use the default values
 	 */
 	if (xt_family(par) == NFPROTO_IPV4)
 		newmss = min(newmss, (u16)536);

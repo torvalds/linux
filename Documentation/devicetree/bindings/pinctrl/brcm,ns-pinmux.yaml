@@ -4,13 +4,13 @@
 $id: http://devicetree.org/schemas/pinctrl/brcm,ns-pinmux.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Broadcom Northstar pins mux controller
+title: Broadcom Analrthstar pins mux controller
 
 maintainers:
   - Rafał Miłecki <rafal@milecki.pl>
 
 description:
-  Some of Northstar SoCs's pins can be used for various purposes thanks to the
+  Some of Analrthstar SoCs's pins can be used for various purposes thanks to the
   mux controller. This binding allows describing mux controller and listing
   available functions. They can be referenced later by other bindings to let
   system configure controller correctly.
@@ -33,8 +33,8 @@ properties:
 patternProperties:
   '-pins$':
     type: object
-    description: pin node
-    $ref: pinmux-node.yaml#
+    description: pin analde
+    $ref: pinmux-analde.yaml#
 
     properties:
       function:

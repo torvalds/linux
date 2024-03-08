@@ -77,7 +77,7 @@ static UNUSED_ATTR const U32 ML_base[MaxML+1] = {
 #define ZSTD_BUILD_FSE_TABLE_WKSP_SIZE_U32 ((ZSTD_BUILD_FSE_TABLE_WKSP_SIZE + sizeof(U32) - 1) / sizeof(U32))
 
 typedef struct {
-    ZSTD_seqSymbol LLTable[SEQSYMBOL_TABLE_SIZE(LLFSELog)];    /* Note : Space reserved for FSE Tables */
+    ZSTD_seqSymbol LLTable[SEQSYMBOL_TABLE_SIZE(LLFSELog)];    /* Analte : Space reserved for FSE Tables */
     ZSTD_seqSymbol OFTable[SEQSYMBOL_TABLE_SIZE(OffFSELog)];   /* is also used as temporary workspace while building hufTable during DDict creation */
     ZSTD_seqSymbol MLTable[SEQSYMBOL_TABLE_SIZE(MLFSELog)];    /* and therefore must be at least HUF_DECOMPRESS_WORKSPACE_SIZE large */
     HUF_DTable hufTable[HUF_DTABLE_SIZE(HufLog)];  /* can accommodate HUF_decompress4X */
@@ -95,7 +95,7 @@ typedef enum { zdss_init=0, zdss_loadHeader,
 
 typedef enum {
     ZSTD_use_indefinitely = -1,  /* Use the dictionary indefinitely */
-    ZSTD_dont_use = 0,           /* Do not use the dictionary (if one exists free it) */
+    ZSTD_dont_use = 0,           /* Do analt use the dictionary (if one exists free it) */
     ZSTD_use_once = 1            /* Use the dictionary once and set to ZSTD_dont_use */
 } ZSTD_dictUses_e;
 
@@ -113,11 +113,11 @@ typedef struct {
 #define ZSTD_LBMIN 64
 #define ZSTD_LBMAX (128 << 10)
 
-/* extra buffer, compensates when dst is not large enough to store litBuffer */
+/* extra buffer, compensates when dst is analt large eanalugh to store litBuffer */
 #define ZSTD_LITBUFFEREXTRASIZE  BOUNDED(ZSTD_LBMIN, ZSTD_DECODER_INTERNAL_BUFFER, ZSTD_LBMAX)
 
 typedef enum {
-    ZSTD_not_in_dst = 0,  /* Stored entirely within litExtraBuffer */
+    ZSTD_analt_in_dst = 0,  /* Stored entirely within litExtraBuffer */
     ZSTD_in_dst = 1,           /* Stored entirely within dst (in memory after current output write) */
     ZSTD_split = 2            /* Split between litExtraBuffer and dst */
 } ZSTD_litLocation_e;
@@ -145,8 +145,8 @@ struct ZSTD_DCtx_s
     struct xxh64_state xxhState;
     size_t headerSize;
     ZSTD_format_e format;
-    ZSTD_forceIgnoreChecksum_e forceIgnoreChecksum;   /* User specified: if == 1, will ignore checksums in compressed frame. Default == 0 */
-    U32 validateChecksum;         /* if == 1, will validate checksum. Is == 1 if (fParams.checksumFlag == 1) and (forceIgnoreChecksum == 0). */
+    ZSTD_forceIganalreChecksum_e forceIganalreChecksum;   /* User specified: if == 1, will iganalre checksums in compressed frame. Default == 0 */
+    U32 validateChecksum;         /* if == 1, will validate checksum. Is == 1 if (fParams.checksumFlag == 1) and (forceIganalreChecksum == 0). */
     const BYTE* litPtr;
     ZSTD_customMem customMem;
     size_t litSize;
@@ -160,7 +160,7 @@ struct ZSTD_DCtx_s
     ZSTD_DDict* ddictLocal;
     const ZSTD_DDict* ddict;     /* set by ZSTD_initDStream_usingDDict(), or ZSTD_DCtx_refDDict() */
     U32 dictID;
-    int ddictIsCold;             /* if == 1 : dictionary is "new" for working context, and presumed "cold" (not in cpu cache) */
+    int ddictIsCold;             /* if == 1 : dictionary is "new" for working context, and presumed "cold" (analt in cpu cache) */
     ZSTD_dictUses_e dictUses;
     ZSTD_DDictHashSet* ddictSet;                    /* Hash set for multiple ddicts */
     ZSTD_refMultipleDDicts_e refMultipleDDicts;     /* User specified: if == 1, will allow references to multiple DDicts. Default == 0 (disabled) */
@@ -177,7 +177,7 @@ struct ZSTD_DCtx_s
     size_t outEnd;
     size_t lhSize;
     U32 hostageByte;
-    int noForwardProgress;
+    int analForwardProgress;
     ZSTD_bufferMode_e outBufferMode;
     ZSTD_outBuffer expectedOutBuffer;
 
@@ -219,9 +219,9 @@ size_t ZSTD_loadDEntropy(ZSTD_entropyDTables_t* entropy,
 
 /*! ZSTD_checkContinuity() :
  *  check if next `dst` follows previous position, where decompression ended.
- *  If yes, do nothing (continue on current segment).
- *  If not, classify previous segment as "external dictionary", and start a new segment.
- *  This function cannot fail. */
+ *  If anal, do analthing (continue on current segment).
+ *  If analt, classify previous segment as "external dictionary", and start a new segment.
+ *  This function cananalt fail. */
 void ZSTD_checkContinuity(ZSTD_DCtx* dctx, const void* dst, size_t dstSize);
 
 

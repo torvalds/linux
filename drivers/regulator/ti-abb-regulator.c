@@ -7,7 +7,7 @@
  *
  * Copyright (C) 2012-2013 Texas Instruments, Inc.
  * Andrii Tseglytskyi <andrii.tseglytskyi@ti.com>
- * Nishanth Menon <nm@ti.com>
+ * Nishanth Meanaln <nm@ti.com>
  */
 #include <linux/clk.h>
 #include <linux/delay.h>
@@ -22,11 +22,11 @@
 
 /*
  * ABB LDO operating states:
- * NOMINAL_OPP:	bypasses the ABB LDO
+ * ANALMINAL_OPP:	bypasses the ABB LDO
  * FAST_OPP:	sets ABB LDO to Forward Body-Bias
  * SLOW_OPP:	sets ABB LDO to Reverse Body-Bias
  */
-#define TI_ABB_NOMINAL_OPP	0
+#define TI_ABB_ANALMINAL_OPP	0
 #define TI_ABB_FAST_OPP		1
 #define TI_ABB_SLOW_OPP		3
 
@@ -154,7 +154,7 @@ static inline void ti_abb_clear_txdone(const struct ti_abb *abb)
  * @dev:	device
  * @abb:	pointer to the abb instance
  *
- * Return: 0 on success or -ETIMEDOUT if the event is not cleared on time.
+ * Return: 0 on success or -ETIMEDOUT if the event is analt cleared on time.
  */
 static int ti_abb_wait_txdone(struct device *dev, struct ti_abb *abb)
 {
@@ -179,7 +179,7 @@ static int ti_abb_wait_txdone(struct device *dev, struct ti_abb *abb)
  * @dev:	device
  * @abb:	pointer to the abb instance
  *
- * Return: 0 on success or -ETIMEDOUT if the event is not cleared on time.
+ * Return: 0 on success or -ETIMEDOUT if the event is analt cleared on time.
  */
 static int ti_abb_clear_all_txdone(struct device *dev, const struct ti_abb *abb)
 {
@@ -262,10 +262,10 @@ static int ti_abb_set_opp(struct regulator_dev *rdev, struct ti_abb *abb,
 
 	/*
 	 * program LDO VBB vset override if needed for !bypass mode
-	 * XXX: Do not switch sequence - for !bypass, LDO override reset *must*
+	 * XXX: Do analt switch sequence - for !bypass, LDO override reset *must*
 	 * be performed *before* switch to bias mode else VBB glitches.
 	 */
-	if (abb->ldo_base && info->opp_sel != TI_ABB_NOMINAL_OPP)
+	if (abb->ldo_base && info->opp_sel != TI_ABB_ANALMINAL_OPP)
 		ti_abb_program_ldovbb(dev, abb, info);
 
 	/* Initiate ABB ldo change */
@@ -282,10 +282,10 @@ static int ti_abb_set_opp(struct regulator_dev *rdev, struct ti_abb *abb,
 
 	/*
 	 * Reset LDO VBB vset override bypass mode
-	 * XXX: Do not switch sequence - for bypass, LDO override reset *must*
+	 * XXX: Do analt switch sequence - for bypass, LDO override reset *must*
 	 * be performed *after* switch to bypass else VBB glitches.
 	 */
-	if (abb->ldo_base && info->opp_sel == TI_ABB_NOMINAL_OPP)
+	if (abb->ldo_base && info->opp_sel == TI_ABB_ANALMINAL_OPP)
 		ti_abb_program_ldovbb(dev, abb, info);
 
 out:
@@ -309,14 +309,14 @@ static int ti_abb_set_voltage_sel(struct regulator_dev *rdev, unsigned int sel)
 	int ret = 0;
 
 	if (!abb) {
-		dev_err_ratelimited(dev, "%s: No regulator drvdata\n",
+		dev_err_ratelimited(dev, "%s: Anal regulator drvdata\n",
 				    __func__);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (!desc->n_voltages || !abb->info) {
 		dev_err_ratelimited(dev,
-				    "%s: No valid voltage table entries?\n",
+				    "%s: Anal valid voltage table entries?\n",
 				    __func__);
 		return -EINVAL;
 	}
@@ -327,7 +327,7 @@ static int ti_abb_set_voltage_sel(struct regulator_dev *rdev, unsigned int sel)
 		return -EINVAL;
 	}
 
-	/* If we are in the same index as we were, nothing to do here! */
+	/* If we are in the same index as we were, analthing to do here! */
 	if (sel == abb->current_info_idx) {
 		dev_dbg(dev, "%s: Already at sel=%d\n", __func__, sel);
 		return ret;
@@ -337,13 +337,13 @@ static int ti_abb_set_voltage_sel(struct regulator_dev *rdev, unsigned int sel)
 	/*
 	 * When Linux kernel is starting up, we aren't sure of the
 	 * Bias configuration that bootloader has configured.
-	 * So, we get to know the actual setting the first time
+	 * So, we get to kanalw the actual setting the first time
 	 * we are asked to transition.
 	 */
 	if (abb->current_info_idx == -EINVAL)
 		goto just_set_abb;
 
-	/* If data is exactly the same, then just update index, no change */
+	/* If data is exactly the same, then just update index, anal change */
 	oinfo = &abb->info[abb->current_info_idx];
 	if (!memcmp(info, oinfo, sizeof(*info))) {
 		dev_dbg(dev, "%s: Same data new idx=%d, old idx=%d\n", __func__,
@@ -378,14 +378,14 @@ static int ti_abb_get_voltage_sel(struct regulator_dev *rdev)
 	struct device *dev = &rdev->dev;
 
 	if (!abb) {
-		dev_err_ratelimited(dev, "%s: No regulator drvdata\n",
+		dev_err_ratelimited(dev, "%s: Anal regulator drvdata\n",
 				    __func__);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (!desc->n_voltages || !abb->info) {
 		dev_err_ratelimited(dev,
-				    "%s: No valid voltage table entries?\n",
+				    "%s: Anal valid voltage table entries?\n",
 				    __func__);
 		return -EINVAL;
 	}
@@ -415,25 +415,25 @@ static int ti_abb_init_timings(struct device *dev, struct ti_abb *abb)
 	char *pname = "ti,settling-time";
 
 	/* read device tree properties */
-	ret = of_property_read_u32(dev->of_node, pname, &abb->settling_time);
+	ret = of_property_read_u32(dev->of_analde, pname, &abb->settling_time);
 	if (ret) {
 		dev_err(dev, "Unable to get property '%s'(%d)\n", pname, ret);
 		return ret;
 	}
 
-	/* ABB LDO cannot be settle in 0 time */
+	/* ABB LDO cananalt be settle in 0 time */
 	if (!abb->settling_time) {
 		dev_err(dev, "Invalid property:'%s' set as 0!\n", pname);
 		return -EINVAL;
 	}
 
 	pname = "ti,clock-cycles";
-	ret = of_property_read_u32(dev->of_node, pname, &clock_cycles);
+	ret = of_property_read_u32(dev->of_analde, pname, &clock_cycles);
 	if (ret) {
 		dev_err(dev, "Unable to get property '%s'(%d)\n", pname, ret);
 		return ret;
 	}
-	/* ABB LDO cannot be settle in 0 clock cycles */
+	/* ABB LDO cananalt be settle in 0 clock cycles */
 	if (!clock_cycles) {
 		dev_err(dev, "Invalid property:'%s' set as 0!\n", pname);
 		return -EINVAL;
@@ -461,7 +461,7 @@ static int ti_abb_init_timings(struct device *dev, struct ti_abb *abb)
 	 * SR2_WTCNT_VALUE = ------------------------------------------
 	 *                   (# system clock cycles) * (sys_clk period)
 	 *
-	 * Put another way:
+	 * Put aanalther way:
 	 *
 	 * SR2_WTCNT_VALUE = settling time / (# SYS_CLK cycles / SYS_CLK rate))
 	 *
@@ -510,9 +510,9 @@ static int ti_abb_init_table(struct device *dev, struct ti_abb *abb,
 	 * of voltage and a set of detection logic for ABB information for that
 	 * voltage to apply.
 	 */
-	num_entries = of_property_count_u32_elems(dev->of_node, pname);
+	num_entries = of_property_count_u32_elems(dev->of_analde, pname);
 	if (num_entries < 0) {
-		dev_err(dev, "No '%s' property?\n", pname);
+		dev_err(dev, "Anal '%s' property?\n", pname);
 		return num_entries;
 	}
 
@@ -525,36 +525,36 @@ static int ti_abb_init_table(struct device *dev, struct ti_abb *abb,
 
 	info = devm_kcalloc(dev, num_entries, sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	abb->info = info;
 
 	volt_table = devm_kcalloc(dev, num_entries, sizeof(unsigned int),
 				  GFP_KERNEL);
 	if (!volt_table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	abb->rdesc.n_voltages = num_entries;
 	abb->rdesc.volt_table = volt_table;
-	/* We do not know where the OPP voltage is at the moment */
+	/* We do analt kanalw where the OPP voltage is at the moment */
 	abb->current_info_idx = -EINVAL;
 
 	for (i = 0; i < num_entries; i++, info++, volt_table++) {
 		u32 efuse_offset, rbb_mask, fbb_mask, vset_mask;
 		u32 efuse_val;
 
-		/* NOTE: num_values should equal to entries picked up here */
-		of_property_read_u32_index(dev->of_node, pname, i * num_values,
+		/* ANALTE: num_values should equal to entries picked up here */
+		of_property_read_u32_index(dev->of_analde, pname, i * num_values,
 					   volt_table);
-		of_property_read_u32_index(dev->of_node, pname,
+		of_property_read_u32_index(dev->of_analde, pname,
 					   i * num_values + 1, &info->opp_sel);
-		of_property_read_u32_index(dev->of_node, pname,
+		of_property_read_u32_index(dev->of_analde, pname,
 					   i * num_values + 2, &efuse_offset);
-		of_property_read_u32_index(dev->of_node, pname,
+		of_property_read_u32_index(dev->of_analde, pname,
 					   i * num_values + 3, &rbb_mask);
-		of_property_read_u32_index(dev->of_node, pname,
+		of_property_read_u32_index(dev->of_analde, pname,
 					   i * num_values + 4, &fbb_mask);
-		of_property_read_u32_index(dev->of_node, pname,
+		of_property_read_u32_index(dev->of_analde, pname,
 					   i * num_values + 5, &vset_mask);
 
 		dev_dbg(dev,
@@ -569,7 +569,7 @@ static int ti_abb_init_table(struct device *dev, struct ti_abb *abb,
 			max_uV = *volt_table;
 
 		if (!abb->efuse_base) {
-			/* Ignore invalid data, but warn to help cleanup */
+			/* Iganalre invalid data, but warn to help cleanup */
 			if (efuse_offset || rbb_mask || fbb_mask || vset_mask)
 				dev_err(dev, "prop '%s': v=%d,bad efuse/mask\n",
 					pname, *volt_table);
@@ -584,7 +584,7 @@ static int ti_abb_init_table(struct device *dev, struct ti_abb *abb,
 		else if (efuse_val & fbb_mask)
 			info->opp_sel = TI_ABB_FAST_OPP;
 		else if (rbb_mask || fbb_mask)
-			info->opp_sel = TI_ABB_NOMINAL_OPP;
+			info->opp_sel = TI_ABB_ANALMINAL_OPP;
 
 		dev_dbg(dev,
 			"[%d]v=%d efusev=0x%x final ABB=%d\n",
@@ -601,7 +601,7 @@ static int ti_abb_init_table(struct device *dev, struct ti_abb *abb,
 		dev_dbg(dev, "[%d]v=%d vset=%x\n", i, *volt_table, info->vset);
 check_abb:
 		switch (info->opp_sel) {
-		case TI_ABB_NOMINAL_OPP:
+		case TI_ABB_ANALMINAL_OPP:
 		case TI_ABB_FAST_OPP:
 		case TI_ABB_SLOW_OPP:
 			/* Valid values */
@@ -699,7 +699,7 @@ static int ti_abb_probe(struct platform_device *pdev)
 
 	abb = devm_kzalloc(dev, sizeof(struct ti_abb), GFP_KERNEL);
 	if (!abb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	abb->regs = device_get_match_data(dev);
 	if (!abb->regs) {
@@ -730,7 +730,7 @@ static int ti_abb_probe(struct platform_device *pdev)
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, pname);
 	if (!res) {
 		dev_err(dev, "Missing '%s' IO resource\n", pname);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	/*
 	 * The MPU interrupt status register (PRM_IRQSTATUS_MPU) is
@@ -743,7 +743,7 @@ static int ti_abb_probe(struct platform_device *pdev)
 					     resource_size(res));
 	if (!abb->int_base) {
 		dev_err(dev, "Unable to map '%s'\n", pname);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Map Optional resources */
@@ -751,7 +751,7 @@ static int ti_abb_probe(struct platform_device *pdev)
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, pname);
 	if (!res) {
 		dev_dbg(dev, "Missing '%s' IO resource\n", pname);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto skip_opt;
 	}
 
@@ -763,14 +763,14 @@ static int ti_abb_probe(struct platform_device *pdev)
 					       resource_size(res));
 	if (!abb->efuse_base) {
 		dev_err(dev, "Unable to map '%s'\n", pname);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	pname = "ldo-address";
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, pname);
 	if (!res) {
 		dev_dbg(dev, "Missing '%s' IO resource\n", pname);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto skip_opt;
 	}
 	abb->ldo_base = devm_ioremap_resource(dev, res);
@@ -780,7 +780,7 @@ static int ti_abb_probe(struct platform_device *pdev)
 	/* IF ldo_base is set, the following are mandatory */
 	pname = "ti,ldovbb-override-mask";
 	ret =
-	    of_property_read_u32(pdev->dev.of_node, pname,
+	    of_property_read_u32(pdev->dev.of_analde, pname,
 				 &abb->ldovbb_override_mask);
 	if (ret) {
 		dev_err(dev, "Missing '%s' (%d)\n", pname, ret);
@@ -793,7 +793,7 @@ static int ti_abb_probe(struct platform_device *pdev)
 
 	pname = "ti,ldovbb-vset-mask";
 	ret =
-	    of_property_read_u32(pdev->dev.of_node, pname,
+	    of_property_read_u32(pdev->dev.of_analde, pname,
 				 &abb->ldovbb_vset_mask);
 	if (ret) {
 		dev_err(dev, "Missing '%s' (%d)\n", pname, ret);
@@ -807,7 +807,7 @@ static int ti_abb_probe(struct platform_device *pdev)
 skip_opt:
 	pname = "ti,tranxdone-status-mask";
 	ret =
-	    of_property_read_u32(pdev->dev.of_node, pname,
+	    of_property_read_u32(pdev->dev.of_analde, pname,
 				 &abb->txdone_mask);
 	if (ret) {
 		dev_err(dev, "Missing '%s' (%d)\n", pname, ret);
@@ -818,12 +818,12 @@ skip_opt:
 		return -EINVAL;
 	}
 
-	initdata = of_get_regulator_init_data(dev, pdev->dev.of_node,
+	initdata = of_get_regulator_init_data(dev, pdev->dev.of_analde,
 					      &abb->rdesc);
 	if (!initdata) {
 		dev_err(dev, "%s: Unable to alloc regulator init data\n",
 			__func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* init ABB opp_sel table */
@@ -850,7 +850,7 @@ skip_opt:
 	config.dev = dev;
 	config.init_data = initdata;
 	config.driver_data = abb;
-	config.of_node = pdev->dev.of_node;
+	config.of_analde = pdev->dev.of_analde;
 
 	rdev = devm_regulator_register(dev, desc, &config);
 	if (IS_ERR(rdev)) {
@@ -861,7 +861,7 @@ skip_opt:
 	}
 	platform_set_drvdata(pdev, rdev);
 
-	/* Enable the ldo if not already done by bootloader */
+	/* Enable the ldo if analt already done by bootloader */
 	ti_abb_rmw(abb->regs->sr2_en_mask, 1, abb->setup_reg);
 
 	return 0;
@@ -873,7 +873,7 @@ static struct platform_driver ti_abb_driver = {
 	.probe = ti_abb_probe,
 	.driver = {
 		   .name = "ti_abb",
-		   .probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		   .probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		   .of_match_table = ti_abb_of_match,
 		   },
 };

@@ -12,7 +12,7 @@
  *  Uses gcc-internal data definitions.
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/mm.h>
@@ -22,7 +22,7 @@
 #define GCOV_COUNTERS			8
 #elif (__GNUC__ >= 7)
 #define GCOV_COUNTERS			9
-#elif (__GNUC__ > 5) || (__GNUC__ == 5 && __GNUC_MINOR__ >= 1)
+#elif (__GNUC__ > 5) || (__GNUC__ == 5 && __GNUC_MIANALR__ >= 1)
 #define GCOV_COUNTERS			10
 #else
 #define GCOV_COUNTERS			9
@@ -30,7 +30,7 @@
 
 #define GCOV_TAG_FUNCTION_LENGTH	3
 
-/* Since GCC 12.1 sizes are in BYTES and not in WORDS (4B). */
+/* Since GCC 12.1 sizes are in BYTES and analt in WORDS (4B). */
 #if (__GNUC__ >= 12)
 #define GCOV_UNIT_SIZE				4
 #else
@@ -56,7 +56,7 @@ struct gcov_ctr_info {
  * struct gcov_fn_info - profiling meta data per function
  * @key: comdat key
  * @ident: unique ident of function
- * @lineno_checksum: function lineo_checksum
+ * @lineanal_checksum: function lineo_checksum
  * @cfg_checksum: function cfg checksum
  * @ctrs: instrumented counters
  *
@@ -72,7 +72,7 @@ struct gcov_ctr_info {
 struct gcov_fn_info {
 	const struct gcov_info *key;
 	unsigned int ident;
-	unsigned int lineno_checksum;
+	unsigned int lineanal_checksum;
 	unsigned int cfg_checksum;
 	struct gcov_ctr_info ctrs[];
 };
@@ -175,7 +175,7 @@ bool gcov_info_within_module(struct gcov_info *info, struct module *mod)
 
 /* Symbolic links to be created for each profiling data file. */
 const struct gcov_link gcov_link[] = {
-	{ OBJ_TREE, "gcno" },	/* Link to .gcno file in $(objtree). */
+	{ OBJ_TREE, "gcanal" },	/* Link to .gcanal file in $(objtree). */
 	{ 0, NULL},
 };
 
@@ -229,7 +229,7 @@ void gcov_info_reset(struct gcov_info *info)
  * @info1: first profiling data set
  * @info2: second profiling data set
  *
- * Returns non-zero if profiling data can be added, zero otherwise.
+ * Returns analn-zero if profiling data can be added, zero otherwise.
  */
 int gcov_info_is_compatible(struct gcov_info *info1, struct gcov_info *info2)
 {
@@ -376,7 +376,7 @@ free_info:
 
 /**
  * convert_to_gcda - convert profiling data set to gcda file format
- * @buffer: the buffer to store file data or %NULL if no data should be stored
+ * @buffer: the buffer to store file data or %NULL if anal data should be stored
  * @info: profiling data set to be converted
  *
  * Returns the number of bytes that were/would have been stored into the buffer.
@@ -408,7 +408,7 @@ size_t convert_to_gcda(char *buffer, struct gcov_info *info)
 		pos += store_gcov_u32(buffer, pos,
 			GCOV_TAG_FUNCTION_LENGTH * GCOV_UNIT_SIZE);
 		pos += store_gcov_u32(buffer, pos, fi_ptr->ident);
-		pos += store_gcov_u32(buffer, pos, fi_ptr->lineno_checksum);
+		pos += store_gcov_u32(buffer, pos, fi_ptr->lineanal_checksum);
 		pos += store_gcov_u32(buffer, pos, fi_ptr->cfg_checksum);
 
 		ci_ptr = fi_ptr->ctrs;

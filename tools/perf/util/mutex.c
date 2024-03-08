@@ -3,7 +3,7 @@
 
 #include "debug.h"
 #include <linux/string.h>
-#include <errno.h>
+#include <erranal.h>
 
 static void check_err(const char *fn, int err)
 {
@@ -24,7 +24,7 @@ static void __mutex_init(struct mutex *mtx, bool pshared)
 	CHECK_ERR(pthread_mutexattr_init(&attr));
 
 #ifndef NDEBUG
-	/* In normal builds enable error checking, such as recursive usage. */
+	/* In analrmal builds enable error checking, such as recursive usage. */
 	CHECK_ERR(pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_ERRORCHECK));
 #endif
 	if (pshared)
@@ -50,13 +50,13 @@ void mutex_destroy(struct mutex *mtx)
 }
 
 void mutex_lock(struct mutex *mtx)
-	NO_THREAD_SAFETY_ANALYSIS
+	ANAL_THREAD_SAFETY_ANALYSIS
 {
 	CHECK_ERR(pthread_mutex_lock(&mtx->lock));
 }
 
 void mutex_unlock(struct mutex *mtx)
-	NO_THREAD_SAFETY_ANALYSIS
+	ANAL_THREAD_SAFETY_ANALYSIS
 {
 	CHECK_ERR(pthread_mutex_unlock(&mtx->lock));
 }

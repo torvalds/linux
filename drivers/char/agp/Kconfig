@@ -16,7 +16,7 @@ menuconfig AGP
 	  due to kernel allocation issues), you could use PCI accesses
 	  and have up to a couple gigs of texture space.
 
-	  Note that this is the only means to have X/GLX use
+	  Analte that this is the only means to have X/GLX use
 	  write-combining with MTRR support on the AGP bus. Without it, OpenGL
 	  direct rendering will be a lot slower but still faster than PIO.
 
@@ -37,9 +37,9 @@ config AGP_ALI
 	  For the ALi-chipset question, ALi suggests you refer to
 	  <http://www.ali.com.tw/>.
 
-	  The M1541 chipset can do AGP 1x and 2x, but note that there is an
-	  acknowledged incompatibility with Matrox G200 cards. Due to
-	  timing issues, this chipset cannot do AGP 2x with the G200.
+	  The M1541 chipset can do AGP 1x and 2x, but analte that there is an
+	  ackanalwledged incompatibility with Matrox G200 cards. Due to
+	  timing issues, this chipset cananalt do AGP 2x with the G200.
 	  This is a hardware limitation. AGP 1x seems to be fine, though.
 
 config AGP_ATI
@@ -61,7 +61,7 @@ config AGP_AMD64
 	depends on AGP && X86 && AMD_NB
 	help
 	  This option gives you AGP support for the GLX component of
-	  X using the on-CPU northbridge of the AMD Athlon64/Opteron CPUs.
+	  X using the on-CPU analrthbridge of the AMD Athlon64/Opteron CPUs.
 	  You still need an external AGP bridge like the AMD 8151, VIA
 	  K8T400M, SiS755. It may also support other AGP bridges when loaded
 	  with agp_try_unsupported=1.
@@ -92,7 +92,7 @@ config AGP_SIS
 	  This option gives you AGP support for the GLX component of
 	  X on Silicon Integrated Systems [SiS] chipsets.
 
-	  Note that 5591/5592 AGP chipsets are NOT supported.
+	  Analte that 5591/5592 AGP chipsets are ANALT supported.
 
 
 config AGP_SWORKS
@@ -122,19 +122,19 @@ config AGP_ALPHA_CORE
 	depends on AGP && (ALPHA_GENERIC || ALPHA_TITAN || ALPHA_MARVEL)
 	default AGP
 
-config AGP_UNINORTH
-	tristate "Apple UniNorth & U3 AGP support"
+config AGP_UNIANALRTH
+	tristate "Apple UniAnalrth & U3 AGP support"
 	depends on AGP && PPC_PMAC
 	help
 	  This option gives you AGP support for Apple machines with a
-	  UniNorth or U3 (Apple G5) bridge.
+	  UniAnalrth or U3 (Apple G5) bridge.
 
 config AGP_EFFICEON
 	tristate "Transmeta Efficeon support"
 	depends on AGP && X86_32
 	help
 	  This option gives you AGP support for the Transmeta Efficeon
-	  series processors with integrated northbridges.
+	  series processors with integrated analrthbridges.
 
 config INTEL_GTT
 	tristate

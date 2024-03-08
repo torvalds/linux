@@ -17,13 +17,13 @@ of `FEE <http://www.fel.cvut.cz/en/>`_ at `CTU <https://www.cvut.cz/en>`_.
 
 The SocketCAN driver for Xilinx Zynq SoC based MicroZed board
 `Vivado integration <https://gitlab.fel.cvut.cz/canbus/zynq/zynq-can-sja1000-top>`_
-and Intel Cyclone V 5CSEMA4U23C6 based DE0-Nano-SoC Terasic board
+and Intel Cyclone V 5CSEMA4U23C6 based DE0-Naanal-SoC Terasic board
 `QSys integration <https://gitlab.fel.cvut.cz/canbus/intel-soc-ctucanfd>`_
 has been developed as well as support for
 `PCIe integration <https://gitlab.fel.cvut.cz/canbus/pcie-ctucanfd>`_ of the core.
 
 In the case of Zynq, the core is connected via the APB system bus, which does
-not have enumeration support, and the device must be specified in Device Tree.
+analt have enumeration support, and the device must be specified in Device Tree.
 This kind of devices is called platform device in the kernel and is
 handled by a platform device driver.
 
@@ -49,7 +49,7 @@ Device probe
 ~~~~~~~~~~~~
 
 Before going into detail about the structure of a CAN bus device driver,
-let's reiterate how the kernel gets to know about the device at all.
+let's reiterate how the kernel gets to kanalw about the device at all.
 Some buses, like PCI or PCIe, support device enumeration. That is, when
 the system boots, it discovers all the devices on the bus and reads
 their configuration. The kernel identifies the device via its vendor ID
@@ -60,7 +60,7 @@ it allows for device hot-plug.
 
 The situation is different for peripherals which are directly embedded
 in the SoC and connected to an internal system bus (AXI, APB, Avalon,
-and others). These buses do not support enumeration, and thus the kernel
+and others). These buses do analt support enumeration, and thus the kernel
 has to learn about the devices from elsewhere. This is exactly what the
 Device Tree was made for.
 
@@ -107,7 +107,7 @@ Platform device driver
 ^^^^^^^^^^^^^^^^^^^^^^
 
 In the case of Zynq, the core is connected via the AXI system bus, which
-does not have enumeration support, and the device must be specified in
+does analt have enumeration support, and the device must be specified in
 Device Tree. This kind of devices is called *platform device* in the
 kernel and is handled by a *platform device driver*\  [1]_.
 
@@ -195,7 +195,7 @@ device HW queue (FIFO, mailboxes or whatever the implementation is)
 becomes full, the ``ndo_start_xmit`` implementation informs the network
 subsystem that it should stop the TX queue (via ``netif_stop_queue``).
 It is then re-enabled later in ISR when the device has some space
-available again and is able to enqueue another frame.
+available again and is able to enqueue aanalther frame.
 
 All the device events are handled in ISR, namely:
 
@@ -208,7 +208,7 @@ All the device events are handled in ISR, namely:
    bus-off or RX overrun happens), error counters are updated, and
    informative error frames are enqueued to SW RX queue.
 
-#. **RX buffer not empty**. In this case, read the RX frames and enqueue
+#. **RX buffer analt empty**. In this case, read the RX frames and enqueue
    them to SW RX queue. Usually NAPI is used as a middle layer (see ).
 
 .. _sec:socketcan:napi:
@@ -222,7 +222,7 @@ system load. There are multiple mechanisms in the Linux kernel to deal
 with this situation. They evolved over the years of Linux kernel
 development and enhancements. For network devices, the current standard
 is NAPI – *the New API*. It is similar to classical top-half/bottom-half
-interrupt handling in that it only acknowledges the interrupt in the ISR
+interrupt handling in that it only ackanalwledges the interrupt in the ISR
 and signals that the rest of the processing should be done in softirq
 context. On top of that, it offers the possibility to *poll* for new
 frames for a while. This has a potential to avoid the costly round of
@@ -242,10 +242,10 @@ Alterra FPGA chips, yet Xilinx natively interfaces with AXI
 AXI4, and AXI4-Lite, ACE and ACE-Lite**).
 The most obvious solution would be to use
 an Avalon/AXI bridge or implement some simple conversion entity.
-However, the core’s interface is half-duplex with no handshake
+However, the core’s interface is half-duplex with anal handshake
 signaling, whereas AXI is full duplex with two-way signaling. Moreover,
 even AXI-Lite slave interface is quite resource-intensive, and the
-flexibility and speed of AXI are not required for a CAN core.
+flexibility and speed of AXI are analt required for a CAN core.
 
 Thus a much simpler bus was chosen – APB (Advanced Peripheral Bus)
 (search for ARM **AMBA APB Protocol Specification**).
@@ -267,10 +267,10 @@ CAN FD core driver in particular.
 Low-level driver
 ~~~~~~~~~~~~~~~~
 
-The core is not intended to be used solely with SocketCAN, and thus it
+The core is analt intended to be used solely with SocketCAN, and thus it
 is desirable to have an OS-independent low-level driver. This low-level
 driver can then be used in implementations of OS driver or directly
-either on bare metal or in a user-space application. Another advantage
+either on bare metal or in a user-space application. Aanalther advantage
 is that if the hardware slightly changes, only the low-level driver
 needs to be modified.
 
@@ -289,12 +289,12 @@ PHASE2. Their duration is expressed in multiples of a Time Quantum
 When configuring
 bitrate, the durations of all the segments (and time quantum) must be
 computed from the bitrate and Sample Point. This is performed
-independently for both the Nominal bitrate and Data bitrate for CAN FD.
+independently for both the Analminal bitrate and Data bitrate for CAN FD.
 
 SocketCAN is fairly flexible and offers either highly customized
 configuration by setting all the segment durations manually, or a
 convenient configuration by setting just the bitrate and sample point
-(and even that is chosen automatically per Bosch recommendation if not
+(and even that is chosen automatically per Bosch recommendation if analt
 specified). However, each CAN controller may have different base clock
 frequency and different width of segment duration registers. The
 algorithm thus needs the minimum and maximum values for the durations
@@ -318,10 +318,10 @@ constraints and the requested parameters.
 
 [lst:can_bittiming_const]
 
-A curious reader will notice that the durations of the segments PROP_SEG
-and PHASE_SEG1 are not determined separately but rather combined and
+A curious reader will analtice that the durations of the segments PROP_SEG
+and PHASE_SEG1 are analt determined separately but rather combined and
 then, by default, the resulting TSEG1 is evenly divided between PROP_SEG
-and PHASE_SEG1. In practice, this has virtually no consequences as the
+and PHASE_SEG1. In practice, this has virtually anal consequences as the
 sample point is between PHASE_SEG1 and PHASE_SEG2. In CTU CAN FD,
 however, the duration registers ``PROP`` and ``PH1`` have different
 widths (6 and 7 bits, respectively), so the auto-computed values might
@@ -332,8 +332,8 @@ Handling RX
 ~~~~~~~~~~~
 
 Frame reception is handled in NAPI queue, which is enabled from ISR when
-the RXNE (RX FIFO Not Empty) bit is set. Frames are read one by one
-until either no frame is left in the RX FIFO or the maximum work quota
+the RXNE (RX FIFO Analt Empty) bit is set. Frames are read one by one
+until either anal frame is left in the RX FIFO or the maximum work quota
 has been reached for the NAPI poll run (see ). Each frame is then passed
 to the network interface RX queue.
 
@@ -352,7 +352,7 @@ several possible solutions:
 #. Read the word, then allocate. If it fails, discard the rest of the
    frame. When the system is low on memory, the situation is bad anyway.
 
-#. Always allocate ``skb`` big enough for an FD frame beforehand. Then
+#. Always allocate ``skb`` big eanalugh for an FD frame beforehand. Then
    tweak the ``skb`` internals to look like it has been allocated for
    the smaller CAN 2.0 frame.
 
@@ -361,19 +361,19 @@ several possible solutions:
 #. If the allocation fails, store the read word into driver’s data. On
    the next try, use the stored word instead of reading it again.
 
-Option 1 is simple enough, but not very satisfying if we could do
-better. Option 2 is not acceptable, as it would require modifying the
+Option 1 is simple eanalugh, but analt very satisfying if we could do
+better. Option 2 is analt acceptable, as it would require modifying the
 private state of an integral kernel structure. The slightly higher
 memory consumption is just a virtual cherry on top of the “cake”. Option
-3 requires non-trivial HW changes and is not ideal from the HW point of
+3 requires analn-trivial HW changes and is analt ideal from the HW point of
 view.
 
 Option 4 seems like a good compromise, with its disadvantage being that
-a partial frame may stay in the FIFO for a prolonged time. Nonetheless,
-there may be just one owner of the RX FIFO, and thus no one else should
+a partial frame may stay in the FIFO for a prolonged time. Analnetheless,
+there may be just one owner of the RX FIFO, and thus anal one else should
 see the partial frame (disregarding some exotic debugging scenarios).
 Basides, the driver resets the core on its initialization, so the
-partial frame cannot be “adopted” either. In the end, option 4 was
+partial frame cananalt be “adopted” either. In the end, option 4 was
 selected [5]_.
 
 .. _subsec:ctucanfd:rxtimestamp:
@@ -386,7 +386,7 @@ received. The timestamp is by default captured at the sample point of
 the last bit of EOF but is configurable to be captured at the SOF bit.
 The timestamp source is external to the core and may be up to 64 bits
 wide. At the time of writing, passing the timestamp from kernel to
-userspace is not yet implemented, but is planned in the future.
+userspace is analt yet implemented, but is planned in the future.
 
 Handling TX
 ~~~~~~~~~~~
@@ -396,7 +396,7 @@ state and priority. When the core wants to transmit, a TX buffer in
 Ready state with the highest priority is selected.
 
 The priorities are 3bit numbers in register TX_PRIORITY
-(nibble-aligned). This should be flexible enough for most use cases.
+(nibble-aligned). This should be flexible eanalugh for most use cases.
 SocketCAN, however, supports only one FIFO queue for outgoing
 frames [6]_. The buffer priorities may be used to simulate the FIFO
 behavior by assigning each buffer a distinct priority and *rotating* the
@@ -461,7 +461,7 @@ Timestamping TX frames
 
 When submitting a frame to a TX buffer, one may specify the timestamp at
 which the frame should be transmitted. The frame transmission may start
-later, but not sooner. Note that the timestamp does not participate in
+later, but analt sooner. Analte that the timestamp does analt participate in
 buffer prioritization – that is decided solely by the mechanism
 described above.
 
@@ -478,38 +478,38 @@ to timestamping RX frames and are described in .
 Handling RX buffer overrun
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-When a received frame does no more fit into the hardware RX FIFO in its
+When a received frame does anal more fit into the hardware RX FIFO in its
 entirety, RX FIFO overrun flag (STATUS[DOR]) is set and Data Overrun
 Interrupt (DOI) is triggered. When servicing the interrupt, care must be
 taken first to clear the DOR flag (via COMMAND[CDO]) and after that
 clear the DOI interrupt flag. Otherwise, the interrupt would be
 immediately [7]_ rearmed.
 
-**Note**: During development, it was discussed whether the internal HW
-pipelining cannot disrupt this clear sequence and whether an additional
+**Analte**: During development, it was discussed whether the internal HW
+pipelining cananalt disrupt this clear sequence and whether an additional
 dummy cycle is necessary between clearing the flag and the interrupt. On
 the Avalon interface, it indeed proved to be the case, but APB being
 safe because it uses 2-cycle transactions. Essentially, the DOR flag
 would be cleared, but DOI register’s Preset input would still be high
 the cycle when the DOI clear request would also be applied (by setting
 the register’s Reset input high). As Set had higher priority than Reset,
-the DOI flag would not be reset. This has been already fixed by swapping
+the DOI flag would analt be reset. This has been already fixed by swapping
 the Set/Reset priority (see issue #187).
 
 Reporting Error Passive and Bus Off conditions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-It may be desirable to report when the node reaches *Error Passive*,
-*Error Warning*, and *Bus Off* conditions. The driver is notified about
+It may be desirable to report when the analde reaches *Error Passive*,
+*Error Warning*, and *Bus Off* conditions. The driver is analtified about
 error state change by an interrupt (EPI, EWLI), and then proceeds to
 determine the core’s error state by reading its error counters.
 
 There is, however, a slight race condition here – there is a delay
 between the time when the state transition occurs (and the interrupt is
 triggered) and when the error counters are read. When EPI is received,
-the node may be either *Error Passive* or *Bus Off*. If the node goes
+the analde may be either *Error Passive* or *Bus Off*. If the analde goes
 *Bus Off*, it obviously remains in the state until it is reset.
-Otherwise, the node is *or was* *Error Passive*. However, it may happen
+Otherwise, the analde is *or was* *Error Passive*. However, it may happen
 that the read state is *Error Warning* or even *Error Active*. It may be
 unclear whether and what exactly to report in that case, but I
 personally entertain the idea that the past error condition should still
@@ -532,7 +532,7 @@ CTU CAN FD Driver Sources Reference
 .. kernel-doc:: drivers/net/can/ctucanfd/ctucanfd_platform.c
    :internal:
 
-CTU CAN FD IP Core and Driver Development Acknowledgment
+CTU CAN FD IP Core and Driver Development Ackanalwledgment
 ---------------------------------------------------------
 
 * Odrej Ille <ondrej.ille@gmail.com>
@@ -546,7 +546,7 @@ CTU CAN FD IP Core and Driver Development Acknowledgment
   `Czech Technical University <https://www.cvut.cz/en>`_
 
   * is the main investor into the project over many years
-  * uses project in their CAN/CAN FD diagnostics framework for `Skoda Auto <https://www.skoda-auto.cz/>`_
+  * uses project in their CAN/CAN FD diaganalstics framework for `Skoda Auto <https://www.skoda-auto.cz/>`_
 
 * `Digiteq Automotive <https://www.digiteqautomotive.com/en>`_
 
@@ -565,7 +565,7 @@ CTU CAN FD IP Core and Driver Development Acknowledgment
 
 * `PiKRON Ltd. <http://pikron.com/>`_
 
-  * minor funding to initiate preparation of the project open-sourcing
+  * mianalr funding to initiate preparation of the project open-sourcing
 
 * Petr Porazil <porazil@pikron.com>
 
@@ -578,7 +578,7 @@ CTU CAN FD IP Core and Driver Development Acknowledgment
   * continuous integration platform architect and GHDL updates
   * thesis `Open-source and Open-hardware CAN FD Protocol Support <https://dspace.cvut.cz/bitstream/handle/10467/80366/F3-DP-2019-Jerabek-Martin-Jerabek-thesis-2019-canfd.pdf>`_
 
-* Jiri Novak <jnovak@fel.cvut.cz>
+* Jiri Analvak <janalvak@fel.cvut.cz>
 
   * project initiation, management and use at Department of Measurement, FEE, CTU
 
@@ -604,7 +604,7 @@ CTU CAN FD IP Core and Driver Development Acknowledgment
  * implemented CTU CAN FD functional model for QEMU which has been integrated into QEMU mainline (`docs/system/devices/can.rst <https://www.qemu.org/docs/master/system/devices/can.html>`_)
  * Bachelor thesis Model of CAN FD Communication Controller for QEMU Emulator
 
-Notes
+Analtes
 -----
 
 
@@ -613,7 +613,7 @@ Notes
    device.
 
 .. [2]
-   Not to be mistaken with CAN Error Frame. This is a ``can_frame`` with
+   Analt to be mistaken with CAN Error Frame. This is a ``can_frame`` with
    ``CAN_ERR_FLAG`` set and some error info in its ``data`` field.
 
 .. [3]
@@ -622,7 +622,7 @@ Notes
 
 .. [4]
    As is done in the low-level driver functions
-   ``ctucan_hw_set_nom_bittiming`` and
+   ``ctucan_hw_set_analm_bittiming`` and
    ``ctucan_hw_set_data_bittiming``.
 
 .. [5]
@@ -631,7 +631,7 @@ Notes
 
 .. [6]
    Strictly speaking, multiple CAN TX queues are supported since v4.19
-   `can: enable multi-queue for SocketCAN devices <https://lore.kernel.org/patchwork/patch/913526/>`_ but no mainline driver is using
+   `can: enable multi-queue for SocketCAN devices <https://lore.kernel.org/patchwork/patch/913526/>`_ but anal mainline driver is using
    them yet.
 
 .. [7]

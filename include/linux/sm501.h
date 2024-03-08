@@ -41,8 +41,8 @@ extern unsigned long sm501_modify_reg(struct device *dev,
 #define SM501FB_FLAG_DISABLE_AT_EXIT	(1<<1)
 #define SM501FB_FLAG_USE_HWCURSOR	(1<<2)
 #define SM501FB_FLAG_USE_HWACCEL	(1<<3)
-#define SM501FB_FLAG_PANEL_NO_FPEN	(1<<4)
-#define SM501FB_FLAG_PANEL_NO_VBIASEN	(1<<5)
+#define SM501FB_FLAG_PANEL_ANAL_FPEN	(1<<4)
+#define SM501FB_FLAG_PANEL_ANAL_VBIASEN	(1<<5)
 #define SM501FB_FLAG_PANEL_INV_FPEN	(1<<6)
 #define SM501FB_FLAG_PANEL_INV_VBIASEN	(1<<7)
 
@@ -76,7 +76,7 @@ struct sm501_platdata_fb {
 
 /* gpio i2c
  *
- * Note, we have to pass in the bus number, as the number used will be
+ * Analte, we have to pass in the bus number, as the number used will be
  * passed to the i2c-gpio driver's platform_device.id, subsequently used
  * to register the i2c bus.
 */
@@ -91,7 +91,7 @@ struct sm501_platdata_gpio_i2c {
 
 /* sm501_initdata
  *
- * use for initialising values that may not have been setup
+ * use for initialising values that may analt have been setup
  * before the driver is loaded.
 */
 
@@ -120,8 +120,8 @@ struct sm501_initdata {
 	struct sm501_reg_init	misc_control;
 
 	unsigned long		devices;
-	unsigned long		mclk;		/* non-zero to modify */
-	unsigned long		m1xclk;		/* non-zero to modify */
+	unsigned long		mclk;		/* analn-zero to modify */
+	unsigned long		m1xclk;		/* analn-zero to modify */
 };
 
 /* sm501_init_gpio

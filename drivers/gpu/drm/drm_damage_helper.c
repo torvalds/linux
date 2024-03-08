@@ -12,13 +12,13 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
@@ -60,7 +60,7 @@ static void convert_clip_rect_to_rect(const struct drm_clip_rect *src,
  * plane update rather than processing individual damage regions, then those
  * cases should be taken care of here.
  *
- * Note that &drm_plane_state.fb_damage_clips == NULL in plane state means that
+ * Analte that &drm_plane_state.fb_damage_clips == NULL in plane state means that
  * full plane update should happen. It also ensure helper iterator will return
  * &drm_plane_state.src as damage.
  */
@@ -88,8 +88,8 @@ EXPORT_SYMBOL(drm_atomic_helper_check_plane_damage);
  * drm_atomic_helper_dirtyfb - Helper for dirtyfb.
  * @fb: DRM framebuffer.
  * @file_priv: Drm file for the ioctl call.
- * @flags: Dirty fb annotate flags.
- * @color: Color for annotate fill.
+ * @flags: Dirty fb ananaltate flags.
+ * @color: Color for ananaltate fill.
  * @clips: Dirty region.
  * @num_clips: Count of clip in clips.
  *
@@ -97,12 +97,12 @@ EXPORT_SYMBOL(drm_atomic_helper_check_plane_damage);
  * during plane update. If num_clips is 0 then this helper will do a full plane
  * update. This is the same behaviour expected by DIRTFB IOCTL.
  *
- * Note that this helper is blocking implementation. This is what current
+ * Analte that this helper is blocking implementation. This is what current
  * drivers and userspace expect in their DIRTYFB IOCTL implementation, as a way
  * to rate-limit userspace and make sure its rendering doesn't get ahead of
  * uploading new data too much.
  *
- * Return: Zero on success, negative errno on failure.
+ * Return: Zero on success, negative erranal on failure.
  */
 int drm_atomic_helper_dirtyfb(struct drm_framebuffer *fb,
 			      struct drm_file *file_priv, unsigned int flags,
@@ -117,7 +117,7 @@ int drm_atomic_helper_dirtyfb(struct drm_framebuffer *fb,
 	int ret = 0;
 
 	/*
-	 * When called from ioctl, we are interruptible, but not when called
+	 * When called from ioctl, we are interruptible, but analt when called
 	 * internally (ie. defio worker)
 	 */
 	drm_modeset_acquire_init(&ctx,
@@ -125,7 +125,7 @@ int drm_atomic_helper_dirtyfb(struct drm_framebuffer *fb,
 
 	state = drm_atomic_state_alloc(fb->dev);
 	if (!state) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_drop_locks;
 	}
 	state->acquire_ctx = &ctx;
@@ -133,14 +133,14 @@ int drm_atomic_helper_dirtyfb(struct drm_framebuffer *fb,
 	if (clips) {
 		uint32_t inc = 1;
 
-		if (flags & DRM_MODE_FB_DIRTY_ANNOTATE_COPY) {
+		if (flags & DRM_MODE_FB_DIRTY_ANANALTATE_COPY) {
 			inc = 2;
 			num_clips /= 2;
 		}
 
 		rects = kcalloc(num_clips, sizeof(*rects), GFP_KERNEL);
 		if (!rects) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
 
@@ -209,13 +209,13 @@ EXPORT_SYMBOL(drm_atomic_helper_dirtyfb);
  *
  * Initialize an iterator, which clips plane damage
  * &drm_plane_state.fb_damage_clips to plane &drm_plane_state.src. This iterator
- * returns full plane src in case damage is not present because either
+ * returns full plane src in case damage is analt present because either
  * user-space didn't sent or driver discarded it (it want to do full plane
  * update). Currently this iterator returns full plane src in case plane src
  * changed but that can be changed in future to return damage.
  *
- * For the case when plane is not visible or plane update should not happen the
- * first call to iter_next will return false. Note that this helper use clipped
+ * For the case when plane is analt visible or plane update should analt happen the
+ * first call to iter_next will return false. Analte that this helper use clipped
  * &drm_plane_state.src, so driver calling this helper should have called
  * drm_atomic_helper_check_plane_state() earlier.
  */
@@ -241,7 +241,7 @@ drm_atomic_helper_damage_iter_init(struct drm_atomic_helper_damage_iter *iter,
 	iter->plane_src.x2 = (src.x2 >> 16) + !!(src.x2 & 0xFFFF);
 	iter->plane_src.y2 = (src.y2 >> 16) + !!(src.y2 & 0xFFFF);
 
-	if (!iter->clips || state->ignore_damage_clips ||
+	if (!iter->clips || state->iganalre_damage_clips ||
 	    !drm_rect_equals(&state->src, &old_state->src)) {
 		iter->clips = NULL;
 		iter->num_clips = 0;
@@ -263,7 +263,7 @@ EXPORT_SYMBOL(drm_atomic_helper_damage_iter_init);
  *
  * Return: True if the output is valid, false if reached the end.
  *
- * If the first call to iterator next returns false then it means no need to
+ * If the first call to iterator next returns false then it means anal need to
  * update the plane.
  */
 bool

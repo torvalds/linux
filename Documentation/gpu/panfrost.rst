@@ -19,7 +19,7 @@ the currently possible format options:
       pos:    0
       flags:  02400002
       mnt_id: 27
-      ino:    531
+      ianal:    531
       drm-driver:     panfrost
       drm-client-id:  14
       drm-engine-fragment:    1846584880 ns

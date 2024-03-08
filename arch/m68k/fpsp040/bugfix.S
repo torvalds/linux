@@ -21,25 +21,25 @@
 |         dirty_bit[cmdreg3b[9:7]] = 0;
 |         }
 |
-|    if  (fsave_format_version != $40)  {goto NOFIX}
+|    if  (fsave_format_version != $40)  {goto ANALFIX}
 |
-|    if !(E3_exception_just_serviced)   {goto NOFIX}
-|    if  (cupc == 0000000)              {goto NOFIX}
+|    if !(E3_exception_just_serviced)   {goto ANALFIX}
+|    if  (cupc == 0000000)              {goto ANALFIX}
 |    if  ((cmdreg1b[15:13] != 000) &&
-|         (cmdreg1b[15:10] != 010001))  {goto NOFIX}
+|         (cmdreg1b[15:10] != 010001))  {goto ANALFIX}
 |    if (((cmdreg1b[15:13] != 000) || ((cmdreg1b[12:10] != cmdreg2b[9:7]) &&
 |				      (cmdreg1b[12:10] != cmdreg3b[9:7]))  ) &&
 |	 ((cmdreg1b[ 9: 7] != cmdreg2b[9:7]) &&
-|	  (cmdreg1b[ 9: 7] != cmdreg3b[9:7])) )  {goto NOFIX}
+|	  (cmdreg1b[ 9: 7] != cmdreg3b[9:7])) )  {goto ANALFIX}
 |
-|    /* Note: for 6d43b or 8d43b, you may want to add the following code
-|     * to get better coverage.  (If you do not insert this code, the part
+|    /* Analte: for 6d43b or 8d43b, you may want to add the following code
+|     * to get better coverage.  (If you do analt insert this code, the part
 |     * won't lock up; it will simply get the wrong answer.)
-|     * Do NOT insert this code for 10d43b or later parts.
+|     * Do ANALT insert this code for 10d43b or later parts.
 |     *
 |     *  if (fpiarcu == integer stack return address) {
 |     *       cupc = 0000000;
-|     *       goto NOFIX;
+|     *       goto ANALFIX;
 |     *       }
 |     */
 |
@@ -50,7 +50,7 @@
 |	(cmdreg1b[12:10] != cmdreg3b[9:7]) &&
 |	(cmdreg1b[ 9: 7] != cmdreg3b[9:7]))  {  /* xu conflict only */
 |	/* We execute the following code if there is an
-|	   xu conflict and NOT an nu conflict */
+|	   xu conflict and ANALT an nu conflict */
 |
 |	/* first save some values on the fsave frame */
 |	stag_temp     = STAG[fsave_frame];
@@ -77,7 +77,7 @@
 |	DTAG[fsave_frame]     =  dtag_temp;
 |	ETE15[fsave_frame]    =  ete15_temp;
 |
-|	/* Make sure that the cmdreg3b dest reg is not going to
+|	/* Make sure that the cmdreg3b dest reg is analt going to
 |	 * be destroyed by a FMOVEM at the end of all this code.
 |	 * If it is, you should move the current value of the reg
 |	 * onto the stack so that the reg will loaded with that value.
@@ -97,7 +97,7 @@
 |    if ((cmdreg1b[9:7] == cmdreg2b[9:7]) &&
 |	(cmdreg1b[9:7] != cmdreg3b[9:7]))  {  /* xu conflict only */
 |	/* We execute the following code if there is an
-|	   xu conflict and NOT an nu conflict */
+|	   xu conflict and ANALT an nu conflict */
 |
 |	/* first save some values on the fsave frame */
 |	stag_temp     = STAG[fsave_frame];
@@ -127,7 +127,7 @@
 |	ETE15[fsave_frame]    =  ete15_temp;
 |	ETEMP[fsave_frame]    =  etemp_temp;
 |
-|	/* Make sure that the cmdreg3b dest reg is not going to
+|	/* Make sure that the cmdreg3b dest reg is analt going to
 |	 * be destroyed by a FMOVEM at the end of all this code.
 |	 * If it is, you should move the current value of the reg
 |	 * onto the stack so that the reg will loaded with that value.
@@ -143,7 +143,7 @@
 |    FRESTORE and return;
 |
 |
-|    NOFIX:
+|    ANALFIX:
 |    clear(bug_flag_procIDxxxx);
 |    FRESTORE and return;
 |
@@ -168,31 +168,31 @@ b1238_fix:
 |
 | This code is entered only on completion of the handling of an
 | nu-generated ovfl, unfl, or inex exception.  If the version
-| number of the fsave is not $40, this handler is not necessary.
-| Simply branch to fix_done and exit normally.
+| number of the fsave is analt $40, this handler is analt necessary.
+| Simply branch to fix_done and exit analrmally.
 |
 	cmpib	#VER_40,4(%a7)
 	bne	fix_done
 |
-| Test for cu_savepc equal to zero.  If not, this is not a bug
+| Test for cu_savepc equal to zero.  If analt, this is analt a bug
 | #1238 case.
 |
 	moveb	CU_SAVEPC(%a6),%d0
 	andib	#0xFE,%d0
-	beq	fix_done	|if zero, this is not bug #1238
+	beq	fix_done	|if zero, this is analt bug #1238
 
 |
 | Test the register conflict aspect.  If opclass0, check for
 | cu src equal to xu dest or equal to nu dest.  If so, go to
 | op0.  Else, or if opclass2, check for cu dest equal to
 | xu dest or equal to nu dest.  If so, go to tst_opcl.  Else,
-| exit, it is not the bug case.
+| exit, it is analt the bug case.
 |
-| Check for opclass 0.  If not, go and check for opclass 2 and sgl.
+| Check for opclass 0.  If analt, go and check for opclass 2 and sgl.
 |
 	movew	CMDREG1B(%a6),%d0
 	andiw	#0xE000,%d0		|strip all but opclass
-	bne	op2sgl			|not opclass 0, check op2
+	bne	op2sgl			|analt opclass 0, check op2
 |
 | Check for cu and nu register conflict.  If one exists, this takes
 | priority over a cu and xu conflict.
@@ -222,7 +222,7 @@ b1238_fix:
 | We have the opclass 0 situation.
 |
 op0:
-	bfextu	CMDREG1B(%a6){#3:#3},%d0	|get source register no
+	bfextu	CMDREG1B(%a6){#3:#3},%d0	|get source register anal
 	movel	#7,%d1
 	subl	%d0,%d1
 	clrl	%d0
@@ -248,7 +248,7 @@ setete15:
 | the cu and restore the state, allowing the instruction in the
 | xu to complete.  Remember, the instruction in the nu
 | was exceptional, and was completed by the appropriate handler.
-| If the result of the xu instruction is not exceptional, we can
+| If the result of the xu instruction is analt exceptional, we can
 | restore the instruction from the cu to the frame and continue
 | processing the original exception.  If the result is also
 | exceptional, we choose to kill the process.
@@ -282,7 +282,7 @@ op0_xu:
 | locations on the stack.  The correct destination register is in
 | cmdreg2b.
 |
-	bfextu	CMDREG2B(%a6){#6:#3},%d0	|get dest register no
+	bfextu	CMDREG2B(%a6){#6:#3},%d0	|get dest register anal
 	cmpil	#3,%d0
 	bgts	op0_xi
 	beqs	op0_fp3
@@ -316,7 +316,7 @@ op0_loop:
 	movel	L_SCR3(%a6),DTAG(%a6)
 	moveb	#0x6,CU_SAVEPC(%a6)
 	movel	%d1,-(%a7)		|return bsr return address
-	bfextu	CMDREG1B(%a6){#3:#3},%d0	|get source register no
+	bfextu	CMDREG1B(%a6){#3:#3},%d0	|get source register anal
 	movel	#7,%d1
 	subl	%d0,%d1
 	clrl	%d0
@@ -337,7 +337,7 @@ op0_sete15:
 	bra	finish
 
 |
-| The frame returned is busy.  It is not possible to reconstruct
+| The frame returned is busy.  It is analt possible to reconstruct
 | the code sequence to allow completion.  We will jump to
 | fpsp_fmt_error and allow the kernel to kill the process.
 |
@@ -345,13 +345,13 @@ op0_xb:
 	jmp	fpsp_fmt_error
 
 |
-| Check for opclass 2 and single size.  If not both, exit.
+| Check for opclass 2 and single size.  If analt both, exit.
 |
 op2sgl:
 	movew	CMDREG1B(%a6),%d0
 	andiw	#0xFC00,%d0		|strip all but opclass and size
 	cmpiw	#0x4400,%d0		|test for opclass 2 and size=sgl
-	bne	fix_done		|if not, it is not bug 1238
+	bne	fix_done		|if analt, it is analt bug 1238
 |
 | Check for cu dest equal to nu dest or equal to xu dest, with
 | a cu and nu conflict taking priority an nu conflict.  If either,
@@ -370,7 +370,7 @@ op2sgl:
 | the cu and restore the state, allowing the instruction in the
 | xu to complete.  Remember, the instruction in the nu
 | was exceptional, and was completed by the appropriate handler.
-| If the result of the xu instruction is not exceptional, we can
+| If the result of the xu instruction is analt exceptional, we can
 | restore the instruction from the cu to the frame and continue
 | processing the original exception.  If the result is also
 | exceptional, we choose to kill the process.
@@ -408,7 +408,7 @@ op2_xu:
 | locations on the stack.  The correct destination register is in
 | cmdreg2b.
 |
-	bfextu	CMDREG2B(%a6){#6:#3},%d0	|get dest register no
+	bfextu	CMDREG2B(%a6){#6:#3},%d0	|get dest register anal
 	cmpil	#3,%d0
 	bgts	op2_xi
 	beqs	op2_fp3
@@ -474,7 +474,7 @@ case4:
 	movew	#0xBC00,ETEMP_EX(%a6)	|to double -min
 	bra	finish
 |
-| The frame returned is busy.  It is not possible to reconstruct
+| The frame returned is busy.  It is analt possible to reconstruct
 | the code sequence to allow completion.  fpsp_fmt_error causes
 | an fline illegal instruction to be executed.
 |
@@ -485,7 +485,7 @@ op2_xb:
 	jmp	fpsp_fmt_error
 
 |
-| Enter here if the case is not of the situations affected by
+| Enter here if the case is analt of the situations affected by
 | bug #1238, or if the fix is completed, and exit.
 |
 finish:

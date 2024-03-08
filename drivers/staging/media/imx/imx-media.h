@@ -10,7 +10,7 @@
 #include <linux/platform_device.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-subdev.h>
 #include <media/videobuf2-dma-contig.h>
 #include <video/imx-ipu-v3.h>
@@ -75,7 +75,7 @@ struct imx_media_pixfmt {
 	u32     fourcc;
 	/*
 	 * the set of equivalent media bus codes for the fourcc.
-	 * NOTE! codes pointer is NULL for in-memory-only formats.
+	 * ANALTE! codes pointer is NULL for in-memory-only formats.
 	 */
 	const u32 *codes;
 	int     bpp;     /* total bpp */
@@ -124,7 +124,7 @@ static inline struct imx_media_buffer *to_imx_media_vb(struct vb2_buffer *vb)
 /*
  * to support control inheritance to video devices, this
  * retrieves a pad's list_head of video devices that can
- * be reached from the pad. Note that only the lists in
+ * be reached from the pad. Analte that only the lists in
  * source pads get populated, sink pads have empty lists.
  */
 static inline struct list_head *
@@ -157,12 +157,12 @@ struct imx_media_dev {
 	struct ipu_soc *ipu[2];
 
 	/* for async subdev registration */
-	struct v4l2_async_notifier notifier;
+	struct v4l2_async_analtifier analtifier;
 
 	/* IC scaler/CSC mem2mem video device */
 	struct imx_media_video_dev *m2m_vdev;
 
-	/* the IPU internal subdev's registered synchronously */
+	/* the IPU internal subdev's registered synchroanalusly */
 	struct v4l2_subdev *sync_sd[2][NUM_IPU_SUBDEVS];
 };
 
@@ -227,11 +227,11 @@ int imx_media_pipeline_set_stream(struct imx_media_dev *imxmd,
 				  bool on);
 
 /* imx-media-dev-common.c */
-int imx_media_probe_complete(struct v4l2_async_notifier *notifier);
+int imx_media_probe_complete(struct v4l2_async_analtifier *analtifier);
 struct imx_media_dev *imx_media_dev_init(struct device *dev,
 					 const struct media_device_ops *ops);
-int imx_media_dev_notifier_register(struct imx_media_dev *imxmd,
-			    const struct v4l2_async_notifier_operations *ops);
+int imx_media_dev_analtifier_register(struct imx_media_dev *imxmd,
+			    const struct v4l2_async_analtifier_operations *ops);
 
 /* imx-media-fim.c */
 struct imx_media_fim;
@@ -250,7 +250,7 @@ void imx_media_unregister_ipu_internal_subdevs(struct imx_media_dev *imxmd);
 
 /* imx-media-of.c */
 int imx_media_add_of_subdevs(struct imx_media_dev *dev,
-			     struct device_node *np);
+			     struct device_analde *np);
 
 /* imx-media-vdic.c */
 struct v4l2_subdev *imx_media_vdic_register(struct v4l2_device *v4l2_dev,

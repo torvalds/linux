@@ -30,8 +30,8 @@ struct em_perf_state {
  * em_perf_state flags:
  *
  * EM_PERF_STATE_INEFFICIENT: The performance state is inefficient. There is
- * in this em_perf_domain, another performance state with a higher frequency
- * but a lower or equal power cost. Such inefficient states are ignored when
+ * in this em_perf_domain, aanalther performance state with a higher frequency
+ * but a lower or equal power cost. Such inefficient states are iganalred when
  * using em_pd_get_efficient_*() functions.
  */
 #define EM_PERF_STATE_INEFFICIENT BIT(0)
@@ -81,7 +81,7 @@ struct em_perf_domain {
 #ifdef CONFIG_ENERGY_MODEL
 /*
  * The max power value in micro-Watts. The limit of 64 Watts is set as
- * a safety net to not overflow multiplications on 32bit platforms. The
+ * a safety net to analt overflow multiplications on 32bit platforms. The
  * 32bit value limit for total Perf Domain power implies a limit of
  * maximum CPUs in such domain to 64.
  */
@@ -181,7 +181,7 @@ void em_dev_unregister_perf_domain(struct device *dev);
  * It is called from the scheduler code quite frequently and as a consequence
  * doesn't implement any check.
  *
- * Return: An efficient performance state, high enough to meet @freq
+ * Return: An efficient performance state, high eanalugh to meet @freq
  * requirement.
  */
 static inline
@@ -213,9 +213,9 @@ struct em_perf_state *em_pd_get_efficient_state(struct em_perf_domain *pd,
  * @allowed_cpu_cap	: maximum allowed CPU capacity for the @pd, which
  *			  might reflect reduced frequency (due to thermal)
  *
- * This function must be used only for CPU devices. There is no validation,
+ * This function must be used only for CPU devices. There is anal validation,
  * i.e. if the EM is a CPU type and has cpumask allocated. It is called from
- * the scheduler code quite frequently and that is why there is not checks.
+ * the scheduler code quite frequently and that is why there is analt checks.
  *
  * Return: the sum of the energy consumed by the CPUs of the domain assuming
  * a capacity state satisfying the max utilization of the domain.
@@ -260,7 +260,7 @@ static inline unsigned long em_cpu_energy(struct em_perf_domain *pd,
 	 *   ps->cap = --------------------                          (1)
 	 *                 cpu_max_freq
 	 *
-	 * So, ignoring the costs of idle states (which are not available in
+	 * So, iganalring the costs of idle states (which are analt available in
 	 * the EM), the energy consumed by this CPU at that performance state
 	 * is estimated as:
 	 *
@@ -270,7 +270,7 @@ static inline unsigned long em_cpu_energy(struct em_perf_domain *pd,
 	 *
 	 * since 'cpu_util / ps->cap' represents its percentage of busy time.
 	 *
-	 *   NOTE: Although the result of this computation actually is in
+	 *   ANALTE: Although the result of this computation actually is in
 	 *         units of power, it can be manipulated as an energy value
 	 *         over a scheduling period, since it is assumed to be
 	 *         constant during that interval.

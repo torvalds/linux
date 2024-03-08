@@ -6,16 +6,16 @@ VCPU Dispatch Statistics
 
 For Shared Processor LPARs, the POWER Hypervisor maintains a relatively
 static mapping of the LPAR processors (vcpus) to physical processor
-chips (representing the "home" node) and tries to always dispatch vcpus
+chips (representing the "home" analde) and tries to always dispatch vcpus
 on their associated physical processor chip. However, under certain
 scenarios, vcpus may be dispatched on a different processor chip (away
-from its home node).
+from its home analde).
 
 /proc/powerpc/vcpudispatch_stats can be used to obtain statistics
 related to the vcpu dispatch behavior. Writing '1' to this file enables
 collecting the statistics, while writing '0' disables the statistics.
 By default, the DTLB log for each vcpu is processed 50 times a second so
-as not to miss any entries. This processing frequency can be changed
+as analt to miss any entries. This processing frequency can be changed
 through /proc/powerpc/vcpudispatch_stats_freq.
 
 The statistics themselves are available by reading the procfs file
@@ -36,12 +36,12 @@ The next 4 numbers represent vcpu dispatch dispersions:
 5. number of times this vcpu was dispatches on a different socket/drawer
    (next numa boundary)
 
-The final 3 numbers represent statistics in relation to the home node of
+The final 3 numbers represent statistics in relation to the home analde of
 the vcpu:
 
-6. number of times this vcpu was dispatched in its home node (chip)
-7. number of times this vcpu was dispatched in a different node
-8. number of times this vcpu was dispatched in a node further away (numa
+6. number of times this vcpu was dispatched in its home analde (chip)
+7. number of times this vcpu was dispatched in a different analde
+8. number of times this vcpu was dispatched in a analde further away (numa
    distance)
 
 An example output::
@@ -71,5 +71,5 @@ the same chip, while 30 dispatches were on a different chip compared to
 its last dispatch.
 
 Also, out of the total of 6839 dispatches, we see that there have been
-6821 dispatches on the vcpu's home node, while 18 dispatches were
-outside its home node, on a neighbouring chip.
+6821 dispatches on the vcpu's home analde, while 18 dispatches were
+outside its home analde, on a neighbouring chip.

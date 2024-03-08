@@ -143,7 +143,7 @@ static int lp8788_rtc_set_time(struct device *dev, struct rtc_time *tm)
 		return -EINVAL;
 	}
 
-	/* because rtc weekday is a readonly register, do not update */
+	/* because rtc weekday is a readonly register, do analt update */
 	data[LPTIME_SEC]  = tm->tm_sec;
 	data[LPTIME_MIN]  = tm->tm_min;
 	data[LPTIME_HOUR] = tm->tm_hour;
@@ -262,7 +262,7 @@ static int lp8788_alarm_irq_register(struct platform_device *pdev,
 
 	rtc->irq = 0;
 
-	/* even the alarm IRQ number is not specified, rtc time should work */
+	/* even the alarm IRQ number is analt specified, rtc time should work */
 	r = platform_get_resource_byname(pdev, IORESOURCE_IRQ, LP8788_ALM_IRQ);
 	if (!r)
 		return 0;
@@ -287,7 +287,7 @@ static int lp8788_rtc_probe(struct platform_device *pdev)
 
 	rtc = devm_kzalloc(dev, sizeof(struct lp8788_rtc), GFP_KERNEL);
 	if (!rtc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rtc->lp = lp;
 	rtc->alarm = lp->pdata ? lp->pdata->alarm_sel : DEFAULT_ALARM_SEL;
@@ -298,12 +298,12 @@ static int lp8788_rtc_probe(struct platform_device *pdev)
 	rtc->rdev = devm_rtc_device_register(dev, "lp8788_rtc",
 					&lp8788_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtc->rdev)) {
-		dev_err(dev, "can not register rtc device\n");
+		dev_err(dev, "can analt register rtc device\n");
 		return PTR_ERR(rtc->rdev);
 	}
 
 	if (lp8788_alarm_irq_register(pdev, rtc))
-		dev_warn(lp->dev, "no rtc irq handler\n");
+		dev_warn(lp->dev, "anal rtc irq handler\n");
 
 	return 0;
 }

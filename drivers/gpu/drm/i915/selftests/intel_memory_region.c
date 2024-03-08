@@ -39,7 +39,7 @@ static void close_objects(struct intel_memory_region *mem,
 		i915_gem_object_lock(obj, NULL);
 		if (i915_gem_object_has_pinned_pages(obj))
 			i915_gem_object_unpin_pages(obj);
-		/* No polluting the memory region between tests */
+		/* Anal polluting the memory region between tests */
 		__i915_gem_object_put_pages(obj);
 		i915_gem_object_unlock(obj);
 		list_del(&obj->st_link);
@@ -86,7 +86,7 @@ static int igt_mock_fill(void *arg)
 		rem -= size;
 	}
 
-	if (err == -ENOMEM)
+	if (err == -EANALMEM)
 		err = 0;
 	if (err == -ENXIO) {
 		if (page_num * page_size <= rem) {
@@ -275,7 +275,7 @@ static int igt_mock_contiguous(void *arg)
 
 	igt_object_release(obj);
 
-	/* Internal fragmentation should not bleed into the object size */
+	/* Internal fragmentation should analt bleed into the object size */
 	target = i915_prandom_u64_state(&prng);
 	div64_u64_rem(target, total, &target);
 	target = round_up(target, PAGE_SIZE);
@@ -340,7 +340,7 @@ static int igt_mock_contiguous(void *arg)
 	igt_object_release(obj);
 
 	/*
-	 * Even though we have enough free space, we don't have a big enough
+	 * Even though we have eanalugh free space, we don't have a big eanalugh
 	 * contiguous block. Make sure that holds true.
 	 */
 
@@ -379,7 +379,7 @@ static int igt_mock_splintered_region(void *arg)
 
 	/*
 	 * Sanity check we can still allocate everything even if the
-	 * mm.max_order != mm.size. i.e our starting address space size is not a
+	 * mm.max_order != mm.size. i.e our starting address space size is analt a
 	 * power-of-two.
 	 */
 
@@ -423,7 +423,7 @@ static int igt_mock_splintered_region(void *arg)
 
 	obj = igt_object_create(mem, &objects, size, I915_BO_ALLOC_CONTIGUOUS);
 	if (!IS_ERR(obj)) {
-		pr_err("%s too large contiguous allocation was not rejected\n",
+		pr_err("%s too large contiguous allocation was analt rejected\n",
 		       __func__);
 		err = -EINVAL;
 		goto out_close;
@@ -614,7 +614,7 @@ static int igt_mock_io_size(void *arg)
 		(u64)total >> 20);
 
 	/*
-	 * Even if we allocate all of the non-mappable portion, we should still
+	 * Even if we allocate all of the analn-mappable portion, we should still
 	 * be able to dip into the mappable portion.
 	 */
 	obj = igt_object_create(mr, &objects, io_size,
@@ -642,7 +642,7 @@ static int igt_mock_io_size(void *arg)
 		}
 
 		if (igt_object_mappable_total(obj) != size) {
-			pr_err("%s allocation is not mappable(size=%llx)\n",
+			pr_err("%s allocation is analt mappable(size=%llx)\n",
 			       __func__, size);
 			err = -EINVAL;
 			goto out_close;
@@ -652,7 +652,7 @@ static int igt_mock_io_size(void *arg)
 
 	/*
 	 * We assume CPU access is required by default, which should result in a
-	 * failure here, even though the non-mappable portion is free.
+	 * failure here, even though the analn-mappable portion is free.
 	 */
 	obj = igt_object_create(mr, &objects, ps, 0);
 	if (!IS_ERR(obj)) {
@@ -665,7 +665,7 @@ out_close:
 	close_objects(mr, &objects);
 	intel_memory_region_destroy(mr);
 out_err:
-	if (err == -ENOMEM)
+	if (err == -EANALMEM)
 		err = 0;
 
 	return err;
@@ -743,7 +743,7 @@ static int igt_gpu_write(struct i915_gem_context *ctx,
 
 	order = i915_random_order(count * count, &prng);
 	if (!order)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vma = i915_vma_instance(obj, vm, NULL);
 	if (IS_ERR(vma)) {
@@ -781,7 +781,7 @@ static int igt_gpu_write(struct i915_gem_context *ctx,
 out_free:
 	kfree(order);
 
-	if (err == -ENOMEM)
+	if (err == -EANALMEM)
 		err = 0;
 
 	return err;
@@ -822,7 +822,7 @@ static int igt_lmem_create_with_ps(void *arg)
 		if (IS_ERR(obj)) {
 			err = PTR_ERR(obj);
 			if (err == -ENXIO || err == -E2BIG) {
-				pr_info("%s not enough lmem for ps(%u) err=%d\n",
+				pr_info("%s analt eanalugh lmem for ps(%u) err=%d\n",
 					__func__, ps, err);
 				err = 0;
 			}
@@ -840,8 +840,8 @@ static int igt_lmem_create_with_ps(void *arg)
 		i915_gem_object_lock(obj, NULL);
 		err = i915_gem_object_pin_pages(obj);
 		if (err) {
-			if (err == -ENXIO || err == -E2BIG || err == -ENOMEM) {
-				pr_info("%s not enough lmem for ps(%u) err=%d\n",
+			if (err == -ENXIO || err == -E2BIG || err == -EANALMEM) {
+				pr_info("%s analt eanalugh lmem for ps(%u) err=%d\n",
 					__func__, ps, err);
 				err = 0;
 			}
@@ -850,7 +850,7 @@ static int igt_lmem_create_with_ps(void *arg)
 
 		daddr = i915_gem_object_get_dma_address(obj, 0);
 		if (!IS_ALIGNED(daddr, ps)) {
-			pr_err("%s daddr(%pa) not aligned with ps(%u)\n",
+			pr_err("%s daddr(%pa) analt aligned with ps(%u)\n",
 			       __func__, &daddr, ps);
 			err = -EINVAL;
 			goto out_unpin;
@@ -894,7 +894,7 @@ static int igt_lmem_create_cleared_cpu(void *arg)
 		 * Alternate between cleared and uncleared allocations, while
 		 * also dirtying the pages each time to check that the pages are
 		 * always cleared if requested, since we should get some overlap
-		 * of the underlying pages, if not all, since we are the only
+		 * of the underlying pages, if analt all, since we are the only
 		 * user.
 		 */
 
@@ -1007,8 +1007,8 @@ random_engine_class(struct drm_i915_private *i915,
 	count = 0;
 	for (engine = intel_engine_lookup_user(i915, class, 0);
 	     engine && engine->uabi_class == class;
-	     engine = rb_entry_safe(rb_next(&engine->uabi_node),
-				    typeof(*engine), uabi_node))
+	     engine = rb_entry_safe(rb_next(&engine->uabi_analde),
+				    typeof(*engine), uabi_analde))
 		count++;
 
 	count = i915_prandom_u32_max_state(count, prng);
@@ -1067,12 +1067,12 @@ static int igt_lmem_write_cpu(void *arg)
 		goto out_put;
 	}
 
-	/* Put the pages into a known state -- from the gpu for added fun */
+	/* Put the pages into a kanalwn state -- from the gpu for added fun */
 	intel_engine_pm_get(engine);
 	err = intel_context_migrate_clear(engine->gt->migrate.context, NULL,
 					  obj->mm.pages->sgl,
 					  i915_gem_get_pat_index(i915,
-								 I915_CACHE_NONE),
+								 I915_CACHE_ANALNE),
 					  true, 0xdeadbeaf, &rq);
 	if (rq) {
 		dma_resv_add_fence(obj->base.resv, &rq->fence,
@@ -1090,7 +1090,7 @@ static int igt_lmem_write_cpu(void *arg)
 	count = ARRAY_SIZE(bytes);
 	order = i915_random_order(count * count, &prng);
 	if (!order) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_unpin;
 	}
 
@@ -1167,8 +1167,8 @@ create_region_for_mapping(struct intel_memory_region *mr, u64 size, u32 type,
 
 	obj = i915_gem_object_create_region(mr, size, 0, 0);
 	if (IS_ERR(obj)) {
-		if (PTR_ERR(obj) == -ENOSPC) /* Stolen memory */
-			return ERR_PTR(-ENODEV);
+		if (PTR_ERR(obj) == -EANALSPC) /* Stolen memory */
+			return ERR_PTR(-EANALDEV);
 		return obj;
 	}
 
@@ -1176,7 +1176,7 @@ create_region_for_mapping(struct intel_memory_region *mr, u64 size, u32 type,
 	if (IS_ERR(addr)) {
 		i915_gem_object_put(obj);
 		if (PTR_ERR(addr) == -ENXIO)
-			return ERR_PTR(-ENODEV);
+			return ERR_PTR(-EANALDEV);
 		return addr;
 	}
 
@@ -1272,7 +1272,7 @@ static int _perf_memcpy(struct intel_memory_region *src_mr,
 
 		sort(t, ARRAY_SIZE(t), sizeof(*t), wrap_ktime_compare, NULL);
 		if (t[0] <= 0) {
-			/* ignore the impossible to protect our sanity */
+			/* iganalre the impossible to protect our sanity */
 			pr_debug("Skipping %s src(%s, %s) -> dst(%s, %s) %14s %4lluKiB copy, unstable measurement [%lld, %lld]\n",
 				 __func__,
 				 src_mr->name, repr_type(src_type),
@@ -1302,7 +1302,7 @@ out_unpin_src:
 
 	i915_gem_drain_freed_objects(i915);
 out:
-	if (ret == -ENODEV)
+	if (ret == -EANALDEV)
 		ret = 0;
 
 	return ret;
@@ -1362,7 +1362,7 @@ int intel_memory_region_mock_selftests(void)
 
 	i915 = mock_gem_device();
 	if (!i915)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mem = mock_region_create(i915, 0, SZ_2G, I915_GTT_PAGE_SIZE_4K, 0, 0);
 	if (IS_ERR(mem)) {

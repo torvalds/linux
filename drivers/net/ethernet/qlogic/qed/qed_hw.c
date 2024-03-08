@@ -8,7 +8,7 @@
 #include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
@@ -50,7 +50,7 @@ int qed_ptt_pool_alloc(struct qed_hwfn *p_hwfn)
 	int i;
 
 	if (!p_pool)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&p_pool->free_list);
 	for (i = 0; i < PXP_EXTERNAL_BAR_PF_WINDOW_NUM; i++) {
@@ -126,7 +126,7 @@ struct qed_ptt *qed_ptt_acquire_context(struct qed_hwfn *p_hwfn, bool is_atomic)
 				     QED_BAR_ACQUIRE_TIMEOUT_USLEEP * 2);
 	}
 
-	DP_NOTICE(p_hwfn, "PTT acquire timeout - failed to allocate PTT\n");
+	DP_ANALTICE(p_hwfn, "PTT acquire timeout - failed to allocate PTT\n");
 	return NULL;
 }
 
@@ -188,7 +188,7 @@ static u32 qed_set_ptt(struct qed_hwfn *p_hwfn,
 	offset = hw_addr - win_hw_addr;
 
 	if (p_ptt->hwfn_id != p_hwfn->my_id)
-		DP_NOTICE(p_hwfn,
+		DP_ANALTICE(p_hwfn,
 			  "ptt[%d] of hwfn[%02x] is used by hwfn[%02x]!\n",
 			  p_ptt->idx, p_ptt->hwfn_id, p_hwfn->my_id);
 
@@ -206,7 +206,7 @@ struct qed_ptt *qed_get_reserved_ptt(struct qed_hwfn *p_hwfn,
 				     enum reserved_ptts ptt_idx)
 {
 	if (ptt_idx >= RESERVED_PTT_MAX) {
-		DP_NOTICE(p_hwfn,
+		DP_ANALTICE(p_hwfn,
 			  "Requested PTT %d is out of range\n", ptt_idx);
 		return NULL;
 	}
@@ -406,7 +406,7 @@ static void qed_dmae_opcode(struct qed_hwfn *p_hwfn,
 	    p_params->src_pfid : p_hwfn->rel_pf_id;
 	SET_FIELD(opcode, DMAE_CMD_SRC_PF_ID, src_pfid);
 
-	/* The destination of the DMA can be: 0-None 1-PCIe 2-GRC 3-None */
+	/* The destination of the DMA can be: 0-Analne 1-PCIe 2-GRC 3-Analne */
 	SET_FIELD(opcode, DMAE_CMD_DST,
 		  (is_dst_type_grc ? dmae_cmd_dst_grc : dmae_cmd_dst_pcie));
 	dst_pfid = QED_DMAE_FLAGS_IS_SET(p_params, DST_PF_VALID) ?
@@ -415,7 +415,7 @@ static void qed_dmae_opcode(struct qed_hwfn *p_hwfn,
 
 
 	/* Whether to write a completion word to the completion destination:
-	 * 0-Do not write a completion word
+	 * 0-Do analt write a completion word
 	 * 1-Write the completion word
 	 */
 	SET_FIELD(opcode, DMAE_CMD_COMP_WORD_EN, 1);
@@ -468,10 +468,10 @@ static int qed_dmae_post_command(struct qed_hwfn *p_hwfn,
 	u8 idx_cmd = p_hwfn->dmae_info.channel, i;
 	int qed_status = 0;
 
-	/* verify address is not NULL */
+	/* verify address is analt NULL */
 	if ((((!p_command->dst_addr_lo) && (!p_command->dst_addr_hi)) ||
 	     ((!p_command->src_addr_lo) && (!p_command->src_addr_hi)))) {
-		DP_NOTICE(p_hwfn,
+		DP_ANALTICE(p_hwfn,
 			  "source or destination address 0 idx_cmd=%d\n"
 			  "opcode = [0x%08x,0x%04x] len=0x%x src=0x%x:%x dst=0x%x:%x\n",
 			  idx_cmd,
@@ -499,7 +499,7 @@ static int qed_dmae_post_command(struct qed_hwfn *p_hwfn,
 		   le32_to_cpu(p_command->dst_addr_lo));
 
 	/* Copy the command to DMAE - need to do it before every call
-	 * for source/dest address no reset.
+	 * for source/dest address anal reset.
 	 * The first 9 DWs are the command registers, the 10 DW is the
 	 * GO register, and the rest are result registers
 	 * (which are read only by the client).
@@ -550,14 +550,14 @@ int qed_dmae_info_alloc(struct qed_hwfn *p_hwfn)
 	return 0;
 err:
 	qed_dmae_info_free(p_hwfn);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 void qed_dmae_info_free(struct qed_hwfn *p_hwfn)
 {
 	dma_addr_t p_phys;
 
-	/* Just make sure no one is in the middle */
+	/* Just make sure anal one is in the middle */
 	mutex_lock(&p_hwfn->dmae_info.mutex);
 
 	if (p_hwfn->dmae_info.p_completion_word) {
@@ -597,7 +597,7 @@ static int qed_dmae_operation_wait(struct qed_hwfn *p_hwfn)
 	while (*p_hwfn->dmae_info.p_completion_word != DMAE_COMPLETION_VAL) {
 		udelay(DMAE_MIN_WAIT_TIME);
 		if (++wait_cnt > wait_cnt_limit) {
-			DP_NOTICE(p_hwfn->cdev,
+			DP_ANALTICE(p_hwfn->cdev,
 				  "Timed-out waiting for operation to complete. Completion word is 0x%08x expected 0x%08x.\n",
 				  *p_hwfn->dmae_info.p_completion_word,
 				 DMAE_COMPLETION_VAL);
@@ -605,7 +605,7 @@ static int qed_dmae_operation_wait(struct qed_hwfn *p_hwfn)
 			break;
 		}
 
-		/* to sync the completion_word since we are not
+		/* to sync the completion_word since we are analt
 		 * using the volatile keyword for p_completion_word
 		 */
 		barrier();
@@ -669,7 +669,7 @@ static int qed_dmae_execute_sub_operation(struct qed_hwfn *p_hwfn,
 	qed_status = qed_dmae_operation_wait(p_hwfn);
 
 	if (qed_status) {
-		DP_NOTICE(p_hwfn,
+		DP_ANALTICE(p_hwfn,
 			  "qed_dmae_host2grc: Wait Failed. source_addr 0x%llx, grc_addr 0x%llx, size_in_dwords 0x%x\n",
 			  src_addr, dst_addr, length_dw);
 		return qed_status;
@@ -754,7 +754,7 @@ static int qed_dmae_execute_command(struct qed_hwfn *p_hwfn,
 							    dst_type,
 							    length_cur);
 		if (qed_status) {
-			qed_hw_err_notify(p_hwfn, p_ptt, QED_HW_ERR_DMAE_FAIL,
+			qed_hw_err_analtify(p_hwfn, p_ptt, QED_HW_ERR_DMAE_FAIL,
 					  "qed_dmae_execute_sub_operation Failed with error 0x%x. source_addr 0x%llx, destination addr 0x%llx, size_in_dwords 0x%x\n",
 					  qed_status, src_addr,
 					  dst_addr, length_cur);
@@ -830,7 +830,7 @@ int qed_dmae_host2host(struct qed_hwfn *p_hwfn,
 	return rc;
 }
 
-void qed_hw_err_notify(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
+void qed_hw_err_analtify(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 		       enum qed_hw_err_type err_type, const char *fmt, ...)
 {
 	char buf[QED_HW_ERR_MAX_STR_SIZE];
@@ -845,15 +845,15 @@ void qed_hw_err_notify(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 		if (len > QED_HW_ERR_MAX_STR_SIZE - 1)
 			len = QED_HW_ERR_MAX_STR_SIZE - 1;
 
-		DP_NOTICE(p_hwfn, "%s", buf);
+		DP_ANALTICE(p_hwfn, "%s", buf);
 	}
 
-	/* Fan failure cannot be masked by handling of another HW error */
+	/* Fan failure cananalt be masked by handling of aanalther HW error */
 	if (p_hwfn->cdev->recov_in_prog &&
 	    err_type != QED_HW_ERR_FAN_FAIL) {
 		DP_VERBOSE(p_hwfn,
 			   NETIF_MSG_DRV,
-			   "Recovery is in progress. Avoid notifying about HW error %d.\n",
+			   "Recovery is in progress. Avoid analtifying about HW error %d.\n",
 			   err_type);
 		return;
 	}
@@ -876,13 +876,13 @@ int qed_dmae_sanity(struct qed_hwfn *p_hwfn,
 	p_virt = dma_alloc_coherent(&p_hwfn->cdev->pdev->dev,
 				    2 * size, &p_phys, GFP_KERNEL);
 	if (!p_virt) {
-		DP_NOTICE(p_hwfn,
+		DP_ANALTICE(p_hwfn,
 			  "DMAE sanity [%s]: failed to allocate memory\n",
 			  phase);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
-	/* Fill the bottom half of the allocated memory with a known pattern */
+	/* Fill the bottom half of the allocated memory with a kanalwn pattern */
 	for (p_tmp = (u32 *)p_virt;
 	     p_tmp < (u32 *)((u8 *)p_virt + size); p_tmp++) {
 		/* Save the address itself as the value */
@@ -903,7 +903,7 @@ int qed_dmae_sanity(struct qed_hwfn *p_hwfn,
 	rc = qed_dmae_host2host(p_hwfn, p_ptt, p_phys, p_phys + size,
 				size / 4, NULL);
 	if (rc) {
-		DP_NOTICE(p_hwfn,
+		DP_ANALTICE(p_hwfn,
 			  "DMAE sanity [%s]: qed_dmae_host2host() failed. rc = %d.\n",
 			  phase, rc);
 		goto out;
@@ -916,7 +916,7 @@ int qed_dmae_sanity(struct qed_hwfn *p_hwfn,
 		val = (u32)(uintptr_t)p_tmp - size;
 
 		if (*p_tmp != val) {
-			DP_NOTICE(p_hwfn,
+			DP_ANALTICE(p_hwfn,
 				  "DMAE sanity [%s]: addr={phys 0x%llx, virt %p}, read_val 0x%08x, expected_val 0x%08x\n",
 				  phase,
 				  (u64)p_phys + ((u8 *)p_tmp - (u8 *)p_virt),

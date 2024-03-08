@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /* $Id: scc.h,v 1.29 1997/04/02 14:56:45 jreuter Exp jreuter $ */
 
 #ifndef _UAPI_SCC_H
@@ -58,7 +58,7 @@ enum L1_params {
 /* fulldup parameter */
 
 enum FULLDUP_modes {
-	KISS_DUPLEX_HALF,	/* normal CSMA operation */
+	KISS_DUPLEX_HALF,	/* analrmal CSMA operation */
 	KISS_DUPLEX_FULL,	/* fullduplex, key down trx after transmission */
 	KISS_DUPLEX_LINK,	/* fullduplex, key down trx after 'idletime' sec */
 	KISS_DUPLEX_OPTIMA	/* fullduplex, let the protocol layer control the hw */
@@ -67,7 +67,7 @@ enum FULLDUP_modes {
 /* misc. parameters */
 
 #define TIMER_OFF	65535U	/* to switch off timers */
-#define NO_SUCH_PARAM	65534U	/* param not implemented */
+#define ANAL_SUCH_PARAM	65534U	/* param analt implemented */
 
 /* HWEVENT parameter */
 
@@ -85,7 +85,7 @@ enum HWEVENT_opts {
 /* Tx/Rx clock sources */
 
 enum CLOCK_sources {
-	CLK_DPLL,	/* normal halfduplex operation */
+	CLK_DPLL,	/* analrmal halfduplex operation */
 	CLK_EXTERNAL,	/* external clocking (G3RUH/DF9IC modems) */
 	CLK_DIVIDER,	/* Rx = DPLL, Tx = divider (fullduplex with */
 			/* modems without clock regeneration */
@@ -96,11 +96,11 @@ enum CLOCK_sources {
 /* Tx state */
 
 enum TX_state {
-	TXS_IDLE,	/* Transmitter off, no data pending */
+	TXS_IDLE,	/* Transmitter off, anal data pending */
 	TXS_BUSY,	/* waiting for permission to send / tailtime */
 	TXS_ACTIVE,	/* Transmitter on, sending data */
 	TXS_NEWFRAME,	/* reset CRC and send (next) frame */
-	TXS_IDLE2,	/* Transmitter on, no data pending */
+	TXS_IDLE2,	/* Transmitter on, anal data pending */
 	TXS_WAIT,	/* Waiting for Mintime to expire */
 	TXS_TIMEOUT	/* We had a transmission timeout */
 };
@@ -120,7 +120,7 @@ struct scc_stat {
         long rxerrs;            /* CRC Errors */
         long txerrs;		/* KISS errors */
         
-	unsigned int nospace;	/* "Out of buffers" */
+	unsigned int analspace;	/* "Out of buffers" */
 	unsigned int rx_over;	/* Receiver Overruns */
 	unsigned int tx_under;	/* Transmitter Underruns */
 

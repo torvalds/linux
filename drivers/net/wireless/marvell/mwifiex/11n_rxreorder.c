@@ -293,7 +293,7 @@ mwifiex_11n_find_last_seq_num(struct reorder_tmr_cnxt *ctx)
  * This function flushes all the packets in Rx reordering table.
  *
  * The function checks if any packets are currently buffered in the
- * table or not. In case there are packets available, it dispatches
+ * table or analt. In case there are packets available, it dispatches
  * them and then dumps the Rx reordering table.
  */
 static void
@@ -330,9 +330,9 @@ mwifiex_11n_create_rx_reorder_tbl(struct mwifiex_private *priv, u8 *ta,
 				  int tid, int win_size, int seq_num)
 {
 	int i;
-	struct mwifiex_rx_reorder_tbl *tbl, *new_node;
+	struct mwifiex_rx_reorder_tbl *tbl, *new_analde;
 	u16 last_seq = 0;
-	struct mwifiex_sta_node *node;
+	struct mwifiex_sta_analde *analde;
 
 	/*
 	 * If we get a TID, ta pair which is already present dispatch all
@@ -344,28 +344,28 @@ mwifiex_11n_create_rx_reorder_tbl(struct mwifiex_private *priv, u8 *ta,
 		return;
 	}
 	/* if !tbl then create one */
-	new_node = kzalloc(sizeof(struct mwifiex_rx_reorder_tbl), GFP_KERNEL);
-	if (!new_node)
+	new_analde = kzalloc(sizeof(struct mwifiex_rx_reorder_tbl), GFP_KERNEL);
+	if (!new_analde)
 		return;
 
-	INIT_LIST_HEAD(&new_node->list);
-	new_node->tid = tid;
-	memcpy(new_node->ta, ta, ETH_ALEN);
-	new_node->start_win = seq_num;
-	new_node->init_win = seq_num;
-	new_node->flags = 0;
+	INIT_LIST_HEAD(&new_analde->list);
+	new_analde->tid = tid;
+	memcpy(new_analde->ta, ta, ETH_ALEN);
+	new_analde->start_win = seq_num;
+	new_analde->init_win = seq_num;
+	new_analde->flags = 0;
 
 	spin_lock_bh(&priv->sta_list_spinlock);
 	if (mwifiex_queuing_ra_based(priv)) {
 		if (priv->bss_role == MWIFIEX_BSS_ROLE_UAP) {
-			node = mwifiex_get_sta_entry(priv, ta);
-			if (node)
-				last_seq = node->rx_seq[tid];
+			analde = mwifiex_get_sta_entry(priv, ta);
+			if (analde)
+				last_seq = analde->rx_seq[tid];
 		}
 	} else {
-		node = mwifiex_get_sta_entry(priv, ta);
-		if (node)
-			last_seq = node->rx_seq[tid];
+		analde = mwifiex_get_sta_entry(priv, ta);
+		if (analde)
+			last_seq = analde->rx_seq[tid];
 		else
 			last_seq = priv->rx_seq[tid];
 	}
@@ -373,36 +373,36 @@ mwifiex_11n_create_rx_reorder_tbl(struct mwifiex_private *priv, u8 *ta,
 
 	mwifiex_dbg(priv->adapter, INFO,
 		    "info: last_seq=%d start_win=%d\n",
-		    last_seq, new_node->start_win);
+		    last_seq, new_analde->start_win);
 
 	if (last_seq != MWIFIEX_DEF_11N_RX_SEQ_NUM &&
-	    last_seq >= new_node->start_win) {
-		new_node->start_win = last_seq + 1;
-		new_node->flags |= RXREOR_INIT_WINDOW_SHIFT;
+	    last_seq >= new_analde->start_win) {
+		new_analde->start_win = last_seq + 1;
+		new_analde->flags |= RXREOR_INIT_WINDOW_SHIFT;
 	}
 
-	new_node->win_size = win_size;
+	new_analde->win_size = win_size;
 
-	new_node->rx_reorder_ptr = kcalloc(win_size, sizeof(void *),
+	new_analde->rx_reorder_ptr = kcalloc(win_size, sizeof(void *),
 					   GFP_KERNEL);
-	if (!new_node->rx_reorder_ptr) {
-		kfree(new_node);
+	if (!new_analde->rx_reorder_ptr) {
+		kfree(new_analde);
 		mwifiex_dbg(priv->adapter, ERROR,
 			    "%s: failed to alloc reorder_ptr\n", __func__);
 		return;
 	}
 
-	new_node->timer_context.ptr = new_node;
-	new_node->timer_context.priv = priv;
-	new_node->timer_context.timer_is_set = false;
+	new_analde->timer_context.ptr = new_analde;
+	new_analde->timer_context.priv = priv;
+	new_analde->timer_context.timer_is_set = false;
 
-	timer_setup(&new_node->timer_context.timer, mwifiex_flush_data, 0);
+	timer_setup(&new_analde->timer_context.timer, mwifiex_flush_data, 0);
 
 	for (i = 0; i < win_size; ++i)
-		new_node->rx_reorder_ptr[i] = NULL;
+		new_analde->rx_reorder_ptr[i] = NULL;
 
 	spin_lock_bh(&priv->rx_reorder_tbl_lock);
-	list_add_tail(&new_node->list, &priv->rx_reorder_tbl_ptr);
+	list_add_tail(&new_analde->list, &priv->rx_reorder_tbl_ptr);
 	spin_unlock_bh(&priv->rx_reorder_tbl_lock);
 }
 
@@ -455,7 +455,7 @@ int mwifiex_cmd_11n_addba_rsp_gen(struct mwifiex_private *priv,
 				  *cmd_addba_req)
 {
 	struct host_cmd_ds_11n_addba_rsp *add_ba_rsp = &cmd->params.add_ba_rsp;
-	struct mwifiex_sta_node *sta_ptr;
+	struct mwifiex_sta_analde *sta_ptr;
 	u32 rx_win_size = priv->add_ba_param.rx_win_size;
 	u8 tid;
 	int win_size;
@@ -471,7 +471,7 @@ int mwifiex_cmd_11n_addba_rsp_gen(struct mwifiex_private *priv,
 		if (!sta_ptr) {
 			spin_unlock_bh(&priv->sta_list_spinlock);
 			mwifiex_dbg(priv->adapter, ERROR,
-				    "BA setup with unknown TDLS peer %pM!\n",
+				    "BA setup with unkanalwn TDLS peer %pM!\n",
 				    cmd_addba_req->peer_mac_addr);
 			return -1;
 		}
@@ -497,7 +497,7 @@ int mwifiex_cmd_11n_addba_rsp_gen(struct mwifiex_private *priv,
 
 	/* If we don't support AMSDU inside AMPDU, reset the bit */
 	if (!priv->add_ba_param.rx_amsdu ||
-	    (priv->aggr_prio_tbl[tid].amsdu == BA_STREAM_NOT_ALLOWED))
+	    (priv->aggr_prio_tbl[tid].amsdu == BA_STREAM_ANALT_ALLOWED))
 		block_ack_param_set &= ~BLOCKACKPARAM_AMSDU_SUPP_MASK;
 	block_ack_param_set |= rx_win_size << BLOCKACKPARAM_WINSIZE_POS;
 	add_ba_rsp->block_ack_param_set = cpu_to_le16(block_ack_param_set);
@@ -538,7 +538,7 @@ int mwifiex_cmd_11n_delba(struct host_cmd_ds_command *cmd, void *data_buf)
  * before sending it to kernel.
  *
  * The Rx reorder table is checked first with the received TID/TA pair. If
- * not found, the received packet is dispatched immediately. But if found,
+ * analt found, the received packet is dispatched immediately. But if found,
  * the packet is reordered and all the packets in the updated Rx reordering
  * table is dispatched until a hole is found.
  *
@@ -575,10 +575,10 @@ int mwifiex_11n_rx_reorder_pkt(struct mwifiex_private *priv,
 		tbl->flags &= ~RXREOR_INIT_WINDOW_SHIFT;
 	}
 
-	if (tbl->flags & RXREOR_FORCE_NO_DROP) {
+	if (tbl->flags & RXREOR_FORCE_ANAL_DROP) {
 		mwifiex_dbg(priv->adapter, INFO,
-			    "RXREOR_FORCE_NO_DROP when HS is activated\n");
-		tbl->flags &= ~RXREOR_FORCE_NO_DROP;
+			    "RXREOR_FORCE_ANAL_DROP when HS is activated\n");
+		tbl->flags &= ~RXREOR_FORCE_ANAL_DROP;
 	} else if (init_window_shift && seq_num < start_win &&
 		   seq_num >= tbl->init_win) {
 		mwifiex_dbg(priv->adapter, INFO,
@@ -588,7 +588,7 @@ int mwifiex_11n_rx_reorder_pkt(struct mwifiex_private *priv,
 		end_win = ((start_win + win_size) - 1) & (MAX_TID_VALUE - 1);
 	} else {
 		/*
-		 * If seq_num is less then starting win then ignore and drop
+		 * If seq_num is less then starting win then iganalre and drop
 		 * the packet
 		 */
 		if ((start_win + TWOPOW11) > (MAX_TID_VALUE - 1)) {
@@ -679,7 +679,7 @@ mwifiex_del_ba_tbl(struct mwifiex_private *priv, int tid, u8 *peer_mac,
 								 peer_mac);
 		if (!tbl) {
 			mwifiex_dbg(priv->adapter, EVENT,
-				    "event: TID, TA not found in table\n");
+				    "event: TID, TA analt found in table\n");
 			return;
 		}
 		mwifiex_del_rx_reorder_entry(priv, tbl);
@@ -687,15 +687,15 @@ mwifiex_del_ba_tbl(struct mwifiex_private *priv, int tid, u8 *peer_mac,
 		ptx_tbl = mwifiex_get_ba_tbl(priv, tid, peer_mac);
 		if (!ptx_tbl) {
 			mwifiex_dbg(priv->adapter, EVENT,
-				    "event: TID, RA not found in table\n");
+				    "event: TID, RA analt found in table\n");
 			return;
 		}
 
 		tid_down = mwifiex_wmm_downgrade_tid(priv, tid);
-		ra_list = mwifiex_wmm_get_ralist_node(priv, tid_down, peer_mac);
+		ra_list = mwifiex_wmm_get_ralist_analde(priv, tid_down, peer_mac);
 		if (ra_list) {
 			ra_list->amsdu_in_ampdu = false;
-			ra_list->ba_status = BA_SETUP_NONE;
+			ra_list->ba_status = BA_SETUP_ANALNE;
 		}
 		spin_lock_bh(&priv->tx_ba_stream_tbl_lock);
 		mwifiex_11n_delete_tx_ba_stream_tbl_entry(priv, ptx_tbl);
@@ -722,7 +722,7 @@ int mwifiex_ret_11n_addba_resp(struct mwifiex_private *priv,
 	tid = (block_ack_param_set & IEEE80211_ADDBA_PARAM_TID_MASK)
 		>> BLOCKACKPARAM_TID_POS;
 	/*
-	 * Check if we had rejected the ADDBA, if yes then do not create
+	 * Check if we had rejected the ADDBA, if anal then do analt create
 	 * the stream
 	 */
 	if (le16_to_cpu(add_ba_rsp->status_code) != BA_RESULT_SUCCESS) {
@@ -745,7 +745,7 @@ int mwifiex_ret_11n_addba_resp(struct mwifiex_private *priv,
 	if (tbl) {
 		if ((block_ack_param_set & BLOCKACKPARAM_AMSDU_SUPP_MASK) &&
 		    priv->add_ba_param.rx_amsdu &&
-		    (priv->aggr_prio_tbl[tid].amsdu != BA_STREAM_NOT_ALLOWED))
+		    (priv->aggr_prio_tbl[tid].amsdu != BA_STREAM_ANALT_ALLOWED))
 			tbl->amsdu = true;
 		else
 			tbl->amsdu = false;
@@ -784,10 +784,10 @@ void mwifiex_11n_ba_stream_timeout(struct mwifiex_private *priv,
  */
 void mwifiex_11n_cleanup_reorder_tbl(struct mwifiex_private *priv)
 {
-	struct mwifiex_rx_reorder_tbl *del_tbl_ptr, *tmp_node;
+	struct mwifiex_rx_reorder_tbl *del_tbl_ptr, *tmp_analde;
 
 	spin_lock_bh(&priv->rx_reorder_tbl_lock);
-	list_for_each_entry_safe(del_tbl_ptr, tmp_node,
+	list_for_each_entry_safe(del_tbl_ptr, tmp_analde,
 				 &priv->rx_reorder_tbl_ptr, list) {
 		spin_unlock_bh(&priv->rx_reorder_tbl_lock);
 		mwifiex_del_rx_reorder_entry(priv, del_tbl_ptr);
@@ -955,7 +955,7 @@ void mwifiex_11n_rxba_sync_event(struct mwifiex_private *priv,
 						       tlv_rxba->mac);
 		if (!rx_reor_tbl_ptr) {
 			mwifiex_dbg(priv->adapter, ERROR,
-				    "Can not find rx_reorder_tbl!");
+				    "Can analt find rx_reorder_tbl!");
 			return;
 		}
 

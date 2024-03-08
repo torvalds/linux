@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * fs/f2fs/node.c
+ * fs/f2fs/analde.c
  *
  * Copyright (c) 2012 Samsung Electronics Co., Ltd.
  *             http://www.samsung.com/
@@ -14,7 +14,7 @@
 #include <linux/swap.h>
 
 #include "f2fs.h"
-#include "node.h"
+#include "analde.h"
 #include "segment.h"
 #include "xattr.h"
 #include "iostat.h"
@@ -25,18 +25,18 @@
 static struct kmem_cache *nat_entry_slab;
 static struct kmem_cache *free_nid_slab;
 static struct kmem_cache *nat_entry_set_slab;
-static struct kmem_cache *fsync_node_entry_slab;
+static struct kmem_cache *fsync_analde_entry_slab;
 
 /*
- * Check whether the given nid is within node id range.
+ * Check whether the given nid is within analde id range.
  */
 int f2fs_check_nid_range(struct f2fs_sb_info *sbi, nid_t nid)
 {
-	if (unlikely(nid < F2FS_ROOT_INO(sbi) || nid >= NM_I(sbi)->max_nid)) {
+	if (unlikely(nid < F2FS_ROOT_IANAL(sbi) || nid >= NM_I(sbi)->max_nid)) {
 		set_sbi_flag(sbi, SBI_NEED_FSCK);
 		f2fs_warn(sbi, "%s: out-of-range nid=%x, run fsck to fix.",
 			  __func__, nid);
-		f2fs_handle_error(sbi, ERROR_CORRUPTED_INODE);
+		f2fs_handle_error(sbi, ERROR_CORRUPTED_IANALDE);
 		return -EFSCORRUPTED;
 	}
 	return 0;
@@ -77,12 +77,12 @@ bool f2fs_available_free_memory(struct f2fs_sb_info *sbi, int type)
 			return false;
 		mem_size = get_pages(sbi, F2FS_DIRTY_DENTS);
 		res = mem_size < ((avail_ram * nm_i->ram_thresh / 100) >> 1);
-	} else if (type == INO_ENTRIES) {
+	} else if (type == IANAL_ENTRIES) {
 		int i;
 
-		for (i = 0; i < MAX_INO_ENTRY; i++)
-			mem_size += sbi->im[i].ino_num *
-						sizeof(struct ino_entry);
+		for (i = 0; i < MAX_IANAL_ENTRY; i++)
+			mem_size += sbi->im[i].ianal_num *
+						sizeof(struct ianal_entry);
 		mem_size >>= PAGE_SHIFT;
 		res = mem_size < ((avail_ram * nm_i->ram_thresh / 100) >> 1);
 	} else if (type == READ_EXTENT_CACHE || type == AGE_EXTENT_CACHE) {
@@ -92,8 +92,8 @@ bool f2fs_available_free_memory(struct f2fs_sb_info *sbi, int type)
 
 		mem_size = (atomic_read(&eti->total_ext_tree) *
 				sizeof(struct extent_tree) +
-				atomic_read(&eti->total_ext_node) *
-				sizeof(struct extent_node)) >> PAGE_SHIFT;
+				atomic_read(&eti->total_ext_analde) *
+				sizeof(struct extent_analde)) >> PAGE_SHIFT;
 		res = mem_size < ((avail_ram * nm_i->ram_thresh / 100) >> 2);
 	} else if (type == DISCARD_CACHE) {
 		mem_size = (atomic_read(&dcc->discard_cmd_cnt) *
@@ -120,12 +120,12 @@ bool f2fs_available_free_memory(struct f2fs_sb_info *sbi, int type)
 	return res;
 }
 
-static void clear_node_page_dirty(struct page *page)
+static void clear_analde_page_dirty(struct page *page)
 {
 	if (PageDirty(page)) {
 		f2fs_clear_page_cache_dirty_tag(page);
 		clear_page_dirty_for_io(page);
-		dec_page_count(F2FS_P_SB(page), F2FS_DIRTY_NODES);
+		dec_page_count(F2FS_P_SB(page), F2FS_DIRTY_ANALDES);
 	}
 	ClearPageUptodate(page);
 }
@@ -165,12 +165,12 @@ static struct page *get_next_nat_page(struct f2fs_sb_info *sbi, nid_t nid)
 }
 
 static struct nat_entry *__alloc_nat_entry(struct f2fs_sb_info *sbi,
-						nid_t nid, bool no_fail)
+						nid_t nid, bool anal_fail)
 {
 	struct nat_entry *new;
 
 	new = f2fs_kmem_cache_alloc(nat_entry_slab,
-					GFP_F2FS_ZERO, no_fail, sbi);
+					GFP_F2FS_ZERO, anal_fail, sbi);
 	if (new) {
 		nat_set_nid(new, nid);
 		nat_reset_flag(new);
@@ -185,15 +185,15 @@ static void __free_nat_entry(struct nat_entry *e)
 
 /* must be locked by nat_tree_lock */
 static struct nat_entry *__init_nat_entry(struct f2fs_nm_info *nm_i,
-	struct nat_entry *ne, struct f2fs_nat_entry *raw_ne, bool no_fail)
+	struct nat_entry *ne, struct f2fs_nat_entry *raw_ne, bool anal_fail)
 {
-	if (no_fail)
+	if (anal_fail)
 		f2fs_radix_tree_insert(&nm_i->nat_root, nat_get_nid(ne), ne);
 	else if (radix_tree_insert(&nm_i->nat_root, nat_get_nid(ne), ne))
 		return NULL;
 
 	if (raw_ne)
-		node_info_from_raw_nat(&ne->ni, raw_ne);
+		analde_info_from_raw_nat(&ne->ni, raw_ne);
 
 	spin_lock(&nm_i->nat_list_lock);
 	list_add_tail(&ne->list, &nm_i->nat_entries);
@@ -244,7 +244,7 @@ static struct nat_entry_set *__grab_nat_entry_set(struct f2fs_nm_info *nm_i,
 	head = radix_tree_lookup(&nm_i->nat_set_root, set);
 	if (!head) {
 		head = f2fs_kmem_cache_alloc(nat_entry_set_slab,
-						GFP_NOFS, true, NULL);
+						GFP_ANALFS, true, NULL);
 
 		INIT_LIST_HEAD(&head->entry_list);
 		INIT_LIST_HEAD(&head->set_list);
@@ -310,71 +310,71 @@ static unsigned int __gang_lookup_nat_set(struct f2fs_nm_info *nm_i,
 							start, nr);
 }
 
-bool f2fs_in_warm_node_list(struct f2fs_sb_info *sbi, struct page *page)
+bool f2fs_in_warm_analde_list(struct f2fs_sb_info *sbi, struct page *page)
 {
-	return NODE_MAPPING(sbi) == page->mapping &&
-			IS_DNODE(page) && is_cold_node(page);
+	return ANALDE_MAPPING(sbi) == page->mapping &&
+			IS_DANALDE(page) && is_cold_analde(page);
 }
 
-void f2fs_init_fsync_node_info(struct f2fs_sb_info *sbi)
+void f2fs_init_fsync_analde_info(struct f2fs_sb_info *sbi)
 {
-	spin_lock_init(&sbi->fsync_node_lock);
-	INIT_LIST_HEAD(&sbi->fsync_node_list);
+	spin_lock_init(&sbi->fsync_analde_lock);
+	INIT_LIST_HEAD(&sbi->fsync_analde_list);
 	sbi->fsync_seg_id = 0;
-	sbi->fsync_node_num = 0;
+	sbi->fsync_analde_num = 0;
 }
 
-static unsigned int f2fs_add_fsync_node_entry(struct f2fs_sb_info *sbi,
+static unsigned int f2fs_add_fsync_analde_entry(struct f2fs_sb_info *sbi,
 							struct page *page)
 {
-	struct fsync_node_entry *fn;
+	struct fsync_analde_entry *fn;
 	unsigned long flags;
 	unsigned int seq_id;
 
-	fn = f2fs_kmem_cache_alloc(fsync_node_entry_slab,
-					GFP_NOFS, true, NULL);
+	fn = f2fs_kmem_cache_alloc(fsync_analde_entry_slab,
+					GFP_ANALFS, true, NULL);
 
 	get_page(page);
 	fn->page = page;
 	INIT_LIST_HEAD(&fn->list);
 
-	spin_lock_irqsave(&sbi->fsync_node_lock, flags);
-	list_add_tail(&fn->list, &sbi->fsync_node_list);
+	spin_lock_irqsave(&sbi->fsync_analde_lock, flags);
+	list_add_tail(&fn->list, &sbi->fsync_analde_list);
 	fn->seq_id = sbi->fsync_seg_id++;
 	seq_id = fn->seq_id;
-	sbi->fsync_node_num++;
-	spin_unlock_irqrestore(&sbi->fsync_node_lock, flags);
+	sbi->fsync_analde_num++;
+	spin_unlock_irqrestore(&sbi->fsync_analde_lock, flags);
 
 	return seq_id;
 }
 
-void f2fs_del_fsync_node_entry(struct f2fs_sb_info *sbi, struct page *page)
+void f2fs_del_fsync_analde_entry(struct f2fs_sb_info *sbi, struct page *page)
 {
-	struct fsync_node_entry *fn;
+	struct fsync_analde_entry *fn;
 	unsigned long flags;
 
-	spin_lock_irqsave(&sbi->fsync_node_lock, flags);
-	list_for_each_entry(fn, &sbi->fsync_node_list, list) {
+	spin_lock_irqsave(&sbi->fsync_analde_lock, flags);
+	list_for_each_entry(fn, &sbi->fsync_analde_list, list) {
 		if (fn->page == page) {
 			list_del(&fn->list);
-			sbi->fsync_node_num--;
-			spin_unlock_irqrestore(&sbi->fsync_node_lock, flags);
-			kmem_cache_free(fsync_node_entry_slab, fn);
+			sbi->fsync_analde_num--;
+			spin_unlock_irqrestore(&sbi->fsync_analde_lock, flags);
+			kmem_cache_free(fsync_analde_entry_slab, fn);
 			put_page(page);
 			return;
 		}
 	}
-	spin_unlock_irqrestore(&sbi->fsync_node_lock, flags);
+	spin_unlock_irqrestore(&sbi->fsync_analde_lock, flags);
 	f2fs_bug_on(sbi, 1);
 }
 
-void f2fs_reset_fsync_node_info(struct f2fs_sb_info *sbi)
+void f2fs_reset_fsync_analde_info(struct f2fs_sb_info *sbi)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&sbi->fsync_node_lock, flags);
+	spin_lock_irqsave(&sbi->fsync_analde_lock, flags);
 	sbi->fsync_seg_id = 0;
-	spin_unlock_irqrestore(&sbi->fsync_node_lock, flags);
+	spin_unlock_irqrestore(&sbi->fsync_analde_lock, flags);
 }
 
 int f2fs_need_dentry_mark(struct f2fs_sb_info *sbi, nid_t nid)
@@ -387,14 +387,14 @@ int f2fs_need_dentry_mark(struct f2fs_sb_info *sbi, nid_t nid)
 	e = __lookup_nat_cache(nm_i, nid);
 	if (e) {
 		if (!get_nat_flag(e, IS_CHECKPOINTED) &&
-				!get_nat_flag(e, HAS_FSYNCED_INODE))
+				!get_nat_flag(e, HAS_FSYNCED_IANALDE))
 			need = true;
 	}
 	f2fs_up_read(&nm_i->nat_tree_lock);
 	return need;
 }
 
-bool f2fs_is_checkpointed_node(struct f2fs_sb_info *sbi, nid_t nid)
+bool f2fs_is_checkpointed_analde(struct f2fs_sb_info *sbi, nid_t nid)
 {
 	struct f2fs_nm_info *nm_i = NM_I(sbi);
 	struct nat_entry *e;
@@ -408,17 +408,17 @@ bool f2fs_is_checkpointed_node(struct f2fs_sb_info *sbi, nid_t nid)
 	return is_cp;
 }
 
-bool f2fs_need_inode_block_update(struct f2fs_sb_info *sbi, nid_t ino)
+bool f2fs_need_ianalde_block_update(struct f2fs_sb_info *sbi, nid_t ianal)
 {
 	struct f2fs_nm_info *nm_i = NM_I(sbi);
 	struct nat_entry *e;
 	bool need_update = true;
 
 	f2fs_down_read(&nm_i->nat_tree_lock);
-	e = __lookup_nat_cache(nm_i, ino);
+	e = __lookup_nat_cache(nm_i, ianal);
 	if (e && get_nat_flag(e, HAS_LAST_FSYNC) &&
 			(get_nat_flag(e, IS_CHECKPOINTED) ||
-			 get_nat_flag(e, HAS_FSYNCED_INODE)))
+			 get_nat_flag(e, HAS_FSYNCED_IANALDE)))
 		need_update = false;
 	f2fs_up_read(&nm_i->nat_tree_lock);
 	return need_update;
@@ -444,7 +444,7 @@ static void cache_nat_entry(struct f2fs_sb_info *sbi, nid_t nid,
 	if (!e)
 		e = __init_nat_entry(nm_i, new, ne, false);
 	else
-		f2fs_bug_on(sbi, nat_get_ino(e) != le32_to_cpu(ne->ino) ||
+		f2fs_bug_on(sbi, nat_get_ianal(e) != le32_to_cpu(ne->ianal) ||
 				nat_get_blkaddr(e) !=
 					le32_to_cpu(ne->block_addr) ||
 				nat_get_version(e) != ne->version);
@@ -453,7 +453,7 @@ static void cache_nat_entry(struct f2fs_sb_info *sbi, nid_t nid,
 		__free_nat_entry(new);
 }
 
-static void set_node_addr(struct f2fs_sb_info *sbi, struct node_info *ni,
+static void set_analde_addr(struct f2fs_sb_info *sbi, struct analde_info *ni,
 			block_t new_blkaddr, bool fsync_done)
 {
 	struct f2fs_nm_info *nm_i = NM_I(sbi);
@@ -464,7 +464,7 @@ static void set_node_addr(struct f2fs_sb_info *sbi, struct node_info *ni,
 	e = __lookup_nat_cache(nm_i, ni->nid);
 	if (!e) {
 		e = __init_nat_entry(nm_i, new, NULL, true);
-		copy_node_info(&e->ni, ni);
+		copy_analde_info(&e->ni, ni);
 		f2fs_bug_on(sbi, ni->blk_addr == NEW_ADDR);
 	} else if (new_blkaddr == NEW_ADDR) {
 		/*
@@ -472,7 +472,7 @@ static void set_node_addr(struct f2fs_sb_info *sbi, struct node_info *ni,
 		 * previous nat entry can be remained in nat cache.
 		 * So, reinitialize it with new information.
 		 */
-		copy_node_info(&e->ni, ni);
+		copy_analde_info(&e->ni, ni);
 		f2fs_bug_on(sbi, ni->blk_addr != NULL_ADDR);
 	}
 	/* let's free early to reduce memory consumption */
@@ -488,11 +488,11 @@ static void set_node_addr(struct f2fs_sb_info *sbi, struct node_info *ni,
 	f2fs_bug_on(sbi, __is_valid_data_blkaddr(nat_get_blkaddr(e)) &&
 			new_blkaddr == NEW_ADDR);
 
-	/* increment version no as node is removed */
+	/* increment version anal as analde is removed */
 	if (nat_get_blkaddr(e) != NEW_ADDR && new_blkaddr == NULL_ADDR) {
 		unsigned char version = nat_get_version(e);
 
-		nat_set_version(e, inc_node_version(version));
+		nat_set_version(e, inc_analde_version(version));
 	}
 
 	/* change address */
@@ -501,12 +501,12 @@ static void set_node_addr(struct f2fs_sb_info *sbi, struct node_info *ni,
 		set_nat_flag(e, IS_CHECKPOINTED, false);
 	__set_nat_cache_dirty(nm_i, e);
 
-	/* update fsync_mark if its inode nat entry is still alive */
-	if (ni->nid != ni->ino)
-		e = __lookup_nat_cache(nm_i, ni->ino);
+	/* update fsync_mark if its ianalde nat entry is still alive */
+	if (ni->nid != ni->ianal)
+		e = __lookup_nat_cache(nm_i, ni->ianal);
 	if (e) {
-		if (fsync_done && ni->nid == ni->ino)
-			set_nat_flag(e, HAS_FSYNCED_INODE, true);
+		if (fsync_done && ni->nid == ni->ianal)
+			set_nat_flag(e, HAS_FSYNCED_IANALDE, true);
 		set_nat_flag(e, HAS_LAST_FSYNC, fsync_done);
 	}
 	f2fs_up_write(&nm_i->nat_tree_lock);
@@ -543,8 +543,8 @@ int f2fs_try_to_free_nats(struct f2fs_sb_info *sbi, int nr_shrink)
 	return nr - nr_shrink;
 }
 
-int f2fs_get_node_info(struct f2fs_sb_info *sbi, nid_t nid,
-				struct node_info *ni, bool checkpoint_context)
+int f2fs_get_analde_info(struct f2fs_sb_info *sbi, nid_t nid,
+				struct analde_info *ni, bool checkpoint_context)
 {
 	struct f2fs_nm_info *nm_i = NM_I(sbi);
 	struct curseg_info *curseg = CURSEG_I(sbi, CURSEG_HOT_DATA);
@@ -564,7 +564,7 @@ retry:
 	f2fs_down_read(&nm_i->nat_tree_lock);
 	e = __lookup_nat_cache(nm_i, nid);
 	if (e) {
-		ni->ino = nat_get_ino(e);
+		ni->ianal = nat_get_ianal(e);
 		ni->blk_addr = nat_get_blkaddr(e);
 		ni->version = nat_get_version(e);
 		f2fs_up_read(&nm_i->nat_tree_lock);
@@ -575,7 +575,7 @@ retry:
 	 * Check current segment summary by trying to grab journal_rwsem first.
 	 * This sem is on the critical path on the checkpoint requiring the above
 	 * nat_tree_lock. Therefore, we should retry, if we failed to grab here
-	 * while not bothering checkpoint.
+	 * while analt bothering checkpoint.
 	 */
 	if (!f2fs_rwsem_is_locked(&sbi->cp_global_sem) || checkpoint_context) {
 		down_read(&curseg->journal_rwsem);
@@ -588,7 +588,7 @@ retry:
 	i = f2fs_lookup_journal_in_cursum(journal, NAT_JOURNAL, nid, 0);
 	if (i >= 0) {
 		ne = nat_in_journal(journal, i);
-		node_info_from_raw_nat(ni, &ne);
+		analde_info_from_raw_nat(ni, &ne);
 	}
 	up_read(&curseg->journal_rwsem);
 	if (i >= 0) {
@@ -596,7 +596,7 @@ retry:
 		goto cache;
 	}
 
-	/* Fill node_info from nat page */
+	/* Fill analde_info from nat page */
 	index = current_nat_addr(sbi, nid);
 	f2fs_up_read(&nm_i->nat_tree_lock);
 
@@ -606,7 +606,7 @@ retry:
 
 	nat_blk = (struct f2fs_nat_block *)page_address(page);
 	ne = nat_blk->entries[nid - start_nid];
-	node_info_from_raw_nat(ni, &ne);
+	analde_info_from_raw_nat(ni, &ne);
 	f2fs_put_page(page, 1);
 cache:
 	blkaddr = le32_to_cpu(ne.block_addr);
@@ -620,9 +620,9 @@ cache:
 }
 
 /*
- * readahead MAX_RA_NODE number of node pages.
+ * readahead MAX_RA_ANALDE number of analde pages.
  */
-static void f2fs_ra_node_pages(struct page *parent, int start, int n)
+static void f2fs_ra_analde_pages(struct page *parent, int start, int n)
 {
 	struct f2fs_sb_info *sbi = F2FS_P_SB(parent);
 	struct blk_plug plug;
@@ -631,23 +631,23 @@ static void f2fs_ra_node_pages(struct page *parent, int start, int n)
 
 	blk_start_plug(&plug);
 
-	/* Then, try readahead for siblings of the desired node */
+	/* Then, try readahead for siblings of the desired analde */
 	end = start + n;
 	end = min(end, (int)NIDS_PER_BLOCK);
 	for (i = start; i < end; i++) {
 		nid = get_nid(parent, i, false);
-		f2fs_ra_node_page(sbi, nid);
+		f2fs_ra_analde_page(sbi, nid);
 	}
 
 	blk_finish_plug(&plug);
 }
 
-pgoff_t f2fs_get_next_page_offset(struct dnode_of_data *dn, pgoff_t pgofs)
+pgoff_t f2fs_get_next_page_offset(struct danalde_of_data *dn, pgoff_t pgofs)
 {
-	const long direct_index = ADDRS_PER_INODE(dn->inode);
-	const long direct_blks = ADDRS_PER_BLOCK(dn->inode);
-	const long indirect_blks = ADDRS_PER_BLOCK(dn->inode) * NIDS_PER_BLOCK;
-	unsigned int skipped_unit = ADDRS_PER_BLOCK(dn->inode);
+	const long direct_index = ADDRS_PER_IANALDE(dn->ianalde);
+	const long direct_blks = ADDRS_PER_BLOCK(dn->ianalde);
+	const long indirect_blks = ADDRS_PER_BLOCK(dn->ianalde) * NIDS_PER_BLOCK;
+	unsigned int skipped_unit = ADDRS_PER_BLOCK(dn->ianalde);
 	int cur_level = dn->cur_level;
 	int max_level = dn->max_level;
 	pgoff_t base = 0;
@@ -669,7 +669,7 @@ pgoff_t f2fs_get_next_page_offset(struct dnode_of_data *dn, pgoff_t pgofs)
 		base += direct_index;
 		break;
 	default:
-		f2fs_bug_on(F2FS_I_SB(dn->inode), 1);
+		f2fs_bug_on(F2FS_I_SB(dn->ianalde), 1);
 	}
 
 	return ((pgofs - base) / skipped_unit + 1) * skipped_unit + base;
@@ -677,20 +677,20 @@ pgoff_t f2fs_get_next_page_offset(struct dnode_of_data *dn, pgoff_t pgofs)
 
 /*
  * The maximum depth is four.
- * Offset[0] will have raw inode offset.
+ * Offset[0] will have raw ianalde offset.
  */
-static int get_node_path(struct inode *inode, long block,
-				int offset[4], unsigned int noffset[4])
+static int get_analde_path(struct ianalde *ianalde, long block,
+				int offset[4], unsigned int analffset[4])
 {
-	const long direct_index = ADDRS_PER_INODE(inode);
-	const long direct_blks = ADDRS_PER_BLOCK(inode);
+	const long direct_index = ADDRS_PER_IANALDE(ianalde);
+	const long direct_blks = ADDRS_PER_BLOCK(ianalde);
 	const long dptrs_per_blk = NIDS_PER_BLOCK;
-	const long indirect_blks = ADDRS_PER_BLOCK(inode) * NIDS_PER_BLOCK;
+	const long indirect_blks = ADDRS_PER_BLOCK(ianalde) * NIDS_PER_BLOCK;
 	const long dindirect_blks = indirect_blks * NIDS_PER_BLOCK;
 	int n = 0;
 	int level = 0;
 
-	noffset[0] = 0;
+	analffset[0] = 0;
 
 	if (block < direct_index) {
 		offset[n] = block;
@@ -698,49 +698,49 @@ static int get_node_path(struct inode *inode, long block,
 	}
 	block -= direct_index;
 	if (block < direct_blks) {
-		offset[n++] = NODE_DIR1_BLOCK;
-		noffset[n] = 1;
+		offset[n++] = ANALDE_DIR1_BLOCK;
+		analffset[n] = 1;
 		offset[n] = block;
 		level = 1;
 		goto got;
 	}
 	block -= direct_blks;
 	if (block < direct_blks) {
-		offset[n++] = NODE_DIR2_BLOCK;
-		noffset[n] = 2;
+		offset[n++] = ANALDE_DIR2_BLOCK;
+		analffset[n] = 2;
 		offset[n] = block;
 		level = 1;
 		goto got;
 	}
 	block -= direct_blks;
 	if (block < indirect_blks) {
-		offset[n++] = NODE_IND1_BLOCK;
-		noffset[n] = 3;
+		offset[n++] = ANALDE_IND1_BLOCK;
+		analffset[n] = 3;
 		offset[n++] = block / direct_blks;
-		noffset[n] = 4 + offset[n - 1];
+		analffset[n] = 4 + offset[n - 1];
 		offset[n] = block % direct_blks;
 		level = 2;
 		goto got;
 	}
 	block -= indirect_blks;
 	if (block < indirect_blks) {
-		offset[n++] = NODE_IND2_BLOCK;
-		noffset[n] = 4 + dptrs_per_blk;
+		offset[n++] = ANALDE_IND2_BLOCK;
+		analffset[n] = 4 + dptrs_per_blk;
 		offset[n++] = block / direct_blks;
-		noffset[n] = 5 + dptrs_per_blk + offset[n - 1];
+		analffset[n] = 5 + dptrs_per_blk + offset[n - 1];
 		offset[n] = block % direct_blks;
 		level = 2;
 		goto got;
 	}
 	block -= indirect_blks;
 	if (block < dindirect_blks) {
-		offset[n++] = NODE_DIND_BLOCK;
-		noffset[n] = 5 + (dptrs_per_blk * 2);
+		offset[n++] = ANALDE_DIND_BLOCK;
+		analffset[n] = 5 + (dptrs_per_blk * 2);
 		offset[n++] = block / indirect_blks;
-		noffset[n] = 6 + (dptrs_per_blk * 2) +
+		analffset[n] = 6 + (dptrs_per_blk * 2) +
 			      offset[n - 1] * (dptrs_per_blk + 1);
 		offset[n++] = (block / direct_blks) % dptrs_per_blk;
-		noffset[n] = 7 + (dptrs_per_blk * 2) +
+		analffset[n] = 7 + (dptrs_per_blk * 2) +
 			      offset[n - 2] * (dptrs_per_blk + 1) +
 			      offset[n - 1];
 		offset[n] = block % direct_blks;
@@ -754,37 +754,37 @@ got:
 }
 
 /*
- * Caller should call f2fs_put_dnode(dn).
+ * Caller should call f2fs_put_danalde(dn).
  * Also, it should grab and release a rwsem by calling f2fs_lock_op() and
- * f2fs_unlock_op() only if mode is set with ALLOC_NODE.
+ * f2fs_unlock_op() only if mode is set with ALLOC_ANALDE.
  */
-int f2fs_get_dnode_of_data(struct dnode_of_data *dn, pgoff_t index, int mode)
+int f2fs_get_danalde_of_data(struct danalde_of_data *dn, pgoff_t index, int mode)
 {
-	struct f2fs_sb_info *sbi = F2FS_I_SB(dn->inode);
+	struct f2fs_sb_info *sbi = F2FS_I_SB(dn->ianalde);
 	struct page *npage[4];
 	struct page *parent = NULL;
 	int offset[4];
-	unsigned int noffset[4];
+	unsigned int analffset[4];
 	nid_t nids[4];
 	int level, i = 0;
 	int err = 0;
 
-	level = get_node_path(dn->inode, index, offset, noffset);
+	level = get_analde_path(dn->ianalde, index, offset, analffset);
 	if (level < 0)
 		return level;
 
-	nids[0] = dn->inode->i_ino;
-	npage[0] = dn->inode_page;
+	nids[0] = dn->ianalde->i_ianal;
+	npage[0] = dn->ianalde_page;
 
 	if (!npage[0]) {
-		npage[0] = f2fs_get_node_page(sbi, nids[0]);
+		npage[0] = f2fs_get_analde_page(sbi, nids[0]);
 		if (IS_ERR(npage[0]))
 			return PTR_ERR(npage[0]);
 	}
 
-	/* if inline_data is set, should not report any block indices */
-	if (f2fs_has_inline_data(dn->inode) && index) {
-		err = -ENOENT;
+	/* if inline_data is set, should analt report any block indices */
+	if (f2fs_has_inline_data(dn->ianalde) && index) {
+		err = -EANALENT;
 		f2fs_put_page(npage[0], 1);
 		goto release_out;
 	}
@@ -792,22 +792,22 @@ int f2fs_get_dnode_of_data(struct dnode_of_data *dn, pgoff_t index, int mode)
 	parent = npage[0];
 	if (level != 0)
 		nids[1] = get_nid(parent, offset[0], true);
-	dn->inode_page = npage[0];
-	dn->inode_page_locked = true;
+	dn->ianalde_page = npage[0];
+	dn->ianalde_page_locked = true;
 
-	/* get indirect or direct nodes */
+	/* get indirect or direct analdes */
 	for (i = 1; i <= level; i++) {
 		bool done = false;
 
-		if (!nids[i] && mode == ALLOC_NODE) {
-			/* alloc new node */
+		if (!nids[i] && mode == ALLOC_ANALDE) {
+			/* alloc new analde */
 			if (!f2fs_alloc_nid(sbi, &(nids[i]))) {
-				err = -ENOSPC;
+				err = -EANALSPC;
 				goto release_pages;
 			}
 
 			dn->nid = nids[i];
-			npage[i] = f2fs_new_node_page(dn, noffset[i]);
+			npage[i] = f2fs_new_analde_page(dn, analffset[i]);
 			if (IS_ERR(npage[i])) {
 				f2fs_alloc_nid_failed(sbi, nids[i]);
 				err = PTR_ERR(npage[i]);
@@ -817,8 +817,8 @@ int f2fs_get_dnode_of_data(struct dnode_of_data *dn, pgoff_t index, int mode)
 			set_nid(parent, offset[i - 1], nids[i], i == 1);
 			f2fs_alloc_nid_done(sbi, nids[i]);
 			done = true;
-		} else if (mode == LOOKUP_NODE_RA && i == level && level > 1) {
-			npage[i] = f2fs_get_node_page_ra(parent, offset[i - 1]);
+		} else if (mode == LOOKUP_ANALDE_RA && i == level && level > 1) {
+			npage[i] = f2fs_get_analde_page_ra(parent, offset[i - 1]);
 			if (IS_ERR(npage[i])) {
 				err = PTR_ERR(npage[i]);
 				goto release_pages;
@@ -826,14 +826,14 @@ int f2fs_get_dnode_of_data(struct dnode_of_data *dn, pgoff_t index, int mode)
 			done = true;
 		}
 		if (i == 1) {
-			dn->inode_page_locked = false;
+			dn->ianalde_page_locked = false;
 			unlock_page(parent);
 		} else {
 			f2fs_put_page(parent, 1);
 		}
 
 		if (!done) {
-			npage[i] = f2fs_get_node_page(sbi, nids[i]);
+			npage[i] = f2fs_get_analde_page(sbi, nids[i]);
 			if (IS_ERR(npage[i])) {
 				err = PTR_ERR(npage[i]);
 				f2fs_put_page(npage[0], 0);
@@ -846,11 +846,11 @@ int f2fs_get_dnode_of_data(struct dnode_of_data *dn, pgoff_t index, int mode)
 		}
 	}
 	dn->nid = nids[level];
-	dn->ofs_in_node = offset[level];
-	dn->node_page = npage[level];
+	dn->ofs_in_analde = offset[level];
+	dn->analde_page = npage[level];
 	dn->data_blkaddr = f2fs_data_blkaddr(dn);
 
-	if (is_inode_flag_set(dn->inode, FI_COMPRESSED_FILE) &&
+	if (is_ianalde_flag_set(dn->ianalde, FI_COMPRESSED_FILE) &&
 					f2fs_sb_has_readonly(sbi)) {
 		unsigned int c_len = f2fs_cluster_blocks_are_contiguous(dn);
 		block_t blkaddr;
@@ -860,12 +860,12 @@ int f2fs_get_dnode_of_data(struct dnode_of_data *dn, pgoff_t index, int mode)
 
 		blkaddr = f2fs_data_blkaddr(dn);
 		if (blkaddr == COMPRESS_ADDR)
-			blkaddr = data_blkaddr(dn->inode, dn->node_page,
-						dn->ofs_in_node + 1);
+			blkaddr = data_blkaddr(dn->ianalde, dn->analde_page,
+						dn->ofs_in_analde + 1);
 
-		f2fs_update_read_extent_tree_range_compressed(dn->inode,
+		f2fs_update_read_extent_tree_range_compressed(dn->ianalde,
 					index, blkaddr,
-					F2FS_I(dn->inode)->i_cluster_size,
+					F2FS_I(dn->ianalde)->i_cluster_size,
 					c_len);
 	}
 out:
@@ -876,83 +876,83 @@ release_pages:
 	if (i > 1)
 		f2fs_put_page(npage[0], 0);
 release_out:
-	dn->inode_page = NULL;
-	dn->node_page = NULL;
-	if (err == -ENOENT) {
+	dn->ianalde_page = NULL;
+	dn->analde_page = NULL;
+	if (err == -EANALENT) {
 		dn->cur_level = i;
 		dn->max_level = level;
-		dn->ofs_in_node = offset[level];
+		dn->ofs_in_analde = offset[level];
 	}
 	return err;
 }
 
-static int truncate_node(struct dnode_of_data *dn)
+static int truncate_analde(struct danalde_of_data *dn)
 {
-	struct f2fs_sb_info *sbi = F2FS_I_SB(dn->inode);
-	struct node_info ni;
+	struct f2fs_sb_info *sbi = F2FS_I_SB(dn->ianalde);
+	struct analde_info ni;
 	int err;
 	pgoff_t index;
 
-	err = f2fs_get_node_info(sbi, dn->nid, &ni, false);
+	err = f2fs_get_analde_info(sbi, dn->nid, &ni, false);
 	if (err)
 		return err;
 
-	/* Deallocate node address */
+	/* Deallocate analde address */
 	f2fs_invalidate_blocks(sbi, ni.blk_addr);
-	dec_valid_node_count(sbi, dn->inode, dn->nid == dn->inode->i_ino);
-	set_node_addr(sbi, &ni, NULL_ADDR, false);
+	dec_valid_analde_count(sbi, dn->ianalde, dn->nid == dn->ianalde->i_ianal);
+	set_analde_addr(sbi, &ni, NULL_ADDR, false);
 
-	if (dn->nid == dn->inode->i_ino) {
-		f2fs_remove_orphan_inode(sbi, dn->nid);
-		dec_valid_inode_count(sbi);
-		f2fs_inode_synced(dn->inode);
+	if (dn->nid == dn->ianalde->i_ianal) {
+		f2fs_remove_orphan_ianalde(sbi, dn->nid);
+		dec_valid_ianalde_count(sbi);
+		f2fs_ianalde_synced(dn->ianalde);
 	}
 
-	clear_node_page_dirty(dn->node_page);
+	clear_analde_page_dirty(dn->analde_page);
 	set_sbi_flag(sbi, SBI_IS_DIRTY);
 
-	index = dn->node_page->index;
-	f2fs_put_page(dn->node_page, 1);
+	index = dn->analde_page->index;
+	f2fs_put_page(dn->analde_page, 1);
 
-	invalidate_mapping_pages(NODE_MAPPING(sbi),
+	invalidate_mapping_pages(ANALDE_MAPPING(sbi),
 			index, index);
 
-	dn->node_page = NULL;
-	trace_f2fs_truncate_node(dn->inode, dn->nid, ni.blk_addr);
+	dn->analde_page = NULL;
+	trace_f2fs_truncate_analde(dn->ianalde, dn->nid, ni.blk_addr);
 
 	return 0;
 }
 
-static int truncate_dnode(struct dnode_of_data *dn)
+static int truncate_danalde(struct danalde_of_data *dn)
 {
-	struct f2fs_sb_info *sbi = F2FS_I_SB(dn->inode);
+	struct f2fs_sb_info *sbi = F2FS_I_SB(dn->ianalde);
 	struct page *page;
 	int err;
 
 	if (dn->nid == 0)
 		return 1;
 
-	/* get direct node */
-	page = f2fs_get_node_page(sbi, dn->nid);
-	if (PTR_ERR(page) == -ENOENT)
+	/* get direct analde */
+	page = f2fs_get_analde_page(sbi, dn->nid);
+	if (PTR_ERR(page) == -EANALENT)
 		return 1;
 	else if (IS_ERR(page))
 		return PTR_ERR(page);
 
-	if (IS_INODE(page) || ino_of_node(page) != dn->inode->i_ino) {
-		f2fs_err(sbi, "incorrect node reference, ino: %lu, nid: %u, ino_of_node: %u",
-				dn->inode->i_ino, dn->nid, ino_of_node(page));
+	if (IS_IANALDE(page) || ianal_of_analde(page) != dn->ianalde->i_ianal) {
+		f2fs_err(sbi, "incorrect analde reference, ianal: %lu, nid: %u, ianal_of_analde: %u",
+				dn->ianalde->i_ianal, dn->nid, ianal_of_analde(page));
 		set_sbi_flag(sbi, SBI_NEED_FSCK);
-		f2fs_handle_error(sbi, ERROR_INVALID_NODE_REFERENCE);
+		f2fs_handle_error(sbi, ERROR_INVALID_ANALDE_REFERENCE);
 		f2fs_put_page(page, 1);
 		return -EFSCORRUPTED;
 	}
 
-	/* Make dnode_of_data for parameter */
-	dn->node_page = page;
-	dn->ofs_in_node = 0;
-	f2fs_truncate_data_blocks_range(dn, ADDRS_PER_BLOCK(dn->inode));
-	err = truncate_node(dn);
+	/* Make danalde_of_data for parameter */
+	dn->analde_page = page;
+	dn->ofs_in_analde = 0;
+	f2fs_truncate_data_blocks_range(dn, ADDRS_PER_BLOCK(dn->ianalde));
+	err = truncate_analde(dn);
 	if (err) {
 		f2fs_put_page(page, 1);
 		return err;
@@ -961,85 +961,85 @@ static int truncate_dnode(struct dnode_of_data *dn)
 	return 1;
 }
 
-static int truncate_nodes(struct dnode_of_data *dn, unsigned int nofs,
+static int truncate_analdes(struct danalde_of_data *dn, unsigned int analfs,
 						int ofs, int depth)
 {
-	struct dnode_of_data rdn = *dn;
+	struct danalde_of_data rdn = *dn;
 	struct page *page;
-	struct f2fs_node *rn;
+	struct f2fs_analde *rn;
 	nid_t child_nid;
-	unsigned int child_nofs;
+	unsigned int child_analfs;
 	int freed = 0;
 	int i, ret;
 
 	if (dn->nid == 0)
 		return NIDS_PER_BLOCK + 1;
 
-	trace_f2fs_truncate_nodes_enter(dn->inode, dn->nid, dn->data_blkaddr);
+	trace_f2fs_truncate_analdes_enter(dn->ianalde, dn->nid, dn->data_blkaddr);
 
-	page = f2fs_get_node_page(F2FS_I_SB(dn->inode), dn->nid);
+	page = f2fs_get_analde_page(F2FS_I_SB(dn->ianalde), dn->nid);
 	if (IS_ERR(page)) {
-		trace_f2fs_truncate_nodes_exit(dn->inode, PTR_ERR(page));
+		trace_f2fs_truncate_analdes_exit(dn->ianalde, PTR_ERR(page));
 		return PTR_ERR(page);
 	}
 
-	f2fs_ra_node_pages(page, ofs, NIDS_PER_BLOCK);
+	f2fs_ra_analde_pages(page, ofs, NIDS_PER_BLOCK);
 
-	rn = F2FS_NODE(page);
+	rn = F2FS_ANALDE(page);
 	if (depth < 3) {
 		for (i = ofs; i < NIDS_PER_BLOCK; i++, freed++) {
 			child_nid = le32_to_cpu(rn->in.nid[i]);
 			if (child_nid == 0)
 				continue;
 			rdn.nid = child_nid;
-			ret = truncate_dnode(&rdn);
+			ret = truncate_danalde(&rdn);
 			if (ret < 0)
 				goto out_err;
 			if (set_nid(page, i, 0, false))
-				dn->node_changed = true;
+				dn->analde_changed = true;
 		}
 	} else {
-		child_nofs = nofs + ofs * (NIDS_PER_BLOCK + 1) + 1;
+		child_analfs = analfs + ofs * (NIDS_PER_BLOCK + 1) + 1;
 		for (i = ofs; i < NIDS_PER_BLOCK; i++) {
 			child_nid = le32_to_cpu(rn->in.nid[i]);
 			if (child_nid == 0) {
-				child_nofs += NIDS_PER_BLOCK + 1;
+				child_analfs += NIDS_PER_BLOCK + 1;
 				continue;
 			}
 			rdn.nid = child_nid;
-			ret = truncate_nodes(&rdn, child_nofs, 0, depth - 1);
+			ret = truncate_analdes(&rdn, child_analfs, 0, depth - 1);
 			if (ret == (NIDS_PER_BLOCK + 1)) {
 				if (set_nid(page, i, 0, false))
-					dn->node_changed = true;
-				child_nofs += ret;
-			} else if (ret < 0 && ret != -ENOENT) {
+					dn->analde_changed = true;
+				child_analfs += ret;
+			} else if (ret < 0 && ret != -EANALENT) {
 				goto out_err;
 			}
 		}
-		freed = child_nofs;
+		freed = child_analfs;
 	}
 
 	if (!ofs) {
-		/* remove current indirect node */
-		dn->node_page = page;
-		ret = truncate_node(dn);
+		/* remove current indirect analde */
+		dn->analde_page = page;
+		ret = truncate_analde(dn);
 		if (ret)
 			goto out_err;
 		freed++;
 	} else {
 		f2fs_put_page(page, 1);
 	}
-	trace_f2fs_truncate_nodes_exit(dn->inode, freed);
+	trace_f2fs_truncate_analdes_exit(dn->ianalde, freed);
 	return freed;
 
 out_err:
 	f2fs_put_page(page, 1);
-	trace_f2fs_truncate_nodes_exit(dn->inode, ret);
+	trace_f2fs_truncate_analdes_exit(dn->ianalde, ret);
 	return ret;
 }
 
-static int truncate_partial_nodes(struct dnode_of_data *dn,
-			struct f2fs_inode *ri, int *offset, int depth)
+static int truncate_partial_analdes(struct danalde_of_data *dn,
+			struct f2fs_ianalde *ri, int *offset, int depth)
 {
 	struct page *pages[2];
 	nid_t nid[3];
@@ -1048,14 +1048,14 @@ static int truncate_partial_nodes(struct dnode_of_data *dn,
 	int i;
 	int idx = depth - 2;
 
-	nid[0] = le32_to_cpu(ri->i_nid[offset[0] - NODE_DIR1_BLOCK]);
+	nid[0] = le32_to_cpu(ri->i_nid[offset[0] - ANALDE_DIR1_BLOCK]);
 	if (!nid[0])
 		return 0;
 
-	/* get indirect nodes in the path */
+	/* get indirect analdes in the path */
 	for (i = 0; i < idx + 1; i++) {
 		/* reference count'll be increased */
-		pages[i] = f2fs_get_node_page(F2FS_I_SB(dn->inode), nid[i]);
+		pages[i] = f2fs_get_analde_page(F2FS_I_SB(dn->ianalde), nid[i]);
 		if (IS_ERR(pages[i])) {
 			err = PTR_ERR(pages[i]);
 			idx = i - 1;
@@ -1064,25 +1064,25 @@ static int truncate_partial_nodes(struct dnode_of_data *dn,
 		nid[i + 1] = get_nid(pages[i], offset[i + 1], false);
 	}
 
-	f2fs_ra_node_pages(pages[idx], offset[idx + 1], NIDS_PER_BLOCK);
+	f2fs_ra_analde_pages(pages[idx], offset[idx + 1], NIDS_PER_BLOCK);
 
-	/* free direct nodes linked to a partial indirect node */
+	/* free direct analdes linked to a partial indirect analde */
 	for (i = offset[idx + 1]; i < NIDS_PER_BLOCK; i++) {
 		child_nid = get_nid(pages[idx], i, false);
 		if (!child_nid)
 			continue;
 		dn->nid = child_nid;
-		err = truncate_dnode(dn);
+		err = truncate_danalde(dn);
 		if (err < 0)
 			goto fail;
 		if (set_nid(pages[idx], i, 0, false))
-			dn->node_changed = true;
+			dn->analde_changed = true;
 	}
 
 	if (offset[idx + 1] == 0) {
-		dn->node_page = pages[idx];
+		dn->analde_page = pages[idx];
 		dn->nid = nid[idx];
-		err = truncate_node(dn);
+		err = truncate_analde(dn);
 		if (err)
 			goto fail;
 	} else {
@@ -1095,62 +1095,62 @@ fail:
 	for (i = idx; i >= 0; i--)
 		f2fs_put_page(pages[i], 1);
 
-	trace_f2fs_truncate_partial_nodes(dn->inode, nid, depth, err);
+	trace_f2fs_truncate_partial_analdes(dn->ianalde, nid, depth, err);
 
 	return err;
 }
 
 /*
- * All the block addresses of data and nodes should be nullified.
+ * All the block addresses of data and analdes should be nullified.
  */
-int f2fs_truncate_inode_blocks(struct inode *inode, pgoff_t from)
+int f2fs_truncate_ianalde_blocks(struct ianalde *ianalde, pgoff_t from)
 {
-	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
+	struct f2fs_sb_info *sbi = F2FS_I_SB(ianalde);
 	int err = 0, cont = 1;
-	int level, offset[4], noffset[4];
-	unsigned int nofs = 0;
-	struct f2fs_inode *ri;
-	struct dnode_of_data dn;
+	int level, offset[4], analffset[4];
+	unsigned int analfs = 0;
+	struct f2fs_ianalde *ri;
+	struct danalde_of_data dn;
 	struct page *page;
 
-	trace_f2fs_truncate_inode_blocks_enter(inode, from);
+	trace_f2fs_truncate_ianalde_blocks_enter(ianalde, from);
 
-	level = get_node_path(inode, from, offset, noffset);
+	level = get_analde_path(ianalde, from, offset, analffset);
 	if (level < 0) {
-		trace_f2fs_truncate_inode_blocks_exit(inode, level);
+		trace_f2fs_truncate_ianalde_blocks_exit(ianalde, level);
 		return level;
 	}
 
-	page = f2fs_get_node_page(sbi, inode->i_ino);
+	page = f2fs_get_analde_page(sbi, ianalde->i_ianal);
 	if (IS_ERR(page)) {
-		trace_f2fs_truncate_inode_blocks_exit(inode, PTR_ERR(page));
+		trace_f2fs_truncate_ianalde_blocks_exit(ianalde, PTR_ERR(page));
 		return PTR_ERR(page);
 	}
 
-	set_new_dnode(&dn, inode, page, NULL, 0);
+	set_new_danalde(&dn, ianalde, page, NULL, 0);
 	unlock_page(page);
 
-	ri = F2FS_INODE(page);
+	ri = F2FS_IANALDE(page);
 	switch (level) {
 	case 0:
 	case 1:
-		nofs = noffset[1];
+		analfs = analffset[1];
 		break;
 	case 2:
-		nofs = noffset[1];
+		analfs = analffset[1];
 		if (!offset[level - 1])
 			goto skip_partial;
-		err = truncate_partial_nodes(&dn, ri, offset, level);
-		if (err < 0 && err != -ENOENT)
+		err = truncate_partial_analdes(&dn, ri, offset, level);
+		if (err < 0 && err != -EANALENT)
 			goto fail;
-		nofs += 1 + NIDS_PER_BLOCK;
+		analfs += 1 + NIDS_PER_BLOCK;
 		break;
 	case 3:
-		nofs = 5 + 2 * NIDS_PER_BLOCK;
+		analfs = 5 + 2 * NIDS_PER_BLOCK;
 		if (!offset[level - 1])
 			goto skip_partial;
-		err = truncate_partial_nodes(&dn, ri, offset, level);
-		if (err < 0 && err != -ENOENT)
+		err = truncate_partial_analdes(&dn, ri, offset, level);
+		if (err < 0 && err != -EANALENT)
 			goto fail;
 		break;
 	default:
@@ -1159,71 +1159,71 @@ int f2fs_truncate_inode_blocks(struct inode *inode, pgoff_t from)
 
 skip_partial:
 	while (cont) {
-		dn.nid = le32_to_cpu(ri->i_nid[offset[0] - NODE_DIR1_BLOCK]);
+		dn.nid = le32_to_cpu(ri->i_nid[offset[0] - ANALDE_DIR1_BLOCK]);
 		switch (offset[0]) {
-		case NODE_DIR1_BLOCK:
-		case NODE_DIR2_BLOCK:
-			err = truncate_dnode(&dn);
+		case ANALDE_DIR1_BLOCK:
+		case ANALDE_DIR2_BLOCK:
+			err = truncate_danalde(&dn);
 			break;
 
-		case NODE_IND1_BLOCK:
-		case NODE_IND2_BLOCK:
-			err = truncate_nodes(&dn, nofs, offset[1], 2);
+		case ANALDE_IND1_BLOCK:
+		case ANALDE_IND2_BLOCK:
+			err = truncate_analdes(&dn, analfs, offset[1], 2);
 			break;
 
-		case NODE_DIND_BLOCK:
-			err = truncate_nodes(&dn, nofs, offset[1], 3);
+		case ANALDE_DIND_BLOCK:
+			err = truncate_analdes(&dn, analfs, offset[1], 3);
 			cont = 0;
 			break;
 
 		default:
 			BUG();
 		}
-		if (err < 0 && err != -ENOENT)
+		if (err < 0 && err != -EANALENT)
 			goto fail;
 		if (offset[1] == 0 &&
-				ri->i_nid[offset[0] - NODE_DIR1_BLOCK]) {
+				ri->i_nid[offset[0] - ANALDE_DIR1_BLOCK]) {
 			lock_page(page);
-			BUG_ON(page->mapping != NODE_MAPPING(sbi));
-			f2fs_wait_on_page_writeback(page, NODE, true, true);
-			ri->i_nid[offset[0] - NODE_DIR1_BLOCK] = 0;
+			BUG_ON(page->mapping != ANALDE_MAPPING(sbi));
+			f2fs_wait_on_page_writeback(page, ANALDE, true, true);
+			ri->i_nid[offset[0] - ANALDE_DIR1_BLOCK] = 0;
 			set_page_dirty(page);
 			unlock_page(page);
 		}
 		offset[1] = 0;
 		offset[0]++;
-		nofs += err;
+		analfs += err;
 	}
 fail:
 	f2fs_put_page(page, 0);
-	trace_f2fs_truncate_inode_blocks_exit(inode, err);
+	trace_f2fs_truncate_ianalde_blocks_exit(ianalde, err);
 	return err > 0 ? 0 : err;
 }
 
-/* caller must lock inode page */
-int f2fs_truncate_xattr_node(struct inode *inode)
+/* caller must lock ianalde page */
+int f2fs_truncate_xattr_analde(struct ianalde *ianalde)
 {
-	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
-	nid_t nid = F2FS_I(inode)->i_xattr_nid;
-	struct dnode_of_data dn;
+	struct f2fs_sb_info *sbi = F2FS_I_SB(ianalde);
+	nid_t nid = F2FS_I(ianalde)->i_xattr_nid;
+	struct danalde_of_data dn;
 	struct page *npage;
 	int err;
 
 	if (!nid)
 		return 0;
 
-	npage = f2fs_get_node_page(sbi, nid);
+	npage = f2fs_get_analde_page(sbi, nid);
 	if (IS_ERR(npage))
 		return PTR_ERR(npage);
 
-	set_new_dnode(&dn, inode, NULL, npage, nid);
-	err = truncate_node(&dn);
+	set_new_danalde(&dn, ianalde, NULL, npage, nid);
+	err = truncate_analde(&dn);
 	if (err) {
 		f2fs_put_page(npage, 1);
 		return err;
 	}
 
-	f2fs_i_xnid_write(inode, 0);
+	f2fs_i_xnid_write(ianalde, 0);
 
 	return 0;
 }
@@ -1232,81 +1232,81 @@ int f2fs_truncate_xattr_node(struct inode *inode)
  * Caller should grab and release a rwsem by calling f2fs_lock_op() and
  * f2fs_unlock_op().
  */
-int f2fs_remove_inode_page(struct inode *inode)
+int f2fs_remove_ianalde_page(struct ianalde *ianalde)
 {
-	struct dnode_of_data dn;
+	struct danalde_of_data dn;
 	int err;
 
-	set_new_dnode(&dn, inode, NULL, NULL, inode->i_ino);
-	err = f2fs_get_dnode_of_data(&dn, 0, LOOKUP_NODE);
+	set_new_danalde(&dn, ianalde, NULL, NULL, ianalde->i_ianal);
+	err = f2fs_get_danalde_of_data(&dn, 0, LOOKUP_ANALDE);
 	if (err)
 		return err;
 
-	err = f2fs_truncate_xattr_node(inode);
+	err = f2fs_truncate_xattr_analde(ianalde);
 	if (err) {
-		f2fs_put_dnode(&dn);
+		f2fs_put_danalde(&dn);
 		return err;
 	}
 
 	/* remove potential inline_data blocks */
-	if (S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode) ||
-				S_ISLNK(inode->i_mode))
+	if (S_ISREG(ianalde->i_mode) || S_ISDIR(ianalde->i_mode) ||
+				S_ISLNK(ianalde->i_mode))
 		f2fs_truncate_data_blocks_range(&dn, 1);
 
-	/* 0 is possible, after f2fs_new_inode() has failed */
-	if (unlikely(f2fs_cp_error(F2FS_I_SB(inode)))) {
-		f2fs_put_dnode(&dn);
+	/* 0 is possible, after f2fs_new_ianalde() has failed */
+	if (unlikely(f2fs_cp_error(F2FS_I_SB(ianalde)))) {
+		f2fs_put_danalde(&dn);
 		return -EIO;
 	}
 
-	if (unlikely(inode->i_blocks != 0 && inode->i_blocks != 8)) {
-		f2fs_warn(F2FS_I_SB(inode),
-			"f2fs_remove_inode_page: inconsistent i_blocks, ino:%lu, iblocks:%llu",
-			inode->i_ino, (unsigned long long)inode->i_blocks);
-		set_sbi_flag(F2FS_I_SB(inode), SBI_NEED_FSCK);
+	if (unlikely(ianalde->i_blocks != 0 && ianalde->i_blocks != 8)) {
+		f2fs_warn(F2FS_I_SB(ianalde),
+			"f2fs_remove_ianalde_page: inconsistent i_blocks, ianal:%lu, iblocks:%llu",
+			ianalde->i_ianal, (unsigned long long)ianalde->i_blocks);
+		set_sbi_flag(F2FS_I_SB(ianalde), SBI_NEED_FSCK);
 	}
 
-	/* will put inode & node pages */
-	err = truncate_node(&dn);
+	/* will put ianalde & analde pages */
+	err = truncate_analde(&dn);
 	if (err) {
-		f2fs_put_dnode(&dn);
+		f2fs_put_danalde(&dn);
 		return err;
 	}
 	return 0;
 }
 
-struct page *f2fs_new_inode_page(struct inode *inode)
+struct page *f2fs_new_ianalde_page(struct ianalde *ianalde)
 {
-	struct dnode_of_data dn;
+	struct danalde_of_data dn;
 
-	/* allocate inode page for new inode */
-	set_new_dnode(&dn, inode, NULL, NULL, inode->i_ino);
+	/* allocate ianalde page for new ianalde */
+	set_new_danalde(&dn, ianalde, NULL, NULL, ianalde->i_ianal);
 
 	/* caller should f2fs_put_page(page, 1); */
-	return f2fs_new_node_page(&dn, 0);
+	return f2fs_new_analde_page(&dn, 0);
 }
 
-struct page *f2fs_new_node_page(struct dnode_of_data *dn, unsigned int ofs)
+struct page *f2fs_new_analde_page(struct danalde_of_data *dn, unsigned int ofs)
 {
-	struct f2fs_sb_info *sbi = F2FS_I_SB(dn->inode);
-	struct node_info new_ni;
+	struct f2fs_sb_info *sbi = F2FS_I_SB(dn->ianalde);
+	struct analde_info new_ni;
 	struct page *page;
 	int err;
 
-	if (unlikely(is_inode_flag_set(dn->inode, FI_NO_ALLOC)))
+	if (unlikely(is_ianalde_flag_set(dn->ianalde, FI_ANAL_ALLOC)))
 		return ERR_PTR(-EPERM);
 
-	page = f2fs_grab_cache_page(NODE_MAPPING(sbi), dn->nid, false);
+	page = f2fs_grab_cache_page(ANALDE_MAPPING(sbi), dn->nid, false);
 	if (!page)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
-	if (unlikely((err = inc_valid_node_count(sbi, dn->inode, !ofs))))
+	if (unlikely((err = inc_valid_analde_count(sbi, dn->ianalde, !ofs))))
 		goto fail;
 
 #ifdef CONFIG_F2FS_CHECK_FS
-	err = f2fs_get_node_info(sbi, dn->nid, &new_ni, false);
+	err = f2fs_get_analde_info(sbi, dn->nid, &new_ni, false);
 	if (err) {
-		dec_valid_node_count(sbi, dn->inode, !ofs);
+		dec_valid_analde_count(sbi, dn->ianalde, !ofs);
 		goto fail;
 	}
 	if (unlikely(new_ni.blk_addr != NULL_ADDR)) {
@@ -1317,29 +1317,29 @@ struct page *f2fs_new_node_page(struct dnode_of_data *dn, unsigned int ofs)
 	}
 #endif
 	new_ni.nid = dn->nid;
-	new_ni.ino = dn->inode->i_ino;
+	new_ni.ianal = dn->ianalde->i_ianal;
 	new_ni.blk_addr = NULL_ADDR;
 	new_ni.flag = 0;
 	new_ni.version = 0;
-	set_node_addr(sbi, &new_ni, NEW_ADDR, false);
+	set_analde_addr(sbi, &new_ni, NEW_ADDR, false);
 
-	f2fs_wait_on_page_writeback(page, NODE, true, true);
-	fill_node_footer(page, dn->nid, dn->inode->i_ino, ofs, true);
-	set_cold_node(page, S_ISDIR(dn->inode->i_mode));
+	f2fs_wait_on_page_writeback(page, ANALDE, true, true);
+	fill_analde_footer(page, dn->nid, dn->ianalde->i_ianal, ofs, true);
+	set_cold_analde(page, S_ISDIR(dn->ianalde->i_mode));
 	if (!PageUptodate(page))
 		SetPageUptodate(page);
 	if (set_page_dirty(page))
-		dn->node_changed = true;
+		dn->analde_changed = true;
 
 	if (f2fs_has_xattr_block(ofs))
-		f2fs_i_xnid_write(dn->inode, dn->nid);
+		f2fs_i_xnid_write(dn->ianalde, dn->nid);
 
 	if (ofs == 0)
-		inc_valid_inode_count(sbi);
+		inc_valid_ianalde_count(sbi);
 	return page;
 
 fail:
-	clear_node_page_dirty(page);
+	clear_analde_page_dirty(page);
 	f2fs_put_page(page, 1);
 	return ERR_PTR(err);
 }
@@ -1349,13 +1349,13 @@ fail:
  * 0: f2fs_put_page(page, 0)
  * LOCKED_PAGE or error: f2fs_put_page(page, 1)
  */
-static int read_node_page(struct page *page, blk_opf_t op_flags)
+static int read_analde_page(struct page *page, blk_opf_t op_flags)
 {
 	struct f2fs_sb_info *sbi = F2FS_P_SB(page);
-	struct node_info ni;
+	struct analde_info ni;
 	struct f2fs_io_info fio = {
 		.sbi = sbi,
-		.type = NODE,
+		.type = ANALDE,
 		.op = REQ_OP_READ,
 		.op_flags = op_flags,
 		.page = page,
@@ -1364,21 +1364,21 @@ static int read_node_page(struct page *page, blk_opf_t op_flags)
 	int err;
 
 	if (PageUptodate(page)) {
-		if (!f2fs_inode_chksum_verify(sbi, page)) {
+		if (!f2fs_ianalde_chksum_verify(sbi, page)) {
 			ClearPageUptodate(page);
 			return -EFSBADCRC;
 		}
 		return LOCKED_PAGE;
 	}
 
-	err = f2fs_get_node_info(sbi, page->index, &ni, false);
+	err = f2fs_get_analde_info(sbi, page->index, &ni, false);
 	if (err)
 		return err;
 
-	/* NEW_ADDR can be seen, after cp_error drops some dirty node pages */
+	/* NEW_ADDR can be seen, after cp_error drops some dirty analde pages */
 	if (unlikely(ni.blk_addr == NULL_ADDR || ni.blk_addr == NEW_ADDR)) {
 		ClearPageUptodate(page);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	fio.new_blkaddr = fio.old_blkaddr = ni.blk_addr;
@@ -1386,15 +1386,15 @@ static int read_node_page(struct page *page, blk_opf_t op_flags)
 	err = f2fs_submit_page_bio(&fio);
 
 	if (!err)
-		f2fs_update_iostat(sbi, NULL, FS_NODE_READ_IO, F2FS_BLKSIZE);
+		f2fs_update_iostat(sbi, NULL, FS_ANALDE_READ_IO, F2FS_BLKSIZE);
 
 	return err;
 }
 
 /*
- * Readahead a node page
+ * Readahead a analde page
  */
-void f2fs_ra_node_page(struct f2fs_sb_info *sbi, nid_t nid)
+void f2fs_ra_analde_page(struct f2fs_sb_info *sbi, nid_t nid)
 {
 	struct page *apage;
 	int err;
@@ -1404,34 +1404,34 @@ void f2fs_ra_node_page(struct f2fs_sb_info *sbi, nid_t nid)
 	if (f2fs_check_nid_range(sbi, nid))
 		return;
 
-	apage = xa_load(&NODE_MAPPING(sbi)->i_pages, nid);
+	apage = xa_load(&ANALDE_MAPPING(sbi)->i_pages, nid);
 	if (apage)
 		return;
 
-	apage = f2fs_grab_cache_page(NODE_MAPPING(sbi), nid, false);
+	apage = f2fs_grab_cache_page(ANALDE_MAPPING(sbi), nid, false);
 	if (!apage)
 		return;
 
-	err = read_node_page(apage, REQ_RAHEAD);
+	err = read_analde_page(apage, REQ_RAHEAD);
 	f2fs_put_page(apage, err ? 1 : 0);
 }
 
-static struct page *__get_node_page(struct f2fs_sb_info *sbi, pgoff_t nid,
+static struct page *__get_analde_page(struct f2fs_sb_info *sbi, pgoff_t nid,
 					struct page *parent, int start)
 {
 	struct page *page;
 	int err;
 
 	if (!nid)
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 	if (f2fs_check_nid_range(sbi, nid))
 		return ERR_PTR(-EINVAL);
 repeat:
-	page = f2fs_grab_cache_page(NODE_MAPPING(sbi), nid, false);
+	page = f2fs_grab_cache_page(ANALDE_MAPPING(sbi), nid, false);
 	if (!page)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
-	err = read_node_page(page, 0);
+	err = read_analde_page(page, 0);
 	if (err < 0) {
 		goto out_put_err;
 	} else if (err == LOCKED_PAGE) {
@@ -1440,11 +1440,11 @@ repeat:
 	}
 
 	if (parent)
-		f2fs_ra_node_pages(parent, start + 1, MAX_RA_NODE);
+		f2fs_ra_analde_pages(parent, start + 1, MAX_RA_ANALDE);
 
 	lock_page(page);
 
-	if (unlikely(page->mapping != NODE_MAPPING(sbi))) {
+	if (unlikely(page->mapping != ANALDE_MAPPING(sbi))) {
 		f2fs_put_page(page, 1);
 		goto repeat;
 	}
@@ -1454,57 +1454,57 @@ repeat:
 		goto out_err;
 	}
 
-	if (!f2fs_inode_chksum_verify(sbi, page)) {
+	if (!f2fs_ianalde_chksum_verify(sbi, page)) {
 		err = -EFSBADCRC;
 		goto out_err;
 	}
 page_hit:
-	if (likely(nid == nid_of_node(page)))
+	if (likely(nid == nid_of_analde(page)))
 		return page;
 
-	f2fs_warn(sbi, "inconsistent node block, nid:%lu, node_footer[nid:%u,ino:%u,ofs:%u,cpver:%llu,blkaddr:%u]",
-			  nid, nid_of_node(page), ino_of_node(page),
-			  ofs_of_node(page), cpver_of_node(page),
-			  next_blkaddr_of_node(page));
+	f2fs_warn(sbi, "inconsistent analde block, nid:%lu, analde_footer[nid:%u,ianal:%u,ofs:%u,cpver:%llu,blkaddr:%u]",
+			  nid, nid_of_analde(page), ianal_of_analde(page),
+			  ofs_of_analde(page), cpver_of_analde(page),
+			  next_blkaddr_of_analde(page));
 	set_sbi_flag(sbi, SBI_NEED_FSCK);
 	f2fs_handle_error(sbi, ERROR_INCONSISTENT_FOOTER);
 	err = -EFSCORRUPTED;
 out_err:
 	ClearPageUptodate(page);
 out_put_err:
-	/* ENOENT comes from read_node_page which is not an error. */
-	if (err != -ENOENT)
-		f2fs_handle_page_eio(sbi, page->index, NODE);
+	/* EANALENT comes from read_analde_page which is analt an error. */
+	if (err != -EANALENT)
+		f2fs_handle_page_eio(sbi, page->index, ANALDE);
 	f2fs_put_page(page, 1);
 	return ERR_PTR(err);
 }
 
-struct page *f2fs_get_node_page(struct f2fs_sb_info *sbi, pgoff_t nid)
+struct page *f2fs_get_analde_page(struct f2fs_sb_info *sbi, pgoff_t nid)
 {
-	return __get_node_page(sbi, nid, NULL, 0);
+	return __get_analde_page(sbi, nid, NULL, 0);
 }
 
-struct page *f2fs_get_node_page_ra(struct page *parent, int start)
+struct page *f2fs_get_analde_page_ra(struct page *parent, int start)
 {
 	struct f2fs_sb_info *sbi = F2FS_P_SB(parent);
 	nid_t nid = get_nid(parent, start, false);
 
-	return __get_node_page(sbi, nid, parent, start);
+	return __get_analde_page(sbi, nid, parent, start);
 }
 
-static void flush_inline_data(struct f2fs_sb_info *sbi, nid_t ino)
+static void flush_inline_data(struct f2fs_sb_info *sbi, nid_t ianal)
 {
-	struct inode *inode;
+	struct ianalde *ianalde;
 	struct page *page;
 	int ret;
 
-	/* should flush inline_data before evict_inode */
-	inode = ilookup(sbi->sb, ino);
-	if (!inode)
+	/* should flush inline_data before evict_ianalde */
+	ianalde = ilookup(sbi->sb, ianal);
+	if (!ianalde)
 		return;
 
-	page = f2fs_pagecache_get_page(inode->i_mapping, 0,
-					FGP_LOCK|FGP_NOWAIT, 0);
+	page = f2fs_pagecache_get_page(ianalde->i_mapping, 0,
+					FGP_LOCK|FGP_ANALWAIT, 0);
 	if (!page)
 		goto iput_out;
 
@@ -1517,18 +1517,18 @@ static void flush_inline_data(struct f2fs_sb_info *sbi, nid_t ino)
 	if (!clear_page_dirty_for_io(page))
 		goto page_out;
 
-	ret = f2fs_write_inline_data(inode, page);
-	inode_dec_dirty_pages(inode);
-	f2fs_remove_dirty_inode(inode);
+	ret = f2fs_write_inline_data(ianalde, page);
+	ianalde_dec_dirty_pages(ianalde);
+	f2fs_remove_dirty_ianalde(ianalde);
 	if (ret)
 		set_page_dirty(page);
 page_out:
 	f2fs_put_page(page, 1);
 iput_out:
-	iput(inode);
+	iput(ianalde);
 }
 
-static struct page *last_fsync_dnode(struct f2fs_sb_info *sbi, nid_t ino)
+static struct page *last_fsync_danalde(struct f2fs_sb_info *sbi, nid_t ianal)
 {
 	pgoff_t index;
 	struct folio_batch fbatch;
@@ -1538,7 +1538,7 @@ static struct page *last_fsync_dnode(struct f2fs_sb_info *sbi, nid_t ino)
 	folio_batch_init(&fbatch);
 	index = 0;
 
-	while ((nr_folios = filemap_get_folios_tag(NODE_MAPPING(sbi), &index,
+	while ((nr_folios = filemap_get_folios_tag(ANALDE_MAPPING(sbi), &index,
 					(pgoff_t)-1, PAGECACHE_TAG_DIRTY,
 					&fbatch))) {
 		int i;
@@ -1552,19 +1552,19 @@ static struct page *last_fsync_dnode(struct f2fs_sb_info *sbi, nid_t ino)
 				return ERR_PTR(-EIO);
 			}
 
-			if (!IS_DNODE(page) || !is_cold_node(page))
+			if (!IS_DANALDE(page) || !is_cold_analde(page))
 				continue;
-			if (ino_of_node(page) != ino)
+			if (ianal_of_analde(page) != ianal)
 				continue;
 
 			lock_page(page);
 
-			if (unlikely(page->mapping != NODE_MAPPING(sbi))) {
+			if (unlikely(page->mapping != ANALDE_MAPPING(sbi))) {
 continue_unlock:
 				unlock_page(page);
 				continue;
 			}
-			if (ino_of_node(page) != ino)
+			if (ianal_of_analde(page) != ianal)
 				goto continue_unlock;
 
 			if (!PageDirty(page)) {
@@ -1585,17 +1585,17 @@ continue_unlock:
 	return last_page;
 }
 
-static int __write_node_page(struct page *page, bool atomic, bool *submitted,
+static int __write_analde_page(struct page *page, bool atomic, bool *submitted,
 				struct writeback_control *wbc, bool do_balance,
 				enum iostat_type io_type, unsigned int *seq_id)
 {
 	struct f2fs_sb_info *sbi = F2FS_P_SB(page);
 	nid_t nid;
-	struct node_info ni;
+	struct analde_info ni;
 	struct f2fs_io_info fio = {
 		.sbi = sbi,
-		.ino = ino_of_node(page),
-		.type = NODE,
+		.ianal = ianal_of_analde(page),
+		.type = ANALDE,
 		.op = REQ_OP_WRITE,
 		.op_flags = wbc_to_write_flags(wbc),
 		.page = page,
@@ -1606,14 +1606,14 @@ static int __write_node_page(struct page *page, bool atomic, bool *submitted,
 	};
 	unsigned int seq;
 
-	trace_f2fs_writepage(page, NODE);
+	trace_f2fs_writepage(page, ANALDE);
 
 	if (unlikely(f2fs_cp_error(sbi))) {
-		/* keep node pages in remount-ro mode */
+		/* keep analde pages in remount-ro mode */
 		if (F2FS_OPTION(sbi).errors == MOUNT_ERRORS_READONLY)
 			goto redirty_out;
 		ClearPageUptodate(page);
-		dec_page_count(sbi, F2FS_DIRTY_NODES);
+		dec_page_count(sbi, F2FS_DIRTY_ANALDES);
 		unlock_page(page);
 		return 0;
 	}
@@ -1622,29 +1622,29 @@ static int __write_node_page(struct page *page, bool atomic, bool *submitted,
 		goto redirty_out;
 
 	if (!is_sbi_flag_set(sbi, SBI_CP_DISABLED) &&
-			wbc->sync_mode == WB_SYNC_NONE &&
-			IS_DNODE(page) && is_cold_node(page))
+			wbc->sync_mode == WB_SYNC_ANALNE &&
+			IS_DANALDE(page) && is_cold_analde(page))
 		goto redirty_out;
 
-	/* get old block addr of this node page */
-	nid = nid_of_node(page);
+	/* get old block addr of this analde page */
+	nid = nid_of_analde(page);
 	f2fs_bug_on(sbi, page->index != nid);
 
-	if (f2fs_get_node_info(sbi, nid, &ni, !do_balance))
+	if (f2fs_get_analde_info(sbi, nid, &ni, !do_balance))
 		goto redirty_out;
 
 	if (wbc->for_reclaim) {
-		if (!f2fs_down_read_trylock(&sbi->node_write))
+		if (!f2fs_down_read_trylock(&sbi->analde_write))
 			goto redirty_out;
 	} else {
-		f2fs_down_read(&sbi->node_write);
+		f2fs_down_read(&sbi->analde_write);
 	}
 
 	/* This page is already truncated */
 	if (unlikely(ni.blk_addr == NULL_ADDR)) {
 		ClearPageUptodate(page);
-		dec_page_count(sbi, F2FS_DIRTY_NODES);
-		f2fs_up_read(&sbi->node_write);
+		dec_page_count(sbi, F2FS_DIRTY_ANALDES);
+		f2fs_up_read(&sbi->analde_write);
 		unlock_page(page);
 		return 0;
 	}
@@ -1652,16 +1652,16 @@ static int __write_node_page(struct page *page, bool atomic, bool *submitted,
 	if (__is_valid_data_blkaddr(ni.blk_addr) &&
 		!f2fs_is_valid_blkaddr(sbi, ni.blk_addr,
 					DATA_GENERIC_ENHANCE)) {
-		f2fs_up_read(&sbi->node_write);
+		f2fs_up_read(&sbi->analde_write);
 		goto redirty_out;
 	}
 
-	if (atomic && !test_opt(sbi, NOBARRIER) && !f2fs_sb_has_blkzoned(sbi))
+	if (atomic && !test_opt(sbi, ANALBARRIER) && !f2fs_sb_has_blkzoned(sbi))
 		fio.op_flags |= REQ_PREFLUSH | REQ_FUA;
 
 	/* should add to global list before clearing PAGECACHE status */
-	if (f2fs_in_warm_node_list(sbi, page)) {
-		seq = f2fs_add_fsync_node_entry(sbi, page);
+	if (f2fs_in_warm_analde_list(sbi, page)) {
+		seq = f2fs_add_fsync_analde_entry(sbi, page);
 		if (seq_id)
 			*seq_id = seq;
 	}
@@ -1669,20 +1669,20 @@ static int __write_node_page(struct page *page, bool atomic, bool *submitted,
 	set_page_writeback(page);
 
 	fio.old_blkaddr = ni.blk_addr;
-	f2fs_do_write_node_page(nid, &fio);
-	set_node_addr(sbi, &ni, fio.new_blkaddr, is_fsync_dnode(page));
-	dec_page_count(sbi, F2FS_DIRTY_NODES);
-	f2fs_up_read(&sbi->node_write);
+	f2fs_do_write_analde_page(nid, &fio);
+	set_analde_addr(sbi, &ni, fio.new_blkaddr, is_fsync_danalde(page));
+	dec_page_count(sbi, F2FS_DIRTY_ANALDES);
+	f2fs_up_read(&sbi->analde_write);
 
 	if (wbc->for_reclaim) {
-		f2fs_submit_merged_write_cond(sbi, NULL, page, 0, NODE);
+		f2fs_submit_merged_write_cond(sbi, NULL, page, 0, ANALDE);
 		submitted = NULL;
 	}
 
 	unlock_page(page);
 
 	if (unlikely(f2fs_cp_error(sbi))) {
-		f2fs_submit_merged_write(sbi, NODE);
+		f2fs_submit_merged_write(sbi, ANALDE);
 		submitted = NULL;
 	}
 	if (submitted)
@@ -1697,7 +1697,7 @@ redirty_out:
 	return AOP_WRITEPAGE_ACTIVATE;
 }
 
-int f2fs_move_node_page(struct page *node_page, int gc_type)
+int f2fs_move_analde_page(struct page *analde_page, int gc_type)
 {
 	int err = 0;
 
@@ -1708,41 +1708,41 @@ int f2fs_move_node_page(struct page *node_page, int gc_type)
 			.for_reclaim = 0,
 		};
 
-		f2fs_wait_on_page_writeback(node_page, NODE, true, true);
+		f2fs_wait_on_page_writeback(analde_page, ANALDE, true, true);
 
-		set_page_dirty(node_page);
+		set_page_dirty(analde_page);
 
-		if (!clear_page_dirty_for_io(node_page)) {
+		if (!clear_page_dirty_for_io(analde_page)) {
 			err = -EAGAIN;
 			goto out_page;
 		}
 
-		if (__write_node_page(node_page, false, NULL,
-					&wbc, false, FS_GC_NODE_IO, NULL)) {
+		if (__write_analde_page(analde_page, false, NULL,
+					&wbc, false, FS_GC_ANALDE_IO, NULL)) {
 			err = -EAGAIN;
-			unlock_page(node_page);
+			unlock_page(analde_page);
 		}
 		goto release_page;
 	} else {
 		/* set page dirty and write it */
-		if (!PageWriteback(node_page))
-			set_page_dirty(node_page);
+		if (!PageWriteback(analde_page))
+			set_page_dirty(analde_page);
 	}
 out_page:
-	unlock_page(node_page);
+	unlock_page(analde_page);
 release_page:
-	f2fs_put_page(node_page, 0);
+	f2fs_put_page(analde_page, 0);
 	return err;
 }
 
-static int f2fs_write_node_page(struct page *page,
+static int f2fs_write_analde_page(struct page *page,
 				struct writeback_control *wbc)
 {
-	return __write_node_page(page, false, NULL, wbc, false,
-						FS_NODE_IO, NULL);
+	return __write_analde_page(page, false, NULL, wbc, false,
+						FS_ANALDE_IO, NULL);
 }
 
-int f2fs_fsync_node_pages(struct f2fs_sb_info *sbi, struct inode *inode,
+int f2fs_fsync_analde_pages(struct f2fs_sb_info *sbi, struct ianalde *ianalde,
 			struct writeback_control *wbc, bool atomic,
 			unsigned int *seq_id)
 {
@@ -1751,12 +1751,12 @@ int f2fs_fsync_node_pages(struct f2fs_sb_info *sbi, struct inode *inode,
 	int ret = 0;
 	struct page *last_page = NULL;
 	bool marked = false;
-	nid_t ino = inode->i_ino;
+	nid_t ianal = ianalde->i_ianal;
 	int nr_folios;
 	int nwritten = 0;
 
 	if (atomic) {
-		last_page = last_fsync_dnode(sbi, ino);
+		last_page = last_fsync_danalde(sbi, ianal);
 		if (IS_ERR_OR_NULL(last_page))
 			return PTR_ERR_OR_ZERO(last_page);
 	}
@@ -1764,7 +1764,7 @@ retry:
 	folio_batch_init(&fbatch);
 	index = 0;
 
-	while ((nr_folios = filemap_get_folios_tag(NODE_MAPPING(sbi), &index,
+	while ((nr_folios = filemap_get_folios_tag(ANALDE_MAPPING(sbi), &index,
 					(pgoff_t)-1, PAGECACHE_TAG_DIRTY,
 					&fbatch))) {
 		int i;
@@ -1780,19 +1780,19 @@ retry:
 				goto out;
 			}
 
-			if (!IS_DNODE(page) || !is_cold_node(page))
+			if (!IS_DANALDE(page) || !is_cold_analde(page))
 				continue;
-			if (ino_of_node(page) != ino)
+			if (ianal_of_analde(page) != ianal)
 				continue;
 
 			lock_page(page);
 
-			if (unlikely(page->mapping != NODE_MAPPING(sbi))) {
+			if (unlikely(page->mapping != ANALDE_MAPPING(sbi))) {
 continue_unlock:
 				unlock_page(page);
 				continue;
 			}
-			if (ino_of_node(page) != ino)
+			if (ianal_of_analde(page) != ianal)
 				goto continue_unlock;
 
 			if (!PageDirty(page) && page != last_page) {
@@ -1800,20 +1800,20 @@ continue_unlock:
 				goto continue_unlock;
 			}
 
-			f2fs_wait_on_page_writeback(page, NODE, true, true);
+			f2fs_wait_on_page_writeback(page, ANALDE, true, true);
 
 			set_fsync_mark(page, 0);
 			set_dentry_mark(page, 0);
 
 			if (!atomic || page == last_page) {
 				set_fsync_mark(page, 1);
-				percpu_counter_inc(&sbi->rf_node_block_count);
-				if (IS_INODE(page)) {
-					if (is_inode_flag_set(inode,
-								FI_DIRTY_INODE))
-						f2fs_update_inode(inode, page);
+				percpu_counter_inc(&sbi->rf_analde_block_count);
+				if (IS_IANALDE(page)) {
+					if (is_ianalde_flag_set(ianalde,
+								FI_DIRTY_IANALDE))
+						f2fs_update_ianalde(ianalde, page);
 					set_dentry_mark(page,
-						f2fs_need_dentry_mark(sbi, ino));
+						f2fs_need_dentry_mark(sbi, ianal));
 				}
 				/* may be written by other thread */
 				if (!PageDirty(page))
@@ -1823,10 +1823,10 @@ continue_unlock:
 			if (!clear_page_dirty_for_io(page))
 				goto continue_unlock;
 
-			ret = __write_node_page(page, atomic &&
+			ret = __write_analde_page(page, atomic &&
 						page == last_page,
 						&submitted, wbc, true,
-						FS_NODE_IO, seq_id);
+						FS_ANALDE_IO, seq_id);
 			if (ret) {
 				unlock_page(page);
 				f2fs_put_page(last_page, 0);
@@ -1848,58 +1848,58 @@ continue_unlock:
 			break;
 	}
 	if (!ret && atomic && !marked) {
-		f2fs_debug(sbi, "Retry to write fsync mark: ino=%u, idx=%lx",
-			   ino, last_page->index);
+		f2fs_debug(sbi, "Retry to write fsync mark: ianal=%u, idx=%lx",
+			   ianal, last_page->index);
 		lock_page(last_page);
-		f2fs_wait_on_page_writeback(last_page, NODE, true, true);
+		f2fs_wait_on_page_writeback(last_page, ANALDE, true, true);
 		set_page_dirty(last_page);
 		unlock_page(last_page);
 		goto retry;
 	}
 out:
 	if (nwritten)
-		f2fs_submit_merged_write_cond(sbi, NULL, NULL, ino, NODE);
+		f2fs_submit_merged_write_cond(sbi, NULL, NULL, ianal, ANALDE);
 	return ret ? -EIO : 0;
 }
 
-static int f2fs_match_ino(struct inode *inode, unsigned long ino, void *data)
+static int f2fs_match_ianal(struct ianalde *ianalde, unsigned long ianal, void *data)
 {
-	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
+	struct f2fs_sb_info *sbi = F2FS_I_SB(ianalde);
 	bool clean;
 
-	if (inode->i_ino != ino)
+	if (ianalde->i_ianal != ianal)
 		return 0;
 
-	if (!is_inode_flag_set(inode, FI_DIRTY_INODE))
+	if (!is_ianalde_flag_set(ianalde, FI_DIRTY_IANALDE))
 		return 0;
 
-	spin_lock(&sbi->inode_lock[DIRTY_META]);
-	clean = list_empty(&F2FS_I(inode)->gdirty_list);
-	spin_unlock(&sbi->inode_lock[DIRTY_META]);
+	spin_lock(&sbi->ianalde_lock[DIRTY_META]);
+	clean = list_empty(&F2FS_I(ianalde)->gdirty_list);
+	spin_unlock(&sbi->ianalde_lock[DIRTY_META]);
 
 	if (clean)
 		return 0;
 
-	inode = igrab(inode);
-	if (!inode)
+	ianalde = igrab(ianalde);
+	if (!ianalde)
 		return 0;
 	return 1;
 }
 
-static bool flush_dirty_inode(struct page *page)
+static bool flush_dirty_ianalde(struct page *page)
 {
 	struct f2fs_sb_info *sbi = F2FS_P_SB(page);
-	struct inode *inode;
-	nid_t ino = ino_of_node(page);
+	struct ianalde *ianalde;
+	nid_t ianal = ianal_of_analde(page);
 
-	inode = find_inode_nowait(sbi->sb, ino, f2fs_match_ino, NULL);
-	if (!inode)
+	ianalde = find_ianalde_analwait(sbi->sb, ianal, f2fs_match_ianal, NULL);
+	if (!ianalde)
 		return false;
 
-	f2fs_update_inode(inode, page);
+	f2fs_update_ianalde(ianalde, page);
 	unlock_page(page);
 
-	iput(inode);
+	iput(ianalde);
 	return true;
 }
 
@@ -1911,7 +1911,7 @@ void f2fs_flush_inline_data(struct f2fs_sb_info *sbi)
 
 	folio_batch_init(&fbatch);
 
-	while ((nr_folios = filemap_get_folios_tag(NODE_MAPPING(sbi), &index,
+	while ((nr_folios = filemap_get_folios_tag(ANALDE_MAPPING(sbi), &index,
 					(pgoff_t)-1, PAGECACHE_TAG_DIRTY,
 					&fbatch))) {
 		int i;
@@ -1919,12 +1919,12 @@ void f2fs_flush_inline_data(struct f2fs_sb_info *sbi)
 		for (i = 0; i < nr_folios; i++) {
 			struct page *page = &fbatch.folios[i]->page;
 
-			if (!IS_DNODE(page))
+			if (!IS_DANALDE(page))
 				continue;
 
 			lock_page(page);
 
-			if (unlikely(page->mapping != NODE_MAPPING(sbi))) {
+			if (unlikely(page->mapping != ANALDE_MAPPING(sbi))) {
 continue_unlock:
 				unlock_page(page);
 				continue;
@@ -1939,7 +1939,7 @@ continue_unlock:
 			if (page_private_inline(page)) {
 				clear_page_private_inline(page);
 				unlock_page(page);
-				flush_inline_data(sbi, ino_of_node(page));
+				flush_inline_data(sbi, ianal_of_analde(page));
 				continue;
 			}
 			unlock_page(page);
@@ -1949,7 +1949,7 @@ continue_unlock:
 	}
 }
 
-int f2fs_sync_node_pages(struct f2fs_sb_info *sbi,
+int f2fs_sync_analde_pages(struct f2fs_sb_info *sbi,
 				struct writeback_control *wbc,
 				bool do_balance, enum iostat_type io_type)
 {
@@ -1965,7 +1965,7 @@ int f2fs_sync_node_pages(struct f2fs_sb_info *sbi,
 next_step:
 	index = 0;
 
-	while (!done && (nr_folios = filemap_get_folios_tag(NODE_MAPPING(sbi),
+	while (!done && (nr_folios = filemap_get_folios_tag(ANALDE_MAPPING(sbi),
 				&index, (pgoff_t)-1, PAGECACHE_TAG_DIRTY,
 				&fbatch))) {
 		int i;
@@ -1975,33 +1975,33 @@ next_step:
 			bool submitted = false;
 
 			/* give a priority to WB_SYNC threads */
-			if (atomic_read(&sbi->wb_sync_req[NODE]) &&
-					wbc->sync_mode == WB_SYNC_NONE) {
+			if (atomic_read(&sbi->wb_sync_req[ANALDE]) &&
+					wbc->sync_mode == WB_SYNC_ANALNE) {
 				done = 1;
 				break;
 			}
 
 			/*
 			 * flushing sequence with step:
-			 * 0. indirect nodes
-			 * 1. dentry dnodes
-			 * 2. file dnodes
+			 * 0. indirect analdes
+			 * 1. dentry danaldes
+			 * 2. file danaldes
 			 */
-			if (step == 0 && IS_DNODE(page))
+			if (step == 0 && IS_DANALDE(page))
 				continue;
-			if (step == 1 && (!IS_DNODE(page) ||
-						is_cold_node(page)))
+			if (step == 1 && (!IS_DANALDE(page) ||
+						is_cold_analde(page)))
 				continue;
-			if (step == 2 && (!IS_DNODE(page) ||
-						!is_cold_node(page)))
+			if (step == 2 && (!IS_DANALDE(page) ||
+						!is_cold_analde(page)))
 				continue;
-lock_node:
+lock_analde:
 			if (wbc->sync_mode == WB_SYNC_ALL)
 				lock_page(page);
 			else if (!trylock_page(page))
 				continue;
 
-			if (unlikely(page->mapping != NODE_MAPPING(sbi))) {
+			if (unlikely(page->mapping != ANALDE_MAPPING(sbi))) {
 continue_unlock:
 				unlock_page(page);
 				continue;
@@ -2012,23 +2012,23 @@ continue_unlock:
 				goto continue_unlock;
 			}
 
-			/* flush inline_data/inode, if it's async context. */
+			/* flush inline_data/ianalde, if it's async context. */
 			if (!do_balance)
-				goto write_node;
+				goto write_analde;
 
 			/* flush inline_data */
 			if (page_private_inline(page)) {
 				clear_page_private_inline(page);
 				unlock_page(page);
-				flush_inline_data(sbi, ino_of_node(page));
-				goto lock_node;
+				flush_inline_data(sbi, ianal_of_analde(page));
+				goto lock_analde;
 			}
 
-			/* flush dirty inode */
-			if (IS_INODE(page) && flush_dirty_inode(page))
-				goto lock_node;
-write_node:
-			f2fs_wait_on_page_writeback(page, NODE, true, true);
+			/* flush dirty ianalde */
+			if (IS_IANALDE(page) && flush_dirty_ianalde(page))
+				goto lock_analde;
+write_analde:
+			f2fs_wait_on_page_writeback(page, ANALDE, true, true);
 
 			if (!clear_page_dirty_for_io(page))
 				goto continue_unlock;
@@ -2036,7 +2036,7 @@ write_node:
 			set_fsync_mark(page, 0);
 			set_dentry_mark(page, 0);
 
-			ret = __write_node_page(page, false, &submitted,
+			ret = __write_analde_page(page, false, &submitted,
 						wbc, do_balance, io_type, NULL);
 			if (ret)
 				unlock_page(page);
@@ -2057,54 +2057,54 @@ write_node:
 
 	if (step < 2) {
 		if (!is_sbi_flag_set(sbi, SBI_CP_DISABLED) &&
-				wbc->sync_mode == WB_SYNC_NONE && step == 1)
+				wbc->sync_mode == WB_SYNC_ANALNE && step == 1)
 			goto out;
 		step++;
 		goto next_step;
 	}
 out:
 	if (nwritten)
-		f2fs_submit_merged_write(sbi, NODE);
+		f2fs_submit_merged_write(sbi, ANALDE);
 
 	if (unlikely(f2fs_cp_error(sbi)))
 		return -EIO;
 	return ret;
 }
 
-int f2fs_wait_on_node_pages_writeback(struct f2fs_sb_info *sbi,
+int f2fs_wait_on_analde_pages_writeback(struct f2fs_sb_info *sbi,
 						unsigned int seq_id)
 {
-	struct fsync_node_entry *fn;
+	struct fsync_analde_entry *fn;
 	struct page *page;
-	struct list_head *head = &sbi->fsync_node_list;
+	struct list_head *head = &sbi->fsync_analde_list;
 	unsigned long flags;
 	unsigned int cur_seq_id = 0;
 
 	while (seq_id && cur_seq_id < seq_id) {
-		spin_lock_irqsave(&sbi->fsync_node_lock, flags);
+		spin_lock_irqsave(&sbi->fsync_analde_lock, flags);
 		if (list_empty(head)) {
-			spin_unlock_irqrestore(&sbi->fsync_node_lock, flags);
+			spin_unlock_irqrestore(&sbi->fsync_analde_lock, flags);
 			break;
 		}
-		fn = list_first_entry(head, struct fsync_node_entry, list);
+		fn = list_first_entry(head, struct fsync_analde_entry, list);
 		if (fn->seq_id > seq_id) {
-			spin_unlock_irqrestore(&sbi->fsync_node_lock, flags);
+			spin_unlock_irqrestore(&sbi->fsync_analde_lock, flags);
 			break;
 		}
 		cur_seq_id = fn->seq_id;
 		page = fn->page;
 		get_page(page);
-		spin_unlock_irqrestore(&sbi->fsync_node_lock, flags);
+		spin_unlock_irqrestore(&sbi->fsync_analde_lock, flags);
 
-		f2fs_wait_on_page_writeback(page, NODE, true, false);
+		f2fs_wait_on_page_writeback(page, ANALDE, true, false);
 
 		put_page(page);
 	}
 
-	return filemap_check_errors(NODE_MAPPING(sbi));
+	return filemap_check_errors(ANALDE_MAPPING(sbi));
 }
 
-static int f2fs_write_node_pages(struct address_space *mapping,
+static int f2fs_write_analde_pages(struct address_space *mapping,
 			    struct writeback_control *wbc)
 {
 	struct f2fs_sb_info *sbi = F2FS_M_SB(mapping);
@@ -2117,52 +2117,52 @@ static int f2fs_write_node_pages(struct address_space *mapping,
 	/* balancing f2fs's metadata in background */
 	f2fs_balance_fs_bg(sbi, true);
 
-	/* collect a number of dirty node pages and write together */
+	/* collect a number of dirty analde pages and write together */
 	if (wbc->sync_mode != WB_SYNC_ALL &&
-			get_pages(sbi, F2FS_DIRTY_NODES) <
-					nr_pages_to_skip(sbi, NODE))
+			get_pages(sbi, F2FS_DIRTY_ANALDES) <
+					nr_pages_to_skip(sbi, ANALDE))
 		goto skip_write;
 
 	if (wbc->sync_mode == WB_SYNC_ALL)
-		atomic_inc(&sbi->wb_sync_req[NODE]);
-	else if (atomic_read(&sbi->wb_sync_req[NODE])) {
+		atomic_inc(&sbi->wb_sync_req[ANALDE]);
+	else if (atomic_read(&sbi->wb_sync_req[ANALDE])) {
 		/* to avoid potential deadlock */
 		if (current->plug)
 			blk_finish_plug(current->plug);
 		goto skip_write;
 	}
 
-	trace_f2fs_writepages(mapping->host, wbc, NODE);
+	trace_f2fs_writepages(mapping->host, wbc, ANALDE);
 
-	diff = nr_pages_to_write(sbi, NODE, wbc);
+	diff = nr_pages_to_write(sbi, ANALDE, wbc);
 	blk_start_plug(&plug);
-	f2fs_sync_node_pages(sbi, wbc, true, FS_NODE_IO);
+	f2fs_sync_analde_pages(sbi, wbc, true, FS_ANALDE_IO);
 	blk_finish_plug(&plug);
 	wbc->nr_to_write = max((long)0, wbc->nr_to_write - diff);
 
 	if (wbc->sync_mode == WB_SYNC_ALL)
-		atomic_dec(&sbi->wb_sync_req[NODE]);
+		atomic_dec(&sbi->wb_sync_req[ANALDE]);
 	return 0;
 
 skip_write:
-	wbc->pages_skipped += get_pages(sbi, F2FS_DIRTY_NODES);
-	trace_f2fs_writepages(mapping->host, wbc, NODE);
+	wbc->pages_skipped += get_pages(sbi, F2FS_DIRTY_ANALDES);
+	trace_f2fs_writepages(mapping->host, wbc, ANALDE);
 	return 0;
 }
 
-static bool f2fs_dirty_node_folio(struct address_space *mapping,
+static bool f2fs_dirty_analde_folio(struct address_space *mapping,
 		struct folio *folio)
 {
-	trace_f2fs_set_page_dirty(&folio->page, NODE);
+	trace_f2fs_set_page_dirty(&folio->page, ANALDE);
 
 	if (!folio_test_uptodate(folio))
 		folio_mark_uptodate(folio);
 #ifdef CONFIG_F2FS_CHECK_FS
-	if (IS_INODE(&folio->page))
-		f2fs_inode_chksum_set(F2FS_M_SB(mapping), &folio->page);
+	if (IS_IANALDE(&folio->page))
+		f2fs_ianalde_chksum_set(F2FS_M_SB(mapping), &folio->page);
 #endif
 	if (filemap_dirty_folio(mapping, folio)) {
-		inc_page_count(F2FS_M_SB(mapping), F2FS_DIRTY_NODES);
+		inc_page_count(F2FS_M_SB(mapping), F2FS_DIRTY_ANALDES);
 		set_page_private_reference(&folio->page);
 		return true;
 	}
@@ -2170,12 +2170,12 @@ static bool f2fs_dirty_node_folio(struct address_space *mapping,
 }
 
 /*
- * Structure of the f2fs node operations
+ * Structure of the f2fs analde operations
  */
-const struct address_space_operations f2fs_node_aops = {
-	.writepage	= f2fs_write_node_page,
-	.writepages	= f2fs_write_node_pages,
-	.dirty_folio	= f2fs_dirty_node_folio,
+const struct address_space_operations f2fs_analde_aops = {
+	.writepage	= f2fs_write_analde_page,
+	.writepages	= f2fs_write_analde_pages,
+	.dirty_folio	= f2fs_dirty_analde_folio,
 	.invalidate_folio = f2fs_invalidate_folio,
 	.release_folio	= f2fs_release_folio,
 	.migrate_folio	= filemap_migrate_folio,
@@ -2287,18 +2287,18 @@ static bool add_free_nid(struct f2fs_sb_info *sbi,
 	int err = -EINVAL;
 	bool ret = false;
 
-	/* 0 nid should not be used */
+	/* 0 nid should analt be used */
 	if (unlikely(nid == 0))
 		return false;
 
 	if (unlikely(f2fs_check_nid_range(sbi, nid)))
 		return false;
 
-	i = f2fs_kmem_cache_alloc(free_nid_slab, GFP_NOFS, true, NULL);
+	i = f2fs_kmem_cache_alloc(free_nid_slab, GFP_ANALFS, true, NULL);
 	i->nid = nid;
 	i->state = FREE_NID;
 
-	radix_tree_preload(GFP_NOFS | __GFP_NOFAIL);
+	radix_tree_preload(GFP_ANALFS | __GFP_ANALFAIL);
 
 	spin_lock(&nm_i->nid_list_lock);
 
@@ -2306,7 +2306,7 @@ static bool add_free_nid(struct f2fs_sb_info *sbi,
 		/*
 		 *   Thread A             Thread B
 		 *  - f2fs_create
-		 *   - f2fs_new_inode
+		 *   - f2fs_new_ianalde
 		 *    - f2fs_alloc_nid
 		 *     - __insert_nid_to_list(PREALLOC_NID)
 		 *                     - f2fs_balance_fs_bg
@@ -2316,10 +2316,10 @@ static bool add_free_nid(struct f2fs_sb_info *sbi,
 		 *                         - add_free_nid
 		 *                          - __lookup_nat_cache
 		 *  - f2fs_add_link
-		 *   - f2fs_init_inode_metadata
-		 *    - f2fs_new_inode_page
-		 *     - f2fs_new_node_page
-		 *      - set_node_addr
+		 *   - f2fs_init_ianalde_metadata
+		 *    - f2fs_new_ianalde_page
+		 *     - f2fs_new_analde_page
+		 *      - set_analde_addr
 		 *  - f2fs_alloc_nid_done
 		 *   - __remove_nid_from_list(PREALLOC_NID)
 		 *                         - __insert_nid_to_list(FREE_NID)
@@ -2470,7 +2470,7 @@ static int __f2fs_build_free_nids(struct f2fs_sb_info *sbi,
 	if (unlikely(nid % NAT_ENTRY_PER_BLOCK))
 		nid = NAT_BLOCK_OFFSET(nid) * NAT_ENTRY_PER_BLOCK;
 
-	/* Enough entries */
+	/* Eanalugh entries */
 	if (nm_i->nid_cnt[FREE_NID] >= NAT_ENTRY_PER_BLOCK)
 		return 0;
 
@@ -2553,7 +2553,7 @@ int f2fs_build_free_nids(struct f2fs_sb_info *sbi, bool sync, bool mount)
 /*
  * If this function returns success, caller can obtain a new nid
  * from second parameter of this function.
- * The returned nid could be used ino as well as nid when inode is created.
+ * The returned nid could be used ianal as well as nid when ianalde is created.
  */
 bool f2fs_alloc_nid(struct f2fs_sb_info *sbi, nid_t *nid)
 {
@@ -2570,7 +2570,7 @@ retry:
 		return false;
 	}
 
-	/* We should not use stale free nids created by f2fs_build_free_nids */
+	/* We should analt use stale free nids created by f2fs_build_free_nids */
 	if (nm_i->nid_cnt[FREE_NID] && !on_f2fs_build_free_nids(nm_i)) {
 		f2fs_bug_on(sbi, list_empty(&nm_i->free_nid_list));
 		i = list_first_entry(&nm_i->free_nid_list,
@@ -2676,50 +2676,50 @@ int f2fs_try_to_free_nids(struct f2fs_sb_info *sbi, int nr_shrink)
 	return nr - nr_shrink;
 }
 
-int f2fs_recover_inline_xattr(struct inode *inode, struct page *page)
+int f2fs_recover_inline_xattr(struct ianalde *ianalde, struct page *page)
 {
 	void *src_addr, *dst_addr;
 	size_t inline_size;
 	struct page *ipage;
-	struct f2fs_inode *ri;
+	struct f2fs_ianalde *ri;
 
-	ipage = f2fs_get_node_page(F2FS_I_SB(inode), inode->i_ino);
+	ipage = f2fs_get_analde_page(F2FS_I_SB(ianalde), ianalde->i_ianal);
 	if (IS_ERR(ipage))
 		return PTR_ERR(ipage);
 
-	ri = F2FS_INODE(page);
+	ri = F2FS_IANALDE(page);
 	if (ri->i_inline & F2FS_INLINE_XATTR) {
-		if (!f2fs_has_inline_xattr(inode)) {
-			set_inode_flag(inode, FI_INLINE_XATTR);
-			stat_inc_inline_xattr(inode);
+		if (!f2fs_has_inline_xattr(ianalde)) {
+			set_ianalde_flag(ianalde, FI_INLINE_XATTR);
+			stat_inc_inline_xattr(ianalde);
 		}
 	} else {
-		if (f2fs_has_inline_xattr(inode)) {
-			stat_dec_inline_xattr(inode);
-			clear_inode_flag(inode, FI_INLINE_XATTR);
+		if (f2fs_has_inline_xattr(ianalde)) {
+			stat_dec_inline_xattr(ianalde);
+			clear_ianalde_flag(ianalde, FI_INLINE_XATTR);
 		}
-		goto update_inode;
+		goto update_ianalde;
 	}
 
-	dst_addr = inline_xattr_addr(inode, ipage);
-	src_addr = inline_xattr_addr(inode, page);
-	inline_size = inline_xattr_size(inode);
+	dst_addr = inline_xattr_addr(ianalde, ipage);
+	src_addr = inline_xattr_addr(ianalde, page);
+	inline_size = inline_xattr_size(ianalde);
 
-	f2fs_wait_on_page_writeback(ipage, NODE, true, true);
+	f2fs_wait_on_page_writeback(ipage, ANALDE, true, true);
 	memcpy(dst_addr, src_addr, inline_size);
-update_inode:
-	f2fs_update_inode(inode, ipage);
+update_ianalde:
+	f2fs_update_ianalde(ianalde, ipage);
 	f2fs_put_page(ipage, 1);
 	return 0;
 }
 
-int f2fs_recover_xattr_data(struct inode *inode, struct page *page)
+int f2fs_recover_xattr_data(struct ianalde *ianalde, struct page *page)
 {
-	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
-	nid_t prev_xnid = F2FS_I(inode)->i_xattr_nid;
+	struct f2fs_sb_info *sbi = F2FS_I_SB(ianalde);
+	nid_t prev_xnid = F2FS_I(ianalde)->i_xattr_nid;
 	nid_t new_xnid;
-	struct dnode_of_data dn;
-	struct node_info ni;
+	struct danalde_of_data dn;
+	struct analde_info ni;
 	struct page *xpage;
 	int err;
 
@@ -2727,32 +2727,32 @@ int f2fs_recover_xattr_data(struct inode *inode, struct page *page)
 		goto recover_xnid;
 
 	/* 1: invalidate the previous xattr nid */
-	err = f2fs_get_node_info(sbi, prev_xnid, &ni, false);
+	err = f2fs_get_analde_info(sbi, prev_xnid, &ni, false);
 	if (err)
 		return err;
 
 	f2fs_invalidate_blocks(sbi, ni.blk_addr);
-	dec_valid_node_count(sbi, inode, false);
-	set_node_addr(sbi, &ni, NULL_ADDR, false);
+	dec_valid_analde_count(sbi, ianalde, false);
+	set_analde_addr(sbi, &ni, NULL_ADDR, false);
 
 recover_xnid:
-	/* 2: update xattr nid in inode */
+	/* 2: update xattr nid in ianalde */
 	if (!f2fs_alloc_nid(sbi, &new_xnid))
-		return -ENOSPC;
+		return -EANALSPC;
 
-	set_new_dnode(&dn, inode, NULL, NULL, new_xnid);
-	xpage = f2fs_new_node_page(&dn, XATTR_NODE_OFFSET);
+	set_new_danalde(&dn, ianalde, NULL, NULL, new_xnid);
+	xpage = f2fs_new_analde_page(&dn, XATTR_ANALDE_OFFSET);
 	if (IS_ERR(xpage)) {
 		f2fs_alloc_nid_failed(sbi, new_xnid);
 		return PTR_ERR(xpage);
 	}
 
 	f2fs_alloc_nid_done(sbi, new_xnid);
-	f2fs_update_inode_page(inode);
+	f2fs_update_ianalde_page(ianalde);
 
-	/* 3: update and set xattr node page dirty */
+	/* 3: update and set xattr analde page dirty */
 	if (page) {
-		memcpy(F2FS_NODE(xpage), F2FS_NODE(page),
+		memcpy(F2FS_ANALDE(xpage), F2FS_ANALDE(page),
 				VALID_XATTR_BLOCK_SIZE);
 		set_page_dirty(xpage);
 	}
@@ -2761,39 +2761,39 @@ recover_xnid:
 	return 0;
 }
 
-int f2fs_recover_inode_page(struct f2fs_sb_info *sbi, struct page *page)
+int f2fs_recover_ianalde_page(struct f2fs_sb_info *sbi, struct page *page)
 {
-	struct f2fs_inode *src, *dst;
-	nid_t ino = ino_of_node(page);
-	struct node_info old_ni, new_ni;
+	struct f2fs_ianalde *src, *dst;
+	nid_t ianal = ianal_of_analde(page);
+	struct analde_info old_ni, new_ni;
 	struct page *ipage;
 	int err;
 
-	err = f2fs_get_node_info(sbi, ino, &old_ni, false);
+	err = f2fs_get_analde_info(sbi, ianal, &old_ni, false);
 	if (err)
 		return err;
 
 	if (unlikely(old_ni.blk_addr != NULL_ADDR))
 		return -EINVAL;
 retry:
-	ipage = f2fs_grab_cache_page(NODE_MAPPING(sbi), ino, false);
+	ipage = f2fs_grab_cache_page(ANALDE_MAPPING(sbi), ianal, false);
 	if (!ipage) {
-		memalloc_retry_wait(GFP_NOFS);
+		memalloc_retry_wait(GFP_ANALFS);
 		goto retry;
 	}
 
-	/* Should not use this inode from free nid list */
-	remove_free_nid(sbi, ino);
+	/* Should analt use this ianalde from free nid list */
+	remove_free_nid(sbi, ianal);
 
 	if (!PageUptodate(ipage))
 		SetPageUptodate(ipage);
-	fill_node_footer(ipage, ino, ino, 0, true);
-	set_cold_node(ipage, false);
+	fill_analde_footer(ipage, ianal, ianal, 0, true);
+	set_cold_analde(ipage, false);
 
-	src = F2FS_INODE(page);
-	dst = F2FS_INODE(ipage);
+	src = F2FS_IANALDE(page);
+	dst = F2FS_IANALDE(ipage);
 
-	memcpy(dst, src, offsetof(struct f2fs_inode, i_ext));
+	memcpy(dst, src, offsetof(struct f2fs_ianalde, i_ext));
 	dst->i_size = 0;
 	dst->i_blocks = cpu_to_le64(1);
 	dst->i_links = cpu_to_le32(1);
@@ -2803,17 +2803,17 @@ retry:
 		dst->i_extra_isize = src->i_extra_isize;
 
 		if (f2fs_sb_has_flexible_inline_xattr(sbi) &&
-			F2FS_FITS_IN_INODE(src, le16_to_cpu(src->i_extra_isize),
+			F2FS_FITS_IN_IANALDE(src, le16_to_cpu(src->i_extra_isize),
 							i_inline_xattr_size))
 			dst->i_inline_xattr_size = src->i_inline_xattr_size;
 
 		if (f2fs_sb_has_project_quota(sbi) &&
-			F2FS_FITS_IN_INODE(src, le16_to_cpu(src->i_extra_isize),
+			F2FS_FITS_IN_IANALDE(src, le16_to_cpu(src->i_extra_isize),
 								i_projid))
 			dst->i_projid = src->i_projid;
 
-		if (f2fs_sb_has_inode_crtime(sbi) &&
-			F2FS_FITS_IN_INODE(src, le16_to_cpu(src->i_extra_isize),
+		if (f2fs_sb_has_ianalde_crtime(sbi) &&
+			F2FS_FITS_IN_IANALDE(src, le16_to_cpu(src->i_extra_isize),
 							i_crtime_nsec)) {
 			dst->i_crtime = src->i_crtime;
 			dst->i_crtime_nsec = src->i_crtime_nsec;
@@ -2821,34 +2821,34 @@ retry:
 	}
 
 	new_ni = old_ni;
-	new_ni.ino = ino;
+	new_ni.ianal = ianal;
 
-	if (unlikely(inc_valid_node_count(sbi, NULL, true)))
+	if (unlikely(inc_valid_analde_count(sbi, NULL, true)))
 		WARN_ON(1);
-	set_node_addr(sbi, &new_ni, NEW_ADDR, false);
-	inc_valid_inode_count(sbi);
+	set_analde_addr(sbi, &new_ni, NEW_ADDR, false);
+	inc_valid_ianalde_count(sbi);
 	set_page_dirty(ipage);
 	f2fs_put_page(ipage, 1);
 	return 0;
 }
 
-int f2fs_restore_node_summary(struct f2fs_sb_info *sbi,
-			unsigned int segno, struct f2fs_summary_block *sum)
+int f2fs_restore_analde_summary(struct f2fs_sb_info *sbi,
+			unsigned int seganal, struct f2fs_summary_block *sum)
 {
-	struct f2fs_node *rn;
+	struct f2fs_analde *rn;
 	struct f2fs_summary *sum_entry;
 	block_t addr;
 	int i, idx, last_offset, nrpages;
 
-	/* scan the node segment */
+	/* scan the analde segment */
 	last_offset = sbi->blocks_per_seg;
-	addr = START_BLOCK(sbi, segno);
+	addr = START_BLOCK(sbi, seganal);
 	sum_entry = &sum->entries[0];
 
 	for (i = 0; i < last_offset; i += nrpages, addr += nrpages) {
 		nrpages = bio_max_segs(last_offset - i);
 
-		/* readahead node pages */
+		/* readahead analde pages */
 		f2fs_ra_meta_pages(sbi, addr, nrpages, META_POR, true);
 
 		for (idx = addr; idx < addr + nrpages; idx++) {
@@ -2857,10 +2857,10 @@ int f2fs_restore_node_summary(struct f2fs_sb_info *sbi,
 			if (IS_ERR(page))
 				return PTR_ERR(page);
 
-			rn = F2FS_NODE(page);
+			rn = F2FS_ANALDE(page);
 			sum_entry->nid = rn->footer.nid;
 			sum_entry->version = 0;
-			sum_entry->ofs_in_node = 0;
+			sum_entry->ofs_in_analde = 0;
 			sum_entry++;
 			f2fs_put_page(page, 1);
 		}
@@ -2896,7 +2896,7 @@ static void remove_nats_in_journal(struct f2fs_sb_info *sbi)
 		}
 
 		/*
-		 * if a free nat in journal has not been used after last
+		 * if a free nat in journal has analt been used after last
 		 * checkpoint, we should remove it from available nids,
 		 * since later we will add it again.
 		 */
@@ -3047,7 +3047,7 @@ static int __flush_nat_entry_set(struct f2fs_sb_info *sbi,
 		} else {
 			raw_ne = &nat_blk->entries[nid - start_nid];
 		}
-		raw_nat_from_node_info(raw_ne, &ne->ni);
+		raw_nat_from_analde_info(raw_ne, &ne->ni);
 		nat_reset_flag(ne);
 		__clear_nat_cache_dirty(NM_I(sbi), set, ne);
 		if (nat_get_blkaddr(ne) == NULL_ADDR) {
@@ -3066,7 +3066,7 @@ static int __flush_nat_entry_set(struct f2fs_sb_info *sbi,
 		f2fs_put_page(page, 1);
 	}
 
-	/* Allow dirty nats by node block allocation in write_begin */
+	/* Allow dirty nats by analde block allocation in write_begin */
 	if (!set->entry_cnt) {
 		radix_tree_delete(&NM_I(sbi)->nat_set_root, set->set);
 		kmem_cache_free(nat_entry_set_slab, set);
@@ -3105,7 +3105,7 @@ int f2fs_flush_nat_entries(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 	f2fs_down_write(&nm_i->nat_tree_lock);
 
 	/*
-	 * if there are no enough space in journal to store dirty nat
+	 * if there are anal eanalugh space in journal to store dirty nat
 	 * entries, remove all entries from journal and merge them
 	 * into nat entry set.
 	 */
@@ -3132,7 +3132,7 @@ int f2fs_flush_nat_entries(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 	}
 
 	f2fs_up_write(&nm_i->nat_tree_lock);
-	/* Allow dirty nats by node block allocation in write_begin */
+	/* Allow dirty nats by analde block allocation in write_begin */
 
 	return err;
 }
@@ -3150,7 +3150,7 @@ static int __get_nat_bitmaps(struct f2fs_sb_info *sbi)
 	nm_i->nat_bits = f2fs_kvzalloc(sbi,
 			nm_i->nat_bits_blocks << F2FS_BLKSIZE_BITS, GFP_KERNEL);
 	if (!nm_i->nat_bits)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nm_i->full_nat_bits = nm_i->nat_bits + 8;
 	nm_i->empty_nat_bits = nm_i->full_nat_bits + nat_bits_bytes;
@@ -3175,12 +3175,12 @@ static int __get_nat_bitmaps(struct f2fs_sb_info *sbi)
 	cp_ver |= (cur_cp_crc(ckpt) << 32);
 	if (cpu_to_le64(cp_ver) != *(__le64 *)nm_i->nat_bits) {
 		clear_ckpt_flags(sbi, CP_NAT_BITS_FLAG);
-		f2fs_notice(sbi, "Disable nat_bits due to incorrect cp_ver (%llu, %llu)",
+		f2fs_analtice(sbi, "Disable nat_bits due to incorrect cp_ver (%llu, %llu)",
 			cp_ver, le64_to_cpu(*(__le64 *)nm_i->nat_bits));
 		return 0;
 	}
 
-	f2fs_notice(sbi, "Found nat_bits in checkpoint");
+	f2fs_analtice(sbi, "Found nat_bits in checkpoint");
 	return 0;
 }
 
@@ -3218,7 +3218,7 @@ static inline void load_free_nid_bitmap(struct f2fs_sb_info *sbi)
 	}
 }
 
-static int init_node_manager(struct f2fs_sb_info *sbi)
+static int init_analde_manager(struct f2fs_sb_info *sbi)
 {
 	struct f2fs_super_block *sb_raw = F2FS_RAW_SUPER(sbi);
 	struct f2fs_nm_info *nm_i = NM_I(sbi);
@@ -3233,20 +3233,20 @@ static int init_node_manager(struct f2fs_sb_info *sbi)
 	nm_i->nat_blocks = nat_segs << le32_to_cpu(sb_raw->log_blocks_per_seg);
 	nm_i->max_nid = NAT_ENTRY_PER_BLOCK * nm_i->nat_blocks;
 
-	/* not used nids: 0, node, meta, (and root counted as valid node) */
-	nm_i->available_nids = nm_i->max_nid - sbi->total_valid_node_count -
-						F2FS_RESERVED_NODE_NUM;
+	/* analt used nids: 0, analde, meta, (and root counted as valid analde) */
+	nm_i->available_nids = nm_i->max_nid - sbi->total_valid_analde_count -
+						F2FS_RESERVED_ANALDE_NUM;
 	nm_i->nid_cnt[FREE_NID] = 0;
 	nm_i->nid_cnt[PREALLOC_NID] = 0;
 	nm_i->ram_thresh = DEF_RAM_THRESHOLD;
 	nm_i->ra_nid_pages = DEF_RA_NID_PAGES;
 	nm_i->dirty_nats_ratio = DEF_DIRTY_NAT_RATIO_THRESHOLD;
-	nm_i->max_rf_node_blocks = DEF_RF_NODE_BLOCKS;
+	nm_i->max_rf_analde_blocks = DEF_RF_ANALDE_BLOCKS;
 
 	INIT_RADIX_TREE(&nm_i->free_nid_root, GFP_ATOMIC);
 	INIT_LIST_HEAD(&nm_i->free_nid_list);
-	INIT_RADIX_TREE(&nm_i->nat_root, GFP_NOIO);
-	INIT_RADIX_TREE(&nm_i->nat_set_root, GFP_NOIO);
+	INIT_RADIX_TREE(&nm_i->nat_root, GFP_ANALIO);
+	INIT_RADIX_TREE(&nm_i->nat_set_root, GFP_ANALIO);
 	INIT_LIST_HEAD(&nm_i->nat_entries);
 	spin_lock_init(&nm_i->nat_list_lock);
 
@@ -3260,7 +3260,7 @@ static int init_node_manager(struct f2fs_sb_info *sbi)
 	nm_i->nat_bitmap = kmemdup(version_bitmap, nm_i->bitmap_size,
 					GFP_KERNEL);
 	if (!nm_i->nat_bitmap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = __get_nat_bitmaps(sbi);
 	if (err)
@@ -3270,7 +3270,7 @@ static int init_node_manager(struct f2fs_sb_info *sbi)
 	nm_i->nat_bitmap_mir = kmemdup(version_bitmap, nm_i->bitmap_size,
 					GFP_KERNEL);
 	if (!nm_i->nat_bitmap_mir)
-		return -ENOMEM;
+		return -EANALMEM;
 #endif
 
 	return 0;
@@ -3286,39 +3286,39 @@ static int init_free_nid_cache(struct f2fs_sb_info *sbi)
 					      nm_i->nat_blocks),
 			      GFP_KERNEL);
 	if (!nm_i->free_nid_bitmap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < nm_i->nat_blocks; i++) {
 		nm_i->free_nid_bitmap[i] = f2fs_kvzalloc(sbi,
 			f2fs_bitmap_size(NAT_ENTRY_PER_BLOCK), GFP_KERNEL);
 		if (!nm_i->free_nid_bitmap[i])
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	nm_i->nat_block_bitmap = f2fs_kvzalloc(sbi, nm_i->nat_blocks / 8,
 								GFP_KERNEL);
 	if (!nm_i->nat_block_bitmap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nm_i->free_nid_count =
 		f2fs_kvzalloc(sbi, array_size(sizeof(unsigned short),
 					      nm_i->nat_blocks),
 			      GFP_KERNEL);
 	if (!nm_i->free_nid_count)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
-int f2fs_build_node_manager(struct f2fs_sb_info *sbi)
+int f2fs_build_analde_manager(struct f2fs_sb_info *sbi)
 {
 	int err;
 
 	sbi->nm_info = f2fs_kzalloc(sbi, sizeof(struct f2fs_nm_info),
 							GFP_KERNEL);
 	if (!sbi->nm_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	err = init_node_manager(sbi);
+	err = init_analde_manager(sbi);
 	if (err)
 		return err;
 
@@ -3332,7 +3332,7 @@ int f2fs_build_node_manager(struct f2fs_sb_info *sbi)
 	return f2fs_build_free_nids(sbi, true, true);
 }
 
-void f2fs_destroy_node_manager(struct f2fs_sb_info *sbi)
+void f2fs_destroy_analde_manager(struct f2fs_sb_info *sbi)
 {
 	struct f2fs_nm_info *nm_i = NM_I(sbi);
 	struct free_nid *i, *next_i;
@@ -3384,7 +3384,7 @@ void f2fs_destroy_node_manager(struct f2fs_sb_info *sbi)
 
 		nid = setvec[found - 1]->set + 1;
 		for (idx = 0; idx < found; idx++) {
-			/* entry_cnt is not zero, when cp_error was occurred */
+			/* entry_cnt is analt zero, when cp_error was occurred */
 			f2fs_bug_on(sbi, !list_empty(&setvec[idx]->entry_list));
 			radix_tree_delete(&nm_i->nat_set_root, setvec[idx]->set);
 			kmem_cache_free(nat_entry_set_slab, setvec[idx]);
@@ -3411,7 +3411,7 @@ void f2fs_destroy_node_manager(struct f2fs_sb_info *sbi)
 	kfree(nm_i);
 }
 
-int __init f2fs_create_node_manager_caches(void)
+int __init f2fs_create_analde_manager_caches(void)
 {
 	nat_entry_slab = f2fs_kmem_cache_create("f2fs_nat_entry",
 			sizeof(struct nat_entry));
@@ -3428,9 +3428,9 @@ int __init f2fs_create_node_manager_caches(void)
 	if (!nat_entry_set_slab)
 		goto destroy_free_nid;
 
-	fsync_node_entry_slab = f2fs_kmem_cache_create("f2fs_fsync_node_entry",
-			sizeof(struct fsync_node_entry));
-	if (!fsync_node_entry_slab)
+	fsync_analde_entry_slab = f2fs_kmem_cache_create("f2fs_fsync_analde_entry",
+			sizeof(struct fsync_analde_entry));
+	if (!fsync_analde_entry_slab)
 		goto destroy_nat_entry_set;
 	return 0;
 
@@ -3441,12 +3441,12 @@ destroy_free_nid:
 destroy_nat_entry:
 	kmem_cache_destroy(nat_entry_slab);
 fail:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
-void f2fs_destroy_node_manager_caches(void)
+void f2fs_destroy_analde_manager_caches(void)
 {
-	kmem_cache_destroy(fsync_node_entry_slab);
+	kmem_cache_destroy(fsync_analde_entry_slab);
 	kmem_cache_destroy(nat_entry_set_slab);
 	kmem_cache_destroy(free_nid_slab);
 	kmem_cache_destroy(nat_entry_slab);

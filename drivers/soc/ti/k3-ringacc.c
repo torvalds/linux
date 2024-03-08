@@ -97,7 +97,7 @@ struct k3_ringacc_proxy_target_regs {
 };
 
 #define K3_RINGACC_PROXY_TARGET_STEP	0x1000
-#define K3_RINGACC_PROXY_NOT_USED	(-1)
+#define K3_RINGACC_PROXY_ANALT_USED	(-1)
 
 enum k3_ringacc_proxy_access_mode {
 	PROXY_ACCESS_MODE_HEAD = 0,
@@ -325,14 +325,14 @@ static void k3_ringacc_ring_dump(struct k3_ring *ring)
 	dev_dbg(dev, "dump hwindx%08x\n", readl(&ring->rt->hwindx));
 
 	if (ring->ring_mem_virt)
-		print_hex_dump_debug("dump ring_mem_virt ", DUMP_PREFIX_NONE,
+		print_hex_dump_debug("dump ring_mem_virt ", DUMP_PREFIX_ANALNE,
 				     16, 1, ring->ring_mem_virt, 16 * 8, false);
 }
 
 struct k3_ring *k3_ringacc_request_ring(struct k3_ringacc *ringacc,
 					int id, u32 flags)
 {
-	int proxy_id = K3_RINGACC_PROXY_NOT_USED;
+	int proxy_id = K3_RINGACC_PROXY_ANALT_USED;
 
 	mutex_lock(&ringacc->req_lock);
 
@@ -367,7 +367,7 @@ struct k3_ring *k3_ringacc_request_ring(struct k3_ringacc *ringacc,
 			goto error;
 	}
 
-	if (proxy_id != K3_RINGACC_PROXY_NOT_USED) {
+	if (proxy_id != K3_RINGACC_PROXY_ANALT_USED) {
 		set_bit(proxy_id, ringacc->proxy_inuse);
 		ringacc->rings[id].proxy_id = proxy_id;
 		dev_dbg(ringacc->dev, "Giving ring#%d proxy#%d\n", id,
@@ -448,12 +448,12 @@ int k3_ringacc_request_rings_pair(struct k3_ringacc *ringacc,
 
 	*fwd_ring = k3_ringacc_request_ring(ringacc, fwd_id, 0);
 	if (!(*fwd_ring))
-		return -ENODEV;
+		return -EANALDEV;
 
 	*compl_ring = k3_ringacc_request_ring(ringacc, compl_id, 0);
 	if (!(*compl_ring)) {
 		k3_ringacc_ring_free(*fwd_ring);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 	}
 
 	return ret;
@@ -526,7 +526,7 @@ void k3_ringacc_ring_reset_dma(struct k3_ring *ring, u32 occ)
 		k3_ringacc_ring_reset_sci(ring);
 
 		/*
-		 * Setup the ring in ring/doorbell mode (if not already in this
+		 * Setup the ring in ring/doorbell mode (if analt already in this
 		 * mode)
 		 */
 		if (ring->mode != K3_RINGACC_RING_MODE_RING)
@@ -554,7 +554,7 @@ void k3_ringacc_ring_reset_dma(struct k3_ring *ring, u32 occ)
 			db_ring_cnt -= db_ring_cnt_cur;
 		}
 
-		/* Restore the original ring mode (if not ring mode) */
+		/* Restore the original ring mode (if analt ring mode) */
 		if (ring->mode != K3_RINGACC_RING_MODE_RING)
 			k3_ringacc_ring_reconfig_qmode_sci(ring, ring->mode);
 	}
@@ -573,7 +573,7 @@ static void k3_ringacc_ring_free_sci(struct k3_ring *ring)
 
 	ring_cfg.nav_id = ringacc->tisci_dev_id;
 	ring_cfg.index = ring->ring_id;
-	ring_cfg.valid_params = TI_SCI_MSG_VALUE_RM_ALL_NO_ORDER;
+	ring_cfg.valid_params = TI_SCI_MSG_VALUE_RM_ALL_ANAL_ORDER;
 
 	ret = ringacc->tisci_ring_ops->set_cfg(ringacc->tisci, &ring_cfg);
 	if (ret)
@@ -608,7 +608,7 @@ int k3_ringacc_ring_free(struct k3_ring *ring)
 		goto out;
 
 	if (!(ring->flags & K3_RING_FLAG_BUSY))
-		goto no_init;
+		goto anal_init;
 
 	k3_ringacc_ring_free_sci(ring);
 
@@ -620,13 +620,13 @@ int k3_ringacc_ring_free(struct k3_ring *ring)
 	ring->dma_dev = NULL;
 	ring->asel = 0;
 
-	if (ring->proxy_id != K3_RINGACC_PROXY_NOT_USED) {
+	if (ring->proxy_id != K3_RINGACC_PROXY_ANALT_USED) {
 		clear_bit(ring->proxy_id, ringacc->proxy_inuse);
 		ring->proxy = NULL;
-		ring->proxy_id = K3_RINGACC_PROXY_NOT_USED;
+		ring->proxy_id = K3_RINGACC_PROXY_ANALT_USED;
 	}
 
-no_init:
+anal_init:
 	clear_bit(ring->ring_id, ringacc->rings_inuse);
 
 	module_put(ringacc->dev->driver->owner);
@@ -680,7 +680,7 @@ static int k3_ringacc_ring_cfg_sci(struct k3_ring *ring)
 
 	ring_cfg.nav_id = ringacc->tisci_dev_id;
 	ring_cfg.index = ring->ring_id;
-	ring_cfg.valid_params = TI_SCI_MSG_VALUE_RM_ALL_NO_ORDER;
+	ring_cfg.valid_params = TI_SCI_MSG_VALUE_RM_ALL_ANAL_ORDER;
 	ring_cfg.addr_lo = lower_32_bits(ring->ring_mem_dma);
 	ring_cfg.addr_hi = upper_32_bits(ring->ring_mem_dma);
 	ring_cfg.count = ring->size;
@@ -725,7 +725,7 @@ static int k3_dmaring_cfg(struct k3_ring *ring, struct k3_ring_cfg *cfg)
 	ring->asel = cfg->asel;
 	ring->dma_dev = cfg->dma_dev;
 	if (!ring->dma_dev) {
-		dev_warn(ringacc->dev, "dma_dev is not provided for ring%d\n",
+		dev_warn(ringacc->dev, "dma_dev is analt provided for ring%d\n",
 			 ring->ring_id);
 		ring->dma_dev = ringacc->dev;
 	}
@@ -739,7 +739,7 @@ static int k3_dmaring_cfg(struct k3_ring *ring, struct k3_ring_cfg *cfg)
 						 &ring->ring_mem_dma, GFP_KERNEL);
 	if (!ring->ring_mem_virt) {
 		dev_err(ringacc->dev, "Failed to alloc ring mem\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_ops;
 	}
 
@@ -800,7 +800,7 @@ int k3_ringacc_ring_cfg(struct k3_ring *ring, struct k3_ring_cfg *cfg)
 		return -EINVAL;
 
 	if (cfg->mode == K3_RINGACC_RING_MODE_MESSAGE &&
-	    ring->proxy_id == K3_RINGACC_PROXY_NOT_USED &&
+	    ring->proxy_id == K3_RINGACC_PROXY_ANALT_USED &&
 	    cfg->elm_size > K3_RINGACC_RING_ELSIZE_8) {
 		dev_err(ringacc->dev,
 			"Message mode must use proxy for %u element size\n",
@@ -824,7 +824,7 @@ int k3_ringacc_ring_cfg(struct k3_ring *ring, struct k3_ring_cfg *cfg)
 	ring->mode = cfg->mode;
 	memset(&ring->state, 0, sizeof(ring->state));
 
-	if (ring->proxy_id != K3_RINGACC_PROXY_NOT_USED)
+	if (ring->proxy_id != K3_RINGACC_PROXY_ANALT_USED)
 		ring->proxy = ringacc->proxy_target_base +
 			      ring->proxy_id * K3_RINGACC_PROXY_TARGET_STEP;
 
@@ -853,7 +853,7 @@ int k3_ringacc_ring_cfg(struct k3_ring *ring, struct k3_ring_cfg *cfg)
 						 &ring->ring_mem_dma, GFP_KERNEL);
 	if (!ring->ring_mem_virt) {
 		dev_err(ringacc->dev, "Failed to alloc ring mem\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_ops;
 	}
 
@@ -1088,7 +1088,7 @@ static int k3_ringacc_ring_pop_tail_io(struct k3_ring *ring, void *elem)
 
 /*
  * The element is 48 bits of address + ASEL bits in the ring.
- * ASEL is used by the DMAs and should be removed for the kernel as it is not
+ * ASEL is used by the DMAs and should be removed for the kernel as it is analt
  * part of the physical memory address.
  */
 static void k3_dmaring_remove_asel_from_elem(u64 *elem)
@@ -1102,8 +1102,8 @@ static int k3_dmaring_fwd_pop(struct k3_ring *ring, void *elem)
 	u32 elem_idx;
 
 	/*
-	 * DMA rings: forward ring is always tied DMA channel and HW does not
-	 * maintain any state data required for POP operation and its unknown
+	 * DMA rings: forward ring is always tied DMA channel and HW does analt
+	 * maintain any state data required for POP operation and its unkanalwn
 	 * how much elements were consumed by HW. So, to actually
 	 * do POP, the read pointer has to be recalculated every time.
 	 */
@@ -1194,7 +1194,7 @@ static int k3_ringacc_ring_pop_mem(struct k3_ring *ring, void *elem)
 
 int k3_ringacc_ring_push(struct k3_ring *ring, void *elem)
 {
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 
 	if (!ring || !(ring->flags & K3_RING_FLAG_BUSY))
 		return -EINVAL;
@@ -1203,7 +1203,7 @@ int k3_ringacc_ring_push(struct k3_ring *ring, void *elem)
 		ring->state.free, ring->state.windex);
 
 	if (k3_ringacc_ring_is_full(ring))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (ring->ops && ring->ops->push_tail)
 		ret = ring->ops->push_tail(ring, elem);
@@ -1214,7 +1214,7 @@ EXPORT_SYMBOL_GPL(k3_ringacc_ring_push);
 
 int k3_ringacc_ring_push_head(struct k3_ring *ring, void *elem)
 {
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 
 	if (!ring || !(ring->flags & K3_RING_FLAG_BUSY))
 		return -EINVAL;
@@ -1223,7 +1223,7 @@ int k3_ringacc_ring_push_head(struct k3_ring *ring, void *elem)
 		ring->state.free, ring->state.windex);
 
 	if (k3_ringacc_ring_is_full(ring))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (ring->ops && ring->ops->push_head)
 		ret = ring->ops->push_head(ring, elem);
@@ -1234,7 +1234,7 @@ EXPORT_SYMBOL_GPL(k3_ringacc_ring_push_head);
 
 int k3_ringacc_ring_pop(struct k3_ring *ring, void *elem)
 {
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 
 	if (!ring || !(ring->flags & K3_RING_FLAG_BUSY))
 		return -EINVAL;
@@ -1246,7 +1246,7 @@ int k3_ringacc_ring_pop(struct k3_ring *ring, void *elem)
 		ring->state.rindex);
 
 	if (!ring->state.occ && !ring->state.tdown_complete)
-		return -ENODATA;
+		return -EANALDATA;
 
 	if (ring->ops && ring->ops->pop_head)
 		ret = ring->ops->pop_head(ring, elem);
@@ -1257,7 +1257,7 @@ EXPORT_SYMBOL_GPL(k3_ringacc_ring_pop);
 
 int k3_ringacc_ring_pop_tail(struct k3_ring *ring, void *elem)
 {
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 
 	if (!ring || !(ring->flags & K3_RING_FLAG_BUSY))
 		return -EINVAL;
@@ -1269,7 +1269,7 @@ int k3_ringacc_ring_pop_tail(struct k3_ring *ring, void *elem)
 		ring->state.occ, ring->state.rindex);
 
 	if (!ring->state.occ)
-		return -ENODATA;
+		return -EANALDATA;
 
 	if (ring->ops && ring->ops->pop_tail)
 		ret = ring->ops->pop_tail(ring, elem);
@@ -1278,25 +1278,25 @@ int k3_ringacc_ring_pop_tail(struct k3_ring *ring, void *elem)
 }
 EXPORT_SYMBOL_GPL(k3_ringacc_ring_pop_tail);
 
-struct k3_ringacc *of_k3_ringacc_get_by_phandle(struct device_node *np,
+struct k3_ringacc *of_k3_ringacc_get_by_phandle(struct device_analde *np,
 						const char *property)
 {
-	struct device_node *ringacc_np;
+	struct device_analde *ringacc_np;
 	struct k3_ringacc *ringacc = ERR_PTR(-EPROBE_DEFER);
 	struct k3_ringacc *entry;
 
 	ringacc_np = of_parse_phandle(np, property, 0);
 	if (!ringacc_np)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	mutex_lock(&k3_ringacc_list_lock);
 	list_for_each_entry(entry, &k3_ringacc_list, list)
-		if (entry->dev->of_node == ringacc_np) {
+		if (entry->dev->of_analde == ringacc_np) {
 			ringacc = entry;
 			break;
 		}
 	mutex_unlock(&k3_ringacc_list_lock);
-	of_node_put(ringacc_np);
+	of_analde_put(ringacc_np);
 
 	return ringacc;
 }
@@ -1304,23 +1304,23 @@ EXPORT_SYMBOL_GPL(of_k3_ringacc_get_by_phandle);
 
 static int k3_ringacc_probe_dt(struct k3_ringacc *ringacc)
 {
-	struct device_node *node = ringacc->dev->of_node;
+	struct device_analde *analde = ringacc->dev->of_analde;
 	struct device *dev = ringacc->dev;
 	struct platform_device *pdev = to_platform_device(dev);
 	int ret;
 
-	if (!node) {
+	if (!analde) {
 		dev_err(dev, "device tree info unavailable\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
-	ret = of_property_read_u32(node, "ti,num-rings", &ringacc->num_rings);
+	ret = of_property_read_u32(analde, "ti,num-rings", &ringacc->num_rings);
 	if (ret) {
 		dev_err(dev, "ti,num-rings read failure %d\n", ret);
 		return ret;
 	}
 
-	ringacc->tisci = ti_sci_get_by_phandle(node, "ti,sci");
+	ringacc->tisci = ti_sci_get_by_phandle(analde, "ti,sci");
 	if (IS_ERR(ringacc->tisci)) {
 		ret = PTR_ERR(ringacc->tisci);
 		if (ret != -EPROBE_DEFER)
@@ -1329,7 +1329,7 @@ static int k3_ringacc_probe_dt(struct k3_ringacc *ringacc)
 		return ret;
 	}
 
-	ret = of_property_read_u32(node, "ti,sci-dev-id",
+	ret = of_property_read_u32(analde, "ti,sci-dev-id",
 				   &ringacc->tisci_dev_id);
 	if (ret) {
 		dev_err(dev, "ti,sci-dev-id read fail %d\n", ret);
@@ -1370,7 +1370,7 @@ static int k3_ringacc_init(struct platform_device *pdev,
 	struct device *dev = &pdev->dev;
 	int ret, i;
 
-	dev->msi.domain = of_msi_get_domain(dev, dev->of_node,
+	dev->msi.domain = of_msi_get_domain(dev, dev->of_analde,
 					    DOMAIN_BUS_TI_SCI_INTA_MSI);
 	if (!dev->msi.domain)
 		return -EPROBE_DEFER;
@@ -1416,7 +1416,7 @@ static int k3_ringacc_init(struct platform_device *pdev,
 						  GFP_KERNEL);
 
 	if (!ringacc->rings || !ringacc->rings_inuse || !ringacc->proxy_inuse)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ringacc->num_rings; i++) {
 		ringacc->rings[i].rt = base_rt +
@@ -1425,7 +1425,7 @@ static int k3_ringacc_init(struct platform_device *pdev,
 					  K3_RINGACC_FIFO_REGS_STEP * i;
 		ringacc->rings[i].parent = ringacc;
 		ringacc->rings[i].ring_id = i;
-		ringacc->rings[i].proxy_id = K3_RINGACC_PROXY_NOT_USED;
+		ringacc->rings[i].proxy_id = K3_RINGACC_PROXY_ANALT_USED;
 	}
 
 	ringacc->tisci_ring_ops = &ringacc->tisci->ops.rm_ring_ops;
@@ -1470,7 +1470,7 @@ struct k3_ringacc *k3_ringacc_dmarings_init(struct platform_device *pdev,
 
 	ringacc = devm_kzalloc(dev, sizeof(*ringacc), GFP_KERNEL);
 	if (!ringacc)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ringacc->dev = dev;
 	ringacc->dma_rings = true;
@@ -1492,7 +1492,7 @@ struct k3_ringacc *k3_ringacc_dmarings_init(struct platform_device *pdev,
 						  GFP_KERNEL);
 
 	if (!ringacc->rings || !ringacc->rings_inuse)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	for (i = 0; i < ringacc->num_rings; i++) {
 		struct k3_ring *ring = &ringacc->rings[i];
@@ -1500,14 +1500,14 @@ struct k3_ringacc *k3_ringacc_dmarings_init(struct platform_device *pdev,
 		ring->rt = base_rt + K3_DMARING_RT_REGS_STEP * i;
 		ring->parent = ringacc;
 		ring->ring_id = i;
-		ring->proxy_id = K3_RINGACC_PROXY_NOT_USED;
+		ring->proxy_id = K3_RINGACC_PROXY_ANALT_USED;
 
 		ring = &ringacc->rings[ringacc->num_rings + i];
 		ring->rt = base_rt + K3_DMARING_RT_REGS_STEP * i +
 			   K3_DMARING_RT_REGS_REVERSE_OFS;
 		ring->parent = ringacc;
 		ring->ring_id = i;
-		ring->proxy_id = K3_RINGACC_PROXY_NOT_USED;
+		ring->proxy_id = K3_RINGACC_PROXY_ANALT_USED;
 		ring->flags = K3_RING_FLAG_REVERSE;
 	}
 
@@ -1528,11 +1528,11 @@ static int k3_ringacc_probe(struct platform_device *pdev)
 
 	match_data = of_device_get_match_data(&pdev->dev);
 	if (!match_data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ringacc = devm_kzalloc(dev, sizeof(*ringacc), GFP_KERNEL);
 	if (!ringacc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ringacc->dev = dev;
 	mutex_init(&ringacc->req_lock);

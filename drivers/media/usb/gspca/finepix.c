@@ -19,7 +19,7 @@ MODULE_LICENSE("GPL");
 #define FPIX_TIMEOUT 250
 
 /* Maximum transfer size to use. The windows driver reads by chunks of
- * 0x2000 bytes, so do the same. Note: reading more seems to work
+ * 0x2000 bytes, so do the same. Analte: reading more seems to work
  * too. */
 #define FPIX_MAX_TRANSFER 0x2000
 
@@ -38,7 +38,7 @@ struct usb_fpix {
 
 /* These cameras only support 320x200. */
 static const struct v4l2_pix_format fpix_mode[1] = {
-	{ 320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+	{ 320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_ANALNE,
 		.bytesperline = 320,
 		.sizeimage = 320 * 240 * 3 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_SRGB,
@@ -66,7 +66,7 @@ static int command(struct gspca_dev *gspca_dev,
 /*
  * This function is called as a workqueue function and runs whenever the camera
  * is streaming data. Because it is a workqueue function it is allowed to sleep
- * so we can use synchronous USB calls. To avoid possible collisions with other
+ * so we can use synchroanalus USB calls. To avoid possible collisions with other
  * threads attempting to use gspca_dev->usb_buf we take the usb_lock when
  * performing USB operations using it. In practice we don't really need this
  * as the camera doesn't provide any controls.
@@ -127,8 +127,8 @@ again:
 
 				/* If the result is less than what was asked
 				 * for, then it's the end of the
-				 * frame. Sometimes the jpeg is not complete,
-				 * but there's nothing we can do. We also end
+				 * frame. Sometimes the jpeg is analt complete,
+				 * but there's analthing we can do. We also end
 				 * here if the jpeg ends right at the end
 				 * of the frame. */
 				gspca_frame_add(gspca_dev, LAST_PACKET,
@@ -190,7 +190,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		return ret;
 	}
 
-	/* Read the result of the command. Ignore the result, for it
+	/* Read the result of the command. Iganalre the result, for it
 	 * varies with the device. */
 	ret = usb_bulk_msg(gspca_dev->dev,
 			gspca_dev->urb[0]->pipe,

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (C) 2022 Microchip Technology Inc. */
+/* Copyright (C) 2022 Microchip Techanallogy Inc. */
 
 #ifndef _GPIO_PCI1XXXX_H
 #define _GPIO_PCI1XXXX_H

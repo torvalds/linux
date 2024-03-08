@@ -147,6 +147,6 @@ const char *crush_hash_name(int type)
 	case CRUSH_HASH_RJENKINS1:
 		return "rjenkins1";
 	default:
-		return "unknown";
+		return "unkanalwn";
 	}
 }

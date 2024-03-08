@@ -2,7 +2,7 @@
 /*
  * drm gem framebuffer helper functions
  *
- * Copyright (C) 2017 Noralf Trønnes
+ * Copyright (C) 2017 Analralf Trønnes
  */
 
 #include <linux/slab.h>
@@ -43,12 +43,12 @@ MODULE_IMPORT_NS(DMA_BUF);
  * @fb: Framebuffer
  * @plane: Plane index
  *
- * No additional reference is taken beyond the one that the &drm_frambuffer
+ * Anal additional reference is taken beyond the one that the &drm_frambuffer
  * already holds.
  *
  * Returns:
  * Pointer to &drm_gem_object for the given framebuffer and plane index or NULL
- * if it does not exist.
+ * if it does analt exist.
  */
 struct drm_gem_object *drm_gem_fb_get_obj(struct drm_framebuffer *fb,
 					  unsigned int plane)
@@ -143,7 +143,7 @@ EXPORT_SYMBOL(drm_gem_fb_create_handle);
  * change &drm_framebuffer_funcs. The function does buffer size validation.
  * The buffer size validation is for a general case, though, so users should
  * pay attention to the checks being appropriate for them or, at least,
- * non-conflicting.
+ * analn-conflicting.
  *
  * Returns:
  * Zero or a negative error code.
@@ -181,7 +181,7 @@ int drm_gem_fb_init_with_funcs(struct drm_device *dev,
 		objs[i] = drm_gem_object_lookup(file, mode_cmd->handles[i]);
 		if (!objs[i]) {
 			drm_dbg_kms(dev, "Failed to lookup GEM object\n");
-			ret = -ENOENT;
+			ret = -EANALENT;
 			goto err_gem_object_put;
 		}
 
@@ -240,7 +240,7 @@ drm_gem_fb_create_with_funcs(struct drm_device *dev, struct drm_file *file,
 
 	fb = kzalloc(sizeof(*fb), GFP_KERNEL);
 	if (!fb)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ret = drm_gem_fb_init_with_funcs(dev, fb, file, mode_cmd, funcs);
 	if (ret) {
@@ -339,7 +339,7 @@ EXPORT_SYMBOL_GPL(drm_gem_fb_create_with_dirty);
  *
  * Callers that want to access a BO's stored data should pass @data.
  * The argument returns the addresses of the data stored in each BO. This
- * is different from @map if the framebuffer's offsets field is non-zero.
+ * is different from @map if the framebuffer's offsets field is analn-zero.
  *
  * Both, @map and @data, must each refer to arrays with at least
  * fb->format->num_planes elements.
@@ -347,7 +347,7 @@ EXPORT_SYMBOL_GPL(drm_gem_fb_create_with_dirty);
  * See drm_gem_fb_vunmap() for unmapping.
  *
  * Returns:
- * 0 on success, or a negative errno code otherwise.
+ * 0 on success, or a negative erranal code otherwise.
  */
 int drm_gem_fb_vmap(struct drm_framebuffer *fb, struct iosys_map *map,
 		    struct iosys_map *data)
@@ -450,7 +450,7 @@ static void __drm_gem_fb_end_cpu_access(struct drm_framebuffer *fb, enum dma_dat
  * See drm_gem_fb_end_cpu_access() for signalling the end of CPU access.
  *
  * Returns:
- * 0 on success, or a negative errno code otherwise.
+ * 0 on success, or a negative erranal code otherwise.
  */
 int drm_gem_fb_begin_cpu_access(struct drm_framebuffer *fb, enum dma_data_direction dir)
 {
@@ -536,7 +536,7 @@ static int drm_gem_afbc_min_size(struct drm_device *dev,
 		afbc_fb->block_width = 32;
 		afbc_fb->block_height = 8;
 		break;
-	/* no user exists yet - fall through */
+	/* anal user exists yet - fall through */
 	case AFBC_FORMAT_MOD_BLOCK_SIZE_64x4:
 	case AFBC_FORMAT_MOD_BLOCK_SIZE_32x8_64x4:
 	default:

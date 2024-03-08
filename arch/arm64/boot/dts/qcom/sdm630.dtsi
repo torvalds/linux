@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /*
  * Copyright (c) 2020, Konrad Dybcio <konradybcio@gmail.com>
- * Copyright (c) 2020, AngeloGioacchino Del Regno <kholk11@gmail.com>
+ * Copyright (c) 2020, AngeloGioacchianal Del Reganal <kholk11@gmail.com>
  */
 
 #include <dt-bindings/clock/qcom,gcc-sdm660.h>
@@ -346,7 +346,7 @@
 
 		opp-262500000 {
 			opp-hz = /bits/ 64 <262500000>;
-			required-opps = <&rpmpd_opp_nom>;
+			required-opps = <&rpmpd_opp_analm>;
 		};
 	};
 
@@ -411,12 +411,12 @@
 							opp-level = <RPM_SMD_LEVEL_SVS_PLUS>;
 						};
 
-						rpmpd_opp_nom: opp7 {
-							opp-level = <RPM_SMD_LEVEL_NOM>;
+						rpmpd_opp_analm: opp7 {
+							opp-level = <RPM_SMD_LEVEL_ANALM>;
 						};
 
-						rpmpd_opp_nom_plus: opp8 {
-							opp-level = <RPM_SMD_LEVEL_NOM_PLUS>;
+						rpmpd_opp_analm_plus: opp8 {
+							opp-level = <RPM_SMD_LEVEL_ANALM_PLUS>;
 						};
 
 						rpmpd_opp_turbo: opp9 {
@@ -435,23 +435,23 @@
 
 		wlan_msa_guard: wlan-msa-guard@85600000 {
 			reg = <0x0 0x85600000 0x0 0x100000>;
-			no-map;
+			anal-map;
 		};
 
 		wlan_msa_mem: wlan-msa-mem@85700000 {
 			reg = <0x0 0x85700000 0x0 0x100000>;
-			no-map;
+			anal-map;
 		};
 
 		qhee_code: qhee-code@85800000 {
 			reg = <0x0 0x85800000 0x0 0x600000>;
-			no-map;
+			anal-map;
 		};
 
 		rmtfs_mem: memory@85e00000 {
 			compatible = "qcom,rmtfs-mem";
 			reg = <0x0 0x85e00000 0x0 0x200000>;
-			no-map;
+			anal-map;
 
 			qcom,client-id = <1>;
 			qcom,vmid = <QCOM_SCM_VMID_MSS_MSA>;
@@ -459,53 +459,53 @@
 
 		smem_region: smem-mem@86000000 {
 			reg = <0 0x86000000 0 0x200000>;
-			no-map;
+			anal-map;
 		};
 
 		tz_mem: memory@86200000 {
 			reg = <0x0 0x86200000 0x0 0x3300000>;
-			no-map;
+			anal-map;
 		};
 
 		mpss_region: mpss@8ac00000 {
 			reg = <0x0 0x8ac00000 0x0 0x7e00000>;
-			no-map;
+			anal-map;
 		};
 
 		adsp_region: adsp@92a00000 {
 			reg = <0x0 0x92a00000 0x0 0x1e00000>;
-			no-map;
+			anal-map;
 		};
 
 		mba_region: mba@94800000 {
 			reg = <0x0 0x94800000 0x0 0x200000>;
-			no-map;
+			anal-map;
 		};
 
 		buffer_mem: tzbuffer@94a00000 {
 			reg = <0x0 0x94a00000 0x0 0x100000>;
-			no-map;
+			anal-map;
 		};
 
 		venus_region: venus@9f800000 {
 			reg = <0x0 0x9f800000 0x0 0x800000>;
-			no-map;
+			anal-map;
 		};
 
 		adsp_mem: adsp-region@f6000000 {
 			reg = <0x0 0xf6000000 0x0 0x800000>;
-			no-map;
+			anal-map;
 		};
 
 		qseecom_mem: qseecom-region@f6800000 {
 			reg = <0x0 0xf6800000 0x0 0x1400000>;
-			no-map;
+			anal-map;
 		};
 
 		zap_shader_region: gpu@fed00000 {
 			compatible = "shared-dma-pool";
 			reg = <0x0 0xfed00000 0x0 0xa00000>;
-			no-map;
+			anal-map;
 		};
 	};
 
@@ -613,19 +613,19 @@
 			reg = <0x010ac000 0x4>;
 		};
 
-		cnoc: interconnect@1500000 {
-			compatible = "qcom,sdm660-cnoc";
+		canalc: interconnect@1500000 {
+			compatible = "qcom,sdm660-canalc";
 			reg = <0x01500000 0x10000>;
 			#interconnect-cells = <1>;
 		};
 
-		snoc: interconnect@1626000 {
-			compatible = "qcom,sdm660-snoc";
+		sanalc: interconnect@1626000 {
+			compatible = "qcom,sdm660-sanalc";
 			reg = <0x01626000 0x7090>;
 			#interconnect-cells = <1>;
 		};
 
-		anoc2_smmu: iommu@16c0000 {
+		aanalc2_smmu: iommu@16c0000 {
 			compatible = "qcom,sdm630-smmu-v2", "qcom,smmu-v2";
 			reg = <0x016c0000 0x40000>;
 			#global-interrupts = <2>;
@@ -668,24 +668,24 @@
 			status = "disabled";
 		};
 
-		a2noc: interconnect@1704000 {
-			compatible = "qcom,sdm660-a2noc";
+		a2analc: interconnect@1704000 {
+			compatible = "qcom,sdm660-a2analc";
 			reg = <0x01704000 0xc100>;
 			#interconnect-cells = <1>;
 			clock-names = "ipa",
 				      "ufs_axi",
 				      "aggre2_ufs_axi",
 				      "aggre2_usb3_axi",
-				      "cfg_noc_usb2_axi";
+				      "cfg_analc_usb2_axi";
 			clocks = <&rpmcc RPM_SMD_IPA_CLK>,
 				 <&gcc GCC_UFS_AXI_CLK>,
 				 <&gcc GCC_AGGRE2_UFS_AXI_CLK>,
 				 <&gcc GCC_AGGRE2_USB3_AXI_CLK>,
-				 <&gcc GCC_CFG_NOC_USB2_AXI_CLK>;
+				 <&gcc GCC_CFG_ANALC_USB2_AXI_CLK>;
 		};
 
-		mnoc: interconnect@1745000 {
-			compatible = "qcom,sdm660-mnoc";
+		manalc: interconnect@1745000 {
+			compatible = "qcom,sdm660-manalc";
 			reg = <0x01745000 0xa010>;
 			#interconnect-cells = <1>;
 			clock-names = "iface";
@@ -719,7 +719,7 @@
 			reg = <0x03100000 0x400000>,
 				  <0x03500000 0x400000>,
 				  <0x03900000 0x400000>;
-			reg-names = "south", "center", "north";
+			reg-names = "south", "center", "analrth";
 			interrupts = <GIC_SPI 208 IRQ_TYPE_LEVEL_HIGH>;
 			gpio-controller;
 			gpio-ranges = <&tlmm 0 0 114>;
@@ -759,7 +759,7 @@
 				rx-pins {
 					/*
 					 * Avoid garbage data while BT module
-					 * is powered off or not driving signal
+					 * is powered off or analt driving signal
 					 */
 					pins = "gpio17";
 					function = "blsp_uart5";
@@ -1031,16 +1031,16 @@
 				 <&gcc GCC_BIMC_MSS_Q6_AXI_CLK>,
 				 <&gcc GCC_BOOT_ROM_AHB_CLK>,
 				 <&gcc GPLL0_OUT_MSSCC>,
-				 <&gcc GCC_MSS_SNOC_AXI_CLK>,
-				 <&gcc GCC_MSS_MNOC_BIMC_AXI_CLK>,
+				 <&gcc GCC_MSS_SANALC_AXI_CLK>,
+				 <&gcc GCC_MSS_MANALC_BIMC_AXI_CLK>,
 				 <&rpmcc RPM_SMD_QDSS_CLK>,
 				 <&rpmcc RPM_SMD_XO_CLK_SRC>;
 			clock-names = "iface",
 				      "bus",
 				      "mem",
 				      "gpll0_mss",
-				      "snoc_axi",
-				      "mnoc_axi",
+				      "sanalc_axi",
+				      "manalc_axi",
 				      "qdss",
 				      "xo";
 
@@ -1068,8 +1068,8 @@
 			};
 		};
 
-		adreno_gpu: gpu@5000000 {
-			compatible = "qcom,adreno-508.0", "qcom,adreno";
+		adreanal_gpu: gpu@5000000 {
+			compatible = "qcom,adreanal-508.0", "qcom,adreanal";
 
 			reg = <0x05000000 0x40000>;
 			reg-names = "kgsl_3d0_reg_memory";
@@ -1113,13 +1113,13 @@
 				};
 				opp-647000000 {
 					opp-hz = /bits/ 64 <647000000>;
-					opp-level = <RPM_SMD_LEVEL_NOM_PLUS>;
+					opp-level = <RPM_SMD_LEVEL_ANALM_PLUS>;
 					opp-peak-kBps = <4068000>;
 					opp-supported-hw = <0xff>;
 				};
 				opp-588000000 {
 					opp-hz = /bits/ 64 <588000000>;
-					opp-level = <RPM_SMD_LEVEL_NOM>;
+					opp-level = <RPM_SMD_LEVEL_ANALM>;
 					opp-peak-kBps = <3072000>;
 					opp-supported-hw = <0xff>;
 				};
@@ -1152,15 +1152,15 @@
 
 		kgsl_smmu: iommu@5040000 {
 			compatible = "qcom,sdm630-smmu-v2",
-				     "qcom,adreno-smmu", "qcom,smmu-v2";
+				     "qcom,adreanal-smmu", "qcom,smmu-v2";
 			reg = <0x05040000 0x10000>;
 
 			/*
 			 * GX GDSC parent is CX. We need to bring up CX for SMMU
-			 * but we need both up for Adreno. On the other hand, we
-			 * need to manage the GX rpmpd domain in the adreno driver.
+			 * but we need both up for Adreanal. On the other hand, we
+			 * need to manage the GX rpmpd domain in the adreanal driver.
 			 * Enable CX/GX GDSCs here so that we can manage just the GX
-			 * RPM Power Domain in the Adreno driver.
+			 * RPM Power Domain in the Adreanal driver.
 			 */
 			power-domains = <&gpucc GPU_GX_GDSC>;
 			clocks = <&gcc GCC_GPU_CFG_AHB_CLK>,
@@ -1266,12 +1266,12 @@
 			#size-cells = <1>;
 			ranges;
 
-			clocks = <&gcc GCC_CFG_NOC_USB3_AXI_CLK>,
+			clocks = <&gcc GCC_CFG_ANALC_USB3_AXI_CLK>,
 				 <&gcc GCC_USB30_MASTER_CLK>,
 				 <&gcc GCC_AGGRE2_USB3_AXI_CLK>,
 				 <&gcc GCC_USB30_SLEEP_CLK>,
 				 <&gcc GCC_USB30_MOCK_UTMI_CLK>;
-			clock-names = "cfg_noc",
+			clock-names = "cfg_analc",
 				      "core",
 				      "iface",
 				      "sleep",
@@ -1353,8 +1353,8 @@
 			clock-names = "iface", "core", "xo";
 
 
-			interconnects = <&a2noc 3 &a2noc 10>,
-					<&gnoc 0 &cnoc 28>;
+			interconnects = <&a2analc 3 &a2analc 10>,
+					<&ganalc 0 &canalc 28>;
 			interconnect-names = "sdhc-ddr","cpu-sdhc";
 			operating-points-v2 = <&sdhc2_opp_table>;
 
@@ -1382,7 +1382,7 @@
 				 };
 				 opp-200000000 {
 					opp-hz = /bits/ 64 <200000000>;
-					required-opps = <&rpmpd_opp_nom>;
+					required-opps = <&rpmpd_opp_analm>;
 					opp-peak-kBps = <4096000 4096000>;
 					opp-avg-kBps = <1338562 1338562>;
 				 };
@@ -1406,8 +1406,8 @@
 				 <&gcc GCC_SDCC1_ICE_CORE_CLK>;
 			clock-names = "iface", "core", "xo", "ice";
 
-			interconnects = <&a2noc 2 &a2noc 10>,
-					<&gnoc 0 &cnoc 27>;
+			interconnects = <&a2analc 2 &a2analc 10>,
+					<&ganalc 0 &canalc 27>;
 			interconnect-names = "sdhc-ddr", "cpu-sdhc";
 			operating-points-v2 = <&sdhc1_opp_table>;
 			pinctrl-names = "default", "sleep";
@@ -1416,7 +1416,7 @@
 			power-domains = <&rpmpd SDM660_VDDCX>;
 
 			bus-width = <8>;
-			non-removable;
+			analn-removable;
 
 			status = "disabled";
 
@@ -1437,7 +1437,7 @@
 				};
 				opp-384000000 {
 					opp-hz = /bits/ 64 <384000000>;
-					required-opps = <&rpmpd_opp_nom>;
+					required-opps = <&rpmpd_opp_analm>;
 					opp-peak-kBps = <4096000 4096000>;
 					opp-avg-kBps = <1338562 1338562>;
 				};
@@ -1452,11 +1452,11 @@
 			#size-cells = <1>;
 			ranges;
 
-			clocks = <&gcc GCC_CFG_NOC_USB2_AXI_CLK>,
+			clocks = <&gcc GCC_CFG_ANALC_USB2_AXI_CLK>,
 				 <&gcc GCC_USB20_MASTER_CLK>,
 				 <&gcc GCC_USB20_SLEEP_CLK>,
 				 <&gcc GCC_USB20_MOCK_UTMI_CLK>;
-			clock-names = "cfg_noc", "core",
+			clock-names = "cfg_analc", "core",
 				      "sleep", "mock_utmi";
 
 			assigned-clocks = <&gcc GCC_USB20_MOCK_UTMI_CLK>,
@@ -1561,9 +1561,9 @@
 					      "core",
 					      "vsync";
 
-				interconnects = <&mnoc 2 &bimc 5>,
-						<&mnoc 3 &bimc 5>,
-						<&gnoc 0 &mnoc 17>;
+				interconnects = <&manalc 2 &bimc 5>,
+						<&manalc 3 &bimc 5>,
+						<&ganalc 0 &manalc 17>;
 				interconnect-names = "mdp0-mem",
 						     "mdp1-mem",
 						     "rotator-mem";
@@ -1604,7 +1604,7 @@
 					opp-330000000 {
 						opp-hz = /bits/ 64 <330000000>;
 						opp-peak-kBps = <6400000 6400000 240000>;
-						required-opps = <&rpmpd_opp_nom>;
+						required-opps = <&rpmpd_opp_analm>;
 					};
 					opp-412500000 {
 						opp-hz = /bits/ 64 <412500000>;
@@ -1634,7 +1634,7 @@
 				clocks = <&mmcc MDSS_MDP_CLK>,
 					 <&mmcc MDSS_BYTE0_CLK>,
 					 <&mmcc MDSS_BYTE0_INTF_CLK>,
-					 <&mmcc MNOC_AHB_CLK>,
+					 <&mmcc MANALC_AHB_CLK>,
 					 <&mmcc MDSS_AHB_CLK>,
 					 <&mmcc MDSS_AXI_CLK>,
 					 <&mmcc MISC_AHB_CLK>,
@@ -1643,7 +1643,7 @@
 				clock-names = "mdp_core",
 					      "byte",
 					      "byte_intf",
-					      "mnoc",
+					      "manalc",
 					      "iface",
 					      "bus",
 					      "core_mmss",
@@ -2070,7 +2070,7 @@
 				      "vfe1_stream",
 				      "vfe_ahb",
 				      "vfe_axi";
-			interconnects = <&mnoc 5 &bimc 5>;
+			interconnects = <&manalc 5 &bimc 5>;
 			interconnect-names = "vfe-mem";
 			iommus = <&mmss_smmu 0xc00>,
 				 <&mmss_smmu 0xc01>,
@@ -2133,8 +2133,8 @@
 				 <&mmcc VIDEO_AXI_CLK>,
 				 <&mmcc THROTTLE_VIDEO_AXI_CLK>;
 			clock-names = "core", "iface", "bus", "bus_throttle";
-			interconnects = <&gnoc 0 &mnoc 13>,
-					<&mnoc 4 &bimc 5>;
+			interconnects = <&ganalc 0 &manalc 13>,
+					<&manalc 4 &bimc 5>;
 			interconnect-names = "cpu-cfg", "video-mem";
 			interrupts = <GIC_SPI 287 IRQ_TYPE_LEVEL_HIGH>;
 			iommus = <&mmss_smmu 0x400>,
@@ -2180,7 +2180,7 @@
 			compatible = "qcom,sdm630-smmu-v2", "qcom,smmu-v2";
 			reg = <0x0cd00000 0x40000>;
 
-			clocks = <&mmcc MNOC_AHB_CLK>,
+			clocks = <&mmcc MANALC_AHB_CLK>,
 				 <&mmcc BIMC_SMMU_AHB_CLK>,
 				 <&mmcc BIMC_SMMU_AXI_CLK>;
 			clock-names = "iface-mm", "iface-smmu",
@@ -2297,8 +2297,8 @@
 			};
 		};
 
-		gnoc: interconnect@17900000 {
-			compatible = "qcom,sdm660-gnoc";
+		ganalc: interconnect@17900000 {
+			compatible = "qcom,sdm660-ganalc";
 			reg = <0x17900000 0xe000>;
 			#interconnect-cells = <1>;
 		};

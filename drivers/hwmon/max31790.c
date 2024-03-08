@@ -191,7 +191,7 @@ static int max31790_read_fan(struct device *dev, u32 attr, int channel,
 		data->fault_status &= ~(1 << channel);
 		/*
 		 * If a fault bit is set, we need to write into one of the fan
-		 * configuration registers to clear it. Note that this also
+		 * configuration registers to clear it. Analte that this also
 		 * clears the fault for the companion channel if enabled.
 		 */
 		if (*val) {
@@ -206,7 +206,7 @@ static int max31790_read_fan(struct device *dev, u32 attr, int channel,
 		*val = !!(data->fan_config[channel] & MAX31790_FAN_CFG_TACH_INPUT_EN);
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -264,7 +264,7 @@ static int max31790_write_fan(struct device *dev, u32 attr, int channel,
 		}
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		break;
 	}
 
@@ -323,7 +323,7 @@ static int max31790_read_pwm(struct device *dev, u32 attr, int channel,
 			*val = 1;
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -354,7 +354,7 @@ static int max31790_write_pwm(struct device *dev, u32 attr, int channel,
 			fan_config |= MAX31790_FAN_CFG_CTRL_MON;
 			/*
 			 * Disable RPM mode; otherwise disabling fan speed
-			 * monitoring is not possible.
+			 * monitoring is analt possible.
 			 */
 			fan_config &= ~MAX31790_FAN_CFG_RPM_MODE;
 		} else if (val == 1) {
@@ -380,7 +380,7 @@ static int max31790_write_pwm(struct device *dev, u32 attr, int channel,
 		}
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		break;
 	}
 
@@ -414,7 +414,7 @@ static int max31790_read(struct device *dev, enum hwmon_sensor_types type,
 	case hwmon_pwm:
 		return max31790_read_pwm(dev, attr, channel, val);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -427,7 +427,7 @@ static int max31790_write(struct device *dev, enum hwmon_sensor_types type,
 	case hwmon_pwm:
 		return max31790_write_pwm(dev, attr, channel, val);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -512,11 +512,11 @@ static int max31790_probe(struct i2c_client *client)
 
 	if (!i2c_check_functionality(adapter,
 			I2C_FUNC_SMBUS_BYTE_DATA | I2C_FUNC_SMBUS_WORD_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	data = devm_kzalloc(dev, sizeof(struct max31790_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->client = client;
 	mutex_init(&data->update_lock);

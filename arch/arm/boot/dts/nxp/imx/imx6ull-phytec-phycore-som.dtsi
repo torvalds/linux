@@ -12,7 +12,7 @@
 };
 
 &iomuxc {
-	/delete-node/ gpioledssomgrp;
+	/delete-analde/ gpioledssomgrp;
 };
 
 &iomuxc_snvs {

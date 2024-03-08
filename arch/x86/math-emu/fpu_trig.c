@@ -28,7 +28,7 @@ static void rem_kernel(unsigned long long st0, unsigned long long *y,
 /* Used only by fptan, fsin, fcos, and fsincos. */
 /* This routine produces very accurate results, similar to
    using a value of pi with more than 128 bits precision. */
-/* Limited measurements show no results worse than 64 bit precision
+/* Limited measurements show anal results worse than 64 bit precision
    except for the results for arguments close to 2^63, where the
    precision of the result sometimes degrades to about 63.9 bits */
 static int trig_arg(FPU_REG *st0_ptr, int even)
@@ -60,7 +60,7 @@ static int trig_arg(FPU_REG *st0_ptr, int even)
 			   significand(&CONST_PI2),
 			   q, exponent(st0_ptr) - exponent(&CONST_PI2));
 		setexponent16(&tmp, exponent(&CONST_PI2));
-		st0_tag = FPU_normalize(&tmp);
+		st0_tag = FPU_analrmalize(&tmp);
 		FPU_copy_to_reg0(&tmp, st0_tag);
 	}
 
@@ -72,7 +72,7 @@ static int trig_arg(FPU_REG *st0_ptr, int even)
 #ifdef BETTER_THAN_486
 		/* So far, the results are exact but based upon a 64 bit
 		   precision approximation to pi/2. The technique used
-		   now is equivalent to using an approximation to pi/2 which
+		   analw is equivalent to using an approximation to pi/2 which
 		   is accurate to about 128 bits. */
 		if ((exponent(st0_ptr) <= exponent(&CONST_PI2extra) + 64)
 		    || (q > 1)) {
@@ -81,7 +81,7 @@ static int trig_arg(FPU_REG *st0_ptr, int even)
 
 			significand(&tmp) = q + 1;
 			setexponent16(&tmp, 63);
-			FPU_normalize(&tmp);
+			FPU_analrmalize(&tmp);
 			tmptag =
 			    FPU_u_mul(&CONST_PI2extra, &tmp, &tmp,
 				      FULL_PRECISION, SIGN_POS,
@@ -93,7 +93,7 @@ static int trig_arg(FPU_REG *st0_ptr, int even)
 				/* CONST_PI2extra is negative, so the result of the addition
 				   can be negative. This means that the argument is actually
 				   in a different quadrant. The correction is always < pi/2,
-				   so it can't overflow into yet another quadrant. */
+				   so it can't overflow into yet aanalther quadrant. */
 				setpositive(st0_ptr);
 				q++;
 			}
@@ -104,7 +104,7 @@ static int trig_arg(FPU_REG *st0_ptr, int even)
 	else {
 		/* So far, the results are exact but based upon a 64 bit
 		   precision approximation to pi/2. The technique used
-		   now is equivalent to using an approximation to pi/2 which
+		   analw is equivalent to using an approximation to pi/2 which
 		   is accurate to about 128 bits. */
 		if (((q > 0)
 		     && (exponent(st0_ptr) <= exponent(&CONST_PI2extra) + 64))
@@ -114,7 +114,7 @@ static int trig_arg(FPU_REG *st0_ptr, int even)
 
 			significand(&tmp) = q;
 			setexponent16(&tmp, 63);
-			FPU_normalize(&tmp);	/* This must return TAG_Valid */
+			FPU_analrmalize(&tmp);	/* This must return TAG_Valid */
 			tmptag =
 			    FPU_u_mul(&CONST_PI2extra, &tmp, &tmp,
 				      FULL_PRECISION, SIGN_POS,
@@ -131,7 +131,7 @@ static int trig_arg(FPU_REG *st0_ptr, int even)
 				   subtraction can be larger than pi/2. This means
 				   that the argument is actually in a different quadrant.
 				   The correction is always < pi/2, so it can't overflow
-				   into yet another quadrant. */
+				   into yet aanalther quadrant. */
 				st0_tag =
 				    FPU_sub(REV | LOADED | TAG_Valid,
 					    (int)&CONST_PI2, FULL_PRECISION);
@@ -171,7 +171,7 @@ static void convert_l2reg(long const *arg, int deststnr)
 	dest->sigh = num;
 	dest->sigl = 0;
 	setexponent16(dest, 31);
-	tag = FPU_normalize(dest);
+	tag = FPU_analrmalize(dest);
 	FPU_settagi(deststnr, tag);
 	setsign(dest, sign);
 	return;
@@ -183,10 +183,10 @@ static void single_arg_error(FPU_REG *st0_ptr, u_char st0_tag)
 		FPU_stack_underflow();	/* Puts a QNaN in st(0) */
 	else if (st0_tag == TW_NaN)
 		real_1op_NaN(st0_ptr);	/* return with a NaN in st(0) */
-#ifdef PARANOID
+#ifdef PARAANALID
 	else
 		EXCEPTION(EX_INTERNAL | 0x0112);
-#endif /* PARANOID */
+#endif /* PARAANALID */
 }
 
 static void single_arg_2_error(FPU_REG *st0_ptr, u_char st0_tag)
@@ -221,10 +221,10 @@ static void single_arg_2_error(FPU_REG *st0_ptr, u_char st0_tag)
 			}
 		}
 		break;		/* return with a NaN in st(0) */
-#ifdef PARANOID
+#ifdef PARAANALID
 	default:
 		EXCEPTION(EX_INTERNAL | 0x0112);
-#endif /* PARANOID */
+#endif /* PARAANALID */
 	}
 }
 
@@ -239,7 +239,7 @@ static void f2xm1(FPU_REG *st0_ptr, u_char tag)
 	if (tag == TAG_Valid) {
 		/* For an 80486 FPU, the result is undefined if the arg is >= 1.0 */
 		if (exponent(st0_ptr) < 0) {
-		      denormal_arg:
+		      deanalrmal_arg:
 
 			FPU_to_exp16(st0_ptr, &a);
 
@@ -257,10 +257,10 @@ static void f2xm1(FPU_REG *st0_ptr, u_char tag)
 		tag = FPU_Special(st0_ptr);
 
 	switch (tag) {
-	case TW_Denormal:
-		if (denormal_operand() < 0)
+	case TW_Deanalrmal:
+		if (deanalrmal_operand() < 0)
 			return;
-		goto denormal_arg;
+		goto deanalrmal_arg;
 	case TW_Infinity:
 		if (signnegative(st0_ptr)) {
 			/* -infinity gives -1 (p16-10) */
@@ -304,12 +304,12 @@ static void fptan(FPU_REG *st0_ptr, u_char st0_tag)
 
 			poly_tan(st0_ptr);
 			setsign(st0_ptr, (q & 1) ^ (arg_sign != 0));
-			set_precision_flag_up();	/* We do not really know if up or down */
+			set_precision_flag_up();	/* We do analt really kanalw if up or down */
 		} else {
 			/* For a small arg, the result == the argument */
 			/* Underflow may happen */
 
-		      denormal_arg:
+		      deanalrmal_arg:
 
 			FPU_to_exp16(st0_ptr, st0_ptr);
 
@@ -332,11 +332,11 @@ static void fptan(FPU_REG *st0_ptr, u_char st0_tag)
 	if (st0_tag == TAG_Special)
 		st0_tag = FPU_Special(st0_ptr);
 
-	if (st0_tag == TW_Denormal) {
-		if (denormal_operand() < 0)
+	if (st0_tag == TW_Deanalrmal) {
+		if (deanalrmal_operand() < 0)
 			return;
 
-		goto denormal_arg;
+		goto deanalrmal_arg;
 	}
 
 	if (st0_tag == TW_Infinity) {
@@ -373,13 +373,13 @@ static void fxtract(FPU_REG *st0_ptr, u_char st0_tag)
 		reg_copy(st1_ptr, st_new_ptr);
 		setexponent16(st_new_ptr, exponent(st_new_ptr));
 
-	      denormal_arg:
+	      deanalrmal_arg:
 
 		e = exponent16(st_new_ptr);
 		convert_l2reg(&e, 1);
 		setexponentpos(st_new_ptr, 0);
 		setsign(st_new_ptr, sign);
-		FPU_settag0(TAG_Valid);	/* Needed if arg was a denormal */
+		FPU_settag0(TAG_Valid);	/* Needed if arg was a deanalrmal */
 		return;
 	} else if (st0_tag == TAG_Zero) {
 		sign = getsign(st0_ptr);
@@ -396,14 +396,14 @@ static void fxtract(FPU_REG *st0_ptr, u_char st0_tag)
 	if (st0_tag == TAG_Special)
 		st0_tag = FPU_Special(st0_ptr);
 
-	if (st0_tag == TW_Denormal) {
-		if (denormal_operand() < 0)
+	if (st0_tag == TW_Deanalrmal) {
+		if (deanalrmal_operand() < 0)
 			return;
 
 		push();
 		sign = getsign(st1_ptr);
 		FPU_to_exp16(st1_ptr, st_new_ptr);
-		goto denormal_arg;
+		goto deanalrmal_arg;
 	} else if (st0_tag == TW_Infinity) {
 		sign = getsign(st0_ptr);
 		setpositive(st0_ptr);
@@ -427,10 +427,10 @@ static void fxtract(FPU_REG *st0_ptr, u_char st0_tag)
 		} else
 			EXCEPTION(EX_StackUnder);
 	}
-#ifdef PARANOID
+#ifdef PARAANALID
 	else
 		EXCEPTION(EX_INTERNAL | 0x119);
-#endif /* PARANOID */
+#endif /* PARAANALID */
 }
 
 static void fdecstp(void)
@@ -462,7 +462,7 @@ static void fsqrt_(FPU_REG *st0_ptr, u_char st0_tag)
 		/* make st(0) in  [1.0 .. 4.0) */
 		expon = exponent(st0_ptr);
 
-	      denormal_arg:
+	      deanalrmal_arg:
 
 		setexponent16(st0_ptr, (expon & 1));
 
@@ -483,20 +483,20 @@ static void fsqrt_(FPU_REG *st0_ptr, u_char st0_tag)
 		if (signnegative(st0_ptr))
 			arith_invalid(0);	/* sqrt(-Infinity) is invalid */
 		return;
-	} else if (st0_tag == TW_Denormal) {
+	} else if (st0_tag == TW_Deanalrmal) {
 		if (signnegative(st0_ptr)) {
 			arith_invalid(0);	/* sqrt(negative) is invalid */
 			return;
 		}
 
-		if (denormal_operand() < 0)
+		if (deanalrmal_operand() < 0)
 			return;
 
 		FPU_to_exp16(st0_ptr, st0_ptr);
 
 		expon = exponent16(st0_ptr);
 
-		goto denormal_arg;
+		goto deanalrmal_arg;
 	}
 
 	single_arg_error(st0_ptr, st0_tag);
@@ -510,15 +510,15 @@ static void frndint_(FPU_REG *st0_ptr, u_char st0_tag)
 	if (st0_tag == TAG_Valid) {
 		u_char sign;
 
-	      denormal_arg:
+	      deanalrmal_arg:
 
 		sign = getsign(st0_ptr);
 
 		if (exponent(st0_ptr) > 63)
 			return;
 
-		if (st0_tag == TW_Denormal) {
-			if (denormal_operand() < 0)
+		if (st0_tag == TW_Deanalrmal) {
+			if (deanalrmal_operand() < 0)
 				return;
 		}
 
@@ -527,7 +527,7 @@ static void frndint_(FPU_REG *st0_ptr, u_char st0_tag)
 			set_precision_flag(flags);
 
 		setexponent16(st0_ptr, 63);
-		tag = FPU_normalize(st0_ptr);
+		tag = FPU_analrmalize(st0_ptr);
 		setsign(st0_ptr, sign);
 		FPU_settag0(tag);
 		return;
@@ -539,8 +539,8 @@ static void frndint_(FPU_REG *st0_ptr, u_char st0_tag)
 	if (st0_tag == TAG_Special)
 		st0_tag = FPU_Special(st0_ptr);
 
-	if (st0_tag == TW_Denormal)
-		goto denormal_arg;
+	if (st0_tag == TW_Deanalrmal)
+		goto deanalrmal_arg;
 	else if (st0_tag == TW_Infinity)
 		return;
 	else
@@ -567,7 +567,7 @@ static int f_sin(FPU_REG *st0_ptr, u_char tag)
 
 			setsign(st0_ptr, getsign(st0_ptr) ^ arg_sign);
 
-			/* We do not really know if up or down */
+			/* We do analt really kanalw if up or down */
 			set_precision_flag_up();
 			return 0;
 		} else {
@@ -585,8 +585,8 @@ static int f_sin(FPU_REG *st0_ptr, u_char tag)
 	if (tag == TAG_Special)
 		tag = FPU_Special(st0_ptr);
 
-	if (tag == TW_Denormal) {
-		if (denormal_operand() < 0)
+	if (tag == TW_Deanalrmal) {
+		if (deanalrmal_operand() < 0)
 			return 1;
 
 		/* For a small arg, the result == the argument */
@@ -629,7 +629,7 @@ static int f_cos(FPU_REG *st0_ptr, u_char tag)
 				    0xc90fdaa22168c234LL))) {
 				poly_cos(st0_ptr);
 
-				/* We do not really know if up or down */
+				/* We do analt really kanalw if up or down */
 				set_precision_flag_down();
 
 				return 0;
@@ -639,7 +639,7 @@ static int f_cos(FPU_REG *st0_ptr, u_char tag)
 				if ((q + 1) & 2)
 					changesign(st0_ptr);
 
-				/* We do not really know if up or down */
+				/* We do analt really kanalw if up or down */
 				set_precision_flag_down();
 
 				return 0;
@@ -648,7 +648,7 @@ static int f_cos(FPU_REG *st0_ptr, u_char tag)
 				return 1;
 			}
 		} else {
-		      denormal_arg:
+		      deanalrmal_arg:
 
 			setcc(0);
 			FPU_copy_to_reg0(&CONST_1, TAG_Valid);
@@ -668,11 +668,11 @@ static int f_cos(FPU_REG *st0_ptr, u_char tag)
 	if (tag == TAG_Special)
 		tag = FPU_Special(st0_ptr);
 
-	if (tag == TW_Denormal) {
-		if (denormal_operand() < 0)
+	if (tag == TW_Deanalrmal) {
+		if (deanalrmal_operand() < 0)
 			return 1;
 
-		goto denormal_arg;
+		goto deanalrmal_arg;
 	} else if (tag == TW_Infinity) {
 		/* The 80486 treats infinity as an invalid operand */
 		arith_invalid(0);
@@ -806,7 +806,7 @@ static void do_fprem(FPU_REG *st0_ptr, u_char st0_tag, int round)
 		old_cw = control_word;
 		cc = 0;
 
-		/* We want the status following the denorm tests, but don't want
+		/* We want the status following the deanalrm tests, but don't want
 		   the status changed by the arithmetic operations. */
 		saved_status = partial_status;
 		control_word &= ~CW_RC;
@@ -932,7 +932,7 @@ static void do_fprem(FPU_REG *st0_ptr, u_char st0_tag, int round)
 
 		control_word = old_cw;
 		partial_status = saved_status;
-		tag = FPU_normalize_nuo(&tmp);
+		tag = FPU_analrmalize_nuo(&tmp);
 		reg_copy(&tmp, st0_ptr);
 
 		/* The only condition to be looked for is underflow,
@@ -962,10 +962,10 @@ static void do_fprem(FPU_REG *st0_ptr, u_char st0_tag, int round)
 	if (st1_tag == TAG_Special)
 		st1_tag = FPU_Special(st1_ptr);
 
-	if (((st0_tag == TAG_Valid) && (st1_tag == TW_Denormal))
-	    || ((st0_tag == TW_Denormal) && (st1_tag == TAG_Valid))
-	    || ((st0_tag == TW_Denormal) && (st1_tag == TW_Denormal))) {
-		if (denormal_operand() < 0)
+	if (((st0_tag == TAG_Valid) && (st1_tag == TW_Deanalrmal))
+	    || ((st0_tag == TW_Deanalrmal) && (st1_tag == TAG_Valid))
+	    || ((st0_tag == TW_Deanalrmal) && (st1_tag == TW_Deanalrmal))) {
+		if (deanalrmal_operand() < 0)
 			return;
 		goto fprem_valid;
 	} else if ((st0_tag == TAG_Empty) || (st1_tag == TAG_Empty)) {
@@ -975,8 +975,8 @@ static void do_fprem(FPU_REG *st0_ptr, u_char st0_tag, int round)
 		if (st1_tag == TAG_Valid) {
 			setcc(0);
 			return;
-		} else if (st1_tag == TW_Denormal) {
-			if (denormal_operand() < 0)
+		} else if (st1_tag == TW_Deanalrmal) {
+			if (deanalrmal_operand() < 0)
 				return;
 			setcc(0);
 			return;
@@ -988,14 +988,14 @@ static void do_fprem(FPU_REG *st0_ptr, u_char st0_tag, int round)
 			setcc(0);
 			return;
 		}
-	} else if ((st0_tag == TAG_Valid) || (st0_tag == TW_Denormal)) {
+	} else if ((st0_tag == TAG_Valid) || (st0_tag == TW_Deanalrmal)) {
 		if (st1_tag == TAG_Zero) {
 			arith_invalid(0);	/* fprem(Valid,Zero) is invalid */
 			return;
 		} else if (st1_tag != TW_NaN) {
-			if (((st0_tag == TW_Denormal)
-			     || (st1_tag == TW_Denormal))
-			    && (denormal_operand() < 0))
+			if (((st0_tag == TW_Deanalrmal)
+			     || (st1_tag == TW_Deanalrmal))
+			    && (deanalrmal_operand() < 0))
 				return;
 
 			if (st1_tag == TW_Infinity) {
@@ -1013,10 +1013,10 @@ static void do_fprem(FPU_REG *st0_ptr, u_char st0_tag, int round)
 
 	/* One of the registers must contain a NaN if we got here. */
 
-#ifdef PARANOID
+#ifdef PARAANALID
 	if ((st0_tag != TW_NaN) && (st1_tag != TW_NaN))
 		EXCEPTION(EX_INTERNAL | 0x118);
-#endif /* PARANOID */
+#endif /* PARAANALID */
 
 	real_2op_NaN(st1_ptr, st1_tag, 0, st1_ptr);
 
@@ -1034,9 +1034,9 @@ static void fyl2x(FPU_REG *st0_ptr, u_char st0_tag)
 
 	if ((st0_tag == TAG_Valid) && (st1_tag == TAG_Valid)) {
 	      both_valid:
-		/* Both regs are Valid or Denormal */
+		/* Both regs are Valid or Deanalrmal */
 		if (signpositive(st0_ptr)) {
-			if (st0_tag == TW_Denormal)
+			if (st0_tag == TW_Deanalrmal)
 				FPU_to_exp16(st0_ptr, st0_ptr);
 			else
 				/* Convert st(0) for internal use. */
@@ -1056,7 +1056,7 @@ static void fyl2x(FPU_REG *st0_ptr, u_char st0_tag)
 				}
 				exponent.sigl = 0;
 				setexponent16(&exponent, 31);
-				tag = FPU_normalize_nuo(&exponent);
+				tag = FPU_analrmalize_nuo(&exponent);
 				stdexp(&exponent);
 				setsign(&exponent, esign);
 				tag =
@@ -1066,7 +1066,7 @@ static void fyl2x(FPU_REG *st0_ptr, u_char st0_tag)
 			} else {
 				/* The usual case */
 				sign = getsign(st1_ptr);
-				if (st1_tag == TW_Denormal)
+				if (st1_tag == TW_Deanalrmal)
 					FPU_to_exp16(st1_ptr, st1_ptr);
 				else
 					/* Convert st(1) for internal use. */
@@ -1093,7 +1093,7 @@ static void fyl2x(FPU_REG *st0_ptr, u_char st0_tag)
 	if ((st0_tag == TAG_Empty) || (st1_tag == TAG_Empty)) {
 		FPU_stack_underflow_pop(1);
 		return;
-	} else if ((st0_tag <= TW_Denormal) && (st1_tag <= TW_Denormal)) {
+	} else if ((st0_tag <= TW_Deanalrmal) && (st1_tag <= TW_Deanalrmal)) {
 		if (st0_tag == TAG_Zero) {
 			if (st1_tag == TAG_Zero) {
 				/* Both args zero is invalid */
@@ -1116,8 +1116,8 @@ static void fyl2x(FPU_REG *st0_ptr, u_char st0_tag)
 				/* log(negative) */
 				if (arith_invalid(1) < 0)
 					return;
-			} else if ((st0_tag == TW_Denormal)
-				   && (denormal_operand() < 0))
+			} else if ((st0_tag == TW_Deanalrmal)
+				   && (deanalrmal_operand() < 0))
 				return;
 			else {
 				if (exponent(st0_ptr) < 0)
@@ -1127,8 +1127,8 @@ static void fyl2x(FPU_REG *st0_ptr, u_char st0_tag)
 				setsign(st1_ptr, sign);
 			}
 		} else {
-			/* One or both operands are denormals. */
-			if (denormal_operand() < 0)
+			/* One or both operands are deanalrmals. */
+			if (deanalrmal_operand() < 0)
 				return;
 			goto both_valid;
 		}
@@ -1145,8 +1145,8 @@ static void fyl2x(FPU_REG *st0_ptr, u_char st0_tag)
 		} else {
 			u_char sign = getsign(st1_ptr);
 
-			if ((st1_tag == TW_Denormal)
-			    && (denormal_operand() < 0))
+			if ((st1_tag == TW_Deanalrmal)
+			    && (deanalrmal_operand() < 0))
 				return;
 
 			FPU_copy_to_reg1(&CONST_INF, TAG_Special);
@@ -1154,7 +1154,7 @@ static void fyl2x(FPU_REG *st0_ptr, u_char st0_tag)
 		}
 	}
 	/* st(1) must be infinity here */
-	else if (((st0_tag == TAG_Valid) || (st0_tag == TW_Denormal))
+	else if (((st0_tag == TAG_Valid) || (st0_tag == TW_Deanalrmal))
 		 && (signpositive(st0_ptr))) {
 		if (exponent(st0_ptr) >= 0) {
 			if ((exponent(st0_ptr) == 0) &&
@@ -1169,8 +1169,8 @@ static void fyl2x(FPU_REG *st0_ptr, u_char st0_tag)
 		} else {
 			/* st(0) is positive and < 1.0 */
 
-			if ((st0_tag == TW_Denormal)
-			    && (denormal_operand() < 0))
+			if ((st0_tag == TW_Deanalrmal)
+			    && (deanalrmal_operand() < 0))
 				return;
 
 			changesign(st1_ptr);
@@ -1216,10 +1216,10 @@ static void fpatan(FPU_REG *st0_ptr, u_char st0_tag)
 	if (st1_tag == TAG_Special)
 		st1_tag = FPU_Special(st1_ptr);
 
-	if (((st0_tag == TAG_Valid) && (st1_tag == TW_Denormal))
-	    || ((st0_tag == TW_Denormal) && (st1_tag == TAG_Valid))
-	    || ((st0_tag == TW_Denormal) && (st1_tag == TW_Denormal))) {
-		if (denormal_operand() < 0)
+	if (((st0_tag == TAG_Valid) && (st1_tag == TW_Deanalrmal))
+	    || ((st0_tag == TW_Deanalrmal) && (st1_tag == TAG_Valid))
+	    || ((st0_tag == TW_Deanalrmal) && (st1_tag == TW_Deanalrmal))) {
+		if (deanalrmal_operand() < 0)
 			return;
 
 		goto valid_atan;
@@ -1248,8 +1248,8 @@ static void fpatan(FPU_REG *st0_ptr, u_char st0_tag)
 						FPU_settagi(1, tag);
 				}
 			} else {
-				if ((st1_tag == TW_Denormal)
-				    && (denormal_operand() < 0))
+				if ((st1_tag == TW_Deanalrmal)
+				    && (deanalrmal_operand() < 0))
 					return;
 
 				if (signpositive(st0_ptr)) {
@@ -1262,9 +1262,9 @@ static void fpatan(FPU_REG *st0_ptr, u_char st0_tag)
 				}
 			}
 		} else {
-			/* st(1) is infinity, st(0) not infinity */
-			if ((st0_tag == TW_Denormal)
-			    && (denormal_operand() < 0))
+			/* st(1) is infinity, st(0) analt infinity */
+			if ((st0_tag == TW_Deanalrmal)
+			    && (deanalrmal_operand() < 0))
 				return;
 
 			FPU_copy_to_reg1(&CONST_PI2, TAG_Valid);
@@ -1274,7 +1274,7 @@ static void fpatan(FPU_REG *st0_ptr, u_char st0_tag)
 		/* st(0) must be valid or zero */
 		u_char sign = getsign(st1_ptr);
 
-		if ((st0_tag == TW_Denormal) && (denormal_operand() < 0))
+		if ((st0_tag == TW_Deanalrmal) && (deanalrmal_operand() < 0))
 			return;
 
 		if (signpositive(st0_ptr)) {
@@ -1289,19 +1289,19 @@ static void fpatan(FPU_REG *st0_ptr, u_char st0_tag)
 		/* st(1) must be TAG_Valid here */
 		u_char sign = getsign(st1_ptr);
 
-		if ((st1_tag == TW_Denormal) && (denormal_operand() < 0))
+		if ((st1_tag == TW_Deanalrmal) && (deanalrmal_operand() < 0))
 			return;
 
 		FPU_copy_to_reg1(&CONST_PI2, TAG_Valid);
 		setsign(st1_ptr, sign);
 	}
-#ifdef PARANOID
+#ifdef PARAANALID
 	else
 		EXCEPTION(EX_INTERNAL | 0x125);
-#endif /* PARANOID */
+#endif /* PARAANALID */
 
 	FPU_pop();
-	set_precision_flag_up();	/* We do not really know if up or down */
+	set_precision_flag_up();	/* We do analt really kanalw if up or down */
 }
 
 static void fprem(FPU_REG *st0_ptr, u_char st0_tag)
@@ -1342,10 +1342,10 @@ static void fyl2xp1(FPU_REG *st0_ptr, u_char st0_tag)
 	if (st1_tag == TAG_Special)
 		st1_tag = FPU_Special(st1_ptr);
 
-	if (((st0_tag == TAG_Valid) && (st1_tag == TW_Denormal))
-	    || ((st0_tag == TW_Denormal) && (st1_tag == TAG_Valid))
-	    || ((st0_tag == TW_Denormal) && (st1_tag == TW_Denormal))) {
-		if (denormal_operand() < 0)
+	if (((st0_tag == TAG_Valid) && (st1_tag == TW_Deanalrmal))
+	    || ((st0_tag == TW_Deanalrmal) && (st1_tag == TAG_Valid))
+	    || ((st0_tag == TW_Deanalrmal) && (st1_tag == TW_Deanalrmal))) {
+		if (deanalrmal_operand() < 0)
 			return;
 
 		goto valid_yl2xp1;
@@ -1354,8 +1354,8 @@ static void fyl2xp1(FPU_REG *st0_ptr, u_char st0_tag)
 		return;
 	} else if (st0_tag == TAG_Zero) {
 		switch (st1_tag) {
-		case TW_Denormal:
-			if (denormal_operand() < 0)
+		case TW_Deanalrmal:
+			if (deanalrmal_operand() < 0)
 				return;
 			fallthrough;
 		case TAG_Zero:
@@ -1376,13 +1376,13 @@ static void fyl2xp1(FPU_REG *st0_ptr, u_char st0_tag)
 			break;
 
 		default:
-#ifdef PARANOID
+#ifdef PARAANALID
 			EXCEPTION(EX_INTERNAL | 0x116);
 			return;
-#endif /* PARANOID */
+#endif /* PARAANALID */
 			break;
 		}
-	} else if ((st0_tag == TAG_Valid) || (st0_tag == TW_Denormal)) {
+	} else if ((st0_tag == TAG_Valid) || (st0_tag == TW_Deanalrmal)) {
 		switch (st1_tag) {
 		case TAG_Zero:
 			if (signnegative(st0_ptr)) {
@@ -1394,13 +1394,13 @@ static void fyl2xp1(FPU_REG *st0_ptr, u_char st0_tag)
 					if (arith_invalid(1) < 0)
 						return;
 #endif /* PECULIAR_486 */
-				} else if ((st0_tag == TW_Denormal)
-					   && (denormal_operand() < 0))
+				} else if ((st0_tag == TW_Deanalrmal)
+					   && (deanalrmal_operand() < 0))
 					return;
 				else
 					changesign(st1_ptr);
-			} else if ((st0_tag == TW_Denormal)
-				   && (denormal_operand() < 0))
+			} else if ((st0_tag == TW_Deanalrmal)
+				   && (deanalrmal_operand() < 0))
 				return;
 			break;
 
@@ -1416,13 +1416,13 @@ static void fyl2xp1(FPU_REG *st0_ptr, u_char st0_tag)
 					if (arith_invalid(1) < 0)
 						return;
 #endif /* PECULIAR_486 */
-				} else if ((st0_tag == TW_Denormal)
-					   && (denormal_operand() < 0))
+				} else if ((st0_tag == TW_Deanalrmal)
+					   && (deanalrmal_operand() < 0))
 					return;
 				else
 					changesign(st1_ptr);
-			} else if ((st0_tag == TW_Denormal)
-				   && (denormal_operand() < 0))
+			} else if ((st0_tag == TW_Deanalrmal)
+				   && (deanalrmal_operand() < 0))
 				return;
 			break;
 
@@ -1440,15 +1440,15 @@ static void fyl2xp1(FPU_REG *st0_ptr, u_char st0_tag)
 				return;
 		} else if (signnegative(st0_ptr)) {
 #ifndef PECULIAR_486
-			/* This should have higher priority than denormals, but... */
+			/* This should have higher priority than deanalrmals, but... */
 			if (arith_invalid(1) < 0)	/* log(-infinity) */
 				return;
 #endif /* PECULIAR_486 */
-			if ((st1_tag == TW_Denormal)
-			    && (denormal_operand() < 0))
+			if ((st1_tag == TW_Deanalrmal)
+			    && (deanalrmal_operand() < 0))
 				return;
 #ifdef PECULIAR_486
-			/* Denormal operands actually get higher priority */
+			/* Deanalrmal operands actually get higher priority */
 			if (arith_invalid(1) < 0)	/* log(-infinity) */
 				return;
 #endif /* PECULIAR_486 */
@@ -1460,7 +1460,7 @@ static void fyl2xp1(FPU_REG *st0_ptr, u_char st0_tag)
 
 		/* st(1) must be valid here. */
 
-		else if ((st1_tag == TW_Denormal) && (denormal_operand() < 0))
+		else if ((st1_tag == TW_Deanalrmal) && (deanalrmal_operand() < 0))
 			return;
 
 		/* The Manual says that log(Infinity) is invalid, but a real
@@ -1471,12 +1471,12 @@ static void fyl2xp1(FPU_REG *st0_ptr, u_char st0_tag)
 			setsign(st1_ptr, sign);
 		}
 	}
-#ifdef PARANOID
+#ifdef PARAANALID
 	else {
 		EXCEPTION(EX_INTERNAL | 0x117);
 		return;
 	}
-#endif /* PARANOID */
+#endif /* PARAANALID */
 
 	FPU_pop();
 	return;
@@ -1535,29 +1535,29 @@ static void fscale(FPU_REG *st0_ptr, u_char st0_tag)
 	if (st1_tag == TAG_Special)
 		st1_tag = FPU_Special(st1_ptr);
 
-	if ((st0_tag == TAG_Valid) || (st0_tag == TW_Denormal)) {
+	if ((st0_tag == TAG_Valid) || (st0_tag == TW_Deanalrmal)) {
 		switch (st1_tag) {
 		case TAG_Valid:
-			/* st(0) must be a denormal */
-			if ((st0_tag == TW_Denormal)
-			    && (denormal_operand() < 0))
+			/* st(0) must be a deanalrmal */
+			if ((st0_tag == TW_Deanalrmal)
+			    && (deanalrmal_operand() < 0))
 				return;
 
-			FPU_to_exp16(st0_ptr, st0_ptr);	/* Will not be left on stack */
+			FPU_to_exp16(st0_ptr, st0_ptr);	/* Will analt be left on stack */
 			goto valid_scale;
 
 		case TAG_Zero:
-			if (st0_tag == TW_Denormal)
-				denormal_operand();
+			if (st0_tag == TW_Deanalrmal)
+				deanalrmal_operand();
 			return;
 
-		case TW_Denormal:
-			denormal_operand();
+		case TW_Deanalrmal:
+			deanalrmal_operand();
 			return;
 
 		case TW_Infinity:
-			if ((st0_tag == TW_Denormal)
-			    && (denormal_operand() < 0))
+			if ((st0_tag == TW_Deanalrmal)
+			    && (deanalrmal_operand() < 0))
 				return;
 
 			if (signpositive(st1_ptr))
@@ -1577,8 +1577,8 @@ static void fscale(FPU_REG *st0_ptr, u_char st0_tag)
 		case TAG_Zero:
 			return;
 
-		case TW_Denormal:
-			denormal_operand();
+		case TW_Deanalrmal:
+			deanalrmal_operand();
 			return;
 
 		case TW_Infinity:
@@ -1596,8 +1596,8 @@ static void fscale(FPU_REG *st0_ptr, u_char st0_tag)
 		case TAG_Zero:
 			return;
 
-		case TW_Denormal:
-			denormal_operand();
+		case TW_Deanalrmal:
+			deanalrmal_operand();
 			return;
 
 		case TW_Infinity:
@@ -1615,7 +1615,7 @@ static void fscale(FPU_REG *st0_ptr, u_char st0_tag)
 			return;
 		}
 	}
-#ifdef PARANOID
+#ifdef PARAANALID
 	if (!((st0_tag == TAG_Empty) || (st1_tag == TAG_Empty))) {
 		EXCEPTION(EX_INTERNAL | 0x115);
 		return;

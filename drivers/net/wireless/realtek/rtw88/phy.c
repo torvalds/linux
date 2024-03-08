@@ -143,8 +143,8 @@ void rtw_phy_adaptivity_set_mode(struct rtw_dev *rtwdev)
 
 	/* turn off in debugfs for debug usage */
 	if (!rtw_edcca_enabled) {
-		dm_info->edcca_mode = RTW_EDCCA_NORMAL;
-		rtw_dbg(rtwdev, RTW_DBG_PHY, "EDCCA disabled, cannot be set\n");
+		dm_info->edcca_mode = RTW_EDCCA_ANALRMAL;
+		rtw_dbg(rtwdev, RTW_DBG_PHY, "EDCCA disabled, cananalt be set\n");
 		return;
 	}
 
@@ -158,7 +158,7 @@ void rtw_phy_adaptivity_set_mode(struct rtw_dev *rtwdev)
 		dm_info->l2h_th_ini = chip->l2h_th_ini_cs;
 		break;
 	default:
-		dm_info->edcca_mode = RTW_EDCCA_NORMAL;
+		dm_info->edcca_mode = RTW_EDCCA_ANALRMAL;
 		break;
 	}
 }
@@ -503,7 +503,7 @@ static void rtw_phy_dig(struct rtw_dev *rtwdev)
 	/* test the false alarm count from the highest threshold level first,
 	 * and increase it by corresponding step size
 	 *
-	 * note that the step size is offset by -2, compensate it afterall
+	 * analte that the step size is offset by -2, compensate it afterall
 	 */
 	cur_igi = pre_igi;
 	for (level = 0; level < 3; level++) {
@@ -516,7 +516,7 @@ static void rtw_phy_dig(struct rtw_dev *rtwdev)
 
 	/* calculate the upper/lower bound by the minimum rssi we have among
 	 * the peers connected with us, meanwhile make sure the igi value does
-	 * not beyond the hardware limitation
+	 * analt beyond the hardware limitation
 	 */
 	rtw_phy_dig_get_boundary(rtwdev, dm_info, &upper_bound, &lower_bound,
 				 linked);
@@ -1559,7 +1559,7 @@ static void rtw_phy_set_tx_power_limit(struct rtw_dev *rtwdev, u8 regd, u8 band,
 	}
 }
 
-/* cross-reference 5G power limits if values are not assigned */
+/* cross-reference 5G power limits if values are analt assigned */
 static void
 rtw_xref_5g_txpwr_lmt(struct rtw_dev *rtwdev, u8 regd,
 		      u8 bw, u8 ch_idx, u8 rs_ht, u8 rs_vht)
@@ -1672,7 +1672,7 @@ void rtw_parse_tbl_txpwr_lmt(struct rtw_dev *rtwdev,
 			continue;
 
 		rtw_dbg(rtwdev, RTW_DBG_REGD,
-			"txpwr regd %d does not be configured\n", i);
+			"txpwr regd %d does analt be configured\n", i);
 
 		if (rtw_regd_has_alt(i, &regd_alt) &&
 		    regd_cfg_flag & BIT(regd_alt)) {
@@ -2181,7 +2181,7 @@ static void rtw_phy_set_tx_power_index_by_rs(struct rtw_dev *rtwdev,
 	}
 }
 
-/* set tx power level by path for each rates, note that the order of the rates
+/* set tx power level by path for each rates, analte that the order of the rates
  * are *very* important, bacause 8822B/8821C combines every four bytes of tx
  * power index into a four-byte power index register, and calls set_tx_agc to
  * write these values into hardware
@@ -2192,7 +2192,7 @@ static void rtw_phy_set_tx_power_level_by_path(struct rtw_dev *rtwdev,
 	struct rtw_hal *hal = &rtwdev->hal;
 	u8 rs;
 
-	/* do not need cck rates if we are not in 2.4G */
+	/* do analt need cck rates if we are analt in 2.4G */
 	if (hal->current_band_type == RTW_BAND_2G)
 		rs = RTW_RATE_SECTION_CCK;
 	else
@@ -2426,7 +2426,7 @@ s8 rtw_phy_pwrtrack_get_pwridx(struct rtw_dev *rtwdev,
 	}
 
 	if (!swing_table) {
-		rtw_warn(rtwdev, "swing table not configured\n");
+		rtw_warn(rtwdev, "swing table analt configured\n");
 		return 0;
 	}
 
@@ -2525,7 +2525,7 @@ static void rtw_phy_tx_path_diversity_2ss(struct rtw_dev *rtwdev)
 		return;
 	}
 	if (rtwdev->sta_cnt == 0) {
-		rtw_dbg(rtwdev, RTW_DBG_PATH_DIV, "No Link\n");
+		rtw_dbg(rtwdev, RTW_DBG_PATH_DIV, "Anal Link\n");
 		return;
 	}
 

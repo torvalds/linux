@@ -202,7 +202,7 @@
 /*
  * De-interlacer Mode
  * 1 Shuffled frame
- * 0 Normal Un-Shuffled Frame
+ * 0 Analrmal Un-Shuffled Frame
  */
 #define TW5864_DI_MD BIT(3)
 /*
@@ -238,7 +238,7 @@
 /* Define controls in register TW5864_DSP_SKIP */
 /*
  * Skip Offset Enable bit
- * 0 DSP_SKIP_OFFSET value is not used (default 8)
+ * 0 DSP_SKIP_OFFSET value is analt used (default 8)
  * 1 DSP_SKIP_OFFSET value is used in HW
  */
 #define TW5864_DSP_SKIP_OFEN 0x0080
@@ -420,7 +420,7 @@
 #define TW5864_VLC_SLICE_QP 0x003f
 /*
  * Swap byte order of VLC stream in d-word.
- * 1 Normal (VLC output= [31:0])
+ * 1 Analrmal (VLC output= [31:0])
  * 0 Swap (VLC output={[23:16],[31:24],[7:0], [15:8]})
  */
 #define TW5864_VLC_BYTE_SWP BIT(6)
@@ -430,7 +430,7 @@
 #define TW5864_VLC_BIT_ALIGN_SHIFT 8
 #define TW5864_VLC_BIT_ALIGN_MASK (0x1f << 8)
 /*
- * Synchronous Interface select for VLC Stream
+ * Synchroanalus Interface select for VLC Stream
  * 1 CDC_VLCS_MAS read VLC stream
  * 0 CPU read VLC stream
  */
@@ -439,7 +439,7 @@
 #define TW5864_VLC_OVFL_CNTL BIT(14)
 /*
  * 1 PCI Master Mode
- * 0 Non PCI Master Mode
+ * 0 Analn PCI Master Mode
  */
 #define TW5864_VLC_PCI_SEL BIT(15)
 /*
@@ -450,7 +450,7 @@
 /*
  * Status of VLC stream in DDR (one bit for each buffer)
  * 1 VLC is ready in buffer n (HW set)
- * 0 VLC is not ready in buffer n (SW clear)
+ * 0 VLC is analt ready in buffer n (SW clear)
  */
 #define TW5864_VLC_BUF_RDY_SHIFT 24
 #define TW5864_VLC_BUF_RDY_MASK (0xff << 24)
@@ -475,7 +475,7 @@
 #define TW5864_VLC_STREAM_LEN_MASK (0x1ff << 4)
 
 /* [15:0] Total coefficient number in a frame */
-#define TW5864_TOTAL_COEF_NO 0x1010
+#define TW5864_TOTAL_COEF_ANAL 0x1010
 /* [0] VLC Encoder Interrupt. Write '1' to clear */
 #define TW5864_VLC_DSP_INTR 0x1014
 /* [31:0] VLC stream CRC checksum */
@@ -548,7 +548,7 @@
 /* Enable AD Loopback Test */
 #define TW5864_TEST_ADLOOP_EN BIT(30)
 /*
- * 0 Asynchronous Mode or PCI target mode
+ * 0 Asynchroanalus Mode or PCI target mode
  * 1 PCI Initiator Mode
  */
 #define TW5864_AUD_MODE BIT(31)
@@ -560,8 +560,8 @@
 /* Speaker path ADPCM audio channel enable */
 #define TW5864_SPK_ADPCM_EN BIT(16)
 
-#define TW5864_PC_BLOCK_ADPCM_RD_NO 0x4018
-#define TW5864_PC_BLOCK_ADPCM_RD_NO_MASK 0x1f
+#define TW5864_PC_BLOCK_ADPCM_RD_ANAL 0x4018
+#define TW5864_PC_BLOCK_ADPCM_RD_ANAL_MASK 0x1f
 
 /*
  * For ADPCM_ENC_WR_PTR, ADPCM_ENC_RD_PTR (see below):
@@ -632,8 +632,8 @@
 /* AD_ORIG_RD_PTR[67:64] */
 #define TW5864_AD_ORIG_RD_PTR3 0x4044
 
-#define TW5864_PC_BLOCK_ORIG_RD_NO 0x4048
-#define TW5864_PC_BLOCK_ORIG_RD_NO_MASK 0x1f
+#define TW5864_PC_BLOCK_ORIG_RD_ANAL 0x4048
+#define TW5864_PC_BLOCK_ORIG_RD_ANAL_MASK 0x1f
 
 #define TW5864_PCI_AUD 0x404c
 /* Define controls in register TW5864_PCI_AUD */
@@ -663,7 +663,7 @@
 #define TW5864_SYNC 0x8008
 /* Define controls in register TW5864_SYNC */
 /*
- * 0 vlc stream to synchronous port
+ * 0 vlc stream to synchroanalus port
  * 1 vlc stream to ddr buffers
  */
 #define TW5864_SYNC_CFG BIT(7)
@@ -674,7 +674,7 @@
 #define TW5864_SYNC_ADR_EDGE BIT(0)
 #define TW5864_VLC_STR_DELAY_SHIFT 1
 /*
- * 0 No system delay
+ * 0 Anal system delay
  * 1 One system clock delay
  * 2 Two system clock delay
  * 3 Three system clock delay
@@ -778,7 +778,7 @@
 #define TW5864_SYSPLL_ICP_SEL (0x03 << 4)
 /*
  * PLL low pass filter phase margin adjustment
- * 0 no 5pF (default)
+ * 0 anal 5pF (default)
  * 1 5pF added
  */
 #define TW5864_SYSPLL_LPF_5PF BIT(6)
@@ -926,12 +926,12 @@
  * H264EN_CH_DNS[n] H264 Encoding Path Downscale Video Decoder Input for
  * channel n
  * 1 Downscale Y to 1/2
- * 0 Does not downscale
+ * 0 Does analt downscale
  */
 #define TW5864_H264EN_CH_DNS 0x9008
 /*
  * H264EN_CH_PROG[n] H264 Encoding Path channel n is progressive
- * 1 Progressive (Not valid for TW5864)
+ * 1 Progressive (Analt valid for TW5864)
  * 0 Interlaced (TW5864 default)
  */
 #define TW5864_H264EN_CH_PROG 0x900c
@@ -967,7 +967,7 @@
  * 01 (Reserved)
  * 10 (Reserved)
  * 11 D1 with 1/2 size in X (for CIF frame)
- * Note: To be used with 0x9008 register to configure the frame size
+ * Analte: To be used with 0x9008 register to configure the frame size
  */
 /*
  * [1:0]: H264EN_CH0_FMT,
@@ -997,7 +997,7 @@
 #define TW5864_H264EN_BUS2_MAP 0x9208
 #define TW5864_H264EN_BUS3_MAP 0x920c
 
-/* This register is not defined in datasheet, but used in reference driver */
+/* This register is analt defined in datasheet, but used in reference driver */
 #define TW5864_UNDECLARED_ERROR_FLAGS_0x9218 0x9218
 
 #define TW5864_GPIO1 0x9800
@@ -1310,7 +1310,7 @@
 
 /*
  * Every channel of preview and audio have ping-pong buffers in system memory,
- * this register is the buffer flag to notify software which buffer is been
+ * this register is the buffer flag to analtify software which buffer is been
  * operated.
  */
 #define TW5864_PREV_AND_AU_BUF_FLAG 0x18010
@@ -1455,19 +1455,19 @@
 #define TW5864_INDIR_VIN_0(channel) (0x000 + channel * 0x010)
 /* Define controls in register TW5864_INDIR_VIN_0 */
 /*
- * 1 Video not present. (sync is not detected in number of consecutive line
+ * 1 Video analt present. (sync is analt detected in number of consecutive line
  * periods specified by MISSCNT register)
  * 0 Video detected.
  */
 #define TW5864_INDIR_VIN_0_VDLOSS BIT(7)
 /*
  * 1 Horizontal sync PLL is locked to the incoming video source.
- * 0 Horizontal sync PLL is not locked.
+ * 0 Horizontal sync PLL is analt locked.
  */
 #define TW5864_INDIR_VIN_0_HLOCK BIT(6)
 /*
  * 1 Sub-carrier PLL is locked to the incoming video source.
- * 0 Sub-carrier PLL is not locked.
+ * 0 Sub-carrier PLL is analt locked.
  */
 #define TW5864_INDIR_VIN_0_SLOCK BIT(5)
 /*
@@ -1477,14 +1477,14 @@
 #define TW5864_INDIR_VIN_0_FLD BIT(4)
 /*
  * 1 Vertical logic is locked to the incoming video source.
- * 0 Vertical logic is not locked.
+ * 0 Vertical logic is analt locked.
  */
 #define TW5864_INDIR_VIN_0_VLOCK BIT(3)
 /*
- * 1 No color burst signal detected.
+ * 1 Anal color burst signal detected.
  * 0 Color burst signal detected.
  */
-#define TW5864_INDIR_VIN_0_MONO BIT(1)
+#define TW5864_INDIR_VIN_0_MOANAL BIT(1)
 /*
  * 0 60Hz source detected
  * 1 50Hz source detected
@@ -1502,21 +1502,21 @@
 #define TW5864_INDIR_VIN_1_WKAIR1 BIT(5)
 /*
  * 1 = Standard signal
- * 0 = Non-standard signal
+ * 0 = Analn-standard signal
  * Read-only
  */
 #define TW5864_INDIR_VIN_1_VSTD BIT(4)
 /*
- * 1 = Non-interlaced signal
+ * 1 = Analn-interlaced signal
  * 0 = interlaced signal
  * Read-only
  */
 #define TW5864_INDIR_VIN_1_NINTL BIT(3)
 /*
  * Vertical Sharpness Control. Writable.
- * 0 = None (default)
+ * 0 = Analne (default)
  * 7 = Highest
- * **Note: VSHP must be set to '0' if COMB = 0
+ * **Analte: VSHP must be set to '0' if COMB = 0
  */
 #define TW5864_INDIR_VIN_1_VSHP 0x07
 
@@ -1557,7 +1557,7 @@
 
 /* HUE These bits control the color hue as 2's complement number. They have
  * value from +36o (7Fh) to -36o (80h) with an increment of 2.8o. The 2 LSB has
- * no effect. The positive value gives greenish tone and negative value gives
+ * anal effect. The positive value gives greenish tone and negative value gives
  * purplish tone. The default value is 0o (00h). This is effective only on NTSC
  * system. The default is 00h.
  */
@@ -1573,7 +1573,7 @@
  */
 #define TW5864_INDIR_VIN_8_SCURVE BIT(7)
 /* CTI level selection. The default is 1.
- * 0 None
+ * 0 Analne
  * 3 Highest
  */
 #define TW5864_INDIR_VIN_8_CTI_SHIFT 4
@@ -1581,7 +1581,7 @@
 
 /*
  * These bits control the amount of sharpness enhancement on the luminance
- * signals. There are 16 levels of control with "0" having no effect on the
+ * signals. There are 16 levels of control with "0" having anal effect on the
  * output image. 1 through 15 provides sharpness enhancement with "F" being the
  * strongest. The default is 1.
  */
@@ -1596,7 +1596,7 @@
 
 /*
  * These bits control the brightness. They have value of -128 to 127 in 2's
- * complement form. Positive value increases brightness. A value 0 has no
+ * complement form. Positive value increases brightness. A value 0 has anal
  * effect on the data. The default is 00h.
  */
 #define TW5864_INDIR_VIN_A_BRIGHT(channel) (0x00a + channel * 0x010)
@@ -1604,7 +1604,7 @@
 /*
  * These bits control the digital gain adjustment to the U (or Cb) component of
  * the digital video signal. The color saturation can be adjusted by adjusting
- * the U and V color gain components by the same amount in the normal
+ * the U and V color gain components by the same amount in the analrmal
  * situation. The U and V can also be adjusted independently to provide greater
  * flexibility. The range of adjustment is 0 to 200%. A value of 128 (80h) has
  * gain of 100%. The default is 80h.
@@ -1614,7 +1614,7 @@
 /*
  * These bits control the digital gain adjustment to the V (or Cr) component of
  * the digital video signal. The color saturation can be adjusted by adjusting
- * the U and V color gain components by the same amount in the normal
+ * the U and V color gain components by the same amount in the analrmal
  * situation. The U and V can also be adjusted independently to provide greater
  * flexibility. The range of adjustment is 0 to 200%. A value of 128 (80h) has
  * gain of 100%. The default is 80h.
@@ -1648,7 +1648,7 @@
  */
 #define TW5864_INDIR_VIN_E_DETSTUS BIT(7)
 /*
- * STDNOW Current standard invoked
+ * STDANALW Current standard invoked
  * 0 NTSC (M)
  * 1 PAL (B, D, G, H, I)
  * 2 SECAM
@@ -1656,10 +1656,10 @@
  * 4 PAL (M)
  * 5 PAL (CN)
  * 6 PAL 60
- * 7 Not valid
+ * 7 Analt valid
  */
-#define TW5864_INDIR_VIN_E_STDNOW_SHIFT 4
-#define TW5864_INDIR_VIN_E_STDNOW (0x07 << 4)
+#define TW5864_INDIR_VIN_E_STDANALW_SHIFT 4
+#define TW5864_INDIR_VIN_E_STDANALW (0x07 << 4)
 
 /*
  * 1 Disable the shadow registers
@@ -1754,14 +1754,14 @@
 /*
  * Disable the mixing ratio value for all audio.
  * 0 Apply individual mixing ratio value for each audio (default)
- * 1 Apply nominal value for all audio commonly
+ * 1 Apply analminal value for all audio commonly
  */
 #define TW5864_INDIR_AIN_MIX_DERATIO BIT(5)
 /*
  * Enable the mute function for audio channel AINn when n is 0 to 3. It effects
  * only for mixing. When n = 4, it enable the mute function of the playback
  * audio input. It effects only for single chip or the last stage chip
- * 0 Normal
+ * 0 Analrmal
  * 1 Muted (default)
  */
 #define TW5864_INDIR_AIN_MIX_MUTE 0x1f
@@ -1779,13 +1779,13 @@
 #define TW5864_INDIR_AIN_0x0E3_ACLKPPOLO BIT(6)
 /*
  * ACLKR input signal polarity inverse.
- * 0 Not inversed (Default)
+ * 0 Analt inversed (Default)
  * 1 Inversed
  */
 #define TW5864_INDIR_AIN_0x0E3_ACLKRPOL BIT(5)
 /*
  * ACLKP input signal polarity inverse.
- * 0 Not inversed (Default)
+ * 0 Analt inversed (Default)
  * 1 Inversed
  */
 #define TW5864_INDIR_AIN_0x0E3_ACLKPPOLI BIT(4)
@@ -1826,19 +1826,19 @@
 #define TW5864_INDIR_AIN_0x0E4_PBINSWAP BIT(5)
 /*
  * ASYNR input signal delay.
- * 0 No delay
+ * 0 Anal delay
  * 1 Add one 27MHz period delay in ASYNR signal input
  */
 #define TW5864_INDIR_AIN_0x0E4_ASYNRDLY BIT(4)
 /*
  * ASYNP input signal delay.
- * 0 no delay
+ * 0 anal delay
  * 1 add one 27MHz period delay in ASYNP signal input
  */
 #define TW5864_INDIR_AIN_0x0E4_ASYNPDLY BIT(3)
 /*
  * ADATP input data delay by one ACLKP clock.
- * 0 No delay (Default). This is for I2S type 1T delay input interface.
+ * 0 Anal delay (Default). This is for I2S type 1T delay input interface.
  * 1 Add 1 ACLKP clock delay in ADATP input data. This is for left-justified
  * type 0T delay input interface.
  */
@@ -1884,7 +1884,7 @@
  * 15:0 Motion detection interrupt for channel 0 ~ 15
  * 31:16 Night detection interrupt for channel 0 ~ 15
  * 47:32 Blind detection interrupt for channel 0 ~ 15
- * 63:48 No video interrupt for channel 0 ~ 15
+ * 63:48 Anal video interrupt for channel 0 ~ 15
  * 79:64 Line mode underflow interrupt for channel 0 ~ 15
  * 95:80 Line mode overflow interrupt for channel 0 ~ 15
  */
@@ -1898,7 +1898,7 @@
  * 15:0 Motion detection interrupt for channel 0 ~ 15
  * 31:16 Night detection interrupt for channel 0 ~ 15
  * 47:32 Blind detection interrupt for channel 0 ~ 15
- * 63:48 No video interrupt for channel 0 ~ 15
+ * 63:48 Anal video interrupt for channel 0 ~ 15
  * 79:64 Line mode underflow interrupt for channel 0 ~ 15
  * 95:80 Line mode overflow interrupt for channel 0 ~ 15
  */
@@ -1936,7 +1936,7 @@
 #define TW5864_INDIR_DETECTION_CTL0_MD_DIS BIT(5)
 /*
  * Request to start motion detection on manual trigger mode
- * 0 None Operation (default)
+ * 0 Analne Operation (default)
  * 1 Request to start motion detection
  */
 #define TW5864_INDIR_DETECTION_CTL0_MD_STRB BIT(3)
@@ -2017,7 +2017,7 @@
  * : :
  * 61 62 field intervals
  * 62 63 field intervals
- * 63 Not supported
+ * 63 Analt supported
  */
 #define TW5864_INDIR_DETECTION_CTL3_MD_SPEED 0x3f
 
@@ -2071,8 +2071,8 @@
 
 /* [15:0] MD strobe has been performed at channel n (read only) */
 #define TW5864_INDIR_MD_STRB 0x386
-/* NO_VIDEO Detected from channel n (read only) */
-#define TW5864_INDIR_NOVID_DET 0x388
+/* ANAL_VIDEO Detected from channel n (read only) */
+#define TW5864_INDIR_ANALVID_DET 0x388
 /* Motion Detected from channel n (read only) */
 #define TW5864_INDIR_MD_DET 0x38a
 /* Blind Detected from channel n (read only) */

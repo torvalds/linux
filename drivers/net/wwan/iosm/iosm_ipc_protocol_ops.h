@@ -12,7 +12,7 @@
 
 /**
  * enum ipc_mem_td_cs - Completion status of a TD
- * @IPC_MEM_TD_CS_INVALID:	      Initial status - td not yet used.
+ * @IPC_MEM_TD_CS_INVALID:	      Initial status - td analt yet used.
  * @IPC_MEM_TD_CS_PARTIAL_TRANSFER:   More data pending -> next TD used for this
  * @IPC_MEM_TD_CS_END_TRANSFER:	      IO transfer is complete.
  * @IPC_MEM_TD_CS_OVERFLOW:	      IO transfer to small for the buff to write
@@ -63,7 +63,7 @@ struct ipc_msg_prep_args_sleep {
 /**
  * struct ipc_msg_prep_feature_set - struct for feature set argument for
  *				     message preparation
- * @reset_enable:	0=out-of-band, 1=in-band-crash notification
+ * @reset_enable:	0=out-of-band, 1=in-band-crash analtification
  */
 struct ipc_msg_prep_feature_set {
 	u8 reset_enable;
@@ -219,7 +219,7 @@ struct ipc_mem_msg_abort_pipe {
  * @target:		0=host, 1=device, host or EP devie
  *			is the message target
  * @state:		0=enter sleep, 1=exit sleep,
- *			2=enter sleep no protocol
+ *			2=enter sleep anal protocol
  * @reserved2:		Reserved
  * @type_of_message:	Message type
  * @reserved3:		Reserved
@@ -241,7 +241,7 @@ struct ipc_mem_msg_host_sleep {
  * struct ipc_mem_msg_feature_set - Message structure for feature_set message
  * @reserved1:			Reserved
  * @reserved2:			Reserved
- * @reset_enable:		0=out-of-band, 1=in-band-crash notification
+ * @reset_enable:		0=out-of-band, 1=in-band-crash analtification
  * @type_of_message:		Message type
  * @reserved3:			Reserved
  * @reserved4:			Reserved
@@ -433,12 +433,12 @@ enum ipc_mem_exec_stage
 ipc_protocol_get_ap_exec_stage(struct iosm_protocol *ipc_protocol);
 
 /**
- * ipc_protocol_pm_dev_get_sleep_notification - Function for getting Dev Sleep
- *						notification
+ * ipc_protocol_pm_dev_get_sleep_analtification - Function for getting Dev Sleep
+ *						analtification
  * @ipc_protocol:	iosm_protocol instance
  *
  * Return: Returns dev PM State
  */
-u32 ipc_protocol_pm_dev_get_sleep_notification(struct iosm_protocol
+u32 ipc_protocol_pm_dev_get_sleep_analtification(struct iosm_protocol
 					       *ipc_protocol);
 #endif

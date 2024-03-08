@@ -176,7 +176,7 @@ static int slimpro_mbox_probe(struct platform_device *pdev)
 
 	ctx = devm_kzalloc(&pdev->dev, sizeof(struct slimpro_mbox), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, ctx);
 
@@ -189,10 +189,10 @@ static int slimpro_mbox_probe(struct platform_device *pdev)
 		ctx->mc[i].irq = platform_get_irq(pdev, i);
 		if (ctx->mc[i].irq < 0) {
 			if (i == 0) {
-				dev_err(&pdev->dev, "no available IRQ\n");
+				dev_err(&pdev->dev, "anal available IRQ\n");
 				return -EINVAL;
 			}
-			dev_info(&pdev->dev, "no IRQ for channel %d\n", i);
+			dev_info(&pdev->dev, "anal IRQ for channel %d\n", i);
 			break;
 		}
 

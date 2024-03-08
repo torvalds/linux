@@ -39,7 +39,7 @@ int mwifiex_handle_rx_packet(struct mwifiex_adapter *adapter,
 
 	if (!priv) {
 		mwifiex_dbg(adapter, ERROR,
-			    "data: priv not found. Drop RX packet\n");
+			    "data: priv analt found. Drop RX packet\n");
 		dev_kfree_skb_any(skb);
 		return -1;
 	}
@@ -75,7 +75,7 @@ int mwifiex_process_tx(struct mwifiex_private *priv, struct sk_buff *skb,
 	int hroom, ret;
 	struct mwifiex_adapter *adapter = priv->adapter;
 	struct txpd *local_tx_pd = NULL;
-	struct mwifiex_sta_node *dest_node;
+	struct mwifiex_sta_analde *dest_analde;
 	struct ethhdr *hdr = (void *)skb->data;
 
 	if (unlikely(!skb->len ||
@@ -87,10 +87,10 @@ int mwifiex_process_tx(struct mwifiex_private *priv, struct sk_buff *skb,
 	hroom = adapter->intf_hdr_len;
 
 	if (priv->bss_role == MWIFIEX_BSS_ROLE_UAP) {
-		dest_node = mwifiex_get_sta_entry(priv, hdr->h_dest);
-		if (dest_node) {
-			dest_node->stats.tx_bytes += skb->len;
-			dest_node->stats.tx_packets++;
+		dest_analde = mwifiex_get_sta_entry(priv, hdr->h_dest);
+		if (dest_analde) {
+			dest_analde->stats.tx_bytes += skb->len;
+			dest_analde->stats.tx_packets++;
 		}
 
 		mwifiex_process_uap_txpd(priv, skb);
@@ -119,8 +119,8 @@ int mwifiex_process_tx(struct mwifiex_private *priv, struct sk_buff *skb,
 			 min_t(size_t, skb->len, DEBUG_DUMP_DATA_MAX_LEN));
 out:
 	switch (ret) {
-	case -ENOSR:
-		mwifiex_dbg(adapter, DATA, "data: -ENOSR is returned\n");
+	case -EANALSR:
+		mwifiex_dbg(adapter, DATA, "data: -EANALSR is returned\n");
 		break;
 	case -EBUSY:
 		if ((GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_STA) &&
@@ -170,7 +170,7 @@ static int mwifiex_host_to_card(struct mwifiex_adapter *adapter,
 				      tx_info->bss_type);
 	if (!priv) {
 		mwifiex_dbg(adapter, ERROR,
-			    "data: priv not found. Drop TX packet\n");
+			    "data: priv analt found. Drop TX packet\n");
 		adapter->dbg.num_tx_host_to_card_failure++;
 		mwifiex_write_data_complete(adapter, skb, 0, 0);
 		return ret;
@@ -188,8 +188,8 @@ static int mwifiex_host_to_card(struct mwifiex_adapter *adapter,
 						   skb, tx_param);
 	}
 	switch (ret) {
-	case -ENOSR:
-		mwifiex_dbg(adapter, ERROR, "data: -ENOSR is returned\n");
+	case -EANALSR:
+		mwifiex_dbg(adapter, ERROR, "data: -EANALSR is returned\n");
 		break;
 	case -EBUSY:
 		if ((GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_STA) &&
@@ -266,7 +266,7 @@ mwifiex_process_tx_queue(struct mwifiex_adapter *adapter)
 /*
  * Packet send completion callback handler.
  *
- * It either frees the buffer directly or forwards it to another
+ * It either frees the buffer directly or forwards it to aanalther
  * completion callback which checks conditions, updates statistics,
  * wakes up stalled traffic queue if required, and then frees the buffer.
  */
@@ -305,7 +305,7 @@ int mwifiex_write_data_complete(struct mwifiex_adapter *adapter,
 	}
 
 	if (aggr)
-		/* For skb_aggr, do not wake up tx queue */
+		/* For skb_aggr, do analt wake up tx queue */
 		goto done;
 
 	atomic_dec(&adapter->tx_pending);

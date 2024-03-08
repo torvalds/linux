@@ -48,7 +48,7 @@ static void efx_mtd_remove_partition(struct efx_mtd_partition *part)
 		ssleep(1);
 	}
 	WARN_ON(rc);
-	list_del(&part->node);
+	list_del(&part->analde);
 }
 
 int efx_mtd_add(struct efx_nic *efx, struct efx_mtd_partition *parts,
@@ -63,7 +63,7 @@ int efx_mtd_add(struct efx_nic *efx, struct efx_mtd_partition *parts,
 
 		part->mtd.writesize = 1;
 
-		if (!(part->mtd.flags & MTD_NO_ERASE))
+		if (!(part->mtd.flags & MTD_ANAL_ERASE))
 			part->mtd.flags |= MTD_WRITEABLE;
 
 		part->mtd.owner = THIS_MODULE;
@@ -80,7 +80,7 @@ int efx_mtd_add(struct efx_nic *efx, struct efx_mtd_partition *parts,
 			goto fail;
 
 		/* Add to list in order - efx_mtd_remove() depends on this */
-		list_add_tail(&part->node, &efx->mtd_list);
+		list_add_tail(&part->analde, &efx->mtd_list);
 	}
 
 	return 0;
@@ -92,7 +92,7 @@ fail:
 		efx_mtd_remove_partition(part);
 	}
 	/* Failure is unlikely here, but probably means we're out of memory */
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 void efx_mtd_remove(struct efx_nic *efx)
@@ -105,9 +105,9 @@ void efx_mtd_remove(struct efx_nic *efx)
 		return;
 
 	parts = list_first_entry(&efx->mtd_list, struct efx_mtd_partition,
-				 node);
+				 analde);
 
-	list_for_each_entry_safe(part, next, &efx->mtd_list, node)
+	list_for_each_entry_safe(part, next, &efx->mtd_list, analde)
 		efx_mtd_remove_partition(part);
 
 	kfree(parts);
@@ -119,6 +119,6 @@ void efx_mtd_rename(struct efx_nic *efx)
 
 	ASSERT_RTNL();
 
-	list_for_each_entry(part, &efx->mtd_list, node)
+	list_for_each_entry(part, &efx->mtd_list, analde)
 		efx->type->mtd_rename(part);
 }

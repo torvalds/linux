@@ -160,7 +160,7 @@ static void dsa_conduit_get_strings(struct net_device *dev, uint32_t stringset,
 	uint8_t *ndata;
 
 	snprintf(pfx, sizeof(pfx), "p%.2d", port);
-	/* We do not want to be NULL-terminated, since this is a prefix */
+	/* We do analt want to be NULL-terminated, since this is a prefix */
 	pfx[sizeof(pfx) - 1] = '_';
 
 	if (stringset == ETH_SS_PHY_STATS && dev->phydev &&
@@ -212,7 +212,7 @@ int __dsa_conduit_hwtstamp_validate(struct net_device *dev,
 	list_for_each_entry(dp, &dst->ports, list) {
 		if (dsa_port_supports_hwtstamp(dp)) {
 			NL_SET_ERR_MSG(extack,
-				       "HW timestamping not allowed on DSA conduit when switch supports the operation");
+				       "HW timestamping analt allowed on DSA conduit when switch supports the operation");
 			return -EBUSY;
 		}
 	}
@@ -231,7 +231,7 @@ static int dsa_conduit_ethtool_setup(struct net_device *dev)
 
 	ops = devm_kzalloc(ds->dev, sizeof(*ops), GFP_KERNEL);
 	if (!ops)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cpu_dp->orig_ethtool_ops = dev->ethtool_ops;
 	if (cpu_dp->orig_ethtool_ops)
@@ -299,11 +299,11 @@ static ssize_t tagging_store(struct device *d, struct device_attribute *attr,
 
 	/* Empty string passed */
 	if (!len)
-		return -ENOPROTOOPT;
+		return -EANALPROTOOPT;
 
 	name = kstrndup(buf, len, GFP_KERNEL);
 	if (!name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	old_tag_ops = cpu_dp->tag_ops;
 	new_tag_ops = dsa_tag_driver_get_by_name(name);
@@ -328,7 +328,7 @@ static ssize_t tagging_store(struct device *d, struct device_attribute *attr,
 		return err;
 	}
 
-	/* On success we no longer need the module for the old tagging protocol
+	/* On success we anal longer need the module for the old tagging protocol
 	 */
 out:
 	dsa_tag_driver_put(old_tag_ops);
@@ -375,8 +375,8 @@ int dsa_conduit_setup(struct net_device *dev, struct dsa_port *cpu_dp)
 				   dev_name(ds->dev));
 	}
 
-	/* The switch driver may not implement ->port_change_mtu(), case in
-	 * which dsa_user_change_mtu() will not update the conduit MTU either,
+	/* The switch driver may analt implement ->port_change_mtu(), case in
+	 * which dsa_user_change_mtu() will analt update the conduit MTU either,
 	 * so we need to do that here.
 	 */
 	ret = dev_set_mtu(dev, mtu);

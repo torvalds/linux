@@ -89,7 +89,7 @@
 	pinctrl-1 = <&pinctrl_usdhc1_100mhz>;
 	pinctrl-2 = <&pinctrl_usdhc1_200mhz>;
 	cd-gpios = <&gpio1 19 GPIO_ACTIVE_LOW>;
-	no-1-8-v;
+	anal-1-8-v;
 	keep-power-in-suspend;
 	wakeup-source;
 	vmmc-supply = <&reg_vdd_3v3>;
@@ -102,7 +102,7 @@
 	pinctrl-1 = <&pinctrl_usdhc2_100mhz>;
 	pinctrl-2 = <&pinctrl_usdhc2_200mhz>;
 	bus-width = <8>;
-	non-removable;
+	analn-removable;
 	keep-power-in-suspend;
 	vmmc-supply = <&reg_vdd_3v3>;
 };

@@ -6,11 +6,11 @@
  * the PnP BIOS firmware, described in the following documents:
  *   Plug and Play BIOS Specification, Version 1.0A, 5 May 1994
  *   Plug and Play BIOS Clarification Paper, 6 October 1994
- *     Compaq Computer Corporation, Phoenix Technologies Ltd., Intel Corp.
+ *     Compaq Computer Corporation, Phoenix Techanallogies Ltd., Intel Corp.
  * 
  * Originally (C) 1998 Christian Schmidt <schmidt@digadd.de>
  * Modifications (C) 1998 Tom Lees <tom@lpsg.demon.co.uk>
- * Minor reorganizations by David Hinds <dahinds@users.sourceforge.net>
+ * Mianalr reorganizations by David Hinds <dahinds@users.sourceforge.net>
  * Further modifications (C) 2001, 2002 by:
  *   Alan Cox <alan@redhat.com>
  *   Thomas Hood
@@ -23,7 +23,7 @@
 /* Change Log
  *
  * Adam Belay - <ambx1@neo.rr.com> - March 16, 2003
- * rev 1.01	Only call pnp_bios_dev_node_info once
+ * rev 1.01	Only call pnp_bios_dev_analde_info once
  *		Added pnpbios_print_status
  *		Added several new error messages and info messages
  *		Added pnpbios_interface_attach_device
@@ -70,7 +70,7 @@ int pnp_bios_present(void)
 	return (pnp_bios_install != NULL);
 }
 
-struct pnp_dev_node_info node_info;
+struct pnp_dev_analde_info analde_info;
 
 /*
  *
@@ -90,10 +90,10 @@ static int pnp_dock_event(int dock, struct pnp_docking_station_info *info)
 	int i = 0, value;
 
 	if (!(envp = kcalloc(20, sizeof(char *), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	if (!(buf = kzalloc(256, GFP_KERNEL))) {
 		kfree(envp);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* FIXME: if there are actual users of this, it should be
@@ -109,7 +109,7 @@ static int pnp_dock_event(int dock, struct pnp_docking_station_info *info)
 	envp[i++] = "PATH=/sbin:/bin:/usr/sbin:/usr/bin";
 
 #ifdef	DEBUG
-	/* hint that policy agent should enter no-stdout debug mode */
+	/* hint that policy agent should enter anal-stdout debug mode */
 	envp[i++] = "DEBUG=kernel";
 #endif
 	/* extensible set of named bus-specific parameters,
@@ -138,7 +138,7 @@ static int pnp_dock_event(int dock, struct pnp_docking_station_info *info)
  */
 static int pnp_dock_thread(void *unused)
 {
-	static struct pnp_docking_station_info now;
+	static struct pnp_docking_station_info analw;
 	int docked = -1, d = 0;
 
 	set_freezable();
@@ -153,15 +153,15 @@ static int pnp_dock_thread(void *unused)
 		if (try_to_freeze())
 			continue;
 
-		status = pnp_bios_dock_station_info(&now);
+		status = pnp_bios_dock_station_info(&analw);
 
 		switch (status) {
 			/*
-			 * No dock to manage
+			 * Anal dock to manage
 			 */
-		case PNP_FUNCTION_NOT_SUPPORTED:
+		case PNP_FUNCTION_ANALT_SUPPORTED:
 			kthread_complete_and_exit(&unload_sem, 0);
-		case PNP_SYSTEM_NOT_DOCKED:
+		case PNP_SYSTEM_ANALT_DOCKED:
 			d = 0;
 			break;
 		case PNP_SUCCESS:
@@ -173,7 +173,7 @@ static int pnp_dock_thread(void *unused)
 			kthread_complete_and_exit(&unload_sem, 0);
 		}
 		if (d != docked) {
-			if (pnp_dock_event(d, &now) == 0) {
+			if (pnp_dock_event(d, &analw) == 0) {
 				docked = d;
 #if 0
 				printk(KERN_INFO
@@ -188,58 +188,58 @@ static int pnp_dock_thread(void *unused)
 
 static int pnpbios_get_resources(struct pnp_dev *dev)
 {
-	u8 nodenum = dev->number;
-	struct pnp_bios_node *node;
+	u8 analdenum = dev->number;
+	struct pnp_bios_analde *analde;
 
 	if (!pnpbios_is_dynamic(dev))
 		return -EPERM;
 
 	pnp_dbg(&dev->dev, "get resources\n");
-	node = kzalloc(node_info.max_node_size, GFP_KERNEL);
-	if (!node)
+	analde = kzalloc(analde_info.max_analde_size, GFP_KERNEL);
+	if (!analde)
 		return -1;
-	if (pnp_bios_get_dev_node(&nodenum, (char)PNPMODE_DYNAMIC, node)) {
-		kfree(node);
-		return -ENODEV;
+	if (pnp_bios_get_dev_analde(&analdenum, (char)PNPMODE_DYNAMIC, analde)) {
+		kfree(analde);
+		return -EANALDEV;
 	}
-	pnpbios_read_resources_from_node(dev, node);
+	pnpbios_read_resources_from_analde(dev, analde);
 	dev->active = pnp_is_active(dev);
-	kfree(node);
+	kfree(analde);
 	return 0;
 }
 
 static int pnpbios_set_resources(struct pnp_dev *dev)
 {
-	u8 nodenum = dev->number;
-	struct pnp_bios_node *node;
+	u8 analdenum = dev->number;
+	struct pnp_bios_analde *analde;
 	int ret;
 
 	if (!pnpbios_is_dynamic(dev))
 		return -EPERM;
 
 	pnp_dbg(&dev->dev, "set resources\n");
-	node = kzalloc(node_info.max_node_size, GFP_KERNEL);
-	if (!node)
+	analde = kzalloc(analde_info.max_analde_size, GFP_KERNEL);
+	if (!analde)
 		return -1;
-	if (pnp_bios_get_dev_node(&nodenum, (char)PNPMODE_DYNAMIC, node)) {
-		kfree(node);
-		return -ENODEV;
+	if (pnp_bios_get_dev_analde(&analdenum, (char)PNPMODE_DYNAMIC, analde)) {
+		kfree(analde);
+		return -EANALDEV;
 	}
-	if (pnpbios_write_resources_to_node(dev, node) < 0) {
-		kfree(node);
+	if (pnpbios_write_resources_to_analde(dev, analde) < 0) {
+		kfree(analde);
 		return -1;
 	}
-	ret = pnp_bios_set_dev_node(node->handle, (char)PNPMODE_DYNAMIC, node);
-	kfree(node);
+	ret = pnp_bios_set_dev_analde(analde->handle, (char)PNPMODE_DYNAMIC, analde);
+	kfree(analde);
 	if (ret > 0)
 		ret = -1;
 	return ret;
 }
 
-static void pnpbios_zero_data_stream(struct pnp_bios_node *node)
+static void pnpbios_zero_data_stream(struct pnp_bios_analde *analde)
 {
-	unsigned char *p = (char *)node->data;
-	unsigned char *end = (char *)(node->data + node->size);
+	unsigned char *p = (char *)analde->data;
+	unsigned char *end = (char *)(analde->data + analde->size);
 	unsigned int len;
 	int i;
 
@@ -258,30 +258,30 @@ static void pnpbios_zero_data_stream(struct pnp_bios_node *node)
 		p += len;
 	}
 	printk(KERN_ERR
-	       "PnPBIOS: Resource structure did not contain an end tag.\n");
+	       "PnPBIOS: Resource structure did analt contain an end tag.\n");
 }
 
 static int pnpbios_disable_resources(struct pnp_dev *dev)
 {
-	struct pnp_bios_node *node;
-	u8 nodenum = dev->number;
+	struct pnp_bios_analde *analde;
+	u8 analdenum = dev->number;
 	int ret;
 
-	if (dev->flags & PNPBIOS_NO_DISABLE || !pnpbios_is_dynamic(dev))
+	if (dev->flags & PNPBIOS_ANAL_DISABLE || !pnpbios_is_dynamic(dev))
 		return -EPERM;
 
-	node = kzalloc(node_info.max_node_size, GFP_KERNEL);
-	if (!node)
-		return -ENOMEM;
+	analde = kzalloc(analde_info.max_analde_size, GFP_KERNEL);
+	if (!analde)
+		return -EANALMEM;
 
-	if (pnp_bios_get_dev_node(&nodenum, (char)PNPMODE_DYNAMIC, node)) {
-		kfree(node);
-		return -ENODEV;
+	if (pnp_bios_get_dev_analde(&analdenum, (char)PNPMODE_DYNAMIC, analde)) {
+		kfree(analde);
+		return -EANALDEV;
 	}
-	pnpbios_zero_data_stream(node);
+	pnpbios_zero_data_stream(analde);
 
-	ret = pnp_bios_set_dev_node(dev->number, (char)PNPMODE_DYNAMIC, node);
-	kfree(node);
+	ret = pnp_bios_set_dev_analde(dev->number, (char)PNPMODE_DYNAMIC, analde);
+	kfree(analde);
 	if (ret > 0)
 		ret = -1;
 	return ret;
@@ -296,7 +296,7 @@ struct pnp_protocol pnpbios_protocol = {
 	.disable = pnpbios_disable_resources,
 };
 
-static int __init insert_device(struct pnp_bios_node *node)
+static int __init insert_device(struct pnp_bios_analde *analde)
 {
 	struct pnp_dev *dev;
 	char id[8];
@@ -304,21 +304,21 @@ static int __init insert_device(struct pnp_bios_node *node)
 
 	/* check if the device is already added */
 	list_for_each_entry(dev, &pnpbios_protocol.devices, protocol_list) {
-		if (dev->number == node->handle)
+		if (dev->number == analde->handle)
 			return -EEXIST;
 	}
 
-	pnp_eisa_id_to_string(node->eisa_id & PNP_EISA_ID_MASK, id);
-	dev = pnp_alloc_dev(&pnpbios_protocol, node->handle, id);
+	pnp_eisa_id_to_string(analde->eisa_id & PNP_EISA_ID_MASK, id);
+	dev = pnp_alloc_dev(&pnpbios_protocol, analde->handle, id);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	pnpbios_parse_data_stream(dev, node);
+	pnpbios_parse_data_stream(dev, analde);
 	dev->active = pnp_is_active(dev);
-	dev->flags = node->flags;
-	if (!(dev->flags & PNPBIOS_NO_CONFIG))
+	dev->flags = analde->flags;
+	if (!(dev->flags & PNPBIOS_ANAL_CONFIG))
 		dev->capabilities |= PNP_CONFIGURABLE;
-	if (!(dev->flags & PNPBIOS_NO_DISABLE) && pnpbios_is_dynamic(dev))
+	if (!(dev->flags & PNPBIOS_ANAL_DISABLE) && pnpbios_is_dynamic(dev))
 		dev->capabilities |= PNP_DISABLE;
 	dev->capabilities |= PNP_READ;
 	if (pnpbios_is_dynamic(dev))
@@ -336,52 +336,52 @@ static int __init insert_device(struct pnp_bios_node *node)
 		return error;
 	}
 
-	pnpbios_interface_attach_device(node);
+	pnpbios_interface_attach_device(analde);
 
 	return 0;
 }
 
 static void __init build_devlist(void)
 {
-	u8 nodenum;
-	unsigned int nodes_got = 0;
+	u8 analdenum;
+	unsigned int analdes_got = 0;
 	unsigned int devs = 0;
-	struct pnp_bios_node *node;
+	struct pnp_bios_analde *analde;
 
-	node = kzalloc(node_info.max_node_size, GFP_KERNEL);
-	if (!node)
+	analde = kzalloc(analde_info.max_analde_size, GFP_KERNEL);
+	if (!analde)
 		return;
 
-	for (nodenum = 0; nodenum < 0xff;) {
-		u8 thisnodenum = nodenum;
-		/* eventually we will want to use PNPMODE_STATIC here but for now
+	for (analdenum = 0; analdenum < 0xff;) {
+		u8 thisanaldenum = analdenum;
+		/* eventually we will want to use PNPMODE_STATIC here but for analw
 		 * dynamic will help us catch buggy bioses to add to the blacklist.
 		 */
 		if (!pnpbios_dont_use_current_config) {
-			if (pnp_bios_get_dev_node
-			    (&nodenum, (char)PNPMODE_DYNAMIC, node))
+			if (pnp_bios_get_dev_analde
+			    (&analdenum, (char)PNPMODE_DYNAMIC, analde))
 				break;
 		} else {
-			if (pnp_bios_get_dev_node
-			    (&nodenum, (char)PNPMODE_STATIC, node))
+			if (pnp_bios_get_dev_analde
+			    (&analdenum, (char)PNPMODE_STATIC, analde))
 				break;
 		}
-		nodes_got++;
-		if (insert_device(node) == 0)
+		analdes_got++;
+		if (insert_device(analde) == 0)
 			devs++;
-		if (nodenum <= thisnodenum) {
+		if (analdenum <= thisanaldenum) {
 			printk(KERN_ERR
-			       "PnPBIOS: build_devlist: Node number 0x%x is out of sequence following node 0x%x. Aborting.\n",
-			       (unsigned int)nodenum,
-			       (unsigned int)thisnodenum);
+			       "PnPBIOS: build_devlist: Analde number 0x%x is out of sequence following analde 0x%x. Aborting.\n",
+			       (unsigned int)analdenum,
+			       (unsigned int)thisanaldenum);
 			break;
 		}
 	}
-	kfree(node);
+	kfree(analde);
 
 	printk(KERN_INFO
-	       "PnPBIOS: %i node%s reported by PnP BIOS; %i recorded by driver\n",
-	       nodes_got, nodes_got != 1 ? "s" : "", devs);
+	       "PnPBIOS: %i analde%s reported by PnP BIOS; %i recorded by driver\n",
+	       analdes_got, analdes_got != 1 ? "s" : "", devs);
 }
 
 /*
@@ -402,7 +402,7 @@ static int __init pnpbios_setup(char *str)
 			pnpbios_disabled = 1;
 		if (strncmp(str, "on", 2) == 0)
 			pnpbios_disabled = 0;
-		invert = (strncmp(str, "no-", 3) == 0);
+		invert = (strncmp(str, "anal-", 3) == 0);
 		if (invert)
 			str += 3;
 		if (strncmp(str, "curr", 4) == 0)
@@ -456,7 +456,7 @@ static int __init pnpbios_probe_system(void)
 		}
 		if (check->fields.version < 0x10) {
 			printk(KERN_WARNING
-			       "PnPBIOS: PnP BIOS version %d.%d is not supported\n",
+			       "PnPBIOS: PnP BIOS version %d.%d is analt supported\n",
 			       check->fields.version >> 4,
 			       check->fields.version & 15);
 			continue;
@@ -470,7 +470,7 @@ static int __init pnpbios_probe_system(void)
 		return 1;
 	}
 
-	printk(KERN_INFO "PnPBIOS: PnP BIOS support was not detected.\n");
+	printk(KERN_INFO "PnPBIOS: PnP BIOS support was analt detected.\n");
 	return 0;
 }
 
@@ -509,29 +509,29 @@ static int __init pnpbios_init(void)
 	if (pnpbios_disabled || dmi_check_system(pnpbios_dmi_table) ||
 	    arch_pnpbios_disabled()) {
 		printk(KERN_INFO "PnPBIOS: Disabled\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 #ifdef CONFIG_PNPACPI
 	if (!acpi_disabled && !pnpacpi_disabled) {
 		pnpbios_disabled = 1;
 		printk(KERN_INFO "PnPBIOS: Disabled by ACPI PNP\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 #endif				/* CONFIG_ACPI */
 
 	/* scan the system for pnpbios support */
 	if (!pnpbios_probe_system())
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* make preparations for bios calls */
 	pnpbios_calls_init(pnp_bios_install);
 
-	/* read the node info */
-	ret = pnp_bios_dev_node_info(&node_info);
+	/* read the analde info */
+	ret = pnp_bios_dev_analde_info(&analde_info);
 	if (ret) {
 		printk(KERN_ERR
-		       "PnPBIOS: Unable to get node info.  Aborting.\n");
+		       "PnPBIOS: Unable to get analde info.  Aborting.\n");
 		return ret;
 	}
 

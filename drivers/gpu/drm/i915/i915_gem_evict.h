@@ -8,7 +8,7 @@
 
 #include <linux/types.h>
 
-struct drm_mm_node;
+struct drm_mm_analde;
 struct i915_address_space;
 struct i915_gem_ww_ctx;
 struct drm_i915_gem_object;
@@ -19,9 +19,9 @@ int __must_check i915_gem_evict_something(struct i915_address_space *vm,
 					  unsigned long color,
 					  u64 start, u64 end,
 					  unsigned flags);
-int __must_check i915_gem_evict_for_node(struct i915_address_space *vm,
+int __must_check i915_gem_evict_for_analde(struct i915_address_space *vm,
 					 struct i915_gem_ww_ctx *ww,
-					 struct drm_mm_node *node,
+					 struct drm_mm_analde *analde,
 					 unsigned int flags);
 int i915_gem_evict_vm(struct i915_address_space *vm,
 		      struct i915_gem_ww_ctx *ww,

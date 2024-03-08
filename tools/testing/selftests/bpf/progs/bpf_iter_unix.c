@@ -7,18 +7,18 @@
 
 char _license[] SEC("license") = "GPL";
 
-static long sock_i_ino(const struct sock *sk)
+static long sock_i_ianal(const struct sock *sk)
 {
 	const struct socket *sk_socket = sk->sk_socket;
-	const struct inode *inode;
-	unsigned long ino;
+	const struct ianalde *ianalde;
+	unsigned long ianal;
 
 	if (!sk_socket)
 		return 0;
 
-	inode = &container_of(sk_socket, struct socket_alloc, socket)->vfs_inode;
-	bpf_probe_read_kernel(&ino, sizeof(ino), &inode->i_ino);
-	return ino;
+	ianalde = &container_of(sk_socket, struct socket_alloc, socket)->vfs_ianalde;
+	bpf_probe_read_kernel(&ianal, sizeof(ianal), &ianalde->i_ianal);
+	return ianal;
 }
 
 SEC("iter/unix")
@@ -35,7 +35,7 @@ int dump_unix(struct bpf_iter__unix *ctx)
 	seq = ctx->meta->seq;
 	seq_num = ctx->meta->seq_num;
 	if (seq_num == 0)
-		BPF_SEQ_PRINTF(seq, "Num               RefCount Protocol Flags    Type St    Inode Path\n");
+		BPF_SEQ_PRINTF(seq, "Num               RefCount Protocol Flags    Type St    Ianalde Path\n");
 
 	BPF_SEQ_PRINTF(seq, "%pK: %08X %08X %08X %04X %02X %8lu",
 		       unix_sk,
@@ -46,7 +46,7 @@ int dump_unix(struct bpf_iter__unix *ctx)
 		       sk->sk_socket ?
 		       (sk->sk_state == TCP_ESTABLISHED ? SS_CONNECTED : SS_UNCONNECTED) :
 		       (sk->sk_state == TCP_ESTABLISHED ? SS_CONNECTING : SS_DISCONNECTING),
-		       sock_i_ino(sk));
+		       sock_i_ianal(sk));
 
 	if (unix_sk->addr) {
 		if (unix_sk->addr->name->sun_path[0]) {

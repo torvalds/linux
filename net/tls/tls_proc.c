@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2019 Netronome Systems, Inc. */
+/* Copyright (C) 2019 Netroanalme Systems, Inc. */
 
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
@@ -21,7 +21,7 @@ static const struct snmp_mib tls_mib_list[] = {
 	SNMP_MIB_ITEM("TlsDecryptError", LINUX_MIB_TLSDECRYPTERROR),
 	SNMP_MIB_ITEM("TlsRxDeviceResync", LINUX_MIB_TLSRXDEVICERESYNC),
 	SNMP_MIB_ITEM("TlsDecryptRetry", LINUX_MIB_TLSDECRYPTRETRY),
-	SNMP_MIB_ITEM("TlsRxNoPadViolation", LINUX_MIB_TLSRXNOPADVIOL),
+	SNMP_MIB_ITEM("TlsRxAnalPadViolation", LINUX_MIB_TLSRXANALPADVIOL),
 	SNMP_MIB_SENTINEL
 };
 
@@ -44,7 +44,7 @@ int __net_init tls_proc_init(struct net *net)
 #ifdef CONFIG_PROC_FS
 	if (!proc_create_net_single("tls_stat", 0444, net->proc_net,
 				    tls_statistics_seq_show, NULL))
-		return -ENOMEM;
+		return -EANALMEM;
 #endif /* CONFIG_PROC_FS */
 
 	return 0;

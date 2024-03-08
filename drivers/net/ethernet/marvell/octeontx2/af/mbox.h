@@ -53,15 +53,15 @@ struct otx2_mbox_dev {
 	spinlock_t  mbox_lock;
 	u16         msg_size; /* Total msg size to be sent */
 	u16         rsp_size; /* Total rsp size to be sure the reply is ok */
-	u16         num_msgs; /* No of msgs sent or waiting for response */
-	u16         msgs_acked; /* No of msgs for which response is received */
+	u16         num_msgs; /* Anal of msgs sent or waiting for response */
+	u16         msgs_acked; /* Anal of msgs for which response is received */
 };
 
 struct otx2_mbox {
 	struct pci_dev *pdev;
 	void   *hwbase;  /* Mbox region advertised by HW */
 	void   *reg_base;/* CSR base for this dev */
-	u64    trigger;  /* Trigger mbox notification */
+	u64    trigger;  /* Trigger mbox analtification */
 	u16    tr_shift; /* Mbox trigger shift */
 	u64    rx_start; /* Offset of Rx region in mbox memory */
 	u64    tx_start; /* Offset of Tx region in mbox memory */
@@ -74,7 +74,7 @@ struct otx2_mbox {
 /* Header which precedes all mbox messages */
 struct mbox_hdr {
 	u64 msg_size;	/* Total msgs size embedded */
-	u16  num_msgs;   /* No of msgs embedded */
+	u16  num_msgs;   /* Anal of msgs embedded */
 };
 
 /* Header which precedes every msg and is also part of it */
@@ -110,7 +110,7 @@ struct mbox_msghdr *otx2_mbox_get_rsp(struct otx2_mbox *mbox, int devid,
 int otx2_mbox_check_rsp_msgs(struct otx2_mbox *mbox, int devid);
 int otx2_reply_invalid_msg(struct otx2_mbox *mbox, int devid,
 			   u16 pcifunc, u16 id);
-bool otx2_mbox_nonempty(struct otx2_mbox *mbox, int devid);
+bool otx2_mbox_analnempty(struct otx2_mbox *mbox, int devid);
 const char *otx2_mbox_id2name(u16 id);
 static inline struct mbox_msghdr *otx2_mbox_alloc_msg(struct otx2_mbox *mbox,
 						      int devid, int size)
@@ -370,7 +370,7 @@ M(CGX_LINK_EVENT,	0xC00, cgx_link_event, cgx_link_info_msg, msg_rsp)
 M(CPT_INST_LMTST,	0xD00, cpt_inst_lmtst, cpt_inst_lmtst_req, msg_rsp)
 
 #define MBOX_UP_MCS_MESSAGES						\
-M(MCS_INTR_NOTIFY,	0xE00, mcs_intr_notify, mcs_intr_info, msg_rsp)
+M(MCS_INTR_ANALTIFY,	0xE00, mcs_intr_analtify, mcs_intr_info, msg_rsp)
 
 enum {
 #define M(_name, _id, _1, _2, _3) MBOX_MSG_ ## _name = _id,
@@ -443,7 +443,7 @@ struct rsrc_attach {
 
 /* Structure for relinquishing resources.
  * 'partial' flag to be used when relinquishing all resources
- * but only of a certain type. If not set, all resources of all
+ * but only of a certain type. If analt set, all resources of all
  * types provisioned to the RVU function will be detached.
  */
 struct rsrc_detach {
@@ -567,7 +567,7 @@ struct cgx_link_user_info {
 	uint64_t full_duplex:1;
 	uint64_t lmac_type_id:4;
 	uint64_t speed:20; /* speed in Mbps */
-	uint64_t an:1;		/* AN supported or not */
+	uint64_t an:1;		/* AN supported or analt */
 	uint64_t fec:2;	 /* FEC type if enabled else 0 */
 #define LMACTYPE_STR_LEN 16
 	char lmac_type[LMACTYPE_STR_LEN];
@@ -588,7 +588,7 @@ struct cgx_pause_frm_cfg {
 };
 
 enum fec_type {
-	OTX2_FEC_NONE,
+	OTX2_FEC_ANALNE,
 	OTX2_FEC_BASER,
 	OTX2_FEC_RS,
 	OTX2_FEC_STATS_CNT = 2,
@@ -650,7 +650,7 @@ struct cgx_set_link_mode_args {
 };
 
 struct cgx_set_link_mode_req {
-#define AUTONEG_UNKNOWN		0xff
+#define AUTONEG_UNKANALWN		0xff
 	struct mbox_msghdr hdr;
 	struct cgx_set_link_mode_args args;
 };
@@ -746,15 +746,15 @@ enum npa_af_status {
 /* For NPA LF context alloc and init */
 struct npa_lf_alloc_req {
 	struct mbox_msghdr hdr;
-	int node;
-	int aura_sz;  /* No of auras */
-	u32 nr_pools; /* No of pools */
+	int analde;
+	int aura_sz;  /* Anal of auras */
+	u32 nr_pools; /* Anal of pools */
 	u64 way_mask;
 };
 
 struct npa_lf_alloc_rsp {
 	struct mbox_msghdr hdr;
-	u32 stack_pg_ptrs;  /* No of ptrs per stack page */
+	u32 stack_pg_ptrs;  /* Anal of ptrs per stack page */
 	u32 stack_pg_bytes; /* Size of stack page */
 	u16 qints; /* NPA_AF_CONST::QINTS */
 	u8 cache_lines; /*BATCH ALLOC DMA */
@@ -820,26 +820,26 @@ enum nix_af_status {
 	NIX_AF_INVAL_TXSCHQ_CFG     = -412,
 	NIX_AF_SMQ_FLUSH_FAILED     = -413,
 	NIX_AF_ERR_LF_RESET         = -414,
-	NIX_AF_ERR_RSS_NOSPC_FIELD  = -415,
-	NIX_AF_ERR_RSS_NOSPC_ALGO   = -416,
+	NIX_AF_ERR_RSS_ANALSPC_FIELD  = -415,
+	NIX_AF_ERR_RSS_ANALSPC_ALGO   = -416,
 	NIX_AF_ERR_MARK_CFG_FAIL    = -417,
 	NIX_AF_ERR_LSO_CFG_FAIL     = -418,
 	NIX_AF_INVAL_NPA_PF_FUNC    = -419,
 	NIX_AF_INVAL_SSO_PF_FUNC    = -420,
-	NIX_AF_ERR_TX_VTAG_NOSPC    = -421,
+	NIX_AF_ERR_TX_VTAG_ANALSPC    = -421,
 	NIX_AF_ERR_RX_VTAG_INUSE    = -422,
 	NIX_AF_ERR_PTP_CONFIG_FAIL  = -423,
-	NIX_AF_ERR_NPC_KEY_NOT_SUPP = -424,
+	NIX_AF_ERR_NPC_KEY_ANALT_SUPP = -424,
 	NIX_AF_ERR_INVALID_NIXBLK   = -425,
 	NIX_AF_ERR_INVALID_BANDPROF = -426,
-	NIX_AF_ERR_IPOLICER_NOTSUPP = -427,
+	NIX_AF_ERR_IPOLICER_ANALTSUPP = -427,
 	NIX_AF_ERR_BANDPROF_INVAL_REQ  = -428,
 	NIX_AF_ERR_CQ_CTX_WRITE_ERR  = -429,
 	NIX_AF_ERR_AQ_CTX_RETRY_WRITE  = -430,
 	NIX_AF_ERR_LINK_CREDITS  = -431,
 	NIX_AF_ERR_INVALID_MCAST_GRP	= -436,
 	NIX_AF_ERR_INVALID_MCAST_DEL_REQ = -437,
-	NIX_AF_ERR_NON_CONTIG_MCE_LIST = -438,
+	NIX_AF_ERR_ANALN_CONTIG_MCE_LIST = -438,
 };
 
 /* For NIX RX vtag action  */
@@ -857,10 +857,10 @@ enum nix_rx_vtag0_type {
 /* For NIX LF context alloc and init */
 struct nix_lf_alloc_req {
 	struct mbox_msghdr hdr;
-	int node;
-	u32 rq_cnt;   /* No of receive queues */
-	u32 sq_cnt;   /* No of send queues */
-	u32 cq_cnt;   /* No of completion queues */
+	int analde;
+	u32 rq_cnt;   /* Anal of receive queues */
+	u32 sq_cnt;   /* Anal of send queues */
+	u32 cq_cnt;   /* Anal of completion queues */
 	u8  xqe_sz;
 	u16 rss_sz;
 	u8  rss_grps;
@@ -887,9 +887,9 @@ struct nix_lf_alloc_rsp {
 	u8	lf_tx_stats; /* NIX_AF_CONST1::LF_TX_STATS */
 	u16	cints; /* NIX_AF_CONST2::CINTS */
 	u16	qints; /* NIX_AF_CONST2::QINTS */
-	u8	cgx_links;  /* No. of CGX links present in HW */
-	u8	lbk_links;  /* No. of LBK links present in HW */
-	u8	sdp_links;  /* No. of SDP links present in HW */
+	u8	cgx_links;  /* Anal. of CGX links present in HW */
+	u8	lbk_links;  /* Anal. of LBK links present in HW */
+	u8	sdp_links;  /* Anal. of SDP links present in HW */
 	u8	tx_link;    /* Transmit channel link number */
 };
 
@@ -979,8 +979,8 @@ struct nix_aq_enq_rsp {
 struct nix_txsch_alloc_req {
 	struct mbox_msghdr hdr;
 	/* Scheduler queue count request at each level */
-	u16 schq_contig[NIX_TXSCH_LVL_CNT]; /* No of contiguous queues */
-	u16 schq[NIX_TXSCH_LVL_CNT]; /* No of non-contiguous queues */
+	u16 schq_contig[NIX_TXSCH_LVL_CNT]; /* Anal of contiguous queues */
+	u16 schq[NIX_TXSCH_LVL_CNT]; /* Anal of analn-contiguous queues */
 };
 
 struct nix_txsch_alloc_rsp {
@@ -1049,7 +1049,7 @@ struct nix_vtag_config {
 			 * & free_vtag1 to free the nix lf's tx_vlan
 			 * configuration.
 			 *
-			 * Denotes the indices of tx_vtag def registers
+			 * Deanaltes the indices of tx_vtag def registers
 			 * that needs to be cleared and freed.
 			 */
 			int vtag0_idx;
@@ -1059,11 +1059,11 @@ struct nix_vtag_config {
 			 * when cfg_vtag0 & cfg_vtag1 are '0's.
 			 */
 			/* free_vtag0 = 1 clears vtag0 configuration
-			 * vtag0_idx denotes the index to be cleared.
+			 * vtag0_idx deanaltes the index to be cleared.
 			 */
 			u8 free_vtag0 :1;
 			/* free_vtag1 = 1 clears vtag1 configuration
-			 * vtag1_idx denotes the index to be cleared.
+			 * vtag1_idx deanaltes the index to be cleared.
 			 */
 			u8 free_vtag1 :1;
 		} tx;
@@ -1334,7 +1334,7 @@ struct nix_bandprof_alloc_rsp {
 	struct mbox_msghdr hdr;
 	u16 prof_count[BAND_PROF_NUM_LAYERS];
 
-	/* There is no need to allocate morethan 1 bandwidth profile
+	/* There is anal need to allocate morethan 1 bandwidth profile
 	 * per RQ of a PF_FUNC's NIXLF. So limit the maximum
 	 * profiles to 64 per PF_FUNC.
 	 */
@@ -1370,16 +1370,16 @@ enum npc_af_status {
 	NPC_MCAM_PERM_DENIED	= -704,
 	NPC_FLOW_INTF_INVALID	= -707,
 	NPC_FLOW_CHAN_INVALID	= -708,
-	NPC_FLOW_NO_NIXLF	= -709,
-	NPC_FLOW_NOT_SUPPORTED	= -710,
+	NPC_FLOW_ANAL_NIXLF	= -709,
+	NPC_FLOW_ANALT_SUPPORTED	= -710,
 	NPC_FLOW_VF_PERM_DENIED	= -711,
-	NPC_FLOW_VF_NOT_INIT	= -712,
+	NPC_FLOW_VF_ANALT_INIT	= -712,
 	NPC_FLOW_VF_OVERLAP	= -713,
 };
 
 struct npc_mcam_alloc_entry_req {
 	struct mbox_msghdr hdr;
-#define NPC_MAX_NONCONTIG_ENTRIES	256
+#define NPC_MAX_ANALNCONTIG_ENTRIES	256
 	u8  contig;   /* Contiguous entries ? */
 #define NPC_MCAM_ANY_PRIO		0
 #define NPC_MCAM_LOWER_PRIO		1
@@ -1392,11 +1392,11 @@ struct npc_mcam_alloc_entry_req {
 struct npc_mcam_alloc_entry_rsp {
 	struct mbox_msghdr hdr;
 	u16 entry; /* Entry allocated or start index if contiguous.
-		    * Invalid incase of non-contiguous.
+		    * Invalid incase of analn-contiguous.
 		    */
 	u16 count; /* Number of entries allocated */
 	u16 free_count; /* Number of entries available */
-	u16 entry_list[NPC_MAX_NONCONTIG_ENTRIES];
+	u16 entry_list[NPC_MAX_ANALNCONTIG_ENTRIES];
 };
 
 struct npc_mcam_free_entry_req {
@@ -1439,23 +1439,23 @@ struct npc_mcam_shift_entry_req {
 
 struct npc_mcam_shift_entry_rsp {
 	struct mbox_msghdr hdr;
-	u16 failed_entry_idx; /* Index in 'curr_entry', not entry itself */
+	u16 failed_entry_idx; /* Index in 'curr_entry', analt entry itself */
 };
 
 struct npc_mcam_alloc_counter_req {
 	struct mbox_msghdr hdr;
 	u8  contig;	/* Contiguous counters ? */
-#define NPC_MAX_NONCONTIG_COUNTERS       64
+#define NPC_MAX_ANALNCONTIG_COUNTERS       64
 	u16 count;	/* Number of counters requested */
 };
 
 struct npc_mcam_alloc_counter_rsp {
 	struct mbox_msghdr hdr;
 	u16 cntr;   /* Counter allocated or start index if contiguous.
-		     * Invalid incase of non-contiguous.
+		     * Invalid incase of analn-contiguous.
 		     */
 	u16 count;  /* Number of counters allocated */
-	u16 cntr_list[NPC_MAX_NONCONTIG_COUNTERS];
+	u16 cntr_list[NPC_MAX_ANALNCONTIG_COUNTERS];
 };
 
 struct npc_mcam_oper_counter_req {
@@ -1549,7 +1549,7 @@ struct flow_msg {
 #define OTX2_FLOWER_MASK_MPLS_TC		GENMASK(11, 9)
 #define OTX2_FLOWER_MASK_MPLS_BOS		BIT(8)
 #define OTX2_FLOWER_MASK_MPLS_TTL		GENMASK(7, 0)
-#define OTX2_FLOWER_MASK_MPLS_NON_TTL		GENMASK(31, 8)
+#define OTX2_FLOWER_MASK_MPLS_ANALN_TTL		GENMASK(31, 8)
 	u32 mpls_lse[4];
 	u8 icmp_type;
 	u8 icmp_code;
@@ -1589,7 +1589,7 @@ struct npc_install_flow_req {
 
 struct npc_install_flow_rsp {
 	struct mbox_msghdr hdr;
-	int counter; /* negative if no counter else counter number */
+	int counter; /* negative if anal counter else counter number */
 };
 
 struct npc_delete_flow_req {
@@ -1844,9 +1844,9 @@ struct cpt_flt_eng_info_rsp {
 	u64 rsvd;
 };
 
-struct sdp_node_info {
-	/* Node to which this PF belons to */
-	u8 node_id;
+struct sdp_analde_info {
+	/* Analde to which this PF belons to */
+	u8 analde_id;
 	u8 max_vfs;
 	u8 num_pf_rings;
 	u8 pf_srn;
@@ -1856,7 +1856,7 @@ struct sdp_node_info {
 
 struct sdp_chan_info_msg {
 	struct mbox_msghdr hdr;
-	struct sdp_node_info info;
+	struct sdp_analde_info info;
 };
 
 struct sdp_get_chan_info_msg {
@@ -1870,12 +1870,12 @@ struct sdp_get_chan_info_msg {
  */
 enum cgx_af_status {
 	LMAC_AF_ERR_INVALID_PARAM	= -1101,
-	LMAC_AF_ERR_PF_NOT_MAPPED	= -1102,
+	LMAC_AF_ERR_PF_ANALT_MAPPED	= -1102,
 	LMAC_AF_ERR_PERM_DENIED		= -1103,
 	LMAC_AF_ERR_PFC_ENADIS_PERM_DENIED       = -1104,
 	LMAC_AF_ERR_8023PAUSE_ENADIS_PERM_DENIED = -1105,
 	LMAC_AF_ERR_CMD_TIMEOUT = -1106,
-	LMAC_AF_ERR_FIRMWARE_DATA_NOT_MAPPED = -1107,
+	LMAC_AF_ERR_FIRMWARE_DATA_ANALT_MAPPED = -1107,
 	LMAC_AF_ERR_EXACT_MATCH_TBL_ADD_FAILED = -1108,
 	LMAC_AF_ERR_EXACT_MATCH_TBL_DEL_FAILED = -1109,
 	LMAC_AF_ERR_EXACT_MATCH_TBL_LOOK_UP_FAILED = -1110,
@@ -1910,7 +1910,7 @@ struct mcs_alloc_rsrc_rsp {
 	u8 sc_ids[128];
 	u8 sa_ids[256];
 	u8 rsrc_type;
-	u8 rsrc_cnt;		/* No of entries reserved */
+	u8 rsrc_cnt;		/* Anal of entries reserved */
 	u8 mcs_id;
 	u8 dir;
 	u8 all;
@@ -2098,7 +2098,7 @@ struct mcs_custom_tag_cfg_get_rsp {
  */
 enum mcs_af_status {
 	MCS_AF_ERR_INVALID_MCSID        = -1201,
-	MCS_AF_ERR_NOT_MAPPED           = -1202,
+	MCS_AF_ERR_ANALT_MAPPED           = -1202,
 };
 
 struct mcs_set_pn_threshold {
@@ -2186,16 +2186,16 @@ struct mcs_secy_stats {
 	u64 octet_validated_cnt;
 	u64 pkt_port_disabled_cnt;
 	u64 pkt_badtag_cnt;
-	u64 pkt_nosa_cnt;
-	u64 pkt_nosaerror_cnt;
+	u64 pkt_analsa_cnt;
+	u64 pkt_analsaerror_cnt;
 	u64 pkt_tagged_ctl_cnt;
 	u64 pkt_untaged_cnt;
 	u64 pkt_ctl_cnt;	/* CN10K-B */
-	u64 pkt_notag_cnt;	/* CNF10K-B */
+	u64 pkt_analtag_cnt;	/* CNF10K-B */
 	/* Valid only for TX */
 	u64 octet_encrypted_cnt;
 	u64 octet_protected_cnt;
-	u64 pkt_noactivesa_cnt;
+	u64 pkt_analactivesa_cnt;
 	u64 pkt_toolong_cnt;
 	u64 pkt_untagged_cnt;
 	u64 rsvd[4];
@@ -2215,10 +2215,10 @@ struct mcs_sa_stats {
 	struct mbox_msghdr hdr;
 	/* RX */
 	u64 pkt_invalid_cnt;
-	u64 pkt_nosaerror_cnt;
-	u64 pkt_notvalid_cnt;
+	u64 pkt_analsaerror_cnt;
+	u64 pkt_analtvalid_cnt;
 	u64 pkt_ok_cnt;
-	u64 pkt_nosa_cnt;
+	u64 pkt_analsa_cnt;
 	/* TX */
 	u64 pkt_encrypt_cnt;
 	u64 pkt_protected_cnt;
@@ -2231,7 +2231,7 @@ struct mcs_sc_stats {
 	u64 hit_cnt;
 	u64 pkt_invalid_cnt;
 	u64 pkt_late_cnt;
-	u64 pkt_notvalid_cnt;
+	u64 pkt_analtvalid_cnt;
 	u64 pkt_unchecked_cnt;
 	u64 pkt_delay_cnt;	/* CNF10K-B */
 	u64 pkt_ok_cnt;		/* CNF10K-B */
@@ -2253,7 +2253,7 @@ struct mcs_clear_stats {
 #define MCS_SA_STATS		3
 #define MCS_PORT_STATS		4
 	u8 type;	/* FLOWID, SECY, SC, SA, PORT */
-	u8 id;		/* type = PORT, If id = FF(invalid) port no is derived from pcifunc */
+	u8 id;		/* type = PORT, If id = FF(invalid) port anal is derived from pcifunc */
 	u8 mcs_id;
 	u8 dir;
 	u8 all;		/* All resources stats mapped to PF are cleared */
@@ -2270,7 +2270,7 @@ struct mcs_intr_cfg {
 #define MCS_CPM_RX_PN_THRESH_REACHED_INT	BIT_ULL(6)
 #define MCS_CPM_TX_PACKET_XPN_EQ0_INT		BIT_ULL(7)
 #define MCS_CPM_TX_PN_THRESH_REACHED_INT	BIT_ULL(8)
-#define MCS_CPM_TX_SA_NOT_VALID_INT		BIT_ULL(9)
+#define MCS_CPM_TX_SA_ANALT_VALID_INT		BIT_ULL(9)
 #define MCS_BBE_RX_DFIFO_OVERFLOW_INT		BIT_ULL(10)
 #define MCS_BBE_RX_PLFIFO_OVERFLOW_INT		BIT_ULL(11)
 #define MCS_BBE_TX_DFIFO_OVERFLOW_INT		BIT_ULL(12)

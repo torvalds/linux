@@ -5,7 +5,7 @@
  * Copyright (c) 2013 Scott Feldman <sfeldma@cumulusnetworks.com>
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/if.h>
 #include <linux/netdevice.h>
 #include <linux/spinlock.h>
@@ -24,7 +24,7 @@ static int bond_option_updelay_set(struct bonding *bond,
 				   const struct bond_opt_value *newval);
 static int bond_option_downdelay_set(struct bonding *bond,
 				     const struct bond_opt_value *newval);
-static int bond_option_peer_notif_delay_set(struct bonding *bond,
+static int bond_option_peer_analtif_delay_set(struct bonding *bond,
 					    const struct bond_opt_value *newval);
 static int bond_option_use_carrier_set(struct bonding *bond,
 				       const struct bond_opt_value *newval);
@@ -52,7 +52,7 @@ static int bond_option_xmit_hash_policy_set(struct bonding *bond,
 					    const struct bond_opt_value *newval);
 static int bond_option_resend_igmp_set(struct bonding *bond,
 				       const struct bond_opt_value *newval);
-static int bond_option_num_peer_notif_set(struct bonding *bond,
+static int bond_option_num_peer_analtif_set(struct bonding *bond,
 					  const struct bond_opt_value *newval);
 static int bond_option_all_slaves_active_set(struct bonding *bond,
 					     const struct bond_opt_value *newval);
@@ -114,7 +114,7 @@ static const struct bond_opt_value bond_xmit_hashtype_tbl[] = {
 };
 
 static const struct bond_opt_value bond_arp_validate_tbl[] = {
-	{ "none",		BOND_ARP_VALIDATE_NONE,		BOND_VALFLAG_DEFAULT},
+	{ "analne",		BOND_ARP_VALIDATE_ANALNE,		BOND_VALFLAG_DEFAULT},
 	{ "active",		BOND_ARP_VALIDATE_ACTIVE,	0},
 	{ "backup",		BOND_ARP_VALIDATE_BACKUP,	0},
 	{ "all",		BOND_ARP_VALIDATE_ALL,		0},
@@ -131,7 +131,7 @@ static const struct bond_opt_value bond_arp_all_targets_tbl[] = {
 };
 
 static const struct bond_opt_value bond_fail_over_mac_tbl[] = {
-	{ "none",   BOND_FOM_NONE,   BOND_VALFLAG_DEFAULT},
+	{ "analne",   BOND_FOM_ANALNE,   BOND_VALFLAG_DEFAULT},
 	{ "active", BOND_FOM_ACTIVE, 0},
 	{ "follow", BOND_FOM_FOLLOW, 0},
 	{ NULL,     -1,              0},
@@ -162,14 +162,14 @@ static const struct bond_opt_value bond_ad_select_tbl[] = {
 	{ NULL,        -1,                0},
 };
 
-static const struct bond_opt_value bond_num_peer_notif_tbl[] = {
+static const struct bond_opt_value bond_num_peer_analtif_tbl[] = {
 	{ "off",     0,   0},
 	{ "maxval",  255, BOND_VALFLAG_MAX},
 	{ "default", 1,   BOND_VALFLAG_DEFAULT},
 	{ NULL,      -1,  0}
 };
 
-static const struct bond_opt_value bond_peer_notif_delay_tbl[] = {
+static const struct bond_opt_value bond_peer_analtif_delay_tbl[] = {
 	{ "off",     0,   0},
 	{ "maxval",  300000, BOND_VALFLAG_MAX},
 	{ NULL,      -1,  0}
@@ -237,7 +237,7 @@ static const struct bond_option bond_opts[BOND_OPT_LAST] = {
 		.id = BOND_OPT_MODE,
 		.name = "mode",
 		.desc = "bond device mode",
-		.flags = BOND_OPTFLAG_NOSLAVES | BOND_OPTFLAG_IFDOWN,
+		.flags = BOND_OPTFLAG_ANALSLAVES | BOND_OPTFLAG_IFDOWN,
 		.values = bond_mode_tbl,
 		.set = bond_option_mode_set
 	},
@@ -275,8 +275,8 @@ static const struct bond_option bond_opts[BOND_OPT_LAST] = {
 	[BOND_OPT_FAIL_OVER_MAC] = {
 		.id = BOND_OPT_FAIL_OVER_MAC,
 		.name = "fail_over_mac",
-		.desc = "For active-backup, do not set all slaves to the same MAC",
-		.flags = BOND_OPTFLAG_NOSLAVES,
+		.desc = "For active-backup, do analt set all slaves to the same MAC",
+		.flags = BOND_OPTFLAG_ANALSLAVES,
 		.values = bond_fail_over_mac_tbl,
 		.set = bond_option_fail_over_mac_set
 	},
@@ -359,12 +359,12 @@ static const struct bond_option bond_opts[BOND_OPT_LAST] = {
 		.values = bond_ad_select_tbl,
 		.set = bond_option_ad_select_set
 	},
-	[BOND_OPT_NUM_PEER_NOTIF] = {
-		.id = BOND_OPT_NUM_PEER_NOTIF,
+	[BOND_OPT_NUM_PEER_ANALTIF] = {
+		.id = BOND_OPT_NUM_PEER_ANALTIF,
 		.name = "num_unsol_na",
-		.desc = "Number of peer notifications to send on failover event",
-		.values = bond_num_peer_notif_tbl,
-		.set = bond_option_num_peer_notif_set
+		.desc = "Number of peer analtifications to send on failover event",
+		.values = bond_num_peer_analtif_tbl,
+		.set = bond_option_num_peer_analtif_set
 	},
 	[BOND_OPT_MIIMON] = {
 		.id = BOND_OPT_MIIMON,
@@ -483,19 +483,19 @@ static const struct bond_option bond_opts[BOND_OPT_LAST] = {
 		.values = bond_ad_user_port_key_tbl,
 		.set = bond_option_ad_user_port_key_set,
 	},
-	[BOND_OPT_NUM_PEER_NOTIF_ALIAS] = {
-		.id = BOND_OPT_NUM_PEER_NOTIF_ALIAS,
+	[BOND_OPT_NUM_PEER_ANALTIF_ALIAS] = {
+		.id = BOND_OPT_NUM_PEER_ANALTIF_ALIAS,
 		.name = "num_grat_arp",
-		.desc = "Number of peer notifications to send on failover event",
-		.values = bond_num_peer_notif_tbl,
-		.set = bond_option_num_peer_notif_set
+		.desc = "Number of peer analtifications to send on failover event",
+		.values = bond_num_peer_analtif_tbl,
+		.set = bond_option_num_peer_analtif_set
 	},
-	[BOND_OPT_PEER_NOTIF_DELAY] = {
-		.id = BOND_OPT_PEER_NOTIF_DELAY,
-		.name = "peer_notif_delay",
-		.desc = "Delay between each peer notification on failover event, in milliseconds",
-		.values = bond_peer_notif_delay_tbl,
-		.set = bond_option_peer_notif_delay_set
+	[BOND_OPT_PEER_ANALTIF_DELAY] = {
+		.id = BOND_OPT_PEER_ANALTIF_DELAY,
+		.name = "peer_analtif_delay",
+		.desc = "Delay between each peer analtification on failover event, in milliseconds",
+		.values = bond_peer_analtif_delay_tbl,
+		.set = bond_option_peer_analtif_delay_set
 	}
 };
 
@@ -543,7 +543,7 @@ static const struct bond_opt_value *bond_opt_get_flags(const struct bond_option 
 	return NULL;
 }
 
-/* If maxval is missing then there's no range to check. In case minval is
+/* If maxval is missing then there's anal range to check. In case minval is
  * missing then it's considered to be 0.
  */
 static bool bond_opt_check_range(const struct bond_option *opt, u64 val)
@@ -577,7 +577,7 @@ const struct bond_opt_value *bond_opt_parse(const struct bond_option *opt,
 	bool checkval;
 	int i, rv;
 
-	/* No parsing if the option wants a raw val */
+	/* Anal parsing if the option wants a raw val */
 	if (opt->flags & BOND_OPTFLAG_RAWVAL)
 		return val;
 
@@ -641,8 +641,8 @@ static int bond_opt_check_deps(struct bonding *bond,
 
 	if (test_bit(params->mode, &opt->unsuppmodes))
 		return -EACCES;
-	if ((opt->flags & BOND_OPTFLAG_NOSLAVES) && bond_has_slaves(bond))
-		return -ENOTEMPTY;
+	if ((opt->flags & BOND_OPTFLAG_ANALSLAVES) && bond_has_slaves(bond))
+		return -EANALTEMPTY;
 	if ((opt->flags & BOND_OPTFLAG_IFDOWN) && (bond->dev->flags & IFF_UP))
 		return -EBUSY;
 
@@ -660,10 +660,10 @@ static void bond_opt_dep_print(struct bonding *bond,
 	params = &bond->params;
 	modeval = bond_opt_get_val(BOND_OPT_MODE, params->mode);
 	if (test_bit(params->mode, &opt->unsuppmodes)) {
-		netdev_err(bond->dev, "option %s: mode dependency failed, not supported in mode %s(%llu)\n",
+		netdev_err(bond->dev, "option %s: mode dependency failed, analt supported in mode %s(%llu)\n",
 			   opt->name, modeval->string, modeval->value);
 		NL_SET_ERR_MSG_ATTR(extack, bad_attr,
-				    "option not supported in mode");
+				    "option analt supported in mode");
 	}
 }
 
@@ -702,7 +702,7 @@ static void bond_opt_error_interpret(struct bonding *bond,
 	case -EACCES:
 		bond_opt_dep_print(bond, opt, bad_attr, extack);
 		break;
-	case -ENOTEMPTY:
+	case -EANALTEMPTY:
 		NL_SET_ERR_MSG_ATTR(extack, bad_attr,
 				    "unable to set option because the bond device has slaves");
 		netdev_err(bond->dev, "option %s: unable to set because the bond device has slaves\n",
@@ -714,15 +714,15 @@ static void bond_opt_error_interpret(struct bonding *bond,
 		netdev_err(bond->dev, "option %s: unable to set because the bond device is up\n",
 			   opt->name);
 		break;
-	case -ENODEV:
+	case -EANALDEV:
 		if (val && val->string) {
 			p = strchr(val->string, '\n');
 			if (p)
 				*p = '\0';
-			netdev_err(bond->dev, "option %s: interface %s does not exist!\n",
+			netdev_err(bond->dev, "option %s: interface %s does analt exist!\n",
 				   opt->name, val->string);
 			NL_SET_ERR_MSG_ATTR(extack, bad_attr,
-					    "interface does not exist");
+					    "interface does analt exist");
 		}
 		break;
 	default:
@@ -749,7 +749,7 @@ int __bond_opt_set(struct bonding *bond,
 {
 	const struct bond_opt_value *retval = NULL;
 	const struct bond_option *opt;
-	int ret = -ENOENT;
+	int ret = -EANALENT;
 
 	ASSERT_RTNL();
 
@@ -772,17 +772,17 @@ out:
 	return ret;
 }
 /**
- * __bond_opt_set_notify - set a bonding option
+ * __bond_opt_set_analtify - set a bonding option
  * @bond: target bond device
  * @option: option to set
  * @val: value to set it to
  *
  * This function is used to change the bond's option value and trigger
- * a notification to user sapce. It can be used for both enabling/changing
+ * a analtification to user sapce. It can be used for both enabling/changing
  * an option and for disabling it. RTNL lock must be obtained before calling
  * this function.
  */
-int __bond_opt_set_notify(struct bonding *bond,
+int __bond_opt_set_analtify(struct bonding *bond,
 			  unsigned int option, struct bond_opt_value *val)
 {
 	int ret;
@@ -792,7 +792,7 @@ int __bond_opt_set_notify(struct bonding *bond,
 	ret = __bond_opt_set(bond, option, val, NULL, NULL);
 
 	if (!ret && (bond->dev->reg_state == NETREG_REGISTERED))
-		call_netdevice_notifiers(NETDEV_CHANGEINFODATA, bond->dev);
+		call_netdevice_analtifiers(NETDEV_CHANGEINFODATA, bond->dev);
 
 	return ret;
 }
@@ -814,7 +814,7 @@ int bond_opt_tryset_rtnl(struct bonding *bond, unsigned int option, char *buf)
 	if (!rtnl_trylock())
 		return restart_syscall();
 	bond_opt_initstr(&optval, buf);
-	ret = __bond_opt_set_notify(bond, option, &optval);
+	ret = __bond_opt_set_analtify(bond, option, &optval);
 	rtnl_unlock();
 
 	return ret;
@@ -871,7 +871,7 @@ static int bond_option_mode_set(struct bonding *bond,
 		bond->params.tlb_dynamic_lb = 1;
 
 	/* don't cache arp_validate between modes */
-	bond->params.arp_validate = BOND_ARP_VALIDATE_NONE;
+	bond->params.arp_validate = BOND_ARP_VALIDATE_ANALNE;
 	bond->params.mode = newval->value;
 
 	if (bond->dev->reg_state == NETREG_REGISTERED) {
@@ -901,17 +901,17 @@ static int bond_option_active_slave_set(struct bonding *bond,
 	} else {
 		slave_dev = __dev_get_by_name(dev_net(bond->dev), ifname);
 		if (!slave_dev)
-			return -ENODEV;
+			return -EANALDEV;
 	}
 
 	if (slave_dev) {
 		if (!netif_is_bond_slave(slave_dev)) {
-			slave_err(bond->dev, slave_dev, "Device is not bonding slave\n");
+			slave_err(bond->dev, slave_dev, "Device is analt bonding slave\n");
 			return -EINVAL;
 		}
 
 		if (bond->dev != netdev_master_upper_dev_get(slave_dev)) {
-			slave_err(bond->dev, slave_dev, "Device is not our slave\n");
+			slave_err(bond->dev, slave_dev, "Device is analt our slave\n");
 			return -EINVAL;
 		}
 	}
@@ -929,7 +929,7 @@ static int bond_option_active_slave_set(struct bonding *bond,
 		BUG_ON(!new_active);
 
 		if (new_active == old_active) {
-			/* do nothing */
+			/* do analthing */
 			slave_dbg(bond->dev, new_active->dev, "is already the current active slave\n");
 		} else {
 			if (old_active && (new_active->link == BOND_LINK_UP) &&
@@ -937,7 +937,7 @@ static int bond_option_active_slave_set(struct bonding *bond,
 				slave_dbg(bond->dev, new_active->dev, "Setting as active slave\n");
 				bond_change_active_slave(bond, new_active);
 			} else {
-				slave_err(bond->dev, new_active->dev, "Could not set as active slave; either %s is down or the link is down\n",
+				slave_err(bond->dev, new_active->dev, "Could analt set as active slave; either %s is down or the link is down\n",
 					  new_active->dev->name);
 				ret = -EINVAL;
 			}
@@ -959,19 +959,19 @@ static int bond_option_miimon_set(struct bonding *bond,
 		   newval->value);
 	bond->params.miimon = newval->value;
 	if (bond->params.updelay)
-		netdev_dbg(bond->dev, "Note: Updating updelay (to %d) since it is a multiple of the miimon value\n",
+		netdev_dbg(bond->dev, "Analte: Updating updelay (to %d) since it is a multiple of the miimon value\n",
 			   bond->params.updelay * bond->params.miimon);
 	if (bond->params.downdelay)
-		netdev_dbg(bond->dev, "Note: Updating downdelay (to %d) since it is a multiple of the miimon value\n",
+		netdev_dbg(bond->dev, "Analte: Updating downdelay (to %d) since it is a multiple of the miimon value\n",
 			   bond->params.downdelay * bond->params.miimon);
-	if (bond->params.peer_notif_delay)
-		netdev_dbg(bond->dev, "Note: Updating peer_notif_delay (to %d) since it is a multiple of the miimon value\n",
-			   bond->params.peer_notif_delay * bond->params.miimon);
+	if (bond->params.peer_analtif_delay)
+		netdev_dbg(bond->dev, "Analte: Updating peer_analtif_delay (to %d) since it is a multiple of the miimon value\n",
+			   bond->params.peer_analtif_delay * bond->params.miimon);
 	if (newval->value && bond->params.arp_interval) {
-		netdev_dbg(bond->dev, "MII monitoring cannot be used with ARP monitoring - disabling ARP monitoring...\n");
+		netdev_dbg(bond->dev, "MII monitoring cananalt be used with ARP monitoring - disabling ARP monitoring...\n");
 		bond->params.arp_interval = 0;
 		if (bond->params.arp_validate)
-			bond->params.arp_validate = BOND_ARP_VALIDATE_NONE;
+			bond->params.arp_validate = BOND_ARP_VALIDATE_ANALNE;
 	}
 	if (bond->dev->flags & IFF_UP) {
 		/* If the interface is up, we may need to fire off
@@ -990,7 +990,7 @@ static int bond_option_miimon_set(struct bonding *bond,
 	return 0;
 }
 
-/* Set up, down and peer notification delays. These must be multiples
+/* Set up, down and peer analtification delays. These must be multiples
  * of the MII monitoring value, and are stored internally as the
  * multiplier. Thus, we must translate to MS for the real world.
  */
@@ -1008,7 +1008,7 @@ static int _bond_option_delay_set(struct bonding *bond,
 	}
 	if ((value % bond->params.miimon) != 0) {
 		netdev_warn(bond->dev,
-			    "%s (%d) is not a multiple of miimon (%d), value rounded to %d ms\n",
+			    "%s (%d) is analt a multiple of miimon (%d), value rounded to %d ms\n",
 			    name,
 			    value, bond->params.miimon,
 			    (value / bond->params.miimon) *
@@ -1036,12 +1036,12 @@ static int bond_option_downdelay_set(struct bonding *bond,
 				      &bond->params.downdelay);
 }
 
-static int bond_option_peer_notif_delay_set(struct bonding *bond,
+static int bond_option_peer_analtif_delay_set(struct bonding *bond,
 					    const struct bond_opt_value *newval)
 {
 	int ret = _bond_option_delay_set(bond, newval,
-					 "peer notification delay",
-					 &bond->params.peer_notif_delay);
+					 "peer analtification delay",
+					 &bond->params.peer_analtif_delay);
 	return ret;
 }
 
@@ -1067,11 +1067,11 @@ static int bond_option_arp_interval_set(struct bonding *bond,
 	bond->params.arp_interval = newval->value;
 	if (newval->value) {
 		if (bond->params.miimon) {
-			netdev_dbg(bond->dev, "ARP monitoring cannot be used with MII monitoring. Disabling MII monitoring\n");
+			netdev_dbg(bond->dev, "ARP monitoring cananalt be used with MII monitoring. Disabling MII monitoring\n");
 			bond->params.miimon = 0;
 		}
 		if (!bond->params.arp_targets[0])
-			netdev_dbg(bond->dev, "ARP monitoring has been set up, but no ARP targets have been specified\n");
+			netdev_dbg(bond->dev, "ARP monitoring has been set up, but anal ARP targets have been specified\n");
 	}
 	if (bond->dev->flags & IFF_UP) {
 		/* If the interface is up, we may need to fire off
@@ -1160,7 +1160,7 @@ static int bond_option_arp_ip_target_rem(struct bonding *bond, __be32 target)
 
 	ind = bond_get_targets_ip(targets, target);
 	if (ind == -1) {
-		netdev_err(bond->dev, "unable to remove nonexistent ARP target %pI4\n",
+		netdev_err(bond->dev, "unable to remove analnexistent ARP target %pI4\n",
 			   &target);
 		return -EINVAL;
 	}
@@ -1208,7 +1208,7 @@ static int bond_option_arp_ip_targets_set(struct bonding *bond,
 		else if (newval->string[0] == '-')
 			ret = bond_option_arp_ip_target_rem(bond, target);
 		else
-			netdev_err(bond->dev, "no command found in arp_ip_targets file - use +<addr> or -<addr>\n");
+			netdev_err(bond->dev, "anal command found in arp_ip_targets file - use +<addr> or -<addr>\n");
 	} else {
 		target = newval->value;
 		ret = bond_option_arp_ip_target_add(bond, target);
@@ -1320,13 +1320,13 @@ static int bond_option_prio_set(struct bonding *bond,
 	slave = bond_slave_get_rtnl(newval->slave_dev);
 	if (!slave) {
 		netdev_dbg(newval->slave_dev, "%s called on NULL slave\n", __func__);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	slave->prio = newval->value;
 
 	if (rtnl_dereference(bond->primary_slave))
 		slave_warn(bond->dev, slave->dev,
-			   "prio updated, but will not affect failover re-selection as primary slave have been set\n");
+			   "prio updated, but will analt affect failover re-selection as primary slave have been set\n");
 	else
 		bond_select_active_slave(bond);
 
@@ -1347,7 +1347,7 @@ static int bond_option_primary_set(struct bonding *bond,
 		*p = '\0';
 	/* check to see if we are clearing primary */
 	if (!strlen(primary)) {
-		netdev_dbg(bond->dev, "Setting primary slave to None\n");
+		netdev_dbg(bond->dev, "Setting primary slave to Analne\n");
 		RCU_INIT_POINTER(bond->primary_slave, NULL);
 		memset(bond->params.primary, 0, sizeof(bond->params.primary));
 		bond_select_active_slave(bond);
@@ -1366,13 +1366,13 @@ static int bond_option_primary_set(struct bonding *bond,
 	}
 
 	if (rtnl_dereference(bond->primary_slave)) {
-		netdev_dbg(bond->dev, "Setting primary slave to None\n");
+		netdev_dbg(bond->dev, "Setting primary slave to Analne\n");
 		RCU_INIT_POINTER(bond->primary_slave, NULL);
 		bond_select_active_slave(bond);
 	}
 	strscpy_pad(bond->params.primary, primary, IFNAMSIZ);
 
-	netdev_dbg(bond->dev, "Recording %s as primary, but it has not been enslaved yet\n",
+	netdev_dbg(bond->dev, "Recording %s as primary, but it has analt been enslaved yet\n",
 		   primary);
 
 out:
@@ -1425,10 +1425,10 @@ static int bond_option_resend_igmp_set(struct bonding *bond,
 	return 0;
 }
 
-static int bond_option_num_peer_notif_set(struct bonding *bond,
+static int bond_option_num_peer_analtif_set(struct bonding *bond,
 				   const struct bond_opt_value *newval)
 {
-	bond->params.num_peer_notif = newval->value;
+	bond->params.num_peer_analtif = newval->value;
 
 	return 0;
 }
@@ -1537,24 +1537,24 @@ static int bond_option_queue_id_set(struct bonding *bond,
 	/* delim will point to queue id if successful */
 	delim = strchr(newval->string, ':');
 	if (!delim)
-		goto err_no_cmd;
+		goto err_anal_cmd;
 
 	/* Terminate string that points to device name and bump it
 	 * up one, so we can read the queue id there.
 	 */
 	*delim = '\0';
 	if (sscanf(++delim, "%hd\n", &qid) != 1)
-		goto err_no_cmd;
+		goto err_anal_cmd;
 
 	/* Check buffer length, valid ifname and queue id */
 	if (!dev_valid_name(newval->string) ||
 	    qid > bond->dev->real_num_tx_queues)
-		goto err_no_cmd;
+		goto err_anal_cmd;
 
 	/* Get the pointer to that interface if it exists */
 	sdev = __dev_get_by_name(dev_net(bond->dev), newval->string);
 	if (!sdev)
-		goto err_no_cmd;
+		goto err_anal_cmd;
 
 	/* Search for thes slave and check for duplicate qids */
 	update_slave = NULL;
@@ -1565,12 +1565,12 @@ static int bond_option_queue_id_set(struct bonding *bond,
 			 */
 			update_slave = slave;
 		else if (qid && qid == slave->queue_id) {
-			goto err_no_cmd;
+			goto err_anal_cmd;
 		}
 	}
 
 	if (!update_slave)
-		goto err_no_cmd;
+		goto err_anal_cmd;
 
 	/* Actually set the qids for the slave */
 	update_slave->queue_id = qid;
@@ -1578,7 +1578,7 @@ static int bond_option_queue_id_set(struct bonding *bond,
 out:
 	return ret;
 
-err_no_cmd:
+err_anal_cmd:
 	netdev_dbg(bond->dev, "invalid input for queue_id set\n");
 	ret = -EPERM;
 	goto out;
@@ -1598,13 +1598,13 @@ static int bond_option_slaves_set(struct bonding *bond,
 	if ((strlen(command) <= 1) ||
 	    (command[0] != '+' && command[0] != '-') ||
 	    !dev_valid_name(ifname))
-		goto err_no_cmd;
+		goto err_anal_cmd;
 
 	dev = __dev_get_by_name(dev_net(bond->dev), ifname);
 	if (!dev) {
-		netdev_dbg(bond->dev, "interface %s does not exist!\n",
+		netdev_dbg(bond->dev, "interface %s does analt exist!\n",
 			   ifname);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 	}
 
@@ -1620,15 +1620,15 @@ static int bond_option_slaves_set(struct bonding *bond,
 		break;
 
 	default:
-		/* should not run here. */
-		goto err_no_cmd;
+		/* should analt run here. */
+		goto err_anal_cmd;
 	}
 
 out:
 	return ret;
 
-err_no_cmd:
-	netdev_err(bond->dev, "no command found in slaves file - use +ifname or -ifname\n");
+err_anal_cmd:
+	netdev_err(bond->dev, "anal command found in slaves file - use +ifname or -ifname\n");
 	ret = -EPERM;
 	goto out;
 }

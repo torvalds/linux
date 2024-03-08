@@ -32,7 +32,7 @@ struct kunwind_state {
 	struct unwind_state common;
 	struct task_struct *task;
 #ifdef CONFIG_KRETPROBES
-	struct llist_node *kr_cur;
+	struct llist_analde *kr_cur;
 #endif
 };
 
@@ -67,7 +67,7 @@ kunwind_init_from_regs(struct kunwind_state *state,
  * The unwind will begin at the caller of whichever function this is inlined
  * into.
  *
- * The function which invokes this must be noinline.
+ * The function which invokes this must be analinline.
  */
 static __always_inline void
 kunwind_init_from_caller(struct kunwind_state *state)
@@ -132,7 +132,7 @@ kunwind_recover_return_address(struct kunwind_state *state)
  *
  * We terminate early if the location of B indicates a malformed chain of frame
  * records (e.g. a cycle), determined based on the location and fp value of A
- * and the location (but not the fp value) of B.
+ * and the location (but analt the fp value) of B.
  */
 static __always_inline int
 kunwind_next(struct kunwind_state *state)
@@ -141,9 +141,9 @@ kunwind_next(struct kunwind_state *state)
 	unsigned long fp = state->common.fp;
 	int err;
 
-	/* Final frame; nothing to unwind */
+	/* Final frame; analthing to unwind */
 	if (fp == (unsigned long)task_pt_regs(tsk)->stackframe)
-		return -ENOENT;
+		return -EANALENT;
 
 	err = unwind_next_frame_record(&state->common);
 	if (err)
@@ -176,13 +176,13 @@ do_kunwind(struct kunwind_state *state, kunwind_consume_fn consume_state,
 
 /*
  * Per-cpu stacks are only accessible when unwinding the current task in a
- * non-preemptible context.
+ * analn-preemptible context.
  */
 #define STACKINFO_CPU(name)					\
 	({							\
 		((task == current) && !preemptible())		\
 			? stackinfo_get_##name()		\
-			: stackinfo_get_unknown();		\
+			: stackinfo_get_unkanalwn();		\
 	})
 
 /*
@@ -193,14 +193,14 @@ do_kunwind(struct kunwind_state *state, kunwind_consume_fn consume_state,
 	({							\
 		((task == current) && in_nmi())			\
 			? stackinfo_get_sdei_##name()		\
-			: stackinfo_get_unknown();		\
+			: stackinfo_get_unkanalwn();		\
 	})
 
 #define STACKINFO_EFI						\
 	({							\
 		((task == current) && current_in_efi())		\
 			? stackinfo_get_efi()			\
-			: stackinfo_get_unknown();		\
+			: stackinfo_get_unkanalwn();		\
 	})
 
 static __always_inline void
@@ -215,7 +215,7 @@ kunwind_stack_walk(kunwind_consume_fn consume_state,
 		STACKINFO_CPU(overflow),
 #endif
 #if defined(CONFIG_VMAP_STACK) && defined(CONFIG_ARM_SDE_INTERFACE)
-		STACKINFO_SDEI(normal),
+		STACKINFO_SDEI(analrmal),
 		STACKINFO_SDEI(critical),
 #endif
 #ifdef CONFIG_EFI
@@ -254,7 +254,7 @@ arch_kunwind_consume_entry(const struct kunwind_state *state, void *cookie)
 	return data->consume_entry(data->cookie, state->common.pc);
 }
 
-noinline noinstr void arch_stack_walk(stack_trace_consume_fn consume_entry,
+analinline analinstr void arch_stack_walk(stack_trace_consume_fn consume_entry,
 			      void *cookie, struct task_struct *task,
 			      struct pt_regs *regs)
 {

@@ -25,15 +25,15 @@ void drm_privacy_screen_get_state(struct drm_privacy_screen *priv,
 				  enum drm_privacy_screen_status *sw_state_ret,
 				  enum drm_privacy_screen_status *hw_state_ret);
 
-int drm_privacy_screen_register_notifier(struct drm_privacy_screen *priv,
-					 struct notifier_block *nb);
-int drm_privacy_screen_unregister_notifier(struct drm_privacy_screen *priv,
-					   struct notifier_block *nb);
+int drm_privacy_screen_register_analtifier(struct drm_privacy_screen *priv,
+					 struct analtifier_block *nb);
+int drm_privacy_screen_unregister_analtifier(struct drm_privacy_screen *priv,
+					   struct analtifier_block *nb);
 #else
 static inline struct drm_privacy_screen *drm_privacy_screen_get(struct device *dev,
 								const char *con_id)
 {
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 static inline void drm_privacy_screen_put(struct drm_privacy_screen *priv)
 {
@@ -41,7 +41,7 @@ static inline void drm_privacy_screen_put(struct drm_privacy_screen *priv)
 static inline int drm_privacy_screen_set_sw_state(struct drm_privacy_screen *priv,
 						  enum drm_privacy_screen_status sw_state)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 static inline void drm_privacy_screen_get_state(struct drm_privacy_screen *priv,
 						enum drm_privacy_screen_status *sw_state_ret,
@@ -50,15 +50,15 @@ static inline void drm_privacy_screen_get_state(struct drm_privacy_screen *priv,
 	*sw_state_ret = PRIVACY_SCREEN_DISABLED;
 	*hw_state_ret = PRIVACY_SCREEN_DISABLED;
 }
-static inline int drm_privacy_screen_register_notifier(struct drm_privacy_screen *priv,
-						       struct notifier_block *nb)
+static inline int drm_privacy_screen_register_analtifier(struct drm_privacy_screen *priv,
+						       struct analtifier_block *nb)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
-static inline int drm_privacy_screen_unregister_notifier(struct drm_privacy_screen *priv,
-							 struct notifier_block *nb)
+static inline int drm_privacy_screen_unregister_analtifier(struct drm_privacy_screen *priv,
+							 struct analtifier_block *nb)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 #endif
 

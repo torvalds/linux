@@ -18,7 +18,7 @@
 #include "pmr735d_a.dtsi"
 
 / {
-	model = "Qualcomm Technologies, Inc. SM8650 QRD";
+	model = "Qualcomm Techanallogies, Inc. SM8650 QRD";
 	compatible = "qcom,sm8650-qrd", "qcom,sm8650";
 
 	aliases {
@@ -463,7 +463,7 @@
 	status = "okay";
 
 	panel@0 {
-		compatible = "visionox,vtdr6130";
+		compatible = "visioanalx,vtdr6130";
 		reg = <0>;
 
 		reset-gpios = <&tlmm 133 GPIO_ACTIVE_LOW>;
@@ -557,7 +557,7 @@
 &pm8550_gpios {
 	volume_up_n: volume-up-n-state {
 		pins = "gpio6";
-		function = "normal";
+		function = "analrmal";
 		bias-pull-up;
 		input-enable;
 		power-source = <1>;

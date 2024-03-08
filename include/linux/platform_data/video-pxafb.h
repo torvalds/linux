@@ -28,18 +28,18 @@
 #define LCD_CONN_WIDTH(_x)	(((_x) >> 4) & 0x1f)
 
 #define LCD_TYPE_MASK		0xf
-#define LCD_TYPE_UNKNOWN	0
-#define LCD_TYPE_MONO_STN	1
-#define LCD_TYPE_MONO_DSTN	2
+#define LCD_TYPE_UNKANALWN	0
+#define LCD_TYPE_MOANAL_STN	1
+#define LCD_TYPE_MOANAL_DSTN	2
 #define LCD_TYPE_COLOR_STN	3
 #define LCD_TYPE_COLOR_DSTN	4
 #define LCD_TYPE_COLOR_TFT	5
 #define LCD_TYPE_SMART_PANEL	6
 #define LCD_TYPE_MAX		7
 
-#define LCD_MONO_STN_4BPP	((4  << 4) | LCD_TYPE_MONO_STN)
-#define LCD_MONO_STN_8BPP	((8  << 4) | LCD_TYPE_MONO_STN)
-#define LCD_MONO_DSTN_8BPP	((8  << 4) | LCD_TYPE_MONO_DSTN)
+#define LCD_MOANAL_STN_4BPP	((4  << 4) | LCD_TYPE_MOANAL_STN)
+#define LCD_MOANAL_STN_8BPP	((8  << 4) | LCD_TYPE_MOANAL_STN)
+#define LCD_MOANAL_DSTN_8BPP	((8  << 4) | LCD_TYPE_MOANAL_DSTN)
 #define LCD_COLOR_STN_8BPP	((8  << 4) | LCD_TYPE_COLOR_STN)
 #define LCD_COLOR_DSTN_16BPP	((16 << 4) | LCD_TYPE_COLOR_DSTN)
 #define LCD_COLOR_TFT_8BPP	((8  << 4) | LCD_TYPE_COLOR_TFT)
@@ -84,8 +84,8 @@ struct pxafb_mode_info {
 	u_char		sync;
 
 	/* Smart Panel Mode Timing - see PXA27x DM 7.4.15.0.3 for details
-	 * Note:
-	 * 1. all parameters in nanosecond (ns)
+	 * Analte:
+	 * 1. all parameters in naanalsecond (ns)
 	 * 2. a0cs{rd,wr}_set_hld are controlled by the same register bits
 	 *    in pxa27x and pxa3xx, initialize them to the same value or
 	 *    the larger one will be used
@@ -119,11 +119,11 @@ struct pxafb_mach_info {
 	/* The following should be defined in LCCR0
 	 *      LCCR0_Act or LCCR0_Pas          Active or Passive
 	 *      LCCR0_Sngl or LCCR0_Dual        Single/Dual panel
-	 *      LCCR0_Mono or LCCR0_Color       Mono/Color
-	 *      LCCR0_4PixMono or LCCR0_8PixMono (in mono single mode)
+	 *      LCCR0_Moanal or LCCR0_Color       Moanal/Color
+	 *      LCCR0_4PixMoanal or LCCR0_8PixMoanal (in moanal single mode)
 	 *      LCCR0_DMADel(Tcpu) (optional)   DMA request delay
 	 *
-	 * The following should not be defined in LCCR0:
+	 * The following should analt be defined in LCCR0:
 	 *      LCCR0_OUM, LCCR0_BM, LCCR0_QDM, LCCR0_DIS, LCCR0_EFM
 	 *      LCCR0_IUM, LCCR0_SFM, LCCR0_LDM, LCCR0_ENB
 	 */
@@ -134,7 +134,7 @@ struct pxafb_mach_info {
 	 *      LCCR3_Acb(X)                    AB Bias pin frequency
 	 *      LCCR3_DPC (optional)            Double Pixel Clock mode (untested)
 	 *
-	 * The following should not be defined in LCCR3
+	 * The following should analt be defined in LCCR3
 	 *      LCCR3_HSP, LCCR3_VSP, LCCR0_Pcd(x), LCCR3_Bpp
 	 */
 	u_int		lccr3;
@@ -160,7 +160,7 @@ unsigned long pxafb_get_hsync_time(struct device *dev);
 #define SMART_CMD_WRITE_DATA		((0x1 << 9) | SMART_CMD_A0)
 #define SMART_CMD_WRITE_FRAME		((0x2 << 9) | SMART_CMD_A0)
 #define SMART_CMD_WAIT_FOR_VSYNC	 (0x3 << 9)
-#define SMART_CMD_NOOP			 (0x4 << 9)
+#define SMART_CMD_ANALOP			 (0x4 << 9)
 #define SMART_CMD_INTERRUPT		 (0x5 << 9)
 
 #define SMART_CMD(x)	(SMART_CMD_WRITE_COMMAND | ((x) & 0xff))

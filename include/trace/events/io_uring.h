@@ -133,9 +133,9 @@ TRACE_EVENT(io_uring_file_get,
  * io_uring_queue_async_work - called before submitting a new async work
  *
  * @req:	pointer to a submitted request
- * @rw:		type of workqueue, hashed or normal
+ * @rw:		type of workqueue, hashed or analrmal
  *
- * Allows to trace asynchronous work submission.
+ * Allows to trace asynchroanalus work submission.
  */
 TRACE_EVENT(io_uring_queue_async_work,
 
@@ -170,7 +170,7 @@ TRACE_EVENT(io_uring_queue_async_work,
 	TP_printk("ring %p, request %p, user_data 0x%llx, opcode %s, flags 0x%x, %s queue, work %p",
 		__entry->ctx, __entry->req, __entry->user_data,
 		__get_str(op_str),
-		__entry->flags, __entry->rw ? "hashed" : "normal", __entry->work)
+		__entry->flags, __entry->rw ? "hashed" : "analrmal", __entry->work)
 );
 
 /**
@@ -179,7 +179,7 @@ TRACE_EVENT(io_uring_queue_async_work,
  * @req:	pointer to a deferred request
  *
  * Allows to track deferred requests, to get an insight about what requests are
- * not started immediately.
+ * analt started immediately.
  */
 TRACE_EVENT(io_uring_defer,
 
@@ -212,7 +212,7 @@ TRACE_EVENT(io_uring_defer,
 
 /**
  * io_uring_link - called before the io_uring request added into link_list of
- * 		   another request
+ * 		   aanalther request
  *
  * @req:		pointer to a linked request
  * @target_req:		pointer to a previous request, that would contain @req
@@ -277,7 +277,7 @@ TRACE_EVENT(io_uring_cqring_wait,
  * @req:	request, which links were cancelled
  * @link:	cancelled link
  *
- * Allows to track linked requests cancellation, to see not only that some work
+ * Allows to track linked requests cancellation, to see analt only that some work
  * was cancelled, but also which request was the reason.
  */
 TRACE_EVENT(io_uring_fail_link,
@@ -491,7 +491,7 @@ TRACE_EVENT(io_uring_task_add,
  * @req:		pointer to request
  * @error:		error it failed with
  *
- * Allows easier diagnosing of malformed requests in production systems.
+ * Allows easier diaganalsing of malformed requests in production systems.
  */
 TRACE_EVENT(io_uring_req_failed,
 

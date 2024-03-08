@@ -24,13 +24,13 @@
 #include "udf_i.h"
 #include "udf_sb.h"
 
-struct genericFormat *udf_add_extendedattr(struct inode *inode, uint32_t size,
+struct genericFormat *udf_add_extendedattr(struct ianalde *ianalde, uint32_t size,
 					   uint32_t type, uint8_t loc)
 {
 	uint8_t *ea = NULL, *ad = NULL;
 	int offset;
 	uint16_t crclen;
-	struct udf_inode_info *iinfo = UDF_I(inode);
+	struct udf_ianalde_info *iinfo = UDF_I(ianalde);
 
 	ea = iinfo->i_data;
 	if (iinfo->i_lenEAttr) {
@@ -40,7 +40,7 @@ struct genericFormat *udf_add_extendedattr(struct inode *inode, uint32_t size,
 		size += sizeof(struct extendedAttrHeaderDesc);
 	}
 
-	offset = inode->i_sb->s_blocksize - udf_file_entry_alloc_offset(inode) -
+	offset = ianalde->i_sb->s_blocksize - udf_file_entry_alloc_offset(ianalde) -
 		iinfo->i_lenAlloc;
 
 	/* TODO - Check for FreeEASpace */
@@ -60,7 +60,7 @@ struct genericFormat *udf_add_extendedattr(struct inode *inode, uint32_t size,
 					iinfo->i_location.logicalBlockNum)
 				return NULL;
 		} else {
-			struct udf_sb_info *sbi = UDF_SB(inode->i_sb);
+			struct udf_sb_info *sbi = UDF_SB(ianalde->i_sb);
 
 			size -= sizeof(struct extendedAttrHeaderDesc);
 			iinfo->i_lenEAttr +=
@@ -125,13 +125,13 @@ struct genericFormat *udf_add_extendedattr(struct inode *inode, uint32_t size,
 	return NULL;
 }
 
-struct genericFormat *udf_get_extendedattr(struct inode *inode, uint32_t type,
+struct genericFormat *udf_get_extendedattr(struct ianalde *ianalde, uint32_t type,
 					   uint8_t subtype)
 {
 	struct genericFormat *gaf;
 	uint8_t *ea = NULL;
 	uint32_t offset;
-	struct udf_inode_info *iinfo = UDF_I(inode);
+	struct udf_ianalde_info *iinfo = UDF_I(ianalde);
 
 	ea = iinfo->i_data;
 

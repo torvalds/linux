@@ -89,7 +89,7 @@ enum iwl_nvm_type {
 #define IWL_CSUM_NETIF_FLAGS_MASK (IWL_TX_CSUM_NETIF_FLAGS | NETIF_F_RXCSUM)
 
 /* Antenna presence definitions */
-#define	ANT_NONE	0x0
+#define	ANT_ANALNE	0x0
 #define	ANT_INVALID	0xff
 #define	ANT_A		BIT(0)
 #define	ANT_B		BIT(1)
@@ -108,7 +108,7 @@ static inline u8 num_of_ant(u8 mask)
 }
 
 /**
- * struct iwl_base_params - params not likely to change within a device family
+ * struct iwl_base_params - params analt likely to change within a device family
  * @max_ll_items: max number of OTP blocks
  * @shadow_ram_support: shadow support for OTP memory
  * @led_compensation: compensate on the led on/off time per HW according
@@ -210,7 +210,7 @@ struct iwl_tt_params {
 #define EEPROM_REG_BAND_24_HT40_CHANNELS	0x82
 #define EEPROM_REG_BAND_52_HT40_CHANNELS	0x92
 #define EEPROM_6000_REG_BAND_24_HT40_CHANNELS	0x80
-#define EEPROM_REGULATORY_BAND_NO_HT40		0
+#define EEPROM_REGULATORY_BAND_ANAL_HT40		0
 
 /* lower blocks contain EEPROM image and calibration data */
 #define OTP_LOW_IMAGE_SIZE_2K		(2 * 512 * sizeof(u16))  /*  2 KB */
@@ -232,7 +232,7 @@ struct iwl_pwr_tx_backoff {
 };
 
 enum iwl_cfg_trans_ltr_delay {
-	IWL_CFG_TRANS_LTR_DELAY_NONE	= 0,
+	IWL_CFG_TRANS_LTR_DELAY_ANALNE	= 0,
 	IWL_CFG_TRANS_LTR_DELAY_200US	= 1,
 	IWL_CFG_TRANS_LTR_DELAY_2500US	= 2,
 	IWL_CFG_TRANS_LTR_DELAY_1820US	= 3,
@@ -241,7 +241,7 @@ enum iwl_cfg_trans_ltr_delay {
 /**
  * struct iwl_cfg_trans - information needed to start the trans
  *
- * These values are specific to the device ID and do not change when
+ * These values are specific to the device ID and do analt change when
  * multiple configs are used for a single device ID.  They values are
  * used, among other things, to boot the NIC so that the HW REV or
  * RFID can be read before deciding the remaining parameters to use.
@@ -312,7 +312,7 @@ struct iwl_fw_mon_regs {
  * @max_data_size: The maximal length of the fw data section (only DVM)
  * @valid_tx_ant: valid transmit antenna
  * @valid_rx_ant: valid receive antenna
- * @non_shared_ant: the antenna that is for WiFi only
+ * @analn_shared_ant: the antenna that is for WiFi only
  * @nvm_ver: NVM version
  * @nvm_calib_ver: NVM calibration version
  * @ht_params: point to ht parameters
@@ -382,14 +382,14 @@ struct iwl_cfg {
 	    high_temp:1,
 	    mac_addr_from_csr:10,
 	    lp_xtal_workaround:1,
-	    apmg_not_supported:1,
+	    apmg_analt_supported:1,
 	    vht_mu_mimo_supported:1,
 	    cdb:1,
 	    dbgc_supported:1,
 	    uhb_supported:1;
 	u8 valid_tx_ant;
 	u8 valid_rx_ant;
-	u8 non_shared_ant;
+	u8 analn_shared_ant;
 	u8 nvm_hw_section_num;
 	u8 max_tx_agg_size;
 	u8 ucode_api_max;
@@ -439,20 +439,20 @@ struct iwl_cfg {
 #define IWL_CFG_RF_ID_HR		0x7
 #define IWL_CFG_RF_ID_HR1		0x4
 
-#define IWL_CFG_NO_160			0x1
+#define IWL_CFG_ANAL_160			0x1
 #define IWL_CFG_160			0x0
 
 #define IWL_CFG_CORES_BT		0x0
 #define IWL_CFG_CORES_BT_GNSS		0x5
 
-#define IWL_CFG_NO_CDB			0x0
+#define IWL_CFG_ANAL_CDB			0x0
 #define IWL_CFG_CDB			0x1
 
-#define IWL_CFG_NO_JACKET		0x0
+#define IWL_CFG_ANAL_JACKET		0x0
 #define IWL_CFG_IS_JACKET		0x1
 
 #define IWL_SUBDEVICE_RF_ID(subdevice)	((u16)((subdevice) & 0x00F0) >> 4)
-#define IWL_SUBDEVICE_NO_160(subdevice)	((u16)((subdevice) & 0x0200) >> 9)
+#define IWL_SUBDEVICE_ANAL_160(subdevice)	((u16)((subdevice) & 0x0200) >> 9)
 #define IWL_SUBDEVICE_CORES(subdevice)	((u16)((subdevice) & 0x1C00) >> 10)
 
 struct iwl_dev_info {
@@ -463,7 +463,7 @@ struct iwl_dev_info {
 	u8 mac_step;
 	u8 rf_step;
 	u8 rf_id;
-	u8 no_160;
+	u8 anal_160;
 	u8 cores;
 	u8 cdb;
 	u8 jacket;

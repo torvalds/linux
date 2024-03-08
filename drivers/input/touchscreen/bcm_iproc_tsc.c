@@ -198,7 +198,7 @@ static irqreturn_t iproc_touchscreen_interrupt(int irq, void *data)
 	regmap_read(priv->regmap, INTERRUPT_STATUS, &intr_status);
 	intr_status &= TS_PEN_INTR_MASK | TS_FIFO_INTR_MASK;
 	if (intr_status == 0)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* Clear all interrupt status bits, write-1-clear */
 	regmap_write(priv->regmap, INTERRUPT_STATUS, intr_status);
@@ -335,7 +335,7 @@ static void iproc_ts_stop(struct input_dev *dev)
 
 static int iproc_get_tsc_config(struct device *dev, struct iproc_ts_priv *priv)
 {
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	u32 val;
 
 	priv->cfg_params = iproc_default_config;
@@ -422,10 +422,10 @@ static int iproc_ts_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* touchscreen controller memory mapped regs via syscon*/
-	priv->regmap = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
+	priv->regmap = syscon_regmap_lookup_by_phandle(pdev->dev.of_analde,
 							"ts_syscon");
 	if (IS_ERR(priv->regmap)) {
 		error = PTR_ERR(priv->regmap);
@@ -451,7 +451,7 @@ static int iproc_ts_probe(struct platform_device *pdev)
 	idev = devm_input_allocate_device(&pdev->dev);
 	if (!idev) {
 		dev_err(&pdev->dev, "failed to allocate input device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	priv->idev = idev;
@@ -462,7 +462,7 @@ static int iproc_ts_probe(struct platform_device *pdev)
 	idev->dev.parent = &pdev->dev;
 
 	idev->id.bustype = BUS_HOST;
-	idev->id.vendor = SERIO_UNKNOWN;
+	idev->id.vendor = SERIO_UNKANALWN;
 	idev->id.product = 0;
 	idev->id.version = 0;
 

@@ -11,10 +11,10 @@
 
 enum arpc_result {
 	ARPC_SUCCESS		= 0x00,
-	ARPC_NO_MEMORY		= 0x01,
+	ARPC_ANAL_MEMORY		= 0x01,
 	ARPC_INVALID		= 0x02,
 	ARPC_TIMEOUT		= 0x03,
-	ARPC_UNKNOWN_ERROR	= 0xff,
+	ARPC_UNKANALWN_ERROR	= 0xff,
 };
 
 struct arpc_request_message {

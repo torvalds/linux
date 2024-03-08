@@ -18,7 +18,7 @@
  *
  * Configuration options:
  *   [0] - IO Base
- *   [1] - IRQ (not supported)
+ *   [1] - IRQ (analt supported)
  *   [2] - number of DIO (pcl722 and acl7122 boards)
  *	   0, 144: 144 DIO configuration
  *	   1,  96:  96 DIO configuration

@@ -8,10 +8,10 @@
  * the Free Software Foundation.
  *
  * Written and Maintained by:
- * Manoj Malviya (manojmalviya@chelsio.com)
+ * Maanalj Malviya (maanaljmalviya@chelsio.com)
  * Atul Gupta (atul.gupta@chelsio.com)
  * Jitendra Lulla (jlulla@chelsio.com)
- * Yeshaswi M R Gowda (yeshaswi@chelsio.com)
+ * Analhaswi M R Gowda (analhaswi@chelsio.com)
  * Harsh Jain (harsh@chelsio.com)
  */
 
@@ -186,12 +186,12 @@ static void *chcr_uld_add(const struct cxgb4_lld_info *lld)
 	/* Create the device and add it in the device list */
 	pr_info_once("%s\n", DRV_DESC);
 	if (!(lld->ulp_crypto & ULP_CRYPTO_LOOKASIDE))
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 
 	/* Create the device and add it in the device list */
 	u_ctx = kzalloc(sizeof(*u_ctx), GFP_KERNEL);
 	if (!u_ctx) {
-		u_ctx = ERR_PTR(-ENOMEM);
+		u_ctx = ERR_PTR(-EANALMEM);
 		goto out;
 	}
 	u_ctx->lldi = *lld;

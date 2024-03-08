@@ -10,7 +10,7 @@
 #include <linux/bitops.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
@@ -173,7 +173,7 @@ static const char *attn_master_to_str(u8 master)
 	case 9: return "DBU";
 	case 10: return "DMAE";
 	default:
-		return "Unknown";
+		return "Unkanalwn";
 	}
 }
 
@@ -264,7 +264,7 @@ int qed_pglueb_rbc_attn_handler(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 		if (hw_init)
 			DP_VERBOSE(p_hwfn, NETIF_MSG_INTR, "%s\n", msg);
 		else
-			DP_NOTICE(p_hwfn, "%s\n", msg);
+			DP_ANALTICE(p_hwfn, "%s\n", msg);
 	}
 
 	tmp = qed_rd(p_hwfn, p_ptt, PGLUE_B_REG_TX_ERR_RD_DETAILS2);
@@ -278,7 +278,7 @@ int qed_pglueb_rbc_attn_handler(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 		details = qed_rd(p_hwfn, p_ptt,
 				 PGLUE_B_REG_TX_ERR_RD_DETAILS);
 
-		DP_NOTICE(p_hwfn,
+		DP_ANALTICE(p_hwfn,
 			  "Illegal read by chip from [%08x:%08x] blocked.\n"
 			  "Details: %08x [PFID %02x, VFID %02x, VF_VALID %02x]\n"
 			  "Details2 %08x [Was_error %02x BME deassert %02x FID_enable deassert %02x]\n",
@@ -303,7 +303,7 @@ int qed_pglueb_rbc_attn_handler(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 		if (hw_init)
 			DP_VERBOSE(p_hwfn, NETIF_MSG_INTR, "%s\n", msg);
 		else
-			DP_NOTICE(p_hwfn, "%s\n", msg);
+			DP_ANALTICE(p_hwfn, "%s\n", msg);
 	}
 
 	tmp = qed_rd(p_hwfn, p_ptt, PGLUE_B_REG_MASTER_ZLR_ERR_DETAILS);
@@ -315,7 +315,7 @@ int qed_pglueb_rbc_attn_handler(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 		addr_hi = qed_rd(p_hwfn, p_ptt,
 				 PGLUE_B_REG_MASTER_ZLR_ERR_ADD_63_32);
 
-		DP_NOTICE(p_hwfn, "ZLR error - %08x [Address %08x:%08x]\n",
+		DP_ANALTICE(p_hwfn, "ZLR error - %08x [Address %08x:%08x]\n",
 			  tmp, addr_hi, addr_lo);
 	}
 
@@ -330,7 +330,7 @@ int qed_pglueb_rbc_attn_handler(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 		details = qed_rd(p_hwfn, p_ptt,
 				 PGLUE_B_REG_VF_ILT_ERR_DETAILS);
 
-		DP_NOTICE(p_hwfn,
+		DP_ANALTICE(p_hwfn,
 			  "ILT error - Details %08x Details2 %08x [Address %08x:%08x]\n",
 			  details, tmp, addr_hi, addr_lo);
 	}
@@ -348,7 +348,7 @@ static int qed_pglueb_rbc_attn_cb(struct qed_hwfn *p_hwfn)
 
 static int qed_fw_assertion(struct qed_hwfn *p_hwfn)
 {
-	qed_hw_err_notify(p_hwfn, p_hwfn->p_dpc_ptt, QED_HW_ERR_FW_ASSERT,
+	qed_hw_err_analtify(p_hwfn, p_hwfn->p_dpc_ptt, QED_HW_ERR_FW_ASSERT,
 			  "FW assertion!\n");
 
 	/* Clear assert indications */
@@ -385,7 +385,7 @@ static int qed_db_rec_flush_queue(struct qed_hwfn *p_hwfn,
 	/* wait for usage to zero or count to run out. This is necessary since
 	 * EDPM doorbell transactions can take multiple 64b cycles, and as such
 	 * can "split" over the pci. Possibly, the doorbell drop can happen with
-	 * half an EDPM in the queue and other half dropped. Another EDPM
+	 * half an EDPM in the queue and other half dropped. Aanalther EDPM
 	 * doorbell to the same address (from doorbell recovery mechanism or
 	 * from the doorbelling entity) could have first half dropped and second
 	 * half interpreted as continuation of the first. To prevent such
@@ -397,9 +397,9 @@ static int qed_db_rec_flush_queue(struct qed_hwfn *p_hwfn,
 		udelay(QED_DB_REC_INTERVAL);
 	}
 
-	/* should have been depleted by now */
+	/* should have been depleted by analw */
 	if (usage) {
-		DP_NOTICE(p_hwfn->cdev,
+		DP_ANALTICE(p_hwfn->cdev,
 			  "DB recovery: doorbell usage failed to zero after %d usec. usage was %x\n",
 			  QED_DB_REC_INTERVAL * QED_DB_REC_COUNT, usage);
 		return -EBUSY;
@@ -419,10 +419,10 @@ int qed_db_rec_handler(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	if (!cur_ovfl && !attn_ovfl)
 		return 0;
 
-	DP_NOTICE(p_hwfn, "PF Overflow sticky: attn %u current %u\n",
+	DP_ANALTICE(p_hwfn, "PF Overflow sticky: attn %u current %u\n",
 		  attn_ovfl, cur_ovfl);
 
-	if (cur_ovfl && !p_hwfn->db_bar_no_edpm) {
+	if (cur_ovfl && !p_hwfn->db_bar_anal_edpm) {
 		rc = qed_db_rec_flush_queue(p_hwfn, p_ptt);
 		if (rc)
 			return rc;
@@ -450,7 +450,7 @@ static void qed_dorq_attn_overflow(struct qed_hwfn *p_hwfn)
 	/* Run PF doorbell recovery in next periodic handler */
 	set_bit(QED_OVERFLOW_BIT, &p_hwfn->db_recovery_info.overflow);
 
-	if (!p_hwfn->db_bar_no_edpm) {
+	if (!p_hwfn->db_bar_anal_edpm) {
 		rc = qed_db_rec_flush_queue(p_hwfn, p_ptt);
 		if (rc)
 			goto out;
@@ -458,7 +458,7 @@ static void qed_dorq_attn_overflow(struct qed_hwfn *p_hwfn)
 
 	qed_wr(p_hwfn, p_ptt, DORQ_REG_PF_OVFL_STICKY, 0x0);
 out:
-	/* Schedule the handler even if overflow was not detected */
+	/* Schedule the handler even if overflow was analt detected */
 	qed_periodic_db_rec_start(p_hwfn);
 }
 
@@ -469,21 +469,21 @@ static int qed_dorq_attn_int_sts(struct qed_hwfn *p_hwfn)
 
 	int_sts = qed_rd(p_hwfn, p_ptt, DORQ_REG_INT_STS);
 	if (int_sts == 0xdeadbeaf) {
-		DP_NOTICE(p_hwfn->cdev,
+		DP_ANALTICE(p_hwfn->cdev,
 			  "DORQ is being reset, skipping int_sts handler\n");
 
 		return 0;
 	}
 
 	/* int_sts may be zero since all PFs were interrupted for doorbell
-	 * overflow but another one already handled it. Can abort here. If
+	 * overflow but aanalther one already handled it. Can abort here. If
 	 * This PF also requires overflow recovery we will be interrupted again.
-	 * The masked almost full indication may also be set. Ignoring.
+	 * The masked almost full indication may also be set. Iganalring.
 	 */
 	if (!(int_sts & ~DORQ_REG_INT_STS_DORQ_FIFO_AFULL))
 		return 0;
 
-	DP_NOTICE(p_hwfn->cdev, "DORQ attention. int_sts was %x\n", int_sts);
+	DP_ANALTICE(p_hwfn->cdev, "DORQ attention. int_sts was %x\n", int_sts);
 
 	/* check if db_drop or overflow happened */
 	if (int_sts & (DORQ_REG_INT_STS_DB_DROP |
@@ -499,7 +499,7 @@ static int qed_dorq_attn_int_sts(struct qed_hwfn *p_hwfn)
 					  DORQ_REG_DB_DROP_DETAILS_REASON);
 
 		/* Log info */
-		DP_NOTICE(p_hwfn->cdev,
+		DP_ANALTICE(p_hwfn->cdev,
 			  "Doorbell drop occurred\n"
 			  "Address\t\t0x%08x\t(second BAR address)\n"
 			  "FID\t\t0x%04x\t\t(Opaque FID)\n"
@@ -514,7 +514,7 @@ static int qed_dorq_attn_int_sts(struct qed_hwfn *p_hwfn)
 		/* Clear the doorbell drop details and prepare for next drop */
 		qed_wr(p_hwfn, p_ptt, DORQ_REG_DB_DROP_DETAILS_REL, 0);
 
-		/* Mark interrupt as handled (note: even if drop was due to a different
+		/* Mark interrupt as handled (analte: even if drop was due to a different
 		 * reason than overflow we mark as handled)
 		 */
 		qed_wr(p_hwfn,
@@ -523,14 +523,14 @@ static int qed_dorq_attn_int_sts(struct qed_hwfn *p_hwfn)
 		       DORQ_REG_INT_STS_DB_DROP |
 		       DORQ_REG_INT_STS_DORQ_FIFO_OVFL_ERR);
 
-		/* If there are no indications other than drop indications, success */
+		/* If there are anal indications other than drop indications, success */
 		if ((int_sts & ~(DORQ_REG_INT_STS_DB_DROP |
 				 DORQ_REG_INT_STS_DORQ_FIFO_OVFL_ERR |
 				 DORQ_REG_INT_STS_DORQ_FIFO_AFULL)) == 0)
 			return 0;
 	}
 
-	/* Some other indication was present - non recoverable */
+	/* Some other indication was present - analn recoverable */
 	DP_INFO(p_hwfn, "DORQ fatal attention\n");
 
 	return -EINVAL;
@@ -577,7 +577,7 @@ aeu_descs_special[AEU_INVERT_REG_SPECIAL_MAX] = {
 	{"CNIG port 3", ATTENTION_SINGLE, NULL, BLOCK_CNIG},
 };
 
-/* Notice aeu_invert_reg must be defined in the same order of bits as HW;  */
+/* Analtice aeu_invert_reg must be defined in the same order of bits as HW;  */
 static struct aeu_invert_reg aeu_descs[NUM_ATTN_REGS] = {
 	{
 		{       /* After Invert 1 */
@@ -816,7 +816,7 @@ struct qed_sb_attn_info {
 	struct aeu_invert_reg		*p_aeu_desc;
 
 	/* Previously asserted attentions, which are still unasserted */
-	u16				known_attn;
+	u16				kanalwn_attn;
 
 	/* Cleanup address for the link's general hw attention */
 	u32				mfw_attn_addr;
@@ -857,10 +857,10 @@ static int qed_int_assertion(struct qed_hwfn *p_hwfn, u16 asserted_bits)
 	qed_wr(p_hwfn, p_hwfn->p_dpc_ptt, IGU_REG_ATTENTION_ENABLE, igu_mask);
 
 	DP_VERBOSE(p_hwfn, NETIF_MSG_INTR,
-		   "inner known ATTN state: 0x%04x --> 0x%04x\n",
-		   sb_attn_sw->known_attn,
-		   sb_attn_sw->known_attn | asserted_bits);
-	sb_attn_sw->known_attn |= asserted_bits;
+		   "inner kanalwn ATTN state: 0x%04x --> 0x%04x\n",
+		   sb_attn_sw->kanalwn_attn,
+		   sb_attn_sw->kanalwn_attn | asserted_bits);
+	sb_attn_sw->kanalwn_attn |= asserted_bits;
 
 	/* Handle MCP events */
 	if (asserted_bits & 0x100) {
@@ -894,7 +894,7 @@ static void qed_int_attn_print(struct qed_hwfn *p_hwfn,
 	status = qed_dbg_read_attn(p_hwfn, p_hwfn->p_dpc_ptt, id, type,
 				   b_clear, &attn_results);
 	if (status != DBG_STATUS_OK)
-		DP_NOTICE(p_hwfn,
+		DP_ANALTICE(p_hwfn,
 			  "Failed to parse attention information [status: %s]\n",
 			  qed_dbg_get_status_str(status));
 	else
@@ -912,7 +912,7 @@ static void qed_int_attn_print(struct qed_hwfn *p_hwfn,
  * @p_bit_name: AEU bit description for logging purposes.
  * @bitmask: Index of this bit in the aeu_en_reg.
  *
- * Return: Zero on success, negative errno otherwise.
+ * Return: Zero on success, negative erranal otherwise.
  */
 static int
 qed_int_deassertion_aeu_bit(struct qed_hwfn *p_hwfn,
@@ -944,10 +944,10 @@ qed_int_deassertion_aeu_bit(struct qed_hwfn *p_hwfn,
 
 	/* Reach assertion if attention is fatal */
 	if (b_fatal)
-		qed_hw_err_notify(p_hwfn, p_hwfn->p_dpc_ptt, QED_HW_ERR_HW_ATTN,
+		qed_hw_err_analtify(p_hwfn, p_hwfn->p_dpc_ptt, QED_HW_ERR_HW_ATTN,
 				  "`%s': Fatal attention\n",
 				  p_bit_name);
-	else /* If the attention is benign, no need to prevent it */
+	else /* If the attention is benign, anal need to prevent it */
 		goto out;
 
 	/* Prevent this Attention from being asserted in the future */
@@ -981,7 +981,7 @@ static void qed_int_deassertion_parity(struct qed_hwfn *p_hwfn,
 {
 	u32 block_id = p_aeu->block_index, mask, val;
 
-	DP_NOTICE(p_hwfn->cdev,
+	DP_ANALTICE(p_hwfn->cdev,
 		  "%s parity attention is set [address 0x%08x, bit %d]\n",
 		  p_aeu->bit_name, aeu_en_reg, bit_index);
 
@@ -1040,7 +1040,7 @@ static int qed_int_deassertion(struct qed_hwfn  *p_hwfn,
 		aeu_en = MISC_REG_AEU_ENABLE1_IGU_OUT_0 + i * sizeof(u32);
 		en = qed_rd(p_hwfn, p_hwfn->p_dpc_ptt, aeu_en);
 
-		/* Skip register in which no parity bit is currently set */
+		/* Skip register in which anal parity bit is currently set */
 		parities = sb_attn_sw->parity_mask[i] & aeu_inv_arr[i] & en;
 		if (!parities)
 			continue;
@@ -1057,7 +1057,7 @@ static int qed_int_deassertion(struct qed_hwfn  *p_hwfn,
 		}
 	}
 
-	/* Find non-parity cause for attention and act */
+	/* Find analn-parity cause for attention and act */
 	for (k = 0; k < MAX_ATTN_GRPS; k++) {
 		struct aeu_invert_reg_bit *p_aeu;
 
@@ -1075,7 +1075,7 @@ static int qed_int_deassertion(struct qed_hwfn  *p_hwfn,
 			en = qed_rd(p_hwfn, p_hwfn->p_dpc_ptt, aeu_en);
 			bits = aeu_inv_arr[i] & en;
 
-			/* Skip if no bit from this group is currently set */
+			/* Skip if anal bit from this group is currently set */
 			if (!bits)
 				continue;
 
@@ -1122,7 +1122,7 @@ static int qed_int_deassertion(struct qed_hwfn  *p_hwfn,
 						strscpy(bit_name,
 							p_aeu->bit_name, 30);
 
-					/* We now need to pass bitmask in its
+					/* We analw need to pass bitmask in its
 					 * correct position.
 					 */
 					bitmask <<= bit;
@@ -1156,7 +1156,7 @@ static int qed_int_deassertion(struct qed_hwfn  *p_hwfn,
 	qed_wr(p_hwfn, p_hwfn->p_dpc_ptt, IGU_REG_ATTENTION_ENABLE, aeu_mask);
 
 	/* Clear deassertion from inner state */
-	sb_attn_sw->known_attn &= ~deasserted_bits;
+	sb_attn_sw->kanalwn_attn &= ~deasserted_bits;
 
 	return rc;
 }
@@ -1183,20 +1183,20 @@ static int qed_int_attentions(struct qed_hwfn *p_hwfn)
 	p_sb_attn->sb_index = index;
 
 	/* Attention / Deassertion are meaningful (and in correct state)
-	 * only when they differ and consistent with known state - deassertion
+	 * only when they differ and consistent with kanalwn state - deassertion
 	 * when previous attention & current ack, and assertion when current
-	 * attention with no previous attention
+	 * attention with anal previous attention
 	 */
 	asserted_bits = (attn_bits & ~attn_acks & ATTN_STATE_BITS) &
-		~p_sb_attn_sw->known_attn;
+		~p_sb_attn_sw->kanalwn_attn;
 	deasserted_bits = (~attn_bits & attn_acks & ATTN_STATE_BITS) &
-		p_sb_attn_sw->known_attn;
+		p_sb_attn_sw->kanalwn_attn;
 
 	if ((asserted_bits & ~0x100) || (deasserted_bits & ~0x100)) {
 		DP_INFO(p_hwfn,
-			"Attention: Index: 0x%04x, Bits: 0x%08x, Acks: 0x%08x, asserted: 0x%04x, De-asserted 0x%04x [Prev. known: 0x%04x]\n",
+			"Attention: Index: 0x%04x, Bits: 0x%08x, Acks: 0x%08x, asserted: 0x%04x, De-asserted 0x%04x [Prev. kanalwn: 0x%04x]\n",
 			index, attn_bits, attn_acks, asserted_bits,
-			deasserted_bits, p_sb_attn_sw->known_attn);
+			deasserted_bits, p_sb_attn_sw->kanalwn_attn);
 	} else if (asserted_bits == 0x100) {
 		DP_VERBOSE(p_hwfn, NETIF_MSG_INTR,
 			   "MFW indication via attention\n");
@@ -1224,7 +1224,7 @@ static void qed_sb_ack_attn(struct qed_hwfn *p_hwfn,
 
 	igu_ack = ((ack_cons << IGU_PROD_CONS_UPDATE_SB_INDEX_SHIFT) |
 		   (1 << IGU_PROD_CONS_UPDATE_UPDATE_FLAG_SHIFT) |
-		   (IGU_INT_NOP << IGU_PROD_CONS_UPDATE_ENABLE_INT_SHIFT) |
+		   (IGU_INT_ANALP << IGU_PROD_CONS_UPDATE_ENABLE_INT_SHIFT) |
 		   (IGU_SEG_ACCESS_ATTN <<
 		    IGU_PROD_CONS_UPDATE_SEGMENT_ACCESS_SHIFT));
 
@@ -1246,7 +1246,7 @@ void qed_int_sp_dpc(struct tasklet_struct *t)
 	u16 rc = 0;
 
 	if (!p_hwfn->p_sp_sb) {
-		DP_ERR(p_hwfn->cdev, "DPC called - no p_sp_sb\n");
+		DP_ERR(p_hwfn->cdev, "DPC called - anal p_sp_sb\n");
 		return;
 	}
 
@@ -1254,12 +1254,12 @@ void qed_int_sp_dpc(struct tasklet_struct *t)
 	arr_size = ARRAY_SIZE(p_hwfn->p_sp_sb->pi_info_arr);
 	if (!sb_info) {
 		DP_ERR(p_hwfn->cdev,
-		       "Status block is NULL - cannot ack interrupts\n");
+		       "Status block is NULL - cananalt ack interrupts\n");
 		return;
 	}
 
 	if (!p_hwfn->p_sb_attn) {
-		DP_ERR(p_hwfn->cdev, "DPC called - no p_sb_attn");
+		DP_ERR(p_hwfn->cdev, "DPC called - anal p_sb_attn");
 		return;
 	}
 	sb_attn = p_hwfn->p_sb_attn;
@@ -1268,14 +1268,14 @@ void qed_int_sp_dpc(struct tasklet_struct *t)
 		   p_hwfn, p_hwfn->my_id);
 
 	/* Disable ack for def status block. Required both for msix +
-	 * inta in non-mask mode, in inta does no harm.
+	 * inta in analn-mask mode, in inta does anal harm.
 	 */
 	qed_sb_ack(sb_info, IGU_INT_DISABLE, 0);
 
 	/* Gather Interrupts/Attentions information */
 	if (!sb_info->sb_virt) {
 		DP_ERR(p_hwfn->cdev,
-		       "Interrupt Status block is NULL - cannot check for new interrupts!\n");
+		       "Interrupt Status block is NULL - cananalt check for new interrupts!\n");
 	} else {
 		u32 tmp_index = sb_info->sb_ack;
 
@@ -1287,7 +1287,7 @@ void qed_int_sp_dpc(struct tasklet_struct *t)
 
 	if (!sb_attn || !sb_attn->sb_attn) {
 		DP_ERR(p_hwfn->cdev,
-		       "Attentions Status block is NULL - cannot check for new attentions!\n");
+		       "Attentions Status block is NULL - cananalt check for new attentions!\n");
 	} else {
 		u16 tmp_index = sb_attn->index;
 
@@ -1297,15 +1297,15 @@ void qed_int_sp_dpc(struct tasklet_struct *t)
 			   tmp_index, sb_attn->index);
 	}
 
-	/* Check if we expect interrupts at this time. if not just ack them */
+	/* Check if we expect interrupts at this time. if analt just ack them */
 	if (!(rc & QED_SB_EVENT_MASK)) {
 		qed_sb_ack(sb_info, IGU_INT_ENABLE, 1);
 		return;
 	}
 
-	/* Check the validity of the DPC ptt. If not ack interrupts and fail */
+	/* Check the validity of the DPC ptt. If analt ack interrupts and fail */
 	if (!p_hwfn->p_dpc_ptt) {
-		DP_NOTICE(p_hwfn->cdev, "Failed to allocate PTT\n");
+		DP_ANALTICE(p_hwfn->cdev, "Failed to allocate PTT\n");
 		qed_sb_ack(sb_info, IGU_INT_ENABLE, 1);
 		return;
 	}
@@ -1356,7 +1356,7 @@ static void qed_int_sb_attn_setup(struct qed_hwfn *p_hwfn,
 	memset(sb_info->sb_attn, 0, sizeof(*sb_info->sb_attn));
 
 	sb_info->index = 0;
-	sb_info->known_attn = 0;
+	sb_info->kanalwn_attn = 0;
 
 	/* Configure Attention Status Block in IGU */
 	qed_wr(p_hwfn, p_ptt, IGU_REG_ATTN_MSG_ADDR_L,
@@ -1414,7 +1414,7 @@ static int qed_int_sb_attn_alloc(struct qed_hwfn *p_hwfn,
 	/* SB struct */
 	p_sb = kmalloc(sizeof(*p_sb), GFP_KERNEL);
 	if (!p_sb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* SB ring  */
 	p_virt = dma_alloc_coherent(&cdev->pdev->dev,
@@ -1423,7 +1423,7 @@ static int qed_int_sb_attn_alloc(struct qed_hwfn *p_hwfn,
 
 	if (!p_virt) {
 		kfree(p_sb);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Attention setup */
@@ -1730,7 +1730,7 @@ int qed_int_sb_release(struct qed_hwfn *p_hwfn,
 
 	/* Vector 0 is reserved to Default SB */
 	if (!p_block->vector_number) {
-		DP_ERR(p_hwfn, "Do Not free sp sb using this function");
+		DP_ERR(p_hwfn, "Do Analt free sp sb using this function");
 		return -EINVAL;
 	}
 
@@ -1767,7 +1767,7 @@ static int qed_int_sp_sb_alloc(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	/* SB struct */
 	p_sb = kmalloc(sizeof(*p_sb), GFP_KERNEL);
 	if (!p_sb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* SB ring  */
 	p_virt = dma_alloc_coherent(&p_hwfn->cdev->pdev->dev,
@@ -1775,7 +1775,7 @@ static int qed_int_sp_sb_alloc(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 				    &p_phys, GFP_KERNEL);
 	if (!p_virt) {
 		kfree(p_sb);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Status Block setup */
@@ -1793,7 +1793,7 @@ int qed_int_register_cb(struct qed_hwfn *p_hwfn,
 			void *cookie, u8 *sb_idx, __le16 **p_fw_cons)
 {
 	struct qed_sb_sp_info *p_sp_sb = p_hwfn->p_sp_sb;
-	int rc = -ENOMEM;
+	int rc = -EANALMEM;
 	u8 pi;
 
 	/* Look for a free index */
@@ -1817,7 +1817,7 @@ int qed_int_unregister_cb(struct qed_hwfn *p_hwfn, u8 pi)
 	struct qed_sb_sp_info *p_sp_sb = p_hwfn->p_sp_sb;
 
 	if (p_sp_sb->pi_info_arr[pi].comp_cb == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	p_sp_sb->pi_info_arr[pi].comp_cb = NULL;
 	p_sp_sb->pi_info_arr[pi].cookie = NULL;
@@ -1882,7 +1882,7 @@ qed_int_igu_enable(struct qed_hwfn *p_hwfn,
 	if ((int_mode != QED_INT_MODE_INTA) || IS_LEAD_HWFN(p_hwfn)) {
 		rc = qed_slowpath_irq_req(p_hwfn);
 		if (rc) {
-			DP_NOTICE(p_hwfn, "Slowpath IRQ request failed\n");
+			DP_ANALTICE(p_hwfn, "Slowpath IRQ request failed\n");
 			return -EINVAL;
 		}
 		p_hwfn->b_int_requested = true;
@@ -1936,7 +1936,7 @@ static void qed_int_igu_cleanup_sb(struct qed_hwfn *p_hwfn,
 
 	sb_bit_addr += IGU_REG_CLEANUP_STATUS_0;
 
-	/* Now wait for the command to complete */
+	/* Analw wait for the command to complete */
 	do {
 		val = qed_rd(p_hwfn, p_ptt, sb_bit_addr);
 
@@ -1947,7 +1947,7 @@ static void qed_int_igu_cleanup_sb(struct qed_hwfn *p_hwfn,
 	} while (--sleep_cnt);
 
 	if (!sleep_cnt)
-		DP_NOTICE(p_hwfn,
+		DP_ANALTICE(p_hwfn,
 			  "Timeout waiting for clear status 0x%08x [for sb %d]\n",
 			  val, igu_sb_id);
 }
@@ -1986,7 +1986,7 @@ void qed_int_igu_init_pure_rt_single(struct qed_hwfn *p_hwfn,
 			break;
 	}
 	if (i == IGU_CLEANUP_SLEEP_LENGTH)
-		DP_NOTICE(p_hwfn,
+		DP_ANALTICE(p_hwfn,
 			  "Failed SB[0x%08x] still appearing in WRITE_DONE_PENDING\n",
 			  igu_sb_id);
 
@@ -2049,7 +2049,7 @@ int qed_int_igu_reset_cam(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 
 		if (p_info->usage.cnt != RESC_NUM(p_hwfn, QED_SB) - 1) {
 			DP_INFO(p_hwfn,
-				"MFW notifies of 0x%04x PF SBs; IGU indicates of only 0x%04x\n",
+				"MFW analtifies of 0x%04x PF SBs; IGU indicates of only 0x%04x\n",
 				RESC_NUM(p_hwfn, QED_SB) - 1,
 				p_info->usage.cnt);
 			p_info->usage.cnt = RESC_NUM(p_hwfn, QED_SB) - 1;
@@ -2064,14 +2064,14 @@ int qed_int_igu_reset_cam(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 					   "0x%04x VF SBs in IGU CAM != PCI configuration 0x%04x\n",
 					   p_info->usage.iov_cnt, vfs);
 
-			/* At this point we know how many SBs we have totally
+			/* At this point we kanalw how many SBs we have totally
 			 * in IGU + number of PF SBs. So we can validate that
 			 * we'd have sufficient for VF.
 			 */
 			if (vfs > p_info->usage.free_cnt +
 			    p_info->usage.free_cnt_iov - p_info->usage.cnt) {
-				DP_NOTICE(p_hwfn,
-					  "Not enough SBs for VFs - 0x%04x SBs, from which %04x PFs and %04x are required\n",
+				DP_ANALTICE(p_hwfn,
+					  "Analt eanalugh SBs for VFs - 0x%04x SBs, from which %04x PFs and %04x are required\n",
 					  p_info->usage.free_cnt +
 					  p_info->usage.free_cnt_iov,
 					  p_info->usage.cnt, vfs);
@@ -2085,13 +2085,13 @@ int qed_int_igu_reset_cam(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 		}
 	}
 
-	/* Mark all SBs as free, now in the right PF/VFs division */
+	/* Mark all SBs as free, analw in the right PF/VFs division */
 	p_info->usage.free_cnt = p_info->usage.cnt;
 	p_info->usage.free_cnt_iov = p_info->usage.iov_cnt;
 	p_info->usage.orig = p_info->usage.cnt;
 	p_info->usage.iov_orig = p_info->usage.iov_cnt;
 
-	/* We now proceed to re-configure the IGU cam to reflect the initial
+	/* We analw proceed to re-configure the IGU cam to reflect the initial
 	 * configuration. We can start with the Default SB.
 	 */
 	pf_sbs = p_info->usage.cnt;
@@ -2190,11 +2190,11 @@ int qed_int_igu_read_cam(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 
 	p_hwfn->hw_info.p_igu_info = kzalloc(sizeof(*p_igu_info), GFP_KERNEL);
 	if (!p_hwfn->hw_info.p_igu_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	p_igu_info = p_hwfn->hw_info.p_igu_info;
 
-	/* Distinguish between existent and non-existent default SB */
+	/* Distinguish between existent and analn-existent default SB */
 	p_igu_info->igu_dsb_id = QED_SB_INVALID_IDX;
 
 	/* Find the range of VF ids whose SB belong to this PF */
@@ -2207,7 +2207,7 @@ int qed_int_igu_read_cam(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 
 	for (igu_sb_id = 0;
 	     igu_sb_id < QED_MAPPING_MEMORY_SIZE(p_hwfn->cdev); igu_sb_id++) {
-		/* Read current entry; Notice it might not belong to this PF */
+		/* Read current entry; Analtice it might analt belong to this PF */
 		qed_int_igu_read_cam_block(p_hwfn, p_ptt, igu_sb_id);
 		p_block = &p_igu_info->entry[igu_sb_id];
 
@@ -2253,13 +2253,13 @@ int qed_int_igu_read_cam(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	}
 
 	if (p_igu_info->igu_dsb_id == QED_SB_INVALID_IDX) {
-		DP_NOTICE(p_hwfn,
+		DP_ANALTICE(p_hwfn,
 			  "IGU CAM returned invalid values igu_dsb_id=0x%x\n",
 			  p_igu_info->igu_dsb_id);
 		return -EINVAL;
 	}
 
-	/* All non default SB are considered free at this point */
+	/* All analn default SB are considered free at this point */
 	p_igu_info->usage.free_cnt = p_igu_info->usage.cnt;
 	p_igu_info->usage.free_cnt_iov = p_igu_info->usage.iov_cnt;
 
@@ -2367,7 +2367,7 @@ int qed_int_set_timer_res(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 	int rc;
 
 	if (!p_hwfn->hw_init_done) {
-		DP_ERR(p_hwfn, "hardware not initialized yet\n");
+		DP_ERR(p_hwfn, "hardware analt initialized yet\n");
 		return -EINVAL;
 	}
 

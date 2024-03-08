@@ -22,11 +22,11 @@ static const struct omap_clkctrl_reg_data dm814_alwon_clkctrl_regs[] __initconst
 	{ DM814_GPIO2_CLKCTRL, NULL, CLKF_SW_SUP, "sysclk6_ck" },
 	{ DM814_I2C1_CLKCTRL, NULL, CLKF_SW_SUP, "sysclk10_ck" },
 	{ DM814_I2C2_CLKCTRL, NULL, CLKF_SW_SUP, "sysclk10_ck" },
-	{ DM814_WD_TIMER_CLKCTRL, NULL, CLKF_SW_SUP | CLKF_NO_IDLEST, "sysclk18_ck" },
+	{ DM814_WD_TIMER_CLKCTRL, NULL, CLKF_SW_SUP | CLKF_ANAL_IDLEST, "sysclk18_ck" },
 	{ DM814_MCSPI1_CLKCTRL, NULL, CLKF_SW_SUP, "sysclk10_ck" },
 	{ DM814_GPMC_CLKCTRL, NULL, CLKF_SW_SUP, "sysclk6_ck" },
 	{ DM814_MPU_CLKCTRL, NULL, CLKF_SW_SUP, "mpu_ck" },
-	{ DM814_RTC_CLKCTRL, NULL, CLKF_SW_SUP | CLKF_NO_IDLEST, "sysclk18_ck" },
+	{ DM814_RTC_CLKCTRL, NULL, CLKF_SW_SUP | CLKF_ANAL_IDLEST, "sysclk18_ck" },
 	{ DM814_TPCC_CLKCTRL, NULL, CLKF_SW_SUP, "sysclk4_ck" },
 	{ DM814_TPTC0_CLKCTRL, NULL, CLKF_SW_SUP, "sysclk4_ck" },
 	{ DM814_TPTC1_CLKCTRL, NULL, CLKF_SW_SUP, "sysclk4_ck" },
@@ -52,26 +52,26 @@ const struct omap_clkctrl_data dm814_clkctrl_data[] __initconst = {
 
 static struct ti_dt_clk dm814_clks[] = {
 	DT_CLK(NULL, "timer_sys_ck", "devosc_ck"),
-	{ .node_name = NULL },
+	{ .analde_name = NULL },
 };
 
 static bool timer_clocks_initialized;
 
 static int __init dm814x_adpll_early_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
 	if (!timer_clocks_initialized)
-		return -ENODEV;
+		return -EANALDEV;
 
-	np = of_find_node_by_name(NULL, "pllss");
+	np = of_find_analde_by_name(NULL, "pllss");
 	if (!np) {
-		pr_err("Could not find node for plls\n");
-		return -ENODEV;
+		pr_err("Could analt find analde for plls\n");
+		return -EANALDEV;
 	}
 
 	of_platform_populate(np, NULL, NULL, NULL);
-	of_node_put(np);
+	of_analde_put(np);
 
 	return 0;
 }
@@ -87,17 +87,17 @@ static int __init dm814x_adpll_enable_init_clocks(void)
 	int i, err;
 
 	if (!timer_clocks_initialized)
-		return -ENODEV;
+		return -EANALDEV;
 
 	for (i = 0; i < ARRAY_SIZE(init_clocks); i++) {
 		struct clk *clock;
 
 		clock = clk_get(NULL, init_clocks[i]);
-		if (WARN(IS_ERR(clock), "could not find init clock %s\n",
+		if (WARN(IS_ERR(clock), "could analt find init clock %s\n",
 			 init_clocks[i]))
 			continue;
 		err = clk_prepare_enable(clock);
-		if (WARN(err, "could not enable init clock %s\n",
+		if (WARN(err, "could analt enable init clock %s\n",
 			 init_clocks[i]))
 			continue;
 	}

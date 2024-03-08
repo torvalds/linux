@@ -55,7 +55,7 @@ static void handle_vq(struct vhost_test *n)
 		return;
 	}
 
-	vhost_disable_notify(&n->dev, vq);
+	vhost_disable_analtify(&n->dev, vq);
 
 	for (;;) {
 		head = vhost_get_vq_desc(vq, vq->iov,
@@ -65,10 +65,10 @@ static void handle_vq(struct vhost_test *n)
 		/* On error, stop handling until the next kick. */
 		if (unlikely(head < 0))
 			break;
-		/* Nothing new?  Wait for eventfd to tell us they refilled. */
+		/* Analthing new?  Wait for eventfd to tell us they refilled. */
 		if (head == vq->num) {
-			if (unlikely(vhost_enable_notify(&n->dev, vq))) {
-				vhost_disable_notify(&n->dev, vq);
+			if (unlikely(vhost_enable_analtify(&n->dev, vq))) {
+				vhost_disable_analtify(&n->dev, vq);
 				continue;
 			}
 			break;
@@ -102,18 +102,18 @@ static void handle_vq_kick(struct vhost_work *work)
 	handle_vq(n);
 }
 
-static int vhost_test_open(struct inode *inode, struct file *f)
+static int vhost_test_open(struct ianalde *ianalde, struct file *f)
 {
 	struct vhost_test *n = kmalloc(sizeof *n, GFP_KERNEL);
 	struct vhost_dev *dev;
 	struct vhost_virtqueue **vqs;
 
 	if (!n)
-		return -ENOMEM;
+		return -EANALMEM;
 	vqs = kmalloc_array(VHOST_TEST_VQ_MAX, sizeof(*vqs), GFP_KERNEL);
 	if (!vqs) {
 		kfree(n);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	dev = &n->dev;
@@ -149,7 +149,7 @@ static void vhost_test_flush(struct vhost_test *n)
 	vhost_dev_flush(&n->dev);
 }
 
-static int vhost_test_release(struct inode *inode, struct file *f)
+static int vhost_test_release(struct ianalde *ianalde, struct file *f)
 {
 	struct vhost_test *n = f->private_data;
 	void  *private;
@@ -226,7 +226,7 @@ static long vhost_test_reset_owner(struct vhost_test *n)
 		goto done;
 	umem = vhost_dev_reset_owner_prepare();
 	if (!umem) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto done;
 	}
 	vhost_test_stop(n, &priv);
@@ -270,7 +270,7 @@ static long vhost_test_set_backend(struct vhost_test *n, unsigned index, int fd)
 		goto err;
 
 	if (index >= VHOST_TEST_VQ_MAX) {
-		r = -ENOBUFS;
+		r = -EANALBUFS;
 		goto err;
 	}
 	vq = &n->vqs[index];
@@ -336,14 +336,14 @@ static long vhost_test_ioctl(struct file *f, unsigned int ioctl,
 		if (copy_from_user(&features, featurep, sizeof features))
 			return -EFAULT;
 		if (features & ~VHOST_FEATURES)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		return vhost_test_set_features(n, features);
 	case VHOST_RESET_OWNER:
 		return vhost_test_reset_owner(n);
 	default:
 		mutex_lock(&n->dev.mutex);
 		r = vhost_dev_ioctl(&n->dev, ioctl, argp);
-                if (r == -ENOIOCTLCMD)
+                if (r == -EANALIOCTLCMD)
                         r = vhost_vring_ioctl(&n->dev, ioctl, argp);
 		vhost_test_flush(n);
 		mutex_unlock(&n->dev.mutex);
@@ -357,11 +357,11 @@ static const struct file_operations vhost_test_fops = {
 	.unlocked_ioctl = vhost_test_ioctl,
 	.compat_ioctl   = compat_ptr_ioctl,
 	.open           = vhost_test_open,
-	.llseek		= noop_llseek,
+	.llseek		= analop_llseek,
 };
 
 static struct miscdevice vhost_test_misc = {
-	MISC_DYNAMIC_MINOR,
+	MISC_DYNAMIC_MIANALR,
 	"vhost-test",
 	&vhost_test_fops,
 };

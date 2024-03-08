@@ -3,8 +3,8 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2005 MIPS Technologies, Inc.  All rights reserved.
- * Copyright (C) 2013 Imagination Technologies Ltd.
+ * Copyright (C) 2005 MIPS Techanallogies, Inc.  All rights reserved.
+ * Copyright (C) 2013 Imagination Techanallogies Ltd.
  */
 #include <linux/device.h>
 #include <linux/fs.h>
@@ -71,15 +71,15 @@ int __init rtlx_module_init(void)
 	int i, err;
 
 	if (!cpu_has_mipsmt) {
-		pr_warn("VPE loader: not a MIPS MT capable processor\n");
-		return -ENODEV;
+		pr_warn("VPE loader: analt a MIPS MT capable processor\n");
+		return -EANALDEV;
 	}
 
 	if (aprp_cpu_index() == 0) {
-		pr_warn("No TCs reserved for AP/SP, not initializing RTLX.\n"
+		pr_warn("Anal TCs reserved for AP/SP, analt initializing RTLX.\n"
 			"Pass maxtcs=<n> argument as kernel argument\n");
 
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	major = register_chrdev(0, RTLX_MODULE_NAME, &rtlx_fops);
@@ -106,16 +106,16 @@ int __init rtlx_module_init(void)
 		}
 	}
 
-	/* set up notifiers */
-	rtlx_notify.start = rtlx_starting;
-	rtlx_notify.stop = rtlx_stopping;
-	vpe_notify(aprp_cpu_index(), &rtlx_notify);
+	/* set up analtifiers */
+	rtlx_analtify.start = rtlx_starting;
+	rtlx_analtify.stop = rtlx_stopping;
+	vpe_analtify(aprp_cpu_index(), &rtlx_analtify);
 
 	if (cpu_has_vint) {
 		aprp_hook = rtlx_dispatch;
 	} else {
-		pr_err("APRP RTLX init on non-vectored-interrupt processor\n");
-		err = -ENODEV;
+		pr_err("APRP RTLX init on analn-vectored-interrupt processor\n");
+		err = -EANALDEV;
 		goto out_class;
 	}
 

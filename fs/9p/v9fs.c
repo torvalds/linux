@@ -9,7 +9,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fs.h>
 #include <linux/sched.h>
 #include <linux/cred.h>
@@ -25,11 +25,11 @@
 
 static DEFINE_SPINLOCK(v9fs_sessionlist_lock);
 static LIST_HEAD(v9fs_sessionlist);
-struct kmem_cache *v9fs_inode_cache;
+struct kmem_cache *v9fs_ianalde_cache;
 
 /*
  * Option Parsing (code inspired by NFS code)
- *  NOTE: each transport will parse its own options
+ *  ANALTE: each transport will parse its own options
  */
 
 enum {
@@ -37,8 +37,8 @@ enum {
 	Opt_debug, Opt_dfltuid, Opt_dfltgid, Opt_afid,
 	/* String options */
 	Opt_uname, Opt_remotename, Opt_cache, Opt_cachetag,
-	/* Options that take no arguments */
-	Opt_nodevmap, Opt_noxattr, Opt_directio, Opt_ignoreqv,
+	/* Options that take anal arguments */
+	Opt_analdevmap, Opt_analxattr, Opt_directio, Opt_iganalreqv,
 	/* Access options */
 	Opt_access, Opt_posixacl,
 	/* Lock timeout option */
@@ -54,10 +54,10 @@ static const match_table_t tokens = {
 	{Opt_afid, "afid=%u"},
 	{Opt_uname, "uname=%s"},
 	{Opt_remotename, "aname=%s"},
-	{Opt_nodevmap, "nodevmap"},
-	{Opt_noxattr, "noxattr"},
+	{Opt_analdevmap, "analdevmap"},
+	{Opt_analxattr, "analxattr"},
 	{Opt_directio, "directio"},
-	{Opt_ignoreqv, "ignoreqv"},
+	{Opt_iganalreqv, "iganalreqv"},
 	{Opt_cache, "cache=%s"},
 	{Opt_cachetag, "cachetag=%s"},
 	{Opt_access, "access=%s"},
@@ -83,12 +83,12 @@ static int get_cache_mode(char *s)
 	} else if (!strcmp(s, "readahead")) {
 		version = CACHE_SC_READAHEAD;
 		p9_debug(P9_DEBUG_9P, "Cache mode: readahead\n");
-	} else if (!strcmp(s, "none")) {
-		version = CACHE_SC_NONE;
-		p9_debug(P9_DEBUG_9P, "Cache mode: none\n");
+	} else if (!strcmp(s, "analne")) {
+		version = CACHE_SC_ANALNE;
+		p9_debug(P9_DEBUG_9P, "Cache mode: analne\n");
 	} else if (kstrtoint(s, 0, &version) != 0) {
 		version = -EINVAL;
-		pr_info("Unknown Cache mode or invalid value %s\n", s);
+		pr_info("Unkanalwn Cache mode or invalid value %s\n", s);
 	}
 	return version;
 }
@@ -114,8 +114,8 @@ int v9fs_show_options(struct seq_file *m, struct dentry *root)
 		seq_printf(m, ",uname=%s", v9ses->uname);
 	if (strcmp(v9ses->aname, V9FS_DEFANAME) != 0)
 		seq_printf(m, ",aname=%s", v9ses->aname);
-	if (v9ses->nodev)
-		seq_puts(m, ",nodevmap");
+	if (v9ses->analdev)
+		seq_puts(m, ",analdevmap");
 	if (v9ses->cache)
 		seq_printf(m, ",cache=%x", v9ses->cache);
 #ifdef CONFIG_9P_FSCACHE
@@ -139,15 +139,15 @@ int v9fs_show_options(struct seq_file *m, struct dentry *root)
 		break;
 	}
 
-	if (v9ses->flags & V9FS_IGNORE_QV)
-		seq_puts(m, ",ignoreqv");
+	if (v9ses->flags & V9FS_IGANALRE_QV)
+		seq_puts(m, ",iganalreqv");
 	if (v9ses->flags & V9FS_DIRECT_IO)
 		seq_puts(m, ",directio");
 	if (v9ses->flags & V9FS_POSIX_ACL)
 		seq_puts(m, ",posixacl");
 
-	if (v9ses->flags & V9FS_NO_XATTR)
-		seq_puts(m, ",noxattr");
+	if (v9ses->flags & V9FS_ANAL_XATTR)
+		seq_puts(m, ",analxattr");
 
 	return p9_show_client_options(m, v9ses->clnt);
 }
@@ -157,7 +157,7 @@ int v9fs_show_options(struct seq_file *m, struct dentry *root)
  * @v9ses: existing v9fs session information
  * @opts: The mount option string
  *
- * Return 0 upon success, -ERRNO upon failure.
+ * Return 0 upon success, -ERRANAL upon failure.
  */
 
 static int v9fs_parse_options(struct v9fs_session_info *v9ses, char *opts)
@@ -172,7 +172,7 @@ static int v9fs_parse_options(struct v9fs_session_info *v9ses, char *opts)
 	/* setup defaults */
 	v9ses->afid = ~0;
 	v9ses->debug = 0;
-	v9ses->cache = CACHE_NONE;
+	v9ses->cache = CACHE_ANALNE;
 #ifdef CONFIG_9P_FSCACHE
 	v9ses->cachetag = NULL;
 #endif
@@ -183,7 +183,7 @@ static int v9fs_parse_options(struct v9fs_session_info *v9ses, char *opts)
 
 	tmp_options = kstrdup(opts, GFP_KERNEL);
 	if (!tmp_options) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail_option_alloc;
 	}
 	options = tmp_options;
@@ -200,7 +200,7 @@ static int v9fs_parse_options(struct v9fs_session_info *v9ses, char *opts)
 			r = match_int(&args[0], &option);
 			if (r < 0) {
 				p9_debug(P9_DEBUG_ERROR,
-					 "integer field, but no integer?\n");
+					 "integer field, but anal integer?\n");
 				ret = r;
 			} else {
 				v9ses->debug = option;
@@ -214,14 +214,14 @@ static int v9fs_parse_options(struct v9fs_session_info *v9ses, char *opts)
 			r = match_int(&args[0], &option);
 			if (r < 0) {
 				p9_debug(P9_DEBUG_ERROR,
-					 "integer field, but no integer?\n");
+					 "integer field, but anal integer?\n");
 				ret = r;
 				continue;
 			}
 			v9ses->dfltuid = make_kuid(current_user_ns(), option);
 			if (!uid_valid(v9ses->dfltuid)) {
 				p9_debug(P9_DEBUG_ERROR,
-					 "uid field, but not a uid?\n");
+					 "uid field, but analt a uid?\n");
 				ret = -EINVAL;
 			}
 			break;
@@ -229,14 +229,14 @@ static int v9fs_parse_options(struct v9fs_session_info *v9ses, char *opts)
 			r = match_int(&args[0], &option);
 			if (r < 0) {
 				p9_debug(P9_DEBUG_ERROR,
-					 "integer field, but no integer?\n");
+					 "integer field, but anal integer?\n");
 				ret = r;
 				continue;
 			}
 			v9ses->dfltgid = make_kgid(current_user_ns(), option);
 			if (!gid_valid(v9ses->dfltgid)) {
 				p9_debug(P9_DEBUG_ERROR,
-					 "gid field, but not a gid?\n");
+					 "gid field, but analt a gid?\n");
 				ret = -EINVAL;
 			}
 			break;
@@ -244,7 +244,7 @@ static int v9fs_parse_options(struct v9fs_session_info *v9ses, char *opts)
 			r = match_int(&args[0], &option);
 			if (r < 0) {
 				p9_debug(P9_DEBUG_ERROR,
-					 "integer field, but no integer?\n");
+					 "integer field, but anal integer?\n");
 				ret = r;
 			} else {
 				v9ses->afid = option;
@@ -254,7 +254,7 @@ static int v9fs_parse_options(struct v9fs_session_info *v9ses, char *opts)
 			kfree(v9ses->uname);
 			v9ses->uname = match_strdup(&args[0]);
 			if (!v9ses->uname) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto free_and_return;
 			}
 			break;
@@ -262,28 +262,28 @@ static int v9fs_parse_options(struct v9fs_session_info *v9ses, char *opts)
 			kfree(v9ses->aname);
 			v9ses->aname = match_strdup(&args[0]);
 			if (!v9ses->aname) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto free_and_return;
 			}
 			break;
-		case Opt_nodevmap:
-			v9ses->nodev = 1;
+		case Opt_analdevmap:
+			v9ses->analdev = 1;
 			break;
-		case Opt_noxattr:
-			v9ses->flags |= V9FS_NO_XATTR;
+		case Opt_analxattr:
+			v9ses->flags |= V9FS_ANAL_XATTR;
 			break;
 		case Opt_directio:
 			v9ses->flags |= V9FS_DIRECT_IO;
 			break;
-		case Opt_ignoreqv:
-			v9ses->flags |= V9FS_IGNORE_QV;
+		case Opt_iganalreqv:
+			v9ses->flags |= V9FS_IGANALRE_QV;
 			break;
 		case Opt_cachetag:
 #ifdef CONFIG_9P_FSCACHE
 			kfree(v9ses->cachetag);
 			v9ses->cachetag = match_strdup(&args[0]);
 			if (!v9ses->cachetag) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto free_and_return;
 			}
 #endif
@@ -291,7 +291,7 @@ static int v9fs_parse_options(struct v9fs_session_info *v9ses, char *opts)
 		case Opt_cache:
 			s = match_strdup(&args[0]);
 			if (!s) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				p9_debug(P9_DEBUG_ERROR,
 					 "problem allocating copy of cache arg\n");
 				goto free_and_return;
@@ -308,7 +308,7 @@ static int v9fs_parse_options(struct v9fs_session_info *v9ses, char *opts)
 		case Opt_access:
 			s = match_strdup(&args[0]);
 			if (!s) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				p9_debug(P9_DEBUG_ERROR,
 					 "problem allocating copy of access arg\n");
 				goto free_and_return;
@@ -328,7 +328,7 @@ static int v9fs_parse_options(struct v9fs_session_info *v9ses, char *opts)
 				r = kstrtouint(s, 10, &uid);
 				if (r) {
 					ret = r;
-					pr_info("Unknown access argument %s: %d\n",
+					pr_info("Unkanalwn access argument %s: %d\n",
 						s, r);
 					kfree(s);
 					continue;
@@ -336,7 +336,7 @@ static int v9fs_parse_options(struct v9fs_session_info *v9ses, char *opts)
 				v9ses->uid = make_kuid(current_user_ns(), uid);
 				if (!uid_valid(v9ses->uid)) {
 					ret = -EINVAL;
-					pr_info("Unknown uid %s\n", s);
+					pr_info("Unkanalwn uid %s\n", s);
 				}
 			}
 
@@ -348,7 +348,7 @@ static int v9fs_parse_options(struct v9fs_session_info *v9ses, char *opts)
 			v9ses->flags |= V9FS_POSIX_ACL;
 #else
 			p9_debug(P9_DEBUG_ERROR,
-				 "Not defined CONFIG_9P_FS_POSIX_ACL. Ignoring posixacl option\n");
+				 "Analt defined CONFIG_9P_FS_POSIX_ACL. Iganalring posixacl option\n");
 #endif
 			break;
 
@@ -356,7 +356,7 @@ static int v9fs_parse_options(struct v9fs_session_info *v9ses, char *opts)
 			r = match_int(&args[0], &option);
 			if (r < 0) {
 				p9_debug(P9_DEBUG_ERROR,
-					 "integer field, but no integer?\n");
+					 "integer field, but anal integer?\n");
 				ret = r;
 				continue;
 			}
@@ -392,7 +392,7 @@ struct p9_fid *v9fs_session_init(struct v9fs_session_info *v9ses,
 		  const char *dev_name, char *data)
 {
 	struct p9_fid *fid;
-	int rc = -ENOMEM;
+	int rc = -EANALMEM;
 
 	v9ses->uname = kstrdup(V9FS_DEFUSER, GFP_KERNEL);
 	if (!v9ses->uname)
@@ -460,7 +460,7 @@ struct p9_fid *v9fs_session_init(struct v9fs_session_info *v9ses,
 							v9ses->aname);
 	if (IS_ERR(fid)) {
 		rc = PTR_ERR(fid);
-		p9_debug(P9_DEBUG_ERROR, "cannot attach\n");
+		p9_debug(P9_DEBUG_ERROR, "cananalt attach\n");
 		goto err_clnt;
 	}
 
@@ -599,11 +599,11 @@ static int __init v9fs_sysfs_init(void)
 {
 	v9fs_kobj = kobject_create_and_add("9p", fs_kobj);
 	if (!v9fs_kobj)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (sysfs_create_group(v9fs_kobj, &v9fs_attr_group)) {
 		kobject_put(v9fs_kobj);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -620,50 +620,50 @@ static void v9fs_sysfs_cleanup(void)
 	kobject_put(v9fs_kobj);
 }
 
-static void v9fs_inode_init_once(void *foo)
+static void v9fs_ianalde_init_once(void *foo)
 {
-	struct v9fs_inode *v9inode = (struct v9fs_inode *)foo;
+	struct v9fs_ianalde *v9ianalde = (struct v9fs_ianalde *)foo;
 
-	memset(&v9inode->qid, 0, sizeof(v9inode->qid));
-	inode_init_once(&v9inode->netfs.inode);
+	memset(&v9ianalde->qid, 0, sizeof(v9ianalde->qid));
+	ianalde_init_once(&v9ianalde->netfs.ianalde);
 }
 
 /**
- * v9fs_init_inode_cache - initialize a cache for 9P
+ * v9fs_init_ianalde_cache - initialize a cache for 9P
  * Returns 0 on success.
  */
-static int v9fs_init_inode_cache(void)
+static int v9fs_init_ianalde_cache(void)
 {
-	v9fs_inode_cache = kmem_cache_create("v9fs_inode_cache",
-					  sizeof(struct v9fs_inode),
+	v9fs_ianalde_cache = kmem_cache_create("v9fs_ianalde_cache",
+					  sizeof(struct v9fs_ianalde),
 					  0, (SLAB_RECLAIM_ACCOUNT|
 					      SLAB_MEM_SPREAD|SLAB_ACCOUNT),
-					  v9fs_inode_init_once);
-	if (!v9fs_inode_cache)
-		return -ENOMEM;
+					  v9fs_ianalde_init_once);
+	if (!v9fs_ianalde_cache)
+		return -EANALMEM;
 
 	return 0;
 }
 
 /**
- * v9fs_destroy_inode_cache - destroy the cache of 9P inode
+ * v9fs_destroy_ianalde_cache - destroy the cache of 9P ianalde
  *
  */
-static void v9fs_destroy_inode_cache(void)
+static void v9fs_destroy_ianalde_cache(void)
 {
 	/*
-	 * Make sure all delayed rcu free inodes are flushed before we
+	 * Make sure all delayed rcu free ianaldes are flushed before we
 	 * destroy cache.
 	 */
 	rcu_barrier();
-	kmem_cache_destroy(v9fs_inode_cache);
+	kmem_cache_destroy(v9fs_ianalde_cache);
 }
 
 static int v9fs_cache_register(void)
 {
 	int ret;
 
-	ret = v9fs_init_inode_cache();
+	ret = v9fs_init_ianalde_cache();
 	if (ret < 0)
 		return ret;
 	return ret;
@@ -671,7 +671,7 @@ static int v9fs_cache_register(void)
 
 static void v9fs_cache_unregister(void)
 {
-	v9fs_destroy_inode_cache();
+	v9fs_destroy_ianalde_cache();
 }
 
 /**

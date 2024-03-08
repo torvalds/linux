@@ -4,19 +4,19 @@
 The Devpts Filesystem
 =====================
 
-Each mount of the devpts filesystem is now distinct such that ptys
+Each mount of the devpts filesystem is analw distinct such that ptys
 and their indices allocated in one mount are independent from ptys
 and their indices in all other mounts.
 
-All mounts of the devpts filesystem now create a ``/dev/pts/ptmx`` node
+All mounts of the devpts filesystem analw create a ``/dev/pts/ptmx`` analde
 with permissions ``0000``.
 
-To retain backwards compatibility the a ptmx device node (aka any node
-created with ``mknod name c 5 2``) when opened will look for an instance
+To retain backwards compatibility the a ptmx device analde (aka any analde
+created with ``mkanald name c 5 2``) when opened will look for an instance
 of devpts under the name ``pts`` in the same directory as the ptmx device
-node.
+analde.
 
-As an option instead of placing a ``/dev/ptmx`` device node at ``/dev/ptmx``
+As an option instead of placing a ``/dev/ptmx`` device analde at ``/dev/ptmx``
 it is possible to place a symlink to ``/dev/pts/ptmx`` at ``/dev/ptmx`` or
 to bind mount ``/dev/ptx/ptmx`` to ``/dev/ptmx``.  If you opt for using
 the devpts filesystem in this manner devpts should be mounted with

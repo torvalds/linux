@@ -17,8 +17,8 @@
 
 #define DEFAULT_HEARTBEAT	30
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0444);
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, 0444);
 
 static unsigned int heartbeat;
 module_param(heartbeat, uint, 0444);
@@ -108,7 +108,7 @@ static int ls1x_wdt_probe(struct platform_device *pdev)
 
 	drvdata = devm_kzalloc(dev, sizeof(*drvdata), GFP_KERNEL);
 	if (!drvdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drvdata->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(drvdata->base))
@@ -132,7 +132,7 @@ static int ls1x_wdt_probe(struct platform_device *pdev)
 	ls1x_wdt->parent = dev;
 
 	watchdog_init_timeout(ls1x_wdt, heartbeat, dev);
-	watchdog_set_nowayout(ls1x_wdt, nowayout);
+	watchdog_set_analwayout(ls1x_wdt, analwayout);
 	watchdog_set_drvdata(ls1x_wdt, drvdata);
 
 	err = devm_watchdog_register_device(dev, &drvdata->wdt);

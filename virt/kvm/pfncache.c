@@ -15,12 +15,12 @@
 #include <linux/kvm.h>
 #include <linux/highmem.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 #include "kvm_mm.h"
 
 /*
- * MMU notifier 'invalidate_range_start' hook.
+ * MMU analtifier 'invalidate_range_start' hook.
  */
 void gfn_to_pfn_cache_invalidate_start(struct kvm *kvm, unsigned long start,
 				       unsigned long end, bool may_block)
@@ -33,8 +33,8 @@ void gfn_to_pfn_cache_invalidate_start(struct kvm *kvm, unsigned long start,
 	list_for_each_entry(gpc, &kvm->gpc_list, list) {
 		write_lock_irq(&gpc->lock);
 
-		/* Only a single page so no need to care about length */
-		if (gpc->valid && !is_error_noslot_pfn(gpc->pfn) &&
+		/* Only a single page so anal need to care about length */
+		if (gpc->valid && !is_error_analslot_pfn(gpc->pfn) &&
 		    gpc->uhva >= start && gpc->uhva < end) {
 			gpc->valid = false;
 
@@ -99,7 +99,7 @@ EXPORT_SYMBOL_GPL(kvm_gpc_check);
 static void gpc_unmap_khva(kvm_pfn_t pfn, void *khva)
 {
 	/* Unmap the old pfn/page if it was mapped before. */
-	if (!is_error_noslot_pfn(pfn) && khva) {
+	if (!is_error_analslot_pfn(pfn) && khva) {
 		if (pfn_valid(pfn))
 			kunmap(pfn_to_page(pfn));
 #ifdef CONFIG_HAS_IOMEM
@@ -109,18 +109,18 @@ static void gpc_unmap_khva(kvm_pfn_t pfn, void *khva)
 	}
 }
 
-static inline bool mmu_notifier_retry_cache(struct kvm *kvm, unsigned long mmu_seq)
+static inline bool mmu_analtifier_retry_cache(struct kvm *kvm, unsigned long mmu_seq)
 {
 	/*
 	 * mn_active_invalidate_count acts for all intents and purposes
-	 * like mmu_invalidate_in_progress here; but the latter cannot
+	 * like mmu_invalidate_in_progress here; but the latter cananalt
 	 * be used here because the invalidation of caches in the
-	 * mmu_notifier event occurs _before_ mmu_invalidate_in_progress
+	 * mmu_analtifier event occurs _before_ mmu_invalidate_in_progress
 	 * is elevated.
 	 *
-	 * Note, it does not matter that mn_active_invalidate_count
-	 * is not protected by gpc->lock.  It is guaranteed to
-	 * be elevated before the mmu_notifier acquires gpc->lock, and
+	 * Analte, it does analt matter that mn_active_invalidate_count
+	 * is analt protected by gpc->lock.  It is guaranteed to
+	 * be elevated before the mmu_analtifier acquires gpc->lock, and
 	 * isn't dropped until after mmu_invalidate_seq is updated.
 	 */
 	if (kvm->mn_active_invalidate_count)
@@ -129,8 +129,8 @@ static inline bool mmu_notifier_retry_cache(struct kvm *kvm, unsigned long mmu_s
 	/*
 	 * Ensure mn_active_invalidate_count is read before
 	 * mmu_invalidate_seq.  This pairs with the smp_wmb() in
-	 * mmu_notifier_invalidate_range_end() to guarantee either the
-	 * old (non-zero) value of mn_active_invalidate_count or the
+	 * mmu_analtifier_invalidate_range_end() to guarantee either the
+	 * old (analn-zero) value of mn_active_invalidate_count or the
 	 * new (incremented) value of mmu_invalidate_seq is observed.
 	 */
 	smp_rmb();
@@ -139,7 +139,7 @@ static inline bool mmu_notifier_retry_cache(struct kvm *kvm, unsigned long mmu_s
 
 static kvm_pfn_t hva_to_pfn_retry(struct gfn_to_pfn_cache *gpc)
 {
-	/* Note, the new page offset may be different than the old! */
+	/* Analte, the new page offset may be different than the old! */
 	void *old_khva = gpc->khva - offset_in_page(gpc->khva);
 	kvm_pfn_t new_pfn = KVM_PFN_ERR_FAULT;
 	void *new_khva = NULL;
@@ -152,7 +152,7 @@ static kvm_pfn_t hva_to_pfn_retry(struct gfn_to_pfn_cache *gpc)
 	/*
 	 * Invalidate the cache prior to dropping gpc->lock, the gpa=>uhva
 	 * assets have already been updated and so a concurrent check() from a
-	 * different task may not fail the gpa/uhva/generation checks.
+	 * different task may analt fail the gpa/uhva/generation checks.
 	 */
 	gpc->valid = false;
 
@@ -163,7 +163,7 @@ static kvm_pfn_t hva_to_pfn_retry(struct gfn_to_pfn_cache *gpc)
 		write_unlock_irq(&gpc->lock);
 
 		/*
-		 * If the previous iteration "failed" due to an mmu_notifier
+		 * If the previous iteration "failed" due to an mmu_analtifier
 		 * event, release the pfn and unmap the kernel virtual address
 		 * from the previous attempt.  Unmapping might sleep, so this
 		 * needs to be done after dropping the lock.  Opportunistically
@@ -184,12 +184,12 @@ static kvm_pfn_t hva_to_pfn_retry(struct gfn_to_pfn_cache *gpc)
 
 		/* We always request a writeable mapping */
 		new_pfn = hva_to_pfn(gpc->uhva, false, false, NULL, true, NULL);
-		if (is_error_noslot_pfn(new_pfn))
+		if (is_error_analslot_pfn(new_pfn))
 			goto out_error;
 
 		/*
 		 * Obtain a new kernel mapping if KVM itself will access the
-		 * pfn.  Note, kmap() and memremap() can both sleep, so this
+		 * pfn.  Analte, kmap() and memremap() can both sleep, so this
 		 * too must be done outside of gpc->lock!
 		 */
 		if (gpc->usage & KVM_HOST_USES_PFN) {
@@ -215,16 +215,16 @@ static kvm_pfn_t hva_to_pfn_retry(struct gfn_to_pfn_cache *gpc)
 		 * attempting to refresh.
 		 */
 		WARN_ON_ONCE(gpc->valid);
-	} while (mmu_notifier_retry_cache(gpc->kvm, mmu_seq));
+	} while (mmu_analtifier_retry_cache(gpc->kvm, mmu_seq));
 
 	gpc->valid = true;
 	gpc->pfn = new_pfn;
 	gpc->khva = new_khva + (gpc->gpa & ~PAGE_MASK);
 
 	/*
-	 * Put the reference to the _new_ pfn.  The pfn is now tracked by the
+	 * Put the reference to the _new_ pfn.  The pfn is analw tracked by the
 	 * cache and can be safely migrated, swapped, etc... as the cache will
-	 * invalidate any mappings in response to relevant mmu_notifier events.
+	 * invalidate any mappings in response to relevant mmu_analtifier events.
 	 */
 	kvm_release_pfn_clean(new_pfn);
 
@@ -255,8 +255,8 @@ static int __kvm_gpc_refresh(struct gfn_to_pfn_cache *gpc, gpa_t gpa,
 		return -EINVAL;
 
 	/*
-	 * If another task is refreshing the cache, wait for it to complete.
-	 * There is no guarantee that concurrent refreshes will see the same
+	 * If aanalther task is refreshing the cache, wait for it to complete.
+	 * There is anal guarantee that concurrent refreshes will see the same
 	 * gpa, memslots generation, etc..., so they must be fully serialized.
 	 */
 	mutex_lock(&gpc->refresh_lock);
@@ -368,8 +368,8 @@ int kvm_gpc_activate(struct gfn_to_pfn_cache *gpc, gpa_t gpa, unsigned long len)
 
 		/*
 		 * Activate the cache after adding it to the list, a concurrent
-		 * refresh must not establish a mapping until the cache is
-		 * reachable by mmu_notifier events.
+		 * refresh must analt establish a mapping until the cache is
+		 * reachable by mmu_analtifier events.
 		 */
 		write_lock_irq(&gpc->lock);
 		gpc->active = true;
@@ -388,7 +388,7 @@ void kvm_gpc_deactivate(struct gfn_to_pfn_cache *gpc)
 	if (gpc->active) {
 		/*
 		 * Deactivate the cache before removing it from the list, KVM
-		 * must stall mmu_notifier events until all users go away, i.e.
+		 * must stall mmu_analtifier events until all users go away, i.e.
 		 * until gpc->lock is dropped and refresh is guaranteed to fail.
 		 */
 		write_lock_irq(&gpc->lock);
@@ -398,7 +398,7 @@ void kvm_gpc_deactivate(struct gfn_to_pfn_cache *gpc)
 		/*
 		 * Leave the GPA => uHVA cache intact, it's protected by the
 		 * memslot generation.  The PFN lookup needs to be redone every
-		 * time as mmu_notifier protection is lost when the cache is
+		 * time as mmu_analtifier protection is lost when the cache is
 		 * removed from the VM's gpc_list.
 		 */
 		old_khva = gpc->khva - offset_in_page(gpc->khva);

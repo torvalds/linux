@@ -13,23 +13,23 @@
  *
  * To avoid such starvation, dispatched bios are queued separately
  * according to where they came from.  When they are again dispatched to
- * the parent, they're popped in round-robin order so that no single source
+ * the parent, they're popped in round-robin order so that anal single source
  * hogs the dispatch window.
  *
- * throtl_qnode is used to keep the queued bios separated by their sources.
- * Bios are queued to throtl_qnode which in turn is queued to
+ * throtl_qanalde is used to keep the queued bios separated by their sources.
+ * Bios are queued to throtl_qanalde which in turn is queued to
  * throtl_service_queue and then dispatched in round-robin order.
  *
- * It's also used to track the reference counts on blkg's.  A qnode always
+ * It's also used to track the reference counts on blkg's.  A qanalde always
  * belongs to a throtl_grp and gets queued on itself or the parent, so
- * incrementing the reference of the associated throtl_grp when a qnode is
- * queued and decrementing when dequeued is enough to keep the whole blkg
+ * incrementing the reference of the associated throtl_grp when a qanalde is
+ * queued and decrementing when dequeued is eanalugh to keep the whole blkg
  * tree pinned while bios are in flight.
  */
-struct throtl_qnode {
-	struct list_head	node;		/* service_queue->queued[] */
+struct throtl_qanalde {
+	struct list_head	analde;		/* service_queue->queued[] */
 	struct bio_list		bios;		/* queued bios */
-	struct throtl_grp	*tg;		/* tg this qnode belongs to */
+	struct throtl_grp	*tg;		/* tg this qanalde belongs to */
 };
 
 struct throtl_service_queue {
@@ -39,7 +39,7 @@ struct throtl_service_queue {
 	 * Bios queued directly to this service_queue or dispatched from
 	 * children throtl_grp's.
 	 */
-	struct list_head	queued[2];	/* throtl_qnode [READ/WRITE] */
+	struct list_head	queued[2];	/* throtl_qanalde [READ/WRITE] */
 	unsigned int		nr_queued[2];	/* number of queued bios */
 
 	/*
@@ -54,7 +54,7 @@ struct throtl_service_queue {
 
 enum tg_state_flags {
 	THROTL_TG_PENDING	= 1 << 0,	/* on parent's pending tree */
-	THROTL_TG_WAS_EMPTY	= 1 << 1,	/* bio_lists[] became non-empty */
+	THROTL_TG_WAS_EMPTY	= 1 << 1,	/* bio_lists[] became analn-empty */
 	THROTL_TG_CANCELING	= 1 << 2,	/* starts to cancel bio */
 };
 
@@ -69,7 +69,7 @@ struct throtl_grp {
 	struct blkg_policy_data pd;
 
 	/* active throtl group service_queue member */
-	struct rb_node rb_node;
+	struct rb_analde rb_analde;
 
 	/* throtl_data this group belongs to */
 	struct throtl_data *td;
@@ -78,15 +78,15 @@ struct throtl_grp {
 	struct throtl_service_queue service_queue;
 
 	/*
-	 * qnode_on_self is used when bios are directly queued to this
+	 * qanalde_on_self is used when bios are directly queued to this
 	 * throtl_grp so that local bios compete fairly with bios
-	 * dispatched from children.  qnode_on_parent is used when bios are
+	 * dispatched from children.  qanalde_on_parent is used when bios are
 	 * dispatched from this throtl_grp into its parent and will compete
-	 * with the sibling qnode_on_parents and the parent's
-	 * qnode_on_self.
+	 * with the sibling qanalde_on_parents and the parent's
+	 * qanalde_on_self.
 	 */
-	struct throtl_qnode qnode_on_self[2];
-	struct throtl_qnode qnode_on_parent[2];
+	struct throtl_qanalde qanalde_on_self[2];
+	struct throtl_qanalde qanalde_on_parent[2];
 
 	/*
 	 * Dispatch time in jiffies. This is the estimated time when group

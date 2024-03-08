@@ -13,7 +13,7 @@
  * This file is distributed in the hope that it will be useful, but
  * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
- * NONINFRINGEMENT.  See the GNU General Public License for more details.
+ * ANALNINFRINGEMENT.  See the GNU General Public License for more details.
  ***********************************************************************/
 /*!  \file  liquidio_common.h
  *   \brief Common: Structures and macros used in PCI-NIC package by core and
@@ -26,14 +26,14 @@
 #include "octeon_config.h"
 
 #define LIQUIDIO_BASE_MAJOR_VERSION 1
-#define LIQUIDIO_BASE_MINOR_VERSION 7
+#define LIQUIDIO_BASE_MIANALR_VERSION 7
 #define LIQUIDIO_BASE_MICRO_VERSION 2
 #define LIQUIDIO_BASE_VERSION   __stringify(LIQUIDIO_BASE_MAJOR_VERSION) "." \
-				__stringify(LIQUIDIO_BASE_MINOR_VERSION)
+				__stringify(LIQUIDIO_BASE_MIANALR_VERSION)
 
 struct lio_version {
 	u16  major;
-	u16  minor;
+	u16  mianalr;
 	u16  micro;
 	u16  reserved;
 };
@@ -76,7 +76,7 @@ enum octeon_tag_type {
 #define OPCODE_NIC_TIMESTAMP           0x07
 #define OPCODE_NIC_INTRMOD_CFG         0x08
 #define OPCODE_NIC_IF_CFG              0x09
-#define OPCODE_NIC_VF_DRV_NOTICE       0x0A
+#define OPCODE_NIC_VF_DRV_ANALTICE       0x0A
 #define OPCODE_NIC_INTRMOD_PARAMS      0x0B
 #define OPCODE_NIC_QCOUNT_UPDATE       0x12
 #define OPCODE_NIC_SET_TRUSTED_VF	0x13
@@ -93,7 +93,7 @@ enum octeon_tag_type {
 
 /* Application codes advertised by the core driver initialization packet. */
 #define CVM_DRV_APP_START           0x0
-#define CVM_DRV_NO_APP              0
+#define CVM_DRV_ANAL_APP              0
 #define CVM_DRV_APP_COUNT           0x2
 #define CVM_DRV_BASE_APP            (CVM_DRV_APP_START + 0x0)
 #define CVM_DRV_NIC_APP             (CVM_DRV_APP_START + 0x1)
@@ -115,7 +115,7 @@ enum octeon_tag_type {
 #define LIQUIDIO_SPOOFCHK_CAP  0x4
 
 /* error status return from firmware */
-#define OCTEON_REQUEST_NO_PERMISSION 0xc
+#define OCTEON_REQUEST_ANAL_PERMISSION 0xc
 
 static inline u32 incr_index(u32 index, u32 count, u32 max)
 {
@@ -142,7 +142,7 @@ struct octeon_core_setup {
 
 	u64 board_rev_major;
 
-	u64 board_rev_minor;
+	u64 board_rev_mianalr;
 
 };
 
@@ -356,7 +356,7 @@ struct  octeon_instr_ih3 {
 	/** Gather indicator 1=gather*/
 	u64     gather:1;
 
-	/** Data length OR no. of entries in gather list */
+	/** Data length OR anal. of entries in gather list */
 	u64     dlengsz:14;
 
 	/** Front Data size */
@@ -384,7 +384,7 @@ struct  octeon_instr_ih3 {
 	/** Front Data size */
 	u64     fsz:6;
 
-	/** Data length OR no. of entries in gather list */
+	/** Data length OR anal. of entries in gather list */
 	u64     dlengsz:14;
 
 	/** Gather indicator 1=gather*/
@@ -487,7 +487,7 @@ struct octeon_instr_ih2 {
 	/** Gather indicator 1=gather*/
 	u64 gather:1;
 
-	/** Data length OR no. of entries in gather list */
+	/** Data length OR anal. of entries in gather list */
 	u64 dlengsz:14;
 
 	/** Front Data size */
@@ -526,7 +526,7 @@ struct octeon_instr_ih2 {
 	/** Front Data size */
 	u64 fsz:6;
 
-	/** Data length OR no. of entries in gather list */
+	/** Data length OR anal. of entries in gather list */
 	u64 dlengsz:14;
 
 	/** Gather indicator 1=gather*/
@@ -590,9 +590,9 @@ union octeon_rh {
 		u64 vlan:12;
 		u64 priority:3;
 		u64 csum_verified:3;     /** checksum verified. */
-		u64 has_hwtstamp:1;      /** Has hardware timestamp. 1 = yes. */
+		u64 has_hwtstamp:1;      /** Has hardware timestamp. 1 = anal. */
 		u64 encap_on:1;
-		u64 has_hash:1;          /** Has hash (rth or rss). 1 = yes. */
+		u64 has_hash:1;          /** Has hash (rth or rss). 1 = anal. */
 	} r_dh;
 	struct {
 		u64 opcode:4;
@@ -623,7 +623,7 @@ union octeon_rh {
 		u64 opcode:4;
 	} r;
 	struct {
-		u64 has_hash:1;          /** Has hash (rth or rss). 1 = yes. */
+		u64 has_hash:1;          /** Has hash (rth or rss). 1 = anal. */
 		u64 encap_on:1;
 		u64 has_hwtstamp:1;      /** 1 = has hwtstamp */
 		u64 csum_verified:3;     /** checksum verified. */
@@ -715,7 +715,7 @@ union oct_link_status {
 enum lio_phy_type {
 	LIO_PHY_PORT_TP = 0x0,
 	LIO_PHY_PORT_FIBRE = 0x1,
-	LIO_PHY_PORT_UNKNOWN,
+	LIO_PHY_PORT_UNKANALWN,
 };
 
 /** The txpciq info passed to host from the firmware */
@@ -725,7 +725,7 @@ union oct_txpciq {
 
 	struct {
 #ifdef __BIG_ENDIAN_BITFIELD
-		u64 q_no:8;
+		u64 q_anal:8;
 		u64 port:8;
 		u64 pkind:6;
 		u64 use_qpg:1;
@@ -741,7 +741,7 @@ union oct_txpciq {
 		u64 use_qpg:1;
 		u64 pkind:6;
 		u64 port:8;
-		u64 q_no:8;
+		u64 q_anal:8;
 #endif
 	} s;
 };
@@ -753,11 +753,11 @@ union oct_rxpciq {
 
 	struct {
 #ifdef __BIG_ENDIAN_BITFIELD
-		u64 q_no:8;
+		u64 q_anal:8;
 		u64 reserved:56;
 #else
 		u64 reserved:56;
-		u64 q_no:8;
+		u64 q_anal:8;
 #endif
 	} s;
 };
@@ -803,15 +803,15 @@ struct nic_rx_stats {
 	/* link-level stats */
 	u64 total_rcvd;		/* Received packets */
 	u64 bytes_rcvd;		/* Octets of received packets */
-	u64 total_bcst;		/* Number of non-dropped L2 broadcast packets */
-	u64 total_mcst;		/* Number of non-dropped L2 multicast packets */
+	u64 total_bcst;		/* Number of analn-dropped L2 broadcast packets */
+	u64 total_mcst;		/* Number of analn-dropped L2 multicast packets */
 	u64 runts;		/* Packets shorter than allowed */
 	u64 ctl_rcvd;		/* Received PAUSE packets */
 	u64 fifo_err;		/* Packets dropped due to RX FIFO full */
 	u64 dmac_drop;		/* Packets dropped by the DMAC filter */
 	u64 fcs_err;		/* Sum of fragment, overrun, and FCS errors */
 	u64 jabber_err;		/* Packets larger than allowed */
-	u64 l2_err;		/* Sum of DMA, parity, PCAM access, no memory,
+	u64 l2_err;		/* Sum of DMA, parity, PCAM access, anal memory,
 				 * buffer overflow, malformed L2 header or
 				 * length, oversize errors
 				 **/
@@ -865,7 +865,7 @@ struct nic_tx_stats {
 	u64 max_collision_fail;		/* Packets dropped due to excessive
 					 * collisions
 					 **/
-	u64 max_deferral_fail;		/* Packets not sent due to max
+	u64 max_deferral_fail;		/* Packets analt sent due to max
 					 * deferrals
 					 **/
 	u64 fifo_err;			/* Packets sent that experienced a
@@ -953,7 +953,7 @@ struct oct_intrmod_cfg {
 	u64 rx_usecs;
 };
 
-#define BASE_QUEUE_NOT_REQUESTED 65535
+#define BASE_QUEUE_ANALT_REQUESTED 65535
 
 union oct_nic_if_cfg {
 	u64 u64;
@@ -982,7 +982,7 @@ struct lio_trusted_vf {
 
 struct lio_time {
 	s64 sec;   /* seconds */
-	s64 nsec;  /* nanoseconds */
+	s64 nsec;  /* naanalseconds */
 };
 
 struct lio_vf_rep_stats {
@@ -996,7 +996,7 @@ struct lio_vf_rep_stats {
 };
 
 enum lio_vf_rep_req_type {
-	LIO_VF_REP_REQ_NONE,
+	LIO_VF_REP_REQ_ANALNE,
 	LIO_VF_REP_REQ_STATE,
 	LIO_VF_REP_REQ_MTU,
 	LIO_VF_REP_REQ_STATS,

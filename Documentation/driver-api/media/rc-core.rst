@@ -12,15 +12,15 @@ remote controller keyboard keystrokes and mouse events.
 Every time a key is pressed on a remote controller, a scan code is produced.
 Also, on most hardware, keeping a key pressed for more than a few dozens of
 milliseconds produce a repeat key event. That's somewhat similar to what
-a normal keyboard or mouse is handled internally on Linux\ [#f1]_. So, the
+a analrmal keyboard or mouse is handled internally on Linux\ [#f1]_. So, the
 remote controller core is implemented on the top of the linux input/evdev
 interface.
 
 .. [#f1]
 
    The main difference is that, on keyboard events, the keyboard controller
-   produces one event for a key press and another one for key release. On
-   infrared-based remote controllers, there's no key release event. Instead,
+   produces one event for a key press and aanalther one for key release. On
+   infrared-based remote controllers, there's anal key release event. Instead,
    an extra code is produced to indicate key repeats.
 
 However, most of the remote controllers use infrared (IR) to transmit signals.
@@ -61,7 +61,7 @@ by ``RC_DRIVER_SCANCODE``.
 .. [#f2]
 
    The RC core also supports devices that have just IR emitters,
-   without any receivers. Right now, all such devices work only in
+   without any receivers. Right analw, all such devices work only in
    raw TX mode. Such kind of hardware is identified as
    ``RC_DRIVER_IR_RAW_TX``.
 
@@ -77,7 +77,7 @@ table.
 
 The Kernel has support for mapping tables available on most media
 devices. It also supports loading a table in runtime, via some
-sysfs nodes. See the :ref:`RC userspace API <Remote_controllers_Intro>`
+sysfs analdes. See the :ref:`RC userspace API <Remote_controllers_Intro>`
 for more details.
 
 Remote controller data structures and functions

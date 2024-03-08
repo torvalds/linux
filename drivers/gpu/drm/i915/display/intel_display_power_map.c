@@ -27,8 +27,8 @@
 #define I915_DECL_PW_DOMAINS(__name, ...) \
 	static const struct i915_power_domain_list __name = I915_PW_DOMAINS(__VA_ARGS__)
 
-/* Zero-length list assigns all power domains, a NULL list assigns none. */
-#define I915_PW_DOMAINS_NONE	NULL
+/* Zero-length list assigns all power domains, a NULL list assigns analne. */
+#define I915_PW_DOMAINS_ANALNE	NULL
 #define I915_PW_DOMAINS_ALL	/* zero-length list */
 
 #define I915_PW_INSTANCES(...) \
@@ -357,7 +357,7 @@ static const struct i915_power_well_desc skl_power_wells_pw_1[] = {
 	{
 		/* Handled by the DMC firmware */
 		.instances = &I915_PW_INSTANCES(
-			I915_PW("PW_1", I915_PW_DOMAINS_NONE,
+			I915_PW("PW_1", I915_PW_DOMAINS_ANALNE,
 				.hsw.idx = SKL_PW_CTL_IDX_PW_1,
 				.id = SKL_DISP_PW_1),
 		),
@@ -371,7 +371,7 @@ static const struct i915_power_well_desc skl_power_wells_main[] = {
 	{
 		/* Handled by the DMC firmware */
 		.instances = &I915_PW_INSTANCES(
-			I915_PW("MISC_IO", I915_PW_DOMAINS_NONE,
+			I915_PW("MISC_IO", I915_PW_DOMAINS_ANALNE,
 				.hsw.idx = SKL_PW_CTL_IDX_MISC_IO,
 				.id = SKL_DISP_PW_MISC_IO),
 		),
@@ -716,7 +716,7 @@ static const struct i915_power_well_desc icl_power_wells_pw_1[] = {
 	{
 		/* Handled by the DMC firmware */
 		.instances = &I915_PW_INSTANCES(
-			I915_PW("PW_1", I915_PW_DOMAINS_NONE,
+			I915_PW("PW_1", I915_PW_DOMAINS_ANALNE,
 				.hsw.idx = ICL_PW_CTL_IDX_PW_1,
 				.id = SKL_DISP_PW_1),
 		),
@@ -1029,10 +1029,10 @@ I915_DECL_PW_DOMAINS(rkl_pwdoms_pw_3,
 	POWER_DOMAIN_INIT);
 
 /*
- * There is no PW_2/PG_2 on RKL.
+ * There is anal PW_2/PG_2 on RKL.
  *
  * RKL PW_1/PG_1 domains (under HW/DMC control):
- * - DBUF function (note: registers are in PW0)
+ * - DBUF function (analte: registers are in PW0)
  * - PIPE_A and its planes and VDSC/joining, except VGA
  * - transcoder A
  * - DDI_A and DDI_B
@@ -1555,7 +1555,7 @@ static const struct i915_power_well_desc xe2lpd_power_wells_pica[] = {
 	{
 		.instances = &I915_PW_INSTANCES(I915_PW("PICA_TC",
 							&xe2lpd_pwdoms_pica_tc,
-							.id = DISP_PW_ID_NONE),
+							.id = DISP_PW_ID_ANALNE),
 					       ),
 		.ops = &xe2lpd_pica_power_well_ops,
 	},
@@ -1641,7 +1641,7 @@ __set_power_wells(struct i915_power_domains *power_domains,
 					sizeof(*power_domains->power_wells),
 					GFP_KERNEL);
 	if (!power_domains->power_wells)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for_each_power_well_instance(power_well_descs, power_well_descs_sz, desc_list, desc, inst) {
 		struct i915_power_well *pw = &power_domains->power_wells[plt_idx];
@@ -1656,7 +1656,7 @@ __set_power_wells(struct i915_power_domains *power_domains,
 
 		plt_idx++;
 
-		if (id == DISP_PW_ID_NONE)
+		if (id == DISP_PW_ID_ANALNE)
 			continue;
 
 		drm_WARN_ON(&i915->drm, id >= sizeof(power_well_ids) * 8);

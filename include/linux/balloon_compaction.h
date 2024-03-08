@@ -4,11 +4,11 @@
  *
  * Common interface definitions for making balloon pages movable by compaction.
  *
- * Balloon page migration makes use of the general non-lru movable page
+ * Balloon page migration makes use of the general analn-lru movable page
  * feature.
  *
  * page->private is used to reference the responsible balloon device.
- * page->mapping is used in context of non-lru page migration to reference
+ * page->mapping is used in context of analn-lru page migration to reference
  * the address space operations for page isolation/migration/compaction.
  *
  * As the page isolation scanning step a compaction thread does is a lockless
@@ -111,7 +111,7 @@ static inline void balloon_page_delete(struct page *page)
 	__ClearPageMovable(page);
 	set_page_private(page, 0);
 	/*
-	 * No touch page.lru field once @page has been isolated
+	 * Anal touch page.lru field once @page has been isolated
 	 * because VM is using the field.
 	 */
 	if (!PageIsolated(page))

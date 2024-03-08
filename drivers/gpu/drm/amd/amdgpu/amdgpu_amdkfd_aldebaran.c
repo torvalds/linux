@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -31,9 +31,9 @@
 /*
  * Returns TRAP_EN, EXCP_EN and EXCP_REPLACE.
  *
- * restore_dbg_registers is ignored here but is a general interface requirement
+ * restore_dbg_registers is iganalred here but is a general interface requirement
  * for devices that support GFXOFF and where the RLC save/restore list
- * does not support hw registers for debugging i.e. the driver has to manually
+ * does analt support hw registers for debugging i.e. the driver has to manually
  * initialize the debug mode registers after it has disabled GFX off during the
  * debug session.
  */
@@ -69,7 +69,7 @@ static int kgd_aldebaran_validate_trap_override_request(struct amdgpu_device *ad
 							uint32_t *trap_mask_supported)
 {
 	*trap_mask_supported &= KFD_DBG_TRAP_MASK_FP_INVALID |
-				KFD_DBG_TRAP_MASK_FP_INPUT_DENORMAL |
+				KFD_DBG_TRAP_MASK_FP_INPUT_DEANALRMAL |
 				KFD_DBG_TRAP_MASK_FP_DIVIDE_BY_ZERO |
 				KFD_DBG_TRAP_MASK_FP_OVERFLOW |
 				KFD_DBG_TRAP_MASK_FP_UNDERFLOW |

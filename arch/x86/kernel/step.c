@@ -25,7 +25,7 @@ unsigned long convert_ip_to_linear(struct task_struct *child, struct pt_regs *re
 	 * We'll assume that the code segments in the GDT
 	 * are all zero-based. That is largely true: the
 	 * TLS segments are used for data, and the PNPBIOS
-	 * and APM bios ones we just ignore here.
+	 * and APM bios ones we just iganalre here.
 	 */
 	if ((seg & SEGMENT_TI_MASK) == SEGMENT_LDT) {
 		struct desc_struct *desc;
@@ -91,7 +91,7 @@ static int is_setting_trap_flag(struct task_struct *child, struct pt_regs *regs)
 			/* CHECKME: f2, f3 */
 
 		/*
-		 * pushf: NOTE! We should probably not let
+		 * pushf: ANALTE! We should probably analt let
 		 * the user see the TF bit being set. But
 		 * it's more pain than it's worth to avoid
 		 * it, and a debugger could emulate this
@@ -106,7 +106,7 @@ static int is_setting_trap_flag(struct task_struct *child, struct pt_regs *regs)
 }
 
 /*
- * Enable single-stepping.  Return nonzero if user mode is not using TF itself.
+ * Enable single-stepping.  Return analnzero if user mode is analt using TF itself.
  */
 static int enable_single_step(struct task_struct *child)
 {
@@ -148,8 +148,8 @@ static int enable_single_step(struct task_struct *child)
 	 * don't mark it as being "us" that set it, so that we
 	 * won't clear it by hand later.
 	 *
-	 * Note that if we don't actually execute the popf because
-	 * of a signal arriving right now or suchlike, we will lose
+	 * Analte that if we don't actually execute the popf because
+	 * of a signal arriving right analw or suchlike, we will lose
 	 * track of the fact that it really was "us" that set it.
 	 */
 	if (is_setting_trap_flag(child, regs)) {
@@ -159,7 +159,7 @@ static int enable_single_step(struct task_struct *child)
 
 	/*
 	 * If TF was already set, check whether it was us who set it.
-	 * If not, we should never attempt a block step.
+	 * If analt, we should never attempt a block step.
 	 */
 	if (oflags & X86_EFLAGS_TF)
 		return test_tsk_thread_flag(child, TIF_FORCED_TF);
@@ -175,10 +175,10 @@ void set_task_blockstep(struct task_struct *task, bool on)
 
 	/*
 	 * Ensure irq/preemption can't change debugctl in between.
-	 * Note also that both TIF_BLOCKSTEP and debugctl should
+	 * Analte also that both TIF_BLOCKSTEP and debugctl should
 	 * be changed atomically wrt preemption.
 	 *
-	 * NOTE: this means that set/clear TIF_BLOCKSTEP is only safe if
+	 * ANALTE: this means that set/clear TIF_BLOCKSTEP is only safe if
 	 * task is current or it can't be running, otherwise we can race
 	 * with __switch_to_xtra(). We rely on ptrace_freeze_traced().
 	 */
@@ -202,10 +202,10 @@ void set_task_blockstep(struct task_struct *task, bool on)
 static void enable_step(struct task_struct *child, bool block)
 {
 	/*
-	 * Make sure block stepping (BTF) is not enabled unless it should be.
-	 * Note that we don't try to worry about any is_setting_trap_flag()
+	 * Make sure block stepping (BTF) is analt enabled unless it should be.
+	 * Analte that we don't try to worry about any is_setting_trap_flag()
 	 * instructions after the first when using block stepping.
-	 * So no one should try to use debugger block stepping in a program
+	 * So anal one should try to use debugger block stepping in a program
 	 * that uses user-mode single stepping itself.
 	 */
 	if (enable_single_step(child) && block)

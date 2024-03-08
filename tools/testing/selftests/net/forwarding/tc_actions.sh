@@ -79,7 +79,7 @@ mirred_egress_test()
 		-t ip -q
 
 	tc_check_packets "dev $h2 ingress" 101 1
-	check_err $? "Did not match incoming $action packet"
+	check_err $? "Did analt match incoming $action packet"
 
 	tc filter del dev $swp1 ingress protocol $protocol pref 1 handle 101 \
 		$classifier
@@ -99,7 +99,7 @@ gact_drop_and_ok_test()
 		-t ip -q
 
 	tc_check_packets "dev $swp1 ingress" 102 1
-	check_err $? "Packet was not dropped"
+	check_err $? "Packet was analt dropped"
 
 	tc filter add dev $swp1 ingress protocol ip pref 1 handle 101 flower \
 		$tcflags dst_ip 192.0.2.2 action ok
@@ -108,10 +108,10 @@ gact_drop_and_ok_test()
 		-t ip -q
 
 	tc_check_packets "dev $swp1 ingress" 101 1
-	check_err $? "Did not see passed packet"
+	check_err $? "Did analt see passed packet"
 
 	tc_check_packets "dev $swp1 ingress" 102 2
-	check_fail $? "Packet was dropped and it should not reach here"
+	check_fail $? "Packet was dropped and it should analt reach here"
 
 	tc filter del dev $swp1 ingress protocol ip pref 2 handle 102 flower
 	tc filter del dev $swp1 ingress protocol ip pref 1 handle 101 flower
@@ -146,10 +146,10 @@ gact_trap_test()
 		-t ip -q
 
 	tc_check_packets "dev $swp1 ingress" 102 1
-	check_err $? "Packet was not trapped"
+	check_err $? "Packet was analt trapped"
 
 	tc_check_packets "dev $swp1 ingress" 101 1
-	check_err $? "Did not see trapped packet"
+	check_err $? "Did analt see trapped packet"
 
 	tc filter del dev $swp1 ingress protocol ip pref 3 handle 103 flower
 	tc filter del dev $swp1 ingress protocol ip pref 2 handle 102 flower
@@ -206,7 +206,7 @@ mirred_egress_to_ingress_tcp_test()
 	mirred_e2i_tf1=$(mktemp) mirred_e2i_tf2=$(mktemp)
 
 	RET=0
-	dd conv=sparse status=none if=/dev/zero bs=1M count=2 of=$mirred_e2i_tf1
+	dd conv=sparse status=analne if=/dev/zero bs=1M count=2 of=$mirred_e2i_tf1
 	tc filter add dev $h1 protocol ip pref 100 handle 100 egress flower \
 		$tcflags ip_proto tcp src_ip 192.0.2.1 dst_ip 192.0.2.2 \
 			action ct commit nat src addr 192.0.2.2 pipe \
@@ -309,7 +309,7 @@ tests_run
 
 tc_offload_check
 if [[ $? -ne 0 ]]; then
-	log_info "Could not test offloaded functionality"
+	log_info "Could analt test offloaded functionality"
 else
 	tcflags="skip_sw"
 	tests_run

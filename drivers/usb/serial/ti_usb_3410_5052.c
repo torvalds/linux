@@ -14,7 +14,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/firmware.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
@@ -43,16 +43,16 @@
 #define IBM_454B_PRODUCT_ID		0x454b
 #define IBM_454C_PRODUCT_ID		0x454c
 #define TI_3410_EZ430_ID		0xF430  /* TI ez430 development tool */
-#define TI_5052_BOOT_PRODUCT_ID		0x5052	/* no EEPROM, no firmware */
-#define TI_5152_BOOT_PRODUCT_ID		0x5152	/* no EEPROM, no firmware */
-#define TI_5052_EEPROM_PRODUCT_ID	0x505A	/* EEPROM, no firmware */
+#define TI_5052_BOOT_PRODUCT_ID		0x5052	/* anal EEPROM, anal firmware */
+#define TI_5152_BOOT_PRODUCT_ID		0x5152	/* anal EEPROM, anal firmware */
+#define TI_5052_EEPROM_PRODUCT_ID	0x505A	/* EEPROM, anal firmware */
 #define TI_5052_FIRMWARE_PRODUCT_ID	0x505F	/* firmware is running */
 #define FRI2_PRODUCT_ID			0x5053  /* Fish River Island II */
 
 /* Multi-Tech vendor and product ids */
 #define MTS_VENDOR_ID			0x06E0
-#define MTS_GSM_NO_FW_PRODUCT_ID	0xF108
-#define MTS_CDMA_NO_FW_PRODUCT_ID	0xF109
+#define MTS_GSM_ANAL_FW_PRODUCT_ID	0xF108
+#define MTS_CDMA_ANAL_FW_PRODUCT_ID	0xF109
 #define MTS_CDMA_PRODUCT_ID		0xF110
 #define MTS_GSM_PRODUCT_ID		0xF111
 #define MTS_EDGE_PRODUCT_ID		0xF112
@@ -147,7 +147,7 @@
 #define TI_UART_ENABLE_AUTO_START_DMA	0x4000
 
 /* Parity */
-#define TI_UART_NO_PARITY		0x00
+#define TI_UART_ANAL_PARITY		0x00
 #define TI_UART_ODD_PARITY		0x01
 #define TI_UART_EVEN_PARITY		0x02
 #define TI_UART_MARK_PARITY		0x03
@@ -352,8 +352,8 @@ static int ti_download_firmware(struct ti_device *tdev);
 static const struct usb_device_id ti_id_table_3410[] = {
 	{ USB_DEVICE(TI_VENDOR_ID, TI_3410_PRODUCT_ID) },
 	{ USB_DEVICE(TI_VENDOR_ID, TI_3410_EZ430_ID) },
-	{ USB_DEVICE(MTS_VENDOR_ID, MTS_GSM_NO_FW_PRODUCT_ID) },
-	{ USB_DEVICE(MTS_VENDOR_ID, MTS_CDMA_NO_FW_PRODUCT_ID) },
+	{ USB_DEVICE(MTS_VENDOR_ID, MTS_GSM_ANAL_FW_PRODUCT_ID) },
+	{ USB_DEVICE(MTS_VENDOR_ID, MTS_CDMA_ANAL_FW_PRODUCT_ID) },
 	{ USB_DEVICE(MTS_VENDOR_ID, MTS_CDMA_PRODUCT_ID) },
 	{ USB_DEVICE(MTS_VENDOR_ID, MTS_GSM_PRODUCT_ID) },
 	{ USB_DEVICE(MTS_VENDOR_ID, MTS_EDGE_PRODUCT_ID) },
@@ -387,8 +387,8 @@ static const struct usb_device_id ti_id_table_5052[] = {
 static const struct usb_device_id ti_id_table_combined[] = {
 	{ USB_DEVICE(TI_VENDOR_ID, TI_3410_PRODUCT_ID) },
 	{ USB_DEVICE(TI_VENDOR_ID, TI_3410_EZ430_ID) },
-	{ USB_DEVICE(MTS_VENDOR_ID, MTS_GSM_NO_FW_PRODUCT_ID) },
-	{ USB_DEVICE(MTS_VENDOR_ID, MTS_CDMA_NO_FW_PRODUCT_ID) },
+	{ USB_DEVICE(MTS_VENDOR_ID, MTS_GSM_ANAL_FW_PRODUCT_ID) },
+	{ USB_DEVICE(MTS_VENDOR_ID, MTS_CDMA_ANAL_FW_PRODUCT_ID) },
 	{ USB_DEVICE(MTS_VENDOR_ID, MTS_CDMA_PRODUCT_ID) },
 	{ USB_DEVICE(MTS_VENDOR_ID, MTS_GSM_PRODUCT_ID) },
 	{ USB_DEVICE(MTS_VENDOR_ID, MTS_EDGE_PRODUCT_ID) },
@@ -523,7 +523,7 @@ static int ti_startup(struct usb_serial *serial)
 
 	tdev = kzalloc(sizeof(struct ti_device), GFP_KERNEL);
 	if (!tdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&tdev->td_open_close_lock);
 	tdev->td_serial = serial;
@@ -562,21 +562,21 @@ static int ti_startup(struct usb_serial *serial)
 			usb_reset_device(dev);
 		}
 
-		status = -ENODEV;
+		status = -EANALDEV;
 		goto free_tdev;
 	}
 
 	/* the second configuration must be set */
 	if (dev->actconfig->desc.bConfigurationValue == TI_BOOT_CONFIG) {
 		status = usb_driver_set_configuration(dev, TI_ACTIVE_CONFIG);
-		status = status ? status : -ENODEV;
+		status = status ? status : -EANALDEV;
 		goto free_tdev;
 	}
 
 	if (serial->num_bulk_in < serial->num_ports ||
 			serial->num_bulk_out < serial->num_ports) {
 		dev_err(&serial->interface->dev, "missing endpoints\n");
-		status = -ENODEV;
+		status = -EANALDEV;
 		goto free_tdev;
 	}
 
@@ -602,7 +602,7 @@ static int ti_port_probe(struct usb_serial_port *port)
 
 	tport = kzalloc(sizeof(*tport), GFP_KERNEL);
 	if (!tport)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&tport->tp_lock);
 	if (port == port->serial->port[0])
@@ -620,7 +620,7 @@ static int ti_port_probe(struct usb_serial_port *port)
 	usb_set_serial_port_data(port, tport);
 
 	/*
-	 * The TUSB5052 LSR does not tell when the transmitter shift register
+	 * The TUSB5052 LSR does analt tell when the transmitter shift register
 	 * has emptied so add a one-character drain delay.
 	 */
 	if (!tport->tp_tdev->td_is_3410)
@@ -665,7 +665,7 @@ static int ti_open(struct tty_struct *tty, struct usb_serial_port *port)
 		dev_dbg(&port->dev, "%s - start interrupt in urb\n", __func__);
 		urb = tdev->td_serial->port[0]->interrupt_in_urb;
 		if (!urb) {
-			dev_err(&port->dev, "%s - no interrupt urb\n", __func__);
+			dev_err(&port->dev, "%s - anal interrupt urb\n", __func__);
 			status = -EINVAL;
 			goto release_lock;
 		}
@@ -682,27 +682,27 @@ static int ti_open(struct tty_struct *tty, struct usb_serial_port *port)
 
 	status = ti_port_cmd_out(port, TI_OPEN_PORT, open_settings, NULL, 0);
 	if (status) {
-		dev_err(&port->dev, "%s - cannot send open command, %d\n",
+		dev_err(&port->dev, "%s - cananalt send open command, %d\n",
 			__func__, status);
 		goto unlink_int_urb;
 	}
 
 	status = ti_port_cmd_out(port, TI_START_PORT, 0, NULL, 0);
 	if (status) {
-		dev_err(&port->dev, "%s - cannot send start command, %d\n",
+		dev_err(&port->dev, "%s - cananalt send start command, %d\n",
 							__func__, status);
 		goto unlink_int_urb;
 	}
 
 	status = ti_port_cmd_out(port, TI_PURGE_PORT, TI_PURGE_INPUT, NULL, 0);
 	if (status) {
-		dev_err(&port->dev, "%s - cannot clear input buffers, %d\n",
+		dev_err(&port->dev, "%s - cananalt clear input buffers, %d\n",
 							__func__, status);
 		goto unlink_int_urb;
 	}
 	status = ti_port_cmd_out(port, TI_PURGE_PORT, TI_PURGE_OUTPUT, NULL, 0);
 	if (status) {
-		dev_err(&port->dev, "%s - cannot clear output buffers, %d\n",
+		dev_err(&port->dev, "%s - cananalt clear output buffers, %d\n",
 							__func__, status);
 		goto unlink_int_urb;
 	}
@@ -717,14 +717,14 @@ static int ti_open(struct tty_struct *tty, struct usb_serial_port *port)
 
 	status = ti_port_cmd_out(port, TI_OPEN_PORT, open_settings, NULL, 0);
 	if (status) {
-		dev_err(&port->dev, "%s - cannot send open command (2), %d\n",
+		dev_err(&port->dev, "%s - cananalt send open command (2), %d\n",
 							__func__, status);
 		goto unlink_int_urb;
 	}
 
 	status = ti_port_cmd_out(port, TI_START_PORT, 0, NULL, 0);
 	if (status) {
-		dev_err(&port->dev, "%s - cannot send start command (2), %d\n",
+		dev_err(&port->dev, "%s - cananalt send start command (2), %d\n",
 							__func__, status);
 		goto unlink_int_urb;
 	}
@@ -732,7 +732,7 @@ static int ti_open(struct tty_struct *tty, struct usb_serial_port *port)
 	/* start read urb */
 	urb = port->read_urb;
 	if (!urb) {
-		dev_err(&port->dev, "%s - no read urb\n", __func__);
+		dev_err(&port->dev, "%s - anal read urb\n", __func__);
 		status = -EINVAL;
 		goto unlink_int_urb;
 	}
@@ -781,7 +781,7 @@ static void ti_close(struct usb_serial_port *port)
 	status = ti_port_cmd_out(port, TI_CLOSE_PORT, 0, NULL, 0);
 	if (status)
 		dev_err(&port->dev,
-			"%s - cannot send close port command, %d\n"
+			"%s - cananalt send close port command, %d\n"
 							, __func__, status);
 
 	mutex_lock(&tdev->td_open_close_lock);
@@ -804,7 +804,7 @@ static int ti_write(struct tty_struct *tty, struct usb_serial_port *port,
 	}
 
 	if (!tport->tp_is_open)
-		return -ENODEV;
+		return -EANALDEV;
 
 	count = kfifo_in_locked(&port->write_fifo, data, count,
 							&tport->tp_lock);
@@ -852,7 +852,7 @@ static bool ti_tx_empty(struct usb_serial_port *port)
 	int ret;
 
 	/*
-	 * TUSB5052 does not have the TEMT bit to tell if the shift register
+	 * TUSB5052 does analt have the TEMT bit to tell if the shift register
 	 * is empty.
 	 */
 	if (tport->tp_tdev->td_is_3410)
@@ -887,7 +887,7 @@ static void ti_unthrottle(struct tty_struct *tty)
 	if (I_IXOFF(tty) || C_CRTSCTS(tty)) {
 		status = ti_restart_read(tport, tty);
 		if (status)
-			dev_err(&port->dev, "%s - cannot restart read, %d\n",
+			dev_err(&port->dev, "%s - cananalt restart read, %d\n",
 							__func__, status);
 	}
 }
@@ -942,7 +942,7 @@ static void ti_set_termios(struct tty_struct *tty,
 		}
 	} else {
 		wflags &= ~TI_UART_ENABLE_PARITY_CHECKING;
-		config->bParity = TI_UART_NO_PARITY;
+		config->bParity = TI_UART_ANAL_PARITY;
 	}
 
 	if (C_CSTOPB(tty))
@@ -996,7 +996,7 @@ static void ti_set_termios(struct tty_struct *tty,
 	status = ti_port_cmd_out(port, TI_SET_CONFIG, 0, config,
 			sizeof(*config));
 	if (status)
-		dev_err(&port->dev, "%s - cannot set config on port %d, %d\n",
+		dev_err(&port->dev, "%s - cananalt set config on port %d, %d\n",
 				__func__, port->port_number, status);
 
 	/* SET_CONFIG asserts RTS and DTR, reset them correctly */
@@ -1006,7 +1006,7 @@ static void ti_set_termios(struct tty_struct *tty,
 		mcr &= ~(TI_MCR_DTR | TI_MCR_RTS);
 	status = ti_set_mcr(tport, mcr);
 	if (status)
-		dev_err(&port->dev, "%s - cannot set modem control on port %d, %d\n",
+		dev_err(&port->dev, "%s - cananalt set modem control on port %d, %d\n",
 				__func__, port->port_number, status);
 
 	kfree(config);
@@ -1120,12 +1120,12 @@ static void ti_interrupt_callback(struct urb *urb)
 	case 0:
 		break;
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		dev_dbg(dev, "%s - urb shutting down, %d\n", __func__, status);
 		return;
 	default:
-		dev_err(dev, "%s - nonzero urb status, %d\n", __func__, status);
+		dev_err(dev, "%s - analnzero urb status, %d\n", __func__, status);
 		goto exit;
 	}
 
@@ -1170,7 +1170,7 @@ static void ti_interrupt_callback(struct urb *urb)
 		break;
 
 	default:
-		dev_err(dev, "%s - unknown interrupt code, 0x%02X\n",
+		dev_err(dev, "%s - unkanalwn interrupt code, 0x%02X\n",
 							__func__, data[1]);
 		break;
 	}
@@ -1196,12 +1196,12 @@ static void ti_bulk_in_callback(struct urb *urb)
 	case 0:
 		break;
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		dev_dbg(dev, "%s - urb shutting down, %d\n", __func__, status);
 		return;
 	default:
-		dev_err(dev, "%s - nonzero urb status, %d\n",
+		dev_err(dev, "%s - analnzero urb status, %d\n",
 			__func__, status);
 	}
 
@@ -1254,12 +1254,12 @@ static void ti_bulk_out_callback(struct urb *urb)
 	case 0:
 		break;
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		dev_dbg(&port->dev, "%s - urb shutting down, %d\n", __func__, status);
 		return;
 	default:
-		dev_err_console(port, "%s - nonzero urb status, %d\n",
+		dev_err_console(port, "%s - analnzero urb status, %d\n",
 			__func__, status);
 	}
 
@@ -1368,7 +1368,7 @@ static int ti_get_lsr(struct ti_port *tport, u8 *lsr)
 	size = sizeof(struct ti_port_status);
 	data = kmalloc(size, GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	status = ti_port_cmd_in(port, TI_GET_PORT_STATUS, 0, data, size);
 	if (status) {
@@ -1527,7 +1527,7 @@ static int ti_write_byte(struct usb_serial_port *port,
 	size = sizeof(struct ti_write_data_bytes) + 2;
 	data = kmalloc(size, GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->bAddrType = TI_RW_DATA_ADDR_XDATA;
 	data->bDataType = TI_RW_DATA_BYTE;
@@ -1636,13 +1636,13 @@ static int ti_download_firmware(struct ti_device *tdev)
 
 check_firmware:
 	if (status) {
-		dev_err(&dev->dev, "%s - firmware not found\n", __func__);
-		return -ENOENT;
+		dev_err(&dev->dev, "%s - firmware analt found\n", __func__);
+		return -EANALENT;
 	}
 	if (fw_p->size > TI_FIRMWARE_BUF_SIZE) {
 		dev_err(&dev->dev, "%s - firmware too large %zu\n", __func__, fw_p->size);
 		release_firmware(fw_p);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	buffer_size = TI_FIRMWARE_BUF_SIZE + sizeof(struct ti_firmware_header);
@@ -1653,7 +1653,7 @@ check_firmware:
 		status = ti_do_download(dev, pipe, buffer, fw_p->size);
 		kfree(buffer);
 	} else {
-		status = -ENOMEM;
+		status = -EANALMEM;
 	}
 	release_firmware(fw_p);
 	if (status) {

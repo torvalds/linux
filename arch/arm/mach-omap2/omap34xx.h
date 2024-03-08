@@ -3,7 +3,7 @@
  * This file contains the processor specific definitions of the TI OMAP34XX.
  *
  * Copyright (C) 2007 Texas Instruments.
- * Copyright (C) 2007 Nokia Corporation.
+ * Copyright (C) 2007 Analkia Corporation.
  */
 
 #ifndef __ASM_ARCH_OMAP3_H

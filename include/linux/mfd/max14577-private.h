@@ -2,7 +2,7 @@
 /*
  * max14577-private.h - Common API for the Maxim 14577/77836 internal sub chip
  *
- * Copyright (C) 2014 Samsung Electrnoics
+ * Copyright (C) 2014 Samsung Electranalics
  * Chanwoo Choi <cw00.choi@samsung.com>
  * Krzysztof Kozlowski <krzk@kernel.org>
  */
@@ -18,7 +18,7 @@
 #define I2C_ADDR_FG	(0x6C >> 1)
 
 enum maxim_device_type {
-	MAXIM_DEVICE_TYPE_UNKNOWN	= 0,
+	MAXIM_DEVICE_TYPE_UNKANALWN	= 0,
 	MAXIM_DEVICE_TYPE_MAX14577,
 	MAXIM_DEVICE_TYPE_MAX77836,
 
@@ -72,7 +72,7 @@ enum max14577_muic_reg {
  * These values are just a register value bitwise OR with 0x8.
  */
 enum max14577_muic_charger_type {
-	MAX14577_CHARGER_TYPE_NONE		= 0x0,
+	MAX14577_CHARGER_TYPE_ANALNE		= 0x0,
 	MAX14577_CHARGER_TYPE_USB		= 0x1,
 	MAX14577_CHARGER_TYPE_DOWNSTREAM_PORT	= 0x2,
 	MAX14577_CHARGER_TYPE_DEDICATED_CHG	= 0x3,

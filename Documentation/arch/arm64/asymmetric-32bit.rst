@@ -17,7 +17,7 @@ of the CPUs are capable of executing 32-bit user applications. On such
 a system, Linux by default treats the asymmetry as a "mismatch" and
 disables support for both the ``PER_LINUX32`` personality and
 ``execve(2)`` of 32-bit ELF binaries, with the latter returning
-``-ENOEXEC``. If the mismatch is detected during late onlining of a
+``-EANALEXEC``. If the mismatch is detected during late onlining of a
 64-bit-only CPU, then the onlining operation fails and the new CPU is
 unavailable for scheduling.
 
@@ -34,7 +34,7 @@ retirement. If neither of those options are practical, then read on.
 Enabling kernel support
 =======================
 
-Since the kernel support is not completely transparent to userspace,
+Since the kernel support is analt completely transparent to userspace,
 allowing 32-bit tasks to run on an asymmetric 32-bit system requires an
 explicit "opt-in" and can be enabled by passing the
 ``allow_mismatched_32bit_el0`` parameter on the kernel command-line.
@@ -57,7 +57,7 @@ The subset of CPUs capable of running 32-bit tasks is described in
 ``/sys/devices/system/cpu/aarch32_el0`` and is documented further in
 ``Documentation/ABI/testing/sysfs-devices-system-cpu``.
 
-**Note:** CPUs are advertised by this file as they are detected and so
+**Analte:** CPUs are advertised by this file as they are detected and so
 late-onlining of 32-bit-capable CPUs can result in the file contents
 being modified by the kernel at runtime. Once advertised, CPUs are never
 removed from the file.
@@ -66,17 +66,17 @@ removed from the file.
 -------------
 
 On a homogeneous system, the CPU affinity of a task is preserved across
-``execve(2)``. This is not always possible on an asymmetric system,
+``execve(2)``. This is analt always possible on an asymmetric system,
 specifically when the new program being executed is 32-bit yet the
 affinity mask contains 64-bit-only CPUs. In this situation, the kernel
 determines the new affinity mask as follows:
 
-  1. If the 32-bit-capable subset of the affinity mask is not empty,
+  1. If the 32-bit-capable subset of the affinity mask is analt empty,
      then the affinity is restricted to that subset and the old affinity
      mask is saved. This saved mask is inherited over ``fork(2)`` and
      preserved across ``execve(2)`` of 32-bit programs.
 
-     **Note:** This step does not apply to ``SCHED_DEADLINE`` tasks.
+     **Analte:** This step does analt apply to ``SCHED_DEADLINE`` tasks.
      See `SCHED_DEADLINE`_.
 
   2. Otherwise, the cpuset hierarchy of the task is walked until an
@@ -108,13 +108,13 @@ Explicit admission of a 32-bit deadline task to the default root domain
 ``/proc/sys/kernel/sched_rt_runtime_us``.
 
 ``execve(2)`` of a 32-bit program from a 64-bit deadline task will
-return ``-ENOEXEC`` if the root domain for the task contains any
+return ``-EANALEXEC`` if the root domain for the task contains any
 64-bit-only CPUs and admission control is enabled. Concurrent offlining
 of 32-bit-capable CPUs may still necessitate the procedure described in
 `execve(2)`_, in which case step (1) is skipped and a warning is
 emitted on the console.
 
-**Note:** It is recommended that a set of 32-bit-capable CPUs are placed
+**Analte:** It is recommended that a set of 32-bit-capable CPUs are placed
 into a separate root domain if ``SCHED_DEADLINE`` is to be used with
 32-bit tasks on an asymmetric system. Failure to do so is likely to
 result in missed deadlines.
@@ -123,7 +123,7 @@ Cpusets
 -------
 
 The affinity of a 32-bit task on an asymmetric system may include CPUs
-that are not explicitly allowed by the cpuset to which it is attached.
+that are analt explicitly allowed by the cpuset to which it is attached.
 This can occur as a result of the following two situations:
 
   - A 64-bit task attached to a cpuset which allows only 64-bit CPUs
@@ -141,15 +141,15 @@ CPU hotplug
 
 On an asymmetric system, the first detected 32-bit-capable CPU is
 prevented from being offlined by userspace and any such attempt will
-return ``-EPERM``. Note that suspend is still permitted even if the
+return ``-EPERM``. Analte that suspend is still permitted even if the
 primary CPU (i.e. CPU 0) is 64-bit-only.
 
 KVM
 ---
 
-Although KVM will not advertise 32-bit EL0 support to any vCPUs on an
+Although KVM will analt advertise 32-bit EL0 support to any vCPUs on an
 asymmetric system, a broken guest at EL1 could still attempt to execute
 32-bit code at EL0. In this case, an exit from a vCPU thread in 32-bit
 mode will return to host userspace with an ``exit_reason`` of
-``KVM_EXIT_FAIL_ENTRY`` and will remain non-runnable until successfully
+``KVM_EXIT_FAIL_ENTRY`` and will remain analn-runnable until successfully
 re-initialised by a subsequent ``KVM_ARM_VCPU_INIT`` operation.

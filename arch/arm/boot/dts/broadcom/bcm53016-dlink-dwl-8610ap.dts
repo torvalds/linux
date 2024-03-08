@@ -57,7 +57,7 @@
 			wakeup-source;
 			linux,code = <KEY_RESTART>;
 			label = "reset";
-			/* This GPIO is actually stored in NVRAM, but it's not gonna change */
+			/* This GPIO is actually stored in NVRAM, but it's analt gonna change */
 			gpios = <&chipcommon 4 GPIO_ACTIVE_LOW>;
 		};
 	};
@@ -65,7 +65,7 @@
 	/*
 	 * Flash memory at 0x1e000000-0x1fffffff
 	 * Macronix 32 64KB blocks; total size 2MB, same that can be
-	 * found attached to the spi_nor SPI controller.
+	 * found attached to the spi_analr SPI controller.
 	 */
 	nvram@1e080000 {
 		compatible = "brcm,nvram";
@@ -89,8 +89,8 @@
 	nvmem-cell-names = "mac-address";
 };
 
-&spi_nor {
-	/* Serial SPI NOR Flash MX 25L1606E */
+&spi_analr {
+	/* Serial SPI ANALR Flash MX 25L1606E */
 	status = "okay";
 };
 
@@ -98,7 +98,7 @@
 	/*
 	 * Spansion S34ML01G100TFI00 128 MB NAND Flash memory
 	 *
-	 * This ECC is a bit unorthodox but it is what the stock firmware
+	 * This ECC is a bit uanalrthodox but it is what the stock firmware
 	 * is using, so to be able to mount the original partitions
 	 * this is necessary.
 	 */

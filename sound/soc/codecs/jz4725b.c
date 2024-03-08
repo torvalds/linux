@@ -76,7 +76,7 @@ enum {
 #define REG_AICR_CONFIG1_MASK		(0xf << REG_AICR_CONFIG1_OFFSET)
 
 #define REG_CR1_SB_MICBIAS_OFFSET	7
-#define REG_CR1_MONO_OFFSET		6
+#define REG_CR1_MOANAL_OFFSET		6
 #define REG_CR1_DAC_MUTE_OFFSET		5
 #define REG_CR1_HP_DIS_OFFSET		4
 #define REG_CR1_DACSEL_OFFSET		3
@@ -297,7 +297,7 @@ static const struct snd_soc_dapm_widget jz4725b_codec_dapm_widgets[] = {
 	SND_SOC_DAPM_ADC("ADC", "Capture",
 			 JZ4725B_CODEC_REG_PMR1, REG_PMR1_SB_ADC_OFFSET, 1),
 
-	SND_SOC_DAPM_MUX("ADC Source Capture Route", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("ADC Source Capture Route", SND_SOC_ANALPM, 0, 0,
 			 &jz4725b_codec_adc_src_ctrl),
 
 	/* Mixer */
@@ -622,7 +622,7 @@ static int jz4725b_codec_probe(struct platform_device *pdev)
 
 	icdc = devm_kzalloc(dev, sizeof(*icdc), GFP_KERNEL);
 	if (!icdc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	icdc->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(icdc->base))

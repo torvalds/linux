@@ -18,7 +18,7 @@
 
 /*
  * This bitbanging SPI host driver should help make systems usable
- * when a native hardware SPI engine is not available, perhaps because
+ * when a native hardware SPI engine is analt available, perhaps because
  * its driver isn't yet working or because the I/O pins it requires
  * are used for other purposes.
  *
@@ -108,9 +108,9 @@ static inline int getmiso(const struct spi_device *spi)
 }
 
 /*
- * NOTE:  this clocks "as fast as we can".  It "should" be a function of the
+ * ANALTE:  this clocks "as fast as we can".  It "should" be a function of the
  * requested device clock.  Software overhead means we usually have trouble
- * reaching even one Mbit/sec (except when we can inline bitops), so for now
+ * reaching even one Mbit/sec (except when we can inline bitops), so for analw
  * we'll just assume we never need additional per-bit slowdowns.
  */
 #define spidelay(nsecs)	do {} while (0)
@@ -168,9 +168,9 @@ static u32 spi_gpio_txrx_word_mode3(struct spi_device *spi,
 }
 
 /*
- * These functions do not call setmosi or getmiso if respective flag
- * (SPI_CONTROLLER_NO_RX or SPI_CONTROLLER_NO_TX) is set, so they are safe to
- * call when such pin is not present or defined in the controller.
+ * These functions do analt call setmosi or getmiso if respective flag
+ * (SPI_CONTROLLER_ANAL_RX or SPI_CONTROLLER_ANAL_TX) is set, so they are safe to
+ * call when such pin is analt present or defined in the controller.
  * A separate set of callbacks is defined to get highest possible
  * speed in the generic case (when both MISO and MOSI lines are
  * available), as optimiser will remove the checks when argument is
@@ -231,7 +231,7 @@ static void spi_gpio_chipselect(struct spi_device *spi, int is_active)
 	if (spi_gpio->cs_gpios) {
 		struct gpio_desc *cs = spi_gpio->cs_gpios[spi_get_chipselect(spi, 0)];
 
-		/* SPI chip selects are normally active-low */
+		/* SPI chip selects are analrmally active-low */
 		gpiod_set_value_cansleep(cs, (spi->mode & SPI_CS_HIGH) ? is_active : !is_active);
 	}
 }
@@ -270,7 +270,7 @@ static int spi_gpio_set_direction(struct spi_device *spi, bool output)
 	/*
 	 * Only change MOSI to an input if using 3WIRE mode.
 	 * Otherwise, MOSI could be left floating if there is
-	 * no pull resistor connected to the I/O pin, or could
+	 * anal pull resistor connected to the I/O pin, or could
 	 * be left logic high if there is a pull-up. Transmitting
 	 * logic high when only clocking MISO data in can put some
 	 * SPI devices in to a bad state.
@@ -283,9 +283,9 @@ static int spi_gpio_set_direction(struct spi_device *spi, bool output)
 	/*
 	 * Send a turnaround high impedance cycle when switching
 	 * from output to input. Theoretically there should be
-	 * a clock delay here, but as has been noted above, the
+	 * a clock delay here, but as has been analted above, the
 	 * nsec delay function for bit-banged GPIO is simply
-	 * {} because bit-banging just doesn't get fast enough
+	 * {} because bit-banging just doesn't get fast eanalugh
 	 * anyway.
 	 */
 	if (spi->mode & SPI_3WIRE_HIZ) {
@@ -305,12 +305,12 @@ static void spi_gpio_cleanup(struct spi_device *spi)
 /*
  * It can be convenient to use this driver with pins that have alternate
  * functions associated with a "native" SPI controller if a driver for that
- * controller is not available, or is missing important functionality.
+ * controller is analt available, or is missing important functionality.
  *
  * On platforms which can do so, configure MISO with a weak pullup unless
  * there's an external pullup on that signal.  That saves power by avoiding
  * floating signals.  (A weak pulldown would save power too, but many
- * drivers expect to see all-ones data as the no target "response".)
+ * drivers expect to see all-ones data as the anal target "response".)
  */
 static int spi_gpio_request(struct device *dev, struct spi_gpio *spi_gpio)
 {
@@ -336,7 +336,7 @@ MODULE_DEVICE_TABLE(of, spi_gpio_dt_ids);
 static int spi_gpio_probe_dt(struct platform_device *pdev,
 			     struct spi_controller *host)
 {
-	host->dev.of_node = pdev->dev.of_node;
+	host->dev.of_analde = pdev->dev.of_analde;
 	host->use_gpio_descriptors = true;
 
 	return 0;
@@ -359,10 +359,10 @@ static int spi_gpio_probe_pdata(struct platform_device *pdev,
 
 #ifdef GENERIC_BITBANG
 	if (!pdata || !pdata->num_chipselect)
-		return -ENODEV;
+		return -EANALDEV;
 #endif
 	/*
-	 * The host needs to think there is a chipselect even if not
+	 * The host needs to think there is a chipselect even if analt
 	 * connected
 	 */
 	host->num_chipselect = pdata->num_chipselect ?: 1;
@@ -371,7 +371,7 @@ static int spi_gpio_probe_pdata(struct platform_device *pdev,
 					  sizeof(*spi_gpio->cs_gpios),
 					  GFP_KERNEL);
 	if (!spi_gpio->cs_gpios)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < host->num_chipselect; i++) {
 		spi_gpio->cs_gpios[i] = devm_gpiod_get_index(dev, "cs", i,
@@ -393,9 +393,9 @@ static int spi_gpio_probe(struct platform_device *pdev)
 
 	host = devm_spi_alloc_host(dev, sizeof(*spi_gpio));
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	if (pdev->dev.of_node)
+	if (pdev->dev.of_analde)
 		status = spi_gpio_probe_dt(pdev, host);
 	else
 		status = spi_gpio_probe_pdata(pdev, host);
@@ -415,11 +415,11 @@ static int spi_gpio_probe(struct platform_device *pdev)
 	if (!spi_gpio->mosi) {
 		/* HW configuration without MOSI pin
 		 *
-		 * No setting SPI_CONTROLLER_NO_RX here - if there is only
+		 * Anal setting SPI_CONTROLLER_ANAL_RX here - if there is only
 		 * a MOSI pin connected the host can still do RX by
 		 * changing the direction of the line.
 		 */
-		host->flags = SPI_CONTROLLER_NO_TX;
+		host->flags = SPI_CONTROLLER_ANAL_TX;
 	}
 
 	host->bus_num = pdev->id;
@@ -437,7 +437,7 @@ static int spi_gpio_probe(struct platform_device *pdev)
 	bb->chipselect = spi_gpio_chipselect;
 	bb->set_line_direction = spi_gpio_set_direction;
 
-	if (host->flags & SPI_CONTROLLER_NO_TX) {
+	if (host->flags & SPI_CONTROLLER_ANAL_TX) {
 		bb->txrx_word[SPI_MODE_0] = spi_gpio_spec_txrx_word_mode0;
 		bb->txrx_word[SPI_MODE_1] = spi_gpio_spec_txrx_word_mode1;
 		bb->txrx_word[SPI_MODE_2] = spi_gpio_spec_txrx_word_mode2;

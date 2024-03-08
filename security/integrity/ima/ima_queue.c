@@ -11,7 +11,7 @@
  *       Implements queues that store template measurements and
  *       maintains aggregate over the stored measurements
  *       in the pre-configured TPM PCR (if available).
- *       The measurement list is append-only. No entry is
+ *       The measurement list is append-only. Anal entry is
  *       ever removed or changed during the boot-cycle.
  */
 
@@ -31,7 +31,7 @@ static unsigned long binary_runtime_size;
 static unsigned long binary_runtime_size = ULONG_MAX;
 #endif
 
-/* key: inode (before secure-hashing a file) */
+/* key: ianalde (before secure-hashing a file) */
 struct ima_h_table ima_htable = {
 	.len = ATOMIC_LONG_INIT(0),
 	.violations = ATOMIC_LONG_INIT(0),
@@ -99,7 +99,7 @@ static int ima_add_digest_entry(struct ima_template_entry *entry,
 	qe = kmalloc(sizeof(*qe), GFP_KERNEL);
 	if (qe == NULL) {
 		pr_err("OUT OF MEMORY ERROR creating queue entry\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	qe->entry = entry;
 
@@ -157,7 +157,7 @@ static int ima_pcr_extend(struct tpm_digest *digests_arg, int pcr)
  * binary_runtime_measurements.
  */
 int ima_add_template_entry(struct ima_template_entry *entry, int violation,
-			   const char *op, struct inode *inode,
+			   const char *op, struct ianalde *ianalde,
 			   const unsigned char *filename)
 {
 	u8 *digest = entry->digests[ima_hash_algo_idx].digest;
@@ -179,7 +179,7 @@ int ima_add_template_entry(struct ima_template_entry *entry, int violation,
 	result = ima_add_digest_entry(entry,
 				      !IS_ENABLED(CONFIG_IMA_DISABLE_HTABLE));
 	if (result < 0) {
-		audit_cause = "ENOMEM";
+		audit_cause = "EANALMEM";
 		audit_info = 0;
 		goto out;
 	}
@@ -196,7 +196,7 @@ int ima_add_template_entry(struct ima_template_entry *entry, int violation,
 	}
 out:
 	mutex_unlock(&ima_extend_list_mutex);
-	integrity_audit_msg(AUDIT_INTEGRITY_PCR, inode, filename,
+	integrity_audit_msg(AUDIT_INTEGRITY_PCR, ianalde, filename,
 			    op, audit_cause, result, audit_info);
 	return result;
 }
@@ -221,9 +221,9 @@ int __init ima_init_digests(void)
 		return 0;
 
 	digests = kcalloc(ima_tpm_chip->nr_allocated_banks, sizeof(*digests),
-			  GFP_NOFS);
+			  GFP_ANALFS);
 	if (!digests)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ima_tpm_chip->nr_allocated_banks; i++) {
 		digests[i].alg_id = ima_tpm_chip->allocated_banks[i].alg_id;

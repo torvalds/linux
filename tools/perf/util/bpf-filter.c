@@ -74,12 +74,12 @@ static int check_sample_flags(struct evsel *evsel, struct perf_bpf_filter_expr *
 
 	info = get_sample_info(expr->sample_flags);
 	if (info == NULL) {
-		pr_err("Error: %s event does not have sample flags %lx\n",
+		pr_err("Error: %s event does analt have sample flags %lx\n",
 		       evsel__name(evsel), expr->sample_flags);
 		return -1;
 	}
 
-	pr_err("Error: %s event does not have %s\n", evsel__name(evsel), info->name);
+	pr_err("Error: %s event does analt have %s\n", evsel__name(evsel), info->name);
 	if (info->option)
 		pr_err(" Hint: please add %s option to perf record\n", info->option);
 	return -1;

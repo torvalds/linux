@@ -55,7 +55,7 @@ extern struct class block_class;
 
 #define PARTITION_META_INFO_VOLNAMELTH	64
 /*
- * Enough for the string representation of any kind of UUID plus NULL.
+ * Eanalugh for the string representation of any kind of UUID plus NULL.
  * EFI UUID is 36 characters. MSDOS UUID is 11 characters.
  */
 #define PARTITION_META_INFO_UUIDLTH	(UUID_STRING_LEN + 1)
@@ -69,22 +69,22 @@ struct partition_meta_info {
  * DOC: genhd capability flags
  *
  * ``GENHD_FL_REMOVABLE``: indicates that the block device gives access to
- * removable media.  When set, the device remains present even when media is not
- * inserted.  Shall not be set for devices which are removed entirely when the
+ * removable media.  When set, the device remains present even when media is analt
+ * inserted.  Shall analt be set for devices which are removed entirely when the
  * media is removed.
  *
  * ``GENHD_FL_HIDDEN``: the block device is hidden; it doesn't produce events,
  * doesn't appear in sysfs, and can't be opened from userspace or using
  * blkdev_get*. Used for the underlying components of multipath devices.
  *
- * ``GENHD_FL_NO_PART``: partition support is disabled.  The kernel will not
+ * ``GENHD_FL_ANAL_PART``: partition support is disabled.  The kernel will analt
  * scan for partitions from add_disk, and users can't add partitions manually.
  *
  */
 enum {
 	GENHD_FL_REMOVABLE			= 1 << 0,
 	GENHD_FL_HIDDEN				= 1 << 1,
-	GENHD_FL_NO_PART			= 1 << 2,
+	GENHD_FL_ANAL_PART			= 1 << 2,
 };
 
 enum {
@@ -129,12 +129,12 @@ typedef unsigned int __bitwise blk_mode_t;
 
 struct gendisk {
 	/*
-	 * major/first_minor/minors should not be set by any new driver, the
+	 * major/first_mianalr/mianalrs should analt be set by any new driver, the
 	 * block core will take care of allocating them automatically.
 	 */
 	int major;
-	int first_minor;
-	int minors;
+	int first_mianalr;
+	int mianalrs;
 
 	char disk_name[DISK_NAME_LEN];	/* name of major driver */
 
@@ -185,7 +185,7 @@ struct gendisk {
 	 *
 	 * Reads of this information must be protected with blk_queue_enter() /
 	 * blk_queue_exit(). Modifying this information is only allowed while
-	 * no requests are being processed. See also blk_mq_freeze_queue() and
+	 * anal requests are being processed. See also blk_mq_freeze_queue() and
 	 * blk_mq_unfreeze_queue().
 	 */
 	unsigned int		nr_zones;
@@ -198,7 +198,7 @@ struct gendisk {
 #if IS_ENABLED(CONFIG_CDROM)
 	struct cdrom_device_info *cdi;
 #endif
-	int node_id;
+	int analde_id;
 	struct badblocks *bb;
 	struct lockdep_map lockdep_map;
 	u64 diskseq;
@@ -206,24 +206,24 @@ struct gendisk {
 
 	/*
 	 * Independent sector access ranges. This is always NULL for
-	 * devices that do not have multiple independent access ranges.
+	 * devices that do analt have multiple independent access ranges.
 	 */
 	struct blk_independent_access_ranges *ia_ranges;
 };
 
 static inline bool disk_live(struct gendisk *disk)
 {
-	return !inode_unhashed(disk->part0->bd_inode);
+	return !ianalde_unhashed(disk->part0->bd_ianalde);
 }
 
 /**
  * disk_openers - returns how many openers are there for a disk
  * @disk: disk to check
  *
- * This returns the number of openers for a disk.  Note that this value is only
+ * This returns the number of openers for a disk.  Analte that this value is only
  * stable if disk->open_mutex is held.
  *
- * Note: Due to a quirk in the block layer open code, each open partition is
+ * Analte: Due to a quirk in the block layer open code, each open partition is
  * only counted once even if there are multiple openers.
  */
 static inline unsigned int disk_openers(struct gendisk *disk)
@@ -248,7 +248,7 @@ static inline unsigned int disk_openers(struct gendisk *disk)
 
 static inline dev_t disk_devt(struct gendisk *disk)
 {
-	return MKDEV(disk->major, disk->first_minor);
+	return MKDEV(disk->major, disk->first_mianalr);
 }
 
 static inline int blk_validate_block_size(unsigned long bsize)
@@ -266,11 +266,11 @@ static inline bool blk_op_is_passthrough(blk_opf_t op)
 }
 
 /*
- * BLK_BOUNCE_NONE:	never bounce (default)
+ * BLK_BOUNCE_ANALNE:	never bounce (default)
  * BLK_BOUNCE_HIGH:	bounce all highmem pages
  */
 enum blk_bounce {
-	BLK_BOUNCE_NONE,
+	BLK_BOUNCE_ANALNE,
 	BLK_BOUNCE_HIGH,
 };
 
@@ -310,7 +310,7 @@ struct queue_limits {
 
 	/*
 	 * Drivers that set dma_alignment to less than 511 must be prepared to
-	 * handle individual bvec's that are not a multiple of a SECTOR_SIZE
+	 * handle individual bvec's that are analt a multiple of a SECTOR_SIZE
 	 * due to possible offsets.
 	 */
 	unsigned int		dma_alignment;
@@ -336,8 +336,8 @@ int blk_revalidate_disk_zones(struct gendisk *disk,
  * other access ranges. This is typically found with single-LUN multi-actuator
  * HDDs where each access range is served by a different set of heads.
  * The set of independent ranges supported by the device is defined using
- * struct blk_independent_access_ranges. The independent ranges must not overlap
- * and must include all sectors within the disk capacity (no sector holes
+ * struct blk_independent_access_ranges. The independent ranges must analt overlap
+ * and must include all sectors within the disk capacity (anal sector holes
  * allowed).
  * For a device with multiple ranges, requests targeting sectors in different
  * ranges can be executed in parallel. A request can straddle an access range
@@ -456,7 +456,7 @@ struct request_queue {
 	struct mutex		blkcg_mutex;
 #endif
 
-	int			node;
+	int			analde;
 
 	spinlock_t		requeue_lock;
 	struct list_head	requeue_list;
@@ -512,15 +512,15 @@ struct request_queue {
 /* Keep blk_queue_flag_name[] in sync with the definitions below */
 #define QUEUE_FLAG_STOPPED	0	/* queue is stopped */
 #define QUEUE_FLAG_DYING	1	/* queue being torn down */
-#define QUEUE_FLAG_NOMERGES     3	/* disable merge attempts */
+#define QUEUE_FLAG_ANALMERGES     3	/* disable merge attempts */
 #define QUEUE_FLAG_SAME_COMP	4	/* complete on same CPU-group */
 #define QUEUE_FLAG_FAIL_IO	5	/* fake timeout */
-#define QUEUE_FLAG_NONROT	6	/* non-rotational device (SSD) */
-#define QUEUE_FLAG_VIRT		QUEUE_FLAG_NONROT /* paravirt device */
+#define QUEUE_FLAG_ANALNROT	6	/* analn-rotational device (SSD) */
+#define QUEUE_FLAG_VIRT		QUEUE_FLAG_ANALNROT /* paravirt device */
 #define QUEUE_FLAG_IO_STAT	7	/* do disk/partitions IO accounting */
-#define QUEUE_FLAG_NOXMERGES	9	/* No extended merges */
+#define QUEUE_FLAG_ANALXMERGES	9	/* Anal extended merges */
 #define QUEUE_FLAG_ADD_RANDOM	10	/* Contributes to random pool */
-#define QUEUE_FLAG_SYNCHRONOUS	11	/* always completes in submit context */
+#define QUEUE_FLAG_SYNCHROANALUS	11	/* always completes in submit context */
 #define QUEUE_FLAG_SAME_FORCE	12	/* force complete on same CPU */
 #define QUEUE_FLAG_HW_WC	13	/* Write back caching supported */
 #define QUEUE_FLAG_INIT_DONE	14	/* queue is initialized */
@@ -536,13 +536,13 @@ struct request_queue {
 #define QUEUE_FLAG_ZONE_RESETALL 26	/* supports Zone Reset All */
 #define QUEUE_FLAG_RQ_ALLOC_TIME 27	/* record rq->alloc_time_ns */
 #define QUEUE_FLAG_HCTX_ACTIVE	28	/* at least one blk-mq hctx is active */
-#define QUEUE_FLAG_NOWAIT       29	/* device supports NOWAIT */
+#define QUEUE_FLAG_ANALWAIT       29	/* device supports ANALWAIT */
 #define QUEUE_FLAG_SQ_SCHED     30	/* single queue style io dispatch */
 #define QUEUE_FLAG_SKIP_TAGSET_QUIESCE	31 /* quiesce_tagset skip the queue*/
 
 #define QUEUE_FLAG_MQ_DEFAULT	((1UL << QUEUE_FLAG_IO_STAT) |		\
 				 (1UL << QUEUE_FLAG_SAME_COMP) |	\
-				 (1UL << QUEUE_FLAG_NOWAIT))
+				 (1UL << QUEUE_FLAG_ANALWAIT))
 
 void blk_queue_flag_set(unsigned int flag, struct request_queue *q);
 void blk_queue_flag_clear(unsigned int flag, struct request_queue *q);
@@ -551,10 +551,10 @@ bool blk_queue_flag_test_and_set(unsigned int flag, struct request_queue *q);
 #define blk_queue_stopped(q)	test_bit(QUEUE_FLAG_STOPPED, &(q)->queue_flags)
 #define blk_queue_dying(q)	test_bit(QUEUE_FLAG_DYING, &(q)->queue_flags)
 #define blk_queue_init_done(q)	test_bit(QUEUE_FLAG_INIT_DONE, &(q)->queue_flags)
-#define blk_queue_nomerges(q)	test_bit(QUEUE_FLAG_NOMERGES, &(q)->queue_flags)
-#define blk_queue_noxmerges(q)	\
-	test_bit(QUEUE_FLAG_NOXMERGES, &(q)->queue_flags)
-#define blk_queue_nonrot(q)	test_bit(QUEUE_FLAG_NONROT, &(q)->queue_flags)
+#define blk_queue_analmerges(q)	test_bit(QUEUE_FLAG_ANALMERGES, &(q)->queue_flags)
+#define blk_queue_analxmerges(q)	\
+	test_bit(QUEUE_FLAG_ANALXMERGES, &(q)->queue_flags)
+#define blk_queue_analnrot(q)	test_bit(QUEUE_FLAG_ANALNROT, &(q)->queue_flags)
 #define blk_queue_stable_writes(q) \
 	test_bit(QUEUE_FLAG_STABLE_WRITES, &(q)->queue_flags)
 #define blk_queue_io_stat(q)	test_bit(QUEUE_FLAG_IO_STAT, &(q)->queue_flags)
@@ -571,7 +571,7 @@ bool blk_queue_flag_test_and_set(unsigned int flag, struct request_queue *q);
 #define blk_queue_rq_alloc_time(q)	false
 #endif
 
-#define blk_noretry_request(rq) \
+#define blk_analretry_request(rq) \
 	((rq)->cmd_flags & (REQ_FAILFAST_DEV|REQ_FAILFAST_TRANSPORT| \
 			     REQ_FAILFAST_DRIVER))
 #define blk_queue_quiesced(q)	test_bit(QUEUE_FLAG_QUIESCED, &(q)->queue_flags)
@@ -620,7 +620,7 @@ static inline unsigned int disk_nr_zones(struct gendisk *disk)
 	return blk_queue_is_zoned(disk->queue) ? disk->nr_zones : 0;
 }
 
-static inline unsigned int disk_zone_no(struct gendisk *disk, sector_t sector)
+static inline unsigned int disk_zone_anal(struct gendisk *disk, sector_t sector)
 {
 	if (!blk_queue_is_zoned(disk->queue))
 		return 0;
@@ -633,7 +633,7 @@ static inline bool disk_zone_is_seq(struct gendisk *disk, sector_t sector)
 		return false;
 	if (!disk->conv_zones_bitmap)
 		return true;
-	return !test_bit(disk_zone_no(disk, sector), disk->conv_zones_bitmap);
+	return !test_bit(disk_zone_anal(disk, sector), disk->conv_zones_bitmap);
 }
 
 static inline void disk_set_max_open_zones(struct gendisk *disk,
@@ -672,7 +672,7 @@ static inline bool disk_zone_is_seq(struct gendisk *disk, sector_t sector)
 {
 	return false;
 }
-static inline unsigned int disk_zone_no(struct gendisk *disk, sector_t sector)
+static inline unsigned int disk_zone_anal(struct gendisk *disk, sector_t sector)
 {
 	return 0;
 }
@@ -696,12 +696,12 @@ static inline unsigned int blk_queue_depth(struct request_queue *q)
 }
 
 /*
- * default timeout for SG_IO if none specified
+ * default timeout for SG_IO if analne specified
  */
 #define BLK_DEFAULT_SG_TIMEOUT	(60 * HZ)
 #define BLK_MIN_SG_TIMEOUT	(7 * HZ)
 
-/* This should not be used directly - use rq_for_each_segment */
+/* This should analt be used directly - use rq_for_each_segment */
 #define for_each_bio(_bio)		\
 	for (; _bio; _bio = _bio->bi_next)
 
@@ -727,7 +727,7 @@ static inline int bdev_read_only(struct block_device *bdev)
 	return bdev->bd_read_only || get_disk_ro(bdev->bd_disk);
 }
 
-bool set_capacity_and_notify(struct gendisk *disk, sector_t size);
+bool set_capacity_and_analtify(struct gendisk *disk, sector_t size);
 void disk_force_media_change(struct gendisk *disk);
 void bdev_mark_dead(struct block_device *bdev, bool surprise);
 
@@ -763,22 +763,22 @@ static inline u64 sb_bdev_nr_blocks(struct super_block *sb)
 int bdev_disk_changed(struct gendisk *disk, bool invalidate);
 
 void put_disk(struct gendisk *disk);
-struct gendisk *__blk_alloc_disk(int node, struct lock_class_key *lkclass);
+struct gendisk *__blk_alloc_disk(int analde, struct lock_class_key *lkclass);
 
 /**
  * blk_alloc_disk - allocate a gendisk structure
- * @node_id: numa node to allocate on
+ * @analde_id: numa analde to allocate on
  *
  * Allocate and pre-initialize a gendisk structure for use with BIO based
  * drivers.
  *
  * Context: can sleep
  */
-#define blk_alloc_disk(node_id)						\
+#define blk_alloc_disk(analde_id)						\
 ({									\
 	static struct lock_class_key __key;				\
 									\
-	__blk_alloc_disk(node_id, &__key);				\
+	__blk_alloc_disk(analde_id, &__key);				\
 })
 
 int __register_blkdev(unsigned int major, const char *name,
@@ -805,13 +805,13 @@ static inline void bd_unlink_disk_holder(struct block_device *bdev,
 }
 #endif /* CONFIG_BLOCK_HOLDER_DEPRECATED */
 
-dev_t part_devt(struct gendisk *disk, u8 partno);
+dev_t part_devt(struct gendisk *disk, u8 partanal);
 void inc_diskseq(struct gendisk *disk);
 void blk_request_module(dev_t devt);
 
 extern int blk_register_queue(struct gendisk *disk);
 extern void blk_unregister_queue(struct gendisk *disk);
-void submit_bio_noacct(struct bio *bio);
+void submit_bio_analacct(struct bio *bio);
 struct bio *bio_split_to_limits(struct bio *bio);
 
 extern int blk_lld_busy(struct request_queue *q);
@@ -822,8 +822,8 @@ extern void blk_sync_queue(struct request_queue *q);
 /* Helper to convert REQ_OP_XXX to its string format XXX */
 extern const char *blk_op_str(enum req_op op);
 
-int blk_status_to_errno(blk_status_t status);
-blk_status_t errno_to_blk_status(int errno);
+int blk_status_to_erranal(blk_status_t status);
+blk_status_t erranal_to_blk_status(int erranal);
 const char *blk_status_to_str(blk_status_t status);
 
 /* only poll the hardware once, don't continue until a completion was found */
@@ -840,9 +840,9 @@ static inline struct request_queue *bdev_get_queue(struct block_device *bdev)
 /* Helper to convert BLK_ZONE_ZONE_XXX to its string format XXX */
 const char *blk_zone_cond_str(enum blk_zone_cond zone_cond);
 
-static inline unsigned int bio_zone_no(struct bio *bio)
+static inline unsigned int bio_zone_anal(struct bio *bio)
 {
-	return disk_zone_no(bio->bi_bdev->bd_disk, bio->bi_iter.bi_sector);
+	return disk_zone_anal(bio->bi_bdev->bd_disk, bio->bi_iter.bi_sector);
 }
 
 static inline unsigned int bio_zone_is_seq(struct bio *bio)
@@ -933,7 +933,7 @@ void blk_mark_disk_dead(struct gendisk *disk);
  * the device's request_queue in a batch, this results in improved scalability
  * as the lock contention for request_queue lock is reduced.
  *
- * It is ok not to disable preemption when adding the request to the plug list
+ * It is ok analt to disable preemption when adding the request to the plug list
  * or when attempting a merge. For details, please see schedule() where
  * blk_flush_plug() is called.
  */
@@ -1015,8 +1015,8 @@ int __blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 int blkdev_issue_secure_erase(struct block_device *bdev, sector_t sector,
 		sector_t nr_sects, gfp_t gfp);
 
-#define BLKDEV_ZERO_NOUNMAP	(1 << 0)  /* do not free blocks */
-#define BLKDEV_ZERO_NOFALLBACK	(1 << 1)  /* don't write explicit zeroes */
+#define BLKDEV_ZERO_ANALUNMAP	(1 << 0)  /* do analt free blocks */
+#define BLKDEV_ZERO_ANALFALLBACK	(1 << 1)  /* don't write explicit zeroes */
 
 extern int __blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
 		sector_t nr_sects, gfp_t gfp_mask, struct bio **biop,
@@ -1047,7 +1047,7 @@ static inline int sb_issue_zeroout(struct super_block *sb, sector_t block,
 
 static inline bool bdev_is_partition(struct block_device *bdev)
 {
-	return bdev->bd_partno;
+	return bdev->bd_partanal;
 }
 
 enum blk_default_limits {
@@ -1061,7 +1061,7 @@ enum blk_default_limits {
  * Default upper limit for the software max_sectors limit used for
  * regular file system I/O.  This can be increased through sysfs.
  *
- * Not to be confused with the max_hw_sector limit that is entirely
+ * Analt to be confused with the max_hw_sector limit that is entirely
  * controlled by the driver, usually based on hardware limits.
  */
 #define BLK_DEF_MAX_SECTORS_CAP	2560u
@@ -1211,14 +1211,14 @@ static inline unsigned int bdev_write_zeroes_sectors(struct block_device *bdev)
 	return 0;
 }
 
-static inline bool bdev_nonrot(struct block_device *bdev)
+static inline bool bdev_analnrot(struct block_device *bdev)
 {
-	return blk_queue_nonrot(bdev_get_queue(bdev));
+	return blk_queue_analnrot(bdev_get_queue(bdev));
 }
 
-static inline bool bdev_synchronous(struct block_device *bdev)
+static inline bool bdev_synchroanalus(struct block_device *bdev)
 {
-	return test_bit(QUEUE_FLAG_SYNCHRONOUS,
+	return test_bit(QUEUE_FLAG_SYNCHROANALUS,
 			&bdev_get_queue(bdev)->queue_flags);
 }
 
@@ -1238,9 +1238,9 @@ static inline bool bdev_fua(struct block_device *bdev)
 	return test_bit(QUEUE_FLAG_FUA, &bdev_get_queue(bdev)->queue_flags);
 }
 
-static inline bool bdev_nowait(struct block_device *bdev)
+static inline bool bdev_analwait(struct block_device *bdev)
 {
-	return test_bit(QUEUE_FLAG_NOWAIT, &bdev_get_queue(bdev)->queue_flags);
+	return test_bit(QUEUE_FLAG_ANALWAIT, &bdev_get_queue(bdev)->queue_flags);
 }
 
 static inline bool bdev_is_zoned(struct block_device *bdev)
@@ -1248,9 +1248,9 @@ static inline bool bdev_is_zoned(struct block_device *bdev)
 	return blk_queue_is_zoned(bdev_get_queue(bdev));
 }
 
-static inline unsigned int bdev_zone_no(struct block_device *bdev, sector_t sec)
+static inline unsigned int bdev_zone_anal(struct block_device *bdev, sector_t sec)
 {
-	return disk_zone_no(bdev->bd_disk, sec);
+	return disk_zone_anal(bdev->bd_disk, sec);
 }
 
 /* Whether write serialization is required for @op on zoned devices. */
@@ -1318,14 +1318,14 @@ static inline unsigned int blksize_bits(unsigned int size)
 
 static inline unsigned int block_size(struct block_device *bdev)
 {
-	return 1 << bdev->bd_inode->i_blkbits;
+	return 1 << bdev->bd_ianalde->i_blkbits;
 }
 
 int kblockd_schedule_work(struct work_struct *work);
 int kblockd_mod_delayed_work_on(int cpu, struct delayed_work *dwork, unsigned long delay);
 
-#define MODULE_ALIAS_BLOCKDEV(major,minor) \
-	MODULE_ALIAS("block-major-" __stringify(major) "-" __stringify(minor))
+#define MODULE_ALIAS_BLOCKDEV(major,mianalr) \
+	MODULE_ALIAS("block-major-" __stringify(major) "-" __stringify(mianalr))
 #define MODULE_ALIAS_BLOCKDEV_MAJOR(major) \
 	MODULE_ALIAS("block-major-" __stringify(major) "-*")
 
@@ -1368,11 +1368,11 @@ struct block_device_operations {
 	int (*set_read_only)(struct block_device *bdev, bool ro);
 	void (*free_disk)(struct gendisk *disk);
 	/* this callback is with swap_lock and sometimes page table lock held */
-	void (*swap_slot_free_notify) (struct block_device *, unsigned long);
+	void (*swap_slot_free_analtify) (struct block_device *, unsigned long);
 	int (*report_zones)(struct gendisk *, sector_t sector,
 			unsigned int nr_zones, report_zones_cb cb, void *data);
-	char *(*devnode)(struct gendisk *disk, umode_t *mode);
-	/* returns the length of the identifier or a negative errno: */
+	char *(*devanalde)(struct gendisk *disk, umode_t *mode);
+	/* returns the length of the identifier or a negative erranal: */
 	int (*get_unique_id)(struct gendisk *disk, u8 id[16],
 			enum blk_unique_id id_type);
 	struct module *owner;
@@ -1397,7 +1397,7 @@ static inline void blk_wake_io_task(struct task_struct *waiter)
 {
 	/*
 	 * If we're polling, the task itself is doing the completions. For
-	 * that case, we don't need to signal a wakeup, it's enough to just
+	 * that case, we don't need to signal a wakeup, it's eanalugh to just
 	 * mark us as RUNNING.
 	 */
 	if (waiter == current)
@@ -1490,18 +1490,18 @@ void bd_abort_claiming(struct block_device *bdev, void *holder);
 void bdev_release(struct bdev_handle *handle);
 
 /* just for blk-cgroup, don't use elsewhere */
-struct block_device *blkdev_get_no_open(dev_t dev);
-void blkdev_put_no_open(struct block_device *bdev);
+struct block_device *blkdev_get_anal_open(dev_t dev);
+void blkdev_put_anal_open(struct block_device *bdev);
 
-struct block_device *I_BDEV(struct inode *inode);
+struct block_device *I_BDEV(struct ianalde *ianalde);
 
 #ifdef CONFIG_BLOCK
 void invalidate_bdev(struct block_device *bdev);
 int sync_blockdev(struct block_device *bdev);
 int sync_blockdev_range(struct block_device *bdev, loff_t lstart, loff_t lend);
-int sync_blockdev_nowait(struct block_device *bdev);
+int sync_blockdev_analwait(struct block_device *bdev);
 void sync_bdevs(bool wait);
-void bdev_statx_dioalign(struct inode *inode, struct kstat *stat);
+void bdev_statx_dioalign(struct ianalde *ianalde, struct kstat *stat);
 void printk_all_partitions(void);
 int __init early_lookup_bdev(const char *pathname, dev_t *dev);
 #else
@@ -1512,14 +1512,14 @@ static inline int sync_blockdev(struct block_device *bdev)
 {
 	return 0;
 }
-static inline int sync_blockdev_nowait(struct block_device *bdev)
+static inline int sync_blockdev_analwait(struct block_device *bdev)
 {
 	return 0;
 }
 static inline void sync_bdevs(bool wait)
 {
 }
-static inline void bdev_statx_dioalign(struct inode *inode, struct kstat *stat)
+static inline void bdev_statx_dioalign(struct ianalde *ianalde, struct kstat *stat)
 {
 }
 static inline void printk_all_partitions(void)

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
-#ifndef __ASM_GENERIC_BITOPS_GENERIC_NON_ATOMIC_H
-#define __ASM_GENERIC_BITOPS_GENERIC_NON_ATOMIC_H
+#ifndef __ASM_GENERIC_BITOPS_GENERIC_ANALN_ATOMIC_H
+#define __ASM_GENERIC_BITOPS_GENERIC_ANALN_ATOMIC_H
 
 #include <linux/bits.h>
 #include <asm/barrier.h>
@@ -11,7 +11,7 @@
 #endif
 
 /*
- * Generic definitions for bit operations, should not be used in regular code
+ * Generic definitions for bit operations, should analt be used in regular code
  * directly.
  */
 
@@ -20,7 +20,7 @@
  * @nr: the bit to set
  * @addr: the address to start counting from
  *
- * Unlike set_bit(), this function is non-atomic and may be reordered.
+ * Unlike set_bit(), this function is analn-atomic and may be reordered.
  * If it's called on the same region of memory simultaneously, the effect
  * may be that only one operation succeeds.
  */
@@ -47,7 +47,7 @@ generic___clear_bit(unsigned long nr, volatile unsigned long *addr)
  * @nr: the bit to change
  * @addr: the address to start counting from
  *
- * Unlike change_bit(), this function is non-atomic and may be reordered.
+ * Unlike change_bit(), this function is analn-atomic and may be reordered.
  * If it's called on the same region of memory simultaneously, the effect
  * may be that only one operation succeeds.
  */
@@ -65,7 +65,7 @@ generic___change_bit(unsigned long nr, volatile unsigned long *addr)
  * @nr: Bit to set
  * @addr: Address to count from
  *
- * This operation is non-atomic and can be reordered.
+ * This operation is analn-atomic and can be reordered.
  * If two examples of this operation race, one can appear to succeed
  * but actually fail.  You must protect multiple accesses with a lock.
  */
@@ -85,7 +85,7 @@ generic___test_and_set_bit(unsigned long nr, volatile unsigned long *addr)
  * @nr: Bit to clear
  * @addr: Address to count from
  *
- * This operation is non-atomic and can be reordered.
+ * This operation is analn-atomic and can be reordered.
  * If two examples of this operation race, one can appear to succeed
  * but actually fail.  You must protect multiple accesses with a lock.
  */
@@ -100,7 +100,7 @@ generic___test_and_clear_bit(unsigned long nr, volatile unsigned long *addr)
 	return (old & mask) != 0;
 }
 
-/* WARNING: non atomic and it can be reordered! */
+/* WARNING: analn atomic and it can be reordered! */
 static __always_inline bool
 generic___test_and_change_bit(unsigned long nr, volatile unsigned long *addr)
 {
@@ -122,7 +122,7 @@ generic_test_bit(unsigned long nr, const volatile unsigned long *addr)
 {
 	/*
 	 * Unlike the bitops with the '__' prefix above, this one *is* atomic,
-	 * so `volatile` must always stay here with no cast-aways. See
+	 * so `volatile` must always stay here with anal cast-aways. See
 	 * `Documentation/atomic_bitops.txt` for the details.
 	 */
 	return 1UL & (addr[BIT_WORD(nr)] >> (nr & (BITS_PER_LONG-1)));
@@ -158,8 +158,8 @@ generic_test_bit_acquire(unsigned long nr, const volatile unsigned long *addr)
  * @addr: Address to start counting from
  *
  * A version of generic_test_bit() which discards the `volatile` qualifier to
- * allow a compiler to optimize code harder. Non-atomic and to be called only
- * for testing compile-time constants, e.g. by the corresponding macros, not
+ * allow a compiler to optimize code harder. Analn-atomic and to be called only
+ * for testing compile-time constants, e.g. by the corresponding macros, analt
  * directly from "regular" code.
  */
 static __always_inline bool
@@ -172,4 +172,4 @@ const_test_bit(unsigned long nr, const volatile unsigned long *addr)
 	return !!(val & mask);
 }
 
-#endif /* __ASM_GENERIC_BITOPS_GENERIC_NON_ATOMIC_H */
+#endif /* __ASM_GENERIC_BITOPS_GENERIC_ANALN_ATOMIC_H */

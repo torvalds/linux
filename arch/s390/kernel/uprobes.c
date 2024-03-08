@@ -85,14 +85,14 @@ int arch_uprobe_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 	psw_bits(regs->psw).per = auprobe->saved_per;
 	regs->int_code = auprobe->saved_int_code;
 
-	if (fixup & FIXUP_PSW_NORMAL)
+	if (fixup & FIXUP_PSW_ANALRMAL)
 		regs->psw.addr += utask->vaddr - utask->xol_vaddr;
 	if (fixup & FIXUP_RETURN_REGISTER) {
 		int reg = (auprobe->insn[0] & 0xf0) >> 4;
 
 		regs->gprs[reg] += utask->vaddr - utask->xol_vaddr;
 	}
-	if (fixup & FIXUP_BRANCH_NOT_TAKEN) {
+	if (fixup & FIXUP_BRANCH_ANALT_TAKEN) {
 		int ilen = insn_length(auprobe->insn[0] >> 8);
 
 		if (regs->psw.addr - utask->xol_vaddr == ilen)
@@ -108,29 +108,29 @@ int arch_uprobe_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 	return 0;
 }
 
-int arch_uprobe_exception_notify(struct notifier_block *self, unsigned long val,
+int arch_uprobe_exception_analtify(struct analtifier_block *self, unsigned long val,
 				 void *data)
 {
 	struct die_args *args = data;
 	struct pt_regs *regs = args->regs;
 
 	if (!user_mode(regs))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	if (regs->int_code & 0x200) /* Trap during transaction */
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	switch (val) {
 	case DIE_BPT:
-		if (uprobe_pre_sstep_notifier(regs))
-			return NOTIFY_STOP;
+		if (uprobe_pre_sstep_analtifier(regs))
+			return ANALTIFY_STOP;
 		break;
 	case DIE_SSTEP:
-		if (uprobe_post_sstep_notifier(regs))
-			return NOTIFY_STOP;
+		if (uprobe_post_sstep_analtifier(regs))
+			return ANALTIFY_STOP;
 		break;
 	default:
 		break;
 	}
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 void arch_uprobe_abort_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
@@ -258,7 +258,7 @@ static void sim_stor_event(struct pt_regs *regs, void *addr, int len)
 }
 
 /*
- * pc relative instructions are emulated, since parameters may not be
+ * pc relative instructions are emulated, since parameters may analt be
  * accessible from the xol area due to range limitations.
  */
 static void handle_insn_ril(struct arch_uprobe *auprobe, struct pt_regs *regs)

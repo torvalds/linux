@@ -68,7 +68,7 @@
  *	 unencapsulated packets of the form IPv4|TCP or
  *	 IPv4|UDP where the Protocol field in the IPv4 header
  *	 is TCP or UDP. The IPv4 header may contain IP options.
- *	 This feature cannot be set in features for a device
+ *	 This feature cananalt be set in features for a device
  *	 with NETIF_F_HW_CSUM also set. This feature is being
  *	 DEPRECATED (see below).
  *
@@ -78,8 +78,8 @@
  *	 unencapsulated packets of the form IPv6|TCP or
  *	 IPv6|UDP where the Next Header field in the IPv6
  *	 header is either TCP or UDP. IPv6 extension headers
- *	 are not supported with this feature. This feature
- *	 cannot be set in features for a device with
+ *	 are analt supported with this feature. This feature
+ *	 cananalt be set in features for a device with
  *	 NETIF_F_HW_CSUM also set. This feature is being
  *	 DEPRECATED (see below).
  *
@@ -96,11 +96,11 @@
  * Indication of checksum verification is set in &sk_buff.ip_summed.
  * Possible values are:
  *
- * - %CHECKSUM_NONE
+ * - %CHECKSUM_ANALNE
  *
- *   Device did not checksum this packet e.g. due to lack of capabilities.
- *   The packet contains full (though not verified) checksum in packet but
- *   not in skb->csum. Thus, skb->csum is undefined in this case.
+ *   Device did analt checksum this packet e.g. due to lack of capabilities.
+ *   The packet contains full (though analt verified) checksum in packet but
+ *   analt in skb->csum. Thus, skb->csum is undefined in this case.
  *
  * - %CHECKSUM_UNNECESSARY
  *
@@ -126,10 +126,10 @@
  *   For instance if a device receives an IPv6->UDP->GRE->IPv4->TCP packet
  *   and a device is able to verify the checksums for UDP (possibly zero),
  *   GRE (checksum flag is set) and TCP, &sk_buff.csum_level would be set to
- *   two. If the device were only able to verify the UDP checksum and not
+ *   two. If the device were only able to verify the UDP checksum and analt
  *   GRE, either because it doesn't support GRE checksum or because GRE
  *   checksum is bad, skb->csum_level would be set to zero (TCP checksum is
- *   not considered in this case).
+ *   analt considered in this case).
  *
  * - %CHECKSUM_COMPLETE
  *
@@ -137,25 +137,25 @@
  *   packet as seen by netif_rx() and fills in &sk_buff.csum. This means the
  *   hardware doesn't need to parse L3/L4 headers to implement this.
  *
- *   Notes:
+ *   Analtes:
  *
  *   - Even if device supports only some protocols, but is able to produce
- *     skb->csum, it MUST use CHECKSUM_COMPLETE, not CHECKSUM_UNNECESSARY.
- *   - CHECKSUM_COMPLETE is not applicable to SCTP and FCoE protocols.
+ *     skb->csum, it MUST use CHECKSUM_COMPLETE, analt CHECKSUM_UNNECESSARY.
+ *   - CHECKSUM_COMPLETE is analt applicable to SCTP and FCoE protocols.
  *
  * - %CHECKSUM_PARTIAL
  *
  *   A checksum is set up to be offloaded to a device as described in the
  *   output description for CHECKSUM_PARTIAL. This may occur on a packet
- *   received directly from another Linux OS, e.g., a virtualized Linux kernel
+ *   received directly from aanalther Linux OS, e.g., a virtualized Linux kernel
  *   on the same host, or it may be set in the input path in GRO or remote
  *   checksum offload. For the purposes of checksum verification, the checksum
  *   referred to by skb->csum_start + skb->csum_offset and any preceding
  *   checksums in the packet are considered verified. Any checksums in the
- *   packet that are after the checksum being offloaded are not considered to
+ *   packet that are after the checksum being offloaded are analt considered to
  *   be verified.
  *
- * Checksumming on transmit for non-GSO
+ * Checksumming on transmit for analn-GSO
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  *
  * The stack requests checksum offload in the &sk_buff.ip_summed for a packet.
@@ -168,7 +168,7 @@
  *   offset &sk_buff.csum_start + &sk_buff.csum_offset.
  *   A driver may verify that the
  *   csum_start and csum_offset values are valid values given the length and
- *   offset of the packet, but it should not attempt to validate that the
+ *   offset of the packet, but it should analt attempt to validate that the
  *   checksum refers to a legitimate transport layer checksum -- it is the
  *   purview of the stack to validate that csum_start and csum_offset are set
  *   correctly.
@@ -176,35 +176,35 @@
  *   When the stack requests checksum offload for a packet, the driver MUST
  *   ensure that the checksum is set correctly. A driver can either offload the
  *   checksum calculation to the device, or call skb_checksum_help (in the case
- *   that the device does not support offload for a particular checksum).
+ *   that the device does analt support offload for a particular checksum).
  *
  *   %NETIF_F_IP_CSUM and %NETIF_F_IPV6_CSUM are being deprecated in favor of
  *   %NETIF_F_HW_CSUM. New devices should use %NETIF_F_HW_CSUM to indicate
  *   checksum offload capability.
  *   skb_csum_hwoffload_help() can be called to resolve %CHECKSUM_PARTIAL based
- *   on network device checksumming capabilities: if a packet does not match
+ *   on network device checksumming capabilities: if a packet does analt match
  *   them, skb_checksum_help() or skb_crc32c_help() (depending on the value of
- *   &sk_buff.csum_not_inet, see :ref:`crc`)
+ *   &sk_buff.csum_analt_inet, see :ref:`crc`)
  *   is called to resolve the checksum.
  *
- * - %CHECKSUM_NONE
+ * - %CHECKSUM_ANALNE
  *
- *   The skb was already checksummed by the protocol, or a checksum is not
+ *   The skb was already checksummed by the protocol, or a checksum is analt
  *   required.
  *
  * - %CHECKSUM_UNNECESSARY
  *
- *   This has the same meaning as CHECKSUM_NONE for checksum offload on
+ *   This has the same meaning as CHECKSUM_ANALNE for checksum offload on
  *   output.
  *
  * - %CHECKSUM_COMPLETE
  *
- *   Not used in checksum output. If a driver observes a packet with this value
- *   set in skbuff, it should treat the packet as if %CHECKSUM_NONE were set.
+ *   Analt used in checksum output. If a driver observes a packet with this value
+ *   set in skbuff, it should treat the packet as if %CHECKSUM_ANALNE were set.
  *
  * .. _crc:
  *
- * Non-IP checksum (CRC) offloads
+ * Analn-IP checksum (CRC) offloads
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  *
  * .. flat-table::
@@ -214,18 +214,18 @@
  *     - This feature indicates that a device is capable of
  *	 offloading the SCTP CRC in a packet. To perform this offload the stack
  *	 will set csum_start and csum_offset accordingly, set ip_summed to
- *	 %CHECKSUM_PARTIAL and set csum_not_inet to 1, to provide an indication
+ *	 %CHECKSUM_PARTIAL and set csum_analt_inet to 1, to provide an indication
  *	 in the skbuff that the %CHECKSUM_PARTIAL refers to CRC32c.
  *	 A driver that supports both IP checksum offload and SCTP CRC32c offload
  *	 must verify which offload is configured for a packet by testing the
- *	 value of &sk_buff.csum_not_inet; skb_crc32c_csum_help() is provided to
- *	 resolve %CHECKSUM_PARTIAL on skbs where csum_not_inet is set to 1.
+ *	 value of &sk_buff.csum_analt_inet; skb_crc32c_csum_help() is provided to
+ *	 resolve %CHECKSUM_PARTIAL on skbs where csum_analt_inet is set to 1.
  *
  *   * - %NETIF_F_FCOE_CRC
  *     - This feature indicates that a device is capable of offloading the FCOE
  *	 CRC in a packet. To perform this offload the stack will set ip_summed
  *	 to %CHECKSUM_PARTIAL and set csum_start and csum_offset
- *	 accordingly. Note that there is no indication in the skbuff that the
+ *	 accordingly. Analte that there is anal indication in the skbuff that the
  *	 %CHECKSUM_PARTIAL refers to an FCOE checksum, so a driver that supports
  *	 both IP checksum offload and FCOE CRC offload must verify which offload
  *	 is configured for a packet, presumably by inspecting packet headers.
@@ -243,7 +243,7 @@
  */
 
 /* Don't change this without changing skb_csum_unnecessary! */
-#define CHECKSUM_NONE		0
+#define CHECKSUM_ANALNE		0
 #define CHECKSUM_UNNECESSARY	1
 #define CHECKSUM_COMPLETE	2
 #define CHECKSUM_PARTIAL	3
@@ -256,7 +256,7 @@
 	((X) - SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
 
 /* For X bytes available in skb->head, what is the minimal
- * allocation needed, knowing struct skb_shared_info needs
+ * allocation needed, kanalwing struct skb_shared_info needs
  * to be aligned.
  */
 #define SKB_HEAD_ALIGN(X) (SKB_DATA_ALIGN(X) + \
@@ -275,7 +275,7 @@
 struct ahash_request;
 struct net_device;
 struct scatterlist;
-struct pipe_inode_info;
+struct pipe_ianalde_info;
 struct iov_iter;
 struct napi_struct;
 struct bpf_prog;
@@ -297,7 +297,7 @@ struct nf_bridge_info {
 	__u16			frag_max_size;
 	int			physinif;
 
-	/* always valid & non-NULL from FORWARD on, for physdev match */
+	/* always valid & analn-NULL from FORWARD on, for physdev match */
 	struct net_device	*physoutdev;
 	union {
 		/* prerouting: detect dnat in orig/reply direction */
@@ -421,13 +421,13 @@ static inline bool skb_frag_must_loop(struct page *p)
  *	@f_len:		length from f_off to loop over
  *	@p:		(temp var) current page
  *	@p_off:		(temp var) offset from start of current page,
- *	                           non-zero only on first page.
+ *	                           analn-zero only on first page.
  *	@p_len:		(temp var) length in current page,
  *				   < PAGE_SIZE only on first and last page.
  *	@copied:	(temp var) length so far, excluding current p_len.
  *
  *	A fragment can hold a compound page, in which case per-page
- *	operations, notably kmap_atomic, must be called for each
+ *	operations, analtably kmap_atomic, must be called for each
  *	regular page.
  */
 #define skb_frag_foreach_page(f, f_off, f_len, p, p_off, p_len, copied)	\
@@ -505,7 +505,7 @@ enum {
 	 */
 	SKBFL_SHARED_FRAG = BIT(1),
 
-	/* segment contains only zerocopy data and should not be
+	/* segment contains only zerocopy data and should analt be
 	 * charged to the kernel memory.
 	 */
 	SKBFL_PURE_ZEROCOPY = BIT(2),
@@ -523,7 +523,7 @@ enum {
 				 SKBFL_DONT_ORPHAN | SKBFL_MANAGED_FRAG_REFS)
 
 /*
- * The callback notifies userspace to release buffers when skb DMA is done in
+ * The callback analtifies userspace to release buffers when skb DMA is done in
  * lower device, the skb last reference should be 0 when calling this.
  * The zerocopy_success argument is true if zero copy transmit occurred,
  * false on data copy or out of memory error caused by data copy attempt.
@@ -568,7 +568,7 @@ void mm_unaccount_pinned_pages(struct mmpin *mmp);
 
 /* Preserve some data across TX submission and completion.
  *
- * Note, this state is stored in the driver. Extending the layout
+ * Analte, this state is stored in the driver. Extending the layout
  * might need some special care.
  */
 struct xsk_tx_metadata_compl {
@@ -584,7 +584,7 @@ struct skb_shared_info {
 	__u8		nr_frags;
 	__u8		tx_flags;
 	unsigned short	gso_size;
-	/* Warning: this field is not always filled in (UFO)! */
+	/* Warning: this field is analt always filled in (UFO)! */
 	unsigned short	gso_segs;
 	struct sk_buff	*frag_list;
 	union {
@@ -618,7 +618,7 @@ struct skb_shared_info {
  * The higher 16 bits indicate how many of the references are payload-only.
  * skb_header_cloned() checks if skb is allowed to add / write the headers.
  *
- * The creator of the skb (e.g. TCP) marks its skb as &sk_buff.nohdr
+ * The creator of the skb (e.g. TCP) marks its skb as &sk_buff.analhdr
  * (via __skb_header_release()). Any clone created from marked skb will get
  * &sk_buff.hdr_len populated with the available headroom.
  * If there's the only clone in existence it's able to modify the headroom
@@ -630,9 +630,9 @@ struct skb_shared_info {
  *  skb_clone()
  *  // send the clone down the stack
  *
- * This is not a very generic construct and it depends on the transport layers
+ * This is analt a very generic construct and it depends on the transport layers
  * doing the right thing. In practice there's usually only one payload-only skb.
- * Having multiple payload-only skbs with different lengths of hdr_len is not
+ * Having multiple payload-only skbs with different lengths of hdr_len is analt
  * possible. The payload-only skbs should never leave their owner.
  */
 #define SKB_DATAREF_SHIFT 16
@@ -640,7 +640,7 @@ struct skb_shared_info {
 
 
 enum {
-	SKB_FCLONE_UNAVAILABLE,	/* skb has no fclone (from head_cache) */
+	SKB_FCLONE_UNAVAILABLE,	/* skb has anal fclone (from head_cache) */
 	SKB_FCLONE_ORIG,	/* orig skb (from fclone_cache) */
 	SKB_FCLONE_CLONE,	/* companion fclone skb (from fclone_cache) */
 };
@@ -700,7 +700,7 @@ typedef unsigned char *sk_buff_data_t;
 /**
  * DOC: Basic sk_buff geometry
  *
- * struct sk_buff itself is a metadata structure and does not hold any packet
+ * struct sk_buff itself is a metadata structure and does analt hold any packet
  * data. All the data is held in associated buffers.
  *
  * &sk_buff.head points to the main "head" buffer. The head buffer is divided
@@ -712,7 +712,7 @@ typedef unsigned char *sk_buff_data_t;
  *  - shared info (struct skb_shared_info) which holds an array of pointers
  *    to read-only data in the (page, offset, length) format.
  *
- * Optionally &skb_shared_info.frag_list may point to another skb.
+ * Optionally &skb_shared_info.frag_list may point to aanalther skb.
  *
  * Basic diagram may look like this::
  *
@@ -744,16 +744,16 @@ typedef unsigned char *sk_buff_data_t;
  *	@tstamp: Time we arrived/left
  *	@skb_mstamp_ns: (aka @tstamp) earliest departure time; start point
  *		for retransmit timer
- *	@rbnode: RB tree node, alternative to next/prev for netem/tcp
+ *	@rbanalde: RB tree analde, alternative to next/prev for netem/tcp
  *	@list: queue head
- *	@ll_node: anchor in an llist (eg socket defer_list)
+ *	@ll_analde: anchor in an llist (eg socket defer_list)
  *	@sk: Socket we are owned by
  *	@ip_defrag_offset: (aka @sk) alternate use of @sk, used in
  *		fragmentation management
  *	@dev: Device we arrived on/are leaving by
  *	@dev_scratch: (aka @dev) alternate use of @dev when @dev would be %NULL
  *	@cb: Control buffer. Free for use by every layer. Put private vars here
- *	@_skb_refdst: destination entry (with norefcount bit)
+ *	@_skb_refdst: destination entry (with analrefcount bit)
  *	@len: Length of actual data
  *	@data_len: Data length
  *	@mac_len: Length of link layer header
@@ -762,10 +762,10 @@ typedef unsigned char *sk_buff_data_t;
  *	@csum_start: Offset from skb->head where checksumming should start
  *	@csum_offset: Offset from csum_start where checksum should be stored
  *	@priority: Packet queueing priority
- *	@ignore_df: allow local fragmentation
+ *	@iganalre_df: allow local fragmentation
  *	@cloned: Head may be cloned (check refcnt to be sure)
  *	@ip_summed: Driver fed us an IP checksum
- *	@nohdr: Payload reference only, must not modify header
+ *	@analhdr: Payload reference only, must analt modify header
  *	@pkt_type: Packet class
  *	@fclone: skbuff clone status
  *	@ipvs_property: skbuff is owned by ipvs
@@ -774,7 +774,7 @@ typedef unsigned char *sk_buff_data_t;
  *	@remcsum_offload: remote checksum offload is enabled
  *	@offload_fwd_mark: Packet was L2-forwarded in hardware
  *	@offload_l3_fwd_mark: Packet was L3-forwarded in hardware
- *	@tc_skip_classify: do not classify packet. set by IFB device
+ *	@tc_skip_classify: do analt classify packet. set by IFB device
  *	@tc_at_ingress: used within tc_classify to distinguish in/egress
  *	@redirected: packet was redirected by packet classifier
  *	@from_ingress: packet was redirected from the ingress path
@@ -792,23 +792,23 @@ typedef unsigned char *sk_buff_data_t;
  *	@hash: the packet hash
  *	@queue_mapping: Queue mapping for multiqueue devices
  *	@head_frag: skb was allocated from page fragments,
- *		not allocated by kmalloc() or vmalloc().
+ *		analt allocated by kmalloc() or vmalloc().
  *	@pfmemalloc: skbuff was allocated from PFMEMALLOC reserves
  *	@pp_recycle: mark the packet for recycling instead of freeing (implies
  *		page_pool support on driver)
  *	@active_extensions: active extensions (skb_ext_id types)
- *	@ndisc_nodetype: router type (from link layer)
+ *	@ndisc_analdetype: router type (from link layer)
  *	@ooo_okay: allow the mapping of a socket to a queue to be changed
- *	@l4_hash: indicate hash is a canonical 4-tuple hash over transport
+ *	@l4_hash: indicate hash is a caanalnical 4-tuple hash over transport
  *		ports.
  *	@sw_hash: indicates hash was computed in software stack
  *	@wifi_acked_valid: wifi_acked was set
- *	@wifi_acked: whether frame was acked on wifi or not
- *	@no_fcs:  Request NIC to treat last 4 bytes as Ethernet FCS
+ *	@wifi_acked: whether frame was acked on wifi or analt
+ *	@anal_fcs:  Request NIC to treat last 4 bytes as Ethernet FCS
  *	@encapsulation: indicates the inner headers in the skbuff are valid
  *	@encap_hdr_csum: software checksum is needed
  *	@csum_valid: checksum is already valid
- *	@csum_not_inet: use CRC32c to resolve CHECKSUM_PARTIAL
+ *	@csum_analt_inet: use CRC32c to resolve CHECKSUM_PARTIAL
  *	@csum_complete_sw: checksum was completed by software
  *	@csum_level: indicates the number of consecutive checksums found in
  *		the packet minus one that have been verified as
@@ -816,8 +816,8 @@ typedef unsigned char *sk_buff_data_t;
  *	@dst_pending_confirm: need to confirm neighbour
  *	@decrypted: Decrypted SKB
  *	@slow_gro: state present at GRO time, slower prepare step required
- *	@mono_delivery_time: When set, skb->tstamp has the
- *		delivery_time in mono clock base (i.e. EDT).  Otherwise, the
+ *	@moanal_delivery_time: When set, skb->tstamp has the
+ *		delivery_time in moanal clock base (i.e. EDT).  Otherwise, the
  *		skb->tstamp has the (rcv) timestamp at ingress and
  *		delivery_time at egress.
  *	@napi_id: id of the NAPI struct this skb came from
@@ -846,7 +846,7 @@ typedef unsigned char *sk_buff_data_t;
  *	@data: Data head pointer
  *	@truesize: Buffer size
  *	@users: User count - see {datagram,tcp}.c
- *	@extensions: allocated extensions, valid if active_extensions is nonzero
+ *	@extensions: allocated extensions, valid if active_extensions is analnzero
  */
 
 struct sk_buff {
@@ -865,9 +865,9 @@ struct sk_buff {
 				unsigned long		dev_scratch;
 			};
 		};
-		struct rb_node		rbnode; /* used in netem, ip4 defrag, and tcp stack */
+		struct rb_analde		rbanalde; /* used in netem, ip4 defrag, and tcp stack */
 		struct list_head	list;
-		struct llist_node	ll_node;
+		struct llist_analde	ll_analde;
 	};
 
 	union {
@@ -906,8 +906,8 @@ struct sk_buff {
 	__u16			mac_len,
 				hdr_len;
 
-	/* Following fields are _not_ copied in __copy_skb_header()
-	 * Note that queue_mapping is here mostly to fill a hole.
+	/* Following fields are _analt_ copied in __copy_skb_header()
+	 * Analte that queue_mapping is here mostly to fill a hole.
 	 */
 	__u16			queue_mapping;
 
@@ -923,7 +923,7 @@ struct sk_buff {
 	__u8			__cloned_offset[0];
 	/* public: */
 	__u8			cloned:1,
-				nohdr:1,
+				analhdr:1,
 				fclone:2,
 				peeked:1,
 				head_frag:1,
@@ -942,15 +942,15 @@ struct sk_buff {
 	__u8			__pkt_type_offset[0];
 	/* public: */
 	__u8			pkt_type:3; /* see PKT_TYPE_MAX */
-	__u8			ignore_df:1;
+	__u8			iganalre_df:1;
 	__u8			dst_pending_confirm:1;
 	__u8			ip_summed:2;
 	__u8			ooo_okay:1;
 
 	/* private: */
-	__u8			__mono_tc_offset[0];
+	__u8			__moanal_tc_offset[0];
 	/* public: */
-	__u8			mono_delivery_time:1;	/* See SKB_MONO_DELIVERY_TIME_MASK */
+	__u8			moanal_delivery_time:1;	/* See SKB_MOANAL_DELIVERY_TIME_MASK */
 #ifdef CONFIG_NET_XGRESS
 	__u8			tc_at_ingress:1;	/* See TC_AT_INGRESS_MASK */
 	__u8			tc_skip_classify:1;
@@ -966,13 +966,13 @@ struct sk_buff {
 	__u8			wifi_acked_valid:1;
 	__u8			wifi_acked:1;
 #endif
-	__u8			no_fcs:1;
+	__u8			anal_fcs:1;
 	/* Indicates the inner headers are valid in the skbuff. */
 	__u8			encapsulation:1;
 	__u8			encap_hdr_csum:1;
 	__u8			csum_valid:1;
-#ifdef CONFIG_IPV6_NDISC_NODETYPE
-	__u8			ndisc_nodetype:2;
+#ifdef CONFIG_IPV6_NDISC_ANALDETYPE
+	__u8			ndisc_analdetype:2;
 #endif
 
 #if IS_ENABLED(CONFIG_IP_VS)
@@ -997,7 +997,7 @@ struct sk_buff {
 #endif
 	__u8			slow_gro:1;
 #if IS_ENABLED(CONFIG_IP_SCTP)
-	__u8			csum_not_inet:1;
+	__u8			csum_analt_inet:1;
 #endif
 
 #if defined(CONFIG_NET_SCHED) || defined(CONFIG_NET_XGRESS)
@@ -1080,17 +1080,17 @@ struct sk_buff {
 #endif
 #define PKT_TYPE_OFFSET		offsetof(struct sk_buff, __pkt_type_offset)
 
-/* if you move tc_at_ingress or mono_delivery_time
+/* if you move tc_at_ingress or moanal_delivery_time
  * around, you also must adapt these constants.
  */
 #ifdef __BIG_ENDIAN_BITFIELD
-#define SKB_MONO_DELIVERY_TIME_MASK	(1 << 7)
+#define SKB_MOANAL_DELIVERY_TIME_MASK	(1 << 7)
 #define TC_AT_INGRESS_MASK		(1 << 6)
 #else
-#define SKB_MONO_DELIVERY_TIME_MASK	(1 << 0)
+#define SKB_MOANAL_DELIVERY_TIME_MASK	(1 << 0)
 #define TC_AT_INGRESS_MASK		(1 << 1)
 #endif
-#define SKB_BF_MONO_TC_OFFSET		offsetof(struct sk_buff, __mono_tc_offset)
+#define SKB_BF_MOANAL_TC_OFFSET		offsetof(struct sk_buff, __moanal_tc_offset)
 
 #ifdef __KERNEL__
 /*
@@ -1111,24 +1111,24 @@ static inline bool skb_pfmemalloc(const struct sk_buff *skb)
 }
 
 /*
- * skb might have a dst pointer attached, refcounted or not.
- * _skb_refdst low order bit is set if refcount was _not_ taken
+ * skb might have a dst pointer attached, refcounted or analt.
+ * _skb_refdst low order bit is set if refcount was _analt_ taken
  */
-#define SKB_DST_NOREF	1UL
-#define SKB_DST_PTRMASK	~(SKB_DST_NOREF)
+#define SKB_DST_ANALREF	1UL
+#define SKB_DST_PTRMASK	~(SKB_DST_ANALREF)
 
 /**
  * skb_dst - returns skb dst_entry
  * @skb: buffer
  *
- * Returns skb dst_entry, regardless of reference taken or not.
+ * Returns skb dst_entry, regardless of reference taken or analt.
  */
 static inline struct dst_entry *skb_dst(const struct sk_buff *skb)
 {
-	/* If refdst was not refcounted, check we still are in a
+	/* If refdst was analt refcounted, check we still are in a
 	 * rcu_read_lock section
 	 */
-	WARN_ON((skb->_skb_refdst & SKB_DST_NOREF) &&
+	WARN_ON((skb->_skb_refdst & SKB_DST_ANALREF) &&
 		!rcu_read_lock_held() &&
 		!rcu_read_lock_bh_held());
 	return (struct dst_entry *)(skb->_skb_refdst & SKB_DST_PTRMASK);
@@ -1149,29 +1149,29 @@ static inline void skb_dst_set(struct sk_buff *skb, struct dst_entry *dst)
 }
 
 /**
- * skb_dst_set_noref - sets skb dst, hopefully, without taking reference
+ * skb_dst_set_analref - sets skb dst, hopefully, without taking reference
  * @skb: buffer
  * @dst: dst entry
  *
- * Sets skb dst, assuming a reference was not taken on dst.
- * If dst entry is cached, we do not take reference and dst_release
- * will be avoided by refdst_drop. If dst entry is not cached, we take
+ * Sets skb dst, assuming a reference was analt taken on dst.
+ * If dst entry is cached, we do analt take reference and dst_release
+ * will be avoided by refdst_drop. If dst entry is analt cached, we take
  * reference, so that last dst_release can destroy the dst immediately.
  */
-static inline void skb_dst_set_noref(struct sk_buff *skb, struct dst_entry *dst)
+static inline void skb_dst_set_analref(struct sk_buff *skb, struct dst_entry *dst)
 {
 	WARN_ON(!rcu_read_lock_held() && !rcu_read_lock_bh_held());
 	skb->slow_gro |= !!dst;
-	skb->_skb_refdst = (unsigned long)dst | SKB_DST_NOREF;
+	skb->_skb_refdst = (unsigned long)dst | SKB_DST_ANALREF;
 }
 
 /**
- * skb_dst_is_noref - Test if skb dst isn't refcounted
+ * skb_dst_is_analref - Test if skb dst isn't refcounted
  * @skb: buffer
  */
-static inline bool skb_dst_is_noref(const struct sk_buff *skb)
+static inline bool skb_dst_is_analref(const struct sk_buff *skb)
 {
-	return (skb->_skb_refdst & SKB_DST_NOREF) && skb_dst(skb);
+	return (skb->_skb_refdst & SKB_DST_ANALREF) && skb_dst(skb);
 }
 
 /**
@@ -1236,12 +1236,12 @@ void __fix_address
 kfree_skb_reason(struct sk_buff *skb, enum skb_drop_reason reason);
 
 /**
- *	kfree_skb - free an sk_buff with 'NOT_SPECIFIED' reason
+ *	kfree_skb - free an sk_buff with 'ANALT_SPECIFIED' reason
  *	@skb: buffer to free
  */
 static inline void kfree_skb(struct sk_buff *skb)
 {
-	kfree_skb_reason(skb, SKB_DROP_REASON_NOT_SPECIFIED);
+	kfree_skb_reason(skb, SKB_DROP_REASON_ANALT_SPECIFIED);
 }
 
 void skb_release_head_state(struct sk_buff *skb);
@@ -1252,7 +1252,7 @@ void skb_tx_error(struct sk_buff *skb);
 
 static inline void kfree_skb_list(struct sk_buff *segs)
 {
-	kfree_skb_list_reason(segs, SKB_DROP_REASON_NOT_SPECIFIED);
+	kfree_skb_list_reason(segs, SKB_DROP_REASON_ANALT_SPECIFIED);
 }
 
 #ifdef CONFIG_TRACEPOINTS
@@ -1273,7 +1273,7 @@ bool skb_try_coalesce(struct sk_buff *to, struct sk_buff *from,
 		      bool *fragstolen, int *delta_truesize);
 
 struct sk_buff *__alloc_skb(unsigned int size, gfp_t priority, int flags,
-			    int node);
+			    int analde);
 struct sk_buff *__build_skb(void *data, unsigned int frag_size);
 struct sk_buff *build_skb(void *data, unsigned int frag_size);
 struct sk_buff *build_skb_around(struct sk_buff *skb,
@@ -1293,7 +1293,7 @@ struct sk_buff *slab_build_skb(void *data);
 static inline struct sk_buff *alloc_skb(unsigned int size,
 					gfp_t priority)
 {
-	return __alloc_skb(size, priority, 0, NUMA_NO_NODE);
+	return __alloc_skb(size, priority, 0, NUMA_ANAL_ANALDE);
 }
 
 struct sk_buff *alloc_skb_with_frags(unsigned long header_len,
@@ -1317,7 +1317,7 @@ struct sk_buff_fclones {
  *	@sk: socket
  *	@skb: buffer
  *
- * Returns true if skb is a fast clone, and its clone is not freed.
+ * Returns true if skb is a fast clone, and its clone is analt freed.
  * Some drivers call skb_orphan() in their ndo_start_xmit(),
  * so we also check that didn't happen.
  */
@@ -1343,7 +1343,7 @@ static inline bool skb_fclone_busy(const struct sock *sk,
 static inline struct sk_buff *alloc_skb_fclone(unsigned int size,
 					       gfp_t priority)
 {
-	return __alloc_skb(size, priority, SKB_ALLOC_FCLONE, NUMA_NO_NODE);
+	return __alloc_skb(size, priority, SKB_ALLOC_FCLONE, NUMA_ANAL_ANALDE);
 }
 
 struct sk_buff *skb_morph(struct sk_buff *dst, struct sk_buff *src);
@@ -1366,7 +1366,7 @@ struct sk_buff *skb_realloc_headroom(struct sk_buff *skb,
 struct sk_buff *skb_expand_head(struct sk_buff *skb, unsigned int headroom);
 struct sk_buff *skb_copy_expand(const struct sk_buff *skb, int newheadroom,
 				int newtailroom, gfp_t priority);
-int __must_check skb_to_sgvec_nomark(struct sk_buff *skb, struct scatterlist *sg,
+int __must_check skb_to_sgvec_analmark(struct sk_buff *skb, struct scatterlist *sg,
 				     int offset, int len);
 int __must_check skb_to_sgvec(struct sk_buff *skb, struct scatterlist *sg,
 			      int offset, int len);
@@ -1429,18 +1429,18 @@ unsigned int skb_find_text(struct sk_buff *skb, unsigned int from,
  * A hash at a higher layer is considered to be more specific. A driver should
  * set the most specific hash possible.
  *
- * A driver cannot indicate a more specific hash than the layer at which a hash
- * was computed. For instance an L3 hash cannot be set as an L4 hash.
+ * A driver cananalt indicate a more specific hash than the layer at which a hash
+ * was computed. For instance an L3 hash cananalt be set as an L4 hash.
  *
  * A driver may indicate a hash level which is less specific than the
  * actual layer the hash was computed on. For instance, a hash computed
  * at L4 may be considered an L3 hash. This should only be done if the
  * driver can't unambiguously determine that the HW computed the hash at
- * the higher layer. Note that the "should" in the second property above
+ * the higher layer. Analte that the "should" in the second property above
  * permits this.
  */
 enum pkt_hash_types {
-	PKT_HASH_TYPE_NONE,	/* Undefined type */
+	PKT_HASH_TYPE_ANALNE,	/* Undefined type */
 	PKT_HASH_TYPE_L2,	/* Input: src_MAC, dest_MAC */
 	PKT_HASH_TYPE_L3,	/* Input: src_IP, dst_IP */
 	PKT_HASH_TYPE_L4,	/* Input: src_IP, dst_IP, src_port, dst_port */
@@ -1453,7 +1453,7 @@ static inline void skb_clear_hash(struct sk_buff *skb)
 	skb->l4_hash = 0;
 }
 
-static inline void skb_clear_hash_if_not_l4(struct sk_buff *skb)
+static inline void skb_clear_hash_if_analt_l4(struct sk_buff *skb)
 {
 	if (!skb->l4_hash)
 		skb_clear_hash(skb);
@@ -1721,18 +1721,18 @@ static inline void skb_zcopy_set(struct sk_buff *skb, struct ubuf_info *uarg,
 	}
 }
 
-static inline void skb_zcopy_set_nouarg(struct sk_buff *skb, void *val)
+static inline void skb_zcopy_set_analuarg(struct sk_buff *skb, void *val)
 {
 	skb_shinfo(skb)->destructor_arg = (void *)((uintptr_t) val | 0x1UL);
 	skb_shinfo(skb)->flags |= SKBFL_ZEROCOPY_FRAG;
 }
 
-static inline bool skb_zcopy_is_nouarg(struct sk_buff *skb)
+static inline bool skb_zcopy_is_analuarg(struct sk_buff *skb)
 {
 	return (uintptr_t) skb_shinfo(skb)->destructor_arg & 0x1UL;
 }
 
-static inline void *skb_zcopy_get_nouarg(struct sk_buff *skb)
+static inline void *skb_zcopy_get_analuarg(struct sk_buff *skb)
 {
 	return (void *)((uintptr_t) skb_shinfo(skb)->destructor_arg & ~0x1UL);
 }
@@ -1759,7 +1759,7 @@ static inline void skb_zcopy_clear(struct sk_buff *skb, bool zerocopy_success)
 	struct ubuf_info *uarg = skb_zcopy(skb);
 
 	if (uarg) {
-		if (!skb_zcopy_is_nouarg(skb))
+		if (!skb_zcopy_is_analuarg(skb))
 			uarg->callback(skb, uarg, zerocopy_success);
 
 		skb_shinfo(skb)->flags &= ~SKBFL_ALL_ZEROCOPY;
@@ -1774,7 +1774,7 @@ static inline void skb_zcopy_downgrade_managed(struct sk_buff *skb)
 		__skb_zcopy_downgrade_managed(skb);
 }
 
-static inline void skb_mark_not_on_list(struct sk_buff *skb)
+static inline void skb_mark_analt_on_list(struct sk_buff *skb)
 {
 	skb->next = NULL;
 }
@@ -1794,7 +1794,7 @@ static inline void skb_poison_list(struct sk_buff *skb)
 static inline void skb_list_del_init(struct sk_buff *skb)
 {
 	__list_del_entry(&skb->list);
-	skb_mark_not_on_list(skb);
+	skb_mark_analt_on_list(skb);
 }
 
 /**
@@ -1887,7 +1887,7 @@ static inline struct sk_buff *skb_queue_prev(const struct sk_buff_head *list,
  *	skb_get - reference buffer
  *	@skb: buffer to reference
  *
- *	Makes another reference to a socket buffer and returns a pointer
+ *	Makes aanalther reference to a socket buffer and returns a pointer
  *	to the buffer.
  */
 static inline struct sk_buff *skb_get(struct sk_buff *skb)
@@ -1906,7 +1906,7 @@ static inline struct sk_buff *skb_get(struct sk_buff *skb)
  *
  *	Returns true if the buffer was generated with skb_clone() and is
  *	one of multiple shared copies of the buffer. Cloned buffers are
- *	shared data so must not be written to under normal circumstances.
+ *	shared data so must analt be written to under analrmal circumstances.
  */
 static inline int skb_cloned(const struct sk_buff *skb)
 {
@@ -1925,9 +1925,9 @@ static inline int skb_unclone(struct sk_buff *skb, gfp_t pri)
 }
 
 /* This variant of skb_unclone() makes sure skb->truesize
- * and skb_end_offset() are not changed, whenever a new skb->head is needed.
+ * and skb_end_offset() are analt changed, whenever a new skb->head is needed.
  *
- * Indeed there is no guarantee that ksize(kmalloc(X)) == ksize(kmalloc(X))
+ * Indeed there is anal guarantee that ksize(kmalloc(X)) == ksize(kmalloc(X))
  * when various debugging features are in place.
  */
 int __skb_unclone_keeptruesize(struct sk_buff *skb, gfp_t pri);
@@ -1977,7 +1977,7 @@ static inline int skb_header_unclone(struct sk_buff *skb, gfp_t pri)
  */
 static inline void __skb_header_release(struct sk_buff *skb)
 {
-	skb->nohdr = 1;
+	skb->analhdr = 1;
 	atomic_set(&skb_shinfo(skb)->dataref, 1 + (1 << SKB_DATAREF_SHIFT));
 }
 
@@ -2001,7 +2001,7 @@ static inline int skb_shared(const struct sk_buff *skb)
  *
  *	If the buffer is shared the buffer is cloned and the old copy
  *	drops a reference. A new clone with a single reference is returned.
- *	If the buffer is not shared the original buffer is returned. When
+ *	If the buffer is analt shared the original buffer is returned. When
  *	being called from interrupt status or with spinlocks held pri must
  *	be GFP_ATOMIC.
  *
@@ -2025,7 +2025,7 @@ static inline struct sk_buff *skb_share_check(struct sk_buff *skb, gfp_t pri)
 /*
  *	Copy shared buffers into a new sk_buff. We effectively do COW on
  *	packets to handle cases where we have a local reader and forward
- *	and a couple of other messy ones. The normal one is tcpdumping
+ *	and a couple of other messy ones. The analrmal one is tcpdumping
  *	a packet that's being forwarded.
  */
 
@@ -2036,7 +2036,7 @@ static inline struct sk_buff *skb_share_check(struct sk_buff *skb, gfp_t pri)
  *
  *	If the socket buffer is a clone then this function creates a new
  *	copy of the data, drops a reference count on the old copy and returns
- *	the new copy with the reference count at 1. If the buffer is not a clone
+ *	the new copy with the reference count at 1. If the buffer is analt a clone
  *	the original buffer is returned. When called with a spinlock held or
  *	from interrupt state @pri must be %GFP_ATOMIC
  *
@@ -2069,7 +2069,7 @@ static inline struct sk_buff *skb_unshare(struct sk_buff *skb,
  *	the appropriate locks or have a private queue to do this.
  *
  *	Returns %NULL for an empty list or a pointer to the head element.
- *	The reference count is not incremented and the reference is therefore
+ *	The reference count is analt incremented and the reference is therefore
  *	volatile. Use with caution.
  */
 static inline struct sk_buff *skb_peek(const struct sk_buff_head *list_)
@@ -2082,10 +2082,10 @@ static inline struct sk_buff *skb_peek(const struct sk_buff_head *list_)
 }
 
 /**
- *	__skb_peek - peek at the head of a non-empty &sk_buff_head
+ *	__skb_peek - peek at the head of a analn-empty &sk_buff_head
  *	@list_: list to peek at
  *
- *	Like skb_peek(), but the caller knows that the list is not empty.
+ *	Like skb_peek(), but the caller kanalws that the list is analt empty.
  */
 static inline struct sk_buff *__skb_peek(const struct sk_buff_head *list_)
 {
@@ -2098,7 +2098,7 @@ static inline struct sk_buff *__skb_peek(const struct sk_buff_head *list_)
  *	@list_: list to peek at
  *
  *	Returns %NULL when the end of the list is met or a pointer to the
- *	next element. The reference count is not incremented and the
+ *	next element. The reference count is analt incremented and the
  *	reference is therefore volatile. Use with caution.
  */
 static inline struct sk_buff *skb_peek_next(struct sk_buff *skb,
@@ -2121,7 +2121,7 @@ static inline struct sk_buff *skb_peek_next(struct sk_buff *skb,
  *	the appropriate locks or have a private queue to do this.
  *
  *	Returns %NULL for an empty list or a pointer to the tail element.
- *	The reference count is not incremented and the reference is therefore
+ *	The reference count is analt incremented and the reference is therefore
  *	volatile. Use with caution.
  */
 static inline struct sk_buff *skb_peek_tail(const struct sk_buff_head *list_)
@@ -2158,14 +2158,14 @@ static inline __u32 skb_queue_len_lockless(const struct sk_buff_head *list_)
 }
 
 /**
- *	__skb_queue_head_init - initialize non-spinlock portions of sk_buff_head
+ *	__skb_queue_head_init - initialize analn-spinlock portions of sk_buff_head
  *	@list: queue to initialize
  *
  *	This initializes only the list and queue length aspects of
  *	an sk_buff_head object.  This allows to initialize the list
  *	aspects of an sk_buff_head without reinitializing things like
  *	the spinlock.  It can also be used for on-stack sk_buff_head
- *	objects where the spinlock is known to not be used.
+ *	objects where the spinlock is kanalwn to analt be used.
  */
 static inline void __skb_queue_head_init(struct sk_buff_head *list)
 {
@@ -2175,10 +2175,10 @@ static inline void __skb_queue_head_init(struct sk_buff_head *list)
 
 /*
  * This function creates a split out lock class for each invocation;
- * this is needed for now since a whole lot of users of the skb-queue
+ * this is needed for analw since a whole lot of users of the skb-queue
  * infrastructure in drivers have different locking usage (in hardirq)
  * than the networking core (in softirq only). In the long run either the
- * network layer or drivers should need annotation to consolidate the
+ * network layer or drivers should need ananaltation to consolidate the
  * main types of usage into 3 classes.
  */
 static inline void skb_queue_head_init(struct sk_buff_head *list)
@@ -2197,7 +2197,7 @@ static inline void skb_queue_head_init_class(struct sk_buff_head *list,
 /*
  *	Insert an sk_buff on a list.
  *
- *	The "__skb_xxxx()" functions are the non-atomic ones that
+ *	The "__skb_xxxx()" functions are the analn-atomic ones that
  *	can only be called with interrupts disabled.
  */
 static inline void __skb_insert(struct sk_buff *newsk,
@@ -2297,10 +2297,10 @@ static inline void skb_queue_splice_tail_init(struct sk_buff_head *list,
  *	@prev: place after this buffer
  *	@newsk: buffer to queue
  *
- *	Queue a buffer int the middle of a list. This function takes no locks
+ *	Queue a buffer int the middle of a list. This function takes anal locks
  *	and you must therefore hold required locks before calling it.
  *
- *	A buffer cannot be placed on two lists at the same time.
+ *	A buffer cananalt be placed on two lists at the same time.
  */
 static inline void __skb_queue_after(struct sk_buff_head *list,
 				     struct sk_buff *prev,
@@ -2324,10 +2324,10 @@ static inline void __skb_queue_before(struct sk_buff_head *list,
  *	@list: list to use
  *	@newsk: buffer to queue
  *
- *	Queue a buffer at the start of a list. This function takes no locks
+ *	Queue a buffer at the start of a list. This function takes anal locks
  *	and you must therefore hold required locks before calling it.
  *
- *	A buffer cannot be placed on two lists at the same time.
+ *	A buffer cananalt be placed on two lists at the same time.
  */
 static inline void __skb_queue_head(struct sk_buff_head *list,
 				    struct sk_buff *newsk)
@@ -2341,10 +2341,10 @@ void skb_queue_head(struct sk_buff_head *list, struct sk_buff *newsk);
  *	@list: list to use
  *	@newsk: buffer to queue
  *
- *	Queue a buffer at the end of a list. This function takes no locks
+ *	Queue a buffer at the end of a list. This function takes anal locks
  *	and you must therefore hold required locks before calling it.
  *
- *	A buffer cannot be placed on two lists at the same time.
+ *	A buffer cananalt be placed on two lists at the same time.
  */
 static inline void __skb_queue_tail(struct sk_buff_head *list,
 				   struct sk_buff *newsk)
@@ -2355,7 +2355,7 @@ void skb_queue_tail(struct sk_buff_head *list, struct sk_buff *newsk);
 
 /*
  * remove sk_buff from list. _Must_ be called atomically, and with
- * the list known..
+ * the list kanalwn..
  */
 void skb_unlink(struct sk_buff *skb, struct sk_buff_head *list);
 static inline void __skb_unlink(struct sk_buff *skb, struct sk_buff_head *list)
@@ -2374,7 +2374,7 @@ static inline void __skb_unlink(struct sk_buff *skb, struct sk_buff_head *list)
  *	__skb_dequeue - remove from the head of the queue
  *	@list: list to dequeue from
  *
- *	Remove the head of the list. This function does not take any locks
+ *	Remove the head of the list. This function does analt take any locks
  *	so must be used with appropriate locks held only. The head item is
  *	returned or %NULL if the list is empty.
  */
@@ -2391,7 +2391,7 @@ struct sk_buff *skb_dequeue(struct sk_buff_head *list);
  *	__skb_dequeue_tail - remove from the tail of the queue
  *	@list: list to dequeue from
  *
- *	Remove the tail of the list. This function does not take any locks
+ *	Remove the tail of the list. This function does analt take any locks
  *	so must be used with appropriate locks held only. The tail item is
  *	returned or %NULL if the list is empty.
  */
@@ -2405,7 +2405,7 @@ static inline struct sk_buff *__skb_dequeue_tail(struct sk_buff_head *list)
 struct sk_buff *skb_dequeue_tail(struct sk_buff_head *list);
 
 
-static inline bool skb_is_nonlinear(const struct sk_buff *skb)
+static inline bool skb_is_analnlinear(const struct sk_buff *skb)
 {
 	return skb->data_len;
 }
@@ -2438,7 +2438,7 @@ static inline void skb_frag_fill_page_desc(skb_frag_t *frag,
 	skb_frag_size_set(frag, size);
 }
 
-static inline void __skb_fill_page_desc_noacc(struct skb_shared_info *shinfo,
+static inline void __skb_fill_page_desc_analacc(struct skb_shared_info *shinfo,
 					      int i, struct page *page,
 					      int off, int size)
 {
@@ -2470,15 +2470,15 @@ static inline void skb_len_add(struct sk_buff *skb, int delta)
  * Initialises the @i'th fragment of @skb to point to &size bytes at
  * offset @off within @page.
  *
- * Does not take any additional reference on the fragment.
+ * Does analt take any additional reference on the fragment.
  */
 static inline void __skb_fill_page_desc(struct sk_buff *skb, int i,
 					struct page *page, int off, int size)
 {
-	__skb_fill_page_desc_noacc(skb_shinfo(skb), i, page, off, size);
+	__skb_fill_page_desc_analacc(skb_shinfo(skb), i, page, off, size);
 
 	/* Propagate page pfmemalloc to the skb if we can. The problem is
-	 * that not all callers have unique ownership of the page but rely
+	 * that analt all callers have unique ownership of the page but rely
 	 * on page_is_pfmemalloc doing the right thing(tm).
 	 */
 	page = compound_head(page);
@@ -2498,7 +2498,7 @@ static inline void __skb_fill_page_desc(struct sk_buff *skb, int i,
  * @skb to point to @size bytes at offset @off within @page. In
  * addition updates @skb such that @i is the last fragment.
  *
- * Does not take any additional reference on the fragment.
+ * Does analt take any additional reference on the fragment.
  */
 static inline void skb_fill_page_desc(struct sk_buff *skb, int i,
 				      struct page *page, int off, int size)
@@ -2508,23 +2508,23 @@ static inline void skb_fill_page_desc(struct sk_buff *skb, int i,
 }
 
 /**
- * skb_fill_page_desc_noacc - initialise a paged fragment in an skb
+ * skb_fill_page_desc_analacc - initialise a paged fragment in an skb
  * @skb: buffer containing fragment to be initialised
  * @i: paged fragment index to initialise
  * @page: the page to use for this fragment
  * @off: the offset to the data with @page
  * @size: the length of the data
  *
- * Variant of skb_fill_page_desc() which does not deal with
- * pfmemalloc, if page is not owned by us.
+ * Variant of skb_fill_page_desc() which does analt deal with
+ * pfmemalloc, if page is analt owned by us.
  */
-static inline void skb_fill_page_desc_noacc(struct sk_buff *skb, int i,
+static inline void skb_fill_page_desc_analacc(struct sk_buff *skb, int i,
 					    struct page *page, int off,
 					    int size)
 {
 	struct skb_shared_info *shinfo = skb_shinfo(skb);
 
-	__skb_fill_page_desc_noacc(shinfo, i, page, off, size);
+	__skb_fill_page_desc_analacc(shinfo, i, page, off, size);
 	shinfo->nr_frags = i + 1;
 }
 
@@ -2534,7 +2534,7 @@ void skb_add_rx_frag(struct sk_buff *skb, int i, struct page *page, int off,
 void skb_coalesce_rx_frag(struct sk_buff *skb, int i, int size,
 			  unsigned int truesize);
 
-#define SKB_LINEAR_ASSERT(skb)  BUG_ON(skb_is_nonlinear(skb))
+#define SKB_LINEAR_ASSERT(skb)  BUG_ON(skb_is_analnlinear(skb))
 
 #ifdef NET_SKBUFF_DATA_USES_OFFSET
 static inline unsigned char *skb_tail_pointer(const struct sk_buff *skb)
@@ -2675,20 +2675,20 @@ static inline enum skb_drop_reason
 pskb_may_pull_reason(struct sk_buff *skb, unsigned int len)
 {
 	if (likely(len <= skb_headlen(skb)))
-		return SKB_NOT_DROPPED_YET;
+		return SKB_ANALT_DROPPED_YET;
 
 	if (unlikely(len > skb->len))
 		return SKB_DROP_REASON_PKT_TOO_SMALL;
 
 	if (unlikely(!__pskb_pull_tail(skb, len - skb_headlen(skb))))
-		return SKB_DROP_REASON_NOMEM;
+		return SKB_DROP_REASON_ANALMEM;
 
-	return SKB_NOT_DROPPED_YET;
+	return SKB_ANALT_DROPPED_YET;
 }
 
 static inline bool pskb_may_pull(struct sk_buff *skb, unsigned int len)
 {
-	return pskb_may_pull_reason(skb, len) == SKB_NOT_DROPPED_YET;
+	return pskb_may_pull_reason(skb, len) == SKB_ANALT_DROPPED_YET;
 }
 
 static inline void *pskb_pull(struct sk_buff *skb, unsigned int len)
@@ -2721,7 +2721,7 @@ static inline unsigned int skb_headroom(const struct sk_buff *skb)
  */
 static inline int skb_tailroom(const struct sk_buff *skb)
 {
-	return skb_is_nonlinear(skb) ? 0 : skb->end - skb->tail;
+	return skb_is_analnlinear(skb) ? 0 : skb->end - skb->tail;
 }
 
 /**
@@ -2733,7 +2733,7 @@ static inline int skb_tailroom(const struct sk_buff *skb)
  */
 static inline int skb_availroom(const struct sk_buff *skb)
 {
-	if (skb_is_nonlinear(skb))
+	if (skb_is_analnlinear(skb))
 		return 0;
 
 	return skb->end - skb->tail - skb->reserved_tailroom;
@@ -2760,7 +2760,7 @@ static inline void skb_reserve(struct sk_buff *skb, int len)
  *	@needed_tailroom: minimum amount of reserved_tailroom
  *
  *	Set reserved_tailroom so that headlen can be as large as possible but
- *	not larger than mtu and tailroom cannot be smaller than
+ *	analt larger than mtu and tailroom cananalt be smaller than
  *	needed_tailroom.
  *	The required headroom should already have been reserved before using
  *	this function.
@@ -3019,7 +3019,7 @@ static inline int pskb_network_may_pull(struct sk_buff *skb, unsigned int len)
  *
  * skb_reserve(skb, NET_IP_ALIGN);
  *
- * The downside to this alignment of the IP header is that the DMA is now
+ * The downside to this alignment of the IP header is that the DMA is analw
  * unaligned. On some architectures the cost of an unaligned DMA is high
  * and this cost outweighs the gains made by aligning the IP header.
  *
@@ -3043,7 +3043,7 @@ static inline int pskb_network_may_pull(struct sk_buff *skb, unsigned int len)
  * cacheline alignment of the DMA). It must be a power of 2.
  *
  * Various parts of the networking layer expect at least 32 bytes of
- * headroom, you should not reduce this.
+ * headroom, you should analt reduce this.
  *
  * Using max(32, L1_CACHE_BYTES) makes sense (especially with RPS)
  * to reduce average number of cache lines per packet.
@@ -3058,7 +3058,7 @@ int ___pskb_trim(struct sk_buff *skb, unsigned int len);
 
 static inline void __skb_set_length(struct sk_buff *skb, unsigned int len)
 {
-	if (WARN_ON(skb_is_nonlinear(skb)))
+	if (WARN_ON(skb_is_analnlinear(skb)))
 		return;
 	skb->len = len;
 	skb_set_tail_pointer(skb, len);
@@ -3085,12 +3085,12 @@ static inline int pskb_trim(struct sk_buff *skb, unsigned int len)
 }
 
 /**
- *	pskb_trim_unique - remove end from a paged unique (not cloned) buffer
+ *	pskb_trim_unique - remove end from a paged unique (analt cloned) buffer
  *	@skb: buffer to alter
  *	@len: new length
  *
- *	This is identical to pskb_trim except that the caller knows that
- *	the skb is not cloned so we should never get an error due to out-
+ *	This is identical to pskb_trim except that the caller kanalws that
+ *	the skb is analt cloned so we should never get an error due to out-
  *	of-memory.
  */
 static inline void pskb_trim_unique(struct sk_buff *skb, unsigned int len)
@@ -3118,8 +3118,8 @@ static inline int __skb_grow(struct sk_buff *skb, unsigned int len)
  *	@skb: buffer to orphan
  *
  *	If a buffer currently has an owner then we call the owner's
- *	destructor function and make the @skb unowned. The buffer continues
- *	to exist but is no longer charged to its former owner.
+ *	destructor function and make the @skb uanalwned. The buffer continues
+ *	to exist but is anal longer charged to its former owner.
  */
 static inline void skb_orphan(struct sk_buff *skb)
 {
@@ -3164,7 +3164,7 @@ static inline int skb_orphan_frags_rx(struct sk_buff *skb, gfp_t gfp_mask)
  *	@reason: drop reason
  *
  *	Delete all buffers on an &sk_buff list. Each buffer is removed from
- *	the list and one reference dropped. This function does not take the
+ *	the list and one reference dropped. This function does analt take the
  *	list lock and the caller must hold the relevant locks to use it.
  */
 static inline void __skb_queue_purge_reason(struct sk_buff_head *list,
@@ -3226,7 +3226,7 @@ struct sk_buff *__netdev_alloc_skb(struct net_device *dev, unsigned int length,
  *	the headroom they think they need without accounting for the
  *	built in space. The built in space is used for optimisations.
  *
- *	%NULL is returned if there is no free memory. Although this function
+ *	%NULL is returned if there is anal free memory. Although this function
  *	allocates memory it can be called from an interrupt.
  */
 static inline struct sk_buff *netdev_alloc_skb(struct net_device *dev,
@@ -3298,12 +3298,12 @@ void __napi_kfree_skb(struct sk_buff *skb, enum skb_drop_reason reason);
 
 /**
  * __dev_alloc_pages - allocate page for network Rx
- * @gfp_mask: allocation priority. Set __GFP_NOMEMALLOC if not for network Rx
+ * @gfp_mask: allocation priority. Set __GFP_ANALMEMALLOC if analt for network Rx
  * @order: size of the allocation
  *
  * Allocate a new page.
  *
- * %NULL is returned if there is no free memory.
+ * %NULL is returned if there is anal free memory.
 */
 static inline struct page *__dev_alloc_pages(gfp_t gfp_mask,
 					     unsigned int order)
@@ -3311,28 +3311,28 @@ static inline struct page *__dev_alloc_pages(gfp_t gfp_mask,
 	/* This piece of code contains several assumptions.
 	 * 1.  This is for device Rx, therefore a cold page is preferred.
 	 * 2.  The expectation is the user wants a compound page.
-	 * 3.  If requesting a order 0 page it will not be compound
+	 * 3.  If requesting a order 0 page it will analt be compound
 	 *     due to the check to see if order has a value in prep_new_page
-	 * 4.  __GFP_MEMALLOC is ignored if __GFP_NOMEMALLOC is set due to
+	 * 4.  __GFP_MEMALLOC is iganalred if __GFP_ANALMEMALLOC is set due to
 	 *     code in gfp_to_alloc_flags that should be enforcing this.
 	 */
 	gfp_mask |= __GFP_COMP | __GFP_MEMALLOC;
 
-	return alloc_pages_node(NUMA_NO_NODE, gfp_mask, order);
+	return alloc_pages_analde(NUMA_ANAL_ANALDE, gfp_mask, order);
 }
 
 static inline struct page *dev_alloc_pages(unsigned int order)
 {
-	return __dev_alloc_pages(GFP_ATOMIC | __GFP_NOWARN, order);
+	return __dev_alloc_pages(GFP_ATOMIC | __GFP_ANALWARN, order);
 }
 
 /**
  * __dev_alloc_page - allocate a page for network Rx
- * @gfp_mask: allocation priority. Set __GFP_NOMEMALLOC if not for network Rx
+ * @gfp_mask: allocation priority. Set __GFP_ANALMEMALLOC if analt for network Rx
  *
  * Allocate a new page.
  *
- * %NULL is returned if there is no free memory.
+ * %NULL is returned if there is anal free memory.
  */
 static inline struct page *__dev_alloc_page(gfp_t gfp_mask)
 {
@@ -3349,7 +3349,7 @@ static inline struct page *dev_alloc_page(void)
  * @page: the page to test
  *
  * A page shouldn't be considered for reusing/recycling if it was allocated
- * under memory pressure or at a distant memory node.
+ * under memory pressure or at a distant memory analde.
  *
  * Returns false if this page should be returned to page allocator, true
  * otherwise.
@@ -3402,7 +3402,7 @@ static inline void skb_frag_off_set(skb_frag_t *frag, unsigned int offset)
 }
 
 /**
- * skb_frag_off_copy() - Sets the offset of a skb fragment from another fragment
+ * skb_frag_off_copy() - Sets the offset of a skb fragment from aanalther fragment
  * @fragto: skb fragment where offset is set
  * @fragfrom: skb fragment offset is copied from
  */
@@ -3517,7 +3517,7 @@ static inline void *skb_frag_address_safe(const skb_frag_t *frag)
 }
 
 /**
- * skb_frag_page_copy() - sets the page in a fragment from another fragment
+ * skb_frag_page_copy() - sets the page in a fragment from aanalther fragment
  * @fragto: skb fragment where page is set
  * @fragfrom: skb fragment page is copied from
  */
@@ -3569,7 +3569,7 @@ static inline struct sk_buff *pskb_copy_for_clone(struct sk_buff *skb,
  *	@len: length up to which to write
  *
  *	Returns true if modifying the header part of the cloned buffer
- *	does not requires the data to be copied.
+ *	does analt requires the data to be copied.
  */
 static inline int skb_clone_writable(const struct sk_buff *skb, unsigned int len)
 {
@@ -3605,7 +3605,7 @@ static inline int __skb_cow(struct sk_buff *skb, unsigned int headroom,
  *
  *	If the skb passed lacks sufficient headroom or its data part
  *	is shared, data is reallocated. If reallocation fails, an error
- *	is returned and original skb is not changed.
+ *	is returned and original skb is analt changed.
  *
  *	The result is skb with writable area skb->head...skb->tail
  *	and at least @headroom of space at head.
@@ -3622,7 +3622,7 @@ static inline int skb_cow(struct sk_buff *skb, unsigned int headroom)
  *
  *	This function is identical to skb_cow except that we replace the
  *	skb_cloned check by skb_header_cloned.  It should be used when
- *	you only need to push on some header and do not need to modify
+ *	you only need to push on some header and do analt need to modify
  *	the data.
  */
 static inline int skb_cow_head(struct sk_buff *skb, unsigned int headroom)
@@ -3668,7 +3668,7 @@ static inline int __must_check __skb_put_padto(struct sk_buff *skb,
 	if (unlikely(size < len)) {
 		len -= size;
 		if (__skb_pad(skb, len, free_on_error))
-			return -ENOMEM;
+			return -EANALMEM;
 		__skb_put(skb, len);
 	}
 	return 0;
@@ -3697,7 +3697,7 @@ static inline int skb_add_data(struct sk_buff *skb,
 {
 	const int off = skb->len;
 
-	if (skb->ip_summed == CHECKSUM_NONE) {
+	if (skb->ip_summed == CHECKSUM_ANALNE) {
 		__wsum csum = 0;
 		if (csum_and_copy_from_iter_full(skb_put(skb, copy), copy,
 					         &csum, from)) {
@@ -3727,19 +3727,19 @@ static inline bool skb_can_coalesce(struct sk_buff *skb, int i,
 
 static inline int __skb_linearize(struct sk_buff *skb)
 {
-	return __pskb_pull_tail(skb, skb->data_len) ? 0 : -ENOMEM;
+	return __pskb_pull_tail(skb, skb->data_len) ? 0 : -EANALMEM;
 }
 
 /**
  *	skb_linearize - convert paged skb to linear one
  *	@skb: buffer to linarize
  *
- *	If there is no free memory -ENOMEM is returned, otherwise zero
+ *	If there is anal free memory -EANALMEM is returned, otherwise zero
  *	is returned and the old skb data released.
  */
 static inline int skb_linearize(struct sk_buff *skb)
 {
-	return skb_is_nonlinear(skb) ? __skb_linearize(skb) : 0;
+	return skb_is_analnlinear(skb) ? __skb_linearize(skb) : 0;
 }
 
 /**
@@ -3751,7 +3751,7 @@ static inline int skb_linearize(struct sk_buff *skb)
  */
 static inline bool skb_has_shared_frag(const struct sk_buff *skb)
 {
-	return skb_is_nonlinear(skb) &&
+	return skb_is_analnlinear(skb) &&
 	       skb_shinfo(skb)->flags & SKBFL_SHARED_FRAG;
 }
 
@@ -3759,12 +3759,12 @@ static inline bool skb_has_shared_frag(const struct sk_buff *skb)
  *	skb_linearize_cow - make sure skb is linear and writable
  *	@skb: buffer to process
  *
- *	If there is no free memory -ENOMEM is returned, otherwise zero
+ *	If there is anal free memory -EANALMEM is returned, otherwise zero
  *	is returned and the old skb data released.
  */
 static inline int skb_linearize_cow(struct sk_buff *skb)
 {
-	return skb_is_nonlinear(skb) || skb_cloned(skb) ?
+	return skb_is_analnlinear(skb) || skb_cloned(skb) ?
 	       __skb_linearize(skb) : 0;
 }
 
@@ -3777,7 +3777,7 @@ __skb_postpull_rcsum(struct sk_buff *skb, const void *start, unsigned int len,
 					   csum_partial(start, len, 0), off);
 	else if (skb->ip_summed == CHECKSUM_PARTIAL &&
 		 skb_checksum_start_offset(skb) < 0)
-		skb->ip_summed = CHECKSUM_NONE;
+		skb->ip_summed = CHECKSUM_ANALNE;
 }
 
 /**
@@ -3788,7 +3788,7 @@ __skb_postpull_rcsum(struct sk_buff *skb, const void *start, unsigned int len,
  *
  *	After doing a pull on a received packet, you need to call this to
  *	update the CHECKSUM_COMPLETE checksum, or set ip_summed to
- *	CHECKSUM_NONE so that it can be recomputed from scratch.
+ *	CHECKSUM_ANALNE so that it can be recomputed from scratch.
  */
 static inline void skb_postpull_rcsum(struct sk_buff *skb,
 				      const void *start, unsigned int len)
@@ -3798,7 +3798,7 @@ static inline void skb_postpull_rcsum(struct sk_buff *skb,
 						     wsum_negate(skb->csum)));
 	else if (skb->ip_summed == CHECKSUM_PARTIAL &&
 		 skb_checksum_start_offset(skb) < 0)
-		skb->ip_summed = CHECKSUM_NONE;
+		skb->ip_summed = CHECKSUM_ANALNE;
 }
 
 static __always_inline void
@@ -3834,9 +3834,9 @@ void *skb_pull_rcsum(struct sk_buff *skb, unsigned int len);
  *
  *	This function performs an skb_push on the packet and updates
  *	the CHECKSUM_COMPLETE checksum.  It should be used on
- *	receive path processing instead of skb_push unless you know
+ *	receive path processing instead of skb_push unless you kanalw
  *	that the checksum difference is zero (e.g., a valid IP header)
- *	or you are setting ip_summed to CHECKSUM_NONE.
+ *	or you are setting ip_summed to CHECKSUM_ANALNE.
  */
 static inline void *skb_push_rcsum(struct sk_buff *skb, unsigned int len)
 {
@@ -3866,7 +3866,7 @@ static inline int pskb_trim_rcsum(struct sk_buff *skb, unsigned int len)
 static inline int __skb_trim_rcsum(struct sk_buff *skb, unsigned int len)
 {
 	if (skb->ip_summed == CHECKSUM_COMPLETE)
-		skb->ip_summed = CHECKSUM_NONE;
+		skb->ip_summed = CHECKSUM_ANALNE;
 	__skb_trim(skb, len);
 	return 0;
 }
@@ -3874,15 +3874,15 @@ static inline int __skb_trim_rcsum(struct sk_buff *skb, unsigned int len)
 static inline int __skb_grow_rcsum(struct sk_buff *skb, unsigned int len)
 {
 	if (skb->ip_summed == CHECKSUM_COMPLETE)
-		skb->ip_summed = CHECKSUM_NONE;
+		skb->ip_summed = CHECKSUM_ANALNE;
 	return __skb_grow(skb, len);
 }
 
-#define rb_to_skb(rb) rb_entry_safe(rb, struct sk_buff, rbnode)
+#define rb_to_skb(rb) rb_entry_safe(rb, struct sk_buff, rbanalde)
 #define skb_rb_first(root) rb_to_skb(rb_first(root))
 #define skb_rb_last(root)  rb_to_skb(rb_last(root))
-#define skb_rb_next(skb)   rb_to_skb(rb_next(&(skb)->rbnode))
-#define skb_rb_prev(skb)   rb_to_skb(rb_prev(&(skb)->rbnode))
+#define skb_rb_next(skb)   rb_to_skb(rb_next(&(skb)->rbanalde))
+#define skb_rb_prev(skb)   rb_to_skb(rb_prev(&(skb)->rbanalde))
 
 #define skb_queue_walk(queue, skb) \
 		for (skb = (queue)->next;					\
@@ -3990,7 +3990,7 @@ int skb_store_bits(struct sk_buff *skb, int offset, const void *from, int len);
 __wsum skb_copy_and_csum_bits(const struct sk_buff *skb, int offset, u8 *to,
 			      int len);
 int skb_splice_bits(struct sk_buff *skb, struct sock *sk, unsigned int offset,
-		    struct pipe_inode_info *pipe, unsigned int len,
+		    struct pipe_ianalde_info *pipe, unsigned int len,
 		    unsigned int flags);
 int skb_send_sock_locked(struct sock *sk, struct sk_buff *skb, int offset,
 			 int len);
@@ -4081,12 +4081,12 @@ skb_pointer_if_linear(const struct sk_buff *skb, int offset, int len)
  *
  *	Returns true if either:
  *	1. skb has frag_list and the device doesn't support FRAGLIST, or
- *	2. skb is fragmented and the device does not support SG.
+ *	2. skb is fragmented and the device does analt support SG.
  */
 static inline bool skb_needs_linearize(struct sk_buff *skb,
 				       netdev_features_t features)
 {
-	return skb_is_nonlinear(skb) &&
+	return skb_is_analnlinear(skb) &&
 	       ((skb_has_frag_list(skb) && !(features & NETIF_F_FRAGLIST)) ||
 		(skb_shinfo(skb)->nr_frags && !(features & NETIF_F_SG)));
 }
@@ -4172,7 +4172,7 @@ static inline void skb_get_new_timestampns(const struct sk_buff *skb,
 static inline void __net_timestamp(struct sk_buff *skb)
 {
 	skb->tstamp = ktime_get_real();
-	skb->mono_delivery_time = 0;
+	skb->moanal_delivery_time = 0;
 }
 
 static inline ktime_t net_timedelta(ktime_t t)
@@ -4181,10 +4181,10 @@ static inline ktime_t net_timedelta(ktime_t t)
 }
 
 static inline void skb_set_delivery_time(struct sk_buff *skb, ktime_t kt,
-					 bool mono)
+					 bool moanal)
 {
 	skb->tstamp = kt;
-	skb->mono_delivery_time = kt && mono;
+	skb->moanal_delivery_time = kt && moanal;
 }
 
 DECLARE_STATIC_KEY_FALSE(netstamp_needed_key);
@@ -4194,8 +4194,8 @@ DECLARE_STATIC_KEY_FALSE(netstamp_needed_key);
  */
 static inline void skb_clear_delivery_time(struct sk_buff *skb)
 {
-	if (skb->mono_delivery_time) {
-		skb->mono_delivery_time = 0;
+	if (skb->moanal_delivery_time) {
+		skb->moanal_delivery_time = 0;
 		if (static_branch_unlikely(&netstamp_needed_key))
 			skb->tstamp = ktime_get_real();
 		else
@@ -4205,7 +4205,7 @@ static inline void skb_clear_delivery_time(struct sk_buff *skb)
 
 static inline void skb_clear_tstamp(struct sk_buff *skb)
 {
-	if (skb->mono_delivery_time)
+	if (skb->moanal_delivery_time)
 		return;
 
 	skb->tstamp = 0;
@@ -4213,7 +4213,7 @@ static inline void skb_clear_tstamp(struct sk_buff *skb)
 
 static inline ktime_t skb_tstamp(const struct sk_buff *skb)
 {
-	if (skb->mono_delivery_time)
+	if (skb->moanal_delivery_time)
 		return 0;
 
 	return skb->tstamp;
@@ -4221,7 +4221,7 @@ static inline ktime_t skb_tstamp(const struct sk_buff *skb)
 
 static inline ktime_t skb_tstamp_cond(const struct sk_buff *skb, bool cond)
 {
-	if (!skb->mono_delivery_time && skb->tstamp)
+	if (!skb->moanal_delivery_time && skb->tstamp)
 		return skb->tstamp;
 
 	if (static_branch_unlikely(&netstamp_needed_key) || cond)
@@ -4344,13 +4344,13 @@ void __skb_tstamp_tx(struct sk_buff *orig_skb, const struct sk_buff *ack_skb,
 /**
  * skb_tstamp_tx - queue clone of skb with send time stamps
  * @orig_skb:	the original outgoing packet
- * @hwtstamps:	hardware time stamps, may be NULL if not available
+ * @hwtstamps:	hardware time stamps, may be NULL if analt available
  *
  * If the skb has a socket associated, then this function clones the
  * skb (thus sharing the actual data and optional structures), stores
- * the optional hardware time stamping information (if non NULL) or
+ * the optional hardware time stamping information (if analn NULL) or
  * generates a software time stamp (otherwise), then queues the clone
- * to the error queue of the socket.  Errors are silently ignored.
+ * to the error queue of the socket.  Errors are silently iganalred.
  */
 void skb_tstamp_tx(struct sk_buff *orig_skb,
 		   struct skb_shared_hwtstamps *hwtstamps);
@@ -4420,7 +4420,7 @@ static inline void __skb_decr_checksum_unnecessary(struct sk_buff *skb)
 {
 	if (skb->ip_summed == CHECKSUM_UNNECESSARY) {
 		if (skb->csum_level == 0)
-			skb->ip_summed = CHECKSUM_NONE;
+			skb->ip_summed = CHECKSUM_ANALNE;
 		else
 			skb->csum_level--;
 	}
@@ -4431,7 +4431,7 @@ static inline void __skb_incr_checksum_unnecessary(struct sk_buff *skb)
 	if (skb->ip_summed == CHECKSUM_UNNECESSARY) {
 		if (skb->csum_level < SKB_MAX_CSUM_LEVEL)
 			skb->csum_level++;
-	} else if (skb->ip_summed == CHECKSUM_NONE) {
+	} else if (skb->ip_summed == CHECKSUM_ANALNE) {
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 		skb->csum_level = 0;
 	}
@@ -4440,7 +4440,7 @@ static inline void __skb_incr_checksum_unnecessary(struct sk_buff *skb)
 static inline void __skb_reset_checksum_unnecessary(struct sk_buff *skb)
 {
 	if (skb->ip_summed == CHECKSUM_UNNECESSARY) {
-		skb->ip_summed = CHECKSUM_NONE;
+		skb->ip_summed = CHECKSUM_ANALNE;
 		skb->csum_level = 0;
 	}
 }
@@ -4477,16 +4477,16 @@ static inline bool __skb_checksum_validate_needed(struct sk_buff *skb,
 static inline void skb_checksum_complete_unset(struct sk_buff *skb)
 {
 	if (skb->ip_summed == CHECKSUM_COMPLETE)
-		skb->ip_summed = CHECKSUM_NONE;
+		skb->ip_summed = CHECKSUM_ANALNE;
 }
 
 /* Validate (init) checksum based on checksum complete.
  *
  * Return values:
  *   0: checksum is validated or try to in skb_checksum_complete. In the latter
- *	case the ip_summed will not be CHECKSUM_UNNECESSARY and the pseudo
+ *	case the ip_summed will analt be CHECKSUM_UNNECESSARY and the pseudo
  *	checksum is stored in skb->csum for use in __skb_checksum_complete
- *   non-zero: value of invalid checksum
+ *   analn-zero: value of invalid checksum
  *
  */
 static inline __sum16 __skb_checksum_validate_complete(struct sk_buff *skb,
@@ -4518,7 +4518,7 @@ static inline __wsum null_compute_pseudo(struct sk_buff *skb, int proto)
 	return 0;
 }
 
-/* Perform checksum validate (init). Note that this is a macro since we only
+/* Perform checksum validate (init). Analte that this is a macro since we only
  * want to calculate the pseudo header which is an input function if necessary.
  * First we try to validate without any computation (checksum unnecessary) and
  * then calculate based on checksum complete calling the function to compute
@@ -4526,7 +4526,7 @@ static inline __wsum null_compute_pseudo(struct sk_buff *skb, int proto)
  *
  * Return values:
  *   0: checksum is validated or try to in skb_checksum_complete
- *   non-zero: value of invalid checksum
+ *   analn-zero: value of invalid checksum
  */
 #define __skb_checksum_validate(skb, proto, complete,			\
 				zero_okay, check, compute_pseudo)	\
@@ -4557,7 +4557,7 @@ static inline __wsum null_compute_pseudo(struct sk_buff *skb, int proto)
 
 static inline bool __skb_checksum_convert_check(struct sk_buff *skb)
 {
-	return (skb->ip_summed == CHECKSUM_NONE && skb->csum_valid);
+	return (skb->ip_summed == CHECKSUM_ANALNE && skb->csum_valid);
 }
 
 static inline void __skb_checksum_convert(struct sk_buff *skb, __wsum pseudo)
@@ -4586,11 +4586,11 @@ static inline void skb_remcsum_adjust_partial(struct sk_buff *skb, void *ptr,
  * here, skb_postpull_rcsum is done so skb->csum start is ptr.
  */
 static inline void skb_remcsum_process(struct sk_buff *skb, void *ptr,
-				       int start, int offset, bool nopartial)
+				       int start, int offset, bool analpartial)
 {
 	__wsum delta;
 
-	if (!nopartial) {
+	if (!analpartial) {
 		skb_remcsum_adjust_partial(skb, ptr, start, offset);
 		return;
 	}
@@ -4659,7 +4659,7 @@ enum skb_ext_id {
  *	@chunks: size currently allocated, stored in SKB_EXT_ALIGN_SHIFT units
  *	@data: start of extension data, variable sized
  *
- *	Note: offsets/lengths are stored in chunks of 8 bytes, this allows
+ *	Analte: offsets/lengths are stored in chunks of 8 bytes, this allows
  *	to use 'u8' types while allowing up to 2kb worth of extension data.
  */
 struct skb_ext {
@@ -4771,7 +4771,7 @@ static inline void ipvs_reset(struct sk_buff *skb)
 #endif
 }
 
-/* Note: This doesn't put any conntrack info in dst. */
+/* Analte: This doesn't put any conntrack info in dst. */
 static inline void __nf_copy(struct sk_buff *dst, const struct sk_buff *src,
 			     bool copy)
 {
@@ -4884,19 +4884,19 @@ static inline bool skb_is_gso(const struct sk_buff *skb)
 	return skb_shinfo(skb)->gso_size;
 }
 
-/* Note: Should be called only if skb_is_gso(skb) is true */
+/* Analte: Should be called only if skb_is_gso(skb) is true */
 static inline bool skb_is_gso_v6(const struct sk_buff *skb)
 {
 	return skb_shinfo(skb)->gso_type & SKB_GSO_TCPV6;
 }
 
-/* Note: Should be called only if skb_is_gso(skb) is true */
+/* Analte: Should be called only if skb_is_gso(skb) is true */
 static inline bool skb_is_gso_sctp(const struct sk_buff *skb)
 {
 	return skb_shinfo(skb)->gso_type & SKB_GSO_SCTP;
 }
 
-/* Note: Should be called only if skb_is_gso(skb) is true */
+/* Analte: Should be called only if skb_is_gso(skb) is true */
 static inline bool skb_is_gso_tcp(const struct sk_buff *skb)
 {
 	return skb_shinfo(skb)->gso_type & (SKB_GSO_TCPV4 | SKB_GSO_TCPV6);
@@ -4929,11 +4929,11 @@ void __skb_warn_lro_forwarding(const struct sk_buff *skb);
 
 static inline bool skb_warn_if_lro(const struct sk_buff *skb)
 {
-	/* LRO sets gso_size but not gso_type, whereas if GSO is really
+	/* LRO sets gso_size but analt gso_type, whereas if GSO is really
 	 * wanted then gso_type will be set. */
 	const struct skb_shared_info *shinfo = skb_shinfo(skb);
 
-	if (skb_is_nonlinear(skb) && shinfo->gso_size != 0 &&
+	if (skb_is_analnlinear(skb) && shinfo->gso_size != 0 &&
 	    unlikely(shinfo->gso_type == 0)) {
 		__skb_warn_lro_forwarding(skb);
 		return true;
@@ -4945,20 +4945,20 @@ static inline void skb_forward_csum(struct sk_buff *skb)
 {
 	/* Unfortunately we don't support this one.  Any brave souls? */
 	if (skb->ip_summed == CHECKSUM_COMPLETE)
-		skb->ip_summed = CHECKSUM_NONE;
+		skb->ip_summed = CHECKSUM_ANALNE;
 }
 
 /**
- * skb_checksum_none_assert - make sure skb ip_summed is CHECKSUM_NONE
+ * skb_checksum_analne_assert - make sure skb ip_summed is CHECKSUM_ANALNE
  * @skb: skb to check
  *
- * fresh skbs have their ip_summed set to CHECKSUM_NONE.
- * Instead of forcing ip_summed to CHECKSUM_NONE, we can
+ * fresh skbs have their ip_summed set to CHECKSUM_ANALNE.
+ * Instead of forcing ip_summed to CHECKSUM_ANALNE, we can
  * use this helper, to document places where we make this assertion.
  */
-static inline void skb_checksum_none_assert(const struct sk_buff *skb)
+static inline void skb_checksum_analne_assert(const struct sk_buff *skb)
 {
-	DEBUG_NET_WARN_ON_ONCE(skb->ip_summed != CHECKSUM_NONE);
+	DEBUG_NET_WARN_ON_ONCE(skb->ip_summed != CHECKSUM_ANALNE);
 }
 
 bool skb_partial_csum_set(struct sk_buff *skb, u16 start, u16 off);
@@ -4973,7 +4973,7 @@ struct sk_buff *skb_checksum_trimmed(struct sk_buff *skb,
  * @skb: skb to check
  *
  * The head on skbs build around a head frag can be removed if they are
- * not cloned.  This function returns true if the skb head is locked down
+ * analt cloned.  This function returns true if the skb head is locked down
  * due to either being allocated via kmalloc, or by being a clone with
  * multiple references to the head.
  */
@@ -5027,7 +5027,7 @@ static inline void skb_reset_redirect(struct sk_buff *skb)
 	skb->redirected = 0;
 }
 
-static inline void skb_set_redirected_noclear(struct sk_buff *skb,
+static inline void skb_set_redirected_analclear(struct sk_buff *skb,
 					      bool from_ingress)
 {
 	skb->redirected = 1;
@@ -5039,17 +5039,17 @@ static inline void skb_set_redirected_noclear(struct sk_buff *skb,
 static inline bool skb_csum_is_sctp(struct sk_buff *skb)
 {
 #if IS_ENABLED(CONFIG_IP_SCTP)
-	return skb->csum_not_inet;
+	return skb->csum_analt_inet;
 #else
 	return 0;
 #endif
 }
 
-static inline void skb_reset_csum_not_inet(struct sk_buff *skb)
+static inline void skb_reset_csum_analt_inet(struct sk_buff *skb)
 {
-	skb->ip_summed = CHECKSUM_NONE;
+	skb->ip_summed = CHECKSUM_ANALNE;
 #if IS_ENABLED(CONFIG_IP_SCTP)
-	skb->csum_not_inet = 0;
+	skb->csum_analt_inet = 0;
 #endif
 }
 

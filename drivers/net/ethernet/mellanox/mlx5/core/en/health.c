@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (c) 2019 Mellanox Technologies.
+// Copyright (c) 2019 Mellaanalx Techanallogies.
 
 #include "health.h"
 #include "lib/eq.h"
@@ -185,11 +185,11 @@ int mlx5e_health_rsc_fmsg_dump(struct mlx5e_priv *priv, struct mlx5_rsc_key *key
 	int size;
 
 	if (IS_ERR_OR_NULL(mdev->rsc_dump))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	page = alloc_page(GFP_KERNEL);
 	if (!page)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	devlink_fmsg_binary_pair_nest_start(fmsg, "data");
 

@@ -201,7 +201,7 @@
 };
 
 &pinctrl {
-	aspeed,external-nodes = <&gfx &lhc>;
+	aspeed,external-analdes = <&gfx &lhc>;
 };
 
 &gpio {

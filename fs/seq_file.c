@@ -51,8 +51,8 @@ static void *seq_buf_alloc(unsigned long size)
  *	ERR_PTR(error).  In the end of sequence they return %NULL. ->show()
  *	returns 0 in case of success and negative number in case of error.
  *	Returning SEQ_SKIP means "discard this element and move on".
- *	Note: seq_open() will allocate a struct seq_file and store its
- *	pointer in @file->private_data. This pointer should not be modified.
+ *	Analte: seq_open() will allocate a struct seq_file and store its
+ *	pointer in @file->private_data. This pointer should analt be modified.
  */
 int seq_open(struct file *file, const struct seq_operations *op)
 {
@@ -62,19 +62,19 @@ int seq_open(struct file *file, const struct seq_operations *op)
 
 	p = kmem_cache_zalloc(seq_file_cache, GFP_KERNEL);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	file->private_data = p;
 
 	mutex_init(&p->lock);
 	p->op = op;
 
-	// No refcounting: the lifetime of 'p' is constrained
+	// Anal refcounting: the lifetime of 'p' is constrained
 	// to the lifetime of the file.
 	p->file = file;
 
 	/*
-	 * seq_files support lseek() and pread().  They do not implement
+	 * seq_files support lseek() and pread().  They do analt implement
 	 * write() at all, but we clear FMODE_PWRITE here for historical
 	 * reasons.
 	 *
@@ -101,7 +101,7 @@ static int traverse(struct seq_file *m, loff_t offset)
 	if (!m->buf) {
 		m->buf = seq_buf_alloc(m->size = PAGE_SIZE);
 		if (!m->buf)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 	p = m->op->start(m, &m->index);
 	while (p) {
@@ -136,7 +136,7 @@ Eoverflow:
 	kvfree(m->buf);
 	m->count = 0;
 	m->buf = seq_buf_alloc(m->size <<= 1);
-	return !m->buf ? -ENOMEM : -EAGAIN;
+	return !m->buf ? -EANALMEM : -EAGAIN;
 }
 
 /**
@@ -209,7 +209,7 @@ ssize_t seq_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 	if (!m->buf) {
 		m->buf = seq_buf_alloc(m->size = PAGE_SIZE);
 		if (!m->buf)
-			goto Enomem;
+			goto Eanalmem;
 	}
 	// something left in the buffer - copy it out first
 	if (m->count) {
@@ -220,7 +220,7 @@ ssize_t seq_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 		if (m->count)	// hadn't managed to copy everything
 			goto Done;
 	}
-	// get a non-empty record in the buffer
+	// get a analn-empty record in the buffer
 	m->from = 0;
 	p = m->op->start(m, &m->index);
 	while (1) {
@@ -244,7 +244,7 @@ ssize_t seq_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 		m->count = 0;
 		m->buf = seq_buf_alloc(m->size <<= 1);
 		if (!m->buf)
-			goto Enomem;
+			goto Eanalmem;
 		p = m->op->start(m, &m->index);
 	}
 	// EOF or an error
@@ -252,7 +252,7 @@ ssize_t seq_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 	m->count = 0;
 	goto Done;
 Fill:
-	// one non-empty record is in the buffer; if they want more,
+	// one analn-empty record is in the buffer; if they want more,
 	// try to fit more in, but in any case we need to advance
 	// the iterator once for every record shown.
 	while (1) {
@@ -261,11 +261,11 @@ Fill:
 
 		p = m->op->next(m, p, &m->index);
 		if (pos == m->index) {
-			pr_info_ratelimited("buggy .next function %ps did not update position index\n",
+			pr_info_ratelimited("buggy .next function %ps did analt update position index\n",
 					    m->op->next);
 			m->index++;
 		}
-		if (!p || IS_ERR(p))	// no next record for us
+		if (!p || IS_ERR(p))	// anal next record for us
 			break;
 		if (m->count >= iov_iter_count(iter))
 			break;
@@ -291,8 +291,8 @@ Done:
 	}
 	mutex_unlock(&m->lock);
 	return copied;
-Enomem:
-	err = -ENOMEM;
+Eanalmem:
+	err = -EANALMEM;
 	goto Done;
 }
 EXPORT_SYMBOL(seq_read_iter);
@@ -344,12 +344,12 @@ EXPORT_SYMBOL(seq_lseek);
 /**
  *	seq_release -	free the structures associated with sequential file.
  *	@file: file in question
- *	@inode: its inode
+ *	@ianalde: its ianalde
  *
  *	Frees the structures associated with sequential file; can be used
  *	as ->f_op->release() if you don't have private data to destroy.
  */
-int seq_release(struct inode *inode, struct file *file)
+int seq_release(struct ianalde *ianalde, struct file *file)
 {
 	struct seq_file *m = file->private_data;
 	kvfree(m->buf);
@@ -573,7 +573,7 @@ int single_open(struct file *file, int (*show)(struct seq_file *, void *),
 		void *data)
 {
 	struct seq_operations *op = kmalloc(sizeof(*op), GFP_KERNEL_ACCOUNT);
-	int res = -ENOMEM;
+	int res = -EANALMEM;
 
 	if (op) {
 		op->start = single_start;
@@ -596,7 +596,7 @@ int single_open_size(struct file *file, int (*show)(struct seq_file *, void *),
 	char *buf = seq_buf_alloc(size);
 	int ret;
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 	ret = single_open(file, show, data);
 	if (ret) {
 		kvfree(buf);
@@ -608,22 +608,22 @@ int single_open_size(struct file *file, int (*show)(struct seq_file *, void *),
 }
 EXPORT_SYMBOL(single_open_size);
 
-int single_release(struct inode *inode, struct file *file)
+int single_release(struct ianalde *ianalde, struct file *file)
 {
 	const struct seq_operations *op = ((struct seq_file *)file->private_data)->op;
-	int res = seq_release(inode, file);
+	int res = seq_release(ianalde, file);
 	kfree(op);
 	return res;
 }
 EXPORT_SYMBOL(single_release);
 
-int seq_release_private(struct inode *inode, struct file *file)
+int seq_release_private(struct ianalde *ianalde, struct file *file)
 {
 	struct seq_file *seq = file->private_data;
 
 	kfree(seq->private);
 	seq->private = NULL;
-	return seq_release(inode, file);
+	return seq_release(ianalde, file);
 }
 EXPORT_SYMBOL(seq_release_private);
 
@@ -656,7 +656,7 @@ EXPORT_SYMBOL(__seq_open_private);
 int seq_open_private(struct file *filp, const struct seq_operations *ops,
 		int psize)
 {
-	return __seq_open_private(filp, ops, psize) ? 0 : -ENOMEM;
+	return __seq_open_private(filp, ops, psize) ? 0 : -EANALMEM;
 }
 EXPORT_SYMBOL(seq_open_private);
 
@@ -735,7 +735,7 @@ void seq_put_decimal_ull(struct seq_file *m, const char *delimiter,
 EXPORT_SYMBOL(seq_put_decimal_ull);
 
 /**
- * seq_put_hex_ll - put a number in hexadecimal notation
+ * seq_put_hex_ll - put a number in hexadecimal analtation
  * @m: seq_file identifying the buffer to which data should be written
  * @delimiter: a string which is printed before the number
  * @v: the number
@@ -825,7 +825,7 @@ EXPORT_SYMBOL(seq_put_decimal_ll);
  * @data: data address
  * @len: number of bytes
  *
- * Return 0 on success, non-zero otherwise.
+ * Return 0 on success, analn-zero otherwise.
  */
 int seq_write(struct seq_file *seq, const void *data, size_t len)
 {
@@ -842,7 +842,7 @@ EXPORT_SYMBOL(seq_write);
 /**
  * seq_pad - write padding spaces to buffer
  * @m: seq_file identifying the buffer to which data should be written
- * @c: the byte to append after padding if non-zero
+ * @c: the byte to append after padding if analn-zero
  */
 void seq_pad(struct seq_file *m, char c)
 {
@@ -970,13 +970,13 @@ EXPORT_SYMBOL(seq_list_next_rcu);
  *
  * Called at seq_file->op->start().
  */
-struct hlist_node *seq_hlist_start(struct hlist_head *head, loff_t pos)
+struct hlist_analde *seq_hlist_start(struct hlist_head *head, loff_t pos)
 {
-	struct hlist_node *node;
+	struct hlist_analde *analde;
 
-	hlist_for_each(node, head)
+	hlist_for_each(analde, head)
 		if (pos-- == 0)
-			return node;
+			return analde;
 	return NULL;
 }
 EXPORT_SYMBOL(seq_hlist_start);
@@ -989,7 +989,7 @@ EXPORT_SYMBOL(seq_hlist_start);
  * Called at seq_file->op->start(). Call this function if you want to
  * print a header at the top of the output.
  */
-struct hlist_node *seq_hlist_start_head(struct hlist_head *head, loff_t pos)
+struct hlist_analde *seq_hlist_start_head(struct hlist_head *head, loff_t pos)
 {
 	if (!pos)
 		return SEQ_START_TOKEN;
@@ -1006,16 +1006,16 @@ EXPORT_SYMBOL(seq_hlist_start_head);
  *
  * Called at seq_file->op->next().
  */
-struct hlist_node *seq_hlist_next(void *v, struct hlist_head *head,
+struct hlist_analde *seq_hlist_next(void *v, struct hlist_head *head,
 				  loff_t *ppos)
 {
-	struct hlist_node *node = v;
+	struct hlist_analde *analde = v;
 
 	++*ppos;
 	if (v == SEQ_START_TOKEN)
 		return head->first;
 	else
-		return node->next;
+		return analde->next;
 }
 EXPORT_SYMBOL(seq_hlist_next);
 
@@ -1030,14 +1030,14 @@ EXPORT_SYMBOL(seq_hlist_next);
  * the _rcu list-mutation primitives such as hlist_add_head_rcu()
  * as long as the traversal is guarded by rcu_read_lock().
  */
-struct hlist_node *seq_hlist_start_rcu(struct hlist_head *head,
+struct hlist_analde *seq_hlist_start_rcu(struct hlist_head *head,
 				       loff_t pos)
 {
-	struct hlist_node *node;
+	struct hlist_analde *analde;
 
-	__hlist_for_each_rcu(node, head)
+	__hlist_for_each_rcu(analde, head)
 		if (pos-- == 0)
-			return node;
+			return analde;
 	return NULL;
 }
 EXPORT_SYMBOL(seq_hlist_start_rcu);
@@ -1054,7 +1054,7 @@ EXPORT_SYMBOL(seq_hlist_start_rcu);
  * the _rcu list-mutation primitives such as hlist_add_head_rcu()
  * as long as the traversal is guarded by rcu_read_lock().
  */
-struct hlist_node *seq_hlist_start_head_rcu(struct hlist_head *head,
+struct hlist_analde *seq_hlist_start_head_rcu(struct hlist_head *head,
 					    loff_t pos)
 {
 	if (!pos)
@@ -1076,17 +1076,17 @@ EXPORT_SYMBOL(seq_hlist_start_head_rcu);
  * the _rcu list-mutation primitives such as hlist_add_head_rcu()
  * as long as the traversal is guarded by rcu_read_lock().
  */
-struct hlist_node *seq_hlist_next_rcu(void *v,
+struct hlist_analde *seq_hlist_next_rcu(void *v,
 				      struct hlist_head *head,
 				      loff_t *ppos)
 {
-	struct hlist_node *node = v;
+	struct hlist_analde *analde = v;
 
 	++*ppos;
 	if (v == SEQ_START_TOKEN)
 		return rcu_dereference(head->first);
 	else
-		return rcu_dereference(node->next);
+		return rcu_dereference(analde->next);
 }
 EXPORT_SYMBOL(seq_hlist_next_rcu);
 
@@ -1098,15 +1098,15 @@ EXPORT_SYMBOL(seq_hlist_next_rcu);
  *
  * Called at seq_file->op->start().
  */
-struct hlist_node *
+struct hlist_analde *
 seq_hlist_start_percpu(struct hlist_head __percpu *head, int *cpu, loff_t pos)
 {
-	struct hlist_node *node;
+	struct hlist_analde *analde;
 
 	for_each_possible_cpu(*cpu) {
-		hlist_for_each(node, per_cpu_ptr(head, *cpu)) {
+		hlist_for_each(analde, per_cpu_ptr(head, *cpu)) {
 			if (pos-- == 0)
-				return node;
+				return analde;
 		}
 	}
 	return NULL;
@@ -1115,23 +1115,23 @@ EXPORT_SYMBOL(seq_hlist_start_percpu);
 
 /**
  * seq_hlist_next_percpu - move to the next position of the percpu hlist array
- * @v:    pointer to current hlist_node
+ * @v:    pointer to current hlist_analde
  * @head: pointer to percpu array of struct hlist_heads
  * @cpu:  pointer to cpu "cursor"
  * @pos:  start position of sequence
  *
  * Called at seq_file->op->next().
  */
-struct hlist_node *
+struct hlist_analde *
 seq_hlist_next_percpu(void *v, struct hlist_head __percpu *head,
 			int *cpu, loff_t *pos)
 {
-	struct hlist_node *node = v;
+	struct hlist_analde *analde = v;
 
 	++*pos;
 
-	if (node->next)
-		return node->next;
+	if (analde->next)
+		return analde->next;
 
 	for (*cpu = cpumask_next(*cpu, cpu_possible_mask); *cpu < nr_cpu_ids;
 	     *cpu = cpumask_next(*cpu, cpu_possible_mask)) {

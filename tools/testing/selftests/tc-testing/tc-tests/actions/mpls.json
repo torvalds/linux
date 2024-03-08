@@ -450,7 +450,7 @@
     },
     {
         "id": "7e23",
-        "name": "Add mpls pop action with no protocol (invalid)",
+        "name": "Add mpls pop action with anal protocol (invalid)",
         "category": [
             "actions",
             "mpls"
@@ -710,7 +710,7 @@
     },
     {
         "id": "d69d",
-        "name": "Add mpls push action with no label (invalid)",
+        "name": "Add mpls push action with anal label (invalid)",
         "category": [
             "actions",
             "mpls"

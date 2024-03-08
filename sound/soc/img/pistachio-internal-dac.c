@@ -2,7 +2,7 @@
 /*
  * Pistachio internal dac driver
  *
- * Copyright (C) 2015 Imagination Technologies Ltd.
+ * Copyright (C) 2015 Imagination Techanallogies Ltd.
  *
  * Author: Damien Horsley <Damien.Horsley@imgtec.com>
  */
@@ -50,7 +50,7 @@ static const struct snd_kcontrol_new pistachio_internal_dac_snd_controls[] = {
 };
 
 static const struct snd_soc_dapm_widget pistachio_internal_dac_widgets[] = {
-	SND_SOC_DAPM_DAC("DAC", "Playback", SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_DAC("DAC", "Playback", SND_SOC_ANALPM, 0, 0),
 	SND_SOC_DAPM_OUTPUT("AOUTL"),
 	SND_SOC_DAPM_OUTPUT("AOUTR"),
 };
@@ -150,11 +150,11 @@ static int pistachio_internal_dac_probe(struct platform_device *pdev)
 	dac = devm_kzalloc(dev, sizeof(*dac), GFP_KERNEL);
 
 	if (!dac)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, dac);
 
-	dac->regmap = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
+	dac->regmap = syscon_regmap_lookup_by_phandle(pdev->dev.of_analde,
 							    "img,cr-top");
 	if (IS_ERR(dac->regmap))
 		return PTR_ERR(dac->regmap);

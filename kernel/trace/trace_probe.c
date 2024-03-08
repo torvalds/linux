@@ -193,7 +193,7 @@ void __trace_probe_log_err(int offset, int err_type)
 	if (trace_probe_log.index >= trace_probe_log.argc) {
 		/**
 		 * Set the error position is next to the last arg + space.
-		 * Note that len includes the terminal null and the cursor
+		 * Analte that len includes the terminal null and the cursor
 		 * appears at pos + 1.
 		 */
 		pos = len;
@@ -250,7 +250,7 @@ int traceprobe_parse_event_name(const char **pevent, const char **pgroup,
 
 	if (slash) {
 		if (slash == event) {
-			trace_probe_log_err(offset, NO_GROUP_NAME);
+			trace_probe_log_err(offset, ANAL_GROUP_NAME);
 			return -EINVAL;
 		}
 		if (slash - event + 1 > MAX_EVENT_NAME_LEN) {
@@ -273,7 +273,7 @@ int traceprobe_parse_event_name(const char **pevent, const char **pgroup,
 			*pevent = NULL;
 			return 0;
 		}
-		trace_probe_log_err(offset, NO_EVENT_NAME);
+		trace_probe_log_err(offset, ANAL_EVENT_NAME);
 		return -EINVAL;
 	} else if (len > MAX_EVENT_NAME_LEN) {
 		trace_probe_log_err(offset, EVENT_TOO_LONG);
@@ -300,7 +300,7 @@ static int parse_trace_event_arg(char *arg, struct fetch_insn *code,
 			return 0;
 		}
 	}
-	return -ENOENT;
+	return -EANALENT;
 }
 
 #ifdef CONFIG_PROBE_EVENTS_BTF_ARGS
@@ -356,7 +356,7 @@ static int check_prepare_btf_string_fetch(char *typename,
 	if (!btf || !ctx->last_type)
 		return 0;
 
-	/* char [] does not need any change. */
+	/* char [] does analt need any change. */
 	if (btf_type_is_char_array(btf, ctx->last_type))
 		return 0;
 
@@ -376,7 +376,7 @@ static int check_prepare_btf_string_fetch(char *typename,
 		*pcode = code;
 		return 0;
 	}
-	/* Other types are not available for string */
+	/* Other types are analt available for string */
 	trace_probe_log_err(ctx->offset, BAD_TYPE4STR);
 	return -EINVAL;
 }
@@ -450,12 +450,12 @@ static int query_btf_context(struct traceprobe_parse_context *ctx)
 
 	type = btf_find_func_proto(ctx->funcname, &btf);
 	if (!type)
-		return -ENOENT;
+		return -EANALENT;
 
 	ctx->btf = btf;
 	ctx->proto = type;
 
-	/* ctx->params is optional, since func(void) will not have params. */
+	/* ctx->params is optional, since func(void) will analt have params. */
 	nr = 0;
 	param = btf_get_func_param(type, &nr);
 	if (!IS_ERR_OR_NULL(param)) {
@@ -524,7 +524,7 @@ static int parse_btf_field(char *fieldname, const struct btf_type *type,
 {
 	struct fetch_insn *code = *pcode;
 	const struct btf_member *field;
-	u32 bitoffs, anon_offs;
+	u32 bitoffs, aanaln_offs;
 	char *next;
 	int is_ptr;
 	s32 tid;
@@ -532,7 +532,7 @@ static int parse_btf_field(char *fieldname, const struct btf_type *type,
 	do {
 		/* Outer loop for solving arrow operator ('->') */
 		if (BTF_INFO_KIND(type->info) != BTF_KIND_PTR) {
-			trace_probe_log_err(ctx->offset, NO_PTR_STRCT);
+			trace_probe_log_err(ctx->offset, ANAL_PTR_STRCT);
 			return -EINVAL;
 		}
 		/* Convert a struct pointer type to a struct type */
@@ -550,15 +550,15 @@ static int parse_btf_field(char *fieldname, const struct btf_type *type,
 			if (is_ptr < 0)
 				return is_ptr;
 
-			anon_offs = 0;
+			aanaln_offs = 0;
 			field = btf_find_struct_member(ctx->btf, type, fieldname,
-						       &anon_offs);
+						       &aanaln_offs);
 			if (!field) {
-				trace_probe_log_err(ctx->offset, NO_BTF_FIELD);
-				return -ENOENT;
+				trace_probe_log_err(ctx->offset, ANAL_BTF_FIELD);
+				return -EANALENT;
 			}
-			/* Add anonymous structure/union offset */
-			bitoffs += anon_offs;
+			/* Add aanalnymous structure/union offset */
+			bitoffs += aanaln_offs;
 
 			/* Accumulate the bit-offsets of the dot-connected fields */
 			if (btf_type_kflag(type)) {
@@ -612,31 +612,31 @@ static int parse_btf_arg(char *varname,
 	if (is_ptr < 0)
 		return is_ptr;
 	if (!is_ptr && field) {
-		/* dot-connected field on an argument is not supported. */
+		/* dot-connected field on an argument is analt supported. */
 		trace_probe_log_err(ctx->offset + field - varname,
-				    NOSUP_DAT_ARG);
-		return -EOPNOTSUPP;
+				    ANALSUP_DAT_ARG);
+		return -EOPANALTSUPP;
 	}
 
 	if (ctx->flags & TPARG_FL_RETURN) {
 		if (strcmp(varname, "$retval") != 0) {
-			trace_probe_log_err(ctx->offset, NO_BTFARG);
-			return -ENOENT;
+			trace_probe_log_err(ctx->offset, ANAL_BTFARG);
+			return -EANALENT;
 		}
 		code->op = FETCH_OP_RETVAL;
-		/* Check whether the function return type is not void */
+		/* Check whether the function return type is analt void */
 		if (query_btf_context(ctx) == 0) {
 			if (ctx->proto->type == 0) {
-				trace_probe_log_err(ctx->offset, NO_RETVAL);
-				return -ENOENT;
+				trace_probe_log_err(ctx->offset, ANAL_RETVAL);
+				return -EANALENT;
 			}
 			tid = ctx->proto->type;
 			goto found;
 		}
 		if (field) {
 			trace_probe_log_err(ctx->offset + field - varname,
-					    NO_BTF_ENTRY);
-			return -ENOENT;
+					    ANAL_BTF_ENTRY);
+			return -EANALENT;
 		}
 		return 0;
 	}
@@ -644,7 +644,7 @@ static int parse_btf_arg(char *varname,
 	if (!ctx->btf) {
 		ret = query_btf_context(ctx);
 		if (ret < 0 || ctx->nr_params == 0) {
-			trace_probe_log_err(ctx->offset, NO_BTF_ENTRY);
+			trace_probe_log_err(ctx->offset, ANAL_BTF_ENTRY);
 			return PTR_ERR(params);
 		}
 	}
@@ -663,8 +663,8 @@ static int parse_btf_arg(char *varname,
 			goto found;
 		}
 	}
-	trace_probe_log_err(ctx->offset, NO_BTFARG);
-	return -ENOENT;
+	trace_probe_log_err(ctx->offset, ANAL_BTFARG);
+	return -EANALENT;
 
 found:
 	type = btf_type_skip_modifiers(ctx->btf, tid, &tid);
@@ -704,7 +704,7 @@ static int parse_btf_bitfield(struct fetch_insn **pcode,
 		return 0;
 
 	code++;
-	if (code->op != FETCH_OP_NOP) {
+	if (code->op != FETCH_OP_ANALP) {
 		trace_probe_log_err(ctx->offset, TOO_MANY_OPS);
 		return -EINVAL;
 	}
@@ -725,22 +725,22 @@ static void clear_btf_context(struct traceprobe_parse_context *ctx)
 
 static int query_btf_context(struct traceprobe_parse_context *ctx)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int parse_btf_arg(char *varname,
 			 struct fetch_insn **pcode, struct fetch_insn *end,
 			 struct traceprobe_parse_context *ctx)
 {
-	trace_probe_log_err(ctx->offset, NOSUP_BTFARG);
-	return -EOPNOTSUPP;
+	trace_probe_log_err(ctx->offset, ANALSUP_BTFARG);
+	return -EOPANALTSUPP;
 }
 
 static int parse_btf_bitfield(struct fetch_insn **pcode,
 			      struct traceprobe_parse_context *ctx)
 {
-	trace_probe_log_err(ctx->offset, NOSUP_BTFARG);
-	return -EOPNOTSUPP;
+	trace_probe_log_err(ctx->offset, ANALSUP_BTFARG);
+	return -EOPANALTSUPP;
 }
 
 #define find_fetch_type_from_btf_type(ctx)		\
@@ -844,7 +844,7 @@ static int parse_probe_vars(char *orig_arg, const struct fetch_type *t,
 		code->param = (unsigned int)param - 1;
 		/*
 		 * The tracepoint probe will probe a stub function, and the
-		 * first parameter of the stub is a dummy and should be ignored.
+		 * first parameter of the stub is a dummy and should be iganalred.
 		 */
 		if (ctx->flags & TPARG_FL_TPOINT)
 			code->param++;
@@ -873,12 +873,12 @@ static int __parse_imm_string(char *str, char **pbuf, int offs)
 	size_t len = strlen(str);
 
 	if (str[len - 1] != '"') {
-		trace_probe_log_err(offs + len, IMMSTR_NO_CLOSE);
+		trace_probe_log_err(offs + len, IMMSTR_ANAL_CLOSE);
 		return -EINVAL;
 	}
 	*pbuf = kstrndup(str, len - 1, GFP_KERNEL);
 	if (!*pbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
@@ -902,7 +902,7 @@ parse_probe_arg(char *arg, const struct fetch_type *type,
 
 	case '%':	/* named register */
 		if (ctx->flags & (TPARG_FL_TEVENT | TPARG_FL_FPROBE)) {
-			/* eprobe and fprobe do not handle registers */
+			/* eprobe and fprobe do analt handle registers */
 			trace_probe_log_err(ctx->offset, BAD_VAR);
 			break;
 		}
@@ -946,10 +946,10 @@ parse_probe_arg(char *arg, const struct fetch_type *type,
 				return -EINVAL;
 			}
 			/* Preserve symbol for updating */
-			code->op = FETCH_NOP_SYMBOL;
+			code->op = FETCH_ANALP_SYMBOL;
 			code->data = kstrdup(arg + 1, GFP_KERNEL);
 			if (!code->data)
-				return -ENOMEM;
+				return -EANALMEM;
 			if (++code == end) {
 				trace_probe_log_err(ctx->offset, TOO_MANY_OPS);
 				return -EINVAL;
@@ -1038,15 +1038,15 @@ parse_probe_arg(char *arg, const struct fetch_type *type,
 	default:
 		if (isalpha(arg[0]) || arg[0] == '_') {	/* BTF variable */
 			if (!tparg_is_function_entry(ctx->flags)) {
-				trace_probe_log_err(ctx->offset, NOSUP_BTFARG);
+				trace_probe_log_err(ctx->offset, ANALSUP_BTFARG);
 				return -EINVAL;
 			}
 			ret = parse_btf_arg(arg, pcode, end, ctx);
 			break;
 		}
 	}
-	if (!ret && code->op == FETCH_OP_NOP) {
-		/* Parsed, but do not find fetch method */
+	if (!ret && code->op == FETCH_OP_ANALP) {
+		/* Parsed, but do analt find fetch method */
 		trace_probe_log_err(ctx->offset, BAD_FETCH_ARG);
 		ret = -EINVAL;
 	}
@@ -1078,7 +1078,7 @@ static int __parse_bitfield_probe_arg(const char *bf,
 	if (tail == bf || *tail != '/')
 		return -EINVAL;
 	code++;
-	if (code->op != FETCH_OP_NOP)
+	if (code->op != FETCH_OP_ANALP)
 		return -EINVAL;
 	*pcode = code;
 
@@ -1102,7 +1102,7 @@ static int traceprobe_parse_probe_arg_body(const char *argv, ssize_t *size,
 
 	arg = kstrdup(argv, GFP_KERNEL);
 	if (!arg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = -EINVAL;
 	len = strlen(arg);
@@ -1110,11 +1110,11 @@ static int traceprobe_parse_probe_arg_body(const char *argv, ssize_t *size,
 		trace_probe_log_err(ctx->offset, ARG_TOO_LONG);
 		goto out;
 	} else if (len == 0) {
-		trace_probe_log_err(ctx->offset, NO_ARG_BODY);
+		trace_probe_log_err(ctx->offset, ANAL_ARG_BODY);
 		goto out;
 	}
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	parg->comm = kstrdup(arg, GFP_KERNEL);
 	if (!parg->comm)
 		goto out;
@@ -1131,7 +1131,7 @@ static int traceprobe_parse_probe_arg_body(const char *argv, ssize_t *size,
 				int offs = t2 + strlen(t2) - arg;
 
 				trace_probe_log_err(ctx->offset + offs,
-						    ARRAY_NO_CLOSE);
+						    ARRAY_ANAL_CLOSE);
 				goto out;
 			} else if (t3[1] != '\0') {
 				trace_probe_log_err(ctx->offset + t3 + 1 - arg,
@@ -1153,13 +1153,13 @@ static int traceprobe_parse_probe_arg_body(const char *argv, ssize_t *size,
 	}
 
 	/*
-	 * Since $comm and immediate string can not be dereferenced,
-	 * we can find those by strcmp. But ignore for eprobes.
+	 * Since $comm and immediate string can analt be dereferenced,
+	 * we can find those by strcmp. But iganalre for eprobes.
 	 */
 	if (!(ctx->flags & TPARG_FL_TEVENT) &&
 	    (strcmp(arg, "$comm") == 0 || strcmp(arg, "$COMM") == 0 ||
 	     strncmp(arg, "\\\"", 2) == 0)) {
-		/* The type of $comm must be "string", and not an array type. */
+		/* The type of $comm must be "string", and analt an array type. */
 		if (parg->count || (t && strcmp(t, "string"))) {
 			trace_probe_log_err(ctx->offset + (t ? (t - arg) : 0),
 					NEED_STRING_TYPE);
@@ -1202,7 +1202,7 @@ static int traceprobe_parse_probe_arg_body(const char *argv, ssize_t *size,
 		len = strlen(parg->type->fmttype) + 6;
 		parg->fmt = kmalloc(len, GFP_KERNEL);
 		if (!parg->fmt) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
 		snprintf(parg->fmt, len, "%s[%d]", parg->type->fmttype,
@@ -1242,7 +1242,7 @@ static int traceprobe_parse_probe_arg_body(const char *argv, ssize_t *size,
 			 * it just get the value.
 			 */
 			code++;
-			if (code->op != FETCH_OP_NOP) {
+			if (code->op != FETCH_OP_ANALP) {
 				trace_probe_log_err(ctx->offset, TOO_MANY_OPS);
 				goto fail;
 			}
@@ -1265,7 +1265,7 @@ static int traceprobe_parse_probe_arg_body(const char *argv, ssize_t *size,
 		code->size = parg->type->size;
 	} else {
 		code++;
-		if (code->op != FETCH_OP_NOP) {
+		if (code->op != FETCH_OP_ANALP) {
 			trace_probe_log_err(ctx->offset, TOO_MANY_OPS);
 			goto fail;
 		}
@@ -1297,7 +1297,7 @@ static int traceprobe_parse_probe_arg_body(const char *argv, ssize_t *size,
 			goto fail;
 		}
 		code++;
-		if (code->op != FETCH_OP_NOP) {
+		if (code->op != FETCH_OP_ANALP) {
 			trace_probe_log_err(ctx->offset, TOO_MANY_OPS);
 			goto fail;
 		}
@@ -1311,14 +1311,14 @@ static int traceprobe_parse_probe_arg_body(const char *argv, ssize_t *size,
 	/* Shrink down the code buffer */
 	parg->code = kcalloc(code - tmp + 1, sizeof(*code), GFP_KERNEL);
 	if (!parg->code)
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 	else
 		memcpy(parg->code, tmp, sizeof(*code) * (code - tmp + 1));
 
 fail:
 	if (ret) {
 		for (code = tmp; code < tmp + FETCH_INSN_MAX; code++)
-			if (code->op == FETCH_NOP_SYMBOL ||
+			if (code->op == FETCH_ANALP_SYMBOL ||
 			    code->op == FETCH_OP_DATA)
 				kfree(code->data);
 	}
@@ -1329,7 +1329,7 @@ out:
 	return ret;
 }
 
-/* Return 1 if name is reserved or already used by another argument */
+/* Return 1 if name is reserved or already used by aanalther argument */
 static int traceprobe_conflict_field_name(const char *name,
 					  struct probe_arg *args, int narg)
 {
@@ -1388,7 +1388,7 @@ int traceprobe_parse_probe_arg(struct trace_probe *tp, int i, const char *arg,
 			trace_probe_log_err(0, ARG_NAME_TOO_LONG);
 			return -EINVAL;
 		} else if (body == arg) {
-			trace_probe_log_err(0, NO_ARG_NAME);
+			trace_probe_log_err(0, ANAL_ARG_NAME);
 			return -EINVAL;
 		}
 		parg->name = kmemdup_nul(arg, body - arg, GFP_KERNEL);
@@ -1398,7 +1398,7 @@ int traceprobe_parse_probe_arg(struct trace_probe *tp, int i, const char *arg,
 		body = arg;
 	}
 	if (!parg->name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!is_good_name(parg->name)) {
 		trace_probe_log_err(0, BAD_ARG_NAME);
@@ -1418,7 +1418,7 @@ void traceprobe_free_probe_arg(struct probe_arg *arg)
 	struct fetch_insn *code = arg->code;
 
 	while (code && code->op != FETCH_OP_END) {
-		if (code->op == FETCH_NOP_SYMBOL ||
+		if (code->op == FETCH_ANALP_SYMBOL ||
 		    code->op == FETCH_OP_DATA)
 			kfree(code->data);
 		code++;
@@ -1439,7 +1439,7 @@ static int argv_has_var_arg(int argc, const char *argv[], int *args_idx,
 			trace_probe_log_set_index(i + 2);
 
 			if (!tparg_is_function_entry(ctx->flags)) {
-				trace_probe_log_err(0, NOFENTRY_ARGS);
+				trace_probe_log_err(0, ANALFENTRY_ARGS);
 				return -EINVAL;
 			}
 
@@ -1472,13 +1472,13 @@ static int sprint_nth_btf_arg(int idx, const char *type,
 	int ret;
 
 	if (idx >= ctx->nr_params) {
-		trace_probe_log_err(0, NO_BTFARG);
-		return -ENOENT;
+		trace_probe_log_err(0, ANAL_BTFARG);
+		return -EANALENT;
 	}
 	name = btf_name_by_offset(ctx->btf, ctx->params[idx].name_off);
 	if (!name) {
-		trace_probe_log_err(0, NO_BTF_ENTRY);
-		return -ENOENT;
+		trace_probe_log_err(0, ANAL_BTF_ENTRY);
+		return -EANALENT;
 	}
 	ret = snprintf(buf, bufsize, "%s%s", name, type);
 	if (ret >= bufsize) {
@@ -1510,7 +1510,7 @@ const char **traceprobe_expand_meta_args(int argc, const char *argv[],
 	if (ret < 0 || ctx->nr_params == 0) {
 		if (args_idx != -1) {
 			/* $arg* requires BTF info */
-			trace_probe_log_err(0, NOSUP_BTFARG);
+			trace_probe_log_err(0, ANALSUP_BTFARG);
 			return (const char **)params;
 		}
 		*new_argc = argc;
@@ -1524,7 +1524,7 @@ const char **traceprobe_expand_meta_args(int argc, const char *argv[],
 
 	new_argv = kcalloc(*new_argc, sizeof(char *), GFP_KERNEL);
 	if (!new_argv)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	used = 0;
 	for (i = 0, j = 0; i < argc; i++) {
@@ -1548,10 +1548,10 @@ const char **traceprobe_expand_meta_args(int argc, const char *argv[],
 			n = simple_strtoul(argv[i] + 4, &type, 10);
 			if (type && !(*type == ':' || *type == '\0')) {
 				trace_probe_log_err(0, BAD_VAR);
-				ret = -ENOENT;
+				ret = -EANALENT;
 				goto error;
 			}
-			/* Note: $argN starts from $arg1 */
+			/* Analte: $argN starts from $arg1 */
 			ret = sprint_nth_btf_arg(n - 1, type, buf + used,
 						 bufsize - used, ctx);
 			if (ret < 0)
@@ -1583,7 +1583,7 @@ int traceprobe_update_arg(struct probe_arg *arg)
 	int ret = 0;
 
 	while (code && code->op != FETCH_OP_END) {
-		if (code->op == FETCH_NOP_SYMBOL) {
+		if (code->op == FETCH_ANALP_SYMBOL) {
 			if (code[1].op != FETCH_OP_IMM)
 				return -EINVAL;
 
@@ -1600,7 +1600,7 @@ int traceprobe_update_arg(struct probe_arg *arg)
 			if (tmp)
 				*tmp = c;
 			if (!code[1].immediate)
-				return -ENOENT;
+				return -EANALENT;
 			code[1].immediate += offset;
 		}
 		code++;
@@ -1619,7 +1619,7 @@ static int __set_print_fmt(struct trace_probe *tp, char *buf, int len,
 	const char *fmt, *arg;
 
 	switch (ptype) {
-	case PROBE_PRINT_NORMAL:
+	case PROBE_PRINT_ANALRMAL:
 		fmt = "(%lx)";
 		arg = ", REC->" FIELD_STRING_IP;
 		break;
@@ -1690,7 +1690,7 @@ int traceprobe_set_print_fmt(struct trace_probe *tp, enum probe_print_type ptype
 	len = __set_print_fmt(tp, NULL, 0, ptype);
 	print_fmt = kmalloc(len + 1, GFP_KERNEL);
 	if (!print_fmt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Second: actually write the @print_fmt */
 	__set_print_fmt(tp, print_fmt, len + 1, ptype);
@@ -1780,7 +1780,7 @@ int trace_probe_init(struct trace_probe *tp, const char *event,
 
 	tp->event = kzalloc(size, GFP_KERNEL);
 	if (!tp->event)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&tp->event->files);
 	INIT_LIST_HEAD(&tp->event->class.fields);
@@ -1792,13 +1792,13 @@ int trace_probe_init(struct trace_probe *tp, const char *event,
 	call->class = &tp->event->class;
 	call->name = kstrdup(event, GFP_KERNEL);
 	if (!call->name) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error;
 	}
 
 	tp->event->class.system = kstrdup(group, GFP_KERNEL);
 	if (!tp->event->class.system) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error;
 	}
 
@@ -1841,7 +1841,7 @@ int trace_probe_register_event_call(struct trace_probe *tp)
 
 	ret = register_trace_event(&call->event);
 	if (!ret)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = trace_add_event_call(call);
 	if (ret)
@@ -1856,7 +1856,7 @@ int trace_probe_add_file(struct trace_probe *tp, struct trace_event_file *file)
 
 	link = kmalloc(sizeof(*link), GFP_KERNEL);
 	if (!link)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	link->file = file;
 	INIT_LIST_HEAD(&link->list);
@@ -1885,7 +1885,7 @@ int trace_probe_remove_file(struct trace_probe *tp,
 
 	link = trace_probe_get_file_link(tp, file);
 	if (!link)
-		return -ENOENT;
+		return -EANALENT;
 
 	list_del_rcu(&link->list);
 	kvfree_rcu_mightsleep(link);
@@ -1946,7 +1946,7 @@ int trace_probe_create(const char *raw_command, int (*createfn)(int, const char 
 
 	argv = argv_split(GFP_KERNEL, raw_command, &argc);
 	if (!argv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (argc)
 		ret = createfn(argc, (const char **)argv);
@@ -1968,14 +1968,14 @@ int trace_probe_print_args(struct trace_seq *s, struct probe_arg *args, int nr_a
 		trace_seq_printf(s, " %s=", a->name);
 		if (likely(!a->count)) {
 			if (!a->type->print(s, data + a->offset, field))
-				return -ENOMEM;
+				return -EANALMEM;
 			continue;
 		}
 		trace_seq_putc(s, '{');
 		p = data + a->offset;
 		for (j = 0; j < a->count; j++) {
 			if (!a->type->print(s, p, field))
-				return -ENOMEM;
+				return -EANALMEM;
 			trace_seq_putc(s, j == a->count - 1 ? '}' : ',');
 			p += a->type->size;
 		}

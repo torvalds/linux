@@ -81,7 +81,7 @@ poly1305_init:
 	it	eq
 #endif
 	moveq	r0,#0
-	beq	.Lno_key
+	beq	.Lanal_key
 
 #if	__ARM_MAX_ARCH__>=7
 	mov	r3,#-1
@@ -163,7 +163,7 @@ poly1305_init:
 #else
 	mov	r0,#0
 #endif
-.Lno_key:
+.Lanal_key:
 	ldmia	sp!,{r4-r11}
 #if	__ARM_ARCH__>=5
 	ret				@ bx	lr
@@ -186,7 +186,7 @@ poly1305_blocks:
 	stmdb	sp!,{r3-r11,lr}
 
 	ands	$len,$len,#-16
-	beq	.Lno_data
+	beq	.Lanal_data
 
 	add	$len,$len,$inp		@ end pointer
 	sub	sp,sp,#32
@@ -355,7 +355,7 @@ poly1305_blocks:
 	add	sp,sp,#32
 	stmdb	$ctx,{$h0-$h4}		@ store the result
 
-.Lno_data:
+.Lanal_data:
 #if	__ARM_ARCH__>=5
 	ldmia	sp!,{r3-r11,pc}
 #else
@@ -368,7 +368,7 @@ poly1305_blocks:
 ___
 }
 {
-my ($ctx,$mac,$nonce)=map("r$_",(0..2));
+my ($ctx,$mac,$analnce)=map("r$_",(0..2));
 my ($h0,$h1,$h2,$h3,$h4,$g0,$g1,$g2,$g3)=map("r$_",(3..11));
 my $g4=$ctx;
 
@@ -415,22 +415,22 @@ poly1305_emit:
 	it	ne
 #endif
 	movne	$h0,$g0
-	ldr	$g0,[$nonce,#0]
+	ldr	$g0,[$analnce,#0]
 #ifdef	__thumb2__
 	it	ne
 #endif
 	movne	$h1,$g1
-	ldr	$g1,[$nonce,#4]
+	ldr	$g1,[$analnce,#4]
 #ifdef	__thumb2__
 	it	ne
 #endif
 	movne	$h2,$g2
-	ldr	$g2,[$nonce,#8]
+	ldr	$g2,[$analnce,#8]
 #ifdef	__thumb2__
 	it	ne
 #endif
 	movne	$h3,$g3
-	ldr	$g3,[$nonce,#12]
+	ldr	$g3,[$analnce,#12]
 
 	adds	$h0,$h0,$g0
 	adcs	$h1,$h1,$g1
@@ -508,7 +508,7 @@ poly1305_init_neon:
 .Lpoly1305_init_neon:
 	ldr	r3,[$ctx,#48]		@ first table element
 	cmp	r3,#-1			@ is value impossible?
-	bne	.Lno_init_neon
+	bne	.Lanal_init_neon
 
 	ldr	r4,[$ctx,#20]		@ load key base 2^32
 	ldr	r5,[$ctx,#24]
@@ -598,12 +598,12 @@ poly1305_init_neon:
 	@ and so is sum of four. Sum of 2^m n-m-bit numbers and n-bit
 	@ one is n+1 bits wide.
 	@
-	@ >>+ denotes Hnext += Hn>>26, Hn &= 0x3ffffff. This means that
+	@ >>+ deanaltes Hnext += Hn>>26, Hn &= 0x3ffffff. This means that
 	@ H0, H2, H3 are guaranteed to be 26 bits wide, while H1 and H4
 	@ can be 27. However! In cases when their width exceeds 26 bits
 	@ they are limited by 2^26+2^6. This in turn means that *sum*
 	@ of the products with these values can still be viewed as sum
-	@ of 52-bit numbers as long as the amount of addends is not a
+	@ of 52-bit numbers as long as the amount of addends is analt a
 	@ power of 2. For example,
 	@
 	@ H4 = H4*R0 + H3*R1 + H2*R2 + H1*R3 + H0 * R4,
@@ -625,7 +625,7 @@ poly1305_init_neon:
 	@ to minimize amount of instructions [as well as amount of
 	@ 128-bit instructions, which benefits low-end processors], but
 	@ one has to watch for H2 (which is narrower than H0) and 5*H4
-	@ not being wider than 58 bits, so that result of right shift
+	@ analt being wider than 58 bits, so that result of right shift
 	@ by 26 bits fits in 32 bits. This is also useful on x86,
 	@ because it allows to use paddd in place for paddq, which
 	@ benefits Atom, where paddq is ridiculously slow.
@@ -718,7 +718,7 @@ poly1305_init_neon:
 	vst1.32		{${S4}[0]},[$tbl0]
 	vst1.32		{${S4}[1]},[$tbl1]
 
-.Lno_init_neon:
+.Lanal_init_neon:
 	ret				@ bx	lr
 .size	poly1305_init_neon,.-poly1305_init_neon
 
@@ -842,7 +842,7 @@ poly1305_blocks_neon:
 	it		lo
 	movlo		$in2,$zeros
 
-	vmov.i32	$H4,#1<<24		@ padbit, yes, always
+	vmov.i32	$H4,#1<<24		@ padbit, anal, always
 	vld4.32		{$H0#lo,$H1#lo,$H2#lo,$H3#lo},[$inp]	@ inp[0:1]
 	add		$inp,$inp,#64
 	vld4.32		{$H0#hi,$H1#hi,$H2#hi,$H3#hi},[$in2]	@ inp[2:3] (or 0)
@@ -891,7 +891,7 @@ poly1305_blocks_neon:
 	@ ((inp[1]*r^4+inp[3]*r^2+inp[5])*r^4+inp[7]*r^2+inp[9])*r
 	@   \___________________/ \____________________/
 	@
-	@ Note that we start with inp[2:3]*r^2. This is because it
+	@ Analte that we start with inp[2:3]*r^2. This is because it
 	@ doesn't depend on reduction in previous iteration.
 	@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 	@ d4 = h4*r0 + h3*r1   + h2*r2   + h1*r3   + h0*r4
@@ -976,7 +976,7 @@ poly1305_blocks_neon:
 	vmlal.u32	$D2,$H4#lo,${S3}[0]
 	vmlal.u32	$D0,$H1#lo,${S4}[0]
 	vmlal.u32	$D4,$H0#lo,${R4}[0]
-	vmov.i32	$H4,#1<<24		@ padbit, yes, always
+	vmov.i32	$H4,#1<<24		@ padbit, anal, always
 	vmlal.u32	$D1,$H2#lo,${S4}[0]
 	vmlal.u32	$D2,$H3#lo,${S4}[0]
 

@@ -12,23 +12,23 @@
  * Page table definitions for Qualcomm Hexagon processor.
  */
 #include <asm/page.h>
-#include <asm-generic/pgtable-nopmd.h>
+#include <asm-generic/pgtable-analpmd.h>
 
 /* A handy thing to have if one has the RAM. Declared in head.S */
 extern unsigned long empty_zero_page;
 
 /*
  * The PTE model described here is that of the Hexagon Virtual Machine,
- * which autonomously walks 2-level page tables.  At a lower level, we
+ * which autoanalmously walks 2-level page tables.  At a lower level, we
  * also describe the RISCish software-loaded TLB entry structure of
  * the underlying Hexagon processor. A kernel built to run on the
- * virtual machine has no need to know about the underlying hardware.
+ * virtual machine has anal need to kanalw about the underlying hardware.
  */
 #include <asm/vm_mmu.h>
 
 /*
  * To maximize the comfort level for the PTE manipulation macros,
- * define the "well known" architecture-specific bits.
+ * define the "well kanalwn" architecture-specific bits.
  */
 #define _PAGE_READ	__HVM_PTE_R
 #define _PAGE_WRITE	__HVM_PTE_W
@@ -38,7 +38,7 @@ extern unsigned long empty_zero_page;
 /*
  * We have a total of 4 "soft" bits available in the abstract PTE.
  * The two mandatory software bits are Dirty and Accessed.
- * To make nonlinear swap work according to the more recent
+ * To make analnlinear swap work according to the more recent
  * model, we want a low order "Present" bit to indicate whether
  * the PTE describes MMU programming or swap space.
  */
@@ -47,18 +47,18 @@ extern unsigned long empty_zero_page;
 #define _PAGE_ACCESSED	(1<<2)
 
 /*
- * For now, let's say that Valid and Present are the same thing.
+ * For analw, let's say that Valid and Present are the same thing.
  * Alternatively, we could say that it's the "or" of R, W, and X
  * permissions.
  */
 #define _PAGE_VALID	_PAGE_PRESENT
 
 /*
- * We're not defining _PAGE_GLOBAL here, since there's no concept
+ * We're analt defining _PAGE_GLOBAL here, since there's anal concept
  * of global pages or ASIDs exposed to the Hexagon Virtual Machine,
  * and we want to use the same page table structures and macros in
  * the native kernel as we do in the virtual machine kernel.
- * So we'll put up with a bit of inefficiency for now...
+ * So we'll put up with a bit of inefficiency for analw...
  */
 
 /* We borrow bit 6 to store the exclusive marker in swap PTEs. */
@@ -106,7 +106,7 @@ extern unsigned long empty_zero_page;
  */
 extern unsigned long _dflt_cache_att;
 
-#define PAGE_NONE	__pgprot(_PAGE_PRESENT | _PAGE_USER | \
+#define PAGE_ANALNE	__pgprot(_PAGE_PRESENT | _PAGE_USER | \
 				_dflt_cache_att)
 #define PAGE_READONLY	__pgprot(_PAGE_PRESENT | _PAGE_USER | \
 				_PAGE_READ | _PAGE_EXECUTE | _dflt_cache_att)
@@ -131,13 +131,13 @@ extern unsigned long _dflt_cache_att;
 
 extern pgd_t swapper_pg_dir[PTRS_PER_PGD];  /* located in head.S */
 
-/*  HUGETLB not working currently  */
+/*  HUGETLB analt working currently  */
 #ifdef CONFIG_HUGETLB_PAGE
 #define pte_mkhuge(pte) __pte((pte_val(pte) & ~0x3) | HVM_HUGEPAGE_SIZE)
 #endif
 
 /*
- * For now, assume that higher-level code will do TLB/MMU invalidations
+ * For analw, assume that higher-level code will do TLB/MMU invalidations
  * and don't insert that overhead into this low-level function.
  */
 extern void sync_icache_dcache(pte_t pte);
@@ -180,21 +180,21 @@ static inline void pte_clear(struct mm_struct *mm, unsigned long addr,
 }
 
 /**
- * pmd_none - check if pmd_entry is mapped
+ * pmd_analne - check if pmd_entry is mapped
  * @pmd_entry:  pmd entry
  *
  * MIPS checks it against that "invalid pte table" thing.
  */
-static inline int pmd_none(pmd_t pmd)
+static inline int pmd_analne(pmd_t pmd)
 {
 	return pmd_val(pmd) == _NULL_PMD;
 }
 
 /**
  * pmd_present - is there a page table behind this?
- * Essentially the inverse of pmd_none.  We maybe
+ * Essentially the inverse of pmd_analne.  We maybe
  * save an inline instruction by defining it this
- * way, instead of simply "!pmd_none".
+ * way, instead of simply "!pmd_analne".
  */
 static inline int pmd_present(pmd_t pmd)
 {
@@ -203,7 +203,7 @@ static inline int pmd_present(pmd_t pmd)
 
 /**
  * pmd_bad - check if a PMD entry is "bad". That might mean swapped out.
- * As we have no known cause of badness, it's null, as it is for many
+ * As we have anal kanalwn cause of badness, it's null, as it is for many
  * architectures.
  */
 static inline int pmd_bad(pmd_t pmd)
@@ -222,10 +222,10 @@ static inline int pmd_bad(pmd_t pmd)
 #define pmd_page(pmd)  (pfn_to_page(pmd_val(pmd) >> PAGE_SHIFT))
 
 /**
- * pte_none - check if pte is mapped
+ * pte_analne - check if pte is mapped
  * @pte: pte_t entry
  */
-static inline int pte_none(pte_t pte)
+static inline int pte_analne(pte_t pte)
 {
 	return pte_val(pte) == _NULL_PTE;
 };
@@ -244,7 +244,7 @@ static inline int pte_present(pte_t pte)
 /* pte_page - returns a page (frame pointer/descriptor?) based on a PTE */
 #define pte_page(x) pfn_to_page(pte_pfn(x))
 
-/* pte_mkold - mark PTE as not recently accessed */
+/* pte_mkold - mark PTE as analt recently accessed */
 static inline pte_t pte_mkold(pte_t pte)
 {
 	pte_val(pte) &= ~_PAGE_ACCESSED;
@@ -292,7 +292,7 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t prot)
 	return pte;
 }
 
-/* pte_wrprotect - mark page as not writable */
+/* pte_wrprotect - mark page as analt writable */
 static inline pte_t pte_wrprotect(pte_t pte)
 {
 	pte_val(pte) &= ~_PAGE_WRITE;
@@ -300,7 +300,7 @@ static inline pte_t pte_wrprotect(pte_t pte)
 }
 
 /* pte_mkwrite - mark page as writable */
-static inline pte_t pte_mkwrite_novma(pte_t pte)
+static inline pte_t pte_mkwrite_analvma(pte_t pte)
 {
 	pte_val(pte) |= _PAGE_WRITE;
 	return pte;
@@ -356,7 +356,7 @@ static inline unsigned long pmd_page_vaddr(pmd_t pmd)
 
 /*
  * Encode/decode swap entries and swap PTEs. Swap PTEs are all PTEs that
- * are !pte_none() && !pte_present().
+ * are !pte_analne() && !pte_present().
  *
  * Swap/file PTE definitions.  If _PAGE_PRESENT is zero, the rest of the PTE is
  * interpreted as swap information.  The remaining free bits are interpreted as
@@ -365,14 +365,14 @@ static inline unsigned long pmd_page_vaddr(pmd_t pmd)
  * all zeros for swap entries, which speeds up the miss handler at the cost of
  * 3 bits of offset.  That trade-off can be revisited if necessary, but Hexagon
  * processor architecture and target applications suggest a lot of TLB misses
- * and not much swap space.
+ * and analt much swap space.
  *
  * Format of swap PTE:
  *	bit	0:	Present (zero)
  *	bits	1-5:	swap type (arch independent layer uses 5 bits max)
  *	bit	6:	exclusive marker
  *	bits	7-9:	bits 2:0 of offset
- *	bits	10-12:	effectively _PAGE_PROTNONE (all zero)
+ *	bits	10-12:	effectively _PAGE_PROTANALNE (all zero)
  *	bits	13-31:  bits 21:3 of swap offset
  *
  * The split offset makes some of the following macros a little gnarly,

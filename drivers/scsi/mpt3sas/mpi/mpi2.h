@@ -11,9 +11,9 @@
  *
  *  mpi2.h Version:  02.00.54
  *
- * NOTE: Names (typedefs, defines, etc.) beginning with an MPI25 or Mpi25
- *       prefix are for use only on MPI v2.5 products, and must not be used
- *       with MPI v2.0 products. Unless otherwise noted, names beginning with
+ * ANALTE: Names (typedefs, defines, etc.) beginning with an MPI25 or Mpi25
+ *       prefix are for use only on MPI v2.5 products, and must analt be used
+ *       with MPI v2.0 products. Unless otherwise analted, names beginning with
  *       MPI2 or Mpi2 are for use with both MPI v2.0 and MPI v2.5 products.
  *
  * Version History
@@ -39,9 +39,9 @@
  *                     product specific codes up to 0xEFFF.
  *                     Added a sixth key value for the WriteSequence register
  *                     and changed the flush value to 0x0.
- *                     Added message function codes for Diagnostic Buffer Post
+ *                     Added message function codes for Diaganalstic Buffer Post
  *                     and Diagnsotic Release.
- *                     New IOCStatus define: MPI2_IOCSTATUS_DIAGNOSTIC_RELEASED
+ *                     New IOCStatus define: MPI2_IOCSTATUS_DIAGANALSTIC_RELEASED
  *                     Moved MPI2_VERSION_UNION from mpi2_ioc.h.
  * 02-29-08  02.00.06  Bumped MPI2_HEADER_VERSION_UNIT.
  * 03-03-08  02.00.07  Bumped MPI2_HEADER_VERSION_UNIT.
@@ -139,28 +139,28 @@
 
 #define MPI2_VERSION_MAJOR_MASK             (0xFF00)
 #define MPI2_VERSION_MAJOR_SHIFT            (8)
-#define MPI2_VERSION_MINOR_MASK             (0x00FF)
-#define MPI2_VERSION_MINOR_SHIFT            (0)
+#define MPI2_VERSION_MIANALR_MASK             (0x00FF)
+#define MPI2_VERSION_MIANALR_SHIFT            (0)
 
 /*major version for all MPI v2.x */
 #define MPI2_VERSION_MAJOR                  (0x02)
 
-/*minor version for MPI v2.0 compatible products */
-#define MPI2_VERSION_MINOR                  (0x00)
+/*mianalr version for MPI v2.0 compatible products */
+#define MPI2_VERSION_MIANALR                  (0x00)
 #define MPI2_VERSION ((MPI2_VERSION_MAJOR << MPI2_VERSION_MAJOR_SHIFT) | \
-					MPI2_VERSION_MINOR)
+					MPI2_VERSION_MIANALR)
 #define MPI2_VERSION_02_00                  (0x0200)
 
-/*minor version for MPI v2.5 compatible products */
-#define MPI25_VERSION_MINOR                 (0x05)
+/*mianalr version for MPI v2.5 compatible products */
+#define MPI25_VERSION_MIANALR                 (0x05)
 #define MPI25_VERSION ((MPI2_VERSION_MAJOR << MPI2_VERSION_MAJOR_SHIFT) | \
-					MPI25_VERSION_MINOR)
+					MPI25_VERSION_MIANALR)
 #define MPI2_VERSION_02_05                  (0x0205)
 
-/*minor version for MPI v2.6 compatible products */
-#define MPI26_VERSION_MINOR		    (0x06)
+/*mianalr version for MPI v2.6 compatible products */
+#define MPI26_VERSION_MIANALR		    (0x06)
 #define MPI26_VERSION ((MPI2_VERSION_MAJOR << MPI2_VERSION_MAJOR_SHIFT) | \
-					MPI26_VERSION_MINOR)
+					MPI26_VERSION_MIANALR)
 #define MPI2_VERSION_02_06		    (0x0206)
 
 
@@ -202,7 +202,7 @@
 typedef struct _MPI2_SYSTEM_INTERFACE_REGS {
 	U32 Doorbell;		/*0x00 */
 	U32 WriteSequence;	/*0x04 */
-	U32 HostDiagnostic;	/*0x08 */
+	U32 HostDiaganalstic;	/*0x08 */
 	U32 Reserved1;		/*0x0C */
 	U32 DiagRWData;		/*0x10 */
 	U32 DiagRWAddressLow;	/*0x14 */
@@ -263,9 +263,9 @@ typedef struct _MPI2_SYSTEM_INTERFACE_REGS {
 #define MPI2_WRSEQ_6TH_KEY_VALUE                (0xD)
 
 /*
- *Defines for the HostDiagnostic register
+ *Defines for the HostDiaganalstic register
  */
-#define MPI2_HOST_DIAGNOSTIC_OFFSET             (0x00000008)
+#define MPI2_HOST_DIAGANALSTIC_OFFSET             (0x00000008)
 
 #define MPI26_DIAG_SECURE_BOOT                  (0x80000000)
 
@@ -275,7 +275,7 @@ typedef struct _MPI2_SYSTEM_INTERFACE_REGS {
 #define MPI2_DIAG_BOOT_DEVICE_SELECT_DEFAULT    (0x00000000)
 #define MPI2_DIAG_BOOT_DEVICE_SELECT_HCDW       (0x00000800)
 
-/* Defines for V7A/V7R HostDiagnostic Register */
+/* Defines for V7A/V7R HostDiaganalstic Register */
 #define MPI26_DIAG_BOOT_DEVICE_SEL_64FLASH      (0x00000000)
 #define MPI26_DIAG_BOOT_DEVICE_SEL_64HCDW       (0x00000800)
 #define MPI26_DIAG_BOOT_DEVICE_SEL_32FLASH      (0x00001000)
@@ -645,7 +645,7 @@ typedef union _MPI2_REPLY_DESCRIPTORS_UNION {
 #define MPI2_FUNCTION_CONFIG                        (0x04)
 #define MPI2_FUNCTION_PORT_FACTS                    (0x05)
 #define MPI2_FUNCTION_PORT_ENABLE                   (0x06)
-#define MPI2_FUNCTION_EVENT_NOTIFICATION            (0x07)
+#define MPI2_FUNCTION_EVENT_ANALTIFICATION            (0x07)
 #define MPI2_FUNCTION_EVENT_ACK                     (0x08)
 #define MPI2_FUNCTION_FW_DOWNLOAD                   (0x09)
 #define MPI2_FUNCTION_TARGET_ASSIST                 (0x0B)
@@ -698,7 +698,7 @@ typedef union _MPI2_REPLY_DESCRIPTORS_UNION {
 #define MPI2_IOCSTATUS_INSUFFICIENT_RESOURCES       (0x0006)
 #define MPI2_IOCSTATUS_INVALID_FIELD                (0x0007)
 #define MPI2_IOCSTATUS_INVALID_STATE                (0x0008)
-#define MPI2_IOCSTATUS_OP_STATE_NOT_SUPPORTED       (0x0009)
+#define MPI2_IOCSTATUS_OP_STATE_ANALT_SUPPORTED       (0x0009)
 /*MPI v2.6 and later */
 #define MPI2_IOCSTATUS_INSUFFICIENT_POWER           (0x000A)
 #define MPI2_IOCSTATUS_FAILURE                      (0x000F)
@@ -711,7 +711,7 @@ typedef union _MPI2_REPLY_DESCRIPTORS_UNION {
 #define MPI2_IOCSTATUS_CONFIG_INVALID_TYPE          (0x0021)
 #define MPI2_IOCSTATUS_CONFIG_INVALID_PAGE          (0x0022)
 #define MPI2_IOCSTATUS_CONFIG_INVALID_DATA          (0x0023)
-#define MPI2_IOCSTATUS_CONFIG_NO_DEFAULTS           (0x0024)
+#define MPI2_IOCSTATUS_CONFIG_ANAL_DEFAULTS           (0x0024)
 #define MPI2_IOCSTATUS_CONFIG_CANT_COMMIT           (0x0025)
 
 /****************************************************************************
@@ -720,7 +720,7 @@ typedef union _MPI2_REPLY_DESCRIPTORS_UNION {
 
 #define MPI2_IOCSTATUS_SCSI_RECOVERED_ERROR         (0x0040)
 #define MPI2_IOCSTATUS_SCSI_INVALID_DEVHANDLE       (0x0042)
-#define MPI2_IOCSTATUS_SCSI_DEVICE_NOT_THERE        (0x0043)
+#define MPI2_IOCSTATUS_SCSI_DEVICE_ANALT_THERE        (0x0043)
 #define MPI2_IOCSTATUS_SCSI_DATA_OVERRUN            (0x0044)
 #define MPI2_IOCSTATUS_SCSI_DATA_UNDERRUN           (0x0045)
 #define MPI2_IOCSTATUS_SCSI_IO_DATA_ERROR           (0x0046)
@@ -745,8 +745,8 @@ typedef union _MPI2_REPLY_DESCRIPTORS_UNION {
 
 #define MPI2_IOCSTATUS_TARGET_INVALID_IO_INDEX      (0x0062)
 #define MPI2_IOCSTATUS_TARGET_ABORTED               (0x0063)
-#define MPI2_IOCSTATUS_TARGET_NO_CONN_RETRYABLE     (0x0064)
-#define MPI2_IOCSTATUS_TARGET_NO_CONNECTION         (0x0065)
+#define MPI2_IOCSTATUS_TARGET_ANAL_CONN_RETRYABLE     (0x0064)
+#define MPI2_IOCSTATUS_TARGET_ANAL_CONNECTION         (0x0065)
 #define MPI2_IOCSTATUS_TARGET_XFER_COUNT_MISMATCH   (0x006A)
 #define MPI2_IOCSTATUS_TARGET_DATA_OFFSET_ERROR     (0x006D)
 #define MPI2_IOCSTATUS_TARGET_TOO_MUCH_WRITE_DATA   (0x006E)
@@ -762,10 +762,10 @@ typedef union _MPI2_REPLY_DESCRIPTORS_UNION {
 #define MPI2_IOCSTATUS_SAS_SMP_DATA_OVERRUN         (0x0091)
 
 /****************************************************************************
-* Diagnostic Buffer Post / Diagnostic Release values
+* Diaganalstic Buffer Post / Diaganalstic Release values
 ****************************************************************************/
 
-#define MPI2_IOCSTATUS_DIAGNOSTIC_RELEASED          (0x00A0)
+#define MPI2_IOCSTATUS_DIAGANALSTIC_RELEASED          (0x00A0)
 
 /****************************************************************************
 * RAID Accelerator values
@@ -785,7 +785,7 @@ typedef union _MPI2_REPLY_DESCRIPTORS_UNION {
 
 #define MPI2_IOCLOGINFO_TYPE_MASK               (0xF0000000)
 #define MPI2_IOCLOGINFO_TYPE_SHIFT              (28)
-#define MPI2_IOCLOGINFO_TYPE_NONE               (0x0)
+#define MPI2_IOCLOGINFO_TYPE_ANALNE               (0x0)
 #define MPI2_IOCLOGINFO_TYPE_SCSI               (0x1)
 #define MPI2_IOCLOGINFO_TYPE_FC                 (0x2)
 #define MPI2_IOCLOGINFO_TYPE_SAS                (0x3)
@@ -840,7 +840,7 @@ typedef struct _MPI2_DEFAULT_REPLY {
 typedef struct _MPI2_VERSION_STRUCT {
 	U8 Dev;			/*0x00 */
 	U8 Unit;		/*0x01 */
-	U8 Minor;		/*0x02 */
+	U8 Mianalr;		/*0x02 */
 	U8 Major;		/*0x03 */
 } MPI2_VERSION_STRUCT;
 

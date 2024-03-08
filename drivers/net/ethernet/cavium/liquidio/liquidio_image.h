@@ -13,7 +13,7 @@
  * This file is distributed in the hope that it will be useful, but
  * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
- * NONINFRINGEMENT.  See the GNU General Public License for more details.
+ * ANALNINFRINGEMENT.  See the GNU General Public License for more details.
  ***********************************************************************/
 #ifndef _LIQUIDIO_IMAGE_H_
 #define _LIQUIDIO_IMAGE_H_
@@ -25,7 +25,7 @@
 #define LIO_FW_NAME_SUFFIX      ".bin"
 #define LIO_FW_NAME_TYPE_NIC    "nic"
 #define LIO_FW_NAME_TYPE_AUTO   "auto"
-#define LIO_FW_NAME_TYPE_NONE   "none"
+#define LIO_FW_NAME_TYPE_ANALNE   "analne"
 #define LIO_MAX_FIRMWARE_VERSION_LEN 16
 
 #define LIO_MAX_BOOTCMD_LEN 1024

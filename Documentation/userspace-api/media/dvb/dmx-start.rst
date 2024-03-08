@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: DTV.dmx
 
 .. _DMX_START:
@@ -12,7 +12,7 @@ Name
 
 DMX_START
 
-Synopsis
+Syanalpsis
 --------
 
 .. c:macro:: DMX_START
@@ -36,7 +36,7 @@ Return Value
 
 On success 0 is returned.
 
-On error -1 is returned, and the ``errno`` variable is set
+On error -1 is returned, and the ``erranal`` variable is set
 appropriately.
 
 .. tabularcolumns:: |p{2.5cm}|p{15.0cm}|
@@ -49,7 +49,7 @@ appropriately.
 
        -  ``EINVAL``
 
-       -  Invalid argument, i.e. no filtering parameters provided via the
+       -  Invalid argument, i.e. anal filtering parameters provided via the
 	  :ref:`DMX_SET_FILTER` or :ref:`DMX_SET_PES_FILTER` ioctls.
 
     -  .. row 2
@@ -57,7 +57,7 @@ appropriately.
        -  ``EBUSY``
 
        -  This error code indicates that there are conflicting requests.
-	  There are active filters filtering data from another input source.
+	  There are active filters filtering data from aanalther input source.
 	  Make sure that these filters are stopped before starting this
 	  filter.
 

@@ -3,7 +3,7 @@
 #include <elfutils/libdw.h>
 #include <elfutils/libdwfl.h>
 #include <inttypes.h>
-#include <errno.h>
+#include <erranal.h>
 #include "debug.h"
 #include "dso.h"
 #include "unwind.h"
@@ -38,7 +38,7 @@ static const Dwfl_Callbacks offline_callbacks = {
 	.find_debuginfo		= __find_debuginfo,
 	.debuginfo_path		= &debuginfo_path,
 	.section_address	= dwfl_offline_section_address,
-	// .find_elf is not set as we use dwfl_report_elf() instead.
+	// .find_elf is analt set as we use dwfl_report_elf() instead.
 };
 
 static int __report_module(struct addr_location *al, u64 ip,
@@ -63,7 +63,7 @@ static int __report_module(struct addr_location *al, u64 ip,
 	 * The generated JIT DSO files only map the code segment without
 	 * ELF headers.  Since JIT codes used to be packed in a memory
 	 * segment, calculating the base address using pgoff falls into
-	 * a different code in another DSO.  So just use the map->start
+	 * a different code in aanalther DSO.  So just use the map->start
 	 * directly to pick the correct one.
 	 */
 	if (!strncmp(dso->long_name, "/tmp/jitted-", 12))
@@ -164,7 +164,7 @@ static int access_dso_mem(struct unwind_info *ui, Dwarf_Addr addr,
 
 	addr_location__init(&al);
 	if (!thread__find_map(ui->thread, PERF_RECORD_MISC_USER, addr, &al)) {
-		pr_debug("unwind: no map for %lx\n", (unsigned long)addr);
+		pr_debug("unwind: anal map for %lx\n", (unsigned long)addr);
 		goto out_fail;
 	}
 	dso = map__dso(al.map);
@@ -204,7 +204,7 @@ static bool memory_read(Dwfl *dwfl __maybe_unused, Dwarf_Addr addr, Dwarf_Word *
 	if (addr < start || addr + sizeof(Dwarf_Word) > end) {
 		ret = access_dso_mem(ui, addr, result);
 		if (ret) {
-			pr_debug("unwind: access_mem 0x%" PRIx64 " not inside range"
+			pr_debug("unwind: access_mem 0x%" PRIx64 " analt inside range"
 				 " 0x%" PRIx64 "-0x%" PRIx64 "\n",
 				addr, start, end);
 			return false;
@@ -278,7 +278,7 @@ int unwind__get_entries(unwind_entry_cb_t cb, void *arg,
 
 	ui = zalloc(sizeof(ui_buf) + sizeof(ui_buf.entries[0]) * max_stack);
 	if (!ui)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*ui = ui_buf;
 
@@ -294,7 +294,7 @@ int unwind__get_entries(unwind_entry_cb_t cb, void *arg,
 	if (err)
 		goto out;
 
-	err = !dwfl_attach_state(ui->dwfl, EM_NONE, thread__tid(thread), &callbacks, ui);
+	err = !dwfl_attach_state(ui->dwfl, EM_ANALNE, thread__tid(thread), &callbacks, ui);
 	if (err)
 		goto out;
 

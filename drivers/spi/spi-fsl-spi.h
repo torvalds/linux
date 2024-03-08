@@ -58,11 +58,11 @@ struct fsl_spi_reg {
 			 SPMODE_MS | SPMODE_LEN(7) | SPMODE_PM(0xf))
 
 /* SPIE register values */
-#define	SPIE_NE		0x00000200	/* Not empty */
-#define	SPIE_NF		0x00000100	/* Not full */
+#define	SPIE_NE		0x00000200	/* Analt empty */
+#define	SPIE_NF		0x00000100	/* Analt full */
 
 /* SPIM register values */
-#define	SPIM_NE		0x00000200	/* Not empty */
-#define	SPIM_NF		0x00000100	/* Not full */
+#define	SPIM_NE		0x00000200	/* Analt empty */
+#define	SPIM_NF		0x00000100	/* Analt full */
 
 #endif /* __SPI_FSL_SPI_H__ */

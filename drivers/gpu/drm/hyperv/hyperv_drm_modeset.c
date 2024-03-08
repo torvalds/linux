@@ -28,7 +28,7 @@ static int hyperv_blit_to_vram_rect(struct drm_framebuffer *fb,
 	int idx;
 
 	if (!drm_dev_enter(&hv->dev, &idx))
-		return -ENODEV;
+		return -EANALDEV;
 
 	iosys_map_incr(&dst, drm_fb_clip_offset(fb->pitches[0], fb->format, rect));
 	drm_fb_memcpy(&dst, fb->pitches, vmap, fb, rect);
@@ -55,7 +55,7 @@ static int hyperv_connector_get_modes(struct drm_connector *connector)
 	struct hyperv_drm_device *hv = to_hv(connector->dev);
 	int count;
 
-	count = drm_add_modes_noedid(connector,
+	count = drm_add_modes_analedid(connector,
 				     connector->dev->mode_config.max_width,
 				     connector->dev->mode_config.max_height);
 	drm_set_preferred_mode(connector, hv->preferred_width,

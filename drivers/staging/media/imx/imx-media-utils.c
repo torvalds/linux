@@ -283,7 +283,7 @@ EXPORT_SYMBOL_GPL(imx_media_find_mbus_format);
  * @index: The requested match index.
  * @fmt_sel: Include in the enumeration entries with the given selection
  *           criteria.
- * @code: If non-zero, only include in the enumeration entries matching this
+ * @code: If analn-zero, only include in the enumeration entries matching this
  *	media bus code.
  */
 int imx_media_enum_pixel_formats(u32 *fourcc, u32 index,
@@ -455,7 +455,7 @@ EXPORT_SYMBOL_GPL(imx_media_init_state);
 
 /*
  * Default the colorspace in tryfmt to SRGB if set to an unsupported
- * colorspace or not initialized. Then set the remaining colorimetry
+ * colorspace or analt initialized. Then set the remaining colorimetry
  * parameters based on the colorspace if they are uninitialized.
  *
  * tryfmt->code must be set on entry.
@@ -534,7 +534,7 @@ int imx_media_mbus_fmt_to_pix_fmt(struct v4l2_pix_format *pix,
 	}
 
 	/*
-	 * TODO: the IPU currently does not support the AYUV32 format,
+	 * TODO: the IPU currently does analt support the AYUV32 format,
 	 * so until it does convert to a supported YUV format.
 	 */
 	if (cc->ipufmt && cc->cs == IPUV3_COLORSPACE_YUV) {
@@ -591,7 +591,7 @@ int imx_media_alloc_dma_buf(struct device *dev,
 				       GFP_DMA | GFP_KERNEL);
 	if (!buf->virt) {
 		dev_err(dev, "%s: failed\n", __func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -739,7 +739,7 @@ imx_media_pipeline_subdev(struct media_entity *start_entity, u32 grp_id,
 
 	me = find_pipeline_entity(start_entity, grp_id, 0, upstream);
 	if (!me)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	return media_entity_to_v4l2_subdev(me);
 }

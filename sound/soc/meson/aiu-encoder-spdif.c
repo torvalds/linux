@@ -12,7 +12,7 @@
 
 #include "aiu.h"
 
-#define AIU_958_MISC_NON_PCM		BIT(0)
+#define AIU_958_MISC_ANALN_PCM		BIT(0)
 #define AIU_958_MISC_MODE_16BITS	BIT(1)
 #define AIU_958_MISC_16BITS_ALIGN	GENMASK(6, 5)
 #define AIU_958_MISC_MODE_32BITS	BIT(7)
@@ -118,7 +118,7 @@ static int aiu_encoder_spdif_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	snd_soc_component_update_bits(component, AIU_958_MISC,
-				      AIU_958_MISC_NON_PCM |
+				      AIU_958_MISC_ANALN_PCM |
 				      AIU_958_MISC_MODE_16BITS |
 				      AIU_958_MISC_16BITS_ALIGN |
 				      AIU_958_MISC_MODE_32BITS |
@@ -169,7 +169,7 @@ static int aiu_encoder_spdif_startup(struct snd_pcm_substream *substream,
 	int ret;
 
 	/*
-	 * NOTE: Make sure the spdif block is on its own divider.
+	 * ANALTE: Make sure the spdif block is on its own divider.
 	 *
 	 * The spdif can be clocked by the i2s master clock or its own
 	 * clock. We should (in theory) change the source depending on the
@@ -178,7 +178,7 @@ static int aiu_encoder_spdif_startup(struct snd_pcm_substream *substream,
 	 * However, considering the clocking scheme used on these platforms,
 	 * the master clocks will pick the same PLL source when they are
 	 * playing from the same FIFO. The clock should be in sync so, it
-	 * should not be necessary to reparent the spdif master clock.
+	 * should analt be necessary to reparent the spdif master clock.
 	 */
 	ret = clk_set_parent(aiu->spdif.clks[MCLK].clk,
 			     aiu->spdif_mclk);

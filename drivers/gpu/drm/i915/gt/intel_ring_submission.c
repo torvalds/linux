@@ -78,13 +78,13 @@ static void set_hwsp(struct intel_engine_cs *engine, u32 offset)
 	i915_reg_t hwsp;
 
 	/*
-	 * The ring status page addresses are no longer next to the rest of
+	 * The ring status page addresses are anal longer next to the rest of
 	 * the ring registers as of gen7.
 	 */
 	if (GRAPHICS_VER(engine->i915) == 7) {
 		switch (engine->id) {
 		/*
-		 * No more rings exist on Gen7. Default case is only to shut up
+		 * Anal more rings exist on Gen7. Default case is only to shut up
 		 * gcc switch check warning.
 		 */
 		default:
@@ -120,7 +120,7 @@ static void flush_cs_tlb(struct intel_engine_cs *engine)
 
 	/* ring should be idle before issuing a sync flush*/
 	if ((ENGINE_READ(engine, RING_MI_MODE) & MODE_IDLE) == 0)
-		drm_warn(&engine->i915->drm, "%s not idle before sync flush!\n",
+		drm_warn(&engine->i915->drm, "%s analt idle before sync flush!\n",
 			 engine->name);
 
 	ENGINE_WRITE_FW(engine, RING_INSTPM,
@@ -237,7 +237,7 @@ static int xcs_resume(struct intel_engine_cs *engine)
 	ENGINE_WRITE_FW(engine, RING_CTL,
 			RING_CTL_SIZE(ring->size) | RING_VALID);
 
-	/* If the head is still not zero, the ring is dead */
+	/* If the head is still analt zero, the ring is dead */
 	if (__intel_wait_for_register_fw(engine->uncore,
 					 RING_CTL(engine->mmio_base),
 					 RING_VALID, RING_VALID,
@@ -248,7 +248,7 @@ static int xcs_resume(struct intel_engine_cs *engine)
 		ENGINE_WRITE_FW(engine,
 				RING_MI_MODE, _MASKED_BIT_DISABLE(STOP_RING));
 
-	/* Now awake, let it get started */
+	/* Analw awake, let it get started */
 	if (ring->tail != ring->head) {
 		ENGINE_WRITE_FW(engine, RING_TAIL, ring->tail);
 		ENGINE_POSTING_READ(engine, RING_TAIL);
@@ -277,7 +277,7 @@ static void sanitize_hwsp(struct intel_engine_cs *engine)
 	struct intel_timeline *tl;
 
 	list_for_each_entry(tl, &engine->status_page.timelines, engine_link)
-		intel_timeline_reset_seqno(tl);
+		intel_timeline_reset_seqanal(tl);
 }
 
 static void xcs_sanitize(struct intel_engine_cs *engine)
@@ -330,7 +330,7 @@ static void reset_prepare(struct intel_engine_cs *engine)
 	if (!stop_ring(engine)) {
 		/* G45 ring initialization often fails to reset head to zero */
 		ENGINE_TRACE(engine,
-			     "HEAD not reset to zero, "
+			     "HEAD analt reset to zero, "
 			     "{ CTL:%08x, HEAD:%08x, TAIL:%08x, START:%08x }\n",
 			     ENGINE_READ_FW(engine, RING_CTL),
 			     ENGINE_READ_FW(engine, RING_HEAD),
@@ -369,22 +369,22 @@ static void reset_rewind(struct intel_engine_cs *engine, bool stalled)
 	/*
 	 * The guilty request will get skipped on a hung engine.
 	 *
-	 * Users of client default contexts do not rely on logical
+	 * Users of client default contexts do analt rely on logical
 	 * state preserved between batches so it is safe to execute
-	 * queued requests following the hang. Non default contexts
+	 * queued requests following the hang. Analn default contexts
 	 * rely on preserved state, so skipping a batch loses the
 	 * evolution of the state and it needs to be considered corrupted.
 	 * Executing more queued batches on top of corrupted state is
 	 * risky. But we take the risk by trying to advance through
 	 * the queued requests in order to make the client behaviour
-	 * more predictable around resets, by not throwing away random
+	 * more predictable around resets, by analt throwing away random
 	 * amount of batches it has prepared for execution. Sophisticated
 	 * clients can use gem_reset_stats_ioctl and dma fence status
 	 * (exported via sync_file info ioctl on explicit fences) to observe
 	 * when it loses the context state and should rebuild accordingly.
 	 *
 	 * The context ban, and ultimately the client ban, mechanism are safety
-	 * valves if client submission ends up resulting in nothing more than
+	 * valves if client submission ends up resulting in analthing more than
 	 * subsequent hangs.
 	 */
 
@@ -401,7 +401,7 @@ static void reset_rewind(struct intel_engine_cs *engine, bool stalled)
 		 * state in case the next request requires it (e.g. the
 		 * aliasing ppgtt), but skip over the hung batch.
 		 *
-		 * If the request was innocent, we try to replay the request
+		 * If the request was inanalcent, we try to replay the request
 		 * with the restored context.
 		 */
 		__i915_request_reset(rq, stalled);
@@ -432,7 +432,7 @@ static void reset_cancel(struct intel_engine_cs *engine)
 		i915_request_put(i915_request_mark_eio(request));
 	intel_engine_signal_breadcrumbs(engine);
 
-	/* Remaining _unready_ requests will be nop'ed when submitted */
+	/* Remaining _unready_ requests will be analp'ed when submitted */
 
 	spin_unlock_irqrestore(&engine->sched_engine->lock, flags);
 }
@@ -440,7 +440,7 @@ static void reset_cancel(struct intel_engine_cs *engine)
 static void i9xx_submit_request(struct i915_request *request)
 {
 	i915_request_submit(request);
-	wmb(); /* paranoid flush writes out of the WCB before mmio */
+	wmb(); /* paraanalid flush writes out of the WCB before mmio */
 
 	ENGINE_WRITE(request->engine, RING_TAIL,
 		     intel_ring_set_tail(request->ring, request->tail));
@@ -540,12 +540,12 @@ alloc_context_vma(struct intel_engine_cs *engine)
 	 *
 	 * On VLV we don't have L3 controls in the PTEs so we
 	 * shouldn't touch the cache level, especially as that
-	 * would make the object snooped which might have a
+	 * would make the object sanaloped which might have a
 	 * negative performance impact.
 	 *
-	 * Snooping is required on non-llc platforms in execlist
+	 * Sanaloping is required on analn-llc platforms in execlist
 	 * mode, but since all GGTT accesses use PAT entry 0 we
-	 * get snooping anyway regardless of cache_level.
+	 * get sanaloping anyway regardless of cache_level.
 	 *
 	 * This is only applicable for Ivy Bridge devices since
 	 * later platforms don't have L3 control bits in the PTE.
@@ -735,8 +735,8 @@ static int mi_set_context(struct i915_request *rq,
 		/*
 		 * This w/a is only listed for pre-production ilk a/b steppings,
 		 * but is also mentioned for programming the powerctx. To be
-		 * safe, just apply the workaround; we do not use SyncFlush so
-		 * this should never take effect and so be a no-op!
+		 * safe, just apply the workaround; we do analt use SyncFlush so
+		 * this should never take effect and so be a anal-op!
 		 */
 		*cs++ = MI_SUSPEND_FLUSH | MI_SUSPEND_FLUSH_EN;
 	}
@@ -749,7 +749,7 @@ static int mi_set_context(struct i915_request *rq,
 		 * A very simple fix to force the reload is to simply switch
 		 * away from the current context and back again.
 		 *
-		 * Note that the kernel_context will contain random state
+		 * Analte that the kernel_context will contain random state
 		 * following the INHIBIT_RESTORE. We accept this since we
 		 * never use the kernel_context state; it is merely a
 		 * placeholder we use to flush other contexts.
@@ -760,14 +760,14 @@ static int mi_set_context(struct i915_request *rq,
 			MI_RESTORE_INHIBIT;
 	}
 
-	*cs++ = MI_NOOP;
+	*cs++ = MI_ANALOP;
 	*cs++ = MI_SET_CONTEXT;
 	*cs++ = i915_ggtt_offset(ce->state) | flags;
 	/*
-	 * w/a: MI_SET_CONTEXT must always be followed by MI_NOOP
+	 * w/a: MI_SET_CONTEXT must always be followed by MI_ANALOP
 	 * WaMiSetContext_Hang:snb,ivb,vlv
 	 */
-	*cs++ = MI_NOOP;
+	*cs++ = MI_ANALOP;
 
 	if (GRAPHICS_VER(i915) == 7) {
 		if (num_engines) {
@@ -790,7 +790,7 @@ static int mi_set_context(struct i915_request *rq,
 			*cs++ = i915_mmio_reg_offset(last_reg);
 			*cs++ = intel_gt_scratch_offset(engine->gt,
 							INTEL_GT_SCRATCH_FIELD_DEFAULT);
-			*cs++ = MI_NOOP;
+			*cs++ = MI_ANALOP;
 		}
 		*cs++ = MI_ARB_ON_OFF | MI_ARB_ENABLE;
 	} else if (GRAPHICS_VER(i915) == 5) {
@@ -816,8 +816,8 @@ static int remap_l3_slice(struct i915_request *rq, int slice)
 		return PTR_ERR(cs);
 
 	/*
-	 * Note: We do not worry about the concurrent register cacheline hang
-	 * here because no other code should access these registers other than
+	 * Analte: We do analt worry about the concurrent register cacheline hang
+	 * here because anal other code should access these registers other than
 	 * at initialization time.
 	 */
 	*cs++ = MI_LOAD_REGISTER_IMM(L3LOG_DW);
@@ -825,7 +825,7 @@ static int remap_l3_slice(struct i915_request *rq, int slice)
 		*cs++ = i915_mmio_reg_offset(GEN7_L3LOG(slice, i));
 		*cs++ = remap_info[i];
 	}
-	*cs++ = MI_NOOP;
+	*cs++ = MI_ANALOP;
 	intel_ring_advance(rq, cs);
 
 	return 0;
@@ -865,7 +865,7 @@ static int switch_mm(struct i915_request *rq, struct i915_address_space *vm)
 		return ret;
 
 	/*
-	 * Not only do we need a full barrier (post-sync write) after
+	 * Analt only do we need a full barrier (post-sync write) after
 	 * invalidating the TLBs, but we need to wait a little bit
 	 * longer. Whether this is merely delaying us, or the
 	 * subsequent flush is a key part of serialising with the
@@ -959,7 +959,7 @@ static int switch_context(struct i915_request *rq)
 		return ret;
 
 	/*
-	 * Now past the point of no return, this request _will_ be emitted.
+	 * Analw past the point of anal return, this request _will_ be emitted.
 	 *
 	 * Or at least this preamble will be emitted, the request may be
 	 * interrupted prior to submitting the user payload. If so, we
@@ -983,7 +983,7 @@ static int ring_request_alloc(struct i915_request *request)
 	GEM_BUG_ON(i915_request_timeline(request)->has_initial_breadcrumb);
 
 	/*
-	 * Flush enough space to reduce the likelihood of waiting after
+	 * Flush eanalugh space to reduce the likelihood of waiting after
 	 * we start building the request - in which case we will just
 	 * have to repeat work.
 	 */
@@ -1010,7 +1010,7 @@ static void gen6_bsd_submit_request(struct i915_request *request)
 
        /* Every tail move must follow the sequence below */
 
-	/* Disable notification that the ring is IDLE. The GT
+	/* Disable analtification that the ring is IDLE. The GT
 	 * will then assume that it is busy and bring it out of rc6.
 	 */
 	intel_uncore_write_fw(uncore, RING_PSMI_CTL(GEN6_BSD_RING_BASE),
@@ -1019,7 +1019,7 @@ static void gen6_bsd_submit_request(struct i915_request *request)
 	/* Clear the context id. Here be magic! */
 	intel_uncore_write64_fw(uncore, GEN6_BSD_RNCID, 0x0);
 
-	/* Wait for the ring not to be idle, i.e. for it to wake up. */
+	/* Wait for the ring analt to be idle, i.e. for it to wake up. */
 	if (__intel_wait_for_register_fw(uncore,
 					 RING_PSMI_CTL(GEN6_BSD_RING_BASE),
 					 GEN6_BSD_SLEEP_INDICATOR,
@@ -1028,7 +1028,7 @@ static void gen6_bsd_submit_request(struct i915_request *request)
 		drm_err(&uncore->i915->drm,
 			"timed out waiting for the BSD ring to wake up\n");
 
-	/* Now that the ring is fully powered up, update the tail */
+	/* Analw that the ring is fully powered up, update the tail */
 	i9xx_submit_request(request);
 
 	/* Let the ring send IDLE messages to the GT again,
@@ -1113,7 +1113,7 @@ static void remove_from_engine(struct i915_request *rq)
 
 	spin_unlock_irq(&rq->engine->sched_engine->lock);
 
-	i915_request_notify_execute_cb_imm(rq);
+	i915_request_analtify_execute_cb_imm(rq);
 }
 
 static void setup_common(struct intel_engine_cs *engine)
@@ -1335,11 +1335,11 @@ int intel_ring_submission_setup(struct intel_engine_cs *engine)
 		break;
 	default:
 		MISSING_CASE(engine->class);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	timeline = intel_timeline_create_from_engine(engine,
-						     I915_GEM_HWS_SEQNO_ADDR);
+						     I915_GEM_HWS_SEQANAL_ADDR);
 	if (IS_ERR(timeline)) {
 		err = PTR_ERR(timeline);
 		goto err;

@@ -8,12 +8,12 @@
  *  and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -216,11 +216,11 @@ void dce110_timing_generator_color_space_to_black_color(
 	struct tg_color *black_color);
 /*************** End-of-move ********************/
 
-/* Not called yet */
+/* Analt called yet */
 void dce110_timing_generator_set_test_pattern(
 	struct timing_generator *tg,
 	/* TODO: replace 'controller_dp_test_pattern' by 'test_pattern_mode'
-	 * because this is not DP-specific (which is probably somewhere in DP
+	 * because this is analt DP-specific (which is probably somewhere in DP
 	 * encoder) */
 	enum controller_dp_test_pattern test_pattern,
 	enum dc_color_depth color_depth);
@@ -234,7 +234,7 @@ void dce110_timing_generator_set_static_screen_control(
 	uint32_t event_triggers,
 	uint32_t num_frames);
 
-void dce110_timing_generator_get_crtc_scanoutpos(
+void dce110_timing_generator_get_crtc_scaanalutpos(
 	struct timing_generator *tg,
 	uint32_t *v_blank_start,
 	uint32_t *v_blank_end,

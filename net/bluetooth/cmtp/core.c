@@ -7,9 +7,9 @@
    published by the Free Software Foundation;
 
    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-   OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF THIRD PARTY RIGHTS.
-   IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) AND AUTHOR(S) BE LIABLE FOR ANY
+   OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT OF THIRD PARTY RIGHTS.
+   IN ANAL EVENT SHALL THE COPYRIGHT HOLDER(S) AND AUTHOR(S) BE LIABLE FOR ANY
    CLAIM, OR ANY SPECIAL INDIRECT OR CONSEQUENTIAL DAMAGES, OR ANY DAMAGES
    WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
    ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -23,7 +23,7 @@
 #include <linux/module.h>
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
@@ -343,7 +343,7 @@ int cmtp_add_connection(struct cmtp_connadd_req *req, struct socket *sock)
 
 	session = kzalloc(sizeof(struct cmtp_session), GFP_KERNEL);
 	if (!session)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	down_write(&cmtp_session_sem);
 
@@ -443,7 +443,7 @@ int cmtp_del_connection(struct cmtp_conndel_req *req)
 		 */
 		wake_up_interruptible(sk_sleep(session->sock->sk));
 	} else
-		err = -ENOENT;
+		err = -EANALENT;
 
 	up_read(&cmtp_session_sem);
 	return err;
@@ -490,7 +490,7 @@ int cmtp_get_conninfo(struct cmtp_conninfo *ci)
 	if (session)
 		__cmtp_copy_session(session, ci);
 	else
-		err = -ENOENT;
+		err = -EANALENT;
 
 	up_read(&cmtp_session_sem);
 	return err;

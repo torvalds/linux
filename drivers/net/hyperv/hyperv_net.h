@@ -83,7 +83,7 @@ struct ndis_recv_scale_param { /* NDIS_RECEIVE_SCALE_PARAMETERS */
 	/* Qualifies the rest of the information */
 	u16 flag;
 
-	/* The base CPU number to do receive processing. not used */
+	/* The base CPU number to do receive processing. analt used */
 	u16 base_cpu_number;
 
 	/* This describes the hash function and type being enabled */
@@ -138,7 +138,7 @@ struct ndis_pkt_8021q_info {
 	union {
 		struct {
 			u32 pri:3; /* User Priority */
-			u32 cfi:1; /* Canonical Format ID */
+			u32 cfi:1; /* Caanalnical Format ID */
 			u32 vlanid:12; /* VLAN ID */
 			u32 reserved:16;
 		};
@@ -150,7 +150,7 @@ struct ndis_pkt_8021q_info {
  * Represent netvsc packet which contains 1 RNDIS and 1 ethernet frame
  * within the RNDIS
  *
- * The size of this structure is less than 48 bytes and we can now
+ * The size of this structure is less than 48 bytes and we can analw
  * place this structure in the skb->cb field.
  */
 struct hv_netvsc_packet {
@@ -288,7 +288,7 @@ int netvsc_switch_datapath(struct net_device *nv_dev, bool vf);
 #define NVSP_PROTOCOL_VERSION_61	0x60001
 
 enum {
-	NVSP_MSG_TYPE_NONE = 0,
+	NVSP_MSG_TYPE_ANALNE = 0,
 
 	/* Init Messages */
 	NVSP_MSG_TYPE_INIT			= 1,
@@ -366,7 +366,7 @@ enum {
 };
 
 enum {
-	NVSP_STAT_NONE = 0,
+	NVSP_STAT_ANALNE = 0,
 	NVSP_STAT_SUCCESS,
 	NVSP_STAT_FAIL,
 	NVSP_STAT_PROTOCOL_TOO_NEW,
@@ -417,7 +417,7 @@ union nvsp_message_init_uber {
  */
 struct nvsp_1_message_send_ndis_version {
 	u32 ndis_major_ver;
-	u32 ndis_minor_ver;
+	u32 ndis_mianalr_ver;
 } __packed;
 
 /*
@@ -437,7 +437,7 @@ struct nvsp_1_receive_buffer_section {
 } __packed;
 
 /*
- * This message is used by the VSP to acknowledge a receive buffer send by the
+ * This message is used by the VSP to ackanalwledge a receive buffer send by the
  * VSC. This message must be sent by the VSP before the VSP uses the receive
  * buffer.
  */
@@ -486,7 +486,7 @@ struct nvsp_1_message_send_send_buffer {
 } __packed;
 
 /*
- * This message is used by the VSP to acknowledge a send buffer sent by the
+ * This message is used by the VSP to ackanalwledge a send buffer sent by the
  * VSC. This message must be sent by the VSP before the VSP uses the sent
  * buffer.
  */
@@ -525,7 +525,7 @@ struct nvsp_1_message_send_rndis_packet {
 	/*
 	 * This field is used to send part or all of the data through a send
 	 * buffer. This values specifies an index into the send buffer. If the
-	 * index is 0xFFFFFFFF, then the send buffer is not being used and all
+	 * index is 0xFFFFFFFF, then the send buffer is analt being used and all
 	 * of the data was sent through other VMBus mechanisms.
 	 */
 	u32 send_buf_section_index;
@@ -535,7 +535,7 @@ struct nvsp_1_message_send_rndis_packet {
 /*
  * This message is used by both the VSP and the VSC to complete a RNDIS message
  * to the opposite channel endpoint. At this point, the initiator of this
- * message cannot use any resources associated with the original RNDIS packet.
+ * message cananalt use any resources associated with the original RNDIS packet.
  */
 struct nvsp_1_message_send_rndis_packet_complete {
 	u32 status;
@@ -621,7 +621,7 @@ union nvsp_2_message_uber {
 } __packed;
 
 struct nvsp_4_send_vf_association {
-	/* 1: allocated, serial number is valid. 0: not allocated */
+	/* 1: allocated, serial number is valid. 0: analt allocated */
 	u32 allocated;
 
 	/* Serial number of the VF to team with */
@@ -644,7 +644,7 @@ union nvsp_4_message_uber {
 } __packed;
 
 enum nvsp_subchannel_operation {
-	NVSP_SUBCHANNEL_NONE = 0,
+	NVSP_SUBCHANNEL_ANALNE = 0,
 	NVSP_SUBCHANNEL_ALLOCATE,
 	NVSP_SUBCHANNEL_MAX
 };
@@ -755,7 +755,7 @@ struct nvsp_6_pd_api_req {
 		/* Allocate Common Buffer */
 		struct __packed {
 			u32 len;
-			u32 pf_node; /* Preferred Node */
+			u32 pf_analde; /* Preferred Analde */
 			u16 region_id;
 		} alloc_com_buf;
 
@@ -763,7 +763,7 @@ struct nvsp_6_pd_api_req {
 		struct __packed {
 			u32 len;
 			u64 pa; /* Physical Address */
-			u32 pf_node; /* Preferred Node */
+			u32 pf_analde; /* Preferred Analde */
 			u16 region_id;
 			u8 cache_type;
 		} free_com_buf;
@@ -804,7 +804,7 @@ struct nvsp_6_pd_api_comp {
 		struct __packed {
 			u64 pa; /* Physical Address */
 			u32 len;
-			u32 pf_node; /* Preferred Node */
+			u32 pf_analde; /* Preferred Analde */
 			u16 region_id;
 			u8 cache_type;
 		} alloc_com_buf;
@@ -903,7 +903,7 @@ static inline u32 netvsc_rqstor_size(unsigned long ringbytes)
 }
 
 /* XFER PAGE packets can specify a maximum of 375 ranges for NDIS >= 6.0
- * and a maximum of 64 ranges for NDIS < 6.0 with no RSC; with RSC, this
+ * and a maximum of 64 ranges for NDIS < 6.0 with anal RSC; with RSC, this
  * limit is raised to 562 (= NVSP_RSC_MAX).
  */
 #define NETVSC_MAX_XFER_PAGE_RANGES NVSP_RSC_MAX
@@ -968,13 +968,13 @@ struct netvsc_stats_rx {
 
 struct netvsc_ethtool_stats {
 	unsigned long tx_scattered;
-	unsigned long tx_no_memory;
-	unsigned long tx_no_space;
+	unsigned long tx_anal_memory;
+	unsigned long tx_anal_space;
 	unsigned long tx_too_big;
 	unsigned long tx_busy;
 	unsigned long tx_send_full;
 	unsigned long rx_comp_busy;
-	unsigned long rx_no_memory;
+	unsigned long rx_anal_memory;
 	unsigned long stop_queue;
 	unsigned long wake_queue;
 	unsigned long vlan_error;
@@ -1051,7 +1051,7 @@ struct net_device_context {
 	struct netvsc_vf_pcpu_stats __percpu *vf_stats;
 	struct delayed_work vf_takeover;
 
-	/* 1: allocated, serial number is valid. 0: not allocated */
+	/* 1: allocated, serial number is valid. 0: analt allocated */
 	u32 vf_alloc;
 	/* Serial number of the VF to team with */
 	u32 vf_serial;
@@ -1064,7 +1064,7 @@ struct net_device_context {
 	struct netvsc_device_info *saved_netvsc_dev_info;
 };
 
-/* Azure hosts don't support non-TCP port numbers in hashing for fragmented
+/* Azure hosts don't support analn-TCP port numbers in hashing for fragmented
  * packets. We can use ethtool to change UDP hash level when necessary.
  */
 static inline u32 netvsc_get_hash(struct sk_buff *skb,
@@ -1139,7 +1139,7 @@ struct netvsc_device {
 
 	wait_queue_head_t wait_drain;
 	bool destroy;
-	bool tx_disable; /* if true, do not wake up queue again */
+	bool tx_disable; /* if true, do analt wake up queue again */
 
 	/* Receive buffer allocated by us but manages by NetVSP */
 	void *recv_buf;
@@ -1184,7 +1184,7 @@ struct netvsc_device {
 struct rndis_initialize_request {
 	u32 req_id;
 	u32 major_ver;
-	u32 minor_ver;
+	u32 mianalr_ver;
 	u32 max_xfer_size;
 };
 
@@ -1193,7 +1193,7 @@ struct rndis_initialize_complete {
 	u32 req_id;
 	u32 status;
 	u32 major_ver;
-	u32 minor_ver;
+	u32 mianalr_ver;
 	u32 dev_flags;
 	u32 medium;
 	u32 max_pkt_per_msg;
@@ -1208,7 +1208,7 @@ struct rndis_initialize_complete {
 struct rndis_co_address_family {
 	u32 address_family;
 	u32 major_ver;
-	u32 minor_ver;
+	u32 mianalr_ver;
 };
 
 /* NdisHalt message */
@@ -1267,9 +1267,9 @@ struct rndis_indicate_status {
 	u32 status_buf_offset;
 };
 
-/* Diagnostic information passed as the status buffer in */
+/* Diaganalstic information passed as the status buffer in */
 /* struct rndis_indicate_status messages signifying error conditions. */
-struct rndis_diagnostic_info {
+struct rndis_diaganalstic_info {
 	u32 diag_status;
 	u32 error_offset;
 };
@@ -1364,7 +1364,7 @@ struct ndis_object_header {
 #define NDIS_OFFLOAD_PARAMETERS_REVISION_2 2
 #define NDIS_OFFLOAD_PARAMETERS_REVISION_1 1
 
-#define NDIS_OFFLOAD_PARAMETERS_NO_CHANGE 0
+#define NDIS_OFFLOAD_PARAMETERS_ANAL_CHANGE 0
 #define NDIS_OFFLOAD_PARAMETERS_LSOV2_DISABLED 1
 #define NDIS_OFFLOAD_PARAMETERS_LSOV2_ENABLED  2
 #define NDIS_OFFLOAD_PARAMETERS_LSOV1_ENABLED  2
@@ -1395,7 +1395,7 @@ struct ndis_object_header {
  * ndis_type: NDIS_OBJTYPE_OFFLOAD
  */
 
-#define	NDIS_OFFLOAD_ENCAP_NONE		0x0000
+#define	NDIS_OFFLOAD_ENCAP_ANALNE		0x0000
 #define	NDIS_OFFLOAD_ENCAP_NULL		0x0001
 #define	NDIS_OFFLOAD_ENCAP_8023		0x0002
 #define	NDIS_OFFLOAD_ENCAP_8023PQ	0x0004
@@ -1607,7 +1607,7 @@ struct rndis_config_parameter_info {
 #define RNDIS_CONFIG_PARAM_TYPE_STRING      2
 
 /* CONDIS Miniport messages for connection oriented devices */
-/* that do not implement a call manager. */
+/* that do analt implement a call manager. */
 
 /* CoNdisMiniportCreateVc message */
 struct rcondis_mp_create_vc {
@@ -1790,7 +1790,7 @@ struct rndis_message {
 #define NDIS_PACKET_TYPE_FUNCTIONAL	0x00000400
 #define NDIS_PACKET_TYPE_MAC_FRAME	0x00000800
 
-#define TRANSPORT_INFO_NOT_IP   0
+#define TRANSPORT_INFO_ANALT_IP   0
 #define TRANSPORT_INFO_IPV4_TCP 0x01
 #define TRANSPORT_INFO_IPV4_UDP 0x02
 #define TRANSPORT_INFO_IPV6_TCP 0x10

@@ -41,7 +41,7 @@ void __init sbi_ipi_init(void)
 	if (riscv_ipi_have_virq_range())
 		return;
 
-	domain = irq_find_matching_fwnode(riscv_get_intc_hwnode(),
+	domain = irq_find_matching_fwanalde(riscv_get_intc_hwanalde(),
 					  DOMAIN_BUS_ANY);
 	if (!domain) {
 		pr_err("unable to find INTC IRQ domain\n");

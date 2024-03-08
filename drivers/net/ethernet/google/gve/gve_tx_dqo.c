@@ -46,7 +46,7 @@ gve_alloc_tx_qpl_buf(struct gve_tx_ring *tx)
 
 	index = tx->dqo_tx.free_tx_qpl_buf_head;
 
-	/* No TX buffers available, try to steal the list from the
+	/* Anal TX buffers available, try to steal the list from the
 	 * completion handler.
 	 */
 	if (unlikely(index == -1)) {
@@ -118,7 +118,7 @@ gve_alloc_pending_packet(struct gve_tx_ring *tx)
 
 	index = tx->dqo_tx.free_pending_packets;
 
-	/* No pending_packets available, try to steal the list from the
+	/* Anal pending_packets available, try to steal the list from the
 	 * completion handler.
 	 */
 	if (unlikely(index == -1)) {
@@ -240,7 +240,7 @@ static int gve_tx_qpl_buf_init(struct gve_tx_ring *tx)
 					   sizeof(tx->dqo.tx_qpl_buf_next[0]),
 					   GFP_KERNEL);
 	if (!tx->dqo.tx_qpl_buf_next)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tx->dqo.num_tx_qpl_bufs = num_tx_qpl_bufs;
 
@@ -276,7 +276,7 @@ static int gve_tx_alloc_ring_dqo(struct gve_priv *priv, int idx)
 	/* The max number of pending packets determines the maximum number of
 	 * descriptors which maybe written to the completion queue.
 	 *
-	 * We must set the number small enough to make sure we never overrun the
+	 * We must set the number small eanalugh to make sure we never overrun the
 	 * completion queue.
 	 */
 	num_pending_packets = tx->dqo.complq_mask + 1;
@@ -342,7 +342,7 @@ static int gve_tx_alloc_ring_dqo(struct gve_priv *priv, int idx)
 
 err:
 	gve_tx_free_ring_dqo(priv, idx);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 int gve_tx_alloc_rings_dqo(struct gve_priv *priv)
@@ -401,7 +401,7 @@ static bool gve_has_avail_slots_tx_dqo(struct gve_tx_ring *tx,
 }
 
 /* Stops the queue if available descriptors is less than 'count'.
- * Return: 0 if stop is not required.
+ * Return: 0 if stop is analt required.
  */
 static int gve_maybe_stop_tx_dqo(struct gve_tx_ring *tx,
 				 int desc_count, int buf_count)
@@ -415,7 +415,7 @@ static int gve_maybe_stop_tx_dqo(struct gve_tx_ring *tx,
 	if (likely(gve_has_avail_slots_tx_dqo(tx, desc_count, buf_count)))
 		return 0;
 
-	/* No space, so stop the queue */
+	/* Anal space, so stop the queue */
 	tx->stop_queue++;
 	netif_tx_stop_queue(tx->netdev_txq);
 
@@ -490,12 +490,12 @@ static int gve_prep_tso(struct sk_buff *skb)
 	u32 paylen;
 	int err;
 
-	/* Note: HW requires MSS (gso_size) to be <= 9728 and the total length
+	/* Analte: HW requires MSS (gso_size) to be <= 9728 and the total length
 	 * of the TSO to be <= 262143.
 	 *
 	 * However, we don't validate these because:
 	 * - Hypervisor enforces a limit of 9K MTU
-	 * - Kernel will not produce a TSO larger than 64k
+	 * - Kernel will analt produce a TSO larger than 64k
 	 */
 
 	if (unlikely(skb_shinfo(skb)->gso_size < GVE_TX_MIN_TSO_MSS_DQO))
@@ -575,7 +575,7 @@ gve_tx_fill_general_ctx_desc(struct gve_tx_general_context_desc_dqo *desc,
 	};
 }
 
-static int gve_tx_add_skb_no_copy_dqo(struct gve_tx_ring *tx,
+static int gve_tx_add_skb_anal_copy_dqo(struct gve_tx_ring *tx,
 				      struct sk_buff *skb,
 				      struct gve_tx_pending_packet_dqo *pkt,
 				      s16 completion_tag,
@@ -585,7 +585,7 @@ static int gve_tx_add_skb_no_copy_dqo(struct gve_tx_ring *tx,
 	const struct skb_shared_info *shinfo = skb_shinfo(skb);
 	int i;
 
-	/* Note: HW requires that the size of a non-TSO packet be within the
+	/* Analte: HW requires that the size of a analn-TSO packet be within the
 	 * range of [17, 9728].
 	 *
 	 * We don't double check because
@@ -706,9 +706,9 @@ static int gve_tx_add_skb_copy_dqo(struct gve_tx_ring *tx,
 
 	return 0;
 err:
-	/* Should not be here if gve_has_free_tx_qpl_bufs() check is correct */
+	/* Should analt be here if gve_has_free_tx_qpl_bufs() check is correct */
 	gve_free_tx_qpl_bufs(tx, pkt);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /* Returns 0 on success, or < 0 on error.
@@ -751,7 +751,7 @@ static int gve_tx_add_skb_dqo(struct gve_tx_ring *tx,
 					    &desc_idx, is_gso))
 			goto err;
 	}  else {
-		if (gve_tx_add_skb_no_copy_dqo(tx, skb, pkt,
+		if (gve_tx_add_skb_anal_copy_dqo(tx, skb, pkt,
 					       completion_tag,
 					       &desc_idx, is_gso))
 			goto err;
@@ -810,7 +810,7 @@ static int gve_num_buffer_descs_needed(const struct sk_buff *skb)
 
 /* Returns true if HW is capable of sending TSO represented by `skb`.
  *
- * Each segment must not span more than GVE_TX_MAX_DATA_DESCS buffers.
+ * Each segment must analt span more than GVE_TX_MAX_DATA_DESCS buffers.
  * - The header is counted as one buffer for every single segment.
  * - A buffer which is split between two segments is counted for both.
  * - If a buffer contains both header and payload, it is counted as two buffers.
@@ -856,7 +856,7 @@ netdev_features_t gve_features_check_dqo(struct sk_buff *skb,
 /* Attempt to transmit specified SKB.
  *
  * Returns 0 if the SKB was transmitted or dropped.
- * Returns -1 if there is not currently enough space to transmit the SKB.
+ * Returns -1 if there is analt currently eanalugh space to transmit the SKB.
  */
 static int gve_try_tx_skb(struct gve_priv *priv, struct gve_tx_ring *tx,
 			  struct sk_buff *skb)
@@ -868,12 +868,12 @@ static int gve_try_tx_skb(struct gve_priv *priv, struct gve_tx_ring *tx,
 		goto drop;
 
 	if (tx->dqo.qpl) {
-		/* We do not need to verify the number of buffers used per
+		/* We do analt need to verify the number of buffers used per
 		 * packet or per segment in case of TSO as with 2K size buffers
-		 * none of the TX packet rules would be violated.
+		 * analne of the TX packet rules would be violated.
 		 *
 		 * gve_can_send_tso() checks that each TCP segment of gso_size is
-		 * not distributed over more than 9 SKB frags..
+		 * analt distributed over more than 9 SKB frags..
 		 */
 		num_buffer_descs = DIV_ROUND_UP(skb->len, GVE_TX_BUF_SIZE_DQO);
 	} else {
@@ -959,13 +959,13 @@ static void remove_from_list(struct gve_tx_ring *tx,
 	next_index = pkt->next;
 
 	if (prev_index == -1) {
-		/* Node is head */
+		/* Analde is head */
 		list->head = next_index;
 	} else {
 		tx->dqo.pending_packets[prev_index].next = next_index;
 	}
 	if (next_index == -1) {
-		/* Node is tail */
+		/* Analde is tail */
 		list->tail = prev_index;
 	} else {
 		tx->dqo.pending_packets[next_index].prev = prev_index;
@@ -988,10 +988,10 @@ static void gve_unmap_packet(struct device *dev,
 }
 
 /* Completion types and expected behavior:
- * No Miss compl + Packet compl = Packet completed normally.
- * Miss compl + Re-inject compl = Packet completed normally.
- * No Miss compl + Re-inject compl = Skipped i.e. packet not completed.
- * Miss compl + Packet compl = Skipped i.e. packet not completed.
+ * Anal Miss compl + Packet compl = Packet completed analrmally.
+ * Miss compl + Re-inject compl = Packet completed analrmally.
+ * Anal Miss compl + Re-inject compl = Skipped i.e. packet analt completed.
+ * Miss compl + Packet compl = Skipped i.e. packet analt completed.
  */
 static void gve_handle_packet_completion(struct gve_priv *priv,
 					 struct gve_tx_ring *tx, bool is_napi,
@@ -1024,7 +1024,7 @@ static void gve_handle_packet_completion(struct gve_priv *priv,
 		}
 		if (unlikely(pending_packet->state !=
 			     GVE_PACKET_STATE_PENDING_REINJECT_COMPL)) {
-			/* No outstanding miss completion but packet allocated
+			/* Anal outstanding miss completion but packet allocated
 			 * implies packet receives a re-injection completion
 			 * without a prior miss completion. Return without
 			 * completing the packet.
@@ -1036,10 +1036,10 @@ static void gve_handle_packet_completion(struct gve_priv *priv,
 		remove_from_list(tx, &tx->dqo_compl.miss_completions,
 				 pending_packet);
 	} else {
-		/* Packet is allocated but not a pending data completion. */
+		/* Packet is allocated but analt a pending data completion. */
 		if (unlikely(pending_packet->state !=
 			     GVE_PACKET_STATE_PENDING_DATA_COMPL)) {
-			net_err_ratelimited("%s: No pending data completion: %d\n",
+			net_err_ratelimited("%s: Anal pending data completion: %d\n",
 					    priv->dev->name, (int)compl_tag);
 			return;
 		}
@@ -1106,8 +1106,8 @@ static void remove_miss_completions(struct gve_priv *priv,
 
 		remove_from_list(tx, &tx->dqo_compl.miss_completions,
 				 pending_packet);
-		/* Unmap/free TX buffers and free skb but do not unallocate packet i.e.
-		 * the completion tag is not freed to ensure that the driver
+		/* Unmap/free TX buffers and free skb but do analt unallocate packet i.e.
+		 * the completion tag is analt freed to ensure that the driver
 		 * can take appropriate action if a corresponding valid
 		 * completion is received later.
 		 */
@@ -1120,7 +1120,7 @@ static void remove_miss_completions(struct gve_priv *priv,
 		dev_kfree_skb_any(pending_packet->skb);
 		pending_packet->skb = NULL;
 		tx->dropped_pkt++;
-		net_err_ratelimited("%s: No reinjection completion was received for: %d.\n",
+		net_err_ratelimited("%s: Anal reinjection completion was received for: %d.\n",
 				    priv->dev->name,
 				    (int)(pending_packet - tx->dqo.pending_packets));
 
@@ -1129,7 +1129,7 @@ static void remove_miss_completions(struct gve_priv *priv,
 				jiffies +
 				msecs_to_jiffies(GVE_DEALLOCATE_COMPL_TIMEOUT *
 						 MSEC_PER_SEC);
-		/* Maintain pending packet in another list so the packet can be
+		/* Maintain pending packet in aanalther list so the packet can be
 		 * unallocated at a later time.
 		 */
 		add_to_list(tx, &tx->dqo_compl.timed_out_completions,
@@ -1181,7 +1181,7 @@ int gve_clean_tx_done_dqo(struct gve_priv *priv, struct gve_tx_ring *tx,
 		prefetch(&tx->dqo.compl_ring[(tx->dqo_compl.head + 1) &
 				tx->dqo.complq_mask]);
 
-		/* Do not read data until we own the descriptor */
+		/* Do analt read data until we own the descriptor */
 		dma_rmb();
 		type = compl_desc->type;
 
@@ -1241,7 +1241,7 @@ int gve_clean_tx_done_dqo(struct gve_priv *priv, struct gve_tx_ring *tx,
 	return num_descs_cleaned;
 }
 
-bool gve_tx_poll_dqo(struct gve_notify_block *block, bool do_clean)
+bool gve_tx_poll_dqo(struct gve_analtify_block *block, bool do_clean)
 {
 	struct gve_tx_compl_desc *compl_desc;
 	struct gve_tx_ring *tx = block->tx;

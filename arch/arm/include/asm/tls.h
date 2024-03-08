@@ -7,7 +7,7 @@
 
 #ifdef __ASSEMBLY__
 #include <asm/asm-offsets.h>
-	.macro switch_tls_none, base, tp, tpuser, tmp1, tmp2
+	.macro switch_tls_analne, base, tp, tpuser, tmp1, tmp2
 	.endm
 
 	.macro switch_tls_v6k, base, tp, tpuser, tmp1, tmp2
@@ -19,7 +19,7 @@
 
 	.macro switch_tls_v6, base, tp, tpuser, tmp1, tmp2
 #ifdef CONFIG_SMP
-ALT_SMP(nop)
+ALT_SMP(analp)
 ALT_UP_B(.L0_\@)
 	.subsection 1
 #endif
@@ -29,7 +29,7 @@ ALT_UP_B(.L0_\@)
 	tst	\tmp1, #HWCAP_TLS		@ hardware TLS available?
 	streq	\tp, [\tmp2, #-15]		@ set TLS value at 0xffff0ff0
 	beq	.L2_\@
-	mcr	p15, 0, \tp, c13, c0, 3		@ yes, set TLS register
+	mcr	p15, 0, \tp, c13, c0, 3		@ anal, set TLS register
 #ifdef CONFIG_SMP
 	b	.L1_\@
 	.previous
@@ -50,7 +50,7 @@ ALT_UP_B(.L0_\@)
 #define tls_emu		1
 #define has_tls_reg		1
 #define defer_tls_reg_update	0
-#define switch_tls	switch_tls_none
+#define switch_tls	switch_tls_analne
 #elif defined(CONFIG_CPU_V6)
 #define tls_emu		0
 #define has_tls_reg		(elf_hwcap & HWCAP_TLS)
@@ -125,7 +125,7 @@ static inline unsigned long get_tpuser(void)
 static inline void set_tpuser(unsigned long val)
 {
 	/* Since TPIDRURW is fully context-switched (unlike TPIDRURO),
-	 * we need not update thread_info.
+	 * we need analt update thread_info.
 	 */
 	if (has_tls_reg && !tls_emu) {
 		asm("mcr p15, 0, %0, c13, c0, 2"

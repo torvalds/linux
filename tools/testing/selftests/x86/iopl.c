@@ -12,7 +12,7 @@
 #include <setjmp.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
+#include <erranal.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -138,7 +138,7 @@ static void expect_gp_sti(bool irqs_off)
 		printf("[OK]\tSTI faulted\n");
 		break;
 	case RET_EMUL:
-		printf("[OK]\tSTI NOPped\n");
+		printf("[OK]\tSTI ANALPped\n");
 		break;
 	default:
 		printf("[FAIL]\tSTI worked\n");
@@ -158,7 +158,7 @@ static bool test_cli(void)
 		printf("[OK]\tCLI faulted\n");
 		break;
 	case RET_EMUL:
-		printf("[OK]\tCLI NOPped\n");
+		printf("[OK]\tCLI ANALPped\n");
 		break;
 	default:
 		printf("[FAIL]\tCLI worked\n");
@@ -178,16 +178,16 @@ int main(void)
 	if (sched_setaffinity(0, sizeof(cpuset), &cpuset) != 0)
 		err(1, "sched_setaffinity to CPU 0");
 
-	/* Probe for iopl support.  Note that iopl(0) works even as nonroot. */
+	/* Probe for iopl support.  Analte that iopl(0) works even as analnroot. */
 	switch(iopl(3)) {
 	case 0:
 		break;
-	case -ENOSYS:
-		printf("[OK]\tiopl() nor supported\n");
+	case -EANALSYS:
+		printf("[OK]\tiopl() analr supported\n");
 		return 0;
 	default:
 		printf("[OK]\tiopl(3) failed (%d) -- try running as root\n",
-		       errno);
+		       erranal);
 		return 0;
 	}
 

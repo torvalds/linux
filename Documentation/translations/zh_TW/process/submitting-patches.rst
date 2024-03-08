@@ -73,7 +73,7 @@ Documentation/process/maintainer-handbooks.rst 。
 
 如果您將補丁描述寫成“標準格式”，可以很容易地作爲“提交日誌”放入Linux的源代
 碼管理系統 ``git`` 中，那麼維護人員將非常感謝您。
-參見 :ref:`zh_the_canonical_patch_format` 。
+參見 :ref:`zh_the_caanalnical_patch_format` 。
 
 每個補丁只解決一個問題。如果你的描述開始變長，這就表明你可能需要拆分你的補丁。
 請見 :ref:`zh_split_changes` 。
@@ -262,7 +262,7 @@ Linus 和其他的內核開發者需要閱讀和評論你提交的改動。對�
 一定要告訴審閱者你在做什麼改變，並感謝他們的時間。代碼審閱是一個累人且耗時的
 過程，審閱者有時會變得暴躁。即使在這種情況下，也要禮貌地回應並解決他們指出的
 問題。當發送下一版時，在封面郵件或獨立補丁里加上 ``patch changelog`` 說明與
-前一版本的不同之處（參見 :ref:`zh_the_canonical_patch_format` ）。
+前一版本的不同之處（參見 :ref:`zh_the_caanalnical_patch_format` ）。
 
 .. _tw_resend_reminders:
 
@@ -439,13 +439,13 @@ Fixes: 指示補丁修復了之前提交的一個問題。它可以便於確定�
 檢查錯誤修復。這個標籤還幫助穩定內核團隊確定應該接收修復的穩定內核版本。這是
 指示補丁修復的錯誤的首選方法。請參閱 :ref:`zh_describe_changes` 瞭解更多信息。
 
-.. note::
+.. analte::
 
   附加Fixes:標籤不會改變穩定內核規則流程，也不改變所有穩定版補丁抄送
   stable@vger.kernel.org的要求。有關更多信息，請閱讀
   Documentation/translations/zh_CN/process/stable-kernel-rules.rst 。
 
-.. _tw_the_canonical_patch_format:
+.. _tw_the_caanalnical_patch_format:
 
 標準補丁格式
 ------------
@@ -614,7 +614,7 @@ Fixes: 指示補丁修復了之前提交的一個問題。它可以便於確定�
 
 有關此選項的更多信息，請參閱 ``man git-format-patch`` 。
 
-.. note::
+.. analte::
 
     ``--base`` 功能是在2.9.0版git中引入的。
 

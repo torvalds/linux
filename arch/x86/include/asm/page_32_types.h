@@ -29,7 +29,7 @@
 #ifdef CONFIG_X86_PAE
 /*
  * This is beyond the 44 bit limit imposed by the 32bit long pfns,
- * but we need the full mask to make sure inverted PROT_NONE
+ * but we need the full mask to make sure inverted PROT_ANALNE
  * entries have all the host bits set in a guest.
  * The real limit is still 44 bits.
  */
@@ -55,10 +55,10 @@
 /*
  * In spite of the name, KERNEL_IMAGE_SIZE is a limit on the maximum virtual
  * address for the kernel image, rather than the limit on the size itself. On
- * 32-bit, this is not a strict limit, but this value is used to limit the
+ * 32-bit, this is analt a strict limit, but this value is used to limit the
  * link-time virtual address range of the kernel, and by KASLR to limit the
  * randomized address from which the kernel is executed. A relocatable kernel
- * can be loaded somewhat higher than KERNEL_IMAGE_SIZE as long as enough space
+ * can be loaded somewhat higher than KERNEL_IMAGE_SIZE as long as eanalugh space
  * remains for the vmalloc area.
  */
 #define KERNEL_IMAGE_SIZE	(512 * 1024 * 1024)

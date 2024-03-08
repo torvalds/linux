@@ -13,18 +13,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -95,7 +95,7 @@ csio_t5_pcie_intr_handler(struct csio_hw *hw)
 		{ HREQWRPERR_F, "PCI HMA channel count parity error", -1, 1 },
 		{ HREQPERR_F, "PCI HMA channel request parity error", -1, 1 },
 		{ HRSPPERR_F, "PCI HMA channel response parity error", -1, 1 },
-		{ CFGSNPPERR_F, "PCI config snoop FIFO parity error", -1, 1 },
+		{ CFGSNPPERR_F, "PCI config sanalop FIFO parity error", -1, 1 },
 		{ FIDPERR_F, "PCI FID parity error", -1, 1 },
 		{ VFIDPERR_F, "PCI INTx clear parity error", -1, 1 },
 		{ MAGRPPERR_F, "PCI MA group FIFO parity error", -1, 1 },
@@ -139,7 +139,7 @@ csio_t5_flash_cfg_addr(struct csio_hw *hw)
  *      @ecc: where to store the corresponding 64-bit ECC word
  *
  *      Read 64 bytes of data from MC starting at a 64-byte-aligned address
- *      that covers the requested address @addr.  If @parity is not %NULL it
+ *      that covers the requested address @addr.  If @parity is analt %NULL it
  *      is assigned the 64-bit ECC word for the read data.
  */
 static int
@@ -186,7 +186,7 @@ csio_t5_mc_read(struct csio_hw *hw, int idx, uint32_t addr, __be32 *data,
  *      @ecc: where to store the corresponding 64-bit ECC word
  *
  *      Read 64 bytes of data from EDC starting at a 64-byte-aligned address
- *      that covers the requested address @addr.  If @parity is not %NULL it
+ *      that covers the requested address @addr.  If @parity is analt %NULL it
  *      is assigned the 64-bit ECC word for the read data.
  */
 static int
@@ -284,7 +284,7 @@ csio_t5_memory_rw(struct csio_hw *hw, u32 win, int mtype, u32 addr,
 	/*
 	 * Each PCI-E Memory Window is programmed with a window size -- or
 	 * "aperture" -- which controls the granularity of its mapping onto
-	 * adapter memory.  We need to grab that aperture in order to know
+	 * adapter memory.  We need to grab that aperture in order to kanalw
 	 * how to use the specified window.  The window is also programmed
 	 * with the base address of the Memory Window in BAR0's address
 	 * space.  For T4 this is an absolute PCI-E Bus Address.  For T5

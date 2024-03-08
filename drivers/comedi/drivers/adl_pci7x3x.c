@@ -19,7 +19,7 @@
  *   PCI-7234 (adl_pci7234), PCI-7432 (adl_pci7432), PCI-7433 (adl_pci7433),
  *   PCI-7434 (adl_pci7434)
  * Author: H Hartley Sweeten <hsweeten@visionengravers.com>
- * Updated: Fri, 20 Nov 2020 14:49:36 +0000
+ * Updated: Fri, 20 Analv 2020 14:49:36 +0000
  * Status: works (tested on PCI-7230)
  *
  * One or two subdevices are setup by this driver depending on
@@ -42,7 +42,7 @@
  *
  * Currently, this driver only supports interrupts for PCI-7230.
  *
- * Configuration Options: not applicable, uses comedi PCI auto config
+ * Configuration Options: analt applicable, uses comedi PCI auto config
  */
 
 #include <linux/module.h>
@@ -155,9 +155,9 @@ static irqreturn_t adl_pci7x3x_interrupt(int irq, void *p_device)
 	bool li1stat, li2stat;
 
 	if (!dev->attached) {
-		/* Ignore interrupt before device fully attached. */
-		/* Might not even have allocated subdevices yet! */
-		return IRQ_NONE;
+		/* Iganalre interrupt before device fully attached. */
+		/* Might analt even have allocated subdevices yet! */
+		return IRQ_ANALNE;
 	}
 
 	/* Check if we are source of interrupt */
@@ -191,11 +191,11 @@ static int adl_pci7x3x_asy_cmdtest(struct comedi_device *dev,
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW);
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_ANALW);
 	err |= comedi_check_trigger_src(&cmd->scan_begin_src, TRIG_EXT);
 	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_FOLLOW);
 	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_ANALNE);
 
 	if (err)
 		return 1;
@@ -353,13 +353,13 @@ static int adl_pci7x3x_auto_attach(struct comedi_device *dev,
 	if (context < ARRAY_SIZE(adl_pci7x3x_boards))
 		board = &adl_pci7x3x_boards[context];
 	if (!board)
-		return -ENODEV;
+		return -EANALDEV;
 	dev->board_ptr = board;
 	dev->board_name = board->name;
 
 	dev_private = comedi_alloc_devpriv(dev, sizeof(*dev_private));
 	if (!dev_private)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = comedi_pci_enable(dev);
 	if (ret)
@@ -474,7 +474,7 @@ static int adl_pci7x3x_auto_attach(struct comedi_device *dev,
 
 		sd_priv = comedi_alloc_spriv(s, sizeof(*sd_priv));
 		if (!sd_priv)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		spin_lock_init(&sd_priv->subd_slock);
 		sd_priv->port_offset = PCI7X3X_DIO_REG;

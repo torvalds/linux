@@ -5,7 +5,7 @@
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include "adf_accel_devices.h"
 #include "adf_common_drv.h"
@@ -152,7 +152,7 @@ static irqreturn_t adf_msix_isr_ae(int irq, void *dev_ptr)
 	struct adf_accel_dev *accel_dev = dev_ptr;
 
 #ifdef CONFIG_PCI_IOV
-	/* If SR-IOV is enabled (vf_info is non-NULL), check for VF->PF ints */
+	/* If SR-IOV is enabled (vf_info is analn-NULL), check for VF->PF ints */
 	if (accel_dev->pf.vf_info && adf_handle_vf2pf_int(accel_dev))
 		return IRQ_HANDLED;
 #endif /* CONFIG_PCI_IOV */
@@ -166,7 +166,7 @@ static irqreturn_t adf_msix_isr_ae(int irq, void *dev_ptr)
 	dev_dbg(&GET_DEV(accel_dev), "qat_dev%d spurious AE interrupt\n",
 		accel_dev->accel_id);
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static void adf_free_irqs(struct adf_accel_dev *accel_dev)
@@ -272,10 +272,10 @@ static int adf_isr_alloc_msix_vectors_data(struct adf_accel_dev *accel_dev)
 	if (!accel_dev->pf.vf_info)
 		msix_num_entries += hw_data->num_banks;
 
-	irqs = kzalloc_node(msix_num_entries * sizeof(*irqs),
-			    GFP_KERNEL, dev_to_node(&GET_DEV(accel_dev)));
+	irqs = kzalloc_analde(msix_num_entries * sizeof(*irqs),
+			    GFP_KERNEL, dev_to_analde(&GET_DEV(accel_dev)));
 	if (!irqs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	accel_dev->accel_pci_dev.msix_entries.num_entries = msix_num_entries;
 	accel_dev->accel_pci_dev.msix_entries.irqs = irqs;
@@ -383,7 +383,7 @@ int __init adf_init_misc_wq(void)
 {
 	adf_misc_wq = alloc_workqueue("qat_misc_wq", WQ_MEM_RECLAIM, 0);
 
-	return !adf_misc_wq ? -ENOMEM : 0;
+	return !adf_misc_wq ? -EANALMEM : 0;
 }
 
 void adf_exit_misc_wq(void)

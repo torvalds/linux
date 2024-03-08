@@ -183,7 +183,7 @@ static int pcm_open(struct snd_pcm_substream *substream)
 
 	mutex_lock(&oxfw->mutex);
 
-	// When source of clock is not internal or any stream is reserved for
+	// When source of clock is analt internal or any stream is reserved for
 	// transmission of PCM frames, the available sampling rate is limited
 	// at current one.
 	if (oxfw->substreams_count > 0 && d->events_per_period > 0) {

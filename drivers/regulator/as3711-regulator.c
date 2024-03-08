@@ -18,25 +18,25 @@
 #include <linux/slab.h>
 
 /*
- * The regulator API supports 4 modes of operataion: FAST, NORMAL, IDLE and
+ * The regulator API supports 4 modes of operataion: FAST, ANALRMAL, IDLE and
  * STANDBY. We map them in the following way to AS3711 SD1-4 DCDC modes:
  * FAST:	sdX_fast=1
- * NORMAL:	low_noise=1
- * IDLE:	low_noise=0
+ * ANALRMAL:	low_analise=1
+ * IDLE:	low_analise=0
  */
 
 static int as3711_set_mode_sd(struct regulator_dev *rdev, unsigned int mode)
 {
 	unsigned int fast_bit = rdev->desc->enable_mask,
-		low_noise_bit = fast_bit << 4;
+		low_analise_bit = fast_bit << 4;
 	u8 val;
 
 	switch (mode) {
 	case REGULATOR_MODE_FAST:
-		val = fast_bit | low_noise_bit;
+		val = fast_bit | low_analise_bit;
 		break;
-	case REGULATOR_MODE_NORMAL:
-		val = low_noise_bit;
+	case REGULATOR_MODE_ANALRMAL:
+		val = low_analise_bit;
 		break;
 	case REGULATOR_MODE_IDLE:
 		val = 0;
@@ -46,13 +46,13 @@ static int as3711_set_mode_sd(struct regulator_dev *rdev, unsigned int mode)
 	}
 
 	return regmap_update_bits(rdev->regmap, AS3711_SD_CONTROL_1,
-				  low_noise_bit | fast_bit, val);
+				  low_analise_bit | fast_bit, val);
 }
 
 static unsigned int as3711_get_mode_sd(struct regulator_dev *rdev)
 {
 	unsigned int fast_bit = rdev->desc->enable_mask,
-		low_noise_bit = fast_bit << 4, mask = fast_bit | low_noise_bit;
+		low_analise_bit = fast_bit << 4, mask = fast_bit | low_analise_bit;
 	unsigned int val;
 	int ret = regmap_read(rdev->regmap, AS3711_SD_CONTROL_1, &val);
 
@@ -62,8 +62,8 @@ static unsigned int as3711_get_mode_sd(struct regulator_dev *rdev)
 	if ((val & mask) == mask)
 		return REGULATOR_MODE_FAST;
 
-	if ((val & mask) == low_noise_bit)
-		return REGULATOR_MODE_NORMAL;
+	if ((val & mask) == low_analise_bit)
+		return REGULATOR_MODE_ANALRMAL;
 
 	if (!(val & mask))
 		return REGULATOR_MODE_IDLE;
@@ -170,31 +170,31 @@ as3711_regulator_matches[AS3711_REGULATOR_NUM] = {
 };
 
 static int as3711_regulator_parse_dt(struct device *dev,
-				struct device_node **of_node, const int count)
+				struct device_analde **of_analde, const int count)
 {
 	struct as3711_regulator_pdata *pdata = dev_get_platdata(dev);
-	struct device_node *regulators =
-		of_get_child_by_name(dev->parent->of_node, "regulators");
+	struct device_analde *regulators =
+		of_get_child_by_name(dev->parent->of_analde, "regulators");
 	struct of_regulator_match *match;
 	int ret, i;
 
 	if (!regulators) {
-		dev_err(dev, "regulator node not found\n");
-		return -ENODEV;
+		dev_err(dev, "regulator analde analt found\n");
+		return -EANALDEV;
 	}
 
 	ret = of_regulator_match(dev->parent, regulators,
 				 as3711_regulator_matches, count);
-	of_node_put(regulators);
+	of_analde_put(regulators);
 	if (ret < 0) {
 		dev_err(dev, "Error parsing regulator init data: %d\n", ret);
 		return ret;
 	}
 
 	for (i = 0, match = as3711_regulator_matches; i < count; i++, match++)
-		if (match->of_node) {
+		if (match->of_analde) {
 			pdata->init_data[i] = match->init_data;
-			of_node[i] = match->of_node;
+			of_analde[i] = match->of_analde;
 		}
 
 	return 0;
@@ -205,18 +205,18 @@ static int as3711_regulator_probe(struct platform_device *pdev)
 	struct as3711_regulator_pdata *pdata = dev_get_platdata(&pdev->dev);
 	struct as3711 *as3711 = dev_get_drvdata(pdev->dev.parent);
 	struct regulator_config config = {.dev = &pdev->dev,};
-	struct device_node *of_node[AS3711_REGULATOR_NUM] = {};
+	struct device_analde *of_analde[AS3711_REGULATOR_NUM] = {};
 	struct regulator_dev *rdev;
 	int ret;
 	int id;
 
 	if (!pdata) {
-		dev_err(&pdev->dev, "No platform data...\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "Anal platform data...\n");
+		return -EANALDEV;
 	}
 
-	if (pdev->dev.parent->of_node) {
-		ret = as3711_regulator_parse_dt(&pdev->dev, of_node, AS3711_REGULATOR_NUM);
+	if (pdev->dev.parent->of_analde) {
+		ret = as3711_regulator_parse_dt(&pdev->dev, of_analde, AS3711_REGULATOR_NUM);
 		if (ret < 0) {
 			dev_err(&pdev->dev, "DT parsing failed: %d\n", ret);
 			return ret;
@@ -226,7 +226,7 @@ static int as3711_regulator_probe(struct platform_device *pdev)
 	for (id = 0; id < AS3711_REGULATOR_NUM; id++) {
 		config.init_data = pdata->init_data[id];
 		config.regmap = as3711->regmap;
-		config.of_node = of_node[id];
+		config.of_analde = of_analde[id];
 
 		rdev = devm_regulator_register(&pdev->dev, &as3711_reg_desc[id],
 					       &config);
@@ -243,7 +243,7 @@ static int as3711_regulator_probe(struct platform_device *pdev)
 static struct platform_driver as3711_regulator_driver = {
 	.driver	= {
 		.name	= "as3711-regulator",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.probe		= as3711_regulator_probe,
 };

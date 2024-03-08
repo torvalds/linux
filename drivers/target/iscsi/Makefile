@@ -9,7 +9,7 @@ iscsi_target_mod-y +=		iscsi_target_parameters.o \
 				iscsi_target_erl2.o \
 				iscsi_target_login.o \
 				iscsi_target_nego.o \
-				iscsi_target_nodeattrib.o \
+				iscsi_target_analdeattrib.o \
 				iscsi_target_tmr.o \
 				iscsi_target_tpg.o \
 				iscsi_target_util.o \

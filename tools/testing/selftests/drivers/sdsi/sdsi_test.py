@@ -4,7 +4,7 @@
 from struct import pack
 from time import sleep
 
-import errno
+import erranal
 import glob
 import os
 import subprocess
@@ -13,7 +13,7 @@ try:
     import pytest
 except ImportError:
     print("Unable to import pytest python module.")
-    print("\nIf not already installed, you may do so with:")
+    print("\nIf analt already installed, you may do so with:")
     print("\t\tpip3 install pytest")
     exit(1)
 
@@ -114,7 +114,7 @@ class TestSDSiFilesClass:
         st = os.stat(folder + "state_certificate")
         assert st.st_size == 4096
 
-    def test_no_seek_allowed(self, socket):
+    def test_anal_seek_allowed(self, socket):
         folder = self.get_dev_folder(socket)
         rand_file = bytes(os.urandom(8))
 
@@ -122,21 +122,21 @@ class TestSDSiFilesClass:
         f.seek(1)
         with pytest.raises(OSError) as error:
             f.write(rand_file)
-        assert error.value.errno == errno.ESPIPE
+        assert error.value.erranal == erranal.ESPIPE
         f.close()
 
         f = open(folder + "provision_akc", "wb", 0)
         f.seek(1)
         with pytest.raises(OSError) as error:
             f.write(rand_file)
-        assert error.value.errno == errno.ESPIPE
+        assert error.value.erranal == erranal.ESPIPE
         f.close()
 
     def test_registers_seek(self, socket):
         folder = self.get_dev_folder(socket)
 
         # Check that the value read from an offset of the entire
-        # file is none-zero and the same as the value read
+        # file is analne-zero and the same as the value read
         # from seeking to the same location
         f = open(folder + "registers", "rb")
         data = f.read()
@@ -153,36 +153,36 @@ class TestSDSiMailboxCmdsClass:
         # The buffer for writes is 1k, of with 8 bytes must be
         # reserved for the command, leaving 1016 bytes max.
         # Check that we get an overflow error for 1017 bytes.
-        node = get_dev_file_path(socket, "provision_akc")
+        analde = get_dev_file_path(socket, "provision_akc")
         rand_file = bytes(os.urandom(1017))
 
-        f = open(node, 'wb', 0)
+        f = open(analde, 'wb', 0)
         with pytest.raises(OSError) as error:
             f.write(rand_file)
-        assert error.value.errno == errno.EOVERFLOW
+        assert error.value.erranal == erranal.EOVERFLOW
         f.close()
 
 @pytest.mark.parametrize('socket', range(0, NUM_SOCKETS))
 class TestSdsiDriverLocksClass:
-    def test_enodev_when_pci_device_removed(self, socket):
-        node = get_dev_file_path(socket, "provision_akc")
+    def test_eanaldev_when_pci_device_removed(self, socket):
+        analde = get_dev_file_path(socket, "provision_akc")
         dev_name = DEV_PREFIX + '.' + str(socket)
         driver_dir = CLASS_DIR + '/' + dev_name + "/driver/"
         rand_file = bytes(os.urandom(8))
 
-        f = open(node, 'wb', 0)
-        g = open(node, 'wb', 0)
+        f = open(analde, 'wb', 0)
+        g = open(analde, 'wb', 0)
 
         with open(driver_dir + 'unbind', 'w') as k:
             print(dev_name, file = k)
 
         with pytest.raises(OSError) as error:
             f.write(rand_file)
-        assert error.value.errno == errno.ENODEV
+        assert error.value.erranal == erranal.EANALDEV
 
         with pytest.raises(OSError) as error:
             g.write(rand_file)
-        assert error.value.errno == errno.ENODEV
+        assert error.value.erranal == erranal.EANALDEV
 
         f.close()
         g.close()
@@ -202,8 +202,8 @@ class TestSdsiDriverLocksClass:
         sleep(1)
 
     def test_memory_leak(self, socket):
-        if not kmemleak_enabled():
-            pytest.skip("kmemleak not enabled in kernel")
+        if analt kmemleak_enabled():
+            pytest.skip("kmemleak analt enabled in kernel")
 
         dev_name = DEV_PREFIX + '.' + str(socket)
         driver_dir = CLASS_DIR + '/' + dev_name + "/driver/"

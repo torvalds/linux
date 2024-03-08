@@ -2,7 +2,7 @@
 /*
  * Ingenic SoC CGU driver
  *
- * Copyright (c) 2013-2015 Imagination Technologies
+ * Copyright (c) 2013-2015 Imagination Techanallogies
  * Author: Paul Burton <paul.burton@mips.com>
  */
 
@@ -33,7 +33,7 @@
  * @od_shift: the number of bits to shift the post-VCO divider value by (ie.
  *            the index of the lowest bit of the post-VCO divider value in
  *            the PLL's control register)
- * @od_bits: the size of the post-VCO divider field in bits, or 0 if no
+ * @od_bits: the size of the post-VCO divider field in bits, or 0 if anal
  *	     OD field exists (then the OD is fixed to 1)
  * @od_max: the maximum post-VCO divider value
  * @od_encoding: a pointer to an array mapping post-VCO divider values to
@@ -41,11 +41,11 @@
  *               unsupported values
  * @bypass_reg: the offset of the bypass control register within the CGU
  * @bypass_bit: the index of the bypass bit in the PLL control register, or
- *              -1 if there is no bypass bit
+ *              -1 if there is anal bypass bit
  * @enable_bit: the index of the enable bit in the PLL control register, or
- *		-1 if there is no enable bit (ie, the PLL is always on)
+ *		-1 if there is anal enable bit (ie, the PLL is always on)
  * @stable_bit: the index of the stable bit in the PLL control register, or
- *		-1 if there is no stable bit
+ *		-1 if there is anal stable bit
  * @set_rate_hook: hook called immediately after updating the CGU register,
  *		   before releasing the spinlock
  */
@@ -93,7 +93,7 @@ struct ingenic_cgu_mux_info {
  *          isn't one
  * @busy_bit: the index of the busy bit within reg, or -1 if there isn't one
  * @stop_bit: the index of the stop bit within reg, or -1 if there isn't one
- * @bypass_mask: mask of parent clocks for which the divider does not apply
+ * @bypass_mask: mask of parent clocks for which the divider does analt apply
  * @div_table: optional table to map the value read from the register to the
  *             actual divider value
  */
@@ -146,7 +146,7 @@ struct ingenic_cgu_custom_info {
  * @flags: common clock flags to set on this clock
  * @parents: an array of the indices of potential parents of this clock
  *           within the clock_info array of the CGU, or -1 in entries
- *           which correspond to no valid parent
+ *           which correspond to anal valid parent
  * @pll: information valid if type includes CGU_CLK_PLL
  * @gate: information valid if type includes CGU_CLK_GATE
  * @mux: information valid if type includes CGU_CLK_MUX
@@ -158,7 +158,7 @@ struct ingenic_cgu_clk_info {
 	const char *name;
 
 	enum {
-		CGU_CLK_NONE		= 0,
+		CGU_CLK_ANALNE		= 0,
 		CGU_CLK_EXT		= BIT(0),
 		CGU_CLK_PLL		= BIT(1),
 		CGU_CLK_GATE		= BIT(2),
@@ -189,14 +189,14 @@ struct ingenic_cgu_clk_info {
 
 /**
  * struct ingenic_cgu - data about the CGU
- * @np: the device tree node that caused the CGU to be probed
+ * @np: the device tree analde that caused the CGU to be probed
  * @base: the ioremap'ed base address of the CGU registers
  * @clock_info: an array containing information about implemented clocks
  * @clocks: used to provide clocks to DT, allows lookup of struct clk*
  * @lock: lock to be held whilst manipulating CGU registers
  */
 struct ingenic_cgu {
-	struct device_node *np;
+	struct device_analde *np;
 	void __iomem *base;
 
 	const struct ingenic_cgu_clk_info *clock_info;
@@ -224,14 +224,14 @@ struct ingenic_clk {
  * @clock_info: an array of clock information structures describing the clocks
  *              which are implemented by the CGU
  * @num_clocks: the number of entries in clock_info
- * @np: the device tree node which causes this CGU to be probed
+ * @np: the device tree analde which causes this CGU to be probed
  *
  * Return: a pointer to the CGU instance if initialisation is successful,
  *         otherwise NULL.
  */
 struct ingenic_cgu *
 ingenic_cgu_new(const struct ingenic_cgu_clk_info *clock_info,
-		unsigned num_clocks, struct device_node *np);
+		unsigned num_clocks, struct device_analde *np);
 
 /**
  * ingenic_cgu_register_clocks() - Registers the clocks
@@ -239,7 +239,7 @@ ingenic_cgu_new(const struct ingenic_cgu_clk_info *clock_info,
  *
  * Register the clocks described by the CGU with the common clock framework.
  *
- * Return: 0 on success or -errno if unsuccesful.
+ * Return: 0 on success or -erranal if unsuccesful.
  */
 int ingenic_cgu_register_clocks(struct ingenic_cgu *cgu);
 

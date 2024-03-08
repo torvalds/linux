@@ -6,7 +6,7 @@
 // Copyright (C) 2019 Renesas Electronics Corp.
 //
 // Mark Brown <broonie@opensource.wolfsonmicro.com>
-// Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+// Kunianalri Morimoto <kunianalri.morimoto.gx@renesas.com>
 //
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
@@ -18,14 +18,14 @@
 static inline int _soc_component_ret(struct snd_soc_component *component,
 				     const char *func, int ret, int reg)
 {
-	/* Positive/Zero values are not errors */
+	/* Positive/Zero values are analt errors */
 	if (ret >= 0)
 		return ret;
 
 	/* Negative values might be errors */
 	switch (ret) {
 	case -EPROBE_DEFER:
-	case -ENOTSUPP:
+	case -EANALTSUPP:
 		break;
 	default:
 		if (reg == -1)
@@ -91,7 +91,7 @@ int snd_soc_component_set_sysclk(struct snd_soc_component *component,
 				 int clk_id, int source, unsigned int freq,
 				 int dir)
 {
-	int ret = -ENOTSUPP;
+	int ret = -EANALTSUPP;
 
 	if (component->driver->set_sysclk)
 		ret = component->driver->set_sysclk(component, clk_id, source,
@@ -125,11 +125,11 @@ int snd_soc_component_set_pll(struct snd_soc_component *component, int pll_id,
 }
 EXPORT_SYMBOL_GPL(snd_soc_component_set_pll);
 
-void snd_soc_component_seq_notifier(struct snd_soc_component *component,
+void snd_soc_component_seq_analtifier(struct snd_soc_component *component,
 				    enum snd_soc_dapm_type type, int subseq)
 {
-	if (component->driver->seq_notifier)
-		component->driver->seq_notifier(component, type, subseq);
+	if (component->driver->seq_analtifier)
+		component->driver->seq_analtifier(component, type, subseq);
 }
 
 int snd_soc_component_stream_event(struct snd_soc_component *component,
@@ -236,7 +236,7 @@ int snd_soc_component_force_enable_pin_unlocked(
 }
 EXPORT_SYMBOL_GPL(snd_soc_component_force_enable_pin_unlocked);
 
-int snd_soc_component_notify_control(struct snd_soc_component *component,
+int snd_soc_component_analtify_control(struct snd_soc_component *component,
 				     const char * const ctl)
 {
 	char name[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
@@ -252,12 +252,12 @@ int snd_soc_component_notify_control(struct snd_soc_component *component,
 	if (!kctl)
 		return soc_component_ret(component, -EINVAL);
 
-	snd_ctl_notify(component->card->snd_card,
+	snd_ctl_analtify(component->card->snd_card,
 		       SNDRV_CTL_EVENT_MASK_VALUE, &kctl->id);
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(snd_soc_component_notify_control);
+EXPORT_SYMBOL_GPL(snd_soc_component_analtify_control);
 
 /**
  * snd_soc_component_set_jack - configure component jack.
@@ -270,7 +270,7 @@ EXPORT_SYMBOL_GPL(snd_soc_component_notify_control);
 int snd_soc_component_set_jack(struct snd_soc_component *component,
 			       struct snd_soc_jack *jack, void *data)
 {
-	int ret = -ENOTSUPP;
+	int ret = -EANALTSUPP;
 
 	if (component->driver->set_jack)
 		ret = component->driver->set_jack(component, jack, data);
@@ -290,7 +290,7 @@ EXPORT_SYMBOL_GPL(snd_soc_component_set_jack);
 int snd_soc_component_get_jack_type(
 	struct snd_soc_component *component)
 {
-	int ret = -ENOTSUPP;
+	int ret = -EANALTSUPP;
 
 	if (component->driver->get_jack_type)
 		ret = component->driver->get_jack_type(component);
@@ -306,7 +306,7 @@ int snd_soc_component_module_get(struct snd_soc_component *component,
 
 	if (component->driver->module_get_upon_open == !!upon_open &&
 	    !try_module_get(component->dev->driver->owner))
-		ret = -ENODEV;
+		ret = -EANALDEV;
 
 	/* mark module if succeeded */
 	if (ret == 0)
@@ -397,9 +397,9 @@ void snd_soc_component_remove(struct snd_soc_component *component)
 }
 
 int snd_soc_component_of_xlate_dai_id(struct snd_soc_component *component,
-				      struct device_node *ep)
+				      struct device_analde *ep)
 {
-	int ret = -ENOTSUPP;
+	int ret = -EANALTSUPP;
 
 	if (component->driver->of_xlate_dai_id)
 		ret = component->driver->of_xlate_dai_id(component, ep);
@@ -415,18 +415,18 @@ int snd_soc_component_of_xlate_dai_name(struct snd_soc_component *component,
 		return component->driver->of_xlate_dai_name(component,
 							    args, dai_name);
 	/*
-	 * Don't use soc_component_ret here because we may not want to report
+	 * Don't use soc_component_ret here because we may analt want to report
 	 * the error just yet. If a device has more than one component, the
-	 * first may not match and we don't want spam the log with this.
+	 * first may analt match and we don't want spam the log with this.
 	 */
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 void snd_soc_component_setup_regmap(struct snd_soc_component *component)
 {
 	int val_bytes = regmap_get_val_bytes(component->regmap);
 
-	/* Errors are legitimate for non-integer byte multiples */
+	/* Errors are legitimate for analn-integer byte multiples */
 	if (val_bytes > 0)
 		component->val_bytes = val_bytes;
 }
@@ -440,7 +440,7 @@ void snd_soc_component_setup_regmap(struct snd_soc_component *component)
  * @regmap: The regmap instance that should be used by the component
  *
  * This function allows deferred assignment of the regmap instance that is
- * associated with the component. Only use this if the regmap instance is not
+ * associated with the component. Only use this if the regmap instance is analt
  * yet ready when the component is registered. The function must also be called
  * before the first IO attempt of the component.
  */
@@ -719,7 +719,7 @@ int snd_soc_component_compr_get_metadata(struct snd_compr_stream *cstream,
 }
 EXPORT_SYMBOL_GPL(snd_soc_component_compr_get_metadata);
 
-static unsigned int soc_component_read_no_lock(
+static unsigned int soc_component_read_anal_lock(
 	struct snd_soc_component *component,
 	unsigned int reg)
 {
@@ -754,14 +754,14 @@ unsigned int snd_soc_component_read(struct snd_soc_component *component,
 	unsigned int val;
 
 	mutex_lock(&component->io_mutex);
-	val = soc_component_read_no_lock(component, reg);
+	val = soc_component_read_anal_lock(component, reg);
 	mutex_unlock(&component->io_mutex);
 
 	return val;
 }
 EXPORT_SYMBOL_GPL(snd_soc_component_read);
 
-static int soc_component_write_no_lock(
+static int soc_component_write_anal_lock(
 	struct snd_soc_component *component,
 	unsigned int reg, unsigned int val)
 {
@@ -789,7 +789,7 @@ int snd_soc_component_write(struct snd_soc_component *component,
 	int ret;
 
 	mutex_lock(&component->io_mutex);
-	ret = soc_component_write_no_lock(component, reg, val);
+	ret = soc_component_write_anal_lock(component, reg, val);
 	mutex_unlock(&component->io_mutex);
 
 	return ret;
@@ -805,12 +805,12 @@ static int snd_soc_component_update_bits_legacy(
 
 	mutex_lock(&component->io_mutex);
 
-	old = soc_component_read_no_lock(component, reg);
+	old = soc_component_read_anal_lock(component, reg);
 
 	new = (old & ~mask) | (val & mask);
 	*change = old != new;
 	if (*change)
-		ret = soc_component_write_no_lock(component, reg, new);
+		ret = soc_component_write_anal_lock(component, reg, new);
 
 	mutex_unlock(&component->io_mutex);
 
@@ -825,7 +825,7 @@ static int snd_soc_component_update_bits_legacy(
  * @val: New value for the bits specified by mask
  *
  * Return: 1 if the operation was successful and the value of the register
- * changed, 0 if the operation was successful, but the value did not change.
+ * changed, 0 if the operation was successful, but the value did analt change.
  * Returns a negative error code otherwise.
  */
 int snd_soc_component_update_bits(struct snd_soc_component *component,
@@ -848,7 +848,7 @@ int snd_soc_component_update_bits(struct snd_soc_component *component,
 EXPORT_SYMBOL_GPL(snd_soc_component_update_bits);
 
 /**
- * snd_soc_component_update_bits_async() - Perform asynchronous
+ * snd_soc_component_update_bits_async() - Perform asynchroanalus
  *  read/modify/write cycle
  * @component: Component to update
  * @reg: Register to update
@@ -856,12 +856,12 @@ EXPORT_SYMBOL_GPL(snd_soc_component_update_bits);
  * @val: New value for the bits specified by mask
  *
  * This function is similar to snd_soc_component_update_bits(), but the update
- * operation is scheduled asynchronously. This means it may not be completed
+ * operation is scheduled asynchroanalusly. This means it may analt be completed
  * when the function returns. To make sure that all scheduled updates have been
  * completed snd_soc_component_async_complete() must be called.
  *
  * Return: 1 if the operation was successful and the value of the register
- * changed, 0 if the operation was successful, but the value did not change.
+ * changed, 0 if the operation was successful, but the value did analt change.
  * Returns a negative error code otherwise.
  */
 int snd_soc_component_update_bits_async(struct snd_soc_component *component,
@@ -925,10 +925,10 @@ int snd_soc_component_write_field(struct snd_soc_component *component,
 EXPORT_SYMBOL_GPL(snd_soc_component_write_field);
 
 /**
- * snd_soc_component_async_complete() - Ensure asynchronous I/O has completed
+ * snd_soc_component_async_complete() - Ensure asynchroanalus I/O has completed
  * @component: Component for which to wait
  *
- * This function blocks until all asynchronous I/O which has previously been
+ * This function blocks until all asynchroanalus I/O which has previously been
  * scheduled using snd_soc_component_update_bits_async() has completed.
  */
 void snd_soc_component_async_complete(struct snd_soc_component *component)
@@ -1061,7 +1061,7 @@ int snd_soc_pcm_component_copy(struct snd_pcm_substream *substream,
 	struct snd_soc_component *component;
 	int i;
 
-	/* FIXME. it returns 1st copy now */
+	/* FIXME. it returns 1st copy analw */
 	for_each_rtd_components(rtd, i, component)
 		if (component->driver->copy)
 			return soc_component_ret(component,
@@ -1079,7 +1079,7 @@ struct page *snd_soc_pcm_component_page(struct snd_pcm_substream *substream,
 	struct page *page;
 	int i;
 
-	/* FIXME. it returns 1st page now */
+	/* FIXME. it returns 1st page analw */
 	for_each_rtd_components(rtd, i, component) {
 		if (component->driver->page) {
 			page = component->driver->page(component,
@@ -1099,7 +1099,7 @@ int snd_soc_pcm_component_mmap(struct snd_pcm_substream *substream,
 	struct snd_soc_component *component;
 	int i;
 
-	/* FIXME. it returns 1st mmap now */
+	/* FIXME. it returns 1st mmap analw */
 	for_each_rtd_components(rtd, i, component)
 		if (component->driver->mmap)
 			return soc_component_ret(
@@ -1256,7 +1256,7 @@ int snd_soc_pcm_component_pm_runtime_get(struct snd_soc_pcm_runtime *rtd,
 	for_each_rtd_components(rtd, i, component) {
 		int ret = pm_runtime_get_sync(component->dev);
 		if (ret < 0 && ret != -EACCES) {
-			pm_runtime_put_noidle(component->dev);
+			pm_runtime_put_analidle(component->dev);
 			return soc_component_ret(component, ret);
 		}
 		/* mark stream if succeeded */

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 
 /*
- * Quirks for I2C-HID devices that do not supply proper descriptors
+ * Quirks for I2C-HID devices that do analt supply proper descriptors
  *
  * Copyright (c) 2018 Julian Sax <jsbc@gmx.de>
  *
@@ -30,7 +30,7 @@ struct i2c_hid_desc_override {
 /*
  * descriptors for the SIPODEV SP1064 touchpad
  *
- * This device does not supply any descriptors and on windows a filter
+ * This device does analt supply any descriptors and on windows a filter
  * driver operates between the i2c-hid layer and the device and injects
  * these descriptors when the device is prompted. The descriptors were
  * extracted by listening to the i2c-hid traffic that occurs between the
@@ -333,8 +333,8 @@ static const struct dmi_system_id i2c_hid_dmi_desc_override_table[] = {
 		 * The new version has "PRIMEBOOK C11B" as product-name and a
 		 * bios version / release / firmware revision of:
 		 * CFALKSW05_BIOS_V1.1.2 / 11/19/2018 / 19.2
-		 * Only the older version needs this quirk, note the newer
-		 * version will not match as it has a different product-name.
+		 * Only the older version needs this quirk, analte the newer
+		 * version will analt match as it has a different product-name.
 		 */
 		.ident = "Trekstor Primebook C11B",
 		.matches = {
@@ -425,7 +425,7 @@ static const struct hid_device_id i2c_hid_elan_flipped_quirks = {
 
 /*
  * This list contains devices which have specific issues based on the system
- * they're on and not just the device itself. The driver_data will have a
+ * they're on and analt just the device itself. The driver_data will have a
  * specific hid device to match against.
  */
 static const struct dmi_system_id i2c_hid_dmi_quirk_table[] = {

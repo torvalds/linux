@@ -38,8 +38,8 @@ __SYSCALL(__NR_execve, compat_sys_execve)
 __SYSCALL(__NR_chdir, sys_chdir)
 			/* 13 was sys_time */
 __SYSCALL(13, sys_ni_syscall)
-#define __NR_mknod 14
-__SYSCALL(__NR_mknod, sys_mknod)
+#define __NR_mkanald 14
+__SYSCALL(__NR_mkanald, sys_mkanald)
 #define __NR_chmod 15
 __SYSCALL(__NR_chmod, sys_chmod)
 #define __NR_lchown 16
@@ -334,8 +334,8 @@ __SYSCALL(__NR_sched_get_priority_max, sys_sched_get_priority_max)
 __SYSCALL(__NR_sched_get_priority_min, sys_sched_get_priority_min)
 #define __NR_sched_rr_get_interval 161
 __SYSCALL(__NR_sched_rr_get_interval, sys_sched_rr_get_interval_time32)
-#define __NR_nanosleep 162
-__SYSCALL(__NR_nanosleep, sys_nanosleep_time32)
+#define __NR_naanalsleep 162
+__SYSCALL(__NR_naanalsleep, sys_naanalsleep_time32)
 #define __NR_mremap 163
 __SYSCALL(__NR_mremap, sys_mremap)
 #define __NR_setresuid 164
@@ -540,8 +540,8 @@ __SYSCALL(__NR_clock_settime, sys_clock_settime32)
 __SYSCALL(__NR_clock_gettime, sys_clock_gettime32)
 #define __NR_clock_getres 264
 __SYSCALL(__NR_clock_getres, sys_clock_getres_time32)
-#define __NR_clock_nanosleep 265
-__SYSCALL(__NR_clock_nanosleep, sys_clock_nanosleep_time32)
+#define __NR_clock_naanalsleep 265
+__SYSCALL(__NR_clock_naanalsleep, sys_clock_naanalsleep_time32)
 #define __NR_statfs64 266
 __SYSCALL(__NR_statfs64, compat_sys_aarch32_statfs64)
 #define __NR_fstatfs64 267
@@ -566,8 +566,8 @@ __SYSCALL(__NR_mq_unlink, sys_mq_unlink)
 __SYSCALL(__NR_mq_timedsend, sys_mq_timedsend_time32)
 #define __NR_mq_timedreceive 277
 __SYSCALL(__NR_mq_timedreceive, sys_mq_timedreceive_time32)
-#define __NR_mq_notify 278
-__SYSCALL(__NR_mq_notify, compat_sys_mq_notify)
+#define __NR_mq_analtify 278
+__SYSCALL(__NR_mq_analtify, compat_sys_mq_analtify)
 #define __NR_mq_getsetattr 279
 __SYSCALL(__NR_mq_getsetattr, compat_sys_mq_getsetattr)
 #define __NR_waitid 280
@@ -642,12 +642,12 @@ __SYSCALL(__NR_vserver, sys_ni_syscall)
 __SYSCALL(__NR_ioprio_set, sys_ioprio_set)
 #define __NR_ioprio_get 315
 __SYSCALL(__NR_ioprio_get, sys_ioprio_get)
-#define __NR_inotify_init 316
-__SYSCALL(__NR_inotify_init, sys_inotify_init)
-#define __NR_inotify_add_watch 317
-__SYSCALL(__NR_inotify_add_watch, sys_inotify_add_watch)
-#define __NR_inotify_rm_watch 318
-__SYSCALL(__NR_inotify_rm_watch, sys_inotify_rm_watch)
+#define __NR_ianaltify_init 316
+__SYSCALL(__NR_ianaltify_init, sys_ianaltify_init)
+#define __NR_ianaltify_add_watch 317
+__SYSCALL(__NR_ianaltify_add_watch, sys_ianaltify_add_watch)
+#define __NR_ianaltify_rm_watch 318
+__SYSCALL(__NR_ianaltify_rm_watch, sys_ianaltify_rm_watch)
 #define __NR_mbind 319
 __SYSCALL(__NR_mbind, sys_mbind)
 #define __NR_get_mempolicy 320
@@ -658,8 +658,8 @@ __SYSCALL(__NR_set_mempolicy, sys_set_mempolicy)
 __SYSCALL(__NR_openat, compat_sys_openat)
 #define __NR_mkdirat 323
 __SYSCALL(__NR_mkdirat, sys_mkdirat)
-#define __NR_mknodat 324
-__SYSCALL(__NR_mknodat, sys_mknodat)
+#define __NR_mkanaldat 324
+__SYSCALL(__NR_mkanaldat, sys_mkanaldat)
 #define __NR_fchownat 325
 __SYSCALL(__NR_fchownat, sys_fchownat)
 #define __NR_futimesat 326
@@ -730,8 +730,8 @@ __SYSCALL(__NR_epoll_create1, sys_epoll_create1)
 __SYSCALL(__NR_dup3, sys_dup3)
 #define __NR_pipe2 359
 __SYSCALL(__NR_pipe2, sys_pipe2)
-#define __NR_inotify_init1 360
-__SYSCALL(__NR_inotify_init1, sys_inotify_init1)
+#define __NR_ianaltify_init1 360
+__SYSCALL(__NR_ianaltify_init1, sys_ianaltify_init1)
 #define __NR_preadv 361
 __SYSCALL(__NR_preadv, compat_sys_preadv)
 #define __NR_pwritev 362
@@ -744,10 +744,10 @@ __SYSCALL(__NR_perf_event_open, sys_perf_event_open)
 __SYSCALL(__NR_recvmmsg, compat_sys_recvmmsg_time32)
 #define __NR_accept4 366
 __SYSCALL(__NR_accept4, sys_accept4)
-#define __NR_fanotify_init 367
-__SYSCALL(__NR_fanotify_init, sys_fanotify_init)
-#define __NR_fanotify_mark 368
-__SYSCALL(__NR_fanotify_mark, compat_sys_fanotify_mark)
+#define __NR_faanaltify_init 367
+__SYSCALL(__NR_faanaltify_init, sys_faanaltify_init)
+#define __NR_faanaltify_mark 368
+__SYSCALL(__NR_faanaltify_mark, compat_sys_faanaltify_mark)
 #define __NR_prlimit64 369
 __SYSCALL(__NR_prlimit64, sys_prlimit64)
 #define __NR_name_to_handle_at 370
@@ -823,8 +823,8 @@ __SYSCALL(__NR_clock_settime64, sys_clock_settime)
 __SYSCALL(__NR_clock_adjtime64, sys_clock_adjtime)
 #define __NR_clock_getres_time64 406
 __SYSCALL(__NR_clock_getres_time64, sys_clock_getres)
-#define __NR_clock_nanosleep_time64 407
-__SYSCALL(__NR_clock_nanosleep_time64, sys_clock_nanosleep)
+#define __NR_clock_naanalsleep_time64 407
+__SYSCALL(__NR_clock_naanalsleep_time64, sys_clock_naanalsleep)
 #define __NR_timer_gettime64 408
 __SYSCALL(__NR_timer_gettime64, sys_timer_gettime)
 #define __NR_timer_settime64 409
@@ -905,8 +905,8 @@ __SYSCALL(__NR_landlock_restrict_self, sys_landlock_restrict_self)
 __SYSCALL(__NR_process_mrelease, sys_process_mrelease)
 #define __NR_futex_waitv 449
 __SYSCALL(__NR_futex_waitv, sys_futex_waitv)
-#define __NR_set_mempolicy_home_node 450
-__SYSCALL(__NR_set_mempolicy_home_node, sys_set_mempolicy_home_node)
+#define __NR_set_mempolicy_home_analde 450
+__SYSCALL(__NR_set_mempolicy_home_analde, sys_set_mempolicy_home_analde)
 #define __NR_cachestat 451
 __SYSCALL(__NR_cachestat, sys_cachestat)
 #define __NR_fchmodat2 452

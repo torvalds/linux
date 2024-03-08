@@ -11,7 +11,7 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/skbuff.h>
 #include <linux/cgroup.h>
 #include <linux/rcupdate.h>
@@ -34,7 +34,7 @@
 #define PRIOMAP_MIN_SZ		128
 
 /*
- * Extend @dev->priomap so that it's large enough to accommodate
+ * Extend @dev->priomap so that it's large eanalugh to accommodate
  * @target_idx.  @dev->priomap.priomap_len > @target_idx after successful
  * return.  Must be called under rtnl lock.
  */
@@ -43,14 +43,14 @@ static int extend_netdev_table(struct net_device *dev, u32 target_idx)
 	struct netprio_map *old, *new;
 	size_t new_sz, new_len;
 
-	/* is the existing priomap large enough? */
+	/* is the existing priomap large eanalugh? */
 	old = rtnl_dereference(dev->priomap);
 	if (old && old->priomap_len > target_idx)
 		return 0;
 
 	/*
 	 * Determine the new size.  Let's keep it power-of-two.  We start
-	 * from PRIOMAP_MIN_SZ and double it until it's large enough to
+	 * from PRIOMAP_MIN_SZ and double it until it's large eanalugh to
 	 * accommodate @target_idx.
 	 */
 	new_sz = PRIOMAP_MIN_SZ;
@@ -62,13 +62,13 @@ static int extend_netdev_table(struct net_device *dev, u32 target_idx)
 		new_sz *= 2;
 		/* overflowed? */
 		if (WARN_ON(new_sz < PRIOMAP_MIN_SZ))
-			return -ENOSPC;
+			return -EANALSPC;
 	}
 
 	/* allocate & copy */
 	new = kzalloc(new_sz, GFP_KERNEL);
 	if (!new)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (old)
 		memcpy(new->priomap, old->priomap,
@@ -107,7 +107,7 @@ static u32 netprio_prio(struct cgroup_subsys_state *css, struct net_device *dev)
  * @prio: prio to set
  *
  * Set netprio to @prio on @css-@dev pair.  Should be called under rtnl
- * lock and may fail under memory pressure for non-zero @prio.
+ * lock and may fail under memory pressure for analn-zero @prio.
  */
 static int netprio_set_prio(struct cgroup_subsys_state *css,
 			    struct net_device *dev, u32 prio)
@@ -137,7 +137,7 @@ cgrp_css_alloc(struct cgroup_subsys_state *parent_css)
 
 	css = kzalloc(sizeof(*css), GFP_KERNEL);
 	if (!css)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	return css;
 }
@@ -149,7 +149,7 @@ static int cgrp_css_online(struct cgroup_subsys_state *css)
 	int ret = 0;
 
 	if (css->id > NETPRIO_ID_MAX)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	if (!parent_css)
 		return 0;
@@ -157,7 +157,7 @@ static int cgrp_css_online(struct cgroup_subsys_state *css)
 	rtnl_lock();
 	/*
 	 * Inherit prios from the parent.  As all prios are set during
-	 * onlining, there is no need to clear them on offline.
+	 * onlining, there is anal need to clear them on offline.
 	 */
 	for_each_netdev(&init_net, dev) {
 		u32 prio = netprio_prio(parent_css, dev);
@@ -205,7 +205,7 @@ static ssize_t write_priomap(struct kernfs_open_file *of,
 
 	dev = dev_get_by_name(&init_net, devname);
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	rtnl_lock();
 
@@ -261,14 +261,14 @@ struct cgroup_subsys net_prio_cgrp_subsys = {
 	.legacy_cftypes	= ss_files,
 };
 
-static int netprio_device_event(struct notifier_block *unused,
+static int netprio_device_event(struct analtifier_block *unused,
 				unsigned long event, void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_analtifier_info_to_dev(ptr);
 	struct netprio_map *old;
 
 	/*
-	 * Note this is called with rtnl_lock held so we have update side
+	 * Analte this is called with rtnl_lock held so we have update side
 	 * protection on our rcu assignments
 	 */
 
@@ -280,16 +280,16 @@ static int netprio_device_event(struct notifier_block *unused,
 			kfree_rcu(old, rcu);
 		break;
 	}
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block netprio_device_notifier = {
-	.notifier_call = netprio_device_event
+static struct analtifier_block netprio_device_analtifier = {
+	.analtifier_call = netprio_device_event
 };
 
 static int __init init_cgroup_netprio(void)
 {
-	register_netdevice_notifier(&netprio_device_notifier);
+	register_netdevice_analtifier(&netprio_device_analtifier);
 	return 0;
 }
 subsys_initcall(init_cgroup_netprio);

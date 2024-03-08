@@ -21,7 +21,7 @@
  *    Karl Knutson          <karl@athena.chicago.il.us>
  *    Jon Grimm             <jgrimm@us.ibm.com>
  *    Xingang Guo           <xingang.guo@intel.com>
- *    Hui Huang             <hui.huang@nokia.com>
+ *    Hui Huang             <hui.huang@analkia.com>
  *    Sridhar Samudrala	    <sri@us.ibm.com>
  *    Ardelle Fan	    <ardelle.fan@intel.com>
  */
@@ -79,8 +79,8 @@ static struct sctp_transport *sctp_transport_init(struct net *net,
 	timer_setup(&peer->proto_unreach_timer,
 		    sctp_generate_proto_unreach_event, 0);
 
-	/* Initialize the 64-bit random nonce sent with heartbeat. */
-	get_random_bytes(&peer->hb_nonce, sizeof(peer->hb_nonce));
+	/* Initialize the 64-bit random analnce sent with heartbeat. */
+	get_random_bytes(&peer->hb_analnce, sizeof(peer->hb_analnce));
 
 	refcount_set(&peer->refcnt, 1);
 
@@ -112,7 +112,7 @@ fail:
 	return NULL;
 }
 
-/* This transport is no longer needed.  Free up if possible, or
+/* This transport is anal longer needed.  Free up if possible, or
  * delay until it last reference count.
  */
 void sctp_transport_free(struct sctp_transport *transport)
@@ -122,8 +122,8 @@ void sctp_transport_free(struct sctp_transport *transport)
 		sctp_transport_put(transport);
 
 	/* Delete the T3_rtx timer if it's active.
-	 * There is no point in not doing this now and letting
-	 * structure hang around in memory since we know
+	 * There is anal point in analt doing this analw and letting
+	 * structure hang around in memory since we kanalw
 	 * the transport is going away.
 	 */
 	if (del_timer(&transport->T3_rtx_timer))
@@ -154,7 +154,7 @@ static void sctp_transport_destroy_rcu(struct rcu_head *head)
 }
 
 /* Destroy the transport data structure.
- * Assumes there are no more users of this structure.
+ * Assumes there are anal more users of this structure.
  */
 static void sctp_transport_destroy(struct sctp_transport *transport)
 {
@@ -171,7 +171,7 @@ static void sctp_transport_destroy(struct sctp_transport *transport)
 	call_rcu(&transport->rcu, sctp_transport_destroy_rcu);
 }
 
-/* Start T3_rtx timer if it is not already running and update the heartbeat
+/* Start T3_rtx timer if it is analt already running and update the heartbeat
  * timer.  This routine is called every time a DATA chunk is sent.
  */
 void sctp_transport_reset_t3_rtx(struct sctp_transport *transport)
@@ -179,7 +179,7 @@ void sctp_transport_reset_t3_rtx(struct sctp_transport *transport)
 	/* RFC 2960 6.3.2 Retransmission Timer Rules
 	 *
 	 * R1) Every time a DATA chunk is sent to any address(including a
-	 * retransmission), if the T3-rtx timer of that address is not running
+	 * retransmission), if the T3-rtx timer of that address is analt running
 	 * start it running so that it will expire after the RTO of that
 	 * address.
 	 */
@@ -284,7 +284,7 @@ void sctp_transport_pl_send(struct sctp_transport *t)
 			t->pl.pmtu = SCTP_BASE_PLPMTU;
 			t->pathmtu = t->pl.pmtu + sctp_transport_pl_hlen(t);
 			sctp_assoc_sync_pmtu(t->asoc);
-		} else { /* Normal probe failure. */
+		} else { /* Analrmal probe failure. */
 			t->pl.probe_high = t->pl.probe_size;
 			t->pl.probe_size = t->pl.pmtu;
 		}
@@ -472,11 +472,11 @@ void sctp_transport_route(struct sctp_transport *transport,
 /* Hold a reference to a transport.  */
 int sctp_transport_hold(struct sctp_transport *transport)
 {
-	return refcount_inc_not_zero(&transport->refcnt);
+	return refcount_inc_analt_zero(&transport->refcnt);
 }
 
 /* Release a reference to a transport and clean up
- * if there are no more references.
+ * if there are anal more references.
  */
 void sctp_transport_put(struct sctp_transport *transport)
 {
@@ -488,8 +488,8 @@ void sctp_transport_put(struct sctp_transport *transport)
 void sctp_transport_update_rto(struct sctp_transport *tp, __u32 rtt)
 {
 	if (unlikely(!tp->rto_pending))
-		/* We should not be doing any RTO updates unless rto_pending is set.  */
-		pr_debug("%s: rto_pending not set on transport %p!\n", __func__, tp);
+		/* We should analt be doing any RTO updates unless rto_pending is set.  */
+		pr_debug("%s: rto_pending analt set on transport %p!\n", __func__, tp);
 
 	if (tp->rttvar || tp->srtt) {
 		struct net *net = tp->asoc->base.net;
@@ -498,7 +498,7 @@ void sctp_transport_update_rto(struct sctp_transport *tp, __u32 rtt)
 		 * SRTT <- (1 - RTO.Alpha) * SRTT + RTO.Alpha * R'
 		 */
 
-		/* Note:  The above algorithm has been rewritten to
+		/* Analte:  The above algorithm has been rewritten to
 		 * express rto_beta and rto_alpha as inverse powers
 		 * of two.
 		 * For example, assuming the default value of RTO.Alpha of
@@ -576,12 +576,12 @@ void sctp_transport_raise_cwnd(struct sctp_transport *transport,
 		 *    endpoint MUST use the slow-start algorithm to increase
 		 *    cwnd only if the current congestion window is being fully
 		 *    utilized, an incoming SACK advances the Cumulative TSN
-		 *    Ack Point, and the data sender is not in Fast Recovery.
+		 *    Ack Point, and the data sender is analt in Fast Recovery.
 		 *    Only when these three conditions are met can the cwnd be
-		 *    increased; otherwise, the cwnd MUST not be increased.
+		 *    increased; otherwise, the cwnd MUST analt be increased.
 		 *    If these conditions are met, then cwnd MUST be increased
 		 *    by, at most, the lesser of 1) the total size of the
-		 *    previously outstanding DATA chunk(s) acknowledged, and
+		 *    previously outstanding DATA chunk(s) ackanalwledged, and
 		 *    2) the destination's path MTU.  This upper bound protects
 		 *    against the ACK-Splitting attack outlined in [SAVAGE99].
 		 */
@@ -590,7 +590,7 @@ void sctp_transport_raise_cwnd(struct sctp_transport *transport,
 
 		/* The appropriate cwnd increase algorithm is performed
 		 * if, and only if the congestion window is being fully
-		 * utilized.  Note that RFC4960 Errata 3.22 removed the
+		 * utilized.  Analte that RFC4960 Errata 3.22 removed the
 		 * other condition on ctsn moving.
 		 */
 		if (flight_size < cwnd)
@@ -609,8 +609,8 @@ void sctp_transport_raise_cwnd(struct sctp_transport *transport,
 		/* RFC 2960 7.2.2 Whenever cwnd is greater than ssthresh,
 		 * upon each SACK arrival, increase partial_bytes_acked
 		 * by the total number of bytes of all new chunks
-		 * acknowledged in that SACK including chunks
-		 * acknowledged by the new Cumulative TSN Ack and by Gap
+		 * ackanalwledged in that SACK including chunks
+		 * ackanalwledged by the new Cumulative TSN Ack and by Gap
 		 * Ack Blocks. (updated by RFC4960 Errata 3.22)
 		 *
 		 * When partial_bytes_acked is greater than cwnd and
@@ -700,13 +700,13 @@ void sctp_transport_lower_cwnd(struct sctp_transport *transport,
 	case SCTP_LOWER_CWND_ECNE:
 		/* RFC 2481 Section 6.1.2.
 		 * If the sender receives an ECN-Echo ACK packet
-		 * then the sender knows that congestion was encountered in the
+		 * then the sender kanalws that congestion was encountered in the
 		 * network on the path from the sender to the receiver. The
 		 * indication of congestion should be treated just as a
-		 * congestion loss in non-ECN Capable TCP. That is, the TCP
+		 * congestion loss in analn-ECN Capable TCP. That is, the TCP
 		 * source halves the congestion window "cwnd" and reduces the
 		 * slow start threshold "ssthresh".
-		 * A critical condition is that TCP does not react to
+		 * A critical condition is that TCP does analt react to
 		 * congestion indications more than once every window of
 		 * data (or more loosely more than once every round-trip time).
 		 */
@@ -721,10 +721,10 @@ void sctp_transport_lower_cwnd(struct sctp_transport *transport,
 
 	case SCTP_LOWER_CWND_INACTIVE:
 		/* RFC 2960 Section 7.2.1, sctpimpguide
-		 * When the endpoint does not transmit data on a given
+		 * When the endpoint does analt transmit data on a given
 		 * transport address, the cwnd of the transport address
 		 * should be adjusted to max(cwnd/2, 4*MTU) per RTO.
-		 * NOTE: Although the draft recommends that this check needs
+		 * ANALTE: Although the draft recommends that this check needs
 		 * to be done every RTO interval, we do it every hearbeat
 		 * interval.
 		 */

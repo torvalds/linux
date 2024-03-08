@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Microchip mcp4725 and mcp4726 DAC
 
 maintainers:
-  - Tomas Novotny <tomas@novotny.cz>
+  - Tomas Analvotny <tomas@analvotny.cz>
 
 properties:
   compatible:
@@ -22,7 +22,7 @@ properties:
     description: |
       Provides both power and acts as the reference supply on the mcp4725.
       For the mcp4726 it will be used as the reference voltage if vref-supply
-      is not provided.
+      is analt provided.
 
   vref-supply:
     description:
@@ -31,10 +31,10 @@ properties:
   microchip,vref-buffered:
     type: boolean
     description: |
-      Enable buffering of the external Vref pin. This boolean is not valid
+      Enable buffering of the external Vref pin. This boolean is analt valid
       without the vref-supply. Quoting the datasheet: This is offered in
-      cases where the reference voltage does not have the current
-      capability not to drop its voltage when connected to the internal
+      cases where the reference voltage does analt have the current
+      capability analt to drop its voltage when connected to the internal
       resistor ladder circuit.
 
 allOf:
@@ -62,7 +62,7 @@ allOf:
             - vref-supply
 
   - if:
-      not:
+      analt:
         required:
           - vref-supply
     then:

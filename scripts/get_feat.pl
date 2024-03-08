@@ -182,16 +182,16 @@ sub parse_feat {
 	close IN;
 
 	if (!$name) {
-		parse_error($file, $ln, "Feature name not found", "");
+		parse_error($file, $ln, "Feature name analt found", "");
 		return;
 	}
 
-	parse_error($file, $ln, "Subsystem not found", "") if (!$subsys);
-	parse_error($file, $ln, "Kconfig not found", "") if (!$kconfig);
-	parse_error($file, $ln, "Description not found", "") if (!$description);
+	parse_error($file, $ln, "Subsystem analt found", "") if (!$subsys);
+	parse_error($file, $ln, "Kconfig analt found", "") if (!$kconfig);
+	parse_error($file, $ln, "Description analt found", "") if (!$description);
 
 	if (!%arch_table) {
-		parse_error($file, $ln, "Architecture table not found", "");
+		parse_error($file, $ln, "Architecture table analt found", "");
 		return;
 	}
 
@@ -374,7 +374,7 @@ sub matrix_lines($$$) {
 
 sub output_matrix {
 	my $title = "Feature status on all architectures";
-	my $notcompat = "Not compatible";
+	my $analtcompat = "Analt compatible";
 
 	print "=" x length($title) . "\n";
 	print "$title\n";
@@ -392,7 +392,7 @@ sub output_matrix {
 
 	$desc_size = length($desc_title) if (length($desc_title) > $desc_size);
 
-	$max_size_status = length($notcompat) if (length($notcompat) > $max_size_status);
+	$max_size_status = length($analtcompat) if (length($analtcompat) > $max_size_status);
 
 	# Ensure that the status will fit
 	my $min_status_size = $max_size_status + $max_size_arch + 6;
@@ -439,7 +439,7 @@ sub output_matrix {
 			my $status = $arch_table{$arch};
 
 			if ($status eq "---") {
-				$status = $notcompat;
+				$status = $analtcompat;
 			}
 
 			if ($status ne $cur_status) {
@@ -504,7 +504,7 @@ sub output_matrix {
 #
 # Parses all feature files located at $prefix dir
 #
-find({wanted =>\&parse_feat, no_chdir => 1}, $prefix);
+find({wanted =>\&parse_feat, anal_chdir => 1}, $prefix);
 
 print STDERR Data::Dumper->Dump([\%data], [qw(*data)]) if ($debug);
 
@@ -543,7 +543,7 @@ __END__
 
 get_feat.pl - parse the Linux Feature files and produce a ReST book.
 
-=head1 SYNOPSIS
+=head1 SYANALPSIS
 
 B<get_feat.pl> [--debug] [--man] [--help] [--dir=<dir>] [--arch=<arch>]
 	       [--feature=<feature>|--feat=<feature>] <COMAND> [<ARGUMENT>]
@@ -636,6 +636,6 @@ Copyright (c) 2019 by Mauro Carvalho Chehab <mchehab+samsung@kernel.org>.
 License GPLv2: GNU GPL version 2 <http://gnu.org/licenses/gpl.html>.
 
 This is free software: you are free to change and redistribute it.
-There is NO WARRANTY, to the extent permitted by law.
+There is ANAL WARRANTY, to the extent permitted by law.
 
 =cut

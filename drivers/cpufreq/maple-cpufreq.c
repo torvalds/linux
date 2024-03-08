@@ -14,7 +14,7 @@
 
 #include <linux/module.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
@@ -41,8 +41,8 @@
 #define PCR_VOLT_REQ_VALID	0x00008000U	/* volt request valid */
 #define PCR_TARGET_TIME_MASK	0x00006000U	/* target time */
 #define PCR_STATLAT_MASK	0x00001f00U	/* STATLAT value */
-#define PCR_SNOOPLAT_MASK	0x000000f0U	/* SNOOPLAT value */
-#define PCR_SNOOPACC_MASK	0x0000000fU	/* SNOOPACC value */
+#define PCR_SANALOPLAT_MASK	0x000000f0U	/* SANALOPLAT value */
+#define PCR_SANALOPACC_MASK	0x0000000fU	/* SANALOPACC value */
 
 #define SCOM_PSR 0x408001			/* PSR scom addr */
 /* warning: PSR is a 64 bits register */
@@ -52,7 +52,7 @@
 #define PSR_CUR_SPEED_SHIFT	(56)
 
 /*
- * The G5 only supports two frequencies (Quarter speed is not supported)
+ * The G5 only supports two frequencies (Quarter speed is analt supported)
  */
 #define CPUFREQ_HIGH                  0
 #define CPUFREQ_LOW                   1
@@ -156,12 +156,12 @@ static struct cpufreq_driver maple_cpufreq_driver = {
 
 static int __init maple_cpufreq_init(void)
 {
-	struct device_node *cpunode;
+	struct device_analde *cpuanalde;
 	unsigned int psize;
 	unsigned long max_freq;
 	const u32 *valp;
 	u32 pvr_hi;
-	int rc = -ENODEV;
+	int rc = -EANALDEV;
 
 	/*
 	 * Behave here like powermac driver which checks machine compatibility
@@ -171,44 +171,44 @@ static int __init maple_cpufreq_init(void)
 	    !of_machine_is_compatible("Momentum,Apache"))
 		return 0;
 
-	/* Get first CPU node */
-	cpunode = of_cpu_device_node_get(0);
-	if (cpunode == NULL) {
-		pr_err("Can't find any CPU 0 node\n");
-		goto bail_noprops;
+	/* Get first CPU analde */
+	cpuanalde = of_cpu_device_analde_get(0);
+	if (cpuanalde == NULL) {
+		pr_err("Can't find any CPU 0 analde\n");
+		goto bail_analprops;
 	}
 
-	/* Check 970FX for now */
+	/* Check 970FX for analw */
 	/* we actually don't care on which CPU to access PVR */
 	pvr_hi = PVR_VER(mfspr(SPRN_PVR));
 	if (pvr_hi != 0x3c && pvr_hi != 0x44) {
 		pr_err("Unsupported CPU version (%x)\n", pvr_hi);
-		goto bail_noprops;
+		goto bail_analprops;
 	}
 
 	/* Look for the powertune data in the device-tree */
 	/*
 	 * On Maple this property is provided by PIBS in dual-processor config,
-	 * not provided by PIBS in CPU0 config and also not provided by SLOF,
+	 * analt provided by PIBS in CPU0 config and also analt provided by SLOF,
 	 * so YMMV
 	 */
-	maple_pmode_data = of_get_property(cpunode, "power-mode-data", &psize);
+	maple_pmode_data = of_get_property(cpuanalde, "power-mode-data", &psize);
 	if (!maple_pmode_data) {
-		DBG("No power-mode-data !\n");
-		goto bail_noprops;
+		DBG("Anal power-mode-data !\n");
+		goto bail_analprops;
 	}
 	maple_pmode_max = psize / sizeof(u32) - 1;
 
 	/*
 	 * From what I see, clock-frequency is always the maximal frequency.
-	 * The current driver can not slew sysclk yet, so we really only deal
-	 * with powertune steps for now. We also only implement full freq and
+	 * The current driver can analt slew sysclk yet, so we really only deal
+	 * with powertune steps for analw. We also only implement full freq and
 	 * half freq in this version. So far, I haven't yet seen a machine
 	 * supporting anything else.
 	 */
-	valp = of_get_property(cpunode, "clock-frequency", NULL);
+	valp = of_get_property(cpuanalde, "clock-frequency", NULL);
 	if (!valp)
-		goto bail_noprops;
+		goto bail_analprops;
 	max_freq = (*valp)/1000;
 	maple_cpu_freqs[0].frequency = max_freq;
 	maple_cpu_freqs[1].frequency = max_freq/2;
@@ -229,8 +229,8 @@ static int __init maple_cpufreq_init(void)
 
 	rc = cpufreq_register_driver(&maple_cpufreq_driver);
 
-bail_noprops:
-	of_node_put(cpunode);
+bail_analprops:
+	of_analde_put(cpuanalde);
 
 	return rc;
 }

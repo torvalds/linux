@@ -23,7 +23,7 @@
 /*
  *          |   NHM/WSM    |      SNB     |
  * register -------------------------------
- *          |  HT  | no HT |  HT  | no HT |
+ *          |  HT  | anal HT |  HT  | anal HT |
  *-----------------------------------------
  * offcore  | core | core  | cpu  | core  |
  * lbr_sel  | core | core  | cpu  | core  |
@@ -35,15 +35,15 @@
  * per-core reg tables.
  */
 enum extra_reg_type {
-	EXTRA_REG_NONE		= -1, /* not used */
+	EXTRA_REG_ANALNE		= -1, /* analt used */
 
 	EXTRA_REG_RSP_0		= 0,  /* offcore_response_0 */
 	EXTRA_REG_RSP_1		= 1,  /* offcore_response_1 */
 	EXTRA_REG_LBR		= 2,  /* lbr_select */
 	EXTRA_REG_LDLAT		= 3,  /* ld_lat_threshold */
 	EXTRA_REG_FE		= 4,  /* fe_* */
-	EXTRA_REG_SNOOP_0	= 5,  /* snoop response 0 */
-	EXTRA_REG_SNOOP_1	= 6,  /* snoop response 1 */
+	EXTRA_REG_SANALOP_0	= 5,  /* sanalop response 0 */
+	EXTRA_REG_SANALOP_1	= 6,  /* sanalop response 1 */
 
 	EXTRA_REG_MAX		      /* number of entries needed */
 };
@@ -116,7 +116,7 @@ static inline bool is_branch_counters_group(struct perf_event *event)
 }
 
 struct amd_nb {
-	int nb_id;  /* NorthBridge id */
+	int nb_id;  /* AnalrthBridge id */
 	int refcnt; /* reference count */
 	struct perf_event *owners[X86_PMC_IDX_MAX];
 	struct event_constraint event_constraints[X86_PMC_IDX_MAX];
@@ -224,7 +224,7 @@ enum {
 	LBR_FORMAT_INFO		= 0x05,
 	LBR_FORMAT_TIME		= 0x06,
 	LBR_FORMAT_INFO2	= 0x07,
-	LBR_FORMAT_MAX_KNOWN    = LBR_FORMAT_INFO2,
+	LBR_FORMAT_MAX_KANALWN    = LBR_FORMAT_INFO2,
 };
 
 enum {
@@ -367,7 +367,7 @@ struct cpu_hw_events {
 
 /*
  * The constraint_match() function only works for 'simple' event codes
- * and not for extended (AMD64_EVENTSEL_EVENT) events codes.
+ * and analt for extended (AMD64_EVENTSEL_EVENT) events codes.
  */
 #define EVENT_CONSTRAINT_RANGE(c, e, n, m) \
 	__EVENT_CONSTRAINT_RANGE(c, e, n, m, HWEIGHT(n), 0, 0)
@@ -378,16 +378,16 @@ struct cpu_hw_events {
 
 /*
  * The overlap flag marks event constraints with overlapping counter
- * masks. This is the case if the counter mask of such an event is not
+ * masks. This is the case if the counter mask of such an event is analt
  * a subset of any other counter mask of a constraint with an equal or
  * higher weight, e.g.:
  *
  *  c_overlaps = EVENT_CONSTRAINT_OVERLAP(0, 0x09, 0);
- *  c_another1 = EVENT_CONSTRAINT(0, 0x07, 0);
- *  c_another2 = EVENT_CONSTRAINT(0, 0x38, 0);
+ *  c_aanalther1 = EVENT_CONSTRAINT(0, 0x07, 0);
+ *  c_aanalther2 = EVENT_CONSTRAINT(0, 0x38, 0);
  *
- * The event scheduler may not select the correct counter in the first
- * cycle because it needs to know which subsequent events will be
+ * The event scheduler may analt select the correct counter in the first
+ * cycle because it needs to kanalw which subsequent events will be
  * scheduled. It may fail to schedule the events then. So we set the
  * overlap flag for such constraints to give the scheduler a hint which
  * events to select for counter rescheduling.
@@ -430,12 +430,12 @@ struct cpu_hw_events {
 	EVENT_CONSTRAINT(c, (1ULL << (32+n)), FIXED_EVENT_FLAGS)
 
 /*
- * The special metric counters do not actually exist. They are calculated from
+ * The special metric counters do analt actually exist. They are calculated from
  * the combination of the FxCtr3 + MSR_PERF_METRICS.
  *
  * The special metric counters are mapped to a dummy offset for the scheduler.
  * The sharing between multiple users of the same metric without multiplexing
- * is not allowed, even though the hardware supports that in principle.
+ * is analt allowed, even though the hardware supports that in principle.
  */
 
 #define METRIC_EVENT_CONSTRAINT(c, n)					\
@@ -545,7 +545,7 @@ struct cpu_hw_events {
  * We define the end marker as having a weight of -1
  * to enable blacklisting of events using a counter bitmask
  * of zero and thus a weight of zero.
- * The end marker has a weight that cannot possibly be
+ * The end marker has a weight that cananalt possibly be
  * obtained from counting the bits in the bitmask.
  */
 #define EVENT_CONSTRAINT_END { .weight = -1 }
@@ -659,13 +659,13 @@ enum {
 #define PERF_PEBS_DATA_SOURCE_MASK	(PERF_PEBS_DATA_SOURCE_MAX - 1)
 
 enum hybrid_cpu_type {
-	HYBRID_INTEL_NONE,
+	HYBRID_INTEL_ANALNE,
 	HYBRID_INTEL_ATOM	= 0x20,
 	HYBRID_INTEL_CORE	= 0x40,
 };
 
 enum hybrid_pmu_type {
-	not_hybrid,
+	analt_hybrid,
 	hybrid_small		= BIT(0),
 	hybrid_big		= BIT(1),
 
@@ -846,8 +846,8 @@ struct x86_pmu {
 			pebs_active		:1,
 			pebs_broken		:1,
 			pebs_prec_dist		:1,
-			pebs_no_tlb		:1,
-			pebs_no_isolation	:1,
+			pebs_anal_tlb		:1,
+			pebs_anal_isolation	:1,
 			pebs_block		:1,
 			pebs_ept		:1;
 	int		pebs_record_size;
@@ -982,7 +982,7 @@ struct x86_perf_task_context_arch_lbr {
  * The structure is dynamically allocated. The size of the LBR state may vary
  * based on the number of LBR registers.
  *
- * Do not put anything after the LBR state.
+ * Do analt put anything after the LBR state.
  */
 struct x86_perf_task_context_arch_lbr_xsave {
 	struct x86_perf_task_context_opt		opt;
@@ -1009,7 +1009,7 @@ do {									\
 /*
  * x86_pmu flags
  */
-#define PMU_FL_NO_HT_SHARING	0x1 /* no hyper-threading resource sharing */
+#define PMU_FL_ANAL_HT_SHARING	0x1 /* anal hyper-threading resource sharing */
 #define PMU_FL_HAS_RSP_1	0x2 /* has 2 equivalent offcore_rsp regs   */
 #define PMU_FL_EXCL_CNTRS	0x4 /* has exclusive counter requirements  */
 #define PMU_FL_EXCL_ENABLED	0x8 /* exclusive counter active */
@@ -1038,11 +1038,11 @@ static struct perf_pmu_events_attr event_attr_##v = {			\
 	.event_str	= str,						\
 };
 
-#define EVENT_ATTR_STR_HT(_name, v, noht, ht)				\
+#define EVENT_ATTR_STR_HT(_name, v, analht, ht)				\
 static struct perf_pmu_events_ht_attr event_attr_##v = {		\
 	.attr		= __ATTR(_name, 0444, events_ht_sysfs_show, NULL),\
 	.id		= 0,						\
-	.event_str_noht	= noht,						\
+	.event_str_analht	= analht,						\
 	.event_str_ht	= ht,						\
 }
 
@@ -1090,7 +1090,7 @@ int x86_perf_event_set_period(struct perf_event *event);
 /*
  * Generalized hw caching related hw_event table, filled
  * in on a per model basis. A value of 0 means
- * 'not supported', -1 means 'hw_event makes no sense on
+ * 'analt supported', -1 means 'hw_event makes anal sense on
  * this CPU', any other value means the raw hw_event
  * ID.
  */
@@ -1214,15 +1214,15 @@ static inline bool kernel_ip(unsigned long ip)
 }
 
 /*
- * Not all PMUs provide the right context information to place the reported IP
- * into full context. Specifically segment registers are typically not
+ * Analt all PMUs provide the right context information to place the reported IP
+ * into full context. Specifically segment registers are typically analt
  * supplied.
  *
  * Assuming the address is a linear address (it is for IBS), we fake the CS and
- * vm86 mode using the known zero-based code segment and 'fix up' the registers
+ * vm86 mode using the kanalwn zero-based code segment and 'fix up' the registers
  * to reflect this.
  *
- * Intel PEBS/LBR appear to typically provide the effective address, nothing
+ * Intel PEBS/LBR appear to typically provide the effective address, analthing
  * much we can do about that but pray and treat it like a linear address.
  */
 static inline void set_linear_ip(struct pt_regs *regs, unsigned long ip)
@@ -1238,7 +1238,7 @@ static inline void set_linear_ip(struct pt_regs *regs, unsigned long ip)
  * x86control flow changes include branches, interrupts, traps, faults
  */
 enum {
-	X86_BR_NONE		= 0,      /* unknown */
+	X86_BR_ANALNE		= 0,      /* unkanalwn */
 
 	X86_BR_USER		= 1 << 0, /* branch target is user */
 	X86_BR_KERNEL		= 1 << 1, /* branch target is kernel */
@@ -1255,7 +1255,7 @@ enum {
 	X86_BR_IND_CALL		= 1 << 11,/* indirect calls */
 	X86_BR_ABORT		= 1 << 12,/* transaction abort */
 	X86_BR_IN_TX		= 1 << 13,/* in transaction */
-	X86_BR_NO_TX		= 1 << 14,/* not in transaction */
+	X86_BR_ANAL_TX		= 1 << 14,/* analt in transaction */
 	X86_BR_ZERO_CALL	= 1 << 15,/* zero length call */
 	X86_BR_CALL_STACK	= 1 << 16,/* call stack */
 	X86_BR_IND_JMP		= 1 << 17,/* indirect jump */
@@ -1265,7 +1265,7 @@ enum {
 };
 
 #define X86_BR_PLM (X86_BR_USER | X86_BR_KERNEL)
-#define X86_BR_ANYTX (X86_BR_NO_TX | X86_BR_IN_TX)
+#define X86_BR_ANYTX (X86_BR_ANAL_TX | X86_BR_IN_TX)
 
 #define X86_BR_ANY       \
 	(X86_BR_CALL    |\
@@ -1350,7 +1350,7 @@ static inline void amd_pmu_brs_add(struct perf_event *event)
 	perf_sched_cb_inc(event->pmu);
 	cpuc->lbr_users++;
 	/*
-	 * No need to reset BRS because it is reset
+	 * Anal need to reset BRS because it is reset
 	 * on brs_enable() and it is saturating
 	 */
 }
@@ -1409,7 +1409,7 @@ static inline int amd_pmu_init(void)
 
 static inline int amd_brs_init(void)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline void amd_brs_drain(void)

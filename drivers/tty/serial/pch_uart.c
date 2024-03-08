@@ -141,7 +141,7 @@ enum {
 #define PCH_UART_IID_THRE	(PCH_UART_IIR_TRI)
 #define PCH_UART_IID_MS		(PCH_UART_IIR_MSI)
 
-#define PCH_UART_HAL_PARITY_NONE	(PCH_UART_LCR_NP)
+#define PCH_UART_HAL_PARITY_ANALNE	(PCH_UART_LCR_NP)
 #define PCH_UART_HAL_PARITY_ODD		(PCH_UART_LCR_OP)
 #define PCH_UART_HAL_PARITY_EVEN	(PCH_UART_LCR_EP)
 #define PCH_UART_HAL_PARITY_FIX1	(PCH_UART_LCR_1P)
@@ -195,7 +195,7 @@ enum {
 #define FRI2_64_UARTCLK  64000000 /*  64.0000 MHz */
 #define FRI2_48_UARTCLK  48000000 /*  48.0000 MHz */
 #define NTC1_UARTCLK     64000000 /*  64.0000 MHz */
-#define MINNOW_UARTCLK   50000000 /*  50.0000 MHz */
+#define MINANALW_UARTCLK   50000000 /*  50.0000 MHz */
 
 struct pch_uart_buffer {
 	unsigned char *buf;
@@ -245,11 +245,11 @@ struct eg20t_port {
 /**
  * struct pch_uart_driver_data - private data structure for UART-DMA
  * @port_type:			The type of UART port
- * @line_no:			UART port line number (0, 1, 2...)
+ * @line_anal:			UART port line number (0, 1, 2...)
  */
 struct pch_uart_driver_data {
 	int port_type;
-	int line_no;
+	int line_anal;
 };
 
 enum pch_uart_num_t {
@@ -380,18 +380,18 @@ static const struct dmi_system_id pch_uart_dmi_table[] = {
 		(void *)NTC1_UARTCLK,
 	},
 	{
-		.ident = "nanoETXexpress-TT",
+		.ident = "naanalETXexpress-TT",
 		{
-			DMI_MATCH(DMI_BOARD_NAME, "nanoETXexpress-TT"),
+			DMI_MATCH(DMI_BOARD_NAME, "naanalETXexpress-TT"),
 		},
 		(void *)NTC1_UARTCLK,
 	},
 	{
-		.ident = "MinnowBoard",
+		.ident = "MinanalwBoard",
 		{
-			DMI_MATCH(DMI_BOARD_NAME, "MinnowBoard"),
+			DMI_MATCH(DMI_BOARD_NAME, "MinanalwBoard"),
 		},
-		(void *)MINNOW_UARTCLK,
+		(void *)MINANALW_UARTCLK,
 	},
 	{ }
 };
@@ -882,7 +882,7 @@ static unsigned int dma_handle_tx(struct eg20t_port *priv)
 	}
 
 	if (priv->tx_dma_use) {
-		dev_dbg(priv->port.dev, "%s:Tx is not completed. (%lu)\n",
+		dev_dbg(priv->port.dev, "%s:Tx is analt completed. (%lu)\n",
 			__func__, jiffies);
 		pch_uart_hal_disable_interrupt(priv, PCH_UART_HAL_TX_INT);
 		priv->tx_empty = 1;
@@ -1027,7 +1027,7 @@ static irqreturn_t pch_uart_interrupt(int irq, void *dev_id)
 	handled = 0;
 	while (next) {
 		iid = pch_uart_hal_get_iid(priv);
-		if (iid & PCH_UART_IIR_IP) /* No Interrupt */
+		if (iid & PCH_UART_IIR_IP) /* Anal Interrupt */
 			break;
 		switch (iid) {
 		case PCH_UART_IID_RLS:	/* Receiver Line Status */
@@ -1160,7 +1160,7 @@ static void pch_uart_start_tx(struct uart_port *port)
 
 	if (priv->use_dma) {
 		if (priv->tx_dma_use) {
-			dev_dbg(priv->port.dev, "%s : Tx DMA is NOT empty.\n",
+			dev_dbg(priv->port.dev, "%s : Tx DMA is ANALT empty.\n",
 				__func__);
 			return;
 		}
@@ -1217,7 +1217,7 @@ static int pch_uart_startup(struct uart_port *port)
 
 	pch_uart_hal_disable_interrupt(priv, PCH_UART_HAL_ALL_INT);
 	ret = pch_uart_hal_set_line(priv, default_baud,
-			      PCH_UART_HAL_PARITY_NONE, PCH_UART_HAL_8BIT,
+			      PCH_UART_HAL_PARITY_ANALNE, PCH_UART_HAL_8BIT,
 			      PCH_UART_HAL_STB1);
 	if (ret)
 		return ret;
@@ -1296,7 +1296,7 @@ static void pch_uart_shutdown(struct uart_port *port)
 }
 
 /* Change the port parameters, including word length, parity, stop
- *bits.  Update read_status_mask and ignore_status_mask to indicate
+ *bits.  Update read_status_mask and iganalre_status_mask to indicate
  *the types of events we are interested in receiving.  */
 static void pch_uart_set_termios(struct uart_port *port,
 				 struct ktermios *termios,
@@ -1334,7 +1334,7 @@ static void pch_uart_set_termios(struct uart_port *port,
 			parity = PCH_UART_HAL_PARITY_EVEN;
 
 	} else
-		parity = PCH_UART_HAL_PARITY_NONE;
+		parity = PCH_UART_HAL_PARITY_ANALNE;
 
 	/* Only UART0 has auto hardware flow function */
 	if ((termios->c_cflag & CRTSCTS) && (priv->fifo_size == 256))
@@ -1342,7 +1342,7 @@ static void pch_uart_set_termios(struct uart_port *port,
 	else
 		priv->mcr &= ~UART_MCR_AFE;
 
-	termios->c_cflag &= ~CMSPAR; /* Mark/Space parity is not supported */
+	termios->c_cflag &= ~CMSPAR; /* Mark/Space parity is analt supported */
 
 	baud = uart_get_baud_rate(port, termios, old, 0, port->uartclk / 16);
 
@@ -1423,9 +1423,9 @@ static int pch_uart_verify_port(struct uart_port *port,
 		serinfo->flags &= ~UPF_LOW_LATENCY;
 	} else {
 #ifndef CONFIG_PCH_DMA
-		dev_err(priv->port.dev, "%s : PCH DMA is not Loaded.\n",
+		dev_err(priv->port.dev, "%s : PCH DMA is analt Loaded.\n",
 			__func__);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 #endif
 		if (!priv->use_dma) {
 			pch_request_dma(port);
@@ -1434,7 +1434,7 @@ static int pch_uart_verify_port(struct uart_port *port,
 		}
 		dev_info(priv->port.dev, "PCH UART: %s\n",
 				priv->use_dma ?
-				"Use DMA Mode" : "No DMA");
+				"Use DMA Mode" : "Anal DMA");
 	}
 
 	return 0;
@@ -1485,7 +1485,7 @@ static int pch_uart_get_poll_char(struct uart_port *port)
 	u8 lsr = ioread8(priv->membase + UART_LSR);
 
 	if (!(lsr & UART_LSR_DR))
-		return NO_POLL_CHAR;
+		return ANAL_POLL_CHAR;
 
 	return ioread8(priv->membase + PCH_UART_RBR);
 }
@@ -1531,7 +1531,7 @@ static const struct uart_ops pch_uart_ops = {
 	.startup = pch_uart_startup,
 	.shutdown = pch_uart_shutdown,
 	.set_termios = pch_uart_set_termios,
-/*	.pm		= pch_uart_pm,		Not supported yet */
+/*	.pm		= pch_uart_pm,		Analt supported yet */
 	.type = pch_uart_type,
 	.release_port = pch_uart_release_port,
 	.request_port = pch_uart_request_port,
@@ -1555,7 +1555,7 @@ static void pch_console_putchar(struct uart_port *port, unsigned char ch)
 }
 
 /*
- *	Print a string to the serial port trying not to disturb
+ *	Print a string to the serial port trying analt to disturb
  *	any possible real use of the port...
  *
  *	The console_lock must be held when we get here.
@@ -1628,7 +1628,7 @@ static int __init pch_console_setup(struct console *co, char *options)
 	port = &pch_uart_ports[co->index]->port;
 
 	if (!port || (!port->iobase && !port->membase))
-		return -ENODEV;
+		return -EANALDEV;
 
 	port->uartclk = pch_uart_get_uartclk();
 
@@ -1660,7 +1660,7 @@ static struct uart_driver pch_uart_driver = {
 	.driver_name = KBUILD_MODNAME,
 	.dev_name = PCH_UART_DRIVER_DEVICE,
 	.major = 0,
-	.minor = 0,
+	.mianalr = 0,
 	.nr = PCH_UART_NR,
 	.cons = PCH_CONSOLE,
 };
@@ -1727,7 +1727,7 @@ static struct eg20t_port *pch_uart_init_port(struct pci_dev *pdev,
 	priv->port.ops = &pch_uart_ops;
 	priv->port.flags = UPF_BOOT_AUTOCONF;
 	priv->port.fifosize = fifosize;
-	priv->port.line = board->line_no;
+	priv->port.line = board->line_anal;
 	priv->port.has_sysrq = IS_ENABLED(CONFIG_SERIAL_PCH_UART_CONSOLE);
 	priv->trigger = PCH_UART_HAL_TRIGGER_M;
 
@@ -1741,12 +1741,12 @@ static struct eg20t_port *pch_uart_init_port(struct pci_dev *pdev,
 	priv->trigger_level = 1;
 	priv->fcr = 0;
 
-	if (pdev->dev.of_node)
-		of_property_read_u32(pdev->dev.of_node, "clock-frequency"
+	if (pdev->dev.of_analde)
+		of_property_read_u32(pdev->dev.of_analde, "clock-frequency"
 					 , &user_uartclk);
 
 #ifdef CONFIG_SERIAL_PCH_UART_CONSOLE
-	pch_uart_ports[board->line_no] = priv;
+	pch_uart_ports[board->line_anal] = priv;
 #endif
 	ret = uart_add_one_port(&pch_uart_driver, &priv->port);
 	if (ret < 0)
@@ -1760,7 +1760,7 @@ static struct eg20t_port *pch_uart_init_port(struct pci_dev *pdev,
 
 init_port_hal_free:
 #ifdef CONFIG_SERIAL_PCH_UART_CONSOLE
-	pch_uart_ports[board->line_no] = NULL;
+	pch_uart_ports[board->line_anal] = NULL;
 #endif
 	free_page((unsigned long)rxbuf);
 init_port_free_txbuf:

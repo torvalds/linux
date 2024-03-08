@@ -250,7 +250,7 @@
 
 	dpll_ddr_ck: clock@494 {
 		#clock-cells = <0>;
-		compatible = "ti,am3-dpll-no-gate-clock";
+		compatible = "ti,am3-dpll-anal-gate-clock";
 		clock-output-names = "dpll_ddr_ck";
 		clocks = <&sys_clkin_ck>, <&sys_clkin_ck>;
 		reg = <0x0494>, <0x0434>, <0x0440>, <0x0438>, <0x043c>;
@@ -277,7 +277,7 @@
 
 	dpll_disp_ck: clock@498 {
 		#clock-cells = <0>;
-		compatible = "ti,am3-dpll-no-gate-clock";
+		compatible = "ti,am3-dpll-anal-gate-clock";
 		clock-output-names = "dpll_disp_ck";
 		clocks = <&sys_clkin_ck>, <&sys_clkin_ck>;
 		reg = <0x0498>, <0x0448>, <0x0454>, <0x044c>, <0x0450>;
@@ -296,7 +296,7 @@
 
 	dpll_per_ck: clock@48c {
 		#clock-cells = <0>;
-		compatible = "ti,am3-dpll-no-gate-j-type-clock";
+		compatible = "ti,am3-dpll-anal-gate-j-type-clock";
 		clock-output-names = "dpll_per_ck";
 		clocks = <&sys_clkin_ck>, <&sys_clkin_ck>;
 		reg = <0x048c>, <0x0470>, <0x049c>, <0x0474>, <0x0478>;

@@ -824,7 +824,7 @@
 			num-viewport = <6>;
 			bus-range = <0x0 0xff>;
 			ranges = <0x81000000 0x0 0x00000000 0x40 0x00010000 0x0 0x00010000>, /* downstream I/O */
-				 <0x82000000 0x0 0x40000000 0x40 0x40000000 0x0 0x40000000>; /* non-prefetchable memory */
+				 <0x82000000 0x0 0x40000000 0x40 0x40000000 0x0 0x40000000>; /* analn-prefetchable memory */
 			msi-parent = <&msi1>, <&msi2>;
 			#interrupt-cells = <1>;
 			interrupt-map-mask = <0 0 0 7>;
@@ -848,7 +848,7 @@
 			num-viewport = <6>;
 			bus-range = <0x0 0xff>;
 			ranges = <0x81000000 0x0 0x00000000 0x48 0x00010000 0x0 0x00010000>, /* downstream I/O */
-				 <0x82000000 0x0 0x40000000 0x48 0x40000000 0x0 0x40000000>; /* non-prefetchable memory */
+				 <0x82000000 0x0 0x40000000 0x48 0x40000000 0x0 0x40000000>; /* analn-prefetchable memory */
 			msi-parent = <&msi1>, <&msi2>;
 			#interrupt-cells = <1>;
 			interrupt-map-mask = <0 0 0 7>;
@@ -976,10 +976,10 @@
 				map0 {
 					trip = <&cpu_alert>;
 					cooling-device =
-						<&cpu0 THERMAL_NO_LIMIT
-						THERMAL_NO_LIMIT>,
-						<&cpu1 THERMAL_NO_LIMIT
-						THERMAL_NO_LIMIT>;
+						<&cpu0 THERMAL_ANAL_LIMIT
+						THERMAL_ANAL_LIMIT>,
+						<&cpu1 THERMAL_ANAL_LIMIT
+						THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};

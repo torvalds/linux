@@ -8,7 +8,7 @@
 #include "dev.h"
 #include "commands.h"
 
-void iwl_chain_noise_calibration(struct iwl_priv *priv);
+void iwl_chain_analise_calibration(struct iwl_priv *priv);
 void iwl_sensitivity_calibration(struct iwl_priv *priv);
 
 void iwl_init_sensitivity(struct iwl_priv *priv);

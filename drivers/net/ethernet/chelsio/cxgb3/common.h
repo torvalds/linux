@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -98,7 +98,7 @@ enum {				/* adapter interrupt-maintained statistics */
 };
 
 #define TP_VERSION_MAJOR	1
-#define TP_VERSION_MINOR	1
+#define TP_VERSION_MIANALR	1
 #define TP_VERSION_MICRO	0
 
 #define S_TP_VERSION_MAJOR		16
@@ -107,11 +107,11 @@ enum {				/* adapter interrupt-maintained statistics */
 #define G_TP_VERSION_MAJOR(x)		\
 	    (((x) >> S_TP_VERSION_MAJOR) & M_TP_VERSION_MAJOR)
 
-#define S_TP_VERSION_MINOR		8
-#define M_TP_VERSION_MINOR		0xFF
-#define V_TP_VERSION_MINOR(x)		((x) << S_TP_VERSION_MINOR)
-#define G_TP_VERSION_MINOR(x)		\
-	    (((x) >> S_TP_VERSION_MINOR) & M_TP_VERSION_MINOR)
+#define S_TP_VERSION_MIANALR		8
+#define M_TP_VERSION_MIANALR		0xFF
+#define V_TP_VERSION_MIANALR(x)		((x) << S_TP_VERSION_MIANALR)
+#define G_TP_VERSION_MIANALR(x)		\
+	    (((x) >> S_TP_VERSION_MIANALR) & M_TP_VERSION_MIANALR)
 
 #define S_TP_VERSION_MICRO		0
 #define M_TP_VERSION_MICRO		0xFF
@@ -133,7 +133,7 @@ enum sge_context_type {		/* SGE egress context types */
 };
 
 enum {
-	AN_PKT_SIZE = 32,	/* async notification packet size */
+	AN_PKT_SIZE = 32,	/* async analtification packet size */
 	IMMED_PKT_SIZE = 48	/* packet size for immediate data */
 };
 
@@ -176,7 +176,7 @@ struct mc5_stats {
 	unsigned long parity_err;
 	unsigned long active_rgn_full;
 	unsigned long nfa_srch_err;
-	unsigned long unknown_cmd;
+	unsigned long unkanalwn_cmd;
 	unsigned long reqq_parity_err;
 	unsigned long dispq_parity_err;
 	unsigned long del_act_empty;
@@ -262,8 +262,8 @@ struct tp_mib_stats {
 	u32 ipInHdrErrors_lo;
 	u32 ipInAddrErrors_hi;
 	u32 ipInAddrErrors_lo;
-	u32 ipInUnknownProtos_hi;
-	u32 ipInUnknownProtos_lo;
+	u32 ipInUnkanalwnProtos_hi;
+	u32 ipInUnkanalwnProtos_lo;
 	u32 ipInDiscards_hi;
 	u32 ipInDiscards_lo;
 	u32 ipInDelivers_hi;
@@ -272,8 +272,8 @@ struct tp_mib_stats {
 	u32 ipOutRequests_lo;
 	u32 ipOutDiscards_hi;
 	u32 ipOutDiscards_lo;
-	u32 ipOutNoRoutes_hi;
-	u32 ipOutNoRoutes_lo;
+	u32 ipOutAnalRoutes_hi;
+	u32 ipOutAnalRoutes_lo;
 	u32 ipReasmTimeout;
 	u32 ipReasmReqds;
 	u32 ipReasmOKs;
@@ -342,7 +342,7 @@ enum {
 	DEFAULT_NFILTERS = 128
 };
 
-/* MC5 modes, these must be non-0 */
+/* MC5 modes, these must be analn-0 */
 enum {
 	MC5_MODE_144_BIT = 1,
 	MC5_MODE_72_BIT = 2
@@ -504,13 +504,13 @@ enum {
 
 /* PHY module types */
 enum {
-	phy_modtype_none,
+	phy_modtype_analne,
 	phy_modtype_sr,
 	phy_modtype_lr,
 	phy_modtype_lrm,
 	phy_modtype_twinax,
 	phy_modtype_twinax_long,
-	phy_modtype_unknown
+	phy_modtype_unkanalwn
 };
 
 /* PHY operations */

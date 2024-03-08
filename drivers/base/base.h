@@ -2,15 +2,15 @@
 /*
  * Copyright (c) 2001-2003 Patrick Mochel <mochel@osdl.org>
  * Copyright (c) 2004-2009 Greg Kroah-Hartman <gregkh@suse.de>
- * Copyright (c) 2008-2012 Novell Inc.
+ * Copyright (c) 2008-2012 Analvell Inc.
  * Copyright (c) 2012-2019 Greg Kroah-Hartman <gregkh@linuxfoundation.org>
  * Copyright (c) 2012-2019 Linux Foundation
  *
- * Core driver model functions and structures that should not be
+ * Core driver model functions and structures that should analt be
  * shared outside of the drivers/base/ directory.
  *
  */
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 
 /**
  * struct subsys_private - structure to hold the private to the driver core portions of the bus_type/class structure.
@@ -23,7 +23,7 @@
  * @drivers_kset - the list of drivers associated
  * @klist_devices - the klist to iterate over the @devices_kset
  * @klist_drivers - the klist to iterate over the @drivers_kset
- * @bus_notifier - the bus notifier list for anything that cares about things
+ * @bus_analtifier - the bus analtifier list for anything that cares about things
  *                 on this bus.
  * @bus - pointer back to the struct bus_type that this structure is associated
  *        with.
@@ -36,7 +36,7 @@
  * @lock_key:	Lock class key for use by the lock validator
  *
  * This structure is the one that is the actual kobject allowing struct
- * bus_type/class to be statically allocated safely.  Nothing outside of the
+ * bus_type/class to be statically allocated safely.  Analthing outside of the
  * driver core should ever touch these fields.
  */
 struct subsys_private {
@@ -48,7 +48,7 @@ struct subsys_private {
 	struct kset *drivers_kset;
 	struct klist klist_devices;
 	struct klist klist_drivers;
-	struct blocking_notifier_head bus_notifier;
+	struct blocking_analtifier_head bus_analtifier;
 	unsigned int drivers_autoprobe:1;
 	const struct bus_type *bus;
 	struct device *dev_root;
@@ -78,7 +78,7 @@ struct subsys_private *class_to_subsys(const struct class *class);
 struct driver_private {
 	struct kobject kobj;
 	struct klist klist_devices;
-	struct klist_node knode_bus;
+	struct klist_analde kanalde_bus;
 	struct module_kobject *mkobj;
 	struct device_driver *driver;
 };
@@ -88,29 +88,29 @@ struct driver_private {
  * struct device_private - structure to hold the private to the driver core portions of the device structure.
  *
  * @klist_children - klist containing all children of this device
- * @knode_parent - node in sibling list
- * @knode_driver - node in driver list
- * @knode_bus - node in bus list
- * @knode_class - node in class list
+ * @kanalde_parent - analde in sibling list
+ * @kanalde_driver - analde in driver list
+ * @kanalde_bus - analde in bus list
+ * @kanalde_class - analde in class list
  * @deferred_probe - entry in deferred_probe_list which is used to retry the
  *	binding of drivers which were unable to get all the resources needed by
- *	the device; typically because it depends on another driver getting
+ *	the device; typically because it depends on aanalther driver getting
  *	probed first.
  * @async_driver - pointer to device driver awaiting probe via async_probe
  * @device - pointer back to the struct device that this structure is
  * associated with.
  * @dead - This device is currently either in the process of or has been
- *	removed from the system. Any asynchronous events scheduled for this
+ *	removed from the system. Any asynchroanalus events scheduled for this
  *	device should exit without taking any action.
  *
- * Nothing outside of the driver core should ever touch these fields.
+ * Analthing outside of the driver core should ever touch these fields.
  */
 struct device_private {
 	struct klist klist_children;
-	struct klist_node knode_parent;
-	struct klist_node knode_driver;
-	struct klist_node knode_bus;
-	struct klist_node knode_class;
+	struct klist_analde kanalde_parent;
+	struct klist_analde kanalde_driver;
+	struct klist_analde kanalde_bus;
+	struct klist_analde kanalde_class;
 	struct list_head deferred_probe;
 	struct device_driver *async_driver;
 	char *deferred_probe_reason;
@@ -118,13 +118,13 @@ struct device_private {
 	u8 dead:1;
 };
 #define to_device_private_parent(obj)	\
-	container_of(obj, struct device_private, knode_parent)
+	container_of(obj, struct device_private, kanalde_parent)
 #define to_device_private_driver(obj)	\
-	container_of(obj, struct device_private, knode_driver)
+	container_of(obj, struct device_private, kanalde_driver)
 #define to_device_private_bus(obj)	\
-	container_of(obj, struct device_private, knode_bus)
+	container_of(obj, struct device_private, kanalde_bus)
 #define to_device_private_class(obj)	\
-	container_of(obj, struct device_private, knode_class)
+	container_of(obj, struct device_private, kanalde_class)
 
 /* initialisation functions */
 int devices_init(void);
@@ -150,7 +150,7 @@ struct kobject *virtual_device_parent(struct device *dev);
 int bus_add_device(struct device *dev);
 void bus_probe_device(struct device *dev);
 void bus_remove_device(struct device *dev);
-void bus_notify(struct device *dev, enum bus_notifier_event value);
+void bus_analtify(struct device *dev, enum bus_analtifier_event value);
 bool bus_is_registered(const struct bus_type *bus);
 
 int bus_add_driver(struct device_driver *drv);
@@ -184,7 +184,7 @@ void device_block_probing(void);
 void device_unblock_probing(void);
 void deferred_probe_extend_timeout(void);
 void driver_deferred_probe_trigger(void);
-const char *device_get_devnode(const struct device *dev, umode_t *mode,
+const char *device_get_devanalde(const struct device *dev, umode_t *mode,
 			       kuid_t *uid, kgid_t *gid, const char **tmp);
 
 /* /sys/devices directory */
@@ -224,7 +224,7 @@ int device_links_check_suppliers(struct device *dev);
 void device_links_force_bind(struct device *dev);
 void device_links_driver_bound(struct device *dev);
 void device_links_driver_cleanup(struct device *dev);
-void device_links_no_driver(struct device *dev);
+void device_links_anal_driver(struct device *dev);
 bool device_links_busy(struct device *dev);
 void device_links_unbind_consumers(struct device *dev);
 void fw_devlink_drivers_done(void);
@@ -234,12 +234,12 @@ void fw_devlink_probing_done(void);
 void device_pm_move_to_tail(struct device *dev);
 
 #ifdef CONFIG_DEVTMPFS
-int devtmpfs_create_node(struct device *dev);
-int devtmpfs_delete_node(struct device *dev);
+int devtmpfs_create_analde(struct device *dev);
+int devtmpfs_delete_analde(struct device *dev);
 #else
-static inline int devtmpfs_create_node(struct device *dev) { return 0; }
-static inline int devtmpfs_delete_node(struct device *dev) { return 0; }
+static inline int devtmpfs_create_analde(struct device *dev) { return 0; }
+static inline int devtmpfs_delete_analde(struct device *dev) { return 0; }
 #endif
 
-void software_node_notify(struct device *dev);
-void software_node_notify_remove(struct device *dev);
+void software_analde_analtify(struct device *dev);
+void software_analde_analtify_remove(struct device *dev);

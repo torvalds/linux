@@ -4,8 +4,8 @@
  * Chen-Yu Tsai <wens@csie.org>
  *
  * This file is dual-licensed: you can use it either under the terms
- * of the GPL or the X11 license, at your option. Note that this dual
- * licensing only applies to this file, and not this project as a
+ * of the GPL or the X11 license, at your option. Analte that this dual
+ * licensing only applies to this file, and analt this project as a
  * whole.
  *
  *  a) This file is free software; you can redistribute it and/or
@@ -29,13 +29,13 @@
  *     Software is furnished to do so, subject to the following
  *     conditions:
  *
- *     The above copyright notice and this permission notice shall be
+ *     The above copyright analtice and this permission analtice shall be
  *     included in all copies or substantial portions of the Software.
  *
  *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES
  *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT
  *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
  *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -144,7 +144,7 @@
 			     <GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
 			     <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>;
 		clock-frequency = <24000000>;
-		arm,cpu-registers-not-fw-configured;
+		arm,cpu-registers-analt-fw-configured;
 	};
 
 	clocks {
@@ -160,9 +160,9 @@
 		 * This clock is actually configurable from the PRCM address
 		 * space. The external 24M oscillator can be turned off, and
 		 * the clock switched to an internal 16M RC oscillator. Under
-		 * normal operation there's no reason to do this, and the
+		 * analrmal operation there's anal reason to do this, and the
 		 * default is to use the external good one, so just model this
-		 * as a fixed clock. Also it is not entirely clear if the
+		 * as a fixed clock. Also it is analt entirely clear if the
 		 * osc24M mux in the PRCM affects the entire clock tree, which
 		 * would also throw all the PLL clock rates off, or just the
 		 * downstream clocks in the PRCM.
@@ -175,7 +175,7 @@
 		};
 
 		/*
-		 * The 32k clock is from an external source, normally the
+		 * The 32k clock is from an external source, analrmally the
 		 * AC100 codec/RTC chip. This serves as a placeholder for
 		 * board dts files to specify the source.
 		 */
@@ -193,7 +193,7 @@
 		 * choose one parent depending on the PHY interface
 		 * mode, using clk_set_rate auto-reparenting.
 		 *
-		 * The actual TX clock rate is not controlled by the
+		 * The actual TX clock rate is analt controlled by the
 		 * gmac_tx clock.
 		 */
 		mii_phy_tx_clk: mii_phy_tx_clk {

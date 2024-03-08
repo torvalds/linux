@@ -8,7 +8,7 @@
 #include "sdm845-sony-xperia-tama.dtsi"
 
 /* XZ3 uses an Atmel touchscreen instead. */
-/delete-node/ &touchscreen;
+/delete-analde/ &touchscreen;
 
 / {
 	model = "Sony Xperia XZ3";
@@ -232,7 +232,7 @@
 };
 
 &vreg_l22a_2p8 {
-	/* Note: Round-down from 2700000 to be a multiple of PLDO step-size 8000 */
+	/* Analte: Round-down from 2700000 to be a multiple of PLDO step-size 8000 */
 	regulator-min-microvolt = <2696000>;
 	regulator-max-microvolt = <2696000>;
 };

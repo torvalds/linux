@@ -315,7 +315,7 @@ static struct clk_branch lpass_core_cc_ext_mclk0_clk = {
 	},
 };
 
-static struct clk_branch lpass_core_cc_sysnoc_mport_core_clk = {
+static struct clk_branch lpass_core_cc_sysanalc_mport_core_clk = {
 	.halt_reg = 0x23000,
 	.halt_check = BRANCH_HALT_VOTED,
 	.hwcg_reg = 0x23000,
@@ -324,7 +324,7 @@ static struct clk_branch lpass_core_cc_sysnoc_mport_core_clk = {
 		.enable_reg = 0x23000,
 		.enable_mask = BIT(0),
 		.hw.init = &(const struct clk_init_data){
-			.name = "lpass_core_cc_sysnoc_mport_core_clk",
+			.name = "lpass_core_cc_sysanalc_mport_core_clk",
 			.parent_hws = (const struct clk_hw*[]){
 				&lpass_core_cc_core_clk_src.clkr.hw,
 			},
@@ -357,7 +357,7 @@ static struct clk_regmap *lpass_core_cc_sc7280_clocks[] = {
 	[LPASS_CORE_CC_EXT_IF1_IBIT_CLK] = &lpass_core_cc_ext_if1_ibit_clk.clkr,
 	[LPASS_CORE_CC_LPM_CORE_CLK] = &lpass_core_cc_lpm_core_clk.clkr,
 	[LPASS_CORE_CC_LPM_MEM0_CORE_CLK] = &lpass_core_cc_lpm_mem0_core_clk.clkr,
-	[LPASS_CORE_CC_SYSNOC_MPORT_CORE_CLK] = &lpass_core_cc_sysnoc_mport_core_clk.clkr,
+	[LPASS_CORE_CC_SYSANALC_MPORT_CORE_CLK] = &lpass_core_cc_sysanalc_mport_core_clk.clkr,
 	[LPASS_CORE_CC_EXT_MCLK0_CLK] = &lpass_core_cc_ext_mclk0_clk.clkr,
 	[LPASS_CORE_CC_EXT_MCLK0_CLK_SRC] = &lpass_core_cc_ext_mclk0_clk_src.clkr,
 };

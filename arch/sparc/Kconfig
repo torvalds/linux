@@ -7,8 +7,8 @@ config 64BIT
 	  Sun Microsystems, incorporated.  They are very widely found in Sun
 	  workstations and clones.
 
-	  Say yes to build a 64-bit kernel - formerly known as sparc64
-	  Say no to build a 32-bit kernel - formerly known as sparc
+	  Say anal to build a 64-bit kernel - formerly kanalwn as sparc64
+	  Say anal to build a 32-bit kernel - formerly kanalwn as sparc
 
 config SPARC
 	bool
@@ -43,7 +43,7 @@ config SPARC
 	select PCI_MSI_ARCH_FALLBACKS if PCI_MSI
 	select ODD_RT_SIGACTION
 	select OLD_SIGSUSPEND
-	select CPU_NO_EFFICIENT_FFS
+	select CPU_ANAL_EFFICIENT_FFS
 	select LOCKDEP_SMALL if LOCKDEP
 	select NEED_DMA_MAP_STATE
 	select NEED_SG_DMA_LENGTH
@@ -71,13 +71,13 @@ config SPARC64
 	select HAVE_KPROBES
 	select MMU_GATHER_RCU_TABLE_FREE if SMP
 	select MMU_GATHER_MERGE_VMAS
-	select MMU_GATHER_NO_FLUSH_CACHE
+	select MMU_GATHER_ANAL_FLUSH_CACHE
 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_SYSCALL_TRACEPOINTS
 	select HAVE_CONTEXT_TRACKING_USER
-	select HAVE_TIF_NOHZ
+	select HAVE_TIF_ANALHZ
 	select HAVE_DEBUG_KMEMLEAK
 	select IOMMU_HELPER
 	select SPARSE_IRQ
@@ -162,7 +162,7 @@ config SMP
 
 	  If you say N here, the kernel will run on uni- and multiprocessor
 	  machines, but will use only one CPU of a multiprocessor machine. If
-	  you say Y here, the kernel will run on many, but not all,
+	  you say Y here, the kernel will run on many, but analt all,
 	  uniprocessor machines. On a uniprocessor machine, the kernel
 	  will run faster if you say N here.
 
@@ -173,7 +173,7 @@ config SMP
 	  See also <file:Documentation/admin-guide/lockup-watchdogs.rst> and the SMP-HOWTO
 	  available at <https://www.tldp.org/docs.html#howto>.
 
-	  If you don't know what to do here, say N.
+	  If you don't kanalw what to do here, say N.
 
 config NR_CPUS
 	int "Maximum number of CPUs"
@@ -201,8 +201,8 @@ config EMULATED_CMPXCHG
 	bool
 	default y if SPARC32
 	help
-	  Sparc32 does not have a CAS instruction like sparc64. cmpxchg()
-	  is emulated, and therefore it is not completely atomic.
+	  Sparc32 does analt have a CAS instruction like sparc64. cmpxchg()
+	  is emulated, and therefore it is analt completely atomic.
 
 # Makefile helpers
 config SPARC32_SMP
@@ -256,13 +256,13 @@ config NUMA
 	bool "NUMA support"
 	depends on SPARC64 && SMP
 
-config NODES_SHIFT
-	int "Maximum NUMA Nodes (as a power of 2)"
+config ANALDES_SHIFT
+	int "Maximum NUMA Analdes (as a power of 2)"
 	range 4 5 if SPARC64
 	default "5"
 	depends on NUMA
 	help
-	  Specify the maximum number of NUMA Nodes available on the target
+	  Specify the maximum number of NUMA Analdes available on the target
 	  system.  Increases memory reserved to accommodate various tables.
 
 config ARCH_SPARSEMEM_ENABLE
@@ -322,7 +322,7 @@ config CMDLINE
 	  a kernel from TFTP, and want default options to be available
 	  with having them passed on the command line.
 
-	  NOTE: This option WILL override the PROM bootargs setting!
+	  ANALTE: This option WILL override the PROM bootargs setting!
 
 config SUN_PM
 	bool
@@ -388,7 +388,7 @@ config UBOOT_LOAD_ADDR
 	help
 	 U-Boot kernel load address, the address in physical address space
 	 where u-boot will place the Linux kernel before booting it.
-	 This address is normally the base address of main memory + 0x4000.
+	 This address is analrmally the base address of main memory + 0x4000.
 
 config UBOOT_FLASH_ADDR
 	hex "uImage.o Load Address"
@@ -403,7 +403,7 @@ config UBOOT_ENTRY_ADDR
 	hex "uImage Entry Address"
 	default 0xf0004000
 	help
-	 Do not change this unless you know what you're doing. This is
+	 Do analt change this unless you kanalw what you're doing. This is
 	 hardcoded by the SPARC32 and LEON port.
 
 	 This is the virtual address u-boot jumps to when booting the Linux
@@ -463,12 +463,12 @@ config SUN_OPENPROMFS
 	help
 	  If you say Y, the OpenPROM device tree will be available as a
 	  virtual file system, which you can mount to /proc/openprom by "mount
-	  -t openpromfs none /proc/openprom".
+	  -t openpromfs analne /proc/openprom".
 
 	  To compile the /proc/openprom support as a module, choose M here: the
 	  module will be called openpromfs.
 
-	  Only choose N if you know in advance that you will not need to modify
+	  Only choose N if you kanalw in advance that you will analt need to modify
 	  OpenPROM settings on the running system.
 
 # Makefile helpers

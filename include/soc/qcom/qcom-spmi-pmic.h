@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /* Copyright (c) 2022 Linaro. All rights reserved.
- * Author: Caleb Connolly <caleb.connolly@linaro.org>
+ * Author: Caleb Conanallly <caleb.conanallly@linaro.org>
  */
 
 #ifndef __QCOM_SPMI_PMIC_H__
@@ -62,7 +62,7 @@ struct qcom_spmi_pmic {
 	unsigned int type;
 	unsigned int subtype;
 	unsigned int major;
-	unsigned int minor;
+	unsigned int mianalr;
 	unsigned int rev2;
 	unsigned int fab_id;
 	const char *name;

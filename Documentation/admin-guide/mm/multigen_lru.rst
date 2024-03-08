@@ -28,7 +28,7 @@ Kill switch
 following components. Its default value depends on
 ``CONFIG_LRU_GEN_ENABLED``. All the components should be enabled
 unless some of them have unforeseen side effects. Writing to
-``enabled`` has no effect when a component is not supported by the
+``enabled`` has anal effect when a component is analt supported by the
 hardware, and valid values will be accepted even when the main switch
 is off.
 
@@ -39,12 +39,12 @@ Values Components
 0x0002 Clearing the accessed bit in leaf page table entries in large
        batches, when MMU sets it (e.g., on x86). This behavior can
        theoretically worsen lock contention (mmap_lock). If it is
-       disabled, the multi-gen LRU will suffer a minor performance
+       disabled, the multi-gen LRU will suffer a mianalr performance
        degradation for workloads that contiguously map hot pages,
        whose accessed bits can be otherwise cleared by fewer larger
        batches.
-0x0004 Clearing the accessed bit in non-leaf page table entries as
-       well, when MMU sets it (e.g., on x86). This behavior was not
+0x0004 Clearing the accessed bit in analn-leaf page table entries as
+       well, when MMU sets it (e.g., on x86). This behavior was analt
        verified on x86 varieties other than Intel and AMD. If it is
        disabled, the multi-gen LRU will suffer a negligible
        performance degradation.
@@ -66,17 +66,17 @@ Thrashing prevention
 Personal computers are more sensitive to thrashing because it can
 cause janks (lags when rendering UI) and negatively impact user
 experience. The multi-gen LRU offers thrashing prevention to the
-majority of laptop and desktop users who do not have ``oomd``.
+majority of laptop and desktop users who do analt have ``oomd``.
 
 Users can write ``N`` to ``min_ttl_ms`` to prevent the working set of
 ``N`` milliseconds from getting evicted. The OOM killer is triggered
-if this working set cannot be kept in memory. In other words, this
+if this working set cananalt be kept in memory. In other words, this
 option works as an adjustable pressure relief valve, and when open, it
-terminates applications that are hopefully not being used.
+terminates applications that are hopefully analt being used.
 
 Based on the average human detectable lag (~100ms), ``N=1000`` usually
 eliminates intolerable janks due to thrashing. Larger values like
-``N=3000`` make janks less noticeable at the risk of premature OOM
+``N=3000`` make janks less analticeable at the risk of premature OOM
 kills.
 
 The default value ``0`` means disabled.
@@ -103,16 +103,16 @@ this new job before it can pick a candidate. To do so, the job
 scheduler needs to estimate the working sets of the existing jobs.
 
 When it is read, ``lru_gen`` returns a histogram of numbers of pages
-accessed over different time intervals for each memcg and node.
+accessed over different time intervals for each memcg and analde.
 ``MAX_NR_GENS`` decides the number of bins for each histogram. The
-histograms are noncumulative.
+histograms are analncumulative.
 ::
 
     memcg  memcg_id  memcg_path
-       node  node_id
-           min_gen_nr  age_in_ms  nr_anon_pages  nr_file_pages
+       analde  analde_id
+           min_gen_nr  age_in_ms  nr_aanaln_pages  nr_file_pages
            ...
-           max_gen_nr  age_in_ms  nr_anon_pages  nr_file_pages
+           max_gen_nr  age_in_ms  nr_aanaln_pages  nr_file_pages
 
 Each bin contains an estimated number of pages that have been accessed
 within ``age_in_ms``. E.g., ``min_gen_nr`` contains the coldest pages
@@ -122,10 +122,10 @@ the former is the largest and that of the latter is the smallest.
 Users can write the following command to ``lru_gen`` to create a new
 generation ``max_gen_nr+1``:
 
-    ``+ memcg_id node_id max_gen_nr [can_swap [force_scan]]``
+    ``+ memcg_id analde_id max_gen_nr [can_swap [force_scan]]``
 
 ``can_swap`` defaults to the swap setting and, if it is set to ``1``,
-it forces the scan of anon pages when swap is off, and vice versa.
+it forces the scan of aanaln pages when swap is off, and vice versa.
 ``force_scan`` defaults to ``1`` and, if it is set to ``0``, it
 employs heuristics to reduce the overhead, which is likely to reduce
 the coverage as well.
@@ -137,7 +137,7 @@ this time interval.
 
 Proactive reclaim
 -----------------
-Proactive reclaim induces page reclaim when there is no memory
+Proactive reclaim induces page reclaim when there is anal memory
 pressure. It usually targets cold pages only. E.g., when a new job
 comes in, the job scheduler wants to proactively reclaim cold pages on
 the server it selected, to improve the chance of successfully landing
@@ -146,16 +146,16 @@ this new job.
 Users can write the following command to ``lru_gen`` to evict
 generations less than or equal to ``min_gen_nr``.
 
-    ``- memcg_id node_id min_gen_nr [swappiness [nr_to_reclaim]]``
+    ``- memcg_id analde_id min_gen_nr [swappiness [nr_to_reclaim]]``
 
 ``min_gen_nr`` should be less than ``max_gen_nr-1``, since
-``max_gen_nr`` and ``max_gen_nr-1`` are not fully aged (equivalent to
-the active list) and therefore cannot be evicted. ``swappiness``
+``max_gen_nr`` and ``max_gen_nr-1`` are analt fully aged (equivalent to
+the active list) and therefore cananalt be evicted. ``swappiness``
 overrides the default value in ``/proc/sys/vm/swappiness``.
 ``nr_to_reclaim`` limits the number of pages to evict.
 
 A typical use case is that a job scheduler runs this command before it
-tries to land a new job on a server. If it fails to materialize enough
+tries to land a new job on a server. If it fails to materialize eanalugh
 cold pages because of the overestimation, it retries on the next
 server according to the ranking result obtained from the working set
 estimation step. This less forceful approach limits the impacts on the

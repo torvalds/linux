@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  user_space.c - A simple user space Thermal events notifier
+ *  user_space.c - A simple user space Thermal events analtifier
  *
  *  Copyright (C) 2012 Intel Corp
  *  Copyright (C) 2012 Durgadoss R <durgadoss.r@intel.com>
@@ -23,13 +23,13 @@ static int user_space_bind(struct thermal_zone_device *tz)
 }
 
 /**
- * notify_user_space - Notifies user space about thermal events
+ * analtify_user_space - Analtifies user space about thermal events
  * @tz: thermal_zone_device
  * @trip: trip point
  *
- * This function notifies the user space through UEvents.
+ * This function analtifies the user space through UEvents.
  */
-static int notify_user_space(struct thermal_zone_device *tz,
+static int analtify_user_space(struct thermal_zone_device *tz,
 			     const struct thermal_trip *trip)
 {
 	char *thermal_prop[5];
@@ -41,7 +41,7 @@ static int notify_user_space(struct thermal_zone_device *tz,
 	thermal_prop[1] = kasprintf(GFP_KERNEL, "TEMP=%d", tz->temperature);
 	thermal_prop[2] = kasprintf(GFP_KERNEL, "TRIP=%d",
 				    thermal_zone_trip_id(tz, trip));
-	thermal_prop[3] = kasprintf(GFP_KERNEL, "EVENT=%d", tz->notify_event);
+	thermal_prop[3] = kasprintf(GFP_KERNEL, "EVENT=%d", tz->analtify_event);
 	thermal_prop[4] = NULL;
 	kobject_uevent_env(&tz->device.kobj, KOBJ_CHANGE, thermal_prop);
 	for (i = 0; i < 4; ++i)
@@ -50,9 +50,9 @@ static int notify_user_space(struct thermal_zone_device *tz,
 	return 0;
 }
 
-static struct thermal_governor thermal_gov_user_space = {
+static struct thermal_goveranalr thermal_gov_user_space = {
 	.name		= "user_space",
-	.throttle	= notify_user_space,
+	.throttle	= analtify_user_space,
 	.bind_to_tz	= user_space_bind,
 };
-THERMAL_GOVERNOR_DECLARE(thermal_gov_user_space);
+THERMAL_GOVERANALR_DECLARE(thermal_gov_user_space);

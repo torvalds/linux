@@ -464,7 +464,7 @@ static const char * const dmic_mux_text[] = {
 };
 
 static SOC_ENUM_SINGLE_DECL(sc7180_dmic_enum,
-			    SND_SOC_NOPM, 0, dmic_mux_text);
+			    SND_SOC_ANALPM, 0, dmic_mux_text);
 
 static const struct snd_kcontrol_new sc7180_dmic_mux_control =
 	SOC_DAPM_ENUM_EXT("DMIC Select Mux", sc7180_dmic_enum,
@@ -474,7 +474,7 @@ static const struct snd_soc_dapm_widget sc7180_snd_dual_mic_widgets[] = {
 	SND_SOC_DAPM_HP("Headphone Jack", NULL),
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
 	SND_SOC_DAPM_MIC("DMIC", NULL),
-	SND_SOC_DAPM_MUX("Dmic Mux", SND_SOC_NOPM, 0, 0, &sc7180_dmic_mux_control),
+	SND_SOC_DAPM_MUX("Dmic Mux", SND_SOC_ANALPM, 0, 0, &sc7180_dmic_mux_control),
 };
 
 static const struct snd_kcontrol_new sc7180_snd_dual_mic_controls[] = {
@@ -495,12 +495,12 @@ static int sc7180_snd_platform_probe(struct platform_device *pdev)
 	struct snd_soc_dai_link *link;
 	int ret;
 	int i;
-	bool qdsp = false, no_headphone = false;
+	bool qdsp = false, anal_headphone = false;
 
 	/* Allocate the private data */
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	card = &data->card;
 	snd_soc_card_set_drvdata(card, data);
@@ -513,7 +513,7 @@ static int sc7180_snd_platform_probe(struct platform_device *pdev)
 	card->controls = sc7180_snd_controls;
 	card->num_controls = ARRAY_SIZE(sc7180_snd_controls);
 
-	if (of_property_read_bool(dev->of_node, "dmic-gpios")) {
+	if (of_property_read_bool(dev->of_analde, "dmic-gpios")) {
 		card->dapm_widgets = sc7180_snd_dual_mic_widgets,
 		card->num_dapm_widgets = ARRAY_SIZE(sc7180_snd_dual_mic_widgets),
 		card->controls = sc7180_snd_dual_mic_controls,
@@ -527,11 +527,11 @@ static int sc7180_snd_platform_probe(struct platform_device *pdev)
 		}
 	}
 
-	if (of_device_is_compatible(dev->of_node, "google,sc7180-coachz")) {
-		no_headphone = true;
+	if (of_device_is_compatible(dev->of_analde, "google,sc7180-coachz")) {
+		anal_headphone = true;
 		card->dapm_widgets = sc7180_adau7002_snd_widgets;
 		card->num_dapm_widgets = ARRAY_SIZE(sc7180_adau7002_snd_widgets);
-	} else if (of_device_is_compatible(dev->of_node, "qcom,sc7180-qdsp6-sndcard")) {
+	} else if (of_device_is_compatible(dev->of_analde, "qcom,sc7180-qdsp6-sndcard")) {
 		qdsp = true;
 	}
 
@@ -540,11 +540,11 @@ static int sc7180_snd_platform_probe(struct platform_device *pdev)
 		return ret;
 
 	for_each_card_prelinks(card, i, link) {
-		if (no_headphone) {
+		if (anal_headphone) {
 			link->ops = &sc7180_adau7002_ops;
 			link->init = sc7180_adau7002_init;
 		} else if (qdsp) {
-			if (link->no_pcm == 1) {
+			if (link->anal_pcm == 1) {
 				link->ops = &sc7180_qdsp_ops;
 				link->be_hw_params_fixup = sc7180_qdsp_be_hw_params_fixup;
 				link->init = sc7180_qdsp_init;

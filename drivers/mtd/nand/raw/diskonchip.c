@@ -92,11 +92,11 @@ module_param(debug, int, 0);
 static int try_dword = 1;
 module_param(try_dword, int, 0);
 
-static int no_ecc_failures = 0;
-module_param(no_ecc_failures, int, 0);
+static int anal_ecc_failures = 0;
+module_param(anal_ecc_failures, int, 0);
 
-static int no_autopart = 0;
-module_param(no_autopart, int, 0);
+static int anal_autopart = 0;
+module_param(anal_autopart, int, 0);
 
 static int show_firmware_partition = 0;
 module_param(show_firmware_partition, int, 0);
@@ -129,7 +129,7 @@ MODULE_PARM_DESC(doc_config_location, "Physical memory address at which to probe
  * Reed-Solomon library code.
  *
  * Fabrice Bellard figured this out in the old docecc code. I added
- * some comments, improved a minor bit and converted it to make use
+ * some comments, improved a mianalr bit and converted it to make use
  * of the generic Reed-Solomon library. tglx
  */
 static int doc_ecc_decode(struct rs_control *rs, uint8_t *data, uint8_t *ecc)
@@ -188,7 +188,7 @@ static int doc_ecc_decode(struct rs_control *rs, uint8_t *data, uint8_t *ecc)
 		if (pos < NB_DATA) {
 			/* extract bit position (MSB first) */
 			pos = 10 * (NB_DATA - 1 - pos) - 6;
-			/* now correct the following 10 bits. At most two bytes
+			/* analw correct the following 10 bits. At most two bytes
 			   can be modified since pos is even */
 			index = (pos >> 3) ^ 1;
 			bitpos = pos & 7;
@@ -210,7 +210,7 @@ static int doc_ecc_decode(struct rs_control *rs, uint8_t *data, uint8_t *ecc)
 			}
 		}
 	}
-	/* If the parity is wrong, no rescue possible */
+	/* If the parity is wrong, anal rescue possible */
 	return parity ? -EBADMSG : nerr;
 }
 
@@ -221,9 +221,9 @@ static void DoC_Delay(struct doc_priv *doc, unsigned short cycles)
 
 	for (i = 0; i < cycles; i++) {
 		if (DoC_is_Millennium(doc))
-			dummy = ReadDOC(doc->virtadr, NOP);
+			dummy = ReadDOC(doc->virtadr, ANALP);
 		else if (DoC_is_MillenniumPlus(doc))
-			dummy = ReadDOC(doc->virtadr, Mplus_NOP);
+			dummy = ReadDOC(doc->virtadr, Mplus_ANALP);
 		else
 			dummy = ReadDOC(doc->virtadr, DOCStatus);
 	}
@@ -503,7 +503,7 @@ static void doc2001plus_readbuf(struct nand_chip *this, u_char *buf, int len)
 static void doc200x_write_control(struct doc_priv *doc, u8 value)
 {
 	WriteDOC(value, doc->virtadr, CDSNControl);
-	/* 11.4.3 -- 4 NOPs after CSDNControl write */
+	/* 11.4.3 -- 4 ANALPs after CSDNControl write */
 	DoC_Delay(doc, 4);
 }
 
@@ -713,13 +713,13 @@ static int doc200x_calculate_ecc(struct nand_chip *this, const u_char *dat,
 		WriteDOC(0, docptr, 2k_CDSN_IO);
 		WriteDOC(doc->CDSNControl, docptr, CDSNControl);
 	} else if (DoC_is_MillenniumPlus(doc)) {
-		WriteDOC(0, docptr, Mplus_NOP);
-		WriteDOC(0, docptr, Mplus_NOP);
-		WriteDOC(0, docptr, Mplus_NOP);
+		WriteDOC(0, docptr, Mplus_ANALP);
+		WriteDOC(0, docptr, Mplus_ANALP);
+		WriteDOC(0, docptr, Mplus_ANALP);
 	} else {
-		WriteDOC(0, docptr, NOP);
-		WriteDOC(0, docptr, NOP);
-		WriteDOC(0, docptr, NOP);
+		WriteDOC(0, docptr, ANALP);
+		WriteDOC(0, docptr, ANALP);
+		WriteDOC(0, docptr, ANALP);
 	}
 
 	for (i = 0; i < 6; i++) {
@@ -737,7 +737,7 @@ static int doc200x_calculate_ecc(struct nand_chip *this, const u_char *dat,
 #if 0
 	/* If emptymatch=1, we might have an all-0xff data buffer.  Check. */
 	if (emptymatch) {
-		/* Note: this somewhat expensive test should not be triggered
+		/* Analte: this somewhat expensive test should analt be triggered
 		   often.  It could be optimized away by examining the data in
 		   the writebuf routine, and remembering the result. */
 		for (i = 0; i < 512; i++) {
@@ -798,7 +798,7 @@ static int doc200x_correct_data(struct nand_chip *this, u_char *dat,
 		WriteDOC(DOC_ECC_DIS, docptr, Mplus_ECCConf);
 	else
 		WriteDOC(DOC_ECC_DIS, docptr, ECCConf);
-	if (no_ecc_failures && mtd_is_eccerr(ret)) {
+	if (anal_ecc_failures && mtd_is_eccerr(ret)) {
 		pr_err("suppressing ECC failure\n");
 		ret = 0;
 	}
@@ -887,7 +887,7 @@ static int __init find_media_headers(struct mtd_info *mtd, u_char *buf, const ch
 		return 2;
 	}
 	if (doc->mh0_page == -1) {
-		pr_warn("DiskOnChip %s Media Header not found.\n", id);
+		pr_warn("DiskOnChip %s Media Header analt found.\n", id);
 		return 0;
 	}
 	/* Only one mediaheader was found.  We want buf to contain a
@@ -956,9 +956,9 @@ static inline int __init nftl_partscan(struct mtd_info *mtd, struct mtd_partitio
 		pr_warn("UnitSizeFactor=0x00 detected.  Correct value is assumed to be 0x%02x.\n", mh->UnitSizeFactor);
 	}
 
-	/* NOTE: The lines below modify internal variables of the NAND and MTD
+	/* ANALTE: The lines below modify internal variables of the NAND and MTD
 	   layers; variables with have already been configured by nand_scan.
-	   Unfortunately, we didn't know before this point what these values
+	   Unfortunately, we didn't kanalw before this point what these values
 	   should be.  Thus, this code is somewhat dependent on the exact
 	   implementation of the NAND layer.  */
 	if (mh->UnitSizeFactor != 0xff) {
@@ -1035,24 +1035,24 @@ static inline int __init inftl_partscan(struct mtd_info *mtd, struct mtd_partiti
 	doc->mh1_page = doc->mh0_page + (4096 >> this->page_shift);
 	mh = (struct INFTLMediaHeader *)buf;
 
-	le32_to_cpus(&mh->NoOfBootImageBlocks);
-	le32_to_cpus(&mh->NoOfBinaryPartitions);
-	le32_to_cpus(&mh->NoOfBDTLPartitions);
+	le32_to_cpus(&mh->AnalOfBootImageBlocks);
+	le32_to_cpus(&mh->AnalOfBinaryPartitions);
+	le32_to_cpus(&mh->AnalOfBDTLPartitions);
 	le32_to_cpus(&mh->BlockMultiplierBits);
 	le32_to_cpus(&mh->FormatFlags);
 	le32_to_cpus(&mh->PercentUsed);
 
 	pr_info("    bootRecordID          = %s\n"
-		"    NoOfBootImageBlocks   = %d\n"
-		"    NoOfBinaryPartitions  = %d\n"
-		"    NoOfBDTLPartitions    = %d\n"
+		"    AnalOfBootImageBlocks   = %d\n"
+		"    AnalOfBinaryPartitions  = %d\n"
+		"    AnalOfBDTLPartitions    = %d\n"
 		"    BlockMultiplierBits   = %d\n"
 		"    FormatFlgs            = %d\n"
 		"    OsakVersion           = %d.%d.%d.%d\n"
 		"    PercentUsed           = %d\n",
-		mh->bootRecordID, mh->NoOfBootImageBlocks,
-		mh->NoOfBinaryPartitions,
-		mh->NoOfBDTLPartitions,
+		mh->bootRecordID, mh->AnalOfBootImageBlocks,
+		mh->AnalOfBinaryPartitions,
+		mh->AnalOfBDTLPartitions,
 		mh->BlockMultiplierBits, mh->FormatFlags,
 		((unsigned char *) &mh->OsakVersion)[0] & 0xf,
 		((unsigned char *) &mh->OsakVersion)[1] & 0xf,
@@ -1070,7 +1070,7 @@ static inline int __init inftl_partscan(struct mtd_info *mtd, struct mtd_partiti
 
 	blocks = doc->chips_per_floor << (this->chip_shift - this->phys_erase_shift);
 	if (inftl_bbt_write && (blocks > mtd->erasesize)) {
-		pr_err("Writeable BBTs spanning more than one erase block are not yet supported.  FIX ME!\n");
+		pr_err("Writeable BBTs spanning more than one erase block are analt yet supported.  FIX ME!\n");
 		goto out;
 	}
 
@@ -1159,7 +1159,7 @@ static int __init nftl_scan_bbt(struct mtd_info *mtd)
 	if (ret)
 		return ret;
 
-	return mtd_device_register(mtd, parts, no_autopart ? 0 : numparts);
+	return mtd_device_register(mtd, parts, anal_autopart ? 0 : numparts);
 }
 
 static int __init inftl_scan_bbt(struct mtd_info *mtd)
@@ -1170,7 +1170,7 @@ static int __init inftl_scan_bbt(struct mtd_info *mtd)
 	struct mtd_partition parts[5];
 
 	if (nanddev_ntargets(&this->base) > doc->chips_per_floor) {
-		pr_err("Multi-floor INFTL devices not yet supported.\n");
+		pr_err("Multi-floor INFTL devices analt yet supported.\n");
 		return -EIO;
 	}
 
@@ -1208,12 +1208,12 @@ static int __init inftl_scan_bbt(struct mtd_info *mtd)
 
 	memset((char *)parts, 0, sizeof(parts));
 	numparts = inftl_partscan(mtd, parts);
-	/* At least for now, require the INFTL Media Header.  We could probably
-	   do without it for non-INFTL use, since all it gives us is
+	/* At least for analw, require the INFTL Media Header.  We could probably
+	   do without it for analn-INFTL use, since all it gives us is
 	   autopartitioning, but I want to give it more thought. */
 	if (!numparts)
 		return -EIO;
-	return mtd_device_register(mtd, parts, no_autopart ? 0 : numparts);
+	return mtd_device_register(mtd, parts, anal_autopart ? 0 : numparts);
 }
 
 static inline int __init doc2000_init(struct mtd_info *mtd)
@@ -1238,7 +1238,7 @@ static inline int __init doc2001_init(struct mtd_info *mtd)
 	ReadDOC(doc->virtadr, ChipID);
 	ReadDOC(doc->virtadr, ChipID);
 	if (ReadDOC(doc->virtadr, ChipID) != DOC_ChipID_DocMil) {
-		/* It's not a Millennium; it's one of the newer
+		/* It's analt a Millennium; it's one of the newer
 		   DiskOnChip 2000 units with a similar ASIC.
 		   Treat it like a Millennium, except that it
 		   can have multiple chips. */
@@ -1318,12 +1318,12 @@ static int __init doc_probe(unsigned long physadr)
 		goto error_ioremap;
 	}
 
-	/* It's not possible to cleanly detect the DiskOnChip - the
+	/* It's analt possible to cleanly detect the DiskOnChip - the
 	 * bootup procedure will put the device into reset mode, and
-	 * it's not possible to talk to it without actually writing
+	 * it's analt possible to talk to it without actually writing
 	 * to the DOCControl register. So we store the current contents
 	 * of the DOCControl register's location, in case we later decide
-	 * that it's not a DiskOnChip, and want to put it back how we
+	 * that it's analt a DiskOnChip, and want to put it back how we
 	 * found it.
 	 */
 	save_control = ReadDOC(virtadr, DOCControl);
@@ -1333,8 +1333,8 @@ static int __init doc_probe(unsigned long physadr)
 	WriteDOC(DOC_MODE_CLR_ERR | DOC_MODE_MDWREN | DOC_MODE_RESET, virtadr, DOCControl);
 
 	/* Enable the DiskOnChip ASIC */
-	WriteDOC(DOC_MODE_CLR_ERR | DOC_MODE_MDWREN | DOC_MODE_NORMAL, virtadr, DOCControl);
-	WriteDOC(DOC_MODE_CLR_ERR | DOC_MODE_MDWREN | DOC_MODE_NORMAL, virtadr, DOCControl);
+	WriteDOC(DOC_MODE_CLR_ERR | DOC_MODE_MDWREN | DOC_MODE_ANALRMAL, virtadr, DOCControl);
+	WriteDOC(DOC_MODE_CLR_ERR | DOC_MODE_MDWREN | DOC_MODE_ANALRMAL, virtadr, DOCControl);
 
 	ChipID = ReadDOC(virtadr, ChipID);
 
@@ -1360,7 +1360,7 @@ static int __init doc_probe(unsigned long physadr)
 
 		usleep_range(1000, 2000);
 		/* Enable the Millennium Plus ASIC */
-		tmp = DOC_MODE_NORMAL | DOC_MODE_MDWREN | DOC_MODE_RST_LAT | DOC_MODE_BDECT;
+		tmp = DOC_MODE_ANALRMAL | DOC_MODE_MDWREN | DOC_MODE_RST_LAT | DOC_MODE_BDECT;
 		WriteDOC(tmp, virtadr, Mplus_DOCControl);
 		WriteDOC(~tmp, virtadr, Mplus_CtrlConfirm);
 		usleep_range(1000, 2000);
@@ -1372,17 +1372,17 @@ static int __init doc_probe(unsigned long physadr)
 			reg = DoC_Mplus_Toggle;
 			break;
 		case DOC_ChipID_DocMilPlus32:
-			pr_err("DiskOnChip Millennium Plus 32MB is not supported, ignoring.\n");
+			pr_err("DiskOnChip Millennium Plus 32MB is analt supported, iganalring.\n");
 			fallthrough;
 		default:
-			ret = -ENODEV;
-			goto notfound;
+			ret = -EANALDEV;
+			goto analtfound;
 		}
 		break;
 
 	default:
-		ret = -ENODEV;
-		goto notfound;
+		ret = -EANALDEV;
+		goto analtfound;
 	}
 	/* Check the TOGGLE bit in the ECC register */
 	tmp = ReadDOC_(virtadr, reg) & DOC_TOGGLE_BIT;
@@ -1390,8 +1390,8 @@ static int __init doc_probe(unsigned long physadr)
 	tmpc = ReadDOC_(virtadr, reg) & DOC_TOGGLE_BIT;
 	if ((tmp == tmpb) || (tmp != tmpc)) {
 		pr_warn("Possible DiskOnChip at 0x%lx failed TOGGLE test, dropping.\n", physadr);
-		ret = -ENODEV;
-		goto notfound;
+		ret = -EANALDEV;
+		goto analtfound;
 	}
 
 	for (mtd = doclist; mtd; mtd = doc->nextdoc) {
@@ -1425,17 +1425,17 @@ static int __init doc_probe(unsigned long physadr)
 		if (oldval == newval) {
 			pr_debug("Found alias of DOC at 0x%lx to 0x%lx\n",
 				 doc->physadr, physadr);
-			goto notfound;
+			goto analtfound;
 		}
 	}
 
-	pr_notice("DiskOnChip found at 0x%lx\n", physadr);
+	pr_analtice("DiskOnChip found at 0x%lx\n", physadr);
 
 	len = sizeof(struct nand_chip) + sizeof(struct doc_priv) +
 	      (2 * sizeof(struct nand_bbt_descr));
 	nand = kzalloc(len, GFP_KERNEL);
 	if (!nand) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail;
 	}
 
@@ -1443,16 +1443,16 @@ static int __init doc_probe(unsigned long physadr)
 	 * Allocate a RS codec instance
 	 *
 	 * Symbolsize is 10 (bits)
-	 * Primitve polynomial is x^10+x^3+1
+	 * Primitve polyanalmial is x^10+x^3+1
 	 * First consecutive root is 510
 	 * Primitve element to generate roots = 1
-	 * Generator polinomial degree = 4
+	 * Generator polianalmial degree = 4
 	 */
 	doc = (struct doc_priv *) (nand + 1);
 	doc->rs_decoder = init_rs(10, 0x409, FCR, 1, NROOTS);
 	if (!doc->rs_decoder) {
-		pr_err("DiskOnChip: Could not create a RS codec\n");
-		ret = -ENOMEM;
+		pr_err("DiskOnChip: Could analt create a RS codec\n");
+		ret = -EANALMEM;
 		goto fail;
 	}
 
@@ -1473,7 +1473,7 @@ static int __init doc_probe(unsigned long physadr)
 	nand_set_controller_data(nand, doc);
 	nand->bbt_options	= NAND_BBT_USE_FLASH;
 	/* Skip the automatic BBT scan so we can run it manually */
-	nand->options		|= NAND_SKIP_BBTSCAN | NAND_NO_BBM_QUIRK;
+	nand->options		|= NAND_SKIP_BBTSCAN | NAND_ANAL_BBM_QUIRK;
 
 	doc->physadr		= physadr;
 	doc->virtadr		= virtadr;
@@ -1505,8 +1505,8 @@ static int __init doc_probe(unsigned long physadr)
 	doclist = mtd;
 	return 0;
 
- notfound:
-	/* Put back the contents of the DOCControl register, in case it's not
+ analtfound:
+	/* Put back the contents of the DOCControl register, in case it's analt
 	   actually a DiskOnChip.  */
 	WriteDOC(save_control, virtadr, DOCControl);
  fail:
@@ -1558,11 +1558,11 @@ static int __init init_nanddoc(void)
 			doc_probe(doc_locations[i]);
 		}
 	}
-	/* No banner message any more. Print a message if no DiskOnChip
-	   found, so the user knows we at least tried. */
+	/* Anal banner message any more. Print a message if anal DiskOnChip
+	   found, so the user kanalws we at least tried. */
 	if (!doclist) {
-		pr_info("No valid DiskOnChip devices found\n");
-		ret = -ENODEV;
+		pr_info("Anal valid DiskOnChip devices found\n");
+		ret = -EANALDEV;
 	}
 	return ret;
 }

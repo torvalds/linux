@@ -13,9 +13,9 @@
 #include <asm/oplib.h>
 #include <asm/io.h>
 
-#define NO_SCROLL
+#define ANAL_SCROLL
 
-#ifndef NO_SCROLL
+#ifndef ANAL_SCROLL
 static void scrollscreen(void);
 #endif
 
@@ -40,31 +40,31 @@ static unsigned char *dispDeviceBase __force_data;
 
 static unsigned char vga_font[cmapsz];
 
-static int __init btext_initialize(phandle node)
+static int __init btext_initialize(phandle analde)
 {
 	unsigned int width, height, depth, pitch;
 	unsigned long address = 0;
 	u32 prop;
 
-	if (prom_getproperty(node, "width", (char *)&width, 4) < 0)
+	if (prom_getproperty(analde, "width", (char *)&width, 4) < 0)
 		return -EINVAL;
-	if (prom_getproperty(node, "height", (char *)&height, 4) < 0)
+	if (prom_getproperty(analde, "height", (char *)&height, 4) < 0)
 		return -EINVAL;
-	if (prom_getproperty(node, "depth", (char *)&depth, 4) < 0)
+	if (prom_getproperty(analde, "depth", (char *)&depth, 4) < 0)
 		return -EINVAL;
 	pitch = width * ((depth + 7) / 8);
 
-	if (prom_getproperty(node, "linebytes", (char *)&prop, 4) >= 0 &&
+	if (prom_getproperty(analde, "linebytes", (char *)&prop, 4) >= 0 &&
 	    prop != 0xffffffffu)
 		pitch = prop;
 
 	if (pitch == 1)
 		pitch = 0x1000;
 
-	if (prom_getproperty(node, "address", (char *)&prop, 4) >= 0)
+	if (prom_getproperty(analde, "address", (char *)&prop, 4) >= 0)
 		address = prop;
 
-	/* FIXME: Add support for PCI reg properties. Right now, only
+	/* FIXME: Add support for PCI reg properties. Right analw, only
 	 * reliable on macs
 	 */
 	if (address == 0)
@@ -110,7 +110,7 @@ static void btext_clearscreen(void)
 	}
 }
 
-#ifndef NO_SCROLL
+#ifndef ANAL_SCROLL
 static void scrollscreen(void)
 {
 	unsigned int *src     	= (unsigned int *)calc_base(0,16);
@@ -136,12 +136,12 @@ static void scrollscreen(void)
 		dst += (dispDeviceRowBytes >> 2);
 	}
 }
-#endif /* ndef NO_SCROLL */
+#endif /* ndef ANAL_SCROLL */
 
 static void btext_drawchar(char c)
 {
 	int cline = 0;
-#ifdef NO_SCROLL
+#ifdef ANAL_SCROLL
 	int x;
 #endif
 	switch (c) {
@@ -168,7 +168,7 @@ static void btext_drawchar(char c)
 		g_loc_Y++;
 		cline = 1;
 	}
-#ifndef NO_SCROLL
+#ifndef ANAL_SCROLL
 	while (g_loc_Y >= g_max_loc_Y) {
 		scrollscreen();
 		g_loc_Y--;
@@ -309,17 +309,17 @@ static struct console btext_console = {
 
 int __init btext_find_display(void)
 {
-	phandle node;
+	phandle analde;
 	char type[32];
 	int ret;
 
-	node = prom_inst2pkg(prom_stdout);
-	if (prom_getproperty(node, "device_type", type, 32) < 0)
-		return -ENODEV;
+	analde = prom_inst2pkg(prom_stdout);
+	if (prom_getproperty(analde, "device_type", type, 32) < 0)
+		return -EANALDEV;
 	if (strcmp(type, "display"))
-		return -ENODEV;
+		return -EANALDEV;
 
-	ret = btext_initialize(node);
+	ret = btext_initialize(analde);
 	if (!ret) {
 		btext_clearscreen();
 		register_console(&btext_console);

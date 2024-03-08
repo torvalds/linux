@@ -3,7 +3,7 @@
 * License.  See the file "COPYING" in the main directory of this archive
 * for more details.
 *
-* Copyright (C) 2012  MIPS Technologies, Inc.  All rights reserved.
+* Copyright (C) 2012  MIPS Techanallogies, Inc.  All rights reserved.
 * Authors: Sanjay Lal <sanjayl@kymasys.com>
 */
 
@@ -159,7 +159,7 @@ struct ipi_state {
 struct loongson_kvm_ipi;
 
 struct ipi_io_device {
-	int node_id;
+	int analde_id;
 	struct loongson_kvm_ipi *ipi;
 	struct kvm_io_device device;
 };
@@ -244,7 +244,7 @@ struct mips_coproc {
 #define MIPS_CP0_GTOFFSET_SEL	7
 
 /* Resume Flags */
-#define RESUME_FLAG_DR		(1<<0)	/* Reload guest nonvolatile state? */
+#define RESUME_FLAG_DR		(1<<0)	/* Reload guest analnvolatile state? */
 #define RESUME_FLAG_HOST	(1<<1)	/* Resume host? */
 
 #define RESUME_GUEST		0
@@ -252,7 +252,7 @@ struct mips_coproc {
 #define RESUME_HOST		RESUME_FLAG_HOST
 
 enum emulation_result {
-	EMULATE_DONE,		/* no further processing */
+	EMULATE_DONE,		/* anal further processing */
 	EMULATE_DO_MMIO,	/* kvm_run filled with MMIO request */
 	EMULATE_FAIL,		/* can't emulate this instruction */
 	EMULATE_WAIT,		/* WAIT instruction */
@@ -331,7 +331,7 @@ struct kvm_vcpu_arch {
 	u32 count_bias;
 	/* Frequency of timer in Hz */
 	u32 count_hz;
-	/* Dynamic nanosecond bias (multiple of count_period) to avoid overflow */
+	/* Dynamic naanalsecond bias (multiple of count_period) to avoid overflow */
 	s64 count_dyn_bias;
 	/* Resume time */
 	ktime_t count_resume;
@@ -675,7 +675,7 @@ __BUILD_KVM_RW_HW(kscratch6,      l,  MIPS_CP0_DESAVE,       7)
 
 /* Bitwise operations (on HW state) */
 __BUILD_KVM_SET_HW(status,        32, MIPS_CP0_STATUS,       0)
-/* Cause can be modified asynchronously from hardirq hrtimer callback */
+/* Cause can be modified asynchroanalusly from hardirq hrtimer callback */
 __BUILD_KVM_ATOMIC_HW(cause,      32, MIPS_CP0_CAUSE,        0)
 __BUILD_KVM_SET_HW(ebase,         l,  MIPS_CP0_PRID,         1)
 

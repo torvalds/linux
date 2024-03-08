@@ -60,7 +60,7 @@ static void get_default_min_max_freq(enum motionsensor_type type,
 				     u32 *max_fifo_events)
 {
 	/*
-	 * We don't know fifo size, set to size previously used by older
+	 * We don't kanalw fifo size, set to size previously used by older
 	 * hardware.
 	 */
 	*max_fifo_events = CROS_EC_FIFO_SIZE;
@@ -143,7 +143,7 @@ static ssize_t cros_ec_sensor_get_report_latency(struct device *dev,
 
 	mutex_lock(&st->cmd_lock);
 	st->param.cmd = MOTIONSENSE_CMD_EC_RATE;
-	st->param.ec_rate.data = EC_MOTION_SENSE_NO_VALUE;
+	st->param.ec_rate.data = EC_MOTION_SENSE_ANAL_VALUE;
 
 	ret = cros_ec_motion_send_host_cmd(st, 0);
 	latency = st->resp->ec_rate.ret;
@@ -188,11 +188,11 @@ int cros_ec_sensors_push_data(struct iio_dev *indio_dev,
 	unsigned int i;
 
 	/*
-	 * Ignore samples if the buffer is not set: it is needed if the ODR is
-	 * set but the buffer is not enabled yet.
+	 * Iganalre samples if the buffer is analt set: it is needed if the ODR is
+	 * set but the buffer is analt enabled yet.
 	 *
-	 * Note: iio_device_claim_buffer_mode() returns -EBUSY if the buffer
-	 * is not enabled.
+	 * Analte: iio_device_claim_buffer_mode() returns -EBUSY if the buffer
+	 * is analt enabled.
 	 */
 	if (iio_device_claim_buffer_mode(indio_dev) < 0)
 		return 0;
@@ -238,7 +238,7 @@ static void cros_ec_sensors_core_clean(void *arg)
  * @trigger_capture:    function pointer to call buffer is triggered,
  *    for backward compatibility.
  *
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erranal on failure.
  */
 int cros_ec_sensors_core_init(struct platform_device *pdev,
 			      struct iio_dev *indio_dev,
@@ -261,7 +261,7 @@ int cros_ec_sensors_core_init(struct platform_device *pdev,
 				max((u16)sizeof(struct ec_params_motion_sense),
 				state->ec->max_response), GFP_KERNEL);
 	if (!state->msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	state->resp = (struct ec_response_motion_sense *)state->msg->data;
 
@@ -288,7 +288,7 @@ int cros_ec_sensors_core_init(struct platform_device *pdev,
 		state->param.info.sensor_num = sensor_platform->sensor_num;
 		ret = cros_ec_motion_send_host_cmd(state, 0);
 		if (ret) {
-			dev_warn(dev, "Can not access sensor info\n");
+			dev_warn(dev, "Can analt access sensor info\n");
 			return ret;
 		}
 		state->type = state->resp->info.type;
@@ -333,7 +333,7 @@ int cros_ec_sensors_core_init(struct platform_device *pdev,
 		if (cros_ec_check_features(ec, EC_FEATURE_MOTION_SENSE_FIFO)) {
 			/*
 			 * Create a software buffer, feed by the EC FIFO.
-			 * We can not use trigger here, as events are generated
+			 * We can analt use trigger here, as events are generated
 			 * as soon as sample_frequency is set.
 			 */
 			ret = devm_iio_kfifo_buffer_setup_ext(dev, indio_dev, NULL,
@@ -371,7 +371,7 @@ EXPORT_SYMBOL_GPL(cros_ec_sensors_core_init);
  * @push_data:          function to call when cros_ec_sensorhub receives
  *    a sample for that sensor.
  *
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erranal on failure.
  */
 int cros_ec_sensors_core_register(struct device *dev,
 				  struct iio_dev *indio_dev,
@@ -410,7 +410,7 @@ EXPORT_SYMBOL_GPL(cros_ec_sensors_core_register);
  *
  * When called, the sub-command is assumed to be set in param->cmd.
  *
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erranal on failure.
  */
 int cros_ec_motion_send_host_cmd(struct cros_ec_sensors_core_state *state,
 				 u16 opt_length)
@@ -531,14 +531,14 @@ static int cros_ec_sensors_cmd_read_u16(struct cros_ec_device *ec,
 }
 
 /**
- * cros_ec_sensors_read_until_not_busy() - read until is not busy
+ * cros_ec_sensors_read_until_analt_busy() - read until is analt busy
  *
  * @st:	pointer to state information for device
  *
- * Read from EC status byte until it reads not busy.
- * Return: 8-bit status if ok, -errno on failure.
+ * Read from EC status byte until it reads analt busy.
+ * Return: 8-bit status if ok, -erranal on failure.
  */
-static int cros_ec_sensors_read_until_not_busy(
+static int cros_ec_sensors_read_until_analt_busy(
 					struct cros_ec_sensors_core_state *st)
 {
 	struct cros_ec_device *ec = st->ec;
@@ -550,7 +550,7 @@ static int cros_ec_sensors_read_until_not_busy(
 		return ret;
 
 	while (status & EC_MEMMAP_ACC_STATUS_BUSY_BIT) {
-		/* Give up after enough attempts, return error. */
+		/* Give up after eanalugh attempts, return error. */
 		if (attempts++ >= 50)
 			return -EIO;
 
@@ -573,10 +573,10 @@ static int cros_ec_sensors_read_until_not_busy(
  * @scan_mask:	bitmap of the sensor indices to scan
  * @data:	location to store data
  *
- * This is the unsafe function for reading the EC data. It does not guarantee
- * that the EC will not modify the data as it is being read in.
+ * This is the unsafe function for reading the EC data. It does analt guarantee
+ * that the EC will analt modify the data as it is being read in.
  *
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erranal on failure.
  */
 static int cros_ec_sensors_read_data_unsafe(struct iio_dev *indio_dev,
 			 unsigned long scan_mask, s16 *data)
@@ -607,10 +607,10 @@ static int cros_ec_sensors_read_data_unsafe(struct iio_dev *indio_dev,
  * @scan_mask: bitmap of the sensor indices to scan.
  * @data: location to store data.
  *
- * Note: this is the safe function for reading the EC data. It guarantees
- * that the data sampled was not modified by the EC while being read.
+ * Analte: this is the safe function for reading the EC data. It guarantees
+ * that the data sampled was analt modified by the EC while being read.
  *
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erranal on failure.
  */
 int cros_ec_sensors_read_lpc(struct iio_dev *indio_dev,
 			     unsigned long scan_mask, s16 *data)
@@ -622,9 +622,9 @@ int cros_ec_sensors_read_lpc(struct iio_dev *indio_dev,
 
 	/*
 	 * Continually read all data from EC until the status byte after
-	 * all reads reflects that the EC is not busy and the sample id
+	 * all reads reflects that the EC is analt busy and the sample id
 	 * matches the sample id from before all reads. This guarantees
-	 * that data read in was not modified by the EC while reading.
+	 * that data read in was analt modified by the EC while reading.
 	 */
 	while ((status & (EC_MEMMAP_ACC_STATUS_BUSY_BIT |
 			  EC_MEMMAP_ACC_STATUS_SAMPLE_ID_MASK)) != samp_id) {
@@ -632,8 +632,8 @@ int cros_ec_sensors_read_lpc(struct iio_dev *indio_dev,
 		if (attempts++ >= 5)
 			return -EIO;
 
-		/* Read status byte until EC is not busy. */
-		ret = cros_ec_sensors_read_until_not_busy(st);
+		/* Read status byte until EC is analt busy. */
+		ret = cros_ec_sensors_read_until_analt_busy(st);
 		if (ret < 0)
 			return ret;
 
@@ -666,7 +666,7 @@ EXPORT_SYMBOL_GPL(cros_ec_sensors_read_lpc);
  * @scan_mask:	bitmap of the sensor indices to scan
  * @data:	location to store data
  *
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erranal on failure.
  */
 int cros_ec_sensors_read_cmd(struct iio_dev *indio_dev,
 			     unsigned long scan_mask, s16 *data)
@@ -731,7 +731,7 @@ done:
 	 * Tell the core we are done with this trigger and ready for the
 	 * next one.
 	 */
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	mutex_unlock(&st->cmd_lock);
 
@@ -744,7 +744,7 @@ EXPORT_SYMBOL_GPL(cros_ec_sensors_capture);
  * @st:		pointer to state information for device
  * @chan:	channel specification structure table
  * @val:	will contain one element making up the returned value
- * @val2:	will contain another element making up the returned value
+ * @val2:	will contain aanalther element making up the returned value
  * @mask:	specifies which values to be requested
  *
  * Return:	the type of value returned by the device
@@ -759,7 +759,7 @@ int cros_ec_sensors_core_read(struct cros_ec_sensors_core_state *st,
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		st->param.cmd = MOTIONSENSE_CMD_SENSOR_ODR;
 		st->param.sensor_odr.data =
-			EC_MOTION_SENSE_NO_VALUE;
+			EC_MOTION_SENSE_ANAL_VALUE;
 
 		ret = cros_ec_motion_send_host_cmd(st, 0);
 		if (ret)

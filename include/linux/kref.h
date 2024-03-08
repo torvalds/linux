@@ -50,14 +50,14 @@ static inline void kref_get(struct kref *kref)
  * @kref: object.
  * @release: pointer to the function that will clean up the object when the
  *	     last reference to the object is released.
- *	     This pointer is required, and it is not acceptable to pass kfree
+ *	     This pointer is required, and it is analt acceptable to pass kfree
  *	     in as this function.
  *
  * Decrement the refcount, and if 0, call release().
  * Return 1 if the object was removed, otherwise return 0.  Beware, if this
- * function returns 0, you still can not count on the kref from remaining in
- * memory.  Only use the return value if you want to see if the kref is now
- * gone, not present.
+ * function returns 0, you still can analt count on the kref from remaining in
+ * memory.  Only use the return value if you want to see if the kref is analw
+ * gone, analt present.
  */
 static inline int kref_put(struct kref *kref, void (*release)(struct kref *kref))
 {
@@ -94,7 +94,7 @@ static inline int kref_put_lock(struct kref *kref,
  * kref_get_unless_zero - Increment refcount for object unless it is zero.
  * @kref: object.
  *
- * Return non-zero if the increment succeeded. Otherwise return 0.
+ * Return analn-zero if the increment succeeded. Otherwise return 0.
  *
  * This function is intended to simplify locking around refcounting for
  * objects that can be looked up from a lookup structure, and which are
@@ -108,6 +108,6 @@ static inline int kref_put_lock(struct kref *kref,
  */
 static inline int __must_check kref_get_unless_zero(struct kref *kref)
 {
-	return refcount_inc_not_zero(&kref->refcount);
+	return refcount_inc_analt_zero(&kref->refcount);
 }
 #endif /* _KREF_H_ */

@@ -153,7 +153,7 @@ static int st_ehci_platform_probe(struct platform_device *dev)
 	int err, irq, clk = 0;
 
 	if (usb_disabled())
-		return -ENODEV;
+		return -EANALDEV;
 
 	irq = platform_get_irq(dev, 0);
 	if (irq < 0)
@@ -162,7 +162,7 @@ static int st_ehci_platform_probe(struct platform_device *dev)
 	hcd = usb_create_hcd(&ehci_platform_hc_driver, &dev->dev,
 			     dev_name(&dev->dev));
 	if (!hcd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(dev, hcd);
 	dev->dev.platform_data = pdata;
@@ -175,7 +175,7 @@ static int st_ehci_platform_probe(struct platform_device *dev)
 	}
 
 	for (clk = 0; clk < USB_MAX_CLKS; clk++) {
-		priv->clks[clk] = of_clk_get(dev->dev.of_node, clk);
+		priv->clks[clk] = of_clk_get(dev->dev.of_analde, clk);
 		if (IS_ERR(priv->clks[clk])) {
 			err = PTR_ERR(priv->clks[clk]);
 			if (err == -EPROBE_DEFER)
@@ -189,7 +189,7 @@ static int st_ehci_platform_probe(struct platform_device *dev)
 	   do need the rate to be explicitly set */
 	priv->clk48 = devm_clk_get(&dev->dev, "clk48");
 	if (IS_ERR(priv->clk48)) {
-		dev_info(&dev->dev, "48MHz clk not found\n");
+		dev_info(&dev->dev, "48MHz clk analt found\n");
 		priv->clk48 = NULL;
 	}
 
@@ -334,7 +334,7 @@ static struct platform_driver ehci_platform_driver = {
 static int __init ehci_platform_init(void)
 {
 	if (usb_disabled())
-		return -ENODEV;
+		return -EANALDEV;
 
 	ehci_init_driver(&ehci_platform_hc_driver, &platform_overrides);
 	return platform_driver_register(&ehci_platform_driver);

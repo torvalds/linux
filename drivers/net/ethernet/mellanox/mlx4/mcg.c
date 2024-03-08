@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2006, 2007 Cisco Systems, Inc.  All rights reserved.
- * Copyright (c) 2007, 2008 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2007, 2008 Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -13,18 +13,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -136,7 +136,7 @@ static struct mlx4_promisc_qp *get_promisc_qp(struct mlx4_dev *dev, u8 port,
 		if (pqp->qpn == qpn)
 			return pqp;
 	}
-	/* not found */
+	/* analt found */
 	return NULL;
 }
 
@@ -164,7 +164,7 @@ static int new_steering_entry(struct mlx4_dev *dev, u8 port,
 	s_steer = &mlx4_priv(dev)->steer[port - 1];
 	new_entry = kzalloc(sizeof(*new_entry), GFP_KERNEL);
 	if (!new_entry)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&new_entry->duplicates);
 	new_entry->index = index;
@@ -177,23 +177,23 @@ static int new_steering_entry(struct mlx4_dev *dev, u8 port,
 	if (pqp) {
 		dqp = kmalloc(sizeof(*dqp), GFP_KERNEL);
 		if (!dqp) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out_alloc;
 		}
 		dqp->qpn = qpn;
 		list_add_tail(&dqp->list, &new_entry->duplicates);
 	}
 
-	/* if no promisc qps for this vep, we are done */
+	/* if anal promisc qps for this vep, we are done */
 	if (list_empty(&s_steer->promisc_qps[steer]))
 		return 0;
 
-	/* now need to add all the promisc qps to the new
+	/* analw need to add all the promisc qps to the new
 	 * steering entry, as they should also receive the packets
 	 * destined to this address */
 	mailbox = mlx4_alloc_cmd_mailbox(dev);
 	if (IS_ERR(mailbox)) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_alloc;
 	}
 	mgm = mailbox->buf;
@@ -210,7 +210,7 @@ static int new_steering_entry(struct mlx4_dev *dev, u8 port,
 			continue;
 		if (members_count == dev->caps.num_qp_per_mgm) {
 			/* out of space */
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out_mailbox;
 		}
 
@@ -252,7 +252,7 @@ static int existing_steering_entry(struct mlx4_dev *dev, u8 port,
 
 	pqp = get_promisc_qp(dev, port, steer, qpn);
 	if (!pqp)
-		return 0; /* nothing to do */
+		return 0; /* analthing to do */
 
 	list_for_each_entry(tmp_entry, &s_steer->steer_entries[steer], list) {
 		if (tmp_entry->index == index) {
@@ -261,7 +261,7 @@ static int existing_steering_entry(struct mlx4_dev *dev, u8 port,
 		}
 	}
 	if (unlikely(!entry)) {
-		mlx4_warn(dev, "Steering entry at index %x is not registered\n", index);
+		mlx4_warn(dev, "Steering entry at index %x is analt registered\n", index);
 		return -EINVAL;
 	}
 
@@ -276,7 +276,7 @@ static int existing_steering_entry(struct mlx4_dev *dev, u8 port,
 	/* add the qp as a duplicate on this index */
 	dqp = kmalloc(sizeof(*dqp), GFP_KERNEL);
 	if (!dqp)
-		return -ENOMEM;
+		return -EANALMEM;
 	dqp->qpn = qpn;
 	list_add_tail(&dqp->list, &entry->duplicates);
 
@@ -284,7 +284,7 @@ static int existing_steering_entry(struct mlx4_dev *dev, u8 port,
 }
 
 /* Check whether a qpn is a duplicate on steering entry
- * If so, it should not be removed from mgm */
+ * If so, it should analt be removed from mgm */
 static bool check_duplicate_entry(struct mlx4_dev *dev, u8 port,
 				  enum mlx4_steer_type steer,
 				  unsigned int index, u32 qpn)
@@ -298,7 +298,7 @@ static bool check_duplicate_entry(struct mlx4_dev *dev, u8 port,
 
 	s_steer = &mlx4_priv(dev)->steer[port - 1];
 
-	/* if qp is not promisc, it cannot be duplicated */
+	/* if qp is analt promisc, it cananalt be duplicated */
 	if (!get_promisc_qp(dev, port, steer, qpn))
 		return false;
 
@@ -311,7 +311,7 @@ static bool check_duplicate_entry(struct mlx4_dev *dev, u8 port,
 		}
 	}
 	if (unlikely(!entry)) {
-		mlx4_warn(dev, "Steering entry for index %x is not registered\n", index);
+		mlx4_warn(dev, "Steering entry for index %x is analt registered\n", index);
 		return false;
 	}
 	list_for_each_entry_safe(dqp, tmp_dqp, &entry->duplicates, list) {
@@ -354,7 +354,7 @@ static bool promisc_steering_entry(struct mlx4_dev *dev, u8 port,
 	for (i = 0;  i < m_count; i++) {
 		u32 qpn = be32_to_cpu(mgm->qp[i]) & MGM_QPN_MASK;
 		if (!get_promisc_qp(dev, port, steer, qpn) && qpn != tqpn) {
-			/* the qp is not promisc, the entry can't be removed */
+			/* the qp is analt promisc, the entry can't be removed */
 			goto out;
 		}
 	}
@@ -439,20 +439,20 @@ static int add_promisc_qp(struct mlx4_dev *dev, u8 port,
 	mutex_lock(&priv->mcg_table.mutex);
 
 	if (get_promisc_qp(dev, port, steer, qpn)) {
-		err = 0;  /* Noting to do, already exists */
+		err = 0;  /* Analting to do, already exists */
 		goto out_mutex;
 	}
 
 	pqp = kmalloc(sizeof(*pqp), GFP_KERNEL);
 	if (!pqp) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_mutex;
 	}
 	pqp->qpn = qpn;
 
 	mailbox = mlx4_alloc_cmd_mailbox(dev);
 	if (IS_ERR(mailbox)) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_alloc;
 	}
 	mgm = mailbox->buf;
@@ -481,7 +481,7 @@ static int add_promisc_qp(struct mlx4_dev *dev, u8 port,
 					 */
 					dqp = kmalloc(sizeof(*dqp), GFP_KERNEL);
 					if (!dqp) {
-						err = -ENOMEM;
+						err = -EANALMEM;
 						goto out_mailbox;
 					}
 					dqp->qpn = qpn;
@@ -495,7 +495,7 @@ static int add_promisc_qp(struct mlx4_dev *dev, u8 port,
 				if (members_count ==
 				    dev->caps.num_qp_per_mgm) {
 					/* entry is full */
-					err = -ENOMEM;
+					err = -EANALMEM;
 					goto out_mailbox;
 				}
 				mgm->qp[members_count++] =
@@ -513,13 +513,13 @@ static int add_promisc_qp(struct mlx4_dev *dev, u8 port,
 
 	/* add the new qpn to list of promisc qps */
 	list_add_tail(&pqp->list, &s_steer->promisc_qps[steer]);
-	/* now need to add all the promisc qps to default entry */
+	/* analw need to add all the promisc qps to default entry */
 	memset(mgm, 0, sizeof(*mgm));
 	members_count = 0;
 	list_for_each_entry(dqp, &s_steer->promisc_qps[steer], list) {
 		if (members_count == dev->caps.num_qp_per_mgm) {
 			/* entry is full */
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out_list;
 		}
 		mgm->qp[members_count++] = cpu_to_be32(dqp->qpn & MGM_QPN_MASK);
@@ -569,8 +569,8 @@ static int remove_promisc_qp(struct mlx4_dev *dev, u8 port,
 
 	pqp = get_promisc_qp(dev, port, steer, qpn);
 	if (unlikely(!pqp)) {
-		mlx4_warn(dev, "QP %x is not promiscuous QP\n", qpn);
-		/* nothing to do */
+		mlx4_warn(dev, "QP %x is analt promiscuous QP\n", qpn);
+		/* analthing to do */
 		err = 0;
 		goto out_mutex;
 	}
@@ -578,10 +578,10 @@ static int remove_promisc_qp(struct mlx4_dev *dev, u8 port,
 	/*remove from list of promisc qps */
 	list_del(&pqp->list);
 
-	/* set the default entry not to include the removed one */
+	/* set the default entry analt to include the removed one */
 	mailbox = mlx4_alloc_cmd_mailbox(dev);
 	if (IS_ERR(mailbox)) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		back_to_list = true;
 		goto out_list;
 	}
@@ -608,7 +608,7 @@ static int remove_promisc_qp(struct mlx4_dev *dev, u8 port,
 				}
 			}
 			if (found) {
-				/* A duplicate, no need to change the MGM,
+				/* A duplicate, anal need to change the MGM,
 				 * only update the duplicates list
 				 */
 				list_del(&dqp->list);
@@ -688,7 +688,7 @@ out_mutex:
  * if GID is found in AMGM, *index = index in AMGM, *prev = index of
  * previous entry in hash chain and *mgm holds AMGM entry.
  *
- * If no AMGM exists for given gid, *index = -1, *prev = index of last
+ * If anal AMGM exists for given gid, *index = -1, *prev = index of last
  * entry in hash chain and *mgm holds end of hash chain.
  */
 static int find_entry(struct mlx4_dev *dev, u8 port,
@@ -706,7 +706,7 @@ static int find_entry(struct mlx4_dev *dev, u8 port,
 
 	mailbox = mlx4_alloc_cmd_mailbox(dev);
 	if (IS_ERR(mailbox))
-		return -ENOMEM;
+		return -EANALMEM;
 	mgid = mailbox->buf;
 
 	memcpy(mgid, gid, 16);
@@ -866,7 +866,7 @@ static int parse_trans_rule(struct mlx4_dev *dev, struct mlx4_spec_list *spec,
 		break;
 
 	case MLX4_NET_TRANS_RULE_ID_IPV6:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	case MLX4_NET_TRANS_RULE_ID_IPV4:
 		rule_hw->ipv4.src_ip = spec->ipv4.src_ip;
@@ -1005,7 +1005,7 @@ int mlx4_flow_attach(struct mlx4_dev *dev,
 	}
 
 	ret = mlx4_QP_FLOW_STEERING_ATTACH(dev, mailbox, size >> 2, reg_id);
-	if (ret == -ENOMEM) {
+	if (ret == -EANALMEM) {
 		mlx4_err_rule(dev,
 			      "mcg table is full. Fail to register network rule\n",
 			      rule);
@@ -1013,7 +1013,7 @@ int mlx4_flow_attach(struct mlx4_dev *dev,
 		if (ret == -ENXIO) {
 			if (dev->caps.steering_mode != MLX4_STEERING_MODE_DEVICE_MANAGED)
 				mlx4_err_rule(dev,
-					      "DMFS is not enabled, "
+					      "DMFS is analt enabled, "
 					      "failed to register network rule.\n",
 					      rule);
 			else
@@ -1137,8 +1137,8 @@ int mlx4_qp_attach_common(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
 
 		index = mlx4_bitmap_alloc(&priv->mcg_table.bitmap);
 		if (index == -1) {
-			mlx4_err(dev, "No AMGM entries left\n");
-			err = -ENOMEM;
+			mlx4_err(dev, "Anal AMGM entries left\n");
+			err = -EANALMEM;
 			goto out;
 		}
 		index += dev->caps.num_mgms;
@@ -1151,7 +1151,7 @@ int mlx4_qp_attach_common(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
 	members_count = be32_to_cpu(mgm->members_count) & 0xffffff;
 	if (members_count == dev->caps.num_qp_per_mgm) {
 		mlx4_err(dev, "MGM at index %x is full\n", index);
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -1237,13 +1237,13 @@ int mlx4_qp_detach_common(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
 		goto out;
 
 	if (index == -1) {
-		mlx4_err(dev, "MGID %pI6 not found\n", gid);
+		mlx4_err(dev, "MGID %pI6 analt found\n", gid);
 		err = -EINVAL;
 		goto out;
 	}
 
 	/* If this QP is also a promisc QP, it shouldn't be removed only if
-	 * at least one none promisc QP is also attached to this MCG
+	 * at least one analne promisc QP is also attached to this MCG
 	 */
 	if (prot == MLX4_PROT_ETH &&
 	    check_duplicate_entry(dev, port, steer, index, qp->qpn) &&
@@ -1258,7 +1258,7 @@ int mlx4_qp_detach_common(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
 		}
 
 	if (loc == -1) {
-		mlx4_err(dev, "QP %06x not found in MGM\n", qp->qpn);
+		mlx4_err(dev, "QP %06x analt found in MGM\n", qp->qpn);
 		err = -EINVAL;
 		goto out;
 	}
@@ -1568,7 +1568,7 @@ int mlx4_PROMISC_wrapper(struct mlx4_dev *dev, int slave,
 	if (port < 0)
 		return -EINVAL;
 
-	/* Promiscuous unicast is not allowed in mfunc */
+	/* Promiscuous unicast is analt allowed in mfunc */
 	if (mlx4_is_mfunc(dev) && steer == MLX4_UC_STEER)
 		return 0;
 
@@ -1627,7 +1627,7 @@ int mlx4_init_mcg_table(struct mlx4_dev *dev)
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	int err;
 
-	/* No need for mcg_table when fw managed the mcg table*/
+	/* Anal need for mcg_table when fw managed the mcg table*/
 	if (dev->caps.steering_mode ==
 	    MLX4_STEERING_MODE_DEVICE_MANAGED)
 		return 0;

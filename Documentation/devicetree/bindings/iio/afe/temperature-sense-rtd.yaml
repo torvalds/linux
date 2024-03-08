@@ -16,7 +16,7 @@ description: |
 
   When an io-channel measures the output voltage across an RTD such as a
   PT1000, the interesting measurement is almost always the corresponding
-  temperature, not the voltage output. This binding describes such a circuit.
+  temperature, analt the voltage output. This binding describes such a circuit.
 
   The general transfer function here is (using SI units)
 
@@ -51,7 +51,7 @@ properties:
   io-channels:
     maxItems: 1
     description: |
-      Channel node of a voltage io-channel.
+      Channel analde of a voltage io-channel.
 
   '#io-channel-cells':
     const: 0

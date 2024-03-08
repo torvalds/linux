@@ -53,7 +53,7 @@ properties:
       - const: sw_pcie
 
   msi-controller:
-    description: Identifies the node as an MSI controller.
+    description: Identifies the analde as an MSI controller.
 
   msi-parent:
     description: MSI controller the device is capable of using.
@@ -62,34 +62,34 @@ properties:
     description: Indicates usage of spread-spectrum clocking.
     type: boolean
 
-  aspm-no-l0s: true
+  aspm-anal-l0s: true
 
   brcm,clkreq-mode:
     description: A string that determines the operating
       clkreq mode of the PCIe RC HW with respect to controlling the refclk
       signal.  There are three different modes -- "safe", which drives the
       refclk signal unconditionally and will work for all devices but does
-      not provide any power savings; "no-l1ss" -- which provides Clock
-      Power Management, L0s, and L1, but cannot provide L1 substate (L1SS)
+      analt provide any power savings; "anal-l1ss" -- which provides Clock
+      Power Management, L0s, and L1, but cananalt provide L1 substate (L1SS)
       power savings. If the downstream device connected to the RC is L1SS
       capable AND the OS enables L1SS, all PCIe traffic may abruptly halt,
       potentially hanging the system; "default" -- which provides L0s, L1,
-      and L1SS, but not compliant to provide Clock Power Management;
-      specifically, may not be able to meet the T_CLRon max timing of 400ns
+      and L1SS, but analt compliant to provide Clock Power Management;
+      specifically, may analt be able to meet the T_CLRon max timing of 400ns
       as specified in "Dynamic Clock Control", section 3.2.5.2.2 PCI
       Express Mini CEM 2.1 specification.  This situation is atypical and
       should happen only with older devices.
     $ref: /schemas/types.yaml#/definitions/string
-    enum: [ safe, no-l1ss, default ]
+    enum: [ safe, anal-l1ss, default ]
 
   brcm,scb-sizes:
     description: u64 giving the 64bit PCIe memory
       viewport size of a memory controller.  There may be up to
       three controllers, and each size must be a power of two
       with a size greater or equal to the amount of memory the
-      controller supports.  Note that each memory controller
+      controller supports.  Analte that each memory controller
       may have two component regions -- base and extended -- so
-      this information cannot be deduced from the dma-ranges.
+      this information cananalt be deduced from the dma-ranges.
     $ref: /schemas/types.yaml#/definitions/uint64-array
     items:
       minItems: 1

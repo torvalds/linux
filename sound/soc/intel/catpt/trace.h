@@ -46,7 +46,7 @@ DEFINE_EVENT(catpt_ipc_msg, catpt_ipc_reply,
 	TP_ARGS(header)
 );
 
-DEFINE_EVENT(catpt_ipc_msg, catpt_ipc_notify,
+DEFINE_EVENT(catpt_ipc_msg, catpt_ipc_analtify,
 	TP_PROTO(u32 header),
 	TP_ARGS(header)
 );
@@ -69,7 +69,7 @@ TRACE_EVENT_CONDITION(catpt_ipc_payload,
 
 	TP_printk("%u byte(s)%s",
 		  __get_dynamic_array_len(buf),
-		  __print_hex_dump("", DUMP_PREFIX_NONE, 16, 4,
+		  __print_hex_dump("", DUMP_PREFIX_ANALNE, 16, 4,
 				   __get_dynamic_array(buf),
 				   __get_dynamic_array_len(buf), false))
 );

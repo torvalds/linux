@@ -15,24 +15,24 @@
  * are met:
  *
  *      Redistributions of source code must retain the above copyright
- *      notice, this list of conditions and the following disclaimer.
+ *      analtice, this list of conditions and the following disclaimer.
  *
  *      Redistributions in binary form must reproduce the above
- *      copyright notice, this list of conditions and the following
+ *      copyright analtice, this list of conditions and the following
  *      disclaimer in the documentation and/or other materials provided
  *      with the distribution.
  *
- *      Neither the name of the Network Appliance, Inc. nor the names of
+ *      Neither the name of the Network Appliance, Inc. analr the names of
  *      its contributors may be used to endorse or promote products
  *      derived from this software without specific prior written
  *      permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -64,7 +64,7 @@
 #define RPCDBG_FACILITY	RPCDBG_SVCXPRT
 
 static struct svcxprt_rdma *svc_rdma_create_xprt(struct svc_serv *serv,
-						 struct net *net, int node);
+						 struct net *net, int analde);
 static struct svc_xprt *svc_rdma_create(struct svc_serv *serv,
 					struct net *net,
 					struct sockaddr *sa, int salen,
@@ -123,14 +123,14 @@ static void qp_event_handler(struct ib_event *event, void *context)
 }
 
 static struct svcxprt_rdma *svc_rdma_create_xprt(struct svc_serv *serv,
-						 struct net *net, int node)
+						 struct net *net, int analde)
 {
 	static struct lock_class_key svcrdma_rwctx_lock;
 	static struct lock_class_key svcrdma_sctx_lock;
 	static struct lock_class_key svcrdma_dto_lock;
 	struct svcxprt_rdma *cma_xprt;
 
-	cma_xprt = kzalloc_node(sizeof(*cma_xprt), GFP_KERNEL, node);
+	cma_xprt = kzalloc_analde(sizeof(*cma_xprt), GFP_KERNEL, analde);
 	if (!cma_xprt)
 		return NULL;
 
@@ -152,9 +152,9 @@ static struct svcxprt_rdma *svc_rdma_create_xprt(struct svc_serv *serv,
 	lockdep_set_class(&cma_xprt->sc_rw_ctxt_lock, &svcrdma_rwctx_lock);
 
 	/*
-	 * Note that this implies that the underlying transport support
+	 * Analte that this implies that the underlying transport support
 	 * has some form of congestion control (see RFC 7530 section 3.1
-	 * paragraph 2). For now, we assume that all supported RDMA
+	 * paragraph 2). For analw, we assume that all supported RDMA
 	 * transports are suitable here.
 	 */
 	set_bit(XPT_CONG_CTRL, &cma_xprt->sc_xprt.xpt_flags);
@@ -202,7 +202,7 @@ static void handle_connect_req(struct rdma_cm_id *new_cma_id,
 
 	newxprt = svc_rdma_create_xprt(listen_xprt->sc_xprt.xpt_server,
 				       listen_xprt->sc_xprt.xpt_net,
-				       ibdev_to_node(new_cma_id->device));
+				       ibdev_to_analde(new_cma_id->device));
 	if (!newxprt)
 		return;
 	newxprt->sc_cm_id = new_cma_id;
@@ -219,7 +219,7 @@ static void handle_connect_req(struct rdma_cm_id *new_cma_id,
 	snprintf(newxprt->sc_xprt.xpt_remotebuf,
 		 sizeof(newxprt->sc_xprt.xpt_remotebuf) - 1, "%pISc", sa);
 
-	/* The remote port is arbitrary and not under the control of the
+	/* The remote port is arbitrary and analt under the control of the
 	 * client ULP. Set it to a fixed value so that the DRC continues
 	 * to be effective after a reconnect.
 	 */
@@ -246,7 +246,7 @@ static void handle_connect_req(struct rdma_cm_id *new_cma_id,
  * @event: details of the event
  *
  * Return values:
- *     %0: Do not destroy @cma_id
+ *     %0: Do analt destroy @cma_id
  *     %1: Destroy @cma_id (never returned here)
  *
  * NB: There is never a DEVICE_REMOVAL event for INADDR_ANY listeners.
@@ -270,7 +270,7 @@ static int svc_rdma_listen_handler(struct rdma_cm_id *cma_id,
  * @event: details of the event
  *
  * Return values:
- *     %0: Do not destroy @cma_id
+ *     %0: Do analt destroy @cma_id
  *     %1: Destroy @cma_id (never returned here)
  */
 static int svc_rdma_cma_handler(struct rdma_cm_id *cma_id,
@@ -310,10 +310,10 @@ static struct svc_xprt *svc_rdma_create(struct svc_serv *serv,
 	int ret;
 
 	if (sa->sa_family != AF_INET && sa->sa_family != AF_INET6)
-		return ERR_PTR(-EAFNOSUPPORT);
-	cma_xprt = svc_rdma_create_xprt(serv, net, NUMA_NO_NODE);
+		return ERR_PTR(-EAFANALSUPPORT);
+	cma_xprt = svc_rdma_create_xprt(serv, net, NUMA_ANAL_ANALDE);
 	if (!cma_xprt)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	set_bit(XPT_LISTENER, &cma_xprt->sc_xprt.xpt_flags);
 	strcpy(cma_xprt->sc_xprt.xpt_remotebuf, "listener");
 
@@ -558,7 +558,7 @@ static void __svc_rdma_free(struct work_struct *work)
 	svc_rdma_send_ctxts_destroy(rdma);
 	svc_rdma_recv_ctxts_destroy(rdma);
 
-	/* Destroy the QP if present (not a listener) */
+	/* Destroy the QP if present (analt a listener) */
 	if (rdma->sc_qp && !IS_ERR(rdma->sc_qp))
 		ib_destroy_qp(rdma->sc_qp);
 

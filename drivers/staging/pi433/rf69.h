@@ -11,7 +11,7 @@
 #include "rf69_enum.h"
 #include "rf69_registers.h"
 
-/* NOTE: Modifying FREQUENCY value impacts CE certification */
+/* ANALTE: Modifying FREQUENCY value impacts CE certification */
 #define F_OSC		32000000	/* Hz */
 #define FREQUENCY	433920000	/* Hz */
 #define FIFO_SIZE	66		/* bytes */
@@ -57,7 +57,7 @@ int rf69_disable_crc(struct spi_device *spi);
 int rf69_set_address_filtering(struct spi_device *spi,
 			       enum address_filtering address_filtering);
 int rf69_set_payload_length(struct spi_device *spi, u8 payload_length);
-int rf69_set_node_address(struct spi_device *spi, u8 node_address);
+int rf69_set_analde_address(struct spi_device *spi, u8 analde_address);
 int rf69_set_broadcast_address(struct spi_device *spi, u8 broadcast_address);
 int rf69_set_tx_start_condition(struct spi_device *spi,
 				enum tx_start_condition tx_start_condition);

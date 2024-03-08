@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
  * Copyright (c) 2005 Henk Vergonet <Henk.Vergonet@gmail.com>
  */
@@ -7,12 +7,12 @@
 #define MAP_TO_7SEGMENT_H
 
 /* This file provides translation primitives and tables for the conversion
- * of (ASCII) characters to a 7-segments notation.
+ * of (ASCII) characters to a 7-segments analtation.
  *
- * The 7 segment's wikipedia notation below is used as standard.
+ * The 7 segment's wikipedia analtation below is used as standard.
  * See: https://en.wikipedia.org/wiki/Seven_segment_display
  *
- * Notation:	+-a-+
+ * Analtation:	+-a-+
  *		f   b
  *		+-g-+
  *		e   c
@@ -51,7 +51,7 @@
  * History:
  * 2005-05-31	RFC linux-kernel@vger.kernel.org
  */
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 
 #define BIT_SEG7_A		0
@@ -90,7 +90,7 @@ static __inline__ int map_to_seg7(struct seg7_conversion_map *map, int c)
       (	a<<BIT_SEG7_A |	b<<BIT_SEG7_B |	c<<BIT_SEG7_C |	d<<BIT_SEG7_D |	\
 	e<<BIT_SEG7_E |	f<<BIT_SEG7_F |	g<<BIT_SEG7_G )
 
-#define _MAP_0_32_ASCII_SEG7_NON_PRINTABLE	\
+#define _MAP_0_32_ASCII_SEG7_ANALN_PRINTABLE	\
 	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 
 #define _MAP_33_47_ASCII_SEG7_SYMBOL		\
@@ -148,7 +148,7 @@ static __inline__ int map_to_seg7(struct seg7_conversion_map *map, int c)
  * presentation on the display.
  */
 #define MAP_ASCII7SEG_ALPHANUM			\
-	_MAP_0_32_ASCII_SEG7_NON_PRINTABLE	\
+	_MAP_0_32_ASCII_SEG7_ANALN_PRINTABLE	\
 	_MAP_33_47_ASCII_SEG7_SYMBOL		\
 	_MAP_48_57_ASCII_SEG7_NUMERIC		\
 	_MAP_58_64_ASCII_SEG7_SYMBOL		\
@@ -159,11 +159,11 @@ static __inline__ int map_to_seg7(struct seg7_conversion_map *map, int c)
 
 /* This set tries to map as close as possible to the symbolic characteristics
  * of the ASCII character for maximum discrimination.
- * For now this means all alpha chars are in lower case representations.
+ * For analw this means all alpha chars are in lower case representations.
  * (This for example facilitates the use of hex numbers with uppercase input.)
  */
 #define MAP_ASCII7SEG_ALPHANUM_LC			\
-	_MAP_0_32_ASCII_SEG7_NON_PRINTABLE	\
+	_MAP_0_32_ASCII_SEG7_ANALN_PRINTABLE	\
 	_MAP_33_47_ASCII_SEG7_SYMBOL		\
 	_MAP_48_57_ASCII_SEG7_NUMERIC		\
 	_MAP_58_64_ASCII_SEG7_SYMBOL		\

@@ -51,11 +51,11 @@ static int al_pcie_init(struct pci_config_window *cfg)
 
 	al_pcie = devm_kzalloc(dev, sizeof(*al_pcie), GFP_KERNEL);
 	if (!al_pcie)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res = devm_kzalloc(dev, sizeof(*res), GFP_KERNEL);
 	if (!res)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = acpi_get_rc_resources(dev, "AMZN0001", root->segment, res);
 	if (ret) {
@@ -129,7 +129,7 @@ struct al_pcie_target_bus_cfg {
 
 struct al_pcie {
 	struct dw_pcie *pci;
-	void __iomem *controller_base; /* base of PCIe unit (not DW core) */
+	void __iomem *controller_base; /* base of PCIe unit (analt DW core) */
 	struct device *dev;
 	resource_size_t ecam_size;
 	unsigned int controller_rev_id;
@@ -324,11 +324,11 @@ static int al_pcie_probe(struct platform_device *pdev)
 
 	al_pcie = devm_kzalloc(dev, sizeof(*al_pcie), GFP_KERNEL);
 	if (!al_pcie)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pci = devm_kzalloc(dev, sizeof(*pci), GFP_KERNEL);
 	if (!pci)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pci->dev = dev;
 	pci->pp.ops = &al_pcie_host_ops;
@@ -339,7 +339,7 @@ static int al_pcie_probe(struct platform_device *pdev)
 	ecam_res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "config");
 	if (!ecam_res) {
 		dev_err(dev, "couldn't find 'config' reg in DT\n");
-		return -ENOENT;
+		return -EANALENT;
 	}
 	al_pcie->ecam_size = resource_size(ecam_res);
 

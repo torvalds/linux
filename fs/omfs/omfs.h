@@ -10,8 +10,8 @@
 /* In-memory structures */
 struct omfs_sb_info {
 	u64 s_num_blocks;
-	u64 s_bitmap_ino;
-	u64 s_root_ino;
+	u64 s_bitmap_ianal;
+	u64 s_root_ianal;
 	u32 s_blocksize;
 	u32 s_mirrors;
 	u32 s_sys_blocksize;
@@ -46,24 +46,24 @@ extern int omfs_clear_range(struct super_block *sb, u64 block, int count);
 
 /* dir.c */
 extern const struct file_operations omfs_dir_operations;
-extern const struct inode_operations omfs_dir_inops;
-extern int omfs_make_empty(struct inode *inode, struct super_block *sb);
+extern const struct ianalde_operations omfs_dir_ianalps;
+extern int omfs_make_empty(struct ianalde *ianalde, struct super_block *sb);
 extern int omfs_is_bad(struct omfs_sb_info *sbi, struct omfs_header *header,
 			u64 fsblock);
 
 /* file.c */
 extern const struct file_operations omfs_file_operations;
-extern const struct inode_operations omfs_file_inops;
+extern const struct ianalde_operations omfs_file_ianalps;
 extern const struct address_space_operations omfs_aops;
 extern void omfs_make_empty_table(struct buffer_head *bh, int offset);
-extern int omfs_shrink_inode(struct inode *inode);
+extern int omfs_shrink_ianalde(struct ianalde *ianalde);
 
-/* inode.c */
+/* ianalde.c */
 extern struct buffer_head *omfs_bread(struct super_block *sb, sector_t block);
-extern struct inode *omfs_iget(struct super_block *sb, ino_t inode);
-extern struct inode *omfs_new_inode(struct inode *dir, umode_t mode);
+extern struct ianalde *omfs_iget(struct super_block *sb, ianal_t ianalde);
+extern struct ianalde *omfs_new_ianalde(struct ianalde *dir, umode_t mode);
 extern int omfs_reserve_block(struct super_block *sb, sector_t block);
-extern int omfs_find_empty_block(struct super_block *sb, int mode, ino_t *ino);
-extern int omfs_sync_inode(struct inode *inode);
+extern int omfs_find_empty_block(struct super_block *sb, int mode, ianal_t *ianal);
+extern int omfs_sync_ianalde(struct ianalde *ianalde);
 
 #endif

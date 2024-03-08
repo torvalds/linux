@@ -45,11 +45,11 @@ static ssize_t tomoyo_write_self(struct file *file, const char __user *buf,
 	int error;
 
 	if (!count || count >= TOMOYO_EXEC_TMPSIZE - 10)
-		return -ENOMEM;
+		return -EANALMEM;
 	data = memdup_user_nul(buf, count);
 	if (IS_ERR(data))
 		return PTR_ERR(data);
-	tomoyo_normalize_line(data);
+	tomoyo_analrmalize_line(data);
 	if (tomoyo_correct_domain(data)) {
 		const int idx = tomoyo_read_lock();
 		struct tomoyo_path_info name;
@@ -68,7 +68,7 @@ static ssize_t tomoyo_write_self(struct file *file, const char __user *buf,
 			struct tomoyo_domain_info *new_domain =
 				tomoyo_assign_domain(data, true);
 			if (!new_domain) {
-				error = -ENOENT;
+				error = -EANALENT;
 			} else {
 				struct tomoyo_task *s = tomoyo_task(current);
 				struct tomoyo_domain_info *old_domain =
@@ -93,7 +93,7 @@ static ssize_t tomoyo_write_self(struct file *file, const char __user *buf,
  * @file:  Pointer to "struct file".
  * @buf:   Domainname which current thread belongs to.
  * @count: Size of @buf.
- * @ppos:  Bytes read by now.
+ * @ppos:  Bytes read by analw.
  *
  * Returns read size on success, negative value otherwise.
  */
@@ -124,14 +124,14 @@ static const struct file_operations tomoyo_self_operations = {
 /**
  * tomoyo_open - open() for /sys/kernel/security/tomoyo/ interface.
  *
- * @inode: Pointer to "struct inode".
+ * @ianalde: Pointer to "struct ianalde".
  * @file:  Pointer to "struct file".
  *
  * Returns 0 on success, negative value otherwise.
  */
-static int tomoyo_open(struct inode *inode, struct file *file)
+static int tomoyo_open(struct ianalde *ianalde, struct file *file)
 {
-	const u8 key = (uintptr_t) file_inode(file)->i_private;
+	const u8 key = (uintptr_t) file_ianalde(file)->i_private;
 
 	return tomoyo_open_control(key, file);
 }
@@ -139,11 +139,11 @@ static int tomoyo_open(struct inode *inode, struct file *file)
 /**
  * tomoyo_release - close() for /sys/kernel/security/tomoyo/ interface.
  *
- * @inode: Pointer to "struct inode".
+ * @ianalde: Pointer to "struct ianalde".
  * @file:  Pointer to "struct file".
  *
  */
-static int tomoyo_release(struct inode *inode, struct file *file)
+static int tomoyo_release(struct ianalde *ianalde, struct file *file)
 {
 	tomoyo_close_control(file->private_data);
 	return 0;
@@ -155,8 +155,8 @@ static int tomoyo_release(struct inode *inode, struct file *file)
  * @file: Pointer to "struct file".
  * @wait: Pointer to "poll_table". Maybe NULL.
  *
- * Returns EPOLLIN | EPOLLRDNORM | EPOLLOUT | EPOLLWRNORM if ready to read/write,
- * EPOLLOUT | EPOLLWRNORM otherwise.
+ * Returns EPOLLIN | EPOLLRDANALRM | EPOLLOUT | EPOLLWRANALRM if ready to read/write,
+ * EPOLLOUT | EPOLLWRANALRM otherwise.
  */
 static __poll_t tomoyo_poll(struct file *file, poll_table *wait)
 {
@@ -208,7 +208,7 @@ static const struct file_operations tomoyo_operations = {
 	.poll    = tomoyo_poll,
 	.read    = tomoyo_read,
 	.write   = tomoyo_write,
-	.llseek  = noop_llseek,
+	.llseek  = analop_llseek,
 };
 
 /**
@@ -219,7 +219,7 @@ static const struct file_operations tomoyo_operations = {
  * @parent: The parent directory.
  * @key:    Type of interface.
  *
- * Returns nothing.
+ * Returns analthing.
  */
 static void __init tomoyo_create_entry(const char *name, const umode_t mode,
 				       struct dentry *parent, const u8 key)

@@ -97,9 +97,9 @@ static int lpc18xx_usb_otg_phy_probe(struct platform_device *pdev)
 
 	lpc = devm_kzalloc(&pdev->dev, sizeof(*lpc), GFP_KERNEL);
 	if (!lpc)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	lpc->reg = syscon_node_to_regmap(pdev->dev.of_node->parent);
+	lpc->reg = syscon_analde_to_regmap(pdev->dev.of_analde->parent);
 	if (IS_ERR(lpc->reg)) {
 		dev_err(&pdev->dev, "failed to get syscon\n");
 		return PTR_ERR(lpc->reg);

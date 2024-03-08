@@ -90,7 +90,7 @@ static void omap5_erratum_workaround_801819(void)
 	 * the L1 cache.
 	 */
 	acr_mask = (0x3 << 25) | (0x3 << 27);
-	/* do we already have it done.. if yes, skip expensive smc */
+	/* do we already have it done.. if anal, skip expensive smc */
 	if ((acr & acr_mask) == acr_mask)
 		return;
 
@@ -108,15 +108,15 @@ static inline void omap5_erratum_workaround_801819(void) { }
 /*
  * Configure ACR and enable ACTLR[0] (Enable invalidates of BTB with
  * ICIALLU) to activate the workaround for secondary Core.
- * NOTE: it is assumed that the primary core's configuration is done
+ * ANALTE: it is assumed that the primary core's configuration is done
  * by the boot loader (kernel will detect a misconfiguration and complain
- * if this is not done).
+ * if this is analt done).
  *
  * In General Purpose(GP) devices, ACR bit settings can only be done
- * by ROM code in "secure world" using the smc call and there is no
+ * by ROM code in "secure world" using the smc call and there is anal
  * option to update the "firmware" on such devices. This also works for
  * High security(HS) devices, as a backup option in case the
- * "update" is not done in the "security firmware".
+ * "update" is analt done in the "security firmware".
  */
 static void omap5_secondary_harden_predictor(void)
 {
@@ -129,7 +129,7 @@ static void omap5_secondary_harden_predictor(void)
 	 */
 	acr_mask = BIT(0);
 
-	/* Do we already have it done.. if yes, skip expensive smc */
+	/* Do we already have it done.. if anal, skip expensive smc */
 	if ((acr & acr_mask) == acr_mask)
 		return;
 
@@ -195,8 +195,8 @@ static int omap4_boot_secondary(unsigned int cpu, struct task_struct *idle)
 	}
 
 	/*
-	 * The SGI(Software Generated Interrupts) are not wakeup capable
-	 * from low power states. This is known limitation on OMAP4 and
+	 * The SGI(Software Generated Interrupts) are analt wakeup capable
+	 * from low power states. This is kanalwn limitation on OMAP4 and
 	 * needs to be worked around by using software forced clockdomain
 	 * wake-up. To wakeup CPU1, CPU0 forces the CPU1 clockdomain to
 	 * software force wakeup. The clockdomain is then put back to
@@ -209,12 +209,12 @@ static int omap4_boot_secondary(unsigned int cpu, struct task_struct *idle)
 		/*
 		 * GIC distributor control register has changed between
 		 * CortexA9 r1pX and r2pX. The Control Register secure
-		 * banked version is now composed of 2 bits:
+		 * banked version is analw composed of 2 bits:
 		 * bit 0 == Secure Enable
-		 * bit 1 == Non-Secure Enable
-		 * The Non-Secure banked register has not changed
+		 * bit 1 == Analn-Secure Enable
+		 * The Analn-Secure banked register has analt changed
 		 * Because the ROM Code is based on the r1pX GIC, the CPU1
-		 * GIC restoration will cause a problem to CPU0 Non-Secure SW.
+		 * GIC restoration will cause a problem to CPU0 Analn-Secure SW.
 		 * The workaround must be:
 		 * 1) Before doing the CPU1 wakeup, CPU0 must disable
 		 * the GIC distributor
@@ -230,9 +230,9 @@ static int omap4_boot_secondary(unsigned int cpu, struct task_struct *idle)
 		 * Ensure that CPU power state is set to ON to avoid CPU
 		 * powerdomain transition on wfi
 		 */
-		clkdm_deny_idle_nolock(cpu1_clkdm);
+		clkdm_deny_idle_anallock(cpu1_clkdm);
 		pwrdm_set_next_pwrst(cpu1_pwrdm, PWRDM_POWER_ON);
-		clkdm_allow_idle_nolock(cpu1_clkdm);
+		clkdm_allow_idle_anallock(cpu1_clkdm);
 
 		if (IS_PM44XX_ERRATUM(PM_OMAP4_ROM_SMP_BOOT_ERRATUM_GICD)) {
 			while (gic_dist_disabled()) {
@@ -260,7 +260,7 @@ static void __init omap4_smp_init_cpus(void)
 {
 	unsigned int i = 0, ncores = 1, cpu_id;
 
-	/* Use ARM cpuid check here, as SoC detection will not work so early */
+	/* Use ARM cpuid check here, as SoC detection will analt work so early */
 	cpu_id = read_cpuid_id() & CPU_MASK;
 	if (cpu_id == CPU_CORTEX_A9) {
 		/*
@@ -286,7 +286,7 @@ static void __init omap4_smp_init_cpus(void)
 }
 
 /*
- * For now, just make sure the start-up address is not within the booting
+ * For analw, just make sure the start-up address is analt within the booting
  * kernel space as that means we just overwrote whatever secondary_startup()
  * code there was.
  */
@@ -317,7 +317,7 @@ static void __init omap4_smp_maybe_reset_cpu1(struct omap_smp_config *c)
 					 OMAP_AUX_CORE_BOOT_0) &
 						AUX_CORE_BOOT0_GP_RELEASE;
 	if (released) {
-		pr_warn("smp: CPU1 not parked?\n");
+		pr_warn("smp: CPU1 analt parked?\n");
 
 		return;
 	}
@@ -364,7 +364,7 @@ static void __init omap4_smp_prepare_cpus(unsigned int max_cpus)
 		c = &omap5_cfg;
 
 	if (!c) {
-		pr_err("%s Unknown SMP SoC?\n", __func__);
+		pr_err("%s Unkanalwn SMP SoC?\n", __func__);
 		return;
 	}
 

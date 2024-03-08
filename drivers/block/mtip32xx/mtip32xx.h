@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * mtip32xx.h - Header file for the P320 SSD Block Driver
- *   Copyright (C) 2011 Micron Technology, Inc.
+ *   Copyright (C) 2011 Micron Techanallogy, Inc.
  *
  * Portions of this code were derived from works subjected to the
  * following copyright:
- *    Copyright (C) 2009 Integrated Device Technology, Inc.
+ *    Copyright (C) 2009 Integrated Device Techanallogy, Inc.
  */
 
 #ifndef __MTIP32XX_H__
@@ -64,7 +64,7 @@
 
 /*
  * Maximum number of slot groups (Command Issue & s_active registers)
- * NOTE: This is the driver maximum; check dd->slot_groups for actual value.
+ * ANALTE: This is the driver maximum; check dd->slot_groups for actual value.
  */
 #define MTIP_MAX_SLOT_GROUPS	8
 
@@ -85,8 +85,8 @@
 #define MTIP_DRV_NAME		"mtip32xx"
 #define MTIP_DRV_VERSION	"1.3.1"
 
-/* Maximum number of minor device numbers per device. */
-#define MTIP_MAX_MINORS		16
+/* Maximum number of mianalr device numbers per device. */
+#define MTIP_MAX_MIANALRS		16
 
 /* Maximum number of supported command slots. */
 #define MTIP_MAX_COMMAND_SLOTS	(MTIP_MAX_SLOT_GROUPS * 32)
@@ -441,15 +441,15 @@ struct driver_data {
 
 	unsigned long index; /* Index to determine the disk name */
 
-	unsigned long dd_flag; /* NOTE: use atomic bit operations on this */
+	unsigned long dd_flag; /* ANALTE: use atomic bit operations on this */
 
 	struct task_struct *mtip_svc_handler; /* task_struct of svc thd */
 
-	struct dentry *dfs_node;
+	struct dentry *dfs_analde;
 
 	bool sr;
 
-	int numa_node; /* NUMA support */
+	int numa_analde; /* NUMA support */
 
 	char workq_name[32];
 

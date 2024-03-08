@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  *  Name                         : qnx4_fs.h
  *  Author                       : Richard Frowijn
@@ -12,7 +12,7 @@
 #include <linux/qnxtypes.h>
 #include <linux/magic.h>
 
-#define QNX4_ROOT_INO 1
+#define QNX4_ROOT_IANAL 1
 
 #define QNX4_MAX_XTNTS_PER_XBLK	60
 /* for di_status */
@@ -20,7 +20,7 @@
 #define QNX4_FILE_MODIFIED      0x02
 #define QNX4_FILE_BUSY          0x04
 #define QNX4_FILE_LINK          0x08
-#define QNX4_FILE_INODE         0x10
+#define QNX4_FILE_IANALDE         0x10
 #define QNX4_FILE_FSYSCLEAN     0x20
 
 #define QNX4_I_MAP_SLOTS	8
@@ -32,16 +32,16 @@
 #define QNX4_DIR_ENTRY_SIZE     0x040	/* dir entry size of 64 bytes */
 #define QNX4_DIR_ENTRY_SIZE_BITS 6	/* dir entry size shift */
 #define QNX4_XBLK_ENTRY_SIZE    0x200	/* xblk entry size */
-#define QNX4_INODES_PER_BLOCK   0x08	/* 512 / 64 */
+#define QNX4_IANALDES_PER_BLOCK   0x08	/* 512 / 64 */
 
 /* for filenames */
 #define QNX4_SHORT_NAME_MAX	16
 #define QNX4_NAME_MAX		48
 
 /*
- * This is the original qnx4 inode layout on disk.
+ * This is the original qnx4 ianalde layout on disk.
  */
-struct qnx4_inode_entry {
+struct qnx4_ianalde_entry {
 	char		di_fname[QNX4_SHORT_NAME_MAX];
 	qnx4_off_t	di_size;
 	qnx4_xtnt_t	di_first_xtnt;
@@ -62,8 +62,8 @@ struct qnx4_inode_entry {
 
 struct qnx4_link_info {
 	char		dl_fname[QNX4_NAME_MAX];
-	__le32		dl_inode_blk;
-	__u8		dl_inode_ndx;
+	__le32		dl_ianalde_blk;
+	__u8		dl_ianalde_ndx;
 	__u8		dl_spare[10];
 	__u8		dl_status;
 };
@@ -80,10 +80,10 @@ struct qnx4_xblk {
 };
 
 struct qnx4_super_block {
-	struct qnx4_inode_entry RootDir;
-	struct qnx4_inode_entry Inode;
-	struct qnx4_inode_entry Boot;
-	struct qnx4_inode_entry AltBoot;
+	struct qnx4_ianalde_entry RootDir;
+	struct qnx4_ianalde_entry Ianalde;
+	struct qnx4_ianalde_entry Boot;
+	struct qnx4_ianalde_entry AltBoot;
 };
 
 #endif

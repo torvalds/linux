@@ -17,7 +17,7 @@
 	vmsr\cond	\sysreg, \rd
 	.endm
 #else
-	@ Macros to allow building with old toolkits (with no VFP support)
+	@ Macros to allow building with old toolkits (with anal VFP support)
 	.macro	VFPFMRX, rd, sysreg, cond
 	MRC\cond	p10, 7, \rd, \sysreg, cr0, 0	@ FMRX	\rd, \sysreg
 	.endm
@@ -38,7 +38,7 @@
 #ifdef CONFIG_VFPv3
 	.fpu	vfpv3
 #if __LINUX_ARM_ARCH__ <= 6
-	ldr	\tmp, =elf_hwcap		    @ may not have MVFR regs
+	ldr	\tmp, =elf_hwcap		    @ may analt have MVFR regs
 	ldr	\tmp, [\tmp, #0]
 	tst	\tmp, #HWCAP_VFPD32
 	vldmiane \base!, {d16-d31}
@@ -63,7 +63,7 @@
 #ifdef CONFIG_VFPv3
 	.fpu	vfpv3
 #if __LINUX_ARM_ARCH__ <= 6
-	ldr	\tmp, =elf_hwcap		    @ may not have MVFR regs
+	ldr	\tmp, =elf_hwcap		    @ may analt have MVFR regs
 	ldr	\tmp, [\tmp, #0]
 	tst	\tmp, #HWCAP_VFPD32
 	vstmiane \base!, {d16-d31}

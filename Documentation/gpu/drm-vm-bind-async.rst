@@ -1,10 +1,10 @@
 .. SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 
 ====================
-Asynchronous VM_BIND
+Asynchroanalus VM_BIND
 ====================
 
-Nomenclature:
+Analmenclature:
 =============
 
 * ``VRAM``: On-device memory. Sometimes referred to as device local memory.
@@ -36,7 +36,7 @@ Nomenclature:
   A memory fence uses the value of a specified memory location to determine
   signaled status. A memory fence can be awaited and signaled by both
   the GPU and CPU. Memory fences are sometimes referred to as
-  user-fences, userspace-fences or gpu futexes and do not necessarily obey
+  user-fences, userspace-fences or gpu futexes and do analt necessarily obey
   the dma-fence rule of signaling within a "reasonable amount of time".
   The kernel should thus avoid waiting for memory fences with locks held.
 
@@ -48,14 +48,14 @@ Nomenclature:
 * ``exec function``: An exec function is a function that revalidates all
   affected gpu_vmas, submits a GPU command batch and registers the
   dma_fence representing the GPU command's activity with all affected
-  dma_resvs. For completeness, although not covered by this document,
+  dma_resvs. For completeness, although analt covered by this document,
   it's worth mentioning that an exec function may also be the
   revalidation worker that is used by some drivers in compute /
   long-running mode.
 
 * ``bind context``: A context identifier used for the VM_BIND
   operation. VM_BIND operations that use the same bind context can be
-  assumed, where it matters, to complete in order of submission. No such
+  assumed, where it matters, to complete in order of submission. Anal such
   assumptions can be made for VM_BIND operations using separate bind contexts.
 
 * ``UMD``: User-mode driver.
@@ -63,27 +63,27 @@ Nomenclature:
 * ``KMD``: Kernel-mode driver.
 
 
-Synchronous / Asynchronous VM_BIND operation
+Synchroanalus / Asynchroanalus VM_BIND operation
 ============================================
 
-Synchronous VM_BIND
+Synchroanalus VM_BIND
 ___________________
-With Synchronous VM_BIND, the VM_BIND operations all complete before the
-IOCTL returns. A synchronous VM_BIND takes neither in-fences nor
-out-fences. Synchronous VM_BIND may block and wait for GPU operations;
+With Synchroanalus VM_BIND, the VM_BIND operations all complete before the
+IOCTL returns. A synchroanalus VM_BIND takes neither in-fences analr
+out-fences. Synchroanalus VM_BIND may block and wait for GPU operations;
 for example swap-in or clearing, or even previous binds.
 
-Asynchronous VM_BIND
+Asynchroanalus VM_BIND
 ____________________
-Asynchronous VM_BIND accepts both in-syncobjs and out-syncobjs. While the
+Asynchroanalus VM_BIND accepts both in-syncobjs and out-syncobjs. While the
 IOCTL may return immediately, the VM_BIND operations wait for the in-syncobjs
 before modifying the GPU page-tables, and signal the out-syncobjs when
 the modification is done in the sense that the next exec function that
 awaits for the out-syncobjs will see the change. Errors are reported
-synchronously.
+synchroanalusly.
 In low-memory situations the implementation may block, performing the
-VM_BIND synchronously, because there might not be enough memory
-immediately available for preparing the asynchronous operation.
+VM_BIND synchroanalusly, because there might analt be eanalugh memory
+immediately available for preparing the asynchroanalus operation.
 
 If the VM_BIND IOCTL takes a list or an array of operations as an argument,
 the in-syncobjs needs to signal before the first operation starts to
@@ -91,44 +91,44 @@ execute, and the out-syncobjs signal after the last operation
 completes. Operations in the operation list can be assumed, where it
 matters, to complete in order.
 
-Since asynchronous VM_BIND operations may use dma-fences embedded in
+Since asynchroanalus VM_BIND operations may use dma-fences embedded in
 out-syncobjs and internally in KMD to signal bind completion,  any
 memory fences given as VM_BIND in-fences need to be awaited
-synchronously before the VM_BIND ioctl returns, since dma-fences,
+synchroanalusly before the VM_BIND ioctl returns, since dma-fences,
 required to signal in a reasonable amount of time, can never be made
 to depend on memory fences that don't have such a restriction.
 
-The purpose of an Asynchronous VM_BIND operation is for user-mode
+The purpose of an Asynchroanalus VM_BIND operation is for user-mode
 drivers to be able to pipeline interleaved gpu_vm modifications and
 exec functions. For long-running workloads, such pipelining of a bind
-operation is not allowed and any in-fences need to be awaited
-synchronously. The reason for this is twofold. First, any memory
+operation is analt allowed and any in-fences need to be awaited
+synchroanalusly. The reason for this is twofold. First, any memory
 fences gated by a long-running workload and used as in-syncobjs for the
-VM_BIND operation will need to be awaited synchronously anyway (see
+VM_BIND operation will need to be awaited synchroanalusly anyway (see
 above). Second, any dma-fences used as in-syncobjs for VM_BIND
-operations for long-running workloads will not allow for pipelining
+operations for long-running workloads will analt allow for pipelining
 anyway since long-running workloads don't allow for dma-fences as
 out-syncobjs, so while theoretically possible the use of them is
 questionable and should be rejected until there is a valuable use-case.
-Note that this is not a limitation imposed by dma-fence rules, but
+Analte that this is analt a limitation imposed by dma-fence rules, but
 rather a limitation imposed to keep KMD implementation simple. It does
-not affect using dma-fences as dependencies for the long-running
+analt affect using dma-fences as dependencies for the long-running
 workload itself, which is allowed by dma-fence rules, but rather for
 the VM_BIND operation only.
 
-An asynchronous VM_BIND operation may take substantial time to
+An asynchroanalus VM_BIND operation may take substantial time to
 complete and signal the out_fence. In particular if the operation is
 deeply pipelined behind other VM_BIND operations and workloads
 submitted using exec functions. In that case, UMD might want to avoid a
 subsequent VM_BIND operation to be queued behind the first one if
-there are no explicit dependencies. In order to circumvent such a queue-up, a
+there are anal explicit dependencies. In order to circumvent such a queue-up, a
 VM_BIND implementation may allow for VM_BIND contexts to be
 created. For each context, VM_BIND operations will be guaranteed to
-complete in the order they were submitted, but that is not the case
+complete in the order they were submitted, but that is analt the case
 for VM_BIND operations executing on separate VM_BIND contexts. Instead
 KMD will attempt to execute such VM_BIND operations in parallel but
-leaving no guarantee that they will actually be executed in
-parallel. There may be internal implicit dependencies that only KMD knows
+leaving anal guarantee that they will actually be executed in
+parallel. There may be internal implicit dependencies that only KMD kanalws
 about, for example page-table structure changes. A way to attempt
 to avoid such internal dependencies is to have different VM_BIND
 contexts use separate regions of a VM.
@@ -141,8 +141,8 @@ buffers. The workload execution can then easily be pipelined behind
 the bind completion using the memory out-fence as the signal condition
 for a GPU semaphore embedded by UMD in the workload.
 
-There is no difference in the operations supported or in
-multi-operation support between asynchronous VM_BIND and synchronous VM_BIND.
+There is anal difference in the operations supported or in
+multi-operation support between asynchroanalus VM_BIND and synchroanalus VM_BIND.
 
 Multi-operation VM_BIND IOCTL error handling and interrupts
 ===========================================================
@@ -152,27 +152,27 @@ example due to lack of resources to complete and due to interrupted
 waits.
 In these situations UMD should preferably restart the IOCTL after
 taking suitable action.
-If UMD has over-committed a memory resource, an -ENOSPC error will be
-returned, and UMD may then unbind resources that are not used at the
+If UMD has over-committed a memory resource, an -EANALSPC error will be
+returned, and UMD may then unbind resources that are analt used at the
 moment and rerun the IOCTL. On -EINTR, UMD should simply rerun the
-IOCTL and on -ENOMEM user-space may either attempt to free known
+IOCTL and on -EANALMEM user-space may either attempt to free kanalwn
 system memory resources or fail. In case of UMD deciding to fail a
-bind operation, due to an error return, no additional action is needed
+bind operation, due to an error return, anal additional action is needed
 to clean up the failed operation, and the VM is left in the same state
 as it was before the failing IOCTL.
-Unbind operations are guaranteed not to return any errors due to
+Unbind operations are guaranteed analt to return any errors due to
 resource constraints, but may return errors due to, for example,
 invalid arguments or the gpu_vm being banned.
-In the case an unexpected error happens during the asynchronous bind
+In the case an unexpected error happens during the asynchroanalus bind
 process, the gpu_vm will be banned, and attempts to use it after banning
-will return -ENOENT.
+will return -EANALENT.
 
 Example: The Xe VM_BIND uAPI
 ============================
 
 Starting with the VM_BIND operation struct, the IOCTL call can take
 zero, one or many such operations. A zero number means only the
-synchronization part of the IOCTL is carried out: an asynchronous
+synchronization part of the IOCTL is carried out: an asynchroanalus
 VM_BIND updates the syncobjects, whereas a sync VM_BIND waits for the
 implicit dependencies to be fulfilled.
 
@@ -224,7 +224,7 @@ implicit dependencies to be fulfilled.
     #define XE_VM_BIND_OP_UNMAP_ALL	0x3
         /*
 	 * Make the backing memory of an address range resident if
-	 * possible. Note that this doesn't pin backing memory.
+	 * possible. Analte that this doesn't pin backing memory.
 	 */
     #define XE_VM_BIND_OP_PREFETCH	0x4
 
@@ -246,7 +246,7 @@ implicit dependencies to be fulfilled.
 	/** @op: Operation to perform (lower 16 bits) and flags (upper 16 bits) */
 	__u32 op;
 
-	/** @mem_region: Memory region to prefetch VMA to, instance not a mask */
+	/** @mem_region: Memory region to prefetch VMA to, instance analt a mask */
 	__u32 region;
 
 	/** @reserved: Reserved */
@@ -254,8 +254,8 @@ implicit dependencies to be fulfilled.
    };
 
 
-The VM_BIND IOCTL argument itself, looks like follows. Note that for
-synchronous VM_BIND, the num_syncs and syncs fields must be zero. Here
+The VM_BIND IOCTL argument itself, looks like follows. Analte that for
+synchroanalus VM_BIND, the num_syncs and syncs fields must be zero. Here
 the ``exec_queue_id`` field is the VM_BIND context discussed previously
 that is used to facilitate out-of-order VM_BINDs.
 

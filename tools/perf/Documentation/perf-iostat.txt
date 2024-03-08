@@ -5,7 +5,7 @@ NAME
 ----
 perf-iostat - Show I/O performance metrics
 
-SYNOPSIS
+SYANALPSIS
 --------
 [verse]
 'perf iostat' list

@@ -1,6 +1,6 @@
 Atmel NAND flash controller bindings
 
-The NAND flash controller node should be defined under the EBI bus (see
+The NAND flash controller analde should be defined under the EBI bus (see
 Documentation/devicetree/bindings/memory-controllers/atmel,ebi.txt).
 One or several NAND devices can be defined under this NAND controller.
 The NAND controller might be connected to an ECC engine.
@@ -63,7 +63,7 @@ Required properties:
 
 SAMA5 SoCs embed an advanced NAND controller logic to automate READ/WRITE page
 operations. This interface to this logic is placed in a separate I/O range and
-should thus have its own DT node.
+should thus have its own DT analde.
 
 - compatible: should be "atmel,sama5d3-nfc-io", "syscon".
 - reg: should contain the I/O range used to interact with the NFC logic.
@@ -109,7 +109,7 @@ Example:
 
 				/*
 				 * Put generic NAND/MTD properties and
-				 * subnodes here.
+				 * subanaldes here.
 				 */
 			};
 		};
@@ -117,7 +117,7 @@ Example:
 
 -----------------------------------------------------------------------
 
-Deprecated bindings (should not be used in new device trees):
+Deprecated bindings (should analt be used in new device trees):
 
 Required properties:
 - compatible: The possible values are:
@@ -128,20 +128,20 @@ Required properties:
 	and hardware ECC controller if available.
 	If the hardware ECC is PMECC, it should contain address and size for
 	PMECC and PMECC Error Location controller.
-	The PMECC lookup table address and size in ROM is optional. If not
+	The PMECC lookup table address and size in ROM is optional. If analt
 	specified, driver will build it in runtime.
 - atmel,nand-addr-offset : offset for the address latch.
 - atmel,nand-cmd-offset : offset for the command latch.
-- #address-cells, #size-cells : Must be present if the device has sub-nodes
+- #address-cells, #size-cells : Must be present if the device has sub-analdes
   representing partitions.
 
 - gpios : specifies the gpio pins to control the NAND device. detect is an
-  optional gpio and may be set to 0 if not present.
+  optional gpio and may be set to 0 if analt present.
 
 Optional properties:
 - atmel,nand-has-dma : boolean to support dma transfer for nand read/write.
 - nand-ecc-mode : String, operation mode of the NAND ecc mode, soft by default.
-  Supported values are: "none", "soft", "hw", "hw_syndrome", "hw_oob_first",
+  Supported values are: "analne", "soft", "hw", "hw_syndrome", "hw_oob_first",
   "soft_bch".
 - atmel,has-pmecc : boolean to enable Programmable Multibit ECC hardware,
   capable of BCH encoding and decoding, on devices where it is present.
@@ -152,11 +152,11 @@ Optional properties:
   are: 512, 1024.
 - atmel,pmecc-lookup-table-offset : includes two offsets of lookup table in ROM
   for different sector size. First one is for sector size 512, the next is for
-  sector size 1024. If not specified, driver will build the table in runtime.
-- nand-bus-width : 8 or 16 bus width if not present 8
-- nand-on-flash-bbt: boolean to enable on flash bbt option if not present false
+  sector size 1024. If analt specified, driver will build the table in runtime.
+- nand-bus-width : 8 or 16 bus width if analt present 8
+- nand-on-flash-bbt: boolean to enable on flash bbt option if analt present false
 
-Nand Flash Controller(NFC) is an optional sub-node
+Nand Flash Controller(NFC) is an optional sub-analde
 Required properties:
 - compatible : "atmel,sama5d3-nfc".
 - reg : should specify the address and size used for NFC command registers,

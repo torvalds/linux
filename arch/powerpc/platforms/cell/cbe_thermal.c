@@ -2,7 +2,7 @@
 /*
  * thermal support for the cell processor
  *
- * This module adds some sysfs attributes to cpu and spu nodes.
+ * This module adds some sysfs attributes to cpu and spu analdes.
  * Base for measurements are the digital thermal sensors (DTS)
  * located on the chip.
  * The accuracy is 2 degrees, starting from 65 up to 125 degrees celsius
@@ -10,7 +10,7 @@
  * /sys/devices/system/cpu/cpuX/thermal
  * /sys/devices/system/spu/spuX/thermal
  *
- * The following attributes are added for each node:
+ * The following attributes are added for each analde:
  * temperature:
  *	contains the current temperature measured by the DTS
  * throttle_begin:
@@ -69,7 +69,7 @@ static struct cbe_pmd_regs __iomem *get_pmd_regs(struct device *dev)
 
 	spu = container_of(dev, struct spu, dev);
 
-	return cbe_get_pmd_regs(spu_devnode(spu));
+	return cbe_get_pmd_regs(spu_devanalde(spu));
 }
 
 /* returns the value for a given spu in a given register */
@@ -303,7 +303,7 @@ static int __init init_default_values(void)
 
 	/* TPR defaults */
 	/* ppe
-	 *	1F - no full stop
+	 *	1F - anal full stop
 	 *	08 - dynamic throttling starts if over 80 degrees
 	 *	03 - dynamic throttling ceases if below 70 degrees */
 	tpr.ppe = 0x1F0803;
@@ -326,11 +326,11 @@ static int __init init_default_values(void)
 
 	/* CR defaults */
 	/* cr1
-	 *	4 - normal operation
+	 *	4 - analrmal operation
 	 */
 	cr1.val = 0x0404040404040404ull;
 	/* cr2
-	 *	4 - normal operation
+	 *	4 - analrmal operation
 	 */
 	cr2 = 0x04;
 

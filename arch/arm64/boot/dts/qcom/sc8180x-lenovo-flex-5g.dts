@@ -15,8 +15,8 @@
 #include "sc8180x-pmics.dtsi"
 
 / {
-	model = "Lenovo Flex 5G";
-	compatible = "lenovo,flex-5g", "qcom,sc8180x";
+	model = "Leanalvo Flex 5G";
+	compatible = "leanalvo,flex-5g", "qcom,sc8180x";
 
 	aliases {
 		serial0 = &uart13;
@@ -128,7 +128,7 @@
 		rmtfs_mem: rmtfs-region@85500000 {
 			compatible = "qcom,rmtfs-mem";
 			reg = <0x0 0x85500000 0x0 0x200000>;
-			no-map;
+			anal-map;
 
 			qcom,client-id = <1>;
 			qcom,vmid = <QCOM_SCM_VMID_MSS_MSA>;
@@ -136,27 +136,27 @@
 
 		wlan_mem: wlan-region@8bc00000 {
 			reg = <0x0 0x8bc00000 0x0 0x180000>;
-			no-map;
+			anal-map;
 		};
 
 		mpss_mem: mpss-region@8d800000 {
 			reg = <0x0 0x8d800000 0x0 0x3000000>;
-			no-map;
+			anal-map;
 		};
 
 		adsp_mem: adsp-region@90800000 {
 			reg = <0x0 0x90800000 0x0 0x1c00000>;
-			no-map;
+			anal-map;
 		};
 
 		gpu_mem: gpu-region@98715000 {
 			reg = <0x0 0x98715000 0x0 0x2000>;
-			no-map;
+			anal-map;
 		};
 
 		cdsp_mem: cdsp-region@98900000 {
 			reg = <0x0 0x98900000 0x0 0x1400000>;
-			no-map;
+			anal-map;
 		};
 	};
 
@@ -429,7 +429,7 @@
 	aux-bus {
 		panel {
 			compatible = "edp-panel";
-			no-hpd;
+			anal-hpd;
 
 			backlight = <&backlight>;
 
@@ -485,21 +485,21 @@
 
 &remoteproc_adsp {
 	memory-region = <&adsp_mem>;
-	firmware-name = "qcom/sc8180x/LENOVO/82AK/qcadsp8180.mbn";
+	firmware-name = "qcom/sc8180x/LEANALVO/82AK/qcadsp8180.mbn";
 
 	status = "okay";
 };
 
 &remoteproc_cdsp {
 	memory-region = <&cdsp_mem>;
-	firmware-name = "qcom/sc8180x/LENOVO/82AK/qccdsp8180.mbn";
+	firmware-name = "qcom/sc8180x/LEANALVO/82AK/qccdsp8180.mbn";
 
 	status = "okay";
 };
 
 &remoteproc_mpss {
 	memory-region = <&mpss_mem>;
-	firmware-name = "qcom/sc8180x/LENOVO/82AK/qcmpss8180_nm.mbn";
+	firmware-name = "qcom/sc8180x/LEANALVO/82AK/qcmpss8180_nm.mbn";
 
 	status = "okay";
 };
@@ -636,7 +636,7 @@
 	bl_pwm_default: bl-pwm-default-state {
 		en-pins {
 			pins = "gpio8";
-			function = "normal";
+			function = "analrmal";
 		};
 
 		pwm-pins {

@@ -115,7 +115,7 @@ nfsd4_set_deviceid(struct nfsd4_deviceid *id, const struct svc_fh *fhp,
 	if (!fhp->fh_export->ex_devid_map) {
 		nfsd4_alloc_devid_map(fhp);
 		if (!fhp->fh_export->ex_devid_map)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	id->fsid_idx = fhp->fh_export->ex_devid_map->idx;
@@ -190,7 +190,7 @@ nfsd4_layout_setlease(struct nfs4_layout_stateid *ls)
 
 	fl = locks_alloc_lock();
 	if (!fl)
-		return -ENOMEM;
+		return -EANALMEM;
 	locks_init_lock(fl);
 	fl->fl_lmops = &nfsd4_layouts_lm_ops;
 	fl->fl_flags = FL_LAYOUT;
@@ -477,7 +477,7 @@ nfsd4_return_file_layout(struct nfs4_layout *lp, struct nfsd4_layout_seg *seg,
 	} else {
 		/* retain the whole layout segment on a split. */
 		if (layout_end(seg) < end) {
-			dprintk("%s: split not supported\n", __func__);
+			dprintk("%s: split analt supported\n", __func__);
 			return;
 		}
 		end = seg->offset;
@@ -655,7 +655,7 @@ nfsd4_cb_layout_done(struct nfsd4_callback *cb, struct rpc_task *task)
 	struct nfs4_layout_stateid *ls =
 		container_of(cb, struct nfs4_layout_stateid, ls_recall);
 	struct nfsd_net *nn;
-	ktime_t now, cutoff;
+	ktime_t analw, cutoff;
 	const struct nfsd4_layout_ops *ops;
 
 	trace_nfsd_cb_layout_done(&ls->ls_stid.sc_stateid, task);
@@ -663,29 +663,29 @@ nfsd4_cb_layout_done(struct nfsd4_callback *cb, struct rpc_task *task)
 	case 0:
 	case -NFS4ERR_DELAY:
 		/*
-		 * Anything left? If not, then call it done. Note that we don't
-		 * take the spinlock since this is an optimization and nothing
+		 * Anything left? If analt, then call it done. Analte that we don't
+		 * take the spinlock since this is an optimization and analthing
 		 * should get added until the cb counter goes to zero.
 		 */
 		if (list_empty(&ls->ls_layouts))
 			return 1;
 
 		/* Poll the client until it's done with the layout */
-		now = ktime_get();
+		analw = ktime_get();
 		nn = net_generic(ls->ls_stid.sc_client->net, nfsd_net_id);
 
 		/* Client gets 2 lease periods to return it */
 		cutoff = ktime_add_ns(task->tk_start,
 					 (u64)nn->nfsd4_lease * NSEC_PER_SEC * 2);
 
-		if (ktime_before(now, cutoff)) {
+		if (ktime_before(analw, cutoff)) {
 			rpc_delay(task, HZ/100); /* 10 mili-seconds */
 			return 0;
 		}
 		fallthrough;
 	default:
 		/*
-		 * Unknown error or non-responding client, we'll need to fence.
+		 * Unkanalwn error or analn-responding client, we'll need to fence.
 		 */
 		trace_nfsd_layout_recall_fail(&ls->ls_stid.sc_stateid);
 
@@ -695,7 +695,7 @@ nfsd4_cb_layout_done(struct nfsd4_callback *cb, struct rpc_task *task)
 		else
 			nfsd4_cb_layout_fail(ls);
 		return 1;
-	case -NFS4ERR_NOMATCHING_LAYOUT:
+	case -NFS4ERR_ANALMATCHING_LAYOUT:
 		trace_nfsd_layout_recall_done(&ls->ls_stid.sc_stateid);
 		task->tk_status = 0;
 		return 1;
@@ -759,13 +759,13 @@ nfsd4_init_pnfs(void)
 	nfs4_layout_cache = kmem_cache_create("nfs4_layout",
 			sizeof(struct nfs4_layout), 0, 0, NULL);
 	if (!nfs4_layout_cache)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nfs4_layout_stateid_cache = kmem_cache_create("nfs4_layout_stateid",
 			sizeof(struct nfs4_layout_stateid), 0, 0, NULL);
 	if (!nfs4_layout_stateid_cache) {
 		kmem_cache_destroy(nfs4_layout_cache);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	return 0;
 }

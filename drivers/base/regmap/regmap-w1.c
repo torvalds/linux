@@ -33,7 +33,7 @@ static int w1_reg_a8_v8_read(void *context, unsigned int reg, unsigned int *val)
 		w1_write_8(sl->master, reg);
 		*val = w1_read_8(sl->master);
 	} else {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 	}
 	mutex_unlock(&sl->master->bus_mutex);
 
@@ -55,7 +55,7 @@ static int w1_reg_a8_v8_write(void *context, unsigned int reg, unsigned int val)
 		w1_write_8(sl->master, reg);
 		w1_write_8(sl->master, val);
 	} else {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 	}
 	mutex_unlock(&sl->master->bus_mutex);
 
@@ -83,7 +83,7 @@ static int w1_reg_a8_v16_read(void *context, unsigned int reg,
 		*val = w1_read_8(sl->master);
 		*val |= w1_read_8(sl->master)<<8;
 	} else {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 	}
 	mutex_unlock(&sl->master->bus_mutex);
 
@@ -107,7 +107,7 @@ static int w1_reg_a8_v16_write(void *context, unsigned int reg,
 		w1_write_8(sl->master, val & 0x00FF);
 		w1_write_8(sl->master, val>>8 & 0x00FF);
 	} else {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 	}
 	mutex_unlock(&sl->master->bus_mutex);
 
@@ -136,7 +136,7 @@ static int w1_reg_a16_v16_read(void *context, unsigned int reg,
 		*val = w1_read_8(sl->master);
 		*val |= w1_read_8(sl->master)<<8;
 	} else {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 	}
 	mutex_unlock(&sl->master->bus_mutex);
 
@@ -161,7 +161,7 @@ static int w1_reg_a16_v16_write(void *context, unsigned int reg,
 		w1_write_8(sl->master, val & 0x00FF);
 		w1_write_8(sl->master, val>>8 & 0x00FF);
 	} else {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 	}
 	mutex_unlock(&sl->master->bus_mutex);
 
@@ -199,7 +199,7 @@ static const struct regmap_bus *regmap_get_w1_bus(struct device *w1_dev,
 	if (config->reg_bits == 16 && config->val_bits == 16)
 		return &regmap_w1_bus_a16_v16;
 
-	return ERR_PTR(-ENOTSUPP);
+	return ERR_PTR(-EANALTSUPP);
 }
 
 struct regmap *__regmap_init_w1(struct device *w1_dev,

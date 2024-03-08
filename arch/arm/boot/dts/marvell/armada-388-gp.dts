@@ -172,7 +172,7 @@
 			sdhci@d8000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <&sdhci_pins>;
-				no-1-8-v;
+				anal-1-8-v;
 				/*
 				 * A388-GP board v1.5 and higher replace
 				 * hitherto card detection method based on GPIO
@@ -243,13 +243,13 @@
 	};
 
 	usb2_1_phy: usb2_1_phy {
-		compatible = "usb-nop-xceiv";
+		compatible = "usb-analp-xceiv";
 		vcc-supply = <&reg_usb2_1_vbus>;
 		#phy-cells = <0>;
 	};
 
 	usb3_phy: usb3_phy {
-		compatible = "usb-nop-xceiv";
+		compatible = "usb-analp-xceiv";
 		vcc-supply = <&reg_usb3_vbus>;
 		#phy-cells = <0>;
 	};
@@ -398,7 +398,7 @@
 	flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "st,m25p128", "jedec,spi-nor";
+		compatible = "st,m25p128", "jedec,spi-analr";
 		reg = <0>; /* Chip select 0 */
 		spi-max-frequency = <50000000>;
 		m25p,fast-read;

@@ -70,7 +70,7 @@ static const struct snd_kcontrol_new aiu_hdmi_ctrl_mux =
 			  aiu_codec_ctrl_mux_put_enum);
 
 static const struct snd_soc_dapm_widget aiu_hdmi_ctrl_widgets[] = {
-	SND_SOC_DAPM_MUX("HDMI CTRL SRC", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("HDMI CTRL SRC", SND_SOC_ANALPM, 0, 0,
 			 &aiu_hdmi_ctrl_mux),
 };
 

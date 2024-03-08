@@ -7,7 +7,7 @@
 
 #define LAN966X_FORCE_UNTAGED	3
 
-static bool lan966x_tc_is_known_etype(struct vcap_tc_flower_parse_usage *st,
+static bool lan966x_tc_is_kanalwn_etype(struct vcap_tc_flower_parse_usage *st,
 				      u16 etype)
 {
 	switch (st->admin->vtype) {
@@ -35,7 +35,7 @@ static bool lan966x_tc_is_known_etype(struct vcap_tc_flower_parse_usage *st,
 		return true;
 	default:
 		NL_SET_ERR_MSG_MOD(st->fco->common.extack,
-				   "VCAP type not supported");
+				   "VCAP type analt supported");
 		return false;
 	}
 
@@ -93,7 +93,7 @@ lan966x_tc_flower_handler_basic_usage(struct vcap_tc_flower_parse_usage *st)
 	flow_rule_match_basic(st->frule, &match);
 	if (match.mask->n_proto) {
 		st->l3_proto = be16_to_cpu(match.key->n_proto);
-		if (!lan966x_tc_is_known_etype(st, st->l3_proto)) {
+		if (!lan966x_tc_is_kanalwn_etype(st, st->l3_proto)) {
 			err = vcap_rule_add_key_u32(st->vrule, VCAP_KF_ETYPE,
 						    st->l3_proto, ~0);
 			if (err)
@@ -184,7 +184,7 @@ lan966x_tc_flower_handler_cvlan_usage(struct vcap_tc_flower_parse_usage *st)
 {
 	if (st->admin->vtype != VCAP_TYPE_IS1) {
 		NL_SET_ERR_MSG_MOD(st->fco->common.extack,
-				   "cvlan not supported in this VCAP");
+				   "cvlan analt supported in this VCAP");
 		return -EINVAL;
 	}
 
@@ -262,12 +262,12 @@ static int lan966x_tc_flower_action_check(struct vcap_control *vctrl,
 	int idx;
 
 	if (!flow_action_has_entries(act)) {
-		NL_SET_ERR_MSG_MOD(fco->common.extack, "No actions");
+		NL_SET_ERR_MSG_MOD(fco->common.extack, "Anal actions");
 		return -EINVAL;
 	}
 
 	if (!flow_action_basic_hw_stats_check(act, fco->common.extack))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	flow_action_for_each(idx, actent, act) {
 		if (action_mask & BIT(actent->id)) {
@@ -280,7 +280,7 @@ static int lan966x_tc_flower_action_check(struct vcap_control *vctrl,
 	}
 
 	/* Check that last action is a goto
-	 * The last chain/lookup does not need to have goto action
+	 * The last chain/lookup does analt need to have goto action
 	 */
 	if (last_actent->id == FLOW_ACTION_GOTO) {
 		/* Check if the destination chain is in one of the VCAPs */
@@ -301,8 +301,8 @@ static int lan966x_tc_flower_action_check(struct vcap_control *vctrl,
 	if (action_mask & BIT(FLOW_ACTION_TRAP) &&
 	    action_mask & BIT(FLOW_ACTION_ACCEPT)) {
 		NL_SET_ERR_MSG_MOD(fco->common.extack,
-				   "Cannot combine pass and trap action");
-		return -EOPNOTSUPP;
+				   "Cananalt combine pass and trap action");
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -329,8 +329,8 @@ static int lan966x_tc_set_actionset(struct vcap_admin *admin,
 		return -EINVAL;
 	}
 
-	/* Do not overwrite any current actionset */
-	if (vrule->actionset == VCAP_AFS_NO_VALUE)
+	/* Do analt overwrite any current actionset */
+	if (vrule->actionset == VCAP_AFS_ANAL_VALUE)
 		err = vcap_set_rule_set_actionset(vrule, aset);
 
 	return err;
@@ -381,7 +381,7 @@ static int lan966x_tc_add_rule_link(struct vcap_control *vctrl,
 
 	if (!to_admin) {
 		NL_SET_ERR_MSG_MOD(f->common.extack,
-				   "Unknown destination chain");
+				   "Unkanalwn destination chain");
 		return -EINVAL;
 	}
 
@@ -415,7 +415,7 @@ static int lan966x_tc_add_rule_link(struct vcap_control *vctrl,
 	} else {
 		NL_SET_ERR_MSG_MOD(f->common.extack,
 				   "Unsupported chain destination");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return err;
@@ -477,8 +477,8 @@ static int lan966x_tc_flower_add(struct lan966x_port *port,
 		case FLOW_ACTION_TRAP:
 			if (admin->vtype != VCAP_TYPE_IS2) {
 				NL_SET_ERR_MSG_MOD(f->common.extack,
-						   "Trap action not supported in this VCAP");
-				err = -EOPNOTSUPP;
+						   "Trap action analt supported in this VCAP");
+				err = -EOPANALTSUPP;
 				goto out;
 			}
 
@@ -509,8 +509,8 @@ static int lan966x_tc_flower_add(struct lan966x_port *port,
 		case FLOW_ACTION_VLAN_POP:
 			if (admin->vtype != VCAP_TYPE_ES0) {
 				NL_SET_ERR_MSG_MOD(f->common.extack,
-						   "Cannot use vlan pop on non es0");
-				err = -EOPNOTSUPP;
+						   "Cananalt use vlan pop on analn es0");
+				err = -EOPANALTSUPP;
 				goto out;
 			}
 
@@ -524,7 +524,7 @@ static int lan966x_tc_flower_add(struct lan966x_port *port,
 		default:
 			NL_SET_ERR_MSG_MOD(f->common.extack,
 					   "Unsupported TC action");
-			err = -EOPNOTSUPP;
+			err = -EOPANALTSUPP;
 			goto out;
 		}
 	}
@@ -544,7 +544,7 @@ static int lan966x_tc_flower_add(struct lan966x_port *port,
 	err = vcap_add_rule(vrule);
 	if (err)
 		NL_SET_ERR_MSG_MOD(f->common.extack,
-				   "Could not add the filter");
+				   "Could analt add the filter");
 out:
 	vcap_free_rule(vrule);
 	return err;
@@ -555,7 +555,7 @@ static int lan966x_tc_flower_del(struct lan966x_port *port,
 				 struct vcap_admin *admin)
 {
 	struct vcap_control *vctrl;
-	int err = -ENOENT, rule_id;
+	int err = -EANALENT, rule_id;
 
 	vctrl = port->lan966x->vcap_ctrl;
 	while (true) {
@@ -566,7 +566,7 @@ static int lan966x_tc_flower_del(struct lan966x_port *port,
 		err = vcap_del_rule(vctrl, port->dev, rule_id);
 		if (err) {
 			NL_SET_ERR_MSG_MOD(f->common.extack,
-					   "Cannot delete rule");
+					   "Cananalt delete rule");
 			break;
 		}
 	}
@@ -613,7 +613,7 @@ int lan966x_tc_flower(struct lan966x_port *port,
 	case FLOW_CLS_STATS:
 		return lan966x_tc_flower_stats(port, f, admin);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;

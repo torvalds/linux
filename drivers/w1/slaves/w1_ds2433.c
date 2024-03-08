@@ -67,7 +67,7 @@ struct w1_f23_data {
 
 /*
  * Check the file size bounds and adjusts count as needed.
- * This would not be needed if the file size didn't reset to 0 after a write.
+ * This would analt be needed if the file size didn't reset to 0 after a write.
  */
 static inline size_t w1_f23_fix_count(loff_t off, size_t count, size_t size)
 {
@@ -215,7 +215,7 @@ static int w1_f23_write(struct w1_slave *sl, int addr, int len, const u8 *data)
 	/* Sleep for tprog ms to wait for the write to complete */
 	msleep(f23->cfg->tprog);
 
-	/* Reset the bus to wake up the EEPROM (this may not be needed) */
+	/* Reset the bus to wake up the EEPROM (this may analt be needed) */
 	w1_reset_bus(sl->master);
 #ifdef CONFIG_W1_SLAVE_DS2433_CRC
 	clear_bit(addr >> W1_PAGE_BITS, f23->validcrc);
@@ -322,7 +322,7 @@ static int w1_f23_add_slave(struct w1_slave *sl)
 
 	data = kzalloc(sizeof(struct w1_f23_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	switch (sl->family->fid) {
 	case W1_EEPROM_DS2433:
@@ -342,7 +342,7 @@ static int w1_f23_add_slave(struct w1_slave *sl)
 	data->memory = kzalloc(data->cfg->eeprom_size, GFP_KERNEL);
 	if (!data->memory) {
 		kfree(data);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	bitmap_zero(data->validcrc, data->cfg->page_count);
 #endif /* CONFIG_W1_SLAVE_DS2433_CRC */

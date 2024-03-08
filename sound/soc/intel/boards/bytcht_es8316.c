@@ -32,7 +32,7 @@
 #include "../common/soc-intel-quirks.h"
 
 /* jd-inv + terminating entry */
-#define MAX_NO_PROPS 2
+#define MAX_ANAL_PROPS 2
 
 struct byt_cht_es8316_private {
 	struct clk *mclk;
@@ -49,7 +49,7 @@ enum {
 
 #define BYT_CHT_ES8316_MAP(quirk)		((quirk) & GENMASK(3, 0))
 #define BYT_CHT_ES8316_SSP0			BIT(16)
-#define BYT_CHT_ES8316_MONO_SPEAKER		BIT(17)
+#define BYT_CHT_ES8316_MOANAL_SPEAKER		BIT(17)
 #define BYT_CHT_ES8316_JD_INVERTED		BIT(18)
 
 static unsigned long quirk;
@@ -66,8 +66,8 @@ static void log_quirks(struct device *dev)
 		dev_info(dev, "quirk IN2_MAP enabled");
 	if (quirk & BYT_CHT_ES8316_SSP0)
 		dev_info(dev, "quirk SSP0 enabled");
-	if (quirk & BYT_CHT_ES8316_MONO_SPEAKER)
-		dev_info(dev, "quirk MONO_SPEAKER enabled\n");
+	if (quirk & BYT_CHT_ES8316_MOANAL_SPEAKER)
+		dev_info(dev, "quirk MOANAL_SPEAKER enabled\n");
 	if (quirk & BYT_CHT_ES8316_JD_INVERTED)
 		dev_info(dev, "quirk JD_INVERTED enabled\n");
 }
@@ -94,7 +94,7 @@ static const struct snd_soc_dapm_widget byt_cht_es8316_widgets[] = {
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
 	SND_SOC_DAPM_MIC("Internal Mic", NULL),
 
-	SND_SOC_DAPM_SUPPLY("Speaker Power", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SUPPLY("Speaker Power", SND_SOC_ANALPM, 0, 0,
 			    byt_cht_es8316_speaker_power_event,
 			    SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMU),
 };
@@ -104,7 +104,7 @@ static const struct snd_soc_dapm_route byt_cht_es8316_audio_map[] = {
 	{"Headphone", NULL, "HPOR"},
 
 	/*
-	 * There is no separate speaker output instead the speakers are muxed to
+	 * There is anal separate speaker output instead the speakers are muxed to
 	 * the HP outputs. The mux is controlled by the "Speaker Power" supply.
 	 */
 	{"Speaker", NULL, "HPOL"},
@@ -195,10 +195,10 @@ static int byt_cht_es8316_init(struct snd_soc_pcm_runtime *runtime)
 
 	/*
 	 * The firmware might enable the clock at boot (this information
-	 * may or may not be reflected in the enable clock register).
+	 * may or may analt be reflected in the enable clock register).
 	 * To change the rate we must disable the clock first to cover these
-	 * cases. Due to common clock framework restrictions that do not allow
-	 * to disable a clock that has not been enabled, we need to enable
+	 * cases. Due to common clock framework restrictions that do analt allow
+	 * to disable a clock that has analt been enabled, we need to enable
 	 * the clock first.
 	 */
 	ret = clk_prepare_enable(priv->mclk);
@@ -261,7 +261,7 @@ static int byt_cht_es8316_codec_fixup(struct snd_soc_pcm_runtime *rtd,
 	/*
 	 * Default mode for SSP configuration is TDM 4 slot, override config
 	 * with explicit setting to I2S 2ch 24-bit. The word length is set with
-	 * dai_set_tdm_slot() since there is no other API exposed
+	 * dai_set_tdm_slot() since there is anal other API exposed
 	 */
 	ret = snd_soc_dai_set_fmt(snd_soc_rtd_to_cpu(rtd, 0),
 				SND_SOC_DAIFMT_I2S     |
@@ -313,7 +313,7 @@ static struct snd_soc_dai_link byt_cht_es8316_dais[] = {
 	[MERR_DPCM_AUDIO] = {
 		.name = "Audio Port",
 		.stream_name = "Audio",
-		.nonatomic = true,
+		.analnatomic = true,
 		.dynamic = 1,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
@@ -324,7 +324,7 @@ static struct snd_soc_dai_link byt_cht_es8316_dais[] = {
 	[MERR_DPCM_DEEP_BUFFER] = {
 		.name = "Deep-Buffer Audio Port",
 		.stream_name = "Deep-Buffer Audio",
-		.nonatomic = true,
+		.analnatomic = true,
 		.dynamic = 1,
 		.dpcm_playback = 1,
 		.ops = &byt_cht_es8316_aif1_ops,
@@ -335,7 +335,7 @@ static struct snd_soc_dai_link byt_cht_es8316_dais[] = {
 	{
 		.name = "SSP2-Codec",
 		.id = 0,
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
 						| SND_SOC_DAIFMT_CBC_CFC,
 		.be_hw_params_fixup = byt_cht_es8316_codec_fixup,
@@ -386,16 +386,16 @@ static int byt_cht_es8316_resume(struct snd_soc_card *card)
 	 * Some Cherry Trail boards with an ES8316 codec have a bug in their
 	 * ACPI tables where the MSSL1680 touchscreen's _PS0 and _PS3 methods
 	 * wrongly also set the speaker-enable GPIO to 1/0. Testing has shown
-	 * that this really is a bug and the GPIO has no influence on the
+	 * that this really is a bug and the GPIO has anal influence on the
 	 * touchscreen at all.
 	 *
-	 * The silead.c touchscreen driver does not support runtime suspend, so
+	 * The silead.c touchscreen driver does analt support runtime suspend, so
 	 * the GPIO can only be changed underneath us during a system suspend.
 	 * This resume() function runs from a pm complete() callback, and thus
 	 * is guaranteed to run after the touchscreen driver/ACPI-subsys has
 	 * brought the touchscreen back up again (and thus changed the GPIO).
 	 *
-	 * So to work around this we pass GPIOD_FLAGS_BIT_NONEXCLUSIVE when
+	 * So to work around this we pass GPIOD_FLAGS_BIT_ANALNEXCLUSIVE when
 	 * requesting the GPIO and we set its value here to undo any changes
 	 * done by the touchscreen's broken _PS0 ACPI method.
 	 */
@@ -444,7 +444,7 @@ static const struct dmi_system_id byt_cht_es8316_quirk_table[] = {
 					| BYT_CHT_ES8316_INTMIC_IN2_MAP
 					| BYT_CHT_ES8316_JD_INVERTED),
 	},
-	{	/* Nanote UMPC-01 */
+	{	/* Naanalte UMPC-01 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "RWC CO.,LTD"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "UMPC-01"),
@@ -483,7 +483,7 @@ static int byt_cht_es8316_get_quirks_from_dsm(struct byt_cht_es8316_private *pri
 	} else if (val1 == PLATFORM_MIC_AMIC_LIN2RIN2 && val2 == PLATFORM_MIC_AMIC_LIN1RIN1) {
 		dsm_quirk |= BYT_CHT_ES8316_INTMIC_IN2_MAP;
 	} else {
-		dev_warn(priv->codec_dev, "Unknown mic settings mainmic 0x%02x hpmic 0x%02x\n",
+		dev_warn(priv->codec_dev, "Unkanalwn mic settings mainmic 0x%02x hpmic 0x%02x\n",
 			 val1, val2);
 		return -EINVAL;
 	}
@@ -493,13 +493,13 @@ static int byt_cht_es8316_get_quirks_from_dsm(struct byt_cht_es8316_private *pri
 		return ret;
 
 	switch (val1) {
-	case PLATFORM_SPK_MONO:
-		dsm_quirk |= BYT_CHT_ES8316_MONO_SPEAKER;
+	case PLATFORM_SPK_MOANAL:
+		dsm_quirk |= BYT_CHT_ES8316_MOANAL_SPEAKER;
 		break;
 	case PLATFORM_SPK_STEREO:
 		break;
 	default:
-		dev_warn(priv->codec_dev, "Unknown speaker setting 0x%02x\n", val1);
+		dev_warn(priv->codec_dev, "Unkanalwn speaker setting 0x%02x\n", val1);
 		return -EINVAL;
 	}
 
@@ -508,13 +508,13 @@ static int byt_cht_es8316_get_quirks_from_dsm(struct byt_cht_es8316_private *pri
 		return ret;
 
 	switch (val1) {
-	case PLATFORM_HPDET_NORMAL:
+	case PLATFORM_HPDET_ANALRMAL:
 		break;
 	case PLATFORM_HPDET_INVERTED:
 		dsm_quirk |= BYT_CHT_ES8316_JD_INVERTED;
 		break;
 	default:
-		dev_warn(priv->codec_dev, "Unknown hpdet-inv setting 0x%02x\n", val1);
+		dev_warn(priv->codec_dev, "Unkanalwn hpdet-inv setting 0x%02x\n", val1);
 		return -EINVAL;
 	}
 
@@ -527,10 +527,10 @@ static int snd_byt_cht_es8316_mc_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	static const char * const mic_name[] = { "in1", "in2" };
 	struct snd_soc_acpi_mach *mach = dev_get_platdata(dev);
-	struct property_entry props[MAX_NO_PROPS] = {};
+	struct property_entry props[MAX_ANAL_PROPS] = {};
 	struct byt_cht_es8316_private *priv;
 	const struct dmi_system_id *dmi_id;
-	struct fwnode_handle *fwnode;
+	struct fwanalde_handle *fwanalde;
 	bool sof_parent, is_bytcr;
 	const char *platform_name;
 	struct acpi_device *adev;
@@ -542,7 +542,7 @@ static int snd_byt_cht_es8316_mc_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* fix index of codec dai */
 	for (i = 0; i < ARRAY_SIZE(byt_cht_es8316_dais); i++) {
@@ -561,11 +561,11 @@ static int snd_byt_cht_es8316_mc_probe(struct platform_device *pdev)
 			 "i2c-%s", acpi_dev_name(adev));
 		byt_cht_es8316_dais[dai_index].codecs->name = codec_name;
 	} else {
-		dev_err(dev, "Error cannot find '%s' dev\n", mach->id);
+		dev_err(dev, "Error cananalt find '%s' dev\n", mach->id);
 		return -ENXIO;
 	}
 
-	codec_dev = acpi_get_first_physical_node(adev);
+	codec_dev = acpi_get_first_physical_analde(adev);
 	acpi_dev_put(adev);
 	if (!codec_dev)
 		return -EPROBE_DEFER;
@@ -592,13 +592,13 @@ static int snd_byt_cht_es8316_mc_probe(struct platform_device *pdev)
 	} else if (!byt_cht_es8316_get_quirks_from_dsm(priv, is_bytcr)) {
 		dev_info(dev, "Using ACPI DSM info for quirks\n");
 	} else if (is_bytcr) {
-		/* On BYTCR default to SSP0, internal-mic-in2-map, mono-spk */
+		/* On BYTCR default to SSP0, internal-mic-in2-map, moanal-spk */
 		quirk = BYT_CHT_ES8316_SSP0 | BYT_CHT_ES8316_INTMIC_IN2_MAP |
-			BYT_CHT_ES8316_MONO_SPEAKER;
+			BYT_CHT_ES8316_MOANAL_SPEAKER;
 	} else {
-		/* Others default to internal-mic-in1-map, mono-speaker */
+		/* Others default to internal-mic-in1-map, moanal-speaker */
 		quirk = BYT_CHT_ES8316_INTMIC_IN1_MAP |
-			BYT_CHT_ES8316_MONO_SPEAKER;
+			BYT_CHT_ES8316_MOANAL_SPEAKER;
 	}
 	if (quirk_override != -1) {
 		dev_info(dev, "Overriding quirk 0x%lx => 0x%x\n",
@@ -621,15 +621,15 @@ static int snd_byt_cht_es8316_mc_probe(struct platform_device *pdev)
 		props[cnt++] = PROPERTY_ENTRY_BOOL("everest,jack-detect-inverted");
 
 	if (cnt) {
-		fwnode = fwnode_create_software_node(props, NULL);
-		if (IS_ERR(fwnode)) {
+		fwanalde = fwanalde_create_software_analde(props, NULL);
+		if (IS_ERR(fwanalde)) {
 			put_device(codec_dev);
-			return PTR_ERR(fwnode);
+			return PTR_ERR(fwanalde);
 		}
 
-		ret = device_add_software_node(codec_dev, to_software_node(fwnode));
+		ret = device_add_software_analde(codec_dev, to_software_analde(fwanalde));
 
-		fwnode_handle_put(fwnode);
+		fwanalde_handle_put(fwanalde);
 
 		if (ret) {
 			put_device(codec_dev);
@@ -642,7 +642,7 @@ static int snd_byt_cht_es8316_mc_probe(struct platform_device *pdev)
 	priv->speaker_en_gpio =
 		gpiod_get_optional(codec_dev, "speaker-enable",
 				   /* see comment in byt_cht_es8316_resume() */
-				   GPIOD_OUT_LOW | GPIOD_FLAGS_BIT_NONEXCLUSIVE);
+				   GPIOD_OUT_LOW | GPIOD_FLAGS_BIT_ANALNEXCLUSIVE);
 	if (IS_ERR(priv->speaker_en_gpio)) {
 		ret = dev_err_probe(dev, PTR_ERR(priv->speaker_en_gpio),
 				    "get speaker GPIO failed\n");
@@ -651,12 +651,12 @@ static int snd_byt_cht_es8316_mc_probe(struct platform_device *pdev)
 
 	snprintf(components_string, sizeof(components_string),
 		 "cfg-spk:%s cfg-mic:%s",
-		 (quirk & BYT_CHT_ES8316_MONO_SPEAKER) ? "1" : "2",
+		 (quirk & BYT_CHT_ES8316_MOANAL_SPEAKER) ? "1" : "2",
 		 mic_name[BYT_CHT_ES8316_MAP(quirk)]);
 	byt_cht_es8316_card.components = components_string;
 #if !IS_ENABLED(CONFIG_SND_SOC_INTEL_USER_FRIENDLY_LONG_NAMES)
 	snprintf(long_name, sizeof(long_name), "bytcht-es8316-%s-spk-%s-mic",
-		 (quirk & BYT_CHT_ES8316_MONO_SPEAKER) ? "mono" : "stereo",
+		 (quirk & BYT_CHT_ES8316_MOANAL_SPEAKER) ? "moanal" : "stereo",
 		 mic_name[BYT_CHT_ES8316_MAP(quirk)]);
 	byt_cht_es8316_card.long_name = long_name;
 #endif
@@ -689,7 +689,7 @@ static int snd_byt_cht_es8316_mc_probe(struct platform_device *pdev)
 	return 0;
 
 err_put_codec:
-	device_remove_software_node(priv->codec_dev);
+	device_remove_software_analde(priv->codec_dev);
 	put_device(priv->codec_dev);
 	return ret;
 }
@@ -700,7 +700,7 @@ static void snd_byt_cht_es8316_mc_remove(struct platform_device *pdev)
 	struct byt_cht_es8316_private *priv = snd_soc_card_get_drvdata(card);
 
 	gpiod_put(priv->speaker_en_gpio);
-	device_remove_software_node(priv->codec_dev);
+	device_remove_software_analde(priv->codec_dev);
 	put_device(priv->codec_dev);
 }
 

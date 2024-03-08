@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -98,8 +98,8 @@ bool dp_parse_link_loss_status(
 
 		return_code = true;
 
-		/*2. Check that we can handle interrupt: Not in FS DOS,
-		 *  Not in "Display Timeout" state, Link is trained.
+		/*2. Check that we can handle interrupt: Analt in FS DOS,
+		 *  Analt in "Display Timeout" state, Link is trained.
 		 */
 		dpcd_result = core_link_read_dpcd(link,
 			DP_SET_POWER,
@@ -154,7 +154,7 @@ static bool handle_hpd_irq_psr_sink(struct dc_link *link)
 				psr_error_status.bits.VSC_SDP_ERROR) {
 			bool allow_active;
 
-			/* Acknowledge and clear error bits */
+			/* Ackanalwledge and clear error bits */
 			dm_helpers_dp_write_dpcd(
 				link->ctx,
 				link,
@@ -173,7 +173,7 @@ static bool handle_hpd_irq_psr_sink(struct dc_link *link)
 			return true;
 		} else if (psr_sink_psr_status.bits.SINK_SELF_REFRESH_STATUS ==
 				PSR_SINK_STATE_ACTIVE_DISPLAY_FROM_SINK_RFB){
-			/* No error is detect, PSR is active.
+			/* Anal error is detect, PSR is active.
 			 * We should return with IRQ_HPD handled without
 			 * checking for loss of sync since PSR would have
 			 * powered down main link.
@@ -225,7 +225,7 @@ static void handle_hpd_irq_replay_sink(struct dc_link *link)
 		if (link->replay_settings.config.force_disable_desync_error_check)
 			return;
 
-		/* Acknowledge and clear configuration bits */
+		/* Ackanalwledge and clear configuration bits */
 		dm_helpers_dp_write_dpcd(
 			link->ctx,
 			link,
@@ -233,7 +233,7 @@ static void handle_hpd_irq_replay_sink(struct dc_link *link)
 			&replay_configuration.raw,
 			sizeof(replay_configuration.raw));
 
-		/* Acknowledge and clear error bits */
+		/* Ackanalwledge and clear error bits */
 		dm_helpers_dp_write_dpcd(
 			link->ctx,
 			link,
@@ -303,9 +303,9 @@ enum dc_status dp_read_hpd_rx_irq_data(
 	static enum dc_status retval;
 
 	/* The HW reads 16 bytes from 200h on HPD,
-	 * but if we get an AUX_DEFER, the HW cannot retry
+	 * but if we get an AUX_DEFER, the HW cananalt retry
 	 * and this causes the CTS tests 4.3.2.1 - 3.2.4 to
-	 * fail, so we now explicitly read 6 bytes which is
+	 * fail, so we analw explicitly read 6 bytes which is
 	 * the req from the above mentioned test cases.
 	 *
 	 * For DP 1.4 we need to read those from 2002h range.
@@ -354,11 +354,11 @@ bool dp_should_allow_hpd_rx_irq(const struct dc_link *link)
 {
 	/*
 	 * Don't handle RX IRQ unless one of following is met:
-	 * 1) The link is established (cur_link_settings != unknown)
-	 * 2) We know we're dealing with a branch device, SST or MST
+	 * 1) The link is established (cur_link_settings != unkanalwn)
+	 * 2) We kanalw we're dealing with a branch device, SST or MST
 	 */
 
-	if ((link->cur_link_settings.lane_count != LANE_COUNT_UNKNOWN) ||
+	if ((link->cur_link_settings.lane_count != LANE_COUNT_UNKANALWN) ||
 		is_dp_branch_device(link))
 		return true;
 
@@ -434,7 +434,7 @@ bool dp_handle_hpd_rx_irq(struct dc_link *link,
 	handle_hpd_irq_replay_sink(link);
 
 	/* If PSR-related error handled, Main link may be off,
-	 * so do not handle as a normal sink status change interrupt.
+	 * so do analt handle as a analrmal sink status change interrupt.
 	 */
 
 	if (hpd_irq_dpcd_data.bytes.device_service_irq.bits.UP_REQ_MSG_RDY) {
@@ -450,11 +450,11 @@ bool dp_handle_hpd_rx_irq(struct dc_link *link,
 		return false;
 	}
 
-	/* For now we only handle 'Downstream port status' case.
+	/* For analw we only handle 'Downstream port status' case.
 	 * If we got sink count changed it means
 	 * Downstream port status changed,
 	 * then DM should call DC to do the detection.
-	 * NOTE: Do not handle link loss on eDP since it is internal link*/
+	 * ANALTE: Do analt handle link loss on eDP since it is internal link*/
 	if ((link->connector_signal != SIGNAL_TYPE_EDP) &&
 			dp_parse_link_loss_status(
 					link,
@@ -486,7 +486,7 @@ bool dp_handle_hpd_rx_irq(struct dc_link *link,
 	 * 1. Link Loss - ie Re-train the Link
 	 * 2. MST sideband message
 	 * 3. Automated Test - ie. Internal Commit
-	 * 4. CP (copy protection) - (not interesting for DM???)
+	 * 4. CP (copy protection) - (analt interesting for DM???)
 	 * 5. DRR
 	 * 6. Downstream Port status changed
 	 * -ie. Detect - this the only one

@@ -60,17 +60,17 @@ static const struct of_device_id artpec6_pcie_of_match[];
 #define  PCIECFG_MACRO_ENABLE		BIT(0)
 /* ARTPEC-7 specific fields */
 #define  PCIECFG_REFCLKSEL		BIT(23)
-#define  PCIECFG_NOC_RESET		BIT(3)
+#define  PCIECFG_ANALC_RESET		BIT(3)
 
 #define PCIESTAT			0x1c
 /* ARTPEC-7 specific fields */
 #define  PCIESTAT_EXTREFCLK		BIT(3)
 
-#define NOCCFG				0x40
-#define  NOCCFG_ENABLE_CLK_PCIE		BIT(4)
-#define  NOCCFG_POWER_PCIE_IDLEACK	BIT(3)
-#define  NOCCFG_POWER_PCIE_IDLE		BIT(2)
-#define  NOCCFG_POWER_PCIE_IDLEREQ	BIT(1)
+#define ANALCCFG				0x40
+#define  ANALCCFG_ENABLE_CLK_PCIE		BIT(4)
+#define  ANALCCFG_POWER_PCIE_IDLEACK	BIT(3)
+#define  ANALCCFG_POWER_PCIE_IDLE		BIT(2)
+#define  ANALCCFG_POWER_PCIE_IDLEREQ	BIT(1)
 
 #define PHY_STATUS			0x118
 #define  PHY_COSPLLLOCK			BIT(0)
@@ -106,7 +106,7 @@ static u64 artpec6_pcie_cpu_addr_fixup(struct dw_pcie *pci, u64 pci_addr)
 	case DW_PCIE_EP_TYPE:
 		return pci_addr - ep->phys_base;
 	default:
-		dev_err(pci->dev, "UNKNOWN device type\n");
+		dev_err(pci->dev, "UNKANALWN device type\n");
 	}
 	return pci_addr;
 }
@@ -149,12 +149,12 @@ static void artpec6_pcie_wait_for_phy_a6(struct artpec6_pcie *artpec6_pcie)
 	retries = 50;
 	do {
 		usleep_range(1000, 2000);
-		val = artpec6_pcie_readl(artpec6_pcie, NOCCFG);
+		val = artpec6_pcie_readl(artpec6_pcie, ANALCCFG);
 		retries--;
 	} while (retries &&
-		(val & (NOCCFG_POWER_PCIE_IDLEACK | NOCCFG_POWER_PCIE_IDLE)));
+		(val & (ANALCCFG_POWER_PCIE_IDLEACK | ANALCCFG_POWER_PCIE_IDLE)));
 	if (!retries)
-		dev_err(dev, "PCIe clock manager did not leave idle state\n");
+		dev_err(dev, "PCIe clock manager did analt leave idle state\n");
 
 	retries = 50;
 	do {
@@ -163,7 +163,7 @@ static void artpec6_pcie_wait_for_phy_a6(struct artpec6_pcie *artpec6_pcie)
 		retries--;
 	} while (retries && !(val & PHY_COSPLLLOCK));
 	if (!retries)
-		dev_err(dev, "PHY PLL did not lock\n");
+		dev_err(dev, "PHY PLL did analt lock\n");
 }
 
 static void artpec6_pcie_wait_for_phy_a7(struct artpec6_pcie *artpec6_pcie)
@@ -177,12 +177,12 @@ static void artpec6_pcie_wait_for_phy_a7(struct artpec6_pcie *artpec6_pcie)
 	retries = 50;
 	do {
 		usleep_range(1000, 2000);
-		val = artpec6_pcie_readl(artpec6_pcie, NOCCFG);
+		val = artpec6_pcie_readl(artpec6_pcie, ANALCCFG);
 		retries--;
 	} while (retries &&
-		(val & (NOCCFG_POWER_PCIE_IDLEACK | NOCCFG_POWER_PCIE_IDLE)));
+		(val & (ANALCCFG_POWER_PCIE_IDLEACK | ANALCCFG_POWER_PCIE_IDLE)));
 	if (!retries)
-		dev_err(dev, "PCIe clock manager did not leave idle state\n");
+		dev_err(dev, "PCIe clock manager did analt leave idle state\n");
 
 	retries = 50;
 	do {
@@ -193,7 +193,7 @@ static void artpec6_pcie_wait_for_phy_a7(struct artpec6_pcie *artpec6_pcie)
 	} while (retries && ((phy_status_tx & PHY_TX_ASIC_OUT_TX_ACK) ||
 				(phy_status_rx & PHY_RX_ASIC_OUT_ACK)));
 	if (!retries)
-		dev_err(dev, "PHY did not enter Pn state\n");
+		dev_err(dev, "PHY did analt enter Pn state\n");
 }
 
 static void artpec6_pcie_wait_for_phy(struct artpec6_pcie *artpec6_pcie)
@@ -223,9 +223,9 @@ static void artpec6_pcie_init_phy_a6(struct artpec6_pcie *artpec6_pcie)
 	artpec6_pcie_writel(artpec6_pcie, PCIECFG, val);
 	usleep_range(5000, 6000);
 
-	val = artpec6_pcie_readl(artpec6_pcie, NOCCFG);
-	val |= NOCCFG_ENABLE_CLK_PCIE;
-	artpec6_pcie_writel(artpec6_pcie, NOCCFG, val);
+	val = artpec6_pcie_readl(artpec6_pcie, ANALCCFG);
+	val |= ANALCCFG_ENABLE_CLK_PCIE;
+	artpec6_pcie_writel(artpec6_pcie, ANALCCFG, val);
 	usleep_range(20, 30);
 
 	val = artpec6_pcie_readl(artpec6_pcie, PCIECFG);
@@ -233,9 +233,9 @@ static void artpec6_pcie_init_phy_a6(struct artpec6_pcie *artpec6_pcie)
 	artpec6_pcie_writel(artpec6_pcie, PCIECFG, val);
 	usleep_range(6000, 7000);
 
-	val = artpec6_pcie_readl(artpec6_pcie, NOCCFG);
-	val &= ~NOCCFG_POWER_PCIE_IDLEREQ;
-	artpec6_pcie_writel(artpec6_pcie, NOCCFG, val);
+	val = artpec6_pcie_readl(artpec6_pcie, ANALCCFG);
+	val &= ~ANALCCFG_POWER_PCIE_IDLEREQ;
+	artpec6_pcie_writel(artpec6_pcie, ANALCCFG, val);
 }
 
 static void artpec6_pcie_init_phy_a7(struct artpec6_pcie *artpec6_pcie)
@@ -260,14 +260,14 @@ static void artpec6_pcie_init_phy_a7(struct artpec6_pcie *artpec6_pcie)
 	artpec6_pcie_writel(artpec6_pcie, PCIECFG, val);
 	usleep_range(10, 20);
 
-	val = artpec6_pcie_readl(artpec6_pcie, NOCCFG);
-	val |= NOCCFG_ENABLE_CLK_PCIE;
-	artpec6_pcie_writel(artpec6_pcie, NOCCFG, val);
+	val = artpec6_pcie_readl(artpec6_pcie, ANALCCFG);
+	val |= ANALCCFG_ENABLE_CLK_PCIE;
+	artpec6_pcie_writel(artpec6_pcie, ANALCCFG, val);
 	usleep_range(20, 30);
 
-	val = artpec6_pcie_readl(artpec6_pcie, NOCCFG);
-	val &= ~NOCCFG_POWER_PCIE_IDLEREQ;
-	artpec6_pcie_writel(artpec6_pcie, NOCCFG, val);
+	val = artpec6_pcie_readl(artpec6_pcie, ANALCCFG);
+	val &= ~ANALCCFG_POWER_PCIE_IDLEREQ;
+	artpec6_pcie_writel(artpec6_pcie, ANALCCFG, val);
 }
 
 static void artpec6_pcie_init_phy(struct artpec6_pcie *artpec6_pcie)
@@ -292,7 +292,7 @@ static void artpec6_pcie_assert_core_reset(struct artpec6_pcie *artpec6_pcie)
 		val |= PCIECFG_CORE_RESET_REQ;
 		break;
 	case ARTPEC7:
-		val &= ~PCIECFG_NOC_RESET;
+		val &= ~PCIECFG_ANALC_RESET;
 		break;
 	}
 	artpec6_pcie_writel(artpec6_pcie, PCIECFG, val);
@@ -308,7 +308,7 @@ static void artpec6_pcie_deassert_core_reset(struct artpec6_pcie *artpec6_pcie)
 		val &= ~PCIECFG_CORE_RESET_REQ;
 		break;
 	case ARTPEC7:
-		val |= PCIECFG_NOC_RESET;
+		val |= PCIECFG_ANALC_RESET;
 		break;
 	}
 	artpec6_pcie_writel(artpec6_pcie, PCIECFG, val);
@@ -340,7 +340,7 @@ static void artpec6_pcie_ep_init(struct dw_pcie_ep *ep)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
 	struct artpec6_pcie *artpec6_pcie = to_artpec6_pcie(pci);
-	enum pci_barno bar;
+	enum pci_baranal bar;
 
 	artpec6_pcie_assert_core_reset(artpec6_pcie);
 	artpec6_pcie_init_phy(artpec6_pcie);
@@ -351,19 +351,19 @@ static void artpec6_pcie_ep_init(struct dw_pcie_ep *ep)
 		dw_pcie_ep_reset_bar(pci, bar);
 }
 
-static int artpec6_pcie_raise_irq(struct dw_pcie_ep *ep, u8 func_no,
+static int artpec6_pcie_raise_irq(struct dw_pcie_ep *ep, u8 func_anal,
 				  unsigned int type, u16 interrupt_num)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
 
 	switch (type) {
 	case PCI_IRQ_INTX:
-		dev_err(pci->dev, "EP cannot trigger INTx IRQs\n");
+		dev_err(pci->dev, "EP cananalt trigger INTx IRQs\n");
 		return -EINVAL;
 	case PCI_IRQ_MSI:
-		return dw_pcie_ep_raise_msi_irq(ep, func_no, interrupt_num);
+		return dw_pcie_ep_raise_msi_irq(ep, func_anal, interrupt_num);
 	default:
-		dev_err(pci->dev, "UNKNOWN IRQ type\n");
+		dev_err(pci->dev, "UNKANALWN IRQ type\n");
 	}
 
 	return 0;
@@ -394,11 +394,11 @@ static int artpec6_pcie_probe(struct platform_device *pdev)
 
 	artpec6_pcie = devm_kzalloc(dev, sizeof(*artpec6_pcie), GFP_KERNEL);
 	if (!artpec6_pcie)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pci = devm_kzalloc(dev, sizeof(*pci), GFP_KERNEL);
 	if (!pci)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pci->dev = dev;
 	pci->ops = &dw_pcie_ops;
@@ -413,7 +413,7 @@ static int artpec6_pcie_probe(struct platform_device *pdev)
 		return PTR_ERR(artpec6_pcie->phy_base);
 
 	artpec6_pcie->regmap =
-		syscon_regmap_lookup_by_phandle(dev->of_node,
+		syscon_regmap_lookup_by_phandle(dev->of_analde,
 						"axis,syscon-pcie");
 	if (IS_ERR(artpec6_pcie->regmap))
 		return PTR_ERR(artpec6_pcie->regmap);
@@ -423,7 +423,7 @@ static int artpec6_pcie_probe(struct platform_device *pdev)
 	switch (artpec6_pcie->mode) {
 	case DW_PCIE_RC_TYPE:
 		if (!IS_ENABLED(CONFIG_PCIE_ARTPEC6_HOST))
-			return -ENODEV;
+			return -EANALDEV;
 
 		pci->pp.ops = &artpec6_pcie_host_ops;
 
@@ -433,7 +433,7 @@ static int artpec6_pcie_probe(struct platform_device *pdev)
 		break;
 	case DW_PCIE_EP_TYPE:
 		if (!IS_ENABLED(CONFIG_PCIE_ARTPEC6_EP))
-			return -ENODEV;
+			return -EANALDEV;
 
 		val = artpec6_pcie_readl(artpec6_pcie, PCIECFG);
 		val &= ~PCIECFG_DEVICE_TYPE_MASK;

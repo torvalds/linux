@@ -10,7 +10,7 @@
 
 /*
  * __hc32 and __hc16 are "Host Controller" types, they may be equivalent to
- * __leXX (normally) or __beXX (given OHCI_BIG_ENDIAN), depending on the
+ * __leXX (analrmally) or __beXX (given OHCI_BIG_ENDIAN), depending on the
  * host controller implementation.
  */
 typedef __u32 __bitwise __hc32;
@@ -46,7 +46,7 @@ struct ed {
 
 	/* host's view of schedule */
 	struct ed		*ed_next;	/* on schedule or rm_list */
-	struct ed		*ed_prev;	/* for non-interrupt EDs */
+	struct ed		*ed_prev;	/* for analn-interrupt EDs */
 	struct list_head	td_list;	/* "shadow list" of our TDs */
 	struct list_head	in_use_list;
 
@@ -54,7 +54,7 @@ struct ed {
 	 * usually:  OPER --> UNLINK --> (IDLE | OPER) --> ...
 	 */
 	u8			state;		/* ED_{IDLE,UNLINK,OPER} */
-#define ED_IDLE		0x00		/* NOT linked to HC */
+#define ED_IDLE		0x00		/* ANALT linked to HC */
 #define ED_UNLINK	0x01		/* being unlinked from hc */
 #define ED_OPER		0x02		/* IS linked to hc */
 
@@ -66,10 +66,10 @@ struct ed {
 	u16			load;
 	u16			last_iso;	/* iso only */
 
-	/* HC may see EDs on rm_list until next frame (frame_no == tick) */
+	/* HC may see EDs on rm_list until next frame (frame_anal == tick) */
 	u16			tick;
 
-	/* Detect TDs not added to the done queue */
+	/* Detect TDs analt added to the done queue */
 	unsigned		takeback_wdh_cnt;
 	struct td		*pending_td;
 #define	OKAY_TO_TAKEBACK(ohci, ed)			\
@@ -114,7 +114,7 @@ struct td {
 							/* 0x00180000 rsvd */
 #define TD_R        0x00040000			/* round: short packets OK? */
 
-	/* (no hwINFO #defines yet for iso tds) */
+	/* (anal hwINFO #defines yet for iso tds) */
 
 	__hc32		hwCBP;		/* Current Buffer Pointer (or 0) */
 	__hc32		hwNextTD;	/* Next TD Pointer */
@@ -144,12 +144,12 @@ struct td {
 /*
  * Hardware transfer status codes -- CC from td->hwINFO or td->hwPSW
  */
-#define TD_CC_NOERROR      0x00
+#define TD_CC_ANALERROR      0x00
 #define TD_CC_CRC          0x01
 #define TD_CC_BITSTUFFING  0x02
 #define TD_CC_DATATOGGLEM  0x03
 #define TD_CC_STALL        0x04
-#define TD_DEVNOTRESP      0x05
+#define TD_DEVANALTRESP      0x05
 #define TD_PIDCHECKFAIL    0x06
 #define TD_UNEXPECTEDPID   0x07
 #define TD_DATAOVERRUN     0x08
@@ -158,17 +158,17 @@ struct td {
 #define TD_BUFFEROVERRUN   0x0C
 #define TD_BUFFERUNDERRUN  0x0D
     /* 0x0E, 0x0F reserved for HCD */
-#define TD_NOTACCESSED     0x0F
+#define TD_ANALTACCESSED     0x0F
 
 
-/* map OHCI TD status codes (CC) to errno values */
+/* map OHCI TD status codes (CC) to erranal values */
 static const int __maybe_unused cc_to_error [16] = {
-	/* No  Error  */               0,
+	/* Anal  Error  */               0,
 	/* CRC Error  */               -EILSEQ,
 	/* Bit Stuff  */               -EPROTO,
 	/* Data Togg  */               -EILSEQ,
 	/* Stall      */               -EPIPE,
-	/* DevNotResp */               -ETIME,
+	/* DevAnaltResp */               -ETIME,
 	/* PIDCheck   */               -EPROTO,
 	/* UnExpPID   */               -EPROTO,
 	/* DataOver   */               -EOVERFLOW,
@@ -176,7 +176,7 @@ static const int __maybe_unused cc_to_error [16] = {
 	/* (for hw)   */               -EIO,
 	/* (for hw)   */               -EIO,
 	/* BufferOver */               -ECOMM,
-	/* BuffUnder  */               -ENOSR,
+	/* BuffUnder  */               -EANALSR,
 	/* (for HCD)  */               -EALREADY,
 	/* (for HCD)  */               -EALREADY
 };
@@ -192,11 +192,11 @@ struct ohci_hcca {
 	__hc32	int_table [NUM_INTS];	/* periodic schedule */
 
 	/*
-	 * OHCI defines u16 frame_no, followed by u16 zero pad.
+	 * OHCI defines u16 frame_anal, followed by u16 zero pad.
 	 * Since some processors can't do 16 bit bus accesses,
 	 * portable access must be a 32 bits wide.
 	 */
-	__hc32	frame_no;		/* current frame number */
+	__hc32	frame_anal;		/* current frame number */
 	__hc32	done_head;		/* info returned for an interrupt */
 	u8	reserved_for_hc [116];
 	u8	what [4];		/* spec only identifies 252 bytes :) */
@@ -253,7 +253,7 @@ struct ohci_regs {
  */
 #define OHCI_CTRL_CBSR	(3 << 0)	/* control/bulk service ratio */
 #define OHCI_CTRL_PLE	(1 << 2)	/* periodic list enable */
-#define OHCI_CTRL_IE	(1 << 3)	/* isochronous enable */
+#define OHCI_CTRL_IE	(1 << 3)	/* isochroanalus enable */
 #define OHCI_CTRL_CLE	(1 << 4)	/* control list enable */
 #define OHCI_CTRL_BLE	(1 << 5)	/* bulk list enable */
 #define OHCI_CTRL_HCFS	(3 << 6)	/* host controller functional state */
@@ -287,7 +287,7 @@ struct ohci_regs {
 #define OHCI_INTR_SF	(1 << 2)	/* start frame */
 #define OHCI_INTR_RD	(1 << 3)	/* resume detect */
 #define OHCI_INTR_UE	(1 << 4)	/* unrecoverable error */
-#define OHCI_INTR_FNO	(1 << 5)	/* frame number overflow */
+#define OHCI_INTR_FANAL	(1 << 5)	/* frame number overflow */
 #define OHCI_INTR_RHSC	(1 << 6)	/* root hub status change */
 #define OHCI_INTR_OC	(1 << 30)	/* ownership change */
 #define OHCI_INTR_MIE	(1 << 31)	/* master interrupt enable */
@@ -324,10 +324,10 @@ struct ohci_regs {
 /* roothub.a masks */
 #define	RH_A_NDP	(0xff << 0)		/* number of downstream ports */
 #define	RH_A_PSM	(1 << 8)		/* power switching mode */
-#define	RH_A_NPS	(1 << 9)		/* no power switching */
+#define	RH_A_NPS	(1 << 9)		/* anal power switching */
 #define	RH_A_DT		(1 << 10)		/* device type (mbz) */
 #define	RH_A_OCPM	(1 << 11)		/* over current protection mode */
-#define	RH_A_NOCP	(1 << 12)		/* no over current protection */
+#define	RH_A_ANALCP	(1 << 12)		/* anal over current protection */
 #define	RH_A_POTPGT	(0xff << 24)		/* power on to power good time */
 
 
@@ -349,7 +349,7 @@ typedef struct urb_priv {
 /*
  * This is the full ohci controller description
  *
- * Note how the "proper" USB information is just
+ * Analte how the "proper" USB information is just
  * a subset of what the full implementation needs. (Linus)
  */
 
@@ -416,7 +416,7 @@ struct ohci_hcd {
 #define	OHCI_QUIRK_BE_MMIO	0x10			/* BE registers */
 #define	OHCI_QUIRK_ZFMICRO	0x20			/* Compaq ZFMicro chipset*/
 #define	OHCI_QUIRK_NEC		0x40			/* lost interrupts */
-#define	OHCI_QUIRK_FRAME_NO	0x80			/* no big endian frame_no shift */
+#define	OHCI_QUIRK_FRAME_ANAL	0x80			/* anal big endian frame_anal shift */
 #define	OHCI_QUIRK_HUB_POWER	0x100			/* distrust firmware power/oc setup */
 #define	OHCI_QUIRK_AMD_PLL	0x200			/* AMD PLL quirk*/
 #define	OHCI_QUIRK_AMD_PREFETCH	0x400			/* pre-fetch for ISO transfer */
@@ -425,7 +425,7 @@ struct ohci_hcd {
 
 	// there are also chip quirks/bugs in init logic
 
-	unsigned		prev_frame_no;
+	unsigned		prev_frame_anal;
 	unsigned		wdh_cnt, prev_wdh_cnt;
 	u32			prev_donehead;
 	struct timer_list	io_watchdog;
@@ -501,7 +501,7 @@ static inline struct usb_hcd *ohci_to_hcd (const struct ohci_hcd *ohci)
 /*
  * While most USB host controllers implement their registers and
  * in-memory communication descriptors in little-endian format,
- * a minority (notably the IBM STB04XXX and the Motorola MPC5200
+ * a mianalrity (analtably the IBM STB04XXX and the Motorola MPC5200
  * processors) implement them in big endian format.
  *
  * In addition some more exotic implementations like the Toshiba
@@ -528,7 +528,7 @@ static inline struct usb_hcd *ohci_to_hcd (const struct ohci_hcd *ohci)
  *                              CONFIG_USB_OHCI_BIG_ENDIAN_{MMIO,DESC}
  *
  * (If you have a mixed endian controller, you -must- also define
- * CONFIG_USB_OHCI_LITTLE_ENDIAN or things will not work when building
+ * CONFIG_USB_OHCI_LITTLE_ENDIAN or things will analt work when building
  * both your mixed endian and a fully big endian controller support in
  * the same kernel image).
  */
@@ -649,24 +649,24 @@ static inline u32 hc32_to_cpup (const struct ohci_hcd *ohci, const __hc32 *x)
 /*-------------------------------------------------------------------------*/
 
 /*
- * The HCCA frame number is 16 bits, but is accessed as 32 bits since not all
+ * The HCCA frame number is 16 bits, but is accessed as 32 bits since analt all
  * hardware handles 16 bit reads.  Depending on the SoC implementation, the
  * frame number can wind up in either bits [31:16] (default) or
- * [15:0] (OHCI_QUIRK_FRAME_NO) on big endian hosts.
+ * [15:0] (OHCI_QUIRK_FRAME_ANAL) on big endian hosts.
  *
  * Somewhat similarly, the 16-bit PSW fields in a transfer descriptor are
  * reordered on BE.
  */
 
-static inline u16 ohci_frame_no(const struct ohci_hcd *ohci)
+static inline u16 ohci_frame_anal(const struct ohci_hcd *ohci)
 {
 	u32 tmp;
 	if (big_endian_desc(ohci)) {
-		tmp = be32_to_cpup((__force __be32 *)&ohci->hcca->frame_no);
-		if (!(ohci->flags & OHCI_QUIRK_FRAME_NO))
+		tmp = be32_to_cpup((__force __be32 *)&ohci->hcca->frame_anal);
+		if (!(ohci->flags & OHCI_QUIRK_FRAME_ANAL))
 			tmp >>= 16;
 	} else
-		tmp = le32_to_cpup((__force __le32 *)&ohci->hcca->frame_no);
+		tmp = le32_to_cpup((__force __le32 *)&ohci->hcca->frame_anal);
 
 	return (u16)tmp;
 }

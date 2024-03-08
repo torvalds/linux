@@ -4,7 +4,7 @@
 #include <linux/bpf.h>
 #include <netinet/in.h>
 #include <stdio.h>
-#include <errno.h>
+#include <erranal.h>
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -38,7 +38,7 @@ static void map_batch_update(int map_fd, __u32 max_entries,
 	}
 
 	err = bpf_map_update_batch(map_fd, keys, values, &max_entries, &opts);
-	CHECK(err, "bpf_map_update_batch()", "error:%s\n", strerror(errno));
+	CHECK(err, "bpf_map_update_batch()", "error:%s\n", strerror(erranal));
 }
 
 static void map_batch_verify(int *visited, __u32 max_entries,
@@ -65,7 +65,7 @@ static void map_batch_verify(int *visited, __u32 max_entries,
 
 void test_lpm_trie_map_batch_ops(void)
 {
-	LIBBPF_OPTS(bpf_map_create_opts, create_opts, .map_flags = BPF_F_NO_PREALLOC);
+	LIBBPF_OPTS(bpf_map_create_opts, create_opts, .map_flags = BPF_F_ANAL_PREALLOC);
 	struct test_lpm_key *keys, key;
 	int map_fd, *values, *visited;
 	__u32 step, count, total, total_success;
@@ -81,13 +81,13 @@ void test_lpm_trie_map_batch_ops(void)
 				sizeof(struct test_lpm_key), sizeof(int),
 				max_entries, &create_opts);
 	CHECK(map_fd == -1, "bpf_map_create()", "error:%s\n",
-	      strerror(errno));
+	      strerror(erranal));
 
 	keys = malloc(max_entries * sizeof(struct test_lpm_key));
 	values = malloc(max_entries * sizeof(int));
 	visited = malloc(max_entries * sizeof(int));
 	CHECK(!keys || !values || !visited, "malloc()", "error:%s\n",
-	      strerror(errno));
+	      strerror(erranal));
 
 	total_success = 0;
 	for (step = 1; step < max_entries; step++) {
@@ -106,8 +106,8 @@ void test_lpm_trie_map_batch_ops(void)
 				total ? &batch : NULL, &batch,
 				keys + total, values + total, &count, &opts);
 
-			CHECK((err && errno != ENOENT), "lookup with steps",
-			      "error: %s\n", strerror(errno));
+			CHECK((err && erranal != EANALENT), "lookup with steps",
+			      "error: %s\n", strerror(erranal));
 
 			total += count;
 			if (err)
@@ -126,8 +126,8 @@ void test_lpm_trie_map_batch_ops(void)
 				count = max_entries - total;
 			err = bpf_map_delete_batch(map_fd, keys + total, &count,
 						   &opts);
-			CHECK((err && errno != ENOENT), "delete batch",
-			      "error: %s\n", strerror(errno));
+			CHECK((err && erranal != EANALENT), "delete batch",
+			      "error: %s\n", strerror(erranal));
 			total += count;
 			if (err)
 				break;
@@ -135,10 +135,10 @@ void test_lpm_trie_map_batch_ops(void)
 		CHECK(total != max_entries, "delete with steps",
 		      "total = %u, max_entries = %u\n", total, max_entries);
 
-		/* check map is empty, errono == ENOENT */
+		/* check map is empty, erroanal == EANALENT */
 		err = bpf_map_get_next_key(map_fd, NULL, &key);
-		CHECK(!err || errno != ENOENT, "bpf_map_get_next_key()",
-		      "error: %s\n", strerror(errno));
+		CHECK(!err || erranal != EANALENT, "bpf_map_get_next_key()",
+		      "error: %s\n", strerror(erranal));
 
 		total_success++;
 	}

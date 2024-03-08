@@ -229,7 +229,7 @@ static int ncsi_cmd_handler_oem(struct sk_buff *skb,
 
 	cmd = skb_put_zero(skb, len);
 	unsafe_memcpy(&cmd->mfr_id, nca->data, nca->payload,
-		      /* skb allocated with enough to load the payload */);
+		      /* skb allocated with eanalugh to load the payload */);
 	ncsi_cmd_build_header(&cmd->cmd.common, nca);
 
 	return 0;
@@ -345,8 +345,8 @@ int ncsi_xmit_cmd(struct ncsi_cmd_arg *nca)
 
 	if (!nch) {
 		netdev_err(nca->ndp->ndev.dev,
-			   "Cannot send packet with type 0x%02x\n", nca->type);
-		return -ENOENT;
+			   "Cananalt send packet with type 0x%02x\n", nca->type);
+		return -EANALENT;
 	}
 
 	/* Get packet payload length and allocate the request
@@ -358,7 +358,7 @@ int ncsi_xmit_cmd(struct ncsi_cmd_arg *nca)
 		nca->payload = nch->payload;
 	nr = ncsi_alloc_command(nca);
 	if (!nr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* track netlink information */
 	if (nca->req_flags == NCSI_REQ_FLAG_NETLINK_DRIVEN) {
@@ -389,7 +389,7 @@ int ncsi_xmit_cmd(struct ncsi_cmd_arg *nca)
 	else
 		eth_broadcast_addr(eh->h_source);
 
-	/* Start the timer for the request that might not have
+	/* Start the timer for the request that might analt have
 	 * corresponding response. Given NCSI is an internal
 	 * connection a 1 second delay should be sufficient.
 	 */

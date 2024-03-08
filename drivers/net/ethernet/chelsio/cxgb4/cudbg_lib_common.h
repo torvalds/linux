@@ -13,7 +13,7 @@ enum cudbg_dump_type {
 };
 
 enum cudbg_compression_type {
-	CUDBG_COMPRESSION_NONE = 1,
+	CUDBG_COMPRESSION_ANALNE = 1,
 	CUDBG_COMPRESSION_ZLIB,
 };
 
@@ -21,7 +21,7 @@ struct cudbg_hdr {
 	u32 signature;
 	u32 hdr_len;
 	u16 major_ver;
-	u16 minor_ver;
+	u16 mianalr_ver;
 	u32 data_len;
 	u32 hdr_flags;
 	u16 max_entities;

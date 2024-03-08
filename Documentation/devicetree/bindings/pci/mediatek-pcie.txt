@@ -55,7 +55,7 @@ Required properties for MT2712/MT7622/MT7629:
 	- "pcie_irq": The interrupt that is asserted when an MSI/INTX is received
 - linux,pci-domain: PCI domain ID. Should be unique for each host controller
 
-In addition, the device tree node must have sub-nodes describing each
+In addition, the device tree analde must have sub-analdes describing each
 PCIe port interface, having the following mandatory properties:
 
 Required properties:
@@ -68,7 +68,7 @@ Required properties:
 - interrupt-map-mask and interrupt-map: Standard PCI IRQ mapping properties
   Please refer to the standard PCI bus binding document for a more detailed
   explanation.
-- ranges: Sub-ranges distributed from the PCIe controller node. An empty
+- ranges: Sub-ranges distributed from the PCIe controller analde. An empty
   property is sufficient.
 
 Examples for MT7623:

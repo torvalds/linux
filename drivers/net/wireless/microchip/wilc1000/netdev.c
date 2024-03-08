@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2012 - 2018 Microchip Technology Inc., and its subsidiaries.
+ * Copyright (c) 2012 - 2018 Microchip Techanallogy Inc., and its subsidiaries.
  * All rights reserved.
  */
 
@@ -204,7 +204,7 @@ static int wilc_wlan_get_firmware(struct net_device *dev)
 	ret = request_firmware(&wilc_fw, WILC1000_FW(WILC1000_API_VER),
 			       wilc->dev);
 	if (ret != 0) {
-		netdev_err(dev, "%s - firmware not available\n",
+		netdev_err(dev, "%s - firmware analt available\n",
 			   WILC1000_FW(WILC1000_API_VER));
 		return -EINVAL;
 	}
@@ -238,7 +238,7 @@ static int wilc1000_firmware_download(struct net_device *dev)
 
 	if (!wilc->firmware) {
 		netdev_err(dev, "Firmware buffer is NULL\n");
-		return -ENOBUFS;
+		return -EANALBUFS;
 	}
 
 	ret = wilc_wlan_firmware_download(wilc, wilc->firmware->data,
@@ -318,11 +318,11 @@ static int wilc_init_fw_config(struct net_device *dev, struct wilc_vif *vif)
 	if (!wilc_wlan_cfg_set(vif, 0, WID_QOS_ENABLE, &b, 1, 0, 0))
 		goto fail;
 
-	b = WILC_FW_NO_POWERSAVE;
+	b = WILC_FW_ANAL_POWERSAVE;
 	if (!wilc_wlan_cfg_set(vif, 0, WID_POWER_MANAGEMENT, &b, 1, 0, 0))
 		goto fail;
 
-	b = WILC_FW_SEC_NO;
+	b = WILC_FW_SEC_ANAL;
 	if (!wilc_wlan_cfg_set(vif, 0, WID_11I_MODE, &b, 1, 0, 0))
 		goto fail;
 
@@ -338,7 +338,7 @@ static int wilc_init_fw_config(struct net_device *dev, struct wilc_vif *vif)
 	if (!wilc_wlan_cfg_set(vif, 0, WID_DTIM_PERIOD, &b, 1, 0, 0))
 		goto fail;
 
-	b = WILC_FW_ACK_POLICY_NORMAL;
+	b = WILC_FW_ACK_POLICY_ANALRMAL;
 	if (!wilc_wlan_cfg_set(vif, 0, WID_ACK_POLICY, &b, 1, 0, 0))
 		goto fail;
 
@@ -396,12 +396,12 @@ static int wilc_init_fw_config(struct net_device *dev, struct wilc_vif *vif)
 	if (!wilc_wlan_cfg_set(vif, 0, WID_11N_TXOP_PROT_DISABLE, &b, 1, 0, 0))
 		goto fail;
 
-	b = WILC_FW_OBBS_NONHT_DETECT_PROTECT_REPORT;
-	if (!wilc_wlan_cfg_set(vif, 0, WID_11N_OBSS_NONHT_DETECTION, &b, 1,
+	b = WILC_FW_OBBS_ANALNHT_DETECT_PROTECT_REPORT;
+	if (!wilc_wlan_cfg_set(vif, 0, WID_11N_OBSS_ANALNHT_DETECTION, &b, 1,
 			       0, 0))
 		goto fail;
 
-	b = WILC_FW_HT_PROT_RTS_CTS_NONHT;
+	b = WILC_FW_HT_PROT_RTS_CTS_ANALNHT;
 	if (!wilc_wlan_cfg_set(vif, 0, WID_11N_HT_PROT_TYPE, &b, 1, 0, 0))
 		goto fail;
 
@@ -471,7 +471,7 @@ static void wilc_wlan_deinitialize(struct net_device *dev)
 
 		netdev_dbg(dev, "wilc1000 deinitialization Done\n");
 	} else {
-		netdev_dbg(dev, "wilc1000 is not initialized\n");
+		netdev_dbg(dev, "wilc1000 is analt initialized\n");
 	}
 }
 
@@ -590,8 +590,8 @@ static int wilc_mac_open(struct net_device *ndev)
 	u8 addr[ETH_ALEN] __aligned(2);
 
 	if (!wl || !wl->dev) {
-		netdev_err(ndev, "device not ready\n");
-		return -ENODEV;
+		netdev_err(ndev, "device analt ready\n");
+		return -EANALDEV;
 	}
 
 	netdev_dbg(ndev, "MAC OPEN[%p]\n", ndev);
@@ -655,14 +655,14 @@ static int wilc_set_mac_addr(struct net_device *dev, void *p)
 	int srcu_idx;
 
 	if (!is_valid_ether_addr(addr->sa_data))
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	if (!vif->mac_opened) {
 		eth_commit_mac_addr_change(dev, p);
 		return 0;
 	}
 
-	/* Verify MAC Address is not already in use: */
+	/* Verify MAC Address is analt already in use: */
 
 	srcu_idx = srcu_read_lock(&wilc->srcu);
 	list_for_each_entry_rcu(tmp_vif, &wilc->vif_list, list) {
@@ -670,7 +670,7 @@ static int wilc_set_mac_addr(struct net_device *dev, void *p)
 		if (ether_addr_equal(addr->sa_data, mac_addr)) {
 			if (vif != tmp_vif) {
 				srcu_read_unlock(&wilc->srcu, srcu_idx);
-				return -EADDRNOTAVAIL;
+				return -EADDRANALTAVAIL;
 			}
 			srcu_read_unlock(&wilc->srcu, srcu_idx);
 			return 0;
@@ -741,7 +741,7 @@ netdev_tx_t wilc_mac_xmit(struct sk_buff *skb, struct net_device *ndev)
 	int queue_count;
 
 	if (skb->dev != ndev) {
-		netdev_err(ndev, "Packet not destined to this device\n");
+		netdev_err(ndev, "Packet analt destined to this device\n");
 		dev_kfree_skb(skb);
 		return NETDEV_TX_OK;
 	}
@@ -961,7 +961,7 @@ struct wilc_vif *wilc_netdev_ifc_init(struct wilc *wl, const char *name,
 
 	ndev = alloc_etherdev(sizeof(*vif));
 	if (!ndev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	vif = netdev_priv(ndev);
 	ndev->ieee80211_ptr = &vif->priv.wdev;
@@ -992,7 +992,7 @@ struct wilc_vif *wilc_netdev_ifc_init(struct wilc *wl, const char *name,
 	wl->hif_workqueue = alloc_ordered_workqueue("%s-wq", WQ_MEM_RECLAIM,
 						    ndev->name);
 	if (!wl->hif_workqueue) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto unregister_netdev;
 	}
 

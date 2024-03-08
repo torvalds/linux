@@ -53,35 +53,35 @@
  *
  *     DramAddr:
  *         A DramAddr is derived from a SysAddr by subtracting an offset that
- *         depends on which node the SysAddr maps to and whether the SysAddr
+ *         depends on which analde the SysAddr maps to and whether the SysAddr
  *         is within a range affected by memory hoisting.  The DRAM Base
  *         (section 3.4.4.1) and DRAM Limit (section 3.4.4.2) registers
- *         determine which node a SysAddr maps to.
+ *         determine which analde a SysAddr maps to.
  *
  *         If the DRAM Hole Address Register (DHAR) is enabled and the SysAddr
  *         is within the range of addresses specified by this register, then
  *         a value x from the DHAR is subtracted from the SysAddr to produce a
- *         DramAddr.  Here, x represents the base address for the node that
+ *         DramAddr.  Here, x represents the base address for the analde that
  *         the SysAddr maps to plus an offset due to memory hoisting.  See
  *         section 3.4.8 and the comments in amd64_get_dram_hole_info() and
  *         sys_addr_to_dram_addr() below for more information.
  *
- *         If the SysAddr is not affected by the DHAR then a value y is
+ *         If the SysAddr is analt affected by the DHAR then a value y is
  *         subtracted from the SysAddr to produce a DramAddr.  Here, y is the
- *         base address for the node that the SysAddr maps to.  See section
+ *         base address for the analde that the SysAddr maps to.  See section
  *         3.4.4 and the comments in sys_addr_to_dram_addr() below for more
  *         information.
  *
  *     InputAddr:
  *         A DramAddr is translated to an InputAddr before being passed to the
- *         memory controller for the node that the DramAddr is associated
+ *         memory controller for the analde that the DramAddr is associated
  *         with.  The memory controller then maps the InputAddr to a csrow.
- *         If node interleaving is not in use, then the InputAddr has the same
+ *         If analde interleaving is analt in use, then the InputAddr has the same
  *         value as the DramAddr.  Otherwise, the InputAddr is produced by
- *         discarding the bits used for node interleaving from the DramAddr.
+ *         discarding the bits used for analde interleaving from the DramAddr.
  *         See section 3.4.4 for more information.
  *
- *         The memory controller for a given node uses its DRAM CS Base and
+ *         The memory controller for a given analde uses its DRAM CS Base and
  *         DRAM CS Mask registers to map an InputAddr to a csrow.  See
  *         sections 3.5.4 and 3.5.5 for more information.
  */
@@ -134,20 +134,20 @@
 
 #define dram_rw(pvt, i)			((u8)(pvt->ranges[i].base.lo & 0x3))
 #define dram_intlv_sel(pvt, i)		((u8)((pvt->ranges[i].lim.lo >> 8) & 0x7))
-#define dram_dst_node(pvt, i)		((u8)(pvt->ranges[i].lim.lo & 0x7))
+#define dram_dst_analde(pvt, i)		((u8)(pvt->ranges[i].lim.lo & 0x7))
 
 #define DHAR				0xf0
 #define dhar_mem_hoist_valid(pvt)	((pvt)->dhar & BIT(1))
 #define dhar_base(pvt)			((pvt)->dhar & 0xff000000)
 #define k8_dhar_offset(pvt)		(((pvt)->dhar & 0x0000ff00) << 16)
 
-					/* NOTE: Extra mask bit vs K8 */
+					/* ANALTE: Extra mask bit vs K8 */
 #define f10_dhar_offset(pvt)		(((pvt)->dhar & 0x0000ff80) << 16)
 
 #define DCT_CFG_SEL			0x10C
 
-#define DRAM_LOCAL_NODE_BASE		0x120
-#define DRAM_LOCAL_NODE_LIM		0x124
+#define DRAM_LOCAL_ANALDE_BASE		0x120
+#define DRAM_LOCAL_ANALDE_LIM		0x124
 
 #define DRAM_BASE_HI			0x140
 #define DRAM_LIMIT_HI			0x144
@@ -331,21 +331,21 @@ struct amd64_pvt {
 	/* pci_device handles which we utilize */
 	struct pci_dev *F1, *F2, *F3;
 
-	u16 mc_node_id;		/* MC index of this MC node */
+	u16 mc_analde_id;		/* MC index of this MC analde */
 	u8 fam;			/* CPU family */
 	u8 model;		/* ... model */
 	u8 stepping;		/* ... stepping */
 
-	int ext_model;		/* extended model value of this node */
+	int ext_model;		/* extended model value of this analde */
 
 	/* Raw registers */
 	u32 dclr0;		/* DRAM Configuration Low DCT0 reg */
 	u32 dclr1;		/* DRAM Configuration Low DCT1 reg */
 	u32 dchr0;		/* DRAM Configuration High DCT0 reg */
 	u32 dchr1;		/* DRAM Configuration High DCT1 reg */
-	u32 nbcap;		/* North Bridge Capabilities */
-	u32 nbcfg;		/* F10 North Bridge Configuration */
-	u32 ext_nbcfg;		/* Extended F10 North Bridge Configuration */
+	u32 nbcap;		/* Analrth Bridge Capabilities */
+	u32 nbcfg;		/* F10 Analrth Bridge Configuration */
+	u32 ext_nbcfg;		/* Extended F10 Analrth Bridge Configuration */
 	u32 dhar;		/* DRAM Hoist reg */
 	u32 dbam0;		/* DRAM Base Address Mapping reg for DCT0 */
 	u32 dbam1;		/* DRAM Base Address Mapping reg for DCT1 */
@@ -369,7 +369,7 @@ struct amd64_pvt {
 
 	const char *ctl_name;
 	u16 f1_id, f2_id;
-	/* Maximum number of memory controllers per die/node. */
+	/* Maximum number of memory controllers per die/analde. */
 	u8 max_mcs;
 
 	struct amd64_family_flags flags;
@@ -379,7 +379,7 @@ struct amd64_pvt {
 	/*
 	 * cache the dram_type
 	 *
-	 * NOTE: Don't use this for Family 17h and later.
+	 * ANALTE: Don't use this for Family 17h and later.
 	 *	 Use dram_type in struct amd64_umc instead.
 	 */
 	enum mem_type dram_type;
@@ -389,11 +389,11 @@ struct amd64_pvt {
 
 enum err_codes {
 	DECODE_OK	=  0,
-	ERR_NODE	= -1,
+	ERR_ANALDE	= -1,
 	ERR_CSROW	= -2,
 	ERR_CHANNEL	= -3,
 	ERR_SYND	= -4,
-	ERR_NORM_ADDR	= -5,
+	ERR_ANALRM_ADDR	= -5,
 };
 
 struct err_info {
@@ -446,7 +446,7 @@ static inline u8 dct_sel_interleave_addr(struct amd64_pvt *pvt)
 	return	((pvt)->dct_sel_lo >> 6) & 0x3;
 }
 /*
- * per-node ECC settings descriptor
+ * per-analde ECC settings descriptor
  */
 struct ecc_settings {
 	u32 old_nbctl;

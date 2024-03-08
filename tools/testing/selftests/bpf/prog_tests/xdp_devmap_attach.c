@@ -47,7 +47,7 @@ static void test_xdp_with_devmap_helpers(void)
 	ASSERT_OK(err, "Read devmap entry");
 	ASSERT_EQ(info.id, val.bpf_prog.id, "Match program id to devmap entry prog_id");
 
-	/* can not attach BPF_XDP_DEVMAP program to a device */
+	/* can analt attach BPF_XDP_DEVMAP program to a device */
 	err = bpf_xdp_attach(IFINDEX_LO, dm_fd, XDP_FLAGS_SKB_MODE, NULL);
 	if (!ASSERT_NEQ(err, 0, "Attach of BPF_XDP_DEVMAP program"))
 		bpf_xdp_detach(IFINDEX_LO, XDP_FLAGS_SKB_MODE, NULL);
@@ -55,7 +55,7 @@ static void test_xdp_with_devmap_helpers(void)
 	val.ifindex = 1;
 	val.bpf_prog.fd = bpf_program__fd(skel->progs.xdp_dummy_prog);
 	err = bpf_map_update_elem(map_fd, &idx, &val, 0);
-	ASSERT_NEQ(err, 0, "Add non-BPF_XDP_DEVMAP program to devmap entry");
+	ASSERT_NEQ(err, 0, "Add analn-BPF_XDP_DEVMAP program to devmap entry");
 
 	/* Try to attach BPF_XDP program with frags to devmap when we have
 	 * already loaded a BPF_XDP program on the map

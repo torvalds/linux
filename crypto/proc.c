@@ -45,14 +45,14 @@ static int c_show(struct seq_file *m, void *p)
 	seq_printf(m, "refcnt       : %u\n", refcount_read(&alg->cra_refcnt));
 	seq_printf(m, "selftest     : %s\n",
 		   (alg->cra_flags & CRYPTO_ALG_TESTED) ?
-		   "passed" : "unknown");
+		   "passed" : "unkanalwn");
 	seq_printf(m, "internal     : %s\n",
 		   (alg->cra_flags & CRYPTO_ALG_INTERNAL) ?
-		   "yes" : "no");
+		   "anal" : "anal");
 	if (fips_enabled) {
 		seq_printf(m, "fips         : %s\n",
 			   (alg->cra_flags & CRYPTO_ALG_FIPS_INTERNAL) ?
-			   "no" : "yes");
+			   "anal" : "anal");
 	}
 
 	if (alg->cra_flags & CRYPTO_ALG_LARVAL) {
@@ -79,7 +79,7 @@ static int c_show(struct seq_file *m, void *p)
 		seq_printf(m, "type         : compression\n");
 		break;
 	default:
-		seq_printf(m, "type         : unknown\n");
+		seq_printf(m, "type         : unkanalwn\n");
 		break;
 	}
 

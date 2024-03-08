@@ -18,7 +18,7 @@ At this moment the driver can do the following things:
 	* Inject errors during the PCM callbacks
 
 It supports up to 8 substreams and 4 channels. Also it supports both interleaved and
-non-interleaved access modes.
+analn-interleaved access modes.
 
 Also, this driver can check the playback stream for containing the predefined pattern,
 which is used in the corresponding selftest (alsa/pcmtest-test.sh) to check the PCM middle

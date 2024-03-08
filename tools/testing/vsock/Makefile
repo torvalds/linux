@@ -8,7 +8,7 @@ vsock_perf: vsock_perf.o msg_zerocopy_common.o
 vsock_uring_test: LDLIBS = -luring
 vsock_uring_test: control.o util.o vsock_uring_test.o timeout.o msg_zerocopy_common.o
 
-CFLAGS += -g -O2 -Werror -Wall -I. -I../../include -I../../../usr/include -Wno-pointer-sign -fno-strict-overflow -fno-strict-aliasing -fno-common -MMD -U_FORTIFY_SOURCE -D_GNU_SOURCE
+CFLAGS += -g -O2 -Werror -Wall -I. -I../../include -I../../../usr/include -Wanal-pointer-sign -fanal-strict-overflow -fanal-strict-aliasing -fanal-common -MMD -U_FORTIFY_SOURCE -D_GNU_SOURCE
 .PHONY: all test clean
 clean:
 	${RM} *.o *.d vsock_test vsock_diag_test vsock_perf vsock_uring_test

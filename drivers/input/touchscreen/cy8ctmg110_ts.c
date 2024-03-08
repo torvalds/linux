@@ -180,11 +180,11 @@ static int cy8ctmg110_probe(struct i2c_client *client)
 
 	ts = devm_kzalloc(&client->dev, sizeof(*ts), GFP_KERNEL);
 	if (!ts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input_dev = devm_input_allocate_device(&client->dev);
 	if (!input_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ts->client = client;
 	ts->input = input_dev;

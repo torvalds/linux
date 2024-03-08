@@ -2,7 +2,7 @@
 /*
  * FB driver for the UC1701 LCD Controller
  *
- * The display is monochrome and the video memory is RGB565.
+ * The display is moanalchrome and the video memory is RGB565.
  * Any pixel value except 0 turns the pixel on.
  *
  * Copyright (C) 2014 Juergen Holzmann
@@ -48,15 +48,15 @@
 #define LCD_VOLTAGE	   0x20
 /* 18: Volume mode set */
 #define LCD_VOLUME_MODE       0x81
-/* 22: NOP command */
-#define LCD_NO_OP	     0xE3
+/* 22: ANALP command */
+#define LCD_ANAL_OP	     0xE3
 /* 25: advanced program control */
 #define LCD_ADV_PROG_CTRL     0xFA
 /* 25: advanced program control2 */
 #define LCD_ADV_PROG_CTRL2    0x10
 #define LCD_TEMPCOMP_HIGH     0x80
-/* column offset for normal orientation */
-#define SHIFT_ADDR_NORMAL     0
+/* column offset for analrmal orientation */
+#define SHIFT_ADDR_ANALRMAL     0
 /* column offset for bottom view orientation */
 #define SHIFT_ADDR_TOPVIEW    30
 
@@ -77,7 +77,7 @@ static int init_display(struct fbtft_par *par)
 	/* output mode select (turns display upside-down) */
 	write_reg(par, LCD_SCAN_DIR | 0x00);
 
-	/* Normal Pixel mode */
+	/* Analrmal Pixel mode */
 	write_reg(par, LCD_ALL_PIXEL | 0);
 
 	/* positive display */
@@ -95,7 +95,7 @@ static int init_display(struct fbtft_par *par)
 	/* volume mode set */
 	write_reg(par, LCD_VOLUME_MODE);
 	write_reg(par, 0x09);
-	write_reg(par, LCD_NO_OP);
+	write_reg(par, LCD_ANAL_OP);
 
 	/* advanced program control */
 	write_reg(par, LCD_ADV_PROG_CTRL);

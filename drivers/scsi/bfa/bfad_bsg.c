@@ -22,7 +22,7 @@ bfad_iocmd_ioc_enable(struct bfad_s *bfad, void *cmd)
 	unsigned long	flags;
 
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
-	/* If IOC is not in disabled state - return */
+	/* If IOC is analt in disabled state - return */
 	if (!bfa_ioc_is_disabled(&bfad->bfa.ioc)) {
 		spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 		iocmd->status = BFA_STATUS_OK;
@@ -87,9 +87,9 @@ bfad_iocmd_ioc_get_info(struct bfad_s *bfad, void *cmd)
 	bfa_get_adapter_serial_num(&bfad->bfa, iocmd->serialnum);
 	iocmd->factorynwwn = pattr.factorynwwn;
 	iocmd->factorypwwn = pattr.factorypwwn;
-	iocmd->bfad_num = bfad->inst_no;
+	iocmd->bfad_num = bfad->inst_anal;
 	im_port = bfad->pport.im_port;
-	iocmd->host = im_port->shost->host_no;
+	iocmd->host = im_port->shost->host_anal;
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 
 	strcpy(iocmd->name, bfad->adapter_name);
@@ -299,7 +299,7 @@ bfad_iocmd_port_get_attr(struct bfad_s *bfad, void *cmd)
 	bfa_fcs_lport_get_attr(&bfad->bfa_fcs.fabric.bport, &port_attr);
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 
-	if (iocmd->attr.topology != BFA_PORT_TOPOLOGY_NONE)
+	if (iocmd->attr.topology != BFA_PORT_TOPOLOGY_ANALNE)
 		iocmd->attr.pid = port_attr.pid;
 	else
 		iocmd->attr.pid = 0;
@@ -454,7 +454,7 @@ bfad_iocmd_lport_get_attr(struct bfad_s *bfad, void *cmd)
 				iocmd->vf_id, iocmd->pwwn);
 	if (fcs_port == NULL) {
 		spin_unlock_irqrestore(&bfad->bfad_lock, flags);
-		iocmd->status = BFA_STATUS_UNKNOWN_LWWN;
+		iocmd->status = BFA_STATUS_UNKANALWN_LWWN;
 		goto out;
 	}
 
@@ -478,7 +478,7 @@ bfad_iocmd_lport_get_stats(struct bfad_s *bfad, void *cmd)
 				iocmd->vf_id, iocmd->pwwn);
 	if (fcs_port == NULL) {
 		spin_unlock_irqrestore(&bfad->bfad_lock, flags);
-		iocmd->status = BFA_STATUS_UNKNOWN_LWWN;
+		iocmd->status = BFA_STATUS_UNKANALWN_LWWN;
 		goto out;
 	}
 
@@ -505,7 +505,7 @@ bfad_iocmd_lport_reset_stats(struct bfad_s *bfad, void *cmd)
 				iocmd->vf_id, iocmd->vpwwn);
 	if (fcs_port == NULL) {
 		spin_unlock_irqrestore(&bfad->bfad_lock, flags);
-		iocmd->status = BFA_STATUS_UNKNOWN_LWWN;
+		iocmd->status = BFA_STATUS_UNKANALWN_LWWN;
 		goto out;
 	}
 
@@ -536,7 +536,7 @@ bfad_iocmd_lport_get_iostats(struct bfad_s *bfad, void *cmd)
 				iocmd->vf_id, iocmd->pwwn);
 	if (fcs_port == NULL) {
 		spin_unlock_irqrestore(&bfad->bfad_lock, flags);
-		iocmd->status = BFA_STATUS_UNKNOWN_LWWN;
+		iocmd->status = BFA_STATUS_UNKANALWN_LWWN;
 		goto out;
 	}
 
@@ -577,7 +577,7 @@ bfad_iocmd_lport_get_rports(struct bfad_s *bfad, void *cmd,
 	if (fcs_port == NULL) {
 		spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 		bfa_trc(bfad, 0);
-		iocmd->status = BFA_STATUS_UNKNOWN_LWWN;
+		iocmd->status = BFA_STATUS_UNKANALWN_LWWN;
 		goto out;
 	}
 
@@ -604,7 +604,7 @@ bfad_iocmd_rport_get_attr(struct bfad_s *bfad, void *cmd)
 	if (fcs_port == NULL) {
 		bfa_trc(bfad, 0);
 		spin_unlock_irqrestore(&bfad->bfad_lock, flags);
-		iocmd->status = BFA_STATUS_UNKNOWN_LWWN;
+		iocmd->status = BFA_STATUS_UNKANALWN_LWWN;
 		goto out;
 	}
 
@@ -616,7 +616,7 @@ bfad_iocmd_rport_get_attr(struct bfad_s *bfad, void *cmd)
 	if (fcs_rport == NULL) {
 		bfa_trc(bfad, 0);
 		spin_unlock_irqrestore(&bfad->bfad_lock, flags);
-		iocmd->status = BFA_STATUS_UNKNOWN_RWWN;
+		iocmd->status = BFA_STATUS_UNKANALWN_RWWN;
 		goto out;
 	}
 
@@ -643,7 +643,7 @@ bfad_iocmd_rport_get_addr(struct bfad_s *bfad, void *cmd)
 	if (fcs_port == NULL) {
 		bfa_trc(bfad, 0);
 		spin_unlock_irqrestore(&bfad->bfad_lock, flags);
-		iocmd->status = BFA_STATUS_UNKNOWN_LWWN;
+		iocmd->status = BFA_STATUS_UNKANALWN_LWWN;
 		goto out;
 	}
 
@@ -651,18 +651,18 @@ bfad_iocmd_rport_get_addr(struct bfad_s *bfad, void *cmd)
 	if (fcs_itnim == NULL) {
 		bfa_trc(bfad, 0);
 		spin_unlock_irqrestore(&bfad->bfad_lock, flags);
-		iocmd->status = BFA_STATUS_UNKNOWN_RWWN;
+		iocmd->status = BFA_STATUS_UNKANALWN_RWWN;
 		goto out;
 	}
 
 	drv_itnim = fcs_itnim->itnim_drv;
 
 	if (drv_itnim && drv_itnim->im_port)
-		iocmd->host = drv_itnim->im_port->shost->host_no;
+		iocmd->host = drv_itnim->im_port->shost->host_anal;
 	else {
 		bfa_trc(bfad, 0);
 		spin_unlock_irqrestore(&bfad->bfad_lock, flags);
-		iocmd->status = BFA_STATUS_UNKNOWN_RWWN;
+		iocmd->status = BFA_STATUS_UNKANALWN_RWWN;
 		goto out;
 	}
 
@@ -691,7 +691,7 @@ bfad_iocmd_rport_get_stats(struct bfad_s *bfad, void *cmd)
 	if (fcs_port == NULL) {
 		bfa_trc(bfad, 0);
 		spin_unlock_irqrestore(&bfad->bfad_lock, flags);
-		iocmd->status = BFA_STATUS_UNKNOWN_LWWN;
+		iocmd->status = BFA_STATUS_UNKANALWN_LWWN;
 		goto out;
 	}
 
@@ -699,7 +699,7 @@ bfad_iocmd_rport_get_stats(struct bfad_s *bfad, void *cmd)
 	if (fcs_rport == NULL) {
 		bfa_trc(bfad, 0);
 		spin_unlock_irqrestore(&bfad->bfad_lock, flags);
-		iocmd->status = BFA_STATUS_UNKNOWN_RWWN;
+		iocmd->status = BFA_STATUS_UNKANALWN_RWWN;
 		goto out;
 	}
 
@@ -732,14 +732,14 @@ bfad_iocmd_rport_clr_stats(struct bfad_s *bfad, void *cmd)
 				iocmd->vf_id, iocmd->pwwn);
 	if (fcs_port == NULL) {
 		spin_unlock_irqrestore(&bfad->bfad_lock, flags);
-		iocmd->status = BFA_STATUS_UNKNOWN_LWWN;
+		iocmd->status = BFA_STATUS_UNKANALWN_LWWN;
 		goto out;
 	}
 
 	fcs_rport = bfa_fcs_rport_lookup(fcs_port, iocmd->rpwwn);
 	if (fcs_rport == NULL) {
 		spin_unlock_irqrestore(&bfad->bfad_lock, flags);
-		iocmd->status = BFA_STATUS_UNKNOWN_RWWN;
+		iocmd->status = BFA_STATUS_UNKANALWN_RWWN;
 		goto out;
 	}
 
@@ -767,20 +767,20 @@ bfad_iocmd_rport_set_speed(struct bfad_s *bfad, void *cmd)
 				iocmd->vf_id, iocmd->pwwn);
 	if (fcs_port == NULL) {
 		spin_unlock_irqrestore(&bfad->bfad_lock, flags);
-		iocmd->status = BFA_STATUS_UNKNOWN_LWWN;
+		iocmd->status = BFA_STATUS_UNKANALWN_LWWN;
 		goto out;
 	}
 
 	fcs_rport = bfa_fcs_rport_lookup(fcs_port, iocmd->rpwwn);
 	if (fcs_rport == NULL) {
 		spin_unlock_irqrestore(&bfad->bfad_lock, flags);
-		iocmd->status = BFA_STATUS_UNKNOWN_RWWN;
+		iocmd->status = BFA_STATUS_UNKANALWN_RWWN;
 		goto out;
 	}
 
 	fcs_rport->rpf.assigned_speed  = iocmd->speed;
-	/* Set this speed in f/w only if the RPSC speed is not available */
-	if (fcs_rport->rpf.rpsc_speed == BFA_PORT_SPEED_UNKNOWN)
+	/* Set this speed in f/w only if the RPSC speed is analt available */
+	if (fcs_rport->rpf.rpsc_speed == BFA_PORT_SPEED_UNKANALWN)
 		if (fcs_rport->bfa_rport)
 			bfa_rport_speed(fcs_rport->bfa_rport, iocmd->speed);
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
@@ -801,7 +801,7 @@ bfad_iocmd_vport_get_attr(struct bfad_s *bfad, void *cmd)
 				iocmd->vf_id, iocmd->vpwwn);
 	if (fcs_vport == NULL) {
 		spin_unlock_irqrestore(&bfad->bfad_lock, flags);
-		iocmd->status = BFA_STATUS_UNKNOWN_VWWN;
+		iocmd->status = BFA_STATUS_UNKANALWN_VWWN;
 		goto out;
 	}
 
@@ -825,7 +825,7 @@ bfad_iocmd_vport_get_stats(struct bfad_s *bfad, void *cmd)
 				iocmd->vf_id, iocmd->vpwwn);
 	if (fcs_vport == NULL) {
 		spin_unlock_irqrestore(&bfad->bfad_lock, flags);
-		iocmd->status = BFA_STATUS_UNKNOWN_VWWN;
+		iocmd->status = BFA_STATUS_UNKANALWN_VWWN;
 		goto out;
 	}
 
@@ -853,7 +853,7 @@ bfad_iocmd_vport_clr_stats(struct bfad_s *bfad, void *cmd)
 				iocmd->vf_id, iocmd->vpwwn);
 	if (fcs_vport == NULL) {
 		spin_unlock_irqrestore(&bfad->bfad_lock, flags);
-		iocmd->status = BFA_STATUS_UNKNOWN_VWWN;
+		iocmd->status = BFA_STATUS_UNKANALWN_VWWN;
 		goto out;
 	}
 
@@ -895,7 +895,7 @@ bfad_iocmd_fabric_get_lports(struct bfad_s *bfad, void *cmd,
 	fcs_vf = bfa_fcs_vf_lookup(&bfad->bfa_fcs, iocmd->vf_id);
 	if (fcs_vf == NULL) {
 		spin_unlock_irqrestore(&bfad->bfad_lock, flags);
-		iocmd->status = BFA_STATUS_UNKNOWN_VFID;
+		iocmd->status = BFA_STATUS_UNKANALWN_VFID;
 		goto out;
 	}
 	bfa_fcs_vf_get_ports(fcs_vf, (wwn_t *)iocmd_bufptr, &nports);
@@ -938,7 +938,7 @@ bfad_iocmd_ratelim(struct bfad_s *bfad, unsigned int cmd, void *pcmd)
 		else if (cmd == IOCMD_RATELIM_DISABLE)
 			fcport->cfg.ratelimit = BFA_FALSE;
 
-		if (fcport->cfg.trl_def_speed == BFA_PORT_SPEED_UNKNOWN)
+		if (fcport->cfg.trl_def_speed == BFA_PORT_SPEED_UNKANALWN)
 			fcport->cfg.trl_def_speed = BFA_PORT_SPEED_1GBPS;
 
 		iocmd->status = BFA_STATUS_OK;
@@ -1063,7 +1063,7 @@ bfad_iocmd_itnim_get_attr(struct bfad_s *bfad, void *cmd)
 	fcs_port = bfa_fcs_lookup_port(&bfad->bfa_fcs,
 				iocmd->vf_id, iocmd->lpwwn);
 	if (!fcs_port)
-		iocmd->status = BFA_STATUS_UNKNOWN_LWWN;
+		iocmd->status = BFA_STATUS_UNKANALWN_LWWN;
 	else
 		iocmd->status = bfa_fcs_itnim_attr_get(fcs_port,
 					iocmd->rpwwn, &iocmd->attr);
@@ -1084,12 +1084,12 @@ bfad_iocmd_itnim_get_iostats(struct bfad_s *bfad, void *cmd)
 	fcs_port = bfa_fcs_lookup_port(&bfad->bfa_fcs,
 				iocmd->vf_id, iocmd->lpwwn);
 	if (!fcs_port) {
-		iocmd->status = BFA_STATUS_UNKNOWN_LWWN;
+		iocmd->status = BFA_STATUS_UNKANALWN_LWWN;
 		bfa_trc(bfad, 0);
 	} else {
 		itnim = bfa_fcs_itnim_lookup(fcs_port, iocmd->rpwwn);
 		if (itnim == NULL)
-			iocmd->status = BFA_STATUS_UNKNOWN_RWWN;
+			iocmd->status = BFA_STATUS_UNKANALWN_RWWN;
 		else {
 			iocmd->status = BFA_STATUS_OK;
 			if (bfa_fcs_itnim_get_halitn(itnim))
@@ -1115,11 +1115,11 @@ bfad_iocmd_itnim_reset_stats(struct bfad_s *bfad, void *cmd)
 	fcs_port = bfa_fcs_lookup_port(&bfad->bfa_fcs,
 				iocmd->vf_id, iocmd->pwwn);
 	if (!fcs_port)
-		iocmd->status = BFA_STATUS_UNKNOWN_LWWN;
+		iocmd->status = BFA_STATUS_UNKANALWN_LWWN;
 	else {
 		itnim = bfa_fcs_itnim_lookup(fcs_port, iocmd->rpwwn);
 		if (itnim == NULL)
-			iocmd->status = BFA_STATUS_UNKNOWN_RWWN;
+			iocmd->status = BFA_STATUS_UNKANALWN_RWWN;
 		else {
 			iocmd->status = BFA_STATUS_OK;
 			bfa_fcs_itnim_stats_clear(fcs_port, iocmd->rpwwn);
@@ -1144,12 +1144,12 @@ bfad_iocmd_itnim_get_itnstats(struct bfad_s *bfad, void *cmd)
 	fcs_port = bfa_fcs_lookup_port(&bfad->bfa_fcs,
 				iocmd->vf_id, iocmd->lpwwn);
 	if (!fcs_port) {
-		iocmd->status = BFA_STATUS_UNKNOWN_LWWN;
+		iocmd->status = BFA_STATUS_UNKANALWN_LWWN;
 		bfa_trc(bfad, 0);
 	} else {
 		itnim = bfa_fcs_itnim_lookup(fcs_port, iocmd->rpwwn);
 		if (itnim == NULL)
-			iocmd->status = BFA_STATUS_UNKNOWN_RWWN;
+			iocmd->status = BFA_STATUS_UNKANALWN_RWWN;
 		else {
 			iocmd->status = BFA_STATUS_OK;
 			bfa_fcs_itnim_stats_get(fcs_port, iocmd->rpwwn,
@@ -1473,7 +1473,7 @@ bfad_iocmd_sfp_media(struct bfad_s *bfad, void *cmd)
 				bfad_hcb_comp, &fcomp);
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 	bfa_trc(bfad, iocmd->status);
-	if (iocmd->status != BFA_STATUS_SFP_NOT_READY)
+	if (iocmd->status != BFA_STATUS_SFP_ANALT_READY)
 		goto out;
 
 	wait_for_completion(&fcomp.comp);
@@ -1495,7 +1495,7 @@ bfad_iocmd_sfp_speed(struct bfad_s *bfad, void *cmd)
 				bfad_hcb_comp, &fcomp);
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 	bfa_trc(bfad, iocmd->status);
-	if (iocmd->status != BFA_STATUS_SFP_NOT_READY)
+	if (iocmd->status != BFA_STATUS_SFP_ANALT_READY)
 		goto out;
 	wait_for_completion(&fcomp.comp);
 	iocmd->status = fcomp.status;
@@ -2111,11 +2111,11 @@ bfad_iocmd_itnim_get_ioprofile(struct bfad_s *bfad, void *cmd)
 	fcs_port = bfa_fcs_lookup_port(&bfad->bfa_fcs,
 				iocmd->vf_id, iocmd->lpwwn);
 	if (!fcs_port)
-		iocmd->status = BFA_STATUS_UNKNOWN_LWWN;
+		iocmd->status = BFA_STATUS_UNKANALWN_LWWN;
 	else {
 		itnim = bfa_fcs_itnim_lookup(fcs_port, iocmd->rpwwn);
 		if (itnim == NULL)
-			iocmd->status = BFA_STATUS_UNKNOWN_RWWN;
+			iocmd->status = BFA_STATUS_UNKANALWN_RWWN;
 		else
 			iocmd->status = bfa_itnim_get_ioprofile(
 						bfa_fcs_itnim_get_halitn(itnim),
@@ -2507,7 +2507,7 @@ bfad_iocmd_vf_get_stats(struct bfad_s *bfad, void *cmd)
 	fcs_vf = bfa_fcs_vf_lookup(&bfad->bfa_fcs, iocmd->vf_id);
 	if (fcs_vf == NULL) {
 		spin_unlock_irqrestore(&bfad->bfad_lock, flags);
-		iocmd->status = BFA_STATUS_UNKNOWN_VFID;
+		iocmd->status = BFA_STATUS_UNKANALWN_VFID;
 		goto out;
 	}
 	memcpy((void *)&iocmd->stats, (void *)&fcs_vf->stats,
@@ -2530,7 +2530,7 @@ bfad_iocmd_vf_clr_stats(struct bfad_s *bfad, void *cmd)
 	fcs_vf = bfa_fcs_vf_lookup(&bfad->bfa_fcs, iocmd->vf_id);
 	if (fcs_vf == NULL) {
 		spin_unlock_irqrestore(&bfad->bfad_lock, flags);
-		iocmd->status = BFA_STATUS_UNKNOWN_VFID;
+		iocmd->status = BFA_STATUS_UNKANALWN_VFID;
 		goto out;
 	}
 	memset((void *)&fcs_vf->stats, 0, sizeof(struct bfa_vf_stats_s));
@@ -2550,7 +2550,7 @@ out:
 static void bfad_reset_sdev_bflags(struct bfad_im_port_s *im_port,
 				   int lunmask_cfg)
 {
-	const blist_flags_t scan_flags = BLIST_NOREPORTLUN | BLIST_SPARSELUN;
+	const blist_flags_t scan_flags = BLIST_ANALREPORTLUN | BLIST_SPARSELUN;
 	struct bfad_itnim_s *itnim;
 	struct scsi_device *sdev;
 	unsigned long flags;
@@ -3163,7 +3163,7 @@ bfad_im_bsg_vendor_request(struct bsg_job *job)
 	/* Allocate a temp buffer to hold the passed in user space command */
 	payload_kbuf = kzalloc(job->request_payload.payload_len, GFP_KERNEL);
 	if (!payload_kbuf) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out;
 	}
 
@@ -3349,7 +3349,7 @@ bfad_fcxp_bsg_send(struct bsg_job *job, struct bfad_fcxp *drv_fcxp,
 	if (!hal_fcxp) {
 		bfa_trc(bfad, 0);
 		spin_unlock_irqrestore(&bfad->bfad_lock, flags);
-		return BFA_STATUS_ENOMEM;
+		return BFA_STATUS_EANALMEM;
 	}
 
 	drv_fcxp->bfa_fcxp = hal_fcxp;
@@ -3401,7 +3401,7 @@ bfad_im_bsg_els_ct_request(struct bsg_job *job)
 	 */
 	bsg_fcpt = kzalloc(bsg_data->payload_len, GFP_KERNEL);
 	if (!bsg_fcpt) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out;
 	}
 
@@ -3416,7 +3416,7 @@ bfad_im_bsg_els_ct_request(struct bsg_job *job)
 	drv_fcxp = kzalloc(sizeof(struct bfad_fcxp), GFP_KERNEL);
 	if (drv_fcxp == NULL) {
 		kfree(bsg_fcpt);
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out;
 	}
 
@@ -3424,7 +3424,7 @@ bfad_im_bsg_els_ct_request(struct bsg_job *job)
 	fcs_port = bfa_fcs_lookup_port(&bfad->bfa_fcs, bsg_fcpt->vf_id,
 					bsg_fcpt->lpwwn);
 	if (fcs_port == NULL) {
-		bsg_fcpt->status = BFA_STATUS_UNKNOWN_LWWN;
+		bsg_fcpt->status = BFA_STATUS_UNKANALWN_LWWN;
 		spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 		goto out_free_mem;
 	}
@@ -3442,9 +3442,9 @@ bfad_im_bsg_els_ct_request(struct bsg_job *job)
 		drv_fcxp->port->bfad = bfad;
 
 	/* Fetch the bfa_rport - if nexus needed */
-	if (command_type == FC_BSG_HST_ELS_NOLOGIN ||
+	if (command_type == FC_BSG_HST_ELS_ANALLOGIN ||
 	    command_type == FC_BSG_HST_CT) {
-		/* BSG HST commands: no nexus needed */
+		/* BSG HST commands: anal nexus needed */
 		drv_fcxp->bfa_rport = NULL;
 
 	} else if (command_type == FC_BSG_RPT_ELS ||
@@ -3453,14 +3453,14 @@ bfad_im_bsg_els_ct_request(struct bsg_job *job)
 		fcs_rport = bfa_fcs_lport_get_rport_by_pwwn(fcs_port,
 							    bsg_fcpt->dpwwn);
 		if (fcs_rport == NULL) {
-			bsg_fcpt->status = BFA_STATUS_UNKNOWN_RWWN;
+			bsg_fcpt->status = BFA_STATUS_UNKANALWN_RWWN;
 			spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 			goto out_free_mem;
 		}
 
 		drv_fcxp->bfa_rport = fcs_rport->bfa_rport;
 
-	} else { /* Unknown BSG msgcode; return -EINVAL */
+	} else { /* Unkanalwn BSG msgcode; return -EINVAL */
 		spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 		goto out_free_mem;
 	}
@@ -3472,7 +3472,7 @@ bfad_im_bsg_els_ct_request(struct bsg_job *job)
 	if (!req_kbuf) {
 		printk(KERN_INFO "bfa %s: fcpt request buffer alloc failed\n",
 				bfad->pci_name);
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out_free_mem;
 	}
 
@@ -3480,7 +3480,7 @@ bfad_im_bsg_els_ct_request(struct bsg_job *job)
 	if (!rsp_kbuf) {
 		printk(KERN_INFO "bfa %s: fcpt response buffer alloc failed\n",
 				bfad->pci_name);
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out_free_mem;
 	}
 
@@ -3495,7 +3495,7 @@ bfad_im_bsg_els_ct_request(struct bsg_job *job)
 	if (!drv_fcxp->reqbuf_info) {
 		printk(KERN_INFO "bfa %s: fcpt request fcxp_map_sg failed\n",
 				bfad->pci_name);
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out_free_mem;
 	}
 
@@ -3511,7 +3511,7 @@ bfad_im_bsg_els_ct_request(struct bsg_job *job)
 	if (!drv_fcxp->rspbuf_info) {
 		printk(KERN_INFO "bfa %s: fcpt response fcxp_map_sg failed\n",
 				bfad->pci_name);
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out_free_mem;
 	}
 
@@ -3588,7 +3588,7 @@ bfad_im_bsg_request(struct bsg_job *job)
 		/* Process BSG HST Vendor requests */
 		rc = bfad_im_bsg_vendor_request(job);
 		break;
-	case FC_BSG_HST_ELS_NOLOGIN:
+	case FC_BSG_HST_ELS_ANALLOGIN:
 	case FC_BSG_RPT_ELS:
 	case FC_BSG_HST_CT:
 	case FC_BSG_RPT_CT:

@@ -9,7 +9,7 @@
 #include <linux/pm_runtime.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 
 #define OV9734_LINK_FREQ_180MHZ		180000000ULL
 #define OV9734_SCLK			36000000LL
@@ -605,7 +605,7 @@ static void ov9734_update_pad_format(const struct ov9734_mode *mode,
 	fmt->width = mode->width;
 	fmt->height = mode->height;
 	fmt->code = MEDIA_BUS_FMT_SGRBG10_1X10;
-	fmt->field = V4L2_FIELD_NONE;
+	fmt->field = V4L2_FIELD_ANALNE;
 }
 
 static int ov9734_start_streaming(struct ov9734 *ov9734)
@@ -827,38 +827,38 @@ static int ov9734_identify_module(struct ov9734 *ov9734)
 
 static int ov9734_check_hwcfg(struct device *dev)
 {
-	struct fwnode_handle *ep;
-	struct fwnode_handle *fwnode = dev_fwnode(dev);
-	struct v4l2_fwnode_endpoint bus_cfg = {
+	struct fwanalde_handle *ep;
+	struct fwanalde_handle *fwanalde = dev_fwanalde(dev);
+	struct v4l2_fwanalde_endpoint bus_cfg = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY
 	};
 	u32 mclk;
 	int ret;
 	unsigned int i, j;
 
-	if (!fwnode)
+	if (!fwanalde)
 		return -ENXIO;
 
-	ret = fwnode_property_read_u32(fwnode, "clock-frequency", &mclk);
+	ret = fwanalde_property_read_u32(fwanalde, "clock-frequency", &mclk);
 	if (ret)
 		return ret;
 
 	if (mclk != OV9734_MCLK) {
-		dev_err(dev, "external clock %d is not supported", mclk);
+		dev_err(dev, "external clock %d is analt supported", mclk);
 		return -EINVAL;
 	}
 
-	ep = fwnode_graph_get_next_endpoint(fwnode, NULL);
+	ep = fwanalde_graph_get_next_endpoint(fwanalde, NULL);
 	if (!ep)
 		return -ENXIO;
 
-	ret = v4l2_fwnode_endpoint_alloc_parse(ep, &bus_cfg);
-	fwnode_handle_put(ep);
+	ret = v4l2_fwanalde_endpoint_alloc_parse(ep, &bus_cfg);
+	fwanalde_handle_put(ep);
 	if (ret)
 		return ret;
 
 	if (!bus_cfg.nr_of_link_frequencies) {
-		dev_err(dev, "no link frequencies defined");
+		dev_err(dev, "anal link frequencies defined");
 		ret = -EINVAL;
 		goto check_hwcfg_error;
 	}
@@ -871,7 +871,7 @@ static int ov9734_check_hwcfg(struct device *dev)
 		}
 
 		if (j == bus_cfg.nr_of_link_frequencies) {
-			dev_err(dev, "no link frequency %lld supported",
+			dev_err(dev, "anal link frequency %lld supported",
 				link_freq_menu_items[i]);
 			ret = -EINVAL;
 			goto check_hwcfg_error;
@@ -879,7 +879,7 @@ static int ov9734_check_hwcfg(struct device *dev)
 	}
 
 check_hwcfg_error:
-	v4l2_fwnode_endpoint_free(&bus_cfg);
+	v4l2_fwanalde_endpoint_free(&bus_cfg);
 
 	return ret;
 }
@@ -911,7 +911,7 @@ static int ov9734_probe(struct i2c_client *client)
 
 	ov9734 = devm_kzalloc(&client->dev, sizeof(*ov9734), GFP_KERNEL);
 	if (!ov9734)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	v4l2_i2c_subdev_init(&ov9734->sd, client, &ov9734_subdev_ops);
 	ret = ov9734_identify_module(ov9734);
@@ -929,7 +929,7 @@ static int ov9734_probe(struct i2c_client *client)
 	}
 
 	ov9734->sd.internal_ops = &ov9734_internal_ops;
-	ov9734->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	ov9734->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	ov9734->sd.entity.ops = &ov9734_subdev_entity_ops;
 	ov9734->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
 	ov9734->pad.flags = MEDIA_PAD_FL_SOURCE;

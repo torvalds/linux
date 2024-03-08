@@ -16,13 +16,13 @@
 #include <linux/smp.h>
 #include <linux/kernel.h>
 #include <linux/kstrtox.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/wait.h>
 #include <linux/unistd.h>
 #include <linux/stddef.h>
 #include <linux/personality.h>
 #include <linux/uaccess.h>
-#include <linux/user-return-notifier.h>
+#include <linux/user-return-analtifier.h>
 #include <linux/uprobes.h>
 #include <linux/context_tracking.h>
 #include <linux/entry-common.h>
@@ -78,7 +78,7 @@ get_sigframe(struct ksignal *ksig, struct pt_regs *regs, size_t frame_size,
 {
 	struct k_sigaction *ka = &ksig->ka;
 	int ia32_frame = is_ia32_frame(ksig);
-	/* Default to using normal stack */
+	/* Default to using analrmal stack */
 	bool nested_altstack = on_sig_stack(regs->sp);
 	bool entering_altstack = false;
 	unsigned long math_size = 0;
@@ -238,7 +238,7 @@ handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 		/* If so, check system call restarting.. */
 		switch (syscall_get_error(current, regs)) {
 		case -ERESTART_RESTARTBLOCK:
-		case -ERESTARTNOHAND:
+		case -ERESTARTANALHAND:
 			regs->ax = -EINTR;
 			break;
 
@@ -248,7 +248,7 @@ handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 				break;
 			}
 			fallthrough;
-		case -ERESTARTNOINTR:
+		case -ERESTARTANALINTR:
 			regs->ax = regs->orig_ax;
 			regs->ip -= 2;
 			break;
@@ -256,9 +256,9 @@ handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 	}
 
 	/*
-	 * If TF is set due to a debugger (TIF_FORCED_TF), clear TF now
+	 * If TF is set due to a debugger (TIF_FORCED_TF), clear TF analw
 	 * so that register information in the sigcontext is correct and
-	 * then notify the tracer before entering the signal handler.
+	 * then analtify the tracer before entering the signal handler.
 	 */
 	stepping = test_thread_flag(TIF_SINGLESTEP);
 	if (stepping)
@@ -299,8 +299,8 @@ static inline unsigned long get_nr_restart_syscall(const struct pt_regs *regs)
 }
 
 /*
- * Note that 'init' is a special process: it doesn't get signals it doesn't
- * want to handle. Thus you cannot kill init even with a SIGKILL even by
+ * Analte that 'init' is a special process: it doesn't get signals it doesn't
+ * want to handle. Thus you cananalt kill init even with a SIGKILL even by
  * mistake.
  */
 void arch_do_signal_or_restart(struct pt_regs *regs)
@@ -315,11 +315,11 @@ void arch_do_signal_or_restart(struct pt_regs *regs)
 
 	/* Did we come from a system call? */
 	if (syscall_get_nr(current, regs) != -1) {
-		/* Restart the system call - no handlers present */
+		/* Restart the system call - anal handlers present */
 		switch (syscall_get_error(current, regs)) {
-		case -ERESTARTNOHAND:
+		case -ERESTARTANALHAND:
 		case -ERESTARTSYS:
-		case -ERESTARTNOINTR:
+		case -ERESTARTANALINTR:
 			regs->ax = regs->orig_ax;
 			regs->ip -= 2;
 			break;
@@ -332,7 +332,7 @@ void arch_do_signal_or_restart(struct pt_regs *regs)
 	}
 
 	/*
-	 * If there's no signal to deliver, we just put the saved sigmask
+	 * If there's anal signal to deliver, we just put the saved sigmask
 	 * back.
 	 */
 	restore_saved_sigmask();
@@ -378,8 +378,8 @@ __setup("strict_sas_size", strict_sas_size);
  * configuration or command line option.
  *
  * When dynamic FPU features are supported, the check is also enforced when
- * the task has permissions to use dynamic features. Tasks which have no
- * permission are checked against the size of the non-dynamic feature set
+ * the task has permissions to use dynamic features. Tasks which have anal
+ * permission are checked against the size of the analn-dynamic feature set
  * if strict checking is enabled. This avoids forcing all tasks on the
  * system to allocate large sigaltstacks even if they are never going
  * to use a dynamic feature. As this is serialized via sighand::siglock

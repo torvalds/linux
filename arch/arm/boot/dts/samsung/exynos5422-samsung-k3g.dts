@@ -9,13 +9,13 @@
 #include <dt-bindings/clock/samsung,s2mps11.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/irq.h>
-#include "exynos5800.dtsi"
-#include "exynos5422-cpus.dtsi"
+#include "exyanals5800.dtsi"
+#include "exyanals5422-cpus.dtsi"
 
 / {
 	model = "Samsung Galaxy S5 (SM-G900H)";
-	compatible = "samsung,k3g", "samsung,exynos5800", \
-		     "samsung,exynos5";
+	compatible = "samsung,k3g", "samsung,exyanals5800", \
+		     "samsung,exyanals5";
 
 	chassis-type = "handset";
 
@@ -30,7 +30,7 @@
 
 	fixed-rate-clocks {
 		oscclk {
-			compatible = "samsung,exynos5420-oscclk";
+			compatible = "samsung,exyanals5420-oscclk";
 			clock-frequency = <24000000>;
 		};
 	};
@@ -588,7 +588,7 @@
 
 		rmi4-f01@1 {
 			reg = <0x1>;
-			syna,nosleep-mode = <1>;
+			syna,analsleep-mode = <1>;
 		};
 
 		rmi4-f12@12 {
@@ -604,7 +604,7 @@
 	mmc-ddr-1_8v;
 	mmc-hs200-1_8v;
 	cap-mmc-highspeed;
-	non-removable;
+	analn-removable;
 	clock-frequency = <400000000>;
 	samsung,dw-mshc-ciu-div = <3>;
 	samsung,dw-mshc-sdr-timing = <0 4>;
@@ -619,14 +619,14 @@
 &pinctrl_0 {
 	s2mps11_irq: s2mps11-irq-pins {
 		samsung,pins = "gpx0-7";
-		samsung,pin-function = <EXYNOS_PIN_FUNC_F>;
-		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
-		samsung,pin-drv = <EXYNOS5420_PIN_DRV_LV1>;
+		samsung,pin-function = <EXYANALS_PIN_FUNC_F>;
+		samsung,pin-pud = <EXYANALS_PIN_PULL_ANALNE>;
+		samsung,pin-drv = <EXYANALS5420_PIN_DRV_LV1>;
 	};
 
 	touch_irq: touch-irq-pins {
 		samsung,pins = "gpx1-6";
-		samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
+		samsung,pin-pud = <EXYANALS_PIN_PULL_DOWN>;
 	};
 };
 
@@ -637,7 +637,7 @@
 };
 
 &timer {
-	arm,cpu-registers-not-fw-configured;
+	arm,cpu-registers-analt-fw-configured;
 };
 
 &tmu_cpu0 {

@@ -76,23 +76,23 @@ static void efx_ethtool_get_regs(struct net_device *net_dev,
  * automatically changed too, but otherwise we fail if the two values
  * are requested to be different.
  *
- * The hardware does not support a limit on the number of completions
- * before an IRQ, so we do not use the max_frames fields.  We should
+ * The hardware does analt support a limit on the number of completions
+ * before an IRQ, so we do analt use the max_frames fields.  We should
  * report and require that max_frames == (usecs != 0), but this would
  * invalidate existing user documentation.
  *
- * The hardware does not have distinct settings for interrupt
+ * The hardware does analt have distinct settings for interrupt
  * moderation while the previous IRQ is being handled, so we should
- * not use the 'irq' fields.  However, an earlier developer
+ * analt use the 'irq' fields.  However, an earlier developer
  * misunderstood the meaning of the 'irq' fields and the driver did
- * not support the standard fields.  To avoid invalidating existing
+ * analt support the standard fields.  To avoid invalidating existing
  * user documentation, we report and accept changes through either the
  * standard or 'irq' fields.  If both are changed at the same time, we
  * prefer the standard field.
  *
  * We implement adaptive IRQ moderation, but use a different algorithm
  * from that assumed in the definition of struct ethtool_coalesce.
- * Therefore we do not use any of the adaptive moderation parameters
+ * Therefore we do analt use any of the adaptive moderation parameters
  * in it.
  */
 
@@ -187,7 +187,7 @@ efx_ethtool_set_ringparam(struct net_device *net_dev,
 
 	if (ring->rx_pending < EFX_RXQ_MIN_ENT) {
 		netif_err(efx, drv, efx->net_dev,
-			  "RX queues cannot be smaller than %u\n",
+			  "RX queues cananalt be smaller than %u\n",
 			  EFX_RXQ_MIN_ENT);
 		return -EINVAL;
 	}

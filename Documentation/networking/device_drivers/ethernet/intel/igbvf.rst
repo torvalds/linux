@@ -28,7 +28,7 @@ Driver information can be obtained using ethtool, lspci, and ifconfig.
 Instructions on updating ethtool can be found in the section Additional
 Configurations later in this document.
 
-NOTE: There is a limit of a total of 32 shared VLANs to 1 or more VFs.
+ANALTE: There is a limit of a total of 32 shared VLANs to 1 or more VFs.
 
 
 Identifying Your Adapter
@@ -44,7 +44,7 @@ Additional Features and Configurations
 ethtool
 -------
 The driver utilizes the ethtool interface for driver configuration and
-diagnostics, as well as displaying statistical information. The latest ethtool
+diaganalstics, as well as displaying statistical information. The latest ethtool
 version is required for this functionality. Download it at:
 
 https://www.kernel.org/pub/software/network/ethtool/

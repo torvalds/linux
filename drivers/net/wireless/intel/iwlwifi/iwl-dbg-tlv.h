@@ -14,11 +14,11 @@
 #define ENABLE_INI		(IWL_DBG_TLV_MAX_PRESET + 1)
 
 /**
- * struct iwl_dbg_tlv_node - debug TLV node
- * @list: list of &struct iwl_dbg_tlv_node
+ * struct iwl_dbg_tlv_analde - debug TLV analde
+ * @list: list of &struct iwl_dbg_tlv_analde
  * @tlv: debug TLV
  */
-struct iwl_dbg_tlv_node {
+struct iwl_dbg_tlv_analde {
 	struct list_head list;
 	struct iwl_ucode_tlv tlv;
 };

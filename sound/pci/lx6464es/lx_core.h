@@ -175,8 +175,8 @@ void lx_irq_disable(struct lx6464es *chip);
 #define HEADER_FMT_BASE		HEADER_FMT_BASE_LIN
 #define HEADER_FMT_BASE_LIN	0xFED00000
 #define HEADER_FMT_BASE_FLOAT	0xFAD00000
-#define HEADER_FMT_MONO		0x00000080 /* bit 23 in header_lo. WARNING: old
-					    * bit 22 is ignored in float
+#define HEADER_FMT_MOANAL		0x00000080 /* bit 23 in header_lo. WARNING: old
+					    * bit 22 is iganalred in float
 					    * format */
 #define HEADER_FMT_INTEL	0x00008000
 #define HEADER_FMT_16BITS	0x00002000

@@ -2,7 +2,7 @@
 /*
  * f_phonet.c -- USB CDC Phonet function
  *
- * Copyright (C) 2007-2008 Nokia Corporation. All rights reserved.
+ * Copyright (C) 2007-2008 Analkia Corporation. All rights reserved.
  *
  * Author: Rémi Denis-Courmont
  */
@@ -100,8 +100,8 @@ pn_union_desc = {
 };
 
 static struct usb_interface_descriptor
-pn_data_nop_intf_desc = {
-	.bLength =		sizeof pn_data_nop_intf_desc,
+pn_data_analp_intf_desc = {
+	.bLength =		sizeof pn_data_analp_intf_desc,
 	.bDescriptorType =	USB_DT_INTERFACE,
 
 	/* .bInterfaceNumber =	DYNAMIC, */
@@ -164,7 +164,7 @@ static struct usb_descriptor_header *fs_pn_function[] = {
 	(struct usb_descriptor_header *) &pn_header_desc,
 	(struct usb_descriptor_header *) &pn_phonet_desc,
 	(struct usb_descriptor_header *) &pn_union_desc,
-	(struct usb_descriptor_header *) &pn_data_nop_intf_desc,
+	(struct usb_descriptor_header *) &pn_data_analp_intf_desc,
 	(struct usb_descriptor_header *) &pn_data_intf_desc,
 	(struct usb_descriptor_header *) &pn_fs_sink_desc,
 	(struct usb_descriptor_header *) &pn_fs_source_desc,
@@ -176,7 +176,7 @@ static struct usb_descriptor_header *hs_pn_function[] = {
 	(struct usb_descriptor_header *) &pn_header_desc,
 	(struct usb_descriptor_header *) &pn_phonet_desc,
 	(struct usb_descriptor_header *) &pn_union_desc,
-	(struct usb_descriptor_header *) &pn_data_nop_intf_desc,
+	(struct usb_descriptor_header *) &pn_data_analp_intf_desc,
 	(struct usb_descriptor_header *) &pn_data_intf_desc,
 	(struct usb_descriptor_header *) &pn_hs_sink_desc,
 	(struct usb_descriptor_header *) &pn_hs_source_desc,
@@ -271,7 +271,7 @@ static void pn_net_setup(struct net_device *dev)
 
 	dev->features		= 0;
 	dev->type		= ARPHRD_PHONET;
-	dev->flags		= IFF_POINTOPOINT | IFF_NOARP;
+	dev->flags		= IFF_POINTOPOINT | IFF_ANALARP;
 	dev->mtu		= PHONET_DEV_MTU;
 	dev->min_mtu		= PHONET_MIN_MTU;
 	dev->max_mtu		= PHONET_MAX_MTU;
@@ -297,9 +297,9 @@ pn_rx_submit(struct f_phonet *fp, struct usb_request *req, gfp_t gfp_flags)
 	struct page *page;
 	int err;
 
-	page = __dev_alloc_page(gfp_flags | __GFP_NOMEMALLOC);
+	page = __dev_alloc_page(gfp_flags | __GFP_ANALMEMALLOC);
 	if (!page)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	req->buf = page_address(page);
 	req->length = PAGE_SIZE;
@@ -353,7 +353,7 @@ static void pn_rx_complete(struct usb_ep *ep, struct usb_request *req)
 		}
 		break;
 
-	/* Do not resubmit in these cases: */
+	/* Do analt resubmit in these cases: */
 	case -ESHUTDOWN: /* disconnect */
 	case -ECONNABORTED: /* hw reset */
 	case -ECONNRESET: /* dequeued (unlink or netif down) */
@@ -400,7 +400,7 @@ static int pn_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 	struct usb_gadget *gadget = fp->function.config->cdev->gadget;
 
 	if (intf == pn_control_intf_desc.bInterfaceNumber)
-		/* control interface, no altsetting */
+		/* control interface, anal altsetting */
 		return (alt > 0) ? -EINVAL : 0;
 
 	if (intf == pn_data_intf_desc.bInterfaceNumber) {
@@ -494,7 +494,7 @@ static int pn_bind(struct usb_configuration *c, struct usb_function *f)
 	 * in drivers/usb/gadget/configfs.c:configfs_composite_bind()
 	 * configurations are bound in sequence with list_for_each_entry,
 	 * in each configuration its functions are bound in sequence
-	 * with list_for_each_entry, so we assume no race condition
+	 * with list_for_each_entry, so we assume anal race condition
 	 * with regard to phonet_opts->bound access
 	 */
 	if (!phonet_opts->bound) {
@@ -515,12 +515,12 @@ static int pn_bind(struct usb_configuration *c, struct usb_function *f)
 	status = usb_interface_id(c, f);
 	if (status < 0)
 		goto err;
-	pn_data_nop_intf_desc.bInterfaceNumber = status;
+	pn_data_analp_intf_desc.bInterfaceNumber = status;
 	pn_data_intf_desc.bInterfaceNumber = status;
 	pn_union_desc.bSlaveInterface0 = status;
 
 	/* Reserve endpoints */
-	status = -ENODEV;
+	status = -EANALDEV;
 	ep = usb_ep_autoconfig(gadget, &pn_fs_sink_desc);
 	if (!ep)
 		goto err;
@@ -534,14 +534,14 @@ static int pn_bind(struct usb_configuration *c, struct usb_function *f)
 	pn_hs_sink_desc.bEndpointAddress = pn_fs_sink_desc.bEndpointAddress;
 	pn_hs_source_desc.bEndpointAddress = pn_fs_source_desc.bEndpointAddress;
 
-	/* Do not try to bind Phonet twice... */
+	/* Do analt try to bind Phonet twice... */
 	status = usb_assign_descriptors(f, fs_pn_function, hs_pn_function,
 			NULL, NULL);
 	if (status)
 		goto err;
 
 	/* Incoming USB requests */
-	status = -ENOMEM;
+	status = -EANALMEM;
 	for (i = 0; i < phonet_rxq_size; i++) {
 		struct usb_request *req;
 
@@ -568,7 +568,7 @@ err_req:
 		usb_ep_free_request(fp->out_ep, fp->out_reqv[i]);
 	usb_free_all_descriptors(f);
 err:
-	ERROR(cdev, "USB CDC Phonet: cannot autoconfigure\n");
+	ERROR(cdev, "USB CDC Phonet: cananalt autoconfigure\n");
 	return status;
 }
 
@@ -625,7 +625,7 @@ static struct usb_function_instance *phonet_alloc_inst(void)
 
 	opts = kzalloc(sizeof(*opts), GFP_KERNEL);
 	if (!opts)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	opts->func_inst.free_func_inst = phonet_free_inst;
 	opts->net = gphonet_setup_default();
@@ -671,7 +671,7 @@ static struct usb_function *phonet_alloc(struct usb_function_instance *fi)
 
 	fp = kzalloc(struct_size(fp, out_reqv, phonet_rxq_size), GFP_KERNEL);
 	if (!fp)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	opts = container_of(fi, struct f_phonet_opts, func_inst);
 
@@ -694,10 +694,10 @@ struct net_device *gphonet_setup_default(void)
 	struct phonet_port *port;
 
 	/* Create net device */
-	dev = alloc_netdev(sizeof(*port), "upnlink%d", NET_NAME_UNKNOWN,
+	dev = alloc_netdev(sizeof(*port), "upnlink%d", NET_NAME_UNKANALWN,
 			   pn_net_setup);
 	if (!dev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	port = netdev_priv(dev);
 	spin_lock_init(&port->lock);

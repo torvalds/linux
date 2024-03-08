@@ -22,7 +22,7 @@ bool landlock_initialized __ro_after_init = false;
 struct lsm_blob_sizes landlock_blob_sizes __ro_after_init = {
 	.lbs_cred = sizeof(struct landlock_cred_security),
 	.lbs_file = sizeof(struct landlock_file_security),
-	.lbs_inode = sizeof(struct landlock_inode_security),
+	.lbs_ianalde = sizeof(struct landlock_ianalde_security),
 	.lbs_superblock = sizeof(struct landlock_superblock_security),
 };
 

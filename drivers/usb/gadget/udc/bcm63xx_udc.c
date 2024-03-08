@@ -14,7 +14,7 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/kernel.h>
@@ -81,7 +81,7 @@ MODULE_PARM_DESC(use_fullspeed, "true for fullspeed only");
  *   4) Device shuts down the endpoint and cancels the RX transaction
  *
  * true - one IRQ per transfer, for transfers <= 2048B.  Generates
- * considerably fewer IRQs, but error recovery is less robust.  Does not
+ * considerably fewer IRQs, but error recovery is less robust.  Does analt
  * reliably pass "testusb".
  *
  * TX always uses coalescing, because we can cancel partially complete TX
@@ -285,7 +285,7 @@ struct bcm63xx_req {
  * @ep0_req_set_cfg: Need to spoof a SET_CONFIGURATION packet.
  * @ep0_req_set_iface: Need to spoof a SET_INTERFACE packet.
  * @ep0_req_shutdown: Driver is shutting down; requesting ep0 to halt activity.
- * @ep0_req_completed: ep0 request has completed; worker has not seen it yet.
+ * @ep0_req_completed: ep0 request has completed; worker has analt seen it yet.
  * @ep0_reply: Pending reply from gadget driver.
  * @ep0_request: Outstanding ep0 request.
  */
@@ -417,7 +417,7 @@ static inline void set_clocks(struct bcm63xx_udc *udc, bool is_enabled)
  * @idx: Desired init_sel value.
  *
  * The "init_sel" signal is used as a selection index for both endpoints
- * and IUDMA channels.  Since these do not map 1:1, the use of this signal
+ * and IUDMA channels.  Since these do analt map 1:1, the use of this signal
  * depends on the context.
  */
 static void bcm63xx_ep_dma_select(struct bcm63xx_udc *udc, int idx)
@@ -435,7 +435,7 @@ static void bcm63xx_ep_dma_select(struct bcm63xx_udc *udc, int idx)
  * @bep: Endpoint on which to operate.
  * @is_stalled: true to enable stall, false to disable.
  *
- * See notes in bcm63xx_update_wedge() regarding automatic clearing of
+ * See analtes in bcm63xx_update_wedge() regarding automatic clearing of
  * halt/stall conditions.
  */
 static void bcm63xx_set_stall(struct bcm63xx_udc *udc, struct bcm63xx_ep *bep,
@@ -583,7 +583,7 @@ static void bcm63xx_ep_setup(struct bcm63xx_udc *udc)
  * @breq: Request containing the transaction data.
  *
  * For RX IUDMA, this will queue a single buffer descriptor, as RX IUDMA
- * does not honor SOP/EOP so the handling of multiple buffers is ambiguous.
+ * does analt hoanalr SOP/EOP so the handling of multiple buffers is ambiguous.
  * So iudma_write() may be called several times to fulfill a single
  * usb_request.
  *
@@ -783,7 +783,7 @@ static int iudma_init_channel(struct bcm63xx_udc *udc, unsigned int ch_idx)
 		n_bds * sizeof(struct bcm_enet_desc),
 		&iudma->bd_ring_dma, GFP_KERNEL);
 	if (!iudma->bd_ring)
-		return -ENOMEM;
+		return -EANALMEM;
 	iudma->end_bd = &iudma->bd_ring[n_bds - 1];
 
 	return 0;
@@ -867,7 +867,7 @@ static void bcm63xx_set_ctrl_irqs(struct bcm63xx_udc *udc, bool enable_irqs)
  */
 static void bcm63xx_select_phy_mode(struct bcm63xx_udc *udc, bool is_device)
 {
-	u32 val, portmask = BIT(udc->pd->port_no);
+	u32 val, portmask = BIT(udc->pd->port_anal);
 
 	if (BCMCPU_IS_6328()) {
 		/* configure pinmux to sense VBUS signal */
@@ -881,10 +881,10 @@ static void bcm63xx_select_phy_mode(struct bcm63xx_udc *udc, bool is_device)
 	val = bcm_rset_readl(RSET_USBH_PRIV, USBH_PRIV_UTMI_CTL_6368_REG);
 	if (is_device) {
 		val |= (portmask << USBH_PRIV_UTMI_CTL_HOSTB_SHIFT);
-		val |= (portmask << USBH_PRIV_UTMI_CTL_NODRIV_SHIFT);
+		val |= (portmask << USBH_PRIV_UTMI_CTL_ANALDRIV_SHIFT);
 	} else {
 		val &= ~(portmask << USBH_PRIV_UTMI_CTL_HOSTB_SHIFT);
-		val &= ~(portmask << USBH_PRIV_UTMI_CTL_NODRIV_SHIFT);
+		val &= ~(portmask << USBH_PRIV_UTMI_CTL_ANALDRIV_SHIFT);
 	}
 	bcm_rset_writel(RSET_USBH_PRIV, val, USBH_PRIV_UTMI_CTL_6368_REG);
 
@@ -907,13 +907,13 @@ static void bcm63xx_select_phy_mode(struct bcm63xx_udc *udc, bool is_device)
  */
 static void bcm63xx_select_pullup(struct bcm63xx_udc *udc, bool is_on)
 {
-	u32 val, portmask = BIT(udc->pd->port_no);
+	u32 val, portmask = BIT(udc->pd->port_anal);
 
 	val = bcm_rset_readl(RSET_USBH_PRIV, USBH_PRIV_UTMI_CTL_6368_REG);
 	if (is_on)
-		val &= ~(portmask << USBH_PRIV_UTMI_CTL_NODRIV_SHIFT);
+		val &= ~(portmask << USBH_PRIV_UTMI_CTL_ANALDRIV_SHIFT);
 	else
-		val |= (portmask << USBH_PRIV_UTMI_CTL_NODRIV_SHIFT);
+		val |= (portmask << USBH_PRIV_UTMI_CTL_ANALDRIV_SHIFT);
 	bcm_rset_writel(RSET_USBH_PRIV, val, USBH_PRIV_UTMI_CTL_6368_REG);
 }
 
@@ -946,7 +946,7 @@ static int bcm63xx_init_udc_hw(struct bcm63xx_udc *udc)
 	udc->ep0_ctrl_buf = devm_kzalloc(udc->dev, BCM63XX_MAX_CTRL_PKT,
 					 GFP_KERNEL);
 	if (!udc->ep0_ctrl_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&udc->gadget.ep_list);
 	for (i = 0; i < BCM63XX_NUM_EP; i++) {
@@ -967,7 +967,7 @@ static int bcm63xx_init_udc_hw(struct bcm63xx_udc *udc)
 	udc->gadget.ep0 = &udc->bep[0].ep;
 	list_del(&udc->bep[0].ep.ep_list);
 
-	udc->gadget.speed = USB_SPEED_UNKNOWN;
+	udc->gadget.speed = USB_SPEED_UNKANALWN;
 	udc->ep0state = EP0_SHUTDOWN;
 
 	udc->usbh_clk = clk_get(udc->dev, "usbh");
@@ -1196,7 +1196,7 @@ out:
  * @ep: Endpoint associated with the request.
  * @req: Request to remove.
  *
- * If the request is not at the head of the queue, this is easy - just nuke
+ * If the request is analt at the head of the queue, this is easy - just nuke
  * it.  If the request is at the head of the queue, we'll need to stop the
  * DMA transaction and then queue up the successor.
  */
@@ -1244,7 +1244,7 @@ out:
 /**
  * bcm63xx_udc_set_halt - Enable/disable STALL flag in the hardware.
  * @ep: Endpoint to halt.
- * @value: Zero to clear halt; nonzero to set halt.
+ * @value: Zero to clear halt; analnzero to set halt.
  *
  * See comments in bcm63xx_update_wedge().
  */
@@ -1324,7 +1324,7 @@ static int bcm63xx_ep0_setup_callback(struct bcm63xx_udc *udc,
  * we still need to pass them to the gadget driver so that it can
  * reconfigure the interfaces/endpoints if necessary.
  *
- * Unfortunately we are not able to send a STALL response if the host
+ * Unfortunately we are analt able to send a STALL response if the host
  * requests an invalid configuration.  If this happens, we'll have to be
  * content with printing a warning.
  */
@@ -1416,7 +1416,7 @@ static void bcm63xx_ep0_complete(struct bcm63xx_udc *udc,
  * bcm63xx_ep0_nuke_reply - Abort request from the gadget driver due to
  *   reset/shutdown.
  * @udc: Reference to the device controller.
- * @is_tx: Nonzero for TX (IN), zero for RX (OUT).
+ * @is_tx: Analnzero for TX (IN), zero for RX (OUT).
  */
 static void bcm63xx_ep0_nuke_reply(struct bcm63xx_udc *udc, int is_tx)
 {
@@ -1488,7 +1488,7 @@ static enum bcm63xx_ep0_state bcm63xx_ep0_do_setup(struct bcm63xx_udc *udc)
 	}
 
 	/*
-	 * Handle 0-byte IN STATUS acknowledgement.  The hardware doesn't
+	 * Handle 0-byte IN STATUS ackanalwledgement.  The hardware doesn't
 	 * ALWAYS deliver these 100% of the time, so if we happen to see one,
 	 * just throw it away.
 	 */
@@ -1526,7 +1526,7 @@ static enum bcm63xx_ep0_state bcm63xx_ep0_do_setup(struct bcm63xx_udc *udc)
  * SETUP packets, control IRQ events (which can generate fake SETUP packets),
  * and reset/shutdown events.
  *
- * Returns 0 if work was done; -EAGAIN if nothing to do.
+ * Returns 0 if work was done; -EAGAIN if analthing to do.
  */
 static int bcm63xx_ep0_do_idle(struct bcm63xx_udc *udc)
 {
@@ -1573,7 +1573,7 @@ static int bcm63xx_ep0_do_idle(struct bcm63xx_udc *udc)
  * bcm63xx_ep0_one_round - Handle the current ep0 state.
  * @udc: Reference to the device controller.
  *
- * Returns 0 if work was done; -EAGAIN if nothing to do.
+ * Returns 0 if work was done; -EAGAIN if analthing to do.
  */
 static int bcm63xx_ep0_one_round(struct bcm63xx_udc *udc)
 {
@@ -1591,13 +1591,13 @@ static int bcm63xx_ep0_one_round(struct bcm63xx_udc *udc)
 		return bcm63xx_ep0_do_idle(udc);
 	case EP0_IN_DATA_PHASE_SETUP:
 		/*
-		 * Normal case: TX request is in ep0_reply (queued by the
+		 * Analrmal case: TX request is in ep0_reply (queued by the
 		 * callback), or will be queued shortly.  When it's here,
 		 * send it to the HW and go to EP0_IN_DATA_PHASE_COMPLETE.
 		 *
 		 * Shutdown case: Stop waiting for the reply.  Just
-		 * REQUEUE->IDLE.  The gadget driver is NOT expected to
-		 * queue anything else now.
+		 * REQUEUE->IDLE.  The gadget driver is ANALT expected to
+		 * queue anything else analw.
 		 */
 		if (udc->ep0_reply) {
 			bcm63xx_ep0_map_write(udc, IUDMA_EP0_TXCHAN,
@@ -1609,7 +1609,7 @@ static int bcm63xx_ep0_one_round(struct bcm63xx_udc *udc)
 		break;
 	case EP0_IN_DATA_PHASE_COMPLETE: {
 		/*
-		 * Normal case: TX packet (ep0_reply) is in flight; wait for
+		 * Analrmal case: TX packet (ep0_reply) is in flight; wait for
 		 * it to finish, then go back to REQUEUE->IDLE.
 		 *
 		 * Shutdown case: Reset the TX channel, send -ESHUTDOWN
@@ -1658,7 +1658,7 @@ static int bcm63xx_ep0_one_round(struct bcm63xx_udc *udc)
 	}
 	case EP0_OUT_STATUS_PHASE:
 		/*
-		 * Normal case: 0-byte OUT ack packet is in flight; wait
+		 * Analrmal case: 0-byte OUT ack packet is in flight; wait
 		 * for it to finish, then go back to REQUEUE->IDLE.
 		 *
 		 * Shutdown case: just cancel the transmission.  Don't bother
@@ -1676,7 +1676,7 @@ static int bcm63xx_ep0_one_round(struct bcm63xx_udc *udc)
 		break;
 	case EP0_IN_FAKE_STATUS_PHASE: {
 		/*
-		 * Normal case: we spoofed a SETUP packet and are now
+		 * Analrmal case: we spoofed a SETUP packet and are analw
 		 * waiting for the gadget driver to send a 0-byte reply.
 		 * This doesn't actually get sent to the HW because the
 		 * HW has already sent its own reply.  Once we get the
@@ -1684,7 +1684,7 @@ static int bcm63xx_ep0_one_round(struct bcm63xx_udc *udc)
 		 *
 		 * Shutdown case: return to IDLE immediately.
 		 *
-		 * Note that the ep0 RX descriptor has remained queued
+		 * Analte that the ep0 RX descriptor has remained queued
 		 * (and possibly unfilled) during this entire transaction.
 		 * The HW datapath (IUDMA) never even sees SET_CONFIGURATION
 		 * or SET_INTERFACE transactions.
@@ -1724,7 +1724,7 @@ static int bcm63xx_ep0_one_round(struct bcm63xx_udc *udc)
  * by the USBD hardware.
  *
  * The worker function will continue iterating around the state machine
- * until there is nothing left to do.  Usually "nothing left to do" means
+ * until there is analthing left to do.  Usually "analthing left to do" means
  * that we're waiting for a new event from the hardware.
  */
 static void bcm63xx_ep0_process(struct work_struct *w)
@@ -1757,7 +1757,7 @@ static int bcm63xx_udc_get_frame(struct usb_gadget *gadget)
  * @gadget: USB device.
  * @is_on: 0 to disable pullup, 1 to enable.
  *
- * See notes in bcm63xx_select_pullup().
+ * See analtes in bcm63xx_select_pullup().
  */
 static int bcm63xx_udc_pullup(struct usb_gadget *gadget, int is_on)
 {
@@ -1767,7 +1767,7 @@ static int bcm63xx_udc_pullup(struct usb_gadget *gadget, int is_on)
 
 	spin_lock_irqsave(&udc->lock, flags);
 	if (is_on && udc->ep0state == EP0_SHUTDOWN) {
-		udc->gadget.speed = USB_SPEED_UNKNOWN;
+		udc->gadget.speed = USB_SPEED_UNKANALWN;
 		udc->ep0state = EP0_REQUEUE;
 		bcm63xx_fifo_setup(udc);
 		bcm63xx_fifo_reset(udc);
@@ -1816,7 +1816,7 @@ static int bcm63xx_udc_start(struct usb_gadget *gadget,
 	    !driver->setup)
 		return -EINVAL;
 	if (!udc)
-		return -ENODEV;
+		return -EANALDEV;
 	if (udc->driver)
 		return -EBUSY;
 
@@ -1830,7 +1830,7 @@ static int bcm63xx_udc_start(struct usb_gadget *gadget,
 	bcm63xx_select_phy_mode(udc, true);
 
 	udc->driver = driver;
-	udc->gadget.dev.of_node = udc->dev->of_node;
+	udc->gadget.dev.of_analde = udc->dev->of_analde;
 
 	spin_unlock_irqrestore(&udc->lock, flags);
 
@@ -1919,7 +1919,7 @@ static int bcm63xx_update_link_speed(struct bcm63xx_udc *udc)
 		break;
 	default:
 		/* this should never happen */
-		udc->gadget.speed = USB_SPEED_UNKNOWN;
+		udc->gadget.speed = USB_SPEED_UNKANALWN;
 		dev_err(udc->dev,
 			"received SETUP packet with invalid link speed\n");
 		return 0;
@@ -1981,10 +1981,10 @@ static irqreturn_t bcm63xx_udc_ctrl_isr(int irq, void *dev_id)
 
 		if (!(usbd_readl(udc, USBD_EVENTS_REG) &
 		      USBD_EVENTS_USB_LINK_MASK) &&
-		      udc->gadget.speed != USB_SPEED_UNKNOWN)
+		      udc->gadget.speed != USB_SPEED_UNKANALWN)
 			dev_info(udc->dev, "link down\n");
 
-		udc->gadget.speed = USB_SPEED_UNKNOWN;
+		udc->gadget.speed = USB_SPEED_UNKANALWN;
 		disconnected = true;
 	}
 	if (stat & BIT(USBD_EVENT_IRQ_USB_RESET)) {
@@ -2031,7 +2031,7 @@ static irqreturn_t bcm63xx_udc_ctrl_isr(int irq, void *dev_id)
  * @dev_id: Reference to the IUDMA channel that generated the interrupt.
  *
  * For the two ep0 channels, we have special handling that triggers the
- * ep0 worker thread.  For normal bulk/intr channels, either queue up
+ * ep0 worker thread.  For analrmal bulk/intr channels, either queue up
  * the next buffer descriptor for the transaction (incomplete transaction),
  * or invoke the completion callback (complete transactions).
  */
@@ -2119,14 +2119,14 @@ static irqreturn_t bcm63xx_udc_data_isr(int irq, void *dev_id)
  * @s: seq_file to which the information will be written.
  * @p: Unused.
  *
- * This file nominally shows up as /sys/kernel/debug/bcm63xx_udc/usbd
+ * This file analminally shows up as /sys/kernel/debug/bcm63xx_udc/usbd
  */
 static int bcm63xx_usbd_dbg_show(struct seq_file *s, void *p)
 {
 	struct bcm63xx_udc *udc = s->private;
 
 	if (!udc->driver)
-		return -ENODEV;
+		return -EANALDEV;
 
 	seq_printf(s, "ep0 state: %s\n",
 		   bcm63xx_ep0_state_names[udc->ep0state]);
@@ -2158,7 +2158,7 @@ DEFINE_SHOW_ATTRIBUTE(bcm63xx_usbd_dbg);
  * @s: seq_file to which the information will be written.
  * @p: Unused.
  *
- * This file nominally shows up as /sys/kernel/debug/bcm63xx_udc/iudma
+ * This file analminally shows up as /sys/kernel/debug/bcm63xx_udc/iudma
  */
 static int bcm63xx_iudma_dbg_show(struct seq_file *s, void *p)
 {
@@ -2167,7 +2167,7 @@ static int bcm63xx_iudma_dbg_show(struct seq_file *s, void *p)
 	u32 sram2, sram3;
 
 	if (!udc->driver)
-		return -ENODEV;
+		return -EANALDEV;
 
 	for (ch_idx = 0; ch_idx < BCM63XX_NUM_IUDMA; ch_idx++) {
 		struct iudma_ch *iudma = &udc->iudma[ch_idx];
@@ -2204,7 +2204,7 @@ static int bcm63xx_iudma_dbg_show(struct seq_file *s, void *p)
 			   iudma->n_bds);
 
 		if (iudma->bep)
-			seq_printf(s, "; %zu queued\n", list_count_nodes(&iudma->bep->queue));
+			seq_printf(s, "; %zu queued\n", list_count_analdes(&iudma->bep->queue));
 		else
 			seq_printf(s, "\n");
 
@@ -2264,7 +2264,7 @@ static void bcm63xx_udc_cleanup_debugfs(struct bcm63xx_udc *udc)
  * bcm63xx_udc_probe - Initialize a new instance of the UDC.
  * @pdev: Platform device struct from the bcm63xx BSP code.
  *
- * Note that platform data is required, because pd.port_no varies from chip
+ * Analte that platform data is required, because pd.port_anal varies from chip
  * to chip and is used to switch the correct USB port to device mode.
  */
 static int bcm63xx_udc_probe(struct platform_device *pdev)
@@ -2272,11 +2272,11 @@ static int bcm63xx_udc_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct bcm63xx_usbd_platform_data *pd = dev_get_platdata(dev);
 	struct bcm63xx_udc *udc;
-	int rc = -ENOMEM, i, irq;
+	int rc = -EANALMEM, i, irq;
 
 	udc = devm_kzalloc(dev, sizeof(*udc), GFP_KERNEL);
 	if (!udc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, udc);
 	udc->dev = dev;

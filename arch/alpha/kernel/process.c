@@ -10,7 +10,7 @@
  */
 
 #include <linux/cpu.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/sched/debug.h>
@@ -53,14 +53,14 @@ EXPORT_SYMBOL(pm_power_off);
 #ifdef CONFIG_ALPHA_WTINT
 /*
  * Sleep the CPU.
- * EV6, LCA45 and QEMU know how to power down, skipping N timer interrupts.
+ * EV6, LCA45 and QEMU kanalw how to power down, skipping N timer interrupts.
  */
 void arch_cpu_idle(void)
 {
 	wtint(0);
 }
 
-void __noreturn arch_cpu_idle_dead(void)
+void __analreturn arch_cpu_idle_dead(void)
 {
 	wtint(INT_MAX);
 	BUG();
@@ -80,7 +80,7 @@ common_shutdown_1(void *generic_ptr)
 	unsigned long *pflags, flags;
 	int cpuid = smp_processor_id();
 
-	/* No point in taking interrupts anymore. */
+	/* Anal point in taking interrupts anymore. */
 	local_irq_disable();
 
 	cpup = (struct percpu_struct *)
@@ -220,7 +220,7 @@ flush_thread(void)
 	/* Arrange for each exec'ed process to start off with a clean slate
 	   with respect to the FPU.  This is all exceptions disabled.  */
 	current_thread_info()->ieee_state = 0;
-	wrfpcr(FPCR_DYN_NORMAL | ieee_swcr_to_fpcr(0));
+	wrfpcr(FPCR_DYN_ANALRMAL | ieee_swcr_to_fpcr(0));
 
 	/* Clean slate for TLS.  */
 	current_thread_info()->pcb.unique = 0;
@@ -259,9 +259,9 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 		childti->pcb.usp = 0;
 		return 0;
 	}
-	/* Note: if CLONE_SETTLS is not set, then we must inherit the
+	/* Analte: if CLONE_SETTLS is analt set, then we must inherit the
 	   value from the parent, which will have been set by the block
-	   copy in dup_task_struct.  This is non-intuitive, but is
+	   copy in dup_task_struct.  This is analn-intuitive, but is
 	   required for proper operation in the case of a threaded
 	   application calling fork.  */
 	if (clone_flags & CLONE_SETTLS)

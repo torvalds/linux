@@ -40,7 +40,7 @@ struct scmi_regulator {
 	struct scmi_device *sdev;
 	struct scmi_protocol_handle *ph;
 	struct regulator_dev *rdev;
-	struct device_node *of_node;
+	struct device_analde *of_analde;
 	struct regulator_desc desc;
 	struct regulator_config conf;
 };
@@ -142,7 +142,7 @@ scmi_config_linear_regulator_mappings(struct scmi_regulator *sreg,
 	s32 delta_uV;
 
 	/*
-	 * Note that SCMI voltage domains describable by linear ranges
+	 * Analte that SCMI voltage domains describable by linear ranges
 	 * (segments) {low, high, step} are guaranteed to come in one single
 	 * triplet by the SCMI Voltage Domain protocol support itself.
 	 */
@@ -184,7 +184,7 @@ static int
 scmi_config_discrete_regulator_mappings(struct scmi_regulator *sreg,
 					const struct scmi_voltage_info *vinfo)
 {
-	/* Discrete non linear levels are mapped to volt_table */
+	/* Discrete analn linear levels are mapped to volt_table */
 	sreg->desc.n_voltages = vinfo->num_levels;
 
 	if (sreg->desc.n_voltages > 1) {
@@ -208,31 +208,31 @@ static int scmi_regulator_common_init(struct scmi_regulator *sreg)
 	if (!vinfo) {
 		dev_warn(dev, "Failure to get voltage domain %d\n",
 			 sreg->id);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/*
-	 * Regulator framework does not fully support negative voltages
+	 * Regulator framework does analt fully support negative voltages
 	 * so we discard any voltage domain reported as supporting negative
 	 * voltages: as a consequence each levels_uv entry is guaranteed to
-	 * be non-negative from here on.
+	 * be analn-negative from here on.
 	 */
 	if (vinfo->negative_volts_allowed) {
-		dev_warn(dev, "Negative voltages NOT supported...skip %s\n",
-			 sreg->of_node->full_name);
-		return -EOPNOTSUPP;
+		dev_warn(dev, "Negative voltages ANALT supported...skip %s\n",
+			 sreg->of_analde->full_name);
+		return -EOPANALTSUPP;
 	}
 
 	sreg->desc.name = devm_kasprintf(dev, GFP_KERNEL, "%s", vinfo->name);
 	if (!sreg->desc.name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sreg->desc.id = sreg->id;
 	sreg->desc.type = REGULATOR_VOLTAGE;
 	sreg->desc.owner = THIS_MODULE;
 	sreg->desc.of_match_full_name = true;
-	sreg->desc.of_match = sreg->of_node->full_name;
-	sreg->desc.regulators_node = "regulators";
+	sreg->desc.of_match = sreg->of_analde->full_name;
+	sreg->desc.regulators_analde = "regulators";
 	if (vinfo->segmented)
 		ret = scmi_config_linear_regulator_mappings(sreg, vinfo);
 	else
@@ -242,7 +242,7 @@ static int scmi_regulator_common_init(struct scmi_regulator *sreg)
 
 	/*
 	 * Using the scmi device here to have DT searched from Voltage
-	 * protocol node down.
+	 * protocol analde down.
 	 */
 	sreg->conf.dev = dev;
 
@@ -252,9 +252,9 @@ static int scmi_regulator_common_init(struct scmi_regulator *sreg)
 	return 0;
 }
 
-static int process_scmi_regulator_of_node(struct scmi_device *sdev,
+static int process_scmi_regulator_of_analde(struct scmi_device *sdev,
 					  struct scmi_protocol_handle *ph,
-					  struct device_node *np,
+					  struct device_analde *np,
 					  struct scmi_regulator_info *rinfo)
 {
 	u32 dom, ret;
@@ -264,7 +264,7 @@ static int process_scmi_regulator_of_node(struct scmi_device *sdev,
 		return ret;
 
 	if (dom >= rinfo->num_doms)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (rinfo->sregv[dom]) {
 		dev_err(&sdev->dev,
@@ -277,18 +277,18 @@ static int process_scmi_regulator_of_node(struct scmi_device *sdev,
 					 sizeof(struct scmi_regulator),
 					 GFP_KERNEL);
 	if (!rinfo->sregv[dom])
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rinfo->sregv[dom]->id = dom;
 	rinfo->sregv[dom]->sdev = sdev;
 	rinfo->sregv[dom]->ph = ph;
 
-	/* get hold of good nodes */
-	of_node_get(np);
-	rinfo->sregv[dom]->of_node = np;
+	/* get hold of good analdes */
+	of_analde_get(np);
+	rinfo->sregv[dom]->of_analde = np;
 
 	dev_dbg(&sdev->dev,
-		"Found SCMI Regulator entry -- OF node [%d] -> %s\n",
+		"Found SCMI Regulator entry -- OF analde [%d] -> %s\n",
 		dom, np->full_name);
 
 	return 0;
@@ -297,13 +297,13 @@ static int process_scmi_regulator_of_node(struct scmi_device *sdev,
 static int scmi_regulator_probe(struct scmi_device *sdev)
 {
 	int d, ret, num_doms;
-	struct device_node *np, *child;
+	struct device_analde *np, *child;
 	const struct scmi_handle *handle = sdev->handle;
 	struct scmi_regulator_info *rinfo;
 	struct scmi_protocol_handle *ph;
 
 	if (!handle)
-		return -ENODEV;
+		return -EANALDEV;
 
 	voltage_ops = handle->devm_protocol_get(sdev,
 						SCMI_PROTOCOL_VOLTAGE, &ph);
@@ -323,13 +323,13 @@ static int scmi_regulator_probe(struct scmi_device *sdev)
 
 	rinfo = devm_kzalloc(&sdev->dev, sizeof(*rinfo), GFP_KERNEL);
 	if (!rinfo)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Allocate pointers array for all possible domains */
 	rinfo->sregv = devm_kcalloc(&sdev->dev, num_doms,
 				    sizeof(void *), GFP_KERNEL);
 	if (!rinfo->sregv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rinfo->num_doms = num_doms;
 
@@ -337,19 +337,19 @@ static int scmi_regulator_probe(struct scmi_device *sdev)
 	 * Start collecting into rinfo->sregv possibly good SCMI Regulators as
 	 * described by a well-formed DT entry and associated with an existing
 	 * plausible SCMI Voltage Domain number, all belonging to this SCMI
-	 * platform instance node (handle->dev->of_node).
+	 * platform instance analde (handle->dev->of_analde).
 	 */
-	of_node_get(handle->dev->of_node);
-	np = of_find_node_by_name(handle->dev->of_node, "regulators");
-	for_each_child_of_node(np, child) {
-		ret = process_scmi_regulator_of_node(sdev, ph, child, rinfo);
+	of_analde_get(handle->dev->of_analde);
+	np = of_find_analde_by_name(handle->dev->of_analde, "regulators");
+	for_each_child_of_analde(np, child) {
+		ret = process_scmi_regulator_of_analde(sdev, ph, child, rinfo);
 		/* abort on any mem issue */
-		if (ret == -ENOMEM) {
-			of_node_put(child);
+		if (ret == -EANALMEM) {
+			of_analde_put(child);
 			return ret;
 		}
 	}
-	of_node_put(np);
+	of_analde_put(np);
 	/*
 	 * Register a regulator for each valid regulator-DT-entry that we
 	 * can successfully reach via SCMI and has a valid associated voltage
@@ -396,7 +396,7 @@ static void scmi_regulator_remove(struct scmi_device *sdev)
 	for (d = 0; d < rinfo->num_doms; d++) {
 		if (!rinfo->sregv[d])
 			continue;
-		of_node_put(rinfo->sregv[d]->of_node);
+		of_analde_put(rinfo->sregv[d]->of_analde);
 	}
 }
 

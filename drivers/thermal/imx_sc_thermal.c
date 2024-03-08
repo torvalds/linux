@@ -87,7 +87,7 @@ static int imx_sc_thermal_probe(struct platform_device *pdev)
 
 		sensor = devm_kzalloc(&pdev->dev, sizeof(*sensor), GFP_KERNEL);
 		if (!sensor)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		sensor->resource_id = resource_id[i];
 
@@ -104,11 +104,11 @@ static int imx_sc_thermal_probe(struct platform_device *pdev)
 			devm_kfree(&pdev->dev, sensor);
 
 			/*
-			 * The thermal framework notifies us there is
-			 * no thermal zone description for such a
+			 * The thermal framework analtifies us there is
+			 * anal thermal zone description for such a
 			 * sensor id
 			 */
-			if (ret == -ENODEV)
+			if (ret == -EANALDEV)
 				continue;
 
 			dev_err(&pdev->dev, "failed to register thermal zone\n");

@@ -9,11 +9,11 @@
  * modification, are permitted provided that the following conditions are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    analtice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the names of the copyright holders nor the names of its
+ * 3. Neither the names of the copyright holders analr the names of its
  *    contributors may be used to endorse or promote products derived from
  *    this software without specific prior written permission.
  *
@@ -22,11 +22,11 @@
  * Software Foundation.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
  * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
  * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
@@ -184,7 +184,7 @@ static struct tipc_conn *tipc_conn_alloc(struct tipc_topsrv *s, struct socket *s
 
 	con = kzalloc(sizeof(*con), GFP_ATOMIC);
 	if (!con)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	kref_init(&con->kref);
 	INIT_LIST_HEAD(&con->outqueue);
@@ -199,7 +199,7 @@ static struct tipc_conn *tipc_conn_alloc(struct tipc_topsrv *s, struct socket *s
 	if (ret < 0) {
 		kfree(con);
 		spin_unlock_bh(&s->idr_lock);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 	con->conid = ret;
 	s->idr_in_use++;
@@ -341,7 +341,7 @@ err:
 }
 
 /* tipc_conn_write_space - interrupt callback after a sendmsg EAGAIN
- * Indicates that there now is more space in the send buffer
+ * Indicates that there analw is more space in the send buffer
  * The queued work is launched into tipc_send_work()->tipc_conn_send_to_sock()
  */
 static void tipc_conn_write_space(struct sock *sk)
@@ -469,7 +469,7 @@ static void tipc_topsrv_accept(struct work_struct *work)
 	spin_unlock_bh(&srv->idr_lock);
 
 	while (1) {
-		ret = kernel_accept(lsock, &newsock, O_NONBLOCK);
+		ret = kernel_accept(lsock, &newsock, O_ANALNBLOCK);
 		if (ret < 0)
 			return;
 		con = tipc_conn_alloc(srv, newsock);
@@ -537,7 +537,7 @@ static int tipc_topsrv_create_listener(struct tipc_topsrv *srv)
 	saddr.addr.nameseq.type	= TIPC_TOP_SRV;
 	saddr.addr.nameseq.lower	= TIPC_TOP_SRV;
 	saddr.addr.nameseq.upper	= TIPC_TOP_SRV;
-	saddr.scope			= TIPC_NODE_SCOPE;
+	saddr.scope			= TIPC_ANALDE_SCOPE;
 
 	rc = tipc_sk_bind(lsock, (struct sockaddr *)&saddr, sizeof(saddr));
 	if (rc < 0)
@@ -554,7 +554,7 @@ static int tipc_topsrv_create_listener(struct tipc_topsrv *srv)
 	 *
 	 * However, the reference count is ever increased twice in
 	 * sock_create_kern(): one is to increase the reference count of owner
-	 * of TIPC socket's proto_ops struct; another is to increment the
+	 * of TIPC socket's proto_ops struct; aanalther is to increment the
 	 * reference count of owner of TIPC proto struct. Therefore, we must
 	 * decrement the module reference count twice to ensure that it keeps
 	 * zero after server's listening socket is created. Of course, we
@@ -635,14 +635,14 @@ static int tipc_topsrv_work_start(struct tipc_topsrv *s)
 	s->rcv_wq = alloc_ordered_workqueue("tipc_rcv", 0);
 	if (!s->rcv_wq) {
 		pr_err("can't start tipc receive workqueue\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	s->send_wq = alloc_ordered_workqueue("tipc_send", 0);
 	if (!s->send_wq) {
 		pr_err("can't start tipc send workqueue\n");
 		destroy_workqueue(s->rcv_wq);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -663,7 +663,7 @@ static int tipc_topsrv_start(struct net *net)
 
 	srv = kzalloc(sizeof(*srv), GFP_ATOMIC);
 	if (!srv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	srv->net = net;
 	INIT_WORK(&srv->awork, tipc_topsrv_accept);

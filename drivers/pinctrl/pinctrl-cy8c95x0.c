@@ -565,7 +565,7 @@ static inline int cy8c95x0_regmap_update_bits_base(struct cy8c95x0_pinctrl *chip
 		off = CY8C95X0_MUX_REGMAP_TO_OFFSET(reg, port);
 	} else {
 		regmap = chip->regmap;
-		/* Quick path direct access registers honor the port argument */
+		/* Quick path direct access registers hoanalr the port argument */
 		if (cy8c95x0_quick_path_register(reg))
 			off = reg + port;
 		else
@@ -603,7 +603,7 @@ static inline int cy8c95x0_regmap_update_bits_base(struct cy8c95x0_pinctrl *chip
  * cy8c95x0_regmap_write_bits() - writes a register using the regmap cache
  * @chip: The pinctrl to work on
  * @reg: The register to write to. Can be direct access or muxed register.
- *       MUST NOT be the PORTSEL register.
+ *       MUST ANALT be the PORTSEL register.
  * @port: The port to be used for muxed registers or quick path direct access
  *        registers. Otherwise unused.
  * @mask: Bitmask to change
@@ -627,7 +627,7 @@ static int cy8c95x0_regmap_write_bits(struct cy8c95x0_pinctrl *chip, unsigned in
  * cy8c95x0_regmap_update_bits() - updates a register using the regmap cache
  * @chip: The pinctrl to work on
  * @reg: The register to write to. Can be direct access or muxed register.
- *       MUST NOT be the PORTSEL register.
+ *       MUST ANALT be the PORTSEL register.
  * @port: The port to be used for muxed registers or quick path direct access
  *        registers. Otherwise unused.
  * @mask: Bitmask to change
@@ -675,7 +675,7 @@ static int cy8c95x0_regmap_read(struct cy8c95x0_pinctrl *chip, unsigned int reg,
 		off = CY8C95X0_MUX_REGMAP_TO_OFFSET(reg, port);
 	} else {
 		regmap = chip->regmap;
-		/* Quick path direct access registers honor the port argument */
+		/* Quick path direct access registers hoanalr the port argument */
 		if (cy8c95x0_quick_path_register(reg))
 			off = reg + port;
 		else
@@ -696,11 +696,11 @@ static int cy8c95x0_write_regs_mask(struct cy8c95x0_pinctrl *chip, int reg,
 	u8 bits;
 
 	/* Add the 4 bit gap of Gport2 */
-	bitmap_andnot(tmask, mask, chip->shiftmask, MAX_LINE);
+	bitmap_andanalt(tmask, mask, chip->shiftmask, MAX_LINE);
 	bitmap_shift_left(tmask, tmask, 4, MAX_LINE);
 	bitmap_replace(tmask, tmask, mask, chip->shiftmask, BANK_SZ * 3);
 
-	bitmap_andnot(tval, val, chip->shiftmask, MAX_LINE);
+	bitmap_andanalt(tval, val, chip->shiftmask, MAX_LINE);
 	bitmap_shift_left(tval, tval, 4, MAX_LINE);
 	bitmap_replace(tval, tval, val, chip->shiftmask, BANK_SZ * 3);
 
@@ -736,11 +736,11 @@ static int cy8c95x0_read_regs_mask(struct cy8c95x0_pinctrl *chip, int reg,
 	u8 bits;
 
 	/* Add the 4 bit gap of Gport2 */
-	bitmap_andnot(tmask, mask, chip->shiftmask, MAX_LINE);
+	bitmap_andanalt(tmask, mask, chip->shiftmask, MAX_LINE);
 	bitmap_shift_left(tmask, tmask, 4, MAX_LINE);
 	bitmap_replace(tmask, tmask, mask, chip->shiftmask, BANK_SZ * 3);
 
-	bitmap_andnot(tval, val, chip->shiftmask, MAX_LINE);
+	bitmap_andanalt(tval, val, chip->shiftmask, MAX_LINE);
 	bitmap_shift_left(tval, tval, 4, MAX_LINE);
 	bitmap_replace(tval, tval, val, chip->shiftmask, BANK_SZ * 3);
 
@@ -802,10 +802,10 @@ static int cy8c95x0_gpio_get_value(struct gpio_chip *gc, unsigned int off)
 	ret = cy8c95x0_regmap_read(chip, CY8C95X0_INPUT, port, &reg_val);
 	if (ret < 0) {
 		/*
-		 * NOTE:
-		 * Diagnostic already emitted; that's all we should
+		 * ANALTE:
+		 * Diaganalstic already emitted; that's all we should
 		 * do unless gpio_*_value_cansleep() calls become different
-		 * from their nonsleeping siblings (and report faults).
+		 * from their analnsleeping siblings (and report faults).
 		 */
 		return 0;
 	}
@@ -902,7 +902,7 @@ static int cy8c95x0_gpio_get_pincfg(struct cy8c95x0_pinctrl *chip,
 	case PIN_CONFIG_SLEEP_HARDWARE_STATE:
 	case PIN_CONFIG_SLEW_RATE:
 	default:
-		ret = -ENOTSUPP;
+		ret = -EANALTSUPP;
 		goto out;
 	}
 	/*
@@ -969,7 +969,7 @@ static int cy8c95x0_gpio_set_pincfg(struct cy8c95x0_pinctrl *chip,
 		ret = cy8c95x0_pinmux_direction(chip, off, arg);
 		goto out;
 	default:
-		ret = -ENOTSUPP;
+		ret = -EANALTSUPP;
 		goto out;
 	}
 	/*
@@ -1251,7 +1251,7 @@ static void cy8c95x0_pin_dbg_show(struct pinctrl_dev *pctldev, struct seq_file *
 	__set_bit(pin, mask);
 
 	if (cy8c95x0_read_regs_mask(chip, CY8C95X0_PWMSEL, pwm, mask)) {
-		seq_puts(s, "not available");
+		seq_puts(s, "analt available");
 		return;
 	}
 
@@ -1263,7 +1263,7 @@ static const struct pinctrl_ops cy8c95x0_pinctrl_ops = {
 	.get_group_name = cy8c95x0_pinctrl_get_group_name,
 	.get_group_pins = cy8c95x0_pinctrl_get_group_pins,
 #ifdef CONFIG_OF
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_pin,
+	.dt_analde_to_map = pinconf_generic_dt_analde_to_map_pin,
 	.dt_free_map = pinconf_generic_dt_free_map,
 #endif
 	.pin_dbg_show = cy8c95x0_pin_dbg_show,
@@ -1438,7 +1438,7 @@ static int cy8c95x0_irq_setup(struct cy8c95x0_pinctrl *chip, int irq)
 	girq->parent_handler = NULL;
 	girq->num_parents = 0;
 	girq->parents = NULL;
-	girq->default_type = IRQ_TYPE_NONE;
+	girq->default_type = IRQ_TYPE_ANALNE;
 	girq->handler = handle_simple_irq;
 	girq->threaded = true;
 
@@ -1483,7 +1483,7 @@ static int cy8c95x0_detect(struct i2c_client *client,
 	const char *name;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = i2c_smbus_read_byte_data(client, CY8C95X0_DEVID);
 	if (ret < 0)
@@ -1499,7 +1499,7 @@ static int cy8c95x0_detect(struct i2c_client *client,
 		name = cy8c95x0_id[2].name;
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	dev_info(&client->dev, "Found a %s chip at 0x%02x.\n", name, client->addr);
@@ -1516,14 +1516,14 @@ static int cy8c95x0_probe(struct i2c_client *client)
 
 	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->dev = &client->dev;
 
 	/* Set the device type */
 	chip->driver_data = (uintptr_t)i2c_get_match_data(client);
 	if (!chip->driver_data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	i2c_set_clientdata(client, chip);
 
@@ -1541,7 +1541,7 @@ static int cy8c95x0_probe(struct i2c_client *client)
 		strscpy(chip->name, cy8c95x0_id[2].name, I2C_NAME_SIZE);
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	reg = devm_regulator_get(&client->dev, "vdd");

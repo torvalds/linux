@@ -44,7 +44,7 @@ struct sci_clk_provider {
  * @num_parents: Number of parents for this clock
  * @provider:	 Master clock provider
  * @flags:	 Flags for the clock
- * @node:	 Link for handling clocks probed via DT
+ * @analde:	 Link for handling clocks probed via DT
  * @cached_req:	 Cached requested freq for determine rate calls
  * @cached_res:	 Cached result freq for determine rate calls
  */
@@ -55,7 +55,7 @@ struct sci_clk {
 	u32 num_parents;
 	struct sci_clk_provider *provider;
 	u8 flags;
-	struct list_head node;
+	struct list_head analde;
 	unsigned long cached_req;
 	unsigned long cached_res;
 };
@@ -101,10 +101,10 @@ static void sci_clk_unprepare(struct clk_hw *hw)
 }
 
 /**
- * sci_clk_is_prepared - Check if a TI SCI clock is prepared or not
+ * sci_clk_is_prepared - Check if a TI SCI clock is prepared or analt
  * @hw: clock to check status for
  *
- * Checks if a clock is prepared (enabled) in hardware. Returns non-zero
+ * Checks if a clock is prepared (enabled) in hardware. Returns analn-zero
  * value if clock is enabled, zero otherwise.
  */
 static int sci_clk_is_prepared(struct clk_hw *hw)
@@ -129,7 +129,7 @@ static int sci_clk_is_prepared(struct clk_hw *hw)
 /**
  * sci_clk_recalc_rate - Get clock rate for a TI SCI clock
  * @hw: clock to get rate for
- * @parent_rate: parent rate provided by common clock framework, not used
+ * @parent_rate: parent rate provided by common clock framework, analt used
  *
  * Gets the current clock rate of a TI SCI clock. Returns the current
  * clock rate, or zero in failure.
@@ -160,7 +160,7 @@ static unsigned long sci_clk_recalc_rate(struct clk_hw *hw,
  *
  * Determines a suitable clock rate and parent for a TI SCI clock.
  * The parent handling is un-used, as generally the parent clock rates
- * are not known by the kernel; instead these are internally handled
+ * are analt kanalwn by the kernel; instead these are internally handled
  * by the firmware. Returns 0 on success, negative error value on failure.
  */
 static int sci_clk_determine_rate(struct clk_hw *hw,
@@ -201,7 +201,7 @@ static int sci_clk_determine_rate(struct clk_hw *hw,
  * sci_clk_set_rate - Set rate for a TI SCI clock
  * @hw: clock to change rate for
  * @rate: target rate for the clock
- * @parent_rate: rate of the clock parent, not used for TI SCI clocks
+ * @parent_rate: rate of the clock parent, analt used for TI SCI clocks
  *
  * Sets a clock frequency for a TI SCI clock. Returns the TI SCI
  * protocol status.
@@ -294,7 +294,7 @@ static int _sci_clk_build(struct sci_clk_provider *provider,
 	name = kasprintf(GFP_KERNEL, "clk:%d:%d", sci_clk->dev_id,
 			 sci_clk->clk_id);
 	if (!name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	init.name = name;
 
@@ -312,7 +312,7 @@ static int _sci_clk_build(struct sci_clk_provider *provider,
 				       GFP_KERNEL);
 
 		if (!parent_names) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err;
 		}
 
@@ -323,7 +323,7 @@ static int _sci_clk_build(struct sci_clk_provider *provider,
 						sci_clk->dev_id,
 						sci_clk->clk_id + 1 + i);
 			if (!parent_name) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto err;
 			}
 			parent_names[i] = parent_name;
@@ -391,7 +391,7 @@ static struct clk_hw *sci_clk_get(struct of_phandle_args *clkspec, void *data)
 		      sizeof(clk), _cmp_sci_clk);
 
 	if (!clk)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	return &(*clk)->hw;
 }
@@ -468,7 +468,7 @@ static int ti_sci_scan_clocks_from_fw(struct sci_clk_provider *provider)
 
 		sci_clk = devm_kzalloc(dev, sizeof(*sci_clk), GFP_KERNEL);
 		if (!sci_clk)
-			return -ENOMEM;
+			return -EANALMEM;
 		sci_clk->dev_id = dev_id;
 		sci_clk->clk_id = clk_id;
 		sci_clk->provider = provider;
@@ -483,7 +483,7 @@ static int ti_sci_scan_clocks_from_fw(struct sci_clk_provider *provider)
 	provider->clocks = devm_kmalloc_array(dev, num_clks, sizeof(sci_clk),
 					      GFP_KERNEL);
 	if (!provider->clocks)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(provider->clocks, clks, num_clks * sizeof(sci_clk));
 
@@ -499,8 +499,8 @@ static int ti_sci_scan_clocks_from_fw(struct sci_clk_provider *provider)
 static int _cmp_sci_clk_list(void *priv, const struct list_head *a,
 			     const struct list_head *b)
 {
-	struct sci_clk *ca = container_of(a, struct sci_clk, node);
-	struct sci_clk *cb = container_of(b, struct sci_clk, node);
+	struct sci_clk *ca = container_of(a, struct sci_clk, analde);
+	struct sci_clk *cb = container_of(b, struct sci_clk, analde);
 
 	return _cmp_sci_clk(ca, &cb);
 }
@@ -508,7 +508,7 @@ static int _cmp_sci_clk_list(void *priv, const struct list_head *a,
 static int ti_sci_scan_clocks_from_dt(struct sci_clk_provider *provider)
 {
 	struct device *dev = provider->dev;
-	struct device_node *np = NULL;
+	struct device_analde *np = NULL;
 	int ret;
 	int index;
 	struct of_phandle_args args;
@@ -527,7 +527,7 @@ static int ti_sci_scan_clocks_from_dt(struct sci_clk_provider *provider)
 	clk_name = clk_names;
 
 	while (*clk_name) {
-		np = of_find_node_with_property(np, *clk_name);
+		np = of_find_analde_with_property(np, *clk_name);
 		if (!np) {
 			clk_name++;
 			continue;
@@ -545,11 +545,11 @@ static int ti_sci_scan_clocks_from_dt(struct sci_clk_provider *provider)
 			if (ret)
 				break;
 
-			if (args.args_count == 2 && args.np == dev->of_node) {
+			if (args.args_count == 2 && args.np == dev->of_analde) {
 				sci_clk = devm_kzalloc(dev, sizeof(*sci_clk),
 						       GFP_KERNEL);
 				if (!sci_clk)
-					return -ENOMEM;
+					return -EANALMEM;
 
 				sci_clk->dev_id = args.args[0];
 				sci_clk->clk_id = args.args[1];
@@ -558,7 +558,7 @@ static int ti_sci_scan_clocks_from_dt(struct sci_clk_provider *provider)
 							       sci_clk->dev_id,
 							       sci_clk->clk_id,
 							       (void *)&sci_clk->num_parents);
-				list_add_tail(&sci_clk->node, &clks);
+				list_add_tail(&sci_clk->analde, &clks);
 
 				num_clks++;
 
@@ -569,7 +569,7 @@ static int ti_sci_scan_clocks_from_dt(struct sci_clk_provider *provider)
 				/*
 				 * Linux kernel has inherent limitation
 				 * of 255 clock parents at the moment.
-				 * Right now, it is not expected that
+				 * Right analw, it is analt expected that
 				 * any mux clock from sci-clk driver
 				 * would exceed that limit either, but
 				 * the ABI basically provides that
@@ -590,11 +590,11 @@ static int ti_sci_scan_clocks_from_dt(struct sci_clk_provider *provider)
 							       sizeof(*sci_clk),
 							       GFP_KERNEL);
 					if (!sci_clk)
-						return -ENOMEM;
+						return -EANALMEM;
 					sci_clk->dev_id = args.args[0];
 					sci_clk->clk_id = clk_id++;
 					sci_clk->provider = provider;
-					list_add_tail(&sci_clk->node, &clks);
+					list_add_tail(&sci_clk->analde, &clks);
 
 					num_clks++;
 				}
@@ -609,12 +609,12 @@ static int ti_sci_scan_clocks_from_dt(struct sci_clk_provider *provider)
 	provider->clocks = devm_kmalloc_array(dev, num_clks, sizeof(sci_clk),
 					      GFP_KERNEL);
 	if (!provider->clocks)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	num_clks = 0;
 	prev = NULL;
 
-	list_for_each_entry(sci_clk, &clks, node) {
+	list_for_each_entry(sci_clk, &clks, analde) {
 		if (prev && prev->dev_id == sci_clk->dev_id &&
 		    prev->clk_id == sci_clk->clk_id)
 			continue;
@@ -642,7 +642,7 @@ static int ti_sci_scan_clocks_from_dt(struct sci_clk_provider *provider)
 static int ti_sci_clk_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct sci_clk_provider *provider;
 	const struct ti_sci_handle *handle;
 	int ret;
@@ -653,7 +653,7 @@ static int ti_sci_clk_probe(struct platform_device *pdev)
 
 	provider = devm_kzalloc(dev, sizeof(*provider), GFP_KERNEL);
 	if (!provider)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	provider->sci = handle;
 	provider->ops = &handle->ops.clk_ops;
@@ -692,7 +692,7 @@ static int ti_sci_clk_probe(struct platform_device *pdev)
  */
 static void ti_sci_clk_remove(struct platform_device *pdev)
 {
-	of_clk_del_provider(pdev->dev.of_node);
+	of_clk_del_provider(pdev->dev.of_analde);
 }
 
 static struct platform_driver ti_sci_clk_driver = {

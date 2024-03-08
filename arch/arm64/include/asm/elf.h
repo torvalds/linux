@@ -18,8 +18,8 @@
  */
 
 /* Miscellaneous. */
-#define R_ARM_NONE			0
-#define R_AARCH64_NONE			256
+#define R_ARM_ANALNE			0
+#define R_AARCH64_ANALNE			256
 
 /* Data. */
 #define R_AARCH64_ABS64			257
@@ -105,16 +105,16 @@
  *                CPU*: | arm32      | arm64      |
  * ELF:                 |            |            |
  * ---------------------|------------|------------|
- * missing PT_GNU_STACK | exec-all   | exec-none  |
+ * missing PT_GNU_STACK | exec-all   | exec-analne  |
  * PT_GNU_STACK == RWX  | exec-stack | exec-stack |
- * PT_GNU_STACK == RW   | exec-none  | exec-none  |
+ * PT_GNU_STACK == RW   | exec-analne  | exec-analne  |
  *
  *  exec-all  : all PROT_READ user mappings are executable, except when
- *              backed by files on a noexec-filesystem.
- *  exec-none : only PROT_EXEC user mappings are executable.
+ *              backed by files on a analexec-filesystem.
+ *  exec-analne : only PROT_EXEC user mappings are executable.
  *  exec-stack: only the stack and PROT_EXEC user mappings are executable.
  *
- *  *all arm64 CPUs support NX, so there is no "lacks NX" column.
+ *  *all arm64 CPUs support NX, so there is anal "lacks NX" column.
  *
  */
 #define compat_elf_read_implies_exec(ex, stk)	(stk == EXSTACK_DEFAULT)
@@ -137,7 +137,7 @@
 
 #include <uapi/linux/elf.h>
 #include <linux/bug.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fs.h>
 #include <linux/types.h>
 #include <asm/processor.h> /* for signal_minsigstksz, used by ARCH_DLINFO */
@@ -153,7 +153,7 @@ typedef struct user_fpsimd_state elf_fpregset_t;
 
 /*
  * When the program starts, a1 contains a pointer to a function to be
- * registered with atexit, as per the SVR4 ABI.  A value of 0 means we have no
+ * registered with atexit, as per the SVR4 ABI.  A value of 0 means we have anal
  * such handler.
  */
 #define ELF_PLAT_INIT(_r, load_addr)	(_r)->regs[0] = 0
@@ -171,14 +171,14 @@ do {									\
 		    (elf_addr_t)current->mm->context.vdso);		\
 									\
 	/*								\
-	 * Should always be nonzero unless there's a kernel bug.	\
+	 * Should always be analnzero unless there's a kernel bug.	\
 	 * If we haven't determined a sensible value to give to		\
 	 * userspace, omit the entry:					\
 	 */								\
 	if (likely(signal_minsigstksz))					\
 		NEW_AUX_ENT(AT_MINSIGSTKSZ, signal_minsigstksz);	\
 	else								\
-		NEW_AUX_ENT(AT_IGNORE, 0);				\
+		NEW_AUX_ENT(AT_IGANALRE, 0);				\
 } while (0)
 
 #define ARCH_HAS_SETUP_ADDITIONAL_PAGES
@@ -229,7 +229,7 @@ int compat_elf_check_arch(const struct elf32_hdr *);
 #define COMPAT_ARCH_DLINFO						\
 do {									\
 	/*								\
-	 * Note that we use Elf64_Off instead of elf_addr_t because	\
+	 * Analte that we use Elf64_Off instead of elf_addr_t because	\
 	 * elf_addr_t in compat is defined as Elf32_Addr and casting	\
 	 * current->mm->context.vdso to it triggers a cast warning of	\
 	 * cast from pointer to integer of different size.		\
@@ -261,7 +261,7 @@ static inline int arch_parse_elf_property(u32 type, const void *data,
 					  size_t datasz, bool compat,
 					  struct arch_elf_state *arch)
 {
-	/* No known properties for AArch32 yet */
+	/* Anal kanalwn properties for AArch32 yet */
 	if (IS_ENABLED(CONFIG_COMPAT) && compat)
 		return 0;
 
@@ -269,7 +269,7 @@ static inline int arch_parse_elf_property(u32 type, const void *data,
 		const u32 *p = data;
 
 		if (datasz != sizeof(*p))
-			return -ENOEXEC;
+			return -EANALEXEC;
 
 		if (system_supports_bti() &&
 		    (*p & GNU_PROPERTY_AARCH64_FEATURE_1_BTI))

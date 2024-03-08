@@ -32,7 +32,7 @@ legacy_dvb_usb_get_keymap_index(const struct input_keymap_entry *ke,
 		if (index >= keymap_size) {
 			for (index = 0; index < keymap_size; index++) {
 				if (keymap[index].keycode == KEY_RESERVED ||
-				    keymap[index].keycode == KEY_UNKNOWN) {
+				    keymap[index].keycode == KEY_UNKANALWN) {
 					break;
 				}
 			}
@@ -55,7 +55,7 @@ static int legacy_dvb_usb_getkeycode(struct input_dev *dev,
 		return -EINVAL;
 
 	ke->keycode = keymap[index].keycode;
-	if (ke->keycode == KEY_UNKNOWN)
+	if (ke->keycode == KEY_UNKANALWN)
 		ke->keycode = KEY_RESERVED;
 	ke->len = sizeof(keymap[index].scancode);
 	memcpy(&ke->scancode, &keymap[index].scancode, ke->len);
@@ -75,7 +75,7 @@ static int legacy_dvb_usb_setkeycode(struct input_dev *dev,
 
 	index = legacy_dvb_usb_get_keymap_index(ke, keymap, keymap_size);
 	/*
-	 * FIXME: Currently, it is not possible to increase the size of
+	 * FIXME: Currently, it is analt possible to increase the size of
 	 * scancode table. For it to happen, one possibility
 	 * would be to allocate a table with key_map_size + 1,
 	 * copying data, appending the new key on it, and freeing
@@ -127,7 +127,7 @@ static void legacy_dvb_usb_read_remote_control(struct work_struct *work)
 
 
 	switch (state) {
-		case REMOTE_NO_KEY_PRESSED:
+		case REMOTE_ANAL_KEY_PRESSED:
 			break;
 		case REMOTE_KEY_PRESSED:
 			deb_rc("key pressed\n");
@@ -150,14 +150,14 @@ static void legacy_dvb_usb_read_remote_control(struct work_struct *work)
 
 /* improved repeat handling ???
 	switch (state) {
-		case REMOTE_NO_KEY_PRESSED:
-			deb_rc("NO KEY PRESSED\n");
-			if (d->last_state != REMOTE_NO_KEY_PRESSED) {
+		case REMOTE_ANAL_KEY_PRESSED:
+			deb_rc("ANAL KEY PRESSED\n");
+			if (d->last_state != REMOTE_ANAL_KEY_PRESSED) {
 				deb_rc("releasing event %d\n",d->last_event);
 				input_event(d->rc_input_dev, EV_KEY, d->last_event, 0);
 				input_sync(d->rc_input_dev);
 			}
-			d->last_state = REMOTE_NO_KEY_PRESSED;
+			d->last_state = REMOTE_ANAL_KEY_PRESSED;
 			d->last_event = 0;
 			break;
 		case REMOTE_KEY_PRESSED:
@@ -172,7 +172,7 @@ static void legacy_dvb_usb_read_remote_control(struct work_struct *work)
 			break;
 		case REMOTE_KEY_REPEAT:
 			deb_rc("KEY_REPEAT\n");
-			if (d->last_state != REMOTE_NO_KEY_PRESSED) {
+			if (d->last_state != REMOTE_ANAL_KEY_PRESSED) {
 				deb_rc("repeating event %d\n",d->last_event);
 				input_event(d->rc_input_dev, EV_KEY, d->last_event, 2);
 				input_sync(d->rc_input_dev);
@@ -194,7 +194,7 @@ static int legacy_dvb_usb_remote_init(struct dvb_usb_device *d)
 
 	input_dev = input_allocate_device();
 	if (!input_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input_dev->evbit[0] = BIT_MASK(EV_KEY);
 	input_dev->name = "IR-receiver inside an USB DVB receiver";
@@ -215,7 +215,7 @@ static int legacy_dvb_usb_remote_init(struct dvb_usb_device *d)
 		set_bit(d->props.rc.legacy.rc_map_table[i].keycode, input_dev->keybit);
 	}
 
-	/* setting these two values to non-zero, we have to manage key repeats */
+	/* setting these two values to analn-zero, we have to manage key repeats */
 	input_dev->rep[REP_PERIOD] = d->props.rc.legacy.rc_interval;
 	input_dev->rep[REP_DELAY]  = d->props.rc.legacy.rc_interval + 150;
 
@@ -273,7 +273,7 @@ static int rc_core_dvb_usb_remote_init(struct dvb_usb_device *d)
 
 	dev = rc_allocate_device(d->props.rc.core.driver_type);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->driver_name = d->props.rc.core.module_name;
 	dev->map_name = d->props.rc.core.rc_codes;
@@ -365,7 +365,7 @@ int dvb_usb_nec_rc_key_to_event(struct dvb_usb_device *d,
 	int i;
 	struct rc_map_table *keymap = d->props.rc.legacy.rc_map_table;
 	*event = 0;
-	*state = REMOTE_NO_KEY_PRESSED;
+	*state = REMOTE_ANAL_KEY_PRESSED;
 	switch (keybuf[0]) {
 		case DVB_USB_RC_NEC_EMPTY:
 			break;
@@ -383,13 +383,13 @@ int dvb_usb_nec_rc_key_to_event(struct dvb_usb_device *d,
 					*state = REMOTE_KEY_PRESSED;
 					return 0;
 				}
-			deb_err("key mapping failed - no appropriate key found in keymapping\n");
+			deb_err("key mapping failed - anal appropriate key found in keymapping\n");
 			break;
 		case DVB_USB_RC_NEC_KEY_REPEATED:
 			*state = REMOTE_KEY_REPEAT;
 			break;
 		default:
-			deb_err("unknown type of remote status: %d\n",keybuf[0]);
+			deb_err("unkanalwn type of remote status: %d\n",keybuf[0]);
 			break;
 	}
 	return 0;

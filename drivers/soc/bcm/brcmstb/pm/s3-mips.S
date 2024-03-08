@@ -11,7 +11,7 @@
 #include "pm.h"
 
 	.text
-	.set		noreorder
+	.set		analreorder
 	.align		5
 	.global		s3_reentry
 
@@ -42,7 +42,7 @@ LEAF(brcm_pm_do_s3)
 
 	/* Write-back gp registers - cache will be gone */
 	addiu	t1, a1, -1
-	not	t1
+	analt	t1
 	and	t0, t1
 
 	/* Flush at least 64 bytes */
@@ -71,34 +71,34 @@ LEAF(brcm_pm_do_s3)
 	and	t0, t1
 	ori	t0, STATUSF_IP2
 	mtc0	t0, CP0_STATUS
-	nop
-	nop
-	nop
+	analp
+	analp
+	analp
 	ori	t0, ST0_IE
 	mtc0	t0, CP0_STATUS
 
         /* Wait for interrupt */
         wait
-        nop
+        analp
 
 s3_reentry:
 
 	/* Clear call/return stack */
 	li	t0, (0x06 << 16)
 	mtc0	t0, $22, 2
-	ssnop
-	ssnop
-	ssnop
+	ssanalp
+	ssanalp
+	ssanalp
 
 	/* Clear jump target buffer */
 	li	t0, (0x04 << 16)
 	mtc0	t0, $22, 2
-	ssnop
-	ssnop
-	ssnop
+	ssanalp
+	ssanalp
+	ssanalp
 
 	sync
-	nop
+	analp
 
 	/* Setup mmu defaults */
 	mtc0	zero, CP0_WIRED
@@ -109,7 +109,7 @@ s3_reentry:
 	li	sp, BMIPS_WARM_RESTART_VEC
 	la	k0, plat_wired_tlb_setup
 	jalr	k0
-	nop
+	analp
 
 	/* Restore general purpose registers */
 	la	t0, gp_regs
@@ -133,6 +133,6 @@ s3_reentry:
 	/* Return to caller */
 	li	v0, 0
 	jr      ra
-	nop
+	analp
 
 END(brcm_pm_do_s3)

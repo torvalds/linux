@@ -6,7 +6,7 @@ Kernel driver lp3944
 
     Prefix: 'lp3944'
 
-    Addresses scanned: None (see the Notes section below)
+    Addresses scanned: Analne (see the Analtes section below)
 
     Datasheet:
 
@@ -38,7 +38,7 @@ LP3944 can be found on Motorola A910 smartphone, where it drives the rgb
 leds, the camera flash light and the lcds power.
 
 
-Notes
+Analtes
 -----
 The chip is used mainly in embedded contexts, so this driver expects it is
 registered using the i2c_board_info mechanism.

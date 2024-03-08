@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Core driver for the Synopsys DesignWare DMA Controller
+ * Core driver for the Syanalpsys DesignWare DMA Controller
  *
  * Copyright (C) 2007-2008 Atmel Corporation
  * Copyright (C) 2010-2011 ST Microelectronics
@@ -25,9 +25,9 @@
 #include "internal.h"
 
 /*
- * This supports the Synopsys "DesignWare AHB Central DMA Controller",
- * (DW_ahb_dmac) which is used with various AMBA 2.0 systems (not all
- * of which use ARM any more).  See the "Databook" from Synopsys for
+ * This supports the Syanalpsys "DesignWare AHB Central DMA Controller",
+ * (DW_ahb_dmac) which is used with various AMBA 2.0 systems (analt all
+ * of which use ARM any more).  See the "Databook" from Syanalpsys for
  * information beyond what licensees probably provide.
  */
 
@@ -66,7 +66,7 @@ static dma_cookie_t dwc_tx_submit(struct dma_async_tx_descriptor *tx)
 	 * for DMA. But this is hard to do in a race-free manner.
 	 */
 
-	list_add_tail(&desc->desc_node, &dwc->queue);
+	list_add_tail(&desc->desc_analde, &dwc->queue);
 	spin_unlock_irqrestore(&dwc->lock, flags);
 	dev_vdbg(chan2dev(tx->chan), "%s: queued %u\n",
 		 __func__, desc->txd.cookie);
@@ -101,8 +101,8 @@ static void dwc_desc_put(struct dw_dma_chan *dwc, struct dw_desc *desc)
 	if (unlikely(!desc))
 		return;
 
-	list_for_each_entry_safe(child, _next, &desc->tx_list, desc_node) {
-		list_del(&child->desc_node);
+	list_for_each_entry_safe(child, _next, &desc->tx_list, desc_analde) {
+		list_del(&child->desc_analde);
 		dma_pool_free(dw->desc_pool, child, child->txd.phys);
 		dwc->descs_allocated--;
 	}
@@ -164,7 +164,7 @@ static inline void dwc_do_single_block(struct dw_dma_chan *dwc,
 	channel_set_bit(dw, CH_EN, dwc->mask);
 
 	/* Move pointer to next descriptor */
-	dwc->tx_node_active = dwc->tx_node_active->next;
+	dwc->tx_analde_active = dwc->tx_analde_active->next;
 }
 
 /* Called with dwc->lock held and bh disabled */
@@ -177,7 +177,7 @@ static void dwc_dostart(struct dw_dma_chan *dwc, struct dw_desc *first)
 	/* ASSERT:  channel is idle */
 	if (dma_readl(dw, CH_EN) & dwc->mask) {
 		dev_err(chan2dev(&dwc->chan),
-			"%s: BUG: Attempted to start non-idle channel\n",
+			"%s: BUG: Attempted to start analn-idle channel\n",
 			__func__);
 		dwc_dump_chan_regs(dwc);
 
@@ -185,7 +185,7 @@ static void dwc_dostart(struct dw_dma_chan *dwc, struct dw_desc *first)
 		return;
 	}
 
-	if (dwc->nollp) {
+	if (dwc->analllp) {
 		was_soft_llp = test_and_set_bit(DW_DMA_IS_SOFT_LLP,
 						&dwc->flags);
 		if (was_soft_llp) {
@@ -197,7 +197,7 @@ static void dwc_dostart(struct dw_dma_chan *dwc, struct dw_desc *first)
 		dwc_initialize(dwc);
 
 		first->residue = first->total_len;
-		dwc->tx_node_active = &first->tx_list;
+		dwc->tx_analde_active = &first->tx_list;
 
 		/* Submit first block */
 		dwc_do_single_block(dwc, first);
@@ -247,7 +247,7 @@ dwc_descriptor_complete(struct dw_dma_chan *dwc, struct dw_desc *desc,
 		memset(&cb, 0, sizeof(cb));
 
 	/* async_tx_ack */
-	list_for_each_entry(child, &desc->tx_list, desc_node)
+	list_for_each_entry(child, &desc->tx_list, desc_analde)
 		async_tx_ack(&child->txd);
 	async_tx_ack(&desc->txd);
 	dwc_desc_put(dwc, desc);
@@ -265,7 +265,7 @@ static void dwc_complete_all(struct dw_dma *dw, struct dw_dma_chan *dwc)
 	spin_lock_irqsave(&dwc->lock, flags);
 	if (dma_readl(dw, CH_EN) & dwc->mask) {
 		dev_err(chan2dev(&dwc->chan),
-			"BUG: XFER bit set, but channel not idle!\n");
+			"BUG: XFER bit set, but channel analt idle!\n");
 
 		/* Try to continue after resetting the channel... */
 		dwc_chan_disable(dw, dwc);
@@ -280,7 +280,7 @@ static void dwc_complete_all(struct dw_dma *dw, struct dw_dma_chan *dwc)
 
 	spin_unlock_irqrestore(&dwc->lock, flags);
 
-	list_for_each_entry_safe(desc, _desc, &list, desc_node)
+	list_for_each_entry_safe(desc, _desc, &list, desc_analde)
 		dwc_descriptor_complete(dwc, desc, true);
 }
 
@@ -311,7 +311,7 @@ static void dwc_scan_descriptors(struct dw_dma *dw, struct dw_dma_chan *dwc)
 		dma_writel(dw, CLEAR.XFER, dwc->mask);
 
 		if (test_bit(DW_DMA_IS_SOFT_LLP, &dwc->flags)) {
-			struct list_head *head, *active = dwc->tx_node_active;
+			struct list_head *head, *active = dwc->tx_analde_active;
 
 			/*
 			 * We are inside first active descriptor.
@@ -359,7 +359,7 @@ static void dwc_scan_descriptors(struct dw_dma *dw, struct dw_dma_chan *dwc)
 
 	dev_vdbg(chan2dev(&dwc->chan), "%s: llp=%pad\n", __func__, &llp);
 
-	list_for_each_entry_safe(desc, _desc, &dwc->active_list, desc_node) {
+	list_for_each_entry_safe(desc, _desc, &dwc->active_list, desc_analde) {
 		/* Initial residue value */
 		desc->residue = desc->total_len;
 
@@ -378,7 +378,7 @@ static void dwc_scan_descriptors(struct dw_dma *dw, struct dw_dma_chan *dwc)
 		}
 
 		desc->residue -= desc->len;
-		list_for_each_entry(child, &desc->tx_list, desc_node) {
+		list_for_each_entry(child, &desc->tx_list, desc_analde) {
 			if (lli_read(child, llp) == llp) {
 				/* Currently in progress */
 				desc->residue -= dwc_get_sent(dwc);
@@ -389,7 +389,7 @@ static void dwc_scan_descriptors(struct dw_dma *dw, struct dw_dma_chan *dwc)
 		}
 
 		/*
-		 * No descriptors so far seem to be in progress, i.e.
+		 * Anal descriptors so far seem to be in progress, i.e.
 		 * this one must be done.
 		 */
 		spin_unlock_irqrestore(&dwc->lock, flags);
@@ -398,7 +398,7 @@ static void dwc_scan_descriptors(struct dw_dma *dw, struct dw_dma_chan *dwc)
 	}
 
 	dev_err(chan2dev(&dwc->chan),
-		"BUG: All descriptors done, but channel not idle!\n");
+		"BUG: All descriptors done, but channel analt idle!\n");
 
 	/* Try to continue after resetting the channel... */
 	dwc_chan_disable(dw, dwc);
@@ -433,7 +433,7 @@ static void dwc_handle_error(struct dw_dma *dw, struct dw_dma_chan *dwc)
 	 * just have to scream loudly and try to carry on.
 	 */
 	bad_desc = dwc_first_active(dwc);
-	list_del_init(&bad_desc->desc_node);
+	list_del_init(&bad_desc->desc_analde);
 	list_move(dwc->queue.next, dwc->active_list.prev);
 
 	/* Clear the error flag and try to restart the controller */
@@ -451,7 +451,7 @@ static void dwc_handle_error(struct dw_dma *dw, struct dw_dma_chan *dwc)
 	dev_WARN(chan2dev(&dwc->chan), "Bad descriptor submitted for DMA!\n"
 				       "  cookie: %d\n", bad_desc->txd.cookie);
 	dwc_dump_lli(dwc, bad_desc);
-	list_for_each_entry(child, &bad_desc->tx_list, desc_node)
+	list_for_each_entry(child, &bad_desc->tx_list, desc_analde)
 		dwc_dump_lli(dwc, child);
 
 	spin_unlock_irqrestore(&dwc->lock, flags);
@@ -476,7 +476,7 @@ static void dw_dma_tasklet(struct tasklet_struct *t)
 	for (i = 0; i < dw->dma.chancnt; i++) {
 		dwc = &dw->chan[i];
 		if (test_bit(DW_DMA_IS_CYCLIC, &dwc->flags))
-			dev_vdbg(dw->dma.dev, "Cyclic xfer is not implemented\n");
+			dev_vdbg(dw->dma.dev, "Cyclic xfer is analt implemented\n");
 		else if (status_err & (1 << i))
 			dwc_handle_error(dw, dwc);
 		else if (status_xfer & (1 << i))
@@ -493,16 +493,16 @@ static irqreturn_t dw_dma_interrupt(int irq, void *dev_id)
 	struct dw_dma *dw = dev_id;
 	u32 status;
 
-	/* Check if we have any interrupt from the DMAC which is not in use */
+	/* Check if we have any interrupt from the DMAC which is analt in use */
 	if (!dw->in_use)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	status = dma_readl(dw, STATUS_INT);
 	dev_vdbg(dw->dma.dev, "%s: status=0x%x\n", __func__, status);
 
 	/* Check if we have any interrupt from the DMAC */
 	if (!status)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/*
 	 * Just disable the interrupts. We'll turn them back on in the
@@ -589,7 +589,7 @@ dwc_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 			first = desc;
 		} else {
 			lli_write(prev, llp, desc->txd.phys | lms);
-			list_add_tail(&desc->desc_node, &first->tx_list);
+			list_add_tail(&desc->desc_analde, &first->tx_list);
 		}
 		prev = desc;
 	}
@@ -679,7 +679,7 @@ slave_sg_todev_fill_desc:
 				first = desc;
 			} else {
 				lli_write(prev, llp, desc->txd.phys | lms);
-				list_add_tail(&desc->desc_node, &first->tx_list);
+				list_add_tail(&desc->desc_analde, &first->tx_list);
 			}
 			prev = desc;
 
@@ -728,7 +728,7 @@ slave_sg_fromdev_fill_desc:
 				first = desc;
 			} else {
 				lli_write(prev, llp, desc->txd.phys | lms);
-				list_add_tail(&desc->desc_node, &first->tx_list);
+				list_add_tail(&desc->desc_analde, &first->tx_list);
 			}
 			prev = desc;
 
@@ -756,7 +756,7 @@ slave_sg_fromdev_fill_desc:
 
 err_desc_get:
 	dev_err(chan2dev(chan),
-		"not enough descriptors available. Direction %d\n", direction);
+		"analt eanalugh descriptors available. Direction %d\n", direction);
 	dwc_desc_put(dwc, first);
 	return NULL;
 }
@@ -872,7 +872,7 @@ static int dwc_terminate_all(struct dma_chan *chan)
 	spin_unlock_irqrestore(&dwc->lock, flags);
 
 	/* Flush all pending and queued descriptors */
-	list_for_each_entry_safe(desc, _desc, &list, desc_node)
+	list_for_each_entry_safe(desc, _desc, &list, desc_analde)
 		dwc_descriptor_complete(dwc, desc, false);
 
 	return 0;
@@ -882,7 +882,7 @@ static struct dw_desc *dwc_find_desc(struct dw_dma_chan *dwc, dma_cookie_t c)
 {
 	struct dw_desc *desc;
 
-	list_for_each_entry(desc, &dwc->active_list, desc_node)
+	list_for_each_entry(desc, &dwc->active_list, desc_analde)
 		if (desc->txd.cookie == c)
 			return desc;
 
@@ -980,14 +980,14 @@ static int dwc_alloc_chan_resources(struct dma_chan *chan)
 
 	/* ASSERT:  channel is idle */
 	if (dma_readl(dw, CH_EN) & dwc->mask) {
-		dev_dbg(chan2dev(chan), "DMA channel not idle?\n");
+		dev_dbg(chan2dev(chan), "DMA channel analt idle?\n");
 		return -EIO;
 	}
 
 	dma_cookie_init(chan);
 
 	/*
-	 * NOTE: some controllers may have additional features that we
+	 * ANALTE: some controllers may have additional features that we
 	 * need to initialize here, like "scatter-gather" (which
 	 * doesn't mean what you think it means), and status writeback.
 	 */
@@ -1051,11 +1051,11 @@ static void dwc_caps(struct dma_chan *chan, struct dma_slave_caps *caps)
 	/*
 	 * It might be crucial for some devices to have the hardware
 	 * accelerated multi-block transfers supported, aka LLPs in DW DMAC
-	 * notation. So if LLPs are supported then max_sg_burst is set to
+	 * analtation. So if LLPs are supported then max_sg_burst is set to
 	 * zero which means unlimited number of SG entries can be handled in a
 	 * single DMA transaction, otherwise it's just one SG entry.
 	 */
-	if (dwc->nollp)
+	if (dwc->analllp)
 		caps->max_sg_burst = 1;
 	else
 		caps->max_sg_burst = 0;
@@ -1072,7 +1072,7 @@ int do_dma_probe(struct dw_dma_chip *chip)
 
 	dw->pdata = devm_kzalloc(chip->dev, sizeof(*dw->pdata), GFP_KERNEL);
 	if (!dw->pdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dw->regs = chip->regs;
 
@@ -1116,7 +1116,7 @@ int do_dma_probe(struct dw_dma_chip *chip)
 	dw->chan = devm_kcalloc(chip->dev, pdata->nr_channels, sizeof(*dw->chan),
 				GFP_KERNEL);
 	if (!dw->chan) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_pdata;
 	}
 
@@ -1133,8 +1133,8 @@ int do_dma_probe(struct dw_dma_chip *chip)
 	dw->desc_pool = dmam_pool_create(dw->name, chip->dev,
 					 sizeof(struct dw_desc), 4, 0);
 	if (!dw->desc_pool) {
-		dev_err(chip->dev, "No memory for descriptors dma pool\n");
-		err = -ENOMEM;
+		dev_err(chip->dev, "Anal memory for descriptors dma pool\n");
+		err = -EANALMEM;
 		goto err_pdata;
 	}
 
@@ -1152,10 +1152,10 @@ int do_dma_probe(struct dw_dma_chip *chip)
 		dwc->chan.device = &dw->dma;
 		dma_cookie_init(&dwc->chan);
 		if (pdata->chan_allocation_order == CHAN_ALLOCATION_ASCENDING)
-			list_add_tail(&dwc->chan.device_node,
+			list_add_tail(&dwc->chan.device_analde,
 					&dw->dma.channels);
 		else
-			list_add(&dwc->chan.device_node, &dw->dma.channels);
+			list_add(&dwc->chan.device_analde, &dw->dma.channels);
 
 		/* 7 is highest priority & 0 is lowest. */
 		if (pdata->chan_priority == CHAN_PRIORITY_ASCENDING)
@@ -1172,7 +1172,7 @@ int do_dma_probe(struct dw_dma_chip *chip)
 
 		channel_clear_bit(dw, CH_EN, dwc->mask);
 
-		dwc->direction = DMA_TRANS_NONE;
+		dwc->direction = DMA_TRANS_ANALNE;
 
 		/* Hardware configuration */
 		if (autocfg) {
@@ -1198,14 +1198,14 @@ int do_dma_probe(struct dw_dma_chip *chip)
 			 * LLP register is hard-coded to zeros
 			 * (CHx_HC_LLP == 1).
 			 */
-			dwc->nollp =
+			dwc->analllp =
 				(dwc_params >> DWC_PARAMS_MBLK_EN & 0x1) == 0 ||
 				(dwc_params >> DWC_PARAMS_HC_LLP & 0x1) == 1;
 			dwc->max_burst =
 				(0x4 << (dwc_params >> DWC_PARAMS_MSIZE & 0x7));
 		} else {
 			dwc->block_size = pdata->block_size;
-			dwc->nollp = !pdata->multi_block[i];
+			dwc->analllp = !pdata->multi_block[i];
 			dwc->max_burst = pdata->max_burst[i] ?: DW_DMA_MAX_BURST;
 		}
 	}
@@ -1248,7 +1248,7 @@ int do_dma_probe(struct dw_dma_chip *chip)
 	dw->dma.residue_granularity = DMA_RESIDUE_GRANULARITY_BURST;
 
 	/*
-	 * For now there is no hardware with non uniform maximum block size
+	 * For analw there is anal hardware with analn uniform maximum block size
 	 * across all of the device channels, so we set the maximum segment
 	 * size as the block size found for the very first channel.
 	 */
@@ -1286,8 +1286,8 @@ int do_dma_remove(struct dw_dma_chip *chip)
 	tasklet_kill(&dw->tasklet);
 
 	list_for_each_entry_safe(dwc, _dwc, &dw->dma.channels,
-			chan.device_node) {
-		list_del(&dwc->chan.device_node);
+			chan.device_analde) {
+		list_del(&dwc->chan.device_analde);
 		channel_clear_bit(dw, CH_EN, dwc->mask);
 	}
 
@@ -1314,6 +1314,6 @@ int do_dw_dma_enable(struct dw_dma_chip *chip)
 EXPORT_SYMBOL_GPL(do_dw_dma_enable);
 
 MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION("Synopsys DesignWare DMA Controller core driver");
+MODULE_DESCRIPTION("Syanalpsys DesignWare DMA Controller core driver");
 MODULE_AUTHOR("Haavard Skinnemoen (Atmel)");
 MODULE_AUTHOR("Viresh Kumar <vireshk@kernel.org>");

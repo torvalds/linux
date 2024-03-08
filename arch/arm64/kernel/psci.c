@@ -18,7 +18,7 @@
 #include <uapi/linux/psci.h>
 
 #include <asm/cpu_ops.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include <asm/smp_plat.h>
 
 static int __init cpu_psci_cpu_init(unsigned int cpu)
@@ -29,8 +29,8 @@ static int __init cpu_psci_cpu_init(unsigned int cpu)
 static int __init cpu_psci_cpu_prepare(unsigned int cpu)
 {
 	if (!psci_ops.cpu_on) {
-		pr_err("no cpu_on method, not booting CPU%d\n", cpu);
-		return -ENODEV;
+		pr_err("anal cpu_on method, analt booting CPU%d\n", cpu);
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -56,7 +56,7 @@ static int cpu_psci_cpu_disable(unsigned int cpu)
 {
 	/* Fail early if we don't have CPU_OFF support */
 	if (!psci_ops.cpu_off)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Trusted OS will deny CPU_OFF */
 	if (psci_tos_resident_on(cpu))
@@ -68,8 +68,8 @@ static int cpu_psci_cpu_disable(unsigned int cpu)
 static void cpu_psci_cpu_die(unsigned int cpu)
 {
 	/*
-	 * There are no known implementations of PSCI actually using the
-	 * power state field, pass a sensible default for now.
+	 * There are anal kanalwn implementations of PSCI actually using the
+	 * power state field, pass a sensible default for analw.
 	 */
 	u32 state = PSCI_POWER_STATE_TYPE_POWER_DOWN <<
 		    PSCI_0_2_POWER_STATE_TYPE_SHIFT;
@@ -103,7 +103,7 @@ static int cpu_psci_cpu_kill(unsigned int cpu)
 		usleep_range(100, 1000);
 	} while (time_before(jiffies, end));
 
-	pr_warn("CPU%d may not have shut down cleanly (AFFINITY_INFO reports %d)\n",
+	pr_warn("CPU%d may analt have shut down cleanly (AFFINITY_INFO reports %d)\n",
 			cpu, err);
 	return -ETIMEDOUT;
 }

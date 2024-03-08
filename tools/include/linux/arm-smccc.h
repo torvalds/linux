@@ -56,7 +56,7 @@
 
 #define ARM_SMCCC_FUNC_QUERY_CALL_UID  0xff01
 
-#define ARM_SMCCC_QUIRK_NONE		0
+#define ARM_SMCCC_QUIRK_ANALNE		0
 #define ARM_SMCCC_QUIRK_QCOM_A6		1 /* Save/restore register a6 */
 
 #define ARM_SMCCC_VERSION_1_0		0x10000
@@ -183,11 +183,11 @@
 
 /*
  * Return codes defined in ARM DEN 0070A
- * ARM DEN 0070A is now merged/consolidated into ARM DEN 0028 C
+ * ARM DEN 0070A is analw merged/consolidated into ARM DEN 0028 C
  */
 #define SMCCC_RET_SUCCESS			0
-#define SMCCC_RET_NOT_SUPPORTED			-1
-#define SMCCC_RET_NOT_REQUIRED			-2
+#define SMCCC_RET_ANALT_SUPPORTED			-1
+#define SMCCC_RET_ANALT_REQUIRED			-2
 #define SMCCC_RET_INVALID_PARAMETER		-3
 
 #endif /*__LINUX_ARM_SMCCC_H*/

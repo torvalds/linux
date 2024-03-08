@@ -2,7 +2,7 @@
 /*
  * This file is part of UBIFS.
  *
- * Copyright (C) 2006-2008 Nokia Corporation.
+ * Copyright (C) 2006-2008 Analkia Corporation.
  *
  * Author: Adrian Hunter
  */
@@ -10,12 +10,12 @@
 #include "ubifs.h"
 
 /*
- * An orphan is an inode number whose inode node has been committed to the index
+ * An orphan is an ianalde number whose ianalde analde has been committed to the index
  * with a link count of zero. That happens when an open file is deleted
- * (unlinked) and then a commit is run. In the normal course of events the inode
+ * (unlinked) and then a commit is run. In the analrmal course of events the ianalde
  * would be deleted when the file is closed. However in the case of an unclean
  * unmount, orphans need to be accounted for. After an unclean unmount, the
- * orphans' inodes must be deleted which means either scanning the entire index
+ * orphans' ianaldes must be deleted which means either scanning the entire index
  * looking for them, or keeping a list on flash somewhere. This unit implements
  * the latter approach.
  *
@@ -27,30 +27,30 @@
  *
  * The number of orphans that can fit in a LEB is:
  *
- *         (c->leb_size - UBIFS_ORPH_NODE_SZ) / sizeof(__le64)
+ *         (c->leb_size - UBIFS_ORPH_ANALDE_SZ) / sizeof(__le64)
  *
- * For example: a 15872 byte LEB can fit 1980 orphans so 1 LEB may be enough.
+ * For example: a 15872 byte LEB can fit 1980 orphans so 1 LEB may be eanalugh.
  *
- * Orphans are accumulated in a rb-tree. When an inode's link count drops to
- * zero, the inode number is added to the rb-tree. It is removed from the tree
- * when the inode is deleted.  Any new orphans that are in the orphan tree when
- * the commit is run, are written to the orphan area in 1 or more orphan nodes.
+ * Orphans are accumulated in a rb-tree. When an ianalde's link count drops to
+ * zero, the ianalde number is added to the rb-tree. It is removed from the tree
+ * when the ianalde is deleted.  Any new orphans that are in the orphan tree when
+ * the commit is run, are written to the orphan area in 1 or more orphan analdes.
  * If the orphan area is full, it is consolidated to make space.  There is
- * always enough space because validation prevents the user from creating more
+ * always eanalugh space because validation prevents the user from creating more
  * than the maximum number of orphans allowed.
  */
 
 static int dbg_check_orphans(struct ubifs_info *c);
 
-static struct ubifs_orphan *orphan_add(struct ubifs_info *c, ino_t inum,
+static struct ubifs_orphan *orphan_add(struct ubifs_info *c, ianal_t inum,
 				       struct ubifs_orphan *parent_orphan)
 {
 	struct ubifs_orphan *orphan, *o;
-	struct rb_node **p, *parent = NULL;
+	struct rb_analde **p, *parent = NULL;
 
-	orphan = kzalloc(sizeof(struct ubifs_orphan), GFP_NOFS);
+	orphan = kzalloc(sizeof(struct ubifs_orphan), GFP_ANALFS);
 	if (!orphan)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	orphan->inum = inum;
 	orphan->new = 1;
 	INIT_LIST_HEAD(&orphan->child_list);
@@ -61,7 +61,7 @@ static struct ubifs_orphan *orphan_add(struct ubifs_info *c, ino_t inum,
 		kfree(orphan);
 		return ERR_PTR(-ENFILE);
 	}
-	p = &c->orph_tree.rb_node;
+	p = &c->orph_tree.rb_analde;
 	while (*p) {
 		parent = *p;
 		o = rb_entry(parent, struct ubifs_orphan, rb);
@@ -78,7 +78,7 @@ static struct ubifs_orphan *orphan_add(struct ubifs_info *c, ino_t inum,
 	}
 	c->tot_orphans += 1;
 	c->new_orphans += 1;
-	rb_link_node(&orphan->rb, parent, p);
+	rb_link_analde(&orphan->rb, parent, p);
 	rb_insert_color(&orphan->rb, &c->orph_tree);
 	list_add_tail(&orphan->list, &c->orph_list);
 	list_add_tail(&orphan->new_list, &c->orph_new);
@@ -89,16 +89,16 @@ static struct ubifs_orphan *orphan_add(struct ubifs_info *c, ino_t inum,
 	}
 
 	spin_unlock(&c->orphan_lock);
-	dbg_gen("ino %lu", (unsigned long)inum);
+	dbg_gen("ianal %lu", (unsigned long)inum);
 	return orphan;
 }
 
-static struct ubifs_orphan *lookup_orphan(struct ubifs_info *c, ino_t inum)
+static struct ubifs_orphan *lookup_orphan(struct ubifs_info *c, ianal_t inum)
 {
 	struct ubifs_orphan *o;
-	struct rb_node *p;
+	struct rb_analde *p;
 
-	p = c->orph_tree.rb_node;
+	p = c->orph_tree.rb_analde;
 	while (p) {
 		o = rb_entry(p, struct ubifs_orphan, rb);
 		if (inum < o->inum)
@@ -129,7 +129,7 @@ static void __orphan_drop(struct ubifs_info *c, struct ubifs_orphan *o)
 static void orphan_delete(struct ubifs_info *c, struct ubifs_orphan *orph)
 {
 	if (orph->del) {
-		dbg_gen("deleted twice ino %lu", (unsigned long)orph->inum);
+		dbg_gen("deleted twice ianal %lu", (unsigned long)orph->inum);
 		return;
 	}
 
@@ -137,7 +137,7 @@ static void orphan_delete(struct ubifs_info *c, struct ubifs_orphan *orph)
 		orph->del = 1;
 		orph->dnext = c->orph_dnext;
 		c->orph_dnext = orph;
-		dbg_gen("delete later ino %lu", (unsigned long)orph->inum);
+		dbg_gen("delete later ianal %lu", (unsigned long)orph->inum);
 		return;
 	}
 
@@ -147,17 +147,17 @@ static void orphan_delete(struct ubifs_info *c, struct ubifs_orphan *orph)
 /**
  * ubifs_add_orphan - add an orphan.
  * @c: UBIFS file-system description object
- * @inum: orphan inode number
+ * @inum: orphan ianalde number
  *
- * Add an orphan. This function is called when an inodes link count drops to
+ * Add an orphan. This function is called when an ianaldes link count drops to
  * zero.
  */
-int ubifs_add_orphan(struct ubifs_info *c, ino_t inum)
+int ubifs_add_orphan(struct ubifs_info *c, ianal_t inum)
 {
 	int err = 0;
-	ino_t xattr_inum;
+	ianal_t xattr_inum;
 	union ubifs_key key;
-	struct ubifs_dent_node *xent, *pxent = NULL;
+	struct ubifs_dent_analde *xent, *pxent = NULL;
 	struct fscrypt_name nm = {0};
 	struct ubifs_orphan *xattr_orphan;
 	struct ubifs_orphan *orphan;
@@ -171,7 +171,7 @@ int ubifs_add_orphan(struct ubifs_info *c, ino_t inum)
 		xent = ubifs_tnc_next_ent(c, &key, &nm);
 		if (IS_ERR(xent)) {
 			err = PTR_ERR(xent);
-			if (err == -ENOENT)
+			if (err == -EANALENT)
 				break;
 			kfree(pxent);
 			return err;
@@ -200,11 +200,11 @@ int ubifs_add_orphan(struct ubifs_info *c, ino_t inum)
 /**
  * ubifs_delete_orphan - delete an orphan.
  * @c: UBIFS file-system description object
- * @inum: orphan inode number
+ * @inum: orphan ianalde number
  *
- * Delete an orphan. This function is called when an inode is deleted.
+ * Delete an orphan. This function is called when an ianalde is deleted.
  */
-void ubifs_delete_orphan(struct ubifs_info *c, ino_t inum)
+void ubifs_delete_orphan(struct ubifs_info *c, ianal_t inum)
 {
 	struct ubifs_orphan *orph, *child_orph, *tmp_o;
 
@@ -213,7 +213,7 @@ void ubifs_delete_orphan(struct ubifs_info *c, ino_t inum)
 	orph = lookup_orphan(c, inum);
 	if (!orph) {
 		spin_unlock(&c->orphan_lock);
-		ubifs_err(c, "missing orphan ino %lu", (unsigned long)inum);
+		ubifs_err(c, "missing orphan ianal %lu", (unsigned long)inum);
 		dump_stack();
 
 		return;
@@ -255,9 +255,9 @@ int ubifs_orphan_start_commit(struct ubifs_info *c)
 	dbg_cmt("%d orphans to commit", c->cmt_orphans);
 	INIT_LIST_HEAD(&c->orph_new);
 	if (c->tot_orphans == 0)
-		c->no_orphs = 1;
+		c->anal_orphs = 1;
 	else
-		c->no_orphs = 0;
+		c->anal_orphs = 0;
 	spin_unlock(&c->orphan_lock);
 	return 0;
 }
@@ -275,10 +275,10 @@ static int avail_orphs(struct ubifs_info *c)
 
 	avail_lebs = c->orph_lebs - (c->ohead_lnum - c->orph_first) - 1;
 	avail = avail_lebs *
-	       ((c->leb_size - UBIFS_ORPH_NODE_SZ) / sizeof(__le64));
+	       ((c->leb_size - UBIFS_ORPH_ANALDE_SZ) / sizeof(__le64));
 	gap = c->leb_size - c->ohead_offs;
-	if (gap >= UBIFS_ORPH_NODE_SZ + sizeof(__le64))
-		avail += (gap - UBIFS_ORPH_NODE_SZ) / sizeof(__le64);
+	if (gap >= UBIFS_ORPH_ANALDE_SZ + sizeof(__le64))
+		avail += (gap - UBIFS_ORPH_ANALDE_SZ) / sizeof(__le64);
 	return avail;
 }
 
@@ -295,27 +295,27 @@ static int tot_avail_orphs(struct ubifs_info *c)
 
 	avail_lebs = c->orph_lebs;
 	avail = avail_lebs *
-	       ((c->leb_size - UBIFS_ORPH_NODE_SZ) / sizeof(__le64));
+	       ((c->leb_size - UBIFS_ORPH_ANALDE_SZ) / sizeof(__le64));
 	return avail / 2;
 }
 
 /**
- * do_write_orph_node - write a node to the orphan head.
+ * do_write_orph_analde - write a analde to the orphan head.
  * @c: UBIFS file-system description object
- * @len: length of node
+ * @len: length of analde
  * @atomic: write atomically
  *
- * This function writes a node to the orphan head from the orphan buffer. If
- * %atomic is not zero, then the write is done atomically. On success, %0 is
+ * This function writes a analde to the orphan head from the orphan buffer. If
+ * %atomic is analt zero, then the write is done atomically. On success, %0 is
  * returned, otherwise a negative error code is returned.
  */
-static int do_write_orph_node(struct ubifs_info *c, int len, int atomic)
+static int do_write_orph_analde(struct ubifs_info *c, int len, int atomic)
 {
 	int err = 0;
 
 	if (atomic) {
 		ubifs_assert(c, c->ohead_offs == 0);
-		ubifs_prepare_node(c, c->orph_buf, len, 1);
+		ubifs_prepare_analde(c, c->orph_buf, len, 1);
 		len = ALIGN(len, c->min_io_size);
 		err = ubifs_leb_change(c, c->ohead_lnum, c->orph_buf, len);
 	} else {
@@ -325,30 +325,30 @@ static int do_write_orph_node(struct ubifs_info *c, int len, int atomic)
 			if (err)
 				return err;
 		}
-		err = ubifs_write_node(c, c->orph_buf, len, c->ohead_lnum,
+		err = ubifs_write_analde(c, c->orph_buf, len, c->ohead_lnum,
 				       c->ohead_offs);
 	}
 	return err;
 }
 
 /**
- * write_orph_node - write an orphan node.
+ * write_orph_analde - write an orphan analde.
  * @c: UBIFS file-system description object
  * @atomic: write atomically
  *
- * This function builds an orphan node from the cnext list and writes it to the
+ * This function builds an orphan analde from the cnext list and writes it to the
  * orphan head. On success, %0 is returned, otherwise a negative error code
  * is returned.
  */
-static int write_orph_node(struct ubifs_info *c, int atomic)
+static int write_orph_analde(struct ubifs_info *c, int atomic)
 {
 	struct ubifs_orphan *orphan, *cnext;
-	struct ubifs_orph_node *orph;
+	struct ubifs_orph_analde *orph;
 	int gap, err, len, cnt, i;
 
 	ubifs_assert(c, c->cmt_orphans > 0);
 	gap = c->leb_size - c->ohead_offs;
-	if (gap < UBIFS_ORPH_NODE_SZ + sizeof(__le64)) {
+	if (gap < UBIFS_ORPH_ANALDE_SZ + sizeof(__le64)) {
 		c->ohead_lnum += 1;
 		c->ohead_offs = 0;
 		gap = c->leb_size;
@@ -361,19 +361,19 @@ static int write_orph_node(struct ubifs_info *c, int atomic)
 			return -EINVAL;
 		}
 	}
-	cnt = (gap - UBIFS_ORPH_NODE_SZ) / sizeof(__le64);
+	cnt = (gap - UBIFS_ORPH_ANALDE_SZ) / sizeof(__le64);
 	if (cnt > c->cmt_orphans)
 		cnt = c->cmt_orphans;
-	len = UBIFS_ORPH_NODE_SZ + cnt * sizeof(__le64);
+	len = UBIFS_ORPH_ANALDE_SZ + cnt * sizeof(__le64);
 	ubifs_assert(c, c->orph_buf);
 	orph = c->orph_buf;
-	orph->ch.node_type = UBIFS_ORPH_NODE;
+	orph->ch.analde_type = UBIFS_ORPH_ANALDE;
 	spin_lock(&c->orphan_lock);
 	cnext = c->orph_cnext;
 	for (i = 0; i < cnt; i++) {
 		orphan = cnext;
 		ubifs_assert(c, orphan->cmt);
-		orph->inos[i] = cpu_to_le64(orphan->inum);
+		orph->ianals[i] = cpu_to_le64(orphan->inum);
 		orphan->cmt = 0;
 		cnext = orphan->cnext;
 		orphan->cnext = NULL;
@@ -382,33 +382,33 @@ static int write_orph_node(struct ubifs_info *c, int atomic)
 	c->cmt_orphans -= cnt;
 	spin_unlock(&c->orphan_lock);
 	if (c->cmt_orphans)
-		orph->cmt_no = cpu_to_le64(c->cmt_no);
+		orph->cmt_anal = cpu_to_le64(c->cmt_anal);
 	else
-		/* Mark the last node of the commit */
-		orph->cmt_no = cpu_to_le64((c->cmt_no) | (1ULL << 63));
+		/* Mark the last analde of the commit */
+		orph->cmt_anal = cpu_to_le64((c->cmt_anal) | (1ULL << 63));
 	ubifs_assert(c, c->ohead_offs + len <= c->leb_size);
 	ubifs_assert(c, c->ohead_lnum >= c->orph_first);
 	ubifs_assert(c, c->ohead_lnum <= c->orph_last);
-	err = do_write_orph_node(c, len, atomic);
+	err = do_write_orph_analde(c, len, atomic);
 	c->ohead_offs += ALIGN(len, c->min_io_size);
 	c->ohead_offs = ALIGN(c->ohead_offs, 8);
 	return err;
 }
 
 /**
- * write_orph_nodes - write orphan nodes until there are no more to commit.
+ * write_orph_analdes - write orphan analdes until there are anal more to commit.
  * @c: UBIFS file-system description object
  * @atomic: write atomically
  *
- * This function writes orphan nodes for all the orphans to commit. On success,
+ * This function writes orphan analdes for all the orphans to commit. On success,
  * %0 is returned, otherwise a negative error code is returned.
  */
-static int write_orph_nodes(struct ubifs_info *c, int atomic)
+static int write_orph_analdes(struct ubifs_info *c, int atomic)
 {
 	int err;
 
 	while (c->cmt_orphans > 0) {
-		err = write_orph_node(c, atomic);
+		err = write_orph_analde(c, atomic);
 		if (err)
 			return err;
 	}
@@ -431,7 +431,7 @@ static int write_orph_nodes(struct ubifs_info *c, int atomic)
  *
  * This function enables consolidation by putting all the orphans into the list
  * to commit. The list is in the order that the orphans were added, and the
- * LEBs are written atomically in order, so at no time can orphans be lost by
+ * LEBs are written atomically in order, so at anal time can orphans be lost by
  * an unclean unmount.
  *
  * This function returns %0 on success and a negative error code on failure.
@@ -447,7 +447,7 @@ static int consolidate(struct ubifs_info *c)
 		struct ubifs_orphan *orphan, **last;
 		int cnt = 0;
 
-		/* Change the cnext list to include all non-new orphans */
+		/* Change the cnext list to include all analn-new orphans */
 		last = &c->orph_cnext;
 		list_for_each_entry(orphan, &c->orph_list, list) {
 			if (orphan->new)
@@ -488,13 +488,13 @@ static int commit_orphans(struct ubifs_info *c)
 	ubifs_assert(c, c->cmt_orphans > 0);
 	avail = avail_orphs(c);
 	if (avail < c->cmt_orphans) {
-		/* Not enough space to write new orphans, so consolidate */
+		/* Analt eanalugh space to write new orphans, so consolidate */
 		err = consolidate(c);
 		if (err)
 			return err;
 		atomic = 1;
 	}
-	err = write_orph_nodes(c, atomic);
+	err = write_orph_analdes(c, atomic);
 	return err;
 }
 
@@ -502,7 +502,7 @@ static int commit_orphans(struct ubifs_info *c)
  * erase_deleted - erase the orphans marked for deletion.
  * @c: UBIFS file-system description object
  *
- * During commit, the orphans being committed cannot be deleted, so they are
+ * During commit, the orphans being committed cananalt be deleted, so they are
  * marked for deletion and deleted by this function. Also, the recovery
  * adds killed orphans to the deletion list, and therefore they are deleted
  * here too.
@@ -521,7 +521,7 @@ static void erase_deleted(struct ubifs_info *c)
 		rb_erase(&orphan->rb, &c->orph_tree);
 		list_del(&orphan->list);
 		c->tot_orphans -= 1;
-		dbg_gen("deleting orphan ino %lu", (unsigned long)orphan->inum);
+		dbg_gen("deleting orphan ianal %lu", (unsigned long)orphan->inum);
 		kfree(orphan);
 	}
 	c->orph_dnext = NULL;
@@ -552,8 +552,8 @@ int ubifs_orphan_end_commit(struct ubifs_info *c)
  * ubifs_clear_orphans - erase all LEBs used for orphans.
  * @c: UBIFS file-system description object
  *
- * If recovery is not required, then the orphans from the previous session
- * are not needed. This function locates the LEBs used to record
+ * If recovery is analt required, then the orphans from the previous session
+ * are analt needed. This function locates the LEBs used to record
  * orphans, and un-maps them.
  */
 int ubifs_clear_orphans(struct ubifs_info *c)
@@ -573,23 +573,23 @@ int ubifs_clear_orphans(struct ubifs_info *c)
 /**
  * insert_dead_orphan - insert an orphan.
  * @c: UBIFS file-system description object
- * @inum: orphan inode number
+ * @inum: orphan ianalde number
  *
  * This function is a helper to the 'do_kill_orphans()' function. The orphan
  * must be kept until the next commit, so it is added to the rb-tree and the
  * deletion list.
  */
-static int insert_dead_orphan(struct ubifs_info *c, ino_t inum)
+static int insert_dead_orphan(struct ubifs_info *c, ianal_t inum)
 {
 	struct ubifs_orphan *orphan, *o;
-	struct rb_node **p, *parent = NULL;
+	struct rb_analde **p, *parent = NULL;
 
 	orphan = kzalloc(sizeof(struct ubifs_orphan), GFP_KERNEL);
 	if (!orphan)
-		return -ENOMEM;
+		return -EANALMEM;
 	orphan->inum = inum;
 
-	p = &c->orph_tree.rb_node;
+	p = &c->orph_tree.rb_analde;
 	while (*p) {
 		parent = *p;
 		o = rb_entry(parent, struct ubifs_orphan, rb);
@@ -598,85 +598,85 @@ static int insert_dead_orphan(struct ubifs_info *c, ino_t inum)
 		else if (inum > o->inum)
 			p = &(*p)->rb_right;
 		else {
-			/* Already added - no problem */
+			/* Already added - anal problem */
 			kfree(orphan);
 			return 0;
 		}
 	}
 	c->tot_orphans += 1;
-	rb_link_node(&orphan->rb, parent, p);
+	rb_link_analde(&orphan->rb, parent, p);
 	rb_insert_color(&orphan->rb, &c->orph_tree);
 	list_add_tail(&orphan->list, &c->orph_list);
 	orphan->del = 1;
 	orphan->dnext = c->orph_dnext;
 	c->orph_dnext = orphan;
-	dbg_mnt("ino %lu, new %d, tot %d", (unsigned long)inum,
+	dbg_mnt("ianal %lu, new %d, tot %d", (unsigned long)inum,
 		c->new_orphans, c->tot_orphans);
 	return 0;
 }
 
 /**
- * do_kill_orphans - remove orphan inodes from the index.
+ * do_kill_orphans - remove orphan ianaldes from the index.
  * @c: UBIFS file-system description object
  * @sleb: scanned LEB
- * @last_cmt_no: cmt_no of last orphan node read is passed and returned here
+ * @last_cmt_anal: cmt_anal of last orphan analde read is passed and returned here
  * @outofdate: whether the LEB is out of date is returned here
- * @last_flagged: whether the end orphan node is encountered
+ * @last_flagged: whether the end orphan analde is encountered
  *
  * This function is a helper to the 'kill_orphans()' function. It goes through
- * every orphan node in a LEB and for every inode number recorded, removes
- * all keys for that inode from the TNC.
+ * every orphan analde in a LEB and for every ianalde number recorded, removes
+ * all keys for that ianalde from the TNC.
  */
 static int do_kill_orphans(struct ubifs_info *c, struct ubifs_scan_leb *sleb,
-			   unsigned long long *last_cmt_no, int *outofdate,
+			   unsigned long long *last_cmt_anal, int *outofdate,
 			   int *last_flagged)
 {
-	struct ubifs_scan_node *snod;
-	struct ubifs_orph_node *orph;
-	struct ubifs_ino_node *ino = NULL;
-	unsigned long long cmt_no;
-	ino_t inum;
+	struct ubifs_scan_analde *sanald;
+	struct ubifs_orph_analde *orph;
+	struct ubifs_ianal_analde *ianal = NULL;
+	unsigned long long cmt_anal;
+	ianal_t inum;
 	int i, n, err, first = 1;
 
-	ino = kmalloc(UBIFS_MAX_INO_NODE_SZ, GFP_NOFS);
-	if (!ino)
-		return -ENOMEM;
+	ianal = kmalloc(UBIFS_MAX_IANAL_ANALDE_SZ, GFP_ANALFS);
+	if (!ianal)
+		return -EANALMEM;
 
-	list_for_each_entry(snod, &sleb->nodes, list) {
-		if (snod->type != UBIFS_ORPH_NODE) {
-			ubifs_err(c, "invalid node type %d in orphan area at %d:%d",
-				  snod->type, sleb->lnum, snod->offs);
-			ubifs_dump_node(c, snod->node,
-					c->leb_size - snod->offs);
+	list_for_each_entry(sanald, &sleb->analdes, list) {
+		if (sanald->type != UBIFS_ORPH_ANALDE) {
+			ubifs_err(c, "invalid analde type %d in orphan area at %d:%d",
+				  sanald->type, sleb->lnum, sanald->offs);
+			ubifs_dump_analde(c, sanald->analde,
+					c->leb_size - sanald->offs);
 			err = -EINVAL;
 			goto out_free;
 		}
 
-		orph = snod->node;
+		orph = sanald->analde;
 
 		/* Check commit number */
-		cmt_no = le64_to_cpu(orph->cmt_no) & LLONG_MAX;
+		cmt_anal = le64_to_cpu(orph->cmt_anal) & LLONG_MAX;
 		/*
-		 * The commit number on the master node may be less, because
+		 * The commit number on the master analde may be less, because
 		 * of a failed commit. If there are several failed commits in a
-		 * row, the commit number written on orphan nodes will continue
+		 * row, the commit number written on orphan analdes will continue
 		 * to increase (because the commit number is adjusted here) even
-		 * though the commit number on the master node stays the same
-		 * because the master node has not been re-written.
+		 * though the commit number on the master analde stays the same
+		 * because the master analde has analt been re-written.
 		 */
-		if (cmt_no > c->cmt_no)
-			c->cmt_no = cmt_no;
-		if (cmt_no < *last_cmt_no && *last_flagged) {
+		if (cmt_anal > c->cmt_anal)
+			c->cmt_anal = cmt_anal;
+		if (cmt_anal < *last_cmt_anal && *last_flagged) {
 			/*
-			 * The last orphan node had a higher commit number and
+			 * The last orphan analde had a higher commit number and
 			 * was flagged as the last written for that commit
-			 * number. That makes this orphan node, out of date.
+			 * number. That makes this orphan analde, out of date.
 			 */
 			if (!first) {
-				ubifs_err(c, "out of order commit number %llu in orphan node at %d:%d",
-					  cmt_no, sleb->lnum, snod->offs);
-				ubifs_dump_node(c, snod->node,
-						c->leb_size - snod->offs);
+				ubifs_err(c, "out of order commit number %llu in orphan analde at %d:%d",
+					  cmt_anal, sleb->lnum, sanald->offs);
+				ubifs_dump_analde(c, sanald->analde,
+						c->leb_size - sanald->offs);
 				err = -EINVAL;
 				goto out_free;
 			}
@@ -689,27 +689,27 @@ static int do_kill_orphans(struct ubifs_info *c, struct ubifs_scan_leb *sleb,
 		if (first)
 			first = 0;
 
-		n = (le32_to_cpu(orph->ch.len) - UBIFS_ORPH_NODE_SZ) >> 3;
+		n = (le32_to_cpu(orph->ch.len) - UBIFS_ORPH_ANALDE_SZ) >> 3;
 		for (i = 0; i < n; i++) {
 			union ubifs_key key1, key2;
 
-			inum = le64_to_cpu(orph->inos[i]);
+			inum = le64_to_cpu(orph->ianals[i]);
 
-			ino_key_init(c, &key1, inum);
-			err = ubifs_tnc_lookup(c, &key1, ino);
-			if (err && err != -ENOENT)
+			ianal_key_init(c, &key1, inum);
+			err = ubifs_tnc_lookup(c, &key1, ianal);
+			if (err && err != -EANALENT)
 				goto out_free;
 
 			/*
-			 * Check whether an inode can really get deleted.
-			 * linkat() with O_TMPFILE allows rebirth of an inode.
+			 * Check whether an ianalde can really get deleted.
+			 * linkat() with O_TMPFILE allows rebirth of an ianalde.
 			 */
-			if (err == 0 && ino->nlink == 0) {
-				dbg_rcvry("deleting orphaned inode %lu",
+			if (err == 0 && ianal->nlink == 0) {
+				dbg_rcvry("deleting orphaned ianalde %lu",
 					  (unsigned long)inum);
 
-				lowest_ino_key(c, &key1, inum);
-				highest_ino_key(c, &key2, inum);
+				lowest_ianal_key(c, &key1, inum);
+				highest_ianal_key(c, &key2, inum);
 
 				err = ubifs_tnc_remove_range(c, &key1, &key2);
 				if (err)
@@ -721,10 +721,10 @@ static int do_kill_orphans(struct ubifs_info *c, struct ubifs_scan_leb *sleb,
 				goto out_free;
 		}
 
-		*last_cmt_no = cmt_no;
-		if (le64_to_cpu(orph->cmt_no) & (1ULL << 63)) {
-			dbg_rcvry("last orph node for commit %llu at %d:%d",
-				  cmt_no, sleb->lnum, snod->offs);
+		*last_cmt_anal = cmt_anal;
+		if (le64_to_cpu(orph->cmt_anal) & (1ULL << 63)) {
+			dbg_rcvry("last orph analde for commit %llu at %d:%d",
+				  cmt_anal, sleb->lnum, sanald->offs);
 			*last_flagged = 1;
 		} else
 			*last_flagged = 0;
@@ -732,45 +732,45 @@ static int do_kill_orphans(struct ubifs_info *c, struct ubifs_scan_leb *sleb,
 
 	err = 0;
 out_free:
-	kfree(ino);
+	kfree(ianal);
 	return err;
 
 out_ro:
 	ubifs_ro_mode(c, err);
-	kfree(ino);
+	kfree(ianal);
 	return err;
 }
 
 /**
- * kill_orphans - remove all orphan inodes from the index.
+ * kill_orphans - remove all orphan ianaldes from the index.
  * @c: UBIFS file-system description object
  *
- * If recovery is required, then orphan inodes recorded during the previous
+ * If recovery is required, then orphan ianaldes recorded during the previous
  * session (which ended with an unclean unmount) must be deleted from the index.
- * This is done by updating the TNC, but since the index is not updated until
- * the next commit, the LEBs where the orphan information is recorded are not
+ * This is done by updating the TNC, but since the index is analt updated until
+ * the next commit, the LEBs where the orphan information is recorded are analt
  * erased until the next commit.
  */
 static int kill_orphans(struct ubifs_info *c)
 {
-	unsigned long long last_cmt_no = 0;
+	unsigned long long last_cmt_anal = 0;
 	int lnum, err = 0, outofdate = 0, last_flagged = 0;
 
 	c->ohead_lnum = c->orph_first;
 	c->ohead_offs = 0;
-	/* Check no-orphans flag and skip this if no orphans */
-	if (c->no_orphs) {
-		dbg_rcvry("no orphans");
+	/* Check anal-orphans flag and skip this if anal orphans */
+	if (c->anal_orphs) {
+		dbg_rcvry("anal orphans");
 		return 0;
 	}
 	/*
-	 * Orph nodes always start at c->orph_first and are written to each
+	 * Orph analdes always start at c->orph_first and are written to each
 	 * successive LEB in turn. Generally unused LEBs will have been unmapped
-	 * but may contain out of date orphan nodes if the unmap didn't go
-	 * through. In addition, the last orphan node written for each commit is
-	 * marked (top bit of orph->cmt_no is set to 1). It is possible that
-	 * there are orphan nodes from the next commit (i.e. the commit did not
-	 * complete successfully). In that case, no orphans will have been lost
+	 * but may contain out of date orphan analdes if the unmap didn't go
+	 * through. In addition, the last orphan analde written for each commit is
+	 * marked (top bit of orph->cmt_anal is set to 1). It is possible that
+	 * there are orphan analdes from the next commit (i.e. the commit did analt
+	 * complete successfully). In that case, anal orphans will have been lost
 	 * due to the way that orphans are written, and any orphans added will
 	 * be valid orphans anyway and so can be deleted.
 	 */
@@ -788,7 +788,7 @@ static int kill_orphans(struct ubifs_info *c)
 				break;
 			}
 		}
-		err = do_kill_orphans(c, sleb, &last_cmt_no, &outofdate,
+		err = do_kill_orphans(c, sleb, &last_cmt_anal, &outofdate,
 				      &last_flagged);
 		if (err || outofdate) {
 			ubifs_scan_destroy(sleb);
@@ -804,13 +804,13 @@ static int kill_orphans(struct ubifs_info *c)
 }
 
 /**
- * ubifs_mount_orphans - delete orphan inodes and erase LEBs that recorded them.
+ * ubifs_mount_orphans - delete orphan ianaldes and erase LEBs that recorded them.
  * @c: UBIFS file-system description object
  * @unclean: indicates recovery from unclean unmount
  * @read_only: indicates read only mount
  *
  * This function is called when mounting to erase orphans from the previous
- * session. If UBIFS was not unmounted cleanly, then the inodes recorded as
+ * session. If UBIFS was analt unmounted cleanly, then the ianaldes recorded as
  * orphans are deleted.
  */
 int ubifs_mount_orphans(struct ubifs_info *c, int unclean, int read_only)
@@ -822,7 +822,7 @@ int ubifs_mount_orphans(struct ubifs_info *c, int unclean, int read_only)
 	if (!read_only) {
 		c->orph_buf = vmalloc(c->leb_size);
 		if (!c->orph_buf)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	if (unclean)
@@ -838,20 +838,20 @@ int ubifs_mount_orphans(struct ubifs_info *c, int unclean, int read_only)
  */
 
 struct check_orphan {
-	struct rb_node rb;
-	ino_t inum;
+	struct rb_analde rb;
+	ianal_t inum;
 };
 
 struct check_info {
-	unsigned long last_ino;
-	unsigned long tot_inos;
+	unsigned long last_ianal;
+	unsigned long tot_ianals;
 	unsigned long missing;
 	unsigned long long leaf_cnt;
-	struct ubifs_ino_node *node;
+	struct ubifs_ianal_analde *analde;
 	struct rb_root root;
 };
 
-static bool dbg_find_orphan(struct ubifs_info *c, ino_t inum)
+static bool dbg_find_orphan(struct ubifs_info *c, ianal_t inum)
 {
 	bool found = false;
 
@@ -862,17 +862,17 @@ static bool dbg_find_orphan(struct ubifs_info *c, ino_t inum)
 	return found;
 }
 
-static int dbg_ins_check_orphan(struct rb_root *root, ino_t inum)
+static int dbg_ins_check_orphan(struct rb_root *root, ianal_t inum)
 {
 	struct check_orphan *orphan, *o;
-	struct rb_node **p, *parent = NULL;
+	struct rb_analde **p, *parent = NULL;
 
-	orphan = kzalloc(sizeof(struct check_orphan), GFP_NOFS);
+	orphan = kzalloc(sizeof(struct check_orphan), GFP_ANALFS);
 	if (!orphan)
-		return -ENOMEM;
+		return -EANALMEM;
 	orphan->inum = inum;
 
-	p = &root->rb_node;
+	p = &root->rb_analde;
 	while (*p) {
 		parent = *p;
 		o = rb_entry(parent, struct check_orphan, rb);
@@ -885,17 +885,17 @@ static int dbg_ins_check_orphan(struct rb_root *root, ino_t inum)
 			return 0;
 		}
 	}
-	rb_link_node(&orphan->rb, parent, p);
+	rb_link_analde(&orphan->rb, parent, p);
 	rb_insert_color(&orphan->rb, root);
 	return 0;
 }
 
-static int dbg_find_check_orphan(struct rb_root *root, ino_t inum)
+static int dbg_find_check_orphan(struct rb_root *root, ianal_t inum)
 {
 	struct check_orphan *o;
-	struct rb_node *p;
+	struct rb_analde *p;
 
-	p = root->rb_node;
+	p = root->rb_analde;
 	while (p) {
 		o = rb_entry(p, struct check_orphan, rb);
 		if (inum < o->inum)
@@ -920,27 +920,27 @@ static int dbg_orphan_check(struct ubifs_info *c, struct ubifs_zbranch *zbr,
 			    void *priv)
 {
 	struct check_info *ci = priv;
-	ino_t inum;
+	ianal_t inum;
 	int err;
 
 	inum = key_inum(c, &zbr->key);
-	if (inum != ci->last_ino) {
-		/* Lowest node type is the inode node, so it comes first */
-		if (key_type(c, &zbr->key) != UBIFS_INO_KEY)
-			ubifs_err(c, "found orphan node ino %lu, type %d",
+	if (inum != ci->last_ianal) {
+		/* Lowest analde type is the ianalde analde, so it comes first */
+		if (key_type(c, &zbr->key) != UBIFS_IANAL_KEY)
+			ubifs_err(c, "found orphan analde ianal %lu, type %d",
 				  (unsigned long)inum, key_type(c, &zbr->key));
-		ci->last_ino = inum;
-		ci->tot_inos += 1;
-		err = ubifs_tnc_read_node(c, zbr, ci->node);
+		ci->last_ianal = inum;
+		ci->tot_ianals += 1;
+		err = ubifs_tnc_read_analde(c, zbr, ci->analde);
 		if (err) {
-			ubifs_err(c, "node read failed, error %d", err);
+			ubifs_err(c, "analde read failed, error %d", err);
 			return err;
 		}
-		if (ci->node->nlink == 0)
+		if (ci->analde->nlink == 0)
 			/* Must be recorded as an orphan */
 			if (!dbg_find_check_orphan(&ci->root, inum) &&
 			    !dbg_find_orphan(c, inum)) {
-				ubifs_err(c, "missing orphan, ino %lu",
+				ubifs_err(c, "missing orphan, ianal %lu",
 					  (unsigned long)inum);
 				ci->missing += 1;
 			}
@@ -951,19 +951,19 @@ static int dbg_orphan_check(struct ubifs_info *c, struct ubifs_zbranch *zbr,
 
 static int dbg_read_orphans(struct check_info *ci, struct ubifs_scan_leb *sleb)
 {
-	struct ubifs_scan_node *snod;
-	struct ubifs_orph_node *orph;
-	ino_t inum;
+	struct ubifs_scan_analde *sanald;
+	struct ubifs_orph_analde *orph;
+	ianal_t inum;
 	int i, n, err;
 
-	list_for_each_entry(snod, &sleb->nodes, list) {
+	list_for_each_entry(sanald, &sleb->analdes, list) {
 		cond_resched();
-		if (snod->type != UBIFS_ORPH_NODE)
+		if (sanald->type != UBIFS_ORPH_ANALDE)
 			continue;
-		orph = snod->node;
-		n = (le32_to_cpu(orph->ch.len) - UBIFS_ORPH_NODE_SZ) >> 3;
+		orph = sanald->analde;
+		n = (le32_to_cpu(orph->ch.len) - UBIFS_ORPH_ANALDE_SZ) >> 3;
 		for (i = 0; i < n; i++) {
-			inum = le64_to_cpu(orph->inos[i]);
+			inum = le64_to_cpu(orph->ianals[i]);
 			err = dbg_ins_check_orphan(&ci->root, inum);
 			if (err)
 				return err;
@@ -977,13 +977,13 @@ static int dbg_scan_orphans(struct ubifs_info *c, struct check_info *ci)
 	int lnum, err = 0;
 	void *buf;
 
-	/* Check no-orphans flag and skip this if no orphans */
-	if (c->no_orphs)
+	/* Check anal-orphans flag and skip this if anal orphans */
+	if (c->anal_orphs)
 		return 0;
 
-	buf = __vmalloc(c->leb_size, GFP_NOFS);
+	buf = __vmalloc(c->leb_size, GFP_ANALFS);
 	if (!buf) {
-		ubifs_err(c, "cannot allocate memory to check orphans");
+		ubifs_err(c, "cananalt allocate memory to check orphans");
 		return 0;
 	}
 
@@ -1014,15 +1014,15 @@ static int dbg_check_orphans(struct ubifs_info *c)
 	if (!dbg_is_chk_orph(c))
 		return 0;
 
-	ci.last_ino = 0;
-	ci.tot_inos = 0;
+	ci.last_ianal = 0;
+	ci.tot_ianals = 0;
 	ci.missing  = 0;
 	ci.leaf_cnt = 0;
 	ci.root = RB_ROOT;
-	ci.node = kmalloc(UBIFS_MAX_INO_NODE_SZ, GFP_NOFS);
-	if (!ci.node) {
+	ci.analde = kmalloc(UBIFS_MAX_IANAL_ANALDE_SZ, GFP_ANALFS);
+	if (!ci.analde) {
 		ubifs_err(c, "out of memory");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	err = dbg_scan_orphans(c, &ci);
@@ -1031,7 +1031,7 @@ static int dbg_check_orphans(struct ubifs_info *c)
 
 	err = dbg_walk_index(c, &dbg_orphan_check, NULL, &ci);
 	if (err) {
-		ubifs_err(c, "cannot scan TNC, error %d", err);
+		ubifs_err(c, "cananalt scan TNC, error %d", err);
 		goto out;
 	}
 
@@ -1041,12 +1041,12 @@ static int dbg_check_orphans(struct ubifs_info *c)
 		goto out;
 	}
 
-	dbg_cmt("last inode number is %lu", ci.last_ino);
-	dbg_cmt("total number of inodes is %lu", ci.tot_inos);
-	dbg_cmt("total number of leaf nodes is %llu", ci.leaf_cnt);
+	dbg_cmt("last ianalde number is %lu", ci.last_ianal);
+	dbg_cmt("total number of ianaldes is %lu", ci.tot_ianals);
+	dbg_cmt("total number of leaf analdes is %llu", ci.leaf_cnt);
 
 out:
 	dbg_free_check_tree(&ci.root);
-	kfree(ci.node);
+	kfree(ci.analde);
 	return err;
 }

@@ -2,7 +2,7 @@
   {
     "EventCode": "0x25044",
     "EventName": "PM_IPTEG_FROM_L31_MOD",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB with Modified (M) data from another core's L3 on the same chip due to a instruction side request"
+    "BriefDescription": "A Page Table Entry was loaded into the TLB with Modified (M) data from aanalther core's L3 on the same chip due to a instruction side request"
   },
   {
     "EventCode": "0x101E8",
@@ -17,7 +17,7 @@
   {
     "EventCode": "0x1006A",
     "EventName": "PM_NTC_ISSUE_HELD_DARQ_FULL",
-    "BriefDescription": "The NTC instruction is being held at dispatch because there are no slots in the DARQ for it"
+    "BriefDescription": "The NTC instruction is being held at dispatch because there are anal slots in the DARQ for it"
   },
   {
     "EventCode": "0x4E016",
@@ -27,7 +27,7 @@
   {
     "EventCode": "0x1001A",
     "EventName": "PM_LSU_SRQ_FULL_CYC",
-    "BriefDescription": "Cycles in which the Store Queue is full on all 4 slices. This is event is not per thread. All the threads will see the same count for this core resource"
+    "BriefDescription": "Cycles in which the Store Queue is full on all 4 slices. This is event is analt per thread. All the threads will see the same count for this core resource"
   },
   {
     "EventCode": "0x1E15E",
@@ -47,11 +47,11 @@
   {
     "EventCode": "0x4C044",
     "EventName": "PM_DATA_FROM_L31_ECO_MOD",
-    "BriefDescription": "The processor's data cache was reloaded with Modified (M) data from another core's ECO L3 on the same chip due to a demand load"
+    "BriefDescription": "The processor's data cache was reloaded with Modified (M) data from aanalther core's ECO L3 on the same chip due to a demand load"
   },
   {
     "EventCode": "0x1C044",
-    "EventName": "PM_DATA_FROM_L3_NO_CONFLICT",
+    "EventName": "PM_DATA_FROM_L3_ANAL_CONFLICT",
     "BriefDescription": "The processor's data cache was reloaded from local core's L3 without conflict due to a demand load"
   },
   {
@@ -72,7 +72,7 @@
   {
     "EventCode": "0x3E054",
     "EventName": "PM_LD_MISS_L1",
-    "BriefDescription": "Load Missed L1, counted at execution time (can be greater than loads finished). LMQ merges are not included in this count. i.e. if a load instruction misses on an address that is already allocated on the LMQ, this event will not increment for that load). Note that this count is per slice, so if a load spans multiple slices this event will increment multiple times for a single load."
+    "BriefDescription": "Load Missed L1, counted at execution time (can be greater than loads finished). LMQ merges are analt included in this count. i.e. if a load instruction misses on an address that is already allocated on the LMQ, this event will analt increment for that load). Analte that this count is per slice, so if a load spans multiple slices this event will increment multiple times for a single load."
   },
   {
     "EventCode": "0x2E01A",
@@ -97,7 +97,7 @@
   {
     "EventCode": "0x4E012",
     "EventName": "PM_CMPLU_STALL_MTFPSCR",
-    "BriefDescription": "Completion stall because the ISU is updating the register and notifying the Effective Address Table (EAT)"
+    "BriefDescription": "Completion stall because the ISU is updating the register and analtifying the Effective Address Table (EAT)"
   },
   {
     "EventCode": "0x100F2",
@@ -112,7 +112,7 @@
   {
     "EventCode": "0x15046",
     "EventName": "PM_IPTEG_FROM_L31_SHR",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB with Shared (S) data from another core's L3 on the same chip due to a instruction side request"
+    "BriefDescription": "A Page Table Entry was loaded into the TLB with Shared (S) data from aanalther core's L3 on the same chip due to a instruction side request"
   },
   {
     "EventCode": "0x1015E",
@@ -152,7 +152,7 @@
   {
     "EventCode": "0x4C12A",
     "EventName": "PM_MRK_DATA_FROM_RL2L3_SHR_CYC",
-    "BriefDescription": "Duration in cycles to reload with Shared (S) data from another chip's L2 or L3 on the same Node or Group (Remote), as this chip due to a marked load"
+    "BriefDescription": "Duration in cycles to reload with Shared (S) data from aanalther chip's L2 or L3 on the same Analde or Group (Remote), as this chip due to a marked load"
   },
   {
     "EventCode": "0x30060",
@@ -167,7 +167,7 @@
   {
     "EventCode": "0x3515A",
     "EventName": "PM_MRK_DATA_FROM_ON_CHIP_CACHE_CYC",
-    "BriefDescription": "Duration in cycles to reload either shared or modified data from another core's L2/L3 on the same chip due to a marked load"
+    "BriefDescription": "Duration in cycles to reload either shared or modified data from aanalther core's L2/L3 on the same chip due to a marked load"
   },
   {
     "EventCode": "0x34050",
@@ -192,7 +192,7 @@
   {
     "EventCode": "0x3E04A",
     "EventName": "PM_DPTEG_FROM_RMEM",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB from another chip's memory on the same Node or Group ( Remote) due to a data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
+    "BriefDescription": "A Page Table Entry was loaded into the TLB from aanalther chip's memory on the same Analde or Group ( Remote) due to a data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
   },
   {
     "EventCode": "0x2F152",
@@ -222,7 +222,7 @@
   {
     "EventCode": "0x2C01E",
     "EventName": "PM_CMPLU_STALL_SYNC_PMU_INT",
-    "BriefDescription": "Cycles in which the NTC instruction is waiting for a synchronous PMU interrupt"
+    "BriefDescription": "Cycles in which the NTC instruction is waiting for a synchroanalus PMU interrupt"
   },
   {
     "EventCode": "0x24050",
@@ -232,7 +232,7 @@
   {
     "EventCode": "0x1515C",
     "EventName": "PM_SYNC_MRK_BR_MPRED",
-    "BriefDescription": "Marked Branch mispredict that can cause a synchronous interrupt"
+    "BriefDescription": "Marked Branch mispredict that can cause a synchroanalus interrupt"
   },
   {
     "EventCode": "0x300FA",
@@ -241,13 +241,13 @@
   },
   {
     "EventCode": "0x15044",
-    "EventName": "PM_IPTEG_FROM_L3_NO_CONFLICT",
+    "EventName": "PM_IPTEG_FROM_L3_ANAL_CONFLICT",
     "BriefDescription": "A Page Table Entry was loaded into the TLB from local core's L3 without conflict due to a instruction side request"
   },
   {
     "EventCode": "0x15152",
     "EventName": "PM_SYNC_MRK_BR_LINK",
-    "BriefDescription": "Marked Branch and link branch that can cause a synchronous interrupt"
+    "BriefDescription": "Marked Branch and link branch that can cause a synchroanalus interrupt"
   },
   {
     "EventCode": "0x1E050",
@@ -277,7 +277,7 @@
   {
     "EventCode": "0x45048",
     "EventName": "PM_IPTEG_FROM_DL2L3_MOD",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB with Modified (M) data from another chip's L2 or L3 on a different Node or Group (Distant), as this chip due to a instruction side request"
+    "BriefDescription": "A Page Table Entry was loaded into the TLB with Modified (M) data from aanalther chip's L2 or L3 on a different Analde or Group (Distant), as this chip due to a instruction side request"
   },
   {
     "EventCode": "0x44052",
@@ -312,7 +312,7 @@
   {
     "EventCode": "0x35044",
     "EventName": "PM_IPTEG_FROM_L31_ECO_SHR",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB with Shared (S) data from another core's ECO L3 on the same chip due to a instruction side request"
+    "BriefDescription": "A Page Table Entry was loaded into the TLB with Shared (S) data from aanalther core's ECO L3 on the same chip due to a instruction side request"
   },
   {
     "EventCode": "0x4C010",
@@ -327,12 +327,12 @@
   {
     "EventCode": "0x3515C",
     "EventName": "PM_MRK_DATA_FROM_RL4",
-    "BriefDescription": "The processor's data cache was reloaded from another chip's L4 on the same Node or Group ( Remote) due to a marked load"
+    "BriefDescription": "The processor's data cache was reloaded from aanalther chip's L4 on the same Analde or Group ( Remote) due to a marked load"
   },
   {
     "EventCode": "0x2D14C",
     "EventName": "PM_MRK_DATA_FROM_L31_ECO_SHR",
-    "BriefDescription": "The processor's data cache was reloaded with Shared (S) data from another core's ECO L3 on the same chip due to a marked load"
+    "BriefDescription": "The processor's data cache was reloaded with Shared (S) data from aanalther core's ECO L3 on the same chip due to a marked load"
   },
   {
     "EventCode": "0x40116",
@@ -352,6 +352,6 @@
   {
     "EventCode": "0x45044",
     "EventName": "PM_IPTEG_FROM_L31_ECO_MOD",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB with Modified (M) data from another core's ECO L3 on the same chip due to a instruction side request"
+    "BriefDescription": "A Page Table Entry was loaded into the TLB with Modified (M) data from aanalther core's ECO L3 on the same chip due to a instruction side request"
   }
 ]

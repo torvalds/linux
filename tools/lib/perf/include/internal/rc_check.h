@@ -54,7 +54,7 @@
 /* A put operation removing the indirection layer. */
 #define RC_CHK_PUT(object) {}
 
-/* Pointer equality when the indirection may or may not be there. */
+/* Pointer equality when the indirection may or may analt be there. */
 #define RC_CHK_EQUAL(object1, object2) (object1 == object2)
 
 #else
@@ -104,7 +104,7 @@
 		}				\
 	} while(0)
 
-/* Pointer equality when the indirection may or may not be there. */
+/* Pointer equality when the indirection may or may analt be there. */
 #define RC_CHK_EQUAL(object1, object2) (object1 == object2 || \
 		(object1 && object2 && object1->orig == object2->orig))
 

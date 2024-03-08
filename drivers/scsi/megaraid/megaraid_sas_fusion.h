@@ -3,13 +3,13 @@
  *  Linux MegaRAID driver for SAS based RAID controllers
  *
  *  Copyright (c) 2009-2013  LSI Corporation
- *  Copyright (c) 2013-2016  Avago Technologies
+ *  Copyright (c) 2013-2016  Avago Techanallogies
  *  Copyright (c) 2016-2018  Broadcom Inc.
  *
  *  FILE: megaraid_sas_fusion.h
  *
  *  Authors: Broadcom Inc.
- *           Manoj Jose
+ *           Maanalj Jose
  *           Sumant Patro
  *           Kashyap Desai <kashyap.desai@broadcom.com>
  *           Sumit Saxena <sumit.saxena@broadcom.com>
@@ -57,7 +57,7 @@
 #define MEGASAS_SCSI_SERVICE_ACTION_WRITE32         0xB
 #define MEGASAS_SCSI_ADDL_CDB_LEN                   0x18
 #define MEGASAS_RD_WR_PROTECT_CHECK_ALL		    0x20
-#define MEGASAS_RD_WR_PROTECT_CHECK_NONE	    0x60
+#define MEGASAS_RD_WR_PROTECT_CHECK_ANALNE	    0x60
 
 #define MPI2_SUP_REPLY_POST_HOST_INDEX_OFFSET   (0x0000030C)
 #define MPI2_REPLY_POST_HOST_INDEX_OFFSET	(0x0000006C)
@@ -69,7 +69,7 @@
 #define MR_RAID_CTX_RAID_FLAGS_IO_SUB_TYPE_SHIFT   0x4
 #define MR_RAID_CTX_RAID_FLAGS_IO_SUB_TYPE_MASK    0x30
 enum MR_RAID_FLAGS_IO_SUB_TYPE {
-	MR_RAID_FLAGS_IO_SUB_TYPE_NONE = 0,
+	MR_RAID_FLAGS_IO_SUB_TYPE_ANALNE = 0,
 	MR_RAID_FLAGS_IO_SUB_TYPE_SYSTEM_PD = 1,
 	MR_RAID_FLAGS_IO_SUB_TYPE_RMW_DATA     = 2,
 	MR_RAID_FLAGS_IO_SUB_TYPE_RMW_P        = 3,
@@ -84,12 +84,12 @@ enum MR_RAID_FLAGS_IO_SUB_TYPE {
  */
 #define MEGASAS_REQ_DESCRIPT_FLAGS_LD_IO           0x7
 #define MEGASAS_REQ_DESCRIPT_FLAGS_MFA             0x1
-#define MEGASAS_REQ_DESCRIPT_FLAGS_NO_LOCK	   0x2
+#define MEGASAS_REQ_DESCRIPT_FLAGS_ANAL_LOCK	   0x2
 #define MEGASAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT      1
 
 #define MEGASAS_FP_CMD_LEN	16
 #define MEGASAS_FUSION_IN_RESET 0
-#define MEGASAS_FUSION_OCR_NOT_POSSIBLE 1
+#define MEGASAS_FUSION_OCR_ANALT_POSSIBLE 1
 #define RAID_1_PEER_CMDS 2
 #define JBOD_MAPS_COUNT	2
 #define MEGASAS_REDUCE_QD_COUNT 64
@@ -97,7 +97,7 @@ enum MR_RAID_FLAGS_IO_SUB_TYPE {
 
 /*
  * Raid Context structure which describes MegaRAID specific IO Parameters
- * This resides at offset 0x60 where the SGL normally starts in MPT IO Frames
+ * This resides at offset 0x60 where the SGL analrmally starts in MPT IO Frames
  */
 
 struct RAID_CONTEXT {
@@ -129,7 +129,7 @@ struct RAID_CONTEXT {
 
 /*
  * Raid Context structure which describes ventura MegaRAID specific
- * IO Paramenters ,This resides at offset 0x60 where the SGL normally
+ * IO Paramenters ,This resides at offset 0x60 where the SGL analrmally
  * starts in MPT IO Frames
  */
 struct RAID_CONTEXT_G35 {
@@ -269,13 +269,13 @@ enum REGION_TYPE {
 #define MPI2_FUNCTION_IOC_INIT              (0x02) /* IOC Init */
 #define MPI2_WHOINIT_HOST_DRIVER            (0x04)
 #define MPI2_VERSION_MAJOR                  (0x02)
-#define MPI2_VERSION_MINOR                  (0x00)
+#define MPI2_VERSION_MIANALR                  (0x00)
 #define MPI2_VERSION_MAJOR_MASK             (0xFF00)
 #define MPI2_VERSION_MAJOR_SHIFT            (8)
-#define MPI2_VERSION_MINOR_MASK             (0x00FF)
-#define MPI2_VERSION_MINOR_SHIFT            (0)
+#define MPI2_VERSION_MIANALR_MASK             (0x00FF)
+#define MPI2_VERSION_MIANALR_SHIFT            (0)
 #define MPI2_VERSION ((MPI2_VERSION_MAJOR << MPI2_VERSION_MAJOR_SHIFT) | \
-		      MPI2_VERSION_MINOR)
+		      MPI2_VERSION_MIANALR)
 #define MPI2_HEADER_VERSION_UNIT            (0x10)
 #define MPI2_HEADER_VERSION_DEV             (0x00)
 #define MPI2_HEADER_VERSION_UNIT_MASK       (0xFF00)
@@ -292,7 +292,7 @@ enum REGION_TYPE {
 #define MPI2_SCSIIO_EEDPFLAGS_CHECK_GUARD           (0x0100)
 #define MPI2_SCSIIO_EEDPFLAGS_INSERT_OP             (0x0004)
 /* EEDP escape mode */
-#define MPI25_SCSIIO_EEDPFLAGS_DO_NOT_DISABLE_MODE  (0x0040)
+#define MPI25_SCSIIO_EEDPFLAGS_DO_ANALT_DISABLE_MODE  (0x0040)
 #define MPI2_FUNCTION_SCSI_IO_REQUEST               (0x00) /* SCSI IO */
 #define MPI2_FUNCTION_SCSI_TASK_MGMT                (0x01)
 #define MPI2_REQ_DESCRIPT_FLAGS_HIGH_PRIORITY       (0x03)
@@ -484,7 +484,7 @@ struct MR_TASK_MANAGE_REQUEST {
 
 #define MPI2_SCSITASKMGMT_RSP_TM_COMPLETE               (0x00)
 #define MPI2_SCSITASKMGMT_RSP_INVALID_FRAME             (0x02)
-#define MPI2_SCSITASKMGMT_RSP_TM_NOT_SUPPORTED          (0x04)
+#define MPI2_SCSITASKMGMT_RSP_TM_ANALT_SUPPORTED          (0x04)
 #define MPI2_SCSITASKMGMT_RSP_TM_FAILED                 (0x05)
 #define MPI2_SCSITASKMGMT_RSP_TM_SUCCEEDED              (0x08)
 #define MPI2_SCSITASKMGMT_RSP_TM_INVALID_LUN            (0x09)
@@ -748,7 +748,7 @@ struct MR_QUAD_ELEMENT {
 };
 
 struct MR_SPAN_INFO {
-	__le32             noElements;
+	__le32             analElements;
 	__le32             reserved1;
 	struct MR_QUAD_ELEMENT quad[MAX_RAIDMAP_SPAN_DEPTH];
 };
@@ -820,7 +820,7 @@ struct MR_LD_RAID {
 		u32 disable_coalescing:1;
 		u32     fpBypassRegionLock:1;
 		u32     tmCapable:1;
-		u32	fpNonRWCapable:1;
+		u32	fpAnalnRWCapable:1;
 		u32     fpReadAcrossStripe:1;
 		u32     fpWriteAcrossStripe:1;
 		u32     fpReadCapable:1;
@@ -842,7 +842,7 @@ struct MR_LD_RAID {
 		u32     fpReadCapable:1;
 		u32     fpWriteAcrossStripe:1;
 		u32     fpReadAcrossStripe:1;
-		u32	fpNonRWCapable:1;
+		u32	fpAnalnRWCapable:1;
 		u32     tmCapable:1;
 		u32     fpBypassRegionLock:1;
 		u32 disable_coalescing:1;
@@ -1037,7 +1037,7 @@ struct MR_FW_RAID_MAP_DYNAMIC {
  * The below structure of pointers is only to be used by the driver.
  * This is added in the ,API to reduce the amount of code changes
  * needed in the driver to support dynamic RAID map Firmware should
- * not update these pointers while preparing the raid map
+ * analt update these pointers while preparing the raid map
  */
 	union {
 		struct {
@@ -1202,7 +1202,7 @@ struct MR_DRV_RAID_MAP_ALL {
 
 
 struct MR_FW_RAID_MAP_EXT {
-	/* Not usred in new map */
+	/* Analt usred in new map */
 	u32                 reserved;
 
 	union {
@@ -1264,7 +1264,7 @@ struct STREAM_DETECT {
 	u16 num_sges_in_group; /* total number of SGEs in grouped IOs */
 	u8 is_read; /* SCSI OpCode for this stream */
 	u8 group_depth; /* total number of host commands in group */
-	/* TRUE if cannot add any more commands to this group */
+	/* TRUE if cananalt add any more commands to this group */
 	bool group_flush;
 	u8 reserved[7]; /* pad to 64-bit alignment */
 };
@@ -1332,7 +1332,7 @@ struct fusion_context {
 	struct MR_FW_RAID_MAP_DYNAMIC *ld_map[2];
 	dma_addr_t ld_map_phys[2];
 
-	/*Non dma-able memory. Driver local copy.*/
+	/*Analn dma-able memory. Driver local copy.*/
 	struct MR_DRV_RAID_MAP_ALL *ld_drv_map[2];
 
 	u32 max_map_sz;

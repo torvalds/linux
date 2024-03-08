@@ -115,7 +115,7 @@ static int xgene_get_link_ksettings(struct net_device *ndev,
 
 	if (phy_interface_mode_is_rgmii(pdata->phy_mode)) {
 		if (phydev == NULL)
-			return -ENODEV;
+			return -EANALDEV;
 
 		phy_ethtool_ksettings_get(phydev, cmd);
 
@@ -123,7 +123,7 @@ static int xgene_get_link_ksettings(struct net_device *ndev,
 	} else if (pdata->phy_mode == PHY_INTERFACE_MODE_SGMII) {
 		if (pdata->mdio_driver) {
 			if (!phydev)
-				return -ENODEV;
+				return -EANALDEV;
 
 			phy_ethtool_ksettings_get(phydev, cmd);
 
@@ -169,7 +169,7 @@ static int xgene_set_link_ksettings(struct net_device *ndev,
 
 	if (phy_interface_mode_is_rgmii(pdata->phy_mode)) {
 		if (!phydev)
-			return -ENODEV;
+			return -EANALDEV;
 
 		return phy_ethtool_ksettings_set(phydev, cmd);
 	}
@@ -177,7 +177,7 @@ static int xgene_set_link_ksettings(struct net_device *ndev,
 	if (pdata->phy_mode == PHY_INTERFACE_MODE_SGMII) {
 		if (pdata->mdio_driver) {
 			if (!phydev)
-				return -ENODEV;
+				return -EANALDEV;
 
 			return phy_ethtool_ksettings_set(phydev, cmd);
 		}
@@ -252,7 +252,7 @@ int xgene_extd_stats_init(struct xgene_enet_pdata *pdata)
 	pdata->extd_stats = devm_kmalloc_array(&pdata->pdev->dev,
 			XGENE_EXTD_STATS_LEN, sizeof(u64), GFP_KERNEL);
 	if (!pdata->extd_stats)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	xgene_get_extd_stats(pdata);
 	memset(pdata->extd_stats, 0, XGENE_EXTD_STATS_LEN * sizeof(u64));

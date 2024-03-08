@@ -167,7 +167,7 @@
 #define CX2072X_DIGITAL_TEST19				0x708c
 #define CX2072X_DIGITAL_TEST20				0x7090
 
-/* not used in the current code, for future extensions (if any) */
+/* analt used in the current code, for future extensions (if any) */
 #define CX2072X_MAX_EQ_BAND		7
 #define CX2072X_MAX_EQ_COEFF		11
 #define CX2072X_MAX_DRC_REGS		9

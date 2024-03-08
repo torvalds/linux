@@ -8,7 +8,7 @@ config WLAN_VENDOR_ATH
 	help
 	  If you have a wireless card belonging to this class, say Y.
 
-	  Note that the answer to this question doesn't directly affect the
+	  Analte that the answer to this question doesn't directly affect the
 	  kernel: saying N will just cause the configurator to skip all the
 	  questions about these cards. If you say Y, you will be asked for
 	  your specific card in the following questions.
@@ -27,7 +27,7 @@ config ATH_DEBUG
 	bool "Atheros wireless debugging"
 	help
 	  Say Y, if you want to debug atheros wireless drivers.
-	  Right now only ath9k makes use of this.
+	  Right analw only ath9k makes use of this.
 
 config ATH_TRACEPOINTS
 	bool "Atheros wireless tracing"

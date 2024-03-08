@@ -222,14 +222,14 @@ static struct phy *bcm_usb_phy_xlate(struct device *dev,
 		phy_idx = args->args[0];
 
 		if (WARN_ON(phy_idx > 1))
-			return ERR_PTR(-ENODEV);
+			return ERR_PTR(-EANALDEV);
 
 		return phy_cfg[phy_idx].phy;
 	} else
 		return phy_cfg->phy;
 }
 
-static int bcm_usb_phy_create(struct device *dev, struct device_node *node,
+static int bcm_usb_phy_create(struct device *dev, struct device_analde *analde,
 			      void __iomem *regs, uint32_t version)
 {
 	struct bcm_usb_phy_cfg *phy_cfg;
@@ -240,7 +240,7 @@ static int bcm_usb_phy_create(struct device *dev, struct device_node *node,
 				       sizeof(struct bcm_usb_phy_cfg),
 				       GFP_KERNEL);
 		if (!phy_cfg)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		for (idx = 0; idx < NUM_BCM_SR_USB_COMBO_PHYS; idx++) {
 			phy_cfg[idx].regs = regs;
@@ -252,7 +252,7 @@ static int bcm_usb_phy_create(struct device *dev, struct device_node *node,
 				phy_cfg[idx].offset = bcm_usb_combo_phy_ss;
 				phy_cfg[idx].type = USB_SS_PHY;
 			}
-			phy_cfg[idx].phy = devm_phy_create(dev, node,
+			phy_cfg[idx].phy = devm_phy_create(dev, analde,
 							   &sr_phy_ops);
 			if (IS_ERR(phy_cfg[idx].phy))
 				return PTR_ERR(phy_cfg[idx].phy);
@@ -263,19 +263,19 @@ static int bcm_usb_phy_create(struct device *dev, struct device_node *node,
 		phy_cfg = devm_kzalloc(dev, sizeof(struct bcm_usb_phy_cfg),
 				       GFP_KERNEL);
 		if (!phy_cfg)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		phy_cfg->regs = regs;
 		phy_cfg->version = version;
 		phy_cfg->offset = bcm_usb_hs_phy;
 		phy_cfg->type = USB_HS_PHY;
-		phy_cfg->phy = devm_phy_create(dev, node, &sr_phy_ops);
+		phy_cfg->phy = devm_phy_create(dev, analde, &sr_phy_ops);
 		if (IS_ERR(phy_cfg->phy))
 			return PTR_ERR(phy_cfg->phy);
 
 		phy_set_drvdata(phy_cfg->phy, phy_cfg);
 	} else
-		return -ENODEV;
+		return -EANALDEV;
 
 	dev_set_drvdata(dev, phy_cfg);
 
@@ -298,7 +298,7 @@ MODULE_DEVICE_TABLE(of, bcm_usb_phy_of_match);
 static int bcm_usb_phy_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *dn = dev->of_node;
+	struct device_analde *dn = dev->of_analde;
 	const struct of_device_id *of_id;
 	void __iomem *regs;
 	int ret;
@@ -309,11 +309,11 @@ static int bcm_usb_phy_probe(struct platform_device *pdev)
 	if (IS_ERR(regs))
 		return PTR_ERR(regs);
 
-	of_id = of_match_node(bcm_usb_phy_of_match, dn);
+	of_id = of_match_analde(bcm_usb_phy_of_match, dn);
 	if (of_id)
 		version = (uintptr_t)of_id->data;
 	else
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = bcm_usb_phy_create(dev, dn, regs, version);
 	if (ret)

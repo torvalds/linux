@@ -8,7 +8,7 @@
 #include "tegra210.dtsi"
 
 / {
-	model = "NVIDIA Jetson Nano Developer Kit";
+	model = "NVIDIA Jetson Naanal Developer Kit";
 	compatible = "nvidia,p3450-0000", "nvidia,tegra210";
 
 	aliases {
@@ -214,7 +214,7 @@
 					pins = "gpio1";
 					function = "fps-out";
 					drive-push-pull = <1>;
-					maxim,active-fps-source = <MAX77620_FPS_SRC_NONE>;
+					maxim,active-fps-source = <MAX77620_FPS_SRC_ANALNE>;
 					maxim,active-fps-power-up-slot = <0>;
 					maxim,active-fps-power-down-slot = <7>;
 				};
@@ -330,7 +330,7 @@
 					regulator-always-on;
 					regulator-boot-on;
 
-					maxim,active-fps-source = <MAX77620_FPS_SRC_NONE>;
+					maxim,active-fps-source = <MAX77620_FPS_SRC_ANALNE>;
 					maxim,active-fps-power-up-slot = <0>;
 					maxim,active-fps-power-down-slot = <7>;
 				};
@@ -343,7 +343,7 @@
 					regulator-ramp-delay = <100000>;
 					regulator-ramp-delay-scale = <200>;
 
-					maxim,active-fps-source = <MAX77620_FPS_SRC_NONE>;
+					maxim,active-fps-source = <MAX77620_FPS_SRC_ANALNE>;
 					maxim,active-fps-power-up-slot = <0>;
 					maxim,active-fps-power-down-slot = <7>;
 				};
@@ -356,7 +356,7 @@
 					regulator-ramp-delay = <100000>;
 					regulator-ramp-delay-scale = <200>;
 
-					maxim,active-fps-source = <MAX77620_FPS_SRC_NONE>;
+					maxim,active-fps-source = <MAX77620_FPS_SRC_ANALNE>;
 					maxim,active-fps-power-up-slot = <0>;
 					maxim,active-fps-power-down-slot = <7>;
 				};
@@ -430,7 +430,7 @@
 	};
 
 	hda@70030000 {
-		nvidia,model = "NVIDIA Jetson Nano HDA";
+		nvidia,model = "NVIDIA Jetson Naanal HDA";
 
 		status = "okay";
 	};
@@ -575,7 +575,7 @@
 		vqmmc-supply = <&vdd_1v8>;
 		vmmc-supply = <&vdd_3v3_sys>;
 
-		non-removable;
+		analn-removable;
 		cap-sdio-irq;
 		keep-power-in-suspend;
 		wakeup-source;
@@ -600,7 +600,7 @@
 		nvidia,sample-rate = <25000>;
 
 		nvidia,pwm-min-microvolts = <708000>;
-		nvidia,pwm-period-nanoseconds = <2500>; /* 2.5us */
+		nvidia,pwm-period-naanalseconds = <2500>; /* 2.5us */
 		nvidia,pwm-to-pmic;
 		nvidia,pwm-tristate-microvolts = <1000000>;
 		nvidia,pwm-voltage-step-microvolts = <19200>;
@@ -1703,7 +1703,7 @@
 		status = "okay";
 
 		flash@0 {
-			compatible = "jedec,spi-nor";
+			compatible = "jedec,spi-analr";
 			reg = <0>;
 			spi-max-frequency = <104000000>;
 			spi-tx-bus-width = <2>;
@@ -1934,7 +1934,7 @@
 		       <&i2s3_port>, <&i2s4_port>,
 		       <&dmic1_port>, <&dmic2_port>;
 
-		label = "NVIDIA Jetson Nano APE";
+		label = "NVIDIA Jetson Naanal APE";
 	};
 
 	thermal-zones {

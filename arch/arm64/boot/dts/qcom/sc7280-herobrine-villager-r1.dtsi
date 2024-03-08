@@ -3,7 +3,7 @@
  * Google Villager board device tree source
  *
  * Copyright 2022 Google LLC.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #include "sc7280-herobrine-villager.dtsi"

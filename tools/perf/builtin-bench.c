@@ -47,7 +47,7 @@ static struct bench numa_benchmarks[] = {
 static struct bench sched_benchmarks[] = {
 	{ "messaging",	"Benchmark for scheduling and IPC",		bench_sched_messaging	},
 	{ "pipe",	"Benchmark for pipe() between two processes",	bench_sched_pipe	},
-	{ "seccomp-notify",	"Benchmark for seccomp user notify",	bench_sched_seccomp_notify},
+	{ "seccomp-analtify",	"Benchmark for seccomp user analtify",	bench_sched_seccomp_analtify},
 	{ "all",	"Run all scheduler benchmarks",		NULL			},
 	{ NULL,		NULL,						NULL			}
 };
@@ -200,7 +200,7 @@ static int bench_str2int(const char *str)
 	else if (!strcmp(str, BENCH_FORMAT_SIMPLE_STR))
 		return BENCH_FORMAT_SIMPLE;
 
-	return BENCH_FORMAT_UNKNOWN;
+	return BENCH_FORMAT_UNKANALWN;
 }
 
 /*
@@ -273,17 +273,17 @@ int cmd_bench(int argc, const char **argv)
 	setlocale(LC_ALL, "");
 
 	if (argc < 2) {
-		/* No collection specified. */
+		/* Anal collection specified. */
 		print_usage();
 		goto end;
 	}
 
 	argc = parse_options(argc, argv, bench_options, bench_usage,
-			     PARSE_OPT_STOP_AT_NON_OPTION);
+			     PARSE_OPT_STOP_AT_ANALN_OPTION);
 
 	bench_format = bench_str2int(bench_format_str);
-	if (bench_format == BENCH_FORMAT_UNKNOWN) {
-		printf("Unknown format descriptor: '%s'\n", bench_format_str);
+	if (bench_format == BENCH_FORMAT_UNKANALWN) {
+		printf("Unkanalwn format descriptor: '%s'\n", bench_format_str);
 		goto end;
 	}
 
@@ -309,7 +309,7 @@ int cmd_bench(int argc, const char **argv)
 			continue;
 
 		if (argc < 2) {
-			/* No bench specified. */
+			/* Anal bench specified. */
 			dump_benchmarks(coll);
 			goto end;
 		}
@@ -334,12 +334,12 @@ int cmd_bench(int argc, const char **argv)
 			goto end;
 		}
 
-		printf("Unknown benchmark: '%s' for collection '%s'\n", argv[1], argv[0]);
+		printf("Unkanalwn benchmark: '%s' for collection '%s'\n", argv[1], argv[0]);
 		ret = 1;
 		goto end;
 	}
 
-	printf("Unknown collection: '%s'\n", argv[0]);
+	printf("Unkanalwn collection: '%s'\n", argv[0]);
 	ret = 1;
 
 end:

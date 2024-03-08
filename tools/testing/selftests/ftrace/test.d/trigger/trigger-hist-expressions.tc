@@ -38,9 +38,9 @@ check_error() { # test_name command-with-error-pos-by-^
 
 test_hist_expr "Variable assignment" "123" "123"
 
-test_hist_expr "Subtraction not associative" "16-8-4-2" "2"
+test_hist_expr "Subtraction analt associative" "16-8-4-2" "2"
 
-test_hist_expr "Division not associative" "64/8/4/2" "1"
+test_hist_expr "Division analt associative" "64/8/4/2" "1"
 
 test_hist_expr "Same precedence operators (+,-) evaluated left to right" "16-8+4+2" "14"
 
@@ -56,7 +56,7 @@ test_hist_expr "Division evaluated before addition/subtraction" "4+6/2-2" "5"
 check_error "Too many subexpressions" 'hist:keys=common_pid:x=32+^10*3/20-4'
 check_error "Too many subexpressions" 'hist:keys=common_pid:x=^1+2+3+4+5'
 
-check_error "Unary minus not supported in subexpression" 'hist:keys=common_pid:x=-(^1)+2'
+check_error "Unary minus analt supported in subexpression" 'hist:keys=common_pid:x=-(^1)+2'
 
 check_error "Division by zero" 'hist:keys=common_pid:x=3/^0'
 

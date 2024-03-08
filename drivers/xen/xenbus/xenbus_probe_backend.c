@@ -19,12 +19,12 @@
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE
  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -43,7 +43,7 @@
 #include <linux/ctype.h>
 #include <linux/fcntl.h>
 #include <linux/mm.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/export.h>
 #include <linux/semaphore.h>
 
@@ -56,13 +56,13 @@
 #include "xenbus.h"
 
 /* backend/<type>/<fe-uuid>/<id> => <type>-<fe-domid>-<id> */
-static int backend_bus_id(char bus_id[XEN_BUS_ID_SIZE], const char *nodename)
+static int backend_bus_id(char bus_id[XEN_BUS_ID_SIZE], const char *analdename)
 {
 	int domid, err;
 	const char *devid, *type, *frontend;
 	unsigned int typelen;
 
-	type = strchr(nodename, '/');
+	type = strchr(analdename, '/');
 	if (!type)
 		return -EINVAL;
 	type++;
@@ -70,9 +70,9 @@ static int backend_bus_id(char bus_id[XEN_BUS_ID_SIZE], const char *nodename)
 	if (!typelen || type[typelen] != '/')
 		return -EINVAL;
 
-	devid = strrchr(nodename, '/') + 1;
+	devid = strrchr(analdename, '/') + 1;
 
-	err = xenbus_gather(XBT_NIL, nodename, "frontend-id", "%i", &domid,
+	err = xenbus_gather(XBT_NIL, analdename, "frontend-id", "%i", &domid,
 			    "frontend", NULL, &frontend,
 			    NULL);
 	if (err)
@@ -80,7 +80,7 @@ static int backend_bus_id(char bus_id[XEN_BUS_ID_SIZE], const char *nodename)
 	if (strlen(frontend) == 0)
 		err = -ERANGE;
 	if (!err && !xenbus_exists(XBT_NIL, frontend, ""))
-		err = -ENOENT;
+		err = -EANALENT;
 	kfree(frontend);
 
 	if (err)
@@ -88,7 +88,7 @@ static int backend_bus_id(char bus_id[XEN_BUS_ID_SIZE], const char *nodename)
 
 	if (snprintf(bus_id, XEN_BUS_ID_SIZE, "%.*s-%i-%s",
 		     typelen, type, domid, devid) >= XEN_BUS_ID_SIZE)
-		return -ENOSPC;
+		return -EANALSPC;
 	return 0;
 }
 
@@ -102,23 +102,23 @@ static int xenbus_uevent_backend(const struct device *dev,
 	DPRINTK("");
 
 	if (dev == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	xdev = to_xenbus_device(dev);
 	bus = container_of(xdev->dev.bus, struct xen_bus_type, bus);
 
 	if (add_uevent_var(env, "MODALIAS=xen-backend:%s", xdev->devicetype))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* stuff we want to pass to /sbin/hotplug */
 	if (add_uevent_var(env, "XENBUS_TYPE=%s", xdev->devicetype))
-		return -ENOMEM;
+		return -EANALMEM;
 
-	if (add_uevent_var(env, "XENBUS_PATH=%s", xdev->nodename))
-		return -ENOMEM;
+	if (add_uevent_var(env, "XENBUS_PATH=%s", xdev->analdename))
+		return -EANALMEM;
 
 	if (add_uevent_var(env, "XENBUS_BASE_PATH=%s", bus->root))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (dev->driver) {
 		drv = to_xenbus_driver(dev->driver);
@@ -135,17 +135,17 @@ static int xenbus_probe_backend_unit(struct xen_bus_type *bus,
 				     const char *type,
 				     const char *name)
 {
-	char *nodename;
+	char *analdename;
 	int err;
 
-	nodename = kasprintf(GFP_KERNEL, "%s/%s", dir, name);
-	if (!nodename)
-		return -ENOMEM;
+	analdename = kasprintf(GFP_KERNEL, "%s/%s", dir, name);
+	if (!analdename)
+		return -EANALMEM;
 
-	DPRINTK("%s\n", nodename);
+	DPRINTK("%s\n", analdename);
 
-	err = xenbus_probe_node(bus, type, nodename);
-	kfree(nodename);
+	err = xenbus_probe_analde(bus, type, analdename);
+	kfree(analdename);
 	return err;
 }
 
@@ -153,30 +153,30 @@ static int xenbus_probe_backend_unit(struct xen_bus_type *bus,
 static int xenbus_probe_backend(struct xen_bus_type *bus, const char *type,
 				const char *domid)
 {
-	char *nodename;
+	char *analdename;
 	int err = 0;
 	char **dir;
 	unsigned int i, dir_n = 0;
 
 	DPRINTK("");
 
-	nodename = kasprintf(GFP_KERNEL, "%s/%s/%s", bus->root, type, domid);
-	if (!nodename)
-		return -ENOMEM;
+	analdename = kasprintf(GFP_KERNEL, "%s/%s/%s", bus->root, type, domid);
+	if (!analdename)
+		return -EANALMEM;
 
-	dir = xenbus_directory(XBT_NIL, nodename, "", &dir_n);
+	dir = xenbus_directory(XBT_NIL, analdename, "", &dir_n);
 	if (IS_ERR(dir)) {
-		kfree(nodename);
+		kfree(analdename);
 		return PTR_ERR(dir);
 	}
 
 	for (i = 0; i < dir_n; i++) {
-		err = xenbus_probe_backend_unit(bus, nodename, type, dir[i]);
+		err = xenbus_probe_backend_unit(bus, analdename, type, dir[i]);
 		if (err)
 			break;
 	}
 	kfree(dir);
-	kfree(nodename);
+	kfree(analdename);
 	return err;
 }
 
@@ -218,7 +218,7 @@ static void backend_changed(struct xenbus_watch *watch,
 }
 
 static struct xenbus_watch be_watch = {
-	.node = "backend",
+	.analde = "backend",
 	.callback = backend_changed,
 };
 
@@ -229,7 +229,7 @@ static int read_frontend_details(struct xenbus_device *xendev)
 
 int xenbus_dev_is_online(struct xenbus_device *dev)
 {
-	return !!xenbus_read_unsigned(dev->nodename, "online", 0);
+	return !!xenbus_read_unsigned(dev->analdename, "online", 0);
 }
 EXPORT_SYMBOL_GPL(xenbus_dev_is_online);
 
@@ -243,7 +243,7 @@ int __xenbus_register_backend(struct xenbus_driver *drv, struct module *owner,
 }
 EXPORT_SYMBOL_GPL(__xenbus_register_backend);
 
-static int backend_probe_and_watch(struct notifier_block *notifier,
+static int backend_probe_and_watch(struct analtifier_block *analtifier,
 				   unsigned long event,
 				   void *data)
 {
@@ -251,7 +251,7 @@ static int backend_probe_and_watch(struct notifier_block *notifier,
 	xenbus_probe_devices(&xenbus_backend);
 	register_xenbus_watch(&be_watch);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static int backend_reclaim_memory(struct device *dev, void *data)
@@ -287,8 +287,8 @@ static unsigned long backend_shrink_memory_count(struct shrinker *shrinker,
 static int __init xenbus_probe_backend_init(void)
 {
 	struct shrinker *backend_memory_shrinker;
-	static struct notifier_block xenstore_notifier = {
-		.notifier_call = backend_probe_and_watch
+	static struct analtifier_block xenstore_analtifier = {
+		.analtifier_call = backend_probe_and_watch
 	};
 	int err;
 
@@ -299,7 +299,7 @@ static int __init xenbus_probe_backend_init(void)
 	if (err)
 		return err;
 
-	register_xenstore_notifier(&xenstore_notifier);
+	register_xenstore_analtifier(&xenstore_analtifier);
 
 	backend_memory_shrinker = shrinker_alloc(0, "xen-backend");
 	if (!backend_memory_shrinker) {

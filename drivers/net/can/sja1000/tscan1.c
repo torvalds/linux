@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * tscan1.c: driver for Technologic Systems TS-CAN1 PC104 boards
+ * tscan1.c: driver for Techanallogic Systems TS-CAN1 PC104 boards
  *
  * Copyright 2010 Andre B. Oliveira
  */
 
 /* References:
- * - Getting started with TS-CAN1, Technologic Systems, Feb 2022
+ * - Getting started with TS-CAN1, Techanallogic Systems, Feb 2022
  *	https://docs.embeddedts.com/TS-CAN1
  */
 
@@ -18,7 +18,7 @@
 #include <linux/netdevice.h>
 #include "sja1000.h"
 
-MODULE_DESCRIPTION("Driver for Technologic Systems TS-CAN1 PC104 boards");
+MODULE_DESCRIPTION("Driver for Techanallogic Systems TS-CAN1 PC104 boards");
 MODULE_AUTHOR("Andre B. Oliveira <anbadeol@gmail.com>");
 MODULE_LICENSE("GPL");
 
@@ -89,7 +89,7 @@ static int tscan1_probe(struct device *dev, unsigned id)
 	if (inb(pld_base + TSCAN1_ID1) != TSCAN1_ID1_VALUE ||
 	    inb(pld_base + TSCAN1_ID2) != TSCAN1_ID2_VALUE) {
 		release_region(pld_base, TSCAN1_PLD_SIZE);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	switch (inb(pld_base + TSCAN1_JUMPERS) & (TSCAN1_JP4 | TSCAN1_JP5)) {
@@ -103,7 +103,7 @@ static int tscan1_probe(struct device *dev, unsigned id)
 		irq = 5;
 		break;
 	default:
-		dev_err(dev, "invalid JP4:JP5 setting (no IRQ)\n");
+		dev_err(dev, "invalid JP4:JP5 setting (anal IRQ)\n");
 		release_region(pld_base, TSCAN1_PLD_SIZE);
 		return -EINVAL;
 	}
@@ -111,7 +111,7 @@ static int tscan1_probe(struct device *dev, unsigned id)
 	netdev = alloc_sja1000dev(0);
 	if (!netdev) {
 		release_region(pld_base, TSCAN1_PLD_SIZE);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	dev_set_drvdata(dev, netdev);

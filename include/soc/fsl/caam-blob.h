@@ -7,7 +7,7 @@
 #define __CAAM_BLOB_GEN
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 #define CAAM_BLOB_KEYMOD_LENGTH		16
 #define CAAM_BLOB_OVERHEAD		(32 + 16)
@@ -23,7 +23,7 @@ struct caam_blob_priv;
  * @output_len:  length of @output buffer in bytes.
  * @key_mod:     key modifier
  * @key_mod_len: length of @key_mod in bytes.
- *	         May not exceed %CAAM_BLOB_KEYMOD_LENGTH
+ *	         May analt exceed %CAAM_BLOB_KEYMOD_LENGTH
  */
 struct caam_blob_info {
 	void *input;
@@ -39,8 +39,8 @@ struct caam_blob_info {
 /**
  * caam_blob_gen_init - initialize blob generation
  * Return: pointer to new &struct caam_blob_priv instance on success
- * and ``ERR_PTR(-ENODEV)`` if CAAM has no hardware blobbing support
- * or no job ring could be allocated.
+ * and ``ERR_PTR(-EANALDEV)`` if CAAM has anal hardware blobbing support
+ * or anal job ring could be allocated.
  */
 struct caam_blob_priv *caam_blob_gen_init(void);
 

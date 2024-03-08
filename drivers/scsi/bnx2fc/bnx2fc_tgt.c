@@ -32,7 +32,7 @@ static void bnx2fc_upld_timer(struct timer_list *t)
 
 	struct bnx2fc_rport *tgt = from_timer(tgt, t, upld_timer);
 
-	BNX2FC_TGT_DBG(tgt, "upld_timer - Upload compl not received!!\n");
+	BNX2FC_TGT_DBG(tgt, "upld_timer - Upload compl analt received!!\n");
 	/* fake upload completion */
 	clear_bit(BNX2FC_FLAG_OFFLOADED, &tgt->flags);
 	clear_bit(BNX2FC_FLAG_ENABLED, &tgt->flags);
@@ -46,7 +46,7 @@ static void bnx2fc_ofld_timer(struct timer_list *t)
 	struct bnx2fc_rport *tgt = from_timer(tgt, t, ofld_timer);
 
 	BNX2FC_TGT_DBG(tgt, "entered bnx2fc_ofld_timer\n");
-	/* NOTE: This function should never be called, as
+	/* ANALTE: This function should never be called, as
 	 * offload should never timeout
 	 */
 	/*
@@ -88,7 +88,7 @@ static void bnx2fc_offload_session(struct fcoe_port *port,
 	int i = 0;
 
 	/* Initialize bnx2fc_rport */
-	/* NOTE: tgt is already bzero'd */
+	/* ANALTE: tgt is already bzero'd */
 	rval = bnx2fc_init_tgt(tgt, port, rdata);
 	if (rval) {
 		printk(KERN_ERR PFX "Failed to allocate conn id for "
@@ -137,7 +137,7 @@ retry_ofld:
 		goto ofld_err;
 	}
 	if (bnx2fc_map_doorbell(tgt)) {
-		printk(KERN_ERR PFX "map doorbell failed - no mem\n");
+		printk(KERN_ERR PFX "map doorbell failed - anal mem\n");
 		goto ofld_err;
 	}
 	clear_bit(BNX2FC_FLAG_OFLD_REQ_CMPL, &tgt->flags);
@@ -196,7 +196,7 @@ void bnx2fc_flush_active_ios(struct bnx2fc_rport *tgt)
 		set_bit(BNX2FC_FLAG_IO_COMPL, &io_req->req_flags);
 		set_bit(BNX2FC_FLAG_IO_CLEANUP, &io_req->req_flags);
 
-		/* Do not issue cleanup when disable request failed */
+		/* Do analt issue cleanup when disable request failed */
 		if (test_bit(BNX2FC_FLAG_DISABLE_FAILED, &tgt->flags))
 			bnx2fc_process_cleanup_compl(io_req, io_req->task, 0);
 		else {
@@ -230,7 +230,7 @@ void bnx2fc_flush_active_ios(struct bnx2fc_rport *tgt)
 			io_req->cb_arg = NULL;
 		}
 
-		/* Do not issue cleanup when disable request failed */
+		/* Do analt issue cleanup when disable request failed */
 		if (test_bit(BNX2FC_FLAG_DISABLE_FAILED, &tgt->flags))
 			bnx2fc_process_cleanup_compl(io_req, io_req->task, 0);
 		else {
@@ -336,10 +336,10 @@ static void bnx2fc_upload_session(struct fcoe_port *port,
 
 	} else if (test_bit(BNX2FC_FLAG_DISABLE_FAILED, &tgt->flags)) {
 		printk(KERN_ERR PFX "ERROR!! DISABLE req failed, destroy"
-				" not sent to FW\n");
+				" analt sent to FW\n");
 	} else {
 		printk(KERN_ERR PFX "ERROR!! DISABLE req timed out, destroy"
-				" not sent to FW\n");
+				" analt sent to FW\n");
 	}
 
 	/* Free session resources */
@@ -462,7 +462,7 @@ void bnx2fc_rport_event_handler(struct fc_lport *lport,
 			/*
 			 * bnx2fc_rport structure doesn't exist for
 			 * directory server.
-			 * We should not come here, as lport will
+			 * We should analt come here, as lport will
 			 * take care of fabric login
 			 */
 			printk(KERN_ERR PFX "%x - rport_event_handler ERROR\n",
@@ -471,13 +471,13 @@ void bnx2fc_rport_event_handler(struct fc_lport *lport,
 		}
 
 		if (rdata->spp_type != FC_TYPE_FCP) {
-			BNX2FC_HBA_DBG(lport, "not FCP type target."
-				   " not offloading\n");
+			BNX2FC_HBA_DBG(lport, "analt FCP type target."
+				   " analt offloading\n");
 			break;
 		}
 		if (!(rdata->ids.roles & FC_RPORT_ROLE_FCP_TARGET)) {
-			BNX2FC_HBA_DBG(lport, "not FCP_TARGET"
-				   " not offloading\n");
+			BNX2FC_HBA_DBG(lport, "analt FCP_TARGET"
+				   " analt offloading\n");
 			break;
 		}
 
@@ -518,7 +518,7 @@ void bnx2fc_rport_event_handler(struct fc_lport *lport,
 			 * rport would have already been removed
 			 */
 			BNX2FC_TGT_DBG(tgt, "Port is being logged off as "
-				   "offloaded flag not set\n");
+				   "offloaded flag analt set\n");
 		}
 		mutex_unlock(&hba->hba_mutex);
 		break;
@@ -530,14 +530,14 @@ void bnx2fc_rport_event_handler(struct fc_lport *lport,
 			break;
 
 		if (!rport) {
-			printk(KERN_INFO PFX "%x - rport not created Yet!!\n",
+			printk(KERN_INFO PFX "%x - rport analt created Yet!!\n",
 				port_id);
 			break;
 		}
 		rp = rport->dd_data;
 		mutex_lock(&hba->hba_mutex);
 		/*
-		 * Perform session upload. Note that rdata->peers is already
+		 * Perform session upload. Analte that rdata->peers is already
 		 * removed from disc->rports list before we get this event.
 		 */
 		tgt = (struct bnx2fc_rport *)&rp[1];
@@ -564,7 +564,7 @@ void bnx2fc_rport_event_handler(struct fc_lport *lport,
 
 		break;
 
-	case RPORT_EV_NONE:
+	case RPORT_EV_ANALNE:
 		break;
 	}
 }
@@ -637,7 +637,7 @@ static u32 bnx2fc_alloc_conn_id(struct bnx2fc_hba *hba,
 			conn_id = 0;
 
 		if (conn_id == next) {
-			/* No free conn_ids are available */
+			/* Anal free conn_ids are available */
 			spin_unlock_bh(&hba->hba_lock);
 			return -1;
 		}
@@ -815,7 +815,7 @@ static int bnx2fc_alloc_session_resc(struct bnx2fc_hba *hba,
 	return 0;
 
 mem_alloc_failure:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /**

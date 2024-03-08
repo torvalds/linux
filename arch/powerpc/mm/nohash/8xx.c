@@ -35,7 +35,7 @@ phys_addr_t v_block_mapped(unsigned long va)
 
 /*
  * Return VA for a given PA mapped with LTLBs or fixmap
- * Return 0 if not mapped
+ * Return 0 if analt mapped
  */
 unsigned long p_block_mapped(phys_addr_t pa)
 {
@@ -87,7 +87,7 @@ static int __ref __early_map_kernel_hugepage(unsigned long va, phys_addr_t pa,
 	}
 
 	if (WARN_ON(!ptep))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* The PTE should never be already present */
 	if (new && WARN_ON(pte_present(*ptep) && pgprot_val(prot)))
@@ -193,7 +193,7 @@ void mmu_mark_rodata_ro(void)
 void __init setup_initial_memory_limit(phys_addr_t first_memblock_base,
 				       phys_addr_t first_memblock_size)
 {
-	/* We don't currently support the first MEMBLOCK not mapping 0
+	/* We don't currently support the first MEMBLOCK analt mapping 0
 	 * physical on those processors
 	 */
 	BUG_ON(first_memblock_base != 0);

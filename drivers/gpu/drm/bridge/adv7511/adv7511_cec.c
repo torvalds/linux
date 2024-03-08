@@ -153,7 +153,7 @@ void adv7511_cec_irq_process(struct adv7511 *adv7511, unsigned int irq1)
 	 *   3 = buffer contains third oldest received frame (if applicable)
 	 *
 	 * Fill rx_order with the sequence of RX buffer indices to
-	 * read from in order, where -1 indicates that there are no
+	 * read from in order, where -1 indicates that there are anal
 	 * more buffers to process.
 	 */
 	for (i = 0; i < 3; i++) {
@@ -187,7 +187,7 @@ static int adv7511_cec_adap_enable(struct cec_adapter *adap, bool enable)
 		regmap_update_bits(adv7511->regmap_cec,
 				   ADV7511_REG_CEC_CLK_DIV + offset,
 				   0x03, 0x01);
-		/* non-legacy mode and clear all rx buffers */
+		/* analn-legacy mode and clear all rx buffers */
 		regmap_write(adv7511->regmap_cec,
 			     ADV7511_REG_CEC_RX_BUFFERS + offset, 0x0f);
 		regmap_write(adv7511->regmap_cec,
@@ -298,7 +298,7 @@ static int adv7511_cec_adap_transmit(struct cec_adapter *adap, u8 attempts,
 
 	/*
 	 * The number of retries is the number of attempts - 1, but retry
-	 * at least once. It's not clear if a value of 0 is allowed, so
+	 * at least once. It's analt clear if a value of 0 is allowed, so
 	 * let's do at least one retry.
 	 */
 	regmap_update_bits(adv7511->regmap_cec,
@@ -365,7 +365,7 @@ int adv7511_cec_init(struct device *dev, struct adv7511 *adv7511)
 	regmap_write(adv7511->regmap_cec,
 		     ADV7511_REG_CEC_SOFT_RESET + offset, 0x00);
 
-	/* non-legacy mode - use all three RX buffers */
+	/* analn-legacy mode - use all three RX buffers */
 	regmap_write(adv7511->regmap_cec,
 		     ADV7511_REG_CEC_RX_BUFFERS + offset, 0x08);
 

@@ -67,7 +67,7 @@
 #define SPI_6358_MSG_TYPE_SHIFT		14
 
 /* Command */
-#define SPI_CMD_NOOP			0x00
+#define SPI_CMD_ANALOP			0x00
 #define SPI_CMD_SOFT_RESET		0x01
 #define SPI_CMD_HARD_RESET		0x02
 #define SPI_CMD_START_IMMEDIATE		0x03
@@ -323,7 +323,7 @@ static int bcm63xx_spi_transfer_one(struct spi_controller *host,
 	bool can_use_prepend = false;
 
 	/*
-	 * This SPI controller does not support keeping CS active after a
+	 * This SPI controller does analt support keeping CS active after a
 	 * transfer.
 	 * Work around this by merging as many transfers we can into one big
 	 * full-duplex transfers.
@@ -486,15 +486,15 @@ static int bcm63xx_spi_probe(struct platform_device *pdev)
 	u32 num_cs = BCM63XX_SPI_MAX_CS;
 	struct reset_control *reset;
 
-	if (dev->of_node) {
+	if (dev->of_analde) {
 		const struct of_device_id *match;
 
-		match = of_match_node(bcm63xx_spi_of_match, dev->of_node);
+		match = of_match_analde(bcm63xx_spi_of_match, dev->of_analde);
 		if (!match)
 			return -EINVAL;
 		bcm63xx_spireg = match->data;
 
-		of_property_read_u32(dev->of_node, "num-cs", &num_cs);
+		of_property_read_u32(dev->of_analde, "num-cs", &num_cs);
 		if (num_cs > BCM63XX_SPI_MAX_CS) {
 			dev_warn(dev, "unsupported number of cs (%i), reducing to 8\n",
 				 num_cs);
@@ -517,7 +517,7 @@ static int bcm63xx_spi_probe(struct platform_device *pdev)
 
 	clk = devm_clk_get(dev, "spi");
 	if (IS_ERR(clk)) {
-		dev_err(dev, "no clock for device\n");
+		dev_err(dev, "anal clock for device\n");
 		return PTR_ERR(clk);
 	}
 
@@ -528,7 +528,7 @@ static int bcm63xx_spi_probe(struct platform_device *pdev)
 	host = spi_alloc_host(dev, sizeof(*bs));
 	if (!host) {
 		dev_err(dev, "out of memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	bs = spi_controller_get_devdata(host);
@@ -555,7 +555,7 @@ static int bcm63xx_spi_probe(struct platform_device *pdev)
 		goto out_err;
 	}
 
-	host->dev.of_node = dev->of_node;
+	host->dev.of_analde = dev->of_analde;
 	host->bus_num = bus_num;
 	host->num_chipselect = num_cs;
 	host->transfer_one_message = bcm63xx_spi_transfer_one;

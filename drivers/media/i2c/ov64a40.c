@@ -19,7 +19,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-event.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-mediabus.h>
 #include <media/v4l2-subdev.h>
 
@@ -49,7 +49,7 @@
 #define OV64A40_PLL2_DIVSP		CCI_REG8(0x032d)
 #define OV64A40_PLL2_DACPREDIV		CCI_REG8(0x032e)
 
-/* TODO: validate vblank_min, it's not characterized in the datasheet. */
+/* TODO: validate vblank_min, it's analt characterized in the datasheet. */
 #define OV64A40_VBLANK_MIN		128
 #define OV64A40_VTS_MAX			0xffffff
 
@@ -2973,7 +2973,7 @@ static int ov64a40_start_streaming(struct ov64a40 *ov64a40,
 	if (ret)
 		goto error_power_off;
 
-	/* Link frequency and flips cannot change while streaming. */
+	/* Link frequency and flips cananalt change while streaming. */
 	__v4l2_ctrl_grab(ov64a40->link_freq, true);
 	__v4l2_ctrl_grab(ov64a40->vflip, true);
 	__v4l2_ctrl_grab(ov64a40->hflip, true);
@@ -3045,10 +3045,10 @@ static void ov64a40_update_pad_fmt(struct ov64a40 *ov64a40,
 	fmt->code = ov64a40_mbus_code(ov64a40);
 	fmt->width = mode->width;
 	fmt->height = mode->height;
-	fmt->field = V4L2_FIELD_NONE;
+	fmt->field = V4L2_FIELD_ANALNE;
 	fmt->colorspace = V4L2_COLORSPACE_RAW;
 	fmt->quantization = V4L2_QUANTIZATION_FULL_RANGE;
-	fmt->xfer_func = V4L2_XFER_FUNC_NONE;
+	fmt->xfer_func = V4L2_XFER_FUNC_ANALNE;
 	fmt->ycbcr_enc = V4L2_YCBCR_ENC_601;
 }
 
@@ -3352,7 +3352,7 @@ static int ov64a40_init_controls(struct ov64a40 *ov64a40)
 {
 	int exp_max, hblank_val, vblank_max, vblank_def;
 	struct v4l2_ctrl_handler *hdlr = &ov64a40->ctrl_handler;
-	struct v4l2_fwnode_device_properties props;
+	struct v4l2_fwanalde_device_properties props;
 	const struct ov64a40_timings *timings;
 	int ret;
 
@@ -3415,11 +3415,11 @@ static int ov64a40_init_controls(struct ov64a40 *ov64a40)
 		goto error_free_hdlr;
 	}
 
-	ret = v4l2_fwnode_device_parse(ov64a40->dev, &props);
+	ret = v4l2_fwanalde_device_parse(ov64a40->dev, &props);
 	if (ret)
 		goto error_free_hdlr;
 
-	ret = v4l2_ctrl_new_fwnode_properties(hdlr, &ov64a40_ctrl_ops,
+	ret = v4l2_ctrl_new_fwanalde_properties(hdlr, &ov64a40_ctrl_ops,
 					      &props);
 	if (ret)
 		goto error_free_hdlr;
@@ -3446,7 +3446,7 @@ static int ov64a40_identify(struct ov64a40 *ov64a40)
 
 	if (id != OV64A40_CHIP_ID) {
 		dev_err(ov64a40->dev, "chip id mismatch: %#llx\n", id);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	dev_dbg(ov64a40->dev, "OV64A40 chip identified: %#llx\n", id);
@@ -3456,71 +3456,71 @@ static int ov64a40_identify(struct ov64a40 *ov64a40)
 
 static int ov64a40_parse_dt(struct ov64a40 *ov64a40)
 {
-	struct v4l2_fwnode_endpoint v4l2_fwnode = {
+	struct v4l2_fwanalde_endpoint v4l2_fwanalde = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY
 	};
-	struct fwnode_handle *endpoint;
+	struct fwanalde_handle *endpoint;
 	unsigned int i;
 	int ret;
 
-	endpoint = fwnode_graph_get_next_endpoint(dev_fwnode(ov64a40->dev),
+	endpoint = fwanalde_graph_get_next_endpoint(dev_fwanalde(ov64a40->dev),
 						  NULL);
 	if (!endpoint) {
 		dev_err(ov64a40->dev, "Failed to find endpoint\n");
 		return -EINVAL;
 	}
 
-	ret = v4l2_fwnode_endpoint_alloc_parse(endpoint, &v4l2_fwnode);
-	fwnode_handle_put(endpoint);
+	ret = v4l2_fwanalde_endpoint_alloc_parse(endpoint, &v4l2_fwanalde);
+	fwanalde_handle_put(endpoint);
 	if (ret) {
 		dev_err(ov64a40->dev, "Failed to parse endpoint\n");
 		return ret;
 	}
 
-	if (v4l2_fwnode.bus.mipi_csi2.num_data_lanes != 2) {
+	if (v4l2_fwanalde.bus.mipi_csi2.num_data_lanes != 2) {
 		dev_err(ov64a40->dev, "Unsupported number of data lanes: %u\n",
-			v4l2_fwnode.bus.mipi_csi2.num_data_lanes);
-		v4l2_fwnode_endpoint_free(&v4l2_fwnode);
+			v4l2_fwanalde.bus.mipi_csi2.num_data_lanes);
+		v4l2_fwanalde_endpoint_free(&v4l2_fwanalde);
 		return -EINVAL;
 	}
 
-	if (!v4l2_fwnode.nr_of_link_frequencies) {
-		dev_warn(ov64a40->dev, "no link frequencies defined\n");
-		v4l2_fwnode_endpoint_free(&v4l2_fwnode);
+	if (!v4l2_fwanalde.nr_of_link_frequencies) {
+		dev_warn(ov64a40->dev, "anal link frequencies defined\n");
+		v4l2_fwanalde_endpoint_free(&v4l2_fwanalde);
 		return -EINVAL;
 	}
 
-	if (v4l2_fwnode.nr_of_link_frequencies > 2) {
+	if (v4l2_fwanalde.nr_of_link_frequencies > 2) {
 		dev_warn(ov64a40->dev,
 			 "Unsupported number of link frequencies\n");
-		v4l2_fwnode_endpoint_free(&v4l2_fwnode);
+		v4l2_fwanalde_endpoint_free(&v4l2_fwanalde);
 		return -EINVAL;
 	}
 
 	ov64a40->link_frequencies =
-		devm_kcalloc(ov64a40->dev, v4l2_fwnode.nr_of_link_frequencies,
-			     sizeof(v4l2_fwnode.link_frequencies[0]),
+		devm_kcalloc(ov64a40->dev, v4l2_fwanalde.nr_of_link_frequencies,
+			     sizeof(v4l2_fwanalde.link_frequencies[0]),
 			     GFP_KERNEL);
 	if (!ov64a40->link_frequencies)  {
-		v4l2_fwnode_endpoint_free(&v4l2_fwnode);
-		return -ENOMEM;
+		v4l2_fwanalde_endpoint_free(&v4l2_fwanalde);
+		return -EANALMEM;
 	}
-	ov64a40->num_link_frequencies = v4l2_fwnode.nr_of_link_frequencies;
+	ov64a40->num_link_frequencies = v4l2_fwanalde.nr_of_link_frequencies;
 
-	for (i = 0; i < v4l2_fwnode.nr_of_link_frequencies; ++i) {
-		if (v4l2_fwnode.link_frequencies[i] != OV64A40_LINK_FREQ_360M &&
-		    v4l2_fwnode.link_frequencies[i] != OV64A40_LINK_FREQ_456M) {
+	for (i = 0; i < v4l2_fwanalde.nr_of_link_frequencies; ++i) {
+		if (v4l2_fwanalde.link_frequencies[i] != OV64A40_LINK_FREQ_360M &&
+		    v4l2_fwanalde.link_frequencies[i] != OV64A40_LINK_FREQ_456M) {
 			dev_err(ov64a40->dev,
 				"Unsupported link frequency %lld\n",
-				v4l2_fwnode.link_frequencies[i]);
-			v4l2_fwnode_endpoint_free(&v4l2_fwnode);
+				v4l2_fwanalde.link_frequencies[i]);
+			v4l2_fwanalde_endpoint_free(&v4l2_fwanalde);
 			return -EINVAL;
 		}
 
-		ov64a40->link_frequencies[i] = v4l2_fwnode.link_frequencies[i];
+		ov64a40->link_frequencies[i] = v4l2_fwanalde.link_frequencies[i];
 	}
 
-	v4l2_fwnode_endpoint_free(&v4l2_fwnode);
+	v4l2_fwanalde_endpoint_free(&v4l2_fwanalde);
 
 	return 0;
 }
@@ -3546,7 +3546,7 @@ static int ov64a40_probe(struct i2c_client *client)
 
 	ov64a40 = devm_kzalloc(&client->dev, sizeof(*ov64a40), GFP_KERNEL);
 	if (!ov64a40)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ov64a40->dev = &client->dev;
 	v4l2_i2c_subdev_init(&ov64a40->sd, client, &ov64a40_subdev_ops);
@@ -3594,7 +3594,7 @@ static int ov64a40_probe(struct i2c_client *client)
 	ov64a40->mode = &ov64a40_modes[0];
 
 	pm_runtime_set_active(&client->dev);
-	pm_runtime_get_noresume(&client->dev);
+	pm_runtime_get_analresume(&client->dev);
 	pm_runtime_enable(&client->dev);
 	pm_runtime_set_autosuspend_delay(&client->dev, 1000);
 	pm_runtime_use_autosuspend(&client->dev);
@@ -3605,7 +3605,7 @@ static int ov64a40_probe(struct i2c_client *client)
 
 	/* Initialize subdev */
 	ov64a40->sd.internal_ops = &ov64a40_internal_ops;
-	ov64a40->sd.flags = V4L2_SUBDEV_FL_HAS_DEVNODE
+	ov64a40->sd.flags = V4L2_SUBDEV_FL_HAS_DEVANALDE
 			  | V4L2_SUBDEV_FL_HAS_EVENTS;
 	ov64a40->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
 

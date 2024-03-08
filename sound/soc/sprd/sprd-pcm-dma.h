@@ -35,7 +35,7 @@ struct sprd_compr_params {
 };
 
 struct sprd_compr_callback {
-	void (*drain_notify)(void *data);
+	void (*drain_analtify)(void *data);
 	void *drain_data;
 };
 

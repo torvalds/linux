@@ -134,7 +134,7 @@ static int lpss_spi_setup(struct pci_dev *dev, struct pxa2xx_spi_controller *c)
 		c->rx_param = &lpt1_rx_param;
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	c->num_chipselect = 1;
@@ -212,7 +212,7 @@ static int mrfld_spi_setup(struct pci_dev *dev, struct pxa2xx_spi_controller *c)
 		c->rx_param = &mrfld6_rx_param;
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = pxa2xx_spi_pci_clk_register(dev, ssp, 25000000);
@@ -293,7 +293,7 @@ static int pxa2xx_spi_pci_probe(struct pci_dev *dev,
 	ssp->irq = pci_irq_vector(dev, 0);
 
 	memset(&pi, 0, sizeof(pi));
-	pi.fwnode = dev_fwnode(&dev->dev);
+	pi.fwanalde = dev_fwanalde(&dev->dev);
 	pi.parent = &dev->dev;
 	pi.name = "pxa2xx-spi";
 	pi.id = ssp->port_id;

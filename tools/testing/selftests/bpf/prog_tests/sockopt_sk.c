@@ -64,7 +64,7 @@ static int getsetsockopt(void)
 
 	buf.u8[0] = 1;
 	err = setsockopt(fd, SOL_IP, IP_TTL, &buf, 1);
-	if (!err || errno != EPERM) {
+	if (!err || erranal != EPERM) {
 		log_err("Unexpected success from setsockopt(IP_TTL)");
 		goto err;
 	}
@@ -168,19 +168,19 @@ static int getsetsockopt(void)
 	optlen = sizeof(buf.zc);
 	err = getsockopt(fd, SOL_TCP, TCP_ZEROCOPY_RECEIVE, &buf, &optlen);
 	if (err) {
-		log_err("Unexpected getsockopt(TCP_ZEROCOPY_RECEIVE) err=%d errno=%d",
-			err, errno);
+		log_err("Unexpected getsockopt(TCP_ZEROCOPY_RECEIVE) err=%d erranal=%d",
+			err, erranal);
 		goto err;
 	}
 
 	memset(&buf, 0, sizeof(buf));
-	buf.zc.address = 12345; /* Not page aligned. Rejected by tcp_zerocopy_receive() */
+	buf.zc.address = 12345; /* Analt page aligned. Rejected by tcp_zerocopy_receive() */
 	optlen = sizeof(buf.zc);
-	errno = 0;
+	erranal = 0;
 	err = getsockopt(fd, SOL_TCP, TCP_ZEROCOPY_RECEIVE, &buf, &optlen);
-	if (errno != EINVAL) {
-		log_err("Unexpected getsockopt(TCP_ZEROCOPY_RECEIVE) err=%d errno=%d",
-			err, errno);
+	if (erranal != EINVAL) {
+		log_err("Unexpected getsockopt(TCP_ZEROCOPY_RECEIVE) err=%d erranal=%d",
+			err, erranal);
 		goto err;
 	}
 
@@ -197,16 +197,16 @@ static int getsetsockopt(void)
 	optlen = sizeof(__u32);
 	err = setsockopt(fd, SOL_NETLINK, NETLINK_ADD_MEMBERSHIP, &buf, optlen);
 	if (err) {
-		log_err("Unexpected getsockopt(NETLINK_ADD_MEMBERSHIP) err=%d errno=%d",
-			err, errno);
+		log_err("Unexpected getsockopt(NETLINK_ADD_MEMBERSHIP) err=%d erranal=%d",
+			err, erranal);
 		goto err;
 	}
 
 	optlen = 0;
 	err = getsockopt(fd, SOL_NETLINK, NETLINK_LIST_MEMBERSHIPS, NULL, &optlen);
 	if (err) {
-		log_err("Unexpected getsockopt(NETLINK_LIST_MEMBERSHIPS) err=%d errno=%d",
-			err, errno);
+		log_err("Unexpected getsockopt(NETLINK_LIST_MEMBERSHIPS) err=%d erranal=%d",
+			err, erranal);
 		goto err;
 	}
 	ASSERT_EQ(optlen, 8, "Unexpected NETLINK_LIST_MEMBERSHIPS value");

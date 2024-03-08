@@ -2,7 +2,7 @@
 /*
  *  include/linux/mfd/viperboard.h
  *
- *  Nano River Technologies viperboard definitions
+ *  Naanal River Techanallogies viperboard definitions
  *
  *  (C) 2012 by Lemonage GmbH
  *  Author: Lars Poeschel <poeschel@lemonage.de>
@@ -40,7 +40,7 @@
 #define VPRBRD_USB_REQUEST_I2C_FREQ 0xe6
 #define VPRBRD_USB_REQUEST_I2C      0xe9
 #define VPRBRD_USB_REQUEST_MAJOR    0xea
-#define VPRBRD_USB_REQUEST_MINOR    0xeb
+#define VPRBRD_USB_REQUEST_MIANALR    0xeb
 #define VPRBRD_USB_REQUEST_ADC      0xec
 #define VPRBRD_USB_REQUEST_GPIOA    0xed
 #define VPRBRD_USB_REQUEST_GPIOB    0xdd
@@ -69,7 +69,7 @@ struct vprbrd_i2c_read_hdr {
 } __packed;
 
 struct vprbrd_i2c_status {
-	u8 unknown[11];
+	u8 unkanalwn[11];
 	u8 status;
 } __packed;
 
@@ -88,10 +88,10 @@ struct vprbrd_i2c_read_msg {
 struct vprbrd_i2c_addr_msg {
 	u8 cmd;
 	u8 addr;
-	u8 unknown1;
+	u8 unkanalwn1;
 	u16 len;
-	u8 unknown2;
-	u8 unknown3;
+	u8 unkanalwn2;
+	u8 unkanalwn3;
 } __packed;
 
 /* Structure to hold all device specific stuff */

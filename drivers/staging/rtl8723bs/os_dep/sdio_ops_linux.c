@@ -221,7 +221,7 @@ u32 sd_read32(struct intf_hdl *pintfhdl, u32 addr, s32 *err)
 				rtw_reset_continual_io_error(psdiodev);
 				break;
 			} else {
-				if ((-ESHUTDOWN == *err) || (-ENODEV == *err))
+				if ((-ESHUTDOWN == *err) || (-EANALDEV == *err))
 					padapter->bSurpriseRemoved = true;
 
 				if (rtw_inc_and_chk_continual_io_error(psdiodev) == true) {
@@ -297,7 +297,7 @@ void sd_write32(struct intf_hdl *pintfhdl, u32 addr, u32 v, s32 *err)
 				rtw_reset_continual_io_error(psdiodev);
 				break;
 			} else {
-				if ((-ESHUTDOWN == *err) || (-ENODEV == *err))
+				if ((-ESHUTDOWN == *err) || (-EANALDEV == *err))
 					padapter->bSurpriseRemoved = true;
 
 				if (rtw_inc_and_chk_continual_io_error(psdiodev) == true) {

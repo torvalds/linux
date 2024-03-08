@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and /or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -43,7 +43,7 @@
 #include <linux/completion.h>
 #include "qedr_hsi_rdma.h"
 
-#define QEDR_NODE_DESC "QLogic 579xx RoCE HCA"
+#define QEDR_ANALDE_DESC "QLogic 579xx RoCE HCA"
 #define DP_NAME(_dev) dev_name(&(_dev)->ibdev.dev)
 #define IS_IWARP(_dev) ((_dev)->rdma_type == QED_RDMA_TYPE_IWARP)
 #define IS_ROCE(_dev) ((_dev)->rdma_type == QED_RDMA_TYPE_ROCE)
@@ -87,7 +87,7 @@ struct qedr_device_attr {
 	u32	vendor_part_id;
 	u32	hw_ver;
 	u64	fw_ver;
-	u64	node_guid;
+	u64	analde_guid;
 	u64	sys_image_guid;
 	u8	max_cnq;
 	u8	max_sge;
@@ -301,7 +301,7 @@ struct qedr_cq {
 
 	struct qedr_userq q;
 	u8 destroyed;
-	u16 cnq_notif;
+	u16 cnq_analtif;
 };
 
 struct qedr_pd {
@@ -381,7 +381,7 @@ enum qedr_qp_err_bitmap {
 };
 
 enum qedr_qp_create_type {
-	QEDR_QP_CREATE_NONE,
+	QEDR_QP_CREATE_ANALNE,
 	QEDR_QP_CREATE_USER,
 	QEDR_QP_CREATE_KERNEL,
 };
@@ -536,7 +536,7 @@ static inline int qedr_get_dmac(struct qedr_dev *dev,
 	u8 *dmac;
 
 	if (!memcmp(&grh->dgid, &zero_sgid, sizeof(union ib_gid))) {
-		DP_ERR(dev, "Local port GID not supported\n");
+		DP_ERR(dev, "Local port GID analt supported\n");
 		eth_zero_addr(mac_addr);
 		return -EINVAL;
 	}

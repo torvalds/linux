@@ -31,12 +31,12 @@
  * UCSI_SWAP_TIMEOUT_MS - Timeout for role swap requests
  *
  * 5 seconds is close to the time it takes for CapsCounter to reach 0, so even
- * if the PPM does not generate Connector Change events before that with
- * partners that do not support USB Power Delivery, this should still work.
+ * if the PPM does analt generate Connector Change events before that with
+ * partners that do analt support USB Power Delivery, this should still work.
  */
 #define UCSI_SWAP_TIMEOUT_MS	5000
 
-static int ucsi_acknowledge_command(struct ucsi *ucsi)
+static int ucsi_ackanalwledge_command(struct ucsi *ucsi)
 {
 	u64 ctrl;
 
@@ -46,7 +46,7 @@ static int ucsi_acknowledge_command(struct ucsi *ucsi)
 	return ucsi->ops->sync_write(ucsi, UCSI_CONTROL, &ctrl, sizeof(ctrl));
 }
 
-static int ucsi_acknowledge_connector_change(struct ucsi *ucsi)
+static int ucsi_ackanalwledge_connector_change(struct ucsi *ucsi)
 {
 	u64 ctrl;
 
@@ -63,8 +63,8 @@ static int ucsi_read_error(struct ucsi *ucsi)
 	u16 error;
 	int ret;
 
-	/* Acknowledge the command that failed */
-	ret = ucsi_acknowledge_command(ucsi);
+	/* Ackanalwledge the command that failed */
+	ret = ucsi_ackanalwledge_command(ucsi);
 	if (ret)
 		return ret;
 
@@ -76,13 +76,13 @@ static int ucsi_read_error(struct ucsi *ucsi)
 	if (ret)
 		return ret;
 
-	ret = ucsi_acknowledge_command(ucsi);
+	ret = ucsi_ackanalwledge_command(ucsi);
 	if (ret)
 		return ret;
 
 	switch (error) {
 	case UCSI_ERROR_INCOMPATIBLE_PARTNER:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	case UCSI_ERROR_CC_COMMUNICATION_ERR:
 		return -ECOMM;
 	case UCSI_ERROR_CONTRACT_NEGOTIATION_FAIL:
@@ -112,7 +112,7 @@ static int ucsi_read_error(struct ucsi *ucsi)
 		break;
 	case UCSI_ERROR_UNDEFINED:
 	default:
-		dev_err(ucsi->dev, "unknown error %u\n", error);
+		dev_err(ucsi->dev, "unkanalwn error %u\n", error);
 		break;
 	}
 
@@ -138,8 +138,8 @@ static int ucsi_exec_command(struct ucsi *ucsi, u64 cmd)
 	if (!(cci & UCSI_CCI_COMMAND_COMPLETE))
 		return -EIO;
 
-	if (cci & UCSI_CCI_NOT_SUPPORTED)
-		return -EOPNOTSUPP;
+	if (cci & UCSI_CCI_ANALT_SUPPORTED)
+		return -EOPANALTSUPP;
 
 	if (cci & UCSI_CCI_ERROR) {
 		if (cmd == UCSI_GET_ERROR_STATUS)
@@ -148,7 +148,7 @@ static int ucsi_exec_command(struct ucsi *ucsi, u64 cmd)
 	}
 
 	if (cmd == UCSI_CANCEL && cci & UCSI_CCI_CANCEL_COMPLETE) {
-		ret = ucsi_acknowledge_command(ucsi);
+		ret = ucsi_ackanalwledge_command(ucsi);
 		return ret ? ret : -EBUSY;
 	}
 
@@ -175,7 +175,7 @@ int ucsi_send_command(struct ucsi *ucsi, u64 command,
 			goto out;
 	}
 
-	ret = ucsi_acknowledge_command(ucsi);
+	ret = ucsi_ackanalwledge_command(ucsi);
 	if (ret)
 		goto out;
 
@@ -190,7 +190,7 @@ EXPORT_SYMBOL_GPL(ucsi_send_command);
 
 struct ucsi_work {
 	struct delayed_work work;
-	struct list_head node;
+	struct list_head analde;
 	unsigned long delay;
 	unsigned int count;
 	struct ucsi_connector *con;
@@ -206,7 +206,7 @@ static void ucsi_poll_worker(struct work_struct *work)
 	mutex_lock(&con->lock);
 
 	if (!con->partner) {
-		list_del(&uwork->node);
+		list_del(&uwork->analde);
 		mutex_unlock(&con->lock);
 		kfree(uwork);
 		return;
@@ -217,7 +217,7 @@ static void ucsi_poll_worker(struct work_struct *work)
 	if (uwork->count-- && (ret == -EBUSY || ret == -ETIMEDOUT)) {
 		queue_delayed_work(con->wq, &uwork->work, uwork->delay);
 	} else {
-		list_del(&uwork->node);
+		list_del(&uwork->analde);
 		kfree(uwork);
 	}
 
@@ -235,7 +235,7 @@ static int ucsi_partner_task(struct ucsi_connector *con,
 
 	uwork = kzalloc(sizeof(*uwork), GFP_KERNEL);
 	if (!uwork)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_DELAYED_WORK(&uwork->work, ucsi_poll_worker);
 	uwork->count = retries;
@@ -243,7 +243,7 @@ static int ucsi_partner_task(struct ucsi_connector *con,
 	uwork->con = con;
 	uwork->cb = cb;
 
-	list_add_tail(&uwork->node, &con->partner_tasks);
+	list_add_tail(&uwork->analde, &con->partner_tasks);
 	queue_delayed_work(con->wq, &uwork->work, delay);
 
 	return 0;
@@ -302,7 +302,7 @@ static int ucsi_next_altmode(struct typec_altmode **alt)
 		if (!alt[i])
 			return i;
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static int ucsi_get_num_altmode(struct typec_altmode **alt)
@@ -434,12 +434,12 @@ ucsi_register_altmodes_nvidia(struct ucsi_connector *con, u8 recipient)
 		/*
 		 * We are collecting all altmodes first and then registering.
 		 * Some type-C device will return zero length data beyond last
-		 * alternate modes. We should not return if length is zero.
+		 * alternate modes. We should analt return if length is zero.
 		 */
 		if (len < 0)
 			return len;
 
-		/* We got all altmodes, now break out and register them */
+		/* We got all altmodes, analw break out and register them */
 		if (!len || !alt.svid)
 			break;
 
@@ -454,7 +454,7 @@ ucsi_register_altmodes_nvidia(struct ucsi_connector *con, u8 recipient)
 	if (recipient == UCSI_RECIPIENT_CON)
 		multi_dp = ucsi->ops->update_altmodes(ucsi, orig, updated);
 
-	/* now register altmodes */
+	/* analw register altmodes */
 	for (i = 0; i < max_altmodes; i++) {
 		memset(&desc, 0, sizeof(desc));
 		if (multi_dp && recipient == UCSI_RECIPIENT_CON) {
@@ -578,7 +578,7 @@ static int ucsi_read_pdos(struct ucsi_connector *con,
 	u64 command;
 	int ret;
 
-	if (ucsi->quirks & UCSI_NO_PARTNER_PDOS)
+	if (ucsi->quirks & UCSI_ANAL_PARTNER_PDOS)
 		return 0;
 
 	command = UCSI_COMMAND(UCSI_GET_PDOS) | UCSI_CONNECTOR_NUMBER(con->num);
@@ -643,7 +643,7 @@ static int ucsi_check_altmodes(struct ucsi_connector *con)
 			"con%d: failed to register partner alt modes (%d)\n",
 			con->num, ret);
 
-	/* Ignoring the errors in this case. */
+	/* Iganalring the errors in this case. */
 	if (con->partner_altmode[0]) {
 		num_partner_am = ucsi_get_num_altmode(con->partner_altmode);
 		if (num_partner_am > 0)
@@ -799,7 +799,7 @@ static void ucsi_unregister_partner(struct ucsi_connector *con)
 
 static void ucsi_partner_change(struct ucsi_connector *con)
 {
-	enum usb_role u_role = USB_ROLE_NONE;
+	enum usb_role u_role = USB_ROLE_ANALNE;
 	int ret;
 
 	switch (UCSI_CONSTAT_PARTNER_TYPE(con->status.flags)) {
@@ -833,9 +833,9 @@ static void ucsi_partner_change(struct ucsi_connector *con)
 		}
 	}
 
-	/* Only notify USB controller if partner supports USB data */
+	/* Only analtify USB controller if partner supports USB data */
 	if (!(UCSI_CONSTAT_PARTNER_FLAGS(con->status.flags) & UCSI_CONSTAT_PARTNER_FLAG_USB))
-		u_role = USB_ROLE_NONE;
+		u_role = USB_ROLE_ANALNE;
 
 	ret = usb_role_switch_set_role(con->usb_role_sw, u_role);
 	if (ret)
@@ -939,7 +939,7 @@ static void ucsi_handle_connector_change(struct work_struct *work)
 	clear_bit(EVENT_PENDING, &con->ucsi->flags);
 
 	mutex_lock(&ucsi->ppm_lock);
-	ret = ucsi_acknowledge_connector_change(ucsi);
+	ret = ucsi_ackanalwledge_connector_change(ucsi);
 	mutex_unlock(&ucsi->ppm_lock);
 	if (ret)
 		dev_err(ucsi->dev, "%s: ACK failed (%d)", __func__, ret);
@@ -1033,7 +1033,7 @@ static int ucsi_role_cmd(struct ucsi_connector *con, u64 command)
 		/* PPM most likely stopped responding. Resetting everything. */
 		ucsi_reset_ppm(con->ucsi);
 
-		c = UCSI_SET_NOTIFICATION_ENABLE | con->ucsi->ntfy;
+		c = UCSI_SET_ANALTIFICATION_ENABLE | con->ucsi->ntfy;
 		ucsi_send_command(con->ucsi, c, NULL, 0);
 
 		ucsi_reset_connector(con, true);
@@ -1052,7 +1052,7 @@ static int ucsi_dr_swap(struct typec_port *port, enum typec_data_role role)
 	mutex_lock(&con->lock);
 
 	if (!con->partner) {
-		ret = -ENOTCONN;
+		ret = -EANALTCONN;
 		goto out_unlock;
 	}
 
@@ -1096,7 +1096,7 @@ static int ucsi_pr_swap(struct typec_port *port, enum typec_role role)
 	mutex_lock(&con->lock);
 
 	if (!con->partner) {
-		ret = -ENOTCONN;
+		ret = -EANALTCONN;
 		goto out_unlock;
 	}
 
@@ -1140,15 +1140,15 @@ static const struct typec_operations ucsi_ops = {
 	.pr_set = ucsi_pr_swap
 };
 
-/* Caller must call fwnode_handle_put() after use */
-static struct fwnode_handle *ucsi_find_fwnode(struct ucsi_connector *con)
+/* Caller must call fwanalde_handle_put() after use */
+static struct fwanalde_handle *ucsi_find_fwanalde(struct ucsi_connector *con)
 {
-	struct fwnode_handle *fwnode;
+	struct fwanalde_handle *fwanalde;
 	int i = 1;
 
-	device_for_each_child_node(con->ucsi->dev, fwnode)
+	device_for_each_child_analde(con->ucsi->dev, fwanalde)
 		if (i++ == con->num)
-			return fwnode;
+			return fwanalde;
 	return NULL;
 }
 
@@ -1159,19 +1159,19 @@ static int ucsi_register_port(struct ucsi *ucsi, struct ucsi_connector *con)
 	struct usb_power_delivery_capabilities *pd_cap;
 	struct typec_capability *cap = &con->typec_cap;
 	enum typec_accessory *accessory = cap->accessory;
-	enum usb_role u_role = USB_ROLE_NONE;
+	enum usb_role u_role = USB_ROLE_ANALNE;
 	u64 command;
 	char *name;
 	int ret;
 
 	name = kasprintf(GFP_KERNEL, "%s-con%d", dev_name(ucsi->dev), con->num);
 	if (!name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	con->wq = create_singlethread_workqueue(name);
 	kfree(name);
 	if (!con->wq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_WORK(&con->work, ucsi_handle_connector_change);
 	init_completion(&con->complete);
@@ -1179,8 +1179,8 @@ static int ucsi_register_port(struct ucsi *ucsi, struct ucsi_connector *con)
 	INIT_LIST_HEAD(&con->partner_tasks);
 	con->ucsi = ucsi;
 
-	cap->fwnode = ucsi_find_fwnode(con);
-	con->usb_role_sw = fwnode_usb_role_switch_get(cap->fwnode);
+	cap->fwanalde = ucsi_find_fwanalde(con);
+	con->usb_role_sw = fwanalde_usb_role_switch_get(cap->fwanalde);
 	if (IS_ERR(con->usb_role_sw))
 		return dev_err_probe(ucsi->dev, PTR_ERR(con->usb_role_sw),
 			"con%d: failed to get usb role switch\n", con->num);
@@ -1213,7 +1213,7 @@ static int ucsi_register_port(struct ucsi *ucsi, struct ucsi_connector *con)
 	cap->revision = ucsi->cap.typec_version;
 	cap->pd_revision = ucsi->cap.pd_version;
 	cap->svdm_version = SVDM_VER_2_0;
-	cap->prefer_role = TYPEC_NO_PREFERRED_ROLE;
+	cap->prefer_role = TYPEC_ANAL_PREFERRED_ROLE;
 
 	if (con->cap.op_mode & UCSI_CONCAP_OPMODE_AUDIO_ACCESSORY)
 		*accessory++ = TYPEC_ACCESSORY_AUDIO;
@@ -1312,9 +1312,9 @@ static int ucsi_register_port(struct ucsi *ucsi, struct ucsi_connector *con)
 		ucsi_port_psy_changed(con);
 	}
 
-	/* Only notify USB controller if partner supports USB data */
+	/* Only analtify USB controller if partner supports USB data */
 	if (!(UCSI_CONSTAT_PARTNER_FLAGS(con->status.flags) & UCSI_CONSTAT_PARTNER_FLAG_USB))
-		u_role = USB_ROLE_NONE;
+		u_role = USB_ROLE_ANALNE;
 
 	ret = usb_role_switch_set_role(con->usb_role_sw, u_role);
 	if (ret) {
@@ -1333,7 +1333,7 @@ static int ucsi_register_port(struct ucsi *ucsi, struct ucsi_connector *con)
 	trace_ucsi_register_port(con->num, &con->status);
 
 out:
-	fwnode_handle_put(cap->fwnode);
+	fwanalde_handle_put(cap->fwanalde);
 out_unlock:
 	mutex_unlock(&con->lock);
 
@@ -1349,7 +1349,7 @@ out_unlock:
  * ucsi_init - Initialize UCSI interface
  * @ucsi: UCSI to be initialized
  *
- * Registers all ports @ucsi has and enables all notification events.
+ * Registers all ports @ucsi has and enables all analtification events.
  */
 static int ucsi_init(struct ucsi *ucsi)
 {
@@ -1365,9 +1365,9 @@ static int ucsi_init(struct ucsi *ucsi)
 		goto err;
 	}
 
-	/* Enable basic notifications */
+	/* Enable basic analtifications */
 	ntfy = UCSI_ENABLE_NTFY_CMD_COMPLETE | UCSI_ENABLE_NTFY_ERROR;
-	command = UCSI_SET_NOTIFICATION_ENABLE | ntfy;
+	command = UCSI_SET_ANALTIFICATION_ENABLE | ntfy;
 	ret = ucsi_send_command(ucsi, command, NULL, 0);
 	if (ret < 0)
 		goto err_reset;
@@ -1379,14 +1379,14 @@ static int ucsi_init(struct ucsi *ucsi)
 		goto err_reset;
 
 	if (!ucsi->cap.num_connectors) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_reset;
 	}
 
 	/* Allocate the connectors. Released in ucsi_unregister() */
 	connector = kcalloc(ucsi->cap.num_connectors + 1, sizeof(*connector), GFP_KERNEL);
 	if (!connector) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_reset;
 	}
 
@@ -1398,9 +1398,9 @@ static int ucsi_init(struct ucsi *ucsi)
 			goto err_unregister;
 	}
 
-	/* Enable all notifications */
+	/* Enable all analtifications */
 	ntfy = UCSI_ENABLE_NTFY_ALL;
-	command = UCSI_SET_NOTIFICATION_ENABLE | ntfy;
+	command = UCSI_SET_ANALTIFICATION_ENABLE | ntfy;
 	ret = ucsi_send_command(ucsi, command, NULL, 0);
 	if (ret < 0)
 		goto err_unregister;
@@ -1441,11 +1441,11 @@ static void ucsi_resume_work(struct work_struct *work)
 	u64 command;
 	int ret;
 
-	/* Restore UCSI notification enable mask after system resume */
-	command = UCSI_SET_NOTIFICATION_ENABLE | ucsi->ntfy;
+	/* Restore UCSI analtification enable mask after system resume */
+	command = UCSI_SET_ANALTIFICATION_ENABLE | ucsi->ntfy;
 	ret = ucsi_send_command(ucsi, command, NULL, 0);
 	if (ret < 0) {
-		dev_err(ucsi->dev, "failed to re-enable notifications (%d)\n", ret);
+		dev_err(ucsi->dev, "failed to re-enable analtifications (%d)\n", ret);
 		return;
 	}
 
@@ -1519,7 +1519,7 @@ struct ucsi *ucsi_create(struct device *dev, const struct ucsi_operations *ops)
 
 	ucsi = kzalloc(sizeof(*ucsi), GFP_KERNEL);
 	if (!ucsi)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	INIT_WORK(&ucsi->resume_work, ucsi_resume_work);
 	INIT_DELAYED_WORK(&ucsi->work, ucsi_init_work);
@@ -1556,7 +1556,7 @@ int ucsi_register(struct ucsi *ucsi)
 		return ret;
 
 	if (!ucsi->version)
-		return -ENODEV;
+		return -EANALDEV;
 
 	queue_delayed_work(system_long_wq, &ucsi->work, 0);
 
@@ -1573,14 +1573,14 @@ EXPORT_SYMBOL_GPL(ucsi_register);
  */
 void ucsi_unregister(struct ucsi *ucsi)
 {
-	u64 cmd = UCSI_SET_NOTIFICATION_ENABLE;
+	u64 cmd = UCSI_SET_ANALTIFICATION_ENABLE;
 	int i;
 
-	/* Make sure that we are not in the middle of driver initialization */
+	/* Make sure that we are analt in the middle of driver initialization */
 	cancel_delayed_work_sync(&ucsi->work);
 	cancel_work_sync(&ucsi->resume_work);
 
-	/* Disable notifications */
+	/* Disable analtifications */
 	ucsi->ops->async_write(ucsi, UCSI_CONTROL, &cmd, sizeof(cmd));
 
 	if (!ucsi->connector)
@@ -1601,7 +1601,7 @@ void ucsi_unregister(struct ucsi *ucsi)
 			 * queue delayed items immediately so they can execute
 			 * and free themselves before the wq is destroyed
 			 */
-			list_for_each_entry(uwork, &ucsi->connector[i].partner_tasks, node)
+			list_for_each_entry(uwork, &ucsi->connector[i].partner_tasks, analde)
 				mod_delayed_work(ucsi->connector[i].wq, &uwork->work, 0);
 			mutex_unlock(&ucsi->connector[i].lock);
 			destroy_workqueue(ucsi->connector[i].wq);

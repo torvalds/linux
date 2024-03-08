@@ -45,12 +45,12 @@ enum sensors {
 };
 
 static struct v4l2_pix_format vga_mode[] = {
-	{320, 240, V4L2_PIX_FMT_SRGGB8, V4L2_FIELD_NONE,
+	{320, 240, V4L2_PIX_FMT_SRGGB8, V4L2_FIELD_ANALNE,
 		.bytesperline = 320,
 		.sizeimage = 320 * 240,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 0},
-	{640, 480, V4L2_PIX_FMT_SRGGB8, V4L2_FIELD_NONE,
+	{640, 480, V4L2_PIX_FMT_SRGGB8, V4L2_FIELD_ANALNE,
 		.bytesperline = 640,
 		.sizeimage = 640 * 480,
 		.colorspace = V4L2_COLORSPACE_SRGB,
@@ -535,7 +535,7 @@ static void ucbus_write(struct gspca_dev *gspca_dev,
 
 	if ((batchsize - 1) * 3 > USB_BUF_SZ) {
 		gspca_err(gspca_dev, "Bug: usb_buf overflow\n");
-		gspca_dev->usb_err = -ENOMEM;
+		gspca_dev->usb_err = -EANALMEM;
 		return;
 	}
 
@@ -646,7 +646,7 @@ static void cmos_probe(struct gspca_dev *gspca_dev)
 			break;
 	}
 	if (i >= ARRAY_SIZE(probe_order)) {
-		pr_err("Unknown sensor\n");
+		pr_err("Unkanalwn sensor\n");
 		gspca_dev->usb_err = -EINVAL;
 		return;
 	}
@@ -654,7 +654,7 @@ static void cmos_probe(struct gspca_dev *gspca_dev)
 	switch (sd->sensor) {
 	case SENSOR_OV7660:
 	case SENSOR_OV9630:
-		pr_err("Sensor %s not yet treated\n",
+		pr_err("Sensor %s analt yet treated\n",
 		       sensor_tb[sd->sensor].name);
 		gspca_dev->usb_err = -EINVAL;
 		break;
@@ -837,7 +837,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 
 /* it returns:
  * 03 00 12 93 0b f6 c9 00	live! ultra
- * 03 00 07 93 0b f6 ca 00	live! ultra for notebook
+ * 03 00 07 93 0b f6 ca 00	live! ultra for analtebook
  * 03 00 12 93 0b fe c8 00	Trust WB-3500T
  * 02 00 06 93 0b fe c8 00	Joy-IT 318S
  * 03 00 12 93 0b f6 cf 00	icam tracer - sensor icx098bq
@@ -859,7 +859,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 
 	if (sd->sensor == SENSOR_MI0360) {
 
-		/* no sensor probe for icam tracer */
+		/* anal sensor probe for icam tracer */
 		if (gspca_dev->usb_buf[5] == 0xf6)	/* if ccd */
 			sd->sensor = SENSOR_ICX098BQ;
 		else
@@ -1097,7 +1097,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 			V4L2_CID_GAIN, 1, 255, 1, 0x8d);
 
 	if (hdl->error) {
-		pr_err("Could not initialize controls\n");
+		pr_err("Could analt initialize controls\n");
 		return hdl->error;
 	}
 	v4l2_ctrl_cluster(2, &sd->exposure);

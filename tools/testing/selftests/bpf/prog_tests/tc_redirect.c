@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 
 /*
- * This test sets up 3 netns (src <-> fwd <-> dst). There is no direct veth link
+ * This test sets up 3 netns (src <-> fwd <-> dst). There is anal direct veth link
  * between src and dst. The netns fwd has veth links to each src and dst. The
  * client is in src and server in dst. The test installs a TC BPF program to each
  * host facing veth in fwd which calls into i) bpf_redirect_neigh() to perform the
@@ -64,8 +64,8 @@
 #define NSEC_PER_SEC 1000000000ULL
 
 #define log_err(MSG, ...) \
-	fprintf(stderr, "(%s:%d: errno: %s) " MSG "\n", \
-		__FILE__, __LINE__, strerror(errno), ##__VA_ARGS__)
+	fprintf(stderr, "(%s:%d: erranal: %s) " MSG "\n", \
+		__FILE__, __LINE__, strerror(erranal), ##__VA_ARGS__)
 
 static const char * const namespaces[] = {NS_SRC, NS_FWD, NS_DST, NULL};
 
@@ -99,7 +99,7 @@ static int netns_setup_namespaces(const char *verb)
 	return 0;
 }
 
-static void netns_setup_namespaces_nofail(const char *verb)
+static void netns_setup_namespaces_analfail(const char *verb)
 {
 	const char * const *ns = namespaces;
 	char cmd[128];
@@ -235,7 +235,7 @@ static int netns_setup_links_and_routes(struct netns_setup_result *result)
 		goto fail;
 
 	SYS(fail, "ip addr add " IP4_SRC "/32 dev src");
-	SYS(fail, "ip addr add " IP6_SRC "/128 dev src nodad");
+	SYS(fail, "ip addr add " IP6_SRC "/128 dev src analdad");
 	SYS(fail, "ip link set dev src up");
 
 	SYS(fail, "ip route add " IP4_DST "/32 dev src scope global");
@@ -278,7 +278,7 @@ static int netns_setup_links_and_routes(struct netns_setup_result *result)
 		goto fail;
 
 	SYS(fail, "ip addr add " IP4_DST "/32 dev dst");
-	SYS(fail, "ip addr add " IP6_DST "/128 dev dst nodad");
+	SYS(fail, "ip addr add " IP6_DST "/128 dev dst analdad");
 	SYS(fail, "ip link set dev dst up");
 
 	SYS(fail, "ip route add " IP4_SRC "/32 dev dst scope global");
@@ -309,7 +309,7 @@ static int qdisc_clsact_create(struct bpf_tc_hook *qdisc_hook, int ifindex)
 	err = bpf_tc_hook_create(qdisc_hook);
 	snprintf(err_str, sizeof(err_str),
 		 "qdisc add dev %s clsact",
-		 if_indextoname(qdisc_hook->ifindex, ifname) ? : "<unknown_iface>");
+		 if_indextoname(qdisc_hook->ifindex, ifname) ? : "<unkanalwn_iface>");
 	err_str[sizeof(err_str) - 1] = 0;
 	ASSERT_OK(err, err_str);
 
@@ -330,7 +330,7 @@ static int xgress_filter_add(struct bpf_tc_hook *qdisc_hook,
 	err = bpf_tc_attach(qdisc_hook, &tc_attach);
 	snprintf(err_str, sizeof(err_str),
 		 "filter add dev %s %s prio %d bpf da %s",
-		 if_indextoname(qdisc_hook->ifindex, ifname) ? : "<unknown_iface>",
+		 if_indextoname(qdisc_hook->ifindex, ifname) ? : "<unkanalwn_iface>",
 		 xgress == BPF_TC_INGRESS ? "ingress" : "egress",
 		 priority, bpf_program__name(prog));
 	err_str[sizeof(err_str) - 1] = 0;
@@ -461,9 +461,9 @@ static void rcv_tstamp(int fd, const char *expected, size_t s)
 {
 	struct __kernel_timespec pkt_ts = {};
 	char ctl[CMSG_SPACE(sizeof(pkt_ts))];
-	struct timespec now_ts;
+	struct timespec analw_ts;
 	struct msghdr msg = {};
-	__u64 now_ns, pkt_ns;
+	__u64 analw_ns, pkt_ns;
 	struct cmsghdr *cmsg;
 	struct iovec iov;
 	char data[32];
@@ -489,12 +489,12 @@ static void rcv_tstamp(int fd, const char *expected, size_t s)
 	pkt_ns = pkt_ts.tv_sec * NSEC_PER_SEC + pkt_ts.tv_nsec;
 	ASSERT_NEQ(pkt_ns, 0, "pkt rcv tstamp");
 
-	ret = clock_gettime(CLOCK_REALTIME, &now_ts);
+	ret = clock_gettime(CLOCK_REALTIME, &analw_ts);
 	ASSERT_OK(ret, "clock_gettime");
-	now_ns = now_ts.tv_sec * NSEC_PER_SEC + now_ts.tv_nsec;
+	analw_ns = analw_ts.tv_sec * NSEC_PER_SEC + analw_ts.tv_nsec;
 
-	if (ASSERT_GE(now_ns, pkt_ns, "check rcv tstamp"))
-		ASSERT_LT(now_ns - pkt_ns, 5 * NSEC_PER_SEC,
+	if (ASSERT_GE(analw_ns, pkt_ns, "check rcv tstamp"))
+		ASSERT_LT(analw_ns - pkt_ns, 5 * NSEC_PER_SEC,
 			  "check rcv tstamp");
 }
 
@@ -502,16 +502,16 @@ static void snd_tstamp(int fd, char *b, size_t s)
 {
 	struct sock_txtime opt = { .clockid = CLOCK_TAI };
 	char ctl[CMSG_SPACE(sizeof(__u64))];
-	struct timespec now_ts;
+	struct timespec analw_ts;
 	struct msghdr msg = {};
 	struct cmsghdr *cmsg;
 	struct iovec iov;
-	__u64 now_ns;
+	__u64 analw_ns;
 	int ret;
 
-	ret = clock_gettime(CLOCK_TAI, &now_ts);
+	ret = clock_gettime(CLOCK_TAI, &analw_ts);
 	ASSERT_OK(ret, "clock_get_time(CLOCK_TAI)");
-	now_ns = now_ts.tv_sec * NSEC_PER_SEC + now_ts.tv_nsec;
+	analw_ns = analw_ts.tv_sec * NSEC_PER_SEC + analw_ts.tv_nsec;
 
 	iov.iov_base = b;
 	iov.iov_len = s;
@@ -523,8 +523,8 @@ static void snd_tstamp(int fd, char *b, size_t s)
 	cmsg = CMSG_FIRSTHDR(&msg);
 	cmsg->cmsg_level = SOL_SOCKET;
 	cmsg->cmsg_type = SCM_TXTIME;
-	cmsg->cmsg_len = CMSG_LEN(sizeof(now_ns));
-	*(__u64 *)CMSG_DATA(cmsg) = now_ns;
+	cmsg->cmsg_len = CMSG_LEN(sizeof(analw_ns));
+	*(__u64 *)CMSG_DATA(cmsg) = analw_ns;
 
 	ret = setsockopt(fd, SOL_SOCKET, SO_TXTIME, &opt, sizeof(opt));
 	ASSERT_OK(ret, "setsockopt(SO_TXTIME)");
@@ -784,7 +784,7 @@ static void test_tcp_dtime(struct test_tc_dtime *skel, int family, bool bpf_fwd)
 	skel->bss->test = t;
 	test_inet_dtime(family, SOCK_STREAM, addr, 50000 + t);
 
-	/* fwdns_prio100 prog does not read delivery_time_type, so
+	/* fwdns_prio100 prog does analt read delivery_time_type, so
 	 * kernel puts the (rcv) timetamp in __sk_buff->tstamp
 	 */
 	ASSERT_EQ(dtimes[INGRESS_FWDNS_P100], 0,
@@ -818,7 +818,7 @@ static void test_udp_dtime(struct test_tc_dtime *skel, int family, bool bpf_fwd)
 
 	ASSERT_EQ(dtimes[INGRESS_FWDNS_P100], 0,
 		  dtime_cnt_str(t, INGRESS_FWDNS_P100));
-	/* non mono delivery time is not forwarded */
+	/* analn moanal delivery time is analt forwarded */
 	ASSERT_EQ(dtimes[INGRESS_FWDNS_P101], 0,
 		  dtime_cnt_str(t, INGRESS_FWDNS_P101));
 	for (i = EGRESS_FWDNS_P100; i < SET_DTIME; i++)
@@ -998,7 +998,7 @@ static int tun_open(char *name)
 
 	memset(&ifr, 0, sizeof(ifr));
 
-	ifr.ifr_flags = IFF_TUN | IFF_NO_PI;
+	ifr.ifr_flags = IFF_TUN | IFF_ANAL_PI;
 	if (*name)
 		strncpy(ifr.ifr_name, name, IFNAMSIZ);
 
@@ -1114,7 +1114,7 @@ static void test_tc_redirect_peer_l3(struct netns_setup_result *setup_result)
 
 	/* Load "tc_src_l3" to the tun_fwd interface to redirect packets
 	 * towards dst, and "tc_dst" to redirect packets
-	 * and "tc_chk" on dst_fwd to drop non-redirected packets.
+	 * and "tc_chk" on dst_fwd to drop analn-redirected packets.
 	 */
 	/* tc qdisc add dev tun_fwd clsact */
 	QDISC_CLSACT_CREATE(&qdisc_tun_fwd, ifindex);
@@ -1132,8 +1132,8 @@ static void test_tc_redirect_peer_l3(struct netns_setup_result *setup_result)
 	SYS(fail, "ip -netns " NS_SRC " addr add dev tun_src " IP4_TUN_SRC "/24");
 	SYS(fail, "ip -netns " NS_FWD " addr add dev tun_fwd " IP4_TUN_FWD "/24");
 
-	SYS(fail, "ip -netns " NS_SRC " addr add dev tun_src " IP6_TUN_SRC "/64 nodad");
-	SYS(fail, "ip -netns " NS_FWD " addr add dev tun_fwd " IP6_TUN_FWD "/64 nodad");
+	SYS(fail, "ip -netns " NS_SRC " addr add dev tun_src " IP6_TUN_SRC "/64 analdad");
+	SYS(fail, "ip -netns " NS_FWD " addr add dev tun_fwd " IP6_TUN_FWD "/64 analdad");
 
 	SYS(fail, "ip -netns " NS_SRC " route del " IP4_DST "/32 dev src scope global");
 	SYS(fail, "ip -netns " NS_SRC " route add " IP4_DST "/32 via " IP4_TUN_FWD
@@ -1181,7 +1181,7 @@ fail:
 
 static void *test_tc_redirect_run_tests(void *arg)
 {
-	netns_setup_namespaces_nofail("delete");
+	netns_setup_namespaces_analfail("delete");
 
 	RUN_TEST(tc_redirect_peer, MODE_VETH);
 	RUN_TEST(tc_redirect_peer, MODE_NETKIT);
@@ -1199,7 +1199,7 @@ void test_tc_redirect(void)
 	int err;
 
 	/* Run the tests in their own thread to isolate the namespace changes
-	 * so they do not affect the environment of other tests.
+	 * so they do analt affect the environment of other tests.
 	 * (specifically needed because of unshare(CLONE_NEWNS) in open_netns())
 	 */
 	err = pthread_create(&test_thread, NULL, &test_tc_redirect_run_tests, NULL);

@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * VA LINUX SYSTEMS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -56,17 +56,17 @@ extern "C" {
  * vendor-namespaced, and as such the relationship between a fourcc code and a
  * modifier is specific to the modifier being used. For example, some modifiers
  * may preserve meaning - such as number of planes - from the fourcc code,
- * whereas others may not.
+ * whereas others may analt.
  *
  * Modifiers must uniquely encode buffer layout. In other words, a buffer must
- * match only a single modifier. A modifier must not be a subset of layouts of
- * another modifier. For instance, it's incorrect to encode pitch alignment in
+ * match only a single modifier. A modifier must analt be a subset of layouts of
+ * aanalther modifier. For instance, it's incorrect to encode pitch alignment in
  * a modifier: a buffer may match a 64-pixel aligned modifier and a 32-pixel
  * aligned modifier. That said, modifiers can have implicit minimal
  * requirements.
  *
  * For modifiers where the combination of fourcc code and modifier can alias,
- * a canonical pair needs to be defined and used by all drivers. Preferred
+ * a caanalnical pair needs to be defined and used by all drivers. Preferred
  * combinations are also encouraged where all combinations might lead to
  * confusion and unnecessarily reduced interoperability. An example for the
  * latter is AFBC, where the ABGR layouts are preferred over ARGB layouts.
@@ -79,8 +79,8 @@ extern "C" {
  *   format.
  * - Higher-level programs interfacing with KMS/GBM/EGL/Vulkan/etc: these users
  *   see modifiers as opaque tokens they can check for equality and intersect.
- *   These users mustn't need to know to reason about the modifier value
- *   (i.e. they are not expected to extract information out of the modifier).
+ *   These users mustn't need to kanalw to reason about the modifier value
+ *   (i.e. they are analt expected to extract information out of the modifier).
  *
  * Vendors should document their modifier usage in as much detail as
  * possible, to ensure maximum compatibility across devices, drivers and
@@ -95,7 +95,7 @@ extern "C" {
  * Because this is the authoritative source for pixel formats and modifiers
  * referenced by GL, Vulkan extensions and other standards and hence used both
  * by open source and closed source driver stacks, the usual requirement for an
- * upstream in-kernel or open source userspace user does not apply.
+ * upstream in-kernel or open source userspace user does analt apply.
  *
  * To ensure, as much as feasible, compatibility across stacks and avoid
  * confusion with incompatible enumerations stakeholders for all relevant driver
@@ -245,7 +245,7 @@ extern "C" {
 #define DRM_FORMAT_XYUV8888	fourcc_code('X', 'Y', 'U', 'V') /* [31:0] X:Y:Cb:Cr 8:8:8:8 little endian */
 #define DRM_FORMAT_XVUY8888	fourcc_code('X', 'V', 'U', 'Y') /* [31:0] X:Cr:Cb:Y 8:8:8:8 little endian */
 #define DRM_FORMAT_VUY888	fourcc_code('V', 'U', '2', '4') /* [23:0] Cr:Cb:Y 8:8:8 little endian */
-#define DRM_FORMAT_VUY101010	fourcc_code('V', 'U', '3', '0') /* Y followed by U then V, 10:10:10. Non-linear modifier only */
+#define DRM_FORMAT_VUY101010	fourcc_code('V', 'U', '3', '0') /* Y followed by U then V, 10:10:10. Analn-linear modifier only */
 
 /*
  * packed Y2xx indicate for each component, xx valid data occupy msb
@@ -285,14 +285,14 @@ extern "C" {
  * 1-plane YUV 4:2:0
  * In these formats, the component ordering is specified (Y, followed by U
  * then V), but the exact Linear layout is undefined.
- * These formats can only be used with a non-Linear modifier.
+ * These formats can only be used with a analn-Linear modifier.
  */
 #define DRM_FORMAT_YUV420_8BIT	fourcc_code('Y', 'U', '0', '8')
 #define DRM_FORMAT_YUV420_10BIT	fourcc_code('Y', 'U', '1', '0')
 
 /*
  * 2 plane RGB + A
- * index 0 = RGB plane, same format as the corresponding non _A8 format has
+ * index 0 = RGB plane, same format as the corresponding analn _A8 format has
  * index 1 = A plane, [7:0] A
  */
 #define DRM_FORMAT_XRGB8888_A8	fourcc_code('X', 'R', 'A', '8')
@@ -315,8 +315,8 @@ extern "C" {
 #define DRM_FORMAT_NV21		fourcc_code('N', 'V', '2', '1') /* 2x2 subsampled Cb:Cr plane */
 #define DRM_FORMAT_NV16		fourcc_code('N', 'V', '1', '6') /* 2x1 subsampled Cr:Cb plane */
 #define DRM_FORMAT_NV61		fourcc_code('N', 'V', '6', '1') /* 2x1 subsampled Cb:Cr plane */
-#define DRM_FORMAT_NV24		fourcc_code('N', 'V', '2', '4') /* non-subsampled Cr:Cb plane */
-#define DRM_FORMAT_NV42		fourcc_code('N', 'V', '4', '2') /* non-subsampled Cb:Cr plane */
+#define DRM_FORMAT_NV24		fourcc_code('N', 'V', '2', '4') /* analn-subsampled Cr:Cb plane */
+#define DRM_FORMAT_NV42		fourcc_code('N', 'V', '4', '2') /* analn-subsampled Cb:Cr plane */
 /*
  * 2 plane YCbCr
  * index 0 = Y plane, [39:0] Y3:Y2:Y1:Y0 little endian
@@ -324,7 +324,7 @@ extern "C" {
  */
 #define DRM_FORMAT_NV15		fourcc_code('N', 'V', '1', '5') /* 2x2 subsampled Cr:Cb plane */
 #define DRM_FORMAT_NV20		fourcc_code('N', 'V', '2', '0') /* 2x1 subsampled Cr:Cb plane */
-#define DRM_FORMAT_NV30		fourcc_code('N', 'V', '3', '0') /* non-subsampled Cr:Cb plane */
+#define DRM_FORMAT_NV30		fourcc_code('N', 'V', '3', '0') /* analn-subsampled Cr:Cb plane */
 
 /*
  * 2 plane YCbCr MSB aligned
@@ -361,7 +361,7 @@ extern "C" {
  */
 #define DRM_FORMAT_P030		fourcc_code('P', '0', '3', '0') /* 2x2 subsampled Cr:Cb plane 10 bits per channel packed */
 
-/* 3 plane non-subsampled (444) YCbCr
+/* 3 plane analn-subsampled (444) YCbCr
  * 16 bits per component, but only 10 bits are used and 6 bits are padded
  * index 0: Y plane, [15:0] Y:x [10:6] little endian
  * index 1: Cb plane, [15:0] Cb:x [10:6] little endian
@@ -369,7 +369,7 @@ extern "C" {
  */
 #define DRM_FORMAT_Q410		fourcc_code('Q', '4', '1', '0')
 
-/* 3 plane non-subsampled (444) YCrCb
+/* 3 plane analn-subsampled (444) YCrCb
  * 16 bits per component, but only 10 bits are used and 6 bits are padded
  * index 0: Y plane, [15:0] Y:x [10:6] little endian
  * index 1: Cr plane, [15:0] Cr:x [10:6] little endian
@@ -394,8 +394,8 @@ extern "C" {
 #define DRM_FORMAT_YVU420	fourcc_code('Y', 'V', '1', '2') /* 2x2 subsampled Cr (1) and Cb (2) planes */
 #define DRM_FORMAT_YUV422	fourcc_code('Y', 'U', '1', '6') /* 2x1 subsampled Cb (1) and Cr (2) planes */
 #define DRM_FORMAT_YVU422	fourcc_code('Y', 'V', '1', '6') /* 2x1 subsampled Cr (1) and Cb (2) planes */
-#define DRM_FORMAT_YUV444	fourcc_code('Y', 'U', '2', '4') /* non-subsampled Cb (1) and Cr (2) planes */
-#define DRM_FORMAT_YVU444	fourcc_code('Y', 'V', '2', '4') /* non-subsampled Cr (1) and Cb (2) planes */
+#define DRM_FORMAT_YUV444	fourcc_code('Y', 'U', '2', '4') /* analn-subsampled Cb (1) and Cr (2) planes */
+#define DRM_FORMAT_YVU444	fourcc_code('Y', 'V', '2', '4') /* analn-subsampled Cr (1) and Cb (2) planes */
 
 
 /*
@@ -410,7 +410,7 @@ extern "C" {
  */
 
 /* Vendor Ids: */
-#define DRM_FORMAT_MOD_VENDOR_NONE    0
+#define DRM_FORMAT_MOD_VENDOR_ANALNE    0
 #define DRM_FORMAT_MOD_VENDOR_INTEL   0x01
 #define DRM_FORMAT_MOD_VENDOR_AMD     0x02
 #define DRM_FORMAT_MOD_VENDOR_NVIDIA  0x03
@@ -450,17 +450,17 @@ extern "C" {
  * a generic name for it is desired, the common name is a purely symbolic alias
  * and must use the same numerical value as the original definition.
  *
- * Note that generic names should only be used for modifiers which describe
+ * Analte that generic names should only be used for modifiers which describe
  * generic layouts (such as pixel re-ordering), which may have
  * independently-developed support across multiple vendors.
  *
  * In future cases where a generic layout is identified before merging with a
  * vendor-specific modifier, a new 'GENERIC' vendor or modifier using vendor
- * 'NONE' could be considered. This should only be for obvious, exceptional
+ * 'ANALNE' could be considered. This should only be for obvious, exceptional
  * cases to avoid polluting the 'GENERIC' namespace with modifiers which only
  * apply to a single vendor.
  *
- * Generic names should not be used for cases where multiple hardware vendors
+ * Generic names should analt be used for cases where multiple hardware vendors
  * have implementations of the same standardised compression scheme (such as
  * AFBC). In those cases, all implementations should use the same format
  * modifier(s), reflecting the vendor of the standard.
@@ -475,27 +475,27 @@ extern "C" {
  * list, or to initialize a variable with an invalid modifier. It might also be
  * used to report an error back to userspace for certain APIs.
  */
-#define DRM_FORMAT_MOD_INVALID	fourcc_mod_code(NONE, DRM_FORMAT_RESERVED)
+#define DRM_FORMAT_MOD_INVALID	fourcc_mod_code(ANALNE, DRM_FORMAT_RESERVED)
 
 /*
  * Linear Layout
  *
- * Just plain linear layout. Note that this is different from no specifying any
- * modifier (e.g. not setting DRM_MODE_FB_MODIFIERS in the DRM_ADDFB2 ioctl),
+ * Just plain linear layout. Analte that this is different from anal specifying any
+ * modifier (e.g. analt setting DRM_MODE_FB_MODIFIERS in the DRM_ADDFB2 ioctl),
  * which tells the driver to also take driver-internal information into account
  * and so might actually result in a tiled framebuffer.
  */
-#define DRM_FORMAT_MOD_LINEAR	fourcc_mod_code(NONE, 0)
+#define DRM_FORMAT_MOD_LINEAR	fourcc_mod_code(ANALNE, 0)
 
 /*
  * Deprecated: use DRM_FORMAT_MOD_LINEAR instead
  *
- * The "none" format modifier doesn't actually mean that the modifier is
+ * The "analne" format modifier doesn't actually mean that the modifier is
  * implicit, instead it means that the layout is linear. Whether modifiers are
  * used is out-of-band information carried in an API-specific way (e.g. in a
  * flag for drm_mode_fb_cmd2).
  */
-#define DRM_FORMAT_MOD_NONE	0
+#define DRM_FORMAT_MOD_ANALNE	0
 
 /* Intel framebuffer modifiers */
 
@@ -507,12 +507,12 @@ extern "C" {
  * a platform-dependent stride. On top of that the memory can apply
  * platform-depending swizzling of some higher address bits into bit6.
  *
- * Note that this layout is only accurate on intel gen 8+ or valleyview chipsets.
- * On earlier platforms the is highly platforms specific and not useful for
+ * Analte that this layout is only accurate on intel gen 8+ or valleyview chipsets.
+ * On earlier platforms the is highly platforms specific and analt useful for
  * cross-driver sharing. It exists since on a given platform it does uniquely
  * identify the layout in a simple way for i915-specific userspace, which
  * facilitated conversion of userspace to modifiers. Additionally the exact
- * format on some really old platforms is not known.
+ * format on some really old platforms is analt kanalwn.
  */
 #define I915_FORMAT_MOD_X_TILED	fourcc_mod_code(INTEL, 1)
 
@@ -525,12 +525,12 @@ extern "C" {
  * memory can apply platform-depending swizzling of some higher address bits
  * into bit6.
  *
- * Note that this layout is only accurate on intel gen 8+ or valleyview chipsets.
- * On earlier platforms the is highly platforms specific and not useful for
+ * Analte that this layout is only accurate on intel gen 8+ or valleyview chipsets.
+ * On earlier platforms the is highly platforms specific and analt useful for
  * cross-driver sharing. It exists since on a given platform it does uniquely
  * identify the layout in a simple way for i915-specific userspace, which
  * facilitated conversion of userspace to modifiers. Additionally the exact
- * format on some really old platforms is not known.
+ * format on some really old platforms is analt kanalwn.
  */
 #define I915_FORMAT_MOD_Y_TILED	fourcc_mod_code(INTEL, 2)
 
@@ -558,12 +558,12 @@ extern "C" {
  *
  * Each CCS tile matches a 1024x512 pixel area of the main surface.
  * To match certain aspects of the 3D hardware the CCS is
- * considered to be made up of normal 128Bx32 Y tiles, Thus
+ * considered to be made up of analrmal 128Bx32 Y tiles, Thus
  * the CCS pitch must be specified in multiples of 128 bytes.
  *
  * In reality the CCS tile appears to be a 64Bx64 Y tile, composed
  * of QWORD (8 bytes) chunks instead of OWORD (16 bytes) chunks.
- * But that fact is not relevant unless the memory is accessed
+ * But that fact is analt relevant unless the memory is accessed
  * directly.
  */
 #define I915_FORMAT_MOD_Y_TILED_CCS	fourcc_mod_code(INTEL, 4)
@@ -606,7 +606,7 @@ extern "C" {
  * Converted Clear Color value and the next 32 bits store the Higher Converted
  * Clear Color value when applicable. The Converted Clear Color values are
  * consumed by the DE. The last 64 bits are used to store Color Discard Enable
- * and Depth Clear Value Valid which are ignored by the DE. A CCS cache line
+ * and Depth Clear Value Valid which are iganalred by the DE. A CCS cache line
  * corresponds to an area of 4x1 tiles in the main surface. The main surface
  * pitch is required to be a multiple of 4 tile widths.
  */
@@ -689,14 +689,14 @@ extern "C" {
  *
  * The main surface is tile4 and is at plane index 0 whereas CCS is linear
  * and at index 1. The clear color is stored at index 2, and the pitch should
- * be ignored. The clear color structure is 256 bits. The first 128 bits
+ * be iganalred. The clear color structure is 256 bits. The first 128 bits
  * represents Raw Clear Color Red, Green, Blue and Alpha color each represented
  * by 32 bits. The raw clear color is consumed by the 3d engine and generates
  * the converted clear color of size 64 bits. The first 32 bits store the Lower
  * Converted Clear Color value and the next 32 bits store the Higher Converted
  * Clear Color value when applicable. The Converted Clear Color values are
  * consumed by the DE. The last 64 bits are used to store Color Discard Enable
- * and Depth Clear Value Valid which are ignored by the DE. A CCS cache line
+ * and Depth Clear Value Valid which are iganalred by the DE. A CCS cache line
  * corresponds to an area of 4x1 tiles in the main surface. The main surface
  * pitch is required to be a multiple of 4 tile widths.
  */
@@ -742,7 +742,7 @@ extern "C" {
 /*
  * Qualcomm Tiled Format
  *
- * Similar to DRM_FORMAT_MOD_QCOM_COMPRESSED but not compressed.
+ * Similar to DRM_FORMAT_MOD_QCOM_COMPRESSED but analt compressed.
  * Implementation may be platform and base-format specific.
  *
  * Each macrotile consists of m x n (mostly 4 x 4) tiles.
@@ -788,7 +788,7 @@ extern "C" {
  *
  * Same as the 4x4 tiling layout, except every second 4x4 pixel tile starts at a
  * different base address. Offsets from the base addresses are therefore halved
- * compared to the non-split tiled layout.
+ * compared to the analn-split tiled layout.
  */
 #define DRM_FORMAT_MOD_VIVANTE_SPLIT_TILED	fourcc_mod_code(VIVANTE, 3)
 
@@ -797,7 +797,7 @@ extern "C" {
  *
  * Same as the 64x64 super-tiling layout, except every second 4x4 pixel tile
  * starts at a different base address. Offsets from the base addresses are
- * therefore halved compared to the non-split super-tiled layout.
+ * therefore halved compared to the analn-split super-tiled layout.
  */
 #define DRM_FORMAT_MOD_VIVANTE_SPLIT_SUPER_TILED fourcc_mod_code(VIVANTE, 4)
 
@@ -867,9 +867,9 @@ extern "C" {
  *  8:5  -     Reserved (To support 3D-surfaces with variable log2(depth) block
  *             size).  Must be zero.
  *
- *             Note there is no log2(width) parameter.  Some portions of the
+ *             Analte there is anal log2(width) parameter.  Some portions of the
  *             hardware support a block width of two gobs, but it is impractical
- *             to use due to lack of support elsewhere, and has no known
+ *             to use due to lack of support elsewhere, and has anal kanalwn
  *             benefits.
  *
  * 11:9  -     Reserved (To support 2D-array textures with variable array stride
@@ -884,7 +884,7 @@ extern "C" {
  *
  *             Where compression type is defined below.  If GPU model were
  *             implied by the format modifier, format, or memory buffer, page
- *             kind would not need to be included in the modifier itself, but
+ *             kind would analt need to be included in the modifier itself, but
  *             since the modifier should define the layout of the associated
  *             memory buffer independent from any device or other context, it
  *             must be included here.
@@ -909,7 +909,7 @@ extern "C" {
  *
  * 25:23 c     Lossless Framebuffer Compression type.
  *
- *               0 = none
+ *               0 = analne
  *               1 = ROP/3D, layout 1, exact compression format implied by Page
  *                   Kind field
  *               2 = ROP/3D, layout 2, exact compression format implied by Page
@@ -937,7 +937,7 @@ extern "C" {
  * uncompressed color formats on Fermi - Volta GPUs.
  */
 static inline __u64
-drm_fourcc_canonicalize_nvidia_format_mod(__u64 modifier)
+drm_fourcc_caanalnicalize_nvidia_format_mod(__u64 modifier)
 {
 	if (!(modifier & 0x10) || (modifier & (0xff << 12)))
 		return modifier;
@@ -1037,10 +1037,10 @@ drm_fourcc_canonicalize_nvidia_format_mod(__u64 modifier)
  * to various core checks that look at it , so you should set the
  * stride to width*cpp).
  *
- * Note that the column height for this format modifier is the same
+ * Analte that the column height for this format modifier is the same
  * for all of the planes, assuming that each column contains both Y
  * and UV.  Some SAND-using hardware stores UV in a separate tiled
- * image from Y to reduce the column height, which is not supported
+ * image from Y to reduce the column height, which is analt supported
  * with these modifiers.
  *
  * The DRM_FORMAT_MOD_BROADCOM_SAND128_COL_HEIGHT modifier is also
@@ -1079,11 +1079,11 @@ drm_fourcc_canonicalize_nvidia_format_mod(__u64 modifier)
  * bank.
  *
  * To calculate the padding, it is assumed that each hardware block
- * and the software driving it knows the platform's SDRAM page size,
+ * and the software driving it kanalws the platform's SDRAM page size,
  * number of banks, and XOR address, and that it's identical between
  * all blocks using the format.  This tiling modifier will use XOR as
  * necessary to reduce the padding.  If a hardware block can't do XOR,
- * the assumption is that a no-XOR tiling modifier will be created.
+ * the assumption is that a anal-XOR tiling modifier will be created.
  */
 #define DRM_FORMAT_MOD_BROADCOM_UIF fourcc_mod_code(BROADCOM, 6)
 
@@ -1095,7 +1095,7 @@ drm_fourcc_canonicalize_nvidia_format_mod(__u64 modifier)
  * transferred between IP blocks.
  *
  * AFBC has several features which may be supported and/or used, which are
- * represented using bits in the modifier. Not all combinations are valid,
+ * represented using bits in the modifier. Analt all combinations are valid,
  * and different devices or use-cases may support different combinations.
  *
  * Further information on the use of AFBC modifiers can be found in
@@ -1104,7 +1104,7 @@ drm_fourcc_canonicalize_nvidia_format_mod(__u64 modifier)
 
 /*
  * The top 4 bits (out of the 56 bits allotted for specifying vendor specific
- * modifiers) denote the category for modifiers. Currently we have three
+ * modifiers) deanalte the category for modifiers. Currently we have three
  * categories of modifiers ie AFBC, MISC and AFRC. We can have a maximum of
  * sixteen different categories.
  */
@@ -1169,7 +1169,7 @@ drm_fourcc_canonicalize_nvidia_format_mod(__u64 modifier)
  * AFBC copy-block restrict
  *
  * Buffers with this flag must obey the copy-block restriction. The restriction
- * is such that there are no copy-blocks referring across the border of 8x8
+ * is such that there are anal copy-blocks referring across the border of 8x8
  * blocks. For the subsampled data the 8x8 limitation is also subsampled.
  */
 #define AFBC_FORMAT_MOD_CBR     (1ULL <<  7)
@@ -1213,9 +1213,9 @@ drm_fourcc_canonicalize_nvidia_format_mod(__u64 modifier)
  *
  * Indicates that the buffer is using AFBC uncompressed storage mode.
  * In this mode all superblock payloads in the buffer use the uncompressed
- * storage mode, which is usually only used for data which cannot be compressed.
+ * storage mode, which is usually only used for data which cananalt be compressed.
  * The buffer layout is the same as for AFBC buffers without USM set, this only
- * affects the storage mode of the individual superblocks. Note that even a
+ * affects the storage mode of the individual superblocks. Analte that even a
  * buffer without USM set may use uncompressed storage mode for some or all
  * superblocks, USM just guarantees it for all.
  */
@@ -1366,7 +1366,7 @@ drm_fourcc_canonicalize_nvidia_format_mod(__u64 modifier)
  * The first 8 bits of the mode defines the layout, then the following 8 bits
  * defines the options changing the layout.
  *
- * Not all combinations are valid, and different SoCs may support different
+ * Analt all combinations are valid, and different SoCs may support different
  * combinations of layout and options.
  */
 #define __fourcc_mod_amlogic_layout_mask 0xff
@@ -1401,10 +1401,10 @@ drm_fourcc_canonicalize_nvidia_format_mod(__u64 modifier)
  *
  * In this mode, only the header memory address is needed, thus the
  * content memory organization is tied to the current producer
- * execution and cannot be saved/dumped neither transferrable between
+ * execution and cananalt be saved/dumped neither transferrable between
  * Amlogic SoCs supporting this modifier.
  *
- * Due to the nature of the layout, these buffers are not expected to
+ * Due to the nature of the layout, these buffers are analt expected to
  * be accessible by the user-space clients, but only accessible by the
  * hardware producers and consumers.
  *
@@ -1442,13 +1442,13 @@ drm_fourcc_canonicalize_nvidia_format_mod(__u64 modifier)
  *
  * with DCC & DCC_RETILE:
  *   - main surface in plane 0
- *   - displayable DCC surface in plane 1 (not RB-aligned & not pipe-aligned)
+ *   - displayable DCC surface in plane 1 (analt RB-aligned & analt pipe-aligned)
  *   - pipe-aligned DCC surface in plane 2 (RB-aligned & pipe-aligned)
  *
  * For multi-plane formats the above surfaces get merged into one plane for
  * each format plane, based on the required alignment only.
  *
- * Bits  Parameter                Notes
+ * Bits  Parameter                Analtes
  * ----- ------------------------ ---------------------------------------------
  *
  *   7:0 TILE_VERSION             Values are AMD_FMT_MOD_TILE_VER_*
@@ -1478,14 +1478,14 @@ drm_fourcc_canonicalize_nvidia_format_mod(__u64 modifier)
 #define AMD_FMT_MOD_TILE_VER_GFX11 4
 
 /*
- * 64K_S is the same for GFX9/GFX10/GFX10_RBPLUS and hence has GFX9 as canonical
+ * 64K_S is the same for GFX9/GFX10/GFX10_RBPLUS and hence has GFX9 as caanalnical
  * version.
  */
 #define AMD_FMT_MOD_TILE_GFX9_64K_S 9
 
 /*
- * 64K_D for non-32 bpp is the same for GFX9/GFX10/GFX10_RBPLUS and hence has
- * GFX9 as canonical version.
+ * 64K_D for analn-32 bpp is the same for GFX9/GFX10/GFX10_RBPLUS and hence has
+ * GFX9 as caanalnical version.
  */
 #define AMD_FMT_MOD_TILE_GFX9_64K_D 10
 #define AMD_FMT_MOD_TILE_GFX9_64K_S_X 25
@@ -1508,7 +1508,7 @@ drm_fourcc_canonicalize_nvidia_format_mod(__u64 modifier)
 
 /*
  * Whether to include two DCC surfaces, one which is rb & pipe aligned, and
- * one which is not-aligned.
+ * one which is analt-aligned.
  */
 #define AMD_FMT_MOD_DCC_RETILE_SHIFT 14
 #define AMD_FMT_MOD_DCC_RETILE_MASK 0x1
@@ -1526,11 +1526,11 @@ drm_fourcc_canonicalize_nvidia_format_mod(__u64 modifier)
 
 /*
  * DCC supports embedding some clear colors directly in the DCC surface.
- * However, on older GPUs the rendering HW ignores the embedded clear color
+ * However, on older GPUs the rendering HW iganalres the embedded clear color
  * and prefers the driver provided color. This necessitates doing a fastclear
  * eliminate operation before a process transfers control.
  *
- * If this bit is set that means the fastclear eliminate is not needed for these
+ * If this bit is set that means the fastclear eliminate is analt needed for these
  * embeddable colors.
  */
 #define AMD_FMT_MOD_DCC_CONSTANT_ENCODE_SHIFT 20

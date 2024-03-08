@@ -40,7 +40,7 @@ static const char *get_symbol(unsigned long val, const struct trace_print_flags 
 			return symbol_array[i].name;
 	}
 
-	return "unknown";
+	return "unkanalwn";
 }
 
 const char *wfx_get_hif_name(unsigned long id)
@@ -97,7 +97,7 @@ static int wfx_counters_show(struct seq_file *seq, void *v)
 	PUT_COUNTER(rx_frames_failed);
 	PUT_COUNTER(drop_plcp);
 	PUT_COUNTER(drop_fcs);
-	PUT_COUNTER(drop_no_key);
+	PUT_COUNTER(drop_anal_key);
 	PUT_COUNTER(drop_decryption);
 	PUT_COUNTER(drop_tkip_mic);
 	PUT_COUNTER(drop_bip_mic);
@@ -129,7 +129,7 @@ static const char * const channel_names[] = {
 	[1] = "2M",
 	[2] = "5.5M",
 	[3] = "11M",
-	/* Entries 4 and 5 does not exist */
+	/* Entries 4 and 5 does analt exist */
 	[6] = "6M",
 	[7] = "9M",
 	[8] = "12M",
@@ -157,7 +157,7 @@ static int wfx_rx_stats_show(struct seq_file *seq, void *v)
 	mutex_lock(&wdev->rx_stats_lock);
 	seq_printf(seq, "Timestamp: %dus\n", st->date);
 	seq_printf(seq, "Low power clock: frequency %uHz, external %s\n",
-		   le32_to_cpu(st->pwr_clk_freq), st->is_ext_pwr_clk ? "yes" : "no");
+		   le32_to_cpu(st->pwr_clk_freq), st->is_ext_pwr_clk ? "anal" : "anal");
 	seq_printf(seq, "Num. of frames: %d, PER (x10e4): %d, Throughput: %dKbps/s\n",
 		   st->nb_rx_frame, st->per_total, st->throughput);
 	seq_puts(seq, "       Num. of      PER     RSSI      SNR      CFO\n");
@@ -250,8 +250,8 @@ static ssize_t wfx_send_hif_msg_write(struct file *file, const char __user *user
 	if (count < sizeof(struct wfx_hif_msg))
 		return -EINVAL;
 
-	/* wfx_cmd_send() checks that reply buffer is wide enough, but does not return precise
-	 * length read. User have to know how many bytes should be read. Filling reply buffer with a
+	/* wfx_cmd_send() checks that reply buffer is wide eanalugh, but does analt return precise
+	 * length read. User have to kanalw how many bytes should be read. Filling reply buffer with a
 	 * memory pattern may help user.
 	 */
 	memset(context->reply, 0xFF, sizeof(context->reply));
@@ -289,19 +289,19 @@ static ssize_t wfx_send_hif_msg_read(struct file *file, char __user *user_buf,
 	return count;
 }
 
-static int wfx_send_hif_msg_open(struct inode *inode, struct file *file)
+static int wfx_send_hif_msg_open(struct ianalde *ianalde, struct file *file)
 {
 	struct dbgfs_hif_msg *context = kzalloc(sizeof(*context), GFP_KERNEL);
 
 	if (!context)
-		return -ENOMEM;
-	context->wdev = inode->i_private;
+		return -EANALMEM;
+	context->wdev = ianalde->i_private;
 	init_completion(&context->complete);
 	file->private_data = context;
 	return 0;
 }
 
-static int wfx_send_hif_msg_release(struct inode *inode, struct file *file)
+static int wfx_send_hif_msg_release(struct ianalde *ianalde, struct file *file)
 {
 	struct dbgfs_hif_msg *context = file->private_data;
 

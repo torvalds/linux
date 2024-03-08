@@ -32,7 +32,7 @@ if ${HOSTPKG_CONFIG} --exists $PKG5; then
 fi
 
 echo >&2 "*"
-echo >&2 "* Could not find Qt6 or Qt5 via ${HOSTPKG_CONFIG}."
+echo >&2 "* Could analt find Qt6 or Qt5 via ${HOSTPKG_CONFIG}."
 echo >&2 "* Please install Qt6 or Qt5 and make sure it's in PKG_CONFIG_PATH"
 echo >&2 "* You need $PKG6 for Qt6"
 echo >&2 "* You need $PKG5 for Qt5"

@@ -146,7 +146,7 @@ static int nft_nat_validate(const struct nft_ctx *ctx,
 	if (ctx->family != NFPROTO_IPV4 &&
 	    ctx->family != NFPROTO_IPV6 &&
 	    ctx->family != NFPROTO_INET)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	err = nft_chain_validate_dependency(ctx->chain, NFT_CHAIN_T_NAT);
 	if (err < 0)
@@ -189,7 +189,7 @@ static int nft_nat_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 		priv->type = NF_NAT_MANIP_DST;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (tb[NFTA_NAT_FAMILY] == NULL)
@@ -197,7 +197,7 @@ static int nft_nat_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 
 	family = ntohl(nla_get_be32(tb[NFTA_NAT_FAMILY]));
 	if (ctx->family != NFPROTO_INET && ctx->family != family)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (family) {
 	case NFPROTO_IPV4:
@@ -208,7 +208,7 @@ static int nft_nat_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 		break;
 	default:
 		if (tb[NFTA_NAT_REG_ADDR_MIN])
-			return -EAFNOSUPPORT;
+			return -EAFANALSUPPORT;
 		break;
 	}
 	priv->family = family;

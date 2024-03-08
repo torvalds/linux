@@ -269,7 +269,7 @@ static const struct of_device_id jz4740_rtc_of_match[] = {
 MODULE_DEVICE_TABLE(of, jz4740_rtc_of_match);
 
 static void jz4740_rtc_set_wakeup_params(struct jz4740_rtc *rtc,
-					 struct device_node *np,
+					 struct device_analde *np,
 					 unsigned long rate)
 {
 	unsigned long wakeup_ticks, reset_ticks;
@@ -339,7 +339,7 @@ static const struct clk_ops jz4740_rtc_clk32k_ops = {
 static int jz4740_rtc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct jz4740_rtc *rtc;
 	unsigned long rate;
 	struct clk *clk;
@@ -347,7 +347,7 @@ static int jz4740_rtc_probe(struct platform_device *pdev)
 
 	rtc = devm_kzalloc(dev, sizeof(*rtc), GFP_KERNEL);
 	if (!rtc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rtc->type = (uintptr_t)device_get_match_data(dev);
 

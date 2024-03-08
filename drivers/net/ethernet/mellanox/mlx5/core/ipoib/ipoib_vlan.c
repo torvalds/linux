@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2017, Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -37,7 +37,7 @@
 
 struct qpn_to_netdev {
 	struct net_device *netdev;
-	struct hlist_node hlist;
+	struct hlist_analde hlist;
 	u32 underlay_qpn;
 };
 
@@ -53,7 +53,7 @@ int mlx5i_pkey_qpn_ht_init(struct net_device *netdev)
 
 	qpn_htbl = kzalloc(sizeof(*qpn_htbl), GFP_KERNEL);
 	if (!qpn_htbl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ipriv->qpn_htbl = qpn_htbl;
 	spin_lock_init(&qpn_htbl->ht_lock);
@@ -68,15 +68,15 @@ void mlx5i_pkey_qpn_ht_cleanup(struct net_device *netdev)
 	kfree(ipriv->qpn_htbl);
 }
 
-static struct qpn_to_netdev *mlx5i_find_qpn_to_netdev_node(struct hlist_head *buckets,
+static struct qpn_to_netdev *mlx5i_find_qpn_to_netdev_analde(struct hlist_head *buckets,
 							   u32 qpn)
 {
 	struct hlist_head *h = &buckets[hash_32(qpn, MLX5I_MAX_LOG_PKEY_SUP)];
-	struct qpn_to_netdev *node;
+	struct qpn_to_netdev *analde;
 
-	hlist_for_each_entry(node, h, hlist) {
-		if (node->underlay_qpn == qpn)
-			return node;
+	hlist_for_each_entry(analde, h, hlist) {
+		if (analde->underlay_qpn == qpn)
+			return analde;
 	}
 
 	return NULL;
@@ -87,16 +87,16 @@ int mlx5i_pkey_add_qpn(struct net_device *netdev, u32 qpn)
 	struct mlx5i_priv *ipriv = netdev_priv(netdev);
 	struct mlx5i_pkey_qpn_ht *ht = ipriv->qpn_htbl;
 	u8 key = hash_32(qpn, MLX5I_MAX_LOG_PKEY_SUP);
-	struct qpn_to_netdev *new_node;
+	struct qpn_to_netdev *new_analde;
 
-	new_node = kzalloc(sizeof(*new_node), GFP_KERNEL);
-	if (!new_node)
-		return -ENOMEM;
+	new_analde = kzalloc(sizeof(*new_analde), GFP_KERNEL);
+	if (!new_analde)
+		return -EANALMEM;
 
-	new_node->netdev = netdev;
-	new_node->underlay_qpn = qpn;
+	new_analde->netdev = netdev;
+	new_analde->underlay_qpn = qpn;
 	spin_lock_bh(&ht->ht_lock);
-	hlist_add_head(&new_node->hlist, &ht->buckets[key]);
+	hlist_add_head(&new_analde->hlist, &ht->buckets[key]);
 	spin_unlock_bh(&ht->ht_lock);
 
 	return 0;
@@ -107,18 +107,18 @@ int mlx5i_pkey_del_qpn(struct net_device *netdev, u32 qpn)
 	struct mlx5e_priv *epriv = mlx5i_epriv(netdev);
 	struct mlx5i_priv *ipriv = epriv->ppriv;
 	struct mlx5i_pkey_qpn_ht *ht = ipriv->qpn_htbl;
-	struct qpn_to_netdev *node;
+	struct qpn_to_netdev *analde;
 
-	node = mlx5i_find_qpn_to_netdev_node(ht->buckets, qpn);
-	if (!node) {
+	analde = mlx5i_find_qpn_to_netdev_analde(ht->buckets, qpn);
+	if (!analde) {
 		mlx5_core_warn(epriv->mdev, "QPN to netdev delete from HT failed\n");
 		return -EINVAL;
 	}
 
 	spin_lock_bh(&ht->ht_lock);
-	hlist_del_init(&node->hlist);
+	hlist_del_init(&analde->hlist);
 	spin_unlock_bh(&ht->ht_lock);
-	kfree(node);
+	kfree(analde);
 
 	return 0;
 }
@@ -126,13 +126,13 @@ int mlx5i_pkey_del_qpn(struct net_device *netdev, u32 qpn)
 struct net_device *mlx5i_pkey_get_netdev(struct net_device *netdev, u32 qpn)
 {
 	struct mlx5i_priv *ipriv = netdev_priv(netdev);
-	struct qpn_to_netdev *node;
+	struct qpn_to_netdev *analde;
 
-	node = mlx5i_find_qpn_to_netdev_node(ipriv->qpn_htbl->buckets, qpn);
-	if (!node)
+	analde = mlx5i_find_qpn_to_netdev_analde(ipriv->qpn_htbl->buckets, qpn);
+	if (!analde)
 		return NULL;
 
-	return node->netdev;
+	return analde->netdev;
 }
 
 static int mlx5i_pkey_open(struct net_device *netdev);

@@ -26,7 +26,7 @@ raised by the driver.
 So every ``(type, ID)`` event tuple will have its own
 :c:type:`v4l2_kevent` ringbuffer. This guarantees that if a driver is
 generating lots of events of one type in a short time, then that will
-not overwrite events of another type.
+analt overwrite events of aanalther type.
 
 But if you get more events of one type than the size of the
 :c:type:`v4l2_kevent` ringbuffer, then the oldest event will be dropped
@@ -34,11 +34,11 @@ and the new one added.
 
 The :c:type:`v4l2_kevent` struct links into the ``available``
 list of the :c:type:`v4l2_fh` struct so :ref:`VIDIOC_DQEVENT` will
-know which event to dequeue first.
+kanalw which event to dequeue first.
 
 Finally, if the event subscription is associated with a particular object
-such as a V4L2 control, then that object needs to know about that as well
-so that an event can be raised by that object. So the ``node`` field can
+such as a V4L2 control, then that object needs to kanalw about that as well
+so that an event can be raised by that object. So the ``analde`` field can
 be used to link the :c:type:`v4l2_subscribed_event` struct into a list of
 such objects.
 
@@ -52,12 +52,12 @@ So to summarize:
 
 - If struct v4l2_subscribed_event is associated with a specific
   object, then that object will have an internal list of
-  struct v4l2_subscribed_event so it knows who subscribed an
+  struct v4l2_subscribed_event so it kanalws who subscribed an
   event to that object.
 
 Furthermore, the internal struct v4l2_subscribed_event has
 ``merge()`` and ``replace()`` callbacks which drivers can set. These
-callbacks are called when a new event is raised and there is no more room.
+callbacks are called when a new event is raised and there is anal more room.
 
 The ``replace()`` callback allows you to replace the payload of the old event
 with that of the new event, merging any relevant data from the old payload
@@ -69,13 +69,13 @@ The ``merge()`` callback allows you to merge the oldest event payload into
 that of the second-oldest event payload. It is called when
 the ringbuffer has size is greater than one.
 
-This way no status information is lost, just the intermediate steps leading
+This way anal status information is lost, just the intermediate steps leading
 up to that state.
 
 A good example of these ``replace``/``merge`` callbacks is in v4l2-event.c:
 ``ctrls_replace()`` and ``ctrls_merge()`` callbacks for the control event.
 
-.. note::
+.. analte::
 	these callbacks can be called from interrupt context, so they must
 	be fast.
 
@@ -169,9 +169,9 @@ available event type is 'class base + 1'.
 An example on how the V4L2 events may be used can be found in the OMAP
 3 ISP driver (``drivers/media/platform/ti/omap3isp``).
 
-A subdev can directly send an event to the :c:type:`v4l2_device` notify
-function with ``V4L2_DEVICE_NOTIFY_EVENT``. This allows the bridge to map
-the subdev that sends the event to the video node(s) associated with the
+A subdev can directly send an event to the :c:type:`v4l2_device` analtify
+function with ``V4L2_DEVICE_ANALTIFY_EVENT``. This allows the bridge to map
+the subdev that sends the event to the video analde(s) associated with the
 subdev that need to be informed about such an event.
 
 V4L2 event functions and data structures

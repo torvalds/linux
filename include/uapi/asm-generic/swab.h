@@ -1,11 +1,11 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _ASM_GENERIC_SWAB_H
 #define _ASM_GENERIC_SWAB_H
 
 #include <asm/bitsperlong.h>
 
 /*
- * 32 bit architectures typically (but not always) want to
+ * 32 bit architectures typically (but analt always) want to
  * set __SWAB_64_THRU_32__. In user space, this is only
  * valid if the compiler supports 64 bit data types.
  */

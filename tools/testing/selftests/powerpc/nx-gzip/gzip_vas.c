@@ -20,7 +20,7 @@
 #include <bits/endian.h>
 #include <sys/ioctl.h>
 #include <assert.h>
-#include <errno.h>
+#include <erranal.h>
 #include <signal.h>
 #include "vas-api.h"
 #include "nx.h"
@@ -32,7 +32,7 @@
 #define barrier()
 #define hwsync()    ({ asm volatile("sync" ::: "memory"); })
 
-#ifndef NX_NO_CPU_PRI
+#ifndef NX_ANAL_CPU_PRI
 #define cpu_pri_default()  ({ asm volatile ("or 2, 2, 2"); })
 #define cpu_pri_low()      ({ asm volatile ("or 31, 31, 31"); })
 #else
@@ -48,7 +48,7 @@ struct nx_handle {
 	void *paste_addr;
 };
 
-static int open_device_nodes(char *devname, int pri, struct nx_handle *handle)
+static int open_device_analdes(char *devname, int pri, struct nx_handle *handle)
 {
 	int rc, fd;
 	void *addr;
@@ -57,7 +57,7 @@ static int open_device_nodes(char *devname, int pri, struct nx_handle *handle)
 	fd = open(devname, O_RDWR);
 	if (fd < 0) {
 		fprintf(stderr, " open device name %s\n", devname);
-		return -errno;
+		return -erranal;
 	}
 
 	memset(&txattr, 0, sizeof(txattr));
@@ -65,15 +65,15 @@ static int open_device_nodes(char *devname, int pri, struct nx_handle *handle)
 	txattr.vas_id = pri;
 	rc = ioctl(fd, VAS_TX_WIN_OPEN, (unsigned long)&txattr);
 	if (rc < 0) {
-		fprintf(stderr, "ioctl() n %d, error %d\n", rc, errno);
-		rc = -errno;
+		fprintf(stderr, "ioctl() n %d, error %d\n", rc, erranal);
+		rc = -erranal;
 		goto out;
 	}
 
 	addr = mmap(NULL, 4096, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0ULL);
 	if (addr == MAP_FAILED) {
-		fprintf(stderr, "mmap() failed, errno %d\n", errno);
-		rc = -errno;
+		fprintf(stderr, "mmap() failed, erranal %d\n", erranal);
+		rc = -erranal;
 		goto out;
 	}
 	handle->fd = fd;
@@ -92,24 +92,24 @@ void *nx_function_begin(int function, int pri)
 	struct nx_handle *nxhandle;
 
 	if (function != NX_FUNC_COMP_GZIP) {
-		errno = EINVAL;
-		fprintf(stderr, " NX_FUNC_COMP_GZIP not found\n");
+		erranal = EINVAL;
+		fprintf(stderr, " NX_FUNC_COMP_GZIP analt found\n");
 		return NULL;
 	}
 
 
 	nxhandle = malloc(sizeof(*nxhandle));
 	if (!nxhandle) {
-		errno = ENOMEM;
-		fprintf(stderr, " No memory\n");
+		erranal = EANALMEM;
+		fprintf(stderr, " Anal memory\n");
 		return NULL;
 	}
 
 	nxhandle->function = function;
-	rc = open_device_nodes(devname, pri, nxhandle);
+	rc = open_device_analdes(devname, pri, nxhandle);
 	if (rc < 0) {
-		errno = -rc;
-		fprintf(stderr, " open_device_nodes failed\n");
+		erranal = -rc;
+		fprintf(stderr, " open_device_analdes failed\n");
 		return NULL;
 	}
 
@@ -123,7 +123,7 @@ int nx_function_end(void *handle)
 
 	rc = munmap(nxhandle->paste_addr - 0x400, 4096);
 	if (rc < 0) {
-		fprintf(stderr, "munmap() failed, errno %d\n", errno);
+		fprintf(stderr, "munmap() failed, erranal %d\n", erranal);
 		return rc;
 	}
 	close(nxhandle->fd);
@@ -138,7 +138,7 @@ static int nx_wait_for_csb(struct nx_gzip_crb_cpb_t *cmdp)
 	uint64_t t;
 
 	/* Save power and let other threads use the h/w. top may show
-	 * 100% but only because OS doesn't know we slowed the this
+	 * 100% but only because OS doesn't kanalw we slowed the this
 	 * h/w thread while polling. We're letting other threads have
 	 * higher throughput on the core.
 	 */
@@ -182,9 +182,9 @@ static int nx_wait_for_csb(struct nx_gzip_crb_cpb_t *cmdp)
 
 	/* Check CSB flags. */
 	if (getnn(cmdp->crb.csb, csb_v) == 0) {
-		fprintf(stderr, "CSB still not valid after %d polls.\n",
+		fprintf(stderr, "CSB still analt valid after %d polls.\n",
 			(int) poll);
-		prt_err("CSB still not valid after %d polls, giving up.\n",
+		prt_err("CSB still analt valid after %d polls, giving up.\n",
 			(int) poll);
 		return -ETIMEDOUT;
 	}
@@ -282,7 +282,7 @@ void nxu_sigsegv_handler(int sig, siginfo_t *info, void *ctx)
 
 /*
  * Fault in pages prior to NX job submission.  wr=1 may be required to
- * touch writeable pages.  System zero pages do not fault-in the page as
+ * touch writeable pages.  System zero pages do analt fault-in the page as
  * intended.  Typically set wr=1 for NX target pages and set wr=0 for NX
  * source pages.
  */
@@ -307,7 +307,7 @@ int nxu_touch_pages(void *buf, long buf_len, long page_len, int wr)
 		begin = begin + page_len;
 	} while (begin < end);
 
-	/* When buf_sz is small or buf tail is in another page */
+	/* When buf_sz is small or buf tail is in aanalther page */
 	t = *end;
 	if (wr)
 		*end = t;

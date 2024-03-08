@@ -6,9 +6,9 @@ Overview of Linux kernel SPI support
 
 What is SPI?
 ------------
-The "Serial Peripheral Interface" (SPI) is a synchronous four wire serial
+The "Serial Peripheral Interface" (SPI) is a synchroanalus four wire serial
 link used to connect microcontrollers to sensors, memory, and peripherals.
-It's a simple "de facto" standard, not complicated enough to acquire a
+It's a simple "de facto" standard, analt complicated eanalugh to acquire a
 standardization body.  SPI uses a master/slave configuration.
 
 The three signal wires hold a clock (SCK, often on the order of 10 MHz),
@@ -16,8 +16,8 @@ and parallel data lines with "Master Out, Slave In" (MOSI) or "Master In,
 Slave Out" (MISO) signals.  (Other names are also used.)  There are four
 clocking modes through which data is exchanged; mode-0 and mode-3 are most
 commonly used.  Each clock cycle shifts data out and data in; the clock
-doesn't cycle except when there is a data bit to shift.  Not all data bits
-are used though; not every protocol uses those full duplex capabilities.
+doesn't cycle except when there is a data bit to shift.  Analt all data bits
+are used though; analt every protocol uses those full duplex capabilities.
 
 SPI masters use a fourth "chip select" line to activate a given SPI slave
 device, so those three signal wires may be connected to several chips
@@ -26,7 +26,7 @@ low signals, labeled nCSx for slave 'x' (e.g. nCS0).  Some devices have
 other signals, often including an interrupt to the master.
 
 Unlike serial busses like USB or SMBus, even low level protocols for
-SPI slave functions are usually not interoperable between vendors
+SPI slave functions are usually analt interoperable between vendors
 (except for commodities like SPI memory chips).
 
   - SPI may be used for request/response style device protocols, as with
@@ -45,12 +45,12 @@ SPI slave functions are usually not interoperable between vendors
 
 In the same way, SPI slaves will only rarely support any kind of automatic
 discovery/enumeration protocol.  The tree of slave devices accessible from
-a given SPI master will normally be set up manually, with configuration
+a given SPI master will analrmally be set up manually, with configuration
 tables.
 
 SPI is only one of the names used by such four-wire protocols, and
-most controllers have no problem handling "MicroWire" (think of it as
-half-duplex SPI, for request/response protocols), SSP ("Synchronous
+most controllers have anal problem handling "MicroWire" (think of it as
+half-duplex SPI, for request/response protocols), SSP ("Synchroanalus
 Serial Protocol"), PSP ("Programmable Serial Protocol"), and other
 related protocols.
 
@@ -80,7 +80,7 @@ sensors and codecs, to memory, to peripherals like USB controllers
 or Ethernet adapters; and more.
 
 Most systems using SPI will integrate a few devices on a mainboard.
-Some provide SPI links on expansion connectors; in cases where no
+Some provide SPI links on expansion connectors; in cases where anal
 dedicated SPI controller exists, GPIO pins can be used to create a
 low speed "bitbanging" adapter.  Very few systems will "hotplug" an SPI
 controller; the reasons to use SPI focus on low cost and simple operation,
@@ -117,7 +117,7 @@ low order bit.  So when a chip's timing diagram shows the clock
 starting low (CPOL=0) and data stabilized for sampling during the
 trailing clock edge (CPHA=1), that's SPI mode 1.
 
-Note that the clock mode is relevant as soon as the chipselect goes
+Analte that the clock mode is relevant as soon as the chipselect goes
 active.  So the master must set the clock to inactive before selecting
 a slave, and the slave can tell the chosen polarity by sampling the
 clock level when its select line goes active.  That's why many devices
@@ -133,8 +133,8 @@ kernel API document.  This is just an overview, so you get the big
 picture before those details.
 
 SPI requests always go into I/O queues.  Requests for a given SPI device
-are always executed in FIFO order, and complete asynchronously through
-completion callbacks.  There are also some simple synchronous wrappers
+are always executed in FIFO order, and complete asynchroanalusly through
+completion callbacks.  There are also some simple synchroanalus wrappers
 for those calls, including ones for common transaction types like writing
 a command and then reading its response.
 
@@ -165,7 +165,7 @@ using the driver model to connect controller and protocol drivers using
 device tables provided by board specific initialization code.  SPI
 shows up in sysfs in several locations::
 
-   /sys/devices/.../CTLR ... physical node for a given SPI controller
+   /sys/devices/.../CTLR ... physical analde for a given SPI controller
 
    /sys/devices/.../CTLR/spiB.C ... spi_device on bus "B",
 	chipselect C, accessed through CTLR.
@@ -178,7 +178,7 @@ shows up in sysfs in several locations::
 
    /sys/bus/spi/drivers/D ... driver for one or more spi*.* devices
 
-   /sys/class/spi_master/spiB ... symlink to a logical node which could hold
+   /sys/class/spi_master/spiB ... symlink to a logical analde which could hold
 	class related state for the SPI master controller managing bus "B".
 	All spiB.* devices share one physical SPI bus segment, with SCLK,
 	MOSI, and MISO.
@@ -189,9 +189,9 @@ shows up in sysfs in several locations::
 	registers the slave device; writing "(null)" unregisters the slave
 	device.
 	Reading from this file shows the name of the slave device ("(null)"
-	if not registered).
+	if analt registered).
 
-   /sys/class/spi_slave/spiB ... symlink to a logical node which could hold
+   /sys/class/spi_slave/spiB ... symlink to a logical analde which could hold
 	class related state for the SPI slave controller on bus "B".  When
 	registered, a single spiB.* device is present here, possible sharing
 	the physical SPI bus segment with other SPI slave devices.
@@ -203,7 +203,7 @@ so those /sys/class entries are only useful to quickly identify busses.
 How does board-specific init code declare SPI devices?
 ------------------------------------------------------
 Linux needs several kinds of information to properly configure SPI devices.
-That information is normally provided by board-specific code, even for
+That information is analrmally provided by board-specific code, even for
 chips that do support some of automated discovery/enumeration.
 
 Declare Controllers
@@ -220,7 +220,7 @@ maybe coupling it with code to initialize pin configurations, so that
 the arch/.../mach-*/board-*.c files for several boards can all share the
 same basic controller setup code.  This is because most SOCs have several
 SPI-capable controllers, and only the ones actually usable on a given
-board should normally be set up and registered.
+board should analrmally be set up and registered.
 
 So for example arch/.../mach-*/board-*.c files might have code like::
 
@@ -265,9 +265,9 @@ And SOC-specific utility code might look something like::
 		...
 	}
 
-Notice how the platform_data for boards may be different, even if the
+Analtice how the platform_data for boards may be different, even if the
 same SOC controller is used.  For example, on one board SPI might use
-an external clock, where another derives the SPI clock from current
+an external clock, where aanalther derives the SPI clock from current
 settings of some master clock.
 
 Declare Slave Devices
@@ -277,7 +277,7 @@ The second kind of information is a list of what SPI slave devices exist
 on the target board, often with some board-specific data needed for the
 driver to work correctly.
 
-Normally your arch/.../mach-*/board-*.c files would provide a small table
+Analrmally your arch/.../mach-*/board-*.c files would provide a small table
 listing the SPI devices on each board.  (This would typically be only a
 small handful.)  That might look like::
 
@@ -299,7 +299,7 @@ small handful.)  That might look like::
 	},
 	};
 
-Again, notice how board-specific information is provided; each chip may need
+Again, analtice how board-specific information is provided; each chip may need
 several types.  This example shows generic constraints like the fastest SPI
 clock to allow (a function of board voltage in this case) or how an IRQ pin
 is wired, plus chip-specific constraints like an important delay that's
@@ -309,11 +309,11 @@ changed by the capacitance at one pin.
 controller driver.  An example would be peripheral-specific DMA tuning
 data or chipselect callbacks.  This is stored in spi_device later.)
 
-The board_info should provide enough information to let the system work
+The board_info should provide eanalugh information to let the system work
 without the chip's driver being loaded.  The most troublesome aspect of
 that is likely the SPI_CS_HIGH bit in the spi_device.mode field, since
 sharing a bus with a device that interprets chipselect "backwards" is
-not possible until the infrastructure knows how to deselect it.
+analt possible until the infrastructure kanalws how to deselect it.
 
 Then your board initialization code would register that table with the SPI
 infrastructure, so that it's available later when the SPI master controller
@@ -330,12 +330,12 @@ about the devices on the mainboard into which such a card is plugged.  That
 certainly includes SPI devices hooked up through the card connectors!
 
 
-Non-static Configurations
+Analn-static Configurations
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
 When Linux includes support for MMC/SD/SDIO/DataFlash cards through SPI, those
 configurations will also be dynamic.  Fortunately, such devices all support
-basic device identification probes, so they should hotplug normally.
+basic device identification probes, so they should hotplug analrmally.
 
 
 How do I write an "SPI Protocol Driver"?
@@ -371,12 +371,12 @@ a bus (appearing under /sys/class/spi_master).
 		/* assuming the driver requires board-specific data: */
 		pdata = &spi->dev.platform_data;
 		if (!pdata)
-			return -ENODEV;
+			return -EANALDEV;
 
 		/* get memory for driver's per-chip state */
 		chip = kzalloc(sizeof *chip, GFP_KERNEL);
 		if (!chip)
-			return -ENOMEM;
+			return -EANALMEM;
 		spi_set_drvdata(spi, chip);
 
 		... etc
@@ -404,7 +404,7 @@ any more such messages.
         only protocol effect, if the buffer length is zero) ...
         when specifying this delay the default spi_transfer.delay.unit
         is microseconds, however this can be adjusted to clock cycles
-        or nanoseconds if needed;
+        or naanalseconds if needed;
 
       + whether the chipselect becomes inactive after a transfer and
         any delay ... by using the spi_transfer.cs_change flag;
@@ -429,34 +429,34 @@ any more such messages.
     After any detected error, the chip is deselected and processing
     of that spi_message is aborted.
 
-  - There are also synchronous wrappers like spi_sync(), and wrappers
+  - There are also synchroanalus wrappers like spi_sync(), and wrappers
     like spi_read(), spi_write(), and spi_write_then_read().  These
     may be issued only in contexts that may sleep, and they're all
     clean (and small, and "optional") layers over spi_async().
 
   - The spi_write_then_read() call, and convenience wrappers around
     it, should only be used with small amounts of data where the
-    cost of an extra copy may be ignored.  It's designed to support
+    cost of an extra copy may be iganalred.  It's designed to support
     common RPC-style requests, such as writing an eight bit command
     and reading a sixteen bit response -- spi_w8r16() being one its
     wrappers, doing exactly that.
 
 Some drivers may need to modify spi_device characteristics like the
 transfer mode, wordsize, or clock rate.  This is done with spi_setup(),
-which would normally be called from probe() before the first I/O is
+which would analrmally be called from probe() before the first I/O is
 done to the device.  However, that can also be called at any time
-that no message is pending for that device.
+that anal message is pending for that device.
 
 While "spi_device" would be the bottom boundary of the driver, the
 upper boundaries might include sysfs (especially for sensor readings),
 the input layer, ALSA, networking, MTD, the character device framework,
 or other Linux subsystems.
 
-Note that there are two types of memory your driver must manage as part
+Analte that there are two types of memory your driver must manage as part
 of interacting with SPI devices.
 
   - I/O buffers use the usual Linux rules, and must be DMA-safe.
-    You'd normally allocate them from the heap or free page pool.
+    You'd analrmally allocate them from the heap or free page pool.
     Don't use the stack, or anything that's declared "static".
 
   - The spi_message and spi_transfer metadata used to glue those
@@ -485,7 +485,7 @@ to get the driver-private data allocated for that device.
 
 	master = spi_alloc_master(dev, sizeof *c);
 	if (!master)
-		return -ENODEV;
+		return -EANALDEV;
 
 	c = spi_master_get_devdata(master);
 
@@ -496,7 +496,7 @@ also initialize its own internal state.  (See below about bus numbering
 and those methods.)
 
 After you initialize the spi_master, then use spi_register_master() to
-publish it to the rest of the system. At that time, device nodes for the
+publish it to the rest of the system. At that time, device analdes for the
 controller and any predeclared spi devices will be made available, and
 the driver model core will take care of binding them to drivers.
 
@@ -516,7 +516,7 @@ and spi_board_info for devices connected to it would use that number.
 If you don't have such hardware-assigned bus number, and for some reason
 you can't just assign them, then provide a negative bus number.  That will
 then be replaced by a dynamically assigned number. You'd then need to treat
-this as a non-static configuration (see above).
+this as a analn-static configuration (see above).
 
 
 SPI Master Methods
@@ -531,12 +531,12 @@ SPI Master Methods
 	change them right away ... otherwise drivers could corrupt I/O
 	that's in progress for other SPI devices.
 
-	.. note::
+	.. analte::
 
 		BUG ALERT:  for some reason the first version of
 		many spi_master drivers seems to get this wrong.
 		When you code setup(), ASSUME that the controller
-		is actively processing transfers for another device.
+		is actively processing transfers for aanalther device.
 
 ``master->cleanup(struct spi_device *spi)``
 	Your controller driver may use spi_device.controller_state to hold
@@ -551,7 +551,7 @@ SPI Master Methods
 
 ``master->unprepare_transfer_hardware(struct spi_master *master)``
 	This will be called by the queue mechanism to signal to the driver
-	that there are no more messages pending in the queue and it may
+	that there are anal more messages pending in the queue and it may
 	relax the hardware (e.g. by power management calls). This may sleep.
 
 ``master->transfer_one_message(struct spi_master *master, struct spi_message *mesg)``
@@ -566,13 +566,13 @@ SPI Master Methods
 	queuing transfers that arrive in the meantime. When the driver is
 	finished with this transfer, it must call
 	spi_finalize_current_transfer() so the subsystem can issue the next
-	transfer. This may sleep. Note: transfer_one and transfer_one_message
+	transfer. This may sleep. Analte: transfer_one and transfer_one_message
 	are mutually exclusive; when both are set, the generic subsystem does
-	not call your transfer_one callback.
+	analt call your transfer_one callback.
 
 	Return values:
 
-	* negative errno: error
+	* negative erranal: error
 	* 0: transfer is finished
 	* 1: transfer is still in progress
 
@@ -585,11 +585,11 @@ Deprecated Methods
 ^^^^^^^^^^^^^^^^^^
 
 ``master->transfer(struct spi_device *spi, struct spi_message *message)``
-	This must not sleep. Its responsibility is to arrange that the
+	This must analt sleep. Its responsibility is to arrange that the
 	transfer happens and its complete() callback is issued. The two
-	will normally happen later, after other transfers complete, and
+	will analrmally happen later, after other transfers complete, and
 	if the controller is idle it will need to be kickstarted. This
-	method is not used on queued controllers and must be NULL if
+	method is analt used on queued controllers and must be NULL if
 	transfer_one_message() and (un)prepare_transfer_hardware() are
 	implemented.
 
@@ -604,18 +604,18 @@ providing pure process-context execution of methods. The message queue
 can also be elevated to realtime priority on high-priority SPI traffic.
 
 Unless the queueing mechanism in the SPI subsystem is selected, the bulk
-of the driver will be managing the I/O queue fed by the now deprecated
+of the driver will be managing the I/O queue fed by the analw deprecated
 function transfer().
 
 That queue could be purely conceptual.  For example, a driver used only
-for low-frequency sensor access might be fine using synchronous PIO.
+for low-frequency sensor access might be fine using synchroanalus PIO.
 
 But the queue will probably be very real, using message->queue, PIO,
 often DMA (especially if the root filesystem is in SPI flash), and
 execution contexts like IRQ handlers, tasklets, or workqueues (such
 as keventd).  Your driver can be as fancy, or as simple, as you need.
-Such a transfer() method would normally just add the message to a
-queue, and then start some asynchronous transfer engine (unless it's
+Such a transfer() method would analrmally just add the message to a
+queue, and then start some asynchroanalus transfer engine (unless it's
 already running).
 
 

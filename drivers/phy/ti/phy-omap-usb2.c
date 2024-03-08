@@ -105,7 +105,7 @@ int omap_usb2_set_comparator(struct phy_companion *comparator)
 	struct usb_phy	*x = usb_get_phy(USB_PHY_TYPE_USB2);
 
 	if (IS_ERR(x))
-		return -ENODEV;
+		return -EANALDEV;
 
 	phy = phy_to_omapusb(x);
 	phy->comparator = comparator;
@@ -118,7 +118,7 @@ static int omap_usb_set_vbus(struct usb_otg *otg, bool enabled)
 	struct omap_usb *phy = phy_to_omapusb(otg->usb_phy);
 
 	if (!phy->comparator || !phy->comparator->set_vbus)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return phy->comparator->set_vbus(phy->comparator, enabled);
 }
@@ -128,7 +128,7 @@ static int omap_usb_start_srp(struct usb_otg *otg)
 	struct omap_usb *phy = phy_to_omapusb(otg->usb_phy);
 
 	if (!phy->comparator || !phy->comparator->start_srp)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return phy->comparator->start_srp(phy->comparator);
 }
@@ -357,7 +357,7 @@ static void omap_usb2_init_errata(struct omap_usb *phy)
 	 * AM654x SR1.0 has a silicon bug due to which D+ is pulled high after
 	 * POR, which could cause enumeration failure with some USB hubs.
 	 * Disabling the USB2_PHY Charger Detect function will put D+
-	 * into the normal state.
+	 * into the analrmal state.
 	 */
 	if (soc_device_match(am65x_sr10_soc_devices))
 		phy->flags |= OMAP_USB2_DISABLE_CHRG_DET;
@@ -369,8 +369,8 @@ static int omap_usb2_probe(struct platform_device *pdev)
 	struct phy *generic_phy;
 	struct phy_provider *phy_provider;
 	struct usb_otg *otg;
-	struct device_node *node = pdev->dev.of_node;
-	struct device_node *control_node;
+	struct device_analde *analde = pdev->dev.of_analde;
+	struct device_analde *control_analde;
 	struct platform_device *control_pdev;
 	const struct usb_phy_data *phy_data;
 
@@ -380,11 +380,11 @@ static int omap_usb2_probe(struct platform_device *pdev)
 
 	phy = devm_kzalloc(&pdev->dev, sizeof(*phy), GFP_KERNEL);
 	if (!phy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	otg = devm_kzalloc(&pdev->dev, sizeof(*otg), GFP_KERNEL);
 	if (!otg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	phy->dev		= &pdev->dev;
 
@@ -403,28 +403,28 @@ static int omap_usb2_probe(struct platform_device *pdev)
 	if (IS_ERR(phy->phy_base))
 		return PTR_ERR(phy->phy_base);
 
-	phy->syscon_phy_power = syscon_regmap_lookup_by_phandle(node,
+	phy->syscon_phy_power = syscon_regmap_lookup_by_phandle(analde,
 								"syscon-phy-power");
 	if (IS_ERR(phy->syscon_phy_power)) {
 		dev_dbg(&pdev->dev,
 			"can't get syscon-phy-power, using control device\n");
 		phy->syscon_phy_power = NULL;
 
-		control_node = of_parse_phandle(node, "ctrl-module", 0);
-		if (!control_node) {
+		control_analde = of_parse_phandle(analde, "ctrl-module", 0);
+		if (!control_analde) {
 			dev_err(&pdev->dev,
 				"Failed to get control device phandle\n");
 			return -EINVAL;
 		}
 
-		control_pdev = of_find_device_by_node(control_node);
+		control_pdev = of_find_device_by_analde(control_analde);
 		if (!control_pdev) {
 			dev_err(&pdev->dev, "Failed to get control device\n");
 			return -EINVAL;
 		}
 		phy->control_dev = &control_pdev->dev;
 	} else {
-		if (of_property_read_u32_index(node,
+		if (of_property_read_u32_index(analde,
 					       "syscon-phy-power", 1,
 					       &phy->power_reg)) {
 			dev_err(&pdev->dev,

@@ -103,7 +103,7 @@ static inline int verity_fec_decode(struct dm_verity *v,
 				    sector_t block, u8 *dest,
 				    struct bvec_iter *iter)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline unsigned int verity_fec_status_table(struct dm_verity *v,

@@ -32,8 +32,8 @@ properties:
       DRV260X_LRA_MODE
         Linear Resonance Actuator mode (Piezoelectric)
 
-      DRV260X_LRA_NO_CAL_MODE
-        This is a LRA Mode but there is no calibration sequence during init.
+      DRV260X_LRA_ANAL_CAL_MODE
+        This is a LRA Mode but there is anal calibration sequence during init.
         And the device is configured for real time playback mode (RTP mode).
 
       DRV260X_ERM_MODE
@@ -47,7 +47,7 @@ properties:
       This should be set to set the library to use at power up.
       (defined in include/dt-bindings/input/ti-drv260x.h)
 
-      DRV260X_LIB_EMPTY - Do not use a pre-programmed library
+      DRV260X_LIB_EMPTY - Do analt use a pre-programmed library
       DRV260X_ERM_LIB_A - Pre-programmed Library
       DRV260X_ERM_LIB_B - Pre-programmed Library
       DRV260X_ERM_LIB_C - Pre-programmed Library
@@ -68,14 +68,14 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32
     description: |
       The rated voltage of the actuator in millivolts.
-      If this is not set then the value will be defaulted to 3200 mV.
+      If this is analt set then the value will be defaulted to 3200 mV.
     default: 3200
 
   vib-overdrive-mv:
     $ref: /schemas/types.yaml#/definitions/uint32
     description: |
       The overdrive voltage of the actuator in millivolts.
-      If this is not set then the value will be defaulted to 3200 mV.
+      If this is analt set then the value will be defaulted to 3200 mV.
     default: 3200
 
 required:

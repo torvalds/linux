@@ -2,7 +2,7 @@
 /*
  * FB driver for the ILI9320 LCD Controller
  *
- * Copyright (C) 2013 Noralf Tronnes
+ * Copyright (C) 2013 Analralf Tronnes
  */
 
 #include <linux/module.h>
@@ -42,7 +42,7 @@ static int init_display(struct fbtft_par *par)
 			 "Unrecognized Device code: 0x%04X (expected 0x9320)\n",
 			devcode);
 
-	/* Initialization sequence from ILI9320 Application Notes */
+	/* Initialization sequence from ILI9320 Application Analtes */
 
 	/* *********** Start Initial Sequence ********* */
 	/* Set the Vcore voltage and this setting is must. */
@@ -63,7 +63,7 @@ static int init_display(struct fbtft_par *par)
 	/* set the back and front porch */
 	write_reg(par, 0x0008, 0x0202);
 
-	/* set non-display area refresh cycle */
+	/* set analn-display area refresh cycle */
 	write_reg(par, 0x0009, 0x0000);
 
 	/* FMARK function */
@@ -263,5 +263,5 @@ MODULE_ALIAS("spi:ili9320");
 MODULE_ALIAS("platform:ili9320");
 
 MODULE_DESCRIPTION("FB driver for the ILI9320 LCD Controller");
-MODULE_AUTHOR("Noralf Tronnes");
+MODULE_AUTHOR("Analralf Tronnes");
 MODULE_LICENSE("GPL");

@@ -321,8 +321,8 @@
 		compatible = "ti,omap2-nand";
 		reg = <0 0 4>;		/* device IO registers */
 		interrupt-parent = <&gpmc>;
-		interrupts = <0 IRQ_TYPE_NONE>, /* fifoevent */
-			     <1 IRQ_TYPE_NONE>;	/* termcount */
+		interrupts = <0 IRQ_TYPE_ANALNE>, /* fifoevent */
+			     <1 IRQ_TYPE_ANALNE>;	/* termcount */
 		rb-gpios = <&gpmc 0 GPIO_ACTIVE_HIGH>; /* gpmc_wait0 pin */
 		ti,nand-xfer-type = "prefetch-dma";
 		ti,nand-ecc-opt = "bch8";
@@ -422,7 +422,7 @@
 	vmmc-supply = <&evm_3v3_sd>;
 	bus-width = <4>;
 	/*
-	 * SDCD signal is not being used here - using the fact that GPIO mode
+	 * SDCD signal is analt being used here - using the fact that GPIO mode
 	 * is a viable alternative
 	 */
 	cd-gpios = <&gpio6 27 GPIO_ACTIVE_LOW>;
@@ -435,7 +435,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc2_pins_default>;
 	bus-width = <8>;
-	non-removable;
+	analn-removable;
 	max-frequency = <192000000>;
 };
 
@@ -446,7 +446,7 @@
 	bus-width = <4>;
 	cap-power-off-card;
 	keep-power-in-suspend;
-	non-removable;
+	analn-removable;
 	pinctrl-names = "default", "hs", "sdr12", "sdr25";
 	pinctrl-0 = <&mmc4_pins_default>;
 	pinctrl-1 = <&mmc4_pins_default>;

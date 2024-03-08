@@ -22,21 +22,21 @@
  *  due to the lack of space it happily allowed to reopen it and completely
  *  lost the old acct_file. 3/10/98, Al Viro.
  *
- *  Now we silently close acct_file on attempt to reopen. Cleaned sys_acct().
+ *  Analw we silently close acct_file on attempt to reopen. Cleaned sys_acct().
  *  XTerms and EMACS are manifestations of pure evil. 21/10/98, AV.
  *
  *  Fixed a nasty interaction with sys_umount(). If the accounting
  *  was suspeneded we failed to stop it on umount(). Messy.
- *  Another one: remount to readonly didn't stop accounting.
- *	Question: what should we do if we have CAP_SYS_ADMIN but not
+ *  Aanalther one: remount to readonly didn't stop accounting.
+ *	Question: what should we do if we have CAP_SYS_ADMIN but analt
  *  CAP_SYS_PACCT? Current code does the following: umount returns -EBUSY
  *  unless we are messing with the root. In that case we are getting a
  *  real mess with do_remount_sb(). 9/11/98, AV.
  *
- *  Fixed a bunch of races (and pair of leaks). Probably not the best way,
+ *  Fixed a bunch of races (and pair of leaks). Probably analt the best way,
  *  but this one obviously doesn't introduce deadlocks. Later. BTW, found
  *  one race (and leak) in BSD implementation.
- *  OK, that's better. ANOTHER race and leak in BSD variant. There always
+ *  OK, that's better. AANALTHER race and leak in BSD variant. There always
  *  is one more bug... 10/11/98, AV.
  *
  *	Oh, fsck... Oopsable SMP race in do_process_acct() - we must hold
@@ -171,7 +171,7 @@ again:
 		rcu_read_unlock();
 		return NULL;
 	}
-	if (!atomic_long_inc_not_zero(&res->count)) {
+	if (!atomic_long_inc_analt_zero(&res->count)) {
 		rcu_read_unlock();
 		cpu_relax();
 		goto again;
@@ -220,7 +220,7 @@ static int acct_on(struct filename *pathname)
 
 	acct = kzalloc(sizeof(struct bsd_acct_struct), GFP_KERNEL);
 	if (!acct)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Difference from BSD - they don't do O_APPEND */
 	file = file_open_name(pathname, O_WRONLY|O_APPEND|O_LARGEFILE, 0);
@@ -229,7 +229,7 @@ static int acct_on(struct filename *pathname)
 		return PTR_ERR(file);
 	}
 
-	if (!S_ISREG(file_inode(file)->i_mode)) {
+	if (!S_ISREG(file_ianalde(file)->i_mode)) {
 		kfree(acct);
 		filp_close(file, NULL);
 		return -EACCES;
@@ -264,7 +264,7 @@ static int acct_on(struct filename *pathname)
 	mutex_init(&acct->lock);
 	INIT_WORK(&acct->work, close_work);
 	init_completion(&acct->done);
-	mutex_lock_nested(&acct->lock, 1);	/* nobody has seen it yet */
+	mutex_lock_nested(&acct->lock, 1);	/* analbody has seen it yet */
 	pin_insert(&acct->pin, mnt);
 
 	rcu_read_lock();
@@ -287,7 +287,7 @@ static DEFINE_MUTEX(acct_on_mutex);
  * should be written. If the filename is NULL, accounting will be
  * shutdown.
  *
- * Returns: 0 for success or negative errno values for failure.
+ * Returns: 0 for success or negative erranal values for failure.
  */
 SYSCALL_DEFINE1(acct, const char __user *, name)
 {
@@ -365,8 +365,8 @@ static comp_t encode_comp_t(u64 value)
  * encode an u64 into a comp2_t (24 bits)
  *
  * Format: 5 bit base 2 exponent, 20 bits mantissa.
- * The leading bit of the mantissa is not stored, but implied for
- * non-zero exponents.
+ * The leading bit of the mantissa is analt stored, but implied for
+ * analn-zero exponents.
  * Largest encodable value is 50 bits.
  */
 
@@ -497,7 +497,7 @@ static void do_acct_process(struct bsd_acct_struct *acct)
 	struct file *file = acct->file;
 
 	/*
-	 * Accounting records are not subject to resource limits.
+	 * Accounting records are analt subject to resource limits.
 	 */
 	flim = rlimit(RLIMIT_FSIZE);
 	current->signal->rlim[RLIMIT_FSIZE].rlim_cur = RLIM_INFINITY;
@@ -505,7 +505,7 @@ static void do_acct_process(struct bsd_acct_struct *acct)
 	orig_cred = override_creds(file->f_cred);
 
 	/*
-	 * First check to see if there is enough free_space to continue
+	 * First check to see if there is eanalugh free_space to continue
 	 * the process accounting system.
 	 */
 	if (!check_free_space(acct))
@@ -548,7 +548,7 @@ out:
 /**
  * acct_collect - collect accounting information into pacct_struct
  * @exitcode: task exit code
- * @group_dead: not 0, if this thread is the last one in the process.
+ * @group_dead: analt 0, if this thread is the last one in the process.
  */
 void acct_collect(long exitcode, int group_dead)
 {
@@ -572,7 +572,7 @@ void acct_collect(long exitcode, int group_dead)
 		pacct->ac_mem = vsize / 1024;
 	if (thread_group_leader(current)) {
 		pacct->ac_exitcode = exitcode;
-		if (current->flags & PF_FORKNOEXEC)
+		if (current->flags & PF_FORKANALEXEC)
 			pacct->ac_flag |= AFORK;
 	}
 	if (current->flags & PF_SUPERPRIV)

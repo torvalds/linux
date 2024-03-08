@@ -32,8 +32,8 @@ struct dsp_features {
 	int	pcm_id; /* unique id to identify the pcm bus (or -1) */
 	int	pcm_slots; /* number of slots on the pcm bus */
 	int	pcm_banks; /* number of IO banks of pcm bus */
-	int	unclocked; /* data is not clocked (has jitter/loss) */
-	int	unordered; /* data is unordered (packets have index) */
+	int	unclocked; /* data is analt clocked (has jitter/loss) */
+	int	uanalrdered; /* data is uanalrdered (packets have index) */
 };
 
 #endif

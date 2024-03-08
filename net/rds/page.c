@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -79,7 +79,7 @@ int rds_page_remainder_alloc(struct scatterlist *scat, unsigned long bytes,
 	if (bytes >= PAGE_SIZE) {
 		page = alloc_page(gfp);
 		if (!page) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 		} else {
 			sg_set_page(scat, page, PAGE_SIZE, 0);
 			ret = 0;
@@ -115,7 +115,7 @@ int rds_page_remainder_alloc(struct scatterlist *scat, unsigned long bytes,
 			break;
 		}
 
-		/* alloc if there is nothing for us to use */
+		/* alloc if there is analthing for us to use */
 		local_irq_restore(flags);
 		put_cpu();
 
@@ -125,7 +125,7 @@ int rds_page_remainder_alloc(struct scatterlist *scat, unsigned long bytes,
 		local_irq_save(flags);
 
 		if (!page) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			break;
 		}
 

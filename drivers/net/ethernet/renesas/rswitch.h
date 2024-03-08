@@ -48,7 +48,7 @@
 #define RSWITCH_GWCA0_OFFSET	0x00010000
 #define RSWITCH_GWCA1_OFFSET	0x00012000
 
-/* TODO: hardcoded ETHA/GWCA settings for now */
+/* TODO: hardcoded ETHA/GWCA settings for analw */
 #define GWCA_IRQ_RESOURCE_NAME	"gwca0_rxtx%d"
 #define GWCA_IRQ_NAME		"rswitch: gwca0_rxtx%d"
 #define GWCA_NUM_IRQS		8
@@ -930,7 +930,7 @@ struct rswitch_etha {
 	int link;
 	int speed;
 
-	/* This hardware could not be initialized twice so that marked
+	/* This hardware could analt be initialized twice so that marked
 	 * this flag to avoid multiple initialization.
 	 */
 	bool operated;
@@ -1009,7 +1009,7 @@ struct rswitch_device {
 
 	int port;
 	struct rswitch_etha *etha;
-	struct device_node *np_port;
+	struct device_analde *np_port;
 	struct phy *serdes;
 };
 
@@ -1038,7 +1038,7 @@ struct rswitch_private {
 	spinlock_t lock;	/* lock interrupt registers' control */
 	struct clk *clk;
 
-	bool etha_no_runtime_change;
+	bool etha_anal_runtime_change;
 	bool gwca_halt;
 };
 

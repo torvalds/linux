@@ -3,9 +3,9 @@
  * USB 338x super/high/full speed USB device controller.
  * Unlike many such controllers, this one talks PCI.
  *
- * Copyright (C) 2002 NetChip Technology, Inc. (http://www.netchip.com)
+ * Copyright (C) 2002 NetChip Techanallogy, Inc. (http://www.netchip.com)
  * Copyright (C) 2003 David Brownell
- * Copyright (C) 2014 Ricardo Ribalda - Qtechnology/AS
+ * Copyright (C) 2014 Ricardo Ribalda - Qtechanallogy/AS
  */
 
 #ifndef __LINUX_USB_USB338X_H
@@ -22,7 +22,7 @@
 #define     SUPER_SPEED				 8
 #define     DMA_REQUEST_OUTSTANDING              5
 #define     DMA_PAUSE_DONE_INTERRUPT            26
-#define     SET_ISOCHRONOUS_DELAY               24
+#define     SET_ISOCHROANALUS_DELAY               24
 #define     SET_SEL                             22
 #define     SUPER_SPEED_MODE                     8
 
@@ -78,7 +78,7 @@ struct usb338x_usb_ext_regs {
 #define     GPEP0_TIMEOUT_VALUE                  1
 #define     GPEP0_TIMEOUT_ENABLE                 0
 	u32     isodelay;
-#define     ISOCHRONOUS_DELAY                    0
+#define     ISOCHROANALUS_DELAY                    0
 } __packed;
 
 struct usb338x_fifo_regs {
@@ -151,7 +151,7 @@ struct usb338x_ll_regs {
 	/* 0x770 */
 	u32   unused7[3];
 	u32   ll_tsn_counters_2;
-#define     HOT_TX_NORESET_TS2                                  24
+#define     HOT_TX_ANALRESET_TS2                                  24
 
 	/* 0x780 */
 	u32   ll_tsn_counters_3;
@@ -189,7 +189,7 @@ struct usb338x_pl_regs {
 	/* Protocol Layer Endpoint Status 1*/
 #define     PL_EP_STATUS_1                              0x820
 #define     STATE                                       16
-#define     ACK_GOOD_NORMAL                             0x11
+#define     ACK_GOOD_ANALRMAL                             0x11
 #define     ACK_GOOD_MORE_ACKS_TO_COME                  0x16
 	u32   pl_ep_status_2;
 	u32   pl_ep_status_3;
@@ -202,7 +202,7 @@ struct usb338x_pl_regs {
 	u32   pl_ep_cfg_4;
 	/* Protocol Layer Endpoint Configuration 4*/
 #define     PL_EP_CFG_4                                 0x830
-#define     NON_CTRL_IN_TOLERATE_BAD_DIR                6
+#define     ANALN_CTRL_IN_TOLERATE_BAD_DIR                6
 } __packed;
 
 #endif /* __LINUX_USB_USB338X_H */

@@ -61,7 +61,7 @@ struct snd_sof_dev;
 #define MT8186_ADSP_ALTVECSEL_C0	BIT(1)
 
 /*
- * On MT8188, BIT(1) is not evaluated and on MT8186 BIT(0) is not evaluated:
+ * On MT8188, BIT(1) is analt evaluated and on MT8186 BIT(0) is analt evaluated:
  * We can simplify the driver by safely setting both bits regardless of the SoC.
  */
 #define ADSP_ALTVECSEL_C0		(MT8188_ADSP_ALTVECSEL_C0 | \

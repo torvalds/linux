@@ -50,7 +50,7 @@ bool secretmem_active(void)
 static vm_fault_t secretmem_fault(struct vm_fault *vmf)
 {
 	struct address_space *mapping = vmf->vma->vm_file->f_mapping;
-	struct inode *inode = file_inode(vmf->vma->vm_file);
+	struct ianalde *ianalde = file_ianalde(vmf->vma->vm_file);
 	pgoff_t offset = vmf->pgoff;
 	gfp_t gfp = vmf->gfp_mask;
 	unsigned long addr;
@@ -59,7 +59,7 @@ static vm_fault_t secretmem_fault(struct vm_fault *vmf)
 	vm_fault_t ret;
 	int err;
 
-	if (((loff_t)vmf->pgoff << PAGE_SHIFT) >= i_size_read(inode))
+	if (((loff_t)vmf->pgoff << PAGE_SHIFT) >= i_size_read(ianalde))
 		return vmf_error(-EINVAL);
 
 	filemap_invalidate_lock_shared(mapping);
@@ -74,7 +74,7 @@ retry:
 		}
 
 		page = &folio->page;
-		err = set_direct_map_invalid_noflush(page);
+		err = set_direct_map_invalid_analflush(page);
 		if (err) {
 			folio_put(folio);
 			ret = vmf_error(err);
@@ -90,7 +90,7 @@ retry:
 			 * already happened when we marked the page invalid
 			 * which guarantees that this call won't fail
 			 */
-			set_direct_map_default_noflush(page);
+			set_direct_map_default_analflush(page);
 			if (err == -EEXIST)
 				goto retry;
 
@@ -114,7 +114,7 @@ static const struct vm_operations_struct secretmem_vm_ops = {
 	.fault = secretmem_fault,
 };
 
-static int secretmem_release(struct inode *inode, struct file *file)
+static int secretmem_release(struct ianalde *ianalde, struct file *file)
 {
 	atomic_dec(&secretmem_users);
 	return 0;
@@ -154,12 +154,12 @@ static int secretmem_migrate_folio(struct address_space *mapping,
 
 static void secretmem_free_folio(struct folio *folio)
 {
-	set_direct_map_default_noflush(&folio->page);
+	set_direct_map_default_analflush(&folio->page);
 	folio_zero_segment(folio, 0, folio_size(folio));
 }
 
 const struct address_space_operations secretmem_aops = {
-	.dirty_folio	= noop_dirty_folio,
+	.dirty_folio	= analop_dirty_folio,
 	.free_folio	= secretmem_free_folio,
 	.migrate_folio	= secretmem_migrate_folio,
 };
@@ -167,14 +167,14 @@ const struct address_space_operations secretmem_aops = {
 static int secretmem_setattr(struct mnt_idmap *idmap,
 			     struct dentry *dentry, struct iattr *iattr)
 {
-	struct inode *inode = d_inode(dentry);
-	struct address_space *mapping = inode->i_mapping;
+	struct ianalde *ianalde = d_ianalde(dentry);
+	struct address_space *mapping = ianalde->i_mapping;
 	unsigned int ia_valid = iattr->ia_valid;
 	int ret;
 
 	filemap_invalidate_lock(mapping);
 
-	if ((ia_valid & ATTR_SIZE) && inode->i_size)
+	if ((ia_valid & ATTR_SIZE) && ianalde->i_size)
 		ret = -EINVAL;
 	else
 		ret = simple_setattr(idmap, dentry, iattr);
@@ -184,7 +184,7 @@ static int secretmem_setattr(struct mnt_idmap *idmap,
 	return ret;
 }
 
-static const struct inode_operations secretmem_iops = {
+static const struct ianalde_operations secretmem_iops = {
 	.setattr = secretmem_setattr,
 };
 
@@ -193,40 +193,40 @@ static struct vfsmount *secretmem_mnt;
 static struct file *secretmem_file_create(unsigned long flags)
 {
 	struct file *file;
-	struct inode *inode;
-	const char *anon_name = "[secretmem]";
-	const struct qstr qname = QSTR_INIT(anon_name, strlen(anon_name));
+	struct ianalde *ianalde;
+	const char *aanaln_name = "[secretmem]";
+	const struct qstr qname = QSTR_INIT(aanaln_name, strlen(aanaln_name));
 	int err;
 
-	inode = alloc_anon_inode(secretmem_mnt->mnt_sb);
-	if (IS_ERR(inode))
-		return ERR_CAST(inode);
+	ianalde = alloc_aanaln_ianalde(secretmem_mnt->mnt_sb);
+	if (IS_ERR(ianalde))
+		return ERR_CAST(ianalde);
 
-	err = security_inode_init_security_anon(inode, &qname, NULL);
+	err = security_ianalde_init_security_aanaln(ianalde, &qname, NULL);
 	if (err) {
 		file = ERR_PTR(err);
-		goto err_free_inode;
+		goto err_free_ianalde;
 	}
 
-	file = alloc_file_pseudo(inode, secretmem_mnt, "secretmem",
+	file = alloc_file_pseudo(ianalde, secretmem_mnt, "secretmem",
 				 O_RDWR, &secretmem_fops);
 	if (IS_ERR(file))
-		goto err_free_inode;
+		goto err_free_ianalde;
 
-	mapping_set_gfp_mask(inode->i_mapping, GFP_HIGHUSER);
-	mapping_set_unevictable(inode->i_mapping);
+	mapping_set_gfp_mask(ianalde->i_mapping, GFP_HIGHUSER);
+	mapping_set_unevictable(ianalde->i_mapping);
 
-	inode->i_op = &secretmem_iops;
-	inode->i_mapping->a_ops = &secretmem_aops;
+	ianalde->i_op = &secretmem_iops;
+	ianalde->i_mapping->a_ops = &secretmem_aops;
 
-	/* pretend we are a normal file with zero size */
-	inode->i_mode |= S_IFREG;
-	inode->i_size = 0;
+	/* pretend we are a analrmal file with zero size */
+	ianalde->i_mode |= S_IFREG;
+	ianalde->i_size = 0;
 
 	return file;
 
-err_free_inode:
-	iput(inode);
+err_free_ianalde:
+	iput(ianalde);
 	return file;
 }
 
@@ -235,11 +235,11 @@ SYSCALL_DEFINE1(memfd_secret, unsigned int, flags)
 	struct file *file;
 	int fd, err;
 
-	/* make sure local flags do not confict with global fcntl.h */
+	/* make sure local flags do analt confict with global fcntl.h */
 	BUILD_BUG_ON(SECRETMEM_FLAGS_MASK & O_CLOEXEC);
 
 	if (!secretmem_enable)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	if (flags & ~(SECRETMEM_FLAGS_MASK | O_CLOEXEC))
 		return -EINVAL;
@@ -269,13 +269,13 @@ err_put_fd:
 
 static int secretmem_init_fs_context(struct fs_context *fc)
 {
-	return init_pseudo(fc, SECRETMEM_MAGIC) ? 0 : -ENOMEM;
+	return init_pseudo(fc, SECRETMEM_MAGIC) ? 0 : -EANALMEM;
 }
 
 static struct file_system_type secretmem_fs = {
 	.name		= "secretmem",
 	.init_fs_context = secretmem_init_fs_context,
-	.kill_sb	= kill_anon_super,
+	.kill_sb	= kill_aanaln_super,
 };
 
 static int __init secretmem_init(void)
@@ -288,7 +288,7 @@ static int __init secretmem_init(void)
 		return PTR_ERR(secretmem_mnt);
 
 	/* prevent secretmem mappings from ever getting PROT_EXEC */
-	secretmem_mnt->mnt_flags |= MNT_NOEXEC;
+	secretmem_mnt->mnt_flags |= MNT_ANALEXEC;
 
 	return 0;
 }

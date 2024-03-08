@@ -29,7 +29,7 @@ ENTRY(__raw_readsb)
 .Linsb_aligned:	stmfd	sp!, {r4 - r6, lr}
 
 		subs	r2, r2, #16
-		bmi	.Linsb_no_16
+		bmi	.Linsb_anal_16
 
 .Linsb_16_lp:	ldrb	r3, [r0]
 		ldrb	r4, [r0]
@@ -71,8 +71,8 @@ ENTRY(__raw_readsb)
 		tst	r2, #15
 		ldmfdeq	sp!, {r4 - r6, pc}
 
-.Linsb_no_16:	tst	r2, #8
-		beq	.Linsb_no_8
+.Linsb_anal_16:	tst	r2, #8
+		beq	.Linsb_anal_8
 
 		ldrb	r3, [r0]
 		ldrb	r4, [r0]
@@ -92,8 +92,8 @@ ENTRY(__raw_readsb)
 		orr	r4, r4, ip, put_byte_3
 		stmia	r1!, {r3, r4}
 
-.Linsb_no_8:	tst	r2, #4
-		beq	.Linsb_no_4
+.Linsb_anal_8:	tst	r2, #4
+		beq	.Linsb_anal_4
 
 		ldrb	r3, [r0]
 		ldrb	r4, [r0]
@@ -105,7 +105,7 @@ ENTRY(__raw_readsb)
 		orr	r3, r3, r6, put_byte_3
 		str	r3, [r1], #4
 
-.Linsb_no_4:	ands	r2, r2, #3
+.Linsb_anal_4:	ands	r2, r2, #3
 		ldmfdeq	sp!, {r4 - r6, pc}
 
 		cmp	r2, #2

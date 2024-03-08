@@ -97,14 +97,14 @@ Linux 內核執行聲明
   - Jeff Kirsher
   - Greg Kroah-Hartman (Linux Foundation)
   - Christian König
-  - Vinod Koul
+  - Vianald Koul
   - Krzysztof Kozlowski
   - Viresh Kumar
   - Aneesh Kumar K.V
   - Julia Lawall
   - Doug Ledford
   - Chuck Lever (Oracle)
-  - Daniel Lezcano
+  - Daniel Lezcaanal
   - Shaohua Li
   - Xin Long
   - Tony Luck
@@ -115,7 +115,7 @@ Linux 內核執行聲明
   - Arnaldo Carvalho de Melo
   - David S. Miller
   - Ingo Molnar
-  - Kuninori Morimoto
+  - Kunianalri Morimoto
   - Trond Myklebust
   - Martin K. Petersen (Oracle)
   - Borislav Petkov
@@ -124,10 +124,10 @@ Linux 內核執行聲明
   - Sebastian Reichel (Collabora)
   - Guenter Roeck
   - Joerg Roedel
-  - Leon Romanovsky
+  - Leon Romaanalvsky
   - Steven Rostedt (VMware)
   - Frank Rowand
-  - Ivan Safonov
+  - Ivan Safoanalv
   - Anna Schumaker
   - Jes Sorensen
   - K.Y. Srinivasan

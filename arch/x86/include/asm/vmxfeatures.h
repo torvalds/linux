@@ -8,9 +8,9 @@
 #define NVMXINTS			5 /* N 32-bit words worth of info */
 
 /*
- * Note: If the comment begins with a quoted string, that string is used
+ * Analte: If the comment begins with a quoted string, that string is used
  * in /proc/cpuinfo instead of the macro name.  If the string is "",
- * this feature bit is not displayed in /proc/cpuinfo at all.
+ * this feature bit is analt displayed in /proc/cpuinfo at all.
  */
 
 /* Pin-Based VM-Execution Controls, EPT/VPID, APIC and VM-Functions, word 0 */
@@ -85,7 +85,7 @@
 #define VMX_FEATURE_USR_WAIT_PAUSE	( 2*32+ 26) /* Enable TPAUSE, UMONITOR, UMWAIT in guest */
 #define VMX_FEATURE_ENCLV_EXITING	( 2*32+ 28) /* "" VM-Exit on ENCLV (leaf dependent) */
 #define VMX_FEATURE_BUS_LOCK_DETECTION	( 2*32+ 30) /* "" VM-Exit when bus lock caused */
-#define VMX_FEATURE_NOTIFY_VM_EXITING	( 2*32+ 31) /* VM-Exit when no event windows after notify window */
+#define VMX_FEATURE_ANALTIFY_VM_EXITING	( 2*32+ 31) /* VM-Exit when anal event windows after analtify window */
 
 /* Tertiary Processor-Based VM-Execution Controls, word 3 */
 #define VMX_FEATURE_IPI_VIRT		( 3*32+  4) /* Enable IPI virtualization */

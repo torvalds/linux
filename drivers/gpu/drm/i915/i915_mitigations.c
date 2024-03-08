@@ -38,7 +38,7 @@ static int mitigations_set(const char *val, const struct kernel_param *kp)
 
 	str = kstrdup(val, GFP_KERNEL);
 	if (!str)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (sep = str; (tok = strsep(&sep, ","));) {
 		bool enable = true;
@@ -63,7 +63,7 @@ static int mitigations_set(const char *val, const struct kernel_param *kp)
 			tok++;
 		}
 
-		if (!strncmp(tok, "no", 2)) {
+		if (!strncmp(tok, "anal", 2)) {
 			enable = !enable;
 			tok += 2;
 		}
@@ -81,7 +81,7 @@ static int mitigations_set(const char *val, const struct kernel_param *kp)
 			}
 		}
 		if (i == ARRAY_SIZE(names)) {
-			pr_err("Bad \"%s.mitigations=%s\", '%s' is unknown\n",
+			pr_err("Bad \"%s.mitigations=%s\", '%s' is unkanalwn\n",
 			       DRIVER_NAME, val, tok);
 			err = -EINVAL;
 			break;
@@ -138,8 +138,8 @@ MODULE_PARM_DESC(mitigations,
 "\n"
 "Individual mitigations can be enabled by passing a comma-separated string,\n"
 "e.g. mitigations=residuals to enable only clearing residuals or\n"
-"mitigations=auto,noresiduals to disable only the clear residual mitigation.\n"
-"Either '!' or 'no' may be used to switch from enabling the mitigation to\n"
+"mitigations=auto,analresiduals to disable only the clear residual mitigation.\n"
+"Either '!' or 'anal' may be used to switch from enabling the mitigation to\n"
 "disabling it.\n"
 "\n"
 "Active mitigations for Ivybridge, Baytrail, Haswell:\n"

@@ -18,14 +18,14 @@ struct ctl_table_header;
 struct mempolicy;
 
 /*
- * This is not completely implemented yet. The idea is to
+ * This is analt completely implemented yet. The idea is to
  * create an in-memory tree (like the actual /proc filesystem
  * tree) of these proc_dir_entries, so that we can dynamically
  * add new files to /proc.
  *
  * parent/subdir are used for the directory structure (every /proc file has a
- * parent, but "subdir" is empty for all non-directory entries).
- * subdir_node is used to build the rb tree "subdir" of the parent.
+ * parent, but "subdir" is empty for all analn-directory entries).
+ * subdir_analde is used to build the rb tree "subdir" of the parent.
  */
 struct proc_dir_entry {
 	/*
@@ -34,11 +34,11 @@ struct proc_dir_entry {
 	 */
 	atomic_t in_use;
 	refcount_t refcnt;
-	struct list_head pde_openers;	/* who did ->open, but not ->release */
+	struct list_head pde_openers;	/* who did ->open, but analt ->release */
 	/* protects ->pde_openers and all struct pde_opener instances */
 	spinlock_t pde_unload_lock;
 	struct completion *pde_unload_completion;
-	const struct inode_operations *proc_iops;
+	const struct ianalde_operations *proc_iops;
 	union {
 		const struct proc_ops *proc_ops;
 		const struct file_operations *proc_dir_ops;
@@ -51,14 +51,14 @@ struct proc_dir_entry {
 	proc_write_t write;
 	void *data;
 	unsigned int state_size;
-	unsigned int low_ino;
+	unsigned int low_ianal;
 	nlink_t nlink;
 	kuid_t uid;
 	kgid_t gid;
 	loff_t size;
 	struct proc_dir_entry *parent;
 	struct rb_root subdir;
-	struct rb_node subdir_node;
+	struct rb_analde subdir_analde;
 	char *name;
 	umode_t mode;
 	u8 flags;
@@ -95,39 +95,39 @@ union proc_op {
 	int lsmid;
 };
 
-struct proc_inode {
+struct proc_ianalde {
 	struct pid *pid;
 	unsigned int fd;
 	union proc_op op;
 	struct proc_dir_entry *pde;
 	struct ctl_table_header *sysctl;
 	struct ctl_table *sysctl_entry;
-	struct hlist_node sibling_inodes;
+	struct hlist_analde sibling_ianaldes;
 	const struct proc_ns_operations *ns_ops;
-	struct inode vfs_inode;
+	struct ianalde vfs_ianalde;
 } __randomize_layout;
 
 /*
  * General functions
  */
-static inline struct proc_inode *PROC_I(const struct inode *inode)
+static inline struct proc_ianalde *PROC_I(const struct ianalde *ianalde)
 {
-	return container_of(inode, struct proc_inode, vfs_inode);
+	return container_of(ianalde, struct proc_ianalde, vfs_ianalde);
 }
 
-static inline struct proc_dir_entry *PDE(const struct inode *inode)
+static inline struct proc_dir_entry *PDE(const struct ianalde *ianalde)
 {
-	return PROC_I(inode)->pde;
+	return PROC_I(ianalde)->pde;
 }
 
-static inline struct pid *proc_pid(const struct inode *inode)
+static inline struct pid *proc_pid(const struct ianalde *ianalde)
 {
-	return PROC_I(inode)->pid;
+	return PROC_I(ianalde)->pid;
 }
 
-static inline struct task_struct *get_proc_task(const struct inode *inode)
+static inline struct task_struct *get_proc_task(const struct ianalde *ianalde)
 {
-	return get_pid_task(proc_pid(inode), PIDTYPE_PID);
+	return get_pid_task(proc_pid(ianalde), PIDTYPE_PID);
 }
 
 void task_dump_owner(struct task_struct *task, umode_t mode,
@@ -166,9 +166,9 @@ extern int pid_getattr(struct mnt_idmap *, const struct path *,
 		       struct kstat *, u32, unsigned int);
 extern int proc_setattr(struct mnt_idmap *, struct dentry *,
 			struct iattr *);
-extern void proc_pid_evict_inode(struct proc_inode *);
-extern struct inode *proc_pid_make_inode(struct super_block *, struct task_struct *, umode_t);
-extern void pid_update_inode(struct task_struct *, struct inode *);
+extern void proc_pid_evict_ianalde(struct proc_ianalde *);
+extern struct ianalde *proc_pid_make_ianalde(struct super_block *, struct task_struct *, umode_t);
+extern void pid_update_ianalde(struct task_struct *, struct ianalde *);
 extern int pid_delete_dentry(const struct dentry *);
 extern int proc_pid_readdir(struct file *, struct dir_context *);
 struct dentry *proc_pid_lookup(struct dentry *, unsigned int);
@@ -187,8 +187,8 @@ struct proc_dir_entry *proc_create_reg(const char *name, umode_t mode,
 		struct proc_dir_entry **parent, void *data);
 struct proc_dir_entry *proc_register(struct proc_dir_entry *dir,
 		struct proc_dir_entry *dp);
-extern struct dentry *proc_lookup(struct inode *, struct dentry *, unsigned int);
-struct dentry *proc_lookup_de(struct inode *, struct dentry *, struct proc_dir_entry *);
+extern struct dentry *proc_lookup(struct ianalde *, struct dentry *, unsigned int);
+struct dentry *proc_lookup_de(struct ianalde *, struct dentry *, struct proc_dir_entry *);
 extern int proc_readdir(struct file *, struct dir_context *);
 int proc_readdir_de(struct file *, struct dir_context *, struct proc_dir_entry *);
 
@@ -205,7 +205,7 @@ static inline bool is_empty_pde(const struct proc_dir_entry *pde)
 extern ssize_t proc_simple_write(struct file *, const char __user *, size_t, loff_t *);
 
 /*
- * inode.c
+ * ianalde.c
  */
 struct pde_opener {
 	struct list_head lh;
@@ -213,27 +213,27 @@ struct pde_opener {
 	bool closing;
 	struct completion *c;
 } __randomize_layout;
-extern const struct inode_operations proc_link_inode_operations;
-extern const struct inode_operations proc_pid_link_inode_operations;
+extern const struct ianalde_operations proc_link_ianalde_operations;
+extern const struct ianalde_operations proc_pid_link_ianalde_operations;
 extern const struct super_operations proc_sops;
 
 void proc_init_kmemcache(void);
-void proc_invalidate_siblings_dcache(struct hlist_head *inodes, spinlock_t *lock);
+void proc_invalidate_siblings_dcache(struct hlist_head *ianaldes, spinlock_t *lock);
 void set_proc_pid_nlink(void);
-extern struct inode *proc_get_inode(struct super_block *, struct proc_dir_entry *);
+extern struct ianalde *proc_get_ianalde(struct super_block *, struct proc_dir_entry *);
 extern void proc_entry_rundown(struct proc_dir_entry *);
 
 /*
  * proc_namespaces.c
  */
-extern const struct inode_operations proc_ns_dir_inode_operations;
+extern const struct ianalde_operations proc_ns_dir_ianalde_operations;
 extern const struct file_operations proc_ns_dir_operations;
 
 /*
  * proc_net.c
  */
 extern const struct file_operations proc_net_operations;
-extern const struct inode_operations proc_net_inode_operations;
+extern const struct ianalde_operations proc_net_ianalde_operations;
 
 #ifdef CONFIG_NET
 extern int proc_net_init(void);
@@ -257,11 +257,11 @@ extern void proc_thread_self_init(void);
  */
 #ifdef CONFIG_PROC_SYSCTL
 extern int proc_sys_init(void);
-extern void proc_sys_evict_inode(struct inode *inode,
+extern void proc_sys_evict_ianalde(struct ianalde *ianalde,
 				 struct ctl_table_header *head);
 #else
 static inline void proc_sys_init(void) { }
-static inline void proc_sys_evict_inode(struct  inode *inode,
+static inline void proc_sys_evict_ianalde(struct  ianalde *ianalde,
 					struct ctl_table_header *head) { }
 #endif
 
@@ -282,11 +282,11 @@ extern struct proc_dir_entry proc_root;
 extern void proc_self_init(void);
 
 /*
- * task_[no]mmu.c
+ * task_[anal]mmu.c
  */
 struct mem_size_stats;
 struct proc_maps_private {
-	struct inode *inode;
+	struct ianalde *ianalde;
 	struct task_struct *task;
 	struct mm_struct *mm;
 	struct vma_iterator iter;
@@ -295,7 +295,7 @@ struct proc_maps_private {
 #endif
 } __randomize_layout;
 
-struct mm_struct *proc_mem_open(struct inode *inode, unsigned int mode);
+struct mm_struct *proc_mem_open(struct ianalde *ianalde, unsigned int mode);
 
 extern const struct file_operations proc_pid_maps_operations;
 extern const struct file_operations proc_pid_numa_maps_operations;

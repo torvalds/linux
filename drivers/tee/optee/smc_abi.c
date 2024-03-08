@@ -8,7 +8,7 @@
 
 #include <linux/arm-smccc.h>
 #include <linux/cpuhotplug.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/firmware.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -40,8 +40,8 @@
  * 1. Convert between struct tee_param and struct optee_msg_param
  * 2. Low level support functions to register shared memory in secure world
  * 3. Dynamic shared memory pool based on alloc_pages()
- * 4. Do a normal scheduled call into secure world
- * 5. Asynchronous notification
+ * 4. Do a analrmal scheduled call into secure world
+ * 5. Asynchroanalus analtification
  * 6. Driver initialization.
  */
 
@@ -60,7 +60,7 @@ static unsigned int pcpu_irq_num;
 
 static int optee_cpuhp_enable_pcpu_irq(unsigned int cpu)
 {
-	enable_percpu_irq(pcpu_irq_num, IRQ_TYPE_NONE);
+	enable_percpu_irq(pcpu_irq_num, IRQ_TYPE_ANALNE);
 
 	return 0;
 }
@@ -147,25 +147,25 @@ static int optee_from_msg_param(struct optee *optee, struct tee_param *params,
 		u32 attr = mp->attr & OPTEE_MSG_ATTR_TYPE_MASK;
 
 		switch (attr) {
-		case OPTEE_MSG_ATTR_TYPE_NONE:
-			p->attr = TEE_IOCTL_PARAM_ATTR_TYPE_NONE;
+		case OPTEE_MSG_ATTR_TYPE_ANALNE:
+			p->attr = TEE_IOCTL_PARAM_ATTR_TYPE_ANALNE;
 			memset(&p->u, 0, sizeof(p->u));
 			break;
 		case OPTEE_MSG_ATTR_TYPE_VALUE_INPUT:
 		case OPTEE_MSG_ATTR_TYPE_VALUE_OUTPUT:
-		case OPTEE_MSG_ATTR_TYPE_VALUE_INOUT:
+		case OPTEE_MSG_ATTR_TYPE_VALUE_IANALUT:
 			optee_from_msg_param_value(p, attr, mp);
 			break;
 		case OPTEE_MSG_ATTR_TYPE_TMEM_INPUT:
 		case OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT:
-		case OPTEE_MSG_ATTR_TYPE_TMEM_INOUT:
+		case OPTEE_MSG_ATTR_TYPE_TMEM_IANALUT:
 			rc = from_msg_param_tmp_mem(p, attr, mp);
 			if (rc)
 				return rc;
 			break;
 		case OPTEE_MSG_ATTR_TYPE_RMEM_INPUT:
 		case OPTEE_MSG_ATTR_TYPE_RMEM_OUTPUT:
-		case OPTEE_MSG_ATTR_TYPE_RMEM_INOUT:
+		case OPTEE_MSG_ATTR_TYPE_RMEM_IANALUT:
 			from_msg_param_reg_mem(p, attr, mp);
 			break;
 
@@ -236,18 +236,18 @@ static int optee_to_msg_param(struct optee *optee,
 		struct optee_msg_param *mp = msg_params + n;
 
 		switch (p->attr) {
-		case TEE_IOCTL_PARAM_ATTR_TYPE_NONE:
-			mp->attr = TEE_IOCTL_PARAM_ATTR_TYPE_NONE;
+		case TEE_IOCTL_PARAM_ATTR_TYPE_ANALNE:
+			mp->attr = TEE_IOCTL_PARAM_ATTR_TYPE_ANALNE;
 			memset(&mp->u, 0, sizeof(mp->u));
 			break;
 		case TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_INPUT:
 		case TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_OUTPUT:
-		case TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_INOUT:
+		case TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_IANALUT:
 			optee_to_msg_param_value(mp, p);
 			break;
 		case TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_INPUT:
 		case TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_OUTPUT:
-		case TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_INOUT:
+		case TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_IANALUT:
 			if (tee_shm_is_dynamic(p->u.memref.shm))
 				rc = to_msg_param_reg_mem(mp, p);
 			else
@@ -269,7 +269,7 @@ static int optee_to_msg_param(struct optee *optee,
  * is, lazy freeing of previously allocated shared memory. Freeing is
  * performed when a request has been compled.
  *
- * Functions to register and unregister shared memory both for normal
+ * Functions to register and unregister shared memory both for analrmal
  * clients and for tee-supplicant.
  */
 
@@ -317,14 +317,14 @@ static void __optee_disable_shm_cache(struct optee *optee, bool is_mapped)
 
 		optee->smc.invoke_fn(OPTEE_SMC_DISABLE_SHM_CACHE,
 				     0, 0, 0, 0, 0, 0, 0, &res.smccc);
-		if (res.result.status == OPTEE_SMC_RETURN_ENOTAVAIL)
+		if (res.result.status == OPTEE_SMC_RETURN_EANALTAVAIL)
 			break; /* All shm's freed */
 		if (res.result.status == OPTEE_SMC_RETURN_OK) {
 			struct tee_shm *shm;
 
 			/*
-			 * Shared memory references that were not mapped by
-			 * this kernel must be ignored to prevent a crash.
+			 * Shared memory references that were analt mapped by
+			 * this kernel must be iganalred to prevent a crash.
 			 */
 			if (!is_mapped)
 				continue;
@@ -351,7 +351,7 @@ static void optee_disable_shm_cache(struct optee *optee)
 
 /**
  * optee_disable_unmapped_shm_cache() - Disables caching of shared memory
- *					allocations in OP-TEE which are not
+ *					allocations in OP-TEE which are analt
  *					currently mapped
  * @optee:	main service struct
  */
@@ -361,7 +361,7 @@ static void optee_disable_unmapped_shm_cache(struct optee *optee)
 }
 
 #define PAGELIST_ENTRIES_PER_PAGE				\
-	((OPTEE_MSG_NONCONTIG_PAGE_SIZE / sizeof(u64)) - 1)
+	((OPTEE_MSG_ANALNCONTIG_PAGE_SIZE / sizeof(u64)) - 1)
 
 /*
  * The final entry in each pagelist page is a pointer to the next
@@ -371,7 +371,7 @@ static size_t get_pages_list_size(size_t num_entries)
 {
 	int pages = DIV_ROUND_UP(num_entries, PAGELIST_ENTRIES_PER_PAGE);
 
-	return pages * OPTEE_MSG_NONCONTIG_PAGE_SIZE;
+	return pages * OPTEE_MSG_ANALNCONTIG_PAGE_SIZE;
 }
 
 static u64 *optee_allocate_pages_list(size_t num_entries)
@@ -393,7 +393,7 @@ static void optee_free_pages_list(void *list, size_t num_entries)
  * @num_pages: number of entries in @pages
  * @page_offset: offset of user buffer from page start
  *
- * @dst should be big enough to hold list of user page addresses and
+ * @dst should be big eanalugh to hold list of user page addresses and
  *	links to the next pages of buffer
  */
 static void optee_fill_pages_list(u64 *dst, struct page **pages, int num_pages,
@@ -402,7 +402,7 @@ static void optee_fill_pages_list(u64 *dst, struct page **pages, int num_pages,
 	int n = 0;
 	phys_addr_t optee_page;
 	/*
-	 * Refer to OPTEE_MSG_ATTR_NONCONTIG description in optee_msg.h
+	 * Refer to OPTEE_MSG_ATTR_ANALNCONTIG description in optee_msg.h
 	 * for details.
 	 */
 	struct {
@@ -411,23 +411,23 @@ static void optee_fill_pages_list(u64 *dst, struct page **pages, int num_pages,
 	} *pages_data;
 
 	/*
-	 * Currently OP-TEE uses 4k page size and it does not looks
+	 * Currently OP-TEE uses 4k page size and it does analt looks
 	 * like this will change in the future.  On other hand, there are
-	 * no know ARM architectures with page size < 4k.
+	 * anal kanalw ARM architectures with page size < 4k.
 	 * Thus the next built assert looks redundant. But the following
 	 * code heavily relies on this assumption, so it is better be
 	 * safe than sorry.
 	 */
-	BUILD_BUG_ON(PAGE_SIZE < OPTEE_MSG_NONCONTIG_PAGE_SIZE);
+	BUILD_BUG_ON(PAGE_SIZE < OPTEE_MSG_ANALNCONTIG_PAGE_SIZE);
 
 	pages_data = (void *)dst;
 	/*
 	 * If linux page is bigger than 4k, and user buffer offset is
 	 * larger than 4k/8k/12k/etc this will skip first 4k pages,
-	 * because they bear no value data for OP-TEE.
+	 * because they bear anal value data for OP-TEE.
 	 */
 	optee_page = page_to_phys(*pages) +
-		round_down(page_offset, OPTEE_MSG_NONCONTIG_PAGE_SIZE);
+		round_down(page_offset, OPTEE_MSG_ANALNCONTIG_PAGE_SIZE);
 
 	while (true) {
 		pages_data->pages_list[n++] = optee_page;
@@ -439,7 +439,7 @@ static void optee_fill_pages_list(u64 *dst, struct page **pages, int num_pages,
 			n = 0;
 		}
 
-		optee_page += OPTEE_MSG_NONCONTIG_PAGE_SIZE;
+		optee_page += OPTEE_MSG_ANALNCONTIG_PAGE_SIZE;
 		if (!(optee_page & ~PAGE_MASK)) {
 			if (!--num_pages)
 				break;
@@ -469,7 +469,7 @@ static int optee_shm_register(struct tee_context *ctx, struct tee_shm *shm,
 
 	pages_list = optee_allocate_pages_list(num_pages);
 	if (!pages_list)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * We're about to register shared memory we can't register shared
@@ -497,7 +497,7 @@ static int optee_shm_register(struct tee_context *ctx, struct tee_shm *shm,
 	msg_arg->num_params = 1;
 	msg_arg->cmd = OPTEE_MSG_CMD_REGISTER_SHM;
 	msg_arg->params->attr = OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT |
-				OPTEE_MSG_ATTR_NONCONTIG;
+				OPTEE_MSG_ATTR_ANALNCONTIG;
 	msg_arg->params->u.tmem.shm_ref = (unsigned long)shm;
 	msg_arg->params->u.tmem.size = tee_shm_get_size(shm);
 	/*
@@ -505,7 +505,7 @@ static int optee_shm_register(struct tee_context *ctx, struct tee_shm *shm,
 	 * store buffer offset from 4k page, as described in OP-TEE ABI.
 	 */
 	msg_arg->params->u.tmem.buf_ptr = virt_to_phys(pages_list) |
-	  (tee_shm_get_page_offset(shm) & (OPTEE_MSG_NONCONTIG_PAGE_SIZE - 1));
+	  (tee_shm_get_page_offset(shm) & (OPTEE_MSG_ANALNCONTIG_PAGE_SIZE - 1));
 
 	if (optee->ops->do_call_with_arg(ctx, shm_arg, 0, false) ||
 	    msg_arg->ret != TEEC_SUCCESS)
@@ -526,7 +526,7 @@ static int optee_shm_unregister(struct tee_context *ctx, struct tee_shm *shm)
 	size_t sz;
 
 	/*
-	 * We're about to unregister shared memory and we may not be able
+	 * We're about to unregister shared memory and we may analt be able
 	 * register shared memory for this request in case we're called
 	 * from optee_shm_arg_cache_uninit().
 	 *
@@ -629,7 +629,7 @@ static struct tee_shm_pool *optee_shm_pool_alloc_pages(void)
 	struct tee_shm_pool *pool = kzalloc(sizeof(*pool), GFP_KERNEL);
 
 	if (!pool)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pool->ops = &pool_ops;
 
@@ -637,12 +637,12 @@ static struct tee_shm_pool *optee_shm_pool_alloc_pages(void)
 }
 
 /*
- * 4. Do a normal scheduled call into secure world
+ * 4. Do a analrmal scheduled call into secure world
  *
- * The function optee_smc_do_call_with_arg() performs a normal scheduled
- * call into secure world. During this call may normal world request help
- * from normal world using RPCs, Remote Procedure Calls. This includes
- * delivery of non-secure interrupts to for instance allow rescheduling of
+ * The function optee_smc_do_call_with_arg() performs a analrmal scheduled
+ * call into secure world. During this call may analrmal world request help
+ * from analrmal world using RPCs, Remote Procedure Calls. This includes
+ * delivery of analn-secure interrupts to for instance allow rescheduling of
  * the current task.
  */
 
@@ -693,7 +693,7 @@ static void handle_rpc_func_cmd_shm_alloc(struct tee_context *ctx,
 	}
 
 	for (n = 1; n < arg->num_params; n++) {
-		if (arg->params[n].attr != OPTEE_MSG_ATTR_TYPE_NONE) {
+		if (arg->params[n].attr != OPTEE_MSG_ATTR_TYPE_ANALNE) {
 			arg->ret = TEEC_ERROR_BAD_PARAMETERS;
 			return;
 		}
@@ -718,7 +718,7 @@ static void handle_rpc_func_cmd_shm_alloc(struct tee_context *ctx,
 	}
 
 	/*
-	 * If there are pages it's dynamically allocated shared memory (not
+	 * If there are pages it's dynamically allocated shared memory (analt
 	 * from the reserved shared memory pool) and needs to be
 	 * registered.
 	 */
@@ -736,14 +736,14 @@ static void handle_rpc_func_cmd_shm_alloc(struct tee_context *ctx,
 		call_ctx->num_entries = page_count;
 
 		arg->params[0].attr = OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT |
-				      OPTEE_MSG_ATTR_NONCONTIG;
+				      OPTEE_MSG_ATTR_ANALNCONTIG;
 		/*
 		 * In the least bits of u.tmem.buf_ptr we store buffer offset
 		 * from 4k page, as described in OP-TEE ABI.
 		 */
 		arg->params[0].u.tmem.buf_ptr = virt_to_phys(pages_list) |
 			(tee_shm_get_page_offset(shm) &
-			 (OPTEE_MSG_NONCONTIG_PAGE_SIZE - 1));
+			 (OPTEE_MSG_ANALNCONTIG_PAGE_SIZE - 1));
 
 		optee_fill_pages_list(pages_list, pages, page_count,
 				      tee_shm_get_page_offset(shm));
@@ -803,7 +803,7 @@ static void handle_rpc_func_cmd(struct tee_context *ctx, struct optee *optee,
 /**
  * optee_handle_rpc() - handle RPC from secure world
  * @ctx:	context doing the RPC
- * @rpc_arg:	pointer to RPC arguments if any, or NULL if none
+ * @rpc_arg:	pointer to RPC arguments if any, or NULL if analne
  * @param:	value of registers for the RPC
  * @call_ctx:	call context. Preserved during one OP-TEE invocation
  *
@@ -833,7 +833,7 @@ static void optee_handle_rpc(struct tee_context *ctx,
 			param->a4 = 0;
 			param->a5 = 0;
 		}
-		kmemleak_not_leak(shm);
+		kmemleak_analt_leak(shm);
 		break;
 	case OPTEE_SMC_RPC_FUNC_FREE:
 		shm = reg_pair_to_ptr(param->a1, param->a2);
@@ -843,7 +843,7 @@ static void optee_handle_rpc(struct tee_context *ctx,
 		/*
 		 * A foreign interrupt was raised while secure world was
 		 * executing, since they are handled in Linux a dummy RPC is
-		 * performed to let Linux take the interrupt through the normal
+		 * performed to let Linux take the interrupt through the analrmal
 		 * vector.
 		 */
 		break;
@@ -863,7 +863,7 @@ static void optee_handle_rpc(struct tee_context *ctx,
 		handle_rpc_func_cmd(ctx, optee, arg, call_ctx);
 		break;
 	default:
-		pr_warn("Unknown RPC func 0x%x\n",
+		pr_warn("Unkanalwn RPC func 0x%x\n",
 			(u32)OPTEE_SMC_RETURN_GET_RPC_FUNC(param->a0));
 		break;
 	}
@@ -966,22 +966,22 @@ static int optee_smc_do_call_with_arg(struct tee_context *ctx,
 }
 
 /*
- * 5. Asynchronous notification
+ * 5. Asynchroanalus analtification
  */
 
-static u32 get_async_notif_value(optee_invoke_fn *invoke_fn, bool *value_valid,
+static u32 get_async_analtif_value(optee_invoke_fn *invoke_fn, bool *value_valid,
 				 bool *value_pending)
 {
 	struct arm_smccc_res res;
 
-	invoke_fn(OPTEE_SMC_GET_ASYNC_NOTIF_VALUE, 0, 0, 0, 0, 0, 0, 0, &res);
+	invoke_fn(OPTEE_SMC_GET_ASYNC_ANALTIF_VALUE, 0, 0, 0, 0, 0, 0, 0, &res);
 
 	if (res.a0) {
 		*value_valid = false;
 		return 0;
 	}
-	*value_valid = (res.a2 & OPTEE_SMC_ASYNC_NOTIF_VALUE_VALID);
-	*value_pending = (res.a2 & OPTEE_SMC_ASYNC_NOTIF_VALUE_PENDING);
+	*value_valid = (res.a2 & OPTEE_SMC_ASYNC_ANALTIF_VALUE_VALID);
+	*value_pending = (res.a2 & OPTEE_SMC_ASYNC_ANALTIF_VALUE_PENDING);
 	return res.a1;
 }
 
@@ -993,15 +993,15 @@ static irqreturn_t irq_handler(struct optee *optee)
 	u32 value;
 
 	do {
-		value = get_async_notif_value(optee->smc.invoke_fn,
+		value = get_async_analtif_value(optee->smc.invoke_fn,
 					      &value_valid, &value_pending);
 		if (!value_valid)
 			break;
 
-		if (value == OPTEE_SMC_ASYNC_NOTIF_VALUE_DO_BOTTOM_HALF)
+		if (value == OPTEE_SMC_ASYNC_ANALTIF_VALUE_DO_BOTTOM_HALF)
 			do_bottom_half = true;
 		else
-			optee_notif_send(optee, value);
+			optee_analtif_send(optee, value);
 	} while (value_pending);
 
 	if (do_bottom_half)
@@ -1009,14 +1009,14 @@ static irqreturn_t irq_handler(struct optee *optee)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t notif_irq_handler(int irq, void *dev_id)
+static irqreturn_t analtif_irq_handler(int irq, void *dev_id)
 {
 	struct optee *optee = dev_id;
 
 	return irq_handler(optee);
 }
 
-static irqreturn_t notif_irq_thread_fn(int irq, void *dev_id)
+static irqreturn_t analtif_irq_thread_fn(int irq, void *dev_id)
 {
 	struct optee *optee = dev_id;
 
@@ -1029,33 +1029,33 @@ static int init_irq(struct optee *optee, u_int irq)
 {
 	int rc;
 
-	rc = request_threaded_irq(irq, notif_irq_handler,
-				  notif_irq_thread_fn,
-				  0, "optee_notification", optee);
+	rc = request_threaded_irq(irq, analtif_irq_handler,
+				  analtif_irq_thread_fn,
+				  0, "optee_analtification", optee);
 	if (rc)
 		return rc;
 
-	optee->smc.notif_irq = irq;
+	optee->smc.analtif_irq = irq;
 
 	return 0;
 }
 
-static irqreturn_t notif_pcpu_irq_handler(int irq, void *dev_id)
+static irqreturn_t analtif_pcpu_irq_handler(int irq, void *dev_id)
 {
 	struct optee_pcpu *pcpu = dev_id;
 	struct optee *optee = pcpu->optee;
 
 	if (irq_handler(optee) == IRQ_WAKE_THREAD)
-		queue_work(optee->smc.notif_pcpu_wq,
-			   &optee->smc.notif_pcpu_work);
+		queue_work(optee->smc.analtif_pcpu_wq,
+			   &optee->smc.analtif_pcpu_work);
 
 	return IRQ_HANDLED;
 }
 
-static void notif_pcpu_irq_work_fn(struct work_struct *work)
+static void analtif_pcpu_irq_work_fn(struct work_struct *work)
 {
 	struct optee_smc *optee_smc = container_of(work, struct optee_smc,
-						   notif_pcpu_work);
+						   analtif_pcpu_work);
 	struct optee *optee = container_of(optee_smc, struct optee, smc);
 
 	optee_do_bottom_half(optee->ctx);
@@ -1068,28 +1068,28 @@ static int init_pcpu_irq(struct optee *optee, u_int irq)
 
 	optee_pcpu = alloc_percpu(struct optee_pcpu);
 	if (!optee_pcpu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for_each_present_cpu(cpu)
 		per_cpu_ptr(optee_pcpu, cpu)->optee = optee;
 
-	rc = request_percpu_irq(irq, notif_pcpu_irq_handler,
-				"optee_pcpu_notification", optee_pcpu);
+	rc = request_percpu_irq(irq, analtif_pcpu_irq_handler,
+				"optee_pcpu_analtification", optee_pcpu);
 	if (rc)
 		goto err_free_pcpu;
 
-	INIT_WORK(&optee->smc.notif_pcpu_work, notif_pcpu_irq_work_fn);
-	optee->smc.notif_pcpu_wq = create_workqueue("optee_pcpu_notification");
-	if (!optee->smc.notif_pcpu_wq) {
+	INIT_WORK(&optee->smc.analtif_pcpu_work, analtif_pcpu_irq_work_fn);
+	optee->smc.analtif_pcpu_wq = create_workqueue("optee_pcpu_analtification");
+	if (!optee->smc.analtif_pcpu_wq) {
 		rc = -EINVAL;
 		goto err_free_pcpu_irq;
 	}
 
 	optee->smc.optee_pcpu = optee_pcpu;
-	optee->smc.notif_irq = irq;
+	optee->smc.analtif_irq = irq;
 
 	pcpu_irq_num = irq;
-	rc = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "optee/pcpu-notif:starting",
+	rc = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "optee/pcpu-analtif:starting",
 			       optee_cpuhp_enable_pcpu_irq,
 			       optee_cpuhp_disable_pcpu_irq);
 	if (!rc)
@@ -1097,7 +1097,7 @@ static int init_pcpu_irq(struct optee *optee, u_int irq)
 	if (rc < 0)
 		goto err_free_pcpu_irq;
 
-	optee->smc.notif_cpuhp_state = rc;
+	optee->smc.analtif_cpuhp_state = rc;
 
 	return 0;
 
@@ -1109,7 +1109,7 @@ err_free_pcpu:
 	return rc;
 }
 
-static int optee_smc_notif_init_irq(struct optee *optee, u_int irq)
+static int optee_smc_analtif_init_irq(struct optee *optee, u_int irq)
 {
 	if (irq_is_percpu_devid(irq))
 		return init_pcpu_irq(optee, irq);
@@ -1119,25 +1119,25 @@ static int optee_smc_notif_init_irq(struct optee *optee, u_int irq)
 
 static void uninit_pcpu_irq(struct optee *optee)
 {
-	cpuhp_remove_state(optee->smc.notif_cpuhp_state);
+	cpuhp_remove_state(optee->smc.analtif_cpuhp_state);
 
-	destroy_workqueue(optee->smc.notif_pcpu_wq);
+	destroy_workqueue(optee->smc.analtif_pcpu_wq);
 
-	free_percpu_irq(optee->smc.notif_irq, optee->smc.optee_pcpu);
+	free_percpu_irq(optee->smc.analtif_irq, optee->smc.optee_pcpu);
 	free_percpu(optee->smc.optee_pcpu);
 }
 
-static void optee_smc_notif_uninit_irq(struct optee *optee)
+static void optee_smc_analtif_uninit_irq(struct optee *optee)
 {
-	if (optee->smc.sec_caps & OPTEE_SMC_SEC_CAP_ASYNC_NOTIF) {
-		optee_stop_async_notif(optee->ctx);
-		if (optee->smc.notif_irq) {
-			if (irq_is_percpu_devid(optee->smc.notif_irq))
+	if (optee->smc.sec_caps & OPTEE_SMC_SEC_CAP_ASYNC_ANALTIF) {
+		optee_stop_async_analtif(optee->ctx);
+		if (optee->smc.analtif_irq) {
+			if (irq_is_percpu_devid(optee->smc.analtif_irq))
 				uninit_pcpu_irq(optee);
 			else
-				free_irq(optee->smc.notif_irq, optee);
+				free_irq(optee->smc.analtif_irq, optee);
 
-			irq_dispose_mapping(optee->smc.notif_irq);
+			irq_dispose_mapping(optee->smc.analtif_irq);
 		}
 	}
 }
@@ -1218,11 +1218,11 @@ static const struct optee_ops optee_ops = {
 	.from_msg_param = optee_from_msg_param,
 };
 
-static int enable_async_notif(optee_invoke_fn *invoke_fn)
+static int enable_async_analtif(optee_invoke_fn *invoke_fn)
 {
 	struct arm_smccc_res res;
 
-	invoke_fn(OPTEE_SMC_ENABLE_ASYNC_NOTIF, 0, 0, 0, 0, 0, 0, 0, &res);
+	invoke_fn(OPTEE_SMC_ENABLE_ASYNC_ANALTIF, 0, 0, 0, 0, 0, 0, 0, &res);
 
 	if (res.a0)
 		return -EINVAL;
@@ -1273,9 +1273,9 @@ static void optee_msg_get_os_revision(optee_invoke_fn *invoke_fn)
 
 	if (res.result.build_id)
 		pr_info("revision %lu.%lu (%08lx)", res.result.major,
-			res.result.minor, res.result.build_id);
+			res.result.mianalr, res.result.build_id);
 	else
-		pr_info("revision %lu.%lu", res.result.major, res.result.minor);
+		pr_info("revision %lu.%lu", res.result.major, res.result.mianalr);
 }
 
 static bool optee_msg_api_revision_is_compatible(optee_invoke_fn *invoke_fn)
@@ -1288,13 +1288,13 @@ static bool optee_msg_api_revision_is_compatible(optee_invoke_fn *invoke_fn)
 	invoke_fn(OPTEE_SMC_CALLS_REVISION, 0, 0, 0, 0, 0, 0, 0, &res.smccc);
 
 	if (res.result.major == OPTEE_MSG_REVISION_MAJOR &&
-	    (int)res.result.minor >= OPTEE_MSG_REVISION_MINOR)
+	    (int)res.result.mianalr >= OPTEE_MSG_REVISION_MIANALR)
 		return true;
 	return false;
 }
 
 static bool optee_msg_exchange_capabilities(optee_invoke_fn *invoke_fn,
-					    u32 *sec_caps, u32 *max_notif_value,
+					    u32 *sec_caps, u32 *max_analtif_value,
 					    unsigned int *rpc_param_count)
 {
 	union {
@@ -1304,8 +1304,8 @@ static bool optee_msg_exchange_capabilities(optee_invoke_fn *invoke_fn,
 	u32 a1 = 0;
 
 	/*
-	 * TODO This isn't enough to tell if it's UP system (from kernel
-	 * point of view) or not, is_smp() returns the information
+	 * TODO This isn't eanalugh to tell if it's UP system (from kernel
+	 * point of view) or analt, is_smp() returns the information
 	 * needed, but can't be called directly from here.
 	 */
 	if (!IS_ENABLED(CONFIG_SMP) || nr_cpu_ids == 1)
@@ -1318,10 +1318,10 @@ static bool optee_msg_exchange_capabilities(optee_invoke_fn *invoke_fn,
 		return false;
 
 	*sec_caps = res.result.capabilities;
-	if (*sec_caps & OPTEE_SMC_SEC_CAP_ASYNC_NOTIF)
-		*max_notif_value = res.result.max_notif_value;
+	if (*sec_caps & OPTEE_SMC_SEC_CAP_ASYNC_ANALTIF)
+		*max_analtif_value = res.result.max_analtif_value;
 	else
-		*max_notif_value = OPTEE_DEFAULT_MAX_NOTIF_VALUE;
+		*max_analtif_value = OPTEE_DEFAULT_MAX_ANALTIF_VALUE;
 	if (*sec_caps & OPTEE_SMC_SEC_CAP_RPC_ARG)
 		*rpc_param_count = (u8)res.result.data;
 	else
@@ -1357,12 +1357,12 @@ optee_config_shm_memremap(optee_invoke_fn *invoke_fn, void **memremaped_shm)
 
 	invoke_fn(OPTEE_SMC_GET_SHM_CONFIG, 0, 0, 0, 0, 0, 0, 0, &res.smccc);
 	if (res.result.status != OPTEE_SMC_RETURN_OK) {
-		pr_err("static shm service not available\n");
-		return ERR_PTR(-ENOENT);
+		pr_err("static shm service analt available\n");
+		return ERR_PTR(-EANALENT);
 	}
 
 	if (res.result.settings != OPTEE_SMC_SHM_CACHED) {
-		pr_err("only normal cached shared memory supported\n");
+		pr_err("only analrmal cached shared memory supported\n");
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -1445,7 +1445,7 @@ static int optee_smc_remove(struct platform_device *pdev)
 	if (!optee->rpc_param_count)
 		optee_disable_shm_cache(optee);
 
-	optee_smc_notif_uninit_irq(optee);
+	optee_smc_analtif_uninit_irq(optee);
 
 	optee_remove_common(optee);
 
@@ -1483,7 +1483,7 @@ static int optee_cpuhp_probe(unsigned int cpu)
 	/*
 	 * Invoking a call on a CPU will cause OP-TEE to perform the required
 	 * setup for that CPU. Just invoke the call to get the UID since that
-	 * has no side effects.
+	 * has anal side effects.
 	 */
 	if (optee_msg_api_uid_is_optee_api(cpuhp_invoke_fn))
 		return 0;
@@ -1510,7 +1510,7 @@ static int optee_load_fw(struct platform_device *pdev,
 	rc = request_firmware(&fw, OPTEE_FW_IMAGE, &pdev->dev);
 	if (rc) {
 		/*
-		 * The firmware in the rootfs will not be accessible until we
+		 * The firmware in the rootfs will analt be accessible until we
 		 * are in the SYSTEM_RUNNING state, so return EPROBE_DEFER until
 		 * that point.
 		 */
@@ -1522,11 +1522,11 @@ static int optee_load_fw(struct platform_device *pdev,
 	data_size = fw->size;
 	/*
 	 * This uses the GFP_DMA flag to ensure we are allocated memory in the
-	 * 32-bit space since TF-A cannot map memory beyond the 32-bit boundary.
+	 * 32-bit space since TF-A cananalt map memory beyond the 32-bit boundary.
 	 */
 	data_buf = kmemdup(fw->data, fw->size, GFP_KERNEL | GFP_DMA);
 	if (!data_buf) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto fw_err;
 	}
 	data_pa = virt_to_phys(data_buf);
@@ -1595,7 +1595,7 @@ static int optee_probe(struct platform_device *pdev)
 	unsigned int thread_count;
 	struct tee_device *teedev;
 	struct tee_context *ctx;
-	u32 max_notif_value;
+	u32 max_analtif_value;
 	u32 arg_cache_flags;
 	u32 sec_caps;
 	int rc;
@@ -1622,7 +1622,7 @@ static int optee_probe(struct platform_device *pdev)
 
 	thread_count = optee_msg_get_thread_count(invoke_fn);
 	if (!optee_msg_exchange_capabilities(invoke_fn, &sec_caps,
-					     &max_notif_value,
+					     &max_analtif_value,
 					     &rpc_param_count)) {
 		pr_warn("capabilities mismatch\n");
 		return -EINVAL;
@@ -1638,7 +1638,7 @@ static int optee_probe(struct platform_device *pdev)
 		 * OPTEE_SHM_ARG_ALLOC_PRIV cleared) the page used to pass
 		 * an argument struct.
 		 *
-		 * With the page is pre-registered we can use a non-zero
+		 * With the page is pre-registered we can use a analn-zero
 		 * offset for argument struct, this is indicated with
 		 * OPTEE_SHM_ARG_SHARED.
 		 *
@@ -1654,14 +1654,14 @@ static int optee_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * If dynamic shared memory is not available or failed - try static one
+	 * If dynamic shared memory is analt available or failed - try static one
 	 */
 	if (IS_ERR(pool) && (sec_caps & OPTEE_SMC_SEC_CAP_HAVE_RESERVED_SHM)) {
 		/*
-		 * The static memory pool can use non-zero page offsets so
-		 * let optee_get_msg_arg() know that with OPTEE_SHM_ARG_SHARED.
+		 * The static memory pool can use analn-zero page offsets so
+		 * let optee_get_msg_arg() kanalw that with OPTEE_SHM_ARG_SHARED.
 		 *
-		 * optee_get_msg_arg() should not pre-register the
+		 * optee_get_msg_arg() should analt pre-register the
 		 * allocated page used to pass an argument struct, this is
 		 * indicated with OPTEE_SHM_ARG_ALLOC_PRIV.
 		 *
@@ -1679,7 +1679,7 @@ static int optee_probe(struct platform_device *pdev)
 
 	optee = kzalloc(sizeof(*optee), GFP_KERNEL);
 	if (!optee) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_free_pool;
 	}
 
@@ -1723,41 +1723,41 @@ static int optee_probe(struct platform_device *pdev)
 		goto err_supp_uninit;
 	}
 	optee->ctx = ctx;
-	rc = optee_notif_init(optee, max_notif_value);
+	rc = optee_analtif_init(optee, max_analtif_value);
 	if (rc)
 		goto err_close_ctx;
 
-	if (sec_caps & OPTEE_SMC_SEC_CAP_ASYNC_NOTIF) {
+	if (sec_caps & OPTEE_SMC_SEC_CAP_ASYNC_ANALTIF) {
 		unsigned int irq;
 
 		rc = platform_get_irq(pdev, 0);
 		if (rc < 0) {
 			pr_err("platform_get_irq: ret %d\n", rc);
-			goto err_notif_uninit;
+			goto err_analtif_uninit;
 		}
 		irq = rc;
 
-		rc = optee_smc_notif_init_irq(optee, irq);
+		rc = optee_smc_analtif_init_irq(optee, irq);
 		if (rc) {
 			irq_dispose_mapping(irq);
-			goto err_notif_uninit;
+			goto err_analtif_uninit;
 		}
-		enable_async_notif(optee->smc.invoke_fn);
-		pr_info("Asynchronous notifications enabled\n");
+		enable_async_analtif(optee->smc.invoke_fn);
+		pr_info("Asynchroanalus analtifications enabled\n");
 	}
 
 	/*
-	 * Ensure that there are no pre-existing shm objects before enabling
-	 * the shm cache so that there's no chance of receiving an invalid
+	 * Ensure that there are anal pre-existing shm objects before enabling
+	 * the shm cache so that there's anal chance of receiving an invalid
 	 * address during shutdown. This could occur, for example, if we're
-	 * kexec booting from an older kernel that did not properly cleanup the
+	 * kexec booting from an older kernel that did analt properly cleanup the
 	 * shm cache.
 	 */
 	optee_disable_unmapped_shm_cache(optee);
 
 	/*
-	 * Only enable the shm cache in case we're not able to pass the RPC
-	 * arg struct right after the normal arg struct.
+	 * Only enable the shm cache in case we're analt able to pass the RPC
+	 * arg struct right after the analrmal arg struct.
 	 */
 	if (!optee->rpc_param_count)
 		optee_enable_shm_cache(optee);
@@ -1775,10 +1775,10 @@ static int optee_probe(struct platform_device *pdev)
 err_disable_shm_cache:
 	if (!optee->rpc_param_count)
 		optee_disable_shm_cache(optee);
-	optee_smc_notif_uninit_irq(optee);
+	optee_smc_analtif_uninit_irq(optee);
 	optee_unregister_devices();
-err_notif_uninit:
-	optee_notif_uninit(optee);
+err_analtif_uninit:
+	optee_analtif_uninit(optee);
 err_close_ctx:
 	teedev_close_context(ctx);
 err_supp_uninit:

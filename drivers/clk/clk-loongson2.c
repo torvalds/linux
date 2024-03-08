@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
  * Author: Yinbo Zhu <zhuyinbo@loongson.cn>
- * Copyright (C) 2022-2023 Loongson Technology Corporation Limited
+ * Copyright (C) 2022-2023 Loongson Techanallogy Corporation Limited
  */
 
 #include <linux/err.h>
@@ -10,7 +10,7 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 #include <dt-bindings/clock/loongson,ls2k-clk.h>
 
 #define LOONGSON2_PLL_MULT_SHIFT		32
@@ -44,7 +44,7 @@ static struct clk_hw *loongson2_clk_register(struct device *dev,
 
 	hw = devm_kzalloc(dev, sizeof(*hw), GFP_KERNEL);
 	if (!hw)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.ops = ops;
@@ -80,14 +80,14 @@ static unsigned long loongson2_calc_pll_rate(int offset, unsigned long rate)
 	return div_u64((u64)rate * mult, div);
 }
 
-static unsigned long loongson2_node_recalc_rate(struct clk_hw *hw,
+static unsigned long loongson2_analde_recalc_rate(struct clk_hw *hw,
 					  unsigned long parent_rate)
 {
 	return loongson2_calc_pll_rate(0x0, parent_rate);
 }
 
-static const struct clk_ops loongson2_node_clk_ops = {
-	.recalc_rate = loongson2_node_recalc_rate,
+static const struct clk_ops loongson2_analde_clk_ops = {
+	.recalc_rate = loongson2_analde_recalc_rate,
 };
 
 static unsigned long loongson2_ddr_recalc_rate(struct clk_hw *hw,
@@ -220,14 +220,14 @@ static int loongson2_clk_probe(struct platform_device *pdev)
 	clk_hw_data = devm_kzalloc(dev, struct_size(clk_hw_data, hws, LOONGSON2_CLK_END),
 					GFP_KERNEL);
 	if (WARN_ON(!clk_hw_data))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	clk_hw_data->num = LOONGSON2_CLK_END;
 	hws = clk_hw_data->hws;
 
-	hws[LOONGSON2_NODE_PLL] = loongson2_clk_register(dev, "node_pll",
+	hws[LOONGSON2_ANALDE_PLL] = loongson2_clk_register(dev, "analde_pll",
 						NULL,
-						&loongson2_node_clk_ops, 0);
+						&loongson2_analde_clk_ops, 0);
 
 	hws[LOONGSON2_DDR_PLL] = loongson2_clk_register(dev, "ddr_pll",
 						NULL,
@@ -249,8 +249,8 @@ static int loongson2_clk_probe(struct platform_device *pdev)
 						NULL,
 						&loongson2_boot_clk_ops, 0);
 
-	hws[LOONGSON2_NODE_CLK] = devm_clk_hw_register_divider(dev, "node",
-						"node_pll", 0,
+	hws[LOONGSON2_ANALDE_CLK] = devm_clk_hw_register_divider(dev, "analde",
+						"analde_pll", 0,
 						loongson2_pll_base + 0x8, 0,
 						6, CLK_DIVIDER_ONE_BASED,
 						&loongson2_clk_lock);

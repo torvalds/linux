@@ -23,8 +23,8 @@ struct bl_dedicated_registers_v1 {
 	__le32	baseband_type;			/* 0x880A48 board type ID */
 	u8	mac_address[6];			/* 0x880A4c BL mac address */
 	u8	bl_version_major;		/* 0x880A52 BL ver. major */
-	u8	bl_version_minor;		/* 0x880A53 BL ver. minor */
-	__le16	bl_version_subminor;		/* 0x880A54 BL ver. subminor */
+	u8	bl_version_mianalr;		/* 0x880A53 BL ver. mianalr */
+	__le16	bl_version_submianalr;		/* 0x880A54 BL ver. submianalr */
 	__le16	bl_version_build;		/* 0x880A56 BL ver. build */
 	/* valid only for version 2 and above */
 	__le32  bl_assert_code;         /* 0x880A58 BL Assert code */

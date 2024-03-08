@@ -27,7 +27,7 @@ static int adxl355_i2c_probe(struct i2c_client *client)
 
 	chip_data = i2c_get_match_data(client);
 	if (!chip_data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	regmap = devm_regmap_init_i2c(client, &adxl355_i2c_regmap_config);
 	if (IS_ERR(regmap)) {

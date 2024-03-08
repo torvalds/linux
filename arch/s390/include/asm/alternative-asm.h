@@ -7,7 +7,7 @@
 /*
  * Issue one struct alt_instr descriptor entry (need to put it into
  * the section .altinstructions, see below). This entry contains
- * enough information for the alternatives patching code to patch an
+ * eanalugh information for the alternatives patching code to patch an
  * instruction. See apply_alternatives().
  */
 .macro alt_entry orig_start, orig_end, alt_start, alt_end, feature

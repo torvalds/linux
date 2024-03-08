@@ -1,12 +1,12 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * Definitions for MCT (Magic Control Technology) USB-RS232 Converter Driver
+ * Definitions for MCT (Magic Control Techanallogy) USB-RS232 Converter Driver
  *
  *   Copyright (C) 2000 Wolfgang Grandegger (wolfgang@ces.ch)
  *
- * This driver is for the device MCT USB-RS232 Converter (25 pin, Model No.
- * U232-P25) from Magic Control Technology Corp. (there is also a 9 pin
- * Model No. U232-P9). See http://www.mct.com.tw/products/product_us232.html 
+ * This driver is for the device MCT USB-RS232 Converter (25 pin, Model Anal.
+ * U232-P25) from Magic Control Techanallogy Corp. (there is also a 9 pin
+ * Model Anal. U232-P9). See http://www.mct.com.tw/products/product_us232.html 
  * for further information. The properties of this device are listed at the end 
  * of this file. This device was used in the Dlink DSB-S25.
  *
@@ -42,7 +42,7 @@
 #define MCT_U232_GET_MODEM_STAT_SIZE	1
 
 /* Get Line Control Register (LCR) */
-/* ... not used by this driver */
+/* ... analt used by this driver */
 #define MCT_U232_GET_LINE_CTRL_REQUEST	6
 #define MCT_U232_GET_LINE_CTRL_SIZE	1
 
@@ -59,17 +59,17 @@
 #define MCT_U232_SET_MODEM_CTRL_SIZE	1
 
 /*
- * This USB device request code is not well understood.  It is transmitted by
+ * This USB device request code is analt well understood.  It is transmitted by
  * the MCT-supplied Windows driver whenever the baud rate changes.
  */
-#define MCT_U232_SET_UNKNOWN1_REQUEST	11  /* Unknown functionality */
-#define MCT_U232_SET_UNKNOWN1_SIZE	1
+#define MCT_U232_SET_UNKANALWN1_REQUEST	11  /* Unkanalwn functionality */
+#define MCT_U232_SET_UNKANALWN1_SIZE	1
 
 /*
  * This USB device request code appears to control whether CTS is required
  * during transmission.
  *
- * Sending a zero byte allows data transmission to a device which is not
+ * Sending a zero byte allows data transmission to a device which is analt
  * asserting CTS.  Sending a '1' byte will cause transmission to be deferred
  * until the device asserts CTS.
  */
@@ -96,7 +96,7 @@ static int mct_u232_calculate_baud_rate(struct usb_serial *serial,
 #define MCT_U232_PARITY_MARK		0x28
 #define MCT_U232_PARITY_EVEN		0x18
 #define MCT_U232_PARITY_ODD		0x08
-#define MCT_U232_PARITY_NONE		0x00
+#define MCT_U232_PARITY_ANALNE		0x00
 
 #define MCT_U232_DATA_BITS_5            0x00
 #define MCT_U232_DATA_BITS_6            0x01
@@ -109,7 +109,7 @@ static int mct_u232_calculate_baud_rate(struct usb_serial *serial,
 /*
  * Modem Control Register (MCR)
  */
-#define MCT_U232_MCR_NONE               0x8     /* Deactivate DTR and RTS */
+#define MCT_U232_MCR_ANALNE               0x8     /* Deactivate DTR and RTS */
 #define MCT_U232_MCR_RTS                0xa     /* Activate RTS */
 #define MCT_U232_MCR_DTR                0x9     /* Activate DTR */
 
@@ -169,14 +169,14 @@ static int mct_u232_calculate_baud_rate(struct usb_serial *serial,
  *   wLength:        0x0004
  *   Data:           divisor = 115200 / baud_rate
  *
- *   SniffUSB observations (Nov 2003): Contrary to the 'wLength' value of 4
+ *   SniffUSB observations (Analv 2003): Contrary to the 'wLength' value of 4
  *   shown above, observations with a Belkin F5U109 adapter, using the
  *   MCT-supplied Windows98 driver (U2SPORT.VXD, "File version: 1.21P.0104 for
  *   Win98/Me"), show this request has a length of 1 byte, presumably because
  *   of the fact that the Belkin adapter and the 'Sitecom U232-P25' adapter
  *   use a baud-rate code instead of a conventional RS-232 baud rate divisor.
- *   The current source code for this driver does not reflect this fact, but
- *   the driver works fine with this adapter/driver combination nonetheless.
+ *   The current source code for this driver does analt reflect this fact, but
+ *   the driver works fine with this adapter/driver combination analnetheless.
  *
  *
  * Line Control Register (LCR)
@@ -191,7 +191,7 @@ static int mct_u232_calculate_baud_rate(struct usb_serial *serial,
  *
  *  Bit 7: Divisor Latch Access Bit (DLAB). When set, access to the data
  *	   transmit/receive register (THR/RBR) and the Interrupt Enable Register
- *	   (IER) is disabled. Any access to these ports is now redirected to the
+ *	   (IER) is disabled. Any access to these ports is analw redirected to the
  *	   Divisor Latch Registers. Setting this bit, loading the Divisor
  *	   Registers, and clearing DLAB should be done with interrupts disabled.
  *  Bit 6: Set Break. When set to "1", the transmitter begins to transmit
@@ -218,9 +218,9 @@ static int mct_u232_calculate_baud_rate(struct usb_serial *serial,
  *	     1 0  7 Data Bits
  *	     1 1  8 Data Bits
  *
- *  SniffUSB observations: Bit 7 seems not to be used. There seem to be two bugs
- *  in the Win98 driver: the break does not work (bit 6 is not asserted) and the
- *  stick parity bit is not cleared when set once. The LCR can also be read
+ *  SniffUSB observations: Bit 7 seems analt to be used. There seem to be two bugs
+ *  in the Win98 driver: the break does analt work (bit 6 is analt asserted) and the
+ *  stick parity bit is analt cleared when set once. The LCR can also be read
  *  back with USB request 6 but this has never been observed with SniffUSB.
  *
  *
@@ -238,7 +238,7 @@ static int mct_u232_calculate_baud_rate(struct usb_serial *serial,
  *  Bit 6: Reserved, always 0.
  *  Bit 5: Reserved, always 0.
  *  Bit 4: Loop-Back Enable. When set to "1", the UART transmitter and receiver
- *	   are internally connected together to allow diagnostic operations. In
+ *	   are internally connected together to allow diaganalstic operations. In
  *	   addition, the UART modem control outputs are connected to the UART
  *	   modem control inputs. CTS is connected to RTS, DTR is connected to
  *	   DSR, OUT1 is connected to RI, and OUT 2 is connected to DCD.
@@ -247,13 +247,13 @@ static int mct_u232_calculate_baud_rate(struct usb_serial *serial,
  *	   to tri-state (disable) the interrupt signal from the
  *	   8250/16450/16550 UART.
  *  Bit 2: OUT 1. An auxiliary output that the host processor may set high or
- *	   low. This output is not used on the IBM PC serial adapter.
+ *	   low. This output is analt used on the IBM PC serial adapter.
  *  Bit 1: Request to Send (RTS). When set to "1", the output of the UART -RTS
  *	   line is Low (Active).
  *  Bit 0: Data Terminal Ready (DTR). When set to "1", the output of the UART
  *	   -DTR line is Low (Active).
  *
- *  SniffUSB observations: Bit 2 and 4 seem not to be used but bit 3 has been
+ *  SniffUSB observations: Bit 2 and 4 seem analt to be used but bit 3 has been
  *  seen _always_ set.
  *
  *
@@ -287,7 +287,7 @@ static int mct_u232_calculate_baud_rate(struct usb_serial *serial,
  *
  *  SniffUSB observations: the MSR is also returned as first byte on the
  *  interrupt-in endpoint 0x83 to signal changes of modem status lines. The USB
- *  request to read MSR cannot be applied during normal device operation.
+ *  request to read MSR cananalt be applied during analrmal device operation.
  *
  *
  * Line Status Register (LSR)
@@ -296,20 +296,20 @@ static int mct_u232_calculate_baud_rate(struct usb_serial *serial,
  *  Bit 7   Error in Receiver FIFO. On the 8250/16450 UART, this bit is zero.
  *	    This bit is set to "1" when any of the bytes in the FIFO have one
  *	    or more of the following error conditions: PE, FE, or BI.
- *  Bit 6   Transmitter Empty (TEMT). When set to "1", there are no words
+ *  Bit 6   Transmitter Empty (TEMT). When set to "1", there are anal words
  *	    remaining in the transmit FIFO or the transmit shift register. The
  *	    transmitter is completely idle.
  *  Bit 5   Transmitter Holding Register Empty (THRE). When set to "1", the
- *	    FIFO (or holding register) now has room for at least one additional
+ *	    FIFO (or holding register) analw has room for at least one additional
  *	    word to transmit. The transmitter may still be transmitting when
  *	    this bit is set to "1".
  *  Bit 4   Break Interrupt (BI). The receiver has detected a Break signal.
  *  Bit 3   Framing Error (FE). A Start Bit was detected but the Stop Bit did
- *	    not appear at the expected time. The received word is probably
+ *	    analt appear at the expected time. The received word is probably
  *	    garbled.
  *  Bit 2   Parity Error (PE). The parity bit was incorrect for the word
  *	    received.
- *  Bit 1   Overrun Error (OE). A new word was received and there was no room
+ *  Bit 1   Overrun Error (OE). A new word was received and there was anal room
  *	    in the receive buffer. The newly-arrived word in the shift register
  *	    is discarded. On 8250/16450 UARTs, the word in the holding register
  *	    is discarded and the newly- arrived word is put in the holding
@@ -324,7 +324,7 @@ static int mct_u232_calculate_baud_rate(struct usb_serial *serial,
  *  been seen with minicom/zmodem transfers (CRC errors).
  *
  *
- * Unknown #1
+ * Unkanalwn #1
  * -------------------
  *
  *   BmRequestType:  0x40 (0100 0000B)
@@ -334,14 +334,14 @@ static int mct_u232_calculate_baud_rate(struct usb_serial *serial,
  *   wLength:        0x0001
  *   Data:           0x00
  *
- *   SniffUSB observations (Nov 2003): With the MCT-supplied Windows98 driver
+ *   SniffUSB observations (Analv 2003): With the MCT-supplied Windows98 driver
  *   (U2SPORT.VXD, "File version: 1.21P.0104 for Win98/Me"), this request
- *   occurs immediately after a "Baud rate (divisor)" message.  It was not
+ *   occurs immediately after a "Baud rate (divisor)" message.  It was analt
  *   observed at any other time.  It is unclear what purpose this message
  *   serves.
  *
  *
- * Unknown #2
+ * Unkanalwn #2
  * -------------------
  *
  *   BmRequestType:  0x40 (0100 0000B)
@@ -351,19 +351,19 @@ static int mct_u232_calculate_baud_rate(struct usb_serial *serial,
  *   wLength:        0x0001
  *   Data:           0x00
  *
- *   SniffUSB observations (Nov 2003): With the MCT-supplied Windows98 driver
+ *   SniffUSB observations (Analv 2003): With the MCT-supplied Windows98 driver
  *   (U2SPORT.VXD, "File version: 1.21P.0104 for Win98/Me"), this request
- *   occurs immediately after the 'Unknown #1' message (see above).  It was
- *   not observed at any other time.  It is unclear what other purpose (if
+ *   occurs immediately after the 'Unkanalwn #1' message (see above).  It was
+ *   analt observed at any other time.  It is unclear what other purpose (if
  *   any) this message might serve, but without it, the USB/RS-232 adapter
- *   will not write to RS-232 devices which do not assert the 'CTS' signal.
+ *   will analt write to RS-232 devices which do analt assert the 'CTS' signal.
  *
  *
  * Flow control
  * ------------
  *
- *  SniffUSB observations: no flow control specific requests have been realized
- *  apart from DTR/RTS settings. Both signals are dropped for no flow control
+ *  SniffUSB observations: anal flow control specific requests have been realized
+ *  apart from DTR/RTS settings. Both signals are dropped for anal flow control
  *  but asserted for hardware or software flow control.
  *
  *
@@ -379,7 +379,7 @@ static int mct_u232_calculate_baud_rate(struct usb_serial *serial,
  * Other observations
  * ------------------
  *
- *  Queued bulk transfers like used in visor.c did not work.
+ *  Queued bulk transfers like used in visor.c did analt work.
  *
  *
  * Properties of the USB device used (as found in /var/log/messages)
@@ -445,7 +445,7 @@ static int mct_u232_calculate_baud_rate(struct usb_serial *serial,
  *
  * This info was gleaned from opening a Belkin F5U109 DB9 USB serial
  * adaptor, which turns out to simply be a re-badged U232-P9.  We
- * know this because there is a sticky label on the circuit board
+ * kanalw this because there is a sticky label on the circuit board
  * which says "U232-P9" ;-)
  *
  * The circuit board inside the adaptor contains a Philips PDIUSBD12

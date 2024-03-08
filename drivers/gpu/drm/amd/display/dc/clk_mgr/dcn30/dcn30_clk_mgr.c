@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -118,13 +118,13 @@ void dcn3_init_clocks(struct clk_mgr *clk_mgr_base)
 	if (!clk_mgr_base->bw_params)
 		return;
 
-	if (!clk_mgr_base->force_smu_not_present && dcn30_smu_get_smu_version(clk_mgr, &clk_mgr->smu_ver))
+	if (!clk_mgr_base->force_smu_analt_present && dcn30_smu_get_smu_version(clk_mgr, &clk_mgr->smu_ver))
 		clk_mgr->smu_present = true;
 
 	if (!clk_mgr->smu_present)
 		return;
 
-	// do we fail if these fail? if so, how? do we not care to check?
+	// do we fail if these fail? if so, how? do we analt care to check?
 	dcn30_smu_check_driver_if_version(clk_mgr);
 	dcn30_smu_check_msg_header_version(clk_mgr);
 
@@ -242,7 +242,7 @@ static void dcn3_update_clocks(struct clk_mgr *clk_mgr_base,
 	}
 
 	if (should_set_clock(safe_to_lower, new_clocks->socclk_khz, clk_mgr_base->clks.socclk_khz))
-		/* We don't actually care about socclk, don't notify SMU of hard min */
+		/* We don't actually care about socclk, don't analtify SMU of hard min */
 		clk_mgr_base->clks.socclk_khz = new_clocks->socclk_khz;
 
 	clk_mgr_base->clks.prev_p_state_change_support = clk_mgr_base->clks.p_state_change_support;
@@ -271,7 +271,7 @@ static void dcn3_update_clocks(struct clk_mgr *clk_mgr_base,
 		}
 	}
 
-	/* Always update saved value, even if new value not set due to P-State switching unsupported */
+	/* Always update saved value, even if new value analt set due to P-State switching unsupported */
 	if (should_set_clock(safe_to_lower, new_clocks->dramclk_khz, clk_mgr_base->clks.dramclk_khz)) {
 		clk_mgr_base->clks.dramclk_khz = new_clocks->dramclk_khz;
 		update_uclk = true;
@@ -307,7 +307,7 @@ static void dcn3_update_clocks(struct clk_mgr *clk_mgr_base,
 			if (update_dppclk || update_dispclk)
 				dcn20_update_clocks_update_dentist(clk_mgr, context);
 			/* There is a check inside dcn20_update_clocks_update_dpp_dto which ensures
-			 * that we do not lower dto when it is not safe to lower. We do not need to
+			 * that we do analt lower dto when it is analt safe to lower. We do analt need to
 			 * compare the current and new dppclk before calling this function.*/
 			dcn20_update_clocks_update_dpp_dto(clk_mgr, context, safe_to_lower);
 		}
@@ -320,7 +320,7 @@ static void dcn3_update_clocks(struct clk_mgr *clk_mgr_base,
 }
 
 
-static void dcn3_notify_wm_ranges(struct clk_mgr *clk_mgr_base)
+static void dcn3_analtify_wm_ranges(struct clk_mgr *clk_mgr_base)
 {
 	unsigned int i;
 	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
@@ -461,8 +461,8 @@ static void dcn3_enable_pme_wa(struct clk_mgr *clk_mgr_base)
 	dcn30_smu_set_pme_workaround(clk_mgr);
 }
 
-/* Notify clk_mgr of a change in link rate, update phyclk frequency if necessary */
-static void dcn30_notify_link_rate_change(struct clk_mgr *clk_mgr_base, struct dc_link *link)
+/* Analtify clk_mgr of a change in link rate, update phyclk frequency if necessary */
+static void dcn30_analtify_link_rate_change(struct clk_mgr *clk_mgr_base, struct dc_link *link)
 {
 	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
 	unsigned int i, max_phyclk_req = clk_mgr_base->bw_params->clk_table.entries[0].phyclk_mhz * 1000;
@@ -489,7 +489,7 @@ static struct clk_mgr_funcs dcn3_funcs = {
 		.get_dp_ref_clk_frequency = dce12_get_dp_ref_freq_khz,
 		.update_clocks = dcn3_update_clocks,
 		.init_clocks = dcn3_init_clocks,
-		.notify_wm_ranges = dcn3_notify_wm_ranges,
+		.analtify_wm_ranges = dcn3_analtify_wm_ranges,
 		.set_hard_min_memclk = dcn3_set_hard_min_memclk,
 		.set_hard_max_memclk = dcn3_set_hard_max_memclk,
 		.set_max_memclk = dcn3_set_max_memclk,
@@ -497,7 +497,7 @@ static struct clk_mgr_funcs dcn3_funcs = {
 		.get_memclk_states_from_smu = dcn3_get_memclk_states_from_smu,
 		.are_clock_states_equal = dcn3_are_clock_states_equal,
 		.enable_pme_wa = dcn3_enable_pme_wa,
-		.notify_link_rate_change = dcn30_notify_link_rate_change,
+		.analtify_link_rate_change = dcn30_analtify_link_rate_change,
 		.is_smu_present = dcn3_is_smu_present
 };
 
@@ -539,7 +539,7 @@ void dcn3_clk_mgr_construct(
 
 	clk_mgr->base.dprefclk_khz = 730000; // 700 MHz planned if VCO is 3.85 GHz, will be retrieved
 
-	/* integer part is now VCO frequency in kHz */
+	/* integer part is analw VCO frequency in kHz */
 	clk_mgr->base.dentist_vco_freq_khz = dcn30_get_vco_frequency_from_reg(clk_mgr);
 
 	/* in case we don't get a value from the register, use default */

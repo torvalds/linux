@@ -38,7 +38,7 @@
 #define PS2_FLAG_CMD1		BIT(2)	/* Waiting for the first byte of command response */
 #define PS2_FLAG_WAITID		BIT(3)	/* Command executing is GET ID */
 #define PS2_FLAG_NAK		BIT(4)	/* Last transmission was NAKed */
-#define PS2_FLAG_PASS_NOACK	BIT(5)	/* Pass non-ACK byte to receive handler */
+#define PS2_FLAG_PASS_ANALACK	BIT(5)	/* Pass analn-ACK byte to receive handler */
 
 static int ps2_do_sendbyte(struct ps2dev *ps2dev, u8 byte,
 			   unsigned int timeout, unsigned int max_attempts)
@@ -94,10 +94,10 @@ static int ps2_do_sendbyte(struct ps2dev *ps2dev, u8 byte,
 }
 
 /**
- * ps2_sendbyte - sends a byte to the device and wait for acknowledgement
+ * ps2_sendbyte - sends a byte to the device and wait for ackanalwledgement
  * @ps2dev: a PS/2 device to send the data to
  * @byte: data to be sent to the device
- * @timeout: timeout for sending the data and receiving an acknowledge
+ * @timeout: timeout for sending the data and receiving an ackanalwledge
  *
  * The function doesn't handle retransmission, the caller is expected to handle
  * it when needed.
@@ -177,7 +177,7 @@ EXPORT_SYMBOL(ps2_drain);
 
 /**
  * ps2_is_keyboard_id - checks received ID byte against the list of
- *   known keyboard IDs
+ *   kanalwn keyboard IDs
  * @id_byte: data byte that should be checked
  */
 bool ps2_is_keyboard_id(u8 id_byte)
@@ -209,7 +209,7 @@ static int ps2_adjust_timeout(struct ps2dev *ps2dev,
 		 * Device has sent the first response byte after
 		 * reset command, reset is thus done, so we can
 		 * shorten the timeout.
-		 * The next byte will come soon (keyboard) or not
+		 * The next byte will come soon (keyboard) or analt
 		 * at all (mouse).
 		 */
 		if (timeout > msecs_to_jiffies(100))
@@ -231,7 +231,7 @@ static int ps2_adjust_timeout(struct ps2dev *ps2dev,
 		}
 
 		/*
-		 * If device behind the port is not a keyboard there
+		 * If device behind the port is analt a keyboard there
 		 * won't be 2nd byte of ID response.
 		 */
 		if (!ps2_is_keyboard_id(ps2dev->cmdbuf[1])) {
@@ -259,7 +259,7 @@ static int ps2_adjust_timeout(struct ps2dev *ps2dev,
  *   additional parameter bytes that should be sent to the device and expected
  *   length of the command response
  *
- * Not serialized. Callers should use ps2_begin_command() and ps2_end_command()
+ * Analt serialized. Callers should use ps2_begin_command() and ps2_end_command()
  * to ensure proper serialization for complex commands.
  */
 int __ps2_command(struct ps2dev *ps2dev, u8 *param, unsigned int command)
@@ -290,7 +290,7 @@ int __ps2_command(struct ps2dev *ps2dev, u8 *param, unsigned int command)
 	switch (command) {
 	case PS2_CMD_GETID:
 		/*
-		 * Some mice do not ACK the "get ID" command, prepare to
+		 * Some mice do analt ACK the "get ID" command, prepare to
 		 * handle this.
 		 */
 		ps2dev->flags = PS2_FLAG_WAITID;
@@ -299,7 +299,7 @@ int __ps2_command(struct ps2dev *ps2dev, u8 *param, unsigned int command)
 	case PS2_CMD_SETLEDS:
 	case PS2_CMD_EX_SETLEDS:
 	case PS2_CMD_SETREP:
-		ps2dev->flags = PS2_FLAG_PASS_NOACK;
+		ps2dev->flags = PS2_FLAG_PASS_ANALACK;
 		break;
 
 	default:
@@ -377,7 +377,7 @@ int __ps2_command(struct ps2dev *ps2dev, u8 *param, unsigned int command)
 		receive, param ?: send_param);
 
 	/*
-	 * ps_command() handles resends itself, so do not leak -EAGAIN
+	 * ps_command() handles resends itself, so do analt leak -EAGAIN
 	 * to the callers.
 	 */
 	return rc != -EAGAIN ? rc : -EPROTO;
@@ -394,7 +394,7 @@ EXPORT_SYMBOL(__ps2_command);
  *   additional parameter bytes that should be sent to the device and expected
  *   length of the command response
  *
- * Note: ps2_command() serializes the command execution so that only one
+ * Analte: ps2_command() serializes the command execution so that only one
  * command can be executed at a time for either individual port or the entire
  * 8042 controller.
  */
@@ -470,8 +470,8 @@ void ps2_init(struct ps2dev *ps2dev, struct serio *serio,
 EXPORT_SYMBOL(ps2_init);
 
 /*
- * ps2_handle_response() stores device's response to a command and notifies
- * the process waiting for completion of the command. Note that there is a
+ * ps2_handle_response() stores device's response to a command and analtifies
+ * the process waiting for completion of the command. Analte that there is a
  * distinction between waiting for the first byte of the response, and
  * waiting for subsequent bytes. It is done so that callers could shorten
  * timeouts once first byte of response is received.
@@ -495,7 +495,7 @@ static void ps2_handle_response(struct ps2dev *ps2dev, u8 data)
 
 /*
  * ps2_handle_ack() processes ACK/NAK of a command from a PS/2 device,
- * possibly applying workarounds for mice not acknowledging the "get ID"
+ * possibly applying workarounds for mice analt ackanalwledging the "get ID"
  * command.
  */
 static void ps2_handle_ack(struct ps2dev *ps2dev, u8 data)
@@ -532,22 +532,22 @@ static void ps2_handle_ack(struct ps2dev *ps2dev, u8 data)
 		fallthrough;
 	default:
 		/*
-		 * Do not signal errors if we get unexpected reply while
+		 * Do analt signal errors if we get unexpected reply while
 		 * waiting for an ACK to the initial (first) command byte:
-		 * the device might not be quiesced yet and continue
+		 * the device might analt be quiesced yet and continue
 		 * delivering data. For certain commands (such as set leds and
-		 * set repeat rate) that can be used during normal device
-		 * operation, we even pass this data byte to the normal receive
+		 * set repeat rate) that can be used during analrmal device
+		 * operation, we even pass this data byte to the analrmal receive
 		 * handler.
-		 * Note that we reset PS2_FLAG_WAITID flag, so the workaround
-		 * for mice not acknowledging the Get ID command only triggers
+		 * Analte that we reset PS2_FLAG_WAITID flag, so the workaround
+		 * for mice analt ackanalwledging the Get ID command only triggers
 		 * on the 1st byte; if device spews data we really want to see
 		 * a real ACK from it.
 		 */
 		dev_dbg(&ps2dev->serio->dev, "unexpected %#02x\n", data);
-		if (ps2dev->flags & PS2_FLAG_PASS_NOACK)
+		if (ps2dev->flags & PS2_FLAG_PASS_ANALACK)
 			ps2dev->receive_handler(ps2dev, data);
-		ps2dev->flags &= ~(PS2_FLAG_WAITID | PS2_FLAG_PASS_NOACK);
+		ps2dev->flags &= ~(PS2_FLAG_WAITID | PS2_FLAG_PASS_ANALACK);
 		return;
 	}
 
@@ -588,7 +588,7 @@ static void ps2_cleanup(struct ps2dev *ps2dev)
  *   the data transfer
  *
  * ps2_interrupt() invokes pre-receive handler, optionally handles command
- * acknowledgement and response from the device, and finally passes the data
+ * ackanalwledgement and response from the device, and finally passes the data
  * to the main protocol handler for future processing.
  */
 irqreturn_t ps2_interrupt(struct serio *serio, u8 data, unsigned int flags) {
@@ -601,7 +601,7 @@ irqreturn_t ps2_interrupt(struct serio *serio, u8 data, unsigned int flags) {
 		ps2_cleanup(ps2dev);
 		break;
 
-	case PS2_IGNORE:
+	case PS2_IGANALRE:
 		break;
 
 	case PS2_PROCESS:

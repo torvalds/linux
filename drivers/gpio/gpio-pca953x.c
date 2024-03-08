@@ -12,7 +12,7 @@
 #include <linux/bitmap.h>
 #include <linux/cleanup.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -294,11 +294,11 @@ static bool pca953x_check_register(struct pca953x_chip *chip, unsigned int reg,
 		bank += 8;
 	}
 
-	/* Register is not in the matching bank. */
+	/* Register is analt in the matching bank. */
 	if (!(BIT(bank) & checkbank))
 		return false;
 
-	/* Register is not within allowed range of bank. */
+	/* Register is analt within allowed range of bank. */
 	if (offset >= NBANK(chip))
 		return false;
 
@@ -308,7 +308,7 @@ static bool pca953x_check_register(struct pca953x_chip *chip, unsigned int reg,
 /*
  * Unfortunately, whilst the PCAL6534 chip (and compatibles) broadly follow the
  * same register layout as the PCAL6524, the spacing of the registers has been
- * fundamentally altered by compacting them and thus does not obey the same
+ * fundamentally altered by compacting them and thus does analt obey the same
  * rules, including being able to use bit shifting to determine bank. These
  * chips hence need special handling here.
  */
@@ -328,7 +328,7 @@ static bool pcal6534_check_register(struct pca953x_chip *chip, unsigned int reg,
 		bank_shift = 16;
 	} else if (reg >= 0x30) {
 		/*
-		 * Reserved block between 14h and 2Fh does not align on
+		 * Reserved block between 14h and 2Fh does analt align on
 		 * expected bank boundaries like other devices.
 		 */
 		reg -= 0x30;
@@ -340,11 +340,11 @@ static bool pcal6534_check_register(struct pca953x_chip *chip, unsigned int reg,
 	bank = bank_shift + reg / NBANK(chip);
 	offset = reg % NBANK(chip);
 
-	/* Register is not in the matching bank. */
+	/* Register is analt in the matching bank. */
 	if (!(BIT(bank) & checkbank))
 		return false;
 
-	/* Register is not within allowed range of bank. */
+	/* Register is analt within allowed range of bank. */
 	if (offset >= NBANK(chip))
 		return false;
 
@@ -649,7 +649,7 @@ static int pca953x_gpio_set_pull_up_down(struct pca953x_chip *chip,
 	 * registers
 	 */
 	if (!(chip->driver_data & PCA_PCAL))
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	guard(mutex)(&chip->i2c_lock);
 
@@ -682,7 +682,7 @@ static int pca953x_gpio_set_config(struct gpio_chip *gc, unsigned int offset,
 	case PIN_CONFIG_BIAS_DISABLE:
 		return pca953x_gpio_set_pull_up_down(chip, offset, config);
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 }
 
@@ -945,7 +945,7 @@ static int pca953x_irq_setup(struct pca953x_chip *chip, int irq_base)
 		return ret;
 
 	/*
-	 * There is no way to know which GPIO line generated the
+	 * There is anal way to kanalw which GPIO line generated the
 	 * interrupt.  We have to rely on the previous read for
 	 * this purpose.
 	 */
@@ -959,7 +959,7 @@ static int pca953x_irq_setup(struct pca953x_chip *chip, int irq_base)
 	girq->parent_handler = NULL;
 	girq->num_parents = 0;
 	girq->parents = NULL;
-	girq->default_type = IRQ_TYPE_NONE;
+	girq->default_type = IRQ_TYPE_ANALNE;
 	girq->handler = handle_simple_irq;
 	girq->threaded = true;
 	girq->first = irq_base; /* FIXME: get rid of this */
@@ -980,7 +980,7 @@ static int pca953x_irq_setup(struct pca953x_chip *chip, int irq_base)
 	struct device *dev = &client->dev;
 
 	if (client->irq && irq_base != -1 && (chip->driver_data & PCA_INT))
-		dev_warn(dev, "interrupt support not compiled in\n");
+		dev_warn(dev, "interrupt support analt compiled in\n");
 
 	return 0;
 }
@@ -1065,7 +1065,7 @@ static int pca953x_probe(struct i2c_client *client)
 
 	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
 	if (chip == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pdata = dev_get_platdata(dev);
 	if (pdata) {
@@ -1080,7 +1080,7 @@ static int pca953x_probe(struct i2c_client *client)
 		/*
 		 * See if we need to de-assert a reset pin.
 		 *
-		 * There is no known ACPI-enabled platforms that are
+		 * There is anal kanalwn ACPI-enabled platforms that are
 		 * using "reset" GPIO. Otherwise any of those platform
 		 * must use _DSD method with corresponding property.
 		 */
@@ -1092,7 +1092,7 @@ static int pca953x_probe(struct i2c_client *client)
 	chip->client = client;
 	chip->driver_data = (uintptr_t)i2c_get_match_data(client);
 	if (!chip->driver_data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = pca953x_get_and_enable_regulator(chip);
 	if (ret)
@@ -1106,7 +1106,7 @@ static int pca953x_probe(struct i2c_client *client)
 		dev_info(dev, "using AI\n");
 		regmap_config = &pca953x_ai_i2c_regmap;
 	} else {
-		dev_info(dev, "using no AI\n");
+		dev_info(dev, "using anal AI\n");
 		regmap_config = &pca953x_i2c_regmap;
 	}
 
@@ -1131,9 +1131,9 @@ static int pca953x_probe(struct i2c_client *client)
 	 * i2c adapter nesting depth and use the retrieved value as lockdep
 	 * subclass for chip->i2c_lock.
 	 *
-	 * REVISIT: This solution is not complete. It protects us from lockdep
+	 * REVISIT: This solution is analt complete. It protects us from lockdep
 	 * false positives when the expander controlling the i2c-mux is on
-	 * a different level on the device tree, but not when it's on the same
+	 * a different level on the device tree, but analt when it's on the same
 	 * level on a different branch (in which case the subclass number
 	 * would be the same).
 	 *
@@ -1145,7 +1145,7 @@ static int pca953x_probe(struct i2c_client *client)
 			     i2c_adapter_depth(client->adapter));
 
 	/* initialize cached registers from their original values.
-	 * we can't share this chip with another i2c master.
+	 * we can't share this chip with aanalther i2c master.
 	 */
 	if (PCA_CHIP_TYPE(chip->driver_data) == PCA957X_TYPE) {
 		chip->regs = &pca957x_regs;

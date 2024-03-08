@@ -41,7 +41,7 @@
  * Associates a neighbour entry with the encap actions that are
  * interested in it, allowing the latter to be updated when the
  * neighbour details change.
- * Whichever of @dst_ip and @dst_ip6 is not in use will be all-zeroes,
+ * Whichever of @dst_ip and @dst_ip6 is analt in use will be all-zeroes,
  * this distinguishes IPv4 from IPv6 entries.
  */
 struct efx_neigh_binder {
@@ -65,7 +65,7 @@ struct efx_neigh_binder {
 };
 
 /* This limit is arbitrary; current hardware (SN1022) handles encap headers
- * of up to 126 bytes, but that limit is not enshrined in the MCDI protocol.
+ * of up to 126 bytes, but that limit is analt enshrined in the MCDI protocol.
  */
 #define EFX_TC_MAX_ENCAP_HDR	126
 struct efx_tc_encap_action {
@@ -106,7 +106,7 @@ int efx_tc_netevent_event(struct efx_nic *efx, unsigned long event,
 static inline int efx_tc_netevent_event(struct efx_nic *efx,
 					unsigned long event, void *ptr)
 {
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 #endif /* CONFIG_SFC_SRIOV */

@@ -18,9 +18,9 @@ int bch2_keylist_realloc(struct keylist *l, u64 *inline_u64s,
 	    (old_buf && roundup_pow_of_two(oldsize) == newsize))
 		return 0;
 
-	new_keys = krealloc(old_buf, sizeof(u64) * newsize, GFP_NOFS);
+	new_keys = krealloc(old_buf, sizeof(u64) * newsize, GFP_ANALFS);
 	if (!new_keys)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!old_buf)
 		memcpy_u64s(new_keys, inline_u64s, oldsize);

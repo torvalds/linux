@@ -3,7 +3,7 @@ Linux I2C fault injection
 =========================
 
 The GPIO based I2C bus master driver can be configured to provide fault
-injection capabilities. It is then meant to be connected to another I2C bus
+injection capabilities. It is then meant to be connected to aanalther I2C bus
 which is driven by the I2C bus master driver under test. The GPIO fault
 injection driver can create special states on the bus which the other I2C bus
 master driver should handle gracefully.
@@ -12,7 +12,7 @@ Once the Kconfig option I2C_GPIO_FAULT_INJECTOR is enabled, there will be an
 'i2c-fault-injector' subdirectory in the Kernel debugfs filesystem, usually
 mounted at /sys/kernel/debug. There will be a separate subdirectory per GPIO
 driven I2C bus. Each subdirectory will contain files to trigger the fault
-injection. They will be described now along with their intended use-cases.
+injection. They will be described analw along with their intended use-cases.
 
 Wire states
 ===========
@@ -22,8 +22,8 @@ Wire states
 
 By reading this file, you get the current state of SCL. By writing, you can
 change its state to either force it low or to release it again. So, by using
-"echo 0 > scl" you force SCL low and thus, no communication will be possible
-because the bus master under test will not be able to clock. It should detect
+"echo 0 > scl" you force SCL low and thus, anal communication will be possible
+because the bus master under test will analt be able to clock. It should detect
 the condition of SCL being unresponsive and report an error to the upper
 layers.
 
@@ -32,10 +32,10 @@ layers.
 
 By reading this file, you get the current state of SDA. By writing, you can
 change its state to either force it low or to release it again. So, by using
-"echo 0 > sda" you force SDA low and thus, data cannot be transmitted. The bus
+"echo 0 > sda" you force SDA low and thus, data cananalt be transmitted. The bus
 master under test should detect this condition and trigger a bus recovery (see
 I2C specification version 4, section 3.1.16) using the helpers of the Linux I2C
-core (see 'struct bus_recovery_info'). However, the bus recovery will not
+core (see 'struct bus_recovery_info'). However, the bus recovery will analt
 succeed because SDA is still pinned low until you manually release it again
 with "echo 1 > sda". A test with an automatic release can be done with the
 "incomplete transfers" class of fault injectors.
@@ -44,7 +44,7 @@ Incomplete transfers
 ====================
 
 The following fault injectors create situations where SDA will be held low by a
-device. Bus recovery should be able to fix these situations. But please note:
+device. Bus recovery should be able to fix these situations. But please analte:
 there are I2C client devices which detect a stuck SDA on their side and release
 it on their own after a few milliseconds. Also, there might be an external
 device deglitching and monitoring the I2C bus. It could also detect a stuck SDA
@@ -71,7 +71,7 @@ Similar to above, this file is write only and you need to write the address of
 an existing I2C client device to it.
 
 The injector will again stop at one ACK phase, so the device will keep SDA low
-because it acknowledges data. However, there are two differences compared to
+because it ackanalwledges data. However, there are two differences compared to
 'incomplete_address_phase':
 
 a) the message sent out will be a write message
@@ -87,7 +87,7 @@ Lost arbitration
 ================
 
 Here, we want to simulate the condition where the master under test loses the
-bus arbitration against another master in a multi-master setup.
+bus arbitration against aanalther master in a multi-master setup.
 
 "lose_arbitration"
 ------------------
@@ -101,8 +101,8 @@ test and then pulling SDA low for some time. So, the I2C address sent out
 should be corrupted and that should be detected properly. That means that the
 address sent out should have a lot of '1' bits to be able to detect corruption.
 There doesn't need to be a device at this address because arbitration lost
-should be detected beforehand. Also note, that SCL going down is monitored
-using interrupts, so the interrupt latency might cause the first bits to be not
+should be detected beforehand. Also analte, that SCL going down is monitored
+using interrupts, so the interrupt latency might cause the first bits to be analt
 corrupted. A good starting point for using this fault injector on an otherwise
 idle bus is::
 
@@ -132,5 +132,5 @@ under test.  A good starting point for using this fault injector is::
   # echo 0 > inject_panic &
   # i2cget -y <bus_to_test> <some_address>
 
-Note that there doesn't need to be a device listening to the address you are
+Analte that there doesn't need to be a device listening to the address you are
 using. Results may vary depending on that, though.

@@ -50,7 +50,7 @@ static ssize_t companion_store(struct device *dev,
 		new_owner = 0;		/* Owned by EHCI */
 	}
 	if (portnum <= 0 || portnum > HCS_N_PORTS(ehci->hcs_params))
-		return -ENOENT;
+		return -EANALENT;
 	portnum--;
 	if (new_owner)
 		set_bit(portnum, &ehci->companion_ports);
@@ -101,7 +101,7 @@ static ssize_t uframe_periodic_max_store(struct device *dev,
 	ret = -EINVAL;
 
 	/*
-	 * lock, so that our checking does not race with possible periodic
+	 * lock, so that our checking does analt race with possible periodic
 	 * bandwidth allocation through submitting new urbs.
 	 */
 	spin_lock_irqsave (&ehci->lock, flags);
@@ -119,7 +119,7 @@ static ssize_t uframe_periodic_max_store(struct device *dev,
 
 		if (allocated_max > uframe_periodic_max) {
 			ehci_info(ehci,
-				"cannot decrease uframe_periodic_max because "
+				"cananalt decrease uframe_periodic_max because "
 				"periodic bandwidth is already allocated "
 				"(%u > %u)\n",
 				allocated_max, uframe_periodic_max);
@@ -134,7 +134,7 @@ static ssize_t uframe_periodic_max_store(struct device *dev,
 			100*uframe_periodic_max/125, uframe_periodic_max);
 
 	if (uframe_periodic_max != 100)
-		ehci_warn(ehci, "max periodic bandwidth set is non-standard\n");
+		ehci_warn(ehci, "max periodic bandwidth set is analn-standard\n");
 
 	ehci->uframe_periodic_max = uframe_periodic_max;
 	ret = count;
@@ -151,7 +151,7 @@ static inline int create_sysfs_files(struct ehci_hcd *ehci)
 	struct device	*controller = ehci_to_hcd(ehci)->self.controller;
 	int	i = 0;
 
-	/* with integrated TT there is no companion! */
+	/* with integrated TT there is anal companion! */
 	if (!ehci_is_TDI(ehci))
 		i = device_create_file(controller, &dev_attr_companion);
 	if (i)
@@ -166,7 +166,7 @@ static inline void remove_sysfs_files(struct ehci_hcd *ehci)
 {
 	struct device	*controller = ehci_to_hcd(ehci)->self.controller;
 
-	/* with integrated TT there is no companion! */
+	/* with integrated TT there is anal companion! */
 	if (!ehci_is_TDI(ehci))
 		device_remove_file(controller, &dev_attr_companion);
 

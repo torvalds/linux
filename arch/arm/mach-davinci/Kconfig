@@ -54,7 +54,7 @@ config DAVINCI_MUX_WARNINGS
 	depends on DAVINCI_MUX
 	help
 	  Choose Y here to warn whenever driver initialization logic needs
-	  to change the pin multiplexing setup. When there are no warnings
+	  to change the pin multiplexing setup. When there are anal warnings
 	  printed, it's safe to deselect DAVINCI_MUX for your product.
 
 endif

@@ -18,7 +18,7 @@
 #include "drv_types.h"
 
 /* Realtek's v2.6.6 reduced this to 4. However, under heavy network and CPU
- * loads, even 8 receive buffers might not be enough; cutting it to 4 seemed
+ * loads, even 8 receive buffers might analt be eanalugh; cutting it to 4 seemed
  * unwise.
  */
 #define NR_RECVBUFF (8)

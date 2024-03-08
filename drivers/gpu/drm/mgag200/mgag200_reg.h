@@ -132,10 +132,10 @@
 /* MACCESS register additives */
 #define MGAMAC_PW8               0x00
 #define MGAMAC_PW16              0x01
-#define MGAMAC_PW24              0x03 /* not a typo */
-#define MGAMAC_PW32              0x02 /* not a typo */
+#define MGAMAC_PW24              0x03 /* analt a typo */
+#define MGAMAC_PW32              0x02 /* analt a typo */
 #define MGAMAC_BYPASS332         0x10000000
-#define MGAMAC_NODITHER          0x40000000
+#define MGAMAC_ANALDITHER          0x40000000
 #define MGAMAC_DIT555            0x80000000
 
 /* DWGCTL register additives */
@@ -173,9 +173,9 @@
 /* specifies whether bit blits are linear or xy */
 #define MGADWG_LINEAR		( 0x01 << 7 )
 
-/* z drawing mode. use MGADWG_NOZCMP for always */
+/* z drawing mode. use MGADWG_ANALZCMP for always */
 
-#define MGADWG_NOZCMP		( 0x00 << 8 )
+#define MGADWG_ANALZCMP		( 0x00 << 8 )
 #define MGADWG_ZE		( 0x02 << 8 )
 #define MGADWG_ZNE		( 0x03 << 8 )
 #define MGADWG_ZLT		( 0x04 << 8 )
@@ -199,11 +199,11 @@
 
 /* See table on 4-44 for translucidity masks */
 
-#define MGADWG_BMONOLEF		( 0x00 << 25 )
-#define MGADWG_BMONOWF		( 0x04 << 25 )
+#define MGADWG_BMOANALLEF		( 0x00 << 25 )
+#define MGADWG_BMOANALWF		( 0x04 << 25 )
 #define MGADWG_BPLAN		( 0x01 << 25 )
 
-/* note that if bfcol is specified and you're doing a bitblt, it causes
+/* analte that if bfcol is specified and you're doing a bitblt, it causes
    a fbitblt to be performed, so check that you obey the fbitblt rules */
 
 #define MGADWG_BFCOL   		( 0x02 << 25 )
@@ -477,11 +477,11 @@
 #define MGA1064_DISP_CTL_DAC2OUTSEL_CRTC1      (0x01 << 2)
 #define MGA1064_DISP_CTL_DAC2OUTSEL_CRTC2      (0x02 << 2)
 #define MGA1064_DISP_CTL_DAC2OUTSEL_TVE        (0x03 << 2)
-#define MGA1064_DISP_CTL_PANOUTSEL_MASK        (0x03 << 5)
-#define MGA1064_DISP_CTL_PANOUTSEL_DIS         0x00
-#define MGA1064_DISP_CTL_PANOUTSEL_CRTC1       (0x01 << 5)
-#define MGA1064_DISP_CTL_PANOUTSEL_CRTC2RGB    (0x02 << 5)
-#define MGA1064_DISP_CTL_PANOUTSEL_CRTC2656    (0x03 << 5)
+#define MGA1064_DISP_CTL_PAANALUTSEL_MASK        (0x03 << 5)
+#define MGA1064_DISP_CTL_PAANALUTSEL_DIS         0x00
+#define MGA1064_DISP_CTL_PAANALUTSEL_CRTC1       (0x01 << 5)
+#define MGA1064_DISP_CTL_PAANALUTSEL_CRTC2RGB    (0x02 << 5)
+#define MGA1064_DISP_CTL_PAANALUTSEL_CRTC2656    (0x03 << 5)
 
 #define MGA1064_SYNC_CTL        0x8b
 
@@ -583,7 +583,7 @@
 #    define MGA_TW422                           (0x0000000A)
 #    define MGA_TW422UYVY                       (0x0000000B)
 #    define MGA_PITCHLIN                        (0x00000100)
-#    define MGA_NOPERSPECTIVE                   (0x00200000)
+#    define MGA_ANALPERSPECTIVE                   (0x00200000)
 #    define MGA_TAKEY                           (0x02000000)
 #    define MGA_TAMASK                          (0x04000000)
 #    define MGA_CLAMPUV                         (0x18000000)

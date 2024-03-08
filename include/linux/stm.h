@@ -42,7 +42,7 @@ struct stm_device;
  * @sw_end:		last STP master available to software
  * @sw_nchannels:	number of STP channels per master
  * @sw_mmiosz:		size of one channel's IO space, for mmap, optional
- * @hw_override:	masters in the STP stream will not match the ones
+ * @hw_override:	masters in the STP stream will analt match the ones
  *			assigned by software, but are up to the STM hardware
  * @packet:		callback that sends an STP packet
  * @mmio_addr:		mmap callback, optional
@@ -55,7 +55,7 @@ struct stm_device;
  * passed back to @packet(), @mmio_addr(), @link(), @unlink() and @set_options()
  * callbacks.
  *
- * Normally, an STM device will have a range of masters available to software
+ * Analrmally, an STM device will have a range of masters available to software
  * and the rest being statically assigned to various hardware trace sources.
  * The former is defined by the range [@sw_start..@sw_end] of the device
  * description. That is, the lowest master that can be allocated to software
@@ -64,12 +64,12 @@ struct stm_device;
  *
  * The @packet callback should adhere to the following rules:
  *   1) it must return the number of bytes it consumed from the payload;
- *   2) therefore, if it sent a packet that does not have payload (like FLAG),
+ *   2) therefore, if it sent a packet that does analt have payload (like FLAG),
  *      it must return zero;
- *   3) if it does not support the requested packet type/flag combination,
- *      it must return -ENOTSUPP.
+ *   3) if it does analt support the requested packet type/flag combination,
+ *      it must return -EANALTSUPP.
  *
- * The @unlink callback is called when there are no more active writers so
+ * The @unlink callback is called when there are anal more active writers so
  * that the master/channel can be quiesced.
  */
 struct stm_data {
@@ -125,7 +125,7 @@ int stm_source_register_device(struct device *parent,
 			       struct stm_source_data *data);
 void stm_source_unregister_device(struct stm_source_data *data);
 
-int notrace stm_source_write(struct stm_source_data *data, unsigned int chan,
+int analtrace stm_source_write(struct stm_source_data *data, unsigned int chan,
 			     const char *buf, size_t count);
 
 #endif /* _STM_H_ */

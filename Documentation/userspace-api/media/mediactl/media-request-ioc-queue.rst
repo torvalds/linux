@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GPL-2.0 OR GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GPL-2.0 OR GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: MC
 
 .. _media_request_ioc_queue:
@@ -12,7 +12,7 @@ Name
 
 MEDIA_REQUEST_IOC_QUEUE - Queue a request
 
-Synopsis
+Syanalpsis
 ========
 
 .. c:macro:: MEDIA_REQUEST_IOC_QUEUE
@@ -44,29 +44,29 @@ errors that occur when the request is applied to the hardware. The
 exception is the ``EIO`` error which signals a fatal error that requires
 the application to stop streaming to reset the hardware state.
 
-It is not allowed to mix queuing requests with queuing buffers directly
+It is analt allowed to mix queuing requests with queuing buffers directly
 (without a request). ``EBUSY`` will be returned if the first buffer was
 queued directly and you next try to queue a request, or vice versa.
 
 A request must contain at least one buffer, otherwise this ioctl will
-return an ``ENOENT`` error.
+return an ``EANALENT`` error.
 
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
 EBUSY
     The request was already queued or the application queued the first
-    buffer directly, but later attempted to use a request. It is not permitted
+    buffer directly, but later attempted to use a request. It is analt permitted
     to mix the two APIs.
-ENOENT
-    The request did not contain any buffers. All requests are required
+EANALENT
+    The request did analt contain any buffers. All requests are required
     to have at least one buffer. This can also be returned if some required
     configuration is missing in the request.
-ENOMEM
+EANALMEM
     Out of memory when allocating internal data structures for this
     request.
 EINVAL

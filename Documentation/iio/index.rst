@@ -11,4 +11,4 @@ Industrial I/O
 
    ep93xx_adc
 
-   bno055
+   banal055

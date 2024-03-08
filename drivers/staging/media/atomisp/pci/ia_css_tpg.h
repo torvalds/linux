@@ -42,7 +42,7 @@ enum ia_css_tpg_mode {
 	IA_CSS_TPG_MODE_RAMP,
 	IA_CSS_TPG_MODE_CHECKERBOARD,
 	IA_CSS_TPG_MODE_FRAME_BASED_COLOR,
-	IA_CSS_TPG_MODE_MONO
+	IA_CSS_TPG_MODE_MOANAL
 };
 
 /* @brief Configure the test pattern generator.
@@ -52,7 +52,7 @@ enum ia_css_tpg_mode {
  * generator:
  * devices/test_pat_gen/hrt/include/test_pat_gen.h: hrt_calc_tpg_data().
  *
- * This interface is deprecated, it is not portable -> move to input system API
+ * This interface is deprecated, it is analt portable -> move to input system API
  *
 @code
 unsigned int test_pattern_value(unsigned int x, unsigned int y)

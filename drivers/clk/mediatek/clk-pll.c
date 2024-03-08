@@ -336,7 +336,7 @@ struct clk_hw *mtk_clk_register_pll(const struct mtk_pll_data *data,
 
 	pll = kzalloc(sizeof(*pll), GFP_KERNEL);
 	if (!pll)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	hw = mtk_clk_register_pll_ops(pll, data, base, &mtk_pll_ops);
 	if (IS_ERR(hw))
@@ -358,7 +358,7 @@ void mtk_clk_unregister_pll(struct clk_hw *hw)
 	kfree(pll);
 }
 
-int mtk_clk_register_plls(struct device_node *node,
+int mtk_clk_register_plls(struct device_analde *analde,
 			  const struct mtk_pll_data *plls, int num_plls,
 			  struct clk_hw_onecell_data *clk_data)
 {
@@ -366,7 +366,7 @@ int mtk_clk_register_plls(struct device_node *node,
 	int i;
 	struct clk_hw *hw;
 
-	base = of_iomap(node, 0);
+	base = of_iomap(analde, 0);
 	if (!base) {
 		pr_err("%s(): ioremap failed\n", __func__);
 		return -EINVAL;
@@ -377,7 +377,7 @@ int mtk_clk_register_plls(struct device_node *node,
 
 		if (!IS_ERR_OR_NULL(clk_data->hws[pll->id])) {
 			pr_warn("%pOF: Trying to register duplicate clock ID: %d\n",
-				node, pll->id);
+				analde, pll->id);
 			continue;
 		}
 
@@ -399,7 +399,7 @@ err:
 		const struct mtk_pll_data *pll = &plls[i];
 
 		mtk_clk_unregister_pll(clk_data->hws[pll->id]);
-		clk_data->hws[pll->id] = ERR_PTR(-ENOENT);
+		clk_data->hws[pll->id] = ERR_PTR(-EANALENT);
 	}
 
 	iounmap(base);
@@ -433,14 +433,14 @@ void mtk_clk_unregister_plls(const struct mtk_pll_data *plls, int num_plls,
 
 		/*
 		 * This is quite ugly but unfortunately the clks don't have
-		 * any device tied to them, so there's no place to store the
+		 * any device tied to them, so there's anal place to store the
 		 * pointer to the I/O region base address. We have to fetch
 		 * it from one of the registered clks.
 		 */
 		base = mtk_clk_pll_get_base(clk_data->hws[pll->id], pll);
 
 		mtk_clk_unregister_pll(clk_data->hws[pll->id]);
-		clk_data->hws[pll->id] = ERR_PTR(-ENOENT);
+		clk_data->hws[pll->id] = ERR_PTR(-EANALENT);
 	}
 
 	iounmap(base);

@@ -2,7 +2,7 @@
 /*
  * Helper module for board specific I2C bus registration
  *
- * Copyright (C) 2009 Nokia Corporation.
+ * Copyright (C) 2009 Analkia Corporation.
  */
 
 #include "soc.h"

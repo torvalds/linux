@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * tas5720.h - ALSA SoC Texas Instruments TAS5720 Mono Audio Amplifier
+ * tas5720.h - ALSA SoC Texas Instruments TAS5720 Moanal Audio Amplifier
  *
  * Copyright (C)2015-2016 Texas Instruments Incorporated -  https://www.ti.com
  *

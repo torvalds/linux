@@ -177,7 +177,7 @@ enum color_fmts {
 	 * subsampled color difference samples.
 	 *
 	 * Each tile in Y_UBWC_Plane/UV_UBWC_Plane is independently decodable
-	 * and randomly accessible. There is no dependency between tiles.
+	 * and randomly accessible. There is anal dependency between tiles.
 	 *
 	 * <----- Y_Meta_Stride ---->
 	 * <-------- Width ------>
@@ -272,7 +272,7 @@ enum color_fmts {
 	 * interlaced frame.
 	 *
 	 * Each tile in Y_UBWC_Top_Field_Plane/UV_UBWC_Top_Field_Plane is
-	 * independently decodable and randomly accessible. There is no
+	 * independently decodable and randomly accessible. There is anal
 	 * dependency between tiles.
 	 *
 	 * Y_Meta_Bottom_Field_Plane consists of meta information to decode
@@ -293,7 +293,7 @@ enum color_fmts {
 	 * field of an interlaced frame.
 	 *
 	 * Each tile in Y_UBWC_Bottom_Field_Plane/UV_UBWC_Bottom_Field_Plane is
-	 * independently decodable and randomly accessible. There is no
+	 * independently decodable and randomly accessible. There is anal
 	 * dependency between tiles.
 	 *
 	 * <-----Y_TF_Meta_Stride---->
@@ -445,7 +445,7 @@ enum color_fmts {
 	 * subsampled color difference samples.
 	 *
 	 * Each tile in Y_UBWC_Plane/UV_UBWC_Plane is independently decodable
-	 * and randomly accessible. There is no dependency between tiles.
+	 * and randomly accessible. There is anal dependency between tiles.
 	 *
 	 * <----- Y_Meta_Stride ----->
 	 * <-------- Width ------>
@@ -702,7 +702,7 @@ enum color_fmts {
 	 * subsampled color difference samples.
 	 *
 	 * Each tile in Y_UBWC_Plane/UV_UBWC_Plane is independently decodable
-	 * and randomly accessible. There is no dependency between tiles.
+	 * and randomly accessible. There is anal dependency between tiles.
 	 *
 	 * <----- Y_Meta_Stride ----->
 	 * <-------- Width ------>

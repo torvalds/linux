@@ -5,7 +5,7 @@
  * Copyright (C) 2017 Jacopo Mondi <jacopo+renesas@jmondi.org>
  *
  * Copyright (C) 2008 Renesas Solutions Corp.
- * Kuninori Morimoto <morimoto.kuninori@renesas.com>
+ * Kunianalri Morimoto <morimoto.kunianalri@renesas.com>
  *
  * Based on ov7670 and soc_camera_platform driver,
  *
@@ -31,7 +31,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-event.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-image-sizes.h>
 #include <media/v4l2-subdev.h>
 
@@ -177,10 +177,10 @@
 #define GAM14       0x8B /* Gamma Curve 14th segment input end point */
 #define GAM15       0x8C /* Gamma Curve 15th segment input end point */
 #define SLOP        0x8D /* Gamma curve highest segment slope */
-#define DNSTH       0x8E /* De-noise threshold */
+#define DNSTH       0x8E /* De-analise threshold */
 #define EDGE_STRNGT 0x8F /* Edge strength  control when manual mode */
 #define EDGE_TRSHLD 0x90 /* Edge threshold control when manual mode */
-#define DNSOFF      0x91 /* Auto De-noise threshold control */
+#define DNSOFF      0x91 /* Auto De-analise threshold control */
 #define EDGE_UPPER  0x92 /* Edge strength upper limit when Auto mode */
 #define EDGE_LOWER  0x93 /* Edge strength lower limit when Auto mode */
 #define MTX1        0x94 /* Matrix coefficient 1 */
@@ -235,11 +235,11 @@
 #define SWAP_YUV        0x10	/* Swap Y/UV output sequence in YUV mode */
 #define SWAP_ML         0x08	/* Swap output MSB/LSB */
 				/* Tri-state option for output clock */
-#define NOTRI_CLOCK     0x04	/*   0: Tri-state    at this period */
-				/*   1: No tri-state at this period */
+#define ANALTRI_CLOCK     0x04	/*   0: Tri-state    at this period */
+				/*   1: Anal tri-state at this period */
 				/* Tri-state option for output data */
-#define NOTRI_DATA      0x02	/*   0: Tri-state    at this period */
-				/*   1: No tri-state at this period */
+#define ANALTRI_DATA      0x02	/*   0: Tri-state    at this period */
+				/*   1: Anal tri-state at this period */
 #define SCOLOR_TEST     0x01	/* Sensor color bar test pattern */
 
 /* COM4 */
@@ -259,7 +259,7 @@
 #define AFR_ON_OFF      0x80	/* Auto frame rate control ON/OFF selection */
 #define AFR_SPPED       0x40	/* Auto frame rate control speed selection */
 				/* Auto frame rate max rate control */
-#define AFR_NO_RATE     0x00	/*     No  reduction of frame rate */
+#define AFR_ANAL_RATE     0x00	/*     Anal  reduction of frame rate */
 #define AFR_1p2         0x10	/*     Max reduction to 1/2 frame rate */
 #define AFR_1p4         0x20	/*     Max reduction to 1/4 frame rate */
 #define AFR_1p8         0x30	/* Max reduction to 1/8 frame rate */
@@ -269,8 +269,8 @@
 #define AF_8x           0x08	/*     Add frame when AGC reaches  8x gain */
 #define AF_16x          0x0c	/* Add frame when AGC reaches 16x gain */
 				/* AEC max step control */
-#define AEC_NO_LIMIT    0x01	/*   0 : AEC incease step has limit */
-				/*   1 : No limit to AEC increase step */
+#define AEC_ANAL_LIMIT    0x01	/*   0 : AEC incease step has limit */
+				/*   1 : Anal limit to AEC increase step */
 /* CLKRC */
 				/* Input clock divider register */
 #define CLKRC_RESERVED  0x80	/* Reserved bit */
@@ -278,7 +278,7 @@
 
 /* COM7 */
 				/* SCCB Register Reset */
-#define SCCB_RESET      0x80	/*   0 : No change */
+#define SCCB_RESET      0x80	/*   0 : Anal change */
 				/*   1 : Resets all registers to default */
 				/* Resolution selection */
 #define SLCT_MASK       0x40	/*   Mask of VGA or QVGA */
@@ -364,7 +364,7 @@
 
 /* DSPAUTO (DSP Auto Function ON/OFF Control) */
 #define AWB_ACTRL       0x80 /* AWB auto threshold control */
-#define DENOISE_ACTRL   0x40 /* De-noise auto threshold control */
+#define DEANALISE_ACTRL   0x40 /* De-analise auto threshold control */
 #define EDGE_ACTRL      0x20 /* Edge enhancement auto strength control */
 #define UV_ACTRL        0x10 /* UV adjust auto slope control */
 #define SCAL0_ACTRL     0x08 /* Auto scaling factor control */
@@ -616,8 +616,8 @@ static unsigned int ov772x_select_fps(struct ov772x_priv *priv,
 				      struct v4l2_fract *tpf)
 {
 	unsigned int fps = tpf->numerator ?
-			   tpf->denominator / tpf->numerator :
-			   tpf->denominator;
+			   tpf->deanalminator / tpf->numerator :
+			   tpf->deanalminator;
 	unsigned int best_diff;
 	unsigned int diff;
 	unsigned int idx;
@@ -683,7 +683,7 @@ static int ov772x_set_frame_rate(struct ov772x_priv *priv,
 	 * Choose the PLL_mult and CLKRC_div pair that gives a pixel clock
 	 * closer to the desired one.
 	 *
-	 * The desired pixel clock is calculated using a known frame size
+	 * The desired pixel clock is calculated using a kanalwn frame size
 	 * (blanking included) and FPS.
 	 */
 	best_diff = ~0L;
@@ -732,7 +732,7 @@ static int ov772x_get_frame_interval(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 	tpf->numerator = 1;
-	tpf->denominator = priv->fps;
+	tpf->deanalminator = priv->fps;
 
 	return 0;
 }
@@ -763,8 +763,8 @@ static int ov772x_set_frame_interval(struct v4l2_subdev *sd,
 	fps = ov772x_select_fps(priv, tpf);
 
 	/*
-	 * If the device is not powered up by the host driver do
-	 * not apply any changes to H/W at this time. Instead
+	 * If the device is analt powered up by the host driver do
+	 * analt apply any changes to H/W at this time. Instead
 	 * the frame rate will be restored right after power-up.
 	 */
 	if (priv->power_count > 0) {
@@ -774,7 +774,7 @@ static int ov772x_set_frame_interval(struct v4l2_subdev *sd,
 	}
 
 	tpf->numerator = 1;
-	tpf->denominator = fps;
+	tpf->deanalminator = fps;
 	priv->fps = fps;
 
 error:
@@ -794,8 +794,8 @@ static int ov772x_s_ctrl(struct v4l2_ctrl *ctrl)
 	/* v4l2_ctrl_lock() locks our own mutex */
 
 	/*
-	 * If the device is not powered up by the host driver do
-	 * not apply any controls to H/W at this time. Instead
+	 * If the device is analt powered up by the host driver do
+	 * analt apply any controls to H/W at this time. Instead
 	 * the controls will be restored right after power-up.
 	 */
 	if (priv->power_count == 0)
@@ -814,7 +814,7 @@ static int ov772x_s_ctrl(struct v4l2_ctrl *ctrl)
 		return regmap_update_bits(regmap, COM3, HFLIP_IMG, val);
 	case V4L2_CID_BAND_STOP_FILTER:
 		if (!ctrl->val) {
-			/* Switch the filter off, it is on now */
+			/* Switch the filter off, it is on analw */
 			ret = regmap_update_bits(regmap, BDBASE, 0xff, 0xff);
 			if (!ret)
 				ret = regmap_update_bits(regmap, COM8,
@@ -1206,7 +1206,7 @@ static int ov772x_get_fmt(struct v4l2_subdev *sd,
 	mf->height	= priv->win->rect.height;
 	mf->code	= priv->cfmt->code;
 	mf->colorspace	= priv->cfmt->colorspace;
-	mf->field	= V4L2_FIELD_NONE;
+	mf->field	= V4L2_FIELD_ANALNE;
 
 	return 0;
 }
@@ -1229,7 +1229,7 @@ static int ov772x_set_fmt(struct v4l2_subdev *sd,
 	mf->code = cfmt->code;
 	mf->width = win->rect.width;
 	mf->height = win->rect.height;
-	mf->field = V4L2_FIELD_NONE;
+	mf->field = V4L2_FIELD_ANALNE;
 	mf->colorspace = cfmt->colorspace;
 	mf->ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
 	mf->quantization = V4L2_QUANTIZATION_DEFAULT;
@@ -1248,8 +1248,8 @@ static int ov772x_set_fmt(struct v4l2_subdev *sd,
 	}
 
 	/*
-	 * If the device is not powered up by the host driver do
-	 * not apply any changes to H/W at this time. Instead
+	 * If the device is analt powered up by the host driver do
+	 * analt apply any changes to H/W at this time. Instead
 	 * the format will be restored right after power-up.
 	 */
 	if (priv->power_count > 0) {
@@ -1295,7 +1295,7 @@ static int ov772x_video_probe(struct ov772x_priv *priv)
 	default:
 		dev_err(&client->dev,
 			"Product ID error %x:%x\n", pid, ver);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto done;
 	}
 
@@ -1346,7 +1346,7 @@ static int ov772x_enum_frame_interval(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 	fie->interval.numerator = 1;
-	fie->interval.denominator = ov772x_frame_intervals[fie->index];
+	fie->interval.deanalminator = ov772x_frame_intervals[fie->index];
 
 	return 0;
 }
@@ -1386,39 +1386,39 @@ static const struct v4l2_subdev_ops ov772x_subdev_ops = {
 static int ov772x_parse_dt(struct i2c_client *client,
 			   struct ov772x_priv *priv)
 {
-	struct v4l2_fwnode_endpoint bus_cfg = {
+	struct v4l2_fwanalde_endpoint bus_cfg = {
 		.bus_type = V4L2_MBUS_PARALLEL
 	};
-	struct fwnode_handle *ep;
+	struct fwanalde_handle *ep;
 	int ret;
 
-	ep = fwnode_graph_get_next_endpoint(dev_fwnode(&client->dev), NULL);
+	ep = fwanalde_graph_get_next_endpoint(dev_fwanalde(&client->dev), NULL);
 	if (!ep) {
-		dev_err(&client->dev, "Endpoint node not found\n");
+		dev_err(&client->dev, "Endpoint analde analt found\n");
 		return -EINVAL;
 	}
 
 	/*
 	 * For backward compatibility with older DTS where the
-	 * bus-type property was not mandatory, assume
+	 * bus-type property was analt mandatory, assume
 	 * V4L2_MBUS_PARALLEL as it was the only supported bus at the
-	 * time. v4l2_fwnode_endpoint_alloc_parse() will not fail if
-	 * 'bus-type' is not specified.
+	 * time. v4l2_fwanalde_endpoint_alloc_parse() will analt fail if
+	 * 'bus-type' is analt specified.
 	 */
-	ret = v4l2_fwnode_endpoint_alloc_parse(ep, &bus_cfg);
+	ret = v4l2_fwanalde_endpoint_alloc_parse(ep, &bus_cfg);
 	if (ret) {
-		bus_cfg = (struct v4l2_fwnode_endpoint)
+		bus_cfg = (struct v4l2_fwanalde_endpoint)
 			  { .bus_type = V4L2_MBUS_BT656 };
-		ret = v4l2_fwnode_endpoint_alloc_parse(ep, &bus_cfg);
+		ret = v4l2_fwanalde_endpoint_alloc_parse(ep, &bus_cfg);
 		if (ret)
-			goto error_fwnode_put;
+			goto error_fwanalde_put;
 	}
 
 	priv->bus_type = bus_cfg.bus_type;
-	v4l2_fwnode_endpoint_free(&bus_cfg);
+	v4l2_fwanalde_endpoint_free(&bus_cfg);
 
-error_fwnode_put:
-	fwnode_handle_put(ep);
+error_fwanalde_put:
+	fwanalde_handle_put(ep);
 
 	return ret;
 }
@@ -1437,15 +1437,15 @@ static int ov772x_probe(struct i2c_client *client)
 		.max_register = DSPAUTO,
 	};
 
-	if (!client->dev.of_node && !client->dev.platform_data) {
+	if (!client->dev.of_analde && !client->dev.platform_data) {
 		dev_err(&client->dev,
-			"Missing ov772x platform data for non-DT device\n");
+			"Missing ov772x platform data for analn-DT device\n");
 		return -EINVAL;
 	}
 
 	priv = devm_kzalloc(&client->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->regmap = devm_regmap_init_sccb(client, &ov772x_regmap_config);
 	if (IS_ERR(priv->regmap)) {
@@ -1457,7 +1457,7 @@ static int ov772x_probe(struct i2c_client *client)
 	mutex_init(&priv->lock);
 
 	v4l2_i2c_subdev_init(&priv->subdev, client, &ov772x_subdev_ops);
-	priv->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE |
+	priv->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE |
 			      V4L2_SUBDEV_FL_HAS_EVENTS;
 	v4l2_ctrl_handler_init(&priv->hdl, 3);
 	/* Use our mutex for the controls */
@@ -1571,5 +1571,5 @@ static struct i2c_driver ov772x_i2c_driver = {
 module_i2c_driver(ov772x_i2c_driver);
 
 MODULE_DESCRIPTION("V4L2 driver for OV772x image sensor");
-MODULE_AUTHOR("Kuninori Morimoto");
+MODULE_AUTHOR("Kunianalri Morimoto");
 MODULE_LICENSE("GPL v2");

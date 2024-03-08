@@ -11,7 +11,7 @@
 #include <linux/cpumask.h>
 #include <asm/types.h>
 
-#define NO_IRQ		(-1)
+#define ANAL_IRQ		(-1)
 
 #ifdef CONFIG_GSC
 #define GSC_IRQ_BASE	16
@@ -27,7 +27,7 @@
 
 #define NR_IRQS		(CPU_IRQ_MAX + 1)
 
-static __inline__ int irq_canonicalize(int irq)
+static __inline__ int irq_caanalnicalize(int irq)
 {
 	return (irq == 2) ? 9 : irq;
 }

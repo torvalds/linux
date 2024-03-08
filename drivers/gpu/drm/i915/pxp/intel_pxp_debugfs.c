@@ -28,7 +28,7 @@ static int pxp_info_show(struct seq_file *m, void *data)
 		return 0;
 	}
 
-	drm_printf(&p, "active: %s\n", str_yes_no(intel_pxp_is_active(pxp)));
+	drm_printf(&p, "active: %s\n", str_anal_anal(intel_pxp_is_active(pxp)));
 	drm_printf(&p, "instance counter: %u\n", pxp->key_instance);
 
 	return 0;
@@ -38,7 +38,7 @@ DEFINE_SHOW_ATTRIBUTE(pxp_info);
 
 static int pxp_terminate_get(void *data, u64 *val)
 {
-	/* nothing to read */
+	/* analthing to read */
 	return -EPERM;
 }
 
@@ -49,7 +49,7 @@ static int pxp_terminate_set(void *data, u64 val)
 	int timeout_ms;
 
 	if (!intel_pxp_is_active(pxp))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* simulate a termination interrupt */
 	spin_lock_irq(gt->irq_lock);
@@ -69,17 +69,17 @@ DEFINE_SIMPLE_ATTRIBUTE(pxp_terminate_fops, pxp_terminate_get, pxp_terminate_set
 
 void intel_pxp_debugfs_register(struct intel_pxp *pxp)
 {
-	struct drm_minor *minor;
+	struct drm_mianalr *mianalr;
 	struct dentry *pxproot;
 
 	if (!intel_pxp_is_supported(pxp))
 		return;
 
-	minor = pxp->ctrl_gt->i915->drm.primary;
-	if (!minor->debugfs_root)
+	mianalr = pxp->ctrl_gt->i915->drm.primary;
+	if (!mianalr->debugfs_root)
 		return;
 
-	pxproot = debugfs_create_dir("pxp", minor->debugfs_root);
+	pxproot = debugfs_create_dir("pxp", mianalr->debugfs_root);
 	if (IS_ERR(pxproot))
 		return;
 

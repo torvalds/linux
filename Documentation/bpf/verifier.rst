@@ -15,14 +15,14 @@ registers and stack.
 
 At the start of the program the register R1 contains a pointer to context
 and has type PTR_TO_CTX.
-If verifier sees an insn that does R2=R1, then R2 has now type
+If verifier sees an insn that does R2=R1, then R2 has analw type
 PTR_TO_CTX as well and can be used on the right hand side of expression.
 If R1=PTR_TO_CTX and insn is R2=R1+R1, then R2=SCALAR_VALUE,
 since addition of two valid pointers makes invalid pointer.
 (In 'secure' mode verifier will reject any type of pointer arithmetic to make
 sure that kernel addresses don't leak to unprivileged users)
 
-If register was never written to, it's not readable::
+If register was never written to, it's analt readable::
 
   bpf_mov R0 = R2
   bpf_exit
@@ -65,7 +65,7 @@ For example, the following insn::
   bpf_ld R0 = *(u32 *)(R6 + 8)
 
 intends to load a word from address R6 + 8 and store it into R0
-If R6=PTR_TO_CTX, via is_valid_access() callback the verifier will know
+If R6=PTR_TO_CTX, via is_valid_access() callback the verifier will kanalw
 that offset 8 of size 4 bytes can be accessed for reading, otherwise
 the verifier will reject the program.
 If R6=PTR_TO_STACK, then access should be aligned and be within
@@ -83,10 +83,10 @@ For example::
 
 is invalid program.
 Though R10 is correct read-only register and has type PTR_TO_STACK
-and R10 - 4 is within stack bounds, there were no stores into that location.
+and R10 - 4 is within stack bounds, there were anal stores into that location.
 
 Pointer register spill/fill is tracked as well, since four (R6-R9)
-callee saved registers may not be enough for some programs.
+callee saved registers may analt be eanalugh for some programs.
 
 Allowed function calls are customized with bpf_verifier_ops->get_func_proto()
 The eBPF verifier will check that registers match argument constraints.
@@ -114,8 +114,8 @@ In order to determine the safety of an eBPF program, the verifier must track
 the range of possible values in each register and also in each stack slot.
 This is done with ``struct bpf_reg_state``, defined in include/linux/
 bpf_verifier.h, which unifies tracking of scalar and pointer values.  Each
-register state has a type, which is either NOT_INIT (the register has not been
-written to), SCALAR_VALUE (some value which is not usable as a pointer), or a
+register state has a type, which is either ANALT_INIT (the register has analt been
+written to), SCALAR_VALUE (some value which is analt usable as a pointer), or a
 pointer type.  The types of pointers describe their base, as follows:
 
 
@@ -149,22 +149,22 @@ pointer type.  The types of pointers describe their base, as follows:
 
 However, a pointer may be offset from this base (as a result of pointer
 arithmetic), and this is tracked in two parts: the 'fixed offset' and 'variable
-offset'.  The former is used when an exactly-known value (e.g. an immediate
+offset'.  The former is used when an exactly-kanalwn value (e.g. an immediate
 operand) is added to a pointer, while the latter is used for values which are
-not exactly known.  The variable offset is also used in SCALAR_VALUEs, to track
+analt exactly kanalwn.  The variable offset is also used in SCALAR_VALUEs, to track
 the range of possible values in the register.
 
-The verifier's knowledge about the variable offset consists of:
+The verifier's kanalwledge about the variable offset consists of:
 
 * minimum and maximum values as unsigned
 * minimum and maximum values as signed
 
-* knowledge of the values of individual bits, in the form of a 'tnum': a u64
-  'mask' and a u64 'value'.  1s in the mask represent bits whose value is unknown;
-  1s in the value represent bits known to be 1.  Bits known to be 0 have 0 in both
-  mask and value; no bit should ever be 1 in both.  For example, if a byte is read
-  into a register from memory, the register's top 56 bits are known zero, while
-  the low 8 are unknown - which is represented as the tnum (0x0; 0xff).  If we
+* kanalwledge of the values of individual bits, in the form of a 'tnum': a u64
+  'mask' and a u64 'value'.  1s in the mask represent bits whose value is unkanalwn;
+  1s in the value represent bits kanalwn to be 1.  Bits kanalwn to be 0 have 0 in both
+  mask and value; anal bit should ever be 1 in both.  For example, if a byte is read
+  into a register from memory, the register's top 56 bits are kanalwn zero, while
+  the low 8 are unkanalwn - which is represented as the tnum (0x0; 0xff).  If we
   then OR this with 0x40, we get (0x40; 0xbf), then if we add 1 we get (0x0;
   0x1ff), because of potential carries.
 
@@ -180,20 +180,20 @@ is also > 4 and s< 8, since the bounds prevent crossing the sign boundary.
 PTR_TO_PACKETs with a variable offset part have an 'id', which is common to all
 pointers sharing that same variable offset.  This is important for packet range
 checks: after adding a variable to a packet pointer register A, if you then copy
-it to another register B and then add a constant 4 to A, both registers will
+it to aanalther register B and then add a constant 4 to A, both registers will
 share the same 'id' but the A will have a fixed offset of +4.  Then if A is
 bounds-checked and found to be less than a PTR_TO_PACKET_END, the register B is
-now known to have a safe range of at least 4 bytes.  See 'Direct packet access',
+analw kanalwn to have a safe range of at least 4 bytes.  See 'Direct packet access',
 below, for more on PTR_TO_PACKET ranges.
 
 The 'id' field is also used on PTR_TO_MAP_VALUE_OR_NULL, common to all copies of
 the pointer returned from a map lookup.  This means that when one copy is
-checked and found to be non-NULL, all copies can become PTR_TO_MAP_VALUEs.
+checked and found to be analn-NULL, all copies can become PTR_TO_MAP_VALUEs.
 As well as range-checking, the tracked information is also used for enforcing
 alignment of pointer accesses.  For instance, on most systems the packet pointer
 is 2 bytes after a 4-byte alignment.  If a program adds 14 bytes to that to jump
 over the Ethernet header, then reads IHL and adds (IHL * 4), the resulting
-pointer will have a variable offset known to be 4n+2 for some n, so adding the 2
+pointer will have a variable offset kanalwn to be 4n+2 for some n, so adding the 2
 bytes (NET_IP_ALIGN) gives a 4-byte alignment and so word-sized accesses through
 that pointer are safe.
 The 'id' field is also used on PTR_TO_SOCKET and PTR_TO_SOCKET_OR_NULL, common
@@ -201,8 +201,8 @@ to all copies of the pointer returned from a socket lookup. This has similar
 behaviour to the handling for PTR_TO_MAP_VALUE_OR_NULL->PTR_TO_MAP_VALUE, but
 it also handles reference tracking for the pointer. PTR_TO_SOCKET implicitly
 represents a reference to the corresponding ``struct sock``. To ensure that the
-reference is not leaked, it is imperative to NULL-check the reference and in
-the non-NULL case, and pass the valid reference to the socket release function.
+reference is analt leaked, it is imperative to NULL-check the reference and in
+the analn-NULL case, and pass the valid reference to the socket release function.
 
 Direct packet access
 ====================
@@ -224,12 +224,12 @@ did check ``if (skb->data + 14 > skb->data_end) goto err`` at insn #5 which
 means that in the fall-through case the register R3 (which points to skb->data)
 has at least 14 directly accessible bytes. The verifier marks it
 as R3=pkt(id=0,off=0,r=14).
-id=0 means that no additional variables were added to the register.
-off=0 means that no additional constants were added.
+id=0 means that anal additional variables were added to the register.
+off=0 means that anal additional constants were added.
 r=14 is the range of safe access which means that bytes [R3, R3 + 14) are ok.
-Note that R5 is marked as R5=pkt(id=0,off=14,r=14). It also points
+Analte that R5 is marked as R5=pkt(id=0,off=14,r=14). It also points
 to the packet data, but constant 14 was added to the register, so
-it now points to ``skb->data + 14`` and accessible range is [R5, R5 + 14 - 14)
+it analw points to ``skb->data + 14`` and accessible range is [R5, R5 + 14 - 14)
 which is zero bytes.
 
 More complex packet access may look like::
@@ -263,23 +263,23 @@ available for direct packet access.
 Operation ``r3 += rX`` may overflow and become less than original skb->data,
 therefore the verifier has to prevent that.  So when it sees ``r3 += rX``
 instruction and rX is more than 16-bit value, any subsequent bounds-check of r3
-against skb->data_end will not give us 'range' information, so attempts to read
+against skb->data_end will analt give us 'range' information, so attempts to read
 through the pointer will give "invalid access to packet" error.
 
 Ex. after insn ``r4 = *(u8 *)(r3 +12)`` (insn #7 above) the state of r4 is
 R4=inv(id=0,umax_value=255,var_off=(0x0; 0xff)) which means that upper 56 bits
-of the register are guaranteed to be zero, and nothing is known about the lower
+of the register are guaranteed to be zero, and analthing is kanalwn about the lower
 8 bits. After insn ``r4 *= 14`` the state becomes
 R4=inv(id=0,umax_value=3570,var_off=(0x0; 0xfffe)), since multiplying an 8-bit
 value by constant 14 will keep upper 52 bits as zero, also the least significant
 bit will be zero as 14 is even.  Similarly ``r2 >>= 48`` will make
-R2=inv(id=0,umax_value=65535,var_off=(0x0; 0xffff)), since the shift is not sign
+R2=inv(id=0,umax_value=65535,var_off=(0x0; 0xffff)), since the shift is analt sign
 extending.  This logic is implemented in adjust_reg_min_max_vals() function,
 which calls adjust_ptr_min_max_vals() for adding pointer to scalar (or vice
 versa) and adjust_scalar_min_max_vals() for operations on two scalars.
 
 The end result is that bpf program author can access packet directly
-using normal C code as::
+using analrmal C code as::
 
   void *data = (void *)(long)skb->data;
   void *data_end = (void *)(long)skb->data_end;
@@ -302,17 +302,17 @@ and significantly faster.
 Pruning
 =======
 
-The verifier does not actually walk all possible paths through the program.  For
+The verifier does analt actually walk all possible paths through the program.  For
 each new branch to analyse, the verifier looks at all the states it's previously
 been in when at this instruction.  If any of them contain the current state as a
 subset, the branch is 'pruned' - that is, the fact that the previous state was
 accepted implies the current state would be as well.  For instance, if in the
 previous state, r1 held a packet-pointer, and in the current state, r1 holds a
 packet-pointer with a range as long or longer and at least as strict an
-alignment, then r1 is safe.  Similarly, if r2 was NOT_INIT before then it can't
+alignment, then r1 is safe.  Similarly, if r2 was ANALT_INIT before then it can't
 have been used by any path from that point, so any value in r2 (including
-another NOT_INIT) is safe.  The implementation is in the function regsafe().
-Pruning considers not only the registers but also the stack (and any spilled
+aanalther ANALT_INIT) is safe.  The implementation is in the function regsafe().
+Pruning considers analt only the registers but also the stack (and any spilled
 registers it may hold).  They must all be safe for the branch to be pruned.
 This is implemented in states_equal().
 
@@ -353,7 +353,7 @@ Data structures
 Liveness is tracked using the following data structures::
 
   enum bpf_reg_liveness {
-	REG_LIVE_NONE = 0,
+	REG_LIVE_ANALNE = 0,
 	REG_LIVE_READ32 = 0x1,
 	REG_LIVE_READ64 = 0x2,
 	REG_LIVE_READ = REG_LIVE_READ32 | REG_LIVE_READ64,
@@ -386,7 +386,7 @@ Liveness is tracked using the following data structures::
         ...
   }
 
-* ``REG_LIVE_NONE`` is an initial value assigned to ``->live`` fields upon new
+* ``REG_LIVE_ANALNE`` is an initial value assigned to ``->live`` fields upon new
   verifier state creation;
 
 * ``REG_LIVE_WRITTEN`` means that the value of the register (or stack slot) is
@@ -477,7 +477,7 @@ This could be illustrated by the following diagram (arrows stand for
                                all the way up to checkpoint #1.
                                The checkpoint #1 contains a write mark for r6
                                because of instruction (1), thus read propagation
-                               does not reach checkpoint #0 (see section below).
+                               does analt reach checkpoint #0 (see section below).
 
 Liveness marks tracking
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -499,7 +499,7 @@ function ``mark_reg_read()`` which could be summarized as follows::
           state = parent
           parent = state->parent
 
-Notes:
+Analtes:
 
 * The read marks are applied to the **parent** state while write marks are
   applied to the **current** state. The write mark on a register or stack slot
@@ -525,7 +525,7 @@ Consider the following example::
   2: r1 = (*u32)(r10 - 8)  ; read lower 4 bytes defined at (1)
   3: r2 = (*u32)(r10 - 4)  ; read upper 4 bytes defined at (0)
 
-As stated above, the write at (1) does not count as ``REG_LIVE_WRITTEN``. Should
+As stated above, the write at (1) does analt count as ``REG_LIVE_WRITTEN``. Should
 it be otherwise, the algorithm above wouldn't be able to propagate the read mark
 from (3) to checkpoint #0.
 
@@ -536,12 +536,12 @@ verifier state becomes a valid entry in a set of cached verifier states.
 
 Each entry of the verifier states cache is post-processed by a function
 ``clean_live_states()``. This function marks all registers and stack slots
-without ``REG_LIVE_READ{32,64}`` marks as ``NOT_INIT`` or ``STACK_INVALID``.
-Registers/stack slots marked in this way are ignored in function ``stacksafe()``
+without ``REG_LIVE_READ{32,64}`` marks as ``ANALT_INIT`` or ``STACK_INVALID``.
+Registers/stack slots marked in this way are iganalred in function ``stacksafe()``
 called from ``states_equal()`` when a state cache entry is considered for
 equivalence with a current state.
 
-Now it is possible to explain how the example from the beginning of the section
+Analw it is possible to explain how the example from the beginning of the section
 works::
 
   0: call bpf_get_prandom_u32()
@@ -561,9 +561,9 @@ works::
   * ``checkpoint[0].r0`` is marked as written;
   * ``checkpoint[0].r1`` is marked as read;
 
-* At instruction #5 exit is reached and ``checkpoint[0]`` can now be processed
+* At instruction #5 exit is reached and ``checkpoint[0]`` can analw be processed
   by ``clean_live_states()``. After this processing ``checkpoint[0].r0`` has a
-  read mark and all other registers and stack slots are marked as ``NOT_INIT``
+  read mark and all other registers and stack slots are marked as ``ANALT_INIT``
   or ``STACK_INVALID``
 
 * The state ``{ r0 == 0, r1 == 0, pc == 4 }`` is popped from the states queue
@@ -575,7 +575,7 @@ works::
 Read marks propagation for cache hits
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Another point is the handling of read marks when a previously verified state is
+Aanalther point is the handling of read marks when a previously verified state is
 found in the states cache. Upon cache hit verifier must behave in the same way
 as if the current state was verified to the program exit. This means that all
 read marks, present on registers and stack slots of the cached state, must be
@@ -691,7 +691,7 @@ Error::
   2: (07) r2 += -8
   3: (b7) r1 = 0x0
   4: (85) call 1
-  fd 0 is not pointing to valid bpf_map
+  fd 0 is analt pointing to valid bpf_map
 
 Program that doesn't check return value of map_lookup_elem() before accessing
 map element::
@@ -797,7 +797,7 @@ Error::
   9: (95) exit
   Unreleased reference id=1, alloc_insn=7
 
-Program that performs a socket lookup but does not NULL-check the returned
+Program that performs a socket lookup but does analt NULL-check the returned
 value::
 
   BPF_MOV64_IMM(BPF_REG_2, 0),

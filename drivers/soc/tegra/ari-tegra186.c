@@ -6,7 +6,7 @@
 #include <linux/arm-smccc.h>
 #include <linux/kernel.h>
 #include <linux/of.h>
-#include <linux/panic_notifier.h>
+#include <linux/panic_analtifier.h>
 
 #define SMC_SIP_INVOKE_MCE			0xc2ffff00
 #define MCE_SMC_READ_MCA			12
@@ -36,7 +36,7 @@ static void read_uncore_mca(u8 cmd, u8 idx, u8 subidx, u8 inst, u64 *data)
 	*data = res.a2;
 }
 
-static int tegra186_ari_panic_handler(struct notifier_block *nb,
+static int tegra186_ari_panic_handler(struct analtifier_block *nb,
 				      unsigned long code, void *unused)
 {
 	u64 status;
@@ -63,17 +63,17 @@ static int tegra186_ari_panic_handler(struct notifier_block *nb,
 		}
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block tegra186_ari_panic_nb = {
-	.notifier_call = tegra186_ari_panic_handler,
+static struct analtifier_block tegra186_ari_panic_nb = {
+	.analtifier_call = tegra186_ari_panic_handler,
 };
 
 static int __init tegra186_ari_init(void)
 {
 	if (of_machine_is_compatible("nvidia,tegra186"))
-		atomic_notifier_chain_register(&panic_notifier_list, &tegra186_ari_panic_nb);
+		atomic_analtifier_chain_register(&panic_analtifier_list, &tegra186_ari_panic_nb);
 
 	return 0;
 }

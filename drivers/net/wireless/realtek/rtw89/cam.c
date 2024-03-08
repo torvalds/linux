@@ -57,7 +57,7 @@ static int rtw89_cam_send_sec_key_cmd(struct rtw89_dev *rtwdev,
 	skb = rtw89_cam_get_sec_key_cmd(rtwdev, sec_cam, false);
 	if (!skb) {
 		rtw89_err(rtwdev, "failed to get sec key command\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	rtw89_h2c_pkt_set_hdr(rtwdev, skb,
@@ -79,7 +79,7 @@ static int rtw89_cam_send_sec_key_cmd(struct rtw89_dev *rtwdev,
 	ext_skb = rtw89_cam_get_sec_key_cmd(rtwdev, sec_cam, true);
 	if (!ext_skb) {
 		rtw89_err(rtwdev, "failed to get ext sec key command\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	rtw89_h2c_pkt_set_hdr(rtwdev, ext_skb,
@@ -141,13 +141,13 @@ static int rtw89_cam_get_addr_cam_key_idx(struct rtw89_addr_cam_entry *addr_cam,
 {
 	u8 idx;
 
-	/* RTW89_ADDR_CAM_SEC_NONE	: not enabled
+	/* RTW89_ADDR_CAM_SEC_ANALNE	: analt enabled
 	 * RTW89_ADDR_CAM_SEC_ALL_UNI	: 0 - 6 unicast
-	 * RTW89_ADDR_CAM_SEC_NORMAL	: 0 - 1 unicast, 2 - 4 group, 5 - 6 BIP
+	 * RTW89_ADDR_CAM_SEC_ANALRMAL	: 0 - 1 unicast, 2 - 4 group, 5 - 6 BIP
 	 * RTW89_ADDR_CAM_SEC_4GROUP	: 0 - 1 unicast, 2 - 5 group, 6 BIP
 	 */
 	switch (addr_cam->sec_ent_mode) {
-	case RTW89_ADDR_CAM_SEC_NONE:
+	case RTW89_ADDR_CAM_SEC_ANALNE:
 		return -EINVAL;
 	case RTW89_ADDR_CAM_SEC_ALL_UNI:
 		if (!(key->flags & IEEE80211_KEY_FLAG_PAIRWISE))
@@ -158,7 +158,7 @@ static int rtw89_cam_get_addr_cam_key_idx(struct rtw89_addr_cam_entry *addr_cam,
 			return -EBUSY;
 		*key_idx = idx;
 		break;
-	case RTW89_ADDR_CAM_SEC_NORMAL:
+	case RTW89_ADDR_CAM_SEC_ANALRMAL:
 		if (sec_cam->type == RTW89_SEC_KEY_TYPE_BIP_CCMP128) {
 			idx = find_next_zero_bit(addr_cam->sec_cam_map,
 						 RTW89_SEC_CAM_IN_ADDR_CAM, 5);
@@ -226,7 +226,7 @@ static int rtw89_cam_attach_sec_cam(struct rtw89_dev *rtwdev,
 	int ret;
 
 	if (!vif) {
-		rtw89_err(rtwdev, "No iface for adding sec cam\n");
+		rtw89_err(rtwdev, "Anal iface for adding sec cam\n");
 		return -EINVAL;
 	}
 
@@ -281,14 +281,14 @@ static int rtw89_cam_sec_key_install(struct rtw89_dev *rtwdev,
 
 	ret = rtw89_cam_get_avail_sec_cam(rtwdev, &sec_cam_idx, ext_key);
 	if (ret) {
-		rtw89_warn(rtwdev, "no available sec cam: %d ext: %d\n",
+		rtw89_warn(rtwdev, "anal available sec cam: %d ext: %d\n",
 			   ret, ext_key);
 		return ret;
 	}
 
 	sec_cam = kzalloc(sizeof(*sec_cam), GFP_KERNEL);
 	if (!sec_cam) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_release_cam;
 	}
 
@@ -357,7 +357,7 @@ int rtw89_cam_sec_key_add(struct rtw89_dev *rtwdev,
 		ext_key = true;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (!chip->hw_sec_hdr)
@@ -390,7 +390,7 @@ int rtw89_cam_sec_key_del(struct rtw89_dev *rtwdev,
 	int ret = 0;
 
 	if (!vif) {
-		rtw89_err(rtwdev, "No iface for deleting sec cam\n");
+		rtw89_err(rtwdev, "Anal iface for deleting sec cam\n");
 		return -EINVAL;
 	}
 
@@ -527,8 +527,8 @@ int rtw89_cam_init_addr_cam(struct rtw89_dev *rtwdev,
 	addr_cam->offset = 0;
 	addr_cam->valid = true;
 	addr_cam->addr_mask = 0;
-	addr_cam->mask_sel = RTW89_NO_MSK;
-	addr_cam->sec_ent_mode = RTW89_ADDR_CAM_SEC_NORMAL;
+	addr_cam->mask_sel = RTW89_ANAL_MSK;
+	addr_cam->sec_ent_mode = RTW89_ADDR_CAM_SEC_ANALRMAL;
 	bitmap_zero(addr_cam->sec_cam_map, RTW89_SEC_CAM_IN_ADDR_CAM);
 
 	for (i = 0; i < RTW89_SEC_CAM_IN_ADDR_CAM; i++) {
@@ -627,7 +627,7 @@ int rtw89_cam_fill_bssid_cam_info(struct rtw89_dev *rtwdev,
 	u8 bss_color = vif->bss_conf.he_bss_color.color;
 	u8 bss_mask;
 
-	if (vif->bss_conf.nontransmitted)
+	if (vif->bss_conf.analntransmitted)
 		bss_mask = RTW89_BSSID_MATCH_5_BYTES;
 	else
 		bss_mask = RTW89_BSSID_MATCH_ALL;

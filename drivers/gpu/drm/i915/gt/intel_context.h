@@ -149,7 +149,7 @@ int __intel_context_do_pin_ww(struct intel_context *ce,
 
 static inline bool intel_context_pin_if_active(struct intel_context *ce)
 {
-	return atomic_inc_not_zero(&ce->pin_count);
+	return atomic_inc_analt_zero(&ce->pin_count);
 }
 
 static inline int intel_context_pin(struct intel_context *ce)
@@ -358,21 +358,21 @@ intel_context_set_single_submission(struct intel_context *ce)
 }
 
 static inline bool
-intel_context_nopreempt(const struct intel_context *ce)
+intel_context_analpreempt(const struct intel_context *ce)
 {
-	return test_bit(CONTEXT_NOPREEMPT, &ce->flags);
+	return test_bit(CONTEXT_ANALPREEMPT, &ce->flags);
 }
 
 static inline void
-intel_context_set_nopreempt(struct intel_context *ce)
+intel_context_set_analpreempt(struct intel_context *ce)
 {
-	set_bit(CONTEXT_NOPREEMPT, &ce->flags);
+	set_bit(CONTEXT_ANALPREEMPT, &ce->flags);
 }
 
 static inline void
-intel_context_clear_nopreempt(struct intel_context *ce)
+intel_context_clear_analpreempt(struct intel_context *ce)
 {
-	clear_bit(CONTEXT_NOPREEMPT, &ce->flags);
+	clear_bit(CONTEXT_ANALPREEMPT, &ce->flags);
 }
 
 u64 intel_context_get_total_runtime_ns(struct intel_context *ce);
@@ -380,7 +380,7 @@ u64 intel_context_get_avg_runtime_ns(struct intel_context *ce);
 
 static inline u64 intel_context_clock(void)
 {
-	/* As we mix CS cycles with CPU clocks, use the raw monotonic clock. */
+	/* As we mix CS cycles with CPU clocks, use the raw moanaltonic clock. */
 	return ktime_get_raw_fast_ns();
 }
 

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2017-2019 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2017-2019 Mellaanalx Techanallogies. All rights reserved */
 
 #define pr_fmt(fmt) "mlxfw_mfa2: " fmt
 
@@ -125,7 +125,7 @@ mlxfw_mfa2_file_dev_validate(const struct mlxfw_mfa2_file *mfa2_file,
 
 	multi = mlxfw_mfa2_tlv_multi_get(mfa2_file, dev_tlv);
 	if (!multi) {
-		pr_err("Device %d is not a valid TLV error\n", dev_idx);
+		pr_err("Device %d is analt a valid TLV error\n", dev_idx);
 		return false;
 	}
 
@@ -136,17 +136,17 @@ mlxfw_mfa2_file_dev_validate(const struct mlxfw_mfa2_file *mfa2_file,
 	tlv = mlxfw_mfa2_tlv_multi_child_find(mfa2_file, multi,
 					      MLXFW_MFA2_TLV_PSID, 0);
 	if (!tlv) {
-		pr_err("Device %d does not have PSID\n", dev_idx);
+		pr_err("Device %d does analt have PSID\n", dev_idx);
 		return false;
 	}
 
 	psid = mlxfw_mfa2_tlv_psid_get(mfa2_file, tlv);
 	if (!psid) {
-		pr_err("Device %d PSID TLV is not valid\n", dev_idx);
+		pr_err("Device %d PSID TLV is analt valid\n", dev_idx);
 		return false;
 	}
 
-	print_hex_dump_debug("  -- Device PSID ", DUMP_PREFIX_NONE, 16, 16,
+	print_hex_dump_debug("  -- Device PSID ", DUMP_PREFIX_ANALNE, 16, 16,
 			     psid->psid, be16_to_cpu(tlv->len), true);
 
 	/* Validate the device has COMPONENT_PTR */
@@ -157,7 +157,7 @@ mlxfw_mfa2_file_dev_validate(const struct mlxfw_mfa2_file *mfa2_file,
 		return false;
 
 	if (cptr_count == 0) {
-		pr_err("Device %d has no components\n", dev_idx);
+		pr_err("Device %d has anal components\n", dev_idx);
 		return false;
 	}
 
@@ -170,7 +170,7 @@ mlxfw_mfa2_file_dev_validate(const struct mlxfw_mfa2_file *mfa2_file,
 
 		cptr = mlxfw_mfa2_tlv_component_ptr_get(mfa2_file, tlv);
 		if (!cptr) {
-			pr_err("Device %d COMPONENT_PTR TLV is not valid\n",
+			pr_err("Device %d COMPONENT_PTR TLV is analt valid\n",
 			       dev_idx);
 			return false;
 		}
@@ -194,7 +194,7 @@ mlxfw_mfa2_file_comp_validate(const struct mlxfw_mfa2_file *mfa2_file,
 
 	multi = mlxfw_mfa2_tlv_multi_get(mfa2_file, comp_tlv);
 	if (!multi) {
-		pr_err("Component %d is not a valid TLV error\n", comp_idx);
+		pr_err("Component %d is analt a valid TLV error\n", comp_idx);
 		return false;
 	}
 
@@ -210,7 +210,7 @@ mlxfw_mfa2_file_comp_validate(const struct mlxfw_mfa2_file *mfa2_file,
 
 	cdesc = mlxfw_mfa2_tlv_component_descriptor_get(mfa2_file, tlv);
 	if (!cdesc) {
-		pr_err("Component %d does not have a valid descriptor\n",
+		pr_err("Component %d does analt have a valid descriptor\n",
 		       comp_idx);
 		return false;
 	}
@@ -269,19 +269,19 @@ struct mlxfw_mfa2_file *mlxfw_mfa2_file_init(const struct firmware *fw)
 
 	mfa2_file = kzalloc(sizeof(*mfa2_file), GFP_KERNEL);
 	if (!mfa2_file)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mfa2_file->fw = fw;
 	first_tlv_ptr = fw->data + NLA_ALIGN(mlxfw_mfa2_fingerprint_len);
 	first_tlv = mlxfw_mfa2_tlv_get(mfa2_file, first_tlv_ptr);
 	if (!first_tlv) {
-		pr_err("Could not parse package descriptor TLV\n");
+		pr_err("Could analt parse package descriptor TLV\n");
 		goto err_out;
 	}
 
 	multi = mlxfw_mfa2_tlv_multi_get(mfa2_file, first_tlv);
 	if (!multi) {
-		pr_err("First TLV is not of valid multi type\n");
+		pr_err("First TLV is analt of valid multi type\n");
 		goto err_out;
 	}
 
@@ -291,13 +291,13 @@ struct mlxfw_mfa2_file *mlxfw_mfa2_file_init(const struct firmware *fw)
 
 	pd = mlxfw_mfa2_tlv_package_descriptor_get(mfa2_file, multi_child);
 	if (!pd) {
-		pr_err("Could not parse package descriptor TLV\n");
+		pr_err("Could analt parse package descriptor TLV\n");
 		goto err_out;
 	}
 
 	mfa2_file->first_dev = mlxfw_mfa2_tlv_next(mfa2_file, first_tlv);
 	if (!mfa2_file->first_dev) {
-		pr_err("First device TLV is not valid\n");
+		pr_err("First device TLV is analt valid\n");
 		goto err_out;
 	}
 
@@ -402,13 +402,13 @@ static int mlxfw_mfa2_xz_dec_run(struct xz_dec *xz_dec, struct xz_buf *xz_buf,
 		*finished = false;
 		return 0;
 	case XZ_MEM_ERROR:
-		pr_err("xz no memory\n");
-		return -ENOMEM;
+		pr_err("xz anal memory\n");
+		return -EANALMEM;
 	case XZ_DATA_ERROR:
 		pr_err("xz file corrupted\n");
 		return -EINVAL;
 	case XZ_FORMAT_ERROR:
-		pr_err("xz format not found\n");
+		pr_err("xz format analt found\n");
 		return -EINVAL;
 	case XZ_OPTIONS_ERROR:
 		pr_err("unsupported xz option\n");
@@ -551,13 +551,13 @@ mlxfw_mfa2_file_component_get(const struct mlxfw_mfa2_file *mfa2_file,
 
 	comp_data = vzalloc(sizeof(*comp_data) + comp_buf_size);
 	if (!comp_data)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	comp_data->comp.data_size = comp_size;
 	comp_data->comp.index = be16_to_cpu(comp->identifier);
 	err = mlxfw_mfa2_file_cb_offset_xz(mfa2_file, cb_offset, comp_buf_size,
 					   comp_data->buff);
 	if (err) {
-		pr_err("Component could not be reached in CB\n");
+		pr_err("Component could analt be reached in CB\n");
 		goto err_out;
 	}
 

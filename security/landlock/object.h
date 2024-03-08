@@ -20,7 +20,7 @@ struct landlock_object;
  */
 struct landlock_object_underops {
 	/**
-	 * @release: Releases the underlying object (e.g. iput() for an inode).
+	 * @release: Releases the underlying object (e.g. iput() for an ianalde).
 	 */
 	void (*release)(struct landlock_object *const object)
 		__releases(object->lock);
@@ -30,7 +30,7 @@ struct landlock_object_underops {
  * struct landlock_object - Security blob tied to a kernel object
  *
  * The goal of this structure is to enable to tie a set of ephemeral access
- * rights (pertaining to different domains) to a kernel object (e.g an inode)
+ * rights (pertaining to different domains) to a kernel object (e.g an ianalde)
  * in a safe way.  This implies to handle concurrent use and modification.
  *
  * The lifetime of a &struct landlock_object depends on the rules referring to
@@ -40,7 +40,7 @@ struct landlock_object {
 	/**
 	 * @usage: This counter is used to tie an object to the rules matching
 	 * it or to keep it alive while adding a new rule.  If this counter
-	 * reaches zero, this struct must not be modified, but this counter can
+	 * reaches zero, this struct must analt be modified, but this counter can
 	 * still be read from within an RCU read-side critical section.  When
 	 * adding a new rule to an object with a usage counter of zero, we must
 	 * wait until the pointer to this object is set to NULL (or recycled).
@@ -51,13 +51,13 @@ struct landlock_object {
 	 * held from the time @usage drops to zero until any weak references
 	 * from @underobj to this object have been cleaned up.
 	 *
-	 * Lock ordering: inode->i_lock nests inside this.
+	 * Lock ordering: ianalde->i_lock nests inside this.
 	 */
 	spinlock_t lock;
 	/**
 	 * @underobj: Used when cleaning up an object and to mark an object as
 	 * tied to its underlying kernel structure.  This pointer is protected
-	 * by @lock.  Cf. landlock_release_inodes() and release_inode().
+	 * by @lock.  Cf. landlock_release_ianaldes() and release_ianalde().
 	 */
 	void *underobj;
 	union {
@@ -70,7 +70,7 @@ struct landlock_object {
 		struct rcu_head rcu_free;
 		/**
 		 * @underops: Enables landlock_put_object() to release the
-		 * underlying object (e.g. inode).
+		 * underlying object (e.g. ianalde).
 		 */
 		const struct landlock_object_underops *underops;
 	};

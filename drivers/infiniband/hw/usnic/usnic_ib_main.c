@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -43,7 +43,7 @@
 #include <linux/inetdevice.h>
 #include <linux/init.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/pci.h>
 #include <linux/netdevice.h>
 
@@ -174,7 +174,7 @@ static void usnic_ib_handle_usdev_event(struct usnic_ib_dev *us_ibdev,
 			ib_event.element.port_num = 1;
 			ib_dispatch_event(&ib_event);
 		} else {
-			usnic_dbg("Ignoring %s on %s\n",
+			usnic_dbg("Iganalring %s on %s\n",
 					netdev_cmd_to_name(event),
 					dev_name(&us_ibdev->ib_dev.dev));
 		}
@@ -182,7 +182,7 @@ static void usnic_ib_handle_usdev_event(struct usnic_ib_dev *us_ibdev,
 	case NETDEV_CHANGEADDR:
 		if (!memcmp(us_ibdev->ufdev->mac, netdev->dev_addr,
 				sizeof(us_ibdev->ufdev->mac))) {
-			usnic_dbg("Ignoring addr change on %s\n",
+			usnic_dbg("Iganalring addr change on %s\n",
 				  dev_name(&us_ibdev->ib_dev.dev));
 		} else {
 			usnic_info(" %s old mac: %pM new mac: %pM\n",
@@ -206,38 +206,38 @@ static void usnic_ib_handle_usdev_event(struct usnic_ib_dev *us_ibdev,
 			usnic_fwd_set_mtu(us_ibdev->ufdev, netdev->mtu);
 			usnic_ib_qp_grp_modify_active_to_err(us_ibdev);
 		} else {
-			usnic_dbg("Ignoring MTU change on %s\n",
+			usnic_dbg("Iganalring MTU change on %s\n",
 				  dev_name(&us_ibdev->ib_dev.dev));
 		}
 		break;
 	default:
-		usnic_dbg("Ignoring event %s on %s",
+		usnic_dbg("Iganalring event %s on %s",
 				netdev_cmd_to_name(event),
 				dev_name(&us_ibdev->ib_dev.dev));
 	}
 	mutex_unlock(&us_ibdev->usdev_lock);
 }
 
-static int usnic_ib_netdevice_event(struct notifier_block *notifier,
+static int usnic_ib_netdevice_event(struct analtifier_block *analtifier,
 					unsigned long event, void *ptr)
 {
 	struct usnic_ib_dev *us_ibdev;
 	struct ib_device *ibdev;
 
-	struct net_device *netdev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *netdev = netdev_analtifier_info_to_dev(ptr);
 
 	ibdev = ib_device_get_by_netdev(netdev, RDMA_DRIVER_USNIC);
 	if (!ibdev)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	us_ibdev = container_of(ibdev, struct usnic_ib_dev, ib_dev);
 	usnic_ib_handle_usdev_event(us_ibdev, event);
 	ib_device_put(ibdev);
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block usnic_ib_netdevice_notifier = {
-	.notifier_call = usnic_ib_netdevice_event
+static struct analtifier_block usnic_ib_netdevice_analtifier = {
+	.analtifier_call = usnic_ib_netdevice_event
 };
 /* End of netdev section */
 
@@ -252,7 +252,7 @@ static int usnic_ib_handle_inet_event(struct usnic_ib_dev *us_ibdev,
 
 	switch (event) {
 	case NETDEV_DOWN:
-		usnic_info("%s via ip notifiers",
+		usnic_info("%s via ip analtifiers",
 				netdev_cmd_to_name(event));
 		usnic_fwd_del_ipaddr(us_ibdev->ufdev);
 		usnic_ib_qp_grp_modify_active_to_err(us_ibdev);
@@ -263,7 +263,7 @@ static int usnic_ib_handle_inet_event(struct usnic_ib_dev *us_ibdev,
 		break;
 	case NETDEV_UP:
 		usnic_fwd_add_ipaddr(us_ibdev->ufdev, ifa->ifa_address);
-		usnic_info("%s via ip notifiers: ip %pI4",
+		usnic_info("%s via ip analtifiers: ip %pI4",
 				netdev_cmd_to_name(event),
 				&us_ibdev->ufdev->inaddr);
 		ib_event.event = IB_EVENT_GID_CHANGE;
@@ -272,16 +272,16 @@ static int usnic_ib_handle_inet_event(struct usnic_ib_dev *us_ibdev,
 		ib_dispatch_event(&ib_event);
 		break;
 	default:
-		usnic_info("Ignoring event %s on %s",
+		usnic_info("Iganalring event %s on %s",
 				netdev_cmd_to_name(event),
 				dev_name(&us_ibdev->ib_dev.dev));
 	}
 	mutex_unlock(&us_ibdev->usdev_lock);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static int usnic_ib_inetaddr_event(struct notifier_block *notifier,
+static int usnic_ib_inetaddr_event(struct analtifier_block *analtifier,
 					unsigned long event, void *ptr)
 {
 	struct usnic_ib_dev *us_ibdev;
@@ -291,15 +291,15 @@ static int usnic_ib_inetaddr_event(struct notifier_block *notifier,
 
 	ibdev = ib_device_get_by_netdev(netdev, RDMA_DRIVER_USNIC);
 	if (!ibdev)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	us_ibdev = container_of(ibdev, struct usnic_ib_dev, ib_dev);
 	usnic_ib_handle_inet_event(us_ibdev, event, ptr);
 	ib_device_put(ibdev);
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
-static struct notifier_block usnic_ib_inetaddr_notifier = {
-	.notifier_call = usnic_ib_inetaddr_event
+static struct analtifier_block usnic_ib_inetaddr_analtifier = {
+	.analtifier_call = usnic_ib_inetaddr_event
 };
 /* End of inet section*/
 
@@ -395,7 +395,7 @@ static void *usnic_ib_device_add(struct pci_dev *dev)
 
 	us_ibdev->pdev = dev;
 	us_ibdev->netdev = pci_get_drvdata(dev);
-	us_ibdev->ib_dev.node_type = RDMA_NODE_USNIC_UDP;
+	us_ibdev->ib_dev.analde_type = RDMA_ANALDE_USNIC_UDP;
 	us_ibdev->ib_dev.phys_port_cnt = USNIC_IB_PORT_CNT;
 	us_ibdev->ib_dev.num_comp_vectors = USNIC_IB_NUM_COMP_VECTORS;
 	us_ibdev->ib_dev.dev.parent = &dev->dev;
@@ -428,7 +428,7 @@ static void *usnic_ib_device_add(struct pci_dev *dev)
 
 	usnic_mac_ip_to_gid(us_ibdev->netdev->perm_addr,
 				us_ibdev->ufdev->inaddr, &gid.raw[0]);
-	memcpy(&us_ibdev->ib_dev.node_guid, &gid.global.interface_id,
+	memcpy(&us_ibdev->ib_dev.analde_guid, &gid.global.interface_id,
 		sizeof(gid.global.interface_id));
 	kref_init(&us_ibdev->vf_cnt);
 
@@ -535,13 +535,13 @@ static int usnic_ib_pci_probe(struct pci_dev *pdev,
 	enum usnic_vnic_res_type res_type;
 
 	if (!device_iommu_mapped(&pdev->dev)) {
-		usnic_err("IOMMU required but not present or enabled.  USNIC QPs will not function w/o enabling IOMMU\n");
+		usnic_err("IOMMU required but analt present or enabled.  USNIC QPs will analt function w/o enabling IOMMU\n");
 		return -EPERM;
 	}
 
 	vf = kzalloc(sizeof(*vf), GFP_KERNEL);
 	if (!vf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = pci_enable_device(pdev);
 	if (err) {
@@ -562,7 +562,7 @@ static int usnic_ib_pci_probe(struct pci_dev *pdev,
 
 	vf->vnic = usnic_vnic_alloc(pdev);
 	if (IS_ERR_OR_NULL(vf->vnic)) {
-		err = vf->vnic ? PTR_ERR(vf->vnic) : -ENOMEM;
+		err = vf->vnic ? PTR_ERR(vf->vnic) : -EANALMEM;
 		usnic_err("Failed to alloc vnic for %s with err %d\n",
 				pci_name(pdev), err);
 		goto out_release_regions;
@@ -651,32 +651,32 @@ static int __init usnic_ib_init(void)
 		goto out_umem_fini;
 	}
 
-	err = register_netdevice_notifier(&usnic_ib_netdevice_notifier);
+	err = register_netdevice_analtifier(&usnic_ib_netdevice_analtifier);
 	if (err) {
-		usnic_err("Failed to register netdev notifier\n");
+		usnic_err("Failed to register netdev analtifier\n");
 		goto out_pci_unreg;
 	}
 
-	err = register_inetaddr_notifier(&usnic_ib_inetaddr_notifier);
+	err = register_inetaddr_analtifier(&usnic_ib_inetaddr_analtifier);
 	if (err) {
-		usnic_err("Failed to register inet addr notifier\n");
-		goto out_unreg_netdev_notifier;
+		usnic_err("Failed to register inet addr analtifier\n");
+		goto out_unreg_netdev_analtifier;
 	}
 
 	err = usnic_transport_init();
 	if (err) {
 		usnic_err("Failed to initialize transport\n");
-		goto out_unreg_inetaddr_notifier;
+		goto out_unreg_inetaddr_analtifier;
 	}
 
 	usnic_debugfs_init();
 
 	return 0;
 
-out_unreg_inetaddr_notifier:
-	unregister_inetaddr_notifier(&usnic_ib_inetaddr_notifier);
-out_unreg_netdev_notifier:
-	unregister_netdevice_notifier(&usnic_ib_netdevice_notifier);
+out_unreg_inetaddr_analtifier:
+	unregister_inetaddr_analtifier(&usnic_ib_inetaddr_analtifier);
+out_unreg_netdev_analtifier:
+	unregister_netdevice_analtifier(&usnic_ib_netdevice_analtifier);
 out_pci_unreg:
 	pci_unregister_driver(&usnic_ib_pci_driver);
 out_umem_fini:
@@ -689,8 +689,8 @@ static void __exit usnic_ib_destroy(void)
 	usnic_dbg("\n");
 	usnic_debugfs_exit();
 	usnic_transport_fini();
-	unregister_inetaddr_notifier(&usnic_ib_inetaddr_notifier);
-	unregister_netdevice_notifier(&usnic_ib_netdevice_notifier);
+	unregister_inetaddr_analtifier(&usnic_ib_inetaddr_analtifier);
+	unregister_netdevice_analtifier(&usnic_ib_netdevice_analtifier);
 	pci_unregister_driver(&usnic_ib_pci_driver);
 }
 

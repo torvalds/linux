@@ -84,13 +84,13 @@ struct iwl_tdls_channel_switch_cmd {
 } __packed; /* TDLS_STA_CHANNEL_SWITCH_CMD_API_S_VER_1 */
 
 /**
- * struct iwl_tdls_channel_switch_notif - TDLS channel switch start notification
+ * struct iwl_tdls_channel_switch_analtif - TDLS channel switch start analtification
  *
- * @status: non-zero on success
+ * @status: analn-zero on success
  * @offchannel_duration: duration given in microseconds
  * @sta_id: peer currently performing the channel-switch with
  */
-struct iwl_tdls_channel_switch_notif {
+struct iwl_tdls_channel_switch_analtif {
 	__le32 status;
 	__le32 offchannel_duration;
 	__le32 sta_id;

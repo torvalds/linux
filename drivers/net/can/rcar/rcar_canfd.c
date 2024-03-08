@@ -9,14 +9,14 @@
  *  - Classical CAN (CAN 2.0) only mode
  *
  * This driver puts the controller in CAN FD only mode by default. In this
- * mode, the controller acts as a CAN FD node that can also interoperate with
- * CAN 2.0 nodes.
+ * mode, the controller acts as a CAN FD analde that can also interoperate with
+ * CAN 2.0 analdes.
  *
  * To switch the controller to Classical CAN (CAN 2.0) only mode, add
- * "renesas,no-can-fd" optional property to the device tree node. A h/w reset is
+ * "renesas,anal-can-fd" optional property to the device tree analde. A h/w reset is
  * also required to switch modes.
  *
- * Note: The h/w manual register naming convention is clumsy and not acceptable
+ * Analte: The h/w manual register naming convention is clumsy and analt acceptable
  * to use as it is in the driver. However, those names are added as comments
  * wherever it is modified to a readable name.
  */
@@ -25,7 +25,7 @@
 #include <linux/bitops.h>
 #include <linux/can/dev.h>
 #include <linux/clk.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ethtool.h>
 #include <linux/interrupt.h>
 #include <linux/iopoll.h>
@@ -70,8 +70,8 @@
 #define RCANFD_GSTS_GSLPSTS		BIT(2)
 #define RCANFD_GSTS_GHLTSTS		BIT(1)
 #define RCANFD_GSTS_GRSTSTS		BIT(0)
-/* Non-operational status */
-#define RCANFD_GSTS_GNOPM		(BIT(0) | BIT(1) | BIT(2) | BIT(3))
+/* Analn-operational status */
+#define RCANFD_GSTS_GANALPM		(BIT(0) | BIT(1) | BIT(2) | BIT(3))
 
 /* RSCFDnCFDGERFL / RSCFDnGERFL */
 #define RCANFD_GERFL_EEF0_7		GENMASK(23, 16)
@@ -553,8 +553,8 @@ struct rcar_canfd_global {
 	const struct rcar_canfd_hw_info *info;
 };
 
-/* CAN FD mode nominal rate constants */
-static const struct can_bittiming_const rcar_canfd_nom_bittiming_const = {
+/* CAN FD mode analminal rate constants */
+static const struct can_bittiming_const rcar_canfd_analm_bittiming_const = {
 	.name = RCANFD_DRV_NAME,
 	.tseg1_min = 2,
 	.tseg1_max = 128,
@@ -617,9 +617,9 @@ static inline bool is_gen4(struct rcar_canfd_global *gpriv)
 }
 
 static inline u32 reg_gen4(struct rcar_canfd_global *gpriv,
-			   u32 gen4, u32 not_gen4)
+			   u32 gen4, u32 analt_gen4)
 {
-	return is_gen4(gpriv) ? gen4 : not_gen4;
+	return is_gen4(gpriv) ? gen4 : analt_gen4;
 }
 
 static inline void rcar_canfd_update(u32 mask, u32 val, u32 __iomem *reg)
@@ -825,7 +825,7 @@ static void rcar_canfd_configure_afl_rules(struct rcar_canfd_global *gpriv,
 
 	/* Accept all IDs */
 	rcar_canfd_write(gpriv->base, RCANFD_GAFLID(offset, start), 0);
-	/* IDE or RTR is not considered for matching */
+	/* IDE or RTR is analt considered for matching */
 	rcar_canfd_write(gpriv->base, RCANFD_GAFLM(offset, start), 0);
 	/* Any data length accepted */
 	rcar_canfd_write(gpriv->base, RCANFD_GAFLP0(offset, start), 0);
@@ -1225,7 +1225,7 @@ static void rcar_canfd_state_change(struct net_device *ndev,
 	struct can_frame *cf;
 	struct sk_buff *skb;
 
-	/* Handle transition from error to normal states */
+	/* Handle transition from error to analrmal states */
 	if (txerr < 96 && rxerr < 96)
 		state = CAN_STATE_ERROR_ACTIVE;
 	else if (txerr < 128 && rxerr < 128)
@@ -1323,7 +1323,7 @@ static void rcar_canfd_set_bittiming(struct net_device *dev)
 	u32 cfg;
 	u32 ch = priv->channel;
 
-	/* Nominal bit timing settings */
+	/* Analminal bit timing settings */
 	brp = bt->brp - 1;
 	sjw = bt->sjw - 1;
 	tseg1 = bt->prop_seg + bt->phase_seg1 - 1;
@@ -1375,7 +1375,7 @@ static int rcar_canfd_start(struct net_device *ndev)
 {
 	struct rcar_canfd_channel *priv = netdev_priv(ndev);
 	struct rcar_canfd_global *gpriv = priv->gpriv;
-	int err = -EOPNOTSUPP;
+	int err = -EOPANALTSUPP;
 	u32 sts, ch = priv->channel;
 	u32 ridx = ch + RCANFD_RFFIFO_IDX;
 
@@ -1691,7 +1691,7 @@ static int rcar_canfd_do_set_mode(struct net_device *ndev, enum can_mode mode)
 		netif_wake_queue(ndev);
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1727,11 +1727,11 @@ static int rcar_canfd_channel_probe(struct rcar_canfd_global *gpriv, u32 ch,
 	struct device *dev = &pdev->dev;
 	struct rcar_canfd_channel *priv;
 	struct net_device *ndev;
-	int err = -ENODEV;
+	int err = -EANALDEV;
 
 	ndev = alloc_candev(sizeof(*priv), RCANFD_FIFO_DEPTH);
 	if (!ndev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv = netdev_priv(ndev);
 
@@ -1768,7 +1768,7 @@ static int rcar_canfd_channel_probe(struct rcar_canfd_global *gpriv, u32 ch,
 		irq_name = devm_kasprintf(dev, GFP_KERNEL, "canfd.ch%d_err",
 					  ch);
 		if (!irq_name) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto fail;
 		}
 		err = devm_request_irq(dev, err_irq,
@@ -1782,7 +1782,7 @@ static int rcar_canfd_channel_probe(struct rcar_canfd_global *gpriv, u32 ch,
 		irq_name = devm_kasprintf(dev, GFP_KERNEL, "canfd.ch%d_trx",
 					  ch);
 		if (!irq_name) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto fail;
 		}
 		err = devm_request_irq(dev, tx_irq,
@@ -1796,7 +1796,7 @@ static int rcar_canfd_channel_probe(struct rcar_canfd_global *gpriv, u32 ch,
 	}
 
 	if (gpriv->fdmode) {
-		priv->can.bittiming_const = &rcar_canfd_nom_bittiming_const;
+		priv->can.bittiming_const = &rcar_canfd_analm_bittiming_const;
 		priv->can.data_bittiming_const =
 			&rcar_canfd_data_bittiming_const;
 
@@ -1853,7 +1853,7 @@ static int rcar_canfd_probe(struct platform_device *pdev)
 	void __iomem *addr;
 	u32 sts, ch, fcan_freq;
 	struct rcar_canfd_global *gpriv;
-	struct device_node *of_child;
+	struct device_analde *of_child;
 	unsigned long channels_mask = 0;
 	int err, ch_irq, g_irq;
 	int g_err_irq, g_recc_irq;
@@ -1863,18 +1863,18 @@ static int rcar_canfd_probe(struct platform_device *pdev)
 
 	info = of_device_get_match_data(dev);
 
-	if (of_property_read_bool(dev->of_node, "renesas,no-can-fd"))
+	if (of_property_read_bool(dev->of_analde, "renesas,anal-can-fd"))
 		fdmode = false;			/* Classical CAN only mode */
 
 	for (i = 0; i < info->max_channels; ++i) {
 		name[7] = '0' + i;
-		of_child = of_get_child_by_name(dev->of_node, name);
+		of_child = of_get_child_by_name(dev->of_analde, name);
 		if (of_child && of_device_is_available(of_child)) {
 			channels_mask |= BIT(i);
 			transceivers[i] = devm_of_phy_optional_get(dev,
 							of_child, NULL);
 		}
-		of_node_put(of_child);
+		of_analde_put(of_child);
 		if (IS_ERR(transceivers[i]))
 			return PTR_ERR(transceivers[i]);
 	}
@@ -1908,7 +1908,7 @@ static int rcar_canfd_probe(struct platform_device *pdev)
 	/* Global controller context */
 	gpriv = devm_kzalloc(dev, sizeof(*gpriv), GFP_KERNEL);
 	if (!gpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gpriv->pdev = pdev;
 	gpriv->channels_mask = channels_mask;
@@ -1929,9 +1929,9 @@ static int rcar_canfd_probe(struct platform_device *pdev)
 	gpriv->clkp = devm_clk_get(dev, "fck");
 	if (IS_ERR(gpriv->clkp))
 		return dev_err_probe(dev, PTR_ERR(gpriv->clkp),
-				     "cannot get peripheral clock\n");
+				     "cananalt get peripheral clock\n");
 
-	/* fCAN clock: Pick External clock. If not available fallback to
+	/* fCAN clock: Pick External clock. If analt available fallback to
 	 * CANFD clock
 	 */
 	gpriv->can_clk = devm_clk_get(dev, "can_clk");
@@ -1939,7 +1939,7 @@ static int rcar_canfd_probe(struct platform_device *pdev)
 		gpriv->can_clk = devm_clk_get(dev, "canfd");
 		if (IS_ERR(gpriv->can_clk))
 			return dev_err_probe(dev, PTR_ERR(gpriv->can_clk),
-					     "cannot get canfd clock\n");
+					     "cananalt get canfd clock\n");
 
 		gpriv->fcan = RCANFD_CANFDCLK;
 
@@ -2045,7 +2045,7 @@ static int rcar_canfd_probe(struct platform_device *pdev)
 
 	/* Verify mode change */
 	err = readl_poll_timeout((gpriv->base + RCANFD_GSTS), sts,
-				 !(sts & RCANFD_GSTS_GNOPM), 2, 500000);
+				 !(sts & RCANFD_GSTS_GANALPM), 2, 500000);
 	if (err) {
 		dev_err(dev, "global operational mode failed\n");
 		goto fail_mode;

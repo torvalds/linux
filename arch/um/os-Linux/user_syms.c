@@ -1,20 +1,20 @@
 // SPDX-License-Identifier: GPL-2.0
-#define __NO_FORTIFY
+#define __ANAL_FORTIFY
 #include <linux/types.h>
 #include <linux/module.h>
 
 /*
  * This file exports some critical string functions and compiler
  * built-in functions (where calls are emitted by the compiler
- * itself that we cannot avoid even in kernel code) to modules.
+ * itself that we cananalt avoid even in kernel code) to modules.
  *
  * "_user.c" code that previously used exports here such as hostfs
  * really should be considered part of the 'hypervisor' and define
- * its own API boundary like hostfs does now; don't add exports to
+ * its own API boundary like hostfs does analw; don't add exports to
  * this file for such cases.
  */
 
-/* If it's not defined, the export is included in lib/string.c.*/
+/* If it's analt defined, the export is included in lib/string.c.*/
 #ifdef __HAVE_ARCH_STRSTR
 #undef strstr
 EXPORT_SYMBOL(strstr);

@@ -4,9 +4,9 @@
  * information for us. While conventional quota formats for file systems
  * with persistent storage can load quota information into dquot from the
  * storage on-demand and hence quota dquot shrinker can free any dquot
- * that is not currently being used, it must be avoided here. Otherwise we
+ * that is analt currently being used, it must be avoided here. Otherwise we
  * can lose valuable information, user provided limits, because there is
- * no persistent storage to load the information from afterwards.
+ * anal persistent storage to load the information from afterwards.
  *
  * One information that in-memory quota format needs to keep track of is
  * a sorted list of ids for each quota type. This is done by utilizing
@@ -17,11 +17,11 @@
  * storage such as tmpfs.
  *
  * Author:	Lukas Czerner <lczerner@redhat.com>
- *		Carlos Maiolino <cmaiolino@redhat.com>
+ *		Carlos Maiolianal <cmaiolianal@redhat.com>
  *
  * Copyright (C) 2023 Red Hat, Inc.
  */
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fs.h>
 #include <linux/mount.h>
 #include <linux/kernel.h>
@@ -46,7 +46,7 @@
 #define SHMEM_MAX_DQ_TIME 604800	/* (7*24*60*60) 1 week */
 
 struct quota_id {
-	struct rb_node	node;
+	struct rb_analde	analde;
 	qid_t		id;
 	qsize_t		bhardlimit;
 	qsize_t		bsoftlimit;
@@ -56,12 +56,12 @@ struct quota_id {
 
 static int shmem_check_quota_file(struct super_block *sb, int type)
 {
-	/* There is no real quota file, nothing to do */
+	/* There is anal real quota file, analthing to do */
 	return 1;
 }
 
 /*
- * There is no real quota file. Just allocate rb_root for quota ids and
+ * There is anal real quota file. Just allocate rb_root for quota ids and
  * set limits
  */
 static int shmem_read_file_info(struct super_block *sb, int type)
@@ -69,12 +69,12 @@ static int shmem_read_file_info(struct super_block *sb, int type)
 	struct quota_info *dqopt = sb_dqopt(sb);
 	struct mem_dqinfo *info = &dqopt->info[type];
 
-	info->dqi_priv = kzalloc(sizeof(struct rb_root), GFP_NOFS);
+	info->dqi_priv = kzalloc(sizeof(struct rb_root), GFP_ANALFS);
 	if (!info->dqi_priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->dqi_max_spc_limit = SHMEM_QUOTA_MAX_SPC_LIMIT;
-	info->dqi_max_ino_limit = SHMEM_QUOTA_MAX_INO_LIMIT;
+	info->dqi_max_ianal_limit = SHMEM_QUOTA_MAX_IANAL_LIMIT;
 
 	info->dqi_bgrace = SHMEM_MAX_DQ_TIME;
 	info->dqi_igrace = SHMEM_MAX_IQ_TIME;
@@ -85,7 +85,7 @@ static int shmem_read_file_info(struct super_block *sb, int type)
 
 static int shmem_write_file_info(struct super_block *sb, int type)
 {
-	/* There is no real quota file, nothing to do */
+	/* There is anal real quota file, analthing to do */
 	return 0;
 }
 
@@ -97,15 +97,15 @@ static int shmem_free_file_info(struct super_block *sb, int type)
 	struct mem_dqinfo *info = &sb_dqopt(sb)->info[type];
 	struct rb_root *root = info->dqi_priv;
 	struct quota_id *entry;
-	struct rb_node *node;
+	struct rb_analde *analde;
 
 	info->dqi_priv = NULL;
-	node = rb_first(root);
-	while (node) {
-		entry = rb_entry(node, struct quota_id, node);
-		node = rb_next(&entry->node);
+	analde = rb_first(root);
+	while (analde) {
+		entry = rb_entry(analde, struct quota_id, analde);
+		analde = rb_next(&entry->analde);
 
-		rb_erase(&entry->node, root);
+		rb_erase(&entry->analde, root);
 		kfree(entry);
 	}
 
@@ -116,7 +116,7 @@ static int shmem_free_file_info(struct super_block *sb, int type)
 static int shmem_get_next_id(struct super_block *sb, struct kqid *qid)
 {
 	struct mem_dqinfo *info = sb_dqinfo(sb, qid->type);
-	struct rb_node *node = ((struct rb_root *)info->dqi_priv)->rb_node;
+	struct rb_analde *analde = ((struct rb_root *)info->dqi_priv)->rb_analde;
 	qid_t id = from_kqid(&init_user_ns, *qid);
 	struct quota_info *dqopt = sb_dqopt(sb);
 	struct quota_id *entry = NULL;
@@ -126,29 +126,29 @@ static int shmem_get_next_id(struct super_block *sb, struct kqid *qid)
 		return -ESRCH;
 
 	down_read(&dqopt->dqio_sem);
-	while (node) {
-		entry = rb_entry(node, struct quota_id, node);
+	while (analde) {
+		entry = rb_entry(analde, struct quota_id, analde);
 
 		if (id < entry->id)
-			node = node->rb_left;
+			analde = analde->rb_left;
 		else if (id > entry->id)
-			node = node->rb_right;
+			analde = analde->rb_right;
 		else
 			goto got_next_id;
 	}
 
 	if (!entry) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto out_unlock;
 	}
 
 	if (id > entry->id) {
-		node = rb_next(&entry->node);
-		if (!node) {
-			ret = -ENOENT;
+		analde = rb_next(&entry->analde);
+		if (!analde) {
+			ret = -EANALENT;
 			goto out_unlock;
 		}
-		entry = rb_entry(node, struct quota_id, node);
+		entry = rb_entry(analde, struct quota_id, analde);
 	}
 
 got_next_id:
@@ -160,14 +160,14 @@ out_unlock:
 
 /*
  * Load dquot with limits from existing entry, or create the new entry if
- * it does not exist.
+ * it does analt exist.
  */
 static int shmem_acquire_dquot(struct dquot *dquot)
 {
 	struct mem_dqinfo *info = sb_dqinfo(dquot->dq_sb, dquot->dq_id.type);
-	struct rb_node **n = &((struct rb_root *)info->dqi_priv)->rb_node;
+	struct rb_analde **n = &((struct rb_root *)info->dqi_priv)->rb_analde;
 	struct shmem_sb_info *sbinfo = dquot->dq_sb->s_fs_info;
-	struct rb_node *parent = NULL, *new_node = NULL;
+	struct rb_analde *parent = NULL, *new_analde = NULL;
 	struct quota_id *new_entry, *entry;
 	qid_t id = from_kqid(&init_user_ns, dquot->dq_id);
 	struct quota_info *dqopt = sb_dqopt(dquot->dq_sb);
@@ -178,7 +178,7 @@ static int shmem_acquire_dquot(struct dquot *dquot)
 	down_write(&dqopt->dqio_sem);
 	while (*n) {
 		parent = *n;
-		entry = rb_entry(parent, struct quota_id, node);
+		entry = rb_entry(parent, struct quota_id, analde);
 
 		if (id < entry->id)
 			n = &(*n)->rb_left;
@@ -189,9 +189,9 @@ static int shmem_acquire_dquot(struct dquot *dquot)
 	}
 
 	/* We don't have entry for this id yet, create it */
-	new_entry = kzalloc(sizeof(struct quota_id), GFP_NOFS);
+	new_entry = kzalloc(sizeof(struct quota_id), GFP_ANALFS);
 	if (!new_entry) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_unlock;
 	}
 
@@ -204,9 +204,9 @@ static int shmem_acquire_dquot(struct dquot *dquot)
 		new_entry->ihardlimit = sbinfo->qlimits.grpquota_ihardlimit;
 	}
 
-	new_node = &new_entry->node;
-	rb_link_node(new_node, parent, n);
-	rb_insert_color(new_node, (struct rb_root *)info->dqi_priv);
+	new_analde = &new_entry->analde;
+	rb_link_analde(new_analde, parent, n);
+	rb_insert_color(new_analde, (struct rb_root *)info->dqi_priv);
 	entry = new_entry;
 
 found:
@@ -249,7 +249,7 @@ static bool shmem_is_empty_dquot(struct dquot *dquot)
 
 	if (test_bit(DQ_FAKE_B, &dquot->dq_flags) ||
 		(dquot->dq_dqb.dqb_curspace == 0 &&
-		 dquot->dq_dqb.dqb_curinodes == 0 &&
+		 dquot->dq_dqb.dqb_curianaldes == 0 &&
 		 dquot->dq_dqb.dqb_bhardlimit == bhardlimit &&
 		 dquot->dq_dqb.dqb_ihardlimit == ihardlimit))
 		return true;
@@ -258,44 +258,44 @@ static bool shmem_is_empty_dquot(struct dquot *dquot)
 }
 /*
  * Store limits from dquot in the tree unless it's fake. If it is fake
- * remove the id from the tree since there is no useful information in
+ * remove the id from the tree since there is anal useful information in
  * there.
  */
 static int shmem_release_dquot(struct dquot *dquot)
 {
 	struct mem_dqinfo *info = sb_dqinfo(dquot->dq_sb, dquot->dq_id.type);
-	struct rb_node *node = ((struct rb_root *)info->dqi_priv)->rb_node;
+	struct rb_analde *analde = ((struct rb_root *)info->dqi_priv)->rb_analde;
 	qid_t id = from_kqid(&init_user_ns, dquot->dq_id);
 	struct quota_info *dqopt = sb_dqopt(dquot->dq_sb);
 	struct quota_id *entry = NULL;
 
 	mutex_lock(&dquot->dq_lock);
-	/* Check whether we are not racing with some other dqget() */
+	/* Check whether we are analt racing with some other dqget() */
 	if (dquot_is_busy(dquot))
 		goto out_dqlock;
 
 	down_write(&dqopt->dqio_sem);
-	while (node) {
-		entry = rb_entry(node, struct quota_id, node);
+	while (analde) {
+		entry = rb_entry(analde, struct quota_id, analde);
 
 		if (id < entry->id)
-			node = node->rb_left;
+			analde = analde->rb_left;
 		else if (id > entry->id)
-			node = node->rb_right;
+			analde = analde->rb_right;
 		else
 			goto found;
 	}
 
 	/* We should always find the entry in the rb tree */
-	WARN_ONCE(1, "quota id %u from dquot %p, not in rb tree!\n", id, dquot);
+	WARN_ONCE(1, "quota id %u from dquot %p, analt in rb tree!\n", id, dquot);
 	up_write(&dqopt->dqio_sem);
 	mutex_unlock(&dquot->dq_lock);
-	return -ENOENT;
+	return -EANALENT;
 
 found:
 	if (shmem_is_empty_dquot(dquot)) {
 		/* Remove entry from the tree */
-		rb_erase(&entry->node, info->dqi_priv);
+		rb_erase(&entry->analde, info->dqi_priv);
 		kfree(entry);
 	} else {
 		/* Store the limits in the tree */

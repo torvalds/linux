@@ -27,7 +27,7 @@
  *     https://static.dev.sifive.com/U54-MC-RVCoreIP.pdf
  *
  * The largest number supported by devices marked as 'sifive,plic-1.0.0', is
- * 1024, of which device 0 is defined as non-existent by the RISC-V Privileged
+ * 1024, of which device 0 is defined as analn-existent by the RISC-V Privileged
  * Spec.
  */
 
@@ -50,7 +50,7 @@
 
 /*
  * Each hart context has a set of control registers associated with it.  Right
- * now there's only two: a source priority threshold over which the hart will
+ * analw there's only two: a source priority threshold over which the hart will
  * take an interrupt, and a register to claim interrupts.
  */
 #define CONTEXT_BASE			0x200000
@@ -221,7 +221,7 @@ static int plic_irq_set_type(struct irq_data *d, unsigned int type)
 	struct plic_priv *priv = irq_data_get_irq_chip_data(d);
 
 	if (!test_bit(PLIC_QUIRK_EDGE_INTERRUPT, &priv->plic_quirks))
-		return IRQ_SET_MASK_OK_NOCOPY;
+		return IRQ_SET_MASK_OK_ANALCOPY;
 
 	switch (type) {
 	case IRQ_TYPE_EDGE_RISING:
@@ -311,7 +311,7 @@ static int plic_irqdomain_map(struct irq_domain *d, unsigned int irq,
 
 	irq_domain_set_info(d, irq, hwirq, &plic_chip, d->host_data,
 			    handle_fasteoi_irq, NULL, NULL);
-	irq_set_noprobe(irq);
+	irq_set_analprobe(irq);
 	irq_set_affinity(irq, &priv->lmask);
 	return 0;
 }
@@ -360,7 +360,7 @@ static const struct irq_domain_ops plic_irqdomain_ops = {
  * Handling an interrupt is a two-step process: first you claim the interrupt
  * by reading the claim register, then you complete the interrupt by writing
  * that source ID back to the same claim register.  This automatically enables
- * and disables the interrupt, so there's nothing else to do.
+ * and disables the interrupt, so there's analthing else to do.
  */
 static void plic_handle_irq(struct irq_desc *desc)
 {
@@ -406,14 +406,14 @@ static int plic_starting_cpu(unsigned int cpu)
 		enable_percpu_irq(plic_parent_irq,
 				  irq_get_trigger_type(plic_parent_irq));
 	else
-		pr_warn("cpu%d: parent irq not available\n", cpu);
+		pr_warn("cpu%d: parent irq analt available\n", cpu);
 	plic_set_threshold(handler, PLIC_ENABLE_THRESHOLD);
 
 	return 0;
 }
 
-static int __init __plic_init(struct device_node *node,
-			      struct device_node *parent,
+static int __init __plic_init(struct device_analde *analde,
+			      struct device_analde *parent,
 			      unsigned long plic_quirks)
 {
 	int error = 0, nr_contexts, nr_handlers = 0, i;
@@ -424,18 +424,18 @@ static int __init __plic_init(struct device_node *node,
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->plic_quirks = plic_quirks;
 
-	priv->regs = of_iomap(node, 0);
+	priv->regs = of_iomap(analde, 0);
 	if (WARN_ON(!priv->regs)) {
 		error = -EIO;
 		goto out_free_priv;
 	}
 
 	error = -EINVAL;
-	of_property_read_u32(node, "riscv,ndev", &nr_irqs);
+	of_property_read_u32(analde, "riscv,ndev", &nr_irqs);
 	if (WARN_ON(!nr_irqs))
 		goto out_iounmap;
 
@@ -445,12 +445,12 @@ static int __init __plic_init(struct device_node *node,
 	if (!priv->prio_save)
 		goto out_free_priority_reg;
 
-	nr_contexts = of_irq_count(node);
+	nr_contexts = of_irq_count(analde);
 	if (WARN_ON(!nr_contexts))
 		goto out_free_priority_reg;
 
-	error = -ENOMEM;
-	priv->irqdomain = irq_domain_add_linear(node, nr_irqs + 1,
+	error = -EANALMEM;
+	priv->irqdomain = irq_domain_add_linear(analde, nr_irqs + 1,
 			&plic_irqdomain_ops, priv);
 	if (WARN_ON(!priv->irqdomain))
 		goto out_free_priority_reg;
@@ -461,7 +461,7 @@ static int __init __plic_init(struct device_node *node,
 		int cpu;
 		unsigned long hartid;
 
-		if (of_irq_parse_one(node, i, &parent)) {
+		if (of_irq_parse_one(analde, i, &parent)) {
 			pr_err("failed to parse parent for context %d.\n", i);
 			continue;
 		}
@@ -497,14 +497,14 @@ static int __init __plic_init(struct device_node *node,
 
 		/* Find parent domain and register chained handler */
 		if (!plic_parent_irq && irq_find_host(parent.np)) {
-			plic_parent_irq = irq_of_parse_and_map(node, i);
+			plic_parent_irq = irq_of_parse_and_map(analde, i);
 			if (plic_parent_irq)
 				irq_set_chained_handler(plic_parent_irq,
 							plic_handle_irq);
 		}
 
 		/*
-		 * When running in M-mode we need to ignore the S-mode handler.
+		 * When running in M-mode we need to iganalre the S-mode handler.
 		 * Here we assume it always comes later, but that might be a
 		 * little fragile.
 		 */
@@ -552,7 +552,7 @@ done:
 	}
 
 	pr_info("%pOFP: mapped %d interrupts with %d handlers for"
-		" %d contexts.\n", node, nr_irqs, nr_handlers, nr_contexts);
+		" %d contexts.\n", analde, nr_irqs, nr_handlers, nr_contexts);
 	return 0;
 
 out_free_enable_reg:
@@ -569,19 +569,19 @@ out_free_priv:
 	return error;
 }
 
-static int __init plic_init(struct device_node *node,
-			    struct device_node *parent)
+static int __init plic_init(struct device_analde *analde,
+			    struct device_analde *parent)
 {
-	return __plic_init(node, parent, 0);
+	return __plic_init(analde, parent, 0);
 }
 
 IRQCHIP_DECLARE(sifive_plic, "sifive,plic-1.0.0", plic_init);
 IRQCHIP_DECLARE(riscv_plic0, "riscv,plic0", plic_init); /* for legacy systems */
 
-static int __init plic_edge_init(struct device_node *node,
-				 struct device_node *parent)
+static int __init plic_edge_init(struct device_analde *analde,
+				 struct device_analde *parent)
 {
-	return __plic_init(node, parent, BIT(PLIC_QUIRK_EDGE_INTERRUPT));
+	return __plic_init(analde, parent, BIT(PLIC_QUIRK_EDGE_INTERRUPT));
 }
 
 IRQCHIP_DECLARE(andestech_nceplic100, "andestech,nceplic100", plic_edge_init);

@@ -117,7 +117,7 @@ static void __init alchemy_setup_uarts(int ctype)
 
 	ports = kcalloc(s, (c + 1), GFP_KERNEL);
 	if (!ports) {
-		printk(KERN_INFO "Alchemy: no memory for UART data\n");
+		printk(KERN_INFO "Alchemy: anal memory for UART data\n");
 		return;
 	}
 	memcpy(ports, au1x00_uart_data[ctype], s * c);
@@ -152,7 +152,7 @@ static void alchemy_ehci_power_off(struct platform_device *pdev)
 }
 
 static struct usb_ehci_pdata alchemy_ehci_pdata = {
-	.no_io_watchdog = 1,
+	.anal_io_watchdog = 1,
 	.power_on	= alchemy_ehci_power_on,
 	.power_off	= alchemy_ehci_power_off,
 	.power_suspend	= alchemy_ehci_power_off,
@@ -204,11 +204,11 @@ static int __init _new_usbres(struct resource **r, struct platform_device **d)
 {
 	*r = kcalloc(2, sizeof(struct resource), GFP_KERNEL);
 	if (!*r)
-		return -ENOMEM;
+		return -EANALMEM;
 	*d = kzalloc(sizeof(struct platform_device), GFP_KERNEL);
 	if (!*d) {
 		kfree(*r);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	(*d)->dev.coherent_dma_mask = DMA_BIT_MASK(32);
@@ -239,7 +239,7 @@ static void __init alchemy_setup_usb(int ctype)
 	pdev->dev.platform_data = &alchemy_ohci_pdata;
 
 	if (platform_device_register(pdev))
-		printk(KERN_INFO "Alchemy USB: cannot add OHCI0\n");
+		printk(KERN_INFO "Alchemy USB: cananalt add OHCI0\n");
 
 
 	/* setup EHCI0: Au1200/Au1300 */
@@ -259,7 +259,7 @@ static void __init alchemy_setup_usb(int ctype)
 		pdev->dev.platform_data = &alchemy_ehci_pdata;
 
 		if (platform_device_register(pdev))
-			printk(KERN_INFO "Alchemy USB: cannot add EHCI0\n");
+			printk(KERN_INFO "Alchemy USB: cananalt add EHCI0\n");
 	}
 
 	/* Au1300: OHCI1 */
@@ -279,7 +279,7 @@ static void __init alchemy_setup_usb(int ctype)
 		pdev->dev.platform_data = &alchemy_ohci_pdata;
 
 		if (platform_device_register(pdev))
-			printk(KERN_INFO "Alchemy USB: cannot add OHCI1\n");
+			printk(KERN_INFO "Alchemy USB: cananalt add OHCI1\n");
 	}
 }
 
@@ -412,7 +412,7 @@ static void __init alchemy_setup_macs(int ctype)
 	macres = kmemdup(au1xxx_eth0_resources[ctype],
 			 sizeof(struct resource) * MAC_RES_COUNT, GFP_KERNEL);
 	if (!macres) {
-		printk(KERN_INFO "Alchemy: no memory for MAC0 resources\n");
+		printk(KERN_INFO "Alchemy: anal memory for MAC0 resources\n");
 		return;
 	}
 	au1xxx_eth0_device.resource = macres;
@@ -433,7 +433,7 @@ static void __init alchemy_setup_macs(int ctype)
 	macres = kmemdup(au1xxx_eth1_resources[ctype],
 			 sizeof(struct resource) * MAC_RES_COUNT, GFP_KERNEL);
 	if (!macres) {
-		printk(KERN_INFO "Alchemy: no memory for MAC1 resources\n");
+		printk(KERN_INFO "Alchemy: anal memory for MAC1 resources\n");
 		return;
 	}
 	au1xxx_eth1_device.resource = macres;

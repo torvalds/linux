@@ -91,7 +91,7 @@ static void pcl_set_read_segment(const struct svc_rdma_recv_ctxt *rctxt,
  * - The incoming Read list has already been sanity checked.
  * - cl_count is already set to the number of segments in
  *   the un-decoded list.
- * - The list might not be in order by position.
+ * - The list might analt be in order by position.
  *
  * Return values:
  *       %true: Parsed chunk list was successfully constructed, and
@@ -134,7 +134,7 @@ bool pcl_alloc_call(struct svc_rdma_recv_ctxt *rctxt, __be32 *p)
 }
 
 /**
- * pcl_alloc_read - Construct a parsed chunk list for normal Read chunks
+ * pcl_alloc_read - Construct a parsed chunk list for analrmal Read chunks
  * @rctxt: Ingress receive context
  * @p: Start of an un-decoded Read list
  *
@@ -142,7 +142,7 @@ bool pcl_alloc_call(struct svc_rdma_recv_ctxt *rctxt, __be32 *p)
  * - The incoming Read list has already been sanity checked.
  * - cl_count is already set to the number of segments in
  *   the un-decoded list.
- * - The list might not be in order by position.
+ * - The list might analt be in order by position.
  *
  * Return values:
  *       %true: Parsed chunk list was successfully constructed, and
@@ -244,13 +244,13 @@ static int pcl_process_region(const struct xdr_buf *xdr,
 }
 
 /**
- * pcl_process_nonpayloads - Process non-payload regions inside @xdr
+ * pcl_process_analnpayloads - Process analn-payload regions inside @xdr
  * @pcl: Chunk list to process
  * @xdr: xdr_buf to process
- * @actor: Function to invoke on each non-payload region
+ * @actor: Function to invoke on each analn-payload region
  * @data: Arguments for @actor
  *
- * This mechanism must ignore not only result payloads that were already
+ * This mechanism must iganalre analt only result payloads that were already
  * sent via RDMA Write, but also XDR padding for those payloads that
  * the upper layer has added.
  *
@@ -262,7 +262,7 @@ static int pcl_process_region(const struct xdr_buf *xdr,
  *   %-EMSGSIZE on XDR buffer overflow, or
  *   The return value of @actor
  */
-int pcl_process_nonpayloads(const struct svc_rdma_pcl *pcl,
+int pcl_process_analnpayloads(const struct svc_rdma_pcl *pcl,
 			    const struct xdr_buf *xdr,
 			    int (*actor)(const struct xdr_buf *, void *),
 			    void *data)
@@ -273,7 +273,7 @@ int pcl_process_nonpayloads(const struct svc_rdma_pcl *pcl,
 
 	chunk = pcl_first_chunk(pcl);
 
-	/* No result payloads were generated */
+	/* Anal result payloads were generated */
 	if (!chunk || !chunk->ch_payload_length)
 		return actor(xdr, data);
 

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -75,7 +75,7 @@
        __SMU_DUMMY_MAP(SetMinDeepSleepDcefclk),       \
        __SMU_DUMMY_MAP(ReenableAcDcInterrupt),        \
        __SMU_DUMMY_MAP(AllowIHHostInterrupt),        \
-       __SMU_DUMMY_MAP(NotifyPowerSource),            \
+       __SMU_DUMMY_MAP(AnaltifyPowerSource),            \
        __SMU_DUMMY_MAP(SetUclkFastSwitch),            \
        __SMU_DUMMY_MAP(SetUclkDownHyst),              \
        __SMU_DUMMY_MAP(GfxDeviceDriverReset),         \
@@ -137,7 +137,7 @@
 	__SMU_DUMMY_MAP(SetHardMinVcn),               \
 	__SMU_DUMMY_MAP(SetAllowFclkSwitch),          \
 	__SMU_DUMMY_MAP(SetMinVideoGfxclkFreq),       \
-	__SMU_DUMMY_MAP(ActiveProcessNotify),         \
+	__SMU_DUMMY_MAP(ActiveProcessAnaltify),         \
 	__SMU_DUMMY_MAP(SetCustomPolicy),             \
 	__SMU_DUMMY_MAP(QueryPowerLimit),             \
 	__SMU_DUMMY_MAP(SetGfxclkOverdriveByFreqVid), \
@@ -185,7 +185,7 @@
 	__SMU_DUMMY_MAP(SET_DRIVER_DUMMY_TABLE_DRAM_ADDR_LOW), \
 	__SMU_DUMMY_MAP(GET_UMC_FW_WA), \
 	__SMU_DUMMY_MAP(Mode1Reset), \
-	__SMU_DUMMY_MAP(RlcPowerNotify),                 \
+	__SMU_DUMMY_MAP(RlcPowerAnaltify),                 \
 	__SMU_DUMMY_MAP(SetHardMinIspiclkByFreq),        \
 	__SMU_DUMMY_MAP(SetHardMinIspxclkByFreq),        \
 	__SMU_DUMMY_MAP(SetSoftMinSocclkByFreq),         \
@@ -247,7 +247,7 @@
 	__SMU_DUMMY_MAP(Mode2Reset),	\
 	__SMU_DUMMY_MAP(RequestI2cTransaction), \
 	__SMU_DUMMY_MAP(GetMetricsTable), \
-	__SMU_DUMMY_MAP(DALNotPresent), \
+	__SMU_DUMMY_MAP(DALAnaltPresent), \
 	__SMU_DUMMY_MAP(ClearMcaOnRead),	\
 	__SMU_DUMMY_MAP(QueryValidMcaCount),	\
 	__SMU_DUMMY_MAP(QueryValidMcaCeCount),	\

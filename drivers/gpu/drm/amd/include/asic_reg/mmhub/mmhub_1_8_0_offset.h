@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -119,10 +119,10 @@
 #define regDAGB0_RDCLI_OARB_PENDING_BASE_IDX                                                            0
 #define regDAGB0_RDCLI_OSD_PENDING                                                                      0x002d
 #define regDAGB0_RDCLI_OSD_PENDING_BASE_IDX                                                             0
-#define regDAGB0_RDCLI_NOALLOC_OVERRIDE                                                                 0x002e
-#define regDAGB0_RDCLI_NOALLOC_OVERRIDE_BASE_IDX                                                        0
-#define regDAGB0_RDCLI_NOALLOC_OVERRIDE_VALUE                                                           0x002f
-#define regDAGB0_RDCLI_NOALLOC_OVERRIDE_VALUE_BASE_IDX                                                  0
+#define regDAGB0_RDCLI_ANALALLOC_OVERRIDE                                                                 0x002e
+#define regDAGB0_RDCLI_ANALALLOC_OVERRIDE_BASE_IDX                                                        0
+#define regDAGB0_RDCLI_ANALALLOC_OVERRIDE_VALUE                                                           0x002f
+#define regDAGB0_RDCLI_ANALALLOC_OVERRIDE_VALUE_BASE_IDX                                                  0
 #define regDAGB0_WRCLI0                                                                                 0x0030
 #define regDAGB0_WRCLI0_BASE_IDX                                                                        0
 #define regDAGB0_WRCLI1                                                                                 0x0031
@@ -219,10 +219,10 @@
 #define regDAGB0_WR_OSD_CREDIT_CNTL2_BASE_IDX                                                           0
 #define regDAGB0_WR_ATOMIC_FIFO_CREDIT_CNTL1                                                            0x005f
 #define regDAGB0_WR_ATOMIC_FIFO_CREDIT_CNTL1_BASE_IDX                                                   0
-#define regDAGB0_WRCLI_GPU_SNOOP_OVERRIDE                                                               0x0060
-#define regDAGB0_WRCLI_GPU_SNOOP_OVERRIDE_BASE_IDX                                                      0
-#define regDAGB0_WRCLI_GPU_SNOOP_OVERRIDE_VALUE                                                         0x0061
-#define regDAGB0_WRCLI_GPU_SNOOP_OVERRIDE_VALUE_BASE_IDX                                                0
+#define regDAGB0_WRCLI_GPU_SANALOP_OVERRIDE                                                               0x0060
+#define regDAGB0_WRCLI_GPU_SANALOP_OVERRIDE_BASE_IDX                                                      0
+#define regDAGB0_WRCLI_GPU_SANALOP_OVERRIDE_VALUE                                                         0x0061
+#define regDAGB0_WRCLI_GPU_SANALOP_OVERRIDE_VALUE_BASE_IDX                                                0
 #define regDAGB0_WRCLI_ASK_PENDING                                                                      0x0062
 #define regDAGB0_WRCLI_ASK_PENDING_BASE_IDX                                                             0
 #define regDAGB0_WRCLI_GO_PENDING                                                                       0x0063
@@ -239,10 +239,10 @@
 #define regDAGB0_WRCLI_DBUS_ASK_PENDING_BASE_IDX                                                        0
 #define regDAGB0_WRCLI_DBUS_GO_PENDING                                                                  0x0069
 #define regDAGB0_WRCLI_DBUS_GO_PENDING_BASE_IDX                                                         0
-#define regDAGB0_WRCLI_NOALLOC_OVERRIDE                                                                 0x006a
-#define regDAGB0_WRCLI_NOALLOC_OVERRIDE_BASE_IDX                                                        0
-#define regDAGB0_WRCLI_NOALLOC_OVERRIDE_VALUE                                                           0x006b
-#define regDAGB0_WRCLI_NOALLOC_OVERRIDE_VALUE_BASE_IDX                                                  0
+#define regDAGB0_WRCLI_ANALALLOC_OVERRIDE                                                                 0x006a
+#define regDAGB0_WRCLI_ANALALLOC_OVERRIDE_BASE_IDX                                                        0
+#define regDAGB0_WRCLI_ANALALLOC_OVERRIDE_VALUE                                                           0x006b
+#define regDAGB0_WRCLI_ANALALLOC_OVERRIDE_VALUE_BASE_IDX                                                  0
 #define regDAGB0_DAGB_DLY                                                                               0x006c
 #define regDAGB0_DAGB_DLY_BASE_IDX                                                                      0
 #define regDAGB0_CNTL_MISC                                                                              0x006d
@@ -379,10 +379,10 @@
 #define regDAGB1_RDCLI_OARB_PENDING_BASE_IDX                                                            0
 #define regDAGB1_RDCLI_OSD_PENDING                                                                      0x00ad
 #define regDAGB1_RDCLI_OSD_PENDING_BASE_IDX                                                             0
-#define regDAGB1_RDCLI_NOALLOC_OVERRIDE                                                                 0x00ae
-#define regDAGB1_RDCLI_NOALLOC_OVERRIDE_BASE_IDX                                                        0
-#define regDAGB1_RDCLI_NOALLOC_OVERRIDE_VALUE                                                           0x00af
-#define regDAGB1_RDCLI_NOALLOC_OVERRIDE_VALUE_BASE_IDX                                                  0
+#define regDAGB1_RDCLI_ANALALLOC_OVERRIDE                                                                 0x00ae
+#define regDAGB1_RDCLI_ANALALLOC_OVERRIDE_BASE_IDX                                                        0
+#define regDAGB1_RDCLI_ANALALLOC_OVERRIDE_VALUE                                                           0x00af
+#define regDAGB1_RDCLI_ANALALLOC_OVERRIDE_VALUE_BASE_IDX                                                  0
 #define regDAGB1_WRCLI0                                                                                 0x00b0
 #define regDAGB1_WRCLI0_BASE_IDX                                                                        0
 #define regDAGB1_WRCLI1                                                                                 0x00b1
@@ -479,10 +479,10 @@
 #define regDAGB1_WR_OSD_CREDIT_CNTL2_BASE_IDX                                                           0
 #define regDAGB1_WR_ATOMIC_FIFO_CREDIT_CNTL1                                                            0x00df
 #define regDAGB1_WR_ATOMIC_FIFO_CREDIT_CNTL1_BASE_IDX                                                   0
-#define regDAGB1_WRCLI_GPU_SNOOP_OVERRIDE                                                               0x00e0
-#define regDAGB1_WRCLI_GPU_SNOOP_OVERRIDE_BASE_IDX                                                      0
-#define regDAGB1_WRCLI_GPU_SNOOP_OVERRIDE_VALUE                                                         0x00e1
-#define regDAGB1_WRCLI_GPU_SNOOP_OVERRIDE_VALUE_BASE_IDX                                                0
+#define regDAGB1_WRCLI_GPU_SANALOP_OVERRIDE                                                               0x00e0
+#define regDAGB1_WRCLI_GPU_SANALOP_OVERRIDE_BASE_IDX                                                      0
+#define regDAGB1_WRCLI_GPU_SANALOP_OVERRIDE_VALUE                                                         0x00e1
+#define regDAGB1_WRCLI_GPU_SANALOP_OVERRIDE_VALUE_BASE_IDX                                                0
 #define regDAGB1_WRCLI_ASK_PENDING                                                                      0x00e2
 #define regDAGB1_WRCLI_ASK_PENDING_BASE_IDX                                                             0
 #define regDAGB1_WRCLI_GO_PENDING                                                                       0x00e3
@@ -731,10 +731,10 @@
 #define regDAGB2_WR_OSD_CREDIT_CNTL2_BASE_IDX                                                           0
 #define regDAGB2_WR_ATOMIC_FIFO_CREDIT_CNTL1                                                            0x015f
 #define regDAGB2_WR_ATOMIC_FIFO_CREDIT_CNTL1_BASE_IDX                                                   0
-#define regDAGB2_WRCLI_GPU_SNOOP_OVERRIDE                                                               0x0160
-#define regDAGB2_WRCLI_GPU_SNOOP_OVERRIDE_BASE_IDX                                                      0
-#define regDAGB2_WRCLI_GPU_SNOOP_OVERRIDE_VALUE                                                         0x0161
-#define regDAGB2_WRCLI_GPU_SNOOP_OVERRIDE_VALUE_BASE_IDX                                                0
+#define regDAGB2_WRCLI_GPU_SANALOP_OVERRIDE                                                               0x0160
+#define regDAGB2_WRCLI_GPU_SANALOP_OVERRIDE_BASE_IDX                                                      0
+#define regDAGB2_WRCLI_GPU_SANALOP_OVERRIDE_VALUE                                                         0x0161
+#define regDAGB2_WRCLI_GPU_SANALOP_OVERRIDE_VALUE_BASE_IDX                                                0
 #define regDAGB2_WRCLI_ASK_PENDING                                                                      0x0162
 #define regDAGB2_WRCLI_ASK_PENDING_BASE_IDX                                                             0
 #define regDAGB2_WRCLI_GO_PENDING                                                                       0x0163
@@ -983,10 +983,10 @@
 #define regDAGB3_WR_OSD_CREDIT_CNTL2_BASE_IDX                                                           0
 #define regDAGB3_WR_ATOMIC_FIFO_CREDIT_CNTL1                                                            0x01df
 #define regDAGB3_WR_ATOMIC_FIFO_CREDIT_CNTL1_BASE_IDX                                                   0
-#define regDAGB3_WRCLI_GPU_SNOOP_OVERRIDE                                                               0x01e0
-#define regDAGB3_WRCLI_GPU_SNOOP_OVERRIDE_BASE_IDX                                                      0
-#define regDAGB3_WRCLI_GPU_SNOOP_OVERRIDE_VALUE                                                         0x01e1
-#define regDAGB3_WRCLI_GPU_SNOOP_OVERRIDE_VALUE_BASE_IDX                                                0
+#define regDAGB3_WRCLI_GPU_SANALOP_OVERRIDE                                                               0x01e0
+#define regDAGB3_WRCLI_GPU_SANALOP_OVERRIDE_BASE_IDX                                                      0
+#define regDAGB3_WRCLI_GPU_SANALOP_OVERRIDE_VALUE                                                         0x01e1
+#define regDAGB3_WRCLI_GPU_SANALOP_OVERRIDE_VALUE_BASE_IDX                                                0
 #define regDAGB3_WRCLI_ASK_PENDING                                                                      0x01e2
 #define regDAGB3_WRCLI_ASK_PENDING_BASE_IDX                                                             0
 #define regDAGB3_WRCLI_GO_PENDING                                                                       0x01e3
@@ -1235,10 +1235,10 @@
 #define regDAGB4_WR_OSD_CREDIT_CNTL2_BASE_IDX                                                           0
 #define regDAGB4_WR_ATOMIC_FIFO_CREDIT_CNTL1                                                            0x025f
 #define regDAGB4_WR_ATOMIC_FIFO_CREDIT_CNTL1_BASE_IDX                                                   0
-#define regDAGB4_WRCLI_GPU_SNOOP_OVERRIDE                                                               0x0260
-#define regDAGB4_WRCLI_GPU_SNOOP_OVERRIDE_BASE_IDX                                                      0
-#define regDAGB4_WRCLI_GPU_SNOOP_OVERRIDE_VALUE                                                         0x0261
-#define regDAGB4_WRCLI_GPU_SNOOP_OVERRIDE_VALUE_BASE_IDX                                                0
+#define regDAGB4_WRCLI_GPU_SANALOP_OVERRIDE                                                               0x0260
+#define regDAGB4_WRCLI_GPU_SANALOP_OVERRIDE_BASE_IDX                                                      0
+#define regDAGB4_WRCLI_GPU_SANALOP_OVERRIDE_VALUE                                                         0x0261
+#define regDAGB4_WRCLI_GPU_SANALOP_OVERRIDE_VALUE_BASE_IDX                                                0
 #define regDAGB4_WRCLI_ASK_PENDING                                                                      0x0262
 #define regDAGB4_WRCLI_ASK_PENDING_BASE_IDX                                                             0
 #define regDAGB4_WRCLI_GO_PENDING                                                                       0x0263
@@ -2435,10 +2435,10 @@
 #define regPCTL0_MMHUB_DEEPSLEEP_OVERRIDE_BASE_IDX                                                      0
 #define regPCTL0_MMHUB_DEEPSLEEP_OVERRIDE_IB                                                            0x0a83
 #define regPCTL0_MMHUB_DEEPSLEEP_OVERRIDE_IB_BASE_IDX                                                   0
-#define regPCTL0_PG_IGNORE_DEEPSLEEP                                                                    0x0a84
-#define regPCTL0_PG_IGNORE_DEEPSLEEP_BASE_IDX                                                           0
-#define regPCTL0_PG_IGNORE_DEEPSLEEP_IB                                                                 0x0a85
-#define regPCTL0_PG_IGNORE_DEEPSLEEP_IB_BASE_IDX                                                        0
+#define regPCTL0_PG_IGANALRE_DEEPSLEEP                                                                    0x0a84
+#define regPCTL0_PG_IGANALRE_DEEPSLEEP_BASE_IDX                                                           0
+#define regPCTL0_PG_IGANALRE_DEEPSLEEP_IB                                                                 0x0a85
+#define regPCTL0_PG_IGANALRE_DEEPSLEEP_IB_BASE_IDX                                                        0
 #define regPCTL0_SLICE0_CFG_DAGB_BUSY                                                                   0x0a86
 #define regPCTL0_SLICE0_CFG_DAGB_BUSY_BASE_IDX                                                          0
 #define regPCTL0_SLICE0_CFG_DS_ALLOW                                                                    0x0a87

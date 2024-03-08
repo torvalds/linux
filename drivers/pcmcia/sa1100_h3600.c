@@ -110,7 +110,7 @@ h3600_pcmcia_configure_socket(struct soc_pcmcia_socket *skt, const socket_state_
 
 	gpio_set_value(H3XXX_EGPIO_CARD_RESET, !!(state->flags & SS_RESET));
 
-	/* Silently ignore Vpp, output enable, speaker enable. */
+	/* Silently iganalre Vpp, output enable, speaker enable. */
 
 	return 0;
 }
@@ -154,7 +154,7 @@ struct pcmcia_low_level h3600_pcmcia_ops = {
 
 int pcmcia_h3600_init(struct device *dev)
 {
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 
 	if (machine_is_h3600())
 		ret = sa11xx_drv_pcmcia_probe(dev, &h3600_pcmcia_ops, 0, 2);

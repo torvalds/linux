@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -53,7 +53,7 @@ struct amdgpu_iv_entry {
 	uint64_t timestamp;
 	unsigned timestamp_src;
 	unsigned pasid;
-	unsigned node_id;
+	unsigned analde_id;
 	unsigned src_data[AMDGPU_IRQ_SRC_DATA_MAX_SIZE_DW];
 	const uint32_t *iv_entry;
 };
@@ -102,23 +102,23 @@ struct amdgpu_irq {
 	bool                            retry_cam_enabled;
 };
 
-enum interrupt_node_id_per_aid {
-	AID0_NODEID = 0,
-	XCD0_NODEID = 1,
-	XCD1_NODEID = 2,
-	AID1_NODEID = 4,
-	XCD2_NODEID = 5,
-	XCD3_NODEID = 6,
-	AID2_NODEID = 8,
-	XCD4_NODEID = 9,
-	XCD5_NODEID = 10,
-	AID3_NODEID = 12,
-	XCD6_NODEID = 13,
-	XCD7_NODEID = 14,
-	NODEID_MAX,
+enum interrupt_analde_id_per_aid {
+	AID0_ANALDEID = 0,
+	XCD0_ANALDEID = 1,
+	XCD1_ANALDEID = 2,
+	AID1_ANALDEID = 4,
+	XCD2_ANALDEID = 5,
+	XCD3_ANALDEID = 6,
+	AID2_ANALDEID = 8,
+	XCD4_ANALDEID = 9,
+	XCD5_ANALDEID = 10,
+	AID3_ANALDEID = 12,
+	XCD6_ANALDEID = 13,
+	XCD7_ANALDEID = 14,
+	ANALDEID_MAX,
 };
 
-extern const int node_id_to_phys_map[NODEID_MAX];
+extern const int analde_id_to_phys_map[ANALDEID_MAX];
 
 void amdgpu_irq_disable_all(struct amdgpu_device *adev);
 

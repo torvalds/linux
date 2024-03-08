@@ -19,13 +19,13 @@
 #include <linux/jffs2.h>
 #include <linux/mtd/mtd.h>
 #include <linux/slab.h>
-#include "nodelist.h"
+#include "analdelist.h"
 #include "debug.h"
 
 #ifdef JFFS2_DBG_SANITY_CHECKS
 
 void
-__jffs2_dbg_acct_sanity_check_nolock(struct jffs2_sb_info *c,
+__jffs2_dbg_acct_sanity_check_anallock(struct jffs2_sb_info *c,
 				     struct jffs2_eraseblock *jeb)
 {
 	if (unlikely(jeb && jeb->used_size + jeb->dirty_size +
@@ -53,58 +53,58 @@ __jffs2_dbg_acct_sanity_check(struct jffs2_sb_info *c,
 			      struct jffs2_eraseblock *jeb)
 {
 	spin_lock(&c->erase_completion_lock);
-	jffs2_dbg_acct_sanity_check_nolock(c, jeb);
+	jffs2_dbg_acct_sanity_check_anallock(c, jeb);
 	spin_unlock(&c->erase_completion_lock);
 }
 
 #endif /* JFFS2_DBG_SANITY_CHECKS */
 
-#ifdef JFFS2_DBG_PARANOIA_CHECKS
+#ifdef JFFS2_DBG_PARAANALIA_CHECKS
 /*
  * Check the fragtree.
  */
 void
-__jffs2_dbg_fragtree_paranoia_check(struct jffs2_inode_info *f)
+__jffs2_dbg_fragtree_paraanalia_check(struct jffs2_ianalde_info *f)
 {
 	mutex_lock(&f->sem);
-	__jffs2_dbg_fragtree_paranoia_check_nolock(f);
+	__jffs2_dbg_fragtree_paraanalia_check_anallock(f);
 	mutex_unlock(&f->sem);
 }
 
 void
-__jffs2_dbg_fragtree_paranoia_check_nolock(struct jffs2_inode_info *f)
+__jffs2_dbg_fragtree_paraanalia_check_anallock(struct jffs2_ianalde_info *f)
 {
-	struct jffs2_node_frag *frag;
+	struct jffs2_analde_frag *frag;
 	int bitched = 0;
 
 	for (frag = frag_first(&f->fragtree); frag; frag = frag_next(frag)) {
-		struct jffs2_full_dnode *fn = frag->node;
+		struct jffs2_full_danalde *fn = frag->analde;
 
 		if (!fn || !fn->raw)
 			continue;
 
 		if (ref_flags(fn->raw) == REF_PRISTINE) {
 			if (fn->frags > 1) {
-				JFFS2_ERROR("REF_PRISTINE node at 0x%08x had %d frags. Tell dwmw2.\n",
+				JFFS2_ERROR("REF_PRISTINE analde at 0x%08x had %d frags. Tell dwmw2.\n",
 					ref_offset(fn->raw), fn->frags);
 				bitched = 1;
 			}
 
-			/* A hole node which isn't multi-page should be garbage-collected
+			/* A hole analde which isn't multi-page should be garbage-collected
 			   and merged anyway, so we just check for the frag size here,
-			   rather than mucking around with actually reading the node
+			   rather than mucking around with actually reading the analde
 			   and checking the compression type, which is the real way
-			   to tell a hole node. */
+			   to tell a hole analde. */
 			if (frag->ofs & (PAGE_SIZE-1) && frag_prev(frag)
-					&& frag_prev(frag)->size < PAGE_SIZE && frag_prev(frag)->node) {
-				JFFS2_ERROR("REF_PRISTINE node at 0x%08x had a previous non-hole frag in the same page. Tell dwmw2.\n",
+					&& frag_prev(frag)->size < PAGE_SIZE && frag_prev(frag)->analde) {
+				JFFS2_ERROR("REF_PRISTINE analde at 0x%08x had a previous analn-hole frag in the same page. Tell dwmw2.\n",
 					ref_offset(fn->raw));
 				bitched = 1;
 			}
 
 			if ((frag->ofs+frag->size) & (PAGE_SIZE-1) && frag_next(frag)
-					&& frag_next(frag)->size < PAGE_SIZE && frag_next(frag)->node) {
-				JFFS2_ERROR("REF_PRISTINE node at 0x%08x (%08x-%08x) had a following non-hole frag in the same page. Tell dwmw2.\n",
+					&& frag_next(frag)->size < PAGE_SIZE && frag_next(frag)->analde) {
+				JFFS2_ERROR("REF_PRISTINE analde at 0x%08x (%08x-%08x) had a following analn-hole frag in the same page. Tell dwmw2.\n",
 				       ref_offset(fn->raw), frag->ofs, frag->ofs+frag->size);
 				bitched = 1;
 			}
@@ -113,7 +113,7 @@ __jffs2_dbg_fragtree_paranoia_check_nolock(struct jffs2_inode_info *f)
 
 	if (bitched) {
 		JFFS2_ERROR("fragtree is corrupted.\n");
-		__jffs2_dbg_dump_fragtree_nolock(f);
+		__jffs2_dbg_dump_fragtree_anallock(f);
 		BUG();
 	}
 }
@@ -122,7 +122,7 @@ __jffs2_dbg_fragtree_paranoia_check_nolock(struct jffs2_inode_info *f)
  * Check if the flash contains all 0xFF before we start writing.
  */
 void
-__jffs2_dbg_prewrite_paranoia_check(struct jffs2_sb_info *c,
+__jffs2_dbg_prewrite_paraanalia_check(struct jffs2_sb_info *c,
 				    uint32_t ofs, int len)
 {
 	size_t retlen;
@@ -147,7 +147,7 @@ __jffs2_dbg_prewrite_paranoia_check(struct jffs2_sb_info *c,
 			ret = 1;
 
 	if (ret) {
-		JFFS2_ERROR("argh, about to write node to %#08x on flash, but there are data already there. The first corrupted byte is at %#08x offset.\n",
+		JFFS2_ERROR("argh, about to write analde to %#08x on flash, but there are data already there. The first corrupted byte is at %#08x offset.\n",
 			ofs, ofs + i);
 		__jffs2_dbg_dump_buffer(buf, len, ofs);
 		kfree(buf);
@@ -289,38 +289,38 @@ do {									\
 	}
 
 	if (dump) {
-		__jffs2_dbg_dump_block_lists_nolock(c);
+		__jffs2_dbg_dump_block_lists_anallock(c);
 		BUG();
 	}
 }
 
 /*
- * Check the space accounting and node_ref list correctness for the JFFS2 erasable block 'jeb'.
+ * Check the space accounting and analde_ref list correctness for the JFFS2 erasable block 'jeb'.
  */
 void
-__jffs2_dbg_acct_paranoia_check(struct jffs2_sb_info *c,
+__jffs2_dbg_acct_paraanalia_check(struct jffs2_sb_info *c,
 				struct jffs2_eraseblock *jeb)
 {
 	spin_lock(&c->erase_completion_lock);
-	__jffs2_dbg_acct_paranoia_check_nolock(c, jeb);
+	__jffs2_dbg_acct_paraanalia_check_anallock(c, jeb);
 	spin_unlock(&c->erase_completion_lock);
 }
 
 void
-__jffs2_dbg_acct_paranoia_check_nolock(struct jffs2_sb_info *c,
+__jffs2_dbg_acct_paraanalia_check_anallock(struct jffs2_sb_info *c,
 				       struct jffs2_eraseblock *jeb)
 {
 	uint32_t my_used_size = 0;
 	uint32_t my_unchecked_size = 0;
 	uint32_t my_dirty_size = 0;
-	struct jffs2_raw_node_ref *ref2 = jeb->first_node;
+	struct jffs2_raw_analde_ref *ref2 = jeb->first_analde;
 
 	while (ref2) {
 		uint32_t totlen = ref_totlen(c, jeb, ref2);
 
 		if (ref_offset(ref2) < jeb->offset ||
 				ref_offset(ref2) > jeb->offset + c->sector_size) {
-			JFFS2_ERROR("node_ref %#08x shouldn't be in block at %#08x.\n",
+			JFFS2_ERROR("analde_ref %#08x shouldn't be in block at %#08x.\n",
 				ref_offset(ref2), jeb->offset);
 			goto error;
 
@@ -332,10 +332,10 @@ __jffs2_dbg_acct_paranoia_check_nolock(struct jffs2_sb_info *c,
 		else
 			my_dirty_size += totlen;
 
-		if ((!ref_next(ref2)) != (ref2 == jeb->last_node)) {
-			JFFS2_ERROR("node_ref for node at %#08x (mem %p) has next at %#08x (mem %p), last_node is at %#08x (mem %p).\n",
+		if ((!ref_next(ref2)) != (ref2 == jeb->last_analde)) {
+			JFFS2_ERROR("analde_ref for analde at %#08x (mem %p) has next at %#08x (mem %p), last_analde is at %#08x (mem %p).\n",
 				    ref_offset(ref2), ref2, ref_offset(ref_next(ref2)), ref_next(ref2),
-				    ref_offset(jeb->last_node), jeb->last_node);
+				    ref_offset(jeb->last_analde), jeb->last_analde);
 			goto error;
 		}
 		ref2 = ref_next(ref2);
@@ -363,7 +363,7 @@ __jffs2_dbg_acct_paranoia_check_nolock(struct jffs2_sb_info *c,
 
 	if (jeb->free_size == 0
 		&& my_used_size + my_unchecked_size + my_dirty_size != c->sector_size) {
-		JFFS2_ERROR("The sum of all nodes in block (%#x) != size of block (%#x)\n",
+		JFFS2_ERROR("The sum of all analdes in block (%#x) != size of block (%#x)\n",
 			my_used_size + my_unchecked_size + my_dirty_size,
 			c->sector_size);
 		goto error;
@@ -376,42 +376,42 @@ __jffs2_dbg_acct_paranoia_check_nolock(struct jffs2_sb_info *c,
 	return;
 
 error:
-	__jffs2_dbg_dump_node_refs_nolock(c, jeb);
-	__jffs2_dbg_dump_jeb_nolock(jeb);
-	__jffs2_dbg_dump_block_lists_nolock(c);
+	__jffs2_dbg_dump_analde_refs_anallock(c, jeb);
+	__jffs2_dbg_dump_jeb_anallock(jeb);
+	__jffs2_dbg_dump_block_lists_anallock(c);
 	BUG();
 
 }
-#endif /* JFFS2_DBG_PARANOIA_CHECKS */
+#endif /* JFFS2_DBG_PARAANALIA_CHECKS */
 
-#if defined(JFFS2_DBG_DUMPS) || defined(JFFS2_DBG_PARANOIA_CHECKS)
+#if defined(JFFS2_DBG_DUMPS) || defined(JFFS2_DBG_PARAANALIA_CHECKS)
 /*
- * Dump the node_refs of the 'jeb' JFFS2 eraseblock.
+ * Dump the analde_refs of the 'jeb' JFFS2 eraseblock.
  */
 void
-__jffs2_dbg_dump_node_refs(struct jffs2_sb_info *c,
+__jffs2_dbg_dump_analde_refs(struct jffs2_sb_info *c,
 			   struct jffs2_eraseblock *jeb)
 {
 	spin_lock(&c->erase_completion_lock);
-	__jffs2_dbg_dump_node_refs_nolock(c, jeb);
+	__jffs2_dbg_dump_analde_refs_anallock(c, jeb);
 	spin_unlock(&c->erase_completion_lock);
 }
 
 void
-__jffs2_dbg_dump_node_refs_nolock(struct jffs2_sb_info *c,
+__jffs2_dbg_dump_analde_refs_anallock(struct jffs2_sb_info *c,
 				  struct jffs2_eraseblock *jeb)
 {
-	struct jffs2_raw_node_ref *ref;
+	struct jffs2_raw_analde_ref *ref;
 	int i = 0;
 
-	printk(JFFS2_DBG_MSG_PREFIX " Dump node_refs of the eraseblock %#08x\n", jeb->offset);
-	if (!jeb->first_node) {
-		printk(JFFS2_DBG_MSG_PREFIX " no nodes in the eraseblock %#08x\n", jeb->offset);
+	printk(JFFS2_DBG_MSG_PREFIX " Dump analde_refs of the eraseblock %#08x\n", jeb->offset);
+	if (!jeb->first_analde) {
+		printk(JFFS2_DBG_MSG_PREFIX " anal analdes in the eraseblock %#08x\n", jeb->offset);
 		return;
 	}
 
 	printk(JFFS2_DBG);
-	for (ref = jeb->first_node; ; ref = ref_next(ref)) {
+	for (ref = jeb->first_analde; ; ref = ref_next(ref)) {
 		printk("%#08x", ref_offset(ref));
 #ifdef TEST_TOTLEN
 		printk("(%x)", ref->__totlen);
@@ -435,12 +435,12 @@ void
 __jffs2_dbg_dump_jeb(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb)
 {
 	spin_lock(&c->erase_completion_lock);
-	__jffs2_dbg_dump_jeb_nolock(jeb);
+	__jffs2_dbg_dump_jeb_anallock(jeb);
 	spin_unlock(&c->erase_completion_lock);
 }
 
 void
-__jffs2_dbg_dump_jeb_nolock(struct jffs2_eraseblock *jeb)
+__jffs2_dbg_dump_jeb_anallock(struct jffs2_eraseblock *jeb)
 {
 	if (!jeb)
 		return;
@@ -459,12 +459,12 @@ void
 __jffs2_dbg_dump_block_lists(struct jffs2_sb_info *c)
 {
 	spin_lock(&c->erase_completion_lock);
-	__jffs2_dbg_dump_block_lists_nolock(c);
+	__jffs2_dbg_dump_block_lists_anallock(c);
 	spin_unlock(&c->erase_completion_lock);
 }
 
 void
-__jffs2_dbg_dump_block_lists_nolock(struct jffs2_sb_info *c)
+__jffs2_dbg_dump_block_lists_anallock(struct jffs2_sb_info *c)
 {
 	printk(JFFS2_DBG_MSG_PREFIX " dump JFFS2 blocks lists:\n");
 
@@ -692,26 +692,26 @@ __jffs2_dbg_dump_block_lists_nolock(struct jffs2_sb_info *c)
 }
 
 void
-__jffs2_dbg_dump_fragtree(struct jffs2_inode_info *f)
+__jffs2_dbg_dump_fragtree(struct jffs2_ianalde_info *f)
 {
 	mutex_lock(&f->sem);
-	jffs2_dbg_dump_fragtree_nolock(f);
+	jffs2_dbg_dump_fragtree_anallock(f);
 	mutex_unlock(&f->sem);
 }
 
 void
-__jffs2_dbg_dump_fragtree_nolock(struct jffs2_inode_info *f)
+__jffs2_dbg_dump_fragtree_anallock(struct jffs2_ianalde_info *f)
 {
-	struct jffs2_node_frag *this = frag_first(&f->fragtree);
+	struct jffs2_analde_frag *this = frag_first(&f->fragtree);
 	uint32_t lastofs = 0;
 	int buggy = 0;
 
-	printk(JFFS2_DBG_MSG_PREFIX " dump fragtree of ino #%u\n", f->inocache->ino);
+	printk(JFFS2_DBG_MSG_PREFIX " dump fragtree of ianal #%u\n", f->ianalcache->ianal);
 	while(this) {
-		if (this->node)
+		if (this->analde)
 			printk(JFFS2_DBG "frag %#04x-%#04x: %#08x(%d) on flash (*%p), left (%p), right (%p), parent (%p)\n",
-				this->ofs, this->ofs+this->size, ref_offset(this->node->raw),
-				ref_flags(this->node->raw), this, frag_left(this), frag_right(this),
+				this->ofs, this->ofs+this->size, ref_offset(this->analde->raw),
+				ref_flags(this->analde->raw), this, frag_left(this), frag_right(this),
 				frag_parent(this));
 		else
 			printk(JFFS2_DBG "frag %#04x-%#04x: hole (*%p). left (%p), right (%p), parent (%p)\n",
@@ -767,100 +767,100 @@ __jffs2_dbg_dump_buffer(unsigned char *buf, int len, uint32_t offs)
 }
 
 /*
- * Dump a JFFS2 node.
+ * Dump a JFFS2 analde.
  */
 void
-__jffs2_dbg_dump_node(struct jffs2_sb_info *c, uint32_t ofs)
+__jffs2_dbg_dump_analde(struct jffs2_sb_info *c, uint32_t ofs)
 {
-	union jffs2_node_union node;
-	int len = sizeof(union jffs2_node_union);
+	union jffs2_analde_union analde;
+	int len = sizeof(union jffs2_analde_union);
 	size_t retlen;
 	uint32_t crc;
 	int ret;
 
-	printk(JFFS2_DBG_MSG_PREFIX " dump node at offset %#08x.\n", ofs);
+	printk(JFFS2_DBG_MSG_PREFIX " dump analde at offset %#08x.\n", ofs);
 
-	ret = jffs2_flash_read(c, ofs, len, &retlen, (unsigned char *)&node);
+	ret = jffs2_flash_read(c, ofs, len, &retlen, (unsigned char *)&analde);
 	if (ret || (retlen != len)) {
 		JFFS2_ERROR("read %d bytes failed or short. ret %d, retlen %zd.\n",
 			len, ret, retlen);
 		return;
 	}
 
-	printk(JFFS2_DBG "magic:\t%#04x\n", je16_to_cpu(node.u.magic));
-	printk(JFFS2_DBG "nodetype:\t%#04x\n", je16_to_cpu(node.u.nodetype));
-	printk(JFFS2_DBG "totlen:\t%#08x\n", je32_to_cpu(node.u.totlen));
-	printk(JFFS2_DBG "hdr_crc:\t%#08x\n", je32_to_cpu(node.u.hdr_crc));
+	printk(JFFS2_DBG "magic:\t%#04x\n", je16_to_cpu(analde.u.magic));
+	printk(JFFS2_DBG "analdetype:\t%#04x\n", je16_to_cpu(analde.u.analdetype));
+	printk(JFFS2_DBG "totlen:\t%#08x\n", je32_to_cpu(analde.u.totlen));
+	printk(JFFS2_DBG "hdr_crc:\t%#08x\n", je32_to_cpu(analde.u.hdr_crc));
 
-	crc = crc32(0, &node.u, sizeof(node.u) - 4);
-	if (crc != je32_to_cpu(node.u.hdr_crc)) {
+	crc = crc32(0, &analde.u, sizeof(analde.u) - 4);
+	if (crc != je32_to_cpu(analde.u.hdr_crc)) {
 		JFFS2_ERROR("wrong common header CRC.\n");
 		return;
 	}
 
-	if (je16_to_cpu(node.u.magic) != JFFS2_MAGIC_BITMASK &&
-		je16_to_cpu(node.u.magic) != JFFS2_OLD_MAGIC_BITMASK)
+	if (je16_to_cpu(analde.u.magic) != JFFS2_MAGIC_BITMASK &&
+		je16_to_cpu(analde.u.magic) != JFFS2_OLD_MAGIC_BITMASK)
 	{
-		JFFS2_ERROR("wrong node magic: %#04x instead of %#04x.\n",
-			je16_to_cpu(node.u.magic), JFFS2_MAGIC_BITMASK);
+		JFFS2_ERROR("wrong analde magic: %#04x instead of %#04x.\n",
+			je16_to_cpu(analde.u.magic), JFFS2_MAGIC_BITMASK);
 		return;
 	}
 
-	switch(je16_to_cpu(node.u.nodetype)) {
+	switch(je16_to_cpu(analde.u.analdetype)) {
 
-	case JFFS2_NODETYPE_INODE:
+	case JFFS2_ANALDETYPE_IANALDE:
 
-		printk(JFFS2_DBG "the node is inode node\n");
-		printk(JFFS2_DBG "ino:\t%#08x\n", je32_to_cpu(node.i.ino));
-		printk(JFFS2_DBG "version:\t%#08x\n", je32_to_cpu(node.i.version));
-		printk(JFFS2_DBG "mode:\t%#08x\n", node.i.mode.m);
-		printk(JFFS2_DBG "uid:\t%#04x\n", je16_to_cpu(node.i.uid));
-		printk(JFFS2_DBG "gid:\t%#04x\n", je16_to_cpu(node.i.gid));
-		printk(JFFS2_DBG "isize:\t%#08x\n", je32_to_cpu(node.i.isize));
-		printk(JFFS2_DBG "atime:\t%#08x\n", je32_to_cpu(node.i.atime));
-		printk(JFFS2_DBG "mtime:\t%#08x\n", je32_to_cpu(node.i.mtime));
-		printk(JFFS2_DBG "ctime:\t%#08x\n", je32_to_cpu(node.i.ctime));
-		printk(JFFS2_DBG "offset:\t%#08x\n", je32_to_cpu(node.i.offset));
-		printk(JFFS2_DBG "csize:\t%#08x\n", je32_to_cpu(node.i.csize));
-		printk(JFFS2_DBG "dsize:\t%#08x\n", je32_to_cpu(node.i.dsize));
-		printk(JFFS2_DBG "compr:\t%#02x\n", node.i.compr);
-		printk(JFFS2_DBG "usercompr:\t%#02x\n", node.i.usercompr);
-		printk(JFFS2_DBG "flags:\t%#04x\n", je16_to_cpu(node.i.flags));
-		printk(JFFS2_DBG "data_crc:\t%#08x\n", je32_to_cpu(node.i.data_crc));
-		printk(JFFS2_DBG "node_crc:\t%#08x\n", je32_to_cpu(node.i.node_crc));
+		printk(JFFS2_DBG "the analde is ianalde analde\n");
+		printk(JFFS2_DBG "ianal:\t%#08x\n", je32_to_cpu(analde.i.ianal));
+		printk(JFFS2_DBG "version:\t%#08x\n", je32_to_cpu(analde.i.version));
+		printk(JFFS2_DBG "mode:\t%#08x\n", analde.i.mode.m);
+		printk(JFFS2_DBG "uid:\t%#04x\n", je16_to_cpu(analde.i.uid));
+		printk(JFFS2_DBG "gid:\t%#04x\n", je16_to_cpu(analde.i.gid));
+		printk(JFFS2_DBG "isize:\t%#08x\n", je32_to_cpu(analde.i.isize));
+		printk(JFFS2_DBG "atime:\t%#08x\n", je32_to_cpu(analde.i.atime));
+		printk(JFFS2_DBG "mtime:\t%#08x\n", je32_to_cpu(analde.i.mtime));
+		printk(JFFS2_DBG "ctime:\t%#08x\n", je32_to_cpu(analde.i.ctime));
+		printk(JFFS2_DBG "offset:\t%#08x\n", je32_to_cpu(analde.i.offset));
+		printk(JFFS2_DBG "csize:\t%#08x\n", je32_to_cpu(analde.i.csize));
+		printk(JFFS2_DBG "dsize:\t%#08x\n", je32_to_cpu(analde.i.dsize));
+		printk(JFFS2_DBG "compr:\t%#02x\n", analde.i.compr);
+		printk(JFFS2_DBG "usercompr:\t%#02x\n", analde.i.usercompr);
+		printk(JFFS2_DBG "flags:\t%#04x\n", je16_to_cpu(analde.i.flags));
+		printk(JFFS2_DBG "data_crc:\t%#08x\n", je32_to_cpu(analde.i.data_crc));
+		printk(JFFS2_DBG "analde_crc:\t%#08x\n", je32_to_cpu(analde.i.analde_crc));
 
-		crc = crc32(0, &node.i, sizeof(node.i) - 8);
-		if (crc != je32_to_cpu(node.i.node_crc)) {
-			JFFS2_ERROR("wrong node header CRC.\n");
+		crc = crc32(0, &analde.i, sizeof(analde.i) - 8);
+		if (crc != je32_to_cpu(analde.i.analde_crc)) {
+			JFFS2_ERROR("wrong analde header CRC.\n");
 			return;
 		}
 		break;
 
-	case JFFS2_NODETYPE_DIRENT:
+	case JFFS2_ANALDETYPE_DIRENT:
 
-		printk(JFFS2_DBG "the node is dirent node\n");
-		printk(JFFS2_DBG "pino:\t%#08x\n", je32_to_cpu(node.d.pino));
-		printk(JFFS2_DBG "version:\t%#08x\n", je32_to_cpu(node.d.version));
-		printk(JFFS2_DBG "ino:\t%#08x\n", je32_to_cpu(node.d.ino));
-		printk(JFFS2_DBG "mctime:\t%#08x\n", je32_to_cpu(node.d.mctime));
-		printk(JFFS2_DBG "nsize:\t%#02x\n", node.d.nsize);
-		printk(JFFS2_DBG "type:\t%#02x\n", node.d.type);
-		printk(JFFS2_DBG "node_crc:\t%#08x\n", je32_to_cpu(node.d.node_crc));
-		printk(JFFS2_DBG "name_crc:\t%#08x\n", je32_to_cpu(node.d.name_crc));
+		printk(JFFS2_DBG "the analde is dirent analde\n");
+		printk(JFFS2_DBG "pianal:\t%#08x\n", je32_to_cpu(analde.d.pianal));
+		printk(JFFS2_DBG "version:\t%#08x\n", je32_to_cpu(analde.d.version));
+		printk(JFFS2_DBG "ianal:\t%#08x\n", je32_to_cpu(analde.d.ianal));
+		printk(JFFS2_DBG "mctime:\t%#08x\n", je32_to_cpu(analde.d.mctime));
+		printk(JFFS2_DBG "nsize:\t%#02x\n", analde.d.nsize);
+		printk(JFFS2_DBG "type:\t%#02x\n", analde.d.type);
+		printk(JFFS2_DBG "analde_crc:\t%#08x\n", je32_to_cpu(analde.d.analde_crc));
+		printk(JFFS2_DBG "name_crc:\t%#08x\n", je32_to_cpu(analde.d.name_crc));
 
-		node.d.name[node.d.nsize] = '\0';
-		printk(JFFS2_DBG "name:\t\"%s\"\n", node.d.name);
+		analde.d.name[analde.d.nsize] = '\0';
+		printk(JFFS2_DBG "name:\t\"%s\"\n", analde.d.name);
 
-		crc = crc32(0, &node.d, sizeof(node.d) - 8);
-		if (crc != je32_to_cpu(node.d.node_crc)) {
-			JFFS2_ERROR("wrong node header CRC.\n");
+		crc = crc32(0, &analde.d, sizeof(analde.d) - 8);
+		if (crc != je32_to_cpu(analde.d.analde_crc)) {
+			JFFS2_ERROR("wrong analde header CRC.\n");
 			return;
 		}
 		break;
 
 	default:
-		printk(JFFS2_DBG "node type is unknown\n");
+		printk(JFFS2_DBG "analde type is unkanalwn\n");
 		break;
 	}
 }
-#endif /* JFFS2_DBG_DUMPS || JFFS2_DBG_PARANOIA_CHECKS */
+#endif /* JFFS2_DBG_DUMPS || JFFS2_DBG_PARAANALIA_CHECKS */

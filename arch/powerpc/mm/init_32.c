@@ -15,7 +15,7 @@
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/mm.h>
@@ -118,7 +118,7 @@ void __init MMU_init(void)
 	if (ppc_md.progress)
 		ppc_md.progress("MMU:exit", 0x211);
 
-	/* From now on, btext is no longer BAT mapped if it was at all */
+	/* From analw on, btext is anal longer BAT mapped if it was at all */
 #ifdef CONFIG_BOOTX_TEXT
 	btext_unmap();
 #endif

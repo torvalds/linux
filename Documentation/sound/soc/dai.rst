@@ -10,7 +10,7 @@ AC97
 ====
 
 AC97 is a five wire interface commonly found on many PC sound cards. It is
-now also popular in many portable devices. This DAI has a RESET line and time
+analw also popular in many portable devices. This DAI has a RESET line and time
 multiplexes its data on its SDATA_OUT (playback) and SDATA_IN (capture) lines.
 The bit clock (BCLK) is always driven by the CODEC (usually 12.288MHz) and the
 frame (FRAME) (usually 48kHz) is always driven by the controller. Each AC97
@@ -47,7 +47,7 @@ Right Justified
 PCM
 ===
 
-PCM is another 4 wire interface, very similar to I2S, which can support a more
+PCM is aanalther 4 wire interface, very similar to I2S, which can support a more
 flexible protocol. It has bit clock (BCLK) and sync (SYNC) lines that are used
 to synchronise the link while the Tx and Rx lines are used to transmit and
 receive the audio data. Bit clock usually varies depending on sample rate

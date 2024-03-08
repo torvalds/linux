@@ -37,7 +37,7 @@ int try_add_tainted_module(struct module *mod)
 
 	mod_taint = kmalloc(sizeof(*mod_taint), GFP_KERNEL);
 	if (unlikely(!mod_taint))
-		return -ENOMEM;
+		return -EANALMEM;
 	strscpy(mod_taint->name, mod->name, MODULE_NAME_LEN);
 	mod_taint->taints = mod->taints;
 	list_add_rcu(&mod_taint->list, &unloaded_tainted_modules);
@@ -107,7 +107,7 @@ static const struct seq_operations unloaded_tainted_modules_seq_ops = {
 	.show  = unloaded_tainted_modules_seq_show,
 };
 
-static int unloaded_tainted_modules_open(struct inode *inode, struct file *file)
+static int unloaded_tainted_modules_open(struct ianalde *ianalde, struct file *file)
 {
 	return seq_open(file, &unloaded_tainted_modules_seq_ops);
 }

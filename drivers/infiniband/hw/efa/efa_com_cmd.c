@@ -69,7 +69,7 @@ int efa_com_modify_qp(struct efa_com_dev *edev,
 	cmd.cur_qp_state = params->cur_qp_state;
 	cmd.qkey = params->qkey;
 	cmd.sq_psn = params->sq_psn;
-	cmd.sq_drained_async_notify = params->sq_drained_async_notify;
+	cmd.sq_drained_async_analtify = params->sq_drained_async_analtify;
 	cmd.rnr_retry = params->rnr_retry;
 
 	err = efa_com_cmd_exec(aq,
@@ -395,7 +395,7 @@ static int efa_com_get_feature_ex(struct efa_com_dev *edev,
 		ibdev_err_ratelimited(edev->efa_dev,
 				      "Feature %d isn't supported\n",
 				      feature_id);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	aq = &edev->aq;
@@ -566,7 +566,7 @@ int efa_com_set_feature_ex(struct efa_com_dev *edev,
 		ibdev_err_ratelimited(edev->efa_dev,
 				      "Feature %d isn't supported\n",
 				      feature_id);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	aq = &edev->aq;
@@ -636,7 +636,7 @@ int efa_com_set_aenq_config(struct efa_com_dev *edev, u32 groups)
 			edev->efa_dev,
 			"Trying to set unsupported aenq groups[%#x] supported[%#x]\n",
 			groups, get_resp.u.aenq.supported_groups);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	cmd.u.aenq.enabled_groups = groups;

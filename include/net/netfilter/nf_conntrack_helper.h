@@ -30,7 +30,7 @@ enum nf_ct_helper_flags {
 #define NF_CT_HELPER_NAME_LEN	16
 
 struct nf_conntrack_helper {
-	struct hlist_node hnode;	/* Internal use. */
+	struct hlist_analde hanalde;	/* Internal use. */
 
 	char name[NF_CT_HELPER_NAME_LEN]; /* name of the module */
 	refcount_t refcnt;

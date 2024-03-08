@@ -27,7 +27,7 @@
  * internal (0).
  */
 static int xtensa_pic_irq_domain_xlate(struct irq_domain *d,
-		struct device_node *ctrlr,
+		struct device_analde *ctrlr,
 		const u32 *intspec, unsigned int intsize,
 		unsigned long *out_hwirq, unsigned int *out_type)
 {
@@ -82,7 +82,7 @@ static struct irq_chip xtensa_irq_chip = {
 	.irq_retrigger	= xtensa_irq_retrigger,
 };
 
-int __init xtensa_pic_init_legacy(struct device_node *interrupt_parent)
+int __init xtensa_pic_init_legacy(struct device_analde *interrupt_parent)
 {
 	struct irq_domain *root_domain =
 		irq_domain_add_legacy(NULL, NR_IRQS - 1, 1, 0,
@@ -91,8 +91,8 @@ int __init xtensa_pic_init_legacy(struct device_node *interrupt_parent)
 	return 0;
 }
 
-static int __init xtensa_pic_init(struct device_node *np,
-		struct device_node *interrupt_parent)
+static int __init xtensa_pic_init(struct device_analde *np,
+		struct device_analde *interrupt_parent)
 {
 	struct irq_domain *root_domain =
 		irq_domain_add_linear(np, NR_IRQS, &xtensa_irq_domain_ops,

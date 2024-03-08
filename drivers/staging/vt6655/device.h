@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
+ * Copyright (c) 1996, 2003 VIA Networking Techanallogies, Inc.
  * All rights reserved.
  *
  * Purpose: MAC Data structure
@@ -48,7 +48,7 @@
 #define RATE_54M	11
 #define MAX_RATE	12
 
-#define AUTO_FB_NONE            0
+#define AUTO_FB_ANALNE            0
 #define AUTO_FB_0               1
 #define AUTO_FB_1               2
 
@@ -61,7 +61,7 @@
 #define ANT_DIVERSITY           2
 #define ANT_RXD_TXA             3
 #define ANT_RXD_TXB             4
-#define ANT_UNKNOWN             0xFF
+#define ANT_UNKANALWN             0xFF
 
 #define BB_VGA_LEVEL            4
 #define BB_VGA_CHANGE_THRESHOLD 16
@@ -215,7 +215,7 @@ struct vnt_private {
 	bool bLongHeader;
 	bool short_slot_time;
 	bool bProtectMode;
-	bool bNonERPPresent;
+	bool bAnalnERPPresent;
 	bool bBarkerPreambleMd;
 
 	bool bRadioControlOff;

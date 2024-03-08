@@ -40,11 +40,11 @@ static const struct clk_parent_data boot_mux[] = {
 	  .name = "cb-intosc-hs-div2-clk" },
 };
 
-static const struct clk_parent_data noc_free_mux[] = {
-	{ .fw_name = "main_noc_base_clk",
-	  .name = "main_noc_base_clk", },
-	{ .fw_name = "peri_noc_base_clk",
-	  .name = "peri_noc_base_clk", },
+static const struct clk_parent_data analc_free_mux[] = {
+	{ .fw_name = "main_analc_base_clk",
+	  .name = "main_analc_base_clk", },
+	{ .fw_name = "peri_analc_base_clk",
+	  .name = "peri_analc_base_clk", },
 	{ .fw_name = "osc1",
 	  .name = "osc1", },
 	{ .fw_name = "cb-intosc-hs-div2-clk",
@@ -123,9 +123,9 @@ static const struct clk_parent_data emac_mux[] = {
 	  .name = "emacb_free_clk", },
 };
 
-static const struct clk_parent_data noc_mux[] = {
-	{ .fw_name = "noc_free_clk",
-	  .name = "noc_free_clk", },
+static const struct clk_parent_data analc_mux[] = {
+	{ .fw_name = "analc_free_clk",
+	  .name = "analc_free_clk", },
 	{ .fw_name = "boot_clk",
 	  .name = "boot_clk", },
 };
@@ -190,33 +190,33 @@ static const struct stratix10_pll_clock s10_pll_clks[] = {
 
 static const struct stratix10_perip_c_clock s10_main_perip_c_clks[] = {
 	{ STRATIX10_MAIN_MPU_BASE_CLK, "main_mpu_base_clk", "main_pll", NULL, 1, 0, 0x84},
-	{ STRATIX10_MAIN_NOC_BASE_CLK, "main_noc_base_clk", "main_pll", NULL, 1, 0, 0x88},
+	{ STRATIX10_MAIN_ANALC_BASE_CLK, "main_analc_base_clk", "main_pll", NULL, 1, 0, 0x88},
 	{ STRATIX10_PERI_MPU_BASE_CLK, "peri_mpu_base_clk", "periph_pll", NULL, 1, 0,
 	  0xF4},
-	{ STRATIX10_PERI_NOC_BASE_CLK, "peri_noc_base_clk", "periph_pll", NULL, 1, 0,
+	{ STRATIX10_PERI_ANALC_BASE_CLK, "peri_analc_base_clk", "periph_pll", NULL, 1, 0,
 	  0xF8},
 };
 
 static const struct stratix10_perip_cnt_clock s10_main_perip_cnt_clks[] = {
 	{ STRATIX10_MPU_FREE_CLK, "mpu_free_clk", NULL, mpu_free_mux, ARRAY_SIZE(mpu_free_mux),
 	   0, 0x48, 0, 0, 0},
-	{ STRATIX10_NOC_FREE_CLK, "noc_free_clk", NULL, noc_free_mux, ARRAY_SIZE(noc_free_mux),
+	{ STRATIX10_ANALC_FREE_CLK, "analc_free_clk", NULL, analc_free_mux, ARRAY_SIZE(analc_free_mux),
 	  0, 0x4C, 0, 0x3C, 1},
-	{ STRATIX10_MAIN_EMACA_CLK, "main_emaca_clk", "main_noc_base_clk", NULL, 1, 0,
+	{ STRATIX10_MAIN_EMACA_CLK, "main_emaca_clk", "main_analc_base_clk", NULL, 1, 0,
 	  0x50, 0, 0, 0},
-	{ STRATIX10_MAIN_EMACB_CLK, "main_emacb_clk", "main_noc_base_clk", NULL, 1, 0,
+	{ STRATIX10_MAIN_EMACB_CLK, "main_emacb_clk", "main_analc_base_clk", NULL, 1, 0,
 	  0x54, 0, 0, 0},
-	{ STRATIX10_MAIN_EMAC_PTP_CLK, "main_emac_ptp_clk", "main_noc_base_clk", NULL, 1, 0,
+	{ STRATIX10_MAIN_EMAC_PTP_CLK, "main_emac_ptp_clk", "main_analc_base_clk", NULL, 1, 0,
 	  0x58, 0, 0, 0},
-	{ STRATIX10_MAIN_GPIO_DB_CLK, "main_gpio_db_clk", "main_noc_base_clk", NULL, 1, 0,
+	{ STRATIX10_MAIN_GPIO_DB_CLK, "main_gpio_db_clk", "main_analc_base_clk", NULL, 1, 0,
 	  0x5C, 0, 0, 0},
-	{ STRATIX10_MAIN_SDMMC_CLK, "main_sdmmc_clk", "main_noc_base_clk", NULL, 1, 0,
+	{ STRATIX10_MAIN_SDMMC_CLK, "main_sdmmc_clk", "main_analc_base_clk", NULL, 1, 0,
 	  0x60, 0, 0, 0},
 	{ STRATIX10_MAIN_S2F_USR0_CLK, "main_s2f_usr0_clk", NULL, cntr_mux, ARRAY_SIZE(cntr_mux),
 	  0, 0x64, 0, 0, 0},
-	{ STRATIX10_MAIN_S2F_USR1_CLK, "main_s2f_usr1_clk", "main_noc_base_clk", NULL, 1, 0,
+	{ STRATIX10_MAIN_S2F_USR1_CLK, "main_s2f_usr1_clk", "main_analc_base_clk", NULL, 1, 0,
 	  0x68, 0, 0, 0},
-	{ STRATIX10_MAIN_PSI_REF_CLK, "main_psi_ref_clk", "main_noc_base_clk", NULL, 1, 0,
+	{ STRATIX10_MAIN_PSI_REF_CLK, "main_psi_ref_clk", "main_analc_base_clk", NULL, 1, 0,
 	  0x6C, 0, 0, 0},
 	{ STRATIX10_PERI_EMACA_CLK, "peri_emaca_clk", NULL, cntr_mux, ARRAY_SIZE(cntr_mux),
 	  0, 0xBC, 0, 0, 0},
@@ -228,13 +228,13 @@ static const struct stratix10_perip_cnt_clock s10_main_perip_cnt_clks[] = {
 	  0, 0xC8, 0, 0, 0},
 	{ STRATIX10_PERI_SDMMC_CLK, "peri_sdmmc_clk", NULL, cntr_mux, ARRAY_SIZE(cntr_mux),
 	  0, 0xCC, 0, 0, 0},
-	{ STRATIX10_PERI_S2F_USR0_CLK, "peri_s2f_usr0_clk", "peri_noc_base_clk", NULL, 1, 0,
+	{ STRATIX10_PERI_S2F_USR0_CLK, "peri_s2f_usr0_clk", "peri_analc_base_clk", NULL, 1, 0,
 	  0xD0, 0, 0, 0},
 	{ STRATIX10_PERI_S2F_USR1_CLK, "peri_s2f_usr1_clk", NULL, cntr_mux, ARRAY_SIZE(cntr_mux),
 	  0, 0xD4, 0, 0, 0},
-	{ STRATIX10_PERI_PSI_REF_CLK, "peri_psi_ref_clk", "peri_noc_base_clk", NULL, 1, 0,
+	{ STRATIX10_PERI_PSI_REF_CLK, "peri_psi_ref_clk", "peri_analc_base_clk", NULL, 1, 0,
 	  0xD8, 0, 0, 0},
-	{ STRATIX10_L4_SYS_FREE_CLK, "l4_sys_free_clk", NULL, noc_mux, ARRAY_SIZE(noc_mux), 0,
+	{ STRATIX10_L4_SYS_FREE_CLK, "l4_sys_free_clk", NULL, analc_mux, ARRAY_SIZE(analc_mux), 0,
 	  0, 4, 0x3C, 1},
 	{ STRATIX10_EMAC_A_FREE_CLK, "emaca_free_clk", NULL, emaca_free_mux, ARRAY_SIZE(emaca_free_mux),
 	  0, 0, 2, 0xB0, 0},
@@ -259,19 +259,19 @@ static const struct stratix10_gate_clock s10_gate_clks[] = {
 	  0, 0, 0, 0, 0, 0, 4},
 	{ STRATIX10_MPU_L2RAM_CLK, "mpu_l2ram_clk", "mpu_clk", NULL, 1, 0, 0x30,
 	  0, 0, 0, 0, 0, 0, 2},
-	{ STRATIX10_L4_MAIN_CLK, "l4_main_clk", NULL, noc_mux, ARRAY_SIZE(noc_mux), 0, 0x30,
+	{ STRATIX10_L4_MAIN_CLK, "l4_main_clk", NULL, analc_mux, ARRAY_SIZE(analc_mux), 0, 0x30,
 	  1, 0x70, 0, 2, 0x3C, 1, 0},
-	{ STRATIX10_L4_MP_CLK, "l4_mp_clk", NULL, noc_mux, ARRAY_SIZE(noc_mux), 0, 0x30,
+	{ STRATIX10_L4_MP_CLK, "l4_mp_clk", NULL, analc_mux, ARRAY_SIZE(analc_mux), 0, 0x30,
 	  2, 0x70, 8, 2, 0x3C, 1, 0},
-	{ STRATIX10_L4_SP_CLK, "l4_sp_clk", NULL, noc_mux, ARRAY_SIZE(noc_mux), CLK_IS_CRITICAL, 0x30,
+	{ STRATIX10_L4_SP_CLK, "l4_sp_clk", NULL, analc_mux, ARRAY_SIZE(analc_mux), CLK_IS_CRITICAL, 0x30,
 	  3, 0x70, 16, 2, 0x3C, 1, 0},
-	{ STRATIX10_CS_AT_CLK, "cs_at_clk", NULL, noc_mux, ARRAY_SIZE(noc_mux), 0, 0x30,
+	{ STRATIX10_CS_AT_CLK, "cs_at_clk", NULL, analc_mux, ARRAY_SIZE(analc_mux), 0, 0x30,
 	  4, 0x70, 24, 2, 0x3C, 1, 0},
-	{ STRATIX10_CS_TRACE_CLK, "cs_trace_clk", NULL, noc_mux, ARRAY_SIZE(noc_mux), 0, 0x30,
+	{ STRATIX10_CS_TRACE_CLK, "cs_trace_clk", NULL, analc_mux, ARRAY_SIZE(analc_mux), 0, 0x30,
 	  4, 0x70, 26, 2, 0x3C, 1, 0},
 	{ STRATIX10_CS_PDBG_CLK, "cs_pdbg_clk", "cs_at_clk", NULL, 1, 0, 0x30,
 	  4, 0x70, 28, 1, 0, 0, 0},
-	{ STRATIX10_CS_TIMER_CLK, "cs_timer_clk", NULL, noc_mux, ARRAY_SIZE(noc_mux), 0, 0x30,
+	{ STRATIX10_CS_TIMER_CLK, "cs_timer_clk", NULL, analc_mux, ARRAY_SIZE(analc_mux), 0, 0x30,
 	  5, 0, 0, 0, 0x3C, 1, 0},
 	{ STRATIX10_S2F_USER0_CLK, "s2f_user0_clk", NULL, s2f_usr0_mux, ARRAY_SIZE(s2f_usr0_mux), 0, 0x30,
 	  6, 0, 0, 0, 0, 0, 0},
@@ -384,7 +384,7 @@ static int s10_clk_register_pll(const struct stratix10_pll_clock *clks,
 
 static int s10_clkmgr_init(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct device *dev = &pdev->dev;
 	struct stratix10_clock_data *clk_data;
 	void __iomem *base;
@@ -400,13 +400,13 @@ static int s10_clkmgr_init(struct platform_device *pdev)
 	clk_data = devm_kzalloc(dev, struct_size(clk_data, clk_data.hws,
 						 num_clks), GFP_KERNEL);
 	if (!clk_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	clk_data->base = base;
 	clk_data->clk_data.num = num_clks;
 
 	for (i = 0; i < num_clks; i++)
-		clk_data->clk_data.hws[i] = ERR_PTR(-ENOENT);
+		clk_data->clk_data.hws[i] = ERR_PTR(-EANALENT);
 
 	s10_clk_register_pll(s10_pll_clks, ARRAY_SIZE(s10_pll_clks), clk_data);
 

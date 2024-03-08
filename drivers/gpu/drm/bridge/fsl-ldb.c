@@ -181,7 +181,7 @@ static void fsl_ldb_atomic_enable(struct drm_bridge *bridge,
 
 	configured_link_freq = clk_get_rate(fsl_ldb->clk);
 	if (configured_link_freq != requested_link_freq)
-		dev_warn(fsl_ldb->dev, "Configured LDB clock (%lu Hz) does not match requested LVDS clock: %lu Hz\n",
+		dev_warn(fsl_ldb->dev, "Configured LDB clock (%lu Hz) does analt match requested LVDS clock: %lu Hz\n",
 			 configured_link_freq,
 			 requested_link_freq);
 
@@ -292,15 +292,15 @@ static const struct drm_bridge_funcs funcs = {
 static int fsl_ldb_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *panel_node;
-	struct device_node *remote1, *remote2;
+	struct device_analde *panel_analde;
+	struct device_analde *remote1, *remote2;
 	struct drm_panel *panel;
 	struct fsl_ldb *fsl_ldb;
 	int dual_link;
 
 	fsl_ldb = devm_kzalloc(dev, sizeof(*fsl_ldb), GFP_KERNEL);
 	if (!fsl_ldb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fsl_ldb->devdata = of_device_get_match_data(dev);
 	if (!fsl_ldb->devdata)
@@ -308,36 +308,36 @@ static int fsl_ldb_probe(struct platform_device *pdev)
 
 	fsl_ldb->dev = &pdev->dev;
 	fsl_ldb->bridge.funcs = &funcs;
-	fsl_ldb->bridge.of_node = dev->of_node;
+	fsl_ldb->bridge.of_analde = dev->of_analde;
 
 	fsl_ldb->clk = devm_clk_get(dev, "ldb");
 	if (IS_ERR(fsl_ldb->clk))
 		return PTR_ERR(fsl_ldb->clk);
 
-	fsl_ldb->regmap = syscon_node_to_regmap(dev->of_node->parent);
+	fsl_ldb->regmap = syscon_analde_to_regmap(dev->of_analde->parent);
 	if (IS_ERR(fsl_ldb->regmap))
 		return PTR_ERR(fsl_ldb->regmap);
 
-	/* Locate the remote ports and the panel node */
-	remote1 = of_graph_get_remote_node(dev->of_node, 1, 0);
-	remote2 = of_graph_get_remote_node(dev->of_node, 2, 0);
+	/* Locate the remote ports and the panel analde */
+	remote1 = of_graph_get_remote_analde(dev->of_analde, 1, 0);
+	remote2 = of_graph_get_remote_analde(dev->of_analde, 2, 0);
 	fsl_ldb->ch0_enabled = (remote1 != NULL);
 	fsl_ldb->ch1_enabled = (remote2 != NULL);
-	panel_node = of_node_get(remote1 ? remote1 : remote2);
-	of_node_put(remote1);
-	of_node_put(remote2);
+	panel_analde = of_analde_get(remote1 ? remote1 : remote2);
+	of_analde_put(remote1);
+	of_analde_put(remote2);
 
 	if (!fsl_ldb->ch0_enabled && !fsl_ldb->ch1_enabled) {
-		of_node_put(panel_node);
-		return dev_err_probe(dev, -ENXIO, "No panel node found");
+		of_analde_put(panel_analde);
+		return dev_err_probe(dev, -ENXIO, "Anal panel analde found");
 	}
 
 	dev_dbg(dev, "Using %s\n",
 		fsl_ldb_is_dual(fsl_ldb) ? "dual-link mode" :
 		fsl_ldb->ch0_enabled ? "channel 0" : "channel 1");
 
-	panel = of_drm_find_panel(panel_node);
-	of_node_put(panel_node);
+	panel = of_drm_find_panel(panel_analde);
+	of_analde_put(panel_analde);
 	if (IS_ERR(panel))
 		return PTR_ERR(panel);
 
@@ -347,13 +347,13 @@ static int fsl_ldb_probe(struct platform_device *pdev)
 
 
 	if (fsl_ldb_is_dual(fsl_ldb)) {
-		struct device_node *port1, *port2;
+		struct device_analde *port1, *port2;
 
-		port1 = of_graph_get_port_by_id(dev->of_node, 1);
-		port2 = of_graph_get_port_by_id(dev->of_node, 2);
+		port1 = of_graph_get_port_by_id(dev->of_analde, 1);
+		port2 = of_graph_get_port_by_id(dev->of_analde, 2);
 		dual_link = drm_of_lvds_get_dual_link_pixel_order(port1, port2);
-		of_node_put(port1);
-		of_node_put(port2);
+		of_analde_put(port1);
+		of_analde_put(port2);
 
 		if (dual_link < 0)
 			return dev_err_probe(dev, dual_link,
@@ -361,7 +361,7 @@ static int fsl_ldb_probe(struct platform_device *pdev)
 
 		/* Only DRM_LVDS_DUAL_LINK_ODD_EVEN_PIXELS is supported */
 		if (dual_link == DRM_LVDS_DUAL_LINK_EVEN_ODD_PIXELS) {
-			dev_err(dev, "LVDS channel pixel swap not supported.\n");
+			dev_err(dev, "LVDS channel pixel swap analt supported.\n");
 			return -EINVAL;
 		}
 	}

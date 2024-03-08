@@ -218,7 +218,7 @@ static void ep93xx_do_read(struct spi_controller *host)
  *
  * This function transfers next bytes (or half-words) to/from RX/TX FIFOs. If
  * called several times, the whole transfer will be completed. Returns
- * %-EINPROGRESS when current transfer was not yet completed otherwise %0.
+ * %-EINPROGRESS when current transfer was analt yet completed otherwise %0.
  *
  * When this function is finished, RX FIFO should be empty and TX FIFO should be
  * full.
@@ -255,7 +255,7 @@ ep93xx_dma_data_to_trans_dir(enum dma_data_direction dir)
 	case DMA_FROM_DEVICE:
 		return DMA_DEV_TO_MEM;
 	default:
-		return DMA_TRANS_NONE;
+		return DMA_TRANS_ANALNE;
 	}
 }
 
@@ -354,13 +354,13 @@ ep93xx_spi_dma_prepare(struct spi_controller *host,
 
 	nents = dma_map_sg(chan->device->dev, sgt->sgl, sgt->nents, dir);
 	if (!nents)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	txd = dmaengine_prep_slave_sg(chan, sgt->sgl, nents, conf.direction,
 				      DMA_CTRL_ACK);
 	if (!txd) {
 		dma_unmap_sg(chan->device->dev, sgt->sgl, sgt->nents, dir);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 	return txd;
 }
@@ -423,7 +423,7 @@ static int ep93xx_spi_dma_transfer(struct spi_controller *host)
 	rxd->callback = ep93xx_spi_dma_callback;
 	rxd->callback_param = host;
 
-	/* Now submit both descriptors and start DMA */
+	/* Analw submit both descriptors and start DMA */
 	dmaengine_submit(rxd);
 	dmaengine_submit(txd);
 
@@ -441,7 +441,7 @@ static irqreturn_t ep93xx_spi_interrupt(int irq, void *dev_id)
 	u32 val;
 
 	/*
-	 * If we got ROR (receive overrun) interrupt we know that something is
+	 * If we got ROR (receive overrun) interrupt we kanalw that something is
 	 * wrong. Just abort the message.
 	 */
 	if (readl(espi->mmio + SSPIIR) & SSPIIR_RORIS) {
@@ -457,7 +457,7 @@ static irqreturn_t ep93xx_spi_interrupt(int irq, void *dev_id)
 		 */
 		if (ep93xx_spi_read_write(host)) {
 			/*
-			 * In normal case, there still is some processing left
+			 * In analrmal case, there still is some processing left
 			 * for current transfer. Let's wait for the next
 			 * interrupt then.
 			 */
@@ -467,7 +467,7 @@ static irqreturn_t ep93xx_spi_interrupt(int irq, void *dev_id)
 
 	/*
 	 * Current transfer is finished, either with error or with success. In
-	 * any case we disable interrupts and notify the worker to handle
+	 * any case we disable interrupts and analtify the worker to handle
 	 * any post-processing of the message.
 	 */
 	val = readl(espi->mmio + SSPCR1);
@@ -498,7 +498,7 @@ static int ep93xx_spi_transfer_one(struct spi_controller *host,
 	espi->tx = 0;
 
 	/*
-	 * There is no point of setting up DMA for the transfers which will
+	 * There is anal point of setting up DMA for the transfers which will
 	 * fit into the FIFO and can be transferred with a single interrupt.
 	 * So in these cases we will be using PIO and don't bother for DMA.
 	 */
@@ -591,7 +591,7 @@ static int ep93xx_spi_setup_dma(struct ep93xx_spi *espi)
 
 	espi->zeropage = (void *)get_zeroed_page(GFP_KERNEL);
 	if (!espi->zeropage)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
@@ -603,7 +603,7 @@ static int ep93xx_spi_setup_dma(struct ep93xx_spi *espi)
 	espi->dma_rx = dma_request_channel(mask, ep93xx_spi_dma_filter,
 					   &espi->dma_rx_data);
 	if (!espi->dma_rx) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto fail_free_page;
 	}
 
@@ -614,7 +614,7 @@ static int ep93xx_spi_setup_dma(struct ep93xx_spi *espi)
 	espi->dma_tx = dma_request_channel(mask, ep93xx_spi_dma_filter,
 					   &espi->dma_tx_data);
 	if (!espi->dma_tx) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto fail_release_rx;
 	}
 
@@ -665,7 +665,7 @@ static int ep93xx_spi_probe(struct platform_device *pdev)
 
 	host = spi_alloc_host(&pdev->dev, sizeof(*espi));
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	host->use_gpio_descriptors = true;
 	host->prepare_transfer_hardware = ep93xx_spi_prepare_hardware;

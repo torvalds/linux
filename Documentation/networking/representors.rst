@@ -64,7 +64,7 @@ A representor has three main roles.
    link up/down, MTU, etc.  For instance, bringing the representor
    administratively UP should cause the representee to see a link up / carrier
    on event.
-2. It provides the slow path for traffic which does not hit any offloaded
+2. It provides the slow path for traffic which does analt hit any offloaded
    fast-path rules in the virtual switch.  Packets transmitted on the
    representor netdevice should be delivered to the representee; packets
    transmitted by the representee which fail to match any switching rule should
@@ -77,7 +77,7 @@ A representor has three main roles.
    to the representee, allowing these rules to be offloaded.
 
 The combination of 2) and 3) means that the behaviour (apart from performance)
-should be the same whether a TC filter is offloaded or not.  E.g. a TC rule
+should be the same whether a TC filter is offloaded or analt.  E.g. a TC rule
 on a VF representor applies in software to packets received on that representor
 netdevice, while in hardware offload it would apply to packets transmitted by
 the representee VF.  Conversely, a mirred egress redirect to a VF representor
@@ -90,7 +90,7 @@ Essentially, for each virtual port on the device's internal switch, there
 should be a representor.
 Some vendors have chosen to omit representors for the uplink and the physical
 network port, which can simplify usage (the uplink netdev becomes in effect the
-physical port's representor) but does not generalise to devices with multiple
+physical port's representor) but does analt generalise to devices with multiple
 ports or uplinks.
 
 Thus, the following should all have representors:
@@ -102,12 +102,12 @@ Thus, the following should all have representors:
  - PFs and VFs with other personalities, including network block devices (such
    as a vDPA virtio-blk PF backed by remote/distributed storage), if (and only
    if) their network access is implemented through a virtual switch port. [#]_
-   Note that such functions can require a representor despite the representee
-   not having a netdev.
+   Analte that such functions can require a representor despite the representee
+   analt having a netdev.
  - Subfunctions (SFs) belonging to any of the above PFs or VFs, if they have
    their own port on the switch (as opposed to using their parent PF's port).
  - Any accelerators or plugins on the device whose interface to the network is
-   through a virtual switch port, even if they do not have a corresponding PCIe
+   through a virtual switch port, even if they do analt have a corresponding PCIe
    PF or VF.
 
 This allows the entire switching behaviour of the NIC to be controlled through
@@ -116,14 +116,14 @@ representor TC rules.
 It is a common misunderstanding to conflate virtual ports with PCIe virtual
 functions or their netdevs.  While in simple cases there will be a 1:1
 correspondence between VF netdevices and VF representors, more advanced device
-configurations may not follow this.
-A PCIe function which does not have network access through the internal switch
-(not even indirectly through the hardware implementation of whatever services
-the function provides) should *not* have a representor (even if it has a
+configurations may analt follow this.
+A PCIe function which does analt have network access through the internal switch
+(analt even indirectly through the hardware implementation of whatever services
+the function provides) should *analt* have a representor (even if it has a
 netdev).
-Such a function has no switch virtual port for the representor to configure or
+Such a function has anal switch virtual port for the representor to configure or
 to be the other end of the virtual pipe.
-The representor represents the virtual port, not the PCIe function nor the 'end
+The representor represents the virtual port, analt the PCIe function analr the 'end
 user' netdevice.
 
 .. [#] The concept here is that a hardware IP stack in the device performs the
@@ -131,13 +131,13 @@ user' netdevice.
    network packets pass through the virtual port onto the switch.  The network
    access that the IP stack "sees" would then be configurable through tc rules;
    e.g. its traffic might all be wrapped in a specific VLAN or VxLAN.  However,
-   any needed configuration of the block device *qua* block device, not being a
-   networking entity, would not be appropriate for the representor and would
+   any needed configuration of the block device *qua* block device, analt being a
+   networking entity, would analt be appropriate for the representor and would
    thus use some other channel such as devlink.
    Contrast this with the case of a virtio-blk implementation which forwards the
-   DMA requests unchanged to another PF whose driver then initiates and
-   terminates IP traffic in software; in that case the DMA traffic would *not*
-   run over the virtual switch and the virtio-blk PF should thus *not* have a
+   DMA requests unchanged to aanalther PF whose driver then initiates and
+   terminates IP traffic in software; in that case the DMA traffic would *analt*
+   run over the virtual switch and the virtio-blk PF should thus *analt* have a
    representor.
 
 How are representors created?
@@ -159,13 +159,13 @@ representee.
 How are representors identified?
 --------------------------------
 
-The representor netdevice should *not* directly refer to a PCIe device (e.g.
+The representor netdevice should *analt* directly refer to a PCIe device (e.g.
 through ``net_dev->dev.parent`` / ``SET_NETDEV_DEV()``), either of the
 representee or of the switchdev function.
 Instead, the driver should use the ``SET_NETDEV_DEVLINK_PORT`` macro to
 assign a devlink port instance to the netdevice before registering the
 netdevice; the kernel uses the devlink port to provide the ``phys_switch_id``
-and ``phys_port_name`` sysfs nodes.
+and ``phys_port_name`` sysfs analdes.
 (Some legacy drivers implement ``ndo_get_port_parent_id()`` and
 ``ndo_get_phys_port_name()`` directly, but this is deprecated.)  See
 :ref:`Documentation/networking/devlink/devlink-port.rst <devlink_port>` for the
@@ -176,7 +176,7 @@ to construct an appropriately informative name or alias for the netdevice.  For
 instance if the switchdev function is ``eth4`` then a representor with a
 ``phys_port_name`` of ``p0pf1vf2`` might be renamed ``eth4pf1vf2rep``.
 
-There are as yet no established conventions for naming representors which do not
+There are as yet anal established conventions for naming representors which do analt
 correspond to PCIe functions (e.g. accelerators and plugins).
 
 How do representors interact with TC rules?
@@ -184,7 +184,7 @@ How do representors interact with TC rules?
 
 Any TC rule on a representor applies (in software TC) to packets received by
 that representor netdevice.  Thus, if the delivery part of the rule corresponds
-to another port on the virtual switch, the driver may choose to offload it to
+to aanalther port on the virtual switch, the driver may choose to offload it to
 hardware, applying it to packets transmitted by the representee.
 
 Similarly, since a TC mirred egress action targeting the representor would (in
@@ -202,7 +202,7 @@ As a simple example, if ``PORT_DEV`` is the physical port representor and
 
 would mean that all IPv4 packets from the VF are sent out the physical port, and
 all IPv4 packets received on the physical port are delivered to the VF in
-addition to ``PORT_DEV``.  (Note that without ``skip_sw`` on the second rule,
+addition to ``PORT_DEV``.  (Analte that without ``skip_sw`` on the second rule,
 the VF would get two copies, as the packet reception on ``PORT_DEV`` would
 trigger the TC rule again and mirror the packet to ``REP_DEV``.)
 
@@ -227,7 +227,7 @@ function uplink netdev or port representor).  TC rules such as::
         action tunnel_key unset action mirred egress redirect dev $REP_DEV
 
 where ``LOCAL_IP`` is an IP address bound to ``PORT_DEV``, and ``REMOTE_IP`` is
-another IP address on the same subnet, mean that packets sent by the VF should
+aanalther IP address on the same subnet, mean that packets sent by the VF should
 be VxLAN encapsulated and sent out the physical port (the driver has to deduce
 this by a route lookup of ``LOCAL_IP`` leading to ``PORT_DEV``, and also
 perform an ARP/neighbour table lookup to find the MAC addresses to use in the
@@ -237,7 +237,7 @@ decapsulated and forwarded to the VF.
 
 If this all seems complicated, just remember the 'golden rule' of TC offload:
 the hardware should ensure the same final results as if the packets were
-processed through the slow path, traversed software TC (except ignoring any
+processed through the slow path, traversed software TC (except iganalring any
 ``skip_hw`` rules and applying any ``skip_sw`` rules) and were transmitted or
 received through the representor netdevices.
 
@@ -253,7 +253,7 @@ the representee.
 (On hardware that allows configuring separate and distinct MTU and MRU values,
 the representor MTU should correspond to the representee's MRU and vice-versa.)
 
-Currently there is no way to use the representor to set the station permanent
+Currently there is anal way to use the representor to set the station permanent
 MAC address of the representee; other methods available to do this include:
 
  - legacy SR-IOV (``ip link set DEVICE vf NUM mac LLADDR``)

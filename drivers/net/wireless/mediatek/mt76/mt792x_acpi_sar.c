@@ -17,7 +17,7 @@ mt792x_acpi_read(struct mt792x_dev *dev, u8 *method, u8 **tbl, u32 *len)
 
 	root = ACPI_HANDLE(mdev->dev);
 	if (!root)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	status = acpi_get_handle(root, method, &handle);
 	if (ACPI_FAILURE(status))
@@ -41,7 +41,7 @@ mt792x_acpi_read(struct mt792x_dev *dev, u8 *method, u8 **tbl, u32 *len)
 		*tbl = devm_kzalloc(mdev->dev, sar_root->package.count,
 				    GFP_KERNEL);
 		if (!*tbl) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto free;
 		}
 	}
@@ -164,7 +164,7 @@ int mt792x_init_acpi_sar(struct mt792x_dev *dev)
 
 	asar = devm_kzalloc(dev->mt76.dev, sizeof(*asar), GFP_KERNEL);
 	if (!asar)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mt792x_asar_acpi_read_mtcl(dev, (u8 **)&asar->countrylist, &asar->ver);
 
@@ -373,7 +373,7 @@ u8 mt792x_acpi_get_mtcl_conf(struct mt792x_phy *phy, char *alpha2)
 	static const char * const cc_list_eu[] = {
 		"AT", "BE", "BG", "CY", "CZ", "HR", "DK", "EE",
 		"FI", "FR", "DE", "GR", "HU", "IS", "IE", "IT",
-		"LV", "LI", "LT", "LU", "MT", "NL", "NO", "PL",
+		"LV", "LI", "LT", "LU", "MT", "NL", "ANAL", "PL",
 		"PT", "RO", "MT", "SK", "SI", "ES", "CH",
 	};
 	struct mt792x_acpi_sar *sar = phy->acpisar;

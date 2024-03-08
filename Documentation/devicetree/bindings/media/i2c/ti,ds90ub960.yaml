@@ -82,7 +82,7 @@ properties:
               - 1 # RAW12 HF
               - 2 # RAW12 LF
               - 3 # CSI2 SYNC
-              - 4 # CSI2 NON-SYNC
+              - 4 # CSI2 ANALN-SYNC
             description:
               FPD-Link Input Mode. This should reflect the hardware and the
               default mode of the connected device.
@@ -109,7 +109,7 @@ properties:
 
           serializer:
             type: object
-            description: FPD-Link Serializer node
+            description: FPD-Link Serializer analde
 
         required:
           - reg

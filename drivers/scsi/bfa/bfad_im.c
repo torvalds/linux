@@ -213,7 +213,7 @@ bfad_im_abort_handler(struct scsi_cmnd *cmnd)
 	bfa_trc(bfad, hal_io->iotag);
 	BFA_LOG(KERN_INFO, bfad, bfa_log_level,
 		"scsi%d: abort cmnd %p iotag %x\n",
-		im_port->shost->host_no, cmnd, hal_io->iotag);
+		im_port->shost->host_anal, cmnd, hal_io->iotag);
 	(void) bfa_ioim_abort(hal_io);
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 
@@ -230,7 +230,7 @@ bfad_im_abort_handler(struct scsi_cmnd *cmnd)
 	bfa_trc(bfad, hal_io->iotag);
 	BFA_LOG(KERN_INFO, bfad, bfa_log_level,
 		"scsi%d: complete abort 0x%p iotag 0x%x\n",
-		im_port->shost->host_no, cmnd, hal_io->iotag);
+		im_port->shost->host_anal, cmnd, hal_io->iotag);
 	return SUCCESS;
 out:
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
@@ -264,7 +264,7 @@ bfad_im_target_reset_send(struct bfad_s *bfad, struct scsi_cmnd *cmnd,
 	/*
 	 * bfa_itnim can be NULL if the port gets disconnected and the bfa
 	 * and fcs layers have cleaned up their nexus with the targets and
-	 * the same has not been cleaned up by the shim
+	 * the same has analt been cleaned up by the shim
 	 */
 	if (bfa_itnim == NULL) {
 		bfa_tskim_free(tskim);
@@ -332,7 +332,7 @@ bfad_im_reset_lun_handler(struct scsi_cmnd *cmnd)
 	/*
 	 * bfa_itnim can be NULL if the port gets disconnected and the bfa
 	 * and fcs layers have cleaned up their nexus with the targets and
-	 * the same has not been cleaned up by the shim
+	 * the same has analt been cleaned up by the shim
 	 */
 	if (bfa_itnim == NULL) {
 		bfa_tskim_free(tskim);
@@ -427,11 +427,11 @@ bfa_fcb_itnim_alloc(struct bfad_s *bfad, struct bfa_fcs_itnim_s **itnim,
 {
 	*itnim_drv = kzalloc(sizeof(struct bfad_itnim_s), GFP_ATOMIC);
 	if (*itnim_drv == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	(*itnim_drv)->im = bfad->im;
 	*itnim = &(*itnim_drv)->fcs_itnim;
-	(*itnim_drv)->state = ITNIM_STATE_NONE;
+	(*itnim_drv)->state = ITNIM_STATE_ANALNE;
 
 	/*
 	 * Initiaze the itnim_work
@@ -454,11 +454,11 @@ bfa_fcb_itnim_free(struct bfad_s *bfad, struct bfad_itnim_s *itnim_drv)
 	char wwpn_str[32], fcid_str[16];
 	struct bfad_im_s	*im = itnim_drv->im;
 
-	/* online to free state transtion should not happen */
+	/* online to free state transtion should analt happen */
 	WARN_ON(itnim_drv->state == ITNIM_STATE_ONLINE);
 
 	itnim_drv->queue_work = 1;
-	/* offline request is not yet done, use the same request to free */
+	/* offline request is analt yet done, use the same request to free */
 	if (itnim_drv->state == ITNIM_STATE_OFFLINE_PENDING)
 		itnim_drv->queue_work = 0;
 
@@ -471,7 +471,7 @@ bfa_fcb_itnim_free(struct bfad_s *bfad, struct bfad_itnim_s *itnim_drv)
 	fcid2str(fcid_str, fcid);
 	BFA_LOG(KERN_INFO, bfad, bfa_log_level,
 		"ITNIM FREE scsi%d: FCID: %s WWPN: %s\n",
-		port->im_port->shost->host_no,
+		port->im_port->shost->host_anal,
 		fcid_str, wwpn_str);
 
 	/* ITNIM processing */
@@ -589,9 +589,9 @@ out:
 void
 bfad_im_scsi_host_free(struct bfad_s *bfad, struct bfad_im_port_s *im_port)
 {
-	bfa_trc(bfad, bfad->inst_no);
+	bfa_trc(bfad, bfad->inst_anal);
 	BFA_LOG(KERN_INFO, bfad, bfa_log_level, "Free scsi%d\n",
-			im_port->shost->host_no);
+			im_port->shost->host_anal);
 
 	fc_remove_host(im_port->shost);
 
@@ -623,7 +623,7 @@ bfad_im_port_new(struct bfad_s *bfad, struct bfad_port_s *port)
 
 	im_port = kzalloc(sizeof(struct bfad_im_port_s), GFP_ATOMIC);
 	if (im_port == NULL) {
-		rc = BFA_STATUS_ENOMEM;
+		rc = BFA_STATUS_EANALMEM;
 		goto ext;
 	}
 	port->im_port = im_port;
@@ -667,10 +667,10 @@ bfad_im_port_clean(struct bfad_im_port_s *im_port)
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 }
 
-static void bfad_aen_im_notify_handler(struct work_struct *work)
+static void bfad_aen_im_analtify_handler(struct work_struct *work)
 {
 	struct bfad_im_s *im =
-		container_of(work, struct bfad_im_s, aen_im_notify_work);
+		container_of(work, struct bfad_im_s, aen_im_analtify_work);
 	struct bfa_aen_entry_s *aen_entry;
 	struct bfad_s *bfad = im->bfad;
 	struct Scsi_Host *shost = bfad->pport.im_port->shost;
@@ -699,7 +699,7 @@ bfad_im_probe(struct bfad_s *bfad)
 
 	im = kzalloc(sizeof(struct bfad_im_s), GFP_KERNEL);
 	if (im == NULL)
-		return BFA_STATUS_ENOMEM;
+		return BFA_STATUS_EANALMEM;
 
 	bfad->im = im;
 	im->bfad = bfad;
@@ -709,7 +709,7 @@ bfad_im_probe(struct bfad_s *bfad)
 		return BFA_STATUS_FAILED;
 	}
 
-	INIT_WORK(&im->aen_im_notify_work, bfad_aen_im_notify_handler);
+	INIT_WORK(&im->aen_im_analtify_work, bfad_aen_im_analtify_handler);
 	return BFA_STATUS_OK;
 }
 
@@ -767,7 +767,7 @@ bfad_thread_workq(struct bfad_s *bfad)
 
 	bfa_trc(bfad, 0);
 	snprintf(im->drv_workq_name, KOBJ_NAME_LEN, "bfad_wq_%d",
-		 bfad->inst_no);
+		 bfad->inst_anal);
 	im->drv_workq = create_singlethread_workqueue(im->drv_workq_name);
 	if (!im->drv_workq)
 		return BFA_STATUS_FAILED;
@@ -781,7 +781,7 @@ bfad_thread_workq(struct bfad_s *bfad)
  * Description:
  * OS entry point to adjust the queue_depths on a per-device basis.
  * Called once per device during the bus scan.
- * Return non-zero if fails.
+ * Return analn-zero if fails.
  */
 static int
 bfad_im_slave_configure(struct scsi_device *sdev)
@@ -841,13 +841,13 @@ bfad_im_module_init(void)
 	bfad_im_scsi_transport_template =
 		fc_attach_transport(&bfad_im_fc_function_template);
 	if (!bfad_im_scsi_transport_template)
-		return BFA_STATUS_ENOMEM;
+		return BFA_STATUS_EANALMEM;
 
 	bfad_im_scsi_vport_transport_template =
 		fc_attach_transport(&bfad_im_vport_fc_function_template);
 	if (!bfad_im_scsi_vport_transport_template) {
 		fc_release_transport(bfad_im_scsi_transport_template);
-		return BFA_STATUS_ENOMEM;
+		return BFA_STATUS_EANALMEM;
 	}
 
 	return BFA_STATUS_OK;
@@ -918,10 +918,10 @@ bfad_get_itnim(struct bfad_im_port_s *im_port, int id)
 /*
  * Function is invoked from the SCSI Host Template slave_alloc() entry point.
  * Has the logic to query the LUN Mask database to check if this LUN needs to
- * be made visible to the SCSI mid-layer or not.
+ * be made visible to the SCSI mid-layer or analt.
  *
  * Returns BFA_STATUS_OK if this LUN needs to be added to the OS stack.
- * Returns -ENXIO to notify SCSI mid-layer to not add this LUN to the OS stack.
+ * Returns -ENXIO to analtify SCSI mid-layer to analt add this LUN to the OS stack.
  */
 static int
 bfad_im_check_if_make_lun_visible(struct scsi_device *sdev,
@@ -964,11 +964,11 @@ bfad_im_slave_alloc(struct scsi_device *sdev)
 
 	if (bfa_get_lun_mask_status(bfa) == BFA_LUNMASK_ENABLED) {
 		/*
-		 * We should not mask LUN 0 - since this will translate
-		 * to no LUN / TARGET for SCSI ml resulting no scan.
+		 * We should analt mask LUN 0 - since this will translate
+		 * to anal LUN / TARGET for SCSI ml resulting anal scan.
 		 */
 		if (sdev->lun == 0) {
-			sdev->sdev_bflags |= BLIST_NOREPORTLUN |
+			sdev->sdev_bflags |= BLIST_ANALREPORTLUN |
 					     BLIST_SPARSELUN;
 			goto done;
 		}
@@ -1030,7 +1030,7 @@ bfad_fc_host_init(struct bfad_im_port_s *im_port)
 	char symname[BFA_SYMNAME_MAXLEN];
 	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(&bfad->bfa);
 
-	fc_host_node_name(host) =
+	fc_host_analde_name(host) =
 		cpu_to_be64((bfa_fcs_lport_get_nwwn(port->fcs_port)));
 	fc_host_port_name(host) =
 		cpu_to_be64((bfa_fcs_lport_get_pwwn(port->fcs_port)));
@@ -1061,13 +1061,13 @@ bfad_im_fc_rport_add(struct bfad_im_port_s *im_port, struct bfad_itnim_s *itnim)
 	struct fc_rport *fc_rport;
 	struct bfad_itnim_data_s *itnim_data;
 
-	rport_ids.node_name =
+	rport_ids.analde_name =
 		cpu_to_be64(bfa_fcs_itnim_get_nwwn(&itnim->fcs_itnim));
 	rport_ids.port_name =
 		cpu_to_be64(bfa_fcs_itnim_get_pwwn(&itnim->fcs_itnim));
 	rport_ids.port_id =
 		bfa_hton3b(bfa_fcs_itnim_get_fcid(&itnim->fcs_itnim));
-	rport_ids.roles = FC_RPORT_ROLE_UNKNOWN;
+	rport_ids.roles = FC_RPORT_ROLE_UNKANALWN;
 
 	itnim->fc_rport = fc_rport =
 		fc_remote_port_add(im_port->shost, 0, &rport_ids);
@@ -1084,7 +1084,7 @@ bfad_im_fc_rport_add(struct bfad_im_port_s *im_port, struct bfad_itnim_s *itnim)
 
 	rport_ids.roles |= FC_RPORT_ROLE_FCP_TARGET;
 
-	if (rport_ids.roles != FC_RPORT_ROLE_UNKNOWN)
+	if (rport_ids.roles != FC_RPORT_ROLE_UNKANALWN)
 		fc_remote_port_rolechg(fc_rport, rport_ids.roles);
 
 	if ((fc_rport->scsi_target_id != -1)
@@ -1132,7 +1132,7 @@ bfad_im_itnim_work_handler(struct work_struct *work)
 			BFA_LOG(KERN_INFO, bfad, bfa_log_level,
 				"ITNIM ONLINE Target: %d:0:%d "
 				"FCID: %s WWPN: %s\n",
-				im_port->shost->host_no,
+				im_port->shost->host_anal,
 				itnim->scsi_tgt_id,
 				fcid_str, wwpn_str);
 		} else {
@@ -1165,7 +1165,7 @@ bfad_im_itnim_work_handler(struct work_struct *work)
 			BFA_LOG(KERN_INFO, bfad, bfa_log_level,
 				"ITNIM OFFLINE Target: %d:0:%d "
 				"FCID: %s WWPN: %s\n",
-				im_port->shost->host_no,
+				im_port->shost->host_anal,
 				itnim->scsi_tgt_id,
 				fcid_str, wwpn_str);
 		}
@@ -1222,7 +1222,7 @@ static int bfad_im_queuecommand_lck(struct scsi_cmnd *cmnd)
 
 	if (bfad->bfad_flags & BFAD_EEH_BUSY) {
 		if (bfad->bfad_flags & BFAD_EEH_PCI_CHANNEL_IO_PERM_FAILURE)
-			cmnd->result = DID_NO_CONNECT << 16;
+			cmnd->result = DID_ANAL_CONNECT << 16;
 		else
 			cmnd->result = DID_REQUEUE << 16;
 		done(cmnd);
@@ -1237,8 +1237,8 @@ static int bfad_im_queuecommand_lck(struct scsi_cmnd *cmnd)
 	if (!(bfad->bfad_flags & BFAD_HAL_START_DONE)) {
 		printk(KERN_WARNING
 			"bfad%d, queuecommand %p %x failed, BFA stopped\n",
-		       bfad->inst_no, cmnd, cmnd->cmnd[0]);
-		cmnd->result = DID_NO_CONNECT << 16;
+		       bfad->inst_anal, cmnd, cmnd->cmnd[0]);
+		cmnd->result = DID_ANAL_CONNECT << 16;
 		goto out_fail_cmd;
 	}
 
@@ -1323,7 +1323,7 @@ bfad_get_linkup_delay(struct bfad_s *bfad)
 		/* If Boot over SAN set linkup_delay = 30sec */
 		linkup_delay = 30;
 	else
-		/* If local boot; no linkup_delay */
+		/* If local boot; anal linkup_delay */
 		linkup_delay = 0;
 
 	return linkup_delay;

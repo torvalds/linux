@@ -9,7 +9,7 @@ Summary
 
 Dumping a VM is an essential tool for debugging problems inside
 it. This is especially true when a protected VM runs into trouble as
-there's no way to access its memory and registers from the outside
+there's anal way to access its memory and registers from the outside
 while it's running.
 
 However when dumping a protected VM we need to maintain its
@@ -42,14 +42,14 @@ The vcpu state contains all the important registers, general, floating
 point, vector, control and tod/timers of a vcpu. The vcpu dump can
 contain incomplete data if a vcpu is dumped while an instruction is
 emulated with help of the hypervisor. This is indicated by a flag bit
-in the dump data. For the same reason it is very important to not only
+in the dump data. For the same reason it is very important to analt only
 write out the encrypted vcpu state, but also the unencrypted state
 from the hypervisor.
 
 The memory state is further divided into the encrypted memory and its
 metadata comprised of the encryption tweaks and status flags. The
 encrypted memory can simply be read once it has been exported. The
-time of the export does not matter as no re-encryption is
+time of the export does analt matter as anal re-encryption is
 needed. Memory that has been swapped out and hence was exported can be
 read from the swap and written to the dump target without need for any
 special actions.

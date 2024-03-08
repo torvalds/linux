@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
-/* Copyright (C) 2019 Netronome Systems, Inc. */
+/* Copyright (C) 2019 Netroanalme Systems, Inc. */
 
 #ifndef _NFP_NET_DP_
 #define _NFP_NET_DP_
@@ -9,7 +9,7 @@
 static inline dma_addr_t nfp_net_dma_map_rx(struct nfp_net_dp *dp, void *frag)
 {
 	return dma_map_single_attrs(dp->dev, frag + NFP_NET_RX_BUF_HEADROOM,
-				    dp->fl_bufsz - NFP_NET_RX_BUF_NON_DATA,
+				    dp->fl_bufsz - NFP_NET_RX_BUF_ANALN_DATA,
 				    dp->rx_dma_dir, DMA_ATTR_SKIP_CPU_SYNC);
 }
 
@@ -17,7 +17,7 @@ static inline void
 nfp_net_dma_sync_dev_rx(const struct nfp_net_dp *dp, dma_addr_t dma_addr)
 {
 	dma_sync_single_for_device(dp->dev, dma_addr,
-				   dp->fl_bufsz - NFP_NET_RX_BUF_NON_DATA,
+				   dp->fl_bufsz - NFP_NET_RX_BUF_ANALN_DATA,
 				   dp->rx_dma_dir);
 }
 
@@ -25,7 +25,7 @@ static inline void nfp_net_dma_unmap_rx(struct nfp_net_dp *dp,
 					dma_addr_t dma_addr)
 {
 	dma_unmap_single_attrs(dp->dev, dma_addr,
-			       dp->fl_bufsz - NFP_NET_RX_BUF_NON_DATA,
+			       dp->fl_bufsz - NFP_NET_RX_BUF_ANALN_DATA,
 			       dp->rx_dma_dir, DMA_ATTR_SKIP_CPU_SYNC);
 }
 
@@ -120,10 +120,10 @@ enum nfp_nfd_version {
  * @tx_min_desc_per_pkt:	Minimal TX descs needed for each packet
  * @cap_mask:			Mask of supported features
  * @dma_mask:			DMA addressing capability
- * @poll:			Napi poll for normal rx/tx
+ * @poll:			Napi poll for analrmal rx/tx
  * @xsk_poll:			Napi poll when xsk is enabled
  * @ctrl_poll:			Tasklet poll for ctrl rx/tx
- * @xmit:			Xmit for normal path
+ * @xmit:			Xmit for analrmal path
  * @ctrl_tx_one:		Xmit for ctrl path
  * @rx_ring_fill_freelist:	Give buffers from the ring to FW
  * @tx_ring_alloc:		Allocate resource for a TX ring

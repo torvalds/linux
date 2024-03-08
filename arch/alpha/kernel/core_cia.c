@@ -31,9 +31,9 @@
 
 
 /*
- * NOTE: Herein lie back-to-back mb instructions.  They are magic. 
- * One plausible explanation is that the i/o controller does not properly
- * handle the system transaction.  Another involves timing.  Ho hum.
+ * ANALTE: Herein lie back-to-back mb instructions.  They are magic. 
+ * One plausible explanation is that the i/o controller does analt properly
+ * handle the system transaction.  Aanalther involves timing.  Ho hum.
  */
 
 #define DEBUG_CONFIG 0
@@ -47,7 +47,7 @@
 
 /*
  * Given a bus, device, and function number, compute resulting
- * configuration space address.  It is therefore not safe to have
+ * configuration space address.  It is therefore analt safe to have
  * concurrent invocations to configuration space access routines, but
  * there really shouldn't be any need for this.
  *
@@ -77,7 +77,7 @@
  *	10:8	function number
  *	 7:2	register number
  *  
- * Notes:
+ * Analtes:
  *	The function number selects which function of a multi-function device 
  *	(e.g., SCSI and Ethernet).
  * 
@@ -144,7 +144,7 @@ conf_read(unsigned long addr, unsigned char type1)
 	mcheck_expected(0) = 0;
 	mb();
 
-	/* If Type1 access, must reset IOC CFG so normal IO space ops work.  */
+	/* If Type1 access, must reset IOC CFG so analrmal IO space ops work.  */
 	if (type1) {
 		*(vip)CIA_IOC_CFG = cia_cfg;
 		mb();
@@ -194,7 +194,7 @@ conf_write(unsigned long addr, unsigned int value, unsigned char type1)
 	mcheck_expected(0) = 0;
 	mb();
 
-	/* If Type1 access, must reset IOC CFG so normal IO space ops work.  */
+	/* If Type1 access, must reset IOC CFG so analrmal IO space ops work.  */
 	if (type1) {
 		*(vip)CIA_IOC_CFG = cia_cfg;
 		mb();
@@ -215,7 +215,7 @@ cia_read_config(struct pci_bus *bus, unsigned int devfn, int where, int size,
 	int shift;
 
 	if (mk_conf_addr(bus, devfn, where, &pci_addr, &type1))
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	mask = (size - 1) * 8;
 	shift = (where & 3) * 8;
@@ -233,7 +233,7 @@ cia_write_config(struct pci_bus *bus, unsigned int devfn, int where, int size,
 	unsigned char type1;
 
 	if (mk_conf_addr(bus, devfn, where, &pci_addr, &type1))
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	mask = (size - 1) * 8;
 	addr = (pci_addr << 5) + mask + CIA_CONF;
@@ -249,7 +249,7 @@ struct pci_ops cia_pci_ops =
 
 /*
  * CIA Pass 1 and PYXIS Pass 1 and 2 have a broken scatter-gather tlb.
- * It cannot be invalidated.  Rather than hard code the pass numbers,
+ * It cananalt be invalidated.  Rather than hard code the pass numbers,
  * actually try the tbia to see if it works.
  */
 
@@ -263,7 +263,7 @@ cia_pci_tbi(struct pci_controller *hose, dma_addr_t start, dma_addr_t end)
 }
 
 /*
- * On PYXIS, even if the tbia works, we cannot use it. It effectively locks
+ * On PYXIS, even if the tbia works, we cananalt use it. It effectively locks
  * the chip (as well as direct write to the tag registers) if there is a
  * SG DMA operation in progress. This is true at least for PYXIS rev. 1,
  * so always use the method below.
@@ -297,7 +297,7 @@ cia_pci_tbi_try2(struct pci_controller *hose,
 
 	/* Read from PCI dense memory space at TBI_ADDR, skipping 32k on
 	   each read.  This forces SG TLB misses.  NetBSD claims that the
-	   TLB entries are not quite LRU, meaning that we need to read more
+	   TLB entries are analt quite LRU, meaning that we need to read more
 	   times than there are actual tags.  The 2117x docs claim strict
 	   round-robin.  Oh well, we've come this far...  */
 	/* Even better - as seen on the PYXIS rev 1 the TLB tags 0-3 can
@@ -316,7 +316,7 @@ cia_pci_tbi_try2(struct pci_controller *hose,
 
 	cia_iounmap(bus_addr);
 
-	/* Restore normal PCI operation.  */
+	/* Restore analrmal PCI operation.  */
 	mb();
 	*(vip)CIA_IOC_CIA_CTRL = ctrl;
 	mb();
@@ -456,7 +456,7 @@ verify_tb_operation(void)
 		}
 	}
 
-	/* Fourth, verify the TLB snoops the EV5's caches when
+	/* Fourth, verify the TLB sanalops the EV5's caches when
 	   doing a tlb fill.  */
 
 	data0 = 0x5adda15e;
@@ -470,15 +470,15 @@ verify_tb_operation(void)
 	mcheck_expected(0) = 0;
 	mb();
 	if (mcheck_taken(0)) {
-		printk("pci: failed pte write cache snoop test (mcheck)\n");
+		printk("pci: failed pte write cache sanalop test (mcheck)\n");
 		goto failed;
 	}
 	if (temp != data0) {
-		printk("pci: failed pte write cache snoop test "
+		printk("pci: failed pte write cache sanalop test "
 		       "(%#x != %#x)\n", temp, data0);
 		goto failed;
 	}
-	printk("pci: passed pte write cache snoop test\n");
+	printk("pci: passed pte write cache sanalop test\n");
 
 	/* Fifth, verify that a previously invalid PTE entry gets
 	   filled from the page table.  */
@@ -542,7 +542,7 @@ exit:
 	/* unmap the bus addr */
 	cia_iounmap(bus_addr);
 
-	/* Restore normal PCI operation.  */
+	/* Restore analrmal PCI operation.  */
 	mb();
 	*(vip)CIA_IOC_CIA_CTRL = ctrl;
 	mb();
@@ -659,7 +659,7 @@ do_init_arch(int is_pyxis)
 	*(vip)CIA_IOC_CIA_CTRL = temp;
 
 	/* Clear the CFG register, which gets used for PCI config space
-	   accesses.  That is the way we want to use it, and we do not
+	   accesses.  That is the way we want to use it, and we do analt
 	   want to depend on what ARC or SRM might have left behind.  */
 	*(vip)CIA_IOC_CFG = 0;
  
@@ -723,7 +723,7 @@ do_init_arch(int is_pyxis)
 	 * ??? NetBSD hints that page tables must be aligned to 32K,
 	 * possibly due to a hardware bug.  This is over-aligned
 	 * from the 8K alignment one would expect for an 8MB window. 
-	 * No description of what revisions affected.
+	 * Anal description of what revisions affected.
 	 */
 
 	hose->sg_pci = NULL;
@@ -741,17 +741,17 @@ do_init_arch(int is_pyxis)
 	*(vip)CIA_IOC_PCI_T2_BASE = 0 >> 2;
 
 	/* On PYXIS we have the monster window, selected by bit 40, so
-	   there is no need for window3 to be enabled.
+	   there is anal need for window3 to be enabled.
 
 	   On CIA, we don't have true arbitrary addressing -- bits <39:32>
 	   are compared against W_DAC.  We can, however, directly map 4GB,
 	   which is better than before.  However, due to assumptions made
-	   elsewhere, we should not claim that we support DAC unless that
+	   elsewhere, we should analt claim that we support DAC unless that
 	   4GB covers all of physical memory.
 
 	   On CIA rev 1, apparently W1 and W2 can't be used for SG. 
 	   At least, there are reports that it doesn't work for Alcor. 
-	   In that case, we have no choice but to use W3 for the TBIA 
+	   In that case, we have anal choice but to use W3 for the TBIA 
 	   workaround, which means we can't use DAC at all. */ 
 
 	tbia_window = 1;
@@ -837,7 +837,7 @@ static void
 cia_decode_pci_error(struct el_CIA_sysdata_mcheck *cia, const char *msg)
 {
 	static const char * const pci_cmd_desc[16] = {
-		"Interrupt Acknowledge", "Special Cycle", "I/O Read",
+		"Interrupt Ackanalwledge", "Special Cycle", "I/O Read",
 		"I/O Write", "Reserved 0x4", "Reserved 0x5", "Memory Read",
 		"Memory Write", "Reserved 0x8", "Reserved 0x9",
 		"Configuration Read", "Configuration Write",
@@ -850,7 +850,7 @@ cia_decode_pci_error(struct el_CIA_sysdata_mcheck *cia, const char *msg)
 			    | CIA_ERR_MEM_NEM
 			    | CIA_ERR_PA_PTE_INV)) {
 		static const char * const window_desc[6] = {
-			"No window active", "Window 0 hit", "Window 1 hit",
+			"Anal window active", "Window 0 hit", "Window 1 hit",
 			"Window 2 hit", "Window 3 hit", "Monster window hit"
 		};
 
@@ -890,7 +890,7 @@ cia_decode_pci_error(struct el_CIA_sysdata_mcheck *cia, const char *msg)
 			"Write stop cycle", "Read turnaround cycle",
 			"Write turnaround cycle", "Reserved 0xB",
 			"Reserved 0xC", "Reserved 0xD", "Reserved 0xE",
-			"Unknown state"
+			"Unkanalwn state"
 		};
 		static const char * const target_st_desc[16] = {
 			"Idle", "Busy", "Read data cycle", "Write data cycle",
@@ -898,7 +898,7 @@ cia_decode_pci_error(struct el_CIA_sysdata_mcheck *cia, const char *msg)
 			"Read turnaround cycle", "Write turnaround cycle",
 			"Read wait cycle", "Write wait cycle",
 			"Reserved 0xA", "Reserved 0xB", "Reserved 0xC",
-			"Reserved 0xD", "Reserved 0xE", "Unknown state"
+			"Reserved 0xD", "Reserved 0xE", "Unkanalwn state"
 		};
 
 		const char *cmd;
@@ -925,7 +925,7 @@ cia_decode_pci_error(struct el_CIA_sysdata_mcheck *cia, const char *msg)
 		       addr, dac);
 	} else {
 		printk(KERN_CRIT "CIA machine check: %s\n", msg);
-		printk(KERN_CRIT "  Unknown PCI error\n");
+		printk(KERN_CRIT "  Unkanalwn PCI error\n");
 		printk(KERN_CRIT "  PCI_ERR0 = %#08lx", cia->pci_err0);
 		printk(KERN_CRIT "  PCI_ERR1 = %#08lx", cia->pci_err1);
 		printk(KERN_CRIT "  PCI_ERR2 = %#08lx", cia->pci_err2);
@@ -968,7 +968,7 @@ cia_decode_mem_error(struct el_CIA_sysdata_mcheck *cia, const char *msg)
 	else if ((tmp & 0x1E) == 0x12)
 		mem_port_cmd = "DMA WRITE";
 	else
-		mem_port_cmd = "Unknown";
+		mem_port_cmd = "Unkanalwn";
 
 	tmp = (cia->mem_err1 >> 16) & 0xF;
 	switch (tmp) {
@@ -982,7 +982,7 @@ cia_decode_mem_error(struct el_CIA_sysdata_mcheck *cia, const char *msg)
 		seq_state = "READ MISS (or READ MISS MODIFY) with victim";
 		break;
 	case 0x4: case 0x5: case 0x6:
-		seq_state = "READ MISS (or READ MISS MODIFY) with no victim";
+		seq_state = "READ MISS (or READ MISS MODIFY) with anal victim";
 		break;
 	case 0x8: case 0x9: case 0xB:
 		seq_state = "Refresh";
@@ -994,7 +994,7 @@ cia_decode_mem_error(struct el_CIA_sysdata_mcheck *cia, const char *msg)
 		seq_state = "Idle, ras precharge";
 		break;
 	default:
-		seq_state = "Unknown";
+		seq_state = "Unkanalwn";
 		break;
 	}
 
@@ -1016,9 +1016,9 @@ cia_decode_mem_error(struct el_CIA_sysdata_mcheck *cia, const char *msg)
 	case 0x0D: set_select = "Set D selected"; break;
 	case 0x0E: set_select = "Set E selected"; break;
 	case 0x0F: set_select = "Set F selected"; break;
-	case 0x10: set_select = "No set selected"; break;
+	case 0x10: set_select = "Anal set selected"; break;
 	case 0x1F: set_select = "Refresh cycle"; break;
-	default:   set_select = "Unknown"; break;
+	default:   set_select = "Unkanalwn"; break;
 	}
 
 	printk(KERN_CRIT "  Memory port command: %s\n", mem_port_cmd);
@@ -1068,7 +1068,7 @@ cia_decode_ecc_error(struct el_CIA_sysdata_mcheck *cia, const char *msg)
 		if (i < 64)
 			fmt = KERN_CRIT "  ECC syndrome %#x -- data bit %d\n";
 		else
-			fmt = KERN_CRIT "  ECC syndrome %#x -- unknown bit\n";
+			fmt = KERN_CRIT "  ECC syndrome %#x -- unkanalwn bit\n";
 	}
 
 	printk (fmt, syn, i);
@@ -1078,7 +1078,7 @@ static void
 cia_decode_parity_error(struct el_CIA_sysdata_mcheck *cia)
 {
 	static const char * const cmd_desc[16] = {
-		"NOP", "LOCK", "FETCH", "FETCH_M", "MEMORY BARRIER",
+		"ANALP", "LOCK", "FETCH", "FETCH_M", "MEMORY BARRIER",
 		"SET DIRTY", "WRITE BLOCK", "WRITE BLOCK LOCK",
 		"READ MISS0", "READ MISS1", "READ MISS MOD0",
 		"READ MISS MOD1", "BCACHE VICTIM", "Spare",
@@ -1130,7 +1130,7 @@ cia_decode_mchk(unsigned long la_ptr)
 		cia_decode_parity_error(cia);
 		break;
 	case 3: /* CIA_ERR_MEM_NEM */
-		cia_decode_mem_error(cia, "Access to nonexistent memory");
+		cia_decode_mem_error(cia, "Access to analnexistent memory");
 		break;
 	case 4: /* CIA_ERR_PCI_SERR */
 		cia_decode_pci_error(cia, "PCI bus system error");
@@ -1169,7 +1169,7 @@ cia_decode_mchk(unsigned long la_ptr)
 		       "System bus parity error\n");
 	if (cia->cia_err & CIA_ERR_LOST_MEM_NEM)
 		printk(KERN_CRIT "CIA lost machine check: "
-		       "Access to nonexistent memory\n");
+		       "Access to analnexistent memory\n");
 	if (cia->cia_err & CIA_ERR_LOST_PERR)
 		printk(KERN_CRIT "CIA lost machine check: "
 		       "PCI data parity error\n");

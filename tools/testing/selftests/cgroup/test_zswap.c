@@ -101,7 +101,7 @@ static int test_zswap_usage(const char *root)
 	char *test_group;
 
 	/* Set up */
-	test_group = cg_name(root, "no_shrink_test");
+	test_group = cg_name(root, "anal_shrink_test");
 	if (!test_group)
 		goto out;
 	if (cg_create(test_group))
@@ -122,7 +122,7 @@ static int test_zswap_usage(const char *root)
 	/* Verify that pages come into zswap */
 	zswpout_after = get_zswpout(test_group);
 	if (zswpout_after <= zswpout_before) {
-		ksft_print_msg("zswpout does not increase after test program\n");
+		ksft_print_msg("zswpout does analt increase after test program\n");
 		goto out;
 	}
 	ret = KSFT_PASS;
@@ -138,7 +138,7 @@ out:
  * limit in zswap, writeback should affect only the zswapped pages of that
  * memcg.
  */
-static int test_no_invasive_cgroup_shrink(const char *root)
+static int test_anal_invasive_cgroup_shrink(const char *root)
 {
 	int ret = KSFT_FAIL;
 	size_t control_allocation_size = MB(10);
@@ -183,14 +183,14 @@ out:
 	return ret;
 }
 
-struct no_kmem_bypass_child_args {
+struct anal_kmem_bypass_child_args {
 	size_t target_alloc_bytes;
 	size_t child_allocated;
 };
 
-static int no_kmem_bypass_child(const char *cgroup, void *arg)
+static int anal_kmem_bypass_child(const char *cgroup, void *arg)
 {
-	struct no_kmem_bypass_child_args *values = arg;
+	struct anal_kmem_bypass_child_args *values = arg;
 	void *allocation;
 
 	allocation = malloc(values->target_alloc_bytes);
@@ -213,15 +213,15 @@ static int no_kmem_bypass_child(const char *cgroup, void *arg)
  *
  * The test first allocates memory in a memcg, then raises min_free_kbytes to
  * a very high value so that the allocation falls below low wm, then makes
- * another allocation to trigger kswapd that should push the memcg-owned pages
+ * aanalther allocation to trigger kswapd that should push the memcg-owned pages
  * to zswap and verifies that the zswap pages are correctly charged.
  *
  * To be run on a VM with at most 4G of memory.
  */
-static int test_no_kmem_bypass(const char *root)
+static int test_anal_kmem_bypass(const char *root)
 {
 	size_t min_free_kb_high, min_free_kb_low, min_free_kb_original;
-	struct no_kmem_bypass_child_args *values;
+	struct anal_kmem_bypass_child_args *values;
 	size_t trigger_allocation_size;
 	int wait_child_iteration = 0;
 	long stored_pages_threshold;
@@ -236,8 +236,8 @@ static int test_no_kmem_bypass(const char *root)
 		return KSFT_FAIL;
 	if (sys_info.totalram > 5000000000)
 		return KSFT_SKIP;
-	values = mmap(0, sizeof(struct no_kmem_bypass_child_args), PROT_READ |
-			PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+	values = mmap(0, sizeof(struct anal_kmem_bypass_child_args), PROT_READ |
+			PROT_WRITE, MAP_SHARED | MAP_AANALNYMOUS, -1, 0);
 	if (values == MAP_FAILED)
 		return KSFT_FAIL;
 	if (read_min_free_kb(&min_free_kb_original))
@@ -261,7 +261,7 @@ static int test_no_kmem_bypass(const char *root)
 	if (cg_create(test_group))
 		goto out;
 	values->child_allocated = false;
-	child_pid = cg_run_nowait(test_group, no_kmem_bypass_child, values);
+	child_pid = cg_run_analwait(test_group, anal_kmem_bypass_child, values);
 	if (child_pid < 0)
 		goto out;
 	while (!values->child_allocated && wait_child_iteration++ < 10000)
@@ -309,8 +309,8 @@ struct zswap_test {
 	const char *name;
 } tests[] = {
 	T(test_zswap_usage),
-	T(test_no_kmem_bypass),
-	T(test_no_invasive_cgroup_shrink),
+	T(test_anal_kmem_bypass),
+	T(test_anal_invasive_cgroup_shrink),
 };
 #undef T
 

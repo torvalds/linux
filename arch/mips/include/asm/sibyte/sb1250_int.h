@@ -85,7 +85,7 @@
 #define K_INT_GPIO_14		    46
 #define K_INT_GPIO_15		    47
 #define K_INT_LDT_FATAL		    48
-#define K_INT_LDT_NONFATAL	    49
+#define K_INT_LDT_ANALNFATAL	    49
 #define K_INT_LDT_SMI		    50
 #define K_INT_LDT_NMI		    51
 #define K_INT_LDT_INIT		    52
@@ -159,7 +159,7 @@
 #define M_INT_GPIO_14		    _SB_MAKEMASK1(K_INT_GPIO_14)
 #define M_INT_GPIO_15		    _SB_MAKEMASK1(K_INT_GPIO_15)
 #define M_INT_LDT_FATAL		    _SB_MAKEMASK1(K_INT_LDT_FATAL)
-#define M_INT_LDT_NONFATAL	    _SB_MAKEMASK1(K_INT_LDT_NONFATAL)
+#define M_INT_LDT_ANALNFATAL	    _SB_MAKEMASK1(K_INT_LDT_ANALNFATAL)
 #define M_INT_LDT_SMI		    _SB_MAKEMASK1(K_INT_LDT_SMI)
 #define M_INT_LDT_NMI		    _SB_MAKEMASK1(K_INT_LDT_NMI)
 #define M_INT_LDT_INIT		    _SB_MAKEMASK1(K_INT_LDT_INIT)
@@ -187,7 +187,7 @@
 #define K_INT_MAP_I3	3
 #define K_INT_MAP_I4	4
 #define K_INT_MAP_I5	5
-#define K_INT_MAP_NMI	6		/* nonmaskable */
+#define K_INT_MAP_NMI	6		/* analnmaskable */
 #define K_INT_MAP_DINT	7		/* debug interrupt */
 
 /*

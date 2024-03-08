@@ -5,7 +5,7 @@
  *  Copyright 2007 IBM, Inc.
  *  by Konrad Rzeszutek <konradr@linux.vnet.ibm.com>
  *  Copyright 2008
- *  by Konrad Rzeszutek <ketuzsezr@darnok.org>
+ *  by Konrad Rzeszutek <ketuzsezr@daranalk.org>
  *
  * This code exposes the iSCSI Boot Format Table to userland via sysfs.
  */
@@ -17,7 +17,7 @@
 
 /*
  * Physical location of iSCSI Boot Format Table.
- * If the value is 0 there is no iBFT on the machine.
+ * If the value is 0 there is anal iBFT on the machine.
  */
 extern phys_addr_t ibft_phys_addr;
 

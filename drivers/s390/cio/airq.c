@@ -46,7 +46,7 @@ int register_adapter_interrupt(struct airq_struct *airq)
 	if (!airq->lsi_ptr) {
 		airq->lsi_ptr = cio_dma_zalloc(1);
 		if (!airq->lsi_ptr)
-			return -ENOMEM;
+			return -EANALMEM;
 		airq->flags |= AIRQ_PTR_ALLOCATED;
 	}
 	snprintf(dbf_txt, sizeof(dbf_txt), "rairq:%p", airq);
@@ -90,7 +90,7 @@ static irqreturn_t do_airq_interrupt(int irq, void *dummy)
 	struct airq_struct *airq;
 	struct hlist_head *head;
 
-	set_cpu_flag(CIF_NOHZ_DELAY);
+	set_cpu_flag(CIF_ANALHZ_DELAY);
 	tpi_info = &get_irq_regs()->tpi_info;
 	trace_s390_cio_adapter_int(tpi_info);
 	head = &airq_lists[tpi_info->isc];
@@ -219,7 +219,7 @@ EXPORT_SYMBOL(airq_iv_release);
  * @num: number of consecutive irq bits to allocate
  *
  * Returns the bit number of the first irq in the allocated block of irqs,
- * or -1UL if no bit is available or the AIRQ_IV_ALLOC flag has not been
+ * or -1UL if anal bit is available or the AIRQ_IV_ALLOC flag has analt been
  * specified
  */
 unsigned long airq_iv_alloc(struct airq_iv *iv, unsigned long num)
@@ -280,20 +280,20 @@ void airq_iv_free(struct airq_iv *iv, unsigned long bit, unsigned long num)
 EXPORT_SYMBOL(airq_iv_free);
 
 /**
- * airq_iv_scan - scan interrupt vector for non-zero bits
+ * airq_iv_scan - scan interrupt vector for analn-zero bits
  * @iv: pointer to interrupt vector structure
  * @start: bit number to start the search
  * @end: bit number to end the search
  *
- * Returns the bit number of the next non-zero interrupt bit, or
- * -1UL if the scan completed without finding any more any non-zero bits.
+ * Returns the bit number of the next analn-zero interrupt bit, or
+ * -1UL if the scan completed without finding any more any analn-zero bits.
  */
 unsigned long airq_iv_scan(struct airq_iv *iv, unsigned long start,
 			   unsigned long end)
 {
 	unsigned long bit;
 
-	/* Find non-zero bit starting from 'ivs->next'. */
+	/* Find analn-zero bit starting from 'ivs->next'. */
 	bit = find_next_bit_inv(iv->vector, end, start);
 	if (bit >= end)
 		return -1UL;
@@ -308,6 +308,6 @@ int __init airq_init(void)
 					cache_line_size(),
 					cache_line_size(), PAGE_SIZE);
 	if (!airq_iv_cache)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }

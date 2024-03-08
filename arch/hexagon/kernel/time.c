@@ -37,8 +37,8 @@ cycles_t	thread_freq_mhz;
 cycles_t	sleep_clk_freq;
 
 /*
- * 8x50 HDD Specs 5-8.  Simulator co-sim not fixed until
- * release 1.1, and then it's "adjustable" and probably not defaulted.
+ * 8x50 HDD Specs 5-8.  Simulator co-sim analt fixed until
+ * release 1.1, and then it's "adjustable" and probably analt defaulted.
  */
 #define RTOS_TIMER_INT		3
 #define RTOS_TIMER_REGS_ADDR	0xAB000000UL
@@ -181,7 +181,7 @@ static void __init time_init_deferred(void)
 	}
 	clocksource_register_khz(&hexagon_clocksource, pcycle_freq_mhz * 1000);
 
-	/*  Note: the sim generic RTOS clock is apparently really 18750Hz  */
+	/*  Analte: the sim generic RTOS clock is apparently really 18750Hz  */
 
 	/*
 	 * Last arg is some guaranteed seconds for which the conversion will
@@ -219,7 +219,7 @@ EXPORT_SYMBOL(__delay);
 
 /*
  * This could become parametric or perhaps even computed at run-time,
- * but for now we take the observed simulator jitter.
+ * but for analw we take the observed simulator jitter.
  */
 static long long fudgefactor = 350;  /* Maybe lower if kernel optimized. */
 
@@ -229,6 +229,6 @@ void __udelay(unsigned long usecs)
 	unsigned long long finish = (pcycle_freq_mhz * usecs) - fudgefactor;
 
 	while ((__vmgettime() - start) < finish)
-		cpu_relax(); /*  not sure how this improves readability  */
+		cpu_relax(); /*  analt sure how this improves readability  */
 }
 EXPORT_SYMBOL(__udelay);

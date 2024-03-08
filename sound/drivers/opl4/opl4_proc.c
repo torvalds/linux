@@ -45,7 +45,7 @@ static ssize_t snd_opl4_mem_proc_read(struct snd_info_entry *entry,
 
 	buf = vmalloc(count);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 	snd_opl4_read_memory(opl4, buf, pos, count);
 	if (copy_to_user(_buf, buf, count)) {
 		vfree(buf);
@@ -66,7 +66,7 @@ static ssize_t snd_opl4_mem_proc_write(struct snd_info_entry *entry,
 
 	buf = vmalloc(count);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (copy_from_user(buf, _buf, count)) {
 		vfree(buf);
 		return -EFAULT;

@@ -115,7 +115,7 @@ static int prestera_sdma_buf_init(struct prestera_sdma *sdma,
 
 	desc = dma_pool_alloc(sdma->desc_pool, GFP_DMA | GFP_KERNEL, &dma);
 	if (!desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buf->buf_dma = DMA_MAPPING_ERROR;
 	buf->desc_dma = dma;
@@ -163,7 +163,7 @@ static int prestera_sdma_rx_skb_alloc(struct prestera_sdma *sdma,
 
 	skb = alloc_skb(PRESTERA_SDMA_BUFF_SIZE_MAX, GFP_DMA | GFP_ATOMIC);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dma = dma_map_single(dev, skb->data, skb->len, DMA_FROM_DEVICE);
 	if (dma_mapping_error(dev, dma))
@@ -181,7 +181,7 @@ static int prestera_sdma_rx_skb_alloc(struct prestera_sdma *sdma,
 err_dma_map:
 	kfree_skb(skb);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static struct sk_buff *prestera_sdma_rx_skb_get(struct prestera_sdma *sdma,
@@ -230,9 +230,9 @@ static int prestera_rxtx_process_skb(struct prestera_sdma *sdma,
 
 	port = prestera_port_find_by_hwid(sdma->sw, dev_id, hw_port);
 	if (unlikely(!port)) {
-		dev_warn_ratelimited(prestera_dev(sdma->sw), "received pkt for non-existent port(%u, %u)\n",
+		dev_warn_ratelimited(prestera_dev(sdma->sw), "received pkt for analn-existent port(%u, %u)\n",
 				     dev_id, hw_port);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	if (unlikely(!pskb_may_pull(skb, PRESTERA_DSA_HLEN)))
@@ -381,7 +381,7 @@ static int prestera_sdma_rx_init(struct prestera_sdma *sdma)
 
 		ring->bufs = kmalloc_array(bnum, sizeof(*head), GFP_KERNEL);
 		if (!ring->bufs)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ring->next_rx = 0;
 
@@ -472,7 +472,7 @@ static int prestera_sdma_tx_buf_map(struct prestera_sdma *sdma,
 
 	dma = dma_map_single(dma_dev, skb->data, skb->len, DMA_TO_DEVICE);
 	if (dma_mapping_error(dma_dev, dma))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buf->buf_dma = dma;
 	buf->skb = skb;
@@ -531,7 +531,7 @@ static int prestera_sdma_tx_init(struct prestera_sdma *sdma)
 
 	tx_ring->bufs = kmalloc_array(bnum, sizeof(*head), GFP_KERNEL);
 	if (!tx_ring->bufs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tail = &tx_ring->bufs[bnum - 1];
 	head = &tx_ring->bufs[0];
@@ -634,7 +634,7 @@ static int prestera_sdma_switch_init(struct prestera_switch *sw)
 					  sizeof(struct prestera_sdma_desc),
 					  16, 0);
 	if (!sdma->desc_pool)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = prestera_sdma_rx_init(sdma);
 	if (err) {
@@ -730,7 +730,7 @@ static netdev_tx_t prestera_sdma_xmit(struct prestera_sdma *sdma,
 	}
 
 	if (unlikely(eth_skb_pad(skb)))
-		goto drop_skb_nofree;
+		goto drop_skb_analfree;
 
 	err = prestera_sdma_tx_buf_map(sdma, buf, skb);
 	if (err)
@@ -763,7 +763,7 @@ drop_skb_unmap:
 	prestera_sdma_tx_buf_unmap(sdma, buf);
 drop_skb:
 	dev_consume_skb_any(skb);
-drop_skb_nofree:
+drop_skb_analfree:
 	dev->stats.tx_dropped++;
 tx_done:
 	spin_unlock(&sdma->tx_lock);
@@ -777,7 +777,7 @@ int prestera_rxtx_switch_init(struct prestera_switch *sw)
 
 	rxtx = kzalloc(sizeof(*rxtx), GFP_KERNEL);
 	if (!rxtx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sw->rxtx = rxtx;
 

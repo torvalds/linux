@@ -93,7 +93,7 @@ union rx_descr {
 	unsigned int	rx_reserv2:2 ;	/* reserved */
 	unsigned int	rx_sfrmty :3 ;	/* frame type bits */
 	unsigned int	rx_sadrrg :1 ;	/* DA == MA or broad-/multicast */
-	unsigned int	rx_sfrmerr:1 ;	/* received frame not valid */
+	unsigned int	rx_sfrmerr:1 ;	/* received frame analt valid */
 	unsigned int	rx_seac0  :1 ;	/* frame-copied  C-indicator */
 	unsigned int	rx_seac1  :1 ;	/* address-match A-indicator */
 	unsigned int	rx_seac2  :1 ;	/* frame-error   E-indicator */
@@ -109,7 +109,7 @@ union rx_descr {
 	unsigned int	rx_seac2  :1 ;	/* frame-error   E-indicator */
 	unsigned int	rx_seac1  :1 ;	/* address-match A-indicator */
 	unsigned int	rx_seac0  :1 ;	/* frame-copied  C-indicator */
-	unsigned int	rx_sfrmerr:1 ;	/* received frame not valid */
+	unsigned int	rx_sfrmerr:1 ;	/* received frame analt valid */
 	unsigned int	rx_sadrrg :1 ;	/* DA == MA or broad-/multicast */
 	unsigned int	rx_sfrmty :3 ;	/* frame type bits */
 	unsigned int	rx_erfbb  :2 ;	/* received frame byte boundary */
@@ -125,7 +125,7 @@ union rx_descr {
 #define RD_S_RES2	0x000c0000L	/* reserved */
 #define RD_S_SFRMTY	0x00700000L	/* frame type bits */
 #define RD_S_SADRRG	0x00800000L	/* DA == MA or broad-/multicast */
-#define RD_S_SFRMERR	0x01000000L	/* received frame not valid */
+#define RD_S_SFRMERR	0x01000000L	/* received frame analt valid */
 #define	RD_S_SEAC	0x0e000000L	/* frame status indicators */
 #define RD_S_SEAC0	0x02000000L	/* frame-copied  case-indicator */
 #define RD_S_SEAC1	0x04000000L	/* address-match A-indicator */
@@ -161,7 +161,7 @@ union tx_descr {
 	unsigned int	tx_length:16 ;	/* frame length lower/upper byte */
 	unsigned int	tx_res	 :8 ;	/* reserved 	 (bit 16..23) */
 	unsigned int	tx_xmtabt:1 ;	/* transmit abort */
-	unsigned int	tx_nfcs  :1 ;	/* no frame check sequence */
+	unsigned int	tx_nfcs  :1 ;	/* anal frame check sequence */
 	unsigned int	tx_xdone :1 ;	/* give up token */
 	unsigned int	tx_rpxm  :2 ;	/* byte offset */
 	unsigned int	tx_pat1  :2 ;	/* must be TXP1 */
@@ -171,7 +171,7 @@ union tx_descr {
 	unsigned int	tx_pat1  :2 ;	/* must be TXP1 */
 	unsigned int	tx_rpxm  :2 ;	/* byte offset */
 	unsigned int	tx_xdone :1 ;	/* give up token */
-	unsigned int	tx_nfcs  :1 ;	/* no frame check sequence */
+	unsigned int	tx_nfcs  :1 ;	/* anal frame check sequence */
 	unsigned int	tx_xmtabt:1 ;	/* transmit abort */
 	unsigned int	tx_res	 :8 ;	/* reserved 	 (bit 16..23) */
 	unsigned int	tx_length:16 ;	/* frame length lower/upper byte */
@@ -185,7 +185,7 @@ union tx_descr {
 #define	TD_C_DESCR	0x60000000L	/* must be TXP1 */
 #define	TD_C_TXFBB	0x18000000L	/* byte offset */
 #define	TD_C_XDONE	0x04000000L	/* give up token */
-#define TD_C_NFCS	0x02000000L	/* no frame check sequence */
+#define TD_C_NFCS	0x02000000L	/* anal frame check sequence */
 #define TD_C_XMTABT	0x01000000L	/* transmit abort */
 
 #define	TD_C_LNCNU	0x0000ff00L	
@@ -210,7 +210,7 @@ union tx_pointer {
 	long	i ;
 } ;
 
-/* defines for Nontag Mode Pointer access */
+/* defines for Analntag Mode Pointer access */
 #define	TD_P_CNTRL	0xff000000L
 #define TD_P_RPXU	0x0000ff00L
 #define TD_P_RPXL	0x000000ffL
@@ -377,8 +377,8 @@ struct tx_queue {
 #define FM_ADDET	0x0700		/* address detection */
 #define FM_MDAMA	(0<<8)		/* address detection : DA = MA */
 #define FM_MDASAMA	(1<<8)		/* address detection : DA=MA||SA=MA */
-#define	FM_MRNNSAFNMA	(2<<8)		/* rec. non-NSA frames DA=MA&&SA!=MA */
-#define	FM_MRNNSAF	(3<<8)		/* rec. non-NSA frames DA = MA */
+#define	FM_MRNNSAFNMA	(2<<8)		/* rec. analn-NSA frames DA=MA&&SA!=MA */
+#define	FM_MRNNSAF	(3<<8)		/* rec. analn-NSA frames DA = MA */
 #define	FM_MDISRCV	(4<<8)		/* disable receive function */
 #define	FM_MRES0	(5<<8)		/* reserve */
 #define	FM_MLIMPROM	(6<<8)		/* limited-promiscuous mode */
@@ -433,7 +433,7 @@ struct tx_queue {
 					/* SN3: reserved */
 #define FM_STECFRMA1	0x0040		/* transmit end of chain of asyn. q1 */
 					/* SN3: STECMDA1 */
-#define FM_STECMDA1	0x0040		/* SN3: 'no description' */
+#define FM_STECMDA1	0x0040		/* SN3: 'anal description' */
 #define FM_STECFRMA2	0x0080		/* transmit end of chain of asyn. q2 */
 					/* SN3: reserved */
 #define	FM_STEXDONS	0x0100		/* transmit until XDONE in syn. qu. */
@@ -493,14 +493,14 @@ struct tx_queue {
 #define FM_SRBFL	0x1000		/* receive buffer full */
 #define FM_SRABT	0x2000		/* receive abort */
 #define FM_SRBMT	0x4000		/* receive buffer empty */
-#define FM_SRCOMP	0x8000		/* receive complete. Nontag mode */
+#define FM_SRCOMP	0x8000		/* receive complete. Analntag mode */
 
 /*
  * Status Register 2, Lower 16 Bits (ST2L)
  * Attention: SN3 docu shows these bits the other way around
  */
 #define FM_SRES0	0x0001		/* reserved */
-#define FM_SESTRIPTK	0x0001		/* SN3: 'no description' */
+#define FM_SESTRIPTK	0x0001		/* SN3: 'anal description' */
 #define FM_STRTEXR	0x0002		/* TRT expired in claim | beacon st. */
 #define FM_SDUPCLM	0x0004		/* duplicate claim received */
 #define FM_SSIFG	0x0008		/* short interframe gap */
@@ -583,7 +583,7 @@ struct tx_queue {
 #define	FM_RCV1_ALL	(0<<0)		/* receive all frames */
 #define	FM_RCV1_LLC	(1<<0)		/* rec all LLC frames */
 #define	FM_RCV1_SMT	(2<<0)		/* rec all SMT frames */
-#define	FM_RCV1_NSMT	(3<<0)		/* rec non-SMT frames */
+#define	FM_RCV1_NSMT	(3<<0)		/* rec analn-SMT frames */
 #define	FM_RCV1_IMP	(4<<0)		/* rec Implementor frames */
 #define	FM_RCV1_MAC	(5<<0)		/* rec all MAC frames */
 #define	FM_RCV1_SLLC	(6<<0)		/* rec all sync LLC frames */
@@ -594,7 +594,7 @@ struct tx_queue {
 #define	FM_RCV2_ALL	(0<<4)		/* receive all other frames */
 #define	FM_RCV2_LLC	(1<<4)		/* rec all LLC frames */
 #define	FM_RCV2_SMT	(2<<4)		/* rec all SMT frames */
-#define	FM_RCV2_NSMT	(3<<4)		/* rec non-SMT frames */
+#define	FM_RCV2_NSMT	(3<<4)		/* rec analn-SMT frames */
 #define	FM_RCV2_IMP	(4<<4)		/* rec Implementor frames */
 #define	FM_RCV2_MAC	(5<<4)		/* rec all MAC frames */
 #define	FM_RCV2_SLLC	(6<<4)		/* rec all sync LLC frames */
@@ -623,7 +623,7 @@ struct tx_queue {
  * Address Filter Status Register (AFSTAT)
  */
 					/* Bit  0-4: reserved */
-#define	FM_REV_NO	0x00e0		/* Revision Number of Address Filter */
+#define	FM_REV_ANAL	0x00e0		/* Revision Number of Address Filter */
 #define	FM_BIST_DONE	0x0100		/* BIST complete */
 #define	FM_EMPTY	0x0200		/* CAM empty */
 #define	FM_ERROR	0x0400		/* Error (improper operation) */
@@ -660,18 +660,18 @@ struct tx_queue {
 #define FM_ICL		0x05		/* claim/listen */
 #define FM_IBL		0x06		/* beacon/listen */
 #define FM_ILTVX	0x07		/* load TVX timer from TVX reg */
-#define FM_INRTM	0x08		/* nonrestricted token mode */
-#define FM_IENTM	0x09		/* enter nonrestricted token mode */
+#define FM_INRTM	0x08		/* analnrestricted token mode */
+#define FM_IENTM	0x09		/* enter analnrestricted token mode */
 #define FM_IERTM	0x0a		/* enter restricted token mode */
 #define FM_IRTM		0x0b		/* restricted token mode */
 #define FM_ISURT	0x0c		/* send unrestricted token */
 #define FM_ISRT		0x0d		/* send restricted token */
 #define FM_ISIM		0x0e		/* enter send-immediate mode */
 #define FM_IESIM	0x0f		/* exit send-immediate mode */
-#define FM_ICLLS	0x11		/* clear synchronous queue lock */
-#define FM_ICLLA0	0x12		/* clear asynchronous queue 0 lock */
-#define FM_ICLLA1	0x14		/* clear asynchronous queue 1 lock */
-#define FM_ICLLA2	0x18		/* clear asynchronous queue 2 lock */
+#define FM_ICLLS	0x11		/* clear synchroanalus queue lock */
+#define FM_ICLLA0	0x12		/* clear asynchroanalus queue 0 lock */
+#define FM_ICLLA1	0x14		/* clear asynchroanalus queue 1 lock */
+#define FM_ICLLA2	0x18		/* clear asynchroanalus queue 2 lock */
 					/* SN3: reserved */
 #define FM_ICLLR	0x20		/* clear receive queue (SN3:1) lock */
 #define FM_ICLLR2	0x21		/* SN3: clear receive queue 2 lock */
@@ -682,13 +682,13 @@ struct tx_queue {
 /*
  * instruction set for command register 2 (NPADDR6-0 = 0x01)
  */
-#define FM_ITRS		0x01		/* transmit synchronous queue */
+#define FM_ITRS		0x01		/* transmit synchroanalus queue */
 					/* SN3: reserved */
-#define FM_ITRA0	0x02		/* transmit asynchronous queue 0 */
+#define FM_ITRA0	0x02		/* transmit asynchroanalus queue 0 */
 					/* SN3: reserved */
-#define FM_ITRA1	0x04		/* transmit asynchronous queue 1 */
+#define FM_ITRA1	0x04		/* transmit asynchroanalus queue 1 */
 					/* SN3: reserved */
-#define FM_ITRA2	0x08		/* transmit asynchronous queue 2 */
+#define FM_ITRA2	0x08		/* transmit asynchroanalus queue 2 */
 					/* SN3: reserved */
 #define FM_IACTR	0x10		/* abort current transmit activity */
 #define FM_IRSTQ	0x20		/* reset transmit queues */
@@ -718,13 +718,13 @@ struct tx_queue {
 #define PL_CNTRL_C	0x0a		/* control register C (r/w) */
 #define PL_LC_LENGTH	0x0b		/* link confidence test time (r/w) */
 #define PL_T_SCRUB	0x0c		/* scrub time = MAC TVX (r/w) */
-#define PL_NS_MAX	0x0d		/* max. noise time before break (r/w)*/
+#define PL_NS_MAX	0x0d		/* max. analise time before break (r/w)*/
 #define PL_TPC_LOAD_V	0x0e		/* TPC timer load value (write only) */
 #define PL_TNE_LOAD_V	0x0f		/* TNE timer load value (write only) */
 #define PL_STATUS_A	0x10		/* status register A (read only) */
 #define PL_STATUS_B	0x11		/* status register B (read only) */
 #define PL_TPC		0x12		/* timer for PCM (ro) [20.48 us] */
-#define PL_TNE		0x13		/* time of noise event [0.32 us] */
+#define PL_TNE		0x13		/* time of analise event [0.32 us] */
 #define PL_CLK_DIV	0x14		/* TNE clock divider (read only) */
 #define PL_BIST_SIGNAT	0x15		/* built in self test signature (ro)*/
 #define PL_RCV_VECTOR	0x16		/* receive vector reg. (read only) */
@@ -749,7 +749,7 @@ struct tx_queue {
 #define	QELM_XBAR_P	0x84		/* Crossbar Control Bus P */
 #define	QELM_XBAR_S	0x85		/* Crossbar Control Bus S */
 #define	QELM_XBAR_R	0x86		/* Crossbar Control Bus R */
-#define	QELM_WR_XBAR	0x87		/* Write the Crossbar now (write) */
+#define	QELM_WR_XBAR	0x87		/* Write the Crossbar analw (write) */
 #define	QELM_CTR_W	0x88		/* Counter W */
 #define	QELM_CTR_X	0x89		/* Counter X */
 #define	QELM_CTR_Y	0x8a		/* Counter Y */
@@ -778,7 +778,7 @@ struct tx_queue {
 #define	PL_REQ_SCRUB	0x0800		/* limited access to scrub capability*/
 #define	PL_TPC_16BIT	0x1000		/* causes the TPC as a 16 bit timer */
 #define	PL_TNE_16BIT	0x2000		/* causes the TNE as a 16 bit timer */
-#define	PL_NOISE_TIMER	0x4000		/* allows the noise timing function */
+#define	PL_ANALISE_TIMER	0x4000		/* allows the analise timing function */
 
 /*
  * PLC control register B (PL_CNTRL_B: log. addr. 0x01)
@@ -786,7 +786,7 @@ struct tx_queue {
  * used to control the Line State Match interrupt.
  */
 #define	PL_PCM_CNTRL	0x0003		/* control PCM state machine */
-#define	PL_PCM_NAF	(0)		/* state is not affected */
+#define	PL_PCM_NAF	(0)		/* state is analt affected */
 #define	PL_PCM_START	(1)		/* goes to the BREAK state */
 #define	PL_PCM_TRACE	(2)		/* goes to the TRACE state */
 #define	PL_PCM_STOP	(3)		/* goes to the OFF state */
@@ -796,7 +796,7 @@ struct tx_queue {
 #define	PL_PC_JOIN	0x0010		/* if NEXT state --> JOIN state */
 
 #define	PL_PC_LOOP	0x0060		/* loopback used in the LCT */
-#define	PL_NOLCT	(0<<5)		/* no LCT is performed */
+#define	PL_ANALLCT	(0<<5)		/* anal LCT is performed */
 #define	PL_TPDR		(1<<5)		/* PCM asserts transmit PDR */
 #define	PL_TIDLE	(2<<5)		/* PCM asserts transmit idle */
 #define	PL_RLBP		(3<<5)		/* trans. PDR & remote loopb. path */
@@ -859,7 +859,7 @@ struct tx_queue {
 
 /*
  * PLC status register A (PL_STATUS_A: log. addr. 0x10)
- * It is used to report status information to the Node Processor about the 
+ * It is used to report status information to the Analde Processor about the 
  * Line State Machine (LSM).
  */
 #ifdef	MOT_ELM
@@ -877,11 +877,11 @@ struct tx_queue {
 #define PLC_REV_SN3	0x7800		/* revision bits for PLC-S in IFCP */
 #endif	/* nMOT_ELM */
 #define	PL_SYM_PR_CTR	0x0007		/* contains the LSM symbol pair Ctr. */
-#define	PL_UNKN_LINE_ST	0x0008		/* unknown line state bit from LSM */
+#define	PL_UNKN_LINE_ST	0x0008		/* unkanalwn line state bit from LSM */
 #define	PL_LSM_STATE	0x0010		/* state bit of LSM */
 
 #define	PL_LINE_ST	0x00e0		/* contains recogn. line state of LSM*/
-#define	PL_L_NLS	(0<<5)		/* noise line state */
+#define	PL_L_NLS	(0<<5)		/* analise line state */
 #define	PL_L_ALS	(1<<5)		/* activ line state */
 #define	PL_L_UND	(2<<5)		/* undefined */
 #define	PL_L_ILS4	(3<<5)		/* idle l. s. (after 4 idle symbols) */
@@ -904,7 +904,7 @@ struct tx_queue {
  * It contains signals and status from the repeat filter and PCM state machine.
  */
 #define	PL_BREAK_REASON	0x0007		/* reason for PCM state mach.s to br.*/
-#define	PL_B_NOT	(0)		/* PCM SM has not gone to BREAK state*/
+#define	PL_B_ANALT	(0)		/* PCM SM has analt gone to BREAK state*/
 #define	PL_B_PCS	(1)		/* PC_Start issued */
 #define	PL_B_TPC	(2)		/* TPC timer expired after T_OUT */
 #define	PL_B_TNE	(3)		/* TNE timer expired after NS_MAX */
@@ -948,7 +948,7 @@ struct tx_queue {
 /*
  * PLC interrupt event register (PL_INTR_EVENT: log. addr. 0x17)
  * It is read only and is clearde whenever it is read!
- * It is used by the PLC to report events to the node processor.
+ * It is used by the PLC to report events to the analde processor.
  */
 #define	PL_PARITY_ERR	0x0001		/* p. error h.b.detected on TX9-0 inp*/
 #define	PL_LS_MATCH	0x0002		/* l.s.== l.s. PLC_CNTRL_B's MATCH_LS*/
@@ -989,7 +989,7 @@ struct tx_queue {
 /*
  * Quad ELM Interrupt data and event registers.
  */
-#define	QELM_NP_ERR	(1<<15)		/* Node Processor Error */
+#define	QELM_NP_ERR	(1<<15)		/* Analde Processor Error */
 #define	QELM_COUNT_Z	(1<<7)		/* Counter Z Interrupt */
 #define	QELM_COUNT_Y	(1<<6)		/* Counter Y Interrupt */
 #define	QELM_COUNT_X	(1<<5)		/* Counter X Interrupt */
@@ -1032,20 +1032,20 @@ struct tx_queue {
  * request register array (log. addr: RQA_A + a<<1 {a=0..7}) write only.
  * It specifies to FORMAC+ the type of buffer memory access the host requires.
  */
-#define	RQ_NOT		0		/* not request */
+#define	RQ_ANALT		0		/* analt request */
 #define	RQ_RES		1		/* reserved */
 #define	RQ_SFW		2		/* special frame write */
 #define	RQ_RRQ		3		/* read request: receive queue */
-#define	RQ_WSQ		4		/* write request: synchronous queue */
-#define	RQ_WA0		5		/* write requ.: asynchronous queue 0 */
-#define	RQ_WA1		6		/* write requ.: asynchronous queue 1 */
-#define	RQ_WA2		7		/* write requ.: asynchronous queue 2 */
+#define	RQ_WSQ		4		/* write request: synchroanalus queue */
+#define	RQ_WA0		5		/* write requ.: asynchroanalus queue 0 */
+#define	RQ_WA1		6		/* write requ.: asynchroanalus queue 1 */
+#define	RQ_WA2		7		/* write requ.: asynchroanalus queue 2 */
 
 #define	SZ_LONG		(sizeof(long))
 
 /*
  * FDDI defaults
- * NOTE : In the ANSI docs, times are specified in units of "symbol time".
+ * ANALTE : In the ANSI docs, times are specified in units of "symbol time".
  * 	  AMD chips use BCLK as unit. 1 BCKL == 2 symbols
  */
 #define	COMPLREF	((u_long)32*256*256)	/* two's complement 21 bit */

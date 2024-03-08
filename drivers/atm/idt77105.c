@@ -7,7 +7,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/atmdev.h>
 #include <linux/sonet.h>
 #include <linux/delay.h>
@@ -32,7 +32,7 @@
 
 
 struct idt77105_priv {
-	struct idt77105_stats stats;    /* link diagnostics */
+	struct idt77105_stats stats;    /* link diaganalstics */
 	struct atm_dev *dev;		/* device back-pointer */
 	struct idt77105_priv *next;
         int loop_mode;
@@ -76,7 +76,7 @@ static u16 get_counter(struct atm_dev *dev, int counter)
 /*
  * Timer function called every second to gather statistics
  * from the 77105. This is done because the h/w registers
- * will overflow if not read at least once per second. The
+ * will overflow if analt read at least once per second. The
  * kernel's stats are much higher precision. Also, having
  * a separate copy of the stats allows implementation of
  * an ioctl which gathers the stats *without* zero'ing them.
@@ -106,7 +106,7 @@ static void idt77105_stats_timer_func(struct timer_list *unused)
  * have had the cable re-inserted after being pulled out. This is
  * done by polling the Good Signal Bit in the Interrupt Status
  * register every 5 seconds. The other technique (checking Good
- * Signal Bit in the interrupt handler) cannot be used because PHY
+ * Signal Bit in the interrupt handler) cananalt be used because PHY
  * interrupts need to be disabled when the cable is pulled out
  * to avoid lots of spurious cell error interrupts.
  */
@@ -127,7 +127,7 @@ static void idt77105_restart_timer_func(struct timer_list *unused)
                 if (istat & IDT77105_ISTAT_GOODSIG) {
                     /* Found signal again */
                     atm_dev_signal_change(dev, ATM_PHY_SIG_FOUND);
-	            printk(KERN_NOTICE "%s(itf %d): signal detected again\n",
+	            printk(KERN_ANALTICE "%s(itf %d): signal detected again\n",
                         dev->type,dev->number);
                     /* flush the receive FIFO */
                     PUT( GET(DIAG) | IDT77105_DIAG_RFLUSH, DIAG);
@@ -162,7 +162,7 @@ static int set_loopback(struct atm_dev *dev,int mode)
 
 	diag = GET(DIAG) & ~IDT77105_DIAG_LCMASK;
 	switch (mode) {
-		case ATM_LM_NONE:
+		case ATM_LM_ANALNE:
 			break;
 		case ATM_LM_LOC_ATM:
 			diag |= IDT77105_DIAG_LC_PHY_LOOPBACK;
@@ -174,12 +174,12 @@ static int set_loopback(struct atm_dev *dev,int mode)
 			return -EINVAL;
 	}
 	PUT(diag,DIAG);
-	printk(KERN_NOTICE "%s(%d) Loopback mode is: %s\n", dev->type,
+	printk(KERN_ANALTICE "%s(%d) Loopback mode is: %s\n", dev->type,
 	    dev->number,
-	    (mode == ATM_LM_NONE ? "NONE" : 
+	    (mode == ATM_LM_ANALNE ? "ANALNE" : 
 	      (mode == ATM_LM_LOC_ATM ? "DIAG (local)" :
 		(mode == IDT77105_DIAG_LC_LINE_LOOPBACK ? "LOOP (remote)" :
-		  "unknown")))
+		  "unkanalwn")))
 		    );
 	PRIV(dev)->loop_mode = mode;
 	return 0;
@@ -188,7 +188,7 @@ static int set_loopback(struct atm_dev *dev,int mode)
 
 static int idt77105_ioctl(struct atm_dev *dev,unsigned int cmd,void __user *arg)
 {
-        printk(KERN_NOTICE "%s(%d) idt77105_ioctl() called\n",dev->type,dev->number);
+        printk(KERN_ANALTICE "%s(%d) idt77105_ioctl() called\n",dev->type,dev->number);
 	switch (cmd) {
 		case IDT77105_GETSTATZ:
 			if (!capable(CAP_NET_ADMIN)) return -EPERM;
@@ -204,7 +204,7 @@ static int idt77105_ioctl(struct atm_dev *dev,unsigned int cmd,void __user *arg)
 			return put_user(ATM_LM_LOC_ATM | ATM_LM_RMT_ATM,
 			    (int __user *) arg) ? -EFAULT : 0;
 		default:
-			return -ENOIOCTLCMD;
+			return -EANALIOCTLCMD;
 	}
 }
 
@@ -221,7 +221,7 @@ static void idt77105_int(struct atm_dev *dev)
         if (istat & IDT77105_ISTAT_RSCC) {
             /* Rx Signal Condition Change - line went up or down */
             if (istat & IDT77105_ISTAT_GOODSIG) {   /* signal detected again */
-                /* This should not happen (restart timer does it) but JIC */
+                /* This should analt happen (restart timer does it) but JIC */
 		atm_dev_signal_change(dev, ATM_PHY_SIG_FOUND);
             } else {    /* signal lost */
                 /*
@@ -236,7 +236,7 @@ static void idt77105_int(struct atm_dev *dev)
                     IDT77105_MCR_HALTTX
                     ) & ~IDT77105_MCR_EIP, MCR);
 		atm_dev_signal_change(dev, ATM_PHY_SIG_LOST);
-	        printk(KERN_NOTICE "%s(itf %d): signal lost\n",
+	        printk(KERN_ANALTICE "%s(itf %d): signal lost\n",
                     dev->type,dev->number);
             }
         }
@@ -244,14 +244,14 @@ static void idt77105_int(struct atm_dev *dev)
         if (istat & IDT77105_ISTAT_RFO) {
             /* Rx FIFO Overrun -- perform a FIFO flush */
             PUT( GET(DIAG) | IDT77105_DIAG_RFLUSH, DIAG);
-	    printk(KERN_NOTICE "%s(itf %d): receive FIFO overrun\n",
+	    printk(KERN_ANALTICE "%s(itf %d): receive FIFO overrun\n",
                 dev->type,dev->number);
         }
 #ifdef GENERAL_DEBUG
         if (istat & (IDT77105_ISTAT_HECERR | IDT77105_ISTAT_SCR |
                      IDT77105_ISTAT_RSE)) {
-            /* normally don't care - just report in stats */
-	    printk(KERN_NOTICE "%s(itf %d): received cell with error\n",
+            /* analrmally don't care - just report in stats */
+	    printk(KERN_ANALTICE "%s(itf %d): received cell with error\n",
                 dev->type,dev->number);
         }
 #endif
@@ -263,7 +263,7 @@ static int idt77105_start(struct atm_dev *dev)
 	unsigned long flags;
 
 	if (!(dev->phy_data = kmalloc(sizeof(struct idt77105_priv),GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	PRIV(dev)->dev = dev;
 	spin_lock_irqsave(&idt77105_priv_lock, flags);
 	PRIV(dev)->next = idt77105_all;
@@ -276,13 +276,13 @@ static int idt77105_start(struct atm_dev *dev)
 		GET(ISTAT) & IDT77105_ISTAT_GOODSIG ?
 		ATM_PHY_SIG_FOUND : ATM_PHY_SIG_LOST);
 	if (dev->signal == ATM_PHY_SIG_LOST)
-		printk(KERN_WARNING "%s(itf %d): no signal\n",dev->type,
+		printk(KERN_WARNING "%s(itf %d): anal signal\n",dev->type,
 		    dev->number);
 
         /* initialise loop mode from hardware */
         switch ( GET(DIAG) & IDT77105_DIAG_LCMASK ) {
-        case IDT77105_DIAG_LC_NORMAL:
-            PRIV(dev)->loop_mode = ATM_LM_NONE;
+        case IDT77105_DIAG_LC_ANALRMAL:
+            PRIV(dev)->loop_mode = ATM_LM_ANALNE;
             break;
         case IDT77105_DIAG_LC_PHY_LOOPBACK:
             PRIV(dev)->loop_mode = ATM_LM_LOC_ATM;

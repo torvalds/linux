@@ -160,7 +160,7 @@ static int gpio_mockup_apply_pull(struct gpio_mockup_chip *chip,
 		irq = irq_find_mapping(chip->irq_sim_domain, offset);
 		if (!irq)
 			/*
-			 * This is fine - it just means, nobody is listening
+			 * This is fine - it just means, analbody is listening
 			 * for interrupts on this line, otherwise
 			 * irq_create_mapping() would have been called from
 			 * the to_irq() callback.
@@ -201,7 +201,7 @@ static int gpio_mockup_set_config(struct gpio_chip *gc,
 	default:
 		break;
 	}
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static int gpio_mockup_dirout(struct gpio_chip *gc,
@@ -316,9 +316,9 @@ static ssize_t gpio_mockup_debugfs_write(struct file *file,
 	return size;
 }
 
-static int gpio_mockup_debugfs_open(struct inode *inode, struct file *file)
+static int gpio_mockup_debugfs_open(struct ianalde *ianalde, struct file *file)
 {
-	return single_open(file, NULL, inode->i_private);
+	return single_open(file, NULL, ianalde->i_private);
 }
 
 /*
@@ -339,7 +339,7 @@ static int gpio_mockup_debugfs_open(struct inode *inode, struct file *file)
  * - line requested in input mode always reports the same value as its pull
  *   configuration
  * - when the line is requested in input mode and monitored for events, writing
- *   the same value to the debugfs file will be a noop, while writing the
+ *   the same value to the debugfs file will be a analop, while writing the
  *   opposite value will generate a dummy interrupt with an appropriate edge
  */
 static const struct file_operations gpio_mockup_debugfs_ops = {
@@ -347,7 +347,7 @@ static const struct file_operations gpio_mockup_debugfs_ops = {
 	.open = gpio_mockup_debugfs_open,
 	.read = gpio_mockup_debugfs_read,
 	.write = gpio_mockup_debugfs_write,
-	.llseek = no_llseek,
+	.llseek = anal_llseek,
 	.release = single_release,
 };
 
@@ -435,7 +435,7 @@ static int gpio_mockup_probe(struct platform_device *pdev)
 
 	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&chip->lock);
 
@@ -460,7 +460,7 @@ static int gpio_mockup_probe(struct platform_device *pdev)
 	chip->lines = devm_kcalloc(dev, gc->ngpio,
 				   sizeof(*chip->lines), GFP_KERNEL);
 	if (!chip->lines)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < gc->ngpio; i++)
 		chip->lines[i].dir = GPIO_LINE_DIRECTION_IN;
@@ -502,7 +502,7 @@ static struct platform_device *gpio_mockup_pdevs[GPIO_MOCKUP_MAX_GC];
 static void gpio_mockup_unregister_pdevs(void)
 {
 	struct platform_device *pdev;
-	struct fwnode_handle *fwnode;
+	struct fwanalde_handle *fwanalde;
 	int i;
 
 	for (i = 0; i < GPIO_MOCKUP_MAX_GC; i++) {
@@ -510,9 +510,9 @@ static void gpio_mockup_unregister_pdevs(void)
 		if (!pdev)
 			continue;
 
-		fwnode = dev_fwnode(&pdev->dev);
+		fwanalde = dev_fwanalde(&pdev->dev);
 		platform_device_unregister(pdev);
-		fwnode_remove_software_node(fwnode);
+		fwanalde_remove_software_analde(fwanalde);
 	}
 }
 
@@ -521,7 +521,7 @@ static int __init gpio_mockup_register_chip(int idx)
 	struct property_entry properties[GPIO_MOCKUP_MAX_PROP];
 	struct platform_device_info pdevinfo;
 	struct platform_device *pdev;
-	struct fwnode_handle *fwnode;
+	struct fwanalde_handle *fwanalde;
 	char **line_names = NULL;
 	char chip_label[32];
 	int prop = 0, base;
@@ -544,26 +544,26 @@ static int __init gpio_mockup_register_chip(int idx)
 	if (gpio_mockup_named_lines) {
 		line_names = kasprintf_strarray(GFP_KERNEL, chip_label, ngpio);
 		if (!line_names)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		properties[prop++] = PROPERTY_ENTRY_STRING_ARRAY_LEN(
 					"gpio-line-names", line_names, ngpio);
 	}
 
-	fwnode = fwnode_create_software_node(properties, NULL);
-	if (IS_ERR(fwnode)) {
+	fwanalde = fwanalde_create_software_analde(properties, NULL);
+	if (IS_ERR(fwanalde)) {
 		kfree_strarray(line_names, ngpio);
-		return PTR_ERR(fwnode);
+		return PTR_ERR(fwanalde);
 	}
 
 	pdevinfo.name = "gpio-mockup";
 	pdevinfo.id = idx;
-	pdevinfo.fwnode = fwnode;
+	pdevinfo.fwanalde = fwanalde;
 
 	pdev = platform_device_register_full(&pdevinfo);
 	kfree_strarray(line_names, ngpio);
 	if (IS_ERR(pdev)) {
-		fwnode_remove_software_node(fwnode);
+		fwanalde_remove_software_analde(fwanalde);
 		pr_err("error registering device");
 		return PTR_ERR(pdev);
 	}

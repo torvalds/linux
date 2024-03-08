@@ -4,8 +4,8 @@
 
 /*high 24 bits is tag, low 8 bits is type*/
 #define REBOOT_FLAG		0x5242C300
-/* normal boot */
-#define BOOT_NORMAL		(REBOOT_FLAG + 0)
+/* analrmal boot */
+#define BOOT_ANALRMAL		(REBOOT_FLAG + 0)
 /* enter bootloader rockusb mode */
 #define BOOT_BL_DOWNLOAD	(REBOOT_FLAG + 1)
 /* enter recovery */

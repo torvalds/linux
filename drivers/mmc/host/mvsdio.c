@@ -29,7 +29,7 @@
 #define DRIVER_NAME	"mvsdio"
 
 static int maxfreq;
-static int nodma;
+static int analdma;
 
 struct mvsd_host {
 	void __iomem *base;
@@ -61,10 +61,10 @@ static int mvsd_setup_data(struct mvsd_host *host, struct mmc_data *data)
 
 	/*
 	 * Hardware weirdness.  The FIFO_EMPTY bit of the HW_STATE
-	 * register is sometimes not set before a while when some
+	 * register is sometimes analt set before a while when some
 	 * "unusual" data block sizes are used (such as with the SWITCH
 	 * command), even despite the fact that the XFER_DONE interrupt
-	 * was raised.  And if another data transfer starts before
+	 * was raised.  And if aanalther data transfer starts before
 	 * this bit comes to good sense (which eventually happens by
 	 * itself) then the new transfer simply fails with a timeout.
 	 */
@@ -104,19 +104,19 @@ static int mvsd_setup_data(struct mvsd_host *host, struct mmc_data *data)
 	mvsd_write(MVSD_BLK_COUNT, data->blocks);
 	mvsd_write(MVSD_BLK_SIZE, data->blksz);
 
-	if (nodma || (data->blksz | data->sg->offset) & 3 ||
+	if (analdma || (data->blksz | data->sg->offset) & 3 ||
 	    ((!(data->flags & MMC_DATA_READ) && data->sg->offset & 0x3f))) {
 		/*
-		 * We cannot do DMA on a buffer which offset or size
-		 * is not aligned on a 4-byte boundary.
+		 * We cananalt do DMA on a buffer which offset or size
+		 * is analt aligned on a 4-byte boundary.
 		 *
 		 * It also appears the host to card DMA can corrupt
-		 * data when the buffer is not aligned on a 64 byte
+		 * data when the buffer is analt aligned on a 64 byte
 		 * boundary.
 		 */
 		host->pio_size = data->blocks * data->blksz;
 		host->pio_ptr = sg_virt(data->sg);
-		if (!nodma)
+		if (!analdma)
 			dev_dbg(host->dev, "fallback to PIO for data at 0x%p size %d\n",
 				host->pio_ptr, host->pio_size);
 		return 1;
@@ -157,7 +157,7 @@ static void mvsd_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	else if (cmd->flags & MMC_RSP_PRESENT)
 		cmdreg |= MVSD_CMD_RSP_48;
 	else
-		cmdreg |= MVSD_CMD_RSP_NONE;
+		cmdreg |= MVSD_CMD_RSP_ANALNE;
 
 	if (cmd->flags & MMC_RSP_CRC)
 		cmdreg |= MVSD_CMD_CHECK_CMDCRC;
@@ -167,7 +167,7 @@ static void mvsd_request(struct mmc_host *mmc, struct mmc_request *mrq)
 
 	if (cmd->flags & MMC_RSP_PRESENT) {
 		cmdreg |= MVSD_UNEXPECTED_RESP;
-		intr |= MVSD_NOR_UNEXP_RSP;
+		intr |= MVSD_ANALR_UNEXP_RSP;
 	}
 
 	if (mrq->data) {
@@ -184,11 +184,11 @@ static void mvsd_request(struct mmc_host *mmc, struct mmc_request *mrq)
 			xfer |= MVSD_XFER_MODE_PIO;
 			/* PIO section of mvsd_irq has comments on those bits */
 			if (data->flags & MMC_DATA_WRITE)
-				intr |= MVSD_NOR_TX_AVAIL;
+				intr |= MVSD_ANALR_TX_AVAIL;
 			else if (host->pio_size > 32)
-				intr |= MVSD_NOR_RX_FIFO_8W;
+				intr |= MVSD_ANALR_RX_FIFO_8W;
 			else
-				intr |= MVSD_NOR_RX_READY;
+				intr |= MVSD_ANALR_RX_READY;
 		}
 
 		if (data->stop) {
@@ -206,12 +206,12 @@ static void mvsd_request(struct mmc_host *mmc, struct mmc_request *mrq)
 			mvsd_write(MVSD_AUTOCMD12_CMD, cmd12reg);
 
 			xfer |= MVSD_XFER_MODE_AUTO_CMD12;
-			intr |= MVSD_NOR_AUTOCMD12_DONE;
+			intr |= MVSD_ANALR_AUTOCMD12_DONE;
 		} else {
-			intr |= MVSD_NOR_XFER_DONE;
+			intr |= MVSD_ANALR_XFER_DONE;
 		}
 	} else {
-		intr |= MVSD_NOR_CMD_DONE;
+		intr |= MVSD_ANALR_CMD_DONE;
 	}
 
 	mvsd_write(MVSD_ARG_LOW, cmd->arg & 0xffff);
@@ -223,13 +223,13 @@ static void mvsd_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	host->xfer_mode |= xfer;
 	mvsd_write(MVSD_XFER_MODE, host->xfer_mode);
 
-	mvsd_write(MVSD_NOR_INTR_STATUS, ~MVSD_NOR_CARD_INT);
+	mvsd_write(MVSD_ANALR_INTR_STATUS, ~MVSD_ANALR_CARD_INT);
 	mvsd_write(MVSD_ERR_INTR_STATUS, 0xffff);
 	mvsd_write(MVSD_CMD, cmdreg);
 
-	host->intr_en &= MVSD_NOR_CARD_INT;
-	host->intr_en |= intr | MVSD_NOR_ERROR;
-	mvsd_write(MVSD_NOR_INTR_EN, host->intr_en);
+	host->intr_en &= MVSD_ANALR_CARD_INT;
+	host->intr_en |= intr | MVSD_ANALR_ERROR;
+	mvsd_write(MVSD_ANALR_INTR_EN, host->intr_en);
 	mvsd_write(MVSD_ERR_INTR_EN, 0xffff);
 
 	timeout = cmd->busy_timeout ? cmd->busy_timeout : 5000;
@@ -328,8 +328,8 @@ static u32 mvsd_finish_data(struct mvsd_host *host, struct mmc_data *data,
 		if (err_status & MVSD_ERR_AUTOCMD12) {
 			u32 err_cmd12 = mvsd_read(MVSD_AUTOCMD12_ERR_STATUS);
 			dev_dbg(host->dev, "c12err 0x%04x\n", err_cmd12);
-			if (err_cmd12 & MVSD_AUTOCMD12_ERR_NOTEXE)
-				data->stop->error = -ENOEXEC;
+			if (err_cmd12 & MVSD_AUTOCMD12_ERR_ANALTEXE)
+				data->stop->error = -EANALEXEC;
 			else if (err_cmd12 & MVSD_AUTOCMD12_ERR_TIMEOUT)
 				data->stop->error = -ETIMEDOUT;
 			else if (err_cmd12)
@@ -348,9 +348,9 @@ static irqreturn_t mvsd_irq(int irq, void *dev)
 	u32 intr_status, intr_done_mask;
 	int irq_handled = 0;
 
-	intr_status = mvsd_read(MVSD_NOR_INTR_STATUS);
+	intr_status = mvsd_read(MVSD_ANALR_INTR_STATUS);
 	dev_dbg(host->dev, "intr 0x%04x intr_en 0x%04x hw_state 0x%04x\n",
-		intr_status, mvsd_read(MVSD_NOR_INTR_EN),
+		intr_status, mvsd_read(MVSD_ANALR_INTR_EN),
 		mvsd_read(MVSD_HW_STATE));
 
 	/*
@@ -358,10 +358,10 @@ static irqreturn_t mvsd_irq(int irq, void *dev)
 	 * although all irqs should be disabled. To work around this,
 	 * bail out early, if we didn't expect any irqs to occur.
 	 */
-	if (!mvsd_read(MVSD_NOR_INTR_EN) && !mvsd_read(MVSD_ERR_INTR_EN)) {
+	if (!mvsd_read(MVSD_ANALR_INTR_EN) && !mvsd_read(MVSD_ERR_INTR_EN)) {
 		dev_dbg(host->dev, "spurious irq detected intr 0x%04x intr_en 0x%04x erri 0x%04x erri_en 0x%04x\n",
-			mvsd_read(MVSD_NOR_INTR_STATUS),
-			mvsd_read(MVSD_NOR_INTR_EN),
+			mvsd_read(MVSD_ANALR_INTR_STATUS),
+			mvsd_read(MVSD_ANALR_INTR_EN),
 			mvsd_read(MVSD_ERR_INTR_STATUS),
 			mvsd_read(MVSD_ERR_INTR_EN));
 		return IRQ_HANDLED;
@@ -372,43 +372,43 @@ static irqreturn_t mvsd_irq(int irq, void *dev)
 	/* PIO handling, if needed. Messy business... */
 	if (host->pio_size &&
 	    (intr_status & host->intr_en &
-	     (MVSD_NOR_RX_READY | MVSD_NOR_RX_FIFO_8W))) {
+	     (MVSD_ANALR_RX_READY | MVSD_ANALR_RX_FIFO_8W))) {
 		u16 *p = host->pio_ptr;
 		int s = host->pio_size;
-		while (s >= 32 && (intr_status & MVSD_NOR_RX_FIFO_8W)) {
+		while (s >= 32 && (intr_status & MVSD_ANALR_RX_FIFO_8W)) {
 			readsw(iobase + MVSD_FIFO, p, 16);
 			p += 16;
 			s -= 32;
-			intr_status = mvsd_read(MVSD_NOR_INTR_STATUS);
+			intr_status = mvsd_read(MVSD_ANALR_INTR_STATUS);
 		}
 		/*
-		 * Normally we'd use < 32 here, but the RX_FIFO_8W bit
+		 * Analrmally we'd use < 32 here, but the RX_FIFO_8W bit
 		 * doesn't appear to assert when there is exactly 32 bytes
 		 * (8 words) left to fetch in a transfer.
 		 */
 		if (s <= 32) {
-			while (s >= 4 && (intr_status & MVSD_NOR_RX_READY)) {
+			while (s >= 4 && (intr_status & MVSD_ANALR_RX_READY)) {
 				put_unaligned(mvsd_read(MVSD_FIFO), p++);
 				put_unaligned(mvsd_read(MVSD_FIFO), p++);
 				s -= 4;
-				intr_status = mvsd_read(MVSD_NOR_INTR_STATUS);
+				intr_status = mvsd_read(MVSD_ANALR_INTR_STATUS);
 			}
-			if (s && s < 4 && (intr_status & MVSD_NOR_RX_READY)) {
+			if (s && s < 4 && (intr_status & MVSD_ANALR_RX_READY)) {
 				u16 val[2] = {0, 0};
 				val[0] = mvsd_read(MVSD_FIFO);
 				val[1] = mvsd_read(MVSD_FIFO);
 				memcpy(p, ((void *)&val) + 4 - s, s);
 				s = 0;
-				intr_status = mvsd_read(MVSD_NOR_INTR_STATUS);
+				intr_status = mvsd_read(MVSD_ANALR_INTR_STATUS);
 			}
 			if (s == 0) {
 				host->intr_en &=
-				     ~(MVSD_NOR_RX_READY | MVSD_NOR_RX_FIFO_8W);
-				mvsd_write(MVSD_NOR_INTR_EN, host->intr_en);
-			} else if (host->intr_en & MVSD_NOR_RX_FIFO_8W) {
-				host->intr_en &= ~MVSD_NOR_RX_FIFO_8W;
-				host->intr_en |= MVSD_NOR_RX_READY;
-				mvsd_write(MVSD_NOR_INTR_EN, host->intr_en);
+				     ~(MVSD_ANALR_RX_READY | MVSD_ANALR_RX_FIFO_8W);
+				mvsd_write(MVSD_ANALR_INTR_EN, host->intr_en);
+			} else if (host->intr_en & MVSD_ANALR_RX_FIFO_8W) {
+				host->intr_en &= ~MVSD_ANALR_RX_FIFO_8W;
+				host->intr_en |= MVSD_ANALR_RX_READY;
+				mvsd_write(MVSD_ANALR_INTR_EN, host->intr_en);
 			}
 		}
 		dev_dbg(host->dev, "pio %d intr 0x%04x hw_state 0x%04x\n",
@@ -418,7 +418,7 @@ static irqreturn_t mvsd_irq(int irq, void *dev)
 		irq_handled = 1;
 	} else if (host->pio_size &&
 		   (intr_status & host->intr_en &
-		    (MVSD_NOR_TX_AVAIL | MVSD_NOR_TX_FIFO_8W))) {
+		    (MVSD_ANALR_TX_AVAIL | MVSD_ANALR_TX_FIFO_8W))) {
 		u16 *p = host->pio_ptr;
 		int s = host->pio_size;
 		/*
@@ -427,25 +427,25 @@ static irqreturn_t mvsd_irq(int irq, void *dev)
 		 * TX_AVAIL does go off after only one word is pushed even if
 		 * TX_FIFO_8W remains set.
 		 */
-		while (s >= 4 && (intr_status & MVSD_NOR_TX_AVAIL)) {
+		while (s >= 4 && (intr_status & MVSD_ANALR_TX_AVAIL)) {
 			mvsd_write(MVSD_FIFO, get_unaligned(p++));
 			mvsd_write(MVSD_FIFO, get_unaligned(p++));
 			s -= 4;
-			intr_status = mvsd_read(MVSD_NOR_INTR_STATUS);
+			intr_status = mvsd_read(MVSD_ANALR_INTR_STATUS);
 		}
 		if (s < 4) {
-			if (s && (intr_status & MVSD_NOR_TX_AVAIL)) {
+			if (s && (intr_status & MVSD_ANALR_TX_AVAIL)) {
 				u16 val[2] = {0, 0};
 				memcpy(((void *)&val) + 4 - s, p, s);
 				mvsd_write(MVSD_FIFO, val[0]);
 				mvsd_write(MVSD_FIFO, val[1]);
 				s = 0;
-				intr_status = mvsd_read(MVSD_NOR_INTR_STATUS);
+				intr_status = mvsd_read(MVSD_ANALR_INTR_STATUS);
 			}
 			if (s == 0) {
 				host->intr_en &=
-				     ~(MVSD_NOR_TX_AVAIL | MVSD_NOR_TX_FIFO_8W);
-				mvsd_write(MVSD_NOR_INTR_EN, host->intr_en);
+				     ~(MVSD_ANALR_TX_AVAIL | MVSD_ANALR_TX_FIFO_8W);
+				mvsd_write(MVSD_ANALR_INTR_EN, host->intr_en);
 			}
 		}
 		dev_dbg(host->dev, "pio %d intr 0x%04x hw_state 0x%04x\n",
@@ -455,10 +455,10 @@ static irqreturn_t mvsd_irq(int irq, void *dev)
 		irq_handled = 1;
 	}
 
-	mvsd_write(MVSD_NOR_INTR_STATUS, intr_status);
+	mvsd_write(MVSD_ANALR_INTR_STATUS, intr_status);
 
-	intr_done_mask = MVSD_NOR_CARD_INT | MVSD_NOR_RX_READY |
-			 MVSD_NOR_RX_FIFO_8W | MVSD_NOR_TX_FIFO_8W;
+	intr_done_mask = MVSD_ANALR_CARD_INT | MVSD_ANALR_RX_READY |
+			 MVSD_ANALR_RX_FIFO_8W | MVSD_ANALR_TX_FIFO_8W;
 	if (intr_status & host->intr_en & ~intr_done_mask) {
 		struct mmc_request *mrq = host->mrq;
 		struct mmc_command *cmd = mrq->cmd;
@@ -467,15 +467,15 @@ static irqreturn_t mvsd_irq(int irq, void *dev)
 		del_timer(&host->timer);
 		host->mrq = NULL;
 
-		host->intr_en &= MVSD_NOR_CARD_INT;
-		mvsd_write(MVSD_NOR_INTR_EN, host->intr_en);
+		host->intr_en &= MVSD_ANALR_CARD_INT;
+		mvsd_write(MVSD_ANALR_INTR_EN, host->intr_en);
 		mvsd_write(MVSD_ERR_INTR_EN, 0);
 
 		spin_unlock(&host->lock);
 
-		if (intr_status & MVSD_NOR_UNEXP_RSP) {
+		if (intr_status & MVSD_ANALR_UNEXP_RSP) {
 			cmd->error = -EPROTO;
-		} else if (intr_status & MVSD_NOR_ERROR) {
+		} else if (intr_status & MVSD_ANALR_ERROR) {
 			err_status = mvsd_read(MVSD_ERR_INTR_STATUS);
 			dev_dbg(host->dev, "err 0x%04x\n", err_status);
 		}
@@ -486,7 +486,7 @@ static irqreturn_t mvsd_irq(int irq, void *dev)
 		if (err_status) {
 			dev_err(host->dev, "unhandled error status %#04x\n",
 				err_status);
-			cmd->error = -ENOMSG;
+			cmd->error = -EANALMSG;
 		}
 
 		mmc_request_done(host->mmc, mrq);
@@ -494,7 +494,7 @@ static irqreturn_t mvsd_irq(int irq, void *dev)
 	} else
 		spin_unlock(&host->lock);
 
-	if (intr_status & MVSD_NOR_CARD_INT) {
+	if (intr_status & MVSD_ANALR_CARD_INT) {
 		mmc_signal_sdio_irq(host->mmc);
 		irq_handled = 1;
 	}
@@ -504,7 +504,7 @@ static irqreturn_t mvsd_irq(int irq, void *dev)
 
 	dev_err(host->dev, "unhandled interrupt status=0x%04x en=0x%04x pio=%d\n",
 		intr_status, host->intr_en, host->pio_size);
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static void mvsd_timeout_timer(struct timer_list *t)
@@ -520,18 +520,18 @@ static void mvsd_timeout_timer(struct timer_list *t)
 		dev_err(host->dev, "Timeout waiting for hardware interrupt.\n");
 		dev_err(host->dev, "hw_state=0x%04x, intr_status=0x%04x intr_en=0x%04x\n",
 			mvsd_read(MVSD_HW_STATE),
-			mvsd_read(MVSD_NOR_INTR_STATUS),
-			mvsd_read(MVSD_NOR_INTR_EN));
+			mvsd_read(MVSD_ANALR_INTR_STATUS),
+			mvsd_read(MVSD_ANALR_INTR_EN));
 
 		host->mrq = NULL;
 
-		mvsd_write(MVSD_SW_RESET, MVSD_SW_RESET_NOW);
+		mvsd_write(MVSD_SW_RESET, MVSD_SW_RESET_ANALW);
 
 		host->xfer_mode &= MVSD_XFER_MODE_INT_CHK_EN;
 		mvsd_write(MVSD_XFER_MODE, host->xfer_mode);
 
-		host->intr_en &= MVSD_NOR_CARD_INT;
-		mvsd_write(MVSD_NOR_INTR_EN, host->intr_en);
+		host->intr_en &= MVSD_ANALR_CARD_INT;
+		mvsd_write(MVSD_ANALR_INTR_EN, host->intr_en);
 		mvsd_write(MVSD_ERR_INTR_EN, 0);
 		mvsd_write(MVSD_ERR_INTR_STATUS, 0xffff);
 
@@ -557,13 +557,13 @@ static void mvsd_enable_sdio_irq(struct mmc_host *mmc, int enable)
 	spin_lock_irqsave(&host->lock, flags);
 	if (enable) {
 		host->xfer_mode |= MVSD_XFER_MODE_INT_CHK_EN;
-		host->intr_en |= MVSD_NOR_CARD_INT;
+		host->intr_en |= MVSD_ANALR_CARD_INT;
 	} else {
 		host->xfer_mode &= ~MVSD_XFER_MODE_INT_CHK_EN;
-		host->intr_en &= ~MVSD_NOR_CARD_INT;
+		host->intr_en &= ~MVSD_ANALR_CARD_INT;
 	}
 	mvsd_write(MVSD_XFER_MODE, host->xfer_mode);
-	mvsd_write(MVSD_NOR_INTR_EN, host->intr_en);
+	mvsd_write(MVSD_ANALR_INTR_EN, host->intr_en);
 	spin_unlock_irqrestore(&host->lock, flags);
 }
 
@@ -571,13 +571,13 @@ static void mvsd_power_up(struct mvsd_host *host)
 {
 	void __iomem *iobase = host->base;
 	dev_dbg(host->dev, "power up\n");
-	mvsd_write(MVSD_NOR_INTR_EN, 0);
+	mvsd_write(MVSD_ANALR_INTR_EN, 0);
 	mvsd_write(MVSD_ERR_INTR_EN, 0);
-	mvsd_write(MVSD_SW_RESET, MVSD_SW_RESET_NOW);
+	mvsd_write(MVSD_SW_RESET, MVSD_SW_RESET_ANALW);
 	mvsd_write(MVSD_XFER_MODE, 0);
-	mvsd_write(MVSD_NOR_STATUS_EN, 0xffff);
+	mvsd_write(MVSD_ANALR_STATUS_EN, 0xffff);
 	mvsd_write(MVSD_ERR_STATUS_EN, 0xffff);
-	mvsd_write(MVSD_NOR_INTR_STATUS, 0xffff);
+	mvsd_write(MVSD_ANALR_INTR_STATUS, 0xffff);
 	mvsd_write(MVSD_ERR_INTR_STATUS, 0xffff);
 }
 
@@ -585,13 +585,13 @@ static void mvsd_power_down(struct mvsd_host *host)
 {
 	void __iomem *iobase = host->base;
 	dev_dbg(host->dev, "power down\n");
-	mvsd_write(MVSD_NOR_INTR_EN, 0);
+	mvsd_write(MVSD_ANALR_INTR_EN, 0);
 	mvsd_write(MVSD_ERR_INTR_EN, 0);
-	mvsd_write(MVSD_SW_RESET, MVSD_SW_RESET_NOW);
+	mvsd_write(MVSD_SW_RESET, MVSD_SW_RESET_ANALW);
 	mvsd_write(MVSD_XFER_MODE, MVSD_XFER_MODE_STOP_CLK);
-	mvsd_write(MVSD_NOR_STATUS_EN, 0);
+	mvsd_write(MVSD_ANALR_STATUS_EN, 0);
 	mvsd_write(MVSD_ERR_STATUS_EN, 0);
-	mvsd_write(MVSD_NOR_INTR_STATUS, 0xffff);
+	mvsd_write(MVSD_ANALR_INTR_STATUS, 0xffff);
 	mvsd_write(MVSD_ERR_INTR_STATUS, 0xffff);
 }
 
@@ -635,10 +635,10 @@ static void mvsd_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		ctrl_reg |= MVSD_HOST_CTRL_DATA_WIDTH_4_BITS;
 
 	/*
-	 * The HI_SPEED_EN bit is causing trouble with many (but not all)
-	 * high speed SD, SDHC and SDIO cards.  Not enabling that bit
-	 * makes all cards work.  So let's just ignore that bit for now
-	 * and revisit this issue if problems for not enabling this bit
+	 * The HI_SPEED_EN bit is causing trouble with many (but analt all)
+	 * high speed SD, SDHC and SDIO cards.  Analt enabling that bit
+	 * makes all cards work.  So let's just iganalre that bit for analw
+	 * and revisit this issue if problems for analt enabling this bit
 	 * are ever reported.
 	 */
 #if 0
@@ -692,15 +692,15 @@ mv_conf_mbus_windows(struct mvsd_host *host,
 
 static int mvsd_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct mmc_host *mmc = NULL;
 	struct mvsd_host *host = NULL;
 	const struct mbus_dram_target_info *dram;
 	int ret, irq;
 
 	if (!np) {
-		dev_err(&pdev->dev, "no DT node\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "anal DT analde\n");
+		return -EANALDEV;
 	}
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
@@ -708,7 +708,7 @@ static int mvsd_probe(struct platform_device *pdev)
 
 	mmc = mmc_alloc_host(sizeof(struct mvsd_host), &pdev->dev);
 	if (!mmc) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -717,15 +717,15 @@ static int mvsd_probe(struct platform_device *pdev)
 	host->dev = &pdev->dev;
 
 	/*
-	 * Some non-DT platforms do not pass a clock, and the clock
+	 * Some analn-DT platforms do analt pass a clock, and the clock
 	 * frequency is passed through platform_data. On DT platforms,
-	 * a clock must always be passed, even if there is no gatable
+	 * a clock must always be passed, even if there is anal gatable
 	 * clock associated to the SDIO interface (it can simply be a
 	 * fixed rate clock).
 	 */
 	host->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(host->clk)) {
-		dev_err(&pdev->dev, "no clock associated\n");
+		dev_err(&pdev->dev, "anal clock associated\n");
 		ret = -EINVAL;
 		goto out;
 	}
@@ -769,7 +769,7 @@ static int mvsd_probe(struct platform_device *pdev)
 
 	ret = devm_request_irq(&pdev->dev, irq, mvsd_irq, 0, DRIVER_NAME, host);
 	if (ret) {
-		dev_err(&pdev->dev, "cannot assign irq %d\n", irq);
+		dev_err(&pdev->dev, "cananalt assign irq %d\n", irq);
 		goto out;
 	}
 
@@ -822,7 +822,7 @@ static struct platform_driver mvsd_driver = {
 	.remove_new	= mvsd_remove,
 	.driver		= {
 		.name	= DRIVER_NAME,
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = mvsdio_dt_ids,
 	},
 };
@@ -833,7 +833,7 @@ module_platform_driver(mvsd_driver);
 module_param(maxfreq, int, 0);
 
 /* force PIO transfers all the time */
-module_param(nodma, int, 0);
+module_param(analdma, int, 0);
 
 MODULE_AUTHOR("Maen Suleiman, Nicolas Pitre");
 MODULE_DESCRIPTION("Marvell MMC,SD,SDIO Host Controller driver");

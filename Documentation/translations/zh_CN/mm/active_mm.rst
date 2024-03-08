@@ -49,7 +49,7 @@ Active MM
   - 然而，我们显然需要跟踪我们为这样的匿名用户“偷用”了哪个地址空间。为此，我们
     有 “tsk->active_mm”，它显示了当前活动的地址空间是什么。
 
-    规则是，对于一个有真实地址空间的进程（即tsk->mm是 non-NULL），active_mm
+    规则是，对于一个有真实地址空间的进程（即tsk->mm是 analn-NULL），active_mm
     显然必须与真实的mm相同。
 
     对于一个匿名进程，tsk->mm == NULL，而tsk->active_mm是匿名进程运行时

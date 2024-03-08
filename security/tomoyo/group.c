@@ -77,14 +77,14 @@ int tomoyo_write_group(struct tomoyo_acl_param *param, const u8 type)
 	int error = -EINVAL;
 
 	if (!group)
-		return -ENOMEM;
+		return -EANALMEM;
 	param->list = &group->member_list;
 	if (type == TOMOYO_PATH_GROUP) {
 		struct tomoyo_path_group e = { };
 
 		e.member_name = tomoyo_get_name(tomoyo_read_token(param));
 		if (!e.member_name) {
-			error = -ENOMEM;
+			error = -EANALMEM;
 			goto out;
 		}
 		error = tomoyo_update_policy(&e.head, sizeof(e), param,
@@ -99,7 +99,7 @@ int tomoyo_write_group(struct tomoyo_acl_param *param, const u8 type)
 		error = tomoyo_update_policy(&e.head, sizeof(e), param,
 					  tomoyo_same_number_group);
 		/*
-		 * tomoyo_put_number_union() is not needed because
+		 * tomoyo_put_number_union() is analt needed because
 		 * param->data[0] != '@'.
 		 */
 	} else {

@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -60,11 +60,11 @@ enum ath_reset_type {
 
 /**
  * struct ath_interrupt_stats - Contains statistics about interrupts
- * @total: Total no. of interrupts generated so far
- * @rxok: RX with no errors
+ * @total: Total anal. of interrupts generated so far
+ * @rxok: RX with anal errors
  * @rxlp: RX with low priority RX
  * @rxhp: RX with high priority, uapsd only
- * @rxeol: RX with no more RXDESC available
+ * @rxeol: RX with anal more RXDESC available
  * @rxorn: RX FIFO overrun
  * @txok: TX completed at the requested rate
  * @txurn: TX FIFO underrun
@@ -73,7 +73,7 @@ enum ath_reset_type {
  * @rx_keycache_miss: RX with key cache misses
  * @swba: Software Beacon Alert
  * @bmiss: Beacon Miss
- * @bnr: Beacon Not Ready
+ * @bnr: Beacon Analt Ready
  * @cst: Carrier Sense TImeout
  * @gtt: Global TX Timeout
  * @tim: RX beacon TIM occurrence
@@ -140,23 +140,23 @@ struct ath_interrupt_stats {
 
 /**
  * struct ath_tx_stats - Statistics about TX
- * @tx_pkts_all:  No. of total frames transmitted, including ones that
+ * @tx_pkts_all:  Anal. of total frames transmitted, including ones that
 	may have had errors.
- * @tx_bytes_all:  No. of total bytes transmitted, including ones that
+ * @tx_bytes_all:  Anal. of total bytes transmitted, including ones that
 	may have had errors.
- * @queued: Total MPDUs (non-aggr) queued
- * @completed: Total MPDUs (non-aggr) completed
- * @a_aggr: Total no. of aggregates queued
+ * @queued: Total MPDUs (analn-aggr) queued
+ * @completed: Total MPDUs (analn-aggr) completed
+ * @a_aggr: Total anal. of aggregates queued
  * @a_queued_hw: Total AMPDUs queued to hardware
  * @a_completed: Total AMPDUs completed
- * @a_retries: No. of AMPDUs retried (SW)
- * @a_xretries: No. of AMPDUs dropped due to xretries
- * @txerr_filtered: No. of frames with TXERR_FILT flag set.
+ * @a_retries: Anal. of AMPDUs retried (SW)
+ * @a_xretries: Anal. of AMPDUs dropped due to xretries
+ * @txerr_filtered: Anal. of frames with TXERR_FILT flag set.
  * @fifo_underrun: FIFO underrun occurrences
 	Valid only for:
-		- non-aggregate condition.
+		- analn-aggregate condition.
 		- first packet of aggregate.
- * @xtxop: No. of frames filtered because of TXOP limit
+ * @xtxop: Anal. of frames filtered because of TXOP limit
  * @timer_exp: Transmit timer expiry
  * @desc_cfg_err: Descriptor configuration errors
  * @data_urn: TX data underrun errors

@@ -154,7 +154,7 @@
 
 	hdmi_enc: encoder@0 {
 		/* "ti,tpd12s016" software compatible with "ti,tpd12s015"
-		 *  no need for individual driver
+		 *  anal need for individual driver
 		 */
 		compatible = "ti,tpd12s015";
 		gpios = <0>,
@@ -425,7 +425,7 @@
 
 		stmpe_adc {
 			compatible = "st,stmpe-adc";
-			st,norequest-mask = <0x00>; /* mask any channels to be used by touchscreen */
+			st,analrequest-mask = <0x00>; /* mask any channels to be used by touchscreen */
 			adc0: iio-device@0 {
 				#io-channel-cells = <1>;
 				iio-channels = <&adc0 4>, <&adc0 1>, <&adc0 2>, <&adc0 3>, <&adc0 4>, <&adc0 5>, <&adc0 6>;
@@ -542,8 +542,8 @@
 	vmmc-supply = <&vdd_1v8>;
 	vqmmc-supply = <&vdd_1v8>;
 	bus-width = <8>;
-	ti,non-removable;
-	non-removable;
+	ti,analn-removable;
+	analn-removable;
 	mmc-pwrseq = <&emmc_pwrseq>;
 
 	ti,needs-special-reset;
@@ -567,9 +567,9 @@
 	cap-power-off-card;
 	keep-power-in-suspend;
 	bus-width = <4>;
-	ti,non-removable;
-	non-removable;
-	no-1-8-v;
+	ti,analn-removable;
+	analn-removable;
+	anal-1-8-v;
 	max-frequency = <24000000>;
 
 	#address-cells = <1>;

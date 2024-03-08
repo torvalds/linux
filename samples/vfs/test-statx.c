@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /* Test the statx() system call.
  *
- * Note that the output of this program is intended to look like the output of
+ * Analte that the output of this program is intended to look like the output of
  * /bin/stat where possible.
  *
  * Copyright (C) 2015 Red Hat, Inc. All Rights Reserved.
@@ -15,7 +15,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <ctype.h>
-#include <errno.h>
+#include <erranal.h>
 #include <time.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
@@ -96,17 +96,17 @@ static void dump_statx(struct statx *stx)
 		case S_IFLNK:	printf("  symbolic link\n");		ft = 'l'; break;
 		case S_IFSOCK:	printf("  socket\n");			ft = 's'; break;
 		default:
-			printf(" unknown type (%o)\n", stx->stx_mode & S_IFMT);
+			printf(" unkanalwn type (%o)\n", stx->stx_mode & S_IFMT);
 			break;
 		}
 	} else {
-		printf(" no type\n");
+		printf(" anal type\n");
 	}
 
-	sprintf(buffer, "%02x:%02x", stx->stx_dev_major, stx->stx_dev_minor);
+	sprintf(buffer, "%02x:%02x", stx->stx_dev_major, stx->stx_dev_mianalr);
 	printf("Device: %-15s", buffer);
-	if (stx->stx_mask & STATX_INO)
-		printf(" Inode: %-11llu", (unsigned long long) stx->stx_ino);
+	if (stx->stx_mask & STATX_IANAL)
+		printf(" Ianalde: %-11llu", (unsigned long long) stx->stx_ianal);
 	if (stx->stx_mask & STATX_NLINK)
 		printf(" Links: %-5u", stx->stx_nlink);
 	if (stx->stx_mask & STATX_TYPE) {
@@ -114,7 +114,7 @@ static void dump_statx(struct statx *stx)
 		case S_IFBLK:
 		case S_IFCHR:
 			printf(" Device type: %u,%u",
-			       stx->stx_rdev_major, stx->stx_rdev_minor);
+			       stx->stx_rdev_major, stx->stx_rdev_mianalr);
 			break;
 		}
 	}
@@ -172,11 +172,11 @@ static void dump_statx(struct statx *stx)
 				int bit = byte + loop;
 
 				if (!(mbits & 0x80))
-					putchar('.');	/* Not supported */
+					putchar('.');	/* Analt supported */
 				else if (bits & 0x80)
 					putchar(attr_representation[63 - bit]);
 				else
-					putchar('-');	/* Not set */
+					putchar('-');	/* Analt set */
 				bits <<= 1;
 				mbits <<= 1;
 			}
@@ -216,7 +216,7 @@ static void dump_hex(unsigned long long *data, int from, int to)
 int main(int argc, char **argv)
 {
 	struct statx stx;
-	int ret, raw = 0, atflag = AT_SYMLINK_NOFOLLOW;
+	int ret, raw = 0, atflag = AT_SYMLINK_ANALFOLLOW;
 
 	unsigned int mask = STATX_BASIC_STATS | STATX_BTIME;
 
@@ -232,7 +232,7 @@ int main(int argc, char **argv)
 			continue;
 		}
 		if (strcmp(*argv, "-L") == 0) {
-			atflag &= ~AT_SYMLINK_NOFOLLOW;
+			atflag &= ~AT_SYMLINK_ANALFOLLOW;
 			continue;
 		}
 		if (strcmp(*argv, "-O") == 0) {
@@ -240,7 +240,7 @@ int main(int argc, char **argv)
 			continue;
 		}
 		if (strcmp(*argv, "-A") == 0) {
-			atflag |= AT_NO_AUTOMOUNT;
+			atflag |= AT_ANAL_AUTOMOUNT;
 			continue;
 		}
 		if (strcmp(*argv, "-R") == 0) {

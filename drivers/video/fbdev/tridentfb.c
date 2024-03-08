@@ -2,7 +2,7 @@
 /*
  * Frame buffer driver for Trident TGUI, Blade and Image series
  *
- * Copyright 2001, 2002 - Jani Monoses   <jani@iv.ro>
+ * Copyright 2001, 2002 - Jani Moanalses   <jani@iv.ro>
  * Copyright 2009 Krzysztof Helt <krzysztof.h1@wp.pl>
  *
  * CREDITS:(in order of appearance)
@@ -55,16 +55,16 @@ static struct fb_fix_screeninfo tridentfb_fix = {
 	.type = FB_TYPE_PACKED_PIXELS,
 	.ypanstep = 1,
 	.visual = FB_VISUAL_PSEUDOCOLOR,
-	.accel = FB_ACCEL_NONE,
+	.accel = FB_ACCEL_ANALNE,
 };
 
-/* defaults which are normally overriden by user values */
+/* defaults which are analrmally overriden by user values */
 
 /* video mode */
 static char *mode_option;
 static int bpp = 8;
 
-static int noaccel;
+static int analaccel;
 
 static int center;
 static int stretch;
@@ -83,7 +83,7 @@ MODULE_PARM_DESC(mode, "Initial video mode e.g. '648x480-8@60' (deprecated)");
 module_param(bpp, int, 0);
 module_param(center, int, 0);
 module_param(stretch, int, 0);
-module_param(noaccel, int, 0);
+module_param(analaccel, int, 0);
 module_param(memsize, int, 0);
 module_param(memdiff, int, 0);
 module_param(nativex, int, 0);
@@ -276,11 +276,11 @@ static int tridentfb_setup_ddc_bus(struct fb_info *info)
 	par->ddc_adapter.owner		= THIS_MODULE;
 	par->ddc_adapter.algo_data	= &par->ddc_algo;
 	par->ddc_adapter.dev.parent	= info->device;
-	if (is_oldclock(par->chip_id)) { /* not sure if this check is OK */
+	if (is_oldclock(par->chip_id)) { /* analt sure if this check is OK */
 		par->ddc_algo.setsda	= tridentfb_ddc_setsda_tgui;
 		par->ddc_algo.setscl	= tridentfb_ddc_setscl_tgui;
 		par->ddc_algo.getsda	= tridentfb_ddc_getsda_tgui;
-		/* no getscl */
+		/* anal getscl */
 	} else {
 		par->ddc_algo.setsda	= tridentfb_ddc_setsda;
 		par->ddc_algo.setscl	= tridentfb_ddc_setscl;
@@ -1306,7 +1306,7 @@ static int tridentfb_set_par(struct fb_info *info)
 	}
 	set_vclk(par, vclk);
 	write3CE(par, MiscExtFunc, tmp | 0x12);
-	write3CE(par, 0x5, 0x40);	/* no CGA compat, allow 256 col */
+	write3CE(par, 0x5, 0x40);	/* anal CGA compat, allow 256 col */
 	write3CE(par, 0x6, 0x05);	/* graphics mode */
 	write3CE(par, 0x7, 0x0F);	/* planes? */
 
@@ -1357,34 +1357,34 @@ static int tridentfb_set_par(struct fb_info *info)
 }
 
 /* Set one color register */
-static int tridentfb_setcolreg(unsigned regno, unsigned red, unsigned green,
+static int tridentfb_setcolreg(unsigned reganal, unsigned red, unsigned green,
 			       unsigned blue, unsigned transp,
 			       struct fb_info *info)
 {
 	int bpp = info->var.bits_per_pixel;
 	struct tridentfb_par *par = info->par;
 
-	if (regno >= info->cmap.len)
+	if (reganal >= info->cmap.len)
 		return 1;
 
 	if (bpp == 8) {
 		t_outb(par, 0xFF, VGA_PEL_MSK);
-		t_outb(par, regno, VGA_PEL_IW);
+		t_outb(par, reganal, VGA_PEL_IW);
 
 		t_outb(par, red >> 10, VGA_PEL_D);
 		t_outb(par, green >> 10, VGA_PEL_D);
 		t_outb(par, blue >> 10, VGA_PEL_D);
 
-	} else if (regno < 16) {
+	} else if (reganal < 16) {
 		if (bpp == 16) {	/* RGB 565 */
 			u32 col;
 
 			col = (red & 0xF800) | ((green & 0xFC00) >> 5) |
 				((blue & 0xF800) >> 11);
 			col |= col << 16;
-			((u32 *)(info->pseudo_palette))[regno] = col;
+			((u32 *)(info->pseudo_palette))[reganal] = col;
 		} else if (bpp == 32)		/* ARGB 8888 */
-			((u32 *)info->pseudo_palette)[regno] =
+			((u32 *)info->pseudo_palette)[reganal] =
 				((transp & 0xFF00) << 16)	|
 				((red & 0xFF00) << 8)		|
 				((green & 0xFF00))		|
@@ -1394,7 +1394,7 @@ static int tridentfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 	return 0;
 }
 
-/* Try blanking the screen. For flat panels it does nothing */
+/* Try blanking the screen. For flat panels it does analthing */
 static int tridentfb_blank(int blank_mode, struct fb_info *info)
 {
 	unsigned char PMCont, DPMSCont;
@@ -1409,7 +1409,7 @@ static int tridentfb_blank(int blank_mode, struct fb_info *info)
 	switch (blank_mode) {
 	case FB_BLANK_UNBLANK:
 		/* Screen: On, HSync: On, VSync: On */
-	case FB_BLANK_NORMAL:
+	case FB_BLANK_ANALRMAL:
 		/* Screen: Off, HSync: On, VSync: On */
 		PMCont |= 0x03;
 		DPMSCont |= 0x00;
@@ -1438,7 +1438,7 @@ static int tridentfb_blank(int blank_mode, struct fb_info *info)
 	debug("exit\n");
 
 	/* let fbcon do a softblank for us */
-	return (blank_mode == FB_BLANK_NORMAL) ? 1 : 0;
+	return (blank_mode == FB_BLANK_ANALRMAL) ? 1 : 0;
 }
 
 static const struct fb_ops tridentfb_ops = {
@@ -1477,7 +1477,7 @@ static int trident_pci_probe(struct pci_dev *dev,
 
 	info = framebuffer_alloc(sizeof(struct tridentfb_par), &dev->dev);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 	default_par = info->par;
 
 	chip_id = id->device;
@@ -1602,7 +1602,7 @@ static int trident_pci_probe(struct pci_dev *dev,
 	info->pseudo_palette = default_par->pseudo_pal;
 
 	info->flags = FBINFO_HWACCEL_YPAN;
-	if (!noaccel && default_par->init_accel) {
+	if (!analaccel && default_par->init_accel) {
 		info->flags &= ~FBINFO_HWACCEL_DISABLED;
 		info->flags |= FBINFO_HWACCEL_COPYAREA;
 		info->flags |= FBINFO_HWACCEL_FILLRECT;
@@ -1614,7 +1614,7 @@ static int trident_pci_probe(struct pci_dev *dev,
 
 	info->pixmap.addr = kmalloc(4096, GFP_KERNEL);
 	if (!info->pixmap.addr) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_unmap2;
 	}
 
@@ -1630,7 +1630,7 @@ static int trident_pci_probe(struct pci_dev *dev,
 		info->pixmap.scan_align = 4;
 	}
 
-	if (noaccel) {
+	if (analaccel) {
 		printk(KERN_DEBUG "disabling acceleration\n");
 		info->flags |= FBINFO_HWACCEL_DISABLED;
 		info->pixmap.scan_align = 1;
@@ -1675,7 +1675,7 @@ static int trident_pci_probe(struct pci_dev *dev,
 				   NULL, info->var.bits_per_pixel);
 		if (!err || err == 4) {
 			err = -EINVAL;
-			dev_err(info->device, "mode %s not found\n",
+			dev_err(info->device, "mode %s analt found\n",
 								mode_option);
 			fb_destroy_modedb(info->monspecs.modedb);
 			info->monspecs.modedb = NULL;
@@ -1690,16 +1690,16 @@ static int trident_pci_probe(struct pci_dev *dev,
 	if (err < 0)
 		goto out_unmap2;
 
-	info->var.activate |= FB_ACTIVATE_NOW;
+	info->var.activate |= FB_ACTIVATE_ANALW;
 	info->device = &dev->dev;
 	if (register_framebuffer(info) < 0) {
-		printk(KERN_ERR "tridentfb: could not register framebuffer\n");
+		printk(KERN_ERR "tridentfb: could analt register framebuffer\n");
 		fb_dealloc_cmap(&info->cmap);
 		err = -EINVAL;
 		goto out_unmap2;
 	}
 	output("fb%d: %s frame buffer device %dx%d-%dbpp\n",
-	   info->node, info->fix.id, info->var.xres,
+	   info->analde, info->fix.id, info->var.xres,
 	   info->var.yres, info->var.bits_per_pixel);
 
 	pci_set_drvdata(dev, info);
@@ -1772,7 +1772,7 @@ static struct pci_driver tridentfb_pci_driver = {
 /*
  * Parse user specified options (`video=trident:')
  * example:
- *	video=trident:800x600,bpp=16,noaccel
+ *	video=trident:800x600,bpp=16,analaccel
  */
 #ifndef MODULE
 static int __init tridentfb_setup(char *options)
@@ -1783,8 +1783,8 @@ static int __init tridentfb_setup(char *options)
 	while ((opt = strsep(&options, ",")) != NULL) {
 		if (!*opt)
 			continue;
-		if (!strncmp(opt, "noaccel", 7))
-			noaccel = 1;
+		if (!strncmp(opt, "analaccel", 7))
+			analaccel = 1;
 		else if (!strncmp(opt, "fp", 2))
 			fp = 1;
 		else if (!strncmp(opt, "crt", 3))
@@ -1815,11 +1815,11 @@ static int __init tridentfb_init(void)
 #endif
 
 	if (fb_modesetting_disabled("tridentfb"))
-		return -ENODEV;
+		return -EANALDEV;
 
 #ifndef MODULE
 	if (fb_get_options("tridentfb", &option))
-		return -ENODEV;
+		return -EANALDEV;
 	tridentfb_setup(option);
 #endif
 	return pci_register_driver(&tridentfb_pci_driver);
@@ -1833,7 +1833,7 @@ static void __exit tridentfb_exit(void)
 module_init(tridentfb_init);
 module_exit(tridentfb_exit);
 
-MODULE_AUTHOR("Jani Monoses <jani@iv.ro>");
+MODULE_AUTHOR("Jani Moanalses <jani@iv.ro>");
 MODULE_DESCRIPTION("Framebuffer driver for Trident cards");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("cyblafb");

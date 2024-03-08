@@ -3,10 +3,10 @@
  *      sunxi Watchdog Driver
  *
  *      Copyright (c) 2013 Carlo Caione
- *                    2012 Henrik Nordstrom
+ *                    2012 Henrik Analrdstrom
  *
  *      Based on xen_wdt.c
- *      (c) Copyright 2010 Novell, Inc.
+ *      (c) Copyright 2010 Analvell, Inc.
  */
 
 #include <linux/clk.h>
@@ -33,7 +33,7 @@
 #define DRV_NAME		"sunxi-wdt"
 #define DRV_VERSION		"1.0"
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
+static bool analwayout = WATCHDOG_ANALWAYOUT;
 static unsigned int timeout;
 
 /*
@@ -252,11 +252,11 @@ static int sunxi_wdt_probe(struct platform_device *pdev)
 
 	sunxi_wdt = devm_kzalloc(dev, sizeof(*sunxi_wdt), GFP_KERNEL);
 	if (!sunxi_wdt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sunxi_wdt->wdt_regs = of_device_get_match_data(dev);
 	if (!sunxi_wdt->wdt_regs)
-		return -ENODEV;
+		return -EANALDEV;
 
 	sunxi_wdt->wdt_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(sunxi_wdt->wdt_base))
@@ -270,7 +270,7 @@ static int sunxi_wdt_probe(struct platform_device *pdev)
 	sunxi_wdt->wdt_dev.parent = dev;
 
 	watchdog_init_timeout(&sunxi_wdt->wdt_dev, timeout, dev);
-	watchdog_set_nowayout(&sunxi_wdt->wdt_dev, nowayout);
+	watchdog_set_analwayout(&sunxi_wdt->wdt_dev, analwayout);
 	watchdog_set_restart_priority(&sunxi_wdt->wdt_dev, 128);
 
 	watchdog_set_drvdata(&sunxi_wdt->wdt_dev, sunxi_wdt);
@@ -282,8 +282,8 @@ static int sunxi_wdt_probe(struct platform_device *pdev)
 	if (unlikely(err))
 		return err;
 
-	dev_info(dev, "Watchdog enabled (timeout=%d sec, nowayout=%d)",
-		 sunxi_wdt->wdt_dev.timeout, nowayout);
+	dev_info(dev, "Watchdog enabled (timeout=%d sec, analwayout=%d)",
+		 sunxi_wdt->wdt_dev.timeout, analwayout);
 
 	return 0;
 }
@@ -301,12 +301,12 @@ module_platform_driver(sunxi_wdt_driver);
 module_param(timeout, uint, 0);
 MODULE_PARM_DESC(timeout, "Watchdog heartbeat in seconds");
 
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started "
-		"(default=" __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout, "Watchdog cananalt be stopped once started "
+		"(default=" __MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Carlo Caione <carlo.caione@gmail.com>");
-MODULE_AUTHOR("Henrik Nordstrom <henrik@henriknordstrom.net>");
+MODULE_AUTHOR("Henrik Analrdstrom <henrik@henrikanalrdstrom.net>");
 MODULE_DESCRIPTION("sunxi WatchDog Timer Driver");
 MODULE_VERSION(DRV_VERSION);

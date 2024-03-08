@@ -79,7 +79,7 @@ int rmi_register_transport_device(struct rmi_transport_dev *xport)
 
 	rmi_dev = kzalloc(sizeof(struct rmi_device), GFP_KERNEL);
 	if (!rmi_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	device_initialize(&rmi_dev->dev);
 
@@ -156,11 +156,11 @@ static int rmi_function_match(struct device *dev, struct device_driver *drv)
 static void rmi_function_of_probe(struct rmi_function *fn)
 {
 	char of_name[9];
-	struct device_node *node = fn->rmi_dev->xport->dev->of_node;
+	struct device_analde *analde = fn->rmi_dev->xport->dev->of_analde;
 
 	snprintf(of_name, sizeof(of_name), "rmi4-f%02x",
 		fn->fd.function_number);
-	fn->dev.of_node = of_get_child_by_name(node, of_name);
+	fn->dev.of_analde = of_get_child_by_name(analde, of_name);
 }
 #else
 static inline void rmi_function_of_probe(struct rmi_function *fn)
@@ -276,7 +276,7 @@ void rmi_unregister_function(struct rmi_function *fn)
 			fn->fd.function_number);
 
 	device_del(&fn->dev);
-	of_node_put(fn->dev.of_node);
+	of_analde_put(fn->dev.of_analde);
 
 	for (i = 0; i < fn->num_of_irqs; i++)
 		irq_dispose_mapping(fn->irq[i]);
@@ -337,7 +337,7 @@ static int rmi_bus_match(struct device *dev, struct device_driver *drv)
 {
 	bool physical = rmi_is_physical_device(dev);
 
-	/* First see if types are not compatible */
+	/* First see if types are analt compatible */
 	if (physical != rmi_is_physical_driver(drv))
 		return 0;
 
@@ -417,7 +417,7 @@ int rmi_of_property_read_u32(struct device *dev, u32 *result,
 	int retval;
 	u32 val = 0;
 
-	retval = of_property_read_u32(dev->of_node, prop, &val);
+	retval = of_property_read_u32(dev->of_analde, prop, &val);
 	if (retval && (!optional && retval == -EINVAL)) {
 		dev_err(dev, "Failed to get %s value: %d\n",
 			prop, retval);

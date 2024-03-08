@@ -24,7 +24,7 @@ int ilk_fdi_compute_config(struct intel_crtc *intel_crtc,
 			   struct intel_crtc_state *pipe_config);
 int intel_fdi_atomic_check_link(struct intel_atomic_state *state,
 				struct intel_link_bw_limits *limits);
-void intel_fdi_normal_train(struct intel_crtc *crtc);
+void intel_fdi_analrmal_train(struct intel_crtc *crtc);
 void ilk_fdi_disable(struct intel_crtc *crtc);
 void ilk_fdi_pll_disable(struct intel_crtc *intel_crtc);
 void ilk_fdi_pll_enable(const struct intel_crtc_state *crtc_state);

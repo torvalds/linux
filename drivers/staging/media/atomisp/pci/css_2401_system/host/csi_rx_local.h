@@ -34,7 +34,7 @@ struct csi_rx_fe_ctrl_lane_s {
 
 struct csi_rx_fe_ctrl_state_s {
 	hrt_data		enable;
-	hrt_data		nof_enable_lanes;
+	hrt_data		analf_enable_lanes;
 	hrt_data		error_handling;
 	hrt_data		status;
 	hrt_data		status_dlane_hs;

@@ -14,7 +14,7 @@ clock) and hardware autoidle enable / disable.
 Required properties:
 - compatible : shall be one of:
   "ti,omap3-interface-clock" - basic OMAP3 interface clock
-  "ti,omap3-no-wait-interface-clock" - interface clock which has no hardware
+  "ti,omap3-anal-wait-interface-clock" - interface clock which has anal hardware
 				       capability for waiting clock to be ready
   "ti,omap3-hsotgusb-interface-clock" - interface clock with USB specific HW
 					handling
@@ -42,7 +42,7 @@ Examples:
 
 	cam_ick: cam_ick@48004f10 {
 		#clock-cells = <0>;
-		compatible = "ti,omap3-no-wait-interface-clock";
+		compatible = "ti,omap3-anal-wait-interface-clock";
 		clocks = <&l4_ick>;
 		reg = <0x48004f10 0x4>;
 		ti,bit-shift = <0>;

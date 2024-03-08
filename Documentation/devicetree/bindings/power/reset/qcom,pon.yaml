@@ -7,13 +7,13 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Qualcomm PON Device
 
 maintainers:
-  - Vinod Koul <vkoul@kernel.org>
+  - Vianald Koul <vkoul@kernel.org>
 
 description: |
   The Power On device for Qualcomm PM8xxx is MFD supporting pwrkey
   and resin along with the Android reboot-mode.
 
-  This DT node has pwrkey and resin as sub nodes.
+  This DT analde has pwrkey and resin as sub analdes.
 
 properties:
   compatible:

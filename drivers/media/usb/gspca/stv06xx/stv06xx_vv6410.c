@@ -23,7 +23,7 @@ static struct v4l2_pix_format vv6410_mode[] = {
 		356,
 		292,
 		V4L2_PIX_FMT_SGRBG8,
-		V4L2_FIELD_NONE,
+		V4L2_FIELD_ANALNE,
 		.sizeimage = 356 * 292,
 		.bytesperline = 356,
 		.colorspace = V4L2_COLORSPACE_SRGB,
@@ -69,10 +69,10 @@ static int vv6410_probe(struct sd *sd)
 
 	err = stv06xx_read_sensor(sd, VV6410_DEVICEH, &data);
 	if (err < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (data != 0x19)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pr_info("vv6410 sensor detected\n");
 
@@ -88,7 +88,7 @@ static int vv6410_init_controls(struct sd *sd)
 	v4l2_ctrl_handler_init(hdl, 2);
 	/* Disable the hardware VFLIP and HFLIP as we currently lack a
 	   mechanism to adjust the image offset in such a way that
-	   we don't need to renegotiate the announced format */
+	   we don't need to renegotiate the ananalunced format */
 	/* v4l2_ctrl_new_std(hdl, &vv6410_ctrl_ops, */
 	/*		V4L2_CID_HFLIP, 0, 1, 1, 0); */
 	/* v4l2_ctrl_new_std(hdl, &vv6410_ctrl_ops, */

@@ -20,11 +20,11 @@ static struct pcb_config cx231xx_Scenario[] = {
 	{
 	 INDEX_SELFPOWER_DIGITAL_ONLY,	/* index */
 	 USB_SELF_POWER,	/* power_type */
-	 0,			/* speed , not decide yet */
+	 0,			/* speed , analt decide yet */
 	 MOD_DIGITAL,		/* mode */
 	 SOURCE_TS_BDA,		/* ts1_source, digital tv only */
-	 NOT_SUPPORTED,		/* ts2_source  */
-	 NOT_SUPPORTED,		/* analog source */
+	 ANALT_SUPPORTED,		/* ts2_source  */
+	 ANALT_SUPPORTED,		/* analog source */
 
 	 0,			/* digital_index  */
 	 0,			/* analog index */
@@ -38,24 +38,24 @@ static struct pcb_config cx231xx_Scenario[] = {
 	   {
 	    0,			/* interrupt ep index */
 	    1,			/* ts1 index */
-	    NOT_SUPPORTED,	/* TS2 index */
-	    NOT_SUPPORTED,	/* AUDIO */
-	    NOT_SUPPORTED,	/* VIDEO */
-	    NOT_SUPPORTED,	/* VANC */
-	    NOT_SUPPORTED,	/* HANC */
-	    NOT_SUPPORTED	/* ir_index */
+	    ANALT_SUPPORTED,	/* TS2 index */
+	    ANALT_SUPPORTED,	/* AUDIO */
+	    ANALT_SUPPORTED,	/* VIDEO */
+	    ANALT_SUPPORTED,	/* VANC */
+	    ANALT_SUPPORTED,	/* HANC */
+	    ANALT_SUPPORTED	/* ir_index */
 	    }
 	   ,
 	   }
 	  ,
-	  {NOT_SUPPORTED, {NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED}
+	  {ANALT_SUPPORTED, {ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED}
 	   }
 	  ,
-	  {NOT_SUPPORTED, {NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED}
+	  {ANALT_SUPPORTED, {ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED}
 	   }
 	  }
 	 ,
@@ -66,23 +66,23 @@ static struct pcb_config cx231xx_Scenario[] = {
 	   {
 	    0,			/* interrupt ep index */
 	    1,			/* ts1 index */
-	    NOT_SUPPORTED,	/* TS2 index */
-	    NOT_SUPPORTED,	/* AUDIO */
-	    NOT_SUPPORTED,	/* VIDEO */
-	    NOT_SUPPORTED,	/* VANC */
-	    NOT_SUPPORTED,	/* HANC */
-	    NOT_SUPPORTED	/* ir_index */
+	    ANALT_SUPPORTED,	/* TS2 index */
+	    ANALT_SUPPORTED,	/* AUDIO */
+	    ANALT_SUPPORTED,	/* VIDEO */
+	    ANALT_SUPPORTED,	/* VANC */
+	    ANALT_SUPPORTED,	/* HANC */
+	    ANALT_SUPPORTED	/* ir_index */
 	    }
 	   }
 	  ,
-	  {NOT_SUPPORTED, {NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED}
+	  {ANALT_SUPPORTED, {ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED}
 	   }
 	  ,
-	  {NOT_SUPPORTED, {NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED}
+	  {ANALT_SUPPORTED, {ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED}
 	   }
 	  }
 	 }
@@ -91,11 +91,11 @@ static struct pcb_config cx231xx_Scenario[] = {
 	{
 	 INDEX_SELFPOWER_DUAL_DIGITAL,	/* index */
 	 USB_SELF_POWER,	/* power_type */
-	 0,			/* speed , not decide yet */
+	 0,			/* speed , analt decide yet */
 	 MOD_DIGITAL,		/* mode */
 	 SOURCE_TS_BDA,		/* ts1_source, digital tv only */
 	 0,			/* ts2_source,need update from register */
-	 NOT_SUPPORTED,		/* analog source */
+	 ANALT_SUPPORTED,		/* analog source */
 	 0,			/* digital_index  */
 	 0,			/* analog index */
 	 0,			/* dif_index */
@@ -109,22 +109,22 @@ static struct pcb_config cx231xx_Scenario[] = {
 	    0,			/* interrupt ep index */
 	    1,			/* ts1 index */
 	    2,			/* TS2 index */
-	    NOT_SUPPORTED,	/* AUDIO */
-	    NOT_SUPPORTED,	/* VIDEO */
-	    NOT_SUPPORTED,	/* VANC */
-	    NOT_SUPPORTED,	/* HANC */
-	    NOT_SUPPORTED	/* ir_index */
+	    ANALT_SUPPORTED,	/* AUDIO */
+	    ANALT_SUPPORTED,	/* VIDEO */
+	    ANALT_SUPPORTED,	/* VANC */
+	    ANALT_SUPPORTED,	/* HANC */
+	    ANALT_SUPPORTED	/* ir_index */
 	    }
 	   }
 	  ,
-	  {NOT_SUPPORTED, {NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED}
+	  {ANALT_SUPPORTED, {ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED}
 	   }
 	  ,
-	  {NOT_SUPPORTED, {NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED}
+	  {ANALT_SUPPORTED, {ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED}
 	   }
 	  }
 	 ,
@@ -136,22 +136,22 @@ static struct pcb_config cx231xx_Scenario[] = {
 	    0,			/* interrupt ep index */
 	    1,			/* ts1 index */
 	    2,			/* TS2 index */
-	    NOT_SUPPORTED,	/* AUDIO */
-	    NOT_SUPPORTED,	/* VIDEO */
-	    NOT_SUPPORTED,	/* VANC */
-	    NOT_SUPPORTED,	/* HANC */
-	    NOT_SUPPORTED	/* ir_index */
+	    ANALT_SUPPORTED,	/* AUDIO */
+	    ANALT_SUPPORTED,	/* VIDEO */
+	    ANALT_SUPPORTED,	/* VANC */
+	    ANALT_SUPPORTED,	/* HANC */
+	    ANALT_SUPPORTED	/* ir_index */
 	    }
 	   }
 	  ,
-	  {NOT_SUPPORTED, {NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED}
+	  {ANALT_SUPPORTED, {ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED}
 	   }
 	  ,
-	  {NOT_SUPPORTED, {NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED}
+	  {ANALT_SUPPORTED, {ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED}
 	   }
 	  }
 	 }
@@ -160,10 +160,10 @@ static struct pcb_config cx231xx_Scenario[] = {
 	{
 	 INDEX_SELFPOWER_ANALOG_ONLY,	/* index */
 	 USB_SELF_POWER,	/* power_type */
-	 0,			/* speed , not decide yet */
+	 0,			/* speed , analt decide yet */
 	 MOD_ANALOG | MOD_DIF | MOD_EXTERNAL,	/* mode ,analog tv only */
-	 NOT_SUPPORTED,		/* ts1_source, NOT SUPPORT */
-	 NOT_SUPPORTED,		/* ts2_source,NOT SUPPORT */
+	 ANALT_SUPPORTED,		/* ts1_source, ANALT SUPPORT */
+	 ANALT_SUPPORTED,		/* ts2_source,ANALT SUPPORT */
 	 0,			/* analog source, need update */
 
 	 0,			/* digital_index  */
@@ -177,24 +177,24 @@ static struct pcb_config cx231xx_Scenario[] = {
 	   0,			/* config index */
 	   {
 	    0,			/* interrupt ep index */
-	    NOT_SUPPORTED,	/* ts1 index */
-	    NOT_SUPPORTED,	/* TS2 index */
+	    ANALT_SUPPORTED,	/* ts1 index */
+	    ANALT_SUPPORTED,	/* TS2 index */
 	    1,			/* AUDIO */
 	    2,			/* VIDEO */
 	    3,			/* VANC */
 	    4,			/* HANC */
-	    NOT_SUPPORTED	/* ir_index */
+	    ANALT_SUPPORTED	/* ir_index */
 	    }
 	   }
 	  ,
-	  {NOT_SUPPORTED, {NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED}
+	  {ANALT_SUPPORTED, {ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED}
 	   }
 	  ,
-	  {NOT_SUPPORTED, {NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED}
+	  {ANALT_SUPPORTED, {ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED}
 	   }
 	  }
 	 ,
@@ -204,24 +204,24 @@ static struct pcb_config cx231xx_Scenario[] = {
 	   0,			/* config index */
 	   {
 	    0,			/* interrupt ep index */
-	    NOT_SUPPORTED,	/* ts1 index */
-	    NOT_SUPPORTED,	/* TS2 index */
+	    ANALT_SUPPORTED,	/* ts1 index */
+	    ANALT_SUPPORTED,	/* TS2 index */
 	    1,			/* AUDIO */
 	    2,			/* VIDEO */
-	    NOT_SUPPORTED,	/* VANC */
-	    NOT_SUPPORTED,	/* HANC */
-	    NOT_SUPPORTED	/* ir_index */
+	    ANALT_SUPPORTED,	/* VANC */
+	    ANALT_SUPPORTED,	/* HANC */
+	    ANALT_SUPPORTED	/* ir_index */
 	    }
 	   }
 	  ,
-	  {NOT_SUPPORTED, {NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED}
+	  {ANALT_SUPPORTED, {ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED}
 	   }
 	  ,
-	  {NOT_SUPPORTED, {NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED}
+	  {ANALT_SUPPORTED, {ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED}
 	   }
 	  }
 	 }
@@ -230,11 +230,11 @@ static struct pcb_config cx231xx_Scenario[] = {
 	{
 	 INDEX_SELFPOWER_DUAL,	/* index */
 	 USB_SELF_POWER,	/* power_type */
-	 0,			/* speed , not decide yet */
+	 0,			/* speed , analt decide yet */
 	 /* mode ,analog tv and digital path */
 	 MOD_ANALOG | MOD_DIF | MOD_DIGITAL | MOD_EXTERNAL,
 	 0,			/* ts1_source,will update in register */
-	 NOT_SUPPORTED,		/* ts2_source,NOT SUPPORT */
+	 ANALT_SUPPORTED,		/* ts2_source,ANALT SUPPORT */
 	 0,			/* analog source need update */
 	 0,			/* digital_index  */
 	 0,			/* analog index */
@@ -247,23 +247,23 @@ static struct pcb_config cx231xx_Scenario[] = {
 	   {
 	    0,			/* interrupt ep index */
 	    1,			/* ts1 index */
-	    NOT_SUPPORTED,	/* TS2 index */
+	    ANALT_SUPPORTED,	/* TS2 index */
 	    2,			/* AUDIO */
 	    3,			/* VIDEO */
 	    4,			/* VANC */
 	    5,			/* HANC */
-	    NOT_SUPPORTED	/* ir_index */
+	    ANALT_SUPPORTED	/* ir_index */
 	    }
 	   }
 	  ,
-	  {NOT_SUPPORTED, {NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED}
+	  {ANALT_SUPPORTED, {ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED}
 	   }
 	  ,
-	  {NOT_SUPPORTED, {NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED}
+	  {ANALT_SUPPORTED, {ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED}
 	   }
 	  }
 	 ,
@@ -274,23 +274,23 @@ static struct pcb_config cx231xx_Scenario[] = {
 	   {
 	    0,			/* interrupt ep index */
 	    1,			/* ts1 index */
-	    NOT_SUPPORTED,	/* TS2 index */
+	    ANALT_SUPPORTED,	/* TS2 index */
 	    2,			/* AUDIO */
 	    3,			/* VIDEO */
-	    NOT_SUPPORTED,	/* VANC */
-	    NOT_SUPPORTED,	/* HANC */
-	    NOT_SUPPORTED	/* ir_index */
+	    ANALT_SUPPORTED,	/* VANC */
+	    ANALT_SUPPORTED,	/* HANC */
+	    ANALT_SUPPORTED	/* ir_index */
 	    }
 	   }
 	  ,
-	  {NOT_SUPPORTED, {NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED}
+	  {ANALT_SUPPORTED, {ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED}
 	   }
 	  ,
-	  {NOT_SUPPORTED, {NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED}
+	  {ANALT_SUPPORTED, {ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED}
 	   }
 	  }
 	 }
@@ -299,7 +299,7 @@ static struct pcb_config cx231xx_Scenario[] = {
 	{
 	 INDEX_SELFPOWER_TRIPLE,	/* index */
 	 USB_SELF_POWER,	/* power_type */
-	 0,			/* speed , not decide yet */
+	 0,			/* speed , analt decide yet */
 	 /* mode ,analog tv and digital path */
 	 MOD_ANALOG | MOD_DIF | MOD_DIGITAL | MOD_EXTERNAL,
 	 0,			/* ts1_source, update in register */
@@ -322,18 +322,18 @@ static struct pcb_config cx231xx_Scenario[] = {
 	    4,			/* VIDEO */
 	    5,			/* VANC */
 	    6,			/* HANC */
-	    NOT_SUPPORTED	/* ir_index */
+	    ANALT_SUPPORTED	/* ir_index */
 	    }
 	   }
 	  ,
-	  {NOT_SUPPORTED, {NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED}
+	  {ANALT_SUPPORTED, {ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED}
 	   }
 	  ,
-	  {NOT_SUPPORTED, {NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED}
+	  {ANALT_SUPPORTED, {ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED}
 	   }
 	  }
 	 ,
@@ -347,20 +347,20 @@ static struct pcb_config cx231xx_Scenario[] = {
 	    2,			/* TS2 index */
 	    3,			/* AUDIO */
 	    4,			/* VIDEO */
-	    NOT_SUPPORTED,	/* VANC */
-	    NOT_SUPPORTED,	/* HANC */
-	    NOT_SUPPORTED	/* ir_index */
+	    ANALT_SUPPORTED,	/* VANC */
+	    ANALT_SUPPORTED,	/* HANC */
+	    ANALT_SUPPORTED	/* ir_index */
 	    }
 	   }
 	  ,
-	  {NOT_SUPPORTED, {NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED}
+	  {ANALT_SUPPORTED, {ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED}
 	   }
 	  ,
-	  {NOT_SUPPORTED, {NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED}
+	  {ANALT_SUPPORTED, {ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED}
 	   }
 	  }
 	 }
@@ -369,10 +369,10 @@ static struct pcb_config cx231xx_Scenario[] = {
 	{
 	 INDEX_SELFPOWER_COMPRESSOR,	/* index */
 	 USB_SELF_POWER,	/* power_type */
-	 0,			/* speed , not decide yet */
+	 0,			/* speed , analt decide yet */
 	 /* mode ,analog tv AND DIGITAL path */
 	 MOD_ANALOG | MOD_DIF | MOD_DIGITAL | MOD_EXTERNAL,
-	 NOT_SUPPORTED,		/* ts1_source, disable */
+	 ANALT_SUPPORTED,		/* ts1_source, disable */
 	 SOURCE_TS_BDA,		/* ts2_source */
 	 0,			/* analog source,need update */
 	 0,			/* digital_index  */
@@ -385,24 +385,24 @@ static struct pcb_config cx231xx_Scenario[] = {
 	   0,			/* config index */
 	   {
 	    0,			/* interrupt ep index */
-	    NOT_SUPPORTED,	/* ts1 index */
+	    ANALT_SUPPORTED,	/* ts1 index */
 	    1,			/* TS2 index */
 	    2,			/* AUDIO */
 	    3,			/* VIDEO */
 	    4,			/* VANC */
 	    5,			/* HANC */
-	    NOT_SUPPORTED	/* ir_index */
+	    ANALT_SUPPORTED	/* ir_index */
 	    }
 	   }
 	  ,
-	  {NOT_SUPPORTED, {NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED}
+	  {ANALT_SUPPORTED, {ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED}
 	   }
 	  ,
-	  {NOT_SUPPORTED, {NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED}
+	  {ANALT_SUPPORTED, {ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED}
 	   }
 	  }
 	 ,
@@ -412,24 +412,24 @@ static struct pcb_config cx231xx_Scenario[] = {
 	   0,			/* config index */
 	   {
 	    0,			/* interrupt ep index */
-	    NOT_SUPPORTED,	/* ts1 index */
+	    ANALT_SUPPORTED,	/* ts1 index */
 	    1,			/* TS2 index */
 	    2,			/* AUDIO */
 	    3,			/* VIDEO */
-	    NOT_SUPPORTED,	/* VANC */
-	    NOT_SUPPORTED,	/* HANC */
-	    NOT_SUPPORTED	/* ir_index */
+	    ANALT_SUPPORTED,	/* VANC */
+	    ANALT_SUPPORTED,	/* HANC */
+	    ANALT_SUPPORTED	/* ir_index */
 	    }
 	   }
 	  ,
-	  {NOT_SUPPORTED, {NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED}
+	  {ANALT_SUPPORTED, {ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED}
 	   }
 	  ,
-	  {NOT_SUPPORTED, {NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED}
+	  {ANALT_SUPPORTED, {ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED}
 	   }
 	  }
 	 }
@@ -438,11 +438,11 @@ static struct pcb_config cx231xx_Scenario[] = {
 	{
 	 INDEX_BUSPOWER_DIGITAL_ONLY,	/* index */
 	 USB_BUS_POWER,		/* power_type */
-	 0,			/* speed , not decide yet */
+	 0,			/* speed , analt decide yet */
 	 MOD_DIGITAL,		/* mode ,analog tv AND DIGITAL path */
 	 SOURCE_TS_BDA,		/* ts1_source, disable */
-	 NOT_SUPPORTED,		/* ts2_source */
-	 NOT_SUPPORTED,		/* analog source */
+	 ANALT_SUPPORTED,		/* ts2_source */
+	 ANALT_SUPPORTED,		/* analog source */
 
 	 0,			/* digital_index  */
 	 0,			/* analog index */
@@ -456,23 +456,23 @@ static struct pcb_config cx231xx_Scenario[] = {
 	   {
 	    0,			/* interrupt ep index  = 2 */
 	    1,			/* ts1 index */
-	    NOT_SUPPORTED,	/* TS2 index */
-	    NOT_SUPPORTED,	/* AUDIO */
-	    NOT_SUPPORTED,	/* VIDEO */
-	    NOT_SUPPORTED,	/* VANC */
-	    NOT_SUPPORTED,	/* HANC */
-	    NOT_SUPPORTED	/* ir_index */
+	    ANALT_SUPPORTED,	/* TS2 index */
+	    ANALT_SUPPORTED,	/* AUDIO */
+	    ANALT_SUPPORTED,	/* VIDEO */
+	    ANALT_SUPPORTED,	/* VANC */
+	    ANALT_SUPPORTED,	/* HANC */
+	    ANALT_SUPPORTED	/* ir_index */
 	    }
 	   }
 	  ,
-	  {NOT_SUPPORTED, {NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED}
+	  {ANALT_SUPPORTED, {ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED}
 	   }
 	  ,
-	  {NOT_SUPPORTED, {NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED}
+	  {ANALT_SUPPORTED, {ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED}
 	   }
 	  }
 	 ,
@@ -483,23 +483,23 @@ static struct pcb_config cx231xx_Scenario[] = {
 	   {
 	    0,			/* interrupt ep index  = 2 */
 	    1,			/* ts1 index */
-	    NOT_SUPPORTED,	/* TS2 index */
-	    NOT_SUPPORTED,	/* AUDIO */
-	    NOT_SUPPORTED,	/* VIDEO */
-	    NOT_SUPPORTED,	/* VANC */
-	    NOT_SUPPORTED,	/* HANC */
-	    NOT_SUPPORTED	/* ir_index */
+	    ANALT_SUPPORTED,	/* TS2 index */
+	    ANALT_SUPPORTED,	/* AUDIO */
+	    ANALT_SUPPORTED,	/* VIDEO */
+	    ANALT_SUPPORTED,	/* VANC */
+	    ANALT_SUPPORTED,	/* HANC */
+	    ANALT_SUPPORTED	/* ir_index */
 	    }
 	   }
 	  ,
-	  {NOT_SUPPORTED, {NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED}
+	  {ANALT_SUPPORTED, {ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED}
 	   }
 	  ,
-	  {NOT_SUPPORTED, {NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED}
+	  {ANALT_SUPPORTED, {ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED}
 	   }
 	  }
 	 }
@@ -507,10 +507,10 @@ static struct pcb_config cx231xx_Scenario[] = {
 	{
 	 INDEX_BUSPOWER_ANALOG_ONLY,	/* index */
 	 USB_BUS_POWER,		/* power_type */
-	 0,			/* speed , not decide yet */
+	 0,			/* speed , analt decide yet */
 	 MOD_ANALOG,		/* mode ,analog tv AND DIGITAL path */
-	 NOT_SUPPORTED,		/* ts1_source, disable */
-	 NOT_SUPPORTED,		/* ts2_source */
+	 ANALT_SUPPORTED,		/* ts1_source, disable */
+	 ANALT_SUPPORTED,		/* ts2_source */
 	 SOURCE_ANALOG,		/* analog source--analog */
 	 0,			/* digital_index  */
 	 0,			/* analog index */
@@ -522,24 +522,24 @@ static struct pcb_config cx231xx_Scenario[] = {
 	   0,			/* config index */
 	   {
 	    0,			/* interrupt ep index */
-	    NOT_SUPPORTED,	/* ts1 index */
-	    NOT_SUPPORTED,	/* TS2 index */
+	    ANALT_SUPPORTED,	/* ts1 index */
+	    ANALT_SUPPORTED,	/* TS2 index */
 	    1,			/* AUDIO */
 	    2,			/* VIDEO */
 	    3,			/* VANC */
 	    4,			/* HANC */
-	    NOT_SUPPORTED	/* ir_index */
+	    ANALT_SUPPORTED	/* ir_index */
 	    }
 	   }
 	  ,
-	  {NOT_SUPPORTED, {NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED}
+	  {ANALT_SUPPORTED, {ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED}
 	   }
 	  ,
-	  {NOT_SUPPORTED, {NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED}
+	  {ANALT_SUPPORTED, {ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED}
 	   }
 	  }
 	 ,
@@ -548,24 +548,24 @@ static struct pcb_config cx231xx_Scenario[] = {
 	   0,			/* config index */
 	   {
 	    0,			/* interrupt ep index */
-	    NOT_SUPPORTED,	/* ts1 index */
-	    NOT_SUPPORTED,	/* TS2 index */
+	    ANALT_SUPPORTED,	/* ts1 index */
+	    ANALT_SUPPORTED,	/* TS2 index */
 	    1,			/* AUDIO */
 	    2,			/* VIDEO */
-	    NOT_SUPPORTED,	/* VANC */
-	    NOT_SUPPORTED,	/* HANC */
-	    NOT_SUPPORTED	/* ir_index */
+	    ANALT_SUPPORTED,	/* VANC */
+	    ANALT_SUPPORTED,	/* HANC */
+	    ANALT_SUPPORTED	/* ir_index */
 	    }
 	   }
 	  ,
-	  {NOT_SUPPORTED, {NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED}
+	  {ANALT_SUPPORTED, {ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED}
 	   }
 	  ,
-	  {NOT_SUPPORTED, {NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED}
+	  {ANALT_SUPPORTED, {ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED}
 	   }
 	  }
 	 }
@@ -573,11 +573,11 @@ static struct pcb_config cx231xx_Scenario[] = {
 	{
 	 INDEX_BUSPOWER_DIF_ONLY,	/* index */
 	 USB_BUS_POWER,		/* power_type */
-	 0,			/* speed , not decide yet */
+	 0,			/* speed , analt decide yet */
 	 /* mode ,analog tv AND DIGITAL path */
 	 MOD_DIF | MOD_ANALOG | MOD_DIGITAL | MOD_EXTERNAL,
 	 SOURCE_TS_BDA,		/* ts1_source, disable */
-	 NOT_SUPPORTED,		/* ts2_source */
+	 ANALT_SUPPORTED,		/* ts2_source */
 	 SOURCE_DIF | SOURCE_ANALOG | SOURCE_EXTERNAL,	/* analog source, dif */
 	 0,			/* digital_index  */
 	 0,			/* analog index */
@@ -590,23 +590,23 @@ static struct pcb_config cx231xx_Scenario[] = {
 	   {
 	    0,			/* interrupt ep index */
 	    1,			/* ts1 index */
-	    NOT_SUPPORTED,	/* TS2 index */
+	    ANALT_SUPPORTED,	/* TS2 index */
 	    2,			/* AUDIO */
 	    3,			/* VIDEO */
 	    4,			/* VANC */
 	    5,			/* HANC */
-	    NOT_SUPPORTED	/* ir_index */
+	    ANALT_SUPPORTED	/* ir_index */
 	    }
 	   }
 	  ,
-	  {NOT_SUPPORTED, {NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED}
+	  {ANALT_SUPPORTED, {ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED}
 	   }
 	  ,
-	  {NOT_SUPPORTED, {NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED}
+	  {ANALT_SUPPORTED, {ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED}
 	   }
 	  }
 	 ,
@@ -616,23 +616,23 @@ static struct pcb_config cx231xx_Scenario[] = {
 	   {
 	    0,			/* interrupt ep index */
 	    1,			/* ts1 index */
-	    NOT_SUPPORTED,	/* TS2 index */
+	    ANALT_SUPPORTED,	/* TS2 index */
 	    2,			/* AUDIO */
 	    3,			/* VIDEO */
-	    NOT_SUPPORTED,	/* VANC */
-	    NOT_SUPPORTED,	/* HANC */
-	    NOT_SUPPORTED	/* ir_index */
+	    ANALT_SUPPORTED,	/* VANC */
+	    ANALT_SUPPORTED,	/* HANC */
+	    ANALT_SUPPORTED	/* ir_index */
 	    }
 	   }
 	  ,
-	  {NOT_SUPPORTED, {NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED}
+	  {ANALT_SUPPORTED, {ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED}
 	   }
 	  ,
-	  {NOT_SUPPORTED, {NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED, NOT_SUPPORTED, NOT_SUPPORTED,
-			   NOT_SUPPORTED}
+	  {ANALT_SUPPORTED, {ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED, ANALT_SUPPORTED, ANALT_SUPPORTED,
+			   ANALT_SUPPORTED}
 	   }
 	  }
 	 }
@@ -759,7 +759,7 @@ int initialize_cx231xx(struct cx231xx *dev)
 			dev_err(dev->dev,
 				"bad scenario!!!!!\nconfig_info=%x\n",
 				config_info & SELFPOWER_MASK);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 

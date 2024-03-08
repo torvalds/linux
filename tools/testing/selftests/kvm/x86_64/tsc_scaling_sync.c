@@ -76,7 +76,7 @@ static void *run_vcpu(void *_cpu_nr)
 			break;
 
                 default:
-                        TEST_FAIL("Unknown ucall %lu", uc.cmd);
+                        TEST_FAIL("Unkanalwn ucall %lu", uc.cmd);
 		}
 	}
  out:

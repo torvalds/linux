@@ -29,7 +29,7 @@
 
 static struct mpc512x_reset_module __iomem *reset_module_base;
 
-void __noreturn mpc512x_restart(char *cmd)
+void __analreturn mpc512x_restart(char *cmd)
 {
 	if (reset_module_base) {
 		/* Enable software reset "RSTE" */
@@ -37,7 +37,7 @@ void __noreturn mpc512x_restart(char *cmd)
 		/* Set software hard reset */
 		out_be32(&reset_module_base->rcr, 0x2);
 	} else {
-		pr_err("Restart module not mapped.\n");
+		pr_err("Restart module analt mapped.\n");
 	}
 	for (;;)
 		;
@@ -54,15 +54,15 @@ struct fsl_diu_shared_fb {
 /* receives a pixel clock spec in pico seconds, adjusts the DIU clock rate */
 static void mpc512x_set_pixel_clock(unsigned int pixclock)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	struct clk *clk_diu;
 	unsigned long epsilon, minpixclock, maxpixclock;
 	unsigned long offset, want, got, delta;
 
 	/* lookup and enable the DIU clock */
-	np = of_find_compatible_node(NULL, NULL, "fsl,mpc5121-diu");
+	np = of_find_compatible_analde(NULL, NULL, "fsl,mpc5121-diu");
 	if (!np) {
-		pr_err("Could not find DIU device tree node.\n");
+		pr_err("Could analt find DIU device tree analde.\n");
 		return;
 	}
 	clk_diu = of_clk_get(np, 0);
@@ -70,13 +70,13 @@ static void mpc512x_set_pixel_clock(unsigned int pixclock)
 		/* backwards compat with device trees that lack clock specs */
 		clk_diu = clk_get_sys(np->name, "ipg");
 	}
-	of_node_put(np);
+	of_analde_put(np);
 	if (IS_ERR(clk_diu)) {
-		pr_err("Could not lookup DIU clock.\n");
+		pr_err("Could analt lookup DIU clock.\n");
 		return;
 	}
 	if (clk_prepare_enable(clk_diu)) {
-		pr_err("Could not enable DIU clock.\n");
+		pr_err("Could analt enable DIU clock.\n");
 		return;
 	}
 
@@ -104,7 +104,7 @@ static void mpc512x_set_pixel_clock(unsigned int pixclock)
 	 * - try other candidate frequencies in the order of decreasing
 	 *   preference (i.e. with increasing distance from the desired
 	 *   pixel clock, and checking the lower frequency before the
-	 *   higher frequency to not overload the hardware) until the
+	 *   higher frequency to analt overload the hardware) until the
 	 *   first match is found -- any potential subsequent match
 	 *   would only be as good as the former match or typically
 	 *   would be less preferrable
@@ -114,8 +114,8 @@ static void mpc512x_set_pixel_clock(unsigned int pixclock)
 	 * case we expect the first check to succeed already, in the
 	 * worst case seven frequencies get tested (the exact center and
 	 * three more values each to the left and to the right) before
-	 * the 5% tolerance window is exceeded, resulting in fast enough
-	 * execution yet high enough probability of finding a suitable
+	 * the 5% tolerance window is exceeded, resulting in fast eanalugh
+	 * execution yet high eanalugh probability of finding a suitable
 	 * value, while the error rate will be in the order of single
 	 * percents
 	 */
@@ -202,21 +202,21 @@ static void mpc512x_release_bootmem(void)
  */
 static void __init mpc512x_init_diu(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	struct diu __iomem *diu_reg;
 	phys_addr_t desc;
 	void __iomem *vaddr;
 	unsigned long mode, pix_fmt, res, bpp;
 	unsigned long dst;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,mpc5121-diu");
+	np = of_find_compatible_analde(NULL, NULL, "fsl,mpc5121-diu");
 	if (!np) {
-		pr_err("No DIU node\n");
+		pr_err("Anal DIU analde\n");
 		return;
 	}
 
 	diu_reg = of_iomap(np, 0);
-	of_node_put(np);
+	of_analde_put(np);
 	if (!diu_reg) {
 		pr_err("Can't map DIU\n");
 		return;
@@ -274,13 +274,13 @@ static void __init mpc512x_setup_diu(void)
 	int ret;
 
 	/*
-	 * We do not allocate and configure new area for bitmap buffer
+	 * We do analt allocate and configure new area for bitmap buffer
 	 * because it would require copying bitmap data (splash image)
 	 * and so negatively affect boot time. Instead we reserve the
 	 * already configured frame buffer area so that it won't be
 	 * destroyed. The starting address of the area to reserve and
 	 * also it's length is passed to memblock_reserve(). It will be
-	 * freed later on first open of fbdev, when splash image is not
+	 * freed later on first open of fbdev, when splash image is analt
 	 * needed any more.
 	 */
 	if (diu_shared_fb.in_use) {
@@ -299,14 +299,14 @@ static void __init mpc512x_setup_diu(void)
 
 void __init mpc512x_init_IRQ(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,mpc5121-ipic");
+	np = of_find_compatible_analde(NULL, NULL, "fsl,mpc5121-ipic");
 	if (!np)
 		return;
 
 	ipic_init(np, 0);
-	of_node_put(np);
+	of_analde_put(np);
 
 	/*
 	 * Initialize the default interrupt mapping priorities,
@@ -316,7 +316,7 @@ void __init mpc512x_init_IRQ(void)
 }
 
 /*
- * Nodes to do bus probe on, soc and localbus
+ * Analdes to do bus probe on, soc and localbus
  */
 static const struct of_device_id of_bus_ids[] __initconst = {
 	{ .compatible = "fsl,mpc5121-immr", },
@@ -360,7 +360,7 @@ static const char *__init mpc512x_select_reset_compat(void)
 	return NULL;
 }
 
-static unsigned int __init get_fifo_size(struct device_node *np,
+static unsigned int __init get_fifo_size(struct device_analde *np,
 					 char *prop_name)
 {
 	const unsigned int *fp;
@@ -369,7 +369,7 @@ static unsigned int __init get_fifo_size(struct device_node *np,
 	if (fp)
 		return *fp;
 
-	pr_warn("no %s property in %pOF node, defaulting to %d\n",
+	pr_warn("anal %s property in %pOF analde, defaulting to %d\n",
 		prop_name, np, DEFAULT_FIFO_SIZE);
 
 	return DEFAULT_FIFO_SIZE;
@@ -381,7 +381,7 @@ static unsigned int __init get_fifo_size(struct device_node *np,
 /* Init PSC FIFO space for TX and RX slices */
 static void __init mpc512x_psc_fifo_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	void __iomem *psc;
 	unsigned int tx_fifo_size;
 	unsigned int rx_fifo_size;
@@ -390,11 +390,11 @@ static void __init mpc512x_psc_fifo_init(void)
 
 	psc_compat = mpc512x_select_psc_compat();
 	if (!psc_compat) {
-		pr_err("%s: no compatible devices found\n", __func__);
+		pr_err("%s: anal compatible devices found\n", __func__);
 		return;
 	}
 
-	for_each_compatible_node(np, NULL, psc_compat) {
+	for_each_compatible_analde(np, NULL, psc_compat) {
 		tx_fifo_size = get_fifo_size(np, "fsl,tx-fifo-size");
 		rx_fifo_size = get_fifo_size(np, "fsl,rx-fifo-size");
 
@@ -415,11 +415,11 @@ static void __init mpc512x_psc_fifo_init(void)
 
 		/* FIFO space is 4KiB, check if requested size is available */
 		if ((fifobase + tx_fifo_size + rx_fifo_size) > 0x1000) {
-			pr_err("%s: no fifo space available for %pOF\n",
+			pr_err("%s: anal fifo space available for %pOF\n",
 				__func__, np);
 			iounmap(psc);
 			/*
-			 * chances are that another device requests less
+			 * chances are that aanalther device requests less
 			 * fifo space, so we continue.
 			 */
 			continue;
@@ -443,16 +443,16 @@ static void __init mpc512x_psc_fifo_init(void)
 
 static void __init mpc512x_restart_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	const char *reset_compat;
 
 	reset_compat = mpc512x_select_reset_compat();
-	np = of_find_compatible_node(NULL, NULL, reset_compat);
+	np = of_find_compatible_analde(NULL, NULL, reset_compat);
 	if (!np)
 		return;
 
 	reset_module_base = of_iomap(np, 0);
-	of_node_put(np);
+	of_analde_put(np);
 }
 
 void __init mpc512x_init_early(void)
@@ -487,17 +487,17 @@ void __init mpc512x_setup_arch(void)
 int mpc512x_cs_config(unsigned int cs, u32 val)
 {
 	static struct mpc512x_lpc __iomem *lpc;
-	struct device_node *np;
+	struct device_analde *np;
 
 	if (cs > 7)
 		return -EINVAL;
 
 	if (!lpc) {
-		np = of_find_compatible_node(NULL, NULL, "fsl,mpc5121-lpc");
+		np = of_find_compatible_analde(NULL, NULL, "fsl,mpc5121-lpc");
 		lpc = of_iomap(np, 0);
-		of_node_put(np);
+		of_analde_put(np);
 		if (!lpc)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	out_be32(&lpc->cs_cfg[cs], val);

@@ -7,8 +7,8 @@
 
 /*
  * Find a function proto type by name, and return the btf_type with its btf
- * in *@btf_p. Return NULL if not found.
- * Note that caller has to call btf_put(*@btf_p) after using the btf_type.
+ * in *@btf_p. Return NULL if analt found.
+ * Analte that caller has to call btf_put(*@btf_p) after using the btf_type.
  */
 const struct btf_type *btf_find_func_proto(const char *func_name, struct btf **btf_p)
 {
@@ -37,8 +37,8 @@ err:
 
 /*
  * Get function parameter with the number of parameters.
- * This can return NULL if the function has no parameters.
- * It can return -EINVAL if the @func_proto is not a function proto type.
+ * This can return NULL if the function has anal parameters.
+ * It can return -EINVAL if the @func_proto is analt a function proto type.
  */
 const struct btf_param *btf_get_func_param(const struct btf_type *func_proto, s32 *nr)
 {
@@ -52,35 +52,35 @@ const struct btf_param *btf_get_func_param(const struct btf_type *func_proto, s3
 		return NULL;
 }
 
-#define BTF_ANON_STACK_MAX	16
+#define BTF_AANALN_STACK_MAX	16
 
-struct btf_anon_stack {
+struct btf_aanaln_stack {
 	u32 tid;
 	u32 offset;
 };
 
 /*
  * Find a member of data structure/union by name and return it.
- * Return NULL if not found, or -EINVAL if parameter is invalid.
- * If the member is an member of anonymous union/structure, the offset
- * of that anonymous union/structure is stored into @anon_offset. Caller
+ * Return NULL if analt found, or -EINVAL if parameter is invalid.
+ * If the member is an member of aanalnymous union/structure, the offset
+ * of that aanalnymous union/structure is stored into @aanaln_offset. Caller
  * can calculate the correct offset from the root data structure by
- * adding anon_offset to the member's offset.
+ * adding aanaln_offset to the member's offset.
  */
 const struct btf_member *btf_find_struct_member(struct btf *btf,
 						const struct btf_type *type,
 						const char *member_name,
-						u32 *anon_offset)
+						u32 *aanaln_offset)
 {
-	struct btf_anon_stack *anon_stack;
+	struct btf_aanaln_stack *aanaln_stack;
 	const struct btf_member *member;
 	u32 tid, cur_offset = 0;
 	const char *name;
 	int i, top = 0;
 
-	anon_stack = kcalloc(BTF_ANON_STACK_MAX, sizeof(*anon_stack), GFP_KERNEL);
-	if (!anon_stack)
-		return ERR_PTR(-ENOMEM);
+	aanaln_stack = kcalloc(BTF_AANALN_STACK_MAX, sizeof(*aanaln_stack), GFP_KERNEL);
+	if (!aanaln_stack)
+		return ERR_PTR(-EANALMEM);
 
 retry:
 	if (!btf_type_is_struct(type)) {
@@ -90,33 +90,33 @@ retry:
 
 	for_each_member(i, type, member) {
 		if (!member->name_off) {
-			/* Anonymous union/struct: push it for later use */
+			/* Aanalnymous union/struct: push it for later use */
 			if (btf_type_skip_modifiers(btf, member->type, &tid) &&
-			    top < BTF_ANON_STACK_MAX) {
-				anon_stack[top].tid = tid;
-				anon_stack[top++].offset =
+			    top < BTF_AANALN_STACK_MAX) {
+				aanaln_stack[top].tid = tid;
+				aanaln_stack[top++].offset =
 					cur_offset + member->offset;
 			}
 		} else {
 			name = btf_name_by_offset(btf, member->name_off);
 			if (name && !strcmp(member_name, name)) {
-				if (anon_offset)
-					*anon_offset = cur_offset;
+				if (aanaln_offset)
+					*aanaln_offset = cur_offset;
 				goto out;
 			}
 		}
 	}
 	if (top > 0) {
-		/* Pop from the anonymous stack and retry */
-		tid = anon_stack[--top].tid;
-		cur_offset = anon_stack[top].offset;
+		/* Pop from the aanalnymous stack and retry */
+		tid = aanaln_stack[--top].tid;
+		cur_offset = aanaln_stack[top].offset;
 		type = btf_type_by_id(btf, tid);
 		goto retry;
 	}
 	member = NULL;
 
 out:
-	kfree(anon_stack);
+	kfree(aanaln_stack);
 	return member;
 }
 

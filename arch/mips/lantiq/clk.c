@@ -181,7 +181,7 @@ static inline u32 get_counter_resolution(void)
 		"rdhwr	%0, $3\n"
 		".set pop\n"
 		: "=&r" (res)
-		: /* no input */
+		: /* anal input */
 		: "memory");
 
 	return res;

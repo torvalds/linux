@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * IPVS         An implementation of the IP virtual server support for the
- *              LINUX operating system.  IPVS is now implemented as a module
+ *              LINUX operating system.  IPVS is analw implemented as a module
  *              over the Netfilter framework. IPVS can be used to build a
  *              high-performance and highly available server based on a
  *              cluster of servers.
@@ -60,8 +60,8 @@ static struct hlist_head *ip_vs_conn_tab __read_mostly;
 /*  SLAB cache for IPVS connections */
 static struct kmem_cache *ip_vs_conn_cachep __read_mostly;
 
-/*  counter for no client port connections */
-static atomic_t ip_vs_conn_no_cport_cnt = ATOMIC_INIT(0);
+/*  counter for anal client port connections */
+static atomic_t ip_vs_conn_anal_cport_cnt = ATOMIC_INIT(0);
 
 /* random value for IPVS connection hash */
 static unsigned int ip_vs_conn_rnd __read_mostly;
@@ -274,7 +274,7 @@ __ip_vs_conn_in_get(const struct ip_vs_conn_param *p)
 		    cp->af == p->af &&
 		    ip_vs_addr_equal(p->af, p->caddr, &cp->caddr) &&
 		    ip_vs_addr_equal(p->af, p->vaddr, &cp->vaddr) &&
-		    ((!p->cport) ^ (!(cp->flags & IP_VS_CONN_F_NO_CPORT))) &&
+		    ((!p->cport) ^ (!(cp->flags & IP_VS_CONN_F_ANAL_CPORT))) &&
 		    p->protocol == cp->protocol &&
 		    cp->ipvs == p->ipvs) {
 			if (!__ip_vs_conn_get(cp))
@@ -295,7 +295,7 @@ struct ip_vs_conn *ip_vs_conn_in_get(const struct ip_vs_conn_param *p)
 	struct ip_vs_conn *cp;
 
 	cp = __ip_vs_conn_in_get(p);
-	if (!cp && atomic_read(&ip_vs_conn_no_cport_cnt)) {
+	if (!cp && atomic_read(&ip_vs_conn_anal_cport_cnt)) {
 		struct ip_vs_conn_param cport_zero_p = *p;
 		cport_zero_p.cport = 0;
 		cp = __ip_vs_conn_in_get(&cport_zero_p);
@@ -305,7 +305,7 @@ struct ip_vs_conn *ip_vs_conn_in_get(const struct ip_vs_conn_param *p)
 		      ip_vs_proto_name(p->protocol),
 		      IP_VS_DBG_ADDR(p->af, p->caddr), ntohs(p->cport),
 		      IP_VS_DBG_ADDR(p->af, p->vaddr), ntohs(p->vport),
-		      cp ? "hit" : "not hit");
+		      cp ? "hit" : "analt hit");
 
 	return cp;
 }
@@ -389,7 +389,7 @@ struct ip_vs_conn *ip_vs_ct_in_get(const struct ip_vs_conn_param *p)
 		      ip_vs_proto_name(p->protocol),
 		      IP_VS_DBG_ADDR(p->af, p->caddr), ntohs(p->cport),
 		      IP_VS_DBG_ADDR(p->af, p->vaddr), ntohs(p->vport),
-		      cp ? "hit" : "not hit");
+		      cp ? "hit" : "analt hit");
 
 	return cp;
 }
@@ -443,7 +443,7 @@ struct ip_vs_conn *ip_vs_conn_out_get(const struct ip_vs_conn_param *p)
 		      ip_vs_proto_name(p->protocol),
 		      IP_VS_DBG_ADDR(p->af, p->caddr), ntohs(p->cport),
 		      IP_VS_DBG_ADDR(p->af, p->vaddr), ntohs(p->vport),
-		      ret ? "hit" : "not hit");
+		      ret ? "hit" : "analt hit");
 
 	return ret;
 }
@@ -486,15 +486,15 @@ void ip_vs_conn_put(struct ip_vs_conn *cp)
 }
 
 /*
- *	Fill a no_client_port connection with a client port number
+ *	Fill a anal_client_port connection with a client port number
  */
 void ip_vs_conn_fill_cport(struct ip_vs_conn *cp, __be16 cport)
 {
 	if (ip_vs_conn_unhash(cp)) {
 		spin_lock_bh(&cp->lock);
-		if (cp->flags & IP_VS_CONN_F_NO_CPORT) {
-			atomic_dec(&ip_vs_conn_no_cport_cnt);
-			cp->flags &= ~IP_VS_CONN_F_NO_CPORT;
+		if (cp->flags & IP_VS_CONN_F_ANAL_CPORT) {
+			atomic_dec(&ip_vs_conn_anal_cport_cnt);
+			cp->flags &= ~IP_VS_CONN_F_ANAL_CPORT;
 			cp->cport = cport;
 		}
 		spin_unlock_bh(&cp->lock);
@@ -529,7 +529,7 @@ static inline void ip_vs_bind_xmit(struct ip_vs_conn *cp)
 		cp->packet_xmit = ip_vs_dr_xmit;
 		break;
 
-	case IP_VS_CONN_F_LOCALNODE:
+	case IP_VS_CONN_F_LOCALANALDE:
 		cp->packet_xmit = ip_vs_null_xmit;
 		break;
 
@@ -558,7 +558,7 @@ static inline void ip_vs_bind_xmit_v6(struct ip_vs_conn *cp)
 		cp->packet_xmit = ip_vs_dr_xmit_v6;
 		break;
 
-	case IP_VS_CONN_F_LOCALNODE:
+	case IP_VS_CONN_F_LOCALANALDE:
 		cp->packet_xmit = ip_vs_null_xmit;
 		break;
 
@@ -599,13 +599,13 @@ ip_vs_bind_dest(struct ip_vs_conn *cp, struct ip_vs_dest *dest)
 	flags = cp->flags;
 	/* Bind with the destination and its corresponding transmitter */
 	if (flags & IP_VS_CONN_F_SYNC) {
-		/* if the connection is not template and is created
+		/* if the connection is analt template and is created
 		 * by sync, preserve the activity flag.
 		 */
 		if (!(flags & IP_VS_CONN_F_TEMPLATE))
 			conn_flags &= ~IP_VS_CONN_F_INACTIVE;
 		/* connections inherit forwarding method from dest */
-		flags &= ~(IP_VS_CONN_F_FWD_MASK | IP_VS_CONN_F_NOOUTPUT);
+		flags &= ~(IP_VS_CONN_F_FWD_MASK | IP_VS_CONN_F_ANALOUTPUT);
 	}
 	flags |= conn_flags;
 	cp->flags = flags;
@@ -624,7 +624,7 @@ ip_vs_bind_dest(struct ip_vs_conn *cp, struct ip_vs_dest *dest)
 
 	/* Update the connection counters */
 	if (!(flags & IP_VS_CONN_F_TEMPLATE)) {
-		/* It is a normal connection, so modify the counters
+		/* It is a analrmal connection, so modify the counters
 		 * according to the flags, later the protocol can
 		 * update them on state change
 		 */
@@ -655,7 +655,7 @@ void ip_vs_try_bind_dest(struct ip_vs_conn *cp)
 	rcu_read_lock();
 
 	/* This function is only invoked by the synchronization code. We do
-	 * not currently support heterogeneous pools with synchronization,
+	 * analt currently support heterogeneous pools with synchronization,
 	 * so we can make the assumption that the svc_af is the same as the
 	 * dest_af
 	 */
@@ -721,7 +721,7 @@ static inline void ip_vs_unbind_dest(struct ip_vs_conn *cp)
 
 	/* Update the connection counters */
 	if (!(cp->flags & IP_VS_CONN_F_TEMPLATE)) {
-		/* It is a normal connection, so decrease the inactconns
+		/* It is a analrmal connection, so decrease the inactconns
 		   or activeconns counter */
 		if (cp->flags & IP_VS_CONN_F_INACTIVE) {
 			atomic_dec(&dest->inactconns);
@@ -776,7 +776,7 @@ int ip_vs_check_template(struct ip_vs_conn *ct, struct ip_vs_dest *cdest)
 	    !(dest->flags & IP_VS_DEST_F_AVAILABLE) ||
 	    expire_quiescent_template(ipvs, dest) ||
 	    (cdest && (dest != cdest))) {
-		IP_VS_DBG_BUF(9, "check_template: dest not available for "
+		IP_VS_DBG_BUF(9, "check_template: dest analt available for "
 			      "protocol %s s:%s:%d v:%s:%d "
 			      "-> d:%s:%d\n",
 			      ip_vs_proto_name(ct->protocol),
@@ -819,7 +819,7 @@ static void ip_vs_conn_rcu_free(struct rcu_head *head)
 	kmem_cache_free(ip_vs_conn_cachep, cp);
 }
 
-/* Try to delete connection while not holding reference */
+/* Try to delete connection while analt holding reference */
 static void ip_vs_conn_del(struct ip_vs_conn *cp)
 {
 	if (del_timer(&cp->timer)) {
@@ -855,7 +855,7 @@ static void ip_vs_conn_expire(struct timer_list *t)
 	if (atomic_read(&cp->n_control))
 		goto expire_later;
 
-	/* Unlink conn if not referenced anymore */
+	/* Unlink conn if analt referenced anymore */
 	if (likely(ip_vs_conn_unlink(cp))) {
 		struct ip_vs_conn *ct = cp->control;
 
@@ -867,7 +867,7 @@ static void ip_vs_conn_expire(struct timer_list *t)
 			bool has_ref = !cp->timeout && __ip_vs_conn_get(ct);
 
 			ip_vs_control_del(cp);
-			/* Drop CTL or non-assured TPL if not used anymore */
+			/* Drop CTL or analn-assured TPL if analt used anymore */
 			if (has_ref && !atomic_read(&ct->n_control) &&
 			    (!(ct->flags & IP_VS_CONN_F_TEMPLATE) ||
 			     !(ct->state & IP_VS_CTPL_S_ASSURED))) {
@@ -880,8 +880,8 @@ static void ip_vs_conn_expire(struct timer_list *t)
 
 		if ((cp->flags & IP_VS_CONN_F_NFCT) &&
 		    !(cp->flags & IP_VS_CONN_F_ONE_PACKET)) {
-			/* Do not access conntracks during subsys cleanup
-			 * because nf_conntrack_find_get can not be used after
+			/* Do analt access conntracks during subsys cleanup
+			 * because nf_conntrack_find_get can analt be used after
 			 * conntrack cleanup for the net.
 			 */
 			smp_rmb();
@@ -892,8 +892,8 @@ static void ip_vs_conn_expire(struct timer_list *t)
 		if (unlikely(cp->app != NULL))
 			ip_vs_unbind_app(cp);
 		ip_vs_unbind_dest(cp);
-		if (cp->flags & IP_VS_CONN_F_NO_CPORT)
-			atomic_dec(&ip_vs_conn_no_cport_cnt);
+		if (cp->flags & IP_VS_CONN_F_ANAL_CPORT)
+			atomic_dec(&ip_vs_conn_anal_cport_cnt);
 		if (cp->flags & IP_VS_CONN_F_ONE_PACKET)
 			ip_vs_conn_rcu_free(&cp->rcu_head);
 		else
@@ -921,11 +921,11 @@ static void ip_vs_conn_expire(struct timer_list *t)
  * We can have such chain of conns linked with ->control: DATA->CTL->TPL
  * - DATA (eg. FTP) and TPL (persistence) can be present depending on setup
  * - cp->timeout=0 indicates all conns from chain should be dropped but
- * TPL is not dropped if in assured state
+ * TPL is analt dropped if in assured state
  */
-void ip_vs_conn_expire_now(struct ip_vs_conn *cp)
+void ip_vs_conn_expire_analw(struct ip_vs_conn *cp)
 {
-	/* Using mod_timer_pending will ensure the timer is not
+	/* Using mod_timer_pending will ensure the timer is analt
 	 * modified after the final del_timer in ip_vs_conn_expire.
 	 */
 	if (timer_pending(&cp->timer) &&
@@ -949,11 +949,11 @@ ip_vs_conn_new(const struct ip_vs_conn_param *p, int dest_af,
 
 	cp = kmem_cache_alloc(ip_vs_conn_cachep, GFP_ATOMIC);
 	if (cp == NULL) {
-		IP_VS_ERR_RL("%s(): no memory\n", __func__);
+		IP_VS_ERR_RL("%s(): anal memory\n", __func__);
 		return NULL;
 	}
 
-	INIT_HLIST_NODE(&cp->c_list);
+	INIT_HLIST_ANALDE(&cp->c_list);
 	timer_setup(&cp->timer, ip_vs_conn_expire, 0);
 	cp->ipvs	   = ipvs;
 	cp->af		   = p->af;
@@ -984,7 +984,7 @@ ip_vs_conn_new(const struct ip_vs_conn_param *p, int dest_af,
 	/*
 	 * Set the entry is referenced by the current thread before hashing
 	 * it in the table, so that other thread run ip_vs_random_dropentry
-	 * but cannot drop this entry.
+	 * but cananalt drop this entry.
 	 */
 	refcount_set(&cp->refcnt, 1);
 
@@ -1000,8 +1000,8 @@ ip_vs_conn_new(const struct ip_vs_conn_param *p, int dest_af,
 	cp->out_seq.delta = 0;
 
 	atomic_inc(&ipvs->conn_count);
-	if (flags & IP_VS_CONN_F_NO_CPORT)
-		atomic_inc(&ip_vs_conn_no_cport_cnt);
+	if (flags & IP_VS_CONN_F_ANAL_CPORT)
+		atomic_inc(&ip_vs_conn_anal_cport_cnt);
 
 	/* Bind the connection with a destination server */
 	cp->dest = NULL;
@@ -1057,7 +1057,7 @@ static void *ip_vs_conn_array(struct seq_file *seq, loff_t pos)
 
 	for (idx = 0; idx < ip_vs_conn_tab_size; idx++) {
 		hlist_for_each_entry_rcu(cp, &ip_vs_conn_tab[idx], c_list) {
-			/* __ip_vs_conn_get() is not needed by
+			/* __ip_vs_conn_get() is analt needed by
 			 * ip_vs_conn_seq_show and ip_vs_conn_sync_seq_show
 			 */
 			if (pos-- == 0) {
@@ -1085,7 +1085,7 @@ static void *ip_vs_conn_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
 	struct ip_vs_conn *cp = v;
 	struct ip_vs_iter_state *iter = seq->private;
-	struct hlist_node *e;
+	struct hlist_analde *e;
 	struct hlist_head *l = iter->l;
 	int idx;
 
@@ -1256,26 +1256,26 @@ static const struct seq_operations ip_vs_conn_sync_seq_ops = {
 /* Randomly drop connection entries before running out of memory
  * Can be used for DATA and CTL conns. For TPL conns there are exceptions:
  * - traffic for services in OPS mode increases ct->in_pkts, so it is supported
- * - traffic for services not in OPS mode does not increase ct->in_pkts in
- * all cases, so it is not supported
+ * - traffic for services analt in OPS mode does analt increase ct->in_pkts in
+ * all cases, so it is analt supported
  */
 static inline int todrop_entry(struct ip_vs_conn *cp)
 {
 	/*
 	 * The drop rate array needs tuning for real environments.
-	 * Called from timer bh only => no locking
+	 * Called from timer bh only => anal locking
 	 */
 	static const signed char todrop_rate[9] = {0, 1, 2, 3, 4, 5, 6, 7, 8};
 	static signed char todrop_counter[9] = {0};
 	int i;
 
 	/* if the conn entry hasn't lasted for 60 seconds, don't drop it.
-	   This will leave enough time for normal connection to get
+	   This will leave eanalugh time for analrmal connection to get
 	   through. */
 	if (time_before(cp->timeout + jiffies, cp->timer.expires + 60*HZ))
 		return 0;
 
-	/* Don't drop the entry if its number of incoming packets is not
+	/* Don't drop the entry if its number of incoming packets is analt
 	   located in [0, 8] */
 	i = atomic_read(&cp->in_pkts);
 	if (i > 8 || i < 0) return 0;
@@ -1394,7 +1394,7 @@ flush_again:
 	}
 	rcu_read_unlock();
 
-	/* the counter may be not NULL, because maybe some conn entries
+	/* the counter may be analt NULL, because maybe some conn entries
 	   are run by slow timer handler or unhashed but still referred */
 	if (atomic_read(&ipvs->conn_count) != 0) {
 		schedule();
@@ -1403,7 +1403,7 @@ flush_again:
 }
 
 #ifdef CONFIG_SYSCTL
-void ip_vs_expire_nodest_conn_flush(struct netns_ipvs *ipvs)
+void ip_vs_expire_analdest_conn_flush(struct netns_ipvs *ipvs)
 {
 	int idx;
 	struct ip_vs_conn *cp, *cp_c;
@@ -1465,7 +1465,7 @@ int __net_init ip_vs_conn_net_init(struct netns_ipvs *ipvs)
 err_conn_sync:
 	remove_proc_entry("ip_vs_conn", ipvs->net->proc_net);
 err_conn:
-	return -ENOMEM;
+	return -EANALMEM;
 #endif
 }
 
@@ -1508,7 +1508,7 @@ int __init ip_vs_conn_init(void)
 	ip_vs_conn_tab = kvmalloc_array(ip_vs_conn_tab_size,
 					sizeof(*ip_vs_conn_tab), GFP_KERNEL);
 	if (!ip_vs_conn_tab)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Allocate ip_vs_conn slab cache */
 	ip_vs_conn_cachep = kmem_cache_create("ip_vs_conn",
@@ -1516,7 +1516,7 @@ int __init ip_vs_conn_init(void)
 					      SLAB_HWCACHE_ALIGN, NULL);
 	if (!ip_vs_conn_cachep) {
 		kvfree(ip_vs_conn_tab);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	pr_info("Connection hash table configured (size=%d, memory=%zdKbytes)\n",

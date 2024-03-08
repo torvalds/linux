@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
  * SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
@@ -32,7 +32,7 @@ static const struct nla_policy wcn36xx_tm_policy[WCN36XX_TM_ATTR_MAX + 1] = {
 
 struct build_release_number {
 	u16 drv_major;
-	u16 drv_minor;
+	u16 drv_mianalr;
 	u16 drv_patch;
 	u16 drv_build;
 	u16 ptt_max;
@@ -68,7 +68,7 @@ static int wcn36xx_tm_cmd_ptt(struct wcn36xx *wcn, struct ieee80211_vif *vif,
 				msg->msg_response;
 
 		body->drv_major = wcn->fw_major;
-		body->drv_minor = wcn->fw_minor;
+		body->drv_mianalr = wcn->fw_mianalr;
 		body->drv_patch = wcn->fw_version;
 		body->drv_build = wcn->fw_revision;
 		body->ptt_max = 10;
@@ -95,7 +95,7 @@ static int wcn36xx_tm_cmd_ptt(struct wcn36xx *wcn, struct ieee80211_vif *vif,
 
 	if (!rsp) {
 		rsp = msg;
-		wcn36xx_warn("No response! Echoing request with response status %d\n",
+		wcn36xx_warn("Anal response! Echoing request with response status %d\n",
 			     rsp->resp_status);
 	}
 	wcn36xx_dbg_dump(WCN36XX_DBG_TESTMODE_DUMP, "RSP ",
@@ -104,7 +104,7 @@ static int wcn36xx_tm_cmd_ptt(struct wcn36xx *wcn, struct ieee80211_vif *vif,
 	skb = cfg80211_testmode_alloc_reply_skb(wcn->hw->wiphy,
 						nla_total_size(msg->msg_body_length));
 	if (!skb) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -143,7 +143,7 @@ int wcn36xx_tm_cmd(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	attr = nla_get_u16(tb[WCN36XX_TM_ATTR_CMD]);
 
 	if (attr != WCN36XX_TM_CMD_PTT)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return wcn36xx_tm_cmd_ptt(wcn, vif, tb);
 }

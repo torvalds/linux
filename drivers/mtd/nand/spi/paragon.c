@@ -15,7 +15,7 @@
 
 #define PN26G0XA_STATUS_ECC_BITMASK		(3 << 4)
 
-#define PN26G0XA_STATUS_ECC_NONE_DETECTED	(0 << 4)
+#define PN26G0XA_STATUS_ECC_ANALNE_DETECTED	(0 << 4)
 #define PN26G0XA_STATUS_ECC_1_7_CORRECTED	(1 << 4)
 #define PN26G0XA_STATUS_ECC_ERRORED		(2 << 4)
 #define PN26G0XA_STATUS_ECC_8_CORRECTED		(3 << 4)
@@ -71,7 +71,7 @@ static int pn26g0xa_ecc_get_status(struct spinand_device *spinand,
 				   u8 status)
 {
 	switch (status & PN26G0XA_STATUS_ECC_BITMASK) {
-	case PN26G0XA_STATUS_ECC_NONE_DETECTED:
+	case PN26G0XA_STATUS_ECC_ANALNE_DETECTED:
 		return 0;
 
 	case PN26G0XA_STATUS_ECC_1_7_CORRECTED:

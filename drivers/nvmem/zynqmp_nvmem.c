@@ -54,7 +54,7 @@ static int zynqmp_nvmem_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(struct zynqmp_nvmem_data), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->dev = dev;
 	econfig.dev = dev;

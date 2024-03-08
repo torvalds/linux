@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -267,7 +267,7 @@ nvkm_i2c_new_(const struct nvkm_i2c_func *func, struct nvkm_device *device,
 	int ret, i, ids;
 
 	if (!(i2c = *pi2c = kzalloc(sizeof(*i2c), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nvkm_subdev_ctor(&nvkm_i2c, device, type, inst, &i2c->subdev);
 	i2c->func = func;
@@ -336,7 +336,7 @@ nvkm_i2c_new_(const struct nvkm_i2c_func *func, struct nvkm_device *device,
 		}
 
 		if (ccbE.type != DCB_I2C_UNUSED && !bus && !aux) {
-			nvkm_warn(&i2c->subdev, "ccb %02x was ignored\n", i);
+			nvkm_warn(&i2c->subdev, "ccb %02x was iganalred\n", i);
 			continue;
 		}
 	}
@@ -354,7 +354,7 @@ nvkm_i2c_new_(const struct nvkm_i2c_func *func, struct nvkm_device *device,
 		/* we need an i2c bus to talk to the external encoder */
 		bus = nvkm_i2c_bus_find(i2c, dcbE.i2c_index);
 		if (!bus) {
-			nvkm_debug(&i2c->subdev, "dcb %02x no bus\n", i);
+			nvkm_debug(&i2c->subdev, "dcb %02x anal bus\n", i);
 			continue;
 		}
 
@@ -366,7 +366,7 @@ nvkm_i2c_new_(const struct nvkm_i2c_func *func, struct nvkm_device *device,
 		}
 
 		if (!drv->pad_new) {
-			nvkm_debug(&i2c->subdev, "dcb %02x drv %02x unknown\n",
+			nvkm_debug(&i2c->subdev, "dcb %02x drv %02x unkanalwn\n",
 				   i, dcbE.extdev);
 			continue;
 		}

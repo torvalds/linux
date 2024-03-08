@@ -37,7 +37,7 @@ acpi_rs_match_vendor_resource(struct acpi_resource *resource, void *context);
 static acpi_status
 acpi_rs_validate_parameters(acpi_handle device_handle,
 			    struct acpi_buffer *buffer,
-			    struct acpi_namespace_node **return_node);
+			    struct acpi_namespace_analde **return_analde);
 
 /*******************************************************************************
  *
@@ -45,7 +45,7 @@ acpi_rs_validate_parameters(acpi_handle device_handle,
  *
  * PARAMETERS:  device_handle   - Handle to a device
  *              buffer          - Pointer to a data buffer
- *              return_node     - Pointer to where the device node is returned
+ *              return_analde     - Pointer to where the device analde is returned
  *
  * RETURN:      Status
  *
@@ -56,10 +56,10 @@ acpi_rs_validate_parameters(acpi_handle device_handle,
 static acpi_status
 acpi_rs_validate_parameters(acpi_handle device_handle,
 			    struct acpi_buffer *buffer,
-			    struct acpi_namespace_node **return_node)
+			    struct acpi_namespace_analde **return_analde)
 {
 	acpi_status status;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_analde *analde;
 
 	ACPI_FUNCTION_TRACE(rs_validate_parameters);
 
@@ -70,19 +70,19 @@ acpi_rs_validate_parameters(acpi_handle device_handle,
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
-	node = acpi_ns_validate_handle(device_handle);
-	if (!node) {
+	analde = acpi_ns_validate_handle(device_handle);
+	if (!analde) {
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
-	if (node->type != ACPI_TYPE_DEVICE) {
+	if (analde->type != ACPI_TYPE_DEVICE) {
 		return_ACPI_STATUS(AE_TYPE);
 	}
 
 	/*
 	 * Validate the user buffer object
 	 *
-	 * if there is a non-zero buffer length we also need a valid pointer in
+	 * if there is a analn-zero buffer length we also need a valid pointer in
 	 * the buffer. If it's a zero buffer length, we'll be returning the
 	 * needed buffer size (later), so keep going.
 	 */
@@ -91,7 +91,7 @@ acpi_rs_validate_parameters(acpi_handle device_handle,
 		return_ACPI_STATUS(status);
 	}
 
-	*return_node = node;
+	*return_analde = analde;
 	return_ACPI_STATUS(AE_OK);
 }
 
@@ -123,18 +123,18 @@ acpi_get_irq_routing_table(acpi_handle device_handle,
 			   struct acpi_buffer *ret_buffer)
 {
 	acpi_status status;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_analde *analde;
 
 	ACPI_FUNCTION_TRACE(acpi_get_irq_routing_table);
 
 	/* Validate parameters then dispatch to internal routine */
 
-	status = acpi_rs_validate_parameters(device_handle, ret_buffer, &node);
+	status = acpi_rs_validate_parameters(device_handle, ret_buffer, &analde);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
 
-	status = acpi_rs_get_prt_method_data(node, ret_buffer);
+	status = acpi_rs_get_prt_method_data(analde, ret_buffer);
 	return_ACPI_STATUS(status);
 }
 
@@ -168,18 +168,18 @@ acpi_get_current_resources(acpi_handle device_handle,
 			   struct acpi_buffer *ret_buffer)
 {
 	acpi_status status;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_analde *analde;
 
 	ACPI_FUNCTION_TRACE(acpi_get_current_resources);
 
 	/* Validate parameters then dispatch to internal routine */
 
-	status = acpi_rs_validate_parameters(device_handle, ret_buffer, &node);
+	status = acpi_rs_validate_parameters(device_handle, ret_buffer, &analde);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
 
-	status = acpi_rs_get_crs_method_data(node, ret_buffer);
+	status = acpi_rs_get_crs_method_data(analde, ret_buffer);
 	return_ACPI_STATUS(status);
 }
 
@@ -210,18 +210,18 @@ acpi_get_possible_resources(acpi_handle device_handle,
 			    struct acpi_buffer *ret_buffer)
 {
 	acpi_status status;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_analde *analde;
 
 	ACPI_FUNCTION_TRACE(acpi_get_possible_resources);
 
 	/* Validate parameters then dispatch to internal routine */
 
-	status = acpi_rs_validate_parameters(device_handle, ret_buffer, &node);
+	status = acpi_rs_validate_parameters(device_handle, ret_buffer, &analde);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
 
-	status = acpi_rs_get_prs_method_data(node, ret_buffer);
+	status = acpi_rs_get_prs_method_data(analde, ret_buffer);
 	return_ACPI_STATUS(status);
 }
 
@@ -249,7 +249,7 @@ acpi_set_current_resources(acpi_handle device_handle,
 			   struct acpi_buffer *in_buffer)
 {
 	acpi_status status;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_analde *analde;
 
 	ACPI_FUNCTION_TRACE(acpi_set_current_resources);
 
@@ -261,12 +261,12 @@ acpi_set_current_resources(acpi_handle device_handle,
 
 	/* Validate parameters then dispatch to internal routine */
 
-	status = acpi_rs_validate_parameters(device_handle, in_buffer, &node);
+	status = acpi_rs_validate_parameters(device_handle, in_buffer, &analde);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
 
-	status = acpi_rs_set_srs_method_data(node, in_buffer);
+	status = acpi_rs_set_srs_method_data(analde, in_buffer);
 	return_ACPI_STATUS(status);
 }
 
@@ -295,18 +295,18 @@ acpi_get_event_resources(acpi_handle device_handle,
 			 struct acpi_buffer *ret_buffer)
 {
 	acpi_status status;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_analde *analde;
 
 	ACPI_FUNCTION_TRACE(acpi_get_event_resources);
 
 	/* Validate parameters then dispatch to internal routine */
 
-	status = acpi_rs_validate_parameters(device_handle, ret_buffer, &node);
+	status = acpi_rs_validate_parameters(device_handle, ret_buffer, &analde);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
 
-	status = acpi_rs_get_aei_method_data(node, ret_buffer);
+	status = acpi_rs_get_aei_method_data(analde, ret_buffer);
 	return_ACPI_STATUS(status);
 }
 
@@ -411,7 +411,7 @@ acpi_get_vendor_resource(acpi_handle device_handle,
 
 	info.uuid = uuid;
 	info.buffer = ret_buffer;
-	info.status = AE_NOT_EXIST;
+	info.status = AE_ANALT_EXIST;
 
 	/* Walk the _CRS or _PRS resource list for this device */
 
@@ -446,7 +446,7 @@ acpi_rs_match_vendor_resource(struct acpi_resource *resource, void *context)
 	struct acpi_buffer *buffer;
 	acpi_status status;
 
-	/* Ignore all descriptors except Vendor */
+	/* Iganalre all descriptors except Vendor */
 
 	if (resource->type != ACPI_RESOURCE_TYPE_VENDOR) {
 		return (AE_OK);
@@ -536,7 +536,7 @@ acpi_walk_resource_buffer(struct acpi_buffer *buffer,
 			break;
 		}
 
-		/* Sanity check the length. It must not be zero, or we loop forever */
+		/* Sanity check the length. It must analt be zero, or we loop forever */
 
 		if (!resource->length) {
 			return_ACPI_STATUS(AE_AML_BAD_RESOURCE_LENGTH);

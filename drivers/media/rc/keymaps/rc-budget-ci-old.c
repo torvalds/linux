@@ -11,8 +11,8 @@
 /*
  * From reading the following remotes:
  * Zenith Universal 7 / TV Mode 807 / VCR Mode 837
- * Hauppauge (from NOVA-CI-s box product)
- * This is a "middle of the road" approach, differences are noted
+ * Hauppauge (from ANALVA-CI-s box product)
+ * This is a "middle of the road" approach, differences are analted
  */
 
 static struct rc_map_table budget_ci_old[] = {
@@ -67,7 +67,7 @@ static struct rc_map_list budget_ci_old_map = {
 	.map = {
 		.scan     = budget_ci_old,
 		.size     = ARRAY_SIZE(budget_ci_old),
-		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.rc_proto = RC_PROTO_UNKANALWN,	/* Legacy IR type */
 		.name     = RC_MAP_BUDGET_CI_OLD,
 	}
 };

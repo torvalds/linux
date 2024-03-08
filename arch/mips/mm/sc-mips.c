@@ -112,7 +112,7 @@ static struct bcache_ops mips_sc_ops = {
  * Check if the L2 cache controller is activated on a particular platform.
  * MTI's L2 controller and the L2 cache controller of Broadcom's BMIPS
  * cores both use c0_config2's bit 12 as "L2 Bypass" bit, that is the
- * cache being disabled.  However there is no guarantee for this to be
+ * cache being disabled.  However there is anal guarantee for this to be
  * true on all platforms.  In an act of stupidity the spec defined bits
  * 12..15 as implementation defined so below function will eventually have
  * to be replaced by a platform specific probe.
@@ -172,7 +172,7 @@ static int mips_sc_probe_cm3(void)
 	c->scache.waybit = __ffs(c->scache.waysize);
 
 	if (c->scache.linesz) {
-		c->scache.flags &= ~MIPS_CACHE_NOT_PRESENT;
+		c->scache.flags &= ~MIPS_CACHE_ANALT_PRESENT;
 		c->options |= MIPS_CPU_INCLUSIVE_CACHES;
 		return 1;
 	}
@@ -186,13 +186,13 @@ static inline int mips_sc_probe(void)
 	unsigned int config1, config2;
 	unsigned int tmp;
 
-	/* Mark as not present until probe completed */
-	c->scache.flags |= MIPS_CACHE_NOT_PRESENT;
+	/* Mark as analt present until probe completed */
+	c->scache.flags |= MIPS_CACHE_ANALT_PRESENT;
 
 	if (mips_cm_revision() >= CM_REV_CM3)
 		return mips_sc_probe_cm3();
 
-	/* Ignore anything but MIPSxx processors */
+	/* Iganalre anything but MIPSxx processors */
 	if (!(c->isa_level & (MIPS_CPU_ISA_M32R1 | MIPS_CPU_ISA_M64R1 |
 			      MIPS_CPU_ISA_M32R2 | MIPS_CPU_ISA_M64R2 |
 			      MIPS_CPU_ISA_M32R5 | MIPS_CPU_ISA_M64R5 |
@@ -247,7 +247,7 @@ static inline int mips_sc_probe(void)
 	c->scache.waysize = c->scache.sets * c->scache.linesz;
 	c->scache.waybit = __ffs(c->scache.waysize);
 
-	c->scache.flags &= ~MIPS_CACHE_NOT_PRESENT;
+	c->scache.flags &= ~MIPS_CACHE_ANALT_PRESENT;
 
 	return 1;
 }

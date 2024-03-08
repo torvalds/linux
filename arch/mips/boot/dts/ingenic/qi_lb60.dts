@@ -16,7 +16,7 @@
 
 / {
 	compatible = "qi,lb60", "ingenic,jz4740";
-	model = "Ben Nanonote";
+	model = "Ben Naanalanalte";
 
 	memory {
 		device_type = "memory";
@@ -228,7 +228,7 @@
 	};
 
 	usb_phy: usb-phy {
-		compatible = "usb-nop-xceiv";
+		compatible = "usb-analp-xceiv";
 		#phy-cells = <0>;
 
 		vcc-supply = <&vcc>;

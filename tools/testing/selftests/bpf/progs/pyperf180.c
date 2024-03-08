@@ -12,7 +12,7 @@
  * reduced some branch target distances and resolved the compilation failure.
  *
  * To capture the case where a developer/ci uses clang18 but the corresponding
- * repo checkpoint does not have __BPF_CPU_VERSION__, a smaller unroll_count
+ * repo checkpoint does analt have __BPF_CPU_VERSION__, a smaller unroll_count
  * will be set as well to prevent potential compilation failures.
  */
 #ifdef __BPF_CPU_VERSION__

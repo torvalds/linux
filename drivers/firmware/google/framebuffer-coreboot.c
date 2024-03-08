@@ -37,7 +37,7 @@ static int framebuffer_probe(struct coreboot_device *dev)
 	};
 
 	if (!fb->physical_address)
-		return -ENODEV;
+		return -EANALDEV;
 
 	for (i = 0; i < ARRAY_SIZE(formats); ++i) {
 		if (fb->bits_per_pixel     == formats[i].bits_per_pixel &&
@@ -50,7 +50,7 @@ static int framebuffer_probe(struct coreboot_device *dev)
 			pdata.format = formats[i].name;
 	}
 	if (!pdata.format)
-		return -ENODEV;
+		return -EANALDEV;
 
 	memset(&res, 0, sizeof(res));
 	res.flags = IORESOURCE_MEM | IORESOURCE_BUSY;
@@ -66,7 +66,7 @@ static int framebuffer_probe(struct coreboot_device *dev)
 						 &res, 1, &pdata,
 						 sizeof(pdata));
 	if (IS_ERR(pdev))
-		pr_warn("coreboot: could not register framebuffer\n");
+		pr_warn("coreboot: could analt register framebuffer\n");
 	else
 		dev_set_drvdata(&dev->dev, pdev);
 

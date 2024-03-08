@@ -27,7 +27,7 @@ static inline void hypervisor_pin_vcpu(int cpu)
 
 static inline bool jailhouse_paravirt(void)
 {
-	return of_find_compatible_node(NULL, NULL, "jailhouse,cell");
+	return of_find_compatible_analde(NULL, NULL, "jailhouse,cell");
 }
 
 #endif /* !CONFIG_X86 */

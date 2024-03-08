@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -91,7 +91,7 @@ static int ar9002_hw_set_channel(struct ath_hw *ah, struct ath9k_channel *chan)
 				REG_WRITE_ARRAY(&ah->iniCckfirJapan2484,
 						1, regWrites);
 			} else {
-				REG_WRITE_ARRAY(&ah->iniCckfirNormal,
+				REG_WRITE_ARRAY(&ah->iniCckfirAnalrmal,
 						1, regWrites);
 			}
 		} else {
@@ -168,13 +168,13 @@ static int ar9002_hw_set_channel(struct ath_hw *ah, struct ath9k_channel *chan)
 static void ar9002_hw_spur_mitigate(struct ath_hw *ah,
 				    struct ath9k_channel *chan)
 {
-	int bb_spur = AR_NO_SPUR;
+	int bb_spur = AR_ANAL_SPUR;
 	int freq;
 	int bin;
 	int bb_spur_off, spur_subchannel_sd;
 	int spur_freq_sd;
 	int spur_delta_phase;
-	int denominator;
+	int deanalminator;
 	int tmp, newVal;
 	int i;
 	struct chan_centers centers;
@@ -188,7 +188,7 @@ static void ar9002_hw_spur_mitigate(struct ath_hw *ah,
 	for (i = 0; i < AR_EEPROM_MODAL_SPURS; i++) {
 		cur_bb_spur = ah->eep_ops->get_spur_channel(ah, i, is2GHz);
 
-		if (AR_NO_SPUR == cur_bb_spur)
+		if (AR_ANAL_SPUR == cur_bb_spur)
 			break;
 
 		if (is2GHz)
@@ -211,7 +211,7 @@ static void ar9002_hw_spur_mitigate(struct ath_hw *ah,
 		}
 	}
 
-	if (AR_NO_SPUR == bb_spur) {
+	if (AR_ANAL_SPUR == bb_spur) {
 		REG_CLR_BIT(ah, AR_PHY_FORCE_CLKEN_CCK,
 			    AR_PHY_FORCE_CLKEN_CCK_MRC_MUX);
 		return;
@@ -261,8 +261,8 @@ static void ar9002_hw_spur_mitigate(struct ath_hw *ah,
 			((bb_spur * 524288) /
 			 10) & AR_PHY_TIMING11_SPUR_DELTA_PHASE;
 
-	denominator = IS_CHAN_2GHZ(chan) ? 44 : 40;
-	spur_freq_sd = ((bb_spur_off * 2048) / denominator) & 0x3ff;
+	deanalminator = IS_CHAN_2GHZ(chan) ? 44 : 40;
+	spur_freq_sd = ((bb_spur_off * 2048) / deanalminator) & 0x3ff;
 
 	newVal = (AR_PHY_TIMING11_USE_SPUR_IN_AGC |
 		  SM(spur_freq_sd, AR_PHY_TIMING11_SPUR_FREQ_SD) |
@@ -356,22 +356,22 @@ static void ar9002_hw_set_nf_limits(struct ath_hw *ah)
 	if (AR_SREV_9285(ah)) {
 		ah->nf_2g.max = AR_PHY_CCA_MAX_GOOD_VAL_9285_2GHZ;
 		ah->nf_2g.min = AR_PHY_CCA_MIN_GOOD_VAL_9285_2GHZ;
-		ah->nf_2g.nominal = AR_PHY_CCA_NOM_VAL_9285_2GHZ;
+		ah->nf_2g.analminal = AR_PHY_CCA_ANALM_VAL_9285_2GHZ;
 	} else if (AR_SREV_9287(ah)) {
 		ah->nf_2g.max = AR_PHY_CCA_MAX_GOOD_VAL_9287_2GHZ;
 		ah->nf_2g.min = AR_PHY_CCA_MIN_GOOD_VAL_9287_2GHZ;
-		ah->nf_2g.nominal = AR_PHY_CCA_NOM_VAL_9287_2GHZ;
+		ah->nf_2g.analminal = AR_PHY_CCA_ANALM_VAL_9287_2GHZ;
 	} else if (AR_SREV_9271(ah)) {
 		ah->nf_2g.max = AR_PHY_CCA_MAX_GOOD_VAL_9271_2GHZ;
 		ah->nf_2g.min = AR_PHY_CCA_MIN_GOOD_VAL_9271_2GHZ;
-		ah->nf_2g.nominal = AR_PHY_CCA_NOM_VAL_9271_2GHZ;
+		ah->nf_2g.analminal = AR_PHY_CCA_ANALM_VAL_9271_2GHZ;
 	} else {
 		ah->nf_2g.max = AR_PHY_CCA_MAX_GOOD_VAL_9280_2GHZ;
 		ah->nf_2g.min = AR_PHY_CCA_MIN_GOOD_VAL_9280_2GHZ;
-		ah->nf_2g.nominal = AR_PHY_CCA_NOM_VAL_9280_2GHZ;
+		ah->nf_2g.analminal = AR_PHY_CCA_ANALM_VAL_9280_2GHZ;
 		ah->nf_5g.max = AR_PHY_CCA_MAX_GOOD_VAL_9280_5GHZ;
 		ah->nf_5g.min = AR_PHY_CCA_MIN_GOOD_VAL_9280_5GHZ;
-		ah->nf_5g.nominal = AR_PHY_CCA_NOM_VAL_9280_5GHZ;
+		ah->nf_5g.analminal = AR_PHY_CCA_ANALM_VAL_9280_5GHZ;
 	}
 }
 

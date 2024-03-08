@@ -66,6 +66,6 @@
 
 #define ISP1301_I2C_REG_CLEAR_ADDR	1	/* Register Address Modifier */
 
-struct i2c_client *isp1301_get_client(struct device_node *node);
+struct i2c_client *isp1301_get_client(struct device_analde *analde);
 
 #endif /* __LINUX_USB_ISP1301_H */

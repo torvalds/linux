@@ -13,14 +13,14 @@
  * This program is distributed in the hope that it will be useful. *
  * ALL EXPRESS OR IMPLIED CONDITIONS, REPRESENTATIONS AND          *
  * WARRANTIES, INCLUDING ANY IMPLIED WARRANTY OF MERCHANTABILITY,  *
- * FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT, ARE      *
+ * FITNESS FOR A PARTICULAR PURPOSE, OR ANALN-INFRINGEMENT, ARE      *
  * DISCLAIMED, EXCEPT TO THE EXTENT THAT SUCH DISCLAIMERS ARE HELD *
  * TO BE LEGALLY INVALID.  See the GNU General Public License for  *
  * more details, a copy of which can be found in the file COPYING  *
  * included with this package.                                     *
  *******************************************************************/
 /* bsg definitions
- * No pointers to user data are allowed, all application buffers and sizes will
+ * Anal pointers to user data are allowed, all application buffers and sizes will
  * derived through the bsg interface.
  *
  * These are the vendor unique structures passed in using the bsg
@@ -105,12 +105,12 @@ struct get_mgmt_rev {
 };
 
 #define MANAGEMENT_MAJOR_REV   1
-#define MANAGEMENT_MINOR_REV   1
+#define MANAGEMENT_MIANALR_REV   1
 
 /* the MgmtRevInfo structure */
 struct MgmtRevInfo {
 	uint32_t a_Major;
-	uint32_t a_Minor;
+	uint32_t a_Mianalr;
 };
 
 struct get_mgmt_rev_reply {
@@ -132,9 +132,9 @@ struct dfc_mbox_req {
 /*
  * macros and data structures for handling sli-config mailbox command
  * pass-through support, this header file is shared between user and
- * kernel spaces, note the set of macros are duplicates from lpfc_hw4.h,
+ * kernel spaces, analte the set of macros are duplicates from lpfc_hw4.h,
  * with macro names prefixed with bsg_, as the macros defined in
- * lpfc_hw4.h are not accessible from user space.
+ * lpfc_hw4.h are analt accessible from user space.
  */
 
 /* Macros to deal with bit fields. Each bit field must have 3 #defines
@@ -178,7 +178,7 @@ struct dfc_mbox_req {
  *
  * -- SLI_CONFIG EMB=0, carrying MSEs, will carry subcommands without
  *    carrying HBD.
- * -- SLI_CONFIG EMB=1, not carrying MSE, will carry subcommands with or
+ * -- SLI_CONFIG EMB=1, analt carrying MSE, will carry subcommands with or
  *    without carrying HBDs.
  */
 
@@ -297,7 +297,7 @@ struct lpfc_sli_config_mbox {
 	} un;
 };
 
-#define LPFC_FORCED_LINK_SPEED_NOT_SUPPORTED	0
+#define LPFC_FORCED_LINK_SPEED_ANALT_SUPPORTED	0
 #define LPFC_FORCED_LINK_SPEED_SUPPORTED	1
 struct get_forced_link_speed_support {
 	uint32_t command;
@@ -383,5 +383,5 @@ struct get_cgnbuf_info_req {
 };
 
 /* driver only */
-#define SLI_CONFIG_NOT_HANDLED		0
+#define SLI_CONFIG_ANALT_HANDLED		0
 #define SLI_CONFIG_HANDLED		1

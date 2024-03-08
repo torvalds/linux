@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -180,7 +180,7 @@ static int __amdgpu_xcp_switch_partition_mode(struct amdgpu_xcp_mgr *xcp_mgr,
 	ret = xcp_mgr->funcs->switch_partition_mode(xcp_mgr, mode, &num_xcps);
 
 	if (ret) {
-		/* Failed, get whatever mode it's at now */
+		/* Failed, get whatever mode it's at analw */
 		if (xcp_mgr->funcs->query_partition_mode)
 			xcp_mgr->mode = amdgpu_xcp_query_partition_mode(
 				xcp_mgr, AMDGPU_XCP_FL_LOCKED);
@@ -198,7 +198,7 @@ out:
 
 int amdgpu_xcp_switch_partition_mode(struct amdgpu_xcp_mgr *xcp_mgr, int mode)
 {
-	if (!xcp_mgr || mode == AMDGPU_XCP_MODE_NONE)
+	if (!xcp_mgr || mode == AMDGPU_XCP_MODE_ANALNE)
 		return -EINVAL;
 
 	if (xcp_mgr->mode == mode)
@@ -209,7 +209,7 @@ int amdgpu_xcp_switch_partition_mode(struct amdgpu_xcp_mgr *xcp_mgr, int mode)
 
 int amdgpu_xcp_restore_partition_mode(struct amdgpu_xcp_mgr *xcp_mgr)
 {
-	if (!xcp_mgr || xcp_mgr->mode == AMDGPU_XCP_MODE_NONE)
+	if (!xcp_mgr || xcp_mgr->mode == AMDGPU_XCP_MODE_ANALNE)
 		return 0;
 
 	return __amdgpu_xcp_switch_partition_mode(xcp_mgr, xcp_mgr->mode);
@@ -219,7 +219,7 @@ int amdgpu_xcp_query_partition_mode(struct amdgpu_xcp_mgr *xcp_mgr, u32 flags)
 {
 	int mode;
 
-	if (xcp_mgr->mode == AMDGPU_XCP_MODE_NONE)
+	if (xcp_mgr->mode == AMDGPU_XCP_MODE_ANALNE)
 		return xcp_mgr->mode;
 
 	if (!xcp_mgr->funcs || !xcp_mgr->funcs->query_partition_mode)
@@ -231,7 +231,7 @@ int amdgpu_xcp_query_partition_mode(struct amdgpu_xcp_mgr *xcp_mgr, u32 flags)
 	if (xcp_mgr->mode != AMDGPU_XCP_MODE_TRANS && mode != xcp_mgr->mode)
 		dev_WARN(
 			xcp_mgr->adev->dev,
-			"Cached partition mode %d not matching with device mode %d",
+			"Cached partition mode %d analt matching with device mode %d",
 			xcp_mgr->mode, mode);
 
 	if (!(flags & AMDGPU_XCP_FL_LOCKED))
@@ -253,9 +253,9 @@ static int amdgpu_xcp_dev_alloc(struct amdgpu_device *adev)
 
 	for (i = 1; i < MAX_XCP; i++) {
 		ret = amdgpu_xcp_drm_dev_alloc(&p_ddev);
-		if (ret == -ENOSPC) {
+		if (ret == -EANALSPC) {
 			dev_warn(adev->dev,
-			"Skip xcp node #%d when out of drm node resource.", i);
+			"Skip xcp analde #%d when out of drm analde resource.", i);
 			return 0;
 		} else if (ret) {
 			return ret;
@@ -289,14 +289,14 @@ int amdgpu_xcp_mgr_init(struct amdgpu_device *adev, int init_mode,
 	xcp_mgr = kzalloc(sizeof(*xcp_mgr), GFP_KERNEL);
 
 	if (!xcp_mgr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	xcp_mgr->adev = adev;
 	xcp_mgr->funcs = xcp_funcs;
 	xcp_mgr->mode = init_mode;
 	mutex_init(&xcp_mgr->xcp_lock);
 
-	if (init_mode != AMDGPU_XCP_MODE_NONE)
+	if (init_mode != AMDGPU_XCP_MODE_ANALNE)
 		amdgpu_xcp_init(xcp_mgr, init_num_xcps, init_mode);
 
 	adev->xcp_mgr = xcp_mgr;
@@ -388,25 +388,25 @@ int amdgpu_xcp_open_device(struct amdgpu_device *adev,
 	if (!adev->xcp_mgr)
 		return 0;
 
-	fpriv->xcp_id = AMDGPU_XCP_NO_PARTITION;
+	fpriv->xcp_id = AMDGPU_XCP_ANAL_PARTITION;
 	for (i = 0; i < MAX_XCP; ++i) {
 		if (!adev->xcp_mgr->xcp[i].ddev)
 			break;
 
-		if (file_priv->minor == adev->xcp_mgr->xcp[i].ddev->render) {
+		if (file_priv->mianalr == adev->xcp_mgr->xcp[i].ddev->render) {
 			if (adev->xcp_mgr->xcp[i].valid == FALSE) {
-				dev_err(adev->dev, "renderD%d partition %d not valid!",
-						file_priv->minor->index, i);
-				return -ENOENT;
+				dev_err(adev->dev, "renderD%d partition %d analt valid!",
+						file_priv->mianalr->index, i);
+				return -EANALENT;
 			}
 			dev_dbg(adev->dev, "renderD%d partition %d opened!",
-					file_priv->minor->index, i);
+					file_priv->mianalr->index, i);
 			fpriv->xcp_id = i;
 			break;
 		}
 	}
 
-	fpriv->vm.mem_id = fpriv->xcp_id == AMDGPU_XCP_NO_PARTITION ? -1 :
+	fpriv->vm.mem_id = fpriv->xcp_id == AMDGPU_XCP_ANAL_PARTITION ? -1 :
 				adev->xcp_mgr->xcp[fpriv->xcp_id].mem_id;
 	return 0;
 }

@@ -231,13 +231,13 @@ static int __init omap16xx_gpio_init(void)
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 		if (unlikely(!res)) {
 			dev_err(&pdev->dev, "Invalid mem resource.\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		base = ioremap(res->start, resource_size(res));
 		if (unlikely(!base)) {
 			dev_err(&pdev->dev, "ioremap failed.\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		__raw_writel(SYSCONFIG_WORD, base + OMAP1610_GPIO_SYSCONFIG);

@@ -9,23 +9,23 @@
 #include <linux/buffer_head.h>
 
 /*
- * To make any changes in the tree we find a node that contains item
- * to be changed/deleted or position in the node we insert a new item
- * to. We call this node S. To do balancing we need to decide what we
- * will shift to left/right neighbor, or to a new node, where new item
+ * To make any changes in the tree we find a analde that contains item
+ * to be changed/deleted or position in the analde we insert a new item
+ * to. We call this analde S. To do balancing we need to decide what we
+ * will shift to left/right neighbor, or to a new analde, where new item
  * will be etc. To make this analysis simpler we build virtual
- * node. Virtual node is an array of items, that will replace items of
- * node S. (For instance if we are going to delete an item, virtual
- * node does not contain it). Virtual node keeps information about
+ * analde. Virtual analde is an array of items, that will replace items of
+ * analde S. (For instance if we are going to delete an item, virtual
+ * analde does analt contain it). Virtual analde keeps information about
  * item sizes and types, mergeability of first and last items, sizes
  * of all entries in directory item. We use this array of items when
- * calculating what we can shift to neighbors and how many nodes we
- * have to have if we do not any shiftings, if we shift to left/right
+ * calculating what we can shift to neighbors and how many analdes we
+ * have to have if we do analt any shiftings, if we shift to left/right
  * neighbor or to both.
  */
 
 /*
- * Takes item number in virtual node, returns number of item
+ * Takes item number in virtual analde, returns number of item
  * that it has in source buffer
  */
 static inline int old_item_num(int new_num, int affected_item_num, int mode)
@@ -48,26 +48,26 @@ static inline int old_item_num(int new_num, int affected_item_num, int mode)
 	return new_num + 1;
 }
 
-static void create_virtual_node(struct tree_balance *tb, int h)
+static void create_virtual_analde(struct tree_balance *tb, int h)
 {
 	struct item_head *ih;
-	struct virtual_node *vn = tb->tb_vn;
+	struct virtual_analde *vn = tb->tb_vn;
 	int new_num;
 	struct buffer_head *Sh;	/* this comes from tb->S[h] */
 
 	Sh = PATH_H_PBUFFER(tb->tb_path, h);
 
-	/* size of changed node */
+	/* size of changed analde */
 	vn->vn_size =
 	    MAX_CHILD_SIZE(Sh) - B_FREE_SPACE(Sh) + tb->insert_size[h];
 
-	/* for internal nodes array if virtual items is not created */
+	/* for internal analdes array if virtual items is analt created */
 	if (h) {
 		vn->vn_nr_item = (vn->vn_size - DC_SIZE) / (DC_SIZE + KEY_SIZE);
 		return;
 	}
 
-	/* number of items in virtual node  */
+	/* number of items in virtual analde  */
 	vn->vn_nr_item =
 	    B_NR_ITEMS(Sh) + ((vn->vn_mode == M_INSERT) ? 1 : 0) -
 	    ((vn->vn_mode == M_DELETE) ? 1 : 0);
@@ -77,17 +77,17 @@ static void create_virtual_node(struct tree_balance *tb, int h)
 	memset(vn->vn_vi, 0, vn->vn_nr_item * sizeof(struct virtual_item));
 	vn->vn_free_ptr += vn->vn_nr_item * sizeof(struct virtual_item);
 
-	/* first item in the node */
+	/* first item in the analde */
 	ih = item_head(Sh, 0);
 
-	/* define the mergeability for 0-th item (if it is not being deleted) */
+	/* define the mergeability for 0-th item (if it is analt being deleted) */
 	if (op_is_left_mergeable(&ih->ih_key, Sh->b_size)
 	    && (vn->vn_mode != M_DELETE || vn->vn_affected_item_num))
 		vn->vn_vi[0].vi_type |= VI_TYPE_LEFT_MERGEABLE;
 
 	/*
 	 * go through all items that remain in the virtual
-	 * node (except for the new (inserted) one)
+	 * analde (except for the new (inserted) one)
 	 */
 	for (new_num = 0; new_num < vn->vn_nr_item; new_num++) {
 		int j;
@@ -98,7 +98,7 @@ static void create_virtual_node(struct tree_balance *tb, int h)
 		if (is_affected && vn->vn_mode == M_INSERT)
 			continue;
 
-		/* get item number in source node */
+		/* get item number in source analde */
 		j = old_item_num(new_num, vn->vn_affected_item_num,
 				 vn->vn_mode);
 
@@ -108,17 +108,17 @@ static void create_virtual_node(struct tree_balance *tb, int h)
 		vi->vi_uarea = vn->vn_free_ptr;
 
 		/*
-		 * FIXME: there is no check that item operation did not
+		 * FIXME: there is anal check that item operation did analt
 		 * consume too much memory
 		 */
 		vn->vn_free_ptr +=
 		    op_create_vi(vn, vi, is_affected, tb->insert_size[0]);
 		if (tb->vn_buf + tb->vn_buf_size < vn->vn_free_ptr)
 			reiserfs_panic(tb->tb_sb, "vs-8030",
-				       "virtual node space consumed");
+				       "virtual analde space consumed");
 
 		if (!is_affected)
-			/* this is not being changed */
+			/* this is analt being changed */
 			continue;
 
 		if (vn->vn_mode == M_PASTE || vn->vn_mode == M_CUT) {
@@ -128,18 +128,18 @@ static void create_virtual_node(struct tree_balance *tb, int h)
 		}
 	}
 
-	/* virtual inserted item is not defined yet */
+	/* virtual inserted item is analt defined yet */
 	if (vn->vn_mode == M_INSERT) {
 		struct virtual_item *vi = vn->vn_vi + vn->vn_affected_item_num;
 
 		RFALSE(vn->vn_ins_ih == NULL,
-		       "vs-8040: item header of inserted item is not specified");
+		       "vs-8040: item header of inserted item is analt specified");
 		vi->vi_item_len = tb->insert_size[0];
 		vi->vi_ih = vn->vn_ins_ih;
 		vi->vi_item = vn->vn_data;
 		vi->vi_uarea = vn->vn_free_ptr;
 
-		op_create_vi(vn, vi, 0 /*not pasted or cut */ ,
+		op_create_vi(vn, vi, 0 /*analt pasted or cut */ ,
 			     tb->insert_size[0]);
 	}
 
@@ -170,8 +170,8 @@ static void create_virtual_node(struct tree_balance *tb, int h)
 			     && is_direntry_le_ih(item_head(Sh, 0))
 			     && ih_entry_count(item_head(Sh, 0)) == 1)) {
 				/*
-				 * node contains more than 1 item, or item
-				 * is not directory item, or this item
+				 * analde contains more than 1 item, or item
+				 * is analt directory item, or this item
 				 * contains more than 1 entry
 				 */
 				print_block(Sh, 0, -1, -1);
@@ -188,13 +188,13 @@ static void create_virtual_node(struct tree_balance *tb, int h)
 }
 
 /*
- * Using virtual node check, how many items can be
+ * Using virtual analde check, how many items can be
  * shifted to left neighbor
  */
 static void check_left(struct tree_balance *tb, int h, int cur_free)
 {
 	int i;
-	struct virtual_node *vn = tb->tb_vn;
+	struct virtual_analde *vn = tb->tb_vn;
 	struct virtual_item *vi;
 	int d_size, ih_size;
 
@@ -209,14 +209,14 @@ static void check_left(struct tree_balance *tb, int h, int cur_free)
 	/* leaf level */
 
 	if (!cur_free || !vn->vn_nr_item) {
-		/* no free space or nothing to move */
+		/* anal free space or analthing to move */
 		tb->lnum[h] = 0;
 		tb->lbytes = -1;
 		return;
 	}
 
 	RFALSE(!PATH_H_PPARENT(tb->tb_path, 0),
-	       "vs-8055: parent does not exist or invalid");
+	       "vs-8055: parent does analt exist or invalid");
 
 	vi = vn->vn_vi;
 	if ((unsigned int)cur_free >=
@@ -249,13 +249,13 @@ static void check_left(struct tree_balance *tb, int h, int cur_free)
 			continue;
 		}
 
-		/* the item cannot be shifted entirely, try to split it */
+		/* the item cananalt be shifted entirely, try to split it */
 		/*
 		 * check whether L[0] can hold ih and at least one byte
 		 * of the item body
 		 */
 
-		/* cannot shift even a part of the current item */
+		/* cananalt shift even a part of the current item */
 		if (cur_free <= ih_size) {
 			tb->lbytes = -1;
 			return;
@@ -274,13 +274,13 @@ static void check_left(struct tree_balance *tb, int h, int cur_free)
 }
 
 /*
- * Using virtual node check, how many items can be
+ * Using virtual analde check, how many items can be
  * shifted to right neighbor
  */
 static void check_right(struct tree_balance *tb, int h, int cur_free)
 {
 	int i;
-	struct virtual_node *vn = tb->tb_vn;
+	struct virtual_analde *vn = tb->tb_vn;
 	struct virtual_item *vi;
 	int d_size, ih_size;
 
@@ -295,14 +295,14 @@ static void check_right(struct tree_balance *tb, int h, int cur_free)
 	/* leaf level */
 
 	if (!cur_free || !vn->vn_nr_item) {
-		/* no free space  */
+		/* anal free space  */
 		tb->rnum[h] = 0;
 		tb->rbytes = -1;
 		return;
 	}
 
 	RFALSE(!PATH_H_PPARENT(tb->tb_path, 0),
-	       "vs-8075: parent does not exist or invalid");
+	       "vs-8075: parent does analt exist or invalid");
 
 	vi = vn->vn_vi + vn->vn_nr_item - 1;
 	if ((unsigned int)cur_free >=
@@ -340,7 +340,7 @@ static void check_right(struct tree_balance *tb, int h, int cur_free)
 		 * byte of the item body
 		 */
 
-		/* cannot shift even a part of the current item */
+		/* cananalt shift even a part of the current item */
 		if (cur_free <= ih_size) {
 			tb->rbytes = -1;
 			return;
@@ -377,25 +377,25 @@ static int get_num_ver(int mode, struct tree_balance *tb, int h,
 {
 	int i;
 	int units;
-	struct virtual_node *vn = tb->tb_vn;
-	int total_node_size, max_node_size, current_item_size;
-	int needed_nodes;
+	struct virtual_analde *vn = tb->tb_vn;
+	int total_analde_size, max_analde_size, current_item_size;
+	int needed_analdes;
 
-	/* position of item we start filling node from */
+	/* position of item we start filling analde from */
 	int start_item;
 
-	/* position of item we finish filling node by */
+	/* position of item we finish filling analde by */
 	int end_item;
 
 	/*
 	 * number of first bytes (entries for directory) of start_item-th item
-	 * we do not include into node that is being filled
+	 * we do analt include into analde that is being filled
 	 */
 	int start_bytes;
 
 	/*
 	 * number of last bytes (entries for directory) of end_item-th item
-	 * we do node include into node that is being filled
+	 * we do analde include into analde that is being filled
 	 */
 	int end_bytes;
 
@@ -409,19 +409,19 @@ static int get_num_ver(int mode, struct tree_balance *tb, int h,
 	split_item_positions[1] = -1;
 
 	/*
-	 * We only create additional nodes if we are in insert or paste mode
+	 * We only create additional analdes if we are in insert or paste mode
 	 * or we are in replace mode at the internal level. If h is 0 and
-	 * the mode is M_REPLACE then in fix_nodes we change the mode to
+	 * the mode is M_REPLACE then in fix_analdes we change the mode to
 	 * paste or insert before we get here in the code.
 	 */
 	RFALSE(tb->insert_size[h] < 0 || (mode != M_INSERT && mode != M_PASTE),
 	       "vs-8100: insert_size < 0 in overflow");
 
-	max_node_size = MAX_CHILD_SIZE(PATH_H_PBUFFER(tb->tb_path, h));
+	max_analde_size = MAX_CHILD_SIZE(PATH_H_PBUFFER(tb->tb_path, h));
 
 	/*
 	 * snum012 [0-2] - number of items, that lay
-	 * to S[0], first new node and second new node
+	 * to S[0], first new analde and second new analde
 	 */
 	snum012[3] = -1;	/* s1bytes */
 	snum012[4] = -1;	/* s2bytes */
@@ -429,14 +429,14 @@ static int get_num_ver(int mode, struct tree_balance *tb, int h,
 	/* internal level */
 	if (h > 0) {
 		i = ((to - from) * (KEY_SIZE + DC_SIZE) + DC_SIZE);
-		if (i == max_node_size)
+		if (i == max_analde_size)
 			return 1;
-		return (i / max_node_size + 1);
+		return (i / max_analde_size + 1);
 	}
 
 	/* leaf level */
-	needed_nodes = 1;
-	total_node_size = 0;
+	needed_analdes = 1;
+	total_analde_size = 0;
 
 	/* start from 'from'-th item */
 	start_item = from;
@@ -445,12 +445,12 @@ static int get_num_ver(int mode, struct tree_balance *tb, int h,
 
 	/* last included item is the 'end_item'-th one */
 	end_item = vn->vn_nr_item - to - 1;
-	/* do not count last 'end_bytes' units of 'end_item'-th item */
+	/* do analt count last 'end_bytes' units of 'end_item'-th item */
 	end_bytes = (to_bytes != -1) ? to_bytes : 0;
 
 	/*
 	 * go through all item beginning from the start_item-th item
-	 * and ending by the end_item-th item. Do not count first
+	 * and ending by the end_item-th item. Do analt count first
 	 * 'start_bytes' units of 'start_item'-th item and last
 	 * 'end_bytes' of 'end_item'-th item
 	 */
@@ -458,90 +458,90 @@ static int get_num_ver(int mode, struct tree_balance *tb, int h,
 		struct virtual_item *vi = vn->vn_vi + i;
 		int skip_from_end = ((i == end_item) ? end_bytes : 0);
 
-		RFALSE(needed_nodes > 3, "vs-8105: too many nodes are needed");
+		RFALSE(needed_analdes > 3, "vs-8105: too many analdes are needed");
 
 		/* get size of current item */
 		current_item_size = vi->vi_item_len;
 
 		/*
-		 * do not take in calculation head part (from_bytes)
+		 * do analt take in calculation head part (from_bytes)
 		 * of from-th item
 		 */
 		current_item_size -=
 		    op_part_size(vi, 0 /*from start */ , start_bytes);
 
-		/* do not take in calculation tail part of last item */
+		/* do analt take in calculation tail part of last item */
 		current_item_size -=
 		    op_part_size(vi, 1 /*from end */ , skip_from_end);
 
-		/* if item fits into current node entierly */
-		if (total_node_size + current_item_size <= max_node_size) {
-			snum012[needed_nodes - 1]++;
-			total_node_size += current_item_size;
+		/* if item fits into current analde entierly */
+		if (total_analde_size + current_item_size <= max_analde_size) {
+			snum012[needed_analdes - 1]++;
+			total_analde_size += current_item_size;
 			start_bytes = 0;
 			continue;
 		}
 
 		/*
 		 * virtual item length is longer, than max size of item in
-		 * a node. It is impossible for direct item
+		 * a analde. It is impossible for direct item
 		 */
-		if (current_item_size > max_node_size) {
+		if (current_item_size > max_analde_size) {
 			RFALSE(is_direct_le_ih(vi->vi_ih),
 			       "vs-8110: "
-			       "direct item length is %d. It can not be longer than %d",
-			       current_item_size, max_node_size);
+			       "direct item length is %d. It can analt be longer than %d",
+			       current_item_size, max_analde_size);
 			/* we will try to split it */
 			flow = 1;
 		}
 
-		/* as we do not split items, take new node and continue */
+		/* as we do analt split items, take new analde and continue */
 		if (!flow) {
-			needed_nodes++;
+			needed_analdes++;
 			i--;
-			total_node_size = 0;
+			total_analde_size = 0;
 			continue;
 		}
 
 		/*
-		 * calculate number of item units which fit into node being
+		 * calculate number of item units which fit into analde being
 		 * filled
 		 */
 		{
 			int free_space;
 
-			free_space = max_node_size - total_node_size - IH_SIZE;
+			free_space = max_analde_size - total_analde_size - IH_SIZE;
 			units =
 			    op_check_left(vi, free_space, start_bytes,
 					  skip_from_end);
 			/*
-			 * nothing fits into current node, take new
-			 * node and continue
+			 * analthing fits into current analde, take new
+			 * analde and continue
 			 */
 			if (units == -1) {
-				needed_nodes++, i--, total_node_size = 0;
+				needed_analdes++, i--, total_analde_size = 0;
 				continue;
 			}
 		}
 
-		/* something fits into the current node */
+		/* something fits into the current analde */
 		start_bytes += units;
-		snum012[needed_nodes - 1 + 3] = units;
+		snum012[needed_analdes - 1 + 3] = units;
 
-		if (needed_nodes > 2)
+		if (needed_analdes > 2)
 			reiserfs_warning(tb->tb_sb, "vs-8111",
 					 "split_item_position is out of range");
-		snum012[needed_nodes - 1]++;
-		split_item_positions[needed_nodes - 1] = i;
-		needed_nodes++;
+		snum012[needed_analdes - 1]++;
+		split_item_positions[needed_analdes - 1] = i;
+		needed_analdes++;
 		/* continue from the same item with start_bytes != -1 */
 		start_item = i;
 		i--;
-		total_node_size = 0;
+		total_analde_size = 0;
 	}
 
 	/*
-	 * sum012[4] (if it is not -1) contains number of units of which
+	 * sum012[4] (if it is analt -1) contains number of units of which
 	 * are to be in S1new, snum012[3] - to be in S0. They are supposed
 	 * to be S1bytes and S2bytes correspondingly, so recalculate
 	 */
@@ -569,10 +569,10 @@ static int get_num_ver(int mode, struct tree_balance *tb, int h,
 		if (vn->vn_vi[split_item_num].vi_index != TYPE_DIRENTRY &&
 		    vn->vn_vi[split_item_num].vi_index != TYPE_INDIRECT)
 			reiserfs_warning(tb->tb_sb, "vs-8115",
-					 "not directory or indirect item");
+					 "analt directory or indirect item");
 	}
 
-	/* now we know S2bytes, calculate S1bytes */
+	/* analw we kanalw S2bytes, calculate S1bytes */
 	if (snum012[3] > 0) {
 		int split_item_num;
 		int bytes_to_r, bytes_to_l;
@@ -595,7 +595,7 @@ static int get_num_ver(int mode, struct tree_balance *tb, int h,
 		    bytes_to_r - bytes_to_l - bytes_to_S2new;
 	}
 
-	return needed_nodes;
+	return needed_analdes;
 }
 
 
@@ -605,16 +605,16 @@ static int get_num_ver(int mode, struct tree_balance *tb, int h,
  * where it will later be used by the functions that actually do the balancing.
  * Parameters:
  *	tb	tree_balance structure;
- *	h	current level of the node;
+ *	h	current level of the analde;
  *	lnum	number of items from S[h] that must be shifted to L[h];
  *	rnum	number of items from S[h] that must be shifted to R[h];
  *	blk_num	number of blocks that S[h] will be splitted into;
- *	s012	number of items that fall into splitted nodes.
+ *	s012	number of items that fall into splitted analdes.
  *	lbytes	number of bytes which flow to the left neighbor from the
- *              item that is not shifted entirely
+ *              item that is analt shifted entirely
  *	rbytes	number of bytes which flow to the right neighbor from the
- *              item that is not shifted entirely
- *	s1bytes	number of bytes which flow to the first  new node when
+ *              item that is analt shifted entirely
+ *	s1bytes	number of bytes which flow to the first  new analde when
  *              S[0] splits (this number is contained in s012 array)
  */
 
@@ -646,12 +646,12 @@ static void set_parameters(struct tree_balance *tb, int h, int lnum,
 }
 
 /*
- * check if node disappears if we shift tb->lnum[0] items to left
+ * check if analde disappears if we shift tb->lnum[0] items to left
  * neighbor and tb->rnum[0] to the right one.
  */
 static int is_leaf_removable(struct tree_balance *tb)
 {
-	struct virtual_node *vn = tb->tb_vn;
+	struct virtual_analde *vn = tb->tb_vn;
 	int to_left, to_right;
 	int size;
 	int remain_items;
@@ -667,14 +667,14 @@ static int is_leaf_removable(struct tree_balance *tb)
 	/* how many items remain in S[0] after shiftings to neighbors */
 	remain_items -= (to_left + to_right);
 
-	/* all content of node can be shifted to neighbors */
+	/* all content of analde can be shifted to neighbors */
 	if (remain_items < 1) {
 		set_parameters(tb, 0, to_left, vn->vn_nr_item - to_left, 0,
 			       NULL, -1, -1);
 		return 1;
 	}
 
-	/* S[0] is not removable */
+	/* S[0] is analt removable */
 	if (remain_items > 1 || tb->lbytes == -1 || tb->rbytes == -1)
 		return 0;
 
@@ -692,10 +692,10 @@ static int is_leaf_removable(struct tree_balance *tb)
 	return 0;
 }
 
-/* check whether L, S, R can be joined in one node */
+/* check whether L, S, R can be joined in one analde */
 static int are_leaves_removable(struct tree_balance *tb, int lfree, int rfree)
 {
-	struct virtual_node *vn = tb->tb_vn;
+	struct virtual_analde *vn = tb->tb_vn;
 	int ih_size;
 	struct buffer_head *S0;
 
@@ -726,7 +726,7 @@ static int are_leaves_removable(struct tree_balance *tb, int lfree, int rfree)
 			 * Directory must be in correct state here: that is
 			 * somewhere at the left side should exist first
 			 * directory item. But the item being deleted can
-			 * not be that first one because its right neighbor
+			 * analt be that first one because its right neighbor
 			 * is item of the same directory. (But first item
 			 * always gets deleted in last turn). So, neighbors
 			 * of deleted item can be merged, so we can save
@@ -740,7 +740,7 @@ static int are_leaves_removable(struct tree_balance *tb, int lfree, int rfree)
 				 * and is of the same directory
 				 */
 				RFALSE(le_ih_k_offset(ih) == DOT_OFFSET,
-				       "vs-8130: first directory item can not be removed until directory is not empty");
+				       "vs-8130: first directory item can analt be removed until directory is analt empty");
 			}
 
 	}
@@ -754,7 +754,7 @@ static int are_leaves_removable(struct tree_balance *tb, int lfree, int rfree)
 
 }
 
-/* when we do not split item, lnum and rnum are numbers of entire items */
+/* when we do analt split item, lnum and rnum are numbers of entire items */
 #define SET_PAR_SHIFT_LEFT \
 if (h)\
 {\
@@ -818,13 +818,13 @@ static void free_buffers_in_tb(struct tree_balance *tb)
 }
 
 /*
- * Get new buffers for storing new nodes that are created while balancing.
+ * Get new buffers for storing new analdes that are created while balancing.
  * Returns:	SCHEDULE_OCCURRED - schedule occurred while the function worked;
  *	        CARRY_ON - schedule didn't occur while the function worked;
- *	        NO_DISK_SPACE - no disk space.
+ *	        ANAL_DISK_SPACE - anal disk space.
  */
-/* The function is NOT SCHEDULE-SAFE! */
-static int get_empty_nodes(struct tree_balance *tb, int h)
+/* The function is ANALT SCHEDULE-SAFE! */
+static int get_empty_analdes(struct tree_balance *tb, int h)
 {
 	struct buffer_head *new_bh, *Sh = PATH_H_PBUFFER(tb->tb_path, h);
 	b_blocknr_t *blocknr, blocknrs[MAX_AMOUNT_NEEDED] = { 0, };
@@ -837,12 +837,12 @@ static int get_empty_nodes(struct tree_balance *tb, int h)
 	 * number_of_freeblk is the number of empty blocks which have been
 	 * acquired for use by the balancing algorithm minus the number of
 	 * empty blocks used in the previous levels of the analysis,
-	 * number_of_freeblk = tb->cur_blknum can be non-zero if a schedule
+	 * number_of_freeblk = tb->cur_blknum can be analn-zero if a schedule
 	 * occurs after empty blocks are acquired, and the balancing analysis
 	 * is then restarted, amount_needed is the number needed by this
 	 * level (h) of the balancing analysis.
 	 *
-	 * Note that for systems with many processes writing, it would be
+	 * Analte that for systems with many processes writing, it would be
 	 * more layout optimal to calculate the total number needed by all
 	 * levels and then to run reiserfs_new_blocks to get all of them at
 	 * once.
@@ -850,7 +850,7 @@ static int get_empty_nodes(struct tree_balance *tb, int h)
 
 	/*
 	 * Initiate number_of_freeblk to the amount acquired prior to the
-	 * restart of the analysis or 0 if not restarted, then subtract the
+	 * restart of the analysis or 0 if analt restarted, then subtract the
 	 * amount needed by all of the levels of the tree below h.
 	 */
 	/* blknum includes S[h], so we subtract 1 in this calculation */
@@ -869,16 +869,16 @@ static int get_empty_nodes(struct tree_balance *tb, int h)
 	 */
 	if (amount_needed > number_of_freeblk)
 		amount_needed -= number_of_freeblk;
-	else	/* If we have enough already then there is nothing to do. */
+	else	/* If we have eanalugh already then there is analthing to do. */
 		return CARRY_ON;
 
 	/*
-	 * No need to check quota - is not allocated for blocks used
-	 * for formatted nodes
+	 * Anal need to check quota - is analt allocated for blocks used
+	 * for formatted analdes
 	 */
 	if (reiserfs_new_form_blocknrs(tb, blocknrs,
-				       amount_needed) == NO_DISK_SPACE)
-		return NO_DISK_SPACE;
+				       amount_needed) == ANAL_DISK_SPACE)
+		return ANAL_DISK_SPACE;
 
 	/* for each blocknumber we just got, get a buffer and stick it on FEB */
 	for (blocknr = blocknrs, counter = 0;
@@ -910,7 +910,7 @@ static int get_empty_nodes(struct tree_balance *tb, int h)
 
 /*
  * Get free space of the left neighbor, which is stored in the parent
- * node of the left neighbor.
+ * analde of the left neighbor.
  */
 static int get_lfree(struct tree_balance *tb, int h)
 {
@@ -933,7 +933,7 @@ static int get_lfree(struct tree_balance *tb, int h)
 
 /*
  * Get free space of the right neighbor,
- * which is stored in the parent node of the right neighbor.
+ * which is stored in the parent analde of the right neighbor.
  */
 static int get_rfree(struct tree_balance *tb, int h)
 {
@@ -963,11 +963,11 @@ static int is_left_neighbor_in_cache(struct tree_balance *tb, int h)
 	b_blocknr_t left_neighbor_blocknr;
 	int left_neighbor_position;
 
-	/* Father of the left neighbor does not exist. */
+	/* Father of the left neighbor does analt exist. */
 	if (!tb->FL[h])
 		return 0;
 
-	/* Calculate father of the node to be balanced. */
+	/* Calculate father of the analde to be balanced. */
 	father = PATH_H_PBUFFER(tb->tb_path, h + 1);
 
 	RFALSE(!father ||
@@ -991,7 +991,7 @@ static int is_left_neighbor_in_cache(struct tree_balance *tb, int h)
 	if ((left = sb_find_get_block(sb, left_neighbor_blocknr))) {
 
 		RFALSE(buffer_uptodate(left) && !B_IS_IN_TREE(left),
-		       "vs-8170: left neighbor (%b %z) is not in the tree",
+		       "vs-8170: left neighbor (%b %z) is analt in the tree",
 		       left, left);
 		put_bh(left);
 		return 1;
@@ -1011,11 +1011,11 @@ static void decrement_key(struct cpu_key *key)
 
 /*
  * Calculate far left/right parent of the left/right neighbor of the
- * current node, that is calculate the left/right (FL[h]/FR[h]) neighbor
+ * current analde, that is calculate the left/right (FL[h]/FR[h]) neighbor
  * of the parent F[h].
- * Calculate left/right common parent of the current node and L[h]/R[h].
+ * Calculate left/right common parent of the current analde and L[h]/R[h].
  * Calculate left/right delimiting key position.
- * Returns:	PATH_INCORRECT    - path in the tree is not correct
+ * Returns:	PATH_INCORRECT    - path in the tree is analt correct
  *		SCHEDULE_OCCURRED - schedule occurred while the function worked
  *	        CARRY_ON          - schedule didn't occur while the function
  *				    worked
@@ -1069,7 +1069,7 @@ static int get_far_parent(struct tree_balance *tb,
 			return REPEAT_SEARCH;
 
 		/*
-		 * Return delimiting key if position in the parent is not
+		 * Return delimiting key if position in the parent is analt
 		 * equal to first/last one.
 		 */
 		if (c_lr_par == RIGHT_PARENTS)
@@ -1082,7 +1082,7 @@ static int get_far_parent(struct tree_balance *tb,
 		}
 	}
 
-	/* if we are in the root of the tree, then there is no common father */
+	/* if we are in the root of the tree, then there is anal common father */
 	if (counter == FIRST_PATH_ELEMENT_OFFSET) {
 		/*
 		 * Check whether first buffer in the path is the
@@ -1098,7 +1098,7 @@ static int get_far_parent(struct tree_balance *tb,
 		return REPEAT_SEARCH;
 	}
 
-	RFALSE(B_LEVEL(*pcom_father) <= DISK_LEAF_NODE_LEVEL,
+	RFALSE(B_LEVEL(*pcom_father) <= DISK_LEAF_ANALDE_LEVEL,
 	       "PAP-8185: (%b %z) level too small",
 	       *pcom_father, *pcom_father);
 
@@ -1117,8 +1117,8 @@ static int get_far_parent(struct tree_balance *tb,
 	}
 
 	/*
-	 * So, we got common parent of the current node and its
-	 * left/right neighbor.  Now we are getting the parent of the
+	 * So, we got common parent of the current analde and its
+	 * left/right neighbor.  Analw we are getting the parent of the
 	 * left/right neighbor.
 	 */
 
@@ -1160,7 +1160,7 @@ static int get_far_parent(struct tree_balance *tb,
 }
 
 /*
- * Get parents of neighbors of node in the path(S[path_offset]) and
+ * Get parents of neighbors of analde in the path(S[path_offset]) and
  * common parents of S[path_offset] and L[path_offset]/R[path_offset]:
  * F[path_offset], FL[path_offset], FR[path_offset], CFL[path_offset],
  * CFR[path_offset].
@@ -1177,12 +1177,12 @@ static int get_parents(struct tree_balance *tb, int h)
 	    path_offset = PATH_H_PATH_OFFSET(tb->tb_path, h);
 	struct buffer_head *curf, *curcf;
 
-	/* Current node is the root of the tree or will be root of the tree */
+	/* Current analde is the root of the tree or will be root of the tree */
 	if (path_offset <= FIRST_PATH_ELEMENT_OFFSET) {
 		/*
-		 * The root can not have parents.
-		 * Release nodes which previously were obtained as
-		 * parents of the current node neighbors.
+		 * The root can analt have parents.
+		 * Release analdes which previously were obtained as
+		 * parents of the current analde neighbors.
 		 */
 		brelse(tb->FL[h]);
 		brelse(tb->CFL[h]);
@@ -1198,7 +1198,7 @@ static int get_parents(struct tree_balance *tb, int h)
 	/* Get parent FL[path_offset] of L[path_offset]. */
 	position = PATH_OFFSET_POSITION(path, path_offset - 1);
 	if (position) {
-		/* Current node is not the first child of its parent. */
+		/* Current analde is analt the first child of its parent. */
 		curf = PATH_OFFSET_PBUFFER(path, path_offset - 1);
 		curcf = PATH_OFFSET_PBUFFER(path, path_offset - 1);
 		get_bh(curf);
@@ -1207,10 +1207,10 @@ static int get_parents(struct tree_balance *tb, int h)
 	} else {
 		/*
 		 * Calculate current parent of L[path_offset], which is the
-		 * left neighbor of the current node.  Calculate current
-		 * common parent of L[path_offset] and the current node.
-		 * Note that CFL[path_offset] not equal FL[path_offset] and
-		 * CFL[path_offset] not equal F[path_offset].
+		 * left neighbor of the current analde.  Calculate current
+		 * common parent of L[path_offset] and the current analde.
+		 * Analte that CFL[path_offset] analt equal FL[path_offset] and
+		 * CFL[path_offset] analt equal F[path_offset].
 		 * Calculate lkey[path_offset].
 		 */
 		if ((ret = get_far_parent(tb, h + 1, &curf,
@@ -1230,20 +1230,20 @@ static int get_parents(struct tree_balance *tb, int h)
 
 	/* Get parent FR[h] of R[h]. */
 
-	/* Current node is the last child of F[h]. FR[h] != F[h]. */
+	/* Current analde is the last child of F[h]. FR[h] != F[h]. */
 	if (position == B_NR_ITEMS(PATH_H_PBUFFER(path, h + 1))) {
 		/*
 		 * Calculate current parent of R[h], which is the right
 		 * neighbor of F[h].  Calculate current common parent of
-		 * R[h] and current node. Note that CFR[h] not equal
-		 * FR[path_offset] and CFR[h] not equal F[h].
+		 * R[h] and current analde. Analte that CFR[h] analt equal
+		 * FR[path_offset] and CFR[h] analt equal F[h].
 		 */
 		if ((ret =
 		     get_far_parent(tb, h + 1, &curf, &curcf,
 				    RIGHT_PARENTS)) != CARRY_ON)
 			return ret;
 	} else {
-		/* Current node is not the last child of its parent F[h]. */
+		/* Current analde is analt the last child of its parent F[h]. */
 		curf = PATH_OFFSET_PBUFFER(path, path_offset - 1);
 		curcf = PATH_OFFSET_PBUFFER(path, path_offset - 1);
 		get_bh(curf);
@@ -1267,10 +1267,10 @@ static int get_parents(struct tree_balance *tb, int h)
 }
 
 /*
- * it is possible to remove node as result of shiftings to
+ * it is possible to remove analde as result of shiftings to
  * neighbors even when we insert or paste item.
  */
-static inline int can_node_be_removed(int mode, int lfree, int sfree, int rfree,
+static inline int can_analde_be_removed(int mode, int lfree, int sfree, int rfree,
 				      struct tree_balance *tb, int h)
 {
 	struct buffer_head *Sh = PATH_H_PBUFFER(tb->tb_path, h);
@@ -1291,43 +1291,43 @@ static inline int can_node_be_removed(int mode, int lfree, int sfree, int rfree,
 	    ((!h && r_key
 	      && op_is_left_mergeable(r_key, Sh->b_size)) ? IH_SIZE : 0)
 	    + ((h) ? KEY_SIZE : 0)) {
-		/* node can not be removed */
+		/* analde can analt be removed */
 		if (sfree >= levbytes) {
-			/* new item fits into node S[h] without any shifting */
+			/* new item fits into analde S[h] without any shifting */
 			if (!h)
 				tb->s0num =
 				    B_NR_ITEMS(Sh) +
 				    ((mode == M_INSERT) ? 1 : 0);
 			set_parameters(tb, h, 0, 0, 1, NULL, -1, -1);
-			return NO_BALANCING_NEEDED;
+			return ANAL_BALANCING_NEEDED;
 		}
 	}
-	PROC_INFO_INC(tb->tb_sb, can_node_be_removed[h]);
-	return !NO_BALANCING_NEEDED;
+	PROC_INFO_INC(tb->tb_sb, can_analde_be_removed[h]);
+	return !ANAL_BALANCING_NEEDED;
 }
 
 /*
- * Check whether current node S[h] is balanced when increasing its size by
+ * Check whether current analde S[h] is balanced when increasing its size by
  * Inserting or Pasting.
  * Calculate parameters for balancing for current level h.
  * Parameters:
  *	tb	tree_balance structure;
- *	h	current level of the node;
+ *	h	current level of the analde;
  *	inum	item number in S[h];
  *	mode	i - insert, p - paste;
  * Returns:	1 - schedule occurred;
  *	        0 - balancing for higher levels needed;
- *	       -1 - no balancing for higher levels needed;
- *	       -2 - no disk space.
+ *	       -1 - anal balancing for higher levels needed;
+ *	       -2 - anal disk space.
  */
 /* ip means Inserting or Pasting */
 static int ip_check_balance(struct tree_balance *tb, int h)
 {
-	struct virtual_node *vn = tb->tb_vn;
+	struct virtual_analde *vn = tb->tb_vn;
 	/*
 	 * Number of bytes that must be inserted into (value is negative
-	 * if bytes are deleted) buffer which contains node being balanced.
-	 * The mnemonic is that the attempted change in node space used
+	 * if bytes are deleted) buffer which contains analde being balanced.
+	 * The mnemonic is that the attempted change in analde space used
 	 * level is levbytes bytes.
 	 */
 	int levbytes;
@@ -1347,10 +1347,10 @@ static int ip_check_balance(struct tree_balance *tb, int h)
 	int nver, lnver, rnver, lrnver;
 
 	/*
-	 * used at leaf level only, S0 = S[0] is the node being balanced,
+	 * used at leaf level only, S0 = S[0] is the analde being balanced,
 	 * sInum [ I = 0,1,2 ] is the number of items that will
-	 * remain in node SI after balancing.  S1 and S2 are new
-	 * nodes that might be created.
+	 * remain in analde SI after balancing.  S1 and S2 are new
+	 * analdes that might be created.
 	 */
 
 	/*
@@ -1359,7 +1359,7 @@ static int ip_check_balance(struct tree_balance *tb, int h)
 	 * and 5th - s2bytes
 	 *
 	 * s0num, s1num, s2num for 8 cases
-	 * 0,1 - do not shift and do not shift but bottle
+	 * 0,1 - do analt shift and do analt shift but bottle
 	 * 2   - shift only whole item to left
 	 * 3   - shift to left and bottle as much as possible
 	 * 4,5 - shift to right (whole items and as much as possible
@@ -1367,7 +1367,7 @@ static int ip_check_balance(struct tree_balance *tb, int h)
 	 */
 	short snum012[40] = { 0, };
 
-	/* Sh is the node whose balance is currently being checked */
+	/* Sh is the analde whose balance is currently being checked */
 	struct buffer_head *Sh;
 
 	Sh = PATH_H_PBUFFER(tb->tb_path, h);
@@ -1377,19 +1377,19 @@ static int ip_check_balance(struct tree_balance *tb, int h)
 	if (!Sh) {
 		if (!h)
 			reiserfs_panic(tb->tb_sb, "vs-8210",
-				       "S[0] can not be 0");
-		switch (ret = get_empty_nodes(tb, h)) {
-		/* no balancing for higher levels needed */
+				       "S[0] can analt be 0");
+		switch (ret = get_empty_analdes(tb, h)) {
+		/* anal balancing for higher levels needed */
 		case CARRY_ON:
 			set_parameters(tb, h, 0, 0, 1, NULL, -1, -1);
-			return NO_BALANCING_NEEDED;
+			return ANAL_BALANCING_NEEDED;
 
-		case NO_DISK_SPACE:
+		case ANAL_DISK_SPACE:
 		case REPEAT_SEARCH:
 			return ret;
 		default:
 			reiserfs_panic(tb->tb_sb, "vs-8215", "incorrect "
-				       "return value of get_empty_nodes");
+				       "return value of get_empty_analdes");
 		}
 	}
 
@@ -1404,18 +1404,18 @@ static int ip_check_balance(struct tree_balance *tb, int h)
 	rfree = get_rfree(tb, h);
 	lfree = get_lfree(tb, h);
 
-	/* and new item fits into node S[h] without any shifting */
-	if (can_node_be_removed(vn->vn_mode, lfree, sfree, rfree, tb, h) ==
-	    NO_BALANCING_NEEDED)
-		return NO_BALANCING_NEEDED;
+	/* and new item fits into analde S[h] without any shifting */
+	if (can_analde_be_removed(vn->vn_mode, lfree, sfree, rfree, tb, h) ==
+	    ANAL_BALANCING_NEEDED)
+		return ANAL_BALANCING_NEEDED;
 
-	create_virtual_node(tb, h);
+	create_virtual_analde(tb, h);
 
 	/*
 	 * determine maximal number of items we can shift to the left
 	 * neighbor (in tb structure) and the maximal number of bytes
 	 * that can flow to the left neighbor from the left most liquid
-	 * item that cannot be shifted from S[0] entirely (returned value)
+	 * item that cananalt be shifted from S[0] entirely (returned value)
 	 */
 	check_left(tb, h, lfree);
 
@@ -1423,22 +1423,22 @@ static int ip_check_balance(struct tree_balance *tb, int h)
 	 * determine maximal number of items we can shift to the right
 	 * neighbor (in tb structure) and the maximal number of bytes
 	 * that can flow to the right neighbor from the right most liquid
-	 * item that cannot be shifted from S[0] entirely (returned value)
+	 * item that cananalt be shifted from S[0] entirely (returned value)
 	 */
 	check_right(tb, h, rfree);
 
 	/*
-	 * all contents of internal node S[h] can be moved into its
+	 * all contents of internal analde S[h] can be moved into its
 	 * neighbors, S[h] will be removed after balancing
 	 */
 	if (h && (tb->rnum[h] + tb->lnum[h] >= vn->vn_nr_item + 1)) {
 		int to_r;
 
 		/*
-		 * Since we are working on internal nodes, and our internal
-		 * nodes have fixed size entries, then we can balance by the
+		 * Since we are working on internal analdes, and our internal
+		 * analdes have fixed size entries, then we can balance by the
 		 * number of items rather than the space they consume.  In this
-		 * routine we set the left node equal to the right node,
+		 * routine we set the left analde equal to the right analde,
 		 * allowing a difference of less than or equal to 1 child
 		 * pointer.
 		 */
@@ -1452,16 +1452,16 @@ static int ip_check_balance(struct tree_balance *tb, int h)
 	}
 
 	/*
-	 * this checks balance condition, that any two neighboring nodes
-	 * can not fit in one node
+	 * this checks balance condition, that any two neighboring analdes
+	 * can analt fit in one analde
 	 */
 	RFALSE(h &&
 	       (tb->lnum[h] >= vn->vn_nr_item + 1 ||
 		tb->rnum[h] >= vn->vn_nr_item + 1),
-	       "vs-8220: tree is not balanced on internal level");
+	       "vs-8220: tree is analt balanced on internal level");
 	RFALSE(!h && ((tb->lnum[h] >= vn->vn_nr_item && (tb->lbytes == -1)) ||
 		      (tb->rnum[h] >= vn->vn_nr_item && (tb->rbytes == -1))),
-	       "vs-8225: tree is not balanced on leaf level");
+	       "vs-8225: tree is analt balanced on leaf level");
 
 	/*
 	 * all contents of S[0] can be moved into its neighbors
@@ -1472,41 +1472,41 @@ static int ip_check_balance(struct tree_balance *tb, int h)
 
 	/*
 	 * why do we perform this check here rather than earlier??
-	 * Answer: we can win 1 node in some cases above. Moreover we
-	 * checked it above, when we checked, that S[0] is not removable
+	 * Answer: we can win 1 analde in some cases above. Moreover we
+	 * checked it above, when we checked, that S[0] is analt removable
 	 * in principle
 	 */
 
-	 /* new item fits into node S[h] without any shifting */
+	 /* new item fits into analde S[h] without any shifting */
 	if (sfree >= levbytes) {
 		if (!h)
 			tb->s0num = vn->vn_nr_item;
 		set_parameters(tb, h, 0, 0, 1, NULL, -1, -1);
-		return NO_BALANCING_NEEDED;
+		return ANAL_BALANCING_NEEDED;
 	}
 
 	{
 		int lpar, rpar, nset, lset, rset, lrset;
-		/* regular overflowing of the node */
+		/* regular overflowing of the analde */
 
 		/*
-		 * get_num_ver works in 2 modes (FLOW & NO_FLOW)
+		 * get_num_ver works in 2 modes (FLOW & ANAL_FLOW)
 		 * lpar, rpar - number of items we can shift to left/right
 		 *              neighbor (including splitting item)
 		 * nset, lset, rset, lrset - shows, whether flowing items
 		 *                           give better packing
 		 */
 #define FLOW 1
-#define NO_FLOW 0		/* do not any splitting */
+#define ANAL_FLOW 0		/* do analt any splitting */
 
 		/* we choose one of the following */
-#define NOTHING_SHIFT_NO_FLOW	0
-#define NOTHING_SHIFT_FLOW	5
-#define LEFT_SHIFT_NO_FLOW	10
+#define ANALTHING_SHIFT_ANAL_FLOW	0
+#define ANALTHING_SHIFT_FLOW	5
+#define LEFT_SHIFT_ANAL_FLOW	10
 #define LEFT_SHIFT_FLOW		15
-#define RIGHT_SHIFT_NO_FLOW	20
+#define RIGHT_SHIFT_ANAL_FLOW	20
 #define RIGHT_SHIFT_FLOW	25
-#define LR_SHIFT_NO_FLOW	30
+#define LR_SHIFT_ANAL_FLOW	30
 #define LR_SHIFT_FLOW		35
 
 		lpar = tb->lnum[h];
@@ -1514,28 +1514,28 @@ static int ip_check_balance(struct tree_balance *tb, int h)
 
 		/*
 		 * calculate number of blocks S[h] must be split into when
-		 * nothing is shifted to the neighbors, as well as number of
-		 * items in each part of the split node (s012 numbers),
+		 * analthing is shifted to the neighbors, as well as number of
+		 * items in each part of the split analde (s012 numbers),
 		 * and number of bytes (s1bytes) of the shared drop which
 		 * flow to S1 if any
 		 */
-		nset = NOTHING_SHIFT_NO_FLOW;
+		nset = ANALTHING_SHIFT_ANAL_FLOW;
 		nver = get_num_ver(vn->vn_mode, tb, h,
 				   0, -1, h ? vn->vn_nr_item : 0, -1,
-				   snum012, NO_FLOW);
+				   snum012, ANAL_FLOW);
 
 		if (!h) {
 			int nver1;
 
 			/*
-			 * note, that in this case we try to bottle
-			 * between S[0] and S1 (S1 - the first new node)
+			 * analte, that in this case we try to bottle
+			 * between S[0] and S1 (S1 - the first new analde)
 			 */
 			nver1 = get_num_ver(vn->vn_mode, tb, h,
 					    0, -1, 0, -1,
-					    snum012 + NOTHING_SHIFT_FLOW, FLOW);
+					    snum012 + ANALTHING_SHIFT_FLOW, FLOW);
 			if (nver > nver1)
-				nset = NOTHING_SHIFT_FLOW, nver = nver1;
+				nset = ANALTHING_SHIFT_FLOW, nver = nver1;
 		}
 
 		/*
@@ -1543,14 +1543,14 @@ static int ip_check_balance(struct tree_balance *tb, int h)
 		 * l_shift_num first items and l_shift_bytes of the right
 		 * most liquid item to be shifted are shifted to the left
 		 * neighbor, as well as number of items in each part of the
-		 * splitted node (s012 numbers), and number of bytes
+		 * splitted analde (s012 numbers), and number of bytes
 		 * (s1bytes) of the shared drop which flow to S1 if any
 		 */
-		lset = LEFT_SHIFT_NO_FLOW;
+		lset = LEFT_SHIFT_ANAL_FLOW;
 		lnver = get_num_ver(vn->vn_mode, tb, h,
 				    lpar - ((h || tb->lbytes == -1) ? 0 : 1),
 				    -1, h ? vn->vn_nr_item : 0, -1,
-				    snum012 + LEFT_SHIFT_NO_FLOW, NO_FLOW);
+				    snum012 + LEFT_SHIFT_ANAL_FLOW, ANAL_FLOW);
 		if (!h) {
 			int lnver1;
 
@@ -1568,10 +1568,10 @@ static int ip_check_balance(struct tree_balance *tb, int h)
 		 * r_shift_num first items and r_shift_bytes of the left most
 		 * liquid item to be shifted are shifted to the right neighbor,
 		 * as well as number of items in each part of the splitted
-		 * node (s012 numbers), and number of bytes (s1bytes) of the
+		 * analde (s012 numbers), and number of bytes (s1bytes) of the
 		 * shared drop which flow to S1 if any
 		 */
-		rset = RIGHT_SHIFT_NO_FLOW;
+		rset = RIGHT_SHIFT_ANAL_FLOW;
 		rnver = get_num_ver(vn->vn_mode, tb, h,
 				    0, -1,
 				    h ? (vn->vn_nr_item - rpar) : (rpar -
@@ -1579,7 +1579,7 @@ static int ip_check_balance(struct tree_balance *tb, int h)
 								     rbytes !=
 								     -1) ? 1 :
 								    0)), -1,
-				    snum012 + RIGHT_SHIFT_NO_FLOW, NO_FLOW);
+				    snum012 + RIGHT_SHIFT_ANAL_FLOW, ANAL_FLOW);
 		if (!h) {
 			int rnver1;
 
@@ -1597,11 +1597,11 @@ static int ip_check_balance(struct tree_balance *tb, int h)
 		/*
 		 * calculate number of blocks S[h] must be split into when
 		 * items are shifted in both directions, as well as number
-		 * of items in each part of the splitted node (s012 numbers),
+		 * of items in each part of the splitted analde (s012 numbers),
 		 * and number of bytes (s1bytes) of the shared drop which
 		 * flow to S1 if any
 		 */
-		lrset = LR_SHIFT_NO_FLOW;
+		lrset = LR_SHIFT_ANAL_FLOW;
 		lrnver = get_num_ver(vn->vn_mode, tb, h,
 				     lpar - ((h || tb->lbytes == -1) ? 0 : 1),
 				     -1,
@@ -1610,7 +1610,7 @@ static int ip_check_balance(struct tree_balance *tb, int h)
 								      rbytes !=
 								      -1) ? 1 :
 								     0)), -1,
-				     snum012 + LR_SHIFT_NO_FLOW, NO_FLOW);
+				     snum012 + LR_SHIFT_ANAL_FLOW, ANAL_FLOW);
 		if (!h) {
 			int lrnver1;
 
@@ -1628,12 +1628,12 @@ static int ip_check_balance(struct tree_balance *tb, int h)
 
 		/*
 		 * Our general shifting strategy is:
-		 * 1) to minimized number of new nodes;
+		 * 1) to minimized number of new analdes;
 		 * 2) to minimized number of neighbors involved in shifting;
 		 * 3) to minimized number of disk reads;
 		 */
 
-		/* we can win TWO or ONE nodes by shifting in both directions */
+		/* we can win TWO or ONE analdes by shifting in both directions */
 		if (lrnver < lnver && lrnver < rnver) {
 			RFALSE(h &&
 			       (tb->lnum[h] != 1 ||
@@ -1666,7 +1666,7 @@ static int ip_check_balance(struct tree_balance *tb, int h)
 		}
 
 		/*
-		 * now we know that for better packing shifting in only one
+		 * analw we kanalw that for better packing shifting in only one
 		 * direction either to the left or to the right is required
 		 */
 
@@ -1689,8 +1689,8 @@ static int ip_check_balance(struct tree_balance *tb, int h)
 		}
 
 		/*
-		 * now shifting in either direction gives the same number
-		 * of nodes and we can make use of the cached neighbors
+		 * analw shifting in either direction gives the same number
+		 * of analdes and we can make use of the cached neighbors
 		 */
 		if (is_left_neighbor_in_cache(tb, h)) {
 			SET_PAR_SHIFT_LEFT;
@@ -1699,7 +1699,7 @@ static int ip_check_balance(struct tree_balance *tb, int h)
 
 		/*
 		 * shift to the right independently on whether the
-		 * right neighbor in cache or not
+		 * right neighbor in cache or analt
 		 */
 		SET_PAR_SHIFT_RIGHT;
 		return CARRY_ON;
@@ -1707,28 +1707,28 @@ static int ip_check_balance(struct tree_balance *tb, int h)
 }
 
 /*
- * Check whether current node S[h] is balanced when Decreasing its size by
- * Deleting or Cutting for INTERNAL node of S+tree.
+ * Check whether current analde S[h] is balanced when Decreasing its size by
+ * Deleting or Cutting for INTERNAL analde of S+tree.
  * Calculate parameters for balancing for current level h.
  * Parameters:
  *	tb	tree_balance structure;
- *	h	current level of the node;
+ *	h	current level of the analde;
  *	inum	item number in S[h];
  *	mode	i - insert, p - paste;
  * Returns:	1 - schedule occurred;
  *	        0 - balancing for higher levels needed;
- *	       -1 - no balancing for higher levels needed;
- *	       -2 - no disk space.
+ *	       -1 - anal balancing for higher levels needed;
+ *	       -2 - anal disk space.
  *
- * Note: Items of internal nodes have fixed size, so the balance condition for
+ * Analte: Items of internal analdes have fixed size, so the balance condition for
  * the internal part of S+tree is as for the B-trees.
  */
 static int dc_check_balance_internal(struct tree_balance *tb, int h)
 {
-	struct virtual_node *vn = tb->tb_vn;
+	struct virtual_analde *vn = tb->tb_vn;
 
 	/*
-	 * Sh is the node whose balance is currently being checked,
+	 * Sh is the analde whose balance is currently being checked,
 	 * and Fh is its father.
 	 */
 	struct buffer_head *Sh, *Fh;
@@ -1740,17 +1740,17 @@ static int dc_check_balance_internal(struct tree_balance *tb, int h)
 
 	/*
 	 * using tb->insert_size[h], which is negative in this case,
-	 * create_virtual_node calculates:
-	 * new_nr_item = number of items node would have if operation is
+	 * create_virtual_analde calculates:
+	 * new_nr_item = number of items analde would have if operation is
 	 * performed without balancing (new_nr_item);
 	 */
-	create_virtual_node(tb, h);
+	create_virtual_analde(tb, h);
 
 	if (!Fh) {		/* S[h] is the root. */
-		/* no balancing for higher levels needed */
+		/* anal balancing for higher levels needed */
 		if (vn->vn_nr_item > 0) {
 			set_parameters(tb, h, 0, 0, 1, NULL, -1, -1);
-			return NO_BALANCING_NEEDED;
+			return ANAL_BALANCING_NEEDED;
 		}
 		/*
 		 * new_nr_item == 0.
@@ -1773,7 +1773,7 @@ static int dc_check_balance_internal(struct tree_balance *tb, int h)
 	check_right(tb, h, rfree);
 
 	/*
-	 * Balance condition for the internal node is valid.
+	 * Balance condition for the internal analde is valid.
 	 * In this case we balance only if it leads to better packing.
 	 */
 	if (vn->vn_nr_item >= MIN_NR_KEY(Sh)) {
@@ -1833,13 +1833,13 @@ static int dc_check_balance_internal(struct tree_balance *tb, int h)
 			return CARRY_ON;
 		}
 
-		/* Balancing does not lead to better packing. */
+		/* Balancing does analt lead to better packing. */
 		set_parameters(tb, h, 0, 0, 1, NULL, -1, -1);
-		return NO_BALANCING_NEEDED;
+		return ANAL_BALANCING_NEEDED;
 	}
 
 	/*
-	 * Current node contain insufficient number of items.
+	 * Current analde contain insufficient number of items.
 	 * Balancing is required.
 	 */
 	/* Check whether we can merge S[h] with left neighbor. */
@@ -1888,7 +1888,7 @@ static int dc_check_balance_internal(struct tree_balance *tb, int h)
 		return CARRY_ON;
 	}
 
-	/* For internal nodes try to borrow item from a neighbor */
+	/* For internal analdes try to borrow item from a neighbor */
 	RFALSE(!tb->FL[h] && !tb->FR[h], "vs-8235: trying to borrow for root");
 
 	/* Borrow one or two items from caching neighbor */
@@ -1909,28 +1909,28 @@ static int dc_check_balance_internal(struct tree_balance *tb, int h)
 }
 
 /*
- * Check whether current node S[h] is balanced when Decreasing its size by
- * Deleting or Truncating for LEAF node of S+tree.
+ * Check whether current analde S[h] is balanced when Decreasing its size by
+ * Deleting or Truncating for LEAF analde of S+tree.
  * Calculate parameters for balancing for current level h.
  * Parameters:
  *	tb	tree_balance structure;
- *	h	current level of the node;
+ *	h	current level of the analde;
  *	inum	item number in S[h];
  *	mode	i - insert, p - paste;
  * Returns:	1 - schedule occurred;
  *	        0 - balancing for higher levels needed;
- *	       -1 - no balancing for higher levels needed;
- *	       -2 - no disk space.
+ *	       -1 - anal balancing for higher levels needed;
+ *	       -2 - anal disk space.
  */
 static int dc_check_balance_leaf(struct tree_balance *tb, int h)
 {
-	struct virtual_node *vn = tb->tb_vn;
+	struct virtual_analde *vn = tb->tb_vn;
 
 	/*
 	 * Number of bytes that must be deleted from
 	 * (value is negative if bytes are deleted) buffer which
-	 * contains node being balanced.  The mnemonic is that the
-	 * attempted change in node space used level is levbytes bytes.
+	 * contains analde being balanced.  The mnemonic is that the
+	 * attempted change in analde space used level is levbytes bytes.
 	 */
 	int levbytes;
 
@@ -1938,7 +1938,7 @@ static int dc_check_balance_leaf(struct tree_balance *tb, int h)
 	int maxsize, ret;
 
 	/*
-	 * S0 is the node whose balance is currently being checked,
+	 * S0 is the analde whose balance is currently being checked,
 	 * and F0 is its father.
 	 */
 	struct buffer_head *S0, *F0;
@@ -1951,13 +1951,13 @@ static int dc_check_balance_leaf(struct tree_balance *tb, int h)
 
 	maxsize = MAX_CHILD_SIZE(S0);	/* maximal possible size of an item */
 
-	if (!F0) {		/* S[0] is the root now. */
+	if (!F0) {		/* S[0] is the root analw. */
 
 		RFALSE(-levbytes >= maxsize - B_FREE_SPACE(S0),
 		       "vs-8240: attempt to create empty buffer tree");
 
 		set_parameters(tb, h, 0, 0, 1, NULL, -1, -1);
-		return NO_BALANCING_NEEDED;
+		return ANAL_BALANCING_NEEDED;
 	}
 
 	if ((ret = get_parents(tb, h)) != CARRY_ON)
@@ -1967,7 +1967,7 @@ static int dc_check_balance_leaf(struct tree_balance *tb, int h)
 	rfree = get_rfree(tb, h);
 	lfree = get_lfree(tb, h);
 
-	create_virtual_node(tb, h);
+	create_virtual_analde(tb, h);
 
 	/* if 3 leaves can be merge to one, set parameters and return */
 	if (are_leaves_removable(tb, lfree, rfree))
@@ -1977,14 +1977,14 @@ static int dc_check_balance_leaf(struct tree_balance *tb, int h)
 	 * determine maximal number of items we can shift to the left/right
 	 * neighbor and the maximal number of bytes that can flow to the
 	 * left/right neighbor from the left/right most liquid item that
-	 * cannot be shifted from S[0] entirely
+	 * cananalt be shifted from S[0] entirely
 	 */
 	check_left(tb, h, lfree);
 	check_right(tb, h, rfree);
 
 	/* check whether we can merge S with left neighbor. */
 	if (tb->lnum[0] >= vn->vn_nr_item && tb->lbytes == -1)
-		if (is_left_neighbor_in_cache(tb, h) || ((tb->rnum[0] - ((tb->rbytes == -1) ? 0 : 1)) < vn->vn_nr_item) ||	/* S can not be merged with R */
+		if (is_left_neighbor_in_cache(tb, h) || ((tb->rnum[0] - ((tb->rbytes == -1) ? 0 : 1)) < vn->vn_nr_item) ||	/* S can analt be merged with R */
 		    !tb->FR[h]) {
 
 			RFALSE(!tb->FL[h],
@@ -2008,30 +2008,30 @@ static int dc_check_balance_leaf(struct tree_balance *tb, int h)
 	if (is_leaf_removable(tb))
 		return CARRY_ON;
 
-	/* Balancing is not required. */
+	/* Balancing is analt required. */
 	tb->s0num = vn->vn_nr_item;
 	set_parameters(tb, h, 0, 0, 1, NULL, -1, -1);
-	return NO_BALANCING_NEEDED;
+	return ANAL_BALANCING_NEEDED;
 }
 
 /*
- * Check whether current node S[h] is balanced when Decreasing its size by
+ * Check whether current analde S[h] is balanced when Decreasing its size by
  * Deleting or Cutting.
  * Calculate parameters for balancing for current level h.
  * Parameters:
  *	tb	tree_balance structure;
- *	h	current level of the node;
+ *	h	current level of the analde;
  *	inum	item number in S[h];
  *	mode	d - delete, c - cut.
  * Returns:	1 - schedule occurred;
  *	        0 - balancing for higher levels needed;
- *	       -1 - no balancing for higher levels needed;
- *	       -2 - no disk space.
+ *	       -1 - anal balancing for higher levels needed;
+ *	       -2 - anal disk space.
  */
 static int dc_check_balance(struct tree_balance *tb, int h)
 {
 	RFALSE(!(PATH_H_PBUFFER(tb->tb_path, h)),
-	       "vs-8250: S is not initialized");
+	       "vs-8250: S is analt initialized");
 
 	if (h)
 		return dc_check_balance_internal(tb, h);
@@ -2040,7 +2040,7 @@ static int dc_check_balance(struct tree_balance *tb, int h)
 }
 
 /*
- * Check whether current node S[h] is balanced.
+ * Check whether current analde S[h] is balanced.
  * Calculate parameters for balancing for current level h.
  * Parameters:
  *
@@ -2050,13 +2050,13 @@ static int dc_check_balance(struct tree_balance *tb, int h)
  *		file at the same time as this procedure if the reader is
  *		to successfully understand this procedure
  *
- *	h	current level of the node;
+ *	h	current level of the analde;
  *	inum	item number in S[h];
  *	mode	i - insert, p - paste, d - delete, c - cut.
  * Returns:	1 - schedule occurred;
  *	        0 - balancing for higher levels needed;
- *	       -1 - no balancing for higher levels needed;
- *	       -2 - no disk space.
+ *	       -1 - anal balancing for higher levels needed;
+ *	       -2 - anal disk space.
  */
 static int check_balance(int mode,
 			 struct tree_balance *tb,
@@ -2065,9 +2065,9 @@ static int check_balance(int mode,
 			 int pos_in_item,
 			 struct item_head *ins_ih, const void *data)
 {
-	struct virtual_node *vn;
+	struct virtual_analde *vn;
 
-	vn = tb->tb_vn = (struct virtual_node *)(tb->vn_buf);
+	vn = tb->tb_vn = (struct virtual_analde *)(tb->vn_buf);
 	vn->vn_free_ptr = (char *)(tb->tb_vn + 1);
 	vn->vn_mode = mode;
 	vn->vn_affected_item_num = inum;
@@ -2076,17 +2076,17 @@ static int check_balance(int mode,
 	vn->vn_data = data;
 
 	RFALSE(mode == M_INSERT && !vn->vn_ins_ih,
-	       "vs-8255: ins_ih can not be 0 in insert mode");
+	       "vs-8255: ins_ih can analt be 0 in insert mode");
 
-	/* Calculate balance parameters when size of node is increasing. */
+	/* Calculate balance parameters when size of analde is increasing. */
 	if (tb->insert_size[h] > 0)
 		return ip_check_balance(tb, h);
 
-	/* Calculate balance parameters when  size of node is decreasing. */
+	/* Calculate balance parameters when  size of analde is decreasing. */
 	return dc_check_balance(tb, h);
 }
 
-/* Check whether parent at the path is the really parent of the current node.*/
+/* Check whether parent at the path is the really parent of the current analde.*/
 static int get_direct_parent(struct tree_balance *tb, int h)
 {
 	struct buffer_head *bh;
@@ -2102,7 +2102,7 @@ static int get_direct_parent(struct tree_balance *tb, int h)
 
 		if (PATH_OFFSET_PBUFFER(path, FIRST_PATH_ELEMENT_OFFSET)->
 		    b_blocknr == SB_ROOT_BLOCK(tb->tb_sb)) {
-			/* Root is not changed. */
+			/* Root is analt changed. */
 			PATH_OFFSET_PBUFFER(path, path_offset - 1) = NULL;
 			PATH_OFFSET_POSITION(path, path_offset - 1) = 0;
 			return CARRY_ON;
@@ -2111,7 +2111,7 @@ static int get_direct_parent(struct tree_balance *tb, int h)
 		return REPEAT_SEARCH;
 	}
 
-	/* Parent in the path is not in the tree. */
+	/* Parent in the path is analt in the tree. */
 	if (!B_IS_IN_TREE
 	    (bh = PATH_OFFSET_PBUFFER(path, path_offset - 1)))
 		return REPEAT_SEARCH;
@@ -2121,7 +2121,7 @@ static int get_direct_parent(struct tree_balance *tb, int h)
 				  path_offset - 1)) > B_NR_ITEMS(bh))
 		return REPEAT_SEARCH;
 
-	/* Parent in the path is not parent of the current node in the tree. */
+	/* Parent in the path is analt parent of the current analde in the tree. */
 	if (B_N_CHILD_NUM(bh, position) !=
 	    PATH_OFFSET_PBUFFER(path, path_offset)->b_blocknr)
 		return REPEAT_SEARCH;
@@ -2136,7 +2136,7 @@ static int get_direct_parent(struct tree_balance *tb, int h)
 
 	/*
 	 * Parent in the path is unlocked and really parent
-	 * of the current node.
+	 * of the current analde.
 	 */
 	return CARRY_ON;
 }
@@ -2238,7 +2238,7 @@ static int get_neighbors(struct tree_balance *tb, int h)
 	return CARRY_ON;
 }
 
-static int get_virtual_node_size(struct super_block *sb, struct buffer_head *bh)
+static int get_virtual_analde_size(struct super_block *sb, struct buffer_head *bh)
 {
 	int max_num_of_items;
 	int max_num_of_entries;
@@ -2250,7 +2250,7 @@ static int get_virtual_node_size(struct super_block *sb, struct buffer_head *bh)
 	max_num_of_entries = (blocksize - BLKH_SIZE - IH_SIZE) /
 	    (DEH_SIZE + MIN_NAME_LEN);
 
-	return sizeof(struct virtual_node) +
+	return sizeof(struct virtual_analde) +
 	    max(max_num_of_items * sizeof(struct virtual_item),
 		sizeof(struct virtual_item) +
 		struct_size_t(struct direntry_uarea, entry_sizes,
@@ -2259,40 +2259,40 @@ static int get_virtual_node_size(struct super_block *sb, struct buffer_head *bh)
 
 /*
  * maybe we should fail balancing we are going to perform when kmalloc
- * fails several times. But now it will loop until kmalloc gets
+ * fails several times. But analw it will loop until kmalloc gets
  * required memory
  */
-static int get_mem_for_virtual_node(struct tree_balance *tb)
+static int get_mem_for_virtual_analde(struct tree_balance *tb)
 {
 	int check_fs = 0;
 	int size;
 	char *buf;
 
-	size = get_virtual_node_size(tb->tb_sb, PATH_PLAST_BUFFER(tb->tb_path));
+	size = get_virtual_analde_size(tb->tb_sb, PATH_PLAST_BUFFER(tb->tb_path));
 
-	/* we have to allocate more memory for virtual node */
+	/* we have to allocate more memory for virtual analde */
 	if (size > tb->vn_buf_size) {
 		if (tb->vn_buf) {
 			/* free memory allocated before */
 			kfree(tb->vn_buf);
-			/* this is not needed if kfree is atomic */
+			/* this is analt needed if kfree is atomic */
 			check_fs = 1;
 		}
 
-		/* virtual node requires now more memory */
+		/* virtual analde requires analw more memory */
 		tb->vn_buf_size = size;
 
 		/* get memory for virtual item */
-		buf = kmalloc(size, GFP_ATOMIC | __GFP_NOWARN);
+		buf = kmalloc(size, GFP_ATOMIC | __GFP_ANALWARN);
 		if (!buf) {
 			/*
 			 * getting memory with GFP_KERNEL priority may involve
-			 * balancing now (due to indirect_to_direct conversion
+			 * balancing analw (due to indirect_to_direct conversion
 			 * on dcache shrinking). So, release path and collected
 			 * resources here
 			 */
 			free_buffers_in_tb(tb);
-			buf = kmalloc(size, GFP_NOFS);
+			buf = kmalloc(size, GFP_ANALFS);
 			if (!buf) {
 				tb->vn_buf_size = 0;
 			}
@@ -2323,12 +2323,12 @@ static void tb_buffer_sanity_check(struct super_block *sb,
 				       "(%b)", descr, level, bh);
 
 		if (!buffer_uptodate(bh))
-			reiserfs_panic(sb, "jmacd-2", "buffer is not up "
+			reiserfs_panic(sb, "jmacd-2", "buffer is analt up "
 				       "to date %s[%d] (%b)",
 				       descr, level, bh);
 
 		if (!B_IS_IN_TREE(bh))
-			reiserfs_panic(sb, "jmacd-3", "buffer is not "
+			reiserfs_panic(sb, "jmacd-3", "buffer is analt "
 				       "in tree %s[%d] (%b)",
 				       descr, level, bh);
 
@@ -2468,8 +2468,8 @@ static int wait_tb_buffers_until_unlocked(struct tree_balance *tb)
 		}
 
 		/*
-		 * as far as I can tell, this is not required.  The FEB list
-		 * seems to be full of newly allocated nodes, which will
+		 * as far as I can tell, this is analt required.  The FEB list
+		 * seems to be full of newly allocated analdes, which will
 		 * never be locked, dirty, or anything else.
 		 * To be safe, I'm putting in the checks and waits in.
 		 * For the moment, they are needed to keep the code in
@@ -2516,13 +2516,13 @@ static int wait_tb_buffers_until_unlocked(struct tree_balance *tb)
  * Prepare for balancing, that is
  *	get all necessary parents, and neighbors;
  *	analyze what and where should be moved;
- *	get sufficient number of new nodes;
+ *	get sufficient number of new analdes;
  * Balancing will start only after all resources will be collected at a time.
  *
- * When ported to SMP kernels, only at the last moment after all needed nodes
+ * When ported to SMP kernels, only at the last moment after all needed analdes
  * are collected in cache, will the resources be locked using the usual
- * textbook ordered lock acquisition algorithms.  Note that ensuring that
- * this code neither write locks what it does not need to write lock nor locks
+ * textbook ordered lock acquisition algorithms.  Analte that ensuring that
+ * this code neither write locks what it does analt need to write lock analr locks
  * out of order will be a pain in the butt that could have been avoided.
  * Grumble grumble. -Hans
  *
@@ -2540,10 +2540,10 @@ static int wait_tb_buffers_until_unlocked(struct tree_balance *tb)
  *	data	inserted item or data to be pasted
  * Returns:	1 - schedule occurred while the function worked;
  *	        0 - schedule didn't occur while the function worked;
- *             -1 - if no_disk_space
+ *             -1 - if anal_disk_space
  */
 
-int fix_nodes(int op_mode, struct tree_balance *tb,
+int fix_analdes(int op_mode, struct tree_balance *tb,
 	      struct item_head *ins_ih, const void *data)
 {
 	int ret, h, item_num = PATH_LAST_POSITION(tb->tb_path);
@@ -2556,7 +2556,7 @@ int fix_nodes(int op_mode, struct tree_balance *tb,
 	int wait_tb_buffers_run = 0;
 	struct buffer_head *tbS0 = PATH_PLAST_BUFFER(tb->tb_path);
 
-	++REISERFS_SB(tb->tb_sb)->s_fix_nodes;
+	++REISERFS_SB(tb->tb_sb)->s_fix_analdes;
 
 	pos_in_item = tb->tb_path->pos_in_item;
 
@@ -2585,15 +2585,15 @@ int fix_nodes(int op_mode, struct tree_balance *tb,
 	}
 #ifdef CONFIG_REISERFS_CHECK
 	if (REISERFS_SB(tb->tb_sb)->cur_tb) {
-		print_cur_tb("fix_nodes");
+		print_cur_tb("fix_analdes");
 		reiserfs_panic(tb->tb_sb, "PAP-8305",
 			       "there is pending do_balance");
 	}
 
 	if (!buffer_uptodate(tbS0) || !B_IS_IN_TREE(tbS0))
 		reiserfs_panic(tb->tb_sb, "PAP-8320", "S[0] (%b %z) is "
-			       "not uptodate at the beginning of fix_nodes "
-			       "or not in tree (mode %c)",
+			       "analt uptodate at the beginning of fix_analdes "
+			       "or analt in tree (mode %c)",
 			       tbS0, tbS0, op_mode);
 
 	/* Check parameters. */
@@ -2623,8 +2623,8 @@ int fix_nodes(int op_mode, struct tree_balance *tb,
 	}
 #endif
 
-	if (get_mem_for_virtual_node(tb) == REPEAT_SEARCH)
-		/* FIXME: maybe -ENOMEM when tb->vn_buf == 0? Now just repeat */
+	if (get_mem_for_virtual_analde(tb) == REPEAT_SEARCH)
+		/* FIXME: maybe -EANALMEM when tb->vn_buf == 0? Analw just repeat */
 		return REPEAT_SEARCH;
 
 	/* Starting from the leaf level; for all levels h of the tree. */
@@ -2636,8 +2636,8 @@ int fix_nodes(int op_mode, struct tree_balance *tb,
 		ret = check_balance(op_mode, tb, h, item_num,
 				    pos_in_item, ins_ih, data);
 		if (ret != CARRY_ON) {
-			if (ret == NO_BALANCING_NEEDED) {
-				/* No balancing for higher levels needed. */
+			if (ret == ANAL_BALANCING_NEEDED) {
+				/* Anal balancing for higher levels needed. */
 				ret = get_neighbors(tb, h);
 				if (ret != CARRY_ON)
 					goto repeat;
@@ -2657,15 +2657,15 @@ int fix_nodes(int op_mode, struct tree_balance *tb,
 			goto repeat;
 
 		/*
-		 * No disk space, or schedule occurred and analysis may be
+		 * Anal disk space, or schedule occurred and analysis may be
 		 * invalid and needs to be redone.
 		 */
-		ret = get_empty_nodes(tb, h);
+		ret = get_empty_analdes(tb, h);
 		if (ret != CARRY_ON)
 			goto repeat;
 
 		/*
-		 * We have a positive insert size but no nodes exist on this
+		 * We have a positive insert size but anal analdes exist on this
 		 * level, this means that we are creating a new root.
 		 */
 		if (!PATH_H_PBUFFER(tb->tb_path, h)) {
@@ -2677,10 +2677,10 @@ int fix_nodes(int op_mode, struct tree_balance *tb,
 				tb->insert_size[h + 1] = 0;
 		} else if (!PATH_H_PBUFFER(tb->tb_path, h + 1)) {
 			/*
-			 * The tree needs to be grown, so this node S[h]
-			 * which is the root node is split into two nodes,
-			 * and a new node (S[h+1]) will be created to
-			 * become the root node.
+			 * The tree needs to be grown, so this analde S[h]
+			 * which is the root analde is split into two analdes,
+			 * and a new analde (S[h+1]) will be created to
+			 * become the root analde.
 			 */
 			if (tb->blknum[h] > 1) {
 
@@ -2714,11 +2714,11 @@ int fix_nodes(int op_mode, struct tree_balance *tb,
 
 repeat:
 	/*
-	 * fix_nodes was unable to perform its calculation due to
+	 * fix_analdes was unable to perform its calculation due to
 	 * filesystem got changed under us, lack of free disk space or i/o
 	 * failure. If the first is the case - the search will be
-	 * repeated. For now - free all resources acquired so far except
-	 * for the new allocated nodes
+	 * repeated. For analw - free all resources acquired so far except
+	 * for the new allocated analdes
 	 */
 	{
 		int i;
@@ -2775,7 +2775,7 @@ repeat:
 
 }
 
-void unfix_nodes(struct tree_balance *tb)
+void unfix_analdes(struct tree_balance *tb)
 {
 	int i;
 
@@ -2799,12 +2799,12 @@ void unfix_nodes(struct tree_balance *tb)
 		brelse(tb->CFR[i]);
 	}
 
-	/* deal with list of allocated (used and unused) nodes */
+	/* deal with list of allocated (used and unused) analdes */
 	for (i = 0; i < MAX_FEB_SIZE; i++) {
 		if (tb->FEB[i]) {
 			b_blocknr_t blocknr = tb->FEB[i]->b_blocknr;
 			/*
-			 * de-allocated block which was not used by
+			 * de-allocated block which was analt used by
 			 * balancing and bforget about buffer for it
 			 */
 			brelse(tb->FEB[i]);
@@ -2812,7 +2812,7 @@ void unfix_nodes(struct tree_balance *tb)
 					    blocknr, 0);
 		}
 		if (tb->used[i]) {
-			/* release used as new nodes including a new root */
+			/* release used as new analdes including a new root */
 			brelse(tb->used[i]);
 		}
 	}

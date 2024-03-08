@@ -33,7 +33,7 @@ static int tps6286x_set_mode(struct regulator_dev *rdev, unsigned int mode)
 	unsigned int val;
 
 	switch (mode) {
-	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_ANALRMAL:
 		val = 0;
 		break;
 	case REGULATOR_MODE_FAST:
@@ -56,7 +56,7 @@ static unsigned int tps6286x_get_mode(struct regulator_dev *rdev)
 	if (ret < 0)
 		return 0;
 
-	return (val & TPS6286X_CONTROL_FPWM) ? REGULATOR_MODE_FAST : REGULATOR_MODE_NORMAL;
+	return (val & TPS6286X_CONTROL_FPWM) ? REGULATOR_MODE_FAST : REGULATOR_MODE_ANALRMAL;
 }
 
 static const struct regulator_ops tps6286x_regulator_ops = {
@@ -73,8 +73,8 @@ static const struct regulator_ops tps6286x_regulator_ops = {
 static unsigned int tps6286x_of_map_mode(unsigned int mode)
 {
 	switch (mode) {
-	case TPS62864_MODE_NORMAL:
-		return REGULATOR_MODE_NORMAL;
+	case TPS62864_MODE_ANALRMAL:
+		return REGULATOR_MODE_ANALRMAL;
 	case TPS62864_MODE_FPWM:
 		return REGULATOR_MODE_FAST;
 	default:
@@ -88,7 +88,7 @@ static const struct regulator_desc tps6286x_reg = {
 	.owner = THIS_MODULE,
 	.ops = &tps6286x_regulator_ops,
 	.of_map_mode = tps6286x_of_map_mode,
-	.regulators_node = "regulators",
+	.regulators_analde = "regulators",
 	.type = REGULATOR_VOLTAGE,
 	.n_voltages = ((TPS6286X_MAX_MV - TPS6286X_MIN_MV) / TPS6286X_STEP_MV) + 1,
 	.min_uV = TPS6286X_MIN_MV * 1000,
@@ -123,7 +123,7 @@ static int tps6286x_i2c_probe(struct i2c_client *i2c)
 		return PTR_ERR(regmap);
 
 	config.dev = &i2c->dev;
-	config.of_node = dev->of_node;
+	config.of_analde = dev->of_analde;
 	config.regmap = regmap;
 
 	rdev = devm_regulator_register(&i2c->dev, &tps6286x_reg, &config);
@@ -147,7 +147,7 @@ MODULE_DEVICE_TABLE(i2c, tps6286x_i2c_id);
 static struct i2c_driver tps6286x_regulator_driver = {
 	.driver = {
 		.name = "tps6286x",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = tps6286x_dt_ids,
 	},
 	.probe = tps6286x_i2c_probe,

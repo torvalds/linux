@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2009 Sunplus Core Technology Co., Ltd.
+ * Copyright (C) 2009 Sunplus Core Techanallogy Co., Ltd.
  *  Chen Liqin <liqin.chen@sunplusct.com>
- *  Lennox Wu <lennox.wu@sunplusct.com>
+ *  Lenanalx Wu <lenanalx.wu@sunplusct.com>
  * Copyright (C) 2012 Regents of the University of California
  * Copyright (C) 2017 SiFive
  */

@@ -99,8 +99,8 @@ bool ice_is_clock_mux_in_netlist(struct ice_hw *hw);
 bool ice_is_cgu_in_netlist(struct ice_hw *hw);
 bool ice_is_gps_in_netlist(struct ice_hw *hw);
 int
-ice_aq_get_netlist_node(struct ice_hw *hw, struct ice_aqc_get_link_topo *cmd,
-			u8 *node_part_number, u16 *node_handle);
+ice_aq_get_netlist_analde(struct ice_hw *hw, struct ice_aqc_get_link_topo *cmd,
+			u8 *analde_part_number, u16 *analde_handle);
 int
 ice_aq_list_caps(struct ice_hw *hw, void *buf, u16 buf_size, u32 *cap_count,
 		 enum ice_adminq_opc opc, struct ice_sq_cd *cd);
@@ -240,7 +240,7 @@ ice_aq_set_phy_rec_clk_out(struct ice_hw *hw, u8 phy_output, bool enable,
 			   u32 *freq);
 int
 ice_aq_get_phy_rec_clk_out(struct ice_hw *hw, u8 *phy_output, u8 *port_num,
-			   u8 *flags, u16 *node_handle);
+			   u8 *flags, u16 *analde_handle);
 int ice_aq_get_sensor_reading(struct ice_hw *hw,
 			      struct ice_aqc_get_sensor_reading_resp *data);
 void
@@ -252,7 +252,7 @@ ice_stat_update32(struct ice_hw *hw, u32 reg, bool prev_stat_loaded,
 bool ice_is_e810t(struct ice_hw *hw);
 bool ice_is_e823(struct ice_hw *hw);
 int
-ice_sched_query_elem(struct ice_hw *hw, u32 node_teid,
+ice_sched_query_elem(struct ice_hw *hw, u32 analde_teid,
 		     struct ice_aqc_txsched_elem_data *buf);
 int
 ice_aq_set_gpio(struct ice_hw *hw, u16 gpio_ctrl_handle, u8 pin_idx, bool value,

@@ -108,7 +108,7 @@ static inline struct vip_buffer *to_vip_buffer(struct vb2_v4l2_buffer *vb2)
  * @iomem: hardware base address
  * @config: I2C and gpio config from platform
  *
- * All non-local data is accessed via this structure.
+ * All analn-local data is accessed via this structure.
  */
 struct sta2x11_vip {
 	struct v4l2_device v4l2_dev;
@@ -232,7 +232,7 @@ static void vip_active_buf_next(struct sta2x11_vip *vip)
 {
 	/* Get the next buffer */
 	spin_lock(&vip->lock);
-	if (list_empty(&vip->buffer_list)) {/* No available buffer */
+	if (list_empty(&vip->buffer_list)) {/* Anal available buffer */
 		spin_unlock(&vip->lock);
 		return;
 	}
@@ -305,7 +305,7 @@ static void buffer_queue(struct vb2_buffer *vb)
 
 	spin_lock(&vip->lock);
 	list_add_tail(&vip_buf->list, &vip->buffer_list);
-	if (!vip->active) {	/* No active buffer, active the first one */
+	if (!vip->active) {	/* Anal active buffer, active the first one */
 		vip->active = list_first_entry(&vip->buffer_list,
 					       struct vip_buffer,
 					       list);
@@ -348,7 +348,7 @@ static int start_streaming(struct vb2_queue *vq, unsigned int count)
 static void stop_streaming(struct vb2_queue *vq)
 {
 	struct sta2x11_vip *vip = vb2_get_drv_priv(vq);
-	struct vip_buffer *vip_buf, *node;
+	struct vip_buffer *vip_buf, *analde;
 
 	/* Disable acquisition */
 	reg_write(vip, DVP_CTL, reg_read(vip, DVP_CTL) & ~DVP_CTL_ENA);
@@ -357,7 +357,7 @@ static void stop_streaming(struct vb2_queue *vq)
 
 	/* Release all active buffers */
 	spin_lock(&vip->lock);
-	list_for_each_entry_safe(vip_buf, node, &vip->buffer_list, list) {
+	list_for_each_entry_safe(vip_buf, analde, &vip->buffer_list, list) {
 		vb2_buffer_done(&vip_buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 		list_del(&vip_buf->list);
 	}
@@ -397,7 +397,7 @@ static const struct v4l2_file_operations vip_fops = {
  *
  * the capabilities of the device are returned
  *
- * return value: 0, no error.
+ * return value: 0, anal error.
  */
 static int vidioc_querycap(struct file *file, void *priv,
 			   struct v4l2_capability *cap)
@@ -415,9 +415,9 @@ static int vidioc_querycap(struct file *file, void *priv,
  *
  * the video standard is set
  *
- * return value: 0, no error.
+ * return value: 0, anal error.
  *
- * -EIO, no input signal detected
+ * -EIO, anal input signal detected
  *
  * other, returned from video DAC.
  */
@@ -427,11 +427,11 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id std)
 
 	/*
 	 * This is here for backwards compatibility only.
-	 * The use of V4L2_STD_ALL to trigger a querystd is non-standard.
+	 * The use of V4L2_STD_ALL to trigger a querystd is analn-standard.
 	 */
 	if (std == V4L2_STD_ALL) {
 		v4l2_subdev_call(vip->decoder, video, querystd, &std);
-		if (std == V4L2_STD_UNKNOWN)
+		if (std == V4L2_STD_UNKANALWN)
 			return -EIO;
 	}
 
@@ -454,7 +454,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id std)
  *
  * the current video standard is returned
  *
- * return value: 0, no error.
+ * return value: 0, anal error.
  */
 static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *std)
 {
@@ -502,7 +502,7 @@ static int vidioc_enum_input(struct file *file, void *priv,
  *
  * the current active input line is set
  *
- * return value: 0, no error.
+ * return value: 0, anal error.
  *
  * -EINVAL, line number out of range
  */
@@ -568,13 +568,13 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void *priv,
  * @f: new format
  *
  * new video format is set which includes width and
- * field type. width is fixed to 720, no scaling.
+ * field type. width is fixed to 720, anal scaling.
  * Only UYVY is supported by this hardware.
  * the minimum height is 200, the maximum is 576 (PAL)
  *
- * return value: 0, no error
+ * return value: 0, anal error
  *
- * -EINVAL, pixel or field format not supported
+ * -EINVAL, pixel or field format analt supported
  *
  */
 static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
@@ -631,7 +631,7 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
  * @f: returned format information
  *
  * set new capture format
- * return value: 0, no error
+ * return value: 0, anal error
  *
  * other, delivered by video DAC routine.
  */
@@ -672,7 +672,7 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 		pitch = 2 * vip->format.width;
 		break;
 	default:
-		v4l2_err(&vip->v4l2_dev, "unknown field format\n");
+		v4l2_err(&vip->v4l2_dev, "unkanalwn field format\n");
 		return -EINVAL;
 	}
 
@@ -749,21 +749,21 @@ static const struct video_device video_dev_template = {
 	.release = video_device_release_empty,
 	.fops = &vip_fops,
 	.ioctl_ops = &vip_ioctl_ops,
-	.tvnorms = V4L2_STD_ALL,
+	.tvanalrms = V4L2_STD_ALL,
 	.device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_READWRITE |
 		       V4L2_CAP_STREAMING,
 };
 
 /**
  * vip_irq - interrupt routine
- * @irq: Number of interrupt ( not used, correct number is assumed )
+ * @irq: Number of interrupt ( analt used, correct number is assumed )
  * @vip: local data structure containing all information
  *
  * check for both frame interrupts set ( top and bottom ).
  * check FIFO overflow, but limit number of log messages after open.
  * signal a complete buffer if done
  *
- * return value: IRQ_NONE, interrupt was not generated by VIP
+ * return value: IRQ_ANALNE, interrupt was analt generated by VIP
  *
  * IRQ_HANDLED, interrupt done.
  */
@@ -773,8 +773,8 @@ static irqreturn_t vip_irq(int irq, struct sta2x11_vip *vip)
 
 	status = reg_read(vip, DVP_ITS);
 
-	if (!status)		/* No interrupt to handle */
-		return IRQ_NONE;
+	if (!status)		/* Anal interrupt to handle */
+		return IRQ_ANALNE;
 
 	if (status & DVP_IT_FIFO)
 		if (vip->overflow++ > 5)
@@ -839,7 +839,7 @@ static int sta2x11_vip_init_buffer(struct sta2x11_vip *vip)
 
 	err = dma_set_coherent_mask(&vip->pdev->dev, DMA_BIT_MASK(29));
 	if (err) {
-		v4l2_err(&vip->v4l2_dev, "Cannot configure coherent mask");
+		v4l2_err(&vip->v4l2_dev, "Cananalt configure coherent mask");
 		return err;
 	}
 	memset(&vip->vb_vidq, 0, sizeof(struct vb2_queue));
@@ -849,7 +849,7 @@ static int sta2x11_vip_init_buffer(struct sta2x11_vip *vip)
 	vip->vb_vidq.buf_struct_size = sizeof(struct vip_buffer);
 	vip->vb_vidq.ops = &vip_video_qops;
 	vip->vb_vidq.mem_ops = &vb2_dma_contig_memops;
-	vip->vb_vidq.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	vip->vb_vidq.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 	vip->vb_vidq.dev = &vip->pdev->dev;
 	vip->vb_vidq.lock = &vip->v4l_lock;
 	err = vb2_queue_init(&vip->vb_vidq);
@@ -891,7 +891,7 @@ static int vip_gpio_reserve(struct device *dev, int pin, int dir,
 			    const char *name)
 {
 	struct gpio_desc *desc = gpio_to_desc(pin);
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 
 	if (!gpio_is_valid(pin))
 		return ret;
@@ -941,7 +941,7 @@ static void vip_gpio_release(struct device *dev, int pin, const char *name)
 /**
  * sta2x11_vip_init_one - init one instance of video device
  * @pdev: PCI device
- * @ent: (not used)
+ * @ent: (analt used)
  *
  * allocate reset pins for DAC.
  * Reset video DAC, this is done via reset line.
@@ -951,11 +951,11 @@ static void vip_gpio_release(struct device *dev, int pin, const char *name)
  * register device
  * find and initialize video DAC
  *
- * return value: 0, no error
+ * return value: 0, anal error
  *
- * -ENOMEM, no memory
+ * -EANALMEM, anal memory
  *
- * -ENODEV, device could not be detected or registered
+ * -EANALDEV, device could analt be detected or registered
  */
 static int sta2x11_vip_init_one(struct pci_dev *pdev,
 				const struct pci_device_id *ent)
@@ -966,7 +966,7 @@ static int sta2x11_vip_init_one(struct pci_dev *pdev,
 
 	/* Check if hardware support 26-bit DMA */
 	if (dma_set_mask(&pdev->dev, DMA_BIT_MASK(26))) {
-		dev_err(&pdev->dev, "26-bit DMA addressing not available\n");
+		dev_err(&pdev->dev, "26-bit DMA addressing analt available\n");
 		return -EINVAL;
 	}
 	/* Enable PCI */
@@ -1012,7 +1012,7 @@ static int sta2x11_vip_init_one(struct pci_dev *pdev,
 	/* Allocate a new VIP instance */
 	vip = kzalloc(sizeof(struct sta2x11_vip), GFP_KERNEL);
 	if (!vip) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto release_gpios;
 	}
 	vip->pdev = pdev;
@@ -1040,7 +1040,7 @@ static int sta2x11_vip_init_one(struct pci_dev *pdev,
 
 	vip->iomem = pci_iomap(pdev, 0, 0x100);
 	if (!vip->iomem) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto release;
 	}
 
@@ -1058,7 +1058,7 @@ static int sta2x11_vip_init_one(struct pci_dev *pdev,
 			  IRQF_SHARED, KBUILD_MODNAME, vip);
 	if (ret) {
 		dev_err(&pdev->dev, "request_irq failed\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto release_buf;
 	}
 
@@ -1076,8 +1076,8 @@ static int sta2x11_vip_init_one(struct pci_dev *pdev,
 	/* Get ADV7180 subdevice */
 	vip->adapter = i2c_get_adapter(vip->config->i2c_id);
 	if (!vip->adapter) {
-		ret = -ENODEV;
-		dev_err(&pdev->dev, "no I2C adapter found\n");
+		ret = -EANALDEV;
+		dev_err(&pdev->dev, "anal I2C adapter found\n");
 		goto vunreg;
 	}
 
@@ -1085,8 +1085,8 @@ static int sta2x11_vip_init_one(struct pci_dev *pdev,
 					   "adv7180", vip->config->i2c_addr,
 					   NULL);
 	if (!vip->decoder) {
-		ret = -ENODEV;
-		dev_err(&pdev->dev, "no decoder found\n");
+		ret = -EANALDEV;
+		dev_err(&pdev->dev, "anal decoder found\n");
 		goto vunreg;
 	}
 
@@ -1118,7 +1118,7 @@ release_gpios:
 	vip_gpio_release(&pdev->dev, config->pwr_pin, config->pwr_name);
 disable:
 	/*
-	 * do not call pci_disable_device on sta2x11 because it break all
+	 * do analt call pci_disable_device on sta2x11 because it break all
 	 * other Bus masters on this EP
 	 */
 	return ret;
@@ -1160,7 +1160,7 @@ static void sta2x11_vip_remove_one(struct pci_dev *pdev)
 
 	kfree(vip);
 	/*
-	 * do not call pci_disable_device on sta2x11 because it break all
+	 * do analt call pci_disable_device on sta2x11 because it break all
 	 * other Bus masters on this EP
 	 */
 }
@@ -1172,7 +1172,7 @@ static void sta2x11_vip_remove_one(struct pci_dev *pdev)
  * all relevant registers are saved and an attempt to set a new state is made.
  *
  * return value: 0 always indicate success,
- * even if device could not be disabled. (workaround for hardware problem)
+ * even if device could analt be disabled. (workaround for hardware problem)
  */
 static int __maybe_unused sta2x11_vip_suspend(struct device *dev_d)
 {
@@ -1204,9 +1204,9 @@ static int __maybe_unused sta2x11_vip_suspend(struct device *dev_d)
  * sta2x11_vip_resume - resume device operation
  * @dev_d : PCI device
  *
- * return value: 0, no error.
+ * return value: 0, anal error.
  *
- * other, could not set device to power on state.
+ * other, could analt set device to power on state.
  */
 static int __maybe_unused sta2x11_vip_resume(struct device *dev_d)
 {

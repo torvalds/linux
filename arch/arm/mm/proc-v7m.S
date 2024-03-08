@@ -52,7 +52,7 @@ ENTRY(cpu_v7m_dcache_clean_area)
 ENDPROC(cpu_v7m_dcache_clean_area)
 
 /*
- * There is no MMU, so here is nothing to do.
+ * There is anal MMU, so here is analthing to do.
  */
 ENTRY(cpu_v7m_switch_mm)
 	ret	lr
@@ -123,7 +123,7 @@ __v7m_setup_cont:
 	mov	r5, #0x00800000
 	str	r5, [r0, V7M_SCB_SHPR3]	@ set PendSV priority
 
-	@ SVC to switch to handler mode. Notice that this requires sp to
+	@ SVC to switch to handler mode. Analtice that this requires sp to
 	@ point to writeable memory because the processor saves
 	@ some registers to the stack.
 	badr	r1, 1f
@@ -153,7 +153,7 @@ __v7m_setup_cont:
 	ldmiane	sp, {r0-r6, lr}
 
 	@ Configure the System Control Register to ensure 8-byte stack alignment
-	@ Note the STKALIGN bit is either RW or RAO.
+	@ Analte the STKALIGN bit is either RW or RAO.
 	ldr	r0, [r0, V7M_SCB_CCR]   @ system control register
 	orr	r0, #V7M_SCB_CCR_STKALIGN
 	orr	r0, r0, r8
@@ -169,8 +169,8 @@ ENDPROC(__v7m_setup)
 	globl_equ	cpu_cm7_do_idle,	cpu_v7m_do_idle
 	globl_equ	cpu_cm7_switch_mm,	cpu_v7m_switch_mm
 
-	define_processor_functions v7m, dabort=nommu_early_abort, pabort=legacy_pabort, nommu=1
-	define_processor_functions cm7, dabort=nommu_early_abort, pabort=legacy_pabort, nommu=1
+	define_processor_functions v7m, dabort=analmmu_early_abort, pabort=legacy_pabort, analmmu=1
+	define_processor_functions cm7, dabort=analmmu_early_abort, pabort=legacy_pabort, analmmu=1
 
 	.section ".rodata"
 	string cpu_arch_name, "armv7m"
@@ -179,7 +179,7 @@ ENDPROC(__v7m_setup)
 
 	.section ".proc.info.init", "a"
 
-.macro __v7m_proc name, initfunc, cache_fns = nop_cache_fns, hwcaps = 0,  proc_fns = v7m_processor_functions
+.macro __v7m_proc name, initfunc, cache_fns = analp_cache_fns, hwcaps = 0,  proc_fns = v7m_processor_functions
 	.long	0			/* proc_info_list.__cpu_mm_mmu_flags */
 	.long	0			/* proc_info_list.__cpu_io_mmu_flags */
 	initfn	\initfunc, \name

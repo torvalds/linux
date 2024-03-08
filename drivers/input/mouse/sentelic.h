@@ -14,7 +14,7 @@
 #define	FSP_REG_VERSION		0x01
 #define	FSP_REG_REVISION	0x04
 #define	FSP_REG_TMOD_STATUS1	0x0B
-#define	FSP_BIT_NO_ROTATION	BIT(3)
+#define	FSP_BIT_ANAL_ROTATION	BIT(3)
 #define	FSP_REG_PAGE_CTRL	0x0F
 
 /* Finger-sensing Pad control registers */
@@ -63,10 +63,10 @@
 /* Finger-sensing Pad packet formating related definitions */
 
 /* absolute packet type */
-#define	FSP_PKT_TYPE_NORMAL	(0x00)
+#define	FSP_PKT_TYPE_ANALRMAL	(0x00)
 #define	FSP_PKT_TYPE_ABS	(0x01)
-#define	FSP_PKT_TYPE_NOTIFY	(0x02)
-#define	FSP_PKT_TYPE_NORMAL_OPC	(0x03)
+#define	FSP_PKT_TYPE_ANALTIFY	(0x02)
+#define	FSP_PKT_TYPE_ANALRMAL_OPC	(0x03)
 #define	FSP_PKT_TYPE_SHIFT	(6)
 
 /* bit definitions for the first byte of report packet */

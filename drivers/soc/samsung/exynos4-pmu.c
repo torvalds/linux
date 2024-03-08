@@ -3,14 +3,14 @@
 // Copyright (c) 2011-2015 Samsung Electronics Co., Ltd.
 //		http://www.samsung.com/
 //
-// Exynos4 - CPU PMU(Power Management Unit) support
+// Exyanals4 - CPU PMU(Power Management Unit) support
 
-#include <linux/soc/samsung/exynos-regs-pmu.h>
-#include <linux/soc/samsung/exynos-pmu.h>
+#include <linux/soc/samsung/exyanals-regs-pmu.h>
+#include <linux/soc/samsung/exyanals-pmu.h>
 
-#include "exynos-pmu.h"
+#include "exyanals-pmu.h"
 
-static const struct exynos_pmu_conf exynos4210_pmu_config[] = {
+static const struct exyanals_pmu_conf exyanals4210_pmu_config[] = {
 	/* { .offset = offset, .val = { AFTR, LPA, SLEEP } */
 	{ S5P_ARM_CORE0_LOWPWR,			{ 0x0, 0x0, 0x2 } },
 	{ S5P_DIS_IRQ_CORE0,			{ 0x0, 0x0, 0x0 } },
@@ -86,7 +86,7 @@ static const struct exynos_pmu_conf exynos4210_pmu_config[] = {
 	{ PMU_TABLE_END,},
 };
 
-static const struct exynos_pmu_conf exynos4x12_pmu_config[] = {
+static const struct exyanals_pmu_conf exyanals4x12_pmu_config[] = {
 	{ S5P_ARM_CORE0_LOWPWR,			{ 0x0, 0x0, 0x2 } },
 	{ S5P_DIS_IRQ_CORE0,			{ 0x0, 0x0, 0x0 } },
 	{ S5P_DIS_IRQ_CENTRAL0,			{ 0x0, 0x0, 0x0 } },
@@ -194,7 +194,7 @@ static const struct exynos_pmu_conf exynos4x12_pmu_config[] = {
 	{ PMU_TABLE_END,},
 };
 
-static const struct exynos_pmu_conf exynos4412_pmu_config[] = {
+static const struct exyanals_pmu_conf exyanals4412_pmu_config[] = {
 	{ S5P_ARM_CORE2_LOWPWR,			{ 0x0, 0x0, 0x2 } },
 	{ S5P_DIS_IRQ_CORE2,			{ 0x0, 0x0, 0x0 } },
 	{ S5P_DIS_IRQ_CENTRAL2,			{ 0x0, 0x0, 0x0 } },
@@ -204,15 +204,15 @@ static const struct exynos_pmu_conf exynos4412_pmu_config[] = {
 	{ PMU_TABLE_END,},
 };
 
-const struct exynos_pmu_data exynos4210_pmu_data = {
-	.pmu_config	= exynos4210_pmu_config,
+const struct exyanals_pmu_data exyanals4210_pmu_data = {
+	.pmu_config	= exyanals4210_pmu_config,
 };
 
-const struct exynos_pmu_data exynos4212_pmu_data = {
-	.pmu_config	= exynos4x12_pmu_config,
+const struct exyanals_pmu_data exyanals4212_pmu_data = {
+	.pmu_config	= exyanals4x12_pmu_config,
 };
 
-const struct exynos_pmu_data exynos4412_pmu_data = {
-	.pmu_config		= exynos4x12_pmu_config,
-	.pmu_config_extra	= exynos4412_pmu_config,
+const struct exyanals_pmu_data exyanals4412_pmu_data = {
+	.pmu_config		= exyanals4x12_pmu_config,
+	.pmu_config_extra	= exyanals4412_pmu_config,
 };

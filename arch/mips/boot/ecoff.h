@@ -26,9 +26,9 @@ typedef struct scnhdr {
 	int32_t		s_size;		/* section size */
 	int32_t		s_scnptr;	/* file ptr to raw data for section */
 	int32_t		s_relptr;	/* file ptr to relocation */
-	int32_t		s_lnnoptr;	/* file ptr to gp histogram */
+	int32_t		s_lnanalptr;	/* file ptr to gp histogram */
 	uint16_t	s_nreloc;	/* number of relocation entries */
-	uint16_t	s_nlnno;	/* number of gp histogram entries */
+	uint16_t	s_nlnanal;	/* number of gp histogram entries */
 	int32_t		s_flags;	/* flags */
 } SCNHDR;
 #define SCNHSZ		sizeof(SCNHDR)

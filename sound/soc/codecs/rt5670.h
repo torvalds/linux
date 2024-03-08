@@ -28,14 +28,14 @@
 #define RT5670_DAC2_DIG_VOL			0x1a
 #define RT5670_DAC_CTRL				0x1b
 #define RT5670_STO1_ADC_DIG_VOL			0x1c
-#define RT5670_MONO_ADC_DIG_VOL			0x1d
+#define RT5670_MOANAL_ADC_DIG_VOL			0x1d
 #define RT5670_ADC_BST_VOL1			0x1e
 #define RT5670_STO2_ADC_DIG_VOL			0x1f
 /* Mixer - D-D */
 #define RT5670_ADC_BST_VOL2			0x20
 #define RT5670_STO2_ADC_MIXER			0x26
 #define RT5670_STO1_ADC_MIXER			0x27
-#define RT5670_MONO_ADC_MIXER			0x28
+#define RT5670_MOANAL_ADC_MIXER			0x28
 #define RT5670_AD_DA_MIXER			0x29
 #define RT5670_STO_DAC_MIXER			0x2a
 #define RT5670_DD_MIXER				0x2b
@@ -60,7 +60,7 @@
 #define RT5670_REC_R2_MIXER			0x3e
 /* Mixer - DAC */
 #define RT5670_HPO_MIXER			0x45
-#define RT5670_MONO_MIXER			0x4c
+#define RT5670_MOANAL_MIXER			0x4c
 #define RT5670_OUT_L1_MIXER			0x4f
 #define RT5670_OUT_R1_MIXER			0x52
 #define RT5670_LOUT_MIXER			0x53
@@ -151,8 +151,8 @@
 #define RT5670_IL_CMD3				0xdd
 #define RT5670_DRC_HL_CTRL1			0xe6
 #define RT5670_DRC_HL_CTRL2			0xe7
-#define RT5670_ADC_MONO_HP_CTRL1		0xec
-#define RT5670_ADC_MONO_HP_CTRL2		0xed
+#define RT5670_ADC_MOANAL_HP_CTRL1		0xec
+#define RT5670_ADC_MOANAL_HP_CTRL2		0xed
 #define RT5670_ADC_STO2_HP_CTRL1		0xee
 #define RT5670_ADC_STO2_HP_CTRL2		0xef
 #define RT5670_JD_CTRL3				0xf8
@@ -251,13 +251,13 @@
 #define RT5670_INL_SEL_MASK			(0x1 << 15)
 #define RT5670_INL_SEL_SFT			15
 #define RT5670_INL_SEL_IN4P			(0x0 << 15)
-#define RT5670_INL_SEL_MONOP			(0x1 << 15)
+#define RT5670_INL_SEL_MOANALP			(0x1 << 15)
 #define RT5670_INL_VOL_MASK			(0x1f << 8)
 #define RT5670_INL_VOL_SFT			8
 #define RT5670_INR_SEL_MASK			(0x1 << 7)
 #define RT5670_INR_SEL_SFT			7
 #define RT5670_INR_SEL_IN4N			(0x0 << 7)
-#define RT5670_INR_SEL_MONON			(0x1 << 7)
+#define RT5670_INR_SEL_MOANALN			(0x1 << 7)
 #define RT5670_INR_VOL_MASK			(0x1f)
 #define RT5670_INR_VOL_SFT			0
 
@@ -299,11 +299,11 @@
 #define RT5670_ADC_R_VOL_MASK			(0x7f)
 #define RT5670_ADC_R_VOL_SFT			0
 
-/* Mono ADC Digital Volume Control (0x1d) */
-#define RT5670_MONO_ADC_L_VOL_MASK		(0x7f << 8)
-#define RT5670_MONO_ADC_L_VOL_SFT		8
-#define RT5670_MONO_ADC_R_VOL_MASK		(0x7f)
-#define RT5670_MONO_ADC_R_VOL_SFT		0
+/* Moanal ADC Digital Volume Control (0x1d) */
+#define RT5670_MOANAL_ADC_L_VOL_MASK		(0x7f << 8)
+#define RT5670_MOANAL_ADC_L_VOL_SFT		8
+#define RT5670_MOANAL_ADC_R_VOL_MASK		(0x7f)
+#define RT5670_MOANAL_ADC_R_VOL_SFT		0
 
 /* ADC Boost Volume Control (0x1e) */
 #define RT5670_STO1_ADC_L_BST_MASK		(0x3 << 14)
@@ -345,33 +345,33 @@
 #define RT5670_DMIC3_SRC_MASK			(0x1 << 1)
 #define RT5670_DMIC3_SRC_SFT			0
 
-/* Mono ADC Mixer Control (0x28) */
-#define RT5670_M_MONO_ADC_L1			(0x1 << 14)
-#define RT5670_M_MONO_ADC_L1_SFT		14
-#define RT5670_M_MONO_ADC_L2			(0x1 << 13)
-#define RT5670_M_MONO_ADC_L2_SFT		13
-#define RT5670_MONO_ADC_L1_SRC_MASK		(0x1 << 12)
-#define RT5670_MONO_ADC_L1_SRC_SFT		12
-#define RT5670_MONO_ADC_L1_SRC_DACMIXL		(0x0 << 12)
-#define RT5670_MONO_ADC_L1_SRC_ADCL		(0x1 << 12)
-#define RT5670_MONO_ADC_L2_SRC_MASK		(0x1 << 11)
-#define RT5670_MONO_ADC_L2_SRC_SFT		11
-#define RT5670_MONO_ADC_L_SRC_MASK		(0x1 << 10)
-#define RT5670_MONO_ADC_L_SRC_SFT		10
-#define RT5670_MONO_DMIC_L_SRC_MASK		(0x3 << 8)
-#define RT5670_MONO_DMIC_L_SRC_SFT		8
-#define RT5670_M_MONO_ADC_R1			(0x1 << 6)
-#define RT5670_M_MONO_ADC_R1_SFT		6
-#define RT5670_M_MONO_ADC_R2			(0x1 << 5)
-#define RT5670_M_MONO_ADC_R2_SFT		5
-#define RT5670_MONO_ADC_R1_SRC_MASK		(0x1 << 4)
-#define RT5670_MONO_ADC_R1_SRC_SFT		4
-#define RT5670_MONO_ADC_R1_SRC_ADCR		(0x1 << 4)
-#define RT5670_MONO_ADC_R1_SRC_DACMIXR		(0x0 << 4)
-#define RT5670_MONO_ADC_R2_SRC_MASK		(0x1 << 3)
-#define RT5670_MONO_ADC_R2_SRC_SFT		3
-#define RT5670_MONO_DMIC_R_SRC_MASK		(0x3)
-#define RT5670_MONO_DMIC_R_SRC_SFT		0
+/* Moanal ADC Mixer Control (0x28) */
+#define RT5670_M_MOANAL_ADC_L1			(0x1 << 14)
+#define RT5670_M_MOANAL_ADC_L1_SFT		14
+#define RT5670_M_MOANAL_ADC_L2			(0x1 << 13)
+#define RT5670_M_MOANAL_ADC_L2_SFT		13
+#define RT5670_MOANAL_ADC_L1_SRC_MASK		(0x1 << 12)
+#define RT5670_MOANAL_ADC_L1_SRC_SFT		12
+#define RT5670_MOANAL_ADC_L1_SRC_DACMIXL		(0x0 << 12)
+#define RT5670_MOANAL_ADC_L1_SRC_ADCL		(0x1 << 12)
+#define RT5670_MOANAL_ADC_L2_SRC_MASK		(0x1 << 11)
+#define RT5670_MOANAL_ADC_L2_SRC_SFT		11
+#define RT5670_MOANAL_ADC_L_SRC_MASK		(0x1 << 10)
+#define RT5670_MOANAL_ADC_L_SRC_SFT		10
+#define RT5670_MOANAL_DMIC_L_SRC_MASK		(0x3 << 8)
+#define RT5670_MOANAL_DMIC_L_SRC_SFT		8
+#define RT5670_M_MOANAL_ADC_R1			(0x1 << 6)
+#define RT5670_M_MOANAL_ADC_R1_SFT		6
+#define RT5670_M_MOANAL_ADC_R2			(0x1 << 5)
+#define RT5670_M_MOANAL_ADC_R2_SFT		5
+#define RT5670_MOANAL_ADC_R1_SRC_MASK		(0x1 << 4)
+#define RT5670_MOANAL_ADC_R1_SRC_SFT		4
+#define RT5670_MOANAL_ADC_R1_SRC_ADCR		(0x1 << 4)
+#define RT5670_MOANAL_ADC_R1_SRC_DACMIXR		(0x0 << 4)
+#define RT5670_MOANAL_ADC_R2_SRC_MASK		(0x1 << 3)
+#define RT5670_MOANAL_ADC_R2_SRC_SFT		3
+#define RT5670_MOANAL_DMIC_R_SRC_MASK		(0x3)
+#define RT5670_MOANAL_DMIC_R_SRC_SFT		0
 
 /* ADC Mixer to DAC Mixer Control (0x29) */
 #define RT5670_M_ADCMIX_L			(0x1 << 15)
@@ -421,31 +421,31 @@
 #define RT5670_DAC_L1_STO_R_VOL_MASK		(0x1)
 #define RT5670_DAC_L1_STO_R_VOL_SFT		0
 
-/* Mono DAC Mixer Control (0x2b) */
-#define RT5670_M_DAC_L1_MONO_L			(0x1 << 14)
-#define RT5670_M_DAC_L1_MONO_L_SFT		14
-#define RT5670_DAC_L1_MONO_L_VOL_MASK		(0x1 << 13)
-#define RT5670_DAC_L1_MONO_L_VOL_SFT		13
-#define RT5670_M_DAC_L2_MONO_L			(0x1 << 12)
-#define RT5670_M_DAC_L2_MONO_L_SFT		12
-#define RT5670_DAC_L2_MONO_L_VOL_MASK		(0x1 << 11)
-#define RT5670_DAC_L2_MONO_L_VOL_SFT		11
-#define RT5670_M_DAC_R2_MONO_L			(0x1 << 10)
-#define RT5670_M_DAC_R2_MONO_L_SFT		10
-#define RT5670_DAC_R2_MONO_L_VOL_MASK		(0x1 << 9)
-#define RT5670_DAC_R2_MONO_L_VOL_SFT		9
-#define RT5670_M_DAC_R1_MONO_R			(0x1 << 6)
-#define RT5670_M_DAC_R1_MONO_R_SFT		6
-#define RT5670_DAC_R1_MONO_R_VOL_MASK		(0x1 << 5)
-#define RT5670_DAC_R1_MONO_R_VOL_SFT		5
-#define RT5670_M_DAC_R2_MONO_R			(0x1 << 4)
-#define RT5670_M_DAC_R2_MONO_R_SFT		4
-#define RT5670_DAC_R2_MONO_R_VOL_MASK		(0x1 << 3)
-#define RT5670_DAC_R2_MONO_R_VOL_SFT		3
-#define RT5670_M_DAC_L2_MONO_R			(0x1 << 2)
-#define RT5670_M_DAC_L2_MONO_R_SFT		2
-#define RT5670_DAC_L2_MONO_R_VOL_MASK		(0x1 << 1)
-#define RT5670_DAC_L2_MONO_R_VOL_SFT		1
+/* Moanal DAC Mixer Control (0x2b) */
+#define RT5670_M_DAC_L1_MOANAL_L			(0x1 << 14)
+#define RT5670_M_DAC_L1_MOANAL_L_SFT		14
+#define RT5670_DAC_L1_MOANAL_L_VOL_MASK		(0x1 << 13)
+#define RT5670_DAC_L1_MOANAL_L_VOL_SFT		13
+#define RT5670_M_DAC_L2_MOANAL_L			(0x1 << 12)
+#define RT5670_M_DAC_L2_MOANAL_L_SFT		12
+#define RT5670_DAC_L2_MOANAL_L_VOL_MASK		(0x1 << 11)
+#define RT5670_DAC_L2_MOANAL_L_VOL_SFT		11
+#define RT5670_M_DAC_R2_MOANAL_L			(0x1 << 10)
+#define RT5670_M_DAC_R2_MOANAL_L_SFT		10
+#define RT5670_DAC_R2_MOANAL_L_VOL_MASK		(0x1 << 9)
+#define RT5670_DAC_R2_MOANAL_L_VOL_SFT		9
+#define RT5670_M_DAC_R1_MOANAL_R			(0x1 << 6)
+#define RT5670_M_DAC_R1_MOANAL_R_SFT		6
+#define RT5670_DAC_R1_MOANAL_R_VOL_MASK		(0x1 << 5)
+#define RT5670_DAC_R1_MOANAL_R_VOL_SFT		5
+#define RT5670_M_DAC_R2_MOANAL_R			(0x1 << 4)
+#define RT5670_M_DAC_R2_MOANAL_R_SFT		4
+#define RT5670_DAC_R2_MOANAL_R_VOL_MASK		(0x1 << 3)
+#define RT5670_DAC_R2_MOANAL_R_VOL_SFT		3
+#define RT5670_M_DAC_L2_MOANAL_R			(0x1 << 2)
+#define RT5670_M_DAC_L2_MOANAL_R_SFT		2
+#define RT5670_DAC_L2_MOANAL_R_VOL_MASK		(0x1 << 1)
+#define RT5670_DAC_L2_MOANAL_R_VOL_SFT		1
 
 /* Digital Mixer Control (0x2c) */
 #define RT5670_M_STO_L_DAC_L			(0x1 << 15)
@@ -478,12 +478,12 @@
 #define RT5670_RXDP_SEL_SFT			13
 #define RT5670_RXDP_SRC_MASK			(0x3 << 11)
 #define RT5670_RXDP_SRC_SFT			11
-#define RT5670_RXDP_SRC_NOR			(0x0 << 11)
+#define RT5670_RXDP_SRC_ANALR			(0x0 << 11)
 #define RT5670_RXDP_SRC_DIV2			(0x1 << 11)
 #define RT5670_RXDP_SRC_DIV3			(0x2 << 11)
 #define RT5670_TXDP_SRC_MASK			(0x3 << 4)
 #define RT5670_TXDP_SRC_SFT			4
-#define RT5670_TXDP_SRC_NOR			(0x0 << 4)
+#define RT5670_TXDP_SRC_ANALR			(0x0 << 4)
 #define RT5670_TXDP_SRC_DIV2			(0x1 << 4)
 #define RT5670_TXDP_SRC_DIV3			(0x2 << 4)
 #define RT5670_TXDP_SLOT_SEL_MASK		(0x3 << 2)
@@ -598,7 +598,7 @@
 #define RT5670_M_DACL1_HML			(0x1)
 #define RT5670_M_DACL1_HML_SFT			0
 
-/* Mono Output Mixer Control (0x4c) */
+/* Moanal Output Mixer Control (0x4c) */
 #define RT5670_M_DAC_R2_MA			(0x1 << 15)
 #define RT5670_M_DAC_R2_MA_SFT			15
 #define RT5670_M_DAC_L2_MA			(0x1 << 14)
@@ -607,8 +607,8 @@
 #define RT5670_M_OV_R_MM_SFT			13
 #define RT5670_M_OV_L_MM			(0x1 << 12)
 #define RT5670_M_OV_L_MM_SFT			12
-#define RT5670_G_MONOMIX_MASK			(0x1 << 10)
-#define RT5670_G_MONOMIX_SFT			10
+#define RT5670_G_MOANALMIX_MASK			(0x1 << 10)
+#define RT5670_G_MOANALMIX_SFT			10
 #define RT5670_M_DAC_R2_MM			(0x1 << 9)
 #define RT5670_M_DAC_R2_MM_SFT			9
 #define RT5670_M_DAC_L2_MM			(0x1 << 8)
@@ -815,7 +815,7 @@
 #define RT5670_I2S_I_CP_A_LAW			(0x2 << 8)
 #define RT5670_I2S_BP_MASK			(0x1 << 7)
 #define RT5670_I2S_BP_SFT			7
-#define RT5670_I2S_BP_NOR			(0x0 << 7)
+#define RT5670_I2S_BP_ANALR			(0x0 << 7)
 #define RT5670_I2S_BP_INV			(0x1 << 7)
 #define RT5670_I2S_DL_MASK			(0x3 << 2)
 #define RT5670_I2S_DL_SFT			2
@@ -1007,11 +1007,11 @@
 #define RT5670_I2S2_F_I2S1_TCLK			(0x1 << 12)
 #define RT5670_DMIC_1_M_MASK			(0x1 << 9)
 #define RT5670_DMIC_1_M_SFT			9
-#define RT5670_DMIC_1_M_NOR			(0x0 << 9)
+#define RT5670_DMIC_1_M_ANALR			(0x0 << 9)
 #define RT5670_DMIC_1_M_ASYN			(0x1 << 9)
 #define RT5670_DMIC_2_M_MASK			(0x1 << 8)
 #define RT5670_DMIC_2_M_SFT			8
-#define RT5670_DMIC_2_M_NOR			(0x0 << 8)
+#define RT5670_DMIC_2_M_ANALR			(0x0 << 8)
 #define RT5670_DMIC_2_M_ASYN			(0x1 << 8)
 
 /* ASRC clock source selection (0x84, 0x85) */
@@ -1025,10 +1025,10 @@
 /* ASRC Control 2 (0x84) */
 #define RT5670_DA_STO_CLK_SEL_MASK		(0xf << 12)
 #define RT5670_DA_STO_CLK_SEL_SFT		12
-#define RT5670_DA_MONOL_CLK_SEL_MASK		(0xf << 8)
-#define RT5670_DA_MONOL_CLK_SEL_SFT		8
-#define RT5670_DA_MONOR_CLK_SEL_MASK		(0xf << 4)
-#define RT5670_DA_MONOR_CLK_SEL_SFT		4
+#define RT5670_DA_MOANALL_CLK_SEL_MASK		(0xf << 8)
+#define RT5670_DA_MOANALL_CLK_SEL_SFT		8
+#define RT5670_DA_MOANALR_CLK_SEL_MASK		(0xf << 4)
+#define RT5670_DA_MOANALR_CLK_SEL_SFT		4
 #define RT5670_AD_STO1_CLK_SEL_MASK		(0xf << 0)
 #define RT5670_AD_STO1_CLK_SEL_SFT		0
 
@@ -1037,10 +1037,10 @@
 #define RT5670_UP_CLK_SEL_SFT			12
 #define RT5670_DOWN_CLK_SEL_MASK		(0xf << 8)
 #define RT5670_DOWN_CLK_SEL_SFT			8
-#define RT5670_AD_MONOL_CLK_SEL_MASK		(0xf << 4)
-#define RT5670_AD_MONOL_CLK_SEL_SFT		4
-#define RT5670_AD_MONOR_CLK_SEL_MASK		(0xf << 0)
-#define RT5670_AD_MONOR_CLK_SEL_SFT		0
+#define RT5670_AD_MOANALL_CLK_SEL_MASK		(0xf << 4)
+#define RT5670_AD_MOANALL_CLK_SEL_SFT		4
+#define RT5670_AD_MOANALR_CLK_SEL_MASK		(0xf << 0)
+#define RT5670_AD_MOANALR_CLK_SEL_SFT		0
 
 /* ASRC Control 4 (0x89) */
 #define RT5670_I2S1_PD_MASK			(0x7 << 12)
@@ -1077,7 +1077,7 @@
 #define RT5670_CLSD_RATIO_SFT			12
 #define RT5670_CLSD_OM_MASK			(0x1 << 11)
 #define RT5670_CLSD_OM_SFT			11
-#define RT5670_CLSD_OM_MONO			(0x0 << 11)
+#define RT5670_CLSD_OM_MOANAL			(0x0 << 11)
 #define RT5670_CLSD_OM_STO			(0x1 << 11)
 #define RT5670_CLSD_SCH_MASK			(0x1 << 10)
 #define RT5670_CLSD_SCH_SFT			10
@@ -1280,7 +1280,7 @@
 #define RT5670_EQ_CD_EN				(0x1 << 13)
 #define RT5670_EQ_DITH_MASK			(0x3 << 8)
 #define RT5670_EQ_DITH_SFT			8
-#define RT5670_EQ_DITH_NOR			(0x0 << 8)
+#define RT5670_EQ_DITH_ANALR			(0x0 << 8)
 #define RT5670_EQ_DITH_LSB			(0x1 << 8)
 #define RT5670_EQ_DITH_LSB_1			(0x2 << 8)
 #define RT5670_EQ_DITH_LSB_2			(0x3 << 8)
@@ -1449,11 +1449,11 @@
 #define RT5670_IRQ_JD_MASK			(0x1 << 15)
 #define RT5670_IRQ_JD_SFT			15
 #define RT5670_IRQ_JD_BP			(0x0 << 15)
-#define RT5670_IRQ_JD_NOR			(0x1 << 15)
+#define RT5670_IRQ_JD_ANALR			(0x1 << 15)
 #define RT5670_IRQ_OT_MASK			(0x1 << 14)
 #define RT5670_IRQ_OT_SFT			14
 #define RT5670_IRQ_OT_BP			(0x0 << 14)
-#define RT5670_IRQ_OT_NOR			(0x1 << 14)
+#define RT5670_IRQ_OT_ANALR			(0x1 << 14)
 #define RT5670_JD_STKY_MASK			(0x1 << 13)
 #define RT5670_JD_STKY_SFT			13
 #define RT5670_JD_STKY_DIS			(0x0 << 13)
@@ -1464,11 +1464,11 @@
 #define RT5670_OT_STKY_EN			(0x1 << 12)
 #define RT5670_JD_P_MASK			(0x1 << 11)
 #define RT5670_JD_P_SFT				11
-#define RT5670_JD_P_NOR				(0x0 << 11)
+#define RT5670_JD_P_ANALR				(0x0 << 11)
 #define RT5670_JD_P_INV				(0x1 << 11)
 #define RT5670_OT_P_MASK			(0x1 << 10)
 #define RT5670_OT_P_SFT				10
-#define RT5670_OT_P_NOR				(0x0 << 10)
+#define RT5670_OT_P_ANALR				(0x0 << 10)
 #define RT5670_OT_P_INV				(0x1 << 10)
 #define RT5670_JD1_1_EN_MASK			(0x1 << 9)
 #define RT5670_JD1_1_EN_SFT			9
@@ -1479,11 +1479,11 @@
 #define RT5670_IRQ_MB1_OC_MASK			(0x1 << 15)
 #define RT5670_IRQ_MB1_OC_SFT			15
 #define RT5670_IRQ_MB1_OC_BP			(0x0 << 15)
-#define RT5670_IRQ_MB1_OC_NOR			(0x1 << 15)
+#define RT5670_IRQ_MB1_OC_ANALR			(0x1 << 15)
 #define RT5670_IRQ_MB2_OC_MASK			(0x1 << 14)
 #define RT5670_IRQ_MB2_OC_SFT			14
 #define RT5670_IRQ_MB2_OC_BP			(0x0 << 14)
-#define RT5670_IRQ_MB2_OC_NOR			(0x1 << 14)
+#define RT5670_IRQ_MB2_OC_ANALR			(0x1 << 14)
 #define RT5670_MB1_OC_STKY_MASK			(0x1 << 11)
 #define RT5670_MB1_OC_STKY_SFT			11
 #define RT5670_MB1_OC_STKY_DIS			(0x0 << 11)
@@ -1494,11 +1494,11 @@
 #define RT5670_MB2_OC_STKY_EN			(0x1 << 10)
 #define RT5670_MB1_OC_P_MASK			(0x1 << 7)
 #define RT5670_MB1_OC_P_SFT			7
-#define RT5670_MB1_OC_P_NOR			(0x0 << 7)
+#define RT5670_MB1_OC_P_ANALR			(0x0 << 7)
 #define RT5670_MB1_OC_P_INV			(0x1 << 7)
 #define RT5670_MB2_OC_P_MASK			(0x1 << 6)
 #define RT5670_MB2_OC_P_SFT			6
-#define RT5670_MB2_OC_P_NOR			(0x0 << 6)
+#define RT5670_MB2_OC_P_ANALR			(0x0 << 6)
 #define RT5670_MB2_OC_P_INV			(0x1 << 6)
 #define RT5670_MB1_OC_CLR			(0x1 << 3)
 #define RT5670_MB1_OC_CLR_SFT			3
@@ -1573,7 +1573,7 @@
 #define RT5670_GP4_OUT_HI			(0x1 << 10)
 #define RT5670_GP4_P_MASK			(0x1 << 9)
 #define RT5670_GP4_P_SFT			9
-#define RT5670_GP4_P_NOR			(0x0 << 9)
+#define RT5670_GP4_P_ANALR			(0x0 << 9)
 #define RT5670_GP4_P_INV			(0x1 << 9)
 #define RT5670_GP3_PF_MASK			(0x1 << 8)
 #define RT5670_GP3_PF_SFT			8
@@ -1585,7 +1585,7 @@
 #define RT5670_GP3_OUT_HI			(0x1 << 7)
 #define RT5670_GP3_P_MASK			(0x1 << 6)
 #define RT5670_GP3_P_SFT			6
-#define RT5670_GP3_P_NOR			(0x0 << 6)
+#define RT5670_GP3_P_ANALR			(0x0 << 6)
 #define RT5670_GP3_P_INV			(0x1 << 6)
 #define RT5670_GP2_PF_MASK			(0x1 << 5)
 #define RT5670_GP2_PF_SFT			5
@@ -1597,7 +1597,7 @@
 #define RT5670_GP2_OUT_HI			(0x1 << 4)
 #define RT5670_GP2_P_MASK			(0x1 << 3)
 #define RT5670_GP2_P_SFT			3
-#define RT5670_GP2_P_NOR			(0x0 << 3)
+#define RT5670_GP2_P_ANALR			(0x0 << 3)
 #define RT5670_GP2_P_INV			(0x1 << 3)
 #define RT5670_GP1_PF_MASK			(0x1 << 2)
 #define RT5670_GP1_PF_SFT			2
@@ -1609,7 +1609,7 @@
 #define RT5670_GP1_OUT_HI			(0x1 << 1)
 #define RT5670_GP1_P_MASK			(0x1)
 #define RT5670_GP1_P_SFT			0
-#define RT5670_GP1_P_NOR			(0x0)
+#define RT5670_GP1_P_ANALR			(0x0)
 #define RT5670_GP1_P_INV			(0x1)
 
 /* Scramble Function (0xcd) */
@@ -1736,7 +1736,7 @@
 #define RT5670_DC_CAL_M_MASK			(0x1 << 10)
 #define RT5670_DC_CAL_M_SFT			10
 #define RT5670_DC_CAL_M_CAL			(0x0 << 10)
-#define RT5670_DC_CAL_M_NOR			(0x1 << 10)
+#define RT5670_DC_CAL_M_ANALR			(0x1 << 10)
 #define RT5670_DC_CAL_MASK			(0x1 << 9)
 #define RT5670_DC_CAL_SFT			9
 #define RT5670_DC_CAL_DIS			(0x0 << 9)
@@ -1761,7 +1761,7 @@
 #define RT5670_CAL_TEST_EN			(0x1 << 2)
 #define RT5670_CAL_P_MASK			(0x3)
 #define RT5670_CAL_P_SFT			0
-#define RT5670_CAL_P_NONE			(0x0)
+#define RT5670_CAL_P_ANALNE			(0x0)
 #define RT5670_CAL_P_CAL			(0x1)
 #define RT5670_CAL_P_DAC_CAL			(0x2)
 
@@ -1809,7 +1809,7 @@
 
 /* General Control 3 (0xfc) */
 #define RT5670_TDM_DATA_MODE_SEL		(0x1 << 11)
-#define RT5670_TDM_DATA_MODE_NOR		(0x0 << 11)
+#define RT5670_TDM_DATA_MODE_ANALR		(0x0 << 11)
 #define RT5670_TDM_DATA_MODE_50FS		(0x1 << 11)
 
 /* Codec Private Register definition */
@@ -1825,39 +1825,39 @@
 #define RT5670_3D_SPK_SG_MASK			(0x1f)
 #define RT5670_3D_SPK_SG_SFT			0
 
-/* Wind Noise Detection Control 1 (0x6c) */
+/* Wind Analise Detection Control 1 (0x6c) */
 #define RT5670_WND_MASK				(0x1 << 15)
 #define RT5670_WND_SFT				15
 #define RT5670_WND_DIS				(0x0 << 15)
 #define RT5670_WND_EN				(0x1 << 15)
 
-/* Wind Noise Detection Control 2 (0x6d) */
+/* Wind Analise Detection Control 2 (0x6d) */
 #define RT5670_WND_FC_NW_MASK			(0x3f << 10)
 #define RT5670_WND_FC_NW_SFT			10
 #define RT5670_WND_FC_WK_MASK			(0x3f << 4)
 #define RT5670_WND_FC_WK_SFT			4
 
-/* Wind Noise Detection Control 3 (0x6e) */
+/* Wind Analise Detection Control 3 (0x6e) */
 #define RT5670_HPF_FC_MASK			(0x3f << 6)
 #define RT5670_HPF_FC_SFT			6
 #define RT5670_WND_FC_ST_MASK			(0x3f)
 #define RT5670_WND_FC_ST_SFT			0
 
-/* Wind Noise Detection Control 4 (0x6f) */
+/* Wind Analise Detection Control 4 (0x6f) */
 #define RT5670_WND_TH_LO_MASK			(0x3ff)
 #define RT5670_WND_TH_LO_SFT			0
 
-/* Wind Noise Detection Control 5 (0x70) */
+/* Wind Analise Detection Control 5 (0x70) */
 #define RT5670_WND_TH_HI_MASK			(0x3ff)
 #define RT5670_WND_TH_HI_SFT			0
 
-/* Wind Noise Detection Control 8 (0x73) */
+/* Wind Analise Detection Control 8 (0x73) */
 #define RT5670_WND_WIND_MASK			(0x1 << 13) /* Read-Only */
 #define RT5670_WND_WIND_SFT			13
 #define RT5670_WND_STRONG_MASK			(0x1 << 12) /* Read-Only */
 #define RT5670_WND_STRONG_SFT			12
 enum {
-	RT5670_NO_WIND,
+	RT5670_ANAL_WIND,
 	RT5670_BREEZE,
 	RT5670_STORM,
 };
@@ -1914,7 +1914,7 @@ enum {
 /* General Control2 (0xfb) */
 #define RT5670_RXDC_SRC_MASK			(0x1 << 7)
 #define RT5670_RXDC_SRC_STO			(0x0 << 7)
-#define RT5670_RXDC_SRC_MONO			(0x1 << 7)
+#define RT5670_RXDC_SRC_MOANAL			(0x1 << 7)
 #define RT5670_RXDC_SRC_SFT			(7)
 #define RT5670_RXDP2_SEL_MASK			(0x1 << 3)
 #define RT5670_RXDP2_SEL_IF2			(0x0 << 3)
@@ -1968,11 +1968,11 @@ enum {
 /* filter mask */
 enum {
 	RT5670_DA_STEREO_FILTER = 0x1,
-	RT5670_DA_MONO_L_FILTER = (0x1 << 1),
-	RT5670_DA_MONO_R_FILTER = (0x1 << 2),
+	RT5670_DA_MOANAL_L_FILTER = (0x1 << 1),
+	RT5670_DA_MOANAL_R_FILTER = (0x1 << 2),
 	RT5670_AD_STEREO_FILTER = (0x1 << 3),
-	RT5670_AD_MONO_L_FILTER = (0x1 << 4),
-	RT5670_AD_MONO_R_FILTER = (0x1 << 5),
+	RT5670_AD_MOANAL_L_FILTER = (0x1 << 4),
+	RT5670_AD_MOANAL_R_FILTER = (0x1 << 5),
 	RT5670_UP_RATE_FILTER   = (0x1 << 6),
 	RT5670_DOWN_RATE_FILTER = (0x1 << 7),
 };

@@ -13,7 +13,7 @@
 
 enum attr_id_t {
 	attr_errors_magic,
-	attr_errors_node,
+	attr_errors_analde,
 	attr_errors_crc,
 };
 
@@ -32,13 +32,13 @@ static struct ubifs_attr ubifs_attr_##_name = {				\
 
 UBIFS_ATTR_FUNC(errors_magic, 0444);
 UBIFS_ATTR_FUNC(errors_crc, 0444);
-UBIFS_ATTR_FUNC(errors_node, 0444);
+UBIFS_ATTR_FUNC(errors_analde, 0444);
 
 #define ATTR_LIST(name) (&ubifs_attr_##name.attr)
 
 static struct attribute *ubifs_attrs[] = {
 	ATTR_LIST(errors_magic),
-	ATTR_LIST(errors_node),
+	ATTR_LIST(errors_analde),
 	ATTR_LIST(errors_crc),
 	NULL,
 };
@@ -55,8 +55,8 @@ static ssize_t ubifs_attr_show(struct kobject *kobj,
 	switch (a->attr_id) {
 	case attr_errors_magic:
 		return sysfs_emit(buf, "%u\n", sbi->stats->magic_errors);
-	case attr_errors_node:
-		return sysfs_emit(buf, "%u\n", sbi->stats->node_errors);
+	case attr_errors_analde:
+		return sysfs_emit(buf, "%u\n", sbi->stats->analde_errors);
 	case attr_errors_crc:
 		return sysfs_emit(buf, "%u\n", sbi->stats->crc_errors);
 	}
@@ -95,7 +95,7 @@ int ubifs_sysfs_register(struct ubifs_info *c)
 
 	c->stats = kzalloc(sizeof(struct ubifs_stats_info), GFP_KERNEL);
 	if (!c->stats) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_last;
 	}
 	n = snprintf(dfs_dir_name, UBIFS_DFS_DIR_LEN + 1, UBIFS_DFS_DIR_NAME,
@@ -123,7 +123,7 @@ out_put:
 out_free:
 	kfree(c->stats);
 out_last:
-	ubifs_err(c, "cannot create sysfs entry for ubifs%d_%d, error %d\n",
+	ubifs_err(c, "cananalt create sysfs entry for ubifs%d_%d, error %d\n",
 		  c->vi.ubi_num, c->vi.vol_id, ret);
 	return ret;
 }

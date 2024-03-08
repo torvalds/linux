@@ -29,7 +29,7 @@
 #endif
 
 #if (SW_SCIF_CAN && SW_RSPI_CAN)
-#error "Can not set 1 to both SW_SCIF_CAN and SW_RSPI_CAN due to HW routing"
+#error "Can analt set 1 to both SW_SCIF_CAN and SW_RSPI_CAN due to HW routing"
 #endif
 
 /* comment the #define statement to disable SCIF1 (SER0) on PMOD1 (CN7) */
@@ -44,7 +44,7 @@
 #define PMOD_MTU3	0
 
 #if (PMOD_MTU3 && SW_RSPI_CAN)
-#error "Cannot set as both PMOD_MTU3 and SW_RSPI_CAN are mutually exclusive"
+#error "Cananalt set as both PMOD_MTU3 and SW_RSPI_CAN are mutually exclusive"
 #endif
 
 #include "r9a07g044c2.dtsi"

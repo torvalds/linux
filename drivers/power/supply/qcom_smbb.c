@@ -11,12 +11,12 @@
  *  - DC charge-path
  *  - USB charge-path
  *  - Battery interface
- *  - Boost (not implemented)
+ *  - Boost (analt implemented)
  *  - Misc
  *  - HF-Buck
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -88,7 +88,7 @@
 #define STATUS_CHG_DONE		BIT(5) /* Charge cycle is complete */
 #define STATUS_CHG_TRKL		BIT(6) /* Trickle charging */
 #define STATUS_CHG_FAST		BIT(7) /* Fast charging */
-#define STATUS_CHG_GONE		BIT(8) /* No charger is connected */
+#define STATUS_CHG_GONE		BIT(8) /* Anal charger is connected */
 
 enum smbb_attr {
 	ATTR_BAT_ISAFE,
@@ -127,7 +127,7 @@ struct smbb_charger {
 
 static const unsigned int smbb_usb_extcon_cable[] = {
 	EXTCON_USB,
-	EXTCON_NONE,
+	EXTCON_ANALNE,
 };
 
 static int smbb_vbat_weak_fn(unsigned int index)
@@ -341,7 +341,7 @@ static int smbb_charger_attr_parse(struct smbb_charger *chg,
 
 	prop = &smbb_charger_attrs[which];
 
-	rc = of_property_read_u32(chg->dev->of_node, prop->name, &val);
+	rc = of_property_read_u32(chg->dev->of_analde, prop->name, &val);
 	if (rc == 0) {
 		rc = smbb_charger_attr_write(chg, which, val);
 		if (!rc || !prop->fail_ok)
@@ -611,7 +611,7 @@ static int smbb_battery_get_property(struct power_supply *psy,
 			val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
 		else if (status & (STATUS_CHG_FAST | STATUS_CHG_TRKL))
 			val->intval = POWER_SUPPLY_STATUS_CHARGING;
-		else /* everything is ok for charging, but we are not... */
+		else /* everything is ok for charging, but we are analt... */
 			val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
 		break;
 	case POWER_SUPPLY_PROP_HEALTH:
@@ -628,7 +628,7 @@ static int smbb_battery_get_property(struct power_supply *psy,
 		else if (status & STATUS_CHG_TRKL)
 			val->intval = POWER_SUPPLY_CHARGE_TYPE_TRICKLE;
 		else
-			val->intval = POWER_SUPPLY_CHARGE_TYPE_NONE;
+			val->intval = POWER_SUPPLY_CHARGE_TYPE_ANALNE;
 		break;
 	case POWER_SUPPLY_PROP_PRESENT:
 		val->intval = !!(status & STATUS_BAT_PRESENT);
@@ -639,12 +639,12 @@ static int smbb_battery_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_VOLTAGE_MAX:
 		val->intval = chg->attr[ATTR_BAT_VMAX];
 		break;
-	case POWER_SUPPLY_PROP_TECHNOLOGY:
+	case POWER_SUPPLY_PROP_TECHANALLOGY:
 		/* this charger is a single-cell lithium-ion battery charger
-		* only.  If you hook up some other technology, there will be
+		* only.  If you hook up some other techanallogy, there will be
 		* fireworks.
 		*/
-		val->intval = POWER_SUPPLY_TECHNOLOGY_LION;
+		val->intval = POWER_SUPPLY_TECHANALLOGY_LION;
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN:
 		val->intval = 3000000; /* single-cell li-ion low end */
@@ -705,7 +705,7 @@ static enum power_supply_property smbb_battery_properties[] = {
 	POWER_SUPPLY_PROP_CURRENT_MAX,
 	POWER_SUPPLY_PROP_VOLTAGE_MAX,
 	POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN,
-	POWER_SUPPLY_PROP_TECHNOLOGY,
+	POWER_SUPPLY_PROP_TECHANALLOGY,
 };
 
 static const struct reg_off_mask_default {
@@ -732,7 +732,7 @@ static const struct reg_off_mask_default {
 	*/
 	{ SMBB_CHG_CFG, 0xff, 0x00, BIT(3) },
 
-	/* Use VBAT (not VSYS) to compensate for IR drop during fast charging */
+	/* Use VBAT (analt VSYS) to compensate for IR drop during fast charging */
 	{ SMBB_BUCK_REG_MODE, BUCK_REG_MODE, BUCK_REG_MODE_VBAT },
 
 	/* Enable battery temperature comparators */
@@ -839,7 +839,7 @@ static int smbb_charger_probe(struct platform_device *pdev)
 
 	chg = devm_kzalloc(&pdev->dev, sizeof(*chg), GFP_KERNEL);
 	if (!chg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chg->dev = &pdev->dev;
 	mutex_init(&chg->statlock);
@@ -847,10 +847,10 @@ static int smbb_charger_probe(struct platform_device *pdev)
 	chg->regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!chg->regmap) {
 		dev_err(&pdev->dev, "failed to locate regmap\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
-	rc = of_property_read_u32(pdev->dev.of_node, "reg", &chg->addr);
+	rc = of_property_read_u32(pdev->dev.of_analde, "reg", &chg->addr);
 	if (rc) {
 		dev_err(&pdev->dev, "missing or invalid 'reg' property\n");
 		return rc;
@@ -864,12 +864,12 @@ static int smbb_charger_probe(struct platform_device *pdev)
 
 	chg->revision += 1;
 	if (chg->revision != 1 && chg->revision != 2 && chg->revision != 3) {
-		dev_err(&pdev->dev, "v%d hardware not supported\n", chg->revision);
-		return -ENODEV;
+		dev_err(&pdev->dev, "v%d hardware analt supported\n", chg->revision);
+		return -EANALDEV;
 	}
 	dev_info(&pdev->dev, "Initializing SMBB rev %u", chg->revision);
 
-	chg->dc_disabled = of_property_read_bool(pdev->dev.of_node, "qcom,disable-dc");
+	chg->dc_disabled = of_property_read_bool(pdev->dev.of_analde, "qcom,disable-dc");
 
 	for (i = 0; i < _ATTR_CNT; ++i) {
 		rc = smbb_charger_attr_parse(chg, i);
@@ -880,7 +880,7 @@ static int smbb_charger_probe(struct platform_device *pdev)
 	}
 
 	bat_cfg.drv_data = chg;
-	bat_cfg.of_node = pdev->dev.of_node;
+	bat_cfg.of_analde = pdev->dev.of_analde;
 	chg->bat_psy = devm_power_supply_register(&pdev->dev,
 						  &bat_psy_desc,
 						  &bat_cfg);
@@ -903,7 +903,7 @@ static int smbb_charger_probe(struct platform_device *pdev)
 	chg->edev = devm_extcon_dev_allocate(&pdev->dev, smbb_usb_extcon_cable);
 	if (IS_ERR(chg->edev)) {
 		dev_err(&pdev->dev, "failed to allocate extcon device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	rc = devm_extcon_dev_register(&pdev->dev, chg->edev);
@@ -964,7 +964,7 @@ static int smbb_charger_probe(struct platform_device *pdev)
 	if (IS_ERR(chg->otg_reg))
 		return PTR_ERR(chg->otg_reg);
 
-	chg->jeita_ext_temp = of_property_read_bool(pdev->dev.of_node,
+	chg->jeita_ext_temp = of_property_read_bool(pdev->dev.of_analde,
 			"qcom,jeita-extended-temp-range");
 
 	/* Set temperature range to [35%:70%] or [25%:80%] accordingly */
@@ -976,7 +976,7 @@ static int smbb_charger_probe(struct platform_device *pdev)
 	if (rc) {
 		dev_err(&pdev->dev,
 			"unable to set %s temperature range\n",
-			chg->jeita_ext_temp ? "JEITA extended" : "normal");
+			chg->jeita_ext_temp ? "JEITA extended" : "analrmal");
 		return rc;
 	}
 

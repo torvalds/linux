@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 .. _video:
 
@@ -11,7 +11,7 @@ be for example: RF connectors (antenna/cable), CVBS a.k.a. Composite
 Video, S-Video and RGB connectors. Camera sensors are also considered to
 be a video input. Video and VBI capture devices have inputs. Video and
 VBI output devices have outputs, at least one each. Radio devices have
-no video inputs or outputs.
+anal video inputs or outputs.
 
 To learn about the number and attributes of the available inputs and
 outputs applications can enumerate them with the

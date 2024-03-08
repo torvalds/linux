@@ -94,7 +94,7 @@ static inline unsigned eytzinger1_extra(unsigned size)
 	return (size + 1 - rounddown_pow_of_two(size)) << 1;
 }
 
-static inline unsigned __eytzinger1_to_inorder(unsigned i, unsigned size,
+static inline unsigned __eytzinger1_to_ianalrder(unsigned i, unsigned size,
 					      unsigned extra)
 {
 	unsigned b = __fls(i);
@@ -120,7 +120,7 @@ static inline unsigned __eytzinger1_to_inorder(unsigned i, unsigned size,
 	return i;
 }
 
-static inline unsigned __inorder_to_eytzinger1(unsigned i, unsigned size,
+static inline unsigned __ianalrder_to_eytzinger1(unsigned i, unsigned size,
 					       unsigned extra)
 {
 	unsigned shift;
@@ -145,14 +145,14 @@ static inline unsigned __inorder_to_eytzinger1(unsigned i, unsigned size,
 	return i;
 }
 
-static inline unsigned eytzinger1_to_inorder(unsigned i, unsigned size)
+static inline unsigned eytzinger1_to_ianalrder(unsigned i, unsigned size)
 {
-	return __eytzinger1_to_inorder(i, size, eytzinger1_extra(size));
+	return __eytzinger1_to_ianalrder(i, size, eytzinger1_extra(size));
 }
 
-static inline unsigned inorder_to_eytzinger1(unsigned i, unsigned size)
+static inline unsigned ianalrder_to_eytzinger1(unsigned i, unsigned size)
 {
-	return __inorder_to_eytzinger1(i, size, eytzinger1_extra(size));
+	return __ianalrder_to_eytzinger1(i, size, eytzinger1_extra(size));
 }
 
 #define eytzinger1_for_each(_i, _size)			\
@@ -204,26 +204,26 @@ static inline unsigned eytzinger0_extra(unsigned size)
 	return eytzinger1_extra(size);
 }
 
-static inline unsigned __eytzinger0_to_inorder(unsigned i, unsigned size,
+static inline unsigned __eytzinger0_to_ianalrder(unsigned i, unsigned size,
 					       unsigned extra)
 {
-	return __eytzinger1_to_inorder(i + 1, size, extra) - 1;
+	return __eytzinger1_to_ianalrder(i + 1, size, extra) - 1;
 }
 
-static inline unsigned __inorder_to_eytzinger0(unsigned i, unsigned size,
+static inline unsigned __ianalrder_to_eytzinger0(unsigned i, unsigned size,
 					       unsigned extra)
 {
-	return __inorder_to_eytzinger1(i + 1, size, extra) - 1;
+	return __ianalrder_to_eytzinger1(i + 1, size, extra) - 1;
 }
 
-static inline unsigned eytzinger0_to_inorder(unsigned i, unsigned size)
+static inline unsigned eytzinger0_to_ianalrder(unsigned i, unsigned size)
 {
-	return __eytzinger0_to_inorder(i, size, eytzinger0_extra(size));
+	return __eytzinger0_to_ianalrder(i, size, eytzinger0_extra(size));
 }
 
-static inline unsigned inorder_to_eytzinger0(unsigned i, unsigned size)
+static inline unsigned ianalrder_to_eytzinger0(unsigned i, unsigned size)
 {
-	return __inorder_to_eytzinger0(i, size, eytzinger0_extra(size));
+	return __ianalrder_to_eytzinger0(i, size, eytzinger0_extra(size));
 }
 
 #define eytzinger0_for_each(_i, _size)			\
@@ -233,7 +233,7 @@ static inline unsigned inorder_to_eytzinger0(unsigned i, unsigned size)
 
 typedef int (*eytzinger_cmp_fn)(const void *l, const void *r, size_t size);
 
-/* return greatest node <= @search, or -1 if not found */
+/* return greatest analde <= @search, or -1 if analt found */
 static inline ssize_t eytzinger0_find_le(void *base, size_t nr, size_t size,
 					 eytzinger_cmp_fn cmp, const void *search)
 {
@@ -248,7 +248,7 @@ static inline ssize_t eytzinger0_find_le(void *base, size_t nr, size_t size,
 	} while (n < nr);
 
 	if (n & 1) {
-		/* @i was greater than @search, return previous node: */
+		/* @i was greater than @search, return previous analde: */
 
 		if (i == eytzinger0_first(nr))
 			return -1;

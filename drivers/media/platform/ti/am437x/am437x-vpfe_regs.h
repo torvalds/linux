@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2013 - 2014 Texas Instruments, Inc.
  *
- * Benoit Parrot <bparrot@ti.com>
+ * Beanalit Parrot <bparrot@ti.com>
  * Lad, Prabhakar <prabhakar.csengg@gmail.com>
  */
 
@@ -89,9 +89,9 @@
 #define VPFE_COLPTN_VAL				0xbb11bb11
 #define VPFE_TWO_BYTES_PER_PIXEL		2
 #define VPFE_INTERLACED_IMAGE_INVERT		0x4b6d
-#define VPFE_INTERLACED_NO_IMAGE_INVERT		0x0249
+#define VPFE_INTERLACED_ANAL_IMAGE_INVERT		0x0249
 #define VPFE_PROGRESSIVE_IMAGE_INVERT		0x4000
-#define VPFE_PROGRESSIVE_NO_IMAGE_INVERT	0
+#define VPFE_PROGRESSIVE_ANAL_IMAGE_INVERT	0
 #define VPFE_INTERLACED_HEIGHT_SHIFT		1
 #define VPFE_SYN_MODE_INPMOD_SHIFT		12
 #define VPFE_SYN_MODE_INPMOD_MASK		3
@@ -110,7 +110,7 @@
 #define VPFE_CCDCFG_Y8POS_SHIFT			11
 #define VPFE_CCDCFG_BW656_10BIT			BIT(5)
 #define VPFE_SDOFST_FIELD_INTERLEAVED		0x249
-#define VPFE_NO_CULLING				0xffff00ff
+#define VPFE_ANAL_CULLING				0xffff00ff
 #define VPFE_VDINT0				BIT(0)
 #define VPFE_VDINT1				BIT(1)
 #define VPFE_VDINT2				BIT(2)
@@ -118,7 +118,7 @@
 
 #define VPFE_CONFIG_PCLK_INV_SHIFT		0
 #define VPFE_CONFIG_PCLK_INV_MASK		1
-#define VPFE_CONFIG_PCLK_INV_NOT_INV		0
+#define VPFE_CONFIG_PCLK_INV_ANALT_INV		0
 #define VPFE_CONFIG_PCLK_INV_INV		1
 #define VPFE_CONFIG_EN_SHIFT			1
 #define VPFE_CONFIG_EN_MASK			2

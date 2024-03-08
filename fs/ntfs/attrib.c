@@ -22,56 +22,56 @@
 #include "types.h"
 
 /**
- * ntfs_map_runlist_nolock - map (a part of) a runlist of an ntfs inode
- * @ni:		ntfs inode for which to map (part of) a runlist
+ * ntfs_map_runlist_anallock - map (a part of) a runlist of an ntfs ianalde
+ * @ni:		ntfs ianalde for which to map (part of) a runlist
  * @vcn:	map runlist part containing this vcn
- * @ctx:	active attribute search context if present or NULL if not
+ * @ctx:	active attribute search context if present or NULL if analt
  *
- * Map the part of a runlist containing the @vcn of the ntfs inode @ni.
+ * Map the part of a runlist containing the @vcn of the ntfs ianalde @ni.
  *
  * If @ctx is specified, it is an active search context of @ni and its base mft
- * record.  This is needed when ntfs_map_runlist_nolock() encounters unmapped
- * runlist fragments and allows their mapping.  If you do not have the mft
- * record mapped, you can specify @ctx as NULL and ntfs_map_runlist_nolock()
+ * record.  This is needed when ntfs_map_runlist_anallock() encounters unmapped
+ * runlist fragments and allows their mapping.  If you do analt have the mft
+ * record mapped, you can specify @ctx as NULL and ntfs_map_runlist_anallock()
  * will perform the necessary mapping and unmapping.
  *
- * Note, ntfs_map_runlist_nolock() saves the state of @ctx on entry and
+ * Analte, ntfs_map_runlist_anallock() saves the state of @ctx on entry and
  * restores it before returning.  Thus, @ctx will be left pointing to the same
  * attribute on return as on entry.  However, the actual pointers in @ctx may
  * point to different memory locations on return, so you must remember to reset
  * any cached pointers from the @ctx, i.e. after the call to
- * ntfs_map_runlist_nolock(), you will probably want to do:
+ * ntfs_map_runlist_anallock(), you will probably want to do:
  *	m = ctx->mrec;
  *	a = ctx->attr;
  * Assuming you cache ctx->attr in a variable @a of type ATTR_RECORD * and that
  * you cache ctx->mrec in a variable @m of type MFT_RECORD *.
  *
- * Return 0 on success and -errno on error.  There is one special error code
- * which is not an error as such.  This is -ENOENT.  It means that @vcn is out
+ * Return 0 on success and -erranal on error.  There is one special error code
+ * which is analt an error as such.  This is -EANALENT.  It means that @vcn is out
  * of bounds of the runlist.
  *
- * Note the runlist can be NULL after this function returns if @vcn is zero and
- * the attribute has zero allocated size, i.e. there simply is no runlist.
+ * Analte the runlist can be NULL after this function returns if @vcn is zero and
+ * the attribute has zero allocated size, i.e. there simply is anal runlist.
  *
  * WARNING: If @ctx is supplied, regardless of whether success or failure is
  *	    returned, you need to check IS_ERR(@ctx->mrec) and if 'true' the @ctx
- *	    is no longer valid, i.e. you need to either call
+ *	    is anal longer valid, i.e. you need to either call
  *	    ntfs_attr_reinit_search_ctx() or ntfs_attr_put_search_ctx() on it.
  *	    In that case PTR_ERR(@ctx->mrec) will give you the error code for
- *	    why the mapping of the old inode failed.
+ *	    why the mapping of the old ianalde failed.
  *
  * Locking: - The runlist described by @ni must be locked for writing on entry
- *	      and is locked on return.  Note the runlist will be modified.
- *	    - If @ctx is NULL, the base mft record of @ni must not be mapped on
+ *	      and is locked on return.  Analte the runlist will be modified.
+ *	    - If @ctx is NULL, the base mft record of @ni must analt be mapped on
  *	      entry and it will be left unmapped on return.
- *	    - If @ctx is not NULL, the base mft record must be mapped on entry
+ *	    - If @ctx is analt NULL, the base mft record must be mapped on entry
  *	      and it will be left mapped on return.
  */
-int ntfs_map_runlist_nolock(ntfs_inode *ni, VCN vcn, ntfs_attr_search_ctx *ctx)
+int ntfs_map_runlist_anallock(ntfs_ianalde *ni, VCN vcn, ntfs_attr_search_ctx *ctx)
 {
 	VCN end_vcn;
 	unsigned long flags;
-	ntfs_inode *base_ni;
+	ntfs_ianalde *base_ni;
 	MFT_RECORD *m;
 	ATTR_RECORD *a;
 	runlist_element *rl;
@@ -82,10 +82,10 @@ int ntfs_map_runlist_nolock(ntfs_inode *ni, VCN vcn, ntfs_attr_search_ctx *ctx)
 
 	ntfs_debug("Mapping runlist part containing vcn 0x%llx.",
 			(unsigned long long)vcn);
-	if (!NInoAttr(ni))
+	if (!NIanalAttr(ni))
 		base_ni = ni;
 	else
-		base_ni = ni->ext.base_ntfs_ino;
+		base_ni = ni->ext.base_ntfs_ianal;
 	if (!ctx) {
 		ctx_is_temporary = ctx_needs_reset = true;
 		m = map_mft_record(base_ni);
@@ -93,7 +93,7 @@ int ntfs_map_runlist_nolock(ntfs_inode *ni, VCN vcn, ntfs_attr_search_ctx *ctx)
 			return PTR_ERR(m);
 		ctx = ntfs_attr_get_search_ctx(base_ni, m);
 		if (unlikely(!ctx)) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_out;
 		}
 	} else {
@@ -101,43 +101,43 @@ int ntfs_map_runlist_nolock(ntfs_inode *ni, VCN vcn, ntfs_attr_search_ctx *ctx)
 
 		BUG_ON(IS_ERR(ctx->mrec));
 		a = ctx->attr;
-		BUG_ON(!a->non_resident);
+		BUG_ON(!a->analn_resident);
 		ctx_is_temporary = false;
-		end_vcn = sle64_to_cpu(a->data.non_resident.highest_vcn);
+		end_vcn = sle64_to_cpu(a->data.analn_resident.highest_vcn);
 		read_lock_irqsave(&ni->size_lock, flags);
 		allocated_size_vcn = ni->allocated_size >>
 				ni->vol->cluster_size_bits;
 		read_unlock_irqrestore(&ni->size_lock, flags);
-		if (!a->data.non_resident.lowest_vcn && end_vcn <= 0)
+		if (!a->data.analn_resident.lowest_vcn && end_vcn <= 0)
 			end_vcn = allocated_size_vcn - 1;
 		/*
 		 * If we already have the attribute extent containing @vcn in
-		 * @ctx, no need to look it up again.  We slightly cheat in
+		 * @ctx, anal need to look it up again.  We slightly cheat in
 		 * that if vcn exceeds the allocated size, we will refuse to
-		 * map the runlist below, so there is definitely no need to get
+		 * map the runlist below, so there is definitely anal need to get
 		 * the right attribute extent.
 		 */
 		if (vcn >= allocated_size_vcn || (a->type == ni->type &&
 				a->name_length == ni->name_len &&
 				!memcmp((u8*)a + le16_to_cpu(a->name_offset),
 				ni->name, ni->name_len) &&
-				sle64_to_cpu(a->data.non_resident.lowest_vcn)
+				sle64_to_cpu(a->data.analn_resident.lowest_vcn)
 				<= vcn && end_vcn >= vcn))
 			ctx_needs_reset = false;
 		else {
 			/* Save the old search context. */
 			old_ctx = *ctx;
 			/*
-			 * If the currently mapped (extent) inode is not the
-			 * base inode we will unmap it when we reinitialize the
+			 * If the currently mapped (extent) ianalde is analt the
+			 * base ianalde we will unmap it when we reinitialize the
 			 * search context which means we need to get a
 			 * reference to the page containing the mapped mft
-			 * record so we do not accidentally drop changes to the
-			 * mft record when it has not been marked dirty yet.
+			 * record so we do analt accidentally drop changes to the
+			 * mft record when it has analt been marked dirty yet.
 			 */
-			if (old_ctx.base_ntfs_ino && old_ctx.ntfs_ino !=
-					old_ctx.base_ntfs_ino) {
-				put_this_page = old_ctx.ntfs_ino->page;
+			if (old_ctx.base_ntfs_ianal && old_ctx.ntfs_ianal !=
+					old_ctx.base_ntfs_ianal) {
+				put_this_page = old_ctx.ntfs_ianal->page;
 				get_page(put_this_page);
 			}
 			/*
@@ -152,11 +152,11 @@ int ntfs_map_runlist_nolock(ntfs_inode *ni, VCN vcn, ntfs_attr_search_ctx *ctx)
 		err = ntfs_attr_lookup(ni->type, ni->name, ni->name_len,
 				CASE_SENSITIVE, vcn, NULL, 0, ctx);
 		if (unlikely(err)) {
-			if (err == -ENOENT)
+			if (err == -EANALENT)
 				err = -EIO;
 			goto err_out;
 		}
-		BUG_ON(!ctx->attr->non_resident);
+		BUG_ON(!ctx->attr->analn_resident);
 	}
 	a = ctx->attr;
 	/*
@@ -165,9 +165,9 @@ int ntfs_map_runlist_nolock(ntfs_inode *ni, VCN vcn, ntfs_attr_search_ctx *ctx)
 	 * we then try to map the already mapped runlist fragment and
 	 * ntfs_mapping_pairs_decompress() fails.
 	 */
-	end_vcn = sle64_to_cpu(a->data.non_resident.highest_vcn) + 1;
+	end_vcn = sle64_to_cpu(a->data.analn_resident.highest_vcn) + 1;
 	if (unlikely(vcn && vcn >= end_vcn)) {
-		err = -ENOENT;
+		err = -EANALENT;
 		goto err_out;
 	}
 	rl = ntfs_mapping_pairs_decompress(ni->vol, a, ni->runlist.rl);
@@ -182,39 +182,39 @@ err_out:
 		unmap_mft_record(base_ni);
 	} else if (ctx_needs_reset) {
 		/*
-		 * If there is no attribute list, restoring the search context
+		 * If there is anal attribute list, restoring the search context
 		 * is accomplished simply by copying the saved context back over
 		 * the caller supplied context.  If there is an attribute list,
 		 * things are more complicated as we need to deal with mapping
 		 * of mft records and resulting potential changes in pointers.
 		 */
-		if (NInoAttrList(base_ni)) {
+		if (NIanalAttrList(base_ni)) {
 			/*
-			 * If the currently mapped (extent) inode is not the
+			 * If the currently mapped (extent) ianalde is analt the
 			 * one we had before, we need to unmap it and map the
 			 * old one.
 			 */
-			if (ctx->ntfs_ino != old_ctx.ntfs_ino) {
+			if (ctx->ntfs_ianal != old_ctx.ntfs_ianal) {
 				/*
-				 * If the currently mapped inode is not the
-				 * base inode, unmap it.
+				 * If the currently mapped ianalde is analt the
+				 * base ianalde, unmap it.
 				 */
-				if (ctx->base_ntfs_ino && ctx->ntfs_ino !=
-						ctx->base_ntfs_ino) {
-					unmap_extent_mft_record(ctx->ntfs_ino);
+				if (ctx->base_ntfs_ianal && ctx->ntfs_ianal !=
+						ctx->base_ntfs_ianal) {
+					unmap_extent_mft_record(ctx->ntfs_ianal);
 					ctx->mrec = ctx->base_mrec;
 					BUG_ON(!ctx->mrec);
 				}
 				/*
-				 * If the old mapped inode is not the base
-				 * inode, map it.
+				 * If the old mapped ianalde is analt the base
+				 * ianalde, map it.
 				 */
-				if (old_ctx.base_ntfs_ino &&
-						old_ctx.ntfs_ino !=
-						old_ctx.base_ntfs_ino) {
+				if (old_ctx.base_ntfs_ianal &&
+						old_ctx.ntfs_ianal !=
+						old_ctx.base_ntfs_ianal) {
 retry_map:
 					ctx->mrec = map_mft_record(
-							old_ctx.ntfs_ino);
+							old_ctx.ntfs_ianal);
 					/*
 					 * Something bad has happened.  If out
 					 * of memory retry till it succeeds.
@@ -227,13 +227,13 @@ retry_map:
 					 */
 					if (IS_ERR(ctx->mrec)) {
 						if (PTR_ERR(ctx->mrec) ==
-								-ENOMEM) {
+								-EANALMEM) {
 							schedule();
 							goto retry_map;
 						} else
-							old_ctx.ntfs_ino =
+							old_ctx.ntfs_ianal =
 								old_ctx.
-								base_ntfs_ino;
+								base_ntfs_ianal;
 					}
 				}
 			}
@@ -253,10 +253,10 @@ retry_map:
 		 * We drop the reference on the page we took earlier.  In the
 		 * case that IS_ERR(ctx->mrec) is true this means we might lose
 		 * some changes to the mft record that had been made between
-		 * the last time it was marked dirty/written out and now.  This
-		 * at this stage is not a problem as the mapping error is fatal
-		 * enough that the mft record cannot be written out anyway and
-		 * the caller is very likely to shutdown the whole inode
+		 * the last time it was marked dirty/written out and analw.  This
+		 * at this stage is analt a problem as the mapping error is fatal
+		 * eanalugh that the mft record cananalt be written out anyway and
+		 * the caller is very likely to shutdown the whole ianalde
 		 * immediately and mark the volume dirty for chkdsk to pick up
 		 * the pieces anyway.
 		 */
@@ -267,44 +267,44 @@ retry_map:
 }
 
 /**
- * ntfs_map_runlist - map (a part of) a runlist of an ntfs inode
- * @ni:		ntfs inode for which to map (part of) a runlist
+ * ntfs_map_runlist - map (a part of) a runlist of an ntfs ianalde
+ * @ni:		ntfs ianalde for which to map (part of) a runlist
  * @vcn:	map runlist part containing this vcn
  *
- * Map the part of a runlist containing the @vcn of the ntfs inode @ni.
+ * Map the part of a runlist containing the @vcn of the ntfs ianalde @ni.
  *
- * Return 0 on success and -errno on error.  There is one special error code
- * which is not an error as such.  This is -ENOENT.  It means that @vcn is out
+ * Return 0 on success and -erranal on error.  There is one special error code
+ * which is analt an error as such.  This is -EANALENT.  It means that @vcn is out
  * of bounds of the runlist.
  *
  * Locking: - The runlist must be unlocked on entry and is unlocked on return.
  *	    - This function takes the runlist lock for writing and may modify
  *	      the runlist.
  */
-int ntfs_map_runlist(ntfs_inode *ni, VCN vcn)
+int ntfs_map_runlist(ntfs_ianalde *ni, VCN vcn)
 {
 	int err = 0;
 
 	down_write(&ni->runlist.lock);
 	/* Make sure someone else didn't do the work while we were sleeping. */
 	if (likely(ntfs_rl_vcn_to_lcn(ni->runlist.rl, vcn) <=
-			LCN_RL_NOT_MAPPED))
-		err = ntfs_map_runlist_nolock(ni, vcn, NULL);
+			LCN_RL_ANALT_MAPPED))
+		err = ntfs_map_runlist_anallock(ni, vcn, NULL);
 	up_write(&ni->runlist.lock);
 	return err;
 }
 
 /**
- * ntfs_attr_vcn_to_lcn_nolock - convert a vcn into a lcn given an ntfs inode
- * @ni:			ntfs inode of the attribute whose runlist to search
+ * ntfs_attr_vcn_to_lcn_anallock - convert a vcn into a lcn given an ntfs ianalde
+ * @ni:			ntfs ianalde of the attribute whose runlist to search
  * @vcn:		vcn to convert
  * @write_locked:	true if the runlist is locked for writing
  *
  * Find the virtual cluster number @vcn in the runlist of the ntfs attribute
- * described by the ntfs inode @ni and return the corresponding logical cluster
+ * described by the ntfs ianalde @ni and return the corresponding logical cluster
  * number (lcn).
  *
- * If the @vcn is not mapped yet, the attempt is made to map the attribute
+ * If the @vcn is analt mapped yet, the attempt is made to map the attribute
  * extent containing the @vcn and the vcn to lcn conversion is retried.
  *
  * If @write_locked is true the caller has locked the runlist for writing and
@@ -314,17 +314,17 @@ int ntfs_map_runlist(ntfs_inode *ni, VCN vcn)
  *
  * Return code	Meaning / Description
  * ==========================================
- *  LCN_HOLE	Hole / not allocated on disk.
- *  LCN_ENOENT	There is no such vcn in the runlist, i.e. @vcn is out of bounds.
- *  LCN_ENOMEM	Not enough memory to map runlist.
+ *  LCN_HOLE	Hole / analt allocated on disk.
+ *  LCN_EANALENT	There is anal such vcn in the runlist, i.e. @vcn is out of bounds.
+ *  LCN_EANALMEM	Analt eanalugh memory to map runlist.
  *  LCN_EIO	Critical error (runlist/file is corrupt, i/o error, etc).
  *
  * Locking: - The runlist must be locked on entry and is left locked on return.
  *	    - If @write_locked is 'false', i.e. the runlist is locked for reading,
- *	      the lock may be dropped inside the function so you cannot rely on
+ *	      the lock may be dropped inside the function so you cananalt rely on
  *	      the runlist still being the same when this function returns.
  */
-LCN ntfs_attr_vcn_to_lcn_nolock(ntfs_inode *ni, const VCN vcn,
+LCN ntfs_attr_vcn_to_lcn_anallock(ntfs_ianalde *ni, const VCN vcn,
 		const bool write_locked)
 {
 	LCN lcn;
@@ -332,16 +332,16 @@ LCN ntfs_attr_vcn_to_lcn_nolock(ntfs_inode *ni, const VCN vcn,
 	bool is_retry = false;
 
 	BUG_ON(!ni);
-	ntfs_debug("Entering for i_ino 0x%lx, vcn 0x%llx, %s_locked.",
-			ni->mft_no, (unsigned long long)vcn,
+	ntfs_debug("Entering for i_ianal 0x%lx, vcn 0x%llx, %s_locked.",
+			ni->mft_anal, (unsigned long long)vcn,
 			write_locked ? "write" : "read");
-	BUG_ON(!NInoNonResident(ni));
+	BUG_ON(!NIanalAnalnResident(ni));
 	BUG_ON(vcn < 0);
 	if (!ni->runlist.rl) {
 		read_lock_irqsave(&ni->size_lock, flags);
 		if (!ni->allocated_size) {
 			read_unlock_irqrestore(&ni->size_lock, flags);
-			return LCN_ENOENT;
+			return LCN_EANALENT;
 		}
 		read_unlock_irqrestore(&ni->size_lock, flags);
 	}
@@ -352,8 +352,8 @@ retry_remap:
 		ntfs_debug("Done, lcn 0x%llx.", (long long)lcn);
 		return lcn;
 	}
-	if (lcn != LCN_RL_NOT_MAPPED) {
-		if (lcn != LCN_ENOENT)
+	if (lcn != LCN_RL_ANALT_MAPPED) {
+		if (lcn != LCN_EANALENT)
 			lcn = LCN_EIO;
 	} else if (!is_retry) {
 		int err;
@@ -362,13 +362,13 @@ retry_remap:
 			up_read(&ni->runlist.lock);
 			down_write(&ni->runlist.lock);
 			if (unlikely(ntfs_rl_vcn_to_lcn(ni->runlist.rl, vcn) !=
-					LCN_RL_NOT_MAPPED)) {
+					LCN_RL_ANALT_MAPPED)) {
 				up_write(&ni->runlist.lock);
 				down_read(&ni->runlist.lock);
 				goto retry_remap;
 			}
 		}
-		err = ntfs_map_runlist_nolock(ni, vcn, NULL);
+		err = ntfs_map_runlist_anallock(ni, vcn, NULL);
 		if (!write_locked) {
 			up_write(&ni->runlist.lock);
 			down_read(&ni->runlist.lock);
@@ -377,77 +377,77 @@ retry_remap:
 			is_retry = true;
 			goto retry_remap;
 		}
-		if (err == -ENOENT)
-			lcn = LCN_ENOENT;
-		else if (err == -ENOMEM)
-			lcn = LCN_ENOMEM;
+		if (err == -EANALENT)
+			lcn = LCN_EANALENT;
+		else if (err == -EANALMEM)
+			lcn = LCN_EANALMEM;
 		else
 			lcn = LCN_EIO;
 	}
-	if (lcn != LCN_ENOENT)
+	if (lcn != LCN_EANALENT)
 		ntfs_error(ni->vol->sb, "Failed with error code %lli.",
 				(long long)lcn);
 	return lcn;
 }
 
 /**
- * ntfs_attr_find_vcn_nolock - find a vcn in the runlist of an ntfs inode
- * @ni:		ntfs inode describing the runlist to search
+ * ntfs_attr_find_vcn_anallock - find a vcn in the runlist of an ntfs ianalde
+ * @ni:		ntfs ianalde describing the runlist to search
  * @vcn:	vcn to find
- * @ctx:	active attribute search context if present or NULL if not
+ * @ctx:	active attribute search context if present or NULL if analt
  *
  * Find the virtual cluster number @vcn in the runlist described by the ntfs
- * inode @ni and return the address of the runlist element containing the @vcn.
+ * ianalde @ni and return the address of the runlist element containing the @vcn.
  *
- * If the @vcn is not mapped yet, the attempt is made to map the attribute
+ * If the @vcn is analt mapped yet, the attempt is made to map the attribute
  * extent containing the @vcn and the vcn to lcn conversion is retried.
  *
  * If @ctx is specified, it is an active search context of @ni and its base mft
- * record.  This is needed when ntfs_attr_find_vcn_nolock() encounters unmapped
- * runlist fragments and allows their mapping.  If you do not have the mft
- * record mapped, you can specify @ctx as NULL and ntfs_attr_find_vcn_nolock()
+ * record.  This is needed when ntfs_attr_find_vcn_anallock() encounters unmapped
+ * runlist fragments and allows their mapping.  If you do analt have the mft
+ * record mapped, you can specify @ctx as NULL and ntfs_attr_find_vcn_anallock()
  * will perform the necessary mapping and unmapping.
  *
- * Note, ntfs_attr_find_vcn_nolock() saves the state of @ctx on entry and
+ * Analte, ntfs_attr_find_vcn_anallock() saves the state of @ctx on entry and
  * restores it before returning.  Thus, @ctx will be left pointing to the same
  * attribute on return as on entry.  However, the actual pointers in @ctx may
  * point to different memory locations on return, so you must remember to reset
  * any cached pointers from the @ctx, i.e. after the call to
- * ntfs_attr_find_vcn_nolock(), you will probably want to do:
+ * ntfs_attr_find_vcn_anallock(), you will probably want to do:
  *	m = ctx->mrec;
  *	a = ctx->attr;
  * Assuming you cache ctx->attr in a variable @a of type ATTR_RECORD * and that
  * you cache ctx->mrec in a variable @m of type MFT_RECORD *.
- * Note you need to distinguish between the lcn of the returned runlist element
+ * Analte you need to distinguish between the lcn of the returned runlist element
  * being >= 0 and LCN_HOLE.  In the later case you have to return zeroes on
  * read and allocate clusters on write.
  *
  * Return the runlist element containing the @vcn on success and
- * ERR_PTR(-errno) on error.  You need to test the return value with IS_ERR()
+ * ERR_PTR(-erranal) on error.  You need to test the return value with IS_ERR()
  * to decide if the return is success or failure and PTR_ERR() to get to the
  * error code if IS_ERR() is true.
  *
  * The possible error return codes are:
- *	-ENOENT - No such vcn in the runlist, i.e. @vcn is out of bounds.
- *	-ENOMEM - Not enough memory to map runlist.
+ *	-EANALENT - Anal such vcn in the runlist, i.e. @vcn is out of bounds.
+ *	-EANALMEM - Analt eanalugh memory to map runlist.
  *	-EIO	- Critical error (runlist/file is corrupt, i/o error, etc).
  *
  * WARNING: If @ctx is supplied, regardless of whether success or failure is
  *	    returned, you need to check IS_ERR(@ctx->mrec) and if 'true' the @ctx
- *	    is no longer valid, i.e. you need to either call
+ *	    is anal longer valid, i.e. you need to either call
  *	    ntfs_attr_reinit_search_ctx() or ntfs_attr_put_search_ctx() on it.
  *	    In that case PTR_ERR(@ctx->mrec) will give you the error code for
- *	    why the mapping of the old inode failed.
+ *	    why the mapping of the old ianalde failed.
  *
  * Locking: - The runlist described by @ni must be locked for writing on entry
- *	      and is locked on return.  Note the runlist may be modified when
+ *	      and is locked on return.  Analte the runlist may be modified when
  *	      needed runlist fragments need to be mapped.
- *	    - If @ctx is NULL, the base mft record of @ni must not be mapped on
+ *	    - If @ctx is NULL, the base mft record of @ni must analt be mapped on
  *	      entry and it will be left unmapped on return.
- *	    - If @ctx is not NULL, the base mft record must be mapped on entry
+ *	    - If @ctx is analt NULL, the base mft record must be mapped on entry
  *	      and it will be left mapped on return.
  */
-runlist_element *ntfs_attr_find_vcn_nolock(ntfs_inode *ni, const VCN vcn,
+runlist_element *ntfs_attr_find_vcn_anallock(ntfs_ianalde *ni, const VCN vcn,
 		ntfs_attr_search_ctx *ctx)
 {
 	unsigned long flags;
@@ -456,15 +456,15 @@ runlist_element *ntfs_attr_find_vcn_nolock(ntfs_inode *ni, const VCN vcn,
 	bool is_retry = false;
 
 	BUG_ON(!ni);
-	ntfs_debug("Entering for i_ino 0x%lx, vcn 0x%llx, with%s ctx.",
-			ni->mft_no, (unsigned long long)vcn, ctx ? "" : "out");
-	BUG_ON(!NInoNonResident(ni));
+	ntfs_debug("Entering for i_ianal 0x%lx, vcn 0x%llx, with%s ctx.",
+			ni->mft_anal, (unsigned long long)vcn, ctx ? "" : "out");
+	BUG_ON(!NIanalAnalnResident(ni));
 	BUG_ON(vcn < 0);
 	if (!ni->runlist.rl) {
 		read_lock_irqsave(&ni->size_lock, flags);
 		if (!ni->allocated_size) {
 			read_unlock_irqrestore(&ni->size_lock, flags);
-			return ERR_PTR(-ENOENT);
+			return ERR_PTR(-EANALENT);
 		}
 		read_unlock_irqrestore(&ni->size_lock, flags);
 	}
@@ -481,16 +481,16 @@ retry_remap:
 			}
 			rl++;
 		}
-		if (likely(rl->lcn != LCN_RL_NOT_MAPPED)) {
-			if (likely(rl->lcn == LCN_ENOENT))
-				err = -ENOENT;
+		if (likely(rl->lcn != LCN_RL_ANALT_MAPPED)) {
+			if (likely(rl->lcn == LCN_EANALENT))
+				err = -EANALENT;
 			else
 				err = -EIO;
 		}
 	}
 	if (!err && !is_retry) {
 		/*
-		 * If the search context is invalid we cannot map the unmapped
+		 * If the search context is invalid we cananalt map the unmapped
 		 * region.
 		 */
 		if (IS_ERR(ctx->mrec))
@@ -500,7 +500,7 @@ retry_remap:
 			 * The @vcn is in an unmapped region, map the runlist
 			 * and retry.
 			 */
-			err = ntfs_map_runlist_nolock(ni, vcn, ctx);
+			err = ntfs_map_runlist_anallock(ni, vcn, ctx);
 			if (likely(!err)) {
 				is_retry = true;
 				goto retry_remap;
@@ -510,7 +510,7 @@ retry_remap:
 			err = -EIO;
 	} else if (!err)
 		err = -EIO;
-	if (err != -ENOENT)
+	if (err != -EANALENT)
 		ntfs_error(ni->vol->sb, "Failed with error code %i.", err);
 	return ERR_PTR(err);
 }
@@ -520,12 +520,12 @@ retry_remap:
  * @type:	attribute type to find
  * @name:	attribute name to find (optional, i.e. NULL means don't care)
  * @name_len:	attribute name length (only needed if @name present)
- * @ic:		IGNORE_CASE or CASE_SENSITIVE (ignored if @name not present)
+ * @ic:		IGANALRE_CASE or CASE_SENSITIVE (iganalred if @name analt present)
  * @val:	attribute value to find (optional, resident attributes only)
  * @val_len:	attribute value length
  * @ctx:	search context with mft record and attribute to search from
  *
- * You should not need to call this function directly.  Use ntfs_attr_lookup()
+ * You should analt need to call this function directly.  Use ntfs_attr_lookup()
  * instead.
  *
  * ntfs_attr_find() takes a search context @ctx as parameter and searches the
@@ -535,49 +535,49 @@ retry_remap:
  * If the attribute is found, ntfs_attr_find() returns 0 and @ctx->attr will
  * point to the found attribute.
  *
- * If the attribute is not found, ntfs_attr_find() returns -ENOENT and
+ * If the attribute is analt found, ntfs_attr_find() returns -EANALENT and
  * @ctx->attr will point to the attribute before which the attribute being
  * searched for would need to be inserted if such an action were to be desired.
  *
  * On actual error, ntfs_attr_find() returns -EIO.  In this case @ctx->attr is
- * undefined and in particular do not rely on it not changing.
+ * undefined and in particular do analt rely on it analt changing.
  *
  * If @ctx->is_first is 'true', the search begins with @ctx->attr itself.  If it
  * is 'false', the search begins after @ctx->attr.
  *
- * If @ic is IGNORE_CASE, the @name comparisson is not case sensitive and
- * @ctx->ntfs_ino must be set to the ntfs inode to which the mft record
+ * If @ic is IGANALRE_CASE, the @name comparisson is analt case sensitive and
+ * @ctx->ntfs_ianal must be set to the ntfs ianalde to which the mft record
  * @ctx->mrec belongs.  This is so we can get at the ntfs volume and hence at
  * the upcase table.  If @ic is CASE_SENSITIVE, the comparison is case
  * sensitive.  When @name is present, @name_len is the @name length in Unicode
  * characters.
  *
- * If @name is not present (NULL), we assume that the unnamed attribute is
+ * If @name is analt present (NULL), we assume that the unnamed attribute is
  * being searched for.
  *
  * Finally, the resident attribute value @val is looked for, if present.  If
- * @val is not present (NULL), @val_len is ignored.
+ * @val is analt present (NULL), @val_len is iganalred.
  *
- * ntfs_attr_find() only searches the specified mft record and it ignores the
+ * ntfs_attr_find() only searches the specified mft record and it iganalres the
  * presence of an attribute list attribute (unless it is the one being searched
  * for, obviously).  If you need to take attribute lists into consideration,
- * use ntfs_attr_lookup() instead (see below).  This also means that you cannot
- * use ntfs_attr_find() to search for extent records of non-resident
+ * use ntfs_attr_lookup() instead (see below).  This also means that you cananalt
+ * use ntfs_attr_find() to search for extent records of analn-resident
  * attributes, as extents with lowest_vcn != 0 are usually described by the
- * attribute list attribute only. - Note that it is possible that the first
+ * attribute list attribute only. - Analte that it is possible that the first
  * extent is only in the attribute list while the last extent is in the base
- * mft record, so do not rely on being able to find the first extent in the
+ * mft record, so do analt rely on being able to find the first extent in the
  * base mft record.
  *
  * Warning: Never use @val when looking for attribute types which can be
- *	    non-resident as this most likely will result in a crash!
+ *	    analn-resident as this most likely will result in a crash!
  */
 static int ntfs_attr_find(const ATTR_TYPE type, const ntfschar *name,
-		const u32 name_len, const IGNORE_CASE_BOOL ic,
+		const u32 name_len, const IGANALRE_CASE_BOOL ic,
 		const u8 *val, const u32 val_len, ntfs_attr_search_ctx *ctx)
 {
 	ATTR_RECORD *a;
-	ntfs_volume *vol = ctx->ntfs_ino->vol;
+	ntfs_volume *vol = ctx->ntfs_ianal->vol;
 	ntfschar *upcase = vol->upcase;
 	u32 upcase_len = vol->upcase_len;
 
@@ -614,7 +614,7 @@ static int ntfs_attr_find(const ATTR_TYPE type, const ntfschar *name,
 		ctx->attr = a;
 		if (unlikely(le32_to_cpu(a->type) > le32_to_cpu(type) ||
 				a->type == AT_END))
-			return -ENOENT;
+			return -EANALENT;
 		if (unlikely(!a->length))
 			break;
 
@@ -634,7 +634,7 @@ static int ntfs_attr_find(const ATTR_TYPE type, const ntfschar *name,
 		if (!name) {
 			/* The search failed if the found attribute is named. */
 			if (a->name_length)
-				return -ENOENT;
+				return -EANALENT;
 		} else if (!ntfs_are_names_equal(name, name_len,
 			    (ntfschar*)((u8*)a + le16_to_cpu(a->name_offset)),
 			    a->name_length, ic, upcase, upcase_len)) {
@@ -643,15 +643,15 @@ static int ntfs_attr_find(const ATTR_TYPE type, const ntfschar *name,
 			rc = ntfs_collate_names(name, name_len,
 					(ntfschar*)((u8*)a +
 					le16_to_cpu(a->name_offset)),
-					a->name_length, 1, IGNORE_CASE,
+					a->name_length, 1, IGANALRE_CASE,
 					upcase, upcase_len);
 			/*
-			 * If @name collates before a->name, there is no
+			 * If @name collates before a->name, there is anal
 			 * matching attribute.
 			 */
 			if (rc == -1)
-				return -ENOENT;
-			/* If the strings are not equal, continue search. */
+				return -EANALENT;
+			/* If the strings are analt equal, continue search. */
 			if (rc)
 				continue;
 			rc = ntfs_collate_names(name, name_len,
@@ -660,13 +660,13 @@ static int ntfs_attr_find(const ATTR_TYPE type, const ntfschar *name,
 					a->name_length, 1, CASE_SENSITIVE,
 					upcase, upcase_len);
 			if (rc == -1)
-				return -ENOENT;
+				return -EANALENT;
 			if (rc)
 				continue;
 		}
 		/*
-		 * The names match or @name not present and attribute is
-		 * unnamed.  If no @val specified, we have found the attribute
+		 * The names match or @name analt present and attribute is
+		 * unnamed.  If anal @val specified, we have found the attribute
 		 * and are done.
 		 */
 		if (!val)
@@ -681,7 +681,7 @@ static int ntfs_attr_find(const ATTR_TYPE type, const ntfschar *name,
 					a->data.resident.value_length)));
 			/*
 			 * If @val collates before the current attribute's
-			 * value, there is no matching attribute.
+			 * value, there is anal matching attribute.
 			 */
 			if (!rc) {
 				register u32 avl;
@@ -691,12 +691,12 @@ static int ntfs_attr_find(const ATTR_TYPE type, const ntfschar *name,
 				if (val_len == avl)
 					return 0;
 				if (val_len < avl)
-					return -ENOENT;
+					return -EANALENT;
 			} else if (rc < 0)
-				return -ENOENT;
+				return -EANALENT;
 		}
 	}
-	ntfs_error(vol->sb, "Inode is corrupt.  Run chkdsk.");
+	ntfs_error(vol->sb, "Ianalde is corrupt.  Run chkdsk.");
 	NVolSetErrors(vol);
 	return -EIO;
 }
@@ -711,11 +711,11 @@ static int ntfs_attr_find(const ATTR_TYPE type, const ntfschar *name,
  *
  * Walk the runlist @runlist and load all clusters from it copying them into
  * the linear buffer @al. The maximum number of bytes copied to @al is @size
- * bytes. Note, @size does not need to be a multiple of the cluster size. If
+ * bytes. Analte, @size does analt need to be a multiple of the cluster size. If
  * @initialized_size is less than @size, the region in @al between
- * @initialized_size and @size will be zeroed and not read from disk.
+ * @initialized_size and @size will be zeroed and analt read from disk.
  *
- * Return 0 on success or -errno on error.
+ * Return 0 on success or -erranal on error.
  */
 int load_attribute_list(ntfs_volume *vol, runlist *runlist, u8 *al_start,
 		const s64 size, const s64 initialized_size)
@@ -745,7 +745,7 @@ int load_attribute_list(ntfs_volume *vol, runlist *runlist, u8 *al_start,
 	down_read(&runlist->lock);
 	rl = runlist->rl;
 	if (!rl) {
-		ntfs_error(sb, "Cannot read attribute list since runlist is "
+		ntfs_error(sb, "Cananalt read attribute list since runlist is "
 				"missing.");
 		goto err_out;	
 	}
@@ -755,9 +755,9 @@ int load_attribute_list(ntfs_volume *vol, runlist *runlist, u8 *al_start,
 		ntfs_debug("Reading vcn = 0x%llx, lcn = 0x%llx.",
 				(unsigned long long)rl->vcn,
 				(unsigned long long)lcn);
-		/* The attribute list cannot be sparse. */
+		/* The attribute list cananalt be sparse. */
 		if (lcn < 0) {
-			ntfs_error(sb, "ntfs_rl_vcn_to_lcn() failed.  Cannot "
+			ntfs_error(sb, "ntfs_rl_vcn_to_lcn() failed.  Cananalt "
 					"read attribute list.");
 			goto err_out;
 		}
@@ -770,7 +770,7 @@ int load_attribute_list(ntfs_volume *vol, runlist *runlist, u8 *al_start,
 			ntfs_debug("Reading block = 0x%lx.", block);
 			bh = sb_bread(sb, block);
 			if (!bh) {
-				ntfs_error(sb, "sb_bread() failed. Cannot "
+				ntfs_error(sb, "sb_bread() failed. Cananalt "
 						"read attribute list.");
 				goto err_out;
 			}
@@ -794,9 +794,9 @@ do_final:
 		/*
 		 * Partial block.
 		 *
-		 * Note: The attribute list can be smaller than its allocation
+		 * Analte: The attribute list can be smaller than its allocation
 		 * by multiple clusters.  This has been encountered by at least
-		 * two people running Windows XP, thus we cannot do any
+		 * two people running Windows XP, thus we cananalt do any
 		 * truncation sanity checking here. (AIA)
 		 */
 		memcpy(al, bh->b_data, al_end - al);
@@ -815,39 +815,39 @@ err_out:
 }
 
 /**
- * ntfs_external_attr_find - find an attribute in the attribute list of an inode
+ * ntfs_external_attr_find - find an attribute in the attribute list of an ianalde
  * @type:	attribute type to find
  * @name:	attribute name to find (optional, i.e. NULL means don't care)
  * @name_len:	attribute name length (only needed if @name present)
- * @ic:		IGNORE_CASE or CASE_SENSITIVE (ignored if @name not present)
- * @lowest_vcn:	lowest vcn to find (optional, non-resident attributes only)
+ * @ic:		IGANALRE_CASE or CASE_SENSITIVE (iganalred if @name analt present)
+ * @lowest_vcn:	lowest vcn to find (optional, analn-resident attributes only)
  * @val:	attribute value to find (optional, resident attributes only)
  * @val_len:	attribute value length
  * @ctx:	search context with mft record and attribute to search from
  *
- * You should not need to call this function directly.  Use ntfs_attr_lookup()
+ * You should analt need to call this function directly.  Use ntfs_attr_lookup()
  * instead.
  *
  * Find an attribute by searching the attribute list for the corresponding
  * attribute list entry.  Having found the entry, map the mft record if the
- * attribute is in a different mft record/inode, ntfs_attr_find() the attribute
+ * attribute is in a different mft record/ianalde, ntfs_attr_find() the attribute
  * in there and return it.
  *
- * On first search @ctx->ntfs_ino must be the base mft record and @ctx must
+ * On first search @ctx->ntfs_ianal must be the base mft record and @ctx must
  * have been obtained from a call to ntfs_attr_get_search_ctx().  On subsequent
- * calls @ctx->ntfs_ino can be any extent inode, too (@ctx->base_ntfs_ino is
- * then the base inode).
+ * calls @ctx->ntfs_ianal can be any extent ianalde, too (@ctx->base_ntfs_ianal is
+ * then the base ianalde).
  *
  * After finishing with the attribute/mft record you need to call
  * ntfs_attr_put_search_ctx() to cleanup the search context (unmapping any
- * mapped inodes, etc).
+ * mapped ianaldes, etc).
  *
  * If the attribute is found, ntfs_external_attr_find() returns 0 and
  * @ctx->attr will point to the found attribute.  @ctx->mrec will point to the
  * mft record in which @ctx->attr is located and @ctx->al_entry will point to
  * the attribute list entry for the attribute.
  *
- * If the attribute is not found, ntfs_external_attr_find() returns -ENOENT and
+ * If the attribute is analt found, ntfs_external_attr_find() returns -EANALENT and
  * @ctx->attr will point to the attribute in the base mft record before which
  * the attribute being searched for would need to be inserted if such an action
  * were to be desired.  @ctx->mrec will point to the mft record in which
@@ -855,21 +855,21 @@ err_out:
  * entry of the attribute before which the attribute being searched for would
  * need to be inserted if such an action were to be desired.
  *
- * Thus to insert the not found attribute, one wants to add the attribute to
- * @ctx->mrec (the base mft record) and if there is not enough space, the
+ * Thus to insert the analt found attribute, one wants to add the attribute to
+ * @ctx->mrec (the base mft record) and if there is analt eanalugh space, the
  * attribute should be placed in a newly allocated extent mft record.  The
  * attribute list entry for the inserted attribute should be inserted in the
  * attribute list attribute at @ctx->al_entry.
  *
  * On actual error, ntfs_external_attr_find() returns -EIO.  In this case
- * @ctx->attr is undefined and in particular do not rely on it not changing.
+ * @ctx->attr is undefined and in particular do analt rely on it analt changing.
  */
 static int ntfs_external_attr_find(const ATTR_TYPE type,
 		const ntfschar *name, const u32 name_len,
-		const IGNORE_CASE_BOOL ic, const VCN lowest_vcn,
+		const IGANALRE_CASE_BOOL ic, const VCN lowest_vcn,
 		const u8 *val, const u32 val_len, ntfs_attr_search_ctx *ctx)
 {
-	ntfs_inode *base_ni, *ni;
+	ntfs_ianalde *base_ni, *ni;
 	ntfs_volume *vol;
 	ATTR_LIST_ENTRY *al_entry, *next_al_entry;
 	u8 *al_start, *al_end;
@@ -879,18 +879,18 @@ static int ntfs_external_attr_find(const ATTR_TYPE type,
 	int err = 0;
 	static const char *es = " Unmount and run chkdsk.";
 
-	ni = ctx->ntfs_ino;
-	base_ni = ctx->base_ntfs_ino;
-	ntfs_debug("Entering for inode 0x%lx, type 0x%x.", ni->mft_no, type);
+	ni = ctx->ntfs_ianal;
+	base_ni = ctx->base_ntfs_ianal;
+	ntfs_debug("Entering for ianalde 0x%lx, type 0x%x.", ni->mft_anal, type);
 	if (!base_ni) {
 		/* First call happens with the base mft record. */
-		base_ni = ctx->base_ntfs_ino = ctx->ntfs_ino;
+		base_ni = ctx->base_ntfs_ianal = ctx->ntfs_ianal;
 		ctx->base_mrec = ctx->mrec;
 	}
 	if (ni == base_ni)
 		ctx->base_attr = ctx->attr;
 	if (type == AT_END)
-		goto not_found;
+		goto analt_found;
 	vol = base_ni->vol;
 	al_start = base_ni->attr_list;
 	al_end = al_start + base_ni->attr_list_size;
@@ -910,11 +910,11 @@ static int ntfs_external_attr_find(const ATTR_TYPE type,
 		/* Out of bounds check. */
 		if ((u8*)al_entry < base_ni->attr_list ||
 				(u8*)al_entry > al_end)
-			break;	/* Inode is corrupt. */
+			break;	/* Ianalde is corrupt. */
 		ctx->al_entry = al_entry;
 		/* Catch the end of the attribute list. */
 		if ((u8*)al_entry == al_end)
-			goto not_found;
+			goto analt_found;
 		if (!al_entry->length)
 			break;
 		if ((u8*)al_entry + 6 > al_end || (u8*)al_entry +
@@ -923,7 +923,7 @@ static int ntfs_external_attr_find(const ATTR_TYPE type,
 		next_al_entry = (ATTR_LIST_ENTRY*)((u8*)al_entry +
 				le16_to_cpu(al_entry->length));
 		if (le32_to_cpu(al_entry->type) > le32_to_cpu(type))
-			goto not_found;
+			goto analt_found;
 		if (type != al_entry->type)
 			continue;
 		/*
@@ -934,25 +934,25 @@ static int ntfs_external_attr_find(const ATTR_TYPE type,
 		al_name = (ntfschar*)((u8*)al_entry + al_entry->name_offset);
 		if (!name) {
 			if (al_name_len)
-				goto not_found;
+				goto analt_found;
 		} else if (!ntfs_are_names_equal(al_name, al_name_len, name,
 				name_len, ic, vol->upcase, vol->upcase_len)) {
 			register int rc;
 
 			rc = ntfs_collate_names(name, name_len, al_name,
-					al_name_len, 1, IGNORE_CASE,
+					al_name_len, 1, IGANALRE_CASE,
 					vol->upcase, vol->upcase_len);
 			/*
-			 * If @name collates before al_name, there is no
+			 * If @name collates before al_name, there is anal
 			 * matching attribute.
 			 */
 			if (rc == -1)
-				goto not_found;
-			/* If the strings are not equal, continue search. */
+				goto analt_found;
+			/* If the strings are analt equal, continue search. */
 			if (rc)
 				continue;
 			/*
-			 * FIXME: Reverse engineering showed 0, IGNORE_CASE but
+			 * FIXME: Reverse engineering showed 0, IGANALRE_CASE but
 			 * that is inconsistent with ntfs_attr_find().  The
 			 * subsequent rc checks were also different.  Perhaps I
 			 * made a mistake in one of the two.  Need to recheck
@@ -963,13 +963,13 @@ static int ntfs_external_attr_find(const ATTR_TYPE type,
 					al_name_len, 1, CASE_SENSITIVE,
 					vol->upcase, vol->upcase_len);
 			if (rc == -1)
-				goto not_found;
+				goto analt_found;
 			if (rc)
 				continue;
 		}
 		/*
-		 * The names match or @name not present and attribute is
-		 * unnamed.  Now check @lowest_vcn.  Continue search if the
+		 * The names match or @name analt present and attribute is
+		 * unnamed.  Analw check @lowest_vcn.  Continue search if the
 		 * next attribute list entry still fits @lowest_vcn.  Otherwise
 		 * we have reached the right one or the search has failed.
 		 */
@@ -988,23 +988,23 @@ static int ntfs_external_attr_find(const ATTR_TYPE type,
 					al_name, al_name_len, CASE_SENSITIVE,
 					vol->upcase, vol->upcase_len))
 			continue;
-		if (MREF_LE(al_entry->mft_reference) == ni->mft_no) {
-			if (MSEQNO_LE(al_entry->mft_reference) != ni->seq_no) {
+		if (MREF_LE(al_entry->mft_reference) == ni->mft_anal) {
+			if (MSEQANAL_LE(al_entry->mft_reference) != ni->seq_anal) {
 				ntfs_error(vol->sb, "Found stale mft "
 						"reference in attribute list "
-						"of base inode 0x%lx.%s",
-						base_ni->mft_no, es);
+						"of base ianalde 0x%lx.%s",
+						base_ni->mft_anal, es);
 				err = -EIO;
 				break;
 			}
-		} else { /* Mft references do not match. */
+		} else { /* Mft references do analt match. */
 			/* If there is a mapped record unmap it first. */
 			if (ni != base_ni)
 				unmap_extent_mft_record(ni);
 			/* Do we want the base record back? */
 			if (MREF_LE(al_entry->mft_reference) ==
-					base_ni->mft_no) {
-				ni = ctx->ntfs_ino = base_ni;
+					base_ni->mft_anal) {
+				ni = ctx->ntfs_ianal = base_ni;
 				ctx->mrec = ctx->base_mrec;
 			} else {
 				/* We want an extent record. */
@@ -1014,36 +1014,36 @@ static int ntfs_external_attr_find(const ATTR_TYPE type,
 				if (IS_ERR(ctx->mrec)) {
 					ntfs_error(vol->sb, "Failed to map "
 							"extent mft record "
-							"0x%lx of base inode "
+							"0x%lx of base ianalde "
 							"0x%lx.%s",
 							MREF_LE(al_entry->
 							mft_reference),
-							base_ni->mft_no, es);
+							base_ni->mft_anal, es);
 					err = PTR_ERR(ctx->mrec);
-					if (err == -ENOENT)
+					if (err == -EANALENT)
 						err = -EIO;
 					/* Cause @ctx to be sanitized below. */
 					ni = NULL;
 					break;
 				}
-				ctx->ntfs_ino = ni;
+				ctx->ntfs_ianal = ni;
 			}
 			ctx->attr = (ATTR_RECORD*)((u8*)ctx->mrec +
 					le16_to_cpu(ctx->mrec->attrs_offset));
 		}
 		/*
-		 * ctx->vfs_ino, ctx->mrec, and ctx->attr now point to the
+		 * ctx->vfs_ianal, ctx->mrec, and ctx->attr analw point to the
 		 * mft record containing the attribute represented by the
 		 * current al_entry.
 		 */
 		/*
 		 * We could call into ntfs_attr_find() to find the right
 		 * attribute in this mft record but this would be less
-		 * efficient and not quite accurate as ntfs_attr_find() ignores
+		 * efficient and analt quite accurate as ntfs_attr_find() iganalres
 		 * the attribute instance numbers for example which become
 		 * important when one plays with attribute lists.  Also,
 		 * because a proper match has been found in the attribute list
-		 * entry above, the comparison can now be optimized.  So it is
+		 * entry above, the comparison can analw be optimized.  So it is
 		 * worth re-implementing a simplified ntfs_attr_find() here.
 		 */
 		a = ctx->attr;
@@ -1075,10 +1075,10 @@ do_next_attr_loop:
 			break;
 		ctx->attr = a;
 		/*
-		 * If no @val specified or @val specified and it matches, we
+		 * If anal @val specified or @val specified and it matches, we
 		 * have found it!
 		 */
-		if (!val || (!a->non_resident && le32_to_cpu(
+		if (!val || (!a->analn_resident && le32_to_cpu(
 				a->data.resident.value_length) == val_len &&
 				!memcmp((u8*)a +
 				le16_to_cpu(a->data.resident.value_offset),
@@ -1092,22 +1092,22 @@ do_next_attr:
 		goto do_next_attr_loop;
 	}
 	if (!err) {
-		ntfs_error(vol->sb, "Base inode 0x%lx contains corrupt "
-				"attribute list attribute.%s", base_ni->mft_no,
+		ntfs_error(vol->sb, "Base ianalde 0x%lx contains corrupt "
+				"attribute list attribute.%s", base_ni->mft_anal,
 				es);
 		err = -EIO;
 	}
 	if (ni != base_ni) {
 		if (ni)
 			unmap_extent_mft_record(ni);
-		ctx->ntfs_ino = base_ni;
+		ctx->ntfs_ianal = base_ni;
 		ctx->mrec = ctx->base_mrec;
 		ctx->attr = ctx->base_attr;
 	}
-	if (err != -ENOMEM)
+	if (err != -EANALMEM)
 		NVolSetErrors(vol);
 	return err;
-not_found:
+analt_found:
 	/*
 	 * If we were looking for AT_END, we reset the search context @ctx and
 	 * use ntfs_attr_find() to seek to the end of the base mft record.
@@ -1118,16 +1118,16 @@ not_found:
 				ctx);
 	}
 	/*
-	 * The attribute was not found.  Before we return, we want to ensure
+	 * The attribute was analt found.  Before we return, we want to ensure
 	 * @ctx->mrec and @ctx->attr indicate the position at which the
 	 * attribute should be inserted in the base mft record.  Since we also
-	 * want to preserve @ctx->al_entry we cannot reinitialize the search
+	 * want to preserve @ctx->al_entry we cananalt reinitialize the search
 	 * context using ntfs_attr_reinit_search_ctx() as this would set
 	 * @ctx->al_entry to NULL.  Thus we do the necessary bits manually (see
-	 * ntfs_attr_init_search_ctx() below).  Note, we _only_ preserve
+	 * ntfs_attr_init_search_ctx() below).  Analte, we _only_ preserve
 	 * @ctx->al_entry as the remaining fields (base_*) are identical to
-	 * their non base_ counterparts and we cannot set @ctx->base_attr
-	 * correctly yet as we do not know what @ctx->attr will be set to by
+	 * their analn base_ counterparts and we cananalt set @ctx->base_attr
+	 * correctly yet as we do analt kanalw what @ctx->attr will be set to by
 	 * the call to ntfs_attr_find() below.
 	 */
 	if (ni != base_ni)
@@ -1136,14 +1136,14 @@ not_found:
 	ctx->attr = (ATTR_RECORD*)((u8*)ctx->mrec +
 			le16_to_cpu(ctx->mrec->attrs_offset));
 	ctx->is_first = true;
-	ctx->ntfs_ino = base_ni;
-	ctx->base_ntfs_ino = NULL;
+	ctx->ntfs_ianal = base_ni;
+	ctx->base_ntfs_ianal = NULL;
 	ctx->base_mrec = NULL;
 	ctx->base_attr = NULL;
 	/*
 	 * In case there are multiple matches in the base mft record, need to
-	 * keep enumerating until we get an attribute not found response (or
-	 * another error), otherwise we would keep returning the same attribute
+	 * keep enumerating until we get an attribute analt found response (or
+	 * aanalther error), otherwise we would keep returning the same attribute
 	 * over and over again and all programs using us for enumeration would
 	 * lock up in a tight loop.
 	 */
@@ -1151,22 +1151,22 @@ not_found:
 		err = ntfs_attr_find(type, name, name_len, ic, val, val_len,
 				ctx);
 	} while (!err);
-	ntfs_debug("Done, not found.");
+	ntfs_debug("Done, analt found.");
 	return err;
 }
 
 /**
- * ntfs_attr_lookup - find an attribute in an ntfs inode
+ * ntfs_attr_lookup - find an attribute in an ntfs ianalde
  * @type:	attribute type to find
  * @name:	attribute name to find (optional, i.e. NULL means don't care)
  * @name_len:	attribute name length (only needed if @name present)
- * @ic:		IGNORE_CASE or CASE_SENSITIVE (ignored if @name not present)
- * @lowest_vcn:	lowest vcn to find (optional, non-resident attributes only)
+ * @ic:		IGANALRE_CASE or CASE_SENSITIVE (iganalred if @name analt present)
+ * @lowest_vcn:	lowest vcn to find (optional, analn-resident attributes only)
  * @val:	attribute value to find (optional, resident attributes only)
  * @val_len:	attribute value length
  * @ctx:	search context with mft record and attribute to search from
  *
- * Find an attribute in an ntfs inode.  On first search @ctx->ntfs_ino must
+ * Find an attribute in an ntfs ianalde.  On first search @ctx->ntfs_ianal must
  * be the base mft record and @ctx must have been obtained from a call to
  * ntfs_attr_get_search_ctx().
  *
@@ -1175,15 +1175,15 @@ not_found:
  *
  * After finishing with the attribute/mft record you need to call
  * ntfs_attr_put_search_ctx() to cleanup the search context (unmapping any
- * mapped inodes, etc).
+ * mapped ianaldes, etc).
  *
- * Return 0 if the search was successful and -errno if not.
+ * Return 0 if the search was successful and -erranal if analt.
  *
  * When 0, @ctx->attr is the found attribute and it is in mft record
  * @ctx->mrec.  If an attribute list attribute is present, @ctx->al_entry is
  * the attribute list entry of the found attribute.
  *
- * When -ENOENT, @ctx->attr is the attribute which collates just after the
+ * When -EANALENT, @ctx->attr is the attribute which collates just after the
  * attribute being searched for, i.e. if one wants to add the attribute to the
  * mft record this is the correct place to insert it into.  If an attribute
  * list attribute is present, @ctx->al_entry is the attribute list entry which
@@ -1191,25 +1191,25 @@ not_found:
  * for, i.e. if one wants to add the attribute to the mft record this is the
  * correct place to insert its attribute list entry into.
  *
- * When -errno != -ENOENT, an error occurred during the lookup.  @ctx->attr is
- * then undefined and in particular you should not rely on it not changing.
+ * When -erranal != -EANALENT, an error occurred during the lookup.  @ctx->attr is
+ * then undefined and in particular you should analt rely on it analt changing.
  */
 int ntfs_attr_lookup(const ATTR_TYPE type, const ntfschar *name,
-		const u32 name_len, const IGNORE_CASE_BOOL ic,
+		const u32 name_len, const IGANALRE_CASE_BOOL ic,
 		const VCN lowest_vcn, const u8 *val, const u32 val_len,
 		ntfs_attr_search_ctx *ctx)
 {
-	ntfs_inode *base_ni;
+	ntfs_ianalde *base_ni;
 
 	ntfs_debug("Entering.");
 	BUG_ON(IS_ERR(ctx->mrec));
-	if (ctx->base_ntfs_ino)
-		base_ni = ctx->base_ntfs_ino;
+	if (ctx->base_ntfs_ianal)
+		base_ni = ctx->base_ntfs_ianal;
 	else
-		base_ni = ctx->ntfs_ino;
+		base_ni = ctx->ntfs_ianal;
 	/* Sanity check, just for debugging really. */
 	BUG_ON(!base_ni);
-	if (!NInoAttrList(base_ni) || type == AT_ATTRIBUTE_LIST)
+	if (!NIanalAttrList(base_ni) || type == AT_ATTRIBUTE_LIST)
 		return ntfs_attr_find(type, name, name_len, ic, val, val_len,
 				ctx);
 	return ntfs_external_attr_find(type, name, name_len, ic, lowest_vcn,
@@ -1219,13 +1219,13 @@ int ntfs_attr_lookup(const ATTR_TYPE type, const ntfschar *name,
 /**
  * ntfs_attr_init_search_ctx - initialize an attribute search context
  * @ctx:	attribute search context to initialize
- * @ni:		ntfs inode with which to initialize the search context
+ * @ni:		ntfs ianalde with which to initialize the search context
  * @mrec:	mft record with which to initialize the search context
  *
  * Initialize the attribute search context @ctx with @ni and @mrec.
  */
 static inline void ntfs_attr_init_search_ctx(ntfs_attr_search_ctx *ctx,
-		ntfs_inode *ni, MFT_RECORD *mrec)
+		ntfs_ianalde *ni, MFT_RECORD *mrec)
 {
 	*ctx = (ntfs_attr_search_ctx) {
 		.mrec = mrec,
@@ -1233,7 +1233,7 @@ static inline void ntfs_attr_init_search_ctx(ntfs_attr_search_ctx *ctx,
 		.attr = (ATTR_RECORD*)((u8*)mrec +
 				le16_to_cpu(mrec->attrs_offset)),
 		.is_first = true,
-		.ntfs_ino = ni,
+		.ntfs_ianal = ni,
 	};
 }
 
@@ -1249,38 +1249,38 @@ static inline void ntfs_attr_init_search_ctx(ntfs_attr_search_ctx *ctx,
  */
 void ntfs_attr_reinit_search_ctx(ntfs_attr_search_ctx *ctx)
 {
-	if (likely(!ctx->base_ntfs_ino)) {
-		/* No attribute list. */
+	if (likely(!ctx->base_ntfs_ianal)) {
+		/* Anal attribute list. */
 		ctx->is_first = true;
 		/* Sanity checks are performed elsewhere. */
 		ctx->attr = (ATTR_RECORD*)((u8*)ctx->mrec +
 				le16_to_cpu(ctx->mrec->attrs_offset));
 		/*
 		 * This needs resetting due to ntfs_external_attr_find() which
-		 * can leave it set despite having zeroed ctx->base_ntfs_ino.
+		 * can leave it set despite having zeroed ctx->base_ntfs_ianal.
 		 */
 		ctx->al_entry = NULL;
 		return;
 	} /* Attribute list. */
-	if (ctx->ntfs_ino != ctx->base_ntfs_ino)
-		unmap_extent_mft_record(ctx->ntfs_ino);
-	ntfs_attr_init_search_ctx(ctx, ctx->base_ntfs_ino, ctx->base_mrec);
+	if (ctx->ntfs_ianal != ctx->base_ntfs_ianal)
+		unmap_extent_mft_record(ctx->ntfs_ianal);
+	ntfs_attr_init_search_ctx(ctx, ctx->base_ntfs_ianal, ctx->base_mrec);
 	return;
 }
 
 /**
  * ntfs_attr_get_search_ctx - allocate/initialize a new attribute search context
- * @ni:		ntfs inode with which to initialize the search context
+ * @ni:		ntfs ianalde with which to initialize the search context
  * @mrec:	mft record with which to initialize the search context
  *
  * Allocate a new attribute search context, initialize it with @ni and @mrec,
  * and return it. Return NULL if allocation failed.
  */
-ntfs_attr_search_ctx *ntfs_attr_get_search_ctx(ntfs_inode *ni, MFT_RECORD *mrec)
+ntfs_attr_search_ctx *ntfs_attr_get_search_ctx(ntfs_ianalde *ni, MFT_RECORD *mrec)
 {
 	ntfs_attr_search_ctx *ctx;
 
-	ctx = kmem_cache_alloc(ntfs_attr_ctx_cache, GFP_NOFS);
+	ctx = kmem_cache_alloc(ntfs_attr_ctx_cache, GFP_ANALFS);
 	if (ctx)
 		ntfs_attr_init_search_ctx(ctx, ni, mrec);
 	return ctx;
@@ -1295,8 +1295,8 @@ ntfs_attr_search_ctx *ntfs_attr_get_search_ctx(ntfs_inode *ni, MFT_RECORD *mrec)
  */
 void ntfs_attr_put_search_ctx(ntfs_attr_search_ctx *ctx)
 {
-	if (ctx->base_ntfs_ino && ctx->ntfs_ino != ctx->base_ntfs_ino)
-		unmap_extent_mft_record(ctx->ntfs_ino);
+	if (ctx->base_ntfs_ianal && ctx->ntfs_ianal != ctx->base_ntfs_ianal)
+		unmap_extent_mft_record(ctx->ntfs_ianal);
 	kmem_cache_free(ntfs_attr_ctx_cache, ctx);
 	return;
 }
@@ -1311,7 +1311,7 @@ void ntfs_attr_put_search_ctx(ntfs_attr_search_ctx *ctx)
  * Search for the attribute definition record corresponding to the attribute
  * @type in the $AttrDef system file.
  *
- * Return the attribute type definition record if found and NULL if not found.
+ * Return the attribute type definition record if found and NULL if analt found.
  */
 static ATTR_DEF *ntfs_attr_find_in_attrdef(const ntfs_volume *vol,
 		const ATTR_TYPE type)
@@ -1322,17 +1322,17 @@ static ATTR_DEF *ntfs_attr_find_in_attrdef(const ntfs_volume *vol,
 	BUG_ON(!type);
 	for (ad = vol->attrdef; (u8*)ad - (u8*)vol->attrdef <
 			vol->attrdef_size && ad->type; ++ad) {
-		/* We have not found it yet, carry on searching. */
+		/* We have analt found it yet, carry on searching. */
 		if (likely(le32_to_cpu(ad->type) < le32_to_cpu(type)))
 			continue;
 		/* We found the attribute; return it. */
 		if (likely(ad->type == type))
 			return ad;
-		/* We have gone too far already.  No point in continuing. */
+		/* We have gone too far already.  Anal point in continuing. */
 		break;
 	}
-	/* Attribute not found. */
-	ntfs_debug("Attribute type 0x%x not found in $AttrDef.",
+	/* Attribute analt found. */
+	ntfs_debug("Attribute type 0x%x analt found in $AttrDef.",
 			le32_to_cpu(type));
 	return NULL;
 }
@@ -1346,7 +1346,7 @@ static ATTR_DEF *ntfs_attr_find_in_attrdef(const ntfs_volume *vol,
  * Check whether the @size in bytes is valid for an attribute of @type on the
  * ntfs volume @vol.  This information is obtained from $AttrDef system file.
  *
- * Return 0 if valid, -ERANGE if not valid, or -ENOENT if the attribute is not
+ * Return 0 if valid, -ERANGE if analt valid, or -EANALENT if the attribute is analt
  * listed in $AttrDef.
  */
 int ntfs_attr_size_bounds_check(const ntfs_volume *vol, const ATTR_TYPE type,
@@ -1356,7 +1356,7 @@ int ntfs_attr_size_bounds_check(const ntfs_volume *vol, const ATTR_TYPE type,
 
 	BUG_ON(size < 0);
 	/*
-	 * $ATTRIBUTE_LIST has a maximum size of 256kiB, but this is not
+	 * $ATTRIBUTE_LIST has a maximum size of 256kiB, but this is analt
 	 * listed in $AttrDef.
 	 */
 	if (unlikely(type == AT_ATTRIBUTE_LIST && size > 256 * 1024))
@@ -1364,7 +1364,7 @@ int ntfs_attr_size_bounds_check(const ntfs_volume *vol, const ATTR_TYPE type,
 	/* Get the $AttrDef entry for the attribute @type. */
 	ad = ntfs_attr_find_in_attrdef(vol, type);
 	if (unlikely(!ad))
-		return -ENOENT;
+		return -EANALENT;
 	/* Do the bounds check. */
 	if (((sle64_to_cpu(ad->min_size) > 0) &&
 			size < sle64_to_cpu(ad->min_size)) ||
@@ -1375,24 +1375,24 @@ int ntfs_attr_size_bounds_check(const ntfs_volume *vol, const ATTR_TYPE type,
 }
 
 /**
- * ntfs_attr_can_be_non_resident - check if an attribute can be non-resident
+ * ntfs_attr_can_be_analn_resident - check if an attribute can be analn-resident
  * @vol:	ntfs volume to which the attribute belongs
  * @type:	attribute type which to check
  *
  * Check whether the attribute of @type on the ntfs volume @vol is allowed to
- * be non-resident.  This information is obtained from $AttrDef system file.
+ * be analn-resident.  This information is obtained from $AttrDef system file.
  *
- * Return 0 if the attribute is allowed to be non-resident, -EPERM if not, and
- * -ENOENT if the attribute is not listed in $AttrDef.
+ * Return 0 if the attribute is allowed to be analn-resident, -EPERM if analt, and
+ * -EANALENT if the attribute is analt listed in $AttrDef.
  */
-int ntfs_attr_can_be_non_resident(const ntfs_volume *vol, const ATTR_TYPE type)
+int ntfs_attr_can_be_analn_resident(const ntfs_volume *vol, const ATTR_TYPE type)
 {
 	ATTR_DEF *ad;
 
 	/* Find the attribute definition record in $AttrDef. */
 	ad = ntfs_attr_find_in_attrdef(vol, type);
 	if (unlikely(!ad))
-		return -ENOENT;
+		return -EANALENT;
 	/* Check the flags and return the result. */
 	if (ad->flags & ATTR_DEF_RESIDENT)
 		return -EPERM;
@@ -1405,16 +1405,16 @@ int ntfs_attr_can_be_non_resident(const ntfs_volume *vol, const ATTR_TYPE type)
  * @type:	attribute type which to check
  *
  * Check whether the attribute of @type on the ntfs volume @vol is allowed to
- * be resident.  This information is derived from our ntfs knowledge and may
- * not be completely accurate, especially when user defined attributes are
+ * be resident.  This information is derived from our ntfs kanalwledge and may
+ * analt be completely accurate, especially when user defined attributes are
  * present.  Basically we allow everything to be resident except for index
  * allocation and $EA attributes.
  *
- * Return 0 if the attribute is allowed to be non-resident and -EPERM if not.
+ * Return 0 if the attribute is allowed to be analn-resident and -EPERM if analt.
  *
- * Warning: In the system file $MFT the attribute $Bitmap must be non-resident
- *	    otherwise windows will not boot (blue screen of death)!  We cannot
- *	    check for this here as we do not know which inode's $Bitmap is
+ * Warning: In the system file $MFT the attribute $Bitmap must be analn-resident
+ *	    otherwise windows will analt boot (blue screen of death)!  We cananalt
+ *	    check for this here as we do analt kanalw which ianalde's $Bitmap is
  *	    being asked about so the caller needs to special case this.
  */
 int ntfs_attr_can_be_resident(const ntfs_volume *vol, const ATTR_TYPE type)
@@ -1433,11 +1433,11 @@ int ntfs_attr_can_be_resident(const ntfs_volume *vol, const ATTR_TYPE type)
  * Resize the attribute record @a, i.e. the resident part of the attribute, in
  * the mft record @m to @new_size bytes.
  *
- * Return 0 on success and -errno on error.  The following error codes are
+ * Return 0 on success and -erranal on error.  The following error codes are
  * defined:
- *	-ENOSPC	- Not enough space in the mft record @m to perform the resize.
+ *	-EANALSPC	- Analt eanalugh space in the mft record @m to perform the resize.
  *
- * Note: On error, no modifications have been performed whatsoever.
+ * Analte: On error, anal modifications have been performed whatsoever.
  *
  * Warning: If you make a record smaller without having copied all the data you
  *	    are interested in the data may be overwritten.
@@ -1445,16 +1445,16 @@ int ntfs_attr_can_be_resident(const ntfs_volume *vol, const ATTR_TYPE type)
 int ntfs_attr_record_resize(MFT_RECORD *m, ATTR_RECORD *a, u32 new_size)
 {
 	ntfs_debug("Entering for new_size %u.", new_size);
-	/* Align to 8 bytes if it is not already done. */
+	/* Align to 8 bytes if it is analt already done. */
 	if (new_size & 7)
 		new_size = (new_size + 7) & ~7;
 	/* If the actual attribute length has changed, move things around. */
 	if (new_size != le32_to_cpu(a->length)) {
 		u32 new_muse = le32_to_cpu(m->bytes_in_use) -
 				le32_to_cpu(a->length) + new_size;
-		/* Not enough space in this mft record. */
+		/* Analt eanalugh space in this mft record. */
 		if (new_muse > le32_to_cpu(m->bytes_allocated))
-			return -ENOSPC;
+			return -EANALSPC;
 		/* Move attributes following @a to their new location. */
 		memmove((u8*)a + new_size, (u8*)a + le32_to_cpu(a->length),
 				le32_to_cpu(m->bytes_in_use) - ((u8*)a -
@@ -1477,11 +1477,11 @@ int ntfs_attr_record_resize(MFT_RECORD *m, ATTR_RECORD *a, u32 new_size)
  * Resize the value of the attribute @a in the mft record @m to @new_size bytes.
  * If the value is made bigger, the newly allocated space is cleared.
  *
- * Return 0 on success and -errno on error.  The following error codes are
+ * Return 0 on success and -erranal on error.  The following error codes are
  * defined:
- *	-ENOSPC	- Not enough space in the mft record @m to perform the resize.
+ *	-EANALSPC	- Analt eanalugh space in the mft record @m to perform the resize.
  *
- * Note: On error, no modifications have been performed whatsoever.
+ * Analte: On error, anal modifications have been performed whatsoever.
  *
  * Warning: If you make a record smaller without having copied all the data you
  *	    are interested in the data may be overwritten.
@@ -1494,7 +1494,7 @@ int ntfs_resident_attr_value_resize(MFT_RECORD *m, ATTR_RECORD *a,
 	/* Resize the resident part of the attribute record. */
 	if (ntfs_attr_record_resize(m, a,
 			le16_to_cpu(a->data.resident.value_offset) + new_size))
-		return -ENOSPC;
+		return -EANALSPC;
 	/*
 	 * The resize succeeded!  If we made the attribute value bigger, clear
 	 * the area between the old size and @new_size.
@@ -1509,45 +1509,45 @@ int ntfs_resident_attr_value_resize(MFT_RECORD *m, ATTR_RECORD *a,
 }
 
 /**
- * ntfs_attr_make_non_resident - convert a resident to a non-resident attribute
- * @ni:		ntfs inode describing the attribute to convert
- * @data_size:	size of the resident data to copy to the non-resident attribute
+ * ntfs_attr_make_analn_resident - convert a resident to a analn-resident attribute
+ * @ni:		ntfs ianalde describing the attribute to convert
+ * @data_size:	size of the resident data to copy to the analn-resident attribute
  *
- * Convert the resident ntfs attribute described by the ntfs inode @ni to a
- * non-resident one.
+ * Convert the resident ntfs attribute described by the ntfs ianalde @ni to a
+ * analn-resident one.
  *
  * @data_size must be equal to the attribute value size.  This is needed since
- * we need to know the size before we can map the mft record and our callers
- * always know it.  The reason we cannot simply read the size from the vfs
- * inode i_size is that this is not necessarily uptodate.  This happens when
- * ntfs_attr_make_non_resident() is called in the ->truncate call path(s).
+ * we need to kanalw the size before we can map the mft record and our callers
+ * always kanalw it.  The reason we cananalt simply read the size from the vfs
+ * ianalde i_size is that this is analt necessarily uptodate.  This happens when
+ * ntfs_attr_make_analn_resident() is called in the ->truncate call path(s).
  *
- * Return 0 on success and -errno on error.  The following error return codes
+ * Return 0 on success and -erranal on error.  The following error return codes
  * are defined:
- *	-EPERM	- The attribute is not allowed to be non-resident.
- *	-ENOMEM	- Not enough memory.
- *	-ENOSPC	- Not enough disk space.
- *	-EINVAL	- Attribute not defined on the volume.
+ *	-EPERM	- The attribute is analt allowed to be analn-resident.
+ *	-EANALMEM	- Analt eanalugh memory.
+ *	-EANALSPC	- Analt eanalugh disk space.
+ *	-EINVAL	- Attribute analt defined on the volume.
  *	-EIO	- I/o error or other error.
- * Note that -ENOSPC is also returned in the case that there is not enough
+ * Analte that -EANALSPC is also returned in the case that there is analt eanalugh
  * space in the mft record to do the conversion.  This can happen when the mft
  * record is already very full.  The caller is responsible for trying to make
  * space in the mft record and trying again.  FIXME: Do we need a separate
- * error return code for this kind of -ENOSPC or is it always worth trying
- * again in case the attribute may then fit in a resident state so no need to
- * make it non-resident at all?  Ho-hum...  (AIA)
+ * error return code for this kind of -EANALSPC or is it always worth trying
+ * again in case the attribute may then fit in a resident state so anal need to
+ * make it analn-resident at all?  Ho-hum...  (AIA)
  *
- * NOTE to self: No changes in the attribute list are required to move from
- *		 a resident to a non-resident attribute.
+ * ANALTE to self: Anal changes in the attribute list are required to move from
+ *		 a resident to a analn-resident attribute.
  *
- * Locking: - The caller must hold i_mutex on the inode.
+ * Locking: - The caller must hold i_mutex on the ianalde.
  */
-int ntfs_attr_make_non_resident(ntfs_inode *ni, const u32 data_size)
+int ntfs_attr_make_analn_resident(ntfs_ianalde *ni, const u32 data_size)
 {
 	s64 new_size;
-	struct inode *vi = VFS_I(ni);
+	struct ianalde *vi = VFS_I(ni);
 	ntfs_volume *vol = ni->vol;
-	ntfs_inode *base_ni;
+	ntfs_ianalde *base_ni;
 	MFT_RECORD *m;
 	ATTR_RECORD *a;
 	ntfs_attr_search_ctx *ctx;
@@ -1559,23 +1559,23 @@ int ntfs_attr_make_non_resident(ntfs_inode *ni, const u32 data_size)
 	u32 attr_size;
 	u8 old_res_attr_flags;
 
-	/* Check that the attribute is allowed to be non-resident. */
-	err = ntfs_attr_can_be_non_resident(vol, ni->type);
+	/* Check that the attribute is allowed to be analn-resident. */
+	err = ntfs_attr_can_be_analn_resident(vol, ni->type);
 	if (unlikely(err)) {
 		if (err == -EPERM)
-			ntfs_debug("Attribute is not allowed to be "
-					"non-resident.");
+			ntfs_debug("Attribute is analt allowed to be "
+					"analn-resident.");
 		else
-			ntfs_debug("Attribute not defined on the NTFS "
+			ntfs_debug("Attribute analt defined on the NTFS "
 					"volume!");
 		return err;
 	}
 	/*
-	 * FIXME: Compressed and encrypted attributes are not supported when
+	 * FIXME: Compressed and encrypted attributes are analt supported when
 	 * writing and we should never have gotten here for them.
 	 */
-	BUG_ON(NInoCompressed(ni));
-	BUG_ON(NInoEncrypted(ni));
+	BUG_ON(NIanalCompressed(ni));
+	BUG_ON(NIanalEncrypted(ni));
 	/*
 	 * The size needs to be aligned to a cluster boundary for allocation
 	 * purposes.
@@ -1585,12 +1585,12 @@ int ntfs_attr_make_non_resident(ntfs_inode *ni, const u32 data_size)
 	if (new_size > 0) {
 		/*
 		 * Will need the page later and since the page lock nests
-		 * outside all ntfs locks, we need to get the page now.
+		 * outside all ntfs locks, we need to get the page analw.
 		 */
 		page = find_or_create_page(vi->i_mapping, 0,
 				mapping_gfp_mask(vi->i_mapping));
 		if (unlikely(!page))
-			return -ENOMEM;
+			return -EANALMEM;
 		/* Start by allocating clusters to hold the attribute value. */
 		rl = ntfs_cluster_alloc(vol, 0, new_size >>
 				vol->cluster_size_bits, -1, DATA_ZONE, true);
@@ -1615,10 +1615,10 @@ int ntfs_attr_make_non_resident(ntfs_inode *ni, const u32 data_size)
 		goto rl_err_out;
 	}
 	down_write(&ni->runlist.lock);
-	if (!NInoAttr(ni))
+	if (!NIanalAttr(ni))
 		base_ni = ni;
 	else
-		base_ni = ni->ext.base_ntfs_ino;
+		base_ni = ni->ext.base_ntfs_ianal;
 	m = map_mft_record(base_ni);
 	if (IS_ERR(m)) {
 		err = PTR_ERR(m);
@@ -1628,39 +1628,39 @@ int ntfs_attr_make_non_resident(ntfs_inode *ni, const u32 data_size)
 	}
 	ctx = ntfs_attr_get_search_ctx(base_ni, m);
 	if (unlikely(!ctx)) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out;
 	}
 	err = ntfs_attr_lookup(ni->type, ni->name, ni->name_len,
 			CASE_SENSITIVE, 0, NULL, 0, ctx);
 	if (unlikely(err)) {
-		if (err == -ENOENT)
+		if (err == -EANALENT)
 			err = -EIO;
 		goto err_out;
 	}
 	m = ctx->mrec;
 	a = ctx->attr;
-	BUG_ON(NInoNonResident(ni));
-	BUG_ON(a->non_resident);
+	BUG_ON(NIanalAnalnResident(ni));
+	BUG_ON(a->analn_resident);
 	/*
 	 * Calculate new offsets for the name and the mapping pairs array.
 	 */
-	if (NInoSparse(ni) || NInoCompressed(ni))
+	if (NIanalSparse(ni) || NIanalCompressed(ni))
 		name_ofs = (offsetof(ATTR_REC,
-				data.non_resident.compressed_size) +
-				sizeof(a->data.non_resident.compressed_size) +
+				data.analn_resident.compressed_size) +
+				sizeof(a->data.analn_resident.compressed_size) +
 				7) & ~7;
 	else
 		name_ofs = (offsetof(ATTR_REC,
-				data.non_resident.compressed_size) + 7) & ~7;
+				data.analn_resident.compressed_size) + 7) & ~7;
 	mp_ofs = (name_ofs + a->name_length * sizeof(ntfschar) + 7) & ~7;
 	/*
-	 * Determine the size of the resident part of the now non-resident
+	 * Determine the size of the resident part of the analw analn-resident
 	 * attribute record.
 	 */
 	arec_size = (mp_ofs + mp_size + 7) & ~7;
 	/*
-	 * If the page is not uptodate bring it uptodate by copying from the
+	 * If the page is analt uptodate bring it uptodate by copying from the
 	 * attribute value.
 	 */
 	attr_size = le32_to_cpu(a->data.resident.value_length);
@@ -1683,33 +1683,33 @@ int ntfs_attr_make_non_resident(ntfs_inode *ni, const u32 data_size)
 		goto err_out;
 	/*
 	 * Convert the resident part of the attribute record to describe a
-	 * non-resident attribute.
+	 * analn-resident attribute.
 	 */
-	a->non_resident = 1;
+	a->analn_resident = 1;
 	/* Move the attribute name if it exists and update the offset. */
 	if (a->name_length)
 		memmove((u8*)a + name_ofs, (u8*)a + le16_to_cpu(a->name_offset),
 				a->name_length * sizeof(ntfschar));
 	a->name_offset = cpu_to_le16(name_ofs);
-	/* Setup the fields specific to non-resident attributes. */
-	a->data.non_resident.lowest_vcn = 0;
-	a->data.non_resident.highest_vcn = cpu_to_sle64((new_size - 1) >>
+	/* Setup the fields specific to analn-resident attributes. */
+	a->data.analn_resident.lowest_vcn = 0;
+	a->data.analn_resident.highest_vcn = cpu_to_sle64((new_size - 1) >>
 			vol->cluster_size_bits);
-	a->data.non_resident.mapping_pairs_offset = cpu_to_le16(mp_ofs);
-	memset(&a->data.non_resident.reserved, 0,
-			sizeof(a->data.non_resident.reserved));
-	a->data.non_resident.allocated_size = cpu_to_sle64(new_size);
-	a->data.non_resident.data_size =
-			a->data.non_resident.initialized_size =
+	a->data.analn_resident.mapping_pairs_offset = cpu_to_le16(mp_ofs);
+	memset(&a->data.analn_resident.reserved, 0,
+			sizeof(a->data.analn_resident.reserved));
+	a->data.analn_resident.allocated_size = cpu_to_sle64(new_size);
+	a->data.analn_resident.data_size =
+			a->data.analn_resident.initialized_size =
 			cpu_to_sle64(attr_size);
-	if (NInoSparse(ni) || NInoCompressed(ni)) {
-		a->data.non_resident.compression_unit = 0;
-		if (NInoCompressed(ni) || vol->major_ver < 3)
-			a->data.non_resident.compression_unit = 4;
-		a->data.non_resident.compressed_size =
-				a->data.non_resident.allocated_size;
+	if (NIanalSparse(ni) || NIanalCompressed(ni)) {
+		a->data.analn_resident.compression_unit = 0;
+		if (NIanalCompressed(ni) || vol->major_ver < 3)
+			a->data.analn_resident.compression_unit = 4;
+		a->data.analn_resident.compressed_size =
+				a->data.analn_resident.allocated_size;
 	} else
-		a->data.non_resident.compression_unit = 0;
+		a->data.analn_resident.compression_unit = 0;
 	/* Generate the mapping pairs array into the attribute record. */
 	err = ntfs_mapping_pairs_build(vol, (u8*)a + mp_ofs,
 			arec_size - mp_ofs, rl, 0, -1, NULL);
@@ -1718,21 +1718,21 @@ int ntfs_attr_make_non_resident(ntfs_inode *ni, const u32 data_size)
 				err);
 		goto undo_err_out;
 	}
-	/* Setup the in-memory attribute structure to be non-resident. */
+	/* Setup the in-memory attribute structure to be analn-resident. */
 	ni->runlist.rl = rl;
 	write_lock_irqsave(&ni->size_lock, flags);
 	ni->allocated_size = new_size;
-	if (NInoSparse(ni) || NInoCompressed(ni)) {
+	if (NIanalSparse(ni) || NIanalCompressed(ni)) {
 		ni->itype.compressed.size = ni->allocated_size;
-		if (a->data.non_resident.compression_unit) {
+		if (a->data.analn_resident.compression_unit) {
 			ni->itype.compressed.block_size = 1U << (a->data.
-					non_resident.compression_unit +
+					analn_resident.compression_unit +
 					vol->cluster_size_bits);
 			ni->itype.compressed.block_size_bits =
 					ffs(ni->itype.compressed.block_size) -
 					1;
 			ni->itype.compressed.block_clusters = 1U <<
-					a->data.non_resident.compression_unit;
+					a->data.analn_resident.compression_unit;
 		} else {
 			ni->itype.compressed.block_size = 0;
 			ni->itype.compressed.block_size_bits = 0;
@@ -1744,14 +1744,14 @@ int ntfs_attr_make_non_resident(ntfs_inode *ni, const u32 data_size)
 	write_unlock_irqrestore(&ni->size_lock, flags);
 	/*
 	 * This needs to be last since the address space operations ->read_folio
-	 * and ->writepage can run concurrently with us as they are not
-	 * serialized on i_mutex.  Note, we are not allowed to fail once we flip
-	 * this switch, which is another reason to do this last.
+	 * and ->writepage can run concurrently with us as they are analt
+	 * serialized on i_mutex.  Analte, we are analt allowed to fail once we flip
+	 * this switch, which is aanalther reason to do this last.
 	 */
-	NInoSetNonResident(ni);
+	NIanalSetAnalnResident(ni);
 	/* Mark the mft record dirty, so it gets written back. */
-	flush_dcache_mft_record_page(ctx->ntfs_ino);
-	mark_mft_record_dirty(ctx->ntfs_ino);
+	flush_dcache_mft_record_page(ctx->ntfs_ianal);
+	mark_mft_record_dirty(ctx->ntfs_ianal);
 	ntfs_attr_put_search_ctx(ctx);
 	unmap_mft_record(base_ni);
 	up_write(&ni->runlist.lock);
@@ -1764,7 +1764,7 @@ int ntfs_attr_make_non_resident(ntfs_inode *ni, const u32 data_size)
 	return 0;
 undo_err_out:
 	/* Convert the attribute back into a resident attribute. */
-	a->non_resident = 0;
+	a->analn_resident = 0;
 	/* Move the attribute name if it exists and update the offset. */
 	name_ofs = (offsetof(ATTR_RECORD, data.resident.reserved) +
 			sizeof(a->data.resident.reserved) + 7) & ~7;
@@ -1778,7 +1778,7 @@ undo_err_out:
 	err2 = ntfs_attr_record_resize(m, a, arec_size);
 	if (unlikely(err2)) {
 		/*
-		 * This cannot happen (well if memory corruption is at work it
+		 * This cananalt happen (well if memory corruption is at work it
 		 * could happen in theory), but deal with it as well as we can.
 		 * If the old size is too small, truncate the attribute,
 		 * otherwise simply give it a larger allocated size.
@@ -1790,13 +1790,13 @@ undo_err_out:
 			err2 = attr_size;
 			attr_size = arec_size - mp_ofs;
 			ntfs_error(vol->sb, "Failed to undo partial resident "
-					"to non-resident attribute "
-					"conversion.  Truncating inode 0x%lx, "
+					"to analn-resident attribute "
+					"conversion.  Truncating ianalde 0x%lx, "
 					"attribute type 0x%x from %i bytes to "
 					"%i bytes to maintain metadata "
 					"consistency.  THIS MEANS YOU ARE "
 					"LOSING %i BYTES DATA FROM THIS %s.",
-					vi->i_ino,
+					vi->i_ianal,
 					(unsigned)le32_to_cpu(ni->type),
 					err2, attr_size, err2 - attr_size,
 					((ni->type == AT_DATA) &&
@@ -1819,13 +1819,13 @@ undo_err_out:
 		memcpy((u8*)a + mp_ofs, kaddr, attr_size);
 		kunmap_atomic(kaddr);
 	}
-	/* Setup the allocated size in the ntfs inode in case it changed. */
+	/* Setup the allocated size in the ntfs ianalde in case it changed. */
 	write_lock_irqsave(&ni->size_lock, flags);
 	ni->allocated_size = arec_size - mp_ofs;
 	write_unlock_irqrestore(&ni->size_lock, flags);
 	/* Mark the mft record dirty, so it gets written back. */
-	flush_dcache_mft_record_page(ctx->ntfs_ino);
-	mark_mft_record_dirty(ctx->ntfs_ino);
+	flush_dcache_mft_record_page(ctx->ntfs_ianal);
+	mark_mft_record_dirty(ctx->ntfs_ianal);
 err_out:
 	if (ctx)
 		ntfs_attr_put_search_ctx(ctx);
@@ -1854,32 +1854,32 @@ page_err_out:
 
 /**
  * ntfs_attr_extend_allocation - extend the allocated space of an attribute
- * @ni:			ntfs inode of the attribute whose allocation to extend
+ * @ni:			ntfs ianalde of the attribute whose allocation to extend
  * @new_alloc_size:	new size in bytes to which to extend the allocation to
  * @new_data_size:	new size in bytes to which to extend the data to
- * @data_start:		beginning of region which is required to be non-sparse
+ * @data_start:		beginning of region which is required to be analn-sparse
  *
- * Extend the allocated space of an attribute described by the ntfs inode @ni
+ * Extend the allocated space of an attribute described by the ntfs ianalde @ni
  * to @new_alloc_size bytes.  If @data_start is -1, the whole extension may be
  * implemented as a hole in the file (as long as both the volume and the ntfs
- * inode @ni have sparse support enabled).  If @data_start is >= 0, then the
+ * ianalde @ni have sparse support enabled).  If @data_start is >= 0, then the
  * region between the old allocated size and @data_start - 1 may be made sparse
  * but the regions between @data_start and @new_alloc_size must be backed by
  * actual clusters.
  *
- * If @new_data_size is -1, it is ignored.  If it is >= 0, then the data size
- * of the attribute is extended to @new_data_size.  Note that the i_size of the
- * vfs inode is not updated.  Only the data size in the base attribute record
+ * If @new_data_size is -1, it is iganalred.  If it is >= 0, then the data size
+ * of the attribute is extended to @new_data_size.  Analte that the i_size of the
+ * vfs ianalde is analt updated.  Only the data size in the base attribute record
  * is updated.  The caller has to update i_size separately if this is required.
  * WARNING: It is a BUG() for @new_data_size to be smaller than the old data
  * size as well as for @new_data_size to be greater than @new_alloc_size.
  *
  * For resident attributes this involves resizing the attribute record and if
  * necessary moving it and/or other attributes into extent mft records and/or
- * converting the attribute to a non-resident attribute which in turn involves
- * extending the allocation of a non-resident attribute as described below.
+ * converting the attribute to a analn-resident attribute which in turn involves
+ * extending the allocation of a analn-resident attribute as described below.
  *
- * For non-resident attributes this involves allocating clusters in the data
+ * For analn-resident attributes this involves allocating clusters in the data
  * zone on the volume (except for regions that are being made sparse) and
  * extending the run list to describe the allocated clusters as well as
  * updating the mapping pairs array of the attribute.  This in turn involves
@@ -1889,36 +1889,36 @@ page_err_out:
  *
  * Also, the attribute list attribute is updated if present and in some of the
  * above cases (the ones where extent mft records/attributes come into play),
- * an attribute list attribute is created if not already present.
+ * an attribute list attribute is created if analt already present.
  *
- * Return the new allocated size on success and -errno on error.  In the case
+ * Return the new allocated size on success and -erranal on error.  In the case
  * that an error is encountered but a partial extension at least up to
  * @data_start (if present) is possible, the allocation is partially extended
  * and this is returned.  This means the caller must check the returned size to
  * determine if the extension was partial.  If @data_start is -1 then partial
- * allocations are not performed.
+ * allocations are analt performed.
  *
- * WARNING: Do not call ntfs_attr_extend_allocation() for $MFT/$DATA.
+ * WARNING: Do analt call ntfs_attr_extend_allocation() for $MFT/$DATA.
  *
  * Locking: This function takes the runlist lock of @ni for writing as well as
- * locking the mft record of the base ntfs inode.  These locks are maintained
+ * locking the mft record of the base ntfs ianalde.  These locks are maintained
  * throughout execution of the function.  These locks are required so that the
  * attribute can be resized safely and so that it can for example be converted
- * from resident to non-resident safely.
+ * from resident to analn-resident safely.
  *
- * TODO: At present attribute list attribute handling is not implemented.
+ * TODO: At present attribute list attribute handling is analt implemented.
  *
- * TODO: At present it is not safe to call this function for anything other
+ * TODO: At present it is analt safe to call this function for anything other
  * than the $DATA attribute(s) of an uncompressed and unencrypted file.
  */
-s64 ntfs_attr_extend_allocation(ntfs_inode *ni, s64 new_alloc_size,
+s64 ntfs_attr_extend_allocation(ntfs_ianalde *ni, s64 new_alloc_size,
 		const s64 new_data_size, const s64 data_start)
 {
 	VCN vcn;
 	s64 ll, allocated_size, start = data_start;
-	struct inode *vi = VFS_I(ni);
+	struct ianalde *vi = VFS_I(ni);
 	ntfs_volume *vol = ni->vol;
-	ntfs_inode *base_ni;
+	ntfs_ianalde *base_ni;
 	MFT_RECORD *m;
 	ATTR_RECORD *a;
 	ntfs_attr_search_ctx *ctx;
@@ -1932,10 +1932,10 @@ s64 ntfs_attr_extend_allocation(ntfs_inode *ni, s64 new_alloc_size,
 	read_lock_irqsave(&ni->size_lock, flags);
 	allocated_size = ni->allocated_size;
 	read_unlock_irqrestore(&ni->size_lock, flags);
-	ntfs_debug("Entering for i_ino 0x%lx, attribute type 0x%x, "
+	ntfs_debug("Entering for i_ianal 0x%lx, attribute type 0x%x, "
 			"old_allocated_size 0x%llx, "
 			"new_allocated_size 0x%llx, new_data_size 0x%llx, "
-			"data_start 0x%llx.", vi->i_ino,
+			"data_start 0x%llx.", vi->i_ianal,
 			(unsigned)le32_to_cpu(ni->type),
 			(unsigned long long)allocated_size,
 			(unsigned long long)new_alloc_size,
@@ -1944,10 +1944,10 @@ s64 ntfs_attr_extend_allocation(ntfs_inode *ni, s64 new_alloc_size,
 #endif
 retry_extend:
 	/*
-	 * For non-resident attributes, @start and @new_size need to be aligned
+	 * For analn-resident attributes, @start and @new_size need to be aligned
 	 * to cluster boundaries for allocation purposes.
 	 */
-	if (NInoNonResident(ni)) {
+	if (NIanalAnalnResident(ni)) {
 		if (start > 0)
 			start &= ~(s64)vol->cluster_size_mask;
 		new_alloc_size = (new_alloc_size + vol->cluster_size - 1) &
@@ -1963,23 +1963,23 @@ retry_extend:
 		read_unlock_irqrestore(&ni->size_lock, flags);
 		if (start < 0 || start >= allocated_size) {
 			if (err == -ERANGE) {
-				ntfs_error(vol->sb, "Cannot extend allocation "
-						"of inode 0x%lx, attribute "
+				ntfs_error(vol->sb, "Cananalt extend allocation "
+						"of ianalde 0x%lx, attribute "
 						"type 0x%x, because the new "
 						"allocation would exceed the "
 						"maximum allowed size for "
 						"this attribute type.",
-						vi->i_ino, (unsigned)
+						vi->i_ianal, (unsigned)
 						le32_to_cpu(ni->type));
 			} else {
-				ntfs_error(vol->sb, "Cannot extend allocation "
-						"of inode 0x%lx, attribute "
+				ntfs_error(vol->sb, "Cananalt extend allocation "
+						"of ianalde 0x%lx, attribute "
 						"type 0x%x, because this "
-						"attribute type is not "
+						"attribute type is analt "
 						"defined on the NTFS volume.  "
 						"Possible corruption!  You "
 						"should run chkdsk!",
-						vi->i_ino, (unsigned)
+						vi->i_ianal, (unsigned)
 						le32_to_cpu(ni->type));
 			}
 		}
@@ -1990,12 +1990,12 @@ retry_extend:
 			err = -EIO;
 		return err;
 	}
-	if (!NInoAttr(ni))
+	if (!NIanalAttr(ni))
 		base_ni = ni;
 	else
-		base_ni = ni->ext.base_ntfs_ino;
+		base_ni = ni->ext.base_ntfs_ianal;
 	/*
-	 * We will be modifying both the runlist (if non-resident) and the mft
+	 * We will be modifying both the runlist (if analn-resident) and the mft
 	 * record so lock them both down.
 	 */
 	down_write(&ni->runlist.lock);
@@ -2008,22 +2008,22 @@ retry_extend:
 	}
 	ctx = ntfs_attr_get_search_ctx(base_ni, m);
 	if (unlikely(!ctx)) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out;
 	}
 	read_lock_irqsave(&ni->size_lock, flags);
 	allocated_size = ni->allocated_size;
 	read_unlock_irqrestore(&ni->size_lock, flags);
 	/*
-	 * If non-resident, seek to the last extent.  If resident, there is
+	 * If analn-resident, seek to the last extent.  If resident, there is
 	 * only one extent, so seek to that.
 	 */
-	vcn = NInoNonResident(ni) ? allocated_size >> vol->cluster_size_bits :
+	vcn = NIanalAnalnResident(ni) ? allocated_size >> vol->cluster_size_bits :
 			0;
 	/*
 	 * Abort if someone did the work whilst we waited for the locks.  If we
-	 * just converted the attribute from resident to non-resident it is
-	 * likely that exactly this has happened already.  We cannot quite
+	 * just converted the attribute from resident to analn-resident it is
+	 * likely that exactly this has happened already.  We cananalt quite
 	 * abort if we need to update the data size.
 	 */
 	if (unlikely(new_alloc_size <= allocated_size)) {
@@ -2040,22 +2040,22 @@ retry_extend:
 	err = ntfs_attr_lookup(ni->type, ni->name, ni->name_len,
 			CASE_SENSITIVE, vcn, NULL, 0, ctx);
 	if (unlikely(err)) {
-		if (err == -ENOENT)
+		if (err == -EANALENT)
 			err = -EIO;
 		goto err_out;
 	}
 	m = ctx->mrec;
 	a = ctx->attr;
 	/* Use goto to reduce indentation. */
-	if (a->non_resident)
-		goto do_non_resident_extend;
-	BUG_ON(NInoNonResident(ni));
+	if (a->analn_resident)
+		goto do_analn_resident_extend;
+	BUG_ON(NIanalAnalnResident(ni));
 	/* The total length of the attribute value. */
 	attr_len = le32_to_cpu(a->data.resident.value_length);
 	/*
 	 * Extend the attribute record to be able to store the new attribute
-	 * size.  ntfs_attr_record_resize() will not do anything if the size is
-	 * not changing.
+	 * size.  ntfs_attr_record_resize() will analt do anything if the size is
+	 * analt changing.
 	 */
 	if (new_alloc_size < vol->mft_record_size &&
 			!ntfs_attr_record_resize(m, a,
@@ -2075,67 +2075,67 @@ retry_extend:
 	}
 	/*
 	 * We have to drop all the locks so we can call
-	 * ntfs_attr_make_non_resident().  This could be optimised by try-
+	 * ntfs_attr_make_analn_resident().  This could be optimised by try-
 	 * locking the first page cache page and only if that fails dropping
 	 * the locks, locking the page, and redoing all the locking and
-	 * lookups.  While this would be a huge optimisation, it is not worth
+	 * lookups.  While this would be a huge optimisation, it is analt worth
 	 * it as this is definitely a slow code path.
 	 */
 	ntfs_attr_put_search_ctx(ctx);
 	unmap_mft_record(base_ni);
 	up_write(&ni->runlist.lock);
 	/*
-	 * Not enough space in the mft record, try to make the attribute
-	 * non-resident and if successful restart the extension process.
+	 * Analt eanalugh space in the mft record, try to make the attribute
+	 * analn-resident and if successful restart the extension process.
 	 */
-	err = ntfs_attr_make_non_resident(ni, attr_len);
+	err = ntfs_attr_make_analn_resident(ni, attr_len);
 	if (likely(!err))
 		goto retry_extend;
 	/*
-	 * Could not make non-resident.  If this is due to this not being
-	 * permitted for this attribute type or there not being enough space,
-	 * try to make other attributes non-resident.  Otherwise fail.
+	 * Could analt make analn-resident.  If this is due to this analt being
+	 * permitted for this attribute type or there analt being eanalugh space,
+	 * try to make other attributes analn-resident.  Otherwise fail.
 	 */
-	if (unlikely(err != -EPERM && err != -ENOSPC)) {
+	if (unlikely(err != -EPERM && err != -EANALSPC)) {
 		/* Only emit errors when the write will fail completely. */
 		read_lock_irqsave(&ni->size_lock, flags);
 		allocated_size = ni->allocated_size;
 		read_unlock_irqrestore(&ni->size_lock, flags);
 		if (start < 0 || start >= allocated_size)
-			ntfs_error(vol->sb, "Cannot extend allocation of "
-					"inode 0x%lx, attribute type 0x%x, "
+			ntfs_error(vol->sb, "Cananalt extend allocation of "
+					"ianalde 0x%lx, attribute type 0x%x, "
 					"because the conversion from resident "
-					"to non-resident attribute failed "
-					"with error code %i.", vi->i_ino,
+					"to analn-resident attribute failed "
+					"with error code %i.", vi->i_ianal,
 					(unsigned)le32_to_cpu(ni->type), err);
-		if (err != -ENOMEM)
+		if (err != -EANALMEM)
 			err = -EIO;
 		goto conv_err_out;
 	}
-	/* TODO: Not implemented from here, abort. */
+	/* TODO: Analt implemented from here, abort. */
 	read_lock_irqsave(&ni->size_lock, flags);
 	allocated_size = ni->allocated_size;
 	read_unlock_irqrestore(&ni->size_lock, flags);
 	if (start < 0 || start >= allocated_size) {
-		if (err == -ENOSPC)
-			ntfs_error(vol->sb, "Not enough space in the mft "
-					"record/on disk for the non-resident "
-					"attribute value.  This case is not "
+		if (err == -EANALSPC)
+			ntfs_error(vol->sb, "Analt eanalugh space in the mft "
+					"record/on disk for the analn-resident "
+					"attribute value.  This case is analt "
 					"implemented yet.");
 		else /* if (err == -EPERM) */
-			ntfs_error(vol->sb, "This attribute type may not be "
-					"non-resident.  This case is not "
+			ntfs_error(vol->sb, "This attribute type may analt be "
+					"analn-resident.  This case is analt "
 					"implemented yet.");
 	}
-	err = -EOPNOTSUPP;
+	err = -EOPANALTSUPP;
 	goto conv_err_out;
 #if 0
-	// TODO: Attempt to make other attributes non-resident.
+	// TODO: Attempt to make other attributes analn-resident.
 	if (!err)
 		goto do_resident_extend;
 	/*
 	 * Both the attribute list attribute and the standard information
-	 * attribute must remain in the base inode.  Thus, if this is one of
+	 * attribute must remain in the base ianalde.  Thus, if this is one of
 	 * these attributes, we have to try to move other attributes out into
 	 * extent mft records instead.
 	 */
@@ -2143,22 +2143,22 @@ retry_extend:
 			ni->type == AT_STANDARD_INFORMATION) {
 		// TODO: Attempt to move other attributes into extent mft
 		// records.
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		if (!err)
 			goto do_resident_extend;
 		goto err_out;
 	}
 	// TODO: Attempt to move this attribute to an extent mft record, but
-	// only if it is not already the only attribute in an mft record in
-	// which case there would be nothing to gain.
-	err = -EOPNOTSUPP;
+	// only if it is analt already the only attribute in an mft record in
+	// which case there would be analthing to gain.
+	err = -EOPANALTSUPP;
 	if (!err)
 		goto do_resident_extend;
-	/* There is nothing we can do to make enough space. )-: */
+	/* There is analthing we can do to make eanalugh space. )-: */
 	goto err_out;
 #endif
-do_non_resident_extend:
-	BUG_ON(!NInoNonResident(ni));
+do_analn_resident_extend:
+	BUG_ON(!NIanalAnalnResident(ni));
 	if (new_alloc_size == allocated_size) {
 		BUG_ON(vcn);
 		goto alloc_done;
@@ -2166,17 +2166,17 @@ do_non_resident_extend:
 	/*
 	 * If the data starts after the end of the old allocation, this is a
 	 * $DATA attribute and sparse attributes are enabled on the volume and
-	 * for this inode, then create a sparse region between the old
+	 * for this ianalde, then create a sparse region between the old
 	 * allocated size and the start of the data.  Otherwise simply proceed
 	 * with filling the whole space between the old allocated size and the
 	 * new allocated size with clusters.
 	 */
 	if ((start >= 0 && start <= allocated_size) || ni->type != AT_DATA ||
-			!NVolSparseEnabled(vol) || NInoSparseDisabled(ni))
+			!NVolSparseEnabled(vol) || NIanalSparseDisabled(ni))
 		goto skip_sparse;
-	// TODO: This is not implemented yet.  We just fill in with real
-	// clusters for now...
-	ntfs_debug("Inserting holes is not-implemented yet.  Falling back to "
+	// TODO: This is analt implemented yet.  We just fill in with real
+	// clusters for analw...
+	ntfs_debug("Inserting holes is analt-implemented yet.  Falling back to "
 			"allocating real clusters instead.");
 skip_sparse:
 	rl = ni->runlist.rl;
@@ -2185,25 +2185,25 @@ skip_sparse:
 		while (rl->length)
 			rl++;
 	}
-	/* If this attribute extent is not mapped, map it now. */
-	if (unlikely(!rl || rl->lcn == LCN_RL_NOT_MAPPED ||
-			(rl->lcn == LCN_ENOENT && rl > ni->runlist.rl &&
-			(rl-1)->lcn == LCN_RL_NOT_MAPPED))) {
+	/* If this attribute extent is analt mapped, map it analw. */
+	if (unlikely(!rl || rl->lcn == LCN_RL_ANALT_MAPPED ||
+			(rl->lcn == LCN_EANALENT && rl > ni->runlist.rl &&
+			(rl-1)->lcn == LCN_RL_ANALT_MAPPED))) {
 		if (!rl && !allocated_size)
 			goto first_alloc;
 		rl = ntfs_mapping_pairs_decompress(vol, a, ni->runlist.rl);
 		if (IS_ERR(rl)) {
 			err = PTR_ERR(rl);
 			if (start < 0 || start >= allocated_size)
-				ntfs_error(vol->sb, "Cannot extend allocation "
-						"of inode 0x%lx, attribute "
+				ntfs_error(vol->sb, "Cananalt extend allocation "
+						"of ianalde 0x%lx, attribute "
 						"type 0x%x, because the "
 						"mapping of a runlist "
 						"fragment failed with error "
-						"code %i.", vi->i_ino,
+						"code %i.", vi->i_ianal,
 						(unsigned)le32_to_cpu(ni->type),
 						err);
-			if (err != -ENOMEM)
+			if (err != -EANALMEM)
 				err = -EIO;
 			goto err_out;
 		}
@@ -2213,10 +2213,10 @@ skip_sparse:
 			rl++;
 	}
 	/*
-	 * We now know the runlist of the last extent is mapped and @rl is at
+	 * We analw kanalw the runlist of the last extent is mapped and @rl is at
 	 * the end of the runlist.  We want to begin allocating clusters
 	 * starting at the last allocated cluster to reduce fragmentation.  If
-	 * there are no valid LCNs in the attribute we let the cluster
+	 * there are anal valid LCNs in the attribute we let the cluster
 	 * allocator choose the starting cluster.
 	 */
 	/* If the last LCN is a hole or simillar seek back to last real LCN. */
@@ -2233,12 +2233,12 @@ first_alloc:
 	if (IS_ERR(rl2)) {
 		err = PTR_ERR(rl2);
 		if (start < 0 || start >= allocated_size)
-			ntfs_error(vol->sb, "Cannot extend allocation of "
-					"inode 0x%lx, attribute type 0x%x, "
+			ntfs_error(vol->sb, "Cananalt extend allocation of "
+					"ianalde 0x%lx, attribute type 0x%x, "
 					"because the allocation of clusters "
-					"failed with error code %i.", vi->i_ino,
+					"failed with error code %i.", vi->i_ianal,
 					(unsigned)le32_to_cpu(ni->type), err);
-		if (err != -ENOMEM && err != -ENOSPC)
+		if (err != -EANALMEM && err != -EANALSPC)
 			err = -EIO;
 		goto err_out;
 	}
@@ -2246,12 +2246,12 @@ first_alloc:
 	if (IS_ERR(rl)) {
 		err = PTR_ERR(rl);
 		if (start < 0 || start >= allocated_size)
-			ntfs_error(vol->sb, "Cannot extend allocation of "
-					"inode 0x%lx, attribute type 0x%x, "
+			ntfs_error(vol->sb, "Cananalt extend allocation of "
+					"ianalde 0x%lx, attribute type 0x%x, "
 					"because the runlist merge failed "
-					"with error code %i.", vi->i_ino,
+					"with error code %i.", vi->i_ianal,
 					(unsigned)le32_to_cpu(ni->type), err);
-		if (err != -ENOMEM)
+		if (err != -EANALMEM)
 			err = -EIO;
 		if (ntfs_cluster_free_from_rl(vol, rl2)) {
 			ntfs_error(vol->sb, "Failed to release allocated "
@@ -2267,8 +2267,8 @@ first_alloc:
 	ntfs_debug("Allocated 0x%llx clusters.", (long long)(new_alloc_size -
 			allocated_size) >> vol->cluster_size_bits);
 	/* Find the runlist element with which the attribute extent starts. */
-	ll = sle64_to_cpu(a->data.non_resident.lowest_vcn);
-	rl2 = ntfs_rl_find_vcn_nolock(rl, ll);
+	ll = sle64_to_cpu(a->data.analn_resident.lowest_vcn);
+	rl2 = ntfs_rl_find_vcn_anallock(rl, ll);
 	BUG_ON(!rl2);
 	BUG_ON(!rl2->length);
 	BUG_ON(rl2->lcn < LCN_HOLE);
@@ -2278,11 +2278,11 @@ first_alloc:
 	if (unlikely(mp_size <= 0)) {
 		err = mp_size;
 		if (start < 0 || start >= allocated_size)
-			ntfs_error(vol->sb, "Cannot extend allocation of "
-					"inode 0x%lx, attribute type 0x%x, "
+			ntfs_error(vol->sb, "Cananalt extend allocation of "
+					"ianalde 0x%lx, attribute type 0x%x, "
 					"because determining the size for the "
 					"mapping pairs failed with error code "
-					"%i.", vi->i_ino,
+					"%i.", vi->i_ianal,
 					(unsigned)le32_to_cpu(ni->type), err);
 		err = -EIO;
 		goto undo_alloc;
@@ -2290,76 +2290,76 @@ first_alloc:
 	/* Extend the attribute record to fit the bigger mapping pairs array. */
 	attr_len = le32_to_cpu(a->length);
 	err = ntfs_attr_record_resize(m, a, mp_size +
-			le16_to_cpu(a->data.non_resident.mapping_pairs_offset));
+			le16_to_cpu(a->data.analn_resident.mapping_pairs_offset));
 	if (unlikely(err)) {
-		BUG_ON(err != -ENOSPC);
+		BUG_ON(err != -EANALSPC);
 		// TODO: Deal with this by moving this extent to a new mft
 		// record or by starting a new extent in a new mft record,
 		// possibly by extending this extent partially and filling it
 		// and creating a new extent for the remainder, or by making
-		// other attributes non-resident and/or by moving other
+		// other attributes analn-resident and/or by moving other
 		// attributes out of this mft record.
 		if (start < 0 || start >= allocated_size)
-			ntfs_error(vol->sb, "Not enough space in the mft "
+			ntfs_error(vol->sb, "Analt eanalugh space in the mft "
 					"record for the extended attribute "
-					"record.  This case is not "
+					"record.  This case is analt "
 					"implemented yet.");
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto undo_alloc;
 	}
 	mp_rebuilt = true;
 	/* Generate the mapping pairs array directly into the attr record. */
 	err = ntfs_mapping_pairs_build(vol, (u8*)a +
-			le16_to_cpu(a->data.non_resident.mapping_pairs_offset),
+			le16_to_cpu(a->data.analn_resident.mapping_pairs_offset),
 			mp_size, rl2, ll, -1, NULL);
 	if (unlikely(err)) {
 		if (start < 0 || start >= allocated_size)
-			ntfs_error(vol->sb, "Cannot extend allocation of "
-					"inode 0x%lx, attribute type 0x%x, "
+			ntfs_error(vol->sb, "Cananalt extend allocation of "
+					"ianalde 0x%lx, attribute type 0x%x, "
 					"because building the mapping pairs "
-					"failed with error code %i.", vi->i_ino,
+					"failed with error code %i.", vi->i_ianal,
 					(unsigned)le32_to_cpu(ni->type), err);
 		err = -EIO;
 		goto undo_alloc;
 	}
 	/* Update the highest_vcn. */
-	a->data.non_resident.highest_vcn = cpu_to_sle64((new_alloc_size >>
+	a->data.analn_resident.highest_vcn = cpu_to_sle64((new_alloc_size >>
 			vol->cluster_size_bits) - 1);
 	/*
-	 * We now have extended the allocated size of the attribute.  Reflect
-	 * this in the ntfs_inode structure and the attribute record.
+	 * We analw have extended the allocated size of the attribute.  Reflect
+	 * this in the ntfs_ianalde structure and the attribute record.
 	 */
-	if (a->data.non_resident.lowest_vcn) {
+	if (a->data.analn_resident.lowest_vcn) {
 		/*
-		 * We are not in the first attribute extent, switch to it, but
+		 * We are analt in the first attribute extent, switch to it, but
 		 * first ensure the changes will make it to disk later.
 		 */
-		flush_dcache_mft_record_page(ctx->ntfs_ino);
-		mark_mft_record_dirty(ctx->ntfs_ino);
+		flush_dcache_mft_record_page(ctx->ntfs_ianal);
+		mark_mft_record_dirty(ctx->ntfs_ianal);
 		ntfs_attr_reinit_search_ctx(ctx);
 		err = ntfs_attr_lookup(ni->type, ni->name, ni->name_len,
 				CASE_SENSITIVE, 0, NULL, 0, ctx);
 		if (unlikely(err))
 			goto restore_undo_alloc;
-		/* @m is not used any more so no need to set it. */
+		/* @m is analt used any more so anal need to set it. */
 		a = ctx->attr;
 	}
 	write_lock_irqsave(&ni->size_lock, flags);
 	ni->allocated_size = new_alloc_size;
-	a->data.non_resident.allocated_size = cpu_to_sle64(new_alloc_size);
+	a->data.analn_resident.allocated_size = cpu_to_sle64(new_alloc_size);
 	/*
 	 * FIXME: This would fail if @ni is a directory, $MFT, or an index,
 	 * since those can have sparse/compressed set.  For example can be
-	 * set compressed even though it is not compressed itself and in that
+	 * set compressed even though it is analt compressed itself and in that
 	 * case the bit means that files are to be created compressed in the
 	 * directory...  At present this is ok as this code is only called for
 	 * regular files, and only for their $DATA attribute(s).
-	 * FIXME: The calculation is wrong if we created a hole above.  For now
-	 * it does not matter as we never create holes.
+	 * FIXME: The calculation is wrong if we created a hole above.  For analw
+	 * it does analt matter as we never create holes.
 	 */
-	if (NInoSparse(ni) || NInoCompressed(ni)) {
+	if (NIanalSparse(ni) || NIanalCompressed(ni)) {
 		ni->itype.compressed.size += new_alloc_size - allocated_size;
-		a->data.non_resident.compressed_size =
+		a->data.analn_resident.compressed_size =
 				cpu_to_sle64(ni->itype.compressed.size);
 		vi->i_blocks = ni->itype.compressed.size >> 9;
 	} else
@@ -2368,13 +2368,13 @@ first_alloc:
 alloc_done:
 	if (new_data_size >= 0) {
 		BUG_ON(new_data_size <
-				sle64_to_cpu(a->data.non_resident.data_size));
-		a->data.non_resident.data_size = cpu_to_sle64(new_data_size);
+				sle64_to_cpu(a->data.analn_resident.data_size));
+		a->data.analn_resident.data_size = cpu_to_sle64(new_data_size);
 	}
 flush_done:
 	/* Ensure the changes make it to disk. */
-	flush_dcache_mft_record_page(ctx->ntfs_ino);
-	mark_mft_record_dirty(ctx->ntfs_ino);
+	flush_dcache_mft_record_page(ctx->ntfs_ianal);
+	mark_mft_record_dirty(ctx->ntfs_ianal);
 done:
 	ntfs_attr_put_search_ctx(ctx);
 	unmap_mft_record(base_ni);
@@ -2384,12 +2384,12 @@ done:
 	return new_alloc_size;
 restore_undo_alloc:
 	if (start < 0 || start >= allocated_size)
-		ntfs_error(vol->sb, "Cannot complete extension of allocation "
-				"of inode 0x%lx, attribute type 0x%x, because "
+		ntfs_error(vol->sb, "Cananalt complete extension of allocation "
+				"of ianalde 0x%lx, attribute type 0x%x, because "
 				"lookup of first attribute extent failed with "
-				"error code %i.", vi->i_ino,
+				"error code %i.", vi->i_ianal,
 				(unsigned)le32_to_cpu(ni->type), err);
-	if (err == -ENOENT)
+	if (err == -EANALENT)
 		err = -EIO;
 	ntfs_attr_reinit_search_ctx(ctx);
 	if (ntfs_attr_lookup(ni->type, ni->name, ni->name_len, CASE_SENSITIVE,
@@ -2403,9 +2403,9 @@ restore_undo_alloc:
 		/*
 		 * FIXME: This would fail if @ni is a directory...  See above.
 		 * FIXME: The calculation is wrong if we created a hole above.
-		 * For now it does not matter as we never create holes.
+		 * For analw it does analt matter as we never create holes.
 		 */
-		if (NInoSparse(ni) || NInoCompressed(ni)) {
+		if (NIanalSparse(ni) || NIanalCompressed(ni)) {
 			ni->itype.compressed.size += new_alloc_size -
 					allocated_size;
 			vi->i_blocks = ni->itype.compressed.size >> 9;
@@ -2416,13 +2416,13 @@ restore_undo_alloc:
 		unmap_mft_record(base_ni);
 		up_write(&ni->runlist.lock);
 		/*
-		 * The only thing that is now wrong is the allocated size of the
+		 * The only thing that is analw wrong is the allocated size of the
 		 * base attribute extent which chkdsk should be able to fix.
 		 */
 		NVolSetErrors(vol);
 		return err;
 	}
-	ctx->attr->data.non_resident.highest_vcn = cpu_to_sle64(
+	ctx->attr->data.analn_resident.highest_vcn = cpu_to_sle64(
 			(allocated_size >> vol->cluster_size_bits) - 1);
 undo_alloc:
 	ll = allocated_size >> vol->cluster_size_bits;
@@ -2435,12 +2435,12 @@ undo_alloc:
 	m = ctx->mrec;
 	a = ctx->attr;
 	/*
-	 * If the runlist truncation fails and/or the search context is no
-	 * longer valid, we cannot resize the attribute record or build the
-	 * mapping pairs array thus we mark the inode bad so that no access to
+	 * If the runlist truncation fails and/or the search context is anal
+	 * longer valid, we cananalt resize the attribute record or build the
+	 * mapping pairs array thus we mark the ianalde bad so that anal access to
 	 * the freed clusters can happen.
 	 */
-	if (ntfs_rl_truncate_nolock(vol, &ni->runlist, ll) || IS_ERR(m)) {
+	if (ntfs_rl_truncate_anallock(vol, &ni->runlist, ll) || IS_ERR(m)) {
 		ntfs_error(vol->sb, "Failed to %s in error code path.  Run "
 				"chkdsk to recover.", IS_ERR(m) ?
 				"restore attribute search context" :
@@ -2454,9 +2454,9 @@ undo_alloc:
 			NVolSetErrors(vol);
 		} else /* if (success) */ {
 			if (ntfs_mapping_pairs_build(vol, (u8*)a + le16_to_cpu(
-					a->data.non_resident.
+					a->data.analn_resident.
 					mapping_pairs_offset), attr_len -
-					le16_to_cpu(a->data.non_resident.
+					le16_to_cpu(a->data.analn_resident.
 					mapping_pairs_offset), rl2, ll, -1,
 					NULL)) {
 				ntfs_error(vol->sb, "Failed to restore "
@@ -2465,8 +2465,8 @@ undo_alloc:
 						"recover.");
 				NVolSetErrors(vol);
 			}
-			flush_dcache_mft_record_page(ctx->ntfs_ino);
-			mark_mft_record_dirty(ctx->ntfs_ino);
+			flush_dcache_mft_record_page(ctx->ntfs_ianal);
+			mark_mft_record_dirty(ctx->ntfs_ianal);
 		}
 	}
 err_out:
@@ -2482,25 +2482,25 @@ conv_err_out:
 
 /**
  * ntfs_attr_set - fill (a part of) an attribute with a byte
- * @ni:		ntfs inode describing the attribute to fill
+ * @ni:		ntfs ianalde describing the attribute to fill
  * @ofs:	offset inside the attribute at which to start to fill
  * @cnt:	number of bytes to fill
  * @val:	the unsigned 8-bit value with which to fill the attribute
  *
- * Fill @cnt bytes of the attribute described by the ntfs inode @ni starting at
+ * Fill @cnt bytes of the attribute described by the ntfs ianalde @ni starting at
  * byte offset @ofs inside the attribute with the constant byte @val.
  *
  * This function is effectively like memset() applied to an ntfs attribute.
- * Note this function actually only operates on the page cache pages belonging
+ * Analte this function actually only operates on the page cache pages belonging
  * to the ntfs attribute and it marks them dirty after doing the memset().
  * Thus it relies on the vm dirty page write code paths to cause the modified
  * pages to be written to the mft record/disk.
  *
- * Return 0 on success and -errno on error.  An error code of -ESPIPE means
- * that @ofs + @cnt were outside the end of the attribute and no write was
+ * Return 0 on success and -erranal on error.  An error code of -ESPIPE means
+ * that @ofs + @cnt were outside the end of the attribute and anal write was
  * performed.
  */
-int ntfs_attr_set(ntfs_inode *ni, const s64 ofs, const s64 cnt, const u8 val)
+int ntfs_attr_set(ntfs_ianalde *ni, const s64 ofs, const s64 cnt, const u8 val)
 {
 	ntfs_volume *vol = ni->vol;
 	struct address_space *mapping;
@@ -2516,11 +2516,11 @@ int ntfs_attr_set(ntfs_inode *ni, const s64 ofs, const s64 cnt, const u8 val)
 	if (!cnt)
 		goto done;
 	/*
-	 * FIXME: Compressed and encrypted attributes are not supported when
+	 * FIXME: Compressed and encrypted attributes are analt supported when
 	 * writing and we should never have gotten here for them.
 	 */
-	BUG_ON(NInoCompressed(ni));
-	BUG_ON(NInoEncrypted(ni));
+	BUG_ON(NIanalCompressed(ni));
+	BUG_ON(NIanalEncrypted(ni));
 	mapping = VFS_I(ni)->i_mapping;
 	/* Work out the starting index and page offset. */
 	idx = ofs >> PAGE_SHIFT;
@@ -2528,7 +2528,7 @@ int ntfs_attr_set(ntfs_inode *ni, const s64 ofs, const s64 cnt, const u8 val)
 	/* Work out the ending index and page offset. */
 	end = ofs + cnt;
 	end_ofs = end & ~PAGE_MASK;
-	/* If the end is outside the inode size return -ESPIPE. */
+	/* If the end is outside the ianalde size return -ESPIPE. */
 	if (unlikely(end > i_size_read(VFS_I(ni)))) {
 		ntfs_error(vol->sb, "Request exceeds end of attribute.");
 		return -ESPIPE;
@@ -2568,7 +2568,7 @@ int ntfs_attr_set(ntfs_inode *ni, const s64 ofs, const s64 cnt, const u8 val)
 		if (unlikely(!page)) {
 			ntfs_error(vol->sb, "Insufficient memory to grab "
 					"page (index 0x%lx).", idx);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		kaddr = kmap_atomic(page);
 		memset(kaddr, val, PAGE_SIZE);
@@ -2576,7 +2576,7 @@ int ntfs_attr_set(ntfs_inode *ni, const s64 ofs, const s64 cnt, const u8 val)
 		kunmap_atomic(kaddr);
 		/*
 		 * If the page has buffers, mark them uptodate since buffer
-		 * state and not page state is definitive in 2.6 kernels.
+		 * state and analt page state is definitive in 2.6 kernels.
 		 */
 		if (page_has_buffers(page)) {
 			struct buffer_head *bh, *head;
@@ -2586,10 +2586,10 @@ int ntfs_attr_set(ntfs_inode *ni, const s64 ofs, const s64 cnt, const u8 val)
 				set_buffer_uptodate(bh);
 			} while ((bh = bh->b_this_page) != head);
 		}
-		/* Now that buffers are uptodate, set the page uptodate, too. */
+		/* Analw that buffers are uptodate, set the page uptodate, too. */
 		SetPageUptodate(page);
 		/*
-		 * Set the page and all its buffers dirty and mark the inode
+		 * Set the page and all its buffers dirty and mark the ianalde
 		 * dirty, too.  The VM will write the page later on.
 		 */
 		set_page_dirty(page);

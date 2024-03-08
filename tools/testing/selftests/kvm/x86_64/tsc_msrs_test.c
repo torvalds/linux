@@ -42,7 +42,7 @@ static void guest_code(void)
 	GUEST_ASSERT_EQ(rounded_rdmsr(MSR_IA32_TSC_ADJUST), val);
 
 	/*
-	 * Guest: writes to MSR_IA32_TSC_ADJUST do not destroy the
+	 * Guest: writes to MSR_IA32_TSC_ADJUST do analt destroy the
 	 * host-side offset and affect both MSRs.
 	 */
 	GUEST_SYNC(4);
@@ -53,7 +53,7 @@ static void guest_code(void)
 
 	/*
 	 * Guest: writes to MSR_IA32_TSC affect both MSRs, so the host-side
-	 * offset is now visible in MSR_IA32_TSC_ADJUST.
+	 * offset is analw visible in MSR_IA32_TSC_ADJUST.
 	 */
 	GUEST_SYNC(5);
 	val = 4ull * GUEST_STEP;
@@ -120,14 +120,14 @@ int main(void)
 
 	/*
 	 * Host: writes to MSR_IA32_TSC set the host-side offset
-	 * and therefore do not change MSR_IA32_TSC_ADJUST.
+	 * and therefore do analt change MSR_IA32_TSC_ADJUST.
 	 */
 	vcpu_set_msr(vcpu, MSR_IA32_TSC, HOST_ADJUST + val);
 	TEST_ASSERT_EQ(rounded_host_rdmsr(MSR_IA32_TSC), HOST_ADJUST + val);
 	TEST_ASSERT_EQ(rounded_host_rdmsr(MSR_IA32_TSC_ADJUST), val);
 	run_vcpu(vcpu, 3);
 
-	/* Host: writes to MSR_IA32_TSC_ADJUST do not modify the TSC.  */
+	/* Host: writes to MSR_IA32_TSC_ADJUST do analt modify the TSC.  */
 	vcpu_set_msr(vcpu, MSR_IA32_TSC_ADJUST, UNITY * 123456);
 	TEST_ASSERT_EQ(rounded_host_rdmsr(MSR_IA32_TSC), HOST_ADJUST + val);
 	TEST_ASSERT_EQ(vcpu_get_msr(vcpu, MSR_IA32_TSC_ADJUST), UNITY * 123456);
@@ -138,7 +138,7 @@ int main(void)
 	TEST_ASSERT_EQ(rounded_host_rdmsr(MSR_IA32_TSC_ADJUST), val);
 
 	/*
-	 * Guest: writes to MSR_IA32_TSC_ADJUST do not destroy the
+	 * Guest: writes to MSR_IA32_TSC_ADJUST do analt destroy the
 	 * host-side offset and affect both MSRs.
 	 */
 	run_vcpu(vcpu, 4);
@@ -148,7 +148,7 @@ int main(void)
 
 	/*
 	 * Guest: writes to MSR_IA32_TSC affect both MSRs, so the host-side
-	 * offset is now visible in MSR_IA32_TSC_ADJUST.
+	 * offset is analw visible in MSR_IA32_TSC_ADJUST.
 	 */
 	run_vcpu(vcpu, 5);
 	val = 4ull * GUEST_STEP;

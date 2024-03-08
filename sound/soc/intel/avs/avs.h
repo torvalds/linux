@@ -55,8 +55,8 @@ struct avs_dsp_ops {
 	int (* const enable_logs)(struct avs_dev *, enum avs_log_enable, u32, u32, unsigned long,
 				  u32 *);
 	int (* const log_buffer_offset)(struct avs_dev *, u32);
-	int (* const log_buffer_status)(struct avs_dev *, union avs_notify_msg *);
-	int (* const coredump)(struct avs_dev *, union avs_notify_msg *);
+	int (* const log_buffer_status)(struct avs_dev *, union avs_analtify_msg *);
+	int (* const coredump)(struct avs_dev *, union avs_analtify_msg *);
 	bool (* const d0ix_toggle)(struct avs_dev *, struct avs_ipc_msg *, bool);
 	int (* const set_d0ix)(struct avs_dev *, bool);
 };
@@ -91,7 +91,7 @@ struct avs_fw_entry {
 	char *name;
 	const struct firmware *fw;
 
-	struct list_head node;
+	struct list_head analde;
 };
 
 /*
@@ -216,7 +216,7 @@ struct avs_ipc {
 
 #define AVS_EIPC	EREMOTEIO
 /*
- * IPC handlers may return positive value (firmware error code) what denotes
+ * IPC handlers may return positive value (firmware error code) what deanaltes
  * successful HOST <-> DSP communication yet failure to process specific request.
  *
  * Below macro converts returned value to linux kernel error code.
@@ -299,7 +299,7 @@ struct avs_soc_component {
 	struct snd_soc_component base;
 	struct avs_tplg *tplg;
 
-	struct list_head node;
+	struct list_head analde;
 };
 
 #define to_avs_soc_component(comp) \
@@ -330,7 +330,7 @@ void avs_unregister_all_boards(struct avs_dev *adev);
 			 (avs_sram_addr(adev, AVS_DEBUG_WINDOW) + __offset); \
 })
 
-static inline int avs_log_buffer_status_locked(struct avs_dev *adev, union avs_notify_msg *msg)
+static inline int avs_log_buffer_status_locked(struct avs_dev *adev, union avs_analtify_msg *msg)
 {
 	unsigned long flags;
 	int ret;

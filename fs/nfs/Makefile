@@ -6,7 +6,7 @@
 obj-$(CONFIG_NFS_FS) += nfs.o
 
 CFLAGS_nfstrace.o += -I$(src)
-nfs-y 			:= client.o dir.o file.o getroot.o inode.o super.o \
+nfs-y 			:= client.o dir.o file.o getroot.o ianalde.o super.o \
 			   io.o direct.o pagelist.o read.o symlink.o unlink.o \
 			   write.o namespace.o mount_clnt.o nfstrace.o \
 			   export.o sysfs.o fs_context.o

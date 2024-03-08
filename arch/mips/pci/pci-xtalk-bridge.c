@@ -41,7 +41,7 @@ phys_addr_t dma_to_phys(struct device *dev, dma_addr_t dma_addr)
 
 /*
  * Most of the IOC3 PCI config register aren't present
- * we emulate what is needed for a normal PCI enumeration
+ * we emulate what is needed for a analrmal PCI enumeration
  */
 static int ioc3_cfg_rd(void *addr, int where, int size, u32 *value, u32 sid)
 {
@@ -51,7 +51,7 @@ static int ioc3_cfg_rd(void *addr, int where, int size, u32 *value, u32 sid)
 	case 0x00 ... 0x10:
 	case 0x40 ... 0x44:
 		if (get_dbe(cf, (u32 *)addr))
-			return PCIBIOS_DEVICE_NOT_FOUND;
+			return PCIBIOS_DEVICE_ANALT_FOUND;
 		break;
 	case 0x2c:
 		cf = sid;
@@ -79,7 +79,7 @@ static int ioc3_cfg_wr(void *addr, int where, int size, u32 value)
 		return PCIBIOS_SUCCESSFUL;
 
 	if (get_dbe(cf, (u32 *)addr))
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	shift = ((where & 3) << 3);
 	mask = (0xffffffffU >> ((4 - size) << 3));
@@ -87,7 +87,7 @@ static int ioc3_cfg_wr(void *addr, int where, int size, u32 value)
 
 	cf = (cf & ~smask) | ((value & mask) << shift);
 	if (put_dbe(cf, (u32 *)addr))
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	return PCIBIOS_SUCCESSFUL;
 }
@@ -108,8 +108,8 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_SGI, PCI_DEVICE_ID_SGI_IOC3,
 
 /*
  * The Bridge ASIC supports both type 0 and type 1 access.  Type 1 is
- * not really documented, so right now I can't write code which uses it.
- * Therefore we use type 0 accesses for now even though they won't work
+ * analt really documented, so right analw I can't write code which uses it.
+ * Therefore we use type 0 accesses for analw even though they won't work
  * correctly for PCI-to-PCI bridges.
  *
  * The function is complicated by the ultimate brokenness of the IOC3 chip
@@ -129,7 +129,7 @@ static int pci_conf0_read_config(struct pci_bus *bus, unsigned int devfn,
 
 	addr = &bridge->b_type0_cfg_dev[slot].f[fn].c[PCI_VENDOR_ID];
 	if (get_dbe(cf, (u32 *)addr))
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	/*
 	 * IOC3 is broken beyond belief ...  Don't even give the
@@ -150,7 +150,7 @@ static int pci_conf0_read_config(struct pci_bus *bus, unsigned int devfn,
 	else
 		res = get_dbe(*value, (u32 *)addr);
 
-	return res ? PCIBIOS_DEVICE_NOT_FOUND : PCIBIOS_SUCCESSFUL;
+	return res ? PCIBIOS_DEVICE_ANALT_FOUND : PCIBIOS_SUCCESSFUL;
 }
 
 static int pci_conf1_read_config(struct pci_bus *bus, unsigned int devfn,
@@ -158,17 +158,17 @@ static int pci_conf1_read_config(struct pci_bus *bus, unsigned int devfn,
 {
 	struct bridge_controller *bc = BRIDGE_CONTROLLER(bus);
 	struct bridge_regs *bridge = bc->base;
-	int busno = bus->number;
+	int busanal = bus->number;
 	int slot = PCI_SLOT(devfn);
 	int fn = PCI_FUNC(devfn);
 	void *addr;
 	u32 cf;
 	int res;
 
-	bridge_write(bc, b_pci_cfg, (busno << 16) | (slot << 11));
+	bridge_write(bc, b_pci_cfg, (busanal << 16) | (slot << 11));
 	addr = &bridge->b_type1_cfg.c[(fn << 8) | PCI_VENDOR_ID];
 	if (get_dbe(cf, (u32 *)addr))
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	/*
 	 * IOC3 is broken beyond belief ...  Don't even give the
@@ -189,7 +189,7 @@ static int pci_conf1_read_config(struct pci_bus *bus, unsigned int devfn,
 	else
 		res = get_dbe(*value, (u32 *)addr);
 
-	return res ? PCIBIOS_DEVICE_NOT_FOUND : PCIBIOS_SUCCESSFUL;
+	return res ? PCIBIOS_DEVICE_ANALT_FOUND : PCIBIOS_SUCCESSFUL;
 }
 
 static int pci_read_config(struct pci_bus *bus, unsigned int devfn,
@@ -214,7 +214,7 @@ static int pci_conf0_write_config(struct pci_bus *bus, unsigned int devfn,
 
 	addr = &bridge->b_type0_cfg_dev[slot].f[fn].c[PCI_VENDOR_ID];
 	if (get_dbe(cf, (u32 *)addr))
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	/*
 	 * IOC3 is broken beyond belief ...  Don't even give the
@@ -235,7 +235,7 @@ static int pci_conf0_write_config(struct pci_bus *bus, unsigned int devfn,
 		res = put_dbe(value, (u32 *)addr);
 
 	if (res)
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	return PCIBIOS_SUCCESSFUL;
 }
@@ -247,15 +247,15 @@ static int pci_conf1_write_config(struct pci_bus *bus, unsigned int devfn,
 	struct bridge_regs *bridge = bc->base;
 	int slot = PCI_SLOT(devfn);
 	int fn = PCI_FUNC(devfn);
-	int busno = bus->number;
+	int busanal = bus->number;
 	void *addr;
 	u32 cf;
 	int res;
 
-	bridge_write(bc, b_pci_cfg, (busno << 16) | (slot << 11));
+	bridge_write(bc, b_pci_cfg, (busanal << 16) | (slot << 11));
 	addr = &bridge->b_type1_cfg.c[(fn << 8) | PCI_VENDOR_ID];
 	if (get_dbe(cf, (u32 *)addr))
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	/*
 	 * IOC3 is broken beyond belief ...  Don't even give the
@@ -276,7 +276,7 @@ static int pci_conf1_write_config(struct pci_bus *bus, unsigned int devfn,
 		res = put_dbe(value, (u32 *)addr);
 
 	if (res)
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	return PCIBIOS_SUCCESSFUL;
 }
@@ -312,7 +312,7 @@ static int bridge_set_affinity(struct irq_data *d, const struct cpumask *mask,
 	ret = irq_chip_set_affinity_parent(d, mask, force);
 	if (ret >= 0) {
 		cpu = cpumask_first_and(mask, cpu_online_mask);
-		data->nasid = cpu_to_node(cpu);
+		data->nasid = cpu_to_analde(cpu);
 		bridge_write(data->bc, b_int_addr[pin].addr,
 			     (((data->bc->intr_addr >> 30) & 0x30000) |
 			      bit | (data->nasid << 8)));
@@ -343,7 +343,7 @@ static int bridge_domain_alloc(struct irq_domain *domain, unsigned int virq,
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = irq_domain_alloc_irqs_parent(domain, virq, nr_irqs, arg);
 	if (ret >= 0) {
@@ -439,7 +439,7 @@ static int bridge_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 	int irq;
 
 	switch (pin) {
-	case PCI_INTERRUPT_UNKNOWN:
+	case PCI_INTERRUPT_UNKANALWN:
 	case PCI_INTERRUPT_INTA:
 	case PCI_INTERRUPT_INTC:
 		pin = 0;
@@ -520,8 +520,8 @@ static void bridge_setup_ip34_fuel_sysboard(struct bridge_controller *bc)
 	bc->ioc3_sid[4] = IOC3_SID(IOC3_SUBSYS_IP34_SYSBOARD);
 }
 
-#define BRIDGE_BOARD_SETUP(_partno, _setup)	\
-	{ .match = _partno, .setup = _setup }
+#define BRIDGE_BOARD_SETUP(_partanal, _setup)	\
+	{ .match = _partanal, .setup = _setup }
 
 static const struct {
 	char *match;
@@ -611,33 +611,33 @@ static int bridge_probe(struct platform_device *pdev)
 	struct bridge_controller *bc;
 	struct pci_host_bridge *host;
 	struct irq_domain *domain, *parent;
-	struct fwnode_handle *fn;
+	struct fwanalde_handle *fn;
 	char partnum[26];
 	int slot;
 	int err;
 
 	/* get part number from one wire prom */
 	if (bridge_get_partnum(virt_to_phys((void *)bd->bridge_addr), partnum))
-		return -EPROBE_DEFER; /* not available yet */
+		return -EPROBE_DEFER; /* analt available yet */
 
 	parent = irq_get_default_host();
 	if (!parent)
-		return -ENODEV;
-	fn = irq_domain_alloc_named_fwnode("BRIDGE");
+		return -EANALDEV;
+	fn = irq_domain_alloc_named_fwanalde("BRIDGE");
 	if (!fn)
-		return -ENOMEM;
+		return -EANALMEM;
 	domain = irq_domain_create_hierarchy(parent, 0, 8, fn,
 					     &bridge_domain_ops, NULL);
 	if (!domain) {
-		irq_domain_free_fwnode(fn);
-		return -ENOMEM;
+		irq_domain_free_fwanalde(fn);
+		return -EANALMEM;
 	}
 
 	pci_set_flags(PCI_PROBE_ONLY);
 
 	host = devm_pci_alloc_host_bridge(dev, sizeof(*bc));
 	if (!host) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_remove_domain;
 	}
 
@@ -729,7 +729,7 @@ err_free_resource:
 	pci_free_resource_list(&host->windows);
 err_remove_domain:
 	irq_domain_remove(domain);
-	irq_domain_free_fwnode(fn);
+	irq_domain_free_fwanalde(fn);
 	return err;
 }
 
@@ -737,10 +737,10 @@ static void bridge_remove(struct platform_device *pdev)
 {
 	struct pci_bus *bus = platform_get_drvdata(pdev);
 	struct bridge_controller *bc = BRIDGE_CONTROLLER(bus);
-	struct fwnode_handle *fn = bc->domain->fwnode;
+	struct fwanalde_handle *fn = bc->domain->fwanalde;
 
 	irq_domain_remove(bc->domain);
-	irq_domain_free_fwnode(fn);
+	irq_domain_free_fwanalde(fn);
 	pci_lock_rescan_remove();
 	pci_stop_root_bus(bus);
 	pci_remove_root_bus(bus);

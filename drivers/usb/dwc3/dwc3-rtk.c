@@ -99,7 +99,7 @@ static enum usb_role dwc3_rtk_get_role(struct dwc3_rtk *rtk)
 	if (rtk->dwc && rtk->dwc->role_sw)
 		role = usb_role_switch_get_role(rtk->dwc->role_sw);
 	else
-		dev_dbg(rtk->dev, "%s not usb_role_switch role=%d\n", __func__, role);
+		dev_dbg(rtk->dev, "%s analt usb_role_switch role=%d\n", __func__, role);
 
 	return role;
 }
@@ -137,7 +137,7 @@ static int dwc3_rtk_setup_role_switch(struct dwc3_rtk *rtk)
 	dwc3_role_switch.name = dev_name(rtk->dev);
 	dwc3_role_switch.driver_data = rtk;
 	dwc3_role_switch.allow_userspace_control = true;
-	dwc3_role_switch.fwnode = dev_fwnode(rtk->dev);
+	dwc3_role_switch.fwanalde = dev_fwanalde(rtk->dev);
 	dwc3_role_switch.set = dwc3_usb_role_switch_set;
 	dwc3_role_switch.get = dwc3_usb_role_switch_get;
 	rtk->role_switch = usb_role_switch_register(rtk->dev, &dwc3_role_switch);
@@ -162,7 +162,7 @@ static int dwc3_rtk_remove_role_switch(struct dwc3_rtk *rtk)
 #endif
 
 static const char *const speed_names[] = {
-	[USB_SPEED_UNKNOWN] = "UNKNOWN",
+	[USB_SPEED_UNKANALWN] = "UNKANALWN",
 	[USB_SPEED_LOW] = "low-speed",
 	[USB_SPEED_FULL] = "full-speed",
 	[USB_SPEED_HIGH] = "high-speed",
@@ -171,15 +171,15 @@ static const char *const speed_names[] = {
 	[USB_SPEED_SUPER_PLUS] = "super-speed-plus",
 };
 
-static enum usb_device_speed __get_dwc3_maximum_speed(struct device_node *np)
+static enum usb_device_speed __get_dwc3_maximum_speed(struct device_analde *np)
 {
-	struct device_node *dwc3_np;
+	struct device_analde *dwc3_np;
 	const char *maximum_speed;
 	int ret;
 
 	dwc3_np = of_get_compatible_child(np, "snps,dwc3");
 	if (!dwc3_np)
-		return USB_SPEED_UNKNOWN;
+		return USB_SPEED_UNKANALWN;
 
 	ret = of_property_read_string(dwc3_np, "maximum-speed", &maximum_speed);
 	if (ret < 0)
@@ -188,9 +188,9 @@ static enum usb_device_speed __get_dwc3_maximum_speed(struct device_node *np)
 	ret = match_string(speed_names, ARRAY_SIZE(speed_names), maximum_speed);
 
 out:
-	of_node_put(dwc3_np);
+	of_analde_put(dwc3_np);
 
-	return (ret < 0) ? USB_SPEED_UNKNOWN : ret;
+	return (ret < 0) ? USB_SPEED_UNKANALWN : ret;
 }
 
 static int dwc3_rtk_init(struct dwc3_rtk *rtk)
@@ -225,8 +225,8 @@ static int dwc3_rtk_init(struct dwc3_rtk *rtk)
 	val = readl(reg);
 	writel(TXHSVM_EN | val, reg);
 
-	maximum_speed = __get_dwc3_maximum_speed(dev->of_node);
-	if (maximum_speed != USB_SPEED_UNKNOWN && maximum_speed <= USB_SPEED_HIGH) {
+	maximum_speed = __get_dwc3_maximum_speed(dev->of_analde);
+	if (maximum_speed != USB_SPEED_UNKANALWN && maximum_speed <= USB_SPEED_HIGH) {
 		if (soc_device_match(rtk_soc_thor)) {
 			reg = rtk->regs + WRAP_USB_HMAC_CTR0_REG;
 			val = readl(reg);
@@ -273,10 +273,10 @@ static int dwc3_rtk_init(struct dwc3_rtk *rtk)
 static int dwc3_rtk_probe_dwc3_core(struct dwc3_rtk *rtk)
 {
 	struct device *dev = rtk->dev;
-	struct device_node *node = dev->of_node;
+	struct device_analde *analde = dev->of_analde;
 	struct platform_device *dwc3_pdev;
 	struct device *dwc3_dev;
-	struct device_node *dwc3_node;
+	struct device_analde *dwc3_analde;
 	enum usb_dr_mode dr_mode;
 	int ret = 0;
 
@@ -284,31 +284,31 @@ static int dwc3_rtk_probe_dwc3_core(struct dwc3_rtk *rtk)
 	if (ret)
 		return -EINVAL;
 
-	ret = of_platform_populate(node, NULL, NULL, dev);
+	ret = of_platform_populate(analde, NULL, NULL, dev);
 	if (ret) {
 		dev_err(dev, "failed to add dwc3 core\n");
 		return ret;
 	}
 
-	dwc3_node = of_get_compatible_child(node, "snps,dwc3");
-	if (!dwc3_node) {
-		dev_err(dev, "failed to find dwc3 core node\n");
-		ret = -ENODEV;
+	dwc3_analde = of_get_compatible_child(analde, "snps,dwc3");
+	if (!dwc3_analde) {
+		dev_err(dev, "failed to find dwc3 core analde\n");
+		ret = -EANALDEV;
 		goto depopulate;
 	}
 
-	dwc3_pdev = of_find_device_by_node(dwc3_node);
+	dwc3_pdev = of_find_device_by_analde(dwc3_analde);
 	if (!dwc3_pdev) {
 		dev_err(dev, "failed to find dwc3 core platform_device\n");
-		ret = -ENODEV;
-		goto err_node_put;
+		ret = -EANALDEV;
+		goto err_analde_put;
 	}
 
 	dwc3_dev = &dwc3_pdev->dev;
 	rtk->dwc = platform_get_drvdata(dwc3_pdev);
 	if (!rtk->dwc) {
 		dev_err(dev, "failed to find dwc3 core\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_pdev_put;
 	}
 
@@ -343,14 +343,14 @@ static int dwc3_rtk_probe_dwc3_core(struct dwc3_rtk *rtk)
 	switch_usb2_role(rtk, rtk->cur_role);
 
 	platform_device_put(dwc3_pdev);
-	of_node_put(dwc3_node);
+	of_analde_put(dwc3_analde);
 
 	return 0;
 
 err_pdev_put:
 	platform_device_put(dwc3_pdev);
-err_node_put:
-	of_node_put(dwc3_node);
+err_analde_put:
+	of_analde_put(dwc3_analde);
 depopulate:
 	of_platform_depopulate(dev);
 
@@ -367,7 +367,7 @@ static int dwc3_rtk_probe(struct platform_device *pdev)
 
 	rtk = devm_kzalloc(dev, sizeof(*rtk), GFP_KERNEL);
 	if (!rtk) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -378,7 +378,7 @@ static int dwc3_rtk_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		dev_err(dev, "missing memory resource\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 	}
 

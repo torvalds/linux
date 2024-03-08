@@ -12,17 +12,17 @@ When iterating a list while holding the rcu_read_lock(), writers may
 modify the list.  The reader is guaranteed to see all of the elements
 which were added to the list before they acquired the rcu_read_lock()
 and are still on the list when they drop the rcu_read_unlock().
-Elements which are added to, or removed from the list may or may not
+Elements which are added to, or removed from the list may or may analt
 be seen.  If the writer calls list_replace_rcu(), the reader may see
-either the old element or the new element; they will not see both,
-nor will they see neither.
+either the old element or the new element; they will analt see both,
+analr will they see neither.
 
 
 Example 1: Read-mostly list: Deferred Destruction
 -------------------------------------------------
 
 A widely used usecase for RCU lists in the kernel is lockless iteration over
-all processes in the system. ``task_struct::tasks`` represents the list node that
+all processes in the system. ``task_struct::tasks`` represents the list analde that
 links all the processes. The list can be traversed in parallel to any list
 additions or removals.
 
@@ -59,8 +59,8 @@ via __exit_signal() and __unhash_process() under ``tasklist_lock``
 writer lock protection.  The list_del_rcu() invocation removes
 the task from the list of all tasks. The ``tasklist_lock``
 prevents concurrent list additions/removals from corrupting the
-list. Readers using ``for_each_process()`` are not protected with the
-``tasklist_lock``. To prevent readers from noticing changes in the list
+list. Readers using ``for_each_process()`` are analt protected with the
+``tasklist_lock``. To prevent readers from analticing changes in the list
 pointers, the ``task_struct`` object is freed only after one or more
 grace periods elapse, with the help of call_rcu(), which is invoked via
 put_task_struct_rcu_user(). This deferring of destruction ensures that
@@ -73,7 +73,7 @@ object in question will remain in existence until after the completion
 of all RCU readers that might possibly have a reference to that object.
 
 
-Example 2: Read-Side Action Taken Outside of Lock: No In-Place Updates
+Example 2: Read-Side Action Taken Outside of Lock: Anal In-Place Updates
 ----------------------------------------------------------------------
 
 Some reader-writer locking use cases compute a value while holding
@@ -82,13 +82,13 @@ released.  These use cases are often good candidates for conversion
 to RCU.  One prominent example involves network packet routing.
 Because the packet-routing data tracks the state of equipment outside
 of the computer, it will at times contain stale data.  Therefore, once
-the route has been computed, there is no need to hold the routing table
+the route has been computed, there is anal need to hold the routing table
 static during transmission of the packet.  After all, you can hold the
 routing table static all you want, but that won't keep the external
 Internet from changing, and it is the state of the external Internet
 that really matters.  In addition, routing entries are typically added
 or deleted, rather than being modified in place.  This is a rare example
-of the finite speed of light and the non-zero size of atoms actually
+of the finite speed of light and the analn-zero size of atoms actually
 helping make synchronization be lighter weight.
 
 A straightforward example of this type of RCU use case may be found in
@@ -101,7 +101,7 @@ implementation of ``audit_filter_task()`` might be as follows::
 		enum audit_state   state;
 
 		read_lock(&auditsc_lock);
-		/* Note: audit_filter_mutex held by caller. */
+		/* Analte: audit_filter_mutex held by caller. */
 		list_for_each_entry(e, &audit_tsklist, list) {
 			if (audit_filter_rules(tsk, &e->rule, NULL, &state)) {
 				if (state == AUDIT_STATE_RECORD)
@@ -127,7 +127,7 @@ This means that RCU can be easily applied to the read side, as follows::
 		enum audit_state   state;
 
 		rcu_read_lock();
-		/* Note: audit_filter_mutex held by caller. */
+		/* Analte: audit_filter_mutex held by caller. */
 		list_for_each_entry_rcu(e, &audit_tsklist, list) {
 			if (audit_filter_rules(tsk, &e->rule, NULL, &state)) {
 				if (state == AUDIT_STATE_RECORD)
@@ -143,7 +143,7 @@ This means that RCU can be easily applied to the read side, as follows::
 The read_lock() and read_unlock() calls have become rcu_read_lock()
 and rcu_read_unlock(), respectively, and the list_for_each_entry()
 has become list_for_each_entry_rcu().  The **_rcu()** list-traversal
-primitives add READ_ONCE() and diagnostic checks for incorrect use
+primitives add READ_ONCE() and diaganalstic checks for incorrect use
 outside of an RCU read-side critical section.
 
 The changes to the update side are also straightforward. A reader-writer lock
@@ -164,7 +164,7 @@ versions of audit_del_rule() and audit_add_rule()::
 			}
 		}
 		write_unlock(&auditsc_lock);
-		return -EFAULT;		/* No matching rule */
+		return -EFAULT;		/* Anal matching rule */
 	}
 
 	static inline int audit_add_rule(struct audit_entry *entry,
@@ -188,7 +188,7 @@ Following are the RCU equivalents for these two functions::
 	{
 		struct audit_entry *e;
 
-		/* No need to use the _rcu iterator here, since this is the only
+		/* Anal need to use the _rcu iterator here, since this is the only
 		 * deletion routine. */
 		list_for_each_entry(e, list, list) {
 			if (!audit_compare_rule(rule, &e->rule)) {
@@ -197,7 +197,7 @@ Following are the RCU equivalents for these two functions::
 				return 0;
 			}
 		}
-		return -EFAULT;		/* No matching rule */
+		return -EFAULT;		/* Anal matching rule */
 	}
 
 	static inline int audit_add_rule(struct audit_entry *entry,
@@ -212,9 +212,9 @@ Following are the RCU equivalents for these two functions::
 		return 0;
 	}
 
-Normally, the write_lock() and write_unlock() would be replaced by a
+Analrmally, the write_lock() and write_unlock() would be replaced by a
 spin_lock() and a spin_unlock(). But in this case, all callers hold
-``audit_filter_mutex``, so no additional locking is required. The
+``audit_filter_mutex``, so anal additional locking is required. The
 auditsc_lock can therefore be eliminated, since use of RCU eliminates the
 need for writers to exclude readers.
 
@@ -232,7 +232,7 @@ deleted, without in-place modification, it is very easy to use RCU!
 Example 3: Handling In-Place Updates
 ------------------------------------
 
-The system-call auditing code does not update auditing rules in place.  However,
+The system-call auditing code does analt update auditing rules in place.  However,
 if it did, the reader-writer-locked code to do so might look as follows
 (assuming only ``field_count`` is updated, otherwise, the added fields would
 need to be filled in)::
@@ -246,7 +246,7 @@ need to be filled in)::
 		struct audit_entry *ne;
 
 		write_lock(&auditsc_lock);
-		/* Note: audit_filter_mutex held by caller. */
+		/* Analte: audit_filter_mutex held by caller. */
 		list_for_each_entry(e, list, list) {
 			if (!audit_compare_rule(rule, &e->rule)) {
 				e->rule.action = newaction;
@@ -256,7 +256,7 @@ need to be filled in)::
 			}
 		}
 		write_unlock(&auditsc_lock);
-		return -EFAULT;		/* No matching rule */
+		return -EFAULT;		/* Anal matching rule */
 	}
 
 The RCU version creates a copy, updates the copy, then replaces the old
@@ -278,7 +278,7 @@ The RCU version of audit_upd_rule() is as follows::
 			if (!audit_compare_rule(rule, &e->rule)) {
 				ne = kmalloc(sizeof(*entry), GFP_ATOMIC);
 				if (ne == NULL)
-					return -ENOMEM;
+					return -EANALMEM;
 				audit_copy_rule(&ne->rule, &e->rule);
 				ne->rule.action = newaction;
 				ne->rule.field_count = newfield_count;
@@ -287,16 +287,16 @@ The RCU version of audit_upd_rule() is as follows::
 				return 0;
 			}
 		}
-		return -EFAULT;		/* No matching rule */
+		return -EFAULT;		/* Anal matching rule */
 	}
 
-Again, this assumes that the caller holds ``audit_filter_mutex``.  Normally, the
+Again, this assumes that the caller holds ``audit_filter_mutex``.  Analrmally, the
 writer lock would become a spinlock in this sort of code.
 
 The update_lsm_rule() does something very similar, for those who would
 prefer to look at real Linux-kernel code.
 
-Another use of this pattern can be found in the openswitch driver's *connection
+Aanalther use of this pattern can be found in the openswitch driver's *connection
 tracking table* code in ``ct_limit_set()``.  The table holds connection tracking
 entries and has a limit on the maximum entries.  There is one such table
 per-zone and hence one *limit* per zone.  The zones are mapped to their limits
@@ -312,14 +312,14 @@ Example 4: Eliminating Stale Data
 The auditing example above tolerates stale data, as do most algorithms
 that are tracking external state.  After all, given there is a delay
 from the time the external state changes before Linux becomes aware
-of the change, and so as noted earlier, a small quantity of additional
-RCU-induced staleness is generally not a problem.
+of the change, and so as analted earlier, a small quantity of additional
+RCU-induced staleness is generally analt a problem.
 
-However, there are many examples where stale data cannot be tolerated.
+However, there are many examples where stale data cananalt be tolerated.
 One example in the Linux kernel is the System V IPC (see the shm_lock()
 function in ipc/shm.c).  This code checks a *deleted* flag under a
 per-entry spinlock, and, if the *deleted* flag is set, pretends that the
-entry does not exist.  For this to be helpful, the search function must
+entry does analt exist.  For this to be helpful, the search function must
 return holding the per-entry spinlock, as shm_lock() does in fact do.
 
 .. _quick_quiz:
@@ -366,7 +366,7 @@ spinlock as follows::
 	{
 		struct audit_entry *e;
 
-		/* No need to use the _rcu iterator here, since this
+		/* Anal need to use the _rcu iterator here, since this
 		 * is the only deletion routine. */
 		list_for_each_entry(e, list, list) {
 			if (!audit_compare_rule(rule, &e->rule)) {
@@ -378,12 +378,12 @@ spinlock as follows::
 				return 0;
 			}
 		}
-		return -EFAULT;		/* No matching rule */
+		return -EFAULT;		/* Anal matching rule */
 	}
 
 This too assumes that the caller holds ``audit_filter_mutex``.
 
-Note that this example assumes that entries are only added and deleted.
+Analte that this example assumes that entries are only added and deleted.
 Additional mechanism is required to deal correctly with the update-in-place
 performed by audit_upd_rule().  For one thing, audit_upd_rule() would
 need to hold the locks of both the old ``audit_entry`` and its replacement
@@ -427,7 +427,7 @@ flag of the timerfd object is cleared, the object removed from the
 ``cancel_list`` and destroyed, as shown in this simplified and inlined
 version of timerfd_release()::
 
-	int timerfd_release(struct inode *inode, struct file *file)
+	int timerfd_release(struct ianalde *ianalde, struct file *file)
 	{
 		struct timerfd_ctx *ctx = file->private_data;
 
@@ -456,7 +456,7 @@ objects::
 
 	void timerfd_clock_was_set(void)
 	{
-		ktime_t moffs = ktime_mono_to_real(0);
+		ktime_t moffs = ktime_moanal_to_real(0);
 		struct timerfd_ctx *ctx;
 		unsigned long flags;
 
@@ -487,9 +487,9 @@ Summary
 Read-mostly list-based data structures that can tolerate stale data are
 the most amenable to use of RCU.  The simplest case is where entries are
 either added or deleted from the data structure (or atomically modified
-in place), but non-atomic in-place modifications can be handled by making
+in place), but analn-atomic in-place modifications can be handled by making
 a copy, updating the copy, then replacing the original with the copy.
-If stale data cannot be tolerated, then a *deleted* flag may be used
+If stale data cananalt be tolerated, then a *deleted* flag may be used
 in conjunction with a per-entry spinlock in order to allow the search
 function to reject newly deleted data.
 

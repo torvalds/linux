@@ -87,22 +87,22 @@ static int netlbl_mgmt_add_common(struct genl_info *info,
 	struct netlbl_dom_map *entry = kzalloc(sizeof(*entry), GFP_KERNEL);
 
 	if (!entry)
-		return -ENOMEM;
+		return -EANALMEM;
 	entry->def.type = nla_get_u32(info->attrs[NLBL_MGMT_A_PROTOCOL]);
 	if (info->attrs[NLBL_MGMT_A_DOMAIN]) {
 		size_t tmp_size = nla_len(info->attrs[NLBL_MGMT_A_DOMAIN]);
 		entry->domain = kmalloc(tmp_size, GFP_KERNEL);
 		if (entry->domain == NULL) {
-			ret_val = -ENOMEM;
+			ret_val = -EANALMEM;
 			goto add_free_entry;
 		}
 		nla_strscpy(entry->domain,
 			    info->attrs[NLBL_MGMT_A_DOMAIN], tmp_size);
 	}
 
-	/* NOTE: internally we allow/use a entry->def.type value of
+	/* ANALTE: internally we allow/use a entry->def.type value of
 	 *       NETLBL_NLTYPE_ADDRSELECT but we don't currently allow users
-	 *       to pass that as a protocol value because we need to know the
+	 *       to pass that as a protocol value because we need to kanalw the
 	 *       "real" protocol */
 
 	switch (entry->def.type) {
@@ -152,7 +152,7 @@ static int netlbl_mgmt_add_common(struct genl_info *info,
 
 		addrmap = kzalloc(sizeof(*addrmap), GFP_KERNEL);
 		if (addrmap == NULL) {
-			ret_val = -ENOMEM;
+			ret_val = -EANALMEM;
 			goto add_doi_put_def;
 		}
 		INIT_LIST_HEAD(&addrmap->list4);
@@ -173,7 +173,7 @@ static int netlbl_mgmt_add_common(struct genl_info *info,
 
 		map = kzalloc(sizeof(*map), GFP_KERNEL);
 		if (map == NULL) {
-			ret_val = -ENOMEM;
+			ret_val = -EANALMEM;
 			goto add_free_addrmap;
 		}
 		pmap = map;
@@ -199,7 +199,7 @@ static int netlbl_mgmt_add_common(struct genl_info *info,
 
 		addrmap = kzalloc(sizeof(*addrmap), GFP_KERNEL);
 		if (addrmap == NULL) {
-			ret_val = -ENOMEM;
+			ret_val = -EANALMEM;
 			goto add_doi_put_def;
 		}
 		INIT_LIST_HEAD(&addrmap->list4);
@@ -220,7 +220,7 @@ static int netlbl_mgmt_add_common(struct genl_info *info,
 
 		map = kzalloc(sizeof(*map), GFP_KERNEL);
 		if (map == NULL) {
-			ret_val = -ENOMEM;
+			ret_val = -EANALMEM;
 			goto add_free_addrmap;
 		}
 		pmap = map;
@@ -302,18 +302,18 @@ static int netlbl_mgmt_listentry(struct sk_buff *skb,
 
 	switch (entry->def.type) {
 	case NETLBL_NLTYPE_ADDRSELECT:
-		nla_a = nla_nest_start_noflag(skb, NLBL_MGMT_A_SELECTORLIST);
+		nla_a = nla_nest_start_analflag(skb, NLBL_MGMT_A_SELECTORLIST);
 		if (nla_a == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		netlbl_af4list_foreach_rcu(iter4, &entry->def.addrsel->list4) {
 			struct netlbl_domaddr4_map *map4;
 			struct in_addr addr_struct;
 
-			nla_b = nla_nest_start_noflag(skb,
+			nla_b = nla_nest_start_analflag(skb,
 						      NLBL_MGMT_A_ADDRSELECTOR);
 			if (nla_b == NULL)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			addr_struct.s_addr = iter4->addr;
 			ret_val = nla_put_in_addr(skb, NLBL_MGMT_A_IPV4ADDR,
@@ -345,10 +345,10 @@ static int netlbl_mgmt_listentry(struct sk_buff *skb,
 		netlbl_af6list_foreach_rcu(iter6, &entry->def.addrsel->list6) {
 			struct netlbl_domaddr6_map *map6;
 
-			nla_b = nla_nest_start_noflag(skb,
+			nla_b = nla_nest_start_analflag(skb,
 						      NLBL_MGMT_A_ADDRSELECTOR);
 			if (nla_b == NULL)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			ret_val = nla_put_in6_addr(skb, NLBL_MGMT_A_IPV6ADDR,
 						   &iter6->addr);
@@ -478,7 +478,7 @@ static int netlbl_mgmt_remove(struct sk_buff *skb, struct genl_info *info)
  */
 static int netlbl_mgmt_listall_cb(struct netlbl_dom_map *entry, void *arg)
 {
-	int ret_val = -ENOMEM;
+	int ret_val = -EANALMEM;
 	struct netlbl_domhsh_walk_arg *cb_arg = arg;
 	void *data;
 
@@ -595,7 +595,7 @@ static int netlbl_mgmt_removedef(struct sk_buff *skb, struct genl_info *info)
  */
 static int netlbl_mgmt_listdef(struct sk_buff *skb, struct genl_info *info)
 {
-	int ret_val = -ENOMEM;
+	int ret_val = -EANALMEM;
 	struct sk_buff *ans_skb = NULL;
 	void *data;
 	struct netlbl_dom_map *entry;
@@ -608,7 +608,7 @@ static int netlbl_mgmt_listdef(struct sk_buff *skb, struct genl_info *info)
 
 	ans_skb = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (ans_skb == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	data = genlmsg_put_reply(ans_skb, info, &netlbl_mgmt_gnl_family,
 				 0, NLBL_MGMT_C_LISTDEF);
 	if (data == NULL)
@@ -617,7 +617,7 @@ static int netlbl_mgmt_listdef(struct sk_buff *skb, struct genl_info *info)
 	rcu_read_lock();
 	entry = netlbl_domhsh_getentry(NULL, family);
 	if (entry == NULL) {
-		ret_val = -ENOENT;
+		ret_val = -EANALENT;
 		goto listdef_failure_lock;
 	}
 	ret_val = netlbl_mgmt_listentry(ans_skb, entry);
@@ -651,7 +651,7 @@ static int netlbl_mgmt_protocols_cb(struct sk_buff *skb,
 				    struct netlink_callback *cb,
 				    u32 protocol)
 {
-	int ret_val = -ENOMEM;
+	int ret_val = -EANALMEM;
 	void *data;
 
 	data = genlmsg_put(skb, NETLINK_CB(cb->skb).portid, cb->nlh->nlmsg_seq,
@@ -727,13 +727,13 @@ protocols_return:
  */
 static int netlbl_mgmt_version(struct sk_buff *skb, struct genl_info *info)
 {
-	int ret_val = -ENOMEM;
+	int ret_val = -EANALMEM;
 	struct sk_buff *ans_skb = NULL;
 	void *data;
 
 	ans_skb = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (ans_skb == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	data = genlmsg_put_reply(ans_skb, info, &netlbl_mgmt_gnl_family,
 				 0, NLBL_MGMT_C_VERSION);
 	if (data == NULL)

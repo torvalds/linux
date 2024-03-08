@@ -93,7 +93,7 @@
 
 /**
  * struct mv_xor_v2_descriptor - DMA HW descriptor
- * @desc_id: used by S/W and is not affected by H/W.
+ * @desc_id: used by S/W and is analt affected by H/W.
  * @flags: error and status flags
  * @crc32_result: CRC32 calculation result
  * @desc_ctrl: operation mode and control flags
@@ -113,7 +113,7 @@ struct mv_xor_v2_descriptor {
 	/* Definitions for desc_ctrl */
 #define DESC_NUM_ACTIVE_D_BUF_SHIFT	22
 #define DESC_OP_MODE_SHIFT		28
-#define DESC_OP_MODE_NOP		0	/* Idle operation */
+#define DESC_OP_MODE_ANALP		0	/* Idle operation */
 #define DESC_OP_MODE_MEMCPY		1	/* Pure-DMA operation */
 #define DESC_OP_MODE_MEMSET		2	/* Mem-Fill operation */
 #define DESC_OP_MODE_MEMINIT		3	/* Mem-Init operation */
@@ -150,7 +150,7 @@ struct mv_xor_v2_descriptor {
  * @npendings: number of pending descriptors (for which tx_submit has
  * @hw_queue_idx: HW queue index
  * @irq: The Linux interrupt number
- * been called, but not yet issue_pending)
+ * been called, but analt yet issue_pending)
  */
 struct mv_xor_v2_device {
 	spinlock_t lock;
@@ -176,7 +176,7 @@ struct mv_xor_v2_device {
  * @idx: descriptor index
  * @async_tx: support for the async_tx api
  * @hw_desc: assosiated HW descriptor
- * @free_list: node of the free SW descriprots list
+ * @free_list: analde of the free SW descriprots list
 */
 struct mv_xor_v2_sw_desc {
 	int idx;
@@ -222,7 +222,7 @@ static void mv_xor_v2_set_data_buffers(struct mv_xor_v2_device *xor_dev,
 }
 
 /*
- * notify the engine of new descriptors, and update the available index.
+ * analtify the engine of new descriptors, and update the available index.
  */
 static void mv_xor_v2_add_desc_to_desq(struct mv_xor_v2_device *xor_dev,
 				       int num_of_desc)
@@ -286,9 +286,9 @@ static irqreturn_t mv_xor_v2_interrupt_handler(int irq, void *data)
 	ndescs = ((reg >> MV_XOR_V2_DMA_DESQ_DONE_PENDING_SHIFT) &
 		  MV_XOR_V2_DMA_DESQ_DONE_PENDING_MASK);
 
-	/* No descriptors to process */
+	/* Anal descriptors to process */
 	if (!ndescs)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* schedule a tasklet to handle descriptors callbacks */
 	tasklet_schedule(&xor_dev->irq_tasklet);
@@ -506,7 +506,7 @@ mv_xor_v2_prep_dma_interrupt(struct dma_chan *chan, unsigned long flags)
 
 	/* Set the INTERRUPT control word */
 	hw_descriptor->desc_ctrl =
-		DESC_OP_MODE_NOP << DESC_OP_MODE_SHIFT;
+		DESC_OP_MODE_ANALP << DESC_OP_MODE_SHIFT;
 	hw_descriptor->desc_ctrl |= DESC_IOD;
 
 	/* return the async tx descriptor */
@@ -577,7 +577,7 @@ static void mv_xor_v2_tasklet(struct tasklet_struct *t)
 		/* call the callback */
 		if (next_pending_sw_desc->async_tx.cookie > 0) {
 			/*
-			 * update the channel's completed cookie - no
+			 * update the channel's completed cookie - anal
 			 * lock is required the IMSG threshold provide
 			 * the locking
 			 */
@@ -646,7 +646,7 @@ static int mv_xor_v2_descq_init(struct mv_xor_v2_device *xor_dev)
 	 * SMMU. Set the attributes for reading & writing data buffers
 	 * & descriptors to:
 	 *
-	 *  - OuterShareable - Snoops will be performed on CPU caches
+	 *  - OuterShareable - Sanalops will be performed on CPU caches
 	 *  - Enable cacheable - Bufferable, Modifiable, Other Allocate
 	 *    and Allocate
 	 */
@@ -723,7 +723,7 @@ static int mv_xor_v2_probe(struct platform_device *pdev)
 
 	xor_dev = devm_kzalloc(&pdev->dev, sizeof(*xor_dev), GFP_KERNEL);
 	if (!xor_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	xor_dev->dma_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(xor_dev->dma_base))
@@ -768,7 +768,7 @@ static int mv_xor_v2_probe(struct platform_device *pdev)
 
 	/*
 	 * allocate coherent memory for hardware descriptors
-	 * note: writecombine gives slightly better performance, but
+	 * analte: writecombine gives slightly better performance, but
 	 * requires that we explicitly flush the writes
 	 */
 	xor_dev->hw_desq_virt =
@@ -776,7 +776,7 @@ static int mv_xor_v2_probe(struct platform_device *pdev)
 				   xor_dev->desc_size * MV_XOR_V2_DESC_NUM,
 				   &xor_dev->hw_desq, GFP_KERNEL);
 	if (!xor_dev->hw_desq_virt) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_msi_irqs;
 	}
 
@@ -785,7 +785,7 @@ static int mv_xor_v2_probe(struct platform_device *pdev)
 					MV_XOR_V2_DESC_NUM, sizeof(*sw_desc),
 					GFP_KERNEL);
 	if (!xor_dev->sw_desq) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_hw_desq;
 	}
 
@@ -831,7 +831,7 @@ static int mv_xor_v2_probe(struct platform_device *pdev)
 
 	xor_dev->dmachan.device = dma_dev;
 
-	list_add_tail(&xor_dev->dmachan.device_node,
+	list_add_tail(&xor_dev->dmachan.device_analde,
 		      &dma_dev->channels);
 
 	mv_xor_v2_enable_imsg_thrd(xor_dev);
@@ -842,7 +842,7 @@ static int mv_xor_v2_probe(struct platform_device *pdev)
 	if (ret)
 		goto free_hw_desq;
 
-	dev_notice(&pdev->dev, "Marvell Version 2 XOR driver\n");
+	dev_analtice(&pdev->dev, "Marvell Version 2 XOR driver\n");
 
 	return 0;
 

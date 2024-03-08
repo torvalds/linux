@@ -96,7 +96,7 @@ psi接口提供的均值即可。
 
 ::
 
-  #include <errno.h>
+  #include <erranal.h>
   #include <fcntl.h>
   #include <stdio.h>
   #include <poll.h>
@@ -109,17 +109,17 @@ psi接口提供的均值即可。
         struct pollfd fds;
         int n;
 
-        fds.fd = open("/proc/pressure/memory", O_RDWR | O_NONBLOCK);
+        fds.fd = open("/proc/pressure/memory", O_RDWR | O_ANALNBLOCK);
         if (fds.fd < 0) {
                 printf("/proc/pressure/memory open error: %s\n",
-                        strerror(errno));
+                        strerror(erranal));
                 return 1;
         }
         fds.events = POLLPRI;
 
         if (write(fds.fd, trig, strlen(trig) + 1) < 0) {
                 printf("/proc/pressure/memory write error: %s\n",
-                        strerror(errno));
+                        strerror(erranal));
                 return 1;
         }
 
@@ -127,7 +127,7 @@ psi接口提供的均值即可。
         while (1) {
                 n = poll(&fds, 1, -1);
                 if (n < 0) {
-                        printf("poll error: %s\n", strerror(errno));
+                        printf("poll error: %s\n", strerror(erranal));
                         return 1;
                 }
                 if (fds.revents & POLLERR) {
@@ -137,7 +137,7 @@ psi接口提供的均值即可。
                 if (fds.revents & POLLPRI) {
                         printf("event triggered!\n");
                 } else {
-                        printf("unknown event received: 0x%x\n", fds.revents);
+                        printf("unkanalwn event received: 0x%x\n", fds.revents);
                         return 1;
                 }
         }

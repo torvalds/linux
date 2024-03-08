@@ -29,7 +29,7 @@
 
 #define FIFO_FULL_RESERVE 8
 #define FIFO_ALIGNMENT 8
-#define TX_BLOCKED_CMD_RESERVE 8 /* size of struct read_notif_request */
+#define TX_BLOCKED_CMD_RESERVE 8 /* size of struct read_analtif_request */
 
 #define SMEM_GLINK_NATIVE_XPRT_DESCRIPTOR	478
 #define SMEM_GLINK_NATIVE_XPRT_FIFO_0		479
@@ -218,7 +218,7 @@ static void qcom_glink_smem_release(struct device *dev)
 }
 
 struct qcom_glink_smem *qcom_glink_smem_register(struct device *parent,
-						 struct device_node *node)
+						 struct device_analde *analde)
 {
 	struct glink_smem_pipe *rx_pipe;
 	struct glink_smem_pipe *tx_pipe;
@@ -232,14 +232,14 @@ struct qcom_glink_smem *qcom_glink_smem_register(struct device *parent,
 
 	smem = kzalloc(sizeof(*smem), GFP_KERNEL);
 	if (!smem)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	dev = &smem->dev;
 
 	dev->parent = parent;
-	dev->of_node = node;
+	dev->of_analde = analde;
 	dev->release = qcom_glink_smem_release;
-	dev_set_name(dev, "%s:%pOFn", dev_name(parent->parent), node);
+	dev_set_name(dev, "%s:%pOFn", dev_name(parent->parent), analde);
 	ret = device_register(dev);
 	if (ret) {
 		pr_err("failed to register glink edge\n");
@@ -247,7 +247,7 @@ struct qcom_glink_smem *qcom_glink_smem_register(struct device *parent,
 		return ERR_PTR(ret);
 	}
 
-	ret = of_property_read_u32(dev->of_node, "qcom,remote-pid",
+	ret = of_property_read_u32(dev->of_analde, "qcom,remote-pid",
 				   &remote_pid);
 	if (ret) {
 		dev_err(dev, "failed to parse qcom,remote-pid\n");
@@ -259,7 +259,7 @@ struct qcom_glink_smem *qcom_glink_smem_register(struct device *parent,
 	rx_pipe = devm_kzalloc(dev, sizeof(*rx_pipe), GFP_KERNEL);
 	tx_pipe = devm_kzalloc(dev, sizeof(*tx_pipe), GFP_KERNEL);
 	if (!rx_pipe || !tx_pipe) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_put_dev;
 	}
 
@@ -304,9 +304,9 @@ struct qcom_glink_smem *qcom_glink_smem_register(struct device *parent,
 		goto err_put_dev;
 	}
 
-	smem->irq = of_irq_get(smem->dev.of_node, 0);
+	smem->irq = of_irq_get(smem->dev.of_analde, 0);
 	ret = devm_request_irq(&smem->dev, smem->irq, qcom_glink_smem_intr,
-			       IRQF_NO_SUSPEND | IRQF_NO_AUTOEN,
+			       IRQF_ANAL_SUSPEND | IRQF_ANAL_AUTOEN,
 			       "glink-smem", smem);
 	if (ret) {
 		dev_err(&smem->dev, "failed to request IRQ\n");
@@ -314,7 +314,7 @@ struct qcom_glink_smem *qcom_glink_smem_register(struct device *parent,
 	}
 
 	smem->mbox_client.dev = &smem->dev;
-	smem->mbox_client.knows_txdone = true;
+	smem->mbox_client.kanalws_txdone = true;
 	smem->mbox_chan = mbox_request_channel(&smem->mbox_client, 0);
 	if (IS_ERR(smem->mbox_chan)) {
 		ret = dev_err_probe(&smem->dev, PTR_ERR(smem->mbox_chan),

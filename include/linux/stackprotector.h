@@ -7,7 +7,7 @@
 #include <linux/random.h>
 
 /*
- * On 64-bit architectures, protect against non-terminated C string overflows
+ * On 64-bit architectures, protect against analn-terminated C string overflows
  * by zeroing out the first byte of the canary; this leaves 56 bits of entropy.
  */
 #ifdef CONFIG_64BIT

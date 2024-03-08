@@ -49,7 +49,7 @@ struct gdsc {
 /* Powerdomain allowable state bitfields */
 #define PWRSTS_OFF		BIT(0)
 /*
- * There is no SW control to transition a GDSC into
+ * There is anal SW control to transition a GDSC into
  * PWRSTS_RET. This happens in HW when the parent
  * domain goes down to a low power state
  */
@@ -66,7 +66,7 @@ struct gdsc {
 #define POLL_CFG_GDSCR	BIT(5)
 #define ALWAYS_ON	BIT(6)
 #define RETAIN_FF_ENABLE	BIT(7)
-#define NO_RET_PERIPH	BIT(8)
+#define ANAL_RET_PERIPH	BIT(8)
 	struct reset_controller_dev	*rcdev;
 	unsigned int			*resets;
 	unsigned int			reset_count;
@@ -85,13 +85,13 @@ struct gdsc_desc {
 int gdsc_register(struct gdsc_desc *desc, struct reset_controller_dev *,
 		  struct regmap *);
 void gdsc_unregister(struct gdsc_desc *desc);
-int gdsc_gx_do_nothing_enable(struct generic_pm_domain *domain);
+int gdsc_gx_do_analthing_enable(struct generic_pm_domain *domain);
 #else
 static inline int gdsc_register(struct gdsc_desc *desc,
 				struct reset_controller_dev *rcdev,
 				struct regmap *r)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static inline void gdsc_unregister(struct gdsc_desc *desc) {};

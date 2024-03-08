@@ -2,8 +2,8 @@
 /*
  * McBSP Sidetone support
  *
- * Copyright (C) 2004 Nokia Corporation
- * Author: Samuel Ortiz <samuel.ortiz@nokia.com>
+ * Copyright (C) 2004 Analkia Corporation
+ * Author: Samuel Ortiz <samuel.ortiz@analkia.com>
  *
  * Contact: Jarkko Nikula <jarkko.nikula@bitmer.com>
  *          Peter Ujfalusi <peter.ujfalusi@ti.com>
@@ -82,7 +82,7 @@ static void omap_mcbsp_st_on(struct omap_mcbsp *mcbsp)
 	if (mcbsp->pdata->force_ick_on)
 		mcbsp->pdata->force_ick_on(mcbsp->st_data->mcbsp_iclk, true);
 
-	/* Disable Sidetone clock auto-gating for normal operation */
+	/* Disable Sidetone clock auto-gating for analrmal operation */
 	w = MCBSP_ST_READ(mcbsp, SYSCONFIG);
 	MCBSP_ST_WRITE(mcbsp, SYSCONFIG, w & ~(ST_AUTOIDLE));
 
@@ -154,7 +154,7 @@ static int omap_mcbsp_st_set_chgain(struct omap_mcbsp *mcbsp, int channel,
 	int ret = 0;
 
 	if (!st_data)
-		return -ENOENT;
+		return -EANALENT;
 
 	spin_lock_irq(&mcbsp->lock);
 	if (channel == 0)
@@ -178,7 +178,7 @@ static int omap_mcbsp_st_get_chgain(struct omap_mcbsp *mcbsp, int channel,
 	int ret = 0;
 
 	if (!st_data)
-		return -ENOENT;
+		return -EANALENT;
 
 	spin_lock_irq(&mcbsp->lock);
 	if (channel == 0)
@@ -197,7 +197,7 @@ static int omap_mcbsp_st_enable(struct omap_mcbsp *mcbsp)
 	struct omap_mcbsp_st_data *st_data = mcbsp->st_data;
 
 	if (!st_data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	spin_lock_irq(&mcbsp->lock);
 	st_data->enabled = 1;
@@ -213,7 +213,7 @@ static int omap_mcbsp_st_disable(struct omap_mcbsp *mcbsp)
 	int ret = 0;
 
 	if (!st_data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	spin_lock_irq(&mcbsp->lock);
 	omap_mcbsp_st_stop(mcbsp);
@@ -228,7 +228,7 @@ static int omap_mcbsp_st_is_enabled(struct omap_mcbsp *mcbsp)
 	struct omap_mcbsp_st_data *st_data = mcbsp->st_data;
 
 	if (!st_data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return st_data->enabled;
 }
@@ -344,7 +344,7 @@ int omap_mcbsp_st_init(struct platform_device *pdev)
 
 	st_data = devm_kzalloc(mcbsp->dev, sizeof(*mcbsp->st_data), GFP_KERNEL);
 	if (!st_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st_data->mcbsp_iclk = devm_clk_get(mcbsp->dev, "ick");
 	if (IS_ERR(st_data->mcbsp_iclk)) {
@@ -356,7 +356,7 @@ int omap_mcbsp_st_init(struct platform_device *pdev)
 	st_data->io_base_st = devm_ioremap(mcbsp->dev, res->start,
 					   resource_size(res));
 	if (!st_data->io_base_st)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = devm_device_add_group(mcbsp->dev, &sidetone_attr_group);
 	if (ret)
@@ -479,7 +479,7 @@ int omap_mcbsp_st_add_controls(struct snd_soc_pcm_runtime *rtd, int port_id)
 	struct omap_mcbsp *mcbsp = snd_soc_dai_get_drvdata(cpu_dai);
 
 	if (!mcbsp->st_data) {
-		dev_warn(mcbsp->dev, "No sidetone data for port\n");
+		dev_warn(mcbsp->dev, "Anal sidetone data for port\n");
 		return 0;
 	}
 
@@ -493,7 +493,7 @@ int omap_mcbsp_st_add_controls(struct snd_soc_pcm_runtime *rtd, int port_id)
 					omap_mcbsp3_st_controls,
 					ARRAY_SIZE(omap_mcbsp3_st_controls));
 	default:
-		dev_err(mcbsp->dev, "Port %d not supported\n", port_id);
+		dev_err(mcbsp->dev, "Port %d analt supported\n", port_id);
 		break;
 	}
 

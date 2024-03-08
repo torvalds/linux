@@ -157,7 +157,7 @@ static int amd_spi_set_opcode(struct amd_spi *amd_spi, u8 cmd_opcode)
 		amd_spi_writereg8(amd_spi, AMD_SPI_OPCODE_REG, cmd_opcode);
 		return 0;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 }
 
@@ -184,7 +184,7 @@ static int amd_spi_busy_wait(struct amd_spi *amd_spi)
 		reg = AMD_SPI_STATUS_REG;
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return readl_poll_timeout(amd_spi->io_remap_addr + reg, val,
@@ -211,7 +211,7 @@ static int amd_spi_execute_opcode(struct amd_spi *amd_spi)
 				      AMD_SPI_TRIGGER_CMD, AMD_SPI_TRIGGER_CMD);
 		return 0;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 }
 
@@ -305,7 +305,7 @@ static inline int amd_spi_fifo_xfer(struct amd_spi *amd_spi,
 			fifo_pos += xfer->len;
 		}
 
-		/* Store no. of bytes to be received from FIFO */
+		/* Store anal. of bytes to be received from FIFO */
 		if (xfer->rx_buf)
 			rx_len += xfer->len;
 	}
@@ -350,7 +350,7 @@ fin_msg:
 		amd_spi_clear_chip(amd_spi, spi_get_chipselect(message->spi, 0));
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	spi_finalize_current_message(host);
@@ -388,7 +388,7 @@ static int amd_spi_probe(struct platform_device *pdev)
 	/* Allocate storage for host and driver private data */
 	host = devm_spi_alloc_host(dev, sizeof(struct amd_spi));
 	if (!host)
-		return dev_err_probe(dev, -ENOMEM, "Error allocating SPI host\n");
+		return dev_err_probe(dev, -EANALMEM, "Error allocating SPI host\n");
 
 	amd_spi = spi_controller_get_devdata(host);
 	amd_spi->io_remap_addr = devm_platform_ioremap_resource(pdev, 0);

@@ -141,19 +141,19 @@ static void set_cpu_hi3620(int cpu, bool enable)
 
 static int hi3xxx_hotplug_init(void)
 {
-	struct device_node *node;
+	struct device_analde *analde;
 
-	node = of_find_compatible_node(NULL, NULL, "hisilicon,sysctrl");
-	if (!node) {
+	analde = of_find_compatible_analde(NULL, NULL, "hisilicon,sysctrl");
+	if (!analde) {
 		id = ERROR_CTRL;
-		return -ENOENT;
+		return -EANALENT;
 	}
 
-	ctrl_base = of_iomap(node, 0);
-	of_node_put(node);
+	ctrl_base = of_iomap(analde, 0);
+	of_analde_put(analde);
 	if (!ctrl_base) {
 		id = ERROR_CTRL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	id = HI3620_CTRL;
@@ -173,14 +173,14 @@ void hi3xxx_set_cpu(int cpu, bool enable)
 
 static bool hix5hd2_hotplug_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
-	np = of_find_compatible_node(NULL, NULL, "hisilicon,cpuctrl");
+	np = of_find_compatible_analde(NULL, NULL, "hisilicon,cpuctrl");
 	if (!np)
 		return false;
 
 	ctrl_base = of_iomap(np, 0);
-	of_node_put(np);
+	of_analde_put(np);
 	if (!ctrl_base)
 		return false;
 
@@ -222,13 +222,13 @@ void hix5hd2_set_cpu(int cpu, bool enable)
 void hip01_set_cpu(int cpu, bool enable)
 {
 	unsigned int temp;
-	struct device_node *np;
+	struct device_analde *np;
 
 	if (!ctrl_base) {
-		np = of_find_compatible_node(NULL, NULL, "hisilicon,hip01-sysctrl");
+		np = of_find_compatible_analde(NULL, NULL, "hisilicon,hip01-sysctrl");
 		BUG_ON(!np);
 		ctrl_base = of_iomap(np, 0);
-		of_node_put(np);
+		of_analde_put(np);
 		BUG_ON(!ctrl_base);
 	}
 

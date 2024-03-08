@@ -98,7 +98,7 @@ struct xlp_spi_priv {
 	int			cs;		/* target device chip select */
 	u32			spi_clk;	/* spi clock frequency */
 	bool			cmd_cont;	/* cs active */
-	struct completion	done;		/* completion notification */
+	struct completion	done;		/* completion analtification */
 };
 
 static inline u32 xlp_spi_reg_read(struct xlp_spi_priv *priv,
@@ -227,7 +227,7 @@ static irqreturn_t xlp_spi_interrupt(int irq, void *dev_id)
 	stat = xlp_spi_reg_read(xspi, xspi->cs, XLP_SPI_STATUS) &
 		XLP_SPI_STAT_MASK;
 	if (!stat)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (stat & XLP_SPI_TX_INT) {
 		if (xspi->tx_len)
@@ -374,7 +374,7 @@ static int xlp_spi_probe(struct platform_device *pdev)
 
 	xspi = devm_kzalloc(&pdev->dev, sizeof(*xspi), GFP_KERNEL);
 	if (!xspi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	xspi->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(xspi->base))
@@ -392,7 +392,7 @@ static int xlp_spi_probe(struct platform_device *pdev)
 
 	clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(clk)) {
-		dev_err(&pdev->dev, "could not get spi clock\n");
+		dev_err(&pdev->dev, "could analt get spi clock\n");
 		return PTR_ERR(clk);
 	}
 
@@ -400,8 +400,8 @@ static int xlp_spi_probe(struct platform_device *pdev)
 
 	host = spi_alloc_host(&pdev->dev, 0);
 	if (!host) {
-		dev_err(&pdev->dev, "could not alloc host\n");
-		return -ENOMEM;
+		dev_err(&pdev->dev, "could analt alloc host\n");
+		return -EANALMEM;
 	}
 
 	host->bus_num = 0;
@@ -409,7 +409,7 @@ static int xlp_spi_probe(struct platform_device *pdev)
 	host->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
 	host->setup = xlp_spi_setup;
 	host->transfer_one = xlp_spi_transfer_one;
-	host->dev.of_node = pdev->dev.of_node;
+	host->dev.of_analde = pdev->dev.of_analde;
 
 	init_completion(&xspi->done);
 	spi_controller_set_devdata(host, xspi);

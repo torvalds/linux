@@ -25,27 +25,27 @@ struct sd {
 };
 
 static const struct v4l2_pix_format vga_mode[] = {
-	{160, 120, V4L2_PIX_FMT_SPCA505, V4L2_FIELD_NONE,
+	{160, 120, V4L2_PIX_FMT_SPCA505, V4L2_FIELD_ANALNE,
 		.bytesperline = 160,
 		.sizeimage = 160 * 120 * 3 / 2,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 4},
-	{176, 144, V4L2_PIX_FMT_SPCA505, V4L2_FIELD_NONE,
+	{176, 144, V4L2_PIX_FMT_SPCA505, V4L2_FIELD_ANALNE,
 		.bytesperline = 176,
 		.sizeimage = 176 * 144 * 3 / 2,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 3},
-	{320, 240, V4L2_PIX_FMT_SPCA505, V4L2_FIELD_NONE,
+	{320, 240, V4L2_PIX_FMT_SPCA505, V4L2_FIELD_ANALNE,
 		.bytesperline = 320,
 		.sizeimage = 320 * 240 * 3 / 2,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 2},
-	{352, 288, V4L2_PIX_FMT_SPCA505, V4L2_FIELD_NONE,
+	{352, 288, V4L2_PIX_FMT_SPCA505, V4L2_FIELD_ANALNE,
 		.bytesperline = 352,
 		.sizeimage = 352 * 288 * 3 / 2,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 1},
-	{640, 480, V4L2_PIX_FMT_SPCA505, V4L2_FIELD_NONE,
+	{640, 480, V4L2_PIX_FMT_SPCA505, V4L2_FIELD_ANALNE,
 		.bytesperline = 640,
 		.sizeimage = 640 * 480 * 3 / 2,
 		.colorspace = V4L2_COLORSPACE_SRGB,
@@ -65,7 +65,7 @@ static const struct v4l2_pix_format vga_mode[] = {
 
 #define SPCA50X_GLOBAL_MISC1 0x01 /* 505 */
 #define SPCA50X_GLOBAL_MISC3 0x03 /* 505 */
-#define SPCA50X_GMISC3_SAA7113RST 0x20	/* Not sure about this one spca505 */
+#define SPCA50X_GMISC3_SAA7113RST 0x20	/* Analt sure about this one spca505 */
 
 /* Image format and compression control */
 #define SPCA50X_REG_COMPRESS 0x04
@@ -132,37 +132,37 @@ static const u8 spca505_open_data_ccd[][3] = {
 	{0x05, 0x00, 0x10},
 	{0x05, 0x00, 0x11},
 	{0x05, 0x00, 0x00},
-	/* DIFF not written */
+	/* DIFF analt written */
 	{0x05, 0x00, 0x01},
-	/* DIFF not written */
+	/* DIFF analt written */
 	{0x05, 0x00, 0x02},
-	/* DIFF not written */
+	/* DIFF analt written */
 	{0x05, 0x00, 0x03},
-	/* DIFF not written */
+	/* DIFF analt written */
 	{0x05, 0x00, 0x04},
-	/* DIFF not written */
+	/* DIFF analt written */
 		{0x05, 0x80, 0x05},
-		/* DIFF not written */
+		/* DIFF analt written */
 		{0x05, 0xe0, 0x06},
-		/* DIFF not written */
+		/* DIFF analt written */
 		{0x05, 0x20, 0x07},
-		/* DIFF not written */
+		/* DIFF analt written */
 		{0x05, 0xa0, 0x08},
-		/* DIFF not written */
+		/* DIFF analt written */
 		{0x05, 0x0, 0x12},
-		/* DIFF not written */
+		/* DIFF analt written */
 	{0x05, 0x02, 0x0f},
-	/* DIFF not written */
+	/* DIFF analt written */
 		{0x05, 0x10, 0x46},
-		/* DIFF not written */
+		/* DIFF analt written */
 		{0x05, 0x8, 0x4a},
-		/* DIFF not written */
+		/* DIFF analt written */
 
 	{0x03, 0x08, 0x03},
 	/* DIFF (0x3,0x28,0x3) */
 	{0x03, 0x08, 0x01},
 	{0x03, 0x0c, 0x03},
-	/* DIFF not written */
+	/* DIFF analt written */
 		{0x03, 0x21, 0x00},
 		/* DIFF (0x39) */
 
@@ -595,7 +595,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->subtype = id->driver_info;
 	if (sd->subtype != IntelPCCameraPro)
 		cam->nmodes = ARRAY_SIZE(vga_mode);
-	else			/* no 640x480 for IntelPCCameraPro */
+	else			/* anal 640x480 for IntelPCCameraPro */
 		cam->nmodes = ARRAY_SIZE(vga_mode) - 1;
 
 	return 0;
@@ -741,7 +741,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 			V4L2_CID_BRIGHTNESS, 0, 255, 1, 127);
 
 	if (hdl->error) {
-		pr_err("Could not initialize controls\n");
+		pr_err("Could analt initialize controls\n");
 		return hdl->error;
 	}
 	return 0;

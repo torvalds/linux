@@ -29,11 +29,11 @@ static inline void invalidate_kernel_vmap_range(void *addr, int size)
 	dcache_wbinv_all();
 }
 
-#define ARCH_HAS_FLUSH_ANON_PAGE
-static inline void flush_anon_page(struct vm_area_struct *vma,
+#define ARCH_HAS_FLUSH_AANALN_PAGE
+static inline void flush_aanaln_page(struct vm_area_struct *vma,
 			 struct page *page, unsigned long vmaddr)
 {
-	if (PageAnon(page))
+	if (PageAanaln(page))
 		cache_wbinv_all();
 }
 

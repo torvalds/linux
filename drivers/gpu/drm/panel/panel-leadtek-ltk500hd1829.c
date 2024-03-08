@@ -36,7 +36,7 @@ struct ltk500hd1829_cmd {
 };
 
 /*
- * There is no description in the Reference Manual about these commands.
+ * There is anal description in the Reference Manual about these commands.
  * We received them from the vendor, so just use them as is.
  */
 static const struct ltk500hd1829_cmd init_code[] = {
@@ -384,7 +384,7 @@ static int ltk500hd1829_get_modes(struct drm_panel *panel,
 		dev_err(ctx->dev, "failed to add mode %ux%u@%u\n",
 			default_mode.hdisplay, default_mode.vdisplay,
 			drm_mode_vrefresh(&default_mode));
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	drm_mode_set_name(mode);
@@ -411,11 +411,11 @@ static int ltk500hd1829_probe(struct mipi_dsi_device *dsi)
 
 	ctx = devm_kzalloc(&dsi->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->reset_gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(ctx->reset_gpio)) {
-		dev_err(dev, "cannot get reset gpio\n");
+		dev_err(dev, "cananalt get reset gpio\n");
 		return PTR_ERR(ctx->reset_gpio);
 	}
 
@@ -442,7 +442,7 @@ static int ltk500hd1829_probe(struct mipi_dsi_device *dsi)
 	dsi->lanes = 4;
 	dsi->format = MIPI_DSI_FMT_RGB888;
 	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
-			  MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_NO_EOT_PACKET;
+			  MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_ANAL_EOT_PACKET;
 
 	drm_panel_init(&ctx->panel, &dsi->dev, &ltk500hd1829_funcs,
 		       DRM_MODE_CONNECTOR_DSI);

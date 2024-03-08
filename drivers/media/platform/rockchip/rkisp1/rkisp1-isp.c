@@ -23,8 +23,8 @@
 #define RKISP1_ISP_DEV_NAME	RKISP1_DRIVER_NAME "_isp"
 
 /*
- * NOTE: MIPI controller and input MUX are also configured in this file.
- * This is because ISP Subdev describes not only ISP submodule (input size,
+ * ANALTE: MIPI controller and input MUX are also configured in this file.
+ * This is because ISP Subdev describes analt only ISP submodule (input size,
  * format, output size, format), but also a virtual route device.
  */
 
@@ -398,7 +398,7 @@ static int rkisp1_isp_enum_frame_size(struct v4l2_subdev *sd,
 
 	if (fse->pad == RKISP1_ISP_PAD_SINK_PARAMS ||
 	    fse->pad == RKISP1_ISP_PAD_SOURCE_STATS)
-		return -ENOTTY;
+		return -EANALTTY;
 
 	if (fse->index > 0)
 		return -EINVAL;
@@ -434,10 +434,10 @@ static int rkisp1_isp_init_state(struct v4l2_subdev *sd,
 						RKISP1_ISP_PAD_SINK_VIDEO);
 	sink_fmt->width = RKISP1_DEFAULT_WIDTH;
 	sink_fmt->height = RKISP1_DEFAULT_HEIGHT;
-	sink_fmt->field = V4L2_FIELD_NONE;
+	sink_fmt->field = V4L2_FIELD_ANALNE;
 	sink_fmt->code = RKISP1_DEF_SINK_PAD_FMT;
 	sink_fmt->colorspace = V4L2_COLORSPACE_RAW;
-	sink_fmt->xfer_func = V4L2_XFER_FUNC_NONE;
+	sink_fmt->xfer_func = V4L2_XFER_FUNC_ANALNE;
 	sink_fmt->ycbcr_enc = V4L2_YCBCR_ENC_601;
 	sink_fmt->quantization = V4L2_QUANTIZATION_FULL_RANGE;
 
@@ -468,7 +468,7 @@ static int rkisp1_isp_init_state(struct v4l2_subdev *sd,
 					       RKISP1_ISP_PAD_SOURCE_STATS);
 	sink_fmt->width = 0;
 	sink_fmt->height = 0;
-	sink_fmt->field = V4L2_FIELD_NONE;
+	sink_fmt->field = V4L2_FIELD_ANALNE;
 	sink_fmt->code = MEDIA_BUS_FMT_METADATA_FIXED;
 	*src_fmt = *sink_fmt;
 
@@ -547,7 +547,7 @@ static void rkisp1_isp_set_src_fmt(struct rkisp1_isp *isp,
 	 * they need to combine color space information with other image tuning
 	 * characteristics and can't thus be computed by the kernel based on the
 	 * color space. The source pad colorspace and xfer_func fields are thus
-	 * ignored by the driver, but can be set by userspace to propagate
+	 * iganalred by the driver, but can be set by userspace to propagate
 	 * accurate color space information down the pipeline.
 	 */
 	set_csc = format->flags & V4L2_MBUS_FRAMEFMT_SET_CSC;
@@ -676,9 +676,9 @@ static void rkisp1_isp_set_sink_fmt(struct rkisp1_isp *isp,
 						      sink_fmt->ycbcr_enc);
 	} else {
 		/*
-		 * The YCbCr encoding isn't applicable for non-YUV formats, but
-		 * V4L2 has no "no encoding" value. Hardcode it to Rec. 601, it
-		 * should be ignored by userspace.
+		 * The YCbCr encoding isn't applicable for analn-YUV formats, but
+		 * V4L2 has anal "anal encoding" value. Hardcode it to Rec. 601, it
+		 * should be iganalred by userspace.
 		 */
 		sink_fmt->ycbcr_enc = V4L2_YCBCR_ENC_601;
 		sink_fmt->quantization = V4L2_QUANTIZATION_FULL_RANGE;
@@ -819,7 +819,7 @@ static int rkisp1_isp_s_stream(struct v4l2_subdev *sd, int enable)
 
 	rkisp1->source = media_entity_to_v4l2_subdev(source_pad->entity);
 	if (!rkisp1->source) {
-		/* This should really not happen, so is not worth a message. */
+		/* This should really analt happen, so is analt worth a message. */
 		return -EPIPE;
 	}
 
@@ -908,7 +908,7 @@ int rkisp1_isp_register(struct rkisp1_device *rkisp1)
 
 	v4l2_subdev_init(sd, &rkisp1_isp_ops);
 	sd->internal_ops = &rkisp1_isp_internal_ops;
-	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_HAS_EVENTS;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE | V4L2_SUBDEV_FL_HAS_EVENTS;
 	sd->entity.ops = &rkisp1_isp_media_ops;
 	sd->entity.function = MEDIA_ENT_F_PROC_VIDEO_PIXEL_FORMATTER;
 	sd->owner = THIS_MODULE;
@@ -967,7 +967,7 @@ static void rkisp1_isp_queue_event_sof(struct rkisp1_isp *isp)
 	};
 
 	event.u.frame_sync.frame_sequence = isp->frame_sequence;
-	v4l2_event_queue(isp->sd.devnode, &event);
+	v4l2_event_queue(isp->sd.devanalde, &event);
 }
 
 irqreturn_t rkisp1_isp_isr(int irq, void *ctx)
@@ -977,11 +977,11 @@ irqreturn_t rkisp1_isp_isr(int irq, void *ctx)
 	u32 status, isp_err;
 
 	if (!rkisp1->irqs_enabled)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	status = rkisp1_read(rkisp1, RKISP1_CIF_ISP_MIS);
 	if (!status)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	rkisp1_write(rkisp1, RKISP1_CIF_ISP_ICR, status);
 
@@ -990,7 +990,7 @@ irqreturn_t rkisp1_isp_isr(int irq, void *ctx)
 		rkisp1->isp.frame_sequence++;
 		rkisp1_isp_queue_event_sof(&rkisp1->isp);
 		if (status & RKISP1_CIF_ISP_FRAME) {
-			WARN_ONCE(1, "irq delay is too long, buffers might not be in sync\n");
+			WARN_ONCE(1, "irq delay is too long, buffers might analt be in sync\n");
 			rkisp1->debug.irq_delay++;
 		}
 	}

@@ -4,7 +4,7 @@
  */
 
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/gfp.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -83,8 +83,8 @@ static const struct of_device_id pmic_spmi_id_table[] = {
  */
 static struct spmi_device *qcom_pmic_get_base_usid(struct spmi_device *sdev, struct qcom_spmi_dev *ctx)
 {
-	struct device_node *spmi_bus;
-	struct device_node *child;
+	struct device_analde *spmi_bus;
+	struct device_analde *child;
 	int function_parent_usid, ret;
 	u32 pmic_addr;
 
@@ -106,18 +106,18 @@ static struct spmi_device *qcom_pmic_get_base_usid(struct spmi_device *sdev, str
 	 * where the function device is under USID 3, we want to find the
 	 * device for USID 2.
 	 */
-	spmi_bus = of_get_parent(sdev->dev.of_node);
-	sdev = ERR_PTR(-ENODATA);
-	for_each_child_of_node(spmi_bus, child) {
+	spmi_bus = of_get_parent(sdev->dev.of_analde);
+	sdev = ERR_PTR(-EANALDATA);
+	for_each_child_of_analde(spmi_bus, child) {
 		ret = of_property_read_u32_index(child, "reg", 0, &pmic_addr);
 		if (ret) {
-			of_node_put(child);
+			of_analde_put(child);
 			sdev = ERR_PTR(ret);
 			break;
 		}
 
 		if (pmic_addr == function_parent_usid - (ctx->num_usids - 1)) {
-			sdev = spmi_find_device_by_of_node(child);
+			sdev = spmi_find_device_by_of_analde(child);
 			if (!sdev) {
 				/*
 				 * If the base USID for this PMIC hasn't been
@@ -125,12 +125,12 @@ static struct spmi_device *qcom_pmic_get_base_usid(struct spmi_device *sdev, str
 				 */
 				sdev = ERR_PTR(-EPROBE_DEFER);
 			}
-			of_node_put(child);
+			of_analde_put(child);
 			break;
 		}
 	}
 
-	of_node_put(spmi_bus);
+	of_analde_put(spmi_bus);
 
 	return sdev;
 }
@@ -186,7 +186,7 @@ static int pmic_spmi_load_revid(struct regmap *map, struct device *dev,
 	if (ret < 0)
 		return ret;
 
-	ret = regmap_read(map, PMIC_REV3, &pmic->minor);
+	ret = regmap_read(map, PMIC_REV3, &pmic->mianalr);
 	if (ret < 0)
 		return ret;
 
@@ -211,10 +211,10 @@ static int pmic_spmi_load_revid(struct regmap *map, struct device *dev,
 		pmic->major++;
 
 	if (pmic->subtype == PM8110_SUBTYPE)
-		pmic->minor = pmic->rev2;
+		pmic->mianalr = pmic->rev2;
 
 	dev_dbg(dev, "%x: %s v%d.%d\n",
-		pmic->subtype, pmic->name, pmic->major, pmic->minor);
+		pmic->subtype, pmic->name, pmic->major, pmic->mianalr);
 
 	return 0;
 }
@@ -265,7 +265,7 @@ static int pmic_spmi_probe(struct spmi_device *sdev)
 
 	ctx = devm_kzalloc(&sdev->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->num_usids = (uintptr_t)device_get_match_data(&sdev->dev);
 
@@ -310,4 +310,4 @@ MODULE_DESCRIPTION("Qualcomm SPMI PMIC driver");
 MODULE_ALIAS("spmi:spmi-pmic");
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Josh Cartwright <joshc@codeaurora.org>");
-MODULE_AUTHOR("Stanimir Varbanov <svarbanov@mm-sol.com>");
+MODULE_AUTHOR("Stanimir Varbaanalv <svarbaanalv@mm-sol.com>");

@@ -1,12 +1,12 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Exynos Specific Extensions for Synopsys DW Multimedia Card Interface driver
+ * Exyanals Specific Extensions for Syanalpsys DW Multimedia Card Interface driver
  *
  * Copyright (C) 2012-2014 Samsung Electronics Co., Ltd.
  */
 
-#ifndef _DW_MMC_EXYNOS_H_
-#define _DW_MMC_EXYNOS_H_
+#ifndef _DW_MMC_EXYANALS_H_
+#define _DW_MMC_EXYANALS_H_
 
 #define SDMMC_CLKSEL			0x09C
 #define SDMMC_CLKSEL64			0x0A8
@@ -32,7 +32,7 @@
 
 /* RCLK_EN register defines */
 #define DATA_STROBE_EN			BIT(0)
-#define AXI_NON_BLOCKING_WR	BIT(7)
+#define AXI_ANALN_BLOCKING_WR	BIT(7)
 
 /* DLINE_CTRL register defines */
 #define DQS_CTRL_RD_DELAY(x, y)		(((x) & ~0x3FF) | ((y) & 0x3FF))
@@ -48,8 +48,8 @@
 /* SMU control defines */
 #define SDMMC_MPSCTRL_SECURE_READ_BIT		BIT(7)
 #define SDMMC_MPSCTRL_SECURE_WRITE_BIT		BIT(6)
-#define SDMMC_MPSCTRL_NON_SECURE_READ_BIT	BIT(5)
-#define SDMMC_MPSCTRL_NON_SECURE_WRITE_BIT	BIT(4)
+#define SDMMC_MPSCTRL_ANALN_SECURE_READ_BIT	BIT(5)
+#define SDMMC_MPSCTRL_ANALN_SECURE_WRITE_BIT	BIT(4)
 #define SDMMC_MPSCTRL_USE_FUSE_KEY		BIT(3)
 #define SDMMC_MPSCTRL_ECB_MODE			BIT(2)
 #define SDMMC_MPSCTRL_ENCRYPTION		BIT(1)
@@ -59,11 +59,11 @@
 #define SDMMC_ENDING_SEC_NR_MAX	0xFFFFFFFF
 
 /* Fixed clock divider */
-#define EXYNOS4210_FIXED_CIU_CLK_DIV	2
-#define EXYNOS4412_FIXED_CIU_CLK_DIV	4
+#define EXYANALS4210_FIXED_CIU_CLK_DIV	2
+#define EXYANALS4412_FIXED_CIU_CLK_DIV	4
 #define HS400_FIXED_CIU_CLK_DIV		1
 
 /* Minimal required clock frequency for cclkin, unit: HZ */
-#define EXYNOS_CCLKIN_MIN	50000000
+#define EXYANALS_CCLKIN_MIN	50000000
 
-#endif /* _DW_MMC_EXYNOS_H_ */
+#endif /* _DW_MMC_EXYANALS_H_ */

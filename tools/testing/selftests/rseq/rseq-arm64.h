@@ -2,7 +2,7 @@
 /*
  * rseq-arm64.h
  *
- * (C) Copyright 2016-2022 - Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+ * (C) Copyright 2016-2022 - Mathieu Desanalyers <mathieu.desanalyers@efficios.com>
  * (C) Copyright 2018 - Will Deacon <will.deacon@arm.com>
  */
 
@@ -112,9 +112,9 @@ do {										\
 /*
  * Exit points of a rseq critical section consist of all instructions outside
  * of the critical section where a critical section can either branch to or
- * reach through the normal course of its execution. The abort IP and the
- * post-commit IP are already part of the __rseq_cs section and should not be
- * explicitly defined as additional exit points. Knowing all exit points is
+ * reach through the analrmal course of its execution. The abort IP and the
+ * post-commit IP are already part of the __rseq_cs section and should analt be
+ * explicitly defined as additional exit points. Kanalwing all exit points is
  * useful to assist debuggers stepping over the critical section.
  */
 #define RSEQ_ASM_DEFINE_EXIT_POINT(start_ip, exit_ip)				\
@@ -226,10 +226,10 @@ do {										\
 #undef RSEQ_TEMPLATE_MO_RELEASE
 #undef RSEQ_TEMPLATE_MM_CID
 
-/* APIs which are not based on cpu ids. */
+/* APIs which are analt based on cpu ids. */
 
-#define RSEQ_TEMPLATE_CPU_ID_NONE
+#define RSEQ_TEMPLATE_CPU_ID_ANALNE
 #define RSEQ_TEMPLATE_MO_RELAXED
 #include "rseq-arm64-bits.h"
 #undef RSEQ_TEMPLATE_MO_RELAXED
-#undef RSEQ_TEMPLATE_CPU_ID_NONE
+#undef RSEQ_TEMPLATE_CPU_ID_ANALNE

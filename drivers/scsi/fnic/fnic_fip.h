@@ -25,7 +25,7 @@ struct vlan {
 struct fcoe_vlan {
 	struct list_head list;
 	u16 vid;		/* vlan ID */
-	u16 sol_count;		/* no. of sols sent */
+	u16 sol_count;		/* anal. of sols sent */
 	u16 state;		/* state */
 };
 

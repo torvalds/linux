@@ -2,7 +2,7 @@
 /*
  * net.c - Networking component for Mostcore
  *
- * Copyright (C) 2015, Microchip Technology Germany II GmbH & Co. KG
+ * Copyright (C) 2015, Microchip Techanallogy Germany II GmbH & Co. KG
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -24,14 +24,14 @@
 #define PMHL 5
 
 #define PMS_TELID_UNSEGM_MAMAC	0x0A
-#define PMS_FIFONO_MDP		0x01
-#define PMS_FIFONO_MEP		0x04
+#define PMS_FIFOANAL_MDP		0x01
+#define PMS_FIFOANAL_MEP		0x04
 #define PMS_MSGTYPE_DATA	0x04
 #define PMS_DEF_PRIO		0
 #define MEP_DEF_RETRY		15
 
-#define PMS_FIFONO_MASK		0x07
-#define PMS_FIFONO_SHIFT	3
+#define PMS_FIFOANAL_MASK		0x07
+#define PMS_FIFOANAL_SHIFT	3
 #define PMS_RETRY_SHIFT		4
 #define PMS_TELID_MASK		0x0F
 #define PMS_TELID_SHIFT		4
@@ -44,12 +44,12 @@
 
 #define PMS_IS_MEP(buf, len) \
 	((len) > MEP_HDR_LEN && \
-	 EXTRACT_BIT_SET(PMS_FIFONO, (buf)[3]) == PMS_FIFONO_MEP)
+	 EXTRACT_BIT_SET(PMS_FIFOANAL, (buf)[3]) == PMS_FIFOANAL_MEP)
 
 static inline bool pms_is_mamac(char *buf, u32 len)
 {
 	return (len > MDP_HDR_LEN &&
-		EXTRACT_BIT_SET(PMS_FIFONO, buf[3]) == PMS_FIFONO_MDP &&
+		EXTRACT_BIT_SET(PMS_FIFOANAL, buf[3]) == PMS_FIFOANAL_MDP &&
 		EXTRACT_BIT_SET(PMS_TELID, buf[14]) == PMS_TELID_UNSEGM_MAMAC);
 }
 
@@ -104,7 +104,7 @@ static int skb_to_mamac(const struct sk_buff *skb, struct mbo *mbo)
 	*buff++ = LB(mdp_len - 2);
 
 	*buff++ = PMHL;
-	*buff++ = (PMS_FIFONO_MDP << PMS_FIFONO_SHIFT) | PMS_MSGTYPE_DATA;
+	*buff++ = (PMS_FIFOANAL_MDP << PMS_FIFOANAL_SHIFT) | PMS_MSGTYPE_DATA;
 	*buff++ = PMS_DEF_PRIO;
 	*buff++ = dest_addr[0];
 	*buff++ = dest_addr[1];
@@ -148,7 +148,7 @@ static int skb_to_mep(const struct sk_buff *skb, struct mbo *mbo)
 	*buff++ = LB(mep_len - 2);
 
 	*buff++ = PMHL;
-	*buff++ = (PMS_FIFONO_MEP << PMS_FIFONO_SHIFT) | PMS_MSGTYPE_DATA;
+	*buff++ = (PMS_FIFOANAL_MEP << PMS_FIFOANAL_SHIFT) | PMS_MSGTYPE_DATA;
 	*buff++ = (MEP_DEF_RETRY << PMS_RETRY_SHIFT) | PMS_DEF_PRIO;
 	*buff++ = 0;
 	*buff++ = 0;
@@ -322,9 +322,9 @@ static int comp_probe_channel(struct most_interface *iface, int channel_idx,
 	nd = get_net_dev(iface);
 	if (!nd) {
 		dev = alloc_netdev(sizeof(struct net_dev_context), "meth%d",
-				   NET_NAME_UNKNOWN, most_nd_setup);
+				   NET_NAME_UNKANALWN, most_nd_setup);
 		if (!dev) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto unlock;
 		}
 
@@ -389,7 +389,7 @@ static int comp_disconnect_channel(struct most_interface *iface,
 		spin_unlock_irqrestore(&list_lock, flags);
 
 		/*
-		 * do not call most_stop_channel() here, because channels are
+		 * do analt call most_stop_channel() here, because channels are
 		 * going to be closed in ndo_stop() after unregister_netdev()
 		 */
 		unregister_netdev(nd->dev);
@@ -465,7 +465,7 @@ static int comp_rx_data(struct mbo *mbo)
 
 	if (!skb) {
 		dev->stats.rx_dropped++;
-		pr_err_once("drop packet: no memory for skb\n");
+		pr_err_once("drop packet: anal memory for skb\n");
 		goto out;
 	}
 

@@ -14,7 +14,7 @@
  * pins SD3_DAT0 and SD3_DAT1 are muxed as can2 Tx and Rx. The signals for can2
  * Tx and Rx are routed to the DHCOM UART1 rts/cts pins. Therefore the micro SD
  * card must be disabled and the uart1 rts/cts must be output on other DHCOM
- * pins, see uart1 and usdhc3 node below.
+ * pins, see uart1 and usdhc3 analde below.
  */
 &can2 {
 	status = "okay";
@@ -22,7 +22,7 @@
 
 &gpio1 {
 	/*
-	 * NOTE: On DRC02, the RS485_RX_En is controlled by a separate
+	 * ANALTE: On DRC02, the RS485_RX_En is controlled by a separate
 	 * GPIO line, however the i.MX6 UART driver assumes RX happens
 	 * during TX anyway and that it only controls drive enable DE
 	 * line. Hence, the RX is always enabled here.
@@ -86,7 +86,7 @@
 	 * controlled by DHCOM GPIO P. So remove rts/cts pins and the property
 	 * uart-has-rtscts from this UART and add the DHCOM GPIO P pin via
 	 * rts-gpios. The RS485_RX_En is controlled by DHCOM GPIO Q, see gpio1
-	 * node above.
+	 * analde above.
 	 */
 	/delete-property/ uart-has-rtscts;
 	linux,rs485-enabled-at-boot-time;

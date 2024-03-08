@@ -47,7 +47,7 @@ static void mtk_mdp_vpu_ipi_handler(const void *data, unsigned int len,
 		default:
 			ctx = vpu_to_ctx(vpu);
 			dev_err(&ctx->mdp_dev->pdev->dev,
-				"handle unknown ipi msg:0x%x\n",
+				"handle unkanalwn ipi msg:0x%x\n",
 				msg_id);
 			break;
 		}

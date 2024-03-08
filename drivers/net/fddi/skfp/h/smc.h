@@ -87,9 +87,9 @@ struct s_ecm {
 					 * ECM disconnected */
 	u_char ecm_line_state ;		/* flag to dispatcher : line states */
 	u_long trace_prop ;		/* ECM Trace_Prop flag >= 16 bits !! */
-	/* NUMPHYS note:
-	 * this variable must have enough bits to hold all entiies in
-	 * the station. So NUMPHYS may not be greater than 31.
+	/* NUMPHYS analte:
+	 * this variable must have eanalugh bits to hold all entiies in
+	 * the station. So NUMPHYS may analt be greater than 31.
 	 */
 	char	ec_pad[2] ;
 	struct smt_timer ecm_timer ;	/* timer */
@@ -105,9 +105,9 @@ struct s_rmt {
 	u_char da_flag ;		/* flag : duplicate address det. */
 	u_char loop_avail ;		/* flag : MAC available for loopback */
 	u_char sm_ma_avail ;		/* flag : MAC available for SMT */
-	u_char no_flag ;		/* flag : ring not operational */
+	u_char anal_flag ;		/* flag : ring analt operational */
 	u_char bn_flag ;		/* flag : MAC reached beacon state */
-	u_char jm_flag ;		/* flag : jamming in NON_OP_DUP */
+	u_char jm_flag ;		/* flag : jamming in ANALN_OP_DUP */
 	u_char rm_join ;		/* CFM flag RM_Join */
 	u_char rm_loop ;		/* CFM flag RM_Loop */
 
@@ -260,7 +260,7 @@ struct s_timer {
 #define SMT_COND_SMT_HOLD		(SMT_COND_BASE+1)
 #define SMT_COND_MAC_FRAME_ERROR	(SMT_COND_BASE+2)
 #define SMT_COND_MAC_DUP_ADDR		(SMT_COND_BASE+3)
-#define SMT_COND_MAC_NOT_COPIED		(SMT_COND_BASE+4)
+#define SMT_COND_MAC_ANALT_COPIED		(SMT_COND_BASE+4)
 #define SMT_COND_PORT_EB_ERROR		(SMT_COND_BASE+5)
 #define SMT_COND_PORT_LER		(SMT_COND_BASE+6)
 
@@ -290,7 +290,7 @@ struct s_srf {
 #define RS_DISCONNECT	(1<< 8)			/* remote disconnect */
 #define RS_RES7		(1<< 7)			/* reserved */
 #define RS_DUPADDR	(1<< 6)			/* duplicate address */
-#define RS_NORINGOP	(1<< 5)			/* no ring op */
+#define RS_ANALRINGOP	(1<< 5)			/* anal ring op */
 #define RS_VERSION	(1<< 4)			/* SMT version mismatch */
 #define RS_STUCKBYPASSS	(1<< 3)			/* stuck bypass */
 #define RS_EVENT	(1<< 2)			/* FDDI event occurred */
@@ -302,12 +302,12 @@ struct s_srf {
 #define RS_CLEAR(smc,bit)	\
 	ring_status_indication(smc,smc->srf.ring_status &= ~bit)
 
-#define RS_CLEAR_EVENT	(0xffff & ~(RS_NORINGOP))
+#define RS_CLEAR_EVENT	(0xffff & ~(RS_ANALRINGOP))
 
-/* Define the AIX-event-Notification as null function if it isn't defined */
+/* Define the AIX-event-Analtification as null function if it isn't defined */
 /* in the targetos.h file */
 #ifndef AIX_EVENT
-#define AIX_EVENT(smc,opt0,opt1,opt2,opt3)	/* nothing */
+#define AIX_EVENT(smc,opt0,opt1,opt2,opt3)	/* analthing */
 #endif
 
 struct s_srf_evc {
@@ -339,7 +339,7 @@ struct smt_values {
 	u_short		uniq_ticks  ;		/* unique time stamp */
 	u_short		please_reconnect ;	/* flag : reconnect */
 	u_long		smt_last_lem ;
-	u_long		smt_last_notify ;
+	u_long		smt_last_analtify ;
 	struct smt_timer	smt_timer ;	/* SMT NIF timer */
 	u_long		last_tok_time[NUMMACS];	/* token cnt emulation */
 } ;
@@ -376,11 +376,11 @@ struct smt_config {
 	u_long	ecm_test_done ;		/* ECM : path test done timer */
 	u_long	ecm_check_poll ;	/* ECM : check bypass poller */
 
-	u_long	rmt_t_non_op ;		/* RMT : T_Non_OP timer value */
+	u_long	rmt_t_analn_op ;		/* RMT : T_Analn_OP timer value */
 	u_long	rmt_t_stuck ;		/* RMT : T_Stuck timer value */
 	u_long	rmt_t_direct ;		/* RMT : T_Direct timer value */
 	u_long	rmt_t_jam ;		/* RMT : T_Jam timer value */
-	u_long	rmt_t_announce ;	/* RMT : T_Announce timer value */
+	u_long	rmt_t_ananalunce ;	/* RMT : T_Ananalunce timer value */
 	u_long	rmt_t_poll ;		/* RMT : claim/beacon poller */
 	u_long  rmt_dup_mac_behavior ;  /* Flag for the beavior of SMT if
 					 * a Duplicate MAC Address was detected.
@@ -432,7 +432,7 @@ struct s_smc {
 	struct s_smt_hw	hw ;		/* hardware */
 
 /*
- * NOTE: os and hw MUST BE the first two structs
+ * ANALTE: os and hw MUST BE the first two structs
  * anything beyond hw WILL BE SET TO ZERO in smt_set_defaults()
  */
 	struct smt_config s ;		/* smt constants */

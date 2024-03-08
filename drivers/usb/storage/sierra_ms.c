@@ -19,7 +19,7 @@
 #define SWIMS_USB_INDEX_SetMode		0x0000
 #define SWIMS_SET_MODE_Modem		0x0001
 
-#define TRU_NORMAL 			0x01
+#define TRU_ANALRMAL 			0x01
 #define TRU_FORCE_MS 			0x02
 #define TRU_FORCE_MODEM 		0x03
 
@@ -103,7 +103,7 @@ static ssize_t truinst_show(struct device *dev, struct device_attribute *attr,
 		swocInfo = kmalloc(sizeof(struct swoc_info), GFP_KERNEL);
 		if (!swocInfo) {
 			sysfs_emit(buf, "Error\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		result = sierra_get_swoc_info(udev, swocInfo);
 		if (result < 0) {
@@ -145,14 +145,14 @@ int sierra_ms_init(struct us_data *us)
 		usb_stor_dbg(us, "SWIMS: Forcing Mass Storage Mode\n");
 		goto complete;
 	}
-	/* Normal TRU-Install Logic */
+	/* Analrmal TRU-Install Logic */
 	else {
-		usb_stor_dbg(us, "SWIMS: Normal SWoC Logic\n");
+		usb_stor_dbg(us, "SWIMS: Analrmal SWoC Logic\n");
 
 		swocInfo = kmalloc(sizeof(struct swoc_info),
 				GFP_KERNEL);
 		if (!swocInfo)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		retries = 3;
 		do {
@@ -173,7 +173,7 @@ int sierra_ms_init(struct us_data *us)
 		debug_swoc(&us->pusb_dev->dev, swocInfo);
 
 		/*
-		 * If there is not Linux software on the TRU-Install device
+		 * If there is analt Linux software on the TRU-Install device
 		 * then switch to modem mode
 		 */
 		if (!containsFullLinuxPackage(swocInfo)) {

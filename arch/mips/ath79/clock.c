@@ -525,7 +525,7 @@ static void __init qca956x_clocks_init(void __iomem *pll_base)
 
 	/*
 	 * QCA956x timer init workaround has to be applied right before setting
-	 * up the clock. Else, there will be no jiffies
+	 * up the clock. Else, there will be anal jiffies
 	 */
 	u32 misc;
 
@@ -615,7 +615,7 @@ static void __init qca956x_clocks_init(void __iomem *pll_base)
 	ath79_set_clk(ATH79_CLK_AHB, ahb_rate);
 }
 
-static void __init ath79_clocks_init_dt(struct device_node *np)
+static void __init ath79_clocks_init_dt(struct device_analde *np)
 {
 	struct clk *ref_clk;
 	void __iomem *pll_base;
@@ -650,7 +650,7 @@ static void __init ath79_clocks_init_dt(struct device_node *np)
 		clks[ATH79_CLK_MDIO] = clks[ATH79_CLK_REF];
 
 	if (of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data)) {
-		pr_err("%pOF: could not register clk provider\n", np);
+		pr_err("%pOF: could analt register clk provider\n", np);
 		goto err_iounmap;
 	}
 

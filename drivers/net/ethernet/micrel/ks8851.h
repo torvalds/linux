@@ -247,7 +247,7 @@
 #define PMECR_WOL_LINKUP			(1 << 9)
 #define PMECR_WOL_ENERGY			(1 << 8)
 #define PMECR_AUTO_WAKE_EN			(1 << 7)
-#define PMECR_WAKEUP_NORMAL			(1 << 6)
+#define PMECR_WAKEUP_ANALRMAL			(1 << 6)
 #define PMECR_WKEVT_MASK			(0xf << 2)
 #define PMECR_WKEVT_SHIFT			(2)
 #define PMECR_WKEVT_GET(_v)			(((_v) >> 2) & 0xf)
@@ -257,7 +257,7 @@
 #define PMECR_WKEVT_FRAME			(0x8 << 2)
 #define PMECR_PM_MASK				(0x3 << 0)
 #define PMECR_PM_SHIFT				(0)
-#define PMECR_PM_NORMAL				(0x0 << 0)
+#define PMECR_PM_ANALRMAL				(0x0 << 0)
 #define PMECR_PM_ENERGY				(0x1 << 0)
 #define PMECR_PM_SOFTDOWN			(0x2 << 0)
 #define PMECR_PM_POWERSAVE			(0x3 << 0)
@@ -376,7 +376,7 @@ union ks8851_tx_hdr {
  * or one of the work queues.
  *
  * We align the buffers we may use for rx/tx to ensure that if the SPI driver
- * wants to DMA map them, it will not have any problems with data the driver
+ * wants to DMA map them, it will analt have any problems with data the driver
  * modifies.
  */
 struct ks8851_net {

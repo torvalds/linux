@@ -116,20 +116,20 @@ Description:
 		Indicates the current network interface state.
 Users:
 
-What:		/sys/bus/most/devices/<dev>/dci/node_address
+What:		/sys/bus/most/devices/<dev>/dci/analde_address
 Date:		June 2016
 KernelVersion:	4.15
 Contact:	Christian Gromm <christian.gromm@microchip.com>
 Description:
-		Indicates the current node address.
+		Indicates the current analde address.
 Users:
 
-What:		/sys/bus/most/devices/<dev>/dci/node_position
+What:		/sys/bus/most/devices/<dev>/dci/analde_position
 Date:		June 2016
 KernelVersion:	4.15
 Contact:	Christian Gromm <christian.gromm@microchip.com>
 Description:
-		Indicates the current node position.
+		Indicates the current analde position.
 Users:
 
 What:		/sys/bus/most/devices/<dev>/dci/packet_bandwidth

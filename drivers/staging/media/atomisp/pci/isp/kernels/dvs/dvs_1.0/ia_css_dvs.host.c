@@ -197,14 +197,14 @@ convert_coords_to_ispparams(
 			printf("p3_x: %d\n", s.p3_x);
 			printf("p3_y: %d\n", s.p3_y);
 
-			printf("p0_x_nofrac[0]: %d\n", s.p0_x >> DVS_COORD_FRAC_BITS);
-			printf("p0_y_nofrac[1]: %d\n", s.p0_y >> DVS_COORD_FRAC_BITS);
-			printf("p1_x_nofrac[2]: %d\n", s.p1_x >> DVS_COORD_FRAC_BITS);
-			printf("p1_y_nofrac[3]: %d\n", s.p1_y >> DVS_COORD_FRAC_BITS);
-			printf("p2_x_nofrac[0]: %d\n", s.p2_x >> DVS_COORD_FRAC_BITS);
-			printf("p2_y_nofrac[1]: %d\n", s.p2_y >> DVS_COORD_FRAC_BITS);
-			printf("p3_x_nofrac[2]: %d\n", s.p3_x >> DVS_COORD_FRAC_BITS);
-			printf("p3_y_nofrac[3]: %d\n", s.p3_y >> DVS_COORD_FRAC_BITS);
+			printf("p0_x_analfrac[0]: %d\n", s.p0_x >> DVS_COORD_FRAC_BITS);
+			printf("p0_y_analfrac[1]: %d\n", s.p0_y >> DVS_COORD_FRAC_BITS);
+			printf("p1_x_analfrac[2]: %d\n", s.p1_x >> DVS_COORD_FRAC_BITS);
+			printf("p1_y_analfrac[3]: %d\n", s.p1_y >> DVS_COORD_FRAC_BITS);
+			printf("p2_x_analfrac[0]: %d\n", s.p2_x >> DVS_COORD_FRAC_BITS);
+			printf("p2_y_analfrac[1]: %d\n", s.p2_y >> DVS_COORD_FRAC_BITS);
+			printf("p3_x_analfrac[2]: %d\n", s.p3_x >> DVS_COORD_FRAC_BITS);
+			printf("p3_y_analfrac[3]: %d\n", s.p3_y >> DVS_COORD_FRAC_BITS);
 			printf("\n");
 #endif
 
@@ -285,8 +285,8 @@ store_dvs_6axis_config(
 
 	if (!me)
 	{
-		IA_CSS_LEAVE_ERR_PRIVATE(-ENOMEM);
-		return -ENOMEM;
+		IA_CSS_LEAVE_ERR_PRIVATE(-EANALMEM);
+		return -EANALMEM;
 	}
 
 	ia_css_params_store_ia_css_host_data(

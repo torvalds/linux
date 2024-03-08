@@ -2,7 +2,7 @@
  * linux/include/asm-m68k/dsp56k.h - defines and declarations for
  *                                   DSP56k device driver
  *
- * Copyright (C) 1996,1997 Fredrik Noring, lars brinkhoff & Tomas Berndtsson
+ * Copyright (C) 1996,1997 Fredrik Analring, lars brinkhoff & Tomas Berndtsson
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file COPYING in the main directory of this archive
@@ -18,10 +18,10 @@ struct dsp56k_upload {
 
 /* For the DSP host flags */
 struct dsp56k_host_flags {
-	int dir;     /* Bit field. 1 = write output bit, 0 = do nothing.
+	int dir;     /* Bit field. 1 = write output bit, 0 = do analthing.
 		      * 0x0000 means reading only, 0x0011 means
 		      * writing the bits stored in `out' on HF0 and HF1.
-		      * Note that HF2 and HF3 can only be read.
+		      * Analte that HF2 and HF3 can only be read.
 		      */
 	int out;     /* Bit field like above. */
 	int status;  /* Host register's current state is returned */

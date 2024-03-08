@@ -25,7 +25,7 @@ int irdma_sc_access_ah(struct irdma_sc_cqp *cqp, struct irdma_ah_info *info,
 
 	wqe = irdma_sc_cqp_get_next_send_wqe(cqp, scratch);
 	if (!wqe)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	set_64bit_val(wqe, 0, ether_addr_to_u64(info->mac_addr) << 16);
 	qw1 = FIELD_PREP(IRDMA_UDA_CQPSQ_MAV_PDINDEXLO, info->pd_idx) |
@@ -126,7 +126,7 @@ int irdma_access_mcast_grp(struct irdma_sc_cqp *cqp,
 	wqe = irdma_sc_cqp_get_next_send_wqe(cqp, scratch);
 	if (!wqe) {
 		ibdev_dbg(to_ibdev(cqp->dev), "WQE: ring full\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	irdma_create_mg_ctx(info);
@@ -216,11 +216,11 @@ int irdma_sc_add_mcast_grp(struct irdma_mcast_grp_info *ctx,
 		ctx->mg_ctx_info[free_entry_idx] = *mg;
 		ctx->mg_ctx_info[free_entry_idx].valid_entry = true;
 		ctx->mg_ctx_info[free_entry_idx].use_cnt = 1;
-		ctx->no_of_mgs++;
+		ctx->anal_of_mgs++;
 		return 0;
 	}
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /**
@@ -246,14 +246,14 @@ int irdma_sc_del_mcast_grp(struct irdma_mcast_grp_info *ctx,
 
 			if (!ctx->mg_ctx_info[idx].use_cnt) {
 				ctx->mg_ctx_info[idx].valid_entry = false;
-				ctx->no_of_mgs--;
-				/* Remove gap if element was not the last */
-				if (idx != ctx->no_of_mgs &&
-				    ctx->no_of_mgs > 0) {
+				ctx->anal_of_mgs--;
+				/* Remove gap if element was analt the last */
+				if (idx != ctx->anal_of_mgs &&
+				    ctx->anal_of_mgs > 0) {
 					memcpy(&ctx->mg_ctx_info[idx],
-					       &ctx->mg_ctx_info[ctx->no_of_mgs - 1],
+					       &ctx->mg_ctx_info[ctx->anal_of_mgs - 1],
 					       sizeof(ctx->mg_ctx_info[idx]));
-					ctx->mg_ctx_info[ctx->no_of_mgs - 1].valid_entry = false;
+					ctx->mg_ctx_info[ctx->anal_of_mgs - 1].valid_entry = false;
 				}
 			}
 

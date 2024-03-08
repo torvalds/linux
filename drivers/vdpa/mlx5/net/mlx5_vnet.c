@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2020 Mellanox Technologies Ltd. */
+/* Copyright (c) 2020 Mellaanalx Techanallogies Ltd. */
 
 #include <linux/module.h>
 #include <linux/vdpa.h>
@@ -21,8 +21,8 @@
 #include "mlx5_vdpa.h"
 #include "mlx5_vnet.h"
 
-MODULE_AUTHOR("Eli Cohen <eli@mellanox.com>");
-MODULE_DESCRIPTION("Mellanox VDPA driver");
+MODULE_AUTHOR("Eli Cohen <eli@mellaanalx.com>");
+MODULE_DESCRIPTION("Mellaanalx VDPA driver");
 MODULE_LICENSE("Dual BSD/GPL");
 
 #define VALID_FEATURES_MASK                                                                        \
@@ -33,15 +33,15 @@ MODULE_LICENSE("Dual BSD/GPL");
 	 BIT_ULL(VIRTIO_NET_F_HOST_TSO6) | BIT_ULL(VIRTIO_NET_F_HOST_ECN) | BIT_ULL(VIRTIO_NET_F_HOST_UFO) |   \
 	 BIT_ULL(VIRTIO_NET_F_MRG_RXBUF) | BIT_ULL(VIRTIO_NET_F_STATUS) | BIT_ULL(VIRTIO_NET_F_CTRL_VQ) |      \
 	 BIT_ULL(VIRTIO_NET_F_CTRL_RX) | BIT_ULL(VIRTIO_NET_F_CTRL_VLAN) |                                 \
-	 BIT_ULL(VIRTIO_NET_F_CTRL_RX_EXTRA) | BIT_ULL(VIRTIO_NET_F_GUEST_ANNOUNCE) |                      \
+	 BIT_ULL(VIRTIO_NET_F_CTRL_RX_EXTRA) | BIT_ULL(VIRTIO_NET_F_GUEST_ANANALUNCE) |                      \
 	 BIT_ULL(VIRTIO_NET_F_MQ) | BIT_ULL(VIRTIO_NET_F_CTRL_MAC_ADDR) | BIT_ULL(VIRTIO_NET_F_HASH_REPORT) |  \
 	 BIT_ULL(VIRTIO_NET_F_RSS) | BIT_ULL(VIRTIO_NET_F_RSC_EXT) | BIT_ULL(VIRTIO_NET_F_STANDBY) |           \
-	 BIT_ULL(VIRTIO_NET_F_SPEED_DUPLEX) | BIT_ULL(VIRTIO_F_NOTIFY_ON_EMPTY) |                          \
+	 BIT_ULL(VIRTIO_NET_F_SPEED_DUPLEX) | BIT_ULL(VIRTIO_F_ANALTIFY_ON_EMPTY) |                          \
 	 BIT_ULL(VIRTIO_F_ANY_LAYOUT) | BIT_ULL(VIRTIO_F_VERSION_1) | BIT_ULL(VIRTIO_F_ACCESS_PLATFORM) |      \
 	 BIT_ULL(VIRTIO_F_RING_PACKED) | BIT_ULL(VIRTIO_F_ORDER_PLATFORM) | BIT_ULL(VIRTIO_F_SR_IOV))
 
 #define VALID_STATUS_MASK                                                                          \
-	(VIRTIO_CONFIG_S_ACKNOWLEDGE | VIRTIO_CONFIG_S_DRIVER | VIRTIO_CONFIG_S_DRIVER_OK |        \
+	(VIRTIO_CONFIG_S_ACKANALWLEDGE | VIRTIO_CONFIG_S_DRIVER | VIRTIO_CONFIG_S_DRIVER_OK |        \
 	 VIRTIO_CONFIG_S_FEATURES_OK | VIRTIO_CONFIG_S_NEEDS_RESET | VIRTIO_CONFIG_S_FAILED)
 
 #define MLX5_FEATURE(_mvdev, _feature) (!!((_mvdev)->actual_features & BIT_ULL(_feature)))
@@ -96,7 +96,7 @@ struct mlx5_vdpa_virtqueue {
 	u64 driver_addr;
 	u32 num_ent;
 
-	/* Resources for implementing the notification channel from the device
+	/* Resources for implementing the analtification channel from the device
 	 * to the driver. fwqp is the firmware end of an RC connection; the
 	 * other end is vqqp used by the driver. cq is where completions are
 	 * reported.
@@ -210,7 +210,7 @@ static void print_status(struct mlx5_vdpa_dev *mvdev, u8 status, bool set)
 		return;
 	}
 
-	MLX5_LOG_VIO_STAT(VIRTIO_CONFIG_S_ACKNOWLEDGE);
+	MLX5_LOG_VIO_STAT(VIRTIO_CONFIG_S_ACKANALWLEDGE);
 	MLX5_LOG_VIO_STAT(VIRTIO_CONFIG_S_DRIVER);
 	MLX5_LOG_VIO_STAT(VIRTIO_CONFIG_S_DRIVER_OK);
 	MLX5_LOG_VIO_STAT(VIRTIO_CONFIG_S_FEATURES_OK);
@@ -250,7 +250,7 @@ static void print_features(struct mlx5_vdpa_dev *mvdev, u64 features, bool set)
 	MLX5_LOG_VIO_FLAG(VIRTIO_NET_F_CTRL_RX);
 	MLX5_LOG_VIO_FLAG(VIRTIO_NET_F_CTRL_VLAN);
 	MLX5_LOG_VIO_FLAG(VIRTIO_NET_F_CTRL_RX_EXTRA);
-	MLX5_LOG_VIO_FLAG(VIRTIO_NET_F_GUEST_ANNOUNCE);
+	MLX5_LOG_VIO_FLAG(VIRTIO_NET_F_GUEST_ANANALUNCE);
 	MLX5_LOG_VIO_FLAG(VIRTIO_NET_F_MQ);
 	MLX5_LOG_VIO_FLAG(VIRTIO_NET_F_CTRL_MAC_ADDR);
 	MLX5_LOG_VIO_FLAG(VIRTIO_NET_F_HASH_REPORT);
@@ -258,7 +258,7 @@ static void print_features(struct mlx5_vdpa_dev *mvdev, u64 features, bool set)
 	MLX5_LOG_VIO_FLAG(VIRTIO_NET_F_RSC_EXT);
 	MLX5_LOG_VIO_FLAG(VIRTIO_NET_F_STANDBY);
 	MLX5_LOG_VIO_FLAG(VIRTIO_NET_F_SPEED_DUPLEX);
-	MLX5_LOG_VIO_FLAG(VIRTIO_F_NOTIFY_ON_EMPTY);
+	MLX5_LOG_VIO_FLAG(VIRTIO_F_ANALTIFY_ON_EMPTY);
 	MLX5_LOG_VIO_FLAG(VIRTIO_F_ANY_LAYOUT);
 	MLX5_LOG_VIO_FLAG(VIRTIO_F_VERSION_1);
 	MLX5_LOG_VIO_FLAG(VIRTIO_F_ACCESS_PLATFORM);
@@ -298,8 +298,8 @@ static int cq_frag_buf_alloc(struct mlx5_vdpa_net *ndev, struct mlx5_vdpa_cq_buf
 	u8 log_wq_sz = MLX5_VDPA_LOG_CQE_SIZE;
 	int err;
 
-	err = mlx5_frag_buf_alloc_node(ndev->mvdev.mdev, nent * MLX5_VDPA_CQE_SIZE, frag_buf,
-				       ndev->mvdev.mdev->priv.numa_node);
+	err = mlx5_frag_buf_alloc_analde(ndev->mvdev.mdev, nent * MLX5_VDPA_CQE_SIZE, frag_buf,
+				       ndev->mvdev.mdev->priv.numa_analde);
 	if (err)
 		return err;
 
@@ -315,8 +315,8 @@ static int umem_frag_buf_alloc(struct mlx5_vdpa_net *ndev, struct mlx5_vdpa_umem
 {
 	struct mlx5_frag_buf *frag_buf = &umem->frag_buf;
 
-	return mlx5_frag_buf_alloc_node(ndev->mvdev.mdev, size, frag_buf,
-					ndev->mvdev.mdev->priv.numa_node);
+	return mlx5_frag_buf_alloc_analde(ndev->mvdev.mdev, size, frag_buf,
+					ndev->mvdev.mdev->priv.numa_analde);
 }
 
 static void cq_frag_buf_free(struct mlx5_vdpa_net *ndev, struct mlx5_vdpa_cq_buf *buf)
@@ -375,7 +375,7 @@ static void qp_prepare(struct mlx5_vdpa_net *ndev, bool fw, void *in,
 		 */
 		qpc = MLX5_ADDR_OF(create_qp_in, in, qpc);
 		MLX5_SET(qpc, qpc, rq_type, MLX5_ZERO_LEN_RQ);
-		MLX5_SET(qpc, qpc, no_sq, 1);
+		MLX5_SET(qpc, qpc, anal_sq, 1);
 		return;
 	}
 
@@ -385,19 +385,19 @@ static void qp_prepare(struct mlx5_vdpa_net *ndev, bool fw, void *in,
 	MLX5_SET(qpc, qpc, mtu, MLX5_QPC_MTU_256_BYTES);
 	MLX5_SET(qpc, qpc, uar_page, ndev->mvdev.res.uar->index);
 	MLX5_SET(qpc, qpc, log_page_size, vqp->frag_buf.page_shift - MLX5_ADAPTER_PAGE_SHIFT);
-	MLX5_SET(qpc, qpc, no_sq, 1);
+	MLX5_SET(qpc, qpc, anal_sq, 1);
 	MLX5_SET(qpc, qpc, cqn_rcv, mvq->cq.mcq.cqn);
 	MLX5_SET(qpc, qpc, log_rq_size, ilog2(num_ent));
-	MLX5_SET(qpc, qpc, rq_type, MLX5_NON_ZERO_RQ);
+	MLX5_SET(qpc, qpc, rq_type, MLX5_ANALN_ZERO_RQ);
 	pas = (__be64 *)MLX5_ADDR_OF(create_qp_in, in, pas);
 	mlx5_fill_page_frag_array(&vqp->frag_buf, pas);
 }
 
 static int rq_buf_alloc(struct mlx5_vdpa_net *ndev, struct mlx5_vdpa_qp *vqp, u32 num_ent)
 {
-	return mlx5_frag_buf_alloc_node(ndev->mvdev.mdev,
+	return mlx5_frag_buf_alloc_analde(ndev->mvdev.mdev,
 					num_ent * sizeof(struct mlx5_wqe_data_seg), &vqp->frag_buf,
-					ndev->mvdev.mdev->priv.numa_node);
+					ndev->mvdev.mdev->priv.numa_analde);
 }
 
 static void rq_buf_free(struct mlx5_vdpa_net *ndev, struct mlx5_vdpa_qp *vqp)
@@ -429,7 +429,7 @@ static int qp_create(struct mlx5_vdpa_net *ndev, struct mlx5_vdpa_virtqueue *mvq
 
 	in = kzalloc(inlen, GFP_KERNEL);
 	if (!in) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_kzalloc;
 	}
 
@@ -525,9 +525,9 @@ static void mlx5_vdpa_cq_comp(struct mlx5_core_cq *mcq, struct mlx5_eqe *eqe)
 		num++;
 		if (num > mvq->num_ent / 2) {
 			/* If completions keep coming while we poll, we want to
-			 * let the hardware know that we consumed them by
+			 * let the hardware kanalw that we consumed them by
 			 * updating the doorbell record.  We also let vdpa core
-			 * know about this so it passes it on the virtio driver
+			 * kanalw about this so it passes it on the virtio driver
 			 * on the guest.
 			 */
 			mlx5_vdpa_handle_completions(mvq, num);
@@ -538,7 +538,7 @@ static void mlx5_vdpa_cq_comp(struct mlx5_core_cq *mcq, struct mlx5_eqe *eqe)
 	if (num)
 		mlx5_vdpa_handle_completions(mvq, num);
 
-	mlx5_cq_arm(&mvq->cq.mcq, MLX5_CQ_DB_REQ_NOT, uar_page, mvq->cq.mcq.cons_index);
+	mlx5_cq_arm(&mvq->cq.mcq, MLX5_CQ_DB_REQ_ANALT, uar_page, mvq->cq.mcq.cons_index);
 }
 
 static int cq_create(struct mlx5_vdpa_net *ndev, u16 idx, u32 num_ent)
@@ -573,7 +573,7 @@ static int cq_create(struct mlx5_vdpa_net *ndev, u16 idx, u32 num_ent)
 		MLX5_FLD_SZ_BYTES(create_cq_in, pas[0]) * vcq->buf.frag_buf.npages;
 	in = kzalloc(inlen, GFP_KERNEL);
 	if (!in) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_vzalloc;
 	}
 
@@ -605,7 +605,7 @@ static int cq_create(struct mlx5_vdpa_net *ndev, u16 idx, u32 num_ent)
 	vcq->cqe = num_ent;
 	vcq->mcq.set_ci_db = vcq->db.db;
 	vcq->mcq.arm_db = vcq->db.db + 1;
-	mlx5_cq_arm(&mvq->cq.mcq, MLX5_CQ_DB_REQ_NOT, uar_page, mvq->cq.mcq.cons_index);
+	mlx5_cq_arm(&mvq->cq.mcq, MLX5_CQ_DB_REQ_ANALT, uar_page, mvq->cq.mcq.cons_index);
 	kfree(in);
 	return 0;
 
@@ -645,11 +645,11 @@ static int read_umem_params(struct mlx5_vdpa_net *ndev)
 	out_size = MLX5_ST_SZ_BYTES(query_hca_cap_out);
 	out = kzalloc(out_size, GFP_KERNEL);
 	if (!out)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	MLX5_SET(query_hca_cap_in, in, opcode, MLX5_CMD_OP_QUERY_HCA_CAP);
 	MLX5_SET(query_hca_cap_in, in, op_mod, opmod);
-	err = mlx5_cmd_exec_inout(mdev, query_hca_cap, in, out);
+	err = mlx5_cmd_exec_ianalut(mdev, query_hca_cap, in, out);
 	if (err) {
 		mlx5_vdpa_warn(&ndev->mvdev,
 			"Failed reading vdpa umem capabilities with err %d\n", err);
@@ -723,7 +723,7 @@ static int create_umem(struct mlx5_vdpa_net *ndev, struct mlx5_vdpa_virtqueue *m
 
 	in = kzalloc(inlen, GFP_KERNEL);
 	if (!in) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_in;
 	}
 
@@ -884,7 +884,7 @@ static int create_virtqueue(struct mlx5_vdpa_net *ndev, struct mlx5_vdpa_virtque
 
 	in = kzalloc(inlen, GFP_KERNEL);
 	if (!in) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_alloc;
 	}
 
@@ -981,7 +981,7 @@ static void destroy_virtqueue(struct mlx5_vdpa_net *ndev, struct mlx5_vdpa_virtq
 		mlx5_vdpa_warn(&ndev->mvdev, "destroy virtqueue 0x%x\n", mvq->virtq_id);
 		return;
 	}
-	mvq->fw_state = MLX5_VIRTIO_NET_Q_OBJECT_NONE;
+	mvq->fw_state = MLX5_VIRTIO_NET_Q_OBJECT_ANALNE;
 	umems_destroy(ndev, mvq);
 
 	mlx5_vdpa_put_mr(&ndev->mvdev, mvq->vq_mr);
@@ -1001,7 +1001,7 @@ static u32 get_qpn(struct mlx5_vdpa_virtqueue *mvq, bool fw)
 	return fw ? mvq->fwqp.mqp.qpn : mvq->vqqp.mqp.qpn;
 }
 
-static void alloc_inout(struct mlx5_vdpa_net *ndev, int cmd, void **in, int *inlen, void **out,
+static void alloc_ianalut(struct mlx5_vdpa_net *ndev, int cmd, void **in, int *inlen, void **out,
 			int *outlen, u32 qpn, u32 rqpn)
 {
 	void *qpc;
@@ -1086,7 +1086,7 @@ outerr_nullify:
 	*out = NULL;
 }
 
-static void free_inout(void *in, void *out)
+static void free_ianalut(void *in, void *out)
 {
 	kfree(in);
 	kfree(out);
@@ -1104,12 +1104,12 @@ static int modify_qp(struct mlx5_vdpa_net *ndev, struct mlx5_vdpa_virtqueue *mvq
 	void *in;
 	int err;
 
-	alloc_inout(ndev, cmd, &in, &inlen, &out, &outlen, get_qpn(mvq, fw), get_rqpn(mvq, fw));
+	alloc_ianalut(ndev, cmd, &in, &inlen, &out, &outlen, get_qpn(mvq, fw), get_rqpn(mvq, fw));
 	if (!in || !out)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = mlx5_cmd_exec(ndev->mvdev.mdev, in, inlen, out, outlen);
-	free_inout(in, out);
+	free_ianalut(in, out);
 	return err;
 }
 
@@ -1162,7 +1162,7 @@ static int query_virtqueue(struct mlx5_vdpa_net *ndev, struct mlx5_vdpa_virtqueu
 
 	out = kzalloc(outlen, GFP_KERNEL);
 	if (!out)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd_hdr = MLX5_ADDR_OF(query_virtio_net_q_in, in, general_obj_in_cmd_hdr);
 
@@ -1233,7 +1233,7 @@ static int modify_virtqueue(struct mlx5_vdpa_net *ndev,
 	void *in;
 	int err;
 
-	if (mvq->fw_state == MLX5_VIRTIO_NET_Q_OBJECT_NONE)
+	if (mvq->fw_state == MLX5_VIRTIO_NET_Q_OBJECT_ANALNE)
 		return 0;
 
 	if (!modifiable_virtqueue_fields(mvq))
@@ -1241,7 +1241,7 @@ static int modify_virtqueue(struct mlx5_vdpa_net *ndev,
 
 	in = kzalloc(inlen, GFP_KERNEL);
 	if (!in)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd_hdr = MLX5_ADDR_OF(modify_virtio_net_q_in, in, general_obj_in_cmd_hdr);
 
@@ -1558,7 +1558,7 @@ static int create_rqt(struct mlx5_vdpa_net *ndev)
 	inlen = MLX5_ST_SZ_BYTES(create_rqt_in) + rqt_table_size * MLX5_ST_SZ_BYTES(rq_num);
 	in = kzalloc(inlen, GFP_KERNEL);
 	if (!in)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	MLX5_SET(create_rqt_in, in, uid, ndev->mvdev.res.uid);
 	rqtc = MLX5_ADDR_OF(create_rqt_in, in, rqt_context);
@@ -1593,7 +1593,7 @@ static int modify_rqt(struct mlx5_vdpa_net *ndev, int num)
 	inlen = MLX5_ST_SZ_BYTES(modify_rqt_in) + act_sz * MLX5_ST_SZ_BYTES(rq_num);
 	in = kzalloc(inlen, GFP_KERNEL);
 	if (!in)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	MLX5_SET(modify_rqt_in, in, uid, ndev->mvdev.res.uid);
 	MLX5_SET64(modify_rqt_in, in, bitmask, MLX5_MODIFY_RQT_NUM_RQS);
@@ -1636,7 +1636,7 @@ static int create_tir(struct mlx5_vdpa_net *ndev)
 
 	in = kzalloc(MLX5_ST_SZ_BYTES(create_tir_in), GFP_KERNEL);
 	if (!in)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	MLX5_SET(create_tir_in, in, uid, ndev->mvdev.res.uid);
 	tirc = MLX5_ADDR_OF(create_tir_in, in, ctx);
@@ -1680,20 +1680,20 @@ static void destroy_tir(struct mlx5_vdpa_net *ndev)
 #endif
 
 static int add_steering_counters(struct mlx5_vdpa_net *ndev,
-				 struct macvlan_node *node,
+				 struct macvlan_analde *analde,
 				 struct mlx5_flow_act *flow_act,
 				 struct mlx5_flow_destination *dests)
 {
 #if defined(CONFIG_MLX5_VDPA_STEERING_DEBUG)
 	int err;
 
-	node->ucast_counter.counter = mlx5_fc_create(ndev->mvdev.mdev, false);
-	if (IS_ERR(node->ucast_counter.counter))
-		return PTR_ERR(node->ucast_counter.counter);
+	analde->ucast_counter.counter = mlx5_fc_create(ndev->mvdev.mdev, false);
+	if (IS_ERR(analde->ucast_counter.counter))
+		return PTR_ERR(analde->ucast_counter.counter);
 
-	node->mcast_counter.counter = mlx5_fc_create(ndev->mvdev.mdev, false);
-	if (IS_ERR(node->mcast_counter.counter)) {
-		err = PTR_ERR(node->mcast_counter.counter);
+	analde->mcast_counter.counter = mlx5_fc_create(ndev->mvdev.mdev, false);
+	if (IS_ERR(analde->mcast_counter.counter)) {
+		err = PTR_ERR(analde->mcast_counter.counter);
 		goto err_mcast_counter;
 	}
 
@@ -1702,7 +1702,7 @@ static int add_steering_counters(struct mlx5_vdpa_net *ndev,
 	return 0;
 
 err_mcast_counter:
-	mlx5_fc_destroy(ndev->mvdev.mdev, node->ucast_counter.counter);
+	mlx5_fc_destroy(ndev->mvdev.mdev, analde->ucast_counter.counter);
 	return err;
 #else
 	return 0;
@@ -1710,16 +1710,16 @@ err_mcast_counter:
 }
 
 static void remove_steering_counters(struct mlx5_vdpa_net *ndev,
-				     struct macvlan_node *node)
+				     struct macvlan_analde *analde)
 {
 #if defined(CONFIG_MLX5_VDPA_STEERING_DEBUG)
-	mlx5_fc_destroy(ndev->mvdev.mdev, node->mcast_counter.counter);
-	mlx5_fc_destroy(ndev->mvdev.mdev, node->ucast_counter.counter);
+	mlx5_fc_destroy(ndev->mvdev.mdev, analde->mcast_counter.counter);
+	mlx5_fc_destroy(ndev->mvdev.mdev, analde->ucast_counter.counter);
 #endif
 }
 
 static int mlx5_vdpa_add_mac_vlan_rules(struct mlx5_vdpa_net *ndev, u8 *mac,
-					struct macvlan_node *node)
+					struct macvlan_analde *analde)
 {
 	struct mlx5_flow_destination dests[NUM_DESTS] = {};
 	struct mlx5_flow_act flow_act = {};
@@ -1733,9 +1733,9 @@ static int mlx5_vdpa_add_mac_vlan_rules(struct mlx5_vdpa_net *ndev, u8 *mac,
 
 	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	vid = key2vid(node->macvlan);
+	vid = key2vid(analde->macvlan);
 	spec->match_criteria_enable = MLX5_MATCH_OUTER_HEADERS;
 	headers_c = MLX5_ADDR_OF(fte_match_param, spec->match_criteria, outer_headers);
 	headers_v = MLX5_ADDR_OF(fte_match_param, spec->match_value, outer_headers);
@@ -1747,58 +1747,58 @@ static int mlx5_vdpa_add_mac_vlan_rules(struct mlx5_vdpa_net *ndev, u8 *mac,
 		MLX5_SET(fte_match_set_lyr_2_4, headers_c, cvlan_tag, 1);
 		MLX5_SET_TO_ONES(fte_match_set_lyr_2_4, headers_c, first_vid);
 	}
-	if (node->tagged) {
+	if (analde->tagged) {
 		MLX5_SET(fte_match_set_lyr_2_4, headers_v, cvlan_tag, 1);
 		MLX5_SET(fte_match_set_lyr_2_4, headers_v, first_vid, vid);
 	}
 	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
 	dests[0].type = MLX5_FLOW_DESTINATION_TYPE_TIR;
 	dests[0].tir_num = ndev->res.tirn;
-	err = add_steering_counters(ndev, node, &flow_act, dests);
+	err = add_steering_counters(ndev, analde, &flow_act, dests);
 	if (err)
 		goto out_free;
 
 #if defined(CONFIG_MLX5_VDPA_STEERING_DEBUG)
-	dests[1].counter_id = mlx5_fc_id(node->ucast_counter.counter);
+	dests[1].counter_id = mlx5_fc_id(analde->ucast_counter.counter);
 #endif
-	node->ucast_rule = mlx5_add_flow_rules(ndev->rxft, spec, &flow_act, dests, NUM_DESTS);
-	if (IS_ERR(node->ucast_rule)) {
-		err = PTR_ERR(node->ucast_rule);
+	analde->ucast_rule = mlx5_add_flow_rules(ndev->rxft, spec, &flow_act, dests, NUM_DESTS);
+	if (IS_ERR(analde->ucast_rule)) {
+		err = PTR_ERR(analde->ucast_rule);
 		goto err_ucast;
 	}
 
 #if defined(CONFIG_MLX5_VDPA_STEERING_DEBUG)
-	dests[1].counter_id = mlx5_fc_id(node->mcast_counter.counter);
+	dests[1].counter_id = mlx5_fc_id(analde->mcast_counter.counter);
 #endif
 
 	memset(dmac_c, 0, ETH_ALEN);
 	memset(dmac_v, 0, ETH_ALEN);
 	dmac_c[0] = 1;
 	dmac_v[0] = 1;
-	node->mcast_rule = mlx5_add_flow_rules(ndev->rxft, spec, &flow_act, dests, NUM_DESTS);
-	if (IS_ERR(node->mcast_rule)) {
-		err = PTR_ERR(node->mcast_rule);
+	analde->mcast_rule = mlx5_add_flow_rules(ndev->rxft, spec, &flow_act, dests, NUM_DESTS);
+	if (IS_ERR(analde->mcast_rule)) {
+		err = PTR_ERR(analde->mcast_rule);
 		goto err_mcast;
 	}
 	kvfree(spec);
-	mlx5_vdpa_add_rx_counters(ndev, node);
+	mlx5_vdpa_add_rx_counters(ndev, analde);
 	return 0;
 
 err_mcast:
-	mlx5_del_flow_rules(node->ucast_rule);
+	mlx5_del_flow_rules(analde->ucast_rule);
 err_ucast:
-	remove_steering_counters(ndev, node);
+	remove_steering_counters(ndev, analde);
 out_free:
 	kvfree(spec);
 	return err;
 }
 
 static void mlx5_vdpa_del_mac_vlan_rules(struct mlx5_vdpa_net *ndev,
-					 struct macvlan_node *node)
+					 struct macvlan_analde *analde)
 {
-	mlx5_vdpa_remove_rx_counters(ndev, node);
-	mlx5_del_flow_rules(node->ucast_rule);
-	mlx5_del_flow_rules(node->mcast_rule);
+	mlx5_vdpa_remove_rx_counters(ndev, analde);
+	mlx5_del_flow_rules(analde->ucast_rule);
+	mlx5_del_flow_rules(analde->mcast_rule);
 }
 
 static u64 search_val(u8 *mac, u16 vlan, bool tagged)
@@ -1819,9 +1819,9 @@ static u64 search_val(u8 *mac, u16 vlan, bool tagged)
 	return val;
 }
 
-static struct macvlan_node *mac_vlan_lookup(struct mlx5_vdpa_net *ndev, u64 value)
+static struct macvlan_analde *mac_vlan_lookup(struct mlx5_vdpa_net *ndev, u64 value)
 {
-	struct macvlan_node *pos;
+	struct macvlan_analde *pos;
 	u32 idx;
 
 	idx = hash_64(value, 8); // tbd 8
@@ -1834,7 +1834,7 @@ static struct macvlan_node *mac_vlan_lookup(struct mlx5_vdpa_net *ndev, u64 valu
 
 static int mac_vlan_add(struct mlx5_vdpa_net *ndev, u8 *mac, u16 vid, bool tagged)
 {
-	struct macvlan_node *ptr;
+	struct macvlan_analde *ptr;
 	u64 val;
 	u32 idx;
 	int err;
@@ -1845,7 +1845,7 @@ static int mac_vlan_add(struct mlx5_vdpa_net *ndev, u8 *mac, u16 vid, bool tagge
 
 	ptr = kzalloc(sizeof(*ptr), GFP_KERNEL);
 	if (!ptr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ptr->tagged = tagged;
 	ptr->macvlan = val;
@@ -1865,7 +1865,7 @@ err_add:
 
 static void mac_vlan_del(struct mlx5_vdpa_net *ndev, u8 *mac, u16 vlan, bool tagged)
 {
-	struct macvlan_node *ptr;
+	struct macvlan_analde *ptr;
 
 	ptr = mac_vlan_lookup(ndev, search_val(mac, vlan, tagged));
 	if (!ptr)
@@ -1879,8 +1879,8 @@ static void mac_vlan_del(struct mlx5_vdpa_net *ndev, u8 *mac, u16 vlan, bool tag
 
 static void clear_mac_vlan_table(struct mlx5_vdpa_net *ndev)
 {
-	struct macvlan_node *pos;
-	struct hlist_node *n;
+	struct macvlan_analde *pos;
+	struct hlist_analde *n;
 	int i;
 
 	for (i = 0; i < MLX5V_MACVLAN_SIZE; i++) {
@@ -1905,7 +1905,7 @@ static int setup_steering(struct mlx5_vdpa_net *ndev)
 	ns = mlx5_get_flow_namespace(ndev->mvdev.mdev, MLX5_FLOW_NAMESPACE_BYPASS);
 	if (!ns) {
 		mlx5_vdpa_warn(&ndev->mvdev, "failed to get flow namespace\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	ndev->rxft = mlx5_create_auto_grouped_flow_table(ns, &ft_attr);
@@ -2076,10 +2076,10 @@ static virtio_net_ctrl_ack handle_ctrl_mq(struct mlx5_vdpa_dev *mvdev, u8 cmd)
 		 * implementation.
 		 *
 		 * Without it, an untrusted driver could fake a multiqueue config
-		 * request down to a non-mq device that may cause kernel to
+		 * request down to a analn-mq device that may cause kernel to
 		 * panic due to uninitialized resources for extra vqs. Even with
-		 * a well behaving guest driver, it is not expected to allow
-		 * changing the number of vqs on a non-mq device.
+		 * a well behaving guest driver, it is analt expected to allow
+		 * changing the number of vqs on a analn-mq device.
 		 */
 		if (!MLX5_FEATURE(mvdev, VIRTIO_NET_F_MQ))
 			break;
@@ -2209,8 +2209,8 @@ static void mlx5_cvq_kick_handler(struct work_struct *work)
 		vringh_kiov_cleanup(&cvq->riov);
 		vringh_kiov_cleanup(&cvq->wiov);
 
-		if (vringh_need_notify_iotlb(&cvq->vring))
-			vringh_notify(&cvq->vring);
+		if (vringh_need_analtify_iotlb(&cvq->vring))
+			vringh_analtify(&cvq->vring);
 
 		cvq->completed_desc++;
 		queue_work(mvdev->wq, &wqent->work);
@@ -2293,7 +2293,7 @@ static void mlx5_vdpa_set_vq_cb(struct vdpa_device *vdev, u16 idx, struct vdpa_c
 		mvdev->cvq.event_cb = *cb;
 }
 
-static void mlx5_cvq_notify(struct vringh *vring)
+static void mlx5_cvq_analtify(struct vringh *vring)
 {
 	struct mlx5_control_vq *cvq = container_of(vring, struct mlx5_control_vq, vring);
 
@@ -2311,7 +2311,7 @@ static void set_cvq_ready(struct mlx5_vdpa_dev *mvdev, bool ready)
 	if (!ready)
 		return;
 
-	cvq->vring.notify = mlx5_cvq_notify;
+	cvq->vring.analtify = mlx5_cvq_analtify;
 }
 
 static void mlx5_vdpa_set_vq_ready(struct vdpa_device *vdev, u16 idx, bool ready)
@@ -2513,7 +2513,7 @@ static int verify_driver_features(struct mlx5_vdpa_dev *mvdev, u64 features)
 {
 	/* Minimum features to expect */
 	if (!(features & BIT_ULL(VIRTIO_F_ACCESS_PLATFORM)))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Double check features combination sent down by the driver.
 	 * Fail invalid features due to absence of the depended feature.
@@ -2522,7 +2522,7 @@ static int verify_driver_features(struct mlx5_vdpa_dev *mvdev, u64 features)
 	 * requirements: "VIRTIO_NET_F_MQ Requires VIRTIO_NET_F_CTRL_VQ".
 	 * By failing the invalid features sent down by untrusted drivers,
 	 * we're assured the assumption made upon is_index_valid() and
-	 * is_ctrl_vq_idx() will not be compromised.
+	 * is_ctrl_vq_idx() will analt be compromised.
 	 */
 	if ((features & (BIT_ULL(VIRTIO_NET_F_MQ) | BIT_ULL(VIRTIO_NET_F_CTRL_VQ))) ==
             BIT_ULL(VIRTIO_NET_F_MQ))
@@ -2596,7 +2596,7 @@ static u8 query_vport_state(struct mlx5_core_dev *mdev, u8 opmod, u16 vport)
 	if (vport)
 		MLX5_SET(query_vport_state_in, in, other_vport, 1);
 
-	err = mlx5_cmd_exec_inout(mdev, query_vport_state, in, out);
+	err = mlx5_cmd_exec_ianalut(mdev, query_vport_state, in, out);
 	if (err)
 		return 0;
 
@@ -2638,7 +2638,7 @@ static int queue_link_work(struct mlx5_vdpa_net *ndev)
 
 	wqent = kzalloc(sizeof(*wqent), GFP_ATOMIC);
 	if (!wqent)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wqent->mvdev = &ndev->mvdev;
 	INIT_WORK(&wqent->work, update_carrier);
@@ -2646,47 +2646,47 @@ static int queue_link_work(struct mlx5_vdpa_net *ndev)
 	return 0;
 }
 
-static int event_handler(struct notifier_block *nb, unsigned long event, void *param)
+static int event_handler(struct analtifier_block *nb, unsigned long event, void *param)
 {
 	struct mlx5_vdpa_net *ndev = container_of(nb, struct mlx5_vdpa_net, nb);
 	struct mlx5_eqe *eqe = param;
-	int ret = NOTIFY_DONE;
+	int ret = ANALTIFY_DONE;
 
 	if (event == MLX5_EVENT_TYPE_PORT_CHANGE) {
 		switch (eqe->sub_type) {
 		case MLX5_PORT_CHANGE_SUBTYPE_DOWN:
 		case MLX5_PORT_CHANGE_SUBTYPE_ACTIVE:
 			if (queue_link_work(ndev))
-				return NOTIFY_DONE;
+				return ANALTIFY_DONE;
 
-			ret = NOTIFY_OK;
+			ret = ANALTIFY_OK;
 			break;
 		default:
-			return NOTIFY_DONE;
+			return ANALTIFY_DONE;
 		}
 		return ret;
 	}
 	return ret;
 }
 
-static void register_link_notifier(struct mlx5_vdpa_net *ndev)
+static void register_link_analtifier(struct mlx5_vdpa_net *ndev)
 {
 	if (!(ndev->mvdev.actual_features & BIT_ULL(VIRTIO_NET_F_STATUS)))
 		return;
 
-	ndev->nb.notifier_call = event_handler;
-	mlx5_notifier_register(ndev->mvdev.mdev, &ndev->nb);
+	ndev->nb.analtifier_call = event_handler;
+	mlx5_analtifier_register(ndev->mvdev.mdev, &ndev->nb);
 	ndev->nb_registered = true;
 	queue_link_work(ndev);
 }
 
-static void unregister_link_notifier(struct mlx5_vdpa_net *ndev)
+static void unregister_link_analtifier(struct mlx5_vdpa_net *ndev)
 {
 	if (!ndev->nb_registered)
 		return;
 
 	ndev->nb_registered = false;
-	mlx5_notifier_unregister(ndev->mvdev.mdev, &ndev->nb);
+	mlx5_analtifier_unregister(ndev->mvdev.mdev, &ndev->nb);
 	if (ndev->mvdev.wq)
 		flush_workqueue(ndev->mvdev.wq);
 }
@@ -2749,7 +2749,7 @@ static u32 mlx5_vdpa_get_device_id(struct vdpa_device *vdev)
 
 static u32 mlx5_vdpa_get_vendor_id(struct vdpa_device *vdev)
 {
-	return PCI_VENDOR_ID_MELLANOX;
+	return PCI_VENDOR_ID_MELLAANALX;
 }
 
 static u8 mlx5_vdpa_get_status(struct vdpa_device *vdev)
@@ -2991,14 +2991,14 @@ static void mlx5_vdpa_set_status(struct vdpa_device *vdev, u8 status)
 				mlx5_vdpa_warn(mvdev, "failed to setup control VQ vring\n");
 				goto err_setup;
 			}
-			register_link_notifier(ndev);
+			register_link_analtifier(ndev);
 			err = setup_driver(mvdev);
 			if (err) {
 				mlx5_vdpa_warn(mvdev, "failed to setup driver\n");
 				goto err_driver;
 			}
 		} else {
-			mlx5_vdpa_warn(mvdev, "did not expect DRIVER_OK to be cleared\n");
+			mlx5_vdpa_warn(mvdev, "did analt expect DRIVER_OK to be cleared\n");
 			goto err_clear;
 		}
 	}
@@ -3008,7 +3008,7 @@ static void mlx5_vdpa_set_status(struct vdpa_device *vdev, u8 status)
 	return;
 
 err_driver:
-	unregister_link_notifier(ndev);
+	unregister_link_analtifier(ndev);
 err_setup:
 	mlx5_vdpa_destroy_mr_resources(&ndev->mvdev);
 	ndev->mvdev.status |= VIRTIO_CONFIG_S_FAILED;
@@ -3034,7 +3034,7 @@ static int mlx5_vdpa_compat_reset(struct vdpa_device *vdev, u32 flags)
 	mlx5_vdpa_info(mvdev, "performing device reset\n");
 
 	down_write(&ndev->reslock);
-	unregister_link_notifier(ndev);
+	unregister_link_analtifier(ndev);
 	teardown_driver(ndev);
 	clear_vqs_ready(ndev);
 	if (flags & VDPA_RESET_F_CLEAN_MAP)
@@ -3082,7 +3082,7 @@ static void mlx5_vdpa_get_config(struct vdpa_device *vdev, unsigned int offset, 
 static void mlx5_vdpa_set_config(struct vdpa_device *vdev, unsigned int offset, const void *buf,
 				 unsigned int len)
 {
-	/* not supported */
+	/* analt supported */
 }
 
 static u32 mlx5_vdpa_get_generation(struct vdpa_device *vdev)
@@ -3204,18 +3204,18 @@ static void mlx5_vdpa_free(struct vdpa_device *vdev)
 	kfree(ndev->vqs);
 }
 
-static struct vdpa_notification_area mlx5_get_vq_notification(struct vdpa_device *vdev, u16 idx)
+static struct vdpa_analtification_area mlx5_get_vq_analtification(struct vdpa_device *vdev, u16 idx)
 {
 	struct mlx5_vdpa_dev *mvdev = to_mvdev(vdev);
-	struct vdpa_notification_area ret = {};
+	struct vdpa_analtification_area ret = {};
 	struct mlx5_vdpa_net *ndev;
 	phys_addr_t addr;
 
 	if (!is_index_valid(mvdev, idx) || is_ctrl_vq_idx(mvdev, idx))
 		return ret;
 
-	/* If SF BAR size is smaller than PAGE_SIZE, do not use direct
-	 * notification to avoid the risk of mapping pages that contain BAR of more
+	/* If SF BAR size is smaller than PAGE_SIZE, do analt use direct
+	 * analtification to avoid the risk of mapping pages that contain BAR of more
 	 * than one SF
 	 */
 	if (MLX5_CAP_GEN(mvdev->mdev, log_min_sf_size) + 12 < PAGE_SHIFT)
@@ -3238,11 +3238,11 @@ static int mlx5_get_vq_irq(struct vdpa_device *vdev, u16 idx)
 		return -EINVAL;
 
 	if (is_ctrl_vq_idx(mvdev, idx))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mvq = &ndev->vqs[idx];
 	if (!mvq->map.virq)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return mvq->map.virq;
 }
@@ -3264,7 +3264,7 @@ static int counter_set_query(struct mlx5_vdpa_net *ndev, struct mlx5_vdpa_virtqu
 	int err;
 
 	if (!counters_supported(&ndev->mvdev))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (mvq->fw_state != MLX5_VIRTIO_NET_Q_OBJECT_STATE_RDY)
 		return -EAGAIN;
@@ -3300,7 +3300,7 @@ static int mlx5_vdpa_get_vendor_vq_stats(struct vdpa_device *vdev, u16 idx,
 
 	down_read(&ndev->reslock);
 	if (!is_index_valid(mvdev, idx)) {
-		NL_SET_ERR_MSG_MOD(extack, "virtqueue index is not valid");
+		NL_SET_ERR_MSG_MOD(extack, "virtqueue index is analt valid");
 		err = -EINVAL;
 		goto out_err;
 	}
@@ -3362,7 +3362,7 @@ static int mlx5_vdpa_suspend(struct vdpa_device *vdev)
 	mlx5_vdpa_info(mvdev, "suspending device\n");
 
 	down_write(&ndev->reslock);
-	unregister_link_notifier(ndev);
+	unregister_link_analtifier(ndev);
 	for (i = 0; i < ndev->cur_num_vqs; i++) {
 		mvq = &ndev->vqs[i];
 		suspend_vq(ndev, mvq);
@@ -3385,7 +3385,7 @@ static int mlx5_vdpa_resume(struct vdpa_device *vdev)
 	down_write(&ndev->reslock);
 	mvdev->suspended = false;
 	resume_vqs(ndev);
-	register_link_notifier(ndev);
+	register_link_analtifier(ndev);
 	up_write(&ndev->reslock);
 	return 0;
 }
@@ -3419,11 +3419,11 @@ static const struct vdpa_config_ops mlx5_vdpa_ops = {
 	.set_vq_state = mlx5_vdpa_set_vq_state,
 	.get_vq_state = mlx5_vdpa_get_vq_state,
 	.get_vendor_vq_stats = mlx5_vdpa_get_vendor_vq_stats,
-	.get_vq_notification = mlx5_get_vq_notification,
+	.get_vq_analtification = mlx5_get_vq_analtification,
 	.get_vq_irq = mlx5_get_vq_irq,
 	.get_vq_align = mlx5_vdpa_get_vq_align,
 	.get_vq_group = mlx5_vdpa_get_vq_group,
-	.get_vq_desc_group = mlx5_vdpa_get_vq_desc_group, /* Op disabled if not supported. */
+	.get_vq_desc_group = mlx5_vdpa_get_vq_desc_group, /* Op disabled if analt supported. */
 	.get_device_features = mlx5_vdpa_get_device_features,
 	.get_backend_features = mlx5_vdpa_get_backend_features,
 	.set_driver_features = mlx5_vdpa_set_driver_features,
@@ -3446,7 +3446,7 @@ static const struct vdpa_config_ops mlx5_vdpa_ops = {
 	.get_vq_dma_dev = mlx5_get_vq_dma_dev,
 	.free = mlx5_vdpa_free,
 	.suspend = mlx5_vdpa_suspend,
-	.resume = mlx5_vdpa_resume, /* Op disabled if not supported. */
+	.resume = mlx5_vdpa_resume, /* Op disabled if analt supported. */
 };
 
 static int query_mtu(struct mlx5_core_dev *mdev, u16 *mtu)
@@ -3512,7 +3512,7 @@ static void init_mvqs(struct mlx5_vdpa_net *ndev)
 		mvq->index = i;
 		mvq->ndev = ndev;
 		mvq->fwqp.fw = true;
-		mvq->fw_state = MLX5_VIRTIO_NET_Q_OBJECT_NONE;
+		mvq->fw_state = MLX5_VIRTIO_NET_Q_OBJECT_ANALNE;
 	}
 	for (; i < ndev->mvdev.max_vqs; i++) {
 		mvq = &ndev->vqs[i];
@@ -3537,7 +3537,7 @@ static int config_func_mtu(struct mlx5_core_dev *mdev, u16 mtu)
 
 	in = kvzalloc(inlen, GFP_KERNEL);
 	if (!in)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	MLX5_SET(modify_nic_vport_context_in, in, field_select.mtu, 1);
 	MLX5_SET(modify_nic_vport_context_in, in, nic_vport_context.mtu,
@@ -3594,14 +3594,14 @@ static int mlx5_vdpa_dev_add(struct vdpa_mgmt_dev *v_mdev, const char *name,
 	int err;
 
 	if (mgtdev->ndev)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	mdev = mgtdev->madev->mdev;
 	device_features = mgtdev->mgtdev.supported_features;
 	if (add_config->mask & BIT_ULL(VDPA_ATTR_DEV_FEATURES)) {
 		if (add_config->device_features & ~device_features) {
 			dev_warn(mdev->device,
-				 "The provisioned features 0x%llx are not supported by this device with features 0x%llx\n",
+				 "The provisioned features 0x%llx are analt supported by this device with features 0x%llx\n",
 				 add_config->device_features, device_features);
 			return -EINVAL;
 		}
@@ -3614,13 +3614,13 @@ static int mlx5_vdpa_dev_add(struct vdpa_mgmt_dev *v_mdev, const char *name,
 		dev_warn(mdev->device,
 			 "Must provision minimum features 0x%llx for this device",
 			 BIT_ULL(VIRTIO_F_VERSION_1) | BIT_ULL(VIRTIO_F_ACCESS_PLATFORM));
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (!(MLX5_CAP_DEV_VDPA_EMULATION(mdev, virtio_queue_type) &
 	    MLX5_VIRTIO_EMULATION_CAP_VIRTIO_QUEUE_TYPE_SPLIT)) {
 		dev_warn(mdev->device, "missing support for split virtqueues\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	max_vqs = min_t(int, MLX5_CAP_DEV_VDPA_EMULATION(mdev, max_num_virtio_queues),
@@ -3652,7 +3652,7 @@ static int mlx5_vdpa_dev_add(struct vdpa_mgmt_dev *v_mdev, const char *name,
 	ndev->vqs = kcalloc(max_vqs, sizeof(*ndev->vqs), GFP_KERNEL);
 	ndev->event_cbs = kcalloc(max_vqs + 1, sizeof(*ndev->event_cbs), GFP_KERNEL);
 	if (!ndev->vqs || !ndev->event_cbs) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_alloc;
 	}
 
@@ -3684,7 +3684,7 @@ static int mlx5_vdpa_dev_add(struct vdpa_mgmt_dev *v_mdev, const char *name,
 
 	if (add_config->mask & (1 << VDPA_ATTR_DEV_NET_CFG_MACADDR)) {
 		memcpy(ndev->config.mac, add_config->net.mac, ETH_ALEN);
-	/* No bother setting mac address in config if not going to provision _F_MAC */
+	/* Anal bother setting mac address in config if analt going to provision _F_MAC */
 	} else if ((add_config->mask & BIT_ULL(VDPA_ATTR_DEV_FEATURES)) == 0 ||
 		   device_features & BIT_ULL(VIRTIO_NET_F_MAC)) {
 		err = mlx5_query_nic_vport_mac_address(mdev, 0, 0, config->mac);
@@ -3700,15 +3700,15 @@ static int mlx5_vdpa_dev_add(struct vdpa_mgmt_dev *v_mdev, const char *name,
 	} else if ((add_config->mask & BIT_ULL(VDPA_ATTR_DEV_FEATURES)) == 0) {
 		/*
 		 * We used to clear _F_MAC feature bit if seeing
-		 * zero mac address when device features are not
+		 * zero mac address when device features are analt
 		 * specifically provisioned. Keep the behaviour
-		 * so old scripts do not break.
+		 * so old scripts do analt break.
 		 */
 		device_features &= ~BIT_ULL(VIRTIO_NET_F_MAC);
 	} else if (device_features & BIT_ULL(VIRTIO_NET_F_MAC)) {
 		/* Don't provision zero mac address for _F_MAC */
 		mlx5_vdpa_warn(&ndev->mvdev,
-			       "No mac address provisioned?\n");
+			       "Anal mac address provisioned?\n");
 		err = -EINVAL;
 		goto err_alloc;
 	}
@@ -3738,7 +3738,7 @@ static int mlx5_vdpa_dev_add(struct vdpa_mgmt_dev *v_mdev, const char *name,
 	INIT_WORK(&ndev->cvq_ent.work, mlx5_cvq_kick_handler);
 	mvdev->wq = create_singlethread_workqueue("mlx5_vdpa_wq");
 	if (!mvdev->wq) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_res2;
 	}
 
@@ -3773,7 +3773,7 @@ static void mlx5_vdpa_dev_del(struct vdpa_mgmt_dev *v_mdev, struct vdpa_device *
 	struct mlx5_vdpa_net *ndev = to_mlx5_vdpa_ndev(mvdev);
 	struct workqueue_struct *wq;
 
-	unregister_link_notifier(ndev);
+	unregister_link_analtifier(ndev);
 	_vdpa_unregister_device(dev);
 	wq = mvdev->wq;
 	mvdev->wq = NULL;
@@ -3802,7 +3802,7 @@ static int mlx5v_probe(struct auxiliary_device *adev,
 
 	mgtdev = kzalloc(sizeof(*mgtdev), GFP_KERNEL);
 	if (!mgtdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mgtdev->mgtdev.ops = &mdev_ops;
 	mgtdev->mgtdev.device = mdev->device;

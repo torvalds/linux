@@ -131,7 +131,7 @@ int hclge_mac_mdio_config(struct hclge_dev *hdev)
 
 	if (hdev->hw.mac.phy_addr == PHY_INEXISTENT) {
 		dev_info(&hdev->pdev->dev,
-			 "no phy device is connected to mdio bus\n");
+			 "anal phy device is connected to mdio bus\n");
 		return 0;
 	} else if (hdev->hw.mac.phy_addr >= PHY_MAX_ADDR) {
 		dev_err(&hdev->pdev->dev, "phy_addr(%u) is too large.\n",
@@ -141,7 +141,7 @@ int hclge_mac_mdio_config(struct hclge_dev *hdev)
 
 	mdio_bus = devm_mdiobus_alloc(&hdev->pdev->dev);
 	if (!mdio_bus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mdio_bus->name = "hisilicon MII bus";
 	mdio_bus->read = hclge_mdio_read;
@@ -180,7 +180,7 @@ static void hclge_mac_adjust_link(struct net_device *netdev)
 	int duplex, speed;
 	int ret;
 
-	/* When phy link down, do nothing */
+	/* When phy link down, do analthing */
 	if (netdev->phydev->link == 0)
 		return;
 

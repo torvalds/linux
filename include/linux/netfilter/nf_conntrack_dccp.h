@@ -4,7 +4,7 @@
 
 /* Exposed to userspace over nfnetlink */
 enum ct_dccp_states {
-	CT_DCCP_NONE,
+	CT_DCCP_ANALNE,
 	CT_DCCP_REQUEST,
 	CT_DCCP_RESPOND,
 	CT_DCCP_PARTOPEN,
@@ -12,7 +12,7 @@ enum ct_dccp_states {
 	CT_DCCP_CLOSEREQ,
 	CT_DCCP_CLOSING,
 	CT_DCCP_TIMEWAIT,
-	CT_DCCP_IGNORE,
+	CT_DCCP_IGANALRE,
 	CT_DCCP_INVALID,
 	__CT_DCCP_MAX
 };

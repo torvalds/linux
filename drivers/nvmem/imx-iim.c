@@ -103,7 +103,7 @@ static int imx_iim_probe(struct platform_device *pdev)
 
 	iim = devm_kzalloc(dev, sizeof(*iim), GFP_KERNEL);
 	if (!iim)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	iim->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(iim->base))

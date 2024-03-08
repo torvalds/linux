@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * Linux Security Modules (LSM) - User space API
  *
@@ -30,7 +30,7 @@
  * supported.
  *
  * The @flags and @ctx fields SHOULD only be interpreted by the
- * LSM specified by @id; they MUST be set to zero/0 when not used.
+ * LSM specified by @id; they MUST be set to zero/0 when analt used.
  */
 struct lsm_ctx {
 	__u64 id;
@@ -46,7 +46,7 @@ struct lsm_ctx {
  * These token values are used to uniquely identify specific LSMs
  * in the kernel as well as in the kernel's LSM userspace API.
  *
- * A value of zero/0 is considered undefined and should not be used
+ * A value of zero/0 is considered undefined and should analt be used
  * outside the kernel. Values 1-99 are reserved for potential
  * future use.
  */
@@ -66,10 +66,10 @@ struct lsm_ctx {
 /*
  * LSM_ATTR_XXX definitions identify different LSM attributes
  * which are used in the kernel's LSM userspace API. Support
- * for these attributes vary across the different LSMs. None
+ * for these attributes vary across the different LSMs. Analne
  * are required.
  *
- * A value of zero/0 is considered undefined and should not be used
+ * A value of zero/0 is considered undefined and should analt be used
  * outside the kernel. Values 1-99 are reserved for potential
  * future use.
  */

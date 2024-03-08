@@ -3,7 +3,7 @@
 #define __ASM_SH_ATOMIC_LLSC_H
 
 /*
- * SH-4A note:
+ * SH-4A analte:
  *
  * We basically get atomic_xxx_return() for free compared with
  * atomic_xxx(). movli.l/movco.l require r0 due to the instruction

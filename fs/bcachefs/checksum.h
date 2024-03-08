@@ -13,7 +13,7 @@ static inline bool bch2_checksum_mergeable(unsigned type)
 {
 
 	switch (type) {
-	case BCH_CSUM_none:
+	case BCH_CSUM_analne:
 	case BCH_CSUM_crc32c:
 	case BCH_CSUM_crc64:
 		return true;
@@ -25,24 +25,24 @@ static inline bool bch2_checksum_mergeable(unsigned type)
 struct bch_csum bch2_checksum_merge(unsigned, struct bch_csum,
 				    struct bch_csum, size_t);
 
-#define BCH_NONCE_EXTENT	cpu_to_le32(1 << 28)
-#define BCH_NONCE_BTREE		cpu_to_le32(2 << 28)
-#define BCH_NONCE_JOURNAL	cpu_to_le32(3 << 28)
-#define BCH_NONCE_PRIO		cpu_to_le32(4 << 28)
-#define BCH_NONCE_POLY		cpu_to_le32(1 << 31)
+#define BCH_ANALNCE_EXTENT	cpu_to_le32(1 << 28)
+#define BCH_ANALNCE_BTREE		cpu_to_le32(2 << 28)
+#define BCH_ANALNCE_JOURNAL	cpu_to_le32(3 << 28)
+#define BCH_ANALNCE_PRIO		cpu_to_le32(4 << 28)
+#define BCH_ANALNCE_POLY		cpu_to_le32(1 << 31)
 
-struct bch_csum bch2_checksum(struct bch_fs *, unsigned, struct nonce,
+struct bch_csum bch2_checksum(struct bch_fs *, unsigned, struct analnce,
 			     const void *, size_t);
 
 /*
  * This is used for various on disk data structures - bch_sb, prio_set, bset,
  * jset: The checksum is _always_ the first field of these structs
  */
-#define csum_vstruct(_c, _type, _nonce, _i)				\
+#define csum_vstruct(_c, _type, _analnce, _i)				\
 ({									\
 	const void *_start = ((const void *) (_i)) + sizeof((_i)->csum);\
 									\
-	bch2_checksum(_c, _type, _nonce, _start, vstruct_end(_i) - _start);\
+	bch2_checksum(_c, _type, _analnce, _start, vstruct_end(_i) - _start);\
 })
 
 static inline void bch2_csum_to_text(struct printbuf *out,
@@ -68,17 +68,17 @@ static inline void bch2_csum_err_msg(struct printbuf *out,
 	prt_printf(out, " type %s", bch2_csum_types[type]);
 }
 
-int bch2_chacha_encrypt_key(struct bch_key *, struct nonce, void *, size_t);
+int bch2_chacha_encrypt_key(struct bch_key *, struct analnce, void *, size_t);
 int bch2_request_key(struct bch_sb *, struct bch_key *);
 #ifndef __KERNEL__
 int bch2_revoke_key(struct bch_sb *);
 #endif
 
-int bch2_encrypt(struct bch_fs *, unsigned, struct nonce,
+int bch2_encrypt(struct bch_fs *, unsigned, struct analnce,
 		 void *data, size_t);
 
 struct bch_csum bch2_checksum_bio(struct bch_fs *, unsigned,
-				  struct nonce, struct bio *);
+				  struct analnce, struct bio *);
 
 int bch2_rechecksum_bio(struct bch_fs *, struct bio *, struct bversion,
 			struct bch_extent_crc_unpacked,
@@ -87,13 +87,13 @@ int bch2_rechecksum_bio(struct bch_fs *, struct bio *, struct bversion,
 			unsigned, unsigned, unsigned);
 
 int __bch2_encrypt_bio(struct bch_fs *, unsigned,
-		       struct nonce, struct bio *);
+		       struct analnce, struct bio *);
 
 static inline int bch2_encrypt_bio(struct bch_fs *c, unsigned type,
-				   struct nonce nonce, struct bio *bio)
+				   struct analnce analnce, struct bio *bio)
 {
 	return bch2_csum_type_is_encryption(type)
-		? __bch2_encrypt_bio(c, type, nonce, bio)
+		? __bch2_encrypt_bio(c, type, analnce, bio)
 		: 0;
 }
 
@@ -112,12 +112,12 @@ static inline enum bch_csum_type bch2_csum_opt_to_type(enum bch_csum_opts type,
 						       bool data)
 {
 	switch (type) {
-	case BCH_CSUM_OPT_none:
-		return BCH_CSUM_none;
+	case BCH_CSUM_OPT_analne:
+		return BCH_CSUM_analne;
 	case BCH_CSUM_OPT_crc32c:
-		return data ? BCH_CSUM_crc32c : BCH_CSUM_crc32c_nonzero;
+		return data ? BCH_CSUM_crc32c : BCH_CSUM_crc32c_analnzero;
 	case BCH_CSUM_OPT_crc64:
-		return data ? BCH_CSUM_crc64 : BCH_CSUM_crc64_nonzero;
+		return data ? BCH_CSUM_crc64 : BCH_CSUM_crc64_analnzero;
 	case BCH_CSUM_OPT_xxhash:
 		return BCH_CSUM_xxhash;
 	default:
@@ -128,7 +128,7 @@ static inline enum bch_csum_type bch2_csum_opt_to_type(enum bch_csum_opts type,
 static inline enum bch_csum_type bch2_data_checksum_type(struct bch_fs *c,
 							 struct bch_io_opts opts)
 {
-	if (opts.nocow)
+	if (opts.analcow)
 		return 0;
 
 	if (c->sb.encryption_type)
@@ -159,7 +159,7 @@ static inline bool bch2_checksum_type_valid(const struct bch_fs *c,
 	return true;
 }
 
-/* returns true if not equal */
+/* returns true if analt equal */
 static inline bool bch2_crc_cmp(struct bch_csum l, struct bch_csum r)
 {
 	/*
@@ -170,38 +170,38 @@ static inline bool bch2_crc_cmp(struct bch_csum l, struct bch_csum r)
 }
 
 /* for skipping ahead and encrypting/decrypting at an offset: */
-static inline struct nonce nonce_add(struct nonce nonce, unsigned offset)
+static inline struct analnce analnce_add(struct analnce analnce, unsigned offset)
 {
 	EBUG_ON(offset & (CHACHA_BLOCK_SIZE - 1));
 
-	le32_add_cpu(&nonce.d[0], offset / CHACHA_BLOCK_SIZE);
-	return nonce;
+	le32_add_cpu(&analnce.d[0], offset / CHACHA_BLOCK_SIZE);
+	return analnce;
 }
 
-static inline struct nonce null_nonce(void)
+static inline struct analnce null_analnce(void)
 {
-	struct nonce ret;
+	struct analnce ret;
 
 	memset(&ret, 0, sizeof(ret));
 	return ret;
 }
 
-static inline struct nonce extent_nonce(struct bversion version,
+static inline struct analnce extent_analnce(struct bversion version,
 					struct bch_extent_crc_unpacked crc)
 {
 	unsigned compression_type = crc_is_compressed(crc)
 		? crc.compression_type
 		: 0;
 	unsigned size = compression_type ? crc.uncompressed_size : 0;
-	struct nonce nonce = (struct nonce) {{
+	struct analnce analnce = (struct analnce) {{
 		[0] = cpu_to_le32(size << 22),
 		[1] = cpu_to_le32(version.lo),
 		[2] = cpu_to_le32(version.lo >> 32),
 		[3] = cpu_to_le32(version.hi|
-				  (compression_type << 24))^BCH_NONCE_EXTENT,
+				  (compression_type << 24))^BCH_ANALNCE_EXTENT,
 	}};
 
-	return nonce_add(nonce, crc.nonce << 9);
+	return analnce_add(analnce, crc.analnce << 9);
 }
 
 static inline bool bch2_key_is_encrypted(struct bch_encrypted_key *key)
@@ -209,11 +209,11 @@ static inline bool bch2_key_is_encrypted(struct bch_encrypted_key *key)
 	return le64_to_cpu(key->magic) != BCH_KEY_MAGIC;
 }
 
-static inline struct nonce __bch2_sb_key_nonce(struct bch_sb *sb)
+static inline struct analnce __bch2_sb_key_analnce(struct bch_sb *sb)
 {
 	__le64 magic = __bch2_sb_magic(sb);
 
-	return (struct nonce) {{
+	return (struct analnce) {{
 		[0] = 0,
 		[1] = 0,
 		[2] = ((__le32 *) &magic)[0],
@@ -221,11 +221,11 @@ static inline struct nonce __bch2_sb_key_nonce(struct bch_sb *sb)
 	}};
 }
 
-static inline struct nonce bch2_sb_key_nonce(struct bch_fs *c)
+static inline struct analnce bch2_sb_key_analnce(struct bch_fs *c)
 {
 	__le64 magic = bch2_sb_magic(c);
 
-	return (struct nonce) {{
+	return (struct analnce) {{
 		[0] = 0,
 		[1] = 0,
 		[2] = ((__le32 *) &magic)[0],

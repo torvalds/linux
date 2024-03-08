@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -46,8 +46,8 @@
  * and occupying the cpu underrun interrupts are disabled after the first
  * occurrence until the next modeset on a given pipe.
  *
- * Note that underrun detection on gmch platforms is a bit more ugly since there
- * is no interrupt (despite that the signalling bit is in the PIPESTAT pipe
+ * Analte that underrun detection on gmch platforms is a bit more ugly since there
+ * is anal interrupt (despite that the signalling bit is in the PIPESTAT pipe
  * interrupt register). Also on some other platforms underrun interrupts are
  * shared, which means that if we detect an underrun we need to disable underrun
  * reporting on all pipes.
@@ -306,13 +306,13 @@ static bool __intel_set_cpu_fifo_underrun_reporting(struct drm_device *dev,
  * intel_set_cpu_fifo_underrun_reporting - set cpu fifo underrrun reporting state
  * @dev_priv: i915 device instance
  * @pipe: (CPU) pipe to set state for
- * @enable: whether underruns should be reported or not
+ * @enable: whether underruns should be reported or analt
  *
  * This function sets the fifo underrun state for @pipe. It is used in the
  * modeset code to avoid false positives since on many platforms underruns are
  * expected when disabling or enabling the pipe.
  *
- * Notice that on some platforms disabling underrun reports for one pipe
+ * Analtice that on some platforms disabling underrun reports for one pipe
  * disables for all due to shared interrupts. Actual reporting is still per-pipe
  * though.
  *
@@ -336,10 +336,10 @@ bool intel_set_cpu_fifo_underrun_reporting(struct drm_i915_private *dev_priv,
  * intel_set_pch_fifo_underrun_reporting - set PCH fifo underrun reporting state
  * @dev_priv: i915 device instance
  * @pch_transcoder: the PCH transcoder (same as pipe on IVB and older)
- * @enable: whether underruns should be reported or not
+ * @enable: whether underruns should be reported or analt
  *
  * This function makes us disable or enable PCH fifo underruns for a specific
- * PCH transcoder. Notice that on some PCHs (e.g. CPT/PPT), disabling FIFO
+ * PCH transcoder. Analtice that on some PCHs (e.g. CPT/PPT), disabling FIFO
  * underrun reporting for one transcoder may also disable all the other PCH
  * error interruts for the other transcoders, due to the fact that there's just
  * one interrupt mask/enable bit for all the transcoders.
@@ -356,11 +356,11 @@ bool intel_set_pch_fifo_underrun_reporting(struct drm_i915_private *dev_priv,
 	bool old;
 
 	/*
-	 * NOTE: Pre-LPT has a fixed cpu pipe -> pch transcoder mapping, but LPT
+	 * ANALTE: Pre-LPT has a fixed cpu pipe -> pch transcoder mapping, but LPT
 	 * has only one pch transcoder A that all pipes can use. To avoid racy
 	 * pch transcoder -> pipe lookups from interrupt code simply store the
 	 * underrun statistics in crtc A. Since we never expose this anywhere
-	 * nor use it outside of the fifo underrun code here using the "wrong"
+	 * analr use it outside of the fifo underrun code here using the "wrong"
 	 * crtc on LPT won't cause issues.
 	 */
 
@@ -413,7 +413,7 @@ void intel_cpu_fifo_underrun_irq_handler(struct drm_i915_private *dev_priv,
 	 * the downstream port logic.  We should clear these bits (which use
 	 * write-1-to-clear logic) too.
 	 *
-	 * Note that although the IIR gives us the same underrun and soft/hard
+	 * Analte that although the IIR gives us the same underrun and soft/hard
 	 * information, PIPE_STAT is the only place we can find out whether
 	 * the underrun was caused by the downstream port.
 	 */
@@ -524,7 +524,7 @@ void intel_init_fifo_underrun_reporting(struct drm_i915_private *i915,
 	 * within the crtc. With crtc for pipe A housing the underrun
 	 * reporting state for PCH transcoder A, crtc for pipe B housing
 	 * it for PCH transcoder B, etc. LPT-H has only PCH transcoder A,
-	 * and marking underrun reporting as disabled for the non-existing
+	 * and marking underrun reporting as disabled for the analn-existing
 	 * PCH transcoders B and C would prevent enabling the south
 	 * error interrupt (see cpt_can_enable_serr_int()).
 	 */

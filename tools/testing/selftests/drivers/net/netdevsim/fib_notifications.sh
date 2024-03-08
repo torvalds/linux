@@ -28,7 +28,7 @@ check_rt_offload_failed()
 	local outfile=$1; shift
 	local line
 
-	# Make sure that the first notification was emitted without
+	# Make sure that the first analtification was emitted without
 	# RTM_F_OFFLOAD_FAILED flag and the second with RTM_F_OFFLOAD_FAILED
 	# flag
 	head -n 1 $outfile | grep -q "rt_offload_failed"
@@ -44,7 +44,7 @@ check_rt_trap()
 	local outfile=$1; shift
 	local line
 
-	# Make sure that the first notification was emitted without RTM_F_TRAP
+	# Make sure that the first analtification was emitted without RTM_F_TRAP
 	# flag and the second with RTM_F_TRAP flag
 	head -n 1 $outfile | grep -q "rt_trap"
 	if [[ $? -eq 0 ]]; then
@@ -54,7 +54,7 @@ check_rt_trap()
 	head -n 2 $outfile | tail -n 1 | grep -q "rt_trap"
 }
 
-route_notify_check()
+route_analtify_check()
 {
 	local outfile=$1; shift
 	local expected_num_lines=$1; shift
@@ -63,7 +63,7 @@ route_notify_check()
 	# check the monitor results
 	lines=`wc -l $outfile | cut "-d " -f1`
 	test $lines -eq $expected_num_lines
-	check_err $? "$expected_num_lines notifications were expected but $lines were received"
+	check_err $? "$expected_num_lines analtifications were expected but $lines were received"
 
 	if [[ $expected_num_lines -eq 1 ]]; then
 		return
@@ -71,22 +71,22 @@ route_notify_check()
 
 	if [[ $offload_failed -eq 0 ]]; then
 		check_rt_trap $outfile
-		check_err $? "Wrong RTM_F_TRAP flags in notifications"
+		check_err $? "Wrong RTM_F_TRAP flags in analtifications"
 	else
 		check_rt_offload_failed $outfile
-		check_err $? "Wrong RTM_F_OFFLOAD_FAILED flags in notifications"
+		check_err $? "Wrong RTM_F_OFFLOAD_FAILED flags in analtifications"
 	fi
 }
 
 route_addition_check()
 {
 	local ip=$1; shift
-	local notify=$1; shift
+	local analtify=$1; shift
 	local route=$1; shift
-	local expected_num_notifications=$1; shift
+	local expected_num_analtifications=$1; shift
 	local offload_failed=${1:-0}; shift
 
-	ip netns exec testns1 sysctl -qw net.$ip.fib_notify_on_flag_change=$notify
+	ip netns exec testns1 sysctl -qw net.$ip.fib_analtify_on_flag_change=$analtify
 
 	local outfile=$(mktemp)
 
@@ -96,7 +96,7 @@ route_addition_check()
 	sleep 1
 	kill %% && wait %% &> /dev/null
 
-	route_notify_check $outfile $expected_num_notifications $offload_failed
+	route_analtify_check $outfile $expected_num_analtifications $offload_failed
 	rm -f $outfile
 
 	$IP route del $route dev dummy1
@@ -109,24 +109,24 @@ ipv4_route_addition_test()
 	local ip="ipv4"
 	local route=192.0.2.0/24
 
-	# Make sure a single notification will be emitted for the programmed
+	# Make sure a single analtification will be emitted for the programmed
 	# route.
-	local notify=0
-	local expected_num_notifications=1
+	local analtify=0
+	local expected_num_analtifications=1
 	# route_addition_check will assign value to RET.
-	route_addition_check $ip $notify $route $expected_num_notifications
+	route_addition_check $ip $analtify $route $expected_num_analtifications
 
-	# Make sure two notifications will be emitted for the programmed route.
-	notify=1
-	expected_num_notifications=2
-	route_addition_check $ip $notify $route $expected_num_notifications
+	# Make sure two analtifications will be emitted for the programmed route.
+	analtify=1
+	expected_num_analtifications=2
+	route_addition_check $ip $analtify $route $expected_num_analtifications
 
-	# notify=2 means emit notifications only for failed route installation,
-	# make sure a single notification will be emitted for the programmed
+	# analtify=2 means emit analtifications only for failed route installation,
+	# make sure a single analtification will be emitted for the programmed
 	# route.
-	notify=2
-	expected_num_notifications=1
-	route_addition_check $ip $notify $route $expected_num_notifications
+	analtify=2
+	expected_num_analtifications=1
+	route_addition_check $ip $analtify $route $expected_num_analtifications
 
 	log_test "IPv4 route addition"
 }
@@ -134,11 +134,11 @@ ipv4_route_addition_test()
 route_deletion_check()
 {
 	local ip=$1; shift
-	local notify=$1; shift
+	local analtify=$1; shift
 	local route=$1; shift
-	local expected_num_notifications=$1; shift
+	local expected_num_analtifications=$1; shift
 
-	ip netns exec testns1 sysctl -qw net.$ip.fib_notify_on_flag_change=$notify
+	ip netns exec testns1 sysctl -qw net.$ip.fib_analtify_on_flag_change=$analtify
 	$IP route add $route dev dummy1
 	sleep 1
 
@@ -150,7 +150,7 @@ route_deletion_check()
 	sleep 1
 	kill %% && wait %% &> /dev/null
 
-	route_notify_check $outfile $expected_num_notifications
+	route_analtify_check $outfile $expected_num_analtifications
 	rm -f $outfile
 }
 
@@ -160,16 +160,16 @@ ipv4_route_deletion_test()
 
 	local ip="ipv4"
 	local route=192.0.2.0/24
-	local expected_num_notifications=1
+	local expected_num_analtifications=1
 
-	# Make sure a single notification will be emitted for the deleted route,
-	# regardless of fib_notify_on_flag_change value.
-	local notify=0
+	# Make sure a single analtification will be emitted for the deleted route,
+	# regardless of fib_analtify_on_flag_change value.
+	local analtify=0
 	# route_deletion_check will assign value to RET.
-	route_deletion_check $ip $notify $route $expected_num_notifications
+	route_deletion_check $ip $analtify $route $expected_num_analtifications
 
-	notify=1
-	route_deletion_check $ip $notify $route $expected_num_notifications
+	analtify=1
+	route_deletion_check $ip $analtify $route $expected_num_analtifications
 
 	log_test "IPv4 route deletion"
 }
@@ -177,11 +177,11 @@ ipv4_route_deletion_test()
 route_replacement_check()
 {
 	local ip=$1; shift
-	local notify=$1; shift
+	local analtify=$1; shift
 	local route=$1; shift
-	local expected_num_notifications=$1; shift
+	local expected_num_analtifications=$1; shift
 
-	ip netns exec testns1 sysctl -qw net.$ip.fib_notify_on_flag_change=$notify
+	ip netns exec testns1 sysctl -qw net.$ip.fib_analtify_on_flag_change=$analtify
 	$IP route add $route dev dummy1
 	sleep 1
 
@@ -193,7 +193,7 @@ route_replacement_check()
 	sleep 1
 	kill %% && wait %% &> /dev/null
 
-	route_notify_check $outfile $expected_num_notifications
+	route_analtify_check $outfile $expected_num_analtifications
 	rm -f $outfile
 
 	$IP route del $route dev dummy2
@@ -209,22 +209,22 @@ ipv4_route_replacement_test()
 	$IP link add name dummy2 type dummy
 	$IP link set dev dummy2 up
 
-	# Make sure a single notification will be emitted for the new route.
-	local notify=0
-	local expected_num_notifications=1
+	# Make sure a single analtification will be emitted for the new route.
+	local analtify=0
+	local expected_num_analtifications=1
 	# route_replacement_check will assign value to RET.
-	route_replacement_check $ip $notify $route $expected_num_notifications
+	route_replacement_check $ip $analtify $route $expected_num_analtifications
 
-	# Make sure two notifications will be emitted for the new route.
-	notify=1
-	expected_num_notifications=2
-	route_replacement_check $ip $notify $route $expected_num_notifications
+	# Make sure two analtifications will be emitted for the new route.
+	analtify=1
+	expected_num_analtifications=2
+	route_replacement_check $ip $analtify $route $expected_num_analtifications
 
-	# notify=2 means emit notifications only for failed route installation,
-	# make sure a single notification will be emitted for the new route.
-	notify=2
-	expected_num_notifications=1
-	route_replacement_check $ip $notify $route $expected_num_notifications
+	# analtify=2 means emit analtifications only for failed route installation,
+	# make sure a single analtification will be emitted for the new route.
+	analtify=2
+	expected_num_analtifications=1
+	route_replacement_check $ip $analtify $route $expected_num_analtifications
 
 	$IP link del name dummy2
 
@@ -243,28 +243,28 @@ ipv4_route_offload_failed_test()
 	echo "y"> $DEBUGFS_DIR/fib/fail_route_offload
 	check_err $? "Failed to setup route offload to fail"
 
-	# Make sure a single notification will be emitted for the programmed
+	# Make sure a single analtification will be emitted for the programmed
 	# route.
-	local notify=0
-	local expected_num_notifications=1
-	route_addition_check $ip $notify $route $expected_num_notifications \
+	local analtify=0
+	local expected_num_analtifications=1
+	route_addition_check $ip $analtify $route $expected_num_analtifications \
 		$offload_failed
 
-	# Make sure two notifications will be emitted for the new route.
-	notify=1
-	expected_num_notifications=2
-	route_addition_check $ip $notify $route $expected_num_notifications \
+	# Make sure two analtifications will be emitted for the new route.
+	analtify=1
+	expected_num_analtifications=2
+	route_addition_check $ip $analtify $route $expected_num_analtifications \
 		$offload_failed
 
-	# notify=2 means emit notifications only for failed route installation,
-	# make sure two notifications will be emitted for the new route.
-	notify=2
-	expected_num_notifications=2
-	route_addition_check $ip $notify $route $expected_num_notifications \
+	# analtify=2 means emit analtifications only for failed route installation,
+	# make sure two analtifications will be emitted for the new route.
+	analtify=2
+	expected_num_analtifications=2
+	route_addition_check $ip $analtify $route $expected_num_analtifications \
 		$offload_failed
 
 	echo "n"> $DEBUGFS_DIR/fib/fail_route_offload
-	check_err $? "Failed to setup route offload not to fail"
+	check_err $? "Failed to setup route offload analt to fail"
 
 	log_test "IPv4 route offload failed"
 }
@@ -276,23 +276,23 @@ ipv6_route_addition_test()
 	local ip="ipv6"
 	local route=2001:db8:1::/64
 
-	# Make sure a single notification will be emitted for the programmed
+	# Make sure a single analtification will be emitted for the programmed
 	# route.
-	local notify=0
-	local expected_num_notifications=1
-	route_addition_check $ip $notify $route $expected_num_notifications
+	local analtify=0
+	local expected_num_analtifications=1
+	route_addition_check $ip $analtify $route $expected_num_analtifications
 
-	# Make sure two notifications will be emitted for the programmed route.
-	notify=1
-	expected_num_notifications=2
-	route_addition_check $ip $notify $route $expected_num_notifications
+	# Make sure two analtifications will be emitted for the programmed route.
+	analtify=1
+	expected_num_analtifications=2
+	route_addition_check $ip $analtify $route $expected_num_analtifications
 
-	# notify=2 means emit notifications only for failed route installation,
-	# make sure a single notification will be emitted for the programmed
+	# analtify=2 means emit analtifications only for failed route installation,
+	# make sure a single analtification will be emitted for the programmed
 	# route.
-	notify=2
-	expected_num_notifications=1
-	route_addition_check $ip $notify $route $expected_num_notifications
+	analtify=2
+	expected_num_analtifications=1
+	route_addition_check $ip $analtify $route $expected_num_analtifications
 
 	log_test "IPv6 route addition"
 }
@@ -303,15 +303,15 @@ ipv6_route_deletion_test()
 
 	local ip="ipv6"
 	local route=2001:db8:1::/64
-	local expected_num_notifications=1
+	local expected_num_analtifications=1
 
-	# Make sure a single notification will be emitted for the deleted route,
-	# regardless of fib_notify_on_flag_change value.
-	local notify=0
-	route_deletion_check $ip $notify $route $expected_num_notifications
+	# Make sure a single analtification will be emitted for the deleted route,
+	# regardless of fib_analtify_on_flag_change value.
+	local analtify=0
+	route_deletion_check $ip $analtify $route $expected_num_analtifications
 
-	notify=1
-	route_deletion_check $ip $notify $route $expected_num_notifications
+	analtify=1
+	route_deletion_check $ip $analtify $route $expected_num_analtifications
 
 	log_test "IPv6 route deletion"
 }
@@ -326,21 +326,21 @@ ipv6_route_replacement_test()
 	$IP link add name dummy2 type dummy
 	$IP link set dev dummy2 up
 
-	# Make sure a single notification will be emitted for the new route.
-	local notify=0
-	local expected_num_notifications=1
-	route_replacement_check $ip $notify $route $expected_num_notifications
+	# Make sure a single analtification will be emitted for the new route.
+	local analtify=0
+	local expected_num_analtifications=1
+	route_replacement_check $ip $analtify $route $expected_num_analtifications
 
-	# Make sure two notifications will be emitted for the new route.
-	notify=1
-	expected_num_notifications=2
-	route_replacement_check $ip $notify $route $expected_num_notifications
+	# Make sure two analtifications will be emitted for the new route.
+	analtify=1
+	expected_num_analtifications=2
+	route_replacement_check $ip $analtify $route $expected_num_analtifications
 
-	# notify=2 means emit notifications only for failed route installation,
-	# make sure a single notification will be emitted for the new route.
-	notify=2
-	expected_num_notifications=1
-	route_replacement_check $ip $notify $route $expected_num_notifications
+	# analtify=2 means emit analtifications only for failed route installation,
+	# make sure a single analtification will be emitted for the new route.
+	analtify=2
+	expected_num_analtifications=1
+	route_replacement_check $ip $analtify $route $expected_num_analtifications
 
 	$IP link del name dummy2
 
@@ -359,28 +359,28 @@ ipv6_route_offload_failed_test()
 	echo "y"> $DEBUGFS_DIR/fib/fail_route_offload
 	check_err $? "Failed to setup route offload to fail"
 
-	# Make sure a single notification will be emitted for the programmed
+	# Make sure a single analtification will be emitted for the programmed
 	# route.
-	local notify=0
-	local expected_num_notifications=1
-	route_addition_check $ip $notify $route $expected_num_notifications \
+	local analtify=0
+	local expected_num_analtifications=1
+	route_addition_check $ip $analtify $route $expected_num_analtifications \
 		$offload_failed
 
-	# Make sure two notifications will be emitted for the new route.
-	notify=1
-	expected_num_notifications=2
-	route_addition_check $ip $notify $route $expected_num_notifications \
+	# Make sure two analtifications will be emitted for the new route.
+	analtify=1
+	expected_num_analtifications=2
+	route_addition_check $ip $analtify $route $expected_num_analtifications \
 		$offload_failed
 
-	# notify=2 means emit notifications only for failed route installation,
-	# make sure two notifications will be emitted for the new route.
-	notify=2
-	expected_num_notifications=2
-	route_addition_check $ip $notify $route $expected_num_notifications \
+	# analtify=2 means emit analtifications only for failed route installation,
+	# make sure two analtifications will be emitted for the new route.
+	analtify=2
+	expected_num_analtifications=2
+	route_addition_check $ip $analtify $route $expected_num_analtifications \
 		$offload_failed
 
 	echo "n"> $DEBUGFS_DIR/fib/fail_route_offload
-	check_err $? "Failed to setup route offload not to fail"
+	check_err $? "Failed to setup route offload analt to fail"
 
 	log_test "IPv6 route offload failed"
 }

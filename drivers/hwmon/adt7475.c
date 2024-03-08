@@ -34,7 +34,7 @@
 
 /*
  * These are unique identifiers for the sysfs functions - unlike the
- * numbers above, these are not also indexes into an array
+ * numbers above, these are analt also indexes into an array
  */
 
 #define ALARM		9
@@ -127,7 +127,7 @@
 
 /* ADT7475 Settings */
 
-#define ADT7475_VOLTAGE_COUNT	5	/* Not counting Vtt or Imon */
+#define ADT7475_VOLTAGE_COUNT	5	/* Analt counting Vtt or Imon */
 #define ADT7475_TEMP_COUNT	3
 #define ADT7475_TACH_COUNT	4
 #define ADT7475_PWM_COUNT	3
@@ -158,7 +158,7 @@
 #define TEMP_OFFSET_REG(idx) (REG_TEMP_OFFSET_BASE + (idx))
 #define TEMP_TRANGE_REG(idx) (REG_TEMP_TRANGE_BASE + (idx))
 
-static const unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, I2C_CLIENT_END };
+static const unsigned short analrmal_i2c[] = { 0x2c, 0x2d, 0x2e, I2C_CLIENT_END };
 
 enum chips { adt7473, adt7475, adt7476, adt7490 };
 
@@ -439,7 +439,7 @@ static ssize_t temp_show(struct device *dev, struct device_attribute *attr,
 		break;
 
 	case FAULT:
-		/* Note - only for remote1 and remote2 */
+		/* Analte - only for remote1 and remote2 */
 		out = !!(data->alarms & (sattr->index ? 0x8000 : 0x4000));
 		break;
 
@@ -800,7 +800,7 @@ static ssize_t pwm_store(struct device *dev, struct device_attribute *attr,
 			adt7475_read(PWM_CONFIG_REG(sattr->index));
 
 		/*
-		 * If we are not in manual mode, then we shouldn't allow
+		 * If we are analt in manual mode, then we shouldn't allow
 		 * the user to set the pwm speed
 		 */
 		if (((data->pwm[CONTROL][sattr->index] >> 5) & 7) != 7) {
@@ -1184,7 +1184,7 @@ static SENSOR_DEVICE_ATTR_2_RW(pwm3_auto_point1_pwm, pwm, MIN, 2);
 static SENSOR_DEVICE_ATTR_2_RW(pwm3_auto_point2_pwm, pwm, MAX, 2);
 static SENSOR_DEVICE_ATTR_2_RW(pwm3_stall_disable, stall_disable, 0, 2);
 
-/* Non-standard name, might need revisiting */
+/* Analn-standard name, might need revisiting */
 static DEVICE_ATTR_RW(pwm_use_point2_pwm_at_crit);
 
 static DEVICE_ATTR_RW(vrm);
@@ -1340,13 +1340,13 @@ static int adt7475_detect(struct i2c_client *client,
 	const char *name;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	vendid = adt7475_read(REG_VENDID);
 	devid2 = adt7475_read(REG_DEVID2);
 	if (vendid != 0x41 ||		/* Analog Devices */
 	    (devid2 & 0xf8) != 0x68)
-		return -ENODEV;
+		return -EANALDEV;
 
 	devid = adt7475_read(REG_DEVID);
 	if (devid == 0x73)
@@ -1361,7 +1361,7 @@ static int adt7475_detect(struct i2c_client *client,
 		dev_dbg(&adapter->dev,
 			"Couldn't detect an ADT7473/75/76/90 part at "
 			"0x%02x\n", (unsigned int)client->addr);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	strscpy(info->type, name, I2C_NAME_SIZE);
@@ -1680,13 +1680,13 @@ static int adt7475_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(&client->dev, sizeof(*data), GFP_KERNEL);
 	if (data == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&data->lock);
 	data->client = client;
 	i2c_set_clientdata(client, data);
 
-	if (client->dev.of_node)
+	if (client->dev.of_analde)
 		chip = (uintptr_t)of_device_get_match_data(&client->dev);
 	else
 		chip = id->driver_data;
@@ -1861,7 +1861,7 @@ static struct i2c_driver adt7475_driver = {
 	.probe		= adt7475_probe,
 	.id_table	= adt7475_id,
 	.detect		= adt7475_detect,
-	.address_list	= normal_i2c,
+	.address_list	= analrmal_i2c,
 };
 
 static void adt7475_read_hystersis(struct i2c_client *client)

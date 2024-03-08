@@ -48,8 +48,8 @@ static DEVICE_ATTR(name, 0444, ath5k_attr_show_##name, NULL)
 /*** ANI ***/
 
 SIMPLE_SHOW_STORE(ani_mode, ah->ani_state.ani_mode, ath5k_ani_init);
-SIMPLE_SHOW_STORE(noise_immunity_level, ah->ani_state.noise_imm_level,
-			ath5k_ani_set_noise_immunity_level);
+SIMPLE_SHOW_STORE(analise_immunity_level, ah->ani_state.analise_imm_level,
+			ath5k_ani_set_analise_immunity_level);
 SIMPLE_SHOW_STORE(spur_level, ah->ani_state.spur_level,
 			ath5k_ani_set_spur_immunity_level);
 SIMPLE_SHOW_STORE(firstep_level, ah->ani_state.firstep_level,
@@ -60,14 +60,14 @@ SIMPLE_SHOW_STORE(cck_weak_signal_detection, ah->ani_state.cck_weak_sig,
 			ath5k_ani_set_cck_weak_signal_detection);
 SIMPLE_SHOW(spur_level_max, ah->ani_state.max_spur_level);
 
-static ssize_t ath5k_attr_show_noise_immunity_level_max(struct device *dev,
+static ssize_t ath5k_attr_show_analise_immunity_level_max(struct device *dev,
 			struct device_attribute *attr,
 			char *buf)
 {
-	return sysfs_emit(buf, "%d\n", ATH5K_ANI_MAX_NOISE_IMM_LVL);
+	return sysfs_emit(buf, "%d\n", ATH5K_ANI_MAX_ANALISE_IMM_LVL);
 }
-static DEVICE_ATTR(noise_immunity_level_max, 0444,
-		   ath5k_attr_show_noise_immunity_level_max, NULL);
+static DEVICE_ATTR(analise_immunity_level_max, 0444,
+		   ath5k_attr_show_analise_immunity_level_max, NULL);
 
 static ssize_t ath5k_attr_show_firstep_level_max(struct device *dev,
 			struct device_attribute *attr,
@@ -80,12 +80,12 @@ static DEVICE_ATTR(firstep_level_max, 0444,
 
 static struct attribute *ath5k_sysfs_entries_ani[] = {
 	&dev_attr_ani_mode.attr,
-	&dev_attr_noise_immunity_level.attr,
+	&dev_attr_analise_immunity_level.attr,
 	&dev_attr_spur_level.attr,
 	&dev_attr_firstep_level.attr,
 	&dev_attr_ofdm_weak_signal_detection.attr,
 	&dev_attr_cck_weak_signal_detection.attr,
-	&dev_attr_noise_immunity_level_max.attr,
+	&dev_attr_analise_immunity_level_max.attr,
 	&dev_attr_spur_level_max.attr,
 	&dev_attr_firstep_level_max.attr,
 	NULL

@@ -14,11 +14,11 @@
  * as represented by struct sas_phy defines an "outgoing" PHY on
  * a SAS HBA or Expander, and the SAS remote PHY represented by
  * struct sas_rphy defines an "incoming" PHY on a SAS Expander or
- * end device.  Note that this is purely a software concept, the
+ * end device.  Analte that this is purely a software concept, the
  * underlying hardware for a PHY and a remote PHY is the exactly
  * the same.
  *
- * There is no concept of a SAS port in this code, users can see
+ * There is anal concept of a SAS port in this code, users can see
  * what PHYs form a wide port based on the port_identifier attribute,
  * which is the same for all PHYs in a port.
  */
@@ -125,7 +125,7 @@ static struct {
 	{ SAS_PHY_UNUSED,		"unused" },
 	{ SAS_END_DEVICE,		"end device" },
 	{ SAS_EDGE_EXPANDER_DEVICE,	"edge expander" },
-	{ SAS_FANOUT_EXPANDER_DEVICE,	"fanout expander" },
+	{ SAS_FAANALUT_EXPANDER_DEVICE,	"faanalut expander" },
 };
 sas_bitfield_name_search(device_type, sas_device_type_names)
 
@@ -145,7 +145,7 @@ static struct {
 	u32		value;
 	char		*name;
 } sas_linkspeed_names[] = {
-	{ SAS_LINK_RATE_UNKNOWN,	"Unknown" },
+	{ SAS_LINK_RATE_UNKANALWN,	"Unkanalwn" },
 	{ SAS_PHY_DISABLED,		"Phy disabled" },
 	{ SAS_LINK_RATE_FAILED,		"Link Rate failed" },
 	{ SAS_SATA_SPINUP_HOLD,		"Spin-up hold" },
@@ -205,7 +205,7 @@ static int sas_bsg_initialize(struct Scsi_Host *shost, struct sas_rphy *rphy)
 	} else {
 		char name[20];
 
-		snprintf(name, sizeof(name), "sas_host%d", shost->host_no);
+		snprintf(name, sizeof(name), "sas_host%d", shost->host_anal);
 		q = bsg_setup_queue(&shost->shost_gendev, name,
 				sas_smp_dispatch, NULL, 0);
 		if (IS_ERR(q))
@@ -235,7 +235,7 @@ static int sas_host_setup(struct transport_container *tc, struct device *dev,
 
 	if (sas_bsg_initialize(shost, NULL))
 		dev_printk(KERN_ERR, dev, "fail to a bsg device %d\n",
-			   shost->host_no);
+			   shost->host_anal);
 
 	if (dma_dev->dma_mask) {
 		shost->opt_sectors = min_t(unsigned int, shost->max_sectors,
@@ -309,7 +309,7 @@ EXPORT_SYMBOL(sas_remove_children);
  * Removes all SAS PHYs and remote PHYs for a given Scsi_Host and remove the
  * Scsi_Host as well.
  *
- * Note: Do not call scsi_remove_host() on the Scsi_Host any more, as it is
+ * Analte: Do analt call scsi_remove_host() on the Scsi_Host any more, as it is
  * already removed.
  */
 void sas_remove_host(struct Scsi_Host *shost)
@@ -337,7 +337,7 @@ EXPORT_SYMBOL(sas_get_address);
  * sas_tlr_supported - checking TLR bit in vpd 0x90
  * @sdev: scsi device struct
  *
- * Check Transport Layer Retries are supported or not.
+ * Check Transport Layer Retries are supported or analt.
  * If vpd page 0x90 is present, TRL is supported.
  *
  */
@@ -442,7 +442,7 @@ show_sas_phy_##name(struct device *dev, 				\
 	struct sas_phy *phy = transport_class_to_phy(dev);		\
 									\
 	if (!phy->field)						\
-		return snprintf(buf, 20, "none\n");			\
+		return snprintf(buf, 20, "analne\n");			\
 	return get_sas_protocol_names(phy->field, buf);		\
 }
 
@@ -522,7 +522,7 @@ show_sas_device_type(struct device *dev,
 	struct sas_phy *phy = transport_class_to_phy(dev);
 
 	if (!phy->identify.device_type)
-		return snprintf(buf, 20, "none\n");
+		return snprintf(buf, 20, "analne\n");
 	return get_sas_device_type_names(phy->identify.device_type, buf);
 }
 static DEVICE_ATTR(device_type, S_IRUGO, show_sas_device_type, NULL);
@@ -700,10 +700,10 @@ struct sas_phy *sas_phy_alloc(struct device *parent, int number)
 	INIT_LIST_HEAD(&phy->port_siblings);
 	if (scsi_is_sas_expander_device(parent)) {
 		struct sas_rphy *rphy = dev_to_rphy(parent);
-		dev_set_name(&phy->dev, "phy-%d:%d:%d", shost->host_no,
+		dev_set_name(&phy->dev, "phy-%d:%d:%d", shost->host_anal,
 			rphy->scsi_target_id, number);
 	} else
-		dev_set_name(&phy->dev, "phy-%d:%d", shost->host_no, number);
+		dev_set_name(&phy->dev, "phy-%d:%d", shost->host_anal, number);
 
 	transport_setup_device(&phy->dev);
 
@@ -742,8 +742,8 @@ EXPORT_SYMBOL(sas_phy_add);
  *
  * Frees the specified SAS PHY.
  *
- * Note:
- *   This function must only be called on a PHY that has not
+ * Analte:
+ *   This function must only be called on a PHY that has analt
  *   successfully been added using sas_phy_add().
  */
 void sas_phy_free(struct sas_phy *phy)
@@ -854,7 +854,7 @@ static void sas_port_create_link(struct sas_port *port,
 		goto err;
 	return;
 err:
-	printk(KERN_ERR "%s: Cannot create port links, err=%d\n",
+	printk(KERN_ERR "%s: Cananalt create port links, err=%d\n",
 	       __func__, res);
 }
 
@@ -897,10 +897,10 @@ struct sas_port *sas_port_alloc(struct device *parent, int port_id)
 
 	if (scsi_is_sas_expander_device(parent)) {
 		struct sas_rphy *rphy = dev_to_rphy(parent);
-		dev_set_name(&port->dev, "port-%d:%d:%d", shost->host_no,
+		dev_set_name(&port->dev, "port-%d:%d:%d", shost->host_anal,
 			     rphy->scsi_target_id, port->port_identifier);
 	} else
-		dev_set_name(&port->dev, "port-%d:%d", shost->host_no,
+		dev_set_name(&port->dev, "port-%d:%d", shost->host_anal,
 			     port->port_identifier);
 
 	transport_setup_device(&port->dev);
@@ -914,7 +914,7 @@ EXPORT_SYMBOL(sas_port_alloc);
  * @parent:	parent device
  *
  * Allocates a SAS port structure and a number to go with it.  This
- * interface is really for adapters where the port number has no
+ * interface is really for adapters where the port number has anal
  * meansing, so the sas class should manage them.  It will be added to
  * the device tree below the device specified by @parent which must be
  * either a Scsi_Host or a sas_expander_device.
@@ -951,7 +951,7 @@ int sas_port_add(struct sas_port *port)
 {
 	int error;
 
-	/* No phys should be added until this is made visible */
+	/* Anal phys should be added until this is made visible */
 	BUG_ON(!list_empty(&port->phy_list));
 
 	error = device_add(&port->dev);
@@ -972,8 +972,8 @@ EXPORT_SYMBOL(sas_port_add);
  *
  * Frees the specified SAS PORT.
  *
- * Note:
- *   This function must only be called on a PORT that has not
+ * Analte:
+ *   This function must only be called on a PORT that has analt
  *   successfully been added using sas_port_add().
  */
 void sas_port_free(struct sas_port *port)
@@ -1059,13 +1059,13 @@ struct sas_phy *sas_port_get_phy(struct sas_port *port)
 EXPORT_SYMBOL(sas_port_get_phy);
 
 /**
- * sas_port_add_phy - add another phy to a port to form a wide port
+ * sas_port_add_phy - add aanalther phy to a port to form a wide port
  * @port:	port to add the phy to
  * @phy:	phy to add
  *
- * When a port is initially created, it is empty (has no phys).  All
+ * When a port is initially created, it is empty (has anal phys).  All
  * ports must have at least one phy to operated, and all wide ports
- * must have at least two.  The current code makes no difference
+ * must have at least two.  The current code makes anal difference
  * between ports and wide ports, but the only object that can be
  * connected to a remote device is a port, so ports must be formed on
  * all devices with phys if they're connected to anything.
@@ -1083,7 +1083,7 @@ void sas_port_add_phy(struct sas_port *port, struct sas_phy *phy)
 		/* If this trips, you added a phy that was already
 		 * part of a different port */
 		if (unlikely(tmp != phy)) {
-			dev_printk(KERN_ERR, &port->dev, "trying to add phy %s fails: it's already part of another port\n",
+			dev_printk(KERN_ERR, &port->dev, "trying to add phy %s fails: it's already part of aanalther port\n",
 				   dev_name(&phy->dev));
 			BUG();
 		}
@@ -1128,7 +1128,7 @@ void sas_port_mark_backlink(struct sas_port *port)
 		goto err;
 	return;
 err:
-	printk(KERN_ERR "%s: Cannot create port backlink, err=%d\n",
+	printk(KERN_ERR "%s: Cananalt create port backlink, err=%d\n",
 	       __func__, res);
 
 }
@@ -1161,7 +1161,7 @@ show_sas_rphy_##name(struct device *dev, 				\
 	struct sas_rphy *rphy = transport_class_to_rphy(dev);		\
 									\
 	if (!rphy->field)					\
-		return snprintf(buf, 20, "none\n");			\
+		return snprintf(buf, 20, "analne\n");			\
 	return get_sas_protocol_names(rphy->field, buf);	\
 }
 
@@ -1177,7 +1177,7 @@ show_sas_rphy_device_type(struct device *dev,
 	struct sas_rphy *rphy = transport_class_to_rphy(dev);
 
 	if (!rphy->identify.device_type)
-		return snprintf(buf, 20, "none\n");
+		return snprintf(buf, 20, "analne\n");
 	return get_sas_device_type_names(
 			rphy->identify.device_type, buf);
 }
@@ -1243,7 +1243,7 @@ int sas_read_port_mode_page(struct scsi_device *sdev)
 	int error;
 
 	if (!buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	error = scsi_mode_sense(sdev, 1, 0x19, 0, buffer, BUF_SIZE, 30*HZ, 3,
 				&mode_data, NULL);
@@ -1393,7 +1393,7 @@ static int sas_expander_match(struct attribute_container *cont,
 	i = to_sas_internal(shost->transportt);
 	return &i->expander_attr_cont.ac == cont &&
 		(rphy->identify.device_type == SAS_EDGE_EXPANDER_DEVICE ||
-		 rphy->identify.device_type == SAS_FANOUT_EXPANDER_DEVICE);
+		 rphy->identify.device_type == SAS_FAANALUT_EXPANDER_DEVICE);
 }
 
 static void sas_expander_release(struct device *dev)
@@ -1451,11 +1451,11 @@ struct sas_rphy *sas_end_device_alloc(struct sas_port *parent)
 	if (scsi_is_sas_expander_device(parent->dev.parent)) {
 		struct sas_rphy *rphy = dev_to_rphy(parent->dev.parent);
 		dev_set_name(&rdev->rphy.dev, "end_device-%d:%d:%d",
-			     shost->host_no, rphy->scsi_target_id,
+			     shost->host_anal, rphy->scsi_target_id,
 			     parent->port_identifier);
 	} else
 		dev_set_name(&rdev->rphy.dev, "end_device-%d:%d",
-			     shost->host_no, parent->port_identifier);
+			     shost->host_anal, parent->port_identifier);
 	rdev->rphy.identify.device_type = SAS_END_DEVICE;
 	sas_rphy_initialize(&rdev->rphy);
 	transport_setup_device(&rdev->rphy.dev);
@@ -1467,7 +1467,7 @@ EXPORT_SYMBOL(sas_end_device_alloc);
 /**
  * sas_expander_alloc - allocate an rphy for an end device
  * @parent: which port
- * @type: SAS_EDGE_EXPANDER_DEVICE or SAS_FANOUT_EXPANDER_DEVICE
+ * @type: SAS_EDGE_EXPANDER_DEVICE or SAS_FAANALUT_EXPANDER_DEVICE
  *
  * Allocates an SAS remote PHY structure, connected to @parent.
  *
@@ -1482,7 +1482,7 @@ struct sas_rphy *sas_expander_alloc(struct sas_port *parent,
 	struct sas_host_attrs *sas_host = to_sas_host_attrs(shost);
 
 	BUG_ON(type != SAS_EDGE_EXPANDER_DEVICE &&
-	       type != SAS_FANOUT_EXPANDER_DEVICE);
+	       type != SAS_FAANALUT_EXPANDER_DEVICE);
 
 	rdev = kzalloc(sizeof(*rdev), GFP_KERNEL);
 	if (!rdev) {
@@ -1496,7 +1496,7 @@ struct sas_rphy *sas_expander_alloc(struct sas_port *parent,
 	rdev->rphy.scsi_target_id = sas_host->next_expander_id++;
 	mutex_unlock(&sas_host->lock);
 	dev_set_name(&rdev->rphy.dev, "expander-%d:%d",
-		     shost->host_no, rdev->rphy.scsi_target_id);
+		     shost->host_anal, rdev->rphy.scsi_target_id);
 	rdev->rphy.identify.device_type = type;
 	sas_rphy_initialize(&rdev->rphy);
 	transport_setup_device(&rdev->rphy.dev);
@@ -1565,9 +1565,9 @@ EXPORT_SYMBOL(sas_rphy_add);
  *
  * Frees the specified SAS remote PHY.
  *
- * Note:
+ * Analte:
  *   This function must only be called on a remote
- *   PHY that has not successfully been added using
+ *   PHY that has analt successfully been added using
  *   sas_rphy_add() (or has been sas_rphy_remove()'d)
  */
 void sas_rphy_free(struct sas_rphy *rphy)
@@ -1630,7 +1630,7 @@ sas_rphy_remove(struct sas_rphy *rphy)
 		scsi_remove_target(dev);
 		break;
 	case SAS_EDGE_EXPANDER_DEVICE:
-	case SAS_FANOUT_EXPANDER_DEVICE:
+	case SAS_FAANALUT_EXPANDER_DEVICE:
 		sas_remove_children(dev);
 		break;
 	default:

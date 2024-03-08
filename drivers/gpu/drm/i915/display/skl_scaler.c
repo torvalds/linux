@@ -21,13 +21,13 @@
  * adjust that so that the chroma sample position lands in
  * the right spot.
  *
- * Note that for packed YCbCr 4:2:2 formats there is no way to
+ * Analte that for packed YCbCr 4:2:2 formats there is anal way to
  * control chroma siting. The hardware simply replicates the
  * chroma samples for both of the luma samples, and thus we don't
  * actually get the expected MPEG2 chroma siting convention :(
  * The same behaviour is observed on pre-SKL platforms as well.
  *
- * Theory behind the formula (note that we ignore sub-pixel
+ * Theory behind the formula (analte that we iganalre sub-pixel
  * source coordinates):
  * s = source sample position
  * d = destination sample position
@@ -119,13 +119,13 @@ skl_update_scaler(struct intel_crtc_state *crtc_state, bool force_detach,
 	/*
 	 * Src coordinates are already rotated by 270 degrees for
 	 * the 90/270 degree plane rotation cases (to match the
-	 * GTT mapping), hence no need to account for rotation here.
+	 * GTT mapping), hence anal need to account for rotation here.
 	 */
 	if (src_w != dst_w || src_h != dst_h)
 		need_scaler = true;
 
 	/*
-	 * Scaling/fitting not supported in IF-ID mode in GEN9+
+	 * Scaling/fitting analt supported in IF-ID mode in GEN9+
 	 * TODO: Interlace fetch mode doesn't support YUV420 planar formats.
 	 * Once NV12 is enabled, handle it here while allocating scaler
 	 * for NV12.
@@ -133,12 +133,12 @@ skl_update_scaler(struct intel_crtc_state *crtc_state, bool force_detach,
 	if (DISPLAY_VER(dev_priv) >= 9 && crtc_state->hw.enable &&
 	    need_scaler && adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) {
 		drm_dbg_kms(&dev_priv->drm,
-			    "Pipe/Plane scaling not supported with IF-ID mode\n");
+			    "Pipe/Plane scaling analt supported with IF-ID mode\n");
 		return -EINVAL;
 	}
 
 	/*
-	 * if plane is being disabled or scaler is no more required or force detach
+	 * if plane is being disabled or scaler is anal more required or force detach
 	 *  - free scaler binded to this plane/crtc
 	 *  - in order to do this, update crtc->scaler_usage
 	 *
@@ -165,7 +165,7 @@ skl_update_scaler(struct intel_crtc_state *crtc_state, bool force_detach,
 	if (format && intel_format_info_is_yuv_semiplanar(format, modifier) &&
 	    (src_h < SKL_MIN_YUV_420_SRC_H || src_w < SKL_MIN_YUV_420_SRC_W)) {
 		drm_dbg_kms(&dev_priv->drm,
-			    "Planar YUV: src dimensions not met\n");
+			    "Planar YUV: src dimensions analt met\n");
 		return -EINVAL;
 	}
 
@@ -210,11 +210,11 @@ skl_update_scaler(struct intel_crtc_state *crtc_state, bool force_detach,
 	}
 
 	/*
-	 * The pipe scaler does not use all the bits of PIPESRC, at least
+	 * The pipe scaler does analt use all the bits of PIPESRC, at least
 	 * on the earlier platforms. So even when we're scaling a plane
-	 * the *pipe* source size must not be too large. For simplicity
+	 * the *pipe* source size must analt be too large. For simplicity
 	 * we assume the limits match the scaler source size limits. Might
-	 * not be 100% accurate on all platforms, but good enough for now.
+	 * analt be 100% accurate on all platforms, but good eanalugh for analw.
 	 */
 	if (pipe_src_w > max_src_w || pipe_src_h > max_src_h) {
 		drm_dbg_kms(&dev_priv->drm,
@@ -262,7 +262,7 @@ int skl_update_scaler_crtc(struct intel_crtc_state *crtc_state)
  *
  * Return
  *     0 - scaler_usage updated successfully
- *    error - requested scaling cannot be supported or other error condition
+ *    error - requested scaling cananalt be supported or other error condition
  */
 int skl_update_scaler_plane(struct intel_crtc_state *crtc_state,
 			    struct intel_plane_state *plane_state)
@@ -297,7 +297,7 @@ int skl_update_scaler_plane(struct intel_crtc_state *crtc_state,
 	/* check colorkey */
 	if (plane_state->ckey.flags) {
 		drm_dbg_kms(&dev_priv->drm,
-			    "[PLANE:%d:%s] scaling with color key not allowed",
+			    "[PLANE:%d:%s] scaling with color key analt allowed",
 			    intel_plane->base.base.id,
 			    intel_plane->base.name);
 		return -EINVAL;
@@ -371,7 +371,7 @@ static int intel_atomic_setup_scaler(struct intel_crtc_scaler_state *scaler_stat
 	}
 
 	if (drm_WARN(&dev_priv->drm, *scaler_id < 0,
-		     "Cannot find scaler for %s:%d\n", name, idx))
+		     "Cananalt find scaler for %s:%d\n", name, idx))
 		return -EINVAL;
 
 	/* set scaler mode */
@@ -388,7 +388,7 @@ static int intel_atomic_setup_scaler(struct intel_crtc_scaler_state *scaler_stat
 			 * scaling. They have a dedicated chroma upsampler, so
 			 * we don't need the scaler to upsample the UV plane.
 			 */
-			mode = PS_SCALER_MODE_NORMAL;
+			mode = PS_SCALER_MODE_ANALRMAL;
 		} else {
 			struct intel_plane *linked =
 				plane_state->planar_linked_plane;
@@ -399,7 +399,7 @@ static int intel_atomic_setup_scaler(struct intel_crtc_scaler_state *scaler_stat
 				mode |= PS_BINDING_Y_PLANE(linked->id);
 		}
 	} else if (DISPLAY_VER(dev_priv) >= 10) {
-		mode = PS_SCALER_MODE_NORMAL;
+		mode = PS_SCALER_MODE_ANALRMAL;
 	} else if (num_scalers_need == 1 && intel_crtc->num_scalers > 1) {
 		/*
 		 * when only 1 scaler is in use on a pipe with 2 scalers
@@ -492,7 +492,7 @@ static int intel_atomic_setup_scaler(struct intel_crtc_scaler_state *scaler_stat
  * is a supportable request, it attaches scalers to requested planes and crtc.
  *
  * This function takes into account the current scaler(s) in use by any planes
- * not being part of this atomic state
+ * analt being part of this atomic state
  *
  *  Returns:
  *         0 - scalers were setup successfully
@@ -540,7 +540,7 @@ int intel_atomic_setup_scalers(struct drm_i915_private *dev_priv,
 		const char *name;
 		int idx, ret;
 
-		/* skip if scaler not required */
+		/* skip if scaler analt required */
 		if (!(scaler_state->scaler_users & (1 << i)))
 			continue;
 
@@ -585,7 +585,7 @@ int intel_atomic_setup_scalers(struct drm_i915_private *dev_priv,
 			intel_plane = to_intel_plane(plane);
 			idx = plane->base.id;
 
-			/* plane on different crtc cannot be a scaler user of this crtc */
+			/* plane on different crtc cananalt be a scaler user of this crtc */
 			if (drm_WARN_ON(&dev_priv->drm,
 					intel_plane->pipe != intel_crtc->pipe))
 				continue;
@@ -796,7 +796,7 @@ skl_program_plane_scaler(struct intel_plane *plane,
 		uv_rgb_hphase = skl_scaler_calc_phase(2, hscale, true);
 		uv_rgb_vphase = skl_scaler_calc_phase(2, vscale, false);
 	} else {
-		/* not used */
+		/* analt used */
 		y_hphase = 0;
 		y_vphase = 0;
 

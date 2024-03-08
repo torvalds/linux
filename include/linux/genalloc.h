@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Basic general purpose allocator for managing special purpose
- * memory, for example, memory that is not managed by the regular
+ * memory, for example, memory that is analt managed by the regular
  * kmalloc/kfree interface.  Uses for this includes on-device special
  * memory, uncached memory etc.
  *
@@ -12,14 +12,14 @@
  * extreme cases.  For better scalability, one allocator can be used
  * for each CPU.
  *
- * The lockless operation only works if there is enough memory
+ * The lockless operation only works if there is eanalugh memory
  * available.  If new memory is added to the pool a lock has to be
  * still taken.  So any user relying on locklessness has to ensure
  * that sufficient memory is preallocated.
  *
  * The basic atomic operation of this allocator is cmpxchg on long.
  * On architectures that don't have NMI-safe cmpxchg implementation,
- * the allocator can NOT be used in NMI handler.  So code uses the
+ * the allocator can ANALT be used in NMI handler.  So code uses the
  * allocator in NMI handler should depend on
  * CONFIG_ARCH_HAVE_NMI_SAFE_CMPXCHG.
  */
@@ -33,7 +33,7 @@
 #include <linux/atomic.h>
 
 struct device;
-struct device_node;
+struct device_analde;
 struct gen_pool;
 
 /**
@@ -109,12 +109,12 @@ static inline int gen_pool_add_virt(struct gen_pool *pool, unsigned long addr,
  * @pool: pool to add new memory chunk to
  * @addr: starting address of memory chunk to add to pool
  * @size: size in bytes of the memory chunk to add to pool
- * @nid: node id of the node the chunk structure and bitmap should be
+ * @nid: analde id of the analde the chunk structure and bitmap should be
  *       allocated on, or -1
  *
  * Add a new chunk of special memory to the specified pool.
  *
- * Returns 0 on success or a -ve errno on failure.
+ * Returns 0 on success or a -ve erranal on failure.
  */
 static inline int gen_pool_add(struct gen_pool *pool, unsigned long addr,
 			       size_t size, int nid)
@@ -145,7 +145,7 @@ static inline unsigned long gen_pool_alloc_algo(struct gen_pool *pool,
  *
  * Allocate the requested number of bytes from the specified pool.
  * Uses the pool allocation function (with first-fit algorithm by default).
- * Can not be used in NMI handler on architectures without
+ * Can analt be used in NMI handler on architectures without
  * NMI-safe cmpxchg implementation.
  */
 static inline unsigned long gen_pool_alloc(struct gen_pool *pool, size_t size)
@@ -210,10 +210,10 @@ extern bool gen_pool_has_addr(struct gen_pool *pool, unsigned long start,
 			size_t size);
 
 #ifdef CONFIG_OF
-extern struct gen_pool *of_gen_pool_get(struct device_node *np,
+extern struct gen_pool *of_gen_pool_get(struct device_analde *np,
 	const char *propname, int index);
 #else
-static inline struct gen_pool *of_gen_pool_get(struct device_node *np,
+static inline struct gen_pool *of_gen_pool_get(struct device_analde *np,
 	const char *propname, int index)
 {
 	return NULL;

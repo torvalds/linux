@@ -5,8 +5,8 @@
  * Copyright (C) 2013, Sylwester Nawrocki <sylvester.nawrocki@gmail.com>
  *
  * Register definitions and initial settings based on a driver written
- * by Vladimir Fonov.
- * Copyright (c) 2010, Vladimir Fonov
+ * by Vladimir Foanalv.
+ * Copyright (c) 2010, Vladimir Foanalv
  */
 #include <linux/clk.h>
 #include <linux/delay.h>
@@ -171,10 +171,10 @@ MODULE_PARM_DESC(debug, "Debug level (0-2)");
 #define REG_GST			0x7c	/* Gamma curve */
 #define  GST_LEN		15
 #define REG_COM21		0x8b
-#define REG_COM22		0x8c	/* Edge enhancement, denoising */
+#define REG_COM22		0x8c	/* Edge enhancement, deanalising */
 #define  COM22_WHTPCOR		0x02	/* White pixel correction enable */
 #define  COM22_WHTPCOROPT	0x01	/* White pixel correction option */
-#define  COM22_DENOISE		0x10	/* White pixel correction option */
+#define  COM22_DEANALISE		0x10	/* White pixel correction option */
 #define REG_COM23		0x8d	/* Color bar test, color gain */
 #define  COM23_TEST_MODE	0x10
 #define REG_DBLC1		0x8f	/* Digital BLC */
@@ -325,7 +325,7 @@ static const struct i2c_rv ov965x_init_regs[] = {
 	{ 0xa4, 0x74 },		/* reserved */
 	{ REG_COM23, 0x02 },	/* Color gain analog/_digital_ */
 	{ REG_COM8, 0xe7 },	/* Enable AEC, AWB, AEC */
-	{ REG_COM22, 0x23 },	/* Edge enhancement, denoising */
+	{ REG_COM22, 0x23 },	/* Edge enhancement, deanalising */
 	{ 0xa9, 0xb8 },
 	{ 0xaa, 0x92 },
 	{ 0xab, 0x0a },
@@ -463,7 +463,7 @@ static int ov965x_write_array(struct ov965x *ov965x,
 static int ov965x_set_default_gamma_curve(struct ov965x *ov965x)
 {
 	static const u8 gamma_curve[] = {
-		/* Values taken from OV application note. */
+		/* Values taken from OV application analte. */
 		0x40, 0x30, 0x4b, 0x60, 0x70, 0x70, 0x70, 0x70,
 		0x60, 0x60, 0x50, 0x48, 0x3a, 0x2e, 0x28, 0x22,
 		0x04, 0x07, 0x10, 0x28,	0x36, 0x44, 0x52, 0x60,
@@ -612,7 +612,7 @@ static int ov965x_set_banding_filter(struct ov965x *ov965x, int value)
 		light_freq = 50;
 	else
 		light_freq = 60;
-	mbd = (1000UL * ov965x->fiv->interval.denominator *
+	mbd = (1000UL * ov965x->fiv->interval.deanalminator *
 	       ov965x->frame_size->max_exp_lines) /
 	       ov965x->fiv->interval.numerator;
 	mbd = ((mbd / (light_freq * 2)) + 500) / 1000UL;
@@ -675,7 +675,7 @@ static int ov965x_set_gain(struct ov965x *ov965x, int auto_gain)
 	u8 reg;
 	/*
 	 * For manual mode we need to disable AGC first, so
-	 * gain value in REG_VREF, REG_GAIN is not overwritten.
+	 * gain value in REG_VREF, REG_GAIN is analt overwritten.
 	 */
 	if (ctrls->auto_gain->is_new) {
 		ret = ov965x_read(ov965x, REG_COM8, &reg);
@@ -923,7 +923,7 @@ static int ov965x_s_ctrl(struct v4l2_ctrl *ctrl)
 
 	mutex_lock(&ov965x->lock);
 	/*
-	 * If the device is not powered up now postpone applying control's
+	 * If the device is analt powered up analw postpone applying control's
 	 * value to the hardware, until it is ready to accept commands.
 	 */
 	if (ov965x->power == 0) {
@@ -1064,7 +1064,7 @@ static void ov965x_get_default_format(struct v4l2_mbus_framefmt *mf)
 	mf->height = ov965x_framesizes[0].height;
 	mf->colorspace = ov965x_formats[0].colorspace;
 	mf->code = ov965x_formats[0].code;
-	mf->field = V4L2_FIELD_NONE;
+	mf->field = V4L2_FIELD_ANALNE;
 }
 
 static int ov965x_enum_mbus_code(struct v4l2_subdev *sd,
@@ -1129,11 +1129,11 @@ static int __ov965x_set_frame_interval(struct ov965x *ov965x,
 	u64 req_int, err, min_err = ~0ULL;
 	unsigned int i;
 
-	if (fi->interval.denominator == 0)
+	if (fi->interval.deanalminator == 0)
 		return -EINVAL;
 
 	req_int = (u64)fi->interval.numerator * 10000;
-	do_div(req_int, fi->interval.denominator);
+	do_div(req_int, fi->interval.deanalminator);
 
 	for (i = 0; i < ARRAY_SIZE(ov965x_intervals); i++) {
 		const struct ov965x_interval *iv = &ov965x_intervals[i];
@@ -1142,7 +1142,7 @@ static int __ov965x_set_frame_interval(struct ov965x *ov965x,
 		    mbus_fmt->height != iv->size.height)
 			continue;
 		err = abs((u64)(iv->interval.numerator * 10000) /
-			    iv->interval.denominator - req_int);
+			    iv->interval.deanalminator - req_int);
 		if (err < min_err) {
 			fiv = iv;
 			min_err = err;
@@ -1151,7 +1151,7 @@ static int __ov965x_set_frame_interval(struct ov965x *ov965x,
 	ov965x->fiv = fiv;
 
 	v4l2_dbg(1, debug, &ov965x->sd, "Changed frame interval to %u us\n",
-		 fiv->interval.numerator * 1000000 / fiv->interval.denominator);
+		 fiv->interval.numerator * 1000000 / fiv->interval.deanalminator);
 
 	return 0;
 }
@@ -1171,7 +1171,7 @@ static int ov965x_set_frame_interval(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 	v4l2_dbg(1, debug, sd, "Setting %d/%d frame interval\n",
-		 fi->interval.numerator, fi->interval.denominator);
+		 fi->interval.numerator, fi->interval.deanalminator);
 
 	mutex_lock(&ov965x->lock);
 	ret = __ov965x_set_frame_interval(ov965x, fi);
@@ -1243,7 +1243,7 @@ static int ov965x_set_fmt(struct v4l2_subdev *sd,
 
 	mf->colorspace	= V4L2_COLORSPACE_JPEG;
 	mf->code	= ov965x_formats[index].code;
-	mf->field	= V4L2_FIELD_NONE;
+	mf->field	= V4L2_FIELD_ANALNE;
 
 	mutex_lock(&ov965x->lock);
 
@@ -1463,7 +1463,7 @@ static int ov965x_detect_sensor(struct v4l2_subdev *sd)
 		} else {
 			v4l2_err(sd, "Sensor detection failed (%04X)\n",
 				 ov965x->id);
-			ret = -ENODEV;
+			ret = -EANALDEV;
 		}
 	}
 out:
@@ -1485,7 +1485,7 @@ static int ov965x_probe(struct i2c_client *client)
 
 	ov965x = devm_kzalloc(&client->dev, sizeof(*ov965x), GFP_KERNEL);
 	if (!ov965x)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ov965x->regmap = devm_regmap_init_sccb(client, &ov965x_regmap_config);
 	if (IS_ERR(ov965x->regmap)) {
@@ -1493,7 +1493,7 @@ static int ov965x_probe(struct i2c_client *client)
 		return PTR_ERR(ov965x->regmap);
 	}
 
-	if (dev_fwnode(&client->dev)) {
+	if (dev_fwanalde(&client->dev)) {
 		ov965x->clk = devm_clk_get(&client->dev, NULL);
 		if (IS_ERR(ov965x->clk))
 			return PTR_ERR(ov965x->clk);
@@ -1504,7 +1504,7 @@ static int ov965x_probe(struct i2c_client *client)
 			return ret;
 	} else {
 		dev_err(&client->dev,
-			"No device properties specified\n");
+			"Anal device properties specified\n");
 
 		return -EINVAL;
 	}
@@ -1516,7 +1516,7 @@ static int ov965x_probe(struct i2c_client *client)
 	strscpy(sd->name, DRIVER_NAME, sizeof(sd->name));
 
 	sd->internal_ops = &ov965x_sd_internal_ops;
-	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE |
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE |
 		     V4L2_SUBDEV_FL_HAS_EVENTS;
 
 	ov965x->pad.flags = MEDIA_PAD_FL_SOURCE;

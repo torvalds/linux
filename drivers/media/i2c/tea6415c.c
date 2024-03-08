@@ -2,7 +2,7 @@
  /*
     tea6415c - i2c-driver for the tea6415c by SGS Thomson
 
-    Copyright (C) 1998-2003 Michael Hunold <michael@mihu.de>
+    Copyright (C) 1998-2003 Michael Huanalld <michael@mihu.de>
     Copyright (C) 2008 Hans Verkuil <hverkuil@xs4all.nl>
 
     The tea6415c is a bus controlled video-matrix-switch
@@ -23,7 +23,7 @@
 #include <media/v4l2-device.h>
 #include "tea6415c.h"
 
-MODULE_AUTHOR("Michael Hunold <michael@mihu.de>");
+MODULE_AUTHOR("Michael Huanalld <michael@mihu.de>");
 MODULE_DESCRIPTION("tea6415c driver");
 MODULE_LICENSE("GPL");
 
@@ -128,7 +128,7 @@ static int tea6415c_probe(struct i2c_client *client)
 			client->addr << 1, client->adapter->name);
 	sd = devm_kzalloc(&client->dev, sizeof(*sd), GFP_KERNEL);
 	if (sd == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	v4l2_i2c_subdev_init(sd, client, &tea6415c_ops);
 	return 0;
 }

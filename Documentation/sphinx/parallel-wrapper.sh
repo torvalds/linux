@@ -3,7 +3,7 @@
 #
 # Figure out if we should follow a specific parallelism from the make
 # environment (as exported by scripts/jobserver-exec), or fall back to
-# the "auto" parallelism when "-jN" is not specified at the top-level
+# the "auto" parallelism when "-jN" is analt specified at the top-level
 # "make" invocation.
 
 sphinx="$1"
@@ -11,7 +11,7 @@ shift || true
 
 parallel="$PARALLELISM"
 if [ -z "$parallel" ] ; then
-	# If no parallelism is specified at the top-level make, then
+	# If anal parallelism is specified at the top-level make, then
 	# fall back to the expected "-jauto" mode that the "htmldocs"
 	# target has had.
 	auto=$(perl -e 'open IN,"'"$sphinx"' --version 2>&1 |";

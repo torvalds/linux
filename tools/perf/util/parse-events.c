@@ -4,7 +4,7 @@
 #include <linux/list_sort.h>
 #include <linux/zalloc.h>
 #include <dirent.h>
-#include <errno.h>
+#include <erranal.h>
 #include <sys/ioctl.h>
 #include <sys/param.h>
 #include "term.h"
@@ -103,7 +103,7 @@ struct event_symbol event_symbols_sw[PERF_COUNT_SW_MAX] = {
 		.alias  = "migrations",
 	},
 	[PERF_COUNT_SW_PAGE_FAULTS_MIN] = {
-		.symbol = "minor-faults",
+		.symbol = "mianalr-faults",
 		.alias  = "",
 	},
 	[PERF_COUNT_SW_PAGE_FAULTS_MAJ] = {
@@ -151,7 +151,7 @@ const char *event_type(int type)
 		break;
 	}
 
-	return "unknown";
+	return "unkanalwn";
 }
 
 static char *get_config_str(struct parse_events_terms *head_terms,
@@ -182,7 +182,7 @@ static char *get_config_name(struct parse_events_terms *head_terms)
 /**
  * fix_raw - For each raw term see if there is an event (aka alias) in pmu that
  *           matches the raw's string value. If the string value matches an
- *           event then change the term to be an event, if not then change it to
+ *           event then change the term to be an event, if analt then change it to
  *           be a config term. For example, "read" may be an event of the PMU or
  *           a raw hex encoding of 0xead. The fix-up is done late so the PMU of
  *           the event can be determined and we don't need to scan all PMUs
@@ -206,20 +206,20 @@ static void fix_raw(struct parse_events_terms *config_terms, struct perf_pmu *pm
 			term->type_val = PARSE_EVENTS__TERM_TYPE_NUM;
 			term->type_term = PARSE_EVENTS__TERM_TYPE_USER;
 			term->val.num = 1;
-			term->no_value = true;
+			term->anal_value = true;
 			continue;
 		}
 
 		zfree(&term->config);
 		term->config = strdup("config");
-		errno = 0;
+		erranal = 0;
 		num = strtoull(term->val.str + 1, NULL, 16);
-		assert(errno == 0);
+		assert(erranal == 0);
 		free(term->val.str);
 		term->type_val = PARSE_EVENTS__TERM_TYPE_NUM;
 		term->type_term = PARSE_EVENTS__TERM_TYPE_CONFIG;
 		term->val.num = num;
-		term->no_value = false;
+		term->anal_value = false;
 	}
 }
 
@@ -276,7 +276,7 @@ __add_event(struct list_head *list, int *idx,
 		list_splice_init(config_terms, &evsel->config_terms);
 
 	if (list)
-		list_add_tail(&evsel->core.node, list);
+		list_add_tail(&evsel->core.analde, list);
 
 	return evsel;
 }
@@ -296,7 +296,7 @@ static int add_event(struct list_head *list, int *idx,
 {
 	return __add_event(list, idx, attr, /*init_attr*/true, name, metric_id,
 			   /*pmu=*/NULL, config_terms,
-			   /*auto_merge_stats=*/false, /*cpu_list=*/NULL) ? 0 : -ENOMEM;
+			   /*auto_merge_stats=*/false, /*cpu_list=*/NULL) ? 0 : -EANALMEM;
 }
 
 static int add_event_tool(struct list_head *list, int *idx,
@@ -313,7 +313,7 @@ static int add_event_tool(struct list_head *list, int *idx,
 			    /*config_terms=*/NULL, /*auto_merge_stats=*/false,
 			    /*cpu_list=*/"0");
 	if (!evsel)
-		return -ENOMEM;
+		return -EANALMEM;
 	evsel->tool_event = tool_event;
 	if (tool_event == PERF_TOOL_DURATION_TIME
 	    || tool_event == PERF_TOOL_USER_TIME
@@ -325,7 +325,7 @@ static int add_event_tool(struct list_head *list, int *idx,
 }
 
 /**
- * parse_aliases - search names for entries beginning or equalling str ignoring
+ * parse_aliases - search names for entries beginning or equalling str iganalring
  *                 case. If mutliple entries in names match str then the longest
  *                 is chosen.
  * @str: The needle to look for.
@@ -474,13 +474,13 @@ int parse_events_add_cache(struct list_head *list, int *idx, const char *name,
 				return -EINVAL;
 
 			if (get_config_terms(head_config, &config_terms))
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 
 		if (__add_event(list, idx, &attr, /*init_attr*/true, config_name ?: name,
 				metric_id, pmu, &config_terms, /*auto_merge_stats=*/false,
 				/*cpu_list=*/NULL) == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		free_config_terms(&config_terms);
 	}
@@ -498,7 +498,7 @@ static void tracepoint_error(struct parse_events_error *e, int err,
 		return;
 
 	/*
-	 * We get error directly from syscall errno ( > 0),
+	 * We get error directly from syscall erranal ( > 0),
 	 * or from encoded pointer's error ( < 0).
 	 */
 	err = abs(err);
@@ -507,8 +507,8 @@ static void tracepoint_error(struct parse_events_error *e, int err,
 	case EACCES:
 		str = "can't access trace events";
 		break;
-	case ENOENT:
-		str = "unknown tracepoint";
+	case EANALENT:
+		str = "unkanalwn tracepoint";
 		break;
 	default:
 		str = "failed to add tracepoint";
@@ -536,11 +536,11 @@ static int add_tracepoint(struct list_head *list, int *idx,
 		LIST_HEAD(config_terms);
 
 		if (get_config_terms(head_config, &config_terms))
-			return -ENOMEM;
+			return -EANALMEM;
 		list_splice(&config_terms, &evsel->config_terms);
 	}
 
-	list_add_tail(&evsel->core.node, list);
+	list_add_tail(&evsel->core.analde, list);
 	return 0;
 }
 
@@ -556,13 +556,13 @@ static int add_tracepoint_multi_event(struct list_head *list, int *idx,
 
 	evt_path = get_events_file(sys_name);
 	if (!evt_path) {
-		tracepoint_error(err, errno, sys_name, evt_name, loc->first_column);
+		tracepoint_error(err, erranal, sys_name, evt_name, loc->first_column);
 		return -1;
 	}
 	evt_dir = opendir(evt_path);
 	if (!evt_dir) {
 		put_events_file(evt_path);
-		tracepoint_error(err, errno, sys_name, evt_name, loc->first_column);
+		tracepoint_error(err, erranal, sys_name, evt_name, loc->first_column);
 		return -1;
 	}
 
@@ -583,7 +583,7 @@ static int add_tracepoint_multi_event(struct list_head *list, int *idx,
 	}
 
 	if (!found) {
-		tracepoint_error(err, ENOENT, sys_name, evt_name, loc->first_column);
+		tracepoint_error(err, EANALENT, sys_name, evt_name, loc->first_column);
 		ret = -1;
 	}
 
@@ -615,7 +615,7 @@ static int add_tracepoint_multi_sys(struct list_head *list, int *idx,
 
 	events_dir = tracing_events__opendir();
 	if (!events_dir) {
-		tracepoint_error(err, errno, sys_name, evt_name, loc->first_column);
+		tracepoint_error(err, erranal, sys_name, evt_name, loc->first_column);
 		return -1;
 	}
 
@@ -694,7 +694,7 @@ int parse_events_add_breakpoint(struct parse_events_state *parse_state,
 	if (parse_breakpoint_type(type, &attr))
 		return -EINVAL;
 
-	/* Provide some defaults if len is not specified */
+	/* Provide some defaults if len is analt specified */
 	if (!len) {
 		if (attr.bp_type == HW_BREAKPOINT_X)
 			len = sizeof(long);
@@ -713,7 +713,7 @@ int parse_events_add_breakpoint(struct parse_events_state *parse_state,
 			return -EINVAL;
 
 		if (get_config_terms(head_config, &config_terms))
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	name = get_config_name(head_config);
@@ -759,12 +759,12 @@ static const char *config_term_name(enum parse_events__term_type term_type)
 		[PARSE_EVENTS__TERM_TYPE_TIME]			= "time",
 		[PARSE_EVENTS__TERM_TYPE_CALLGRAPH]		= "call-graph",
 		[PARSE_EVENTS__TERM_TYPE_STACKSIZE]		= "stack-size",
-		[PARSE_EVENTS__TERM_TYPE_NOINHERIT]		= "no-inherit",
+		[PARSE_EVENTS__TERM_TYPE_ANALINHERIT]		= "anal-inherit",
 		[PARSE_EVENTS__TERM_TYPE_INHERIT]		= "inherit",
 		[PARSE_EVENTS__TERM_TYPE_MAX_STACK]		= "max-stack",
 		[PARSE_EVENTS__TERM_TYPE_MAX_EVENTS]		= "nr",
 		[PARSE_EVENTS__TERM_TYPE_OVERWRITE]		= "overwrite",
-		[PARSE_EVENTS__TERM_TYPE_NOOVERWRITE]		= "no-overwrite",
+		[PARSE_EVENTS__TERM_TYPE_ANALOVERWRITE]		= "anal-overwrite",
 		[PARSE_EVENTS__TERM_TYPE_DRV_CFG]		= "driver-config",
 		[PARSE_EVENTS__TERM_TYPE_PERCORE]		= "percore",
 		[PARSE_EVENTS__TERM_TYPE_AUX_OUTPUT]		= "aux-output",
@@ -775,7 +775,7 @@ static const char *config_term_name(enum parse_events__term_type term_type)
 		[PARSE_EVENTS__TERM_TYPE_HARDWARE]              = "hardware",
 	};
 	if ((unsigned int)term_type >= __PARSE_EVENTS__TERM_TYPE_NR)
-		return "unknown term";
+		return "unkanalwn term";
 
 	return config_term_names[term_type];
 }
@@ -809,11 +809,11 @@ config_term_avail(enum parse_events__term_type term_type, struct parse_events_er
 	case PARSE_EVENTS__TERM_TYPE_TIME:
 	case PARSE_EVENTS__TERM_TYPE_CALLGRAPH:
 	case PARSE_EVENTS__TERM_TYPE_STACKSIZE:
-	case PARSE_EVENTS__TERM_TYPE_NOINHERIT:
+	case PARSE_EVENTS__TERM_TYPE_ANALINHERIT:
 	case PARSE_EVENTS__TERM_TYPE_INHERIT:
 	case PARSE_EVENTS__TERM_TYPE_MAX_STACK:
 	case PARSE_EVENTS__TERM_TYPE_MAX_EVENTS:
-	case PARSE_EVENTS__TERM_TYPE_NOOVERWRITE:
+	case PARSE_EVENTS__TERM_TYPE_ANALOVERWRITE:
 	case PARSE_EVENTS__TERM_TYPE_OVERWRITE:
 	case PARSE_EVENTS__TERM_TYPE_DRV_CFG:
 	case PARSE_EVENTS__TERM_TYPE_AUX_OUTPUT:
@@ -826,7 +826,7 @@ config_term_avail(enum parse_events__term_type term_type, struct parse_events_er
 			return false;
 
 		/* term_type is validated so indexing is safe */
-		if (asprintf(&err_str, "'%s' is not usable in 'perf stat'",
+		if (asprintf(&err_str, "'%s' is analt usable in 'perf stat'",
 			     config_term_name(term_type)) >= 0)
 			parse_events_error__handle(err, -1, err_str, NULL);
 		return false;
@@ -873,7 +873,7 @@ do {									   \
 		break;
 	case PARSE_EVENTS__TERM_TYPE_BRANCH_SAMPLE_TYPE:
 		CHECK_TYPE_VAL(STR);
-		if (strcmp(term->val.str, "no") &&
+		if (strcmp(term->val.str, "anal") &&
 		    parse_branch_str(term->val.str,
 				    &attr->branch_sample_type)) {
 			parse_events_error__handle(err, term->err_val,
@@ -900,13 +900,13 @@ do {									   \
 	case PARSE_EVENTS__TERM_TYPE_INHERIT:
 		CHECK_TYPE_VAL(NUM);
 		break;
-	case PARSE_EVENTS__TERM_TYPE_NOINHERIT:
+	case PARSE_EVENTS__TERM_TYPE_ANALINHERIT:
 		CHECK_TYPE_VAL(NUM);
 		break;
 	case PARSE_EVENTS__TERM_TYPE_OVERWRITE:
 		CHECK_TYPE_VAL(NUM);
 		break;
-	case PARSE_EVENTS__TERM_TYPE_NOOVERWRITE:
+	case PARSE_EVENTS__TERM_TYPE_ANALOVERWRITE:
 		CHECK_TYPE_VAL(NUM);
 		break;
 	case PARSE_EVENTS__TERM_TYPE_NAME:
@@ -961,7 +961,7 @@ do {									   \
 	 * PARSE_EVENTS__TERM_TYPE_USER can be found and filtered.
 	 *
 	 * If check availability at the entry of this function,
-	 * user will see "'<sysfs term>' is not usable in 'perf stat'"
+	 * user will see "'<sysfs term>' is analt usable in 'perf stat'"
 	 * if an invalid config term is provided for legacy events
 	 * (for example, instructions/badterm/...), which is confusing.
 	 */
@@ -998,7 +998,7 @@ static int config_term_pmu(struct perf_event_attr *attr,
 								 &attr->config);
 		} else {
 			term->type_term = PARSE_EVENTS__TERM_TYPE_USER;
-			term->no_value = true;
+			term->anal_value = true;
 		}
 	}
 	if (term->type_term == PARSE_EVENTS__TERM_TYPE_HARDWARE) {
@@ -1018,7 +1018,7 @@ static int config_term_pmu(struct perf_event_attr *attr,
 		 */
 		if (perf_pmu__have_event(pmu, term->config)) {
 			term->type_term = PARSE_EVENTS__TERM_TYPE_USER;
-			term->no_value = true;
+			term->anal_value = true;
 		} else {
 			attr->type = PERF_TYPE_HARDWARE;
 			attr->config = term->val.num;
@@ -1030,7 +1030,7 @@ static int config_term_pmu(struct perf_event_attr *attr,
 	if (term->type_term == PARSE_EVENTS__TERM_TYPE_USER ||
 	    term->type_term == PARSE_EVENTS__TERM_TYPE_DRV_CFG) {
 		/*
-		 * Always succeed for sysfs terms, as we dont know
+		 * Always succeed for sysfs terms, as we dont kanalw
 		 * at this point what type they need to have.
 		 */
 		return 0;
@@ -1047,11 +1047,11 @@ static int config_term_tracepoint(struct perf_event_attr *attr,
 	case PARSE_EVENTS__TERM_TYPE_CALLGRAPH:
 	case PARSE_EVENTS__TERM_TYPE_STACKSIZE:
 	case PARSE_EVENTS__TERM_TYPE_INHERIT:
-	case PARSE_EVENTS__TERM_TYPE_NOINHERIT:
+	case PARSE_EVENTS__TERM_TYPE_ANALINHERIT:
 	case PARSE_EVENTS__TERM_TYPE_MAX_STACK:
 	case PARSE_EVENTS__TERM_TYPE_MAX_EVENTS:
 	case PARSE_EVENTS__TERM_TYPE_OVERWRITE:
-	case PARSE_EVENTS__TERM_TYPE_NOOVERWRITE:
+	case PARSE_EVENTS__TERM_TYPE_ANALOVERWRITE:
 	case PARSE_EVENTS__TERM_TYPE_AUX_OUTPUT:
 	case PARSE_EVENTS__TERM_TYPE_AUX_SAMPLE_SIZE:
 		return config_term_common(attr, term, err);
@@ -1105,7 +1105,7 @@ static int get_config_terms(struct parse_events_terms *head_config, struct list_
 								\
 	__t = zalloc(sizeof(*__t));				\
 	if (!__t)						\
-		return -ENOMEM;					\
+		return -EANALMEM;					\
 								\
 	INIT_LIST_HEAD(&__t->list);				\
 	__t->type       = EVSEL__CONFIG_TERM_ ## __type;	\
@@ -1124,7 +1124,7 @@ do {								\
 	__t->val.str = strdup(__val);				\
 	if (!__t->val.str) {					\
 		zfree(&__t);					\
-		return -ENOMEM;					\
+		return -EANALMEM;					\
 	}							\
 	__t->free_str = true;					\
 } while (0)
@@ -1156,7 +1156,7 @@ do {								\
 			ADD_CONFIG_TERM_VAL(INHERIT, inherit,
 					    term->val.num ? 1 : 0, term->weak);
 			break;
-		case PARSE_EVENTS__TERM_TYPE_NOINHERIT:
+		case PARSE_EVENTS__TERM_TYPE_ANALINHERIT:
 			ADD_CONFIG_TERM_VAL(INHERIT, inherit,
 					    term->val.num ? 0 : 1, term->weak);
 			break;
@@ -1172,7 +1172,7 @@ do {								\
 			ADD_CONFIG_TERM_VAL(OVERWRITE, overwrite,
 					    term->val.num ? 1 : 0, term->weak);
 			break;
-		case PARSE_EVENTS__TERM_TYPE_NOOVERWRITE:
+		case PARSE_EVENTS__TERM_TYPE_ANALOVERWRITE:
 			ADD_CONFIG_TERM_VAL(OVERWRITE, overwrite,
 					    term->val.num ? 0 : 1, term->weak);
 			break;
@@ -1240,11 +1240,11 @@ static int get_config_chgs(struct perf_pmu *pmu, struct parse_events_terms *head
 		case PARSE_EVENTS__TERM_TYPE_TIME:
 		case PARSE_EVENTS__TERM_TYPE_CALLGRAPH:
 		case PARSE_EVENTS__TERM_TYPE_STACKSIZE:
-		case PARSE_EVENTS__TERM_TYPE_NOINHERIT:
+		case PARSE_EVENTS__TERM_TYPE_ANALINHERIT:
 		case PARSE_EVENTS__TERM_TYPE_INHERIT:
 		case PARSE_EVENTS__TERM_TYPE_MAX_STACK:
 		case PARSE_EVENTS__TERM_TYPE_MAX_EVENTS:
-		case PARSE_EVENTS__TERM_TYPE_NOOVERWRITE:
+		case PARSE_EVENTS__TERM_TYPE_ANALOVERWRITE:
 		case PARSE_EVENTS__TERM_TYPE_OVERWRITE:
 		case PARSE_EVENTS__TERM_TYPE_DRV_CFG:
 		case PARSE_EVENTS__TERM_TYPE_PERCORE:
@@ -1323,14 +1323,14 @@ static int __parse_events_add_numeric(struct parse_events_state *parse_state,
 			return -EINVAL;
 
 		if (get_config_terms(head_config, &config_terms))
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	name = get_config_name(head_config);
 	metric_id = get_config_metric_id(head_config);
 	ret = __add_event(list, &parse_state->idx, &attr, /*init_attr*/true, name,
 			metric_id, pmu, &config_terms, /*auto_merge_stats=*/false,
-			/*cpu_list=*/NULL) ? 0 : -ENOMEM;
+			/*cpu_list=*/NULL) ? 0 : -EANALMEM;
 	free_config_terms(&config_terms);
 	return ret;
 }
@@ -1406,7 +1406,7 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 		char *err_str;
 
 		if (asprintf(&err_str,
-				"Cannot find PMU `%s'. Missing kernel support?",
+				"Cananalt find PMU `%s'. Missing kernel support?",
 				name) >= 0)
 			parse_events_error__handle(err, loc->first_column, err_str, NULL);
 		return -EINVAL;
@@ -1448,10 +1448,10 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 				    /*metric_id=*/NULL, pmu,
 				    /*config_terms=*/NULL, auto_merge_stats,
 				    /*cpu_list=*/NULL);
-		return evsel ? 0 : -ENOMEM;
+		return evsel ? 0 : -EANALMEM;
 	}
 
-	/* Configure attr/terms with a known PMU, this will set hardcoded terms. */
+	/* Configure attr/terms with a kanalwn PMU, this will set hardcoded terms. */
 	if (config_attr(&attr, &parsed_terms, parse_state->error, config_term_pmu)) {
 		parse_events_terms__exit(&parsed_terms);
 		return -EINVAL;
@@ -1482,7 +1482,7 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 
 	if (get_config_terms(&parsed_terms, &config_terms)) {
 		parse_events_terms__exit(&parsed_terms);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/*
@@ -1492,7 +1492,7 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 	if (pmu->perf_event_attr_init_default &&
 	    get_config_chgs(pmu, &parsed_terms, &config_terms)) {
 		parse_events_terms__exit(&parsed_terms);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (!parse_state->fake_pmu &&
@@ -1508,7 +1508,7 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 			    &config_terms, auto_merge_stats, /*cpu_list=*/NULL);
 	if (!evsel) {
 		parse_events_terms__exit(&parsed_terms);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (evsel->name)
@@ -1559,7 +1559,7 @@ int parse_events_multi_pmu_add(struct parse_events_state *parse_state,
 
 	if (parse_events_term__num(&term,
 				   PARSE_EVENTS__TERM_TYPE_USER,
-				   config, /*num=*/1, /*novalue=*/true,
+				   config, /*num=*/1, /*analvalue=*/true,
 				   loc, /*loc_val=*/NULL) < 0) {
 		zfree(&config);
 		goto out_err;
@@ -1633,7 +1633,7 @@ void parse_events__set_leader(char *name, struct list_head *list)
 		return;
 	}
 
-	leader = list_first_entry(list, struct evsel, core.node);
+	leader = list_first_entry(list, struct evsel, core.analde);
 	__perf_evlist__set_leader(list, &leader->core);
 	leader->group_name = name;
 }
@@ -1838,7 +1838,7 @@ int parse_events_name(struct list_head *list, const char *name)
 		if (!evsel->name) {
 			evsel->name = strdup(name);
 			if (!evsel->name)
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 	}
 
@@ -1907,18 +1907,18 @@ static int evsel__compute_group_pmu_name(struct evsel *evsel,
 		/*
 		 * For PERF_TYPE_HARDWARE and PERF_TYPE_HW_CACHE types the PMU
 		 * is a core PMU, but in heterogeneous systems this is
-		 * unknown. For now pick the first core PMU.
+		 * unkanalwn. For analw pick the first core PMU.
 		 */
 		pmu = perf_pmus__scan_core(NULL);
 	}
 	if (!pmu) {
-		pr_debug("No PMU found for '%s'\n", evsel__name(evsel));
+		pr_debug("Anal PMU found for '%s'\n", evsel__name(evsel));
 		return -EINVAL;
 	}
 	group_pmu_name = pmu->name;
 	/*
 	 * Software events may be in a group with other uncore PMU events. Use
-	 * the pmu_name of the first non-software event to avoid breaking the
+	 * the pmu_name of the first analn-software event to avoid breaking the
 	 * software event out of the group.
 	 *
 	 * Aux event leaders, like intel_pt, expect a group with events from
@@ -1933,14 +1933,14 @@ static int evsel__compute_group_pmu_name(struct evsel *evsel,
 		}
 		/*
 		 * Starting with the leader, find the first event with a named
-		 * non-software PMU. for_each_group_(member|evsel) isn't used as
+		 * analn-software PMU. for_each_group_(member|evsel) isn't used as
 		 * the list isn't yet sorted putting evsel's in the same group
 		 * together.
 		 */
 		if (leader_pmu && !perf_pmu__is_software(leader_pmu)) {
 			group_pmu_name = leader_pmu->name;
 		} else if (leader->core.nr_members > 1) {
-			list_for_each_entry(pos, head, core.node) {
+			list_for_each_entry(pos, head, core.analde) {
 				struct perf_pmu *pos_pmu;
 
 				if (pos == leader || evsel__leader(pos) != leader)
@@ -1959,7 +1959,7 @@ static int evsel__compute_group_pmu_name(struct evsel *evsel,
 	}
 	/* Assign the actual name taking care that the fake PMU lacks a name. */
 	evsel->group_pmu_name = strdup(group_pmu_name ?: "fake");
-	return evsel->group_pmu_name ? 0 : -ENOMEM;
+	return evsel->group_pmu_name ? 0 : -EANALMEM;
 }
 
 __weak int arch_evlist__cmp(const struct evsel *lhs, const struct evsel *rhs)
@@ -1970,9 +1970,9 @@ __weak int arch_evlist__cmp(const struct evsel *lhs, const struct evsel *rhs)
 
 static int evlist__cmp(void *_fg_idx, const struct list_head *l, const struct list_head *r)
 {
-	const struct perf_evsel *lhs_core = container_of(l, struct perf_evsel, node);
+	const struct perf_evsel *lhs_core = container_of(l, struct perf_evsel, analde);
 	const struct evsel *lhs = container_of(lhs_core, struct evsel, core);
-	const struct perf_evsel *rhs_core = container_of(r, struct perf_evsel, node);
+	const struct perf_evsel *rhs_core = container_of(r, struct perf_evsel, analde);
 	const struct evsel *rhs = container_of(rhs_core, struct evsel, core);
 	int *force_grouped_idx = _fg_idx;
 	int lhs_sort_idx, rhs_sort_idx, ret;
@@ -2035,7 +2035,7 @@ static int parse_events__sort_events_and_fix_groups(struct list_head *list)
 	 * Compute index to insert ungrouped events at. Place them where the
 	 * first ungrouped event appears.
 	 */
-	list_for_each_entry(pos, list, core.node) {
+	list_for_each_entry(pos, list, core.analde) {
 		const struct evsel *pos_leader = evsel__leader(pos);
 
 		ret = evsel__compute_group_pmu_name(pos, list);
@@ -2066,7 +2066,7 @@ static int parse_events__sort_events_and_fix_groups(struct list_head *list)
 	 * that require them.
 	 */
 	idx = 0;
-	list_for_each_entry(pos, list, core.node) {
+	list_for_each_entry(pos, list, core.analde) {
 		const struct evsel *pos_leader = evsel__leader(pos);
 		const char *pos_pmu_name = pos->group_pmu_name;
 		const char *cur_leader_pmu_name;
@@ -2109,7 +2109,7 @@ static int parse_events__sort_events_and_fix_groups(struct list_head *list)
 			evsel__set_leader(pos, cur_leader);
 		}
 	}
-	list_for_each_entry(pos, list, core.node) {
+	list_for_each_entry(pos, list, core.analde) {
 		struct evsel *pos_leader = evsel__leader(pos);
 
 		if (pos == pos_leader)
@@ -2137,7 +2137,7 @@ int __parse_events(struct evlist *evlist, const char *str, const char *pmu_filte
 	ret = parse_events__scanner(str, /*input=*/ NULL, &parse_state);
 
 	if (!ret && list_empty(&parse_state.list)) {
-		WARN_ONCE(true, "WARNING: event parser found nothing\n");
+		WARN_ONCE(true, "WARNING: event parser found analthing\n");
 		return -1;
 	}
 
@@ -2215,7 +2215,7 @@ void parse_events_error__handle(struct parse_events_error *err, int idx,
 		break;
 	default:
 		pr_debug("Multiple errors dropping message: %s (%s)\n",
-			err->str, err->help ?: "<no help>");
+			err->str, err->help ?: "<anal help>");
 		free(err->str);
 		err->str = str;
 		free(err->help);
@@ -2340,7 +2340,7 @@ int parse_events_option_new_evlist(const struct option *opt, const char *str, in
 		*args->evlistp = evlist__new();
 
 		if (*args->evlistp == NULL) {
-			fprintf(stderr, "Not enough memory to create evlist\n");
+			fprintf(stderr, "Analt eanalugh memory to create evlist\n");
 			return -1;
 		}
 	}
@@ -2366,7 +2366,7 @@ foreach_evsel_in_last_glob(struct evlist *evlist,
 	 * Don't return when list_empty, give func a chance to report
 	 * error when it found last == NULL.
 	 *
-	 * So no need to WARN here, let *func do this.
+	 * So anal need to WARN here, let *func do this.
 	 */
 	if (evlist->core.nr_entries > 0)
 		last = evlist__last(evlist);
@@ -2378,9 +2378,9 @@ foreach_evsel_in_last_glob(struct evlist *evlist,
 		if (!last)
 			return 0;
 
-		if (last->core.node.prev == &evlist->core.entries)
+		if (last->core.analde.prev == &evlist->core.entries)
 			return 0;
-		last = list_entry(last->core.node.prev, struct evsel, core.node);
+		last = list_entry(last->core.analde.prev, struct evsel, core.analde);
 	} while (!last->cmdline_group_boundary);
 
 	return 0;
@@ -2402,7 +2402,7 @@ static int set_filter(struct evsel *evsel, const void *arg)
 	if (evsel->core.attr.type == PERF_TYPE_TRACEPOINT) {
 		if (evsel__append_tp_filter(evsel, str) < 0) {
 			fprintf(stderr,
-				"not enough memory to hold filter string\n");
+				"analt eanalugh memory to hold filter string\n");
 			return -1;
 		}
 
@@ -2424,7 +2424,7 @@ static int set_filter(struct evsel *evsel, const void *arg)
 
 	if (evsel__append_addr_filter(evsel, str) < 0) {
 		fprintf(stderr,
-			"not enough memory to hold filter string\n");
+			"analt eanalugh memory to hold filter string\n");
 		return -1;
 	}
 
@@ -2455,7 +2455,7 @@ static int add_exclude_perf_filter(struct evsel *evsel,
 
 	if (evsel__append_tp_filter(evsel, new_filter) < 0) {
 		fprintf(stderr,
-			"not enough memory to hold filter string\n");
+			"analt eanalugh memory to hold filter string\n");
 		return -1;
 	}
 
@@ -2485,7 +2485,7 @@ static int new_term(struct parse_events_term **_term,
 
 	term = malloc(sizeof(*term));
 	if (!term)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*term = *temp;
 	INIT_LIST_HEAD(&term->list);
@@ -2510,7 +2510,7 @@ static int new_term(struct parse_events_term **_term,
 int parse_events_term__num(struct parse_events_term **term,
 			   enum parse_events__term_type type_term,
 			   const char *config, u64 num,
-			   bool no_value,
+			   bool anal_value,
 			   void *loc_term_, void *loc_val_)
 {
 	YYLTYPE *loc_term = loc_term_;
@@ -2520,7 +2520,7 @@ int parse_events_term__num(struct parse_events_term **term,
 		.type_val  = PARSE_EVENTS__TERM_TYPE_NUM,
 		.type_term = type_term,
 		.config    = config ? : strdup(config_term_name(type_term)),
-		.no_value  = no_value,
+		.anal_value  = anal_value,
 		.err_term  = loc_term ? loc_term->first_column : 0,
 		.err_val   = loc_val  ? loc_val->first_column  : 0,
 	};
@@ -2567,7 +2567,7 @@ int parse_events_term__clone(struct parse_events_term **new,
 	if (term->config) {
 		temp.config = strdup(term->config);
 		if (!temp.config)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 	if (term->type_val == PARSE_EVENTS__TERM_TYPE_NUM)
 		return new_term(new, &temp, /*str=*/NULL, term->val.num);
@@ -2575,7 +2575,7 @@ int parse_events_term__clone(struct parse_events_term **new,
 	str = strdup(term->val.str);
 	if (!str) {
 		zfree(&temp.config);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	return new_term(new, &temp, str, /*num=*/0);
 }
@@ -2649,7 +2649,7 @@ int parse_events_terms__to_strbuf(const struct parse_events_terms *terms, struct
 		first = false;
 
 		if (term->type_val == PARSE_EVENTS__TERM_TYPE_NUM)
-			if (term->no_value) {
+			if (term->anal_value) {
 				assert(term->val.num == 1);
 				ret = strbuf_addf(sb, "%s", term->config);
 			} else
@@ -2664,7 +2664,7 @@ int parse_events_terms__to_strbuf(const struct parse_events_terms *terms, struct
 				if (ret < 0)
 					return ret;
 			}
-			assert(!term->no_value);
+			assert(!term->anal_value);
 			ret = strbuf_addf(sb, "%s", term->val.str);
 		}
 		if (ret < 0)
@@ -2716,9 +2716,9 @@ static void config_terms_list(char *buf, size_t buf_sz)
 char *parse_events_formats_error_string(char *additional_terms)
 {
 	char *str;
-	/* "no-overwrite" is the longest name */
+	/* "anal-overwrite" is the longest name */
 	char static_terms[__PARSE_EVENTS__TERM_TYPE_NR *
-			  (sizeof("no-overwrite") - 1)];
+			  (sizeof("anal-overwrite") - 1)];
 
 	config_terms_list(static_terms, sizeof(static_terms));
 	/* valid terms */

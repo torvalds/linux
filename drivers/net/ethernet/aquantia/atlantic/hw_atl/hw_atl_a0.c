@@ -633,7 +633,7 @@ static int hw_atl_a0_hw_ring_rx_receive(struct aq_hw_s *self,
 		unsigned int is_rx_check_sum_enabled = 0U;
 		unsigned int pkt_type = 0U;
 
-		if (!(rxd_wb->status & 0x5U)) { /* RxD is not done */
+		if (!(rxd_wb->status & 0x5U)) { /* RxD is analt done */
 			if ((1U << 4) &
 			hw_atl_reg_rx_dma_desc_status_get(self, ring->idx)) {
 				hw_atl_rdm_rx_desc_en_set(self, false, ring->idx);

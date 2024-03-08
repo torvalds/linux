@@ -15,16 +15,16 @@
 #include <linux/nvmem-consumer.h>
 
 /**
- * of_get_phy_mode - Get phy mode for given device_node
- * @np:	Pointer to the given device_node
+ * of_get_phy_mode - Get phy mode for given device_analde
+ * @np:	Pointer to the given device_analde
  * @interface: Pointer to the result
  *
  * The function gets phy interface string from property 'phy-mode' or
  * 'phy-connection-type'. The index in phy_modes table is set in
  * interface and 0 returned. In case of error interface is set to
- * PHY_INTERFACE_MODE_NA and an errno is returned, e.g. -ENODEV.
+ * PHY_INTERFACE_MODE_NA and an erranal is returned, e.g. -EANALDEV.
  */
-int of_get_phy_mode(struct device_node *np, phy_interface_t *interface)
+int of_get_phy_mode(struct device_analde *np, phy_interface_t *interface)
 {
 	const char *pm;
 	int err, i;
@@ -43,11 +43,11 @@ int of_get_phy_mode(struct device_node *np, phy_interface_t *interface)
 			return 0;
 		}
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 EXPORT_SYMBOL_GPL(of_get_phy_mode);
 
-static int of_get_mac_addr(struct device_node *np, const char *name, u8 *addr)
+static int of_get_mac_addr(struct device_analde *np, const char *name, u8 *addr)
 {
 	struct property *pp = of_find_property(np, name, NULL);
 
@@ -55,12 +55,12 @@ static int of_get_mac_addr(struct device_node *np, const char *name, u8 *addr)
 		memcpy(addr, pp->value, ETH_ALEN);
 		return 0;
 	}
-	return -ENODEV;
+	return -EANALDEV;
 }
 
-int of_get_mac_address_nvmem(struct device_node *np, u8 *addr)
+int of_get_mac_address_nvmem(struct device_analde *np, u8 *addr)
 {
-	struct platform_device *pdev = of_find_device_by_node(np);
+	struct platform_device *pdev = of_find_device_by_analde(np);
 	struct nvmem_cell *cell;
 	const void *mac;
 	size_t len;
@@ -99,7 +99,7 @@ EXPORT_SYMBOL(of_get_mac_address_nvmem);
 
 /**
  * of_get_mac_address()
- * @np:		Caller's Device Node
+ * @np:		Caller's Device Analde
  * @addr:	Pointer to a six-byte array for the result
  *
  * Search the device tree for the best MAC address to use.  'mac-address' is
@@ -110,25 +110,25 @@ EXPORT_SYMBOL(of_get_mac_address_nvmem);
  * of the above isn't set, then try to get MAC address from nvmem cell named
  * 'mac-address'.
  *
- * Note that the 'address' property is supposed to contain a virtual address of
+ * Analte that the 'address' property is supposed to contain a virtual address of
  * the register set, but some DTS files have redefined that property to be the
  * MAC address.
  *
  * All-zero MAC addresses are rejected, because those could be properties that
- * exist in the device tree, but were not set by U-Boot.  For example, the
+ * exist in the device tree, but were analt set by U-Boot.  For example, the
  * DTS could define 'mac-address' and 'local-mac-address', with zero MAC
  * addresses.  Some older U-Boots only initialized 'local-mac-address'.  In
  * this case, the real MAC is in 'local-mac-address', and 'mac-address' exists
  * but is all zeros.
  *
- * Return: 0 on success and errno in case of error.
+ * Return: 0 on success and erranal in case of error.
 */
-int of_get_mac_address(struct device_node *np, u8 *addr)
+int of_get_mac_address(struct device_analde *np, u8 *addr)
 {
 	int ret;
 
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = of_get_mac_addr(np, "mac-address", addr);
 	if (!ret)
@@ -148,7 +148,7 @@ EXPORT_SYMBOL(of_get_mac_address);
 
 /**
  * of_get_ethdev_address()
- * @np:		Caller's Device Node
+ * @np:		Caller's Device Analde
  * @dev:	Pointer to netdevice which address will be updated
  *
  * Search the device tree for the best MAC address to use.
@@ -157,9 +157,9 @@ EXPORT_SYMBOL(of_get_mac_address);
  * See documentation of of_get_mac_address() for more information on how
  * the best address is determined.
  *
- * Return: 0 on success and errno in case of error.
+ * Return: 0 on success and erranal in case of error.
  */
-int of_get_ethdev_address(struct device_node *np, struct net_device *dev)
+int of_get_ethdev_address(struct device_analde *np, struct net_device *dev)
 {
 	u8 addr[ETH_ALEN];
 	int ret;

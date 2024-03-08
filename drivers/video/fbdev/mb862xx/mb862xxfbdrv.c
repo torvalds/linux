@@ -77,7 +77,7 @@ static inline unsigned int chan_to_field(unsigned int chan,
 	return chan << bf->offset;
 }
 
-static int mb862xxfb_setcolreg(unsigned regno,
+static int mb862xxfb_setcolreg(unsigned reganal,
 			       unsigned red, unsigned green, unsigned blue,
 			       unsigned transp, struct fb_info *info)
 {
@@ -86,19 +86,19 @@ static int mb862xxfb_setcolreg(unsigned regno,
 
 	switch (info->fix.visual) {
 	case FB_VISUAL_TRUECOLOR:
-		if (regno < 16) {
+		if (reganal < 16) {
 			val  = chan_to_field(red,   &info->var.red);
 			val |= chan_to_field(green, &info->var.green);
 			val |= chan_to_field(blue,  &info->var.blue);
-			par->pseudo_palette[regno] = val;
+			par->pseudo_palette[reganal] = val;
 		}
 		break;
 	case FB_VISUAL_PSEUDOCOLOR:
-		if (regno < 256) {
+		if (reganal < 256) {
 			val = (red >> 8) << 16;
 			val |= (green >> 8) << 8;
 			val |= blue >> 8;
-			outreg(disp, GC_L0PAL0 + (regno * 4), val);
+			outreg(disp, GC_L0PAL0 + (reganal * 4), val);
 		}
 		break;
 	default:
@@ -302,7 +302,7 @@ static int mb862xxfb_blank(int mode, struct fb_info *fbi)
 		reg |= GC_DCM01_DEN;
 		outreg(disp, GC_DCM1, reg);
 		break;
-	case FB_BLANK_NORMAL:
+	case FB_BLANK_ANALRMAL:
 	case FB_BLANK_VSYNC_SUSPEND:
 	case FB_BLANK_HSYNC_SUSPEND:
 	default:
@@ -433,7 +433,7 @@ static int mb862xxfb_init_fbinfo(struct fb_info *fbi)
 	fbi->fix.smem_start = (unsigned long)par->fb_base_phys;
 	fbi->fix.mmio_start = (unsigned long)par->mmio_base_phys;
 	fbi->fix.mmio_len = par->mmio_len;
-	fbi->fix.accel = FB_ACCEL_NONE;
+	fbi->fix.accel = FB_ACCEL_ANALNE;
 	fbi->fix.type = FB_TYPE_PACKED_PIXELS;
 	fbi->fix.type_aux = 0;
 	fbi->fix.xpanstep = 1;
@@ -493,12 +493,12 @@ static int mb862xxfb_init_fbinfo(struct fb_info *fbi)
 	fbi->var.xoffset = 0;
 	fbi->var.yoffset = 0;
 	fbi->var.grayscale = 0;
-	fbi->var.nonstd = 0;
+	fbi->var.analnstd = 0;
 	fbi->var.height = -1;
 	fbi->var.width = -1;
 	fbi->var.accel_flags = 0;
-	fbi->var.vmode = FB_VMODE_NONINTERLACED;
-	fbi->var.activate = FB_ACTIVATE_NOW;
+	fbi->var.vmode = FB_VMODE_ANALNINTERLACED;
+	fbi->var.activate = FB_ACTIVATE_ANALW;
 	fbi->flags =
 #ifdef __BIG_ENDIAN
 		     FBINFO_FOREIGN_ENDIAN |
@@ -585,7 +585,7 @@ static irqreturn_t mb862xx_intr(int irq, void *dev_id)
 	unsigned long reg_ist, mask;
 
 	if (!par)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (par->type == BT_CARMINE) {
 		/* Get Interrupt Status */
@@ -625,7 +625,7 @@ static int mb862xx_gdc_init(struct mb862xxfb_par *par)
 	unsigned long ver, rev;
 
 	if (!par)
-		return -ENODEV;
+		return -EANALDEV;
 
 #if defined(CONFIG_FB_PRE_INIT_FB)
 	par->pre_init = 1;
@@ -650,7 +650,7 @@ static int mb862xx_gdc_init(struct mb862xxfb_par *par)
 		mmr = par->gc_mode ? par->gc_mode->mmr : 0x414fb7f2;
 	} else {
 		dev_info(par->dev, "? GDC, CID/Rev.: 0x%lx/0x%lx \n", ver, rev);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (!par->pre_init) {
@@ -668,13 +668,13 @@ static int mb862xx_gdc_init(struct mb862xxfb_par *par)
 
 static int of_platform_mb862xx_probe(struct platform_device *ofdev)
 {
-	struct device_node *np = ofdev->dev.of_node;
+	struct device_analde *np = ofdev->dev.of_analde;
 	struct device *dev = &ofdev->dev;
 	struct mb862xxfb_par *par;
 	struct fb_info *info;
 	struct resource res;
 	resource_size_t res_size;
-	unsigned long ret = -ENODEV;
+	unsigned long ret = -EANALDEV;
 
 	if (of_address_to_resource(np, 0, &res)) {
 		dev_err(dev, "Invalid address\n");
@@ -683,7 +683,7 @@ static int of_platform_mb862xx_probe(struct platform_device *ofdev)
 
 	info = framebuffer_alloc(sizeof(struct mb862xxfb_par), dev);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	par = info->par;
 	par->info = info;
@@ -692,14 +692,14 @@ static int of_platform_mb862xx_probe(struct platform_device *ofdev)
 	par->irq = irq_of_parse_and_map(np, 0);
 	if (!par->irq) {
 		dev_err(dev, "failed to map irq\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto fbrel;
 	}
 
 	res_size = resource_size(&res);
 	par->res = request_mem_region(res.start, res_size, DRV_NAME);
 	if (par->res == NULL) {
-		dev_err(dev, "Cannot claim framebuffer/mmio\n");
+		dev_err(dev, "Cananalt claim framebuffer/mmio\n");
 		ret = -ENXIO;
 		goto irqdisp;
 	}
@@ -718,13 +718,13 @@ static int of_platform_mb862xx_probe(struct platform_device *ofdev)
 
 	par->fb_base = ioremap(par->fb_base_phys, par->mapped_vram);
 	if (par->fb_base == NULL) {
-		dev_err(dev, "Cannot map framebuffer\n");
+		dev_err(dev, "Cananalt map framebuffer\n");
 		goto rel_reg;
 	}
 
 	par->mmio_base = ioremap(par->mmio_base_phys, par->mmio_len);
 	if (par->mmio_base == NULL) {
-		dev_err(dev, "Cannot map registers\n");
+		dev_err(dev, "Cananalt map registers\n");
 		goto fb_unmap;
 	}
 
@@ -738,14 +738,14 @@ static int of_platform_mb862xx_probe(struct platform_device *ofdev)
 
 	if (request_irq(par->irq, mb862xx_intr, 0,
 			DRV_NAME, (void *)par)) {
-		dev_err(dev, "Cannot request irq\n");
+		dev_err(dev, "Cananalt request irq\n");
 		goto io_unmap;
 	}
 
 	mb862xxfb_init_fbinfo(info);
 
 	if (fb_alloc_cmap(&info->cmap, NR_PALETTE, 0) < 0) {
-		dev_err(dev, "Could not allocate cmap for fb_info.\n");
+		dev_err(dev, "Could analt allocate cmap for fb_info.\n");
 		goto free_irq;
 	}
 
@@ -881,7 +881,7 @@ static int coralp_init(struct mb862xxfb_par *par)
 		/* Clear interrupt status */
 		outreg(host, GC_IST, 0);
 	} else {
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	mb862xx_i2c_init(par);
@@ -894,7 +894,7 @@ static int init_dram_ctrl(struct mb862xxfb_par *par)
 
 	/*
 	 * Set io mode first! Spec. says IC may be destroyed
-	 * if not set to SSTL2/LVCMOS before init.
+	 * if analt set to SSTL2/LVCMOS before init.
 	 */
 	outreg(dram_ctrl, GC_DCTL_IOCONT1_IOCONT0, GC_EVB_DCTL_IOCONT1_IOCONT0);
 
@@ -970,7 +970,7 @@ static inline int mb862xx_pci_gdc_init(struct mb862xxfb_par *par)
 	case BT_CARMINE:
 		return carmine_init(par);
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 }
 
@@ -1002,13 +1002,13 @@ static int mb862xx_pci_probe(struct pci_dev *pdev,
 
 	ret = pci_enable_device(pdev);
 	if (ret < 0) {
-		dev_err(dev, "Cannot enable PCI device\n");
+		dev_err(dev, "Cananalt enable PCI device\n");
 		goto out;
 	}
 
 	info = framebuffer_alloc(sizeof(struct mb862xxfb_par), dev);
 	if (!info) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto dis_dev;
 	}
 
@@ -1020,7 +1020,7 @@ static int mb862xx_pci_probe(struct pci_dev *pdev,
 
 	ret = pci_request_regions(pdev, DRV_NAME);
 	if (ret < 0) {
-		dev_err(dev, "Cannot reserve region(s) for PCI device\n");
+		dev_err(dev, "Cananalt reserve region(s) for PCI device\n");
 		goto rel_fb;
 	}
 
@@ -1054,14 +1054,14 @@ static int mb862xx_pci_probe(struct pci_dev *pdev,
 
 	par->fb_base = ioremap(par->fb_base_phys, par->mapped_vram);
 	if (par->fb_base == NULL) {
-		dev_err(dev, "Cannot map framebuffer\n");
+		dev_err(dev, "Cananalt map framebuffer\n");
 		ret = -EIO;
 		goto rel_reg;
 	}
 
 	par->mmio_base = ioremap(par->mmio_base_phys, par->mmio_len);
 	if (par->mmio_base == NULL) {
-		dev_err(dev, "Cannot map registers\n");
+		dev_err(dev, "Cananalt map registers\n");
 		ret = -EIO;
 		goto fb_unmap;
 	}
@@ -1078,15 +1078,15 @@ static int mb862xx_pci_probe(struct pci_dev *pdev,
 	ret = request_irq(par->irq, mb862xx_intr, IRQF_SHARED,
 			  DRV_NAME, (void *)par);
 	if (ret) {
-		dev_err(dev, "Cannot request irq\n");
+		dev_err(dev, "Cananalt request irq\n");
 		goto io_unmap;
 	}
 
 	mb862xxfb_init_fbinfo(info);
 
 	if (fb_alloc_cmap(&info->cmap, NR_PALETTE, 0) < 0) {
-		dev_err(dev, "Could not allocate cmap for fb_info.\n");
-		ret = -ENOMEM;
+		dev_err(dev, "Could analt allocate cmap for fb_info.\n");
+		ret = -EANALMEM;
 		goto free_irq;
 	}
 
@@ -1175,10 +1175,10 @@ static struct pci_driver mb862xxfb_pci_driver = {
 
 static int mb862xxfb_init(void)
 {
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 
 	if (fb_modesetting_disabled(DRV_NAME))
-		return -ENODEV;
+		return -EANALDEV;
 
 #if defined(CONFIG_FB_MB862XX_LIME)
 	ret = platform_driver_register(&of_platform_mb862xxfb_driver);

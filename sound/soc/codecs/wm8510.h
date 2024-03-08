@@ -28,10 +28,10 @@
 #define WM8510_EQ5			0x16
 #define WM8510_DACLIM1		0x18
 #define WM8510_DACLIM2		0x19
-#define WM8510_NOTCH1		0x1b
-#define WM8510_NOTCH2		0x1c
-#define WM8510_NOTCH3		0x1d
-#define WM8510_NOTCH4		0x1e
+#define WM8510_ANALTCH1		0x1b
+#define WM8510_ANALTCH2		0x1c
+#define WM8510_ANALTCH3		0x1d
+#define WM8510_ANALTCH4		0x1e
 #define WM8510_ALC1			0x20
 #define WM8510_ALC2			0x21
 #define WM8510_ALC3			0x22
@@ -47,7 +47,7 @@
 #define WM8510_OUTPUT		0x31
 #define WM8510_SPKMIX		0x32
 #define WM8510_SPKVOL		0x36
-#define WM8510_MONOMIX		0x38
+#define WM8510_MOANALMIX		0x38
 
 #define WM8510_CACHEREGNUM 	57
 

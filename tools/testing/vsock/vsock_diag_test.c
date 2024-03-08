@@ -4,14 +4,14 @@
  *
  * Copyright (C) 2017 Red Hat, Inc.
  *
- * Author: Stefan Hajnoczi <stefanha@redhat.com>
+ * Author: Stefan Hajanalczi <stefanha@redhat.com>
  */
 
 #include <getopt.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
+#include <erranal.h>
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -98,7 +98,7 @@ static void print_vsock_stat(FILE *fp, struct vsock_stat *st)
 		sock_type_str(st->msg.vdiag_type),
 		sock_state_str(st->msg.vdiag_state),
 		sock_shutdown_str(st->msg.vdiag_shutdown),
-		st->msg.vdiag_ino);
+		st->msg.vdiag_ianal);
 }
 
 static void print_vsock_stats(FILE *fp, struct list_head *head)
@@ -120,17 +120,17 @@ static struct vsock_stat *find_vsock_stat(struct list_head *head, int fd)
 	}
 
 	list_for_each_entry(st, head, list)
-		if (st->msg.vdiag_ino == stat.st_ino)
+		if (st->msg.vdiag_ianal == stat.st_ianal)
 			return st;
 
-	fprintf(stderr, "cannot find fd %d\n", fd);
+	fprintf(stderr, "cananalt find fd %d\n", fd);
 	exit(EXIT_FAILURE);
 }
 
-static void check_no_sockets(struct list_head *head)
+static void check_anal_sockets(struct list_head *head)
 {
 	if (!list_empty(head)) {
-		fprintf(stderr, "expected no sockets\n");
+		fprintf(stderr, "expected anal sockets\n");
 		print_vsock_stats(stderr, head);
 		exit(1);
 	}
@@ -138,10 +138,10 @@ static void check_no_sockets(struct list_head *head)
 
 static void check_num_sockets(struct list_head *head, int expected)
 {
-	struct list_head *node;
+	struct list_head *analde;
 	int n = 0;
 
-	list_for_each(node, head)
+	list_for_each(analde, head)
 		n++;
 
 	if (n != expected) {
@@ -193,7 +193,7 @@ static void send_req(int fd)
 
 	for (;;) {
 		if (sendmsg(fd, &msg, 0) < 0) {
-			if (errno == EINTR)
+			if (erranal == EINTR)
 				continue;
 
 			perror("sendmsg");
@@ -223,7 +223,7 @@ static ssize_t recv_resp(int fd, void *buf, size_t len)
 
 	do {
 		ret = recvmsg(fd, &msg, 0);
-	} while (ret < 0 && errno == EINTR);
+	} while (ret < 0 && erranal == EINTR);
 
 	if (ret < 0) {
 		perror("recvmsg");
@@ -288,7 +288,7 @@ static void read_vsock_stat(struct list_head *sockets)
 				if (h->nlmsg_len < NLMSG_LENGTH(sizeof(*err)))
 					fprintf(stderr, "NLMSG_ERROR\n");
 				else {
-					errno = -err->error;
+					erranal = -err->error;
 					perror("NLMSG_ERROR");
 				}
 
@@ -325,13 +325,13 @@ static void free_sock_stat(struct list_head *sockets)
 		free(st);
 }
 
-static void test_no_sockets(const struct test_opts *opts)
+static void test_anal_sockets(const struct test_opts *opts)
 {
 	LIST_HEAD(sockets);
 
 	read_vsock_stat(&sockets);
 
-	check_no_sockets(&sockets);
+	check_anal_sockets(&sockets);
 }
 
 static void test_listen_socket_server(const struct test_opts *opts)
@@ -424,8 +424,8 @@ static void test_connect_server(const struct test_opts *opts)
 
 static struct test_case test_cases[] = {
 	{
-		.name = "No sockets",
-		.run_server = test_no_sockets,
+		.name = "Anal sockets",
+		.run_server = test_anal_sockets,
 	},
 	{
 		.name = "Listen socket",
@@ -463,7 +463,7 @@ static const struct option longopts[] = {
 	},
 	{
 		.name = "list",
-		.has_arg = no_argument,
+		.has_arg = anal_argument,
 		.val = 'l',
 	},
 	{
@@ -473,7 +473,7 @@ static const struct option longopts[] = {
 	},
 	{
 		.name = "help",
-		.has_arg = no_argument,
+		.has_arg = anal_argument,
 		.val = '?',
 	},
 	{},

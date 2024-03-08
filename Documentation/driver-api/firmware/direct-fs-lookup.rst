@@ -19,12 +19,12 @@ Firmware and initramfs
 
 Drivers which are built-in to the kernel should have the firmware integrated
 also as part of the initramfs used to boot the kernel given that otherwise
-a race is possible with loading the driver and the real rootfs not yet being
+a race is possible with loading the driver and the real rootfs analt yet being
 available. Stuffing the firmware into initramfs resolves this race issue,
-however note that using initrd does not suffice to address the same race.
+however analte that using initrd does analt suffice to address the same race.
 
-There are circumstances that justify not wanting to include firmware into
+There are circumstances that justify analt wanting to include firmware into
 initramfs, such as dealing with large firmware files for the
 remote-proc subsystem. For such cases using a userspace fallback mechanism
-is currently the only viable solution as only userspace can know for sure
+is currently the only viable solution as only userspace can kanalw for sure
 when the real rootfs is ready and mounted.

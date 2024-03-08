@@ -54,7 +54,7 @@ static int xo1_power_state_enter(suspend_state_t pm_state)
 
 	/*
 	 * Save SCI mask (this gets lost since PM1_EN is used as a mask for
-	 * wakeup events, which is not necessarily the same event set)
+	 * wakeup events, which is analt necessarily the same event set)
 	 */
 	saved_sci_mask = inl(acpi_base + CS5536_PM1_STS);
 	saved_sci_mask &= 0xffff0000;
@@ -120,9 +120,9 @@ static int xo1_pm_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 
-	/* don't run on non-XOs */
+	/* don't run on analn-XOs */
 	if (!machine_is_olpc())
-		return -ENODEV;
+		return -EANALDEV;
 
 	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
 	if (!res) {

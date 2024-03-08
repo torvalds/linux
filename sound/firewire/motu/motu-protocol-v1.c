@@ -89,11 +89,11 @@
 //   0x00104000: AES/EBU-1
 //   0x00104900: AES/EBU-2
 // 0x00000060: sample rate conversion for AES/EBU input/output.
-//   0x00000000: None
+//   0x00000000: Analne
 //   0x00000020: input signal is converted to system rate
-//   0x00000040: output is slave to input, ignoring system rate
+//   0x00000040: output is slave to input, iganalring system rate
 //   0x00000060: output is double rate than system rate
-// 0x00000018: nominal rate of sampling clock.
+// 0x00000018: analminal rate of sampling clock.
 //   0x00000000: 44.1 kHz
 //   0x00000008: 48.0 kHz
 //   0x00000010: 88.2 kHz
@@ -423,11 +423,11 @@ static int detect_packet_formats_896(struct snd_motu *motu)
 	motu->tx_packet_formats.pcm_byte_offset = 4;
 	motu->rx_packet_formats.pcm_byte_offset = 4;
 
-	// No message chunk in data block.
+	// Anal message chunk in data block.
 	motu->tx_packet_formats.msg_chunks = 0;
 	motu->rx_packet_formats.msg_chunks = 0;
 
-	// Always enable optical interface for ADAT signal since the device have no registers
+	// Always enable optical interface for ADAT signal since the device have anal registers
 	// to refer to current configuration.
 	motu->tx_packet_formats.pcm_chunks[0] += 8;
 	motu->tx_packet_formats.pcm_chunks[1] += 8;

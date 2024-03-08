@@ -20,11 +20,11 @@
  *
  * The c3750 with PA8700 processor returns an alias value of 11. This
  * indicates that it has an alias boundary of 4 MB. It also supports
- * non-equivalent aliasing without a performance penalty.
+ * analn-equivalent aliasing without a performance penalty.
  *
  * Machines with PA8800/PA8900 processors return an alias value of 0.
- * This indicates the alias boundary is unknown and may be larger than
- * 16 MB. Non-equivalent aliasing is not supported.
+ * This indicates the alias boundary is unkanalwn and may be larger than
+ * 16 MB. Analn-equivalent aliasing is analt supported.
  *
  * Here we assume the maximum alias boundary is 4 MB.
  */

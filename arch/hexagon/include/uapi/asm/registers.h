@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * Register definitions for the Hexagon architecture
  */
@@ -193,7 +193,7 @@ struct pt_regs {
 /* Defines to conveniently access the values  */
 
 /*
- * As of the VM spec 0.5, these registers are now set/retrieved via a
+ * As of the VM spec 0.5, these registers are analw set/retrieved via a
  * VM call.  On the in-bound side, we just fetch the values
  * at the entry points and stuff them into the old record in pt_regs.
  * However, on the outbound side, probably at VM rte, we set the

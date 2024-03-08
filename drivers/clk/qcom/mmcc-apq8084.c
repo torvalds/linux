@@ -363,7 +363,7 @@ static struct clk_rcg2 mmss_axi_clk_src = {
 	},
 };
 
-static struct freq_tbl ftbl_ocmemnoc_clk[] = {
+static struct freq_tbl ftbl_ocmemanalc_clk[] = {
 	F(19200000, P_XO, 1, 0, 0),
 	F(37500000, P_GPLL0, 16, 0, 0),
 	F(50000000, P_GPLL0, 12, 0, 0),
@@ -374,13 +374,13 @@ static struct freq_tbl ftbl_ocmemnoc_clk[] = {
 	F(320000000, P_MMPLL0, 2.5, 0, 0),
 };
 
-static struct clk_rcg2 ocmemnoc_clk_src = {
+static struct clk_rcg2 ocmemanalc_clk_src = {
 	.cmd_rcgr = 0x5090,
 	.hid_width = 5,
 	.parent_map = mmcc_xo_mmpll0_mmpll1_gpll0_map,
-	.freq_tbl = ftbl_ocmemnoc_clk,
+	.freq_tbl = ftbl_ocmemanalc_clk,
 	.clkr.hw.init = &(struct clk_init_data){
-		.name = "ocmemnoc_clk_src",
+		.name = "ocmemanalc_clk_src",
 		.parent_data = mmcc_xo_mmpll0_mmpll1_gpll0,
 		.num_parents = ARRAY_SIZE(mmcc_xo_mmpll0_mmpll1_gpll0),
 		.ops = &clk_rcg2_ops,
@@ -2397,52 +2397,52 @@ static struct clk_branch mmss_misc_ahb_clk = {
 	},
 };
 
-static struct clk_branch mmss_mmssnoc_ahb_clk = {
+static struct clk_branch mmss_mmssanalc_ahb_clk = {
 	.halt_reg = 0x5024,
 	.clkr = {
 		.enable_reg = 0x5024,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "mmss_mmssnoc_ahb_clk",
+			.name = "mmss_mmssanalc_ahb_clk",
 			.parent_hws = (const struct clk_hw*[]){
 				&mmss_ahb_clk_src.clkr.hw
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
-			.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+			.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 		},
 	},
 };
 
-static struct clk_branch mmss_mmssnoc_bto_ahb_clk = {
+static struct clk_branch mmss_mmssanalc_bto_ahb_clk = {
 	.halt_reg = 0x5028,
 	.clkr = {
 		.enable_reg = 0x5028,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "mmss_mmssnoc_bto_ahb_clk",
+			.name = "mmss_mmssanalc_bto_ahb_clk",
 			.parent_hws = (const struct clk_hw*[]){
 				&mmss_ahb_clk_src.clkr.hw
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
-			.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+			.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 		},
 	},
 };
 
-static struct clk_branch mmss_mmssnoc_axi_clk = {
+static struct clk_branch mmss_mmssanalc_axi_clk = {
 	.halt_reg = 0x506c,
 	.clkr = {
 		.enable_reg = 0x506c,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "mmss_mmssnoc_axi_clk",
+			.name = "mmss_mmssanalc_axi_clk",
 			.parent_hws = (const struct clk_hw*[]){
 				&mmss_axi_clk_src.clkr.hw
 			},
 			.num_parents = 1,
-			.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+			.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -2460,7 +2460,7 @@ static struct clk_branch mmss_s0_axi_clk = {
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
-			.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+			.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 		},
 	},
 };
@@ -2482,15 +2482,15 @@ static struct clk_branch ocmemcx_ahb_clk = {
 	},
 };
 
-static struct clk_branch ocmemcx_ocmemnoc_clk = {
+static struct clk_branch ocmemcx_ocmemanalc_clk = {
 	.halt_reg = 0x4058,
 	.clkr = {
 		.enable_reg = 0x4058,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "ocmemcx_ocmemnoc_clk",
+			.name = "ocmemcx_ocmemanalc_clk",
 			.parent_hws = (const struct clk_hw*[]){
-				&ocmemnoc_clk_src.clkr.hw
+				&ocmemanalc_clk_src.clkr.hw
 			},
 			.num_parents = 1,
 			.flags = CLK_SET_RATE_PARENT,
@@ -2635,15 +2635,15 @@ static struct clk_branch venus0_core1_vcodec_clk = {
 	},
 };
 
-static struct clk_branch venus0_ocmemnoc_clk = {
+static struct clk_branch venus0_ocmemanalc_clk = {
 	.halt_reg = 0x1038,
 	.clkr = {
 		.enable_reg = 0x1038,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "venus0_ocmemnoc_clk",
+			.name = "venus0_ocmemanalc_clk",
 			.parent_hws = (const struct clk_hw*[]){
-				&ocmemnoc_clk_src.clkr.hw
+				&ocmemanalc_clk_src.clkr.hw
 			},
 			.num_parents = 1,
 			.flags = CLK_SET_RATE_PARENT,
@@ -2907,7 +2907,7 @@ static struct clk_regmap *mmcc_apq8084_clocks[] = {
 	[MDP_CLK_SRC] = &mdp_clk_src.clkr,
 	[PCLK0_CLK_SRC] = &pclk0_clk_src.clkr,
 	[PCLK1_CLK_SRC] = &pclk1_clk_src.clkr,
-	[OCMEMNOC_CLK_SRC] = &ocmemnoc_clk_src.clkr,
+	[OCMEMANALC_CLK_SRC] = &ocmemanalc_clk_src.clkr,
 	[GFX3D_CLK_SRC] = &gfx3d_clk_src.clkr,
 	[JPEG0_CLK_SRC] = &jpeg0_clk_src.clkr,
 	[JPEG1_CLK_SRC] = &jpeg1_clk_src.clkr,
@@ -3015,12 +3015,12 @@ static struct clk_regmap *mmcc_apq8084_clocks[] = {
 	[MMSS_RBCPR_AHB_CLK] = &mmss_rbcpr_ahb_clk.clkr,
 	[MMSS_RBCPR_CLK] = &mmss_rbcpr_clk.clkr,
 	[MMSS_MISC_AHB_CLK] = &mmss_misc_ahb_clk.clkr,
-	[MMSS_MMSSNOC_AHB_CLK] = &mmss_mmssnoc_ahb_clk.clkr,
-	[MMSS_MMSSNOC_BTO_AHB_CLK] = &mmss_mmssnoc_bto_ahb_clk.clkr,
-	[MMSS_MMSSNOC_AXI_CLK] = &mmss_mmssnoc_axi_clk.clkr,
+	[MMSS_MMSSANALC_AHB_CLK] = &mmss_mmssanalc_ahb_clk.clkr,
+	[MMSS_MMSSANALC_BTO_AHB_CLK] = &mmss_mmssanalc_bto_ahb_clk.clkr,
+	[MMSS_MMSSANALC_AXI_CLK] = &mmss_mmssanalc_axi_clk.clkr,
 	[MMSS_S0_AXI_CLK] = &mmss_s0_axi_clk.clkr,
 	[OCMEMCX_AHB_CLK] = &ocmemcx_ahb_clk.clkr,
-	[OCMEMCX_OCMEMNOC_CLK] = &ocmemcx_ocmemnoc_clk.clkr,
+	[OCMEMCX_OCMEMANALC_CLK] = &ocmemcx_ocmemanalc_clk.clkr,
 	[OXILI_OCMEMGX_CLK] = &oxili_ocmemgx_clk.clkr,
 	[OXILI_GFX3D_CLK] = &oxili_gfx3d_clk.clkr,
 	[OXILI_RBBMTIMER_CLK] = &oxili_rbbmtimer_clk.clkr,
@@ -3029,7 +3029,7 @@ static struct clk_regmap *mmcc_apq8084_clocks[] = {
 	[VENUS0_AXI_CLK] = &venus0_axi_clk.clkr,
 	[VENUS0_CORE0_VCODEC_CLK] = &venus0_core0_vcodec_clk.clkr,
 	[VENUS0_CORE1_VCODEC_CLK] = &venus0_core1_vcodec_clk.clkr,
-	[VENUS0_OCMEMNOC_CLK] = &venus0_ocmemnoc_clk.clkr,
+	[VENUS0_OCMEMANALC_CLK] = &venus0_ocmemanalc_clk.clkr,
 	[VENUS0_VCODEC0_CLK] = &venus0_vcodec0_clk.clkr,
 	[VPU_AHB_CLK] = &vpu_ahb_clk.clkr,
 	[VPU_AXI_CLK] = &vpu_axi_clk.clkr,
@@ -3085,8 +3085,8 @@ static const struct qcom_reset_map mmcc_apq8084_resets[] = {
 	[OXILICX_RESET] = { 0x4030 },
 	[OCMEMCX_RESET] = { 0x4050 },
 	[MMSS_RBCRP_RESET] = { 0x4080 },
-	[MMSSNOCAHB_RESET] = { 0x5020 },
-	[MMSSNOCAXI_RESET] = { 0x5060 },
+	[MMSSANALCAHB_RESET] = { 0x5020 },
+	[MMSSANALCAXI_RESET] = { 0x5060 },
 };
 
 static struct gdsc *mmcc_apq8084_gdscs[] = {

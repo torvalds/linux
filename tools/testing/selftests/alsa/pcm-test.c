@@ -13,7 +13,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
-#include <errno.h>
+#include <erranal.h>
 #include <assert.h>
 #include <pthread.h>
 
@@ -55,37 +55,37 @@ enum test_class {
 	TEST_CLASS_SYSTEM,
 };
 
-void timestamp_now(timestamp_t *tstamp)
+void timestamp_analw(timestamp_t *tstamp)
 {
-	if (clock_gettime(CLOCK_MONOTONIC_RAW, tstamp))
+	if (clock_gettime(CLOCK_MOANALTONIC_RAW, tstamp))
 		ksft_exit_fail_msg("clock_get_time\n");
 }
 
 long long timestamp_diff_ms(timestamp_t *tstamp)
 {
-	timestamp_t now, diff;
-	timestamp_now(&now);
-	if (tstamp->tv_nsec > now.tv_nsec) {
-		diff.tv_sec = now.tv_sec - tstamp->tv_sec - 1;
-		diff.tv_nsec = (now.tv_nsec + 1000000000L) - tstamp->tv_nsec;
+	timestamp_t analw, diff;
+	timestamp_analw(&analw);
+	if (tstamp->tv_nsec > analw.tv_nsec) {
+		diff.tv_sec = analw.tv_sec - tstamp->tv_sec - 1;
+		diff.tv_nsec = (analw.tv_nsec + 1000000000L) - tstamp->tv_nsec;
 	} else {
-		diff.tv_sec = now.tv_sec - tstamp->tv_sec;
-		diff.tv_nsec = now.tv_nsec - tstamp->tv_nsec;
+		diff.tv_sec = analw.tv_sec - tstamp->tv_sec;
+		diff.tv_nsec = analw.tv_nsec - tstamp->tv_nsec;
 	}
 	return (diff.tv_sec * 1000) + ((diff.tv_nsec + 500000L) / 1000000L);
 }
 
-static long device_from_id(snd_config_t *node)
+static long device_from_id(snd_config_t *analde)
 {
 	const char *id;
 	char *end;
 	long v;
 
-	if (snd_config_get_id(node, &id))
+	if (snd_config_get_id(analde, &id))
 		ksft_exit_fail_msg("snd_config_get_id\n");
-	errno = 0;
+	erranal = 0;
 	v = strtol(id, &end, 10);
-	if (errno || *end)
+	if (erranal || *end)
 		return -1;
 	return v;
 }
@@ -119,7 +119,7 @@ static void missing_device(int card, int device, int subdevice, snd_pcm_stream_t
 
 static void missing_devices(int card, snd_config_t *card_config)
 {
-	snd_config_t *pcm_config, *node1, *node2;
+	snd_config_t *pcm_config, *analde1, *analde2;
 	snd_config_iterator_t i1, i2, next1, next2;
 	int device, subdevice;
 
@@ -127,20 +127,20 @@ static void missing_devices(int card, snd_config_t *card_config)
 	if (!pcm_config)
 		return;
 	snd_config_for_each(i1, next1, pcm_config) {
-		node1 = snd_config_iterator_entry(i1);
-		device = device_from_id(node1);
+		analde1 = snd_config_iterator_entry(i1);
+		device = device_from_id(analde1);
 		if (device < 0)
 			continue;
-		if (snd_config_get_type(node1) != SND_CONFIG_TYPE_COMPOUND)
+		if (snd_config_get_type(analde1) != SND_CONFIG_TYPE_COMPOUND)
 			continue;
-		snd_config_for_each(i2, next2, node1) {
-			node2 = snd_config_iterator_entry(i2);
-			subdevice = device_from_id(node2);
+		snd_config_for_each(i2, next2, analde1) {
+			analde2 = snd_config_iterator_entry(i2);
+			subdevice = device_from_id(analde2);
 			if (subdevice < 0)
 				continue;
-			if (conf_get_subtree(node2, "PLAYBACK", NULL))
+			if (conf_get_subtree(analde2, "PLAYBACK", NULL))
 				missing_device(card, device, subdevice, SND_PCM_STREAM_PLAYBACK);
-			if (conf_get_subtree(node2, "CAPTURE", NULL))
+			if (conf_get_subtree(analde2, "CAPTURE", NULL))
 				missing_device(card, device, subdevice, SND_PCM_STREAM_CAPTURE);
 		}
 	}
@@ -178,10 +178,10 @@ static void find_pcms(void)
 
 		err = snd_card_get_name(card, &card_name);
 		if (err != 0)
-			card_name = "Unknown";
+			card_name = "Unkanalwn";
 		err = snd_card_get_longname(card, &card_longname);
 		if (err != 0)
-			card_longname = "Unknown";
+			card_longname = "Unkanalwn";
 		ksft_print_msg("Card %d - %s (%s)\n", card,
 			       card_name, card_longname);
 
@@ -213,7 +213,7 @@ static void find_pcms(void)
 				snd_pcm_info_set_subdevice(pcm_info, 0);
 				snd_pcm_info_set_stream(pcm_info, stream);
 				err = snd_ctl_pcm_info(handle, pcm_info);
-				if (err == -ENOENT)
+				if (err == -EANALENT)
 					continue;
 				if (err < 0)
 					ksft_exit_fail_msg("snd_ctl_pcm_info: %d:%d:%d\n",
@@ -288,7 +288,7 @@ static void test_pcm_time(struct pcm_data *data, enum test_class class,
 		test_class_name = "system";
 		break;
 	default:
-		ksft_exit_fail_msg("Unknown test class %d\n", class);
+		ksft_exit_fail_msg("Unkanalwn test class %d\n", class);
 		break;
 	}
 
@@ -306,7 +306,7 @@ static void test_pcm_time(struct pcm_data *data, enum test_class class,
 
 	cs = conf_get_string(pcm_cfg, "format", NULL, "S16_LE");
 	format = snd_pcm_format_value(cs);
-	if (format == SND_PCM_FORMAT_UNKNOWN)
+	if (format == SND_PCM_FORMAT_UNKANALWN)
 		ksft_exit_fail_msg("Wrong format '%s'\n", cs);
 	conf_get_string_array(pcm_cfg, "alt_formats", NULL,
 				alt_formats, ARRAY_SIZE(alt_formats), NULL);
@@ -351,7 +351,7 @@ __format:
 		if (i < ARRAY_SIZE(alt_formats) && alt_formats[i]) {
 			old_format = format;
 			format = snd_pcm_format_value(alt_formats[i]);
-			if (format != SND_PCM_FORMAT_UNKNOWN) {
+			if (format != SND_PCM_FORMAT_UNKANALWN) {
 				ksft_print_msg("%s.%d.%d.%d.%s.%s format %s -> %s\n",
 						 test_name,
 						 data->card, data->device, data->subdevice,
@@ -443,7 +443,7 @@ __format:
 	/* Set all the params, actually run the test */
 	skip = false;
 
-	timestamp_now(&tstamp);
+	timestamp_analw(&tstamp);
 	for (i = 0; i < duration_s; i++) {
 		if (data->stream == SND_PCM_STREAM_PLAYBACK) {
 			frames = snd_pcm_writei(handle, samples, rate);
@@ -543,7 +543,7 @@ void run_time_tests(struct pcm_data *pcm, enum test_class class,
 		if (strcmp(test_type, "time") == 0)
 			test_pcm_time(pcm, class, test_name, pcm_cfg);
 		else
-			ksft_exit_fail_msg("unknown test type '%s'\n", test_type);
+			ksft_exit_fail_msg("unkanalwn test type '%s'\n", test_type);
 	}
 }
 
@@ -619,7 +619,7 @@ int main(void)
 		if (ret != 0) {
 			ksft_exit_fail_msg("Failed to create card %d thread: %d (%s)\n",
 					   card->card, ret,
-					   strerror(errno));
+					   strerror(erranal));
 		}
 	}
 
@@ -628,7 +628,7 @@ int main(void)
 		if (ret != 0) {
 			ksft_exit_fail_msg("Failed to join card %d thread: %d (%s)\n",
 					   card->card, ret,
-					   strerror(errno));
+					   strerror(erranal));
 		}
 	}
 

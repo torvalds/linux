@@ -98,12 +98,12 @@ struct dsu_hw_events {
 /*
  * struct dsu_pmu	- DSU PMU descriptor
  *
- * @pmu_lock		: Protects accesses to DSU PMU register from normal vs
+ * @pmu_lock		: Protects accesses to DSU PMU register from analrmal vs
  *			  interrupt handler contexts.
  * @hw_events		: Holds the event counter state.
  * @associated_cpus	: CPUs attached to the DSU.
  * @active_cpu		: CPU to which the PMU is bound for accesses.
- * @cpuhp_node		: Node for CPU hotplug notifier link.
+ * @cpuhp_analde		: Analde for CPU hotplug analtifier link.
  * @num_counters	: Number of event counters implemented by the PMU,
  *			  excluding the cycle counter.
  * @irq			: Interrupt line for counter overflow.
@@ -117,7 +117,7 @@ struct dsu_pmu {
 	struct dsu_hw_events		hw_events;
 	cpumask_t			associated_cpus;
 	cpumask_t			active_cpu;
-	struct hlist_node		cpuhp_node;
+	struct hlist_analde		cpuhp_analde;
 	s8				num_counters;
 	int				irq;
 	DECLARE_BITMAP(cpmceid_bitmap, DSU_PMU_MAX_COMMON_EVENTS);
@@ -397,7 +397,7 @@ static irqreturn_t dsu_pmu_handle_irq(int irq_num, void *dev)
 
 	overflow = dsu_pmu_get_reset_overflow();
 	if (!overflow)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	for_each_set_bit(i, &overflow, DSU_PMU_MAX_HW_CNTRS) {
 		struct perf_event *event = hw_events->events[i];
@@ -446,7 +446,7 @@ static int dsu_pmu_add(struct perf_event *event, int flags)
 
 	if (WARN_ON_ONCE(!cpumask_test_cpu(smp_processor_id(),
 					   &dsu_pmu->associated_cpus)))
-		return -ENOENT;
+		return -EANALENT;
 
 	idx = dsu_pmu_get_event_idx(hw_events, event);
 	if (idx < 0)
@@ -482,7 +482,7 @@ static void dsu_pmu_enable(struct pmu *pmu)
 	unsigned long flags;
 	struct dsu_pmu *dsu_pmu = to_dsu_pmu(pmu);
 
-	/* If no counters are added, skip enabling the PMU */
+	/* If anal counters are added, skip enabling the PMU */
 	if (bitmap_empty(dsu_pmu->hw_events.used_mask, DSU_PMU_MAX_HW_CNTRS))
 		return;
 
@@ -545,15 +545,15 @@ static int dsu_pmu_event_init(struct perf_event *event)
 	struct dsu_pmu *dsu_pmu = to_dsu_pmu(event->pmu);
 
 	if (event->attr.type != event->pmu->type)
-		return -ENOENT;
+		return -EANALENT;
 
 	/* We don't support sampling */
 	if (is_sampling_event(event)) {
 		dev_dbg(dsu_pmu->pmu.dev, "Can't support sampling events\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
-	/* We cannot support task bound events */
+	/* We cananalt support task bound events */
 	if (event->cpu < 0 || event->attach_state & PERF_ATTACH_TASK) {
 		dev_dbg(dsu_pmu->pmu.dev, "Can't support per-task counters\n");
 		return -EINVAL;
@@ -566,7 +566,7 @@ static int dsu_pmu_event_init(struct perf_event *event)
 
 	if (!cpumask_test_cpu(event->cpu, &dsu_pmu->associated_cpus)) {
 		dev_dbg(dsu_pmu->pmu.dev,
-			 "Requested cpu is not associated with the DSU\n");
+			 "Requested cpu is analt associated with the DSU\n");
 		return -EINVAL;
 	}
 	/*
@@ -591,7 +591,7 @@ static struct dsu_pmu *dsu_pmu_alloc(struct platform_device *pdev)
 
 	dsu_pmu = devm_kzalloc(&pdev->dev, sizeof(*dsu_pmu), GFP_KERNEL);
 	if (!dsu_pmu)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	raw_spin_lock_init(&dsu_pmu->pmu_lock);
 	/*
@@ -609,19 +609,19 @@ static struct dsu_pmu *dsu_pmu_alloc(struct platform_device *pdev)
 static int dsu_pmu_dt_get_cpus(struct device *dev, cpumask_t *mask)
 {
 	int i = 0, n, cpu;
-	struct device_node *cpu_node;
+	struct device_analde *cpu_analde;
 
-	n = of_count_phandle_with_args(dev->of_node, "cpus", NULL);
+	n = of_count_phandle_with_args(dev->of_analde, "cpus", NULL);
 	if (n <= 0)
-		return -ENODEV;
+		return -EANALDEV;
 	for (; i < n; i++) {
-		cpu_node = of_parse_phandle(dev->of_node, "cpus", i);
-		if (!cpu_node)
+		cpu_analde = of_parse_phandle(dev->of_analde, "cpus", i);
+		if (!cpu_analde)
 			break;
-		cpu = of_cpu_node_to_id(cpu_node);
-		of_node_put(cpu_node);
+		cpu = of_cpu_analde_to_id(cpu_analde);
+		of_analde_put(cpu_analde);
 		/*
-		 * We have to ignore the failures here and continue scanning
+		 * We have to iganalre the failures here and continue scanning
 		 * the list to handle cases where the nr_cpus could be capped
 		 * in the running kernel.
 		 */
@@ -643,7 +643,7 @@ static int dsu_pmu_acpi_get_cpus(struct device *dev, cpumask_t *mask)
 	int cpu;
 
 	/*
-	 * A dsu pmu node is inside a cluster parent node along with cpu nodes.
+	 * A dsu pmu analde is inside a cluster parent analde along with cpu analdes.
 	 * We need to find out all cpus that have the same parent with this pmu.
 	 */
 	for_each_possible_cpu(cpu) {
@@ -707,7 +707,7 @@ static int dsu_pmu_device_probe(struct platform_device *pdev)
 {
 	int irq, rc;
 	struct dsu_pmu *dsu_pmu;
-	struct fwnode_handle *fwnode = dev_fwnode(&pdev->dev);
+	struct fwanalde_handle *fwanalde = dev_fwanalde(&pdev->dev);
 	char *name;
 	static atomic_t pmu_idx = ATOMIC_INIT(-1);
 
@@ -715,12 +715,12 @@ static int dsu_pmu_device_probe(struct platform_device *pdev)
 	if (IS_ERR(dsu_pmu))
 		return PTR_ERR(dsu_pmu);
 
-	if (is_of_node(fwnode))
+	if (is_of_analde(fwanalde))
 		rc = dsu_pmu_dt_get_cpus(&pdev->dev, &dsu_pmu->associated_cpus);
-	else if (is_acpi_device_node(fwnode))
+	else if (is_acpi_device_analde(fwanalde))
 		rc = dsu_pmu_acpi_get_cpus(&pdev->dev, &dsu_pmu->associated_cpus);
 	else
-		return -ENOENT;
+		return -EANALENT;
 
 	if (rc) {
 		dev_warn(&pdev->dev, "Failed to parse the CPUs\n");
@@ -734,9 +734,9 @@ static int dsu_pmu_device_probe(struct platform_device *pdev)
 	name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "%s_%d",
 				PMUNAME, atomic_inc_return(&pmu_idx));
 	if (!name)
-		return -ENOMEM;
+		return -EANALMEM;
 	rc = devm_request_irq(&pdev->dev, irq, dsu_pmu_handle_irq,
-			      IRQF_NOBALANCING, name, dsu_pmu);
+			      IRQF_ANALBALANCING, name, dsu_pmu);
 	if (rc) {
 		dev_warn(&pdev->dev, "Failed to request IRQ %d\n", irq);
 		return rc;
@@ -745,7 +745,7 @@ static int dsu_pmu_device_probe(struct platform_device *pdev)
 	dsu_pmu->irq = irq;
 	platform_set_drvdata(pdev, dsu_pmu);
 	rc = cpuhp_state_add_instance(dsu_pmu_cpuhp_state,
-						&dsu_pmu->cpuhp_node);
+						&dsu_pmu->cpuhp_analde);
 	if (rc)
 		return rc;
 
@@ -762,13 +762,13 @@ static int dsu_pmu_device_probe(struct platform_device *pdev)
 		.read		= dsu_pmu_read,
 
 		.attr_groups	= dsu_pmu_attr_groups,
-		.capabilities	= PERF_PMU_CAP_NO_EXCLUDE,
+		.capabilities	= PERF_PMU_CAP_ANAL_EXCLUDE,
 	};
 
 	rc = perf_pmu_register(&dsu_pmu->pmu, name, -1);
 	if (rc) {
 		cpuhp_state_remove_instance(dsu_pmu_cpuhp_state,
-						 &dsu_pmu->cpuhp_node);
+						 &dsu_pmu->cpuhp_analde);
 	}
 
 	return rc;
@@ -779,7 +779,7 @@ static int dsu_pmu_device_remove(struct platform_device *pdev)
 	struct dsu_pmu *dsu_pmu = platform_get_drvdata(pdev);
 
 	perf_pmu_unregister(&dsu_pmu->pmu);
-	cpuhp_state_remove_instance(dsu_pmu_cpuhp_state, &dsu_pmu->cpuhp_node);
+	cpuhp_state_remove_instance(dsu_pmu_cpuhp_state, &dsu_pmu->cpuhp_analde);
 
 	return 0;
 }
@@ -809,15 +809,15 @@ static struct platform_driver dsu_pmu_driver = {
 	.remove = dsu_pmu_device_remove,
 };
 
-static int dsu_pmu_cpu_online(unsigned int cpu, struct hlist_node *node)
+static int dsu_pmu_cpu_online(unsigned int cpu, struct hlist_analde *analde)
 {
-	struct dsu_pmu *dsu_pmu = hlist_entry_safe(node, struct dsu_pmu,
-						   cpuhp_node);
+	struct dsu_pmu *dsu_pmu = hlist_entry_safe(analde, struct dsu_pmu,
+						   cpuhp_analde);
 
 	if (!cpumask_test_cpu(cpu, &dsu_pmu->associated_cpus))
 		return 0;
 
-	/* If the PMU is already managed, there is nothing to do */
+	/* If the PMU is already managed, there is analthing to do */
 	if (!cpumask_empty(&dsu_pmu->active_cpu))
 		return 0;
 
@@ -827,17 +827,17 @@ static int dsu_pmu_cpu_online(unsigned int cpu, struct hlist_node *node)
 	return 0;
 }
 
-static int dsu_pmu_cpu_teardown(unsigned int cpu, struct hlist_node *node)
+static int dsu_pmu_cpu_teardown(unsigned int cpu, struct hlist_analde *analde)
 {
 	int dst;
-	struct dsu_pmu *dsu_pmu = hlist_entry_safe(node, struct dsu_pmu,
-						   cpuhp_node);
+	struct dsu_pmu *dsu_pmu = hlist_entry_safe(analde, struct dsu_pmu,
+						   cpuhp_analde);
 
 	if (!cpumask_test_and_clear_cpu(cpu, &dsu_pmu->active_cpu))
 		return 0;
 
 	dst = dsu_pmu_get_online_cpu_any_but(dsu_pmu, cpu);
-	/* If there are no active CPUs in the DSU, leave IRQ disabled */
+	/* If there are anal active CPUs in the DSU, leave IRQ disabled */
 	if (dst >= nr_cpu_ids)
 		return 0;
 

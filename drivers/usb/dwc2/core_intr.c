@@ -2,7 +2,7 @@
 /*
  * core_intr.c - DesignWare HS OTG Controller common interrupt handling
  *
- * Copyright (C) 2004-2013 Synopsys, Inc.
+ * Copyright (C) 2004-2013 Syanalpsys, Inc.
  */
 
 /*
@@ -38,7 +38,7 @@ static const char *dwc2_op_state_str(struct dwc2_hsotg *hsotg)
 	case OTG_STATE_B_HOST:
 		return "b_host";
 	default:
-		return "unknown";
+		return "unkanalwn";
 	}
 }
 
@@ -103,13 +103,13 @@ static void dwc2_handle_otg_intr(struct dwc2_hsotg *hsotg)
 			hsotg->op_state = OTG_STATE_B_PERIPHERAL;
 		} else {
 			/*
-			 * If not B_HOST and Device HNP still set, HNP did
-			 * not succeed!
+			 * If analt B_HOST and Device HNP still set, HNP did
+			 * analt succeed!
 			 */
 			if (gotgctl & GOTGCTL_DEVHNPEN) {
 				dev_dbg(hsotg->dev, "Session End Detected\n");
 				dev_err(hsotg->dev,
-					"Device Not Connected/Responding!\n");
+					"Device Analt Connected/Responding!\n");
 			}
 
 			/*
@@ -149,8 +149,8 @@ static void dwc2_handle_otg_intr(struct dwc2_hsotg *hsotg)
 		 */
 		gotgctl = dwc2_readl(hsotg, GOTGCTL);
 		/*
-		 * WA for 3.00a- HW is not setting cur_mode, even sometimes
-		 * this does not help
+		 * WA for 3.00a- HW is analt setting cur_mode, even sometimes
+		 * this does analt help
 		 */
 		if (hsotg->hw_params.snpsid >= DWC2_CORE_REV_3_00a)
 			udelay(100);
@@ -164,7 +164,7 @@ static void dwc2_handle_otg_intr(struct dwc2_hsotg *hsotg)
 				 * if host mode is already set. The HCD
 				 * interrupt handler won't get called if the
 				 * HCD state is HALT. This means that the
-				 * interrupt does not get handled and Linux
+				 * interrupt does analt get handled and Linux
 				 * complains loudly.
 				 */
 				gintmsk = dwc2_readl(hsotg, GINTMSK);
@@ -188,7 +188,7 @@ static void dwc2_handle_otg_intr(struct dwc2_hsotg *hsotg)
 			dwc2_writel(hsotg, gotgctl, GOTGCTL);
 			dev_dbg(hsotg->dev, "HNP Failed\n");
 			dev_err(hsotg->dev,
-				"Device Not Connected/Responding\n");
+				"Device Analt Connected/Responding\n");
 		}
 	}
 
@@ -197,7 +197,7 @@ static void dwc2_handle_otg_intr(struct dwc2_hsotg *hsotg)
 		 * The disconnect interrupt is set at the same time as
 		 * Host Negotiation Detected. During the mode switch all
 		 * interrupts are cleared so the disconnect interrupt
-		 * handler will not get executed.
+		 * handler will analt get executed.
 		 */
 		dev_dbg(hsotg->dev,
 			" ++OTG Interrupt: Host Negotiation Detected++ (%s)\n",
@@ -297,7 +297,7 @@ static void dwc2_handle_session_req_intr(struct dwc2_hsotg *hsotg)
 
 			/* Exit gadget mode clock gating. */
 			if (hsotg->params.power_down ==
-			    DWC2_POWER_DOWN_PARAM_NONE && hsotg->bus_suspended)
+			    DWC2_POWER_DOWN_PARAM_ANALNE && hsotg->bus_suspended)
 				dwc2_gadget_exit_clock_gating(hsotg, 0);
 		}
 
@@ -356,7 +356,7 @@ static void dwc2_wakeup_from_lpm_l1(struct dwc2_hsotg *hsotg)
 		dwc2_gadget_init_lpm(hsotg);
 	} else {
 		/* TODO */
-		dev_err(hsotg->dev, "Host side LPM is not supported.\n");
+		dev_err(hsotg->dev, "Host side LPM is analt supported.\n");
 		return;
 	}
 
@@ -408,7 +408,7 @@ static void dwc2_handle_wakeup_detected_intr(struct dwc2_hsotg *hsotg)
 
 			/* Exit gadget mode clock gating. */
 			if (hsotg->params.power_down ==
-			    DWC2_POWER_DOWN_PARAM_NONE && hsotg->bus_suspended)
+			    DWC2_POWER_DOWN_PARAM_ANALNE && hsotg->bus_suspended)
 				dwc2_gadget_exit_clock_gating(hsotg, 0);
 		} else {
 			/* Change to L0 state */
@@ -425,15 +425,15 @@ static void dwc2_handle_wakeup_detected_intr(struct dwc2_hsotg *hsotg)
 			}
 
 			if (hsotg->params.power_down ==
-			    DWC2_POWER_DOWN_PARAM_NONE && hsotg->bus_suspended)
+			    DWC2_POWER_DOWN_PARAM_ANALNE && hsotg->bus_suspended)
 				dwc2_host_exit_clock_gating(hsotg, 1);
 
 			/*
 			 * If we've got this quirk then the PHY is stuck upon
 			 * wakeup.  Assert reset.  This will propagate out and
-			 * eventually we'll re-enumerate the device.  Not great
+			 * eventually we'll re-enumerate the device.  Analt great
 			 * but the best we can do.  We can't call phy_reset()
-			 * at interrupt time but there's no hurry, so we'll
+			 * at interrupt time but there's anal hurry, so we'll
 			 * schedule it for later.
 			 */
 			if (hsotg->reset_phy_on_wake)
@@ -495,10 +495,10 @@ static void dwc2_handle_usb_suspend_intr(struct dwc2_hsotg *hsotg)
 			hsotg->hw_params.power_optimized,
 			hsotg->hw_params.hibernation);
 
-		/* Ignore suspend request before enumeration */
+		/* Iganalre suspend request before enumeration */
 		if (!dwc2_is_device_connected(hsotg)) {
 			dev_dbg(hsotg->dev,
-				"ignore suspend request before enumeration\n");
+				"iganalre suspend request before enumeration\n");
 			return;
 		}
 		if (dsts & DSTS_SUSPSTS) {
@@ -521,12 +521,12 @@ static void dwc2_handle_usb_suspend_intr(struct dwc2_hsotg *hsotg)
 					dev_err(hsotg->dev,
 						"enter hibernation failed\n");
 				break;
-			case DWC2_POWER_DOWN_PARAM_NONE:
+			case DWC2_POWER_DOWN_PARAM_ANALNE:
 				/*
-				 * If neither hibernation nor partial power down are supported,
+				 * If neither hibernation analr partial power down are supported,
 				 * clock gating is used to save power.
 				 */
-				if (!hsotg->params.no_clock_gating)
+				if (!hsotg->params.anal_clock_gating)
 					dwc2_gadget_enter_clock_gating(hsotg);
 			}
 
@@ -801,7 +801,7 @@ irqreturn_t dwc2_handle_common_intr(int irq, void *dev)
 {
 	struct dwc2_hsotg *hsotg = dev;
 	u32 gintsts;
-	irqreturn_t retval = IRQ_NONE;
+	irqreturn_t retval = IRQ_ANALNE;
 
 	spin_lock(&hsotg->lock);
 
@@ -822,7 +822,7 @@ irqreturn_t dwc2_handle_common_intr(int irq, void *dev)
 	if (gintsts & ~GINTSTS_PRTINT)
 		retval = IRQ_HANDLED;
 
-	/* In case of hibernated state gintsts must not work */
+	/* In case of hibernated state gintsts must analt work */
 	if (hsotg->hibernated) {
 		dwc2_handle_gpwrdn_intr(hsotg);
 		retval = IRQ_HANDLED;

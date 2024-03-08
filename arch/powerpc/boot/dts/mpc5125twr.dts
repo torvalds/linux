@@ -250,7 +250,7 @@
 			dma-names = "rx-tx";
 		};
 
-		// 5125 PSCs are not 52xx or 5121 PSC compatible
+		// 5125 PSCs are analt 52xx or 5121 PSC compatible
 		// PSC1 uart0 aka ttyPSC0
 		serial@11100 {
 			compatible = "fsl,mpc5125-psc-uart", "fsl,mpc5125-psc";

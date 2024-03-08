@@ -94,8 +94,8 @@
  * PAL-M (3575611.[888111] Hz) - 0x21E6EFE3
  * PAL-N (3582056.25 Hz)       - 0x21F69446
  *
- * NOTE: For SECAM, it is used as the Dr center frequency,
- * regardless of whether VEC_CONFIG1_CUSTOM_FREQ is enabled or not;
+ * ANALTE: For SECAM, it is used as the Dr center frequency,
+ * regardless of whether VEC_CONFIG1_CUSTOM_FREQ is enabled or analt;
  * that is specified as 4406250 Hz, which corresponds to 0x29C71C72.
  */
 #define VEC_FREQ3_2			0x180
@@ -146,7 +146,7 @@
  * VEC_FREQ3_2/VEC_FREQ1_0, which is used for Dr center frequency.
  *
  * This is specified as 4250000 Hz, which corresponds to 0x284BDA13.
- * That is also the default value, so no need to set it explicitly.
+ * That is also the default value, so anal need to set it explicitly.
  */
 #define VEC_FCW_SECAM_B			0x198
 #define VEC_SECAM_GAIN_VAL		0x19c
@@ -154,7 +154,7 @@
 #define VEC_CONFIG3			0x1a0
 #define VEC_CONFIG3_HORIZ_LEN_STD	(0 << 0)
 #define VEC_CONFIG3_HORIZ_LEN_MPEG1_SIF	(1 << 0)
-#define VEC_CONFIG3_SHAPE_NON_LINEAR	BIT(1)
+#define VEC_CONFIG3_SHAPE_ANALN_LINEAR	BIT(1)
 
 #define VEC_STATUS0			0x200
 #define VEC_MASK0			0x204
@@ -356,7 +356,7 @@ static const struct drm_prop_enum_list legacy_tv_mode_names[] = {
 static enum drm_connector_status
 vc4_vec_connector_detect(struct drm_connector *connector, bool force)
 {
-	return connector_status_unknown;
+	return connector_status_unkanalwn;
 }
 
 static void vc4_vec_connector_reset(struct drm_connector *connector)
@@ -498,7 +498,7 @@ static int vc4_vec_connector_init(struct drm_device *dev, struct vc4_vec *vec)
 					legacy_tv_mode_names,
 					ARRAY_SIZE(legacy_tv_mode_names));
 	if (!prop)
-		return -ENOMEM;
+		return -EANALMEM;
 	vec->legacy_tv_mode_property = prop;
 
 	drm_object_attach_property(&connector->base, prop, VC4_VEC_TV_MODE_NTSC);
@@ -571,7 +571,7 @@ static void vc4_vec_encoder_enable(struct drm_encoder *encoder,
 	 * We need to set the clock rate each time we enable the encoder
 	 * because there's a chance we share the same parent with the HDMI
 	 * clock, and both drivers are requesting different rates.
-	 * The good news is, these 2 encoders cannot be enabled at the same
+	 * The good news is, these 2 encoders cananalt be enabled at the same
 	 * time, thus preventing incompatible rate requests.
 	 */
 	ret = clk_set_rate(vec->clock, 108000000);
@@ -760,7 +760,7 @@ static int vc4_vec_bind(struct device *dev, struct device *master, void *data)
 
 	vec = drmm_kzalloc(drm, sizeof(*vec), GFP_KERNEL);
 	if (!vec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vec->encoder.type = VC4_ENCODER_TYPE_VEC;
 	vec->pdev = pdev;

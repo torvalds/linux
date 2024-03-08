@@ -282,12 +282,12 @@
 	cooling-maps {
 		map2 {
 			trip = <&cpu_warm>;
-			cooling-device = <&fan THERMAL_NO_LIMIT 1>;
+			cooling-device = <&fan THERMAL_ANAL_LIMIT 1>;
 		};
 
 		map3 {
 			trip = <&cpu_hot>;
-			cooling-device = <&fan 2 THERMAL_NO_LIMIT>;
+			cooling-device = <&fan 2 THERMAL_ANAL_LIMIT>;
 		};
 	};
 };
@@ -679,7 +679,7 @@
 &pinctrl {
 	bt {
 		bt_enable_h: bt-enable-h {
-			rockchip,pins = <0 RK_PB1 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PB1 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		bt_host_wake_l: bt-host-wake-l {
@@ -687,7 +687,7 @@
 		};
 
 		bt_wake_l: bt-wake-l {
-			rockchip,pins = <2 RK_PD3 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PD3 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
@@ -705,27 +705,27 @@
 
 	ir {
 		ir_int: ir-int {
-			rockchip,pins = <0 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA6 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	leds {
 		work_led_pin: work-led-pin {
-			rockchip,pins = <0 RK_PB3 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PB3 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		diy_led_pin: diy-led-pin {
-			rockchip,pins = <0 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA2 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	pcie {
 		pcie_perst: pcie-perst {
-			rockchip,pins = <2 RK_PD4 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PD4 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		pcie_pwr_en: pcie-pwr-en {
-			rockchip,pins = <1 RK_PD0 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <1 RK_PD0 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
@@ -745,14 +745,14 @@
 
 	sdcard {
 		sdmmc0_pwr_h: sdmmc0-pwr-h {
-			rockchip,pins = <0 RK_PA1 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA1 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 	};
 
 	sdio-pwrseq {
 		wifi_enable_h: wifi-enable-h {
-			rockchip,pins = <0 RK_PB2 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PB2 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
@@ -764,7 +764,7 @@
 
 	usb2 {
 		vcc5v0_host_en: vcc5v0-host-en {
-			rockchip,pins = <4 RK_PD2 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <4 RK_PD2 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 };
@@ -793,7 +793,7 @@
 	disable-wp;
 	keep-power-in-suspend;
 	mmc-pwrseq = <&sdio_pwrseq>;
-	non-removable;
+	analn-removable;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdio0_bus4 &sdio0_cmd &sdio0_clk>;
 	sd-uhs-sdr104;
@@ -816,7 +816,7 @@
 &sdhci {
 	bus-width = <8>;
 	mmc-hs200-1_8v;
-	non-removable;
+	analn-removable;
 	status = "okay";
 };
 
@@ -834,7 +834,7 @@
 	status = "okay";
 
 	flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <10000000>;
 	};

@@ -35,7 +35,7 @@
 
 #define WAIOTTHVAL				25
 
-#define TXHIGHPWRLEVEL_NORMAL			0
+#define TXHIGHPWRLEVEL_ANALRMAL			0
 #define TXHIGHPWRLEVEL_LEVEL1			1
 #define TXHIGHPWRLEVEL_LEVEL2			2
 #define TXHIGHPWRLEVEL_BT1			3
@@ -77,7 +77,7 @@ enum dm_1r_cca {
 
 enum dm_rf {
 	RF_SAVE = 0,
-	RF_NORMAL = 1,
+	RF_ANALRMAL = 1,
 	RF_MAX = 2,
 };
 

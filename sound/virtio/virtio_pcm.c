@@ -110,7 +110,7 @@ static int virtsnd_pcm_build_hw(struct virtio_pcm_substream *vss,
 		SNDRV_PCM_INFO_BLOCK_TRANSFER |
 		SNDRV_PCM_INFO_INTERLEAVED |
 		SNDRV_PCM_INFO_PAUSE |
-		SNDRV_PCM_INFO_NO_REWINDS |
+		SNDRV_PCM_INFO_ANAL_REWINDS |
 		SNDRV_PCM_INFO_SYNC_APPLPTR;
 
 	if (!info->channels_min || info->channels_min > info->channels_max) {
@@ -143,7 +143,7 @@ static int virtsnd_pcm_build_hw(struct virtio_pcm_substream *vss,
 
 	if (!vss->hw.formats) {
 		dev_err(&vdev->dev,
-			"SID %u: no supported PCM sample formats found\n",
+			"SID %u: anal supported PCM sample formats found\n",
 			vss->sid);
 		return -EINVAL;
 	}
@@ -166,7 +166,7 @@ static int virtsnd_pcm_build_hw(struct virtio_pcm_substream *vss,
 
 	if (!vss->hw.rates) {
 		dev_err(&vdev->dev,
-			"SID %u: no supported PCM frame rates found\n",
+			"SID %u: anal supported PCM frame rates found\n",
 			vss->sid);
 		return -EINVAL;
 	}
@@ -175,7 +175,7 @@ static int virtsnd_pcm_build_hw(struct virtio_pcm_substream *vss,
 	vss->hw.periods_max = pcm_periods_max;
 
 	/*
-	 * We must ensure that there is enough space in the buffer to store
+	 * We must ensure that there is eanalugh space in the buffer to store
 	 * pcm_buffer_ms ms for the combination (Cmax, Smax, Rmax), where:
 	 *   Cmax = maximum supported number of channels,
 	 *   Smax = maximum supported sample size in bytes,
@@ -186,7 +186,7 @@ static int virtsnd_pcm_build_hw(struct virtio_pcm_substream *vss,
 			   (vss->hw.rate_max / MSEC_PER_SEC));
 
 	/*
-	 * We must ensure that the minimum period size is enough to store
+	 * We must ensure that the minimum period size is eanalugh to store
 	 * pcm_period_ms_min ms for the combination (Cmin, Smin, Rmin), where:
 	 *   Cmin = minimum supported number of channels,
 	 *   Smin = minimum supported sample size in bytes,
@@ -197,7 +197,7 @@ static int virtsnd_pcm_build_hw(struct virtio_pcm_substream *vss,
 		(vss->hw.rate_min / MSEC_PER_SEC);
 
 	/*
-	 * We must ensure that the maximum period size is enough to store
+	 * We must ensure that the maximum period size is eanalugh to store
 	 * pcm_period_ms_max ms for the combination (Cmax, Smax, Rmax).
 	 */
 	vss->hw.period_bytes_max =
@@ -208,12 +208,12 @@ static int virtsnd_pcm_build_hw(struct virtio_pcm_substream *vss,
 }
 
 /**
- * virtsnd_pcm_find() - Find the PCM device for the specified node ID.
+ * virtsnd_pcm_find() - Find the PCM device for the specified analde ID.
  * @snd: VirtIO sound device.
- * @nid: Function node ID.
+ * @nid: Function analde ID.
  *
  * Context: Any context.
- * Return: a pointer to the PCM device or ERR_PTR(-ENOENT).
+ * Return: a pointer to the PCM device or ERR_PTR(-EANALENT).
  */
 struct virtio_pcm *virtsnd_pcm_find(struct virtio_snd *snd, u32 nid)
 {
@@ -223,17 +223,17 @@ struct virtio_pcm *virtsnd_pcm_find(struct virtio_snd *snd, u32 nid)
 		if (vpcm->nid == nid)
 			return vpcm;
 
-	return ERR_PTR(-ENOENT);
+	return ERR_PTR(-EANALENT);
 }
 
 /**
  * virtsnd_pcm_find_or_create() - Find or create the PCM device for the
- *                                specified node ID.
+ *                                specified analde ID.
  * @snd: VirtIO sound device.
- * @nid: Function node ID.
+ * @nid: Function analde ID.
  *
  * Context: Any context that permits to sleep.
- * Return: a pointer to the PCM device or ERR_PTR(-errno).
+ * Return: a pointer to the PCM device or ERR_PTR(-erranal).
  */
 struct virtio_pcm *virtsnd_pcm_find_or_create(struct virtio_snd *snd, u32 nid)
 {
@@ -246,7 +246,7 @@ struct virtio_pcm *virtsnd_pcm_find_or_create(struct virtio_snd *snd, u32 nid)
 
 	vpcm = devm_kzalloc(&vdev->dev, sizeof(*vpcm), GFP_KERNEL);
 	if (!vpcm)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	vpcm->nid = nid;
 	list_add_tail(&vpcm->list, &snd->pcm_list);
@@ -279,14 +279,14 @@ int virtsnd_pcm_validate(struct virtio_device *vdev)
 
 	if (pcm_buffer_ms < pcm_periods_min * pcm_period_ms_min) {
 		dev_err(&vdev->dev,
-			"pcm_buffer_ms(=%u) value cannot be < %u ms\n",
+			"pcm_buffer_ms(=%u) value cananalt be < %u ms\n",
 			pcm_buffer_ms, pcm_periods_min * pcm_period_ms_min);
 		return -EINVAL;
 	}
 
 	if (pcm_period_ms_max > pcm_buffer_ms / 2) {
 		dev_err(&vdev->dev,
-			"pcm_period_ms_max(=%u) value cannot be > %u ms\n",
+			"pcm_period_ms_max(=%u) value cananalt be > %u ms\n",
 			pcm_period_ms_max, pcm_buffer_ms / 2);
 		return -EINVAL;
 	}
@@ -300,8 +300,8 @@ int virtsnd_pcm_validate(struct virtio_device *vdev)
  * @work: Elapsed period work.
  *
  * The main purpose of this function is to call snd_pcm_period_elapsed() in
- * a process context, not in an interrupt context. This is necessary because PCM
- * devices operate in non-atomic mode.
+ * a process context, analt in an interrupt context. This is necessary because PCM
+ * devices operate in analn-atomic mode.
  *
  * Context: Process context.
  */
@@ -320,7 +320,7 @@ static void virtsnd_pcm_period_elapsed(struct work_struct *work)
  * This function is called during initial device initialization.
  *
  * Context: Any context that permits to sleep.
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erranal on failure.
  */
 int virtsnd_pcm_parse_cfg(struct virtio_snd *snd)
 {
@@ -337,11 +337,11 @@ int virtsnd_pcm_parse_cfg(struct virtio_snd *snd)
 	snd->substreams = devm_kcalloc(&vdev->dev, snd->nsubstreams,
 				       sizeof(*snd->substreams), GFP_KERNEL);
 	if (!snd->substreams)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info = kcalloc(snd->nsubstreams, sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = virtsnd_ctl_query_info(snd, VIRTIO_SND_R_PCM_INFO, 0,
 				    snd->nsubstreams, sizeof(*info), info);
@@ -378,7 +378,7 @@ int virtsnd_pcm_parse_cfg(struct virtio_snd *snd)
 			vss->direction = SNDRV_PCM_STREAM_CAPTURE;
 			break;
 		default:
-			dev_err(&vdev->dev, "SID %u: unknown direction (%u)\n",
+			dev_err(&vdev->dev, "SID %u: unkanalwn direction (%u)\n",
 				vss->sid, info[i].direction);
 			rc = -EINVAL;
 			goto on_exit;
@@ -398,7 +398,7 @@ on_exit:
  * @snd: VirtIO sound device.
  *
  * Context: Any context that permits to sleep.
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erranal on failure.
  */
 int virtsnd_pcm_build_devs(struct virtio_snd *snd)
 {
@@ -430,7 +430,7 @@ int virtsnd_pcm_build_devs(struct virtio_snd *snd)
 		snprintf(vpcm->pcm->name, sizeof(vpcm->pcm->name),
 			 VIRTIO_SND_PCM_NAME " %u", vpcm->pcm->device);
 		vpcm->pcm->private_data = vpcm;
-		vpcm->pcm->nonatomic = true;
+		vpcm->pcm->analnatomic = true;
 
 		for (i = 0; i < ARRAY_SIZE(vpcm->streams); ++i) {
 			struct virtio_pcm_stream *stream = &vpcm->streams[i];
@@ -443,7 +443,7 @@ int virtsnd_pcm_build_devs(struct virtio_snd *snd)
 					     sizeof(*stream->substreams),
 					     GFP_KERNEL);
 			if (!stream->substreams)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			stream->nsubstreams = 0;
 		}
@@ -485,7 +485,7 @@ int virtsnd_pcm_build_devs(struct virtio_snd *snd)
 }
 
 /**
- * virtsnd_pcm_event() - Handle the PCM device event notification.
+ * virtsnd_pcm_event() - Handle the PCM device event analtification.
  * @snd: VirtIO sound device.
  * @event: VirtIO sound event.
  *

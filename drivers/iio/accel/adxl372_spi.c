@@ -17,7 +17,7 @@ static const struct regmap_config adxl372_spi_regmap_config = {
 	.pad_bits = 1,
 	.val_bits = 8,
 	.read_flag_mask = BIT(0),
-	.readable_noinc_reg = adxl372_readable_noinc_reg,
+	.readable_analinc_reg = adxl372_readable_analinc_reg,
 };
 
 static int adxl372_spi_probe(struct spi_device *spi)

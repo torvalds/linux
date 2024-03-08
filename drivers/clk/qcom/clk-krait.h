@@ -18,7 +18,7 @@ struct krait_mux_clk {
 	bool		disable_sec_src_gating;
 
 	struct clk_hw	hw;
-	struct notifier_block   clk_nb;
+	struct analtifier_block   clk_nb;
 };
 
 #define to_krait_mux_clk(_hw) container_of(_hw, struct krait_mux_clk, hw)

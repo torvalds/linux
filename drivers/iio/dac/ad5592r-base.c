@@ -118,7 +118,7 @@ static int ad5592r_gpio_request(struct gpio_chip *chip, unsigned offset)
 	if (!(st->gpio_map & BIT(offset))) {
 		dev_err(st->dev, "GPIO %d is reserved by alternate function\n",
 			offset);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -457,7 +457,7 @@ static int ad5592r_write_raw_get_fmt(struct iio_dev *indio_dev,
 {
 	switch (mask) {
 	case IIO_CHAN_INFO_SCALE:
-		return IIO_VAL_INT_PLUS_NANO;
+		return IIO_VAL_INT_PLUS_NAANAL;
 
 	default:
 		return IIO_VAL_INT_PLUS_MICRO;
@@ -514,20 +514,20 @@ static int ad5592r_alloc_channels(struct iio_dev *iio_dev)
 	unsigned i, curr_channel = 0,
 		 num_channels = st->num_channels;
 	struct iio_chan_spec *channels;
-	struct fwnode_handle *child;
+	struct fwanalde_handle *child;
 	u32 reg, tmp;
 	int ret;
 
-	device_for_each_child_node(st->dev, child) {
-		ret = fwnode_property_read_u32(child, "reg", &reg);
+	device_for_each_child_analde(st->dev, child) {
+		ret = fwanalde_property_read_u32(child, "reg", &reg);
 		if (ret || reg >= ARRAY_SIZE(st->channel_modes))
 			continue;
 
-		ret = fwnode_property_read_u32(child, "adi,mode", &tmp);
+		ret = fwanalde_property_read_u32(child, "adi,mode", &tmp);
 		if (!ret)
 			st->channel_modes[reg] = tmp;
 
-		ret = fwnode_property_read_u32(child, "adi,off-state", &tmp);
+		ret = fwanalde_property_read_u32(child, "adi,off-state", &tmp);
 		if (!ret)
 			st->channel_offstate[reg] = tmp;
 	}
@@ -536,7 +536,7 @@ static int ad5592r_alloc_channels(struct iio_dev *iio_dev)
 			1 + 2 * num_channels, sizeof(*channels),
 			GFP_KERNEL);
 	if (!channels)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num_channels; i++) {
 		switch (st->channel_modes[i]) {
@@ -598,7 +598,7 @@ int ad5592r_probe(struct device *dev, const char *name,
 
 	iio_dev = devm_iio_device_alloc(dev, sizeof(*st));
 	if (!iio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st = iio_priv(iio_dev);
 	st->dev = dev;
@@ -608,7 +608,7 @@ int ad5592r_probe(struct device *dev, const char *name,
 
 	st->reg = devm_regulator_get_optional(dev, "vref");
 	if (IS_ERR(st->reg)) {
-		if ((PTR_ERR(st->reg) != -ENODEV) && dev_fwnode(dev))
+		if ((PTR_ERR(st->reg) != -EANALDEV) && dev_fwanalde(dev))
 			return PTR_ERR(st->reg);
 
 		st->reg = NULL;

@@ -43,12 +43,12 @@ static struct clock_event_device clock_event_device_uv = {
 
 static DEFINE_PER_CPU(struct clock_event_device, cpu_ced);
 
-/* There is one of these allocated per node */
+/* There is one of these allocated per analde */
 struct uv_rtc_timer_head {
 	spinlock_t	lock;
-	/* next cpu waiting for timer, local node relative: */
+	/* next cpu waiting for timer, local analde relative: */
 	int		next_cpu;
-	/* number of cpus on this node: */
+	/* number of cpus on this analde: */
 	int		ncpus;
 	struct {
 		int	lcpu;		/* systemwide logical cpu number */
@@ -67,54 +67,54 @@ static int				uv_rtc_evt_enable;
  * Hardware interface routines
  */
 
-/* Send IPIs to another node */
+/* Send IPIs to aanalther analde */
 static void uv_rtc_send_IPI(int cpu)
 {
 	unsigned long apicid, val;
-	int pnode;
+	int panalde;
 
 	apicid = cpu_physical_id(cpu);
-	pnode = uv_apicid_to_pnode(apicid);
+	panalde = uv_apicid_to_panalde(apicid);
 	val = (1UL << UVH_IPI_INT_SEND_SHFT) |
 	      (apicid << UVH_IPI_INT_APIC_ID_SHFT) |
 	      (X86_PLATFORM_IPI_VECTOR << UVH_IPI_INT_VECTOR_SHFT);
 
-	uv_write_global_mmr64(pnode, UVH_IPI_INT, val);
+	uv_write_global_mmr64(panalde, UVH_IPI_INT, val);
 }
 
 /* Check for an RTC interrupt pending */
-static int uv_intr_pending(int pnode)
+static int uv_intr_pending(int panalde)
 {
-	return uv_read_global_mmr64(pnode, UVH_EVENT_OCCURRED2) &
+	return uv_read_global_mmr64(panalde, UVH_EVENT_OCCURRED2) &
 		UVH_EVENT_OCCURRED2_RTC_1_MASK;
 }
 
-/* Setup interrupt and return non-zero if early expiration occurred. */
+/* Setup interrupt and return analn-zero if early expiration occurred. */
 static int uv_setup_intr(int cpu, u64 expires)
 {
 	u64 val;
 	unsigned long apicid = cpu_physical_id(cpu);
-	int pnode = uv_cpu_to_pnode(cpu);
+	int panalde = uv_cpu_to_panalde(cpu);
 
-	uv_write_global_mmr64(pnode, UVH_RTC1_INT_CONFIG,
+	uv_write_global_mmr64(panalde, UVH_RTC1_INT_CONFIG,
 		UVH_RTC1_INT_CONFIG_M_MASK);
-	uv_write_global_mmr64(pnode, UVH_INT_CMPB, -1L);
+	uv_write_global_mmr64(panalde, UVH_INT_CMPB, -1L);
 
-	uv_write_global_mmr64(pnode, UVH_EVENT_OCCURRED2_ALIAS,
+	uv_write_global_mmr64(panalde, UVH_EVENT_OCCURRED2_ALIAS,
 			      UVH_EVENT_OCCURRED2_RTC_1_MASK);
 
 	val = (X86_PLATFORM_IPI_VECTOR << UVH_RTC1_INT_CONFIG_VECTOR_SHFT) |
 		((u64)apicid << UVH_RTC1_INT_CONFIG_APIC_ID_SHFT);
 
 	/* Set configuration */
-	uv_write_global_mmr64(pnode, UVH_RTC1_INT_CONFIG, val);
+	uv_write_global_mmr64(panalde, UVH_RTC1_INT_CONFIG, val);
 	/* Initialize comparator value */
-	uv_write_global_mmr64(pnode, UVH_INT_CMPB, expires);
+	uv_write_global_mmr64(panalde, UVH_INT_CMPB, expires);
 
 	if (uv_read_rtc(NULL) <= expires)
 		return 0;
 
-	return !uv_intr_pending(pnode);
+	return !uv_intr_pending(panalde);
 }
 
 /*
@@ -131,28 +131,28 @@ static __init void uv_rtc_deallocate_timers(void)
 	kfree(blade_info);
 }
 
-/* Allocate per-node list of cpu timer expiration times. */
+/* Allocate per-analde list of cpu timer expiration times. */
 static __init int uv_rtc_allocate_timers(void)
 {
 	int cpu;
 
 	blade_info = kcalloc(uv_possible_blades, sizeof(void *), GFP_KERNEL);
 	if (!blade_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for_each_present_cpu(cpu) {
-		int nid = cpu_to_node(cpu);
+		int nid = cpu_to_analde(cpu);
 		int bid = uv_cpu_to_blade_id(cpu);
 		int bcpu = uv_cpu_blade_processor_id(cpu);
 		struct uv_rtc_timer_head *head = blade_info[bid];
 
 		if (!head) {
-			head = kmalloc_node(struct_size(head, cpu,
+			head = kmalloc_analde(struct_size(head, cpu,
 				uv_blade_nr_possible_cpus(bid)),
 				GFP_KERNEL, nid);
 			if (!head) {
 				uv_rtc_deallocate_timers();
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 			spin_lock_init(&head->lock);
 			head->ncpus = uv_blade_nr_possible_cpus(bid);
@@ -168,7 +168,7 @@ static __init int uv_rtc_allocate_timers(void)
 }
 
 /* Find and set the next expiring timer.  */
-static void uv_rtc_find_next_timer(struct uv_rtc_timer_head *head, int pnode)
+static void uv_rtc_find_next_timer(struct uv_rtc_timer_head *head, int panalde)
 {
 	u64 lowest = ULLONG_MAX;
 	int c, bcpu = -1;
@@ -188,7 +188,7 @@ static void uv_rtc_find_next_timer(struct uv_rtc_timer_head *head, int pnode)
 			/* If we didn't set it up in time, trigger */
 			uv_rtc_send_IPI(c);
 	} else {
-		uv_write_global_mmr64(pnode, UVH_RTC1_INT_CONFIG,
+		uv_write_global_mmr64(panalde, UVH_RTC1_INT_CONFIG,
 			UVH_RTC1_INT_CONFIG_M_MASK);
 	}
 }
@@ -200,7 +200,7 @@ static void uv_rtc_find_next_timer(struct uv_rtc_timer_head *head, int pnode)
  */
 static int uv_rtc_set_timer(int cpu, u64 expires)
 {
-	int pnode = uv_cpu_to_pnode(cpu);
+	int panalde = uv_cpu_to_panalde(cpu);
 	int bid = uv_cpu_to_blade_id(cpu);
 	struct uv_rtc_timer_head *head = blade_info[bid];
 	int bcpu = uv_cpu_blade_processor_id(cpu);
@@ -219,7 +219,7 @@ static int uv_rtc_set_timer(int cpu, u64 expires)
 		head->next_cpu = bcpu;
 		if (uv_setup_intr(cpu, expires)) {
 			*t = ULLONG_MAX;
-			uv_rtc_find_next_timer(head, pnode);
+			uv_rtc_find_next_timer(head, panalde);
 			spin_unlock_irqrestore(&head->lock, flags);
 			return -ETIME;
 		}
@@ -236,7 +236,7 @@ static int uv_rtc_set_timer(int cpu, u64 expires)
  */
 static int uv_rtc_unset_timer(int cpu, int force)
 {
-	int pnode = uv_cpu_to_pnode(cpu);
+	int panalde = uv_cpu_to_panalde(cpu);
 	int bid = uv_cpu_to_blade_id(cpu);
 	struct uv_rtc_timer_head *head = blade_info[bid];
 	int bcpu = uv_cpu_blade_processor_id(cpu);
@@ -253,7 +253,7 @@ static int uv_rtc_unset_timer(int cpu, int force)
 		*t = ULLONG_MAX;
 		/* Was the hardware setup for this timer? */
 		if (head->next_cpu == bcpu)
-			uv_rtc_find_next_timer(head, pnode);
+			uv_rtc_find_next_timer(head, panalde);
 	}
 
 	spin_unlock_irqrestore(&head->lock, flags);
@@ -286,7 +286,7 @@ static u64 uv_read_rtc(struct clocksource *cs)
 }
 
 /*
- * Program the next event, relative to now
+ * Program the next event, relative to analw
  */
 static int uv_rtc_next_event(unsigned long delta,
 			     struct clock_event_device *ced)
@@ -343,7 +343,7 @@ static __init int uv_rtc_setup_clock(void)
 	int rc;
 
 	if (!is_uv_system())
-		return -ENODEV;
+		return -EANALDEV;
 
 	rc = clocksource_register_hz(&clocksource_uv, sn_rtc_cycles_per_second);
 	if (rc)

@@ -183,7 +183,7 @@ CVE分配
   VMware
   Xen		Andrew Cooper <andrew.cooper3@citrix.com>
 
-  Canonical	John Johansen <john.johansen@canonical.com>
+  Caanalnical	John Johansen <john.johansen@caanalnical.com>
   Debian	Ben Hutchings <ben@decadent.org.uk>
   Oracle	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
   Red Hat	Josh Poimboeuf <jpoimboe@redhat.com>

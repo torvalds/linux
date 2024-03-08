@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 .. _V4L2-PIX-FMT-UV8:
 
@@ -13,7 +13,7 @@ UV plane interleaved
 Description
 ===========
 
-In this format there is no Y plane, Only CbCr plane. ie (UV interleaved)
+In this format there is anal Y plane, Only CbCr plane. ie (UV interleaved)
 
 **Byte Order.**
 Each cell is one byte.

@@ -66,13 +66,13 @@ properties:
       - const: wakeup
 
   power-domains:
-    description: A phandle to USB power domain node to control USB's MTCMOS
+    description: A phandle to USB power domain analde to control USB's MTCMOS
     maxItems: 1
 
   clocks:
     minItems: 1
     items:
-      - description: Controller clock used by normal mode
+      - description: Controller clock used by analrmal mode
       - description: Reference clock used by low power mode etc
       - description: Mcu bus clock for register access
       - description: DMA bus clock for data transfer

@@ -13,7 +13,7 @@
  *
  *    Consider for e.g. Remus - a Virtual Machine checkpointing system,
  *    wherein a VM is checkpointed, say every 50ms. The checkpoint is replicated
- *    asynchronously to the backup host, while the VM continues executing the
+ *    asynchroanalusly to the backup host, while the VM continues executing the
  *    next epoch speculatively.
  *
  *    The following is a typical sequence of output buffer operations:
@@ -21,7 +21,7 @@
  *       2. At end of epoch i (i.e. after 50ms):
  *          2.1 Stop VM and take checkpoint(i).
  *          2.2 start_buffer(i+1) and Resume VM
- *       3. While speculatively executing epoch(i+1), asynchronously replicate
+ *       3. While speculatively executing epoch(i+1), asynchroanalusly replicate
  *          checkpoint(i) to backup host.
  *       4. When checkpoint_ack(i) is received from backup, release_buffer(i)
  *    Thus, this Qdisc would receive the following sequence of commands:
@@ -35,7 +35,7 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
 #include <net/pkt_sched.h>
@@ -107,7 +107,7 @@ static struct sk_buff *plug_dequeue(struct Qdisc *sch)
 
 	if (!q->unplug_indefinite) {
 		if (!q->pkts_to_release) {
-			/* No more packets to dequeue. Block the queue
+			/* Anal more packets to dequeue. Block the queue
 			 * and wait for the next release command.
 			 */
 			q->throttled = true;

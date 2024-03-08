@@ -11,13 +11,13 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
@@ -108,7 +108,7 @@ static inline void vmw_bo_unpin_unlocked(struct ttm_buffer_object *bo)
  * @offset          Start of table offset into dev_priv::otable_bo
  * @otable          Pointer to otable metadata;
  *
- * This function returns -ENOMEM if it fails to reserve fifo space,
+ * This function returns -EANALMEM if it fails to reserve fifo space,
  * and may block waiting for fifo space.
  */
 static int vmw_setup_otable_base(struct vmw_private *dev_priv,
@@ -135,7 +135,7 @@ static int vmw_setup_otable_base(struct vmw_private *dev_priv,
 	mob = vmw_mob_create(otable->size >> PAGE_SHIFT);
 	if (unlikely(mob == NULL)) {
 		DRM_ERROR("Failed creating OTable page table.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (otable->size <= PAGE_SIZE) {
@@ -144,7 +144,7 @@ static int vmw_setup_otable_base(struct vmw_private *dev_priv,
 	} else {
 		ret = vmw_mob_pt_populate(dev_priv, mob);
 		if (unlikely(ret != 0))
-			goto out_no_populate;
+			goto out_anal_populate;
 
 		vmw_mob_pt_setup(mob, iter, otable->size >> PAGE_SHIFT);
 		mob->pt_level += VMW_MOBFMT_PTDEPTH_1 - SVGA3D_MOBFMT_PT_1;
@@ -152,8 +152,8 @@ static int vmw_setup_otable_base(struct vmw_private *dev_priv,
 
 	cmd = VMW_CMD_RESERVE(dev_priv, sizeof(*cmd));
 	if (unlikely(cmd == NULL)) {
-		ret = -ENOMEM;
-		goto out_no_fifo;
+		ret = -EANALMEM;
+		goto out_anal_fifo;
 	}
 
 	memset(cmd, 0, sizeof(*cmd));
@@ -177,8 +177,8 @@ static int vmw_setup_otable_base(struct vmw_private *dev_priv,
 
 	return 0;
 
-out_no_fifo:
-out_no_populate:
+out_anal_fifo:
+out_anal_populate:
 	vmw_mob_destroy(mob);
 	return ret;
 }
@@ -268,13 +268,13 @@ static int vmw_otable_batch_setup(struct vmw_private *dev_priv,
 					    offset,
 					    &otables[i]);
 		if (unlikely(ret != 0))
-			goto out_no_setup;
+			goto out_anal_setup;
 		offset += otables[i].size;
 	}
 
 	return 0;
 
-out_no_setup:
+out_anal_setup:
 	for (i = 0; i < batch->num_otables; ++i) {
 		if (batch->otables[i].enabled)
 			vmw_takedown_otable_base(dev_priv, i,
@@ -306,14 +306,14 @@ int vmw_otables_setup(struct vmw_private *dev_priv)
 	if (has_sm4_context(dev_priv)) {
 		*otables = kmemdup(dx_tables, sizeof(dx_tables), GFP_KERNEL);
 		if (!(*otables))
-			return -ENOMEM;
+			return -EANALMEM;
 
 		dev_priv->otable_batch.num_otables = ARRAY_SIZE(dx_tables);
 	} else {
 		*otables = kmemdup(pre_dx_tables, sizeof(pre_dx_tables),
 				   GFP_KERNEL);
 		if (!(*otables))
-			return -ENOMEM;
+			return -EANALMEM;
 
 		dev_priv->otable_batch.num_otables = ARRAY_SIZE(pre_dx_tables);
 	}
@@ -408,7 +408,7 @@ struct vmw_mob *vmw_mob_create(unsigned long data_pages)
  *               populate.
  *
  * This function allocates memory to be used for the pagetable.
- * Returns ENOMEM if memory resources aren't sufficient and may
+ * Returns EANALMEM if memory resources aren't sufficient and may
  * cause TTM buffer objects to be swapped out.
  */
 static int vmw_mob_pt_populate(struct vmw_private *dev_priv,
@@ -561,7 +561,7 @@ void vmw_mob_unbind(struct vmw_private *dev_priv,
 	if (bo) {
 		ret = ttm_bo_reserve(bo, false, true, NULL);
 		/*
-		 * Noone else should be using this buffer.
+		 * Analone else should be using this buffer.
 		 */
 		BUG_ON(ret != 0);
 	}
@@ -632,7 +632,7 @@ int vmw_mob_bind(struct vmw_private *dev_priv,
 
 	cmd = VMW_CMD_RESERVE(dev_priv, sizeof(*cmd));
 	if (unlikely(cmd == NULL))
-		goto out_no_cmd_space;
+		goto out_anal_cmd_space;
 
 	cmd->header.id = SVGA_3D_CMD_DEFINE_GB_MOB64;
 	cmd->header.size = sizeof(cmd->body);
@@ -645,12 +645,12 @@ int vmw_mob_bind(struct vmw_private *dev_priv,
 
 	return 0;
 
-out_no_cmd_space:
+out_anal_cmd_space:
 	vmw_fifo_resource_dec(dev_priv);
 	if (pt_set_up) {
 		vmw_bo_unpin_unlocked(&mob->pt_bo->tbo);
 		vmw_bo_unreference(&mob->pt_bo);
 	}
 
-	return -ENOMEM;
+	return -EANALMEM;
 }

@@ -83,7 +83,7 @@ TRACE_EVENT(iwlwifi_dev_tx,
 		__dynamic_array(u8, tfd, tfdlen)
 
 		/*
-		 * Do not insert between or below these items,
+		 * Do analt insert between or below these items,
 		 * we want to keep the frame together (except
 		 * for the possible padding).
 		 */

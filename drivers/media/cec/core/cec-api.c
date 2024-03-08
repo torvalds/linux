@@ -5,7 +5,7 @@
  * Copyright 2016 Cisco Systems, Inc. and/or its affiliates. All rights reserved.
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -22,11 +22,11 @@
 #include "cec-priv.h"
 #include "cec-pin-priv.h"
 
-static inline struct cec_devnode *cec_devnode_data(struct file *filp)
+static inline struct cec_devanalde *cec_devanalde_data(struct file *filp)
 {
 	struct cec_fh *fh = filp->private_data;
 
-	return &fh->adap->devnode;
+	return &fh->adap->devanalde;
 }
 
 /* CEC file operations */
@@ -44,9 +44,9 @@ static __poll_t cec_poll(struct file *filp,
 	mutex_lock(&adap->lock);
 	if (adap->is_configured &&
 	    adap->transmit_queue_sz < CEC_MAX_MSG_TX_QUEUE_SZ)
-		res |= EPOLLOUT | EPOLLWRNORM;
+		res |= EPOLLOUT | EPOLLWRANALRM;
 	if (fh->queued_msgs)
-		res |= EPOLLIN | EPOLLRDNORM;
+		res |= EPOLLIN | EPOLLRDANALRM;
 	if (fh->total_queued_events)
 		res |= EPOLLPRI;
 	mutex_unlock(&adap->lock);
@@ -65,11 +65,11 @@ static bool cec_is_busy(const struct cec_adapter *adap,
 	if (valid_initiator || valid_follower)
 		return false;
 	/*
-	 * All others can only access the CEC adapter if there is no
+	 * All others can only access the CEC adapter if there is anal
 	 * exclusive initiator and they are in INITIATOR mode.
 	 */
 	return adap->cec_initiator ||
-	       fh->mode_initiator == CEC_MODE_NO_INITIATOR;
+	       fh->mode_initiator == CEC_MODE_ANAL_INITIATOR;
 }
 
 static long cec_adap_g_caps(struct cec_adapter *adap,
@@ -77,7 +77,7 @@ static long cec_adap_g_caps(struct cec_adapter *adap,
 {
 	struct cec_caps caps = {};
 
-	strscpy(caps.driver, adap->devnode.dev.parent->driver->name,
+	strscpy(caps.driver, adap->devanalde.dev.parent->driver->name,
 		sizeof(caps.driver));
 	strscpy(caps.name, adap->name, sizeof(caps.name));
 	caps.available_log_addrs = adap->available_log_addrs;
@@ -125,7 +125,7 @@ static long cec_adap_s_phys_addr(struct cec_adapter *adap, struct cec_fh *fh,
 	long err;
 
 	if (!(adap->capabilities & CEC_CAP_PHYS_ADDR))
-		return -ENOTTY;
+		return -EANALTTY;
 	if (copy_from_user(&phys_addr, parg, sizeof(phys_addr)))
 		return -EFAULT;
 
@@ -150,7 +150,7 @@ static long cec_adap_g_log_addrs(struct cec_adapter *adap,
 	/*
 	 * We use memcpy here instead of assignment since there is a
 	 * hole at the end of struct cec_log_addrs that an assignment
-	 * might ignore. So when we do copy_to_user() we could leak
+	 * might iganalre. So when we do copy_to_user() we could leak
 	 * one byte of memory.
 	 */
 	memcpy(&log_addrs, &adap->log_addrs, sizeof(log_addrs));
@@ -171,7 +171,7 @@ static long cec_adap_s_log_addrs(struct cec_adapter *adap, struct cec_fh *fh,
 	long err = -EBUSY;
 
 	if (!(adap->capabilities & CEC_CAP_LOG_ADDRS))
-		return -ENOTTY;
+		return -EANALTTY;
 	if (copy_from_user(&log_addrs, parg, sizeof(log_addrs)))
 		return -EFAULT;
 	log_addrs.flags &= CEC_LOG_ADDRS_FL_ALLOW_UNREG_FALLBACK |
@@ -199,7 +199,7 @@ static long cec_adap_g_connector_info(struct cec_adapter *adap,
 	int ret = 0;
 
 	if (!(adap->capabilities & CEC_CAP_CONNECTOR_INFO))
-		return -ENOTTY;
+		return -EANALTTY;
 
 	mutex_lock(&adap->lock);
 	if (copy_to_user(parg, &adap->conn_info, sizeof(adap->conn_info)))
@@ -215,7 +215,7 @@ static long cec_transmit(struct cec_adapter *adap, struct cec_fh *fh,
 	long err = 0;
 
 	if (!(adap->capabilities & CEC_CAP_TRANSMIT))
-		return -ENOTTY;
+		return -EANALTTY;
 	if (copy_from_user(&msg, parg, sizeof(msg)))
 		return -EFAULT;
 
@@ -223,7 +223,7 @@ static long cec_transmit(struct cec_adapter *adap, struct cec_fh *fh,
 	if (adap->log_addrs.num_log_addrs == 0)
 		err = -EPERM;
 	else if (adap->is_configuring)
-		err = -ENONET;
+		err = -EANALNET;
 	else if (cec_is_busy(adap, fh))
 		err = -EBUSY;
 	else
@@ -246,7 +246,7 @@ static int cec_receive_msg(struct cec_fh *fh, struct cec_msg *msg, bool block)
 		mutex_lock(&fh->lock);
 		/* Are there received messages queued up? */
 		if (fh->queued_msgs) {
-			/* Yes, return the first one */
+			/* Anal, return the first one */
 			struct cec_msg_entry *entry =
 				list_first_entry(&fh->msgs,
 						 struct cec_msg_entry, list);
@@ -261,10 +261,10 @@ static int cec_receive_msg(struct cec_fh *fh, struct cec_msg *msg, bool block)
 			return 0;
 		}
 
-		/* No, return EAGAIN in non-blocking mode or wait */
+		/* Anal, return EAGAIN in analn-blocking mode or wait */
 		mutex_unlock(&fh->lock);
 
-		/* Return when in non-blocking mode */
+		/* Return when in analn-blocking mode */
 		if (!block)
 			return -EAGAIN;
 
@@ -386,34 +386,34 @@ static long cec_s_mode(struct cec_adapter *adap, struct cec_fh *fh,
 
 	if (mode_initiator > CEC_MODE_EXCL_INITIATOR ||
 	    mode_follower > CEC_MODE_MONITOR_ALL) {
-		dprintk(1, "%s: unknown mode\n", __func__);
+		dprintk(1, "%s: unkanalwn mode\n", __func__);
 		return -EINVAL;
 	}
 
 	if (mode_follower == CEC_MODE_MONITOR_ALL &&
 	    !(adap->capabilities & CEC_CAP_MONITOR_ALL)) {
-		dprintk(1, "%s: MONITOR_ALL not supported\n", __func__);
+		dprintk(1, "%s: MONITOR_ALL analt supported\n", __func__);
 		return -EINVAL;
 	}
 
 	if (mode_follower == CEC_MODE_MONITOR_PIN &&
 	    !(adap->capabilities & CEC_CAP_MONITOR_PIN)) {
-		dprintk(1, "%s: MONITOR_PIN not supported\n", __func__);
+		dprintk(1, "%s: MONITOR_PIN analt supported\n", __func__);
 		return -EINVAL;
 	}
 
 	/* Follower modes should always be able to send CEC messages */
-	if ((mode_initiator == CEC_MODE_NO_INITIATOR ||
+	if ((mode_initiator == CEC_MODE_ANAL_INITIATOR ||
 	     !(adap->capabilities & CEC_CAP_TRANSMIT)) &&
 	    mode_follower >= CEC_MODE_FOLLOWER &&
 	    mode_follower <= CEC_MODE_EXCL_FOLLOWER_PASSTHRU) {
-		dprintk(1, "%s: cannot transmit\n", __func__);
+		dprintk(1, "%s: cananalt transmit\n", __func__);
 		return -EINVAL;
 	}
 
-	/* Monitor modes require CEC_MODE_NO_INITIATOR */
+	/* Monitor modes require CEC_MODE_ANAL_INITIATOR */
 	if (mode_initiator && mode_follower >= CEC_MODE_MONITOR_PIN) {
-		dprintk(1, "%s: monitor modes require NO_INITIATOR\n",
+		dprintk(1, "%s: monitor modes require ANAL_INITIATOR\n",
 			__func__);
 		return -EINVAL;
 	}
@@ -505,11 +505,11 @@ static long cec_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct cec_fh *fh = filp->private_data;
 	struct cec_adapter *adap = fh->adap;
-	bool block = !(filp->f_flags & O_NONBLOCK);
+	bool block = !(filp->f_flags & O_ANALNBLOCK);
 	void __user *parg = (void __user *)arg;
 
 	if (!cec_is_registered(adap))
-		return -ENODEV;
+		return -EANALDEV;
 
 	switch (cmd) {
 	case CEC_ADAP_G_CAPS:
@@ -546,15 +546,15 @@ static long cec_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		return cec_s_mode(adap, fh, parg);
 
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 }
 
-static int cec_open(struct inode *inode, struct file *filp)
+static int cec_open(struct ianalde *ianalde, struct file *filp)
 {
-	struct cec_devnode *devnode =
-		container_of(inode->i_cdev, struct cec_devnode, cdev);
-	struct cec_adapter *adap = to_cec_adapter(devnode);
+	struct cec_devanalde *devanalde =
+		container_of(ianalde->i_cdev, struct cec_devanalde, cdev);
+	struct cec_adapter *adap = to_cec_adapter(devanalde);
 	struct cec_fh *fh = kzalloc(sizeof(*fh), GFP_KERNEL);
 	/*
 	 * Initial events that are automatically sent when the cec device is
@@ -568,7 +568,7 @@ static int cec_open(struct inode *inode, struct file *filp)
 	int err;
 
 	if (!fh)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&fh->msgs);
 	INIT_LIST_HEAD(&fh->xfer_list);
@@ -580,7 +580,7 @@ static int cec_open(struct inode *inode, struct file *filp)
 	fh->mode_initiator = CEC_MODE_INITIATOR;
 	fh->adap = adap;
 
-	err = cec_get_device(devnode);
+	err = cec_get_device(devanalde);
 	if (err) {
 		kfree(fh);
 		return err;
@@ -592,11 +592,11 @@ static int cec_open(struct inode *inode, struct file *filp)
 	ev.state_change.phys_addr = adap->phys_addr;
 	ev.state_change.log_addr_mask = adap->log_addrs.log_addr_mask;
 	ev.state_change.have_conn_info =
-		adap->conn_info.type != CEC_CONNECTOR_TYPE_NO_CONNECTOR;
+		adap->conn_info.type != CEC_CONNECTOR_TYPE_ANAL_CONNECTOR;
 	cec_queue_event_fh(fh, &ev, 0);
 #ifdef CONFIG_CEC_PIN
 	if (adap->pin && adap->pin->ops->read_hpd &&
-	    !adap->devnode.unregistered) {
+	    !adap->devanalde.unregistered) {
 		err = adap->pin->ops->read_hpd(adap);
 		if (err >= 0) {
 			ev.event = err ? CEC_EVENT_PIN_HPD_HIGH :
@@ -605,7 +605,7 @@ static int cec_open(struct inode *inode, struct file *filp)
 		}
 	}
 	if (adap->pin && adap->pin->ops->read_5v &&
-	    !adap->devnode.unregistered) {
+	    !adap->devanalde.unregistered) {
 		err = adap->pin->ops->read_5v(adap);
 		if (err >= 0) {
 			ev.event = err ? CEC_EVENT_PIN_5V_HIGH :
@@ -615,20 +615,20 @@ static int cec_open(struct inode *inode, struct file *filp)
 	}
 #endif
 
-	mutex_lock(&devnode->lock);
-	mutex_lock(&devnode->lock_fhs);
-	list_add(&fh->list, &devnode->fhs);
-	mutex_unlock(&devnode->lock_fhs);
-	mutex_unlock(&devnode->lock);
+	mutex_lock(&devanalde->lock);
+	mutex_lock(&devanalde->lock_fhs);
+	list_add(&fh->list, &devanalde->fhs);
+	mutex_unlock(&devanalde->lock_fhs);
+	mutex_unlock(&devanalde->lock);
 
 	return 0;
 }
 
 /* Override for the release function */
-static int cec_release(struct inode *inode, struct file *filp)
+static int cec_release(struct ianalde *ianalde, struct file *filp)
 {
-	struct cec_devnode *devnode = cec_devnode_data(filp);
-	struct cec_adapter *adap = to_cec_adapter(devnode);
+	struct cec_devanalde *devanalde = cec_devanalde_data(filp);
+	struct cec_adapter *adap = to_cec_adapter(devanalde);
 	struct cec_fh *fh = filp->private_data;
 	unsigned int i;
 
@@ -647,11 +647,11 @@ static int cec_release(struct inode *inode, struct file *filp)
 		cec_monitor_all_cnt_dec(adap);
 	mutex_unlock(&adap->lock);
 
-	mutex_lock(&devnode->lock);
-	mutex_lock(&devnode->lock_fhs);
+	mutex_lock(&devanalde->lock);
+	mutex_lock(&devanalde->lock_fhs);
 	list_del(&fh->list);
-	mutex_unlock(&devnode->lock_fhs);
-	mutex_unlock(&devnode->lock);
+	mutex_unlock(&devanalde->lock_fhs);
+	mutex_unlock(&devanalde->lock);
 
 	/* Unhook pending transmits from this filehandle. */
 	mutex_lock(&adap->lock);
@@ -683,17 +683,17 @@ static int cec_release(struct inode *inode, struct file *filp)
 	}
 	kfree(fh);
 
-	cec_put_device(devnode);
+	cec_put_device(devanalde);
 	filp->private_data = NULL;
 	return 0;
 }
 
-const struct file_operations cec_devnode_fops = {
+const struct file_operations cec_devanalde_fops = {
 	.owner = THIS_MODULE,
 	.open = cec_open,
 	.unlocked_ioctl = cec_ioctl,
 	.compat_ioctl = cec_ioctl,
 	.release = cec_release,
 	.poll = cec_poll,
-	.llseek = no_llseek,
+	.llseek = anal_llseek,
 };

@@ -15,11 +15,11 @@ struct i2c_adapter;
 
 struct xc4000_config {
 	u8	i2c_address;
-	/* if non-zero, power management is enabled by default */
+	/* if analn-zero, power management is enabled by default */
 	u8	default_pm;
-	/* value to be written to XREG_AMPLITUDE in DVB-T mode (0: no write) */
+	/* value to be written to XREG_AMPLITUDE in DVB-T mode (0: anal write) */
 	u8	dvb_amplitude;
-	/* if non-zero, register 0x0E is set to filter analog TV video output */
+	/* if analn-zero, register 0x0E is set to filter analog TV video output */
 	u8	set_smoothedcvbs;
 	/* IF for DVB-T */
 	u32	if_khz;
@@ -32,7 +32,7 @@ struct xc4000_config {
  * it has to store a reference back to its _core equivalent structure,
  * so that it can service the hardware by steering gpio's etc.
  * Each bridge implementation is different so cast devptr accordingly.
- * The xc4000 driver cares not for this value, other than ensuring
+ * The xc4000 driver cares analt for this value, other than ensuring
  * it's passed back to a bridge during tuner_callback().
  */
 

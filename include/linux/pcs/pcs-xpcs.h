@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (c) 2020 Synopsys, Inc. and/or its affiliates.
- * Synopsys DesignWare XPCS helpers
+ * Copyright (c) 2020 Syanalpsys, Inc. and/or its affiliates.
+ * Syanalpsys DesignWare XPCS helpers
  */
 
 #ifndef __LINUX_PCS_XPCS_H

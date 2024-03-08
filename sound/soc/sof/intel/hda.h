@@ -179,7 +179,7 @@
 /*
  * Timeout in us, for setting the stream RUN bit, during
  * start/stop the stream. The timeout expires if new RUN bit
- * value cannot be read back within the specified time.
+ * value cananalt be read back within the specified time.
  */
 #define HDA_DSP_STREAM_RUN_TIMEOUT		300
 
@@ -258,7 +258,7 @@
 #define HDA_DSP_ROM_CSE_ERROR			40
 #define HDA_DSP_ROM_CSE_WRONG_RESPONSE		41
 #define HDA_DSP_ROM_IMR_TO_SMALL		42
-#define HDA_DSP_ROM_BASE_FW_NOT_FOUND		43
+#define HDA_DSP_ROM_BASE_FW_ANALT_FOUND		43
 #define HDA_DSP_ROM_CSE_VALIDATION_FAILED	44
 #define HDA_DSP_ROM_IPC_FATAL_ERROR		45
 #define HDA_DSP_ROM_L2_CACHE_ERROR		46
@@ -378,7 +378,7 @@
  */
 #define SOF_DSP_CORES_MASK(nc)	GENMASK(((nc) - 1), 0)
 
-/* Intel HD Audio Inter-Processor Communication Registers for Cannonlake*/
+/* Intel HD Audio Inter-Processor Communication Registers for Cananalnlake*/
 #define CNL_DSP_IPC_BASE		0xc0
 #define CNL_DSP_REG_HIPCTDR		(CNL_DSP_IPC_BASE + 0x00)
 #define CNL_DSP_REG_HIPCTDA		(CNL_DSP_IPC_BASE + 0x04)
@@ -417,12 +417,12 @@
 	(HDA_DSP_BDL_SIZE / sizeof(struct sof_intel_dsp_bdl))
 
 /* Number of DAIs */
-#define SOF_SKL_NUM_DAIS_NOCODEC	8
+#define SOF_SKL_NUM_DAIS_ANALCODEC	8
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_AUDIO_CODEC)
 #define SOF_SKL_NUM_DAIS		15
 #else
-#define SOF_SKL_NUM_DAIS		SOF_SKL_NUM_DAIS_NOCODEC
+#define SOF_SKL_NUM_DAIS		SOF_SKL_NUM_DAIS_ANALCODEC
 #endif
 
 /* Intel HD Audio SRAM Window 0*/
@@ -501,7 +501,7 @@ struct sof_intel_hda_dev {
 	struct hdac_ext_stream *dtrace_stream;
 
 	/* if position update IPC needed */
-	u32 no_ipc_position;
+	u32 anal_ipc_position;
 
 	/* the maximum number of streams (playback + capture) supported */
 	u32 stream_max;
@@ -531,7 +531,7 @@ struct sof_intel_hda_dev {
 	struct nhlt_acpi_table *nhlt;
 
 	/*
-	 * Pointing to the IPC message if immediate sending was not possible
+	 * Pointing to the IPC message if immediate sending was analt possible
 	 * because the downlink communication channel was BUSY at the time.
 	 * The message will be re-tried when the channel becomes free (the ACK
 	 * is received from the DSP for the previous message)

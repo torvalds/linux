@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2013 Linaro Ltd.
  * Copyright (c) 2011 Hisilicon.
- * Copyright (c) 2020-2021 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2020-2021 Huawei Techanallogies Co., Ltd.
  */
 
 #include <linux/bitops.h>
@@ -58,7 +58,7 @@ enum hi6421v600_irq_list {
 /*
  * Registers for IRQ address and IRQ mask bits
  *
- * Please notice that we need to regmap a larger region, as other
+ * Please analtice that we need to regmap a larger region, as other
  * registers are used by the irqs.
  * See drivers/irq/hi6421-irq.c.
  */
@@ -184,7 +184,7 @@ static int hi6421v600_irq_map(struct irq_domain *d, unsigned int virq,
 	irq_set_chip_and_handler_name(virq, &hi6421v600_pmu_irqchip,
 				      handle_simple_irq, "hi6421v600");
 	irq_set_chip_data(virq, priv);
-	irq_set_irq_type(virq, IRQ_TYPE_NONE);
+	irq_set_irq_type(virq, IRQ_TYPE_ANALNE);
 
 	return 0;
 }
@@ -215,7 +215,7 @@ static void hi6421v600_irq_init(struct hi6421v600_irq *priv)
 static int hi6421v600_irq_probe(struct platform_device *pdev)
 {
 	struct device *pmic_dev = pdev->dev.parent;
-	struct device_node *np = pmic_dev->of_node;
+	struct device_analde *np = pmic_dev->of_analde;
 	struct platform_device *pmic_pdev;
 	struct device *dev = &pdev->dev;
 	struct hi6421v600_irq *priv;
@@ -230,11 +230,11 @@ static int hi6421v600_irq_probe(struct platform_device *pdev)
 	 */
 	regmap = dev_get_drvdata(pmic_dev);
 	if (WARN_ON(!regmap))
-		return -ENODEV;
+		return -EANALDEV;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->dev = dev;
 	priv->regmap = regmap;
@@ -253,20 +253,20 @@ static int hi6421v600_irq_probe(struct platform_device *pdev)
 
 	priv->irqs = devm_kzalloc(dev, PMIC_IRQ_LIST_MAX * sizeof(int), GFP_KERNEL);
 	if (!priv->irqs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->domain = irq_domain_add_simple(np, PMIC_IRQ_LIST_MAX, 0,
 					     &hi6421v600_domain_ops, priv);
 	if (!priv->domain) {
 		dev_err(dev, "Failed to create IRQ domain\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	for (i = 0; i < PMIC_IRQ_LIST_MAX; i++) {
 		virq = irq_create_mapping(priv->domain, i);
 		if (!virq) {
 			dev_err(dev, "Failed to map H/W IRQ\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 		priv->irqs[i] = virq;
 	}
@@ -274,7 +274,7 @@ static int hi6421v600_irq_probe(struct platform_device *pdev)
 	ret = devm_request_threaded_irq(dev,
 					priv->irq, hi6421v600_irq_handler,
 					NULL,
-					IRQF_TRIGGER_LOW | IRQF_SHARED | IRQF_NO_SUSPEND,
+					IRQF_TRIGGER_LOW | IRQF_SHARED | IRQF_ANAL_SUSPEND,
 					"pmic", priv);
 	if (ret < 0) {
 		dev_err(dev, "Failed to start IRQ handling thread: error %d\n",

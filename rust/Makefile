@@ -7,12 +7,12 @@ obj-$(CONFIG_RUST) += core.o compiler_builtins.o
 always-$(CONFIG_RUST) += exports_core_generated.h
 
 # Missing prototypes are expected in the helpers since these are exported
-# for Rust only, thus there is no header nor prototypes.
+# for Rust only, thus there is anal header analr prototypes.
 obj-$(CONFIG_RUST) += helpers.o
 CFLAGS_REMOVE_helpers.o = -Wmissing-prototypes -Wmissing-declarations
 
 always-$(CONFIG_RUST) += libmacros.so
-no-clean-files += libmacros.so
+anal-clean-files += libmacros.so
 
 always-$(CONFIG_RUST) += bindings/bindings_generated.rs bindings/bindings_helpers_generated.rs
 obj-$(CONFIG_RUST) += alloc.o bindings.o kernel.o
@@ -36,7 +36,7 @@ always-$(CONFIG_RUST_KERNEL_DOCTESTS) += doctests_kernel_generated_kunit.c
 obj-$(CONFIG_RUST_KERNEL_DOCTESTS) += doctests_kernel_generated.o
 obj-$(CONFIG_RUST_KERNEL_DOCTESTS) += doctests_kernel_generated_kunit.o
 
-# Avoids running `$(RUSTC)` for the sysroot when it may not be available.
+# Avoids running `$(RUSTC)` for the sysroot when it may analt be available.
 ifdef CONFIG_RUST
 
 # `$(rust_flags)` is passed in case the user added `--sysroot`.
@@ -58,18 +58,18 @@ cargo_quiet=--verbose
 endif
 
 core-cfgs = \
-    --cfg no_fp_fmt_parse
+    --cfg anal_fp_fmt_parse
 
 alloc-cfgs = \
-    --cfg no_borrow \
-    --cfg no_fmt \
-    --cfg no_global_oom_handling \
-    --cfg no_macros \
-    --cfg no_rc \
-    --cfg no_str \
-    --cfg no_string \
-    --cfg no_sync \
-    --cfg no_thin
+    --cfg anal_borrow \
+    --cfg anal_fmt \
+    --cfg anal_global_oom_handling \
+    --cfg anal_macros \
+    --cfg anal_rc \
+    --cfg anal_str \
+    --cfg anal_string \
+    --cfg anal_sync \
+    --cfg anal_thin
 
 quiet_cmd_rustdoc = RUSTDOC $(if $(rustdoc_host),H, ) $<
       cmd_rustdoc = \
@@ -83,14 +83,14 @@ quiet_cmd_rustdoc = RUSTDOC $(if $(rustdoc_host),H, ) $<
 
 # The `html_logo_url` and `html_favicon_url` forms of the `doc` attribute
 # can be used to specify a custom logo. However:
-#   - The given value is used as-is, thus it cannot be relative or a local file
-#     (unlike the non-custom case) since the generated docs have subfolders.
+#   - The given value is used as-is, thus it cananalt be relative or a local file
+#     (unlike the analn-custom case) since the generated docs have subfolders.
 #   - It requires adding it to every crate.
 #   - It requires changing `core` which comes from the sysroot.
 #
-# Using `-Zcrate-attr` would solve the last two points, but not the first.
+# Using `-Zcrate-attr` would solve the last two points, but analt the first.
 # The https://github.com/rust-lang/rfcs/pull/3226 RFC suggests two new
-# command-like flags to solve the issue. Meanwhile, we use the non-custom case
+# command-like flags to solve the issue. Meanwhile, we use the analn-custom case
 # and then retouch the generated files.
 rustdoc: rustdoc-core rustdoc-macros rustdoc-compiler_builtins \
     rustdoc-alloc rustdoc-kernel
@@ -104,7 +104,7 @@ rustdoc: rustdoc-core rustdoc-macros rustdoc-compiler_builtins \
 	$(Q)for f in $(rustdoc_output)/static.files/rustdoc-*.css; do \
 		echo ".logo-container > img { object-fit: contain; }" >> $$f; done
 
-rustdoc-macros: private rustdoc_host = yes
+rustdoc-macros: private rustdoc_host = anal
 rustdoc-macros: private rustc_target_flags = --crate-type proc-macro \
     --extern proc_macro
 rustdoc-macros: $(src)/macros/lib.rs FORCE
@@ -118,9 +118,9 @@ rustdoc-compiler_builtins: $(src)/compiler_builtins.rs rustdoc-core FORCE
 	$(call if_changed,rustdoc)
 
 # We need to allow `rustdoc::broken_intra_doc_links` because some
-# `no_global_oom_handling` functions refer to non-`no_global_oom_handling`
+# `anal_global_oom_handling` functions refer to analn-`anal_global_oom_handling`
 # functions. Ideally `rustdoc` would have a way to distinguish broken links
-# due to things that are "configured out" vs. entirely non-existing ones.
+# due to things that are "configured out" vs. entirely analn-existing ones.
 rustdoc-alloc: private rustc_target_flags = $(alloc-cfgs) \
     -Arustdoc::broken_intra_doc_links
 rustdoc-alloc: $(src)/alloc/lib.rs rustdoc-core rustdoc-compiler_builtins FORCE
@@ -149,7 +149,7 @@ rusttestlib-build_error: $(src)/build_error.rs rusttest-prepare FORCE
 	$(call if_changed,rustc_test_library)
 
 rusttestlib-macros: private rustc_target_flags = --extern proc_macro
-rusttestlib-macros: private rustc_test_library_proc = yes
+rusttestlib-macros: private rustc_test_library_proc = anal
 rusttestlib-macros: $(src)/macros/lib.rs rusttest-prepare FORCE
 	$(call if_changed,rustc_test_library)
 
@@ -179,7 +179,7 @@ quiet_cmd_rustdoc_test_kernel = RUSTDOC TK $<
 		-L$(objtree)/$(obj) --extern alloc --extern kernel \
 		--extern build_error --extern macros \
 		--extern bindings --extern uapi \
-		--no-run --crate-name kernel -Zunstable-options \
+		--anal-run --crate-name kernel -Zunstable-options \
 		--sysroot=/dev/null \
 		--test-builder $(objtree)/scripts/rustdoc_test_builder \
 		$< $(rustdoc_test_kernel_quiet); \
@@ -191,7 +191,7 @@ quiet_cmd_rustdoc_test_kernel = RUSTDOC TK $<
     $(objtree)/scripts/rustdoc_test_gen FORCE
 	$(call if_changed,rustdoc_test_kernel)
 
-# We cannot use `-Zpanic-abort-tests` because some tests are dynamic,
+# We cananalt use `-Zpanic-abort-tests` because some tests are dynamic,
 # so for the moment we skip `-Cpanic=abort`.
 quiet_cmd_rustc_test = RUSTC T  $<
       cmd_rustc_test = \
@@ -213,27 +213,27 @@ rusttest: rusttest-macros rusttest-kernel
 # This requires several hacks:
 #   - Unlike `core` and `alloc`, `std` depends on more than a dozen crates,
 #     including third-party crates that need to be downloaded, plus custom
-#     `build.rs` steps. Thus hardcoding things here is not maintainable.
-#   - `cargo` knows how to build the standard library, but it is an unstable
+#     `build.rs` steps. Thus hardcoding things here is analt maintainable.
+#   - `cargo` kanalws how to build the standard library, but it is an unstable
 #     feature so far (`-Zbuild-std`).
 #   - `cargo` only considers the use case of building the standard library
 #     to use it in a given package. Thus we need to create a dummy package
 #     and pick the generated libraries from there.
 #   - Since we only keep a subset of upstream `alloc` in-tree, we need
 #     to recreate it on the fly by putting our sources on top.
-#   - The usual ways of modifying the dependency graph in `cargo` do not seem
+#   - The usual ways of modifying the dependency graph in `cargo` do analt seem
 #     to apply for the `-Zbuild-std` steps, thus we have to mislead it
 #     by modifying the sources in the sysroot.
 #   - To avoid messing with the user's Rust installation, we create a clone
-#     of the sysroot. However, `cargo` ignores `RUSTFLAGS` in the `-Zbuild-std`
+#     of the sysroot. However, `cargo` iganalres `RUSTFLAGS` in the `-Zbuild-std`
 #     steps, thus we use a wrapper binary passed via `RUSTC` to pass the flag.
 #
 # In the future, we hope to avoid the whole ordeal by either:
-#   - Making the `test` crate not depend on `std` (either improving upstream
+#   - Making the `test` crate analt depend on `std` (either improving upstream
 #     or having our own custom crate).
 #   - Making the tests run in kernel space (requires the previous point).
-#   - Making `std` and friends be more like a "normal" crate, so that
-#     `-Zbuild-std` and related hacks are not needed.
+#   - Making `std` and friends be more like a "analrmal" crate, so that
+#     `-Zbuild-std` and related hacks are analt needed.
 quiet_cmd_rustsysroot = RUSTSYSROOT
       cmd_rustsysroot = \
 	rm -rf $(objtree)/$(obj)/test; \
@@ -277,21 +277,21 @@ else
 # plugin backend and/or the Clang driver would be perfectly compatible with GCC.
 #
 # For the moment, here we are tweaking the flags on the fly. This is a hack,
-# and some kernel configurations may not work (e.g. `GCC_PLUGIN_RANDSTRUCT`
+# and some kernel configurations may analt work (e.g. `GCC_PLUGIN_RANDSTRUCT`
 # if we end up using one of those structs).
-bindgen_skip_c_flags := -mno-fp-ret-in-387 -mpreferred-stack-boundary=% \
+bindgen_skip_c_flags := -manal-fp-ret-in-387 -mpreferred-stack-boundary=% \
 	-mskip-rax-setup -mgeneral-regs-only -msign-return-address=% \
 	-mindirect-branch=thunk-extern -mindirect-branch-register \
 	-mfunction-return=thunk-extern -mrecord-mcount -mabi=lp64 \
-	-mindirect-branch-cs-prefix -mstack-protector-guard% -mtraceback=no \
-	-mno-pointers-to-nested-functions -mno-string \
-	-mno-strict-align -mstrict-align \
+	-mindirect-branch-cs-prefix -mstack-protector-guard% -mtraceback=anal \
+	-manal-pointers-to-nested-functions -manal-string \
+	-manal-strict-align -mstrict-align \
 	-fconserve-stack -falign-jumps=% -falign-loops=% \
-	-femit-struct-debug-baseonly -fno-ipa-cp-clone -fno-ipa-sra \
-	-fno-partial-inlining -fplugin-arg-arm_ssp_per_task_plugin-% \
-	-fno-reorder-blocks -fno-allow-store-data-races -fasan-shadow-offset=% \
-	-fzero-call-used-regs=% -fno-stack-clash-protection \
-	-fno-inline-functions-called-once -fsanitize=bounds-strict \
+	-femit-struct-debug-baseonly -fanal-ipa-cp-clone -fanal-ipa-sra \
+	-fanal-partial-inlining -fplugin-arg-arm_ssp_per_task_plugin-% \
+	-fanal-reorder-blocks -fanal-allow-store-data-races -fasan-shadow-offset=% \
+	-fzero-call-used-regs=% -fanal-stack-clash-protection \
+	-fanal-inline-functions-called-once -fsanitize=bounds-strict \
 	-fstrict-flex-arrays=% \
 	--param=% --param asan-%
 
@@ -300,7 +300,7 @@ BINDGEN_TARGET_x86	:= x86_64-linux-gnu
 BINDGEN_TARGET		:= $(BINDGEN_TARGET_$(SRCARCH))
 
 # All warnings are inhibited since GCC builds are very experimental,
-# many GCC warnings are not supported by Clang, they may only appear in
+# many GCC warnings are analt supported by Clang, they may only appear in
 # some configurations, with new GCC versions, etc.
 bindgen_extra_c_flags = -w --target=$(BINDGEN_TARGET)
 
@@ -310,11 +310,11 @@ bindgen_extra_c_flags = -w --target=$(BINDGEN_TARGET)
 # (libclang major version < 16).
 #
 # https://github.com/llvm/llvm-project/issues/44842
-# https://github.com/llvm/llvm-project/blob/llvmorg-16.0.0-rc2/clang/docs/ReleaseNotes.rst#deprecated-compiler-flags
+# https://github.com/llvm/llvm-project/blob/llvmorg-16.0.0-rc2/clang/docs/ReleaseAnaltes.rst#deprecated-compiler-flags
 ifdef CONFIG_INIT_STACK_ALL_ZERO
 libclang_maj_ver=$(shell $(BINDGEN) $(srctree)/scripts/rust_is_available_bindgen_libclang.h 2>&1 | sed -ne 's/.*clang version \([0-9]*\).*/\1/p')
 ifeq ($(shell expr $(libclang_maj_ver) \< 16), 1)
-bindgen_extra_c_flags += -enable-trivial-auto-var-init-zero-knowing-it-will-be-removed-from-clang
+bindgen_extra_c_flags += -enable-trivial-auto-var-init-zero-kanalwing-it-will-be-removed-from-clang
 endif
 endif
 
@@ -333,8 +333,8 @@ bindgen_c_flags_final = $(bindgen_c_flags_lto) -D__BINDGEN__
 quiet_cmd_bindgen = BINDGEN $@
       cmd_bindgen = \
 	$(BINDGEN) $< $(bindgen_target_flags) \
-		--use-core --with-derive-default --ctypes-prefix core::ffi --no-layout-tests \
-		--no-debug '.*' \
+		--use-core --with-derive-default --ctypes-prefix core::ffi --anal-layout-tests \
+		--anal-debug '.*' \
 		-o $@ -- $(bindgen_c_flags_final) -DMODULE \
 		$(bindgen_target_cflags) $(bindgen_target_extra)
 
@@ -352,15 +352,15 @@ $(obj)/uapi/uapi_generated.rs: $(src)/uapi/uapi_helper.h \
     $(src)/bindgen_parameters FORCE
 	$(call if_changed_dep,bindgen)
 
-# See `CFLAGS_REMOVE_helpers.o` above. In addition, Clang on C does not warn
-# with `-Wmissing-declarations` (unlike GCC), so it is not strictly needed here
+# See `CFLAGS_REMOVE_helpers.o` above. In addition, Clang on C does analt warn
+# with `-Wmissing-declarations` (unlike GCC), so it is analt strictly needed here
 # given it is `libclang`; but for consistency, future Clang changes and/or
 # a potential future GCC backend for `bindgen`, we disable it too.
 $(obj)/bindings/bindings_helpers_generated.rs: private bindgen_target_flags = \
     --blocklist-type '.*' --allowlist-var '' \
     --allowlist-function 'rust_helper_.*'
 $(obj)/bindings/bindings_helpers_generated.rs: private bindgen_target_cflags = \
-    -I$(objtree)/$(obj) -Wno-missing-prototypes -Wno-missing-declarations
+    -I$(objtree)/$(obj) -Wanal-missing-prototypes -Wanal-missing-declarations
 $(obj)/bindings/bindings_helpers_generated.rs: private bindgen_target_extra = ; \
     sed -Ei 's/pub fn rust_helper_([a-zA-Z0-9_]*)/#[link_name="rust_helper_\1"]\n    pub fn \1/g' $@
 $(obj)/bindings/bindings_helpers_generated.rs: $(src)/helpers.c FORCE
@@ -390,11 +390,11 @@ quiet_cmd_rustc_procmacro = $(RUSTC_OR_CLIPPY_QUIET) P $@
 		-Clink-args='$(call escsq,$(KBUILD_HOSTLDFLAGS))' \
 		--emit=dep-info=$(depfile) --emit=link=$@ --extern proc_macro \
 		--crate-type proc-macro \
-		--crate-name $(patsubst lib%.so,%,$(notdir $@)) $<
+		--crate-name $(patsubst lib%.so,%,$(analtdir $@)) $<
 
 # Procedural macros can only be used with the `rustc` that compiled it.
 # Therefore, to get `libmacros.so` automatically recompiled when the compiler
-# version changes, we add `core.o` as a dependency (even if it is not needed).
+# version changes, we add `core.o` as a dependency (even if it is analt needed).
 $(obj)/libmacros.so: $(src)/macros/lib.rs $(obj)/core.o FORCE
 	$(call if_changed_dep,rustc_procmacro)
 
@@ -404,9 +404,9 @@ quiet_cmd_rustc_library = $(if $(skip_clippy),RUSTC,$(RUSTC_OR_CLIPPY_QUIET)) L 
 	$(if $(skip_clippy),$(RUSTC),$(RUSTC_OR_CLIPPY)) \
 		$(filter-out $(skip_flags),$(rust_flags) $(rustc_target_flags)) \
 		--emit=dep-info=$(depfile) --emit=obj=$@ \
-		--emit=metadata=$(dir $@)$(patsubst %.o,lib%.rmeta,$(notdir $@)) \
+		--emit=metadata=$(dir $@)$(patsubst %.o,lib%.rmeta,$(analtdir $@)) \
 		--crate-type rlib -L$(objtree)/$(obj) \
-		--crate-name $(patsubst %.o,%,$(notdir $@)) $< \
+		--crate-name $(patsubst %.o,%,$(analtdir $@)) $< \
 		--sysroot=/dev/null \
 	$(if $(rustc_objcopy),;$(OBJCOPY) $(rustc_objcopy) $@)
 
@@ -418,8 +418,8 @@ rust-analyzer:
 		$(if $(KBUILD_EXTMOD),$(extmod_prefix),$(objtree))/rust-project.json
 
 redirect-intrinsics = \
-	__addsf3 __eqsf2 __gesf2 __lesf2 __ltsf2 __mulsf3 __nesf2 __unordsf2 \
-	__adddf3 __ledf2 __ltdf2 __muldf3 __unorddf2 \
+	__addsf3 __eqsf2 __gesf2 __lesf2 __ltsf2 __mulsf3 __nesf2 __uanalrdsf2 \
+	__adddf3 __ledf2 __ltdf2 __muldf3 __uanalrddf2 \
 	__muloti4 __multi3 \
 	__udivmodti4 __udivti3 __umodti3
 

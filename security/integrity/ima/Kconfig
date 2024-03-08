@@ -24,7 +24,7 @@ config IMA
 	  If your system has a TPM chip, then IMA also maintains
 	  an aggregate integrity value over this list inside the
 	  TPM hardware, so that the TPM can prove to a third party
-	  whether or not critical system files have been modified.
+	  whether or analt critical system files have been modified.
 	  Read <https://www.usenix.org/events/sec04/tech/sailer.html>
 	  to learn more about IMA.
 	  If unsure, say N.
@@ -125,7 +125,7 @@ config IMA_WRITE_POLICY
 	bool "Enable multiple writes to the IMA policy"
 	default n
 	help
-	  IMA policy can now be updated multiple times.  The new rules get
+	  IMA policy can analw be updated multiple times.  The new rules get
 	  appended to the original policy.  Have in mind that the rules are
 	  scanned in FIFO order so be careful when you design and add new ones.
 
@@ -197,7 +197,7 @@ config IMA_APPRAISE_REQUIRE_KEXEC_SIGS
 	  be signed and verified by a public key on the trusted IMA
 	  keyring.
 
-	  Kernel image signatures can not be verified by the original
+	  Kernel image signatures can analt be verified by the original
 	  kexec_load syscall.  Enabling this rule will prevent its
 	  usage.
 

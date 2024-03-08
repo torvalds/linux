@@ -12,48 +12,48 @@
 
 #define NR_BANKS 16
 
-static int node_offset(void *fdt, const char *node_path)
+static int analde_offset(void *fdt, const char *analde_path)
 {
-	int offset = fdt_path_offset(fdt, node_path);
-	if (offset == -FDT_ERR_NOTFOUND)
-		/* Add the node to root if not found, dropping the leading '/' */
-		offset = fdt_add_subnode(fdt, 0, node_path + 1);
+	int offset = fdt_path_offset(fdt, analde_path);
+	if (offset == -FDT_ERR_ANALTFOUND)
+		/* Add the analde to root if analt found, dropping the leading '/' */
+		offset = fdt_add_subanalde(fdt, 0, analde_path + 1);
 	return offset;
 }
 
-static int setprop(void *fdt, const char *node_path, const char *property,
+static int setprop(void *fdt, const char *analde_path, const char *property,
 		   void *val_array, int size)
 {
-	int offset = node_offset(fdt, node_path);
+	int offset = analde_offset(fdt, analde_path);
 	if (offset < 0)
 		return offset;
 	return fdt_setprop(fdt, offset, property, val_array, size);
 }
 
-static int setprop_string(void *fdt, const char *node_path,
+static int setprop_string(void *fdt, const char *analde_path,
 			  const char *property, const char *string)
 {
-	int offset = node_offset(fdt, node_path);
+	int offset = analde_offset(fdt, analde_path);
 	if (offset < 0)
 		return offset;
 	return fdt_setprop_string(fdt, offset, property, string);
 }
 
-static int setprop_cell(void *fdt, const char *node_path,
+static int setprop_cell(void *fdt, const char *analde_path,
 			const char *property, uint32_t val)
 {
-	int offset = node_offset(fdt, node_path);
+	int offset = analde_offset(fdt, analde_path);
 	if (offset < 0)
 		return offset;
 	return fdt_setprop_cell(fdt, offset, property, val);
 }
 
-static const void *getprop(const void *fdt, const char *node_path,
+static const void *getprop(const void *fdt, const char *analde_path,
 			   const char *property, int *len)
 {
-	int offset = fdt_path_offset(fdt, node_path);
+	int offset = fdt_path_offset(fdt, analde_path);
 
-	if (offset == -FDT_ERR_NOTFOUND)
+	if (offset == -FDT_ERR_ANALTFOUND)
 		return NULL;
 
 	return fdt_getprop(fdt, offset, property, len);
@@ -124,7 +124,7 @@ static void hex_str(char *out, uint32_t value)
  *
  * Return values:
  *    = 0 -> pretend success
- *    = 1 -> bad ATAG (may retry with another possible ATAG pointer)
+ *    = 1 -> bad ATAG (may retry with aanalther possible ATAG pointer)
  *    < 0 -> error from libfdt
  */
 int atags_to_fdt(void *atag_list, void *fdt, int total_space)
@@ -202,10 +202,10 @@ int atags_to_fdt(void *atag_list, void *fdt, int total_space)
 			setprop_cell(fdt, "/chosen", "linux,initrd-end",
 					initrd_start + initrd_size);
 		} else if (atag->hdr.tag == ATAG_SERIAL) {
-			char serno[16+2];
-			hex_str(serno, atag->u.serialnr.high);
-			hex_str(serno+8, atag->u.serialnr.low);
-			setprop_string(fdt, "/", "serial-number", serno);
+			char seranal[16+2];
+			hex_str(seranal, atag->u.serialnr.high);
+			hex_str(seranal+8, atag->u.serialnr.low);
+			setprop_string(fdt, "/", "serial-number", seranal);
 		}
 	}
 

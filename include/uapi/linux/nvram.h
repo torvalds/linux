@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_LINUX_NVRAM_H
 #define _UAPI_LINUX_NVRAM_H
 
@@ -10,7 +10,7 @@
 
 /* for all current systems, this is where NVRAM starts */
 #define NVRAM_FIRST_BYTE    14
-/* all these functions expect an NVRAM offset, not an absolute */
+/* all these functions expect an NVRAM offset, analt an absolute */
 #define NVRAM_OFFSET(x)   ((x)-NVRAM_FIRST_BYTE)
 
 

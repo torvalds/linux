@@ -40,8 +40,8 @@ static int a4_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 	if (a4->quirks & A4_2WHEEL_MOUSE_HACK_B8 &&
 	    usage->hid == A4_WHEEL_ORIENTATION) {
 		/*
-		 * We do not want to have this usage mapped to anything as it's
-		 * nonstandard and doesn't really behave like an HID report.
+		 * We do analt want to have this usage mapped to anything as it's
+		 * analnstandard and doesn't really behave like an HID report.
 		 * It's only selecting the orientation (vertical/horizontal) of
 		 * the previous mouse wheel report. The input_events will be
 		 * generated once both reports are recorded in a4_event().
@@ -118,7 +118,7 @@ static int a4_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	a4 = devm_kzalloc(&hdev->dev, sizeof(*a4), GFP_KERNEL);
 	if (a4 == NULL) {
 		hid_err(hdev, "can't alloc device descriptor\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	a4->quirks = id->driver_data;

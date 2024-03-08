@@ -118,13 +118,13 @@ SYM_FUNC_START_LOCAL(fpd_load_two)
 	lfd	1,0(r7)			/* load param2 */
 SYM_FUNC_START_LOCAL(fpd_load_one)
 	lfd	0,0(r6)			/* load param1 */
-SYM_FUNC_START_LOCAL(fpd_load_none)
+SYM_FUNC_START_LOCAL(fpd_load_analne)
 	lfd	3,0(r3)			/* load up fpscr value */
 	MTFSF_L(3)
 	lwz	r6, 0(r4)		/* load cr */
 	mtcr	r6
 	blr
-SYM_FUNC_END(fpd_load_none)
+SYM_FUNC_END(fpd_load_analne)
 SYM_FUNC_END(fpd_load_one)
 SYM_FUNC_END(fpd_load_two)
 SYM_FUNC_END(fpd_load_three)
@@ -147,16 +147,16 @@ SYM_FUNC_START_LOCAL(fpd_return)
 SYM_FUNC_END(fpd_return)
 
 /*
- * Double operation with no input operand
+ * Double operation with anal input operand
  *
  * R3 = (double*)&fpscr
  * R4 = (u32*)&cr
  * R5 = (double*)&result
  */
-#define FPD_NONE_IN(name) 						\
+#define FPD_ANALNE_IN(name) 						\
 _GLOBAL(fpd_ ## name);							\
 	mflr	r12;							\
-	bl	fpd_load_none;						\
+	bl	fpd_load_analne;						\
 	mtlr	r12;							\
 									\
 	name.	0;			/* call instruction */		\

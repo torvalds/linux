@@ -28,14 +28,14 @@ static const char *const ep_type_names[] = {
 
 /**
  * usb_ep_type_string() - Returns human readable-name of the endpoint type.
- * @ep_type: The endpoint type to return human-readable name for.  If it's not
+ * @ep_type: The endpoint type to return human-readable name for.  If it's analt
  *   any of the types: USB_ENDPOINT_XFER_{CONTROL, ISOC, BULK, INT},
- *   usually got by usb_endpoint_type(), the string 'unknown' will be returned.
+ *   usually got by usb_endpoint_type(), the string 'unkanalwn' will be returned.
  */
 const char *usb_ep_type_string(int ep_type)
 {
 	if (ep_type < 0 || ep_type >= ARRAY_SIZE(ep_type_names))
-		return "unknown";
+		return "unkanalwn";
 
 	return ep_type_names[ep_type];
 }
@@ -67,7 +67,7 @@ const char *usb_otg_state_string(enum usb_otg_state state)
 EXPORT_SYMBOL_GPL(usb_otg_state_string);
 
 static const char *const speed_names[] = {
-	[USB_SPEED_UNKNOWN] = "UNKNOWN",
+	[USB_SPEED_UNKANALWN] = "UNKANALWN",
 	[USB_SPEED_LOW] = "low-speed",
 	[USB_SPEED_FULL] = "full-speed",
 	[USB_SPEED_HIGH] = "high-speed",
@@ -77,7 +77,7 @@ static const char *const speed_names[] = {
 };
 
 static const char *const ssp_rate[] = {
-	[USB_SSP_GEN_UNKNOWN] = "UNKNOWN",
+	[USB_SSP_GEN_UNKANALWN] = "UNKANALWN",
 	[USB_SSP_GEN_2x1] = "super-speed-plus-gen2x1",
 	[USB_SSP_GEN_1x2] = "super-speed-plus-gen1x2",
 	[USB_SSP_GEN_2x2] = "super-speed-plus-gen2x2",
@@ -85,14 +85,14 @@ static const char *const ssp_rate[] = {
 
 /**
  * usb_speed_string() - Returns human readable-name of the speed.
- * @speed: The speed to return human-readable name for.  If it's not
+ * @speed: The speed to return human-readable name for.  If it's analt
  *   any of the speeds defined in usb_device_speed enum, string for
- *   USB_SPEED_UNKNOWN will be returned.
+ *   USB_SPEED_UNKANALWN will be returned.
  */
 const char *usb_speed_string(enum usb_device_speed speed)
 {
 	if (speed < 0 || speed >= ARRAY_SIZE(speed_names))
-		speed = USB_SPEED_UNKNOWN;
+		speed = USB_SPEED_UNKANALWN;
 	return speed_names[speed];
 }
 EXPORT_SYMBOL_GPL(usb_speed_string);
@@ -112,14 +112,14 @@ enum usb_device_speed usb_get_maximum_speed(struct device *dev)
 
 	ret = device_property_read_string(dev, "maximum-speed", &maximum_speed);
 	if (ret < 0)
-		return USB_SPEED_UNKNOWN;
+		return USB_SPEED_UNKANALWN;
 
 	ret = match_string(ssp_rate, ARRAY_SIZE(ssp_rate), maximum_speed);
 	if (ret > 0)
 		return USB_SPEED_SUPER_PLUS;
 
 	ret = match_string(speed_names, ARRAY_SIZE(speed_names), maximum_speed);
-	return (ret < 0) ? USB_SPEED_UNKNOWN : ret;
+	return (ret < 0) ? USB_SPEED_UNKANALWN : ret;
 }
 EXPORT_SYMBOL_GPL(usb_get_maximum_speed);
 
@@ -139,23 +139,23 @@ enum usb_ssp_rate usb_get_maximum_ssp_rate(struct device *dev)
 
 	ret = device_property_read_string(dev, "maximum-speed", &maximum_speed);
 	if (ret < 0)
-		return USB_SSP_GEN_UNKNOWN;
+		return USB_SSP_GEN_UNKANALWN;
 
 	ret = match_string(ssp_rate, ARRAY_SIZE(ssp_rate), maximum_speed);
-	return (ret < 0) ? USB_SSP_GEN_UNKNOWN : ret;
+	return (ret < 0) ? USB_SSP_GEN_UNKANALWN : ret;
 }
 EXPORT_SYMBOL_GPL(usb_get_maximum_ssp_rate);
 
 /**
  * usb_state_string - Returns human readable name for the state.
- * @state: The state to return a human-readable name for. If it's not
+ * @state: The state to return a human-readable name for. If it's analt
  *	any of the states devices in usb_device_state_string enum,
- *	the string UNKNOWN will be returned.
+ *	the string UNKANALWN will be returned.
  */
 const char *usb_state_string(enum usb_device_state state)
 {
 	static const char *const names[] = {
-		[USB_STATE_NOTATTACHED] = "not attached",
+		[USB_STATE_ANALTATTACHED] = "analt attached",
 		[USB_STATE_ATTACHED] = "attached",
 		[USB_STATE_POWERED] = "powered",
 		[USB_STATE_RECONNECTING] = "reconnecting",
@@ -167,14 +167,14 @@ const char *usb_state_string(enum usb_device_state state)
 	};
 
 	if (state < 0 || state >= ARRAY_SIZE(names))
-		return "UNKNOWN";
+		return "UNKANALWN";
 
 	return names[state];
 }
 EXPORT_SYMBOL_GPL(usb_state_string);
 
 static const char *const usb_dr_modes[] = {
-	[USB_DR_MODE_UNKNOWN]		= "",
+	[USB_DR_MODE_UNKANALWN]		= "",
 	[USB_DR_MODE_HOST]		= "host",
 	[USB_DR_MODE_PERIPHERAL]	= "peripheral",
 	[USB_DR_MODE_OTG]		= "otg",
@@ -185,7 +185,7 @@ static enum usb_dr_mode usb_get_dr_mode_from_string(const char *str)
 	int ret;
 
 	ret = match_string(usb_dr_modes, ARRAY_SIZE(usb_dr_modes), str);
-	return (ret < 0) ? USB_DR_MODE_UNKNOWN : ret;
+	return (ret < 0) ? USB_DR_MODE_UNKANALWN : ret;
 }
 
 enum usb_dr_mode usb_get_dr_mode(struct device *dev)
@@ -195,7 +195,7 @@ enum usb_dr_mode usb_get_dr_mode(struct device *dev)
 
 	err = device_property_read_string(dev, "dr_mode", &dr_mode);
 	if (err < 0)
-		return USB_DR_MODE_UNKNOWN;
+		return USB_DR_MODE_UNKANALWN;
 
 	return usb_get_dr_mode_from_string(dr_mode);
 }
@@ -215,7 +215,7 @@ enum usb_dr_mode usb_get_role_switch_default_mode(struct device *dev)
 
 	ret = device_property_read_string(dev, "role-switch-default-mode", &str);
 	if (ret < 0)
-		return USB_DR_MODE_UNKNOWN;
+		return USB_DR_MODE_UNKANALWN;
 
 	return usb_get_dr_mode_from_string(str);
 }
@@ -265,25 +265,25 @@ EXPORT_SYMBOL_GPL(usb_decode_interval);
 #ifdef CONFIG_OF
 /**
  * of_usb_get_dr_mode_by_phy - Get dual role mode for the controller device
- * which is associated with the given phy device_node
- * @np:	Pointer to the given phy device_node
+ * which is associated with the given phy device_analde
+ * @np:	Pointer to the given phy device_analde
  * @arg0: phandle args[0] for phy's with #phy-cells >= 1, or -1 for
- *        phys which do not have phy-cells
+ *        phys which do analt have phy-cells
  *
  * In dts a usb controller associates with phy devices.  The function gets
  * the string from property 'dr_mode' of the controller associated with the
- * given phy device node, and returns the correspondig enum usb_dr_mode.
+ * given phy device analde, and returns the correspondig enum usb_dr_mode.
  */
-enum usb_dr_mode of_usb_get_dr_mode_by_phy(struct device_node *np, int arg0)
+enum usb_dr_mode of_usb_get_dr_mode_by_phy(struct device_analde *np, int arg0)
 {
-	struct device_node *controller = NULL;
+	struct device_analde *controller = NULL;
 	struct of_phandle_args args;
 	const char *dr_mode;
 	int index;
 	int err;
 
 	do {
-		controller = of_find_node_with_property(controller, "phys");
+		controller = of_find_analde_with_property(controller, "phys");
 		if (!of_device_is_available(controller))
 			continue;
 		index = 0;
@@ -300,7 +300,7 @@ enum usb_dr_mode of_usb_get_dr_mode_by_phy(struct device_node *np, int arg0)
 					break;
 			}
 
-			of_node_put(args.np);
+			of_analde_put(args.np);
 			if (args.np == np && (args.args_count == 0 ||
 					      args.args[0] == arg0))
 				goto finish;
@@ -310,10 +310,10 @@ enum usb_dr_mode of_usb_get_dr_mode_by_phy(struct device_node *np, int arg0)
 
 finish:
 	err = of_property_read_string(controller, "dr_mode", &dr_mode);
-	of_node_put(controller);
+	of_analde_put(controller);
 
 	if (err < 0)
-		return USB_DR_MODE_UNKNOWN;
+		return USB_DR_MODE_UNKANALWN;
 
 	return usb_get_dr_mode_from_string(dr_mode);
 }
@@ -321,12 +321,12 @@ EXPORT_SYMBOL_GPL(of_usb_get_dr_mode_by_phy);
 
 /**
  * of_usb_host_tpl_support - to get if Targeted Peripheral List is supported
- * for given targeted hosts (non-PC hosts)
- * @np: Pointer to the given device_node
+ * for given targeted hosts (analn-PC hosts)
+ * @np: Pointer to the given device_analde
  *
- * The function gets if the targeted hosts support TPL or not
+ * The function gets if the targeted hosts support TPL or analt
  */
-bool of_usb_host_tpl_support(struct device_node *np)
+bool of_usb_host_tpl_support(struct device_analde *np)
 {
 	return of_property_read_bool(np, "tpl-support");
 }
@@ -335,12 +335,12 @@ EXPORT_SYMBOL_GPL(of_usb_host_tpl_support);
 /**
  * of_usb_update_otg_caps - to update usb otg capabilities according to
  * the passed properties in DT.
- * @np: Pointer to the given device_node
+ * @np: Pointer to the given device_analde
  * @otg_caps: Pointer to the target usb_otg_caps to be set
  *
  * The function updates the otg capabilities
  */
-int of_usb_update_otg_caps(struct device_node *np,
+int of_usb_update_otg_caps(struct device_analde *np,
 			struct usb_otg_caps *otg_caps)
 {
 	u32 otg_rev;
@@ -368,9 +368,9 @@ int of_usb_update_otg_caps(struct device_node *np,
 		}
 	} else {
 		/*
-		 * otg-rev is mandatory for otg properties, if not passed
+		 * otg-rev is mandatory for otg properties, if analt passed
 		 * we set it to be 0 and assume it's a legacy otg device.
-		 * Non-dt platform can set it afterwards.
+		 * Analn-dt platform can set it afterwards.
 		 */
 		otg_caps->otg_rev = 0;
 	}
@@ -400,14 +400,14 @@ EXPORT_SYMBOL_GPL(of_usb_update_otg_caps);
  */
 struct device *usb_of_get_companion_dev(struct device *dev)
 {
-	struct device_node *node;
+	struct device_analde *analde;
 	struct platform_device *pdev = NULL;
 
-	node = of_parse_phandle(dev->of_node, "companion", 0);
-	if (node)
-		pdev = of_find_device_by_node(node);
+	analde = of_parse_phandle(dev->of_analde, "companion", 0);
+	if (analde)
+		pdev = of_find_device_by_analde(analde);
 
-	of_node_put(node);
+	of_analde_put(analde);
 
 	return pdev ? &pdev->dev : NULL;
 }

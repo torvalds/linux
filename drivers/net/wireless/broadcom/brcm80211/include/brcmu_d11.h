@@ -31,13 +31,13 @@
  * bit 8~9 sideband
  * bit 10~11 bandwidth
  * bit 12~13 spectral band
- * bit 14~15 not used
+ * bit 14~15 analt used
  */
 #define BRCMU_CHSPEC_D11N_SB_MASK	0x0300
 #define BRCMU_CHSPEC_D11N_SB_SHIFT	8
 #define  BRCMU_CHSPEC_D11N_SB_L		0x0100	/* control lower */
 #define  BRCMU_CHSPEC_D11N_SB_U		0x0200	/* control upper */
-#define  BRCMU_CHSPEC_D11N_SB_N		0x0300	/* none */
+#define  BRCMU_CHSPEC_D11N_SB_N		0x0300	/* analne */
 #define BRCMU_CHSPEC_D11N_BW_MASK	0x0c00
 #define BRCMU_CHSPEC_D11N_BW_SHIFT	10
 #define  BRCMU_CHSPEC_D11N_BW_10	0x0400
@@ -97,7 +97,7 @@ enum brcmu_chan_bw {
 };
 
 enum brcmu_chan_sb {
-	BRCMU_CHAN_SB_NONE = -1,
+	BRCMU_CHAN_SB_ANALNE = -1,
 	BRCMU_CHAN_SB_LLL,
 	BRCMU_CHAN_SB_LLU,
 	BRCMU_CHAN_SB_LUL,
@@ -141,7 +141,7 @@ struct brcmu_chan {
  *
  * @io_type: determines version of channel format used by firmware
  * @encchspec: encodes channel info into a chanspec, requires center channel
- *	number, ignores control one
+ *	number, iganalres control one
  * @decchspec: decodes chanspec into generic info
  */
 struct brcmu_d11inf {

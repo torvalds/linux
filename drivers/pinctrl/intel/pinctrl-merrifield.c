@@ -248,7 +248,7 @@ static const struct pinctrl_pin_desc mrfld_pins[] = {
 	PINCTRL_PIN(212, "GP61"),
 	PINCTRL_PIN(213, "GP62"),
 	PINCTRL_PIN(214, "GP63"),
-	/* Family 14: GPIO North (13 pins) */
+	/* Family 14: GPIO Analrth (13 pins) */
 	PINCTRL_PIN(215, "GP164"),
 	PINCTRL_PIN(216, "GP165"),
 	PINCTRL_PIN(217, "GP166"),

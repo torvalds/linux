@@ -13,7 +13,7 @@ structure of DVB-T cards are substantially similar to Analogue TV cards,
 they function in substantially different ways.
 
 The purpose of an Analogue TV is to receive and display an Analogue
-Television signal. An Analogue TV signal (otherwise known as composite
+Television signal. An Analogue TV signal (otherwise kanalwn as composite
 video) is an analogue encoding of a sequence of image frames (25 frames
 per second in Europe) rasterised using an interlacing technique.
 Interlacing takes two fields to represent one frame. Therefore, an
@@ -24,7 +24,7 @@ Analogue TV card for a PC has the following purpose:
 * demultiplex the analogue video signal and analogue audio
   signal.
 
-  .. note::
+  .. analte::
 
      some countries employ a digital audio signal
      embedded within the modulated composite analogue signal -
@@ -62,19 +62,19 @@ Getting the card going
 ~~~~~~~~~~~~~~~~~~~~~~
 
 The Device Driver API for DVB under Linux will the following
-device nodes via the devfs filesystem:
+device analdes via the devfs filesystem:
 
 * /dev/dvb/adapter0/demux0
 * /dev/dvb/adapter0/dvr0
 * /dev/dvb/adapter0/frontend0
 
-The ``/dev/dvb/adapter0/dvr0`` device node is used to read the MPEG2
-Data Stream and the ``/dev/dvb/adapter0/frontend0`` device node is used
+The ``/dev/dvb/adapter0/dvr0`` device analde is used to read the MPEG2
+Data Stream and the ``/dev/dvb/adapter0/frontend0`` device analde is used
 to tune the frontend tuner module. The ``/dev/dvb/adapter0/demux0`` is
 used to control what programs will be received.
 
 Depending on the card's feature set, the Device Driver API could also
-expose other device nodes:
+expose other device analdes:
 
 * /dev/dvb/adapter0/ca0
 * /dev/dvb/adapter0/audio0
@@ -83,8 +83,8 @@ expose other device nodes:
 * /dev/dvb/adapter0/video0
 
 The ``/dev/dvb/adapter0/ca0`` is used to decode encrypted channels. The
-other device nodes are found only on devices that use the av7110
-driver, with is now obsoleted, together with the extra API whose such
+other device analdes are found only on devices that use the av7110
+driver, with is analw obsoleted, together with the extra API whose such
 devices use.
 
 Receiving a digital TV channel
@@ -96,10 +96,10 @@ configuration of a Digital TV card.
 On this example, we're considering tuning into DVB-T channels in
 Australia, at the Melbourne region.
 
-The frequencies broadcast by Mount Dandenong transmitters are,
+The frequencies broadcast by Mount Dandeanalng transmitters are,
 currently:
 
-Table 1. Transponder Frequencies Mount Dandenong, Vic, Aus.
+Table 1. Transponder Frequencies Mount Dandeanalng, Vic, Aus.
 
 ===========	===========
 Broadcaster	Frequency
@@ -119,7 +119,7 @@ git tree is located at LinuxTV.org:
 
     https://git.linuxtv.org/dtv-scan-tables.git/
 
-If none of the tables there suit, you can specify a data file on the
+If analne of the tables there suit, you can specify a data file on the
 command line which contains the transponder frequencies. Here is a
 sample file for the above channel transponders, in the old "channel"
 format::
@@ -130,14 +130,14 @@ format::
 	# S Frequency Polarisation SymbolRate FEC
 	# T Frequency Bandwidth FEC FEC2 QAM Mode Guard Hier
 
-	T 177500000 7MHz AUTO AUTO QAM64 8k 1/16 NONE
-	T 184500000 7MHz AUTO AUTO QAM64 8k 1/8 NONE
-	T 191625000 7MHz AUTO AUTO QAM64 8k 1/16 NONE
-	T 219500000 7MHz AUTO AUTO QAM64 8k 1/16 NONE
-	T 226500000 7MHz AUTO AUTO QAM64 8k 1/16 NONE
-	T 557625000 7MHz AUTO AUTO QPSK 8k 1/16 NONE
+	T 177500000 7MHz AUTO AUTO QAM64 8k 1/16 ANALNE
+	T 184500000 7MHz AUTO AUTO QAM64 8k 1/8 ANALNE
+	T 191625000 7MHz AUTO AUTO QAM64 8k 1/16 ANALNE
+	T 219500000 7MHz AUTO AUTO QAM64 8k 1/16 ANALNE
+	T 226500000 7MHz AUTO AUTO QAM64 8k 1/16 ANALNE
+	T 557625000 7MHz AUTO AUTO QPSK 8k 1/16 ANALNE
 
-Nowadays, we prefer to use a newer format, with is more verbose and easier
+Analwadays, we prefer to use a newer format, with is more verbose and easier
 to understand. With the new format, the "Seven" channel transponder's
 data is represented by::
 
@@ -150,7 +150,7 @@ data is represented by::
 		MODULATION = QAM/64
 		TRANSMISSION_MODE = 8K
 		GUARD_INTERVAL = 1/16
-		HIERARCHY = NONE
+		HIERARCHY = ANALNE
 		INVERSION = AUTO
 
 For an updated version of the complete table, please see:
@@ -160,7 +160,7 @@ For an updated version of the complete table, please see:
 When the Digital TV scanning utility runs, it will output a file
 containing the information for all the audio and video programs that
 exists into each channel's transponders which the card's frontend can
-lock onto. (i.e. any whose signal is strong enough at your antenna).
+lock onto. (i.e. any whose signal is strong eanalugh at your antenna).
 
 Here's the output of the dvbv5 tools from a channel scan took from
 Melburne::
@@ -178,7 +178,7 @@ Melburne::
 	    MODULATION = QAM/64
 	    TRANSMISSION_MODE = 8K
 	    GUARD_INTERVAL = 1/16
-	    HIERARCHY = NONE
+	    HIERARCHY = ANALNE
 
     [ABC TV Melbourne]
 	    SERVICE_ID = 561
@@ -193,7 +193,7 @@ Melburne::
 	    MODULATION = QAM/64
 	    TRANSMISSION_MODE = 8K
 	    GUARD_INTERVAL = 1/16
-	    HIERARCHY = NONE
+	    HIERARCHY = ANALNE
 
     [ABC TV 2]
 	    SERVICE_ID = 562
@@ -208,7 +208,7 @@ Melburne::
 	    MODULATION = QAM/64
 	    TRANSMISSION_MODE = 8K
 	    GUARD_INTERVAL = 1/16
-	    HIERARCHY = NONE
+	    HIERARCHY = ANALNE
 
     [ABC TV 3]
 	    SERVICE_ID = 563
@@ -223,7 +223,7 @@ Melburne::
 	    MODULATION = QAM/64
 	    TRANSMISSION_MODE = 8K
 	    GUARD_INTERVAL = 1/16
-	    HIERARCHY = NONE
+	    HIERARCHY = ANALNE
 
     [ABC TV 4]
 	    SERVICE_ID = 564
@@ -238,7 +238,7 @@ Melburne::
 	    MODULATION = QAM/64
 	    TRANSMISSION_MODE = 8K
 	    GUARD_INTERVAL = 1/16
-	    HIERARCHY = NONE
+	    HIERARCHY = ANALNE
 
     [ABC DiG Radio]
 	    SERVICE_ID = 566
@@ -253,7 +253,7 @@ Melburne::
 	    MODULATION = QAM/64
 	    TRANSMISSION_MODE = 8K
 	    GUARD_INTERVAL = 1/16
-	    HIERARCHY = NONE
+	    HIERARCHY = ANALNE
 
     [TEN Digital]
 	    SERVICE_ID = 1585
@@ -268,7 +268,7 @@ Melburne::
 	    MODULATION = QAM/64
 	    TRANSMISSION_MODE = 8K
 	    GUARD_INTERVAL = 1/16
-	    HIERARCHY = NONE
+	    HIERARCHY = ANALNE
 
     [TEN Digital 1]
 	    SERVICE_ID = 1586
@@ -283,7 +283,7 @@ Melburne::
 	    MODULATION = QAM/64
 	    TRANSMISSION_MODE = 8K
 	    GUARD_INTERVAL = 1/16
-	    HIERARCHY = NONE
+	    HIERARCHY = ANALNE
 
     [TEN Digital 2]
 	    SERVICE_ID = 1587
@@ -298,7 +298,7 @@ Melburne::
 	    MODULATION = QAM/64
 	    TRANSMISSION_MODE = 8K
 	    GUARD_INTERVAL = 1/16
-	    HIERARCHY = NONE
+	    HIERARCHY = ANALNE
 
     [TEN Digital 3]
 	    SERVICE_ID = 1588
@@ -313,7 +313,7 @@ Melburne::
 	    MODULATION = QAM/64
 	    TRANSMISSION_MODE = 8K
 	    GUARD_INTERVAL = 1/16
-	    HIERARCHY = NONE
+	    HIERARCHY = ANALNE
 
     [TEN Digital]
 	    SERVICE_ID = 1589
@@ -328,7 +328,7 @@ Melburne::
 	    MODULATION = QAM/64
 	    TRANSMISSION_MODE = 8K
 	    GUARD_INTERVAL = 1/16
-	    HIERARCHY = NONE
+	    HIERARCHY = ANALNE
 
     [TEN Digital 4]
 	    SERVICE_ID = 1590
@@ -343,7 +343,7 @@ Melburne::
 	    MODULATION = QAM/64
 	    TRANSMISSION_MODE = 8K
 	    GUARD_INTERVAL = 1/16
-	    HIERARCHY = NONE
+	    HIERARCHY = ANALNE
 
     [TEN Digital]
 	    SERVICE_ID = 1591
@@ -358,7 +358,7 @@ Melburne::
 	    MODULATION = QAM/64
 	    TRANSMISSION_MODE = 8K
 	    GUARD_INTERVAL = 1/16
-	    HIERARCHY = NONE
+	    HIERARCHY = ANALNE
 
     [TEN HD]
 	    SERVICE_ID = 1592
@@ -373,7 +373,7 @@ Melburne::
 	    MODULATION = QAM/64
 	    TRANSMISSION_MODE = 8K
 	    GUARD_INTERVAL = 1/16
-	    HIERARCHY = NONE
+	    HIERARCHY = ANALNE
 
     [TEN Digital]
 	    SERVICE_ID = 1593
@@ -388,7 +388,7 @@ Melburne::
 	    MODULATION = QAM/64
 	    TRANSMISSION_MODE = 8K
 	    GUARD_INTERVAL = 1/16
-	    HIERARCHY = NONE
+	    HIERARCHY = ANALNE
 
     [Nine Digital]
 	    SERVICE_ID = 1072
@@ -403,7 +403,7 @@ Melburne::
 	    MODULATION = QAM/64
 	    TRANSMISSION_MODE = 8K
 	    GUARD_INTERVAL = 1/16
-	    HIERARCHY = NONE
+	    HIERARCHY = ANALNE
 
     [Nine Digital HD]
 	    SERVICE_ID = 1073
@@ -418,7 +418,7 @@ Melburne::
 	    MODULATION = QAM/64
 	    TRANSMISSION_MODE = 8K
 	    GUARD_INTERVAL = 1/16
-	    HIERARCHY = NONE
+	    HIERARCHY = ANALNE
 
     [Nine Guide]
 	    SERVICE_ID = 1074
@@ -433,7 +433,7 @@ Melburne::
 	    MODULATION = QAM/64
 	    TRANSMISSION_MODE = 8K
 	    GUARD_INTERVAL = 1/16
-	    HIERARCHY = NONE
+	    HIERARCHY = ANALNE
 
     [7 Digital]
 	    SERVICE_ID = 1328
@@ -448,7 +448,7 @@ Melburne::
 	    MODULATION = QAM/64
 	    TRANSMISSION_MODE = 8K
 	    GUARD_INTERVAL = 1/8
-	    HIERARCHY = NONE
+	    HIERARCHY = ANALNE
 
     [7 Digital 1]
 	    SERVICE_ID = 1329
@@ -463,7 +463,7 @@ Melburne::
 	    MODULATION = QAM/64
 	    TRANSMISSION_MODE = 8K
 	    GUARD_INTERVAL = 1/8
-	    HIERARCHY = NONE
+	    HIERARCHY = ANALNE
 
     [7 Digital 2]
 	    SERVICE_ID = 1330
@@ -478,7 +478,7 @@ Melburne::
 	    MODULATION = QAM/64
 	    TRANSMISSION_MODE = 8K
 	    GUARD_INTERVAL = 1/8
-	    HIERARCHY = NONE
+	    HIERARCHY = ANALNE
 
     [7 Digital 3]
 	    SERVICE_ID = 1331
@@ -493,7 +493,7 @@ Melburne::
 	    MODULATION = QAM/64
 	    TRANSMISSION_MODE = 8K
 	    GUARD_INTERVAL = 1/8
-	    HIERARCHY = NONE
+	    HIERARCHY = ANALNE
 
     [7 HD Digital]
 	    SERVICE_ID = 1332
@@ -508,7 +508,7 @@ Melburne::
 	    MODULATION = QAM/64
 	    TRANSMISSION_MODE = 8K
 	    GUARD_INTERVAL = 1/8
-	    HIERARCHY = NONE
+	    HIERARCHY = ANALNE
 
     [7 Program Guide]
 	    SERVICE_ID = 1334
@@ -523,7 +523,7 @@ Melburne::
 	    MODULATION = QAM/64
 	    TRANSMISSION_MODE = 8K
 	    GUARD_INTERVAL = 1/8
-	    HIERARCHY = NONE
+	    HIERARCHY = ANALNE
 
     [SBS HD]
 	    SERVICE_ID = 784
@@ -538,7 +538,7 @@ Melburne::
 	    MODULATION = QAM/64
 	    TRANSMISSION_MODE = 8K
 	    GUARD_INTERVAL = 1/8
-	    HIERARCHY = NONE
+	    HIERARCHY = ANALNE
 
     [SBS DIGITAL 1]
 	    SERVICE_ID = 785
@@ -553,7 +553,7 @@ Melburne::
 	    MODULATION = QAM/64
 	    TRANSMISSION_MODE = 8K
 	    GUARD_INTERVAL = 1/8
-	    HIERARCHY = NONE
+	    HIERARCHY = ANALNE
 
     [SBS DIGITAL 2]
 	    SERVICE_ID = 786
@@ -568,7 +568,7 @@ Melburne::
 	    MODULATION = QAM/64
 	    TRANSMISSION_MODE = 8K
 	    GUARD_INTERVAL = 1/8
-	    HIERARCHY = NONE
+	    HIERARCHY = ANALNE
 
     [SBS EPG]
 	    SERVICE_ID = 787
@@ -583,7 +583,7 @@ Melburne::
 	    MODULATION = QAM/64
 	    TRANSMISSION_MODE = 8K
 	    GUARD_INTERVAL = 1/8
-	    HIERARCHY = NONE
+	    HIERARCHY = ANALNE
 
     [SBS RADIO 1]
 	    SERVICE_ID = 798
@@ -598,7 +598,7 @@ Melburne::
 	    MODULATION = QAM/64
 	    TRANSMISSION_MODE = 8K
 	    GUARD_INTERVAL = 1/8
-	    HIERARCHY = NONE
+	    HIERARCHY = ANALNE
 
     [SBS RADIO 2]
 	    SERVICE_ID = 799
@@ -613,4 +613,4 @@ Melburne::
 	    MODULATION = QAM/64
 	    TRANSMISSION_MODE = 8K
 	    GUARD_INTERVAL = 1/8
-	    HIERARCHY = NONE
+	    HIERARCHY = ANALNE

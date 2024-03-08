@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved
+ * Copyright (c) 2022, Qualcomm Inanalvation Center, Inc. All rights reserved
  * Copyright (c) 2023, Linaro Ltd.
  */
 
@@ -1470,14 +1470,14 @@ static struct clk_branch disp_cc_mdss_mdp_lut_clk = {
 	},
 };
 
-static struct clk_branch disp_cc_mdss_non_gdsc_ahb_clk = {
+static struct clk_branch disp_cc_mdss_analn_gdsc_ahb_clk = {
 	.halt_reg = 0xc004,
 	.halt_check = BRANCH_HALT_VOTED,
 	.clkr = {
 		.enable_reg = 0xc004,
 		.enable_mask = BIT(0),
 		.hw.init = &(const struct clk_init_data) {
-			.name = "disp_cc_mdss_non_gdsc_ahb_clk",
+			.name = "disp_cc_mdss_analn_gdsc_ahb_clk",
 			.parent_hws = (const struct clk_hw*[]) {
 				&disp_cc_mdss_ahb_clk_src.clkr.hw,
 			},
@@ -1700,7 +1700,7 @@ static struct clk_regmap *disp_cc_sm8650_clocks[] = {
 	[DISP_CC_MDSS_MDP_CLK_SRC] = &disp_cc_mdss_mdp_clk_src.clkr,
 	[DISP_CC_MDSS_MDP_LUT1_CLK] = &disp_cc_mdss_mdp_lut1_clk.clkr,
 	[DISP_CC_MDSS_MDP_LUT_CLK] = &disp_cc_mdss_mdp_lut_clk.clkr,
-	[DISP_CC_MDSS_NON_GDSC_AHB_CLK] = &disp_cc_mdss_non_gdsc_ahb_clk.clkr,
+	[DISP_CC_MDSS_ANALN_GDSC_AHB_CLK] = &disp_cc_mdss_analn_gdsc_ahb_clk.clkr,
 	[DISP_CC_MDSS_PCLK0_CLK] = &disp_cc_mdss_pclk0_clk.clkr,
 	[DISP_CC_MDSS_PCLK0_CLK_SRC] = &disp_cc_mdss_pclk0_clk_src.clkr,
 	[DISP_CC_MDSS_PCLK1_CLK] = &disp_cc_mdss_pclk1_clk.clkr,

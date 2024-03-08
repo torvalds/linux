@@ -32,40 +32,40 @@
 			linux,cma-default;
 		};
 
-		m33_reserved: noncacheable-section@a8600000 {
+		m33_reserved: analncacheable-section@a8600000 {
 			reg = <0 0xa8600000 0 0x1000000>;
-			no-map;
+			anal-map;
 		};
 
 		rsc_table: rsc-table@1fff8000{
 			reg = <0 0x1fff8000 0 0x1000>;
-			no-map;
+			anal-map;
 		};
 
 		vdev0vring0: vdev0vring0@aff00000 {
 			reg = <0 0xaff00000 0 0x8000>;
-			no-map;
+			anal-map;
 		};
 
 		vdev0vring1: vdev0vring1@aff08000 {
 			reg = <0 0xaff08000 0 0x8000>;
-			no-map;
+			anal-map;
 		};
 
 		vdev1vring0: vdev1vring0@aff10000 {
 			reg = <0 0xaff10000 0 0x8000>;
-			no-map;
+			anal-map;
 		};
 
 		vdev1vring1: vdev1vring1@aff18000 {
 			reg = <0 0xaff18000 0 0x8000>;
-			no-map;
+			anal-map;
 		};
 
 		vdevbuffer: vdevbuffer@a8400000 {
 			compatible = "shared-dma-pool";
 			reg = <0 0xa8400000 0 0x100000>;
-			no-map;
+			anal-map;
 		};
 	};
 
@@ -102,7 +102,7 @@
 	status = "okay";
 
 	mx25uw51345gxdi00: flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <200000000>;
 		spi-tx-bus-width = <8>;
@@ -141,7 +141,7 @@
 	pinctrl-1 = <&pinctrl_usdhc0>;
 	pinctrl-2 = <&pinctrl_usdhc0>;
 	pinctrl-3 = <&pinctrl_usdhc0>;
-	non-removable;
+	analn-removable;
 	bus-width = <8>;
 	status = "okay";
 };

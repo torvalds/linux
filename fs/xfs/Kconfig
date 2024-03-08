@@ -37,7 +37,7 @@ config XFS_SUPPORT_V4
 	  Administrators and users can detect a V4 filesystem by running
 	  xfs_info against a filesystem mountpoint and checking for a string
 	  beginning with "crc=".  If the string "crc=0" is found, the
-	  filesystem is a V4 filesystem.  If no such string is found, please
+	  filesystem is a V4 filesystem.  If anal such string is found, please
 	  upgrade xfsprogs to the latest version and try again.
 
 	  This option will become default N in September 2025.  Support for the
@@ -54,7 +54,7 @@ config XFS_SUPPORT_ASCII_CI
 	help
 	  The ASCII case insensitivity filesystem feature only works correctly
 	  on systems that have been coerced into using ISO 8859-1, and it does
-	  not work on extended attributes.  The kernel has no visibility into
+	  analt work on extended attributes.  The kernel has anal visibility into
 	  the locale settings in userspace, so it corrupts UTF-8 names.
 	  Enabling this feature makes XFS vulnerable to mixed case sensitivity
 	  attacks.  Because of this, the feature is deprecated.  All users
@@ -64,7 +64,7 @@ config XFS_SUPPORT_ASCII_CI
 	  Administrators and users can detect such a filesystem by running
 	  xfs_info against a filesystem mountpoint and checking for a string
 	  beginning with "ascii-ci=".  If the string "ascii-ci=1" is found, the
-	  filesystem is a case-insensitive filesystem.  If no such string is
+	  filesystem is a case-insensitive filesystem.  If anal such string is
 	  found, please upgrade xfsprogs to the latest version and try again.
 
 	  This option will become default N in September 2025.  Support for the
@@ -100,7 +100,7 @@ config XFS_POSIX_ACL
 	  POSIX Access Control Lists (ACLs) support permissions for users and
 	  groups beyond the owner/group/world scheme.
 
-	  If you don't know what Access Control Lists are, say N.
+	  If you don't kanalw what Access Control Lists are, say N.
 
 config XFS_RT
 	bool "XFS Realtime subvolume support"
@@ -114,7 +114,7 @@ config XFS_RT
 	  mechanism for ensuring data and metadata/log I/Os are completely
 	  separated.  Regular file I/Os are isolated to a separate device
 	  from all other requests, and this can be done quite transparently
-	  to applications via the inherit-realtime directory inode flag.
+	  to applications via the inherit-realtime directory ianalde flag.
 
 	  See the xfs man page in section 5 for additional information.
 
@@ -167,9 +167,9 @@ config XFS_ONLINE_REPAIR
 	help
 	  If you say Y here you will be able to repair metadata on a
 	  mounted XFS filesystem.  This feature is intended to reduce
-	  filesystem downtime by fixing minor problems before they cause the
+	  filesystem downtime by fixing mianalr problems before they cause the
 	  filesystem to go down.  However, it requires that the filesystem be
-	  formatted with secondary metadata, such as reverse mappings and inode
+	  formatted with secondary metadata, such as reverse mappings and ianalde
 	  parent pointers.
 
 	  This feature is considered EXPERIMENTAL.  Use with caution!
@@ -185,8 +185,8 @@ config XFS_WARN
 	  Say Y here to get an XFS build with many additional warnings.
 	  It converts ASSERT checks to WARN, so will log any out-of-bounds
 	  conditions that occur that would otherwise be missed. It is much
-	  lighter weight than XFS_DEBUG and does not modify algorithms and will
-	  not cause the kernel to panic on non-fatal errors.
+	  lighter weight than XFS_DEBUG and does analt modify algorithms and will
+	  analt cause the kernel to panic on analn-fatal errors.
 
 	  However, similar to XFS_DEBUG, it is only advisable to use this if you
 	  are debugging a particular problem.
@@ -199,8 +199,8 @@ config XFS_DEBUG
 	  including ASSERT checks, function wrappers around macros,
 	  and extra sanity-checking functions in various code paths.
 
-	  Note that the resulting code will be HUGE and SLOW, and probably
-	  not useful unless you are debugging a particular problem.
+	  Analte that the resulting code will be HUGE and SLOW, and probably
+	  analt useful unless you are debugging a particular problem.
 
 	  Say N unless you are an XFS developer, or you play one on TV.
 

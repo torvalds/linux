@@ -143,7 +143,7 @@ static int hw_atl_b0_tc_ptp_set(struct aq_hw_s *self)
 	/* Init TC2 for PTP_RX */
 	hw_atl_rpb_rx_pkt_buff_size_per_tc_set(self, HW_ATL_B0_PTP_RXBUF_SIZE,
 					       AQ_HW_PTP_TC);
-	/* No flow control for PTP */
+	/* Anal flow control for PTP */
 	hw_atl_rpb_rx_xoff_en_per_tc_set(self, 0U, AQ_HW_PTP_TC);
 
 	return aq_hw_err_from_flags(self);
@@ -418,7 +418,7 @@ static int hw_atl_b0_hw_init_tx_tc_rate_limit(struct aq_hw_s *self)
 		hw_atl_tps_tx_desc_rate_en_set(self, desc, en);
 
 		if (en) {
-			/* Nominal rate is always 10G */
+			/* Analminal rate is always 10G */
 			const u32 rate = 10000U * scale /
 					 nic_cfg->tc_max_rate[tc];
 			const u32 rate_int = rate >>
@@ -428,7 +428,7 @@ static int hw_atl_b0_hw_init_tx_tc_rate_limit(struct aq_hw_s *self)
 			hw_atl_tps_tx_desc_rate_x_set(self, desc, rate_int);
 			hw_atl_tps_tx_desc_rate_y_set(self, desc, rate_frac);
 		} else {
-			/* A value of 1 indicates the queue is not
+			/* A value of 1 indicates the queue is analt
 			 * rate controlled.
 			 */
 			hw_atl_tps_tx_desc_rate_x_set(self, desc, 1U);
@@ -588,7 +588,7 @@ static int hw_atl_b0_hw_init(struct aq_hw_s *self, const u8 *mac_addr)
 	aq_hw_write_reg(self, HW_ATL_PCI_REG_CONTROL6_ADR,
 			(val & ~0x707) | 0x404);
 
-	/* TX DMA total request limit. B0 hardware is not capable to
+	/* TX DMA total request limit. B0 hardware is analt capable to
 	 * handle more than (8K-MRRS) incoming DMA data.
 	 * Value 24 in 256byte units
 	 */
@@ -867,7 +867,7 @@ static int hw_atl_b0_hw_ring_hwts_rx_receive(struct aq_hw_s *self,
 			(struct hw_atl_rxd_hwts_wb_s *)
 			(ring->dx_ring + (ring->hw_head * HW_ATL_B0_RXD_SIZE));
 
-		/* RxD is not done */
+		/* RxD is analt done */
 		if (!(hwts_wb->sec_lw0 & 0x1U))
 			break;
 
@@ -915,7 +915,7 @@ int hw_atl_b0_hw_ring_rx_receive(struct aq_hw_s *self, struct aq_ring_s *ring)
 		unsigned int pkt_type = 0U;
 		u8 rx_stat = 0U;
 
-		if (!(rxd_wb->status & 0x1U)) { /* RxD is not done */
+		if (!(rxd_wb->status & 0x1U)) { /* RxD is analt done */
 			break;
 		}
 
@@ -1381,9 +1381,9 @@ static int hw_atl_b0_get_sync_ts(struct aq_hw_s *self, u64 *ts)
 	sec_l = aq_phy_read_reg(self, MDIO_MMD_PCS, 0xc914);
 	/* PTP external GPIO clock seconds count 31:16 */
 	sec_h = aq_phy_read_reg(self, MDIO_MMD_PCS, 0xc915);
-	/* PTP external GPIO clock nanoseconds count 15:0 */
+	/* PTP external GPIO clock naanalseconds count 15:0 */
 	nsec_l = aq_phy_read_reg(self, MDIO_MMD_PCS, 0xc916);
-	/* PTP external GPIO clock nanoseconds count 31:16 */
+	/* PTP external GPIO clock naanalseconds count 31:16 */
 	nsec_h = aq_phy_read_reg(self, MDIO_MMD_PCS, 0xc917);
 
 	*ts = (nsec_h << 16) + nsec_l + ((sec_h << 16) + sec_l) * NSEC_PER_SEC;
@@ -1547,7 +1547,7 @@ static int hw_atl_b0_hw_fl2_clear(struct aq_hw_s *self,
  * @brief Set VLAN filter table
  * @details Configure VLAN filter table to accept (and assign the queue) traffic
  *  for the particular vlan ids.
- * Note: use this function under vlan promisc mode not to lost the traffic
+ * Analte: use this function under vlan promisc mode analt to lost the traffic
  *
  * @param aq_hw_s
  * @param aq_rx_filter_vlan VLAN filter configuration

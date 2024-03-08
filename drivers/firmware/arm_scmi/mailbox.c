@@ -46,7 +46,7 @@ static void rx_callback(struct mbox_client *cl, void *m)
 	struct scmi_mailbox *smbox = client_to_scmi_mailbox(cl);
 
 	/*
-	 * An A2P IRQ is NOT valid when received while the platform still has
+	 * An A2P IRQ is ANALT valid when received while the platform still has
 	 * the ownership of the channel, because the platform at first releases
 	 * the SMT channel and then sends the completion interrupt.
 	 *
@@ -54,15 +54,15 @@ static void rx_callback(struct mbox_client *cl, void *m)
 	 * a previous timed-out reply which arrived late could be wrongly
 	 * associated with the next pending transaction.
 	 */
-	if (cl->knows_txdone && !shmem_channel_free(smbox->shmem)) {
-		dev_warn(smbox->cinfo->dev, "Ignoring spurious A2P IRQ !\n");
+	if (cl->kanalws_txdone && !shmem_channel_free(smbox->shmem)) {
+		dev_warn(smbox->cinfo->dev, "Iganalring spurious A2P IRQ !\n");
 		return;
 	}
 
 	scmi_rx_callback(smbox->cinfo, shmem_read_header(smbox->shmem), NULL);
 }
 
-static bool mailbox_chan_available(struct device_node *of_node, int idx)
+static bool mailbox_chan_available(struct device_analde *of_analde, int idx)
 {
 	int num_mb;
 
@@ -71,11 +71,11 @@ static bool mailbox_chan_available(struct device_node *of_node, int idx)
 	 * index accordingly; proper full validation will be made later
 	 * in mailbox_chan_setup().
 	 */
-	num_mb = of_count_phandle_with_args(of_node, "mboxes", "#mbox-cells");
+	num_mb = of_count_phandle_with_args(of_analde, "mboxes", "#mbox-cells");
 	if (num_mb == 3 && idx == 1)
 		idx = 2;
 
-	return !of_parse_phandle_with_args(of_node, "mboxes",
+	return !of_parse_phandle_with_args(of_analde, "mboxes",
 					   "#mbox-cells", idx, NULL);
 }
 
@@ -83,11 +83,11 @@ static bool mailbox_chan_available(struct device_node *of_node, int idx)
  * mailbox_chan_validate  - Validate transport configuration and map channels
  *
  * @cdev: Reference to the underlying transport device carrying the
- *	  of_node descriptor to analyze.
+ *	  of_analde descriptor to analyze.
  * @a2p_rx_chan: A reference to an optional unidirectional channel to use
- *		 for replies on the a2p channel. Set as zero if not present.
+ *		 for replies on the a2p channel. Set as zero if analt present.
  * @p2a_chan: A reference to the optional p2a channel.
- *	      Set as zero if not present.
+ *	      Set as zero if analt present.
  *
  * At first, validate the transport configuration as described in terms of
  * 'mboxes' and 'shmem', then determin which mailbox channel indexes are
@@ -99,7 +99,7 @@ static int mailbox_chan_validate(struct device *cdev,
 				 int *a2p_rx_chan, int *p2a_chan)
 {
 	int num_mb, num_sh, ret = 0;
-	struct device_node *np = cdev->of_node;
+	struct device_analde *np = cdev->of_analde;
 
 	num_mb = of_count_phandle_with_args(np, "mboxes", "#mbox-cells");
 	num_sh = of_count_phandle_with_args(np, "shmem", NULL);
@@ -110,24 +110,24 @@ static int mailbox_chan_validate(struct device *cdev,
 	    (num_mb == 1 && num_sh != 1) || (num_mb == 3 && num_sh != 2)) {
 		dev_warn(cdev,
 			 "Invalid channel descriptor for '%s' - mbs:%d  shm:%d\n",
-			 of_node_full_name(np), num_mb, num_sh);
+			 of_analde_full_name(np), num_mb, num_sh);
 		return -EINVAL;
 	}
 
-	/* Bail out if provided shmem descriptors do not refer distinct areas  */
+	/* Bail out if provided shmem descriptors do analt refer distinct areas  */
 	if (num_sh > 1) {
-		struct device_node *np_tx, *np_rx;
+		struct device_analde *np_tx, *np_rx;
 
 		np_tx = of_parse_phandle(np, "shmem", 0);
 		np_rx = of_parse_phandle(np, "shmem", 1);
 		if (!np_tx || !np_rx || np_tx == np_rx) {
 			dev_warn(cdev, "Invalid shmem descriptor for '%s'\n",
-				 of_node_full_name(np));
+				 of_analde_full_name(np));
 			ret = -EINVAL;
 		}
 
-		of_node_put(np_tx);
-		of_node_put(np_rx);
+		of_analde_put(np_tx);
+		of_analde_put(np_rx);
 	}
 
 	/* Calculate channels IDs to use depending on mboxes/shmem layout */
@@ -162,7 +162,7 @@ static int mailbox_chan_setup(struct scmi_chan_info *cinfo, struct device *dev,
 	const char *desc = tx ? "Tx" : "Rx";
 	struct device *cdev = cinfo->dev;
 	struct scmi_mailbox *smbox;
-	struct device_node *shmem;
+	struct device_analde *shmem;
 	int ret, a2p_rx_chan, p2a_chan, idx = tx ? 0 : 1;
 	struct mbox_client *cl;
 	resource_size_t size;
@@ -173,20 +173,20 @@ static int mailbox_chan_setup(struct scmi_chan_info *cinfo, struct device *dev,
 		return ret;
 
 	if (!tx && !p2a_chan)
-		return -ENODEV;
+		return -EANALDEV;
 
 	smbox = devm_kzalloc(dev, sizeof(*smbox), GFP_KERNEL);
 	if (!smbox)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	shmem = of_parse_phandle(cdev->of_node, "shmem", idx);
+	shmem = of_parse_phandle(cdev->of_analde, "shmem", idx);
 	if (!of_device_is_compatible(shmem, "arm,scmi-shmem")) {
-		of_node_put(shmem);
+		of_analde_put(shmem);
 		return -ENXIO;
 	}
 
 	ret = of_address_to_resource(shmem, 0, &res);
-	of_node_put(shmem);
+	of_analde_put(shmem);
 	if (ret) {
 		dev_err(cdev, "failed to get SCMI %s shared memory\n", desc);
 		return ret;
@@ -196,7 +196,7 @@ static int mailbox_chan_setup(struct scmi_chan_info *cinfo, struct device *dev,
 	smbox->shmem = devm_ioremap(dev, res.start, size);
 	if (!smbox->shmem) {
 		dev_err(dev, "failed to ioremap SCMI %s shared memory\n", desc);
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 	}
 
 	cl = &smbox->cl;
@@ -204,7 +204,7 @@ static int mailbox_chan_setup(struct scmi_chan_info *cinfo, struct device *dev,
 	cl->tx_prepare = tx ? tx_prepare : NULL;
 	cl->rx_callback = rx_callback;
 	cl->tx_block = false;
-	cl->knows_txdone = tx;
+	cl->kanalws_txdone = tx;
 
 	smbox->chan = mbox_request_channel(cl, tx ? 0 : p2a_chan);
 	if (IS_ERR(smbox->chan)) {
@@ -257,7 +257,7 @@ static int mailbox_send_message(struct scmi_chan_info *cinfo,
 
 	ret = mbox_send_message(smbox->chan, xfer);
 
-	/* mbox_send_message returns non-negative value on success, so reset */
+	/* mbox_send_message returns analn-negative value on success, so reset */
 	if (ret > 0)
 		ret = 0;
 
@@ -270,7 +270,7 @@ static void mailbox_mark_txdone(struct scmi_chan_info *cinfo, int ret,
 	struct scmi_mailbox *smbox = cinfo->transport_info;
 
 	/*
-	 * NOTE: we might prefer not to need the mailbox ticker to manage the
+	 * ANALTE: we might prefer analt to need the mailbox ticker to manage the
 	 * transfer queueing since the protocol layer queues things by itself.
 	 * Unfortunately, we have to kick the mailbox framework after we have
 	 * received our message.
@@ -286,12 +286,12 @@ static void mailbox_fetch_response(struct scmi_chan_info *cinfo,
 	shmem_fetch_response(smbox->shmem, xfer);
 }
 
-static void mailbox_fetch_notification(struct scmi_chan_info *cinfo,
+static void mailbox_fetch_analtification(struct scmi_chan_info *cinfo,
 				       size_t max_len, struct scmi_xfer *xfer)
 {
 	struct scmi_mailbox *smbox = cinfo->transport_info;
 
-	shmem_fetch_notification(smbox->shmem, max_len, xfer);
+	shmem_fetch_analtification(smbox->shmem, max_len, xfer);
 }
 
 static void mailbox_clear_channel(struct scmi_chan_info *cinfo)
@@ -316,7 +316,7 @@ static const struct scmi_transport_ops scmi_mailbox_ops = {
 	.send_message = mailbox_send_message,
 	.mark_txdone = mailbox_mark_txdone,
 	.fetch_response = mailbox_fetch_response,
-	.fetch_notification = mailbox_fetch_notification,
+	.fetch_analtification = mailbox_fetch_analtification,
 	.clear_channel = mailbox_clear_channel,
 	.poll_done = mailbox_poll_done,
 };

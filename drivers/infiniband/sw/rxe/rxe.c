@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
- * Copyright (c) 2016 Mellanox Technologies Ltd. All rights reserved.
+ * Copyright (c) 2016 Mellaanalx Techanallogies Ltd. All rights reserved.
  * Copyright (c) 2015 System Fabric Works, Inc. All rights reserved.
  */
 
@@ -101,7 +101,7 @@ static void rxe_init_port_param(struct rxe_port *port)
 	port->subnet_prefix		= cpu_to_be64(RXE_PORT_SUBNET_PREFIX);
 }
 
-/* initialize port state, note IB convention that HCA ports are always
+/* initialize port state, analte IB convention that HCA ports are always
  * numbered from 1
  */
 static void rxe_init_ports(struct rxe_dev *rxe)

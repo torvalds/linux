@@ -10,7 +10,7 @@
  * Mike Rapoport <mike@compulab.co.il>
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/gpio/driver.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -77,13 +77,13 @@ static int tps6586x_gpio_probe(struct platform_device *pdev)
 	struct tps6586x_platform_data *pdata;
 	struct tps6586x_gpio *tps6586x_gpio;
 
-	device_set_node(&pdev->dev, dev_fwnode(pdev->dev.parent));
+	device_set_analde(&pdev->dev, dev_fwanalde(pdev->dev.parent));
 
 	pdata = dev_get_platdata(pdev->dev.parent);
 	tps6586x_gpio = devm_kzalloc(&pdev->dev,
 				sizeof(*tps6586x_gpio), GFP_KERNEL);
 	if (!tps6586x_gpio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tps6586x_gpio->parent = pdev->dev.parent;
 

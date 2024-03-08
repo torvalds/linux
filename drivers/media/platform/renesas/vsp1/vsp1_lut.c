@@ -44,7 +44,7 @@ static int lut_set_table(struct vsp1_lut *lut, struct v4l2_ctrl *ctrl)
 
 	dlb = vsp1_dl_body_get(lut->pool);
 	if (!dlb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < LUT_SIZE; ++i)
 		vsp1_dl_body_write(dlb, VI6_LUT_TABLE + 4 * i,
@@ -201,7 +201,7 @@ struct vsp1_lut *vsp1_lut_create(struct vsp1_device *vsp1)
 
 	lut = devm_kzalloc(vsp1->dev, sizeof(*lut), GFP_KERNEL);
 	if (lut == NULL)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	spin_lock_init(&lut->lock);
 
@@ -220,7 +220,7 @@ struct vsp1_lut *vsp1_lut_create(struct vsp1_device *vsp1)
 	 */
 	lut->pool = vsp1_dl_body_pool_create(vsp1, 3, LUT_SIZE, 0);
 	if (!lut->pool)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	/* Initialize the control handler. */
 	v4l2_ctrl_handler_init(&lut->ctrls, 1);

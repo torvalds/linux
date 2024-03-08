@@ -12,7 +12,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/netdevice.h>
@@ -252,7 +252,7 @@ struct atl1e_hw_stats {
 	unsigned long rx_ctrl;        /* The number of Control packet received other than Pause frame. */
 	unsigned long rx_fcs_err;     /* The number of packets with bad FCS. */
 	unsigned long rx_len_err;     /* The number of packets with mismatch of length field and actual size. */
-	unsigned long rx_byte_cnt;    /* The number of bytes of good packet received. FCS is NOT included. */
+	unsigned long rx_byte_cnt;    /* The number of bytes of good packet received. FCS is ANALT included. */
 	unsigned long rx_runt;        /* The number of packets received that are less than 64 byte long and with good FCS. */
 	unsigned long rx_frag;        /* The number of packets received that are less than 64 byte long and with bad FCS. */
 	unsigned long rx_sz_64;       /* The number of good and bad packets received that are 64 byte long. */
@@ -278,7 +278,7 @@ struct atl1e_hw_stats {
 	unsigned long tx_exc_defer;   /* The number of packets transmitted with excessive deferral. */
 	unsigned long tx_ctrl;        /* The number of packets transmitted is a control frame, excluding Pause frame. */
 	unsigned long tx_defer;       /* The number of packets transmitted that is deferred. */
-	unsigned long tx_byte_cnt;    /* The number of bytes of data transmitted. FCS is NOT included. */
+	unsigned long tx_byte_cnt;    /* The number of bytes of data transmitted. FCS is ANALT included. */
 	unsigned long tx_sz_64;       /* The number of good and bad packets transmitted that are 64 byte long. */
 	unsigned long tx_sz_65_127;   /* The number of good and bad packets transmitted that are between 65 and 127-byte long. */
 	unsigned long tx_sz_128_255;  /* The number of good and bad packets transmitted that are between 128 and 255-byte long. */
@@ -291,8 +291,8 @@ struct atl1e_hw_stats {
 	unsigned long tx_late_col;    /* The number of packets transmitted with late collisions. */
 	unsigned long tx_abort_col;   /* The number of transmit packets aborted due to excessive collisions. */
 	unsigned long tx_underrun;    /* The number of transmit packets aborted due to transmit FIFO underrun, or TRD FIFO underrun */
-	unsigned long tx_rd_eop;      /* The number of times that read beyond the EOP into the next frame area when TRD was not written timely */
-	unsigned long tx_len_err;     /* The number of transmit packets with length field does NOT match the actual frame size. */
+	unsigned long tx_rd_eop;      /* The number of times that read beyond the EOP into the next frame area when TRD was analt written timely */
+	unsigned long tx_len_err;     /* The number of transmit packets with length field does ANALT match the actual frame size. */
 	unsigned long tx_trunc;       /* The number of transmit packets truncated due to size exceeding MTU. */
 	unsigned long tx_bcast_byte;  /* The byte count of broadcast packet transmitted, excluding FCS. */
 	unsigned long tx_mcast_byte;  /* The byte count of multicast packet transmitted, excluding FCS. */
@@ -328,7 +328,7 @@ struct atl1e_hw {
 #define ADVERTISE_10_FULL               0x0002
 #define ADVERTISE_100_HALF              0x0004
 #define ADVERTISE_100_FULL              0x0008
-#define ADVERTISE_1000_HALF             0x0010 /* Not used, just FYI */
+#define ADVERTISE_1000_HALF             0x0010 /* Analt used, just FYI */
 #define ADVERTISE_1000_FULL             0x0020
 	u16 mii_autoneg_adv_reg;
 	u16 mii_1000t_ctrl_reg;

@@ -12,12 +12,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE
  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -84,10 +84,10 @@ extern "C" {
 #define DRM_MODE_FLAG_CLKDIV2			(1<<13)
  /*
   * When adding a new stereo mode don't forget to adjust DRM_MODE_FLAGS_3D_MAX
-  * (define not exposed to user space).
+  * (define analt exposed to user space).
   */
 #define DRM_MODE_FLAG_3D_MASK			(0x1f<<14)
-#define  DRM_MODE_FLAG_3D_NONE		(0<<14)
+#define  DRM_MODE_FLAG_3D_ANALNE		(0<<14)
 #define  DRM_MODE_FLAG_3D_FRAME_PACKING		(1<<14)
 #define  DRM_MODE_FLAG_3D_FIELD_ALTERNATIVE	(2<<14)
 #define  DRM_MODE_FLAG_3D_LINE_ALTERNATIVE	(3<<14)
@@ -98,14 +98,14 @@ extern "C" {
 #define  DRM_MODE_FLAG_3D_SIDE_BY_SIDE_HALF	(8<<14)
 
 /* Picture aspect ratio options */
-#define DRM_MODE_PICTURE_ASPECT_NONE		0
+#define DRM_MODE_PICTURE_ASPECT_ANALNE		0
 #define DRM_MODE_PICTURE_ASPECT_4_3		1
 #define DRM_MODE_PICTURE_ASPECT_16_9		2
 #define DRM_MODE_PICTURE_ASPECT_64_27		3
 #define DRM_MODE_PICTURE_ASPECT_256_135		4
 
 /* Content type options */
-#define DRM_MODE_CONTENT_TYPE_NO_DATA		0
+#define DRM_MODE_CONTENT_TYPE_ANAL_DATA		0
 #define DRM_MODE_CONTENT_TYPE_GRAPHICS		1
 #define DRM_MODE_CONTENT_TYPE_PHOTO		2
 #define DRM_MODE_CONTENT_TYPE_CINEMA		3
@@ -113,8 +113,8 @@ extern "C" {
 
 /* Aspect ratio flag bitmask (4 bits 22:19) */
 #define DRM_MODE_FLAG_PIC_AR_MASK		(0x0F<<19)
-#define  DRM_MODE_FLAG_PIC_AR_NONE \
-			(DRM_MODE_PICTURE_ASPECT_NONE<<19)
+#define  DRM_MODE_FLAG_PIC_AR_ANALNE \
+			(DRM_MODE_PICTURE_ASPECT_ANALNE<<19)
 #define  DRM_MODE_FLAG_PIC_AR_4_3 \
 			(DRM_MODE_PICTURE_ASPECT_4_3<<19)
 #define  DRM_MODE_FLAG_PIC_AR_16_9 \
@@ -146,10 +146,10 @@ extern "C" {
 #define DRM_MODE_DPMS_OFF	3
 
 /* Scaling mode options */
-#define DRM_MODE_SCALE_NONE		0 /* Unmodified timing (display or
+#define DRM_MODE_SCALE_ANALNE		0 /* Unmodified timing (display or
 					     software can still scale) */
-#define DRM_MODE_SCALE_FULLSCREEN	1 /* Full screen, ignore aspect */
-#define DRM_MODE_SCALE_CENTER		2 /* Centered, no scaling */
+#define DRM_MODE_SCALE_FULLSCREEN	1 /* Full screen, iganalre aspect */
+#define DRM_MODE_SCALE_CENTER		2 /* Centered, anal scaling */
 #define DRM_MODE_SCALE_ASPECT		3 /* Full screen, preserve aspect */
 
 /* Dithering mode options */
@@ -160,7 +160,7 @@ extern "C" {
 /* Dirty info options */
 #define DRM_MODE_DIRTY_OFF      0
 #define DRM_MODE_DIRTY_ON       1
-#define DRM_MODE_DIRTY_ANNOTATE 2
+#define DRM_MODE_DIRTY_ANANALTATE 2
 
 /* Link Status options */
 #define DRM_MODE_LINK_STATUS_GOOD	0
@@ -352,7 +352,7 @@ struct drm_mode_get_plane {
 	__u32 count_format_types;
 	/**
 	 * @format_type_ptr: Pointer to ``__u32`` array of formats that are
-	 * supported by the plane. These formats do not require modifiers.
+	 * supported by the plane. These formats do analt require modifiers.
 	 */
 	__u64 format_type_ptr;
 };
@@ -362,7 +362,7 @@ struct drm_mode_get_plane_res {
 	__u32 count_planes;
 };
 
-#define DRM_MODE_ENCODER_NONE	0
+#define DRM_MODE_ENCODER_ANALNE	0
 #define DRM_MODE_ENCODER_DAC	1
 #define DRM_MODE_ENCODER_TMDS	2
 #define DRM_MODE_ENCODER_LVDS	3
@@ -386,7 +386,7 @@ struct drm_mode_get_encoder {
 /* Try to match DRM_MODE_CONNECTOR_X as closely as possible. */
 enum drm_mode_subconnector {
 	DRM_MODE_SUBCONNECTOR_Automatic   = 0,  /* DVI-I, TV     */
-	DRM_MODE_SUBCONNECTOR_Unknown     = 0,  /* DVI-I, TV, DP */
+	DRM_MODE_SUBCONNECTOR_Unkanalwn     = 0,  /* DVI-I, TV, DP */
 	DRM_MODE_SUBCONNECTOR_VGA	  = 1,  /*            DP */
 	DRM_MODE_SUBCONNECTOR_DVID	  = 3,  /* DVI-I      DP */
 	DRM_MODE_SUBCONNECTOR_DVIA	  = 4,  /* DVI-I         */
@@ -400,7 +400,7 @@ enum drm_mode_subconnector {
 	DRM_MODE_SUBCONNECTOR_Wireless    = 18, /*            DP */
 };
 
-#define DRM_MODE_CONNECTOR_Unknown	0
+#define DRM_MODE_CONNECTOR_Unkanalwn	0
 #define DRM_MODE_CONNECTOR_VGA		1
 #define DRM_MODE_CONNECTOR_DVII		2
 #define DRM_MODE_CONNECTOR_DVID		3
@@ -485,11 +485,11 @@ struct drm_mode_get_connector {
 	/**
 	 * @connector_type_id: Type-specific connector number.
 	 *
-	 * This is not an object ID. This is a per-type connector number. Each
+	 * This is analt an object ID. This is a per-type connector number. Each
 	 * (type, type_id) combination is unique across all connectors of a DRM
 	 * device.
 	 *
-	 * The (type, type_id) combination is not a stable identifier: the
+	 * The (type, type_id) combination is analt a stable identifier: the
 	 * type_id can change depending on the driver probe order.
 	 */
 	__u32 connector_type_id;
@@ -515,14 +515,14 @@ struct drm_mode_get_connector {
 	__u32 pad;
 };
 
-#define DRM_MODE_PROP_PENDING	(1<<0) /* deprecated, do not use */
+#define DRM_MODE_PROP_PENDING	(1<<0) /* deprecated, do analt use */
 #define DRM_MODE_PROP_RANGE	(1<<1)
 #define DRM_MODE_PROP_IMMUTABLE	(1<<2)
 #define DRM_MODE_PROP_ENUM	(1<<3) /* enumerated type with text strings */
 #define DRM_MODE_PROP_BLOB	(1<<4)
 #define DRM_MODE_PROP_BITMASK	(1<<5) /* bitmask of enumerated types */
 
-/* non-extended types: legacy bitmask, one bit per type: */
+/* analn-extended types: legacy bitmask, one bit per type: */
 #define DRM_MODE_PROP_LEGACY_TYPE  ( \
 		DRM_MODE_PROP_RANGE | \
 		DRM_MODE_PROP_ENUM | \
@@ -538,7 +538,7 @@ struct drm_mode_get_connector {
 #define DRM_MODE_PROP_SIGNED_RANGE	DRM_MODE_PROP_TYPE(2)
 
 /* the PROP_ATOMIC flag is used to hide properties from userspace that
- * is not aware of atomic properties.  This is mostly to work around
+ * is analt aware of atomic properties.  This is mostly to work around
  * older userspace (DDX drivers) that read/write each prop they find,
  * without being aware that this could be triggering a lengthy modeset.
  */
@@ -570,7 +570,7 @@ struct drm_mode_property_enum {
  * property has the type &DRM_MODE_PROP_ENUM or &DRM_MODE_PROP_BITMASK. For
  * backwards compatibility, the kernel will always set @count_enum_blobs to
  * zero when the property has the type &DRM_MODE_PROP_BLOB. User-space must
- * ignore these two fields if the property has a different type.
+ * iganalre these two fields if the property has a different type.
  *
  * User-space is expected to retrieve values and enums by performing this ioctl
  * at least twice: the first time to retrieve the number of elements, the
@@ -689,15 +689,15 @@ struct drm_mode_fb_cmd {
  * ``offsets[1]``.
  *
  * To accommodate tiled, compressed, etc formats, a modifier can be specified.
- * For more information see the "Format Modifiers" section. Note that even
- * though it looks like we have a modifier per-plane, we in fact do not. The
+ * For more information see the "Format Modifiers" section. Analte that even
+ * though it looks like we have a modifier per-plane, we in fact do analt. The
  * modifier for each plane must be identical. Thus all combinations of
  * different data layouts for multi-plane formats must be enumerated as
  * separate modifiers.
  *
  * All of the entries in @handles, @pitches, @offsets and @modifier must be
  * zero when unused. Warning, for @offsets and @modifier zero can't be used to
- * figure out whether the entry is used or not since it's a valid value (a zero
+ * figure out whether the entry is used or analt since it's a valid value (a zero
  * offset is common, and a zero modifier is &DRM_FORMAT_MOD_LINEAR).
  */
 struct drm_mode_fb_cmd2 {
@@ -730,13 +730,13 @@ struct drm_mode_fb_cmd2 {
 	/**
 	 * @modifier: Format modifier, one per plane. See ``DRM_FORMAT_MOD_*``
 	 * constants in ``drm_fourcc.h``. All planes must use the same
-	 * modifier. Ignored unless &DRM_MODE_FB_MODIFIERS is set in @flags.
+	 * modifier. Iganalred unless &DRM_MODE_FB_MODIFIERS is set in @flags.
 	 */
 	__u64 modifier[4];
 };
 
-#define DRM_MODE_FB_DIRTY_ANNOTATE_COPY 0x01
-#define DRM_MODE_FB_DIRTY_ANNOTATE_FILL 0x02
+#define DRM_MODE_FB_DIRTY_ANANALTATE_COPY 0x01
+#define DRM_MODE_FB_DIRTY_ANANALTATE_FILL 0x02
 #define DRM_MODE_FB_DIRTY_FLAGS         0x03
 
 #define DRM_MODE_FB_DIRTY_MAX_CLIPS     256
@@ -744,7 +744,7 @@ struct drm_mode_fb_cmd2 {
 /*
  * Mark a region of a framebuffer as dirty.
  *
- * Some hardware does not automatically update display contents
+ * Some hardware does analt automatically update display contents
  * as a hardware or software draw to a framebuffer. This ioctl
  * allows userspace to tell the kernel and the hardware what
  * regions of the framebuffer have changed.
@@ -754,16 +754,16 @@ struct drm_mode_fb_cmd2 {
  * may also delay and/or coalesce several calls to dirty into a
  * single update.
  *
- * Userspace may annotate the updates, the annotates are a
+ * Userspace may ananaltate the updates, the ananaltates are a
  * promise made by the caller that the change is either a copy
  * of pixels or a fill of a single color in the region specified.
  *
- * If the DRM_MODE_FB_DIRTY_ANNOTATE_COPY flag is given then
+ * If the DRM_MODE_FB_DIRTY_ANANALTATE_COPY flag is given then
  * the number of updated regions are half of num_clips given,
  * where the clip rects are paired in src and dst. The width and
  * height of each one of the pairs must match.
  *
- * If the DRM_MODE_FB_DIRTY_ANNOTATE_FILL flag is given the caller
+ * If the DRM_MODE_FB_DIRTY_ANANALTATE_FILL flag is given the caller
  * promises that the region specified of the clip rects is filled
  * completely with a single color as given in the color argument.
  */
@@ -836,7 +836,7 @@ struct drm_mode_crtc_lut {
 struct drm_color_ctm {
 	/*
 	 * Conversion matrix in S31.32 sign-magnitude
-	 * (not two's complement!) format.
+	 * (analt two's complement!) format.
 	 *
 	 * out   matrix    in
 	 * |R|   |0 1 2|   |R|
@@ -849,7 +849,7 @@ struct drm_color_ctm {
 struct drm_color_ctm_3x4 {
 	/*
 	 * Conversion matrix with 3x4 dimensions in S31.32 sign-magnitude
-	 * (not two's complement!) format.
+	 * (analt two's complement!) format.
 	 */
 	__u64 matrix[12];
 };
@@ -962,18 +962,18 @@ struct hdr_output_metadata {
 /**
  * DRM_MODE_PAGE_FLIP_ASYNC
  *
- * Request that the page-flip is performed as soon as possible, ie. with no
+ * Request that the page-flip is performed as soon as possible, ie. with anal
  * delay due to waiting for vblank. This may cause tearing to be visible on
  * the screen.
  *
  * When used with atomic uAPI, the driver will return an error if the hardware
- * doesn't support performing an asynchronous page-flip for this update.
+ * doesn't support performing an asynchroanalus page-flip for this update.
  * User-space should handle this, e.g. by falling back to a regular page-flip.
  *
- * Note, some hardware might need to perform one last synchronous page-flip
- * before being able to switch to asynchronous page-flips. As an exception,
- * the driver will return success even though that first page-flip is not
- * asynchronous.
+ * Analte, some hardware might need to perform one last synchroanalus page-flip
+ * before being able to switch to asynchroanalus page-flips. As an exception,
+ * the driver will return success even though that first page-flip is analt
+ * asynchroanalus.
  */
 #define DRM_MODE_PAGE_FLIP_ASYNC 0x02
 #define DRM_MODE_PAGE_FLIP_TARGET_ABSOLUTE 0x4
@@ -1007,7 +1007,7 @@ struct hdr_output_metadata {
  * returned as the user_data field in the vblank event struct.
  *
  * Flag DRM_MODE_PAGE_FLIP_ASYNC requests that the flip happen
- * 'as soon as possible', meaning that it not delay waiting for vblank.
+ * 'as soon as possible', meaning that it analt delay waiting for vblank.
  * This may cause tearing on the screen.
  *
  * The reserved field must be zero.
@@ -1029,11 +1029,11 @@ struct drm_mode_crtc_page_flip {
  *
  * The sequence field must be zero unless either of the
  * DRM_MODE_PAGE_FLIP_TARGET_ABSOLUTE/RELATIVE flags is specified. When
- * the ABSOLUTE flag is specified, the sequence field denotes the absolute
+ * the ABSOLUTE flag is specified, the sequence field deanaltes the absolute
  * vblank sequence when the flip should take effect. When the RELATIVE
- * flag is specified, the sequence field denotes the relative (to the
+ * flag is specified, the sequence field deanaltes the relative (to the
  * current one when the ioctl is called) vblank sequence when the flip
- * should take effect. NOTE: DRM_IOCTL_WAIT_VBLANK must still be used to
+ * should take effect. ANALTE: DRM_IOCTL_WAIT_VBLANK must still be used to
  * make sure the vblank sequence before the target one has passed before
  * calling this ioctl. The purpose of the
  * DRM_MODE_PAGE_FLIP_TARGET_ABSOLUTE/RELATIVE flags is merely to clarify
@@ -1050,7 +1050,7 @@ struct drm_mode_crtc_page_flip_target {
 };
 
 /**
- * struct drm_mode_create_dumb - Create a KMS dumb buffer for scanout.
+ * struct drm_mode_create_dumb - Create a KMS dumb buffer for scaanalut.
  * @height: buffer height in pixels
  * @width: buffer width in pixels
  * @bpp: bits per pixel
@@ -1073,7 +1073,7 @@ struct drm_mode_create_dumb {
 	__u64 size;
 };
 
-/* set up for mmap of a dumb scanout buffer */
+/* set up for mmap of a dumb scaanalut buffer */
 struct drm_mode_map_dumb {
 	/** Handle for the object being mapped. */
 	__u32 handle;
@@ -1093,7 +1093,7 @@ struct drm_mode_destroy_dumb {
 /**
  * DRM_MODE_ATOMIC_TEST_ONLY
  *
- * Do not apply the atomic commit, instead check whether the hardware supports
+ * Do analt apply the atomic commit, instead check whether the hardware supports
  * this configuration.
  *
  * See &drm_mode_config_funcs.atomic_check for more details on test-only
@@ -1101,14 +1101,14 @@ struct drm_mode_destroy_dumb {
  */
 #define DRM_MODE_ATOMIC_TEST_ONLY 0x0100
 /**
- * DRM_MODE_ATOMIC_NONBLOCK
+ * DRM_MODE_ATOMIC_ANALNBLOCK
  *
- * Do not block while applying the atomic commit. The &DRM_IOCTL_MODE_ATOMIC
+ * Do analt block while applying the atomic commit. The &DRM_IOCTL_MODE_ATOMIC
  * IOCTL returns immediately instead of waiting for the changes to be applied
- * in hardware. Note, the driver will still check that the update can be
+ * in hardware. Analte, the driver will still check that the update can be
  * applied before retuning.
  */
-#define DRM_MODE_ATOMIC_NONBLOCK  0x0200
+#define DRM_MODE_ATOMIC_ANALNBLOCK  0x0200
 /**
  * DRM_MODE_ATOMIC_ALLOW_MODESET
  *
@@ -1121,12 +1121,12 @@ struct drm_mode_destroy_dumb {
  * This flag must be set when the KMS update might cause visible artifacts.
  * Without this flag such KMS update will return a EINVAL error. What kind of
  * update may cause visible artifacts depends on the driver and the hardware.
- * User-space that needs to know beforehand if an update might cause visible
+ * User-space that needs to kanalw beforehand if an update might cause visible
  * artifacts can use &DRM_MODE_ATOMIC_TEST_ONLY without
  * &DRM_MODE_ATOMIC_ALLOW_MODESET to see if it fails.
  *
- * To the best of the driver's knowledge, visual artifacts are guaranteed to
- * not appear when this flag is not set. Some sinks might display visual
+ * To the best of the driver's kanalwledge, visual artifacts are guaranteed to
+ * analt appear when this flag is analt set. Some sinks might display visual
  * artifacts outside of the driver's control.
  */
 #define DRM_MODE_ATOMIC_ALLOW_MODESET 0x0400
@@ -1141,7 +1141,7 @@ struct drm_mode_destroy_dumb {
 		DRM_MODE_PAGE_FLIP_EVENT |\
 		DRM_MODE_PAGE_FLIP_ASYNC |\
 		DRM_MODE_ATOMIC_TEST_ONLY |\
-		DRM_MODE_ATOMIC_NONBLOCK |\
+		DRM_MODE_ATOMIC_ANALNBLOCK |\
 		DRM_MODE_ATOMIC_ALLOW_MODESET)
 
 struct drm_mode_atomic {
@@ -1226,9 +1226,9 @@ struct drm_mode_create_blob {
  *
  * Destroy a user-created blob property.
  *
- * User-space can release blobs as soon as they do not need to refer to them by
+ * User-space can release blobs as soon as they do analt need to refer to them by
  * their blob object ID.  For instance, if you are using a MODE_ID blob in an
- * atomic commit and you will not make another commit re-using the same ID, you
+ * atomic commit and you will analt make aanalther commit re-using the same ID, you
  * can destroy the blob as soon as the commit has been issued, without waiting
  * for it to complete.
  */
@@ -1239,7 +1239,7 @@ struct drm_mode_destroy_blob {
 /**
  * struct drm_mode_create_lease - Create lease
  *
- * Lease mode resources, creating another drm_master.
+ * Lease mode resources, creating aanalther drm_master.
  *
  * The @object_ids array must reference at least one CRTC, one connector and
  * one plane if &DRM_CLIENT_CAP_UNIVERSAL_PLANES is enabled. Alternatively,
@@ -1269,7 +1269,7 @@ struct drm_mode_list_lessees {
 	 * @count_lessees: Number of lessees.
 	 *
 	 * On input, provides length of the array.
-	 * On output, provides total number. No
+	 * On output, provides total number. Anal
 	 * more than the input number will be written
 	 * back, so two calls can be used to get
 	 * the size and then the data.
@@ -1296,7 +1296,7 @@ struct drm_mode_get_lease {
 	 * @count_objects: Number of leased objects.
 	 *
 	 * On input, provides length of the array.
-	 * On output, provides total number. No
+	 * On output, provides total number. Anal
 	 * more than the input number will be written
 	 * back, so two calls can be used to get
 	 * the size and then the data.

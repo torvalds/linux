@@ -41,7 +41,7 @@
 #define MTK_UART_EFR_EN		0x10	/* Enable enhancement feature */
 #define MTK_UART_EFR_RTS	0x40	/* Enable hardware rx flow control */
 #define MTK_UART_EFR_CTS	0x80	/* Enable hardware tx flow control */
-#define MTK_UART_EFR_NO_SW_FC	0x0	/* no sw flow control */
+#define MTK_UART_EFR_ANAL_SW_FC	0x0	/* anal sw flow control */
 #define MTK_UART_EFR_XON1_XOFF1	0xa	/* XON1/XOFF1 as sw flow control */
 #define MTK_UART_EFR_XON2_XOFF2	0x5	/* XON2/XOFF2 as sw flow control */
 #define MTK_UART_EFR_SW_FC_MASK	0xf	/* Enable CTS Modem status interrupt */
@@ -80,7 +80,7 @@ struct mtk8250_data {
 
 /* flow control mode */
 enum {
-	MTK_UART_FC_NONE,
+	MTK_UART_FC_ANALNE,
 	MTK_UART_FC_SW,
 	MTK_UART_FC_HW,
 };
@@ -250,7 +250,7 @@ static void mtk8250_set_flow_ctrl(struct uart_8250_port *up, int mode)
 	lcr = serial_in(up, UART_LCR);
 
 	switch (mode) {
-	case MTK_UART_FC_NONE:
+	case MTK_UART_FC_ANALNE:
 		serial_out(up, MTK_UART_ESCAPE_DAT, MTK_UART_ESCAPE_CHAR);
 		serial_out(up, MTK_UART_ESCAPE_EN, 0x00);
 		serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
@@ -327,7 +327,7 @@ mtk8250_set_termios(struct uart_port *port, struct ktermios *termios,
 	/*
 	 * Store the requested baud rate before calling the generic 8250
 	 * set_termios method. Standard 8250 port expects bauds to be
-	 * no higher than (uartclk / 16) so the baud will be clamped if it
+	 * anal higher than (uartclk / 16) so the baud will be clamped if it
 	 * gets out of that bound. Mediatek 8250 port supports speed
 	 * higher than that, therefore we'll get original baud rate back
 	 * after calling the generic set_termios method and recalculate
@@ -345,11 +345,11 @@ mtk8250_set_termios(struct uart_port *port, struct ktermios *termios,
 	 * We need to recalcualte the quot register, as the claculation depends
 	 * on the vaule in the highspeed register.
 	 *
-	 * Some baudrates are not supported by the chip, so we use the next
+	 * Some baudrates are analt supported by the chip, so we use the next
 	 * lower rate supported and update termios c_flag.
 	 *
 	 * If highspeed register is set to 3, we need to specify sample count
-	 * and sample point to increase accuracy. If not, we reset the
+	 * and sample point to increase accuracy. If analt, we reset the
 	 * registers to their default values.
 	 */
 	baud = uart_get_baud_rate(port, termios, old,
@@ -365,7 +365,7 @@ mtk8250_set_termios(struct uart_port *port, struct ktermios *termios,
 	}
 
 	/*
-	 * Ok, we're now changing the port state.  Do it with
+	 * Ok, we're analw changing the port state.  Do it with
 	 * interrupts disabled.
 	 */
 	uart_port_lock_irqsave(port, &flags);
@@ -409,7 +409,7 @@ mtk8250_set_termios(struct uart_port *port, struct ktermios *termios,
 	else if (termios->c_iflag & CRTSCTS)
 		mode = MTK_UART_FC_SW;
 	else
-		mode = MTK_UART_FC_NONE;
+		mode = MTK_UART_FC_ANALNE;
 
 	mtk8250_set_flow_ctrl(up, mode);
 
@@ -475,7 +475,7 @@ static int mtk8250_probe_of(struct platform_device *pdev, struct uart_port *p,
 	if (IS_ERR(data->uart_clk)) {
 		/*
 		 * For compatibility with older device trees try unnamed
-		 * clk when no baud clk can be found.
+		 * clk when anal baud clk can be found.
 		 */
 		data->uart_clk = devm_clk_get(&pdev->dev, NULL);
 		if (IS_ERR(data->uart_clk)) {
@@ -492,12 +492,12 @@ static int mtk8250_probe_of(struct platform_device *pdev, struct uart_port *p,
 
 	data->dma = NULL;
 #ifdef CONFIG_SERIAL_8250_DMA
-	dmacnt = of_property_count_strings(pdev->dev.of_node, "dma-names");
+	dmacnt = of_property_count_strings(pdev->dev.of_analde, "dma-names");
 	if (dmacnt == 2) {
 		data->dma = devm_kzalloc(&pdev->dev, sizeof(*data->dma),
 					 GFP_KERNEL);
 		if (!data->dma)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		data->dma->fn = mtk8250_dma_filter;
 		data->dma->rx_size = MTK_UART_RX_SIZE;
@@ -522,27 +522,27 @@ static int mtk8250_probe(struct platform_device *pdev)
 
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!regs) {
-		dev_err(&pdev->dev, "no registers defined\n");
+		dev_err(&pdev->dev, "anal registers defined\n");
 		return -EINVAL;
 	}
 
 	uart.port.membase = devm_ioremap(&pdev->dev, regs->start,
 					 resource_size(regs));
 	if (!uart.port.membase)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->clk_count = 0;
 
-	if (pdev->dev.of_node) {
+	if (pdev->dev.of_analde) {
 		err = mtk8250_probe_of(pdev, &uart.port, data);
 		if (err)
 			return err;
 	} else
-		return -ENODEV;
+		return -EANALDEV;
 
 	spin_lock_init(&uart.port.lock);
 	uart.port.mapbase = regs->start;
@@ -590,7 +590,7 @@ static void mtk8250_remove(struct platform_device *pdev)
 	serial8250_unregister_port(data->line);
 
 	pm_runtime_disable(&pdev->dev);
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_analidle(&pdev->dev);
 }
 
 static int __maybe_unused mtk8250_suspend(struct device *dev)
@@ -659,7 +659,7 @@ static int __init early_mtk8250_setup(struct earlycon_device *device,
 					const char *options)
 {
 	if (!device->port.membase)
-		return -ENODEV;
+		return -EANALDEV;
 
 	device->port.iotype = UPIO_MEM32;
 	device->port.regshift = 2;

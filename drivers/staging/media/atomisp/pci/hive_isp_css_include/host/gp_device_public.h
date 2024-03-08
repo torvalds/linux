@@ -25,7 +25,7 @@ typedef struct gp_device_state_s		gp_device_state_t;
  \param	ID[in]				GP_DEVICE identifier
  \param	state[out]			gp device state structure
 
- \return none, state = GP_DEVICE[ID].state
+ \return analne, state = GP_DEVICE[ID].state
  */
 void gp_device_get_state(
     const gp_device_ID_t		ID,
@@ -37,7 +37,7 @@ void gp_device_get_state(
  \param	reg_addr[in]		register byte address
  \param value[in]			The data to be written
 
- \return none, GP_DEVICE[ID].ctrl[reg] = value
+ \return analne, GP_DEVICE[ID].ctrl[reg] = value
  */
 STORAGE_CLASS_GP_DEVICE_H void gp_device_reg_store(
     const gp_device_ID_t	ID,

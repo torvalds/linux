@@ -296,18 +296,18 @@
 			cooling-maps {
 				map0 {
 					trip = <&target>;
-					cooling-device = <&cpu0 THERMAL_NO_LIMIT
-							  THERMAL_NO_LIMIT>,
-							 <&cpu1 THERMAL_NO_LIMIT
-							  THERMAL_NO_LIMIT>;
+					cooling-device = <&cpu0 THERMAL_ANAL_LIMIT
+							  THERMAL_ANAL_LIMIT>,
+							 <&cpu1 THERMAL_ANAL_LIMIT
+							  THERMAL_ANAL_LIMIT>;
 					contribution = <3072>;
 				};
 				map1 {
 					trip = <&target>;
-					cooling-device = <&cpu2 THERMAL_NO_LIMIT
-							  THERMAL_NO_LIMIT>,
-							 <&cpu3 THERMAL_NO_LIMIT
-							  THERMAL_NO_LIMIT>;
+					cooling-device = <&cpu2 THERMAL_ANAL_LIMIT
+							  THERMAL_ANAL_LIMIT>,
+							 <&cpu3 THERMAL_ANAL_LIMIT
+							  THERMAL_ANAL_LIMIT>;
 					contribution = <1024>;
 				};
 			};
@@ -322,7 +322,7 @@
 			compatible = "shared-dma-pool";
 			reg = <0 0xb7000000 0 0x500000>;
 			alignment = <0x1000>;
-			no-map;
+			anal-map;
 		};
 	};
 
@@ -337,7 +337,7 @@
 			      (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
 			     <GIC_PPI 10
 			      (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>;
-		arm,no-tick-in-suspend;
+		arm,anal-tick-in-suspend;
 	};
 
 	soc {
@@ -779,8 +779,8 @@
 			nvmem-cell-names = "calibration-data";
 		};
 
-		nor_flash: spi@1100d000 {
-			compatible = "mediatek,mt8173-nor";
+		analr_flash: spi@1100d000 {
+			compatible = "mediatek,mt8173-analr";
 			reg = <0 0x1100d000 0 0xe0>;
 			assigned-clocks = <&topckgen CLK_TOP_SPI_SEL>;
 			assigned-clock-parents = <&clk26m>;

@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0 */
 /*
- * Mellanox I2C multiplexer support in CPLD
+ * Mellaanalx I2C multiplexer support in CPLD
  *
- * Copyright (C) 2016-2020 Mellanox Technologies
+ * Copyright (C) 2016-2020 Mellaanalx Techanallogies
  */
 
 #ifndef _LINUX_I2C_MLXCPLD_H
@@ -16,7 +16,7 @@
  * @sel_reg_addr - mux select register offset in CPLD space
  * @reg_size: register size in bytes
  * @handle: handle to be passed by callback
- * @completion_notify: callback to notify when all the adapters are created
+ * @completion_analtify: callback to analtify when all the adapters are created
  */
 struct mlxcpld_mux_plat_data {
 	int *chan_ids;
@@ -24,7 +24,7 @@ struct mlxcpld_mux_plat_data {
 	int sel_reg_addr;
 	u8 reg_size;
 	void *handle;
-	int (*completion_notify)(void *handle, struct i2c_adapter *parent,
+	int (*completion_analtify)(void *handle, struct i2c_adapter *parent,
 				 struct i2c_adapter *adapters[]);
 };
 

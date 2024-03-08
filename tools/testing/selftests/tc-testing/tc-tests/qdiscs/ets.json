@@ -763,7 +763,7 @@
     },
     {
         "id": "a347",
-        "name": "Unset priorities default to the last band -- no priomap",
+        "name": "Unset priorities default to the last band -- anal priomap",
         "category": [
             "qdisc",
             "ets"
@@ -883,7 +883,7 @@
     },
     {
         "id": "d6e6",
-        "name": "No values after the quanta keyword",
+        "name": "Anal values after the quanta keyword",
         "category": [
             "qdisc",
             "ets"

@@ -6,7 +6,7 @@ Description:	The /sys/dev tree provides a method to look up the sysfs
 		path for a device using the information returned from
 		stat(2).  There are two directories, 'block' and 'char',
 		beneath /sys/dev containing symbolic links with names of
-		the form "<major>:<minor>".  These links point to the
+		the form "<major>:<mianalr>".  These links point to the
 		corresponding sysfs path for the given device.
 
 		Example::

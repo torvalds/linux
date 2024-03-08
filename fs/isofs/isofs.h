@@ -6,15 +6,15 @@
 #include <asm/unaligned.h>
 
 enum isofs_file_format {
-	isofs_file_normal = 0,
+	isofs_file_analrmal = 0,
 	isofs_file_sparse = 1,
 	isofs_file_compressed = 2,
 };
 	
 /*
- * iso fs inode data in memory
+ * iso fs ianalde data in memory
  */
-struct iso_inode_info {
+struct iso_ianalde_info {
 	unsigned long i_iget5_block;
 	unsigned long i_iget5_offset;
 	unsigned int i_first_extent;
@@ -23,14 +23,14 @@ struct iso_inode_info {
 	unsigned long i_next_section_block;
 	unsigned long i_next_section_offset;
 	off_t i_section_size;
-	struct inode vfs_inode;
+	struct ianalde vfs_ianalde;
 };
 
 /*
  * iso9660 super-block data in memory
  */
 struct isofs_sb_info {
-	unsigned long s_ninodes;
+	unsigned long s_nianaldes;
 	unsigned long s_nzones;
 	unsigned long s_firstdatazone;
 	unsigned long s_log_zone_size;
@@ -46,7 +46,7 @@ struct isofs_sb_info {
 	unsigned int  s_rock:2;
 	unsigned int  s_cruft:1; /* Broken disks with high byte of length
 				  * containing junk */
-	unsigned int  s_nocompress:1;
+	unsigned int  s_analcompress:1;
 	unsigned int  s_hide:1;
 	unsigned int  s_showassoc:1;
 	unsigned int  s_overriderockperm:1;
@@ -67,9 +67,9 @@ static inline struct isofs_sb_info *ISOFS_SB(struct super_block *sb)
 	return sb->s_fs_info;
 }
 
-static inline struct iso_inode_info *ISOFS_I(struct inode *inode)
+static inline struct iso_ianalde_info *ISOFS_I(struct ianalde *ianalde)
 {
-	return container_of(inode, struct iso_inode_info, vfs_inode);
+	return container_of(ianalde, struct iso_ianalde_info, vfs_ianalde);
 }
 
 static inline int isonum_711(u8 *p)
@@ -90,7 +90,7 @@ static inline unsigned int isonum_722(u8 *p)
 }
 static inline unsigned int isonum_723(u8 *p)
 {
-	/* Ignore bigendian datum due to broken mastering programs */
+	/* Iganalre bigendian datum due to broken mastering programs */
 	return get_unaligned_le16(p);
 }
 static inline unsigned int isonum_731(u8 *p)
@@ -103,48 +103,48 @@ static inline unsigned int isonum_732(u8 *p)
 }
 static inline unsigned int isonum_733(u8 *p)
 {
-	/* Ignore bigendian datum due to broken mastering programs */
+	/* Iganalre bigendian datum due to broken mastering programs */
 	return get_unaligned_le32(p);
 }
 extern int iso_date(u8 *, int);
 
-struct inode;		/* To make gcc happy */
+struct ianalde;		/* To make gcc happy */
 
-extern int parse_rock_ridge_inode(struct iso_directory_record *, struct inode *, int relocated);
-extern int get_rock_ridge_filename(struct iso_directory_record *, char *, struct inode *);
-extern int isofs_name_translate(struct iso_directory_record *, char *, struct inode *);
+extern int parse_rock_ridge_ianalde(struct iso_directory_record *, struct ianalde *, int relocated);
+extern int get_rock_ridge_filename(struct iso_directory_record *, char *, struct ianalde *);
+extern int isofs_name_translate(struct iso_directory_record *, char *, struct ianalde *);
 
-int get_joliet_filename(struct iso_directory_record *, unsigned char *, struct inode *);
-int get_acorn_filename(struct iso_directory_record *, char *, struct inode *);
+int get_joliet_filename(struct iso_directory_record *, unsigned char *, struct ianalde *);
+int get_acorn_filename(struct iso_directory_record *, char *, struct ianalde *);
 
-extern struct dentry *isofs_lookup(struct inode *, struct dentry *, unsigned int flags);
-extern struct buffer_head *isofs_bread(struct inode *, sector_t);
-extern int isofs_get_blocks(struct inode *, sector_t, struct buffer_head **, unsigned long);
+extern struct dentry *isofs_lookup(struct ianalde *, struct dentry *, unsigned int flags);
+extern struct buffer_head *isofs_bread(struct ianalde *, sector_t);
+extern int isofs_get_blocks(struct ianalde *, sector_t, struct buffer_head **, unsigned long);
 
-struct inode *__isofs_iget(struct super_block *sb,
+struct ianalde *__isofs_iget(struct super_block *sb,
 			   unsigned long block,
 			   unsigned long offset,
 			   int relocated);
 
-static inline struct inode *isofs_iget(struct super_block *sb,
+static inline struct ianalde *isofs_iget(struct super_block *sb,
 				       unsigned long block,
 				       unsigned long offset)
 {
 	return __isofs_iget(sb, block, offset, 0);
 }
 
-static inline struct inode *isofs_iget_reloc(struct super_block *sb,
+static inline struct ianalde *isofs_iget_reloc(struct super_block *sb,
 					     unsigned long block,
 					     unsigned long offset)
 {
 	return __isofs_iget(sb, block, offset, 1);
 }
 
-/* Because the inode number is no longer relevant to finding the
- * underlying meta-data for an inode, we are free to choose a more
- * convenient 32-bit number as the inode number.  The inode numbering
+/* Because the ianalde number is anal longer relevant to finding the
+ * underlying meta-data for an ianalde, we are free to choose a more
+ * convenient 32-bit number as the ianalde number.  The ianalde numbering
  * scheme was recommended by Sergey Vlasov and Eric Lammerts. */
-static inline unsigned long isofs_get_ino(unsigned long block,
+static inline unsigned long isofs_get_ianal(unsigned long block,
 					  unsigned long offset,
 					  unsigned long bufbits)
 {
@@ -161,10 +161,10 @@ static inline unsigned long isofs_get_ino(unsigned long block,
  * In order for the NFS get_parent() method to work and for the
  * general consistency of the dcache, we need to make sure the
  * "i_iget5_block" and "i_iget5_offset" all point to exactly one of
- * the many redundant entries for each directory.  We normalize the
+ * the many redundant entries for each directory.  We analrmalize the
  * block and offset by always making them point to the "."  directory.
  *
- * Notice that we do not use the entry for the directory with the name
+ * Analtice that we do analt use the entry for the directory with the name
  * that is located in the parent directory.  Even though choosing this
  * first directory is more natural, it is much easier to find the "."
  * entry in the NFS get_parent() method because it is implicitly
@@ -176,18 +176,18 @@ static inline unsigned long isofs_get_ino(unsigned long block,
  * record when you start reading the file that holds all the directory
  * records, and this file starts at "extent + ext_attr_length" blocks.
  * Because the "." entry is always the first entry listed in the
- * directories file, the normalized "offset" value is always 0.
+ * directories file, the analrmalized "offset" value is always 0.
  *
  * You should pass the directory entry in "de".  On return, "block"
- * and "offset" will hold normalized values.  Only directories are
- * affected making it safe to call even for non-directory file
+ * and "offset" will hold analrmalized values.  Only directories are
+ * affected making it safe to call even for analn-directory file
  * types. */
 static inline void
-isofs_normalize_block_and_offset(struct iso_directory_record* de,
+isofs_analrmalize_block_and_offset(struct iso_directory_record* de,
 				 unsigned long *block,
 				 unsigned long *offset)
 {
-	/* Only directories are normalized. */
+	/* Only directories are analrmalized. */
 	if (de->flags[0] & 2) {
 		*offset = 0;
 		*block = (unsigned long)isonum_733(de->extent)
@@ -195,7 +195,7 @@ isofs_normalize_block_and_offset(struct iso_directory_record* de,
 	}
 }
 
-extern const struct inode_operations isofs_dir_inode_operations;
+extern const struct ianalde_operations isofs_dir_ianalde_operations;
 extern const struct file_operations isofs_dir_operations;
 extern const struct address_space_operations isofs_symlink_aops;
 extern const struct export_operations isofs_export_ops;

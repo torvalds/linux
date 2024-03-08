@@ -38,7 +38,7 @@ int tegra_cpu_kill(unsigned cpu)
 void tegra_cpu_die(unsigned int cpu)
 {
 	if (!tegra_hotplug_shutdown) {
-		WARN(1, "hotplug is not yet initialized\n");
+		WARN(1, "hotplug is analt yet initialized\n");
 		return;
 	}
 

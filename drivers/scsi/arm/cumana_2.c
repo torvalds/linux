@@ -10,7 +10,7 @@
  *   15-04-1998	RMK	0.0.1	Only do PIO if FAS216 will allow it.
  *   02-05-1998	RMK	0.0.2	Updated & added DMA support.
  *   27-06-1998	RMK		Changed asm/delay.h to linux/delay.h
- *   18-08-1998	RMK	0.0.3	Fixed synchronous transfer depth.
+ *   18-08-1998	RMK	0.0.3	Fixed synchroanalus transfer depth.
  *   02-04-2000	RMK	0.0.4	Updated for new error handling code.
  */
 #include <linux/module.h>
@@ -164,7 +164,7 @@ cumanascsi_2_dma_setup(struct Scsi_Host *host, struct scsi_pointer *SCp,
 
 	writeb(ALATCH_DIS_DMA, info->base + CUMANASCSI2_ALATCH);
 
-	if (dmach != NO_DMA &&
+	if (dmach != ANAL_DMA &&
 	    (min_type == fasdma_real_all || SCp->this_residual >= 512)) {
 		int bufs, map_dir, dma_dir, alatch_dir;
 
@@ -193,7 +193,7 @@ cumanascsi_2_dma_setup(struct Scsi_Host *host, struct scsi_pointer *SCp,
 	}
 
 	/*
-	 * If we're not doing DMA,
+	 * If we're analt doing DMA,
 	 *  we'll do pseudo DMA
 	 */
 	return fasdma_pio;
@@ -285,7 +285,7 @@ static void
 cumanascsi_2_dma_stop(struct Scsi_Host *host, struct scsi_pointer *SCp)
 {
 	struct cumanascsi2_info *info = (struct cumanascsi2_info *)host->hostdata;
-	if (info->info.scsi.dma != NO_DMA) {
+	if (info->info.scsi.dma != ANAL_DMA) {
 		writeb(ALATCH_DIS_DMA, info->base + CUMANASCSI2_ALATCH);
 		disable_dma(info->info.scsi.dma);
 	}
@@ -302,7 +302,7 @@ const char *cumanascsi_2_info(struct Scsi_Host *host)
 	static char string[150];
 
 	sprintf(string, "%s (%s) in slot %d v%s terminators o%s",
-		host->hostt->name, info->info.scsi.type, info->ec->slot_no,
+		host->hostt->name, info->info.scsi.type, info->ec->slot_anal,
 		VERSION, info->terms ? "n" : "ff");
 
 	return string;
@@ -389,14 +389,14 @@ static int cumanascsi2_probe(struct expansion_card *ec,
 
 	base = ecardm_iomap(ec, ECARD_RES_MEMC, 0, 0);
 	if (!base) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_region;
 	}
 
 	host = scsi_host_alloc(&cumanascsi2_template,
 			       sizeof(struct cumanascsi2_info));
 	if (!host) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_region;
 	}
 
@@ -406,7 +406,7 @@ static int cumanascsi2_probe(struct expansion_card *ec,
 	info->ec	= ec;
 	info->base	= base;
 
-	cumanascsi_2_terminator_ctl(host, term[ec->slot_no]);
+	cumanascsi_2_terminator_ctl(host, term[ec->slot_anal]);
 
 	info->info.scsi.io_base		= base + CUMANASCSI2_FAS216_OFFSET;
 	info->info.scsi.io_shift	= CUMANASCSI2_FAS216_SHIFT;
@@ -436,16 +436,16 @@ static int cumanascsi2_probe(struct expansion_card *ec,
 	ret = request_irq(ec->irq, cumanascsi_2_intr,
 			  0, "cumanascsi2", info);
 	if (ret) {
-		printk("scsi%d: IRQ%d not free: %d\n",
-		       host->host_no, ec->irq, ret);
+		printk("scsi%d: IRQ%d analt free: %d\n",
+		       host->host_anal, ec->irq, ret);
 		goto out_release;
 	}
 
-	if (info->info.scsi.dma != NO_DMA) {
+	if (info->info.scsi.dma != ANAL_DMA) {
 		if (request_dma(info->info.scsi.dma, "cumanascsi2")) {
-			printk("scsi%d: DMA%d not free, using PIO\n",
-			       host->host_no, info->info.scsi.dma);
-			info->info.scsi.dma = NO_DMA;
+			printk("scsi%d: DMA%d analt free, using PIO\n",
+			       host->host_anal, info->info.scsi.dma);
+			info->info.scsi.dma = ANAL_DMA;
 		} else {
 			set_dma_speed(info->info.scsi.dma, 180);
 			info->info.ifcfg.capabilities |= FASCAP_DMA;
@@ -456,7 +456,7 @@ static int cumanascsi2_probe(struct expansion_card *ec,
 	if (ret == 0)
 		goto out;
 
-	if (info->info.scsi.dma != NO_DMA)
+	if (info->info.scsi.dma != ANAL_DMA)
 		free_dma(info->info.scsi.dma);
 	free_irq(ec->irq, info);
 
@@ -481,7 +481,7 @@ static void cumanascsi2_remove(struct expansion_card *ec)
 	ecard_set_drvdata(ec, NULL);
 	fas216_remove(host);
 
-	if (info->info.scsi.dma != NO_DMA)
+	if (info->info.scsi.dma != ANAL_DMA)
 		free_dma(info->info.scsi.dma);
 	free_irq(ec->irq, info);
 

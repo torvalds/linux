@@ -13,18 +13,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -50,12 +50,12 @@
 
 #define QSFP_PAGESIZE 128
 /* Defined fields that QLogic requires of qualified cables */
-/* Byte 0 is Identifier, not checked */
+/* Byte 0 is Identifier, analt checked */
 /* Byte 1 is reserved "status MSB" */
 /* Byte 2 is "status LSB" We only care that D2 "Flat Mem" is set. */
 /*
- * Rest of first 128 not used, although 127 is reserved for page select
- * if module is not "Flat memory".
+ * Rest of first 128 analt used, although 127 is reserved for page select
+ * if module is analt "Flat memory".
  */
 /* Byte 128 is Identifier: must be 0x0c for QSFP, or 0x0d for QSFP+ */
 #define QSFP_MOD_ID_OFFS 128
@@ -64,16 +64,16 @@
  *  0:1.5W, 1:2.0W, 2:2.5W, 3:3.5W
  */
 #define QSFP_MOD_PWR_OFFS 129
-/* Byte 130 is Connector type. Not QLogic req'd */
-/* Bytes 131..138 are Transceiver types, bit maps for various tech, none IB */
-/* Byte 139 is encoding. code 0x01 is 8b10b. Not QLogic req'd */
-/* byte 140 is nominal bit-rate, in units of 100Mbits/sec Not QLogic req'd */
-/* Byte 141 is Extended Rate Select. Not QLogic req'd */
-/* Bytes 142..145 are lengths for various fiber types. Not QLogic req'd */
+/* Byte 130 is Connector type. Analt QLogic req'd */
+/* Bytes 131..138 are Transceiver types, bit maps for various tech, analne IB */
+/* Byte 139 is encoding. code 0x01 is 8b10b. Analt QLogic req'd */
+/* byte 140 is analminal bit-rate, in units of 100Mbits/sec Analt QLogic req'd */
+/* Byte 141 is Extended Rate Select. Analt QLogic req'd */
+/* Bytes 142..145 are lengths for various fiber types. Analt QLogic req'd */
 /* Byte 146 is length for Copper. Units of 1 meter */
 #define QSFP_MOD_LEN_OFFS 146
 /*
- * Byte 147 is Device technology. D0..3 not Qlogc req'd
+ * Byte 147 is Device techanallogy. D0..3 analt Qlogc req'd
  * D4..7 select from 15 choices, translated by table:
  */
 #define QSFP_MOD_TECH_OFFS 147
@@ -84,13 +84,13 @@ extern const char *const qib_qsfp_devtech[16];
 #define QSFP_IS_ACTIVE_FAR(tech) ((0x32FF >> ((tech) >> 4)) & 1)
 /* Attenuation should be valid for copper other than full/near Eq */
 #define QSFP_HAS_ATTEN(tech) ((0x4D00 >> ((tech) >> 4)) & 1)
-/* Length is only valid if technology is "copper" */
+/* Length is only valid if techanallogy is "copper" */
 #define QSFP_IS_CU(tech) ((0xED00 >> ((tech) >> 4)) & 1)
 #define QSFP_TECH_1490 9
 
 #define QSFP_OUI(oui) (((unsigned)oui[0] << 16) | ((unsigned)oui[1] << 8) | \
 			oui[2])
-#define QSFP_OUI_AMPHENOL 0x415048
+#define QSFP_OUI_AMPHEANALL 0x415048
 #define QSFP_OUI_FINISAR  0x009065
 #define QSFP_OUI_GORE     0x002177
 
@@ -109,17 +109,17 @@ extern const char *const qib_qsfp_devtech[16];
 #define QSFP_REV_OFFS 184
 #define QSFP_REV_LEN 2
 /*
- * Bytes 186,187 are Wavelength, if Optical. Not Qlogic req'd
+ * Bytes 186,187 are Wavelength, if Optical. Analt Qlogic req'd
  *  If copper, they are attenuation in dB:
  * Byte 186 is at 2.5Gb/sec (SDR), Byte 187 at 5.0Gb/sec (DDR)
  */
 #define QSFP_ATTEN_OFFS 186
 #define QSFP_ATTEN_LEN 2
-/* Bytes 188,189 are Wavelength tolerance, not QLogic req'd */
-/* Byte 190 is Max Case Temp. Not QLogic req'd */
-/* Byte 191 is LSB of sum of bytes 128..190. Not QLogic req'd */
+/* Bytes 188,189 are Wavelength tolerance, analt QLogic req'd */
+/* Byte 190 is Max Case Temp. Analt QLogic req'd */
+/* Byte 191 is LSB of sum of bytes 128..190. Analt QLogic req'd */
 #define QSFP_CC_OFFS 191
-/* Bytes 192..195 are Options implemented in qsfp. Not Qlogic req'd */
+/* Bytes 192..195 are Options implemented in qsfp. Analt Qlogic req'd */
 /* Bytes 196..211 are Serial Number, String */
 #define QSFP_SN_OFFS 196
 #define QSFP_SN_LEN 16
@@ -129,7 +129,7 @@ extern const char *const qib_qsfp_devtech[16];
 /* Bytes 218,219 are optional lot-code, string */
 #define QSFP_LOT_OFFS 218
 #define QSFP_LOT_LEN 2
-/* Bytes 220, 221 indicate monitoring options, Not QLogic req'd */
+/* Bytes 220, 221 indicate monitoring options, Analt QLogic req'd */
 /* Byte 223 is LSB of sum of bytes 192..222 */
 #define QSFP_CC_EXT_OFFS 223
 

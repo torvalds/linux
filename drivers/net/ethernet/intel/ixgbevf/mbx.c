@@ -5,10 +5,10 @@
 #include "ixgbevf.h"
 
 /**
- *  ixgbevf_poll_for_msg - Wait for message notification
+ *  ixgbevf_poll_for_msg - Wait for message analtification
  *  @hw: pointer to the HW structure
  *
- *  returns 0 if it successfully received a message notification
+ *  returns 0 if it successfully received a message analtification
  **/
 static s32 ixgbevf_poll_for_msg(struct ixgbe_hw *hw)
 {
@@ -27,10 +27,10 @@ static s32 ixgbevf_poll_for_msg(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbevf_poll_for_ack - Wait for message acknowledgment
+ *  ixgbevf_poll_for_ack - Wait for message ackanalwledgment
  *  @hw: pointer to the HW structure
  *
- *  returns 0 if it successfully received a message acknowledgment
+ *  returns 0 if it successfully received a message ackanalwledgment
  **/
 static s32 ixgbevf_poll_for_ack(struct ixgbe_hw *hw)
 {
@@ -268,7 +268,7 @@ static s32 ixgbevf_write_mbx_vf(struct ixgbe_hw *hw, u32 *msg, u16 size)
 	/* lock the mailbox to prevent PF/VF race condition */
 	ret_val = ixgbevf_obtain_mbx_lock_vf(hw);
 	if (ret_val)
-		goto out_no_write;
+		goto out_anal_write;
 
 	/* flush msg and acks as we are overwriting the message buffer */
 	ixgbevf_clear_msg_vf(hw);
@@ -289,7 +289,7 @@ static s32 ixgbevf_write_mbx_vf(struct ixgbe_hw *hw, u32 *msg, u16 size)
 	/* if msg sent wait until we receive an ack */
 	ret_val = ixgbevf_poll_for_ack(hw);
 
-out_no_write:
+out_anal_write:
 	hw->mbx.ops.release(hw);
 
 	return ret_val;
@@ -311,7 +311,7 @@ static s32 ixgbevf_write_mbx_vf_legacy(struct ixgbe_hw *hw, u32 *msg, u16 size)
 	/* lock the mailbox to prevent PF/VF race condition */
 	ret_val = ixgbevf_obtain_mbx_lock_vf(hw);
 	if (ret_val)
-		goto out_no_write;
+		goto out_anal_write;
 
 	/* flush msg and acks as we are overwriting the message buffer */
 	ixgbevf_check_for_msg_vf(hw);
@@ -329,7 +329,7 @@ static s32 ixgbevf_write_mbx_vf_legacy(struct ixgbe_hw *hw, u32 *msg, u16 size)
 	/* Drop VFU and interrupt the PF to tell it a message has been sent */
 	IXGBE_WRITE_REG(hw, IXGBE_VFMAILBOX, IXGBE_VFMAILBOX_REQ);
 
-out_no_write:
+out_anal_write:
 	return ret_val;
 }
 
@@ -358,7 +358,7 @@ static s32 ixgbevf_read_mbx_vf(struct ixgbe_hw *hw, u32 *msg, u16 size)
 	for (i = 0; i < size; i++)
 		msg[i] = IXGBE_READ_REG_ARRAY(hw, IXGBE_VFMBMEM, i);
 
-	/* Acknowledge receipt */
+	/* Ackanalwledge receipt */
 	vf_mailbox = ixgbevf_read_mailbox_vf(hw);
 	vf_mailbox |= IXGBE_VFMAILBOX_ACK;
 	IXGBE_WRITE_REG(hw, IXGBE_VFMAILBOX, vf_mailbox);
@@ -385,19 +385,19 @@ static s32 ixgbevf_read_mbx_vf_legacy(struct ixgbe_hw *hw, u32 *msg, u16 size)
 	/* lock the mailbox to prevent PF/VF race condition */
 	ret_val = ixgbevf_obtain_mbx_lock_vf(hw);
 	if (ret_val)
-		goto out_no_read;
+		goto out_anal_read;
 
 	/* copy the message from the mailbox memory buffer */
 	for (i = 0; i < size; i++)
 		msg[i] = IXGBE_READ_REG_ARRAY(hw, IXGBE_VFMBMEM, i);
 
-	/* Acknowledge receipt and release mailbox, then we're done */
+	/* Ackanalwledge receipt and release mailbox, then we're done */
 	IXGBE_WRITE_REG(hw, IXGBE_VFMAILBOX, IXGBE_VFMAILBOX_ACK);
 
 	/* update stats */
 	hw->mbx.stats.msgs_rx++;
 
-out_no_read:
+out_anal_read:
 	return ret_val;
 }
 
@@ -472,7 +472,7 @@ s32 ixgbevf_write_mbx(struct ixgbe_hw *hw, u32 *msg, u16 size)
 
 	/**
 	 * exit if either we can't write, release
-	 * or there is no timeout defined
+	 * or there is anal timeout defined
 	 */
 	if (!mbx->ops.write || !mbx->ops.check_for_ack || !mbx->ops.release ||
 	    !mbx->timeout)
@@ -507,10 +507,10 @@ const struct ixgbe_mbx_operations ixgbevf_mbx_ops_legacy = {
 };
 
 /* Mailbox operations when running on Hyper-V.
- * On Hyper-V, PF/VF communication is not through the
+ * On Hyper-V, PF/VF communication is analt through the
  * hardware mailbox; this communication is through
  * a software mediated path.
- * Most mail box operations are noop while running on
+ * Most mail box operations are analop while running on
  * Hyper-V.
  */
 const struct ixgbe_mbx_operations ixgbevf_hv_mbx_ops = {

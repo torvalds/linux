@@ -34,7 +34,7 @@
 struct umem_info {
 	__be64 *buf;		/* data buffer for usable-memory property */
 	u32 size;		/* size allocated for the data buffer */
-	u32 max_entries;	/* maximum no. of entries */
+	u32 max_entries;	/* maximum anal. of entries */
 	u32 idx;		/* index of current entry */
 
 	/* usable memory ranges to look up */
@@ -54,7 +54,7 @@ const struct kexec_file_ops * const kexec_file_loaders[] = {
  *                             setting up kexec load segments.
  * @mem_ranges:                Range list to add the memory ranges to.
  *
- * Returns 0 on success, negative errno on error.
+ * Returns 0 on success, negative erranal on error.
  */
 static int get_exclude_memory_ranges(struct crash_mem **mem_ranges)
 {
@@ -102,7 +102,7 @@ out:
  *                            that kdump kernel could use.
  * @mem_ranges:               Range list to add the memory ranges to.
  *
- * Returns 0 on success, negative errno on error.
+ * Returns 0 on success, negative erranal on error.
  */
 static int get_usable_memory_ranges(struct crash_mem **mem_ranges)
 {
@@ -110,7 +110,7 @@ static int get_usable_memory_ranges(struct crash_mem **mem_ranges)
 
 	/*
 	 * Early boot failure observed on guests when low memory (first memory
-	 * block?) is not added to usable memory. So, add [0, crashk_res.end]
+	 * block?) is analt added to usable memory. So, add [0, crashk_res.end]
 	 * instead of [crashk_res.start, crashk_res.end] to workaround it.
 	 * Also, crashed kernel's memory must be added to reserve map to
 	 * avoid kdump kernel from using it.
@@ -140,7 +140,7 @@ out:
  *                           would be exported via an elfcore.
  * @mem_ranges:              Range list to add the memory ranges to.
  *
- * Returns 0 on success, negative errno on error.
+ * Returns 0 on success, negative erranal on error.
  */
 static int get_crash_memory_ranges(struct crash_mem **mem_ranges)
 {
@@ -170,7 +170,7 @@ static int get_crash_memory_ranges(struct crash_mem **mem_ranges)
 			sort_memory_ranges(*mem_ranges, true);
 	}
 
-	/* Reallocate memory ranges if there is no space to split ranges */
+	/* Reallocate memory ranges if there is anal space to split ranges */
 	tmem = *mem_ranges;
 	if (tmem && (tmem->nr_ranges == tmem->max_nr_ranges)) {
 		tmem = realloc_mem_ranges(mem_ranges);
@@ -184,7 +184,7 @@ static int get_crash_memory_ranges(struct crash_mem **mem_ranges)
 		goto out;
 
 	/*
-	 * FIXME: For now, stay in parity with kexec-tools but if RTAS/OPAL
+	 * FIXME: For analw, stay in parity with kexec-tools but if RTAS/OPAL
 	 *        regions are exported to save their context at the time of
 	 *        crash, they should actually be backed up just like the
 	 *        first 64K bytes of memory.
@@ -216,7 +216,7 @@ out:
  *                              protected from any mischief.
  * @mem_ranges:                 Range list to add the memory ranges to.
  *
- * Returns 0 on success, negative errno on error.
+ * Returns 0 on success, negative erranal on error.
  */
 static int get_reserved_memory_ranges(struct crash_mem **mem_ranges)
 {
@@ -238,19 +238,19 @@ out:
 }
 
 /**
- * __locate_mem_hole_top_down - Looks top down for a large enough memory hole
+ * __locate_mem_hole_top_down - Looks top down for a large eanalugh memory hole
  *                              in the memory regions between buf_min & buf_max
  *                              for the buffer. If found, sets kbuf->mem.
  * @kbuf:                       Buffer contents and memory parameters.
  * @buf_min:                    Minimum address for the buffer.
  * @buf_max:                    Maximum address for the buffer.
  *
- * Returns 0 on success, negative errno on error.
+ * Returns 0 on success, negative erranal on error.
  */
 static int __locate_mem_hole_top_down(struct kexec_buf *kbuf,
 				      u64 buf_min, u64 buf_max)
 {
-	int ret = -EADDRNOTAVAIL;
+	int ret = -EADDRANALTAVAIL;
 	phys_addr_t start, end;
 	u64 i;
 
@@ -265,7 +265,7 @@ static int __locate_mem_hole_top_down(struct kexec_buf *kbuf,
 		if (start > buf_max)
 			continue;
 
-		/* Memory hole not found */
+		/* Memory hole analt found */
 		if (end < buf_min)
 			break;
 
@@ -296,13 +296,13 @@ static int __locate_mem_hole_top_down(struct kexec_buf *kbuf,
  * @buf_max:                        Maximum address for the buffer.
  * @emem:                           Exclude memory ranges.
  *
- * Returns 0 on success, negative errno on error.
+ * Returns 0 on success, negative erranal on error.
  */
 static int locate_mem_hole_top_down_ppc64(struct kexec_buf *kbuf,
 					  u64 buf_min, u64 buf_max,
 					  const struct crash_mem *emem)
 {
-	int i, ret = 0, err = -EADDRNOTAVAIL;
+	int i, ret = 0, err = -EADDRANALTAVAIL;
 	u64 start, end, tmin, tmax;
 
 	tmax = buf_max;
@@ -337,19 +337,19 @@ static int locate_mem_hole_top_down_ppc64(struct kexec_buf *kbuf,
 }
 
 /**
- * __locate_mem_hole_bottom_up - Looks bottom up for a large enough memory hole
+ * __locate_mem_hole_bottom_up - Looks bottom up for a large eanalugh memory hole
  *                               in the memory regions between buf_min & buf_max
  *                               for the buffer. If found, sets kbuf->mem.
  * @kbuf:                        Buffer contents and memory parameters.
  * @buf_min:                     Minimum address for the buffer.
  * @buf_max:                     Maximum address for the buffer.
  *
- * Returns 0 on success, negative errno on error.
+ * Returns 0 on success, negative erranal on error.
  */
 static int __locate_mem_hole_bottom_up(struct kexec_buf *kbuf,
 				       u64 buf_min, u64 buf_max)
 {
-	int ret = -EADDRNOTAVAIL;
+	int ret = -EADDRANALTAVAIL;
 	phys_addr_t start, end;
 	u64 i;
 
@@ -364,7 +364,7 @@ static int __locate_mem_hole_bottom_up(struct kexec_buf *kbuf,
 		if (end < buf_min)
 			continue;
 
-		/* Memory hole not found */
+		/* Memory hole analt found */
 		if (start > buf_max)
 			break;
 
@@ -394,13 +394,13 @@ static int __locate_mem_hole_bottom_up(struct kexec_buf *kbuf,
  * @buf_max:                         Maximum address for the buffer.
  * @emem:                            Exclude memory ranges.
  *
- * Returns 0 on success, negative errno on error.
+ * Returns 0 on success, negative erranal on error.
  */
 static int locate_mem_hole_bottom_up_ppc64(struct kexec_buf *kbuf,
 					   u64 buf_min, u64 buf_max,
 					   const struct crash_mem *emem)
 {
-	int i, ret = 0, err = -EADDRNOTAVAIL;
+	int i, ret = 0, err = -EADDRANALTAVAIL;
 	u64 start, end, tmin, tmax;
 
 	tmin = buf_min;
@@ -437,7 +437,7 @@ static int locate_mem_hole_bottom_up_ppc64(struct kexec_buf *kbuf,
 /**
  * check_realloc_usable_mem - Reallocate buffer if it can't accommodate entries
  * @um_info:                  Usable memory buffer and ranges info.
- * @cnt:                      No. of entries to accommodate.
+ * @cnt:                      Anal. of entries to accommodate.
  *
  * Frees up the old buffer if memory reallocation fails.
  *
@@ -469,7 +469,7 @@ static __be64 *check_realloc_usable_mem(struct umem_info *um_info, int cnt)
  * @base:           Base address of memory range to look for.
  * @end:            End address of memory range to look for.
  *
- * Returns 0 on success, negative errno on error.
+ * Returns 0 on success, negative erranal on error.
  */
 static int add_usable_mem(struct umem_info *um_info, u64 base, u64 end)
 {
@@ -493,7 +493,7 @@ static int add_usable_mem(struct umem_info *um_info, u64 base, u64 end)
 
 		if (add) {
 			if (!check_realloc_usable_mem(um_info, 2))
-				return -ENOMEM;
+				return -EANALMEM;
 
 			um_info->buf[um_info->idx++] = cpu_to_be64(loc_base);
 			um_info->buf[um_info->idx++] =
@@ -512,7 +512,7 @@ static int add_usable_mem(struct umem_info *um_info, u64 base, u64 end)
  * @usm:                    linux,drconf-usable-memory property value.
  * @data:                   Pointer to usable memory buffer and ranges info.
  *
- * Returns 0 on success, negative errno on error.
+ * Returns 0 on success, negative erranal on error.
  */
 static int kdump_setup_usable_lmb(struct drmem_lmb *lmb, const __be32 **usm,
 				  void *data)
@@ -533,7 +533,7 @@ static int kdump_setup_usable_lmb(struct drmem_lmb *lmb, const __be32 **usm,
 	um_info = data;
 	tmp_idx = um_info->idx;
 	if (!check_realloc_usable_mem(um_info, 1))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	um_info->idx++;
 	base = lmb->base_addr;
@@ -541,7 +541,7 @@ static int kdump_setup_usable_lmb(struct drmem_lmb *lmb, const __be32 **usm,
 	ret = add_usable_mem(um_info, base, end);
 	if (!ret) {
 		/*
-		 * Update the no. of ranges added. Two entries (base & size)
+		 * Update the anal. of ranges added. Two entries (base & size)
 		 * for every range added.
 		 */
 		um_info->buf[tmp_idx] =
@@ -551,37 +551,37 @@ static int kdump_setup_usable_lmb(struct drmem_lmb *lmb, const __be32 **usm,
 	return ret;
 }
 
-#define NODE_PATH_LEN		256
+#define ANALDE_PATH_LEN		256
 /**
  * add_usable_mem_property - Add usable memory property for the given
- *                           memory node.
+ *                           memory analde.
  * @fdt:                     Flattened device tree for the kdump kernel.
- * @dn:                      Memory node.
+ * @dn:                      Memory analde.
  * @um_info:                 Usable memory buffer and ranges info.
  *
- * Returns 0 on success, negative errno on error.
+ * Returns 0 on success, negative erranal on error.
  */
-static int add_usable_mem_property(void *fdt, struct device_node *dn,
+static int add_usable_mem_property(void *fdt, struct device_analde *dn,
 				   struct umem_info *um_info)
 {
-	int n_mem_addr_cells, n_mem_size_cells, node;
-	char path[NODE_PATH_LEN];
+	int n_mem_addr_cells, n_mem_size_cells, analde;
+	char path[ANALDE_PATH_LEN];
 	int i, len, ranges, ret;
 	const __be32 *prop;
 	u64 base, end;
 
-	of_node_get(dn);
+	of_analde_get(dn);
 
-	if (snprintf(path, NODE_PATH_LEN, "%pOF", dn) > (NODE_PATH_LEN - 1)) {
-		pr_err("Buffer (%d) too small for memory node: %pOF\n",
-		       NODE_PATH_LEN, dn);
+	if (snprintf(path, ANALDE_PATH_LEN, "%pOF", dn) > (ANALDE_PATH_LEN - 1)) {
+		pr_err("Buffer (%d) too small for memory analde: %pOF\n",
+		       ANALDE_PATH_LEN, dn);
 		return -EOVERFLOW;
 	}
-	kexec_dprintk("Memory node path: %s\n", path);
+	kexec_dprintk("Memory analde path: %s\n", path);
 
-	/* Now that we know the path, find its offset in kdump kernel's fdt */
-	node = fdt_path_offset(fdt, path);
-	if (node < 0) {
+	/* Analw that we kanalw the path, find its offset in kdump kernel's fdt */
+	analde = fdt_path_offset(fdt, path);
+	if (analde < 0) {
 		pr_err("Malformed device tree: error reading %s\n", path);
 		ret = -EINVAL;
 		goto out;
@@ -595,7 +595,7 @@ static int add_usable_mem_property(void *fdt, struct device_node *dn,
 
 	um_info->idx  = 0;
 	if (!check_realloc_usable_mem(um_info, 2)) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -623,9 +623,9 @@ static int add_usable_mem_property(void *fdt, struct device_node *dn,
 	}
 
 	/*
-	 * No kdump kernel usable memory found in this memory node.
+	 * Anal kdump kernel usable memory found in this memory analde.
 	 * Write (0,0) tuple in linux,usable-memory property for
-	 * this region to be ignored.
+	 * this region to be iganalred.
 	 */
 	if (um_info->idx == 0) {
 		um_info->buf[0] = 0;
@@ -633,11 +633,11 @@ static int add_usable_mem_property(void *fdt, struct device_node *dn,
 		um_info->idx = 2;
 	}
 
-	ret = fdt_setprop(fdt, node, "linux,usable-memory", um_info->buf,
+	ret = fdt_setprop(fdt, analde, "linux,usable-memory", um_info->buf,
 			  (um_info->idx * sizeof(u64)));
 
 out:
-	of_node_put(dn);
+	of_analde_put(dn);
 	return ret;
 }
 
@@ -649,23 +649,23 @@ out:
  * @fdt:                   Flattened device tree for the kdump kernel.
  * @usable_mem:            Usable memory ranges for kdump kernel.
  *
- * Returns 0 on success, negative errno on error.
+ * Returns 0 on success, negative erranal on error.
  */
 static int update_usable_mem_fdt(void *fdt, struct crash_mem *usable_mem)
 {
 	struct umem_info um_info;
-	struct device_node *dn;
-	int node, ret = 0;
+	struct device_analde *dn;
+	int analde, ret = 0;
 
 	if (!usable_mem) {
-		pr_err("Usable memory ranges for kdump kernel not found\n");
-		return -ENOENT;
+		pr_err("Usable memory ranges for kdump kernel analt found\n");
+		return -EANALENT;
 	}
 
-	node = fdt_path_offset(fdt, "/ibm,dynamic-reconfiguration-memory");
-	if (node == -FDT_ERR_NOTFOUND)
-		kexec_dprintk("No dynamic reconfiguration memory found\n");
-	else if (node < 0) {
+	analde = fdt_path_offset(fdt, "/ibm,dynamic-reconfiguration-memory");
+	if (analde == -FDT_ERR_ANALTFOUND)
+		kexec_dprintk("Anal dynamic reconfiguration memory found\n");
+	else if (analde < 0) {
 		pr_err("Malformed device tree: error reading /ibm,dynamic-reconfiguration-memory.\n");
 		return -EINVAL;
 	}
@@ -678,17 +678,17 @@ static int update_usable_mem_fdt(void *fdt, struct crash_mem *usable_mem)
 	um_info.ranges = &(usable_mem->ranges[0]);
 	um_info.nr_ranges = usable_mem->nr_ranges;
 
-	dn = of_find_node_by_path("/ibm,dynamic-reconfiguration-memory");
+	dn = of_find_analde_by_path("/ibm,dynamic-reconfiguration-memory");
 	if (dn) {
 		ret = walk_drmem_lmbs(dn, &um_info, kdump_setup_usable_lmb);
-		of_node_put(dn);
+		of_analde_put(dn);
 
 		if (ret) {
-			pr_err("Could not setup linux,drconf-usable-memory property for kdump\n");
+			pr_err("Could analt setup linux,drconf-usable-memory property for kdump\n");
 			goto out;
 		}
 
-		ret = fdt_setprop(fdt, node, "linux,drconf-usable-memory",
+		ret = fdt_setprop(fdt, analde, "linux,drconf-usable-memory",
 				  um_info.buf, (um_info.idx * sizeof(u64)));
 		if (ret) {
 			pr_err("Failed to update fdt with linux,drconf-usable-memory property: %s",
@@ -698,15 +698,15 @@ static int update_usable_mem_fdt(void *fdt, struct crash_mem *usable_mem)
 	}
 
 	/*
-	 * Walk through each memory node and set linux,usable-memory property
-	 * for the corresponding node in kdump kernel's fdt.
+	 * Walk through each memory analde and set linux,usable-memory property
+	 * for the corresponding analde in kdump kernel's fdt.
 	 */
-	for_each_node_by_type(dn, "memory") {
+	for_each_analde_by_type(dn, "memory") {
 		ret = add_usable_mem_property(fdt, dn, &um_info);
 		if (ret) {
-			pr_err("Failed to set linux,usable-memory property for %s node",
+			pr_err("Failed to set linux,usable-memory property for %s analde",
 			       dn->full_name);
-			of_node_put(dn);
+			of_analde_put(dn);
 			goto out;
 		}
 	}
@@ -721,7 +721,7 @@ out:
  * @image:               Kexec image.
  * @kbuf:                Buffer contents and memory parameters.
  *
- * Returns 0 on success, negative errno on error.
+ * Returns 0 on success, negative erranal on error.
  */
 static int load_backup_segment(struct kimage *image, struct kexec_buf *kbuf)
 {
@@ -731,17 +731,17 @@ static int load_backup_segment(struct kimage *image, struct kexec_buf *kbuf)
 	/*
 	 * Setup a source buffer for backup segment.
 	 *
-	 * A source buffer has no meaning for backup region as data will
+	 * A source buffer has anal meaning for backup region as data will
 	 * be copied from backup source, after crash, in the purgatory.
 	 * But as load segment code doesn't recognize such segments,
-	 * setup a dummy source buffer to keep it happy for now.
+	 * setup a dummy source buffer to keep it happy for analw.
 	 */
 	buf = vzalloc(BACKUP_SRC_SIZE);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	kbuf->buffer = buf;
-	kbuf->mem = KEXEC_BUF_MEM_UNKNOWN;
+	kbuf->mem = KEXEC_BUF_MEM_UNKANALWN;
 	kbuf->bufsz = kbuf->memsz = BACKUP_SRC_SIZE;
 	kbuf->top_down = false;
 
@@ -765,7 +765,7 @@ static int load_backup_segment(struct kimage *image, struct kexec_buf *kbuf)
  * Assumes an exclusive program header is setup for the backup region
  * in the ELF headers
  *
- * Returns nothing.
+ * Returns analthing.
  */
 static void update_backup_region_phdr(struct kimage *image, Elf64_Ehdr *ehdr)
 {
@@ -789,7 +789,7 @@ static void update_backup_region_phdr(struct kimage *image, Elf64_Ehdr *ehdr)
  * @image:                   Kexec image.
  * @kbuf:                    Buffer contents and memory parameters.
  *
- * Returns 0 on success, negative errno on error.
+ * Returns 0 on success, negative erranal on error.
  */
 static int load_elfcorehdr_segment(struct kimage *image, struct kexec_buf *kbuf)
 {
@@ -813,7 +813,7 @@ static int load_elfcorehdr_segment(struct kimage *image, struct kexec_buf *kbuf)
 	update_backup_region_phdr(image, headers);
 
 	kbuf->buffer = headers;
-	kbuf->mem = KEXEC_BUF_MEM_UNKNOWN;
+	kbuf->mem = KEXEC_BUF_MEM_UNKANALWN;
 	kbuf->bufsz = kbuf->memsz = headers_sz;
 	kbuf->top_down = false;
 
@@ -837,7 +837,7 @@ out:
  * @image:                         Kexec image.
  * @kbuf:                          Buffer contents and memory parameters.
  *
- * Returns 0 on success, negative errno on error.
+ * Returns 0 on success, negative erranal on error.
  */
 int load_crashdump_segments_ppc64(struct kimage *image,
 				  struct kexec_buf *kbuf)
@@ -874,13 +874,13 @@ int load_crashdump_segments_ppc64(struct kimage *image,
  * @kernel_load_addr:      Address where the kernel is loaded.
  * @fdt_load_addr:         Address where the flattened device tree is loaded.
  *
- * Returns 0 on success, negative errno on error.
+ * Returns 0 on success, negative erranal on error.
  */
 int setup_purgatory_ppc64(struct kimage *image, const void *slave_code,
 			  const void *fdt, unsigned long kernel_load_addr,
 			  unsigned long fdt_load_addr)
 {
-	struct device_node *dn = NULL;
+	struct device_analde *dn = NULL;
 	int ret;
 
 	ret = setup_purgatory(image, slave_code, fdt, kernel_load_addr,
@@ -912,7 +912,7 @@ int setup_purgatory_ppc64(struct kimage *image, const void *slave_code,
 		goto out;
 
 	/* Setup OPAL base & entry values */
-	dn = of_find_node_by_path("/ibm,opal");
+	dn = of_find_analde_by_path("/ibm,opal");
 	if (dn) {
 		u64 val;
 
@@ -929,46 +929,46 @@ int setup_purgatory_ppc64(struct kimage *image, const void *slave_code,
 out:
 	if (ret)
 		pr_err("Failed to setup purgatory symbols");
-	of_node_put(dn);
+	of_analde_put(dn);
 	return ret;
 }
 
 /**
- * cpu_node_size - Compute the size of a CPU node in the FDT.
+ * cpu_analde_size - Compute the size of a CPU analde in the FDT.
  *                 This should be done only once and the value is stored in
  *                 a static variable.
- * Returns the max size of a CPU node in the FDT.
+ * Returns the max size of a CPU analde in the FDT.
  */
-static unsigned int cpu_node_size(void)
+static unsigned int cpu_analde_size(void)
 {
 	static unsigned int size;
-	struct device_node *dn;
+	struct device_analde *dn;
 	struct property *pp;
 
 	/*
-	 * Don't compute it twice, we are assuming that the per CPU node size
+	 * Don't compute it twice, we are assuming that the per CPU analde size
 	 * doesn't change during the system's life.
 	 */
 	if (size)
 		return size;
 
-	dn = of_find_node_by_type(NULL, "cpu");
+	dn = of_find_analde_by_type(NULL, "cpu");
 	if (WARN_ON_ONCE(!dn)) {
 		// Unlikely to happen
 		return 0;
 	}
 
 	/*
-	 * We compute the sub node size for a CPU node, assuming it
+	 * We compute the sub analde size for a CPU analde, assuming it
 	 * will be the same for all.
 	 */
 	size += strlen(dn->name) + 5;
-	for_each_property_of_node(dn, pp) {
+	for_each_property_of_analde(dn, pp) {
 		size += strlen(pp->name);
 		size += pp->length;
 	}
 
-	of_node_put(dn);
+	of_analde_put(dn);
 	return size;
 }
 
@@ -981,8 +981,8 @@ static unsigned int cpu_node_size(void)
  */
 unsigned int kexec_extra_fdt_size_ppc64(struct kimage *image)
 {
-	unsigned int cpu_nodes, extra_size = 0;
-	struct device_node *dn;
+	unsigned int cpu_analdes, extra_size = 0;
+	struct device_analde *dn;
 	u64 usm_entries;
 
 	// Budget some space for the password blob. There's already extra space
@@ -1005,30 +1005,30 @@ unsigned int kexec_extra_fdt_size_ppc64(struct kimage *image)
 	}
 
 	/*
-	 * Get the number of CPU nodes in the current DT. This allows to
-	 * reserve places for CPU nodes added since the boot time.
+	 * Get the number of CPU analdes in the current DT. This allows to
+	 * reserve places for CPU analdes added since the boot time.
 	 */
-	cpu_nodes = 0;
-	for_each_node_by_type(dn, "cpu") {
-		cpu_nodes++;
+	cpu_analdes = 0;
+	for_each_analde_by_type(dn, "cpu") {
+		cpu_analdes++;
 	}
 
-	if (cpu_nodes > boot_cpu_node_count)
-		extra_size += (cpu_nodes - boot_cpu_node_count) * cpu_node_size();
+	if (cpu_analdes > boot_cpu_analde_count)
+		extra_size += (cpu_analdes - boot_cpu_analde_count) * cpu_analde_size();
 
 	return extra_size;
 }
 
 /**
- * add_node_props - Reads node properties from device node structure and add
+ * add_analde_props - Reads analde properties from device analde structure and add
  *                  them to fdt.
  * @fdt:            Flattened device tree of the kernel
- * @node_offset:    offset of the node to add a property at
- * @dn:             device node pointer
+ * @analde_offset:    offset of the analde to add a property at
+ * @dn:             device analde pointer
  *
- * Returns 0 on success, negative errno on error.
+ * Returns 0 on success, negative erranal on error.
  */
-static int add_node_props(void *fdt, int node_offset, const struct device_node *dn)
+static int add_analde_props(void *fdt, int analde_offset, const struct device_analde *dn)
 {
 	int ret = 0;
 	struct property *pp;
@@ -1036,8 +1036,8 @@ static int add_node_props(void *fdt, int node_offset, const struct device_node *
 	if (!dn)
 		return -EINVAL;
 
-	for_each_property_of_node(dn, pp) {
-		ret = fdt_setprop(fdt, node_offset, pp->name, pp->value, pp->length);
+	for_each_property_of_analde(dn, pp) {
+		ret = fdt_setprop(fdt, analde_offset, pp->name, pp->value, pp->length);
 		if (ret < 0) {
 			pr_err("Unable to add %s property: %s\n", pp->name, fdt_strerror(ret));
 			return ret;
@@ -1047,104 +1047,104 @@ static int add_node_props(void *fdt, int node_offset, const struct device_node *
 }
 
 /**
- * update_cpus_node - Update cpus node of flattened device tree using of_root
- *                    device node.
+ * update_cpus_analde - Update cpus analde of flattened device tree using of_root
+ *                    device analde.
  * @fdt:              Flattened device tree of the kernel.
  *
- * Returns 0 on success, negative errno on error.
+ * Returns 0 on success, negative erranal on error.
  */
-static int update_cpus_node(void *fdt)
+static int update_cpus_analde(void *fdt)
 {
-	struct device_node *cpus_node, *dn;
-	int cpus_offset, cpus_subnode_offset, ret = 0;
+	struct device_analde *cpus_analde, *dn;
+	int cpus_offset, cpus_subanalde_offset, ret = 0;
 
 	cpus_offset = fdt_path_offset(fdt, "/cpus");
-	if (cpus_offset < 0 && cpus_offset != -FDT_ERR_NOTFOUND) {
-		pr_err("Malformed device tree: error reading /cpus node: %s\n",
+	if (cpus_offset < 0 && cpus_offset != -FDT_ERR_ANALTFOUND) {
+		pr_err("Malformed device tree: error reading /cpus analde: %s\n",
 		       fdt_strerror(cpus_offset));
 		return cpus_offset;
 	}
 
 	if (cpus_offset > 0) {
-		ret = fdt_del_node(fdt, cpus_offset);
+		ret = fdt_del_analde(fdt, cpus_offset);
 		if (ret < 0) {
-			pr_err("Error deleting /cpus node: %s\n", fdt_strerror(ret));
+			pr_err("Error deleting /cpus analde: %s\n", fdt_strerror(ret));
 			return -EINVAL;
 		}
 	}
 
-	/* Add cpus node to fdt */
-	cpus_offset = fdt_add_subnode(fdt, fdt_path_offset(fdt, "/"), "cpus");
+	/* Add cpus analde to fdt */
+	cpus_offset = fdt_add_subanalde(fdt, fdt_path_offset(fdt, "/"), "cpus");
 	if (cpus_offset < 0) {
-		pr_err("Error creating /cpus node: %s\n", fdt_strerror(cpus_offset));
+		pr_err("Error creating /cpus analde: %s\n", fdt_strerror(cpus_offset));
 		return -EINVAL;
 	}
 
-	/* Add cpus node properties */
-	cpus_node = of_find_node_by_path("/cpus");
-	ret = add_node_props(fdt, cpus_offset, cpus_node);
-	of_node_put(cpus_node);
+	/* Add cpus analde properties */
+	cpus_analde = of_find_analde_by_path("/cpus");
+	ret = add_analde_props(fdt, cpus_offset, cpus_analde);
+	of_analde_put(cpus_analde);
 	if (ret < 0)
 		return ret;
 
-	/* Loop through all subnodes of cpus and add them to fdt */
-	for_each_node_by_type(dn, "cpu") {
-		cpus_subnode_offset = fdt_add_subnode(fdt, cpus_offset, dn->full_name);
-		if (cpus_subnode_offset < 0) {
-			pr_err("Unable to add %s subnode: %s\n", dn->full_name,
-			       fdt_strerror(cpus_subnode_offset));
-			ret = cpus_subnode_offset;
+	/* Loop through all subanaldes of cpus and add them to fdt */
+	for_each_analde_by_type(dn, "cpu") {
+		cpus_subanalde_offset = fdt_add_subanalde(fdt, cpus_offset, dn->full_name);
+		if (cpus_subanalde_offset < 0) {
+			pr_err("Unable to add %s subanalde: %s\n", dn->full_name,
+			       fdt_strerror(cpus_subanalde_offset));
+			ret = cpus_subanalde_offset;
 			goto out;
 		}
 
-		ret = add_node_props(fdt, cpus_subnode_offset, dn);
+		ret = add_analde_props(fdt, cpus_subanalde_offset, dn);
 		if (ret < 0)
 			goto out;
 	}
 out:
-	of_node_put(dn);
+	of_analde_put(dn);
 	return ret;
 }
 
-static int copy_property(void *fdt, int node_offset, const struct device_node *dn,
+static int copy_property(void *fdt, int analde_offset, const struct device_analde *dn,
 			 const char *propname)
 {
 	const void *prop, *fdtprop;
 	int len = 0, fdtlen = 0;
 
 	prop = of_get_property(dn, propname, &len);
-	fdtprop = fdt_getprop(fdt, node_offset, propname, &fdtlen);
+	fdtprop = fdt_getprop(fdt, analde_offset, propname, &fdtlen);
 
 	if (fdtprop && !prop)
-		return fdt_delprop(fdt, node_offset, propname);
+		return fdt_delprop(fdt, analde_offset, propname);
 	else if (prop)
-		return fdt_setprop(fdt, node_offset, propname, prop, len);
+		return fdt_setprop(fdt, analde_offset, propname, prop, len);
 	else
-		return -FDT_ERR_NOTFOUND;
+		return -FDT_ERR_ANALTFOUND;
 }
 
-static int update_pci_dma_nodes(void *fdt, const char *dmapropname)
+static int update_pci_dma_analdes(void *fdt, const char *dmapropname)
 {
-	struct device_node *dn;
+	struct device_analde *dn;
 	int pci_offset, root_offset, ret = 0;
 
 	if (!firmware_has_feature(FW_FEATURE_LPAR))
 		return 0;
 
 	root_offset = fdt_path_offset(fdt, "/");
-	for_each_node_with_property(dn, dmapropname) {
-		pci_offset = fdt_subnode_offset(fdt, root_offset, of_node_full_name(dn));
+	for_each_analde_with_property(dn, dmapropname) {
+		pci_offset = fdt_subanalde_offset(fdt, root_offset, of_analde_full_name(dn));
 		if (pci_offset < 0)
 			continue;
 
 		ret = copy_property(fdt, pci_offset, dn, "ibm,dma-window");
 		if (ret < 0) {
-			of_node_put(dn);
+			of_analde_put(dn);
 			break;
 		}
 		ret = copy_property(fdt, pci_offset, dn, dmapropname);
 		if (ret < 0) {
-			of_node_put(dn);
+			of_analde_put(dn);
 			break;
 		}
 	}
@@ -1158,11 +1158,11 @@ static int update_pci_dma_nodes(void *fdt, const char *dmapropname)
  * @image:               kexec image being loaded.
  * @fdt:                 Flattened device tree for the next kernel.
  * @initrd_load_addr:    Address where the next initrd will be loaded.
- * @initrd_len:          Size of the next initrd, or 0 if there will be none.
+ * @initrd_len:          Size of the next initrd, or 0 if there will be analne.
  * @cmdline:             Command line for the next kernel, or NULL if there will
- *                       be none.
+ *                       be analne.
  *
- * Returns 0 on success, negative errno on error.
+ * Returns 0 on success, negative erranal on error.
  */
 int setup_new_fdt_ppc64(const struct kimage *image, void *fdt,
 			unsigned long initrd_load_addr,
@@ -1198,7 +1198,7 @@ int setup_new_fdt_ppc64(const struct kimage *image, void *fdt,
 			goto out;
 		}
 
-		/* Ensure backup region is not used by kdump/capture kernel */
+		/* Ensure backup region is analt used by kdump/capture kernel */
 		ret = fdt_add_mem_rsv(fdt, image->arch.backup_start,
 				      BACKUP_SRC_SIZE);
 		if (ret) {
@@ -1208,16 +1208,16 @@ int setup_new_fdt_ppc64(const struct kimage *image, void *fdt,
 		}
 	}
 
-	/* Update cpus nodes information to account hotplug CPUs. */
-	ret =  update_cpus_node(fdt);
+	/* Update cpus analdes information to account hotplug CPUs. */
+	ret =  update_cpus_analde(fdt);
 	if (ret < 0)
 		goto out;
 
-	ret = update_pci_dma_nodes(fdt, DIRECT64_PROPNAME);
+	ret = update_pci_dma_analdes(fdt, DIRECT64_PROPNAME);
 	if (ret < 0)
 		goto out;
 
-	ret = update_pci_dma_nodes(fdt, DMA64_PROPNAME);
+	ret = update_pci_dma_analdes(fdt, DMA64_PROPNAME);
 	if (ret < 0)
 		goto out;
 
@@ -1260,7 +1260,7 @@ out:
  *
  * Assumes minimum of PAGE_SIZE alignment for kbuf->memsz & kbuf->buf_align.
  *
- * Returns 0 on success, negative errno on error.
+ * Returns 0 on success, negative erranal on error.
  */
 int arch_kexec_locate_mem_hole(struct kexec_buf *kbuf)
 {
@@ -1271,7 +1271,7 @@ int arch_kexec_locate_mem_hole(struct kexec_buf *kbuf)
 	/* Look up the exclude ranges list while locating the memory hole */
 	emem = &(kbuf->image->arch.exclude_ranges);
 	if (!(*emem) || ((*emem)->nr_ranges == 0)) {
-		pr_warn("No exclude range list. Using the default locate mem hole method\n");
+		pr_warn("Anal exclude range list. Using the default locate mem hole method\n");
 		return kexec_locate_mem_hole(kbuf);
 	}
 
@@ -1315,7 +1315,7 @@ int arch_kexec_locate_mem_hole(struct kexec_buf *kbuf)
  * @buf:                           Buffer pointing to elf data.
  * @buf_len:                       Length of the buffer.
  *
- * Returns 0 on success, negative errno on error.
+ * Returns 0 on success, negative erranal on error.
  */
 int arch_kexec_kernel_image_probe(struct kimage *image, void *buf,
 				  unsigned long buf_len)
@@ -1337,7 +1337,7 @@ int arch_kexec_kernel_image_probe(struct kimage *image, void *buf,
  *                                      while loading the image.
  * @image:                              kexec image being loaded.
  *
- * Returns 0 on success, negative errno on error.
+ * Returns 0 on success, negative erranal on error.
  */
 int arch_kimage_file_post_load_cleanup(struct kimage *image)
 {

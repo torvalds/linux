@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
  * SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
@@ -41,7 +41,7 @@
 #define	PCTL_ILP_DIV_MASK	0xffff0000
 #define	PCTL_ILP_DIV_SHIFT	16
 #define PCTL_PLL_PLLCTL_UPD	0x00000400	/* rev 2 */
-#define PCTL_NOILP_ON_WAIT	0x00000200	/* rev 1 */
+#define PCTL_ANALILP_ON_WAIT	0x00000200	/* rev 1 */
 #define	PCTL_HT_REQ_EN		0x00000100
 #define	PCTL_ALP_REQ_EN		0x00000080
 #define	PCTL_XTALFREQ_MASK	0x0000007c

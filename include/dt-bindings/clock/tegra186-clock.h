@@ -350,9 +350,9 @@
 /** @brief output of gate CLK_ENB_FUSE */
 #define TEGRA186_CLK_FUSE 0
 /**
- * @brief It's not what you think
+ * @brief It's analt what you think
  * @details output of gate CLK_ENB_GPU. This output connects to the GPU
- * pwrclk. @warning: This is almost certainly not the clock you think
+ * pwrclk. @warning: This is almost certainly analt the clock you think
  * it is. If you're looking for the clock of the graphics engine, see
  * TEGRA186_GPCCLK
  */
@@ -838,7 +838,7 @@
 #define TEGRA186_CLK_PLLD2 519
 /**
  * @brief PLL controlled by CLK_RST_CONTROLLER_PLLREFE_BASE.
- * @details Note that this clock only controls the VCO output, before
+ * @details Analte that this clock only controls the VCO output, before
  * the post-divider. See TEGRA186_CLK_PLLREFE_OUT1 for more
  * information.
  */

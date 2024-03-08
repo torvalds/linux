@@ -33,8 +33,8 @@
  * the size of the region by writing ~0 to a base address register
  * and reading back the result.
  *
- * The following lines are the values that are read during normal
- * PCI config access cycles, i.e. not after just having written
+ * The following lines are the values that are read during analrmal
+ * PCI config access cycles, i.e. analt after just having written
  * ~0 to a base address register.
  */
 
@@ -43,7 +43,7 @@ static const uint32_t lxnb_hdr[] = {  /* dev 1 function 0 - devfn = 8 */
 	0x0,	0x0,	0x0,	0x0,
 
 	0x281022, 0x2200005, 0x6000021, 0x80f808,	/* AMD Vendor ID */
-	0x0,	0x0,	0x0,	0x0,   /* No virtual registers, hence no BAR */
+	0x0,	0x0,	0x0,	0x0,   /* Anal virtual registers, hence anal BAR */
 	0x0,	0x0,	0x0,	0x28100b,
 	0x0,	0x0,	0x0,	0x0,
 	0x0,	0x0,	0x0,	0x0,
@@ -73,7 +73,7 @@ static const uint32_t lxfb_hdr[] = {  /* dev 1 function 1 - devfn = 9 */
 	0xfe00c000, 0x0, 0x0,	0x30100b,		/* VIP */
 	0x0,	0x0,	0x0,	0x10e,	   /* INTA, IRQ14 for graphics accel */
 	0x0,	0x0,	0x0,	0x0,
-	0x3d0,	0x3c0,	0xa0000, 0x0,	    /* VG IO, VG IO, EGA FB, MONO FB */
+	0x3d0,	0x3c0,	0xa0000, 0x0,	    /* VG IO, VG IO, EGA FB, MOANAL FB */
 	0x0,	0x0,	0x0,	0x0,
 };
 
@@ -86,7 +86,7 @@ static const uint32_t gxfb_hdr[] = {  /* dev 1 function 1 - devfn = 9 */
 	0x0,	0x0,	0x0,	0x30100b,
 	0x0,	0x0,	0x0,	0x0,
 	0x0,	0x0,	0x0,	0x0,
-	0x3d0,	0x3c0,	0xa0000, 0x0,  	    /* VG IO, VG IO, EGA FB, MONO FB */
+	0x3d0,	0x3c0,	0xa0000, 0x0,  	    /* VG IO, VG IO, EGA FB, MOANAL FB */
 	0x0,	0x0,	0x0,	0x0,
 };
 
@@ -167,7 +167,7 @@ static uint32_t zero_loc;
 static int bar_probing;		/* Set after a write of ~0 to a BAR */
 static int is_lx;
 
-#define NB_SLOT 0x1	/* Northbridge - GX chip - Device 1 */
+#define NB_SLOT 0x1	/* Analrthbridge - GX chip - Device 1 */
 #define SB_SLOT 0xf	/* Southbridge - CS5536 chip - Device F */
 
 static int is_simulated(unsigned int bus, unsigned int devfn)
@@ -183,7 +183,7 @@ static uint32_t *hdr_addr(const uint32_t *hdr, int reg)
 	/*
 	 * This is a little bit tricky.  The header maps consist of
 	 * 0x20 bytes of size masks, followed by 0x70 bytes of header data.
-	 * In the normal case, when not probing a BAR's size, we want
+	 * In the analrmal case, when analt probing a BAR's size, we want
 	 * to access the header data, so we add 0x20 to the reg offset,
 	 * thus skipping the size mask area.
 	 * In the BAR probing case, we want to access the size mask for
@@ -204,13 +204,13 @@ static int pci_olpc_read(unsigned int seg, unsigned int bus,
 
 	WARN_ON(seg);
 
-	/* Use the hardware mechanism for non-simulated devices */
+	/* Use the hardware mechanism for analn-simulated devices */
 	if (!is_simulated(bus, devfn))
 		return pci_direct_conf1.read(seg, bus, devfn, reg, len, value);
 
 	/*
-	 * No device has config registers past 0x70, so we save table space
-	 * by not storing entries for the nonexistent registers
+	 * Anal device has config registers past 0x70, so we save table space
+	 * by analt storing entries for the analnexistent registers
 	 */
 	if (reg >= 0x70)
 		addr = &zero_loc;
@@ -264,7 +264,7 @@ static int pci_olpc_write(unsigned int seg, unsigned int bus,
 {
 	WARN_ON(seg);
 
-	/* Use the hardware mechanism for non-simulated devices */
+	/* Use the hardware mechanism for analn-simulated devices */
 	if (!is_simulated(bus, devfn))
 		return pci_direct_conf1.write(seg, bus, devfn, reg, len, value);
 
@@ -284,7 +284,7 @@ static int pci_olpc_write(unsigned int seg, unsigned int bus,
 			bar_probing = 1;
 	} else {
 		/*
-		 * No warning on writes to ROM BAR, CMD, LATENCY_TIMER,
+		 * Anal warning on writes to ROM BAR, CMD, LATENCY_TIMER,
 		 * CACHE_LINE_SIZE, or PM registers.
 		 */
 		if ((reg != PCI_ROM_ADDRESS) && (reg != PCI_COMMAND_MASTER) &&

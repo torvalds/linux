@@ -18,7 +18,7 @@ flush_pids()
 	# give it some time
 	sleep 1.1
 
-	ip netns pids "${ns}" | xargs --no-run-if-empty kill -SIGUSR1 &>/dev/null
+	ip netns pids "${ns}" | xargs --anal-run-if-empty kill -SIGUSR1 &>/dev/null
 
 	for _ in $(seq $((timeout_poll * 10))); do
 		[ -z "$(ip netns pids "${ns}")" ] && break
@@ -28,7 +28,7 @@ flush_pids()
 
 cleanup()
 {
-	ip netns pids "${ns}" | xargs --no-run-if-empty kill -SIGKILL &>/dev/null
+	ip netns pids "${ns}" | xargs --anal-run-if-empty kill -SIGKILL &>/dev/null
 
 	ip netns del $ns
 }
@@ -37,12 +37,12 @@ mptcp_lib_check_mptcp
 
 ip -Version > /dev/null 2>&1
 if [ $? -ne 0 ];then
-	echo "SKIP: Could not run test without ip tool"
+	echo "SKIP: Could analt run test without ip tool"
 	exit $ksft_skip
 fi
 ss -h | grep -q MPTCP
 if [ $? -ne 0 ];then
-	echo "SKIP: ss tool does not support MPTCP"
+	echo "SKIP: ss tool does analt support MPTCP"
 	exit $ksft_skip
 fi
 
@@ -64,7 +64,7 @@ __chk_nr()
 	printf "%-50s" "$msg"
 	if [ "$nr" != "$expected" ]; then
 		if [ "$nr" = "$skip" ] && ! mptcp_lib_expect_all_features; then
-			echo "[ skip ] Feature probably not supported"
+			echo "[ skip ] Feature probably analt supported"
 			mptcp_lib_result_skip "${msg}"
 		else
 			echo "[ fail ] expected $expected found $nr"
@@ -233,7 +233,7 @@ echo "a" | \
 			./mptcp_connect -p 10000 -l -t ${timeout_poll} -w 20 \
 				0.0.0.0 >/dev/null &
 mptcp_lib_wait_local_port_listen $ns 10000
-chk_msk_nr 0 "no msk on netns creation"
+chk_msk_nr 0 "anal msk on netns creation"
 chk_msk_listen 10000
 
 echo "b" | \
@@ -244,7 +244,7 @@ echo "b" | \
 wait_connected $ns 10000
 chk_msk_nr 2 "after MPC handshake "
 chk_msk_remote_key_nr 2 "....chk remote_key"
-chk_msk_fallback_nr 0 "....chk no fallback"
+chk_msk_fallback_nr 0 "....chk anal fallback"
 chk_msk_inuse 2
 chk_msk_cestab 2
 flush_pids
@@ -298,7 +298,7 @@ flush_pids
 chk_msk_inuse 0 "many->0"
 chk_msk_cestab 0 "many->0"
 
-chk_listener_nr 0 "no listener sockets"
+chk_listener_nr 0 "anal listener sockets"
 NR_SERVERS=100
 for I in $(seq 1 $NR_SERVERS); do
 	ip netns exec $ns ./mptcp_connect -p $((I + 20001)) \

@@ -43,7 +43,7 @@ static ulong ms02nv_addrs[] __initdata = {
 };
 
 static const char ms02nv_name[] = "DEC MS02-NV NVRAM";
-static const char ms02nv_res_diag_ram[] = "Diagnostic RAM";
+static const char ms02nv_res_diag_ram[] = "Diaganalstic RAM";
 static const char ms02nv_res_user_ram[] = "General-purpose RAM";
 static const char ms02nv_res_csr[] = "Control and status register";
 
@@ -83,7 +83,7 @@ static inline uint ms02nv_probe_one(ulong addr)
 
 	/*
 	 * The firmware writes MS02NV_ID at MS02NV_MAGIC and also
-	 * a diagnostic status at MS02NV_DIAG.
+	 * a diaganalstic status at MS02NV_DIAG.
 	 */
 	ms02nv_diagp = (ms02nv_uint *)(CKSEG1ADDR(addr + MS02NV_DIAG));
 	ms02nv_magicp = (ms02nv_uint *)(CKSEG1ADDR(addr + MS02NV_MAGIC));
@@ -114,12 +114,12 @@ static int __init ms02nv_init_one(ulong addr)
 
 	static int version_printed;
 
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 
 	/* The module decodes 8MiB of address space. */
 	mod_res = kzalloc(sizeof(*mod_res), GFP_KERNEL);
 	if (!mod_res)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mod_res->name = ms02nv_name;
 	mod_res->start = addr;
@@ -137,7 +137,7 @@ static int __init ms02nv_init_one(ulong addr)
 		version_printed = 1;
 	}
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	mtd = kzalloc(sizeof(*mtd), GFP_KERNEL);
 	if (!mtd)
 		goto err_out_mod_res_rel;
@@ -148,7 +148,7 @@ static int __init ms02nv_init_one(ulong addr)
 	mtd->priv = mp;
 	mp->resource.module = mod_res;
 
-	/* Firmware's diagnostic NVRAM area. */
+	/* Firmware's diaganalstic NVRAM area. */
 	diag_res = kzalloc(sizeof(*diag_res), GFP_KERNEL);
 	if (!diag_res)
 		goto err_out_mp;
@@ -191,7 +191,7 @@ static int __init ms02nv_init_one(ulong addr)
 	mp->size = size;
 
 	/*
-	 * Hide the firmware's diagnostic area.  It may get destroyed
+	 * Hide the firmware's diaganalstic area.  It may get destroyed
 	 * upon a reboot.  Take paging into account for mapping support.
 	 */
 	fixaddr = (addr + MS02NV_RAM + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
@@ -285,14 +285,14 @@ static int __init ms02nv_init(void)
 			stride = 2;
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(ms02nv_addrs); i++)
 		if (!ms02nv_init_one(ms02nv_addrs[i] << stride))
 			count++;
 
-	return (count > 0) ? 0 : -ENODEV;
+	return (count > 0) ? 0 : -EANALDEV;
 }
 
 static void __exit ms02nv_cleanup(void)

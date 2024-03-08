@@ -20,7 +20,7 @@
  * block-ack sessions for RX aggregation.
  *
  * When RX aggregation is started by the peer, the driver is
- * notified via @ampdu_action function, with the
+ * analtified via @ampdu_action function, with the
  * %IEEE80211_AMPDU_RX_START action, and may reject the request
  * in which case a negative response is sent to the peer, if it
  * accepts it a positive response is sent.
@@ -32,7 +32,7 @@
  * When the aggregation session is stopped again by the peer or
  * ourselves, the driver's @ampdu_action function will be called
  * with the action %IEEE80211_AMPDU_RX_STOP. In this case, the
- * call must not fail.
+ * call must analt fail.
  */
 
 #include <linux/ieee80211.h>
@@ -88,7 +88,7 @@ void __ieee80211_stop_rx_ba_session(struct sta_info *sta, u16 tid,
 
 	if (drv_ampdu_action(local, sta->sdata, &params))
 		sdata_info(sta->sdata,
-			   "HW problem - can not stop rx aggregation for %pM tid %d\n",
+			   "HW problem - can analt stop rx aggregation for %pM tid %d\n",
 			   sta->sta.addr, tid);
 
 	/* check if this is a self generated aggregation halt */
@@ -97,7 +97,7 @@ void __ieee80211_stop_rx_ba_session(struct sta_info *sta, u16 tid,
 				     tid, WLAN_BACK_RECIPIENT, reason);
 
 	/*
-	 * return here in case tid_rx is not assigned - which will happen if
+	 * return here in case tid_rx is analt assigned - which will happen if
 	 * IEEE80211_HW_SUPPORTS_REORDERING_BUFFER is set.
 	 */
 	if (!tid_rx)
@@ -182,7 +182,7 @@ static void ieee80211_add_addbaext(struct ieee80211_sub_if_data *sdata,
 	*pos++ = WLAN_EID_ADDBA_EXT;
 	*pos++ = sizeof(struct ieee80211_addba_ext_ie);
 	resp = (struct ieee80211_addba_ext_ie *)pos;
-	resp->data = req->data & IEEE80211_ADDBA_EXT_NO_FRAG;
+	resp->data = req->data & IEEE80211_ADDBA_EXT_ANAL_FRAG;
 
 	resp->data |= u8_encode_bits(buf_size >> IEEE80211_ADDBA_EXT_BUF_SIZE_SHIFT,
 				     IEEE80211_ADDBA_EXT_BUF_SIZE_MASK);
@@ -258,7 +258,7 @@ void __ieee80211_start_rx_ba_session(struct sta_info *sta,
 		.timeout = timeout,
 		.ssn = start_seq_num,
 	};
-	int i, ret = -EOPNOTSUPP;
+	int i, ret = -EOPANALTSUPP;
 	u16 status = WLAN_STATUS_REQUEST_DECLINED;
 	u16 max_buf_size;
 
@@ -296,7 +296,7 @@ void __ieee80211_start_rx_ba_session(struct sta_info *sta,
 
 	/* sanity check for incoming parameters:
 	 * check if configuration can support the BA policy
-	 * and if buffer size does not exceeds max value */
+	 * and if buffer size does analt exceeds max value */
 	/* XXX: check own ht delayed BA capability?? */
 	if (((ba_policy != 1) &&
 	     (!(sta->sta.deflink.ht_cap.cap & IEEE80211_HT_CAP_DELAY_BA))) ||
@@ -326,9 +326,9 @@ void __ieee80211_start_rx_ba_session(struct sta_info *sta,
 			ht_dbg_ratelimited(sta->sdata,
 					   "updated AddBA Req from %pM on tid %u\n",
 					   sta->sta.addr, tid);
-			/* We have no API to update the timeout value in the
+			/* We have anal API to update the timeout value in the
 			 * driver so reject the timeout update if the timeout
-			 * changed. If it did not change, i.e., no real update,
+			 * changed. If it did analt change, i.e., anal real update,
 			 * just reply with success.
 			 */
 			rcu_read_lock();

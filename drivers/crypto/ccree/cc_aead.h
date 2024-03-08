@@ -22,16 +22,16 @@
 
 #define GCM_BLOCK_RFC4_IV_OFFSET	4
 #define GCM_BLOCK_RFC4_IV_SIZE		8  /* IV size for rfc's */
-#define GCM_BLOCK_RFC4_NONCE_OFFSET	0
-#define GCM_BLOCK_RFC4_NONCE_SIZE	4
+#define GCM_BLOCK_RFC4_ANALNCE_OFFSET	0
+#define GCM_BLOCK_RFC4_ANALNCE_SIZE	4
 
 /* Offsets into AES CCM configuration buffer */
 #define CCM_B0_OFFSET 0
 #define CCM_A0_OFFSET 16
 #define CCM_CTR_COUNT_0_OFFSET 32
 /* CCM B0 and CTR_COUNT constants. */
-#define CCM_BLOCK_NONCE_OFFSET 1  /* Nonce offset inside B0 and CTR_COUNT */
-#define CCM_BLOCK_NONCE_SIZE   3  /* Nonce size inside B0 and CTR_COUNT */
+#define CCM_BLOCK_ANALNCE_OFFSET 1  /* Analnce offset inside B0 and CTR_COUNT */
+#define CCM_BLOCK_ANALNCE_SIZE   3  /* Analnce size inside B0 and CTR_COUNT */
 #define CCM_BLOCK_IV_OFFSET    4  /* IV offset inside B0 and CTR_COUNT */
 #define CCM_BLOCK_IV_SIZE      8  /* IV size inside B0 and CTR_COUNT */
 

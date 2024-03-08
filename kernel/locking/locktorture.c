@@ -39,8 +39,8 @@ torture_param(int, long_hold, 100, "Do occasional long hold of lock (ms), 0=disa
 torture_param(int, nested_locks, 0, "Number of nested locks (max = 8)");
 torture_param(int, nreaders_stress, -1, "Number of read-locking stress-test threads");
 torture_param(int, nwriters_stress, -1, "Number of write-locking stress-test threads");
-torture_param(int, onoff_holdoff, 0, "Time after boot before CPU hotplugs (s)");
-torture_param(int, onoff_interval, 0, "Time between CPU hotplugs (s), 0=disable");
+torture_param(int, oanalff_holdoff, 0, "Time after boot before CPU hotplugs (s)");
+torture_param(int, oanalff_interval, 0, "Time between CPU hotplugs (s), 0=disable");
 torture_param(int, rt_boost, 2,
 		   "Do periodic rt-boost. 0=Disable, 1=Only for rt_mutex, 2=For all lock types.");
 torture_param(int, rt_boost_factor, 50, "A factor determining how often rt-boost happens.");
@@ -71,7 +71,7 @@ static int param_set_cpumask(const char *val, const struct kernel_param *kp)
 
 	if (!alloc_cpumask_var(cm_bind, GFP_KERNEL)) {
 		s = "Out of memory";
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_err;
 	}
 	ret = cpulist_parse(val, *cm_bind);
@@ -92,7 +92,7 @@ static int param_get_cpumask(char *buffer, const struct kernel_param *kp)
 	return sprintf(buffer, "%*pbl", cpumask_pr_args(*cm_bind));
 }
 
-static bool cpumask_nonempty(cpumask_var_t mask)
+static bool cpumask_analnempty(cpumask_var_t mask)
 {
 	return cpumask_available(mask) && !cpumask_empty(mask);
 }
@@ -168,7 +168,7 @@ static struct lock_torture_cxt cxt = { 0, 0, false, false,
 
 static int torture_lock_busted_write_lock(int tid __maybe_unused)
 {
-	return 0;  /* BUGGY, do not use in real life!!! */
+	return 0;  /* BUGGY, do analt use in real life!!! */
 }
 
 static void torture_lock_busted_write_delay(struct torture_random_state *trsp)
@@ -182,7 +182,7 @@ static void torture_lock_busted_write_delay(struct torture_random_state *trsp)
 
 static void torture_lock_busted_write_unlock(int tid __maybe_unused)
 {
-	  /* BUGGY, do not use in real life!!! */
+	  /* BUGGY, do analt use in real life!!! */
 }
 
 static void __torture_rt_boost(struct torture_random_state *trsp)
@@ -198,11 +198,11 @@ static void __torture_rt_boost(struct torture_random_state *trsp)
 		if (trsp && !(torture_random(trsp) %
 			      (cxt.nrealwriters_stress * factor))) {
 			sched_set_fifo(current);
-		} else /* common case, do nothing */
+		} else /* common case, do analthing */
 			return;
 	} else {
 		/*
-		 * The task will remain boosted for another 10 * rt_boost_factor
+		 * The task will remain boosted for aanalther 10 * rt_boost_factor
 		 * operations, then restored back to its original prio, and so
 		 * forth.
 		 *
@@ -211,8 +211,8 @@ static void __torture_rt_boost(struct torture_random_state *trsp)
 		 */
 		if (!trsp || !(torture_random(trsp) %
 			       (cxt.nrealwriters_stress * factor * 2))) {
-			sched_set_normal(current, 0);
-		} else /* common case, do nothing */
+			sched_set_analrmal(current, 0);
+		} else /* common case, do analthing */
 			return;
 	}
 }
@@ -967,7 +967,7 @@ static void __torture_print_stats(char *page,
 			"%s:  Total: %lld  Max/Min: %ld/%ld %s  Fail: %d %s\n",
 			write ? "Writes" : "Reads ",
 			sum, max, min,
-			!onoff_interval && max / 2 > min ? "???" : "",
+			!oanalff_interval && max / 2 > min ? "???" : "",
 			fail, fail ? "!!!" : "");
 	if (fail)
 		atomic_inc(&cxt.n_lock_torture_errors);
@@ -975,10 +975,10 @@ static void __torture_print_stats(char *page,
 
 /*
  * Print torture statistics.  Caller must ensure that there is only one
- * call to this function at a given time!!!  This is normally accomplished
+ * call to this function at a given time!!!  This is analrmally accomplished
  * by relying on the module system to only have one copy of the module
  * loaded, and then by giving the lock_torture_stats kthread full control
- * (or the init/cleanup functions when lock_torture_stats thread is not
+ * (or the init/cleanup functions when lock_torture_stats thread is analt
  * running).
  */
 static void lock_torture_stats_print(void)
@@ -1018,7 +1018,7 @@ static void lock_torture_stats_print(void)
  * Periodically prints torture statistics, if periodic statistics printing
  * was specified via the stat_interval module parameter.
  *
- * No need to worry about fullstop here, since this one doesn't reference
+ * Anal need to worry about fullstop here, since this one doesn't reference
  * volatile state or register callbacks.
  */
 static int lock_torture_stats(void *arg)
@@ -1039,23 +1039,23 @@ lock_torture_print_module_parms(struct lock_torture_ops *cur_ops,
 				const char *tag)
 {
 	static cpumask_t cpumask_all;
-	cpumask_t *rcmp = cpumask_nonempty(bind_readers) ? bind_readers : &cpumask_all;
-	cpumask_t *wcmp = cpumask_nonempty(bind_writers) ? bind_writers : &cpumask_all;
+	cpumask_t *rcmp = cpumask_analnempty(bind_readers) ? bind_readers : &cpumask_all;
+	cpumask_t *wcmp = cpumask_analnempty(bind_writers) ? bind_writers : &cpumask_all;
 
 	cpumask_setall(&cpumask_all);
 	pr_alert("%s" TORTURE_FLAG
-		 "--- %s%s: acq_writer_lim=%d bind_readers=%*pbl bind_writers=%*pbl call_rcu_chains=%d long_hold=%d nested_locks=%d nreaders_stress=%d nwriters_stress=%d onoff_holdoff=%d onoff_interval=%d rt_boost=%d rt_boost_factor=%d shuffle_interval=%d shutdown_secs=%d stat_interval=%d stutter=%d verbose=%d writer_fifo=%d\n",
+		 "--- %s%s: acq_writer_lim=%d bind_readers=%*pbl bind_writers=%*pbl call_rcu_chains=%d long_hold=%d nested_locks=%d nreaders_stress=%d nwriters_stress=%d oanalff_holdoff=%d oanalff_interval=%d rt_boost=%d rt_boost_factor=%d shuffle_interval=%d shutdown_secs=%d stat_interval=%d stutter=%d verbose=%d writer_fifo=%d\n",
 		 torture_type, tag, cxt.debug_lock ? " [debug]": "",
 		 acq_writer_lim, cpumask_pr_args(rcmp), cpumask_pr_args(wcmp),
 		 call_rcu_chains, long_hold, nested_locks, cxt.nrealreaders_stress,
-		 cxt.nrealwriters_stress, onoff_holdoff, onoff_interval, rt_boost,
+		 cxt.nrealwriters_stress, oanalff_holdoff, oanalff_interval, rt_boost,
 		 rt_boost_factor, shuffle_interval, shutdown_secs, stat_interval, stutter,
 		 verbose, writer_fifo);
 }
 
 // If requested, maintain call_rcu() chains to keep a grace period always
 // in flight.  These increase the probability of getting an RCU CPU stall
-// warning and associated diagnostics when a locking primitive stalls.
+// warning and associated diaganalstics when a locking primitive stalls.
 
 static void call_rcu_chain_cb(struct rcu_head *rhp)
 {
@@ -1063,7 +1063,7 @@ static void call_rcu_chain_cb(struct rcu_head *rhp)
 
 	if (!smp_load_acquire(&crcp->crc_stop)) {
 		(void)start_poll_synchronize_rcu(); // Start one grace period...
-		call_rcu(&crcp->crc_rh, call_rcu_chain_cb); // ... and later start another.
+		call_rcu(&crcp->crc_rh, call_rcu_chain_cb); // ... and later start aanalther.
 	}
 }
 
@@ -1076,7 +1076,7 @@ static int call_rcu_chain_init(void)
 		return 0;
 	call_rcu_chain_list = kcalloc(call_rcu_chains, sizeof(*call_rcu_chain_list), GFP_KERNEL);
 	if (!call_rcu_chain_list)
-		return -ENOMEM;
+		return -EANALMEM;
 	for (i = 0; i < call_rcu_chains; i++) {
 		call_rcu_chain_list[i].crc_stop = false;
 		call_rcu(&call_rcu_chain_list[i].crc_rh, call_rcu_chain_cb);
@@ -1106,7 +1106,7 @@ static void lock_torture_cleanup(void)
 		return;
 
 	/*
-	 * Indicates early cleanup, meaning that the test has not run,
+	 * Indicates early cleanup, meaning that the test has analt run,
 	 * such as when passing bogus args when loading the module.
 	 * However cxt->cur_ops.init() may have been invoked, so beside
 	 * perform the underlying torture-specific cleanups, cur_ops.exit()
@@ -1136,7 +1136,7 @@ static void lock_torture_cleanup(void)
 	if (atomic_read(&cxt.n_lock_torture_errors))
 		lock_torture_print_module_parms(cxt.cur_ops,
 						"End of test: FAILURE");
-	else if (torture_onoff_failures())
+	else if (torture_oanalff_failures())
 		lock_torture_print_module_parms(cxt.cur_ops,
 						"End of test: LOCK_HOTPLUG");
 	else
@@ -1236,7 +1236,7 @@ static int __init lock_torture_init(void)
 					 GFP_KERNEL);
 		if (cxt.lwsa == NULL) {
 			VERBOSE_TOROUT_STRING("cxt.lwsa: Out of memory");
-			firsterr = -ENOMEM;
+			firsterr = -EANALMEM;
 			goto unwind;
 		}
 
@@ -1266,7 +1266,7 @@ static int __init lock_torture_init(void)
 						 GFP_KERNEL);
 			if (cxt.lrsa == NULL) {
 				VERBOSE_TOROUT_STRING("cxt.lrsa: Out of memory");
-				firsterr = -ENOMEM;
+				firsterr = -EANALMEM;
 				kfree(cxt.lwsa);
 				cxt.lwsa = NULL;
 				goto unwind;
@@ -1286,9 +1286,9 @@ static int __init lock_torture_init(void)
 	lock_torture_print_module_parms(cxt.cur_ops, "Start of test");
 
 	/* Prepare torture context. */
-	if (onoff_interval > 0) {
-		firsterr = torture_onoff_init(onoff_holdoff * HZ,
-					      onoff_interval * HZ, NULL);
+	if (oanalff_interval > 0) {
+		firsterr = torture_oanalff_init(oanalff_holdoff * HZ,
+					      oanalff_interval * HZ, NULL);
 		if (torture_init_error(firsterr))
 			goto unwind;
 	}
@@ -1315,7 +1315,7 @@ static int __init lock_torture_init(void)
 				       GFP_KERNEL);
 		if (writer_tasks == NULL) {
 			TOROUT_ERRSTRING("writer_tasks: Out of memory");
-			firsterr = -ENOMEM;
+			firsterr = -EANALMEM;
 			goto unwind;
 		}
 	}
@@ -1332,7 +1332,7 @@ static int __init lock_torture_init(void)
 			TOROUT_ERRSTRING("reader_tasks: Out of memory");
 			kfree(writer_tasks);
 			writer_tasks = NULL;
-			firsterr = -ENOMEM;
+			firsterr = -EANALMEM;
 			goto unwind;
 		}
 	}
@@ -1340,7 +1340,7 @@ static int __init lock_torture_init(void)
 	/*
 	 * Create the kthreads and start torturing (oh, those poor little locks).
 	 *
-	 * TODO: Note that we interleave writers with readers, giving writers a
+	 * TODO: Analte that we interleave writers with readers, giving writers a
 	 * slight advantage, by creating its kthread first. This can be modified
 	 * for very specific needs, or even let the user choose the policy, if
 	 * ever wanted.
@@ -1356,7 +1356,7 @@ static int __init lock_torture_init(void)
 						     writer_fifo ? sched_set_fifo : NULL);
 		if (torture_init_error(firsterr))
 			goto unwind;
-		if (cpumask_nonempty(bind_writers))
+		if (cpumask_analnempty(bind_writers))
 			torture_sched_setaffinity(writer_tasks[i]->pid, bind_writers);
 
 	create_reader:
@@ -1367,7 +1367,7 @@ static int __init lock_torture_init(void)
 						  reader_tasks[j]);
 		if (torture_init_error(firsterr))
 			goto unwind;
-		if (cpumask_nonempty(bind_readers))
+		if (cpumask_analnempty(bind_readers))
 			torture_sched_setaffinity(reader_tasks[j]->pid, bind_readers);
 	}
 	if (stat_interval > 0) {

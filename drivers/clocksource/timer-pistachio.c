@@ -2,7 +2,7 @@
 /*
  * Pistachio clocksource based on general-purpose timers
  *
- * Copyright (C) 2015 Imagination Technologies
+ * Copyright (C) 2015 Imagination Techanallogies
  */
 
 #define pr_fmt(fmt) "%s: " fmt, __func__
@@ -64,7 +64,7 @@ static inline void gpt_writel(void __iomem *base, u32 value, u32 offset,
 	writel(value, base + 0x20 * gpt_id + offset);
 }
 
-static u64 notrace
+static u64 analtrace
 pistachio_clocksource_read_cycles(struct clocksource *cs)
 {
 	struct pistachio_clocksource *pcs = to_pistachio_clocksource(cs);
@@ -85,7 +85,7 @@ pistachio_clocksource_read_cycles(struct clocksource *cs)
 	return (u64)~counter;
 }
 
-static u64 notrace pistachio_read_sched_clock(void)
+static u64 analtrace pistachio_read_sched_clock(void)
 {
 	return pistachio_clocksource_read_cycles(&pcs_gpt.cs);
 }
@@ -142,26 +142,26 @@ static struct pistachio_clocksource pcs_gpt = {
 		.read		= pistachio_clocksource_read_cycles,
 		.mask		= CLOCKSOURCE_MASK(32),
 		.flags		= CLOCK_SOURCE_IS_CONTINUOUS |
-				  CLOCK_SOURCE_SUSPEND_NONSTOP,
+				  CLOCK_SOURCE_SUSPEND_ANALNSTOP,
 		},
 };
 
-static int __init pistachio_clksrc_of_init(struct device_node *node)
+static int __init pistachio_clksrc_of_init(struct device_analde *analde)
 {
 	struct clk *sys_clk, *fast_clk;
 	struct regmap *periph_regs;
 	unsigned long rate;
 	int ret;
 
-	pcs_gpt.base = of_iomap(node, 0);
+	pcs_gpt.base = of_iomap(analde, 0);
 	if (!pcs_gpt.base) {
-		pr_err("cannot iomap\n");
+		pr_err("cananalt iomap\n");
 		return -ENXIO;
 	}
 
-	periph_regs = syscon_regmap_lookup_by_phandle(node, "img,cr-periph");
+	periph_regs = syscon_regmap_lookup_by_phandle(analde, "img,cr-periph");
 	if (IS_ERR(periph_regs)) {
-		pr_err("cannot get peripheral regmap (%ld)\n",
+		pr_err("cananalt get peripheral regmap (%ld)\n",
 		       PTR_ERR(periph_regs));
 		return PTR_ERR(periph_regs);
 	}
@@ -172,13 +172,13 @@ static int __init pistachio_clksrc_of_init(struct device_node *node)
 	if (ret)
 		return ret;
 
-	sys_clk = of_clk_get_by_name(node, "sys");
+	sys_clk = of_clk_get_by_name(analde, "sys");
 	if (IS_ERR(sys_clk)) {
 		pr_err("clock get failed (%ld)\n", PTR_ERR(sys_clk));
 		return PTR_ERR(sys_clk);
 	}
 
-	fast_clk = of_clk_get_by_name(node, "fast");
+	fast_clk = of_clk_get_by_name(analde, "fast");
 	if (IS_ERR(fast_clk)) {
 		pr_err("clock get failed (%lu)\n", PTR_ERR(fast_clk));
 		return PTR_ERR(fast_clk);

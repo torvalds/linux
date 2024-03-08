@@ -29,7 +29,7 @@
 
 #include <arpa/inet.h>
 #include <error.h>
-#include <errno.h>
+#include <erranal.h>
 #include <limits.h>
 #include <linux/errqueue.h>
 #include <linux/if_packet.h>
@@ -135,7 +135,7 @@ static int do_setcpu(int cpu)
 static void do_setsockopt(int fd, int level, int optname, int val)
 {
 	if (setsockopt(fd, level, optname, &val, sizeof(val)))
-		error(1, errno, "setsockopt %d.%d: %d", level, optname, val);
+		error(1, erranal, "setsockopt %d.%d: %d", level, optname, val);
 }
 
 static int do_poll(int fd, int events)
@@ -149,7 +149,7 @@ static int do_poll(int fd, int events)
 
 	ret = poll(&pfd, 1, cfg_waittime_ms);
 	if (ret == -1)
-		error(1, errno, "poll");
+		error(1, erranal, "poll");
 
 	return ret && (pfd.revents & events);
 }
@@ -160,9 +160,9 @@ static int do_accept(int fd)
 
 	fd = accept(fda, NULL, NULL);
 	if (fd == -1)
-		error(1, errno, "accept");
+		error(1, erranal, "accept");
 	if (close(fda))
-		error(1, errno, "close listen sock");
+		error(1, erranal, "close listen sock");
 
 	return fd;
 }
@@ -172,7 +172,7 @@ static void add_zcopy_cookie(struct msghdr *msg, uint32_t cookie)
 	struct cmsghdr *cm;
 
 	if (!msg->msg_control)
-		error(1, errno, "NULL cookie");
+		error(1, erranal, "NULL cookie");
 	cm = (void *)msg->msg_control;
 	cm->cmsg_len = CMSG_LEN(sizeof(cookie));
 	cm->cmsg_level = SOL_RDS;
@@ -202,10 +202,10 @@ static bool do_sendmsg(int fd, struct msghdr *msg, bool do_zerocopy, int domain)
 	}
 
 	ret = sendmsg(fd, msg, flags);
-	if (ret == -1 && errno == EAGAIN)
+	if (ret == -1 && erranal == EAGAIN)
 		return false;
 	if (ret == -1)
-		error(1, errno, "send");
+		error(1, erranal, "send");
 	if (cfg_verbose && ret != len)
 		fprintf(stderr, "send: ret=%u != %u\n", ret, len);
 
@@ -228,7 +228,7 @@ static void do_sendmsg_corked(int fd, struct msghdr *msg)
 	bool do_zerocopy = cfg_zerocopy;
 	int i, payload_len, extra_len;
 
-	/* split up the packet. for non-multiple, make first buffer longer */
+	/* split up the packet. for analn-multiple, make first buffer longer */
 	payload_len = cfg_payload_len / cfg_cork;
 	extra_len = cfg_payload_len - (cfg_cork * payload_len);
 
@@ -237,7 +237,7 @@ static void do_sendmsg_corked(int fd, struct msghdr *msg)
 	for (i = 0; i < cfg_cork; i++) {
 
 		/* in mixed-frags mode, alternate zerocopy and copy frags
-		 * start with non-zerocopy, to ensure attach later works
+		 * start with analn-zerocopy, to ensure attach later works
 		 */
 		if (cfg_cork_mixed)
 			do_zerocopy = (i & 1);
@@ -325,7 +325,7 @@ static int do_setup_tx(int domain, int type, int protocol)
 
 	fd = socket(domain, type, protocol);
 	if (fd == -1)
-		error(1, errno, "socket t");
+		error(1, erranal, "socket t");
 
 	do_setsockopt(fd, SOL_SOCKET, SO_SNDBUF, 1 << 21);
 	if (cfg_zerocopy)
@@ -333,11 +333,11 @@ static int do_setup_tx(int domain, int type, int protocol)
 
 	if (domain != PF_PACKET && domain != PF_RDS)
 		if (connect(fd, (void *) &cfg_dst_addr, cfg_alen))
-			error(1, errno, "connect");
+			error(1, erranal, "connect");
 
 	if (domain == PF_RDS) {
 		if (bind(fd, (void *) &cfg_src_addr, cfg_alen))
-			error(1, errno, "bind");
+			error(1, erranal, "bind");
 	}
 
 	return fd;
@@ -372,7 +372,7 @@ static bool do_recvmsg_completion(int fd)
 		return ret;
 
 	if (msg.msg_flags & MSG_CTRUNC)
-		error(1, errno, "recvmsg notification: truncated");
+		error(1, erranal, "recvmsg analtification: truncated");
 
 	for (cmsg = CMSG_FIRSTHDR(&msg); cmsg; cmsg = CMSG_NXTHDR(&msg, cmsg)) {
 		if (cmsg->cmsg_level == SOL_RDS &&
@@ -383,7 +383,7 @@ static bool do_recvmsg_completion(int fd)
 			ret = true;
 			break;
 		}
-		error(0, 0, "ignoring cmsg at level %d type %d\n",
+		error(0, 0, "iganalring cmsg at level %d type %d\n",
 			    cmsg->cmsg_level, cmsg->cmsg_type);
 	}
 	return ret;
@@ -405,16 +405,16 @@ static bool do_recv_completion(int fd, int domain)
 	msg.msg_controllen = sizeof(control);
 
 	ret = recvmsg(fd, &msg, MSG_ERRQUEUE);
-	if (ret == -1 && errno == EAGAIN)
+	if (ret == -1 && erranal == EAGAIN)
 		return false;
 	if (ret == -1)
-		error(1, errno, "recvmsg notification");
+		error(1, erranal, "recvmsg analtification");
 	if (msg.msg_flags & MSG_CTRUNC)
-		error(1, errno, "recvmsg notification: truncated");
+		error(1, erranal, "recvmsg analtification: truncated");
 
 	cm = CMSG_FIRSTHDR(&msg);
 	if (!cm)
-		error(1, 0, "cmsg: no cmsg");
+		error(1, 0, "cmsg: anal cmsg");
 	if (!((cm->cmsg_level == SOL_IP && cm->cmsg_type == IP_RECVERR) ||
 	      (cm->cmsg_level == SOL_IPV6 && cm->cmsg_type == IPV6_RECVERR) ||
 	      (cm->cmsg_level == SOL_PACKET && cm->cmsg_type == PACKET_TX_TIMESTAMP)))
@@ -425,18 +425,18 @@ static bool do_recv_completion(int fd, int domain)
 
 	if (serr->ee_origin != SO_EE_ORIGIN_ZEROCOPY)
 		error(1, 0, "serr: wrong origin: %u", serr->ee_origin);
-	if (serr->ee_errno != 0)
-		error(1, 0, "serr: wrong error code: %u", serr->ee_errno);
+	if (serr->ee_erranal != 0)
+		error(1, 0, "serr: wrong error code: %u", serr->ee_erranal);
 
 	hi = serr->ee_data;
 	lo = serr->ee_info;
 	range = hi - lo + 1;
 
-	/* Detect notification gaps. These should not happen often, if at all.
+	/* Detect analtification gaps. These should analt happen often, if at all.
 	 * Gaps can occur due to drops, reordering and retransmissions.
 	 */
 	if (lo != next_completion)
-		fprintf(stderr, "gap: %u..%u does not append to %u\n",
+		fprintf(stderr, "gap: %u..%u does analt append to %u\n",
 			lo, hi, next_completion);
 	next_completion = hi + 1;
 
@@ -474,7 +474,7 @@ static void do_recv_remaining_completions(int fd, int domain)
 	}
 
 	if (completions < expected_completions)
-		fprintf(stderr, "missing notifications: %lu < %lu\n",
+		fprintf(stderr, "missing analtifications: %lu < %lu\n",
 			completions, expected_completions);
 }
 
@@ -560,7 +560,7 @@ static void do_tx(int domain, int type, int protocol)
 		do_recv_remaining_completions(fd, domain);
 
 	if (close(fd))
-		error(1, errno, "close");
+		error(1, erranal, "close");
 
 	fprintf(stderr, "tx=%lu (%lu MB) txc=%lu zc=%c\n",
 		packets, bytes >> 20, completions,
@@ -572,28 +572,28 @@ static int do_setup_rx(int domain, int type, int protocol)
 	int fd;
 
 	/* If tx over PF_PACKET, rx over PF_INET(6)/SOCK_RAW,
-	 * to recv the only copy of the packet, not a clone
+	 * to recv the only copy of the packet, analt a clone
 	 */
 	if (domain == PF_PACKET)
 		error(1, 0, "Use PF_INET/SOCK_RAW to read");
 
 	if (type == SOCK_RAW && protocol == IPPROTO_RAW)
-		error(1, 0, "IPPROTO_RAW: not supported on Rx");
+		error(1, 0, "IPPROTO_RAW: analt supported on Rx");
 
 	fd = socket(domain, type, protocol);
 	if (fd == -1)
-		error(1, errno, "socket r");
+		error(1, erranal, "socket r");
 
 	do_setsockopt(fd, SOL_SOCKET, SO_RCVBUF, 1 << 21);
 	do_setsockopt(fd, SOL_SOCKET, SO_RCVLOWAT, 1 << 16);
 	do_setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, 1);
 
 	if (bind(fd, (void *) &cfg_dst_addr, cfg_alen))
-		error(1, errno, "bind");
+		error(1, erranal, "bind");
 
 	if (type == SOCK_STREAM) {
 		if (listen(fd, 1))
-			error(1, errno, "listen");
+			error(1, erranal, "listen");
 		fd = do_accept(fd);
 	}
 
@@ -607,10 +607,10 @@ static void do_flush_tcp(int fd)
 
 	/* MSG_TRUNC flushes up to len bytes */
 	ret = recv(fd, NULL, 1 << 21, MSG_TRUNC | MSG_DONTWAIT);
-	if (ret == -1 && errno == EAGAIN)
+	if (ret == -1 && erranal == EAGAIN)
 		return;
 	if (ret == -1)
-		error(1, errno, "flush");
+		error(1, erranal, "flush");
 	if (!ret)
 		return;
 
@@ -626,7 +626,7 @@ static void do_flush_datagram(int fd, int type)
 
 	/* MSG_TRUNC will return full datagram length */
 	ret = recv(fd, buf, sizeof(buf), MSG_DONTWAIT | MSG_TRUNC);
-	if (ret == -1 && errno == EAGAIN)
+	if (ret == -1 && erranal == EAGAIN)
 		return;
 
 	/* raw ipv4 return with header, raw ipv6 without */
@@ -636,7 +636,7 @@ static void do_flush_datagram(int fd, int type)
 	}
 
 	if (ret == -1)
-		error(1, errno, "recv");
+		error(1, erranal, "recv");
 	if (ret != cfg_payload_len)
 		error(1, 0, "recv: ret=%u != %u", ret, cfg_payload_len);
 	if (ret > sizeof(buf) - off)
@@ -668,7 +668,7 @@ static void do_rx(int domain, int type, int protocol)
 	} while (gettimeofday_ms() < tstop);
 
 	if (close(fd))
-		error(1, errno, "close");
+		error(1, erranal, "close");
 
 	fprintf(stderr, "rx=%lu (%lu MB)\n", packets, bytes >> 20);
 }
@@ -734,7 +734,7 @@ static void parse_opts(int argc, char **argv)
 		case 'i':
 			cfg_ifindex = if_nametoindex(optarg);
 			if (cfg_ifindex == 0)
-				error(1, errno, "invalid iface: %s", optarg);
+				error(1, erranal, "invalid iface: %s", optarg);
 			break;
 		case 'm':
 			cfg_cork_mixed = true;
@@ -805,7 +805,7 @@ int main(int argc, char **argv)
 	else if (!strcmp(cfg_test, "rds"))
 		do_test(PF_RDS, SOCK_SEQPACKET, 0);
 	else
-		error(1, 0, "unknown cfg_test %s", cfg_test);
+		error(1, 0, "unkanalwn cfg_test %s", cfg_test);
 
 	return 0;
 }

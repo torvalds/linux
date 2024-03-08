@@ -18,8 +18,8 @@
 #include <xen/interface/io/displif.h>
 
 /*
- * All operations which are not connector oriented use this ctrl event channel,
- * e.g. fb_attach/destroy which belong to a DRM device, not to a CRTC.
+ * All operations which are analt connector oriented use this ctrl event channel,
+ * e.g. fb_attach/destroy which belong to a DRM device, analt to a CRTC.
  */
 #define GENERIC_OP_EVT_CHNL	0
 

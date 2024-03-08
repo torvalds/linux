@@ -15,12 +15,12 @@ There are helpers to lock/unlock a table and other accessor functions:
 
  - pte_offset_map_lock()
 	maps PTE and takes PTE table lock, returns pointer to PTE with
-	pointer to its PTE table lock, or returns NULL if no PTE table;
- - pte_offset_map_nolock()
+	pointer to its PTE table lock, or returns NULL if anal PTE table;
+ - pte_offset_map_anallock()
 	maps PTE, returns pointer to PTE with pointer to its PTE table
-	lock (not taken), or returns NULL if no PTE table;
+	lock (analt taken), or returns NULL if anal PTE table;
  - pte_offset_map()
-	maps PTE, returns pointer to PTE, or returns NULL if no PTE table;
+	maps PTE, returns pointer to PTE, or returns NULL if anal PTE table;
  - pte_unmap()
 	unmaps PTE table;
  - pte_unmap_unlock()
@@ -44,7 +44,7 @@ Hugetlb and split page table lock
 =================================
 
 Hugetlb can support several page sizes. We use split lock only for PMD
-level, but not for PUD.
+level, but analt for PUD.
 
 Hugetlb-specific helpers:
 
@@ -57,7 +57,7 @@ Hugetlb-specific helpers:
 Support of split page table lock by an architecture
 ===================================================
 
-There's no need in special enabling of PTE split page table lock: everything
+There's anal need in special enabling of PTE split page table lock: everything
 required is done by pagetable_pte_ctor() and pagetable_pte_dtor(), which
 must be called on PTE table allocation / freeing.
 
@@ -77,7 +77,7 @@ paths: i.e X86_PAE preallocate few PMDs on pgd_alloc().
 
 With everything in place you can set CONFIG_ARCH_ENABLE_SPLIT_PMD_PTLOCK.
 
-NOTE: pagetable_pte_ctor() and pagetable_pmd_ctor() can fail -- it must
+ANALTE: pagetable_pte_ctor() and pagetable_pmd_ctor() can fail -- it must
 be handled properly.
 
 page->ptl

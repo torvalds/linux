@@ -62,8 +62,8 @@ patternProperties:
     type: object
     additionalProperties: false
     description:
-      Two subnodes corresponding to SAI sub-block instances A et B
-      can be defined. Subnode can be omitted for unused sub-block.
+      Two subanaldes corresponding to SAI sub-block instances A et B
+      can be defined. Subanalde can be omitted for unused sub-block.
 
     properties:
       compatible:
@@ -99,8 +99,8 @@ patternProperties:
 
       st,sync:
         description:
-          Configure the SAI sub-block as slave of another SAI sub-block.
-          By default SAI sub-block is in asynchronous mode.
+          Configure the SAI sub-block as slave of aanalther SAI sub-block.
+          By default SAI sub-block is in asynchroanalus mode.
           Must contain the phandle and index of the SAI sub-block providing
           the synchronization.
         $ref: /schemas/types.yaml#/definitions/phandle-array
@@ -112,9 +112,9 @@ patternProperties:
       st,iec60958:
         description:
           If set, support S/PDIF IEC6958 protocol for playback.
-          IEC60958 protocol is not available for capture.
+          IEC60958 protocol is analt available for capture.
           By default, custom protocol is assumed, meaning that protocol is
-          configured according to protocol defined in related DAI link node,
+          configured according to protocol defined in related DAI link analde,
           such as i2s, left justified, right justified, dsp and pdm protocols.
         $ref: /schemas/types.yaml#/definitions/flag
 

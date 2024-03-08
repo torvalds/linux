@@ -303,7 +303,7 @@ static void ibx_enable_hdmi(struct intel_atomic_state *state,
 	 * for 12bpc with pixel repeat.
 	 *
 	 * FIXME: BSpec says this should be done at the end of
-	 * the modeset sequence, so not sure if this isn't too soon.
+	 * the modeset sequence, so analt sure if this isn't too soon.
 	 */
 	if (pipe_config->pipe_bpp > 24 &&
 	    pipe_config->pixel_multiplier > 1) {
@@ -575,7 +575,7 @@ static void chv_hdmi_pre_enable(struct intel_atomic_state *state,
 
 	vlv_wait_port_ready(dev_priv, dig_port, 0x0);
 
-	/* Second common lane will stay alive on its own now */
+	/* Second common lane will stay alive on its own analw */
 	chv_phy_release_cl2_override(encoder);
 }
 
@@ -592,14 +592,14 @@ intel_hdmi_hotplug(struct intel_encoder *encoder,
 	state = intel_encoder_hotplug(encoder, connector);
 
 	/*
-	 * On many platforms the HDMI live state signal is known to be
+	 * On many platforms the HDMI live state signal is kanalwn to be
 	 * unreliable, so we can't use it to detect if a sink is connected or
-	 * not. Instead we detect if it's connected based on whether we can
-	 * read the EDID or not. That in turn has a problem during disconnect,
+	 * analt. Instead we detect if it's connected based on whether we can
+	 * read the EDID or analt. That in turn has a problem during disconnect,
 	 * since the HPD interrupt may be raised before the DDC lines get
 	 * disconnected (due to how the required length of DDC vs. HPD
 	 * connector pins are specified) and so we'll still be able to get a
-	 * valid EDID. To solve this schedule another detection cycle if this
+	 * valid EDID. To solve this schedule aanalther detection cycle if this
 	 * time around we didn't detect any change in the sink's connection
 	 * status.
 	 */
@@ -680,7 +680,7 @@ static bool is_hdmi_port_valid(struct drm_i915_private *i915, enum port port)
 static bool assert_hdmi_port_valid(struct drm_i915_private *i915, enum port port)
 {
 	return !drm_WARN(&i915->drm, !is_hdmi_port_valid(i915, port),
-			 "Platform does not support HDMI %c\n", port_name(port));
+			 "Platform does analt support HDMI %c\n", port_name(port));
 }
 
 void g4x_hdmi_init(struct drm_i915_private *dev_priv,
@@ -701,14 +701,14 @@ void g4x_hdmi_init(struct drm_i915_private *dev_priv,
 
 	/* FIXME bail? */
 	if (!devdata)
-		drm_dbg_kms(&dev_priv->drm, "No VBT child device for HDMI-%c\n",
+		drm_dbg_kms(&dev_priv->drm, "Anal VBT child device for HDMI-%c\n",
 			    port_name(port));
 
 	dig_port = kzalloc(sizeof(*dig_port), GFP_KERNEL);
 	if (!dig_port)
 		return;
 
-	dig_port->aux_ch = AUX_CH_NONE;
+	dig_port->aux_ch = AUX_CH_ANALNE;
 
 	intel_connector = intel_connector_alloc();
 	if (!intel_connector) {
@@ -776,7 +776,7 @@ void g4x_hdmi_init(struct drm_i915_private *dev_priv,
 	/*
 	 * BSpec is unclear about HDMI+HDMI cloning on g4x, but it seems
 	 * to work on real hardware. And since g4x can send infoframes to
-	 * only one port anyway, nothing is lost by allowing it.
+	 * only one port anyway, analthing is lost by allowing it.
 	 */
 	if (IS_G4X(dev_priv))
 		intel_encoder->cloneable |= BIT(INTEL_OUTPUT_HDMI);

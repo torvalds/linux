@@ -3,13 +3,13 @@
  * OMAP2/3 PRM module functions
  *
  * Copyright (C) 2010-2011 Texas Instruments, Inc.
- * Copyright (C) 2010 Nokia Corporation
- * Benoît Cousson
+ * Copyright (C) 2010 Analkia Corporation
+ * Beanalît Cousson
  * Paul Walmsley
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/err.h>
 #include <linux/io.h>
 
@@ -22,13 +22,13 @@
  * omap2_prm_is_hardreset_asserted - read the HW reset line state of
  * submodules contained in the hwmod module
  * @shift: register bit shift corresponding to the reset line to check
- * @part: PRM partition, ignored for OMAP2
+ * @part: PRM partition, iganalred for OMAP2
  * @prm_mod: PRM submodule base (e.g. CORE_MOD)
- * @offset: register offset, ignored for OMAP2
+ * @offset: register offset, iganalred for OMAP2
  *
  * Returns 1 if the (sub)module hardreset line is currently asserted,
- * 0 if the (sub)module hardreset line is not currently asserted, or
- * -EINVAL if called while running on a non-OMAP2/3 chip.
+ * 0 if the (sub)module hardreset line is analt currently asserted, or
+ * -EINVAL if called while running on a analn-OMAP2/3 chip.
  */
 int omap2_prm_is_hardreset_asserted(u8 shift, u8 part, s16 prm_mod, u16 offset)
 {
@@ -39,9 +39,9 @@ int omap2_prm_is_hardreset_asserted(u8 shift, u8 part, s16 prm_mod, u16 offset)
 /**
  * omap2_prm_assert_hardreset - assert the HW reset line of a submodule
  * @shift: register bit shift corresponding to the reset line to assert
- * @part: PRM partition, ignored for OMAP2
+ * @part: PRM partition, iganalred for OMAP2
  * @prm_mod: PRM submodule base (e.g. CORE_MOD)
- * @offset: register offset, ignored for OMAP2
+ * @offset: register offset, iganalred for OMAP2
  *
  * Some IPs like dsp or iva contain processors that require an HW
  * reset line to be asserted / deasserted in order to fully enable the
@@ -65,10 +65,10 @@ int omap2_prm_assert_hardreset(u8 shift, u8 part, s16 prm_mod, u16 offset)
  * @prm_mod: PRM submodule base (e.g. CORE_MOD)
  * @rst_shift: register bit shift corresponding to the reset line to deassert
  * @st_shift: register bit shift for the status of the deasserted submodule
- * @part: PRM partition, not used for OMAP2
+ * @part: PRM partition, analt used for OMAP2
  * @prm_mod: PRM submodule base (e.g. CORE_MOD)
- * @rst_offset: reset register offset, not used for OMAP2
- * @st_offset: reset status register offset, not used for OMAP2
+ * @rst_offset: reset register offset, analt used for OMAP2
+ * @st_offset: reset status register offset, analt used for OMAP2
  *
  * Some IPs like dsp or iva contain processors that require an HW
  * reset line to be asserted / deasserted in order to fully enable the
@@ -77,7 +77,7 @@ int omap2_prm_assert_hardreset(u8 shift, u8 part, s16 prm_mod, u16 offset)
  * take the submodule out of reset and wait until the PRCM indicates
  * that the reset has completed before returning.  Returns 0 upon success or
  * -EINVAL upon an argument error, -EEXIST if the submodule was already out
- * of reset, or -EBUSY if the submodule did not exit reset promptly.
+ * of reset, or -EBUSY if the submodule did analt exit reset promptly.
  */
 int omap2_prm_deassert_hardreset(u8 rst_shift, u8 st_shift, u8 part,
 				 s16 prm_mod, u16 rst_offset, u16 st_offset)

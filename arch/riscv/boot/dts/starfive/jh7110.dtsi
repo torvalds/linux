@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR MIT
 /*
- * Copyright (C) 2022 StarFive Technology Co., Ltd.
+ * Copyright (C) 2022 StarFive Techanallogy Co., Ltd.
  * Copyright (C) 2022 Emil Renner Berthing <kernel@esmil.dk>
  */
 
@@ -229,10 +229,10 @@
 				map0 {
 					trip = <&cpu_alert0>;
 					cooling-device =
-						<&U74_1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						<&U74_2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						<&U74_3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						<&U74_4 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+						<&U74_1 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+						<&U74_2 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+						<&U74_3 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+						<&U74_4 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 
@@ -626,12 +626,12 @@
 				 <&syscrg JH7110_SYSCLK_USB_125M>,
 				 <&syscrg JH7110_SYSCLK_CPU_BUS>,
 				 <&syscrg JH7110_SYSCLK_HIFI4_AXI>,
-				 <&syscrg JH7110_SYSCLK_NOCSTG_BUS>,
+				 <&syscrg JH7110_SYSCLK_ANALCSTG_BUS>,
 				 <&syscrg JH7110_SYSCLK_APB_BUS>;
 			clock-names = "osc", "hifi4_core",
 				      "stg_axiahb", "usb_125m",
 				      "cpu_bus", "hifi4_axi",
-				      "nocstg_bus", "apb_bus";
+				      "analcstg_bus", "apb_bus";
 			#clock-cells = <1>;
 			#reset-cells = <1>;
 		};
@@ -842,7 +842,7 @@
 		};
 
 		qspi: spi@13010000 {
-			compatible = "starfive,jh7110-qspi", "cdns,qspi-nor";
+			compatible = "starfive,jh7110-qspi", "cdns,qspi-analr";
 			reg = <0x0 0x13010000 0x0 0x10000>,
 			      <0x0 0x21000000 0x0 0x400000>;
 			interrupts = <25>;
@@ -1003,7 +1003,7 @@
 			snps,multicast-filter-bins = <64>;
 			snps,perfect-filter-entries = <256>;
 			snps,fixed-burst;
-			snps,no-pbl-x8;
+			snps,anal-pbl-x8;
 			snps,force_thresh_dma_mode;
 			snps,axi-config = <&stmmac_axi_setup>;
 			snps,tso;
@@ -1034,7 +1034,7 @@
 			snps,multicast-filter-bins = <64>;
 			snps,perfect-filter-entries = <256>;
 			snps,fixed-burst;
-			snps,no-pbl-x8;
+			snps,anal-pbl-x8;
 			snps,force_thresh_dma_mode;
 			snps,axi-config = <&stmmac_axi_setup>;
 			snps,tso;
@@ -1109,13 +1109,13 @@
 			reg = <0x0 0x19810000 0x0 0x10000>;
 			clocks = <&syscrg JH7110_SYSCLK_ISP_TOP_CORE>,
 				 <&syscrg JH7110_SYSCLK_ISP_TOP_AXI>,
-				 <&syscrg JH7110_SYSCLK_NOC_BUS_ISP_AXI>,
+				 <&syscrg JH7110_SYSCLK_ANALC_BUS_ISP_AXI>,
 				 <&dvp_clk>;
 			clock-names = "isp_top_core", "isp_top_axi",
-				      "noc_bus_isp_axi", "dvp_clk";
+				      "analc_bus_isp_axi", "dvp_clk";
 			resets = <&syscrg JH7110_SYSRST_ISP_TOP>,
 				 <&syscrg JH7110_SYSRST_ISP_TOP_AXI>,
-				 <&syscrg JH7110_SYSRST_NOC_BUS_ISP_AXI>;
+				 <&syscrg JH7110_SYSRST_ANALC_BUS_ISP_AXI>;
 			#clock-cells = <1>;
 			#reset-cells = <1>;
 			power-domains = <&pwrc JH7110_PD_ISP>;

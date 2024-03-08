@@ -7,7 +7,7 @@
 
 /************************************
  ** This is an auto-generated file **
- **       DO NOT EDIT BELOW        **
+ **       DO ANALT EDIT BELOW        **
  ************************************/
 
 #ifndef ASIC_REG_DCORE0_MME_QM_AXUSER_SECURED_REGS_H_
@@ -26,7 +26,7 @@
 
 #define mmDCORE0_MME_QM_AXUSER_SECURED_HB_STRONG_ORDER 0x40CAB08
 
-#define mmDCORE0_MME_QM_AXUSER_SECURED_HB_NO_SNOOP 0x40CAB0C
+#define mmDCORE0_MME_QM_AXUSER_SECURED_HB_ANAL_SANALOP 0x40CAB0C
 
 #define mmDCORE0_MME_QM_AXUSER_SECURED_HB_WR_REDUCTION 0x40CAB10
 

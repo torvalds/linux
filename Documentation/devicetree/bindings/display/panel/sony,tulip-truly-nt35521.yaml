@@ -11,7 +11,7 @@ maintainers:
 
 description: |
   The Sony Tulip Truly NT35521 is a 5.24" 1280x720 MIPI-DSI panel, which
-  can be found no Sony Xperia M4 phone.  The panel backlight is managed
+  can be found anal Sony Xperia M4 phone.  The panel backlight is managed
   through DSI link.
 
 allOf:

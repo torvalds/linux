@@ -55,7 +55,7 @@ const char netdev_features_strings[NETDEV_FEATURE_COUNT][ETH_GSTRING_LEN] = {
 	[NETIF_F_NTUPLE_BIT] =           "rx-ntuple-filter",
 	[NETIF_F_RXHASH_BIT] =           "rx-hashing",
 	[NETIF_F_RXCSUM_BIT] =           "rx-checksum",
-	[NETIF_F_NOCACHE_COPY_BIT] =     "tx-nocache-copy",
+	[NETIF_F_ANALCACHE_COPY_BIT] =     "tx-analcache-copy",
 	[NETIF_F_LOOPBACK_BIT] =         "loopback",
 	[NETIF_F_RXFCS_BIT] =            "rx-fcs",
 	[NETIF_F_RXALL_BIT] =            "rx-all",
@@ -158,7 +158,7 @@ const char link_mode_names[][ETH_GSTRING_LEN] = {
 	__DEFINE_LINK_MODE_NAME(10000, ER, Full),
 	__DEFINE_LINK_MODE_NAME(2500, T, Full),
 	__DEFINE_LINK_MODE_NAME(5000, T, Full),
-	__DEFINE_SPECIAL_MODE_NAME(FEC_NONE, "None"),
+	__DEFINE_SPECIAL_MODE_NAME(FEC_ANALNE, "Analne"),
 	__DEFINE_SPECIAL_MODE_NAME(FEC_RS, "RS"),
 	__DEFINE_SPECIAL_MODE_NAME(FEC_BASER, "BASER"),
 	__DEFINE_LINK_MODE_NAME(50000, KR, Full),
@@ -262,9 +262,9 @@ static_assert(ARRAY_SIZE(link_mode_names) == __ETHTOOL_LINK_MODE_MASK_NBITS);
 #define __DUPLEX_Full DUPLEX_FULL
 #define __DEFINE_SPECIAL_MODE_PARAMS(_mode) \
 	[ETHTOOL_LINK_MODE_ ## _mode ## _BIT] = { \
-		.speed	= SPEED_UNKNOWN, \
+		.speed	= SPEED_UNKANALWN, \
 		.lanes	= 0, \
-		.duplex	= DUPLEX_UNKNOWN, \
+		.duplex	= DUPLEX_UNKANALWN, \
 	}
 
 const struct link_mode_info link_mode_params[] = {
@@ -321,7 +321,7 @@ const struct link_mode_info link_mode_params[] = {
 	__DEFINE_LINK_MODE_PARAMS(10000, ER, Full),
 	__DEFINE_LINK_MODE_PARAMS(2500, T, Full),
 	__DEFINE_LINK_MODE_PARAMS(5000, T, Full),
-	__DEFINE_SPECIAL_MODE_PARAMS(FEC_NONE),
+	__DEFINE_SPECIAL_MODE_PARAMS(FEC_ANALNE),
 	__DEFINE_SPECIAL_MODE_PARAMS(FEC_RS),
 	__DEFINE_SPECIAL_MODE_PARAMS(FEC_BASER),
 	__DEFINE_LINK_MODE_PARAMS(50000, KR, Full),
@@ -438,7 +438,7 @@ const char ts_tx_type_names[][ETH_GSTRING_LEN] = {
 static_assert(ARRAY_SIZE(ts_tx_type_names) == __HWTSTAMP_TX_CNT);
 
 const char ts_rx_filter_names[][ETH_GSTRING_LEN] = {
-	[HWTSTAMP_FILTER_NONE]			= "none",
+	[HWTSTAMP_FILTER_ANALNE]			= "analne",
 	[HWTSTAMP_FILTER_ALL]			= "all",
 	[HWTSTAMP_FILTER_SOME]			= "some",
 	[HWTSTAMP_FILTER_PTP_V1_L4_EVENT]	= "ptpv1-l4-event",
@@ -465,7 +465,7 @@ const char udp_tunnel_type_names[][ETH_GSTRING_LEN] = {
 static_assert(ARRAY_SIZE(udp_tunnel_type_names) ==
 	      __ETHTOOL_UDP_TUNNEL_TYPE_CNT);
 
-/* return false if legacy contained non-0 deprecated fields
+/* return false if legacy contained analn-0 deprecated fields
  * maxtxpkt/maxrxpkt. rest of ksettings always updated
  */
 bool
@@ -478,7 +478,7 @@ convert_legacy_settings_to_link_ksettings(
 	memset(link_ksettings, 0, sizeof(*link_ksettings));
 
 	/* This is used to tell users that driver is still using these
-	 * deprecated legacy fields, and they should not use
+	 * deprecated legacy fields, and they should analt use
 	 * %ETHTOOL_GLINKSETTINGS/%ETHTOOL_SLINKSETTINGS
 	 */
 	if (legacy_settings->maxtxpkt ||
@@ -516,7 +516,7 @@ convert_legacy_settings_to_link_ksettings(
 int __ethtool_get_link(struct net_device *dev)
 {
 	if (!dev->ethtool_ops->get_link)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return netif_running(dev) && dev->ethtool_ops->get_link(dev);
 }
@@ -544,7 +544,7 @@ int ethtool_get_max_rxnfc_channel(struct net_device *dev, u64 *max)
 	u64 max_ring = 0;
 
 	if (!ops->get_rxnfc)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	rule_cnt = ethtool_get_rxnfc_rule_count(dev);
 	if (rule_cnt <= 0)
@@ -552,7 +552,7 @@ int ethtool_get_max_rxnfc_channel(struct net_device *dev, u64 *max)
 
 	info = kvzalloc(struct_size(info, rule_locs, rule_cnt), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->cmd = ETHTOOL_GRXCLSRLALL;
 	info->rule_cnt = rule_cnt;
@@ -595,14 +595,14 @@ int ethtool_get_max_rxfh_channel(struct net_device *dev, u32 *max)
 
 	if (!dev->ethtool_ops->get_rxfh_indir_size ||
 	    !dev->ethtool_ops->get_rxfh)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	dev_size = dev->ethtool_ops->get_rxfh_indir_size(dev);
 	if (dev_size == 0)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	rxfh.indir = kcalloc(dev_size, sizeof(rxfh.indir[0]), GFP_USER);
 	if (!rxfh.indir)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = dev->ethtool_ops->get_rxfh(dev, &rxfh);
 	if (ret)
@@ -622,8 +622,8 @@ int ethtool_check_ops(const struct ethtool_ops *ops)
 {
 	if (WARN_ON(ops->set_coalesce && !ops->supported_coalesce_params))
 		return -EINVAL;
-	/* NOTE: sufficiently insane drivers may swap ethtool_ops at runtime,
-	 * the fact that ops are checked at registration time does not
+	/* ANALTE: sufficiently insane drivers may swap ethtool_ops at runtime,
+	 * the fact that ops are checked at registration time does analt
 	 * mean the ops attached to a netdev later on are sane.
 	 */
 	return 0;

@@ -1,11 +1,11 @@
 /*
- *  linux/fs/hfs/inode.c
+ *  linux/fs/hfs/ianalde.c
  *
  * Copyright (C) 1995-1997  Paul H. Hargrove
- * (C) 2003 Ardis Technologies <roman@ardistech.com>
+ * (C) 2003 Ardis Techanallogies <roman@ardistech.com>
  * This file may be distributed under the terms of the GNU General Public License.
  *
- * This file contains inode-related functions which do not depend on
+ * This file contains ianalde-related functions which do analt depend on
  * which scheme is being used to represent forks.
  *
  * Based on the minix file system code, (C) 1991, 1992 by Linus Torvalds
@@ -23,7 +23,7 @@
 #include "btree.h"
 
 static const struct file_operations hfs_file_operations;
-static const struct inode_operations hfs_file_inode_operations;
+static const struct ianalde_operations hfs_file_ianalde_operations;
 
 /*================ Variable-like macros ================*/
 
@@ -36,11 +36,11 @@ static int hfs_read_folio(struct file *file, struct folio *folio)
 
 static void hfs_write_failed(struct address_space *mapping, loff_t to)
 {
-	struct inode *inode = mapping->host;
+	struct ianalde *ianalde = mapping->host;
 
-	if (to > inode->i_size) {
-		truncate_pagecache(inode, inode->i_size);
-		hfs_file_truncate(inode);
+	if (to > ianalde->i_size) {
+		truncate_pagecache(ianalde, ianalde->i_size);
+		hfs_file_truncate(ianalde);
 	}
 }
 
@@ -66,15 +66,15 @@ static sector_t hfs_bmap(struct address_space *mapping, sector_t block)
 
 static bool hfs_release_folio(struct folio *folio, gfp_t mask)
 {
-	struct inode *inode = folio->mapping->host;
-	struct super_block *sb = inode->i_sb;
+	struct ianalde *ianalde = folio->mapping->host;
+	struct super_block *sb = ianalde->i_sb;
 	struct hfs_btree *tree;
-	struct hfs_bnode *node;
+	struct hfs_banalde *analde;
 	u32 nidx;
 	int i;
 	bool res = true;
 
-	switch (inode->i_ino) {
+	switch (ianalde->i_ianal) {
 	case HFS_EXT_CNID:
 		tree = HFS_SB(sb)->ext_tree;
 		break;
@@ -89,34 +89,34 @@ static bool hfs_release_folio(struct folio *folio, gfp_t mask)
 	if (!tree)
 		return false;
 
-	if (tree->node_size >= PAGE_SIZE) {
-		nidx = folio->index >> (tree->node_size_shift - PAGE_SHIFT);
+	if (tree->analde_size >= PAGE_SIZE) {
+		nidx = folio->index >> (tree->analde_size_shift - PAGE_SHIFT);
 		spin_lock(&tree->hash_lock);
-		node = hfs_bnode_findhash(tree, nidx);
-		if (!node)
+		analde = hfs_banalde_findhash(tree, nidx);
+		if (!analde)
 			;
-		else if (atomic_read(&node->refcnt))
+		else if (atomic_read(&analde->refcnt))
 			res = false;
-		if (res && node) {
-			hfs_bnode_unhash(node);
-			hfs_bnode_free(node);
+		if (res && analde) {
+			hfs_banalde_unhash(analde);
+			hfs_banalde_free(analde);
 		}
 		spin_unlock(&tree->hash_lock);
 	} else {
-		nidx = folio->index << (PAGE_SHIFT - tree->node_size_shift);
-		i = 1 << (PAGE_SHIFT - tree->node_size_shift);
+		nidx = folio->index << (PAGE_SHIFT - tree->analde_size_shift);
+		i = 1 << (PAGE_SHIFT - tree->analde_size_shift);
 		spin_lock(&tree->hash_lock);
 		do {
-			node = hfs_bnode_findhash(tree, nidx++);
-			if (!node)
+			analde = hfs_banalde_findhash(tree, nidx++);
+			if (!analde)
 				continue;
-			if (atomic_read(&node->refcnt)) {
+			if (atomic_read(&analde->refcnt)) {
 				res = false;
 				break;
 			}
-			hfs_bnode_unhash(node);
-			hfs_bnode_free(node);
-		} while (--i && nidx < tree->node_count);
+			hfs_banalde_unhash(analde);
+			hfs_banalde_free(analde);
+		} while (--i && nidx < tree->analde_count);
 		spin_unlock(&tree->hash_lock);
 	}
 	return res ? try_to_free_buffers(folio) : false;
@@ -126,18 +126,18 @@ static ssize_t hfs_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 {
 	struct file *file = iocb->ki_filp;
 	struct address_space *mapping = file->f_mapping;
-	struct inode *inode = mapping->host;
+	struct ianalde *ianalde = mapping->host;
 	size_t count = iov_iter_count(iter);
 	ssize_t ret;
 
-	ret = blockdev_direct_IO(iocb, inode, iter, hfs_get_block);
+	ret = blockdev_direct_IO(iocb, ianalde, iter, hfs_get_block);
 
 	/*
 	 * In case of error extending write may have instantiated a few
 	 * blocks outside i_size. Trim these off again.
 	 */
 	if (unlikely(iov_iter_rw(iter) == WRITE && ret < 0)) {
-		loff_t isize = i_size_read(inode);
+		loff_t isize = i_size_read(ianalde);
 		loff_t end = iocb->ki_pos + count;
 
 		if (end > isize)
@@ -178,112 +178,112 @@ const struct address_space_operations hfs_aops = {
 };
 
 /*
- * hfs_new_inode
+ * hfs_new_ianalde
  */
-struct inode *hfs_new_inode(struct inode *dir, const struct qstr *name, umode_t mode)
+struct ianalde *hfs_new_ianalde(struct ianalde *dir, const struct qstr *name, umode_t mode)
 {
 	struct super_block *sb = dir->i_sb;
-	struct inode *inode = new_inode(sb);
-	if (!inode)
+	struct ianalde *ianalde = new_ianalde(sb);
+	if (!ianalde)
 		return NULL;
 
-	mutex_init(&HFS_I(inode)->extents_lock);
-	INIT_LIST_HEAD(&HFS_I(inode)->open_dir_list);
-	spin_lock_init(&HFS_I(inode)->open_dir_lock);
-	hfs_cat_build_key(sb, (btree_key *)&HFS_I(inode)->cat_key, dir->i_ino, name);
-	inode->i_ino = HFS_SB(sb)->next_id++;
-	inode->i_mode = mode;
-	inode->i_uid = current_fsuid();
-	inode->i_gid = current_fsgid();
-	set_nlink(inode, 1);
-	simple_inode_init_ts(inode);
-	HFS_I(inode)->flags = 0;
-	HFS_I(inode)->rsrc_inode = NULL;
-	HFS_I(inode)->fs_blocks = 0;
+	mutex_init(&HFS_I(ianalde)->extents_lock);
+	INIT_LIST_HEAD(&HFS_I(ianalde)->open_dir_list);
+	spin_lock_init(&HFS_I(ianalde)->open_dir_lock);
+	hfs_cat_build_key(sb, (btree_key *)&HFS_I(ianalde)->cat_key, dir->i_ianal, name);
+	ianalde->i_ianal = HFS_SB(sb)->next_id++;
+	ianalde->i_mode = mode;
+	ianalde->i_uid = current_fsuid();
+	ianalde->i_gid = current_fsgid();
+	set_nlink(ianalde, 1);
+	simple_ianalde_init_ts(ianalde);
+	HFS_I(ianalde)->flags = 0;
+	HFS_I(ianalde)->rsrc_ianalde = NULL;
+	HFS_I(ianalde)->fs_blocks = 0;
 	if (S_ISDIR(mode)) {
-		inode->i_size = 2;
+		ianalde->i_size = 2;
 		HFS_SB(sb)->folder_count++;
-		if (dir->i_ino == HFS_ROOT_CNID)
+		if (dir->i_ianal == HFS_ROOT_CNID)
 			HFS_SB(sb)->root_dirs++;
-		inode->i_op = &hfs_dir_inode_operations;
-		inode->i_fop = &hfs_dir_operations;
-		inode->i_mode |= S_IRWXUGO;
-		inode->i_mode &= ~HFS_SB(inode->i_sb)->s_dir_umask;
+		ianalde->i_op = &hfs_dir_ianalde_operations;
+		ianalde->i_fop = &hfs_dir_operations;
+		ianalde->i_mode |= S_IRWXUGO;
+		ianalde->i_mode &= ~HFS_SB(ianalde->i_sb)->s_dir_umask;
 	} else if (S_ISREG(mode)) {
-		HFS_I(inode)->clump_blocks = HFS_SB(sb)->clumpablks;
+		HFS_I(ianalde)->clump_blocks = HFS_SB(sb)->clumpablks;
 		HFS_SB(sb)->file_count++;
-		if (dir->i_ino == HFS_ROOT_CNID)
+		if (dir->i_ianal == HFS_ROOT_CNID)
 			HFS_SB(sb)->root_files++;
-		inode->i_op = &hfs_file_inode_operations;
-		inode->i_fop = &hfs_file_operations;
-		inode->i_mapping->a_ops = &hfs_aops;
-		inode->i_mode |= S_IRUGO|S_IXUGO;
+		ianalde->i_op = &hfs_file_ianalde_operations;
+		ianalde->i_fop = &hfs_file_operations;
+		ianalde->i_mapping->a_ops = &hfs_aops;
+		ianalde->i_mode |= S_IRUGO|S_IXUGO;
 		if (mode & S_IWUSR)
-			inode->i_mode |= S_IWUGO;
-		inode->i_mode &= ~HFS_SB(inode->i_sb)->s_file_umask;
-		HFS_I(inode)->phys_size = 0;
-		HFS_I(inode)->alloc_blocks = 0;
-		HFS_I(inode)->first_blocks = 0;
-		HFS_I(inode)->cached_start = 0;
-		HFS_I(inode)->cached_blocks = 0;
-		memset(HFS_I(inode)->first_extents, 0, sizeof(hfs_extent_rec));
-		memset(HFS_I(inode)->cached_extents, 0, sizeof(hfs_extent_rec));
+			ianalde->i_mode |= S_IWUGO;
+		ianalde->i_mode &= ~HFS_SB(ianalde->i_sb)->s_file_umask;
+		HFS_I(ianalde)->phys_size = 0;
+		HFS_I(ianalde)->alloc_blocks = 0;
+		HFS_I(ianalde)->first_blocks = 0;
+		HFS_I(ianalde)->cached_start = 0;
+		HFS_I(ianalde)->cached_blocks = 0;
+		memset(HFS_I(ianalde)->first_extents, 0, sizeof(hfs_extent_rec));
+		memset(HFS_I(ianalde)->cached_extents, 0, sizeof(hfs_extent_rec));
 	}
-	insert_inode_hash(inode);
-	mark_inode_dirty(inode);
+	insert_ianalde_hash(ianalde);
+	mark_ianalde_dirty(ianalde);
 	set_bit(HFS_FLG_MDB_DIRTY, &HFS_SB(sb)->flags);
 	hfs_mark_mdb_dirty(sb);
 
-	return inode;
+	return ianalde;
 }
 
-void hfs_delete_inode(struct inode *inode)
+void hfs_delete_ianalde(struct ianalde *ianalde)
 {
-	struct super_block *sb = inode->i_sb;
+	struct super_block *sb = ianalde->i_sb;
 
-	hfs_dbg(INODE, "delete_inode: %lu\n", inode->i_ino);
-	if (S_ISDIR(inode->i_mode)) {
+	hfs_dbg(IANALDE, "delete_ianalde: %lu\n", ianalde->i_ianal);
+	if (S_ISDIR(ianalde->i_mode)) {
 		HFS_SB(sb)->folder_count--;
-		if (HFS_I(inode)->cat_key.ParID == cpu_to_be32(HFS_ROOT_CNID))
+		if (HFS_I(ianalde)->cat_key.ParID == cpu_to_be32(HFS_ROOT_CNID))
 			HFS_SB(sb)->root_dirs--;
 		set_bit(HFS_FLG_MDB_DIRTY, &HFS_SB(sb)->flags);
 		hfs_mark_mdb_dirty(sb);
 		return;
 	}
 	HFS_SB(sb)->file_count--;
-	if (HFS_I(inode)->cat_key.ParID == cpu_to_be32(HFS_ROOT_CNID))
+	if (HFS_I(ianalde)->cat_key.ParID == cpu_to_be32(HFS_ROOT_CNID))
 		HFS_SB(sb)->root_files--;
-	if (S_ISREG(inode->i_mode)) {
-		if (!inode->i_nlink) {
-			inode->i_size = 0;
-			hfs_file_truncate(inode);
+	if (S_ISREG(ianalde->i_mode)) {
+		if (!ianalde->i_nlink) {
+			ianalde->i_size = 0;
+			hfs_file_truncate(ianalde);
 		}
 	}
 	set_bit(HFS_FLG_MDB_DIRTY, &HFS_SB(sb)->flags);
 	hfs_mark_mdb_dirty(sb);
 }
 
-void hfs_inode_read_fork(struct inode *inode, struct hfs_extent *ext,
+void hfs_ianalde_read_fork(struct ianalde *ianalde, struct hfs_extent *ext,
 			 __be32 __log_size, __be32 phys_size, u32 clump_size)
 {
-	struct super_block *sb = inode->i_sb;
+	struct super_block *sb = ianalde->i_sb;
 	u32 log_size = be32_to_cpu(__log_size);
 	u16 count;
 	int i;
 
-	memcpy(HFS_I(inode)->first_extents, ext, sizeof(hfs_extent_rec));
+	memcpy(HFS_I(ianalde)->first_extents, ext, sizeof(hfs_extent_rec));
 	for (count = 0, i = 0; i < 3; i++)
 		count += be16_to_cpu(ext[i].count);
-	HFS_I(inode)->first_blocks = count;
+	HFS_I(ianalde)->first_blocks = count;
 
-	inode->i_size = HFS_I(inode)->phys_size = log_size;
-	HFS_I(inode)->fs_blocks = (log_size + sb->s_blocksize - 1) >> sb->s_blocksize_bits;
-	inode_set_bytes(inode, HFS_I(inode)->fs_blocks << sb->s_blocksize_bits);
-	HFS_I(inode)->alloc_blocks = be32_to_cpu(phys_size) /
+	ianalde->i_size = HFS_I(ianalde)->phys_size = log_size;
+	HFS_I(ianalde)->fs_blocks = (log_size + sb->s_blocksize - 1) >> sb->s_blocksize_bits;
+	ianalde_set_bytes(ianalde, HFS_I(ianalde)->fs_blocks << sb->s_blocksize_bits);
+	HFS_I(ianalde)->alloc_blocks = be32_to_cpu(phys_size) /
 				     HFS_SB(sb)->alloc_blksz;
-	HFS_I(inode)->clump_blocks = clump_size / HFS_SB(sb)->alloc_blksz;
-	if (!HFS_I(inode)->clump_blocks)
-		HFS_I(inode)->clump_blocks = HFS_SB(sb)->clumpablks;
+	HFS_I(ianalde)->clump_blocks = clump_size / HFS_SB(sb)->alloc_blksz;
+	if (!HFS_I(ianalde)->clump_blocks)
+		HFS_I(ianalde)->clump_blocks = HFS_SB(sb)->clumpablks;
 }
 
 struct hfs_iget_data {
@@ -291,7 +291,7 @@ struct hfs_iget_data {
 	hfs_cat_rec *rec;
 };
 
-static int hfs_test_inode(struct inode *inode, void *data)
+static int hfs_test_ianalde(struct ianalde *ianalde, void *data)
 {
 	struct hfs_iget_data *idata = data;
 	hfs_cat_rec *rec;
@@ -299,9 +299,9 @@ static int hfs_test_inode(struct inode *inode, void *data)
 	rec = idata->rec;
 	switch (rec->type) {
 	case HFS_CDR_DIR:
-		return inode->i_ino == be32_to_cpu(rec->dir.DirID);
+		return ianalde->i_ianal == be32_to_cpu(rec->dir.DirID);
 	case HFS_CDR_FIL:
-		return inode->i_ino == be32_to_cpu(rec->file.FlNum);
+		return ianalde->i_ianal == be32_to_cpu(rec->file.FlNum);
 	default:
 		BUG();
 		return 1;
@@ -309,66 +309,66 @@ static int hfs_test_inode(struct inode *inode, void *data)
 }
 
 /*
- * hfs_read_inode
+ * hfs_read_ianalde
  */
-static int hfs_read_inode(struct inode *inode, void *data)
+static int hfs_read_ianalde(struct ianalde *ianalde, void *data)
 {
 	struct hfs_iget_data *idata = data;
-	struct hfs_sb_info *hsb = HFS_SB(inode->i_sb);
+	struct hfs_sb_info *hsb = HFS_SB(ianalde->i_sb);
 	hfs_cat_rec *rec;
 
-	HFS_I(inode)->flags = 0;
-	HFS_I(inode)->rsrc_inode = NULL;
-	mutex_init(&HFS_I(inode)->extents_lock);
-	INIT_LIST_HEAD(&HFS_I(inode)->open_dir_list);
-	spin_lock_init(&HFS_I(inode)->open_dir_lock);
+	HFS_I(ianalde)->flags = 0;
+	HFS_I(ianalde)->rsrc_ianalde = NULL;
+	mutex_init(&HFS_I(ianalde)->extents_lock);
+	INIT_LIST_HEAD(&HFS_I(ianalde)->open_dir_list);
+	spin_lock_init(&HFS_I(ianalde)->open_dir_lock);
 
-	/* Initialize the inode */
-	inode->i_uid = hsb->s_uid;
-	inode->i_gid = hsb->s_gid;
-	set_nlink(inode, 1);
+	/* Initialize the ianalde */
+	ianalde->i_uid = hsb->s_uid;
+	ianalde->i_gid = hsb->s_gid;
+	set_nlink(ianalde, 1);
 
 	if (idata->key)
-		HFS_I(inode)->cat_key = *idata->key;
+		HFS_I(ianalde)->cat_key = *idata->key;
 	else
-		HFS_I(inode)->flags |= HFS_FLG_RSRC;
-	HFS_I(inode)->tz_secondswest = sys_tz.tz_minuteswest * 60;
+		HFS_I(ianalde)->flags |= HFS_FLG_RSRC;
+	HFS_I(ianalde)->tz_secondswest = sys_tz.tz_minuteswest * 60;
 
 	rec = idata->rec;
 	switch (rec->type) {
 	case HFS_CDR_FIL:
-		if (!HFS_IS_RSRC(inode)) {
-			hfs_inode_read_fork(inode, rec->file.ExtRec, rec->file.LgLen,
+		if (!HFS_IS_RSRC(ianalde)) {
+			hfs_ianalde_read_fork(ianalde, rec->file.ExtRec, rec->file.LgLen,
 					    rec->file.PyLen, be16_to_cpu(rec->file.ClpSize));
 		} else {
-			hfs_inode_read_fork(inode, rec->file.RExtRec, rec->file.RLgLen,
+			hfs_ianalde_read_fork(ianalde, rec->file.RExtRec, rec->file.RLgLen,
 					    rec->file.RPyLen, be16_to_cpu(rec->file.ClpSize));
 		}
 
-		inode->i_ino = be32_to_cpu(rec->file.FlNum);
-		inode->i_mode = S_IRUGO | S_IXUGO;
+		ianalde->i_ianal = be32_to_cpu(rec->file.FlNum);
+		ianalde->i_mode = S_IRUGO | S_IXUGO;
 		if (!(rec->file.Flags & HFS_FIL_LOCK))
-			inode->i_mode |= S_IWUGO;
-		inode->i_mode &= ~hsb->s_file_umask;
-		inode->i_mode |= S_IFREG;
-		inode_set_mtime_to_ts(inode,
-				      inode_set_atime_to_ts(inode, inode_set_ctime_to_ts(inode, hfs_m_to_utime(rec->file.MdDat))));
-		inode->i_op = &hfs_file_inode_operations;
-		inode->i_fop = &hfs_file_operations;
-		inode->i_mapping->a_ops = &hfs_aops;
+			ianalde->i_mode |= S_IWUGO;
+		ianalde->i_mode &= ~hsb->s_file_umask;
+		ianalde->i_mode |= S_IFREG;
+		ianalde_set_mtime_to_ts(ianalde,
+				      ianalde_set_atime_to_ts(ianalde, ianalde_set_ctime_to_ts(ianalde, hfs_m_to_utime(rec->file.MdDat))));
+		ianalde->i_op = &hfs_file_ianalde_operations;
+		ianalde->i_fop = &hfs_file_operations;
+		ianalde->i_mapping->a_ops = &hfs_aops;
 		break;
 	case HFS_CDR_DIR:
-		inode->i_ino = be32_to_cpu(rec->dir.DirID);
-		inode->i_size = be16_to_cpu(rec->dir.Val) + 2;
-		HFS_I(inode)->fs_blocks = 0;
-		inode->i_mode = S_IFDIR | (S_IRWXUGO & ~hsb->s_dir_umask);
-		inode_set_mtime_to_ts(inode,
-				      inode_set_atime_to_ts(inode, inode_set_ctime_to_ts(inode, hfs_m_to_utime(rec->dir.MdDat))));
-		inode->i_op = &hfs_dir_inode_operations;
-		inode->i_fop = &hfs_dir_operations;
+		ianalde->i_ianal = be32_to_cpu(rec->dir.DirID);
+		ianalde->i_size = be16_to_cpu(rec->dir.Val) + 2;
+		HFS_I(ianalde)->fs_blocks = 0;
+		ianalde->i_mode = S_IFDIR | (S_IRWXUGO & ~hsb->s_dir_umask);
+		ianalde_set_mtime_to_ts(ianalde,
+				      ianalde_set_atime_to_ts(ianalde, ianalde_set_ctime_to_ts(ianalde, hfs_m_to_utime(rec->dir.MdDat))));
+		ianalde->i_op = &hfs_dir_ianalde_operations;
+		ianalde->i_fop = &hfs_dir_operations;
 		break;
 	default:
-		make_bad_inode(inode);
+		make_bad_ianalde(ianalde);
 	}
 	return 0;
 }
@@ -378,14 +378,14 @@ static int hfs_read_inode(struct inode *inode, void *data)
  *
  * Given the MDB for a HFS filesystem, a 'key' and an 'entry' in
  * the catalog B-tree and the 'type' of the desired file return the
- * inode for that file/directory or NULL.  Note that 'type' indicates
+ * ianalde for that file/directory or NULL.  Analte that 'type' indicates
  * whether we want the actual file or directory, or the corresponding
  * metadata (AppleDouble header file or CAP metadata file).
  */
-struct inode *hfs_iget(struct super_block *sb, struct hfs_cat_key *key, hfs_cat_rec *rec)
+struct ianalde *hfs_iget(struct super_block *sb, struct hfs_cat_key *key, hfs_cat_rec *rec)
 {
 	struct hfs_iget_data data = { key, rec };
-	struct inode *inode;
+	struct ianalde *ianalde;
 	u32 cnid;
 
 	switch (rec->type) {
@@ -398,45 +398,45 @@ struct inode *hfs_iget(struct super_block *sb, struct hfs_cat_key *key, hfs_cat_
 	default:
 		return NULL;
 	}
-	inode = iget5_locked(sb, cnid, hfs_test_inode, hfs_read_inode, &data);
-	if (inode && (inode->i_state & I_NEW))
-		unlock_new_inode(inode);
-	return inode;
+	ianalde = iget5_locked(sb, cnid, hfs_test_ianalde, hfs_read_ianalde, &data);
+	if (ianalde && (ianalde->i_state & I_NEW))
+		unlock_new_ianalde(ianalde);
+	return ianalde;
 }
 
-void hfs_inode_write_fork(struct inode *inode, struct hfs_extent *ext,
+void hfs_ianalde_write_fork(struct ianalde *ianalde, struct hfs_extent *ext,
 			  __be32 *log_size, __be32 *phys_size)
 {
-	memcpy(ext, HFS_I(inode)->first_extents, sizeof(hfs_extent_rec));
+	memcpy(ext, HFS_I(ianalde)->first_extents, sizeof(hfs_extent_rec));
 
 	if (log_size)
-		*log_size = cpu_to_be32(inode->i_size);
+		*log_size = cpu_to_be32(ianalde->i_size);
 	if (phys_size)
-		*phys_size = cpu_to_be32(HFS_I(inode)->alloc_blocks *
-					 HFS_SB(inode->i_sb)->alloc_blksz);
+		*phys_size = cpu_to_be32(HFS_I(ianalde)->alloc_blocks *
+					 HFS_SB(ianalde->i_sb)->alloc_blksz);
 }
 
-int hfs_write_inode(struct inode *inode, struct writeback_control *wbc)
+int hfs_write_ianalde(struct ianalde *ianalde, struct writeback_control *wbc)
 {
-	struct inode *main_inode = inode;
+	struct ianalde *main_ianalde = ianalde;
 	struct hfs_find_data fd;
 	hfs_cat_rec rec;
 	int res;
 
-	hfs_dbg(INODE, "hfs_write_inode: %lu\n", inode->i_ino);
-	res = hfs_ext_write_extent(inode);
+	hfs_dbg(IANALDE, "hfs_write_ianalde: %lu\n", ianalde->i_ianal);
+	res = hfs_ext_write_extent(ianalde);
 	if (res)
 		return res;
 
-	if (inode->i_ino < HFS_FIRSTUSER_CNID) {
-		switch (inode->i_ino) {
+	if (ianalde->i_ianal < HFS_FIRSTUSER_CNID) {
+		switch (ianalde->i_ianal) {
 		case HFS_ROOT_CNID:
 			break;
 		case HFS_EXT_CNID:
-			hfs_btree_write(HFS_SB(inode->i_sb)->ext_tree);
+			hfs_btree_write(HFS_SB(ianalde->i_sb)->ext_tree);
 			return 0;
 		case HFS_CAT_CNID:
-			hfs_btree_write(HFS_SB(inode->i_sb)->cat_tree);
+			hfs_btree_write(HFS_SB(ianalde->i_sb)->cat_tree);
 			return 0;
 		default:
 			BUG();
@@ -444,63 +444,63 @@ int hfs_write_inode(struct inode *inode, struct writeback_control *wbc)
 		}
 	}
 
-	if (HFS_IS_RSRC(inode))
-		main_inode = HFS_I(inode)->rsrc_inode;
+	if (HFS_IS_RSRC(ianalde))
+		main_ianalde = HFS_I(ianalde)->rsrc_ianalde;
 
-	if (!main_inode->i_nlink)
+	if (!main_ianalde->i_nlink)
 		return 0;
 
-	if (hfs_find_init(HFS_SB(main_inode->i_sb)->cat_tree, &fd))
+	if (hfs_find_init(HFS_SB(main_ianalde->i_sb)->cat_tree, &fd))
 		/* panic? */
 		return -EIO;
 
 	res = -EIO;
-	if (HFS_I(main_inode)->cat_key.CName.len > HFS_NAMELEN)
+	if (HFS_I(main_ianalde)->cat_key.CName.len > HFS_NAMELEN)
 		goto out;
-	fd.search_key->cat = HFS_I(main_inode)->cat_key;
+	fd.search_key->cat = HFS_I(main_ianalde)->cat_key;
 	if (hfs_brec_find(&fd))
 		goto out;
 
-	if (S_ISDIR(main_inode->i_mode)) {
+	if (S_ISDIR(main_ianalde->i_mode)) {
 		if (fd.entrylength < sizeof(struct hfs_cat_dir))
 			goto out;
-		hfs_bnode_read(fd.bnode, &rec, fd.entryoffset,
+		hfs_banalde_read(fd.banalde, &rec, fd.entryoffset,
 			   sizeof(struct hfs_cat_dir));
 		if (rec.type != HFS_CDR_DIR ||
-		    be32_to_cpu(rec.dir.DirID) != inode->i_ino) {
+		    be32_to_cpu(rec.dir.DirID) != ianalde->i_ianal) {
 		}
 
-		rec.dir.MdDat = hfs_u_to_mtime(inode_get_mtime(inode));
-		rec.dir.Val = cpu_to_be16(inode->i_size - 2);
+		rec.dir.MdDat = hfs_u_to_mtime(ianalde_get_mtime(ianalde));
+		rec.dir.Val = cpu_to_be16(ianalde->i_size - 2);
 
-		hfs_bnode_write(fd.bnode, &rec, fd.entryoffset,
+		hfs_banalde_write(fd.banalde, &rec, fd.entryoffset,
 			    sizeof(struct hfs_cat_dir));
-	} else if (HFS_IS_RSRC(inode)) {
+	} else if (HFS_IS_RSRC(ianalde)) {
 		if (fd.entrylength < sizeof(struct hfs_cat_file))
 			goto out;
-		hfs_bnode_read(fd.bnode, &rec, fd.entryoffset,
+		hfs_banalde_read(fd.banalde, &rec, fd.entryoffset,
 			       sizeof(struct hfs_cat_file));
-		hfs_inode_write_fork(inode, rec.file.RExtRec,
+		hfs_ianalde_write_fork(ianalde, rec.file.RExtRec,
 				     &rec.file.RLgLen, &rec.file.RPyLen);
-		hfs_bnode_write(fd.bnode, &rec, fd.entryoffset,
+		hfs_banalde_write(fd.banalde, &rec, fd.entryoffset,
 				sizeof(struct hfs_cat_file));
 	} else {
 		if (fd.entrylength < sizeof(struct hfs_cat_file))
 			goto out;
-		hfs_bnode_read(fd.bnode, &rec, fd.entryoffset,
+		hfs_banalde_read(fd.banalde, &rec, fd.entryoffset,
 			   sizeof(struct hfs_cat_file));
 		if (rec.type != HFS_CDR_FIL ||
-		    be32_to_cpu(rec.file.FlNum) != inode->i_ino) {
+		    be32_to_cpu(rec.file.FlNum) != ianalde->i_ianal) {
 		}
 
-		if (inode->i_mode & S_IWUSR)
+		if (ianalde->i_mode & S_IWUSR)
 			rec.file.Flags &= ~HFS_FIL_LOCK;
 		else
 			rec.file.Flags |= HFS_FIL_LOCK;
-		hfs_inode_write_fork(inode, rec.file.ExtRec, &rec.file.LgLen, &rec.file.PyLen);
-		rec.file.MdDat = hfs_u_to_mtime(inode_get_mtime(inode));
+		hfs_ianalde_write_fork(ianalde, rec.file.ExtRec, &rec.file.LgLen, &rec.file.PyLen);
+		rec.file.MdDat = hfs_u_to_mtime(ianalde_get_mtime(ianalde));
 
-		hfs_bnode_write(fd.bnode, &rec, fd.entryoffset,
+		hfs_banalde_write(fd.banalde, &rec, fd.entryoffset,
 			    sizeof(struct hfs_cat_file));
 	}
 	res = 0;
@@ -509,10 +509,10 @@ out:
 	return res;
 }
 
-static struct dentry *hfs_file_lookup(struct inode *dir, struct dentry *dentry,
+static struct dentry *hfs_file_lookup(struct ianalde *dir, struct dentry *dentry,
 				      unsigned int flags)
 {
-	struct inode *inode = NULL;
+	struct ianalde *ianalde = NULL;
 	hfs_cat_rec rec;
 	struct hfs_find_data fd;
 	int res;
@@ -520,113 +520,113 @@ static struct dentry *hfs_file_lookup(struct inode *dir, struct dentry *dentry,
 	if (HFS_IS_RSRC(dir) || strcmp(dentry->d_name.name, "rsrc"))
 		goto out;
 
-	inode = HFS_I(dir)->rsrc_inode;
-	if (inode)
+	ianalde = HFS_I(dir)->rsrc_ianalde;
+	if (ianalde)
 		goto out;
 
-	inode = new_inode(dir->i_sb);
-	if (!inode)
-		return ERR_PTR(-ENOMEM);
+	ianalde = new_ianalde(dir->i_sb);
+	if (!ianalde)
+		return ERR_PTR(-EANALMEM);
 
 	res = hfs_find_init(HFS_SB(dir->i_sb)->cat_tree, &fd);
 	if (res) {
-		iput(inode);
+		iput(ianalde);
 		return ERR_PTR(res);
 	}
 	fd.search_key->cat = HFS_I(dir)->cat_key;
 	res = hfs_brec_read(&fd, &rec, sizeof(rec));
 	if (!res) {
 		struct hfs_iget_data idata = { NULL, &rec };
-		hfs_read_inode(inode, &idata);
+		hfs_read_ianalde(ianalde, &idata);
 	}
 	hfs_find_exit(&fd);
 	if (res) {
-		iput(inode);
+		iput(ianalde);
 		return ERR_PTR(res);
 	}
-	HFS_I(inode)->rsrc_inode = dir;
-	HFS_I(dir)->rsrc_inode = inode;
+	HFS_I(ianalde)->rsrc_ianalde = dir;
+	HFS_I(dir)->rsrc_ianalde = ianalde;
 	igrab(dir);
-	inode_fake_hash(inode);
-	mark_inode_dirty(inode);
+	ianalde_fake_hash(ianalde);
+	mark_ianalde_dirty(ianalde);
 	dont_mount(dentry);
 out:
-	return d_splice_alias(inode, dentry);
+	return d_splice_alias(ianalde, dentry);
 }
 
-void hfs_evict_inode(struct inode *inode)
+void hfs_evict_ianalde(struct ianalde *ianalde)
 {
-	truncate_inode_pages_final(&inode->i_data);
-	clear_inode(inode);
-	if (HFS_IS_RSRC(inode) && HFS_I(inode)->rsrc_inode) {
-		HFS_I(HFS_I(inode)->rsrc_inode)->rsrc_inode = NULL;
-		iput(HFS_I(inode)->rsrc_inode);
+	truncate_ianalde_pages_final(&ianalde->i_data);
+	clear_ianalde(ianalde);
+	if (HFS_IS_RSRC(ianalde) && HFS_I(ianalde)->rsrc_ianalde) {
+		HFS_I(HFS_I(ianalde)->rsrc_ianalde)->rsrc_ianalde = NULL;
+		iput(HFS_I(ianalde)->rsrc_ianalde);
 	}
 }
 
-static int hfs_file_open(struct inode *inode, struct file *file)
+static int hfs_file_open(struct ianalde *ianalde, struct file *file)
 {
-	if (HFS_IS_RSRC(inode))
-		inode = HFS_I(inode)->rsrc_inode;
-	atomic_inc(&HFS_I(inode)->opencnt);
+	if (HFS_IS_RSRC(ianalde))
+		ianalde = HFS_I(ianalde)->rsrc_ianalde;
+	atomic_inc(&HFS_I(ianalde)->opencnt);
 	return 0;
 }
 
-static int hfs_file_release(struct inode *inode, struct file *file)
+static int hfs_file_release(struct ianalde *ianalde, struct file *file)
 {
-	//struct super_block *sb = inode->i_sb;
+	//struct super_block *sb = ianalde->i_sb;
 
-	if (HFS_IS_RSRC(inode))
-		inode = HFS_I(inode)->rsrc_inode;
-	if (atomic_dec_and_test(&HFS_I(inode)->opencnt)) {
-		inode_lock(inode);
-		hfs_file_truncate(inode);
-		//if (inode->i_flags & S_DEAD) {
-		//	hfs_delete_cat(inode->i_ino, HFSPLUS_SB(sb).hidden_dir, NULL);
-		//	hfs_delete_inode(inode);
+	if (HFS_IS_RSRC(ianalde))
+		ianalde = HFS_I(ianalde)->rsrc_ianalde;
+	if (atomic_dec_and_test(&HFS_I(ianalde)->opencnt)) {
+		ianalde_lock(ianalde);
+		hfs_file_truncate(ianalde);
+		//if (ianalde->i_flags & S_DEAD) {
+		//	hfs_delete_cat(ianalde->i_ianal, HFSPLUS_SB(sb).hidden_dir, NULL);
+		//	hfs_delete_ianalde(ianalde);
 		//}
-		inode_unlock(inode);
+		ianalde_unlock(ianalde);
 	}
 	return 0;
 }
 
 /*
- * hfs_notify_change()
+ * hfs_analtify_change()
  *
- * Based very closely on fs/msdos/inode.c by Werner Almesberger
+ * Based very closely on fs/msdos/ianalde.c by Werner Almesberger
  *
- * This is the notify_change() field in the super_operations structure
+ * This is the analtify_change() field in the super_operations structure
  * for HFS file systems.  The purpose is to take that changes made to
- * an inode and apply then in a filesystem-dependent manner.  In this
+ * an ianalde and apply then in a filesystem-dependent manner.  In this
  * case the process has a few of tasks to do:
  *  1) prevent changes to the i_uid and i_gid fields.
  *  2) map file permissions to the closest allowable permissions
- *  3) Since multiple Linux files can share the same on-disk inode under
+ *  3) Since multiple Linux files can share the same on-disk ianalde under
  *     HFS (for instance the data and resource forks of a file) a change
- *     to permissions must be applied to all other in-core inodes which
+ *     to permissions must be applied to all other in-core ianaldes which
  *     correspond to the same HFS file.
  */
 
-int hfs_inode_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
+int hfs_ianalde_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		      struct iattr *attr)
 {
-	struct inode *inode = d_inode(dentry);
-	struct hfs_sb_info *hsb = HFS_SB(inode->i_sb);
+	struct ianalde *ianalde = d_ianalde(dentry);
+	struct hfs_sb_info *hsb = HFS_SB(ianalde->i_sb);
 	int error;
 
-	error = setattr_prepare(&nop_mnt_idmap, dentry,
+	error = setattr_prepare(&analp_mnt_idmap, dentry,
 				attr); /* basic permission checks */
 	if (error)
 		return error;
 
-	/* no uig/gid changes and limit which mode bits can be set */
+	/* anal uig/gid changes and limit which mode bits can be set */
 	if (((attr->ia_valid & ATTR_UID) &&
 	     (!uid_eq(attr->ia_uid, hsb->s_uid))) ||
 	    ((attr->ia_valid & ATTR_GID) &&
 	     (!gid_eq(attr->ia_gid, hsb->s_gid))) ||
 	    ((attr->ia_valid & ATTR_MODE) &&
-	     ((S_ISDIR(inode->i_mode) &&
-	       (attr->ia_mode != inode->i_mode)) ||
+	     ((S_ISDIR(ianalde->i_mode) &&
+	       (attr->ia_mode != ianalde->i_mode)) ||
 	      (attr->ia_mode & ~HFS_VALID_MODE_BITS)))) {
 		return hsb->s_quiet ? 0 : error;
 	}
@@ -634,53 +634,53 @@ int hfs_inode_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 	if (attr->ia_valid & ATTR_MODE) {
 		/* Only the 'w' bits can ever change and only all together. */
 		if (attr->ia_mode & S_IWUSR)
-			attr->ia_mode = inode->i_mode | S_IWUGO;
+			attr->ia_mode = ianalde->i_mode | S_IWUGO;
 		else
-			attr->ia_mode = inode->i_mode & ~S_IWUGO;
-		attr->ia_mode &= S_ISDIR(inode->i_mode) ? ~hsb->s_dir_umask: ~hsb->s_file_umask;
+			attr->ia_mode = ianalde->i_mode & ~S_IWUGO;
+		attr->ia_mode &= S_ISDIR(ianalde->i_mode) ? ~hsb->s_dir_umask: ~hsb->s_file_umask;
 	}
 
 	if ((attr->ia_valid & ATTR_SIZE) &&
-	    attr->ia_size != i_size_read(inode)) {
-		inode_dio_wait(inode);
+	    attr->ia_size != i_size_read(ianalde)) {
+		ianalde_dio_wait(ianalde);
 
-		error = inode_newsize_ok(inode, attr->ia_size);
+		error = ianalde_newsize_ok(ianalde, attr->ia_size);
 		if (error)
 			return error;
 
-		truncate_setsize(inode, attr->ia_size);
-		hfs_file_truncate(inode);
-		simple_inode_init_ts(inode);
+		truncate_setsize(ianalde, attr->ia_size);
+		hfs_file_truncate(ianalde);
+		simple_ianalde_init_ts(ianalde);
 	}
 
-	setattr_copy(&nop_mnt_idmap, inode, attr);
-	mark_inode_dirty(inode);
+	setattr_copy(&analp_mnt_idmap, ianalde, attr);
+	mark_ianalde_dirty(ianalde);
 	return 0;
 }
 
 static int hfs_file_fsync(struct file *filp, loff_t start, loff_t end,
 			  int datasync)
 {
-	struct inode *inode = filp->f_mapping->host;
+	struct ianalde *ianalde = filp->f_mapping->host;
 	struct super_block * sb;
 	int ret, err;
 
 	ret = file_write_and_wait_range(filp, start, end);
 	if (ret)
 		return ret;
-	inode_lock(inode);
+	ianalde_lock(ianalde);
 
-	/* sync the inode to buffers */
-	ret = write_inode_now(inode, 0);
+	/* sync the ianalde to buffers */
+	ret = write_ianalde_analw(ianalde, 0);
 
 	/* sync the superblock to buffers */
-	sb = inode->i_sb;
+	sb = ianalde->i_sb;
 	flush_delayed_work(&HFS_SB(sb)->mdb_work);
 	/* .. finally sync the buffers to disk */
 	err = sync_blockdev(sb->s_bdev);
 	if (!ret)
 		ret = err;
-	inode_unlock(inode);
+	ianalde_unlock(ianalde);
 	return ret;
 }
 
@@ -695,8 +695,8 @@ static const struct file_operations hfs_file_operations = {
 	.release	= hfs_file_release,
 };
 
-static const struct inode_operations hfs_file_inode_operations = {
+static const struct ianalde_operations hfs_file_ianalde_operations = {
 	.lookup		= hfs_file_lookup,
-	.setattr	= hfs_inode_setattr,
+	.setattr	= hfs_ianalde_setattr,
 	.listxattr	= generic_listxattr,
 };

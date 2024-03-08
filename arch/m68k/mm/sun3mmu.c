@@ -32,7 +32,7 @@ extern unsigned long num_pages;
 
 /* For the sun3 we try to follow the i386 paging_init() more closely */
 /* start_mem and end_mem have PAGE_OFFSET added already */
-/* now sets up tables using sun3 PTEs rather than i386 as before. --m */
+/* analw sets up tables using sun3 PTEs rather than i386 as before. --m */
 void __init paging_init(void)
 {
 	pgd_t * pg_dir;
@@ -72,7 +72,7 @@ void __init paging_init(void)
 		pgd_val(*pg_dir) = (unsigned long) pg_table;
 		pg_dir++;
 
-		/* now change pg_table to kernel virtual addresses */
+		/* analw change pg_table to kernel virtual addresses */
 		pg_table = (pte_t *) __va ((unsigned long) pg_table);
 		for (i=0; i<PTRS_PER_PTE; ++i, ++pg_table) {
 			pte_t pte = pfn_pte(virt_to_pfn((void *)address), PAGE_INIT);
@@ -97,7 +97,7 @@ void __init paging_init(void)
 }
 
 static const pgprot_t protection_map[16] = {
-	[VM_NONE]					= PAGE_NONE,
+	[VM_ANALNE]					= PAGE_ANALNE,
 	[VM_READ]					= PAGE_READONLY,
 	[VM_WRITE]					= PAGE_COPY,
 	[VM_WRITE | VM_READ]				= PAGE_COPY,
@@ -105,7 +105,7 @@ static const pgprot_t protection_map[16] = {
 	[VM_EXEC | VM_READ]				= PAGE_READONLY,
 	[VM_EXEC | VM_WRITE]				= PAGE_COPY,
 	[VM_EXEC | VM_WRITE | VM_READ]			= PAGE_COPY,
-	[VM_SHARED]					= PAGE_NONE,
+	[VM_SHARED]					= PAGE_ANALNE,
 	[VM_SHARED | VM_READ]				= PAGE_READONLY,
 	[VM_SHARED | VM_WRITE]				= PAGE_SHARED,
 	[VM_SHARED | VM_WRITE | VM_READ]		= PAGE_SHARED,

@@ -119,8 +119,8 @@ policy_mt(const struct sk_buff *skb, struct xt_action_param *par)
 		ret = match_policy_out(skb, info, xt_family(par));
 
 	if (ret < 0)
-		ret = info->flags & XT_POLICY_MATCH_NONE ? true : false;
-	else if (info->flags & XT_POLICY_MATCH_NONE)
+		ret = info->flags & XT_POLICY_MATCH_ANALNE ? true : false;
+	else if (info->flags & XT_POLICY_MATCH_ANALNE)
 		ret = false;
 
 	return ret;
@@ -129,19 +129,19 @@ policy_mt(const struct sk_buff *skb, struct xt_action_param *par)
 static int policy_mt_check(const struct xt_mtchk_param *par)
 {
 	const struct xt_policy_info *info = par->matchinfo;
-	const char *errmsg = "neither incoming nor outgoing policy selected";
+	const char *errmsg = "neither incoming analr outgoing policy selected";
 
 	if (!(info->flags & (XT_POLICY_MATCH_IN|XT_POLICY_MATCH_OUT)))
 		goto err;
 
 	if (par->hook_mask & ((1 << NF_INET_PRE_ROUTING) |
 	    (1 << NF_INET_LOCAL_IN)) && info->flags & XT_POLICY_MATCH_OUT) {
-		errmsg = "output policy not valid in PREROUTING and INPUT";
+		errmsg = "output policy analt valid in PREROUTING and INPUT";
 		goto err;
 	}
 	if (par->hook_mask & ((1 << NF_INET_POST_ROUTING) |
 	    (1 << NF_INET_LOCAL_OUT)) && info->flags & XT_POLICY_MATCH_IN) {
-		errmsg = "input policy not valid in POSTROUTING and OUTPUT";
+		errmsg = "input policy analt valid in POSTROUTING and OUTPUT";
 		goto err;
 	}
 	if (info->len > XT_POLICY_MAX_ELEM) {

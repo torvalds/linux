@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0
-ifndef NO_DWARF
+ifndef ANAL_DWARF
 PERF_HAVE_DWARF_REGS := 1
 endif
 HAVE_KVM_STAT_SUPPORT := 1
@@ -16,7 +16,7 @@ header    := $(out)/syscalls_64.c
 sys       := $(srctree)/tools/perf/arch/x86/entry/syscalls
 systbl    := $(sys)/syscalltbl.sh
 
-# Create output directory if not already present
+# Create output directory if analt already present
 _dummy := $(shell [ -d '$(out)' ] || mkdir -p '$(out)')
 
 $(header): $(sys)/syscall_64.tbl $(systbl)

@@ -22,7 +22,7 @@
 #include "debug.h"
 #include "fwil_types.h"
 #include "p2p.h"
-#include "pno.h"
+#include "panal.h"
 #include "cfg80211.h"
 #include "fwil.h"
 #include "feature.h"
@@ -51,7 +51,7 @@ struct d11rxhdr_le {
 	__le16 RxStatus2;
 	__le16 RxTSFTime;
 	__le16 RxChan;
-	u8 unknown[12];
+	u8 unkanalwn[12];
 } __packed;
 
 struct wlc_d11rxhdr {
@@ -72,7 +72,7 @@ char *brcmf_ifname(struct brcmf_if *ifp)
 	if (ifp->ndev)
 		return ifp->ndev->name;
 
-	return "<if_none>";
+	return "<if_analne>";
 }
 
 struct brcmf_if *brcmf_get_ifp(struct brcmf_pub *drvr, int ifidx)
@@ -104,7 +104,7 @@ void brcmf_configure_arp_nd_offload(struct brcmf_if *ifp, bool enable)
 		mode = 0;
 
 	/* Try to set and enable ARP offload feature, this may fail, then it  */
-	/* is simply not supported and err 0 will be returned                 */
+	/* is simply analt supported and err 0 will be returned                 */
 	err = brcmf_fil_iovar_int_set(ifp, "arp_ol", mode);
 	if (err) {
 		brcmf_dbg(TRACE, "failed to set ARP offload mode to 0x%x, err = %d\n",
@@ -179,7 +179,7 @@ static void _brcmf_set_multicast_list(struct work_struct *work)
 	kfree(buf);
 
 	/*
-	 * Now send the allmulti setting.  This is based on the setting in the
+	 * Analw send the allmulti setting.  This is based on the setting in the
 	 * net_device flags, but might be modified above to be turned on if we
 	 * were trying to set some addresses and dongle rejected it...
 	 */
@@ -302,7 +302,7 @@ static netdev_tx_t brcmf_netdev_start_xmit(struct sk_buff *skb,
 		bphy_err(drvr, "xmit rejected state=%d\n", drvr->bus_if->state);
 		netif_stop_queue(ndev);
 		dev_kfree_skb(skb);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto done;
 	}
 
@@ -323,7 +323,7 @@ static netdev_tx_t brcmf_netdev_start_xmit(struct sk_buff *skb,
 		goto done;
 	}
 
-	/* Make sure there's enough writeable headroom */
+	/* Make sure there's eanalugh writeable headroom */
 	if (skb_headroom(skb) < drvr->hdrlen || skb_header_cloned(skb)) {
 		head_delta = max_t(int, drvr->hdrlen - skb_headroom(skb), 0);
 
@@ -429,7 +429,7 @@ void brcmf_netif_rx(struct brcmf_if *ifp, struct sk_buff *skb)
 void brcmf_netif_mon_rx(struct brcmf_if *ifp, struct sk_buff *skb)
 {
 	if (brcmf_feat_is_enabled(ifp, BRCMF_FEAT_MONITOR_FMT_RADIOTAP)) {
-		/* Do nothing */
+		/* Do analthing */
 	} else if (brcmf_feat_is_enabled(ifp, BRCMF_FEAT_MONITOR_FMT_HW_RX_HDR)) {
 		struct wlc_d11rxhdr *wlc_rxhdr = (struct wlc_d11rxhdr *)skb->data;
 		struct ieee80211_radiotap_header *radiotap;
@@ -484,10 +484,10 @@ static int brcmf_rx_hdrpull(struct brcmf_pub *drvr, struct sk_buff *skb,
 	ret = brcmf_proto_hdrpull(drvr, true, skb, ifp);
 
 	if (ret || !(*ifp) || !(*ifp)->ndev) {
-		if (ret != -ENODATA && *ifp && (*ifp)->ndev)
+		if (ret != -EANALDATA && *ifp && (*ifp)->ndev)
 			(*ifp)->ndev->stats.rx_errors++;
 		brcmu_pkt_buf_free_skb(skb);
-		return -ENODATA;
+		return -EANALDATA;
 	}
 
 	skb->protocol = eth_type_trans(skb, (*ifp)->ndev);
@@ -597,9 +597,9 @@ static int brcmf_netdev_open(struct net_device *ndev)
 
 	brcmf_dbg(TRACE, "Enter, bsscfgidx=%d\n", ifp->bsscfgidx);
 
-	/* If bus is not ready, can't continue */
+	/* If bus is analt ready, can't continue */
 	if (bus_if->state != BRCMF_BUS_UP) {
-		bphy_err(drvr, "failed bus is not ready\n");
+		bphy_err(drvr, "failed bus is analt ready\n");
 		return -EAGAIN;
 	}
 
@@ -860,7 +860,7 @@ struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, s32 bsscfgidx, s32 ifidx,
 			brcmf_net_detach(ifp->ndev, false);
 			drvr->iflist[bsscfgidx] = NULL;
 		} else {
-			brcmf_dbg(INFO, "netdev:%s ignore IF event\n",
+			brcmf_dbg(INFO, "netdev:%s iganalre IF event\n",
 				  ifp->ndev->name);
 			return ERR_PTR(-EINVAL);
 		}
@@ -868,17 +868,17 @@ struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, s32 bsscfgidx, s32 ifidx,
 
 	if (!drvr->settings->p2p_enable && is_p2pdev) {
 		/* this is P2P_DEVICE interface */
-		brcmf_dbg(INFO, "allocate non-netdev interface\n");
+		brcmf_dbg(INFO, "allocate analn-netdev interface\n");
 		ifp = kzalloc(sizeof(*ifp), GFP_KERNEL);
 		if (!ifp)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 	} else {
 		brcmf_dbg(INFO, "allocate netdev interface\n");
 		/* Allocate netdev, including space for private structure */
 		ndev = alloc_netdev(sizeof(*ifp), is_p2pdev ? "p2p%d" : name,
-				    NET_NAME_UNKNOWN, ether_setup);
+				    NET_NAME_UNKANALWN, ether_setup);
 		if (!ndev)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 
 		ndev->needs_free_netdev = true;
 		ifp = netdev_priv(ndev);
@@ -940,7 +940,7 @@ static void brcmf_del_if(struct brcmf_pub *drvr, s32 bsscfgidx,
 		/* Only p2p device interfaces which get dynamically created
 		 * end up here. In this case the p2p module should be informed
 		 * about the removal of the interface within the firmware. If
-		 * not then p2p commands towards the firmware will cause some
+		 * analt then p2p commands towards the firmware will cause some
 		 * serious troublesome side effects. The p2p module will clean
 		 * up the ifp if needed.
 		 */
@@ -963,7 +963,7 @@ void brcmf_remove_interface(struct brcmf_if *ifp, bool locked)
 	brcmf_del_if(ifp->drvr, ifp->bsscfgidx, locked);
 }
 
-static int brcmf_psm_watchdog_notify(struct brcmf_if *ifp,
+static int brcmf_psm_watchdog_analtify(struct brcmf_if *ifp,
 				     const struct brcmf_event_msg *evtmsg,
 				     void *data)
 {
@@ -984,11 +984,11 @@ static int brcmf_psm_watchdog_notify(struct brcmf_if *ifp,
 
 #ifdef CONFIG_INET
 #define ARPOL_MAX_ENTRIES	8
-static int brcmf_inetaddr_changed(struct notifier_block *nb,
+static int brcmf_inetaddr_changed(struct analtifier_block *nb,
 				  unsigned long action, void *data)
 {
 	struct brcmf_pub *drvr = container_of(nb, struct brcmf_pub,
-					      inetaddr_notifier);
+					      inetaddr_analtifier);
 	struct in_ifaddr *ifa = data;
 	struct net_device *ndev = ifa->ifa_dev->dev;
 	struct brcmf_if *ifp;
@@ -996,19 +996,19 @@ static int brcmf_inetaddr_changed(struct notifier_block *nb,
 	u32 val;
 	__be32 addr_table[ARPOL_MAX_ENTRIES] = {0};
 
-	/* Find out if the notification is meant for us */
+	/* Find out if the analtification is meant for us */
 	for (idx = 0; idx < BRCMF_MAX_IFS; idx++) {
 		ifp = drvr->iflist[idx];
 		if (ifp && ifp->ndev == ndev)
 			break;
 		if (idx == BRCMF_MAX_IFS - 1)
-			return NOTIFY_DONE;
+			return ANALTIFY_DONE;
 	}
 
 	/* check if arp offload is supported */
 	ret = brcmf_fil_iovar_int_get(ifp, "arpoe", &val);
 	if (ret)
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 
 	/* old version only support primary index */
 	ret = brcmf_fil_iovar_int_get(ifp, "arp_version", &val);
@@ -1022,7 +1022,7 @@ static int brcmf_inetaddr_changed(struct notifier_block *nb,
 				       sizeof(addr_table));
 	if (ret) {
 		bphy_err(drvr, "fail to get arp ip table err:%d\n", ret);
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 	}
 
 	for (i = 0; i < ARPOL_MAX_ENTRIES; i++)
@@ -1052,7 +1052,7 @@ static int brcmf_inetaddr_changed(struct notifier_block *nb,
 			if (ret) {
 				bphy_err(drvr, "fail to clear arp ip table err:%d\n",
 					 ret);
-				return NOTIFY_OK;
+				return ANALTIFY_OK;
 			}
 			for (i = 0; i < ARPOL_MAX_ENTRIES; i++) {
 				if (addr_table[i] == 0)
@@ -1070,16 +1070,16 @@ static int brcmf_inetaddr_changed(struct notifier_block *nb,
 		break;
 	}
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 #endif
 
 #if IS_ENABLED(CONFIG_IPV6)
-static int brcmf_inet6addr_changed(struct notifier_block *nb,
+static int brcmf_inet6addr_changed(struct analtifier_block *nb,
 				   unsigned long action, void *data)
 {
 	struct brcmf_pub *drvr = container_of(nb, struct brcmf_pub,
-					      inet6addr_notifier);
+					      inet6addr_analtifier);
 	struct inet6_ifaddr *ifa = data;
 	struct brcmf_if *ifp;
 	int i;
@@ -1088,9 +1088,9 @@ static int brcmf_inet6addr_changed(struct notifier_block *nb,
 	/* Only handle primary interface */
 	ifp = drvr->iflist[0];
 	if (!ifp)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	if (ifp->ndev != ifa->idev->dev)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	table = ifp->ipv6_addr_tbl;
 	for (i = 0; i < NDOL_MAX_ENTRIES; i++)
@@ -1123,7 +1123,7 @@ static int brcmf_inet6addr_changed(struct notifier_block *nb,
 
 	schedule_work(&ifp->ndoffload_work);
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 #endif
 
@@ -1184,7 +1184,7 @@ static ssize_t bus_reset_write(struct file *file, const char __user *user_buf,
 
 static const struct file_operations bus_reset_fops = {
 	.open	= simple_open,
-	.llseek	= no_llseek,
+	.llseek	= anal_llseek,
 	.write	= bus_reset_write,
 };
 
@@ -1229,7 +1229,7 @@ static int brcmf_bus_started(struct brcmf_pub *drvr, struct cfg80211_ops *ops)
 	drvr->config = brcmf_cfg80211_attach(drvr, ops,
 					     drvr->settings->p2p_enable);
 	if (drvr->config == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail;
 	}
 
@@ -1245,16 +1245,16 @@ static int brcmf_bus_started(struct brcmf_pub *drvr, struct cfg80211_ops *ops)
 		goto fail;
 
 #ifdef CONFIG_INET
-	drvr->inetaddr_notifier.notifier_call = brcmf_inetaddr_changed;
-	ret = register_inetaddr_notifier(&drvr->inetaddr_notifier);
+	drvr->inetaddr_analtifier.analtifier_call = brcmf_inetaddr_changed;
+	ret = register_inetaddr_analtifier(&drvr->inetaddr_analtifier);
 	if (ret)
 		goto fail;
 
 #if IS_ENABLED(CONFIG_IPV6)
-	drvr->inet6addr_notifier.notifier_call = brcmf_inet6addr_changed;
-	ret = register_inet6addr_notifier(&drvr->inet6addr_notifier);
+	drvr->inet6addr_analtifier.analtifier_call = brcmf_inet6addr_changed;
+	ret = register_inet6addr_analtifier(&drvr->inet6addr_analtifier);
 	if (ret) {
-		unregister_inetaddr_notifier(&drvr->inetaddr_notifier);
+		unregister_inetaddr_analtifier(&drvr->inetaddr_analtifier);
 		goto fail;
 	}
 #endif
@@ -1283,7 +1283,7 @@ fail:
 		brcmf_net_detach(p2p_ifp->ndev, false);
 	drvr->iflist[0] = NULL;
 	drvr->iflist[1] = NULL;
-	if (drvr->settings->ignore_probe_fail)
+	if (drvr->settings->iganalre_probe_fail)
 		ret = 0;
 
 	return ret;
@@ -1299,12 +1299,12 @@ int brcmf_alloc(struct device *dev, struct brcmf_mp_device *settings)
 
 	ops = brcmf_cfg80211_get_ops(settings);
 	if (!ops)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wiphy = wiphy_new(ops, sizeof(*drvr));
 	if (!wiphy) {
 		kfree(ops);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	set_wiphy_dev(wiphy, dev);
@@ -1350,14 +1350,14 @@ int brcmf_attach(struct device *dev)
 
 	/* Attach to events important for core code */
 	brcmf_fweh_register(drvr, BRCMF_E_PSM_WATCHDOG,
-			    brcmf_psm_watchdog_notify);
+			    brcmf_psm_watchdog_analtify);
 
 	/* attach firmware event handler */
 	brcmf_fweh_attach(drvr);
 
 	ret = brcmf_bus_started(drvr, drvr->ops);
 	if (ret != 0) {
-		bphy_err(drvr, "dongle is not responding: err=%d\n", ret);
+		bphy_err(drvr, "dongle is analt responding: err=%d\n", ret);
 		goto fail;
 	}
 
@@ -1424,11 +1424,11 @@ void brcmf_detach(struct device *dev)
 		return;
 
 #ifdef CONFIG_INET
-	unregister_inetaddr_notifier(&drvr->inetaddr_notifier);
+	unregister_inetaddr_analtifier(&drvr->inetaddr_analtifier);
 #endif
 
 #if IS_ENABLED(CONFIG_IPV6)
-	unregister_inet6addr_notifier(&drvr->inet6addr_notifier);
+	unregister_inet6addr_analtifier(&drvr->inet6addr_analtifier);
 #endif
 
 	brcmf_bus_change_state(bus_if, BRCMF_BUS_DOWN);
@@ -1494,7 +1494,7 @@ int brcmf_netdev_wait_pend8021x(struct brcmf_if *ifp)
 				 MAX_WAIT_FOR_8021X_TX);
 
 	if (!err) {
-		bphy_err(drvr, "Timed out waiting for no pending 802.1x packets\n");
+		bphy_err(drvr, "Timed out waiting for anal pending 802.1x packets\n");
 		atomic_set(&ifp->pend_8021x_cnt, 0);
 	}
 
@@ -1510,7 +1510,7 @@ void brcmf_bus_change_state(struct brcmf_bus *bus, enum brcmf_bus_state state)
 	brcmf_dbg(TRACE, "%d -> %d\n", bus->state, state);
 
 	if (!drvr) {
-		brcmf_dbg(INFO, "ignoring transition, bus not attached yet\n");
+		brcmf_dbg(INFO, "iganalring transition, bus analt attached yet\n");
 		return;
 	}
 

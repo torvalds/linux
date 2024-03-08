@@ -36,14 +36,14 @@ static uint64_t max_phys_size;
  * Helpers to access a redistributor register and verify the ioctl() failed or
  * succeeded as expected, and provided the correct value on success.
  */
-static void v3_redist_reg_get_errno(int gicv3_fd, int vcpu, int offset,
+static void v3_redist_reg_get_erranal(int gicv3_fd, int vcpu, int offset,
 				    int want, const char *msg)
 {
-	uint32_t ignored_val;
+	uint32_t iganalred_val;
 	int ret = __kvm_device_attr_get(gicv3_fd, KVM_DEV_ARM_VGIC_GRP_REDIST_REGS,
-					REG_OFFSET(vcpu, offset), &ignored_val);
+					REG_OFFSET(vcpu, offset), &iganalred_val);
 
-	TEST_ASSERT(ret && errno == want, "%s; want errno = %d", msg, want);
+	TEST_ASSERT(ret && erranal == want, "%s; want erranal = %d", msg, want);
 }
 
 static void v3_redist_reg_get(int gicv3_fd, int vcpu, int offset, uint32_t want,
@@ -68,7 +68,7 @@ static void guest_code(void)
 /* we don't want to assert on run execution, hence that helper */
 static int run_vcpu(struct kvm_vcpu *vcpu)
 {
-	return __vcpu_run(vcpu) ? -errno : 0;
+	return __vcpu_run(vcpu) ? -erranal : 0;
 }
 
 static struct vm_gic vm_gic_create_with_vcpus(uint32_t gic_dev_type,
@@ -145,36 +145,36 @@ static void subtest_dist_rdist(struct vm_gic *v)
 
 	kvm_has_device_attr(v->gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR, rdist.attr);
 
-	/* check non existing attribute */
+	/* check analn existing attribute */
 	ret = __kvm_has_device_attr(v->gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR, -1);
-	TEST_ASSERT(ret && errno == ENXIO, "attribute not supported");
+	TEST_ASSERT(ret && erranal == ENXIO, "attribute analt supported");
 
 	/* misaligned DIST and REDIST address settings */
 	addr = dist.alignment / 0x10;
 	ret = __kvm_device_attr_set(v->gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
 				    dist.attr, &addr);
-	TEST_ASSERT(ret && errno == EINVAL, "GIC dist base not aligned");
+	TEST_ASSERT(ret && erranal == EINVAL, "GIC dist base analt aligned");
 
 	addr = rdist.alignment / 0x10;
 	ret = __kvm_device_attr_set(v->gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
 				    rdist.attr, &addr);
-	TEST_ASSERT(ret && errno == EINVAL, "GIC redist/cpu base not aligned");
+	TEST_ASSERT(ret && erranal == EINVAL, "GIC redist/cpu base analt aligned");
 
 	/* out of range address */
 	addr = max_phys_size;
 	ret = __kvm_device_attr_set(v->gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
 				    dist.attr, &addr);
-	TEST_ASSERT(ret && errno == E2BIG, "dist address beyond IPA limit");
+	TEST_ASSERT(ret && erranal == E2BIG, "dist address beyond IPA limit");
 
 	ret = __kvm_device_attr_set(v->gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
 				    rdist.attr, &addr);
-	TEST_ASSERT(ret && errno == E2BIG, "redist address beyond IPA limit");
+	TEST_ASSERT(ret && erranal == E2BIG, "redist address beyond IPA limit");
 
 	/* Space for half a rdist (a rdist is: 2 * rdist.alignment). */
 	addr = max_phys_size - dist.alignment;
 	ret = __kvm_device_attr_set(v->gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
 				    rdist.attr, &addr);
-	TEST_ASSERT(ret && errno == E2BIG,
+	TEST_ASSERT(ret && erranal == E2BIG,
 			"half of the redist is beyond IPA limit");
 
 	/* set REDIST base address @0x0*/
@@ -186,7 +186,7 @@ static void subtest_dist_rdist(struct vm_gic *v)
 	addr = 0xE0000;
 	ret = __kvm_device_attr_set(v->gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
 				    rdist.attr, &addr);
-	TEST_ASSERT(ret && errno == EEXIST, "GIC redist base set again");
+	TEST_ASSERT(ret && erranal == EEXIST, "GIC redist base set again");
 
 	ret = __kvm_has_device_attr(v->gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
 				     KVM_VGIC_V3_ADDR_TYPE_REDIST);
@@ -195,12 +195,12 @@ static void subtest_dist_rdist(struct vm_gic *v)
 		addr = REDIST_REGION_ATTR_ADDR(NR_VCPUS, 0x100000, 0, 0);
 		ret = __kvm_device_attr_set(v->gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
 					    KVM_VGIC_V3_ADDR_TYPE_REDIST_REGION, &addr);
-		TEST_ASSERT(ret && errno == EINVAL,
+		TEST_ASSERT(ret && erranal == EINVAL,
 			    "attempt to mix GICv3 REDIST and REDIST_REGION");
 	}
 
 	/*
-	 * Set overlapping DIST / REDIST, cannot be detected here. Will be detected
+	 * Set overlapping DIST / REDIST, cananalt be detected here. Will be detected
 	 * on first vcpu run instead.
 	 */
 	addr = rdist.size - rdist.alignment;
@@ -221,23 +221,23 @@ static void subtest_v3_redist_regions(struct vm_gic *v)
 	addr = REDIST_REGION_ATTR_ADDR(NR_VCPUS, 0x100000, 2, 0);
 	ret = __kvm_device_attr_set(v->gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
 				    KVM_VGIC_V3_ADDR_TYPE_REDIST_REGION, &addr);
-	TEST_ASSERT(ret && errno == EINVAL, "redist region attr value with flags != 0");
+	TEST_ASSERT(ret && erranal == EINVAL, "redist region attr value with flags != 0");
 
 	addr = REDIST_REGION_ATTR_ADDR(0, 0x100000, 0, 0);
 	ret = __kvm_device_attr_set(v->gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
 				    KVM_VGIC_V3_ADDR_TYPE_REDIST_REGION, &addr);
-	TEST_ASSERT(ret && errno == EINVAL, "redist region attr value with count== 0");
+	TEST_ASSERT(ret && erranal == EINVAL, "redist region attr value with count== 0");
 
 	addr = REDIST_REGION_ATTR_ADDR(2, 0x200000, 0, 1);
 	ret = __kvm_device_attr_set(v->gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
 				    KVM_VGIC_V3_ADDR_TYPE_REDIST_REGION, &addr);
-	TEST_ASSERT(ret && errno == EINVAL,
+	TEST_ASSERT(ret && erranal == EINVAL,
 		    "attempt to register the first rdist region with index != 0");
 
 	addr = REDIST_REGION_ATTR_ADDR(2, 0x201000, 0, 1);
 	ret = __kvm_device_attr_set(v->gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
 				    KVM_VGIC_V3_ADDR_TYPE_REDIST_REGION, &addr);
-	TEST_ASSERT(ret && errno == EINVAL, "rdist region with misaligned address");
+	TEST_ASSERT(ret && erranal == EINVAL, "rdist region with misaligned address");
 
 	addr = REDIST_REGION_ATTR_ADDR(2, 0x200000, 0, 0);
 	kvm_device_attr_set(v->gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
@@ -246,18 +246,18 @@ static void subtest_v3_redist_regions(struct vm_gic *v)
 	addr = REDIST_REGION_ATTR_ADDR(2, 0x200000, 0, 1);
 	ret = __kvm_device_attr_set(v->gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
 				    KVM_VGIC_V3_ADDR_TYPE_REDIST_REGION, &addr);
-	TEST_ASSERT(ret && errno == EINVAL, "register an rdist region with already used index");
+	TEST_ASSERT(ret && erranal == EINVAL, "register an rdist region with already used index");
 
 	addr = REDIST_REGION_ATTR_ADDR(1, 0x210000, 0, 2);
 	ret = __kvm_device_attr_set(v->gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
 				    KVM_VGIC_V3_ADDR_TYPE_REDIST_REGION, &addr);
-	TEST_ASSERT(ret && errno == EINVAL,
-		    "register an rdist region overlapping with another one");
+	TEST_ASSERT(ret && erranal == EINVAL,
+		    "register an rdist region overlapping with aanalther one");
 
 	addr = REDIST_REGION_ATTR_ADDR(1, 0x240000, 0, 2);
 	ret = __kvm_device_attr_set(v->gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
 				    KVM_VGIC_V3_ADDR_TYPE_REDIST_REGION, &addr);
-	TEST_ASSERT(ret && errno == EINVAL, "register redist region with index not +1");
+	TEST_ASSERT(ret && erranal == EINVAL, "register redist region with index analt +1");
 
 	addr = REDIST_REGION_ATTR_ADDR(1, 0x240000, 0, 1);
 	kvm_device_attr_set(v->gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
@@ -266,24 +266,24 @@ static void subtest_v3_redist_regions(struct vm_gic *v)
 	addr = REDIST_REGION_ATTR_ADDR(1, max_phys_size, 0, 2);
 	ret = __kvm_device_attr_set(v->gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
 				    KVM_VGIC_V3_ADDR_TYPE_REDIST_REGION, &addr);
-	TEST_ASSERT(ret && errno == E2BIG,
+	TEST_ASSERT(ret && erranal == E2BIG,
 		    "register redist region with base address beyond IPA range");
 
 	/* The last redist is above the pa range. */
 	addr = REDIST_REGION_ATTR_ADDR(2, max_phys_size - 0x30000, 0, 2);
 	ret = __kvm_device_attr_set(v->gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
 				    KVM_VGIC_V3_ADDR_TYPE_REDIST_REGION, &addr);
-	TEST_ASSERT(ret && errno == E2BIG,
+	TEST_ASSERT(ret && erranal == E2BIG,
 		    "register redist region with top address beyond IPA range");
 
 	addr = 0x260000;
 	ret = __kvm_device_attr_set(v->gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
 				    KVM_VGIC_V3_ADDR_TYPE_REDIST, &addr);
-	TEST_ASSERT(ret && errno == EINVAL,
+	TEST_ASSERT(ret && erranal == EINVAL,
 		    "Mix KVM_VGIC_V3_ADDR_TYPE_REDIST and REDIST_REGION");
 
 	/*
-	 * Now there are 2 redist regions:
+	 * Analw there are 2 redist regions:
 	 * region 0 @ 0x200000 2 redists
 	 * region 1 @ 0x240000 1 redist
 	 * Attempt to read their characteristics
@@ -304,7 +304,7 @@ static void subtest_v3_redist_regions(struct vm_gic *v)
 	addr = REDIST_REGION_ATTR_ADDR(0, 0, 0, 2);
 	ret = __kvm_device_attr_get(v->gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
 				    KVM_VGIC_V3_ADDR_TYPE_REDIST_REGION, &addr);
-	TEST_ASSERT(ret && errno == ENOENT, "read characteristics of non existing region");
+	TEST_ASSERT(ret && erranal == EANALENT, "read characteristics of analn existing region");
 
 	addr = 0x260000;
 	kvm_device_attr_set(v->gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
@@ -313,7 +313,7 @@ static void subtest_v3_redist_regions(struct vm_gic *v)
 	addr = REDIST_REGION_ATTR_ADDR(1, 0x260000, 0, 2);
 	ret = __kvm_device_attr_set(v->gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
 				    KVM_VGIC_V3_ADDR_TYPE_REDIST_REGION, &addr);
-	TEST_ASSERT(ret && errno == EINVAL, "register redist region colliding with dist");
+	TEST_ASSERT(ret && erranal == EINVAL, "register redist region colliding with dist");
 }
 
 /*
@@ -395,7 +395,7 @@ static void test_v3_new_redist_regions(void)
 
 	ret = __kvm_device_attr_set(v.gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
 				    KVM_VGIC_V3_ADDR_TYPE_REDIST_REGION, dummy);
-	TEST_ASSERT(ret && errno == EFAULT,
+	TEST_ASSERT(ret && erranal == EFAULT,
 		    "register a third region allowing to cover the 4 vcpus");
 
 	addr = REDIST_REGION_ATTR_ADDR(1, 0x280000, 0, 2);
@@ -424,12 +424,12 @@ static void test_v3_typer_accesses(void)
 
 	(void)vm_vcpu_add(v.vm, 3, guest_code);
 
-	v3_redist_reg_get_errno(v.gic_fd, 1, GICR_TYPER, EINVAL,
-				"attempting to read GICR_TYPER of non created vcpu");
+	v3_redist_reg_get_erranal(v.gic_fd, 1, GICR_TYPER, EINVAL,
+				"attempting to read GICR_TYPER of analn created vcpu");
 
 	(void)vm_vcpu_add(v.vm, 1, guest_code);
 
-	v3_redist_reg_get_errno(v.gic_fd, 1, GICR_TYPER, EBUSY,
+	v3_redist_reg_get_erranal(v.gic_fd, 1, GICR_TYPER, EBUSY,
 				"read GICR_TYPER before GIC initialized");
 
 	(void)vm_vcpu_add(v.vm, 2, guest_code);
@@ -453,12 +453,12 @@ static void test_v3_typer_accesses(void)
 	addr = REDIST_REGION_ATTR_ADDR(10, 0x100000, 0, 1);
 	ret = __kvm_device_attr_set(v.gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
 				    KVM_VGIC_V3_ADDR_TYPE_REDIST_REGION, &addr);
-	TEST_ASSERT(ret && errno == EINVAL, "collision with previous rdist region");
+	TEST_ASSERT(ret && erranal == EINVAL, "collision with previous rdist region");
 
 	v3_redist_reg_get(v.gic_fd, 1, GICR_TYPER, 0x100,
-			  "no redist region attached to vcpu #1 yet, last cannot be returned");
+			  "anal redist region attached to vcpu #1 yet, last cananalt be returned");
 	v3_redist_reg_get(v.gic_fd, 2, GICR_TYPER, 0x200,
-			  "no redist region attached to vcpu #2, last cannot be returned");
+			  "anal redist region attached to vcpu #2, last cananalt be returned");
 
 	addr = REDIST_REGION_ATTR_ADDR(10, 0x20000, 0, 1);
 	kvm_device_attr_set(v.gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
@@ -580,9 +580,9 @@ static void test_v3_redist_ipa_range_check_at_vcpu_run(void)
 	kvm_device_attr_set(v.gic_fd, KVM_DEV_ARM_VGIC_GRP_CTRL,
 			    KVM_DEV_ARM_VGIC_CTRL_INIT, NULL);
 
-	/* Attempt to run a vcpu without enough redist space. */
+	/* Attempt to run a vcpu without eanalugh redist space. */
 	ret = run_vcpu(vcpus[2]);
-	TEST_ASSERT(ret && errno == EINVAL,
+	TEST_ASSERT(ret && erranal == EINVAL,
 		"redist base+size above PA range detected on 1st vcpu run");
 
 	vm_gic_destroy(&v);
@@ -601,19 +601,19 @@ static void test_v3_its_region(void)
 	addr = 0x401000;
 	ret = __kvm_device_attr_set(its_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
 				    KVM_VGIC_ITS_ADDR_TYPE, &addr);
-	TEST_ASSERT(ret && errno == EINVAL,
+	TEST_ASSERT(ret && erranal == EINVAL,
 		"ITS region with misaligned address");
 
 	addr = max_phys_size;
 	ret = __kvm_device_attr_set(its_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
 				    KVM_VGIC_ITS_ADDR_TYPE, &addr);
-	TEST_ASSERT(ret && errno == E2BIG,
+	TEST_ASSERT(ret && erranal == E2BIG,
 		"register ITS region with base address beyond IPA range");
 
 	addr = max_phys_size - 0x10000;
 	ret = __kvm_device_attr_set(its_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
 				    KVM_VGIC_ITS_ADDR_TYPE, &addr);
-	TEST_ASSERT(ret && errno == E2BIG,
+	TEST_ASSERT(ret && erranal == E2BIG,
 		"Half of ITS region is beyond IPA range");
 
 	/* This one succeeds setting the ITS base */
@@ -624,7 +624,7 @@ static void test_v3_its_region(void)
 	addr = 0x300000;
 	ret = __kvm_device_attr_set(its_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
 				    KVM_VGIC_ITS_ADDR_TYPE, &addr);
-	TEST_ASSERT(ret && errno == EEXIST, "ITS base set again");
+	TEST_ASSERT(ret && erranal == EEXIST, "ITS base set again");
 
 	close(its_fd);
 	vm_gic_destroy(&v);
@@ -642,9 +642,9 @@ int test_kvm_device(uint32_t gic_dev_type)
 
 	v.vm = vm_create_with_vcpus(NR_VCPUS, guest_code, vcpus);
 
-	/* try to create a non existing KVM device */
+	/* try to create a analn existing KVM device */
 	ret = __kvm_test_create_device(v.vm, 0);
-	TEST_ASSERT(ret && errno == ENODEV, "unsupported device");
+	TEST_ASSERT(ret && erranal == EANALDEV, "unsupported device");
 
 	/* trial mode */
 	ret = __kvm_test_create_device(v.vm, gic_dev_type);
@@ -653,7 +653,7 @@ int test_kvm_device(uint32_t gic_dev_type)
 	v.gic_fd = kvm_create_device(v.vm, gic_dev_type);
 
 	ret = __kvm_create_device(v.vm, gic_dev_type);
-	TEST_ASSERT(ret < 0 && errno == EEXIST, "create GIC device twice");
+	TEST_ASSERT(ret < 0 && erranal == EEXIST, "create GIC device twice");
 
 	/* try to create the other gic_dev_type */
 	other = VGIC_DEV_IS_V2(gic_dev_type) ? KVM_DEV_TYPE_ARM_VGIC_V3
@@ -661,7 +661,7 @@ int test_kvm_device(uint32_t gic_dev_type)
 
 	if (!__kvm_test_create_device(v.vm, other)) {
 		ret = __kvm_create_device(v.vm, other);
-		TEST_ASSERT(ret < 0 && (errno == EINVAL || errno == EEXIST),
+		TEST_ASSERT(ret < 0 && (erranal == EINVAL || erranal == EEXIST),
 				"create GIC device while other version exists");
 	}
 
@@ -709,7 +709,7 @@ int main(int ac, char **av)
 	}
 
 	if (!cnt_impl) {
-		print_skip("No GICv2 nor GICv3 support");
+		print_skip("Anal GICv2 analr GICv3 support");
 		exit(KSFT_SKIP);
 	}
 	return 0;

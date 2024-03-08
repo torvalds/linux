@@ -31,13 +31,13 @@ static const struct mtk_gate_regs aud2_cg_regs = {
 };
 
 #define GATE_AUD0(_id, _name, _parent, _shift)	\
-	GATE_MTK(_id, _name, _parent, &aud0_cg_regs, _shift, &mtk_clk_gate_ops_no_setclr)
+	GATE_MTK(_id, _name, _parent, &aud0_cg_regs, _shift, &mtk_clk_gate_ops_anal_setclr)
 
 #define GATE_AUD1(_id, _name, _parent, _shift)	\
-	GATE_MTK(_id, _name, _parent, &aud1_cg_regs, _shift, &mtk_clk_gate_ops_no_setclr)
+	GATE_MTK(_id, _name, _parent, &aud1_cg_regs, _shift, &mtk_clk_gate_ops_anal_setclr)
 
 #define GATE_AUD2(_id, _name, _parent, _shift)	\
-	GATE_MTK(_id, _name, _parent, &aud2_cg_regs, _shift, &mtk_clk_gate_ops_no_setclr)
+	GATE_MTK(_id, _name, _parent, &aud2_cg_regs, _shift, &mtk_clk_gate_ops_anal_setclr)
 
 static const struct mtk_gate aud_clks[] = {
 	/* AUD0 */

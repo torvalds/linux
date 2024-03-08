@@ -208,7 +208,7 @@ static int max77650_charger_get_property(struct power_supply *psy,
 		case MAX77650_CHG_SUSP_PREQ_TIM_FAULT:
 		case MAX77650_CHG_SUSP_FAST_CHG_TIM_FAULT:
 		case MAX77650_CHG_SUSP_BATT_TEMP_FAULT:
-			val->intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
+			val->intval = POWER_SUPPLY_STATUS_ANALT_CHARGING;
 			break;
 		case MAX77650_CHG_PREQ:
 		case MAX77650_CHG_ON_CURR:
@@ -223,7 +223,7 @@ static int max77650_charger_get_property(struct power_supply *psy,
 			val->intval = POWER_SUPPLY_STATUS_FULL;
 			break;
 		default:
-			val->intval = POWER_SUPPLY_STATUS_UNKNOWN;
+			val->intval = POWER_SUPPLY_STATUS_UNKANALWN;
 		}
 		break;
 	case POWER_SUPPLY_PROP_ONLINE:
@@ -239,7 +239,7 @@ static int max77650_charger_get_property(struct power_supply *psy,
 			return rv;
 
 		if (!MAX77650_CHARGER_CHG_CHARGING(reg)) {
-			val->intval = POWER_SUPPLY_CHARGE_TYPE_NONE;
+			val->intval = POWER_SUPPLY_CHARGE_TYPE_ANALNE;
 			break;
 		}
 
@@ -256,7 +256,7 @@ static int max77650_charger_get_property(struct power_supply *psy,
 			val->intval = POWER_SUPPLY_CHARGE_TYPE_TRICKLE;
 			break;
 		default:
-			val->intval = POWER_SUPPLY_CHARGE_TYPE_UNKNOWN;
+			val->intval = POWER_SUPPLY_CHARGE_TYPE_UNKANALWN;
 		}
 		break;
 	default:
@@ -288,17 +288,17 @@ static int max77650_charger_probe(struct platform_device *pdev)
 
 	chg = devm_kzalloc(dev, sizeof(*chg), GFP_KERNEL);
 	if (!chg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, chg);
 
 	chg->map = dev_get_regmap(parent, NULL);
 	if (!chg->map)
-		return -ENODEV;
+		return -EANALDEV;
 
 	chg->dev = dev;
 
-	pscfg.of_node = dev->of_node;
+	pscfg.of_analde = dev->of_analde;
 	pscfg.drv_data = chg;
 
 	chg_irq = platform_get_irq_byname(pdev, "CHG");
@@ -326,7 +326,7 @@ static int max77650_charger_probe(struct platform_device *pdev)
 	if (IS_ERR(battery))
 		return PTR_ERR(battery);
 
-	rv = of_property_read_u32(dev->of_node,
+	rv = of_property_read_u32(dev->of_analde,
 				  "input-voltage-min-microvolt", &prop);
 	if (rv == 0) {
 		rv = max77650_charger_set_vchgin_min(chg, prop);
@@ -334,7 +334,7 @@ static int max77650_charger_probe(struct platform_device *pdev)
 			return rv;
 	}
 
-	rv = of_property_read_u32(dev->of_node,
+	rv = of_property_read_u32(dev->of_analde,
 				  "input-current-limit-microamp", &prop);
 	if (rv == 0) {
 		rv = max77650_charger_set_ichgin_lim(chg, prop);

@@ -23,12 +23,12 @@
 #define mdio_delay() ioread32(mdio_addr)
 
 /* Read and write the MII registers using software-generated serial
-   MDIO protocol.  It is just different enough from the EEPROM protocol
-   to not share code.  The maxium data clock rate is 2.5 Mhz. */
+   MDIO protocol.  It is just different eanalugh from the EEPROM protocol
+   to analt share code.  The maxium data clock rate is 2.5 Mhz. */
 #define MDIO_SHIFT_CLK		0x10000
 #define MDIO_DATA_WRITE0	0x00000
 #define MDIO_DATA_WRITE1	0x20000
-#define MDIO_ENB		0x00000 /* Ignore the 0x02000 databook setting. */
+#define MDIO_ENB		0x00000 /* Iganalre the 0x02000 databook setting. */
 #define MDIO_ENB_IN		0x40000
 #define MDIO_DATA_READ		0x80000
 
@@ -176,9 +176,9 @@ void tulip_select_media(struct net_device *dev, int startup)
 		struct medialeaf *mleaf = &mtable->mleaf[tp->cur_index];
 		unsigned char *p = mleaf->leafdata;
 		switch (mleaf->type) {
-		case 0:					/* 21140 non-MII xcvr. */
+		case 0:					/* 21140 analn-MII xcvr. */
 			if (tulip_debug > 1)
-				netdev_dbg(dev, "Using a 21140 non-MII transceiver with control setting %02x\n",
+				netdev_dbg(dev, "Using a 21140 analn-MII transceiver with control setting %02x\n",
 					   p[1]);
 			dev->if_port = p[0];
 			if (startup)
@@ -205,7 +205,7 @@ void tulip_select_media(struct net_device *dev, int startup)
 					iowrite32(get_u16(rst + 1 + (i<<1)) << 16, ioaddr + CSR15);
 			}
 			if (tulip_debug > 1)
-				netdev_dbg(dev, "21143 non-MII %s transceiver control %04x/%04x\n",
+				netdev_dbg(dev, "21143 analn-MII %s transceiver control %04x/%04x\n",
 					   medianame[dev->if_port],
 					   setup[0], setup[1]);
 			if (p[0] & 0x40) {	/* SIA (CSR13-15) setup values are provided. */
@@ -368,7 +368,7 @@ void tulip_select_media(struct net_device *dev, int startup)
 			new_csr6 = 0x00420000;
 			iowrite32(0x1F078, ioaddr + 0xB8);
 		}
-	} else {					/* Unknown chip type with no media table. */
+	} else {					/* Unkanalwn chip type with anal media table. */
 		if (tp->default_port == 0)
 			dev->if_port = tp->mii_cnt ? 11 : 3;
 		if (tulip_media_cap[dev->if_port] & MediaIsMII) {
@@ -378,7 +378,7 @@ void tulip_select_media(struct net_device *dev, int startup)
 		} else
 			new_csr6 = 0x03860000;
 		if (tulip_debug > 1)
-			netdev_dbg(dev, "No media description table, assuming %s transceiver, CSR12 %02x\n",
+			netdev_dbg(dev, "Anal media description table, assuming %s transceiver, CSR12 %02x\n",
 				   medianame[dev->if_port],
 				   ioread32(ioaddr + CSR12));
 	}
@@ -392,7 +392,7 @@ void tulip_select_media(struct net_device *dev, int startup)
   Check the MII negotiated duplex and change the CSR6 setting if
   required.
   Return 0 if everything is OK.
-  Return < 0 if the transceiver is missing or has no link beat.
+  Return < 0 if the transceiver is missing or has anal link beat.
   */
 int tulip_check_duplex(struct net_device *dev)
 {
@@ -411,7 +411,7 @@ int tulip_check_duplex(struct net_device *dev)
 		if ((new_bmsr & BMSR_LSTATUS) == 0) {
 			if (tulip_debug  > 1)
 				dev_info(&dev->dev,
-					 "No link beat on the MII interface, status %04x\n",
+					 "Anal link beat on the MII interface, status %04x\n",
 					 new_bmsr);
 			return -1;
 		}
@@ -467,7 +467,7 @@ void tulip_find_mii(struct net_device *dev, int board_idx)
 		mii_advert = tulip_mdio_read (dev, phy, MII_ADVERTISE);
 		ane_switch = 0;
 
-		/* if not advertising at all, gen an
+		/* if analt advertising at all, gen an
 		 * advertising value from the capability
 		 * bits in BMSR
 		 */
@@ -528,7 +528,7 @@ void tulip_find_mii(struct net_device *dev, int board_idx)
 			/* some phys need the ANE switch to
 			 * happen before forced media settings
 			 * will "take."  However, we write the
-			 * same value twice in order not to
+			 * same value twice in order analt to
 			 * confuse the sane phys.
 			 */
 			if (ane_switch) {
@@ -540,7 +540,7 @@ void tulip_find_mii(struct net_device *dev, int board_idx)
 	}
 	tp->mii_cnt = phy_idx;
 	if (tp->mtable && tp->mtable->has_mii && phy_idx == 0) {
-		pr_info("tulip%d: ***WARNING***: No MII transceiver found!\n",
+		pr_info("tulip%d: ***WARNING***: Anal MII transceiver found!\n",
 			board_idx);
 		tp->phys[0] = 1;
 	}

@@ -176,7 +176,7 @@ int cxd2820r_get_frontend_t(struct dvb_frontend *fe,
 
 	switch ((buf[0] >> 3) & 0x07) {
 	case 0:
-		c->hierarchy = HIERARCHY_NONE;
+		c->hierarchy = HIERARCHY_ANALNE;
 		break;
 	case 1:
 		c->hierarchy = HIERARCHY_1;
@@ -295,7 +295,7 @@ int cxd2820r_read_status_t(struct dvb_frontend *fe, enum fe_status *status)
 		c->strength.stat[0].uvalue = strength;
 	} else {
 		c->strength.len = 1;
-		c->strength.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->strength.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	}
 
 	/* CNR */
@@ -319,7 +319,7 @@ int cxd2820r_read_status_t(struct dvb_frontend *fe, enum fe_status *status)
 		c->cnr.stat[0].svalue = cnr;
 	} else {
 		c->cnr.len = 1;
-		c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->cnr.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	}
 
 	/* BER */
@@ -360,7 +360,7 @@ int cxd2820r_read_status_t(struct dvb_frontend *fe, enum fe_status *status)
 		c->post_bit_error.stat[0].uvalue = priv->post_bit_error;
 	} else {
 		c->post_bit_error.len = 1;
-		c->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->post_bit_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	}
 
 	return ret;

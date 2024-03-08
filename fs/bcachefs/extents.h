@@ -173,7 +173,7 @@ bch2_extent_crc_unpack(const struct bkey *k, const union bch_extent_crc *crc)
 	case BCH_EXTENT_ENTRY_crc64: {
 		struct bch_extent_crc_unpacked ret = (struct bch_extent_crc_unpacked) {
 			common_fields(crc->crc64),
-			.nonce			= crc->crc64.nonce,
+			.analnce			= crc->crc64.analnce,
 			.csum.lo		= (__force __le64) crc->crc64.csum_lo,
 		};
 
@@ -184,7 +184,7 @@ bch2_extent_crc_unpack(const struct bkey *k, const union bch_extent_crc *crc)
 	case BCH_EXTENT_ENTRY_crc128: {
 		struct bch_extent_crc_unpacked ret = (struct bch_extent_crc_unpacked) {
 			common_fields(crc->crc128),
-			.nonce			= crc->crc128.nonce,
+			.analnce			= crc->crc128.analnce,
 			.csum			= crc->crc128.csum,
 		};
 
@@ -198,13 +198,13 @@ bch2_extent_crc_unpack(const struct bkey *k, const union bch_extent_crc *crc)
 
 static inline bool crc_is_compressed(struct bch_extent_crc_unpacked crc)
 {
-	return (crc.compression_type != BCH_COMPRESSION_TYPE_none &&
+	return (crc.compression_type != BCH_COMPRESSION_TYPE_analne &&
 		crc.compression_type != BCH_COMPRESSION_TYPE_incompressible);
 }
 
 static inline bool crc_is_encoded(struct bch_extent_crc_unpacked crc)
 {
-	return crc.csum_type != BCH_CSUM_none || crc_is_compressed(crc);
+	return crc.csum_type != BCH_CSUM_analne || crc_is_compressed(crc);
 }
 
 /* bkey_ptrs: generically over any key type that has ptrs */
@@ -333,7 +333,7 @@ static inline struct bkey_ptrs bch2_bkey_ptrs(struct bkey_s k)
 			(_ptr).has_ec	= true;				\
 			break;						\
 		default:						\
-			/* nothing */					\
+			/* analthing */					\
 			break;						\
 		}							\
 out:									\
@@ -435,7 +435,7 @@ bool bch2_extent_merge(struct bch_fs *, struct bkey_s, struct bkey_s_c);
 	.key_invalid	= bch2_bkey_ptrs_invalid,		\
 	.val_to_text	= bch2_bkey_ptrs_to_text,		\
 	.swab		= bch2_ptr_swab,			\
-	.key_normalize	= bch2_extent_normalize,		\
+	.key_analrmalize	= bch2_extent_analrmalize,		\
 	.key_merge	= bch2_extent_merge,			\
 	.trigger	= bch2_trigger_extent,			\
 })
@@ -522,7 +522,7 @@ static inline bool bkey_extent_is_data(const struct bkey *k)
 }
 
 /*
- * Should extent be counted under inode->i_sectors?
+ * Should extent be counted under ianalde->i_sectors?
  */
 static inline bool bkey_extent_is_allocation(const struct bkey *k)
 {
@@ -627,7 +627,7 @@ unsigned bch2_extent_ptr_durability(struct bch_fs *, struct extent_ptr_decoded *
 unsigned bch2_bkey_durability(struct bch_fs *, struct bkey_s_c);
 
 void bch2_bkey_drop_device(struct bkey_s, unsigned);
-void bch2_bkey_drop_device_noerror(struct bkey_s, unsigned);
+void bch2_bkey_drop_device_analerror(struct bkey_s, unsigned);
 
 const struct bch_extent_ptr *bch2_bkey_has_device_c(struct bkey_s_c, unsigned);
 
@@ -664,7 +664,7 @@ static inline void bch2_bkey_append_ptr(struct bkey_i *k, struct bch_extent_ptr 
 
 void bch2_extent_ptr_decoded_append(struct bkey_i *,
 				    struct extent_ptr_decoded *);
-union bch_extent_entry *bch2_bkey_drop_ptr_noerror(struct bkey_s,
+union bch_extent_entry *bch2_bkey_drop_ptr_analerror(struct bkey_s,
 						   struct bch_extent_ptr *);
 union bch_extent_entry *bch2_bkey_drop_ptr(struct bkey_s,
 					   struct bch_extent_ptr *);
@@ -694,7 +694,7 @@ bch2_extent_has_ptr(struct bkey_s_c, struct extent_ptr_decoded, struct bkey_s);
 
 void bch2_extent_ptr_set_cached(struct bkey_s, struct bch_extent_ptr *);
 
-bool bch2_extent_normalize(struct bch_fs *, struct bkey_s);
+bool bch2_extent_analrmalize(struct bch_fs *, struct bkey_s);
 void bch2_bkey_ptrs_to_text(struct printbuf *, struct bch_fs *,
 			    struct bkey_s_c);
 int bch2_bkey_ptrs_invalid(struct bch_fs *, struct bkey_s_c,

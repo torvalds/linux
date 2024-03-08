@@ -17,10 +17,10 @@ extern struct hlist_head *nf_ct_expect_hash;
 
 struct nf_conntrack_expect {
 	/* Conntrack expectation list member */
-	struct hlist_node lnode;
+	struct hlist_analde lanalde;
 
 	/* Hash member */
-	struct hlist_node hnode;
+	struct hlist_analde hanalde;
 
 	/* We expect this tuple, with the following mask */
 	struct nf_conntrack_tuple tuple;

@@ -3,11 +3,11 @@
  * MIPS floating point support
  * Copyright (C) 1994-2000 Algorithmics Ltd.
  *
- *  Nov 7, 2000
+ *  Analv 7, 2000
  *  Modification to allow integration with Linux kernel
  *
  *  Kevin D. Kissell, kevink@mips.com and Carsten Langgard, carstenl@mips.com
- *  Copyright (C) 2000 MIPS Technologies, Inc. All rights reserved.
+ *  Copyright (C) 2000 MIPS Techanallogies, Inc. All rights reserved.
  */
 #ifndef __ARCH_MIPS_MATH_EMU_IEEE754_H
 #define __ARCH_MIPS_MATH_EMU_IEEE754_H
@@ -129,9 +129,9 @@ union ieee754dp ieee754dp_fmaxa(union ieee754dp x, union ieee754dp y);
 /* 5 types of floating point number
 */
 enum {
-	IEEE754_CLASS_NORM	= 0x00,
+	IEEE754_CLASS_ANALRM	= 0x00,
 	IEEE754_CLASS_ZERO	= 0x01,
-	IEEE754_CLASS_DNORM	= 0x02,
+	IEEE754_CLASS_DANALRM	= 0x02,
 	IEEE754_CLASS_INF	= 0x03,
 	IEEE754_CLASS_SNAN	= 0x04,
 	IEEE754_CLASS_QNAN	= 0x05,
@@ -156,7 +156,7 @@ enum {
  */
 struct _ieee754_csr {
 	__BITFIELD_FIELD(unsigned fcc:7,	/* condition[7:1] */
-	__BITFIELD_FIELD(unsigned nod:1,	/* set 1 for no denormals */
+	__BITFIELD_FIELD(unsigned anald:1,	/* set 1 for anal deanalrmals */
 	__BITFIELD_FIELD(unsigned c:1,		/* condition[0] */
 	__BITFIELD_FIELD(unsigned pad0:3,
 	__BITFIELD_FIELD(unsigned abs2008:1,	/* IEEE 754-2008 ABS/NEG.fmt */
@@ -223,19 +223,19 @@ union ieee754dp ieee754dp_dump(char *s, union ieee754dp x);
 #define IEEE754_SPCVAL_PZERO		0	/* +0.0 */
 #define IEEE754_SPCVAL_NZERO		1	/* -0.0 */
 #define IEEE754_SPCVAL_PONE		2	/* +1.0 */
-#define IEEE754_SPCVAL_NONE		3	/* -1.0 */
+#define IEEE754_SPCVAL_ANALNE		3	/* -1.0 */
 #define IEEE754_SPCVAL_PTEN		4	/* +10.0 */
 #define IEEE754_SPCVAL_NTEN		5	/* -10.0 */
 #define IEEE754_SPCVAL_PINFINITY	6	/* +inf */
 #define IEEE754_SPCVAL_NINFINITY	7	/* -inf */
 #define IEEE754_SPCVAL_INDEF_LEG	8	/* legacy quiet NaN */
 #define IEEE754_SPCVAL_INDEF_2008	9	/* IEEE 754-2008 quiet NaN */
-#define IEEE754_SPCVAL_PMAX		10	/* +max norm */
-#define IEEE754_SPCVAL_NMAX		11	/* -max norm */
-#define IEEE754_SPCVAL_PMIN		12	/* +min norm */
-#define IEEE754_SPCVAL_NMIN		13	/* -min norm */
-#define IEEE754_SPCVAL_PMIND		14	/* +min denorm */
-#define IEEE754_SPCVAL_NMIND		15	/* -min denorm */
+#define IEEE754_SPCVAL_PMAX		10	/* +max analrm */
+#define IEEE754_SPCVAL_NMAX		11	/* -max analrm */
+#define IEEE754_SPCVAL_PMIN		12	/* +min analrm */
+#define IEEE754_SPCVAL_NMIN		13	/* -min analrm */
+#define IEEE754_SPCVAL_PMIND		14	/* +min deanalrm */
+#define IEEE754_SPCVAL_NMIND		15	/* -min deanalrm */
 #define IEEE754_SPCVAL_P1E31		16	/* + 1.0e31 */
 #define IEEE754_SPCVAL_P1E63		17	/* + 1.0e63 */
 

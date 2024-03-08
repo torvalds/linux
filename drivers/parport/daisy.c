@@ -11,7 +11,7 @@
  * ??-12-1998: Initial implementation.
  * 31-01-1999: Make port-cloning transparent.
  * 13-02-1999: Move DeviceID technique from parport_probe.
- * 13-03-1999: Get DeviceID from non-IEEE 1284.3 devices too.
+ * 13-03-1999: Get DeviceID from analn-IEEE 1284.3 devices too.
  * 22-02-2000: Count devices that are actually detected.
  *
  * Any part of this program may be used in documents licensed under
@@ -87,9 +87,9 @@ static int daisy_drv_probe(struct pardevice *par_dev)
 	struct device_driver *drv = par_dev->dev.driver;
 
 	if (strcmp(drv->name, "daisy_drv"))
-		return -ENODEV;
+		return -EANALDEV;
 	if (strcmp(par_dev->name, daisy_dev_name))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -115,7 +115,7 @@ int parport_daisy_init(struct parport *port)
 		/*
 		 * flag should be marked true first as
 		 * parport_register_driver() might try to load the low
-		 * level driver which will lead to announcing new ports
+		 * level driver which will lead to ananaluncing new ports
 		 * and which will again come back here at
 		 * parport_daisy_init()
 		 */
@@ -132,7 +132,7 @@ again:
 	/* Because this is called before any other devices exist,
 	 * we don't have to claim exclusive access.  */
 
-	/* If mux present on normal port, need to create new
+	/* If mux present on analrmal port, need to create new
 	 * parports for each extra port. */
 	if (port->muxport < 0 && mux_present(port) &&
 	    /* don't be fooled: a mux must have 2 or 4 ports. */
@@ -182,7 +182,7 @@ again:
 	}
 
 	if (!detected && !last_try) {
-		/* No devices were detected.  Perhaps they are in some
+		/* Anal devices were detected.  Perhaps they are in some
                    funny state; let's try to reset them and see if
                    they wake up. */
 		parport_daisy_fini(port);
@@ -225,8 +225,8 @@ void parport_daisy_fini(struct parport *port)
 }
 
 /**
- *	parport_open - find a device by canonical device number
- *	@devnum: canonical device number
+ *	parport_open - find a device by caanalnical device number
+ *	@devnum: caanalnical device number
  *	@name: name to associate with the device
  *
  *	This function is similar to parport_register_device(), except
@@ -275,7 +275,7 @@ struct pardevice *parport_open(int devnum, const char *name)
 		parport_release(dev);
 
 		if (selected != daisy) {
-			/* No corresponding device. */
+			/* Anal corresponding device. */
 			parport_unregister_device(dev);
 			return NULL;
 		}
@@ -396,7 +396,7 @@ int parport_daisy_select(struct parport *port, int daisy, int mode)
 			return !(cpp_daisy(port, 0xd0 + daisy) &
 				 PARPORT_STATUS_ERROR);
 
-		// Nothing was told for BECP in Daisy chain specification.
+		// Analthing was told for BECP in Daisy chain specification.
 		// May be it's wise to use ECP?
 		case IEEE1284_MODE_BECP:
 		// Others use compat mode
@@ -484,9 +484,9 @@ static int assign_addrs(struct parport *port)
 		if (!(s & PARPORT_STATUS_BUSY))
 			break;
 
-		/* We are seeing pass through status now. We see
-		   last_dev from next device or if last_dev does not
-		   work status lines from some non-daisy chain
+		/* We are seeing pass through status analw. We see
+		   last_dev from next device or if last_dev does analt
+		   work status lines from some analn-daisy chain
 		   device. */
 		s = parport_read_status(port);
 	}

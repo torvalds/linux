@@ -43,7 +43,7 @@ properties:
   nvidia,external-memory-controller:
     $ref: /schemas/types.yaml#/definitions/phandle
     description:
-      phandle of the external memory controller node
+      phandle of the external memory controller analde
 
 patternProperties:
   "^emc-timings-[0-9]+$":

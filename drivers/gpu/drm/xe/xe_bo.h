@@ -36,11 +36,11 @@
 	(IS_DGFX(tile_to_xe(tile)) ? XE_BO_CREATE_VRAM0_BIT << (tile)->id : \
 	 XE_BO_CREATE_SYSTEM_BIT)
 #define XE_BO_CREATE_GGTT_BIT		BIT(5)
-#define XE_BO_CREATE_IGNORE_MIN_PAGE_SIZE_BIT BIT(6)
+#define XE_BO_CREATE_IGANALRE_MIN_PAGE_SIZE_BIT BIT(6)
 #define XE_BO_CREATE_PINNED_BIT		BIT(7)
-#define XE_BO_CREATE_NO_RESV_EVICT	BIT(8)
+#define XE_BO_CREATE_ANAL_RESV_EVICT	BIT(8)
 #define XE_BO_DEFER_BACKING		BIT(9)
-#define XE_BO_SCANOUT_BIT		BIT(10)
+#define XE_BO_SCAANALUT_BIT		BIT(10)
 #define XE_BO_FIXED_PLACEMENT_BIT	BIT(11)
 #define XE_BO_PAGETABLE			BIT(12)
 #define XE_BO_NEEDS_CPU_ACCESS		BIT(13)
@@ -196,7 +196,7 @@ static inline bool xe_bo_is_pinned(struct xe_bo *bo)
 	return bo->ttm.pin_count;
 }
 
-static inline void xe_bo_unpin_map_no_vm(struct xe_bo *bo)
+static inline void xe_bo_unpin_map_anal_vm(struct xe_bo *bo)
 {
 	if (likely(bo)) {
 		xe_bo_lock(bo, false);
@@ -220,9 +220,9 @@ xe_bo_main_addr(struct xe_bo *bo, size_t page_size)
 static inline u32
 xe_bo_ggtt_addr(struct xe_bo *bo)
 {
-	XE_WARN_ON(bo->ggtt_node.size > bo->size);
-	XE_WARN_ON(bo->ggtt_node.start + bo->ggtt_node.size > (1ull << 32));
-	return bo->ggtt_node.start;
+	XE_WARN_ON(bo->ggtt_analde.size > bo->size);
+	XE_WARN_ON(bo->ggtt_analde.start + bo->ggtt_analde.size > (1ull << 32));
+	return bo->ggtt_analde.start;
 }
 
 int xe_bo_vmap(struct xe_bo *bo);
@@ -274,17 +274,17 @@ void __xe_bo_release_dummy(struct kref *kref);
 /**
  * xe_bo_put_deferred() - Put a buffer object with delayed final freeing
  * @bo: The bo to put.
- * @deferred: List to which to add the buffer object if we cannot put, or
+ * @deferred: List to which to add the buffer object if we cananalt put, or
  * NULL if the function is to put unconditionally.
  *
  * Since the final freeing of an object includes both sleeping and (!)
- * memory allocation in the dma_resv individualization, it's not ok
- * to put an object from atomic context nor from within a held lock
+ * memory allocation in the dma_resv individualization, it's analt ok
+ * to put an object from atomic context analr from within a held lock
  * tainted by reclaim. In such situations we want to defer the final
  * freeing until we've exited the restricting context, or in the worst
  * case to a workqueue.
  * This function either puts the object if possible without the refcount
- * reaching zero, or adds it to the @deferred list if that was not possible.
+ * reaching zero, or adds it to the @deferred list if that was analt possible.
  * The caller needs to follow up with a call to xe_bo_put_commit() to actually
  * put the bo iff this function returns true. It's safe to always
  * follow up with a call to xe_bo_put_commit().

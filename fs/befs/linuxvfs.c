@@ -11,7 +11,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/fs.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/stat.h>
 #include <linux/nls.h>
 #include <linux/buffer_head.h>
@@ -26,7 +26,7 @@
 
 #include "befs.h"
 #include "btree.h"
-#include "inode.h"
+#include "ianalde.h"
 #include "datastream.h"
 #include "super.h"
 #include "io.h"
@@ -35,19 +35,19 @@ MODULE_DESCRIPTION("BeOS File System (BeFS) driver");
 MODULE_AUTHOR("Will Dyson");
 MODULE_LICENSE("GPL");
 
-/* The units the vfs expects inode->i_blocks to be in */
+/* The units the vfs expects ianalde->i_blocks to be in */
 #define VFS_BLOCK_SIZE 512
 
 static int befs_readdir(struct file *, struct dir_context *);
-static int befs_get_block(struct inode *, sector_t, struct buffer_head *, int);
+static int befs_get_block(struct ianalde *, sector_t, struct buffer_head *, int);
 static int befs_read_folio(struct file *file, struct folio *folio);
 static sector_t befs_bmap(struct address_space *mapping, sector_t block);
-static struct dentry *befs_lookup(struct inode *, struct dentry *,
+static struct dentry *befs_lookup(struct ianalde *, struct dentry *,
 				  unsigned int);
-static struct inode *befs_iget(struct super_block *, unsigned long);
-static struct inode *befs_alloc_inode(struct super_block *sb);
-static void befs_free_inode(struct inode *inode);
-static void befs_destroy_inodecache(void);
+static struct ianalde *befs_iget(struct super_block *, unsigned long);
+static struct ianalde *befs_alloc_ianalde(struct super_block *sb);
+static void befs_free_ianalde(struct ianalde *ianalde);
+static void befs_destroy_ianaldecache(void);
 static int befs_symlink_read_folio(struct file *, struct folio *);
 static int befs_utf2nls(struct super_block *sb, const char *in, int in_len,
 			char **out, int *out_len);
@@ -65,16 +65,16 @@ static struct dentry *befs_fh_to_parent(struct super_block *sb,
 static struct dentry *befs_get_parent(struct dentry *child);
 
 static const struct super_operations befs_sops = {
-	.alloc_inode	= befs_alloc_inode,	/* allocate a new inode */
-	.free_inode	= befs_free_inode, /* deallocate an inode */
+	.alloc_ianalde	= befs_alloc_ianalde,	/* allocate a new ianalde */
+	.free_ianalde	= befs_free_ianalde, /* deallocate an ianalde */
 	.put_super	= befs_put_super,	/* uninit super */
 	.statfs		= befs_statfs,	/* statfs */
 	.remount_fs	= befs_remount,
 	.show_options	= befs_show_options,
 };
 
-/* slab cache for befs_inode_info objects */
-static struct kmem_cache *befs_inode_cachep;
+/* slab cache for befs_ianalde_info objects */
+static struct kmem_cache *befs_ianalde_cachep;
 
 static const struct file_operations befs_dir_operations = {
 	.read		= generic_read_dir,
@@ -82,7 +82,7 @@ static const struct file_operations befs_dir_operations = {
 	.llseek		= generic_file_llseek,
 };
 
-static const struct inode_operations befs_dir_inode_operations = {
+static const struct ianalde_operations befs_dir_ianalde_operations = {
 	.lookup		= befs_lookup,
 };
 
@@ -96,7 +96,7 @@ static const struct address_space_operations befs_symlink_aops = {
 };
 
 static const struct export_operations befs_export_operations = {
-	.encode_fh	= generic_encode_ino32_fh,
+	.encode_fh	= generic_encode_ianal32_fh,
 	.fh_to_dentry	= befs_fh_to_dentry,
 	.fh_to_parent	= befs_fh_to_parent,
 	.get_parent	= befs_get_parent,
@@ -130,48 +130,48 @@ befs_bmap(struct address_space *mapping, sector_t block)
  */
 
 static int
-befs_get_block(struct inode *inode, sector_t block,
+befs_get_block(struct ianalde *ianalde, sector_t block,
 	       struct buffer_head *bh_result, int create)
 {
-	struct super_block *sb = inode->i_sb;
-	befs_data_stream *ds = &BEFS_I(inode)->i_data.ds;
+	struct super_block *sb = ianalde->i_sb;
+	befs_data_stream *ds = &BEFS_I(ianalde)->i_data.ds;
 	befs_block_run run = BAD_IADDR;
 	int res;
 	ulong disk_off;
 
-	befs_debug(sb, "---> befs_get_block() for inode %lu, block %ld",
-		   (unsigned long)inode->i_ino, (long)block);
+	befs_debug(sb, "---> befs_get_block() for ianalde %lu, block %ld",
+		   (unsigned long)ianalde->i_ianal, (long)block);
 	if (create) {
 		befs_error(sb, "befs_get_block() was asked to write to "
-			   "block %ld in inode %lu", (long)block,
-			   (unsigned long)inode->i_ino);
+			   "block %ld in ianalde %lu", (long)block,
+			   (unsigned long)ianalde->i_ianal);
 		return -EPERM;
 	}
 
 	res = befs_fblock2brun(sb, ds, block, &run);
 	if (res != BEFS_OK) {
 		befs_error(sb,
-			   "<--- %s for inode %lu, block %ld ERROR",
-			   __func__, (unsigned long)inode->i_ino,
+			   "<--- %s for ianalde %lu, block %ld ERROR",
+			   __func__, (unsigned long)ianalde->i_ianal,
 			   (long)block);
 		return -EFBIG;
 	}
 
-	disk_off = (ulong) iaddr2blockno(sb, &run);
+	disk_off = (ulong) iaddr2blockanal(sb, &run);
 
-	map_bh(bh_result, inode->i_sb, disk_off);
+	map_bh(bh_result, ianalde->i_sb, disk_off);
 
-	befs_debug(sb, "<--- %s for inode %lu, block %ld, disk address %lu",
-		  __func__, (unsigned long)inode->i_ino, (long)block,
+	befs_debug(sb, "<--- %s for ianalde %lu, block %ld, disk address %lu",
+		  __func__, (unsigned long)ianalde->i_ianal, (long)block,
 		  (unsigned long)disk_off);
 
 	return 0;
 }
 
 static struct dentry *
-befs_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
+befs_lookup(struct ianalde *dir, struct dentry *dentry, unsigned int flags)
 {
-	struct inode *inode;
+	struct ianalde *ianalde;
 	struct super_block *sb = dir->i_sb;
 	const befs_data_stream *ds = &BEFS_I(dir)->i_data.ds;
 	befs_off_t offset;
@@ -180,8 +180,8 @@ befs_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
 	char *utfname;
 	const char *name = dentry->d_name.name;
 
-	befs_debug(sb, "---> %s name %pd inode %ld", __func__,
-		   dentry, dir->i_ino);
+	befs_debug(sb, "---> %s name %pd ianalde %ld", __func__,
+		   dentry, dir->i_ianal);
 
 	/* Convert to UTF-8 */
 	if (BEFS_SB(sb)->nls) {
@@ -198,33 +198,33 @@ befs_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
 		ret = befs_btree_find(sb, ds, name, &offset);
 	}
 
-	if (ret == BEFS_BT_NOT_FOUND) {
-		befs_debug(sb, "<--- %s %pd not found", __func__, dentry);
-		inode = NULL;
+	if (ret == BEFS_BT_ANALT_FOUND) {
+		befs_debug(sb, "<--- %s %pd analt found", __func__, dentry);
+		ianalde = NULL;
 	} else if (ret != BEFS_OK || offset == 0) {
 		befs_error(sb, "<--- %s Error", __func__);
-		inode = ERR_PTR(-ENODATA);
+		ianalde = ERR_PTR(-EANALDATA);
 	} else {
-		inode = befs_iget(dir->i_sb, (ino_t) offset);
+		ianalde = befs_iget(dir->i_sb, (ianal_t) offset);
 	}
 	befs_debug(sb, "<--- %s", __func__);
 
-	return d_splice_alias(inode, dentry);
+	return d_splice_alias(ianalde, dentry);
 }
 
 static int
 befs_readdir(struct file *file, struct dir_context *ctx)
 {
-	struct inode *inode = file_inode(file);
-	struct super_block *sb = inode->i_sb;
-	const befs_data_stream *ds = &BEFS_I(inode)->i_data.ds;
+	struct ianalde *ianalde = file_ianalde(file);
+	struct super_block *sb = ianalde->i_sb;
+	const befs_data_stream *ds = &BEFS_I(ianalde)->i_data.ds;
 	befs_off_t value;
 	int result;
 	size_t keysize;
 	char keybuf[BEFS_NAME_LEN + 1];
 
-	befs_debug(sb, "---> %s name %pD, inode %ld, ctx->pos %lld",
-		  __func__, file, inode->i_ino, ctx->pos);
+	befs_debug(sb, "---> %s name %pD, ianalde %ld, ctx->pos %lld",
+		  __func__, file, ianalde->i_ianal, ctx->pos);
 
 	while (1) {
 		result = befs_btree_read(sb, ds, ctx->pos, BEFS_NAME_LEN + 1,
@@ -232,8 +232,8 @@ befs_readdir(struct file *file, struct dir_context *ctx)
 
 		if (result == BEFS_ERR) {
 			befs_debug(sb, "<--- %s ERROR", __func__);
-			befs_error(sb, "IO error reading %pD (inode %lu)",
-				   file, inode->i_ino);
+			befs_error(sb, "IO error reading %pD (ianalde %lu)",
+				   file, ianalde->i_ianal);
 			return -EIO;
 
 		} else if (result == BEFS_BT_END) {
@@ -258,192 +258,192 @@ befs_readdir(struct file *file, struct dir_context *ctx)
 				return result;
 			}
 			if (!dir_emit(ctx, nlsname, nlsnamelen,
-				      (ino_t) value, DT_UNKNOWN)) {
+				      (ianal_t) value, DT_UNKANALWN)) {
 				kfree(nlsname);
 				return 0;
 			}
 			kfree(nlsname);
 		} else {
 			if (!dir_emit(ctx, keybuf, keysize,
-				      (ino_t) value, DT_UNKNOWN))
+				      (ianal_t) value, DT_UNKANALWN))
 				return 0;
 		}
 		ctx->pos++;
 	}
 }
 
-static struct inode *
-befs_alloc_inode(struct super_block *sb)
+static struct ianalde *
+befs_alloc_ianalde(struct super_block *sb)
 {
-	struct befs_inode_info *bi;
+	struct befs_ianalde_info *bi;
 
-	bi = alloc_inode_sb(sb, befs_inode_cachep, GFP_KERNEL);
+	bi = alloc_ianalde_sb(sb, befs_ianalde_cachep, GFP_KERNEL);
 	if (!bi)
 		return NULL;
-	return &bi->vfs_inode;
+	return &bi->vfs_ianalde;
 }
 
-static void befs_free_inode(struct inode *inode)
+static void befs_free_ianalde(struct ianalde *ianalde)
 {
-	kmem_cache_free(befs_inode_cachep, BEFS_I(inode));
+	kmem_cache_free(befs_ianalde_cachep, BEFS_I(ianalde));
 }
 
 static void init_once(void *foo)
 {
-	struct befs_inode_info *bi = (struct befs_inode_info *) foo;
+	struct befs_ianalde_info *bi = (struct befs_ianalde_info *) foo;
 
-	inode_init_once(&bi->vfs_inode);
+	ianalde_init_once(&bi->vfs_ianalde);
 }
 
-static struct inode *befs_iget(struct super_block *sb, unsigned long ino)
+static struct ianalde *befs_iget(struct super_block *sb, unsigned long ianal)
 {
 	struct buffer_head *bh;
-	befs_inode *raw_inode;
+	befs_ianalde *raw_ianalde;
 	struct befs_sb_info *befs_sb = BEFS_SB(sb);
-	struct befs_inode_info *befs_ino;
-	struct inode *inode;
+	struct befs_ianalde_info *befs_ianal;
+	struct ianalde *ianalde;
 
-	befs_debug(sb, "---> %s inode = %lu", __func__, ino);
+	befs_debug(sb, "---> %s ianalde = %lu", __func__, ianal);
 
-	inode = iget_locked(sb, ino);
-	if (!inode)
-		return ERR_PTR(-ENOMEM);
-	if (!(inode->i_state & I_NEW))
-		return inode;
+	ianalde = iget_locked(sb, ianal);
+	if (!ianalde)
+		return ERR_PTR(-EANALMEM);
+	if (!(ianalde->i_state & I_NEW))
+		return ianalde;
 
-	befs_ino = BEFS_I(inode);
+	befs_ianal = BEFS_I(ianalde);
 
-	/* convert from vfs's inode number to befs's inode number */
-	befs_ino->i_inode_num = blockno2iaddr(sb, inode->i_ino);
+	/* convert from vfs's ianalde number to befs's ianalde number */
+	befs_ianal->i_ianalde_num = blockanal2iaddr(sb, ianalde->i_ianal);
 
-	befs_debug(sb, "  real inode number [%u, %hu, %hu]",
-		   befs_ino->i_inode_num.allocation_group,
-		   befs_ino->i_inode_num.start, befs_ino->i_inode_num.len);
+	befs_debug(sb, "  real ianalde number [%u, %hu, %hu]",
+		   befs_ianal->i_ianalde_num.allocation_group,
+		   befs_ianal->i_ianalde_num.start, befs_ianal->i_ianalde_num.len);
 
-	bh = sb_bread(sb, inode->i_ino);
+	bh = sb_bread(sb, ianalde->i_ianal);
 	if (!bh) {
-		befs_error(sb, "unable to read inode block - "
-			   "inode = %lu", inode->i_ino);
-		goto unacquire_none;
+		befs_error(sb, "unable to read ianalde block - "
+			   "ianalde = %lu", ianalde->i_ianal);
+		goto unacquire_analne;
 	}
 
-	raw_inode = (befs_inode *) bh->b_data;
+	raw_ianalde = (befs_ianalde *) bh->b_data;
 
-	befs_dump_inode(sb, raw_inode);
+	befs_dump_ianalde(sb, raw_ianalde);
 
-	if (befs_check_inode(sb, raw_inode, inode->i_ino) != BEFS_OK) {
-		befs_error(sb, "Bad inode: %lu", inode->i_ino);
+	if (befs_check_ianalde(sb, raw_ianalde, ianalde->i_ianal) != BEFS_OK) {
+		befs_error(sb, "Bad ianalde: %lu", ianalde->i_ianal);
 		goto unacquire_bh;
 	}
 
-	inode->i_mode = (umode_t) fs32_to_cpu(sb, raw_inode->mode);
+	ianalde->i_mode = (umode_t) fs32_to_cpu(sb, raw_ianalde->mode);
 
 	/*
 	 * set uid and gid.  But since current BeOS is single user OS, so
 	 * you can change by "uid" or "gid" options.
 	 */
 
-	inode->i_uid = befs_sb->mount_opts.use_uid ?
+	ianalde->i_uid = befs_sb->mount_opts.use_uid ?
 		befs_sb->mount_opts.uid :
-		make_kuid(&init_user_ns, fs32_to_cpu(sb, raw_inode->uid));
-	inode->i_gid = befs_sb->mount_opts.use_gid ?
+		make_kuid(&init_user_ns, fs32_to_cpu(sb, raw_ianalde->uid));
+	ianalde->i_gid = befs_sb->mount_opts.use_gid ?
 		befs_sb->mount_opts.gid :
-		make_kgid(&init_user_ns, fs32_to_cpu(sb, raw_inode->gid));
+		make_kgid(&init_user_ns, fs32_to_cpu(sb, raw_ianalde->gid));
 
-	set_nlink(inode, 1);
+	set_nlink(ianalde, 1);
 
 	/*
 	 * BEFS's time is 64 bits, but current VFS is 32 bits...
-	 * BEFS don't have access time. Nor inode change time. VFS
+	 * BEFS don't have access time. Analr ianalde change time. VFS
 	 * doesn't have creation time.
 	 * Also, the lower 16 bits of the last_modified_time and
 	 * create_time are just a counter to help ensure uniqueness
 	 * for indexing purposes. (PFD, page 54)
 	 */
 
-	inode_set_mtime(inode,
-			fs64_to_cpu(sb, raw_inode->last_modified_time) >> 16,
-			0);/* lower 16 bits are not a time */
-	inode_set_ctime_to_ts(inode, inode_get_mtime(inode));
-	inode_set_atime_to_ts(inode, inode_get_mtime(inode));
+	ianalde_set_mtime(ianalde,
+			fs64_to_cpu(sb, raw_ianalde->last_modified_time) >> 16,
+			0);/* lower 16 bits are analt a time */
+	ianalde_set_ctime_to_ts(ianalde, ianalde_get_mtime(ianalde));
+	ianalde_set_atime_to_ts(ianalde, ianalde_get_mtime(ianalde));
 
-	befs_ino->i_inode_num = fsrun_to_cpu(sb, raw_inode->inode_num);
-	befs_ino->i_parent = fsrun_to_cpu(sb, raw_inode->parent);
-	befs_ino->i_attribute = fsrun_to_cpu(sb, raw_inode->attributes);
-	befs_ino->i_flags = fs32_to_cpu(sb, raw_inode->flags);
+	befs_ianal->i_ianalde_num = fsrun_to_cpu(sb, raw_ianalde->ianalde_num);
+	befs_ianal->i_parent = fsrun_to_cpu(sb, raw_ianalde->parent);
+	befs_ianal->i_attribute = fsrun_to_cpu(sb, raw_ianalde->attributes);
+	befs_ianal->i_flags = fs32_to_cpu(sb, raw_ianalde->flags);
 
-	if (S_ISLNK(inode->i_mode) && !(befs_ino->i_flags & BEFS_LONG_SYMLINK)){
-		inode->i_size = 0;
-		inode->i_blocks = befs_sb->block_size / VFS_BLOCK_SIZE;
-		strscpy(befs_ino->i_data.symlink, raw_inode->data.symlink,
+	if (S_ISLNK(ianalde->i_mode) && !(befs_ianal->i_flags & BEFS_LONG_SYMLINK)){
+		ianalde->i_size = 0;
+		ianalde->i_blocks = befs_sb->block_size / VFS_BLOCK_SIZE;
+		strscpy(befs_ianal->i_data.symlink, raw_ianalde->data.symlink,
 			BEFS_SYMLINK_LEN);
 	} else {
 		int num_blks;
 
-		befs_ino->i_data.ds =
-		    fsds_to_cpu(sb, &raw_inode->data.datastream);
+		befs_ianal->i_data.ds =
+		    fsds_to_cpu(sb, &raw_ianalde->data.datastream);
 
-		num_blks = befs_count_blocks(sb, &befs_ino->i_data.ds);
-		inode->i_blocks =
+		num_blks = befs_count_blocks(sb, &befs_ianal->i_data.ds);
+		ianalde->i_blocks =
 		    num_blks * (befs_sb->block_size / VFS_BLOCK_SIZE);
-		inode->i_size = befs_ino->i_data.ds.size;
+		ianalde->i_size = befs_ianal->i_data.ds.size;
 	}
 
-	inode->i_mapping->a_ops = &befs_aops;
+	ianalde->i_mapping->a_ops = &befs_aops;
 
-	if (S_ISREG(inode->i_mode)) {
-		inode->i_fop = &generic_ro_fops;
-	} else if (S_ISDIR(inode->i_mode)) {
-		inode->i_op = &befs_dir_inode_operations;
-		inode->i_fop = &befs_dir_operations;
-	} else if (S_ISLNK(inode->i_mode)) {
-		if (befs_ino->i_flags & BEFS_LONG_SYMLINK) {
-			inode->i_op = &page_symlink_inode_operations;
-			inode_nohighmem(inode);
-			inode->i_mapping->a_ops = &befs_symlink_aops;
+	if (S_ISREG(ianalde->i_mode)) {
+		ianalde->i_fop = &generic_ro_fops;
+	} else if (S_ISDIR(ianalde->i_mode)) {
+		ianalde->i_op = &befs_dir_ianalde_operations;
+		ianalde->i_fop = &befs_dir_operations;
+	} else if (S_ISLNK(ianalde->i_mode)) {
+		if (befs_ianal->i_flags & BEFS_LONG_SYMLINK) {
+			ianalde->i_op = &page_symlink_ianalde_operations;
+			ianalde_analhighmem(ianalde);
+			ianalde->i_mapping->a_ops = &befs_symlink_aops;
 		} else {
-			inode->i_link = befs_ino->i_data.symlink;
-			inode->i_op = &simple_symlink_inode_operations;
+			ianalde->i_link = befs_ianal->i_data.symlink;
+			ianalde->i_op = &simple_symlink_ianalde_operations;
 		}
 	} else {
-		befs_error(sb, "Inode %lu is not a regular file, "
-			   "directory or symlink. THAT IS WRONG! BeFS has no "
-			   "on disk special files", inode->i_ino);
+		befs_error(sb, "Ianalde %lu is analt a regular file, "
+			   "directory or symlink. THAT IS WRONG! BeFS has anal "
+			   "on disk special files", ianalde->i_ianal);
 		goto unacquire_bh;
 	}
 
 	brelse(bh);
 	befs_debug(sb, "<--- %s", __func__);
-	unlock_new_inode(inode);
-	return inode;
+	unlock_new_ianalde(ianalde);
+	return ianalde;
 
 unacquire_bh:
 	brelse(bh);
 
-unacquire_none:
-	iget_failed(inode);
-	befs_debug(sb, "<--- %s - Bad inode", __func__);
+unacquire_analne:
+	iget_failed(ianalde);
+	befs_debug(sb, "<--- %s - Bad ianalde", __func__);
 	return ERR_PTR(-EIO);
 }
 
-/* Initialize the inode cache. Called at fs setup.
+/* Initialize the ianalde cache. Called at fs setup.
  *
  * Taken from NFS implementation by Al Viro.
  */
 static int __init
-befs_init_inodecache(void)
+befs_init_ianaldecache(void)
 {
-	befs_inode_cachep = kmem_cache_create_usercopy("befs_inode_cache",
-				sizeof(struct befs_inode_info), 0,
+	befs_ianalde_cachep = kmem_cache_create_usercopy("befs_ianalde_cache",
+				sizeof(struct befs_ianalde_info), 0,
 				(SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD|
 					SLAB_ACCOUNT),
-				offsetof(struct befs_inode_info,
+				offsetof(struct befs_ianalde_info,
 					i_data.symlink),
-				sizeof_field(struct befs_inode_info,
+				sizeof_field(struct befs_ianalde_info,
 					i_data.symlink),
 				init_once);
-	if (befs_inode_cachep == NULL)
-		return -ENOMEM;
+	if (befs_ianalde_cachep == NULL)
+		return -EANALMEM;
 
 	return 0;
 }
@@ -453,27 +453,27 @@ befs_init_inodecache(void)
  * Taken from NFS implementation by Al Viro.
  */
 static void
-befs_destroy_inodecache(void)
+befs_destroy_ianaldecache(void)
 {
 	/*
-	 * Make sure all delayed rcu free inodes are flushed before we
+	 * Make sure all delayed rcu free ianaldes are flushed before we
 	 * destroy cache.
 	 */
 	rcu_barrier();
-	kmem_cache_destroy(befs_inode_cachep);
+	kmem_cache_destroy(befs_ianalde_cachep);
 }
 
 /*
- * The inode of symbolic link is different to data stream.
+ * The ianalde of symbolic link is different to data stream.
  * The data stream become link name. Unless the LONG_SYMLINK
  * flag is set.
  */
 static int befs_symlink_read_folio(struct file *unused, struct folio *folio)
 {
-	struct inode *inode = folio->mapping->host;
-	struct super_block *sb = inode->i_sb;
-	struct befs_inode_info *befs_ino = BEFS_I(inode);
-	befs_data_stream *data = &befs_ino->i_data.ds;
+	struct ianalde *ianalde = folio->mapping->host;
+	struct super_block *sb = ianalde->i_sb;
+	struct befs_ianalde_info *befs_ianal = BEFS_I(ianalde);
+	befs_data_stream *data = &befs_ianal->i_data.ds;
 	befs_off_t len = data->size;
 	char *link = folio_address(folio);
 
@@ -520,13 +520,13 @@ befs_utf2nls(struct super_block *sb, const char *in,
 	befs_debug(sb, "---> %s", __func__);
 
 	if (!nls) {
-		befs_error(sb, "%s called with no NLS table loaded", __func__);
+		befs_error(sb, "%s called with anal NLS table loaded", __func__);
 		return -EINVAL;
 	}
 
-	*out = result = kmalloc(maxlen, GFP_NOFS);
+	*out = result = kmalloc(maxlen, GFP_ANALFS);
 	if (!*out)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = o = 0; i < in_len; i += utflen, o += unilen) {
 
@@ -551,7 +551,7 @@ befs_utf2nls(struct super_block *sb, const char *in,
 
 conv_err:
 	befs_error(sb, "Name using character set %s contains a character that "
-		   "cannot be converted to unicode.", nls->charset);
+		   "cananalt be converted to unicode.", nls->charset);
 	befs_debug(sb, "<--- %s", __func__);
 	kfree(result);
 	return -EILSEQ;
@@ -598,15 +598,15 @@ befs_nls2utf(struct super_block *sb, const char *in,
 	befs_debug(sb, "---> %s\n", __func__);
 
 	if (!nls) {
-		befs_error(sb, "%s called with no NLS table loaded.",
+		befs_error(sb, "%s called with anal NLS table loaded.",
 			   __func__);
 		return -EINVAL;
 	}
 
-	*out = result = kmalloc(maxlen, GFP_NOFS);
+	*out = result = kmalloc(maxlen, GFP_ANALFS);
 	if (!*out) {
 		*out_len = 0;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for (i = o = 0; i < in_len; i += unilen, o += utflen) {
@@ -631,17 +631,17 @@ befs_nls2utf(struct super_block *sb, const char *in,
 
 conv_err:
 	befs_error(sb, "Name using character set %s contains a character that "
-		   "cannot be converted to unicode.", nls->charset);
+		   "cananalt be converted to unicode.", nls->charset);
 	befs_debug(sb, "<--- %s", __func__);
 	kfree(result);
 	return -EILSEQ;
 }
 
-static struct inode *befs_nfs_get_inode(struct super_block *sb, uint64_t ino,
+static struct ianalde *befs_nfs_get_ianalde(struct super_block *sb, uint64_t ianal,
 					 uint32_t generation)
 {
-	/* No need to handle i_generation */
-	return befs_iget(sb, ino);
+	/* Anal need to handle i_generation */
+	return befs_iget(sb, ianal);
 }
 
 /*
@@ -651,7 +651,7 @@ static struct dentry *befs_fh_to_dentry(struct super_block *sb,
 				struct fid *fid, int fh_len, int fh_type)
 {
 	return generic_fh_to_dentry(sb, fid, fh_len, fh_type,
-				    befs_nfs_get_inode);
+				    befs_nfs_get_ianalde);
 }
 
 /*
@@ -661,16 +661,16 @@ static struct dentry *befs_fh_to_parent(struct super_block *sb,
 				struct fid *fid, int fh_len, int fh_type)
 {
 	return generic_fh_to_parent(sb, fid, fh_len, fh_type,
-				    befs_nfs_get_inode);
+				    befs_nfs_get_ianalde);
 }
 
 static struct dentry *befs_get_parent(struct dentry *child)
 {
-	struct inode *parent;
-	struct befs_inode_info *befs_ino = BEFS_I(d_inode(child));
+	struct ianalde *parent;
+	struct befs_ianalde_info *befs_ianal = BEFS_I(d_ianalde(child));
 
 	parent = befs_iget(child->d_sb,
-			   (unsigned long)befs_ino->i_parent.start);
+			   (unsigned long)befs_ianal->i_parent.start);
 	return d_obtain_alias(parent);
 }
 
@@ -784,7 +784,7 @@ static int befs_show_options(struct seq_file *m, struct dentry *root)
 /* This function has the responsibiltiy of getting the
  * filesystem ready for unmounting.
  * Basically, we free everything that we allocated in
- * befs_read_inode
+ * befs_read_ianalde
  */
 static void
 befs_put_super(struct super_block *sb)
@@ -808,7 +808,7 @@ befs_fill_super(struct super_block *sb, void *data, int silent)
 	struct buffer_head *bh;
 	struct befs_sb_info *befs_sb;
 	befs_super_block *disk_sb;
-	struct inode *root;
+	struct ianalde *root;
 	long ret = -EINVAL;
 	const unsigned long sb_block = 0;
 	const off_t x86_sb_off = 512;
@@ -816,13 +816,13 @@ befs_fill_super(struct super_block *sb, void *data, int silent)
 
 	sb->s_fs_info = kzalloc(sizeof(*befs_sb), GFP_KERNEL);
 	if (sb->s_fs_info == NULL)
-		goto unacquire_none;
+		goto unacquire_analne;
 
 	befs_sb = BEFS_SB(sb);
 
 	if (!parse_options((char *) data, &befs_sb->mount_opts)) {
 		if (!silent)
-			befs_error(sb, "cannot parse mount options");
+			befs_error(sb, "cananalt parse mount options");
 		goto unacquire_priv_sbp;
 	}
 
@@ -830,7 +830,7 @@ befs_fill_super(struct super_block *sb, void *data, int silent)
 
 	if (!sb_rdonly(sb)) {
 		befs_warning(sb,
-			     "No write support. Marking filesystem read-only");
+			     "Anal write support. Marking filesystem read-only");
 		sb->s_flags |= SB_RDONLY;
 	}
 
@@ -883,7 +883,7 @@ befs_fill_super(struct super_block *sb, void *data, int silent)
 	}
 
 	/*
-	 * set up enough so that it can read an inode
+	 * set up eanalugh so that it can read an ianalde
 	 * Fill in kernel superblock fields from private sb
 	 */
 	sb->s_magic = BEFS_SUPER_MAGIC;
@@ -893,7 +893,7 @@ befs_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_export_op = &befs_export_operations;
 	sb->s_time_min = 0;
 	sb->s_time_max = 0xffffffffffffll;
-	root = befs_iget(sb, iaddr2blockno(sb, &(befs_sb->root_dir)));
+	root = befs_iget(sb, iaddr2blockanal(sb, &(befs_sb->root_dir)));
 	if (IS_ERR(root)) {
 		ret = PTR_ERR(root);
 		goto unacquire_priv_sbp;
@@ -901,7 +901,7 @@ befs_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_root = d_make_root(root);
 	if (!sb->s_root) {
 		if (!silent)
-			befs_error(sb, "get root inode failed");
+			befs_error(sb, "get root ianalde failed");
 		goto unacquire_priv_sbp;
 	}
 
@@ -911,12 +911,12 @@ befs_fill_super(struct super_block *sb, void *data, int silent)
 			   befs_sb->mount_opts.iocharset);
 		befs_sb->nls = load_nls(befs_sb->mount_opts.iocharset);
 		if (!befs_sb->nls) {
-			befs_warning(sb, "Cannot load nls %s"
+			befs_warning(sb, "Cananalt load nls %s"
 					" loading default nls",
 					befs_sb->mount_opts.iocharset);
 			befs_sb->nls = load_nls_default();
 		}
-	/* load default nls if none is specified  in mount options */
+	/* load default nls if analne is specified  in mount options */
 	} else {
 		befs_debug(sb, "Loading default nls");
 		befs_sb->nls = load_nls_default();
@@ -932,7 +932,7 @@ unacquire_priv_sbp:
 	kfree(sb->s_fs_info);
 	sb->s_fs_info = NULL;
 
-unacquire_none:
+unacquire_analne:
 	return ret;
 }
 
@@ -958,8 +958,8 @@ befs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_blocks = BEFS_SB(sb)->num_blocks;
 	buf->f_bfree = BEFS_SB(sb)->num_blocks - BEFS_SB(sb)->used_blocks;
 	buf->f_bavail = buf->f_bfree;
-	buf->f_files = 0;	/* UNKNOWN */
-	buf->f_ffree = 0;	/* UNKNOWN */
+	buf->f_files = 0;	/* UNKANALWN */
+	buf->f_ffree = 0;	/* UNKANALWN */
 	buf->f_fsid = u64_to_fsid(id);
 	buf->f_namelen = BEFS_NAME_LEN;
 
@@ -991,27 +991,27 @@ init_befs_fs(void)
 
 	pr_info("version: %s\n", BEFS_VERSION);
 
-	err = befs_init_inodecache();
+	err = befs_init_ianaldecache();
 	if (err)
-		goto unacquire_none;
+		goto unacquire_analne;
 
 	err = register_filesystem(&befs_fs_type);
 	if (err)
-		goto unacquire_inodecache;
+		goto unacquire_ianaldecache;
 
 	return 0;
 
-unacquire_inodecache:
-	befs_destroy_inodecache();
+unacquire_ianaldecache:
+	befs_destroy_ianaldecache();
 
-unacquire_none:
+unacquire_analne:
 	return err;
 }
 
 static void __exit
 exit_befs_fs(void)
 {
-	befs_destroy_inodecache();
+	befs_destroy_ianaldecache();
 
 	unregister_filesystem(&befs_fs_type);
 }

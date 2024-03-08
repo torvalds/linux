@@ -10,7 +10,7 @@
  *
  * This handles the Acorn RiscPCs mouse.  We basically have a couple of
  * hardware registers that track the sensor count for the X-Y movement and
- * another register holding the button state.  On every VSYNC interrupt we read
+ * aanalther register holding the button state.  On every VSYNC interrupt we read
  * the complete state and then work out if something has changed.
  */
 
@@ -66,7 +66,7 @@ static int __init rpcmouse_init(void)
 
 	rpcmouse_dev = input_allocate_device();
 	if (!rpcmouse_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rpcmouse_dev->name = "Acorn RiscPC Mouse";
 	rpcmouse_dev->phys = "rpcmouse/input0";

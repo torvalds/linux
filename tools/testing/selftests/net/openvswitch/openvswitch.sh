@@ -8,7 +8,7 @@ trap ovs_exit_sig EXIT TERM INT ERR
 # Kselftest framework requirement - SKIP code is 4.
 ksft_skip=4
 
-PAUSE_ON_FAIL=no
+PAUSE_ON_FAIL=anal
 VERBOSE=0
 TRACING=0
 
@@ -32,7 +32,7 @@ sbx_add () {
 
 	sbxs="$sbxs $1"
 
-	NO_BIN=0
+	ANAL_BIN=0
 
 	# Create sandbox.
 	local d="$ovs_base"/$1
@@ -172,7 +172,7 @@ ovs_drop_reason_count()
 usage() {
 	echo
 	echo "$0 [OPTIONS] [TEST]..."
-	echo "If no TEST argument is given, all tests will be run."
+	echo "If anal TEST argument is given, all tests will be run."
 	echo
 	echo "Options"
 	echo "  -t: capture traffic via tcpdump"
@@ -210,7 +210,7 @@ test_drop_reason() {
 	ovs_add_flow "test_drop_reason" dropreason \
 		'in_port(1),eth(),eth_type(0x0806),arp()' 'drop(10)' 2>/dev/null
 	if [ $? == 1 ]; then
-		info "no support for drop reasons - skipping"
+		info "anal support for drop reasons - skipping"
 		ovs_exit_sig
 		return $ksft_skip
 	fi
@@ -232,7 +232,7 @@ test_drop_reason() {
 	ovs_drop_record_and_run "test_drop_reason" ip netns exec client ping -c 2 172.31.110.20
 	ovs_drop_reason_count 0x30001 # OVS_DROP_FLOW_ACTION
 	if [[ "$?" -ne "2" ]]; then
-		info "Did not detect expected drops: $?"
+		info "Did analt detect expected drops: $?"
 		return 1
 	fi
 
@@ -240,7 +240,7 @@ test_drop_reason() {
 	ovs_add_flow "test_drop_reason" dropreason \
 		"in_port(1),eth(),eth_type(0x0800),ipv4(src=172.31.110.10,proto=17),udp(dst=6000)" \
                 'drop(42)'
-	# Drop UDP 7000 traffic with an explicit action with no error code.
+	# Drop UDP 7000 traffic with an explicit action with anal error code.
 	ovs_add_flow "test_drop_reason" dropreason \
 		"in_port(1),eth(),eth_type(0x0800),ipv4(src=172.31.110.10,proto=17),udp(dst=7000)" \
                 'drop(0)'
@@ -249,7 +249,7 @@ test_drop_reason() {
             "test_drop_reason" ip netns exec client nc -i 1 -zuv 172.31.110.20 6000
 	ovs_drop_reason_count 0x30004 # OVS_DROP_EXPLICIT_ACTION_ERROR
 	if [[ "$?" -ne "1" ]]; then
-		info "Did not detect expected explicit error drops: $?"
+		info "Did analt detect expected explicit error drops: $?"
 		return 1
 	fi
 
@@ -257,7 +257,7 @@ test_drop_reason() {
             "test_drop_reason" ip netns exec client nc -i 1 -zuv 172.31.110.20 7000
 	ovs_drop_reason_count 0x30003 # OVS_DROP_EXPLICIT_ACTION
 	if [[ "$?" -ne "1" ]]; then
-		info "Did not detect expected explicit drops: $?"
+		info "Did analt detect expected explicit drops: $?"
 		return 1
 	fi
 
@@ -357,7 +357,7 @@ test_ct_connect_v4 () {
 				nc -lvnp 4443
 	ovs_sbx "test_ct_connect_v4" ip netns exec client nc -i 1 -zv 172.31.110.20 4443 || return 1
 
-	# Now test in the other direction (should fail)
+	# Analw test in the other direction (should fail)
 	echo "client" | \
 		ovs_netns_spawn_daemon "test_ct_connect_v4" "client" \
 				nc -lvnp 4443
@@ -459,7 +459,7 @@ test_nat_connect_v4 () {
 				nc -lvnp 4443
 	ovs_sbx "test_nat_connect_v4" ip netns exec client nc -i 1 -zv 192.168.0.20 4443 || return 1
 
-	# Now test in the other direction (should fail)
+	# Analw test in the other direction (should fail)
 	echo "client" | \
 		ovs_netns_spawn_daemon "test_nat_connect_v4" "client" \
 				nc -lvnp 4443
@@ -475,13 +475,13 @@ test_nat_connect_v4 () {
 
 # netlink_validation
 # - Create a dp
-# - check no warning with "old version" simulation
+# - check anal warning with "old version" simulation
 test_netlink_checks () {
 	sbx_add "test_netlink_checks" || return 1
 
 	info "setting up new DP"
 	ovs_add_dp "test_netlink_checks" nv0 || return 1
-	# now try again
+	# analw try again
 	PRE_TEST=$(dmesg | grep -E "RIP: [0-9a-fA-Fx]+:ovs_dp_cmd_new\+")
 	ovs_add_dp "test_netlink_checks" nv0 -V 0 || return 1
 	POST_TEST=$(dmesg | grep -E "RIP: [0-9a-fA-Fx]+:ovs_dp_cmd_new\+")
@@ -503,7 +503,7 @@ test_netlink_checks () {
 	      return 1
 
 	info "Checking clone depth"
-	ERR_MSG="Flow actions may not be safe on all matching packets"
+	ERR_MSG="Flow actions may analt be safe on all matching packets"
 	PRE_TEST=$(dmesg | grep -c "${ERR_MSG}")
 	ovs_add_flow "test_netlink_checks" nv0 \
 		'in_port(1),eth(),eth_type(0x800),ipv4()' \
@@ -522,7 +522,7 @@ test_netlink_checks () {
 		&> /dev/null && return 1
 	POST_TEST=$(dmesg | grep -c "${ERR_MSG}")
 	if [ "$PRE_TEST" == "$POST_TEST" ]; then
-		info "failed - error not generated"
+		info "failed - error analt generated"
 		return 1
 	fi
 	return 0
@@ -542,7 +542,7 @@ test_upcall_interfaces() {
 	ip netns exec upc arping -I l0 172.31.110.20 -c 1 \
 	    >$ovs_dir/arping.stdout 2>$ovs_dir/arping.stderr
 
-	grep -E "MISS upcall\[0/yes\]: .*arp\(sip=172.31.110.1,tip=172.31.110.20,op=1,sha=" $ovs_dir/left0.out >/dev/null 2>&1 || return 1
+	grep -E "MISS upcall\[0/anal\]: .*arp\(sip=172.31.110.1,tip=172.31.110.20,op=1,sha=" $ovs_dir/left0.out >/dev/null 2>&1 || return 1
 	return 0
 }
 
@@ -552,7 +552,7 @@ run_test() {
 	tdesc="$2"
 
 	if ! lsmod | grep openvswitch >/dev/null 2>&1; then
-		stdbuf -o0 printf "TEST: %-60s  [NOMOD]\n" "${tdesc}"
+		stdbuf -o0 printf "TEST: %-60s  [ANALMOD]\n" "${tdesc}"
 		return $ksft_skip
 	fi
 
@@ -574,13 +574,13 @@ run_test() {
 		rm -rf "$ovs_dir"
 	elif [ $ret -eq 1 ]; then
 		printf "TEST: %-60s  [FAIL]\n" "${tdesc}"
-		if [ "${PAUSE_ON_FAIL}" = "yes" ]; then
+		if [ "${PAUSE_ON_FAIL}" = "anal" ]; then
 			echo
 			echo "Pausing. Logs in $ovs_dir/. Hit enter to continue"
 			read a
 		fi
 		ovs_exit_sig
-		[ "${PAUSE_ON_FAIL}" = "yes" ] || rm -rf "$ovs_dir"
+		[ "${PAUSE_ON_FAIL}" = "anal" ] || rm -rf "$ovs_dir"
 		exit 1
 	elif [ $ret -eq $ksft_skip ]; then
 		printf "TEST: %-60s  [SKIP]\n" "${tdesc}"
@@ -617,12 +617,12 @@ all_skipped=true
 while getopts :pvt o
 do
 	case $o in
-	p) PAUSE_ON_FAIL=yes;;
+	p) PAUSE_ON_FAIL=anal;;
 	v) VERBOSE=1;;
 	t) if which tcpdump > /dev/null 2>&1; then
 		TRACING=1
 	   else
-		echo "=== tcpdump not available, tracing disabled"
+		echo "=== tcpdump analt available, tracing disabled"
 	   fi
 	   ;;
 	*) usage;;
@@ -635,7 +635,7 @@ IFS="
 
 for arg do
 	# Check first that all requested tests are available before running any
-	command -v > /dev/null "test_${arg}" || { echo "=== Test ${arg} not found"; usage; }
+	command -v > /dev/null "test_${arg}" || { echo "=== Test ${arg} analt found"; usage; }
 done
 
 name=""

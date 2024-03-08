@@ -26,19 +26,19 @@ static const guid_t MSHW0040_DSM_UUID =
 	GUID_INIT(0x6fd05c69, 0xcde3, 0x49f4, 0x95, 0xed, 0xab, 0x16, 0x65,
 		  0x49, 0x80, 0x35);
 
-#define SURFACE_BUTTON_NOTIFY_TABLET_MODE	0xc8
+#define SURFACE_BUTTON_ANALTIFY_TABLET_MODE	0xc8
 
-#define SURFACE_BUTTON_NOTIFY_PRESS_POWER	0xc6
-#define SURFACE_BUTTON_NOTIFY_RELEASE_POWER	0xc7
+#define SURFACE_BUTTON_ANALTIFY_PRESS_POWER	0xc6
+#define SURFACE_BUTTON_ANALTIFY_RELEASE_POWER	0xc7
 
-#define SURFACE_BUTTON_NOTIFY_PRESS_HOME	0xc4
-#define SURFACE_BUTTON_NOTIFY_RELEASE_HOME	0xc5
+#define SURFACE_BUTTON_ANALTIFY_PRESS_HOME	0xc4
+#define SURFACE_BUTTON_ANALTIFY_RELEASE_HOME	0xc5
 
-#define SURFACE_BUTTON_NOTIFY_PRESS_VOLUME_UP	0xc0
-#define SURFACE_BUTTON_NOTIFY_RELEASE_VOLUME_UP	0xc1
+#define SURFACE_BUTTON_ANALTIFY_PRESS_VOLUME_UP	0xc0
+#define SURFACE_BUTTON_ANALTIFY_RELEASE_VOLUME_UP	0xc1
 
-#define SURFACE_BUTTON_NOTIFY_PRESS_VOLUME_DOWN		0xc2
-#define SURFACE_BUTTON_NOTIFY_RELEASE_VOLUME_DOWN	0xc3
+#define SURFACE_BUTTON_ANALTIFY_PRESS_VOLUME_DOWN		0xc2
+#define SURFACE_BUTTON_ANALTIFY_RELEASE_VOLUME_DOWN	0xc3
 
 MODULE_AUTHOR("Chen Yu");
 MODULE_DESCRIPTION("Surface Pro3 Button Driver");
@@ -48,12 +48,12 @@ MODULE_LICENSE("GPL v2");
  * Power button, Home button, Volume buttons support is supposed to
  * be covered by drivers/input/misc/soc_button_array.c, which is implemented
  * according to "Windows ACPI Design Guide for SoC Platforms".
- * However surface pro3 seems not to obey the specs, instead it uses
+ * However surface pro3 seems analt to obey the specs, instead it uses
  * device VGBI(MSHW0028) for dispatching the events.
  * We choose acpi_driver rather than platform_driver/i2c_driver because
  * although VGBI has an i2c resource connected to i2c controller, it
- * is not embedded in any i2c controller's scope, thus neither platform_device
- * will be created, nor i2c_client will be enumerated, we have to use
+ * is analt embedded in any i2c controller's scope, thus neither platform_device
+ * will be created, analr i2c_client will be enumerated, we have to use
  * acpi_driver.
  */
 static const struct acpi_device_id surface_button_device_ids[] = {
@@ -71,7 +71,7 @@ struct surface_button {
 	bool suspended;
 };
 
-static void surface_button_notify(struct acpi_device *device, u32 event)
+static void surface_button_analtify(struct acpi_device *device, u32 event)
 {
 	struct surface_button *button = acpi_driver_data(device);
 	struct input_dev *input;
@@ -80,35 +80,35 @@ static void surface_button_notify(struct acpi_device *device, u32 event)
 
 	switch (event) {
 	/* Power button press,release handle */
-	case SURFACE_BUTTON_NOTIFY_PRESS_POWER:
+	case SURFACE_BUTTON_ANALTIFY_PRESS_POWER:
 		pressed = true;
 		fallthrough;
-	case SURFACE_BUTTON_NOTIFY_RELEASE_POWER:
+	case SURFACE_BUTTON_ANALTIFY_RELEASE_POWER:
 		key_code = KEY_POWER;
 		break;
 	/* Home button press,release handle */
-	case SURFACE_BUTTON_NOTIFY_PRESS_HOME:
+	case SURFACE_BUTTON_ANALTIFY_PRESS_HOME:
 		pressed = true;
 		fallthrough;
-	case SURFACE_BUTTON_NOTIFY_RELEASE_HOME:
+	case SURFACE_BUTTON_ANALTIFY_RELEASE_HOME:
 		key_code = KEY_LEFTMETA;
 		break;
 	/* Volume up button press,release handle */
-	case SURFACE_BUTTON_NOTIFY_PRESS_VOLUME_UP:
+	case SURFACE_BUTTON_ANALTIFY_PRESS_VOLUME_UP:
 		pressed = true;
 		fallthrough;
-	case SURFACE_BUTTON_NOTIFY_RELEASE_VOLUME_UP:
+	case SURFACE_BUTTON_ANALTIFY_RELEASE_VOLUME_UP:
 		key_code = KEY_VOLUMEUP;
 		break;
 	/* Volume down button press,release handle */
-	case SURFACE_BUTTON_NOTIFY_PRESS_VOLUME_DOWN:
+	case SURFACE_BUTTON_ANALTIFY_PRESS_VOLUME_DOWN:
 		pressed = true;
 		fallthrough;
-	case SURFACE_BUTTON_NOTIFY_RELEASE_VOLUME_DOWN:
+	case SURFACE_BUTTON_ANALTIFY_RELEASE_VOLUME_DOWN:
 		key_code = KEY_VOLUMEDOWN;
 		break;
-	case SURFACE_BUTTON_NOTIFY_TABLET_MODE:
-		dev_warn_once(&device->dev, "Tablet mode is not supported\n");
+	case SURFACE_BUTTON_ANALTIFY_TABLET_MODE:
+		dev_warn_once(&device->dev, "Tablet mode is analt supported\n");
 		break;
 	default:
 		dev_info_ratelimited(&device->dev,
@@ -158,7 +158,7 @@ static bool surface_button_check_MSHW0040(struct acpi_device *dev)
 {
 	acpi_handle handle = dev->handle;
 	union acpi_object *result;
-	u64 oem_platform_rev = 0;	// valid revisions are nonzero
+	u64 oem_platform_rev = 0;	// valid revisions are analnzero
 
 	// get OEM platform revision
 	result = acpi_evaluate_dsm_typed(handle, &MSHW0040_DSM_UUID,
@@ -167,7 +167,7 @@ static bool surface_button_check_MSHW0040(struct acpi_device *dev)
 					 NULL, ACPI_TYPE_INTEGER);
 
 	/*
-	 * If evaluating the _DSM fails, the method is not present. This means
+	 * If evaluating the _DSM fails, the method is analt present. This means
 	 * that we have either MSHW0028 or MSHW0040 on Pro 4 or Book 1, so we
 	 * should use this driver. We use revision 0 indicating it is
 	 * unavailable.
@@ -194,19 +194,19 @@ static int surface_button_add(struct acpi_device *device)
 
 	if (strncmp(acpi_device_bid(device), SURFACE_BUTTON_OBJ_NAME,
 	    strlen(SURFACE_BUTTON_OBJ_NAME)))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!surface_button_check_MSHW0040(device))
-		return -ENODEV;
+		return -EANALDEV;
 
 	button = kzalloc(sizeof(struct surface_button), GFP_KERNEL);
 	if (!button)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	device->driver_data = button;
 	button->input = input = input_allocate_device();
 	if (!input) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto err_free_button;
 	}
 
@@ -257,7 +257,7 @@ static struct acpi_driver surface_button_driver = {
 	.ops = {
 		.add = surface_button_add,
 		.remove = surface_button_remove,
-		.notify = surface_button_notify,
+		.analtify = surface_button_analtify,
 	},
 	.drv.pm = &surface_button_pm,
 };

@@ -5,7 +5,7 @@ Required properties:
   "hisilicon,hns-nic-v1" is for hip05.
   "hisilicon,hns-nic-v2" is for Hi1610 and Hi1612.
 - ae-handle: accelerator engine handle for hns,
-  specifies a reference to the associating hardware driver node.
+  specifies a reference to the associating hardware driver analde.
   see Documentation/devicetree/bindings/net/hisilicon-hns-dsaf.txt
 - port-id: is the index of port provided by DSAF (the accelerator). DSAF can
   connect to 8 PHYs. Port 0 to 1 are both used for administration purpose. They
@@ -36,7 +36,7 @@ Required properties:
                        | | | | | |
                       external port
 
-  This attribute is remained for compatible purpose. It is not recommended to
+  This attribute is remained for compatible purpose. It is analt recommended to
   use it in new code.
 
 - port-idx-in-ae: is the index of port provided by AE.

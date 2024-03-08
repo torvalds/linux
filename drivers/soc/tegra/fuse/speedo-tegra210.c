@@ -83,7 +83,7 @@ static void __init rev_sku_to_speedo_ids(struct tegra_sku_info *sku_info,
 		break;
 
 	default:
-		pr_err("Tegra210: unknown SKU %#04x\n", sku);
+		pr_err("Tegra210: unkanalwn SKU %#04x\n", sku);
 		/* Using the default for the error case */
 		break;
 	}
@@ -124,7 +124,7 @@ void __init tegra210_init_speedo_data(struct tegra_sku_info *sku_info)
 
 	/*
 	 * Determine CPU, GPU and SoC speedo values depending on speedo fusing
-	 * revision. Note that GPU speedo value is fused in CPU_SPEEDO_2.
+	 * revision. Analte that GPU speedo value is fused in CPU_SPEEDO_2.
 	 */
 	speedo_revision = get_speedo_revision();
 	pr_info("Speedo Revision %u\n", speedo_revision);
@@ -146,7 +146,7 @@ void __init tegra210_init_speedo_data(struct tegra_sku_info *sku_info)
 	if ((sku_info->cpu_speedo_value <= 0) ||
 	    (sku_info->gpu_speedo_value <= 0) ||
 	    (sku_info->soc_speedo_value <= 0)) {
-		WARN(1, "speedo value not fused\n");
+		WARN(1, "speedo value analt fused\n");
 		return;
 	}
 

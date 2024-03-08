@@ -2,7 +2,7 @@
 /*
  * OKI Semiconductor ML86V7667 video decoder driver
  *
- * Author: Vladimir Barinov <source@cogentembedded.com>
+ * Author: Vladimir Barianalv <source@cogentembedded.com>
  * Copyright (C) 2013 Cogent Embedded, Inc.
  * Copyright (C) 2013 Renesas Solutions Corp.
  */
@@ -46,15 +46,15 @@
 #define MRC_AUTOSELECT		(1 << 7)
 
 /* Luminance Control register bits */
-#define LUMC_ONOFF_SHIFT	7
-#define LUMC_ONOFF_MASK		(1 << 7)
+#define LUMC_OANALFF_SHIFT	7
+#define LUMC_OANALFF_MASK		(1 << 7)
 
 /* Contrast level control register bits */
-#define CLC_CONTRAST_ONOFF	(1 << 7)
+#define CLC_CONTRAST_OANALFF	(1 << 7)
 #define CLC_CONTRAST_MASK	0x0F
 
 /* Sync separation level register bits */
-#define SSEPL_LUMINANCE_ONOFF	(1 << 7)
+#define SSEPL_LUMINANCE_OANALFF	(1 << 7)
 #define SSEPL_LUMINANCE_MASK	0x7F
 
 /* Chrominance Control A register bits */
@@ -143,8 +143,8 @@ static int ml86v7667_s_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	case V4L2_CID_SHARPNESS:
 		ret = ml86v7667_mask_set(client, LUMC_REG,
-					 LUMC_ONOFF_MASK,
-					 ctrl->val << LUMC_ONOFF_SHIFT);
+					 LUMC_OANALFF_MASK,
+					 ctrl->val << LUMC_OANALFF_SHIFT);
 		break;
 	case V4L2_CID_COLOR_KILLER:
 		ret = ml86v7667_mask_set(client, CHRCA_REG,
@@ -168,7 +168,7 @@ static int ml86v7667_querystd(struct v4l2_subdev *sd, v4l2_std_id *std)
 	if (status & STATUS_HLOCK_DETECT)
 		*std &= status & STATUS_NTSCPAL ? V4L2_STD_625_50 : V4L2_STD_525_60;
 	else
-		*std = V4L2_STD_UNKNOWN;
+		*std = V4L2_STD_UNKANALWN;
 
 	return 0;
 }
@@ -182,7 +182,7 @@ static int ml86v7667_g_input_status(struct v4l2_subdev *sd, u32 *status)
 	if (status_reg < 0)
 		return status_reg;
 
-	*status = status_reg & STATUS_HLOCK_DETECT ? 0 : V4L2_IN_ST_NO_SIGNAL;
+	*status = status_reg & STATUS_HLOCK_DETECT ? 0 : V4L2_IN_ST_ANAL_SIGNAL;
 
 	return 0;
 }
@@ -335,11 +335,11 @@ static int ml86v7667_init(struct ml86v7667_priv *priv)
 				  ADC2_CLAMP_VOLTAGE(7));
 
 	/* enable luminance function */
-	ret |= ml86v7667_mask_set(client, SSEPL_REG, SSEPL_LUMINANCE_ONOFF,
-				  SSEPL_LUMINANCE_ONOFF);
+	ret |= ml86v7667_mask_set(client, SSEPL_REG, SSEPL_LUMINANCE_OANALFF,
+				  SSEPL_LUMINANCE_OANALFF);
 
 	/* enable contrast function */
-	ret |= ml86v7667_mask_set(client, CLC_REG, CLC_CONTRAST_ONOFF, 0);
+	ret |= ml86v7667_mask_set(client, CLC_REG, CLC_CONTRAST_OANALFF, 0);
 
 	/*
 	 * PAL/NTSC autodetection is enabled after reset,
@@ -369,7 +369,7 @@ static int ml86v7667_probe(struct i2c_client *client)
 
 	priv = devm_kzalloc(&client->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	v4l2_i2c_subdev_init(&priv->sd, client, &ml86v7667_subdev_ops);
 
@@ -441,5 +441,5 @@ static struct i2c_driver ml86v7667_i2c_driver = {
 module_i2c_driver(ml86v7667_i2c_driver);
 
 MODULE_DESCRIPTION("OKI Semiconductor ML86V7667 video decoder driver");
-MODULE_AUTHOR("Vladimir Barinov");
+MODULE_AUTHOR("Vladimir Barianalv");
 MODULE_LICENSE("GPL");

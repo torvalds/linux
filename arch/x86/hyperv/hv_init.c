@@ -73,7 +73,7 @@ static int hyperv_init_ghcb(void)
 	ghcb_gpa &= ~ms_hyperv.shared_gpa_boundary;
 	ghcb_va = (void *)ioremap_cache(ghcb_gpa, HV_HYP_PAGE_SIZE);
 	if (!ghcb_va)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ghcb_base = (void **)this_cpu_ptr(hv_ghcb_pg);
 	*ghcb_base = ghcb_va;
@@ -109,7 +109,7 @@ static int hv_cpu_init(unsigned int cpu)
 		 * Section 5.2.1 "GPA Overlay Pages"). Here it must be zeroed
 		 * out to make sure we always write the EOI MSR in
 		 * hv_apic_eoi_write() *after* the EOI optimization is disabled
-		 * in hv_cpu_die(), otherwise a CPU may not be stopped in the
+		 * in hv_cpu_die(), otherwise a CPU may analt be stopped in the
 		 * case of CPU offlining and the VM will hang.
 		 */
 		if (!*hvp) {
@@ -119,7 +119,7 @@ static int hv_cpu_init(unsigned int cpu)
 			 * Hyper-V should never specify a VM that is a Confidential
 			 * VM and also running in the root partition. Root partition
 			 * is blocked to run in Confidential VM. So only decrypt assist
-			 * page in non-root partition here.
+			 * page in analn-root partition here.
 			 */
 			if (*hvp && !ms_hyperv.paravisor_present && hv_isolation_type_snp()) {
 				WARN_ON_ONCE(set_memory_decrypted((unsigned long)(*hvp), 1));
@@ -141,17 +141,17 @@ static int hv_cpu_init(unsigned int cpu)
 
 static void (*hv_reenlightenment_cb)(void);
 
-static void hv_reenlightenment_notify(struct work_struct *dummy)
+static void hv_reenlightenment_analtify(struct work_struct *dummy)
 {
 	struct hv_tsc_emulation_status emu_status;
 
 	rdmsrl(HV_X64_MSR_TSC_EMULATION_STATUS, *(u64 *)&emu_status);
 
-	/* Don't issue the callback if TSC accesses are not emulated */
+	/* Don't issue the callback if TSC accesses are analt emulated */
 	if (hv_reenlightenment_cb && emu_status.inprogress)
 		hv_reenlightenment_cb();
 }
-static DECLARE_DELAYED_WORK(hv_reenlightenment_work, hv_reenlightenment_notify);
+static DECLARE_DELAYED_WORK(hv_reenlightenment_work, hv_reenlightenment_analtify);
 
 void hyperv_stop_tsc_emulation(void)
 {
@@ -171,7 +171,7 @@ static inline bool hv_reenlightenment_available(void)
 {
 	/*
 	 * Check for required features and privileges to make TSC frequency
-	 * change notifications work.
+	 * change analtifications work.
 	 */
 	return ms_hyperv.features & HV_ACCESS_FREQUENCY_MSRS &&
 		ms_hyperv.misc_features & HV_FEATURE_FREQUENCY_MSRS_AVAILABLE &&
@@ -268,8 +268,8 @@ static int hv_cpu_die(unsigned int cpu)
 	rdmsrl(HV_X64_MSR_REENLIGHTENMENT_CONTROL, *((u64 *)&re_ctrl));
 	if (re_ctrl.target_vp == hv_vp_index[cpu]) {
 		/*
-		 * Reassign reenlightenment notifications to some other online
-		 * CPU or just disable the feature if there are no online CPUs
+		 * Reassign reenlightenment analtifications to some other online
+		 * CPU or just disable the feature if there are anal online CPUs
 		 * left (happens on hibernation).
 		 */
 		new_cpu = cpumask_any_but(cpu_online_mask, cpu);
@@ -295,18 +295,18 @@ static int __init hv_pci_init(void)
 	 * pcibios_init() doesn't call pcibios_resource_survey() ->
 	 * e820__reserve_resources_late(); as a result, any emulated persistent
 	 * memory of E820_TYPE_PRAM (12) via the kernel parameter
-	 * memmap=nn[KMG]!ss is not added into iomem_resource and hence can't be
+	 * memmap=nn[KMG]!ss is analt added into iomem_resource and hence can't be
 	 * detected by register_e820_pmem(). Fix this by directly calling
 	 * e820__reserve_resources_late() here: e820__reserve_resources_late()
 	 * depends on e820__reserve_resources(), which has been called earlier
-	 * from setup_arch(). Note: e820__reserve_resources_late() also adds
+	 * from setup_arch(). Analte: e820__reserve_resources_late() also adds
 	 * any memory of E820_TYPE_PMEM (7) into iomem_resource, and
 	 * acpi_nfit_register_region() -> acpi_nfit_insert_resource() ->
 	 * region_intersects() returns REGION_INTERSECTS, so the memory of
 	 * E820_TYPE_PMEM won't get added twice.
 	 *
 	 * We return 0 here so that pci_arch_init() won't print the warning:
-	 * "PCI: Fatal: No config space access function found"
+	 * "PCI: Fatal: Anal config space access function found"
 	 */
 	if (gen2vm) {
 		e820__reserve_resources_late();
@@ -363,14 +363,14 @@ static void hv_resume(void)
 	hv_hypercall_pg_saved = NULL;
 
 	/*
-	 * Reenlightenment notifications are disabled by hv_cpu_die(0),
+	 * Reenlightenment analtifications are disabled by hv_cpu_die(0),
 	 * reenable them here if hv_reenlightenment_cb was previously set.
 	 */
 	if (hv_reenlightenment_cb)
 		set_hv_tscchange_cb(hv_reenlightenment_cb);
 }
 
-/* Note: when the ops are called, only CPU0 is online and IRQs are disabled. */
+/* Analte: when the ops are called, only CPU0 is online and IRQs are disabled. */
 static struct syscore_ops hv_syscore_ops = {
 	.suspend	= hv_suspend,
 	.resume		= hv_resume,
@@ -381,14 +381,14 @@ static void (* __initdata old_setup_percpu_clockev)(void);
 static void __init hv_stimer_setup_percpu_clockev(void)
 {
 	/*
-	 * Ignore any errors in setting up stimer clockevents
+	 * Iganalre any errors in setting up stimer clockevents
 	 * as we can run with the LAPIC timer as a fallback.
 	 */
 	(void)hv_stimer_alloc(false);
 
 	/*
 	 * Still register the LAPIC timer, because the direct-mode STIMER is
-	 * not supported by old versions of Hyper-V. This also allows users
+	 * analt supported by old versions of Hyper-V. This also allows users
 	 * to switch to LAPIC timer via /sys, if they want to.
 	 */
 	if (old_setup_percpu_clockev)
@@ -405,7 +405,7 @@ static void __init hv_get_partition_id(void)
 	output_page = *this_cpu_ptr(hyperv_pcpu_output_arg);
 	status = hv_do_hypercall(HVCALL_GET_PARTITION_ID, NULL, output_page);
 	if (!hv_result_success(status)) {
-		/* No point in proceeding if this failed */
+		/* Anal point in proceeding if this failed */
 		pr_err("Failed to get partition ID: %lld\n", status);
 		BUG();
 	}
@@ -469,7 +469,7 @@ void __init hyperv_init(void)
 
 	/*
 	 * The VP assist page is useless to a TDX guest: the only use we
-	 * would have for it is lazy EOI, which can not be used with TDX.
+	 * would have for it is lazy EOI, which can analt be used with TDX.
 	 */
 	if (hv_isolation_type_tdx())
 		hv_vp_assist_page = NULL;
@@ -505,10 +505,10 @@ void __init hyperv_init(void)
 	 * 1. Register the guest ID
 	 * 2. Enable the hypercall and register the hypercall page
 	 *
-	 * A TDX VM with no paravisor only uses TDX GHCI rather than hv_hypercall_pg:
+	 * A TDX VM with anal paravisor only uses TDX GHCI rather than hv_hypercall_pg:
 	 * when the hypercall input is a page, such a VM must pass a decrypted
 	 * page to Hyper-V, e.g. hv_post_message() uses the per-CPU page
-	 * hyperv_pcpu_input_arg, which is decrypted if no paravisor is present.
+	 * hyperv_pcpu_input_arg, which is decrypted if anal paravisor is present.
 	 *
 	 * A TDX VM with the paravisor uses hv_hypercall_pg for most hypercalls,
 	 * which are handled by the paravisor and the VM must use an encrypted
@@ -527,13 +527,13 @@ void __init hyperv_init(void)
 	/* With the paravisor, the VM must also write the ID via GHCB/GHCI */
 	hv_ivm_msr_write(HV_X64_MSR_GUEST_OS_ID, guest_id);
 
-	/* A TDX VM with no paravisor only uses TDX GHCI rather than hv_hypercall_pg */
+	/* A TDX VM with anal paravisor only uses TDX GHCI rather than hv_hypercall_pg */
 	if (hv_isolation_type_tdx() && !ms_hyperv.paravisor_present)
 		goto skip_hypercall_pg_init;
 
-	hv_hypercall_pg = __vmalloc_node_range(PAGE_SIZE, 1, VMALLOC_START,
+	hv_hypercall_pg = __vmalloc_analde_range(PAGE_SIZE, 1, VMALLOC_START,
 			VMALLOC_END, GFP_KERNEL, PAGE_KERNEL_ROX,
-			VM_FLUSH_RESET_PERMS, NUMA_NO_NODE,
+			VM_FLUSH_RESET_PERMS, NUMA_ANAL_ANALDE,
 			__builtin_return_address(0));
 	if (hv_hypercall_pg == NULL)
 		goto clean_guest_os_id;
@@ -547,7 +547,7 @@ void __init hyperv_init(void)
 
 		/*
 		 * For the root partition, the hypervisor will set up its
-		 * hypercall page. The hypervisor guarantees it will not show
+		 * hypercall page. The hypervisor guarantees it will analt show
 		 * up in the root's address space. The root can't change the
 		 * location of the hypercall page.
 		 *
@@ -573,7 +573,7 @@ void __init hyperv_init(void)
 skip_hypercall_pg_init:
 	/*
 	 * Some versions of Hyper-V that provide IBT in guest VMs have a bug
-	 * in that there's no ENDBR64 instruction at the entry to the
+	 * in that there's anal ENDBR64 instruction at the entry to the
 	 * hypercall page. Because hypercalls are invoked via an indirect call
 	 * to the hypercall page, all hypercall attempts fail when IBT is
 	 * enabled, and Linux panics. For such buggy versions, disable IBT.
@@ -629,7 +629,7 @@ skip_hypercall_pg_init:
 	/* Find the VTL */
 	ms_hyperv.vtl = get_vtl();
 
-	if (ms_hyperv.vtl > 0) /* non default VTL */
+	if (ms_hyperv.vtl > 0) /* analn default VTL */
 		hv_vtl_early_init();
 
 	return;
@@ -703,9 +703,9 @@ void hyperv_report_panic(struct pt_regs *regs, long err, bool in_die)
 	wrmsrl(HV_X64_MSR_CRASH_P4, regs->sp);
 
 	/*
-	 * Let Hyper-V know there is crash data available
+	 * Let Hyper-V kanalw there is crash data available
 	 */
-	wrmsrl(HV_X64_MSR_CRASH_CTL, HV_CRASH_CTL_CRASH_NOTIFY);
+	wrmsrl(HV_X64_MSR_CRASH_CTL, HV_CRASH_CTL_CRASH_ANALTIFY);
 }
 EXPORT_SYMBOL_GPL(hyperv_report_panic);
 
@@ -714,13 +714,13 @@ bool hv_is_hyperv_initialized(void)
 	union hv_x64_msr_hypercall_contents hypercall_msr;
 
 	/*
-	 * Ensure that we're really on Hyper-V, and not a KVM or Xen
+	 * Ensure that we're really on Hyper-V, and analt a KVM or Xen
 	 * emulation of Hyper-V
 	 */
 	if (x86_hyper_type != X86_HYPER_MS_HYPERV)
 		return false;
 
-	/* A TDX VM with no paravisor uses TDX GHCI call rather than hv_hypercall_pg */
+	/* A TDX VM with anal paravisor uses TDX GHCI call rather than hv_hypercall_pg */
 	if (hv_isolation_type_tdx() && !ms_hyperv.paravisor_present)
 		return true;
 	/*

@@ -1,11 +1,11 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /* const.h: Macros for dealing with constants.  */
 
 #ifndef _UAPI_LINUX_CONST_H
 #define _UAPI_LINUX_CONST_H
 
 /* Some constant macros are used in both assembler and
- * C code.  Therefore we cannot annotate them always with
+ * C code.  Therefore we cananalt ananaltate them always with
  * 'UL' and other type specifiers unilaterally.  We
  * use the following macros to deal with this.
  *

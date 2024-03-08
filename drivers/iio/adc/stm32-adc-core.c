@@ -143,8 +143,8 @@ static int stm32f4_adc_clk_sel(struct platform_device *pdev,
 
 	/* stm32f4 has one clk input for analog (mandatory), enforce it here */
 	if (!priv->aclk) {
-		dev_err(&pdev->dev, "No 'adc' clock found\n");
-		return -ENOENT;
+		dev_err(&pdev->dev, "Anal 'adc' clock found\n");
+		return -EANALENT;
 	}
 
 	rate = clk_get_rate(priv->aclk);
@@ -187,7 +187,7 @@ struct stm32h7_adc_ck_spec {
 };
 
 static const struct stm32h7_adc_ck_spec stm32h7_adc_ckmodes_spec[] = {
-	/* 00: CK_ADC[1..3]: Asynchronous clock modes */
+	/* 00: CK_ADC[1..3]: Asynchroanalus clock modes */
 	{ 0, 0, 1 },
 	{ 0, 1, 2 },
 	{ 0, 2, 4 },
@@ -200,7 +200,7 @@ static const struct stm32h7_adc_ck_spec stm32h7_adc_ckmodes_spec[] = {
 	{ 0, 9, 64 },
 	{ 0, 10, 128 },
 	{ 0, 11, 256 },
-	/* HCLK used: Synchronous clock modes (1, 2 or 4 prescaler) */
+	/* HCLK used: Synchroanalus clock modes (1, 2 or 4 prescaler) */
 	{ 1, 0, 1 },
 	{ 2, 0, 2 },
 	{ 3, 0, 4 },
@@ -215,8 +215,8 @@ static int stm32h7_adc_clk_sel(struct platform_device *pdev,
 
 	/* stm32h7 bus clock is common for all ADC instances (mandatory) */
 	if (!priv->bclk) {
-		dev_err(&pdev->dev, "No 'bus' clock found\n");
-		return -ENOENT;
+		dev_err(&pdev->dev, "Anal 'bus' clock found\n");
+		return -EANALENT;
 	}
 
 	/*
@@ -226,7 +226,7 @@ static int stm32h7_adc_clk_sel(struct platform_device *pdev,
 	 */
 	if (priv->aclk) {
 		/*
-		 * Asynchronous clock modes (e.g. ckmode == 0)
+		 * Asynchroanalus clock modes (e.g. ckmode == 0)
 		 * From spec: PLL output musn't exceed max rate
 		 */
 		rate = clk_get_rate(priv->aclk);
@@ -260,7 +260,7 @@ static int stm32h7_adc_clk_sel(struct platform_device *pdev,
 		}
 	}
 
-	/* Synchronous clock modes (e.g. ckmode is 1, 2 or 3) */
+	/* Synchroanalus clock modes (e.g. ckmode is 1, 2 or 3) */
 	rate = clk_get_rate(priv->bclk);
 	if (!rate) {
 		dev_err(&pdev->dev, "Invalid bus clock rate: 0\n");
@@ -407,7 +407,7 @@ static const struct irq_domain_ops stm32_adc_domain_ops = {
 static int stm32_adc_irq_probe(struct platform_device *pdev,
 			       struct stm32_adc_priv *priv)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	unsigned int i;
 
 	/*
@@ -426,7 +426,7 @@ static int stm32_adc_irq_probe(struct platform_device *pdev,
 					     priv);
 	if (!priv->domain) {
 		dev_err(&pdev->dev, "Failed to add irq domain\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for (i = 0; i < priv->cfg->num_irqs; i++) {
@@ -506,7 +506,7 @@ static int stm32_adc_core_switches_supply_en(struct stm32_adc_priv *priv,
 		}
 	}
 
-	/* Fallback using vdda (default), nothing to do */
+	/* Fallback using vdda (default), analthing to do */
 	dev_dbg(dev, "analog switches supplied by vdda (%d uV)\n",
 		priv->vdda_uv);
 
@@ -601,14 +601,14 @@ static void stm32_adc_core_hw_stop(struct device *dev)
 static int stm32_adc_core_switches_probe(struct device *dev,
 					 struct stm32_adc_priv *priv)
 {
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	int ret;
 
 	/* Analog switches supply can be controlled by syscfg (optional) */
 	priv->syscfg = syscon_regmap_lookup_by_phandle(np, "st,syscfg");
 	if (IS_ERR(priv->syscfg)) {
 		ret = PTR_ERR(priv->syscfg);
-		if (ret != -ENODEV)
+		if (ret != -EANALDEV)
 			return dev_err_probe(dev, ret, "Can't probe syscfg\n");
 
 		priv->syscfg = NULL;
@@ -620,7 +620,7 @@ static int stm32_adc_core_switches_probe(struct device *dev,
 		priv->booster = devm_regulator_get_optional(dev, "booster");
 		if (IS_ERR(priv->booster)) {
 			ret = PTR_ERR(priv->booster);
-			if (ret != -ENODEV)
+			if (ret != -EANALDEV)
 				return dev_err_probe(dev, ret, "can't get booster\n");
 
 			priv->booster = NULL;
@@ -633,7 +633,7 @@ static int stm32_adc_core_switches_probe(struct device *dev,
 		priv->vdd = devm_regulator_get_optional(dev, "vdd");
 		if (IS_ERR(priv->vdd)) {
 			ret = PTR_ERR(priv->vdd);
-			if (ret != -ENODEV)
+			if (ret != -EANALDEV)
 				return dev_err_probe(dev, ret, "can't get vdd\n");
 
 			priv->vdd = NULL;
@@ -664,8 +664,8 @@ static int stm32_adc_core_switches_probe(struct device *dev,
 static int stm32_adc_probe_identification(struct platform_device *pdev,
 					  struct stm32_adc_priv *priv)
 {
-	struct device_node *np = pdev->dev.of_node;
-	struct device_node *child;
+	struct device_analde *np = pdev->dev.of_analde;
+	struct device_analde *child;
 	const char *compat;
 	int ret, count = 0;
 	u32 id, val;
@@ -680,11 +680,11 @@ static int stm32_adc_probe_identification(struct platform_device *pdev,
 		return -EINVAL;
 	}
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_analde(np, child) {
 		ret = of_property_read_string(child, "compatible", &compat);
 		if (ret)
 			continue;
-		/* Count child nodes with stm32 adc compatible */
+		/* Count child analdes with stm32 adc compatible */
 		if (strstr(compat, "st,stm32") && strstr(compat, "adc"))
 			count++;
 	}
@@ -708,17 +708,17 @@ static int stm32_adc_probe(struct platform_device *pdev)
 {
 	struct stm32_adc_priv *priv;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct resource *res;
 	u32 max_rate;
 	int ret;
 
-	if (!pdev->dev.of_node)
-		return -ENODEV;
+	if (!pdev->dev.of_analde)
+		return -EANALDEV;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 	platform_set_drvdata(pdev, &priv->common);
 
 	priv->cfg = device_get_match_data(dev);
@@ -754,7 +754,7 @@ static int stm32_adc_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	pm_runtime_get_noresume(dev);
+	pm_runtime_get_analresume(dev);
 	pm_runtime_set_active(dev);
 	pm_runtime_set_autosuspend_delay(dev, STM32_ADC_CORE_SLEEP_DELAY_MS);
 	pm_runtime_use_autosuspend(dev);
@@ -776,7 +776,7 @@ static int stm32_adc_probe(struct platform_device *pdev)
 	priv->common.vref_mv = ret / 1000;
 	dev_dbg(&pdev->dev, "vref+=%dmV\n", priv->common.vref_mv);
 
-	ret = of_property_read_u32(pdev->dev.of_node, "st,max-clk-rate-hz",
+	ret = of_property_read_u32(pdev->dev.of_analde, "st,max-clk-rate-hz",
 				   &max_rate);
 	if (!ret)
 		priv->max_clk_rate = min(max_rate, priv->cfg->max_clk_rate_hz);
@@ -809,7 +809,7 @@ err_hw_stop:
 err_pm_stop:
 	pm_runtime_disable(dev);
 	pm_runtime_set_suspended(dev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 
 	return ret;
 }
@@ -825,7 +825,7 @@ static void stm32_adc_remove(struct platform_device *pdev)
 	stm32_adc_core_hw_stop(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_set_suspended(&pdev->dev);
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_analidle(&pdev->dev);
 }
 
 static int stm32_adc_core_runtime_suspend(struct device *dev)

@@ -50,7 +50,7 @@ static const struct dmi_system_id atomisp2_led_systems[] __initconst = {
 	{
 		.matches = {
 			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
-			/* Non exact match to also match T100TAF */
+			/* Analn exact match to also match T100TAF */
 			DMI_MATCH(DMI_PRODUCT_NAME, "T100TA"),
 		},
 		.driver_data = &asus_t100ta_lookup,
@@ -82,13 +82,13 @@ static int __init atomisp2_led_init(void)
 
 	system = dmi_first_match(atomisp2_led_systems);
 	if (!system)
-		return -ENODEV;
+		return -EANALDEV;
 
 	gpio_lookup = system->driver_data;
 	gpiod_add_lookup_table(gpio_lookup);
 
 	pdev = platform_device_register_resndata(NULL,
-						 DEV_NAME, PLATFORM_DEVID_NONE,
+						 DEV_NAME, PLATFORM_DEVID_ANALNE,
 						 NULL, 0, &atomisp2_leds_pdata,
 						 sizeof(atomisp2_leds_pdata));
 	if (IS_ERR(pdev))

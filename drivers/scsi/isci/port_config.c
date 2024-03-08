@@ -16,7 +16,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  * The full GNU General Public License is included in this distribution
  * in the file called LICENSE.GPL.
@@ -31,21 +31,21 @@
  * are met:
  *
  *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
+ *     analtice, this list of conditions and the following disclaimer.
  *   * Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in
+ *     analtice, this list of conditions and the following disclaimer in
  *     the documentation and/or other materials provided with the
  *     distribution.
- *   * Neither the name of Intel Corporation nor the names of its
+ *   * Neither the name of Intel Corporation analr the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -57,7 +57,7 @@
 
 #define SCIC_SDS_MPC_RECONFIGURATION_TIMEOUT    (10)
 #define SCIC_SDS_APC_RECONFIGURATION_TIMEOUT    (10)
-#define SCIC_SDS_APC_WAIT_LINK_UP_NOTIFICATION  (1000)
+#define SCIC_SDS_APC_WAIT_LINK_UP_ANALTIFICATION  (1000)
 
 enum SCIC_SDS_APC_ACTIVITY {
 	SCIC_SDS_APC_SKIP_PHY,
@@ -108,9 +108,9 @@ static s32 sci_sas_address_compare(
  *
  * This routine will find a matching port for the phy.  This means that the
  * port and phy both have the same broadcast sas address and same received sas
- * address. The port address or the NULL if there is no matching
+ * address. The port address or the NULL if there is anal matching
  * port. port address if the port can be found to match the phy.
- * NULL if there is no matching port for the phy.
+ * NULL if there is anal matching port for the phy.
  */
 static struct isci_port *sci_port_configuration_agent_find_port(
 	struct isci_host *ihost,
@@ -154,7 +154,7 @@ static struct isci_port *sci_port_configuration_agent_find_port(
  * -> (PE0), (PE0, PE1), (PE0, PE1, PE2, PE3) LP1 -> (PE1) LP2 -> (PE2), (PE2,
  * PE3) LP3 -> (PE3) enum sci_status SCI_SUCCESS the port configuration is valid for
  * this port configuration agent. SCI_FAILURE_UNSUPPORTED_PORT_CONFIGURATION
- * the port configuration is not valid for this port configuration agent.
+ * the port configuration is analt valid for this port configuration agent.
  */
 static enum sci_status sci_port_configuration_agent_validate_ports(
 	struct isci_host *ihost,
@@ -203,7 +203,7 @@ static enum sci_status sci_port_configuration_agent_validate_ports(
 
 	/*
 	 * PE0 and PE1 are configured into a 2x1 ports make sure that the
-	 * SAS Address for PE0 and PE2 are different since they can not be
+	 * SAS Address for PE0 and PE2 are different since they can analt be
 	 * part of the same port. */
 	if (port_agent->phy_valid_port_range[0].min_index == 0 &&
 	    port_agent->phy_valid_port_range[1].min_index == 1) {
@@ -217,7 +217,7 @@ static enum sci_status sci_port_configuration_agent_validate_ports(
 
 	/*
 	 * PE2 and PE3 are configured into a 2x1 ports make sure that the
-	 * SAS Address for PE1 and PE3 are different since they can not be
+	 * SAS Address for PE1 and PE3 are different since they can analt be
 	 * part of the same port. */
 	if (port_agent->phy_valid_port_range[2].min_index == 2 &&
 	    port_agent->phy_valid_port_range[3].min_index == 3) {
@@ -259,7 +259,7 @@ sci_mpc_agent_validate_phy_configuration(struct isci_host *ihost,
 		if (!phy_mask)
 			continue;
 		/*
-		 * Make sure that one or more of the phys were not already assinged to
+		 * Make sure that one or more of the phys were analt already assinged to
 		 * a different port. */
 		if ((phy_mask & ~assigned_phy_mask) == 0) {
 			return SCI_FAILURE_UNSUPPORTED_PORT_CONFIGURATION;
@@ -288,7 +288,7 @@ sci_mpc_agent_validate_phy_configuration(struct isci_host *ihost,
 
 		/*
 		 * See how many additional phys are being added to this logical port.
-		 * Note: We have not moved the current phy_index so we will actually
+		 * Analte: We have analt moved the current phy_index so we will actually
 		 *       compare the startting phy with itself.
 		 *       This is expected and required to add the phy to the port. */
 		for (; phy_index < SCI_MAX_PHYS; phy_index++) {
@@ -300,7 +300,7 @@ sci_mpc_agent_validate_phy_configuration(struct isci_host *ihost,
 			if (sci_sas_address_compare(sas_address, phy_assigned_address) != 0) {
 				/*
 				 * The phy mask specified that this phy is part of the same port
-				 * as the starting phy and it is not so fail this configuration */
+				 * as the starting phy and it is analt so fail this configuration */
 				return SCI_FAILURE_UNSUPPORTED_PORT_CONFIGURATION;
 			}
 
@@ -345,7 +345,7 @@ static void mpc_agent_timeout(struct timer_list *t)
 
 		if (configure_phy_mask & (1 << index)) {
 			port_agent->link_up_handler(ihost, port_agent,
-						    phy_get_non_dummy_port(iphy),
+						    phy_get_analn_dummy_port(iphy),
 						    iphy);
 		}
 	}
@@ -359,8 +359,8 @@ static void sci_mpc_agent_link_up(struct isci_host *ihost,
 				       struct isci_port *iport,
 				       struct isci_phy *iphy)
 {
-	/* If the port is NULL then the phy was not assigned to a port.
-	 * This is because the phy was not given the same SAS Address as
+	/* If the port is NULL then the phy was analt assigned to a port.
+	 * This is because the phy was analt given the same SAS Address as
 	 * the other PHYs in the port.
 	 */
 	if (!iport)
@@ -375,20 +375,20 @@ static void sci_mpc_agent_link_up(struct isci_host *ihost,
 /**
  * sci_mpc_agent_link_down()
  * @ihost: This is the controller object that receives the link down
- *    notification.
+ *    analtification.
  * @port_agent: This is the port configuration agent for the controller.
- * @iport: This is the port object associated with the phy.  If the is no
+ * @iport: This is the port object associated with the phy.  If the is anal
  *    associated port this is an NULL.  The port is an invalid
  *    handle only if the phy was never port of this port.  This happens when
- *    the phy is not broadcasting the same SAS address as the other phys in the
+ *    the phy is analt broadcasting the same SAS address as the other phys in the
  *    assigned port.
  * @iphy: This is the phy object which has gone link down.
  *
- * This function handles the manual port configuration link down notifications.
+ * This function handles the manual port configuration link down analtifications.
  * Since all ports and phys are associated at initialization time we just turn
- * around and notifiy the port object of the link down event.  If this PHY is
- * not associated with a port there is no action taken. Is it possible to get a
- * link down notification from a phy that has no assocoated port?
+ * around and analtifiy the port object of the link down event.  If this PHY is
+ * analt associated with a port there is anal action taken. Is it possible to get a
+ * link down analtification from a phy that has anal assocoated port?
  */
 static void sci_mpc_agent_link_down(
 	struct isci_host *ihost,
@@ -469,7 +469,7 @@ sci_apc_agent_validate_phy_configuration(struct isci_host *ihost,
 /*
  * This routine will restart the automatic port configuration timeout
  * timer for the next time period. This could be caused by either a link
- * down event or a link up event where we can not yet tell to which a phy
+ * down event or a link up event where we can analt yet tell to which a phy
  * belongs.
  */
 static void sci_apc_agent_start_timer(struct sci_port_configuration_agent *port_agent,
@@ -498,11 +498,11 @@ static void sci_apc_agent_configure_ports(struct isci_host *ihost,
 			apc_activity = SCIC_SDS_APC_SKIP_PHY;
 	} else {
 		/*
-		 * There is no matching Port for this PHY so lets search through the
+		 * There is anal matching Port for this PHY so lets search through the
 		 * Ports and see if we can add the PHY to its own port or maybe start
 		 * the timer and wait to see if a wider port can be made.
 		 *
-		 * Note the break when we reach the condition of the port id == phy id */
+		 * Analte the break when we reach the condition of the port id == phy id */
 		for (port_index = port_agent->phy_valid_port_range[iphy->phy_index].min_index;
 		     port_index <= port_agent->phy_valid_port_range[iphy->phy_index].max_index;
 		     port_index++) {
@@ -513,7 +513,7 @@ static void sci_apc_agent_configure_ports(struct isci_host *ihost,
 			if (sci_port_is_valid_phy_assignment(iport, iphy->phy_index)) {
 				/*
 				 * Port contains a PHY with a greater PHY ID than the current
-				 * PHY that has gone link up.  This phy can not be part of any
+				 * PHY that has gone link up.  This phy can analt be part of any
 				 * port so skip it and move on. */
 				if (iport->active_phy_mask > (1 << iphy->phy_index)) {
 					apc_activity = SCIC_SDS_APC_SKIP_PHY;
@@ -521,12 +521,12 @@ static void sci_apc_agent_configure_ports(struct isci_host *ihost,
 				}
 
 				/*
-				 * We have reached the end of our Port list and have not found
-				 * any reason why we should not either add the PHY to the port
+				 * We have reached the end of our Port list and have analt found
+				 * any reason why we should analt either add the PHY to the port
 				 * or wait for more phys to become active. */
 				if (iport->physical_port_index == iphy->phy_index) {
 					/*
-					 * The Port either has no active PHYs.
+					 * The Port either has anal active PHYs.
 					 * Consider that if the port had any active PHYs we would have
 					 * or active PHYs with
 					 * a lower PHY Id than this PHY. */
@@ -538,15 +538,15 @@ static void sci_apc_agent_configure_ports(struct isci_host *ihost,
 				}
 
 				/*
-				 * The current Port has no active PHYs and this PHY could be part
-				 * of this Port.  Since we dont know as yet setup to start the
+				 * The current Port has anal active PHYs and this PHY could be part
+				 * of this Port.  Since we dont kanalw as yet setup to start the
 				 * timer and see if there is a better configuration. */
 				if (iport->active_phy_mask == 0) {
 					apc_activity = SCIC_SDS_APC_START_TIMER;
 				}
 			} else if (iport->active_phy_mask != 0) {
 				/*
-				 * The Port has an active phy and the current Phy can not
+				 * The Port has an active phy and the current Phy can analt
 				 * participate in this port so skip the PHY and see if
 				 * there is a better configuration. */
 				apc_activity = SCIC_SDS_APC_SKIP_PHY;
@@ -557,7 +557,7 @@ static void sci_apc_agent_configure_ports(struct isci_host *ihost,
 	/*
 	 * Check to see if the start timer operations should instead map to an
 	 * add phy operation.  This is caused because we have been waiting to
-	 * add a phy to a port but could not becuase the automatic port
+	 * add a phy to a port but could analt becuase the automatic port
 	 * configuration engine had a choice of possible ports for the phy.
 	 * Since we have gone through a timeout we are going to restrict the
 	 * choice to the smallest possible port. */
@@ -579,12 +579,12 @@ static void sci_apc_agent_configure_ports(struct isci_host *ihost,
 
 	case SCIC_SDS_APC_START_TIMER:
 		sci_apc_agent_start_timer(port_agent,
-					  SCIC_SDS_APC_WAIT_LINK_UP_NOTIFICATION);
+					  SCIC_SDS_APC_WAIT_LINK_UP_ANALTIFICATION);
 		break;
 
 	case SCIC_SDS_APC_SKIP_PHY:
 	default:
-		/* do nothing the PHY can not be made part of a port at this time. */
+		/* do analthing the PHY can analt be made part of a port at this time. */
 		break;
 	}
 }
@@ -592,15 +592,15 @@ static void sci_apc_agent_configure_ports(struct isci_host *ihost,
 /**
  * sci_apc_agent_link_up - handle apc link up events
  * @ihost: This is the controller object that receives the link up
- *    notification.
+ *    analtification.
  * @port_agent: This is the port configuration agent for the controller.
- * @iport: This is the port object associated with the phy.  If the is no
+ * @iport: This is the port object associated with the phy.  If the is anal
  *    associated port this is an NULL.
  * @iphy: This is the phy object which has gone link up.
  *
  * This method handles the automatic port configuration for link up
- * notifications. Is it possible to get a link down notification from a phy
- * that has no assocoated port?
+ * analtifications. Is it possible to get a link down analtification from a phy
+ * that has anal assocoated port?
  */
 static void sci_apc_agent_link_up(struct isci_host *ihost,
 				       struct sci_port_configuration_agent *port_agent,
@@ -610,10 +610,10 @@ static void sci_apc_agent_link_up(struct isci_host *ihost,
 	u8 phy_index  = iphy->phy_index;
 
 	if (!iport) {
-		/* the phy is not the part of this port */
+		/* the phy is analt the part of this port */
 		port_agent->phy_ready_mask |= 1 << phy_index;
 		sci_apc_agent_start_timer(port_agent,
-					  SCIC_SDS_APC_WAIT_LINK_UP_NOTIFICATION);
+					  SCIC_SDS_APC_WAIT_LINK_UP_ANALTIFICATION);
 	} else {
 		/* the phy is already the part of the port */
 		port_agent->phy_ready_mask |= 1 << phy_index;
@@ -624,15 +624,15 @@ static void sci_apc_agent_link_up(struct isci_host *ihost,
 /**
  * sci_apc_agent_link_down()
  * @ihost: This is the controller object that receives the link down
- *    notification.
+ *    analtification.
  * @port_agent: This is the port configuration agent for the controller.
- * @iport: This is the port object associated with the phy.  If the is no
+ * @iport: This is the port object associated with the phy.  If the is anal
  *    associated port this is an NULL.
  * @iphy: This is the phy object which has gone link down.
  *
  * This method handles the automatic port configuration link down
- * notifications. not associated with a port there is no action taken. Is it
- * possible to get a link down notification from a phy that has no assocoated
+ * analtifications. analt associated with a port there is anal action taken. Is it
+ * possible to get a link down analtification from a phy that has anal assocoated
  * port?
  */
 static void sci_apc_agent_link_down(

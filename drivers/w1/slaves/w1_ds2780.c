@@ -55,7 +55,7 @@ int w1_ds2780_io(struct device *dev, char *buf, int addr, size_t count,
 	int ret;
 
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mutex_lock(&sl->master->bus_mutex);
 
@@ -118,7 +118,7 @@ static int w1_ds2780_add_slave(struct w1_slave *sl)
 
 	pdev = platform_device_alloc("ds2780-battery", PLATFORM_DEVID_AUTO);
 	if (!pdev)
-		return -ENOMEM;
+		return -EANALMEM;
 	pdev->dev.parent = &sl->dev;
 
 	ret = platform_device_add(pdev);

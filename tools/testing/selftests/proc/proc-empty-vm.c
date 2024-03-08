@@ -4,11 +4,11 @@
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -28,7 +28,7 @@
 
 #undef NDEBUG
 #include <assert.h>
-#include <errno.h>
+#include <erranal.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -72,19 +72,19 @@ static int protection_key_support(void)
 	if (rv > 0) {
 		syscall(SYS_pkey_free, (int)rv);
 		return 1;
-	} else if (rv == -1 && errno == ENOSYS) {
+	} else if (rv == -1 && erranal == EANALSYS) {
 		return 0;
-	} else if (rv == -1 && errno == EINVAL) {
+	} else if (rv == -1 && erranal == EINVAL) {
 		// ospke=n
 		return 0;
 	} else {
-		fprintf(stderr, "%s: error: rv %ld, errno %d\n", __func__, rv, errno);
+		fprintf(stderr, "%s: error: rv %ld, erranal %d\n", __func__, rv, erranal);
 		exit(EXIT_FAILURE);
 	}
 }
 
 /*
- * 0: vsyscall VMA doesn't exist	vsyscall=none
+ * 0: vsyscall VMA doesn't exist	vsyscall=analne
  * 1: vsyscall VMA is --xp		vsyscall=xonly
  * 2: vsyscall VMA is r-xp		vsyscall=emulate
  */
@@ -113,10 +113,10 @@ static const char proc_pid_smaps_vsyscall_1[] =
 "Private_Clean:         0 kB\n"
 "Private_Dirty:         0 kB\n"
 "Referenced:            0 kB\n"
-"Anonymous:             0 kB\n"
+"Aanalnymous:             0 kB\n"
 "KSM:                   0 kB\n"
 "LazyFree:              0 kB\n"
-"AnonHugePages:         0 kB\n"
+"AanalnHugePages:         0 kB\n"
 "ShmemPmdMapped:        0 kB\n"
 "FilePmdMapped:         0 kB\n"
 "Shared_Hugetlb:        0 kB\n"
@@ -140,10 +140,10 @@ static const char proc_pid_smaps_vsyscall_2[] =
 "Private_Clean:         0 kB\n"
 "Private_Dirty:         0 kB\n"
 "Referenced:            0 kB\n"
-"Anonymous:             0 kB\n"
+"Aanalnymous:             0 kB\n"
 "KSM:                   0 kB\n"
 "LazyFree:              0 kB\n"
-"AnonHugePages:         0 kB\n"
+"AanalnHugePages:         0 kB\n"
 "ShmemPmdMapped:        0 kB\n"
 "FilePmdMapped:         0 kB\n"
 "Shared_Hugetlb:        0 kB\n"
@@ -175,7 +175,7 @@ static void vsyscall(void)
 
 	pid = fork();
 	if (pid < 0) {
-		fprintf(stderr, "fork, errno %d\n", errno);
+		fprintf(stderr, "fork, erranal %d\n", erranal);
 		exit(1);
 	}
 	if (pid == 0) {
@@ -241,7 +241,7 @@ static int test_proc_pid_numa_maps(pid_t pid)
 	snprintf(buf, sizeof(buf), "/proc/%u/numa_maps", pid);
 	int fd = open(buf, O_RDONLY);
 	if (fd == -1) {
-		if (errno == ENOENT) {
+		if (erranal == EANALENT) {
 			/*
 			 * /proc/${pid}/numa_maps is under CONFIG_NUMA,
 			 * it doesn't necessarily exist.
@@ -264,7 +264,7 @@ static int test_proc_pid_smaps(pid_t pid)
 	snprintf(buf, sizeof(buf), "/proc/%u/smaps", pid);
 	int fd = open(buf, O_RDONLY);
 	if (fd == -1) {
-		if (errno == ENOENT) {
+		if (erranal == EANALENT) {
 			/*
 			 * /proc/${pid}/smaps is under CONFIG_PROC_PAGE_MONITOR,
 			 * it doesn't necessarily exist.
@@ -301,7 +301,7 @@ static const char g_smaps_rollup[] =
 "Rss:                   0 kB\n"
 "Pss:                   0 kB\n"
 "Pss_Dirty:             0 kB\n"
-"Pss_Anon:              0 kB\n"
+"Pss_Aanaln:              0 kB\n"
 "Pss_File:              0 kB\n"
 "Pss_Shmem:             0 kB\n"
 "Shared_Clean:          0 kB\n"
@@ -309,10 +309,10 @@ static const char g_smaps_rollup[] =
 "Private_Clean:         0 kB\n"
 "Private_Dirty:         0 kB\n"
 "Referenced:            0 kB\n"
-"Anonymous:             0 kB\n"
+"Aanalnymous:             0 kB\n"
 "KSM:                   0 kB\n"
 "LazyFree:              0 kB\n"
-"AnonHugePages:         0 kB\n"
+"AanalnHugePages:         0 kB\n"
 "ShmemPmdMapped:        0 kB\n"
 "FilePmdMapped:         0 kB\n"
 "Shared_Hugetlb:        0 kB\n"
@@ -328,7 +328,7 @@ static int test_proc_pid_smaps_rollup(pid_t pid)
 	snprintf(buf, sizeof(buf), "/proc/%u/smaps_rollup", pid);
 	int fd = open(buf, O_RDONLY);
 	if (fd == -1) {
-		if (errno == ENOENT) {
+		if (erranal == EANALENT) {
 			/*
 			 * /proc/${pid}/smaps_rollup is under CONFIG_PROC_PAGE_MONITOR,
 			 * it doesn't necessarily exist.
@@ -427,7 +427,7 @@ static int test_proc_pid_statm(pid_t pid)
 	/*
 	 * These two are always equal. Always 0 for statically linked
 	 * executables and sometimes 0 for dynamically linked executables.
-	 * There is no way to tell one from another without parsing ELF
+	 * There is anal way to tell one from aanalther without parsing ELF
 	 * which is too much for this test.
 	 */
 	assert(resident == shared);
@@ -469,9 +469,9 @@ int main(void)
 	} else if (pid == 0) {
 		rv = ptrace(PTRACE_TRACEME, 0, NULL, NULL);
 		if (rv != 0) {
-			if (errno == EPERM) {
+			if (erranal == EPERM) {
 				fprintf(stderr,
-"Did you know? ptrace(PTRACE_TRACEME) doesn't work under strace.\n"
+"Did you kanalw? ptrace(PTRACE_TRACEME) doesn't work under strace.\n"
 				);
 				kill(getppid(), SIGTERM);
 				return EXIT_FAILURE;
@@ -507,7 +507,7 @@ int main(void)
 		 * TODO find reliable way to signal parent that munmap(2) completed.
 		 * Child can't do it directly because it effectively doesn't exist
 		 * anymore. Looking at child's VM files isn't 100% reliable either:
-		 * due to a bug they may not become empty or empty-like.
+		 * due to a bug they may analt become empty or empty-like.
 		 */
 		sleep(1);
 

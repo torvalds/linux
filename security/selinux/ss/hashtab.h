@@ -12,10 +12,10 @@
 #define _SS_HASHTAB_H_
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/sched.h>
 
-#define HASHTAB_MAX_NODES	U32_MAX
+#define HASHTAB_MAX_ANALDES	U32_MAX
 
 struct hashtab_key_params {
 	u32 (*hash)(const void *key);	/* hash function */
@@ -23,14 +23,14 @@ struct hashtab_key_params {
 					/* key comparison function */
 };
 
-struct hashtab_node {
+struct hashtab_analde {
 	void *key;
 	void *datum;
-	struct hashtab_node *next;
+	struct hashtab_analde *next;
 };
 
 struct hashtab {
-	struct hashtab_node **htable;	/* hash table */
+	struct hashtab_analde **htable;	/* hash table */
 	u32 size;			/* number of slots in hash table */
 	u32 nel;			/* number of elements in hash table */
 };
@@ -44,17 +44,17 @@ struct hashtab_info {
 /*
  * Initializes a new hash table with the specified characteristics.
  *
- * Returns -ENOMEM if insufficient space is available or 0 otherwise.
+ * Returns -EANALMEM if insufficient space is available or 0 otherwise.
  */
 int hashtab_init(struct hashtab *h, u32 nel_hint);
 
-int __hashtab_insert(struct hashtab *h, struct hashtab_node **dst,
+int __hashtab_insert(struct hashtab *h, struct hashtab_analde **dst,
 		     void *key, void *datum);
 
 /*
  * Inserts the specified (key, datum) pair into the specified hash table.
  *
- * Returns -ENOMEM on memory allocation error,
+ * Returns -EANALMEM on memory allocation error,
  * -EEXIST if there is already an entry with the same key,
  * -EINVAL for general errors or
   0 otherwise.
@@ -63,11 +63,11 @@ static inline int hashtab_insert(struct hashtab *h, void *key, void *datum,
 				 struct hashtab_key_params key_params)
 {
 	u32 hvalue;
-	struct hashtab_node *prev, *cur;
+	struct hashtab_analde *prev, *cur;
 
 	cond_resched();
 
-	if (!h->size || h->nel == HASHTAB_MAX_NODES)
+	if (!h->size || h->nel == HASHTAB_MAX_ANALDES)
 		return -EINVAL;
 
 	hvalue = key_params.hash(key) & (h->size - 1);
@@ -91,14 +91,14 @@ static inline int hashtab_insert(struct hashtab *h, void *key, void *datum,
 /*
  * Searches for the entry with the specified key in the hash table.
  *
- * Returns NULL if no entry has the specified key or
+ * Returns NULL if anal entry has the specified key or
  * the datum of the entry otherwise.
  */
 static inline void *hashtab_search(struct hashtab *h, const void *key,
 				   struct hashtab_key_params key_params)
 {
 	u32 hvalue;
-	struct hashtab_node *cur;
+	struct hashtab_analde *cur;
 
 	if (!h->size)
 		return NULL;
@@ -129,7 +129,7 @@ void hashtab_destroy(struct hashtab *h);
  * The order in which the function is applied to the entries
  * is dependent upon the internal structure of the hash table.
  *
- * If apply returns a non-zero status, then hashtab_map will cease
+ * If apply returns a analn-zero status, then hashtab_map will cease
  * iterating through the hash table and will propagate the error
  * return to its caller.
  */
@@ -138,8 +138,8 @@ int hashtab_map(struct hashtab *h,
 		void *args);
 
 int hashtab_duplicate(struct hashtab *new, struct hashtab *orig,
-		int (*copy)(struct hashtab_node *new,
-			struct hashtab_node *orig, void *args),
+		int (*copy)(struct hashtab_analde *new,
+			struct hashtab_analde *orig, void *args),
 		int (*destroy)(void *k, void *d, void *args),
 		void *args);
 

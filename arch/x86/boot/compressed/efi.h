@@ -3,10 +3,10 @@
 #define BOOT_COMPRESSED_EFI_H
 
 #if defined(_LINUX_EFI_H) || defined(_ASM_X86_EFI_H)
-#error Please do not include kernel proper namespace headers
+#error Please do analt include kernel proper namespace headers
 #endif
 
-typedef guid_t efi_guid_t __aligned(__alignof__(u32));
+typedef guid_t efi_guid_t __aligned(__aliganalf__(u32));
 
 #define EFI_GUID(a, b, c, d...) (efi_guid_t){ {					\
 	(a) & 0xff, ((a) >> 8) & 0xff, ((a) >> 16) & 0xff, ((a) >> 24) & 0xff,	\

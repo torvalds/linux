@@ -251,7 +251,7 @@
 			#gpio-range-cells = <0x3>;
 			pinctrl-single,register-width = <0x20>;
 			pinctrl-single,function-mask = <0x7>;
-			/* pin base in node, nr pins & gpio function */
+			/* pin base in analde, nr pins & gpio function */
 			pinctrl-single,gpio-range = <&range 0 42 0>;
 
 			i2s2_pmx_func: i2s2-pins {

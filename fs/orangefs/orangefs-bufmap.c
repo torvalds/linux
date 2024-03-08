@@ -278,7 +278,7 @@ orangefs_bufmap_map(struct orangefs_bufmap *bufmap,
 			SetPageError(bufmap->page_array[i]);
 			unpin_user_page(bufmap->page_array[i]);
 		}
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/*
@@ -307,7 +307,7 @@ orangefs_bufmap_map(struct orangefs_bufmap *bufmap,
  *
  * initializes the mapped buffer interface
  *
- * returns 0 on success, -errno on failure
+ * returns 0 on success, -erranal on failure
  */
 int orangefs_bufmap_initialize(struct ORANGEFS_dev_map_desc *user_desc)
 {
@@ -354,12 +354,12 @@ int orangefs_bufmap_initialize(struct ORANGEFS_dev_map_desc *user_desc)
 	}
 
 	if ((user_desc->size % PAGE_SIZE) != 0) {
-		gossip_err("orangefs error: bufmap size not page size divisible (%d).\n",
+		gossip_err("orangefs error: bufmap size analt page size divisible (%d).\n",
 			   user_desc->size);
 		goto out;
 	}
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	bufmap = orangefs_bufmap_alloc(user_desc);
 	if (!bufmap)
 		goto out;
@@ -386,7 +386,7 @@ int orangefs_bufmap_initialize(struct ORANGEFS_dev_map_desc *user_desc)
 	spin_unlock(&orangefs_bufmap_lock);
 
 	gossip_debug(GOSSIP_BUFMAP_DEBUG,
-		     "orangefs_bufmap_initialize: exiting normally\n");
+		     "orangefs_bufmap_initialize: exiting analrmally\n");
 	return 0;
 
 out_unmap_bufmap:
@@ -403,7 +403,7 @@ out:
  * shuts down the mapped buffer interface and releases any resources
  * associated with it
  *
- * no return value
+ * anal return value
  */
 void orangefs_bufmap_finalize(void)
 {
@@ -414,7 +414,7 @@ void orangefs_bufmap_finalize(void)
 	mark_killed(&rw_map);
 	mark_killed(&readdir_map);
 	gossip_debug(GOSSIP_BUFMAP_DEBUG,
-		     "orangefs_bufmap_finalize: exiting normally\n");
+		     "orangefs_bufmap_finalize: exiting analrmally\n");
 }
 
 void orangefs_bufmap_run_down(void)
@@ -437,7 +437,7 @@ void orangefs_bufmap_run_down(void)
  * gets a free mapped buffer descriptor, will sleep until one becomes
  * available if necessary
  *
- * returns slot on success, -errno on failure
+ * returns slot on success, -erranal on failure
  */
 int orangefs_bufmap_get(void)
 {
@@ -449,7 +449,7 @@ int orangefs_bufmap_get(void)
  *
  * returns a mapped buffer descriptor to the collection
  *
- * no return value
+ * anal return value
  */
 void orangefs_bufmap_put(int buffer_index)
 {
@@ -461,11 +461,11 @@ void orangefs_bufmap_put(int buffer_index)
  *
  * gets a free descriptor, will sleep until one becomes
  * available if necessary.
- * Although the readdir buffers are not mapped into kernel space
+ * Although the readdir buffers are analt mapped into kernel space
  * we could do that at a later point of time. Regardless, these
  * indices are used by the client-core.
  *
- * returns slot on success, -errno on failure
+ * returns slot on success, -erranal on failure
  */
 int orangefs_readdir_index_get(void)
 {

@@ -59,7 +59,7 @@ static void __init earlycon_init(struct earlycon_device *device,
 	const char *s;
 	size_t len;
 
-	/* scan backwards from end of string for first non-numeral */
+	/* scan backwards from end of string for first analn-numeral */
 	for (s = name + strlen(name);
 	     s > name && s[-1] >= '0' && s[-1] <= '9';
 	     s--)
@@ -156,7 +156,7 @@ static int __init register_earlycon(char *buf, const struct earlycon_id *match)
 	if (err < 0)
 		return err;
 	if (!early_console_dev.con->write)
-		return -ENODEV;
+		return -EANALDEV;
 
 	register_console(early_console_dev.con);
 	return 0;
@@ -217,7 +217,7 @@ again:
 		goto again;
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 /*
@@ -242,7 +242,7 @@ static int __init param_setup_earlycon(char *buf)
 	}
 
 	err = setup_earlycon(buf);
-	if (err == -ENOENT || err == -EALREADY)
+	if (err == -EANALENT || err == -EALREADY)
 		return 0;
 	return err;
 }
@@ -251,7 +251,7 @@ early_param("earlycon", param_setup_earlycon);
 #ifdef CONFIG_OF_EARLY_FLATTREE
 
 int __init of_setup_earlycon(const struct earlycon_id *match,
-			     unsigned long node,
+			     unsigned long analde,
 			     const char *options)
 {
 	int err;
@@ -265,25 +265,25 @@ int __init of_setup_earlycon(const struct earlycon_id *match,
 
 	spin_lock_init(&port->lock);
 	port->iotype = UPIO_MEM;
-	addr = of_flat_dt_translate_address(node);
+	addr = of_flat_dt_translate_address(analde);
 	if (addr == OF_BAD_ADDR) {
 		pr_warn("[%s] bad address\n", match->name);
 		return -ENXIO;
 	}
 	port->mapbase = addr;
 
-	val = of_get_flat_dt_prop(node, "reg-offset", NULL);
+	val = of_get_flat_dt_prop(analde, "reg-offset", NULL);
 	if (val)
 		port->mapbase += be32_to_cpu(*val);
 	port->membase = earlycon_map(port->mapbase, SZ_4K);
 
-	val = of_get_flat_dt_prop(node, "reg-shift", NULL);
+	val = of_get_flat_dt_prop(analde, "reg-shift", NULL);
 	if (val)
 		port->regshift = be32_to_cpu(*val);
-	big_endian = of_get_flat_dt_prop(node, "big-endian", NULL) != NULL ||
+	big_endian = of_get_flat_dt_prop(analde, "big-endian", NULL) != NULL ||
 		(IS_ENABLED(CONFIG_CPU_BIG_ENDIAN) &&
-		 of_get_flat_dt_prop(node, "native-endian", NULL) != NULL);
-	val = of_get_flat_dt_prop(node, "reg-io-width", NULL);
+		 of_get_flat_dt_prop(analde, "native-endian", NULL) != NULL);
+	val = of_get_flat_dt_prop(analde, "reg-io-width", NULL);
 	if (val) {
 		switch (be32_to_cpu(*val)) {
 		case 1:
@@ -301,11 +301,11 @@ int __init of_setup_earlycon(const struct earlycon_id *match,
 		}
 	}
 
-	val = of_get_flat_dt_prop(node, "current-speed", NULL);
+	val = of_get_flat_dt_prop(analde, "current-speed", NULL);
 	if (val)
 		early_console_dev.baud = be32_to_cpu(*val);
 
-	val = of_get_flat_dt_prop(node, "clock-frequency", NULL);
+	val = of_get_flat_dt_prop(analde, "clock-frequency", NULL);
 	if (val)
 		port->uartclk = be32_to_cpu(*val);
 
@@ -320,7 +320,7 @@ int __init of_setup_earlycon(const struct earlycon_id *match,
 	if (err < 0)
 		return err;
 	if (!early_console_dev.con->write)
-		return -ENODEV;
+		return -EANALDEV;
 
 
 	register_console(early_console_dev.con);

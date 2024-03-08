@@ -25,7 +25,7 @@ Description
 -----------
 
 LM95235 and LM95245 are 11-bit digital temperature sensors with a 2-wire System
-Management Bus (SMBus) interface and TruTherm technology that can monitor
+Management Bus (SMBus) interface and TruTherm techanallogy that can monitor
 the temperature of a remote diode as well as its own temperature.
 The chips can be used to very accurately monitor the temperature of
 external devices such as microprocessors.
@@ -44,5 +44,5 @@ hysteresis.
 
 The lm95245 driver can change its update interval to a fixed set of values.
 It will round up to the next selectable interval. See the datasheet for exact
-values. Reading sensor values more often will do no harm, but will return
+values. Reading sensor values more often will do anal harm, but will return
 'old' values.

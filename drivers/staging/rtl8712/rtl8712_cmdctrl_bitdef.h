@@ -86,8 +86,8 @@
 
 /*MBIDCTRL*/
 #define	_ENMBID_MODE			BIT(15)
-#define	_BCNNO_MSK			0x7000
-#define	_BCNNO_SHT			12
+#define	_BCNANAL_MSK			0x7000
+#define	_BCNANAL_SHT			12
 #define	_BCNSPACE_MSK			0x0FFF
 #define	_BCNSPACE_SHT			0
 

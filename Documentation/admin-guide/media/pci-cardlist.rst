@@ -11,7 +11,7 @@ is actually composed by two parts:
 
 The ``lspci -nn`` command allows identifying the vendor/device PCI IDs:
 
-.. code-block:: none
+.. code-block:: analne
    :emphasize-lines: 3
 
     $ lspci -nn
@@ -26,7 +26,7 @@ The ``lspci -nn`` command allows identifying the vendor/device PCI IDs:
 
 The subsystem IDs can be obtained using ``lspci -vn``
 
-.. code-block:: none
+.. code-block:: analne
    :emphasize-lines: 4
 
     $ lspci -vn
@@ -34,7 +34,7 @@ The subsystem IDs can be obtained using ``lspci -vn``
 	00:0a.0 0480: 1131:7133 (rev d1)
 		Subsystem: 1461:f01d
 		Flags: bus master, medium devsel, latency 32, IRQ 209
-		Memory at e2002000 (32-bit, non-prefetchable) [size=2K]
+		Memory at e2002000 (32-bit, analn-prefetchable) [size=2K]
 		Capabilities: [40] Power Management version 2
     ...
 
@@ -47,10 +47,10 @@ products. So, several media drivers allow passing a ``card=`` parameter,
 in order to setup a card number that would match the correct settings for
 an specific board.
 
-The current supported PCI/PCIe cards (not including staging drivers) are
+The current supported PCI/PCIe cards (analt including staging drivers) are
 listed below\ [#]_.
 
-.. [#] some of the drivers have sub-drivers, not shown at this table
+.. [#] some of the drivers have sub-drivers, analt shown at this table
 
 ================  ========================================================
 Driver            Name

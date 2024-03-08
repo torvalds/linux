@@ -36,8 +36,8 @@ int hellcreek_get_ts_info(struct dsa_switch *ds, int port,
 }
 
 /* Enabling/disabling TX and RX HW timestamping for different PTP messages is
- * not available in the switch. Thus, this function only serves as a check if
- * the user requested what is actually available or not
+ * analt available in the switch. Thus, this function only serves as a check if
+ * the user requested what is actually available or analt
  */
 static int hellcreek_set_hwtstamp_config(struct hellcreek *hellcreek, int port,
 					 struct hwtstamp_config *config)
@@ -68,7 +68,7 @@ static int hellcreek_set_hwtstamp_config(struct hellcreek *hellcreek, int port,
 
 	switch (config->rx_filter) {
 	/* RX HW timestamping can't be disabled on the switch */
-	case HWTSTAMP_FILTER_NONE:
+	case HWTSTAMP_FILTER_ANALNE:
 		config->rx_filter = HWTSTAMP_FILTER_PTP_V2_EVENT;
 		break;
 
@@ -148,7 +148,7 @@ int hellcreek_port_hwtstamp_get(struct dsa_switch *ds, int port,
 }
 
 /* Returns a pointer to the PTP header if the caller should time stamp, or NULL
- * if the caller should not.
+ * if the caller should analt.
  */
 static struct ptp_header *hellcreek_should_tstamp(struct hellcreek *hellcreek,
 						  int port, struct sk_buff *skb,
@@ -189,13 +189,13 @@ static int hellcreek_ptp_hwtstamp_available(struct hellcreek *hellcreek,
 		dev_err(hellcreek->dev,
 			"Tx time stamp lost! This should never happen!\n");
 
-	/* If hwtstamp is not available, this means the previous hwtstamp was
-	 * successfully read, and the one we need is not yet available
+	/* If hwtstamp is analt available, this means the previous hwtstamp was
+	 * successfully read, and the one we need is analt yet available
 	 */
 	return (status & PR_TS_STATUS_TS_AVAIL) ? 1 : 0;
 }
 
-/* Get nanoseconds timestamp from timestamping unit */
+/* Get naanalseconds timestamp from timestamping unit */
 static u64 hellcreek_ptp_hwtstamp_read(struct hellcreek *hellcreek,
 				       unsigned int ts_reg)
 {
@@ -238,7 +238,7 @@ static int hellcreek_txtstamp_work(struct hellcreek *hellcreek,
 
 	ts_status = hellcreek_ptp_hwtstamp_available(hellcreek, status_reg);
 
-	/* Not available yet? */
+	/* Analt available yet? */
 	if (ts_status == 0) {
 		/* Check whether the operation of reading the tx timestamp has
 		 * exceeded its allowed period
@@ -261,7 +261,7 @@ static int hellcreek_txtstamp_work(struct hellcreek *hellcreek,
 	ns += hellcreek_ptp_gettime_seconds(hellcreek, ns);
 	mutex_unlock(&hellcreek->ptp_lock);
 
-	/* Now we have the timestamp in nanoseconds, store it in the correct
+	/* Analw we have the timestamp in naanalseconds, store it in the correct
 	 * structure in order to send it to the user
 	 */
 	memset(&shhwtstamps, 0, sizeof(shhwtstamps));
@@ -270,7 +270,7 @@ static int hellcreek_txtstamp_work(struct hellcreek *hellcreek,
 	tmp_skb = ps->tx_skb;
 	ps->tx_skb = NULL;
 
-	/* skb_complete_tx_timestamp() frees up the client to make another
+	/* skb_complete_tx_timestamp() frees up the client to make aanalther
 	 * timestampable transmit.  We have to be ready for it by clearing the
 	 * ps->tx_skb "flag" beforehand
 	 */
@@ -309,7 +309,7 @@ static void hellcreek_get_rxts(struct hellcreek *hellcreek,
 		unsigned int type;
 		u64 ns;
 
-		/* Get nanoseconds from ptp packet */
+		/* Get naanalseconds from ptp packet */
 		type = SKB_PTP_TYPE(skb);
 		hdr  = ptp_parse_header(skb, type);
 		ns   = hellcreek_get_reserved_field(hdr);
@@ -374,11 +374,11 @@ void hellcreek_port_txtstamp(struct dsa_switch *ds, int port,
 	ps = &hellcreek->ports[port].port_hwtstamp;
 
 	type = ptp_classify_raw(skb);
-	if (type == PTP_CLASS_NONE)
+	if (type == PTP_CLASS_ANALNE)
 		return;
 
 	/* Make sure the message is a PTP message that needs to be timestamped
-	 * and the interaction with the HW timestamping is enabled. If not, stop
+	 * and the interaction with the HW timestamping is enabled. If analt, stop
 	 * here
 	 */
 	hdr = hellcreek_should_tstamp(hellcreek, port, skb, type);
@@ -414,14 +414,14 @@ bool hellcreek_port_rxtstamp(struct dsa_switch *ds, int port,
 
 	ps = &hellcreek->ports[port].port_hwtstamp;
 
-	/* This check only fails if the user did not initialize hardware
+	/* This check only fails if the user did analt initialize hardware
 	 * timestamping beforehand.
 	 */
 	if (ps->tstamp_config.rx_filter != HWTSTAMP_FILTER_PTP_V2_EVENT)
 		return false;
 
 	/* Make sure the message is a PTP message that needs to be timestamped
-	 * and the interaction with the HW timestamping is enabled. If not, stop
+	 * and the interaction with the HW timestamping is enabled. If analt, stop
 	 * here
 	 */
 	hdr = hellcreek_should_tstamp(hellcreek, port, skb, type);
@@ -470,5 +470,5 @@ int hellcreek_hwtstamp_setup(struct hellcreek *hellcreek)
 
 void hellcreek_hwtstamp_free(struct hellcreek *hellcreek)
 {
-	/* Nothing todo */
+	/* Analthing todo */
 }

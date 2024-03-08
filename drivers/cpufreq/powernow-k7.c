@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  AMD K7 Powernow driver.
+ *  AMD K7 Poweranalw driver.
  *  (C) 2003 Dave Jones on behalf of SuSE Labs.
  *
  *  Based upon datasheets & sample CPUs kindly provided by AMD.
@@ -30,12 +30,12 @@
 #include <asm/msr.h>
 #include <asm/cpu_device_id.h>
 
-#ifdef CONFIG_X86_POWERNOW_K7_ACPI
+#ifdef CONFIG_X86_POWERANALW_K7_ACPI
 #include <linux/acpi.h>
 #include <acpi/processor.h>
 #endif
 
-#include "powernow-k7.h"
+#include "poweranalw-k7.h"
 
 struct psb_s {
 	u8 signature[10];
@@ -54,8 +54,8 @@ struct pst_s {
 	u8 numpstates;
 };
 
-#ifdef CONFIG_X86_POWERNOW_K7_ACPI
-union powernow_acpi_control_t {
+#ifdef CONFIG_X86_POWERANALW_K7_ACPI
+union poweranalw_acpi_control_t {
 	struct {
 		unsigned long fid:5,
 			vid:5,
@@ -88,7 +88,7 @@ static const int fid_codes[32] = {
 
 static int acpi_force;
 
-static struct cpufreq_frequency_table *powernow_table;
+static struct cpufreq_frequency_table *poweranalw_table;
 
 static unsigned int can_scale_bus;
 static unsigned int can_scale_vid;
@@ -108,25 +108,25 @@ static int check_fsb(unsigned int fsbspeed)
 	return delta < 5;
 }
 
-static const struct x86_cpu_id powernow_k7_cpuids[] = {
+static const struct x86_cpu_id poweranalw_k7_cpuids[] = {
 	X86_MATCH_VENDOR_FAM(AMD, 6, NULL),
 	{}
 };
-MODULE_DEVICE_TABLE(x86cpu, powernow_k7_cpuids);
+MODULE_DEVICE_TABLE(x86cpu, poweranalw_k7_cpuids);
 
-static int check_powernow(void)
+static int check_poweranalw(void)
 {
 	struct cpuinfo_x86 *c = &cpu_data(0);
 	unsigned int maxei, eax, ebx, ecx, edx;
 
-	if (!x86_match_cpu(powernow_k7_cpuids))
+	if (!x86_match_cpu(poweranalw_k7_cpuids))
 		return 0;
 
 	/* Get maximum capabilities */
 	maxei = cpuid_eax(0x80000000);
-	if (maxei < 0x80000007) {	/* Any powernow info ? */
+	if (maxei < 0x80000007) {	/* Any poweranalw info ? */
 #ifdef MODULE
-		pr_info("No powernow capabilities detected\n");
+		pr_info("Anal poweranalw capabilities detected\n");
 #endif
 		return 0;
 	}
@@ -142,7 +142,7 @@ static int check_powernow(void)
 	if (!(edx & (1 << 1 | 1 << 2)))
 		return 0;
 
-	pr_info("PowerNOW! Technology present. Can scale: ");
+	pr_info("PowerANALW! Techanallogy present. Can scale: ");
 
 	if (edx & 1 << 1) {
 		pr_cont("frequency");
@@ -161,10 +161,10 @@ static int check_powernow(void)
 	return 1;
 }
 
-#ifdef CONFIG_X86_POWERNOW_K7_ACPI
+#ifdef CONFIG_X86_POWERANALW_K7_ACPI
 static void invalidate_entry(unsigned int entry)
 {
-	powernow_table[entry].frequency = CPUFREQ_ENTRY_INVALID;
+	poweranalw_table[entry].frequency = CPUFREQ_ENTRY_INVALID;
 }
 #endif
 
@@ -174,21 +174,21 @@ static int get_ranges(unsigned char *pst)
 	unsigned int speed;
 	u8 fid, vid;
 
-	powernow_table = kzalloc((sizeof(*powernow_table) *
+	poweranalw_table = kzalloc((sizeof(*poweranalw_table) *
 				(number_scales + 1)), GFP_KERNEL);
-	if (!powernow_table)
-		return -ENOMEM;
+	if (!poweranalw_table)
+		return -EANALMEM;
 
 	for (j = 0 ; j < number_scales; j++) {
 		fid = *pst++;
 
-		powernow_table[j].frequency = (fsb * fid_codes[fid]) / 10;
-		powernow_table[j].driver_data = fid; /* lower 8 bits */
+		poweranalw_table[j].frequency = (fsb * fid_codes[fid]) / 10;
+		poweranalw_table[j].driver_data = fid; /* lower 8 bits */
 
-		speed = powernow_table[j].frequency;
+		speed = poweranalw_table[j].frequency;
 
 		if ((fid_codes[fid] % 10) == 5) {
-#ifdef CONFIG_X86_POWERNOW_K7_ACPI
+#ifdef CONFIG_X86_POWERANALW_K7_ACPI
 			if (have_a0 == 1)
 				invalidate_entry(j);
 #endif
@@ -200,7 +200,7 @@ static int get_ranges(unsigned char *pst)
 			maximum_speed = speed;
 
 		vid = *pst++;
-		powernow_table[j].driver_data |= (vid << 8); /* upper 8 bits */
+		poweranalw_table[j].driver_data |= (vid << 8); /* upper 8 bits */
 
 		pr_debug("   FID: 0x%x (%d.%dx [%dMHz])  "
 			 "VID: 0x%x (%d.%03dV)\n", fid, fid_codes[fid] / 10,
@@ -208,8 +208,8 @@ static int get_ranges(unsigned char *pst)
 			 mobile_vid_table[vid]/1000,
 			 mobile_vid_table[vid]%1000);
 	}
-	powernow_table[number_scales].frequency = CPUFREQ_TABLE_END;
-	powernow_table[number_scales].driver_data = 0;
+	poweranalw_table[number_scales].frequency = CPUFREQ_TABLE_END;
+	poweranalw_table[number_scales].driver_data = 0;
 
 	return 0;
 }
@@ -245,7 +245,7 @@ static void change_VID(int vid)
 }
 
 
-static int powernow_target(struct cpufreq_policy *policy, unsigned int index)
+static int poweranalw_target(struct cpufreq_policy *policy, unsigned int index)
 {
 	u8 fid, vid;
 	struct cpufreq_freqs freqs;
@@ -253,20 +253,20 @@ static int powernow_target(struct cpufreq_policy *policy, unsigned int index)
 	int cfid;
 
 	/* fid are the lower 8 bits of the index we stored into
-	 * the cpufreq frequency table in powernow_decode_bios,
+	 * the cpufreq frequency table in poweranalw_decode_bios,
 	 * vid are the upper 8 bits.
 	 */
 
-	fid = powernow_table[index].driver_data & 0xFF;
-	vid = (powernow_table[index].driver_data & 0xFF00) >> 8;
+	fid = poweranalw_table[index].driver_data & 0xFF;
+	vid = (poweranalw_table[index].driver_data & 0xFF00) >> 8;
 
 	rdmsrl(MSR_K7_FID_VID_STATUS, fidvidstatus.val);
 	cfid = fidvidstatus.bits.CFID;
 	freqs.old = fsb * fid_codes[cfid] / 10;
 
-	freqs.new = powernow_table[index].frequency;
+	freqs.new = poweranalw_table[index].frequency;
 
-	/* Now do the magic poking into the MSRs.  */
+	/* Analw do the magic poking into the MSRs.  */
 
 	if (have_a0 == 1)	/* A0 errata 5 */
 		local_irq_disable();
@@ -289,30 +289,30 @@ static int powernow_target(struct cpufreq_policy *policy, unsigned int index)
 }
 
 
-#ifdef CONFIG_X86_POWERNOW_K7_ACPI
+#ifdef CONFIG_X86_POWERANALW_K7_ACPI
 
 static struct acpi_processor_performance *acpi_processor_perf;
 
-static int powernow_acpi_init(void)
+static int poweranalw_acpi_init(void)
 {
 	int i;
 	int retval = 0;
-	union powernow_acpi_control_t pc;
+	union poweranalw_acpi_control_t pc;
 
-	if (acpi_processor_perf != NULL && powernow_table != NULL) {
+	if (acpi_processor_perf != NULL && poweranalw_table != NULL) {
 		retval = -EINVAL;
 		goto err0;
 	}
 
 	acpi_processor_perf = kzalloc(sizeof(*acpi_processor_perf), GFP_KERNEL);
 	if (!acpi_processor_perf) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto err0;
 	}
 
 	if (!zalloc_cpumask_var(&acpi_processor_perf->shared_cpu_map,
 								GFP_KERNEL)) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto err05;
 	}
 
@@ -323,27 +323,27 @@ static int powernow_acpi_init(void)
 
 	if (acpi_processor_perf->control_register.space_id !=
 			ACPI_ADR_SPACE_FIXED_HARDWARE) {
-		retval = -ENODEV;
+		retval = -EANALDEV;
 		goto err2;
 	}
 
 	if (acpi_processor_perf->status_register.space_id !=
 			ACPI_ADR_SPACE_FIXED_HARDWARE) {
-		retval = -ENODEV;
+		retval = -EANALDEV;
 		goto err2;
 	}
 
 	number_scales = acpi_processor_perf->state_count;
 
 	if (number_scales < 2) {
-		retval = -ENODEV;
+		retval = -EANALDEV;
 		goto err2;
 	}
 
-	powernow_table = kzalloc((sizeof(*powernow_table) *
+	poweranalw_table = kzalloc((sizeof(*poweranalw_table) *
 				(number_scales + 1)), GFP_KERNEL);
-	if (!powernow_table) {
-		retval = -ENOMEM;
+	if (!poweranalw_table) {
+		retval = -EANALMEM;
 		goto err2;
 	}
 
@@ -366,20 +366,20 @@ static int powernow_acpi_init(void)
 		vid = pc.bits.vid;
 		fid = pc.bits.fid;
 
-		powernow_table[i].frequency = fsb * fid_codes[fid] / 10;
-		powernow_table[i].driver_data = fid; /* lower 8 bits */
-		powernow_table[i].driver_data |= (vid << 8); /* upper 8 bits */
+		poweranalw_table[i].frequency = fsb * fid_codes[fid] / 10;
+		poweranalw_table[i].driver_data = fid; /* lower 8 bits */
+		poweranalw_table[i].driver_data |= (vid << 8); /* upper 8 bits */
 
-		speed = powernow_table[i].frequency;
+		speed = poweranalw_table[i].frequency;
 		speed_mhz = speed / 1000;
 
 		/* processor_perflib will multiply the MHz value by 1000 to
-		 * get a KHz value (e.g. 1266000). However, powernow-k7 works
+		 * get a KHz value (e.g. 1266000). However, poweranalw-k7 works
 		 * with true KHz values (e.g. 1266768). To ensure that all
-		 * powernow frequencies are available, we must ensure that
+		 * poweranalw frequencies are available, we must ensure that
 		 * ACPI doesn't restrict them, so we round up the MHz value
 		 * to ensure that perflib's computed KHz value is greater than
-		 * or equal to powernow's KHz value.
+		 * or equal to poweranalw's KHz value.
 		 */
 		if (speed % 1000 > 0)
 			speed_mhz++;
@@ -410,11 +410,11 @@ static int powernow_acpi_init(void)
 			maximum_speed = speed;
 	}
 
-	powernow_table[i].frequency = CPUFREQ_TABLE_END;
-	powernow_table[i].driver_data = 0;
+	poweranalw_table[i].frequency = CPUFREQ_TABLE_END;
+	poweranalw_table[i].driver_data = 0;
 
-	/* notify BIOS that we exist */
-	acpi_processor_notify_smm(THIS_MODULE);
+	/* analtify BIOS that we exist */
+	acpi_processor_analtify_smm(THIS_MODULE);
 
 	return 0;
 
@@ -425,14 +425,14 @@ err1:
 err05:
 	kfree(acpi_processor_perf);
 err0:
-	pr_warn("ACPI perflib can not be used on this platform\n");
+	pr_warn("ACPI perflib can analt be used on this platform\n");
 	acpi_processor_perf = NULL;
 	return retval;
 }
 #else
-static int powernow_acpi_init(void)
+static int poweranalw_acpi_init(void)
 {
-	pr_info("no support for ACPI processor found - please recompile your kernel with ACPI processor\n");
+	pr_info("anal support for ACPI processor found - please recompile your kernel with ACPI processor\n");
 	return -EINVAL;
 }
 #endif
@@ -444,7 +444,7 @@ static void print_pst_entry(struct pst_s *pst, unsigned int j)
 		pst->cpuid, pst->fsbspeed, pst->maxfid, pst->startvid);
 }
 
-static int powernow_decode_bios(int maxfid, int startvid)
+static int poweranalw_decode_bios(int maxfid, int startvid)
 {
 	struct psb_s *psb;
 	struct pst_s *pst;
@@ -459,13 +459,13 @@ static int powernow_decode_bios(int maxfid, int startvid)
 
 		p = phys_to_virt(i);
 
-		if (memcmp(p, "AMDK7PNOW!",  10) == 0) {
+		if (memcmp(p, "AMDK7PANALW!",  10) == 0) {
 			pr_debug("Found PSB header at %p\n", p);
 			psb = (struct psb_s *) p;
 			pr_debug("Table version: 0x%x\n", psb->tableversion);
 			if (psb->tableversion != 0x12) {
-				pr_info("Sorry, only v1.2 tables supported right now\n");
-				return -ENODEV;
+				pr_info("Sorry, only v1.2 tables supported right analw\n");
+				return -EANALDEV;
 			}
 
 			pr_debug("Flags: 0x%x\n", psb->flags);
@@ -509,7 +509,7 @@ static int powernow_decode_bios(int maxfid, int startvid)
 						p += 2;
 				}
 			}
-			pr_info("No PST tables match this cpuid (0x%x)\n",
+			pr_info("Anal PST tables match this cpuid (0x%x)\n",
 				etuple);
 			pr_info("This is indicative of a broken BIOS\n");
 
@@ -518,7 +518,7 @@ static int powernow_decode_bios(int maxfid, int startvid)
 		p++;
 	}
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 
@@ -528,7 +528,7 @@ static int powernow_decode_bios(int maxfid, int startvid)
  * to this multiple.
  * That way, we match more how AMD thinks all of that work.
  * We will then get the same kind of behaviour already tested under
- * the "well-known" other OS.
+ * the "well-kanalwn" other OS.
  */
 static int fixup_sgtc(void)
 {
@@ -550,7 +550,7 @@ static int fixup_sgtc(void)
 	return sgtc;
 }
 
-static unsigned int powernow_get(unsigned int cpu)
+static unsigned int poweranalw_get(unsigned int cpu)
 {
 	union msr_fidvidstatus fidvidstatus;
 	unsigned int cfid;
@@ -578,7 +578,7 @@ static int acer_cpufreq_pst(const struct dmi_system_id *d)
  * A BIOS update is all that can save them.
  * Mention this, and disable cpufreq.
  */
-static const struct dmi_system_id powernow_dmi_table[] = {
+static const struct dmi_system_id poweranalw_dmi_table[] = {
 	{
 		.callback = acer_cpufreq_pst,
 		.ident = "Acer Aspire",
@@ -590,13 +590,13 @@ static const struct dmi_system_id powernow_dmi_table[] = {
 	{ }
 };
 
-static int powernow_cpu_init(struct cpufreq_policy *policy)
+static int poweranalw_cpu_init(struct cpufreq_policy *policy)
 {
 	union msr_fidvidstatus fidvidstatus;
 	int result;
 
 	if (policy->cpu != 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	rdmsrl(MSR_K7_FID_VID_STATUS, fidvidstatus.val);
 
@@ -604,23 +604,23 @@ static int powernow_cpu_init(struct cpufreq_policy *policy)
 
 	fsb = (10 * cpu_khz) / fid_codes[fidvidstatus.bits.CFID];
 	if (!fsb) {
-		pr_warn("can not determine bus frequency\n");
+		pr_warn("can analt determine bus frequency\n");
 		return -EINVAL;
 	}
 	pr_debug("FSB: %3dMHz\n", fsb/1000);
 
-	if (dmi_check_system(powernow_dmi_table) || acpi_force) {
-		pr_info("PSB/PST known to be broken - trying ACPI instead\n");
-		result = powernow_acpi_init();
+	if (dmi_check_system(poweranalw_dmi_table) || acpi_force) {
+		pr_info("PSB/PST kanalwn to be broken - trying ACPI instead\n");
+		result = poweranalw_acpi_init();
 	} else {
-		result = powernow_decode_bios(fidvidstatus.bits.MFID,
+		result = poweranalw_decode_bios(fidvidstatus.bits.MFID,
 				fidvidstatus.bits.SVID);
 		if (result) {
 			pr_info("Trying ACPI perflib\n");
 			maximum_speed = 0;
 			minimum_speed = -1;
 			latency = 0;
-			result = powernow_acpi_init();
+			result = poweranalw_acpi_init();
 			if (result) {
 				pr_info("ACPI and legacy methods failed\n");
 			}
@@ -639,14 +639,14 @@ static int powernow_cpu_init(struct cpufreq_policy *policy)
 
 	policy->cpuinfo.transition_latency =
 		cpufreq_scale(2000000UL, fsb, latency);
-	policy->freq_table = powernow_table;
+	policy->freq_table = poweranalw_table;
 
 	return 0;
 }
 
-static int powernow_cpu_exit(struct cpufreq_policy *policy)
+static int poweranalw_cpu_exit(struct cpufreq_policy *policy)
 {
-#ifdef CONFIG_X86_POWERNOW_K7_ACPI
+#ifdef CONFIG_X86_POWERANALW_K7_ACPI
 	if (acpi_processor_perf) {
 		acpi_processor_unregister_performance(0);
 		free_cpumask_var(acpi_processor_perf->shared_cpu_map);
@@ -654,43 +654,43 @@ static int powernow_cpu_exit(struct cpufreq_policy *policy)
 	}
 #endif
 
-	kfree(powernow_table);
+	kfree(poweranalw_table);
 	return 0;
 }
 
-static struct cpufreq_driver powernow_driver = {
+static struct cpufreq_driver poweranalw_driver = {
 	.verify		= cpufreq_generic_frequency_table_verify,
-	.target_index	= powernow_target,
-	.get		= powernow_get,
-#ifdef CONFIG_X86_POWERNOW_K7_ACPI
+	.target_index	= poweranalw_target,
+	.get		= poweranalw_get,
+#ifdef CONFIG_X86_POWERANALW_K7_ACPI
 	.bios_limit	= acpi_processor_get_bios_limit,
 #endif
-	.init		= powernow_cpu_init,
-	.exit		= powernow_cpu_exit,
-	.name		= "powernow-k7",
+	.init		= poweranalw_cpu_init,
+	.exit		= poweranalw_cpu_exit,
+	.name		= "poweranalw-k7",
 	.attr		= cpufreq_generic_attr,
 };
 
-static int __init powernow_init(void)
+static int __init poweranalw_init(void)
 {
-	if (check_powernow() == 0)
-		return -ENODEV;
-	return cpufreq_register_driver(&powernow_driver);
+	if (check_poweranalw() == 0)
+		return -EANALDEV;
+	return cpufreq_register_driver(&poweranalw_driver);
 }
 
 
-static void __exit powernow_exit(void)
+static void __exit poweranalw_exit(void)
 {
-	cpufreq_unregister_driver(&powernow_driver);
+	cpufreq_unregister_driver(&poweranalw_driver);
 }
 
 module_param(acpi_force,  int, 0444);
 MODULE_PARM_DESC(acpi_force, "Force ACPI to be used.");
 
 MODULE_AUTHOR("Dave Jones");
-MODULE_DESCRIPTION("Powernow driver for AMD K7 processors.");
+MODULE_DESCRIPTION("Poweranalw driver for AMD K7 processors.");
 MODULE_LICENSE("GPL");
 
-late_initcall(powernow_init);
-module_exit(powernow_exit);
+late_initcall(poweranalw_init);
+module_exit(poweranalw_exit);
 

@@ -37,7 +37,7 @@ static void timer_work(void)
 
 	timer  = bpf_map_lookup_elem(&timers, &key);
 	if (timer) {
-		bpf_timer_init(&timer->t, &timers, CLOCK_MONOTONIC);
+		bpf_timer_init(&timer->t, &timers, CLOCK_MOANALTONIC);
 		bpf_timer_set_callback(&timer->t, timer_cb);
 		bpf_timer_start(&timer->t, 10E9, 0);
 		bpf_timer_cancel(&timer->t);
@@ -64,7 +64,7 @@ int raw_tp_timer(void *ctx)
 	return 0;
 }
 
-SEC("?tp/syscalls/sys_enter_nanosleep")
+SEC("?tp/syscalls/sys_enter_naanalsleep")
 int tp_timer(void *ctx)
 {
 	timer_work();
@@ -96,7 +96,7 @@ int raw_tp_spin_lock(void *ctx)
 	return 0;
 }
 
-SEC("?tp/syscalls/sys_enter_nanosleep")
+SEC("?tp/syscalls/sys_enter_naanalsleep")
 int tp_spin_lock(void *ctx)
 {
 	spin_lock_work();

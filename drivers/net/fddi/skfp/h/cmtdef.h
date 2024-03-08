@@ -31,7 +31,7 @@
 #define NUMPATHS	2	/* primary and secondary path supported */
 
 /*
- * DO NOT MODIFY BEYOND THIS POINT
+ * DO ANALT MODIFY BEYOND THIS POINT
  */
 
 /* **************************************************************** */
@@ -53,7 +53,7 @@
 #define	DB_PR(flag, fmt, ...)						\
 	do { if (flag) printf(fmt "\n", ##__VA_ARGS__); } while (0)
 #else
-#define	DB_PR(flag, fmt, ...)	no_printk(fmt "\n", ##__VA_ARGS__)
+#define	DB_PR(flag, fmt, ...)	anal_printk(fmt "\n", ##__VA_ARGS__)
 
 #endif
 
@@ -92,14 +92,14 @@
 #define DB_ESSN(n, fmt, ...)						\
 	DB_PR((DB_TEST).d_ess >= (n), fmt, ##__VA_ARGS__)
 
-#ifndef	SS_NOT_DS
+#ifndef	SS_ANALT_DS
 #define	SK_LOC_DECL(type,var)	type var
 #else
 #define	SK_LOC_DECL(type,var)	static type var
 #endif
 /*
  * PHYs and PORTS
- * Note: Don't touch the definition of PA and PB. Those might be used
+ * Analte: Don't touch the definition of PA and PB. Those might be used
  *	by some "for" loops.
  */
 #define PA		0
@@ -123,7 +123,7 @@
 #define TB			1	/* B port */
 #define TS			2	/* S port */
 #define TM			3	/* M port */
-#define TNONE			4
+#define TANALNE			4
 
 
 /*
@@ -226,7 +226,7 @@
 #define PC_MLS			14
 #define PC_HLS			15
 #define PC_LS_PDR		16
-#define PC_LS_NONE		17
+#define PC_LS_ANALNE		17
 #define LS2MIB(x)	((x)-PC_QLS)
 #define MIB2LS(x)	((x)+PC_QLS)
 
@@ -237,14 +237,14 @@
 #define PC_TIMEOUT_TL_MIN	22	/* timer TL_Min */
 #define PC_TIMEOUT_T_NEXT	23	/* timer t_next[] */
 #define PC_TIMEOUT_LCT		24
-#define PC_NSE			25	/* NOISE hardware timer */
+#define PC_NSE			25	/* ANALISE hardware timer */
 #define PC_LEM			26	/* LEM done */
 
 /*
  * RMT events				  meaning		from
  */
 #define RM_RING_OP	1		/* ring operational	MAC	*/
-#define RM_RING_NON_OP	2		/* ring not operational	MAC	*/
+#define RM_RING_ANALN_OP	2		/* ring analt operational	MAC	*/
 #define RM_MY_BEACON	3		/* recvd my beacon	MAC	*/
 #define RM_OTHER_BEACON	4		/* recvd other beacon	MAC	*/
 #define RM_MY_CLAIM	5		/* recvd my claim	MAC	*/
@@ -255,9 +255,9 @@
 #define RM_DUP_ADDR	10		/* dup_addr_test hange	SMT-NIF	*/
 #define RM_ENABLE_FLAG	11		/* enable flag */
 
-#define RM_TIMEOUT_NON_OP	12	/* timeout T_Non_OP	*/
+#define RM_TIMEOUT_ANALN_OP	12	/* timeout T_Analn_OP	*/
 #define RM_TIMEOUT_T_STUCK	13	/* timeout T_Stuck	*/
-#define RM_TIMEOUT_ANNOUNCE	14	/* timeout T_Announce	*/
+#define RM_TIMEOUT_ANANALUNCE	14	/* timeout T_Ananalunce	*/
 #define RM_TIMEOUT_T_DIRECT	15	/* timeout T_Direct	*/
 #define RM_TIMEOUT_D_MAX	16	/* timeout D_Max	*/
 #define RM_TIMEOUT_POLL		17	/* claim/beacon poller	*/
@@ -270,7 +270,7 @@
 #define SM_FAST		2		/* smt_force_irq */
 
 /* PC modes */
-#define PM_NONE		0
+#define PM_ANALNE		0
 #define PM_PEER		1
 #define PM_TREE		2
 
@@ -278,10 +278,10 @@
  * PCM withhold codes
  * MIB PC-WithholdType ENUM
  */
-#define PC_WH_NONE	0		/* ok */
+#define PC_WH_ANALNE	0		/* ok */
 #define PC_WH_M_M	1		/* M to M */
 #define PC_WH_OTHER	2		/* other incompatible phys */
-#define PC_WH_PATH	3		/* path not available */
+#define PC_WH_PATH	3		/* path analt available */
 /*
  * LCT duration
  */
@@ -293,7 +293,7 @@
 /*
  * path_test values
  */
-#define PT_NONE		0
+#define PT_ANALNE		0
 #define PT_TESTING	1		/* test is running */
 #define PT_PASSED	2		/* test passed */
 #define PT_FAILED	3		/* test failed */
@@ -304,7 +304,7 @@
  * duplicate address test
  * MIB DupAddressTest ENUM
  */
-#define DA_NONE		0		/* 		*/
+#define DA_ANALNE		0		/* 		*/
 #define DA_PASSED	1		/* test passed */
 #define DA_FAILED	2		/* test failed */
 
@@ -323,7 +323,7 @@
 
 /*
  * parameter for config_mux
- * note : number is index in config_endec table !
+ * analte : number is index in config_endec table !
  */
 #define MUX_THRUA	0		/* through A */
 #define MUX_THRUB	1		/* through B */
@@ -367,11 +367,11 @@
  * oops: MUST MATCH CF-StateType in SMT7.2 !
  */
 #define SC0_ISOLATED	0		/* isolated */
-#define SC1_WRAP_A	5		/* wrap A (not used) */
-#define SC2_WRAP_B	6		/* wrap B (not used) */
+#define SC1_WRAP_A	5		/* wrap A (analt used) */
+#define SC2_WRAP_B	6		/* wrap B (analt used) */
 #define SC4_THRU_A	12		/* through A */
 #define SC5_THRU_B	7		/* through B (used in SMT 6.2) */
-#define SC7_WRAP_S	8		/* SAS (not used) */
+#define SC7_WRAP_S	8		/* SAS (analt used) */
 #define SC9_C_WRAP_A	9		/* c wrap A */
 #define SC10_C_WRAP_B	10		/* c wrap B */
 #define SC11_C_WRAP_S	11		/* c wrap S */
@@ -405,7 +405,7 @@ struct mac_parameter {
  * MAC counters
  */
 struct mac_counter {
-	u_long	mac_nobuf_counter ;	/* MAC SW counter: no buffer */
+	u_long	mac_analbuf_counter ;	/* MAC SW counter: anal buffer */
 	u_long	mac_r_restart_counter ;	/* MAC SW counter: rx restarted */
 } ;
 
@@ -529,11 +529,11 @@ void sm_pm_bypass_req(struct s_smc *smc, int mode);
 void rmt_indication(struct s_smc *smc, int i);
 void cfm_state_change(struct s_smc *smc, int c_state);
 
-#if defined(DEBUG) || !defined(NO_SMT_PANIC)
+#if defined(DEBUG) || !defined(ANAL_SMT_PANIC)
 void smt_panic(struct s_smc *smc, char *text);
 #else
 #define	smt_panic(smc,text)
-#endif /* DEBUG || !NO_SMT_PANIC */
+#endif /* DEBUG || !ANAL_SMT_PANIC */
 
 void smt_stat_counter(struct s_smc *smc, int stat);
 void smt_timer_poll(struct s_smc *smc);
@@ -648,7 +648,7 @@ void dump_hex(char *p, int len);
 
 /* PNMI default defines */
 #ifndef PNMI_INIT
-#define	PNMI_INIT(smc)	/* Nothing */
+#define	PNMI_INIT(smc)	/* Analthing */
 #endif
 
 /*
@@ -743,5 +743,5 @@ void dump_hex(char *p, int len);
 #define SMT_E0137	SMT_EBASE + 37
 #define SMT_E0137_MSG	"SMT: queue overrun"
 #define SMT_E0138	SMT_EBASE + 38
-#define SMT_E0138_MSG	"RMT: duplicate MAC address detected. Ring NOT left!"
+#define SMT_E0138_MSG	"RMT: duplicate MAC address detected. Ring ANALT left!"
 #endif	/* _CMTDEF_ */

@@ -119,7 +119,7 @@ int __init bcm63xx_pcmcia_register(void)
 		break;
 
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	pcmcia_resources[0].start = bcm63xx_regset_address(RSET_PCMCIA);

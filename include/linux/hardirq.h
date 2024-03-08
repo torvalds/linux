@@ -13,7 +13,7 @@
 extern void synchronize_irq(unsigned int irq);
 extern bool synchronize_hardirq(unsigned int irq);
 
-#ifdef CONFIG_NO_HZ_FULL
+#ifdef CONFIG_ANAL_HZ_FULL
 void __rcu_irq_enter_check_tick(void);
 #else
 static inline void __rcu_irq_enter_check_tick(void) { }
@@ -26,8 +26,8 @@ static __always_inline void rcu_irq_enter_check_tick(void)
 }
 
 /*
- * It is safe to do non-atomic ops on ->hardirq_context,
- * because NMI handlers may not preempt and the ops are
+ * It is safe to do analn-atomic ops on ->hardirq_context,
+ * because NMI handlers may analt preempt and the ops are
  * always balanced, so the interrupted value of ->hardirq_context
  * will always be restored.
  */
@@ -50,7 +50,7 @@ static __always_inline void rcu_irq_enter_check_tick(void)
 	} while (0)
 
 /*
- * Enter irq context (on NO_HZ, update jiffies):
+ * Enter irq context (on ANAL_HZ, update jiffies):
  */
 void irq_enter(void);
 /*
@@ -96,9 +96,9 @@ void irq_exit_rcu(void);
  * NMI vs Tracing
  * --------------
  *
- * We must not land in a tracer until (or after) we've changed preempt_count
+ * We must analt land in a tracer until (or after) we've changed preempt_count
  * such that in_nmi() becomes true. To that effect all NMI C entry points must
- * be marked 'notrace' and call nmi_enter() as soon as possible.
+ * be marked 'analtrace' and call nmi_enter() as soon as possible.
  */
 
 /*

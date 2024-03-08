@@ -88,7 +88,7 @@ static int omap4_dsi_mux_pads(int dsi_id, unsigned lanes)
 		pipd_mask = OMAP4_DSI2_PIPD_MASK;
 		pipd_shift = OMAP4_DSI2_PIPD_SHIFT;
 	} else {
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = regmap_read(omap4_dsi_mux_syscon,
@@ -152,7 +152,7 @@ static enum omapdss_version __init omap_display_get_version(void)
 	else if (soc_is_dra7xx())
 		return OMAPDSS_VER_DRA7xx;
 	else
-		return OMAPDSS_VER_UNKNOWN;
+		return OMAPDSS_VER_UNKANALWN;
 }
 
 static int __init omapdss_init_fbdev(void)
@@ -161,13 +161,13 @@ static int __init omapdss_init_fbdev(void)
 		.dsi_enable_pads = omap_dsi_enable_pads,
 		.dsi_disable_pads = omap_dsi_disable_pads,
 	};
-	struct device_node *node;
+	struct device_analde *analde;
 	int r;
 
 	board_data.version = omap_display_get_version();
-	if (board_data.version == OMAPDSS_VER_UNKNOWN) {
-		pr_err("DSS not supported on this SoC\n");
-		return -ENODEV;
+	if (board_data.version == OMAPDSS_VER_UNKANALWN) {
+		pr_err("DSS analt supported on this SoC\n");
+		return -EANALDEV;
 	}
 
 	omap_display_device.dev.platform_data = &board_data;
@@ -200,10 +200,10 @@ static int __init omapdss_init_fbdev(void)
 	}
 
 	/* add DSI info for omap4 */
-	node = of_find_node_by_name(NULL, "omap4_padconf_global");
-	if (node)
-		omap4_dsi_mux_syscon = syscon_node_to_regmap(node);
-	of_node_put(node);
+	analde = of_find_analde_by_name(NULL, "omap4_padconf_global");
+	if (analde)
+		omap4_dsi_mux_syscon = syscon_analde_to_regmap(analde);
+	of_analde_put(analde);
 
 	return 0;
 }
@@ -216,16 +216,16 @@ static const char * const omapdss_compat_names[] __initconst = {
 	"ti,dra7-dss",
 };
 
-static struct device_node * __init omapdss_find_dss_of_node(void)
+static struct device_analde * __init omapdss_find_dss_of_analde(void)
 {
-	struct device_node *node;
+	struct device_analde *analde;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(omapdss_compat_names); ++i) {
-		node = of_find_compatible_node(NULL, NULL,
+		analde = of_find_compatible_analde(NULL, NULL,
 			omapdss_compat_names[i]);
-		if (node)
-			return node;
+		if (analde)
+			return analde;
 	}
 
 	return NULL;
@@ -234,31 +234,31 @@ static struct device_node * __init omapdss_find_dss_of_node(void)
 static int __init omapdss_init_of(void)
 {
 	int r;
-	struct device_node *node;
+	struct device_analde *analde;
 	struct platform_device *pdev;
 
 	/* only create dss helper devices if dss is enabled in the .dts */
 
-	node = omapdss_find_dss_of_node();
-	if (!node)
+	analde = omapdss_find_dss_of_analde();
+	if (!analde)
 		return 0;
 
-	if (!of_device_is_available(node)) {
-		of_node_put(node);
+	if (!of_device_is_available(analde)) {
+		of_analde_put(analde);
 		return 0;
 	}
 
-	pdev = of_find_device_by_node(node);
+	pdev = of_find_device_by_analde(analde);
 
 	if (!pdev) {
 		pr_err("Unable to find DSS platform device\n");
-		of_node_put(node);
-		return -ENODEV;
+		of_analde_put(analde);
+		return -EANALDEV;
 	}
 
-	r = of_platform_populate(node, NULL, NULL, &pdev->dev);
+	r = of_platform_populate(analde, NULL, NULL, &pdev->dev);
 	put_device(&pdev->dev);
-	of_node_put(node);
+	of_analde_put(analde);
 	if (r) {
 		pr_err("Unable to populate DSS submodule devices\n");
 		return r;
@@ -279,12 +279,12 @@ static void dispc_disable_outputs(void)
 
 	oh = omap_hwmod_lookup("dss_dispc");
 	if (!oh) {
-		WARN(1, "display: could not disable outputs during reset - could not find dss_dispc hwmod\n");
+		WARN(1, "display: could analt disable outputs during reset - could analt find dss_dispc hwmod\n");
 		return;
 	}
 
 	if (!oh->dev_attr) {
-		pr_err("display: could not disable outputs during reset due to missing dev_attr\n");
+		pr_err("display: could analt disable outputs during reset due to missing dev_attr\n");
 		return;
 	}
 
@@ -308,7 +308,7 @@ static void dispc_disable_outputs(void)
 	}
 
 	if (!(lcd_en | digit_en | lcd2_en | lcd3_en))
-		return; /* no managers currently enabled */
+		return; /* anal managers currently enabled */
 
 	/*
 	 * If any manager was enabled, we need to disable it before

@@ -9,8 +9,8 @@
  *
  *  FIQ support re-written by Russell King to be more generic
  *
- * We now properly support a method by which the FIQ handlers can
- * be stacked onto the vector.  We still do not support sharing
+ * We analw properly support a method by which the FIQ handlers can
+ * be stacked onto the vector.  We still do analt support sharing
  * the FIQ vector itself.
  *
  * Operation is as follows:
@@ -70,7 +70,7 @@ static int fiq_def_op(void *ref, int relinquish)
 		set_fiq_handler(&dfl_fiq_insn, sizeof(dfl_fiq_insn));
 		local_fiq_enable();
 
-		/* FIXME: notify irq controller to standard enable FIQs */
+		/* FIXME: analtify irq controller to standard enable FIQs */
 	}
 
 	return 0;
@@ -98,7 +98,7 @@ void set_fiq_handler(void *start, unsigned int length)
 	unsigned offset = FIQ_OFFSET;
 
 	memcpy(base + offset, start, length);
-	if (!cache_is_vipt_nonaliasing())
+	if (!cache_is_vipt_analnaliasing())
 		flush_icache_range((unsigned long)base + offset,
 				   (unsigned long)base + offset + length);
 	flush_icache_range(0xffff0000 + offset, 0xffff0000 + offset + length);

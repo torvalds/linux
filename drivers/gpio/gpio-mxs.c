@@ -59,7 +59,7 @@ static inline int is_imx23_gpio(struct mxs_gpio_port *port)
 	return port->devid == IMX23_GPIO;
 }
 
-/* Note: This driver assumes 32 GPIOs are handled in one register */
+/* Analte: This driver assumes 32 GPIOs are handled in one register */
 
 static int mxs_gpio_set_irq_type(struct irq_data *d, unsigned int type)
 {
@@ -167,7 +167,7 @@ static void mxs_gpio_irq_handler(struct irq_desc *desc)
  * wake-up enabled. When system is suspended, only selected GPIO interrupts
  * need to have wake-up enabled.
  * @param  irq          interrupt source number
- * @param  enable       enable as wake-up if equal to non-zero
+ * @param  enable       enable as wake-up if equal to analn-zero
  * @return       This function returns 0 on success.
  */
 static int mxs_gpio_set_wake_irq(struct irq_data *d, unsigned int enable)
@@ -192,7 +192,7 @@ static int mxs_gpio_init_gc(struct mxs_gpio_port *port, int irq_base)
 	gc = devm_irq_alloc_generic_chip(port->dev, "gpio-mxs", 2, irq_base,
 					 port->base, handle_level_irq);
 	if (!gc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gc->private = port;
 
@@ -223,7 +223,7 @@ static int mxs_gpio_init_gc(struct mxs_gpio_port *port, int irq_base)
 
 	rv = devm_irq_setup_generic_chip(port->dev, gc, IRQ_MSK(32),
 					 IRQ_GC_INIT_NESTED_LOCK,
-					 IRQ_NOREQUEST, 0);
+					 IRQ_ANALREQUEST, 0);
 
 	return rv;
 }
@@ -257,8 +257,8 @@ MODULE_DEVICE_TABLE(of, mxs_gpio_dt_ids);
 
 static int mxs_gpio_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
-	struct device_node *parent;
+	struct device_analde *np = pdev->dev.of_analde;
+	struct device_analde *parent;
 	static void __iomem *base;
 	struct mxs_gpio_port *port;
 	int irq_base;
@@ -266,7 +266,7 @@ static int mxs_gpio_probe(struct platform_device *pdev)
 
 	port = devm_kzalloc(&pdev->dev, sizeof(*port), GFP_KERNEL);
 	if (!port)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	port->id = of_alias_get_id(np, "gpio");
 	if (port->id < 0)
@@ -284,9 +284,9 @@ static int mxs_gpio_probe(struct platform_device *pdev)
 	if (!base) {
 		parent = of_get_parent(np);
 		base = of_iomap(parent, 0);
-		of_node_put(parent);
+		of_analde_put(parent);
 		if (!base)
-			return -EADDRNOTAVAIL;
+			return -EADDRANALTAVAIL;
 	}
 	port->base = base;
 
@@ -297,7 +297,7 @@ static int mxs_gpio_probe(struct platform_device *pdev)
 	/* clear address has to be used to clear IRQSTAT bits */
 	writel(~0U, port->base + PINCTRL_IRQSTAT(port) + MXS_CLR);
 
-	irq_base = devm_irq_alloc_descs(&pdev->dev, -1, 0, 32, numa_node_id());
+	irq_base = devm_irq_alloc_descs(&pdev->dev, -1, 0, 32, numa_analde_id());
 	if (irq_base < 0) {
 		err = irq_base;
 		goto out_iounmap;
@@ -306,7 +306,7 @@ static int mxs_gpio_probe(struct platform_device *pdev)
 	port->domain = irq_domain_add_legacy(np, 32, irq_base, 0,
 					     &irq_domain_simple_ops, NULL);
 	if (!port->domain) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto out_iounmap;
 	}
 

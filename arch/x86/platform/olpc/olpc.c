@@ -37,7 +37,7 @@ static int __init olpc_ec_timeout_set(char *str)
 	if (get_option(&str, &ec_timeout) != 1) {
 		ec_timeout = EC_BASE_TIMEOUT;
 		printk(KERN_ERR "olpc-ec:  invalid argument to "
-				"'olpc_ec_timeout=', ignoring!\n");
+				"'olpc_ec_timeout=', iganalring!\n");
 	}
 	printk(KERN_DEBUG "olpc-ec:  using %d ms delay for EC commands.\n",
 			ec_timeout);
@@ -46,7 +46,7 @@ static int __init olpc_ec_timeout_set(char *str)
 __setup("olpc_ec_timeout=", olpc_ec_timeout_set);
 
 /*
- * These {i,o}bf_status functions return whether the buffers are full or not.
+ * These {i,o}bf_status functions return whether the buffers are full or analt.
  */
 
 static inline unsigned int ibf_status(unsigned int port)
@@ -104,7 +104,7 @@ static int __wait_on_obf(unsigned int line, unsigned int port, int desired)
  * documented at <http://wiki.laptop.org/go/Embedded_controller>, and the
  * available EC commands are here:
  * <http://wiki.laptop.org/go/Ec_specification>.  Unfortunately, while
- * OpenFirmware's source is available, the EC's is not.
+ * OpenFirmware's source is available, the EC's is analt.
  */
 static int olpc_xo1_ec_cmd(u8 cmd, u8 *inbuf, size_t inlen, u8 *outbuf,
 		size_t outlen, void *arg)
@@ -130,8 +130,8 @@ static int olpc_xo1_ec_cmd(u8 cmd, u8 *inbuf, size_t inlen, u8 *outbuf,
 
 restart:
 	/*
-	 * Note that if we time out during any IBF checks, that's a failure;
-	 * we have to return.  There's no way for the kernel to clear that.
+	 * Analte that if we time out during any IBF checks, that's a failure;
+	 * we have to return.  There's anal way for the kernel to clear that.
 	 *
 	 * If we time out during an OBF check, we can restart the command;
 	 * reissuing it will clear the OBF flag, and we should be alright.
@@ -179,7 +179,7 @@ err:
 	return ret;
 }
 
-static bool __init check_ofw_architecture(struct device_node *root)
+static bool __init check_ofw_architecture(struct device_analde *root)
 {
 	const char *olpc_arch;
 	int propsize;
@@ -188,7 +188,7 @@ static bool __init check_ofw_architecture(struct device_node *root)
 	return propsize == 5 && strncmp("OLPC", olpc_arch, 5) == 0;
 }
 
-static u32 __init get_board_revision(struct device_node *root)
+static u32 __init get_board_revision(struct device_analde *root)
 {
 	int propsize;
 	const __be32 *rev;
@@ -202,7 +202,7 @@ static u32 __init get_board_revision(struct device_node *root)
 
 static bool __init platform_detect(void)
 {
-	struct device_node *root = of_find_node_by_path("/");
+	struct device_analde *root = of_find_analde_by_path("/");
 	bool success;
 
 	if (!root)
@@ -218,7 +218,7 @@ static bool __init platform_detect(void)
 			olpc_platform_info.boardrev >> 4);
 	}
 
-	of_node_put(root);
+	of_analde_put(root);
 	return success;
 }
 
@@ -302,7 +302,7 @@ static int __init olpc_init(void)
 		olpc_platform_info.flags |= OLPC_F_DCON;
 
 #ifdef CONFIG_PCI_OLPC
-	/* If the VSA exists let it emulate PCI, if not emulate in kernel.
+	/* If the VSA exists let it emulate PCI, if analt emulate in kernel.
 	 * XO-1 only. */
 	if (olpc_platform_info.boardrev < olpc_board_pre(0xd0) &&
 			!cs5535_has_vsa2())

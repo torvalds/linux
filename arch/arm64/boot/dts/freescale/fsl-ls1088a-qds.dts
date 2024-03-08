@@ -24,7 +24,7 @@
 	flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <1000000>;
 	};
@@ -32,7 +32,7 @@
 	flash@1 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		spi-cpol;
 		spi-cpha;
 		spi-max-frequency = <3500000>;
@@ -42,7 +42,7 @@
 	flash@2 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		spi-cpol;
 		spi-cpha;
 		spi-max-frequency = <3500000>;
@@ -113,7 +113,7 @@
 		  3 0 0x5 0x20000000 0x00010000>;
 	status = "okay";
 
-	nor@0,0 {
+	analr@0,0 {
 		compatible = "cfi-flash";
 		reg = <0x0 0x0 0x8000000>;
 		bank-width = <2>;
@@ -147,7 +147,7 @@
 	status = "okay";
 
 	s25fs512s0: flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		spi-max-frequency = <50000000>;
@@ -157,7 +157,7 @@
 	};
 
 	s25fs512s1: flash@1 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		spi-max-frequency = <50000000>;

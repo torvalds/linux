@@ -4,7 +4,7 @@
 
 set -e
 
-# Skip if no Intel PT
+# Skip if anal Intel PT
 perf list | grep -q 'intel_pt//' || exit 2
 
 shelldir=$(dirname "$0")
@@ -46,18 +46,18 @@ trap_cleanup()
 trap trap_cleanup EXIT TERM INT
 
 # perf record for testing without decoding
-perf_record_no_decode()
+perf_record_anal_decode()
 {
-	# Options to speed up recording: no post-processing, no build-id cache update,
-	# and no BPF events.
-	perf record -B -N --no-bpf-event "$@"
+	# Options to speed up recording: anal post-processing, anal build-id cache update,
+	# and anal BPF events.
+	perf record -B -N --anal-bpf-event "$@"
 }
 
-# perf record for testing should not need BPF events
-perf_record_no_bpf()
+# perf record for testing should analt need BPF events
+perf_record_anal_bpf()
 {
-	# Options for no BPF events
-	perf record --no-bpf-event "$@"
+	# Options for anal BPF events
+	perf record --anal-bpf-event "$@"
 }
 
 have_workload=false
@@ -73,7 +73,7 @@ void work(void) {
 
 	/* Run for about 30 seconds */
 	for (i = 0; i < 30000; i++)
-		nanosleep(&tm, NULL);
+		naanalsleep(&tm, NULL);
 }
 
 void *threadfunc(void *arg) {
@@ -94,8 +94,8 @@ _end_of_file_
 can_cpu_wide()
 {
 	echo "Checking for CPU-wide recording on CPU $1"
-	if ! perf_record_no_decode -o "${tmpfile}" -e dummy:u -C "$1" true >/dev/null 2>&1 ; then
-		echo "No so skipping"
+	if ! perf_record_anal_decode -o "${tmpfile}" -e dummy:u -C "$1" true >/dev/null 2>&1 ; then
+		echo "Anal so skipping"
 		return 2
 	fi
 	echo OK
@@ -111,10 +111,10 @@ test_system_wide_side_band()
 	can_cpu_wide 1 || return $?
 
 	# Record on CPU 0 a task running on CPU 1
-	perf_record_no_decode -o "${perfdatafile}" -e intel_pt//u -C 0 -- taskset --cpu-list 1 uname
+	perf_record_anal_decode -o "${perfdatafile}" -e intel_pt//u -C 0 -- taskset --cpu-list 1 uname
 
 	# Should get MMAP events from CPU 1 because they can be needed to decode
-	mmap_cnt=$(perf script -i "${perfdatafile}" --no-itrace --show-mmap-events -C 1 2>/dev/null | grep -c MMAP)
+	mmap_cnt=$(perf script -i "${perfdatafile}" --anal-itrace --show-mmap-events -C 1 2>/dev/null | grep -c MMAP)
 
 	if [ "${mmap_cnt}" -gt 0 ] ; then
 		echo OK
@@ -129,10 +129,10 @@ can_kernel()
 {
 	if [ -z "${can_kernel_trace}" ] ; then
 		can_kernel_trace=0
-		perf_record_no_decode -o "${tmpfile}" -e dummy:k true >/dev/null 2>&1 && can_kernel_trace=1
+		perf_record_anal_decode -o "${tmpfile}" -e dummy:k true >/dev/null 2>&1 && can_kernel_trace=1
 	fi
 	if [ ${can_kernel_trace} -eq 0 ] ; then
-		echo "SKIP: no kernel tracing"
+		echo "SKIP: anal kernel tracing"
 		return 2
 	fi
 	return 0
@@ -146,7 +146,7 @@ test_per_thread()
 	echo "--- Test per-thread ${desc}recording ---"
 
 	if ! $have_workload ; then
-		echo "No workload, so skipping"
+		echo "Anal workload, so skipping"
 		return 2
 	fi
 
@@ -195,7 +195,7 @@ test_per_thread()
 		if (fd in fd_array) {
 			mmap_array[fd] = 1
 		} else {
-			print "Unknown fd " fd
+			print "Unkanalwn fd " fd
 			exit 1
 		}
 	}
@@ -210,11 +210,11 @@ test_per_thread()
 			if (fd_to in fd_array) {
 				set_output_array[fd] = fd_to
 			} else {
-				print "Unknown fd " fd_to
+				print "Unkanalwn fd " fd_to
 				exit 1
 			}
 		} else {
-			print "Unknown fd " fd
+			print "Unkanalwn fd " fd
 			exit 1
 		}
 	}
@@ -240,7 +240,7 @@ test_per_thread()
 					cpus[cpu] = 1
 				}
 			} else if (!(fd in set_output_array)) {
-				print "No mmap for fd " fd
+				print "Anal mmap for fd " fd
 				exit 1
 			}
 		}
@@ -260,7 +260,7 @@ test_per_thread()
 	wait_for_threads ${w1} 2
 	wait_for_threads ${w2} 2
 
-	perf_record_no_decode -o "${perfdatafile}" -e intel_pt//u"${k}" -vvv --per-thread -p "${w1},${w2}" 2>"${errfile}" >"${outfile}" &
+	perf_record_anal_decode -o "${perfdatafile}" -e intel_pt//u"${k}" -vvv --per-thread -p "${w1},${w2}" 2>"${errfile}" >"${outfile}" &
 	ppid=$!
 	echo "perf PID is $ppid"
 	wait_for_perf_to_start ${ppid} "${errfile}" || return 1
@@ -289,7 +289,7 @@ test_jitdump()
 	jitdump_h="${jitdump_incl_dir}/jitdump.h"
 
 	if [ ! -e "${jitdump_h}" ] ; then
-		echo "SKIP: Include file jitdump.h not found"
+		echo "SKIP: Include file jitdump.h analt found"
 		return 2
 	fi
 
@@ -338,7 +338,7 @@ test_jitdump()
 			if (!f)
 				goto err;
 			/* Create an MMAP event for the jitdump file. That is how perf tool finds it. */
-			m = mmap(0, 4096, PROT_READ | PROT_EXEC, MAP_PRIVATE, fileno(f), 0);
+			m = mmap(0, 4096, PROT_READ | PROT_EXEC, MAP_PRIVATE, fileanal(f), 0);
 			if (m == MAP_FAILED)
 				goto err_close;
 			munmap(m, 4096);
@@ -380,7 +380,7 @@ test_jitdump()
 		int main()
 		{
 			/* Get a memory page to store executable code */
-			void *addr = mmap(0, 4096, PROT_WRITE | PROT_EXEC, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+			void *addr = mmap(0, 4096, PROT_WRITE | PROT_EXEC, MAP_AANALNYMOUS | MAP_PRIVATE, -1, 0);
 			/* Code to execute: mov CHK_BYTE, %eax ; ret */
 			uint8_t dat[] = {0xb8, CHK_BYTE, 0x00, 0x00, 0x00, 0xc3};
 			FILE *f = open_jitdump();
@@ -404,16 +404,16 @@ test_jitdump()
 	fi
 
 	if ! $have_jitdump_workload ; then
-		echo "SKIP: No jitdump workload"
+		echo "SKIP: Anal jitdump workload"
 		return 2
 	fi
 
 	# Change to temp_dir so jitdump collateral files go there
 	cd "${temp_dir}"
-	perf_record_no_bpf -o "${tmpfile}" -e intel_pt//u "${jitdump_workload}"
+	perf_record_anal_bpf -o "${tmpfile}" -e intel_pt//u "${jitdump_workload}"
 	perf inject -i "${tmpfile}" -o "${perfdatafile}" --jit
 	decode_br_cnt=$(perf script -i "${perfdatafile}" --itrace=b | wc -l)
-	# Note that overflow and lost errors are suppressed for the error count
+	# Analte that overflow and lost errors are suppressed for the error count
 	decode_err_cnt=$(perf script -i "${perfdatafile}" --itrace=e-o-l | grep -ci error)
 	cd -
 	# Should be thousands of branches
@@ -421,7 +421,7 @@ test_jitdump()
 		echo "Decode failed, only ${decode_br_cnt} branches"
 		return 1
 	fi
-	# Should be no errors
+	# Should be anal errors
 	if [ "${decode_err_cnt}" -ne 0 ] ; then
 		echo "Decode failed, ${decode_err_cnt} errors"
 		perf script -i "${perfdatafile}" --itrace=e-o-l --show-mmap-events | cat
@@ -436,14 +436,14 @@ test_packet_filter()
 {
 	echo "--- Test with MTC and TSC disabled ---"
 	# Disable MTC and TSC
-	perf_record_no_decode -o "${perfdatafile}" -e intel_pt/mtc=0,tsc=0/u uname
-	# Should not get MTC packet
+	perf_record_anal_decode -o "${perfdatafile}" -e intel_pt/mtc=0,tsc=0/u uname
+	# Should analt get MTC packet
 	mtc_cnt=$(perf script -i "${perfdatafile}" -D 2>/dev/null | grep -c "MTC 0x")
 	if [ "${mtc_cnt}" -ne 0 ] ; then
 		echo "Failed to filter with mtc=0"
 		return 1
 	fi
-	# Should not get TSC package
+	# Should analt get TSC package
 	tsc_cnt=$(perf script -i "${perfdatafile}" -D 2>/dev/null | grep -c "TSC 0x")
 	if [ "${tsc_cnt}" -ne 0 ] ; then
 		echo "Failed to filter with tsc=0"
@@ -457,8 +457,8 @@ test_disable_branch()
 {
 	echo "--- Test with branches disabled ---"
 	# Disable branch
-	perf_record_no_decode -o "${perfdatafile}" -e intel_pt/branch=0/u uname
-	# Should not get branch related packets
+	perf_record_anal_decode -o "${perfdatafile}" -e intel_pt/branch=0/u uname
+	# Should analt get branch related packets
 	tnt_cnt=$(perf script -i "${perfdatafile}" -D 2>/dev/null | grep -c "TNT 0x")
 	tip_cnt=$(perf script -i "${perfdatafile}" -D 2>/dev/null | grep -c "TIP 0x")
 	fup_cnt=$(perf script -i "${perfdatafile}" -D 2>/dev/null | grep -c "FUP 0x")
@@ -476,11 +476,11 @@ test_time_cyc()
 	# Check if CYC is supported
 	cyc=$(cat /sys/bus/event_source/devices/intel_pt/caps/psb_cyc)
 	if [ "${cyc}" != "1" ] ; then
-		echo "SKIP: CYC is not supported"
+		echo "SKIP: CYC is analt supported"
 		return 2
 	fi
 	# Enable CYC
-	perf_record_no_decode -o "${perfdatafile}" -e intel_pt/cyc/u uname
+	perf_record_anal_decode -o "${perfdatafile}" -e intel_pt/cyc/u uname
 	# should get CYC packets
 	cyc_cnt=$(perf script -i "${perfdatafile}" -D 2>/dev/null | grep -c "CYC 0x")
 	if [ "${cyc_cnt}" = "0" ] ; then
@@ -488,8 +488,8 @@ test_time_cyc()
 		return 1
 	fi
 	# Without CYC
-	perf_record_no_decode -o "${perfdatafile}" -e intel_pt//u uname
-	# Should not get CYC packets
+	perf_record_anal_decode -o "${perfdatafile}" -e intel_pt//u uname
+	# Should analt get CYC packets
 	cyc_cnt=$(perf script -i "${perfdatafile}" -D 2>/dev/null | grep -c "CYC 0x")
 	if [ "${cyc_cnt}" -gt 0 ] ; then
 		echo "Still get CYC packet without cyc"
@@ -503,13 +503,13 @@ test_sample()
 {
 	echo "--- Test recording with sample mode ---"
 	# Check if recording with sample mode is working
-	if ! perf_record_no_decode -o "${perfdatafile}" --aux-sample=8192 -e '{intel_pt//u,branch-misses:u}' uname ; then
+	if ! perf_record_anal_decode -o "${perfdatafile}" --aux-sample=8192 -e '{intel_pt//u,branch-misses:u}' uname ; then
 		echo "perf record failed with --aux-sample"
 		return 1
 	fi
 	# Check with event with PMU name
-	if perf_record_no_decode -o "${perfdatafile}" -e br_misp_retired.all_branches:u uname ; then
-		if ! perf_record_no_decode -o "${perfdatafile}" -e '{intel_pt//,br_misp_retired.all_branches/aux-sample-size=8192/}:u' uname ; then
+	if perf_record_anal_decode -o "${perfdatafile}" -e br_misp_retired.all_branches:u uname ; then
+		if ! perf_record_anal_decode -o "${perfdatafile}" -e '{intel_pt//,br_misp_retired.all_branches/aux-sample-size=8192/}:u' uname ; then
 			echo "perf record failed with --aux-sample-size"
 			return 1
 		fi
@@ -523,7 +523,7 @@ test_kernel_trace()
 	echo "--- Test with kernel trace ---"
 	# Check if recording with kernel trace is working
 	can_kernel || return 2
-	if ! perf_record_no_decode -o "${perfdatafile}" -e intel_pt//k -m1,128 uname ; then
+	if ! perf_record_anal_decode -o "${perfdatafile}" -e intel_pt//k -m1,128 uname ; then
 		echo "perf record failed with intel_pt//k"
 		return 1
 	fi
@@ -537,7 +537,7 @@ test_virtual_lbr()
 	# Check if python script is supported
 	libpython=$(perf version --build-options | grep python | grep -cv OFF)
 	if [ "${libpython}" != "1" ] ; then
-		echo "SKIP: python scripting is not supported"
+		echo "SKIP: python scripting is analt supported"
 		return 2
 	fi
 
@@ -560,7 +560,7 @@ def trace_end():
 _end_of_file_
 
 	# Check if virtual lbr is working
-	perf_record_no_bpf -o "${perfdatafile}" --aux-sample -e '{intel_pt//,cycles}:u' uname
+	perf_record_anal_bpf -o "${perfdatafile}" --aux-sample -e '{intel_pt//,cycles}:u' uname
 	times_val=$(perf script -i "${perfdatafile}" --itrace=L -s "${maxbrstack}" 2>/dev/null | grep "max brstack " | cut -d " " -f 3)
 	case "${times_val}" in
 		[0-9]*)	;;
@@ -580,10 +580,10 @@ test_power_event()
 	# Check if power events are supported
 	power_event=$(cat /sys/bus/event_source/devices/intel_pt/caps/power_event_trace)
 	if [ "${power_event}" != "1" ] ; then
-		echo "SKIP: power_event_trace is not supported"
+		echo "SKIP: power_event_trace is analt supported"
 		return 2
 	fi
-	if ! perf_record_no_decode -o "${perfdatafile}" -a -e intel_pt/pwr_evt/u uname ; then
+	if ! perf_record_anal_decode -o "${perfdatafile}" -a -e intel_pt/pwr_evt/u uname ; then
 		echo "perf record failed with pwr_evt"
 		return 1
 	fi
@@ -591,20 +591,20 @@ test_power_event()
 	return 0
 }
 
-test_no_tnt()
+test_anal_tnt()
 {
 	echo "--- Test with TNT packets disabled  ---"
 	# Check if TNT disable is supported
-	notnt=$(cat /sys/bus/event_source/devices/intel_pt/caps/tnt_disable)
-	if [ "${notnt}" != "1" ] ; then
-		echo "SKIP: tnt_disable is not supported"
+	analtnt=$(cat /sys/bus/event_source/devices/intel_pt/caps/tnt_disable)
+	if [ "${analtnt}" != "1" ] ; then
+		echo "SKIP: tnt_disable is analt supported"
 		return 2
 	fi
-	perf_record_no_decode -o "${perfdatafile}" -e intel_pt/notnt/u uname
-	# Should be no TNT packets
+	perf_record_anal_decode -o "${perfdatafile}" -e intel_pt/analtnt/u uname
+	# Should be anal TNT packets
 	tnt_cnt=$(perf script -i "${perfdatafile}" -D | grep -c TNT)
 	if [ "${tnt_cnt}" -ne 0 ] ; then
-		echo "TNT packets still there after notnt"
+		echo "TNT packets still there after analtnt"
 		return 1
 	fi
 	echo OK
@@ -617,10 +617,10 @@ test_event_trace()
 	# Check if event_trace is supported
 	event_trace=$(cat /sys/bus/event_source/devices/intel_pt/caps/event_trace)
 	if [ "${event_trace}" != 1 ] ; then
-		echo "SKIP: event_trace is not supported"
+		echo "SKIP: event_trace is analt supported"
 		return 2
 	fi
-	if ! perf_record_no_decode -o "${perfdatafile}" -e intel_pt/event/u uname ; then
+	if ! perf_record_anal_decode -o "${perfdatafile}" -e intel_pt/event/u uname ; then
 		echo "perf record failed with event trace"
 		return 1
 	fi
@@ -632,11 +632,11 @@ test_pipe()
 {
 	echo "--- Test with pipe mode ---"
 	# Check if it works with pipe
-	if ! perf_record_no_bpf -o- -e intel_pt//u uname | perf report -q -i- --itrace=i10000 ; then
+	if ! perf_record_anal_bpf -o- -e intel_pt//u uname | perf report -q -i- --itrace=i10000 ; then
 		echo "perf record + report failed with pipe mode"
 		return 1
 	fi
-	if ! perf_record_no_bpf -o- -e intel_pt//u uname | perf inject -b > /dev/null ; then
+	if ! perf_record_anal_bpf -o- -e intel_pt//u uname | perf inject -b > /dev/null ; then
 		echo "perf record + inject failed with pipe mode"
 		return 1
 	fi
@@ -669,7 +669,7 @@ test_sample				|| ret=$? ; count_result $ret ; ret=0
 test_kernel_trace			|| ret=$? ; count_result $ret ; ret=0
 test_virtual_lbr			|| ret=$? ; count_result $ret ; ret=0
 test_power_event			|| ret=$? ; count_result $ret ; ret=0
-test_no_tnt				|| ret=$? ; count_result $ret ; ret=0
+test_anal_tnt				|| ret=$? ; count_result $ret ; ret=0
 test_event_trace			|| ret=$? ; count_result $ret ; ret=0
 test_pipe				|| ret=$? ; count_result $ret ; ret=0
 

@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: STMicroelectronics STM32 Factory-programmed data
 
 description: |
-  This represents STM32 Factory-programmed read only non-volatile area: locked
+  This represents STM32 Factory-programmed read only analn-volatile area: locked
   flash, OTP, read-only HW regs... This contains various information such as:
   analog calibration data for temperature sensor (e.g. TS_CAL1, TS_CAL2),
   internal vref (VREFIN_CAL), unique device ID...
@@ -34,10 +34,10 @@ patternProperties:
     type: object
 
     properties:
-      st,non-secure-otp:
+      st,analn-secure-otp:
         description: |
           This property explicits a factory programmed area that both secure
-          and non-secure worlds can access. It is needed when, by default, the
+          and analn-secure worlds can access. It is needed when, by default, the
           related area can only be reached by the secure world.
         type: boolean
 
@@ -63,7 +63,7 @@ examples:
 
       mac_addr@e4 {
         reg = <0xe4 0x8>;
-        st,non-secure-otp;
+        st,analn-secure-otp;
       };
     };
 

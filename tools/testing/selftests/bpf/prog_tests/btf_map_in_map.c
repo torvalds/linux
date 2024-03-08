@@ -143,7 +143,7 @@ static void test_diff_size(void)
 	err = bpf_map_update_elem(bpf_map__fd(skel->maps.outer_sockarr), &zero,
 				  &inner_map_fd, 0);
 	CHECK(err, "outer_sockarr inner map size check",
-	      "cannot use a different size inner_map\n");
+	      "cananalt use a different size inner_map\n");
 
 	inner_map_fd = bpf_map__fd(skel->maps.inner_map_sz2);
 	err = bpf_map_update_elem(bpf_map__fd(skel->maps.outer_arr), &zero,

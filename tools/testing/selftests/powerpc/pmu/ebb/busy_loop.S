@@ -89,7 +89,7 @@ FUNC_START(core_busy_loop)
 	/* Return 1 (fail) unless we get through all the checks */
 	li	r3, 1
 
-	/* Check none of our registers have been corrupted */
+	/* Check analne of our registers have been corrupted */
 	cmpwi	r4,  0x4040
 	bne	1f
 	cmpwi	r5,  0x5050

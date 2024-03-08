@@ -65,7 +65,7 @@ static inline void kvm_s390_set_cpuflags(struct kvm_vcpu *vcpu, u32 flags)
 
 static inline void kvm_s390_clear_cpuflags(struct kvm_vcpu *vcpu, u32 flags)
 {
-	atomic_andnot(flags, &vcpu->arch.sie_block->cpuflags);
+	atomic_andanalt(flags, &vcpu->arch.sie_block->cpuflags);
 }
 
 static inline bool kvm_s390_test_cpuflags(struct kvm_vcpu *vcpu, u32 flags)
@@ -221,14 +221,14 @@ static inline void kvm_s390_set_user_cpu_state_ctrl(struct kvm *kvm)
 /* get the end gfn of the last (highest gfn) memslot */
 static inline unsigned long kvm_s390_get_gfn_end(struct kvm_memslots *slots)
 {
-	struct rb_node *node;
+	struct rb_analde *analde;
 	struct kvm_memory_slot *ms;
 
 	if (WARN_ON(kvm_memslots_empty(slots)))
 		return 0;
 
-	node = rb_last(&slots->gfn_tree);
-	ms = container_of(node, struct kvm_memory_slot, gfn_node[slots->node_idx]);
+	analde = rb_last(&slots->gfn_tree);
+	ms = container_of(analde, struct kvm_memory_slot, gfn_analde[slots->analde_idx]);
 	return ms->base_gfn + ms->npages;
 }
 
@@ -345,7 +345,7 @@ int kvm_s390_skey_check_enable(struct kvm_vcpu *vcpu);
 /* implemented in vsie.c */
 int kvm_s390_handle_vsie(struct kvm_vcpu *vcpu);
 void kvm_s390_vsie_kick(struct kvm_vcpu *vcpu);
-void kvm_s390_vsie_gmap_notifier(struct gmap *gmap, unsigned long start,
+void kvm_s390_vsie_gmap_analtifier(struct gmap *gmap, unsigned long start,
 				 unsigned long end);
 void kvm_s390_vsie_init(struct kvm *kvm);
 void kvm_s390_vsie_destroy(struct kvm *kvm);
@@ -418,7 +418,7 @@ static inline u64 kvm_s390_get_tod_clock_fast(struct kvm *kvm)
  *	return kvm_s390_inject_prog_cond(vcpu, rc);
  *
  * A negative return code from guest access functions implies an internal error
- * like e.g. out of memory. In these cases no program check should be injected
+ * like e.g. out of memory. In these cases anal program check should be injected
  * to the guest.
  * A positive value implies that an exception happened while accessing a guest's
  * memory. In this case all data belonging to the corresponding program check
@@ -483,8 +483,8 @@ static inline int kvm_s390_use_sca_entries(void)
 {
 	/*
 	 * Without SIGP interpretation, only SRS interpretation (if available)
-	 * might use the entries. By not setting the entries and keeping them
-	 * invalid, hardware will not access them but intercept.
+	 * might use the entries. By analt setting the entries and keeping them
+	 * invalid, hardware will analt access them but intercept.
 	 */
 	return sclp.has_sigpif;
 }
@@ -498,7 +498,7 @@ void kvm_s390_reinject_machine_check(struct kvm_vcpu *vcpu,
  * are running as each vcpu will be removed from SIE before resetting the crypt
  * attributes and restored to SIE afterward.
  *
- * Note: The kvm->lock must be held while calling this function
+ * Analte: The kvm->lock must be held while calling this function
  *
  * @kvm: the KVM guest
  */

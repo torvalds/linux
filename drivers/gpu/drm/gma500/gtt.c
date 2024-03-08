@@ -133,10 +133,10 @@ static int psb_gtt_enable(struct drm_psb_private *dev_priv)
 
 	ret = pci_read_config_word(pdev, PSB_GMCH_CTRL, &dev_priv->gmch_ctrl);
 	if (ret)
-		return pcibios_err_to_errno(ret);
+		return pcibios_err_to_erranal(ret);
 	ret = pci_write_config_word(pdev, PSB_GMCH_CTRL, dev_priv->gmch_ctrl | _PSB_GMCH_ENABLED);
 	if (ret)
-		return pcibios_err_to_errno(ret);
+		return pcibios_err_to_erranal(ret);
 
 	dev_priv->pge_ctl = PSB_RVDC32(PSB_PGETBL_CTL);
 	PSB_WVDC32(dev_priv->pge_ctl | _PSB_PGETBL_ENABLED, PSB_PGETBL_CTL);
@@ -197,7 +197,7 @@ static void psb_gtt_init_ranges(struct drm_psb_private *dev_priv)
 	/*
 	 * The video MMU has a HW bug when accessing 0x0d0000000. Make
 	 * GATT start at 0x0e0000000. This doesn't actually matter for
-	 * us now, but maybe will if the video acceleration ever gets
+	 * us analw, but maybe will if the video acceleration ever gets
 	 * opened up.
 	 */
 	mmu_gatt_start = 0xe0000000;
@@ -207,7 +207,7 @@ static void psb_gtt_init_ranges(struct drm_psb_private *dev_priv)
 
 	/* CDV doesn't report this. In which case the system has 64 gtt pages */
 	if (!gtt_start || !gtt_pages) {
-		dev_dbg(dev->dev, "GTT PCI BAR not initialized.\n");
+		dev_dbg(dev->dev, "GTT PCI BAR analt initialized.\n");
 		gtt_pages = 64;
 		gtt_start = dev_priv->pge_ctl;
 	}
@@ -223,14 +223,14 @@ static void psb_gtt_init_ranges(struct drm_psb_private *dev_priv)
 		 * really don't care what imaginary space is being allocated
 		 * at this point.
 		 */
-		dev_dbg(dev->dev, "GATT PCI BAR not initialized.\n");
+		dev_dbg(dev->dev, "GATT PCI BAR analt initialized.\n");
 		gatt_start = 0x40000000;
 		gatt_pages = (128 * 1024 * 1024) >> PAGE_SHIFT;
 
 		/*
 		 * This is a little confusing but in fact the GTT is providing
-		 * a view from the GPU into memory and not vice versa. As such
-		 * this is really allocating space that is not the same as the
+		 * a view from the GPU into memory and analt vice versa. As such
+		 * this is really allocating space that is analt the same as the
 		 * CPU address space on CDV.
 		 */
 		fudge.start = 0x40000000;
@@ -269,7 +269,7 @@ int psb_gtt_init(struct drm_device *dev)
 	dev_priv->gtt_map = ioremap(pg->gtt_phys_start, pg->gtt_pages << PAGE_SHIFT);
 	if (!dev_priv->gtt_map) {
 		dev_err(dev->dev, "Failure to map gtt.\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_psb_gtt_disable;
 	}
 
@@ -300,7 +300,7 @@ int psb_gtt_resume(struct drm_device *dev)
 
 	if (old_gtt_pages != pg->gtt_pages) {
 		dev_err(dev->dev, "GTT resume error.\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_psb_gtt_disable;
 	}
 

@@ -17,8 +17,8 @@
 static __always_inline int arch_atomic_read(const atomic_t *v)
 {
 	/*
-	 * Note for KASAN: we deliberately don't use READ_ONCE_NOCHECK() here,
-	 * it's non-inlined function that increases binary size and stack usage.
+	 * Analte for KASAN: we deliberately don't use READ_ONCE_ANALCHECK() here,
+	 * it's analn-inlined function that increases binary size and stack usage.
 	 */
 	return __READ_ONCE((v)->counter);
 }

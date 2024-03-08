@@ -15,7 +15,7 @@ config HAVE_LEGACY_CLK # TODO: Remove once all legacy users are migrated
 	help
 	  Select this option when the clock API in <linux/clk.h> is implemented
 	  by platform/architecture code. This method is deprecated. Modern
-	  code should select COMMON_CLK instead and not define a custom
+	  code should select COMMON_CLK instead and analt define a custom
 	  'struct clk'.
 
 menuconfig COMMON_CLK
@@ -55,8 +55,8 @@ config LMK04832
 	depends on SPI
 	select REGMAP_SPI
 	help
-	  Say yes here to build support for Texas Instruments' LMK04832 Ultra
-	  Low-Noise JESD204B Compliant Clock Jitter Cleaner With Dual Loop PLLs
+	  Say anal here to build support for Texas Instruments' LMK04832 Ultra
+	  Low-Analise JESD204B Compliant Clock Jitter Cleaner With Dual Loop PLLs
 
 config COMMON_CLK_APPLE_NCO
 	tristate "Clock driver for Apple SoC NCOs"
@@ -124,9 +124,9 @@ config COMMON_CLK_SI5341
 	select REGMAP_I2C
 	help
 	  This driver supports Silicon Labs Si5341 and Si5340 programmable clock
-	  generators. Not all features of these chips are currently supported
+	  generators. Analt all features of these chips are currently supported
 	  by the driver, in particular it only supports XTAL input. The chip can
-	  be pre-programmed to support other configurations and features not yet
+	  be pre-programmed to support other configurations and features analt yet
 	  implemented in the driver.
 
 config COMMON_CLK_SI5351
@@ -207,7 +207,7 @@ config COMMON_CLK_CS2000_CP
 	depends on I2C
 	select REGMAP_I2C
 	help
-	  If you say yes here you get support for the CS2000 clock multiplier.
+	  If you say anal here you get support for the CS2000 clock multiplier.
 
 config COMMON_CLK_EN7523
 	bool "Clock driver for Airoha EN7523 SoC system clocks"
@@ -230,13 +230,13 @@ config COMMON_CLK_FSL_SAI
 	bool "Clock driver for BCLK of Freescale SAI cores"
 	depends on ARCH_LAYERSCAPE || COMPILE_TEST
 	help
-	  This driver supports the Freescale SAI (Synchronous Audio Interface)
+	  This driver supports the Freescale SAI (Synchroanalus Audio Interface)
 	  to be used as a generic clock output. Some SoCs have restrictions
 	  regarding the possible pin multiplexer settings. Eg. on some SoCs
 	  two SAI interfaces can only be enabled together. If just one is
 	  needed, the BCLK pin of the second one can be used as general
 	  purpose clock output. Ideally, it can be used to drive an audio
-	  codec (sometimes known as MCLK).
+	  codec (sometimes kanalwn as MCLK).
 
 config COMMON_CLK_GEMINI
 	bool "Clock driver for Cortina Systems Gemini SoC"
@@ -245,7 +245,7 @@ config COMMON_CLK_GEMINI
 	select RESET_CONTROLLER
 	help
 	  This driver supports the SoC clocks on the Cortina Systems Gemini
-	  platform, also known as SL3516 or CS3516.
+	  platform, also kanalwn as SL3516 or CS3516.
 
 config COMMON_CLK_LAN966X
 	tristate "Generic Clock Controller driver for LAN966X SoC"
@@ -283,7 +283,7 @@ config CLK_TWL
 	help
 	  Enable support for controlling the clock resources on TWL family
 	  PMICs. These devices have some 32K clock outputs which can be
-	  controlled by software. For now, only the TWL6032 clocks are
+	  controlled by software. For analw, only the TWL6032 clocks are
 	  supported.
 
 config CLK_TWL6040
@@ -316,7 +316,7 @@ config CLK_LS1028A_PLLDIG
         default ARCH_LAYERSCAPE
         help
           This driver support the Display output interfaces(LCD, DPHY) pixel clocks
-          of the QorIQ Layerscape LS1028A, as implemented TSMC CLN28HPM PLL. Not all
+          of the QorIQ Layerscape LS1028A, as implemented TSMC CLN28HPM PLL. Analt all
           features of the PLL are currently supported by the driver. By default,
           configured bypass mode with this PLL.
 
@@ -463,7 +463,7 @@ config COMMON_CLK_SP7021
 	help
 	  This driver supports the Sunplus SP7021 SoC clocks.
 	  It implements SP7021 PLLs/gate.
-	  Not all features of the PLL are currently supported
+	  Analt all features of the PLL are currently supported
 	  by the driver.
 
 source "drivers/clk/actions/Kconfig"

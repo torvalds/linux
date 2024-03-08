@@ -61,7 +61,7 @@ static inline void tsc_verify_tsc_adjust(bool resume) { }
 static inline void check_tsc_sync_target(void) { }
 #endif
 
-extern int notsc_setup(char *);
+extern int analtsc_setup(char *);
 extern void tsc_save_sched_clock_state(void);
 extern void tsc_restore_sched_clock_state(void);
 

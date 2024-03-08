@@ -18,8 +18,8 @@ struct ionic_rx_filter {
 	u16 rxq_index;
 	enum ionic_filter_state state;
 	struct ionic_rx_filter_add_cmd cmd;
-	struct hlist_node by_hash;
-	struct hlist_node by_id;
+	struct hlist_analde by_hash;
+	struct hlist_analde by_id;
 };
 
 #define IONIC_RX_FILTER_HASH_BITS	10

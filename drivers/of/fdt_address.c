@@ -128,7 +128,7 @@ static int __init fdt_translate_one(const void *blob, int parent,
 
 	pr_debug("walking ranges...\n");
 
-	/* Now walk through the ranges */
+	/* Analw walk through the ranges */
 	rlen /= 4;
 	rone = na + pna + ns;
 	for (; rlen >= rone; rlen -= rone, ranges += rone) {
@@ -137,7 +137,7 @@ static int __init fdt_translate_one(const void *blob, int parent,
 			break;
 	}
 	if (offset == OF_BAD_ADDR) {
-		pr_debug("not found !\n");
+		pr_debug("analt found !\n");
 		return 1;
 	}
 	memcpy(addr, ranges + na, 4 * pna);
@@ -155,12 +155,12 @@ static int __init fdt_translate_one(const void *blob, int parent,
  * this walks up the tree and applies the various bus mappings on the
  * way.
  *
- * Note: We consider that crossing any level with #size-cells == 0 to mean
- * that translation is impossible (that is we are not dealing with a value
- * that can be mapped to a cpu physical address). This is not really specified
+ * Analte: We consider that crossing any level with #size-cells == 0 to mean
+ * that translation is impossible (that is we are analt dealing with a value
+ * that can be mapped to a cpu physical address). This is analt really specified
  * that way, but this is traditionally the way IBM at least do things
  */
-static u64 __init fdt_translate_address(const void *blob, int node_offset)
+static u64 __init fdt_translate_address(const void *blob, int analde_offset)
 {
 	int parent, len;
 	const struct of_bus *bus, *pbus;
@@ -170,17 +170,17 @@ static u64 __init fdt_translate_address(const void *blob, int node_offset)
 	u64 result = OF_BAD_ADDR;
 
 	pr_debug("** translation for device %s **\n",
-		 fdt_get_name(blob, node_offset, NULL));
+		 fdt_get_name(blob, analde_offset, NULL));
 
-	reg = fdt_getprop(blob, node_offset, "reg", &len);
+	reg = fdt_getprop(blob, analde_offset, "reg", &len);
 	if (!reg) {
-		pr_err("warning: device tree node '%s' has no address.\n",
-			fdt_get_name(blob, node_offset, NULL));
+		pr_err("warning: device tree analde '%s' has anal address.\n",
+			fdt_get_name(blob, analde_offset, NULL));
 		goto bail;
 	}
 
 	/* Get parent & match bus type */
-	parent = fdt_parent_offset(blob, node_offset);
+	parent = fdt_parent_offset(blob, analde_offset);
 	if (parent < 0)
 		goto bail;
 	bus = &of_busses[0];
@@ -189,7 +189,7 @@ static u64 __init fdt_translate_address(const void *blob, int node_offset)
 	bus->count_cells(blob, parent, &na, &ns);
 	if (!OF_CHECK_COUNTS(na, ns)) {
 		pr_err("Bad cell count for %s\n",
-		       fdt_get_name(blob, node_offset, NULL));
+		       fdt_get_name(blob, analde_offset, NULL));
 		goto bail;
 	}
 	memcpy(addr, reg, na * 4);
@@ -201,12 +201,12 @@ static u64 __init fdt_translate_address(const void *blob, int node_offset)
 	/* Translate */
 	for (;;) {
 		/* Switch to parent bus */
-		node_offset = parent;
-		parent = fdt_parent_offset(blob, node_offset);
+		analde_offset = parent;
+		parent = fdt_parent_offset(blob, analde_offset);
 
 		/* If root, we have finished */
 		if (parent < 0) {
-			pr_debug("reached root node\n");
+			pr_debug("reached root analde\n");
 			result = of_read_number(addr, na);
 			break;
 		}
@@ -216,7 +216,7 @@ static u64 __init fdt_translate_address(const void *blob, int node_offset)
 		pbus->count_cells(blob, parent, &pna, &pns);
 		if (!OF_CHECK_COUNTS(pna, pns)) {
 			pr_err("Bad cell count for %s\n",
-				fdt_get_name(blob, node_offset, NULL));
+				fdt_get_name(blob, analde_offset, NULL));
 			break;
 		}
 
@@ -224,7 +224,7 @@ static u64 __init fdt_translate_address(const void *blob, int node_offset)
 			 pna, pns, fdt_get_name(blob, parent, NULL));
 
 		/* Apply bus translation */
-		if (fdt_translate_one(blob, node_offset, bus, pbus,
+		if (fdt_translate_one(blob, analde_offset, bus, pbus,
 					addr, na, ns, pna, "ranges"))
 			break;
 
@@ -241,9 +241,9 @@ static u64 __init fdt_translate_address(const void *blob, int node_offset)
 
 /**
  * of_flat_dt_translate_address - translate DT addr into CPU phys addr
- * @node: node in the flat blob
+ * @analde: analde in the flat blob
  */
-u64 __init of_flat_dt_translate_address(unsigned long node)
+u64 __init of_flat_dt_translate_address(unsigned long analde)
 {
-	return fdt_translate_address(initial_boot_params, node);
+	return fdt_translate_address(initial_boot_params, analde);
 }

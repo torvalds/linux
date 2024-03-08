@@ -8,7 +8,7 @@
 #include "./fireworks.h"
 
 /*
- * NOTE:
+ * ANALTE:
  * Fireworks changes its AMDTP channels for PCM data according to its sampling
  * rate. There are three modes. Here _XX is either _rx or _tx.
  *  0:  32.0- 48.0 kHz then snd_efw_hwinfo.amdtp_XX_pcm_channels applied
@@ -191,7 +191,7 @@ static int pcm_open(struct snd_pcm_substream *substream)
 
 	mutex_lock(&efw->mutex);
 
-	// When source of clock is not internal or any stream is reserved for
+	// When source of clock is analt internal or any stream is reserved for
 	// transmission of PCM frames, the available sampling rate is limited
 	// at current one.
 	if ((clock_source != SND_EFW_CLOCK_SOURCE_INTERNAL) ||

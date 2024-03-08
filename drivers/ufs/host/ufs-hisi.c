@@ -3,7 +3,7 @@
  * HiSilicon Hixxxx UFS Driver
  *
  * Copyright (c) 2016-2017 Linaro Ltd.
- * Copyright (c) 2016-2017 HiSilicon Technologies Co., Ltd.
+ * Copyright (c) 2016-2017 HiSilicon Techanallogies Co., Ltd.
  */
 
 #include <linux/time.h>
@@ -91,7 +91,7 @@ static void ufs_hisi_soc_init(struct ufs_hba *hba)
 	/* HC_PSW powerup */
 	ufs_sys_ctrl_set_bits(host, BIT_UFS_PSW_MTCMOS_EN, PSW_POWER_CTRL);
 	udelay(10);
-	/* notify PWR ready */
+	/* analtify PWR ready */
 	ufs_sys_ctrl_set_bits(host, BIT_SYSCTRL_PWR_READY, HC_LP_CTRL);
 	ufs_sys_ctrl_writel(host, MASK_UFS_DEVICE_RESET | 0,
 		UFS_DEVICE_RESET_CTRL);
@@ -113,7 +113,7 @@ static void ufs_hisi_soc_init(struct ufs_hba *hba)
 	ufs_sys_ctrl_clr_bits(host, BIT_UFS_PSW_ISO_CTRL, PSW_POWER_CTRL);
 	/* disable phy iso */
 	ufs_sys_ctrl_clr_bits(host, BIT_UFS_PHY_ISO_CTRL, PHY_ISO_EN);
-	/* notice iso disable */
+	/* analtice iso disable */
 	ufs_sys_ctrl_clr_bits(host, BIT_SYSCTRL_LP_ISOL_EN, HC_LP_CTRL);
 
 	/* disable lp_reset_n */
@@ -229,7 +229,7 @@ static int ufs_hisi_link_startup_pre_change(struct ufs_hba *hba)
 		dev_err(hba->dev, "ufs_hisi_check_hibern8 error\n");
 
 	if (!(host->caps & UFS_HISI_CAP_PHY10nm))
-		ufshcd_writel(hba, UFS_HCLKDIV_NORMAL_VALUE, UFS_REG_HCLKDIV);
+		ufshcd_writel(hba, UFS_HCLKDIV_ANALRMAL_VALUE, UFS_REG_HCLKDIV);
 
 	/* disable auto H8 */
 	reg = ufshcd_readl(hba, REG_AUTO_HIBERNATE_IDLE_TIMER);
@@ -260,7 +260,7 @@ static int ufs_hisi_link_startup_post_change(struct ufs_hba *hba)
 	/* Unipro DL_TC0TXFCThreshold */
 	ufshcd_dme_set(hba, UIC_ARG_MIB(0x2040), 0x9);
 
-	/* not bypass ufs clk gate */
+	/* analt bypass ufs clk gate */
 	ufs_sys_ctrl_clr_bits(host, MASK_UFS_CLK_GATE_BYPASS,
 						CLOCK_GATE_BYPASS);
 	ufs_sys_ctrl_clr_bits(host, MASK_UFS_SYSCRTL_BYPASS,
@@ -274,8 +274,8 @@ static int ufs_hisi_link_startup_post_change(struct ufs_hba *hba)
 	return 0;
 }
 
-static int ufs_hisi_link_startup_notify(struct ufs_hba *hba,
-					  enum ufs_notify_change_status status)
+static int ufs_hisi_link_startup_analtify(struct ufs_hba *hba,
+					  enum ufs_analtify_change_status status)
 {
 	int err = 0;
 
@@ -360,8 +360,8 @@ static void ufs_hisi_pwr_change_pre_change(struct ufs_hba *hba)
 	ufshcd_dme_set(hba, UIC_ARG_MIB(0xd046), SZ_32K - 1);
 }
 
-static int ufs_hisi_pwr_change_notify(struct ufs_hba *hba,
-				       enum ufs_notify_change_status status,
+static int ufs_hisi_pwr_change_analtify(struct ufs_hba *hba,
+				       enum ufs_analtify_change_status status,
 				       struct ufs_pa_layer_attr *dev_max_params,
 				       struct ufs_pa_layer_attr *dev_req_params)
 {
@@ -404,7 +404,7 @@ static int ufs_hisi_suspend_prepare(struct device *dev)
 }
 
 static int ufs_hisi_suspend(struct ufs_hba *hba, enum ufs_pm_op pm_op,
-	enum ufs_notify_change_status status)
+	enum ufs_analtify_change_status status)
 {
 	struct ufs_hisi_host *host = ufshcd_get_variant(hba);
 
@@ -473,7 +473,7 @@ static int ufs_hisi_init_common(struct ufs_hba *hba)
 
 	host = devm_kzalloc(dev, sizeof(*host), GFP_KERNEL);
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	host->hba = hba;
 	ufshcd_set_variant(hba, host);
@@ -542,8 +542,8 @@ static int ufs_hi3670_init(struct ufs_hba *hba)
 static const struct ufs_hba_variant_ops ufs_hba_hi3660_vops = {
 	.name = "hi3660",
 	.init = ufs_hi3660_init,
-	.link_startup_notify = ufs_hisi_link_startup_notify,
-	.pwr_change_notify = ufs_hisi_pwr_change_notify,
+	.link_startup_analtify = ufs_hisi_link_startup_analtify,
+	.pwr_change_analtify = ufs_hisi_pwr_change_analtify,
 	.suspend = ufs_hisi_suspend,
 	.resume = ufs_hisi_resume,
 };
@@ -551,8 +551,8 @@ static const struct ufs_hba_variant_ops ufs_hba_hi3660_vops = {
 static const struct ufs_hba_variant_ops ufs_hba_hi3670_vops = {
 	.name = "hi3670",
 	.init = ufs_hi3670_init,
-	.link_startup_notify = ufs_hisi_link_startup_notify,
-	.pwr_change_notify = ufs_hisi_pwr_change_notify,
+	.link_startup_analtify = ufs_hisi_link_startup_analtify,
+	.pwr_change_analtify = ufs_hisi_pwr_change_analtify,
 	.suspend = ufs_hisi_suspend,
 	.resume = ufs_hisi_resume,
 };
@@ -569,7 +569,7 @@ static int ufs_hisi_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *of_id;
 
-	of_id = of_match_node(ufs_hisi_of_match, pdev->dev.of_node);
+	of_id = of_match_analde(ufs_hisi_of_match, pdev->dev.of_analde);
 
 	return ufshcd_pltfrm_init(pdev, of_id->data);
 }

@@ -41,7 +41,7 @@ struct qede_arfs_tuple {
 	void (*stringify)(struct qede_arfs_tuple *t, void *buffer);
 };
 
-struct qede_arfs_fltr_node {
+struct qede_arfs_fltr_analde {
 #define QEDE_FLTR_VALID	 0
 	unsigned long state;
 
@@ -66,7 +66,7 @@ struct qede_arfs_fltr_node {
 	bool used;
 	u8 fw_rc;
 	bool b_is_drop;
-	struct hlist_node node;
+	struct hlist_analde analde;
 };
 
 struct qede_arfs {
@@ -86,7 +86,7 @@ struct qede_arfs {
 };
 
 static void qede_configure_arfs_fltr(struct qede_dev *edev,
-				     struct qede_arfs_fltr_node *n,
+				     struct qede_arfs_fltr_analde *n,
 				     u16 rxq_id, bool add_fltr)
 {
 	const struct qed_eth_ops *op = edev->ops;
@@ -124,7 +124,7 @@ static void qede_configure_arfs_fltr(struct qede_dev *edev,
 }
 
 static void
-qede_free_arfs_filter(struct qede_dev *edev,  struct qede_arfs_fltr_node *fltr)
+qede_free_arfs_filter(struct qede_dev *edev,  struct qede_arfs_fltr_analde *fltr)
 {
 	kfree(fltr->data);
 
@@ -136,19 +136,19 @@ qede_free_arfs_filter(struct qede_dev *edev,  struct qede_arfs_fltr_node *fltr)
 
 static int
 qede_enqueue_fltr_and_config_searcher(struct qede_dev *edev,
-				      struct qede_arfs_fltr_node *fltr,
+				      struct qede_arfs_fltr_analde *fltr,
 				      u16 bucket_idx)
 {
 	fltr->mapping = dma_map_single(&edev->pdev->dev, fltr->data,
 				       fltr->buf_len, DMA_TO_DEVICE);
 	if (dma_mapping_error(&edev->pdev->dev, fltr->mapping)) {
-		DP_NOTICE(edev, "Failed to map DMA memory for rule\n");
+		DP_ANALTICE(edev, "Failed to map DMA memory for rule\n");
 		qede_free_arfs_filter(edev, fltr);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
-	INIT_HLIST_NODE(&fltr->node);
-	hlist_add_head(&fltr->node,
+	INIT_HLIST_ANALDE(&fltr->analde);
+	hlist_add_head(&fltr->analde,
 		       QEDE_ARFS_BUCKET_HEAD(edev, bucket_idx));
 
 	edev->arfs->filter_count++;
@@ -164,9 +164,9 @@ qede_enqueue_fltr_and_config_searcher(struct qede_dev *edev,
 
 static void
 qede_dequeue_fltr_and_config_searcher(struct qede_dev *edev,
-				      struct qede_arfs_fltr_node *fltr)
+				      struct qede_arfs_fltr_analde *fltr)
 {
-	hlist_del(&fltr->node);
+	hlist_del(&fltr->analde);
 	dma_unmap_single(&edev->pdev->dev, fltr->mapping,
 			 fltr->buf_len, DMA_TO_DEVICE);
 
@@ -185,13 +185,13 @@ qede_dequeue_fltr_and_config_searcher(struct qede_dev *edev,
 
 void qede_arfs_filter_op(void *dev, void *filter, u8 fw_rc)
 {
-	struct qede_arfs_fltr_node *fltr = filter;
+	struct qede_arfs_fltr_analde *fltr = filter;
 	struct qede_dev *edev = dev;
 
 	fltr->fw_rc = fw_rc;
 
 	if (fw_rc) {
-		DP_NOTICE(edev,
+		DP_ANALTICE(edev,
 			  "Failed arfs filter configuration fw_rc=%d, flow_id=%d, sw_id=0x%llx, src_port=%d, dst_port=%d, rxq=%d\n",
 			  fw_rc, fltr->flow_id, fltr->sw_id,
 			  ntohs(fltr->tuple.src_port),
@@ -233,13 +233,13 @@ void qede_process_arfs_filters(struct qede_dev *edev, bool free_fltr)
 	int i;
 
 	for (i = 0; i <= QEDE_RFS_FLW_MASK; i++) {
-		struct hlist_node *temp;
+		struct hlist_analde *temp;
 		struct hlist_head *head;
-		struct qede_arfs_fltr_node *fltr;
+		struct qede_arfs_fltr_analde *fltr;
 
 		head = &edev->arfs->arfs_hl_head[i];
 
-		hlist_for_each_entry_safe(fltr, temp, head, node) {
+		hlist_for_each_entry_safe(fltr, temp, head, analde) {
 			bool del = false;
 
 			if (edev->state != QEDE_STATE_OPEN)
@@ -300,7 +300,7 @@ void qede_poll_for_freeing_arfs_filters(struct qede_dev *edev)
 	}
 
 	if (!count) {
-		DP_NOTICE(edev, "Timeout in polling for arfs filter free\n");
+		DP_ANALTICE(edev, "Timeout in polling for arfs filter free\n");
 
 		/* Something is terribly wrong, free forcefully */
 		qede_process_arfs_filters(edev, true);
@@ -316,7 +316,7 @@ int qede_alloc_arfs(struct qede_dev *edev)
 
 	edev->arfs = vzalloc(sizeof(*edev->arfs));
 	if (!edev->arfs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&edev->arfs->arfs_list_lock);
 
@@ -329,7 +329,7 @@ int qede_alloc_arfs(struct qede_dev *edev)
 	if (!edev->arfs->arfs_fltr_bmap) {
 		vfree(edev->arfs);
 		edev->arfs = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 #ifdef CONFIG_RFS_ACCEL
@@ -339,7 +339,7 @@ int qede_alloc_arfs(struct qede_dev *edev)
 		edev->arfs->arfs_fltr_bmap = NULL;
 		vfree(edev->arfs);
 		edev->arfs = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 #endif
 	return 0;
@@ -363,7 +363,7 @@ void qede_free_arfs(struct qede_dev *edev)
 }
 
 #ifdef CONFIG_RFS_ACCEL
-static bool qede_compare_ip_addr(struct qede_arfs_fltr_node *tpos,
+static bool qede_compare_ip_addr(struct qede_arfs_fltr_analde *tpos,
 				 const struct sk_buff *skb)
 {
 	if (skb->protocol == htons(ETH_P_IP)) {
@@ -384,13 +384,13 @@ static bool qede_compare_ip_addr(struct qede_arfs_fltr_node *tpos,
 	}
 }
 
-static struct qede_arfs_fltr_node *
+static struct qede_arfs_fltr_analde *
 qede_arfs_htbl_key_search(struct hlist_head *h, const struct sk_buff *skb,
 			  __be16 src_port, __be16 dst_port, u8 ip_proto)
 {
-	struct qede_arfs_fltr_node *tpos;
+	struct qede_arfs_fltr_analde *tpos;
 
-	hlist_for_each_entry(tpos, h, node)
+	hlist_for_each_entry(tpos, h, analde)
 		if (tpos->tuple.ip_proto == ip_proto &&
 		    tpos->tuple.eth_proto == skb->protocol &&
 		    qede_compare_ip_addr(tpos, skb) &&
@@ -401,10 +401,10 @@ qede_arfs_htbl_key_search(struct hlist_head *h, const struct sk_buff *skb,
 	return NULL;
 }
 
-static struct qede_arfs_fltr_node *
+static struct qede_arfs_fltr_analde *
 qede_alloc_filter(struct qede_dev *edev, int min_hlen)
 {
-	struct qede_arfs_fltr_node *n;
+	struct qede_arfs_fltr_analde *n;
 	int bit_id;
 
 	bit_id = find_first_zero_bit(edev->arfs->arfs_fltr_bmap,
@@ -432,7 +432,7 @@ int qede_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 		       u16 rxq_index, u32 flow_id)
 {
 	struct qede_dev *edev = netdev_priv(dev);
-	struct qede_arfs_fltr_node *n;
+	struct qede_arfs_fltr_analde *n;
 	int min_hlen, rc, tp_offset;
 	struct ethhdr *eth;
 	__be16 *ports;
@@ -440,11 +440,11 @@ int qede_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 	u8 ip_proto;
 
 	if (skb->encapsulation)
-		return -EPROTONOSUPPORT;
+		return -EPROTOANALSUPPORT;
 
 	if (skb->protocol != htons(ETH_P_IP) &&
 	    skb->protocol != htons(ETH_P_IPV6))
-		return -EPROTONOSUPPORT;
+		return -EPROTOANALSUPPORT;
 
 	if (skb->protocol == htons(ETH_P_IP)) {
 		ip_proto = ip_hdr(skb)->protocol;
@@ -455,7 +455,7 @@ int qede_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 	}
 
 	if (ip_proto != IPPROTO_TCP && ip_proto != IPPROTO_UDP)
-		return -EPROTONOSUPPORT;
+		return -EPROTOANALSUPPORT;
 
 	ports = (__be16 *)(skb->data + tp_offset);
 	tbl_idx = skb_get_hash_raw(skb) & QEDE_RFS_FLW_MASK;
@@ -488,7 +488,7 @@ int qede_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 
 	n = qede_alloc_filter(edev, min_hlen);
 	if (!n) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto ret_unlock;
 	}
 
@@ -592,7 +592,7 @@ void qede_fill_rss_params(struct qede_dev *edev,
 		edev->rss_params_inited |= QEDE_RSS_INDIR_INITED;
 	}
 
-	/* Now that we have the queue-indirection, prepare the handles */
+	/* Analw that we have the queue-indirection, prepare the handles */
 	for (i = 0; i < QED_RSS_IND_TABLE_SIZE; i++) {
 		u16 idx = QEDE_RX_QUEUE_IDX(edev, edev->rss_ind_table[i]);
 
@@ -654,7 +654,7 @@ static int qede_config_accept_any_vlan(struct qede_dev *edev, bool action)
 
 	params = vzalloc(sizeof(*params));
 	if (!params)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	params->vport_id = 0;
 	params->accept_any_vlan = action;
@@ -685,7 +685,7 @@ int qede_vlan_rx_add_vid(struct net_device *dev, __be16 proto, u16 vid)
 	vlan = kzalloc(sizeof(*vlan), GFP_KERNEL);
 	if (!vlan) {
 		DP_INFO(edev, "Failed to allocate struct for vlan\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	INIT_LIST_HEAD(&vlan->list);
 	vlan->vid = vid;
@@ -708,13 +708,13 @@ int qede_vlan_rx_add_vid(struct net_device *dev, __be16 proto, u16 vid)
 			   "Interface is down, VLAN %d will be configured when interface is up\n",
 			   vid);
 		if (vid != 0)
-			edev->non_configured_vlans++;
+			edev->analn_configured_vlans++;
 		list_add(&vlan->list, &edev->vlan_list);
 		goto out;
 	}
 
 	/* Check for the filter limit.
-	 * Note - vlan0 has a reserved filter and can be added without
+	 * Analte - vlan0 has a reserved filter and can be added without
 	 * worrying about quota
 	 */
 	if ((edev->configured_vlans < edev->dev_info.num_vlan_filters) ||
@@ -735,7 +735,7 @@ int qede_vlan_rx_add_vid(struct net_device *dev, __be16 proto, u16 vid)
 			edev->configured_vlans++;
 	} else {
 		/* Out of quota; Activate accept-any-VLAN mode */
-		if (!edev->non_configured_vlans) {
+		if (!edev->analn_configured_vlans) {
 			rc = qede_config_accept_any_vlan(edev, true);
 			if (rc) {
 				kfree(vlan);
@@ -743,7 +743,7 @@ int qede_vlan_rx_add_vid(struct net_device *dev, __be16 proto, u16 vid)
 			}
 		}
 
-		edev->non_configured_vlans++;
+		edev->analn_configured_vlans++;
 	}
 
 	list_add(&vlan->list, &edev->vlan_list);
@@ -761,7 +761,7 @@ static void qede_del_vlan_from_list(struct qede_dev *edev,
 		if (vlan->configured)
 			edev->configured_vlans--;
 		else
-			edev->non_configured_vlans--;
+			edev->analn_configured_vlans--;
 	}
 
 	list_del(&vlan->list);
@@ -779,12 +779,12 @@ int qede_configure_vlan_filters(struct qede_dev *edev)
 
 	dev_info = &edev->dev_info;
 
-	/* Configure non-configured vlans */
+	/* Configure analn-configured vlans */
 	list_for_each_entry(vlan, &edev->vlan_list, list) {
 		if (vlan->configured)
 			continue;
 
-		/* We have used all our credits, now enable accept_any_vlan */
+		/* We have used all our credits, analw enable accept_any_vlan */
 		if ((vlan->vid != 0) &&
 		    (edev->configured_vlans == dev_info->num_vlan_filters)) {
 			accept_any_vlan = 1;
@@ -805,19 +805,19 @@ int qede_configure_vlan_filters(struct qede_dev *edev)
 		vlan->configured = true;
 		/* vlan0 filter doesn't consume our VLAN filter's quota */
 		if (vlan->vid != 0) {
-			edev->non_configured_vlans--;
+			edev->analn_configured_vlans--;
 			edev->configured_vlans++;
 		}
 	}
 
 	/* enable accept_any_vlan mode if we have more VLANs than credits,
 	 * or remove accept_any_vlan mode if we've actually removed
-	 * a non-configured vlan, and all remaining vlans are truly configured.
+	 * a analn-configured vlan, and all remaining vlans are truly configured.
 	 */
 
 	if (accept_any_vlan)
 		rc = qede_config_accept_any_vlan(edev, true);
-	else if (!edev->non_configured_vlans)
+	else if (!edev->analn_configured_vlans)
 		rc = qede_config_accept_any_vlan(edev, false);
 
 	if (rc && !real_rc)
@@ -869,7 +869,7 @@ int qede_vlan_rx_kill_vid(struct net_device *dev, __be16 proto, u16 vid)
 	qede_del_vlan_from_list(edev, vlan);
 
 	/* We have removed a VLAN - try to see if we can
-	 * configure non-configured VLAN from the list.
+	 * configure analn-configured VLAN from the list.
 	 */
 	rc = qede_configure_vlan_filters(edev);
 
@@ -878,7 +878,7 @@ out:
 	return rc;
 }
 
-void qede_vlan_mark_nonconfigured(struct qede_dev *edev)
+void qede_vlan_mark_analnconfigured(struct qede_dev *edev)
 {
 	struct qede_vlan *vlan = NULL;
 
@@ -893,12 +893,12 @@ void qede_vlan_mark_nonconfigured(struct qede_dev *edev)
 
 		/* vlan0 filter isn't consuming out of our quota */
 		if (vlan->vid != 0) {
-			edev->non_configured_vlans++;
+			edev->analn_configured_vlans++;
 			edev->configured_vlans--;
 		}
 
 		DP_VERBOSE(edev, NETIF_MSG_IFDOWN,
-			   "marked vlan %d as non-configured\n", vlan->vid);
+			   "marked vlan %d as analn-configured\n", vlan->vid);
 	}
 
 	edev->accept_any_vlan = false;
@@ -938,8 +938,8 @@ int qede_set_features(struct net_device *dev, netdev_features_t features)
 		args.func = &qede_set_features_reload;
 
 		/* Make sure that we definitely need to reload.
-		 * In case of an eBPF attached program, there will be no FW
-		 * aggregations, so no need to actually reload.
+		 * In case of an eBPF attached program, there will be anal FW
+		 * aggregations, so anal need to actually reload.
 		 */
 		__qede_lock(edev);
 		if (edev->xdp_prog)
@@ -1081,13 +1081,13 @@ int qede_set_mac_addr(struct net_device *ndev, void *p)
 	__qede_lock(edev);
 
 	if (!is_valid_ether_addr(addr->sa_data)) {
-		DP_NOTICE(edev, "The MAC address is not valid\n");
+		DP_ANALTICE(edev, "The MAC address is analt valid\n");
 		rc = -EFAULT;
 		goto out;
 	}
 
 	if (!edev->ops->check_mac(edev->cdev, addr->sa_data)) {
-		DP_NOTICE(edev, "qed prevents setting MAC %pM\n",
+		DP_ANALTICE(edev, "qed prevents setting MAC %pM\n",
 			  addr->sa_data);
 		rc = -EINVAL;
 		goto out;
@@ -1137,9 +1137,9 @@ qede_configure_mcast_filtering(struct net_device *ndev,
 
 	mc_macs = kzalloc(size, GFP_KERNEL);
 	if (!mc_macs) {
-		DP_NOTICE(edev,
+		DP_ANALTICE(edev,
 			  "Failed to allocate memory for multicast MACs\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto exit;
 	}
 
@@ -1203,7 +1203,7 @@ void qede_config_rx_mode(struct net_device *ndev)
 
 	uc_macs = kzalloc(size, GFP_ATOMIC);
 	if (!uc_macs) {
-		DP_NOTICE(edev, "Failed to allocate memory for unicast MACs\n");
+		DP_ANALTICE(edev, "Failed to allocate memory for unicast MACs\n");
 		netif_addr_unlock_bh(ndev);
 		return;
 	}
@@ -1255,7 +1255,7 @@ void qede_config_rx_mode(struct net_device *ndev)
 	/* take care of VLAN mode */
 	if (ndev->flags & IFF_PROMISC) {
 		qede_config_accept_any_vlan(edev, true);
-	} else if (!edev->non_configured_vlans) {
+	} else if (!edev->analn_configured_vlans) {
 		/* It's possible that accept_any_vlan mode is set due to a
 		 * previous setting of IFF_PROMISC. If vlan credits are
 		 * sufficient, disable accept_any_vlan.
@@ -1268,12 +1268,12 @@ out:
 	kfree(uc_macs);
 }
 
-static struct qede_arfs_fltr_node *
+static struct qede_arfs_fltr_analde *
 qede_get_arfs_fltr_by_loc(struct hlist_head *head, u64 location)
 {
-	struct qede_arfs_fltr_node *fltr;
+	struct qede_arfs_fltr_analde *fltr;
 
-	hlist_for_each_entry(fltr, head, node)
+	hlist_for_each_entry(fltr, head, analde)
 		if (location == fltr->sw_id)
 			return fltr;
 
@@ -1283,7 +1283,7 @@ qede_get_arfs_fltr_by_loc(struct hlist_head *head, u64 location)
 int qede_get_cls_rule_all(struct qede_dev *edev, struct ethtool_rxnfc *info,
 			  u32 *rule_locs)
 {
-	struct qede_arfs_fltr_node *fltr;
+	struct qede_arfs_fltr_analde *fltr;
 	struct hlist_head *head;
 	int cnt = 0, rc = 0;
 
@@ -1298,7 +1298,7 @@ int qede_get_cls_rule_all(struct qede_dev *edev, struct ethtool_rxnfc *info,
 
 	head = QEDE_ARFS_BUCKET_HEAD(edev, 0);
 
-	hlist_for_each_entry(fltr, head, node) {
+	hlist_for_each_entry(fltr, head, analde) {
 		if (cnt == info->rule_cnt) {
 			rc = -EMSGSIZE;
 			goto unlock;
@@ -1318,7 +1318,7 @@ unlock:
 int qede_get_cls_rule_entry(struct qede_dev *edev, struct ethtool_rxnfc *cmd)
 {
 	struct ethtool_rx_flow_spec *fsp = &cmd->fs;
-	struct qede_arfs_fltr_node *fltr = NULL;
+	struct qede_arfs_fltr_analde *fltr = NULL;
 	int rc = 0;
 
 	cmd->data = QEDE_RFS_MAX_FLTR;
@@ -1333,7 +1333,7 @@ int qede_get_cls_rule_entry(struct qede_dev *edev, struct ethtool_rxnfc *cmd)
 	fltr = qede_get_arfs_fltr_by_loc(QEDE_ARFS_BUCKET_HEAD(edev, 0),
 					 fsp->location);
 	if (!fltr) {
-		DP_NOTICE(edev, "Rule not found - location=0x%x\n",
+		DP_ANALTICE(edev, "Rule analt found - location=0x%x\n",
 			  fsp->location);
 		rc = -EINVAL;
 		goto unlock;
@@ -1378,7 +1378,7 @@ unlock:
 
 static int
 qede_poll_arfs_filter_config(struct qede_dev *edev,
-			     struct qede_arfs_fltr_node *fltr)
+			     struct qede_arfs_fltr_analde *fltr)
 {
 	int count = QEDE_ARFS_POLL_COUNT;
 
@@ -1388,7 +1388,7 @@ qede_poll_arfs_filter_config(struct qede_dev *edev,
 	}
 
 	if (count == 0 || fltr->fw_rc) {
-		DP_NOTICE(edev, "Timeout in polling filter config\n");
+		DP_ANALTICE(edev, "Timeout in polling filter config\n");
 		qede_dequeue_fltr_and_config_searcher(edev, fltr);
 		return -EIO;
 	}
@@ -1496,25 +1496,25 @@ static void qede_flow_build_ipv6_hdr(struct qede_arfs_tuple *t,
 	ports[1] = t->dst_port;
 }
 
-/* Validate fields which are set and not accepted by the driver */
+/* Validate fields which are set and analt accepted by the driver */
 static int qede_flow_spec_validate_unused(struct qede_dev *edev,
 					  struct ethtool_rx_flow_spec *fs)
 {
 	if (fs->flow_type & FLOW_MAC_EXT) {
 		DP_INFO(edev, "Don't support MAC extensions\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if ((fs->flow_type & FLOW_EXT) &&
 	    (fs->h_ext.vlan_etype || fs->h_ext.vlan_tci)) {
 		DP_INFO(edev, "Don't support vlan-based classification\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if ((fs->flow_type & FLOW_EXT) &&
 	    (fs->h_ext.data[0] || fs->h_ext.data[1])) {
 		DP_INFO(edev, "Don't support user defined data\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -1539,7 +1539,7 @@ static int qede_set_v4_tuple_to_profile(struct qede_dev *edev,
 		t->mode = QED_FILTER_CONFIG_MODE_IP_DEST;
 	} else {
 		DP_INFO(edev, "Invalid N-tuple\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	t->ip_comp = qede_flow_spec_ipv4_cmp;
@@ -1574,7 +1574,7 @@ static int qede_set_v6_tuple_to_profile(struct qede_dev *edev,
 		t->mode = QED_FILTER_CONFIG_MODE_IP_DEST;
 	} else {
 		DP_INFO(edev, "Invalid N-tuple\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	t->ip_comp = qede_flow_spec_ipv6_cmp;
@@ -1584,16 +1584,16 @@ static int qede_set_v6_tuple_to_profile(struct qede_dev *edev,
 }
 
 /* Must be called while qede lock is held */
-static struct qede_arfs_fltr_node *
+static struct qede_arfs_fltr_analde *
 qede_flow_find_fltr(struct qede_dev *edev, struct qede_arfs_tuple *t)
 {
-	struct qede_arfs_fltr_node *fltr;
-	struct hlist_node *temp;
+	struct qede_arfs_fltr_analde *fltr;
+	struct hlist_analde *temp;
 	struct hlist_head *head;
 
 	head = QEDE_ARFS_BUCKET_HEAD(edev, 0);
 
-	hlist_for_each_entry_safe(fltr, temp, head, node) {
+	hlist_for_each_entry_safe(fltr, temp, head, analde) {
 		if (fltr->tuple.ip_proto == t->ip_proto &&
 		    fltr->tuple.src_port == t->src_port &&
 		    fltr->tuple.dst_port == t->dst_port &&
@@ -1605,7 +1605,7 @@ qede_flow_find_fltr(struct qede_dev *edev, struct qede_arfs_tuple *t)
 }
 
 static void qede_flow_set_destination(struct qede_dev *edev,
-				      struct qede_arfs_fltr_node *n,
+				      struct qede_arfs_fltr_analde *n,
 				      struct ethtool_rx_flow_spec *fs)
 {
 	if (fs->ring_cookie == RX_CLS_FLOW_DISC) {
@@ -1624,7 +1624,7 @@ static void qede_flow_set_destination(struct qede_dev *edev,
 
 int qede_delete_flow_filter(struct qede_dev *edev, u64 cookie)
 {
-	struct qede_arfs_fltr_node *fltr = NULL;
+	struct qede_arfs_fltr_analde *fltr = NULL;
 	int rc = -EPERM;
 
 	__qede_lock(edev);
@@ -1671,12 +1671,12 @@ static int qede_parse_actions(struct qede_dev *edev,
 	int i;
 
 	if (!flow_action_has_entries(flow_action)) {
-		DP_NOTICE(edev, "No actions received\n");
+		DP_ANALTICE(edev, "Anal actions received\n");
 		return -EINVAL;
 	}
 
 	if (!flow_action_basic_hw_stats_check(flow_action, extack))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	flow_action_for_each(i, act, flow_action) {
 		switch (act->id) {
@@ -1709,7 +1709,7 @@ qede_flow_parse_ports(struct qede_dev *edev, struct flow_rule *rule,
 		flow_rule_match_ports(rule, &match);
 		if ((match.key->src && match.mask->src != htons(U16_MAX)) ||
 		    (match.key->dst && match.mask->dst != htons(U16_MAX))) {
-			DP_NOTICE(edev, "Do not support ports masks\n");
+			DP_ANALTICE(edev, "Do analt support ports masks\n");
 			return -EINVAL;
 		}
 
@@ -1737,8 +1737,8 @@ qede_flow_parse_v6_common(struct qede_dev *edev, struct flow_rule *rule,
 		     memcmp(&match.mask->src, &addr, sizeof(addr))) ||
 		    (memcmp(&match.key->dst, &zero_addr, sizeof(addr)) &&
 		     memcmp(&match.mask->dst, &addr, sizeof(addr)))) {
-			DP_NOTICE(edev,
-				  "Do not support IPv6 address prefix/mask\n");
+			DP_ANALTICE(edev,
+				  "Do analt support IPv6 address prefix/mask\n");
 			return -EINVAL;
 		}
 
@@ -1762,7 +1762,7 @@ qede_flow_parse_v4_common(struct qede_dev *edev, struct flow_rule *rule,
 		flow_rule_match_ipv4_addrs(rule, &match);
 		if ((match.key->src && match.mask->src != htonl(U32_MAX)) ||
 		    (match.key->dst && match.mask->dst != htonl(U32_MAX))) {
-			DP_NOTICE(edev, "Do not support ipv4 prefix/masks\n");
+			DP_ANALTICE(edev, "Do analt support ipv4 prefix/masks\n");
 			return -EINVAL;
 		}
 
@@ -1832,15 +1832,15 @@ qede_parse_flow_attr(struct qede_dev *edev, __be16 proto,
 	      BIT_ULL(FLOW_DISSECTOR_KEY_BASIC) |
 	      BIT_ULL(FLOW_DISSECTOR_KEY_IPV6_ADDRS) |
 	      BIT_ULL(FLOW_DISSECTOR_KEY_PORTS))) {
-		DP_NOTICE(edev, "Unsupported key set:0x%llx\n",
+		DP_ANALTICE(edev, "Unsupported key set:0x%llx\n",
 			  dissector->used_keys);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (proto != htons(ETH_P_IP) &&
 	    proto != htons(ETH_P_IPV6)) {
-		DP_NOTICE(edev, "Unsupported proto=0x%x\n", proto);
-		return -EPROTONOSUPPORT;
+		DP_ANALTICE(edev, "Unsupported proto=0x%x\n", proto);
+		return -EPROTOANALSUPPORT;
 	}
 
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_BASIC)) {
@@ -1859,7 +1859,7 @@ qede_parse_flow_attr(struct qede_dev *edev, __be16 proto,
 	else if (ip_proto == IPPROTO_UDP && proto == htons(ETH_P_IPV6))
 		rc = qede_flow_parse_udp_v6(edev, rule, tuple);
 	else
-		DP_NOTICE(edev, "Invalid protocol request\n");
+		DP_ANALTICE(edev, "Invalid protocol request\n");
 
 	return rc;
 }
@@ -1867,7 +1867,7 @@ qede_parse_flow_attr(struct qede_dev *edev, __be16 proto,
 int qede_add_tc_flower_fltr(struct qede_dev *edev, __be16 proto,
 			    struct flow_cls_offload *f)
 {
-	struct qede_arfs_fltr_node *n;
+	struct qede_arfs_fltr_analde *n;
 	int min_hlen, rc = -EINVAL;
 	struct qede_arfs_tuple t;
 
@@ -1885,7 +1885,7 @@ int qede_add_tc_flower_fltr(struct qede_dev *edev, __be16 proto,
 	/* Validate profile mode and number of filters */
 	if ((edev->arfs->filter_count && edev->arfs->mode != t.mode) ||
 	    edev->arfs->filter_count == QEDE_RFS_MAX_FLTR) {
-		DP_NOTICE(edev,
+		DP_ANALTICE(edev,
 			  "Filter configuration invalidated, filter mode=0x%x, configured mode=0x%x, filter count=0x%x\n",
 			  t.mode, edev->arfs->mode, edev->arfs->filter_count);
 		goto unlock;
@@ -1902,7 +1902,7 @@ int qede_add_tc_flower_fltr(struct qede_dev *edev, __be16 proto,
 
 	n = kzalloc(sizeof(*n), GFP_KERNEL);
 	if (!n) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto unlock;
 	}
 
@@ -1911,7 +1911,7 @@ int qede_add_tc_flower_fltr(struct qede_dev *edev, __be16 proto,
 	n->data = kzalloc(min_hlen, GFP_KERNEL);
 	if (!n->data) {
 		kfree(n);
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto unlock;
 	}
 
@@ -1976,7 +1976,7 @@ static int qede_flow_spec_to_rule(struct qede_dev *edev,
 	int err = 0;
 
 	if (qede_flow_spec_validate_unused(edev, fs))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch ((fs->flow_type & ~FLOW_EXT)) {
 	case TCP_V4_FLOW:
@@ -1990,7 +1990,7 @@ static int qede_flow_spec_to_rule(struct qede_dev *edev,
 	default:
 		DP_VERBOSE(edev, NETIF_MSG_IFUP,
 			   "Can't support flow of type %08x\n", fs->flow_type);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	input.fs = fs;
@@ -2015,7 +2015,7 @@ err_out:
 int qede_add_cls_rule(struct qede_dev *edev, struct ethtool_rxnfc *info)
 {
 	struct ethtool_rx_flow_spec *fsp = &info->fs;
-	struct qede_arfs_fltr_node *n;
+	struct qede_arfs_fltr_analde *n;
 	struct qede_arfs_tuple t;
 	int min_hlen, rc;
 
@@ -2038,7 +2038,7 @@ int qede_add_cls_rule(struct qede_dev *edev, struct ethtool_rxnfc *info)
 
 	n = kzalloc(sizeof(*n), GFP_KERNEL);
 	if (!n) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto unlock;
 	}
 
@@ -2046,7 +2046,7 @@ int qede_add_cls_rule(struct qede_dev *edev, struct ethtool_rxnfc *info)
 	n->data = kzalloc(min_hlen, GFP_KERNEL);
 	if (!n->data) {
 		kfree(n);
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto unlock;
 	}
 

@@ -5,7 +5,7 @@
  * Copyright (c) 2021 TOSHIBA CORPORATION
  * Copyright (c) 2021 Toshiba Electronic Devices & Storage Corporation
  *
- * Nobuhiro Iwamatsu <nobuhiro1.iwamatsu@toshiba.co.jp>
+ * Analbuhiro Iwamatsu <analbuhiro1.iwamatsu@toshiba.co.jp>
  */
 
 #include <linux/clk-provider.h>
@@ -57,7 +57,7 @@ static const struct visconti_pll_info pll_info[] __initconst = {
 	{ TMPV770X_PLL_PIIMGERPLL, "piimgerpll", "osc2-clk", 0x700, piimgerpll_rates },
 };
 
-static void __init tmpv770x_setup_plls(struct device_node *np)
+static void __init tmpv770x_setup_plls(struct device_analde *np)
 {
 	struct visconti_pll_provider *ctx;
 	void __iomem *reg_base;

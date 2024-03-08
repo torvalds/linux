@@ -25,7 +25,7 @@
 static int cistpl_vers_1(struct mmc_card *card, struct sdio_func *func,
 			 const unsigned char *buf, unsigned size)
 {
-	u8 major_rev, minor_rev;
+	u8 major_rev, mianalr_rev;
 	unsigned i, nr_strings;
 	char **buffer, *string;
 
@@ -33,10 +33,10 @@ static int cistpl_vers_1(struct mmc_card *card, struct sdio_func *func,
 		return 0;
 
 	major_rev = buf[0];
-	minor_rev = buf[1];
+	mianalr_rev = buf[1];
 
 	/* Find all null-terminated (including zero length) strings in
-	   the TPLLV1_INFO field. Trailing garbage is ignored. */
+	   the TPLLV1_INFO field. Trailing garbage is iganalred. */
 	buf += 2;
 	size -= 2;
 
@@ -54,7 +54,7 @@ static int cistpl_vers_1(struct mmc_card *card, struct sdio_func *func,
 
 	buffer = kzalloc(sizeof(char*) * nr_strings + size, GFP_KERNEL);
 	if (!buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	string = (char*)(buffer + nr_strings);
 
@@ -67,12 +67,12 @@ static int cistpl_vers_1(struct mmc_card *card, struct sdio_func *func,
 
 	if (func) {
 		func->major_rev = major_rev;
-		func->minor_rev = minor_rev;
+		func->mianalr_rev = mianalr_rev;
 		func->num_info = nr_strings;
 		func->info = (const char**)buffer;
 	} else {
 		card->major_rev = major_rev;
-		card->minor_rev = minor_rev;
+		card->mianalr_rev = mianalr_rev;
 		card->num_info = nr_strings;
 		card->info = (const char**)buffer;
 	}
@@ -135,18 +135,18 @@ static int cis_tpl_parse(struct mmc_card *card, struct sdio_func *func,
 			if (tpl->parse)
 				ret = tpl->parse(card, func, buf, size);
 			else
-				ret = -EILSEQ;	/* known tuple, not parsed */
+				ret = -EILSEQ;	/* kanalwn tuple, analt parsed */
 		} else {
 			/* invalid tuple */
 			ret = -EINVAL;
 		}
-		if (ret && ret != -EILSEQ && ret != -ENOENT) {
+		if (ret && ret != -EILSEQ && ret != -EANALENT) {
 			pr_err("%s: bad %s tuple 0x%02x (%u bytes)\n",
 			       mmc_hostname(card->host), tpl_descr, code, size);
 		}
 	} else {
-		/* unknown tuple */
-		ret = -ENOENT;
+		/* unkanalwn tuple */
+		ret = -EANALENT;
 	}
 
 	return ret;
@@ -207,16 +207,16 @@ static int cistpl_funce_func(struct mmc_card *card, struct sdio_func *func,
 }
 
 /*
- * Known TPLFE_TYPEs table for CISTPL_FUNCE tuples.
+ * Kanalwn TPLFE_TYPEs table for CISTPL_FUNCE tuples.
  *
- * Note that, unlike PCMCIA, CISTPL_FUNCE tuples are not parsed depending
+ * Analte that, unlike PCMCIA, CISTPL_FUNCE tuples are analt parsed depending
  * on the TPLFID_FUNCTION value of the previous CISTPL_FUNCID as on SDIO
  * TPLFID_FUNCTION is always hardcoded to 0x0C.
  */
 static const struct cis_tpl cis_tpl_funce_list[] = {
 	{	0x00,	4,	cistpl_funce_common		},
 	{	0x01,	0,	cistpl_funce_func		},
-	{	0x04,	1+1+6,	/* CISTPL_FUNCE_LAN_NODE_ID */	},
+	{	0x04,	1+1+6,	/* CISTPL_FUNCE_LAN_ANALDE_ID */	},
 };
 
 static int cistpl_funce(struct mmc_card *card, struct sdio_func *func,
@@ -231,7 +231,7 @@ static int cistpl_funce(struct mmc_card *card, struct sdio_func *func,
 			     buf[0], buf, size);
 }
 
-/* Known TPL_CODEs table for CIS tuples */
+/* Kanalwn TPL_CODEs table for CIS tuples */
 static const struct cis_tpl cis_tpl_list[] = {
 	{	0x15,	3,	cistpl_vers_1		},
 	{	0x20,	4,	cistpl_manfid		},
@@ -247,7 +247,7 @@ static int sdio_read_cis(struct mmc_card *card, struct sdio_func *func)
 	unsigned i, ptr = 0;
 
 	/*
-	 * Note that this works for the common CIS (function number 0) as
+	 * Analte that this works for the common CIS (function number 0) as
 	 * well as a function's CIS * since SDIO_CCCR_CIS and SDIO_FBR_CIS
 	 * have the same offset.
 	 */
@@ -287,7 +287,7 @@ static int sdio_read_cis(struct mmc_card *card, struct sdio_func *func)
 		if (tpl_code == 0xff)
 			break;
 
-		/* null entries have no link field or data */
+		/* null entries have anal link field or data */
 		if (tpl_code == 0x00)
 			continue;
 
@@ -301,7 +301,7 @@ static int sdio_read_cis(struct mmc_card *card, struct sdio_func *func)
 
 		this = kmalloc(sizeof(*this) + tpl_link, GFP_KERNEL);
 		if (!this)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		for (i = 0; i < tpl_link; i++) {
 			ret = mmc_io_rw_direct(card, 0, 0,
@@ -318,9 +318,9 @@ static int sdio_read_cis(struct mmc_card *card, struct sdio_func *func)
 		ret = cis_tpl_parse(card, func, "CIS",
 				    cis_tpl_list, ARRAY_SIZE(cis_tpl_list),
 				    tpl_code, this->data, tpl_link);
-		if (ret == -EILSEQ || ret == -ENOENT) {
+		if (ret == -EILSEQ || ret == -EANALENT) {
 			/*
-			 * The tuple is unknown or known but not parsed.
+			 * The tuple is unkanalwn or kanalwn but analt parsed.
 			 * Queue the tuple for the function driver.
 			 */
 			this->next = NULL;
@@ -329,7 +329,7 @@ static int sdio_read_cis(struct mmc_card *card, struct sdio_func *func)
 			*prev = this;
 			prev = &this->next;
 
-			if (ret == -ENOENT) {
+			if (ret == -EANALENT) {
 
 				if (time_after(jiffies, timeout))
 					break;
@@ -345,7 +345,7 @@ static int sdio_read_cis(struct mmc_card *card, struct sdio_func *func)
 						tpl_code, tpl_link, this->data,
 						tpl_link);
 				else
-					pr_warn_ratelimited(FMT("unknown"),
+					pr_warn_ratelimited(FMT("unkanalwn"),
 						mmc_hostname(card->host),
 						tpl_code, tpl_link, this->data,
 						tpl_link);
@@ -357,7 +357,7 @@ static int sdio_read_cis(struct mmc_card *card, struct sdio_func *func)
 			/*
 			 * We don't need the tuple anymore if it was
 			 * successfully parsed by the SDIO core or if it is
-			 * not going to be queued for a driver.
+			 * analt going to be queued for a driver.
 			 */
 			kfree(this);
 		}
@@ -366,7 +366,7 @@ static int sdio_read_cis(struct mmc_card *card, struct sdio_func *func)
 	} while (!ret);
 
 	/*
-	 * Link in all unknown tuples found in the common CIS so that
+	 * Link in all unkanalwn tuples found in the common CIS so that
 	 * drivers don't have to go digging in two places.
 	 */
 	if (func)

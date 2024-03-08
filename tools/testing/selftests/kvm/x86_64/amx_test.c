@@ -224,7 +224,7 @@ int main(int argc, char *argv[])
 	int ret;
 
 	/*
-	 * Note, all off-by-default features must be enabled before anything
+	 * Analte, all off-by-default features must be enabled before anything
 	 * caches KVM_GET_SUPPORTED_CPUID, e.g. before using kvm_cpu_has().
 	 */
 	vm_xsave_require_permission(XFEATURE_MASK_XTILE_DATA);
@@ -270,7 +270,7 @@ int main(int argc, char *argv[])
 		switch (get_ucall(vcpu, &uc)) {
 		case UCALL_ABORT:
 			REPORT_GUEST_ASSERT(uc);
-			/* NOT REACHED */
+			/* ANALT REACHED */
 		case UCALL_SYNC:
 			switch (uc.args[1]) {
 			case 1:
@@ -309,7 +309,7 @@ int main(int argc, char *argv[])
 			fprintf(stderr, "UCALL_DONE\n");
 			goto done;
 		default:
-			TEST_FAIL("Unknown ucall %lu", uc.cmd);
+			TEST_FAIL("Unkanalwn ucall %lu", uc.cmd);
 		}
 
 		state = vcpu_save_state(vcpu);

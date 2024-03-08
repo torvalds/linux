@@ -700,7 +700,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc2>;
 	bus-width = <4>;
-	non-removable;
+	analn-removable;
 	vmmc-supply = <&reg_wlan_vmmc>;
 	cap-power-off-card;
 	keep-power-in-suspend;
@@ -730,7 +730,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc4>;
 	bus-width = <8>;
-	non-removable;
+	analn-removable;
 	vmmc-supply = <&reg_1p8v>;
 	keep-power-in-suspend;
 	status = "okay";

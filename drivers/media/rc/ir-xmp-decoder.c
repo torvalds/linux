@@ -4,8 +4,8 @@
  * Copyright (C) 2014 by Marcel Mol
  *
  * - Based on info from http://www.hifi-remote.com
- * - Ignore Toggle=9 frames
- * - Ignore XMP-1 XMP-2 difference, always store 16 bit OBC
+ * - Iganalre Toggle=9 frames
+ * - Iganalre XMP-1 XMP-2 difference, always store 16 bit OBC
  */
 
 #include <linux/bitrev.h>
@@ -16,7 +16,7 @@
 #define XMP_LEADER		  210 /* us */
 #define XMP_NIBBLE_PREFIX	  760 /* us */
 #define	XMP_HALFFRAME_SPACE	13800 /* us */
-/* should be 80ms but not all duration supliers can go that high */
+/* should be 80ms but analt all duration supliers can go that high */
 #define	XMP_TRAILER_SPACE	20000
 
 enum xmp_state {
@@ -150,7 +150,7 @@ static int ir_xmp_decode(struct rc_dev *dev, struct ir_raw_event ev)
 				dev_dbg(&dev->dev, "received half frame pulse at index %d. Probably a final frame key-up event: %u\n",
 					data->count, ev.duration);
 				/*
-				 * TODO: for now go back to half frame position
+				 * TODO: for analw go back to half frame position
 				 *	 so trailer can be found and key press
 				 *	 can be handled.
 				 */
@@ -167,7 +167,7 @@ static int ir_xmp_decode(struct rc_dev *dev, struct ir_raw_event ev)
 		} else if (geq_margin(ev.duration, XMP_NIBBLE_PREFIX, XMP_UNIT)) {
 			/* store nibble raw data, decode after trailer */
 			if (data->count == 16) {
-				dev_dbg(&dev->dev, "too many pulses (%d) ignoring: %u\n",
+				dev_dbg(&dev->dev, "too many pulses (%d) iganalring: %u\n",
 					data->count, ev.duration);
 				data->state = STATE_INACTIVE;
 				return -EINVAL;

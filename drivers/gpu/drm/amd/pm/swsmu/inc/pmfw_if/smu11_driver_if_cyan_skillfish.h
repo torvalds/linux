@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -29,10 +29,10 @@
 #define MP1_DRIVER_IF_VERSION 0x8
 
 #define TABLE_BIOS_IF            0 // Called by BIOS
-#define TABLE_WATERMARKS         1 // Called by Driver; defined here, but not used, for backward compatible
+#define TABLE_WATERMARKS         1 // Called by Driver; defined here, but analt used, for backward compatible
 #define TABLE_PMSTATUSLOG        3 // Called by Tools for Agm logging
-#define TABLE_DPMCLOCKS          4 // Called by Driver; defined here, but not used, for backward compatible
-#define TABLE_MOMENTARY_PM       5 // Called by Tools; defined here, but not used, for backward compatible
+#define TABLE_DPMCLOCKS          4 // Called by Driver; defined here, but analt used, for backward compatible
+#define TABLE_MOMENTARY_PM       5 // Called by Tools; defined here, but analt used, for backward compatible
 #define TABLE_SMU_METRICS        6 // Called by Driver
 #define TABLE_COUNT              7
 

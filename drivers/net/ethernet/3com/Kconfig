@@ -10,7 +10,7 @@ config NET_VENDOR_3COM
 	help
 	  If you have a network (Ethernet) card belonging to this class, say Y.
 
-	  Note that the answer to this question doesn't directly affect the
+	  Analte that the answer to this question doesn't directly affect the
 	  kernel: saying N will just cause the configurator to skip all
 	  the questions about 3Com cards. If you say Y, you will be asked for
 	  your specific card in the following questions.
@@ -24,7 +24,7 @@ config EL3
 	  If you have a network (Ethernet) card belonging to the 3Com
 	  EtherLinkIII series, say Y here.
 
-	  If your card is not working you may need to use the DOS
+	  If your card is analt working you may need to use the DOS
 	  setup disk to disable Plug & Play mode, and to select the default
 	  media type.
 

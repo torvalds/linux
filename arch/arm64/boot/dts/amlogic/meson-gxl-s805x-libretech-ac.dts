@@ -29,7 +29,7 @@
 
 	cvbs-connector {
 		/*
-		 * The pads are present but no connector is soldered on
+		 * The pads are present but anal connector is soldered on
 		 * 2J2, so keep this off by default.
 		 */
 		status = "disabled";
@@ -245,8 +245,8 @@
 			  "eMMC D0", "eMMC D1", "eMMC D2", "eMMC D3",
 			  "eMMC D4", "eMMC D5", "eMMC D6", "eMMC D7",
 			  "eMMC Clk", "eMMC Reset", "eMMC CMD",
-			  "SPI NOR MOSI", "SPI NOR MISO", "SPI NOR Clk",
-			  "", "SPI NOR Chip Select",
+			  "SPI ANALR MOSI", "SPI ANALR MISO", "SPI ANALR Clk",
+			  "", "SPI ANALR Chip Select",
 			  /* Bank CARD */
 			  "", "", "", "", "", "", "",
 			  /* Bank GPIODV */
@@ -294,13 +294,13 @@
 
 &spifc {
 	status = "okay";
-	pinctrl-0 = <&nor_pins>;
+	pinctrl-0 = <&analr_pins>;
 	pinctrl-names = "default";
 
 	w25q32: flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <3000000>;
 	};

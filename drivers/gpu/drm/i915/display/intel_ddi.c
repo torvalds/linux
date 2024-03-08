@@ -8,20 +8,20 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  *
  * Authors:
- *    Eugeni Dodonov <eugeni.dodonov@intel.com>
+ *    Eugeni Dodoanalv <eugeni.dodoanalv@intel.com>
  *
  */
 
@@ -206,7 +206,7 @@ static void intel_wait_ddi_buf_active(struct drm_i915_private *dev_priv,
 	int timeout_us;
 	int ret;
 
-	/* Wait > 518 usecs for DDI_BUF_CTL to be non idle */
+	/* Wait > 518 usecs for DDI_BUF_CTL to be analn idle */
 	if (DISPLAY_VER(dev_priv) < 10) {
 		usleep_range(518, 1000);
 		return;
@@ -254,7 +254,7 @@ static u32 hsw_pll_to_ddi_pll_sel(const struct intel_shared_dpll *pll)
 		return PORT_CLK_SEL_LCPLL_2700;
 	default:
 		MISSING_CASE(pll->info->id);
-		return PORT_CLK_SEL_NONE;
+		return PORT_CLK_SEL_ANALNE;
 	}
 }
 
@@ -268,11 +268,11 @@ static u32 icl_pll_to_ddi_clk_sel(struct intel_encoder *encoder,
 	switch (id) {
 	default:
 		/*
-		 * DPLL_ID_ICL_DPLL0 and DPLL_ID_ICL_DPLL1 should not be used
+		 * DPLL_ID_ICL_DPLL0 and DPLL_ID_ICL_DPLL1 should analt be used
 		 * here, so do warn if this get passed in
 		 */
 		MISSING_CASE(id);
-		return DDI_CLK_SEL_NONE;
+		return DDI_CLK_SEL_ANALNE;
 	case DPLL_ID_ICL_TBTPLL:
 		switch (clock) {
 		case 162000:
@@ -285,7 +285,7 @@ static u32 icl_pll_to_ddi_clk_sel(struct intel_encoder *encoder,
 			return DDI_CLK_SEL_TBT_810;
 		default:
 			MISSING_CASE(clock);
-			return DDI_CLK_SEL_NONE;
+			return DDI_CLK_SEL_ANALNE;
 		}
 	case DPLL_ID_ICL_MGPLL1:
 	case DPLL_ID_ICL_MGPLL2:
@@ -355,7 +355,7 @@ static int icl_calc_tbt_pll_link(struct drm_i915_private *dev_priv,
 	u32 val = intel_de_read(dev_priv, DDI_CLK_SEL(port)) & DDI_CLK_SEL_MASK;
 
 	switch (val) {
-	case DDI_CLK_SEL_NONE:
+	case DDI_CLK_SEL_ANALNE:
 		return 0;
 	case DDI_CLK_SEL_TBT_162:
 		return 162000;
@@ -414,7 +414,7 @@ void intel_ddi_set_dp_msa(const struct intel_crtc_state *crtc_state,
 		break;
 	}
 
-	/* nonsense combination */
+	/* analnsense combination */
 	drm_WARN_ON(&dev_priv->drm, crtc_state->limited_color_range &&
 		    crtc_state->output_format != INTEL_OUTPUT_FORMAT_RGB);
 
@@ -517,19 +517,19 @@ intel_ddi_transcoder_func_reg_val_get(struct intel_encoder *encoder,
 			fallthrough;
 		case PIPE_A:
 			/* On Haswell, can only use the always-on power well for
-			 * eDP when not using the panel fitter, and when not
+			 * eDP when analt using the panel fitter, and when analt
 			 * using motion blur mitigation (which we don't
 			 * support). */
 			if (crtc_state->pch_pfit.force_thru)
-				temp |= TRANS_DDI_EDP_INPUT_A_ONOFF;
+				temp |= TRANS_DDI_EDP_INPUT_A_OANALFF;
 			else
 				temp |= TRANS_DDI_EDP_INPUT_A_ON;
 			break;
 		case PIPE_B:
-			temp |= TRANS_DDI_EDP_INPUT_B_ONOFF;
+			temp |= TRANS_DDI_EDP_INPUT_B_OANALFF;
 			break;
 		case PIPE_C:
-			temp |= TRANS_DDI_EDP_INPUT_C_ONOFF;
+			temp |= TRANS_DDI_EDP_INPUT_C_OANALFF;
 			break;
 		}
 	}
@@ -610,7 +610,7 @@ void intel_ddi_enable_transcoder_func(struct intel_encoder *encoder,
 }
 
 /*
- * Same as intel_ddi_enable_transcoder_func(), but it does not set the enable
+ * Same as intel_ddi_enable_transcoder_func(), but it does analt set the enable
  * bit.
  */
 static void
@@ -787,13 +787,13 @@ static void intel_ddi_get_encoder_pipes(struct intel_encoder *encoder,
 			MISSING_CASE(tmp & TRANS_DDI_EDP_INPUT_MASK);
 			fallthrough;
 		case TRANS_DDI_EDP_INPUT_A_ON:
-		case TRANS_DDI_EDP_INPUT_A_ONOFF:
+		case TRANS_DDI_EDP_INPUT_A_OANALFF:
 			*pipe_mask = BIT(PIPE_A);
 			break;
-		case TRANS_DDI_EDP_INPUT_B_ONOFF:
+		case TRANS_DDI_EDP_INPUT_B_OANALFF:
 			*pipe_mask = BIT(PIPE_B);
 			break;
-		case TRANS_DDI_EDP_INPUT_C_ONOFF:
+		case TRANS_DDI_EDP_INPUT_C_OANALFF:
 			*pipe_mask = BIT(PIPE_C);
 			break;
 		}
@@ -838,7 +838,7 @@ static void intel_ddi_get_encoder_pipes(struct intel_encoder *encoder,
 
 	if (!*pipe_mask)
 		drm_dbg_kms(&dev_priv->drm,
-			    "No pipe for [ENCODER:%d:%s] found\n",
+			    "Anal pipe for [ENCODER:%d:%s] found\n",
 			    encoder->base.base.id, encoder->base.name);
 
 	if (!mst_pipe_mask && hweight8(*pipe_mask) > 1) {
@@ -851,7 +851,7 @@ static void intel_ddi_get_encoder_pipes(struct intel_encoder *encoder,
 
 	if (mst_pipe_mask && mst_pipe_mask != *pipe_mask)
 		drm_dbg_kms(&dev_priv->drm,
-			    "Conflicting MST and non-MST state for [ENCODER:%d:%s] (pipe_mask %02x mst_pipe_mask %02x)\n",
+			    "Conflicting MST and analn-MST state for [ENCODER:%d:%s] (pipe_mask %02x mst_pipe_mask %02x)\n",
 			    encoder->base.base.id, encoder->base.name,
 			    *pipe_mask, mst_pipe_mask);
 	else
@@ -1148,7 +1148,7 @@ static void icl_ddi_combo_vswing_program(struct intel_encoder *encoder,
 	}
 
 	/* Program PORT_TX_DW4 */
-	/* We cannot write to GRP. It would overwrite individual loadgen. */
+	/* We cananalt write to GRP. It would overwrite individual loadgen. */
 	for (ln = 0; ln < 4; ln++) {
 		int level = intel_ddi_level(encoder, crtc_state, ln);
 
@@ -1459,7 +1459,7 @@ hsw_set_signal_levels(struct intel_encoder *encoder,
 	if (has_iboost(dev_priv))
 		skl_ddi_set_iboost(encoder, crtc_state, level);
 
-	/* HDMI ignores the rest */
+	/* HDMI iganalres the rest */
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI))
 		return;
 
@@ -1728,7 +1728,7 @@ static void jsl_ddi_tc_enable_clock(struct intel_encoder *encoder,
 
 	/*
 	 * "For DDIC and DDID, program DDI_CLK_SEL to map the MG clock to the port.
-	 *  MG does not exist, but the programming is required to ungate DDIC and DDID."
+	 *  MG does analt exist, but the programming is required to ungate DDIC and DDID."
 	 */
 	intel_de_write(i915, DDI_CLK_SEL(port), DDI_CLK_SEL_MG);
 
@@ -1742,7 +1742,7 @@ static void jsl_ddi_tc_disable_clock(struct intel_encoder *encoder)
 
 	icl_ddi_combo_disable_clock(encoder);
 
-	intel_de_write(i915, DDI_CLK_SEL(port), DDI_CLK_SEL_NONE);
+	intel_de_write(i915, DDI_CLK_SEL(port), DDI_CLK_SEL_ANALNE);
 }
 
 static bool jsl_ddi_tc_is_clock_enabled(struct intel_encoder *encoder)
@@ -1753,7 +1753,7 @@ static bool jsl_ddi_tc_is_clock_enabled(struct intel_encoder *encoder)
 
 	tmp = intel_de_read(i915, DDI_CLK_SEL(port));
 
-	if ((tmp & DDI_CLK_SEL_MASK) == DDI_CLK_SEL_NONE)
+	if ((tmp & DDI_CLK_SEL_MASK) == DDI_CLK_SEL_ANALNE)
 		return false;
 
 	return icl_ddi_combo_is_clock_enabled(encoder);
@@ -1794,7 +1794,7 @@ static void icl_ddi_tc_disable_clock(struct intel_encoder *encoder)
 
 	mutex_unlock(&i915->display.dpll.lock);
 
-	intel_de_write(i915, DDI_CLK_SEL(port), DDI_CLK_SEL_NONE);
+	intel_de_write(i915, DDI_CLK_SEL(port), DDI_CLK_SEL_ANALNE);
 }
 
 static bool icl_ddi_tc_is_clock_enabled(struct intel_encoder *encoder)
@@ -1806,7 +1806,7 @@ static bool icl_ddi_tc_is_clock_enabled(struct intel_encoder *encoder)
 
 	tmp = intel_de_read(i915, DDI_CLK_SEL(port));
 
-	if ((tmp & DDI_CLK_SEL_MASK) == DDI_CLK_SEL_NONE)
+	if ((tmp & DDI_CLK_SEL_MASK) == DDI_CLK_SEL_ANALNE)
 		return false;
 
 	tmp = intel_de_read(i915, ICL_DPCLKA_CFGCR0);
@@ -1837,7 +1837,7 @@ static struct intel_shared_dpll *icl_ddi_tc_get_pll(struct intel_encoder *encode
 	default:
 		MISSING_CASE(tmp);
 		fallthrough;
-	case DDI_CLK_SEL_NONE:
+	case DDI_CLK_SEL_ANALNE:
 		return NULL;
 	}
 
@@ -1907,7 +1907,7 @@ static bool skl_ddi_is_clock_enabled(struct intel_encoder *encoder)
 	enum port port = encoder->port;
 
 	/*
-	 * FIXME Not sure if the override affects both
+	 * FIXME Analt sure if the override affects both
 	 * the PLL selection and the CLK_OFF bit.
 	 */
 	return !(intel_de_read(i915, DPLL_CTRL2) & DPLL_CTRL2_DDI_CLK_OFF(port));
@@ -1923,7 +1923,7 @@ static struct intel_shared_dpll *skl_ddi_get_pll(struct intel_encoder *encoder)
 	tmp = intel_de_read(i915, DPLL_CTRL2);
 
 	/*
-	 * FIXME Not sure if the override affects both
+	 * FIXME Analt sure if the override affects both
 	 * the PLL selection and the CLK_OFF bit.
 	 */
 	if ((tmp & DPLL_CTRL2_DDI_SEL_OVERRIDE(port)) == 0)
@@ -1953,7 +1953,7 @@ void hsw_ddi_disable_clock(struct intel_encoder *encoder)
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	enum port port = encoder->port;
 
-	intel_de_write(i915, PORT_CLK_SEL(port), PORT_CLK_SEL_NONE);
+	intel_de_write(i915, PORT_CLK_SEL(port), PORT_CLK_SEL_ANALNE);
 }
 
 bool hsw_ddi_is_clock_enabled(struct intel_encoder *encoder)
@@ -1961,7 +1961,7 @@ bool hsw_ddi_is_clock_enabled(struct intel_encoder *encoder)
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	enum port port = encoder->port;
 
-	return intel_de_read(i915, PORT_CLK_SEL(port)) != PORT_CLK_SEL_NONE;
+	return intel_de_read(i915, PORT_CLK_SEL(port)) != PORT_CLK_SEL_ANALNE;
 }
 
 static struct intel_shared_dpll *hsw_ddi_get_pll(struct intel_encoder *encoder)
@@ -1995,7 +1995,7 @@ static struct intel_shared_dpll *hsw_ddi_get_pll(struct intel_encoder *encoder)
 	default:
 		MISSING_CASE(tmp);
 		fallthrough;
-	case PORT_CLK_SEL_NONE:
+	case PORT_CLK_SEL_ANALNE:
 		return NULL;
 	}
 
@@ -2022,7 +2022,7 @@ void intel_ddi_sanitize_encoder_pll_mapping(struct intel_encoder *encoder)
 	bool ddi_clk_needed;
 
 	/*
-	 * In case of DP MST, we sanitize the primary encoder only, not the
+	 * In case of DP MST, we sanitize the primary encoder only, analt the
 	 * virtual ones.
 	 */
 	if (encoder->type == INTEL_OUTPUT_DP_MST)
@@ -2049,7 +2049,7 @@ void intel_ddi_sanitize_encoder_pll_mapping(struct intel_encoder *encoder)
 
 		port_mask = intel_dsi_encoder_ports(encoder);
 		/*
-		 * Sanity check that we haven't incorrectly registered another
+		 * Sanity check that we haven't incorrectly registered aanalther
 		 * encoder using any of the ports of this DSI encoder.
 		 */
 		for_each_intel_encoder(&i915->drm, other_encoder) {
@@ -2071,7 +2071,7 @@ void intel_ddi_sanitize_encoder_pll_mapping(struct intel_encoder *encoder)
 	    !encoder->is_clock_enabled(encoder))
 		return;
 
-	drm_notice(&i915->drm,
+	drm_analtice(&i915->drm,
 		   "[ENCODER:%d:%s] is disabled/in DSI mode with an ungated DDI clock, gate it\n",
 		   encoder->base.base.id, encoder->base.name);
 
@@ -2194,7 +2194,7 @@ i915_reg_t dp_tp_status_reg(struct intel_encoder *encoder,
 		return DP_TP_STATUS(encoder->port);
 }
 
-static void intel_dp_sink_set_msa_timing_par_ignore_state(struct intel_dp *intel_dp,
+static void intel_dp_sink_set_msa_timing_par_iganalre_state(struct intel_dp *intel_dp,
 							  const struct intel_crtc_state *crtc_state,
 							  bool enable)
 {
@@ -2204,9 +2204,9 @@ static void intel_dp_sink_set_msa_timing_par_ignore_state(struct intel_dp *intel
 		return;
 
 	if (drm_dp_dpcd_writeb(&intel_dp->aux, DP_DOWNSPREAD_CTRL,
-			       enable ? DP_MSA_TIMING_PAR_IGNORE_EN : 0) <= 0)
+			       enable ? DP_MSA_TIMING_PAR_IGANALRE_EN : 0) <= 0)
 		drm_dbg_kms(&i915->drm,
-			    "Failed to %s MSA_TIMING_PAR_IGNORE in the sink\n",
+			    "Failed to %s MSA_TIMING_PAR_IGANALRE in the sink\n",
 			    str_enable_disable(enable));
 }
 
@@ -2287,7 +2287,7 @@ void intel_ddi_wait_for_fec_status(struct intel_encoder *encoder,
 			str_enabled_disabled(enabled));
 
 	/*
-	 * At least the Synoptics MST hub doesn't set the detected flag for
+	 * At least the Syanalptics MST hub doesn't set the detected flag for
 	 * FEC decoding disabling so skip waiting for that.
 	 */
 	if (enabled)
@@ -2555,7 +2555,7 @@ static void mtl_ddi_pre_enable_dp(struct intel_atomic_state *state,
 
 	/*
 	 * 6. The rest of the below are substeps under the bspec's "Enable and
-	 * Train Display Port" step.  Note that steps that are specific to
+	 * Train Display Port" step.  Analte that steps that are specific to
 	 * MST will be handled by intel_mst_pre_enable_dp() before/after it
 	 * calls into this function.  Also intel_mst_pre_enable_dp() only calls
 	 * us when active_mst_links==0, so any steps designated for "single
@@ -2566,7 +2566,7 @@ static void mtl_ddi_pre_enable_dp(struct intel_atomic_state *state,
 	 * intel_dp_start_link_train() will execute steps: 6.d, 6.f, 6.g, 6.h,
 	 * 6.i and 6.j
 	 *
-	 * 6.k Follow DisplayPort specification training sequence (see notes for
+	 * 6.k Follow DisplayPort specification training sequence (see analtes for
 	 *     failure handling)
 	 * 6.m If DisplayPort multi-stream - Set DP_TP_CTL link training to Idle
 	 *     Pattern, wait for 5 idle patterns (DP_TP_STATUS Min_Idles_Sent)
@@ -2574,7 +2574,7 @@ static void mtl_ddi_pre_enable_dp(struct intel_atomic_state *state,
 	 */
 	intel_dp_start_link_train(intel_dp, crtc_state);
 
-	/* 6.n Set DP_TP_CTL link training to Normal */
+	/* 6.n Set DP_TP_CTL link training to Analrmal */
 	if (!is_trans_port_sync_mode(crtc_state))
 		intel_dp_stop_link_train(intel_dp, crtc_state);
 
@@ -2616,7 +2616,7 @@ static void tgl_ddi_pre_enable_dp(struct intel_atomic_state *state,
 	intel_pps_on(intel_dp);
 
 	/*
-	 * 3. For non-TBT Type-C ports, set FIA lane count
+	 * 3. For analn-TBT Type-C ports, set FIA lane count
 	 * (DFLEXDPSP.DPX4TXLATC)
 	 *
 	 * This was done before tgl_ddi_pre_enable_dp by
@@ -2644,7 +2644,7 @@ static void tgl_ddi_pre_enable_dp(struct intel_atomic_state *state,
 
 	/*
 	 * 7. The rest of the below are substeps under the bspec's "Enable and
-	 * Train Display Port" step.  Note that steps that are specific to
+	 * Train Display Port" step.  Analte that steps that are specific to
 	 * MST will be handled by intel_mst_pre_enable_dp() before/after it
 	 * calls into this function.  Also intel_mst_pre_enable_dp() only calls
 	 * us when active_mst_links==0, so any steps designated for "single
@@ -2708,7 +2708,7 @@ static void tgl_ddi_pre_enable_dp(struct intel_atomic_state *state,
 	intel_dp_pcon_dsc_configure(intel_dp, crtc_state);
 
 	/*
-	 * 7.i Follow DisplayPort specification training sequence (see notes for
+	 * 7.i Follow DisplayPort specification training sequence (see analtes for
 	 *     failure handling)
 	 * 7.j If DisplayPort multi-stream - Set DP_TP_CTL link training to Idle
 	 *     Pattern, wait for 5 idle patterns (DP_TP_STATUS Min_Idles_Sent)
@@ -2716,7 +2716,7 @@ static void tgl_ddi_pre_enable_dp(struct intel_atomic_state *state,
 	 */
 	intel_dp_start_link_train(intel_dp, crtc_state);
 
-	/* 7.k Set DP_TP_CTL link training to Normal */
+	/* 7.k Set DP_TP_CTL link training to Analrmal */
 	if (!is_trans_port_sync_mode(crtc_state))
 		intel_dp_stop_link_train(intel_dp, crtc_state);
 
@@ -2865,7 +2865,7 @@ static void intel_ddi_pre_enable(struct intel_atomic_state *state,
 	 * - the main connector associated with this port
 	 *   won't be active or linked to a crtc
 	 * - crtc_state will be the state of the first stream to
-	 *   be activated on this port, and it may not be the same
+	 *   be activated on this port, and it may analt be the same
 	 *   stream that will be deactivated last, but each stream
 	 *   should have a state that is identical when it comes to
 	 *   the DP link parameteres
@@ -3018,7 +3018,7 @@ static void intel_ddi_post_disable_dp(struct intel_atomic_state *state,
 
 	/*
 	 * From TGL spec: "If single stream or multi-stream master transcoder:
-	 * Configure Transcoder Clock select to direct no clock to the
+	 * Configure Transcoder Clock select to direct anal clock to the
 	 * transcoder"
 	 */
 	if (DISPLAY_VER(dev_priv) >= 12)
@@ -3115,7 +3115,7 @@ static void intel_ddi_post_disable(struct intel_atomic_state *state,
 	 * - the main connector associated with this port
 	 *   won't be active or linked to a crtc
 	 * - old_crtc_state will be the state of the last stream to
-	 *   be deactivated on this port, and it may not be the same
+	 *   be deactivated on this port, and it may analt be the same
 	 *   stream that was activated last, but each stream
 	 *   should have a state that is identical when it comes to
 	 *   the DP link parameteres
@@ -3299,7 +3299,7 @@ static void intel_enable_ddi_hdmi(struct intel_atomic_state *state,
 	intel_ddi_power_up_lanes(encoder, crtc_state);
 
 	/* In HDMI/DVI mode, the port width, and swing/emphasis values
-	 * are ignored so nothing special needs to be done besides
+	 * are iganalred so analthing special needs to be done besides
 	 * enabling the port.
 	 *
 	 * On ADL_P the PHY link rate and lane count must be programmed but
@@ -3377,8 +3377,8 @@ static void intel_disable_ddi_dp(struct intel_atomic_state *state,
 	/* Disable the decompression in DP Sink */
 	intel_dp_sink_disable_decompression(state,
 					    connector, old_crtc_state);
-	/* Disable Ignore_MSA bit in DP Sink */
-	intel_dp_sink_set_msa_timing_par_ignore_state(intel_dp, old_crtc_state,
+	/* Disable Iganalre_MSA bit in DP Sink */
+	intel_dp_sink_set_msa_timing_par_iganalre_state(intel_dp, old_crtc_state,
 						      false);
 }
 
@@ -3513,7 +3513,7 @@ static void mtl_ddi_prepare_link_retrain(struct intel_dp *intel_dp,
 	u32 dp_tp_ctl;
 
 	/*
-	 * TODO: To train with only a different voltage swing entry is not
+	 * TODO: To train with only a different voltage swing entry is analt
 	 * necessary disable and enable port
 	 */
 	dp_tp_ctl = intel_de_read(dev_priv, dp_tp_ctl_reg(encoder, crtc_state));
@@ -3613,7 +3613,7 @@ static void intel_ddi_set_link_train(struct intel_dp *intel_dp,
 	temp &= ~DP_TP_CTL_LINK_TRAIN_MASK;
 	switch (intel_dp_training_pattern_symbol(dp_train_pat)) {
 	case DP_TRAINING_PATTERN_DISABLE:
-		temp |= DP_TP_CTL_LINK_TRAIN_NORMAL;
+		temp |= DP_TP_CTL_LINK_TRAIN_ANALRMAL;
 		break;
 	case DP_TRAINING_PATTERN_1:
 		temp |= DP_TP_CTL_LINK_TRAIN_PAT1;
@@ -3645,7 +3645,7 @@ static void intel_ddi_set_idle_link_train(struct intel_dp *intel_dp,
 	/*
 	 * Until TGL on PORT_A we can have only eDP in SST mode. There the only
 	 * reason we need to set idle transmission mode is to work around a HW
-	 * issue where we enable the pipe while not in idle link-training mode.
+	 * issue where we enable the pipe while analt in idle link-training mode.
 	 * In this case there is requirement to wait for a minimum number of
 	 * idle patterns to be sent.
 	 */
@@ -3901,7 +3901,7 @@ static void intel_ddi_get_config(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	enum transcoder cpu_transcoder = pipe_config->cpu_transcoder;
 
-	/* XXX: DSI transcoder paranoia */
+	/* XXX: DSI transcoder paraanalia */
 	if (drm_WARN_ON(&dev_priv->drm, transcoder_is_dsi(cpu_transcoder)))
 		return;
 
@@ -4253,7 +4253,7 @@ intel_ddi_port_sync_transcoders(const struct intel_crtc_state *ref_crtc_state,
 
 	/*
 	 * We don't enable port sync on BDW due to missing w/as and
-	 * due to not having adjusted the modeset sequence appropriately.
+	 * due to analt having adjusted the modeset sequence appropriately.
 	 */
 	if (DISPLAY_VER(dev_priv) < 9)
 		return 0;
@@ -4300,7 +4300,7 @@ static int intel_ddi_compute_config_late(struct intel_encoder *encoder,
 									connector->tile_group->id);
 
 	/*
-	 * EDP Transcoders cannot be ensalved
+	 * EDP Transcoders cananalt be ensalved
 	 * make them a master always when present
 	 */
 	if (port_sync_transcoders & BIT(TRANSCODER_EDP))
@@ -4398,7 +4398,7 @@ intel_ddi_init_dp_connector(struct intel_digital_port *dig_port)
 		if (!IS_ERR(privacy_screen)) {
 			drm_connector_attach_privacy_screen_provider(&connector->base,
 								     privacy_screen);
-		} else if (PTR_ERR(privacy_screen) != -ENODEV) {
+		} else if (PTR_ERR(privacy_screen) != -EANALDEV) {
 			drm_warn(dev, "Error getting privacy-screen\n");
 		}
 	}
@@ -4415,7 +4415,7 @@ static int modeset_pipe(struct drm_crtc *crtc,
 
 	state = drm_atomic_state_alloc(crtc->dev);
 	if (!state)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	state->acquire_ctx = ctx;
 	to_intel_atomic_state(state)->internal = true;
@@ -4496,7 +4496,7 @@ static int intel_hdmi_reset_link(struct intel_encoder *encoder,
 		return 0;
 
 	/*
-	 * HDMI 2.0 says that one should not send scrambled data
+	 * HDMI 2.0 says that one should analt send scrambled data
 	 * prior to configuring the sink scrambling, and that
 	 * TMDS clock/data transmission should be suspended when
 	 * changing the TMDS clock rate in the sink. So let's
@@ -4523,7 +4523,7 @@ intel_ddi_hotplug(struct intel_encoder *encoder,
 	if (intel_dp->compliance.test_active &&
 	    intel_dp->compliance.test_type == DP_TEST_LINK_PHY_TEST_PATTERN) {
 		intel_dp_phy_test(encoder);
-		/* just do the PHY test and nothing else */
+		/* just do the PHY test and analthing else */
 		return INTEL_HOTPLUG_UNCHANGED;
 	}
 
@@ -4545,14 +4545,14 @@ intel_ddi_hotplug(struct intel_encoder *encoder,
 	 * responsible, so here giving some time to those dongles to power up
 	 * and then retrying the probe.
 	 *
-	 * On many platforms the HDMI live state signal is known to be
+	 * On many platforms the HDMI live state signal is kanalwn to be
 	 * unreliable, so we can't use it to detect if a sink is connected or
-	 * not. Instead we detect if it's connected based on whether we can
-	 * read the EDID or not. That in turn has a problem during disconnect,
+	 * analt. Instead we detect if it's connected based on whether we can
+	 * read the EDID or analt. That in turn has a problem during disconnect,
 	 * since the HPD interrupt may be raised before the DDC lines get
 	 * disconnected (due to how the required length of DDC vs. HPD
 	 * connector pins are specified) and so we'll still be able to get a
-	 * valid EDID. To solve this schedule another detection cycle if this
+	 * valid EDID. To solve this schedule aanalther detection cycle if this
 	 * time around we didn't detect any change in the sink's connection
 	 * status.
 	 *
@@ -4774,7 +4774,7 @@ static void intel_ddi_tc_encoder_shutdown_complete(struct intel_encoder *encoder
 
 static bool port_strap_detected(struct drm_i915_private *i915, enum port port)
 {
-	/* straps not used on skl+ */
+	/* straps analt used on skl+ */
 	if (DISPLAY_VER(i915) >= 9)
 		return true;
 
@@ -4788,7 +4788,7 @@ static bool port_strap_detected(struct drm_i915_private *i915, enum port port)
 	case PORT_D:
 		return intel_de_read(i915, SFUSE_STRAP) & SFUSE_STRAP_DDID_DETECTED;
 	case PORT_E:
-		return true; /* no strap for DDI-E */
+		return true; /* anal strap for DDI-E */
 	default:
 		MISSING_CASE(port);
 		return false;
@@ -4807,7 +4807,7 @@ static bool assert_has_icl_dsi(struct drm_i915_private *i915)
 {
 	return !drm_WARN(&i915->drm, !IS_ALDERLAKE_P(i915) &&
 			 !IS_TIGERLAKE(i915) && DISPLAY_VER(i915) != 11,
-			 "Platform does not support DSI\n");
+			 "Platform does analt support DSI\n");
 }
 
 static bool port_in_use(struct drm_i915_private *i915, enum port port)
@@ -4833,12 +4833,12 @@ void intel_ddi_init(struct drm_i915_private *dev_priv,
 	enum phy phy;
 
 	port = intel_bios_encoder_port(devdata);
-	if (port == PORT_NONE)
+	if (port == PORT_ANALNE)
 		return;
 
 	if (!port_strap_detected(dev_priv, port)) {
 		drm_dbg_kms(&dev_priv->drm,
-			    "Port %c strap not detected\n", port_name(port));
+			    "Port %c strap analt detected\n", port_name(port));
 		return;
 	}
 
@@ -4852,7 +4852,7 @@ void intel_ddi_init(struct drm_i915_private *dev_priv,
 	}
 
 	if (intel_bios_encoder_supports_dsi(devdata)) {
-		/* BXT/GLK handled elsewhere, for now at least */
+		/* BXT/GLK handled elsewhere, for analw at least */
 		if (!assert_has_icl_dsi(dev_priv))
 			return;
 
@@ -4892,7 +4892,7 @@ void intel_ddi_init(struct drm_i915_private *dev_priv,
 
 	if (!init_dp && !init_hdmi) {
 		drm_dbg_kms(&dev_priv->drm,
-			    "VBT says port %c is not DVI/HDMI/DP compatible, respect it\n",
+			    "VBT says port %c is analt DVI/HDMI/DP compatible, respect it\n",
 			    port_name(port));
 		return;
 	}
@@ -4908,7 +4908,7 @@ void intel_ddi_init(struct drm_i915_private *dev_priv,
 	if (!dig_port)
 		return;
 
-	dig_port->aux_ch = AUX_CH_NONE;
+	dig_port->aux_ch = AUX_CH_ANALNE;
 
 	encoder = &dig_port->base;
 	encoder->devdata = devdata;
@@ -4927,8 +4927,8 @@ void intel_ddi_init(struct drm_i915_private *dev_priv,
 				 "DDI %s%c/PHY %s%c",
 				 port >= PORT_TC1 ? "TC" : "",
 				 port >= PORT_TC1 ? port_tc_name(port) : port_name(port),
-				 tc_port != TC_PORT_NONE ? "TC" : "",
-				 tc_port != TC_PORT_NONE ? tc_port_name(tc_port) : phy_name(phy));
+				 tc_port != TC_PORT_ANALNE ? "TC" : "",
+				 tc_port != TC_PORT_ANALNE ? tc_port_name(tc_port) : phy_name(phy));
 	} else if (DISPLAY_VER(dev_priv) >= 11) {
 		enum tc_port tc_port = intel_port_to_tc(dev_priv, port);
 
@@ -4937,8 +4937,8 @@ void intel_ddi_init(struct drm_i915_private *dev_priv,
 				 "DDI %c%s/PHY %s%c",
 				 port_name(port),
 				 port >= PORT_C ? " (TC)" : "",
-				 tc_port != TC_PORT_NONE ? "TC" : "",
-				 tc_port != TC_PORT_NONE ? tc_port_name(tc_port) : phy_name(phy));
+				 tc_port != TC_PORT_ANALNE ? "TC" : "",
+				 tc_port != TC_PORT_ANALNE ? tc_port_name(tc_port) : phy_name(phy));
 	} else {
 		drm_encoder_init(&dev_priv->drm, &encoder->base, &intel_ddi_funcs,
 				 DRM_MODE_ENCODER_TMDS,
@@ -5095,7 +5095,7 @@ void intel_ddi_init(struct drm_i915_private *dev_priv,
 
 	if (need_aux_ch(encoder, init_dp)) {
 		dig_port->aux_ch = intel_dp_aux_ch(encoder);
-		if (dig_port->aux_ch == AUX_CH_NONE)
+		if (dig_port->aux_ch == AUX_CH_ANALNE)
 			goto err;
 	}
 
@@ -5108,10 +5108,10 @@ void intel_ddi_init(struct drm_i915_private *dev_priv,
 			is_legacy = !init_dp;
 
 			drm_dbg_kms(&dev_priv->drm,
-				    "VBT says port %c is non-legacy TC and has HDMI (with DP: %s), assume it's %s\n",
+				    "VBT says port %c is analn-legacy TC and has HDMI (with DP: %s), assume it's %s\n",
 				    port_name(port),
-				    str_yes_no(init_dp),
-				    is_legacy ? "legacy" : "non-legacy");
+				    str_anal_anal(init_dp),
+				    is_legacy ? "legacy" : "analn-legacy");
 		}
 
 		encoder->suspend_complete = intel_ddi_tc_encoder_suspend_complete;

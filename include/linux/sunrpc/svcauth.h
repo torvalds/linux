@@ -66,18 +66,18 @@ struct in6_addr;
  * between local identity (uid) and network identity.  All clients
  * in a domain have similar general access rights.  Each domain can
  * contain multiple principals which will have different specific right
- * based on normal Discretionary Access Control.
+ * based on analrmal Discretionary Access Control.
  *
  * A domain is created by an authentication flavour module based on name
  * only.  Userspace then fills in detail on demand.
  *
  * In the case of auth_unix and auth_null, the auth_domain is also
- * associated with entries in another cache representing the mapping
+ * associated with entries in aanalther cache representing the mapping
  * of ip addresses to the given client.
  */
 struct auth_domain {
 	struct kref		ref;
-	struct hlist_node	hash;
+	struct hlist_analde	hash;
 	char			*name;
 	struct auth_ops		*flavour;
 	struct rcu_head		rcu_head;
@@ -116,13 +116,13 @@ enum svc_auth_status {
  *      GARBAGE - rpc garbage_args error
  *      SYSERR - rpc system_err error
  *      DENIED - authp holds reason for denial.
- *      COMPLETE - the reply is encoded already and ready to be sent; no
+ *      COMPLETE - the reply is encoded already and ready to be sent; anal
  *		further processing is necessary.  (This is used for processing
  *		null procedure calls which are used to set up encryption
  *		contexts.)
  *
  *   accept is passed the proc number so that it can accept NULL rpc requests
- *   even if it cannot authenticate the client (as is sometimes appropriate).
+ *   even if it cananalt authenticate the client (as is sometimes appropriate).
  *
  * release() is given a request after the procedure has been run.
  *  It should sign/encrypt the results if needed
@@ -170,8 +170,8 @@ extern int unix_gid_cache_create(struct net *net);
 extern void unix_gid_cache_destroy(struct net *net);
 
 /*
- * The <stringhash.h> functions are good enough that we don't need to
- * use hash_32() on them; just extracting the high bits is enough.
+ * The <stringhash.h> functions are good eanalugh that we don't need to
+ * use hash_32() on them; just extracting the high bits is eanalugh.
  */
 static inline unsigned long hash_str(char const *name, int bits)
 {

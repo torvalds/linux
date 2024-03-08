@@ -48,7 +48,7 @@ int main(void)
 	/* Verify if extended hypercalls are supported */
 	if (!kvm_cpuid_has(kvm_get_supported_hv_cpuid(),
 			   HV_ENABLE_EXTENDED_HYPERCALLS)) {
-		print_skip("Extended calls not supported by the kernel");
+		print_skip("Extended calls analt supported by the kernel");
 		exit(KSFT_SKIP);
 	}
 

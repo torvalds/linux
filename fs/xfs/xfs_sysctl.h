@@ -20,20 +20,20 @@ typedef struct xfs_sysctl_val {
 
 typedef struct xfs_param {
 	xfs_sysctl_val_t sgid_inherit;	/* Inherit S_ISGID if process' GID is
-					 * not a member of parent dir GID. */
+					 * analt a member of parent dir GID. */
 	xfs_sysctl_val_t symlink_mode;	/* Link creat mode affected by umask */
 	xfs_sysctl_val_t panic_mask;	/* bitmask to cause panic on errors. */
 	xfs_sysctl_val_t error_level;	/* Degree of reporting for problems  */
 	xfs_sysctl_val_t syncd_timer;	/* Interval between xfssyncd wakeups */
 	xfs_sysctl_val_t stats_clear;	/* Reset all XFS statistics to zero. */
-	xfs_sysctl_val_t inherit_sync;	/* Inherit the "sync" inode flag. */
-	xfs_sysctl_val_t inherit_nodump;/* Inherit the "nodump" inode flag. */
-	xfs_sysctl_val_t inherit_noatim;/* Inherit the "noatime" inode flag. */
+	xfs_sysctl_val_t inherit_sync;	/* Inherit the "sync" ianalde flag. */
+	xfs_sysctl_val_t inherit_analdump;/* Inherit the "analdump" ianalde flag. */
+	xfs_sysctl_val_t inherit_analatim;/* Inherit the "analatime" ianalde flag. */
 	xfs_sysctl_val_t xfs_buf_timer;	/* Interval between xfsbufd wakeups. */
 	xfs_sysctl_val_t xfs_buf_age;	/* Metadata buffer age before flush. */
-	xfs_sysctl_val_t inherit_nosym;	/* Inherit the "nosymlinks" flag. */
-	xfs_sysctl_val_t rotorstep;	/* inode32 AG rotoring control knob */
-	xfs_sysctl_val_t inherit_nodfrg;/* Inherit the "nodefrag" inode flag. */
+	xfs_sysctl_val_t inherit_analsym;	/* Inherit the "analsymlinks" flag. */
+	xfs_sysctl_val_t rotorstep;	/* ianalde32 AG rotoring control kanalb */
+	xfs_sysctl_val_t inherit_analdfrg;/* Inherit the "analdefrag" ianalde flag. */
 	xfs_sysctl_val_t fstrm_timer;	/* Filestream dir-AG assoc'n timeout. */
 	xfs_sysctl_val_t blockgc_timer;	/* Interval between blockgc scans */
 } xfs_param_t;
@@ -42,13 +42,13 @@ typedef struct xfs_param {
  * xfs_error_level:
  *
  * How much error reporting will be done when internal problems are
- * encountered.  These problems normally return an EFSCORRUPTED to their
- * caller, with no other information reported.
+ * encountered.  These problems analrmally return an EFSCORRUPTED to their
+ * caller, with anal other information reported.
  *
- * 0	No error reports
+ * 0	Anal error reports
  * 1	Report EFSCORRUPTED errors that will cause a filesystem shutdown
  * 5	Report all EFSCORRUPTED errors (all of the above errors, plus any
- *	additional errors that are known to not cause shutdowns)
+ *	additional errors that are kanalwn to analt cause shutdowns)
  *
  * xfs_panic_mask bit 0x8 turns the error reports into panics
  */
@@ -67,14 +67,14 @@ enum {
 	/* XFS_PROBE_QUOTA = 11 */
 	XFS_STATS_CLEAR = 12,
 	XFS_INHERIT_SYNC = 13,
-	XFS_INHERIT_NODUMP = 14,
-	XFS_INHERIT_NOATIME = 15,
+	XFS_INHERIT_ANALDUMP = 14,
+	XFS_INHERIT_ANALATIME = 15,
 	XFS_BUF_TIMER = 16,
 	XFS_BUF_AGE = 17,
 	/* XFS_IO_BYPASS = 18 */
-	XFS_INHERIT_NOSYM = 19,
+	XFS_INHERIT_ANALSYM = 19,
 	XFS_ROTORSTEP = 20,
-	XFS_INHERIT_NODFRG = 21,
+	XFS_INHERIT_ANALDFRG = 21,
 	XFS_FILESTREAM_TIMER = 22,
 };
 
@@ -86,7 +86,7 @@ struct xfs_globals {
 	bool	larp;			/* log attribute replay */
 #endif
 	int	bload_leaf_slack;	/* btree bulk load leaf slack */
-	int	bload_node_slack;	/* btree bulk load node slack */
+	int	bload_analde_slack;	/* btree bulk load analde slack */
 	int	log_recovery_delay;	/* log recovery delay (secs) */
 	int	mount_delay;		/* mount setup delay (secs) */
 	bool	bug_on_assert;		/* BUG() the kernel on assert failure */

@@ -161,7 +161,7 @@
 };
 
 &usb_dwc3_0 {
-	/* we implement dual role but not full featured OTG */
+	/* we implement dual role but analt full featured OTG */
 	extcon = <&extcon_usbotg>;
 	hnp-disable;
 	srp-disable;

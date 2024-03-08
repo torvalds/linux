@@ -8,7 +8,7 @@
 #include <media/rc-map.h>
 #include <linux/module.h>
 
-/* DigitalNow DNTV Live DVB-T Remote */
+/* DigitalAnalw DNTV Live DVB-T Remote */
 
 static struct rc_map_table dntv_live_dvb_t[] = {
 	{ 0x00, KEY_ESC },		/* 'go up a level?' */
@@ -52,7 +52,7 @@ static struct rc_map_list dntv_live_dvb_t_map = {
 	.map = {
 		.scan     = dntv_live_dvb_t,
 		.size     = ARRAY_SIZE(dntv_live_dvb_t),
-		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.rc_proto = RC_PROTO_UNKANALWN,	/* Legacy IR type */
 		.name     = RC_MAP_DNTV_LIVE_DVB_T,
 	}
 };

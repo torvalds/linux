@@ -19,7 +19,7 @@
  *		Alan Cox	: Generic queue tidyup (very tiny here)
  *		Alan Cox	: eth_header ntohs should be htons
  *		Alan Cox	: eth_rebuild_header missing an htons and
- *				  minor other things.
+ *				  mianalr other things.
  *		Tegge		: Arp bug fixes.
  *		Florian		: Removed many unnecessary functions, code cleanup
  *				  and changes for new arp and skbuff.
@@ -46,7 +46,7 @@
 #include <linux/nvmem-consumer.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/if_ether.h>
 #include <linux/of_net.h>
@@ -104,7 +104,7 @@ int eth_header(struct sk_buff *skb, struct net_device *dev,
 	 *      Anyway, the loopback-device should never use this function...
 	 */
 
-	if (dev->flags & (IFF_LOOPBACK | IFF_NOARP)) {
+	if (dev->flags & (IFF_LOOPBACK | IFF_ANALARP)) {
 		eth_zero_addr(eth->h_dest);
 		return ETH_HLEN;
 	}
@@ -149,8 +149,8 @@ EXPORT_SYMBOL(eth_get_headlen);
  * @dev: receiving network device
  *
  * The rule here is that we
- * assume 802.3 if the type field is short enough to be a length.
- * This is normal practice and works for any 'now in use' protocol.
+ * assume 802.3 if the type field is short eanalugh to be a length.
+ * This is analrmal practice and works for any 'analw in use' protocol.
  */
 __be16 eth_type_trans(struct sk_buff *skb, struct net_device *dev)
 {
@@ -189,7 +189,7 @@ __be16 eth_type_trans(struct sk_buff *skb, struct net_device *dev)
 		return eth->h_proto;
 
 	/*
-	 *      This is a magic hack to spot IPX packets. Older Novell breaks
+	 *      This is a magic hack to spot IPX packets. Older Analvell breaks
 	 *      the protocol design and runs IPX over 802.3 without an 802.2 LLC
 	 *      layer. We look for FFFF which isn't a used 802.2 SSAP/DSAP. This
 	 *      won't work for fault tolerant netware but does for the rest.
@@ -256,7 +256,7 @@ EXPORT_SYMBOL(eth_header_cache);
  * @dev: network device
  * @haddr: new hardware address
  *
- * Called by Address Resolution module to notify changes in address.
+ * Called by Address Resolution module to analtify changes in address.
  */
 void eth_header_cache_update(struct hh_cache *hh,
 			     const struct net_device *dev,
@@ -291,7 +291,7 @@ int eth_prepare_mac_addr_change(struct net_device *dev, void *p)
 	if (!(dev->priv_flags & IFF_LIVE_ADDR_CHANGE) && netif_running(dev))
 		return -EBUSY;
 	if (!is_valid_ether_addr(addr->sa_data))
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 	return 0;
 }
 EXPORT_SYMBOL(eth_prepare_mac_addr_change);
@@ -334,7 +334,7 @@ EXPORT_SYMBOL(eth_mac_addr);
 int eth_validate_addr(struct net_device *dev)
 {
 	if (!is_valid_ether_addr(dev->dev_addr))
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	return 0;
 }
@@ -384,7 +384,7 @@ EXPORT_SYMBOL(ether_setup);
  * values. Basically does everything except registering the device.
  *
  * Constructs a new net device, complete with a private data area of
- * size (sizeof_priv).  A 32-byte (not bit) alignment is enforced for
+ * size (sizeof_priv).  A 32-byte (analt bit) alignment is enforced for
  * this private data area.
  */
 
@@ -458,7 +458,7 @@ int eth_gro_complete(struct sk_buff *skb, int nhoff)
 	struct ethhdr *eh = (struct ethhdr *)(skb->data + nhoff);
 	__be16 type = eh->h_proto;
 	struct packet_offload *ptype;
-	int err = -ENOSYS;
+	int err = -EANALSYS;
 
 	if (skb->encapsulation)
 		skb_set_inner_mac_header(skb, nhoff);
@@ -501,13 +501,13 @@ int eth_platform_get_mac_address(struct device *dev, u8 *mac_addr)
 	unsigned char *addr;
 	int ret;
 
-	ret = of_get_mac_address(dev->of_node, mac_addr);
+	ret = of_get_mac_address(dev->of_analde, mac_addr);
 	if (!ret)
 		return 0;
 
 	addr = arch_get_platform_mac_address();
 	if (!addr)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ether_addr_copy(mac_addr, addr);
 
@@ -571,12 +571,12 @@ int nvmem_get_mac_address(struct device *dev, void *addrbuf)
 	return 0;
 }
 
-static int fwnode_get_mac_addr(struct fwnode_handle *fwnode,
+static int fwanalde_get_mac_addr(struct fwanalde_handle *fwanalde,
 			       const char *name, char *addr)
 {
 	int ret;
 
-	ret = fwnode_property_read_u8_array(fwnode, name, addr, ETH_ALEN);
+	ret = fwanalde_property_read_u8_array(fwanalde, name, addr, ETH_ALEN);
 	if (ret)
 		return ret;
 
@@ -586,37 +586,37 @@ static int fwnode_get_mac_addr(struct fwnode_handle *fwnode,
 }
 
 /**
- * fwnode_get_mac_address - Get the MAC from the firmware node
- * @fwnode:	Pointer to the firmware node
+ * fwanalde_get_mac_address - Get the MAC from the firmware analde
+ * @fwanalde:	Pointer to the firmware analde
  * @addr:	Address of buffer to store the MAC in
  *
- * Search the firmware node for the best MAC address to use.  'mac-address' is
+ * Search the firmware analde for the best MAC address to use.  'mac-address' is
  * checked first, because that is supposed to contain to "most recent" MAC
  * address. If that isn't set, then 'local-mac-address' is checked next,
  * because that is the default address.  If that isn't set, then the obsolete
  * 'address' is checked, just in case we're using an old device tree.
  *
- * Note that the 'address' property is supposed to contain a virtual address of
+ * Analte that the 'address' property is supposed to contain a virtual address of
  * the register set, but some DTS files have redefined that property to be the
  * MAC address.
  *
  * All-zero MAC addresses are rejected, because those could be properties that
- * exist in the firmware tables, but were not updated by the firmware.  For
+ * exist in the firmware tables, but were analt updated by the firmware.  For
  * example, the DTS could define 'mac-address' and 'local-mac-address', with
  * zero MAC addresses.  Some older U-Boots only initialized 'local-mac-address'.
  * In this case, the real MAC is in 'local-mac-address', and 'mac-address'
  * exists but is all zeros.
  */
-int fwnode_get_mac_address(struct fwnode_handle *fwnode, char *addr)
+int fwanalde_get_mac_address(struct fwanalde_handle *fwanalde, char *addr)
 {
-	if (!fwnode_get_mac_addr(fwnode, "mac-address", addr) ||
-	    !fwnode_get_mac_addr(fwnode, "local-mac-address", addr) ||
-	    !fwnode_get_mac_addr(fwnode, "address", addr))
+	if (!fwanalde_get_mac_addr(fwanalde, "mac-address", addr) ||
+	    !fwanalde_get_mac_addr(fwanalde, "local-mac-address", addr) ||
+	    !fwanalde_get_mac_addr(fwanalde, "address", addr))
 		return 0;
 
-	return -ENOENT;
+	return -EANALENT;
 }
-EXPORT_SYMBOL(fwnode_get_mac_address);
+EXPORT_SYMBOL(fwanalde_get_mac_address);
 
 /**
  * device_get_mac_address - Get the MAC for a given device
@@ -625,7 +625,7 @@ EXPORT_SYMBOL(fwnode_get_mac_address);
  */
 int device_get_mac_address(struct device *dev, char *addr)
 {
-	return fwnode_get_mac_address(dev_fwnode(dev), addr);
+	return fwanalde_get_mac_address(dev_fwanalde(dev), addr);
 }
 EXPORT_SYMBOL(device_get_mac_address);
 

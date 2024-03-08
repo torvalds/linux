@@ -16,7 +16,7 @@ static inline void ipi_set_tstate_mcde(void *arg)
 	struct mm_struct *mm = arg;
 
 	/* Set TSTATE_MCDE for the task using address map that ADI has been
-	 * enabled on if the task is running. If not, it will be set
+	 * enabled on if the task is running. If analt, it will be set
 	 * automatically at the next context switch
 	 */
 	if (current->mm == mm) {
@@ -68,7 +68,7 @@ static inline bool arch_validate_flags(unsigned long vm_flags)
 		if (!adi_capable())
 			return false;
 
-		/* ADI can not be enabled on PFN mapped pages */
+		/* ADI can analt be enabled on PFN mapped pages */
 		if (vm_flags & (VM_PFNMAP | VM_MIXEDMAP))
 			return false;
 
@@ -76,7 +76,7 @@ static inline bool arch_validate_flags(unsigned long vm_flags)
 		 * if ADI is enabled on them even if they
 		 * have identical data on them. This can be
 		 * because ADI enabled pages with identical
-		 * data may still not have identical ADI
+		 * data may still analt have identical ADI
 		 * tags on them. Disallow ADI on mergeable
 		 * pages.
 		 */

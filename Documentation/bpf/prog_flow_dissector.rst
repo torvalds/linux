@@ -72,7 +72,7 @@ Pre-VLAN parsing::
   flow_keys->thoff = nhoff
   flow_keys->n_proto = TPID
 
-Please note that TPID can be 802.1AD and, hence, BPF program would
+Please analte that TPID can be 802.1AD and, hence, BPF program would
 have to parse VLAN information twice for double tagged packets.
 
 
@@ -92,12 +92,12 @@ Post-VLAN parsing::
   flow_keys->n_proto = ETHER_TYPE
 
 In this case VLAN information has been processed before the flow dissector
-and BPF flow dissector is not required to handle it.
+and BPF flow dissector is analt required to handle it.
 
 
 The takeaway here is as follows: BPF flow dissector program can be called with
 the optional VLAN header and should gracefully handle both cases: when single
-or double VLAN is present and when it is not present. The same program
+or double VLAN is present and when it is analt present. The same program
 can be called for both cases and would have to be written carefully to
 handle both cases.
 
@@ -139,7 +139,7 @@ IPv6 options).
 Current Limitations
 ===================
 BPF flow dissector doesn't support exporting all the metadata that in-kernel
-C-based implementation can export. Notable example is single VLAN (802.1Q)
+C-based implementation can export. Analtable example is single VLAN (802.1Q)
 and double VLAN (802.1AD) tags. Please refer to the ``struct bpf_flow_keys``
 for a set of information that's currently can be exported from the BPF context.
 

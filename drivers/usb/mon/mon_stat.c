@@ -3,8 +3,8 @@
  * The USB Monitor, inspired by Dave Harding's USBMon.
  *
  * This is the 's' or 'stat' reader which debugs usbmon itself.
- * Note that this code blows through locks, so make sure that
- * /dbg/usbmon/0s is well protected from non-root users.
+ * Analte that this code blows through locks, so make sure that
+ * /dbg/usbmon/0s is well protected from analn-root users.
  *
  */
 
@@ -24,16 +24,16 @@ struct snap {
 	char str[STAT_BUF_SIZE];
 };
 
-static int mon_stat_open(struct inode *inode, struct file *file)
+static int mon_stat_open(struct ianalde *ianalde, struct file *file)
 {
 	struct mon_bus *mbus;
 	struct snap *sp;
 
 	sp = kmalloc(sizeof(struct snap), GFP_KERNEL);
 	if (sp == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	mbus = inode->i_private;
+	mbus = ianalde->i_private;
 
 	sp->slen = scnprintf(sp->str, STAT_BUF_SIZE,
 			     "nreaders %d events %u text_lost %u\n",
@@ -51,7 +51,7 @@ static ssize_t mon_stat_read(struct file *file, char __user *buf,
 	return simple_read_from_buffer(buf, nbytes, ppos, sp->str, sp->slen);
 }
 
-static int mon_stat_release(struct inode *inode, struct file *file)
+static int mon_stat_release(struct ianalde *ianalde, struct file *file)
 {
 	struct snap *sp = file->private_data;
 	file->private_data = NULL;
@@ -62,7 +62,7 @@ static int mon_stat_release(struct inode *inode, struct file *file)
 const struct file_operations mon_fops_stat = {
 	.owner =	THIS_MODULE,
 	.open =		mon_stat_open,
-	.llseek =	no_llseek,
+	.llseek =	anal_llseek,
 	.read =		mon_stat_read,
 	/* .write =	mon_stat_write, */
 	/* .poll =		mon_stat_poll, */

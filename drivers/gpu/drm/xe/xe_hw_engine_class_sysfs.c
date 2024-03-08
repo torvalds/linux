@@ -539,7 +539,7 @@ static int xe_add_hw_engine_class_defaults(struct xe_device *xe,
 
 	kobj = kzalloc(sizeof(*kobj), GFP_KERNEL);
 	if (!kobj)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	kobject_init(kobj, &kobj_xe_hw_engine_type);
 	err = kobject_add(kobj, parent, "%s", ".defaults");
@@ -599,7 +599,7 @@ int xe_hw_engine_class_sysfs_init(struct xe_gt *gt)
 
 	kobj = kzalloc(sizeof(*kobj), GFP_KERNEL);
 	if (!kobj)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	kobject_init(kobj, &xe_hw_engine_sysfs_kobj_type);
 

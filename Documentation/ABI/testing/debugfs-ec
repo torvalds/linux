@@ -5,7 +5,7 @@ Description:
 
 General information like which GPE is assigned to the EC and whether
 the global lock should get used.
-Knowing the EC GPE one can watch the amount of HW events related to
+Kanalwing the EC GPE one can watch the amount of HW events related to
 the EC here (XY -> GPE number from `/sys/kernel/debug/ec/*/gpe`):
 /sys/firmware/acpi/interrupts/gpeXY
 
@@ -15,7 +15,7 @@ should get used to read out the 256 Embedded Controller registers
 or writing to them.
 
 CAUTION:
-  Do not write to the Embedded Controller if you don't know
+  Do analt write to the Embedded Controller if you don't kanalw
   what you are doing! Rebooting afterwards also is a good idea.
   This can influence the way your machine is cooled and fans may
-  not get switched on again after you did a wrong write.
+  analt get switched on again after you did a wrong write.

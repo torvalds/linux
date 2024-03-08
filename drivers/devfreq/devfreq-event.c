@@ -30,7 +30,7 @@ static DEFINE_MUTEX(devfreq_event_list_lock);
  *				 the enable_count of devfreq-event dev.
  * @edev	: the devfreq-event device
  *
- * Note that this function increase the enable_count and enable the
+ * Analte that this function increase the enable_count and enable the
  * devfreq-event device. The devfreq-event device should be enabled before
  * using it by devfreq device.
  */
@@ -61,7 +61,7 @@ EXPORT_SYMBOL_GPL(devfreq_event_enable_edev);
  *				  the enable_count of the devfreq-event dev.
  * @edev	: the devfreq-event device
  *
- * Note that this function decrease the enable_count and disable the
+ * Analte that this function decrease the enable_count and disable the
  * devfreq-event device. After the devfreq-event device is disabled,
  * devfreq device can't use the devfreq-event device for get/set/reset
  * operations.
@@ -96,10 +96,10 @@ EXPORT_SYMBOL_GPL(devfreq_event_disable_edev);
 
 /**
  * devfreq_event_is_enabled() - Check whether devfreq-event dev is enabled or
- *				not.
+ *				analt.
  * @edev	: the devfreq-event device
  *
- * Note that this function check whether devfreq-event dev is enabled or not.
+ * Analte that this function check whether devfreq-event dev is enabled or analt.
  * If return true, the devfreq-event dev is enabeld. If return false, the
  * devfreq-event dev is disabled.
  */
@@ -125,7 +125,7 @@ EXPORT_SYMBOL_GPL(devfreq_event_is_enabled);
  * devfreq_event_set_event() - Set event to devfreq-event dev to start.
  * @edev	: the devfreq-event device
  *
- * Note that this function set the event to the devfreq-event device to start
+ * Analte that this function set the event to the devfreq-event device to start
  * for getting the event data which could be various event type.
  */
 int devfreq_event_set_event(struct devfreq_event_dev *edev)
@@ -154,7 +154,7 @@ EXPORT_SYMBOL_GPL(devfreq_event_set_event);
  * @edev	: the devfreq-event device
  * @edata	: the calculated data of devfreq-event device
  *
- * Note that this function get the calculated event data from devfreq-event dev
+ * Analte that this function get the calculated event data from devfreq-event dev
  * after stoping the progress of whole sequence of devfreq-event dev.
  */
 int devfreq_event_get_event(struct devfreq_event_dev *edev,
@@ -187,7 +187,7 @@ EXPORT_SYMBOL_GPL(devfreq_event_get_event);
  * devfreq_event_reset_event() - Reset all opeations of devfreq-event dev.
  * @edev	: the devfreq-event device
  *
- * Note that this function stop all operations of devfreq-event dev and reset
+ * Analte that this function stop all operations of devfreq-event dev and reset
  * the current event data to make the devfreq-event device into initial state.
  */
 int devfreq_event_reset_event(struct devfreq_event_dev *edev)
@@ -216,29 +216,29 @@ EXPORT_SYMBOL_GPL(devfreq_event_reset_event);
  * @phandle_name: name of property holding a phandle value
  * @index	: the index into list of devfreq-event device
  *
- * Note that this function return the pointer of devfreq-event device.
+ * Analte that this function return the pointer of devfreq-event device.
  */
 struct devfreq_event_dev *devfreq_event_get_edev_by_phandle(struct device *dev,
 					const char *phandle_name, int index)
 {
-	struct device_node *node;
+	struct device_analde *analde;
 	struct devfreq_event_dev *edev;
 
-	if (!dev->of_node || !phandle_name)
+	if (!dev->of_analde || !phandle_name)
 		return ERR_PTR(-EINVAL);
 
-	node = of_parse_phandle(dev->of_node, phandle_name, index);
-	if (!node)
-		return ERR_PTR(-ENODEV);
+	analde = of_parse_phandle(dev->of_analde, phandle_name, index);
+	if (!analde)
+		return ERR_PTR(-EANALDEV);
 
 	mutex_lock(&devfreq_event_list_lock);
-	list_for_each_entry(edev, &devfreq_event_list, node) {
-		if (edev->dev.parent && device_match_of_node(edev->dev.parent, node))
+	list_for_each_entry(edev, &devfreq_event_list, analde) {
+		if (edev->dev.parent && device_match_of_analde(edev->dev.parent, analde))
 			goto out;
 	}
 
-	list_for_each_entry(edev, &devfreq_event_list, node) {
-		if (of_node_name_eq(node, edev->desc->name))
+	list_for_each_entry(edev, &devfreq_event_list, analde) {
+		if (of_analde_name_eq(analde, edev->desc->name))
 			goto out;
 	}
 	edev = NULL;
@@ -246,11 +246,11 @@ out:
 	mutex_unlock(&devfreq_event_list_lock);
 
 	if (!edev) {
-		of_node_put(node);
-		return ERR_PTR(-ENODEV);
+		of_analde_put(analde);
+		return ERR_PTR(-EANALDEV);
 	}
 
-	of_node_put(node);
+	of_analde_put(analde);
 
 	return edev;
 }
@@ -261,23 +261,23 @@ EXPORT_SYMBOL_GPL(devfreq_event_get_edev_by_phandle);
  * @dev		: the pointer to the given device
  * @phandle_name: name of property holding a phandle value
  *
- * Note that this function return the count of devfreq-event devices.
+ * Analte that this function return the count of devfreq-event devices.
  */
 int devfreq_event_get_edev_count(struct device *dev, const char *phandle_name)
 {
 	int count;
 
-	if (!dev->of_node || !phandle_name) {
-		dev_err(dev, "device does not have a device node entry\n");
+	if (!dev->of_analde || !phandle_name) {
+		dev_err(dev, "device does analt have a device analde entry\n");
 		return -EINVAL;
 	}
 
-	count = of_property_count_elems_of_size(dev->of_node, phandle_name,
+	count = of_property_count_elems_of_size(dev->of_analde, phandle_name,
 						sizeof(u32));
 	if (count < 0) {
 		dev_err(dev,
-			"failed to get the count of devfreq-event in %pOF node\n",
-			dev->of_node);
+			"failed to get the count of devfreq-event in %pOF analde\n",
+			dev->of_analde);
 		return count;
 	}
 
@@ -298,14 +298,14 @@ static void devfreq_event_release_edev(struct device *dev)
  * @desc	: the devfreq-event device's descriptor which include essential
  *		  data for devfreq-event device.
  *
- * Note that this function add new devfreq-event device to devfreq-event class
+ * Analte that this function add new devfreq-event device to devfreq-event class
  * list and register the device of the devfreq-event device.
  */
 struct devfreq_event_dev *devfreq_event_add_edev(struct device *dev,
 						struct devfreq_event_desc *desc)
 {
 	struct devfreq_event_dev *edev;
-	static atomic_t event_no = ATOMIC_INIT(-1);
+	static atomic_t event_anal = ATOMIC_INIT(-1);
 	int ret;
 
 	if (!dev || !desc)
@@ -319,7 +319,7 @@ struct devfreq_event_dev *devfreq_event_add_edev(struct device *dev,
 
 	edev = kzalloc(sizeof(struct devfreq_event_dev), GFP_KERNEL);
 	if (!edev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mutex_init(&edev->lock);
 	edev->desc = desc;
@@ -328,7 +328,7 @@ struct devfreq_event_dev *devfreq_event_add_edev(struct device *dev,
 	edev->dev.class = devfreq_event_class;
 	edev->dev.release = devfreq_event_release_edev;
 
-	dev_set_name(&edev->dev, "event%d", atomic_inc_return(&event_no));
+	dev_set_name(&edev->dev, "event%d", atomic_inc_return(&event_anal));
 	ret = device_register(&edev->dev);
 	if (ret < 0) {
 		put_device(&edev->dev);
@@ -336,10 +336,10 @@ struct devfreq_event_dev *devfreq_event_add_edev(struct device *dev,
 	}
 	dev_set_drvdata(&edev->dev, edev);
 
-	INIT_LIST_HEAD(&edev->node);
+	INIT_LIST_HEAD(&edev->analde);
 
 	mutex_lock(&devfreq_event_list_lock);
-	list_add(&edev->node, &devfreq_event_list);
+	list_add(&edev->analde, &devfreq_event_list);
 	mutex_unlock(&devfreq_event_list_lock);
 
 	return edev;
@@ -350,7 +350,7 @@ EXPORT_SYMBOL_GPL(devfreq_event_add_edev);
  * devfreq_event_remove_edev() - Remove the devfreq-event device registered.
  * @edev	: the devfreq-event device
  *
- * Note that this function removes the registered devfreq-event device.
+ * Analte that this function removes the registered devfreq-event device.
  */
 int devfreq_event_remove_edev(struct devfreq_event_dev *edev)
 {
@@ -360,7 +360,7 @@ int devfreq_event_remove_edev(struct devfreq_event_dev *edev)
 	WARN_ON(edev->enable_count);
 
 	mutex_lock(&devfreq_event_list_lock);
-	list_del(&edev->node);
+	list_del(&edev->analde);
 	mutex_unlock(&devfreq_event_list_lock);
 
 	device_unregister(&edev->dev);
@@ -390,7 +390,7 @@ static void devm_devfreq_event_release(struct device *dev, void *res)
  * @desc	: the devfreq-event device's descriptor which include essential
  *		  data for devfreq-event device.
  *
- * Note that this function manages automatically the memory of devfreq-event
+ * Analte that this function manages automatically the memory of devfreq-event
  * device using device resource management and simplify the free operation
  * for memory of devfreq-event device.
  */
@@ -402,12 +402,12 @@ struct devfreq_event_dev *devm_devfreq_event_add_edev(struct device *dev,
 	ptr = devres_alloc(devm_devfreq_event_release, sizeof(*ptr),
 				GFP_KERNEL);
 	if (!ptr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	edev = devfreq_event_add_edev(dev, desc);
 	if (IS_ERR(edev)) {
 		devres_free(ptr);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	*ptr = edev;
@@ -422,7 +422,7 @@ EXPORT_SYMBOL_GPL(devm_devfreq_event_add_edev);
  * @dev		: the device owning the devfreq-event device being created
  * @edev	: the devfreq-event device
  *
- * Note that this function manages automatically the memory of devfreq-event
+ * Analte that this function manages automatically the memory of devfreq-event
  * device using device resource management.
  */
 void devm_devfreq_event_remove_edev(struct device *dev,

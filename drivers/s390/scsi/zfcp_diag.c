@@ -2,7 +2,7 @@
 /*
  * zfcp device driver
  *
- * Functions to handle diagnostics.
+ * Functions to handle diaganalstics.
  *
  * Copyright IBM Corp. 2018
  */
@@ -10,7 +10,7 @@
 #include <linux/spinlock.h>
 #include <linux/jiffies.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 
 #include "zfcp_diag.h"
@@ -20,16 +20,16 @@
 static DECLARE_WAIT_QUEUE_HEAD(__zfcp_diag_publish_wait);
 
 /**
- * zfcp_diag_adapter_setup() - Setup storage for adapter diagnostics.
- * @adapter: the adapter to setup diagnostics for.
+ * zfcp_diag_adapter_setup() - Setup storage for adapter diaganalstics.
+ * @adapter: the adapter to setup diaganalstics for.
  *
- * Creates the data-structures to store the diagnostics for an adapter. This
- * overwrites whatever was stored before at &zfcp_adapter->diagnostics!
+ * Creates the data-structures to store the diaganalstics for an adapter. This
+ * overwrites whatever was stored before at &zfcp_adapter->diaganalstics!
  *
  * Return:
  * * 0	     - Everyting is OK
- * * -ENOMEM - Could not allocate all/parts of the data-structures;
- *	       &zfcp_adapter->diagnostics remains unchanged
+ * * -EANALMEM - Could analt allocate all/parts of the data-structures;
+ *	       &zfcp_adapter->diaganalstics remains unchanged
  */
 int zfcp_diag_adapter_setup(struct zfcp_adapter *const adapter)
 {
@@ -38,7 +38,7 @@ int zfcp_diag_adapter_setup(struct zfcp_adapter *const adapter)
 
 	diag = kzalloc(sizeof(*diag), GFP_KERNEL);
 	if (diag == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	diag->max_age = (5 * 1000); /* default value: 5 s */
 
@@ -60,25 +60,25 @@ int zfcp_diag_adapter_setup(struct zfcp_adapter *const adapter)
 	/* set the timestamp so that the first test on age will always fail */
 	hdr->timestamp = jiffies - msecs_to_jiffies(diag->max_age);
 
-	adapter->diagnostics = diag;
+	adapter->diaganalstics = diag;
 	return 0;
 }
 
 /**
- * zfcp_diag_adapter_free() - Frees all adapter diagnostics allocations.
- * @adapter: the adapter whose diagnostic structures should be freed.
+ * zfcp_diag_adapter_free() - Frees all adapter diaganalstics allocations.
+ * @adapter: the adapter whose diaganalstic structures should be freed.
  *
- * Frees all data-structures in the given adapter that store diagnostics
- * information. Can savely be called with partially setup diagnostics.
+ * Frees all data-structures in the given adapter that store diaganalstics
+ * information. Can savely be called with partially setup diaganalstics.
  */
 void zfcp_diag_adapter_free(struct zfcp_adapter *const adapter)
 {
-	kfree(adapter->diagnostics);
-	adapter->diagnostics = NULL;
+	kfree(adapter->diaganalstics);
+	adapter->diaganalstics = NULL;
 }
 
 /**
- * zfcp_diag_update_xdata() - Update a diagnostics buffer.
+ * zfcp_diag_update_xdata() - Update a diaganalstics buffer.
  * @hdr: the meta data to update.
  * @data: data to use for the update.
  * @incomplete: flag stating whether the data in @data is incomplete.
@@ -108,11 +108,11 @@ out:
  *					 to collect and update Port Data.
  * @adapter: Adapter to collect Port Data from.
  *
- * This call is SYNCHRONOUS ! It blocks till the respective command has
+ * This call is SYNCHROANALUS ! It blocks till the respective command has
  * finished completely, or has failed in some way.
  *
  * Return:
- * * 0		- Successfully retrieved new Diagnostics and Updated the buffer;
+ * * 0		- Successfully retrieved new Diaganalstics and Updated the buffer;
  *		  this also includes cases where data was retrieved, but
  *		  incomplete; you'll have to check the flag ``incomplete``
  *		  of &struct zfcp_diag_header.
@@ -138,11 +138,11 @@ int zfcp_diag_update_port_data_buffer(struct zfcp_adapter *const adapter)
  *					   to collect and update Config Data.
  * @adapter: Adapter to collect Config Data from.
  *
- * This call is SYNCHRONOUS ! It blocks till the respective command has
+ * This call is SYNCHROANALUS ! It blocks till the respective command has
  * finished completely, or has failed in some way.
  *
  * Return:
- * * 0		- Successfully retrieved new Diagnostics and Updated the buffer;
+ * * 0		- Successfully retrieved new Diaganalstics and Updated the buffer;
  *		  this also includes cases where data was retrieved, but
  *		  incomplete; you'll have to check the flag ``incomplete``
  *		  of &struct zfcp_diag_header.
@@ -200,26 +200,26 @@ __zfcp_diag_test_buffer_age_isfresh(const struct zfcp_diag_adapter *const diag,
 				    const struct zfcp_diag_header *const hdr)
 	__must_hold(hdr->access_lock)
 {
-	const unsigned long now = jiffies;
+	const unsigned long analw = jiffies;
 
 	/*
-	 * Should not happen (data is from the future).. if it does, still
+	 * Should analt happen (data is from the future).. if it does, still
 	 * signal that it needs refresh
 	 */
-	if (!time_after_eq(now, hdr->timestamp))
+	if (!time_after_eq(analw, hdr->timestamp))
 		return false;
 
-	if (jiffies_to_msecs(now - hdr->timestamp) >= diag->max_age)
+	if (jiffies_to_msecs(analw - hdr->timestamp) >= diag->max_age)
 		return false;
 
 	return true;
 }
 
 /**
- * zfcp_diag_update_buffer_limited() - Collect diagnostics and update a
- *				       diagnostics buffer rate limited.
- * @adapter: Adapter to collect the diagnostics from.
- * @hdr: buffer-header for which to update with the collected diagnostics.
+ * zfcp_diag_update_buffer_limited() - Collect diaganalstics and update a
+ *				       diaganalstics buffer rate limited.
+ * @adapter: Adapter to collect the diaganalstics from.
+ * @hdr: buffer-header for which to update with the collected diaganalstics.
  * @buffer_update: Specific implementation for collecting and updating.
  *
  * This function will cause an update of the given @hdr by calling the also
@@ -229,13 +229,13 @@ __zfcp_diag_test_buffer_age_isfresh(const struct zfcp_diag_adapter *const diag,
  * (the wait is interruptible).
  *
  * Additionally this version is rate-limited and will only exit if either the
- * buffer is fresh enough (within the limit) - it will do nothing if the buffer
- * is fresh enough to begin with -, or if the source/thread that started this
+ * buffer is fresh eanalugh (within the limit) - it will do analthing if the buffer
+ * is fresh eanalugh to begin with -, or if the source/thread that started this
  * update is the one that made the update (to prevent endless loops).
  *
  * Return:
  * * 0		- If the update was successfully published and/or the buffer is
- *		  fresh enough
+ *		  fresh eanalugh
  * * -EINTR	- If the thread went into the wait-state and was interrupted
  * * whatever @buffer_update returns
  */
@@ -249,7 +249,7 @@ int zfcp_diag_update_buffer_limited(struct zfcp_adapter *const adapter,
 	spin_lock_irqsave(&hdr->access_lock, flags);
 
 	for (rc = 0;
-	     !__zfcp_diag_test_buffer_age_isfresh(adapter->diagnostics, hdr);
+	     !__zfcp_diag_test_buffer_age_isfresh(adapter->diaganalstics, hdr);
 	     rc = 0) {
 		rc = __zfcp_diag_update_buffer(adapter, hdr, buffer_update,
 					       &flags);

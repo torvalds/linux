@@ -39,11 +39,11 @@ void test_netns_cookie(void)
 		goto done;
 
 	server_fd = start_server(AF_INET6, SOCK_STREAM, "::1", 0, 0);
-	if (CHECK(server_fd < 0, "start_server", "errno %d\n", errno))
+	if (CHECK(server_fd < 0, "start_server", "erranal %d\n", erranal))
 		goto done;
 
 	client_fd = connect_to_fd(server_fd, 0);
-	if (CHECK(client_fd < 0, "connect_to_fd", "errno %d\n", errno))
+	if (CHECK(client_fd < 0, "connect_to_fd", "erranal %d\n", erranal))
 		goto done;
 
 	ret = send(client_fd, send_msg, sizeof(send_msg), 0);

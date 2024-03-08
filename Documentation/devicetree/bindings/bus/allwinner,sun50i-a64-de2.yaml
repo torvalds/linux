@@ -11,7 +11,7 @@ maintainers:
   - Maxime Ripard <mripard@kernel.org>
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^bus(@[0-9a-f]+)?$"
 
   "#address-cells":
@@ -43,7 +43,7 @@ properties:
   ranges: true
 
 patternProperties:
-  # All other properties should be child nodes with unit-address and 'reg'
+  # All other properties should be child analdes with unit-address and 'reg'
   "^[a-zA-Z][a-zA-Z0-9,+\\-._]{0,63}@[0-9a-fA-F]+$":
     type: object
     additionalProperties: true

@@ -7,7 +7,7 @@
 #include <linux/export.h>
 #include <linux/module.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -68,7 +68,7 @@
 #define DC_WR_CH_CONF_DISP_ID_SERIAL		(2 << 3)
 #define DC_WR_CH_CONF_DISP_ID_ASYNC		(3 << 4)
 #define DC_WR_CH_CONF_FIELD_MODE		(1 << 9)
-#define DC_WR_CH_CONF_PROG_TYPE_NORMAL		(4 << 5)
+#define DC_WR_CH_CONF_PROG_TYPE_ANALRMAL		(4 << 5)
 #define DC_WR_CH_CONF_PROG_TYPE_MASK		(7 << 5)
 #define DC_WR_CH_CONF_PROG_DI_ID		(1 << 2)
 #define DC_WR_CH_CONF_PROG_DISP_ID(i)		(((i) & 0x1) << 3)
@@ -91,7 +91,7 @@ struct ipu_dc {
 	unsigned int		di;
 	void __iomem		*base;
 	struct ipu_dc_priv	*priv;
-	int			chno;
+	int			chanal;
 	bool			in_use;
 };
 
@@ -169,7 +169,7 @@ int ipu_dc_init_sync(struct ipu_dc *dc, struct ipu_di *di, bool interlaced,
 
 	if (!IS_ALIGNED(width, 8)) {
 		dev_warn(priv->dev,
-			 "%s: hactive does not align to 8 byte\n", __func__);
+			 "%s: hactive does analt align to 8 byte\n", __func__);
 	}
 
 	map = ipu_bus_format_to_map(bus_format);
@@ -248,7 +248,7 @@ void ipu_dc_enable_channel(struct ipu_dc *dc)
 	u32 reg;
 
 	reg = readl(dc->base + DC_WR_CH_CONF);
-	reg |= DC_WR_CH_CONF_PROG_TYPE_NORMAL;
+	reg |= DC_WR_CH_CONF_PROG_TYPE_ANALRMAL;
 	writel(reg, dc->base + DC_WR_CH_CONF);
 }
 EXPORT_SYMBOL_GPL(ipu_dc_enable_channel);
@@ -311,7 +311,7 @@ struct ipu_dc *ipu_dc_get(struct ipu_soc *ipu, int channel)
 	struct ipu_dc *dc;
 
 	if (channel >= IPU_DC_NUM_CHANNELS)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	dc = &priv->channels[channel];
 
@@ -351,7 +351,7 @@ int ipu_dc_init(struct ipu_soc *ipu, struct device *dev,
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&priv->mutex);
 
@@ -360,10 +360,10 @@ int ipu_dc_init(struct ipu_soc *ipu, struct device *dev,
 	priv->dc_reg = devm_ioremap(dev, base, PAGE_SIZE);
 	priv->dc_tmpl_reg = devm_ioremap(dev, template_base, PAGE_SIZE);
 	if (!priv->dc_reg || !priv->dc_tmpl_reg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < IPU_DC_NUM_CHANNELS; i++) {
-		priv->channels[i].chno = i;
+		priv->channels[i].chanal = i;
 		priv->channels[i].priv = priv;
 		priv->channels[i].base = priv->dc_reg + channel_offsets[i];
 	}

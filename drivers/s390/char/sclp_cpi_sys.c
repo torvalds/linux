@@ -84,11 +84,11 @@ static struct sclp_req *cpi_prepare_req(void)
 
 	req = kzalloc(sizeof(struct sclp_req), GFP_KERNEL);
 	if (!req)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	sccb = (struct cpi_sccb *) get_zeroed_page(GFP_KERNEL | GFP_DMA);
 	if (!sccb) {
 		kfree(req);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	/* setup SCCB for Control-Program Identification */
@@ -134,7 +134,7 @@ static int cpi_req(void)
 	if (rc)
 		goto out;
 	if (!(sclp_cpi_event.sclp_receive_mask & EVTYP_CTLPROGIDENT_MASK)) {
-		rc = -EOPNOTSUPP;
+		rc = -EOPANALTSUPP;
 		goto out_unregister;
 	}
 
@@ -416,7 +416,7 @@ static int __init cpi_init(void)
 
 	cpi_kset = kset_create_and_add("cpi", NULL, firmware_kobj);
 	if (!cpi_kset)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = sysfs_create_group(&cpi_kset->kobj, &cpi_attr_group);
 	if (rc)

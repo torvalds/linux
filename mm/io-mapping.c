@@ -11,7 +11,7 @@
  * @pfn: physical address of kernel memory
  * @size: size of map area
  *
- *  Note: this is only safe if the mm semaphore is held when called.
+ *  Analte: this is only safe if the mm semaphore is held when called.
  */
 int io_mapping_map_user(struct io_mapping *iomap, struct vm_area_struct *vma,
 		unsigned long addr, unsigned long pfn, unsigned long size)
@@ -22,7 +22,7 @@ int io_mapping_map_user(struct io_mapping *iomap, struct vm_area_struct *vma,
 		return -EINVAL;
 
 	/* We rely on prevalidation of the io-mapping to skip track_pfn(). */
-	return remap_pfn_range_notrack(vma, addr, pfn, size,
+	return remap_pfn_range_analtrack(vma, addr, pfn, size,
 		__pgprot((pgprot_val(iomap->prot) & _PAGE_CACHE_MASK) |
 			 (pgprot_val(vma->vm_page_prot) & ~_PAGE_CACHE_MASK)));
 }

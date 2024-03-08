@@ -63,7 +63,7 @@ Required properties:
   "st,flexgen-audio", "st,flexgen" (enable clock propagation on parent for
   audio use case)
   "st,flexgen-video", "st,flexgen" (enable clock propagation on parent
-					and activate synchronous mode)
+					and activate synchroanalus mode)
   "st,flexgen-stih407-a0"
   "st,flexgen-stih410-a0"
   "st,flexgen-stih407-c0"

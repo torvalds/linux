@@ -11,4 +11,4 @@ Linux Input Subsystem kernel API
 
    input-programming
    gameport-programming
-   notifier
+   analtifier

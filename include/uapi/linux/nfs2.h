@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * NFS protocol definitions
  *
@@ -25,9 +25,9 @@
 #define NFS2MODE_FIFO	0010000
 
 
-/* NFSv2 file types - beware, these are not the same in NFSv3 */
+/* NFSv2 file types - beware, these are analt the same in NFSv3 */
 enum nfs2_ftype {
-	NF2NON = 0,
+	NF2ANALN = 0,
 	NF2REG = 1,
 	NF2DIR = 2,
 	NF2BLK = 3,

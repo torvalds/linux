@@ -53,7 +53,7 @@ static int pscsi_attach_hba(struct se_hba *hba, u32 host_id)
 	phv = kzalloc(sizeof(struct pscsi_hba_virt), GFP_KERNEL);
 	if (!phv) {
 		pr_err("Unable to allocate struct pscsi_hba_virt\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	phv->phv_host_id = host_id;
 	phv->phv_mode = PHV_VIRTUAL_HOST_ID;
@@ -80,7 +80,7 @@ static void pscsi_detach_hba(struct se_hba *hba)
 		pr_debug("CORE_HBA[%d] - Detached SCSI HBA: %s from"
 			" Generic Target Core\n", hba->hba_id,
 			(scsi_host->hostt->name) ? (scsi_host->hostt->name) :
-			"Unknown");
+			"Unkanalwn");
 	} else
 		pr_debug("CORE_HBA[%d] - Detached Virtual SCSI HBA"
 			" from Generic Target Core\n", hba->hba_id);
@@ -105,7 +105,7 @@ static int pscsi_pmode_enable_hba(struct se_hba *hba, unsigned long mode_flag)
 
 		pr_debug("CORE_HBA[%d] - Disabled pSCSI HBA Passthrough"
 			" %s\n", hba->hba_id, (sh->hostt->name) ?
-			(sh->hostt->name) : "Unknown");
+			(sh->hostt->name) : "Unkanalwn");
 
 		scsi_host_put(sh);
 		return 0;
@@ -122,10 +122,10 @@ static int pscsi_pmode_enable_hba(struct se_hba *hba, unsigned long mode_flag)
 	}
 
 	phv->phv_lld_host = sh;
-	phv->phv_mode = PHV_LLD_SCSI_HOST_NO;
+	phv->phv_mode = PHV_LLD_SCSI_HOST_ANAL;
 
 	pr_debug("CORE_HBA[%d] - Enabled pSCSI HBA Passthrough %s\n",
-		hba->hba_id, (sh->hostt->name) ? (sh->hostt->name) : "Unknown");
+		hba->hba_id, (sh->hostt->name) ? (sh->hostt->name) : "Unkanalwn");
 
 	return 1;
 }
@@ -186,7 +186,7 @@ pscsi_get_inquiry_vpd_serial(struct scsi_device *sdev, struct t10_wwn *wwn)
 
 	buf = kzalloc(INQUIRY_VPD_SERIAL_LEN, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(cdb, 0, MAX_COMMAND_SIZE);
 	cdb[0] = INQUIRY;
@@ -296,9 +296,9 @@ static int pscsi_add_device_to_list(struct se_device *dev,
 	}
 
 	dev->dev_attrib.hw_block_size =
-		min_not_zero((int)sd->sector_size, 512);
+		min_analt_zero((int)sd->sector_size, 512);
 	dev->dev_attrib.hw_max_sectors =
-		min_not_zero(sd->host->max_sectors, queue_max_hw_sectors(q));
+		min_analt_zero(sd->host->max_sectors, queue_max_hw_sectors(q));
 	dev->dev_attrib.hw_queue_depth = sd->queue_depth;
 
 	/*
@@ -357,7 +357,7 @@ static int pscsi_create_type_disk(struct se_device *dev, struct scsi_device *sd)
 
 	if (scsi_device_get(sd)) {
 		pr_err("scsi_device_get() failed for %d:%d:%d:%llu\n",
-			sh->host_no, sd->channel, sd->id, sd->lun);
+			sh->host_anal, sd->channel, sd->id, sd->lun);
 		spin_unlock_irq(sh->host_lock);
 		return -EIO;
 	}
@@ -384,14 +384,14 @@ static int pscsi_create_type_disk(struct se_device *dev, struct scsi_device *sd)
 
 	pr_debug("CORE_PSCSI[%d] - Added TYPE_%s for %d:%d:%d:%llu\n",
 		phv->phv_host_id, sd->type == TYPE_DISK ? "DISK" : "ZBC",
-		sh->host_no, sd->channel, sd->id, sd->lun);
+		sh->host_anal, sd->channel, sd->id, sd->lun);
 	return 0;
 }
 
 /*
  * Called with struct Scsi_Host->host_lock called.
  */
-static int pscsi_create_type_nondisk(struct se_device *dev, struct scsi_device *sd)
+static int pscsi_create_type_analndisk(struct se_device *dev, struct scsi_device *sd)
 	__releases(sh->host_lock)
 {
 	struct pscsi_hba_virt *phv = dev->se_hba->hba_ptr;
@@ -400,7 +400,7 @@ static int pscsi_create_type_nondisk(struct se_device *dev, struct scsi_device *
 
 	if (scsi_device_get(sd)) {
 		pr_err("scsi_device_get() failed for %d:%d:%d:%llu\n",
-			sh->host_no, sd->channel, sd->id, sd->lun);
+			sh->host_anal, sd->channel, sd->id, sd->lun);
 		spin_unlock_irq(sh->host_lock);
 		return -EIO;
 	}
@@ -412,7 +412,7 @@ static int pscsi_create_type_nondisk(struct se_device *dev, struct scsi_device *
 		return ret;
 	}
 	pr_debug("CORE_PSCSI[%d] - Added Type: %s for %d:%d:%d:%llu\n",
-		phv->phv_host_id, scsi_device_type(sd->type), sh->host_no,
+		phv->phv_host_id, scsi_device_type(sd->type), sh->host_anal,
 		sd->channel, sd->id, sd->lun);
 
 	return 0;
@@ -437,28 +437,28 @@ static int pscsi_configure_device(struct se_device *dev)
 	}
 
 	/*
-	 * If not running in PHV_LLD_SCSI_HOST_NO mode, locate the
+	 * If analt running in PHV_LLD_SCSI_HOST_ANAL mode, locate the
 	 * struct Scsi_Host we will need to bring the TCM/pSCSI object online
 	 */
 	if (!sh) {
-		if (phv->phv_mode == PHV_LLD_SCSI_HOST_NO) {
+		if (phv->phv_mode == PHV_LLD_SCSI_HOST_ANAL) {
 			pr_err("pSCSI: Unable to locate struct"
-				" Scsi_Host for PHV_LLD_SCSI_HOST_NO\n");
-			return -ENODEV;
+				" Scsi_Host for PHV_LLD_SCSI_HOST_ANAL\n");
+			return -EANALDEV;
 		}
 		/*
 		 * For the newer PHV_VIRTUAL_HOST_ID struct scsi_device
 		 * reference, we enforce that udev_path has been set
 		 */
 		if (!(dev->dev_flags & DF_USING_UDEV_PATH)) {
-			pr_err("pSCSI: udev_path attribute has not"
+			pr_err("pSCSI: udev_path attribute has analt"
 				" been set before ENABLE=1\n");
 			return -EINVAL;
 		}
 		/*
-		 * If no scsi_host_id= was passed for PHV_VIRTUAL_HOST_ID,
-		 * use the original TCM hba ID to reference Linux/SCSI Host No
-		 * and enable for PHV_LLD_SCSI_HOST_NO mode.
+		 * If anal scsi_host_id= was passed for PHV_VIRTUAL_HOST_ID,
+		 * use the original TCM hba ID to reference Linux/SCSI Host Anal
+		 * and enable for PHV_LLD_SCSI_HOST_ANAL mode.
 		 */
 		if (!(pdv->pdv_flags & PDF_HAS_VIRT_HOST_ID)) {
 			if (hba->dev_count) {
@@ -468,7 +468,7 @@ static int pscsi_configure_device(struct se_device *dev)
 			}
 
 			if (pscsi_pmode_enable_hba(hba, 1) != 1)
-				return -ENODEV;
+				return -EANALDEV;
 
 			legacy_mode_enable = 1;
 			hba->hba_flags |= HBA_FLAGS_PSCSI_MODE;
@@ -507,7 +507,7 @@ static int pscsi_configure_device(struct se_device *dev)
 			ret = pscsi_create_type_disk(dev, sd);
 			break;
 		default:
-			ret = pscsi_create_type_nondisk(dev, sd);
+			ret = pscsi_create_type_analndisk(dev, sd);
 			break;
 		}
 
@@ -525,7 +525,7 @@ static int pscsi_configure_device(struct se_device *dev)
 	}
 	spin_unlock_irq(sh->host_lock);
 
-	pr_err("pSCSI: Unable to locate %d:%d:%d:%d\n", sh->host_no,
+	pr_err("pSCSI: Unable to locate %d:%d:%d:%d\n", sh->host_anal,
 		pdv->pdv_channel_id,  pdv->pdv_target_id, pdv->pdv_lun_id);
 
 	if (phv->phv_mode == PHV_VIRTUAL_HOST_ID)
@@ -535,7 +535,7 @@ static int pscsi_configure_device(struct se_device *dev)
 		hba->hba_flags &= ~HBA_FLAGS_PSCSI_MODE;
 	}
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static void pscsi_dev_call_rcu(struct rcu_head *p)
@@ -569,10 +569,10 @@ static void pscsi_destroy_device(struct se_device *dev)
 			pdv->pdv_bdev_handle = NULL;
 		}
 		/*
-		 * For HBA mode PHV_LLD_SCSI_HOST_NO, release the reference
-		 * to struct Scsi_Host now.
+		 * For HBA mode PHV_LLD_SCSI_HOST_ANAL, release the reference
+		 * to struct Scsi_Host analw.
 		 */
-		if ((phv->phv_mode == PHV_LLD_SCSI_HOST_NO) &&
+		if ((phv->phv_mode == PHV_LLD_SCSI_HOST_ANAL) &&
 		    (phv->phv_lld_host != NULL))
 			scsi_host_put(phv->phv_lld_host);
 		else if (pdv->pdv_lld_host)
@@ -592,7 +592,7 @@ static void pscsi_complete_cmd(struct se_cmd *cmd, u8 scsi_status,
 	unsigned char *cdb = cmd->priv;
 
 	/*
-	 * Special case for REPORT_LUNs which is emulated and not passed on.
+	 * Special case for REPORT_LUNs which is emulated and analt passed on.
 	 */
 	if (!cdb)
 		return;
@@ -635,7 +635,7 @@ after_mode_sense:
 	/*
 	 * Hack to correctly obtain the initiator requested blocksize for
 	 * TYPE_TAPE.  Since this value is dependent upon each tape media,
-	 * struct scsi_device->sector_size will not contain the correct value
+	 * struct scsi_device->sector_size will analt contain the correct value
 	 * by default, so we go ahead and set it so
 	 * TRANSPORT(dev)->get_blockdev() returns the correct value to the
 	 * storage engine.
@@ -676,7 +676,7 @@ after_mode_select:
 		 * check for TAPE device reads with
 		 * FM/EOM/ILI set, so that we can get data
 		 * back despite framework assumption that a
-		 * check condition means there is no data
+		 * check condition means there is anal data
 		 */
 		if (sd->type == TYPE_TAPE && valid_data &&
 		    cmd->data_direction == DMA_FROM_DEVICE) {
@@ -686,9 +686,9 @@ after_mode_select:
 			 */
 			if (req_sense[0] == 0xf0 &&	/* valid, fixed format */
 			    req_sense[2] & 0xe0 &&	/* FM, EOM, or ILI */
-			    (req_sense[2] & 0xf) == 0) { /* key==NO_SENSE */
-				pr_debug("Tape FM/EOM/ILI status detected. Treat as normal read.\n");
-				cmd->se_cmd_flags |= SCF_TREAT_READ_AS_NORMAL;
+			    (req_sense[2] & 0xf) == 0) { /* key==ANAL_SENSE */
+				pr_debug("Tape FM/EOM/ILI status detected. Treat as analrmal read.\n");
+				cmd->se_cmd_flags |= SCF_TREAT_READ_AS_ANALRMAL;
 			}
 		}
 	}
@@ -718,7 +718,7 @@ static ssize_t pscsi_set_configfs_dev_params(struct se_device *dev,
 
 	opts = kstrdup(page, GFP_KERNEL);
 	if (!opts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	orig = opts;
 
@@ -729,10 +729,10 @@ static ssize_t pscsi_set_configfs_dev_params(struct se_device *dev,
 		token = match_token(ptr, tokens, args);
 		switch (token) {
 		case Opt_scsi_host_id:
-			if (phv->phv_mode == PHV_LLD_SCSI_HOST_NO) {
+			if (phv->phv_mode == PHV_LLD_SCSI_HOST_ANAL) {
 				pr_err("PSCSI[%d]: Unable to accept"
 					" scsi_host_id while phv_mode =="
-					" PHV_LLD_SCSI_HOST_NO\n",
+					" PHV_LLD_SCSI_HOST_ANAL\n",
 					phv->phv_host_id);
 				ret = -EINVAL;
 				goto out;
@@ -847,7 +847,7 @@ pscsi_map_sg(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 
 		/*
 		 * We only have one page of data in each sg element,
-		 * we can not cross a page boundary.
+		 * we can analt cross a page boundary.
 		 */
 		if (off + len > PAGE_SIZE)
 			goto fail;
@@ -881,7 +881,7 @@ new_bio:
 				bio_segments(bio), nr_vecs);
 			if (rc != bytes) {
 				pr_debug("PSCSI: Reached bio->bi_vcnt max:"
-					" %d i: %d bio: %p, allocating another"
+					" %d i: %d bio: %p, allocating aanalther"
 					" bio\n", bio->bi_vcnt, i, bio);
 
 				rc = blk_rq_append_bio(req, bio);
@@ -972,7 +972,7 @@ pscsi_execute_cmd(struct se_cmd *cmd)
 
 	cmd->priv = scmd->cmnd;
 
-	blk_execute_rq_nowait(req, cmd->sam_task_attr == TCM_HEAD_TAG);
+	blk_execute_rq_analwait(req, cmd->sam_task_attr == TCM_HEAD_TAG);
 
 	return 0;
 
@@ -990,7 +990,7 @@ static u32 pscsi_get_device_type(struct se_device *dev)
 	struct pscsi_dev_virt *pdv = PSCSI_DEV(dev);
 	struct scsi_device *sd = pdv->pdv_sd;
 
-	return (sd) ? sd->type : TYPE_NO_LUN;
+	return (sd) ? sd->type : TYPE_ANAL_LUN;
 }
 
 static sector_t pscsi_get_blocks(struct se_device *dev)
@@ -1030,7 +1030,7 @@ static enum rq_end_io_ret pscsi_req_done(struct request *req,
 	}
 
 	blk_mq_free_request(req);
-	return RQ_END_IO_NONE;
+	return RQ_END_IO_ANALNE;
 }
 
 static const struct target_backend_ops pscsi_ops = {

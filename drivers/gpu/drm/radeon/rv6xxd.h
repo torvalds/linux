@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -46,8 +46,8 @@
 
 #define MCLK_PWRMGT_CNTL                                  0x624
 #       define MPLL_PWRMGT_OFF                            (1 << 0)
-#       define YCLK_TURNOFF                               (1 << 1)
-#       define MPLL_TURNOFF                               (1 << 2)
+#       define YCLK_TURANALFF                               (1 << 1)
+#       define MPLL_TURANALFF                               (1 << 2)
 #       define SU_MCLK_USE_BCLK                           (1 << 3)
 #       define DLL_READY                                  (1 << 4)
 #       define MC_BUSY                                    (1 << 5)
@@ -70,9 +70,9 @@
 #       define MRDCKH_RESET                               (1 << 23)
 #       define DLL_READY_READ                             (1 << 24)
 #       define USE_DISPLAY_GAP                            (1 << 25)
-#       define USE_DISPLAY_URGENT_NORMAL                  (1 << 26)
+#       define USE_DISPLAY_URGENT_ANALRMAL                  (1 << 26)
 #       define USE_DISPLAY_GAP_CTXSW                      (1 << 27)
-#       define MPLL_TURNOFF_D2                            (1 << 28)
+#       define MPLL_TURANALFF_D2                            (1 << 28)
 #       define USE_DISPLAY_URGENT_CTXSW                   (1 << 29)
 
 #define MPLL_FREQ_LEVEL_0                                 0x6e8
@@ -169,14 +169,14 @@
 #       define BLACKOUT_WR                              (1 << 1)
 
 #define RAMCFG						0x2408
-#define		NOOFBANK_SHIFT					0
-#define		NOOFBANK_MASK					0x00000001
-#define		NOOFRANK_SHIFT					1
-#define		NOOFRANK_MASK					0x00000002
-#define		NOOFROWS_SHIFT					2
-#define		NOOFROWS_MASK					0x0000001C
-#define		NOOFCOLS_SHIFT					5
-#define		NOOFCOLS_MASK					0x00000060
+#define		ANALOFBANK_SHIFT					0
+#define		ANALOFBANK_MASK					0x00000001
+#define		ANALOFRANK_SHIFT					1
+#define		ANALOFRANK_MASK					0x00000002
+#define		ANALOFROWS_SHIFT					2
+#define		ANALOFROWS_MASK					0x0000001C
+#define		ANALOFCOLS_SHIFT					5
+#define		ANALOFCOLS_MASK					0x00000060
 #define		CHANSIZE_SHIFT					7
 #define		CHANSIZE_MASK					0x00000080
 #define		BURSTLENGTH_SHIFT				8

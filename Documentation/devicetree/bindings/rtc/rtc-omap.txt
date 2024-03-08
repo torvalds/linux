@@ -20,13 +20,13 @@ Optional properties:
 - pinctrl-0: a phandle pointing to the pin settings for the device
 - pinctrl-names: should be "default"
 
-Optional subnodes:
-- generic pinctrl node
+Optional subanaldes:
+- generic pinctrl analde
 
-Required pinctrl subnodes properties:
+Required pinctrl subanaldes properties:
 - pins - Names of ext_wakeup pins to configure
 
-Optional pinctrl subnodes properties:
+Optional pinctrl subanaldes properties:
 - input-enable - Enables ext_wakeup
 - ti,active-high - Set input active high (by default active low)
 

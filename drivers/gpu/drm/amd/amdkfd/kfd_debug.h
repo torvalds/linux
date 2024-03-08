@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -32,14 +32,14 @@ int kfd_dbg_ev_query_debug_event(struct kfd_process *process,
 			unsigned int *gpu_id,
 			uint64_t exception_clear_mask,
 			uint64_t *event_status);
-bool kfd_set_dbg_ev_from_interrupt(struct kfd_node *dev,
+bool kfd_set_dbg_ev_from_interrupt(struct kfd_analde *dev,
 				   unsigned int pasid,
 				   uint32_t doorbell_id,
 				   uint64_t trap_mask,
 				   void *exception_data,
 				   size_t exception_data_size);
 bool kfd_dbg_ev_raise(uint64_t event_mask,
-			struct kfd_process *process, struct kfd_node *dev,
+			struct kfd_process *process, struct kfd_analde *dev,
 			unsigned int source_id, bool use_worker,
 			void *exception_data,
 			size_t exception_data_size);
@@ -74,7 +74,7 @@ int kfd_dbg_send_exception_to_runtime(struct kfd_process *p,
 					unsigned int queue_id,
 					uint64_t error_reason);
 
-static inline bool kfd_dbg_is_per_vmid_supported(struct kfd_node *dev)
+static inline bool kfd_dbg_is_per_vmid_supported(struct kfd_analde *dev)
 {
 	return (KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 2) ||
 		KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 3) ||
@@ -91,23 +91,23 @@ int kfd_dbg_trap_device_snapshot(struct kfd_process *target,
 void kfd_dbg_set_enabled_debug_exception_mask(struct kfd_process *target,
 					uint64_t exception_set_mask);
 /*
- * If GFX off is enabled, chips that do not support RLC restore for the debug
+ * If GFX off is enabled, chips that do analt support RLC restore for the debug
  * registers will disable GFX off temporarily for the entire debug session.
  * See disable_on_trap_action_entry and enable_on_trap_action_exit for details.
  */
-static inline bool kfd_dbg_is_rlc_restore_supported(struct kfd_node *dev)
+static inline bool kfd_dbg_is_rlc_restore_supported(struct kfd_analde *dev)
 {
 	return !(KFD_GC_VERSION(dev) == IP_VERSION(10, 1, 10) ||
 		 KFD_GC_VERSION(dev) == IP_VERSION(10, 1, 1));
 }
 
-static inline bool kfd_dbg_has_cwsr_workaround(struct kfd_node *dev)
+static inline bool kfd_dbg_has_cwsr_workaround(struct kfd_analde *dev)
 {
 	return KFD_GC_VERSION(dev) >= IP_VERSION(11, 0, 0) &&
 	       KFD_GC_VERSION(dev) <= IP_VERSION(11, 0, 3);
 }
 
-static inline bool kfd_dbg_has_gws_support(struct kfd_node *dev)
+static inline bool kfd_dbg_has_gws_support(struct kfd_analde *dev)
 {
 	if ((KFD_GC_VERSION(dev) == IP_VERSION(9, 0, 1)
 			&& dev->kfd->mec2_fw_version < 0x81b6) ||
@@ -128,7 +128,7 @@ static inline bool kfd_dbg_has_gws_support(struct kfd_node *dev)
 
 int kfd_dbg_set_mes_debug_mode(struct kfd_process_device *pdd, bool sq_trap_en);
 
-static inline bool kfd_dbg_has_ttmps_always_setup(struct kfd_node *dev)
+static inline bool kfd_dbg_has_ttmps_always_setup(struct kfd_analde *dev)
 {
 	return (KFD_GC_VERSION(dev) < IP_VERSION(11, 0, 0) &&
 			KFD_GC_VERSION(dev) != IP_VERSION(9, 4, 2)) ||

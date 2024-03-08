@@ -79,7 +79,7 @@
 
 	cam_pwr_a_cs: cam-pwr-a-cs-state {
 		pins = "gpio1";
-		function = "normal";
+		function = "analrmal";
 		qcom,drive-strength = <PMIC_GPIO_STRENGTH_LOW>;
 		power-source = <1>;
 		drive-push-pull;

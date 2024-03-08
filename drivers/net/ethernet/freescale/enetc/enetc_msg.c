@@ -78,7 +78,7 @@ static int enetc_msg_alloc_mbx(struct enetc_si *si, int idx)
 	if (!msg->vaddr) {
 		dev_err(dev, "msg: fail to alloc dma buffer of size: %d\n",
 			msg->size);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* set multiple of 32 bytes */
@@ -120,7 +120,7 @@ int enetc_msg_psi_init(struct enetc_pf *pf)
 		return err;
 	}
 
-	/* set one IRQ entry for PSI message receive notification (SI int) */
+	/* set one IRQ entry for PSI message receive analtification (SI int) */
 	enetc_wr(&si->hw, ENETC_SIMSIVR, ENETC_SI_INT_IDX);
 
 	/* initialize PSI mailbox */

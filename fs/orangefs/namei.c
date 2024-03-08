@@ -13,18 +13,18 @@
 #include "orangefs-kernel.h"
 
 /*
- * Get a newly allocated inode to go with a negative dentry.
+ * Get a newly allocated ianalde to go with a negative dentry.
  */
 static int orangefs_create(struct mnt_idmap *idmap,
-			struct inode *dir,
+			struct ianalde *dir,
 			struct dentry *dentry,
 			umode_t mode,
 			bool exclusive)
 {
-	struct orangefs_inode_s *parent = ORANGEFS_I(dir);
+	struct orangefs_ianalde_s *parent = ORANGEFS_I(dir);
 	struct orangefs_kernel_op_s *new_op;
 	struct orangefs_object_kref ref;
-	struct inode *inode;
+	struct ianalde *ianalde;
 	struct iattr iattr;
 	int ret;
 
@@ -34,7 +34,7 @@ static int orangefs_create(struct mnt_idmap *idmap,
 
 	new_op = op_alloc(ORANGEFS_VFS_OP_CREATE);
 	if (!new_op)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	new_op->upcall.req.create.parent_refn = parent->refn;
 
@@ -60,22 +60,22 @@ static int orangefs_create(struct mnt_idmap *idmap,
 
 	ref = new_op->downcall.resp.create.refn;
 
-	inode = orangefs_new_inode(dir->i_sb, dir, S_IFREG | mode, 0, &ref);
-	if (IS_ERR(inode)) {
-		gossip_err("%s: Failed to allocate inode for file :%pd:\n",
+	ianalde = orangefs_new_ianalde(dir->i_sb, dir, S_IFREG | mode, 0, &ref);
+	if (IS_ERR(ianalde)) {
+		gossip_err("%s: Failed to allocate ianalde for file :%pd:\n",
 			   __func__,
 			   dentry);
-		ret = PTR_ERR(inode);
+		ret = PTR_ERR(ianalde);
 		goto out;
 	}
 
 	gossip_debug(GOSSIP_NAME_DEBUG,
-		     "%s: Assigned inode :%pU: for file :%pd:\n",
+		     "%s: Assigned ianalde :%pU: for file :%pd:\n",
 		     __func__,
-		     get_khandle_from_ino(inode),
+		     get_khandle_from_ianal(ianalde),
 		     dentry);
 
-	d_instantiate_new(dentry, inode);
+	d_instantiate_new(dentry, ianalde);
 	orangefs_set_timeout(dentry);
 
 	gossip_debug(GOSSIP_NAME_DEBUG,
@@ -102,12 +102,12 @@ out:
  * Attempt to resolve an object name (dentry->d_name), parent handle, and
  * fsid into a handle for the object.
  */
-static struct dentry *orangefs_lookup(struct inode *dir, struct dentry *dentry,
+static struct dentry *orangefs_lookup(struct ianalde *dir, struct dentry *dentry,
 				   unsigned int flags)
 {
-	struct orangefs_inode_s *parent = ORANGEFS_I(dir);
+	struct orangefs_ianalde_s *parent = ORANGEFS_I(dir);
 	struct orangefs_kernel_op_s *new_op;
-	struct inode *inode;
+	struct ianalde *ianalde;
 	int ret = -EINVAL;
 
 	/*
@@ -126,9 +126,9 @@ static struct dentry *orangefs_lookup(struct inode *dir, struct dentry *dentry,
 
 	new_op = op_alloc(ORANGEFS_VFS_OP_LOOKUP);
 	if (!new_op)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
-	new_op->upcall.req.lookup.sym_follow = ORANGEFS_LOOKUP_LINK_NO_FOLLOW;
+	new_op->upcall.req.lookup.sym_follow = ORANGEFS_LOOKUP_LINK_ANAL_FOLLOW;
 
 	gossip_debug(GOSSIP_NAME_DEBUG, "%s:%s:%d using parent %pU\n",
 		     __FILE__,
@@ -157,46 +157,46 @@ static struct dentry *orangefs_lookup(struct inode *dir, struct dentry *dentry,
 
 	if (ret == 0) {
 		orangefs_set_timeout(dentry);
-		inode = orangefs_iget(dir->i_sb, &new_op->downcall.resp.lookup.refn);
-	} else if (ret == -ENOENT) {
-		inode = NULL;
+		ianalde = orangefs_iget(dir->i_sb, &new_op->downcall.resp.lookup.refn);
+	} else if (ret == -EANALENT) {
+		ianalde = NULL;
 	} else {
-		/* must be a non-recoverable error */
-		inode = ERR_PTR(ret);
+		/* must be a analn-recoverable error */
+		ianalde = ERR_PTR(ret);
 	}
 
 	op_release(new_op);
-	return d_splice_alias(inode, dentry);
+	return d_splice_alias(ianalde, dentry);
 }
 
-/* return 0 on success; non-zero otherwise */
-static int orangefs_unlink(struct inode *dir, struct dentry *dentry)
+/* return 0 on success; analn-zero otherwise */
+static int orangefs_unlink(struct ianalde *dir, struct dentry *dentry)
 {
-	struct inode *inode = dentry->d_inode;
-	struct orangefs_inode_s *parent = ORANGEFS_I(dir);
+	struct ianalde *ianalde = dentry->d_ianalde;
+	struct orangefs_ianalde_s *parent = ORANGEFS_I(dir);
 	struct orangefs_kernel_op_s *new_op;
 	struct iattr iattr;
 	int ret;
 
 	gossip_debug(GOSSIP_NAME_DEBUG,
 		     "%s: called on %pd\n"
-		     "  (inode %pU): Parent is %pU | fs_id %d\n",
+		     "  (ianalde %pU): Parent is %pU | fs_id %d\n",
 		     __func__,
 		     dentry,
-		     get_khandle_from_ino(inode),
+		     get_khandle_from_ianal(ianalde),
 		     &parent->refn.khandle,
 		     parent->refn.fs_id);
 
 	new_op = op_alloc(ORANGEFS_VFS_OP_REMOVE);
 	if (!new_op)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	new_op->upcall.req.remove.parent_refn = parent->refn;
 	strncpy(new_op->upcall.req.remove.d_name, dentry->d_name.name,
 		ORANGEFS_NAME_MAX - 1);
 
 	ret = service_operation(new_op, "orangefs_unlink",
-				get_interruptible_flag(inode));
+				get_interruptible_flag(ianalde));
 
 	gossip_debug(GOSSIP_NAME_DEBUG,
 		     "%s: service_operation returned:%d:\n",
@@ -206,7 +206,7 @@ static int orangefs_unlink(struct inode *dir, struct dentry *dentry)
 	op_release(new_op);
 
 	if (!ret) {
-		drop_nlink(inode);
+		drop_nlink(ianalde);
 
 		memset(&iattr, 0, sizeof iattr);
 		iattr.ia_valid |= ATTR_MTIME | ATTR_CTIME;
@@ -217,14 +217,14 @@ static int orangefs_unlink(struct inode *dir, struct dentry *dentry)
 }
 
 static int orangefs_symlink(struct mnt_idmap *idmap,
-		         struct inode *dir,
+		         struct ianalde *dir,
 			 struct dentry *dentry,
 			 const char *symname)
 {
-	struct orangefs_inode_s *parent = ORANGEFS_I(dir);
+	struct orangefs_ianalde_s *parent = ORANGEFS_I(dir);
 	struct orangefs_kernel_op_s *new_op;
 	struct orangefs_object_kref ref;
-	struct inode *inode;
+	struct ianalde *ianalde;
 	struct iattr iattr;
 	int mode = 0755;
 	int ret;
@@ -239,7 +239,7 @@ static int orangefs_symlink(struct mnt_idmap *idmap,
 
 	new_op = op_alloc(ORANGEFS_VFS_OP_SYMLINK);
 	if (!new_op)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	new_op->upcall.req.sym.parent_refn = parent->refn;
 
@@ -268,31 +268,31 @@ static int orangefs_symlink(struct mnt_idmap *idmap,
 
 	ref = new_op->downcall.resp.sym.refn;
 
-	inode = orangefs_new_inode(dir->i_sb, dir, S_IFLNK | mode, 0, &ref);
-	if (IS_ERR(inode)) {
+	ianalde = orangefs_new_ianalde(dir->i_sb, dir, S_IFLNK | mode, 0, &ref);
+	if (IS_ERR(ianalde)) {
 		gossip_err
-		    ("*** Failed to allocate orangefs symlink inode\n");
-		ret = PTR_ERR(inode);
+		    ("*** Failed to allocate orangefs symlink ianalde\n");
+		ret = PTR_ERR(ianalde);
 		goto out;
 	}
 	/*
-	 * This is necessary because orangefs_inode_getattr will not
+	 * This is necessary because orangefs_ianalde_getattr will analt
 	 * re-read symlink size as it is impossible for it to change.
-	 * Invalidating the cache does not help.  orangefs_new_inode
-	 * does not set the correct size (it does not know symname).
+	 * Invalidating the cache does analt help.  orangefs_new_ianalde
+	 * does analt set the correct size (it does analt kanalw symname).
 	 */
-	inode->i_size = strlen(symname);
+	ianalde->i_size = strlen(symname);
 
 	gossip_debug(GOSSIP_NAME_DEBUG,
-		     "Assigned symlink inode new number of %pU\n",
-		     get_khandle_from_ino(inode));
+		     "Assigned symlink ianalde new number of %pU\n",
+		     get_khandle_from_ianal(ianalde));
 
-	d_instantiate_new(dentry, inode);
+	d_instantiate_new(dentry, ianalde);
 	orangefs_set_timeout(dentry);
 
 	gossip_debug(GOSSIP_NAME_DEBUG,
-		     "Inode (Symlink) %pU -> %pd\n",
-		     get_khandle_from_ino(inode),
+		     "Ianalde (Symlink) %pU -> %pd\n",
+		     get_khandle_from_ianal(ianalde),
 		     dentry);
 
 	memset(&iattr, 0, sizeof iattr);
@@ -305,19 +305,19 @@ out:
 	return ret;
 }
 
-static int orangefs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
+static int orangefs_mkdir(struct mnt_idmap *idmap, struct ianalde *dir,
 			  struct dentry *dentry, umode_t mode)
 {
-	struct orangefs_inode_s *parent = ORANGEFS_I(dir);
+	struct orangefs_ianalde_s *parent = ORANGEFS_I(dir);
 	struct orangefs_kernel_op_s *new_op;
 	struct orangefs_object_kref ref;
-	struct inode *inode;
+	struct ianalde *ianalde;
 	struct iattr iattr;
 	int ret;
 
 	new_op = op_alloc(ORANGEFS_VFS_OP_MKDIR);
 	if (!new_op)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	new_op->upcall.req.mkdir.parent_refn = parent->refn;
 
@@ -343,27 +343,27 @@ static int orangefs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 
 	ref = new_op->downcall.resp.mkdir.refn;
 
-	inode = orangefs_new_inode(dir->i_sb, dir, S_IFDIR | mode, 0, &ref);
-	if (IS_ERR(inode)) {
-		gossip_err("*** Failed to allocate orangefs dir inode\n");
-		ret = PTR_ERR(inode);
+	ianalde = orangefs_new_ianalde(dir->i_sb, dir, S_IFDIR | mode, 0, &ref);
+	if (IS_ERR(ianalde)) {
+		gossip_err("*** Failed to allocate orangefs dir ianalde\n");
+		ret = PTR_ERR(ianalde);
 		goto out;
 	}
 
 	gossip_debug(GOSSIP_NAME_DEBUG,
-		     "Assigned dir inode new number of %pU\n",
-		     get_khandle_from_ino(inode));
+		     "Assigned dir ianalde new number of %pU\n",
+		     get_khandle_from_ianal(ianalde));
 
-	d_instantiate_new(dentry, inode);
+	d_instantiate_new(dentry, ianalde);
 	orangefs_set_timeout(dentry);
 
 	gossip_debug(GOSSIP_NAME_DEBUG,
-		     "Inode (Directory) %pU -> %pd\n",
-		     get_khandle_from_ino(inode),
+		     "Ianalde (Directory) %pU -> %pd\n",
+		     get_khandle_from_ianal(ianalde),
 		     dentry);
 
 	/*
-	 * NOTE: we have no good way to keep nlink consistent for directories
+	 * ANALTE: we have anal good way to keep nlink consistent for directories
 	 * across clients; keep constant at 1.
 	 */
 	memset(&iattr, 0, sizeof iattr);
@@ -376,9 +376,9 @@ out:
 }
 
 static int orangefs_rename(struct mnt_idmap *idmap,
-			struct inode *old_dir,
+			struct ianalde *old_dir,
 			struct dentry *old_dentry,
-			struct inode *new_dir,
+			struct ianalde *new_dir,
 			struct dentry *new_dentry,
 			unsigned int flags)
 {
@@ -414,23 +414,23 @@ static int orangefs_rename(struct mnt_idmap *idmap,
 
 	ret = service_operation(new_op,
 				"orangefs_rename",
-				get_interruptible_flag(old_dentry->d_inode));
+				get_interruptible_flag(old_dentry->d_ianalde));
 
 	gossip_debug(GOSSIP_NAME_DEBUG,
 		     "orangefs_rename: got downcall status %d\n",
 		     ret);
 
-	if (new_dentry->d_inode)
-		inode_set_ctime_current(d_inode(new_dentry));
+	if (new_dentry->d_ianalde)
+		ianalde_set_ctime_current(d_ianalde(new_dentry));
 
 	op_release(new_op);
 	return ret;
 }
 
-/* ORANGEFS implementation of VFS inode operations for directories */
-const struct inode_operations orangefs_dir_inode_operations = {
+/* ORANGEFS implementation of VFS ianalde operations for directories */
+const struct ianalde_operations orangefs_dir_ianalde_operations = {
 	.lookup = orangefs_lookup,
-	.get_inode_acl = orangefs_get_acl,
+	.get_ianalde_acl = orangefs_get_acl,
 	.set_acl = orangefs_set_acl,
 	.create = orangefs_create,
 	.unlink = orangefs_unlink,

@@ -9,7 +9,7 @@
  * Copyright (C) 2018-2022 Pavel Pisa <pisa@cmp.felk.cvut.cz> FEE CTU/self-funded
  *
  * Project advisors:
- *     Jiri Novak <jnovak@fel.cvut.cz>
+ *     Jiri Analvak <janalvak@fel.cvut.cz>
  *     Pavel Pisa <pisa@cmp.felk.cvut.cz>
  *
  * Department of Measurement         (http://meas.fel.cvut.cz/)
@@ -126,15 +126,15 @@ static int ctucan_pci_probe(struct pci_dev *pdev,
 
 	addr = pci_iomap(pdev, 1, pci_resource_len(pdev, 1));
 	if (!addr) {
-		dev_err(dev, "PCI BAR 1 cannot be mapped\n");
-		ret = -ENOMEM;
+		dev_err(dev, "PCI BAR 1 cananalt be mapped\n");
+		ret = -EANALMEM;
 		goto err_release_regions;
 	}
 
 	/* Cyclone IV PCI Express Control Registers Area */
 	bar0_base = pci_iomap(pdev, 0, pci_resource_len(pdev, 0));
 	if (!bar0_base) {
-		dev_err(dev, "PCI BAR 0 cannot be mapped\n");
+		dev_err(dev, "PCI BAR 0 cananalt be mapped\n");
 		ret = -EIO;
 		goto err_pci_iounmap_bar1;
 	}
@@ -155,7 +155,7 @@ static int ctucan_pci_probe(struct pci_dev *pdev,
 
 	bdata = kzalloc(sizeof(*bdata), GFP_KERNEL);
 	if (!bdata) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_pci_iounmap_bar0;
 	}
 
@@ -231,7 +231,7 @@ static void ctucan_pci_remove(struct pci_dev *pdev)
 	dev_dbg(&pdev->dev, "ctucan_remove");
 
 	if (!bdata) {
-		dev_err(&pdev->dev, "%s: no list of devices\n", __func__);
+		dev_err(&pdev->dev, "%s: anal list of devices\n", __func__);
 		return;
 	}
 

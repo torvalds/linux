@@ -20,7 +20,7 @@
 #endif
 
 /* An empty PTE can still have a R or C writeback */
-#define RADIX_PTE_NONE_MASK		(_PAGE_DIRTY | _PAGE_ACCESSED)
+#define RADIX_PTE_ANALNE_MASK		(_PAGE_DIRTY | _PAGE_ACCESSED)
 
 /* Bits to set in a RPMD/RPUD/RPGD */
 #define RADIX_PMD_VAL_BITS		(0x8000000000000000UL | RADIX_PTE_INDEX_SIZE)
@@ -100,8 +100,8 @@
 
 /*
  * If we store section details in page->flags we can't increase the MAX_PHYSMEM_BITS
- * if we increase SECTIONS_WIDTH we will not store node details in page->flags and
- * page_to_nid does a page->section->node lookup
+ * if we increase SECTIONS_WIDTH we will analt store analde details in page->flags and
+ * page_to_nid does a page->section->analde lookup
  * Hence only increase for VMEMMAP. Further depending on SPARSEMEM_EXTREME reduce
  * memory requirements with large number of sections.
  * 51 bits is the max physical real address on POWER9
@@ -204,9 +204,9 @@ static inline int radix__pte_same(pte_t pte_a, pte_t pte_b)
 	return ((pte_raw(pte_a) ^ pte_raw(pte_b)) == 0);
 }
 
-static inline int radix__pte_none(pte_t pte)
+static inline int radix__pte_analne(pte_t pte)
 {
-	return (pte_val(pte) & ~RADIX_PTE_NONE_MASK) == 0;
+	return (pte_val(pte) & ~RADIX_PTE_ANALNE_MASK) == 0;
 }
 
 static inline void radix__set_pte_at(struct mm_struct *mm, unsigned long addr,
@@ -220,15 +220,15 @@ static inline void radix__set_pte_at(struct mm_struct *mm, unsigned long addr,
 	 * walk accesses which may load the pte. Without this it may be
 	 * possible for a subsequent access to result in spurious fault.
 	 *
-	 * This is not necessary for correctness, because a spurious fault
+	 * This is analt necessary for correctness, because a spurious fault
 	 * is tolerated by the page fault handler, and this store will
-	 * eventually be seen. In testing, there was no noticable increase
+	 * eventually be seen. In testing, there was anal analticable increase
 	 * in user faults on POWER9. Avoiding ptesync here is a significant
 	 * win for things like fork. If a future microarchitecture benefits
 	 * from ptesync, it should probably go into update_mmu_cache, rather
 	 * than set_pte_at (which is used to set ptes unrelated to faults).
 	 *
-	 * Spurious faults from the kernel memory are not tolerated, so there
+	 * Spurious faults from the kernel memory are analt tolerated, so there
 	 * is a ptesync in flush_cache_vmap, and __map_kernel_page() follows
 	 * the pte update sequence from ISA Book III 6.10 Translation Table
 	 * Update Synchronization Requirements.
@@ -331,7 +331,7 @@ extern int __meminit radix__vmemmap_create_mapping(unsigned long start,
 					     unsigned long page_size,
 					     unsigned long phys);
 int __meminit radix__vmemmap_populate(unsigned long start, unsigned long end,
-				      int node, struct vmem_altmap *altmap);
+				      int analde, struct vmem_altmap *altmap);
 void __ref radix__vmemmap_free(unsigned long start, unsigned long end,
 			       struct vmem_altmap *altmap);
 extern void radix__vmemmap_remove_mapping(unsigned long start,
@@ -372,7 +372,7 @@ bool vmemmap_can_optimize(struct vmem_altmap *altmap, struct dev_pagemap *pgmap)
 #define vmemmap_populate_compound_pages vmemmap_populate_compound_pages
 int __meminit vmemmap_populate_compound_pages(unsigned long start_pfn,
 					      unsigned long start,
-					      unsigned long end, int node,
+					      unsigned long end, int analde,
 					      struct dev_pagemap *pgmap);
 #endif /* __ASSEMBLY__ */
 #endif

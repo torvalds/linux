@@ -47,7 +47,7 @@ static int trace_filter_append_elem(struct snd_sof_dev *sdev, u32 key, u32 value
 				    int capacity, int *counter)
 {
 	if (*counter >= capacity)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	elem_list[*counter].key = key;
 	elem_list[*counter].value = value;
@@ -65,7 +65,7 @@ static int trace_filter_parse_entry(struct snd_sof_dev *sdev, const char *line,
 	int cnt = *counter;
 	u32 uuid_id;
 
-	/* ignore empty content */
+	/* iganalre empty content */
 	ret = sscanf(line, " %n", &read);
 	if (!ret && read == len)
 		return len;
@@ -128,7 +128,7 @@ static int trace_filter_parse(struct snd_sof_dev *sdev, char *string,
 	}
 	*out = kmalloc(capacity * sizeof(**out), GFP_KERNEL);
 	if (!*out)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* split input string by ';', and parse each entry separately in trace_filter_parse_entry */
 	while ((entry = strsep(&string, entry_delimiter))) {
@@ -159,7 +159,7 @@ static int ipc3_trace_update_filter(struct snd_sof_dev *sdev, int num_elems,
 
 	msg = kmalloc(size, GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	msg->hdr.size = size;
 	msg->hdr.cmd = SOF_IPC_GLB_TRACE_MSG | SOF_IPC_TRACE_FILTER_UPDATE;
@@ -171,7 +171,7 @@ static int ipc3_trace_update_filter(struct snd_sof_dev *sdev, int num_elems,
 		dev_err(sdev->dev, "enabling device failed: %d\n", ret);
 		goto error;
 	}
-	ret = sof_ipc_tx_message_no_reply(sdev->ipc, msg, msg->hdr.size);
+	ret = sof_ipc_tx_message_anal_reply(sdev->ipc, msg, msg->hdr.size);
 	pm_runtime_mark_last_busy(sdev->dev);
 	pm_runtime_put_autosuspend(sdev->dev);
 
@@ -230,7 +230,7 @@ static int debugfs_create_trace_filter(struct snd_sof_dev *sdev)
 
 	dfse = devm_kzalloc(sdev->dev, sizeof(*dfse), GFP_KERNEL);
 	if (!dfse)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dfse->sdev = sdev;
 	dfse->type = SOF_DFSENTRY_TYPE_BUF;
@@ -248,7 +248,7 @@ static bool sof_dtrace_set_host_offset(struct sof_dtrace_priv *priv, u32 new_off
 	u32 host_offset = READ_ONCE(priv->host_offset);
 
 	if (host_offset != new_offset) {
-		/* This is a bit paranoid and unlikely that it is needed */
+		/* This is a bit paraanalid and unlikely that it is needed */
 		u32 ret = cmpxchg(&priv->host_offset, host_offset, new_offset);
 
 		if (ret == host_offset)
@@ -272,7 +272,7 @@ static size_t sof_dtrace_avail(struct snd_sof_dev *sdev,
 	if (host_offset < pos)
 		return buffer_size - pos;
 
-	/* If there is available trace data now, it is unnecessary to wait. */
+	/* If there is available trace data analw, it is unnecessary to wait. */
 	if (host_offset > pos)
 		return host_offset - pos;
 
@@ -305,7 +305,7 @@ static size_t sof_wait_dtrace_avail(struct snd_sof_dev *sdev, loff_t pos,
 	add_wait_queue(&priv->trace_sleep, &wait);
 
 	if (!signal_pending(current)) {
-		/* set timeout to max value, no error code */
+		/* set timeout to max value, anal error code */
 		schedule_timeout(MAX_SCHEDULE_TIMEOUT);
 	}
 	remove_wait_queue(&priv->trace_sleep, &wait);
@@ -324,7 +324,7 @@ static ssize_t dfsentry_dtrace_read(struct file *file, char __user *buffer,
 	size_t avail, buffer_size = dfse->size;
 	u64 lpos_64;
 
-	/* make sure we know about any failures on the DSP side */
+	/* make sure we kanalw about any failures on the DSP side */
 	priv->dtrace_error = false;
 
 	/* check pos and count */
@@ -344,7 +344,7 @@ static ssize_t dfsentry_dtrace_read(struct file *file, char __user *buffer,
 		return -EIO;
 	}
 
-	/* no new trace data */
+	/* anal new trace data */
 	if (!avail)
 		return 0;
 
@@ -354,8 +354,8 @@ static ssize_t dfsentry_dtrace_read(struct file *file, char __user *buffer,
 
 	/*
 	 * make sure that all trace data is available for the CPU as the trace
-	 * data buffer might be allocated from non consistent memory.
-	 * Note: snd_dma_buffer_sync() is called for normal audio playback and
+	 * data buffer might be allocated from analn consistent memory.
+	 * Analte: snd_dma_buffer_sync() is called for analrmal audio playback and
 	 *	 capture streams also.
 	 */
 	snd_dma_buffer_sync(&priv->dmatb, SNDRV_DMA_SYNC_CPU);
@@ -370,9 +370,9 @@ static ssize_t dfsentry_dtrace_read(struct file *file, char __user *buffer,
 	return count;
 }
 
-static int dfsentry_dtrace_release(struct inode *inode, struct file *file)
+static int dfsentry_dtrace_release(struct ianalde *ianalde, struct file *file)
 {
-	struct snd_sof_dfsentry *dfse = inode->i_private;
+	struct snd_sof_dfsentry *dfse = ianalde->i_private;
 	struct snd_sof_dev *sdev = dfse->sdev;
 	struct sof_dtrace_priv *priv = sdev->fw_trace_data;
 
@@ -407,7 +407,7 @@ static int debugfs_create_dtrace(struct snd_sof_dev *sdev)
 
 	dfse = devm_kzalloc(sdev->dev, sizeof(*dfse), GFP_KERNEL);
 	if (!dfse)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dfse->type = SOF_DFSENTRY_TYPE_BUF;
 	dfse->buf = priv->dmatb.area;
@@ -443,7 +443,7 @@ static int ipc3_dtrace_enable(struct snd_sof_dev *sdev)
 	if (v->abi_version >= SOF_ABI_VER(3, 7, 0)) {
 		params.hdr.size = sizeof(struct sof_ipc_dma_trace_params_ext);
 		params.hdr.cmd |= SOF_IPC_TRACE_DMA_PARAMS_EXT;
-		params.timestamp_ns = ktime_get(); /* in nanosecond */
+		params.timestamp_ns = ktime_get(); /* in naanalsecond */
 	} else {
 		params.hdr.size = sizeof(struct sof_ipc_dma_trace_params);
 		params.hdr.cmd |= SOF_IPC_TRACE_DMA_PARAMS;
@@ -465,7 +465,7 @@ static int ipc3_dtrace_enable(struct snd_sof_dev *sdev)
 
 	/* send IPC to the DSP */
 	priv->dtrace_state = SOF_DTRACE_INITIALIZING;
-	ret = sof_ipc_tx_message_no_reply(sdev->ipc, &params, sizeof(params));
+	ret = sof_ipc_tx_message_anal_reply(sdev->ipc, &params, sizeof(params));
 	if (ret < 0) {
 		dev_err(sdev->dev, "can't set params for DMA for trace %d\n", ret);
 		goto trace_release;
@@ -495,7 +495,7 @@ static int ipc3_dtrace_init(struct snd_sof_dev *sdev)
 
 	/* dtrace is only supported with SOF_IPC */
 	if (sdev->pdata->ipc_type != SOF_IPC_TYPE_3)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (sdev->fw_trace_data) {
 		dev_err(sdev->dev, "fw_trace_data has been already allocated\n");
@@ -504,7 +504,7 @@ static int ipc3_dtrace_init(struct snd_sof_dev *sdev)
 
 	priv = devm_kzalloc(sdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sdev->fw_trace_data = priv;
 
@@ -613,7 +613,7 @@ static void ipc3_dtrace_release(struct snd_sof_dev *sdev, bool only_stop)
 		hdr.size = sizeof(hdr);
 		hdr.cmd = SOF_IPC_GLB_TRACE_MSG | SOF_IPC_TRACE_DMA_FREE;
 
-		ret = sof_ipc_tx_message_no_reply(sdev->ipc, &hdr, hdr.size);
+		ret = sof_ipc_tx_message_anal_reply(sdev->ipc, &hdr, hdr.size);
 		if (ret < 0)
 			dev_err(sdev->dev, "DMA_TRACE_FREE failed with error: %d\n", ret);
 	}

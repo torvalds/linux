@@ -45,16 +45,16 @@ least-significant end of the word:
 * Unused, 16 bits
 
 * Pending interrupt priority, 8 bits
-  Zero is the highest priority, 255 means no interrupt is pending.
+  Zero is the highest priority, 255 means anal interrupt is pending.
 
 * Pending IPI (inter-processor interrupt) priority, 8 bits
-  Zero is the highest priority, 255 means no IPI is pending.
+  Zero is the highest priority, 255 means anal IPI is pending.
 
 * Pending interrupt source number, 24 bits
-  Zero means no interrupt pending, 2 means an IPI is pending
+  Zero means anal interrupt pending, 2 means an IPI is pending
 
 * Current processor priority, 8 bits
-  Zero is the highest priority, meaning no interrupts can be
+  Zero is the highest priority, meaning anal interrupts can be
   delivered, and 255 is the lowest priority.
 
 Each source has 64 bits of state that can be read and written using
@@ -81,9 +81,9 @@ bitfields, starting from the least-significant end of the word:
 
 * Masked flag, 1 bit
 
-  This bit is set to 1 if the interrupt is masked (cannot be delivered
+  This bit is set to 1 if the interrupt is masked (cananalt be delivered
   regardless of its priority), for example by the ibm,int-off RTAS
-  call, or 0 if it is not masked.
+  call, or 0 if it is analt masked.
 
 * Pending flag, 1 bit
 

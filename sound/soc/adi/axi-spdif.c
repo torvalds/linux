@@ -159,7 +159,7 @@ static struct snd_soc_dai_driver axi_spdif_dai = {
 	.playback = {
 		.channels_min = 2,
 		.channels_max = 2,
-		.rates = SNDRV_PCM_RATE_KNOT,
+		.rates = SNDRV_PCM_RATE_KANALT,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE,
 	},
 	.ops = &axi_spdif_dai_ops,
@@ -186,7 +186,7 @@ static int axi_spdif_probe(struct platform_device *pdev)
 
 	spdif = devm_kzalloc(&pdev->dev, sizeof(*spdif), GFP_KERNEL);
 	if (!spdif)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, spdif);
 

@@ -161,7 +161,7 @@ static const unsigned int mc13892_sw1[] = {
 };
 
 /*
- * Note: this table is used to derive SWxVSEL by index into
+ * Analte: this table is used to derive SWxVSEL by index into
  * the array. Offset the values by the index of 1100000uV
  * to get the actual register value for that voltage selector
  * if the HI bit is to be set as well.
@@ -246,20 +246,20 @@ static const struct regulator_ops mc13892_gpo_regulator_ops;
 static const struct regulator_ops mc13892_sw_regulator_ops;
 
 
-#define MC13892_FIXED_DEFINE(name, node, reg, voltages)			\
-	MC13xxx_FIXED_DEFINE(MC13892_, name, node, reg, voltages,	\
+#define MC13892_FIXED_DEFINE(name, analde, reg, voltages)			\
+	MC13xxx_FIXED_DEFINE(MC13892_, name, analde, reg, voltages,	\
 			mc13xxx_fixed_regulator_ops)
 
-#define MC13892_GPO_DEFINE(name, node, reg, voltages)			\
-	MC13xxx_GPO_DEFINE(MC13892_, name, node, reg, voltages,		\
+#define MC13892_GPO_DEFINE(name, analde, reg, voltages)			\
+	MC13xxx_GPO_DEFINE(MC13892_, name, analde, reg, voltages,		\
 			mc13892_gpo_regulator_ops)
 
-#define MC13892_SW_DEFINE(name, node, reg, vsel_reg, voltages)		\
-	MC13xxx_DEFINE(MC13892_, name, node, reg, vsel_reg, voltages,	\
+#define MC13892_SW_DEFINE(name, analde, reg, vsel_reg, voltages)		\
+	MC13xxx_DEFINE(MC13892_, name, analde, reg, vsel_reg, voltages,	\
 			mc13892_sw_regulator_ops)
 
-#define MC13892_DEFINE_REGU(name, node, reg, vsel_reg, voltages)	\
-	MC13xxx_DEFINE(MC13892_, name, node, reg, vsel_reg, voltages, \
+#define MC13892_DEFINE_REGU(name, analde, reg, vsel_reg, voltages)	\
+	MC13xxx_DEFINE(MC13892_, name, analde, reg, vsel_reg, voltages, \
 			mc13xxx_regulator_ops)
 
 static struct mc13xxx_regulator mc13892_regulators[] = {
@@ -415,9 +415,9 @@ static int mc13892_sw_regulator_get_voltage_sel(struct regulator_dev *rdev)
 	 * since this means the selector value we return is at a different
 	 * offset into the selector table.
 	 *
-	 * According to the MC13892 documentation note 59 (Table 47) the SW1
-	 * buck switcher does not support output range programming therefore
-	 * the HI bit must always remain 0. So do not do anything strange if
+	 * According to the MC13892 documentation analte 59 (Table 47) the SW1
+	 * buck switcher does analt support output range programming therefore
+	 * the HI bit must always remain 0. So do analt do anything strange if
 	 * our register is MC13892_SWITCHERS0.
 	 */
 
@@ -519,7 +519,7 @@ static unsigned int mc13892_vcam_get_mode(struct regulator_dev *rdev)
 	if (val & MC13892_REGULATORMODE1_VCAMCONFIGEN)
 		return REGULATOR_MODE_FAST;
 
-	return REGULATOR_MODE_NORMAL;
+	return REGULATOR_MODE_ANALRMAL;
 }
 
 static struct regulator_ops mc13892_vcam_ops;
@@ -547,7 +547,7 @@ static int mc13892_regulator_probe(struct platform_device *pdev)
 			    struct_size(priv, regulators, num_regulators),
 			    GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->num_regulators = num_regulators;
 	priv->mc13xxx_regulators = mc13892_regulators;
@@ -592,13 +592,13 @@ static int mc13892_regulator_probe(struct platform_device *pdev)
 	for (i = 0; i < priv->num_regulators; i++) {
 		struct regulator_init_data *init_data;
 		struct regulator_desc *desc;
-		struct device_node *node = NULL;
+		struct device_analde *analde = NULL;
 		int id;
 
 		if (mc13xxx_data) {
 			id = mc13xxx_data[i].id;
 			init_data = mc13xxx_data[i].init_data;
-			node = mc13xxx_data[i].node;
+			analde = mc13xxx_data[i].analde;
 		} else {
 			id = pdata->regulators[i].id;
 			init_data = pdata->regulators[i].init_data;
@@ -608,7 +608,7 @@ static int mc13892_regulator_probe(struct platform_device *pdev)
 		config.dev = &pdev->dev;
 		config.init_data = init_data;
 		config.driver_data = priv;
-		config.of_node = node;
+		config.of_analde = analde;
 
 		priv->regulators[i] = devm_regulator_register(&pdev->dev, desc,
 							      &config);
@@ -629,7 +629,7 @@ err_unlock:
 static struct platform_driver mc13892_regulator_driver = {
 	.driver	= {
 		.name	= "mc13892-regulator",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.probe	= mc13892_regulator_probe,
 };

@@ -21,7 +21,7 @@ extra_ranges = (
 for j in sys.stdin:
 	m = re.search(r'(read|write)_msr:\s+([0-9a-f]+)', j)
 	if m:
-		r = None
+		r = Analne
 		num = int(m.group(2), 16)
 		if num in msrs:
 			r = msrs[num]

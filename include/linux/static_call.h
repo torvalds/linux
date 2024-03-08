@@ -59,17 +59,17 @@
  *   If the arch has CONFIG_HAVE_STATIC_CALL_INLINE, then the call sites
  *   themselves will be patched at runtime to call the functions directly,
  *   rather than calling through the trampoline.  This requires objtool or a
- *   compiler plugin to detect all the static_call() sites and annotate them
+ *   compiler plugin to detect all the static_call() sites and ananaltate them
  *   in the .static_call_sites section.
  *
  *
- * Notes on NULL function pointers:
+ * Analtes on NULL function pointers:
  *
  *   Static_call()s support NULL functions, with many of the caveats that
  *   regular function pointers have.
  *
  *   Clearly calling a NULL function pointer is 'BAD', so too for
- *   static_call()s (although when HAVE_STATIC_CALL it might not be immediately
+ *   static_call()s (although when HAVE_STATIC_CALL it might analt be immediately
  *   fatal). A NULL static_call can be the result of:
  *
  *     DECLARE_STATIC_CALL_NULL(my_static_call, void (*)(int));
@@ -82,7 +82,7 @@
  *   or using static_call_update() with a NULL function. In both cases the
  *   HAVE_STATIC_CALL implementation will patch the trampoline with a RET
  *   instruction, instead of an immediate tail-call JMP. HAVE_STATIC_CALL_INLINE
- *   architectures can patch the trampoline call to a NOP.
+ *   architectures can patch the trampoline call to a ANALP.
  *
  *   In all cases, any argument evaluation is unconditional. Unlike a regular
  *   conditional function pointer call:
@@ -108,26 +108,26 @@
  *
  *   Just like how DEFINE_STATIC_CALL_NULL() / static_call_cond() optimize the
  *   conditional void function call, DEFINE_STATIC_CALL_RET0 /
- *   __static_call_return0 optimize the do nothing return 0 function.
+ *   __static_call_return0 optimize the do analthing return 0 function.
  *
  *   This feature is strictly UB per the C standard (since it casts a function
  *   pointer to a different signature) and relies on the architecture ABI to
  *   make things work. In particular it relies on Caller Stack-cleanup and the
- *   whole return register being clobbered for short return values. All normal
+ *   whole return register being clobbered for short return values. All analrmal
  *   CDECL style ABIs conform.
  *
  *   In particular the x86_64 implementation replaces the 5 byte CALL
  *   instruction at the callsite with a 5 byte clear of the RAX register,
  *   completely eliding any function call overhead.
  *
- *   Notably argument setup is unconditional.
+ *   Analtably argument setup is unconditional.
  *
  *
  * EXPORT_STATIC_CALL() vs EXPORT_STATIC_CALL_TRAMP():
  *
  *   The difference is that the _TRAMP variant tries to only export the
  *   trampoline with the result that a module can use static_call{,_cond}() but
- *   not static_call_update().
+ *   analt static_call_update().
  *
  */
 
@@ -303,7 +303,7 @@ static inline long __static_call_return0(void)
 #define DEFINE_STATIC_CALL_RET0(name, _func)				\
 	__DEFINE_STATIC_CALL(name, _func, __static_call_return0)
 
-static inline void __static_call_nop(void) { }
+static inline void __static_call_analp(void) { }
 
 /*
  * This horrific hack takes care of two things:
@@ -314,14 +314,14 @@ static inline void __static_call_nop(void) { }
  *  - it ensures the argument evaluation is unconditional, similar
  *    to the HAVE_STATIC_CALL variant.
  *
- * Sadly current GCC/Clang (10 for both) do not optimize this properly
+ * Sadly current GCC/Clang (10 for both) do analt optimize this properly
  * and will emit an indirect call for the NULL case :-(
  */
 #define __static_call_cond(name)					\
 ({									\
 	void *func = READ_ONCE(STATIC_CALL_KEY(name).func);		\
 	if (!func)							\
-		func = &__static_call_nop;				\
+		func = &__static_call_analp;				\
 	(typeof(STATIC_CALL_TRAMP(name))*)func;				\
 })
 

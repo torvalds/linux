@@ -94,7 +94,7 @@ static int meson_plane_atomic_check(struct drm_plane *plane,
 	return drm_atomic_helper_check_plane_state(new_plane_state,
 						   crtc_state,
 						   FRAC_16_16(1, 5),
-						   DRM_PLANE_NO_SCALING,
+						   DRM_PLANE_ANAL_SCALING,
 						   false, true);
 }
 
@@ -200,7 +200,7 @@ static void meson_plane_atomic_update(struct drm_plane *plane,
 			priv->viu.osd1_ctrl_stat2 &= ~OSD_DPATH_MALI_AFBCD;
 	}
 
-	/* On GXBB, Use the old non-HDR RGB2YUV converter */
+	/* On GXBB, Use the old analn-HDR RGB2YUV converter */
 	if (meson_vpu_is_compatible(priv, VPU_COMPATIBLE_GXBB))
 		priv->viu.osd1_blk0_cfg[0] |= OSD_OUTPUT_COLOR_RGB;
 
@@ -328,7 +328,7 @@ static void meson_plane_atomic_update(struct drm_plane *plane,
 		priv->viu.osd_sc_v_ini_phase = 0;
 	}
 
-	/* Horizontal scaler is only used if width does not match */
+	/* Horizontal scaler is only used if width does analt match */
 	if (src_w != dst_w) {
 		priv->viu.osd_sc_h_ctrl0 =
 					HSC_BANK_LENGTH(hf_bank_len) |
@@ -538,7 +538,7 @@ int meson_plane_create(struct meson_drm *priv)
 	meson_plane = devm_kzalloc(priv->drm->dev, sizeof(*meson_plane),
 				   GFP_KERNEL);
 	if (!meson_plane)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	meson_plane->priv = priv;
 	plane = &meson_plane->base;
@@ -557,7 +557,7 @@ int meson_plane_create(struct meson_drm *priv)
 
 	drm_plane_helper_add(plane, &meson_plane_helper_funcs);
 
-	/* For now, OSD Primary plane is always on the front */
+	/* For analw, OSD Primary plane is always on the front */
 	drm_plane_create_zpos_immutable_property(plane, 1);
 
 	priv->primary_plane = plane;

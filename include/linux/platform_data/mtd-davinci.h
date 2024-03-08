@@ -32,7 +32,7 @@
 #define NAND_ERR_ERRVAL1_OFFSET		0xd8
 #define NAND_ERR_ERRVAL2_OFFSET		0xdc
 
-/* NOTE:  boards don't need to use these address bits
+/* ANALTE:  boards don't need to use these address bits
  * for ALE/CLE unless they support booting from NAND.
  * They're used unless platform data overrides them.
  */
@@ -44,11 +44,11 @@ struct davinci_nand_pdata {		/* platform_data */
 	uint32_t		mask_cle;
 
 	/*
-	 * 0-indexed chip-select number of the asynchronous
+	 * 0-indexed chip-select number of the asynchroanalus
 	 * interface to which the NAND device has been connected.
 	 *
 	 * So, if you have NAND connected to CS3 of DA850, you
-	 * will pass '1' here. Since the asynchronous interface
+	 * will pass '1' here. Since the asynchroanalus interface
 	 * on DA850 starts from CS2.
 	 */
 	uint32_t		core_chipsel;
@@ -60,7 +60,7 @@ struct davinci_nand_pdata {		/* platform_data */
 	struct mtd_partition	*parts;
 	unsigned		nr_parts;
 
-	/* none  == NAND_ECC_ENGINE_TYPE_NONE (strongly *not* advised!!)
+	/* analne  == NAND_ECC_ENGINE_TYPE_ANALNE (strongly *analt* advised!!)
 	 * soft  == NAND_ECC_ENGINE_TYPE_SOFT
 	 * else  == NAND_ECC_ENGINE_TYPE_ON_HOST, according to ecc_bits
 	 *

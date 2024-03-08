@@ -20,9 +20,9 @@
 #define VXFS_SUPER_MAGIC	0xa501FCF5
 
 /*
- * The root inode.
+ * The root ianalde.
  */
-#define VXFS_ROOT_INO		2
+#define VXFS_ROOT_IANAL		2
 
 /*
  * Num of entries in free extent array
@@ -45,7 +45,7 @@ struct vxfs_sb {
 	/*
 	 * Readonly fields for the version 1 superblock.
 	 *
-	 * Lots of this fields are no more used by version 2
+	 * Lots of this fields are anal more used by version 2
 	 * and never filesystems.
 	 */
 	__fs32		vs_magic;		/* Magic number */
@@ -59,7 +59,7 @@ struct vxfs_sb {
 	__fs32		vs_bsize;		/* block size */
 	__fs32		vs_size;		/* number of blocks */
 	__fs32		vs_dsize;		/* number of data blocks */
-	__fs32		vs_old_ninode;		/* obsolete */
+	__fs32		vs_old_nianalde;		/* obsolete */
 	__fs32		vs_old_nau;		/* obsolete */
 	__fs32		__unused3;		/* unused */
 	__fs32		vs_old_defiextsize;	/* obsolete */
@@ -68,9 +68,9 @@ struct vxfs_sb {
 	__fs32		vs_ndaddr;		/* number of direct extentes */
 	__fs32		vs_firstau;		/* address of first AU */
 	__fs32		vs_emap;		/* offset of extent map in AU */
-	__fs32		vs_imap;		/* offset of inode map in AU */
+	__fs32		vs_imap;		/* offset of ianalde map in AU */
 	__fs32		vs_iextop;		/* offset of ExtOp. map in AU */
-	__fs32		vs_istart;		/* offset of inode list in AU */
+	__fs32		vs_istart;		/* offset of ianalde list in AU */
 	__fs32		vs_bstart;		/* offset of fdblock in AU */
 	__fs32		vs_femap;		/* aufirst + emap */
 	__fs32		vs_fimap;		/* aufirst + imap */
@@ -85,23 +85,23 @@ struct vxfs_sb {
 	__fs32		vs_aupad;		/* length of pad in blocks */
 	__fs32		vs_aublocks;		/* data blocks in AU */
 	__fs32		vs_maxtier;		/* log base 2 of aublocks */
-	__fs32		vs_inopb;		/* number of inodes per blk */
-	__fs32		vs_old_inopau;		/* obsolete */
-	__fs32		vs_old_inopilb;		/* obsolete */
+	__fs32		vs_ianalpb;		/* number of ianaldes per blk */
+	__fs32		vs_old_ianalpau;		/* obsolete */
+	__fs32		vs_old_ianalpilb;		/* obsolete */
 	__fs32		vs_old_ndiripau;	/* obsolete */
 	__fs32		vs_iaddrlen;		/* size of indirect addr ext. */
 	__fs32		vs_bshift;		/* log base 2 of bsize */
-	__fs32		vs_inoshift;		/* log base 2 of inobp */
+	__fs32		vs_ianalshift;		/* log base 2 of ianalbp */
 	__fs32		vs_bmask;		/* ~( bsize - 1 ) */
 	__fs32		vs_boffmask;		/* bsize - 1 */
-	__fs32		vs_old_inomask;		/* old_inopilb - 1 */
+	__fs32		vs_old_ianalmask;		/* old_ianalpilb - 1 */
 	__fs32		vs_checksum;		/* checksum of V1 data */
 	
 	/*
 	 * Version 1, writable
 	 */
 	__fs32		vs_free;		/* number of free blocks */
-	__fs32		vs_ifree;		/* number of free inodes */
+	__fs32		vs_ifree;		/* number of free ianaldes */
 	__fs32		vs_efree[VXFS_NEFREE];	/* number of free extents by size */
 	__fs32		vs_flags;		/* flags ?!? */
 	__u8		vs_mod;			/* filesystem has been changed */
@@ -120,10 +120,10 @@ struct vxfs_sb {
 	 */
 	__fs32		vs_oltext[2];		/* OLT extent and replica */
 	__fs32		vs_oltsize;		/* OLT extent size */
-	__fs32		vs_iauimlen;		/* size of inode map */
+	__fs32		vs_iauimlen;		/* size of ianalde map */
 	__fs32		vs_iausize;		/* size of IAU in blocks */
-	__fs32		vs_dinosize;		/* size of inode in bytes */
-	__fs32		vs_old_dniaddr;		/* indir levels per inode */
+	__fs32		vs_dianalsize;		/* size of ianalde in bytes */
+	__fs32		vs_old_dniaddr;		/* indir levels per ianalde */
 	__fs32		vs_checksum2;		/* checksum of V2 RO */
 
 	/*
@@ -138,11 +138,11 @@ struct vxfs_sb {
 struct vxfs_sb_info {
 	struct vxfs_sb		*vsi_raw;	/* raw (on disk) superblock */
 	struct buffer_head	*vsi_bp;	/* buffer for raw superblock*/
-	struct inode		*vsi_fship;	/* fileset header inode */
-	struct inode		*vsi_ilist;	/* inode list inode */
-	struct inode		*vsi_stilist;	/* structural inode list inode */
-	u_long			vsi_iext;	/* initial inode list */
-	ino_t			vsi_fshino;	/* fileset header inode */
+	struct ianalde		*vsi_fship;	/* fileset header ianalde */
+	struct ianalde		*vsi_ilist;	/* ianalde list ianalde */
+	struct ianalde		*vsi_stilist;	/* structural ianalde list ianalde */
+	u_long			vsi_iext;	/* initial ianalde list */
+	ianal_t			vsi_fshianal;	/* fileset header ianalde */
 	daddr_t			vsi_oltext;	/* OLT extent */
 	daddr_t			vsi_oltsize;	/* OLT size */
 	enum vxfs_byte_order	byte_order;
@@ -174,7 +174,7 @@ static inline u64 fs64_to_cpu(struct vxfs_sb_info *sbi, __fs64 a)
 
 /*
  * File modes.  File types above 0xf000 are vxfs internal only, they should
- * not be passed back to higher levels of the system.  vxfs file types must
+ * analt be passed back to higher levels of the system.  vxfs file types must
  * never have one of the regular file type bits set.
  */
 enum vxfs_mode {
@@ -197,15 +197,15 @@ enum vxfs_mode {
 
 	/* VxFS internal */
 	VXFS_IFFSH = 0x10000000,	/* Fileset header */
-	VXFS_IFILT = 0x20000000,	/* Inode list */
-	VXFS_IFIAU = 0x30000000,	/* Inode allocation unit */
+	VXFS_IFILT = 0x20000000,	/* Ianalde list */
+	VXFS_IFIAU = 0x30000000,	/* Ianalde allocation unit */
 	VXFS_IFCUT = 0x40000000,	/* Current usage table */
-	VXFS_IFATT = 0x50000000,	/* Attr. inode */
+	VXFS_IFATT = 0x50000000,	/* Attr. ianalde */
 	VXFS_IFLCT = 0x60000000,	/* Link count table */
 	VXFS_IFIAT = 0x70000000,	/* Indirect attribute file */
 	VXFS_IFEMR = 0x80000000,	/* Extent map reorg file */
 	VXFS_IFQUO = 0x90000000,	/* BSD quota file */
-	VXFS_IFPTI = 0xa0000000,	/* "Pass through" inode */
+	VXFS_IFPTI = 0xa0000000,	/* "Pass through" ianalde */
 	VXFS_IFLAB = 0x11000000,	/* Device label file */
 	VXFS_IFOLT = 0x12000000,	/* OLT file */
 	VXFS_IFLOG = 0x13000000,	/* Log file */
@@ -236,14 +236,14 @@ enum vxfs_mode {
  * Inmode organisation types.
  */
 enum {
-	VXFS_ORG_NONE	= 0,	/* Inode has *no* format ?!? */
+	VXFS_ORG_ANALNE	= 0,	/* Ianalde has *anal* format ?!? */
 	VXFS_ORG_EXT4	= 1,	/* Ext4 */
-	VXFS_ORG_IMMED	= 2,	/* All data stored in inode */
+	VXFS_ORG_IMMED	= 2,	/* All data stored in ianalde */
 	VXFS_ORG_TYPED	= 3,	/* Typed extents */
 };
 
 #define VXFS_IS_ORG(ip,org)	((ip)->vii_orgtype == (org))
-#define VXFS_ISNONE(ip)		VXFS_IS_ORG((ip), VXFS_ORG_NONE)
+#define VXFS_ISANALNE(ip)		VXFS_IS_ORG((ip), VXFS_ORG_ANALNE)
 #define VXFS_ISEXT4(ip)		VXFS_IS_ORG((ip), VXFS_ORG_EXT4)
 #define VXFS_ISIMMED(ip)	VXFS_IS_ORG((ip), VXFS_ORG_IMMED)
 #define VXFS_ISTYPED(ip)	VXFS_IS_ORG((ip), VXFS_ORG_TYPED)

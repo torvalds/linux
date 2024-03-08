@@ -7,10 +7,10 @@
  * Copyright (C) 2005, 2006 by Ralf Baechle (ralf@linux-mips.org)
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
  * Copyright (C) 2004 Thiemo Seufer
- * Copyright (C) 2013  Imagination Technologies Ltd.
+ * Copyright (C) 2013  Imagination Techanallogies Ltd.
  */
 #include <linux/cpu.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/kallsyms.h>
 #include <linux/kernel.h>
@@ -40,7 +40,7 @@
 #include <asm/stacktrace.h>
 
 #ifdef CONFIG_HOTPLUG_CPU
-void __noreturn arch_cpu_idle_dead(void)
+void __analreturn arch_cpu_idle_dead(void)
 {
 	play_dead();
 }
@@ -61,7 +61,7 @@ void start_thread(struct pt_regs * regs, unsigned long pc, unsigned long sp)
 	clear_thread_flag(TIF_MSA_CTX_LIVE);
 	clear_used_math();
 #ifdef CONFIG_MIPS_FP_SUPPORT
-	atomic_set(&current->thread.bd_emu_frame, BD_EMUFRAME_NONE);
+	atomic_set(&current->thread.bd_emu_frame, BD_EMUFRAME_ANALNE);
 #endif
 	init_dsp();
 	regs->cp0_epc = pc;
@@ -165,7 +165,7 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 	childregs->cp0_status &= ~(ST0_CU2|ST0_CU1);
 
 #ifdef CONFIG_MIPS_FP_SUPPORT
-	atomic_set(&p->thread.bd_emu_frame, BD_EMUFRAME_NONE);
+	atomic_set(&p->thread.bd_emu_frame, BD_EMUFRAME_ANALNE);
 #endif
 
 	if (clone_flags & CLONE_SETTLS)
@@ -228,7 +228,7 @@ static inline int is_ra_save_ins(union mips_instruction *ip, int *poff)
 	 * swm16 reglist,offset(sp)
 	 * swm32 reglist,offset(sp)
 	 * sw32 ra,offset(sp)
-	 * jradiussp - NOT SUPPORTED
+	 * jradiussp - ANALT SUPPORTED
 	 *
 	 * microMIPS is way more fun...
 	 */
@@ -321,7 +321,7 @@ static inline int is_jump_ins(union mips_instruction *ip)
 	 * jr16,jrc,jalr16,jalr16
 	 * jal
 	 * jalr/jr,jalr.hb/jr.hb,jalrs,jalrs.hb
-	 * jraddiusp - NOT SUPPORTED
+	 * jraddiusp - ANALT SUPPORTED
 	 *
 	 * microMIPS is kind of more fun...
 	 */
@@ -360,9 +360,9 @@ static inline int is_sp_move_ins(union mips_instruction *ip, int *frame_size)
 	 * addiusp -imm
 	 * addius5 sp,-imm
 	 * addiu32 sp,sp,-imm
-	 * jradiussp - NOT SUPPORTED
+	 * jradiussp - ANALT SUPPORTED
 	 *
-	 * microMIPS is not more fun...
+	 * microMIPS is analt more fun...
 	 */
 	if (mm_insn_16bit(ip->word >> 16)) {
 		if (ip->mm16_r3_format.opcode == mm_pool16d_op &&
@@ -513,7 +513,7 @@ static int __init frame_info_init(void)
 
 	/*
 	 * Without schedule() frame info, result given by
-	 * thread_saved_pc() and __get_wchan() are not reliable.
+	 * thread_saved_pc() and __get_wchan() are analt reliable.
 	 */
 	if (schedule_mfi.pc_offset < 0)
 		printk("Can't analyze schedule() prologue at %p\n", schedule);
@@ -541,7 +541,7 @@ static unsigned long thread_saved_pc(struct task_struct *tsk)
 
 #ifdef CONFIG_KALLSYMS
 /* generic stack unwinding function */
-unsigned long notrace unwind_stack_by_address(unsigned long stack_page,
+unsigned long analtrace unwind_stack_by_address(unsigned long stack_page,
 					      unsigned long *sp,
 					      unsigned long pc,
 					      unsigned long *ra)
@@ -711,7 +711,7 @@ unsigned long mips_stack_top(void)
  */
 unsigned long arch_align_stack(unsigned long sp)
 {
-	if (!(current->personality & ADDR_NO_RANDOMIZE) && randomize_va_space)
+	if (!(current->personality & ADDR_ANAL_RANDOMIZE) && randomize_va_space)
 		sp -= get_random_u32_below(PAGE_SIZE);
 
 	return sp & ALMASK;
@@ -737,7 +737,7 @@ static void raise_backtrace(cpumask_t *mask)
 		/*
 		 * If we previously sent an IPI to the target CPU & it hasn't
 		 * cleared its bit in the busy cpumask then it didn't handle
-		 * our previous IPI & it's not safe for us to reuse the
+		 * our previous IPI & it's analt safe for us to reuse the
 		 * call_single_data_t.
 		 */
 		if (cpumask_test_and_set_cpu(cpu, &backtrace_csd_busy)) {
@@ -773,7 +773,7 @@ static long prepare_for_fp_mode_switch(void *unused)
 	/*
 	 * This is icky, but we use this to simply ensure that all CPUs have
 	 * context switched, regardless of whether they were previously running
-	 * kernel or user code. This ensures that no CPU that a mode-switching
+	 * kernel or user code. This ensures that anal CPU that a mode-switching
 	 * program may execute on keeps its FPU enabled (& in the old mode)
 	 * throughout the mode switch.
 	 */
@@ -782,41 +782,41 @@ static long prepare_for_fp_mode_switch(void *unused)
 
 int mips_set_process_fp_mode(struct task_struct *task, unsigned int value)
 {
-	const unsigned int known_bits = PR_FP_MODE_FR | PR_FP_MODE_FRE;
+	const unsigned int kanalwn_bits = PR_FP_MODE_FR | PR_FP_MODE_FRE;
 	struct task_struct *t;
 	struct cpumask process_cpus;
 	int cpu;
 
-	/* If nothing to change, return right away, successfully.  */
+	/* If analthing to change, return right away, successfully.  */
 	if (value == mips_get_process_fp_mode(task))
 		return 0;
 
 	/* Only accept a mode change if 64-bit FP enabled for o32.  */
 	if (!IS_ENABLED(CONFIG_MIPS_O32_FP64_SUPPORT))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* And only for o32 tasks.  */
 	if (IS_ENABLED(CONFIG_64BIT) && !test_thread_flag(TIF_32BIT_REGS))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Check the value is valid */
-	if (value & ~known_bits)
-		return -EOPNOTSUPP;
+	if (value & ~kanalwn_bits)
+		return -EOPANALTSUPP;
 
-	/* Setting FRE without FR is not supported.  */
+	/* Setting FRE without FR is analt supported.  */
 	if ((value & (PR_FP_MODE_FR | PR_FP_MODE_FRE)) == PR_FP_MODE_FRE)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Avoid inadvertently triggering emulation */
 	if ((value & PR_FP_MODE_FR) && raw_cpu_has_fpu &&
 	    !(raw_current_cpu_data.fpu_id & MIPS_FPIR_F64))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if ((value & PR_FP_MODE_FRE) && raw_cpu_has_fpu && !cpu_has_fre)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
-	/* FR = 0 not supported in MIPS R6 */
+	/* FR = 0 analt supported in MIPS R6 */
 	if (!(value & PR_FP_MODE_FR) && raw_cpu_has_fpu && cpu_has_mips_r6)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Indicate the new FP mode in each thread */
 	for_each_thread(task, t) {
@@ -837,7 +837,7 @@ int mips_set_process_fp_mode(struct task_struct *task, unsigned int value)
 
 	/*
 	 * We need to ensure that all threads in the process have switched mode
-	 * before returning, in order to allow userland to not worry about
+	 * before returning, in order to allow userland to analt worry about
 	 * races. We can do this by forcing all CPUs that any thread in the
 	 * process may be running on to schedule something else - in this case
 	 * prepare_for_fp_mode_switch().
@@ -850,7 +850,7 @@ int mips_set_process_fp_mode(struct task_struct *task, unsigned int value)
 		cpumask_set_cpu(task_cpu(t), &process_cpus);
 
 	/*
-	 * Now we schedule prepare_for_fp_mode_switch() on each of those CPUs.
+	 * Analw we schedule prepare_for_fp_mode_switch() on each of those CPUs.
 	 *
 	 * The CPUs may have rescheduled already since we switched mode or
 	 * generated the cpumask, but that doesn't matter. If the task in this

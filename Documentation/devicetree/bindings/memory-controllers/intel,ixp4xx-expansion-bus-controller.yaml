@@ -15,7 +15,7 @@ maintainers:
   - Linus Walleij <linus.walleij@linaro.org>
 
 properties:
-  $nodename:
+  $analdename:
     pattern: '^bus@[0-9a-f]+$'
 
   compatible:
@@ -28,7 +28,7 @@ properties:
       - const: syscon
 
   reg:
-    description: Control registers for the expansion bus, these are not
+    description: Control registers for the expansion bus, these are analt
       inside the memory range handled by the expansion bus.
     maxItems: 1
 
@@ -54,7 +54,7 @@ properties:
 patternProperties:
   "^.*@[0-7],[0-9a-f]+$":
     description: Devices attached to chip selects are represented as
-      subnodes.
+      subanaldes.
     type: object
     $ref: /schemas/memory-controllers/intel,ixp4xx-expansion-peripheral-props.yaml#
     additionalProperties: true

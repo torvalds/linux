@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * acpi/internal.h
- * For use by Linux/ACPI infrastructure, not drivers
+ * For use by Linux/ACPI infrastructure, analt drivers
  *
  * Copyright (c) 2009, Intel Corporation.
  */
@@ -42,12 +42,12 @@ static inline int acpi_ioapic_remove(struct acpi_pci_root *root) { return 0; }
 #ifdef CONFIG_ACPI_DOCK
 void register_dock_dependent_device(struct acpi_device *adev,
 				    acpi_handle dshandle);
-int dock_notify(struct acpi_device *adev, u32 event);
+int dock_analtify(struct acpi_device *adev, u32 event);
 void acpi_dock_add(struct acpi_device *adev);
 #else
 static inline void register_dock_dependent_device(struct acpi_device *adev,
 						  acpi_handle dshandle) {}
-static inline int dock_notify(struct acpi_device *adev, u32 event) { return -ENODEV; }
+static inline int dock_analtify(struct acpi_device *adev, u32 event) { return -EANALDEV; }
 static inline void acpi_dock_add(struct acpi_device *adev) {}
 #endif
 #ifdef CONFIG_X86
@@ -83,7 +83,7 @@ void acpi_device_hotplug(struct acpi_device *adev, u32 src);
 bool acpi_scan_is_offline(struct acpi_device *adev, bool uevent);
 
 acpi_status acpi_sysfs_table_handler(u32 event, void *table, void *context);
-void acpi_scan_table_notify(void);
+void acpi_scan_table_analtify(void);
 
 int acpi_active_trip_temp(struct acpi_device *adev, int id, int *ret_temp);
 int acpi_passive_trip_temp(struct acpi_device *adev, int *ret_temp);
@@ -100,7 +100,7 @@ static inline int acpi_arch_thermal_cpufreq_pctg(void)
 #endif
 
 /* --------------------------------------------------------------------------
-                     Device Node Initialization / Removal
+                     Device Analde Initialization / Removal
    -------------------------------------------------------------------------- */
 #define ACPI_STA_DEFAULT (ACPI_STA_DEVICE_PRESENT | ACPI_STA_DEVICE_ENABLED | \
 			  ACPI_STA_DEVICE_UI | ACPI_STA_DEVICE_FUNCTIONING)
@@ -110,7 +110,7 @@ extern struct list_head acpi_bus_id_list;
 struct acpi_device_bus_id {
 	const char *bus_id;
 	struct ida instance_ida;
-	struct list_head node;
+	struct list_head analde;
 };
 
 void acpi_init_device_object(struct acpi_device *device, acpi_handle handle,
@@ -123,12 +123,12 @@ void acpi_device_add_finalize(struct acpi_device *device);
 void acpi_free_pnp_ids(struct acpi_device_pnp *pnp);
 bool acpi_device_is_present(const struct acpi_device *adev);
 bool acpi_device_is_battery(struct acpi_device *adev);
-bool acpi_device_is_first_physical_node(struct acpi_device *adev,
+bool acpi_device_is_first_physical_analde(struct acpi_device *adev,
 					const struct device *dev);
 int acpi_bus_register_early_device(int type);
 
 /* --------------------------------------------------------------------------
-                     Device Matching and Notification
+                     Device Matching and Analtification
    -------------------------------------------------------------------------- */
 const struct acpi_device *acpi_companion_match(const struct device *dev);
 int __acpi_device_uevent_modalias(const struct acpi_device *adev,
@@ -299,7 +299,7 @@ static inline void acpi_init_lpit(void) { }
 
 void acpi_mipi_check_crs_csi2(acpi_handle handle);
 void acpi_mipi_scan_crs_csi2(void);
-void acpi_mipi_init_crs_csi2_swnodes(void);
+void acpi_mipi_init_crs_csi2_swanaldes(void);
 void acpi_mipi_crs_csi2_cleanup(void);
 
 #endif /* _ACPI_INTERNAL_H_ */

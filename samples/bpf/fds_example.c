@@ -7,7 +7,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <assert.h>
-#include <errno.h>
+#include <erranal.h>
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -82,27 +82,27 @@ static int bpf_do_map(const char *file, uint32_t flags, uint32_t key,
 	if (flags & BPF_F_PIN) {
 		fd = bpf_map_create(BPF_MAP_TYPE_ARRAY, NULL, sizeof(uint32_t),
 				    sizeof(uint32_t), 1024, NULL);
-		printf("bpf: map fd:%d (%s)\n", fd, strerror(errno));
+		printf("bpf: map fd:%d (%s)\n", fd, strerror(erranal));
 		assert(fd > 0);
 
 		ret = bpf_obj_pin(fd, file);
-		printf("bpf: pin ret:(%d,%s)\n", ret, strerror(errno));
+		printf("bpf: pin ret:(%d,%s)\n", ret, strerror(erranal));
 		assert(ret == 0);
 	} else {
 		fd = bpf_obj_get(file);
-		printf("bpf: get fd:%d (%s)\n", fd, strerror(errno));
+		printf("bpf: get fd:%d (%s)\n", fd, strerror(erranal));
 		assert(fd > 0);
 	}
 
 	if ((flags & BPF_F_KEY_VAL) == BPF_F_KEY_VAL) {
 		ret = bpf_map_update_elem(fd, &key, &value, 0);
 		printf("bpf: fd:%d u->(%u:%u) ret:(%d,%s)\n", fd, key, value,
-		       ret, strerror(errno));
+		       ret, strerror(erranal));
 		assert(ret == 0);
 	} else if (flags & BPF_F_KEY) {
 		ret = bpf_map_lookup_elem(fd, &key, &value);
 		printf("bpf: fd:%d l->(%u):%u ret:(%d,%s)\n", fd, key, value,
-		       ret, strerror(errno));
+		       ret, strerror(erranal));
 		assert(ret == 0);
 	}
 
@@ -115,15 +115,15 @@ static int bpf_do_prog(const char *file, uint32_t flags, const char *object)
 
 	if (flags & BPF_F_PIN) {
 		fd = bpf_prog_create(object);
-		printf("bpf: prog fd:%d (%s)\n", fd, strerror(errno));
+		printf("bpf: prog fd:%d (%s)\n", fd, strerror(erranal));
 		assert(fd > 0);
 
 		ret = bpf_obj_pin(fd, file);
-		printf("bpf: pin ret:(%d,%s)\n", ret, strerror(errno));
+		printf("bpf: pin ret:(%d,%s)\n", ret, strerror(erranal));
 		assert(ret == 0);
 	} else {
 		fd = bpf_obj_get(file);
-		printf("bpf: get fd:%d (%s)\n", fd, strerror(errno));
+		printf("bpf: get fd:%d (%s)\n", fd, strerror(erranal));
 		assert(fd > 0);
 	}
 
@@ -132,7 +132,7 @@ static int bpf_do_prog(const char *file, uint32_t flags, const char *object)
 
 	ret = setsockopt(sock, SOL_SOCKET, SO_ATTACH_BPF, &fd, sizeof(fd));
 	printf("bpf: sock:%d <- fd:%d attached ret:(%d,%s)\n", sock, fd,
-	       ret, strerror(errno));
+	       ret, strerror(erranal));
 	assert(ret == 0);
 
 	return 0;

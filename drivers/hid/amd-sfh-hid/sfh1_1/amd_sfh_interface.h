@@ -70,9 +70,9 @@ struct sfh_firmware_info {
 	union {
 		u32 fw_ver;
 		struct {
-			u32 minor_rev : 8;
+			u32 mianalr_rev : 8;
 			u32 major_rev : 8;
-			u32 minor_ver : 8;
+			u32 mianalr_ver : 8;
 			u32 major_ver : 8;
 		} fver;
 	};

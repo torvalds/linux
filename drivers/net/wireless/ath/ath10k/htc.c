@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2005-2011 Atheros Communications Inc.
  * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #include "core.h"
@@ -48,7 +48,7 @@ static inline void ath10k_htc_restore_tx_skb(struct ath10k_htc *htc,
 	skb_pull(skb, sizeof(struct ath10k_htc_hdr));
 }
 
-void ath10k_htc_notify_tx_completion(struct ath10k_htc_ep *ep,
+void ath10k_htc_analtify_tx_completion(struct ath10k_htc_ep *ep,
 				     struct sk_buff *skb)
 {
 	struct ath10k *ar = ep->htc->ar;
@@ -70,7 +70,7 @@ void ath10k_htc_notify_tx_completion(struct ath10k_htc_ep *ep,
 	ath10k_htc_restore_tx_skb(ep->htc, skb);
 
 	if (!ep->ep_ops.ep_tx_complete) {
-		ath10k_warn(ar, "no tx handler for eid %d\n", ep->eid);
+		ath10k_warn(ar, "anal tx handler for eid %d\n", ep->eid);
 		dev_kfree_skb_any(skb);
 		return;
 	}
@@ -82,7 +82,7 @@ void ath10k_htc_notify_tx_completion(struct ath10k_htc_ep *ep,
 
 	ep->ep_ops.ep_tx_complete(ep->htc->ar, skb);
 }
-EXPORT_SYMBOL(ath10k_htc_notify_tx_completion);
+EXPORT_SYMBOL(ath10k_htc_analtify_tx_completion);
 
 static void ath10k_htc_prepare_tx_skb(struct ath10k_htc_ep *ep,
 				      struct sk_buff *skb)
@@ -99,7 +99,7 @@ static void ath10k_htc_prepare_tx_skb(struct ath10k_htc_ep *ep,
 		hdr->flags |= ATH10K_HTC_FLAG_NEED_CREDIT_UPDATE;
 
 	spin_lock_bh(&ep->htc->tx_lock);
-	hdr->seq_no = ep->seq_no++;
+	hdr->seq_anal = ep->seq_anal++;
 	spin_unlock_bh(&ep->htc->tx_lock);
 }
 
@@ -177,7 +177,7 @@ int ath10k_htc_send(struct ath10k_htc *htc,
 
 	if (eid >= ATH10K_HTC_EP_COUNT) {
 		ath10k_warn(ar, "Invalid endpoint id: %d\n", eid);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	skb_push(skb, sizeof(struct ath10k_htc_hdr));
@@ -234,8 +234,8 @@ void ath10k_htc_tx_completion_handler(struct ath10k *ar, struct sk_buff *skb)
 	skb_cb = ATH10K_SKB_CB(skb);
 	ep = &htc->endpoint[skb_cb->eid];
 
-	ath10k_htc_notify_tx_completion(ep, skb);
-	/* the skb now belongs to the completion handler */
+	ath10k_htc_analtify_tx_completion(ep, skb);
+	/* the skb analw belongs to the completion handler */
 }
 EXPORT_SYMBOL(ath10k_htc_tx_completion_handler);
 
@@ -290,7 +290,7 @@ ath10k_htc_process_lookahead(struct ath10k_htc *htc,
 
 	/* Invalid lookahead flags are actually transmitted by
 	 * the target in the HTC control message.
-	 * Since this will happen at every boot we silently ignore
+	 * Since this will happen at every boot we silently iganalre
 	 * the lookahead in this case
 	 */
 	if (report->pre_valid != ((~report->post_valid) & 0xFF))
@@ -369,7 +369,7 @@ int ath10k_htc_process_trailer(struct ath10k_htc *htc,
 		}
 
 		if (record->hdr.len > length) {
-			/* no room left in buffer for record */
+			/* anal room left in buffer for record */
 			ath10k_warn(ar, "Invalid record length: %d\n",
 				    record->hdr.len);
 			status = -EINVAL;
@@ -460,7 +460,7 @@ void ath10k_htc_rx_completion_handler(struct ath10k *ar, struct sk_buff *skb)
 
 	ep = &htc->endpoint[eid];
 	if (ep->service_id == ATH10K_HTC_SVC_ID_UNUSED) {
-		ath10k_warn(ar, "htc rx endpoint %d is not connected\n", eid);
+		ath10k_warn(ar, "htc rx endpoint %d is analt connected\n", eid);
 		goto out;
 	}
 
@@ -519,7 +519,7 @@ void ath10k_htc_rx_completion_handler(struct ath10k *ar, struct sk_buff *skb)
 		   eid, skb);
 	ep->ep_ops.ep_rx_complete(ar, skb);
 
-	/* skb is now owned by the rx completion handler */
+	/* skb is analw owned by the rx completion handler */
 	skb = NULL;
 out:
 	kfree_skb(skb);
@@ -537,7 +537,7 @@ static void ath10k_htc_control_rx_complete(struct ath10k *ar,
 	case ATH10K_HTC_MSG_CONNECT_SERVICE_RESP_ID:
 		/* handle HTC control message */
 		if (completion_done(&htc->ctl_resp)) {
-			/* this is a fatal error, target should not be
+			/* this is a fatal error, target should analt be
 			 * sending unsolicited messages on the ep 0
 			 */
 			ath10k_warn(ar, "HTC rx ctrl still processing\n");
@@ -558,7 +558,7 @@ static void ath10k_htc_control_rx_complete(struct ath10k *ar,
 		htc->htc_ops.target_send_suspend_complete(ar);
 		break;
 	default:
-		ath10k_warn(ar, "ignoring unsolicited htc ep0 event\n");
+		ath10k_warn(ar, "iganalring unsolicited htc ep0 event\n");
 		break;
 	}
 
@@ -603,7 +603,7 @@ static const char *htc_service_name(enum ath10k_htc_svc_id id)
 		return "PKTLOG";
 	}
 
-	return "Unknown";
+	return "Unkanalwn";
 }
 
 static void ath10k_htc_reset_endpoint_states(struct ath10k_htc *htc)
@@ -718,7 +718,7 @@ static int ath10k_htc_send_bundle_skbs(struct ath10k_htc_ep *ep)
 	bundle_skb = dev_alloc_skb(bundles_left);
 
 	if (!bundle_skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bundle_buf = bundle_skb->data;
 	skb_queue_head_init(&tx_save_head);
@@ -771,7 +771,7 @@ static int ath10k_htc_send_bundle_skbs(struct ath10k_htc_ep *ep)
 
 			if (!bundle_skb) {
 				skb_queue_head(&ep->tx_req_head, skb);
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 			bundle_buf = bundle_skb->data;
 			skb_queue_head_init(&tx_save_head);
@@ -847,7 +847,7 @@ static void ath10k_htc_tx_complete_work(struct work_struct *work)
 				skb = skb_dequeue(&ep->tx_complete_head);
 				if (!skb)
 					break;
-				ath10k_htc_notify_tx_completion(ep, skb);
+				ath10k_htc_analtify_tx_completion(ep, skb);
 			}
 		}
 	}
@@ -862,7 +862,7 @@ int ath10k_htc_send_hl(struct ath10k_htc *htc,
 
 	if (sizeof(struct ath10k_htc_hdr) + skb->len > ep->tx_credit_size) {
 		ath10k_dbg(ar, ATH10K_DBG_HTC, "tx exceed max len %d\n", skb->len);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ath10k_dbg(ar, ATH10K_DBG_HTC, "htc send hl eid %d bundle %d tx count %d len %d\n",
@@ -1041,13 +1041,13 @@ int ath10k_htc_connect_service(struct ath10k_htc *htc,
 						    conn_req->service_id);
 	if (!tx_alloc)
 		ath10k_dbg(ar, ATH10K_DBG_BOOT,
-			   "boot htc service %s does not allocate target credits\n",
+			   "boot htc service %s does analt allocate target credits\n",
 			   htc_service_name(conn_req->service_id));
 
 	skb = ath10k_htc_build_tx_ctrl_skb(htc->ar);
 	if (!skb) {
 		ath10k_err(ar, "Failed to allocate HTC packet\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	length = sizeof(msg->hdr) + sizeof(msg->connect_service);
@@ -1250,7 +1250,7 @@ int ath10k_htc_start(struct ath10k_htc *htc)
 
 	skb = ath10k_htc_build_tx_ctrl_skb(htc->ar);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_put(skb, sizeof(msg->hdr) + sizeof(msg->setup_complete_ext));
 	memset(skb->data, 0, skb->len);
@@ -1310,7 +1310,7 @@ int ath10k_htc_init(struct ath10k *ar)
 	/* connect fake service */
 	status = ath10k_htc_connect_service(htc, &conn_req, &conn_resp);
 	if (status) {
-		ath10k_err(ar, "could not connect to htc service (%d)\n",
+		ath10k_err(ar, "could analt connect to htc service (%d)\n",
 			   status);
 		return status;
 	}

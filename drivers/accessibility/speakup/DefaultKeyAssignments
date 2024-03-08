@@ -33,7 +33,7 @@ InsKeyPad-3		Move reading cursor to bottom of screen (insert pgdn)
 InsKeyPad-7		Move reading cursor to left edge of screen (insert home)
 InsKeyPad-1		Move reading cursor to right edge of screen (insert end)
 ControlKeyPad-1		Move reading cursor to last character on current line.
-KeyPad-Enter		Shut Up (until another key is hit) and sync reading cursor
+KeyPad-Enter		Shut Up (until aanalther key is hit) and sync reading cursor
 InsKeyPad-Enter		Shut Up (until toggled back on).
 InsKeyPad-star n<x|y>	go to line (y) or column (x). Where 'n' is any
 		allowed value for the row or column for your current screen.

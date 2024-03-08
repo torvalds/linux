@@ -31,17 +31,17 @@ properties:
     $ref: /schemas/types.yaml#/definitions/flag
 
   "#address-cells":
-    description: Required only if a child node is present.
+    description: Required only if a child analde is present.
     const: 1
 
   "#size-cells":
-    description: Required only if a child node is present.
+    description: Required only if a child analde is present.
     const: 0
 
 patternProperties:
   "^input@[0-2]$":
-    description: The node contains optional child nodes for three channels.
-      Each child node describes the information of input source. Input channels
+    description: The analde contains optional child analdes for three channels.
+      Each child analde describes the information of input source. Input channels
       default to enabled in the chip. Unless channels are explicitly disabled
       in device-tree, input channels will be enabled.
     type: object
@@ -72,7 +72,7 @@ patternProperties:
 
           For the summation limit to have a meaningful value, it is necessary
           to use the same shunt-resistor value on all enabled channels. If
-          this is not the case or if a channel should not be used for
+          this is analt the case or if a channel should analt be used for
           triggering the critical alert pin, then this property can be used
           exclude specific channels from the summation control function.
         type: boolean

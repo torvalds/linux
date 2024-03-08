@@ -28,7 +28,7 @@ void test_raw_tp_writable_reject_nbd_invalid(void)
 			       program, sizeof(program) / sizeof(struct bpf_insn),
 			       &opts);
 	if (CHECK(bpf_fd < 0, "bpf_raw_tracepoint_writable load",
-		  "failed: %d errno %d\n", bpf_fd, errno))
+		  "failed: %d erranal %d\n", bpf_fd, erranal))
 		return;
 
 	tp_fd = bpf_raw_tracepoint_open("nbd_send_request", bpf_fd);

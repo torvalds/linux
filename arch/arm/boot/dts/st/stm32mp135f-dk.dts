@@ -41,7 +41,7 @@
 
 		optee@dd000000 {
 			reg = <0xdd000000 0x3000000>;
-			no-map;
+			anal-map;
 		};
 	};
 
@@ -343,8 +343,8 @@
 	st,trim-hs-impedance = <2>;
 	st,tune-squelch-level = <1>;
 	st,enable-hs-rx-gain-eq;
-	st,no-hs-ftime-ctrl;
-	st,no-lsfs-sc;
+	st,anal-hs-ftime-ctrl;
+	st,anal-lsfs-sc;
 };
 
 &usbphyc_port1 {
@@ -357,6 +357,6 @@
 	st,trim-hs-impedance = <2>;
 	st,tune-squelch-level = <1>;
 	st,enable-hs-rx-gain-eq;
-	st,no-hs-ftime-ctrl;
-	st,no-lsfs-sc;
+	st,anal-hs-ftime-ctrl;
+	st,anal-lsfs-sc;
 };

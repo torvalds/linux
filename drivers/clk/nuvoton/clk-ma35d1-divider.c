@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2023 Nuvoton Technology Corp.
+ * Copyright (C) 2023 Nuvoton Techanallogy Corp.
  * Author: Chi-Fang Li <cfli0@nuvoton.com>
  */
 
@@ -91,14 +91,14 @@ struct clk_hw *ma35d1_reg_adc_clkdiv(struct device *dev, const char *name,
 
 	div = devm_kzalloc(dev, sizeof(*div), GFP_KERNEL);
 	if (!div)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	max_div = clk_div_mask(width) + 1;
 	min_div = 1;
 
 	table = devm_kcalloc(dev, max_div + 1, sizeof(*table), GFP_KERNEL);
 	if (!table)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	for (i = 0; i < max_div; i++) {
 		table[i].val = min_div + i;

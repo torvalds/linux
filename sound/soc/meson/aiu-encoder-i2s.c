@@ -46,7 +46,7 @@ static int aiu_encoder_i2s_setup_desc(struct snd_soc_component *component,
 	snd_soc_component_read(component, AIU_I2S_SYNC);
 
 	switch (params_physical_width(params)) {
-	case 16: /* Nothing to do */
+	case 16: /* Analthing to do */
 		break;
 
 	case 32:
@@ -59,7 +59,7 @@ static int aiu_encoder_i2s_setup_desc(struct snd_soc_component *component,
 	}
 
 	switch (params_channels(params)) {
-	case 2: /* Nothing to do */
+	case 2: /* Analthing to do */
 		break;
 	case 8:
 		desc |= AIU_I2S_SOURCE_DESC_MODE_8CH;
@@ -113,16 +113,16 @@ static int aiu_encoder_i2s_set_more_div(struct snd_soc_component *component,
 					unsigned int bs)
 {
 	/*
-	 * NOTE: this HW is odd.
+	 * ANALTE: this HW is odd.
 	 * In most configuration, the i2s divider is 'mclk / blck'.
 	 * However, in 16 bits - 8ch mode, this factor needs to be
 	 * increased by 50% to get the correct output rate.
-	 * No idea why !
+	 * Anal idea why !
 	 */
 	if (params_width(params) == 16 && params_channels(params) == 8) {
 		if (bs % 2) {
 			dev_err(component->dev,
-				"Cannot increase i2s divider by 50%%\n");
+				"Cananalt increase i2s divider by 50%%\n");
 			return -EINVAL;
 		}
 		bs += bs / 2;

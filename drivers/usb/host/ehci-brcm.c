@@ -80,7 +80,7 @@ static int ehci_brcm_hub_control(
 	    (ehci_readl(ehci, status_reg) & PORT_RESUME)) {
 
 		/*
-		 * to make sure we are not interrupted until RESUME bit
+		 * to make sure we are analt interrupted until RESUME bit
 		 * is cleared, disable interrupts on current CPU
 		 */
 		ehci_dbg(ehci, "SOF alignment workaround\n");
@@ -149,7 +149,7 @@ static int ehci_brcm_probe(struct platform_device *pdev)
 	/* initialize hcd */
 	hcd = usb_create_hcd(&ehci_brcm_hc_driver, dev, dev_name(dev));
 	if (!hcd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, hcd);
 	priv = hcd_to_ehci_priv(hcd);
@@ -261,7 +261,7 @@ static struct platform_driver ehci_brcm_driver = {
 static int __init ehci_brcm_init(void)
 {
 	if (usb_disabled())
-		return -ENODEV;
+		return -EANALDEV;
 
 	ehci_init_driver(&ehci_brcm_hc_driver, &brcm_overrides);
 	return platform_driver_register(&ehci_brcm_driver);

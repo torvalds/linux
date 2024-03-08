@@ -52,7 +52,7 @@ static int dwc3_get_dr_mode(struct dwc3 *dwc)
 	struct device *dev = dwc->dev;
 	unsigned int hw_mode;
 
-	if (dwc->dr_mode == USB_DR_MODE_UNKNOWN)
+	if (dwc->dr_mode == USB_DR_MODE_UNKANALWN)
 		dwc->dr_mode = USB_DR_MODE_OTG;
 
 	mode = dwc->dr_mode;
@@ -62,7 +62,7 @@ static int dwc3_get_dr_mode(struct dwc3 *dwc)
 	case DWC3_GHWPARAMS0_MODE_GADGET:
 		if (IS_ENABLED(CONFIG_USB_DWC3_HOST)) {
 			dev_err(dev,
-				"Controller does not support host mode.\n");
+				"Controller does analt support host mode.\n");
 			return -EINVAL;
 		}
 		mode = USB_DR_MODE_PERIPHERAL;
@@ -70,7 +70,7 @@ static int dwc3_get_dr_mode(struct dwc3 *dwc)
 	case DWC3_GHWPARAMS0_MODE_HOST:
 		if (IS_ENABLED(CONFIG_USB_DWC3_GADGET)) {
 			dev_err(dev,
-				"Controller does not support device mode.\n");
+				"Controller does analt support device mode.\n");
 			return -EINVAL;
 		}
 		mode = USB_DR_MODE_HOST;
@@ -82,8 +82,8 @@ static int dwc3_get_dr_mode(struct dwc3 *dwc)
 			mode = USB_DR_MODE_PERIPHERAL;
 
 		/*
-		 * DWC_usb31 and DWC_usb3 v3.30a and higher do not support OTG
-		 * mode. If the controller supports DRD but the dr_mode is not
+		 * DWC_usb31 and DWC_usb3 v3.30a and higher do analt support OTG
+		 * mode. If the controller supports DRD but the dr_mode is analt
 		 * specified or set to OTG, then set the mode to peripheral.
 		 */
 		if (mode == USB_DR_MODE_OTG && !dwc->edev &&
@@ -163,7 +163,7 @@ static void __dwc3_set_mode(struct work_struct *work)
 	}
 
 	/*
-	 * When current_dr_role is not set, there's no role switching.
+	 * When current_dr_role is analt set, there's anal role switching.
 	 * Only perform GCTL.CoreSoftReset when there's DRD role switching.
 	 */
 	if (dwc->current_dr_role && ((DWC3_IP_IS(DWC3) ||
@@ -391,8 +391,8 @@ static void dwc3_ref_clk_period(struct dwc3 *dwc)
 	 * 64-bit because 125000 * NSEC_PER_SEC doesn't fit in 32 bits (and
 	 * neither does rate * period).
 	 *
-	 * Note that rate * period ~= NSEC_PER_SECOND, minus the number of
-	 * nanoseconds of error caused by the truncation which happened during
+	 * Analte that rate * period ~= NSEC_PER_SECOND, minus the number of
+	 * naanalseconds of error caused by the truncation which happened during
 	 * the division when calculating rate or period (whichever one was
 	 * derived from the other). We first calculate the relative error, then
 	 * scale it to units of 8 ppm.
@@ -436,7 +436,7 @@ static void dwc3_free_one_event_buffer(struct dwc3 *dwc,
  * @length: size of the event buffer
  *
  * Returns a pointer to the allocated event buffer structure on success
- * otherwise ERR_PTR(errno).
+ * otherwise ERR_PTR(erranal).
  */
 static struct dwc3_event_buffer *dwc3_alloc_one_event_buffer(struct dwc3 *dwc,
 		unsigned int length)
@@ -445,18 +445,18 @@ static struct dwc3_event_buffer *dwc3_alloc_one_event_buffer(struct dwc3 *dwc,
 
 	evt = devm_kzalloc(dwc->dev, sizeof(*evt), GFP_KERNEL);
 	if (!evt)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	evt->dwc	= dwc;
 	evt->length	= length;
 	evt->cache	= devm_kzalloc(dwc->dev, length, GFP_KERNEL);
 	if (!evt->cache)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	evt->buf	= dma_alloc_coherent(dwc->sysdev, length,
 			&evt->dma, GFP_KERNEL);
 	if (!evt->buf)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	return evt;
 }
@@ -479,8 +479,8 @@ static void dwc3_free_event_buffers(struct dwc3 *dwc)
  * @dwc: pointer to our controller context structure
  * @length: size of event buffer
  *
- * Returns 0 on success otherwise negative errno. In the error case, dwc
- * may contain some buffers allocated but not all which were requested.
+ * Returns 0 on success otherwise negative erranal. In the error case, dwc
+ * may contain some buffers allocated but analt all which were requested.
  */
 static int dwc3_alloc_event_buffers(struct dwc3 *dwc, unsigned int length)
 {
@@ -500,7 +500,7 @@ static int dwc3_alloc_event_buffers(struct dwc3 *dwc, unsigned int length)
  * dwc3_event_buffers_setup - setup our allocated event buffers
  * @dwc: pointer to our controller context structure
  *
- * Returns 0 on success otherwise negative errno.
+ * Returns 0 on success otherwise negative erranal.
  */
 int dwc3_event_buffers_setup(struct dwc3 *dwc)
 {
@@ -579,7 +579,7 @@ static int dwc3_core_ulpi_init(struct dwc3 *dwc)
  * dwc3_phy_setup - Configure USB PHY Interface of DWC3 Core
  * @dwc: Pointer to our controller context structure
  *
- * Returns 0 on success. The USB PHY interfaces are configured but not
+ * Returns 0 on success. The USB PHY interfaces are configured but analt
  * initialized. The PHY interfaces and the PHYs get initialized together with
  * the core in dwc3_core_init.
  */
@@ -594,7 +594,7 @@ static int dwc3_phy_setup(struct dwc3 *dwc)
 
 	/*
 	 * Make sure UX_EXIT_PX is cleared as that causes issues with some
-	 * PHYs. Also, this bit is not supposed to be used in normal operation.
+	 * PHYs. Also, this bit is analt supposed to be used in analrmal operation.
 	 */
 	reg &= ~DWC3_GUSB3PIPECTL_UX_EXIT_PX;
 
@@ -717,7 +717,7 @@ static int dwc3_phy_setup(struct dwc3 *dwc)
 		reg &= ~DWC3_GUSB2PHYCFG_U2_FREECLK_EXISTS;
 
 	/*
-	 * Some ULPI USB PHY does not support internal VBUS supply, to drive
+	 * Some ULPI USB PHY does analt support internal VBUS supply, to drive
 	 * the CPEN pin requires the configuration of the ULPI DRVVBUSEXTERNAL
 	 * bit of OTG_CTRL register. Controller configures the USB2 PHY
 	 * ULPIEXTVBUSDRV bit[17] of the GUSB2PHYCFG register to drive vBus
@@ -889,7 +889,7 @@ static void dwc3_core_setup_global_control(struct dwc3 *dwc)
 		 * WORKAROUND: DWC3 revisions between 2.10a and 2.50a have an
 		 * issue which would cause xHCI compliance tests to fail.
 		 *
-		 * Because of that we cannot enable clock gating on such
+		 * Because of that we cananalt enable clock gating on such
 		 * configurations.
 		 *
 		 * Refers to:
@@ -907,12 +907,12 @@ static void dwc3_core_setup_global_control(struct dwc3 *dwc)
 	case DWC3_GHWPARAMS1_EN_PWROPT_HIB:
 		/*
 		 * REVISIT Enabling this bit so that host-mode hibernation
-		 * will work. Device-mode hibernation is not yet implemented.
+		 * will work. Device-mode hibernation is analt yet implemented.
 		 */
 		reg |= DWC3_GCTL_GBLHIBERNATIONEN;
 		break;
 	default:
-		/* nothing */
+		/* analthing */
 		break;
 	}
 
@@ -923,7 +923,7 @@ static void dwc3_core_setup_global_control(struct dwc3 *dwc)
 	}
 
 	WARN_ONCE(dwc->disable_scramble_quirk && !dwc->is_fpga,
-			"disable_scramble cannot be used on non-FPGA builds\n");
+			"disable_scramble cananalt be used on analn-FPGA builds\n");
 
 	if (dwc->disable_scramble_quirk && dwc->is_fpga)
 		reg |= DWC3_GCTL_DISSCRAMBLE;
@@ -967,7 +967,7 @@ static void dwc3_set_incr_burst_type(struct dwc3 *dwc)
 	/*
 	 * Handle property "snps,incr-burst-type-adjustment".
 	 * Get the number of value from this property:
-	 * result <= 0, means this property is not supported.
+	 * result <= 0, means this property is analt supported.
 	 * result = 1, means INCRx burst mode supported.
 	 * result > 1, means undefined length burst mode supported.
 	 */
@@ -1055,7 +1055,7 @@ static void dwc3_set_power_down_clk_scale(struct dwc3 *dwc)
 	 *
 	 * The power down scale value is calculated using the fastest
 	 * frequency of the suspend_clk. If it isn't fixed (but within
-	 * the accuracy requirement), the driver may not know the max
+	 * the accuracy requirement), the driver may analt kanalw the max
 	 * rate of the suspend_clk, so only update the power down scale
 	 * if the default is less than the calculated value from
 	 * clk_get_rate() or if the default is questionably high
@@ -1180,7 +1180,7 @@ static void dwc3_config_threshold(struct dwc3 *dwc)
  * dwc3_core_init - Low-level initialization of DWC3 Core
  * @dwc: Pointer to our controller context structure
  *
- * Returns 0 on success otherwise negative errno.
+ * Returns 0 on success otherwise negative erranal.
  */
 static int dwc3_core_init(struct dwc3 *dwc)
 {
@@ -1268,7 +1268,7 @@ static int dwc3_core_init(struct dwc3 *dwc)
 
 	/*
 	 * ENDXFER polling is available on version 3.10a and later of
-	 * the DWC_usb3 controller. It is NOT available in the
+	 * the DWC_usb3 controller. It is ANALT available in the
 	 * DWC_usb31 controller.
 	 */
 	if (DWC3_VER_IS_WITHIN(DWC3, 310A, ANY)) {
@@ -1357,10 +1357,10 @@ err_exit_ulpi:
 static int dwc3_core_get_phy(struct dwc3 *dwc)
 {
 	struct device		*dev = dwc->dev;
-	struct device_node	*node = dev->of_node;
+	struct device_analde	*analde = dev->of_analde;
 	int ret;
 
-	if (node) {
+	if (analde) {
 		dwc->usb2_phy = devm_usb_get_phy_by_phandle(dev, "usb-phy", 0);
 		dwc->usb3_phy = devm_usb_get_phy_by_phandle(dev, "usb-phy", 1);
 	} else {
@@ -1370,36 +1370,36 @@ static int dwc3_core_get_phy(struct dwc3 *dwc)
 
 	if (IS_ERR(dwc->usb2_phy)) {
 		ret = PTR_ERR(dwc->usb2_phy);
-		if (ret == -ENXIO || ret == -ENODEV)
+		if (ret == -ENXIO || ret == -EANALDEV)
 			dwc->usb2_phy = NULL;
 		else
-			return dev_err_probe(dev, ret, "no usb2 phy configured\n");
+			return dev_err_probe(dev, ret, "anal usb2 phy configured\n");
 	}
 
 	if (IS_ERR(dwc->usb3_phy)) {
 		ret = PTR_ERR(dwc->usb3_phy);
-		if (ret == -ENXIO || ret == -ENODEV)
+		if (ret == -ENXIO || ret == -EANALDEV)
 			dwc->usb3_phy = NULL;
 		else
-			return dev_err_probe(dev, ret, "no usb3 phy configured\n");
+			return dev_err_probe(dev, ret, "anal usb3 phy configured\n");
 	}
 
 	dwc->usb2_generic_phy = devm_phy_get(dev, "usb2-phy");
 	if (IS_ERR(dwc->usb2_generic_phy)) {
 		ret = PTR_ERR(dwc->usb2_generic_phy);
-		if (ret == -ENOSYS || ret == -ENODEV)
+		if (ret == -EANALSYS || ret == -EANALDEV)
 			dwc->usb2_generic_phy = NULL;
 		else
-			return dev_err_probe(dev, ret, "no usb2 phy configured\n");
+			return dev_err_probe(dev, ret, "anal usb2 phy configured\n");
 	}
 
 	dwc->usb3_generic_phy = devm_phy_get(dev, "usb3-phy");
 	if (IS_ERR(dwc->usb3_generic_phy)) {
 		ret = PTR_ERR(dwc->usb3_generic_phy);
-		if (ret == -ENOSYS || ret == -ENODEV)
+		if (ret == -EANALSYS || ret == -EANALDEV)
 			dwc->usb3_generic_phy = NULL;
 		else
-			return dev_err_probe(dev, ret, "no usb3 phy configured\n");
+			return dev_err_probe(dev, ret, "anal usb3 phy configured\n");
 	}
 
 	return 0;
@@ -1462,7 +1462,7 @@ static void dwc3_core_exit_mode(struct dwc3 *dwc)
 		dwc3_drd_exit(dwc);
 		break;
 	default:
-		/* do nothing */
+		/* do analthing */
 		break;
 	}
 
@@ -1501,7 +1501,7 @@ static void dwc3_get_properties(struct dwc3 *dwc)
 	hird_threshold = 12;
 
 	/*
-	 * default to a TXFIFO size large enough to fit 6 max packets.  This
+	 * default to a TXFIFO size large eanalugh to fit 6 max packets.  This
 	 * allows for systems with larger bus latencies to have some headroom
 	 * for endpoints that have a large bMaxBurst value.
 	 */
@@ -1510,7 +1510,7 @@ static void dwc3_get_properties(struct dwc3 *dwc)
 	dwc->maximum_speed = usb_get_maximum_speed(dev);
 	dwc->max_ssp_rate = usb_get_maximum_ssp_rate(dev);
 	dwc->dr_mode = usb_get_dr_mode(dev);
-	dwc->hsphy_mode = of_usb_get_phy_mode(dev->of_node);
+	dwc->hsphy_mode = of_usb_get_phy_mode(dev->of_analde);
 
 	dwc->sysdev_is_parent = device_property_read_bool(dev,
 				"linux,sysdev_is_parent");
@@ -1664,7 +1664,7 @@ static void dwc3_check_params(struct dwc3 *dwc)
 
 	/* Check for proper value of imod_interval */
 	if (dwc->imod_interval && !dwc3_has_imod(dwc)) {
-		dev_warn(dwc->dev, "Interrupt moderation not supported\n");
+		dev_warn(dwc->dev, "Interrupt moderation analt supported\n");
 		dwc->imod_interval = 0;
 	}
 
@@ -1699,7 +1699,7 @@ static void dwc3_check_params(struct dwc3 *dwc)
 		dev_err(dev, "invalid maximum_speed parameter %d\n",
 			dwc->maximum_speed);
 		fallthrough;
-	case USB_SPEED_UNKNOWN:
+	case USB_SPEED_UNKANALWN:
 		switch (hwparam_gen) {
 		case DWC3_GHWPARAMS3_SSPHY_IFC_GEN2:
 			dwc->maximum_speed = USB_SPEED_SUPER_PLUS;
@@ -1721,9 +1721,9 @@ static void dwc3_check_params(struct dwc3 *dwc)
 	}
 
 	/*
-	 * Currently the controller does not have visibility into the HW
+	 * Currently the controller does analt have visibility into the HW
 	 * parameter to determine the maximum number of lanes the HW supports.
-	 * If the number of lanes is not specified in the device property, then
+	 * If the number of lanes is analt specified in the device property, then
 	 * set the default to support dual-lane for DWC_usb32 and single-lane
 	 * for DWC_usb31 for super-speed-plus.
 	 */
@@ -1738,7 +1738,7 @@ static void dwc3_check_params(struct dwc3 *dwc)
 			if (DWC3_IP_IS(DWC31))
 				dev_warn(dev, "UDC only supports single lane\n");
 			break;
-		case USB_SSP_GEN_UNKNOWN:
+		case USB_SSP_GEN_UNKANALWN:
 		default:
 			switch (hwparam_gen) {
 			case DWC3_GHWPARAMS3_SSPHY_IFC_GEN2:
@@ -1760,7 +1760,7 @@ static void dwc3_check_params(struct dwc3 *dwc)
 static struct extcon_dev *dwc3_get_extcon(struct dwc3 *dwc)
 {
 	struct device *dev = dwc->dev;
-	struct device_node *np_phy;
+	struct device_analde *np_phy;
 	struct extcon_dev *edev = NULL;
 	const char *name;
 
@@ -1778,7 +1778,7 @@ static struct extcon_dev *dwc3_get_extcon(struct dwc3 *dwc)
 
 	/*
 	 * Check explicitly if "usb-role-switch" is used since
-	 * extcon_find_edev_by_node() can not be used to check the absence of
+	 * extcon_find_edev_by_analde() can analt be used to check the absence of
 	 * an extcon device. In the absence of an device it will always return
 	 * EPROBE_DEFER.
 	 */
@@ -1788,21 +1788,21 @@ static struct extcon_dev *dwc3_get_extcon(struct dwc3 *dwc)
 
 	/*
 	 * Try to get an extcon device from the USB PHY controller's "port"
-	 * node. Check if it has the "port" node first, to avoid printing the
+	 * analde. Check if it has the "port" analde first, to avoid printing the
 	 * error message from underlying code, as it's a valid case: extcon
-	 * device (and "port" node) may be missing in case of "usb-role-switch"
+	 * device (and "port" analde) may be missing in case of "usb-role-switch"
 	 * or OTG mode.
 	 */
-	np_phy = of_parse_phandle(dev->of_node, "phys", 0);
+	np_phy = of_parse_phandle(dev->of_analde, "phys", 0);
 	if (of_graph_is_present(np_phy)) {
-		struct device_node *np_conn;
+		struct device_analde *np_conn;
 
-		np_conn = of_graph_get_remote_node(np_phy, -1, -1);
+		np_conn = of_graph_get_remote_analde(np_phy, -1, -1);
 		if (np_conn)
-			edev = extcon_find_edev_by_node(np_conn);
-		of_node_put(np_conn);
+			edev = extcon_find_edev_by_analde(np_conn);
+		of_analde_put(np_conn);
 	}
-	of_node_put(np_phy);
+	of_analde_put(np_phy);
 
 	return edev;
 }
@@ -1811,7 +1811,7 @@ static int dwc3_get_clocks(struct dwc3 *dwc)
 {
 	struct device *dev = dwc->dev;
 
-	if (!dev->of_node)
+	if (!dev->of_analde)
 		return 0;
 
 	/*
@@ -1823,42 +1823,42 @@ static int dwc3_get_clocks(struct dwc3 *dwc)
 	dwc->bus_clk = devm_clk_get_optional(dev, "bus_early");
 	if (IS_ERR(dwc->bus_clk)) {
 		return dev_err_probe(dev, PTR_ERR(dwc->bus_clk),
-				"could not get bus clock\n");
+				"could analt get bus clock\n");
 	}
 
 	if (dwc->bus_clk == NULL) {
 		dwc->bus_clk = devm_clk_get_optional(dev, "bus_clk");
 		if (IS_ERR(dwc->bus_clk)) {
 			return dev_err_probe(dev, PTR_ERR(dwc->bus_clk),
-					"could not get bus clock\n");
+					"could analt get bus clock\n");
 		}
 	}
 
 	dwc->ref_clk = devm_clk_get_optional(dev, "ref");
 	if (IS_ERR(dwc->ref_clk)) {
 		return dev_err_probe(dev, PTR_ERR(dwc->ref_clk),
-				"could not get ref clock\n");
+				"could analt get ref clock\n");
 	}
 
 	if (dwc->ref_clk == NULL) {
 		dwc->ref_clk = devm_clk_get_optional(dev, "ref_clk");
 		if (IS_ERR(dwc->ref_clk)) {
 			return dev_err_probe(dev, PTR_ERR(dwc->ref_clk),
-					"could not get ref clock\n");
+					"could analt get ref clock\n");
 		}
 	}
 
 	dwc->susp_clk = devm_clk_get_optional(dev, "suspend");
 	if (IS_ERR(dwc->susp_clk)) {
 		return dev_err_probe(dev, PTR_ERR(dwc->susp_clk),
-				"could not get suspend clock\n");
+				"could analt get suspend clock\n");
 	}
 
 	if (dwc->susp_clk == NULL) {
 		dwc->susp_clk = devm_clk_get_optional(dev, "suspend_clk");
 		if (IS_ERR(dwc->susp_clk)) {
 			return dev_err_probe(dev, PTR_ERR(dwc->susp_clk),
-					"could not get suspend clock\n");
+					"could analt get suspend clock\n");
 		}
 	}
 
@@ -1866,14 +1866,14 @@ static int dwc3_get_clocks(struct dwc3 *dwc)
 	dwc->utmi_clk = devm_clk_get_optional(dev, "utmi");
 	if (IS_ERR(dwc->utmi_clk)) {
 		return dev_err_probe(dev, PTR_ERR(dwc->utmi_clk),
-				"could not get utmi clock\n");
+				"could analt get utmi clock\n");
 	}
 
 	/* specific to Rockchip RK3588 */
 	dwc->pipe_clk = devm_clk_get_optional(dev, "pipe");
 	if (IS_ERR(dwc->pipe_clk)) {
 		return dev_err_probe(dev, PTR_ERR(dwc->pipe_clk),
-				"could not get pipe clock\n");
+				"could analt get pipe clock\n");
 	}
 
 	return 0;
@@ -1889,14 +1889,14 @@ static int dwc3_probe(struct platform_device *pdev)
 
 	dwc = devm_kzalloc(dev, sizeof(*dwc), GFP_KERNEL);
 	if (!dwc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dwc->dev = dev;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		dev_err(dev, "missing memory resource\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	dwc->xhci_resources[0].start = res->start;
@@ -1912,15 +1912,15 @@ static int dwc3_probe(struct platform_device *pdev)
 	dwc_res = *res;
 	dwc_res.start += DWC3_GLOBALS_REGS_START;
 
-	if (dev->of_node) {
-		struct device_node *parent = of_get_parent(dev->of_node);
+	if (dev->of_analde) {
+		struct device_analde *parent = of_get_parent(dev->of_analde);
 
 		if (of_device_is_compatible(parent, "realtek,rtd-dwc3")) {
 			dwc_res.start -= DWC3_GLOBALS_REGS_START;
 			dwc_res.start += DWC3_RTK_RTD_GLOBALS_REGS_START;
 		}
 
-		of_node_put(parent);
+		of_analde_put(parent);
 	}
 
 	regs = devm_ioremap_resource(dev, &dwc_res);
@@ -1951,8 +1951,8 @@ static int dwc3_probe(struct platform_device *pdev)
 		goto err_assert_reset;
 
 	if (!dwc3_core_is_valid(dwc)) {
-		dev_err(dwc->dev, "this is not a DesignWare USB3 DRD Core\n");
-		ret = -ENODEV;
+		dev_err(dwc->dev, "this is analt a DesignWare USB3 DRD Core\n");
+		ret = -EANALDEV;
 		goto err_disable_clks;
 	}
 
@@ -1969,7 +1969,7 @@ static int dwc3_probe(struct platform_device *pdev)
 	spin_lock_init(&dwc->lock);
 	mutex_init(&dwc->mutex);
 
-	pm_runtime_get_noresume(dev);
+	pm_runtime_get_analresume(dev);
 	pm_runtime_set_active(dev);
 	pm_runtime_use_autosuspend(dev);
 	pm_runtime_set_autosuspend_delay(dev, DWC3_DEFAULT_AUTOSUSPEND_DELAY);
@@ -1980,7 +1980,7 @@ static int dwc3_probe(struct platform_device *pdev)
 	ret = dwc3_alloc_event_buffers(dwc, DWC3_EVENT_BUFFERS_SIZE);
 	if (ret) {
 		dev_err(dwc->dev, "failed to allocate event buffers\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_allow_rpm;
 	}
 
@@ -2026,7 +2026,7 @@ err_allow_rpm:
 	pm_runtime_disable(dev);
 	pm_runtime_dont_use_autosuspend(dev);
 	pm_runtime_set_suspended(dev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 err_disable_clks:
 	dwc3_clk_disable(dwc);
 err_assert_reset:
@@ -2053,7 +2053,7 @@ static void dwc3_remove(struct platform_device *pdev)
 	pm_runtime_allow(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_dont_use_autosuspend(&pdev->dev);
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_analidle(&pdev->dev);
 	/*
 	 * HACK: Clear the driver data, which is currently accessed by parent
 	 * glue drivers, before allowing the parent to suspend.
@@ -2129,7 +2129,7 @@ static int dwc3_suspend_common(struct dwc3 *dwc, pm_message_t msg)
 		phy_pm_runtime_put_sync(dwc->usb3_generic_phy);
 		break;
 	case DWC3_GCTL_PRTCAP_OTG:
-		/* do nothing during runtime_suspend */
+		/* do analthing during runtime_suspend */
 		if (PMSG_IS_AUTO(msg))
 			break;
 
@@ -2144,7 +2144,7 @@ static int dwc3_suspend_common(struct dwc3 *dwc, pm_message_t msg)
 		dwc3_core_exit(dwc);
 		break;
 	default:
-		/* do nothing */
+		/* do analthing */
 		break;
 	}
 
@@ -2188,7 +2188,7 @@ static int dwc3_resume_common(struct dwc3 *dwc, pm_message_t msg)
 		phy_pm_runtime_get_sync(dwc->usb3_generic_phy);
 		break;
 	case DWC3_GCTL_PRTCAP_OTG:
-		/* nothing to do on runtime_resume */
+		/* analthing to do on runtime_resume */
 		if (PMSG_IS_AUTO(msg))
 			break;
 
@@ -2209,7 +2209,7 @@ static int dwc3_resume_common(struct dwc3 *dwc, pm_message_t msg)
 
 		break;
 	default:
-		/* do nothing */
+		/* do analthing */
 		break;
 	}
 
@@ -2225,7 +2225,7 @@ static int dwc3_runtime_checks(struct dwc3 *dwc)
 		break;
 	case DWC3_GCTL_PRTCAP_HOST:
 	default:
-		/* do nothing */
+		/* do analthing */
 		break;
 	}
 
@@ -2262,7 +2262,7 @@ static int dwc3_runtime_resume(struct device *dev)
 		break;
 	case DWC3_GCTL_PRTCAP_HOST:
 	default:
-		/* do nothing */
+		/* do analthing */
 		break;
 	}
 
@@ -2282,7 +2282,7 @@ static int dwc3_runtime_idle(struct device *dev)
 		break;
 	case DWC3_GCTL_PRTCAP_HOST:
 	default:
-		/* do nothing */
+		/* do analthing */
 		break;
 	}
 
@@ -2358,7 +2358,7 @@ static const struct of_device_id of_dwc3_match[] = {
 		.compatible = "snps,dwc3"
 	},
 	{
-		.compatible = "synopsys,dwc3"
+		.compatible = "syanalpsys,dwc3"
 	},
 	{ },
 };

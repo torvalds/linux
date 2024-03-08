@@ -22,38 +22,38 @@
 #include "dir.h"
 
 /*
- * We use the upper 16 bits of the hash value to select the directory node.
- * Low bits are used for distribution of rsb's among hash buckets on each node.
+ * We use the upper 16 bits of the hash value to select the directory analde.
+ * Low bits are used for distribution of rsb's among hash buckets on each analde.
  *
- * To give the exact range wanted (0 to num_nodes-1), we apply a modulus of
- * num_nodes to the hash value.  This value in the desired range is used as an
- * offset into the sorted list of nodeid's to give the particular nodeid.
+ * To give the exact range wanted (0 to num_analdes-1), we apply a modulus of
+ * num_analdes to the hash value.  This value in the desired range is used as an
+ * offset into the sorted list of analdeid's to give the particular analdeid.
  */
 
-int dlm_hash2nodeid(struct dlm_ls *ls, uint32_t hash)
+int dlm_hash2analdeid(struct dlm_ls *ls, uint32_t hash)
 {
-	uint32_t node;
+	uint32_t analde;
 
-	if (ls->ls_num_nodes == 1)
-		return dlm_our_nodeid();
+	if (ls->ls_num_analdes == 1)
+		return dlm_our_analdeid();
 	else {
-		node = (hash >> 16) % ls->ls_total_weight;
-		return ls->ls_node_array[node];
+		analde = (hash >> 16) % ls->ls_total_weight;
+		return ls->ls_analde_array[analde];
 	}
 }
 
-int dlm_dir_nodeid(struct dlm_rsb *r)
+int dlm_dir_analdeid(struct dlm_rsb *r)
 {
-	return r->res_dir_nodeid;
+	return r->res_dir_analdeid;
 }
 
-void dlm_recover_dir_nodeid(struct dlm_ls *ls)
+void dlm_recover_dir_analdeid(struct dlm_ls *ls)
 {
 	struct dlm_rsb *r;
 
 	down_read(&ls->ls_root_sem);
 	list_for_each_entry(r, &ls->ls_root_list, res_root_list) {
-		r->res_dir_nodeid = dlm_hash2nodeid(ls, r->res_hash);
+		r->res_dir_analdeid = dlm_hash2analdeid(ls, r->res_hash);
 	}
 	up_read(&ls->ls_root_sem);
 }
@@ -62,21 +62,21 @@ int dlm_recover_directory(struct dlm_ls *ls, uint64_t seq)
 {
 	struct dlm_member *memb;
 	char *b, *last_name = NULL;
-	int error = -ENOMEM, last_len, nodeid, result;
+	int error = -EANALMEM, last_len, analdeid, result;
 	uint16_t namelen;
 	unsigned int count = 0, count_match = 0, count_bad = 0, count_add = 0;
 
 	log_rinfo(ls, "dlm_recover_directory");
 
-	if (dlm_no_directory(ls))
+	if (dlm_anal_directory(ls))
 		goto out_status;
 
-	last_name = kmalloc(DLM_RESNAME_MAXLEN, GFP_NOFS);
+	last_name = kmalloc(DLM_RESNAME_MAXLEN, GFP_ANALFS);
 	if (!last_name)
 		goto out;
 
-	list_for_each_entry(memb, &ls->ls_nodes, list) {
-		if (memb->nodeid == dlm_our_nodeid())
+	list_for_each_entry(memb, &ls->ls_analdes, list) {
+		if (memb->analdeid == dlm_our_analdeid())
 			continue;
 
 		memset(last_name, 0, DLM_RESNAME_MAXLEN);
@@ -89,7 +89,7 @@ int dlm_recover_directory(struct dlm_ls *ls, uint64_t seq)
 				goto out_free;
 			}
 
-			error = dlm_rcom_names(ls, memb->nodeid,
+			error = dlm_rcom_names(ls, memb->analdeid,
 					       last_name, last_len, seq);
 			if (error)
 				goto out_free;
@@ -117,7 +117,7 @@ int dlm_recover_directory(struct dlm_ls *ls, uint64_t seq)
 				left -= sizeof(__be16);
 
 				/* namelen of 0xFFFFF marks end of names for
-				   this node; namelen of 0 marks end of the
+				   this analde; namelen of 0 marks end of the
 				   buffer */
 
 				if (namelen == 0xFFFF)
@@ -131,10 +131,10 @@ int dlm_recover_directory(struct dlm_ls *ls, uint64_t seq)
 				if (namelen > DLM_RESNAME_MAXLEN)
 					goto out_free;
 
-				error = dlm_master_lookup(ls, memb->nodeid,
+				error = dlm_master_lookup(ls, memb->analdeid,
 							  b, namelen,
 							  DLM_LU_RECOVER_DIR,
-							  &nodeid, &result);
+							  &analdeid, &result);
 				if (error) {
 					log_error(ls, "recover_dir lookup %d",
 						  error);
@@ -142,32 +142,32 @@ int dlm_recover_directory(struct dlm_ls *ls, uint64_t seq)
 				}
 
 				/* The name was found in rsbtbl, but the
-				 * master nodeid is different from
-				 * memb->nodeid which says it is the master.
-				 * This should not happen. */
+				 * master analdeid is different from
+				 * memb->analdeid which says it is the master.
+				 * This should analt happen. */
 
 				if (result == DLM_LU_MATCH &&
-				    nodeid != memb->nodeid) {
+				    analdeid != memb->analdeid) {
 					count_bad++;
 					log_error(ls, "recover_dir lookup %d "
-						  "nodeid %d memb %d bad %u",
-						  result, nodeid, memb->nodeid,
+						  "analdeid %d memb %d bad %u",
+						  result, analdeid, memb->analdeid,
 						  count_bad);
 					print_hex_dump_bytes("dlm_recover_dir ",
-							     DUMP_PREFIX_NONE,
+							     DUMP_PREFIX_ANALNE,
 							     b, namelen);
 				}
 
 				/* The name was found in rsbtbl, and the
-				 * master nodeid matches memb->nodeid. */
+				 * master analdeid matches memb->analdeid. */
 
 				if (result == DLM_LU_MATCH &&
-				    nodeid == memb->nodeid) {
+				    analdeid == memb->analdeid) {
 					count_match++;
 				}
 
-				/* The name was not found in rsbtbl and was
-				 * added with memb->nodeid as the master. */
+				/* The name was analt found in rsbtbl and was
+				 * added with memb->analdeid as the master. */
 
 				if (result == DLM_LU_ADD) {
 					count_add++;
@@ -230,15 +230,15 @@ static struct dlm_rsb *find_rsb_root(struct dlm_ls *ls, const char *name,
 }
 
 /* Find the rsb where we left off (or start again), then send rsb names
-   for rsb's we're master of and whose directory node matches the requesting
-   node.  inbuf is the rsb name last sent, inlen is the name's length */
+   for rsb's we're master of and whose directory analde matches the requesting
+   analde.  inbuf is the rsb name last sent, inlen is the name's length */
 
 void dlm_copy_master_names(struct dlm_ls *ls, const char *inbuf, int inlen,
- 			   char *outbuf, int outlen, int nodeid)
+ 			   char *outbuf, int outlen, int analdeid)
 {
 	struct list_head *list;
 	struct dlm_rsb *r;
-	int offset = 0, dir_nodeid;
+	int offset = 0, dir_analdeid;
 	__be16 be_namelen;
 
 	down_read(&ls->ls_root_sem);
@@ -247,7 +247,7 @@ void dlm_copy_master_names(struct dlm_ls *ls, const char *inbuf, int inlen,
 		r = find_rsb_root(ls, inbuf, inlen);
 		if (!r) {
 			log_error(ls, "copy_master_names from %d start %d %.*s",
-				  nodeid, inlen, inlen, inbuf);
+				  analdeid, inlen, inlen, inbuf);
 			goto out;
 		}
 		list = r->res_root_list.next;
@@ -257,11 +257,11 @@ void dlm_copy_master_names(struct dlm_ls *ls, const char *inbuf, int inlen,
 
 	for (offset = 0; list != &ls->ls_root_list; list = list->next) {
 		r = list_entry(list, struct dlm_rsb, res_root_list);
-		if (r->res_nodeid)
+		if (r->res_analdeid)
 			continue;
 
-		dir_nodeid = dlm_dir_nodeid(r);
-		if (dir_nodeid != nodeid)
+		dir_analdeid = dlm_dir_analdeid(r);
+		if (dir_analdeid != analdeid)
 			continue;
 
 		/*

@@ -19,7 +19,7 @@
         "BriefDescription": "L1D miss outstandings duration in cycles",
         "EventCode": "0x48",
         "EventName": "L1D_PEND_MISS.PENDING",
-        "PublicDescription": "This event counts duration of L1D miss outstanding, that is each cycle number of Fill Buffers (FB) outstanding required by Demand Reads. FB either is held by demand loads, or it is held by non-demand loads and gets hit at least once by demand. The valid outstanding interval is defined until the FB deallocation by one of the following ways: from FB allocation, if FB is allocated by demand; from the demand Hit FB, if it is allocated by hardware or software prefetch.\nNote: In the L1D, a Demand Read contains cacheable or noncacheable demand loads, including ones causing cache-line splits and reads due to page walks resulted from any request type.",
+        "PublicDescription": "This event counts duration of L1D miss outstanding, that is each cycle number of Fill Buffers (FB) outstanding required by Demand Reads. FB either is held by demand loads, or it is held by analn-demand loads and gets hit at least once by demand. The valid outstanding interval is defined until the FB deallocation by one of the following ways: from FB allocation, if FB is allocated by demand; from the demand Hit FB, if it is allocated by hardware or software prefetch.\nAnalte: In the L1D, a Demand Read contains cacheable or analncacheable demand loads, including ones causing cache-line splits and reads due to page walks resulted from any request type.",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"
     },
@@ -42,7 +42,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Not rejected writebacks that hit L2 cache",
+        "BriefDescription": "Analt rejected writebacks that hit L2 cache",
         "EventCode": "0x27",
         "EventName": "L2_DEMAND_RQSTS.WB_HIT",
         "PublicDescription": "This event counts the number of WB requests that hit L2 cache.",
@@ -53,7 +53,7 @@
         "BriefDescription": "L2 cache lines filling L2",
         "EventCode": "0xF1",
         "EventName": "L2_LINES_IN.ALL",
-        "PublicDescription": "This event counts the number of L2 cache lines filling the L2. Counting does not cover rejects.",
+        "PublicDescription": "This event counts the number of L2 cache lines filling the L2. Counting does analt cover rejects.",
         "SampleAfterValue": "100003",
         "UMask": "0x7"
     },
@@ -61,7 +61,7 @@
         "BriefDescription": "L2 cache lines in E state filling L2",
         "EventCode": "0xF1",
         "EventName": "L2_LINES_IN.E",
-        "PublicDescription": "This event counts the number of L2 cache lines in the Exclusive state filling the L2. Counting does not cover rejects.",
+        "PublicDescription": "This event counts the number of L2 cache lines in the Exclusive state filling the L2. Counting does analt cover rejects.",
         "SampleAfterValue": "100003",
         "UMask": "0x4"
     },
@@ -69,7 +69,7 @@
         "BriefDescription": "L2 cache lines in I state filling L2",
         "EventCode": "0xF1",
         "EventName": "L2_LINES_IN.I",
-        "PublicDescription": "This event counts the number of L2 cache lines in the Invalidate state filling the L2. Counting does not cover rejects.",
+        "PublicDescription": "This event counts the number of L2 cache lines in the Invalidate state filling the L2. Counting does analt cover rejects.",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -77,7 +77,7 @@
         "BriefDescription": "L2 cache lines in S state filling L2",
         "EventCode": "0xF1",
         "EventName": "L2_LINES_IN.S",
-        "PublicDescription": "This event counts the number of L2 cache lines in the Shared state filling the L2. Counting does not cover rejects.",
+        "PublicDescription": "This event counts the number of L2 cache lines in the Shared state filling the L2. Counting does analt cover rejects.",
         "SampleAfterValue": "100003",
         "UMask": "0x2"
     },
@@ -100,7 +100,7 @@
         "BriefDescription": "Demand Data Read requests",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.ALL_DEMAND_DATA_RD",
-        "PublicDescription": "This event counts the number of demand Data Read requests (including requests from L1D hardware prefetchers). These loads may hit or miss L2 cache. Only non rejected loads are counted.",
+        "PublicDescription": "This event counts the number of demand Data Read requests (including requests from L1D hardware prefetchers). These loads may hit or miss L2 cache. Only analn rejected loads are counted.",
         "SampleAfterValue": "200003",
         "UMask": "0xe1"
     },
@@ -157,10 +157,10 @@
         "UMask": "0xc1"
     },
     {
-        "BriefDescription": "Demand Data Read miss L2, no rejects",
+        "BriefDescription": "Demand Data Read miss L2, anal rejects",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.DEMAND_DATA_RD_MISS",
-        "PublicDescription": "This event counts the number of demand Data Read requests that miss L2 cache. Only not rejected loads are counted.",
+        "PublicDescription": "This event counts the number of demand Data Read requests that miss L2 cache. Only analt rejected loads are counted.",
         "SampleAfterValue": "200003",
         "UMask": "0x21"
     },
@@ -220,7 +220,7 @@
         "BriefDescription": "Transactions accessing L2 pipe",
         "EventCode": "0xF0",
         "EventName": "L2_TRANS.ALL_REQUESTS",
-        "PublicDescription": "This event counts transactions that access the L2 pipe including snoops, pagewalks, and so on.",
+        "PublicDescription": "This event counts transactions that access the L2 pipe including sanalops, pagewalks, and so on.",
         "SampleAfterValue": "200003",
         "UMask": "0x80"
     },
@@ -297,13 +297,13 @@
         "UMask": "0x4f"
     },
     {
-        "BriefDescription": "Retired load uops which data sources were L3 and cross-core snoop hits in on-pkg core cache.",
+        "BriefDescription": "Retired load uops which data sources were L3 and cross-core sanalop hits in on-pkg core cache.",
         "Data_LA": "1",
         "Errata": "BDM100",
         "EventCode": "0xD2",
         "EventName": "MEM_LOAD_UOPS_L3_HIT_RETIRED.XSNP_HIT",
         "PEBS": "1",
-        "PublicDescription": "This event counts retired load uops which data sources were L3 hit and a cross-core snoop hit in the on-pkg core cache.",
+        "PublicDescription": "This event counts retired load uops which data sources were L3 hit and a cross-core sanalop hit in the on-pkg core cache.",
         "SampleAfterValue": "20011",
         "UMask": "0x2"
     },
@@ -319,45 +319,45 @@
         "UMask": "0x4"
     },
     {
-        "BriefDescription": "Retired load uops which data sources were L3 hit and cross-core snoop missed in on-pkg core cache.",
+        "BriefDescription": "Retired load uops which data sources were L3 hit and cross-core sanalop missed in on-pkg core cache.",
         "Data_LA": "1",
         "Errata": "BDM100",
         "EventCode": "0xD2",
         "EventName": "MEM_LOAD_UOPS_L3_HIT_RETIRED.XSNP_MISS",
         "PEBS": "1",
-        "PublicDescription": "This event counts retired load uops which data sources were L3 Hit and a cross-core snoop missed in the on-pkg core cache.",
+        "PublicDescription": "This event counts retired load uops which data sources were L3 Hit and a cross-core sanalop missed in the on-pkg core cache.",
         "SampleAfterValue": "20011",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Retired load uops which data sources were hits in L3 without snoops required.",
+        "BriefDescription": "Retired load uops which data sources were hits in L3 without sanalops required.",
         "Data_LA": "1",
         "Errata": "BDM100",
         "EventCode": "0xD2",
-        "EventName": "MEM_LOAD_UOPS_L3_HIT_RETIRED.XSNP_NONE",
+        "EventName": "MEM_LOAD_UOPS_L3_HIT_RETIRED.XSNP_ANALNE",
         "PEBS": "1",
-        "PublicDescription": "This event counts retired load uops which data sources were hits in the last-level (L3) cache without snoops required.",
+        "PublicDescription": "This event counts retired load uops which data sources were hits in the last-level (L3) cache without sanalops required.",
         "SampleAfterValue": "100003",
         "UMask": "0x8"
     },
     {
-        "BriefDescription": "Data from local DRAM either Snoop not needed or Snoop Miss (RspI)",
+        "BriefDescription": "Data from local DRAM either Sanalop analt needed or Sanalop Miss (RspI)",
         "Data_LA": "1",
         "Errata": "BDE70, BDM100",
         "EventCode": "0xD3",
         "EventName": "MEM_LOAD_UOPS_L3_MISS_RETIRED.LOCAL_DRAM",
         "PEBS": "1",
-        "PublicDescription": "Retired load uop whose Data Source was: local DRAM either Snoop not needed or Snoop Miss (RspI).",
+        "PublicDescription": "Retired load uop whose Data Source was: local DRAM either Sanalop analt needed or Sanalop Miss (RspI).",
         "SampleAfterValue": "100007",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Retired load uops which data sources were load uops missed L1 but hit FB due to preceding miss to the same cache line with data not ready.",
+        "BriefDescription": "Retired load uops which data sources were load uops missed L1 but hit FB due to preceding miss to the same cache line with data analt ready.",
         "Data_LA": "1",
         "EventCode": "0xD1",
         "EventName": "MEM_LOAD_UOPS_RETIRED.HIT_LFB",
         "PEBS": "1",
-        "PublicDescription": "This event counts retired load uops which data sources were load uops missed L1 but hit a fill buffer due to a preceding miss to the same cache line with the data not ready.\nNote: Only two data-sources of L1/FB are applicable for AVX-256bit  even though the corresponding AVX load could be serviced by a deeper level in the memory hierarchy. Data source is reported for the Low-half load.",
+        "PublicDescription": "This event counts retired load uops which data sources were load uops missed L1 but hit a fill buffer due to a preceding miss to the same cache line with the data analt ready.\nAnalte: Only two data-sources of L1/FB are applicable for AVX-256bit  even though the corresponding AVX load could be serviced by a deeper level in the memory hierarchy. Data source is reported for the Low-half load.",
         "SampleAfterValue": "100003",
         "UMask": "0x40"
     },
@@ -367,7 +367,7 @@
         "EventCode": "0xD1",
         "EventName": "MEM_LOAD_UOPS_RETIRED.L1_HIT",
         "PEBS": "1",
-        "PublicDescription": "This event counts retired load uops which data sources were hits in the nearest-level (L1) cache.\nNote: Only two data-sources of L1/FB are applicable for AVX-256bit  even though the corresponding AVX load could be serviced by a deeper level in the memory hierarchy. Data source is reported for the Low-half load. This event also counts SW prefetches independent of the actual data source.",
+        "PublicDescription": "This event counts retired load uops which data sources were hits in the nearest-level (L1) cache.\nAnalte: Only two data-sources of L1/FB are applicable for AVX-256bit  even though the corresponding AVX load could be serviced by a deeper level in the memory hierarchy. Data source is reported for the Low-half load. This event also counts SW prefetches independent of the actual data source.",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"
     },
@@ -377,7 +377,7 @@
         "EventCode": "0xD1",
         "EventName": "MEM_LOAD_UOPS_RETIRED.L1_MISS",
         "PEBS": "1",
-        "PublicDescription": "This event counts retired load uops which data sources were misses in the nearest-level (L1) cache. Counting excludes unknown and UC data source.",
+        "PublicDescription": "This event counts retired load uops which data sources were misses in the nearest-level (L1) cache. Counting excludes unkanalwn and UC data source.",
         "SampleAfterValue": "100003",
         "UMask": "0x8"
     },
@@ -393,28 +393,28 @@
         "UMask": "0x2"
     },
     {
-        "BriefDescription": "Miss in mid-level (L2) cache. Excludes Unknown data-source.",
+        "BriefDescription": "Miss in mid-level (L2) cache. Excludes Unkanalwn data-source.",
         "Data_LA": "1",
         "EventCode": "0xD1",
         "EventName": "MEM_LOAD_UOPS_RETIRED.L2_MISS",
         "PEBS": "1",
-        "PublicDescription": "This event counts retired load uops which data sources were misses in the mid-level (L2) cache. Counting excludes unknown and UC data source.",
+        "PublicDescription": "This event counts retired load uops which data sources were misses in the mid-level (L2) cache. Counting excludes unkanalwn and UC data source.",
         "SampleAfterValue": "50021",
         "UMask": "0x10"
     },
     {
-        "BriefDescription": "Retired load uops which data sources were data hits in L3 without snoops required.",
+        "BriefDescription": "Retired load uops which data sources were data hits in L3 without sanalops required.",
         "Data_LA": "1",
         "Errata": "BDM100",
         "EventCode": "0xD1",
         "EventName": "MEM_LOAD_UOPS_RETIRED.L3_HIT",
         "PEBS": "1",
-        "PublicDescription": "This event counts retired load uops which data sources were data hits in the last-level (L3) cache without snoops required.",
+        "PublicDescription": "This event counts retired load uops which data sources were data hits in the last-level (L3) cache without sanalops required.",
         "SampleAfterValue": "50021",
         "UMask": "0x4"
     },
     {
-        "BriefDescription": "Miss in last-level (L3) cache. Excludes Unknown data-source.",
+        "BriefDescription": "Miss in last-level (L3) cache. Excludes Unkanalwn data-source.",
         "Data_LA": "1",
         "Errata": "BDM100, BDE70",
         "EventCode": "0xD1",
@@ -498,7 +498,7 @@
         "BriefDescription": "Demand and prefetch data reads",
         "EventCode": "0xB0",
         "EventName": "OFFCORE_REQUESTS.ALL_DATA_RD",
-        "PublicDescription": "This event counts the demand and prefetch data reads. All Core Data Reads include cacheable Demands and L2 prefetchers (not L3 prefetchers). Counting also covers reads due to page walks resulted from any request type.",
+        "PublicDescription": "This event counts the demand and prefetch data reads. All Core Data Reads include cacheable Demands and L2 prefetchers (analt L3 prefetchers). Counting also covers reads due to page walks resulted from any request type.",
         "SampleAfterValue": "100003",
         "UMask": "0x8"
     },
@@ -511,10 +511,10 @@
         "UMask": "0x80"
     },
     {
-        "BriefDescription": "Cacheable and non-cacheable code read requests",
+        "BriefDescription": "Cacheable and analn-cacheable code read requests",
         "EventCode": "0xB0",
         "EventName": "OFFCORE_REQUESTS.DEMAND_CODE_RD",
-        "PublicDescription": "This event counts both cacheable and non-cacheable code read requests.",
+        "PublicDescription": "This event counts both cacheable and analn-cacheable code read requests.",
         "SampleAfterValue": "100003",
         "UMask": "0x2"
     },
@@ -535,10 +535,10 @@
         "UMask": "0x4"
     },
     {
-        "BriefDescription": "Offcore requests buffer cannot take more entries for this thread core.",
+        "BriefDescription": "Offcore requests buffer cananalt take more entries for this thread core.",
         "EventCode": "0xb2",
         "EventName": "OFFCORE_REQUESTS_BUFFER.SQ_FULL",
-        "PublicDescription": "This event counts the number of cases when the offcore requests buffer cannot take more entries for the core. This can happen when the superqueue does not contain eligible entries, or when L1D writeback pending FIFO requests is full.\nNote: Writeback pending FIFO has six entries.",
+        "PublicDescription": "This event counts the number of cases when the offcore requests buffer cananalt take more entries for the core. This can happen when the superqueue does analt contain eligible entries, or when L1D writeback pending FIFO requests is full.\nAnalte: Writeback pending FIFO has six entries.",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"
     },
@@ -595,7 +595,7 @@
         "Errata": "BDM76",
         "EventCode": "0x60",
         "EventName": "OFFCORE_REQUESTS_OUTSTANDING.DEMAND_DATA_RD",
-        "PublicDescription": "This event counts the number of offcore outstanding Demand Data Read transactions in the super queue (SQ) every cycle. A transaction is considered to be in the Offcore outstanding state between L2 miss and transaction completion sent to requestor. See the corresponding Umask under OFFCORE_REQUESTS.\nNote: A prefetch promoted to Demand is counted from the promotion point.",
+        "PublicDescription": "This event counts the number of offcore outstanding Demand Data Read transactions in the super queue (SQ) every cycle. A transaction is considered to be in the Offcore outstanding state between L2 miss and transaction completion sent to requestor. See the corresponding Umask under OFFCORE_REQUESTS.\nAnalte: A prefetch promoted to Demand is counted from the promotion point.",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"
     },
@@ -636,7 +636,7 @@
     {
         "BriefDescription": "Counts all demand & prefetch data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.ALL_DATA_RD.L3_HIT.ANY_SNOOP",
+        "EventName": "OFFCORE_RESPONSE.ALL_DATA_RD.L3_HIT.ANY_SANALOP",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3F803C0091",
         "SampleAfterValue": "100003",
@@ -645,7 +645,7 @@
     {
         "BriefDescription": "Counts all demand & prefetch data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.ALL_DATA_RD.L3_HIT.SNOOP_HITM",
+        "EventName": "OFFCORE_RESPONSE.ALL_DATA_RD.L3_HIT.SANALOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x10003C0091",
         "SampleAfterValue": "100003",
@@ -654,7 +654,7 @@
     {
         "BriefDescription": "Counts all demand & prefetch data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.ALL_DATA_RD.L3_HIT.SNOOP_HIT_NO_FWD",
+        "EventName": "OFFCORE_RESPONSE.ALL_DATA_RD.L3_HIT.SANALOP_HIT_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x4003C0091",
         "SampleAfterValue": "100003",
@@ -663,7 +663,7 @@
     {
         "BriefDescription": "Counts all demand & prefetch data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.ALL_DATA_RD.L3_HIT.SNOOP_MISS",
+        "EventName": "OFFCORE_RESPONSE.ALL_DATA_RD.L3_HIT.SANALOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x2003C0091",
         "SampleAfterValue": "100003",
@@ -672,7 +672,7 @@
     {
         "BriefDescription": "Counts all demand & prefetch data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.ALL_DATA_RD.L3_HIT.SNOOP_NONE",
+        "EventName": "OFFCORE_RESPONSE.ALL_DATA_RD.L3_HIT.SANALOP_ANALNE",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x803C0091",
         "SampleAfterValue": "100003",
@@ -681,7 +681,7 @@
     {
         "BriefDescription": "Counts all demand & prefetch data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.ALL_DATA_RD.L3_HIT.SNOOP_NOT_NEEDED",
+        "EventName": "OFFCORE_RESPONSE.ALL_DATA_RD.L3_HIT.SANALOP_ANALT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1003C0091",
         "SampleAfterValue": "100003",
@@ -690,7 +690,7 @@
     {
         "BriefDescription": "Counts all demand & prefetch data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.ALL_DATA_RD.SUPPLIER_NONE.ANY_SNOOP",
+        "EventName": "OFFCORE_RESPONSE.ALL_DATA_RD.SUPPLIER_ANALNE.ANY_SANALOP",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3F80020091",
         "SampleAfterValue": "100003",
@@ -699,7 +699,7 @@
     {
         "BriefDescription": "Counts all demand & prefetch data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.ALL_DATA_RD.SUPPLIER_NONE.SNOOP_HITM",
+        "EventName": "OFFCORE_RESPONSE.ALL_DATA_RD.SUPPLIER_ANALNE.SANALOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1000020091",
         "SampleAfterValue": "100003",
@@ -708,7 +708,7 @@
     {
         "BriefDescription": "Counts all demand & prefetch data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.ALL_DATA_RD.SUPPLIER_NONE.SNOOP_HIT_NO_FWD",
+        "EventName": "OFFCORE_RESPONSE.ALL_DATA_RD.SUPPLIER_ANALNE.SANALOP_HIT_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x400020091",
         "SampleAfterValue": "100003",
@@ -717,7 +717,7 @@
     {
         "BriefDescription": "Counts all demand & prefetch data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.ALL_DATA_RD.SUPPLIER_NONE.SNOOP_MISS",
+        "EventName": "OFFCORE_RESPONSE.ALL_DATA_RD.SUPPLIER_ANALNE.SANALOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x200020091",
         "SampleAfterValue": "100003",
@@ -726,7 +726,7 @@
     {
         "BriefDescription": "Counts all demand & prefetch data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.ALL_DATA_RD.SUPPLIER_NONE.SNOOP_NONE",
+        "EventName": "OFFCORE_RESPONSE.ALL_DATA_RD.SUPPLIER_ANALNE.SANALOP_ANALNE",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x80020091",
         "SampleAfterValue": "100003",
@@ -735,7 +735,7 @@
     {
         "BriefDescription": "Counts all demand & prefetch data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.ALL_DATA_RD.SUPPLIER_NONE.SNOOP_NOT_NEEDED",
+        "EventName": "OFFCORE_RESPONSE.ALL_DATA_RD.SUPPLIER_ANALNE.SANALOP_ANALT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x100020091",
         "SampleAfterValue": "100003",
@@ -753,7 +753,7 @@
     {
         "BriefDescription": "Counts all prefetch code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.ALL_PF_CODE_RD.L3_HIT.ANY_SNOOP",
+        "EventName": "OFFCORE_RESPONSE.ALL_PF_CODE_RD.L3_HIT.ANY_SANALOP",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3F803C0240",
         "SampleAfterValue": "100003",
@@ -762,7 +762,7 @@
     {
         "BriefDescription": "Counts all prefetch code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.ALL_PF_CODE_RD.L3_HIT.SNOOP_HITM",
+        "EventName": "OFFCORE_RESPONSE.ALL_PF_CODE_RD.L3_HIT.SANALOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x10003C0240",
         "SampleAfterValue": "100003",
@@ -771,7 +771,7 @@
     {
         "BriefDescription": "Counts all prefetch code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.ALL_PF_CODE_RD.L3_HIT.SNOOP_HIT_NO_FWD",
+        "EventName": "OFFCORE_RESPONSE.ALL_PF_CODE_RD.L3_HIT.SANALOP_HIT_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x4003C0240",
         "SampleAfterValue": "100003",
@@ -780,7 +780,7 @@
     {
         "BriefDescription": "Counts all prefetch code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.ALL_PF_CODE_RD.L3_HIT.SNOOP_MISS",
+        "EventName": "OFFCORE_RESPONSE.ALL_PF_CODE_RD.L3_HIT.SANALOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x2003C0240",
         "SampleAfterValue": "100003",
@@ -789,7 +789,7 @@
     {
         "BriefDescription": "Counts all prefetch code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.ALL_PF_CODE_RD.L3_HIT.SNOOP_NONE",
+        "EventName": "OFFCORE_RESPONSE.ALL_PF_CODE_RD.L3_HIT.SANALOP_ANALNE",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x803C0240",
         "SampleAfterValue": "100003",
@@ -798,7 +798,7 @@
     {
         "BriefDescription": "Counts all prefetch code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.ALL_PF_CODE_RD.L3_HIT.SNOOP_NOT_NEEDED",
+        "EventName": "OFFCORE_RESPONSE.ALL_PF_CODE_RD.L3_HIT.SANALOP_ANALT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1003C0240",
         "SampleAfterValue": "100003",
@@ -807,7 +807,7 @@
     {
         "BriefDescription": "Counts all prefetch code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.ALL_PF_CODE_RD.SUPPLIER_NONE.ANY_SNOOP",
+        "EventName": "OFFCORE_RESPONSE.ALL_PF_CODE_RD.SUPPLIER_ANALNE.ANY_SANALOP",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3F80020240",
         "SampleAfterValue": "100003",
@@ -816,7 +816,7 @@
     {
         "BriefDescription": "Counts all prefetch code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.ALL_PF_CODE_RD.SUPPLIER_NONE.SNOOP_HITM",
+        "EventName": "OFFCORE_RESPONSE.ALL_PF_CODE_RD.SUPPLIER_ANALNE.SANALOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1000020240",
         "SampleAfterValue": "100003",
@@ -825,7 +825,7 @@
     {
         "BriefDescription": "Counts all prefetch code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.ALL_PF_CODE_RD.SUPPLIER_NONE.SNOOP_HIT_NO_FWD",
+        "EventName": "OFFCORE_RESPONSE.ALL_PF_CODE_RD.SUPPLIER_ANALNE.SANALOP_HIT_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x400020240",
         "SampleAfterValue": "100003",
@@ -834,7 +834,7 @@
     {
         "BriefDescription": "Counts all prefetch code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.ALL_PF_CODE_RD.SUPPLIER_NONE.SNOOP_MISS",
+        "EventName": "OFFCORE_RESPONSE.ALL_PF_CODE_RD.SUPPLIER_ANALNE.SANALOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x200020240",
         "SampleAfterValue": "100003",
@@ -843,7 +843,7 @@
     {
         "BriefDescription": "Counts all prefetch code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.ALL_PF_CODE_RD.SUPPLIER_NONE.SNOOP_NONE",
+        "EventName": "OFFCORE_RESPONSE.ALL_PF_CODE_RD.SUPPLIER_ANALNE.SANALOP_ANALNE",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x80020240",
         "SampleAfterValue": "100003",
@@ -852,7 +852,7 @@
     {
         "BriefDescription": "Counts all prefetch code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.ALL_PF_CODE_RD.SUPPLIER_NONE.SNOOP_NOT_NEEDED",
+        "EventName": "OFFCORE_RESPONSE.ALL_PF_CODE_RD.SUPPLIER_ANALNE.SANALOP_ANALT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x100020240",
         "SampleAfterValue": "100003",
@@ -870,7 +870,7 @@
     {
         "BriefDescription": "Counts all prefetch data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.ALL_PF_DATA_RD.L3_HIT.ANY_SNOOP",
+        "EventName": "OFFCORE_RESPONSE.ALL_PF_DATA_RD.L3_HIT.ANY_SANALOP",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3F803C0090",
         "SampleAfterValue": "100003",
@@ -879,7 +879,7 @@
     {
         "BriefDescription": "Counts all prefetch data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.ALL_PF_DATA_RD.L3_HIT.SNOOP_HITM",
+        "EventName": "OFFCORE_RESPONSE.ALL_PF_DATA_RD.L3_HIT.SANALOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x10003C0090",
         "SampleAfterValue": "100003",
@@ -888,7 +888,7 @@
     {
         "BriefDescription": "Counts all prefetch data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.ALL_PF_DATA_RD.L3_HIT.SNOOP_HIT_NO_FWD",
+        "EventName": "OFFCORE_RESPONSE.ALL_PF_DATA_RD.L3_HIT.SANALOP_HIT_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x4003C0090",
         "SampleAfterValue": "100003",
@@ -897,7 +897,7 @@
     {
         "BriefDescription": "Counts all prefetch data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.ALL_PF_DATA_RD.L3_HIT.SNOOP_MISS",
+        "EventName": "OFFCORE_RESPONSE.ALL_PF_DATA_RD.L3_HIT.SANALOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x2003C0090",
         "SampleAfterValue": "100003",
@@ -906,7 +906,7 @@
     {
         "BriefDescription": "Counts all prefetch data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.ALL_PF_DATA_RD.L3_HIT.SNOOP_NONE",
+        "EventName": "OFFCORE_RESPONSE.ALL_PF_DATA_RD.L3_HIT.SANALOP_ANALNE",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x803C0090",
         "SampleAfterValue": "100003",
@@ -915,7 +915,7 @@
     {
         "BriefDescription": "Counts all prefetch data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.ALL_PF_DATA_RD.L3_HIT.SNOOP_NOT_NEEDED",
+        "EventName": "OFFCORE_RESPONSE.ALL_PF_DATA_RD.L3_HIT.SANALOP_ANALT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1003C0090",
         "SampleAfterValue": "100003",
@@ -924,7 +924,7 @@
     {
         "BriefDescription": "Counts all prefetch data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.ALL_PF_DATA_RD.SUPPLIER_NONE.ANY_SNOOP",
+        "EventName": "OFFCORE_RESPONSE.ALL_PF_DATA_RD.SUPPLIER_ANALNE.ANY_SANALOP",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3F80020090",
         "SampleAfterValue": "100003",
@@ -933,7 +933,7 @@
     {
         "BriefDescription": "Counts all prefetch data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.ALL_PF_DATA_RD.SUPPLIER_NONE.SNOOP_HITM",
+        "EventName": "OFFCORE_RESPONSE.ALL_PF_DATA_RD.SUPPLIER_ANALNE.SANALOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1000020090",
         "SampleAfterValue": "100003",
@@ -942,7 +942,7 @@
     {
         "BriefDescription": "Counts all prefetch data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.ALL_PF_DATA_RD.SUPPLIER_NONE.SNOOP_HIT_NO_FWD",
+        "EventName": "OFFCORE_RESPONSE.ALL_PF_DATA_RD.SUPPLIER_ANALNE.SANALOP_HIT_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x400020090",
         "SampleAfterValue": "100003",
@@ -951,7 +951,7 @@
     {
         "BriefDescription": "Counts all prefetch data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.ALL_PF_DATA_RD.SUPPLIER_NONE.SNOOP_MISS",
+        "EventName": "OFFCORE_RESPONSE.ALL_PF_DATA_RD.SUPPLIER_ANALNE.SANALOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x200020090",
         "SampleAfterValue": "100003",
@@ -960,7 +960,7 @@
     {
         "BriefDescription": "Counts all prefetch data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.ALL_PF_DATA_RD.SUPPLIER_NONE.SNOOP_NONE",
+        "EventName": "OFFCORE_RESPONSE.ALL_PF_DATA_RD.SUPPLIER_ANALNE.SANALOP_ANALNE",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x80020090",
         "SampleAfterValue": "100003",
@@ -969,7 +969,7 @@
     {
         "BriefDescription": "Counts all prefetch data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.ALL_PF_DATA_RD.SUPPLIER_NONE.SNOOP_NOT_NEEDED",
+        "EventName": "OFFCORE_RESPONSE.ALL_PF_DATA_RD.SUPPLIER_ANALNE.SANALOP_ANALT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x100020090",
         "SampleAfterValue": "100003",
@@ -987,7 +987,7 @@
     {
         "BriefDescription": "Counts prefetch RFOs",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.ALL_PF_RFO.L3_HIT.ANY_SNOOP",
+        "EventName": "OFFCORE_RESPONSE.ALL_PF_RFO.L3_HIT.ANY_SANALOP",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3F803C0120",
         "SampleAfterValue": "100003",
@@ -996,7 +996,7 @@
     {
         "BriefDescription": "Counts prefetch RFOs",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.ALL_PF_RFO.L3_HIT.SNOOP_HITM",
+        "EventName": "OFFCORE_RESPONSE.ALL_PF_RFO.L3_HIT.SANALOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x10003C0120",
         "SampleAfterValue": "100003",
@@ -1005,7 +1005,7 @@
     {
         "BriefDescription": "Counts prefetch RFOs",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.ALL_PF_RFO.L3_HIT.SNOOP_HIT_NO_FWD",
+        "EventName": "OFFCORE_RESPONSE.ALL_PF_RFO.L3_HIT.SANALOP_HIT_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x4003C0120",
         "SampleAfterValue": "100003",
@@ -1014,7 +1014,7 @@
     {
         "BriefDescription": "Counts prefetch RFOs",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.ALL_PF_RFO.L3_HIT.SNOOP_MISS",
+        "EventName": "OFFCORE_RESPONSE.ALL_PF_RFO.L3_HIT.SANALOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x2003C0120",
         "SampleAfterValue": "100003",
@@ -1023,7 +1023,7 @@
     {
         "BriefDescription": "Counts prefetch RFOs",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.ALL_PF_RFO.L3_HIT.SNOOP_NONE",
+        "EventName": "OFFCORE_RESPONSE.ALL_PF_RFO.L3_HIT.SANALOP_ANALNE",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x803C0120",
         "SampleAfterValue": "100003",
@@ -1032,7 +1032,7 @@
     {
         "BriefDescription": "Counts prefetch RFOs",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.ALL_PF_RFO.L3_HIT.SNOOP_NOT_NEEDED",
+        "EventName": "OFFCORE_RESPONSE.ALL_PF_RFO.L3_HIT.SANALOP_ANALT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1003C0120",
         "SampleAfterValue": "100003",
@@ -1041,7 +1041,7 @@
     {
         "BriefDescription": "Counts prefetch RFOs",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.ALL_PF_RFO.SUPPLIER_NONE.ANY_SNOOP",
+        "EventName": "OFFCORE_RESPONSE.ALL_PF_RFO.SUPPLIER_ANALNE.ANY_SANALOP",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3F80020120",
         "SampleAfterValue": "100003",
@@ -1050,7 +1050,7 @@
     {
         "BriefDescription": "Counts prefetch RFOs",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.ALL_PF_RFO.SUPPLIER_NONE.SNOOP_HITM",
+        "EventName": "OFFCORE_RESPONSE.ALL_PF_RFO.SUPPLIER_ANALNE.SANALOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1000020120",
         "SampleAfterValue": "100003",
@@ -1059,7 +1059,7 @@
     {
         "BriefDescription": "Counts prefetch RFOs",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.ALL_PF_RFO.SUPPLIER_NONE.SNOOP_HIT_NO_FWD",
+        "EventName": "OFFCORE_RESPONSE.ALL_PF_RFO.SUPPLIER_ANALNE.SANALOP_HIT_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x400020120",
         "SampleAfterValue": "100003",
@@ -1068,7 +1068,7 @@
     {
         "BriefDescription": "Counts prefetch RFOs",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.ALL_PF_RFO.SUPPLIER_NONE.SNOOP_MISS",
+        "EventName": "OFFCORE_RESPONSE.ALL_PF_RFO.SUPPLIER_ANALNE.SANALOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x200020120",
         "SampleAfterValue": "100003",
@@ -1077,7 +1077,7 @@
     {
         "BriefDescription": "Counts prefetch RFOs",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.ALL_PF_RFO.SUPPLIER_NONE.SNOOP_NONE",
+        "EventName": "OFFCORE_RESPONSE.ALL_PF_RFO.SUPPLIER_ANALNE.SANALOP_ANALNE",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x80020120",
         "SampleAfterValue": "100003",
@@ -1086,7 +1086,7 @@
     {
         "BriefDescription": "Counts prefetch RFOs",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.ALL_PF_RFO.SUPPLIER_NONE.SNOOP_NOT_NEEDED",
+        "EventName": "OFFCORE_RESPONSE.ALL_PF_RFO.SUPPLIER_ANALNE.SANALOP_ANALT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x100020120",
         "SampleAfterValue": "100003",
@@ -1104,7 +1104,7 @@
     {
         "BriefDescription": "Counts all demand & prefetch RFOs",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.ALL_RFO.L3_HIT.ANY_SNOOP",
+        "EventName": "OFFCORE_RESPONSE.ALL_RFO.L3_HIT.ANY_SANALOP",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3F803C0122",
         "SampleAfterValue": "100003",
@@ -1113,7 +1113,7 @@
     {
         "BriefDescription": "Counts all demand & prefetch RFOs",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.ALL_RFO.L3_HIT.SNOOP_HITM",
+        "EventName": "OFFCORE_RESPONSE.ALL_RFO.L3_HIT.SANALOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x10003C0122",
         "SampleAfterValue": "100003",
@@ -1122,7 +1122,7 @@
     {
         "BriefDescription": "Counts all demand & prefetch RFOs",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.ALL_RFO.L3_HIT.SNOOP_HIT_NO_FWD",
+        "EventName": "OFFCORE_RESPONSE.ALL_RFO.L3_HIT.SANALOP_HIT_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x4003C0122",
         "SampleAfterValue": "100003",
@@ -1131,7 +1131,7 @@
     {
         "BriefDescription": "Counts all demand & prefetch RFOs",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.ALL_RFO.L3_HIT.SNOOP_MISS",
+        "EventName": "OFFCORE_RESPONSE.ALL_RFO.L3_HIT.SANALOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x2003C0122",
         "SampleAfterValue": "100003",
@@ -1140,7 +1140,7 @@
     {
         "BriefDescription": "Counts all demand & prefetch RFOs",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.ALL_RFO.L3_HIT.SNOOP_NONE",
+        "EventName": "OFFCORE_RESPONSE.ALL_RFO.L3_HIT.SANALOP_ANALNE",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x803C0122",
         "SampleAfterValue": "100003",
@@ -1149,7 +1149,7 @@
     {
         "BriefDescription": "Counts all demand & prefetch RFOs",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.ALL_RFO.L3_HIT.SNOOP_NOT_NEEDED",
+        "EventName": "OFFCORE_RESPONSE.ALL_RFO.L3_HIT.SANALOP_ANALT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1003C0122",
         "SampleAfterValue": "100003",
@@ -1158,7 +1158,7 @@
     {
         "BriefDescription": "Counts all demand & prefetch RFOs",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.ALL_RFO.SUPPLIER_NONE.ANY_SNOOP",
+        "EventName": "OFFCORE_RESPONSE.ALL_RFO.SUPPLIER_ANALNE.ANY_SANALOP",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3F80020122",
         "SampleAfterValue": "100003",
@@ -1167,7 +1167,7 @@
     {
         "BriefDescription": "Counts all demand & prefetch RFOs",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.ALL_RFO.SUPPLIER_NONE.SNOOP_HITM",
+        "EventName": "OFFCORE_RESPONSE.ALL_RFO.SUPPLIER_ANALNE.SANALOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1000020122",
         "SampleAfterValue": "100003",
@@ -1176,7 +1176,7 @@
     {
         "BriefDescription": "Counts all demand & prefetch RFOs",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.ALL_RFO.SUPPLIER_NONE.SNOOP_HIT_NO_FWD",
+        "EventName": "OFFCORE_RESPONSE.ALL_RFO.SUPPLIER_ANALNE.SANALOP_HIT_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x400020122",
         "SampleAfterValue": "100003",
@@ -1185,7 +1185,7 @@
     {
         "BriefDescription": "Counts all demand & prefetch RFOs",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.ALL_RFO.SUPPLIER_NONE.SNOOP_MISS",
+        "EventName": "OFFCORE_RESPONSE.ALL_RFO.SUPPLIER_ANALNE.SANALOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x200020122",
         "SampleAfterValue": "100003",
@@ -1194,7 +1194,7 @@
     {
         "BriefDescription": "Counts all demand & prefetch RFOs",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.ALL_RFO.SUPPLIER_NONE.SNOOP_NONE",
+        "EventName": "OFFCORE_RESPONSE.ALL_RFO.SUPPLIER_ANALNE.SANALOP_ANALNE",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x80020122",
         "SampleAfterValue": "100003",
@@ -1203,7 +1203,7 @@
     {
         "BriefDescription": "Counts all demand & prefetch RFOs",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.ALL_RFO.SUPPLIER_NONE.SNOOP_NOT_NEEDED",
+        "EventName": "OFFCORE_RESPONSE.ALL_RFO.SUPPLIER_ANALNE.SANALOP_ANALT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x100020122",
         "SampleAfterValue": "100003",
@@ -1221,7 +1221,7 @@
     {
         "BriefDescription": "Counts writebacks (modified to exclusive)",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.COREWB.L3_HIT.ANY_SNOOP",
+        "EventName": "OFFCORE_RESPONSE.COREWB.L3_HIT.ANY_SANALOP",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3F803C0008",
         "SampleAfterValue": "100003",
@@ -1230,7 +1230,7 @@
     {
         "BriefDescription": "Counts writebacks (modified to exclusive)",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.COREWB.L3_HIT.SNOOP_HITM",
+        "EventName": "OFFCORE_RESPONSE.COREWB.L3_HIT.SANALOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x10003C0008",
         "SampleAfterValue": "100003",
@@ -1239,7 +1239,7 @@
     {
         "BriefDescription": "Counts writebacks (modified to exclusive)",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.COREWB.L3_HIT.SNOOP_HIT_NO_FWD",
+        "EventName": "OFFCORE_RESPONSE.COREWB.L3_HIT.SANALOP_HIT_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x4003C0008",
         "SampleAfterValue": "100003",
@@ -1248,7 +1248,7 @@
     {
         "BriefDescription": "Counts writebacks (modified to exclusive)",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.COREWB.L3_HIT.SNOOP_MISS",
+        "EventName": "OFFCORE_RESPONSE.COREWB.L3_HIT.SANALOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x2003C0008",
         "SampleAfterValue": "100003",
@@ -1257,7 +1257,7 @@
     {
         "BriefDescription": "Counts writebacks (modified to exclusive)",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.COREWB.L3_HIT.SNOOP_NONE",
+        "EventName": "OFFCORE_RESPONSE.COREWB.L3_HIT.SANALOP_ANALNE",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x803C0008",
         "SampleAfterValue": "100003",
@@ -1266,7 +1266,7 @@
     {
         "BriefDescription": "Counts writebacks (modified to exclusive)",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.COREWB.L3_HIT.SNOOP_NOT_NEEDED",
+        "EventName": "OFFCORE_RESPONSE.COREWB.L3_HIT.SANALOP_ANALT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1003C0008",
         "SampleAfterValue": "100003",
@@ -1275,7 +1275,7 @@
     {
         "BriefDescription": "Counts writebacks (modified to exclusive)",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.COREWB.SUPPLIER_NONE.ANY_SNOOP",
+        "EventName": "OFFCORE_RESPONSE.COREWB.SUPPLIER_ANALNE.ANY_SANALOP",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3F80020008",
         "SampleAfterValue": "100003",
@@ -1284,7 +1284,7 @@
     {
         "BriefDescription": "Counts writebacks (modified to exclusive)",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.COREWB.SUPPLIER_NONE.SNOOP_HITM",
+        "EventName": "OFFCORE_RESPONSE.COREWB.SUPPLIER_ANALNE.SANALOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1000020008",
         "SampleAfterValue": "100003",
@@ -1293,7 +1293,7 @@
     {
         "BriefDescription": "Counts writebacks (modified to exclusive)",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.COREWB.SUPPLIER_NONE.SNOOP_HIT_NO_FWD",
+        "EventName": "OFFCORE_RESPONSE.COREWB.SUPPLIER_ANALNE.SANALOP_HIT_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x400020008",
         "SampleAfterValue": "100003",
@@ -1302,7 +1302,7 @@
     {
         "BriefDescription": "Counts writebacks (modified to exclusive)",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.COREWB.SUPPLIER_NONE.SNOOP_MISS",
+        "EventName": "OFFCORE_RESPONSE.COREWB.SUPPLIER_ANALNE.SANALOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x200020008",
         "SampleAfterValue": "100003",
@@ -1311,7 +1311,7 @@
     {
         "BriefDescription": "Counts writebacks (modified to exclusive)",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.COREWB.SUPPLIER_NONE.SNOOP_NONE",
+        "EventName": "OFFCORE_RESPONSE.COREWB.SUPPLIER_ANALNE.SANALOP_ANALNE",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x80020008",
         "SampleAfterValue": "100003",
@@ -1320,7 +1320,7 @@
     {
         "BriefDescription": "Counts writebacks (modified to exclusive)",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.COREWB.SUPPLIER_NONE.SNOOP_NOT_NEEDED",
+        "EventName": "OFFCORE_RESPONSE.COREWB.SUPPLIER_ANALNE.SANALOP_ANALT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x100020008",
         "SampleAfterValue": "100003",
@@ -1338,7 +1338,7 @@
     {
         "BriefDescription": "Counts all demand code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_HIT.ANY_SNOOP",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_HIT.ANY_SANALOP",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3F803C0004",
         "SampleAfterValue": "100003",
@@ -1347,7 +1347,7 @@
     {
         "BriefDescription": "Counts all demand code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_HIT.SNOOP_HITM",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_HIT.SANALOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x10003C0004",
         "SampleAfterValue": "100003",
@@ -1356,7 +1356,7 @@
     {
         "BriefDescription": "Counts all demand code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_HIT.SNOOP_HIT_NO_FWD",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_HIT.SANALOP_HIT_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x4003C0004",
         "SampleAfterValue": "100003",
@@ -1365,7 +1365,7 @@
     {
         "BriefDescription": "Counts all demand code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_HIT.SNOOP_MISS",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_HIT.SANALOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x2003C0004",
         "SampleAfterValue": "100003",
@@ -1374,7 +1374,7 @@
     {
         "BriefDescription": "Counts all demand code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_HIT.SNOOP_NONE",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_HIT.SANALOP_ANALNE",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x803C0004",
         "SampleAfterValue": "100003",
@@ -1383,7 +1383,7 @@
     {
         "BriefDescription": "Counts all demand code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_HIT.SNOOP_NOT_NEEDED",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_HIT.SANALOP_ANALT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1003C0004",
         "SampleAfterValue": "100003",
@@ -1392,7 +1392,7 @@
     {
         "BriefDescription": "Counts all demand code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.SUPPLIER_NONE.ANY_SNOOP",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.SUPPLIER_ANALNE.ANY_SANALOP",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3F80020004",
         "SampleAfterValue": "100003",
@@ -1401,7 +1401,7 @@
     {
         "BriefDescription": "Counts all demand code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.SUPPLIER_NONE.SNOOP_HITM",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.SUPPLIER_ANALNE.SANALOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1000020004",
         "SampleAfterValue": "100003",
@@ -1410,7 +1410,7 @@
     {
         "BriefDescription": "Counts all demand code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.SUPPLIER_NONE.SNOOP_HIT_NO_FWD",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.SUPPLIER_ANALNE.SANALOP_HIT_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x400020004",
         "SampleAfterValue": "100003",
@@ -1419,7 +1419,7 @@
     {
         "BriefDescription": "Counts all demand code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.SUPPLIER_NONE.SNOOP_MISS",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.SUPPLIER_ANALNE.SANALOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x200020004",
         "SampleAfterValue": "100003",
@@ -1428,7 +1428,7 @@
     {
         "BriefDescription": "Counts all demand code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.SUPPLIER_NONE.SNOOP_NONE",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.SUPPLIER_ANALNE.SANALOP_ANALNE",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x80020004",
         "SampleAfterValue": "100003",
@@ -1437,7 +1437,7 @@
     {
         "BriefDescription": "Counts all demand code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.SUPPLIER_NONE.SNOOP_NOT_NEEDED",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.SUPPLIER_ANALNE.SANALOP_ANALT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x100020004",
         "SampleAfterValue": "100003",
@@ -1455,7 +1455,7 @@
     {
         "BriefDescription": "Counts demand data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_HIT.ANY_SNOOP",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_HIT.ANY_SANALOP",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3F803C0001",
         "SampleAfterValue": "100003",
@@ -1464,7 +1464,7 @@
     {
         "BriefDescription": "Counts demand data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_HIT.SNOOP_HITM",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_HIT.SANALOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x10003C0001",
         "SampleAfterValue": "100003",
@@ -1473,7 +1473,7 @@
     {
         "BriefDescription": "Counts demand data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_HIT.SNOOP_HIT_NO_FWD",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_HIT.SANALOP_HIT_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x4003C0001",
         "SampleAfterValue": "100003",
@@ -1482,7 +1482,7 @@
     {
         "BriefDescription": "Counts demand data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_HIT.SNOOP_MISS",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_HIT.SANALOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x2003C0001",
         "SampleAfterValue": "100003",
@@ -1491,7 +1491,7 @@
     {
         "BriefDescription": "Counts demand data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_HIT.SNOOP_NONE",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_HIT.SANALOP_ANALNE",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x803C0001",
         "SampleAfterValue": "100003",
@@ -1500,7 +1500,7 @@
     {
         "BriefDescription": "Counts demand data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_HIT.SNOOP_NOT_NEEDED",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_HIT.SANALOP_ANALT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1003C0001",
         "SampleAfterValue": "100003",
@@ -1509,7 +1509,7 @@
     {
         "BriefDescription": "Counts demand data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.SUPPLIER_NONE.ANY_SNOOP",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.SUPPLIER_ANALNE.ANY_SANALOP",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3F80020001",
         "SampleAfterValue": "100003",
@@ -1518,7 +1518,7 @@
     {
         "BriefDescription": "Counts demand data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.SUPPLIER_NONE.SNOOP_HITM",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.SUPPLIER_ANALNE.SANALOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1000020001",
         "SampleAfterValue": "100003",
@@ -1527,7 +1527,7 @@
     {
         "BriefDescription": "Counts demand data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.SUPPLIER_NONE.SNOOP_HIT_NO_FWD",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.SUPPLIER_ANALNE.SANALOP_HIT_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x400020001",
         "SampleAfterValue": "100003",
@@ -1536,7 +1536,7 @@
     {
         "BriefDescription": "Counts demand data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.SUPPLIER_NONE.SNOOP_MISS",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.SUPPLIER_ANALNE.SANALOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x200020001",
         "SampleAfterValue": "100003",
@@ -1545,7 +1545,7 @@
     {
         "BriefDescription": "Counts demand data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.SUPPLIER_NONE.SNOOP_NONE",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.SUPPLIER_ANALNE.SANALOP_ANALNE",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x80020001",
         "SampleAfterValue": "100003",
@@ -1554,7 +1554,7 @@
     {
         "BriefDescription": "Counts demand data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.SUPPLIER_NONE.SNOOP_NOT_NEEDED",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.SUPPLIER_ANALNE.SANALOP_ANALT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x100020001",
         "SampleAfterValue": "100003",
@@ -1572,7 +1572,7 @@
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_HIT.ANY_SNOOP",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_HIT.ANY_SANALOP",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3F803C0002",
         "SampleAfterValue": "100003",
@@ -1581,7 +1581,7 @@
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_HIT.SNOOP_HITM",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_HIT.SANALOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x10003C0002",
         "SampleAfterValue": "100003",
@@ -1590,7 +1590,7 @@
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_HIT.SNOOP_HIT_NO_FWD",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_HIT.SANALOP_HIT_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x4003C0002",
         "SampleAfterValue": "100003",
@@ -1599,7 +1599,7 @@
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_HIT.SNOOP_MISS",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_HIT.SANALOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x2003C0002",
         "SampleAfterValue": "100003",
@@ -1608,7 +1608,7 @@
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_HIT.SNOOP_NONE",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_HIT.SANALOP_ANALNE",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x803C0002",
         "SampleAfterValue": "100003",
@@ -1617,7 +1617,7 @@
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_HIT.SNOOP_NOT_NEEDED",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_HIT.SANALOP_ANALT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1003C0002",
         "SampleAfterValue": "100003",
@@ -1635,7 +1635,7 @@
     {
         "BriefDescription": "Counts any other requests",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.OTHER.L3_HIT.ANY_SNOOP",
+        "EventName": "OFFCORE_RESPONSE.OTHER.L3_HIT.ANY_SANALOP",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3F803C8000",
         "SampleAfterValue": "100003",
@@ -1644,7 +1644,7 @@
     {
         "BriefDescription": "Counts any other requests",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.OTHER.L3_HIT.SNOOP_HITM",
+        "EventName": "OFFCORE_RESPONSE.OTHER.L3_HIT.SANALOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x10003C8000",
         "SampleAfterValue": "100003",
@@ -1653,7 +1653,7 @@
     {
         "BriefDescription": "Counts any other requests",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.OTHER.L3_HIT.SNOOP_HIT_NO_FWD",
+        "EventName": "OFFCORE_RESPONSE.OTHER.L3_HIT.SANALOP_HIT_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x4003C8000",
         "SampleAfterValue": "100003",
@@ -1662,7 +1662,7 @@
     {
         "BriefDescription": "Counts any other requests",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.OTHER.L3_HIT.SNOOP_MISS",
+        "EventName": "OFFCORE_RESPONSE.OTHER.L3_HIT.SANALOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x2003C8000",
         "SampleAfterValue": "100003",
@@ -1671,7 +1671,7 @@
     {
         "BriefDescription": "Counts any other requests",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.OTHER.L3_HIT.SNOOP_NONE",
+        "EventName": "OFFCORE_RESPONSE.OTHER.L3_HIT.SANALOP_ANALNE",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x803C8000",
         "SampleAfterValue": "100003",
@@ -1680,7 +1680,7 @@
     {
         "BriefDescription": "Counts any other requests",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.OTHER.L3_HIT.SNOOP_NOT_NEEDED",
+        "EventName": "OFFCORE_RESPONSE.OTHER.L3_HIT.SANALOP_ANALT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1003C8000",
         "SampleAfterValue": "100003",
@@ -1689,7 +1689,7 @@
     {
         "BriefDescription": "Counts any other requests",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.OTHER.SUPPLIER_NONE.ANY_SNOOP",
+        "EventName": "OFFCORE_RESPONSE.OTHER.SUPPLIER_ANALNE.ANY_SANALOP",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3F80028000",
         "SampleAfterValue": "100003",
@@ -1698,7 +1698,7 @@
     {
         "BriefDescription": "Counts any other requests",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.OTHER.SUPPLIER_NONE.SNOOP_HITM",
+        "EventName": "OFFCORE_RESPONSE.OTHER.SUPPLIER_ANALNE.SANALOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1000028000",
         "SampleAfterValue": "100003",
@@ -1707,7 +1707,7 @@
     {
         "BriefDescription": "Counts any other requests",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.OTHER.SUPPLIER_NONE.SNOOP_HIT_NO_FWD",
+        "EventName": "OFFCORE_RESPONSE.OTHER.SUPPLIER_ANALNE.SANALOP_HIT_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x400028000",
         "SampleAfterValue": "100003",
@@ -1716,7 +1716,7 @@
     {
         "BriefDescription": "Counts any other requests",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.OTHER.SUPPLIER_NONE.SNOOP_MISS",
+        "EventName": "OFFCORE_RESPONSE.OTHER.SUPPLIER_ANALNE.SANALOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x200028000",
         "SampleAfterValue": "100003",
@@ -1725,7 +1725,7 @@
     {
         "BriefDescription": "Counts any other requests",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.OTHER.SUPPLIER_NONE.SNOOP_NONE",
+        "EventName": "OFFCORE_RESPONSE.OTHER.SUPPLIER_ANALNE.SANALOP_ANALNE",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x80028000",
         "SampleAfterValue": "100003",
@@ -1734,7 +1734,7 @@
     {
         "BriefDescription": "Counts any other requests",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.OTHER.SUPPLIER_NONE.SNOOP_NOT_NEEDED",
+        "EventName": "OFFCORE_RESPONSE.OTHER.SUPPLIER_ANALNE.SANALOP_ANALT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x100028000",
         "SampleAfterValue": "100003",
@@ -1752,7 +1752,7 @@
     {
         "BriefDescription": "Counts all prefetch (that bring data to LLC only) code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L2_CODE_RD.L3_HIT.ANY_SNOOP",
+        "EventName": "OFFCORE_RESPONSE.PF_L2_CODE_RD.L3_HIT.ANY_SANALOP",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3F803C0040",
         "SampleAfterValue": "100003",
@@ -1761,7 +1761,7 @@
     {
         "BriefDescription": "Counts all prefetch (that bring data to LLC only) code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L2_CODE_RD.L3_HIT.SNOOP_HITM",
+        "EventName": "OFFCORE_RESPONSE.PF_L2_CODE_RD.L3_HIT.SANALOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x10003C0040",
         "SampleAfterValue": "100003",
@@ -1770,7 +1770,7 @@
     {
         "BriefDescription": "Counts all prefetch (that bring data to LLC only) code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L2_CODE_RD.L3_HIT.SNOOP_HIT_NO_FWD",
+        "EventName": "OFFCORE_RESPONSE.PF_L2_CODE_RD.L3_HIT.SANALOP_HIT_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x4003C0040",
         "SampleAfterValue": "100003",
@@ -1779,7 +1779,7 @@
     {
         "BriefDescription": "Counts all prefetch (that bring data to LLC only) code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L2_CODE_RD.L3_HIT.SNOOP_MISS",
+        "EventName": "OFFCORE_RESPONSE.PF_L2_CODE_RD.L3_HIT.SANALOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x2003C0040",
         "SampleAfterValue": "100003",
@@ -1788,7 +1788,7 @@
     {
         "BriefDescription": "Counts all prefetch (that bring data to LLC only) code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L2_CODE_RD.L3_HIT.SNOOP_NONE",
+        "EventName": "OFFCORE_RESPONSE.PF_L2_CODE_RD.L3_HIT.SANALOP_ANALNE",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x803C0040",
         "SampleAfterValue": "100003",
@@ -1797,7 +1797,7 @@
     {
         "BriefDescription": "Counts all prefetch (that bring data to LLC only) code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L2_CODE_RD.L3_HIT.SNOOP_NOT_NEEDED",
+        "EventName": "OFFCORE_RESPONSE.PF_L2_CODE_RD.L3_HIT.SANALOP_ANALT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1003C0040",
         "SampleAfterValue": "100003",
@@ -1806,7 +1806,7 @@
     {
         "BriefDescription": "Counts all prefetch (that bring data to LLC only) code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L2_CODE_RD.SUPPLIER_NONE.ANY_SNOOP",
+        "EventName": "OFFCORE_RESPONSE.PF_L2_CODE_RD.SUPPLIER_ANALNE.ANY_SANALOP",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3F80020040",
         "SampleAfterValue": "100003",
@@ -1815,7 +1815,7 @@
     {
         "BriefDescription": "Counts all prefetch (that bring data to LLC only) code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L2_CODE_RD.SUPPLIER_NONE.SNOOP_HITM",
+        "EventName": "OFFCORE_RESPONSE.PF_L2_CODE_RD.SUPPLIER_ANALNE.SANALOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1000020040",
         "SampleAfterValue": "100003",
@@ -1824,7 +1824,7 @@
     {
         "BriefDescription": "Counts all prefetch (that bring data to LLC only) code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L2_CODE_RD.SUPPLIER_NONE.SNOOP_HIT_NO_FWD",
+        "EventName": "OFFCORE_RESPONSE.PF_L2_CODE_RD.SUPPLIER_ANALNE.SANALOP_HIT_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x400020040",
         "SampleAfterValue": "100003",
@@ -1833,7 +1833,7 @@
     {
         "BriefDescription": "Counts all prefetch (that bring data to LLC only) code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L2_CODE_RD.SUPPLIER_NONE.SNOOP_MISS",
+        "EventName": "OFFCORE_RESPONSE.PF_L2_CODE_RD.SUPPLIER_ANALNE.SANALOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x200020040",
         "SampleAfterValue": "100003",
@@ -1842,7 +1842,7 @@
     {
         "BriefDescription": "Counts all prefetch (that bring data to LLC only) code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L2_CODE_RD.SUPPLIER_NONE.SNOOP_NONE",
+        "EventName": "OFFCORE_RESPONSE.PF_L2_CODE_RD.SUPPLIER_ANALNE.SANALOP_ANALNE",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x80020040",
         "SampleAfterValue": "100003",
@@ -1851,7 +1851,7 @@
     {
         "BriefDescription": "Counts all prefetch (that bring data to LLC only) code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L2_CODE_RD.SUPPLIER_NONE.SNOOP_NOT_NEEDED",
+        "EventName": "OFFCORE_RESPONSE.PF_L2_CODE_RD.SUPPLIER_ANALNE.SANALOP_ANALT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x100020040",
         "SampleAfterValue": "100003",
@@ -1869,7 +1869,7 @@
     {
         "BriefDescription": "Counts prefetch (that bring data to L2) data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L2_DATA_RD.L3_HIT.ANY_SNOOP",
+        "EventName": "OFFCORE_RESPONSE.PF_L2_DATA_RD.L3_HIT.ANY_SANALOP",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3F803C0010",
         "SampleAfterValue": "100003",
@@ -1878,7 +1878,7 @@
     {
         "BriefDescription": "Counts prefetch (that bring data to L2) data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L2_DATA_RD.L3_HIT.SNOOP_HITM",
+        "EventName": "OFFCORE_RESPONSE.PF_L2_DATA_RD.L3_HIT.SANALOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x10003C0010",
         "SampleAfterValue": "100003",
@@ -1887,7 +1887,7 @@
     {
         "BriefDescription": "Counts prefetch (that bring data to L2) data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L2_DATA_RD.L3_HIT.SNOOP_HIT_NO_FWD",
+        "EventName": "OFFCORE_RESPONSE.PF_L2_DATA_RD.L3_HIT.SANALOP_HIT_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x4003C0010",
         "SampleAfterValue": "100003",
@@ -1896,7 +1896,7 @@
     {
         "BriefDescription": "Counts prefetch (that bring data to L2) data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L2_DATA_RD.L3_HIT.SNOOP_MISS",
+        "EventName": "OFFCORE_RESPONSE.PF_L2_DATA_RD.L3_HIT.SANALOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x2003C0010",
         "SampleAfterValue": "100003",
@@ -1905,7 +1905,7 @@
     {
         "BriefDescription": "Counts prefetch (that bring data to L2) data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L2_DATA_RD.L3_HIT.SNOOP_NONE",
+        "EventName": "OFFCORE_RESPONSE.PF_L2_DATA_RD.L3_HIT.SANALOP_ANALNE",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x803C0010",
         "SampleAfterValue": "100003",
@@ -1914,7 +1914,7 @@
     {
         "BriefDescription": "Counts prefetch (that bring data to L2) data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L2_DATA_RD.L3_HIT.SNOOP_NOT_NEEDED",
+        "EventName": "OFFCORE_RESPONSE.PF_L2_DATA_RD.L3_HIT.SANALOP_ANALT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1003C0010",
         "SampleAfterValue": "100003",
@@ -1923,7 +1923,7 @@
     {
         "BriefDescription": "Counts prefetch (that bring data to L2) data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L2_DATA_RD.SUPPLIER_NONE.ANY_SNOOP",
+        "EventName": "OFFCORE_RESPONSE.PF_L2_DATA_RD.SUPPLIER_ANALNE.ANY_SANALOP",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3F80020010",
         "SampleAfterValue": "100003",
@@ -1932,7 +1932,7 @@
     {
         "BriefDescription": "Counts prefetch (that bring data to L2) data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L2_DATA_RD.SUPPLIER_NONE.SNOOP_HITM",
+        "EventName": "OFFCORE_RESPONSE.PF_L2_DATA_RD.SUPPLIER_ANALNE.SANALOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1000020010",
         "SampleAfterValue": "100003",
@@ -1941,7 +1941,7 @@
     {
         "BriefDescription": "Counts prefetch (that bring data to L2) data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L2_DATA_RD.SUPPLIER_NONE.SNOOP_HIT_NO_FWD",
+        "EventName": "OFFCORE_RESPONSE.PF_L2_DATA_RD.SUPPLIER_ANALNE.SANALOP_HIT_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x400020010",
         "SampleAfterValue": "100003",
@@ -1950,7 +1950,7 @@
     {
         "BriefDescription": "Counts prefetch (that bring data to L2) data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L2_DATA_RD.SUPPLIER_NONE.SNOOP_MISS",
+        "EventName": "OFFCORE_RESPONSE.PF_L2_DATA_RD.SUPPLIER_ANALNE.SANALOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x200020010",
         "SampleAfterValue": "100003",
@@ -1959,7 +1959,7 @@
     {
         "BriefDescription": "Counts prefetch (that bring data to L2) data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L2_DATA_RD.SUPPLIER_NONE.SNOOP_NONE",
+        "EventName": "OFFCORE_RESPONSE.PF_L2_DATA_RD.SUPPLIER_ANALNE.SANALOP_ANALNE",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x80020010",
         "SampleAfterValue": "100003",
@@ -1968,7 +1968,7 @@
     {
         "BriefDescription": "Counts prefetch (that bring data to L2) data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L2_DATA_RD.SUPPLIER_NONE.SNOOP_NOT_NEEDED",
+        "EventName": "OFFCORE_RESPONSE.PF_L2_DATA_RD.SUPPLIER_ANALNE.SANALOP_ANALT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x100020010",
         "SampleAfterValue": "100003",
@@ -1986,7 +1986,7 @@
     {
         "BriefDescription": "Counts all prefetch (that bring data to L2) RFOs",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.L3_HIT.ANY_SNOOP",
+        "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.L3_HIT.ANY_SANALOP",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3F803C0020",
         "SampleAfterValue": "100003",
@@ -1995,7 +1995,7 @@
     {
         "BriefDescription": "Counts all prefetch (that bring data to L2) RFOs",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.L3_HIT.SNOOP_HITM",
+        "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.L3_HIT.SANALOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x10003C0020",
         "SampleAfterValue": "100003",
@@ -2004,7 +2004,7 @@
     {
         "BriefDescription": "Counts all prefetch (that bring data to L2) RFOs",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.L3_HIT.SNOOP_HIT_NO_FWD",
+        "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.L3_HIT.SANALOP_HIT_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x4003C0020",
         "SampleAfterValue": "100003",
@@ -2013,7 +2013,7 @@
     {
         "BriefDescription": "Counts all prefetch (that bring data to L2) RFOs",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.L3_HIT.SNOOP_MISS",
+        "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.L3_HIT.SANALOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x2003C0020",
         "SampleAfterValue": "100003",
@@ -2022,7 +2022,7 @@
     {
         "BriefDescription": "Counts all prefetch (that bring data to L2) RFOs",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.L3_HIT.SNOOP_NONE",
+        "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.L3_HIT.SANALOP_ANALNE",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x803C0020",
         "SampleAfterValue": "100003",
@@ -2031,7 +2031,7 @@
     {
         "BriefDescription": "Counts all prefetch (that bring data to L2) RFOs",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.L3_HIT.SNOOP_NOT_NEEDED",
+        "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.L3_HIT.SANALOP_ANALT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1003C0020",
         "SampleAfterValue": "100003",
@@ -2040,7 +2040,7 @@
     {
         "BriefDescription": "Counts all prefetch (that bring data to L2) RFOs",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.SUPPLIER_NONE.ANY_SNOOP",
+        "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.SUPPLIER_ANALNE.ANY_SANALOP",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3F80020020",
         "SampleAfterValue": "100003",
@@ -2049,7 +2049,7 @@
     {
         "BriefDescription": "Counts all prefetch (that bring data to L2) RFOs",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.SUPPLIER_NONE.SNOOP_HITM",
+        "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.SUPPLIER_ANALNE.SANALOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1000020020",
         "SampleAfterValue": "100003",
@@ -2058,7 +2058,7 @@
     {
         "BriefDescription": "Counts all prefetch (that bring data to L2) RFOs",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.SUPPLIER_NONE.SNOOP_HIT_NO_FWD",
+        "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.SUPPLIER_ANALNE.SANALOP_HIT_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x400020020",
         "SampleAfterValue": "100003",
@@ -2067,7 +2067,7 @@
     {
         "BriefDescription": "Counts all prefetch (that bring data to L2) RFOs",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.SUPPLIER_NONE.SNOOP_MISS",
+        "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.SUPPLIER_ANALNE.SANALOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x200020020",
         "SampleAfterValue": "100003",
@@ -2076,7 +2076,7 @@
     {
         "BriefDescription": "Counts all prefetch (that bring data to L2) RFOs",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.SUPPLIER_NONE.SNOOP_NONE",
+        "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.SUPPLIER_ANALNE.SANALOP_ANALNE",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x80020020",
         "SampleAfterValue": "100003",
@@ -2085,7 +2085,7 @@
     {
         "BriefDescription": "Counts all prefetch (that bring data to L2) RFOs",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.SUPPLIER_NONE.SNOOP_NOT_NEEDED",
+        "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.SUPPLIER_ANALNE.SANALOP_ANALT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x100020020",
         "SampleAfterValue": "100003",
@@ -2103,7 +2103,7 @@
     {
         "BriefDescription": "Counts prefetch (that bring data to LLC only) code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L3_CODE_RD.L3_HIT.ANY_SNOOP",
+        "EventName": "OFFCORE_RESPONSE.PF_L3_CODE_RD.L3_HIT.ANY_SANALOP",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3F803C0200",
         "SampleAfterValue": "100003",
@@ -2112,7 +2112,7 @@
     {
         "BriefDescription": "Counts prefetch (that bring data to LLC only) code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L3_CODE_RD.L3_HIT.SNOOP_HITM",
+        "EventName": "OFFCORE_RESPONSE.PF_L3_CODE_RD.L3_HIT.SANALOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x10003C0200",
         "SampleAfterValue": "100003",
@@ -2121,7 +2121,7 @@
     {
         "BriefDescription": "Counts prefetch (that bring data to LLC only) code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L3_CODE_RD.L3_HIT.SNOOP_HIT_NO_FWD",
+        "EventName": "OFFCORE_RESPONSE.PF_L3_CODE_RD.L3_HIT.SANALOP_HIT_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x4003C0200",
         "SampleAfterValue": "100003",
@@ -2130,7 +2130,7 @@
     {
         "BriefDescription": "Counts prefetch (that bring data to LLC only) code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L3_CODE_RD.L3_HIT.SNOOP_MISS",
+        "EventName": "OFFCORE_RESPONSE.PF_L3_CODE_RD.L3_HIT.SANALOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x2003C0200",
         "SampleAfterValue": "100003",
@@ -2139,7 +2139,7 @@
     {
         "BriefDescription": "Counts prefetch (that bring data to LLC only) code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L3_CODE_RD.L3_HIT.SNOOP_NONE",
+        "EventName": "OFFCORE_RESPONSE.PF_L3_CODE_RD.L3_HIT.SANALOP_ANALNE",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x803C0200",
         "SampleAfterValue": "100003",
@@ -2148,7 +2148,7 @@
     {
         "BriefDescription": "Counts prefetch (that bring data to LLC only) code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L3_CODE_RD.L3_HIT.SNOOP_NOT_NEEDED",
+        "EventName": "OFFCORE_RESPONSE.PF_L3_CODE_RD.L3_HIT.SANALOP_ANALT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1003C0200",
         "SampleAfterValue": "100003",
@@ -2157,7 +2157,7 @@
     {
         "BriefDescription": "Counts prefetch (that bring data to LLC only) code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L3_CODE_RD.SUPPLIER_NONE.ANY_SNOOP",
+        "EventName": "OFFCORE_RESPONSE.PF_L3_CODE_RD.SUPPLIER_ANALNE.ANY_SANALOP",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3F80020200",
         "SampleAfterValue": "100003",
@@ -2166,7 +2166,7 @@
     {
         "BriefDescription": "Counts prefetch (that bring data to LLC only) code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L3_CODE_RD.SUPPLIER_NONE.SNOOP_HITM",
+        "EventName": "OFFCORE_RESPONSE.PF_L3_CODE_RD.SUPPLIER_ANALNE.SANALOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1000020200",
         "SampleAfterValue": "100003",
@@ -2175,7 +2175,7 @@
     {
         "BriefDescription": "Counts prefetch (that bring data to LLC only) code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L3_CODE_RD.SUPPLIER_NONE.SNOOP_HIT_NO_FWD",
+        "EventName": "OFFCORE_RESPONSE.PF_L3_CODE_RD.SUPPLIER_ANALNE.SANALOP_HIT_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x400020200",
         "SampleAfterValue": "100003",
@@ -2184,7 +2184,7 @@
     {
         "BriefDescription": "Counts prefetch (that bring data to LLC only) code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L3_CODE_RD.SUPPLIER_NONE.SNOOP_MISS",
+        "EventName": "OFFCORE_RESPONSE.PF_L3_CODE_RD.SUPPLIER_ANALNE.SANALOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x200020200",
         "SampleAfterValue": "100003",
@@ -2193,7 +2193,7 @@
     {
         "BriefDescription": "Counts prefetch (that bring data to LLC only) code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L3_CODE_RD.SUPPLIER_NONE.SNOOP_NONE",
+        "EventName": "OFFCORE_RESPONSE.PF_L3_CODE_RD.SUPPLIER_ANALNE.SANALOP_ANALNE",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x80020200",
         "SampleAfterValue": "100003",
@@ -2202,7 +2202,7 @@
     {
         "BriefDescription": "Counts prefetch (that bring data to LLC only) code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L3_CODE_RD.SUPPLIER_NONE.SNOOP_NOT_NEEDED",
+        "EventName": "OFFCORE_RESPONSE.PF_L3_CODE_RD.SUPPLIER_ANALNE.SANALOP_ANALT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x100020200",
         "SampleAfterValue": "100003",
@@ -2220,7 +2220,7 @@
     {
         "BriefDescription": "Counts all prefetch (that bring data to LLC only) data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L3_DATA_RD.L3_HIT.ANY_SNOOP",
+        "EventName": "OFFCORE_RESPONSE.PF_L3_DATA_RD.L3_HIT.ANY_SANALOP",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3F803C0080",
         "SampleAfterValue": "100003",
@@ -2229,7 +2229,7 @@
     {
         "BriefDescription": "Counts all prefetch (that bring data to LLC only) data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L3_DATA_RD.L3_HIT.SNOOP_HITM",
+        "EventName": "OFFCORE_RESPONSE.PF_L3_DATA_RD.L3_HIT.SANALOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x10003C0080",
         "SampleAfterValue": "100003",
@@ -2238,7 +2238,7 @@
     {
         "BriefDescription": "Counts all prefetch (that bring data to LLC only) data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L3_DATA_RD.L3_HIT.SNOOP_HIT_NO_FWD",
+        "EventName": "OFFCORE_RESPONSE.PF_L3_DATA_RD.L3_HIT.SANALOP_HIT_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x4003C0080",
         "SampleAfterValue": "100003",
@@ -2247,7 +2247,7 @@
     {
         "BriefDescription": "Counts all prefetch (that bring data to LLC only) data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L3_DATA_RD.L3_HIT.SNOOP_MISS",
+        "EventName": "OFFCORE_RESPONSE.PF_L3_DATA_RD.L3_HIT.SANALOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x2003C0080",
         "SampleAfterValue": "100003",
@@ -2256,7 +2256,7 @@
     {
         "BriefDescription": "Counts all prefetch (that bring data to LLC only) data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L3_DATA_RD.L3_HIT.SNOOP_NONE",
+        "EventName": "OFFCORE_RESPONSE.PF_L3_DATA_RD.L3_HIT.SANALOP_ANALNE",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x803C0080",
         "SampleAfterValue": "100003",
@@ -2265,7 +2265,7 @@
     {
         "BriefDescription": "Counts all prefetch (that bring data to LLC only) data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L3_DATA_RD.L3_HIT.SNOOP_NOT_NEEDED",
+        "EventName": "OFFCORE_RESPONSE.PF_L3_DATA_RD.L3_HIT.SANALOP_ANALT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1003C0080",
         "SampleAfterValue": "100003",
@@ -2274,7 +2274,7 @@
     {
         "BriefDescription": "Counts all prefetch (that bring data to LLC only) data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L3_DATA_RD.SUPPLIER_NONE.ANY_SNOOP",
+        "EventName": "OFFCORE_RESPONSE.PF_L3_DATA_RD.SUPPLIER_ANALNE.ANY_SANALOP",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3F80020080",
         "SampleAfterValue": "100003",
@@ -2283,7 +2283,7 @@
     {
         "BriefDescription": "Counts all prefetch (that bring data to LLC only) data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L3_DATA_RD.SUPPLIER_NONE.SNOOP_HITM",
+        "EventName": "OFFCORE_RESPONSE.PF_L3_DATA_RD.SUPPLIER_ANALNE.SANALOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1000020080",
         "SampleAfterValue": "100003",
@@ -2292,7 +2292,7 @@
     {
         "BriefDescription": "Counts all prefetch (that bring data to LLC only) data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L3_DATA_RD.SUPPLIER_NONE.SNOOP_HIT_NO_FWD",
+        "EventName": "OFFCORE_RESPONSE.PF_L3_DATA_RD.SUPPLIER_ANALNE.SANALOP_HIT_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x400020080",
         "SampleAfterValue": "100003",
@@ -2301,7 +2301,7 @@
     {
         "BriefDescription": "Counts all prefetch (that bring data to LLC only) data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L3_DATA_RD.SUPPLIER_NONE.SNOOP_MISS",
+        "EventName": "OFFCORE_RESPONSE.PF_L3_DATA_RD.SUPPLIER_ANALNE.SANALOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x200020080",
         "SampleAfterValue": "100003",
@@ -2310,7 +2310,7 @@
     {
         "BriefDescription": "Counts all prefetch (that bring data to LLC only) data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L3_DATA_RD.SUPPLIER_NONE.SNOOP_NONE",
+        "EventName": "OFFCORE_RESPONSE.PF_L3_DATA_RD.SUPPLIER_ANALNE.SANALOP_ANALNE",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x80020080",
         "SampleAfterValue": "100003",
@@ -2319,7 +2319,7 @@
     {
         "BriefDescription": "Counts all prefetch (that bring data to LLC only) data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L3_DATA_RD.SUPPLIER_NONE.SNOOP_NOT_NEEDED",
+        "EventName": "OFFCORE_RESPONSE.PF_L3_DATA_RD.SUPPLIER_ANALNE.SANALOP_ANALT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x100020080",
         "SampleAfterValue": "100003",
@@ -2337,7 +2337,7 @@
     {
         "BriefDescription": "Counts all prefetch (that bring data to LLC only) RFOs",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L3_RFO.L3_HIT.ANY_SNOOP",
+        "EventName": "OFFCORE_RESPONSE.PF_L3_RFO.L3_HIT.ANY_SANALOP",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3F803C0100",
         "SampleAfterValue": "100003",
@@ -2346,7 +2346,7 @@
     {
         "BriefDescription": "Counts all prefetch (that bring data to LLC only) RFOs",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L3_RFO.L3_HIT.SNOOP_HITM",
+        "EventName": "OFFCORE_RESPONSE.PF_L3_RFO.L3_HIT.SANALOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x10003C0100",
         "SampleAfterValue": "100003",
@@ -2355,7 +2355,7 @@
     {
         "BriefDescription": "Counts all prefetch (that bring data to LLC only) RFOs",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L3_RFO.L3_HIT.SNOOP_HIT_NO_FWD",
+        "EventName": "OFFCORE_RESPONSE.PF_L3_RFO.L3_HIT.SANALOP_HIT_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x4003C0100",
         "SampleAfterValue": "100003",
@@ -2364,7 +2364,7 @@
     {
         "BriefDescription": "Counts all prefetch (that bring data to LLC only) RFOs",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L3_RFO.L3_HIT.SNOOP_MISS",
+        "EventName": "OFFCORE_RESPONSE.PF_L3_RFO.L3_HIT.SANALOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x2003C0100",
         "SampleAfterValue": "100003",
@@ -2373,7 +2373,7 @@
     {
         "BriefDescription": "Counts all prefetch (that bring data to LLC only) RFOs",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L3_RFO.L3_HIT.SNOOP_NONE",
+        "EventName": "OFFCORE_RESPONSE.PF_L3_RFO.L3_HIT.SANALOP_ANALNE",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x803C0100",
         "SampleAfterValue": "100003",
@@ -2382,7 +2382,7 @@
     {
         "BriefDescription": "Counts all prefetch (that bring data to LLC only) RFOs",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L3_RFO.L3_HIT.SNOOP_NOT_NEEDED",
+        "EventName": "OFFCORE_RESPONSE.PF_L3_RFO.L3_HIT.SANALOP_ANALT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1003C0100",
         "SampleAfterValue": "100003",
@@ -2391,7 +2391,7 @@
     {
         "BriefDescription": "Counts all prefetch (that bring data to LLC only) RFOs",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L3_RFO.SUPPLIER_NONE.ANY_SNOOP",
+        "EventName": "OFFCORE_RESPONSE.PF_L3_RFO.SUPPLIER_ANALNE.ANY_SANALOP",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3F80020100",
         "SampleAfterValue": "100003",
@@ -2400,7 +2400,7 @@
     {
         "BriefDescription": "Counts all prefetch (that bring data to LLC only) RFOs",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L3_RFO.SUPPLIER_NONE.SNOOP_HITM",
+        "EventName": "OFFCORE_RESPONSE.PF_L3_RFO.SUPPLIER_ANALNE.SANALOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1000020100",
         "SampleAfterValue": "100003",
@@ -2409,7 +2409,7 @@
     {
         "BriefDescription": "Counts all prefetch (that bring data to LLC only) RFOs",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L3_RFO.SUPPLIER_NONE.SNOOP_HIT_NO_FWD",
+        "EventName": "OFFCORE_RESPONSE.PF_L3_RFO.SUPPLIER_ANALNE.SANALOP_HIT_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x400020100",
         "SampleAfterValue": "100003",
@@ -2418,7 +2418,7 @@
     {
         "BriefDescription": "Counts all prefetch (that bring data to LLC only) RFOs",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L3_RFO.SUPPLIER_NONE.SNOOP_MISS",
+        "EventName": "OFFCORE_RESPONSE.PF_L3_RFO.SUPPLIER_ANALNE.SANALOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x200020100",
         "SampleAfterValue": "100003",
@@ -2427,7 +2427,7 @@
     {
         "BriefDescription": "Counts all prefetch (that bring data to LLC only) RFOs",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L3_RFO.SUPPLIER_NONE.SNOOP_NONE",
+        "EventName": "OFFCORE_RESPONSE.PF_L3_RFO.SUPPLIER_ANALNE.SANALOP_ANALNE",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x80020100",
         "SampleAfterValue": "100003",
@@ -2436,7 +2436,7 @@
     {
         "BriefDescription": "Counts all prefetch (that bring data to LLC only) RFOs",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.PF_L3_RFO.SUPPLIER_NONE.SNOOP_NOT_NEEDED",
+        "EventName": "OFFCORE_RESPONSE.PF_L3_RFO.SUPPLIER_ANALNE.SANALOP_ANALT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x100020100",
         "SampleAfterValue": "100003",

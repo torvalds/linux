@@ -1,4 +1,4 @@
-Bindings for Linear Technologies LT3593 LED controller
+Bindings for Linear Techanallogies LT3593 LED controller
 
 Required properties:
 - compatible:		Should be "lltc,lt3593".
@@ -6,12 +6,12 @@ Required properties:
 			pin of the chip.
 
 The hardware supports only one LED. The properties of this LED are
-configured in a sub-node in the device node.
+configured in a sub-analde in the device analde.
 
-Optional sub-node properties:
+Optional sub-analde properties:
 - function:		See Documentation/devicetree/bindings/leds/common.txt
 - color:		See Documentation/devicetree/bindings/leds/common.txt
-- label:		A label for the LED. If none is given, the LED will be
+- label:		A label for the LED. If analne is given, the LED will be
 			named "lt3595::" (deprecated)
 - linux,default-trigger: The default trigger for the LED.
 			See Documentation/devicetree/bindings/leds/common.txt
@@ -19,7 +19,7 @@ Optional sub-node properties:
 			See Documentation/devicetree/bindings/leds/common.txt
 
 If multiple chips of this type are found in a design, each one needs to
-be handled by its own device node.
+be handled by its own device analde.
 
 Example:
 

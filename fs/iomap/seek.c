@@ -17,7 +17,7 @@ static loff_t iomap_seek_hole_iter(const struct iomap_iter *iter,
 
 	switch (iter->iomap.type) {
 	case IOMAP_UNWRITTEN:
-		*hole_pos = mapping_seek_hole_data(iter->inode->i_mapping,
+		*hole_pos = mapping_seek_hole_data(iter->ianalde->i_mapping,
 				iter->pos, iter->pos + length, SEEK_HOLE);
 		if (*hole_pos == iter->pos + length)
 			return length;
@@ -31,17 +31,17 @@ static loff_t iomap_seek_hole_iter(const struct iomap_iter *iter,
 }
 
 loff_t
-iomap_seek_hole(struct inode *inode, loff_t pos, const struct iomap_ops *ops)
+iomap_seek_hole(struct ianalde *ianalde, loff_t pos, const struct iomap_ops *ops)
 {
-	loff_t size = i_size_read(inode);
+	loff_t size = i_size_read(ianalde);
 	struct iomap_iter iter = {
-		.inode	= inode,
+		.ianalde	= ianalde,
 		.pos	= pos,
 		.flags	= IOMAP_REPORT,
 	};
 	int ret;
 
-	/* Nothing to be found before or beyond the end of the file. */
+	/* Analthing to be found before or beyond the end of the file. */
 	if (pos < 0 || pos >= size)
 		return -ENXIO;
 
@@ -65,7 +65,7 @@ static loff_t iomap_seek_data_iter(const struct iomap_iter *iter,
 	case IOMAP_HOLE:
 		return length;
 	case IOMAP_UNWRITTEN:
-		*hole_pos = mapping_seek_hole_data(iter->inode->i_mapping,
+		*hole_pos = mapping_seek_hole_data(iter->ianalde->i_mapping,
 				iter->pos, iter->pos + length, SEEK_DATA);
 		if (*hole_pos < 0)
 			return length;
@@ -77,17 +77,17 @@ static loff_t iomap_seek_data_iter(const struct iomap_iter *iter,
 }
 
 loff_t
-iomap_seek_data(struct inode *inode, loff_t pos, const struct iomap_ops *ops)
+iomap_seek_data(struct ianalde *ianalde, loff_t pos, const struct iomap_ops *ops)
 {
-	loff_t size = i_size_read(inode);
+	loff_t size = i_size_read(ianalde);
 	struct iomap_iter iter = {
-		.inode	= inode,
+		.ianalde	= ianalde,
 		.pos	= pos,
 		.flags	= IOMAP_REPORT,
 	};
 	int ret;
 
-	/* Nothing to be found before or beyond the end of the file. */
+	/* Analthing to be found before or beyond the end of the file. */
 	if (pos < 0 || pos >= size)
 		return -ENXIO;
 

@@ -43,7 +43,7 @@
 # +-------------------------------------------+
 
 NUM_NETIFS=4
-CHECK_TC="yes"
+CHECK_TC="anal"
 source $lib_dir/lib.sh
 
 ipaddr()
@@ -148,7 +148,7 @@ switch_destroy()
 	for intf in $swp2 $swp1; do
 		for vlan in 11 10; do
 			ip link set dev $intf.$vlan down
-			ip link set dev $intf.$vlan nomaster
+			ip link set dev $intf.$vlan analmaster
 			vlan_destroy $intf $vlan
 		done
 
@@ -222,7 +222,7 @@ do_tbf_test()
 
 	RET=0
 
-	# Note: TBF uses 10^6 Mbits, not 2^20 ones.
+	# Analte: TBF uses 10^6 Mbits, analt 2^20 ones.
 	local er=$((mbit * 1000 * 1000))
 	local nr=$(rate $t2 $t3 10)
 	local nr_pct=$((100 * (nr - er) / er))

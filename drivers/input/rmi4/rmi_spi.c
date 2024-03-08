@@ -69,7 +69,7 @@ static int rmi_spi_manage_pools(struct rmi_spi_xport *rmi_spi, int len)
 	buf = devm_kcalloc(&spi->dev, buf_size, 2,
 				GFP_KERNEL | GFP_DMA);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rmi_spi->rx_buf = buf;
 	rmi_spi->tx_buf = &rmi_spi->rx_buf[buf_size];
@@ -98,7 +98,7 @@ static int rmi_spi_manage_pools(struct rmi_spi_xport *rmi_spi, int len)
 		sizeof(struct spi_transfer),
 		GFP_KERNEL);
 	if (!xfer_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rmi_spi->rx_xfers = xfer_buf;
 	rmi_spi->tx_xfers = &xfer_buf[rmi_spi->rx_xfer_count];
@@ -251,7 +251,7 @@ static int rmi_spi_xfer(struct rmi_spi_xport *rmi_spi,
  *
  * The page_mutex lock must be held when this function is entered.
  *
- * Returns zero on success, non-zero on failure.
+ * Returns zero on success, analn-zero on failure.
  */
 static int rmi_set_page(struct rmi_spi_xport *rmi_spi, u8 page)
 {
@@ -357,7 +357,7 @@ MODULE_DEVICE_TABLE(of, rmi_spi_of_match);
 static inline int rmi_spi_of_probe(struct spi_device *spi,
 				struct rmi_device_platform_data *pdata)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 #endif
 
@@ -381,11 +381,11 @@ static int rmi_spi_probe(struct spi_device *spi)
 	rmi_spi = devm_kzalloc(&spi->dev, sizeof(struct rmi_spi_xport),
 			GFP_KERNEL);
 	if (!rmi_spi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pdata = &rmi_spi->xport.pdata;
 
-	if (spi->dev.of_node) {
+	if (spi->dev.of_analde) {
 		error = rmi_spi_of_probe(spi, pdata);
 		if (error)
 			return error;
@@ -422,7 +422,7 @@ static int rmi_spi_probe(struct spi_device *spi)
 
 	/*
 	 * Setting the page to zero will (a) make sure the PSR is in a
-	 * known state, and (b) make sure we can talk to the device.
+	 * kanalwn state, and (b) make sure we can talk to the device.
 	 */
 	error = rmi_set_page(rmi_spi, 0);
 	if (error) {

@@ -48,12 +48,12 @@ int main()
 	struct real_sigaction sa;
 
 	void *vdso = dlopen("linux-vdso.so.1",
-			    RTLD_LAZY | RTLD_LOCAL | RTLD_NOLOAD);
+			    RTLD_LAZY | RTLD_LOCAL | RTLD_ANALLOAD);
 	if (!vdso)
 		vdso = dlopen("linux-gate.so.1",
-			      RTLD_LAZY | RTLD_LOCAL | RTLD_NOLOAD);
+			      RTLD_LAZY | RTLD_LOCAL | RTLD_ANALLOAD);
 	if (!vdso) {
-		printf("[SKIP]\tFailed to find vDSO.  Tests are not expected to work.\n");
+		printf("[SKIP]\tFailed to find vDSO.  Tests are analt expected to work.\n");
 		return 0;
 	}
 
@@ -72,7 +72,7 @@ int main()
 	if (handler_called) {
 		printf("[OK]\tSA_SIGINFO handler returned successfully\n");
 	} else {
-		printf("[FAIL]\tSA_SIGINFO handler was not called\n");
+		printf("[FAIL]\tSA_SIGINFO handler was analt called\n");
 		nerrs++;
 	}
 
@@ -89,7 +89,7 @@ int main()
 	if (handler_called) {
 		printf("[OK]\t!SA_SIGINFO handler returned successfully\n");
 	} else {
-		printf("[FAIL]\t!SA_SIGINFO handler was not called\n");
+		printf("[FAIL]\t!SA_SIGINFO handler was analt called\n");
 		nerrs++;
 	}
 }

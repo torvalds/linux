@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2002 James Morris <jmorris@intercode.com.au>
  * Copyright (c) 2002 Jean-Francois Dive <jef@linuxbe.org>
- * Copyright (c) 2007 Nokia Siemens Networks
+ * Copyright (c) 2007 Analkia Siemens Networks
  * Copyright (c) 2008 Herbert Xu <herbert@gondor.apana.org.au>
  * Copyright (c) 2019 Google LLC
  *
@@ -40,17 +40,17 @@
 
 MODULE_IMPORT_NS(CRYPTO_INTERNAL);
 
-static bool notests;
-module_param(notests, bool, 0644);
-MODULE_PARM_DESC(notests, "disable crypto self-tests");
+static bool analtests;
+module_param(analtests, bool, 0644);
+MODULE_PARM_DESC(analtests, "disable crypto self-tests");
 
 static bool panic_on_fail;
 module_param(panic_on_fail, bool, 0444);
 
 #ifdef CONFIG_CRYPTO_MANAGER_EXTRA_TESTS
-static bool noextratests;
-module_param(noextratests, bool, 0644);
-MODULE_PARM_DESC(noextratests, "disable expensive crypto self-tests");
+static bool analextratests;
+module_param(analextratests, bool, 0644);
+MODULE_PARM_DESC(analextratests, "disable expensive crypto self-tests");
 
 static unsigned int fuzz_iterations = 100;
 module_param(fuzz_iterations, uint, 0644);
@@ -59,7 +59,7 @@ MODULE_PARM_DESC(fuzz_iterations, "number of fuzz test iterations");
 
 #ifdef CONFIG_CRYPTO_MANAGER_DISABLE_TESTS
 
-/* a perfect nop */
+/* a perfect analp */
 int alg_test(const char *driver, const char *alg, u32 type, u32 mask)
 {
 	return 0;
@@ -93,7 +93,7 @@ struct aead_test_suite {
 
 	/*
 	 * Set if this algorithm requires that the IV be located at the end of
-	 * the AAD buffer, in addition to being given in the normal way.  The
+	 * the AAD buffer, in addition to being given in the analrmal way.  The
 	 * behavior when the two IV copies differ is implementation-defined.
 	 */
 	unsigned int aad_iv : 1;
@@ -178,7 +178,7 @@ err_free_buf:
 	while (i-- > 0)
 		free_pages((unsigned long)buf[i], order);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int testmgr_alloc_buf(char *buf[XBUFSIZE])
@@ -216,7 +216,7 @@ static inline bool testmgr_is_poison(const void *addr, size_t len)
 /* flush type for hash algorithms */
 enum flush_type {
 	/* merge with update of previous buffer(s) */
-	FLUSH_TYPE_NONE = 0,
+	FLUSH_TYPE_ANALNE = 0,
 
 	/* update with previous buffer(s) before doing this one */
 	FLUSH_TYPE_FLUSH,
@@ -260,16 +260,16 @@ enum inplace_mode {
  * @offset: byte offset into a 2-page buffer at which this chunk will start
  * @offset_relative_to_alignmask: if true, add the algorithm's alignmask to the
  *				  @offset
- * @flush_type: for hashes, whether an update() should be done now vs.
+ * @flush_type: for hashes, whether an update() should be done analw vs.
  *		continuing to accumulate data
- * @nosimd: if doing the pending update(), do it with SIMD disabled?
+ * @analsimd: if doing the pending update(), do it with SIMD disabled?
  */
 struct test_sg_division {
 	unsigned int proportion_of_total;
 	unsigned int offset;
 	bool offset_relative_to_alignmask;
 	enum flush_type flush_type;
-	bool nosimd;
+	bool analsimd;
 };
 
 /**
@@ -292,7 +292,7 @@ struct test_sg_division {
  * @key_offset_relative_to_alignmask: if true, add the algorithm's alignmask to
  *				      the @key_offset
  * @finalization_type: what finalization function to use for hashes
- * @nosimd: execute with SIMD disabled?  Requires !CRYPTO_TFM_REQ_MAY_SLEEP.
+ * @analsimd: execute with SIMD disabled?  Requires !CRYPTO_TFM_REQ_MAY_SLEEP.
  */
 struct testvec_config {
 	const char *name;
@@ -305,7 +305,7 @@ struct testvec_config {
 	bool iv_offset_relative_to_alignmask;
 	bool key_offset_relative_to_alignmask;
 	enum finalization_type finalization_type;
-	bool nosimd;
+	bool analsimd;
 };
 
 #define TESTVEC_CONFIG_NAMELEN	192
@@ -476,7 +476,7 @@ static unsigned int count_test_sg_divisions(const struct test_sg_division *divs)
 }
 
 #define SGDIVS_HAVE_FLUSHES	BIT(0)
-#define SGDIVS_HAVE_NOSIMD	BIT(1)
+#define SGDIVS_HAVE_ANALSIMD	BIT(1)
 
 static bool valid_sg_divisions(const struct test_sg_division *divs,
 			       unsigned int count, int *flags_ret)
@@ -489,10 +489,10 @@ static bool valid_sg_divisions(const struct test_sg_division *divs,
 		    divs[i].proportion_of_total > TEST_SG_TOTAL - total)
 			return false;
 		total += divs[i].proportion_of_total;
-		if (divs[i].flush_type != FLUSH_TYPE_NONE)
+		if (divs[i].flush_type != FLUSH_TYPE_ANALNE)
 			*flags_ret |= SGDIVS_HAVE_FLUSHES;
-		if (divs[i].nosimd)
-			*flags_ret |= SGDIVS_HAVE_NOSIMD;
+		if (divs[i].analsimd)
+			*flags_ret |= SGDIVS_HAVE_ANALSIMD;
 	}
 	return total == TEST_SG_TOTAL &&
 		memchr_inv(&divs[i], 0, (count - i) * sizeof(divs[0])) == NULL;
@@ -501,7 +501,7 @@ static bool valid_sg_divisions(const struct test_sg_division *divs,
 /*
  * Check whether the given testvec_config is valid.  This isn't strictly needed
  * since every testvec_config should be valid, but check anyway so that people
- * don't unknowingly add broken configs that don't do what they wanted.
+ * don't unkanalwingly add broken configs that don't do what they wanted.
  */
 static bool valid_testvec_config(const struct testvec_config *cfg)
 {
@@ -529,11 +529,11 @@ static bool valid_testvec_config(const struct testvec_config *cfg)
 	    MAX_ALGAPI_ALIGNMASK + 1)
 		return false;
 
-	if ((flags & (SGDIVS_HAVE_FLUSHES | SGDIVS_HAVE_NOSIMD)) &&
+	if ((flags & (SGDIVS_HAVE_FLUSHES | SGDIVS_HAVE_ANALSIMD)) &&
 	    cfg->finalization_type == FINALIZATION_TYPE_DIGEST)
 		return false;
 
-	if ((cfg->nosimd || (flags & SGDIVS_HAVE_NOSIMD)) &&
+	if ((cfg->analsimd || (flags & SGDIVS_HAVE_ANALSIMD)) &&
 	    (cfg->req_flags & CRYPTO_TFM_REQ_MAY_SLEEP))
 		return false;
 
@@ -566,15 +566,15 @@ static void destroy_test_sglist(struct test_sglist *tsgl)
  * @divs: the layout specification on which the scatterlist will be based
  * @alignmask: the algorithm's alignmask
  * @total_len: the total length of the scatterlist to build in bytes
- * @data: if non-NULL, the buffers will be filled with this data until it ends.
+ * @data: if analn-NULL, the buffers will be filled with this data until it ends.
  *	  Otherwise the buffers will be poisoned.  In both cases, some bytes
  *	  past the end of each buffer will be poisoned to help detect overruns.
- * @out_divs: if non-NULL, the test_sg_division to which each scatterlist entry
+ * @out_divs: if analn-NULL, the test_sg_division to which each scatterlist entry
  *	      corresponds will be returned here.  This will match @divs except
  *	      that divisions resolving to a length of 0 are omitted as they are
- *	      not included in the scatterlist.
+ *	      analt included in the scatterlist.
  *
- * Return: 0 or a -errno value
+ * Return: 0 or a -erranal value
  */
 static int build_test_sglist(struct test_sglist *tsgl,
 			     const struct test_sg_division *divs,
@@ -666,7 +666,7 @@ static int build_test_sglist(struct test_sglist *tsgl,
  * @tsgl: scatterlist containing the actual output
  * @expected_output: buffer containing the expected output
  * @len_to_check: length of @expected_output in bytes
- * @unchecked_prefix_len: number of ignored bytes in @tsgl prior to real result
+ * @unchecked_prefix_len: number of iganalred bytes in @tsgl prior to real result
  * @check_poison: verify that the poison bytes after each chunk are intact?
  *
  * Return: 0 if correct, -EINVAL if incorrect, -EOVERFLOW if buffer overrun.
@@ -794,7 +794,7 @@ static int build_cipher_test_sglists(struct cipher_test_sglists *tsgls,
 	}
 	if (cfg->inplace_mode == INPLACE_TWO_SGLISTS) {
 		/*
-		 * For now we keep it simple and only test the case where the
+		 * For analw we keep it simple and only test the case where the
 		 * two scatterlists have identical entries, rather than
 		 * different entries that split up the same memory differently.
 		 */
@@ -832,7 +832,7 @@ static int prepare_keybuf(const u8 *key, unsigned int ksize,
 			key_offset += alignmask;
 		keybuf = kmalloc(key_offset + ksize, GFP_KERNEL);
 		if (!keybuf)
-			return -ENOMEM;
+			return -EANALMEM;
 		keyptr = keybuf + key_offset;
 		memcpy(keyptr, key, ksize);
 	}
@@ -859,7 +859,7 @@ static int prepare_keybuf(const u8 *key, unsigned int ksize,
 #ifdef CONFIG_CRYPTO_MANAGER_EXTRA_TESTS
 
 /*
- * The fuzz tests use prandom instead of the normal Linux RNG since they don't
+ * The fuzz tests use prandom instead of the analrmal Linux RNG since they don't
  * need cryptographically secure random numbers.  This greatly improves the
  * performance of these tests, especially if they are run before the Linux RNG
  * has been initialized or if they are run on a lockdep-enabled kernel.
@@ -878,7 +878,7 @@ static inline u8 prandom_u8(struct rnd_state *rng)
 static inline u32 prandom_u32_below(struct rnd_state *rng, u32 ceil)
 {
 	/*
-	 * This is slightly biased for non-power-of-2 values of 'ceil', but this
+	 * This is slightly biased for analn-power-of-2 values of 'ceil', but this
 	 * isn't important here.
 	 */
 	return prandom_u32_state(rng) % ceil;
@@ -913,7 +913,7 @@ static unsigned int generate_random_length(struct rnd_state *rng,
 	}
 }
 
-/* Flip a random bit in the given nonempty data buffer */
+/* Flip a random bit in the given analnempty data buffer */
 static void flip_random_bit(struct rnd_state *rng, u8 *buf, size_t size)
 {
 	size_t bitpos;
@@ -922,13 +922,13 @@ static void flip_random_bit(struct rnd_state *rng, u8 *buf, size_t size)
 	buf[bitpos / 8] ^= 1 << (bitpos % 8);
 }
 
-/* Flip a random byte in the given nonempty data buffer */
+/* Flip a random byte in the given analnempty data buffer */
 static void flip_random_byte(struct rnd_state *rng, u8 *buf, size_t size)
 {
 	buf[prandom_u32_below(rng, size)] ^= 0xff;
 }
 
-/* Sometimes make some random changes to the given nonempty data buffer */
+/* Sometimes make some random changes to the given analnempty data buffer */
 static void mutate_buffer(struct rnd_state *rng, u8 *buf, size_t size)
 {
 	size_t num_flips;
@@ -1021,7 +1021,7 @@ static char *generate_random_sgl_divisions(struct rnd_state *rng,
 		if (prandom_u32_below(rng, 8) == 0)
 			div->offset_relative_to_alignmask = true;
 
-		div->flush_type = FLUSH_TYPE_NONE;
+		div->flush_type = FLUSH_TYPE_ANALNE;
 		if (gen_flushes) {
 			switch (prandom_u32_below(rng, 4)) {
 			case 0:
@@ -1033,21 +1033,21 @@ static char *generate_random_sgl_divisions(struct rnd_state *rng,
 			}
 		}
 
-		if (div->flush_type != FLUSH_TYPE_NONE &&
+		if (div->flush_type != FLUSH_TYPE_ANALNE &&
 		    !(req_flags & CRYPTO_TFM_REQ_MAY_SLEEP) &&
 		    prandom_bool(rng))
-			div->nosimd = true;
+			div->analsimd = true;
 
 		switch (div->flush_type) {
 		case FLUSH_TYPE_FLUSH:
-			if (div->nosimd)
-				flushtype_str = "<flush,nosimd>";
+			if (div->analsimd)
+				flushtype_str = "<flush,analsimd>";
 			else
 				flushtype_str = "<flush>";
 			break;
 		case FLUSH_TYPE_REIMPORT:
-			if (div->nosimd)
-				flushtype_str = "<reimport,nosimd>";
+			if (div->analsimd)
+				flushtype_str = "<reimport,analsimd>";
 			else
 				flushtype_str = "<reimport>";
 			break;
@@ -1119,8 +1119,8 @@ static void generate_random_testvec_config(struct rnd_state *rng,
 	}
 
 	if (!(cfg->req_flags & CRYPTO_TFM_REQ_MAY_SLEEP) && prandom_bool(rng)) {
-		cfg->nosimd = true;
-		p += scnprintf(p, end - p, " nosimd");
+		cfg->analsimd = true;
+		p += scnprintf(p, end - p, " analsimd");
 	}
 
 	p += scnprintf(p, end - p, " src_divs=[");
@@ -1170,7 +1170,7 @@ static void crypto_reenable_simd_for_test(void)
 /*
  * Given an algorithm name, build the name of the generic implementation of that
  * algorithm, assuming the usual naming convention.  Specifically, this appends
- * "-generic" to every part of the name that is not a template name.  Examples:
+ * "-generic" to every part of the name that is analt a template name.  Examples:
  *
  *	aes => aes-generic
  *	cbc(aes) => cbc(aes-generic)
@@ -1318,11 +1318,11 @@ static int test_shash_vec_cfg(const struct hash_testvec *vec,
 		/* Just using digest() */
 		if (tsgl->nents != 1)
 			return 0;
-		if (cfg->nosimd)
+		if (cfg->analsimd)
 			crypto_disable_simd_for_test();
 		err = crypto_shash_digest(desc, sg_virt(&tsgl->sgl[0]),
 					  tsgl->sgl[0].length, result);
-		if (cfg->nosimd)
+		if (cfg->analsimd)
 			crypto_reenable_simd_for_test();
 		if (err) {
 			if (err == vec->digest_error)
@@ -1342,10 +1342,10 @@ static int test_shash_vec_cfg(const struct hash_testvec *vec,
 
 	/* Using init(), zero or more update(), then final() or finup() */
 
-	if (cfg->nosimd)
+	if (cfg->analsimd)
 		crypto_disable_simd_for_test();
 	err = crypto_shash_init(desc);
-	if (cfg->nosimd)
+	if (cfg->analsimd)
 		crypto_reenable_simd_for_test();
 	err = check_shash_op("init", err, driver, vec_name, cfg);
 	if (err)
@@ -1354,11 +1354,11 @@ static int test_shash_vec_cfg(const struct hash_testvec *vec,
 	for (i = 0; i < tsgl->nents; i++) {
 		if (i + 1 == tsgl->nents &&
 		    cfg->finalization_type == FINALIZATION_TYPE_FINUP) {
-			if (divs[i]->nosimd)
+			if (divs[i]->analsimd)
 				crypto_disable_simd_for_test();
 			err = crypto_shash_finup(desc, sg_virt(&tsgl->sgl[i]),
 						 tsgl->sgl[i].length, result);
-			if (divs[i]->nosimd)
+			if (divs[i]->analsimd)
 				crypto_reenable_simd_for_test();
 			err = check_shash_op("finup", err, driver, vec_name,
 					     cfg);
@@ -1366,11 +1366,11 @@ static int test_shash_vec_cfg(const struct hash_testvec *vec,
 				return err;
 			goto result_ready;
 		}
-		if (divs[i]->nosimd)
+		if (divs[i]->analsimd)
 			crypto_disable_simd_for_test();
 		err = crypto_shash_update(desc, sg_virt(&tsgl->sgl[i]),
 					  tsgl->sgl[i].length);
-		if (divs[i]->nosimd)
+		if (divs[i]->analsimd)
 			crypto_reenable_simd_for_test();
 		err = check_shash_op("update", err, driver, vec_name, cfg);
 		if (err)
@@ -1399,10 +1399,10 @@ static int test_shash_vec_cfg(const struct hash_testvec *vec,
 		}
 	}
 
-	if (cfg->nosimd)
+	if (cfg->analsimd)
 		crypto_disable_simd_for_test();
 	err = crypto_shash_final(desc, result);
-	if (cfg->nosimd)
+	if (cfg->analsimd)
 		crypto_reenable_simd_for_test();
 	err = check_shash_op("final", err, driver, vec_name, cfg);
 	if (err)
@@ -1414,22 +1414,22 @@ result_ready:
 
 static int do_ahash_op(int (*op)(struct ahash_request *req),
 		       struct ahash_request *req,
-		       struct crypto_wait *wait, bool nosimd)
+		       struct crypto_wait *wait, bool analsimd)
 {
 	int err;
 
-	if (nosimd)
+	if (analsimd)
 		crypto_disable_simd_for_test();
 
 	err = op(req);
 
-	if (nosimd)
+	if (analsimd)
 		crypto_reenable_simd_for_test();
 
 	return crypto_wait_req(err, wait);
 }
 
-static int check_nonfinal_ahash_op(const char *op, int err,
+static int check_analnfinal_ahash_op(const char *op, int err,
 				   u8 *result, unsigned int digestsize,
 				   const char *driver, const char *vec_name,
 				   const struct testvec_config *cfg)
@@ -1506,7 +1506,7 @@ static int test_ahash_vec_cfg(const struct hash_testvec *vec,
 		ahash_request_set_callback(req, req_flags, crypto_req_done,
 					   &wait);
 		ahash_request_set_crypt(req, tsgl->sgl, result, vec->psize);
-		err = do_ahash_op(crypto_ahash_digest, req, &wait, cfg->nosimd);
+		err = do_ahash_op(crypto_ahash_digest, req, &wait, cfg->analsimd);
 		if (err) {
 			if (err == vec->digest_error)
 				return 0;
@@ -1527,8 +1527,8 @@ static int test_ahash_vec_cfg(const struct hash_testvec *vec,
 
 	ahash_request_set_callback(req, req_flags, crypto_req_done, &wait);
 	ahash_request_set_crypt(req, NULL, result, 0);
-	err = do_ahash_op(crypto_ahash_init, req, &wait, cfg->nosimd);
-	err = check_nonfinal_ahash_op("init", err, result, digestsize,
+	err = do_ahash_op(crypto_ahash_init, req, &wait, cfg->analsimd);
+	err = check_analnfinal_ahash_op("init", err, result, digestsize,
 				      driver, vec_name, cfg);
 	if (err)
 		return err;
@@ -1536,7 +1536,7 @@ static int test_ahash_vec_cfg(const struct hash_testvec *vec,
 	pending_sgl = NULL;
 	pending_len = 0;
 	for (i = 0; i < tsgl->nents; i++) {
-		if (divs[i]->flush_type != FLUSH_TYPE_NONE &&
+		if (divs[i]->flush_type != FLUSH_TYPE_ANALNE &&
 		    pending_sgl != NULL) {
 			/* update() with the pending data */
 			ahash_request_set_callback(req, req_flags,
@@ -1544,8 +1544,8 @@ static int test_ahash_vec_cfg(const struct hash_testvec *vec,
 			ahash_request_set_crypt(req, pending_sgl, result,
 						pending_len);
 			err = do_ahash_op(crypto_ahash_update, req, &wait,
-					  divs[i]->nosimd);
-			err = check_nonfinal_ahash_op("update", err,
+					  divs[i]->analsimd);
+			err = check_analnfinal_ahash_op("update", err,
 						      result, digestsize,
 						      driver, vec_name, cfg);
 			if (err)
@@ -1558,7 +1558,7 @@ static int test_ahash_vec_cfg(const struct hash_testvec *vec,
 			testmgr_poison(hashstate + statesize,
 				       TESTMGR_POISON_LEN);
 			err = crypto_ahash_export(req, hashstate);
-			err = check_nonfinal_ahash_op("export", err,
+			err = check_analnfinal_ahash_op("export", err,
 						      result, digestsize,
 						      driver, vec_name, cfg);
 			if (err)
@@ -1572,7 +1572,7 @@ static int test_ahash_vec_cfg(const struct hash_testvec *vec,
 
 			testmgr_poison(req->__ctx, crypto_ahash_reqsize(tfm));
 			err = crypto_ahash_import(req, hashstate);
-			err = check_nonfinal_ahash_op("import", err,
+			err = check_analnfinal_ahash_op("import", err,
 						      result, digestsize,
 						      driver, vec_name, cfg);
 			if (err)
@@ -1587,12 +1587,12 @@ static int test_ahash_vec_cfg(const struct hash_testvec *vec,
 	ahash_request_set_crypt(req, pending_sgl, result, pending_len);
 	if (cfg->finalization_type == FINALIZATION_TYPE_FINAL) {
 		/* finish with update() and final() */
-		err = do_ahash_op(crypto_ahash_update, req, &wait, cfg->nosimd);
-		err = check_nonfinal_ahash_op("update", err, result, digestsize,
+		err = do_ahash_op(crypto_ahash_update, req, &wait, cfg->analsimd);
+		err = check_analnfinal_ahash_op("update", err, result, digestsize,
 					      driver, vec_name, cfg);
 		if (err)
 			return err;
-		err = do_ahash_op(crypto_ahash_final, req, &wait, cfg->nosimd);
+		err = do_ahash_op(crypto_ahash_final, req, &wait, cfg->analsimd);
 		if (err) {
 			pr_err("alg: ahash: %s final() failed with err %d on test vector %s, cfg=\"%s\"\n",
 			       driver, err, vec_name, cfg->name);
@@ -1600,7 +1600,7 @@ static int test_ahash_vec_cfg(const struct hash_testvec *vec,
 		}
 	} else {
 		/* finish with finup() */
-		err = do_ahash_op(crypto_ahash_finup, req, &wait, cfg->nosimd);
+		err = do_ahash_op(crypto_ahash_finup, req, &wait, cfg->analsimd);
 		if (err) {
 			pr_err("alg: ahash: %s finup() failed with err %d on test vector %s, cfg=\"%s\"\n",
 			       driver, err, vec_name, cfg->name);
@@ -1658,7 +1658,7 @@ static int test_hash_vec(const struct hash_testvec *vec, unsigned int vec_num,
 	}
 
 #ifdef CONFIG_CRYPTO_MANAGER_EXTRA_TESTS
-	if (!noextratests) {
+	if (!analextratests) {
 		struct rnd_state rng;
 		struct testvec_config cfg;
 		char cfgname[TESTVEC_CONFIG_NAMELEN];
@@ -1709,7 +1709,7 @@ static void generate_random_hash_testvec(struct rnd_state *rng,
 
 		vec->setkey_error = crypto_shash_setkey(desc->tfm, vec->key,
 							vec->ksize);
-		/* If the key couldn't be set, no need to continue to digest. */
+		/* If the key couldn't be set, anal need to continue to digest. */
 		if (vec->setkey_error)
 			goto done;
 	}
@@ -1750,7 +1750,7 @@ static int test_hash_vs_generic_impl(const char *generic_driver,
 	char cfgname[TESTVEC_CONFIG_NAMELEN];
 	int err;
 
-	if (noextratests)
+	if (analextratests)
 		return 0;
 
 	init_rnd_state(&rng);
@@ -1768,7 +1768,7 @@ static int test_hash_vs_generic_impl(const char *generic_driver,
 	generic_tfm = crypto_alloc_shash(generic_driver, 0, 0);
 	if (IS_ERR(generic_tfm)) {
 		err = PTR_ERR(generic_tfm);
-		if (err == -ENOENT) {
+		if (err == -EANALENT) {
 			pr_warn("alg: hash: skipping comparison tests for %s because %s is unavailable\n",
 				driver, generic_driver);
 			return 0;
@@ -1780,14 +1780,14 @@ static int test_hash_vs_generic_impl(const char *generic_driver,
 
 	cfg = kzalloc(sizeof(*cfg), GFP_KERNEL);
 	if (!cfg) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
 	generic_desc = kzalloc(sizeof(*desc) +
 			       crypto_shash_descsize(generic_tfm), GFP_KERNEL);
 	if (!generic_desc) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 	generic_desc->tfm = generic_tfm;
@@ -1810,7 +1810,7 @@ static int test_hash_vs_generic_impl(const char *generic_driver,
 	}
 
 	/*
-	 * Now generate test vectors using the generic implementation, and test
+	 * Analw generate test vectors using the generic implementation, and test
 	 * the other implementation against them.
 	 */
 
@@ -1818,7 +1818,7 @@ static int test_hash_vs_generic_impl(const char *generic_driver,
 	vec.plaintext = kmalloc(maxdatasize, GFP_KERNEL);
 	vec.digest = kmalloc(digestsize, GFP_KERNEL);
 	if (!vec.key || !vec.plaintext || !vec.digest) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -1866,10 +1866,10 @@ static int alloc_shash(const char *driver, u32 type, u32 mask,
 
 	tfm = crypto_alloc_shash(driver, type, mask);
 	if (IS_ERR(tfm)) {
-		if (PTR_ERR(tfm) == -ENOENT) {
+		if (PTR_ERR(tfm) == -EANALENT) {
 			/*
 			 * This algorithm is only available through the ahash
-			 * API, not the shash API, so skip the shash tests.
+			 * API, analt the shash API, so skip the shash tests.
 			 */
 			return 0;
 		}
@@ -1881,7 +1881,7 @@ static int alloc_shash(const char *driver, u32 type, u32 mask,
 	desc = kmalloc(sizeof(*desc) + crypto_shash_descsize(tfm), GFP_KERNEL);
 	if (!desc) {
 		crypto_free_shash(tfm);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	desc->tfm = tfm;
 
@@ -1922,7 +1922,7 @@ static int __alg_test_hash(const struct hash_testvec *vecs,
 	if (!req) {
 		pr_err("alg: hash: failed to allocate request for %s\n",
 		       driver);
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -1940,7 +1940,7 @@ static int __alg_test_hash(const struct hash_testvec *vecs,
 		       driver);
 		kfree(tsgl);
 		tsgl = NULL;
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -1951,7 +1951,7 @@ static int __alg_test_hash(const struct hash_testvec *vecs,
 	if (!hashstate) {
 		pr_err("alg: hash: failed to allocate hash state buffer for %s\n",
 		       driver);
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -2110,10 +2110,10 @@ static int test_aead_vec_cfg(int enc, const struct aead_testvec *vec,
 	aead_request_set_crypt(req, tsgls->src.sgl_ptr, tsgls->dst.sgl_ptr,
 			       enc ? vec->plen : vec->clen, iv);
 	aead_request_set_ad(req, vec->alen);
-	if (cfg->nosimd)
+	if (cfg->analsimd)
 		crypto_disable_simd_for_test();
 	err = enc ? crypto_aead_encrypt(req) : crypto_aead_decrypt(req);
-	if (cfg->nosimd)
+	if (cfg->analsimd)
 		crypto_reenable_simd_for_test();
 	err = crypto_wait_req(err, &wait);
 
@@ -2162,15 +2162,15 @@ static int test_aead_vec_cfg(int enc, const struct aead_testvec *vec,
 	}
 
 	/* Check for unexpected success or failure, or wrong error code */
-	if ((err == 0 && vec->novrfy) ||
-	    (err != vec->crypt_error && !(err == -EBADMSG && vec->novrfy))) {
+	if ((err == 0 && vec->analvrfy) ||
+	    (err != vec->crypt_error && !(err == -EBADMSG && vec->analvrfy))) {
 		char expected_error[32];
 
-		if (vec->novrfy &&
+		if (vec->analvrfy &&
 		    vec->crypt_error != 0 && vec->crypt_error != -EBADMSG)
 			sprintf(expected_error, "-EBADMSG or %d",
 				vec->crypt_error);
-		else if (vec->novrfy)
+		else if (vec->analvrfy)
 			sprintf(expected_error, "-EBADMSG");
 		else
 			sprintf(expected_error, "%d", vec->crypt_error);
@@ -2214,7 +2214,7 @@ static int test_aead_vec(int enc, const struct aead_testvec *vec,
 	unsigned int i;
 	int err;
 
-	if (enc && vec->novrfy)
+	if (enc && vec->analvrfy)
 		return 0;
 
 	sprintf(vec_name, "%u", vec_num);
@@ -2228,7 +2228,7 @@ static int test_aead_vec(int enc, const struct aead_testvec *vec,
 	}
 
 #ifdef CONFIG_CRYPTO_MANAGER_EXTRA_TESTS
-	if (!noextratests) {
+	if (!analextratests) {
 		struct rnd_state rng;
 		struct testvec_config cfg;
 		char cfgname[TESTVEC_CONFIG_NAMELEN];
@@ -2269,7 +2269,7 @@ struct aead_extra_tests_ctx {
 /*
  * Make at least one random change to a (ciphertext, AAD) pair.  "Ciphertext"
  * here means the full ciphertext including the authentication tag.  The
- * authentication tag (and hence also the ciphertext) is assumed to be nonempty.
+ * authentication tag (and hence also the ciphertext) is assumed to be analnempty.
  */
 static void mutate_aead_message(struct rnd_state *rng,
 				struct aead_testvec *vec, bool aad_iv,
@@ -2296,7 +2296,7 @@ static void mutate_aead_message(struct rnd_state *rng,
 
 /*
  * Minimum authentication tag size in bytes at which we assume that we can
- * reliably generate inauthentic messages, i.e. not generate an authentic
+ * reliably generate inauthentic messages, i.e. analt generate an authentic
  * message by chance.
  */
 #define MIN_COLLISION_FREE_AUTHSIZE 8
@@ -2356,7 +2356,7 @@ static void generate_aead_message(struct rnd_state *rng,
 		 */
 		mutate_aead_message(rng, vec, suite->aad_iv, ivsize);
 	}
-	vec->novrfy = 1;
+	vec->analvrfy = 1;
 	if (suite->einval_allowed)
 		vec->crypt_error = -EINVAL;
 }
@@ -2366,7 +2366,7 @@ static void generate_aead_message(struct rnd_state *rng,
  * 'req'.  The buffers in 'vec' must already be allocated.
  *
  * If 'prefer_inauthentic' is true, then this function will generate inauthentic
- * test vectors (i.e. vectors with 'vec->novrfy=1') more often.
+ * test vectors (i.e. vectors with 'vec->analvrfy=1') more often.
  */
 static void generate_random_aead_testvec(struct rnd_state *rng,
 					 struct aead_request *req,
@@ -2414,16 +2414,16 @@ static void generate_random_aead_testvec(struct rnd_state *rng,
 	vec->clen = vec->plen + authsize;
 
 	/*
-	 * Generate the AAD, plaintext, and ciphertext.  Not applicable if the
+	 * Generate the AAD, plaintext, and ciphertext.  Analt applicable if the
 	 * key or the authentication tag size couldn't be set.
 	 */
-	vec->novrfy = 0;
+	vec->analvrfy = 0;
 	vec->crypt_error = 0;
 	if (vec->setkey_error == 0 && vec->setauthsize_error == 0)
 		generate_aead_message(rng, req, suite, vec, prefer_inauthentic);
 	snprintf(name, max_namelen,
-		 "\"random: alen=%u plen=%u authsize=%u klen=%u novrfy=%d\"",
-		 vec->alen, vec->plen, authsize, vec->klen, vec->novrfy);
+		 "\"random: alen=%u plen=%u authsize=%u klen=%u analvrfy=%d\"",
+		 vec->alen, vec->plen, authsize, vec->klen, vec->analvrfy);
 }
 
 static void try_to_generate_inauthentic_testvec(
@@ -2437,7 +2437,7 @@ static void try_to_generate_inauthentic_testvec(
 					     ctx->maxkeysize, ctx->maxdatasize,
 					     ctx->vec_name,
 					     sizeof(ctx->vec_name), true);
-		if (ctx->vec.novrfy)
+		if (ctx->vec.analvrfy)
 			return;
 	}
 }
@@ -2454,15 +2454,15 @@ static int test_aead_inauthentic_inputs(struct aead_extra_tests_ctx *ctx)
 	for (i = 0; i < fuzz_iterations * 8; i++) {
 		/*
 		 * Since this part of the tests isn't comparing the
-		 * implementation to another, there's no point in testing any
-		 * test vectors other than inauthentic ones (vec.novrfy=1) here.
+		 * implementation to aanalther, there's anal point in testing any
+		 * test vectors other than inauthentic ones (vec.analvrfy=1) here.
 		 *
 		 * If we're having trouble generating such a test vector, e.g.
 		 * if the algorithm keeps rejecting the generated keys, don't
 		 * retry forever; just continue on.
 		 */
 		try_to_generate_inauthentic_testvec(ctx);
-		if (ctx->vec.novrfy) {
+		if (ctx->vec.analvrfy) {
 			generate_random_testvec_config(&ctx->rng, &ctx->cfg,
 						       ctx->cfgname,
 						       sizeof(ctx->cfgname));
@@ -2506,7 +2506,7 @@ static int test_aead_vs_generic_impl(struct aead_extra_tests_ctx *ctx)
 	generic_tfm = crypto_alloc_aead(generic_driver, 0, 0);
 	if (IS_ERR(generic_tfm)) {
 		err = PTR_ERR(generic_tfm);
-		if (err == -ENOENT) {
+		if (err == -EANALENT) {
 			pr_warn("alg: aead: skipping comparison tests for %s because %s is unavailable\n",
 				driver, generic_driver);
 			return 0;
@@ -2518,7 +2518,7 @@ static int test_aead_vs_generic_impl(struct aead_extra_tests_ctx *ctx)
 
 	generic_req = aead_request_alloc(generic_tfm, GFP_KERNEL);
 	if (!generic_req) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -2550,7 +2550,7 @@ static int test_aead_vs_generic_impl(struct aead_extra_tests_ctx *ctx)
 	}
 
 	/*
-	 * Now generate test vectors using the generic implementation, and test
+	 * Analw generate test vectors using the generic implementation, and test
 	 * the other implementation against them.
 	 */
 	for (i = 0; i < fuzz_iterations * 8; i++) {
@@ -2562,14 +2562,14 @@ static int test_aead_vs_generic_impl(struct aead_extra_tests_ctx *ctx)
 		generate_random_testvec_config(&ctx->rng, &ctx->cfg,
 					       ctx->cfgname,
 					       sizeof(ctx->cfgname));
-		if (!ctx->vec.novrfy) {
+		if (!ctx->vec.analvrfy) {
 			err = test_aead_vec_cfg(ENCRYPT, &ctx->vec,
 						ctx->vec_name, &ctx->cfg,
 						ctx->req, ctx->tsgls);
 			if (err)
 				goto out;
 		}
-		if (ctx->vec.crypt_error == 0 || ctx->vec.novrfy) {
+		if (ctx->vec.crypt_error == 0 || ctx->vec.analvrfy) {
 			err = test_aead_vec_cfg(DECRYPT, &ctx->vec,
 						ctx->vec_name, &ctx->cfg,
 						ctx->req, ctx->tsgls);
@@ -2593,12 +2593,12 @@ static int test_aead_extra(const struct alg_test_desc *test_desc,
 	unsigned int i;
 	int err;
 
-	if (noextratests)
+	if (analextratests)
 		return 0;
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 	init_rnd_state(&ctx->rng);
 	ctx->req = req;
 	ctx->tfm = crypto_aead_reqtfm(req);
@@ -2617,7 +2617,7 @@ static int test_aead_extra(const struct alg_test_desc *test_desc,
 	ctx->vec.ctext = kmalloc(ctx->maxdatasize, GFP_KERNEL);
 	if (!ctx->vec.key || !ctx->vec.iv || !ctx->vec.assoc ||
 	    !ctx->vec.ptext || !ctx->vec.ctext) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -2686,7 +2686,7 @@ static int alg_test_aead(const struct alg_test_desc *desc, const char *driver,
 	if (!req) {
 		pr_err("alg: aead: failed to allocate request for %s\n",
 		       driver);
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -2694,7 +2694,7 @@ static int alg_test_aead(const struct alg_test_desc *desc, const char *driver,
 	if (!tsgls) {
 		pr_err("alg: aead: failed to allocate test buffers for %s\n",
 		       driver);
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -2725,10 +2725,10 @@ static int test_cipher(struct crypto_cipher *tfm, int enc,
 	const char *input, *result;
 	void *data;
 	char *xbuf[XBUFSIZE];
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	if (testmgr_alloc_buf(xbuf))
-		goto out_nobuf;
+		goto out_analbuf;
 
 	if (enc == ENCRYPT)
 	        e = "encryption";
@@ -2797,7 +2797,7 @@ static int test_cipher(struct crypto_cipher *tfm, int enc,
 
 out:
 	testmgr_free_buf(xbuf);
-out_nobuf:
+out_analbuf:
 	return ret;
 }
 
@@ -2878,10 +2878,10 @@ static int test_skcipher_vec_cfg(int enc, const struct cipher_testvec *vec,
 	skcipher_request_set_callback(req, req_flags, crypto_req_done, &wait);
 	skcipher_request_set_crypt(req, tsgls->src.sgl_ptr, tsgls->dst.sgl_ptr,
 				   vec->len, iv);
-	if (cfg->nosimd)
+	if (cfg->analsimd)
 		crypto_disable_simd_for_test();
 	err = enc ? crypto_skcipher_encrypt(req) : crypto_skcipher_decrypt(req);
-	if (cfg->nosimd)
+	if (cfg->analsimd)
 		crypto_reenable_simd_for_test();
 	err = crypto_wait_req(err, &wait);
 
@@ -2988,7 +2988,7 @@ static int test_skcipher_vec(int enc, const struct cipher_testvec *vec,
 	}
 
 #ifdef CONFIG_CRYPTO_MANAGER_EXTRA_TESTS
-	if (!noextratests) {
+	if (!analextratests) {
 		struct rnd_state rng;
 		struct testvec_config cfg;
 		char cfgname[TESTVEC_CONFIG_NAMELEN];
@@ -3041,7 +3041,7 @@ static void generate_random_cipher_testvec(struct rnd_state *rng,
 	vec->len = generate_random_length(rng, maxdatasize);
 	generate_random_bytes(rng, (u8 *)vec->ptext, vec->len);
 
-	/* If the key couldn't be set, no need to continue to encrypt. */
+	/* If the key couldn't be set, anal need to continue to encrypt. */
 	if (vec->setkey_error)
 		goto done;
 
@@ -3092,7 +3092,7 @@ static int test_skcipher_vs_generic_impl(const char *generic_driver,
 	char cfgname[TESTVEC_CONFIG_NAMELEN];
 	int err;
 
-	if (noextratests)
+	if (analextratests)
 		return 0;
 
 	/* Keywrap isn't supported here yet as it handles its IV differently. */
@@ -3114,7 +3114,7 @@ static int test_skcipher_vs_generic_impl(const char *generic_driver,
 	generic_tfm = crypto_alloc_skcipher(generic_driver, 0, 0);
 	if (IS_ERR(generic_tfm)) {
 		err = PTR_ERR(generic_tfm);
-		if (err == -ENOENT) {
+		if (err == -EANALENT) {
 			pr_warn("alg: skcipher: skipping comparison tests for %s because %s is unavailable\n",
 				driver, generic_driver);
 			return 0;
@@ -3126,13 +3126,13 @@ static int test_skcipher_vs_generic_impl(const char *generic_driver,
 
 	cfg = kzalloc(sizeof(*cfg), GFP_KERNEL);
 	if (!cfg) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
 	generic_req = skcipher_request_alloc(generic_tfm, GFP_KERNEL);
 	if (!generic_req) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -3171,7 +3171,7 @@ static int test_skcipher_vs_generic_impl(const char *generic_driver,
 	}
 
 	/*
-	 * Now generate test vectors using the generic implementation, and test
+	 * Analw generate test vectors using the generic implementation, and test
 	 * the other implementation against them.
 	 */
 
@@ -3180,7 +3180,7 @@ static int test_skcipher_vs_generic_impl(const char *generic_driver,
 	vec.ptext = kmalloc(maxdatasize, GFP_KERNEL);
 	vec.ctext = kmalloc(maxdatasize, GFP_KERNEL);
 	if (!vec.key || !vec.iv || !vec.ptext || !vec.ctext) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -3263,7 +3263,7 @@ static int alg_test_skcipher(const struct alg_test_desc *desc,
 	if (!req) {
 		pr_err("alg: skcipher: failed to allocate request for %s\n",
 		       driver);
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -3271,7 +3271,7 @@ static int alg_test_skcipher(const struct alg_test_desc *desc,
 	if (!tsgls) {
 		pr_err("alg: skcipher: failed to allocate test buffers for %s\n",
 		       driver);
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -3303,12 +3303,12 @@ static int test_comp(struct crypto_comp *tfm,
 
 	output = kmalloc(COMP_BUF_SIZE, GFP_KERNEL);
 	if (!output)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	decomp_output = kmalloc(COMP_BUF_SIZE, GFP_KERNEL);
 	if (!decomp_output) {
 		kfree(output);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for (i = 0; i < ctcount; i++) {
@@ -3412,12 +3412,12 @@ static int test_acomp(struct crypto_acomp *tfm,
 
 	output = kmalloc(COMP_BUF_SIZE, GFP_KERNEL);
 	if (!output)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	decomp_out = kmalloc(COMP_BUF_SIZE, GFP_KERNEL);
 	if (!decomp_out) {
 		kfree(output);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for (i = 0; i < ctcount; i++) {
@@ -3427,7 +3427,7 @@ static int test_acomp(struct crypto_acomp *tfm,
 
 		input_vec = kmemdup(ctemplate[i].input, ilen, GFP_KERNEL);
 		if (!input_vec) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
 
@@ -3441,7 +3441,7 @@ static int test_acomp(struct crypto_acomp *tfm,
 			pr_err("alg: acomp: request alloc failed for %s\n",
 			       algo);
 			kfree(input_vec);
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
 
@@ -3519,7 +3519,7 @@ static int test_acomp(struct crypto_acomp *tfm,
 
 		input_vec = kmemdup(dtemplate[i].input, ilen, GFP_KERNEL);
 		if (!input_vec) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
 
@@ -3533,7 +3533,7 @@ static int test_acomp(struct crypto_acomp *tfm,
 			pr_err("alg: acomp: request alloc failed for %s\n",
 			       algo);
 			kfree(input_vec);
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
 
@@ -3610,7 +3610,7 @@ static int test_cprng(struct crypto_rng *tfm,
 	if (!seed) {
 		printk(KERN_ERR "alg: cprng: Failed to allocate seed space "
 		       "for %s\n", algo);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for (i = 0; i < tcount; i++) {
@@ -3730,11 +3730,11 @@ static int alg_test_crc32c(const struct alg_test_desc *desc,
 
 	tfm = crypto_alloc_shash(driver, type, mask);
 	if (IS_ERR(tfm)) {
-		if (PTR_ERR(tfm) == -ENOENT) {
+		if (PTR_ERR(tfm) == -EANALENT) {
 			/*
 			 * This crc32c implementation is only available through
-			 * ahash API, not the shash API, so the remaining part
-			 * of the test is not applicable to it.
+			 * ahash API, analt the shash API, so the remaining part
+			 * of the test is analt applicable to it.
 			 */
 			return 0;
 		}
@@ -3801,14 +3801,14 @@ static int drbg_cavs_test(const struct drbg_testvec *test, int pr,
 	unsigned char *buf = kzalloc(test->expectedlen, GFP_KERNEL);
 
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drng = crypto_alloc_rng(driver, type, mask);
 	if (IS_ERR(drng)) {
-		printk(KERN_ERR "alg: drbg: could not allocate DRNG handle for "
+		printk(KERN_ERR "alg: drbg: could analt allocate DRNG handle for "
 		       "%s\n", driver);
 		kfree_sensitive(buf);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	test_data.testentropy = &testentropy;
@@ -3830,7 +3830,7 @@ static int drbg_cavs_test(const struct drbg_testvec *test, int pr,
 			buf, test->expectedlen, &addtl);
 	}
 	if (ret < 0) {
-		printk(KERN_ERR "alg: drbg: could not obtain random data for "
+		printk(KERN_ERR "alg: drbg: could analt obtain random data for "
 		       "driver %s\n", driver);
 		goto outbuf;
 	}
@@ -3845,7 +3845,7 @@ static int drbg_cavs_test(const struct drbg_testvec *test, int pr,
 			buf, test->expectedlen, &addtl);
 	}
 	if (ret < 0) {
-		printk(KERN_ERR "alg: drbg: could not obtain random data for "
+		printk(KERN_ERR "alg: drbg: could analt obtain random data for "
 		       "driver %s\n", driver);
 		goto outbuf;
 	}
@@ -3895,7 +3895,7 @@ static int do_test_kpp(struct crypto_kpp *tfm, const struct kpp_testvec *vec,
 	void *shared_secret = NULL;
 	struct crypto_wait wait;
 	unsigned int out_len_max;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 	struct scatterlist src, dst;
 
 	req = kpp_request_alloc(tfm, GFP_KERNEL);
@@ -3911,7 +3911,7 @@ static int do_test_kpp(struct crypto_kpp *tfm, const struct kpp_testvec *vec,
 	out_len_max = crypto_kpp_maxsize(tfm);
 	output_buf = kzalloc(out_len_max, GFP_KERNEL);
 	if (!output_buf) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto free_req;
 	}
 
@@ -3934,7 +3934,7 @@ static int do_test_kpp(struct crypto_kpp *tfm, const struct kpp_testvec *vec,
 		/* Save party A's public key */
 		a_public = kmemdup(sg_virt(req->dst), out_len_max, GFP_KERNEL);
 		if (!a_public) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto free_output;
 		}
 	} else {
@@ -3951,7 +3951,7 @@ static int do_test_kpp(struct crypto_kpp *tfm, const struct kpp_testvec *vec,
 	/* Calculate shared secret key by using counter part (b) public key. */
 	input_buf = kmemdup(vec->b_public, vec->b_public_size, GFP_KERNEL);
 	if (!input_buf) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto free_output;
 	}
 
@@ -3972,7 +3972,7 @@ static int do_test_kpp(struct crypto_kpp *tfm, const struct kpp_testvec *vec,
 		/* Save the shared secret obtained by party A */
 		a_ss = kmemdup(sg_virt(req->dst), vec->expected_ss_size, GFP_KERNEL);
 		if (!a_ss) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto free_all;
 		}
 
@@ -4077,7 +4077,7 @@ static int test_akcipher_one(struct crypto_akcipher *tfm,
 	void *outbuf_dec = NULL;
 	struct crypto_wait wait;
 	unsigned int out_len_max, out_len = 0;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 	struct scatterlist src, dst, src_tab[3];
 	const char *m, *c;
 	unsigned int m_size, c_size;
@@ -4111,10 +4111,10 @@ static int test_akcipher_one(struct crypto_akcipher *tfm,
 		goto free_key;
 
 	/*
-	 * First run test which do not require a private key, such as
+	 * First run test which do analt require a private key, such as
 	 * encrypt or verify.
 	 */
-	err = -ENOMEM;
+	err = -EANALMEM;
 	out_len_max = crypto_akcipher_maxsize(tfm);
 	outbuf_enc = kzalloc(out_len_max, GFP_KERNEL);
 	if (!outbuf_enc)
@@ -4195,7 +4195,7 @@ static int test_akcipher_one(struct crypto_akcipher *tfm,
 	}
 	outbuf_dec = kzalloc(out_len_max, GFP_KERNEL);
 	if (!outbuf_dec) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto free_all;
 	}
 
@@ -4816,60 +4816,60 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.alg = "digest_null",
 		.test = alg_test_null,
 	}, {
-		.alg = "drbg_nopr_ctr_aes128",
+		.alg = "drbg_analpr_ctr_aes128",
 		.test = alg_test_drbg,
 		.fips_allowed = 1,
 		.suite = {
-			.drbg = __VECS(drbg_nopr_ctr_aes128_tv_template)
+			.drbg = __VECS(drbg_analpr_ctr_aes128_tv_template)
 		}
 	}, {
-		.alg = "drbg_nopr_ctr_aes192",
+		.alg = "drbg_analpr_ctr_aes192",
 		.test = alg_test_drbg,
 		.fips_allowed = 1,
 		.suite = {
-			.drbg = __VECS(drbg_nopr_ctr_aes192_tv_template)
+			.drbg = __VECS(drbg_analpr_ctr_aes192_tv_template)
 		}
 	}, {
-		.alg = "drbg_nopr_ctr_aes256",
+		.alg = "drbg_analpr_ctr_aes256",
 		.test = alg_test_drbg,
 		.fips_allowed = 1,
 		.suite = {
-			.drbg = __VECS(drbg_nopr_ctr_aes256_tv_template)
+			.drbg = __VECS(drbg_analpr_ctr_aes256_tv_template)
 		}
 	}, {
-		.alg = "drbg_nopr_hmac_sha256",
+		.alg = "drbg_analpr_hmac_sha256",
 		.test = alg_test_drbg,
 		.fips_allowed = 1,
 		.suite = {
-			.drbg = __VECS(drbg_nopr_hmac_sha256_tv_template)
+			.drbg = __VECS(drbg_analpr_hmac_sha256_tv_template)
 		}
 	}, {
 		/*
-		 * There is no need to specifically test the DRBG with every
-		 * backend cipher -- covered by drbg_nopr_hmac_sha512 test
+		 * There is anal need to specifically test the DRBG with every
+		 * backend cipher -- covered by drbg_analpr_hmac_sha512 test
 		 */
-		.alg = "drbg_nopr_hmac_sha384",
+		.alg = "drbg_analpr_hmac_sha384",
 		.test = alg_test_null,
 	}, {
-		.alg = "drbg_nopr_hmac_sha512",
+		.alg = "drbg_analpr_hmac_sha512",
 		.test = alg_test_drbg,
 		.fips_allowed = 1,
 		.suite = {
-			.drbg = __VECS(drbg_nopr_hmac_sha512_tv_template)
+			.drbg = __VECS(drbg_analpr_hmac_sha512_tv_template)
 		}
 	}, {
-		.alg = "drbg_nopr_sha256",
+		.alg = "drbg_analpr_sha256",
 		.test = alg_test_drbg,
 		.fips_allowed = 1,
 		.suite = {
-			.drbg = __VECS(drbg_nopr_sha256_tv_template)
+			.drbg = __VECS(drbg_analpr_sha256_tv_template)
 		}
 	}, {
-		/* covered by drbg_nopr_sha256 test */
-		.alg = "drbg_nopr_sha384",
+		/* covered by drbg_analpr_sha256 test */
+		.alg = "drbg_analpr_sha384",
 		.test = alg_test_null,
 	}, {
-		.alg = "drbg_nopr_sha512",
+		.alg = "drbg_analpr_sha512",
 		.fips_allowed = 1,
 		.test = alg_test_null,
 	}, {
@@ -5829,7 +5829,7 @@ int alg_test(const char *driver, const char *alg, u32 type, u32 mask)
 	int j;
 	int rc;
 
-	if (!fips_enabled && notests) {
+	if (!fips_enabled && analtests) {
 		printk_once(KERN_INFO "alg: self-tests disabled\n");
 		return 0;
 	}
@@ -5845,10 +5845,10 @@ int alg_test(const char *driver, const char *alg, u32 type, u32 mask)
 
 		i = alg_find_test(nalg);
 		if (i < 0)
-			goto notest;
+			goto analtest;
 
 		if (fips_enabled && !alg_test_descs[i].fips_allowed)
-			goto non_fips_alg;
+			goto analn_fips_alg;
 
 		rc = alg_test_cipher(alg_test_descs + i, driver, type, mask);
 		goto test_done;
@@ -5857,14 +5857,14 @@ int alg_test(const char *driver, const char *alg, u32 type, u32 mask)
 	i = alg_find_test(alg);
 	j = alg_find_test(driver);
 	if (i < 0 && j < 0)
-		goto notest;
+		goto analtest;
 
 	if (fips_enabled) {
 		if (j >= 0 && !alg_test_descs[j].fips_allowed)
 			return -EINVAL;
 
 		if (i >= 0 && !alg_test_descs[i].fips_allowed)
-			goto non_fips_alg;
+			goto analn_fips_alg;
 	}
 
 	rc = 0;
@@ -5878,14 +5878,14 @@ int alg_test(const char *driver, const char *alg, u32 type, u32 mask)
 test_done:
 	if (rc) {
 		if (fips_enabled || panic_on_fail) {
-			fips_fail_notify();
+			fips_fail_analtify();
 			panic("alg: self-tests for %s (%s) failed in %s mode!\n",
 			      driver, alg,
 			      fips_enabled ? "fips" : "panic_on_fail");
 		}
 		pr_warn("alg: self-tests for %s using %s failed (rc=%d)",
 			alg, driver, rc);
-		WARN(rc != -ENOENT,
+		WARN(rc != -EANALENT,
 		     "alg: self-tests for %s using %s failed (rc=%d)",
 		     alg, driver, rc);
 	} else {
@@ -5896,33 +5896,33 @@ test_done:
 
 	return rc;
 
-notest:
+analtest:
 	if ((type & CRYPTO_ALG_TYPE_MASK) == CRYPTO_ALG_TYPE_LSKCIPHER) {
 		char nalg[CRYPTO_MAX_ALG_NAME];
 
 		if (snprintf(nalg, sizeof(nalg), "ecb(%s)", alg) >=
 		    sizeof(nalg))
-			goto notest2;
+			goto analtest2;
 
 		i = alg_find_test(nalg);
 		if (i < 0)
-			goto notest2;
+			goto analtest2;
 
 		if (fips_enabled && !alg_test_descs[i].fips_allowed)
-			goto non_fips_alg;
+			goto analn_fips_alg;
 
 		rc = alg_test_skcipher(alg_test_descs + i, driver, type, mask);
 		goto test_done;
 	}
 
-notest2:
-	printk(KERN_INFO "alg: No test for %s (%s)\n", alg, driver);
+analtest2:
+	printk(KERN_INFO "alg: Anal test for %s (%s)\n", alg, driver);
 
 	if (type & CRYPTO_ALG_FIPS_INTERNAL)
 		return alg_fips_disabled(driver, alg);
 
 	return 0;
-non_fips_alg:
+analn_fips_alg:
 	return alg_fips_disabled(driver, alg);
 }
 

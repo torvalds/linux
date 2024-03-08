@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2017, Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -52,7 +52,7 @@ struct mlx5e_neigh_update_table {
 	struct list_head	neigh_list;
 	/* protect lookup/remove operations */
 	struct mutex		encap_lock;
-	struct notifier_block   netevent_nb;
+	struct analtifier_block   netevent_nb;
 	struct delayed_work     neigh_stats_work;
 	unsigned long           min_interval; /* jiffies */
 };
@@ -136,7 +136,7 @@ struct mlx5e_neigh {
 };
 
 struct mlx5e_neigh_hash_entry {
-	struct rhash_head rhash_node;
+	struct rhash_head rhash_analde;
 	struct mlx5e_neigh m_neigh;
 	struct mlx5e_priv *priv;
 	struct net_device *neigh_dev;
@@ -154,7 +154,7 @@ struct mlx5e_neigh_hash_entry {
 
 	/* neigh hash entry can be deleted only when the refcount is zero.
 	 * refcount is needed to avoid neigh hash entry removal by TC, while
-	 * it's used by the neigh notification call.
+	 * it's used by the neigh analtification call.
 	 */
 	refcount_t refcnt;
 
@@ -171,7 +171,7 @@ enum {
 	/* set when the encap entry is successfully offloaded into HW */
 	MLX5_ENCAP_ENTRY_VALID     = BIT(0),
 	MLX5_REFORMAT_DECAP        = BIT(1),
-	MLX5_ENCAP_ENTRY_NO_ROUTE  = BIT(2),
+	MLX5_ENCAP_ENTRY_ANAL_ROUTE  = BIT(2),
 };
 
 struct mlx5e_decap_key {
@@ -181,7 +181,7 @@ struct mlx5e_decap_key {
 struct mlx5e_decap_entry {
 	struct mlx5e_decap_key key;
 	struct list_head flows;
-	struct hlist_node hlist;
+	struct hlist_analde hlist;
 	refcount_t refcnt;
 	struct completion res_ready;
 	int compl_result;
@@ -201,10 +201,10 @@ struct mlx5e_encap_entry {
 	struct mlx5e_neigh_hash_entry *nhe;
 	/* neigh hash entry list of encaps sharing the same neigh */
 	struct list_head encap_list;
-	/* a node of the eswitch encap hash table which keeping all the encap
+	/* a analde of the eswitch encap hash table which keeping all the encap
 	 * entries
 	 */
-	struct hlist_node encap_hlist;
+	struct hlist_analde encap_hlist;
 	struct list_head flows;
 	struct list_head route_list;
 	struct mlx5_pkt_reformat *pkt_reformat;
@@ -276,7 +276,7 @@ static inline bool mlx5e_rep_has_offload_stats(const struct net_device *dev,
 					       int attr_id) { return false; }
 static inline int mlx5e_rep_get_offload_stats(int attr_id,
 					      const struct net_device *dev,
-					      void *sp) { return -EOPNOTSUPP; }
+					      void *sp) { return -EOPANALTSUPP; }
 #endif
 
 static inline bool mlx5e_is_vport_rep(struct mlx5e_priv *priv)

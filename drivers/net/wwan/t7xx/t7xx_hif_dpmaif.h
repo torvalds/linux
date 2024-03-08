@@ -76,7 +76,7 @@ struct dpmaif_bat_page {
 };
 
 enum bat_type {
-	BAT_TYPE_NORMAL,
+	BAT_TYPE_ANALRMAL,
 	BAT_TYPE_FRAG,
 };
 
@@ -161,7 +161,7 @@ enum dpmaif_txq_state {
 };
 
 struct dpmaif_callbacks {
-	void (*state_notify)(struct t7xx_pci_dev *t7xx_dev,
+	void (*state_analtify)(struct t7xx_pci_dev *t7xx_dev,
 			     enum dpmaif_txq_state state, int txq_number);
 	void (*recv_skb)(struct t7xx_ccmni_ctrl *ccmni_ctlb, struct sk_buff *skb,
 			 struct napi_struct *napi);

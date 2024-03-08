@@ -804,7 +804,7 @@
 		ranges;
 
 		ospi0: spi@fc40000 {
-			compatible = "ti,am654-ospi", "cdns,qspi-nor";
+			compatible = "ti,am654-ospi", "cdns,qspi-analr";
 			reg = <0x00 0x0fc40000 0x00 0x100>,
 			      <0x05 0x00000000 0x01 0x00000000>;
 			interrupts = <GIC_SPI 139 IRQ_TYPE_LEVEL_HIGH>;
@@ -1031,7 +1031,7 @@
 		#address-cells = <3>;
 		#size-cells = <2>;
 		bus-range = <0x0 0xff>;
-		cdns,no-bar-match-nbits = <64>;
+		cdns,anal-bar-match-nbits = <64>;
 		vendor-id = <0x104c>;
 		device-id = <0xb010>;
 		msi-map = <0x0 &gic_its 0x0 0x10000>;

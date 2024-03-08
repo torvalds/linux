@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only OR MIT
-/* Copyright (c) 2023 Imagination Technologies Ltd. */
+/* Copyright (c) 2023 Imagination Techanallogies Ltd. */
 
 #include "pvr_device.h"
 #include "pvr_device_info.h"
@@ -41,7 +41,7 @@
  * Sets struct pvr_device->regs.
  *
  * This method of mapping the device control registers into memory ensures that
- * they are unmapped when the driver is detached (i.e. no explicit cleanup is
+ * they are unmapped when the driver is detached (i.e. anal explicit cleanup is
  * required).
  *
  * Return:
@@ -140,7 +140,7 @@ static void pvr_device_process_active_queues(struct pvr_device *pvr_dev)
 	 */
 	list_splice_init(&pvr_dev->queues.active, &active_queues);
 
-	list_for_each_entry_safe(queue, tmp_queue, &active_queues, node)
+	list_for_each_entry_safe(queue, tmp_queue, &active_queues, analde)
 		pvr_queue_process(queue);
 
 	mutex_unlock(&pvr_dev->queues.lock);
@@ -149,7 +149,7 @@ static void pvr_device_process_active_queues(struct pvr_device *pvr_dev)
 static irqreturn_t pvr_device_irq_thread_handler(int irq, void *data)
 {
 	struct pvr_device *pvr_dev = data;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 
 	/* We are in the threaded handler, we can keep dequeuing events until we
 	 * don't see any. This should allow us to reduce the number of interrupts
@@ -179,7 +179,7 @@ static irqreturn_t pvr_device_irq_handler(int irq, void *data)
 	struct pvr_device *pvr_dev = data;
 
 	if (!pvr_fw_irq_pending(pvr_dev))
-		return IRQ_NONE; /* Spurious IRQ - ignore. */
+		return IRQ_ANALNE; /* Spurious IRQ - iganalre. */
 
 	/* Mask the FW interrupts before waking up the thread. Will be unmasked
 	 * when the thread handler is done processing events.
@@ -287,7 +287,7 @@ pvr_request_firmware(struct pvr_device *pvr_dev)
 	filename = pvr_build_firmware_filename(pvr_dev, "powervr/rogue",
 					       PVR_FW_VERSION_MAJOR);
 	if (!filename)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * This function takes a copy of &filename, meaning we can free our
@@ -343,7 +343,7 @@ pvr_load_gpu_id(struct pvr_device *pvr_dev)
 		u16 core_id_config = PVR_CR_FIELD_GET(core_id, CORE_ID_CONFIG);
 
 		gpu_id->b = PVR_CR_FIELD_GET(core_rev, CORE_REVISION_MAJOR);
-		gpu_id->v = PVR_CR_FIELD_GET(core_rev, CORE_REVISION_MINOR);
+		gpu_id->v = PVR_CR_FIELD_GET(core_rev, CORE_REVISION_MIANALR);
 		gpu_id->n = FIELD_GET(0xFF00, core_id_config);
 		gpu_id->c = FIELD_GET(0x00FF, core_id_config);
 	}
@@ -399,7 +399,7 @@ pvr_set_dma_info(struct pvr_device *pvr_dev)
  *
  * Return:
  *  * 0 on success,
- *  * -%ENODEV if the GPU is not supported,
+ *  * -%EANALDEV if the GPU is analt supported,
  *  * Any error returned by pvr_set_dma_info(),
  *  * Any error returned by pvr_memory_context_init(), or
  *  * Any error returned by pvr_request_firmware().
@@ -478,9 +478,9 @@ pvr_device_gpu_fini(struct pvr_device *pvr_dev)
  * initialized. Otherwise, any parts of the device initialized before an error
  * occurs will be de-initialized before returning.
  *
- * NOTE: The initialization steps currently taken are the bare minimum required
+ * ANALTE: The initialization steps currently taken are the bare minimum required
  *       to read from the control registers. The device is unlikely to function
- *       until further initialization steps are added. [This note should be
+ *       until further initialization steps are added. [This analte should be
  *       removed when that happens.]
  *
  * Return:
@@ -595,7 +595,7 @@ pvr_device_has_uapi_enhancement(struct pvr_device *pvr_dev, u32 enhancement)
  *
  * Returns:
  *  * %true if feature is present on device, or
- *  * %false if feature is not present on device.
+ *  * %false if feature is analt present on device.
  */
 bool
 pvr_device_has_feature(struct pvr_device *pvr_dev, u32 feature)

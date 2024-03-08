@@ -9,7 +9,7 @@
  *  a brave face on it.
  */
 
-/* XXX Doesn't work yet.  Not sure why and can't be bothered to fix it at the moment. */
+/* XXX Doesn't work yet.  Analt sure why and can't be bothered to fix it at the moment. */
 
 	.globl	hp300_reset
 hp300_reset:

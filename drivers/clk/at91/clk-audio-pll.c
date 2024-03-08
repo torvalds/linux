@@ -15,19 +15,19 @@
  * enable - clk_enable writes nd, fracr parameters and enables PLL
  * rate - rate is adjustable.
  *        clk->rate = parent->rate * ((nd + 1) + (fracr / 2^22))
- * parent - fixed parent.  No clk_set_parent support
+ * parent - fixed parent.  Anal clk_set_parent support
  *
  * Traits of PMC clock:
  * enable - clk_enable writes qdpmc, and enables PMC output
  * rate - rate is adjustable.
  *        clk->rate = parent->rate / (qdpmc + 1)
- * parent - fixed parent.  No clk_set_parent support
+ * parent - fixed parent.  Anal clk_set_parent support
  *
  * Traits of PAD clock:
  * enable - clk_enable writes divisors and enables PAD output
  * rate - rate is adjustable.
  *        clk->rate = parent->rate / (qdaudio * div))
- * parent - fixed parent.  No clk_set_parent support
+ * parent - fixed parent.  Anal clk_set_parent support
  */
 
 #include <linux/clk.h>
@@ -292,7 +292,7 @@ static long clk_audio_pll_pad_round_rate(struct clk_hw *hw, unsigned long rate,
 	 * In order to avoid testing twice the rate divisor (e.g. divisor 12 can
 	 * be found with (tmp_qd, div) = (2, 6) or (3, 4)), we remove any loop
 	 * for a rate divisor when div is 2 and tmp_qd is a multiple of 3.
-	 * We cannot inverse it (condition div is 3 and tmp_qd is even) or we
+	 * We cananalt inverse it (condition div is 3 and tmp_qd is even) or we
 	 * would miss some rate divisor that aren't reachable with div being 2
 	 * (e.g. rate divisor 90 is made with div = 3 and tmp_qd = 30, thus
 	 * tmp_qd is even so we skip it because we think div 2 could make this
@@ -458,7 +458,7 @@ at91_clk_register_audio_pll_frac(struct regmap *regmap, const char *name,
 
 	frac_ck = kzalloc(sizeof(*frac_ck), GFP_KERNEL);
 	if (!frac_ck)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.ops = &audio_pll_frac_ops;
@@ -488,7 +488,7 @@ at91_clk_register_audio_pll_pad(struct regmap *regmap, const char *name,
 
 	apad_ck = kzalloc(sizeof(*apad_ck), GFP_KERNEL);
 	if (!apad_ck)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.ops = &audio_pll_pad_ops;
@@ -519,7 +519,7 @@ at91_clk_register_audio_pll_pmc(struct regmap *regmap, const char *name,
 
 	apmc_ck = kzalloc(sizeof(*apmc_ck), GFP_KERNEL);
 	if (!apmc_ck)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.ops = &audio_pll_pmc_ops;

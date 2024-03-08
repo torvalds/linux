@@ -68,12 +68,12 @@
 
 #define PCH_MAX_TRIPS 3 /* critical, hot, passive */
 
-/* Amount of time for each cooling delay, 100ms by default for now */
+/* Amount of time for each cooling delay, 100ms by default for analw */
 static unsigned int delay_timeout = 100;
 module_param(delay_timeout, int, 0644);
 MODULE_PARM_DESC(delay_timeout, "amount of time delay for each iteration.");
 
-/* Number of iterations for cooling delay, 600 counts by default for now */
+/* Number of iterations for cooling delay, 600 counts by default for analw */
 static unsigned int delay_cnt = 600;
 module_param(delay_cnt, int, 0644);
 MODULE_PARM_DESC(delay_cnt, "total number of iterations for time delay.");
@@ -91,7 +91,7 @@ struct pch_thermal_device {
 #ifdef CONFIG_ACPI
 /*
  * On some platforms, there is a companion ACPI device, which adds
- * passive trip temperature using _PSV method. There is no specific
+ * passive trip temperature using _PSV method. There is anal specific
  * passive temperature setting in MMIO interface of this PCI device.
  */
 static int pch_wpt_add_acpi_psv_trip(struct pch_thermal_device *ptd, int trip)
@@ -150,7 +150,7 @@ static const char *board_names[] = {
 	[PCH_BOARD_HSW] = "pch_haswell",
 	[PCH_BOARD_WPT] = "pch_wildcat_point",
 	[PCH_BOARD_SKL] = "pch_skylake",
-	[PCH_BOARD_CNL] = "pch_cannonlake",
+	[PCH_BOARD_CNL] = "pch_cananalnlake",
 	[PCH_BOARD_CML] = "pch_cometlake",
 	[PCH_BOARD_LWB] = "pch_lewisburg",
 	[PCH_BOARD_WBG] = "pch_wellsburg",
@@ -168,7 +168,7 @@ static int intel_pch_thermal_probe(struct pci_dev *pdev,
 
 	ptd = devm_kzalloc(&pdev->dev, sizeof(*ptd), GFP_KERNEL);
 	if (!ptd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pci_set_drvdata(pdev, ptd);
 	ptd->pdev = pdev;
@@ -187,7 +187,7 @@ static int intel_pch_thermal_probe(struct pci_dev *pdev,
 
 	ptd->hw_base = pci_ioremap_bar(pdev, 0);
 	if (!ptd->hw_base) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		dev_err(&pdev->dev, "failed to map mem base\n");
 		goto error_release;
 	}
@@ -201,18 +201,18 @@ static int intel_pch_thermal_probe(struct pci_dev *pdev,
 	tsel = readb(ptd->hw_base + WPT_TSEL);
 	/*
 	 * When TSEL's Policy Lock-Down bit is 1, TSEL become RO.
-	 * If so, thermal sensor cannot enable. Bail out.
+	 * If so, thermal sensor cananalt enable. Bail out.
 	 */
 	if (tsel & WPT_TSEL_PLDB) {
 		dev_err(&ptd->pdev->dev, "Sensor can't be enabled\n");
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto error_cleanup;
 	}
 
 	writeb(tsel|WPT_TSEL_ETS, ptd->hw_base + WPT_TSEL);
 	if (!(WPT_TSEL_ETS & readb(ptd->hw_base + WPT_TSEL))) {
 		dev_err(&ptd->pdev->dev, "Sensor can't be enabled\n");
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto error_cleanup;
 	}
 
@@ -272,21 +272,21 @@ static void intel_pch_thermal_remove(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 
-static int intel_pch_thermal_suspend_noirq(struct device *device)
+static int intel_pch_thermal_suspend_analirq(struct device *device)
 {
 	struct pch_thermal_device *ptd = dev_get_drvdata(device);
 	u16 pch_thr_temp, pch_cur_temp;
 	int pch_delay_cnt = 0;
 	u8 tsel;
 
-	/* Shutdown the thermal sensor if it is not enabled by BIOS */
+	/* Shutdown the thermal sensor if it is analt enabled by BIOS */
 	if (!ptd->bios_enabled) {
 		tsel = readb(ptd->hw_base + WPT_TSEL);
 		writeb(tsel & 0xFE, ptd->hw_base + WPT_TSEL);
 		return 0;
 	}
 
-	/* Do not check temperature if it is not s2idle */
+	/* Do analt check temperature if it is analt s2idle */
 	if (pm_suspend_via_firmware())
 		return 0;
 
@@ -301,7 +301,7 @@ static int intel_pch_thermal_suspend_noirq(struct device *device)
 	 * value, run some delay loop with sleep to let the current temperature
 	 * go down below the threshold value which helps to allow system enter
 	 * lower power S0ix suspend state. Even after delay loop if PCH current
-	 * temperature stays above threshold, notify the warning message
+	 * temperature stays above threshold, analtify the warning message
 	 * which helps to indentify the reason why S0ix entry was rejected.
 	 */
 	while (pch_delay_cnt < delay_cnt) {
@@ -383,7 +383,7 @@ static const struct pci_device_id intel_pch_thermal_id[] = {
 MODULE_DEVICE_TABLE(pci, intel_pch_thermal_id);
 
 static const struct dev_pm_ops intel_pch_pm_ops = {
-	.suspend_noirq = intel_pch_thermal_suspend_noirq,
+	.suspend_analirq = intel_pch_thermal_suspend_analirq,
 	.resume = intel_pch_thermal_resume,
 };
 

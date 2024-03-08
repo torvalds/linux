@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2016 Imagination Technologies
+ * Copyright (C) 2016 Imagination Techanallogies
  * Author: Paul Burton <paul.burton@mips.com>
  */
 
 #define pr_fmt(fmt) "sead3: " fmt
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/libfdt.h>
 #include <linux/printk.h>
 #include <linux/sizes.h>
@@ -53,27 +53,27 @@ static __init int remove_gic(void *fdt)
 	int gic_off, cpu_off, uart_off, eth_off, ehci_off, err;
 	uint32_t cfg, cpu_phandle;
 
-	/* leave the GIC node intact if a GIC is present */
+	/* leave the GIC analde intact if a GIC is present */
 	cfg = __raw_readl((uint32_t *)SEAD_CONFIG);
 	if (cfg & SEAD_CONFIG_GIC_PRESENT)
 		return 0;
 
-	gic_off = fdt_node_offset_by_compatible(fdt, -1, "mti,gic");
+	gic_off = fdt_analde_offset_by_compatible(fdt, -1, "mti,gic");
 	if (gic_off < 0) {
-		pr_err("unable to find DT GIC node: %d\n", gic_off);
+		pr_err("unable to find DT GIC analde: %d\n", gic_off);
 		return gic_off;
 	}
 
-	err = fdt_nop_node(fdt, gic_off);
+	err = fdt_analp_analde(fdt, gic_off);
 	if (err) {
-		pr_err("unable to nop GIC node\n");
+		pr_err("unable to analp GIC analde\n");
 		return err;
 	}
 
-	cpu_off = fdt_node_offset_by_compatible(fdt, -1,
+	cpu_off = fdt_analde_offset_by_compatible(fdt, -1,
 			"mti,cpu-interrupt-controller");
 	if (cpu_off < 0) {
-		pr_err("unable to find CPU intc node: %d\n", cpu_off);
+		pr_err("unable to find CPU intc analde: %d\n", cpu_off);
 		return cpu_off;
 	}
 
@@ -83,7 +83,7 @@ static __init int remove_gic(void *fdt)
 		return -EINVAL;
 	}
 
-	uart_off = fdt_node_offset_by_compatible(fdt, -1, "ns16550a");
+	uart_off = fdt_analde_offset_by_compatible(fdt, -1, "ns16550a");
 	while (uart_off >= 0) {
 		err = fdt_setprop_u32(fdt, uart_off, "interrupt-parent",
 				      cpu_phandle);
@@ -101,17 +101,17 @@ static __init int remove_gic(void *fdt)
 			return err;
 		}
 
-		uart_off = fdt_node_offset_by_compatible(fdt, uart_off,
+		uart_off = fdt_analde_offset_by_compatible(fdt, uart_off,
 							 "ns16550a");
 	}
-	if (uart_off != -FDT_ERR_NOTFOUND) {
-		pr_err("error searching for UART DT node: %d\n", uart_off);
+	if (uart_off != -FDT_ERR_ANALTFOUND) {
+		pr_err("error searching for UART DT analde: %d\n", uart_off);
 		return uart_off;
 	}
 
-	eth_off = fdt_node_offset_by_compatible(fdt, -1, "smsc,lan9115");
+	eth_off = fdt_analde_offset_by_compatible(fdt, -1, "smsc,lan9115");
 	if (eth_off < 0) {
-		pr_err("unable to find ethernet DT node: %d\n", eth_off);
+		pr_err("unable to find ethernet DT analde: %d\n", eth_off);
 		return eth_off;
 	}
 
@@ -127,9 +127,9 @@ static __init int remove_gic(void *fdt)
 		return err;
 	}
 
-	ehci_off = fdt_node_offset_by_compatible(fdt, -1, "generic-ehci");
+	ehci_off = fdt_analde_offset_by_compatible(fdt, -1, "generic-ehci");
 	if (ehci_off < 0) {
-		pr_err("unable to find EHCI DT node: %d\n", ehci_off);
+		pr_err("unable to find EHCI DT analde: %d\n", ehci_off);
 		return ehci_off;
 	}
 
@@ -151,7 +151,7 @@ static __init int remove_gic(void *fdt)
 static const struct mips_fdt_fixup sead3_fdt_fixups[] __initconst = {
 	{ yamon_dt_append_cmdline, "append command line" },
 	{ append_memory, "append memory" },
-	{ remove_gic, "remove GIC when not present" },
+	{ remove_gic, "remove GIC when analt present" },
 	{ yamon_dt_serial_config, "append serial configuration" },
 	{ },
 };
@@ -166,7 +166,7 @@ static __init const void *sead3_fixup_fdt(const void *fdt,
 		panic("Corrupt DT");
 
 	/* if this isn't SEAD3, something went wrong */
-	BUG_ON(fdt_node_check_compatible(fdt, 0, "mti,sead-3"));
+	BUG_ON(fdt_analde_check_compatible(fdt, 0, "mti,sead-3"));
 
 	fw_init_cmdline();
 

@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -35,7 +35,7 @@
 
 #include <net/devlink.h>
 #include <linux/auxiliary_bus.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/mlx4/device.h>
 
 #define MLX4_ADEV_NAME "mlx4_core"
@@ -67,10 +67,10 @@ struct mlx4_adrv {
 int mlx4_register_auxiliary_driver(struct mlx4_adrv *madrv);
 void mlx4_unregister_auxiliary_driver(struct mlx4_adrv *madrv);
 
-int mlx4_register_event_notifier(struct mlx4_dev *dev,
-				 struct notifier_block *nb);
-int mlx4_unregister_event_notifier(struct mlx4_dev *dev,
-				   struct notifier_block *nb);
+int mlx4_register_event_analtifier(struct mlx4_dev *dev,
+				 struct analtifier_block *nb);
+int mlx4_unregister_event_analtifier(struct mlx4_dev *dev,
+				   struct analtifier_block *nb);
 
 struct devlink_port *mlx4_get_devlink_port(struct mlx4_dev *dev, int port);
 

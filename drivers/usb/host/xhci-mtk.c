@@ -142,7 +142,7 @@ static void xhci_mtk_set_frame_interval(struct xhci_hcd_mtk *mtk)
 	struct usb_hcd *hcd = mtk->hcd;
 	u32 value;
 
-	if (!of_device_is_compatible(dev->of_node, "mediatek,mt8195-xhci"))
+	if (!of_device_is_compatible(dev->of_analde, "mediatek,mt8195-xhci"))
 		return;
 
 	value = readl(hcd->regs + HFCNTR_CFG);
@@ -253,7 +253,7 @@ static int xhci_mtk_host_enable(struct xhci_hcd_mtk *mtk)
 	ret = readl_poll_timeout(&ippc->ip_pw_sts1, value,
 			  (check_val == (value & check_val)), 100, 20000);
 	if (ret) {
-		dev_err(mtk->dev, "clocks are not stable (0x%x)\n", value);
+		dev_err(mtk->dev, "clocks are analt stable (0x%x)\n", value);
 		return ret;
 	}
 
@@ -393,7 +393,7 @@ static void usb_wakeup_ip_sleep_set(struct xhci_hcd_mtk *mtk, bool enable)
 }
 
 static int usb_wakeup_of_property_parse(struct xhci_hcd_mtk *mtk,
-				struct device_node *dn)
+				struct device_analde *dn)
 {
 	struct of_phandle_args args;
 	int ret;
@@ -410,8 +410,8 @@ static int usb_wakeup_of_property_parse(struct xhci_hcd_mtk *mtk,
 
 	mtk->uwk_reg_base = args.args[0];
 	mtk->uwk_vers = args.args[1];
-	mtk->uwk = syscon_node_to_regmap(args.np);
-	of_node_put(args.np);
+	mtk->uwk = syscon_analde_to_regmap(args.np);
+	of_analde_put(args.np);
 	dev_info(mtk->dev, "uwk - reg:0x%x, version:%d\n",
 			mtk->uwk_reg_base, mtk->uwk_vers);
 
@@ -456,7 +456,7 @@ static void xhci_mtk_quirks(struct device *dev, struct xhci_hcd *xhci)
 	xhci->quirks |= XHCI_MTK_HOST;
 	/*
 	 * MTK host controller gives a spurious successful event after a
-	 * short transfer. Ignore it.
+	 * short transfer. Iganalre it.
 	 */
 	xhci->quirks |= XHCI_SPURIOUS_SUCCESS;
 	if (mtk->lpm_support)
@@ -509,24 +509,24 @@ static struct hc_driver __read_mostly xhci_mtk_hc_driver;
 static int xhci_mtk_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node;
+	struct device_analde *analde = dev->of_analde;
 	struct xhci_hcd_mtk *mtk;
 	const struct hc_driver *driver;
 	struct xhci_hcd *xhci;
 	struct resource *res;
 	struct usb_hcd *usb3_hcd;
 	struct usb_hcd *hcd;
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 	int wakeup_irq;
 	int irq;
 
 	if (usb_disabled())
-		return -ENODEV;
+		return -EANALDEV;
 
 	driver = &xhci_mtk_hc_driver;
 	mtk = devm_kzalloc(dev, sizeof(*mtk), GFP_KERNEL);
 	if (!mtk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mtk->dev = dev;
 
@@ -553,17 +553,17 @@ static int xhci_mtk_probe(struct platform_device *pdev)
 	if (wakeup_irq == -EPROBE_DEFER)
 		return wakeup_irq;
 
-	mtk->lpm_support = of_property_read_bool(node, "usb3-lpm-capable");
-	mtk->u2_lpm_disable = of_property_read_bool(node, "usb2-lpm-disable");
-	/* optional property, ignore the error if it does not exist */
-	of_property_read_u32(node, "mediatek,u3p-dis-msk",
+	mtk->lpm_support = of_property_read_bool(analde, "usb3-lpm-capable");
+	mtk->u2_lpm_disable = of_property_read_bool(analde, "usb2-lpm-disable");
+	/* optional property, iganalre the error if it does analt exist */
+	of_property_read_u32(analde, "mediatek,u3p-dis-msk",
 			     &mtk->u3p_dis_msk);
-	of_property_read_u32(node, "mediatek,u2p-dis-msk",
+	of_property_read_u32(analde, "mediatek,u2p-dis-msk",
 			     &mtk->u2p_dis_msk);
 
-	of_property_read_u32(node, "rx-fifo-depth", &mtk->rxfifo_depth);
+	of_property_read_u32(analde, "rx-fifo-depth", &mtk->rxfifo_depth);
 
-	ret = usb_wakeup_of_property_parse(mtk, node);
+	ret = usb_wakeup_of_property_parse(mtk, analde);
 	if (ret) {
 		dev_err(dev, "failed to parse uwk property\n");
 		return ret;
@@ -591,7 +591,7 @@ static int xhci_mtk_probe(struct platform_device *pdev)
 
 	hcd = usb_create_hcd(driver, dev, dev_name(dev));
 	if (!hcd) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto disable_clk;
 	}
 
@@ -629,7 +629,7 @@ static int xhci_mtk_probe(struct platform_device *pdev)
 	xhci->allow_single_roothub = 1;
 
 	/*
-	 * imod_interval is the interrupt moderation value in nanoseconds.
+	 * imod_interval is the interrupt moderation value in naanalseconds.
 	 * The increment interval is 8 times as much as that defined in
 	 * the xHCI spec on MTK's controller.
 	 */
@@ -644,7 +644,7 @@ static int xhci_mtk_probe(struct platform_device *pdev)
 		xhci->shared_hcd = usb_create_shared_hcd(driver, dev,
 							 dev_name(dev), hcd);
 		if (!xhci->shared_hcd) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto dealloc_usb2_hcd;
 		}
 	}
@@ -699,7 +699,7 @@ disable_ldos:
 	regulator_bulk_disable(BULK_VREGS_NUM, mtk->supplies);
 
 disable_pm:
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 	pm_runtime_disable(dev);
 	return ret;
 }
@@ -732,7 +732,7 @@ static void xhci_mtk_remove(struct platform_device *pdev)
 	regulator_bulk_disable(BULK_VREGS_NUM, mtk->supplies);
 
 	pm_runtime_disable(dev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 	pm_runtime_set_suspended(dev);
 }
 
@@ -816,7 +816,7 @@ static int __maybe_unused xhci_mtk_runtime_suspend(struct device *dev)
 	if (device_may_wakeup(dev))
 		ret = xhci_mtk_suspend(dev);
 
-	/* -EBUSY: let PM automatically reschedule another autosuspend */
+	/* -EBUSY: let PM automatically reschedule aanalther autosuspend */
 	return ret ? -EBUSY : 0;
 }
 

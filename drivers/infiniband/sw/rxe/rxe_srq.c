@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
- * Copyright (c) 2016 Mellanox Technologies Ltd. All rights reserved.
+ * Copyright (c) 2016 Mellaanalx Techanallogies Ltd. All rights reserved.
  * Copyright (c) 2015 System Fabric Works, Inc. All rights reserved.
  */
 
@@ -66,7 +66,7 @@ int rxe_srq_from_init(struct rxe_dev *rxe, struct rxe_srq *srq,
 			   QUEUE_TYPE_FROM_CLIENT);
 	if (!q) {
 		rxe_dbg_srq(srq, "Unable to allocate queue\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out;
 	}
 
@@ -160,7 +160,7 @@ int rxe_srq_from_attr(struct rxe_dev *rxe, struct rxe_srq *srq,
 	if (mask & IB_SRQ_MAX_WR) {
 		/*
 		 * This is completely screwed up, the response is supposed to
-		 * be in the outbuf not like this.
+		 * be in the outbuf analt like this.
 		 */
 		mi = u64_to_user_ptr(ucmd->mmap_info_addr);
 

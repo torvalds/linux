@@ -58,7 +58,7 @@ static const struct v4l2_event hantro_eos_event = {
 	.type = V4L2_EVENT_EOS
 };
 
-static void hantro_job_finish_no_pm(struct hantro_dev *vpu,
+static void hantro_job_finish_anal_pm(struct hantro_dev *vpu,
 				    struct hantro_ctx *ctx,
 				    enum vb2_buffer_state result)
 {
@@ -94,7 +94,7 @@ static void hantro_job_finish(struct hantro_dev *vpu,
 
 	clk_bulk_disable(vpu->variant->num_clocks, vpu->clocks);
 
-	hantro_job_finish_no_pm(vpu, ctx, result);
+	hantro_job_finish_anal_pm(vpu, ctx, result);
 }
 
 void hantro_irq_done(struct hantro_dev *vpu,
@@ -192,7 +192,7 @@ static void device_run(void *priv)
 	return;
 
 err_cancel_job:
-	hantro_job_finish_no_pm(ctx->dev, ctx, VB2_BUF_STATE_ERROR);
+	hantro_job_finish_anal_pm(ctx->dev, ctx, VB2_BUF_STATE_ERROR);
 }
 
 static const struct v4l2_m2m_ops vpu_m2m_ops = {
@@ -213,11 +213,11 @@ queue_init(void *priv, struct vb2_queue *src_vq, struct vb2_queue *dst_vq)
 
 	/*
 	 * Driver does mostly sequential access, so sacrifice TLB efficiency
-	 * for faster allocation. Also, no CPU access on the source queue,
-	 * so no kernel mapping needed.
+	 * for faster allocation. Also, anal CPU access on the source queue,
+	 * so anal kernel mapping needed.
 	 */
 	src_vq->dma_attrs = DMA_ATTR_ALLOC_SINGLE_PAGES |
-			    DMA_ATTR_NO_KERNEL_MAPPING;
+			    DMA_ATTR_ANAL_KERNEL_MAPPING;
 	src_vq->buf_struct_size = sizeof(struct v4l2_m2m_buffer);
 	src_vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
 	src_vq->lock = &ctx->dev->vpu_mutex;
@@ -236,7 +236,7 @@ queue_init(void *priv, struct vb2_queue *src_vq, struct vb2_queue *dst_vq)
 	 * JPEG encoder to fill in the JPEG headers.
 	 */
 	if (!ctx->is_encoder) {
-		dst_vq->dma_attrs |= DMA_ATTR_NO_KERNEL_MAPPING;
+		dst_vq->dma_attrs |= DMA_ATTR_ANAL_KERNEL_MAPPING;
 		dst_vq->max_num_buffers = MAX_POSTPROC_BUFFERS;
 	}
 
@@ -632,9 +632,9 @@ static int hantro_open(struct file *filp)
 	int allowed_codecs, ret;
 
 	/*
-	 * We do not need any extra locking here, because we operate only
+	 * We do analt need any extra locking here, because we operate only
 	 * on local data here, except reading few fields from dev, which
-	 * do not change through device's lifetime (which is guaranteed by
+	 * do analt change through device's lifetime (which is guaranteed by
 	 * reference on module from open()) and V4L2 internal objects (such
 	 * as vdev and ctx->fh), which have proper locking done in respective
 	 * helper functions used here.
@@ -642,7 +642,7 @@ static int hantro_open(struct file *filp)
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->dev = vpu;
 	if (func->id == MEDIA_ENT_F_PROC_VIDEO_ENCODER) {
@@ -652,7 +652,7 @@ static int hantro_open(struct file *filp)
 		allowed_codecs = vpu->variant->codec & HANTRO_DECODERS;
 		ctx->is_encoder = false;
 	} else {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_ctx_free;
 	}
 
@@ -691,7 +691,7 @@ static int hantro_release(struct file *filp)
 		container_of(filp->private_data, struct hantro_ctx, fh);
 
 	/*
-	 * No need for extra locking because this was the last reference
+	 * Anal need for extra locking because this was the last reference
 	 * to this file.
 	 */
 	v4l2_m2m_ctx_release(ctx->fh.m2m_ctx);
@@ -752,13 +752,13 @@ static int hantro_register_entity(struct media_device *mdev,
 	entity->obj_type = MEDIA_ENTITY_TYPE_BASE;
 	if (function == MEDIA_ENT_F_IO_V4L) {
 		entity->info.dev.major = VIDEO_MAJOR;
-		entity->info.dev.minor = vdev->minor;
+		entity->info.dev.mianalr = vdev->mianalr;
 	}
 
 	name = devm_kasprintf(mdev->dev, GFP_KERNEL, "%s-%s", vdev->name,
 			      entity_name);
 	if (!name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	entity->name = name;
 	entity->function = function;
@@ -818,35 +818,35 @@ static int hantro_attach_func(struct hantro_dev *vpu,
 		goto err_rm_links0;
 
 	/* Create video interface */
-	func->intf_devnode = media_devnode_create(mdev, MEDIA_INTF_T_V4L_VIDEO,
+	func->intf_devanalde = media_devanalde_create(mdev, MEDIA_INTF_T_V4L_VIDEO,
 						  0, VIDEO_MAJOR,
-						  func->vdev.minor);
-	if (!func->intf_devnode) {
-		ret = -ENOMEM;
+						  func->vdev.mianalr);
+	if (!func->intf_devanalde) {
+		ret = -EANALMEM;
 		goto err_rm_links1;
 	}
 
 	/* Connect the two DMA engines to the interface */
 	link = media_create_intf_link(&func->vdev.entity,
-				      &func->intf_devnode->intf,
+				      &func->intf_devanalde->intf,
 				      MEDIA_LNK_FL_IMMUTABLE |
 				      MEDIA_LNK_FL_ENABLED);
 	if (!link) {
-		ret = -ENOMEM;
-		goto err_rm_devnode;
+		ret = -EANALMEM;
+		goto err_rm_devanalde;
 	}
 
-	link = media_create_intf_link(&func->sink, &func->intf_devnode->intf,
+	link = media_create_intf_link(&func->sink, &func->intf_devanalde->intf,
 				      MEDIA_LNK_FL_IMMUTABLE |
 				      MEDIA_LNK_FL_ENABLED);
 	if (!link) {
-		ret = -ENOMEM;
-		goto err_rm_devnode;
+		ret = -EANALMEM;
+		goto err_rm_devanalde;
 	}
 	return 0;
 
-err_rm_devnode:
-	media_devnode_remove(func->intf_devnode);
+err_rm_devanalde:
+	media_devanalde_remove(func->intf_devanalde);
 
 err_rm_links1:
 	media_entity_remove_links(&func->sink);
@@ -868,7 +868,7 @@ err_rel_entity0:
 
 static void hantro_detach_func(struct hantro_func *func)
 {
-	media_devnode_remove(func->intf_devnode);
+	media_devanalde_remove(func->intf_devanalde);
 	media_entity_remove_links(&func->sink);
 	media_entity_remove_links(&func->proc);
 	media_entity_remove_links(&func->vdev.entity);
@@ -884,11 +884,11 @@ static int hantro_add_func(struct hantro_dev *vpu, unsigned int funcid)
 	struct video_device *vfd;
 	int ret;
 
-	match = of_match_node(of_hantro_match, vpu->dev->of_node);
+	match = of_match_analde(of_hantro_match, vpu->dev->of_analde);
 	func = devm_kzalloc(vpu->dev, sizeof(*func), GFP_KERNEL);
 	if (!func) {
 		v4l2_err(&vpu->v4l2_dev, "Failed to allocate video device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	func->id = funcid;
@@ -997,14 +997,14 @@ static int hantro_probe(struct platform_device *pdev)
 
 	vpu = devm_kzalloc(&pdev->dev, sizeof(*vpu), GFP_KERNEL);
 	if (!vpu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vpu->dev = &pdev->dev;
 	vpu->pdev = pdev;
 	mutex_init(&vpu->vpu_mutex);
 	spin_lock_init(&vpu->irqlock);
 
-	match = of_match_node(of_hantro_match, pdev->dev.of_node);
+	match = of_match_analde(of_hantro_match, pdev->dev.of_analde);
 	vpu->variant = match->data;
 
 	/*
@@ -1012,7 +1012,7 @@ static int hantro_probe(struct platform_device *pdev)
 	 * but it's deprecated. Please update your DTS file to use
 	 * nxp,imx8mq-vpu-g1 or nxp,imx8mq-vpu-g2 instead.
 	 */
-	if (of_device_is_compatible(pdev->dev.of_node, "nxp,imx8mq-vpu"))
+	if (of_device_is_compatible(pdev->dev.of_analde, "nxp,imx8mq-vpu"))
 		dev_warn(&pdev->dev, "%s compatible is deprecated\n",
 			 match->compatible);
 
@@ -1021,7 +1021,7 @@ static int hantro_probe(struct platform_device *pdev)
 	vpu->clocks = devm_kcalloc(&pdev->dev, vpu->variant->num_clocks,
 				   sizeof(*vpu->clocks), GFP_KERNEL);
 	if (!vpu->clocks)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (vpu->variant->num_clocks > 1) {
 		for (i = 0; i < vpu->variant->num_clocks; i++)
@@ -1033,7 +1033,7 @@ static int hantro_probe(struct platform_device *pdev)
 			return ret;
 	} else {
 		/*
-		 * If the driver has a single clk, chances are there will be no
+		 * If the driver has a single clk, chances are there will be anal
 		 * actual name in the DT bindings.
 		 */
 		vpu->clocks[0].clk = devm_clk_get(&pdev->dev, NULL);
@@ -1049,7 +1049,7 @@ static int hantro_probe(struct platform_device *pdev)
 	vpu->reg_bases = devm_kcalloc(&pdev->dev, num_bases,
 				      sizeof(*vpu->reg_bases), GFP_KERNEL);
 	if (!vpu->reg_bases)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num_bases; i++) {
 		vpu->reg_bases[i] = vpu->variant->reg_names ?
@@ -1068,7 +1068,7 @@ static int hantro_probe(struct platform_device *pdev)
 	 */
 	ret = dma_set_coherent_mask(vpu->dev, DMA_BIT_MASK(32));
 	if (ret) {
-		dev_err(vpu->dev, "Could not set DMA coherent mask.\n");
+		dev_err(vpu->dev, "Could analt set DMA coherent mask.\n");
 		return ret;
 	}
 	vb2_dma_contig_set_max_seg_size(&pdev->dev, DMA_BIT_MASK(32));
@@ -1086,7 +1086,7 @@ static int hantro_probe(struct platform_device *pdev)
 		} else {
 			/*
 			 * If the driver has a single IRQ, chances are there
-			 * will be no actual name in the DT bindings.
+			 * will be anal actual name in the DT bindings.
 			 */
 			irq_name = "default";
 			irq = platform_get_irq(vpu->pdev, 0);
@@ -1098,7 +1098,7 @@ static int hantro_probe(struct platform_device *pdev)
 				       vpu->variant->irqs[i].handler, 0,
 				       dev_name(vpu->dev), vpu);
 		if (ret) {
-			dev_err(vpu->dev, "Could not request %s IRQ.\n",
+			dev_err(vpu->dev, "Could analt request %s IRQ.\n",
 				irq_name);
 			return ret;
 		}

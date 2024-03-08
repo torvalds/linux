@@ -29,7 +29,7 @@ int __init xe_sched_job_module_init(void)
 				  sizeof(u64), 0,
 				  SLAB_HWCACHE_ALIGN, NULL);
 	if (!xe_sched_job_slab)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	xe_sched_job_parallel_slab =
 		kmem_cache_create("xe_sched_job_parallel",
@@ -39,7 +39,7 @@ int __init xe_sched_job_module_init(void)
 				  SLAB_HWCACHE_ALIGN, NULL);
 	if (!xe_sched_job_parallel_slab) {
 		kmem_cache_destroy(xe_sched_job_slab);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -98,7 +98,7 @@ struct xe_sched_job *xe_sched_job_create(struct xe_exec_queue *q,
 
 	job = job_alloc(xe_exec_queue_is_parallel(q) || is_migration);
 	if (!job)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	job->q = q;
 	kref_init(&job->refcount);
@@ -109,7 +109,7 @@ struct xe_sched_job *xe_sched_job_create(struct xe_exec_queue *q,
 		goto err_free;
 
 	if (!xe_exec_queue_is_parallel(q)) {
-		job->fence = xe_lrc_create_seqno_fence(q->lrc);
+		job->fence = xe_lrc_create_seqanal_fence(q->lrc);
 		if (IS_ERR(job->fence)) {
 			err = PTR_ERR(job->fence);
 			goto err_sched_job;
@@ -119,12 +119,12 @@ struct xe_sched_job *xe_sched_job_create(struct xe_exec_queue *q,
 
 		fences = kmalloc_array(q->width, sizeof(*fences), GFP_KERNEL);
 		if (!fences) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_sched_job;
 		}
 
 		for (j = 0; j < q->width; ++j) {
-			fences[j] = xe_lrc_create_seqno_fence(q->lrc + j);
+			fences[j] = xe_lrc_create_seqanal_fence(q->lrc + j);
 			if (IS_ERR(fences[j])) {
 				err = PTR_ERR(fences[j]);
 				goto err_fences;
@@ -133,17 +133,17 @@ struct xe_sched_job *xe_sched_job_create(struct xe_exec_queue *q,
 
 		cf = dma_fence_array_create(q->width, fences,
 					    q->parallel.composite_fence_ctx,
-					    q->parallel.composite_fence_seqno++,
+					    q->parallel.composite_fence_seqanal++,
 					    false);
 		if (!cf) {
-			--q->parallel.composite_fence_seqno;
-			err = -ENOMEM;
+			--q->parallel.composite_fence_seqanal;
+			err = -EANALMEM;
 			goto err_fences;
 		}
 
 		/* Sanity check */
 		for (j = 0; j < q->width; ++j)
-			xe_assert(job_to_xe(job), cf->base.seqno == fences[j]->seqno);
+			xe_assert(job_to_xe(job), cf->base.seqanal == fences[j]->seqanal);
 
 		job->fence = &cf->base;
 	}
@@ -165,7 +165,7 @@ struct xe_sched_job *xe_sched_job_create(struct xe_exec_queue *q,
 
 err_fences:
 	for (j = j - 1; j >= 0; --j) {
-		--q->lrc[j].fence_ctx.next_seqno;
+		--q->lrc[j].fence_ctx.next_seqanal;
 		dma_fence_put(fences[j]);
 	}
 	kfree(fences);
@@ -230,8 +230,8 @@ bool xe_sched_job_started(struct xe_sched_job *job)
 {
 	struct xe_lrc *lrc = job->q->lrc;
 
-	return !__dma_fence_is_later(xe_sched_job_seqno(job),
-				     xe_lrc_start_seqno(lrc),
+	return !__dma_fence_is_later(xe_sched_job_seqanal(job),
+				     xe_lrc_start_seqanal(lrc),
 				     job->fence->ops);
 }
 
@@ -240,11 +240,11 @@ bool xe_sched_job_completed(struct xe_sched_job *job)
 	struct xe_lrc *lrc = job->q->lrc;
 
 	/*
-	 * Can safely check just LRC[0] seqno as that is last seqno written when
+	 * Can safely check just LRC[0] seqanal as that is last seqanal written when
 	 * parallel handshake is done.
 	 */
 
-	return !__dma_fence_is_later(xe_sched_job_seqno(job), xe_lrc_seqno(lrc),
+	return !__dma_fence_is_later(xe_sched_job_seqanal(job), xe_lrc_seqanal(lrc),
 				     job->fence->ops);
 }
 

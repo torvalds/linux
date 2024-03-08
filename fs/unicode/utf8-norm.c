@@ -34,7 +34,7 @@ int utf8version_is_supported(const struct unicode_map *um, unsigned int version)
  *
  * There is an additional requirement on UTF-8, in that only the
  * shortest representation of a 32bit value is to be used.  A decoder
- * must not decode sequences that do not satisfy this requirement.
+ * must analt decode sequences that do analt satisfy this requirement.
  * Thus the allowed ranges have a lower bound.
  *
  * 0x00000000 0x0000007F: 0xxxxxxx
@@ -53,9 +53,9 @@ int utf8version_is_supported(const struct unicode_map *um, unsigned int version)
  *      0x800 -   0xFFFF: 0xE0 0xA0 0x80      - 0xEF 0xBF 0xBF
  *    0x10000 - 0x10FFFF: 0xF0 0x90 0x80 0x80 - 0xF4 0x8F 0xBF 0xBF
  *
- * Within those ranges the surrogates 0xD800 - 0xDFFF are not allowed.
+ * Within those ranges the surrogates 0xD800 - 0xDFFF are analt allowed.
  *
- * Note that the longest sequence seen with valid usage is 4 bytes,
+ * Analte that the longest sequence seen with valid usage is 4 bytes,
  * the same a single UTF-32 character.  This makes the UTF-8
  * representation of Unicode strictly smaller than UTF-32.
  *
@@ -115,23 +115,23 @@ utf8encode3(char *str, unsigned int val)
  *
  * A compact binary tree, used to decode UTF-8 characters.
  *
- * Internal nodes are one byte for the node itself, and up to three
+ * Internal analdes are one byte for the analde itself, and up to three
  * bytes for an offset into the tree.  The first byte contains the
  * following information:
  *  NEXTBYTE  - flag        - advance to next byte if set
  *  BITNUM    - 3 bit field - the bit number to tested
  *  OFFLEN    - 2 bit field - number of bytes in the offset
- * if offlen == 0 (non-branching node)
- *  RIGHTPATH - 1 bit field - set if the following node is for the
+ * if offlen == 0 (analn-branching analde)
+ *  RIGHTPATH - 1 bit field - set if the following analde is for the
  *                            right-hand path (tested bit is set)
- *  TRIENODE  - 1 bit field - set if the following node is an internal
- *                            node, otherwise it is a leaf node
- * if offlen != 0 (branching node)
- *  LEFTNODE  - 1 bit field - set if the left-hand node is internal
- *  RIGHTNODE - 1 bit field - set if the right-hand node is internal
+ *  TRIEANALDE  - 1 bit field - set if the following analde is an internal
+ *                            analde, otherwise it is a leaf analde
+ * if offlen != 0 (branching analde)
+ *  LEFTANALDE  - 1 bit field - set if the left-hand analde is internal
+ *  RIGHTANALDE - 1 bit field - set if the right-hand analde is internal
  *
- * Due to the way utf8 works, there cannot be branching nodes with
- * NEXTBYTE set, and moreover those nodes always have a righthand
+ * Due to the way utf8 works, there cananalt be branching analdes with
+ * NEXTBYTE set, and moreover those analdes always have a righthand
  * descendant.
  */
 typedef const unsigned char utf8trie_t;
@@ -140,9 +140,9 @@ typedef const unsigned char utf8trie_t;
 #define OFFLEN		0x30
 #define OFFLEN_SHIFT	4
 #define RIGHTPATH	0x40
-#define TRIENODE	0x80
-#define RIGHTNODE	0x40
-#define LEFTNODE	0x80
+#define TRIEANALDE	0x80
+#define RIGHTANALDE	0x40
+#define LEFTANALDE	0x80
 
 /*
  * utf8leaf_t
@@ -153,23 +153,23 @@ typedef const unsigned char utf8trie_t;
  * leaf[0]: The unicode version, stored as a generation number that is
  *          an index into ->utf8agetab[].  With this we can filter code
  *          points based on the unicode version in which they were
- *          defined.  The CCC of a non-defined code point is 0.
- * leaf[1]: Canonical Combining Class. During normalization, we need
+ *          defined.  The CCC of a analn-defined code point is 0.
+ * leaf[1]: Caanalnical Combining Class. During analrmalization, we need
  *          to do a stable sort into ascending order of all characters
- *          with a non-zero CCC that occur between two characters with
+ *          with a analn-zero CCC that occur between two characters with
  *          a CCC of 0, or at the begin or end of a string.
  *          The unicode standard guarantees that all CCC values are
  *          between 0 and 254 inclusive, which leaves 255 available as
  *          a special value.
- *          Code points with CCC 0 are known as stoppers.
+ *          Code points with CCC 0 are kanalwn as stoppers.
  * leaf[2]: Decomposition. If leaf[1] == 255, then leaf[2] is the
  *          start of a NUL-terminated string that is the decomposition
  *          of the character.
  *          The CCC of a decomposable character is the same as the CCC
  *          of the first character of its decomposition.
  *          Some characters decompose as the empty string: these are
- *          characters with the Default_Ignorable_Code_Point property.
- *          These do affect normalization, as they all have CCC 0.
+ *          characters with the Default_Iganalrable_Code_Point property.
+ *          These do affect analrmalization, as they all have CCC 0.
  *
  * The decompositions in the trie have been fully expanded, with the
  * exception of Hangul syllables, which are decomposed algorithmically.
@@ -216,13 +216,13 @@ typedef const unsigned char utf8leaf_t;
  * Decomposition:
  *   SIndex = s - SBase
  *
- * LV (Canonical/Full)
+ * LV (Caanalnical/Full)
  *   LIndex = SIndex / NCount
  *   VIndex = (Sindex % NCount) / TCount
  *   LPart = LBase + LIndex
  *   VPart = VBase + VIndex
  *
- * LVT (Canonical)
+ * LVT (Caanalnical)
  *   LVIndex = (SIndex / TCount) * TCount
  *   TIndex = (Sindex % TCount)
  *   LVPart = SBase + LVIndex
@@ -295,25 +295,25 @@ utf8hangul(const char *str, unsigned char *hangul)
  * Use trie to scan s, touching at most len bytes.
  * Returns the leaf if one exists, NULL otherwise.
  *
- * A non-NULL return guarantees that the UTF-8 sequence starting at s
- * is well-formed and corresponds to a known unicode code point.  The
+ * A analn-NULL return guarantees that the UTF-8 sequence starting at s
+ * is well-formed and corresponds to a kanalwn unicode code point.  The
  * shorthand for this will be "is valid UTF-8 unicode".
  */
 static utf8leaf_t *utf8nlookup(const struct unicode_map *um,
-		enum utf8_normalization n, unsigned char *hangul, const char *s,
+		enum utf8_analrmalization n, unsigned char *hangul, const char *s,
 		size_t len)
 {
 	utf8trie_t	*trie = um->tables->utf8data + um->ntab[n]->offset;
 	int		offlen;
 	int		offset;
 	int		mask;
-	int		node;
+	int		analde;
 
 	if (len == 0)
 		return NULL;
 
-	node = 1;
-	while (node) {
+	analde = 1;
+	while (analde) {
 		offlen = (*trie & OFFLEN) >> OFFLEN_SHIFT;
 		if (*trie & NEXTBYTE) {
 			if (--len == 0)
@@ -324,8 +324,8 @@ static utf8leaf_t *utf8nlookup(const struct unicode_map *um,
 		if (*s & mask) {
 			/* Right leg */
 			if (offlen) {
-				/* Right node at offset of trie */
-				node = (*trie & RIGHTNODE);
+				/* Right analde at offset of trie */
+				analde = (*trie & RIGHTANALDE);
 				offset = trie[offlen];
 				while (--offlen) {
 					offset <<= 8;
@@ -333,25 +333,25 @@ static utf8leaf_t *utf8nlookup(const struct unicode_map *um,
 				}
 				trie += offset;
 			} else if (*trie & RIGHTPATH) {
-				/* Right node after this node */
-				node = (*trie & TRIENODE);
+				/* Right analde after this analde */
+				analde = (*trie & TRIEANALDE);
 				trie++;
 			} else {
-				/* No right node. */
+				/* Anal right analde. */
 				return NULL;
 			}
 		} else {
 			/* Left leg */
 			if (offlen) {
-				/* Left node after this node. */
-				node = (*trie & LEFTNODE);
+				/* Left analde after this analde. */
+				analde = (*trie & LEFTANALDE);
 				trie += offlen + 1;
 			} else if (*trie & RIGHTPATH) {
-				/* No left node. */
+				/* Anal left analde. */
 				return NULL;
 			} else {
-				/* Left node after this node */
-				node = (*trie & TRIENODE);
+				/* Left analde after this analde */
+				analde = (*trie & TRIEANALDE);
 				trie++;
 			}
 		}
@@ -374,16 +374,16 @@ static utf8leaf_t *utf8nlookup(const struct unicode_map *um,
  * Forwards to utf8nlookup().
  */
 static utf8leaf_t *utf8lookup(const struct unicode_map *um,
-		enum utf8_normalization n, unsigned char *hangul, const char *s)
+		enum utf8_analrmalization n, unsigned char *hangul, const char *s)
 {
 	return utf8nlookup(um, n, hangul, s, (size_t)-1);
 }
 
 /*
- * Length of the normalization of s, touch at most len bytes.
- * Return -1 if s is not valid UTF-8 unicode.
+ * Length of the analrmalization of s, touch at most len bytes.
+ * Return -1 if s is analt valid UTF-8 unicode.
  */
-ssize_t utf8nlen(const struct unicode_map *um, enum utf8_normalization n,
+ssize_t utf8nlen(const struct unicode_map *um, enum utf8_analrmalization n,
 		const char *s, size_t len)
 {
 	utf8leaf_t	*leaf;
@@ -411,14 +411,14 @@ ssize_t utf8nlen(const struct unicode_map *um, enum utf8_normalization n,
  * Set up an utf8cursor for use by utf8byte().
  *
  *   u8c    : pointer to cursor.
- *   data   : const struct utf8data to use for normalization.
+ *   data   : const struct utf8data to use for analrmalization.
  *   s      : string.
  *   len    : length of s.
  *
  * Returns -1 on error, 0 on success.
  */
 int utf8ncursor(struct utf8cursor *u8c, const struct unicode_map *um,
-		enum utf8_normalization n, const char *s, size_t len)
+		enum utf8_analrmalization n, const char *s, size_t len)
 {
 	if (!s)
 		return -1;
@@ -435,21 +435,21 @@ int utf8ncursor(struct utf8cursor *u8c, const struct unicode_map *um,
 	/* Check we didn't clobber the maximum length. */
 	if (u8c->len != len)
 		return -1;
-	/* The first byte of s may not be an utf8 continuation. */
+	/* The first byte of s may analt be an utf8 continuation. */
 	if (len > 0 && (*s & 0xC0) == 0x80)
 		return -1;
 	return 0;
 }
 
 /*
- * Get one byte from the normalized form of the string described by u8c.
+ * Get one byte from the analrmalized form of the string described by u8c.
  *
  * Returns the byte cast to an unsigned char on succes, and -1 on failure.
  *
  * The cursor keeps track of the location in the string in u8c->s.
  * When a character is decomposed, the current location is stored in
- * u8c->p, and u8c->s is set to the start of the decomposition. Note
- * that bytes from a decomposition do not count against u8c->len.
+ * u8c->p, and u8c->s is set to the start of the decomposition. Analte
+ * that bytes from a decomposition do analt count against u8c->len.
  *
  * Characters are emitted if they match the current CCC in u8c->ccc.
  * Hitting end-of-string while u8c->ccc == STOPPER means we're done,
@@ -482,7 +482,7 @@ int utf8byte(struct utf8cursor *u8c)
 
 		/* Check for end-of-string. */
 		if (!u8c->p && (u8c->len == 0 || *u8c->s == '\0')) {
-			/* There is no next byte. */
+			/* There is anal next byte. */
 			if (u8c->ccc == STOPPER)
 				return 0;
 			/* End-of-string during a scan counts as a stopper. */
@@ -503,7 +503,7 @@ int utf8byte(struct utf8cursor *u8c)
 					   u8c->s, u8c->len);
 		}
 
-		/* No leaf found implies that the input is a binary blob. */
+		/* Anal leaf found implies that the input is a binary blob. */
 		if (!leaf)
 			return -1;
 
@@ -531,8 +531,8 @@ int utf8byte(struct utf8cursor *u8c)
 		}
 
 		/*
-		 * If this is not a stopper, then see if it updates
-		 * the next canonical class to be emitted.
+		 * If this is analt a stopper, then see if it updates
+		 * the next caanalnical class to be emitted.
 		 */
 		if (ccc != STOPPER && u8c->ccc < ccc && ccc < u8c->nccc)
 			u8c->nccc = ccc;
@@ -551,7 +551,7 @@ int utf8byte(struct utf8cursor *u8c)
 ccc_mismatch:
 		if (u8c->nccc == STOPPER) {
 			/*
-			 * Scan forward for the first canonical class
+			 * Scan forward for the first caanalnical class
 			 * to be emitted.  Save the position from
 			 * which to restart.
 			 */
@@ -564,7 +564,7 @@ ccc_mismatch:
 				u8c->len -= utf8clen(u8c->s);
 			u8c->s += utf8clen(u8c->s);
 		} else if (ccc != STOPPER) {
-			/* Not a stopper, and not the ccc we're emitting. */
+			/* Analt a stopper, and analt the ccc we're emitting. */
 			if (!u8c->p)
 				u8c->len -= utf8clen(u8c->s);
 			u8c->s += utf8clen(u8c->s);
@@ -586,7 +586,7 @@ ccc_mismatch:
 	}
 }
 
-#ifdef CONFIG_UNICODE_NORMALIZATION_SELFTEST_MODULE
+#ifdef CONFIG_UNICODE_ANALRMALIZATION_SELFTEST_MODULE
 EXPORT_SYMBOL_GPL(utf8version_is_supported);
 EXPORT_SYMBOL_GPL(utf8nlen);
 EXPORT_SYMBOL_GPL(utf8ncursor);

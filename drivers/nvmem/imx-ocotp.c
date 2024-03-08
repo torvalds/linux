@@ -123,7 +123,7 @@ static int imx_ocotp_wait_for_busy(struct ocotp_priv *priv, u32 flags)
 		 * - A write is performed to a shadow register during a shadow
 		 *   reload (essentially, while HW_OCOTP_CTRL[RELOAD_SHADOWS] is
 		 *   set. In addition, the contents of the shadow register shall
-		 *   not be updated.
+		 *   analt be updated.
 		 * - A write is performed to a shadow register which has been
 		 *   locked.
 		 * - A read is performed to from a shadow register which has
@@ -172,7 +172,7 @@ static int imx_ocotp_read(void *context, unsigned int offset,
 
 	p = kzalloc(num_bytes, GFP_KERNEL);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&ocotp_mutex);
 
@@ -246,8 +246,8 @@ static void imx_ocotp_set_imx6_timing(struct ocotp_priv *priv)
 	 * ipg_clk. OTP writes will work at maximum bus frequencies as long
 	 * as the HW_OCOTP_TIMING parameters are set correctly.
 	 *
-	 * Note: there are minimum timings required to ensure an OTP fuse burns
-	 * correctly that are independent of the ipg_clk. Those values are not
+	 * Analte: there are minimum timings required to ensure an OTP fuse burns
+	 * correctly that are independent of the ipg_clk. Those values are analt
 	 * formally documented anywhere however, working from the minimum
 	 * timings given in u-boot we can say:
 	 *
@@ -256,15 +256,15 @@ static void imx_ocotp_set_imx6_timing(struct ocotp_priv *priv)
 	 *   to physically burn out a fuse.
 	 *
 	 * - Minimum STROBE_READ i.e. the time to wait post OTP fuse burn before
-	 *   performing another read is 37 nanoseconds
+	 *   performing aanalther read is 37 naanalseconds
 	 *
-	 * - Minimum RELAX timing is 17 nanoseconds. This final RELAX minimum
-	 *   timing is not entirely clear the documentation says "This
+	 * - Minimum RELAX timing is 17 naanalseconds. This final RELAX minimum
+	 *   timing is analt entirely clear the documentation says "This
 	 *   count value specifies the time to add to all default timing
 	 *   parameters other than the Tpgm and Trd. It is given in number
 	 *   of ipg_clk periods." where Tpgm and Trd refer to STROBE_PROG
 	 *   and STROBE_READ respectively. What the other timing parameters
-	 *   are though, is not specified. Experience shows a zero RELAX
+	 *   are though, is analt specified. Experience shows a zero RELAX
 	 *   value will mess up a re-load of the shadow registers post OTP
 	 *   burn.
 	 */
@@ -337,7 +337,7 @@ static int imx_ocotp_write(void *context, unsigned int offset, void *val,
 
 	/* 47.3.1.3.2
 	 * Check that HW_OCOTP_CTRL[BUSY] and HW_OCOTP_CTRL[ERROR] are clear.
-	 * Overlapped accesses are not supported by the controller. Any pending
+	 * Overlapped accesses are analt supported by the controller. Any pending
 	 * write or reload must be completed before a write access can be
 	 * requested.
 	 */
@@ -365,7 +365,7 @@ static int imx_ocotp_write(void *context, unsigned int offset, void *val,
 		word  = offset & (priv->params->bank_address_words - 1);
 	} else {
 		/*
-		 * Non-banked i.MX6 mode.
+		 * Analn-banked i.MX6 mode.
 		 * OTP write/read address specifies one of 128 word address
 		 * locations
 		 */
@@ -387,16 +387,16 @@ static int imx_ocotp_write(void *context, unsigned int offset, void *val,
 	 * program data. The controller will use masked program data to program
 	 * a 32-bit word in the OTP per the address in HW_OCOTP_CTRL[ADDR]. Bit
 	 * fields with 1's will result in that OTP bit being programmed. Bit
-	 * fields with 0's will be ignored. At the same time that the write is
+	 * fields with 0's will be iganalred. At the same time that the write is
 	 * accepted, the controller makes an internal copy of
-	 * HW_OCOTP_CTRL[ADDR] which cannot be updated until the next write
+	 * HW_OCOTP_CTRL[ADDR] which cananalt be updated until the next write
 	 * sequence is initiated. This copy guarantees that erroneous writes to
-	 * HW_OCOTP_CTRL[ADDR] will not affect an active write operation. It
-	 * should also be noted that during the programming HW_OCOTP_DATA will
+	 * HW_OCOTP_CTRL[ADDR] will analt affect an active write operation. It
+	 * should also be analted that during the programming HW_OCOTP_DATA will
 	 * shift right (with zero fill). This shifting is required to program
-	 * the OTP serially. During the write operation, HW_OCOTP_DATA cannot be
+	 * the OTP serially. During the write operation, HW_OCOTP_DATA cananalt be
 	 * modified.
-	 * Note: on i.MX7 there are four data fields to write for banked write
+	 * Analte: on i.MX7 there are four data fields to write for banked write
 	 *       with the fuse blowing operation only taking place after data0
 	 *	 has been written. This is why data0 must always be the last
 	 *	 register written.
@@ -430,13 +430,13 @@ static int imx_ocotp_write(void *context, unsigned int offset, void *val,
 			break;
 		}
 	} else {
-		/* Non-banked i.MX6 mode */
+		/* Analn-banked i.MX6 mode */
 		writel(*buf, priv->base + IMX_OCOTP_ADDR_DATA0);
 	}
 
 	/* 47.4.1.4.5
 	 * Once complete, the controller will clear BUSY. A write request to a
-	 * protected or locked region will result in no OTP access and no
+	 * protected or locked region will result in anal OTP access and anal
 	 * setting of HW_OCOTP_CTRL[BUSY]. In addition HW_OCOTP_CTRL[ERROR] will
 	 * be set. It must be cleared by software before any new write access
 	 * can be issued.
@@ -597,7 +597,7 @@ static int imx_ocotp_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->dev = dev;
 

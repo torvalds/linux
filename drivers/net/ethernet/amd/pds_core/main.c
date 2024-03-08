@@ -79,8 +79,8 @@ static int pdsc_map_bars(struct pdsc *pdsc)
 		} else {
 			bars[j].vaddr = pci_iomap(pdev, i, bars[j].len);
 			if (!bars[j].vaddr) {
-				dev_err(dev, "Cannot map BAR %d, aborting\n", i);
-				return -ENODEV;
+				dev_err(dev, "Cananalt map BAR %d, aborting\n", i);
+				return -EANALDEV;
 			}
 		}
 
@@ -90,7 +90,7 @@ static int pdsc_map_bars(struct pdsc *pdsc)
 
 	/* BAR0: dev_cmd and interrupts */
 	if (num_bars < 1) {
-		dev_err(dev, "No bars found\n");
+		dev_err(dev, "Anal bars found\n");
 		err = -EFAULT;
 		goto err_out;
 	}
@@ -148,20 +148,20 @@ static int pdsc_sriov_configure(struct pci_dev *pdev, int num_vfs)
 		pdsc->vfs = kcalloc(num_vfs, sizeof(struct pdsc_vf),
 				    GFP_KERNEL);
 		if (!pdsc->vfs)
-			return -ENOMEM;
+			return -EANALMEM;
 		pdsc->num_vfs = num_vfs;
 
 		ret = pci_enable_sriov(pdev, num_vfs);
 		if (ret) {
-			dev_err(dev, "Cannot enable SRIOV: %pe\n",
+			dev_err(dev, "Cananalt enable SRIOV: %pe\n",
 				ERR_PTR(ret));
-			goto no_vfs;
+			goto anal_vfs;
 		}
 
 		return num_vfs;
 	}
 
-no_vfs:
+anal_vfs:
 	pci_disable_sriov(pdev);
 
 	kfree(pdsc->vfs);
@@ -201,7 +201,7 @@ static int pdsc_init_vf(struct pdsc *vf)
 
 static const struct devlink_health_reporter_ops pdsc_fw_reporter_ops = {
 	.name = "fw",
-	.diagnose = pdsc_fw_reporter_diagnose,
+	.diaganalse = pdsc_fw_reporter_diaganalse,
 };
 
 static const struct devlink_param pdsc_dl_params[] = {
@@ -225,7 +225,7 @@ static int pdsc_init_pf(struct pdsc *pdsc)
 
 	err = pci_request_regions(pdsc->pdev, PDS_CORE_DRV_NAME);
 	if (err) {
-		dev_err(pdsc->dev, "Cannot request PCI regions: %pe\n",
+		dev_err(pdsc->dev, "Cananalt request PCI regions: %pe\n",
 			ERR_PTR(err));
 		return err;
 	}
@@ -334,7 +334,7 @@ static int pdsc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	ops = is_pf ? &pdsc_dl_ops : &pdsc_dl_vf_ops;
 	dl = devlink_alloc(ops, sizeof(struct pdsc), dev);
 	if (!dl)
-		return -ENOMEM;
+		return -EANALMEM;
 	pdsc = devlink_priv(dl);
 
 	pdsc->pdev = pdev;
@@ -361,7 +361,7 @@ static int pdsc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	err = pci_enable_device(pdev);
 	if (err) {
-		dev_err(dev, "Cannot enable PCI device: %pe\n", ERR_PTR(err));
+		dev_err(dev, "Cananalt enable PCI device: %pe\n", ERR_PTR(err));
 		goto err_out_free_ida;
 	}
 	pci_set_master(pdev);
@@ -371,7 +371,7 @@ static int pdsc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	else
 		err = pdsc_init_vf(pdsc);
 	if (err) {
-		dev_err(dev, "Cannot init device: %pe\n", ERR_PTR(err));
+		dev_err(dev, "Cananalt init device: %pe\n", ERR_PTR(err));
 		goto err_out_disable_device;
 	}
 
@@ -395,7 +395,7 @@ static void pdsc_remove(struct pci_dev *pdev)
 	struct devlink *dl;
 
 	/* Unhook the registrations first to be sure there
-	 * are no requests while we're stopping.
+	 * are anal requests while we're stopping.
 	 */
 	dl = priv_to_devlink(pdsc);
 	devl_lock(dl);
@@ -488,7 +488,7 @@ void pdsc_reset_done(struct pci_dev *pdev)
 
 	err = pci_enable_device(pdev);
 	if (err) {
-		dev_err(dev, "Cannot enable PCI device: %pe\n", ERR_PTR(err));
+		dev_err(dev, "Cananalt enable PCI device: %pe\n", ERR_PTR(err));
 		return;
 	}
 	pci_set_master(pdev);
@@ -498,7 +498,7 @@ void pdsc_reset_done(struct pci_dev *pdev)
 
 		err = pci_request_regions(pdsc->pdev, PDS_CORE_DRV_NAME);
 		if (err) {
-			dev_err(pdsc->dev, "Cannot request PCI regions: %pe\n",
+			dev_err(pdsc->dev, "Cananalt request PCI regions: %pe\n",
 				ERR_PTR(err));
 			return;
 		}

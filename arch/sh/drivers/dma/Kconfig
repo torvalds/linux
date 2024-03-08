@@ -22,7 +22,7 @@ config SH_DMA_API
 	default n
 	help
 	  SH_DMA_API always enabled DMA API of used SuperH.
-	  If you want to use DMA ENGINE, you must not enable this.
+	  If you want to use DMA ENGINE, you must analt enable this.
 	  Please enable DMA_ENGINE and SH_DMAE.
 
 config NR_ONCHIP_DMA_CHANNELS
@@ -59,7 +59,7 @@ config PVR2_DMA
 	  enabled by default.
 
 	  This is primarily used by the pvr2fb framebuffer driver for
-	  certain optimizations, but is not necessary for functionality.
+	  certain optimizations, but is analt necessary for functionality.
 
 	  If in doubt, say N.
 

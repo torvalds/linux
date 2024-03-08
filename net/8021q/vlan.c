@@ -26,7 +26,7 @@
 #include <net/p8022.h>
 #include <net/arp.h>
 #include <linux/rtnetlink.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <net/rtnetlink.h>
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
@@ -69,7 +69,7 @@ static int vlan_group_prealloc_vid(struct vlan_group *vg,
 	size = sizeof(struct net_device *) * VLAN_GROUP_ARRAY_PART_LEN;
 	array = kzalloc(size, GFP_KERNEL_ACCOUNT);
 	if (array == NULL)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	/* paired with smp_rmb() in __vlan_group_get_device() */
 	smp_wmb();
@@ -132,9 +132,9 @@ int vlan_check_real_dev(struct net_device *real_dev,
 	const char *name = real_dev->name;
 
 	if (real_dev->features & NETIF_F_VLAN_CHALLENGED) {
-		pr_info("VLANs not supported on %s\n", name);
-		NL_SET_ERR_MSG_MOD(extack, "VLANs not supported on device");
-		return -EOPNOTSUPP;
+		pr_info("VLANs analt supported on %s\n", name);
+		NL_SET_ERR_MSG_MOD(extack, "VLANs analt supported on device");
+		return -EOPANALTSUPP;
 	}
 
 	if (vlan_find_dev(real_dev, protocol, vlan_id) != NULL) {
@@ -159,7 +159,7 @@ int register_vlan_dev(struct net_device *dev, struct netlink_ext_ack *extack)
 		return err;
 
 	vlan_info = rtnl_dereference(real_dev->vlan_info);
-	/* vlan_info should be there now. vlan_vid_add took care of it */
+	/* vlan_info should be there analw. vlan_vid_add took care of it */
 	BUG_ON(!vlan_info);
 
 	grp = &vlan_info->grp;
@@ -187,7 +187,7 @@ int register_vlan_dev(struct net_device *dev, struct netlink_ext_ack *extack)
 	vlan_stacked_transfer_operstate(real_dev, dev, vlan);
 	linkwatch_fire_event(dev); /* _MUST_ call rfc2863_policy() */
 
-	/* So, got the sucker initialized, now lets place
+	/* So, got the sucker initialized, analw lets place
 	 * it into our local structure.
 	 */
 	vlan_group_set_device(grp, vlan->vlan_proto, vlan_id, dev);
@@ -234,13 +234,13 @@ static int register_vlan_device(struct net_device *real_dev, u16 vlan_id)
 		/* name will look like:	 eth1.0005 */
 		snprintf(name, IFNAMSIZ, "%s.%.4i", real_dev->name, vlan_id);
 		break;
-	case VLAN_NAME_TYPE_PLUS_VID_NO_PAD:
+	case VLAN_NAME_TYPE_PLUS_VID_ANAL_PAD:
 		/* Put our vlan.VID in the name.
 		 * Name will look like:	 vlan5
 		 */
 		snprintf(name, IFNAMSIZ, "vlan%i", vlan_id);
 		break;
-	case VLAN_NAME_TYPE_RAW_PLUS_VID_NO_PAD:
+	case VLAN_NAME_TYPE_RAW_PLUS_VID_ANAL_PAD:
 		/* Put our vlan.VID in the name.
 		 * Name will look like:	 eth0.5
 		 */
@@ -255,10 +255,10 @@ static int register_vlan_device(struct net_device *real_dev, u16 vlan_id)
 	}
 
 	new_dev = alloc_netdev(sizeof(struct vlan_dev_priv), name,
-			       NET_NAME_UNKNOWN, vlan_setup);
+			       NET_NAME_UNKANALWN, vlan_setup);
 
 	if (new_dev == NULL)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	dev_net_set(new_dev, net);
 	/* need 4 bytes for extra VLAN header info,
@@ -357,11 +357,11 @@ static int __vlan_device_event(struct net_device *dev, unsigned long event)
 	return err;
 }
 
-static int vlan_device_event(struct notifier_block *unused, unsigned long event,
+static int vlan_device_event(struct analtifier_block *unused, unsigned long event,
 			     void *ptr)
 {
-	struct netlink_ext_ack *extack = netdev_notifier_info_to_extack(ptr);
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct netlink_ext_ack *extack = netdev_analtifier_info_to_extack(ptr);
+	struct net_device *dev = netdev_analtifier_info_to_dev(ptr);
 	struct vlan_group *grp;
 	struct vlan_info *vlan_info;
 	int i, flgs;
@@ -375,7 +375,7 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 		int err = __vlan_device_event(dev, event);
 
 		if (err)
-			return notifier_from_errno(err);
+			return analtifier_from_erranal(err);
 	}
 
 	if ((event == NETDEV_UP) &&
@@ -393,7 +393,7 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 		goto out;
 	grp = &vlan_info->grp;
 
-	/* It is OK that we do not hold the group lock right now,
+	/* It is OK that we do analt hold the group lock right analw,
 	 * as we run under the RTNL lock.
 	 */
 
@@ -492,21 +492,21 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 	case NETDEV_PRE_TYPE_CHANGE:
 		/* Forbid underlaying device to change its type. */
 		if (vlan_uses_dev(dev))
-			return NOTIFY_BAD;
+			return ANALTIFY_BAD;
 		break;
 
-	case NETDEV_NOTIFY_PEERS:
+	case NETDEV_ANALTIFY_PEERS:
 	case NETDEV_BONDING_FAILOVER:
 	case NETDEV_RESEND_IGMP:
 		/* Propagate to vlan devices */
 		vlan_group_for_each_dev(grp, i, vlandev)
-			call_netdevice_notifiers(event, vlandev);
+			call_netdevice_analtifiers(event, vlandev);
 		break;
 
 	case NETDEV_CVLAN_FILTER_PUSH_INFO:
 		err = vlan_filter_push_vids(vlan_info, htons(ETH_P_8021Q));
 		if (err)
-			return notifier_from_errno(err);
+			return analtifier_from_erranal(err);
 		break;
 
 	case NETDEV_CVLAN_FILTER_DROP_INFO:
@@ -516,7 +516,7 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 	case NETDEV_SVLAN_FILTER_PUSH_INFO:
 		err = vlan_filter_push_vids(vlan_info, htons(ETH_P_8021AD));
 		if (err)
-			return notifier_from_errno(err);
+			return analtifier_from_erranal(err);
 		break;
 
 	case NETDEV_SVLAN_FILTER_DROP_INFO:
@@ -525,11 +525,11 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 	}
 
 out:
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block vlan_notifier_block __read_mostly = {
-	.notifier_call = vlan_device_event,
+static struct analtifier_block vlan_analtifier_block __read_mostly = {
+	.analtifier_call = vlan_device_event,
 };
 
 /*
@@ -560,7 +560,7 @@ static int vlan_ioctl_handler(struct net *net, void __user *arg)
 	case DEL_VLAN_CMD:
 	case GET_VLAN_REALDEV_NAME_CMD:
 	case GET_VLAN_VID_CMD:
-		err = -ENODEV;
+		err = -EANALDEV;
 		dev = __dev_get_by_name(net, args.device1);
 		if (!dev)
 			goto out;
@@ -647,7 +647,7 @@ static int vlan_ioctl_handler(struct net *net, void __user *arg)
 		break;
 
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		break;
 	}
 out:
@@ -660,7 +660,7 @@ static int __net_init vlan_init_net(struct net *net)
 	struct vlan_net *vn = net_generic(net, vlan_net_id);
 	int err;
 
-	vn->name_type = VLAN_NAME_TYPE_RAW_PLUS_VID_NO_PAD;
+	vn->name_type = VLAN_NAME_TYPE_RAW_PLUS_VID_ANAL_PAD;
 
 	err = vlan_proc_init(net);
 
@@ -689,7 +689,7 @@ static int __init vlan_proto_init(void)
 	if (err < 0)
 		goto err0;
 
-	err = register_netdevice_notifier(&vlan_notifier_block);
+	err = register_netdevice_analtifier(&vlan_analtifier_block);
 	if (err < 0)
 		goto err2;
 
@@ -713,7 +713,7 @@ err5:
 err4:
 	vlan_gvrp_uninit();
 err3:
-	unregister_netdevice_notifier(&vlan_notifier_block);
+	unregister_netdevice_analtifier(&vlan_analtifier_block);
 err2:
 	unregister_pernet_subsys(&vlan_net_ops);
 err0:
@@ -726,7 +726,7 @@ static void __exit vlan_cleanup_module(void)
 
 	vlan_netlink_fini();
 
-	unregister_netdevice_notifier(&vlan_notifier_block);
+	unregister_netdevice_analtifier(&vlan_analtifier_block);
 
 	unregister_pernet_subsys(&vlan_net_ops);
 	rcu_barrier(); /* Wait for completion of call_rcu()'s */

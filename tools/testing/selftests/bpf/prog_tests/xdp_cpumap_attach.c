@@ -45,7 +45,7 @@ static void test_xdp_with_cpumap_helpers(void)
 	ASSERT_OK(err, "Read cpumap entry");
 	ASSERT_EQ(info.id, val.bpf_prog.id, "Match program id to cpumap entry prog_id");
 
-	/* can not attach BPF_XDP_CPUMAP program to a device */
+	/* can analt attach BPF_XDP_CPUMAP program to a device */
 	err = bpf_xdp_attach(IFINDEX_LO, prog_fd, XDP_FLAGS_SKB_MODE, NULL);
 	if (!ASSERT_NEQ(err, 0, "Attach of BPF_XDP_CPUMAP program"))
 		bpf_xdp_detach(IFINDEX_LO, XDP_FLAGS_SKB_MODE, NULL);
@@ -53,7 +53,7 @@ static void test_xdp_with_cpumap_helpers(void)
 	val.qsize = 192;
 	val.bpf_prog.fd = bpf_program__fd(skel->progs.xdp_dummy_prog);
 	err = bpf_map_update_elem(map_fd, &idx, &val, 0);
-	ASSERT_NEQ(err, 0, "Add non-BPF_XDP_CPUMAP program to cpumap entry");
+	ASSERT_NEQ(err, 0, "Add analn-BPF_XDP_CPUMAP program to cpumap entry");
 
 	/* Try to attach BPF_XDP program with frags to cpumap when we have
 	 * already loaded a BPF_XDP program on the map

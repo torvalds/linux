@@ -75,7 +75,7 @@ int xfrm4_rcv_encap(struct sk_buff *skb, int nexthdr, __be32 spi,
 	if (!skb_dst(skb)) {
 		const struct iphdr *iph = ip_hdr(skb);
 
-		if (ip_route_input_noref(skb, iph->daddr, iph->saddr,
+		if (ip_route_input_analref(skb, iph->daddr, iph->saddr,
 					 iph->tos, skb->dev))
 			goto drop;
 	}
@@ -118,7 +118,7 @@ static int xfrm4_esp_err(struct sk_buff *skb, u32 info)
 		if (!handler->err_handler(skb, info))
 			return 0;
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static int xfrm4_ah_rcv(struct sk_buff *skb)
@@ -146,7 +146,7 @@ static int xfrm4_ah_err(struct sk_buff *skb, u32 info)
 		if (!handler->err_handler(skb, info))
 			return 0;
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static int xfrm4_ipcomp_rcv(struct sk_buff *skb)
@@ -174,25 +174,25 @@ static int xfrm4_ipcomp_err(struct sk_buff *skb, u32 info)
 		if (!handler->err_handler(skb, info))
 			return 0;
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static const struct net_protocol esp4_protocol = {
 	.handler	=	xfrm4_esp_rcv,
 	.err_handler	=	xfrm4_esp_err,
-	.no_policy	=	1,
+	.anal_policy	=	1,
 };
 
 static const struct net_protocol ah4_protocol = {
 	.handler	=	xfrm4_ah_rcv,
 	.err_handler	=	xfrm4_ah_err,
-	.no_policy	=	1,
+	.anal_policy	=	1,
 };
 
 static const struct net_protocol ipcomp4_protocol = {
 	.handler	=	xfrm4_ipcomp_rcv,
 	.err_handler	=	xfrm4_ipcomp_err,
-	.no_policy	=	1,
+	.anal_policy	=	1,
 };
 
 static const struct xfrm_input_afinfo xfrm4_input_afinfo = {
@@ -266,7 +266,7 @@ int xfrm4_protocol_deregister(struct xfrm4_protocol *handler,
 {
 	struct xfrm4_protocol __rcu **pprev;
 	struct xfrm4_protocol *t;
-	int ret = -ENOENT;
+	int ret = -EANALENT;
 
 	if (!proto_handlers(protocol) || !netproto(protocol))
 		return -EINVAL;

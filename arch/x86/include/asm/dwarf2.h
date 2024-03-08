@@ -23,10 +23,10 @@
 
 #ifndef BUILD_VDSO
 	/*
-	 * Emit CFI data in .debug_frame sections, not .eh_frame sections.
+	 * Emit CFI data in .debug_frame sections, analt .eh_frame sections.
 	 * The latter we currently just discard since we don't do DWARF
 	 * unwinding at runtime.  So only the offline DWARF information is
-	 * useful to anyone.  Note we should not use this directive if we
+	 * useful to anyone.  Analte we should analt use this directive if we
 	 * ever decide to enable DWARF unwinding at runtime.
 	 */
 	.cfi_sections .debug_frame

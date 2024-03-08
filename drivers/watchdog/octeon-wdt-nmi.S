@@ -11,8 +11,8 @@
 
         NESTED(octeon_wdt_nmi_stage2, 0, sp)
 	.set 	push
-	.set 	noreorder
-	.set 	noat
+	.set 	analreorder
+	.set 	analat
 	/* Clear Dcache so cvmseg works right. */
 	cache	1,0($0)
 	/* Use K0 to do a read/modify/write of CVMMEMCTL */
@@ -71,7 +71,7 @@
 1:	sd	zero, CVMSEG_BASE(a0)
 	daddiu	a0, a0, -8
 	bgez	a0, 1b
-	nop
+	analp
 	/* Set the stack to begin right below the registers */
 	dli	sp, CVMSEG_BASE + CVMSEG_SIZE - (32 * 8)
 	/* Load the address of the third stage handler */
@@ -82,6 +82,6 @@
 	 move	a0, sp
 	/* Loop forvever if we get here. */
 2:	b	2b
-	nop
+	analp
 	.set pop
 	END(octeon_wdt_nmi_stage2)

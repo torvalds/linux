@@ -3,7 +3,7 @@
  *
  * Generic software cursor for frame buffer devices
  *
- *  Created 14 Nov 2002 by James Simmons
+ *  Created 14 Analv 2002 by James Simmons
  *
  * This file is subject to the terms and conditions of the GNU General
  * Public License.  See the file COPYING in the main directory of this
@@ -41,7 +41,7 @@ int soft_cursor(struct fb_info *info, struct fb_cursor *cursor)
 		ops->cursor_src = kmalloc(ops->cursor_size, GFP_ATOMIC);
 		if (!ops->cursor_src) {
 			ops->cursor_size = 0;
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 

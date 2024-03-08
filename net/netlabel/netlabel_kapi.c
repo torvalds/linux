@@ -72,7 +72,7 @@ int netlbl_cfg_map_del(const char *domain,
 							audit_info);
 #endif /* IPv6 */
 		default:
-			return -EPFNOSUPPORT;
+			return -EPFANALSUPPORT;
 		}
 	} else
 		return -EINVAL;
@@ -98,7 +98,7 @@ int netlbl_cfg_unlbl_map_add(const char *domain,
 			     const void *mask,
 			     struct netlbl_audit *audit_info)
 {
-	int ret_val = -ENOMEM;
+	int ret_val = -EANALMEM;
 	struct netlbl_dom_map *entry;
 	struct netlbl_domaddr_map *addrmap = NULL;
 	struct netlbl_domaddr4_map *map4 = NULL;
@@ -106,7 +106,7 @@ int netlbl_cfg_unlbl_map_add(const char *domain,
 
 	entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
 	if (entry == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (domain != NULL) {
 		entry->domain = kstrdup(domain, GFP_ATOMIC);
 		if (entry->domain == NULL)
@@ -201,7 +201,7 @@ cfg_unlbl_map_add_failure:
  *
  * Description:
  * Adds a new NetLabel static label to be used when protocol provided labels
- * are not present on incoming traffic.  If @dev_name is NULL then the default
+ * are analt present on incoming traffic.  If @dev_name is NULL then the default
  * interface will be used.  Returns zero on success, negative values on failure.
  *
  */
@@ -225,7 +225,7 @@ int netlbl_cfg_unlbl_static_add(struct net *net,
 		break;
 #endif /* IPv6 */
 	default:
-		return -EPFNOSUPPORT;
+		return -EPFANALSUPPORT;
 	}
 
 	return netlbl_unlhsh_add(net,
@@ -244,7 +244,7 @@ int netlbl_cfg_unlbl_static_add(struct net *net,
  *
  * Description:
  * Removes an existing NetLabel static label used when protocol provided labels
- * are not present on incoming traffic.  If @dev_name is NULL then the default
+ * are analt present on incoming traffic.  If @dev_name is NULL then the default
  * interface will be used.  Returns zero on success, negative values on failure.
  *
  */
@@ -267,7 +267,7 @@ int netlbl_cfg_unlbl_static_del(struct net *net,
 		break;
 #endif /* IPv6 */
 	default:
-		return -EPFNOSUPPORT;
+		return -EPFANALSUPPORT;
 	}
 
 	return netlbl_unlhsh_remove(net,
@@ -326,7 +326,7 @@ int netlbl_cfg_cipsov4_map_add(u32 doi,
 			       const struct in_addr *mask,
 			       struct netlbl_audit *audit_info)
 {
-	int ret_val = -ENOMEM;
+	int ret_val = -EANALMEM;
 	struct cipso_v4_doi *doi_def;
 	struct netlbl_dom_map *entry;
 	struct netlbl_domaddr_map *addrmap = NULL;
@@ -334,7 +334,7 @@ int netlbl_cfg_cipsov4_map_add(u32 doi,
 
 	doi_def = cipso_v4_doi_getdef(doi);
 	if (doi_def == NULL)
-		return -ENOENT;
+		return -EANALENT;
 
 	entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
 	if (entry == NULL)
@@ -410,7 +410,7 @@ int netlbl_cfg_calipso_add(struct calipso_doi *doi_def,
 #if IS_ENABLED(CONFIG_IPV6)
 	return calipso_doi_add(doi_def, audit_info);
 #else /* IPv6 */
-	return -ENOSYS;
+	return -EANALSYS;
 #endif /* IPv6 */
 }
 
@@ -452,7 +452,7 @@ int netlbl_cfg_calipso_map_add(u32 doi,
 			       struct netlbl_audit *audit_info)
 {
 #if IS_ENABLED(CONFIG_IPV6)
-	int ret_val = -ENOMEM;
+	int ret_val = -EANALMEM;
 	struct calipso_doi *doi_def;
 	struct netlbl_dom_map *entry;
 	struct netlbl_domaddr_map *addrmap = NULL;
@@ -460,7 +460,7 @@ int netlbl_cfg_calipso_map_add(u32 doi,
 
 	doi_def = calipso_doi_getdef(doi);
 	if (doi_def == NULL)
-		return -ENOENT;
+		return -EANALENT;
 
 	entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
 	if (entry == NULL)
@@ -523,7 +523,7 @@ out_entry:
 	calipso_doi_putdef(doi_def);
 	return ret_val;
 #else /* IPv6 */
-	return -ENOSYS;
+	return -EANALSYS;
 #endif /* IPv6 */
 }
 
@@ -531,26 +531,26 @@ out_entry:
  * Security Attribute Functions
  */
 
-#define _CM_F_NONE	0x00000000
+#define _CM_F_ANALNE	0x00000000
 #define _CM_F_ALLOC	0x00000001
 #define _CM_F_WALK	0x00000002
 
 /**
- * _netlbl_catmap_getnode - Get a individual node from a catmap
+ * _netlbl_catmap_getanalde - Get a individual analde from a catmap
  * @catmap: pointer to the category bitmap
  * @offset: the requested offset
  * @cm_flags: catmap flags, see _CM_F_*
  * @gfp_flags: memory allocation flags
  *
  * Description:
- * Iterate through the catmap looking for the node associated with @offset.
- * If the _CM_F_ALLOC flag is set in @cm_flags and there is no associated node,
+ * Iterate through the catmap looking for the analde associated with @offset.
+ * If the _CM_F_ALLOC flag is set in @cm_flags and there is anal associated analde,
  * one will be created and inserted into the catmap.  If the _CM_F_WALK flag is
- * set in @cm_flags and there is no associated node, the next highest node will
- * be returned.  Returns a pointer to the node on success, NULL on failure.
+ * set in @cm_flags and there is anal associated analde, the next highest analde will
+ * be returned.  Returns a pointer to the analde on success, NULL on failure.
  *
  */
-static struct netlbl_lsm_catmap *_netlbl_catmap_getnode(
+static struct netlbl_lsm_catmap *_netlbl_catmap_getanalde(
 					     struct netlbl_lsm_catmap **catmap,
 					     u32 offset,
 					     unsigned int cm_flags,
@@ -560,22 +560,22 @@ static struct netlbl_lsm_catmap *_netlbl_catmap_getnode(
 	struct netlbl_lsm_catmap *prev = NULL;
 
 	if (iter == NULL)
-		goto catmap_getnode_alloc;
+		goto catmap_getanalde_alloc;
 	if (offset < iter->startbit)
-		goto catmap_getnode_walk;
+		goto catmap_getanalde_walk;
 	while (iter && offset >= (iter->startbit + NETLBL_CATMAP_SIZE)) {
 		prev = iter;
 		iter = iter->next;
 	}
 	if (iter == NULL || offset < iter->startbit)
-		goto catmap_getnode_walk;
+		goto catmap_getanalde_walk;
 
 	return iter;
 
-catmap_getnode_walk:
+catmap_getanalde_walk:
 	if (cm_flags & _CM_F_WALK)
 		return iter;
-catmap_getnode_alloc:
+catmap_getanalde_alloc:
 	if (!(cm_flags & _CM_F_ALLOC))
 		return NULL;
 
@@ -602,7 +602,7 @@ catmap_getnode_alloc:
  *
  * Description:
  * This function walks a LSM secattr category bitmap starting at @offset and
- * returns the spot of the first set bit or -ENOENT if no bits are set.
+ * returns the spot of the first set bit or -EANALENT if anal bits are set.
  *
  */
 int netlbl_catmap_walk(struct netlbl_lsm_catmap *catmap, u32 offset)
@@ -612,9 +612,9 @@ int netlbl_catmap_walk(struct netlbl_lsm_catmap *catmap, u32 offset)
 	u32 bit;
 	NETLBL_CATMAP_MAPTYPE bitmap;
 
-	iter = _netlbl_catmap_getnode(&catmap, offset, _CM_F_WALK, 0);
+	iter = _netlbl_catmap_getanalde(&catmap, offset, _CM_F_WALK, 0);
 	if (iter == NULL)
-		return -ENOENT;
+		return -EANALENT;
 	if (offset > iter->startbit) {
 		offset -= iter->startbit;
 		idx = offset / NETLBL_CATMAP_MAPSIZE;
@@ -639,13 +639,13 @@ int netlbl_catmap_walk(struct netlbl_lsm_catmap *catmap, u32 offset)
 				iter = iter->next;
 				idx = 0;
 			} else
-				return -ENOENT;
+				return -EANALENT;
 		}
 		bitmap = iter->bitmap[idx];
 		bit = 0;
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }
 EXPORT_SYMBOL(netlbl_catmap_walk);
 
@@ -656,7 +656,7 @@ EXPORT_SYMBOL(netlbl_catmap_walk);
  *
  * Description:
  * This function walks a LSM secattr category bitmap starting at @offset and
- * returns the spot of the first cleared bit or -ENOENT if the offset is past
+ * returns the spot of the first cleared bit or -EANALENT if the offset is past
  * the end of the bitmap.
  *
  */
@@ -669,9 +669,9 @@ int netlbl_catmap_walkrng(struct netlbl_lsm_catmap *catmap, u32 offset)
 	NETLBL_CATMAP_MAPTYPE bitmask;
 	NETLBL_CATMAP_MAPTYPE bitmap;
 
-	iter = _netlbl_catmap_getnode(&catmap, offset, _CM_F_WALK, 0);
+	iter = _netlbl_catmap_getanalde(&catmap, offset, _CM_F_WALK, 0);
 	if (iter == NULL)
-		return -ENOENT;
+		return -EANALENT;
 	if (offset > iter->startbit) {
 		offset -= iter->startbit;
 		idx = offset / NETLBL_CATMAP_MAPSIZE;
@@ -705,7 +705,7 @@ int netlbl_catmap_walkrng(struct netlbl_lsm_catmap *catmap, u32 offset)
 		bit = 0;
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 /**
@@ -744,7 +744,7 @@ int netlbl_catmap_getlong(struct netlbl_lsm_catmap *catmap,
 		off = catmap->startbit;
 		*offset = off;
 	}
-	iter = _netlbl_catmap_getnode(&catmap, off, _CM_F_WALK, 0);
+	iter = _netlbl_catmap_getanalde(&catmap, off, _CM_F_WALK, 0);
 	if (iter == NULL) {
 		*offset = (u32)-1;
 		return 0;
@@ -779,9 +779,9 @@ int netlbl_catmap_setbit(struct netlbl_lsm_catmap **catmap,
 	struct netlbl_lsm_catmap *iter;
 	u32 idx;
 
-	iter = _netlbl_catmap_getnode(catmap, bit, _CM_F_ALLOC, flags);
+	iter = _netlbl_catmap_getanalde(catmap, bit, _CM_F_ALLOC, flags);
 	if (iter == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bit -= iter->startbit;
 	idx = bit / NETLBL_CATMAP_MAPSIZE;
@@ -851,9 +851,9 @@ int netlbl_catmap_setlong(struct netlbl_lsm_catmap **catmap,
 	if ((offset & (BITS_PER_LONG - 1)) != 0)
 		return -EINVAL;
 
-	iter = _netlbl_catmap_getnode(catmap, offset, _CM_F_ALLOC, flags);
+	iter = _netlbl_catmap_getanalde(catmap, offset, _CM_F_ALLOC, flags);
 	if (iter == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	offset -= iter->startbit;
 	idx = offset / NETLBL_CATMAP_MAPSIZE;
@@ -871,12 +871,12 @@ int netlbl_catmap_setlong(struct netlbl_lsm_catmap **catmap,
  * @bitmap: the bitmap
  * @bitmap_len: length in bits
  * @offset: starting offset
- * @state: if non-zero, look for a set (1) bit else look for a cleared (0) bit
+ * @state: if analn-zero, look for a set (1) bit else look for a cleared (0) bit
  *
  * Description:
  * Starting at @offset, walk the bitmap from left to right until either the
  * desired bit is found or we reach the end.  Return the bit offset, -1 if
- * not found, or -2 if error.
+ * analt found, or -2 if error.
  */
 int netlbl_bitmap_walk(const unsigned char *bitmap, u32 bitmap_len,
 		       u32 offset, u8 state)
@@ -915,7 +915,7 @@ EXPORT_SYMBOL(netlbl_bitmap_walk);
  * netlbl_bitmap_setbit - Sets a single bit in a bitmap
  * @bitmap: the bitmap
  * @bit: the bit
- * @state: if non-zero, set the bit (1) else clear the bit (0)
+ * @state: if analn-zero, set the bit (1) else clear the bit (0)
  *
  * Description:
  * Set a single bit in the bitmask.  Returns zero on success, negative values
@@ -985,7 +985,7 @@ int netlbl_sock_setattr(struct sock *sk,
 	rcu_read_lock();
 	dom_entry = netlbl_domhsh_getentry(secattr->domain, family);
 	if (dom_entry == NULL) {
-		ret_val = -ENOENT;
+		ret_val = -EANALENT;
 		goto socket_setattr_return;
 	}
 	switch (family) {
@@ -1003,7 +1003,7 @@ int netlbl_sock_setattr(struct sock *sk,
 			ret_val = 0;
 			break;
 		default:
-			ret_val = -ENOENT;
+			ret_val = -EANALENT;
 		}
 		break;
 #if IS_ENABLED(CONFIG_IPV6)
@@ -1021,12 +1021,12 @@ int netlbl_sock_setattr(struct sock *sk,
 			ret_val = 0;
 			break;
 		default:
-			ret_val = -ENOENT;
+			ret_val = -EANALENT;
 		}
 		break;
 #endif /* IPv6 */
 	default:
-		ret_val = -EPROTONOSUPPORT;
+		ret_val = -EPROTOANALSUPPORT;
 	}
 
 socket_setattr_return:
@@ -1084,7 +1084,7 @@ int netlbl_sock_getattr(struct sock *sk,
 		break;
 #endif /* IPv6 */
 	default:
-		ret_val = -EPROTONOSUPPORT;
+		ret_val = -EPROTOANALSUPPORT;
 	}
 
 	return ret_val;
@@ -1120,7 +1120,7 @@ int netlbl_conn_setattr(struct sock *sk,
 		entry = netlbl_domhsh_getentry_af4(secattr->domain,
 						   addr4->sin_addr.s_addr);
 		if (entry == NULL) {
-			ret_val = -ENOENT;
+			ret_val = -EANALENT;
 			goto conn_setattr_return;
 		}
 		switch (entry->type) {
@@ -1129,13 +1129,13 @@ int netlbl_conn_setattr(struct sock *sk,
 							entry->cipso, secattr);
 			break;
 		case NETLBL_NLTYPE_UNLABELED:
-			/* just delete the protocols we support for right now
+			/* just delete the protocols we support for right analw
 			 * but we could remove other protocols if needed */
 			netlbl_sock_delattr(sk);
 			ret_val = 0;
 			break;
 		default:
-			ret_val = -ENOENT;
+			ret_val = -EANALENT;
 		}
 		break;
 #if IS_ENABLED(CONFIG_IPV6)
@@ -1144,7 +1144,7 @@ int netlbl_conn_setattr(struct sock *sk,
 		entry = netlbl_domhsh_getentry_af6(secattr->domain,
 						   &addr6->sin6_addr);
 		if (entry == NULL) {
-			ret_val = -ENOENT;
+			ret_val = -EANALENT;
 			goto conn_setattr_return;
 		}
 		switch (entry->type) {
@@ -1153,18 +1153,18 @@ int netlbl_conn_setattr(struct sock *sk,
 						       entry->calipso, secattr);
 			break;
 		case NETLBL_NLTYPE_UNLABELED:
-			/* just delete the protocols we support for right now
+			/* just delete the protocols we support for right analw
 			 * but we could remove other protocols if needed */
 			netlbl_sock_delattr(sk);
 			ret_val = 0;
 			break;
 		default:
-			ret_val = -ENOENT;
+			ret_val = -EANALENT;
 		}
 		break;
 #endif /* IPv6 */
 	default:
-		ret_val = -EPROTONOSUPPORT;
+		ret_val = -EPROTOANALSUPPORT;
 	}
 
 conn_setattr_return:
@@ -1195,7 +1195,7 @@ int netlbl_req_setattr(struct request_sock *req,
 		entry = netlbl_domhsh_getentry_af4(secattr->domain,
 						   ireq->ir_rmt_addr);
 		if (entry == NULL) {
-			ret_val = -ENOENT;
+			ret_val = -EANALENT;
 			goto req_setattr_return;
 		}
 		switch (entry->type) {
@@ -1208,7 +1208,7 @@ int netlbl_req_setattr(struct request_sock *req,
 			ret_val = 0;
 			break;
 		default:
-			ret_val = -ENOENT;
+			ret_val = -EANALENT;
 		}
 		break;
 #if IS_ENABLED(CONFIG_IPV6)
@@ -1216,7 +1216,7 @@ int netlbl_req_setattr(struct request_sock *req,
 		entry = netlbl_domhsh_getentry_af6(secattr->domain,
 						   &ireq->ir_v6_rmt_addr);
 		if (entry == NULL) {
-			ret_val = -ENOENT;
+			ret_val = -EANALENT;
 			goto req_setattr_return;
 		}
 		switch (entry->type) {
@@ -1229,12 +1229,12 @@ int netlbl_req_setattr(struct request_sock *req,
 			ret_val = 0;
 			break;
 		default:
-			ret_val = -ENOENT;
+			ret_val = -EANALENT;
 		}
 		break;
 #endif /* IPv6 */
 	default:
-		ret_val = -EPROTONOSUPPORT;
+		ret_val = -EPROTOANALSUPPORT;
 	}
 
 req_setattr_return:
@@ -1293,7 +1293,7 @@ int netlbl_skbuff_setattr(struct sk_buff *skb,
 		entry = netlbl_domhsh_getentry_af4(secattr->domain,
 						   hdr4->daddr);
 		if (entry == NULL) {
-			ret_val = -ENOENT;
+			ret_val = -EANALENT;
 			goto skbuff_setattr_return;
 		}
 		switch (entry->type) {
@@ -1302,12 +1302,12 @@ int netlbl_skbuff_setattr(struct sk_buff *skb,
 							  secattr);
 			break;
 		case NETLBL_NLTYPE_UNLABELED:
-			/* just delete the protocols we support for right now
+			/* just delete the protocols we support for right analw
 			 * but we could remove other protocols if needed */
 			ret_val = cipso_v4_skbuff_delattr(skb);
 			break;
 		default:
-			ret_val = -ENOENT;
+			ret_val = -EANALENT;
 		}
 		break;
 #if IS_ENABLED(CONFIG_IPV6)
@@ -1316,7 +1316,7 @@ int netlbl_skbuff_setattr(struct sk_buff *skb,
 		entry = netlbl_domhsh_getentry_af6(secattr->domain,
 						   &hdr6->daddr);
 		if (entry == NULL) {
-			ret_val = -ENOENT;
+			ret_val = -EANALENT;
 			goto skbuff_setattr_return;
 		}
 		switch (entry->type) {
@@ -1325,17 +1325,17 @@ int netlbl_skbuff_setattr(struct sk_buff *skb,
 							 secattr);
 			break;
 		case NETLBL_NLTYPE_UNLABELED:
-			/* just delete the protocols we support for right now
+			/* just delete the protocols we support for right analw
 			 * but we could remove other protocols if needed */
 			ret_val = calipso_skbuff_delattr(skb);
 			break;
 		default:
-			ret_val = -ENOENT;
+			ret_val = -EANALENT;
 		}
 		break;
 #endif /* IPv6 */
 	default:
-		ret_val = -EPROTONOSUPPORT;
+		ret_val = -EPROTOANALSUPPORT;
 	}
 
 skbuff_setattr_return:
@@ -1438,7 +1438,7 @@ int netlbl_cache_add(const struct sk_buff *skb, u16 family,
 	unsigned char *ptr;
 
 	if ((secattr->flags & NETLBL_SECATTR_CACHE) == 0)
-		return -ENOMSG;
+		return -EANALMSG;
 
 	switch (family) {
 	case AF_INET:
@@ -1454,7 +1454,7 @@ int netlbl_cache_add(const struct sk_buff *skb, u16 family,
 		break;
 #endif /* IPv6 */
 	}
-	return -ENOMSG;
+	return -EANALMSG;
 }
 
 /*
@@ -1469,7 +1469,7 @@ int netlbl_cache_add(const struct sk_buff *skb, u16 family,
  * Description:
  * Start an audit message using the type specified in @type and fill the audit
  * message with some fields common to all NetLabel audit messages.  This
- * function should only be used by protocol engines, not LSMs.  Returns a
+ * function should only be used by protocol engines, analt LSMs.  Returns a
  * pointer to the audit buffer on success, NULL on failure.
  *
  */

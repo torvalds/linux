@@ -5,7 +5,7 @@
  *
  * KVM/MIPS: Hypercall handling.
  *
- * Copyright (C) 2015  Imagination Technologies Ltd.
+ * Copyright (C) 2015  Imagination Techanallogies Ltd.
  */
 
 #include <linux/kernel.h>
@@ -33,7 +33,7 @@ static int kvm_mips_hypercall(struct kvm_vcpu *vcpu, unsigned long num,
 			      const unsigned long *args, unsigned long *hret)
 {
 	/* Report unimplemented hypercall to guest */
-	*hret = -KVM_ENOSYS;
+	*hret = -KVM_EANALSYS;
 	return RESUME_GUEST;
 }
 

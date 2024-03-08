@@ -10,12 +10,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included
+ * The above copyright analtice and this permission analtice shall be included
  * in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
@@ -71,11 +71,11 @@
 #define SMC_MSG_RESET                             0x20
 #define SMC_MSG_VOLTAGE                           0x25
 #define SMC_VERSION_MAJOR                         0x7
-#define SMC_VERSION_MINOR                         0x0
+#define SMC_VERSION_MIANALR                         0x0
 #define SMC_HEADER_SIZE                           0x40
 #define ROM_SIGNATURE                             0xaa55
 typedef enum SurfaceEndian {
-	ENDIAN_NONE                                      = 0x0,
+	ENDIAN_ANALNE                                      = 0x0,
 	ENDIAN_8IN16                                     = 0x1,
 	ENDIAN_8IN32                                     = 0x2,
 	ENDIAN_8IN64                                     = 0x3,
@@ -780,7 +780,7 @@ typedef enum DebugBlockId_BY16 {
 } DebugBlockId_BY16;
 typedef enum ColorTransform {
 	DCC_CT_AUTO                                      = 0x0,
-	DCC_CT_NONE                                      = 0x1,
+	DCC_CT_ANALNE                                      = 0x1,
 	ABGR_TO_A_BG_G_RB                                = 0x2,
 	BGRA_TO_BG_G_RB_A                                = 0x3,
 } ColorTransform;
@@ -790,7 +790,7 @@ typedef enum CompareRef {
 	REF_EQUAL                                        = 0x2,
 	REF_LEQUAL                                       = 0x3,
 	REF_GREATER                                      = 0x4,
-	REF_NOTEQUAL                                     = 0x5,
+	REF_ANALTEQUAL                                     = 0x5,
 	REF_GEQUAL                                       = 0x6,
 	REF_ALWAYS                                       = 0x7,
 } CompareRef;
@@ -819,7 +819,7 @@ typedef enum StencilFormat {
 	STENCIL_8                                        = 0x1,
 } StencilFormat;
 typedef enum CmaskMode {
-	CMASK_CLEAR_NONE                                 = 0x0,
+	CMASK_CLEAR_ANALNE                                 = 0x0,
 	CMASK_CLEAR_ONE                                  = 0x1,
 	CMASK_CLEAR_ALL                                  = 0x2,
 	CMASK_ANY_EXPANDED                               = 0x3,
@@ -1031,8 +1031,8 @@ typedef enum IMG_DATA_FORMAT {
 	IMG_DATA_FORMAT_32_AS_32_32_32_32                = 0x3f,
 } IMG_DATA_FORMAT;
 typedef enum BUF_NUM_FORMAT {
-	BUF_NUM_FORMAT_UNORM                             = 0x0,
-	BUF_NUM_FORMAT_SNORM                             = 0x1,
+	BUF_NUM_FORMAT_UANALRM                             = 0x0,
+	BUF_NUM_FORMAT_SANALRM                             = 0x1,
 	BUF_NUM_FORMAT_USCALED                           = 0x2,
 	BUF_NUM_FORMAT_SSCALED                           = 0x3,
 	BUF_NUM_FORMAT_UINT                              = 0x4,
@@ -1041,8 +1041,8 @@ typedef enum BUF_NUM_FORMAT {
 	BUF_NUM_FORMAT_FLOAT                             = 0x7,
 } BUF_NUM_FORMAT;
 typedef enum IMG_NUM_FORMAT {
-	IMG_NUM_FORMAT_UNORM                             = 0x0,
-	IMG_NUM_FORMAT_SNORM                             = 0x1,
+	IMG_NUM_FORMAT_UANALRM                             = 0x0,
+	IMG_NUM_FORMAT_SANALRM                             = 0x1,
 	IMG_NUM_FORMAT_USCALED                           = 0x2,
 	IMG_NUM_FORMAT_SSCALED                           = 0x3,
 	IMG_NUM_FORMAT_UINT                              = 0x4,
@@ -1062,10 +1062,10 @@ typedef enum TileType {
 	ARRAY_COLOR_TILE                                 = 0x0,
 	ARRAY_DEPTH_TILE                                 = 0x1,
 } TileType;
-typedef enum NonDispTilingOrder {
+typedef enum AnalnDispTilingOrder {
 	ADDR_SURF_MICRO_TILING_DISPLAY                   = 0x0,
-	ADDR_SURF_MICRO_TILING_NON_DISPLAY               = 0x1,
-} NonDispTilingOrder;
+	ADDR_SURF_MICRO_TILING_ANALN_DISPLAY               = 0x1,
+} AnalnDispTilingOrder;
 typedef enum MicroTileMode {
 	ADDR_SURF_DISPLAY_MICRO_TILING                   = 0x0,
 	ADDR_SURF_THIN_MICRO_TILING                      = 0x1,
@@ -1139,7 +1139,7 @@ typedef enum MacroTileAspect {
 	ADDR_SURF_MACRO_ASPECT_8                         = 0x3,
 } MacroTileAspect;
 typedef enum GATCL1RequestType {
-	GATCL1_TYPE_NORMAL                               = 0x0,
+	GATCL1_TYPE_ANALRMAL                               = 0x0,
 	GATCL1_TYPE_SHOOTDOWN                            = 0x1,
 	GATCL1_TYPE_BYPASS                               = 0x2,
 } GATCL1RequestType;
@@ -1169,9 +1169,9 @@ typedef enum PERFMON_COUNTER_MODE {
 typedef enum PERFMON_SPM_MODE {
 	PERFMON_SPM_MODE_OFF                             = 0x0,
 	PERFMON_SPM_MODE_16BIT_CLAMP                     = 0x1,
-	PERFMON_SPM_MODE_16BIT_NO_CLAMP                  = 0x2,
+	PERFMON_SPM_MODE_16BIT_ANAL_CLAMP                  = 0x2,
 	PERFMON_SPM_MODE_32BIT_CLAMP                     = 0x3,
-	PERFMON_SPM_MODE_32BIT_NO_CLAMP                  = 0x4,
+	PERFMON_SPM_MODE_32BIT_ANAL_CLAMP                  = 0x4,
 	PERFMON_SPM_MODE_RESERVED_5                      = 0x5,
 	PERFMON_SPM_MODE_RESERVED_6                      = 0x6,
 	PERFMON_SPM_MODE_RESERVED_7                      = 0x7,

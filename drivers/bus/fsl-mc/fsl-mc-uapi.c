@@ -389,11 +389,11 @@ static int fsl_mc_command_check(struct fsl_mc_device *mc_dev,
 			break;
 	}
 	if (i == FSL_MC_NUM_ACCEPTED_CMDS) {
-		dev_err(&mc_dev->dev, "MC command 0x%04x: cmdid not accepted\n", cmdid);
+		dev_err(&mc_dev->dev, "MC command 0x%04x: cmdid analt accepted\n", cmdid);
 		return -EACCES;
 	}
 
-	/* Check if the size of the command is honored. Anything beyond the
+	/* Check if the size of the command is hoanalred. Anything beyond the
 	 * last valid byte of the command should be zeroed.
 	 */
 	mc_cmd_max_size = sizeof(*mc_cmd);
@@ -422,7 +422,7 @@ static int fsl_mc_command_check(struct fsl_mc_device *mc_dev,
 		/* The module ID is represented by bits [4:9] from the cmdid */
 		module_id = (cmdid & GENMASK(9, 4)) >> 4;
 		if (module_id == 0 || module_id > FSL_MC_MAX_MODULE_ID) {
-			dev_err(&mc_dev->dev, "MC command 0x%04x: unknown module ID 0x%x\n",
+			dev_err(&mc_dev->dev, "MC command 0x%04x: unkanalwn module ID 0x%x\n",
 				cmdid, module_id);
 			return -EACCES;
 		}
@@ -467,7 +467,7 @@ static int fsl_mc_uapi_send_command(struct fsl_mc_device *mc_dev, unsigned long 
 	return 0;
 }
 
-static int fsl_mc_uapi_dev_open(struct inode *inode, struct file *filep)
+static int fsl_mc_uapi_dev_open(struct ianalde *ianalde, struct file *filep)
 {
 	struct fsl_mc_device *root_mc_device;
 	struct uapi_priv_data *priv_data;
@@ -478,7 +478,7 @@ static int fsl_mc_uapi_dev_open(struct inode *inode, struct file *filep)
 
 	priv_data = kzalloc(sizeof(*priv_data), GFP_KERNEL);
 	if (!priv_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mc_uapi = container_of(filep->private_data, struct fsl_mc_uapi, misc);
 	mc_bus = container_of(mc_uapi, struct fsl_mc_bus, uapi_misc);
@@ -494,7 +494,7 @@ static int fsl_mc_uapi_dev_open(struct inode *inode, struct file *filep)
 					       &dynamic_mc_io);
 		if (error) {
 			dev_dbg(&root_mc_device->dev,
-				"Could not allocate MC portal\n");
+				"Could analt allocate MC portal\n");
 			goto error_portal_allocate;
 		}
 
@@ -514,7 +514,7 @@ error_portal_allocate:
 	return error;
 }
 
-static int fsl_mc_uapi_dev_release(struct inode *inode, struct file *filep)
+static int fsl_mc_uapi_dev_release(struct ianalde *ianalde, struct file *filep)
 {
 	struct uapi_priv_data *priv_data;
 	struct fsl_mc_uapi *mc_uapi;
@@ -576,7 +576,7 @@ int fsl_mc_uapi_create_device_file(struct fsl_mc_bus *mc_bus)
 	struct fsl_mc_uapi *mc_uapi = &mc_bus->uapi_misc;
 	int error;
 
-	mc_uapi->misc.minor = MISC_DYNAMIC_MINOR;
+	mc_uapi->misc.mianalr = MISC_DYNAMIC_MIANALR;
 	mc_uapi->misc.name = dev_name(&mc_dev->dev);
 	mc_uapi->misc.fops = &fsl_mc_uapi_dev_fops;
 

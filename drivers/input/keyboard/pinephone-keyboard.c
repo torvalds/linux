@@ -17,7 +17,7 @@
 
 #define DRV_NAME			"pinephone-keyboard"
 
-#define PPKB_CRC8_POLYNOMIAL		0x07
+#define PPKB_CRC8_POLYANALMIAL		0x07
 
 #define PPKB_DEVICE_ID_HI		0x00
 #define PPKB_DEVICE_ID_HI_VALUE			'K'
@@ -324,7 +324,7 @@ static int ppkb_probe(struct i2c_client *client)
 	unsigned int phys_rows, phys_cols;
 	struct pinephone_keyboard *ppkb;
 	u8 info[PPKB_MATRIX_SIZE + 1];
-	struct device_node *i2c_bus;
+	struct device_analde *i2c_bus;
 	int ret;
 	int error;
 
@@ -345,7 +345,7 @@ static int ppkb_probe(struct i2c_client *client)
 	    info[PPKB_DEVICE_ID_LO] != PPKB_DEVICE_ID_LO_VALUE) {
 		dev_warn(dev, "Unexpected device ID: %#02x %#02x\n",
 			 info[PPKB_DEVICE_ID_HI], info[PPKB_DEVICE_ID_LO]);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	dev_info(dev, "Found firmware version %d.%d features %#x\n",
@@ -368,17 +368,17 @@ static int ppkb_probe(struct i2c_client *client)
 
 	ppkb = devm_kzalloc(dev, sizeof(*ppkb), GFP_KERNEL);
 	if (!ppkb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, ppkb);
 
-	i2c_bus = of_get_child_by_name(dev->of_node, "i2c");
+	i2c_bus = of_get_child_by_name(dev->of_analde, "i2c");
 	if (i2c_bus) {
 		ppkb->adapter.owner = THIS_MODULE;
 		ppkb->adapter.algo = &ppkb_adap_algo;
 		ppkb->adapter.algo_data = client;
 		ppkb->adapter.dev.parent = dev;
-		ppkb->adapter.dev.of_node = i2c_bus;
+		ppkb->adapter.dev.of_analde = i2c_bus;
 		strscpy(ppkb->adapter.name, DRV_NAME, sizeof(ppkb->adapter.name));
 
 		error = devm_i2c_add_adapter(dev, &ppkb->adapter);
@@ -388,11 +388,11 @@ static int ppkb_probe(struct i2c_client *client)
 		}
 	}
 
-	crc8_populate_msb(ppkb->crc_table, PPKB_CRC8_POLYNOMIAL);
+	crc8_populate_msb(ppkb->crc_table, PPKB_CRC8_POLYANALMIAL);
 
 	ppkb->input = devm_input_allocate_device(dev);
 	if (!ppkb->input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input_set_drvdata(ppkb->input, client);
 

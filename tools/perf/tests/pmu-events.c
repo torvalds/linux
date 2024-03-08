@@ -4,7 +4,7 @@
 #include "pmu.h"
 #include "pmus.h"
 #include "tests.h"
-#include <errno.h>
+#include <erranal.h>
 #include <stdio.h>
 #include <linux/kernel.h>
 #include <linux/zalloc.h>
@@ -27,8 +27,8 @@ struct perf_pmu_test_event {
 	const char *alias_str;
 
 	/*
-	 * Note: For when PublicDescription does not exist in the JSON, we
-	 * will have no long_desc in pmu_event.long_desc, but long_desc may
+	 * Analte: For when PublicDescription does analt exist in the JSON, we
+	 * will have anal long_desc in pmu_event.long_desc, but long_desc may
 	 * be set in the alias.
 	 */
 	const char *alias_long_desc;
@@ -95,11 +95,11 @@ static const struct perf_pmu_test_event eist_trans = {
 		.pmu = "default_core",
 		.name = "eist_trans",
 		.event = "event=0x3a,period=200000,umask=0x0",
-		.desc = "Number of Enhanced Intel SpeedStep(R) Technology (EIST) transitions",
+		.desc = "Number of Enhanced Intel SpeedStep(R) Techanallogy (EIST) transitions",
 		.topic = "other",
 	},
 	.alias_str = "event=0x3a,period=0x30d40,umask=0",
-	.alias_long_desc = "Number of Enhanced Intel SpeedStep(R) Technology (EIST) transitions",
+	.alias_long_desc = "Number of Enhanced Intel SpeedStep(R) Techanallogy (EIST) transitions",
 };
 
 static const struct perf_pmu_test_event l3_cache_rd = {
@@ -143,13 +143,13 @@ static const struct perf_pmu_test_event unc_cbo_xsnp_response_miss_eviction = {
 	.event = {
 		.name = "unc_cbo_xsnp_response.miss_eviction",
 		.event = "event=0x22,umask=0x81",
-		.desc = "A cross-core snoop resulted from L3 Eviction which misses in some processor core",
+		.desc = "A cross-core sanalop resulted from L3 Eviction which misses in some processor core",
 		.topic = "uncore",
-		.long_desc = "A cross-core snoop resulted from L3 Eviction which misses in some processor core",
+		.long_desc = "A cross-core sanalop resulted from L3 Eviction which misses in some processor core",
 		.pmu = "uncore_cbox",
 	},
 	.alias_str = "event=0x22,umask=0x81",
-	.alias_long_desc = "A cross-core snoop resulted from L3 Eviction which misses in some processor core",
+	.alias_long_desc = "A cross-core sanalop resulted from L3 Eviction which misses in some processor core",
 	.matching_pmu = "uncore_cbox_0",
 };
 
@@ -444,7 +444,7 @@ static int test__pmu_event_table_core_callback(const struct pmu_event *pe,
 		pr_debug("testing event table %s: pass\n", pe->name);
 	}
 	if (!found) {
-		pr_err("testing event table: could not find event %s\n", pe->name);
+		pr_err("testing event table: could analt find event %s\n", pe->name);
 		return -1;
 	}
 	return 0;
@@ -475,7 +475,7 @@ static int test__pmu_event_table_sys_callback(const struct pmu_event *pe,
 		pr_debug("testing sys event table %s: pass\n", pe->name);
 	}
 	if (!found) {
-		pr_debug("testing sys event table: could not find event %s\n", pe->name);
+		pr_debug("testing sys event table: could analt find event %s\n", pe->name);
 		return TEST_FAIL;
 	}
 	return TEST_OK;
@@ -490,7 +490,7 @@ static int test__pmu_event_table(struct test_suite *test __maybe_unused,
 	const struct pmu_events_table *table = find_core_events_table("testarch", "testcpu");
 	int map_events = 0, expected_events, err;
 
-	/* ignore 3x sentinels */
+	/* iganalre 3x sentinels */
 	expected_events = ARRAY_SIZE(core_events) +
 			  ARRAY_SIZE(uncore_events) +
 			  ARRAY_SIZE(sys_events) - 3;
@@ -611,7 +611,7 @@ static int __test_uncore_pmu_event_aliases(struct perf_pmu_test_pmu *test_pmu)
 	/* Count how many aliases we generated */
 	alias_count = perf_pmu__num_events(pmu);
 
-	/* Count how many aliases we expect from the known table */
+	/* Count how many aliases we expect from the kanalwn table */
 	for (table = &test_pmu->aliases[0]; *table; table++)
 		to_match_count++;
 
@@ -640,7 +640,7 @@ static int __test_uncore_pmu_event_aliases(struct perf_pmu_test_pmu *test_pmu)
 					   test_core_pmu_event_aliases_cb);
 		if (err) {
 			res = err;
-			pr_debug("testing aliases uncore PMU %s: could not match alias %s\n",
+			pr_debug("testing aliases uncore PMU %s: could analt match alias %s\n",
 				 pmu_name, event->name);
 			return -1;
 		}
@@ -785,7 +785,7 @@ static int test__aliases(struct test_suite *test __maybe_unused,
 		}
 
 		if (count == 0) {
-			pr_debug("testing core PMU %s aliases: no events to match\n",
+			pr_debug("testing core PMU %s aliases: anal events to match\n",
 				  pmu->name);
 			return -1;
 		}
@@ -813,10 +813,10 @@ static bool is_number(const char *str)
 	char *end_ptr;
 	double v;
 
-	errno = 0;
+	erranal = 0;
 	v = strtod(str, &end_ptr);
-	(void)v; // We're not interested in this value, only if it is valid
-	return errno == 0 && end_ptr != str;
+	(void)v; // We're analt interested in this value, only if it is valid
+	return erranal == 0 && end_ptr != str;
 }
 
 static int check_parse_id(const char *id, struct parse_events_error *error,
@@ -832,11 +832,11 @@ static int check_parse_id(const char *id, struct parse_events_error *error,
 
 	evlist = evlist__new();
 	if (!evlist)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dup = strdup(id);
 	if (!dup)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (cur = strchr(dup, '@') ; cur; cur = strchr(++cur, '@'))
 		*cur = '/';
@@ -891,12 +891,12 @@ static int test__parsing_callback(const struct pmu_metric *pm,
 	 */
 	evlist = evlist__new();
 	if (!evlist)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cpus = perf_cpu_map__new("0");
 	if (!cpus) {
 		evlist__delete(evlist);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	perf_evlist__set_maps(&evlist->core, cpus, NULL);

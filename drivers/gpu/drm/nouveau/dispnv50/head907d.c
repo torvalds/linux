@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -22,9 +22,9 @@
 #include <drm/drm_connector.h>
 #include <drm/drm_mode_config.h>
 #include <drm/drm_vblank.h>
-#include "nouveau_drv.h"
-#include "nouveau_bios.h"
-#include "nouveau_connector.h"
+#include "analuveau_drv.h"
+#include "analuveau_bios.h"
+#include "analuveau_connector.h"
 #include "head.h"
 #include "core.h"
 #include "crc.h"
@@ -292,7 +292,7 @@ head907d_olut_load(struct drm_color_lut *in, int size, void __iomem *mem)
 	}
 
 	/* INTERPOLATE modes require a "next" entry to interpolate with,
-	 * so we replicate the last entry to deal with this for now.
+	 * so we replicate the last entry to deal with this for analw.
 	 */
 	writew(readw(mem - 8), mem + 0);
 	writew(readw(mem - 6), mem + 2);
@@ -366,7 +366,7 @@ head907d_mode(struct nv50_head *head, struct nv50_head_atom *asyh)
 
 				HEAD_SET_PIXEL_CLOCK_CONFIGURATION(i),
 		  NVDEF(NV907D, HEAD_SET_PIXEL_CLOCK_CONFIGURATION, MODE, CLK_CUSTOM) |
-		  NVDEF(NV907D, HEAD_SET_PIXEL_CLOCK_CONFIGURATION, NOT_DRIVER, FALSE) |
+		  NVDEF(NV907D, HEAD_SET_PIXEL_CLOCK_CONFIGURATION, ANALT_DRIVER, FALSE) |
 		  NVDEF(NV907D, HEAD_SET_PIXEL_CLOCK_CONFIGURATION, ENABLE_HOPPING, FALSE),
 
 				HEAD_SET_PIXEL_CLOCK_FREQUENCY_MAX(i),

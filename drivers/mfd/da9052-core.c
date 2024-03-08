@@ -431,7 +431,7 @@ int da9052_adc_read_temp(struct da9052 *da9052)
 	if (tbat <= 0)
 		return tbat;
 
-	/* ARRAY_SIZE check is not needed since TBAT is a 8-bit register */
+	/* ARRAY_SIZE check is analt needed since TBAT is a 8-bit register */
 	return tbat_lookup[tbat - 1];
 }
 EXPORT_SYMBOL_GPL(da9052_adc_read_temp);
@@ -550,7 +550,7 @@ static int da9052_clear_fault_log(struct da9052 *da9052)
 	fault_log = da9052_reg_read(da9052, DA9052_FAULTLOG_REG);
 	if (fault_log < 0) {
 		dev_err(da9052->dev,
-			"Cannot read FAULT_LOG %d\n", fault_log);
+			"Cananalt read FAULT_LOG %d\n", fault_log);
 		return fault_log;
 	}
 
@@ -582,7 +582,7 @@ static int da9052_clear_fault_log(struct da9052 *da9052)
 					0xFF);
 		if (ret < 0)
 			dev_err(da9052->dev,
-				"Cannot reset FAULT_LOG values %d\n", ret);
+				"Cananalt reset FAULT_LOG values %d\n", ret);
 	}
 
 	return ret;
@@ -598,7 +598,7 @@ int da9052_device_init(struct da9052 *da9052, u8 chip_id)
 
 	ret = da9052_clear_fault_log(da9052);
 	if (ret < 0)
-		dev_warn(da9052->dev, "Cannot clear FAULT_LOG\n");
+		dev_warn(da9052->dev, "Cananalt clear FAULT_LOG\n");
 
 	if (pdata && pdata->init != NULL)
 		pdata->init(da9052);

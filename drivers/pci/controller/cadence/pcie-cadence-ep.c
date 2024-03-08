@@ -14,7 +14,7 @@
 #include "pcie-cadence.h"
 
 #define CDNS_PCIE_EP_MIN_APERTURE		128	/* 128 bytes */
-#define CDNS_PCIE_EP_IRQ_PCI_ADDR_NONE		0x1
+#define CDNS_PCIE_EP_IRQ_PCI_ADDR_ANALNE		0x1
 #define CDNS_PCIE_EP_IRQ_PCI_ADDR_LEGACY	0x3
 
 static u8 cdns_pcie_get_fn_from_vfn(struct cdns_pcie *pcie, u8 fn, u8 vfn)
@@ -81,7 +81,7 @@ static int cdns_pcie_ep_set_bar(struct pci_epc *epc, u8 fn, u8 vfn,
 	struct cdns_pcie_epf *epf = &ep->epf[fn];
 	struct cdns_pcie *pcie = &ep->pcie;
 	dma_addr_t bar_phys = epf_bar->phys_addr;
-	enum pci_barno bar = epf_bar->barno;
+	enum pci_baranal bar = epf_bar->baranal;
 	int flags = epf_bar->flags;
 	u32 addr0, addr1, reg, cfg, b, aperture, ctrl;
 	u64 sz;
@@ -89,7 +89,7 @@ static int cdns_pcie_ep_set_bar(struct pci_epc *epc, u8 fn, u8 vfn,
 	/* BAR size is 2^(aperture + 7) */
 	sz = max_t(size_t, epf_bar->size, CDNS_PCIE_EP_MIN_APERTURE);
 	/*
-	 * roundup_pow_of_two() returns an unsigned long, which is not suited
+	 * roundup_pow_of_two() returns an unsigned long, which is analt suited
 	 * for 64bit values.
 	 */
 	sz = 1ULL << fls64(sz - 1);
@@ -154,7 +154,7 @@ static void cdns_pcie_ep_clear_bar(struct pci_epc *epc, u8 fn, u8 vfn,
 	struct cdns_pcie_ep *ep = epc_get_drvdata(epc);
 	struct cdns_pcie_epf *epf = &ep->epf[fn];
 	struct cdns_pcie *pcie = &ep->pcie;
-	enum pci_barno bar = epf_bar->barno;
+	enum pci_baranal bar = epf_bar->baranal;
 	u32 reg, cfg, b, ctrl;
 
 	if (vfn == 1)
@@ -190,7 +190,7 @@ static int cdns_pcie_ep_map_addr(struct pci_epc *epc, u8 fn, u8 vfn,
 
 	r = find_first_zero_bit(&ep->ob_region_map, BITS_PER_LONG);
 	if (r >= ep->max_regions - 1) {
-		dev_err(&epc->dev, "no free outbound region\n");
+		dev_err(&epc->dev, "anal free outbound region\n");
 		return -EINVAL;
 	}
 
@@ -268,17 +268,17 @@ static int cdns_pcie_ep_get_msi(struct pci_epc *epc, u8 fn, u8 vfn)
 	return mme;
 }
 
-static int cdns_pcie_ep_get_msix(struct pci_epc *epc, u8 func_no, u8 vfunc_no)
+static int cdns_pcie_ep_get_msix(struct pci_epc *epc, u8 func_anal, u8 vfunc_anal)
 {
 	struct cdns_pcie_ep *ep = epc_get_drvdata(epc);
 	struct cdns_pcie *pcie = &ep->pcie;
 	u32 cap = CDNS_PCIE_EP_FUNC_MSIX_CAP_OFFSET;
 	u32 val, reg;
 
-	func_no = cdns_pcie_get_fn_from_vfn(pcie, func_no, vfunc_no);
+	func_anal = cdns_pcie_get_fn_from_vfn(pcie, func_anal, vfunc_anal);
 
 	reg = cap + PCI_MSIX_FLAGS;
-	val = cdns_pcie_ep_fn_readw(pcie, func_no, reg);
+	val = cdns_pcie_ep_fn_readw(pcie, func_anal, reg);
 	if (!(val & PCI_MSIX_FLAGS_ENABLE))
 		return -EINVAL;
 
@@ -288,7 +288,7 @@ static int cdns_pcie_ep_get_msix(struct pci_epc *epc, u8 func_no, u8 vfunc_no)
 }
 
 static int cdns_pcie_ep_set_msix(struct pci_epc *epc, u8 fn, u8 vfn,
-				 u16 interrupts, enum pci_barno bir,
+				 u16 interrupts, enum pci_baranal bir,
 				 u32 offset)
 {
 	struct cdns_pcie_ep *ep = epc_get_drvdata(epc);
@@ -332,7 +332,7 @@ static void cdns_pcie_ep_assert_intx(struct cdns_pcie_ep *ep, u8 fn, u8 intx,
 	if (unlikely(ep->irq_pci_addr != CDNS_PCIE_EP_IRQ_PCI_ADDR_LEGACY ||
 		     ep->irq_pci_fn != fn)) {
 		/* First region was reserved for IRQ writes. */
-		cdns_pcie_set_outbound_region_for_normal_msg(pcie, 0, fn, 0,
+		cdns_pcie_set_outbound_region_for_analrmal_msg(pcie, 0, fn, 0,
 							     ep->irq_phys_addr);
 		ep->irq_pci_addr = CDNS_PCIE_EP_IRQ_PCI_ADDR_LEGACY;
 		ep->irq_pci_fn = fn;
@@ -354,9 +354,9 @@ static void cdns_pcie_ep_assert_intx(struct cdns_pcie_ep *ep, u8 fn, u8 intx,
 	}
 	spin_unlock_irqrestore(&ep->lock, flags);
 
-	offset = CDNS_PCIE_NORMAL_MSG_ROUTING(MSG_ROUTING_LOCAL) |
-		 CDNS_PCIE_NORMAL_MSG_CODE(msg_code) |
-		 CDNS_PCIE_MSG_NO_DATA;
+	offset = CDNS_PCIE_ANALRMAL_MSG_ROUTING(MSG_ROUTING_LOCAL) |
+		 CDNS_PCIE_ANALRMAL_MSG_CODE(msg_code) |
+		 CDNS_PCIE_MSG_ANAL_DATA;
 	writel(0, ep->irq_cpu_addr + offset);
 }
 
@@ -541,7 +541,7 @@ static int cdns_pcie_ep_raise_irq(struct pci_epc *epc, u8 fn, u8 vfn,
 	switch (type) {
 	case PCI_IRQ_INTX:
 		if (vfn > 0) {
-			dev_err(dev, "Cannot raise INTX interrupts for VF\n");
+			dev_err(dev, "Cananalt raise INTX interrupts for VF\n");
 			return -EINVAL;
 		}
 		return cdns_pcie_ep_send_intx_irq(ep, fn, vfn, 0);
@@ -598,23 +598,23 @@ static int cdns_pcie_ep_start(struct pci_epc *epc)
 }
 
 static const struct pci_epc_features cdns_pcie_epc_vf_features = {
-	.linkup_notifier = false,
+	.linkup_analtifier = false,
 	.msi_capable = true,
 	.msix_capable = true,
 	.align = 65536,
 };
 
 static const struct pci_epc_features cdns_pcie_epc_features = {
-	.linkup_notifier = false,
+	.linkup_analtifier = false,
 	.msi_capable = true,
 	.msix_capable = true,
 	.align = 256,
 };
 
 static const struct pci_epc_features*
-cdns_pcie_ep_get_features(struct pci_epc *epc, u8 func_no, u8 vfunc_no)
+cdns_pcie_ep_get_features(struct pci_epc *epc, u8 func_anal, u8 vfunc_anal)
 {
-	if (!vfunc_no)
+	if (!vfunc_anal)
 		return &cdns_pcie_epc_features;
 
 	return &cdns_pcie_epc_vf_features;
@@ -641,7 +641,7 @@ int cdns_pcie_ep_setup(struct cdns_pcie_ep *ep)
 {
 	struct device *dev = ep->pcie.dev;
 	struct platform_device *pdev = to_platform_device(dev);
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct cdns_pcie *pcie = &ep->pcie;
 	struct cdns_pcie_epf *epf;
 	struct resource *res;
@@ -671,7 +671,7 @@ int cdns_pcie_ep_setup(struct cdns_pcie_ep *ep)
 				   ep->max_regions, sizeof(*ep->ob_addr),
 				   GFP_KERNEL);
 	if (!ep->ob_addr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Disable all but function 0 (anyway BIT(0) is hardwired to 1). */
 	cdns_pcie_writel(pcie, CDNS_PCIE_LM_EP_FUNC_CFG, BIT(0));
@@ -690,12 +690,12 @@ int cdns_pcie_ep_setup(struct cdns_pcie_ep *ep)
 	ep->epf = devm_kcalloc(dev, epc->max_functions, sizeof(*ep->epf),
 			       GFP_KERNEL);
 	if (!ep->epf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	epc->max_vfs = devm_kcalloc(dev, epc->max_functions,
 				    sizeof(*epc->max_vfs), GFP_KERNEL);
 	if (!epc->max_vfs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = of_property_read_u8_array(np, "max-virtual-functions",
 					epc->max_vfs, epc->max_functions);
@@ -707,7 +707,7 @@ int cdns_pcie_ep_setup(struct cdns_pcie_ep *ep)
 			epf->epf = devm_kcalloc(dev, epc->max_vfs[i],
 						sizeof(*ep->epf), GFP_KERNEL);
 			if (!epf->epf)
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 	}
 
@@ -722,10 +722,10 @@ int cdns_pcie_ep_setup(struct cdns_pcie_ep *ep)
 						  SZ_128K);
 	if (!ep->irq_cpu_addr) {
 		dev_err(dev, "failed to reserve memory space for MSI\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_epc_mem;
 	}
-	ep->irq_pci_addr = CDNS_PCIE_EP_IRQ_PCI_ADDR_NONE;
+	ep->irq_pci_addr = CDNS_PCIE_EP_IRQ_PCI_ADDR_ANALNE;
 	/* Reserve region 0 for IRQs */
 	set_bit(0, &ep->ob_region_map);
 

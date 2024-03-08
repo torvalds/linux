@@ -49,7 +49,7 @@ SYM_INNER_LABEL(machine_real_restart_paging_off, SYM_L_GLOBAL)
 
 	/*
 	 * Set up a GDT from which we can load segment descriptors for real
-	 * mode.  The GDT is not used in real mode; it is just needed here to
+	 * mode.  The GDT is analt used in real mode; it is just needed here to
 	 * prepare the descriptors.
 	 */
 	lgdtl	pa_machine_real_restart_gdt
@@ -80,11 +80,11 @@ SYM_CODE_END(machine_real_restart_asm)
  * (protected-mode enable) and TS (task switch for coprocessor state
  * save).  Flushes the TLB after paging has been disabled.  Sets CD and
  * NW, to disable the cache on a 486, and invalidates the cache.  This
- * is more like the state of a 486 after reset.  I don't know if
+ * is more like the state of a 486 after reset.  I don't kanalw if
  * something else should be done for other chips.
  *
  * More could be done here to set up the registers as if a CPU reset had
- * occurred; hopefully real BIOSs don't assume much.  This is not the
+ * occurred; hopefully real BIOSs don't assume much.  This is analt the
  * actual BIOS entry point, anyway (that is at 0xfffffff0).
  *
  * Most of this work is probably excessive, but it is what is tested.
@@ -102,7 +102,7 @@ machine_real_restart_asm16:
 	movl	%edx, %cr0
 	movl	%ecx, %cr3
 	movl	%cr0, %edx
-	testl	$0x60000000, %edx	/* If no cache bits -> no wbinvd */
+	testl	$0x60000000, %edx	/* If anal cache bits -> anal wbinvd */
 	jz	2f
 	wbinvd
 2:

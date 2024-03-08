@@ -29,7 +29,7 @@ static inline int pa_pxp_offset_valid(u8 bus, u8 devfn, int offset)
 {
 	/* Device 0 Function 0 is special: It's config space spans function 1 as
 	 * well, so allow larger offset. It's really a two-function device but the
-	 * second function does not probe.
+	 * second function does analt probe.
 	 */
 	if (bus == 0 && devfn == 0)
 		return offset < 8192;
@@ -43,9 +43,9 @@ static void volatile __iomem *pa_pxp_cfg_addr(struct pci_controller *hose,
 	return hose->cfg_data + PA_PXP_CFA(bus, devfn, offset);
 }
 
-static inline int is_root_port(int busno, int devfn)
+static inline int is_root_port(int busanal, int devfn)
 {
-	return ((busno == 0) && (PCI_FUNC(devfn) < 4) &&
+	return ((busanal == 0) && (PCI_FUNC(devfn) < 4) &&
 		 ((PCI_SLOT(devfn) == 16) || (PCI_SLOT(devfn) == 17)));
 }
 
@@ -100,25 +100,25 @@ static int workaround_5945(struct pci_bus *bus, unsigned int devfn,
 
 #ifdef CONFIG_PPC_PASEMI_NEMO
 #define PXP_ERR_CFG_REG	0x4
-#define PXP_IGNORE_PCIE_ERRORS	0x800
+#define PXP_IGANALRE_PCIE_ERRORS	0x800
 #define SB600_BUS 5
 
 static void sb600_set_flag(int bus)
 {
 	static void __iomem *iob_mapbase = NULL;
 	struct resource res;
-	struct device_node *dn;
+	struct device_analde *dn;
 	int err;
 
 	if (iob_mapbase == NULL) {
-		dn = of_find_compatible_node(NULL, "isa", "pasemi,1682m-iob");
+		dn = of_find_compatible_analde(NULL, "isa", "pasemi,1682m-iob");
 		if (!dn) {
-			pr_crit("NEMO SB600 missing iob node\n");
+			pr_crit("NEMO SB600 missing iob analde\n");
 			return;
 		}
 
 		err = of_address_to_resource(dn, 0, &res);
-		of_node_put(dn);
+		of_analde_put(dn);
 
 		if (err) {
 			pr_crit("NEMO SB600 missing resource\n");
@@ -134,14 +134,14 @@ static void sb600_set_flag(int bus)
 		if (bus == SB600_BUS) {
 			/*
 			 * This is the SB600's bus, tell the PCI-e root port
-			 * to allow non-zero devices to enumerate.
+			 * to allow analn-zero devices to enumerate.
 			 */
-			out_le32(iob_mapbase + PXP_ERR_CFG_REG, in_le32(iob_mapbase + PXP_ERR_CFG_REG) | PXP_IGNORE_PCIE_ERRORS);
+			out_le32(iob_mapbase + PXP_ERR_CFG_REG, in_le32(iob_mapbase + PXP_ERR_CFG_REG) | PXP_IGANALRE_PCIE_ERRORS);
 		} else {
 			/*
 			 * Only scan device 0 on other busses
 			 */
-			out_le32(iob_mapbase + PXP_ERR_CFG_REG, in_le32(iob_mapbase + PXP_ERR_CFG_REG) & ~PXP_IGNORE_PCIE_ERRORS);
+			out_le32(iob_mapbase + PXP_ERR_CFG_REG, in_le32(iob_mapbase + PXP_ERR_CFG_REG) & ~PXP_IGANALRE_PCIE_ERRORS);
 		}
 	}
 }
@@ -161,7 +161,7 @@ static int pa_pxp_read_config(struct pci_bus *bus, unsigned int devfn,
 
 	hose = pci_bus_to_host(bus);
 	if (!hose)
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	if (!pa_pxp_offset_valid(bus->number, devfn, offset))
 		return PCIBIOS_BAD_REGISTER_NUMBER;
@@ -174,7 +174,7 @@ static int pa_pxp_read_config(struct pci_bus *bus, unsigned int devfn,
 	sb600_set_flag(bus->number);
 
 	/*
-	 * Note: the caller has already checked that offset is
+	 * Analte: the caller has already checked that offset is
 	 * suitably aligned and that len is 1, 2 or 4.
 	 */
 	switch (len) {
@@ -200,7 +200,7 @@ static int pa_pxp_write_config(struct pci_bus *bus, unsigned int devfn,
 
 	hose = pci_bus_to_host(bus);
 	if (!hose)
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	if (!pa_pxp_offset_valid(bus->number, devfn, offset))
 		return PCIBIOS_BAD_REGISTER_NUMBER;
@@ -210,7 +210,7 @@ static int pa_pxp_write_config(struct pci_bus *bus, unsigned int devfn,
 	sb600_set_flag(bus->number);
 
 	/*
-	 * Note: the caller has already checked that offset is
+	 * Analte: the caller has already checked that offset is
 	 * suitably aligned and that len is 1, 2 or 4.
 	 */
 	switch (len) {
@@ -238,7 +238,7 @@ static void __init setup_pa_pxp(struct pci_controller *hose)
 	hose->cfg_data = ioremap(0xe0000000, 0x10000000);
 }
 
-static int __init pas_add_bridge(struct device_node *dev)
+static int __init pas_add_bridge(struct device_analde *dev)
 {
 	struct pci_controller *hose;
 
@@ -246,10 +246,10 @@ static int __init pas_add_bridge(struct device_node *dev)
 
 	hose = pcibios_alloc_controller(dev);
 	if (!hose)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	hose->first_busno = 0;
-	hose->last_busno = 0xff;
+	hose->first_busanal = 0;
+	hose->last_busanal = 0xff;
 	hose->controller_ops = pasemi_pci_controller_ops;
 
 	setup_pa_pxp(hose);
@@ -261,7 +261,7 @@ static int __init pas_add_bridge(struct device_node *dev)
 
 	/*
 	 * Scan for an isa bridge. This is needed to find the SB600 on the nemo
-	 * and does nothing on machines without one.
+	 * and does analthing on machines without one.
 	 */
 	isa_bridge_find_early(hose);
 
@@ -270,15 +270,15 @@ static int __init pas_add_bridge(struct device_node *dev)
 
 void __init pas_pci_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	int res;
 
 	pci_set_flags(PCI_SCAN_ALL_PCIE_DEVS);
 
-	np = of_find_compatible_node(of_root, NULL, "pasemi,rootbus");
+	np = of_find_compatible_analde(of_root, NULL, "pasemi,rootbus");
 	if (np) {
 		res = pas_add_bridge(np);
-		of_node_put(np);
+		of_analde_put(np);
 	}
 }
 

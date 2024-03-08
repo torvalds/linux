@@ -78,7 +78,7 @@ static unsigned long iproc_asiu_clk_recalc_rate(struct clk_hw *hw,
 		return 0;
 	}
 
-	/* if clock divisor is not enabled, simply return parent rate */
+	/* if clock divisor is analt enabled, simply return parent rate */
 	val = readl(asiu->div_base + clk->div.offset);
 	if ((val & (1 << clk->div.en_shift)) == 0) {
 		clk->rate = parent_rate;
@@ -172,7 +172,7 @@ static const struct clk_ops iproc_asiu_ops = {
 	.set_rate = iproc_asiu_clk_set_rate,
 };
 
-void __init iproc_asiu_setup(struct device_node *node,
+void __init iproc_asiu_setup(struct device_analde *analde,
 			     const struct iproc_asiu_div *div,
 			     const struct iproc_asiu_gate *gate,
 			     unsigned int num_clks)
@@ -197,11 +197,11 @@ void __init iproc_asiu_setup(struct device_node *node,
 	if (WARN_ON(!asiu->clks))
 		goto err_asiu_clks;
 
-	asiu->div_base = of_iomap(node, 0);
+	asiu->div_base = of_iomap(analde, 0);
 	if (WARN_ON(!asiu->div_base))
 		goto err_iomap_div;
 
-	asiu->gate_base = of_iomap(node, 1);
+	asiu->gate_base = of_iomap(analde, 1);
 	if (WARN_ON(!asiu->gate_base))
 		goto err_iomap_gate;
 
@@ -211,7 +211,7 @@ void __init iproc_asiu_setup(struct device_node *node,
 		struct iproc_asiu_clk *asiu_clk;
 		const char *clk_name;
 
-		ret = of_property_read_string_index(node, "clock-output-names",
+		ret = of_property_read_string_index(analde, "clock-output-names",
 						    i, &clk_name);
 		if (WARN_ON(ret))
 			goto err_clk_register;
@@ -224,7 +224,7 @@ void __init iproc_asiu_setup(struct device_node *node,
 		init.name = clk_name;
 		init.ops = &iproc_asiu_ops;
 		init.flags = 0;
-		parent_name = of_clk_get_parent_name(node, 0);
+		parent_name = of_clk_get_parent_name(analde, 0);
 		init.parent_names = (parent_name ? &parent_name : NULL);
 		init.num_parents = (parent_name ? 1 : 0);
 		asiu_clk->hw.init = &init;
@@ -235,7 +235,7 @@ void __init iproc_asiu_setup(struct device_node *node,
 		asiu->clk_data->hws[i] = &asiu_clk->hw;
 	}
 
-	ret = of_clk_add_hw_provider(node, of_clk_hw_onecell_get,
+	ret = of_clk_add_hw_provider(analde, of_clk_hw_onecell_get,
 				     asiu->clk_data);
 	if (WARN_ON(ret))
 		goto err_clk_register;

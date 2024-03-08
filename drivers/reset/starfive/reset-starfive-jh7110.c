@@ -2,7 +2,7 @@
 /*
  * Reset driver for the StarFive JH7110 SoC
  *
- * Copyright (C) 2022 StarFive Technology Co., Ltd.
+ * Copyright (C) 2022 StarFive Techanallogy Co., Ltd.
  */
 
 #include <linux/auxiliary_bus.h>
@@ -57,9 +57,9 @@ static int jh7110_reset_probe(struct auxiliary_device *adev,
 	void __iomem *base = rdev->base;
 
 	if (!info || !base)
-		return -ENODEV;
+		return -EANALDEV;
 
-	return reset_starfive_jh71x0_register(&adev->dev, adev->dev.parent->of_node,
+	return reset_starfive_jh71x0_register(&adev->dev, adev->dev.parent->of_analde,
 					      base + info->assert_offset,
 					      base + info->status_offset,
 					      NULL,

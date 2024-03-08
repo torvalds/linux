@@ -7,7 +7,7 @@
 #ifndef __DT_BINDINGS_CLOCK_PXA2XX_H__
 #define __DT_BINDINGS_CLOCK_PXA2XX_H__
 
-#define CLK_NONE 0
+#define CLK_ANALNE 0
 #define CLK_1WIRE 1
 #define CLK_AC97 2
 #define CLK_AC97CONF 3

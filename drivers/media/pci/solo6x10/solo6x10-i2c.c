@@ -9,7 +9,7 @@
  * John Brooks <john.brooks@bluecherry.net>
  */
 
-/* XXX: The SOLO6x10 i2c does not have separate interrupts for each i2c
+/* XXX: The SOLO6x10 i2c does analt have separate interrupts for each i2c
  * channel. The bus can only handle one i2c event at a time. The below handles
  * this all wrong. We should be using the status registers to see if the bus
  * is in use, and have a global lock to check the status register. Also,
@@ -71,7 +71,7 @@ static void solo_i2c_flush(struct solo_dev *solo_dev, int wr)
 		ctrl |= SOLO_IIC_WRITE;
 	} else {
 		ctrl |= SOLO_IIC_READ;
-		if (!(solo_dev->i2c_msg->flags & I2C_M_NO_RD_ACK))
+		if (!(solo_dev->i2c_msg->flags & I2C_M_ANAL_RD_ACK))
 			ctrl |= SOLO_IIC_ACK_EN;
 	}
 
@@ -118,7 +118,7 @@ prepare_read:
 		return 0;
 	}
 
-	if (!(solo_dev->i2c_msg->flags & I2C_M_NOSTART)) {
+	if (!(solo_dev->i2c_msg->flags & I2C_M_ANALSTART)) {
 		solo_i2c_start(solo_dev);
 	} else {
 		if (solo_dev->i2c_msg->flags & I2C_M_RD)
@@ -150,7 +150,7 @@ retry_write:
 		return 0;
 	}
 
-	if (!(solo_dev->i2c_msg->flags & I2C_M_NOSTART)) {
+	if (!(solo_dev->i2c_msg->flags & I2C_M_ANALSTART)) {
 		solo_i2c_start(solo_dev);
 	} else {
 		if (solo_dev->i2c_msg->flags & I2C_M_RD)

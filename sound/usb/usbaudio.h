@@ -17,7 +17,7 @@
  */
 
 struct media_device;
-struct media_intf_devnode;
+struct media_intf_devanalde;
 
 #define MAX_CARD_INTERFACES	16
 
@@ -62,7 +62,7 @@ struct snd_usb_audio {
 	bool lowlatency;		/* from the 'lowlatency' module param */
 	struct usb_host_interface *ctrl_intf;	/* the audio control interface */
 	struct media_device *media_dev;
-	struct media_intf_devnode *ctl_intf_media_devnode;
+	struct media_intf_devanalde *ctl_intf_media_devanalde;
 };
 
 #define USB_AUDIO_IFACE_UNUSED	((void *)-1L)
@@ -83,12 +83,12 @@ struct snd_usb_audio {
  */
 
 /* special values for .ifnum */
-#define QUIRK_NODEV_INTERFACE		-3	/* return -ENODEV */
-#define QUIRK_NO_INTERFACE		-2
+#define QUIRK_ANALDEV_INTERFACE		-3	/* return -EANALDEV */
+#define QUIRK_ANAL_INTERFACE		-2
 #define QUIRK_ANY_INTERFACE		-1
 
 enum quirk_type {
-	QUIRK_IGNORE_INTERFACE,
+	QUIRK_IGANALRE_INTERFACE,
 	QUIRK_COMPOSITE,
 	QUIRK_AUTODETECT,
 	QUIRK_MIDI_STANDARD_INTERFACE,
@@ -96,7 +96,7 @@ enum quirk_type {
 	QUIRK_MIDI_YAMAHA,
 	QUIRK_MIDI_ROLAND,
 	QUIRK_MIDI_MIDIMAN,
-	QUIRK_MIDI_NOVATION,
+	QUIRK_MIDI_ANALVATION,
 	QUIRK_MIDI_RAW_BYTES,
 	QUIRK_MIDI_EMAGIC,
 	QUIRK_MIDI_CME,
@@ -147,8 +147,8 @@ extern bool snd_usb_skip_validation;
  *  Start playback stream at first even in implement feedback mode
  * QUIRK_FLAG_SKIP_CLOCK_SELECTOR:
  *  Skip clock selector setup; the device may reset to invalid state
- * QUIRK_FLAG_IGNORE_CLOCK_SOURCE:
- *  Ignore errors from clock source search; i.e. hardcoded clock
+ * QUIRK_FLAG_IGANALRE_CLOCK_SOURCE:
+ *  Iganalre errors from clock source search; i.e. hardcoded clock
  * QUIRK_FLAG_ITF_USB_DSD_DAC:
  *  Indicates the device is for ITF-USB DSD based DACs that need a vendor cmd
  *  to switch between PCM and native DSD mode
@@ -164,8 +164,8 @@ extern bool snd_usb_skip_validation;
  *  Perform sample rate validations at probe
  * QUIRK_FLAG_DISABLE_AUTOSUSPEND:
  *  Disable runtime PM autosuspend
- * QUIRK_FLAG_IGNORE_CTL_ERROR:
- *  Ignore errors for mixer access
+ * QUIRK_FLAG_IGANALRE_CTL_ERROR:
+ *  Iganalre errors for mixer access
  * QUIRK_FLAG_DSD_RAW:
  *  Support generic DSD raw U32_BE format
  * QUIRK_FLAG_SET_IFACE_FIRST:
@@ -180,7 +180,7 @@ extern bool snd_usb_skip_validation;
  *  Force an interface reset whenever stopping & restarting a stream
  *  (e.g. after xrun)
  * QUIRK_FLAG_FIXED_RATE
- *  Do not set PCM rate (frequency) when only one rate is available
+ *  Do analt set PCM rate (frequency) when only one rate is available
  *  for the given endpoint.
  */
 
@@ -190,7 +190,7 @@ extern bool snd_usb_skip_validation;
 #define QUIRK_FLAG_TX_LENGTH		(1U << 3)
 #define QUIRK_FLAG_PLAYBACK_FIRST	(1U << 4)
 #define QUIRK_FLAG_SKIP_CLOCK_SELECTOR	(1U << 5)
-#define QUIRK_FLAG_IGNORE_CLOCK_SOURCE	(1U << 6)
+#define QUIRK_FLAG_IGANALRE_CLOCK_SOURCE	(1U << 6)
 #define QUIRK_FLAG_ITF_USB_DSD_DAC	(1U << 7)
 #define QUIRK_FLAG_CTL_MSG_DELAY	(1U << 8)
 #define QUIRK_FLAG_CTL_MSG_DELAY_1M	(1U << 9)
@@ -198,7 +198,7 @@ extern bool snd_usb_skip_validation;
 #define QUIRK_FLAG_IFACE_DELAY		(1U << 11)
 #define QUIRK_FLAG_VALIDATE_RATES	(1U << 12)
 #define QUIRK_FLAG_DISABLE_AUTOSUSPEND	(1U << 13)
-#define QUIRK_FLAG_IGNORE_CTL_ERROR	(1U << 14)
+#define QUIRK_FLAG_IGANALRE_CTL_ERROR	(1U << 14)
 #define QUIRK_FLAG_DSD_RAW		(1U << 15)
 #define QUIRK_FLAG_SET_IFACE_FIRST	(1U << 16)
 #define QUIRK_FLAG_GENERIC_IMPLICIT_FB	(1U << 17)

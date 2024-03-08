@@ -3,7 +3,7 @@
 TC="$1"; shift
 ETH="$1"; shift
 
-# The taprio architecture changes the admin schedule from a hrtimer and not
+# The taprio architecture changes the admin schedule from a hrtimer and analt
 # from process context, so we need to wait in order to make sure that any
 # schedule change actually took place.
 while :; do

@@ -337,7 +337,7 @@ int saa7164_api_set_aspect_ratio(struct saa7164_port *port)
 		BUG();
 	}
 
-	dprintk(DBGLVL_ENC, "%s(%d) now %d:%d\n", __func__,
+	dprintk(DBGLVL_ENC, "%s(%d) analw %d:%d\n", __func__,
 		port->encoder_params.ctl_aspect,
 		ar.width, ar.height);
 
@@ -539,7 +539,7 @@ int saa7164_api_set_audio_std(struct saa7164_port *port)
 	/* Establish default levels */
 	lvl.ucDecoderLevel = TMHW_LEV_ADJ_DECLEV_DEFAULT;
 	lvl.ucDecoderFM_Level = TMHW_LEV_ADJ_DECLEV_DEFAULT;
-	lvl.ucMonoLevel = TMHW_LEV_ADJ_MONOLEV_DEFAULT;
+	lvl.ucMoanalLevel = TMHW_LEV_ADJ_MOANALLEV_DEFAULT;
 	lvl.ucNICAM_Level = TMHW_LEV_ADJ_NICLEV_DEFAULT;
 	lvl.ucSAP_Level = TMHW_LEV_ADJ_SAPLEV_DEFAULT;
 	lvl.ucADC_Level = TMHW_LEV_ADJ_ADCLEV_DEFAULT;
@@ -550,7 +550,7 @@ int saa7164_api_set_audio_std(struct saa7164_port *port)
 		printk(KERN_ERR "%s() error, ret = 0x%x\n", __func__, ret);
 
 	/* Manually select the appropriate TV audio standard */
-	if (port->encodernorm.id & V4L2_STD_NTSC) {
+	if (port->encoderanalrm.id & V4L2_STD_NTSC) {
 		tvaudio.std = TU_STANDARD_NTSC_M;
 		tvaudio.country = 1;
 	} else {
@@ -574,7 +574,7 @@ int saa7164_api_set_audio_detection(struct saa7164_port *port, int autodetect)
 
 	dprintk(DBGLVL_API, "%s(%d)\n", __func__, autodetect);
 
-	/* Disable TV Audio autodetect if not already set (buggy) */
+	/* Disable TV Audio autodetect if analt already set (buggy) */
 	if (autodetect)
 		p.mode = TU_STANDARD_AUTO;
 	else
@@ -703,8 +703,8 @@ int saa7164_api_configure_dif(struct saa7164_port *port, u32 std)
 		saa7164_api_set_dif(port, 0x00, 0x20); /* Video Standard */
 		agc_disable = 0;
 	} else {
-		/* Unknown standard, assume DTV */
-		dprintk(DBGLVL_API, " Unknown (assuming DTV)\n");
+		/* Unkanalwn standard, assume DTV */
+		dprintk(DBGLVL_API, " Unkanalwn (assuming DTV)\n");
 		/* Undefinded Video Standard */
 		saa7164_api_set_dif(port, 0x00, 0x80);
 		agc_disable = 1;
@@ -799,7 +799,7 @@ int saa7164_api_read_eeprom(struct saa7164_dev *dev, u8 *buf, int buflen)
 	u8 reg[] = { 0x0f, 0x00 };
 
 	if (buflen < 128)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Assumption: Hauppauge eeprom is at 0xa0 on bus 0 */
 	/* TODO: Pull the details from the boards struct */
@@ -943,7 +943,7 @@ static int saa7164_api_dump_subdevs(struct saa7164_dev *dev, u8 *buf, int len)
 		hdr = (struct tmComResDescrHeader *)(buf + idx);
 
 		if (hdr->type != CS_INTERFACE)
-			return SAA_ERR_NOT_SUPPORTED;
+			return SAA_ERR_ANALT_SUPPORTED;
 
 		dprintk(DBGLVL_API, "@ 0x%x =\n", idx);
 		switch (hdr->subtype) {
@@ -1324,10 +1324,10 @@ int saa7164_api_enum_subdevs(struct saa7164_dev *dev)
 	dprintk(DBGLVL_API, "%s() total descriptor size = %d bytes.\n",
 		__func__, buflen);
 
-	/* Allocate enough storage for all of the descs */
+	/* Allocate eanalugh storage for all of the descs */
 	buf = kzalloc(buflen, GFP_KERNEL);
 	if (!buf)
-		return SAA_ERR_NO_RESOURCES;
+		return SAA_ERR_ANAL_RESOURCES;
 
 	/* Retrieve them */
 	ret = saa7164_cmd_send(dev, 0, GET_CUR,
@@ -1376,7 +1376,7 @@ int saa7164_api_i2c_read(struct saa7164_i2c *bus, u8 addr, u32 reglen, u8 *reg,
 	unitid = saa7164_i2caddr_to_unitid(bus, addr);
 	if (unitid < 0) {
 		printk(KERN_ERR
-			"%s() error, cannot translate regaddr 0x%x to unitid\n",
+			"%s() error, cananalt translate regaddr 0x%x to unitid\n",
 			__func__, addr);
 		return -EIO;
 	}
@@ -1430,7 +1430,7 @@ int saa7164_api_i2c_write(struct saa7164_i2c *bus, u8 addr, u32 datalen,
 	unitid = saa7164_i2caddr_to_unitid(bus, addr);
 	if (unitid < 0) {
 		printk(KERN_ERR
-			"%s() error, cannot translate regaddr 0x%x to unitid\n",
+			"%s() error, cananalt translate regaddr 0x%x to unitid\n",
 			__func__, addr);
 		return -EIO;
 	}
@@ -1438,7 +1438,7 @@ int saa7164_api_i2c_write(struct saa7164_i2c *bus, u8 addr, u32 datalen,
 	reglen = saa7164_i2caddr_to_reglen(bus, addr);
 	if (reglen < 0) {
 		printk(KERN_ERR
-			"%s() error, cannot translate regaddr to reglen\n",
+			"%s() error, cananalt translate regaddr to reglen\n",
 			__func__);
 		return -EIO;
 	}

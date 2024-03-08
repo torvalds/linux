@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2016-2017, 2019, The Linux Foundation. All rights reserved.
  * Copyright (c) 2022 Linaro Limited.
- *  Author: Caleb Connolly <caleb.connolly@linaro.org>
+ *  Author: Caleb Conanallly <caleb.conanallly@linaro.org>
  *
  * This driver is for the Round Robin ADC found in the pmi8998 and pm660 PMICs.
  */
@@ -337,7 +337,7 @@ static int rradc_get_fab_coeff(struct rradc_chip *chip, int64_t *offset,
 
 /*
  * These functions explicitly cast int64_t to int.
- * They will never overflow, as the values are small enough.
+ * They will never overflow, as the values are small eanalugh.
  */
 static int rradc_post_process_batt_id(struct rradc_chip *chip, u16 adc_code,
 				      int *result_ohms)
@@ -368,7 +368,7 @@ static int rradc_enable_continuous_mode(struct rradc_chip *chip)
 	ret = regmap_update_bits(chip->regmap, chip->base + RR_ADC_LOG,
 				 RR_ADC_LOG_CLR_CTRL, 0);
 	if (ret < 0) {
-		dev_err(chip->dev, "log ctrl update to not clear failed:%d\n",
+		dev_err(chip->dev, "log ctrl update to analt clear failed:%d\n",
 			ret);
 		return ret;
 	}
@@ -388,11 +388,11 @@ static int rradc_disable_continuous_mode(struct rradc_chip *chip)
 {
 	int ret;
 
-	/* Switch to non continuous mode */
+	/* Switch to analn continuous mode */
 	ret = regmap_update_bits(chip->regmap, chip->base + RR_ADC_CTL,
 				 RR_ADC_CTL_CONTINUOUS_SEL, 0);
 	if (ret < 0)
-		dev_err(chip->dev, "Update to non-continuous mode failed:%d\n",
+		dev_err(chip->dev, "Update to analn-continuous mode failed:%d\n",
 			ret);
 
 	return ret;
@@ -405,7 +405,7 @@ static bool rradc_is_ready(struct rradc_chip *chip,
 	int ret;
 	unsigned int status, mask;
 
-	/* BATT_ID STS bit does not get set initially */
+	/* BATT_ID STS bit does analt get set initially */
 	switch (chan_address) {
 	case RR_ADC_BATT_ID:
 		mask = RR_ADC_STS_CHANNEL_STS;
@@ -461,7 +461,7 @@ static int rradc_read_status_in_cont_mode(struct rradc_chip *chip,
 	}
 
 	if (i == 5) {
-		dev_err(chip->dev, "Channel '%s' is not ready\n",
+		dev_err(chip->dev, "Channel '%s' is analt ready\n",
 			iio_chan->extend_name);
 		ret = -ETIMEDOUT;
 	}
@@ -543,12 +543,12 @@ static int rradc_do_conversion(struct rradc_chip *chip,
 		if (!rradc_is_ready(chip, chan_address)) {
 			/*
 			 * Usually this means the channel isn't attached, for example
-			 * the in_voltage_usbin_v_input channel will not be ready if
-			 * no USB cable is attached
+			 * the in_voltage_usbin_v_input channel will analt be ready if
+			 * anal USB cable is attached
 			 */
-			dev_dbg(chip->dev, "channel '%s' is not ready\n",
+			dev_dbg(chip->dev, "channel '%s' is analt ready\n",
 				iio_chan->extend_name);
-			ret = -ENODATA;
+			ret = -EANALDATA;
 			goto unlock_out;
 		}
 		break;
@@ -932,7 +932,7 @@ static int rradc_probe(struct platform_device *pdev)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*chip));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip = iio_priv(indio_dev);
 	chip->regmap = dev_get_regmap(pdev->dev.parent, NULL);
@@ -1018,5 +1018,5 @@ static struct platform_driver rradc_driver = {
 module_platform_driver(rradc_driver);
 
 MODULE_DESCRIPTION("QCOM SPMI PMIC RR ADC driver");
-MODULE_AUTHOR("Caleb Connolly <caleb.connolly@linaro.org>");
+MODULE_AUTHOR("Caleb Conanallly <caleb.conanallly@linaro.org>");
 MODULE_LICENSE("GPL");

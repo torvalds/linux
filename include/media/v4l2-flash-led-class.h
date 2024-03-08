@@ -53,7 +53,7 @@ struct v4l2_flash_ops {
  * struct v4l2_flash_config - V4L2 Flash sub-device initialization data
  * @dev_name:			the name of the media entity,
  *				unique in the system
- * @intensity:			non-flash strobe constraints for the LED
+ * @intensity:			analn-flash strobe constraints for the LED
  * @flash_faults:		bitmask of flash faults that the LED flash class
  *				device can report; corresponding LED_FAULT* bit
  *				definitions are available in the header file
@@ -115,14 +115,14 @@ static inline struct v4l2_flash *v4l2_ctrl_to_v4l2_flash(struct v4l2_ctrl *c)
 /**
  * v4l2_flash_init - initialize V4L2 flash led sub-device
  * @dev:	flash device, e.g. an I2C device
- * @fwn:	fwnode_handle of the LED, may be NULL if the same as device's
+ * @fwn:	fwanalde_handle of the LED, may be NULL if the same as device's
  * @fled_cdev:	LED flash class device to wrap
  * @ops:	V4L2 Flash device ops
  * @config:	initialization data for V4L2 Flash sub-device
  *
  * Create V4L2 Flash sub-device wrapping given LED subsystem device.
- * The ops pointer is stored by the V4L2 flash framework. No
- * references are held to config nor its contents once this function
+ * The ops pointer is stored by the V4L2 flash framework. Anal
+ * references are held to config analr its contents once this function
  * has returned.
  *
  * Returns: A valid pointer, or, when an error occurs, the return
@@ -130,20 +130,20 @@ static inline struct v4l2_flash *v4l2_ctrl_to_v4l2_flash(struct v4l2_ctrl *c)
  * PTR_ERR() to obtain the numeric return value.
  */
 struct v4l2_flash *v4l2_flash_init(
-	struct device *dev, struct fwnode_handle *fwn,
+	struct device *dev, struct fwanalde_handle *fwn,
 	struct led_classdev_flash *fled_cdev,
 	const struct v4l2_flash_ops *ops, struct v4l2_flash_config *config);
 
 /**
  * v4l2_flash_indicator_init - initialize V4L2 indicator sub-device
  * @dev:	flash device, e.g. an I2C device
- * @fwn:	fwnode_handle of the LED, may be NULL if the same as device's
+ * @fwn:	fwanalde_handle of the LED, may be NULL if the same as device's
  * @iled_cdev:	LED flash class device representing the indicator LED
  * @config:	initialization data for V4L2 Flash sub-device
  *
  * Create V4L2 Flash sub-device wrapping given LED subsystem device.
- * The ops pointer is stored by the V4L2 flash framework. No
- * references are held to config nor its contents once this function
+ * The ops pointer is stored by the V4L2 flash framework. Anal
+ * references are held to config analr its contents once this function
  * has returned.
  *
  * Returns: A valid pointer, or, when an error occurs, the return
@@ -151,7 +151,7 @@ struct v4l2_flash *v4l2_flash_init(
  * PTR_ERR() to obtain the numeric return value.
  */
 struct v4l2_flash *v4l2_flash_indicator_init(
-	struct device *dev, struct fwnode_handle *fwn,
+	struct device *dev, struct fwanalde_handle *fwn,
 	struct led_classdev *iled_cdev, struct v4l2_flash_config *config);
 
 /**
@@ -164,7 +164,7 @@ void v4l2_flash_release(struct v4l2_flash *v4l2_flash);
 
 #else
 static inline struct v4l2_flash *v4l2_flash_init(
-	struct device *dev, struct fwnode_handle *fwn,
+	struct device *dev, struct fwanalde_handle *fwn,
 	struct led_classdev_flash *fled_cdev,
 	const struct v4l2_flash_ops *ops, struct v4l2_flash_config *config)
 {
@@ -172,7 +172,7 @@ static inline struct v4l2_flash *v4l2_flash_init(
 }
 
 static inline struct v4l2_flash *v4l2_flash_indicator_init(
-	struct device *dev, struct fwnode_handle *fwn,
+	struct device *dev, struct fwanalde_handle *fwn,
 	struct led_classdev *iled_cdev, struct v4l2_flash_config *config)
 {
 	return NULL;

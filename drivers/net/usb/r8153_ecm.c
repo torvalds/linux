@@ -125,14 +125,14 @@ static const struct usb_device_id products[] = {
 /* Realtek RTL8153 Based USB 3.0 Ethernet Adapters */
 {
 	USB_DEVICE_AND_INTERFACE_INFO(VENDOR_ID_REALTEK, 0x8153, USB_CLASS_COMM,
-				      USB_CDC_SUBCLASS_ETHERNET, USB_CDC_PROTO_NONE),
+				      USB_CDC_SUBCLASS_ETHERNET, USB_CDC_PROTO_ANALNE),
 	.driver_info = (unsigned long)&r8153_info,
 },
 
-/* Lenovo Powered USB-C Travel Hub (4X90S92381, based on Realtek RTL8153) */
+/* Leanalvo Powered USB-C Travel Hub (4X90S92381, based on Realtek RTL8153) */
 {
-	USB_DEVICE_AND_INTERFACE_INFO(VENDOR_ID_LENOVO, 0x721e, USB_CLASS_COMM,
-				      USB_CDC_SUBCLASS_ETHERNET, USB_CDC_PROTO_NONE),
+	USB_DEVICE_AND_INTERFACE_INFO(VENDOR_ID_LEANALVO, 0x721e, USB_CLASS_COMM,
+				      USB_CDC_SUBCLASS_ETHERNET, USB_CDC_PROTO_ANALNE),
 	.driver_info = (unsigned long)&r8153_info,
 },
 
@@ -145,7 +145,7 @@ static int rtl8153_ecm_probe(struct usb_interface *intf,
 {
 #if IS_REACHABLE(CONFIG_USB_RTL8152)
 	if (rtl8152_get_version(intf))
-		return -ENODEV;
+		return -EANALDEV;
 #endif
 
 	return usbnet_probe(intf, id);
@@ -165,6 +165,6 @@ static struct usb_driver r8153_ecm_driver = {
 
 module_usb_driver(r8153_ecm_driver);
 
-MODULE_AUTHOR("Hayes Wang");
+MODULE_AUTHOR("Haanal Wang");
 MODULE_DESCRIPTION("Realtek USB ECM device");
 MODULE_LICENSE("GPL");

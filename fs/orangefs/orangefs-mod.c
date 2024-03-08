@@ -57,9 +57,9 @@ module_param(op_timeout_secs, int, 0);
 module_param(slot_timeout_secs, int, 0);
 
 /*
- * Blocks non-priority requests from being queued for servicing.  This
+ * Blocks analn-priority requests from being queued for servicing.  This
  * could be used for protecting the request list data structure, but
- * for now it's only being used to stall the op addition to the request
+ * for analw it's only being used to stall the op addition to the request
  * list
  */
 DEFINE_MUTEX(orangefs_request_mutex);
@@ -74,7 +74,7 @@ LIST_HEAD(orangefs_request_list);
 /* used to protect the above orangefs_request_list */
 DEFINE_SPINLOCK(orangefs_request_list_lock);
 
-/* used for incoming request notification */
+/* used for incoming request analtification */
 DECLARE_WAIT_QUEUE_HEAD(orangefs_request_list_waitq);
 
 static int __init orangefs_init(void)
@@ -93,15 +93,15 @@ static int __init orangefs_init(void)
 	if (ret < 0)
 		goto out;
 
-	ret = orangefs_inode_cache_initialize();
+	ret = orangefs_ianalde_cache_initialize();
 	if (ret < 0)
 		goto cleanup_op;
 
 	orangefs_htable_ops_in_progress =
 	    kcalloc(hash_table_size, sizeof(struct list_head), GFP_KERNEL);
 	if (!orangefs_htable_ops_in_progress) {
-		ret = -ENOMEM;
-		goto cleanup_inode;
+		ret = -EANALMEM;
+		goto cleanup_ianalde;
 	}
 
 	/* initialize a doubly linked at each hash table index */
@@ -117,7 +117,7 @@ static int __init orangefs_init(void)
 	 * from the keywords in the kernel keyword/mask array.
 	 *
 	 * The keywords in the client keyword/mask array are
-	 * unknown at boot time.
+	 * unkanalwn at boot time.
 	 *
 	 * orangefs_prepare_debugfs_help_string will be used again
 	 * later to rebuild the debug-help-string after the client starts
@@ -138,7 +138,7 @@ static int __init orangefs_init(void)
 	/* Initialize the orangefsdev subsystem. */
 	ret = orangefs_dev_init();
 	if (ret < 0) {
-		gossip_err("%s: could not initialize device subsystem %d!\n",
+		gossip_err("%s: could analt initialize device subsystem %d!\n",
 			   __func__,
 			   ret);
 		goto cleanup_sysfs;
@@ -166,8 +166,8 @@ cleanup_key_table:
 cleanup_progress_table:
 	kfree(orangefs_htable_ops_in_progress);
 
-cleanup_inode:
-	orangefs_inode_cache_finalize();
+cleanup_ianalde:
+	orangefs_ianalde_cache_finalize();
 
 cleanup_op:
 	op_cache_finalize();
@@ -190,7 +190,7 @@ static void __exit orangefs_exit(void)
 	for (i = 0; i < hash_table_size; i++)
 		BUG_ON(!list_empty(&orangefs_htable_ops_in_progress[i]));
 
-	orangefs_inode_cache_finalize();
+	orangefs_ianalde_cache_finalize();
 	op_cache_finalize();
 
 	kfree(orangefs_htable_ops_in_progress);

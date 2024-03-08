@@ -48,7 +48,7 @@ int module_frob_arch_sections(Elf_Ehdr *hdr, Elf_Shdr *sechdrs,
 		printk(KERN_WARNING
 			"Module '%s' contains unexpected .plt/.got sections.\n",
 			mod->name);
-		/*  return -ENOEXEC;  */
+		/*  return -EANALEXEC;  */
 	}
 
 	return 0;
@@ -95,7 +95,7 @@ int apply_relocate_add(Elf_Shdr *sechdrs, const char *strtab,
 		DEBUGP("%d: value=%08x loc=%p reloc=%d symbol=%s\n",
 		       i, value, location, ELF32_R_TYPE(rela[i].r_info),
 		       sym->st_name ?
-		       &strtab[sym->st_name] : "(anonymous)");
+		       &strtab[sym->st_name] : "(aanalnymous)");
 
 		switch (ELF32_R_TYPE(rela[i].r_info)) {
 		case R_HEXAGON_B22_PCREL: {
@@ -108,8 +108,8 @@ int apply_relocate_add(Elf_Shdr *sechdrs, const char *strtab,
 				       "R_HEXAGON_B22_PCREL reloc out of range",
 				       dist, value, (uint32_t)location,
 				       sym->st_name ?
-				       &strtab[sym->st_name] : "(anonymous)");
-				return -ENOEXEC;
+				       &strtab[sym->st_name] : "(aanalnymous)");
+				return -EANALEXEC;
 			}
 			DEBUGP("B22_PCREL contents: %08X.\n", *location);
 			*location &= ~0x01ff3fff;
@@ -137,12 +137,12 @@ int apply_relocate_add(Elf_Shdr *sechdrs, const char *strtab,
 		case R_HEXAGON_GOTOFF_HI16:
 			printk(KERN_ERR "%s: GOT/PLT relocations unsupported\n",
 			       module->name);
-			return -ENOEXEC;
+			return -EANALEXEC;
 		default:
-			printk(KERN_ERR "%s: unknown relocation: %u\n",
+			printk(KERN_ERR "%s: unkanalwn relocation: %u\n",
 			       module->name,
 			       ELF32_R_TYPE(rela[i].r_info));
-			return -ENOEXEC;
+			return -EANALEXEC;
 		}
 	}
 	return 0;

@@ -22,7 +22,7 @@
 
 	/*
 	 * GPIO-based SPI Master is required to access SPI TPM, because
-	 * full-duplex SPI transactions are not supported by ASPEED SPI
+	 * full-duplex SPI transactions are analt supported by ASPEED SPI
 	 * Controllers.
 	 */
 	spi_gpio: spi {
@@ -159,7 +159,7 @@
 &emmc {
 	status = "okay";
 
-	non-removable;
+	analn-removable;
 	max-frequency = <25000000>;
 	bus-width = <4>;
 };

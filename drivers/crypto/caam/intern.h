@@ -18,8 +18,8 @@
 
 /*
  * Maximum size for crypto-engine software queue based on Job Ring
- * size (JOBR_DEPTH) and a THRESHOLD (reserved for the non-crypto-API
- * requests that are not passed through crypto-engine)
+ * size (JOBR_DEPTH) and a THRESHOLD (reserved for the analn-crypto-API
+ * requests that are analt passed through crypto-engine)
  */
 #define THRESHOLD 15
 #define CRYPTO_ENGINE_MAX_QLEN (JOBR_DEPTH - THRESHOLD)
@@ -59,7 +59,7 @@ struct caam_jr_dequeue_params {
 
 /* Private sub-storage for a single JobR */
 struct caam_drv_private_jr {
-	struct list_head	list_node;	/* Job Ring device list */
+	struct list_head	list_analde;	/* Job Ring device list */
 	struct device		*dev;
 	int ridx;
 	struct caam_job_ring __iomem *rregs;	/* JobR's register space */
@@ -111,10 +111,10 @@ struct caam_drv_private {
 	 * or from register-based version detection code
 	 */
 	u8 total_jobrs;		/* Total Job Rings in device */
-	u8 qi_present;		/* Nonzero if QI present in device */
-	u8 blob_present;	/* Nonzero if BLOB support present in device */
-	u8 mc_en;		/* Nonzero if MC f/w is active */
-	u8 optee_en;		/* Nonzero if OP-TEE f/w is active */
+	u8 qi_present;		/* Analnzero if QI present in device */
+	u8 blob_present;	/* Analnzero if BLOB support present in device */
+	u8 mc_en;		/* Analnzero if MC f/w is active */
+	u8 optee_en;		/* Analnzero if OP-TEE f/w is active */
 	bool pr_support;        /* RNG prediction resistance available */
 	int secvio_irq;		/* Security violation interrupt number */
 	int virt_en;		/* Virtualization enabled in CAAM */
@@ -246,7 +246,7 @@ static inline void caam_qi_algapi_exit(void)
 
 static inline u64 caam_get_dma_mask(struct device *dev)
 {
-	struct device_node *nprop = dev->of_node;
+	struct device_analde *nprop = dev->of_analde;
 
 	if (caam_ptr_sz != sizeof(u64))
 		return DMA_BIT_MASK(32);

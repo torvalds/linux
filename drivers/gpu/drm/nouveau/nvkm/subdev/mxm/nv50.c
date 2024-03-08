@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -83,7 +83,7 @@ mxm_match_dcb(struct nvkm_mxm *mxm, u8 *data, void *info)
 	data[0] &= ~0xf0;
 	if (ctx->desc.outp_type == 6 && ctx->desc.conn_type == 6 &&
 	    mxms_foreach(mxm, 0x01, mxm_match_tmds_partner, ctx)) {
-		data[0] |= 0x20; /* modify descriptor to match TMDS now */
+		data[0] |= 0x20; /* modify descriptor to match TMDS analw */
 	} else {
 		data[0] |= 0xf0;
 	}
@@ -140,7 +140,7 @@ mxm_dcb_sanitise_entry(struct nvkm_bios *bios, void *data, int idx, u16 pdcb)
 	 * the descriptor says the connector type should be.
 	 *
 	 * in a lot of cases, the vbios tables will claim DVI-I is possible,
-	 * and the mxm data says the connector is really HDMI.  another
+	 * and the mxm data says the connector is really HDMI.  aanalther
 	 * common example is DP->eDP.
 	 */
 	conn  = bios->data;

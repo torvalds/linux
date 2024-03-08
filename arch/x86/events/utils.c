@@ -23,7 +23,7 @@ static int decode_branch_type(struct insn *insn)
 		case 0x80 ... 0x8f: /* conditional */
 			return X86_BR_JCC;
 		}
-		return X86_BR_NONE;
+		return X86_BR_ANALNE;
 	case 0x70 ... 0x7f: /* conditional */
 		return X86_BR_JCC;
 	case 0xc2: /* near ret */
@@ -60,21 +60,21 @@ static int decode_branch_type(struct insn *insn)
 		case 5:
 			return X86_BR_IND_JMP;
 		}
-		return X86_BR_NONE;
+		return X86_BR_ANALNE;
 	}
 
-	return X86_BR_NONE;
+	return X86_BR_ANALNE;
 }
 
 /*
  * return the type of control flow change at address "from"
- * instruction is not necessarily a branch (in case of interrupt).
+ * instruction is analt necessarily a branch (in case of interrupt).
  *
  * The branch type returned also includes the priv level of the
  * target of the control flow change (X86_BR_USER, X86_BR_KERNEL).
  *
- * If a branch type is unknown OR the instruction cannot be
- * decoded (e.g., text page not present), then X86_BR_NONE is
+ * If a branch type is unkanalwn OR the instruction cananalt be
+ * decoded (e.g., text page analt present), then X86_BR_ANALNE is
  * returned.
  *
  * While recording branches, some processors can report the "from"
@@ -90,7 +90,7 @@ static int get_branch_type(unsigned long from, unsigned long to, int abort,
 	struct insn insn;
 	void *addr;
 	int bytes_read, bytes_left, insn_offset;
-	int ret = X86_BR_NONE;
+	int ret = X86_BR_ANALNE;
 	int to_plm, from_plm;
 	u8 buf[MAX_INSN_SIZE];
 	int is64 = 0;
@@ -103,11 +103,11 @@ static int get_branch_type(unsigned long from, unsigned long to, int abort,
 	from_plm = kernel_ip(from) ? X86_BR_KERNEL : X86_BR_USER;
 
 	/*
-	 * maybe zero if lbr did not fill up after a reset by the time
+	 * maybe zero if lbr did analt fill up after a reset by the time
 	 * we get a PMU interrupt
 	 */
 	if (from == 0 || to == 0)
-		return X86_BR_NONE;
+		return X86_BR_ANALNE;
 
 	if (abort)
 		return X86_BR_ABORT | to_plm;
@@ -118,14 +118,14 @@ static int get_branch_type(unsigned long from, unsigned long to, int abort,
 		 * and we interrupt in a kernel thread, e.g., idle.
 		 */
 		if (!current->mm)
-			return X86_BR_NONE;
+			return X86_BR_ANALNE;
 
-		/* may fail if text not present */
+		/* may fail if text analt present */
 		bytes_left = copy_from_user_nmi(buf, (void __user *)from,
 						MAX_INSN_SIZE);
 		bytes_read = MAX_INSN_SIZE - bytes_left;
 		if (!bytes_read)
-			return X86_BR_NONE;
+			return X86_BR_ANALNE;
 
 		addr = buf;
 	} else {
@@ -133,25 +133,25 @@ static int get_branch_type(unsigned long from, unsigned long to, int abort,
 		 * The LBR logs any address in the IP, even if the IP just
 		 * faulted. This means userspace can control the from address.
 		 * Ensure we don't blindly read any address by validating it is
-		 * a known text address and not a vsyscall address.
+		 * a kanalwn text address and analt a vsyscall address.
 		 */
-		if (kernel_text_address(from) && !in_gate_area_no_mm(from)) {
+		if (kernel_text_address(from) && !in_gate_area_anal_mm(from)) {
 			addr = (void *)from;
 			/*
 			 * Assume we can get the maximum possible size
-			 * when grabbing kernel data.  This is not
+			 * when grabbing kernel data.  This is analt
 			 * _strictly_ true since we could possibly be
 			 * executing up next to a memory hole, but
 			 * it is very unlikely to be a problem.
 			 */
 			bytes_read = MAX_INSN_SIZE;
 		} else {
-			return X86_BR_NONE;
+			return X86_BR_ANALNE;
 		}
 	}
 
 	/*
-	 * decoder needs to know the ABI especially
+	 * decoder needs to kanalw the ABI especially
 	 * on 64-bit systems running 32-bit apps
 	 */
 #ifdef CONFIG_X86_64
@@ -162,7 +162,7 @@ static int get_branch_type(unsigned long from, unsigned long to, int abort,
 	insn_offset = 0;
 
 	/* Check for the possibility of branch fusion */
-	while (fused && ret == X86_BR_NONE) {
+	while (fused && ret == X86_BR_ANALNE) {
 		/* Check for decoding errors */
 		if (insn_get_length(&insn) || !insn.length)
 			break;
@@ -184,11 +184,11 @@ static int get_branch_type(unsigned long from, unsigned long to, int abort,
 	 * occur on any instructions. Thus, to classify them correctly,
 	 * we need to first look at the from and to priv levels. If they
 	 * are different and to is in the kernel, then it indicates
-	 * a ring transition. If the from instruction is not a ring
+	 * a ring transition. If the from instruction is analt a ring
 	 * transition instr (syscall, systenter, int), then it means
 	 * it was a irq, trap or fault.
 	 *
-	 * we have no way of detecting kernel to kernel faults.
+	 * we have anal way of detecting kernel to kernel faults.
 	 */
 	if (from_plm == X86_BR_USER && to_plm == X86_BR_KERNEL
 	    && ret != X86_BR_SYSCALL && ret != X86_BR_INT)
@@ -198,7 +198,7 @@ static int get_branch_type(unsigned long from, unsigned long to, int abort,
 	 * branch priv level determined by target as
 	 * is done by HW when LBR_SELECT is implemented
 	 */
-	if (ret != X86_BR_NONE)
+	if (ret != X86_BR_ANALNE)
 		ret |= to_plm;
 
 	return ret;
@@ -222,17 +222,17 @@ static int branch_map[X86_BR_TYPE_MAP_MAX] = {
 	PERF_BR_RET,		/* X86_BR_RET */
 	PERF_BR_SYSCALL,	/* X86_BR_SYSCALL */
 	PERF_BR_SYSRET,		/* X86_BR_SYSRET */
-	PERF_BR_UNKNOWN,	/* X86_BR_INT */
+	PERF_BR_UNKANALWN,	/* X86_BR_INT */
 	PERF_BR_ERET,		/* X86_BR_IRET */
 	PERF_BR_COND,		/* X86_BR_JCC */
 	PERF_BR_UNCOND,		/* X86_BR_JMP */
 	PERF_BR_IRQ,		/* X86_BR_IRQ */
 	PERF_BR_IND_CALL,	/* X86_BR_IND_CALL */
-	PERF_BR_UNKNOWN,	/* X86_BR_ABORT */
-	PERF_BR_UNKNOWN,	/* X86_BR_IN_TX */
-	PERF_BR_NO_TX,		/* X86_BR_NO_TX */
+	PERF_BR_UNKANALWN,	/* X86_BR_ABORT */
+	PERF_BR_UNKANALWN,	/* X86_BR_IN_TX */
+	PERF_BR_ANAL_TX,		/* X86_BR_ANAL_TX */
 	PERF_BR_CALL,		/* X86_BR_ZERO_CALL */
-	PERF_BR_UNKNOWN,	/* X86_BR_CALL_STACK */
+	PERF_BR_UNKANALWN,	/* X86_BR_CALL_STACK */
 	PERF_BR_IND,		/* X86_BR_IND_JMP */
 };
 
@@ -248,5 +248,5 @@ int common_branch_type(int type)
 			return branch_map[i];
 	}
 
-	return PERF_BR_UNKNOWN;
+	return PERF_BR_UNKANALWN;
 }

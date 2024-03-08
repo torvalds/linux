@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: LGPL-2.1 OR MIT */
 /*
- * time function definitions for NOLIBC
+ * time function definitions for ANALLIBC
  * Copyright (C) 2017-2022 Willy Tarreau <w@1wt.eu>
  */
 
-#ifndef _NOLIBC_TIME_H
-#define _NOLIBC_TIME_H
+#ifndef _ANALLIBC_TIME_H
+#define _ANALLIBC_TIME_H
 
 #include "std.h"
 #include "arch.h"
@@ -17,7 +17,7 @@ time_t time(time_t *tptr)
 {
 	struct timeval tv;
 
-	/* note, cannot fail here */
+	/* analte, cananalt fail here */
 	sys_gettimeofday(&tv, NULL);
 
 	if (tptr)
@@ -26,6 +26,6 @@ time_t time(time_t *tptr)
 }
 
 /* make sure to include all global symbols */
-#include "nolibc.h"
+#include "anallibc.h"
 
-#endif /* _NOLIBC_TIME_H */
+#endif /* _ANALLIBC_TIME_H */

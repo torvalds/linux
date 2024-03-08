@@ -28,16 +28,16 @@
 #define POWER_METER_CAN_MEASURE	(1 << 0)
 #define POWER_METER_CAN_TRIP	(1 << 1)
 #define POWER_METER_CAN_CAP	(1 << 2)
-#define POWER_METER_CAN_NOTIFY	(1 << 3)
+#define POWER_METER_CAN_ANALTIFY	(1 << 3)
 #define POWER_METER_IS_BATTERY	(1 << 8)
-#define UNKNOWN_HYSTERESIS	0xFFFFFFFF
-#define UNKNOWN_POWER		0xFFFFFFFF
+#define UNKANALWN_HYSTERESIS	0xFFFFFFFF
+#define UNKANALWN_POWER		0xFFFFFFFF
 
-#define METER_NOTIFY_CONFIG	0x80
-#define METER_NOTIFY_TRIP	0x81
-#define METER_NOTIFY_CAP	0x82
-#define METER_NOTIFY_CAPPING	0x83
-#define METER_NOTIFY_INTERVAL	0x84
+#define METER_ANALTIFY_CONFIG	0x80
+#define METER_ANALTIFY_TRIP	0x81
+#define METER_ANALTIFY_CAP	0x82
+#define METER_ANALTIFY_CAPPING	0x83
+#define METER_ANALTIFY_INTERVAL	0x84
 
 #define POWER_AVERAGE_NAME	"power1_average"
 #define POWER_CAP_NAME		"power1_cap"
@@ -116,7 +116,7 @@ static int update_avg_interval(struct acpi_power_meter_resource *resource)
 	if (ACPI_FAILURE(status)) {
 		acpi_evaluation_failure_warn(resource->acpi_dev->handle, "_GAI",
 					     status);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	resource->avg_interval = data;
@@ -172,7 +172,7 @@ static ssize_t set_avg_interval(struct device *dev,
 		return -EINVAL;
 	}
 
-	/* _PAI returns 0 on success, nonzero otherwise */
+	/* _PAI returns 0 on success, analnzero otherwise */
 	if (data)
 		return -EINVAL;
 
@@ -190,7 +190,7 @@ static int update_cap(struct acpi_power_meter_resource *resource)
 	if (ACPI_FAILURE(status)) {
 		acpi_evaluation_failure_warn(resource->acpi_dev->handle, "_GHL",
 					     status);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	resource->cap = data;
@@ -245,7 +245,7 @@ static ssize_t set_cap(struct device *dev, struct device_attribute *devattr,
 		return -EINVAL;
 	}
 
-	/* _SHL returns 0 on success, nonzero otherwise */
+	/* _SHL returns 0 on success, analnzero otherwise */
 	if (data)
 		return -EINVAL;
 
@@ -279,7 +279,7 @@ static int set_acpi_trip(struct acpi_power_meter_resource *resource)
 		return -EINVAL;
 	}
 
-	/* _PTP returns 0 on success, nonzero otherwise */
+	/* _PTP returns 0 on success, analnzero otherwise */
 	if (data)
 		return -EINVAL;
 
@@ -329,7 +329,7 @@ static int update_meter(struct acpi_power_meter_resource *resource)
 	if (ACPI_FAILURE(status)) {
 		acpi_evaluation_failure_warn(resource->acpi_dev->handle, "_PMM",
 					     status);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	resource->power = data;
@@ -349,8 +349,8 @@ static ssize_t show_power(struct device *dev,
 	update_meter(resource);
 	mutex_unlock(&resource->lock);
 
-	if (resource->power == UNKNOWN_POWER)
-		return -ENODATA;
+	if (resource->power == UNKANALWN_POWER)
+		return -EANALDATA;
 
 	return sprintf(buf, "%llu\n", resource->power * 1000);
 }
@@ -411,8 +411,8 @@ static ssize_t show_val(struct device *dev,
 		val = resource->caps.max_cap * 1000;
 		break;
 	case 4:
-		if (resource->caps.hysteresis == UNKNOWN_HYSTERESIS)
-			return sprintf(buf, "unknown\n");
+		if (resource->caps.hysteresis == UNKANALWN_HYSTERESIS)
+			return sprintf(buf, "unkanalwn\n");
 
 		val = resource->caps.hysteresis * 1000;
 		break;
@@ -431,7 +431,7 @@ static ssize_t show_val(struct device *dev,
 	case 7:
 	case 8:
 		if (resource->trip[attr->index - 7] < 0)
-			return sprintf(buf, "unknown\n");
+			return sprintf(buf, "unkanalwn\n");
 
 		val = resource->trip[attr->index - 7] * 1000;
 		break;
@@ -561,7 +561,7 @@ static int read_domain_devices(struct acpi_power_meter_resource *resource)
 	if (ACPI_FAILURE(status)) {
 		acpi_evaluation_failure_warn(resource->acpi_dev->handle, "_PMD",
 					     status);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	pss = buffer.pointer;
@@ -580,14 +580,14 @@ static int read_domain_devices(struct acpi_power_meter_resource *resource)
 					   sizeof(struct acpi_device *),
 					   GFP_KERNEL);
 	if (!resource->domain_devices) {
-		res = -ENOMEM;
+		res = -EANALMEM;
 		goto end;
 	}
 
 	resource->holders_dir = kobject_create_and_add("measures",
 						       &resource->acpi_dev->dev.kobj);
 	if (!resource->holders_dir) {
-		res = -ENOMEM;
+		res = -EANALMEM;
 		goto exit_free;
 	}
 
@@ -597,7 +597,7 @@ static int read_domain_devices(struct acpi_power_meter_resource *resource)
 		struct acpi_device *obj;
 		union acpi_object *element = &pss->package.elements[i];
 
-		/* Refuse non-references */
+		/* Refuse analn-references */
 		if (element->type != ACPI_TYPE_LOCAL_REFERENCE)
 			continue;
 
@@ -693,7 +693,7 @@ static int setup_attrs(struct acpi_power_meter_resource *resource)
 	if (resource->caps.flags & POWER_METER_CAN_CAP) {
 		if (!can_cap_in_hardware()) {
 			dev_warn(&resource->acpi_dev->dev,
-				 "Ignoring unsafe software power cap!\n");
+				 "Iganalring unsafe software power cap!\n");
 			goto skip_unsafe_cap;
 		}
 
@@ -755,7 +755,7 @@ static int read_capabilities(struct acpi_power_meter_resource *resource)
 	if (ACPI_FAILURE(status)) {
 		acpi_evaluation_failure_warn(resource->acpi_dev->handle, "_PMC",
 					     status);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	pss = buffer.pointer;
@@ -783,7 +783,7 @@ static int read_capabilities(struct acpi_power_meter_resource *resource)
 
 	if (resource->caps.units) {
 		dev_err(&resource->acpi_dev->dev, ACPI_POWER_METER_NAME
-			"Unknown units %llu.\n",
+			"Unkanalwn units %llu.\n",
 			resource->caps.units);
 		res = -EINVAL;
 		goto end;
@@ -803,7 +803,7 @@ static int read_capabilities(struct acpi_power_meter_resource *resource)
 		*str = kmemdup_nul(element->string.pointer, element->string.length,
 				   GFP_KERNEL);
 		if (!*str) {
-			res = -ENOMEM;
+			res = -EANALMEM;
 			goto error;
 		}
 
@@ -819,8 +819,8 @@ end:
 	return res;
 }
 
-/* Handle ACPI event notifications */
-static void acpi_power_meter_notify(struct acpi_device *device, u32 event)
+/* Handle ACPI event analtifications */
+static void acpi_power_meter_analtify(struct acpi_device *device, u32 event)
 {
 	struct acpi_power_meter_resource *resource;
 	int res;
@@ -831,7 +831,7 @@ static void acpi_power_meter_notify(struct acpi_device *device, u32 event)
 	resource = acpi_driver_data(device);
 
 	switch (event) {
-	case METER_NOTIFY_CONFIG:
+	case METER_ANALTIFY_CONFIG:
 		mutex_lock(&resource->lock);
 		free_capabilities(resource);
 		res = read_capabilities(resource);
@@ -842,17 +842,17 @@ static void acpi_power_meter_notify(struct acpi_device *device, u32 event)
 		remove_attrs(resource);
 		setup_attrs(resource);
 		break;
-	case METER_NOTIFY_TRIP:
-		sysfs_notify(&device->dev.kobj, NULL, POWER_AVERAGE_NAME);
+	case METER_ANALTIFY_TRIP:
+		sysfs_analtify(&device->dev.kobj, NULL, POWER_AVERAGE_NAME);
 		break;
-	case METER_NOTIFY_CAP:
-		sysfs_notify(&device->dev.kobj, NULL, POWER_CAP_NAME);
+	case METER_ANALTIFY_CAP:
+		sysfs_analtify(&device->dev.kobj, NULL, POWER_CAP_NAME);
 		break;
-	case METER_NOTIFY_INTERVAL:
-		sysfs_notify(&device->dev.kobj, NULL, POWER_AVG_INTERVAL_NAME);
+	case METER_ANALTIFY_INTERVAL:
+		sysfs_analtify(&device->dev.kobj, NULL, POWER_AVG_INTERVAL_NAME);
 		break;
-	case METER_NOTIFY_CAPPING:
-		sysfs_notify(&device->dev.kobj, NULL, POWER_ALARM_NAME);
+	case METER_ANALTIFY_CAPPING:
+		sysfs_analtify(&device->dev.kobj, NULL, POWER_ALARM_NAME);
 		dev_info(&device->dev, "Capping in progress.\n");
 		break;
 	default:
@@ -874,7 +874,7 @@ static int acpi_power_meter_add(struct acpi_device *device)
 
 	resource = kzalloc(sizeof(*resource), GFP_KERNEL);
 	if (!resource)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	resource->sensors_valid = 0;
 	resource->acpi_dev = device;
@@ -956,13 +956,13 @@ static struct acpi_driver acpi_power_meter_driver = {
 	.ops = {
 		.add = acpi_power_meter_add,
 		.remove = acpi_power_meter_remove,
-		.notify = acpi_power_meter_notify,
+		.analtify = acpi_power_meter_analtify,
 		},
 	.drv.pm = pm_sleep_ptr(&acpi_power_meter_pm),
 };
 
 /* Module init/exit routines */
-static int __init enable_cap_knobs(const struct dmi_system_id *d)
+static int __init enable_cap_kanalbs(const struct dmi_system_id *d)
 {
 	cap_in_hardware = 1;
 	return 0;
@@ -970,7 +970,7 @@ static int __init enable_cap_knobs(const struct dmi_system_id *d)
 
 static const struct dmi_system_id pm_dmi_table[] __initconst = {
 	{
-		enable_cap_knobs, "IBM Active Energy Manager",
+		enable_cap_kanalbs, "IBM Active Energy Manager",
 		{
 			DMI_MATCH(DMI_SYS_VENDOR, "IBM")
 		},
@@ -983,7 +983,7 @@ static int __init acpi_power_meter_init(void)
 	int result;
 
 	if (acpi_disabled)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dmi_check_system(pm_dmi_table);
 

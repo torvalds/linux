@@ -32,7 +32,7 @@ struct svc_sock {
 	/* As we receive a record, this includes the length received so
 	 * far (including the fragment header): */
 	u32			sk_tcplen;
-	/* Total length of the data (not including fragment headers)
+	/* Total length of the data (analt including fragment headers)
 	 * received so far in the fragments making up this rpc: */
 	u32			sk_datalen;
 
@@ -70,7 +70,7 @@ void		svc_cleanup_xprt_sock(void);
  * svc_makesock socket characteristics
  */
 #define SVC_SOCK_DEFAULTS	(0U)
-#define SVC_SOCK_ANONYMOUS	(1U << 0)	/* don't register with pmap */
+#define SVC_SOCK_AANALNYMOUS	(1U << 0)	/* don't register with pmap */
 #define SVC_SOCK_TEMPORARY	(1U << 1)	/* flag socket as temporary */
 
 #endif /* SUNRPC_SVCSOCK_H */

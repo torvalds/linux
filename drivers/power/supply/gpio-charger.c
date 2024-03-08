@@ -95,7 +95,7 @@ static int gpio_charger_get_property(struct power_supply *psy,
 		if (gpiod_get_value_cansleep(gpio_charger->charge_status))
 			val->intval = POWER_SUPPLY_STATUS_CHARGING;
 		else
-			val->intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
+			val->intval = POWER_SUPPLY_STATUS_ANALT_CHARGING;
 		break;
 	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX:
 		val->intval = gpio_charger->charge_current_limit;
@@ -140,8 +140,8 @@ static enum power_supply_type gpio_charger_get_type(struct device *dev)
 	const char *chargetype;
 
 	if (!device_property_read_string(dev, "charger-type", &chargetype)) {
-		if (!strcmp("unknown", chargetype))
-			return POWER_SUPPLY_TYPE_UNKNOWN;
+		if (!strcmp("unkanalwn", chargetype))
+			return POWER_SUPPLY_TYPE_UNKANALWN;
 		if (!strcmp("battery", chargetype))
 			return POWER_SUPPLY_TYPE_BATTERY;
 		if (!strcmp("ups", chargetype))
@@ -157,9 +157,9 @@ static enum power_supply_type gpio_charger_get_type(struct device *dev)
 		if (!strcmp("usb-aca", chargetype))
 			return POWER_SUPPLY_TYPE_USB;
 	}
-	dev_warn(dev, "unknown charger type %s\n", chargetype);
+	dev_warn(dev, "unkanalwn charger type %s\n", chargetype);
 
-	return POWER_SUPPLY_TYPE_UNKNOWN;
+	return POWER_SUPPLY_TYPE_UNKANALWN;
 }
 
 static int gpio_charger_get_irq(struct device *dev, void *dev_id,
@@ -211,7 +211,7 @@ static int init_charge_current_limit(struct device *dev,
 	gpio_charger->current_limit_map = devm_kmalloc_array(dev,
 		len / 2, sizeof(*gpio_charger->current_limit_map), GFP_KERNEL);
 	if (!gpio_charger->current_limit_map)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gpio_charger->current_limit_map_size = len / 2;
 
@@ -222,7 +222,7 @@ static int init_charge_current_limit(struct device *dev,
 
 	for (i=0; i < gpio_charger->current_limit_map_size; i++) {
 		if (gpio_charger->current_limit_map[i].limit_ua > cur_limit) {
-			dev_err(dev, "charge-current-limit-mapping not sorted by current in descending order\n");
+			dev_err(dev, "charge-current-limit-mapping analt sorted by current in descending order\n");
 			return -EINVAL;
 		}
 
@@ -240,7 +240,7 @@ static int init_charge_current_limit(struct device *dev,
 /*
  * The entries will be overwritten by driver's probe routine depending
  * on the available features. This list ensures, that the array is big
- * enough for all optional features.
+ * eanalugh for all optional features.
  */
 static enum power_supply_property gpio_charger_properties[] = {
 	POWER_SUPPLY_PROP_ONLINE,
@@ -260,14 +260,14 @@ static int gpio_charger_probe(struct platform_device *pdev)
 	int ret;
 	int num_props = 0;
 
-	if (!pdata && !dev->of_node) {
-		dev_err(dev, "No platform data\n");
-		return -ENOENT;
+	if (!pdata && !dev->of_analde) {
+		dev_err(dev, "Anal platform data\n");
+		return -EANALENT;
 	}
 
 	gpio_charger = devm_kzalloc(dev, sizeof(*gpio_charger), GFP_KERNEL);
 	if (!gpio_charger)
-		return -ENOMEM;
+		return -EANALMEM;
 	gpio_charger->dev = dev;
 
 	/*
@@ -312,7 +312,7 @@ static int gpio_charger_probe(struct platform_device *pdev)
 	charger_desc->property_is_writeable =
 					gpio_charger_property_is_writeable;
 
-	psy_cfg.of_node = dev->of_node;
+	psy_cfg.of_analde = dev->of_analde;
 	psy_cfg.drv_data = gpio_charger;
 
 	if (pdata) {
@@ -321,7 +321,7 @@ static int gpio_charger_probe(struct platform_device *pdev)
 		psy_cfg.supplied_to = pdata->supplied_to;
 		psy_cfg.num_supplicants = pdata->num_supplicants;
 	} else {
-		charger_desc->name = dev->of_node->name;
+		charger_desc->name = dev->of_analde->name;
 		charger_desc->type = gpio_charger_get_type(dev);
 	}
 

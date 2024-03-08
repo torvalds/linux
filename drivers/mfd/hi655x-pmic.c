@@ -97,7 +97,7 @@ static int hi655x_pmic_probe(struct platform_device *pdev)
 
 	pmic = devm_kzalloc(dev, sizeof(*pmic), GFP_KERNEL);
 	if (!pmic)
-		return -ENOMEM;
+		return -EANALMEM;
 	pmic->dev = dev;
 
 	base = devm_platform_ioremap_resource(pdev, 0);
@@ -123,7 +123,7 @@ static int hi655x_pmic_probe(struct platform_device *pdev)
 				"Failed to request hi655x pmic-gpio");
 
 	ret = regmap_add_irq_chip(pmic->regmap, gpiod_to_irq(pmic->gpio),
-				  IRQF_TRIGGER_LOW | IRQF_NO_SUSPEND, 0,
+				  IRQF_TRIGGER_LOW | IRQF_ANAL_SUSPEND, 0,
 				  &hi655x_irq_chip, &pmic->irq_data);
 	if (ret) {
 		dev_err(dev, "Failed to obtain 'hi655x_pmic_irq' %d\n", ret);

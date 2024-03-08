@@ -4,7 +4,7 @@
 #ifndef _CGRP_KFUNC_COMMON_H
 #define _CGRP_KFUNC_COMMON_H
 
-#include <errno.h>
+#include <erranal.h>
 #include <vmlinux.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
@@ -51,20 +51,20 @@ static inline int cgrps_kfunc_map_insert(struct cgroup *cgrp)
 		return status;
 
 	local.cgrp = NULL;
-	status = bpf_map_update_elem(&__cgrps_kfunc_map, &id, &local, BPF_NOEXIST);
+	status = bpf_map_update_elem(&__cgrps_kfunc_map, &id, &local, BPF_ANALEXIST);
 	if (status)
 		return status;
 
 	v = bpf_map_lookup_elem(&__cgrps_kfunc_map, &id);
 	if (!v) {
 		bpf_map_delete_elem(&__cgrps_kfunc_map, &id);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	acquired = bpf_cgroup_acquire(cgrp);
 	if (!acquired) {
 		bpf_map_delete_elem(&__cgrps_kfunc_map, &id);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	old = bpf_kptr_xchg(&v->cgrp, acquired);

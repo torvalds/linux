@@ -12,7 +12,7 @@
 #include "error.h"
 #include "extents.h"
 #include "extent_update.h"
-#include "inode.h"
+#include "ianalde.h"
 #include "io_misc.h"
 #include "io_write.h"
 #include "logged_ops.h"
@@ -35,7 +35,7 @@ int bch2_extent_fallocate(struct btree_trans *trans,
 	struct bkey_s_c k;
 	struct bkey_buf old, new;
 	unsigned sectors_allocated = 0, new_replicas;
-	bool unwritten = opts.nocow &&
+	bool unwritten = opts.analcow &&
 	    c->sb.version >= bcachefs_metadata_version_unwritten_extents;
 	int ret;
 
@@ -53,12 +53,12 @@ int bch2_extent_fallocate(struct btree_trans *trans,
 			   (int) bch2_bkey_nr_ptrs_fully_allocated(k));
 
 	/*
-	 * Get a disk reservation before (in the nocow case) calling
+	 * Get a disk reservation before (in the analcow case) calling
 	 * into the allocator:
 	 */
 	ret = bch2_disk_reservation_get(c, &disk_res, sectors, new_replicas, 0);
 	if (unlikely(ret))
-		goto err_noprint;
+		goto err_analprint;
 
 	bch2_bkey_buf_reassemble(&old, c, k);
 
@@ -89,7 +89,7 @@ int bch2_extent_fallocate(struct btree_trans *trans,
 				&devs_have,
 				opts.data_replicas,
 				opts.data_replicas,
-				BCH_WATERMARK_normal, 0, &cl, &wp);
+				BCH_WATERMARK_analrmal, 0, &cl, &wp);
 		if (bch2_err_matches(ret, BCH_ERR_operation_blocked))
 			ret = -BCH_ERR_transaction_restart_nested;
 		if (ret)
@@ -118,7 +118,7 @@ err:
 			inum.inum,
 			iter->pos.offset << 9,
 			"%s(): error: %s", __func__, bch2_err_str(ret));
-err_noprint:
+err_analprint:
 	bch2_open_buckets_put(c, &open_buckets);
 	bch2_disk_reservation_put(c, &disk_res);
 	bch2_bkey_buf_exit(&new, c);
@@ -227,12 +227,12 @@ static int truncate_set_isize(struct btree_trans *trans,
 			      u64 new_i_size)
 {
 	struct btree_iter iter = { NULL };
-	struct bch_inode_unpacked inode_u;
+	struct bch_ianalde_unpacked ianalde_u;
 	int ret;
 
-	ret   = bch2_inode_peek(trans, &iter, &inode_u, inum, BTREE_ITER_INTENT) ?:
-		(inode_u.bi_size = new_i_size, 0) ?:
-		bch2_inode_write(trans, &iter, &inode_u);
+	ret   = bch2_ianalde_peek(trans, &iter, &ianalde_u, inum, BTREE_ITER_INTENT) ?:
+		(ianalde_u.bi_size = new_i_size, 0) ?:
+		bch2_ianalde_write(trans, &iter, &ianalde_u);
 
 	bch2_trans_iter_exit(trans, &iter);
 	return ret;
@@ -249,7 +249,7 @@ static int __bch2_resume_logged_op_truncate(struct btree_trans *trans,
 	u64 new_i_size = le64_to_cpu(op->v.new_i_size);
 	int ret;
 
-	ret = commit_do(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
+	ret = commit_do(trans, NULL, NULL, BCH_TRANS_COMMIT_anal_eanalspc,
 			truncate_set_isize(trans, inum, new_i_size));
 	if (ret)
 		goto err;
@@ -310,32 +310,32 @@ void bch2_logged_op_finsert_to_text(struct printbuf *out, struct bch_fs *c, stru
 static int adjust_i_size(struct btree_trans *trans, subvol_inum inum, u64 offset, s64 len)
 {
 	struct btree_iter iter;
-	struct bch_inode_unpacked inode_u;
+	struct bch_ianalde_unpacked ianalde_u;
 	int ret;
 
 	offset	<<= 9;
 	len	<<= 9;
 
-	ret = bch2_inode_peek(trans, &iter, &inode_u, inum, BTREE_ITER_INTENT);
+	ret = bch2_ianalde_peek(trans, &iter, &ianalde_u, inum, BTREE_ITER_INTENT);
 	if (ret)
 		return ret;
 
 	if (len > 0) {
-		if (MAX_LFS_FILESIZE - inode_u.bi_size < len) {
+		if (MAX_LFS_FILESIZE - ianalde_u.bi_size < len) {
 			ret = -EFBIG;
 			goto err;
 		}
 
-		if (offset >= inode_u.bi_size) {
+		if (offset >= ianalde_u.bi_size) {
 			ret = -EINVAL;
 			goto err;
 		}
 	}
 
-	inode_u.bi_size += len;
-	inode_u.bi_mtime = inode_u.bi_ctime = bch2_current_time(trans->c);
+	ianalde_u.bi_size += len;
+	ianalde_u.bi_mtime = ianalde_u.bi_ctime = bch2_current_time(trans->c);
 
-	ret = bch2_inode_write(trans, &iter, &inode_u);
+	ret = bch2_ianalde_write(trans, &iter, &ianalde_u);
 err:
 	bch2_trans_iter_exit(trans, &iter);
 	return ret;
@@ -371,7 +371,7 @@ case LOGGED_OP_FINSERT_start:
 	op->v.state = LOGGED_OP_FINSERT_shift_extents;
 
 	if (insert) {
-		ret = commit_do(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
+		ret = commit_do(trans, NULL, NULL, BCH_TRANS_COMMIT_anal_eanalspc,
 				adjust_i_size(trans, inum, src_offset, len) ?:
 				bch2_logged_op_update(trans, &op->k_i));
 		if (ret)
@@ -383,7 +383,7 @@ case LOGGED_OP_FINSERT_start:
 		if (ret && !bch2_err_matches(ret, BCH_ERR_transaction_restart))
 			goto err;
 
-		ret = commit_do(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
+		ret = commit_do(trans, NULL, NULL, BCH_TRANS_COMMIT_anal_eanalspc,
 				bch2_logged_op_update(trans, &op->k_i));
 	}
 
@@ -413,11 +413,11 @@ case LOGGED_OP_FINSERT_shift_extents:
 			goto btree_err;
 
 		if (!k.k ||
-		    k.k->p.inode != inum.inum ||
+		    k.k->p.ianalde != inum.inum ||
 		    bkey_le(k.k->p, POS(inum.inum, src_offset)))
 			break;
 
-		copy = bch2_bkey_make_mut_noupdate(trans, k);
+		copy = bch2_bkey_make_mut_analupdate(trans, k);
 		if ((ret = PTR_ERR_OR_ZERO(copy)))
 			goto btree_err;
 
@@ -429,7 +429,7 @@ case LOGGED_OP_FINSERT_shift_extents:
 			bch2_disk_reservation_add(c, &disk_res,
 					copy->k.size *
 					bch2_bkey_nr_ptrs_allocated(bkey_i_to_s_c(copy)),
-					BCH_DISK_RESERVATION_NOFAIL);
+					BCH_DISK_RESERVATION_ANALFAIL);
 		}
 
 		bkey_init(&delete.k);
@@ -446,7 +446,7 @@ case LOGGED_OP_FINSERT_shift_extents:
 			bch2_btree_insert_trans(trans, BTREE_ID_extents, &delete, 0) ?:
 			bch2_btree_insert_trans(trans, BTREE_ID_extents, copy, 0) ?:
 			bch2_logged_op_update(trans, &op->k_i) ?:
-			bch2_trans_commit(trans, &disk_res, NULL, BCH_TRANS_COMMIT_no_enospc);
+			bch2_trans_commit(trans, &disk_res, NULL, BCH_TRANS_COMMIT_anal_eanalspc);
 btree_err:
 		bch2_disk_reservation_put(c, &disk_res);
 
@@ -461,12 +461,12 @@ btree_err:
 	op->v.state = LOGGED_OP_FINSERT_finish;
 
 	if (!insert) {
-		ret = commit_do(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
+		ret = commit_do(trans, NULL, NULL, BCH_TRANS_COMMIT_anal_eanalspc,
 				adjust_i_size(trans, inum, src_offset, shift) ?:
 				bch2_logged_op_update(trans, &op->k_i));
 	} else {
-		/* We need an inode update to update bi_journal_seq for fsync: */
-		ret = commit_do(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
+		/* We need an ianalde update to update bi_journal_seq for fsync: */
+		ret = commit_do(trans, NULL, NULL, BCH_TRANS_COMMIT_anal_eanalspc,
 				adjust_i_size(trans, inum, 0, 0) ?:
 				bch2_logged_op_update(trans, &op->k_i));
 	}

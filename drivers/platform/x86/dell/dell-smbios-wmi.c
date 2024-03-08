@@ -96,7 +96,7 @@ static int dell_smbios_wmi_call(struct calling_interface_buffer *buffer)
 	mutex_lock(&call_mutex);
 	priv = get_first_smbios_priv();
 	if (!priv) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out_wmi_call;
 	}
 
@@ -113,14 +113,14 @@ out_wmi_call:
 	return ret;
 }
 
-static int dell_smbios_wmi_open(struct inode *inode, struct file *filp)
+static int dell_smbios_wmi_open(struct ianalde *ianalde, struct file *filp)
 {
 	struct wmi_smbios_priv *priv;
 
 	priv = container_of(filp->private_data, struct wmi_smbios_priv, char_dev);
 	filp->private_data = priv;
 
-	return nonseekable_open(inode, filp);
+	return analnseekable_open(ianalde, filp);
 }
 
 static ssize_t dell_smbios_wmi_read(struct file *filp, char __user *buffer, size_t length,
@@ -177,7 +177,7 @@ static long dell_smbios_wmi_ioctl(struct file *filp, unsigned int cmd, unsigned 
 	long ret;
 
 	if (cmd != DELL_WMI_SMBIOS_CMD)
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 
 	mutex_lock(&call_mutex);
 	ret = dell_smbios_wmi_do_ioctl(priv, input);
@@ -205,7 +205,7 @@ static int dell_smbios_wmi_register_chardev(struct wmi_smbios_priv *priv)
 {
 	int ret;
 
-	priv->char_dev.minor = MISC_DYNAMIC_MINOR;
+	priv->char_dev.mianalr = MISC_DYNAMIC_MIANALR;
 	priv->char_dev.name = "wmi/dell-smbios";
 	priv->char_dev.fops = &dell_smbios_wmi_fops;
 	priv->char_dev.mode = 0444;
@@ -232,7 +232,7 @@ static int dell_smbios_wmi_probe(struct wmi_device *wdev, const void *context)
 	priv = devm_kzalloc(&wdev->dev, sizeof(struct wmi_smbios_priv),
 			    GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->wdev = wdev;
 	dev_set_drvdata(&wdev->dev, priv);
@@ -249,7 +249,7 @@ static int dell_smbios_wmi_probe(struct wmi_device *wdev, const void *context)
 
 	if (!hotfix)
 		dev_warn(&wdev->dev,
-			"WMI SMBIOS userspace interface not supported(%u), try upgrading to a newer BIOS\n",
+			"WMI SMBIOS userspace interface analt supported(%u), try upgrading to a newer BIOS\n",
 			hotfix);
 
 	/* add in the length object we will use internally with ioctl */
@@ -258,7 +258,7 @@ static int dell_smbios_wmi_probe(struct wmi_device *wdev, const void *context)
 	count = get_order(priv->req_buf_size);
 	priv->buf = (void *)devm_get_free_pages(&wdev->dev, GFP_KERNEL, count);
 	if (!priv->buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = dell_smbios_wmi_register_chardev(priv);
 	if (ret)
@@ -331,7 +331,7 @@ int init_dell_smbios_wmi(void)
 	dmi_walk(find_b1, NULL);
 
 	if (!wmi_supported)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return wmi_driver_register(&dell_smbios_wmi_driver);
 }

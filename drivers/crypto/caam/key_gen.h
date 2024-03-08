@@ -15,7 +15,7 @@
  */
 static inline u32 split_key_len(u32 hash)
 {
-	/* Sizes for MDHA pads (*not* keys): MD5, SHA1, 224, 256, 384, 512 */
+	/* Sizes for MDHA pads (*analt* keys): MD5, SHA1, 224, 256, 384, 512 */
 	static const u8 mdpadlen[] = { 16, 20, 32, 32, 64, 64 };
 	u32 idx;
 

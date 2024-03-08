@@ -6,7 +6,7 @@
  */
 
 #include <ctype.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <limits.h>
 #include <stdarg.h>
@@ -32,7 +32,7 @@
 		typeof(b) _b = b;\
 		_a < _b ? _a : _b; })
 
-extern int attr_normal;
+extern int attr_analrmal;
 extern int attr_main_heading;
 extern int attr_main_menu_box;
 extern int attr_main_menu_fore;
@@ -72,8 +72,8 @@ typedef int (*extra_key_cb_fn)(int, size_t, size_t, void *);
 /* this changes the windows attributes !!! */
 void print_in_middle(WINDOW *win, int y, int width, const char *str, int attrs);
 int get_line_length(const char *line);
-int get_line_no(const char *text);
-const char *get_line(const char *text, int line_no);
+int get_line_anal(const char *text);
+const char *get_line(const char *text, int line_anal);
 void fill_window(WINDOW *win, const char *text);
 int btn_dialog(WINDOW *main_window, const char *msg, int btn_num, ...);
 int dialog_inputbox(WINDOW *main_window,

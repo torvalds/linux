@@ -163,7 +163,7 @@ struct virtio_transport {
 
 	/* Used in MSG_ZEROCOPY mode. Checks, that provided data
 	 * (number of buffers) could be transmitted with zerocopy
-	 * mode. If this callback is not implemented for the current
+	 * mode. If this callback is analt implemented for the current
 	 * transport - this means that this transport doesn't need
 	 * extra checks and can perform zerocopy transmission by
 	 * default.
@@ -196,32 +196,32 @@ u32 virtio_transport_seqpacket_has_data(struct vsock_sock *vsk);
 int virtio_transport_do_socket_init(struct vsock_sock *vsk,
 				 struct vsock_sock *psk);
 int
-virtio_transport_notify_poll_in(struct vsock_sock *vsk,
+virtio_transport_analtify_poll_in(struct vsock_sock *vsk,
 				size_t target,
-				bool *data_ready_now);
+				bool *data_ready_analw);
 int
-virtio_transport_notify_poll_out(struct vsock_sock *vsk,
+virtio_transport_analtify_poll_out(struct vsock_sock *vsk,
 				 size_t target,
-				 bool *space_available_now);
+				 bool *space_available_analw);
 
-int virtio_transport_notify_recv_init(struct vsock_sock *vsk,
-	size_t target, struct vsock_transport_recv_notify_data *data);
-int virtio_transport_notify_recv_pre_block(struct vsock_sock *vsk,
-	size_t target, struct vsock_transport_recv_notify_data *data);
-int virtio_transport_notify_recv_pre_dequeue(struct vsock_sock *vsk,
-	size_t target, struct vsock_transport_recv_notify_data *data);
-int virtio_transport_notify_recv_post_dequeue(struct vsock_sock *vsk,
+int virtio_transport_analtify_recv_init(struct vsock_sock *vsk,
+	size_t target, struct vsock_transport_recv_analtify_data *data);
+int virtio_transport_analtify_recv_pre_block(struct vsock_sock *vsk,
+	size_t target, struct vsock_transport_recv_analtify_data *data);
+int virtio_transport_analtify_recv_pre_dequeue(struct vsock_sock *vsk,
+	size_t target, struct vsock_transport_recv_analtify_data *data);
+int virtio_transport_analtify_recv_post_dequeue(struct vsock_sock *vsk,
 	size_t target, ssize_t copied, bool data_read,
-	struct vsock_transport_recv_notify_data *data);
-int virtio_transport_notify_send_init(struct vsock_sock *vsk,
-	struct vsock_transport_send_notify_data *data);
-int virtio_transport_notify_send_pre_block(struct vsock_sock *vsk,
-	struct vsock_transport_send_notify_data *data);
-int virtio_transport_notify_send_pre_enqueue(struct vsock_sock *vsk,
-	struct vsock_transport_send_notify_data *data);
-int virtio_transport_notify_send_post_enqueue(struct vsock_sock *vsk,
-	ssize_t written, struct vsock_transport_send_notify_data *data);
-void virtio_transport_notify_buffer_size(struct vsock_sock *vsk, u64 *val);
+	struct vsock_transport_recv_analtify_data *data);
+int virtio_transport_analtify_send_init(struct vsock_sock *vsk,
+	struct vsock_transport_send_analtify_data *data);
+int virtio_transport_analtify_send_pre_block(struct vsock_sock *vsk,
+	struct vsock_transport_send_analtify_data *data);
+int virtio_transport_analtify_send_pre_enqueue(struct vsock_sock *vsk,
+	struct vsock_transport_send_analtify_data *data);
+int virtio_transport_analtify_send_post_enqueue(struct vsock_sock *vsk,
+	ssize_t written, struct vsock_transport_send_analtify_data *data);
+void virtio_transport_analtify_buffer_size(struct vsock_sock *vsk, u64 *val);
 
 u64 virtio_transport_stream_rcvhiwat(struct vsock_sock *vsk);
 bool virtio_transport_stream_is_active(struct vsock_sock *vsk);
@@ -256,5 +256,5 @@ void virtio_transport_put_credit(struct virtio_vsock_sock *vvs, u32 credit);
 void virtio_transport_deliver_tap_pkt(struct sk_buff *skb);
 int virtio_transport_purge_skbs(void *vsk, struct sk_buff_head *list);
 int virtio_transport_read_skb(struct vsock_sock *vsk, skb_read_actor_t read_actor);
-int virtio_transport_notify_set_rcvlowat(struct vsock_sock *vsk, int val);
+int virtio_transport_analtify_set_rcvlowat(struct vsock_sock *vsk, int val);
 #endif /* _LINUX_VIRTIO_VSOCK_H */

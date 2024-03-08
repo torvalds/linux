@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Intel Platform Monitory Technology Telemetry driver
+ * Intel Platform Monitory Techanallogy Telemetry driver
  *
  * Copyright (c) 2020, Intel Corporation.
  * All Rights Reserved.
@@ -83,9 +83,9 @@ static int pmt_telem_header_decode(struct intel_pmt_entry *entry,
 	header->size = TELEM_SIZE(readl(disc_table));
 
 	/*
-	 * Some devices may expose non-functioning entries that are
-	 * reserved for future use. They have zero size. Do not fail
-	 * probe for these. Just ignore them.
+	 * Some devices may expose analn-functioning entries that are
+	 * reserved for future use. They have zero size. Do analt fail
+	 * probe for these. Just iganalre them.
 	 */
 	if (header->size == 0 || header->access_type == 0xF)
 		return 1;
@@ -98,10 +98,10 @@ static int pmt_telem_add_endpoint(struct intel_pmt_entry *entry,
 {
 	struct telem_endpoint *ep;
 
-	/* Endpoint lifetimes are managed by kref, not devres */
+	/* Endpoint lifetimes are managed by kref, analt devres */
 	entry->ep = kzalloc(sizeof(*(entry->ep)), GFP_KERNEL);
 	if (!entry->ep)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ep = entry->ep;
 	ep->pcidev = pdev;
@@ -143,7 +143,7 @@ unsigned long pmt_telem_get_next_endpoint(unsigned long start)
 	xa_for_each_start(&telem_array, found_idx, entry, start) {
 		/*
 		 * Return first found index after start.
-		 * 0 is not valid id.
+		 * 0 is analt valid id.
 		 */
 		if (found_idx > start)
 			break;
@@ -210,7 +210,7 @@ int pmt_telem_read(struct telem_endpoint *ep, u32 id, u64 *data, u32 count)
 	u32 offset, size;
 
 	if (!ep->present)
-		return -ENODEV;
+		return -EANALDEV;
 
 	offset = SAMPLE_ID_OFFSET(id);
 	size = ep->header.size;
@@ -229,7 +229,7 @@ int pmt_telem_read32(struct telem_endpoint *ep, u32 id, u32 *data, u32 count)
 	u32 offset, size;
 
 	if (!ep->present)
-		return -ENODEV;
+		return -EANALDEV;
 
 	offset = SAMPLE_ID_OFFSET32(id);
 	size = ep->header.size;
@@ -293,7 +293,7 @@ static int pmt_telem_probe(struct auxiliary_device *auxdev, const struct auxilia
 	size = struct_size(priv, entry, intel_vsec_dev->num_resources);
 	priv = devm_kzalloc(&auxdev->dev, size, GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	auxiliary_set_drvdata(auxdev, priv);
 

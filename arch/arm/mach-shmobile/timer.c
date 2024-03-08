@@ -14,10 +14,10 @@
 
 void __init shmobile_init_delay(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	u32 max_freq = 0;
 
-	for_each_of_cpu_node(np) {
+	for_each_of_cpu_analde(np) {
 		u32 freq;
 
 		if (!of_property_read_u32(np, "clock-frequency", &freq))

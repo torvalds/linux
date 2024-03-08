@@ -1,11 +1,11 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef __ASM_SH_CPU_FEATURES_H
 #define __ASM_SH_CPU_FEATURES_H
 
 /*
  * Processor flags
  *
- * Note: When adding a new flag, keep cpu_flags[] in
+ * Analte: When adding a new flag, keep cpu_flags[] in
  * arch/sh/kernel/setup.c in sync so symbolic name
  * mapping of the processor flags has a chance of being
  * reasonably accurate.

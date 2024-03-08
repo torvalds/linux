@@ -6,10 +6,10 @@
  * the GNU General Public License.
  *
  * Original code to handle the new style Mac partition table based on
- * a patch contributed by Holger Schemel (aeglos@valinor.owl.de).
+ * a patch contributed by Holger Schemel (aeglos@valianalr.owl.de).
  *
  * In function preconditions the term "valid" applied to a pointer to
- * a structure means that the pointer is non-NULL and the structure it
+ * a structure means that the pointer is analn-NULL and the structure it
  * points to has all fields initialized to consistent values.
  *
  */
@@ -85,7 +85,7 @@ static int hfs_parse_old_pmap(struct super_block *sb, struct old_pmap *pm,
 		}
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static int hfs_parse_new_pmap(struct super_block *sb, void *buf,
@@ -106,7 +106,7 @@ static int hfs_parse_new_pmap(struct super_block *sb, void *buf,
 		}
 
 		if (++i >= size)
-			return -ENOENT;
+			return -EANALENT;
 
 		pm = (struct new_pmap *)((u8 *)pm + HFSPLUS_SECTOR_SIZE);
 		if ((u8 *)pm - (u8 *)buf >= buf_size) {
@@ -118,7 +118,7 @@ static int hfs_parse_new_pmap(struct super_block *sb, void *buf,
 		}
 	} while (pm->pmSig == cpu_to_be16(HFS_NEW_PMAP_MAGIC));
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 /*
@@ -133,7 +133,7 @@ int hfs_part_find(struct super_block *sb,
 
 	buf = kmalloc(hfsplus_min_io_size(sb), GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res = hfsplus_submit_bio(sb, *part_start + HFS_PMAP_BLK,
 				 buf, &data, REQ_OP_READ);
@@ -148,7 +148,7 @@ int hfs_part_find(struct super_block *sb,
 		res = hfs_parse_new_pmap(sb, buf, data, part_start, part_size);
 		break;
 	default:
-		res = -ENOENT;
+		res = -EANALENT;
 		break;
 	}
 out:

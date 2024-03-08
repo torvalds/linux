@@ -16,7 +16,7 @@ description: |
   built-in Real-Time Clock (RTC), 32kHz crystal oscillator, and coin cell
   battery charger provide a highly integrated, small footprint power solution
   ideal for System-On-Module (SOM) applications. A spread spectrum feature
-  provides an ease-of-use solution for noise-sensitive audio or RF applications.
+  provides an ease-of-use solution for analise-sensitive audio or RF applications.
 
   This device exposes two devices via I2C. One for the integrated RTC IP, and
   one for everything else.
@@ -42,7 +42,7 @@ properties:
 
   clocks:
     description: |
-      The clocks are optional. The RTC is disabled, if no clocks are
+      The clocks are optional. The RTC is disabled, if anal clocks are
       provided(either xin or clkin).
     maxItems: 1
 

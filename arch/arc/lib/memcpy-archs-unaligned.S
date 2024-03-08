@@ -2,8 +2,8 @@
 /*
  * ARCv2 memcpy implementation optimized for unaligned memory access using.
  *
- * Copyright (C) 2019 Synopsys
- * Author: Eugeniy Paltsev <Eugeniy.Paltsev@synopsys.com>
+ * Copyright (C) 2019 Syanalpsys
+ * Author: Eugeniy Paltsev <Eugeniy.Paltsev@syanalpsys.com>
  */
 
 #include <linux/linkage.h>

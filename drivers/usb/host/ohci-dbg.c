@@ -31,7 +31,7 @@
 	} while (0);
 
 /* Version for use where "next" is the address of a local variable */
-#define ohci_dbg_nosw(ohci, next, size, format, arg...) \
+#define ohci_dbg_analsw(ohci, next, size, format, arg...) \
 	do { \
 		unsigned s_len; \
 		s_len = scnprintf(*next, *size, format, ## arg); \
@@ -52,7 +52,7 @@ static void ohci_dump_intr_mask (
 		(mask & OHCI_INTR_MIE) ? " MIE" : "",
 		(mask & OHCI_INTR_OC) ? " OC" : "",
 		(mask & OHCI_INTR_RHSC) ? " RHSC" : "",
-		(mask & OHCI_INTR_FNO) ? " FNO" : "",
+		(mask & OHCI_INTR_FANAL) ? " FANAL" : "",
 		(mask & OHCI_INTR_UE) ? " UE" : "",
 		(mask & OHCI_INTR_RD) ? " RD" : "",
 		(mask & OHCI_INTR_SF) ? " SF" : "",
@@ -107,7 +107,7 @@ ohci_dump_status (struct ohci_hcd *controller, char **next, unsigned *size)
 	ohci_dbg_sw (controller, next, size,
 		"OHCI %d.%d, %s legacy support registers, rh state %s\n",
 		0x03 & (temp >> 4), (temp & 0x0f),
-		(temp & 0x0100) ? "with" : "NO",
+		(temp & 0x0100) ? "with" : "ANAL",
 		rh_state_string(controller));
 
 	temp = ohci_readl (controller, &regs->control);
@@ -204,7 +204,7 @@ ohci_dump_roothub (
 		ohci_dbg_sw (controller, next, size,
 			"roothub.a %08x POTPGT=%d%s%s%s%s%s NDP=%d(%d)\n", temp,
 			((temp & RH_A_POTPGT) >> 24) & 0xff,
-			(temp & RH_A_NOCP) ? " NOCP" : "",
+			(temp & RH_A_ANALCP) ? " ANALCP" : "",
 			(temp & RH_A_OCPM) ? " OCPM" : "",
 			(temp & RH_A_DT) ? " DT" : "",
 			(temp & RH_A_NPS) ? " NPS" : "",
@@ -241,11 +241,11 @@ static void ohci_dump(struct ohci_hcd *controller)
 {
 	ohci_dbg (controller, "OHCI controller state\n");
 
-	// dumps some of the state we know about
+	// dumps some of the state we kanalw about
 	ohci_dump_status (controller, NULL, NULL);
 	if (controller->hcca)
 		ohci_dbg (controller,
-			"hcca frame #%04x\n", ohci_frame_no(controller));
+			"hcca frame #%04x\n", ohci_frame_anal(controller));
 	ohci_dump_roothub (controller, 1, NULL, NULL);
 }
 
@@ -340,7 +340,7 @@ ohci_dump_ed (const struct ohci_hcd *ohci, const char *label,
 		(tmp & ED_C) ? data1 : data0,
 		(tmp & ED_H) ? " HALT" : "",
 		hc32_to_cpup (ohci, &ed->hwTailP),
-		verbose ? "" : " (not listing)");
+		verbose ? "" : " (analt listing)");
 	if (verbose) {
 		struct list_head	*tmp;
 
@@ -357,12 +357,12 @@ ohci_dump_ed (const struct ohci_hcd *ohci, const char *label,
 
 /*-------------------------------------------------------------------------*/
 
-static int debug_async_open(struct inode *, struct file *);
-static int debug_periodic_open(struct inode *, struct file *);
-static int debug_registers_open(struct inode *, struct file *);
-static int debug_async_open(struct inode *, struct file *);
+static int debug_async_open(struct ianalde *, struct file *);
+static int debug_periodic_open(struct ianalde *, struct file *);
+static int debug_registers_open(struct ianalde *, struct file *);
+static int debug_async_open(struct ianalde *, struct file *);
 static ssize_t debug_output(struct file*, char __user*, size_t, loff_t*);
-static int debug_close(struct inode *, struct file *);
+static int debug_close(struct ianalde *, struct file *);
 
 static const struct file_operations debug_async_fops = {
 	.owner		= THIS_MODULE,
@@ -532,7 +532,7 @@ static ssize_t fill_periodic_buffer(struct debug_buffer *buf)
 				struct list_head	*entry;
 				unsigned		qlen = 0;
 
-				/* qlen measured here in TDs, not urbs */
+				/* qlen measured here in TDs, analt urbs */
 				list_for_each (entry, &ed->td_list)
 					qlen++;
 
@@ -598,7 +598,7 @@ static ssize_t fill_registers_buffer(struct debug_buffer *buf)
 
 	/* dump driver info, then registers in spec order */
 
-	ohci_dbg_nosw(ohci, &next, &size,
+	ohci_dbg_analsw(ohci, &next, &size,
 		"bus %s, device %s\n"
 		"%s\n"
 		"%s\n",
@@ -609,7 +609,7 @@ static ssize_t fill_registers_buffer(struct debug_buffer *buf)
 
 	if (!HCD_HW_ACCESSIBLE(hcd)) {
 		size -= scnprintf (next, size,
-			"SUSPENDED (no register access)\n");
+			"SUSPENDED (anal register access)\n");
 		goto done;
 	}
 
@@ -617,8 +617,8 @@ static ssize_t fill_registers_buffer(struct debug_buffer *buf)
 
 	/* hcca */
 	if (ohci->hcca)
-		ohci_dbg_nosw(ohci, &next, &size,
-			"hcca frame 0x%04x\n", ohci_frame_no(ohci));
+		ohci_dbg_analsw(ohci, &next, &size,
+			"hcca frame 0x%04x\n", ohci_frame_anal(ohci));
 
 	/* other registers mostly affect frame timings */
 	rdata = ohci_readl (ohci, &regs->fminterval);
@@ -686,7 +686,7 @@ static int fill_buffer(struct debug_buffer *buf)
 		buf->page = (char *)get_zeroed_page(GFP_KERNEL);
 
 	if (!buf->page) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -725,7 +725,7 @@ out:
 
 }
 
-static int debug_close(struct inode *inode, struct file *file)
+static int debug_close(struct ianalde *ianalde, struct file *file)
 {
 	struct debug_buffer *buf = file->private_data;
 
@@ -737,27 +737,27 @@ static int debug_close(struct inode *inode, struct file *file)
 
 	return 0;
 }
-static int debug_async_open(struct inode *inode, struct file *file)
+static int debug_async_open(struct ianalde *ianalde, struct file *file)
 {
-	file->private_data = alloc_buffer(inode->i_private, fill_async_buffer);
+	file->private_data = alloc_buffer(ianalde->i_private, fill_async_buffer);
 
-	return file->private_data ? 0 : -ENOMEM;
+	return file->private_data ? 0 : -EANALMEM;
 }
 
-static int debug_periodic_open(struct inode *inode, struct file *file)
+static int debug_periodic_open(struct ianalde *ianalde, struct file *file)
 {
-	file->private_data = alloc_buffer(inode->i_private,
+	file->private_data = alloc_buffer(ianalde->i_private,
 					  fill_periodic_buffer);
 
-	return file->private_data ? 0 : -ENOMEM;
+	return file->private_data ? 0 : -EANALMEM;
 }
 
-static int debug_registers_open(struct inode *inode, struct file *file)
+static int debug_registers_open(struct ianalde *ianalde, struct file *file)
 {
-	file->private_data = alloc_buffer(inode->i_private,
+	file->private_data = alloc_buffer(ianalde->i_private,
 					  fill_registers_buffer);
 
-	return file->private_data ? 0 : -ENOMEM;
+	return file->private_data ? 0 : -EANALMEM;
 }
 static inline void create_debug_files (struct ohci_hcd *ohci)
 {

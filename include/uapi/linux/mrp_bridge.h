@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 
 #ifndef _UAPI_LINUX_MRP_BRIDGE_H_
 #define _UAPI_LINUX_MRP_BRIDGE_H_
@@ -41,7 +41,7 @@ enum br_mrp_port_state_type {
 	BR_MRP_PORT_STATE_DISABLED,
 	BR_MRP_PORT_STATE_BLOCKED,
 	BR_MRP_PORT_STATE_FORWARDING,
-	BR_MRP_PORT_STATE_NOT_CONNECTED,
+	BR_MRP_PORT_STATE_ANALT_CONNECTED,
 };
 
 enum br_mrp_port_role_type {

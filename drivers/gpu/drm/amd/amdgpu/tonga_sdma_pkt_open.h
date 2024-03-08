@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included
+ * The above copyright analtice and this permission analtice shall be included
  * in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
@@ -23,7 +23,7 @@
 #ifndef __TONGA_SDMA_PKT_OPEN_H_
 #define __TONGA_SDMA_PKT_OPEN_H_
 
-#define SDMA_OP_NOP  0
+#define SDMA_OP_ANALP  0
 #define SDMA_OP_COPY  1
 #define SDMA_OP_WRITE  2
 #define SDMA_OP_INDIRECT  4
@@ -2220,26 +2220,26 @@
 
 
 /*
-** Definitions for SDMA_PKT_NOP packet
+** Definitions for SDMA_PKT_ANALP packet
 */
 
 /*define for HEADER word*/
 /*define for op field*/
-#define SDMA_PKT_NOP_HEADER_op_offset 0
-#define SDMA_PKT_NOP_HEADER_op_mask   0x000000FF
-#define SDMA_PKT_NOP_HEADER_op_shift  0
-#define SDMA_PKT_NOP_HEADER_OP(x) (((x) & SDMA_PKT_NOP_HEADER_op_mask) << SDMA_PKT_NOP_HEADER_op_shift)
+#define SDMA_PKT_ANALP_HEADER_op_offset 0
+#define SDMA_PKT_ANALP_HEADER_op_mask   0x000000FF
+#define SDMA_PKT_ANALP_HEADER_op_shift  0
+#define SDMA_PKT_ANALP_HEADER_OP(x) (((x) & SDMA_PKT_ANALP_HEADER_op_mask) << SDMA_PKT_ANALP_HEADER_op_shift)
 
 /*define for sub_op field*/
-#define SDMA_PKT_NOP_HEADER_sub_op_offset 0
-#define SDMA_PKT_NOP_HEADER_sub_op_mask   0x000000FF
-#define SDMA_PKT_NOP_HEADER_sub_op_shift  8
-#define SDMA_PKT_NOP_HEADER_SUB_OP(x) (((x) & SDMA_PKT_NOP_HEADER_sub_op_mask) << SDMA_PKT_NOP_HEADER_sub_op_shift)
+#define SDMA_PKT_ANALP_HEADER_sub_op_offset 0
+#define SDMA_PKT_ANALP_HEADER_sub_op_mask   0x000000FF
+#define SDMA_PKT_ANALP_HEADER_sub_op_shift  8
+#define SDMA_PKT_ANALP_HEADER_SUB_OP(x) (((x) & SDMA_PKT_ANALP_HEADER_sub_op_mask) << SDMA_PKT_ANALP_HEADER_sub_op_shift)
 
 /*define for count field*/
-#define SDMA_PKT_NOP_HEADER_count_offset 0
-#define SDMA_PKT_NOP_HEADER_count_mask   0x00003FFF
-#define SDMA_PKT_NOP_HEADER_count_shift  16
-#define SDMA_PKT_NOP_HEADER_COUNT(x) (((x) & SDMA_PKT_NOP_HEADER_count_mask) << SDMA_PKT_NOP_HEADER_count_shift)
+#define SDMA_PKT_ANALP_HEADER_count_offset 0
+#define SDMA_PKT_ANALP_HEADER_count_mask   0x00003FFF
+#define SDMA_PKT_ANALP_HEADER_count_shift  16
+#define SDMA_PKT_ANALP_HEADER_COUNT(x) (((x) & SDMA_PKT_ANALP_HEADER_count_mask) << SDMA_PKT_ANALP_HEADER_count_shift)
 
 #endif /* __TONGA_SDMA_PKT_OPEN_H_ */

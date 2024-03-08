@@ -45,7 +45,7 @@
 	};
 
 	hsusb1_phy: hsusb1_phy {
-		compatible = "usb-nop-xceiv";
+		compatible = "usb-analp-xceiv";
 		vcc-supply = <&reg_vcc3>;
 		#phy-cells = <0>;
 	};
@@ -362,11 +362,11 @@
 		compatible = "ti,omap2-nand";
 		reg = <0 0 4>; /* CS0, offset 0, IO size 4 */
 		interrupt-parent = <&gpmc>;
-		interrupts = <0 IRQ_TYPE_NONE>, /* fifoevent */
-			     <1 IRQ_TYPE_NONE>;	/* termcount */
+		interrupts = <0 IRQ_TYPE_ANALNE>, /* fifoevent */
+			     <1 IRQ_TYPE_ANALNE>;	/* termcount */
 		nand-bus-width = <16>;
 		ti,nand-ecc-opt = "bch8";
-		/* no elm on omap3 */
+		/* anal elm on omap3 */
 
 		gpmc,mux-add-data = <0>;
 		gpmc,device-width = <2>;

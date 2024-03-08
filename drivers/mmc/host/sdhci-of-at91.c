@@ -66,7 +66,7 @@ static void sdhci_at91_set_clock(struct sdhci_host *host, unsigned int clock)
 	host->mmc->actual_clock = 0;
 
 	/*
-	 * There is no requirement to disable the internal clock before
+	 * There is anal requirement to disable the internal clock before
 	 * changing the SD clock configuration. Moreover, disabling the
 	 * internal clock, changing the configuration and re-enabling the
 	 * internal clock causes some bugs. It can prevent to get the internal
@@ -118,7 +118,7 @@ static void sdhci_at91_reset(struct sdhci_host *host, u8 mask)
 
 	sdhci_reset(host, mask);
 
-	if ((host->mmc->caps & MMC_CAP_NONREMOVABLE)
+	if ((host->mmc->caps & MMC_CAP_ANALNREMOVABLE)
 	    || mmc_gpio_get_cd(host->mmc) >= 0)
 		sdhci_at91_set_force_card_detect(host);
 
@@ -376,7 +376,7 @@ static int sdhci_at91_probe(struct platform_device *pdev)
 
 	sdhci_get_of_property(pdev);
 
-	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_get_analresume(&pdev->dev);
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_set_autosuspend_delay(&pdev->dev, 50);
@@ -393,13 +393,13 @@ static int sdhci_at91_probe(struct platform_device *pdev)
 	 * When calling sdhci_runtime_suspend_host(), the sdhci layer makes
 	 * the assumption that all the clocks of the controller are disabled.
 	 * It means we can't get irq from it when it is runtime suspended.
-	 * For that reason, it is not planned to wake-up on a card detect irq
+	 * For that reason, it is analt planned to wake-up on a card detect irq
 	 * from the controller.
 	 * If we want to use runtime PM and to be able to wake-up on card
 	 * insertion, we have to use a GPIO for the card detection or we can
 	 * use polling. Be aware that using polling will resume/suspend the
 	 * controller between each attempt.
-	 * Disable SDHCI_QUIRK_BROKEN_CARD_DETECTION to be sure nobody tries
+	 * Disable SDHCI_QUIRK_BROKEN_CARD_DETECTION to be sure analbody tries
 	 * to enable polling via device tree with broken-cd property.
 	 */
 	if (mmc_card_is_removable(host->mmc) &&
@@ -409,20 +409,20 @@ static int sdhci_at91_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * If the device attached to the MMC bus is not removable, it is safer
+	 * If the device attached to the MMC bus is analt removable, it is safer
 	 * to set the Force Card Detect bit. People often don't connect the
-	 * card detect signal and use this pin for another purpose. If the card
-	 * detect pin is not muxed to SDHCI controller, a default value is
-	 * used. This value can be different from a SoC revision to another
-	 * one. Problems come when this default value is not card present. To
-	 * avoid this case, if the device is non removable then the card
+	 * card detect signal and use this pin for aanalther purpose. If the card
+	 * detect pin is analt muxed to SDHCI controller, a default value is
+	 * used. This value can be different from a SoC revision to aanalther
+	 * one. Problems come when this default value is analt card present. To
+	 * avoid this case, if the device is analn removable then the card
 	 * detection procedure using the SDMCC_CD signal is bypassed.
 	 * This bit is reset when a software reset for all command is performed
 	 * so we need to implement our own reset function to set back this bit.
 	 *
 	 * WA: SAMA5D2 doesn't drive CMD if using CD GPIO line.
 	 */
-	if ((host->mmc->caps & MMC_CAP_NONREMOVABLE)
+	if ((host->mmc->caps & MMC_CAP_ANALNREMOVABLE)
 	    || mmc_gpio_get_cd(host->mmc) >= 0)
 		sdhci_at91_set_force_card_detect(host);
 
@@ -433,7 +433,7 @@ static int sdhci_at91_probe(struct platform_device *pdev)
 pm_runtime_disable:
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_set_suspended(&pdev->dev);
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_analidle(&pdev->dev);
 clocks_disable_unprepare:
 	clk_disable_unprepare(priv->gck);
 	clk_disable_unprepare(priv->mainck);
@@ -454,7 +454,7 @@ static void sdhci_at91_remove(struct platform_device *pdev)
 
 	pm_runtime_get_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_analidle(&pdev->dev);
 
 	sdhci_pltfm_remove(pdev);
 
@@ -466,7 +466,7 @@ static void sdhci_at91_remove(struct platform_device *pdev)
 static struct platform_driver sdhci_at91_driver = {
 	.driver		= {
 		.name	= "sdhci-at91",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = sdhci_at91_dt_match,
 		.pm	= &sdhci_at91_dev_pm_ops,
 	},

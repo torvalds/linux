@@ -7,7 +7,7 @@
 
 /************************************
  ** This is an auto-generated file **
- **       DO NOT EDIT BELOW        **
+ **       DO ANALT EDIT BELOW        **
  ************************************/
 
 #ifndef ASIC_REG_DCORE0_SYNC_MNGR_MSTR_IF_AXUSER_REGS_H_
@@ -26,7 +26,7 @@
 
 #define mmDCORE0_SYNC_MNGR_MSTR_IF_AXUSER_HB_STRONG_ORDER 0x411FA88
 
-#define mmDCORE0_SYNC_MNGR_MSTR_IF_AXUSER_HB_NO_SNOOP 0x411FA8C
+#define mmDCORE0_SYNC_MNGR_MSTR_IF_AXUSER_HB_ANAL_SANALOP 0x411FA8C
 
 #define mmDCORE0_SYNC_MNGR_MSTR_IF_AXUSER_HB_WR_REDUCTION 0x411FA90
 

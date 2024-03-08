@@ -22,7 +22,7 @@ static int pm6764tr_read_word_data(struct i2c_client *client, int page, int phas
 		ret = pmbus_read_word_data(client, page, phase, PM6764TR_PMBUS_READ_VOUT);
 		break;
 	default:
-		ret = -ENODATA;
+		ret = -EANALDATA;
 		break;
 	}
 	return ret;

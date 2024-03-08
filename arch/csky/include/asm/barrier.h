@@ -5,7 +5,7 @@
 
 #ifndef __ASSEMBLY__
 
-#define nop()	asm volatile ("nop\n":::"memory")
+#define analp()	asm volatile ("analp\n":::"memory")
 
 #ifdef CONFIG_SMP
 

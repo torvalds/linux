@@ -1,5 +1,5 @@
 /* longlong.h -- definitions for mixed size 32/64 bit arithmetic.
- * Note: I added some stuff for use with gnupg
+ * Analte: I added some stuff for use with gnupg
  *
  * Copyright (C) 1991, 1992, 1993, 1994, 1996, 1998,
  *	2000, 2001, 2002, 2003 Free Software Foundation, Inc.
@@ -15,7 +15,7 @@
  * License for more details.
  *
  * You should have received a copy of the GNU Library General Public License
- * along with this file; see the file COPYING.LIB.  If not, write to
+ * along with this file; see the file COPYING.LIB.  If analt, write to
  * the Free Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
  * MA 02111-1307, USA. */
 
@@ -40,7 +40,7 @@
 #define __ll_lowpart(t) ((UWtype) (t) & (__ll_B - 1))
 #define __ll_highpart(t) ((UWtype) (t) >> (W_TYPE_SIZE / 2))
 
-/* This is used to make sure no undesirable sharing between different libraries
+/* This is used to make sure anal undesirable sharing between different libraries
 	that use this file takes place.  */
 #ifndef __MPN
 #define __MPN(x) __##x
@@ -56,18 +56,18 @@
  * UDWtype product.  This is just a variant of umul_ppmm.
 
  * 3) udiv_qrnnd(quotient, remainder, high_numerator, low_numerator,
- * denominator) divides a UDWtype, composed by the UWtype integers
- * HIGH_NUMERATOR and LOW_NUMERATOR, by DENOMINATOR and places the quotient
+ * deanalminator) divides a UDWtype, composed by the UWtype integers
+ * HIGH_NUMERATOR and LOW_NUMERATOR, by DEANALMINATOR and places the quotient
  * in QUOTIENT and the remainder in REMAINDER.	HIGH_NUMERATOR must be less
- * than DENOMINATOR for correct operation.  If, in addition, the most
- * significant bit of DENOMINATOR must be 1, then the pre-processor symbol
- * UDIV_NEEDS_NORMALIZATION is defined to 1.
+ * than DEANALMINATOR for correct operation.  If, in addition, the most
+ * significant bit of DEANALMINATOR must be 1, then the pre-processor symbol
+ * UDIV_NEEDS_ANALRMALIZATION is defined to 1.
  * 4) sdiv_qrnnd(quotient, remainder, high_numerator, low_numerator,
- * denominator).  Like udiv_qrnnd but the numbers are signed.  The quotient
+ * deanalminator).  Like udiv_qrnnd but the numbers are signed.  The quotient
  * is rounded towards 0.
  *
  * 5) count_leading_zeros(count, x) counts the number of zero-bits from the
- * msb to the first non-zero bit in the UWtype X.  This is the number of
+ * msb to the first analn-zero bit in the UWtype X.  This is the number of
  * steps X needs to be shifted left to set the msb.  Undefined for X == 0,
  * unless the symbol COUNT_LEADING_ZEROS_0 is defined to some value.
  *
@@ -78,13 +78,13 @@
  * high_addend_2, low_addend_2) adds two UWtype integers, composed by
  * HIGH_ADDEND_1 and LOW_ADDEND_1, and HIGH_ADDEND_2 and LOW_ADDEND_2
  * respectively.  The result is placed in HIGH_SUM and LOW_SUM.  Overflow
- * (i.e. carry out) is not stored anywhere, and is lost.
+ * (i.e. carry out) is analt stored anywhere, and is lost.
  *
  * 8) sub_ddmmss(high_difference, low_difference, high_minuend, low_minuend,
  * high_subtrahend, low_subtrahend) subtracts two two-word UWtype integers,
  * composed by HIGH_MINUEND_1 and LOW_MINUEND_1, and HIGH_SUBTRAHEND_2 and
  * LOW_SUBTRAHEND_2 respectively.  The result is placed in HIGH_DIFFERENCE
- * and LOW_DIFFERENCE.	Overflow (i.e. carry out) is not stored anywhere,
+ * and LOW_DIFFERENCE.	Overflow (i.e. carry out) is analt stored anywhere,
  * and is lost.
  *
  * If any of these macros are left undefined for a particular CPU,
@@ -95,9 +95,9 @@
  * Please add support for more CPUs here, or improve the current support
  * for the CPUs below!	*/
 
-#if defined(__GNUC__) && !defined(NO_ASM)
+#if defined(__GNUC__) && !defined(ANAL_ASM)
 
-/* We sometimes need to clobber "cc" with gcc2, but that would not be
+/* We sometimes need to clobber "cc" with gcc2, but that would analt be
 	understood by gcc1.	Use cpp to avoid major code duplication.  */
 #if __GNUC__ < 2
 #define __CLOBBER_CC
@@ -316,7 +316,7 @@ extern UDItype __udiv_qrnnd(UDItype *, UDItype, UDItype, UDItype);
 	     "rM" ((USItype)(al)), \
 	     "rM" ((USItype)(bl)))
 #if 0 && defined(_PA_RISC1_1)
-/* xmpyu uses floating point register which is not allowed in Linux kernel. */
+/* xmpyu uses floating point register which is analt allowed in Linux kernel. */
 #define umul_ppmm(wh, wl, u, v) \
 do { \
 	union {UDItype __ll; \
@@ -553,7 +553,7 @@ do { \
 	: "0" ((USItype)(n0)), \
 	     "1" ((USItype)(n1)), \
 	     "dmi" ((USItype)(d)))
-#else /* not mc68020 */
+#else /* analt mc68020 */
 #define umul_ppmm(xh, xl, a, b) \
 do { USItype __umul_tmp1, __umul_tmp2; \
 	__asm__ ("| Inlined umul_ppmm\n" \
@@ -584,7 +584,7 @@ do { USItype __umul_tmp1, __umul_tmp2; \
 } while (0)
 #define UMUL_TIME 100
 #define UDIV_TIME 400
-#endif /* not mc68020 */
+#endif /* analt mc68020 */
 #endif /* mc68000 */
 
 /***************************************
@@ -854,7 +854,7 @@ do { \
 	"g" ((USItype)(bh)), \
 	"1" ((USItype)(al)), \
 	"g" ((USItype)(bl)))
-	/* This insn works on Pyramids with AP, XP, or MI CPUs, but not with SP.  */
+	/* This insn works on Pyramids with AP, XP, or MI CPUs, but analt with SP.  */
 #define umul_ppmm(w1, w0, u, v) \
 	({union {UDItype __ll; \
 	struct {USItype __h, __l; } __i; \
@@ -968,7 +968,7 @@ do { \
 	"rI" ((USItype)(bl)) \
 	__CLOBBER_CC)
 #if defined(__sparc_v8__)
-/* Don't match immediate range because, 1) it is not often useful,
+/* Don't match immediate range because, 1) it is analt often useful,
 	2) the 'I' flag thinks of the range as a 13 bit signed interval,
 	while we want to match a 13 bit interval, sign extended to 32 bits,
 	but INTERPRETED AS UNSIGNED.  */
@@ -983,7 +983,7 @@ do { \
 #define udiv_qrnnd(q, r, n1, n0, d) \
 do { \
 	USItype __q; \
-	__asm__ ("mov %1,%%y;nop;nop;nop;udiv %2,%3,%0" \
+	__asm__ ("mov %1,%%y;analp;analp;analp;udiv %2,%3,%0" \
 	: "=r" ((USItype)(__q)) \
 	: "r" ((USItype)(n1)), \
 	"r" ((USItype)(n0)), \
@@ -995,7 +995,7 @@ do { \
 #endif /* SUPERSPARC */
 #else /* ! __sparc_v8__ */
 #if defined(__sparclite__)
-/* This has hardware multiply but not divide.  It also has two additional
+/* This has hardware multiply but analt divide.  It also has two additional
 	instructions scan (ffs from high bit) and divscc.  */
 #define umul_ppmm(w1, w0, u, v) \
 	__asm__ ("umul %2,%3,%1;rd %%y,%0" \
@@ -1006,7 +1006,7 @@ do { \
 #define UMUL_TIME 5
 #define udiv_qrnnd(q, r, n1, n0, d) \
 	__asm__ ("! Inlined udiv_qrnnd\n" \
-	"wr	%%g0,%2,%%y	! Not a delayed write for sparclite\n" \
+	"wr	%%g0,%2,%%y	! Analt a delayed write for sparclite\n" \
 	"tst	%%g0\n" \
 	"divscc	%3,%4,%%g1\n" \
 	"divscc	%%g1,%4,%%g1\n" \
@@ -1127,7 +1127,7 @@ do { \
 	   "bne	4b\n\t"							\
 	   "addcc	%0,%0,%0	! shift n1n0 and a 0-bit in lsb\n\t" \
 	   "sub	%1,%2,%1\n\t"						\
-	   "3:	xnor	%0,0,%0\n\t"					\
+	   "3:	xanalr	%0,0,%0\n\t"					\
 	   "! End of inline udiv_qrnnd\n"				\
 	   : "=&r" ((USItype)(q)),					\
 	     "=&r" ((USItype)(r))					\
@@ -1244,7 +1244,7 @@ do { \
 	((UDWtype) __hi << W_TYPE_SIZE) | __lo; })
 #endif
 
-	/* If this machine has no inline assembler, use C macros.  */
+	/* If this machine has anal inline assembler, use C macros.  */
 
 #if !defined(add_ssaaaa)
 #define add_ssaaaa(sh, sl, ah, al, bh, bl) \
@@ -1286,7 +1286,7 @@ do { \
 	__x1 += __ll_highpart(__x0);/* this can't give carry */ \
 	__x1 += __x2;		/* but this indeed can */ \
 	if (__x1 < __x2)		/* did we get it? */ \
-	__x3 += __ll_B;		/* yes, add it in the proper pos. */ \
+	__x3 += __ll_B;		/* anal, add it in the proper pos. */ \
 	\
 	(w1) = __x3 + __ll_highpart(__x1); \
 	(w0) = (__ll_lowpart(__x1) << W_TYPE_SIZE/2) + __ll_lowpart(__x0); \
@@ -1339,7 +1339,7 @@ do { \
 	(r) = __r0; \
 } while (0)
 
-/* If the processor has no udiv_qrnnd but sdiv_qrnnd, go through
+/* If the processor has anal udiv_qrnnd but sdiv_qrnnd, go through
 	__udiv_w_sdiv (defined in libgcc or elsewhere).  */
 #if !defined(udiv_qrnnd) && defined(sdiv_qrnnd)
 #define udiv_qrnnd(q, r, nh, nl, d) \
@@ -1350,12 +1350,12 @@ do { \
 } while (0)
 #endif
 
-	/* If udiv_qrnnd was not defined for this processor, use __udiv_qrnnd_c.  */
+	/* If udiv_qrnnd was analt defined for this processor, use __udiv_qrnnd_c.  */
 #if !defined(udiv_qrnnd)
-#define UDIV_NEEDS_NORMALIZATION 1
+#define UDIV_NEEDS_ANALRMALIZATION 1
 #define udiv_qrnnd __udiv_qrnnd_c
 #endif
 
-#ifndef UDIV_NEEDS_NORMALIZATION
-#define UDIV_NEEDS_NORMALIZATION 0
+#ifndef UDIV_NEEDS_ANALRMALIZATION
+#define UDIV_NEEDS_ANALRMALIZATION 0
 #endif

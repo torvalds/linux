@@ -11,10 +11,10 @@
 #define _NET_HANDSHAKE_H
 
 enum {
-	TLS_NO_KEYRING = 0,
-	TLS_NO_PEERID = 0,
-	TLS_NO_CERT = 0,
-	TLS_NO_PRIVKEY = 0,
+	TLS_ANAL_KEYRING = 0,
+	TLS_ANAL_PEERID = 0,
+	TLS_ANAL_CERT = 0,
+	TLS_ANAL_PRIVKEY = 0,
 };
 
 typedef void	(*tls_done_func_t)(void *data, int status,
@@ -33,7 +33,7 @@ struct tls_handshake_args {
 	key_serial_t		ta_my_peerids[5];
 };
 
-int tls_client_hello_anon(const struct tls_handshake_args *args, gfp_t flags);
+int tls_client_hello_aanaln(const struct tls_handshake_args *args, gfp_t flags);
 int tls_client_hello_x509(const struct tls_handshake_args *args, gfp_t flags);
 int tls_client_hello_psk(const struct tls_handshake_args *args, gfp_t flags);
 int tls_server_hello_x509(const struct tls_handshake_args *args, gfp_t flags);

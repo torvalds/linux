@@ -99,7 +99,7 @@ static int ssp_accel_probe(struct platform_device *pdev)
 
 	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*spd));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spd = iio_priv(indio_dev);
 

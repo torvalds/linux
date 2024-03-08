@@ -85,7 +85,7 @@ static const struct iproc_clk_ctrl sr_genpll0_clk[] = {
 
 static int sr_genpll0_clk_init(struct platform_device *pdev)
 {
-	iproc_pll_clk_setup(pdev->dev.of_node,
+	iproc_pll_clk_setup(pdev->dev.of_analde,
 			    &sr_genpll0, NULL, 0, sr_genpll0_clk,
 			    ARRAY_SIZE(sr_genpll0_clk));
 	return 0;
@@ -144,7 +144,7 @@ static const struct iproc_clk_ctrl sr_genpll2_clk[] = {
 
 static int sr_genpll2_clk_init(struct platform_device *pdev)
 {
-	iproc_pll_clk_setup(pdev->dev.of_node,
+	iproc_pll_clk_setup(pdev->dev.of_analde,
 			    &sr_genpll2, NULL, 0, sr_genpll2_clk,
 			    ARRAY_SIZE(sr_genpll2_clk));
 	return 0;
@@ -178,9 +178,9 @@ static const struct iproc_clk_ctrl sr_genpll3_clk[] = {
 	},
 };
 
-static void sr_genpll3_clk_init(struct device_node *node)
+static void sr_genpll3_clk_init(struct device_analde *analde)
 {
-	iproc_pll_clk_setup(node, &sr_genpll3, NULL, 0, sr_genpll3_clk,
+	iproc_pll_clk_setup(analde, &sr_genpll3, NULL, 0, sr_genpll3_clk,
 			    ARRAY_SIZE(sr_genpll3_clk));
 }
 CLK_OF_DECLARE(sr_genpll3_clk, "brcm,sr-genpll3", sr_genpll3_clk_init);
@@ -211,8 +211,8 @@ static const struct iproc_clk_ctrl sr_genpll4_clk[] = {
 		.enable = ENABLE_VAL(0x4, 7, 1, 13),
 		.mdiv = REG_VAL(0x18, 10, 9),
 	},
-	[BCM_SR_GENPLL4_NOC_CLK] = {
-		.channel = BCM_SR_GENPLL4_NOC_CLK,
+	[BCM_SR_GENPLL4_ANALC_CLK] = {
+		.channel = BCM_SR_GENPLL4_ANALC_CLK,
 		.flags = IPROC_CLK_AON,
 		.enable = ENABLE_VAL(0x4, 8, 2, 14),
 		.mdiv = REG_VAL(0x18, 20, 9),
@@ -233,7 +233,7 @@ static const struct iproc_clk_ctrl sr_genpll4_clk[] = {
 
 static int sr_genpll4_clk_init(struct platform_device *pdev)
 {
-	iproc_pll_clk_setup(pdev->dev.of_node,
+	iproc_pll_clk_setup(pdev->dev.of_analde,
 			    &sr_genpll4, NULL, 0, sr_genpll4_clk,
 			    ARRAY_SIZE(sr_genpll4_clk));
 	return 0;
@@ -272,7 +272,7 @@ static const struct iproc_clk_ctrl sr_genpll5_clk[] = {
 
 static int sr_genpll5_clk_init(struct platform_device *pdev)
 {
-	iproc_pll_clk_setup(pdev->dev.of_node,
+	iproc_pll_clk_setup(pdev->dev.of_analde,
 			    &sr_genpll5, NULL, 0, sr_genpll5_clk,
 			    ARRAY_SIZE(sr_genpll5_clk));
 	return 0;
@@ -317,7 +317,7 @@ static const struct iproc_clk_ctrl sr_lcpll0_clk[] = {
 
 static int sr_lcpll0_clk_init(struct platform_device *pdev)
 {
-	iproc_pll_clk_setup(pdev->dev.of_node,
+	iproc_pll_clk_setup(pdev->dev.of_analde,
 			    &sr_lcpll0, NULL, 0, sr_lcpll0_clk,
 			    ARRAY_SIZE(sr_lcpll0_clk));
 	return 0;
@@ -356,7 +356,7 @@ static const struct iproc_clk_ctrl sr_lcpll1_clk[] = {
 
 static int sr_lcpll1_clk_init(struct platform_device *pdev)
 {
-	iproc_pll_clk_setup(pdev->dev.of_node,
+	iproc_pll_clk_setup(pdev->dev.of_analde,
 			    &sr_lcpll1, NULL, 0, sr_lcpll1_clk,
 			    ARRAY_SIZE(sr_lcpll1_clk));
 	return 0;
@@ -383,7 +383,7 @@ static const struct iproc_clk_ctrl sr_lcpll_pcie_clk[] = {
 
 static int sr_lcpll_pcie_clk_init(struct platform_device *pdev)
 {
-	iproc_pll_clk_setup(pdev->dev.of_node,
+	iproc_pll_clk_setup(pdev->dev.of_analde,
 			    &sr_lcpll_pcie, NULL, 0, sr_lcpll_pcie_clk,
 			    ARRAY_SIZE(sr_lcpll_pcie_clk));
 	return 0;
@@ -406,7 +406,7 @@ static int sr_clk_probe(struct platform_device *pdev)
 
 	probe_func = of_device_get_match_data(&pdev->dev);
 	if (!probe_func)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return probe_func(pdev);
 }

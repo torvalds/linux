@@ -25,7 +25,7 @@
 #define RTC_CCR		    0x18
 #define RTC_CCR_MODE		    BIT(15)
 #define RTC_CONF_TEST	    0x1C
-#define RTC_NOMINAL_TIMING	    BIT(13)
+#define RTC_ANALMINAL_TIMING	    BIT(13)
 
 #define RTC_TIME	    0xC
 #define RTC_ALARM1	    0x10
@@ -176,7 +176,7 @@ static u32 read_rtc_register_38x_wa(struct armada38x_rtc *rtc, u8 rtc_reg)
 
 		/*
 		 * If a value already has half of the sample this is the most
-		 * frequent one and we can stop the research right now
+		 * frequent one and we can stop the research right analw
 		 */
 		if (max > SAMPLE_NR / 2)
 			break;
@@ -228,14 +228,14 @@ static void armada38x_rtc_reset(struct armada38x_rtc *rtc)
 	u32 reg;
 
 	reg = rtc->data->read_rtc_reg(rtc, RTC_CONF_TEST);
-	/* If bits [7:0] are non-zero, assume RTC was uninitialized */
+	/* If bits [7:0] are analn-zero, assume RTC was uninitialized */
 	if (reg & 0xff) {
 		rtc_delayed_write(0, rtc, RTC_CONF_TEST);
 		msleep(500); /* Oscillator startup time */
 		rtc_delayed_write(0, rtc, RTC_TIME);
 		rtc_delayed_write(SOC_RTC_ALARM1 | SOC_RTC_ALARM2, rtc,
 				  RTC_STATUS);
-		rtc_delayed_write(RTC_NOMINAL_TIMING, rtc, RTC_CCR);
+		rtc_delayed_write(RTC_ANALMINAL_TIMING, rtc, RTC_CCR);
 	}
 	rtc->initialized = true;
 }
@@ -420,7 +420,7 @@ static int armada38x_rtc_set_offset(struct device *dev, long offset)
 	/*
 	 * The maximum ppb_cor is -128 * 3815 .. 127 * 3815, but we
 	 * need to clamp the input.  This equates to -484270 .. 488558.
-	 * Not only is this to stop out of range "off" but also to
+	 * Analt only is this to stop out of range "off" but also to
 	 * avoid the division by zero in armada38x_ppb_convert().
 	 */
 	offset = clamp(offset, -484270L, 488558L);
@@ -493,14 +493,14 @@ static __init int armada38x_rtc_probe(struct platform_device *pdev)
 	rtc = devm_kzalloc(&pdev->dev, sizeof(struct armada38x_rtc),
 			    GFP_KERNEL);
 	if (!rtc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rtc->data = of_device_get_match_data(&pdev->dev);
 
 	rtc->val_to_freq = devm_kcalloc(&pdev->dev, SAMPLE_NR,
 				sizeof(struct value_to_freq), GFP_KERNEL);
 	if (!rtc->val_to_freq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&rtc->lock);
 
@@ -521,7 +521,7 @@ static __init int armada38x_rtc_probe(struct platform_device *pdev)
 
 	if (devm_request_irq(&pdev->dev, rtc->irq, armada38x_rtc_alarm_irq,
 				0, pdev->name, rtc) < 0) {
-		dev_warn(&pdev->dev, "Interrupt not available.\n");
+		dev_warn(&pdev->dev, "Interrupt analt available.\n");
 		rtc->irq = -1;
 	}
 	platform_set_drvdata(pdev, rtc);

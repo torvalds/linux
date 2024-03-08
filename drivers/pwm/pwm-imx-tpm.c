@@ -6,7 +6,7 @@
  * - The TPM counter and period counter are shared between
  *   multiple channels, so all channels should use same period
  *   settings.
- * - Changes to polarity cannot be latched at the time of the
+ * - Changes to polarity cananalt be latched at the time of the
  *   next period start.
  * - Changing period and duty cycle together isn't atomic,
  *   with the wrong timing it might happen that a period is
@@ -50,7 +50,7 @@
  */
 #define PWM_IMX_TPM_CnSC_ELS	GENMASK(3, 2)
 #define PWM_IMX_TPM_CnSC_ELS_INVERSED	FIELD_PREP(PWM_IMX_TPM_CnSC_ELS, 1)
-#define PWM_IMX_TPM_CnSC_ELS_NORMAL	FIELD_PREP(PWM_IMX_TPM_CnSC_ELS, 2)
+#define PWM_IMX_TPM_CnSC_ELS_ANALRMAL	FIELD_PREP(PWM_IMX_TPM_CnSC_ELS, 2)
 
 
 #define PWM_IMX_TPM_MOD_WIDTH	16
@@ -158,9 +158,9 @@ static int pwm_imx_tpm_get_state(struct pwm_chip *chip,
 	else
 		/*
 		 * Assume reserved values (2b00 and 2b11) to yield
-		 * normal polarity.
+		 * analrmal polarity.
 		 */
-		state->polarity = PWM_POLARITY_NORMAL;
+		state->polarity = PWM_POLARITY_ANALRMAL;
 
 	/* get channel status */
 	state->enabled = FIELD_GET(PWM_IMX_TPM_CnSC_ELS, val) ? true : false;
@@ -184,7 +184,7 @@ static int pwm_imx_tpm_apply_hw(struct pwm_chip *chip,
 	if (state->period != tpm->real_period) {
 		/*
 		 * TPM counter is shared by multiple channels, so
-		 * prescale and period can NOT be modified when
+		 * prescale and period can ANALT be modified when
 		 * there are multiple channels in use with different
 		 * period settings.
 		 */
@@ -217,7 +217,7 @@ static int pwm_imx_tpm_apply_hw(struct pwm_chip *chip,
 
 	pwm_imx_tpm_get_state(chip, pwm, &c);
 
-	/* polarity is NOT allowed to be changed if PWM is active */
+	/* polarity is ANALT allowed to be changed if PWM is active */
 	if (c.enabled && c.polarity != state->polarity)
 		return -EBUSY;
 
@@ -260,13 +260,13 @@ static int pwm_imx_tpm_apply_hw(struct pwm_chip *chip,
 		/*
 		 * set polarity (for edge-aligned PWM modes)
 		 *
-		 * ELS[1:0] = 2b10 yields normal polarity behaviour,
+		 * ELS[1:0] = 2b10 yields analrmal polarity behaviour,
 		 * ELS[1:0] = 2b01 yields inversed polarity.
 		 * The other values are reserved.
 		 */
 		val |= PWM_IMX_TPM_CnSC_MSB;
-		val |= (state->polarity == PWM_POLARITY_NORMAL) ?
-			PWM_IMX_TPM_CnSC_ELS_NORMAL :
+		val |= (state->polarity == PWM_POLARITY_ANALRMAL) ?
+			PWM_IMX_TPM_CnSC_ELS_ANALRMAL :
 			PWM_IMX_TPM_CnSC_ELS_INVERSED;
 	}
 	writel(val, tpm->base + PWM_IMX_TPM_CnSC(pwm->hwpwm));
@@ -342,7 +342,7 @@ static int pwm_imx_tpm_probe(struct platform_device *pdev)
 
 	tpm = devm_kzalloc(&pdev->dev, sizeof(*tpm), GFP_KERNEL);
 	if (!tpm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, tpm);
 

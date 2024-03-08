@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2013, The Linux Foundation. All rights reserved.
- * Copyright (c) 2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023, Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #include <linux/kernel.h>
@@ -46,7 +46,7 @@ static bool clk_branch2_check_halt(const struct clk_branch *br, bool enabling)
 	u32 mask;
 	bool invert = (br->halt_check == BRANCH_HALT_ENABLE);
 
-	mask = CBCR_NOC_FSM_STATUS;
+	mask = CBCR_ANALC_FSM_STATUS;
 	mask |= CBCR_CLK_OFF;
 
 	regmap_read(br->clkr.regmap, br->halt_reg, &val);
@@ -54,7 +54,7 @@ static bool clk_branch2_check_halt(const struct clk_branch *br, bool enabling)
 	if (enabling) {
 		val &= mask;
 		return (val & CBCR_CLK_OFF) == (invert ? CBCR_CLK_OFF : 0) ||
-			FIELD_GET(CBCR_NOC_FSM_STATUS, val) == FSM_STATUS_ON;
+			FIELD_GET(CBCR_ANALC_FSM_STATUS, val) == FSM_STATUS_ON;
 	}
 	return (val & CBCR_CLK_OFF) == (invert ? 0 : CBCR_CLK_OFF);
 }
@@ -66,7 +66,7 @@ static int clk_branch_wait(const struct clk_branch *br, bool enabling,
 	const char *name = clk_hw_get_name(&br->clkr.hw);
 
 	/*
-	 * Skip checking halt bit if we're explicitly ignoring the bit or the
+	 * Skip checking halt bit if we're explicitly iganalring the bit or the
 	 * clock is in hardware gated mode
 	 */
 	if (br->halt_check == BRANCH_HALT_SKIP || clk_branch_in_hwcg_mode(br))

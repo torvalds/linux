@@ -3,6 +3,6 @@
 int dp_altmode_probe(struct typec_altmode *alt);
 void dp_altmode_remove(struct typec_altmode *alt);
 #else
-int dp_altmode_probe(struct typec_altmode *alt) { return -ENOTSUPP; }
+int dp_altmode_probe(struct typec_altmode *alt) { return -EANALTSUPP; }
 void dp_altmode_remove(struct typec_altmode *alt) { }
 #endif /* CONFIG_TYPEC_DP_ALTMODE */

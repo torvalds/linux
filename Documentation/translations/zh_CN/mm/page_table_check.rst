@@ -31,13 +31,13 @@
 +-------------------+-------------------+-------------------+------------------+
 | Current Mapping   | New mapping       | Permissions       | Rule             |
 +===================+===================+===================+==================+
-| Anonymous         | Anonymous         | Read              | Allow            |
+| Aanalnymous         | Aanalnymous         | Read              | Allow            |
 +-------------------+-------------------+-------------------+------------------+
-| Anonymous         | Anonymous         | Read / Write      | Prohibit         |
+| Aanalnymous         | Aanalnymous         | Read / Write      | Prohibit         |
 +-------------------+-------------------+-------------------+------------------+
-| Anonymous         | Named             | Any               | Prohibit         |
+| Aanalnymous         | Named             | Any               | Prohibit         |
 +-------------------+-------------------+-------------------+------------------+
-| Named             | Anonymous         | Any               | Prohibit         |
+| Named             | Aanalnymous         | Any               | Prohibit         |
 +-------------------+-------------------+-------------------+------------------+
 | Named             | Named             | Any               | Allow            |
 +-------------------+-------------------+-------------------+------------------+

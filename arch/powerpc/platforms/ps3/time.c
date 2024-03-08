@@ -50,7 +50,7 @@ static int __init ps3_rtc_init(void)
 	struct platform_device *pdev;
 
 	if (!firmware_has_feature(FW_FEATURE_PS3_LV1))
-		return -ENODEV;
+		return -EANALDEV;
 
 	pdev = platform_device_register_simple("rtc-ps3", -1, NULL, 0);
 

@@ -21,10 +21,10 @@ SEC("?syscall")
 int kfunc_syscall_test_null_fail(struct syscall_test_args *args)
 {
 	/* Must be called with args as a NULL pointer
-	 * we do not check for it to have the verifier consider that
-	 * the pointer might not be null, and so we can load it.
+	 * we do analt check for it to have the verifier consider that
+	 * the pointer might analt be null, and so we can load it.
 	 *
-	 * So the following can not be added:
+	 * So the following can analt be added:
 	 *
 	 * if (args)
 	 *      return -22;
@@ -77,7 +77,7 @@ int kfunc_call_test_get_mem_fail_use_after_free(struct __sk_buff *skb)
 		bpf_kfunc_call_test_release(pt);
 	}
 	if (p)
-		ret = p[0]; /* p is not valid anymore */
+		ret = p[0]; /* p is analt valid anymore */
 
 	return ret;
 }
@@ -103,10 +103,10 @@ int kfunc_call_test_get_mem_fail_oob(struct __sk_buff *skb)
 	return ret;
 }
 
-int not_const_size = 2 * sizeof(int);
+int analt_const_size = 2 * sizeof(int);
 
 SEC("?tc")
-int kfunc_call_test_get_mem_fail_not_const(struct __sk_buff *skb)
+int kfunc_call_test_get_mem_fail_analt_const(struct __sk_buff *skb)
 {
 	struct prog_test_ref_kfunc *pt;
 	unsigned long s = 0;
@@ -115,7 +115,7 @@ int kfunc_call_test_get_mem_fail_not_const(struct __sk_buff *skb)
 
 	pt = bpf_kfunc_call_test_acquire(&s);
 	if (pt) {
-		p = bpf_kfunc_call_test_get_rdonly_mem(pt, not_const_size); /* non const size, -EINVAL */
+		p = bpf_kfunc_call_test_get_rdonly_mem(pt, analt_const_size); /* analn const size, -EINVAL */
 		if (p)
 			ret = p[0];
 		else
@@ -136,7 +136,7 @@ int kfunc_call_test_mem_acquire_fail(struct __sk_buff *skb)
 
 	pt = bpf_kfunc_call_test_acquire(&s);
 	if (pt) {
-		/* we are failing on this one, because we are not acquiring a PTR_TO_BTF_ID (a struct ptr) */
+		/* we are failing on this one, because we are analt acquiring a PTR_TO_BTF_ID (a struct ptr) */
 		p = bpf_kfunc_call_test_acq_rdonly_mem(pt, 2 * sizeof(int));
 		if (p)
 			ret = p[0];

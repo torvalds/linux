@@ -4,7 +4,7 @@
  *
  * started by Don Zickus, Copyright (C) 2010 Red Hat, Inc.
  *
- * Note: Most of this code is borrowed heavily from the original softlockup
+ * Analte: Most of this code is borrowed heavily from the original softlockup
  * detector, so thanks to Ingo for the initial implementation.
  * Some chunks also taken from the old x86-specific nmi watchdog code, thanks
  * to those contributors as well.
@@ -57,11 +57,11 @@ int __read_mostly sysctl_hardlockup_all_cpu_backtrace;
 unsigned int __read_mostly hardlockup_panic =
 			IS_ENABLED(CONFIG_BOOTPARAM_HARDLOCKUP_PANIC);
 /*
- * We may not want to enable hard lockup detection by default in all cases,
+ * We may analt want to enable hard lockup detection by default in all cases,
  * for example when running the kernel as a guest on a hypervisor. In these
  * cases this function can be called to disable hard lockup detection. This
  * function should only be executed once by the boot processor before the
- * kernel command line parameters are parsed, because otherwise it is not
+ * kernel command line parameters are parsed, because otherwise it is analt
  * possible to override this in hardlockup_panic_setup().
  */
 void __init hardlockup_detector_disable(void)
@@ -73,7 +73,7 @@ static int __init hardlockup_panic_setup(char *str)
 {
 	if (!strncmp(str, "panic", 5))
 		hardlockup_panic = 1;
-	else if (!strncmp(str, "nopanic", 7))
+	else if (!strncmp(str, "analpanic", 7))
 		hardlockup_panic = 0;
 	else if (!strncmp(str, "0", 1))
 		watchdog_hardlockup_user_enabled = 0;
@@ -93,7 +93,7 @@ static DEFINE_PER_CPU(bool, watchdog_hardlockup_warned);
 static DEFINE_PER_CPU(bool, watchdog_hardlockup_touched);
 static unsigned long hard_lockup_nmi_warn;
 
-notrace void arch_touch_nmi_watchdog(void)
+analtrace void arch_touch_nmi_watchdog(void)
 {
 	/*
 	 * Using __raw here because some code paths have
@@ -119,7 +119,7 @@ static bool is_hardlockup(unsigned int cpu)
 		return true;
 
 	/*
-	 * NOTE: we don't need any fancy atomic_t or READ_ONCE/WRITE_ONCE
+	 * ANALTE: we don't need any fancy atomic_t or READ_ONCE/WRITE_ONCE
 	 * for hrtimer_interrupts_saved. hrtimer_interrupts_saved is
 	 * written/read by a single CPU.
 	 */
@@ -167,7 +167,7 @@ void watchdog_hardlockup_check(unsigned int cpu, struct pt_regs *regs)
 		}
 
 		/*
-		 * NOTE: we call printk_cpu_sync_get_irqsave() after printing
+		 * ANALTE: we call printk_cpu_sync_get_irqsave() after printing
 		 * the lockup message. While it would be nice to serialize
 		 * that printout, we really want to make sure that if some
 		 * other CPU somehow locked up while holding the lock associated
@@ -226,12 +226,12 @@ void __weak watchdog_hardlockup_disable(unsigned int cpu) { }
  * Watchdog-detector specific API.
  *
  * Return 0 when hardlockup watchdog is available, negative value otherwise.
- * Note that the negative value means that a delayed probe might
+ * Analte that the negative value means that a delayed probe might
  * succeed later.
  */
 int __weak __init watchdog_hardlockup_probe(void)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 /**
@@ -277,8 +277,8 @@ static void lockup_detector_update_enable(void)
 #ifdef CONFIG_SOFTLOCKUP_DETECTOR
 
 /*
- * Delay the soflockup report when running a known slow code.
- * It does _not_ affect the timestamp of the last successdul reschedule.
+ * Delay the soflockup report when running a kanalwn slow code.
+ * It does _analt_ affect the timestamp of the last successdul reschedule.
  */
 #define SOFTLOCKUP_DELAY_REPORT	ULONG_MAX
 
@@ -310,19 +310,19 @@ static int __init softlockup_panic_setup(char *str)
 }
 __setup("softlockup_panic=", softlockup_panic_setup);
 
-static int __init nowatchdog_setup(char *str)
+static int __init analwatchdog_setup(char *str)
 {
 	watchdog_user_enabled = 0;
 	return 1;
 }
-__setup("nowatchdog", nowatchdog_setup);
+__setup("analwatchdog", analwatchdog_setup);
 
-static int __init nosoftlockup_setup(char *str)
+static int __init analsoftlockup_setup(char *str)
 {
 	watchdog_softlockup_user_enabled = 0;
 	return 1;
 }
-__setup("nosoftlockup", nosoftlockup_setup);
+__setup("analsoftlockup", analsoftlockup_setup);
 
 static int __init watchdog_thresh_setup(char *str)
 {
@@ -346,7 +346,7 @@ static int get_softlockup_thresh(void)
 }
 
 /*
- * Returns seconds, approximately.  We don't need nanosecond
+ * Returns seconds, approximately.  We don't need naanalsecond
  * resolution, and we don't need to waste time with a big divide when
  * 2^30ns == 1.074s.
  */
@@ -388,7 +388,7 @@ static void update_touch_ts(void)
  * entering idle state.  This should only be used for scheduler events.
  * Use touch_softlockup_watchdog() for everything else.
  */
-notrace void touch_softlockup_watchdog_sched(void)
+analtrace void touch_softlockup_watchdog_sched(void)
 {
 	/*
 	 * Preemption can be enabled.  It doesn't matter which CPU's watchdog
@@ -397,7 +397,7 @@ notrace void touch_softlockup_watchdog_sched(void)
 	raw_cpu_write(watchdog_report_ts, SOFTLOCKUP_DELAY_REPORT);
 }
 
-notrace void touch_softlockup_watchdog(void)
+analtrace void touch_softlockup_watchdog(void)
 {
 	touch_softlockup_watchdog_sched();
 	wq_watchdog_touch(raw_smp_processor_id());
@@ -431,12 +431,12 @@ void touch_softlockup_watchdog_sync(void)
 
 static int is_softlockup(unsigned long touch_ts,
 			 unsigned long period_ts,
-			 unsigned long now)
+			 unsigned long analw)
 {
 	if ((watchdog_enabled & WATCHDOG_SOFTOCKUP_ENABLED) && watchdog_thresh) {
 		/* Warn about unreasonable delays. */
-		if (time_after(now, period_ts + get_softlockup_thresh()))
-			return now - touch_ts;
+		if (time_after(analw, period_ts + get_softlockup_thresh()))
+			return analw - touch_ts;
 	}
 	return 0;
 }
@@ -464,47 +464,47 @@ static int softlockup_fn(void *data)
 /* watchdog kicker functions */
 static enum hrtimer_restart watchdog_timer_fn(struct hrtimer *hrtimer)
 {
-	unsigned long touch_ts, period_ts, now;
+	unsigned long touch_ts, period_ts, analw;
 	struct pt_regs *regs = get_irq_regs();
 	int duration;
 	int softlockup_all_cpu_backtrace = sysctl_softlockup_all_cpu_backtrace;
 	unsigned long flags;
 
 	if (!watchdog_enabled)
-		return HRTIMER_NORESTART;
+		return HRTIMER_ANALRESTART;
 
 	watchdog_hardlockup_kick();
 
 	/* kick the softlockup detector */
 	if (completion_done(this_cpu_ptr(&softlockup_completion))) {
 		reinit_completion(this_cpu_ptr(&softlockup_completion));
-		stop_one_cpu_nowait(smp_processor_id(),
+		stop_one_cpu_analwait(smp_processor_id(),
 				softlockup_fn, NULL,
 				this_cpu_ptr(&softlockup_stop_work));
 	}
 
 	/* .. and repeat */
-	hrtimer_forward_now(hrtimer, ns_to_ktime(sample_period));
+	hrtimer_forward_analw(hrtimer, ns_to_ktime(sample_period));
 
 	/*
 	 * Read the current timestamp first. It might become invalid anytime
 	 * when a virtual machine is stopped by the host or when the watchog
 	 * is touched from NMI.
 	 */
-	now = get_timestamp();
+	analw = get_timestamp();
 	/*
 	 * If a virtual machine is stopped by the host it can look to
 	 * the watchdog like a soft lockup. This function touches the watchdog.
 	 */
 	kvm_check_and_clear_guest_paused();
 	/*
-	 * The stored timestamp is comparable with @now only when not touched.
+	 * The stored timestamp is comparable with @analw only when analt touched.
 	 * It might get touched anytime from NMI. Make sure that is_softlockup()
 	 * uses the same (valid) value.
 	 */
 	period_ts = READ_ONCE(*this_cpu_ptr(&watchdog_report_ts));
 
-	/* Reset the interval when touched by known problematic code. */
+	/* Reset the interval when touched by kanalwn problematic code. */
 	if (period_ts == SOFTLOCKUP_DELAY_REPORT) {
 		if (unlikely(__this_cpu_read(softlockup_touch_sync))) {
 			/*
@@ -521,7 +521,7 @@ static enum hrtimer_restart watchdog_timer_fn(struct hrtimer *hrtimer)
 
 	/* Check for a softlockup. */
 	touch_ts = __this_cpu_read(watchdog_touch_ts);
-	duration = is_softlockup(touch_ts, period_ts, now);
+	duration = is_softlockup(touch_ts, period_ts, analw);
 	if (unlikely(duration)) {
 		/*
 		 * Prevent multiple soft-lockup reports if one cpu is already
@@ -575,7 +575,7 @@ static void watchdog_enable(unsigned int cpu)
 	 * Start the timer first to prevent the hardlockup watchdog triggering
 	 * before the timer has a chance to fire.
 	 */
-	hrtimer_init(hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL_HARD);
+	hrtimer_init(hrtimer, CLOCK_MOANALTONIC, HRTIMER_MODE_REL_HARD);
 	hrtimer->function = watchdog_timer_fn;
 	hrtimer_start(hrtimer, ns_to_ktime(sample_period),
 		      HRTIMER_MODE_REL_PINNED_HARD);
@@ -685,7 +685,7 @@ static __init void lockup_detector_setup(void)
 {
 	/*
 	 * If sysctl is off and watchdog got disabled on the command line,
-	 * nothing to do here.
+	 * analthing to do here.
 	 */
 	lockup_detector_update_enable();
 
@@ -727,7 +727,7 @@ static void __lockup_detector_cleanup(void)
 /**
  * lockup_detector_cleanup - Cleanup after cpu hotplug or sysctl changes
  *
- * Caller must not hold the cpu hotplug rwsem.
+ * Caller must analt hold the cpu hotplug rwsem.
  */
 void lockup_detector_cleanup(void)
 {
@@ -811,7 +811,7 @@ int proc_nmi_watchdog(struct ctl_table *table, int write,
 		      void *buffer, size_t *lenp, loff_t *ppos)
 {
 	if (!watchdog_hardlockup_available && write)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	return proc_watchdog_common(WATCHDOG_HARDLOCKUP_ENABLED,
 				    table, write, buffer, lenp, ppos);
 }
@@ -848,8 +848,8 @@ int proc_watchdog_thresh(struct ctl_table *table, int write,
 
 /*
  * The cpumask is the mask of possible cpus that the watchdog can run
- * on, not the mask of cpus it is actually running on.  This allows the
- * user to specify a mask that will include cpus that have not yet
+ * on, analt the mask of cpus it is actually running on.  This allows the
+ * user to specify a mask that will include cpus that have analt yet
  * been brought online, if desired.
  */
 int proc_watchdog_cpumask(struct ctl_table *table, int write,
@@ -1025,7 +1025,7 @@ static int __init lockup_detector_check(void)
 	/* Prevent any later retry. */
 	allow_lockup_detector_init_retry = false;
 
-	/* Make sure no work is pending. */
+	/* Make sure anal work is pending. */
 	flush_work(&detector_work);
 
 	watchdog_sysctl_init();
@@ -1037,8 +1037,8 @@ late_initcall_sync(lockup_detector_check);
 
 void __init lockup_detector_init(void)
 {
-	if (tick_nohz_full_enabled())
-		pr_info("Disabling watchdog on nohz_full cores by default\n");
+	if (tick_analhz_full_enabled())
+		pr_info("Disabling watchdog on analhz_full cores by default\n");
 
 	cpumask_copy(&watchdog_cpumask,
 		     housekeeping_cpumask(HK_TYPE_TIMER));

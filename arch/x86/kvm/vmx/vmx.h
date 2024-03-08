@@ -105,7 +105,7 @@ struct lbr_desc {
 	 */
 	struct perf_event *event;
 
-	/* True if LBRs are marked as not intercepted in the MSR bitmap */
+	/* True if LBRs are marked as analt intercepted in the MSR bitmap */
 	bool msr_passthrough;
 };
 
@@ -153,7 +153,7 @@ struct nested_vmx {
 
 	/*
 	 * Indicates whether MSR bitmap for L2 needs to be rebuilt due to
-	 * changes in MSR bitmap for L1 or switching to a different L2. Note,
+	 * changes in MSR bitmap for L1 or switching to a different L2. Analte,
 	 * this flag can only be used reliably in conjunction with a paravirt L1
 	 * which informs L0 whether any changes to MSR bitmap for L2 were done
 	 * on its side.
@@ -161,7 +161,7 @@ struct nested_vmx {
 	bool force_msr_bitmap_recalc;
 
 	/*
-	 * Indicates lazily loaded guest state has not yet been decached from
+	 * Indicates lazily loaded guest state has analt yet been decached from
 	 * vmcs02.
 	 */
 	bool need_sync_vmcs02_to_vmcs12_rare;
@@ -179,7 +179,7 @@ struct nested_vmx {
 	bool update_vmcs01_apicv_status;
 
 	/*
-	 * Enlightened VMCS has been enabled. It does not mean that L1 has to
+	 * Enlightened VMCS has been enabled. It does analt mean that L1 has to
 	 * use it. However, VMX features available to L1 will be limited based
 	 * on what the enlightened VMCS supports.
 	 */
@@ -285,7 +285,7 @@ struct vcpu_vmx {
 
 	/*
 	 * loaded_vmcs points to the VMCS currently used in this vcpu. For a
-	 * non-nested (L1) guest, it always points to vmcs01. For a nested
+	 * analn-nested (L1) guest, it always points to vmcs01. For a nested
 	 * guest (L2), it points to a different VMCS.
 	 */
 	struct loaded_vmcs    vmcs01;
@@ -322,7 +322,7 @@ struct vcpu_vmx {
 	/* Posted interrupt descriptor */
 	struct pi_desc pi_desc;
 
-	/* Used if this vCPU is waiting for PI notification wakeup. */
+	/* Used if this vCPU is waiting for PI analtification wakeup. */
 	struct list_head pi_wakeup_list;
 
 	/* Support for a guest hypervisor (nested VMX) */
@@ -436,11 +436,11 @@ static inline void vmx_set_intercept_for_msr(struct kvm_vcpu *vcpu, u32 msr,
 void vmx_update_cpu_dirty_logging(struct kvm_vcpu *vcpu);
 
 /*
- * Note, early Intel manuals have the write-low and read-high bitmap offsets
+ * Analte, early Intel manuals have the write-low and read-high bitmap offsets
  * the wrong way round.  The bitmaps control MSRs 0x00000000-0x00001fff and
  * 0xc0000000-0xc0001fff.  The former (low) uses bytes 0-0x3ff for reads and
  * 0x800-0xbff for writes.  The latter (high) uses 0x400-0x7ff for reads and
- * 0xc00-0xfff for writes.  MSRs not covered by either of the ranges always
+ * 0xc00-0xfff for writes.  MSRs analt covered by either of the ranges always
  * VM-Exit.
  */
 #define __BUILD_VMX_MSR_BITMAP_HELPER(rtype, action, bitop, access, base)      \
@@ -575,7 +575,7 @@ static inline u8 vmx_get_rvi(void)
 	 SECONDARY_EXEC_PT_CONCEAL_VMX |				\
 	 SECONDARY_EXEC_ENABLE_VMFUNC |					\
 	 SECONDARY_EXEC_BUS_LOCK_DETECTION |				\
-	 SECONDARY_EXEC_NOTIFY_VM_EXITING |				\
+	 SECONDARY_EXEC_ANALTIFY_VM_EXITING |				\
 	 SECONDARY_EXEC_ENCLS_EXITING)
 
 #define KVM_REQUIRED_VMX_TERTIARY_VM_EXEC_CONTROL 0
@@ -617,7 +617,7 @@ BUILD_CONTROLS_SHADOW(tertiary_exec, TERTIARY_VM_EXEC_CONTROL, 64)
 
 /*
  * VMX_REGS_LAZY_LOAD_SET - The set of registers that will be updated in the
- * cache on demand.  Other registers not listed here are synced to
+ * cache on demand.  Other registers analt listed here are synced to
  * the cache immediately after VM-Exit.
  */
 #define VMX_REGS_LAZY_LOAD_SET	((1 << VCPU_REGS_RIP) |         \
@@ -638,7 +638,7 @@ static inline unsigned long vmx_l1_guest_owned_cr0_bits(void)
 	/*
 	 * CR0.WP needs to be intercepted when KVM is shadowing legacy paging
 	 * in order to construct shadow PTEs with the correct protections.
-	 * Note!  CR0.WP technically can be passed through to the guest if
+	 * Analte!  CR0.WP technically can be passed through to the guest if
 	 * paging is disabled, but checking CR0.PG would generate a cyclical
 	 * dependency of sorts due to forcing the caller to ensure CR0 holds
 	 * the correct value prior to determining which CR0 bits can be owned

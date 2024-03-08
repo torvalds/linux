@@ -9,7 +9,7 @@
  * QE UCC Fast API Set - UCC Fast specific routines implementations.
  */
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/stddef.h>
 #include <linux/interrupt.h>
@@ -150,7 +150,7 @@ int ucc_fast_init(struct ucc_fast_info * uf_info, struct ucc_fast_private ** ucc
 
 	/* Check that 'max_rx_buf_length' is properly aligned (4). */
 	if (uf_info->max_rx_buf_length & (UCC_FAST_MRBLR_ALIGNMENT - 1)) {
-		printk(KERN_ERR "%s: max_rx_buf_length not aligned\n",
+		printk(KERN_ERR "%s: max_rx_buf_length analt aligned\n",
 			__func__);
 		return -EINVAL;
 	}
@@ -162,40 +162,40 @@ int ucc_fast_init(struct ucc_fast_info * uf_info, struct ucc_fast_private ** ucc
 	}
 
 	if (uf_info->urfs & (UCC_FAST_VIRT_FIFO_REGS_ALIGNMENT - 1)) {
-		printk(KERN_ERR "%s: urfs is not aligned\n", __func__);
+		printk(KERN_ERR "%s: urfs is analt aligned\n", __func__);
 		return -EINVAL;
 	}
 
 	if (uf_info->urfet & (UCC_FAST_VIRT_FIFO_REGS_ALIGNMENT - 1)) {
-		printk(KERN_ERR "%s: urfet is not aligned.\n", __func__);
+		printk(KERN_ERR "%s: urfet is analt aligned.\n", __func__);
 		return -EINVAL;
 	}
 
 	if (uf_info->urfset & (UCC_FAST_VIRT_FIFO_REGS_ALIGNMENT - 1)) {
-		printk(KERN_ERR "%s: urfset is not aligned\n", __func__);
+		printk(KERN_ERR "%s: urfset is analt aligned\n", __func__);
 		return -EINVAL;
 	}
 
 	if (uf_info->utfs & (UCC_FAST_VIRT_FIFO_REGS_ALIGNMENT - 1)) {
-		printk(KERN_ERR "%s: utfs is not aligned\n", __func__);
+		printk(KERN_ERR "%s: utfs is analt aligned\n", __func__);
 		return -EINVAL;
 	}
 
 	if (uf_info->utfet & (UCC_FAST_VIRT_FIFO_REGS_ALIGNMENT - 1)) {
-		printk(KERN_ERR "%s: utfet is not aligned\n", __func__);
+		printk(KERN_ERR "%s: utfet is analt aligned\n", __func__);
 		return -EINVAL;
 	}
 
 	if (uf_info->utftt & (UCC_FAST_VIRT_FIFO_REGS_ALIGNMENT - 1)) {
-		printk(KERN_ERR "%s: utftt is not aligned\n", __func__);
+		printk(KERN_ERR "%s: utftt is analt aligned\n", __func__);
 		return -EINVAL;
 	}
 
 	uccf = kzalloc(sizeof(struct ucc_fast_private), GFP_KERNEL);
 	if (!uccf) {
-		printk(KERN_ERR "%s: Cannot allocate private data\n",
+		printk(KERN_ERR "%s: Cananalt allocate private data\n",
 			__func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	uccf->ucc_fast_tx_virtual_fifo_base_offset = -1;
 	uccf->ucc_fast_rx_virtual_fifo_base_offset = -1;
@@ -205,9 +205,9 @@ int ucc_fast_init(struct ucc_fast_info * uf_info, struct ucc_fast_private ** ucc
 	/* Set the PHY base address */
 	uccf->uf_regs = ioremap(uf_info->regs, sizeof(struct ucc_fast));
 	if (uccf->uf_regs == NULL) {
-		printk(KERN_ERR "%s: Cannot map UCC registers\n", __func__);
+		printk(KERN_ERR "%s: Cananalt map UCC registers\n", __func__);
 		kfree(uccf);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	uccf->enabled_tx = 0;
@@ -229,7 +229,7 @@ int ucc_fast_init(struct ucc_fast_info * uf_info, struct ucc_fast_private ** ucc
 	/* Set UCC to fast type */
 	ret = ucc_set_type(uf_info->ucc_num, UCC_SPEED_TYPE_FAST);
 	if (ret) {
-		printk(KERN_ERR "%s: cannot set UCC type\n", __func__);
+		printk(KERN_ERR "%s: cananalt set UCC type\n", __func__);
 		ucc_fast_free(uccf);
 		return ret;
 	}
@@ -268,10 +268,10 @@ int ucc_fast_init(struct ucc_fast_info * uf_info, struct ucc_fast_private ** ucc
 	uccf->ucc_fast_tx_virtual_fifo_base_offset =
 	    qe_muram_alloc(uf_info->utfs, UCC_FAST_VIRT_FIFO_REGS_ALIGNMENT);
 	if (uccf->ucc_fast_tx_virtual_fifo_base_offset < 0) {
-		printk(KERN_ERR "%s: cannot allocate MURAM for TX FIFO\n",
+		printk(KERN_ERR "%s: cananalt allocate MURAM for TX FIFO\n",
 			__func__);
 		ucc_fast_free(uccf);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Allocate memory for Rx Virtual Fifo */
@@ -280,10 +280,10 @@ int ucc_fast_init(struct ucc_fast_info * uf_info, struct ucc_fast_private ** ucc
 			   UCC_FAST_RECEIVE_VIRTUAL_FIFO_SIZE_FUDGE_FACTOR,
 			   UCC_FAST_VIRT_FIFO_REGS_ALIGNMENT);
 	if (uccf->ucc_fast_rx_virtual_fifo_base_offset < 0) {
-		printk(KERN_ERR "%s: cannot allocate MURAM for RX FIFO\n",
+		printk(KERN_ERR "%s: cananalt allocate MURAM for RX FIFO\n",
 			__func__);
 		ucc_fast_free(uccf);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Set Virtual Fifo registers */
@@ -306,10 +306,10 @@ int ucc_fast_init(struct ucc_fast_info * uf_info, struct ucc_fast_private ** ucc
 	ucc_set_qe_mux_bkpt(uf_info->ucc_num, uf_info->brkpt_support);
 	/* Set Tsa or NMSI mode. */
 	ucc_set_qe_mux_tsa(uf_info->ucc_num, uf_info->tsa);
-	/* If NMSI (not Tsa), set Tx and Rx clock. */
+	/* If NMSI (analt Tsa), set Tx and Rx clock. */
 	if (!uf_info->tsa) {
 		/* Rx clock routing */
-		if ((uf_info->rx_clock != QE_CLK_NONE) &&
+		if ((uf_info->rx_clock != QE_CLK_ANALNE) &&
 		    ucc_set_qe_mux_rxtx(uf_info->ucc_num, uf_info->rx_clock,
 					COMM_DIR_RX)) {
 			printk(KERN_ERR "%s: illegal value for RX clock\n",
@@ -318,7 +318,7 @@ int ucc_fast_init(struct ucc_fast_info * uf_info, struct ucc_fast_private ** ucc
 			return -EINVAL;
 		}
 		/* Tx clock routing */
-		if ((uf_info->tx_clock != QE_CLK_NONE) &&
+		if ((uf_info->tx_clock != QE_CLK_ANALNE) &&
 		    ucc_set_qe_mux_rxtx(uf_info->ucc_num, uf_info->tx_clock,
 					COMM_DIR_TX)) {
 			printk(KERN_ERR "%s: illegal value for TX clock\n",
@@ -328,7 +328,7 @@ int ucc_fast_init(struct ucc_fast_info * uf_info, struct ucc_fast_private ** ucc
 		}
 	} else {
 		/* tdm Rx clock routing */
-		if ((uf_info->rx_clock != QE_CLK_NONE) &&
+		if ((uf_info->rx_clock != QE_CLK_ANALNE) &&
 		    ucc_set_tdm_rxtx_clk(uf_info->tdm_num, uf_info->rx_clock,
 					 COMM_DIR_RX)) {
 			pr_err("%s: illegal value for RX clock", __func__);
@@ -337,7 +337,7 @@ int ucc_fast_init(struct ucc_fast_info * uf_info, struct ucc_fast_private ** ucc
 		}
 
 		/* tdm Tx clock routing */
-		if ((uf_info->tx_clock != QE_CLK_NONE) &&
+		if ((uf_info->tx_clock != QE_CLK_ANALNE) &&
 		    ucc_set_tdm_rxtx_clk(uf_info->tdm_num, uf_info->tx_clock,
 					 COMM_DIR_TX)) {
 			pr_err("%s: illegal value for TX clock", __func__);
@@ -346,7 +346,7 @@ int ucc_fast_init(struct ucc_fast_info * uf_info, struct ucc_fast_private ** ucc
 		}
 
 		/* tdm Rx sync clock routing */
-		if ((uf_info->rx_sync != QE_CLK_NONE) &&
+		if ((uf_info->rx_sync != QE_CLK_ANALNE) &&
 		    ucc_set_tdm_rxtx_sync(uf_info->tdm_num, uf_info->rx_sync,
 					  COMM_DIR_RX)) {
 			pr_err("%s: illegal value for RX clock", __func__);
@@ -355,7 +355,7 @@ int ucc_fast_init(struct ucc_fast_info * uf_info, struct ucc_fast_private ** ucc
 		}
 
 		/* tdm Tx sync clock routing */
-		if ((uf_info->tx_sync != QE_CLK_NONE) &&
+		if ((uf_info->tx_sync != QE_CLK_ANALNE) &&
 		    ucc_set_tdm_rxtx_sync(uf_info->tdm_num, uf_info->tx_sync,
 					  COMM_DIR_TX)) {
 			pr_err("%s: illegal value for TX clock", __func__);

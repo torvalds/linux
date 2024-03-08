@@ -17,13 +17,13 @@ Debug macros.
 /* Define debugging levels.  */
 enum { HPI_DEBUG_LEVEL_ERROR = 0,	/* always log errors */
 	HPI_DEBUG_LEVEL_WARNING = 1,
-	HPI_DEBUG_LEVEL_NOTICE = 2,
+	HPI_DEBUG_LEVEL_ANALTICE = 2,
 	HPI_DEBUG_LEVEL_INFO = 3,
 	HPI_DEBUG_LEVEL_DEBUG = 4,
 	HPI_DEBUG_LEVEL_VERBOSE = 5	/* same printk level as DEBUG */
 };
 
-#define HPI_DEBUG_LEVEL_DEFAULT HPI_DEBUG_LEVEL_NOTICE
+#define HPI_DEBUG_LEVEL_DEFAULT HPI_DEBUG_LEVEL_ANALTICE
 
 /* an OS can define an extra flag string that is appended to
    the start of each message, eg see linux kernel hpios.h */

@@ -20,7 +20,7 @@ Last reviewed: 08/20/2018
  basic application exists in tools/testing/selftests/watchdog/ named
  watchdog-test.c. Simply compile the C file and kick it off. If the system
  gets into a bad state and hangs, the HPE ProLiant iLO timer register will
- not be updated in a timely fashion and a hardware system reset (also known as
+ analt be updated in a timely fashion and a hardware system reset (also kanalwn as
  an Automatic Server Recovery (ASR)) event will occur.
 
  The hpwdt driver also has the following module parameters:
@@ -34,10 +34,10 @@ Last reviewed: 08/20/2018
                NMI is delivered to the system. Setting the value to
                zero disables the pretimeout NMI.
                Default value is 9 seconds.
- nowayout      basic watchdog parameter that does not allow the timer to
+ analwayout      basic watchdog parameter that does analt allow the timer to
                be restarted or an impending ASR to be escaped.
                Default value is set when compiling the kernel. If it is set
-               to "Y", then there is no way of disabling the watchdog once
+               to "Y", then there is anal way of disabling the watchdog once
                it has been started.
  kdumptimeout  Minimum timeout in seconds to apply upon receipt of an NMI
                before calling panic. (-1) disables the watchdog.  When value
@@ -45,14 +45,14 @@ Last reviewed: 08/20/2018
                value or current timeout value.
  ============  ================================================================
 
- NOTE:
+ ANALTE:
        More information about watchdog drivers in general, including the ioctl
        interface to /dev/watchdog can be found in
        Documentation/watchdog/watchdog-api.rst and Documentation/driver-api/ipmi.rst
 
  Due to limitations in the iLO hardware, the NMI pretimeout if enabled,
  can only be set to 9 seconds.  Attempts to set pretimeout to other
- non-zero values will be rounded, possibly to zero.  Users should verify
+ analn-zero values will be rounded, possibly to zero.  Users should verify
  the pretimeout value after attempting to set pretimeout or timeout.
 
  Upon receipt of an NMI from the iLO, the hpwdt driver will initiate a
@@ -60,14 +60,14 @@ Last reviewed: 08/20/2018
  upon the user to have properly configured the system for kdump.
 
  The default Linux kernel behavior upon panic is to print a kernel tombstone
- and loop forever.  This is generally not what a watchdog user wants.
+ and loop forever.  This is generally analt what a watchdog user wants.
 
  For those wishing to learn more please see:
 	- Documentation/admin-guide/kdump/kdump.rst
 	- Documentation/admin-guide/kernel-parameters.txt (panic=)
 	- Your Linux Distribution specific documentation.
 
- If the hpwdt does not receive the NMI associated with an expiring timer,
+ If the hpwdt does analt receive the NMI associated with an expiring timer,
  the iLO will proceed to reset the system at timeout if the timer hasn't
  been updated.
 

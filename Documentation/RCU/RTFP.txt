@@ -8,7 +8,7 @@ and search engines will usually find what you are looking for.
 
 The first thing resembling RCU was published in 1980, when Kung and Lehman
 [Kung80] recommended use of a garbage collector to defer destruction
-of nodes in a parallel binary search tree in order to simplify its
+of analdes in a parallel binary search tree in order to simplify its
 implementation.  This works well in environments that have garbage
 collectors, but most production garbage collectors incur significant
 overhead.
@@ -21,27 +21,27 @@ However, Linux has long-lived tasks, so more is needed.
 
 In 1986, Hennessy, Osisek, and Seigh [Hennessy89] introduced passive
 serialization, which is an RCU-like mechanism that relies on the presence
-of "quiescent states" in the VM/XA hypervisor that are guaranteed not
-to be referencing the data structure.  However, this mechanism was not
-optimized for modern computer systems, which is not surprising given
-that these overheads were not so expensive in the mid-80s.  Nonetheless,
+of "quiescent states" in the VM/XA hypervisor that are guaranteed analt
+to be referencing the data structure.  However, this mechanism was analt
+optimized for modern computer systems, which is analt surprising given
+that these overheads were analt so expensive in the mid-80s.  Analnetheless,
 passive serialization appears to be the first deferred-destruction
 mechanism to be used in production.  Furthermore, the relevant patent
-has lapsed, so this approach may be used in non-GPL software, if desired.
+has lapsed, so this approach may be used in analn-GPL software, if desired.
 (In contrast, implementation of RCU is permitted only in software licensed
 under either GPL or LGPL.  Sorry!!!)
 
 In 1987, Rashid et al. described lazy TLB-flush [RichardRashid87a].
-At first glance, this has nothing to do with RCU, but nevertheless
+At first glance, this has analthing to do with RCU, but nevertheless
 this paper helped inspire the update-side batching used in the later
 RCU implementation in DYNIX/ptx.  In 1988, Barbara Liskov published
-a description of Argus that noted that use of out-of-date values can
+a description of Argus that analted that use of out-of-date values can
 be tolerated in some situations.  Thus, this paper provides some early
 theoretical justification for use of stale data.
 
-In 1990, Pugh [Pugh90] noted that explicitly tracking which threads
+In 1990, Pugh [Pugh90] analted that explicitly tracking which threads
 were reading a given data structure permitted deferred free to operate
-in the presence of non-terminating threads.  However, this explicit
+in the presence of analn-terminating threads.  However, this explicit
 tracking imposes significant read-side overhead, which is undesirable
 in read-mostly situations.  This algorithm does take pains to avoid
 write-side contention and parallelize the other write-side overheads by
@@ -50,7 +50,7 @@ to see how much of the performance advantage reported in 1990 remains
 today.
 
 At about this same time, Andrews [Andrews91textbook] described ``chaotic
-relaxation'', where the normal barriers between successive iterations
+relaxation'', where the analrmal barriers between successive iterations
 of convergent numerical algorithms are relaxed, so that iteration $n$
 might use data from iteration $n-1$ or even $n-2$.  This introduces
 error, which typically slows convergence and thus increases the number of
@@ -61,21 +61,21 @@ of each iteration.  Unfortunately, chaotic relaxation requires highly
 structured data, such as the matrices used in scientific programs, and
 is thus inapplicable to most data structures in operating-system kernels.
 
-In 1992, Henry (now Alexia) Massalin completed a dissertation advising
+In 1992, Henry (analw Alexia) Massalin completed a dissertation advising
 parallel programmers to defer processing when feasible to simplify
 synchronization [HMassalinPhD].  RCU makes extremely heavy use of
 this advice.
 
 In 1993, Jacobson [Jacobson93] verbally described what is perhaps the
 simplest deferred-free technique: simply waiting a fixed amount of time
-before freeing blocks awaiting deferred free.  Jacobson did not describe
+before freeing blocks awaiting deferred free.  Jacobson did analt describe
 any write-side changes he might have made in this work using SGI's Irix
 kernel.  Aju John published a similar technique in 1995 [AjuJohn95].
 This works well if there is a well-defined upper bound on the length of
 time that reading threads can hold references, as there might well be in
 hard real-time systems.  However, if this time is exceeded, perhaps due
 to preemption, excessive interrupts, or larger-than-anticipated load,
-memory corruption can ensue, with no reasonable means of diagnosis.
+memory corruption can ensue, with anal reasonable means of diaganalsis.
 Jacobson's technique is therefore inappropriate for use in production
 operating-system kernels, except when such kernels can provide hard
 real-time response guarantees for all operations.
@@ -100,7 +100,7 @@ systems made pervasive use of RCU in place of "existence locks", which
 greatly simplifies locking hierarchies and helps avoid deadlocks.
 
 The year 2000 saw an email exchange that would likely have
-led to yet another independent invention of something like RCU
+led to yet aanalther independent invention of something like RCU
 [RustyRussell2000a,RustyRussell2000b].  Instead, 2001 saw the first
 RCU presentation involving Linux [McKenney01a] at OLS.  The resulting
 abundance of RCU patches was presented the following year [McKenney02a],
@@ -108,9 +108,9 @@ and use of RCU in dcache was first described that same year [Linder02a].
 
 Also in 2002, Michael [Michael02b,Michael02a] presented "hazard-pointer"
 techniques that defer the destruction of data structures to simplify
-non-blocking synchronization (wait-free synchronization, lock-free
+analn-blocking synchronization (wait-free synchronization, lock-free
 synchronization, and obstruction-free synchronization are all examples of
-non-blocking synchronization).  The corresponding journal article appeared
+analn-blocking synchronization).  The corresponding journal article appeared
 in 2004 [MagedMichael04a].  This technique eliminates locking, reduces
 contention, reduces memory latency for readers, and parallelizes pipeline
 stalls and memory latency for writers.  However, these techniques still
@@ -126,7 +126,7 @@ variables, thus allowing races between access and deletion to be avoided.
 By the same token, RCU can be thought of as a "bulk reference count",
 where some form of reference counter covers all reference by a given CPU
 or thread during a set timeframe.  This timeframe is related to, but
-not necessarily exactly the same as, an RCU grace period.  In classic
+analt necessarily exactly the same as, an RCU grace period.  In classic
 RCU, the reference counter is the per-CPU bit in the "bitmask" field,
 and each such bit covers all references that might have been made by
 the corresponding CPU during the prior grace period.  Of course, RCU
@@ -173,26 +173,26 @@ a history of how Linux changed RCU more than RCU changed Linux
 [PaulEMcKenney2008HierarchicalRCU].
 
 2009 introduced user-level RCU algorithms [PaulEMcKenney2009MaliciousURCU],
-which Mathieu Desnoyers is now maintaining [MathieuDesnoyers2009URCU]
-[MathieuDesnoyersPhD].  TINY_RCU [PaulEMcKenney2009BloatWatchRCU] made
+which Mathieu Desanalyers is analw maintaining [MathieuDesanalyers2009URCU]
+[MathieuDesanalyersPhD].  TINY_RCU [PaulEMcKenney2009BloatWatchRCU] made
 its appearance, as did expedited RCU [PaulEMcKenney2009expeditedRCU].
-The problem of resizable RCU-protected hash tables may now be on a path
-to a solution [JoshTriplett2009RPHash].  A few academic researchers are now
+The problem of resizable RCU-protected hash tables may analw be on a path
+to a solution [JoshTriplett2009RPHash].  A few academic researchers are analw
 using RCU to solve their parallel problems [HariKannan2009DynamicAnalysisRCU].
 
 2010 produced a simpler preemptible-RCU implementation
 based on TREE_RCU [PaulEMcKenney2010SimpleOptRCU], lockdep-RCU
-[PaulEMcKenney2010LockdepRCU], another resizable RCU-protected hash
+[PaulEMcKenney2010LockdepRCU], aanalther resizable RCU-protected hash
 table [HerbertXu2010RCUResizeHash] (this one consuming more memory,
 but allowing arbitrary changes in hash function, as required for DoS
 avoidance in the networking code), realization of the 2009 RCU-protected
-hash table with atomic node move [JoshTriplett2010RPHash], an update on
+hash table with atomic analde move [JoshTriplett2010RPHash], an update on
 the RCU API [PaulEMcKenney2010RCUAPI].
 
 2011 marked the inclusion of Nick Piggin's fully lockless dentry search
 [LinusTorvalds2011Linux2:6:38:rc1:NPigginVFS], an RCU-protected red-black
 tree using software transactional memory to protect concurrent updates
-(strange, but true!) [PhilHoward2011RCUTMRBTree], yet another variant of
+(strange, but true!) [PhilHoward2011RCUTMRBTree], yet aanalther variant of
 RCU-protected resizable hash tables [Triplett:2011:RPHash], the 3.0 RCU
 trainwreck [PaulEMcKenney2011RCU3.0trainwreck], and Neil Brown's "Meet the
 Lockers" LWN article [NeilBrown2011MeetTheLockers].  Some academic
@@ -207,9 +207,9 @@ but if in the same direction, the updater needs to wait for a grace
 period between the individual updates [JoshTriplettPhD].  Also in 2012,
 after seventeen years of attempts, an RCU paper made it into a top-flight
 academic journal, IEEE Transactions on Parallel and Distributed Systems
-[MathieuDesnoyers2012URCU].  A group of researchers in Spain applied
+[MathieuDesanalyers2012URCU].  A group of researchers in Spain applied
 user-level RCU to crowd simulation [GuillermoVigueras2012RCUCrowd], and
-another group of researchers in Europe produced a formal description of
+aanalther group of researchers in Europe produced a formal description of
 RCU based on separation logic [AlexeyGotsman2012VerifyGraceExtended],
 which was published in the 2013 European Symposium on Programming
 [AlexeyGotsman2013ESOPRCU].
@@ -227,7 +227,7 @@ Bibtex Entries
 ,volume="5"
 ,number="3"
 ,pages="354-382"
-,annotation={
+,ananaltation={
 	Use garbage collector to clean up data after everyone is done with it.
 	.
 	Oldest use of something vaguely resembling RCU that I have found.
@@ -245,20 +245,20 @@ Bibtex Entries
 ,number="82-01-01"
 ,month="January"
 ,pages="28"
-,annotation={
+,ananaltation={
 	.
 	Superseded by Manber84.
 	.
 	Describes concurrent AVL tree implementation.  Uses a
 	garbage-collection mechanism to handle concurrent use and deletion
-	of nodes in the tree, but lacks the summary-of-execution-history
+	of analdes in the tree, but lacks the summary-of-execution-history
 	concept of read-copy locking.
 	.
 	Keeps full list of processes that were active when a given
-	node was to be deleted, and waits until all such processes have
-	-terminated- before allowing this node to be reused.  This is
-	not described in great detail -- one could imagine using process
-	IDs for this if the ID space was large enough that overlapping
+	analde was to be deleted, and waits until all such processes have
+	-terminated- before allowing this analde to be reused.  This is
+	analt described in great detail -- one could imagine using process
+	IDs for this if the ID space was large eanalugh that overlapping
 	never occurred.
 	.
 	This restriction makes this algorithm unsuitable for use in
@@ -266,8 +266,8 @@ Bibtex Entries
 	completely unacceptable overhead in systems with large numbers
 	of processes.  Finally, it is specific to AVL trees.
 	.
-	Cites Kung80, so not an independent invention, but the first
-	RCU-like usage that does not rely on an automatic garbage
+	Cites Kung80, so analt an independent invention, but the first
+	RCU-like usage that does analt rely on an automatic garbage
 	collector.
 }
 }
@@ -281,17 +281,17 @@ Bibtex Entries
 ,volume="9"
 ,number="3"
 ,pages="439-455"
-,annotation={
+,ananaltation={
 	Describes concurrent AVL tree implementation.  Uses a
 	garbage-collection mechanism to handle concurrent use and deletion
-	of nodes in the tree, but lacks the summary-of-execution-history
+	of analdes in the tree, but lacks the summary-of-execution-history
 	concept of read-copy locking.
 	.
 	Keeps full list of processes that were active when a given
-	node was to be deleted, and waits until all such processes have
-	-terminated- before allowing this node to be reused.  This is
-	not described in great detail -- one could imagine using process
-	IDs for this if the ID space was large enough that overlapping
+	analde was to be deleted, and waits until all such processes have
+	-terminated- before allowing this analde to be reused.  This is
+	analt described in great detail -- one could imagine using process
+	IDs for this if the ID space was large eanalugh that overlapping
 	never occurred.
 	.
 	This restriction makes this algorithm unsuitable for use in
@@ -314,17 +314,17 @@ for Programming Languages and Operating Systems}"
 ,Year="1987"
 ,pages="31-39"
 ,Address="Palo Alto, CA"
-,note="Available:
+,analte="Available:
 \url{http://www.cse.ucsc.edu/~randal/221/rashid-machvm.pdf}
 [Viewed February 17, 2005]"
-,annotation={
+,ananaltation={
 	Describes lazy TLB flush, where one waits for each CPU to pass
 	through a scheduling-clock interrupt before reusing a given range
-	of virtual address.  Does not describe how one determines that
+	of virtual address.  Does analt describe how one determines that
 	all CPUs have in fact taken such an interrupt, though there are
-	no shortage of straightforward methods for accomplishing this.
+	anal shortage of straightforward methods for accomplishing this.
 	.
-	Note that it does not make sense to just wait a fixed amount of
+	Analte that it does analt make sense to just wait a fixed amount of
 	time, since a given CPU might have interrupts disabled for an
 	extended amount of time.
 }
@@ -342,7 +342,7 @@ for Programming Languages and Operating Systems}"
 ,doi = {http://doi.acm.org/10.1145/42392.42399}
 ,publisher = {ACM}
 ,address = {New York, NY, USA}
-,annotation={
+,ananaltation={
 	At the top of page 307: "Conflicts with deposits and withdrawals
 	are necessary if the reported total is to be up to date.  They
 	could be avoided by having total return a sum that is slightly
@@ -370,9 +370,9 @@ for Programming Languages and Operating Systems}"
 ,year="1990"
 ,number="CS-TR-2222.1"
 ,month="June"
-,annotation={
+,ananaltation={
 	Concurrent access to skip lists.  Has both weak and strong search.
-	Uses concept of ``garbage queue'', but has no real way of cleaning
+	Uses concept of ``garbage queue'', but has anal real way of cleaning
 	the garbage efficiently.
 	.
 	Appears to be an independent invention of an RCU-like mechanism.
@@ -385,14 +385,14 @@ for Programming Languages and Operating Systems}"
 ,title="Concurrent Programming, Principles, and Practices"
 ,Publisher="Benjamin Cummins"
 ,Year="1991"
-,annotation={
+,ananaltation={
 	Has a few paragraphs describing ``chaotic relaxation'', a
 	numerical analysis technique that allows multiprocessors to
 	avoid synchronization overhead by using possibly-stale data.
 	.
-	Seems like this is descended from yet another independent
+	Seems like this is descended from yet aanalther independent
 	invention of RCU-like function -- but this is restricted
-	in that reclamation is not necessary.
+	in that reclamation is analt necessary.
 }
 }
 
@@ -403,7 +403,7 @@ System Services"
 ,school="Columbia University"
 ,address="New York, NY"
 ,year="1992"
-,annotation={
+,ananaltation={
 	Mondo optimizing compiler.
 	Wait-free stuff.
 	Good advice: defer work to avoid synchronization.  See page 90
@@ -416,8 +416,8 @@ System Services"
 ,title="Avoid Read-Side Locking Via Delayed Free"
 ,year="1993"
 ,month="September"
-,note="private communication"
-,annotation={
+,analte="private communication"
+,ananaltation={
 	Use fixed time delay to approximate grace period.  Very simple,
 	but subject to random memory corruption under heavy load.
 	.
@@ -427,20 +427,20 @@ System Services"
 
 @Conference{AjuJohn95
 ,Author="Aju John"
-,Title="Dynamic vnodes -- Design and Implementation"
+,Title="Dynamic vanaldes -- Design and Implementation"
 ,Booktitle="{USENIX Winter 1995}"
 ,Publisher="USENIX Association"
 ,Month="January"
 ,Year="1995"
 ,pages="11-23"
 ,Address="New Orleans, LA"
-,note="Available:
+,analte="Available:
 \url{https://www.usenix.org/publications/library/proceedings/neworl/full_papers/john.a}
 [Viewed October 1, 2010]"
-,annotation={
-	Age vnodes out of the cache, and have a fixed time set by a kernel
-	parameter.  Not clear that all races were in fact correctly handled.
-	Used a 20-minute time by default, which would most definitely not
+,ananaltation={
+	Age vanaldes out of the cache, and have a fixed time set by a kernel
+	parameter.  Analt clear that all races were in fact correctly handled.
+	Used a 20-minute time by default, which would most definitely analt
 	be suitable during DoS attacks or virus scans.
 	.
 	Apparently independent invention of RCU-like mechanism.
@@ -449,7 +449,7 @@ System Services"
 
 @conference{Pu95a
 ,Author = "Calton Pu and Tito Autrey and Andrew Black and Charles Consel and
-Crispin Cowan and Jon Inouye and Lakshmi Kethana and Jonathan Walpole and
+Crispin Cowan and Jon Ianaluye and Lakshmi Kethana and Jonathan Walpole and
 Ke Zhang"
 ,Title = "Optimistic Incremental Specialization: Streamlining a Commercial
 ,Operating System"
@@ -459,7 +459,7 @@ Ke Zhang"
 ,month="December"
 ,year="1995"
 ,pages="314-321"
-,annotation={
+,ananaltation={
 	Uses a replugger, but with a flag to signal when people are
 	using the resource at hand.  Only one reader at a time.
 }
@@ -476,7 +476,7 @@ Ke Zhang"
 ,year="1996"
 ,pages="108"
 ,isbn="0-8186-7395-8"
-,annotation={
+,ananaltation={
 	Uses a replugger, but with a counter to signal when people are
 	using the resource at hand.  Allows multiple readers.
 }
@@ -492,11 +492,11 @@ Utilizing Execution History and Thread Monitoring"
 ,year="1995"
 ,number="US Patent 5,442,758"
 ,month="August"
-,annotation={
+,ananaltation={
 	Describes the parallel RCU infrastructure.  Includes NUMA aspect
 	(structure of bitmap can reflect bus structure of computer system).
 	.
-	Another independent invention of an RCU-like mechanism, but the
+	Aanalther independent invention of an RCU-like mechanism, but the
 	"real" RCU this time!
 }
 }
@@ -511,7 +511,7 @@ Summaries in a Multicomputer System"
 ,number="US Patent 5,608,893"
 ,month="March"
 ,pages="19"
-,annotation={
+,ananaltation={
 	Describes use of RCU to synchronize data between a pair of
 	SMP/NUMA computer systems.
 }
@@ -527,7 +527,7 @@ Utilizing Execution History and Thread Monitoring"
 ,year="1998"
 ,number="US Patent 5,727,209"
 ,month="March"
-,annotation={
+,ananaltation={
 	Describes doing an atomic update by copying the data item and
 	then substituting it into the data structure.
 }
@@ -542,7 +542,7 @@ Problems"
 ,Year="1998"
 ,pages="509-518"
 ,Address="Las Vegas, NV"
-,annotation={
+,ananaltation={
 	Describes and analyzes RCU mechanism in DYNIX/ptx.  Describes
 	application to linked list update and log-buffer flushing.
 	Defines 'quiescent state'.  Includes both measured and analytic
@@ -562,8 +562,8 @@ Operating System Design and Implementation}"
 ,Year="1999"
 ,pages="87-100"
 ,Address="New Orleans, LA"
-,annotation={
-	Use of RCU-like facility in K42/Tornado.  Another independent
+,ananaltation={
+	Use of RCU-like facility in K42/Tornado.  Aanalther independent
 	invention of RCU.
 	See especially pages 7-9 (Section 5).
 	http://www.usenix.org/events/osdi99/full_papers/gamsa/gamsa.pdf
@@ -577,12 +577,12 @@ Operating System Design and Implementation}"
 ,month="June"
 ,year="2000"
 ,day="23"
-,note="Available:
+,analte="Available:
 \url{http://oss.sgi.com/projects/netdev/archive/2000-06/msg00250.html}
 [Viewed April 10, 2006]"
-,annotation={
+,ananaltation={
 	Proto-RCU proposal from Phil Rumpf and Rusty Russell.
-	Yet another independent invention of RCU.
+	Yet aanalther independent invention of RCU.
 	Outline of algorithm to unload modules...
 	.
 	Appeared on net-dev mailing list.
@@ -595,10 +595,10 @@ Operating System Design and Implementation}"
 ,month="June"
 ,year="2000"
 ,day="24"
-,note="Available:
+,analte="Available:
 \url{http://oss.sgi.com/projects/netdev/archive/2000-06/msg00254.html}
 [Viewed April 10, 2006]"
-,annotation={
+,ananaltation={
 	Proto-RCU proposal from Phil Rumpf and Rusty Russell.
 	.
 	Appeared on net-dev mailing list.
@@ -610,10 +610,10 @@ Operating System Design and Implementation}"
 ,Title="Read-Copy Update Mutual Exclusion in {Linux}"
 ,month="February"
 ,year="2001"
-,note="Available:
+,analte="Available:
 \url{http://lse.sourceforge.net/locking/rcu/rcupdate_doc.html}
 [Viewed October 18, 2004]"
-,annotation={
+,ananaltation={
 	Prototypical Linux documentation for RCU.
 }
 }
@@ -628,7 +628,7 @@ Utilizing Execution History and Thread Monitoring"
 ,year="2001"
 ,number="US Patent 6,219,690"
 ,month="April"
-,annotation={
+,ananaltation={
 	'Change in mode' aspect of RCU.  Can be thought of as a lazy barrier.
 }
 }
@@ -640,11 +640,11 @@ Orran Krieger and Rusty Russell and Dipankar Sarma and Maneesh Soni"
 ,Booktitle="{Ottawa Linux Symposium}"
 ,Month="July"
 ,Year="2001"
-,note="Available:
+,analte="Available:
 \url{http://www.linuxsymposium.org/2001/abstracts/readcopy.php}
 \url{http://www.rdrop.com/users/paulmck/RCU/rclock_OLS.2001.05.01c.pdf}
 [Viewed June 23, 2004]"
-,annotation={
+,ananaltation={
 	Described RCU, and presented some patches implementing and using
 	it in the Linux kernel.
 }
@@ -655,11 +655,11 @@ Orran Krieger and Rusty Russell and Dipankar Sarma and Maneesh Soni"
 ,Title="{RFC:} patch to allow lock-free traversal of lists with insertion"
 ,month="October"
 ,year="2001"
-,note="Available:
+,analte="Available:
 \url{http://marc.theaimsgroup.com/?l=linux-kernel&m=100259266316456&w=2}
 [Viewed June 23, 2004]"
-,annotation={
-	Memory-barrier and Alpha thread.  100 messages, not too bad...
+,ananaltation={
+	Memory-barrier and Alpha thread.  100 messages, analt too bad...
 }
 }
 
@@ -668,10 +668,10 @@ Orran Krieger and Rusty Russell and Dipankar Sarma and Maneesh Soni"
 ,Title="Re: {RFC:} patch to allow lock-free traversal of lists with insertion"
 ,month="October"
 ,year="2001"
-,note="Available:
+,analte="Available:
 \url{http://marc.theaimsgroup.com/?l=linux-kernel&m=100264675012867&w=2}
 [Viewed June 23, 2004]"
-,annotation={
+,ananaltation={
 	Suggested burying memory barriers in Linux's list-manipulation
 	primitives.
 }
@@ -682,10 +682,10 @@ Orran Krieger and Rusty Russell and Dipankar Sarma and Maneesh Soni"
 ,Title="{Re:} {[Lse-tech]} {Re:} {RFC:} patch to allow lock-free traversal of lists with insertion"
 ,month="October"
 ,year="2001"
-,note="Available:
+,analte="Available:
 \url{https://lore.kernel.org/r/Pine.LNX.4.33.0110131015410.8707-100000@penguin.transmeta.com}
 [Viewed August 21, 2004]"
-,annotation={
+,ananaltation={
 }
 }
 
@@ -694,7 +694,7 @@ Orran Krieger and Rusty Russell and Dipankar Sarma and Maneesh Soni"
 ,Title="some RCU dcache and ratcache results"
 ,month="March"
 ,year="2002"
-,note="Available:
+,analte="Available:
 \url{http://marc.theaimsgroup.com/?l=linux-kernel&m=101637107412972&w=2}
 [Viewed October 18, 2004]"
 }
@@ -708,7 +708,7 @@ Orran Krieger and Rusty Russell and Dipankar Sarma and Maneesh Soni"
 Symposium on Parallel
 Algorithms and Architecture}"
 ,pages="73-82"
-,annotation={
+,ananaltation={
 Like the title says...
 }
 }
@@ -720,7 +720,7 @@ Like the title says...
 ,Month="June"
 ,Year="2002"
 ,pages="289-300"
-,annotation={
+,ananaltation={
 	Measured scalability of Linux 2.4 kernel's directory-entry cache
 	(dcache), and measured some scalability enhancements.
 }
@@ -734,10 +734,10 @@ Andrea Arcangeli and Andi Kleen and Orran Krieger and Rusty Russell"
 ,Month="June"
 ,Year="2002"
 ,pages="338-367"
-,note="Available:
+,analte="Available:
 \url{http://www.linux.org.uk/~ajh/ols2002_proceedings.pdf.gz}
 [Viewed June 23, 2004]"
-,annotation={
+,ananaltation={
 	Presented and compared a number of RCU implementations for the
 	Linux kernel.
 }
@@ -748,10 +748,10 @@ Andrea Arcangeli and Andi Kleen and Orran Krieger and Rusty Russell"
 ,Title="specweb99: dcache scalability results"
 ,month="July"
 ,year="2002"
-,note="Available:
+,analte="Available:
 \url{http://marc.theaimsgroup.com/?l=linux-kernel&m=102645767914212&w=2}
 [Viewed June 23, 2004]"
-,annotation={
+,ananaltation={
 	Compare fastwalk and RCU for dcache.  RCU won.
 }
 }
@@ -761,10 +761,10 @@ Andrea Arcangeli and Andi Kleen and Orran Krieger and Rusty Russell"
 ,Title="Re: {[PATCH]} Initial support for struct {vfs\_cred}"
 ,month="August"
 ,year="2002"
-,note="Available:
+,analte="Available:
 \url{http://marc.theaimsgroup.com/?l=linux-kernel&m=103082050621241&w=2}
 [Viewed: June 23, 2004]"
-,annotation={
+,ananaltation={
 	Suggested RCU for vfs\_shared\_cred.
 }
 }
@@ -778,7 +778,7 @@ Reads and Writes"
 ,booktitle="{Proceedings of the 21\textsuperscript{st} Annual ACM
 Symposium on Principles of Distributed Computing}"
 ,pages="21-30"
-,annotation={
+,ananaltation={
 	Each thread keeps an array of pointers to items that it is
 	currently referencing.	Sort of an inside-out garbage collection
 	mechanism, but one that requires the accessing code to explicitly
@@ -792,7 +792,7 @@ Symposium on Principles of Distributed Computing}"
 ,title="Use RCU for System-V IPC"
 ,year="2002"
 ,month="October"
-,note="private communication"
+,analte="private communication"
 }
 
 @InProceedings{HerlihyLM02
@@ -811,12 +811,12 @@ Symposium on Distributed Computing}
 ,Title="Some dcache\_rcu benchmark numbers"
 ,month="October"
 ,year="2002"
-,note="Available:
+,analte="Available:
 \url{http://marc.theaimsgroup.com/?l=linux-kernel&m=103462075416638&w=2}
 [Viewed June 23, 2004]"
-,annotation={
+,ananaltation={
 	Performance of dcache RCU on kernbench for 16x NUMA-Q and 1x,
-	2x, and 4x systems.  RCU does no harm, and helps on 16x.
+	2x, and 4x systems.  RCU does anal harm, and helps on 16x.
 }
 }
 
@@ -825,10 +825,10 @@ Symposium on Distributed Computing}
 ,Title="[PATCH]updated ipc lock patch"
 ,month="October"
 ,year="2002"
-,note="Available:
+,analte="Available:
 \url{https://lore.kernel.org/r/3DB86B05.447E7410@us.ibm.com}
 [Viewed February 15, 2014]"
-,annotation={
+,ananaltation={
 	Mingming Cao's patch to introduce RCU to SysV IPC.
 }
 }
@@ -838,10 +838,10 @@ Symposium on Distributed Computing}
 ,Title="Re: {[PATCH]} small fixes in brlock.h"
 ,month="March"
 ,year="2003"
-,note="Available:
+,analte="Available:
 \url{https://lore.kernel.org/r/Pine.LNX.4.44.0303091831560.2129-100000@home.transmeta.com}
 [Viewed March 13, 2006]"
-,annotation={
+,ananaltation={
 	Linus suggests replacing brlock with RCU and/or seqlocks:
 	.
 	'It's entirely possible that the current user could be replaced
@@ -856,15 +856,15 @@ Symposium on Distributed Computing}
 D. M. {Da Silva} and O. Krieger and M. A. Auslander and D. J. Edelsohn and
 B. Gamsa and G. R. Ganger and P. McKenney and M. Ostrowski and
 B. Rosenburg and M. Stumm and J. Xenidis"
-,title="Enabling Autonomic Behavior in Systems Software With Hot Swapping"
+,title="Enabling Autoanalmic Behavior in Systems Software With Hot Swapping"
 ,Year="2003"
 ,Month="January"
 ,journal="IBM Systems Journal"
 ,volume="42"
 ,number="1"
 ,pages="60-76"
-,annotation={
-	Use of RCU to enable hot-swapping for autonomic behavior in K42.
+,ananaltation={
+	Use of RCU to enable hot-swapping for autoanalmic behavior in K42.
 }
 }
 
@@ -873,8 +873,8 @@ B. Rosenburg and M. Stumm and J. Xenidis"
 ,title="Read Copy Update"
 ,Year="2003"
 ,Month="March"
-,note="email correspondence"
-,annotation={
+,analte="email correspondence"
+,ananaltation={
 	Described the relationship of the VM/XA passive serialization to RCU.
 }
 }
@@ -890,7 +890,7 @@ Dipankar Sarma"
 ,year="2003"
 ,month="June"
 ,pages="297-310"
-,annotation={
+,ananaltation={
 	Compared updated RCU implementations for the Linux kernel, and
 	described System V IPC use of RCU, including order-of-magnitude
 	performance improvements.
@@ -920,10 +920,10 @@ Michal Ostrowski and Bryan Rosenburg and Jimi Xenidis"
 ,volume="1"
 ,number="114"
 ,pages="18-26"
-,note="Available:
+,analte="Available:
 \url{http://www.linuxjournal.com/article/6993}
-[Viewed November 14, 2007]"
-,annotation={
+[Viewed Analvember 14, 2007]"
+,ananaltation={
 	Reader-friendly intro to RCU, with the infamous old-man-and-brat
 	cartoon.
 }
@@ -934,8 +934,8 @@ Michal Ostrowski and Bryan Rosenburg and Jimi Xenidis"
 ,Title="RCU low latency patches"
 ,month="December"
 ,year="2003"
-,note="Message ID: 20031222180114.GA2248@in.ibm.com"
-,annotation={
+,analte="Message ID: 20031222180114.GA2248@in.ibm.com"
+,ananaltation={
 	dipankar/ct.2004.03.27/RCUll.2003.12.22.patch
 }
 }
@@ -949,9 +949,9 @@ Michal Ostrowski and Bryan Rosenburg and Jimi Xenidis"
 ,number="US Patent 6,662,184"
 ,month="December"
 ,pages="112"
-,annotation={
+,ananaltation={
 	Applies RCU to a wildcard-search Patricia tree in order to permit
-	synchronization-free lookup.  RCU is used to retain removed nodes
+	synchronization-free lookup.  RCU is used to retain removed analdes
 	for a grace period before freeing them.
 }
 }
@@ -965,9 +965,9 @@ Michal Ostrowski and Bryan Rosenburg and Jimi Xenidis"
 ,volume="1"
 ,number="118"
 ,pages="38-46"
-,annotation={
+,ananaltation={
 	Reader friendly intro to dcache and RCU.
-	http://www.linuxjournal.com/node/7124
+	http://www.linuxjournal.com/analde/7124
 	[Viewed December 26, 2010]
 }
 }
@@ -979,11 +979,11 @@ Michal Ostrowski and Bryan Rosenburg and Jimi Xenidis"
 ,Month="January"
 ,Year="2004"
 ,Address="Adelaide, Australia"
-,note="Available:
+,analte="Available:
 \url{http://www.linux.org.au/conf/2004/abstracts.html#90}
 \url{http://www.rdrop.com/users/paulmck/RCU/lockperf.2004.01.17a.pdf}
 [Viewed June 23, 2004]"
-,annotation={
+,ananaltation={
 	Compares performance of RCU to that of other locking primitives
 	over a number of CPUs (x86, Opteron, Itanium, and PPC).
 }
@@ -994,8 +994,8 @@ Michal Ostrowski and Bryan Rosenburg and Jimi Xenidis"
 ,Title="{[PATCH]} {RCU} for low latency (experimental)"
 ,month="March"
 ,year="2004"
-,note="\url{http://marc.theaimsgroup.com/?l=linux-kernel&m=108003746402892&w=2}"
-,annotation={
+,analte="\url{http://marc.theaimsgroup.com/?l=linux-kernel&m=108003746402892&w=2}"
+,ananaltation={
 	Head of thread: dipankar/2004.03.23/rcu-low-lat.1.patch
 }
 }
@@ -1005,8 +1005,8 @@ Michal Ostrowski and Bryan Rosenburg and Jimi Xenidis"
 ,Title="Re: {[PATCH]} {RCU} for low latency (experimental)"
 ,month="March"
 ,year="2004"
-,note="\url{http://marc.theaimsgroup.com/?l=linux-kernel&m=108016474829546&w=2}"
-,annotation={
+,analte="\url{http://marc.theaimsgroup.com/?l=linux-kernel&m=108016474829546&w=2}"
+,ananaltation={
 	dipankar/rcuth.2004.03.24/rcu-throttle.patch
 }
 }
@@ -1016,10 +1016,10 @@ Michal Ostrowski and Bryan Rosenburg and Jimi Xenidis"
 ,Title="[RFC] 0/5 rcu lock update"
 ,month="May"
 ,year="2004"
-,note="Available:
+,analte="Available:
 \url{http://marc.theaimsgroup.com/?l=linux-kernel&m=108546407726602&w=2}
 [Viewed June 23, 2004]"
-,annotation={
+,ananaltation={
 	Hierarchical-bitmap patch for RCU infrastructure.
 }
 }
@@ -1030,10 +1030,10 @@ Michal Ostrowski and Bryan Rosenburg and Jimi Xenidis"
 Add per-cpu batch counter"
 ,month="May"
 ,year="2004"
-,note="Available:
+,analte="Available:
 \url{http://marc.theaimsgroup.com/?l=linux-kernel&m=108551764515332&w=2}
 [Viewed June 23, 2004]"
-,annotation={
+,ananaltation={
 	RCU runs reasonably on a 512-CPU SGI using Manfred Spraul's patches,
 	which may be found at:
 	https://lore.kernel.org/r/40AC9823.6020709@colorfullife.com (split vars into cachelines)
@@ -1058,7 +1058,7 @@ Realtime Applications"
 ,year="2004"
 ,month="June"
 ,pages="182-191"
-,annotation={
+,ananaltation={
 	Describes and compares a number of modifications to the Linux RCU
 	implementation that make it friendly to realtime applications.
 	https://www.usenix.org/conference/2004-usenix-annual-technical-conference/making-rcu-safe-deep-sub-millisecond-response
@@ -1078,8 +1078,8 @@ Realtime Applications"
 ,url="Available:
 \url{http://www.research.ibm.com/people/m/michael/ieeetpds-2004.pdf}
 [Viewed March 1, 2005]"
-,annotation={
-	New canonical hazard-pointer citation.
+,ananaltation={
+	New caanalnical hazard-pointer citation.
 }
 }
 
@@ -1091,7 +1091,7 @@ in Operating System Kernels"
 ,school="OGI School of Science and Engineering at
 Oregon Health and Sciences University"
 ,year="2004"
-,annotation={
+,ananaltation={
 	Describes RCU implementations and presents design patterns
 	corresponding to common uses of RCU in several operating-system
 	kernels.
@@ -1105,10 +1105,10 @@ Oregon Health and Sciences University"
 ,Title="{Re: RCU : Abstracted RCU dereferencing [5/5]}"
 ,month="August"
 ,year="2004"
-,note="Available:
+,analte="Available:
 \url{https://lore.kernel.org/r/20040807192424.GF3936@in.ibm.com}
 [Viewed June 8, 2010]"
-,annotation={
+,ananaltation={
 	Introduce rcu_dereference().
 }
 }
@@ -1118,12 +1118,12 @@ Oregon Health and Sciences University"
 ,Title="{[RFC\&PATCH] Alternative {RCU} implementation}"
 ,month="August"
 ,year="2004"
-,note="Available:
+,analte="Available:
 \url{https://lore.kernel.org/r/1093873222.984.12.camel@new.localdomain}
 [Viewed February 17, 2005]"
-,annotation={
+,ananaltation={
 	Uses active code in rcu_read_lock() and rcu_read_unlock() to
-	make RCU happen, allowing RCU to function on CPUs that do not
+	make RCU happen, allowing RCU to function on CPUs that do analt
 	receive a scheduling-clock interrupt.
 }
 }
@@ -1133,10 +1133,10 @@ Oregon Health and Sciences University"
 ,Title="Master's Thesis: Applying Lock-free Techniques to the {Linux} Kernel"
 ,month="October"
 ,year="2004"
-,note="Available:
+,analte="Available:
 \url{http://www.cs.toronto.edu/~tomhart/masters_thesis.html}
 [Viewed October 15, 2004]"
-,annotation={
+,ananaltation={
 	Proposes comparing RCU to lock-free methods for the Linux kernel.
 }
 }
@@ -1146,10 +1146,10 @@ Oregon Health and Sciences University"
 ,Title="Subject: [RFC] Use RCU for tcp\_ehash lookup"
 ,month="October"
 ,year="2004"
-,note="Available:
+,analte="Available:
 \url{http://marc.theaimsgroup.com/?t=109395731700004&r=1&w=2}
 [Viewed October 18, 2004]"
-,annotation={
+,ananaltation={
 	Srivatsa's RCU patch for tcp_ehash lookup.
 }
 }
@@ -1159,10 +1159,10 @@ Oregon Health and Sciences University"
 ,Title="Subject: [patchset] Lockfree fd lookup 0 of 5"
 ,month="October"
 ,year="2004"
-,note="Available:
+,analte="Available:
 \url{http://marc.theaimsgroup.com/?t=109144217400003&r=1&w=2}
 [Viewed October 18, 2004]"
-,annotation={
+,ananaltation={
 	Ravikiran's lockfree FD patch.
 }
 }
@@ -1172,10 +1172,10 @@ Oregon Health and Sciences University"
 ,Title="Subject: Re: [patchset] Lockfree fd lookup 0 of 5"
 ,month="October"
 ,year="2004"
-,note="Available:
+,analte="Available:
 \url{http://marc.theaimsgroup.com/?l=linux-kernel&m=109152521410459&w=2}
 [Viewed October 18, 2004]"
-,annotation={
+,ananaltation={
 	Ravikiran's lockfree FD patch.
 }
 }
@@ -1185,10 +1185,10 @@ Oregon Health and Sciences University"
 ,Title="{[PATCH 1/3] RCU: \url{rcu_assign_pointer()} removal of memory barriers}"
 ,month="October"
 ,year="2004"
-,note="Available:
+,analte="Available:
 \url{https://lore.kernel.org/r/20041023202723.GA1930@us.ibm.com}
 [Viewed June 8, 2010]"
-,annotation={
+,ananaltation={
 	Introduce rcu_assign_pointer().
 }
 }
@@ -1197,10 +1197,10 @@ Oregon Health and Sciences University"
 ,Author="James Morris"
 ,Title="{[PATCH 2/3] SELinux} scalability - convert {AVC} to {RCU}"
 ,day="15"
-,month="November"
+,month="Analvember"
 ,year="2004"
-,note="\url{http://marc.theaimsgroup.com/?l=linux-kernel&m=110054979416004&w=2}"
-,annotation={
+,analte="\url{http://marc.theaimsgroup.com/?l=linux-kernel&m=110054979416004&w=2}"
+,ananaltation={
 	James Morris posts Kaigai Kohei's patch to LKML.
 	[Viewed December 10, 2004]
 	Kaigai's patch is at https://lore.kernel.org/r/200409271057.i8RAvcA1007873@mailsv.bs1.fc.nec.co.jp
@@ -1212,10 +1212,10 @@ Oregon Health and Sciences University"
 ,Title="Recent Developments in {SELinux} Kernel Performance"
 ,month="December"
 ,year="2004"
-,note="Available:
+,analte="Available:
 \url{http://www.livejournal.com/users/james_morris/2153.html}
 [Viewed December 10, 2004]"
-,annotation={
+,ananaltation={
 	RCU helps SELinux performance.  ;-)  Made LWN.
 }
 }
@@ -1226,10 +1226,10 @@ Oregon Health and Sciences University"
 ,month="January"
 ,year="2005"
 ,day="30"
-,note="Available:
+,analte="Available:
 \url{http://www.rdrop.com/users/paulmck/RCU/rcu-semantics.2005.01.30a.pdf}
 [Viewed December 6, 2009]"
-,annotation={
+,ananaltation={
 	Early derivation of RCU semantics.
 }
 }
@@ -1240,10 +1240,10 @@ Oregon Health and Sciences University"
 ,month="March"
 ,year="2005"
 ,day="17"
-,note="Available:
+,analte="Available:
 \url{https://lore.kernel.org/r/20050318002026.GA2693@us.ibm.com}
 [Viewed September 5, 2005]"
-,annotation={
+,ananaltation={
 	First posting showing how RCU can be safely adapted for
 	preemptible RCU read side critical sections.
 }
@@ -1255,10 +1255,10 @@ Oregon Health and Sciences University"
 ,month="March"
 ,year="2005"
 ,day="18"
-,note="Available:
+,analte="Available:
 \url{https://lore.kernel.org/r/Pine.OSF.4.05.10503181336310.2466-100000@da410.phys.au.dk}
 [Viewed March 30, 2006]"
-,annotation={
+,ananaltation={
 	Esben Neilsen suggests read-side suppression of grace-period
 	processing for crude-but-workable realtime RCU.  The downside
 	is indefinite grace periods...  But this is OK for experimentation
@@ -1272,10 +1272,10 @@ Oregon Health and Sciences University"
 Data Structures"
 ,month="March"
 ,year="2005"
-,note="Available:
+,analte="Available:
 \url{ftp://ftp.cs.toronto.edu/csrg-technical-reports/515/}
 [Viewed March 4, 2005]"
-,annotation={
+,ananaltation={
 	Comparison of RCU, QBSR, and EBSR.  RCU wins for read-mostly
 	workloads.  ;-)
 }
@@ -1287,10 +1287,10 @@ Data Structures"
 ,month="May"
 ,day="3"
 ,year="2005"
-,note="Available:
+,analte="Available:
 \url{http://lwn.net/Articles/134484/}
 [Viewed May 3, 2005]"
-,annotation={
+,ananaltation={
 	Jon Corbet describes deprecation of synchronize_kernel()
 	in favor of synchronize_rcu() and synchronize_sched().
 }
@@ -1301,10 +1301,10 @@ Data Structures"
 ,Title="{[RFC]} {RCU} and {CONFIG\_PREEMPT\_RT} progress"
 ,month="May"
 ,year="2005"
-,note="Available:
+,analte="Available:
 \url{https://lore.kernel.org/r/20050510012444.GA3011@us.ibm.com}
 [Viewed May 13, 2005]"
-,annotation={
+,ananaltation={
 	First publication of working lock-based deferred free patches
 	for the CONFIG_PREEMPT_RT environment.
 }
@@ -1317,10 +1317,10 @@ Data Structures"
 ,month="April"
 ,year="2005"
 ,address="Canberra, Australia"
-,note="Available:
+,analte="Available:
 \url{http://www.rdrop.com/users/paulmck/RCU/realtimeRCU.2005.04.23a.pdf}
 [Viewed May 13, 2005]"
-,annotation={
+,ananaltation={
 	Realtime turns into making RCU yet more realtime friendly.
 	http://lca2005.linux.org.au/Papers/Paul%20McKenney/Towards%20Hard%20Realtime%20Response%20from%20the%20Linux%20Kernel/LKS.2005.04.22a.pdf
 }
@@ -1331,10 +1331,10 @@ Data Structures"
 ,Title="{Paul} {E.} {McKenney}"
 ,month="May"
 ,year="2005"
-,note="Available:
+,analte="Available:
 \url{http://www.rdrop.com/users/paulmck/}
 [Viewed May 25, 2005]"
-,annotation={
+,ananaltation={
 	Paul McKenney's home page.
 }
 }
@@ -1344,10 +1344,10 @@ Data Structures"
 ,Title="Read-Copy Update {(RCU)}"
 ,month="May"
 ,year="2005"
-,note="Available:
+,analte="Available:
 \url{http://www.rdrop.com/users/paulmck/RCU}
 [Viewed May 25, 2005]"
-,annotation={
+,ananaltation={
 	Paul McKenney's RCU page.
 }
 }
@@ -1357,9 +1357,9 @@ Data Structures"
 ,Title="{RCU}+{SMR} (hazard pointers)"
 ,month="July"
 ,year="2005"
-,note="Personal communication"
-,annotation={
-	Joe Seigh announcing his atomic-ptr-plus project.
+,analte="Personal communication"
+,ananaltation={
+	Joe Seigh ananaluncing his atomic-ptr-plus project.
 	http://sourceforge.net/projects/atomic-ptr-plus/
 }
 }
@@ -1370,10 +1370,10 @@ Data Structures"
 ,month="July"
 ,day="6"
 ,year="2005"
-,note="Available:
+,analte="Available:
 \url{http://sourceforge.net/projects/atomic-ptr-plus/}
 [Viewed August 8, 2005]"
-,annotation={
+,ananaltation={
 	Joe Seigh's atomic-ptr-plus project.
 }
 }
@@ -1384,10 +1384,10 @@ Data Structures"
 ,month="August"
 ,day="1"
 ,year="2005"
-,note="Available:
+,analte="Available:
 \url{https://lore.kernel.org/r/20050801171137.GA1754@us.ibm.com}
 [Viewed March 14, 2006]"
-,annotation={
+,ananaltation={
 	First operating counter-based realtime RCU patch posted to LKML.
 }
 }
@@ -1398,10 +1398,10 @@ Data Structures"
 ,month="August"
 ,day="8"
 ,year="2005"
-,note="Available:
+,analte="Available:
 \url{https://lore.kernel.org/r/20050808144216.GA1307@us.ibm.com}
 [Viewed March 14, 2006]"
-,annotation={
+,ananaltation={
 	First operating counter-based realtime RCU patch posted to LKML,
 	but fixed so that various unusual combinations of configuration
 	parameters all function properly.
@@ -1414,10 +1414,10 @@ Data Structures"
 ,month="October"
 ,day="1"
 ,year="2005"
-,note="Available:
+,analte="Available:
 \url{https://lore.kernel.org/r/20051001182056.GA1613@us.ibm.com}
 [Viewed March 14, 2006]"
-,annotation={
+,ananaltation={
 	First rcutorture patch.
 }
 }
@@ -1428,10 +1428,10 @@ Data Structures"
 ,month="January"
 ,day="6"
 ,year="2006"
-,note="Available:
+,analte="Available:
 \url{https://lore.kernel.org/r/20060106.231054.43576567.davem@davemloft.net}
 [Viewed February 29, 2012]"
-,annotation={
+,ananaltation={
 	David Miller's view on hashed arrays of locks: used to really
 	like it, but time he saw an opportunity for this technique,
 	something else always proved superior.  Partitioning or RCU.  ;-)
@@ -1448,10 +1448,10 @@ Distributed Processing Symposium"
 ,year="2006"
 ,day="25-29"
 ,address="Rhodes, Greece"
-,note="Available:
+,analte="Available:
 \url{http://www.rdrop.com/users/paulmck/RCU/hart_ipdps06.pdf}
 [Viewed April 28, 2008]"
-,annotation={
+,ananaltation={
 	Compares QSBR, HPBR, EBR, and lock-free reference counting.
 	http://www.cs.toronto.edu/~tomhart/perflab/ipdps06.tgz
 }
@@ -1463,10 +1463,10 @@ Distributed Processing Symposium"
 ,month="June"
 ,day="20"
 ,year="2006"
-,note="Available:
+,analte="Available:
 \url{https://lore.kernel.org/r/20060408134707.22479.33814.sendpatchset@linux.site}
 [Viewed March 25, 2008]"
-,annotation={
+,ananaltation={
 	RCU-protected radix tree.
 }
 }
@@ -1479,11 +1479,11 @@ Suparna Bhattacharya"
 ,Month="July"
 ,Year="2006"
 ,pages="v2 123-138"
-,note="Available:
+,analte="Available:
 \url{http://www.linuxsymposium.org/2006/view_abstract.php?content_key=184}
 \url{http://www.rdrop.com/users/paulmck/RCU/OLSrtRCU.2006.08.11a.pdf}
 [Viewed January 1, 2007]"
-,annotation={
+,ananaltation={
 	Described how to improve the -rt implementation of realtime RCU.
 }
 }
@@ -1491,13 +1491,13 @@ Suparna Bhattacharya"
 @unpublished{WikipediaRCU
 ,Author="Paul E. McKenney and Chris Purcell and Algae and Ben Schumin and
 Gaius Cornelius and Qwertyus and Neil Conway and Sbw and Blainster and
-Canis Rufus and Zoicon5 and Anome and Hal Eisen"
+Canis Rufus and Zoicon5 and Aanalme and Hal Eisen"
 ,Title="Read-Copy Update"
 ,month="July"
 ,day="8"
 ,year="2006"
-,note="\url{https://en.wikipedia.org/wiki/Read-copy-update}"
-,annotation={
+,analte="\url{https://en.wikipedia.org/wiki/Read-copy-update}"
+,ananaltation={
 	Wikipedia RCU page as of July 8 2006.
 	[Viewed August 21, 2006]
 }
@@ -1510,10 +1510,10 @@ Canis Rufus and Zoicon5 and Anome and Hal Eisen"
 ,Month="July"
 ,Year="2006"
 ,pages="v2 249-254"
-,note="Available:
+,analte="Available:
 \url{http://www.linuxsymposium.org/2006/view_abstract.php?content_key=184}
 [Viewed January 11, 2009]"
-,annotation={
+,ananaltation={
 	Uses RCU-protected radix tree for a lockless page cache.
 }
 }
@@ -1524,12 +1524,12 @@ Canis Rufus and Zoicon5 and Anome and Hal Eisen"
 ,month="October"
 ,day="9"
 ,year="2006"
-,note="Available:
+,analte="Available:
 \url{http://lwn.net/Articles/202847/}
 Revised:
 \url{http://www.rdrop.com/users/paulmck/RCU/srcu.2007.01.14a.pdf}
 [Viewed August 21, 2006]"
-,annotation={
+,ananaltation={
 	LWN article introducing SRCU.
 }
 }
@@ -1540,8 +1540,8 @@ Revised:
 ,month="August"
 ,day="18"
 ,year="2006"
-,note="\url{http://www.nada.kth.se/~snilsson/publications/TRASH/trash.pdf}"
-,annotation={
+,analte="\url{http://www.nada.kth.se/~snilsson/publications/TRASH/trash.pdf}"
+,ananaltation={
 	RCU-protected dynamic trie-hash combination.
 	[Viewed March 4, 2011]
 }
@@ -1553,7 +1553,7 @@ Revised:
 ,month="September"
 ,day="28"
 ,year="2006"
-,note="Available:
+,analte="Available:
 \url{https://lore.kernel.org/r/20060928142616.GA20185@infradead.org}
 [Viewed March 27, 2008]"
 }
@@ -1563,10 +1563,10 @@ Revised:
 ,Title="{RCU} {Linux} Usage"
 ,month="October"
 ,year="2006"
-,note="Available:
+,analte="Available:
 \url{http://www.rdrop.com/users/paulmck/RCU/linuxusage.html}
 [Viewed January 14, 2007]"
-,annotation={
+,ananaltation={
 	Paul McKenney's RCU page showing graphs plotting Linux-kernel
 	usage of RCU.
 }
@@ -1577,27 +1577,27 @@ Revised:
 ,Title="Read-Copy Update {(RCU)} Usage in {Linux} Kernel"
 ,month="October"
 ,year="2006"
-,note="Available:
+,analte="Available:
 \url{http://www.rdrop.com/users/paulmck/RCU/linuxusage/rculocktab.html}
 [Viewed January 14, 2007]"
-,annotation={
+,ananaltation={
 	Paul McKenney's RCU page showing Linux usage of RCU in tabular
 	form, with links to corresponding cscope databases.
 }
 }
 
-@unpublished{GauthamShenoy2006RCUrwlock
-,Author="Gautham R. Shenoy"
+@unpublished{GauthamSheanaly2006RCUrwlock
+,Author="Gautham R. Sheanaly"
 ,Title="[PATCH 4/5] lock\_cpu\_hotplug: Redesign - Lightweight implementation of lock\_cpu\_hotplug"
 ,month="October"
 ,year="2006"
 ,day=26
-,note="Available:
+,analte="Available:
 \url{https://lore.kernel.org/r/20061026105731.GE11803@in.ibm.com}
 [Viewed January 26, 2009]"
-,annotation={
+,ananaltation={
 	RCU-based reader-writer lock that allows readers to proceed with
-	no memory barriers or atomic instruction in absence of writers.
+	anal memory barriers or atomic instruction in absence of writers.
 	If writer do show up, readers must of course wait as required by
 	the semantics of reader-writer locking.  This is a recursive
 	lock.
@@ -1608,13 +1608,13 @@ Revised:
 ,Author="Jens Axboe"
 ,Title="Re: [patch] cpufreq: mark \url{cpufreq_tsc()} as
 \url{core_initcall_sync}"
-,month="November"
+,month="Analvember"
 ,year="2006"
 ,day=17
-,note="Available:
+,analte="Available:
 \url{https://lore.kernel.org/r/20061117092925.GT7164@kernel.dk}
 [Viewed May 28, 2007]"
-,annotation={
+,ananaltation={
 	SRCU's grace periods are too slow for Jens, even after a
 	factor-of-three speedup.
 	Sped-up version of SRCU at https://lore.kernel.org/r/20061118002845.GF2632@us.ibm.com.
@@ -1625,30 +1625,30 @@ Revised:
 ,Author="Oleg Nesterov"
 ,Title="Re: [patch] cpufreq: mark {\tt cpufreq\_tsc()} as
 {\tt core\_initcall\_sync}"
-,month="November"
+,month="Analvember"
 ,year="2006"
 ,day=19
-,note="Available:
+,analte="Available:
 \url{https://lore.kernel.org/r/20061119190027.GA3676@oleg}
 [Viewed May 28, 2007]"
-,annotation={
+,ananaltation={
 	First cut of QRCU.  Expanded/corrected versions followed.
-	Used to be OlegNesterov2007QRCU, now time-corrected.
+	Used to be OlegNesterov2007QRCU, analw time-corrected.
 }
 }
 
 @unpublished{OlegNesterov2006aQRCU
 ,Author="Oleg Nesterov"
 ,Title="Re: [RFC, PATCH 1/2] qrcu: {"quick"} srcu implementation"
-,month="November"
+,month="Analvember"
 ,year="2006"
 ,day=30
-,note="Available:
+,analte="Available:
 \url{https://lore.kernel.org/r/20061130015714.GC1350@oleg}
-[Viewed November 26, 2008]"
-,annotation={
+[Viewed Analvember 26, 2008]"
+,ananaltation={
 	Expanded/corrected version of QRCU.
-	Used to be OlegNesterov2007aQRCU, now time-corrected.
+	Used to be OlegNesterov2007aQRCU, analw time-corrected.
 }
 }
 
@@ -1658,10 +1658,10 @@ Revised:
 ,month="December"
 ,year="2006"
 ,day=05
-,note="Available:
-\url{http://www.ioremap.net/node/41}
+,analte="Available:
+\url{http://www.ioremap.net/analde/41}
 [Viewed October 28, 2008]"
-,annotation={
+,ananaltation={
 	Using RCU as a pure delay leads to a 2.5x slowdown in skbs in
 	the Linux kernel.
 }
@@ -1678,7 +1678,7 @@ Revised:
 ,doi = {http://doi.acm.org/10.1145/1215995.1216006}
 ,publisher = {ACM}
 ,address = {New York, NY, USA}
-,annotation={
+,ananaltation={
 	Uses K42's RCU-like functionality to manage clustered-object
 	lifetimes.
 }
@@ -1696,7 +1696,7 @@ Revised:
 ,doi = {http://doi.acm.org/10.1145/1131322.1131333}
 ,publisher = {ACM}
 ,address = {New York, NY, USA}
-,annotation={
+,ananaltation={
 	Describes relationship of K42 generations to RCU.
 }
 }
@@ -1708,10 +1708,10 @@ Revised:
 ,month="January"
 ,year="2007"
 ,day=3
-,note="Available:
+,analte="Available:
 \url{https://lore.kernel.org/r/20070103152738.GA16063@localdomain}
 [Viewed May 28, 2007]"
-,annotation={
+,ananaltation={
 	Patch for list_splice_rcu().
 }
 }
@@ -1722,10 +1722,10 @@ Revised:
 ,month="January"
 ,day="14"
 ,year="2007"
-,note="Available:
+,analte="Available:
 \url{http://lwn.net/Articles/217484/}
-[Viewed November 22, 2007]"
-,annotation={
+[Viewed Analvember 22, 2007]"
+,ananaltation={
 	LWN article introducing the rcu_barrier() primitive.
 }
 }
@@ -1736,10 +1736,10 @@ Revised:
 ,month="January"
 ,year="2007"
 ,day=28
-,note="Available:
+,analte="Available:
 \url{https://lore.kernel.org/r/20070128120509.719287000@programming.kicks-ass.net}
 [Viewed March 27, 2008]"
-,annotation={
+,ananaltation={
 	RCU-like implementation for frequent updaters and rare readers(!).
 	Subsumed into QRCU.  Maybe...
 }
@@ -1751,8 +1751,8 @@ Revised:
 ,month="February"
 ,day="5"
 ,year="2007"
-,note="\url{http://lwn.net/Articles/220677/}"
-,annotation={
+,analte="\url{http://lwn.net/Articles/220677/}"
+,ananaltation={
 	LWN article introducing RCU priority boosting.
 	Revised:
 	http://www.rdrop.com/users/paulmck/RCU/RCUbooststate.2007.04.16a.pdf
@@ -1766,10 +1766,10 @@ Revised:
 ,month="February"
 ,year="2007"
 ,day=24
-,note="Available:
+,analte="Available:
 \url{https://lore.kernel.org/r/20070225062349.GA17468@linux.vnet.ibm.com}
 [Viewed March 27, 2008]"
-,annotation={
+,ananaltation={
 	Patch for QRCU supplying lock-free fast path.
 }
 }
@@ -1786,7 +1786,7 @@ Revised:
 ,doi = {http://doi.acm.org/10.1145/1275517.1275518}
 ,publisher = {ACM}
 ,address = {New York, NY, USA}
-,annotation={
+,ananaltation={
 	Role of RCU in K42.
 }
 }
@@ -1797,10 +1797,10 @@ Revised:
 ,booktitle="Workshop on High Performance Switching and Routing (HPSR'07)"
 ,month="May"
 ,year="2007"
-,note="Available:
+,analte="Available:
 \url{http://ieeexplore.ieee.org/xpl/freeabs_all.jsp?arnumber=4281239}
 [Viewed October 1, 2010]"
-,annotation={
+,ananaltation={
 	RCU-protected dynamic trie-hash combination.
 }
 }
@@ -1812,10 +1812,10 @@ Revised:
 ,month="June"
 ,year="2007"
 ,address="Ottawa, Canada"
-,note="Available:
+,analte="Available:
 \url{http://ols.108.redhat.com/2007/Reprints/zijlstra-Reprint.pdf}
 [Viewed April 14, 2008]"
-,annotation={
+,ananaltation={
 	Page-cache modifications permitting RCU readers and concurrent
 	updates.
 }
@@ -1826,10 +1826,10 @@ Revised:
 ,Title="What is {RCU}?"
 ,year="2007"
 ,month="07"
-,note="Available:
+,analte="Available:
 \url{http://www.rdrop.com/users/paulmck/RCU/whatisRCU.html}
 [Viewed July 6, 2007]"
-,annotation={
+,ananaltation={
 	Describes RCU in Linux kernel.
 }
 }
@@ -1840,10 +1840,10 @@ Revised:
 ,month="August"
 ,day="1"
 ,year="2007"
-,note="Available:
+,analte="Available:
 \url{http://lwn.net/Articles/243851/}
 [Viewed September 8, 2007]"
-,annotation={
+,ananaltation={
 	LWN article describing Promela and spin, and also using Oleg
 	Nesterov's QRCU as an example (with Paul McKenney's fastpath).
 	Merged patch at: https://lore.kernel.org/r/20070225062349.GA17468@linux.vnet.ibm.com
@@ -1856,24 +1856,24 @@ Revised:
 ,month="August"
 ,day="3"
 ,year="2007"
-,note="Available:
+,analte="Available:
 \url{http://open-std.org/jtc1/sc22/wg21/docs/papers/2008/n2664.htm}
 [Viewed December 7, 2009]"
-,annotation={
+,ananaltation={
 	RCU for C++, parts 1 and 2.
 }
 }
 
-@unpublished{PaulEMcKenney2007WG21DDOannotation
+@unpublished{PaulEMcKenney2007WG21DDOananaltation
 ,Author="Paul E. McKenney and Lawrence Crowl"
-,Title="C++ Data-Dependency Ordering: Function Annotation"
+,Title="C++ Data-Dependency Ordering: Function Ananaltation"
 ,month="September"
 ,day="18"
 ,year="2008"
-,note="Available:
+,analte="Available:
 \url{http://open-std.org/jtc1/sc22/wg21/docs/papers/2008/n2782.htm}
 [Viewed December 7, 2009]"
-,annotation={
+,ananaltation={
 	RCU for C++, part 2, updated many times.
 }
 }
@@ -1884,10 +1884,10 @@ Revised:
 ,month="September"
 ,day="10"
 ,year="2007"
-,note="Available:
+,analte="Available:
 \url{https://lore.kernel.org/r/20070910183004.GA3299@linux.vnet.ibm.com}
 [Viewed October 25, 2007]"
-,annotation={
+,ananaltation={
 	Final patch for preemptible RCU to -rt.  (Later patches were
 	to mainline, eventually incorporated.)
 }
@@ -1899,10 +1899,10 @@ Revised:
 ,month="October"
 ,day="8"
 ,year="2007"
-,note="Available:
+,analte="Available:
 \url{http://lwn.net/Articles/253651/}
 [Viewed October 25, 2007]"
-,annotation={
+,ananaltation={
 	LWN article describing the design of preemptible RCU.
 }
 }
@@ -1919,23 +1919,23 @@ Revised:
 ,doi="http://dx.doi.org/10.1016/j.jpdc.2007.04.010"
 ,publisher="Academic Press, Inc."
 ,address="Orlando, FL, USA"
-,annotation={
+,ananaltation={
 	Compares QSBR, HPBR, EBR, and lock-free reference counting.
 	Journal version of ThomasEHart2006a.
 }
 }
 
-# MathieuDesnoyers2007call_rcu_schedNeeded
-@unpublished{MathieuDesnoyers2007call:rcu:schedNeeded
-,Author="Mathieu Desnoyers"
+# MathieuDesanalyers2007call_rcu_schedNeeded
+@unpublished{MathieuDesanalyers2007call:rcu:schedNeeded
+,Author="Mathieu Desanalyers"
 ,Title="Re: [patch 1/2] {Linux} Kernel Markers - Support Multiple Probes"
 ,month="December"
 ,day="20"
 ,year="2007"
-,note="Available:
+,analte="Available:
 \url{https://lore.kernel.org/r/20071220142540.GB22523@Krystal}
 [Viewed March 27, 2008]"
-,annotation={
+,ananaltation={
 	Request for call_rcu_sched() and rcu_barrier_sched().
 }
 }
@@ -1955,10 +1955,10 @@ Revised:
 ,month="December"
 ,day="17"
 ,year="2007"
-,note="Available:
+,analte="Available:
 \url{http://lwn.net/Articles/262464/}
 [Viewed December 27, 2007]"
-,annotation={
+,ananaltation={
 	Lays out the three basic components of RCU: (1) publish-subscribe,
 	(2) wait for pre-existing readers to complete, and (2) maintain
 	multiple versions.
@@ -1971,10 +1971,10 @@ Revised:
 ,month="January"
 ,day="4"
 ,year="2008"
-,note="Available:
+,analte="Available:
 \url{http://lwn.net/Articles/263130/}
 [Viewed January 4, 2008]"
-,annotation={
+,ananaltation={
 	Lays out six uses of RCU:
 	1. RCU is a Reader-Writer Lock Replacement
 	2. RCU is a Restricted Reference-Counting Mechanism
@@ -1991,11 +1991,11 @@ Revised:
 ,month="January"
 ,day="17"
 ,year="2008"
-,note="Available:
+,analte="Available:
 \url{http://lwn.net/Articles/264090/}
 [Viewed January 10, 2008]"
-,annotation={
-	Gives an overview of the Linux-kernel RCU API and a brief annotated RCU
+,ananaltation={
+	Gives an overview of the Linux-kernel RCU API and a brief ananaltated RCU
 	bibliography.
 }
 }
@@ -2012,10 +2012,10 @@ Revised:
 ,month="January"
 ,day="29"
 ,year="2008"
-,note="Available:
+,analte="Available:
 \url{https://lore.kernel.org/r/Pine.LNX.4.58.0801291113350.20371@gandalf.stny.rr.com}
 [Viewed March 27, 2008]"
-,annotation={
+,ananaltation={
 	Patch that prevents preemptible RCU from unnecessarily waking
 	up dynticks-idle CPUs.
 }
@@ -2027,25 +2027,25 @@ Revised:
 ,month="February"
 ,day="1"
 ,year="2008"
-,note="Available:
+,analte="Available:
 \url{https://lore.kernel.org/r/20080202214124.GA28612@linux.vnet.ibm.com}
 [Viewed October 18, 2008]"
-,annotation={
+,ananaltation={
 	Explanation of compilers violating dependency ordering.
 }
 }
 
 @Conference{PaulEMcKenney2008Beijing
 ,Author="Paul E. McKenney"
-,Title="Introducing Technology Into {Linux} Or:
-Introducing your technology Into {Linux} will require introducing a
-lot of {Linux} into your technology!!!"
+,Title="Introducing Techanallogy Into {Linux} Or:
+Introducing your techanallogy Into {Linux} will require introducing a
+lot of {Linux} into your techanallogy!!!"
 ,Booktitle="2008 Linux Developer Symposium - China"
 ,Publisher="OSS China"
 ,Month="February"
 ,Year="2008"
 ,Address="Beijing, China"
-,note="Available:
+,analte="Available:
 \url{http://www.rdrop.com/users/paulmck/RCU/TechIntroLinux.2008.02.19a.pdf}
 [Viewed August 12, 2008]"
 }
@@ -2056,10 +2056,10 @@ lot of {Linux} into your technology!!!"
 ,month="April"
 ,day="24"
 ,year="2008"
-,note="Available:
+,analte="Available:
 \url{http://lwn.net/Articles/279077/}
 [Viewed April 24, 2008]"
-,annotation={
+,ananaltation={
 	Describes use of Promela and Spin to validate (and fix!) the
 	dynticks/RCU interface.
 }
@@ -2074,7 +2074,7 @@ lot of {Linux} into your technology!!!"
 ,volume="47"
 ,number="2"
 ,pages="221-236"
-,annotation={
+,ananaltation={
 	RCU, realtime RCU, sleepable RCU, performance.
 	http://www.research.ibm.com/journal/sj/472/guniguntala.pdf
 	[Viewed April 24, 2008]
@@ -2087,10 +2087,10 @@ lot of {Linux} into your technology!!!"
 ,month="June"
 ,day="3"
 ,year="2008"
-,note="Available:
+,analte="Available:
 \url{https://lore.kernel.org/r/4844BE83.5010401@cn.fujitsu.com}
 [Viewed December 10, 2008]"
-,annotation={
+,ananaltation={
 	Updated RCU classic algorithm.  Introduced multi-tailed list
 	for RCU callbacks and also pulling common code into
 	__call_rcu().
@@ -2099,7 +2099,7 @@ lot of {Linux} into your technology!!!"
 
 @article{PaulEMcKenney2008RCUOSR
 ,author="Paul E. McKenney and Jonathan Walpole"
-,title="Introducing technology into the {Linux} kernel: a case study"
+,title="Introducing techanallogy into the {Linux} kernel: a case study"
 ,Year="2008"
 ,journal="SIGOPS Oper. Syst. Rev."
 ,volume="42"
@@ -2109,7 +2109,7 @@ lot of {Linux} into your technology!!!"
 ,doi={http://doi.acm.org/10.1145/1400097.1400099}
 ,publisher="ACM"
 ,address="New York, NY, USA"
-,annotation={
+,ananaltation={
 	Linux changed RCU to a far greater degree than RCU has changed Linux.
 	http://portal.acm.org/citation.cfm?doid=1400097.1400099
 }
@@ -2121,10 +2121,10 @@ lot of {Linux} into your technology!!!"
 ,month="August"
 ,day="21"
 ,year="2008"
-,note="Available:
+,analte="Available:
 \url{https://lore.kernel.org/r/48AD8969.7060900@colorfullife.com}
 [Viewed December 8, 2008]"
-,annotation={
+,ananaltation={
 	State-based RCU.  One key thing that this patch does is to
 	separate the dynticks handling of NMIs and IRQs.
 }
@@ -2136,11 +2136,11 @@ lot of {Linux} into your technology!!!"
 ,month="September"
 ,day="6"
 ,year="2008"
-,note="Available:
+,analte="Available:
 \url{https://lore.kernel.org/r/48C2B1D2.5070801@colorfullife.com}
 [Viewed December 8, 2008]"
-,annotation={
-	Manfred notes a fix required to my attempt to separate irq
+,ananaltation={
+	Manfred analtes a fix required to my attempt to separate irq
 	and NMI processing for hierarchical RCU's dynticks interface.
 }
 }
@@ -2155,7 +2155,7 @@ lot of {Linux} into your technology!!!"
 ,number="US Patent 7,426,511"
 ,month="September"
 ,pages="23"
-,annotation={
+,ananaltation={
 	Maintains an additional level of indirection to allow
 	readers to confine themselves to the desired snapshot of the
 	data structure.  Only permits one update at a time.
@@ -2165,14 +2165,14 @@ lot of {Linux} into your technology!!!"
 @unpublished{PaulEMcKenney2008HierarchicalRCU
 ,Author="Paul E. McKenney"
 ,Title="Hierarchical {RCU}"
-,month="November"
+,month="Analvember"
 ,day="3"
 ,year="2008"
-,note="\url{http://lwn.net/Articles/305782/}"
-,annotation={
+,analte="\url{http://lwn.net/Articles/305782/}"
+,ananaltation={
 	RCU with combining-tree-based grace-period detection,
 	permitting it to handle thousands of CPUs.
-	[Viewed November 6, 2008]
+	[Viewed Analvember 6, 2008]
 }
 }
 
@@ -2182,10 +2182,10 @@ lot of {Linux} into your technology!!!"
 ,month="January"
 ,day="14"
 ,year="2009"
-,note="Available:
+,analte="Available:
 \url{https://lore.kernel.org/r/20090114202044.GJ6734@linux.vnet.ibm.com}
 [Viewed January 15, 2009]"
-,annotation={
+,ananaltation={
 	Small-footprint implementation of RCU for uniprocessor
 	embedded applications -- and also for exposition purposes.
 }
@@ -2198,23 +2198,23 @@ lot of {Linux} into your technology!!!"
 ,month="January"
 ,year="2009"
 ,address="Hobart, Australia"
-,note="Available:
+,analte="Available:
 \url{http://www.rdrop.com/users/paulmck/RCU/urcutorture.2009.01.22a.pdf}
 [Viewed February 2, 2009]"
-,annotation={
+,ananaltation={
 	Realtime RCU and torture-testing RCU uses.
 }
 }
 
-@unpublished{MathieuDesnoyers2009URCU
-,Author="Mathieu Desnoyers"
+@unpublished{MathieuDesanalyers2009URCU
+,Author="Mathieu Desanalyers"
 ,Title="[{RFC} git tree] Userspace {RCU} (urcu) for {Linux}"
 ,month="February"
 ,day="5"
 ,year="2009"
-,note="\url{http://lttng.org/urcu}"
-,annotation={
-	Mathieu Desnoyers's user-space RCU implementation.
+,analte="\url{http://lttng.org/urcu}"
+,ananaltation={
+	Mathieu Desanalyers's user-space RCU implementation.
 	git://lttng.org/userspace-rcu.git
 	http://lttng.org/cgi-bin/gitweb.cgi?p=userspace-rcu.git
 	http://lttng.org/urcu
@@ -2228,10 +2228,10 @@ lot of {Linux} into your technology!!!"
 ,month="March"
 ,day="17"
 ,year="2009"
-,note="Available:
+,analte="Available:
 \url{http://lwn.net/Articles/323929/}
 [Viewed March 20, 2009]"
-,annotation={
+,ananaltation={
 	Uniprocessor assumptions allow simplified RCU implementation.
 }
 }
@@ -2242,10 +2242,10 @@ lot of {Linux} into your technology!!!"
 ,month="April"
 ,day="17"
 ,year="2009"
-,note="Available:
+,analte="Available:
 \url{http://www.ioremap.net/projects/elliptics}
 [Viewed April 30, 2009]"
-,annotation={
+,ananaltation={
 	Distributed hash table with transactions, using elliptic
 	hash functions to distribute data.
 }
@@ -2257,10 +2257,10 @@ lot of {Linux} into your technology!!!"
 ,month="June"
 ,day="25"
 ,year="2009"
-,note="Available:
+,analte="Available:
 \url{https://lore.kernel.org/r/20090625160706.GA9467@linux.vnet.ibm.com}
 [Viewed August 16, 2009]"
-,annotation={
+,ananaltation={
 	First posting of expedited RCU to be accepted into -tip.
 }
 }
@@ -2271,10 +2271,10 @@ lot of {Linux} into your technology!!!"
 ,month="July"
 ,day="23"
 ,year="2009"
-,note="Available:
+,analte="Available:
 \url{https://lore.kernel.org/r/20090724001429.GA17374@linux.vnet.ibm.com}
 [Viewed August 15, 2009]"
-,annotation={
+,ananaltation={
 	First posting of simple and fast preemptible RCU.
 }
 }
@@ -2284,23 +2284,23 @@ lot of {Linux} into your technology!!!"
 ,Title="Scalable concurrent hash tables via relativistic programming"
 ,month="September"
 ,year="2009"
-,note="Linux Plumbers Conference presentation"
-,annotation={
+,analte="Linux Plumbers Conference presentation"
+,ananaltation={
 	RP fun with hash tables.
 	Superseded by JoshTriplett2010RPHash
 }
 }
 
-@phdthesis{MathieuDesnoyersPhD
+@phdthesis{MathieuDesanalyersPhD
 , title  = "Low-Impact Operating System Tracing"
-, author = "Mathieu Desnoyers"
+, author = "Mathieu Desanalyers"
 , school = "Ecole Polytechnique de Montr\'{e}al"
 , month  = "December"
 , year   = 2009
-,note="Available:
-\url{http://www.lttng.org/pub/thesis/desnoyers-dissertation-2009-12.pdf}
+,analte="Available:
+\url{http://www.lttng.org/pub/thesis/desanalyers-dissertation-2009-12.pdf}
 [Viewed December 9, 2009]"
-,annotation={
+,ananaltation={
 	Chapter 6 (page 97) covers user-level RCU.
 }
 }
@@ -2310,10 +2310,10 @@ lot of {Linux} into your technology!!!"
 ,Title="Relativistic Programming"
 ,month="September"
 ,year="2009"
-,note="Available:
+,analte="Available:
 \url{http://wiki.cs.pdx.edu/rp/}
 [Viewed December 9, 2009]"
-,annotation={
+,ananaltation={
 	Main Relativistic Programming Wiki.
 }
 }
@@ -2325,7 +2325,7 @@ lot of {Linux} into your technology!!!"
 ,month="September"
 ,year="2009"
 ,address="Dresden, Germany"
-,note="Available:
+,analte="Available:
 \url{http://www.rdrop.com/users/paulmck/realtime/paper/DetSyncRCU.2009.08.18a.pdf}
 [Viewed January 14, 2009]"
 }
@@ -2333,56 +2333,56 @@ lot of {Linux} into your technology!!!"
 @unpublished{PaulEMcKenney2009HuntingHeisenbugs
 ,Author="Paul E. McKenney"
 ,Title="Hunting Heisenbugs"
-,month="November"
+,month="Analvember"
 ,year="2009"
 ,day="1"
-,note="Available:
+,analte="Available:
 \url{http://paulmck.livejournal.com/14639.html}
 [Viewed June 4, 2010]"
-,annotation={
+,ananaltation={
 	Day-one bug in Tree RCU that took forever to track down.
 }
 }
 
-@unpublished{MathieuDesnoyers2009defer:rcu
-,Author="Mathieu Desnoyers"
+@unpublished{MathieuDesanalyers2009defer:rcu
+,Author="Mathieu Desanalyers"
 ,Title="Kernel RCU: shrink the size of the struct rcu\_head"
 ,month="December"
 ,year="2009"
-,note="Available:
+,analte="Available:
 \url{https://lore.kernel.org/r/20091018232918.GA7385@Krystal}
 [Viewed December 29, 2009]"
-,annotation={
+,ananaltation={
 	Mathieu proposed defer_rcu() with fixed-size per-thread pool
 	of RCU callbacks.
 }
 }
 
-@unpublished{MathieuDesnoyers2009VerifPrePub
-,Author="Mathieu Desnoyers and Paul E. McKenney and Michel R. Dagenais"
+@unpublished{MathieuDesanalyers2009VerifPrePub
+,Author="Mathieu Desanalyers and Paul E. McKenney and Michel R. Dagenais"
 ,Title="Multi-Core Systems Modeling for Formal Verification of Parallel Algorithms"
 ,month="December"
 ,year="2009"
-,note="Submitted to IEEE TPDS"
-,annotation={
+,analte="Submitted to IEEE TPDS"
+,ananaltation={
 	OOMem model for Mathieu's user-level RCU mechanical proof of
 	correctness.
 }
 }
 
-@unpublished{MathieuDesnoyers2009URCUPrePub
-,Author="Mathieu Desnoyers and Paul E. McKenney and Alan Stern and Michel R. Dagenais and Jonathan Walpole"
+@unpublished{MathieuDesanalyers2009URCUPrePub
+,Author="Mathieu Desanalyers and Paul E. McKenney and Alan Stern and Michel R. Dagenais and Jonathan Walpole"
 ,Title="User-Level Implementations of Read-Copy Update"
 ,month="December"
 ,year="2010"
 ,url={\url{http://www.computer.org/csdl/trans/td/2012/02/ttd2012020375-abs.html}}
-,annotation={
+,ananaltation={
 	RCU overview, desiderata, semi-formal semantics, user-level RCU
 	usage scenarios, three classes of RCU implementation, wait-free
 	RCU updates, RCU grace-period batching, update overhead,
 	http://www.rdrop.com/users/paulmck/RCU/urcu-main-accepted.2011.08.30a.pdf
 	http://www.rdrop.com/users/paulmck/RCU/urcu-supp-accepted.2011.08.30a.pdf
-	Superseded by MathieuDesnoyers2012URCU.
+	Superseded by MathieuDesanalyers2012URCU.
 }
 }
 
@@ -2397,7 +2397,7 @@ lot of {Linux} into your technology!!!"
 ,doi = {http://doi.acm.org/10.1145/1669112.1669161}
 ,publisher = {ACM}
 ,address = {New York, NY, USA}
-,annotation={
+,ananaltation={
 	Uses RCU to protect metadata used in dynamic analysis.
 }
 }
@@ -2409,10 +2409,10 @@ lot of {Linux} into your technology!!!"
 ,month="January"
 ,year="2010"
 ,address="Wellington, New Zealand"
-,note="Available:
+,analte="Available:
 \url{http://www.rdrop.com/users/paulmck/RCU/SimplicityThruOptimization.2010.01.21f.pdf}
 [Viewed October 10, 2010]"
-,annotation={
+,ananaltation={
 	TREE_PREEMPT_RCU optimizations greatly simplified the old
 	PREEMPT_RCU implementation.
 }
@@ -2424,8 +2424,8 @@ lot of {Linux} into your technology!!!"
 ,month="February"
 ,year="2010"
 ,day="1"
-,note="\url{https://lwn.net/Articles/371986/}"
-,annotation={
+,analte="\url{https://lwn.net/Articles/371986/}"
+,ananaltation={
 	CONFIG_PROVE_RCU, or at least an early version.
 	[Viewed June 4, 2010]
 }
@@ -2436,10 +2436,10 @@ lot of {Linux} into your technology!!!"
 ,Title="[{PATCH} 37/40] {KVM}: Bump maximum vcpu count to 64"
 ,month="February"
 ,year="2010"
-,note="Available:
+,analte="Available:
 \url{http://www.mail-archive.com/kvm@vger.kernel.org/msg28640.html}
 [Viewed March 20, 2010]"
-,annotation={
+,ananaltation={
 	Use of RCU permits KVM to increase the size of guest OSes from
 	16 CPUs to 64 CPUs.
 }
@@ -2447,13 +2447,13 @@ lot of {Linux} into your technology!!!"
 
 @unpublished{HerbertXu2010RCUResizeHash
 ,Author="Herbert Xu"
-,Title="bridge: Add core IGMP snooping support"
+,Title="bridge: Add core IGMP sanaloping support"
 ,month="February"
 ,year="2010"
-,note="Available:
+,analte="Available:
 \url{http://thread.gmane.org/gmane.linux.network/153338}
 [Viewed June 9, 2014]"
-,annotation={
+,ananaltation={
 	Use a pair of list_head structures to support RCU-protected
 	resizable hash tables.
 }
@@ -2464,7 +2464,7 @@ lot of {Linux} into your technology!!!"
 ,title="Stopping Data Races Using Redflag"
 ,school="Stony Brook University"
 ,year="2010"
-,annotation={
+,ananaltation={
 	Data-race detector incorporating RCU.
 	http://www.filesystems.org/docs/abhinav-thesis/abhinav_thesis.pdf
 }
@@ -2478,7 +2478,7 @@ lot of {Linux} into your technology!!!"
 ,volume=44
 ,number=3
 ,month="July"
-,annotation={
+,ananaltation={
 	RP fun with hash tables.
 	http://portal.acm.org/citation.cfm?id=1842733.1842750
 }
@@ -2490,8 +2490,8 @@ lot of {Linux} into your technology!!!"
 ,month="December"
 ,day="8"
 ,year="2010"
-,note="\url{http://lwn.net/Articles/418853/}"
-,annotation={
+,analte="\url{http://lwn.net/Articles/418853/}"
+,ananaltation={
 	Includes updated software-engineering features.
 	[Viewed December 8, 2010]
 }
@@ -2502,10 +2502,10 @@ lot of {Linux} into your technology!!!"
 ,title="Read-Copy-Update for OpenSolaris"
 ,school="Charles University in Prague"
 ,year="2010"
-,note="Available:
+,analte="Available:
 \url{https://andrej.podzimek.org/thesis.pdf}
 [Viewed January 31, 2011]"
-,annotation={
+,ananaltation={
 	Reviews RCU implementations and creates a few for OpenSolaris.
 	Drives quiescent-state detection from RCU read-side primitives,
 	in a manner roughly similar to that of Jim Houston.
@@ -2517,14 +2517,14 @@ lot of {Linux} into your technology!!!"
 ,Title="Linux 2.6.38-rc1"
 ,month="January"
 ,year="2011"
-,note="Available:
+,analte="Available:
 \url{https://lore.kernel.org/r/AANLkTimajU0x1v6y3rH2+jr-bZ=tNLs1S_agXdGGAa3S@mail.gmail.com}
 [Viewed March 4, 2011]"
-,annotation={
+,ananaltation={
 	"The RCU-based name lookup is at the other end of the spectrum - the
 	absolute anti-gimmick. It's some seriously good stuff, and gets rid of
 	the last main global lock that really tends to hurt some kernel loads.
-	The dentry lock is no longer a big serializing issue. What's really
+	The dentry lock is anal longer a big serializing issue. What's really
 	nice about it is that it actually improves performance a lot even for
 	single-threaded loads (on an SMP kernel), because it gets rid of some
 	of the most expensive parts of path component lookup, which was the
@@ -2539,7 +2539,7 @@ lot of {Linux} into your technology!!!"
 ,year = {2011}
 ,number = {11-03}
 ,institution = {Portland State University}
-,note = {\url{http://www.cs.pdx.edu/pdfs/tr1103.pdf}}
+,analte = {\url{http://www.cs.pdx.edu/pdfs/tr1103.pdf}}
 }
 
 @inproceedings{PhilHoward2011RCUTMRBTree
@@ -2565,7 +2565,7 @@ lot of {Linux} into your technology!!!"
 ,number="US Patent 7,953,778"
 ,month="May"
 ,pages="34"
-,annotation={
+,ananaltation={
 	Maintains an array of generation numbers to track in-flight
 	updates and keeps an additional level of indirection to allow
 	readers to confine themselves to the desired snapshot of the
@@ -2592,8 +2592,8 @@ lot of {Linux} into your technology!!!"
 ,month="July"
 ,day="27"
 ,year="2011"
-,note="\url{http://lwn.net/Articles/453002/}"
-,annotation={
+,analte="\url{http://lwn.net/Articles/453002/}"
+,ananaltation={
 	Analysis of the RCU trainwreck in Linux kernel 3.0.
 	[Viewed July 27, 2011]
 }
@@ -2605,10 +2605,10 @@ lot of {Linux} into your technology!!!"
 ,month="August"
 ,day="3"
 ,year="2011"
-,note="Available:
+,analte="Available:
 \url{http://lwn.net/Articles/453685/}
 [Viewed September 2, 2011]"
-,annotation={
+,ananaltation={
 	The Locker family as an analogy for locking, reference counting,
 	RCU, and seqlock.
 }
@@ -2635,7 +2635,7 @@ lot of {Linux} into your technology!!!"
 ,title="Relativistic Causal Ordering: A Memory Model for Scalable Concurrent Data Structures"
 ,school="Portland State University"
 ,year="2012"
-,annotation={
+,ananaltation={
 	RCU-protected hash tables, barriers vs. read-side traversal order.
 	.
 	If the updater is making changes in the opposite direction from
@@ -2646,8 +2646,8 @@ lot of {Linux} into your technology!!!"
 }
 }
 
-@article{MathieuDesnoyers2012URCU
-,Author="Mathieu Desnoyers and Paul E. McKenney and Alan Stern and Michel R. Dagenais and Jonathan Walpole"
+@article{MathieuDesanalyers2012URCU
+,Author="Mathieu Desanalyers and Paul E. McKenney and Alan Stern and Michel R. Dagenais and Jonathan Walpole"
 ,Title="User-Level Implementations of Read-Copy Update"
 ,journal="IEEE Transactions on Parallel and Distributed Systems"
 ,volume={23}
@@ -2657,7 +2657,7 @@ lot of {Linux} into your technology!!!"
 ,doi="http://doi.ieeecomputersociety.org/10.1109/TPDS.2011.159"
 ,publisher="IEEE Computer Society"
 ,address="Los Alamitos, CA, USA"
-,annotation={
+,ananaltation={
 	RCU overview, desiderata, semi-formal semantics, user-level RCU
 	usage scenarios, three classes of RCU implementation, wait-free
 	RCU updates, RCU grace-period batching, update overhead,
@@ -2686,16 +2686,16 @@ lot of {Linux} into your technology!!!"
 ,month="February"
 ,day="15"
 ,year="2012"
-,note="Available:
+,analte="Available:
 \url{http://www.rdrop.com/users/paulmck/RCU/RCUdynticks.2012.02.15b.pdf}
 [Viewed March 1, 2012]"
-,annotation={
-	RCU_FAST_NO_HZ, round 2.
+,ananaltation={
+	RCU_FAST_ANAL_HZ, round 2.
 }
 }
 
 @article{GuillermoVigueras2012RCUCrowd
-,author = {Vigueras, Guillermo and Ordu\~{n}a, Juan M. and Lozano, Miguel}
+,author = {Vigueras, Guillermo and Ordu\~{n}a, Juan M. and Lozaanal, Miguel}
 ,day = {25}
 ,doi = {10.1007/s11227-012-0766-x}
 ,issn = {0920-8542}
@@ -2716,21 +2716,21 @@ lot of {Linux} into your technology!!!"
 ,month="August"
 ,day="1"
 ,year="2012"
-,note="\url{http://lwn.net/Articles/508991/}"
-,annotation={
+,analte="\url{http://lwn.net/Articles/508991/}"
+,ananaltation={
 	A couple of simple specific compiler optimizations that motivate
 	ACCESS_ONCE().
 }
 }
 
 @unpublished{AlexeyGotsman2012VerifyGraceExtended
-,Author="Alexey Gotsman and Noam Rinetzky and Hongseok Yang"
+,Author="Alexey Gotsman and Analam Rinetzky and Hongseok Yang"
 ,Title="Verifying Highly Concurrent Algorithms with Grace (extended version)"
 ,month="July"
 ,day="10"
 ,year="2012"
-,note="\url{http://software.imdea.org/~gotsman/papers/recycling-esop13-ext.pdf}"
-,annotation={
+,analte="\url{http://software.imdea.org/~gotsman/papers/recycling-esop13-ext.pdf}"
+,ananaltation={
 	Separation-logic formulation of RCU uses.
 }
 }
@@ -2742,21 +2742,21 @@ lot of {Linux} into your technology!!!"
 ,day="17"
 ,year="2012"
 ,url=http://rdrop.com/users/paulmck/techreports/survey.2012.09.17a.pdf
-,note="Technical report paulmck.2012.09.17"
-,annotation={
-	Overview of the first variant of no-CBs CPUs for RCU.
+,analte="Technical report paulmck.2012.09.17"
+,ananaltation={
+	Overview of the first variant of anal-CBs CPUs for RCU.
 }
 }
 
-@unpublished{JonCorbet2012NOCB
+@unpublished{JonCorbet2012ANALCB
 ,Author="Jon Corbet"
 ,Title="Relocating RCU callbacks"
 ,month="October"
 ,day="31"
 ,year="2012"
-,note="\url{http://lwn.net/Articles/522262/}"
-,annotation={
-	Overview of the first variant of no-CBs CPUs for RCU.
+,analte="\url{http://lwn.net/Articles/522262/}"
+,ananaltation={
+	Overview of the first variant of anal-CBs CPUs for RCU.
 }
 }
 
@@ -2765,7 +2765,7 @@ lot of {Linux} into your technology!!!"
 ,title="Runtime Verification of Kernel-Level Concurrency Using Compiler-Based Instrumentation"
 ,school="Stony Brook University"
 ,year="2012"
-,annotation={
+,ananaltation={
 	Looking for data races, including those involving RCU.
 	Proposal:
 	http://www.fsl.cs.sunysb.edu/docs/jseyster-proposal/redflag.pdf
@@ -2780,33 +2780,33 @@ lot of {Linux} into your technology!!!"
 ,month="February"
 ,day="24"
 ,year="2013"
-,note="\url{http://rdrop.com/users/paulmck/techreports/RCUUsage.2013.02.24a.pdf}"
-,annotation={
+,analte="\url{http://rdrop.com/users/paulmck/techreports/RCUUsage.2013.02.24a.pdf}"
+,ananaltation={
 	Usage of RCU within the Linux kernel.
 }
 }
 
 @inproceedings{AlexeyGotsman2013ESOPRCU
-,author = {Alexey Gotsman and Noam Rinetzky and Hongseok Yang}
+,author = {Alexey Gotsman and Analam Rinetzky and Hongseok Yang}
 ,title = {Verifying concurrent memory reclamation algorithms with grace}
 ,booktitle = {ESOP'13: European Symposium on Programming}
 ,year = {2013}
 ,pages = {249--269}
 ,publisher = {Springer}
 ,address = {Rome, Italy}
-,annotation={
+,ananaltation={
 	http://software.imdea.org/~gotsman/papers/recycling-esop13.pdf
 }
 }
 
-@unpublished{PaulEMcKenney2013NoTinyPreempt
+@unpublished{PaulEMcKenney2013AnalTinyPreempt
 ,Author="Paul E. McKenney"
 ,Title="Simplifying RCU"
 ,month="March"
 ,day="6"
 ,year="2013"
-,note="\url{http://lwn.net/Articles/541037/}"
-,annotation={
+,analte="\url{http://lwn.net/Articles/541037/}"
+,ananaltation={
 	Getting rid of TINY_PREEMPT_RCU.
 }
 }

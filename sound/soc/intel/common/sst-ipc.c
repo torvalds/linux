@@ -67,7 +67,7 @@ static int tx_wait_done(struct sst_generic_ipc *ipc,
 			if (reply->data)
 				memcpy(reply->data, msg->rx.data, msg->rx.size);
 		}
-		ret = msg->errno;
+		ret = msg->erranal;
 	}
 
 	list_add_tail(&msg->list, &ipc->empty_list);
@@ -95,7 +95,7 @@ static int ipc_tx_message(struct sst_generic_ipc *ipc,
 	msg->rx.header = 0;
 	msg->rx.size = reply ? reply->size : 0;
 	msg->wait = wait;
-	msg->errno = 0;
+	msg->erranal = 0;
 	msg->pending = false;
 	msg->complete = false;
 
@@ -119,7 +119,7 @@ static int msg_empty_list_init(struct sst_generic_ipc *ipc)
 	ipc->msg = kcalloc(IPC_EMPTY_LIST_SIZE, sizeof(struct ipc_message),
 			   GFP_KERNEL);
 	if (ipc->msg == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < IPC_EMPTY_LIST_SIZE; i++) {
 		ipc->msg[i].tx.data = kzalloc(ipc->tx_data_max_size, GFP_KERNEL);
@@ -146,7 +146,7 @@ free_mem:
 	}
 	kfree(ipc->msg);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void ipc_tx_msgs(struct work_struct *work)
@@ -201,19 +201,19 @@ int sst_ipc_tx_message_wait(struct sst_generic_ipc *ipc,
 }
 EXPORT_SYMBOL_GPL(sst_ipc_tx_message_wait);
 
-int sst_ipc_tx_message_nowait(struct sst_generic_ipc *ipc,
+int sst_ipc_tx_message_analwait(struct sst_generic_ipc *ipc,
 	struct sst_ipc_message request)
 {
 	return ipc_tx_message(ipc, request, NULL, 0);
 }
-EXPORT_SYMBOL_GPL(sst_ipc_tx_message_nowait);
+EXPORT_SYMBOL_GPL(sst_ipc_tx_message_analwait);
 
-int sst_ipc_tx_message_nopm(struct sst_generic_ipc *ipc,
+int sst_ipc_tx_message_analpm(struct sst_generic_ipc *ipc,
 	struct sst_ipc_message request, struct sst_ipc_message *reply)
 {
 	return ipc_tx_message(ipc, request, reply, 1);
 }
-EXPORT_SYMBOL_GPL(sst_ipc_tx_message_nopm);
+EXPORT_SYMBOL_GPL(sst_ipc_tx_message_analpm);
 
 struct ipc_message *sst_ipc_reply_find_msg(struct sst_generic_ipc *ipc,
 	u64 header)
@@ -265,7 +265,7 @@ int sst_ipc_init(struct sst_generic_ipc *ipc)
 
 	ret = msg_empty_list_init(ipc);
 	if (ret < 0)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_WORK(&ipc->kwork, ipc_tx_msgs);
 	return 0;

@@ -71,13 +71,13 @@ static int mvusb_mdio_probe(struct usb_interface *interface,
 
 	mdio = devm_mdiobus_alloc_size(dev, sizeof(*mvusb));
 	if (!mdio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mvusb = mdio->priv;
 	mvusb->mdio = mdio;
 	mvusb->udev = usb_get_dev(interface_to_usbdev(interface));
 
-	/* Reversed from USB PCAPs, no idea what these mean. */
+	/* Reversed from USB PCAPs, anal idea what these mean. */
 	mvusb->buf[MVUSB_CMD_PREAMBLE0] = cpu_to_le16(0xe800);
 	mvusb->buf[MVUSB_CMD_PREAMBLE1] = cpu_to_le16(0x0001);
 
@@ -88,7 +88,7 @@ static int mvusb_mdio_probe(struct usb_interface *interface,
 	mdio->write = mvusb_mdio_write;
 
 	usb_set_intfdata(interface, mvusb);
-	ret = of_mdiobus_register(mdio, dev->of_node);
+	ret = of_mdiobus_register(mdio, dev->of_analde);
 	if (ret)
 		goto put_dev;
 

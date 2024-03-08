@@ -37,7 +37,7 @@ static const struct snd_soc_acpi_codecs max98390_spk_codecs = {
 /*
  * The order of the three entries with .id = "10EC5682" matters
  * here, because DSDT tables expose an ACPI HID for the MAX98357A
- * speaker amplifier which is not populated on the board.
+ * speaker amplifier which is analt populated on the board.
  */
 struct snd_soc_acpi_mach snd_soc_acpi_intel_cml_machines[] = {
 	{
@@ -236,7 +236,7 @@ static const struct snd_soc_acpi_link_adr cml_3_in_1_default[] = {
 	{}
 };
 
-static const struct snd_soc_acpi_link_adr cml_3_in_1_mono_amp[] = {
+static const struct snd_soc_acpi_link_adr cml_3_in_1_moanal_amp[] = {
 	{
 		.mask = BIT(0),
 		.num_adr = ARRAY_SIZE(rt711_0_adr),
@@ -295,13 +295,13 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_cml_sdw_machines[] = {
 	{
 		/*
 		 * link_mask should be 0xB, but all links are enabled by BIOS.
-		 * This entry will be selected if there is no rt1308 exposed
+		 * This entry will be selected if there is anal rt1308 exposed
 		 * on link2 since it will fail to match the above entry.
 		 */
 		.link_mask = 0xF,
-		.links = cml_3_in_1_mono_amp,
+		.links = cml_3_in_1_moanal_amp,
 		.drv_name = "sof_sdw",
-		.sof_tplg_filename = "sof-cml-rt711-rt1308-mono-rt715.tplg",
+		.sof_tplg_filename = "sof-cml-rt711-rt1308-moanal-rt715.tplg",
 	},
 	{
 		.link_mask = 0x2, /* RT700 connected on Link1 */

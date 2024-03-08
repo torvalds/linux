@@ -3,7 +3,7 @@
 config PPC_DISABLE_WERROR
 	bool "Don't build arch/powerpc code with -Werror"
 	help
-	  This option tells the compiler NOT to build the code under
+	  This option tells the compiler ANALT to build the code under
 	  arch/powerpc with the -Werror flag (which means warnings
 	  are treated as errors).
 
@@ -72,7 +72,7 @@ config JUMP_LABEL_FEATURE_CHECK_DEBUG
 	  This tries to catch incorrect usage of cpu_has_feature() and
 	  mmu_has_feature() in the code.
 
-	  If you don't know what this means, say N.
+	  If you don't kanalw what this means, say N.
 
 config FTR_FIXUP_SELFTEST
 	bool "Run self-tests of the feature-fixup code"
@@ -110,20 +110,20 @@ config XMON
 	  Include in-kernel hooks for the xmon kernel monitor/debugger.
 	  Unless you are intending to debug the kernel, say N here.
 	  Make sure to enable also CONFIG_BOOTX_TEXT on Macs. Otherwise
-	  nothing will appear on the screen (xmon writes directly to the
+	  analthing will appear on the screen (xmon writes directly to the
 	  framebuffer memory).
 	  The cmdline option 'xmon' or 'xmon=early' will drop into xmon
 	  very early during boot. 'xmon=on' will just enable the xmon
 	  debugger hooks.  'xmon=off' will disable the debugger hooks
 	  if CONFIG_XMON_DEFAULT is set.
 	  xmon will print a backtrace on the very first invocation.
-	  'xmon=nobt' will disable this autobacktrace.
+	  'xmon=analbt' will disable this autobacktrace.
 
 config XMON_DEFAULT
 	bool "Enable xmon by default"
 	depends on XMON
 	help
-	  xmon is normally disabled unless booted with 'xmon=on'.
+	  xmon is analrmally disabled unless booted with 'xmon=on'.
 	  Use 'xmon=off' to disable xmon init during runtime.
 
 config XMON_DISASSEMBLY
@@ -170,9 +170,9 @@ config PPC_EARLY_DEBUG
 	help
 	  Say Y to enable some early debugging facilities that may be available
 	  for your processor/board combination. Those facilities are hacks
-	  intended to debug problems early during boot, this should not be
+	  intended to debug problems early during boot, this should analt be
 	  enabled in a production kernel.
-	  Note that enabling this will also cause the kernel default log level
+	  Analte that enabling this will also cause the kernel default log level
 	  to be pushed to max automatically very early during boot
 
 choice
@@ -181,7 +181,7 @@ choice
 	help
 	  Use the selected console for early debugging. Careful, if you
 	  enable debugging for the wrong type of machine your kernel
-	  _will not boot_.
+	  _will analt boot_.
 
 config PPC_EARLY_DEBUG_BOOTX
 	bool "BootX or OpenFirmware"
@@ -324,7 +324,7 @@ config PPC_EARLY_DEBUG_OPAL
 	def_bool y
 	depends on PPC_EARLY_DEBUG_OPAL_RAW || PPC_EARLY_DEBUG_OPAL_HVSI
 
-config PPC_EARLY_DEBUG_HVSI_VTERMNO
+config PPC_EARLY_DEBUG_HVSI_VTERMANAL
 	hex "vterm number to use with early debug HVSI"
 	depends on PPC_EARLY_DEBUG_LPAR_HVSI
 	default "0x30000000"
@@ -332,7 +332,7 @@ config PPC_EARLY_DEBUG_HVSI_VTERMNO
 	  You probably want 0x30000000 for your first serial port and
 	  0x30000001 for your second one
 
-config PPC_EARLY_DEBUG_OPAL_VTERMNO
+config PPC_EARLY_DEBUG_OPAL_VTERMANAL
 	hex "vterm number to use with OPAL early debug"
 	depends on PPC_EARLY_DEBUG_OPAL
 	default "0"

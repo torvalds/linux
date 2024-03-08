@@ -53,7 +53,7 @@ static int cros_ec_pkt_xfer_i2c(struct cros_ec_device *ec_dev,
 				struct cros_ec_command *msg)
 {
 	struct i2c_client *client = ec_dev->priv;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 	int i;
 	int packet_len;
 	u8 *out_buf = NULL;
@@ -136,14 +136,14 @@ static int cros_ec_pkt_xfer_i2c(struct cros_ec_device *ec_dev,
 		 */
 		if (ec_response_i2c->result == EC_RES_INVALID_COMMAND &&
 		    ec_response_i2c->packet_length == 0) {
-			ret = -EPROTONOSUPPORT;
+			ret = -EPROTOANALSUPPORT;
 			goto done;
 		}
 	}
 
 	if (ec_response_i2c->packet_length < sizeof(struct ec_host_response)) {
 		dev_err(ec_dev->dev,
-			"response of %u bytes too short; not a full header\n",
+			"response of %u bytes too short; analt a full header\n",
 			ec_response_i2c->packet_length);
 		ret = -EBADMSG;
 		goto done;
@@ -189,7 +189,7 @@ static int cros_ec_cmd_xfer_i2c(struct cros_ec_device *ec_dev,
 				struct cros_ec_command *msg)
 {
 	struct i2c_client *client = ec_dev->priv;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 	int i;
 	int len;
 	int packet_len;
@@ -258,7 +258,7 @@ static int cros_ec_cmd_xfer_i2c(struct cros_ec_device *ec_dev,
 	if (len > msg->insize) {
 		dev_err(ec_dev->dev, "packet too long (%d bytes, expected %d)",
 			len, msg->insize);
-		ret = -ENOSPC;
+		ret = -EANALSPC;
 		goto done;
 	}
 
@@ -294,7 +294,7 @@ static int cros_ec_i2c_probe(struct i2c_client *client)
 
 	ec_dev = devm_kzalloc(dev, sizeof(*ec_dev), GFP_KERNEL);
 	if (!ec_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, ec_dev);
 	ec_dev->dev = dev;
@@ -309,7 +309,7 @@ static int cros_ec_i2c_probe(struct i2c_client *client)
 
 	err = cros_ec_register(ec_dev);
 	if (err) {
-		dev_err(dev, "cannot register EC\n");
+		dev_err(dev, "cananalt register EC\n");
 		return err;
 	}
 

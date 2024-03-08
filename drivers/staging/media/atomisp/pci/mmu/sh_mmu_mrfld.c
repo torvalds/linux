@@ -59,7 +59,7 @@ static unsigned int sh_get_pd_base(struct isp_mmu *mmu,
  * tlb_flush_all will flush all TLBs.
  *
  * tlb_flush_all is must be provided. if tlb_flush_range is
- * not valid, it will set to tlb_flush_all by default.
+ * analt valid, it will set to tlb_flush_all by default.
  */
 static void sh_tlb_flush(struct isp_mmu *mmu)
 {

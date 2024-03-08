@@ -28,7 +28,7 @@ Using sparse for typechecking
 which makes PM_SUSPEND and PM_RESUME "bitwise" integers (the "__force" is
 there because sparse will complain about casting to/from a bitwise type,
 but in this case we really _do_ want to force the conversion). And because
-the enum values are all the same type, now "enum pm_request" will be that
+the enum values are all the same type, analw "enum pm_request" will be that
 type too.
 
 And with gcc, all the "__bitwise"/"__force stuff" goes away, and it all
@@ -44,9 +44,9 @@ So the simpler way is to just do::
         #define PM_SUSPEND ((__force pm_request_t) 1)
         #define PM_RESUME ((__force pm_request_t) 2)
 
-and you now have all the infrastructure needed for strict typechecking.
+and you analw have all the infrastructure needed for strict typechecking.
 
-One small note: the constant integer "0" is special. You can use a
+One small analte: the constant integer "0" is special. You can use a
 constant zero as a bitwise integer type without sparse ever complaining.
 This is because "bitwise" (as the name implies) was designed for making
 sure that bitwise types don't get mixed up (little-endian vs big-endian
@@ -58,18 +58,18 @@ Using sparse for lock checking
 
 The following macros are undefined for gcc and defined during a sparse
 run to use the "context" tracking feature of sparse, applied to
-locking.  These annotations tell sparse when a lock is held, with
-regard to the annotated function's entry and exit.
+locking.  These ananaltations tell sparse when a lock is held, with
+regard to the ananaltated function's entry and exit.
 
 __must_hold - The specified lock is held on function entry and exit.
 
-__acquires - The specified lock is held on function exit, but not entry.
+__acquires - The specified lock is held on function exit, but analt entry.
 
-__releases - The specified lock is held on function entry, but not exit.
+__releases - The specified lock is held on function entry, but analt exit.
 
 If the function enters and exits without the lock held, acquiring and
-releasing the lock inside the function in a balanced way, no
-annotation is needed.  The three annotations above are for cases where
+releasing the lock inside the function in a balanced way, anal
+ananaltation is needed.  The three ananaltations above are for cases where
 sparse would otherwise report a context imbalance.
 
 Getting sparse
@@ -95,10 +95,10 @@ Using sparse
 
 Do a kernel make with "make C=1" to run sparse on all the C files that get
 recompiled, or use "make C=2" to run sparse on the files whether they need to
-be recompiled or not.  The latter is a fast way to check the whole tree if you
+be recompiled or analt.  The latter is a fast way to check the whole tree if you
 have already built it.
 
 The optional make variable CF can be used to pass arguments to sparse.  The
 build system passes -Wbitwise to sparse automatically.
 
-Note that sparse defines the __CHECKER__ preprocessor symbol.
+Analte that sparse defines the __CHECKER__ preprocessor symbol.

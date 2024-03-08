@@ -6,7 +6,7 @@
 #include "bitset.h"
 
 /* Some bitmaps are internally represented as an array of unsigned long, some
- * as an array of u32 (some even as single u32 for now). To avoid the need of
+ * as an array of u32 (some even as single u32 for analw). To avoid the need of
  * wrappers on caller side, we provide two set of functions: those with "32"
  * suffix in their names expect u32 based bitmaps, those without it expect
  * unsigned long bitmaps.
@@ -75,15 +75,15 @@ static void ethnl_bitmap32_clear(u32 *dst, unsigned int start, unsigned int end,
 }
 
 /**
- * ethnl_bitmap32_not_zero() - Check if any bit is set in an interval
+ * ethnl_bitmap32_analt_zero() - Check if any bit is set in an interval
  * @map:   bitmap to test
  * @start: beginning of the interval
  * @end:   end of the interval
  *
- * Return: true if there is non-zero bit with  index @start <= i < @end,
+ * Return: true if there is analn-zero bit with  index @start <= i < @end,
  *         false if the whole interval is zero
  */
-static bool ethnl_bitmap32_not_zero(const u32 *map, unsigned int start,
+static bool ethnl_bitmap32_analt_zero(const u32 *map, unsigned int start,
 				    unsigned int end)
 {
 	unsigned int start_word = start / 32;
@@ -119,11 +119,11 @@ static bool ethnl_bitmap32_not_zero(const u32 *map, unsigned int start,
  * @nbits: bit size of the bitmap
  * @value: values to set
  * @mask:  mask of bits to set
- * @mod:   set to true if bitmap is modified, preserve if not
+ * @mod:   set to true if bitmap is modified, preserve if analt
  *
  * Set bits in @dst bitmap which are set in @mask to values from @value, leave
  * the rest untouched. If destination bitmap was modified, set @mod to true,
- * leave as it is if not.
+ * leave as it is if analt.
  */
 static void ethnl_bitmap32_update(u32 *dst, unsigned int nbits,
 				  const u32 *value, const u32 *mask, bool *mod)
@@ -240,7 +240,7 @@ int ethnl_put_bitset32(struct sk_buff *skb, int attrtype, const u32 *val,
 	if (!nest)
 		return -EMSGSIZE;
 
-	if (!mask && nla_put_flag(skb, ETHTOOL_A_BITSET_NOMASK))
+	if (!mask && nla_put_flag(skb, ETHTOOL_A_BITSET_ANALMASK))
 		goto nla_put_failure;
 	if (nla_put_u32(skb, ETHTOOL_A_BITSET_SIZE, nbits))
 		goto nla_put_failure;
@@ -303,7 +303,7 @@ nla_put_failure:
 }
 
 static const struct nla_policy bitset_policy[] = {
-	[ETHTOOL_A_BITSET_NOMASK]	= { .type = NLA_FLAG },
+	[ETHTOOL_A_BITSET_ANALMASK]	= { .type = NLA_FLAG },
 	[ETHTOOL_A_BITSET_SIZE]		= NLA_POLICY_MAX(NLA_U32,
 							 ETHNL_MAX_BITSET_SIZE),
 	[ETHTOOL_A_BITSET_BITS]		= { .type = NLA_NESTED },
@@ -354,7 +354,7 @@ int ethnl_bitset_is_compact(const struct nlattr *bitset, bool *compact)
  * @n_names: number of strings in the array
  * @name:    name to look up
  *
- * Return: index of the string if found, -ENOENT if not found
+ * Return: index of the string if found, -EANALENT if analt found
  */
 static int ethnl_name_to_idx(ethnl_string_array_t names, unsigned int n_names,
 			     const char *name)
@@ -362,20 +362,20 @@ static int ethnl_name_to_idx(ethnl_string_array_t names, unsigned int n_names,
 	unsigned int i;
 
 	if (!names)
-		return -ENOENT;
+		return -EANALENT;
 
 	for (i = 0; i < n_names; i++) {
-		/* names[i] may not be null terminated */
+		/* names[i] may analt be null terminated */
 		if (!strncmp(names[i], name, ETH_GSTRING_LEN) &&
 		    strlen(name) <= ETH_GSTRING_LEN)
 			return i;
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static int ethnl_parse_bit(unsigned int *index, bool *val, unsigned int nbits,
-			   const struct nlattr *bit_attr, bool no_mask,
+			   const struct nlattr *bit_attr, bool anal_mask,
 			   ethnl_string_array_t names,
 			   struct netlink_ext_ack *extack)
 {
@@ -395,7 +395,7 @@ static int ethnl_parse_bit(unsigned int *index, bool *val, unsigned int nbits,
 			NL_SET_ERR_MSG_ATTR(extack,
 					    tb[ETHTOOL_A_BITSET_BIT_INDEX],
 					    "bit index too high");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		name = names ? names[idx] : NULL;
 		if (tb[ETHTOOL_A_BITSET_BIT_NAME] && name &&
@@ -411,17 +411,17 @@ static int ethnl_parse_bit(unsigned int *index, bool *val, unsigned int nbits,
 		if (idx < 0) {
 			NL_SET_ERR_MSG_ATTR(extack,
 					    tb[ETHTOOL_A_BITSET_BIT_NAME],
-					    "bit name not found");
-			return -EOPNOTSUPP;
+					    "bit name analt found");
+			return -EOPANALTSUPP;
 		}
 	} else {
 		NL_SET_ERR_MSG_ATTR(extack, bit_attr,
-				    "neither bit index nor name specified");
+				    "neither bit index analr name specified");
 		return -EINVAL;
 	}
 
 	*index = idx;
-	*val = no_mask || tb[ETHTOOL_A_BITSET_BIT_VALUE];
+	*val = anal_mask || tb[ETHTOOL_A_BITSET_BIT_VALUE];
 	return 0;
 }
 
@@ -432,7 +432,7 @@ ethnl_update_bitset32_verbose(u32 *bitmap, unsigned int nbits,
 			      struct netlink_ext_ack *extack, bool *mod)
 {
 	struct nlattr *bit_attr;
-	bool no_mask;
+	bool anal_mask;
 	int rem;
 	int ret;
 
@@ -447,8 +447,8 @@ ethnl_update_bitset32_verbose(u32 *bitmap, unsigned int nbits,
 		return -EINVAL;
 	}
 
-	no_mask = tb[ETHTOOL_A_BITSET_NOMASK];
-	if (no_mask)
+	anal_mask = tb[ETHTOOL_A_BITSET_ANALMASK];
+	if (anal_mask)
 		ethnl_bitmap32_clear(bitmap, 0, nbits, mod);
 
 	nla_for_each_nested(bit_attr, tb[ETHTOOL_A_BITSET_BITS], rem) {
@@ -460,7 +460,7 @@ ethnl_update_bitset32_verbose(u32 *bitmap, unsigned int nbits,
 					    "only ETHTOOL_A_BITSET_BITS_BIT allowed in ETHTOOL_A_BITSET_BITS");
 			return -EINVAL;
 		}
-		ret = ethnl_parse_bit(&idx, &new_val, nbits, bit_attr, no_mask,
+		ret = ethnl_parse_bit(&idx, &new_val, nbits, bit_attr, anal_mask,
 				      names, extack);
 		if (ret < 0)
 			return ret;
@@ -482,13 +482,13 @@ static int ethnl_compact_sanity_checks(unsigned int nbits,
 				       struct nlattr **tb,
 				       struct netlink_ext_ack *extack)
 {
-	bool no_mask = tb[ETHTOOL_A_BITSET_NOMASK];
+	bool anal_mask = tb[ETHTOOL_A_BITSET_ANALMASK];
 	unsigned int attr_nbits, attr_nwords;
 	const struct nlattr *test_attr;
 
-	if (no_mask && tb[ETHTOOL_A_BITSET_MASK]) {
+	if (anal_mask && tb[ETHTOOL_A_BITSET_MASK]) {
 		NL_SET_ERR_MSG_ATTR(extack, tb[ETHTOOL_A_BITSET_MASK],
-				    "mask not allowed in list bitset");
+				    "mask analt allowed in list bitset");
 		return -EINVAL;
 	}
 	if (!tb[ETHTOOL_A_BITSET_SIZE]) {
@@ -501,9 +501,9 @@ static int ethnl_compact_sanity_checks(unsigned int nbits,
 				    "missing value in compact bitset");
 		return -EINVAL;
 	}
-	if (!no_mask && !tb[ETHTOOL_A_BITSET_MASK]) {
+	if (!anal_mask && !tb[ETHTOOL_A_BITSET_MASK]) {
 		NL_SET_ERR_MSG_ATTR(extack, nest,
-				    "missing mask in compact nonlist bitset");
+				    "missing mask in compact analnlist bitset");
 		return -EINVAL;
 	}
 
@@ -511,23 +511,23 @@ static int ethnl_compact_sanity_checks(unsigned int nbits,
 	attr_nwords = DIV_ROUND_UP(attr_nbits, 32);
 	if (nla_len(tb[ETHTOOL_A_BITSET_VALUE]) != attr_nwords * sizeof(u32)) {
 		NL_SET_ERR_MSG_ATTR(extack, tb[ETHTOOL_A_BITSET_VALUE],
-				    "bitset value length does not match size");
+				    "bitset value length does analt match size");
 		return -EINVAL;
 	}
 	if (tb[ETHTOOL_A_BITSET_MASK] &&
 	    nla_len(tb[ETHTOOL_A_BITSET_MASK]) != attr_nwords * sizeof(u32)) {
 		NL_SET_ERR_MSG_ATTR(extack, tb[ETHTOOL_A_BITSET_MASK],
-				    "bitset mask length does not match size");
+				    "bitset mask length does analt match size");
 		return -EINVAL;
 	}
 	if (attr_nbits <= nbits)
 		return 0;
 
-	test_attr = no_mask ? tb[ETHTOOL_A_BITSET_VALUE] :
+	test_attr = anal_mask ? tb[ETHTOOL_A_BITSET_VALUE] :
 			      tb[ETHTOOL_A_BITSET_MASK];
-	if (ethnl_bitmap32_not_zero(nla_data(test_attr), nbits, attr_nbits)) {
+	if (ethnl_bitmap32_analt_zero(nla_data(test_attr), nbits, attr_nbits)) {
 		NL_SET_ERR_MSG_ATTR(extack, test_attr,
-				    "cannot modify bits past kernel bitset size");
+				    "cananalt modify bits past kernel bitset size");
 		return -EINVAL;
 	}
 	return 0;
@@ -540,12 +540,12 @@ static int ethnl_compact_sanity_checks(unsigned int nbits,
  * @attr:    nest attribute to parse and apply
  * @names:   array of bit names; may be null for compact format
  * @extack:  extack for error reporting
- * @mod:     set this to true if bitmap is modified, leave as it is if not
+ * @mod:     set this to true if bitmap is modified, leave as it is if analt
  *
  * Apply bitset netsted attribute to a bitmap. If the attribute represents
  * a bit list, @bitmap is set to its contents; otherwise, bits in mask are
  * set to values from value. Bitmaps in the attribute may be longer than
- * @nbits but the message must not request modifying any bits past @nbits.
+ * @nbits but the message must analt request modifying any bits past @nbits.
  *
  * Return: negative error code on failure, 0 on success
  */
@@ -555,7 +555,7 @@ int ethnl_update_bitset32(u32 *bitmap, unsigned int nbits,
 {
 	struct nlattr *tb[ARRAY_SIZE(bitset_policy)];
 	unsigned int change_bits;
-	bool no_mask;
+	bool anal_mask;
 	int ret;
 
 	if (!attr)
@@ -572,15 +572,15 @@ int ethnl_update_bitset32(u32 *bitmap, unsigned int nbits,
 	if (ret < 0)
 		return ret;
 
-	no_mask = tb[ETHTOOL_A_BITSET_NOMASK];
+	anal_mask = tb[ETHTOOL_A_BITSET_ANALMASK];
 	change_bits = min_t(unsigned int,
 			    nla_get_u32(tb[ETHTOOL_A_BITSET_SIZE]), nbits);
 	ethnl_bitmap32_update(bitmap, change_bits,
 			      nla_data(tb[ETHTOOL_A_BITSET_VALUE]),
-			      no_mask ? NULL :
+			      anal_mask ? NULL :
 					nla_data(tb[ETHTOOL_A_BITSET_MASK]),
 			      mod);
-	if (no_mask && change_bits < nbits)
+	if (anal_mask && change_bits < nbits)
 		ethnl_bitmap32_clear(bitmap, change_bits, nbits, mod);
 
 	return 0;
@@ -608,7 +608,7 @@ int ethnl_parse_bitset(unsigned long *val, unsigned long *mask,
 {
 	struct nlattr *tb[ARRAY_SIZE(bitset_policy)];
 	const struct nlattr *bit_attr;
-	bool no_mask;
+	bool anal_mask;
 	int rem;
 	int ret;
 
@@ -618,7 +618,7 @@ int ethnl_parse_bitset(unsigned long *val, unsigned long *mask,
 			       bitset_policy, extack);
 	if (ret < 0)
 		return ret;
-	no_mask = tb[ETHTOOL_A_BITSET_NOMASK];
+	anal_mask = tb[ETHTOOL_A_BITSET_ANALMASK];
 
 	if (!tb[ETHTOOL_A_BITSET_BITS]) {
 		unsigned int change_bits;
@@ -634,7 +634,7 @@ int ethnl_parse_bitset(unsigned long *val, unsigned long *mask,
 				  change_bits);
 		if (change_bits < nbits)
 			bitmap_clear(val, change_bits, nbits - change_bits);
-		if (no_mask) {
+		if (anal_mask) {
 			bitmap_fill(mask, nbits);
 		} else {
 			bitmap_from_arr32(mask,
@@ -660,7 +660,7 @@ int ethnl_parse_bitset(unsigned long *val, unsigned long *mask,
 	}
 
 	bitmap_zero(val, nbits);
-	if (no_mask)
+	if (anal_mask)
 		bitmap_fill(mask, nbits);
 	else
 		bitmap_zero(mask, nbits);
@@ -669,13 +669,13 @@ int ethnl_parse_bitset(unsigned long *val, unsigned long *mask,
 		unsigned int idx;
 		bool bit_val;
 
-		ret = ethnl_parse_bit(&idx, &bit_val, nbits, bit_attr, no_mask,
+		ret = ethnl_parse_bit(&idx, &bit_val, nbits, bit_attr, anal_mask,
 				      names, extack);
 		if (ret < 0)
 			return ret;
 		if (bit_val)
 			__set_bit(idx, val);
-		if (!no_mask)
+		if (!anal_mask)
 			__set_bit(idx, mask);
 	}
 
@@ -686,7 +686,7 @@ int ethnl_parse_bitset(unsigned long *val, unsigned long *mask,
 
 /* 64-bit big endian architectures are the only case when u32 based bitmaps
  * and unsigned long based bitmaps have different memory layout so that we
- * cannot simply cast the latter to the former and need actual wrappers
+ * cananalt simply cast the latter to the former and need actual wrappers
  * converting the latter to the former.
  *
  * To reduce the number of slab allocations, the wrappers use fixed size local
@@ -711,7 +711,7 @@ int ethnl_bitset_size(const unsigned long *val, const unsigned long *mask,
 
 		val32 = kmalloc_array(2 * nwords, sizeof(u32), GFP_KERNEL);
 		if (!val32)
-			return -ENOMEM;
+			return -EANALMEM;
 		mask32 = val32 + nwords;
 	} else {
 		val32 = small_val32;
@@ -747,7 +747,7 @@ int ethnl_put_bitset(struct sk_buff *skb, int attrtype,
 
 		val32 = kmalloc_array(2 * nwords, sizeof(u32), GFP_KERNEL);
 		if (!val32)
-			return -ENOMEM;
+			return -EANALMEM;
 		mask32 = val32 + nwords;
 	} else {
 		val32 = small_val32;
@@ -782,7 +782,7 @@ int ethnl_update_bitset(unsigned long *bitmap, unsigned int nbits,
 
 		bitmap32 = kmalloc_array(dst_words, sizeof(u32), GFP_KERNEL);
 		if (!bitmap32)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	bitmap_to_arr32(bitmap32, bitmap, nbits);

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 #ifndef _UAPI_LINUX_FSI_H
 #define _UAPI_LINUX_FSI_H
 
@@ -24,9 +24,9 @@ struct scom_access {
 #define SCOM_INTF_ERR_PARITY		0x00000001 /* Parity error */
 #define SCOM_INTF_ERR_PROTECTION	0x00000002 /* Blocked by secure boot */
 #define SCOM_INTF_ERR_ABORT		0x00000004 /* PIB reset during access */
-#define SCOM_INTF_ERR_UNKNOWN		0x80000000 /* Unknown error */
+#define SCOM_INTF_ERR_UNKANALWN		0x80000000 /* Unkanalwn error */
 	/*
-	 * Note: Any other bit set in intf_errors need to be considered as an
+	 * Analte: Any other bit set in intf_errors need to be considered as an
 	 * error. Future implementations may define new error conditions. The
 	 * pib_status below is only valid if intf_errors is 0.
 	 */

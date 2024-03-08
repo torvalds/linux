@@ -64,7 +64,7 @@ int xfrm4_tunnel_deregister(struct xfrm_tunnel *handler, unsigned short family)
 {
 	struct xfrm_tunnel __rcu **pprev;
 	struct xfrm_tunnel *t;
-	int ret = -ENOENT;
+	int ret = -EANALENT;
 
 	mutex_lock(&tunnel4_mutex);
 
@@ -185,7 +185,7 @@ static int tunnel4_err(struct sk_buff *skb, u32 info)
 		if (!handler->err_handler(skb, info))
 			return 0;
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 #if IS_ENABLED(CONFIG_IPV6)
@@ -197,7 +197,7 @@ static int tunnel64_err(struct sk_buff *skb, u32 info)
 		if (!handler->err_handler(skb, info))
 			return 0;
 
-	return -ENOENT;
+	return -EANALENT;
 }
 #endif
 
@@ -210,21 +210,21 @@ static int tunnelmpls4_err(struct sk_buff *skb, u32 info)
 		if (!handler->err_handler(skb, info))
 			return 0;
 
-	return -ENOENT;
+	return -EANALENT;
 }
 #endif
 
 static const struct net_protocol tunnel4_protocol = {
 	.handler	=	tunnel4_rcv,
 	.err_handler	=	tunnel4_err,
-	.no_policy	=	1,
+	.anal_policy	=	1,
 };
 
 #if IS_ENABLED(CONFIG_IPV6)
 static const struct net_protocol tunnel64_protocol = {
 	.handler	=	tunnel64_rcv,
 	.err_handler	=	tunnel64_err,
-	.no_policy	=	1,
+	.anal_policy	=	1,
 };
 #endif
 
@@ -232,7 +232,7 @@ static const struct net_protocol tunnel64_protocol = {
 static const struct net_protocol tunnelmpls4_protocol = {
 	.handler	=	tunnelmpls4_rcv,
 	.err_handler	=	tunnelmpls4_err,
-	.no_policy	=	1,
+	.anal_policy	=	1,
 };
 #endif
 

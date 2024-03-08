@@ -14,18 +14,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -39,8 +39,8 @@
 #include <scsi/scsi_transport_fc.h>
 
 #include "csio_hw.h"
-#include "csio_lnode.h"
-#include "csio_rnode.h"
+#include "csio_lanalde.h"
+#include "csio_ranalde.h"
 #include "csio_mb.h"
 #include "csio_wr.h"
 
@@ -67,7 +67,7 @@ csio_mb_fw_retval(struct csio_mb *mbp)
  * @hw: The HW structure
  * @mbp: Mailbox structure
  * @m_mbox: Master mailbox number, if any.
- * @a_mbox: Mailbox number for asycn notifications.
+ * @a_mbox: Mailbox number for asycn analtifications.
  * @master: Device mastership.
  * @cbfn: Callback, if any.
  *
@@ -89,7 +89,7 @@ csio_mb_hello(struct csio_hw *hw, struct csio_mb *mbp, uint32_t tmo,
 		FW_HELLO_CMD_MASTERFORCE_V(master == CSIO_MASTER_MUST)	|
 		FW_HELLO_CMD_MBMASTER_V(master == CSIO_MASTER_MUST ?
 				m_mbox : FW_HELLO_CMD_MBMASTER_M)	|
-		FW_HELLO_CMD_MBASYNCNOT_V(a_mbox) |
+		FW_HELLO_CMD_MBASYNCANALT_V(a_mbox) |
 		FW_HELLO_CMD_STAGE_V(fw_hello_cmd_stage_os) |
 		FW_HELLO_CMD_CLEARINIT_F);
 
@@ -475,10 +475,10 @@ csio_mb_iq_alloc(struct csio_hw *hw, struct csio_mb *mbp, void *priv,
  * @iq_params: Ingress queue params needed for writing.
  * @cbfn: The call-back function
  *
- * NOTE: We OR relevant bits with cmdp->XXX, instead of just equating,
+ * ANALTE: We OR relevant bits with cmdp->XXX, instead of just equating,
  * because this IQ write request can be cascaded with a previous
  * IQ alloc request, and we dont want to over-write the bits set by
- * that request. This logic will work even in a non-cascaded case, since the
+ * that request. This logic will work even in a analn-cascaded case, since the
  * cmdp structure is zeroed out by CSIO_INIT_MBP.
  */
 static void
@@ -492,10 +492,10 @@ csio_mb_iq_write(struct csio_hw *hw, struct csio_mb *mbp, void *priv,
 	uint32_t iq_start_stop = (iq_params->iq_start)	?
 					FW_IQ_CMD_IQSTART_F :
 					FW_IQ_CMD_IQSTOP_F;
-	int relaxed = !(hw->flags & CSIO_HWF_ROOT_NO_RELAXED_ORDERING);
+	int relaxed = !(hw->flags & CSIO_HWF_ROOT_ANAL_RELAXED_ORDERING);
 
 	/*
-	 * If this IQ write is cascaded with IQ alloc request, do not
+	 * If this IQ write is cascaded with IQ alloc request, do analt
 	 * re-initialize with 0's.
 	 *
 	 */
@@ -684,10 +684,10 @@ csio_mb_eq_ofld_alloc(struct csio_hw *hw, struct csio_mb *mbp, void *priv,
  * @cbfn: The call-back function
  *
  *
- * NOTE: We OR relevant bits with cmdp->XXX, instead of just equating,
+ * ANALTE: We OR relevant bits with cmdp->XXX, instead of just equating,
  * because this EQ write request can be cascaded with a previous
  * EQ alloc request, and we dont want to over-write the bits set by
- * that request. This logic will work even in a non-cascaded case, since the
+ * that request. This logic will work even in a analn-cascaded case, since the
  * cmdp structure is zeroed out by CSIO_INIT_MBP.
  */
 static void
@@ -703,7 +703,7 @@ csio_mb_eq_ofld_write(struct csio_hw *hw, struct csio_mb *mbp, void *priv,
 				FW_EQ_OFLD_CMD_EQSTOP_F;
 
 	/*
-	 * If this EQ write is cascaded with EQ alloc request, do not
+	 * If this EQ write is cascaded with EQ alloc request, do analt
 	 * re-initialize with 0's.
 	 *
 	 */
@@ -827,7 +827,7 @@ csio_mb_eq_ofld_free(struct csio_hw *hw, struct csio_mb *mbp, void *priv,
  * csio_write_fcoe_link_cond_init_mb - Initialize Mailbox to write FCoE link
  *				 condition.
  *
- * @ln: The Lnode structure
+ * @ln: The Lanalde structure
  * @mbp: Mailbox structure to initialize
  * @mb_tmo: Mailbox time-out period (in ms).
  * @cbfn: The call back function.
@@ -835,7 +835,7 @@ csio_mb_eq_ofld_free(struct csio_hw *hw, struct csio_mb *mbp, void *priv,
  *
  */
 void
-csio_write_fcoe_link_cond_init_mb(struct csio_lnode *ln, struct csio_mb *mbp,
+csio_write_fcoe_link_cond_init_mb(struct csio_lanalde *ln, struct csio_mb *mbp,
 			uint32_t mb_tmo, uint8_t port_id, uint32_t sub_opcode,
 			uint8_t cos, bool link_status, uint32_t fcfi,
 			void (*cbfn) (struct csio_hw *, struct csio_mb *))
@@ -891,7 +891,7 @@ csio_fcoe_read_res_info_init_mb(struct csio_hw *hw, struct csio_mb *mbp,
  * csio_fcoe_vnp_alloc_init_mb - Initializes the mailbox for allocating VNP
  *				in the firmware (FW_FCOE_VNP_CMD).
  *
- * @ln: The Lnode structure.
+ * @ln: The Lanalde structure.
  * @mbp: Mailbox structure to initialize.
  * @mb_tmo: Mailbox time-out period (in ms).
  * @fcfi: FCF Index.
@@ -904,7 +904,7 @@ csio_fcoe_read_res_info_init_mb(struct csio_hw *hw, struct csio_mb *mbp,
  *
  */
 void
-csio_fcoe_vnp_alloc_init_mb(struct csio_lnode *ln, struct csio_mb *mbp,
+csio_fcoe_vnp_alloc_init_mb(struct csio_lanalde *ln, struct csio_mb *mbp,
 		uint32_t mb_tmo, uint32_t fcfi, uint32_t vnpi, uint16_t iqid,
 		uint8_t vnport_wwnn[8],	uint8_t vnport_wwpn[8],
 		void (*cbfn) (struct csio_hw *, struct csio_mb *))
@@ -938,7 +938,7 @@ csio_fcoe_vnp_alloc_init_mb(struct csio_lnode *ln, struct csio_mb *mbp,
 
 /*
  * csio_fcoe_vnp_read_init_mb - Prepares VNP read cmd.
- * @ln: The Lnode structure.
+ * @ln: The Lanalde structure.
  * @mbp: Mailbox structure to initialize.
  * @mb_tmo: Mailbox time-out period (in ms).
  * @fcfi: FCF Index.
@@ -946,7 +946,7 @@ csio_fcoe_vnp_alloc_init_mb(struct csio_lnode *ln, struct csio_mb *mbp,
  * @cbfn: The call-back handler.
  */
 void
-csio_fcoe_vnp_read_init_mb(struct csio_lnode *ln, struct csio_mb *mbp,
+csio_fcoe_vnp_read_init_mb(struct csio_lanalde *ln, struct csio_mb *mbp,
 		uint32_t mb_tmo, uint32_t fcfi, uint32_t vnpi,
 		void (*cbfn) (struct csio_hw *, struct csio_mb *))
 {
@@ -966,16 +966,16 @@ csio_fcoe_vnp_read_init_mb(struct csio_lnode *ln, struct csio_mb *mbp,
  * csio_fcoe_vnp_free_init_mb - Initializes the mailbox for freeing an
  *			alloacted VNP in the firmware (FW_FCOE_VNP_CMD).
  *
- * @ln: The Lnode structure.
+ * @ln: The Lanalde structure.
  * @mbp: Mailbox structure to initialize.
  * @mb_tmo: Mailbox time-out period (in ms).
  * @fcfi: FCF flow id
  * @vnpi: VNP flow id
  * @cbfn: The call-back function.
- * Return: None
+ * Return: Analne
  */
 void
-csio_fcoe_vnp_free_init_mb(struct csio_lnode *ln, struct csio_mb *mbp,
+csio_fcoe_vnp_free_init_mb(struct csio_lanalde *ln, struct csio_mb *mbp,
 		uint32_t mb_tmo, uint32_t fcfi, uint32_t vnpi,
 		void (*cbfn) (struct csio_hw *, struct csio_mb *))
 {
@@ -997,7 +997,7 @@ csio_fcoe_vnp_free_init_mb(struct csio_lnode *ln, struct csio_mb *mbp,
  * csio_fcoe_read_fcf_init_mb - Initializes the mailbox to read the
  *				FCF records.
  *
- * @ln: The Lnode structure
+ * @ln: The Lanalde structure
  * @mbp: Mailbox structure to initialize
  * @mb_tmo: Mailbox time-out period (in ms).
  * @fcf_params: FC-Forwarder parameters.
@@ -1006,7 +1006,7 @@ csio_fcoe_vnp_free_init_mb(struct csio_lnode *ln, struct csio_mb *mbp,
  *
  */
 void
-csio_fcoe_read_fcf_init_mb(struct csio_lnode *ln, struct csio_mb *mbp,
+csio_fcoe_read_fcf_init_mb(struct csio_lanalde *ln, struct csio_mb *mbp,
 		uint32_t mb_tmo, uint32_t portid, uint32_t fcfi,
 		void (*cbfn) (struct csio_hw *, struct csio_mb *))
 {
@@ -1169,7 +1169,7 @@ csio_mb_debug_cmd_handler(struct csio_hw *hw)
 
 	csio_mb_dump_fw_dbg(hw, cmd);
 
-	/* Notify FW of mailbox by setting owner as UP */
+	/* Analtify FW of mailbox by setting owner as UP */
 	csio_wr_reg32(hw, MBMSGVALID_F | MBINTREQ_F |
 		      MBOWNER_V(CSIO_MBOWNER_FW), ctl_reg);
 
@@ -1208,13 +1208,13 @@ csio_mb_issue(struct csio_hw *hw, struct csio_mb *mbp)
 		}
 	} else if (!csio_is_host_intr_enabled(hw) ||
 		   !csio_is_hw_intr_enabled(hw)) {
-		csio_err(hw, "Cannot issue mailbox in interrupt mode 0x%x\n",
+		csio_err(hw, "Cananalt issue mailbox in interrupt mode 0x%x\n",
 			 *((uint8_t *)mbp->mb));
 		goto error_out;
 	}
 
 	if (mbm->mcurrent != NULL) {
-		/* Queue mbox cmd, if another mbox cmd is active */
+		/* Queue mbox cmd, if aanalther mbox cmd is active */
 		if (mbp->mb_cbfn == NULL) {
 			rv = -EBUSY;
 			csio_dbg(hw, "Couldn't own Mailbox %x op:0x%x\n",
@@ -1229,12 +1229,12 @@ csio_mb_issue(struct csio_hw *hw, struct csio_mb *mbp)
 		}
 	}
 
-	/* Now get ownership of mailbox */
+	/* Analw get ownership of mailbox */
 	owner = MBOWNER_G(csio_rd_reg32(hw, ctl_reg));
 
 	if (!csio_mb_is_host_owner(owner)) {
 
-		for (i = 0; (owner == CSIO_MBOWNER_NONE) && (i < 3); i++)
+		for (i = 0; (owner == CSIO_MBOWNER_ANALNE) && (i < 3); i++)
 			owner = MBOWNER_G(csio_rd_reg32(hw, ctl_reg));
 		/*
 		 * Mailbox unavailable. In immediate mode, fail the command.
@@ -1257,7 +1257,7 @@ csio_mb_issue(struct csio_hw *hw, struct csio_mb *mbp)
 						 hw->pfn, *((uint8_t *)mbp->mb),
 						 owner);
 					csio_err(hw,
-						 "No outstanding driver"
+						 "Anal outstanding driver"
 						 " mailbox as well\n");
 					goto error_out;
 				}
@@ -1273,7 +1273,7 @@ csio_mb_issue(struct csio_hw *hw, struct csio_mb *mbp)
 
 	CSIO_DUMP_MB(hw, hw->pfn, data_reg);
 
-	/* Start completion timers in non-immediate modes and notify FW */
+	/* Start completion timers in analn-immediate modes and analtify FW */
 	if (mbp->mb_cbfn != NULL) {
 		mbm->mcurrent = mbp;
 		mod_timer(&mbm->timer, jiffies + msecs_to_jiffies(mbp->tmo));
@@ -1381,23 +1381,23 @@ csio_mb_portmod_changed(struct csio_hw *hw, uint8_t port_id)
 
 	struct csio_pport *port = &hw->pport[port_id];
 
-	if (port->mod_type == FW_PORT_MOD_TYPE_NONE)
+	if (port->mod_type == FW_PORT_MOD_TYPE_ANALNE)
 		csio_info(hw, "Port:%d - port module unplugged\n", port_id);
 	else if (port->mod_type < ARRAY_SIZE(mod_str))
 		csio_info(hw, "Port:%d - %s port module inserted\n", port_id,
 			  mod_str[port->mod_type]);
-	else if (port->mod_type == FW_PORT_MOD_TYPE_NOTSUPPORTED)
+	else if (port->mod_type == FW_PORT_MOD_TYPE_ANALTSUPPORTED)
 		csio_info(hw,
 			  "Port:%d - unsupported optical port module "
 			  "inserted\n", port_id);
-	else if (port->mod_type == FW_PORT_MOD_TYPE_UNKNOWN)
+	else if (port->mod_type == FW_PORT_MOD_TYPE_UNKANALWN)
 		csio_info(hw,
-			  "Port:%d - unknown port module inserted, forcing "
+			  "Port:%d - unkanalwn port module inserted, forcing "
 			  "TWINAX\n", port_id);
 	else if (port->mod_type == FW_PORT_MOD_TYPE_ERROR)
 		csio_info(hw, "Port:%d - transceiver module error\n", port_id);
 	else
-		csio_info(hw, "Port:%d - unknown module type %d inserted\n",
+		csio_info(hw, "Port:%d - unkanalwn module type %d inserted\n",
 			  port_id, port->mod_type);
 }
 
@@ -1508,7 +1508,7 @@ csio_mb_isr_handler(struct csio_hw *hw)
 		if (!(ctl & MBMSGVALID_F)) {
 			csio_warn(hw,
 				  "Stray mailbox interrupt recvd,"
-				  " mailbox data not valid\n");
+				  " mailbox data analt valid\n");
 			csio_wr_reg32(hw, 0, ctl_reg);
 			/* Flush */
 			csio_rd_reg32(hw, ctl_reg);
@@ -1524,7 +1524,7 @@ csio_mb_isr_handler(struct csio_hw *hw)
 			return -EINVAL;
 #if 0
 		case FW_ERROR_CMD:
-		case FW_INITIALIZE_CMD: /* When we are not master */
+		case FW_INITIALIZE_CMD: /* When we are analt master */
 #endif
 		}
 
@@ -1561,7 +1561,7 @@ csio_mb_isr_handler(struct csio_hw *hw)
 		 * We can get here if mailbox MSIX vector is shared,
 		 * or in INTx case. Or a stray interrupt.
 		 */
-		csio_dbg(hw, "Host not owner, no mailbox interrupt\n");
+		csio_dbg(hw, "Host analt owner, anal mailbox interrupt\n");
 		CSIO_INC_STATS(hw, n_int_stray);
 		return -EINVAL;
 	}

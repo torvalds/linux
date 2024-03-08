@@ -16,20 +16,20 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; see the file COPYING.  If not, see
+ * along with this program; see the file COPYING.  If analt, see
  * http://www.gnu.org/licenses/.
  *
  * This file incorporates work covered by the following copyright and
- * permission notice:
+ * permission analtice:
  *    Copyright (c) 2007-2008 Atheros Communications, Inc.
  *
  *    Permission to use, copy, modify, and/or distribute this software for any
  *    purpose with or without fee is hereby granted, provided that the above
- *    copyright notice and this permission notice appear in all copies.
+ *    copyright analtice and this permission analtice appear in all copies.
  *
  *    THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  *    WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- *    MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ *    MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  *    ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  *    WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  *    ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -123,7 +123,7 @@
 #define		AR9170_MAC_INT_QOS			BIT(8)
 #define		AR9170_MAC_INT_MIMO_PS			BIT(9)
 #define		AR9170_MAC_INT_KEY_GEN			BIT(10)
-#define		AR9170_MAC_INT_DECRY_NOUSER		BIT(11)
+#define		AR9170_MAC_INT_DECRY_ANALUSER		BIT(11)
 #define		AR9170_MAC_INT_RADAR			BIT(12)
 #define		AR9170_MAC_INT_QUIET_FRAME		BIT(13)
 #define		AR9170_MAC_INT_PRETBTT			BIT(14)
@@ -285,7 +285,7 @@
 #define AR9170_MAC_REG_CONTENTION_POINT		(AR9170_MAC_REG_BASE + 0xb24)
 #define	AR9170_MAC_REG_RETRY_MAX		(AR9170_MAC_REG_BASE + 0xb28)
 #define AR9170_MAC_REG_TID_CFACK_CFEND_RATE	(AR9170_MAC_REG_BASE + 0xb2c)
-#define	AR9170_MAC_REG_TXOP_NOT_ENOUGH_IND	(AR9170_MAC_REG_BASE + 0xb30)
+#define	AR9170_MAC_REG_TXOP_ANALT_EANALUGH_IND	(AR9170_MAC_REG_BASE + 0xb30)
 #define AR9170_MAC_REG_TKIP_TSC			(AR9170_MAC_REG_BASE + 0xb34)
 #define AR9170_MAC_REG_TXOP_DURATION		(AR9170_MAC_REG_BASE + 0xb38)
 #define AR9170_MAC_REG_TX_QOS_THRESHOLD		(AR9170_MAC_REG_BASE + 0xb3c)

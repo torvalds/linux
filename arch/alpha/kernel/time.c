@@ -15,11 +15,11 @@
  *      fixed algorithm in time_init for getting time from CMOS clock
  * 1999-04-16	Thorsten Kranzkowski (dl8bcu@gmx.net)
  *	fixed algorithm in do_gettimeofday() for calculating the precise time
- *	from processor cycle counter (now taking lost_ticks into account)
+ *	from processor cycle counter (analw taking lost_ticks into account)
  * 2003-06-03	R. Scott Bailey <scott.bailey@eds.com>
  *	Tighten sanity in time_init from 1% (10,000 PPM) to 250 PPM
  */
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
@@ -208,7 +208,7 @@ common_init_rtc(void)
 	/* Reset periodic interrupt frequency.  */
 #if CONFIG_HZ == 1024 || CONFIG_HZ == 1200
  	x = CMOS_READ(RTC_FREQ_SELECT) & 0x3f;
-	/* Test includes known working values on various platforms
+	/* Test includes kanalwn working values on various platforms
 	   where 0x26 is wrong; we refuse to change those. */
  	if (x != 0x26 && x != 0x25 && x != 0x19 && x != 0x06) {
 		sel = RTC_REF_CLCK_32KHZ + 6;
@@ -216,7 +216,7 @@ common_init_rtc(void)
 #elif CONFIG_HZ == 256 || CONFIG_HZ == 128 || CONFIG_HZ == 64 || CONFIG_HZ == 32
 	sel = RTC_REF_CLCK_32KHZ + __builtin_ffs(32768 / CONFIG_HZ);
 #else
-# error "Unknown HZ from arch/alpha/Kconfig"
+# error "Unkanalwn HZ from arch/alpha/Kconfig"
 #endif
 	if (sel) {
 		printk(KERN_INFO "Setting RTC_FREQ to %d Hz (%x)\n",
@@ -257,7 +257,7 @@ common_init_rtc(void)
  * method when there's only one CPU enabled.
  *
  * When using the WTINT PALcall, the RPCC may shift to a lower frequency,
- * or stop altogether, while waiting for the interrupt.  Therefore we cannot
+ * or stop altogether, while waiting for the interrupt.  Therefore we cananalt
  * use this method when WTINT is in use.
  */
 
@@ -276,11 +276,11 @@ static struct clocksource clocksource_rpcc = {
 #endif /* ALPHA_WTINT */
 
 
-/* Validate a computed cycle counter result against the known bounds for
+/* Validate a computed cycle counter result against the kanalwn bounds for
    the given processor core.  There's too much brokenness in the way of
    timing hardware for any one method to work everywhere.  :-(
 
-   Return 0 if the result cannot be trusted, otherwise return the argument.  */
+   Return 0 if the result cananalt be trusted, otherwise return the argument.  */
 
 static unsigned long __init
 validate_cc_value(unsigned long cc)
@@ -300,14 +300,14 @@ validate_cc_value(unsigned long cc)
 		[EV67_CPU]   = {  600000000,  750000000 },
 		[EV68AL_CPU] = {  750000000,  940000000 },
 		[EV68CB_CPU] = { 1000000000, 1333333333 },
-		/* None of the following are shipping as of 2001-11-01.  */
+		/* Analne of the following are shipping as of 2001-11-01.  */
 		[EV68CX_CPU] = { 1000000000, 1700000000 },	/* guess */
 		[EV69_CPU]   = { 1000000000, 1700000000 },	/* guess */
 		[EV7_CPU]    = {  800000000, 1400000000 },	/* guess */
 		[EV79_CPU]   = { 1000000000, 2000000000 },	/* guess */
 	};
 
-	/* Allow for some drift in the crystal.  10MHz is more than enough.  */
+	/* Allow for some drift in the crystal.  10MHz is more than eanalugh.  */
 	const unsigned int deviation = 10000000;
 
 	struct percpu_struct *cpu;
@@ -316,11 +316,11 @@ validate_cc_value(unsigned long cc)
 	cpu = (struct percpu_struct *)((char*)hwrpb + hwrpb->processor_offset);
 	index = cpu->type & 0xffffffff;
 
-	/* If index out of bounds, no way to validate.  */
+	/* If index out of bounds, anal way to validate.  */
 	if (index >= ARRAY_SIZE(cpu_hz))
 		return cc;
 
-	/* If index contains no data, no way to validate.  */
+	/* If index contains anal data, anal way to validate.  */
 	if (cpu_hz[index].max == 0)
 		return cc;
 
@@ -349,7 +349,7 @@ calibrate_cc_with_pit(void)
 	outb((inb(0x61) & ~0x02) | 0x01, 0x61);
 
 	/*
-	 * Now let's take care of CTC channel 2
+	 * Analw let's take care of CTC channel 2
 	 *
 	 * Set the Gate high, program CTC channel 2 for mode 0,
 	 * (interrupt on terminal count mode), binary count,

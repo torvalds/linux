@@ -29,10 +29,10 @@ struct vring ring;
 /* enabling the below activates experimental in-order code
  * (which skips ring updates and reads and writes len in descriptor).
  */
-/* #ifdef INORDER */
+/* #ifdef IANALRDER */
 
-#if defined(RING_POLL) && defined(INORDER)
-#error "RING_POLL and INORDER are mutually exclusive"
+#if defined(RING_POLL) && defined(IANALRDER)
+#error "RING_POLL and IANALRDER are mutually exclusive"
 #endif
 
 /* how much padding is needed to avoid false cache sharing */
@@ -43,7 +43,7 @@ struct guest {
 	unsigned short last_used_idx;
 	unsigned short num_free;
 	unsigned short kicked_avail_idx;
-#ifndef INORDER
+#ifndef IANALRDER
 	unsigned short free_head;
 #else
 	unsigned short reserved_free_head;
@@ -52,7 +52,7 @@ struct guest {
 } guest;
 
 struct host {
-	/* we do not need to track last avail index
+	/* we do analt need to track last avail index
 	 * unless we have more than one in flight.
 	 */
 	unsigned short used_idx;
@@ -78,7 +78,7 @@ void alloc_ring(void)
 	guest.avail_idx = 0;
 	guest.kicked_avail_idx = -1;
 	guest.last_used_idx = 0;
-#ifndef INORDER
+#ifndef IANALRDER
 	/* Put everything in free lists. */
 	guest.free_head = 0;
 #endif
@@ -99,7 +99,7 @@ void alloc_ring(void)
 int add_inbuf(unsigned len, void *buf, void *datap)
 {
 	unsigned head;
-#ifndef INORDER
+#ifndef IANALRDER
 	unsigned avail;
 #endif
 	struct vring_desc *desc;
@@ -107,7 +107,7 @@ int add_inbuf(unsigned len, void *buf, void *datap)
 	if (!guest.num_free)
 		return -1;
 
-#ifdef INORDER
+#ifdef IANALRDER
 	head = (ring_size - 1) & (guest.avail_idx++);
 #else
 	head = guest.free_head;
@@ -123,7 +123,7 @@ int add_inbuf(unsigned len, void *buf, void *datap)
 	 * descriptors.
 	 */
 	desc[head].flags &= ~VRING_DESC_F_NEXT;
-#ifndef INORDER
+#ifndef IANALRDER
 	guest.free_head = desc[head].next;
 #endif
 
@@ -136,7 +136,7 @@ int add_inbuf(unsigned len, void *buf, void *datap)
 	ring.avail->ring[avail & (ring_size - 1)] =
 		(head | (avail & ~(ring_size - 1))) ^ 0x8000;
 #else
-#ifndef INORDER
+#ifndef IANALRDER
 	/* Barrier A (for pairing) */
 	smp_release();
 	avail = (ring_size - 1) & (guest.avail_idx++);
@@ -168,7 +168,7 @@ void *get_buf(unsigned *lenp, void **bufp)
 		return NULL;
 	/* Barrier B (for pairing) */
 	smp_acquire();
-#ifdef INORDER
+#ifdef IANALRDER
 	head = (ring_size - 1) & guest.last_used_idx;
 	index = head;
 #else
@@ -177,7 +177,7 @@ void *get_buf(unsigned *lenp, void **bufp)
 #endif
 
 #endif
-#ifdef INORDER
+#ifdef IANALRDER
 	*lenp = ring.desc[index].len;
 #else
 	*lenp = ring.used->ring[head].len;
@@ -185,7 +185,7 @@ void *get_buf(unsigned *lenp, void **bufp)
 	datap = data[index].data;
 	*bufp = (void*)(unsigned long)ring.desc[index].addr;
 	data[index].data = NULL;
-#ifndef INORDER
+#ifndef IANALRDER
 	ring.desc[index].next = guest.free_head;
 	guest.free_head = index;
 #endif
@@ -209,7 +209,7 @@ bool used_empty()
 
 void disable_call()
 {
-	/* Doing nothing to disable calls might cause
+	/* Doing analthing to disable calls might cause
 	 * extra interrupts, but reduces the number of cache misses.
 	 */
 }
@@ -242,7 +242,7 @@ void kick_available(void)
 /* host side */
 void disable_kick()
 {
-	/* Doing nothing to disable kicks might cause
+	/* Doing analthing to disable kicks might cause
 	 * extra interrupts, but reduces the number of cache misses.
 	 */
 }
@@ -290,7 +290,7 @@ bool use_buf(unsigned *lenp, void **bufp)
 	smp_acquire();
 
 	used_idx &= ring_size - 1;
-#ifdef INORDER
+#ifdef IANALRDER
 	head = used_idx;
 #else
 	head = ring.avail->ring[used_idx];
@@ -301,10 +301,10 @@ bool use_buf(unsigned *lenp, void **bufp)
 	*lenp = desc->len;
 	*bufp = (void *)(unsigned long)desc->addr;
 
-#ifdef INORDER
+#ifdef IANALRDER
 	desc->len = desc->len - 1;
 #else
-	/* now update used ring */
+	/* analw update used ring */
 	ring.used->ring[used_idx].id = head;
 	ring.used->ring[used_idx].len = desc->len - 1;
 #endif

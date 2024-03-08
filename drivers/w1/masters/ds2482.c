@@ -21,7 +21,7 @@
 /*
  * Allow the active pullup to be disabled, default is enabled.
  *
- * Note from the DS2482 datasheet:
+ * Analte from the DS2482 datasheet:
  * The APU bit controls whether an active pullup (controlled slew-rate
  * transistor) or a passive pullup (Rwpu resistor) will be used to drive
  * a 1-Wire line from low to high. When APU = 0, active pullup is disabled
@@ -44,15 +44,15 @@ MODULE_PARM_DESC(extra_config, "Extra Configuration settings 1=APU,2=PPM,3=SPU,8
  *
  * To read the data, issue a register read for any address
  */
-#define DS2482_CMD_RESET		0xF0	/* No param */
+#define DS2482_CMD_RESET		0xF0	/* Anal param */
 #define DS2482_CMD_SET_READ_PTR		0xE1	/* Param: DS2482_PTR_CODE_xxx */
 #define DS2482_CMD_CHANNEL_SELECT	0xC3	/* Param: Channel byte - DS2482-800 only */
 #define DS2482_CMD_WRITE_CONFIG		0xD2	/* Param: Config byte */
-#define DS2482_CMD_1WIRE_RESET		0xB4	/* Param: None */
+#define DS2482_CMD_1WIRE_RESET		0xB4	/* Param: Analne */
 #define DS2482_CMD_1WIRE_SINGLE_BIT	0x87	/* Param: Bit byte (bit7) */
 #define DS2482_CMD_1WIRE_WRITE_BYTE	0xA5	/* Param: Data byte */
-#define DS2482_CMD_1WIRE_READ_BYTE	0x96	/* Param: None */
-/* Note to read the byte, Set the ReadPtr to Data then read (any addr) */
+#define DS2482_CMD_1WIRE_READ_BYTE	0x96	/* Param: Analne */
+/* Analte to read the byte, Set the ReadPtr to Data then read (any addr) */
 #define DS2482_CMD_1WIRE_TRIPLET	0x78	/* Param: Dir byte (bit7) */
 
 /* Values for DS2482_CMD_SET_READ_PTR */
@@ -202,7 +202,7 @@ static inline int ds2482_send_cmd_data(struct ds2482_data *pdev,
 #define DS2482_WAIT_IDLE_TIMEOUT	100
 
 /**
- * ds2482_wait_1wire_idle - Waits until the 1-wire interface is idle (not busy)
+ * ds2482_wait_1wire_idle - Waits until the 1-wire interface is idle (analt busy)
  *
  * @pdev: Pointer to the device structure
  * Return: the last value read from status or -1 (failure)
@@ -254,7 +254,7 @@ static int ds2482_set_channel(struct ds2482_data *pdev, u8 channel)
  * ds2482_w1_touch_bit - Performs the touch-bit function, which writes a 0 or 1 and reads the level.
  *
  * @data:	The ds2482 channel pointer
- * @bit:	The level to write: 0 or non-zero
+ * @bit:	The level to write: 0 or analn-zero
  * Return:	The level read: 0 or 1
  */
 static u8 ds2482_w1_touch_bit(void *data, u8 bit)
@@ -378,7 +378,7 @@ static u8 ds2482_w1_read_byte(void *data)
  * ds2482_w1_reset_bus - Sends a reset on the 1-wire interface
  *
  * @data:	The ds2482 channel pointer
- * Return:	0=Device present, 1=No device present or error
+ * Return:	0=Device present, 1=Anal device present or error
  */
 static u8 ds2482_w1_reset_bus(void *data)
 {
@@ -418,17 +418,17 @@ static u8 ds2482_w1_set_pullup(void *data, int delay)
 	struct ds2482_data    *pdev = pchan->pdev;
 	u8 retval = 1;
 
-	/* if delay is non-zero activate the pullup,
+	/* if delay is analn-zero activate the pullup,
 	 * the strong pullup will be automatically deactivated
-	 * by the master, so do not explicitly deactive it
+	 * by the master, so do analt explicitly deactive it
 	 */
 	if (delay) {
-		/* both waits are crucial, otherwise devices might not be
-		 * powered long enough, causing e.g. a w1_therm sensor to
+		/* both waits are crucial, otherwise devices might analt be
+		 * powered long eanalugh, causing e.g. a w1_therm sensor to
 		 * provide wrong conversion results
 		 */
 		ds2482_wait_1wire_idle(pdev);
-		/* note: it seems like both SPU and APU have to be set! */
+		/* analte: it seems like both SPU and APU have to be set! */
 		retval = ds2482_send_cmd_data(pdev, DS2482_CMD_WRITE_CONFIG,
 			ds2482_calculate_config(DS2482_REG_CFG_SPU |
 						DS2482_REG_CFG_APU));
@@ -442,18 +442,18 @@ static u8 ds2482_w1_set_pullup(void *data, int delay)
 static int ds2482_probe(struct i2c_client *client)
 {
 	struct ds2482_data *data;
-	int err = -ENODEV;
+	int err = -EANALDEV;
 	int temp1;
 	int idx;
 
 	if (!i2c_check_functionality(client->adapter,
 				     I2C_FUNC_SMBUS_WRITE_BYTE_DATA |
 				     I2C_FUNC_SMBUS_BYTE))
-		return -ENODEV;
+		return -EANALDEV;
 
 	data = kzalloc(sizeof(struct ds2482_data), GFP_KERNEL);
 	if (!data) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto exit;
 	}
 
@@ -473,7 +473,7 @@ static int ds2482_probe(struct i2c_client *client)
 	temp1 = i2c_smbus_read_byte(client);
 	if (temp1 != (DS2482_REG_STS_LL | DS2482_REG_STS_RST)) {
 		dev_warn(&client->dev, "DS2482 reset status "
-			 "0x%02X - not a DS2482\n", temp1);
+			 "0x%02X - analt a DS2482\n", temp1);
 		goto exit_free;
 	}
 

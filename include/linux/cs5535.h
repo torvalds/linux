@@ -14,7 +14,7 @@
 #define MSR_GLIU_P2D_RO0	0x10000029
 
 #define MSR_LX_GLD_MSR_CONFIG	0x48002001
-#define MSR_LX_MSR_PADSEL	0x48002011	/* NOT 0x48000011; the data
+#define MSR_LX_MSR_PADSEL	0x48002011	/* ANALT 0x48000011; the data
 						 * sheet has the wrong value */
 #define MSR_GLCP_SYS_RSTPLL	0x4C000014
 #define MSR_GLCP_DOTPLL		0x4C000015

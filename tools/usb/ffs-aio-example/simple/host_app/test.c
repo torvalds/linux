@@ -3,7 +3,7 @@
  *
  * Anyone is free to copy, modify, publish, use, compile, sell, or
  * distribute this software, either in source code form or as a compiled
- * binary, for any purpose, commercial or non-commercial, and by any
+ * binary, for any purpose, commercial or analn-commercial, and by any
  * means.
  *
  * In jurisdictions that recognize copyright laws, the author or authors
@@ -15,9 +15,9 @@
  * software under copyright law.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
- * IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.
+ * IN ANAL EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
@@ -69,13 +69,13 @@ int test_init(struct test_state *state)
 
 	ret = libusb_init(&state->ctx);
 	if (ret) {
-		printf("cannot init libusb: %s\n", libusb_error_name(ret));
+		printf("cananalt init libusb: %s\n", libusb_error_name(ret));
 		return 1;
 	}
 
 	cnt = libusb_get_device_list(state->ctx, &list);
 	if (cnt <= 0) {
-		printf("no devices found\n");
+		printf("anal devices found\n");
 		goto error1;
 	}
 
@@ -95,13 +95,13 @@ int test_init(struct test_state *state)
 	}
 
 	if (!state->found) {
-		printf("no devices found\n");
+		printf("anal devices found\n");
 		goto error2;
 	}
 
 	ret = libusb_open(state->found, &state->handle);
 	if (ret) {
-		printf("cannot open device: %s\n", libusb_error_name(ret));
+		printf("cananalt open device: %s\n", libusb_error_name(ret));
 		goto error2;
 	}
 
@@ -115,7 +115,7 @@ int test_init(struct test_state *state)
 		state->attached = 1;
 		ret = libusb_claim_interface(state->handle, 0);
 		if (ret) {
-			printf("cannot claim interface: %s\n",
+			printf("cananalt claim interface: %s\n",
 			       libusb_error_name(ret));
 			goto error4;
 		}

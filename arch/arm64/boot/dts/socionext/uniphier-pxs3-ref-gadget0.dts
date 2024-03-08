@@ -37,5 +37,5 @@
 	/delete-property/ vbus-supply;
 };
 
-/delete-node/ &usb0_hsphy1;
-/delete-node/ &usb0_ssphy1;
+/delete-analde/ &usb0_hsphy1;
+/delete-analde/ &usb0_ssphy1;

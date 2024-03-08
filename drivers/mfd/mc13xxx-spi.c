@@ -51,7 +51,7 @@ static const struct regmap_config mc13xxx_regmap_spi_config = {
 
 	.max_register = MC13XXX_NUMREGS,
 
-	.cache_type = REGCACHE_NONE,
+	.cache_type = REGCACHE_ANALNE,
 	.use_single_read = true,
 	.use_single_write = true,
 };
@@ -74,7 +74,7 @@ static int mc13xxx_spi_read(void *context, const void *reg, size_t reg_size,
 	int ret;
 
 	if (val_size != 3 || reg_size != 1)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	spi_message_init(&m);
 	spi_message_add_tail(&t, &m);
@@ -92,7 +92,7 @@ static int mc13xxx_spi_write(void *context, const void *data, size_t count)
 	const char *reg = data;
 
 	if (count != 4)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	/* include errata fix for spi audio problems */
 	if (*reg == MC13783_AUDIO_CODEC || *reg == MC13783_AUDIO_DAC)
@@ -102,14 +102,14 @@ static int mc13xxx_spi_write(void *context, const void *data, size_t count)
 }
 
 /*
- * We cannot use regmap-spi generic bus implementation here.
+ * We cananalt use regmap-spi generic bus implementation here.
  * The MC13783 chip will get corrupted if CS signal is deasserted
  * and on i.Mx31 SoC (the target SoC for MC13783 PMIC) the SPI controller
  * has the following errata (DSPhl22960):
  * "The CSPI negates SS when the FIFO becomes empty with
- * SSCTL= 0. Software cannot guarantee that the FIFO will not
+ * SSCTL= 0. Software cananalt guarantee that the FIFO will analt
  * drain because of higher priority interrupts and the
- * non-realtime characteristics of the operating system. As a
+ * analn-realtime characteristics of the operating system. As a
  * result, the SS will negate before all of the data has been
  * transferred to/from the peripheral."
  * We workaround this by accessing the SPI controller with a
@@ -128,7 +128,7 @@ static int mc13xxx_spi_probe(struct spi_device *spi)
 
 	mc13xxx = devm_kzalloc(&spi->dev, sizeof(*mc13xxx), GFP_KERNEL);
 	if (!mc13xxx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(&spi->dev, mc13xxx);
 

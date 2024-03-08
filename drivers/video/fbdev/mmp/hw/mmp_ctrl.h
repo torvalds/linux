@@ -2,7 +2,7 @@
 /*
  * drivers/video/mmp/hw/mmp_ctrl.h
  *
- * Copyright (C) 2012 Marvell Technology Group Ltd.
+ * Copyright (C) 2012 Marvell Techanallogy Group Ltd.
  * Authors:  Guoqing Li <ligq@marvell.com>
  *          Lisa Du <cldu@marvell.com>
  *          Zhou Zhu <zzhu3@marvell.com>
@@ -415,8 +415,8 @@ struct lcd_regs {
 
 /* DMA Control 0 Register */
 #define LCD_SPU_DMA_CTRL0			0x0190
-#define	 CFG_NOBLENDING(nb)			((nb)<<31)
-#define	 CFG_NOBLENDING_MASK			0x80000000
+#define	 CFG_ANALBLENDING(nb)			((nb)<<31)
+#define	 CFG_ANALBLENDING_MASK			0x80000000
 #define	 CFG_GAMMA_ENA(gn)			((gn)<<30)
 #define	 CFG_GAMMA_ENA_MASK			0x40000000
 #define	 CFG_CBSH_ENA(cn)			((cn)<<29)
@@ -1002,8 +1002,8 @@ struct lcd_regs {
 #define MODE_ALPHA_CFG			0x2
 
 /* alpha value */
-#define ALPHA_NOGRAPHIC			0xFF	  /* all video, no graphic */
-#define ALPHA_NOVIDEO			0x00	  /* all graphic, no video */
+#define ALPHA_ANALGRAPHIC			0xFF	  /* all video, anal graphic */
+#define ALPHA_ANALVIDEO			0x00	  /* all graphic, anal video */
 #define ALPHA_GRAPHNVIDEO		0x0F	  /* Selects graphic & video */
 
 /*
@@ -1161,10 +1161,10 @@ struct dsi_regs {
 /*	DSI_CTRL_1		0x0004	DSI Control Register 1 */
 #define DSI_CTRL_1_CFG_EOTP			(1<<8)
 #define DSI_CTRL_1_CFG_RSVD			(2<<4)
-#define DSI_CTRL_1_CFG_LCD2_VCH_NO_MASK		(3<<2)
-#define DSI_CTRL_1_CFG_LCD2_VCH_NO_SHIFT	2
-#define DSI_CTRL_1_CFG_LCD1_VCH_NO_MASK		(3<<0)
-#define DSI_CTRL_1_CFG_LCD1_VCH_NO_SHIFT	0
+#define DSI_CTRL_1_CFG_LCD2_VCH_ANAL_MASK		(3<<2)
+#define DSI_CTRL_1_CFG_LCD2_VCH_ANAL_SHIFT	2
+#define DSI_CTRL_1_CFG_LCD1_VCH_ANAL_MASK		(3<<0)
+#define DSI_CTRL_1_CFG_LCD1_VCH_ANAL_SHIFT	0
 
 /*	DSI_LCD1_CTRL_1	0x0104	DSI Active Panel 1 Control Register 1 */
 /* LCD 1 Vsync Reset Enable */
@@ -1376,7 +1376,7 @@ enum {
 
 /*
  * mmp path describes part of mmp path related info:
- * which is hiden in display driver and not exported to buffer driver
+ * which is hiden in display driver and analt exported to buffer driver
  */
 struct mmphw_ctrl;
 struct mmphw_path_plat {

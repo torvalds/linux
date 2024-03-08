@@ -103,7 +103,7 @@ static int arch_gnttab_valloc(struct gnttab_vm_area *area, unsigned nr_frames)
 {
 	area->ptes = kmalloc_array(nr_frames, sizeof(*area->ptes), GFP_KERNEL);
 	if (area->ptes == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	area->area = get_vm_area(PAGE_SIZE * nr_frames, VM_IOREMAP);
 	if (!area->area)
 		goto out_free_ptes;
@@ -115,7 +115,7 @@ out_free_vm_area:
 	free_vm_area(area->area);
 out_free_ptes:
 	kfree(area->ptes);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void arch_gnttab_vfree(struct gnttab_vm_area *area)
@@ -146,7 +146,7 @@ int arch_gnttab_init(unsigned long nr_shared, unsigned long nr_status)
 	return 0;
 err:
 	arch_gnttab_vfree(&gnttab_shared_vm_area);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 #ifdef CONFIG_XEN_PVH
@@ -155,7 +155,7 @@ err:
 static int __init xen_pvh_gnttab_setup(void)
 {
 	if (!xen_pvh_domain())
-		return -ENODEV;
+		return -EANALDEV;
 
 	xen_auto_xlat_grant_frames.count = gnttab_max_grant_frames();
 

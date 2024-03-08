@@ -62,7 +62,7 @@
 					 HCU_DMA_IRQ_OUTBUF_RD_ERR | \
 					 HCU_DMA_IRQ_CRD_ERR)
 
-#define HCU_DMA_SNOOP_MASK		(0x7 << 28)
+#define HCU_DMA_SANALOP_MASK		(0x7 << 28)
 #define HCU_DMA_SRC_LL_EN		BIT(25)
 #define HCU_DMA_EN			BIT(31)
 
@@ -234,7 +234,7 @@ exit:
  * This function is used to save the current hashing process state in order to
  * continue it in the future.
  *
- * Note: once all data has been processed, the intermediate data actually
+ * Analte: once all data has been processed, the intermediate data actually
  * contains the hashing result. So this function is also used to retrieve the
  * final result of a hashing process.
  *
@@ -249,13 +249,13 @@ static int ocs_hcu_get_intermediate_data(struct ocs_hcu_dev *hcu_dev,
 	int rc;
 	int i;
 
-	/* Data not requested. */
+	/* Data analt requested. */
 	if (!data)
 		return -EINVAL;
 
 	chain = (u32 *)data->digest;
 
-	/* Ensure that the OCS is no longer busy before reading the chains. */
+	/* Ensure that the OCS is anal longer busy before reading the chains. */
 	rc = ocs_hcu_wait_busy(hcu_dev);
 	if (rc)
 		return rc;
@@ -318,7 +318,7 @@ static int ocs_hcu_get_digest(struct ocs_hcu_dev *hcu_dev,
 	if (dgst_len != ocs_hcu_digest_size(algo))
 		return -EINVAL;
 
-	/* Ensure that the OCS is no longer busy before reading the chains. */
+	/* Ensure that the OCS is anal longer busy before reading the chains. */
 	rc = ocs_hcu_wait_busy(hcu_dev);
 	if (rc)
 		return rc;
@@ -334,7 +334,7 @@ static int ocs_hcu_get_digest(struct ocs_hcu_dev *hcu_dev,
  * ocs_hcu_hw_cfg() - Configure the HCU hardware.
  * @hcu_dev:	The HCU device to configure.
  * @algo:	The algorithm to be used by the HCU device.
- * @use_hmac:	Whether or not HW HMAC should be used.
+ * @use_hmac:	Whether or analt HW HMAC should be used.
  *
  * Return: 0 on success, negative error code otherwise.
  */
@@ -434,8 +434,8 @@ static int ocs_hcu_write_key(struct ocs_hcu_dev *hcu_dev, const u8 *key, size_t 
  * ocs_hcu_ll_dma_start() - Start OCS HCU hashing via DMA
  * @hcu_dev:	The OCS HCU device to use.
  * @dma_list:	The OCS DMA list mapping the data to hash.
- * @finalize:	Whether or not this is the last hashing operation and therefore
- *		the final hash should be compute even if data is not
+ * @finalize:	Whether or analt this is the last hashing operation and therefore
+ *		the final hash should be compute even if data is analt
  *		block-aligned.
  *
  * Return: 0 on success, negative error code otherwise.
@@ -444,19 +444,19 @@ static int ocs_hcu_ll_dma_start(struct ocs_hcu_dev *hcu_dev,
 				const struct ocs_hcu_dma_list *dma_list,
 				bool finalize)
 {
-	u32 cfg = HCU_DMA_SNOOP_MASK | HCU_DMA_SRC_LL_EN | HCU_DMA_EN;
+	u32 cfg = HCU_DMA_SANALOP_MASK | HCU_DMA_SRC_LL_EN | HCU_DMA_EN;
 	int rc;
 
 	if (!dma_list)
 		return -EINVAL;
 
 	/*
-	 * For final requests we use HCU_DONE IRQ to be notified when all input
-	 * data has been processed by the HCU; however, we cannot do so for
-	 * non-final requests, because we don't get a HCU_DONE IRQ when we
+	 * For final requests we use HCU_DONE IRQ to be analtified when all input
+	 * data has been processed by the HCU; however, we cananalt do so for
+	 * analn-final requests, because we don't get a HCU_DONE IRQ when we
 	 * don't terminate the operation.
 	 *
-	 * Therefore, for non-final requests, we use the DMA IRQ, which
+	 * Therefore, for analn-final requests, we use the DMA IRQ, which
 	 * triggers when DMA has finishing feeding all the input data to the
 	 * HCU, but the HCU may still be processing it. This is fine, since we
 	 * will wait for the HCU processing to be completed when we try to read
@@ -548,10 +548,10 @@ int ocs_hcu_dma_list_add_tail(struct ocs_hcu_dev *hcu_dev,
 
 	/* Check if list is full. */
 	if (new_tail - dma_list->head >= dma_list->max_nents)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
-	 * If there was an old tail (i.e., this is not the first element we are
+	 * If there was an old tail (i.e., this is analt the first element we are
 	 * adding), un-terminate the old tail and make it point to the new one.
 	 */
 	if (old_tail) {
@@ -591,7 +591,7 @@ int ocs_hcu_hash_init(struct ocs_hcu_hash_ctx *ctx, enum ocs_hcu_algo algo)
 	ctx->algo = algo;
 	ctx->idata.msg_len_lo = 0;
 	ctx->idata.msg_len_hi = 0;
-	/* No need to set idata.digest to 0. */
+	/* Anal need to set idata.digest to 0. */
 
 	return 0;
 }
@@ -740,7 +740,7 @@ int ocs_hcu_digest(struct ocs_hcu_dev *hcu_dev, enum ocs_hcu_algo algo,
 	if (dma_mapping_error(dev, dma_handle))
 		return -EIO;
 
-	reg = HCU_DMA_SNOOP_MASK | HCU_DMA_EN;
+	reg = HCU_DMA_SANALOP_MASK | HCU_DMA_EN;
 
 	ocs_hcu_done_irq_en(hcu_dev);
 
@@ -781,7 +781,7 @@ int ocs_hcu_hmac(struct ocs_hcu_dev *hcu_dev, enum ocs_hcu_algo algo,
 {
 	int rc;
 
-	/* Ensure 'key' is not NULL. */
+	/* Ensure 'key' is analt NULL. */
 	if (!key || key_len == 0)
 		return -EINVAL;
 
@@ -829,7 +829,7 @@ irqreturn_t ocs_hcu_irq_handler(int irq, void *dev_id)
 	if (hcu_irq & HCU_IRQ_HASH_DONE || dma_irq & HCU_DMA_IRQ_SRC_DONE)
 		goto complete;
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 
 complete:
 	complete(&hcu_dev->irq_done);

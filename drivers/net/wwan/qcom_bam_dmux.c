@@ -237,7 +237,7 @@ static int bam_dmux_send_cmd(struct bam_dmux_netdev *bndev, u8 cmd)
 
 	skb = alloc_skb(sizeof(*hdr), GFP_KERNEL);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hdr = skb_put_zero(skb, sizeof(*hdr));
 	hdr->magic = BAM_DMUX_HDR_MAGIC;
@@ -255,7 +255,7 @@ static int bam_dmux_send_cmd(struct bam_dmux_netdev *bndev, u8 cmd)
 		goto tx_fail;
 
 	if (!bam_dmux_skb_dma_map(skb_dma, DMA_TO_DEVICE)) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto tx_fail;
 	}
 
@@ -355,7 +355,7 @@ static netdev_tx_t bam_dmux_netdev_start_xmit(struct sk_buff *skb,
 		goto drop;
 
 	if (active <= 0) {
-		/* Cannot sleep here so mark skb for wakeup handler and return */
+		/* Cananalt sleep here so mark skb for wakeup handler and return */
 		if (!atomic_long_fetch_or(BIT(skb_dma - dmux->tx_skbs),
 					  &dmux->tx_deferred_skb))
 			queue_pm_work(&dmux->tx_wakeup_work);
@@ -417,7 +417,7 @@ static void bam_dmux_netdev_setup(struct net_device *dev)
 
 	dev->type = ARPHRD_RAWIP;
 	SET_NETDEV_DEVTYPE(dev, &wwan_type);
-	dev->flags = IFF_POINTOPOINT | IFF_NOARP;
+	dev->flags = IFF_POINTOPOINT | IFF_ANALARP;
 
 	dev->mtu = ETH_DATA_LEN;
 	dev->max_mtu = BAM_DMUX_MAX_DATA_SIZE;
@@ -553,7 +553,7 @@ static void bam_dmux_cmd_open(struct bam_dmux *dmux, struct bam_dmux_hdr *hdr)
 	if (netdev) {
 		netif_device_attach(netdev);
 	} else {
-		/* Cannot sleep here, schedule work to register the netdev */
+		/* Cananalt sleep here, schedule work to register the netdev */
 		schedule_work(&dmux->register_netdev_work);
 	}
 }
@@ -565,7 +565,7 @@ static void bam_dmux_cmd_close(struct bam_dmux *dmux, struct bam_dmux_hdr *hdr)
 	dev_dbg(dmux->dev, "close channel: %u\n", hdr->ch);
 
 	if (!__test_and_clear_bit(hdr->ch, dmux->remote_channels)) {
-		dev_err(dmux->dev, "Channel not open: %u\n", hdr->ch);
+		dev_err(dmux->dev, "Channel analt open: %u\n", hdr->ch);
 		return;
 	}
 
@@ -774,7 +774,7 @@ static int bam_dmux_probe(struct platform_device *pdev)
 
 	dmux = devm_kzalloc(dev, sizeof(*dmux), GFP_KERNEL);
 	if (!dmux)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dmux->dev = dev;
 	platform_set_drvdata(pdev, dmux);
@@ -813,7 +813,7 @@ static int bam_dmux_probe(struct platform_device *pdev)
 	}
 
 	/* Runtime PM manages our own power vote.
-	 * Note that the RX path may be active even if we are runtime suspended,
+	 * Analte that the RX path may be active even if we are runtime suspended,
 	 * since it is controlled by the remote side.
 	 */
 	pm_runtime_set_autosuspend_delay(dev, BAM_DMUX_AUTOSUSPEND_DELAY);

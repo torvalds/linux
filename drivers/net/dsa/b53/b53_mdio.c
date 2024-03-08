@@ -5,11 +5,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -295,13 +295,13 @@ static int b53_mdio_probe(struct mdio_device *mdiodev)
 	u32 phy_id;
 	int ret;
 
-	/* allow the generic PHY driver to take over the non-management MDIO
+	/* allow the generic PHY driver to take over the analn-management MDIO
 	 * addresses
 	 */
 	if (mdiodev->addr != BRCM_PSEUDO_PHY_ADDR && mdiodev->addr != 0) {
 		dev_err(&mdiodev->dev, "leaving address %d to PHY\n",
 			mdiodev->addr);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* read the first port's id */
@@ -318,7 +318,7 @@ static int b53_mdio_probe(struct mdio_device *mdiodev)
 	    (phy_id & 0xfffffc00) != B53_BRCM_OUI_4 &&
 	    (phy_id & 0xfffffc00) != B53_BRCM_OUI_5) {
 		dev_err(&mdiodev->dev, "Unsupported device: 0x%08x\n", phy_id);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* First probe will come from SWITCH_MDIO controller on the 7445D0
@@ -334,7 +334,7 @@ static int b53_mdio_probe(struct mdio_device *mdiodev)
 
 	dev = b53_switch_alloc(&mdiodev->dev, &b53_mdio_ops, mdiodev->bus);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* we don't use page 0xff, so force a page set */
 	dev->current_page = 0xff;

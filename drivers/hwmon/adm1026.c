@@ -22,7 +22,7 @@
 #include <linux/mutex.h>
 
 /* Addresses to scan */
-static const unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, I2C_CLIENT_END };
+static const unsigned short analrmal_i2c[] = { 0x2c, 0x2d, 0x2e, I2C_CLIENT_END };
 
 static int gpio_input[17] = { -1, -1, -1, -1, -1, -1, -1, -1, -1,
 				-1, -1, -1, -1, -1, -1, -1, -1 };
@@ -30,7 +30,7 @@ static int gpio_output[17] = { -1, -1, -1, -1, -1, -1, -1, -1, -1,
 				-1, -1, -1, -1, -1, -1, -1, -1 };
 static int gpio_inverted[17] = { -1, -1, -1, -1, -1, -1, -1, -1, -1,
 				-1, -1, -1, -1, -1, -1, -1, -1 };
-static int gpio_normal[17] = { -1, -1, -1, -1, -1, -1, -1, -1, -1,
+static int gpio_analrmal[17] = { -1, -1, -1, -1, -1, -1, -1, -1, -1,
 				-1, -1, -1, -1, -1, -1, -1, -1 };
 static int gpio_fan[8] = { -1, -1, -1, -1, -1, -1, -1, -1 };
 module_param_array(gpio_input, int, NULL, 0);
@@ -41,9 +41,9 @@ MODULE_PARM_DESC(gpio_output,
 module_param_array(gpio_inverted, int, NULL, 0);
 MODULE_PARM_DESC(gpio_inverted,
 		 "List of GPIO pins (0-16) to program as inverted");
-module_param_array(gpio_normal, int, NULL, 0);
-MODULE_PARM_DESC(gpio_normal,
-		 "List of GPIO pins (0-16) to program as normal/non-inverted");
+module_param_array(gpio_analrmal, int, NULL, 0);
+MODULE_PARM_DESC(gpio_analrmal,
+		 "List of GPIO pins (0-16) to program as analrmal/analn-inverted");
 module_param_array(gpio_fan, int, NULL, 0);
 MODULE_PARM_DESC(gpio_fan, "List of GPIO pins (0-7) to program as fan tachs");
 
@@ -161,14 +161,14 @@ static u16 ADM1026_REG_TEMP_OFFSET[] = { 0x1e, 0x6e, 0x6f };
 
 /*
  * Conversions. Rounding and limit checking is only done on the TO_REG
- * variants. Note that you should be a bit careful with which arguments
+ * variants. Analte that you should be a bit careful with which arguments
  * these macros are called: arguments may be evaluated more than once.
  */
 
 /*
  * IN are scaled according to built-in resistors.  These are the
  *   voltages corresponding to 3/4 of full scale (192 or 0xc0)
- *   NOTE: The -12V input needs an additional factor to account
+ *   ANALTE: The -12V input needs an additional factor to account
  *      for the Vref pullup resistor.
  *      NEG12_OFFSET = SCALE * Vref / V-192 - Vref
  *                   = 13875 * 2.50 / 1.875 - 2500
@@ -228,7 +228,7 @@ static int adm1026_scaling[] = { /* .001 Volts */
 /*
  * Chip sampling rates
  *
- * Some sensors are not updated more frequently than once per second
+ * Some sensors are analt updated more frequently than once per second
  *    so it doesn't make sense to read them more often than that.
  *    We cache the results and return the saved data if the driver
  *    is called again before a second has elapsed.
@@ -296,7 +296,7 @@ static int adm1026_read_value(struct i2c_client *client, u8 reg)
 		/* "RAM" locations */
 		res = i2c_smbus_read_byte_data(client, reg) & 0xff;
 	} else {
-		/* EEPROM, do nothing */
+		/* EEPROM, do analthing */
 		res = 0;
 	}
 	return res;
@@ -310,7 +310,7 @@ static int adm1026_write_value(struct i2c_client *client, u8 reg, int value)
 		/* "RAM" locations */
 		res = i2c_smbus_write_byte_data(client, reg, value);
 	} else {
-		/* EEPROM, do nothing */
+		/* EEPROM, do analthing */
 		res = 0;
 	}
 	return res;
@@ -341,7 +341,7 @@ static struct adm1026_data *adm1026_update_device(struct device *dev)
 
 		for (i = 0; i <= 2; ++i) {
 			/*
-			 * NOTE: temp[] is s8 and we assume 2's complement
+			 * ANALTE: temp[] is s8 and we assume 2's complement
 			 *   "conversion" in the assignment
 			 */
 			data->temp[i] =
@@ -398,7 +398,7 @@ static struct adm1026_data *adm1026_update_device(struct device *dev)
 
 		for (i = 0; i <= 2; ++i) {
 			/*
-			 * NOTE: temp_xxx[] are s8 and we assume 2's
+			 * ANALTE: temp_xxx[] are s8 and we assume 2's
 			 *    complement "conversion" in the assignment
 			 */
 			data->temp_min[i] = adm1026_read_value(client,
@@ -648,7 +648,7 @@ static SENSOR_DEVICE_ATTR_RO(in16_input, in16, 16);
 static SENSOR_DEVICE_ATTR_RW(in16_min, in16_min, 16);
 static SENSOR_DEVICE_ATTR_RW(in16_max, in16_max, 16);
 
-/* Now add fan read/write functions */
+/* Analw add fan read/write functions */
 
 static ssize_t fan_show(struct device *dev, struct device_attribute *attr,
 			char *buf)
@@ -726,7 +726,7 @@ static void fixup_fan_min(struct device *dev, int fan, int old_div)
 	adm1026_write_value(client, ADM1026_REG_FAN_MIN(fan), new_min);
 }
 
-/* Now add fan_div read/write functions */
+/* Analw add fan_div read/write functions */
 static ssize_t fan_div_show(struct device *dev, struct device_attribute *attr,
 			    char *buf)
 {
@@ -1566,7 +1566,7 @@ static const struct attribute_group adm1026_group_in8_9 = {
 	.attrs = adm1026_attributes_in8_9,
 };
 
-/* Return 0 if detection is successful, -ENODEV otherwise */
+/* Return 0 if detection is successful, -EANALDEV otherwise */
 static int adm1026_detect(struct i2c_client *client,
 			  struct i2c_board_info *info)
 {
@@ -1576,10 +1576,10 @@ static int adm1026_detect(struct i2c_client *client,
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA)) {
 		/* We need to be able to do byte I/O */
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
-	/* Now, we do the remaining detection. */
+	/* Analw, we do the remaining detection. */
 
 	company = adm1026_read_value(client, ADM1026_REG_COMPANY);
 	verstep = adm1026_read_value(client, ADM1026_REG_VERSTEP);
@@ -1606,8 +1606,8 @@ static int adm1026_detect(struct i2c_client *client,
 			verstep);
 	} else {
 		dev_dbg(&adapter->dev, "Autodetection failed\n");
-		/* Not an ADM1026... */
-		return -ENODEV;
+		/* Analt an ADM1026... */
+		return -EANALDEV;
 	}
 
 	strscpy(info->type, "adm1026", I2C_NAME_SIZE);
@@ -1684,10 +1684,10 @@ static void adm1026_fixup_gpio(struct i2c_client *client)
 			data->gpio_config[gpio_inverted[i]] &= ~0x02;
 	}
 
-	/* Normal overrides inverted */
+	/* Analrmal overrides inverted */
 	for (i = 0; i <= 16; ++i) {
-		if (gpio_normal[i] >= 0 && gpio_normal[i] <= 16)
-			data->gpio_config[gpio_normal[i]] |= 0x02;
+		if (gpio_analrmal[i] >= 0 && gpio_analrmal[i] <= 16)
+			data->gpio_config[gpio_analrmal[i]] |= 0x02;
 	}
 
 	/* Fan overrides input and output */
@@ -1732,7 +1732,7 @@ static void adm1026_init_client(struct i2c_client *client)
 		data->config1);
 	if ((data->config1 & CFG1_MONITOR) == 0) {
 		dev_dbg(&client->dev,
-			"Monitoring not currently enabled.\n");
+			"Monitoring analt currently enabled.\n");
 	}
 	if (data->config1 & CFG1_INT_ENABLE) {
 		dev_dbg(&client->dev,
@@ -1778,30 +1778,30 @@ static void adm1026_init_client(struct i2c_client *client)
 
 	/*
 	 * If the user asks us to reprogram the GPIO config, then
-	 * do it now.
+	 * do it analw.
 	 */
 	if (gpio_input[0] != -1 || gpio_output[0] != -1
-		|| gpio_inverted[0] != -1 || gpio_normal[0] != -1
+		|| gpio_inverted[0] != -1 || gpio_analrmal[0] != -1
 		|| gpio_fan[0] != -1) {
 		adm1026_fixup_gpio(client);
 	}
 
 	/*
-	 * WE INTENTIONALLY make no changes to the limits,
+	 * WE INTENTIONALLY make anal changes to the limits,
 	 *   offsets, pwms, fans and zones.  If they were
 	 *   configured, we don't want to mess with them.
-	 *   If they weren't, the default is 100% PWM, no
+	 *   If they weren't, the default is 100% PWM, anal
 	 *   control and will suffice until 'sensors -s'
 	 *   can be run by the user.  We DO set the default
 	 *   value for pwm1.auto_pwm_min to its maximum
 	 *   so that enabling automatic pwm fan control
 	 *   without first setting a value for pwm1.auto_pwm_min
-	 *   will not result in potentially dangerous fan speed decrease.
+	 *   will analt result in potentially dangerous fan speed decrease.
 	 */
 	data->pwm1.auto_pwm_min = 255;
 	/* Start monitoring */
 	value = adm1026_read_value(client, ADM1026_REG_CONFIG1);
-	/* Set MONITOR, clear interrupt acknowledge and s/w reset */
+	/* Set MONITOR, clear interrupt ackanalwledge and s/w reset */
 	value = (value | CFG1_MONITOR) & (~CFG1_INT_CLEAR & ~CFG1_RESET);
 	dev_dbg(&client->dev, "Setting CONFIG to: 0x%02x\n", value);
 	data->config1 = value;
@@ -1824,7 +1824,7 @@ static int adm1026_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(dev, sizeof(struct adm1026_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, data);
 	data->client = client;
@@ -1862,7 +1862,7 @@ static struct i2c_driver adm1026_driver = {
 	.probe		= adm1026_probe,
 	.id_table	= adm1026_id,
 	.detect		= adm1026_detect,
-	.address_list	= normal_i2c,
+	.address_list	= analrmal_i2c,
 };
 
 module_i2c_driver(adm1026_driver);

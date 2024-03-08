@@ -314,7 +314,7 @@
 		tps65917_power_button {
 			compatible = "ti,palmas-pwrbutton";
 			interrupt-parent = <&tps65917>;
-			interrupts = <1 IRQ_TYPE_NONE>;
+			interrupts = <1 IRQ_TYPE_ANALNE>;
 			wakeup-source;
 			ti,palmas-long-press-seconds = <6>;
 		};
@@ -410,7 +410,7 @@
 	vqmmc-supply = <&ldo4_reg>;
 	bus-width = <4>;
 	/*
-	 * SDCD signal is not being used here - using the fact that GPIO mode
+	 * SDCD signal is analt being used here - using the fact that GPIO mode
 	 * is always hardwired.
 	 */
 	cd-gpios = <&gpio6 27 GPIO_ACTIVE_LOW>;
@@ -424,7 +424,7 @@
 	vmmc-supply = <&vio_1v8>;
 	vqmmc-supply = <&vio_1v8>;
 	bus-width = <8>;
-	non-removable;
+	analn-removable;
 	pinctrl-names = "default", "hs", "ddr_1_8v", "hs200_1_8v";
 	pinctrl-0 = <&mmc2_pins_default>;
 	pinctrl-1 = <&mmc2_pins_default>;
@@ -443,7 +443,7 @@
 	pinctrl-3 = <&mmc4_pins_hs &mmc4_iodelay_manual1_conf>;
 };
 
-/* No RTC on this device */
+/* Anal RTC on this device */
 &rtc {
 	status = "disabled";
 };

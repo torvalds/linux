@@ -9,7 +9,7 @@
 #include "qcs404-evb.dtsi"
 
 / {
-	model = "Qualcomm Technologies, Inc. QCS404 EVB 4000";
+	model = "Qualcomm Techanallogies, Inc. QCS404 EVB 4000";
 	compatible = "qcom,qcs404-evb-4000", "qcom,qcs404-evb",
 		     "qcom,qcs404";
 };

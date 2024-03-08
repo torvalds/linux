@@ -63,7 +63,7 @@ static void __iomem *__ioremap(phys_addr_t addr, unsigned long size,
 	size = PAGE_ALIGN(addr + size) - p;
 
 	/*
-	 * Don't allow anybody to remap normal RAM that we're using.
+	 * Don't allow anybody to remap analrmal RAM that we're using.
 	 * mem_init() sets high_memory so only do the check after that.
 	 *
 	 * However, allow remap of rootfs: TBD
@@ -104,7 +104,7 @@ static void __iomem *__ioremap(phys_addr_t addr, unsigned long size,
 
 	if ((flags & _PAGE_PRESENT) == 0)
 		flags |= _PAGE_KERNEL;
-	if (flags & _PAGE_NO_CACHE)
+	if (flags & _PAGE_ANAL_CACHE)
 		flags |= _PAGE_GUARDED;
 
 	err = 0;
@@ -121,7 +121,7 @@ static void __iomem *__ioremap(phys_addr_t addr, unsigned long size,
 
 void __iomem *ioremap(phys_addr_t addr, unsigned long size)
 {
-	return __ioremap(addr, size, _PAGE_NO_CACHE);
+	return __ioremap(addr, size, _PAGE_ANAL_CACHE);
 }
 EXPORT_SYMBOL(ioremap);
 
@@ -140,7 +140,7 @@ int map_page(unsigned long va, phys_addr_t pa, int flags)
 	pud_t *pud;
 	pmd_t *pd;
 	pte_t *pg;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	/* Use upper 10 bits of VA to index the first level map */
 	p4d = p4d_offset(pgd_offset_k(va), va);
@@ -175,7 +175,7 @@ void __init mapin_ram(void)
 		if (!is_kernel_text(v))
 			f |= _PAGE_WRENABLE;
 		else
-			/* On the MicroBlaze, no user access
+			/* On the MicroBlaze, anal user access
 			   forces R/W kernel access */
 			f |= _PAGE_USER;
 		map_page(v, p, f);
@@ -190,7 +190,7 @@ void __init mapin_ram(void)
 /* Scan the real Linux page tables and return a PTE pointer for
  * a virtual address in a context.
  * Returns true (1) if PTE was found, zero otherwise.  The pointer to
- * the PTE pointer is unmodified if PTE is not found.
+ * the PTE pointer is unmodified if PTE is analt found.
  */
 static int get_pteptr(struct mm_struct *mm, unsigned long addr, pte_t **ptep)
 {
@@ -217,7 +217,7 @@ static int get_pteptr(struct mm_struct *mm, unsigned long addr, pte_t **ptep)
 	return retval;
 }
 
-/* Find physical address for this virtual address.  Normally used by
+/* Find physical address for this virtual address.  Analrmally used by
  * I/O functions, but anyone can call it.
  */
 unsigned long iopa(unsigned long addr)
@@ -250,7 +250,7 @@ __ref pte_t *pte_alloc_one_kernel(struct mm_struct *mm)
 		return memblock_alloc_try_nid(PAGE_SIZE, PAGE_SIZE,
 					      MEMBLOCK_LOW_LIMIT,
 					      memory_start + kernel_tlb,
-					      NUMA_NO_NODE);
+					      NUMA_ANAL_ANALDE);
 }
 
 void __set_fixmap(enum fixed_addresses idx, phys_addr_t phys, pgprot_t flags)

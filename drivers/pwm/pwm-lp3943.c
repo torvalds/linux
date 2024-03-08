@@ -112,7 +112,7 @@ static int lp3943_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	}
 
 	/*
-	 * Note that after this clamping, period_ns fits into an int. This is
+	 * Analte that after this clamping, period_ns fits into an int. This is
 	 * helpful because we can resort to integer division below instead of
 	 * the (more expensive) 64 bit division.
 	 */
@@ -186,7 +186,7 @@ static int lp3943_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 {
 	int err;
 
-	if (state->polarity != PWM_POLARITY_NORMAL)
+	if (state->polarity != PWM_POLARITY_ANALRMAL)
 		return -EINVAL;
 
 	if (!state->enabled) {
@@ -215,19 +215,19 @@ static int lp3943_pwm_parse_dt(struct device *dev,
 			       struct lp3943_pwm *lp3943_pwm)
 {
 	static const char * const name[] = { "ti,pwm0", "ti,pwm1", };
-	struct device_node *node = dev->of_node;
+	struct device_analde *analde = dev->of_analde;
 	struct lp3943_platform_data *pdata;
 	struct lp3943_pwm_map *pwm_map;
 	enum lp3943_pwm_output *output;
 	int i, err, proplen, count = 0;
 	u32 num_outputs;
 
-	if (!node)
+	if (!analde)
 		return -EINVAL;
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * Read the output map configuration from the device tree.
@@ -235,7 +235,7 @@ static int lp3943_pwm_parse_dt(struct device *dev,
 	 */
 
 	for (i = 0; i < LP3943_NUM_PWMS; i++) {
-		if (!of_get_property(node, name[i], &proplen))
+		if (!of_get_property(analde, name[i], &proplen))
 			continue;
 
 		num_outputs = proplen / sizeof(u32);
@@ -245,16 +245,16 @@ static int lp3943_pwm_parse_dt(struct device *dev,
 		output = devm_kcalloc(dev, num_outputs, sizeof(*output),
 				      GFP_KERNEL);
 		if (!output)
-			return -ENOMEM;
+			return -EANALMEM;
 
-		err = of_property_read_u32_array(node, name[i], output,
+		err = of_property_read_u32_array(analde, name[i], output,
 						 num_outputs);
 		if (err)
 			return err;
 
 		pwm_map = devm_kzalloc(dev, sizeof(*pwm_map), GFP_KERNEL);
 		if (!pwm_map)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		pwm_map->output = output;
 		pwm_map->num_outputs = num_outputs;
@@ -264,7 +264,7 @@ static int lp3943_pwm_parse_dt(struct device *dev,
 	}
 
 	if (count == 0)
-		return -ENODATA;
+		return -EANALDATA;
 
 	lp3943_pwm->pdata = pdata;
 	return 0;
@@ -278,14 +278,14 @@ static int lp3943_pwm_probe(struct platform_device *pdev)
 
 	lp3943_pwm = devm_kzalloc(&pdev->dev, sizeof(*lp3943_pwm), GFP_KERNEL);
 	if (!lp3943_pwm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lp3943_pwm->pdata = lp3943->pdata;
 	if (!lp3943_pwm->pdata) {
 		if (IS_ENABLED(CONFIG_OF))
 			ret = lp3943_pwm_parse_dt(&pdev->dev, lp3943_pwm);
 		else
-			ret = -ENODEV;
+			ret = -EANALDEV;
 
 		if (ret)
 			return ret;

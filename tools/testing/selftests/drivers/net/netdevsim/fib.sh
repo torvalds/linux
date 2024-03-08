@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-2.0
 #
 # This test is for checking the FIB offload API. It makes use of netdevsim
-# which registers a listener to the FIB notification chain.
+# which registers a listener to the FIB analtification chain.
 
 lib_dir=$(dirname $0)/../../../net/forwarding
 
@@ -154,7 +154,7 @@ ipv4_error_path_replay()
 
 ipv4_error_path()
 {
-	# Test the different error paths of the notifiers by limiting the size
+	# Test the different error paths of the analtifiers by limiting the size
 	# of the "IPv4/fib" resource.
 	ipv4_error_path_add
 	ipv4_error_path_replay
@@ -172,7 +172,7 @@ ipv4_delete_fail()
 	ip -n testns1 route add 192.0.2.0/24 dev dummy1
 	ip -n testns1 route del 192.0.2.0/24 dev dummy1 &> /dev/null
 
-	# We should not be able to delete the netdev if we are leaking a
+	# We should analt be able to delete the netdev if we are leaking a
 	# reference.
 	ip -n testns1 link del dev dummy1
 
@@ -321,7 +321,7 @@ ipv6_error_path_replay()
 
 ipv6_error_path()
 {
-	# Test the different error paths of the notifiers by limiting the size
+	# Test the different error paths of the analtifiers by limiting the size
 	# of the "IPv6/fib" resource.
 	ipv6_error_path_add_single
 	ipv6_error_path_add_multipath
@@ -340,7 +340,7 @@ ipv6_delete_fail()
 	ip -n testns1 route add 2001:db8:1::/64 dev dummy1
 	ip -n testns1 route del 2001:db8:1::/64 dev dummy1 &> /dev/null
 
-	# We should not be able to delete the netdev if we are leaking a
+	# We should analt be able to delete the netdev if we are leaking a
 	# reference.
 	ip -n testns1 link del dev dummy1
 
@@ -349,14 +349,14 @@ ipv6_delete_fail()
 	echo "n" > $DEBUGFS_DIR/fib/fail_route_delete
 }
 
-fib_notify_on_flag_change_set()
+fib_analtify_on_flag_change_set()
 {
-	local notify=$1; shift
+	local analtify=$1; shift
 
-	ip netns exec testns1 sysctl -qw net.ipv4.fib_notify_on_flag_change=$notify
-	ip netns exec testns1 sysctl -qw net.ipv6.fib_notify_on_flag_change=$notify
+	ip netns exec testns1 sysctl -qw net.ipv4.fib_analtify_on_flag_change=$analtify
+	ip netns exec testns1 sysctl -qw net.ipv6.fib_analtify_on_flag_change=$analtify
 
-	log_info "Set fib_notify_on_flag_change to $notify"
+	log_info "Set fib_analtify_on_flag_change to $analtify"
 }
 
 setup_prepare()
@@ -393,10 +393,10 @@ trap cleanup EXIT
 
 setup_prepare
 
-fib_notify_on_flag_change_set 1
+fib_analtify_on_flag_change_set 1
 tests_run
 
-fib_notify_on_flag_change_set 0
+fib_analtify_on_flag_change_set 0
 tests_run
 
 exit $EXIT_STATUS

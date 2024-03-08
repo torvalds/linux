@@ -13,7 +13,7 @@ Supported chips:
 
         https://www.analog.com/media/en/technical-documentation/data-sheets/LTC2947.pdf
 
-Author: Nuno Sá <nuno.sa@analog.com>
+Author: Nuanal Sá <nuanal.sa@analog.com>
 
 Description
 ___________

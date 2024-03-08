@@ -35,7 +35,7 @@ typedef u16		compat_nlink_t;
 
 struct compat_stat {
 	u32		st_dev;
-	compat_ino_t	st_ino;
+	compat_ianal_t	st_ianal;
 	compat_mode_t	st_mode;
 	compat_nlink_t	st_nlink;
 	__compat_uid_t	st_uid;
@@ -69,7 +69,7 @@ struct compat_statfs {
 	int		f_files;
 	int		f_ffree;
 	compat_fsid_t	f_fsid;
-	int		f_namelen;	/* SunOS ignores this field. */
+	int		f_namelen;	/* SunOS iganalres this field. */
 	int		f_frsize;
 	int		f_flags;
 	int		f_spare[4];

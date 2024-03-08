@@ -5,13 +5,13 @@
  *    Yakir Yang <ykk@rock-chips.com>
  */
 
-#ifndef __INNO_HDMI_H__
-#define __INNO_HDMI_H__
+#ifndef __INANAL_HDMI_H__
+#define __INANAL_HDMI_H__
 
 #define DDC_SEGMENT_ADDR		0x30
 
 enum PWR_MODE {
-	NORMAL,
+	ANALRMAL,
 	LOWER_PWR,
 };
 
@@ -22,15 +22,15 @@ enum PWR_MODE {
 #define HDMI_SYS_CTRL			0x00
 #define m_RST_ANALOG			(1 << 6)
 #define v_RST_ANALOG			(0 << 6)
-#define v_NOT_RST_ANALOG		(1 << 6)
+#define v_ANALT_RST_ANALOG		(1 << 6)
 #define m_RST_DIGITAL			(1 << 5)
 #define v_RST_DIGITAL			(0 << 5)
-#define v_NOT_RST_DIGITAL		(1 << 5)
+#define v_ANALT_RST_DIGITAL		(1 << 5)
 #define m_REG_CLK_INV			(1 << 4)
-#define v_REG_CLK_NOT_INV		(0 << 4)
+#define v_REG_CLK_ANALT_INV		(0 << 4)
 #define v_REG_CLK_INV			(1 << 4)
 #define m_VCLK_INV			(1 << 3)
-#define v_VCLK_NOT_INV			(0 << 3)
+#define v_VCLK_ANALT_INV			(0 << 3)
 #define v_VCLK_INV			(1 << 3)
 #define m_REG_CLK_SOURCE		(1 << 2)
 #define v_REG_CLK_SOURCE_TMDS		(0 << 2)
@@ -81,11 +81,11 @@ enum {
 };
 
 #define HDMI_VIDEO_CONTRL3		0x04
-#define m_COLOR_DEPTH_NOT_INDICATED	(1 << 4)
+#define m_COLOR_DEPTH_ANALT_INDICATED	(1 << 4)
 #define m_SOF				(1 << 3)
 #define m_COLOR_RANGE			(1 << 2)
 #define m_CSC				(1 << 0)
-#define v_COLOR_DEPTH_NOT_INDICATED(n)	((n) << 4)
+#define v_COLOR_DEPTH_ANALT_INDICATED(n)	((n) << 4)
 #define v_SOF_ENABLE			(0 << 3)
 #define v_SOF_DISABLE			(1 << 3)
 #define v_COLOR_RANGE_FULL		(1 << 2)
@@ -239,13 +239,13 @@ enum {
 	AVI_COLOR_MODE_RGB = 0,
 	AVI_COLOR_MODE_YCBCR422 = 1,
 	AVI_COLOR_MODE_YCBCR444 = 2,
-	AVI_COLORIMETRY_NO_DATA = 0,
+	AVI_COLORIMETRY_ANAL_DATA = 0,
 
 	AVI_COLORIMETRY_SMPTE_170M = 1,
 	AVI_COLORIMETRY_ITU709 = 2,
 	AVI_COLORIMETRY_EXTENDED = 3,
 
-	AVI_CODED_FRAME_ASPECT_NO_DATA = 0,
+	AVI_CODED_FRAME_ASPECT_ANAL_DATA = 0,
 	AVI_CODED_FRAME_ASPECT_4_3 = 1,
 	AVI_CODED_FRAME_ASPECT_16_9 = 2,
 
@@ -336,9 +336,9 @@ enum {
 #define HDMI_CEC_RX_LENGTH		0xd7
 #define HDMI_CEC_TX_INT_MASK		0xd8
 #define m_TX_DONE			(1 << 3)
-#define m_TX_NOACK			(1 << 2)
+#define m_TX_ANALACK			(1 << 2)
 #define m_TX_BROADCAST_REJ		(1 << 1)
-#define m_TX_BUSNOTFREE			(1 << 0)
+#define m_TX_BUSANALTFREE			(1 << 0)
 
 #define HDMI_CEC_RX_INT_MASK		0xd9
 #define m_RX_LA_ERR			(1 << 4)
@@ -351,4 +351,4 @@ enum {
 #define HDMI_CEC_BUSFREETIME_H		0xdd
 #define HDMI_CEC_LOGICADDR		0xde
 
-#endif /* __INNO_HDMI_H__ */
+#endif /* __INANAL_HDMI_H__ */

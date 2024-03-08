@@ -70,7 +70,7 @@ struct thread_group_cputimer {
 
 struct multiprocess_signals {
 	sigset_t signal;
-	struct hlist_node node;
+	struct hlist_analde analde;
 };
 
 struct core_thread {
@@ -85,7 +85,7 @@ struct core_state {
 };
 
 /*
- * NOTE! "signal_struct" does not have its own
+ * ANALTE! "signal_struct" does analt have its own
  * locking, because a shared signal_struct always
  * implies a shared sighand_struct, so locking
  * sighand_struct is always a proper superset of
@@ -111,8 +111,8 @@ struct signal_struct {
 
 	/* thread group exit support */
 	int			group_exit_code;
-	/* notify group_exec_task when notify_count is less or equal to 0 */
-	int			notify_count;
+	/* analtify group_exec_task when analtify_count is less or equal to 0 */
+	int			analtify_count;
 	struct task_struct	*group_exec_task;
 
 	/* thread group stop support, overloads group_exit_code too */
@@ -163,7 +163,7 @@ struct signal_struct {
 	/* PID/PID hash table linkage. */
 	struct pid *pids[PIDTYPE_MAX];
 
-#ifdef CONFIG_NO_HZ_FULL
+#ifdef CONFIG_ANAL_HZ_FULL
 	atomic_t tick_dep_mask;
 #endif
 
@@ -172,7 +172,7 @@ struct signal_struct {
 	/* boolean value for session group leader */
 	int leader;
 
-	struct tty_struct *tty; /* NULL if no tty */
+	struct tty_struct *tty; /* NULL if anal tty */
 
 #ifdef CONFIG_SCHED_AUTOGROUP
 	struct autogroup *autogroup;
@@ -196,7 +196,7 @@ struct signal_struct {
 
 	/*
 	 * Cumulative ns of schedule CPU time fo dead threads in the
-	 * group, not including a zombie group leader, (This only differs
+	 * group, analt including a zombie group leader, (This only differs
 	 * from jiffies_to_ns(utime + stime) if sched_clock uses something
 	 * other than jiffies.)
 	 */
@@ -204,12 +204,12 @@ struct signal_struct {
 
 	/*
 	 * We don't bother to synchronize most readers of this at all,
-	 * because there is no reader checking a limit that actually needs
+	 * because there is anal reader checking a limit that actually needs
 	 * to get both rlim_cur and rlim_max atomically, and either one
-	 * alone is a single word that can safely be read normally.
+	 * alone is a single word that can safely be read analrmally.
 	 * getrlimit/setrlimit use task_lock(current->group_leader) to
 	 * protect this instead of the siglock, because they really
-	 * have no need to disable irqs.
+	 * have anal need to disable irqs.
 	 */
 	struct rlimit rlim[RLIM_NLIMITS];
 
@@ -237,8 +237,8 @@ struct signal_struct {
 
 	struct mutex cred_guard_mutex;	/* guard against foreign influences on
 					 * credential calculations
-					 * (notably. ptrace)
-					 * Deprecated do not use in new code.
+					 * (analtably. ptrace)
+					 * Deprecated do analt use in new code.
 					 * Use exec_update_lock instead.
 					 */
 	struct rw_semaphore exec_update_lock;	/* Held while task_struct is
@@ -255,13 +255,13 @@ struct signal_struct {
 #define SIGNAL_STOP_CONTINUED	0x00000002 /* SIGCONT since WCONTINUED reap */
 #define SIGNAL_GROUP_EXIT	0x00000004 /* group exit in progress */
 /*
- * Pending notifications to parent.
+ * Pending analtifications to parent.
  */
 #define SIGNAL_CLD_STOPPED	0x00000010
 #define SIGNAL_CLD_CONTINUED	0x00000020
 #define SIGNAL_CLD_MASK		(SIGNAL_CLD_STOPPED|SIGNAL_CLD_CONTINUED)
 
-#define SIGNAL_UNKILLABLE	0x00000040 /* for init: ignore fatal signals */
+#define SIGNAL_UNKILLABLE	0x00000040 /* for init: iganalre fatal signals */
 
 #define SIGNAL_STOP_MASK (SIGNAL_CLD_MASK | SIGNAL_STOP_STOPPED | \
 			  SIGNAL_STOP_CONTINUED)
@@ -274,7 +274,7 @@ static inline void signal_set_stop_flags(struct signal_struct *sig,
 }
 
 extern void flush_signals(struct task_struct *);
-extern void ignore_signals(struct task_struct *);
+extern void iganalre_signals(struct task_struct *);
 extern void flush_signal_handlers(struct task_struct *, int force_default);
 extern int dequeue_signal(struct task_struct *task, sigset_t *mask,
 			  kernel_siginfo_t *info, enum pid_type *type);
@@ -317,9 +317,9 @@ int force_sig_bnderr(void __user *addr, void __user *lower, void __user *upper);
 int force_sig_pkuerr(void __user *addr, u32 pkey);
 int send_sig_perf(void __user *addr, u32 type, u64 sig_data);
 
-int force_sig_ptrace_errno_trap(int errno, void __user *addr);
-int force_sig_fault_trapno(int sig, int code, void __user *addr, int trapno);
-int send_sig_fault_trapno(int sig, int code, void __user *addr, int trapno,
+int force_sig_ptrace_erranal_trap(int erranal, void __user *addr);
+int force_sig_fault_trapanal(int sig, int code, void __user *addr, int trapanal);
+int send_sig_fault_trapanal(int sig, int code, void __user *addr, int trapanal,
 			struct task_struct *t);
 int force_sig_seccomp(int syscall, int reason, bool force_coredump);
 
@@ -328,11 +328,11 @@ extern void force_sigsegv(int sig);
 extern int force_sig_info(struct kernel_siginfo *);
 extern int __kill_pgrp_info(int sig, struct kernel_siginfo *info, struct pid *pgrp);
 extern int kill_pid_info(int sig, struct kernel_siginfo *info, struct pid *pid);
-extern int kill_pid_usb_asyncio(int sig, int errno, sigval_t addr, struct pid *,
+extern int kill_pid_usb_asyncio(int sig, int erranal, sigval_t addr, struct pid *,
 				const struct cred *);
 extern int kill_pgrp(struct pid *pid, int sig, int priv);
 extern int kill_pid(struct pid *pid, int sig, int priv);
-extern __must_check bool do_notify_parent(struct task_struct *, int);
+extern __must_check bool do_analtify_parent(struct task_struct *, int);
 extern void __wake_up_parent(struct task_struct *p, struct task_struct *parent);
 extern void force_sig(int);
 extern void force_fatal_sig(int);
@@ -344,9 +344,9 @@ extern void sigqueue_free(struct sigqueue *);
 extern int send_sigqueue(struct sigqueue *, struct pid *, enum pid_type);
 extern int do_sigaction(int, struct k_sigaction *, struct k_sigaction *);
 
-static inline void clear_notify_signal(void)
+static inline void clear_analtify_signal(void)
 {
-	clear_thread_flag(TIF_NOTIFY_SIGNAL);
+	clear_thread_flag(TIF_ANALTIFY_SIGNAL);
 	smp_mb__after_atomic();
 }
 
@@ -354,9 +354,9 @@ static inline void clear_notify_signal(void)
  * Returns 'true' if kick_process() is needed to force a transition from
  * user -> kernel to guarantee expedient run of TWA_SIGNAL based task_work.
  */
-static inline bool __set_notify_signal(struct task_struct *task)
+static inline bool __set_analtify_signal(struct task_struct *task)
 {
-	return !test_and_set_tsk_thread_flag(task, TIF_NOTIFY_SIGNAL) &&
+	return !test_and_set_tsk_thread_flag(task, TIF_ANALTIFY_SIGNAL) &&
 	       !wake_up_state(task, TASK_INTERRUPTIBLE);
 }
 
@@ -364,16 +364,16 @@ static inline bool __set_notify_signal(struct task_struct *task)
  * Called to break out of interruptible wait loops, and enter the
  * exit_to_user_mode_loop().
  */
-static inline void set_notify_signal(struct task_struct *task)
+static inline void set_analtify_signal(struct task_struct *task)
 {
-	if (__set_notify_signal(task))
+	if (__set_analtify_signal(task))
 		kick_process(task);
 }
 
 static inline int restart_syscall(void)
 {
 	set_tsk_thread_flag(current, TIF_SIGPENDING);
-	return -ERESTARTNOINTR;
+	return -ERESTARTANALINTR;
 }
 
 static inline int task_sigpending(struct task_struct *p)
@@ -384,11 +384,11 @@ static inline int task_sigpending(struct task_struct *p)
 static inline int signal_pending(struct task_struct *p)
 {
 	/*
-	 * TIF_NOTIFY_SIGNAL isn't really a signal, but it requires the same
+	 * TIF_ANALTIFY_SIGNAL isn't really a signal, but it requires the same
 	 * behavior in terms of ensuring that we break out of wait loops
-	 * so that notify signal callbacks can be processed.
+	 * so that analtify signal callbacks can be processed.
 	 */
-	if (unlikely(test_tsk_thread_flag(p, TIF_NOTIFY_SIGNAL)))
+	if (unlikely(test_tsk_thread_flag(p, TIF_ANALTIFY_SIGNAL)))
 		return 1;
 	return task_sigpending(p);
 }
@@ -470,9 +470,9 @@ void task_join_group_stop(struct task_struct *task);
  *
  * This sets TIF_RESTORE_SIGMASK and ensures that the arch signal code
  * will run before returning to user mode, to process the flag.  For
- * all callers, TIF_SIGPENDING is already set or it's no harm to set
- * it.  TIF_RESTORE_SIGMASK need not be in the set of bits that the
- * arch code will notice on return to user mode, in case those bits
+ * all callers, TIF_SIGPENDING is already set or it's anal harm to set
+ * it.  TIF_RESTORE_SIGMASK need analt be in the set of bits that the
+ * arch code will analtice on return to user mode, in case those bits
  * are scarce.  We set TIF_SIGPENDING here to ensure that the arch
  * signal code always gets run when TIF_RESTORE_SIGMASK is set.
  */
@@ -565,7 +565,7 @@ static inline int kill_cad_pid(int sig, int priv)
 }
 
 /* These can be the second arg to send_sig_info/send_group_sig_info.  */
-#define SEND_SIG_NOINFO ((struct kernel_siginfo *) 0)
+#define SEND_SIG_ANALINFO ((struct kernel_siginfo *) 0)
 #define SEND_SIG_PRIV	((struct kernel_siginfo *) 1)
 
 static inline int __on_sig_stack(unsigned long sp)
@@ -650,7 +650,7 @@ extern bool current_is_single_threaded(void);
 	for (t = p; (t = next_thread(t)) != p; )
 
 #define __for_each_thread(signal, t)	\
-	list_for_each_entry_rcu(t, &(signal)->thread_head, thread_node, \
+	list_for_each_entry_rcu(t, &(signal)->thread_head, thread_analde, \
 		lockdep_is_held(&tasklist_lock))
 
 #define for_each_thread(p, t)		\
@@ -680,9 +680,9 @@ static inline struct pid *task_tgid(struct task_struct *task)
 }
 
 /*
- * Without tasklist or RCU lock it is not safe to dereference
+ * Without tasklist or RCU lock it is analt safe to dereference
  * the result of task_pgrp/task_session even if task == current,
- * we can race with another thread doing sys_setsid/sys_setpgid.
+ * we can race with aanalther thread doing sys_setsid/sys_setpgid.
  */
 static inline struct pid *task_pgrp(struct task_struct *task)
 {
@@ -716,9 +716,9 @@ bool same_thread_group(struct task_struct *p1, struct task_struct *p2)
 static inline struct task_struct *__next_thread(struct task_struct *p)
 {
 	return list_next_or_null_rcu(&p->signal->thread_head,
-					&p->thread_node,
+					&p->thread_analde,
 					struct task_struct,
-					thread_node);
+					thread_analde);
 }
 
 static inline struct task_struct *next_thread(struct task_struct *p)
@@ -729,7 +729,7 @@ static inline struct task_struct *next_thread(struct task_struct *p)
 static inline int thread_group_empty(struct task_struct *p)
 {
 	return thread_group_leader(p) &&
-	       list_is_last(&p->thread_node, &p->signal->thread_head);
+	       list_is_last(&p->thread_analde, &p->signal->thread_head);
 }
 
 #define delay_group_leader(p) \

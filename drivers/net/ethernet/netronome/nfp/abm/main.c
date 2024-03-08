@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2018 Netronome Systems, Inc. */
+/* Copyright (C) 2018 Netroanalme Systems, Inc. */
 
 #include <linux/bitfield.h>
 #include <linux/bitmap.h>
@@ -35,7 +35,7 @@ nfp_abm_setup_tc(struct nfp_app *app, struct net_device *netdev,
 
 	port = nfp_port_from_netdev(netdev);
 	if (!port || port->type != NFP_PORT_PF_PORT)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (type) {
 	case TC_SETUP_ROOT_QDISC:
@@ -49,7 +49,7 @@ nfp_abm_setup_tc(struct nfp_app *app, struct net_device *netdev,
 	case TC_SETUP_BLOCK:
 		return nfp_abm_setup_cls_block(netdev, repr, type_data);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -95,7 +95,7 @@ nfp_abm_spawn_repr(struct nfp_app *app, struct nfp_abm_link *alink,
 
 	netdev = nfp_repr_alloc_mqs(app, txqs, 1);
 	if (!netdev)
-		return -ENOMEM;
+		return -EANALMEM;
 	repr = netdev_priv(netdev);
 	repr->app_priv = alink;
 
@@ -209,7 +209,7 @@ static int nfp_abm_eswitch_set_switchdev(struct nfp_abm *abm)
 	int err;
 
 	if (!abm->red_support)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	err = nfp_abm_ctrl_qm_enable(abm);
 	if (err)
@@ -264,7 +264,7 @@ nfp_abm_vnic_set_mac(struct nfp_pf *pf, struct nfp_abm *abm, struct nfp_net *nn,
 	int err;
 
 	if (id > pf->eth_tbl->count) {
-		nfp_warn(pf->cpp, "No entry for persistent MAC address\n");
+		nfp_warn(pf->cpp, "Anal entry for persistent MAC address\n");
 		eth_hw_addr_random(nn->dp.netdev);
 		return;
 	}
@@ -319,7 +319,7 @@ nfp_abm_vnic_alloc(struct nfp_app *app, struct nfp_net *nn, unsigned int id)
 
 	alink = kzalloc(sizeof(*alink), GFP_KERNEL);
 	if (!alink)
-		return -ENOMEM;
+		return -EANALMEM;
 	nn->app_priv = alink;
 	alink->abm = abm;
 	alink->vnic = nn;
@@ -334,7 +334,7 @@ nfp_abm_vnic_alloc(struct nfp_app *app, struct nfp_net *nn, unsigned int id)
 
 	alink->prio_map = kzalloc(abm->prio_map_len, GFP_KERNEL);
 	if (!alink->prio_map) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_free_alink;
 	}
 
@@ -389,7 +389,7 @@ nfp_abm_port_get_stats(struct nfp_app *app, struct nfp_port *port, u64 *data)
 		return data;
 	alink = repr->app_priv;
 	for (i = 0; i < alink->vnic->dp.num_r_vecs; i++) {
-		*data++ = nfp_abm_ctrl_stat_non_sto(alink, i);
+		*data++ = nfp_abm_ctrl_stat_analn_sto(alink, i);
 		*data++ = nfp_abm_ctrl_stat_sto(alink, i);
 	}
 	return data;
@@ -419,7 +419,7 @@ nfp_abm_port_get_stats_strings(struct nfp_app *app, struct nfp_port *port,
 		return data;
 	alink = repr->app_priv;
 	for (i = 0; i < alink->vnic->dp.num_r_vecs; i++) {
-		ethtool_sprintf(&data, "q%u_no_wait", i);
+		ethtool_sprintf(&data, "q%u_anal_wait", i);
 		ethtool_sprintf(&data, "q%u_delayed", i);
 	}
 	return data;
@@ -463,7 +463,7 @@ static int nfp_abm_init(struct nfp_app *app)
 
 	abm = kzalloc(sizeof(*abm), GFP_KERNEL);
 	if (!abm)
-		return -ENOMEM;
+		return -EANALMEM;
 	app->priv = abm;
 	abm->app = app;
 
@@ -471,7 +471,7 @@ static int nfp_abm_init(struct nfp_app *app)
 	if (err)
 		goto err_free_abm;
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	abm->num_thresholds = array_size(abm->num_bands, NFP_NET_MAX_RX_RINGS);
 	abm->threshold_undef = bitmap_zalloc(abm->num_thresholds, GFP_KERNEL);
 	if (!abm->threshold_undef)
@@ -492,7 +492,7 @@ static int nfp_abm_init(struct nfp_app *app)
 	if (err)
 		goto err_free_act;
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	reprs = nfp_reprs_alloc(pf->max_data_vnics);
 	if (!reprs)
 		goto err_free_act;

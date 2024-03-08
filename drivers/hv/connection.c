@@ -47,8 +47,8 @@ EXPORT_SYMBOL_GPL(vmbus_proto_version);
 
 /*
  * Table of VMBus versions listed from newest to oldest.
- * VERSION_WIN7 and VERSION_WS2008 are no longer supported in
- * Linux guests and are not listed.
+ * VERSION_WIN7 and VERSION_WS2008 are anal longer supported in
+ * Linux guests and are analt listed.
  */
 static __u32 vmbus_versions[] = {
 	VERSION_WIN10_V5_3,
@@ -106,7 +106,7 @@ int vmbus_negotiate_version(struct vmbus_channel_msginfo *msginfo, u32 version)
 	}
 
 	/*
-	 * shared_gpa_boundary is zero in non-SNP VMs, so it's safe to always
+	 * shared_gpa_boundary is zero in analn-SNP VMs, so it's safe to always
 	 * bitwise OR it
 	 */
 	msg->monitor_page1 = virt_to_phys(vmbus_connection.monitor_pages[0]) |
@@ -174,29 +174,29 @@ int vmbus_connect(void)
 	vmbus_connection.conn_state = CONNECTING;
 	vmbus_connection.work_queue = create_workqueue("hv_vmbus_con");
 	if (!vmbus_connection.work_queue) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto cleanup;
 	}
 
 	vmbus_connection.rescind_work_queue =
 		create_workqueue("hv_vmbus_rescind");
 	if (!vmbus_connection.rescind_work_queue) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto cleanup;
 	}
-	vmbus_connection.ignore_any_offer_msg = false;
+	vmbus_connection.iganalre_any_offer_msg = false;
 
 	vmbus_connection.handle_primary_chan_wq =
 		create_workqueue("hv_pri_chan");
 	if (!vmbus_connection.handle_primary_chan_wq) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto cleanup;
 	}
 
 	vmbus_connection.handle_sub_chan_wq =
 		create_workqueue("hv_sub_chan");
 	if (!vmbus_connection.handle_sub_chan_wq) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto cleanup;
 	}
 
@@ -212,7 +212,7 @@ int vmbus_connect(void)
 	 */
 	vmbus_connection.int_page = hv_alloc_hyperv_zeroed_page();
 	if (vmbus_connection.int_page == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto cleanup;
 	}
 
@@ -222,14 +222,14 @@ int vmbus_connect(void)
 			(HV_HYP_PAGE_SIZE >> 1));
 
 	/*
-	 * Setup the monitor notification facility. The 1st page for
+	 * Setup the monitor analtification facility. The 1st page for
 	 * parent->child and the 2nd page for child->parent
 	 */
 	vmbus_connection.monitor_pages[0] = hv_alloc_hyperv_page();
 	vmbus_connection.monitor_pages[1] = hv_alloc_hyperv_page();
 	if ((vmbus_connection.monitor_pages[0] == NULL) ||
 	    (vmbus_connection.monitor_pages[1] == NULL)) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto cleanup;
 	}
 
@@ -251,7 +251,7 @@ int vmbus_connect(void)
 			  sizeof(struct vmbus_channel_initiate_contact),
 			  GFP_KERNEL);
 	if (msginfo == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto cleanup;
 	}
 
@@ -295,7 +295,7 @@ int vmbus_connect(void)
 					    sizeof(struct vmbus_channel *),
 					    GFP_KERNEL);
 	if (vmbus_connection.channels == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto cleanup;
 	}
 
@@ -353,7 +353,7 @@ void vmbus_disconnect(void)
 struct vmbus_channel *relid2channel(u32 relid)
 {
 	if (vmbus_connection.channels == NULL) {
-		pr_warn_once("relid2channel: relid=%d: No channels mapped!\n", relid);
+		pr_warn_once("relid2channel: relid=%d: Anal channels mapped!\n", relid);
 		return NULL;
 	}
 	if (WARN_ON(relid >= MAX_CHANNEL_RELIDS))
@@ -362,7 +362,7 @@ struct vmbus_channel *relid2channel(u32 relid)
 }
 
 /*
- * vmbus_on_event - Process a channel event notification
+ * vmbus_on_event - Process a channel event analtification
  *
  * For batched channels (default) optimize host to guest signaling
  * by ensuring:
@@ -385,7 +385,7 @@ void vmbus_on_event(unsigned long data)
 	hv_debug_delay_test(channel, INTERRUPT_DELAY);
 
 	/* A channel once created is persistent even when
-	 * there is no driver handling the device. An
+	 * there is anal driver handling the device. An
 	 * unloading driver sets the onchannel_callback to NULL.
 	 */
 	callback_fn = READ_ONCE(channel->onchannel_callback);
@@ -448,7 +448,7 @@ int vmbus_post_msg(void *buffer, size_t buflen, bool can_sleep)
 			break;
 		case HV_STATUS_INSUFFICIENT_MEMORY:
 		case HV_STATUS_INSUFFICIENT_BUFFERS:
-			ret = -ENOBUFS;
+			ret = -EANALBUFS;
 			break;
 		case HV_STATUS_SUCCESS:
 			return ret;
@@ -472,7 +472,7 @@ int vmbus_post_msg(void *buffer, size_t buflen, bool can_sleep)
 }
 
 /*
- * vmbus_set_event - Send an event notification to the parent
+ * vmbus_set_event - Send an event analtification to the parent
  */
 void vmbus_set_event(struct vmbus_channel *channel)
 {

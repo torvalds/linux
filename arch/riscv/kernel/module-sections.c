@@ -2,7 +2,7 @@
  *
  * Copyright (C) 2014-2017 Linaro Ltd. <ard.biesheuvel@linaro.org>
  *
- * Copyright (C) 2018 Andes Technology Corporation <zong@andestech.com>
+ * Copyright (C) 2018 Andes Techanallogy Corporation <zong@andestech.com>
  */
 
 #include <linux/elf.h>
@@ -19,7 +19,7 @@ unsigned long module_emit_got_entry(struct module *mod, unsigned long val)
 	if (got)
 		return (unsigned long)got;
 
-	/* There is no duplicate entry, create a new one */
+	/* There is anal duplicate entry, create a new one */
 	got = (struct got_entry *)got_sec->shdr->sh_addr;
 	got[i] = emit_got_entry(val);
 
@@ -40,7 +40,7 @@ unsigned long module_emit_plt_entry(struct module *mod, unsigned long val)
 	if (plt)
 		return (unsigned long)plt;
 
-	/* There is no duplicate entry, create a new one */
+	/* There is anal duplicate entry, create a new one */
 	got_plt = (struct got_entry *)got_plt_sec->shdr->sh_addr;
 	got_plt[i] = emit_got_entry(val);
 	plt = (struct plt_entry *)plt_sec->shdr->sh_addr;
@@ -108,15 +108,15 @@ int module_frob_arch_sections(Elf_Ehdr *ehdr, Elf_Shdr *sechdrs,
 
 	if (!mod->arch.plt.shdr) {
 		pr_err("%s: module PLT section(s) missing\n", mod->name);
-		return -ENOEXEC;
+		return -EANALEXEC;
 	}
 	if (!mod->arch.got.shdr) {
 		pr_err("%s: module GOT section(s) missing\n", mod->name);
-		return -ENOEXEC;
+		return -EANALEXEC;
 	}
 	if (!mod->arch.got_plt.shdr) {
 		pr_err("%s: module GOT.PLT section(s) missing\n", mod->name);
-		return -ENOEXEC;
+		return -EANALEXEC;
 	}
 
 	/* Calculate the maxinum number of entries */
@@ -128,28 +128,28 @@ int module_frob_arch_sections(Elf_Ehdr *ehdr, Elf_Shdr *sechdrs,
 		if (sechdrs[i].sh_type != SHT_RELA)
 			continue;
 
-		/* ignore relocations that operate on non-exec sections */
+		/* iganalre relocations that operate on analn-exec sections */
 		if (!(dst_sec->sh_flags & SHF_EXECINSTR))
 			continue;
 
 		count_max_entries(relas, num_rela, &num_plts, &num_gots);
 	}
 
-	mod->arch.plt.shdr->sh_type = SHT_NOBITS;
+	mod->arch.plt.shdr->sh_type = SHT_ANALBITS;
 	mod->arch.plt.shdr->sh_flags = SHF_EXECINSTR | SHF_ALLOC;
 	mod->arch.plt.shdr->sh_addralign = L1_CACHE_BYTES;
 	mod->arch.plt.shdr->sh_size = (num_plts + 1) * sizeof(struct plt_entry);
 	mod->arch.plt.num_entries = 0;
 	mod->arch.plt.max_entries = num_plts;
 
-	mod->arch.got.shdr->sh_type = SHT_NOBITS;
+	mod->arch.got.shdr->sh_type = SHT_ANALBITS;
 	mod->arch.got.shdr->sh_flags = SHF_ALLOC;
 	mod->arch.got.shdr->sh_addralign = L1_CACHE_BYTES;
 	mod->arch.got.shdr->sh_size = (num_gots + 1) * sizeof(struct got_entry);
 	mod->arch.got.num_entries = 0;
 	mod->arch.got.max_entries = num_gots;
 
-	mod->arch.got_plt.shdr->sh_type = SHT_NOBITS;
+	mod->arch.got_plt.shdr->sh_type = SHT_ANALBITS;
 	mod->arch.got_plt.shdr->sh_flags = SHF_ALLOC;
 	mod->arch.got_plt.shdr->sh_addralign = L1_CACHE_BYTES;
 	mod->arch.got_plt.shdr->sh_size = (num_plts + 1) * sizeof(struct got_entry);

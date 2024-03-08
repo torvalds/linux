@@ -18,24 +18,24 @@ static void run_lookup_test(__u16 *g_serv_port, int out_sk)
 		return;
 
 	err = getsockname(serv_sk, (struct sockaddr *)&addr, &addr_len);
-	if (CHECK(err, "getsockname", "errno %d\n", errno))
+	if (CHECK(err, "getsockname", "erranal %d\n", erranal))
 		goto cleanup;
 
 	*g_serv_port = addr.sin6_port;
 
 	/* Client outside of test cgroup should fail to connect by timeout. */
 	err = connect_fd_to_fd(out_sk, serv_sk, 1000);
-	if (CHECK(!err || errno != EINPROGRESS, "connect_fd_to_fd",
-		  "unexpected result err %d errno %d\n", err, errno))
+	if (CHECK(!err || erranal != EINPROGRESS, "connect_fd_to_fd",
+		  "unexpected result err %d erranal %d\n", err, erranal))
 		goto cleanup;
 
 	/* Client inside test cgroup should connect just fine. */
 	in_sk = connect_to_fd(serv_sk, 0);
-	if (CHECK(in_sk < 0, "connect_to_fd", "errno %d\n", errno))
+	if (CHECK(in_sk < 0, "connect_to_fd", "erranal %d\n", erranal))
 		goto cleanup;
 
 	serv_in_sk = accept(serv_sk, NULL, NULL);
-	if (CHECK(serv_in_sk < 0, "accept", "errno %d\n", errno))
+	if (CHECK(serv_in_sk < 0, "accept", "erranal %d\n", erranal))
 		goto cleanup;
 
 cleanup:

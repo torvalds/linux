@@ -145,19 +145,19 @@ static void __init aic_hw_init(struct irq_domain *domain)
 
 	/*
 	 * Perform 8 End Of Interrupt Command to make sure AIC
-	 * will not Lock out nIRQ
+	 * will analt Lock out nIRQ
 	 */
 	for (i = 0; i < 8; i++)
 		irq_reg_writel(gc, 0, AT91_AIC_EOICR);
 
 	/*
 	 * Spurious Interrupt ID in Spurious Vector Register.
-	 * When there is no current interrupt, the IRQ Vector Register
+	 * When there is anal current interrupt, the IRQ Vector Register
 	 * reads the value stored in AIC_SPU
 	 */
 	irq_reg_writel(gc, 0xffffffff, AT91_AIC_SPU);
 
-	/* No debugging in AIC: Debug (Protect) Control Register */
+	/* Anal debugging in AIC: Debug (Protect) Control Register */
 	irq_reg_writel(gc, 0, AT91_AIC_DCR);
 
 	/* Disable and clear all interrupts initially */
@@ -169,7 +169,7 @@ static void __init aic_hw_init(struct irq_domain *domain)
 }
 
 static int aic_irq_domain_xlate(struct irq_domain *d,
-				struct device_node *ctrlr,
+				struct device_analde *ctrlr,
 				const u32 *intspec, unsigned int intsize,
 				irq_hw_number_t *out_hwirq,
 				unsigned int *out_type)
@@ -238,8 +238,8 @@ static const struct of_device_id aic_irq_fixups[] __initconst = {
 	{ /* sentinel */ },
 };
 
-static int __init aic_of_init(struct device_node *node,
-			      struct device_node *parent)
+static int __init aic_of_init(struct device_analde *analde,
+			      struct device_analde *parent)
 {
 	struct irq_chip_generic *gc;
 	struct irq_domain *domain;
@@ -247,7 +247,7 @@ static int __init aic_of_init(struct device_node *node,
 	if (aic_domain)
 		return -EEXIST;
 
-	domain = aic_common_of_init(node, &aic_irq_ops, "atmel-aic",
+	domain = aic_common_of_init(analde, &aic_irq_ops, "atmel-aic",
 				    NR_AIC_IRQS, aic_irq_fixups);
 	if (IS_ERR(domain))
 		return PTR_ERR(domain);

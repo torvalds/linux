@@ -9,7 +9,7 @@ title: Texas Instruments PCM3168A Audio Codec
 maintainers:
   - Damien Horsley <Damien.Horsley@imgtec.com>
   - Geert Uytterhoeven <geert+renesas@glider.be>
-  - Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+  - Kunianalri Morimoto <kunianalri.morimoto.gx@renesas.com>
 
 description:
   The Texas Instruments PCM3168A is a 24-bit Multi-channel Audio CODEC with

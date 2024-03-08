@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * inode.c -- user mode filesystem api for usb gadget controllers
+ * ianalde.c -- user mode filesystem api for usb gadget controllers
  *
  * Copyright (C) 2003-2004 David Brownell
- * Copyright (C) 2003 Agilent Technologies
+ * Copyright (C) 2003 Agilent Techanallogies
  */
 
 
@@ -41,8 +41,8 @@
 
 /*
  * The gadgetfs API maps each endpoint to a file descriptor so that you
- * can use standard synchronous read/write calls for I/O.  There's some
- * O_NONBLOCK and O_ASYNC/FASYNC style i/o support.  Example usermode
+ * can use standard synchroanalus read/write calls for I/O.  There's some
+ * O_ANALNBLOCK and O_ASYNC/FASYNC style i/o support.  Example usermode
  * drivers show how this works in practice.  You can also use AIO to
  * eliminate I/O gaps between requests, to help when streaming data.
  *
@@ -64,7 +64,7 @@
  *   direction" request is issued (like reading an IN endpoint).
  *
  * Unlike "usbfs" the only ioctl()s are for things that are rare, and maybe
- * not possible on all hardware.  For example, precise fault handling with
+ * analt possible on all hardware.  For example, precise fault handling with
  * respect to data left in endpoint fifos after aborted operations; or
  * selective clearing of endpoint halts, to implement SET_INTERFACE.
  */
@@ -79,7 +79,7 @@ MODULE_DESCRIPTION (DRIVER_DESC);
 MODULE_AUTHOR ("David Brownell");
 MODULE_LICENSE ("GPL");
 
-static int ep_open(struct inode *, struct file *);
+static int ep_open(struct ianalde *, struct file *);
 
 
 /*----------------------------------------------------------------------*/
@@ -113,7 +113,7 @@ enum ep0_state {
 	STATE_DEV_UNBOUND,
 };
 
-/* enough for the whole queue: most events invalidate others */
+/* eanalugh for the whole queue: most events invalidate others */
 #define	N_EVENT			5
 
 #define RBUF_SIZE		256
@@ -164,7 +164,7 @@ static void put_dev (struct dev_data *data)
 {
 	if (likely (!refcount_dec_and_test (&data->count)))
 		return;
-	/* needs no more cleanup */
+	/* needs anal more cleanup */
 	BUG_ON (waitqueue_active (&data->wait));
 	kfree (data);
 }
@@ -220,7 +220,7 @@ static void put_ep (struct ep_data *data)
 	if (likely (!refcount_dec_and_test (&data->count)))
 		return;
 	put_dev (data->dev);
-	/* needs no more cleanup */
+	/* needs anal more cleanup */
 	BUG_ON (!list_empty (&data->epfiles));
 	BUG_ON (waitqueue_active (&data->wait));
 	kfree (data);
@@ -239,7 +239,7 @@ static DEFINE_MUTEX(sb_mutex);		/* Serialize superblock operations */
 
 /*----------------------------------------------------------------------*/
 
-/* NOTE:  don't use dev_printk calls before binding to the gadget
+/* ANALTE:  don't use dev_printk calls before binding to the gadget
  * at the end of ep0 configuration, or after unbind.
  */
 
@@ -270,9 +270,9 @@ static DEFINE_MUTEX(sb_mutex);		/* Serialize superblock operations */
 
 /*----------------------------------------------------------------------*/
 
-/* SYNCHRONOUS ENDPOINT OPERATIONS (bulk/intr/iso)
+/* SYNCHROANALUS ENDPOINT OPERATIONS (bulk/intr/iso)
  *
- * After opening, configure non-control endpoints.  Then use normal
+ * After opening, configure analn-control endpoints.  Then use analrmal
  * stream read() and write() requests; and maybe ioctl() to get more
  * precise FIFO status when recovering from cancellation.
  */
@@ -298,13 +298,13 @@ get_ready_ep (unsigned f_flags, struct ep_data *epdata, bool is_write)
 {
 	int	val;
 
-	if (f_flags & O_NONBLOCK) {
+	if (f_flags & O_ANALNBLOCK) {
 		if (!mutex_trylock(&epdata->lock))
-			goto nonblock;
+			goto analnblock;
 		if (epdata->state != STATE_EP_ENABLED &&
 		    (!is_write || epdata->state != STATE_EP_READY)) {
 			mutex_unlock(&epdata->lock);
-nonblock:
+analnblock:
 			val = -EAGAIN;
 		} else
 			val = 0;
@@ -318,7 +318,7 @@ nonblock:
 	switch (epdata->state) {
 	case STATE_EP_ENABLED:
 		return 0;
-	case STATE_EP_READY:			/* not configured yet */
+	case STATE_EP_READY:			/* analt configured yet */
 		if (is_write)
 			return 0;
 		fallthrough;
@@ -326,11 +326,11 @@ nonblock:
 		break;
 	// case STATE_EP_DISABLED:		/* "can't happen" */
 	default:				/* error! */
-		pr_debug ("%s: ep %p not available, state %d\n",
+		pr_debug ("%s: ep %p analt available, state %d\n",
 				shortname, epdata, epdata->state);
 	}
 	mutex_unlock(&epdata->lock);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static ssize_t
@@ -349,7 +349,7 @@ ep_io (struct ep_data *epdata, void *buf, unsigned len)
 		req->length = len;
 		value = usb_ep_queue (epdata->ep, req, GFP_ATOMIC);
 	} else
-		value = -ENODEV;
+		value = -EANALDEV;
 	spin_unlock_irq (&epdata->dev->lock);
 
 	if (likely (value == 0)) {
@@ -370,7 +370,7 @@ ep_io (struct ep_data *epdata, void *buf, unsigned len)
 
 				DBG (epdata->dev, "endpoint gone\n");
 				wait_for_completion(&done);
-				epdata->status = -ENODEV;
+				epdata->status = -EANALDEV;
 			}
 		}
 		return epdata->status;
@@ -379,7 +379,7 @@ ep_io (struct ep_data *epdata, void *buf, unsigned len)
 }
 
 static int
-ep_release (struct inode *inode, struct file *fd)
+ep_release (struct ianalde *ianalde, struct file *fd)
 {
 	struct ep_data		*data = fd->private_data;
 	int value;
@@ -421,10 +421,10 @@ static long ep_ioctl(struct file *fd, unsigned code, unsigned long value)
 			status = usb_ep_clear_halt (data->ep);
 			break;
 		default:
-			status = -ENOTTY;
+			status = -EANALTTY;
 		}
 	} else
-		status = -ENODEV;
+		status = -EANALDEV;
 	spin_unlock_irq (&data->dev->lock);
 	mutex_unlock(&data->lock);
 	return status;
@@ -432,7 +432,7 @@ static long ep_ioctl(struct file *fd, unsigned code, unsigned long value)
 
 /*----------------------------------------------------------------------*/
 
-/* ASYNCHRONOUS ENDPOINT I/O OPERATIONS (bulk/intr/iso) */
+/* ASYNCHROANALUS ENDPOINT I/O OPERATIONS (bulk/intr/iso) */
 
 struct kiocb_priv {
 	struct usb_request	*req;
@@ -497,7 +497,7 @@ static void ep_aio_complete(struct usb_ep *ep, struct usb_request *req)
 	priv->req = NULL;
 	priv->epdata = NULL;
 
-	/* if this was a write or a read returning no data then we
+	/* if this was a write or a read returning anal data then we
 	 * don't need to copy anything to userspace, so we can
 	 * complete the aio request immediately.
 	 */
@@ -547,12 +547,12 @@ static ssize_t ep_aio(struct kiocb *iocb,
 	 * allocate or submit those if the host disconnected.
 	 */
 	spin_lock_irq(&epdata->dev->lock);
-	value = -ENODEV;
+	value = -EANALDEV;
 	if (unlikely(epdata->ep == NULL))
 		goto fail;
 
 	req = usb_ep_alloc_request(epdata->ep, GFP_ATOMIC);
-	value = -ENOMEM;
+	value = -EANALMEM;
 	if (unlikely(!req))
 		goto fail;
 
@@ -608,7 +608,7 @@ ep_read_iter(struct kiocb *iocb, struct iov_iter *to)
 	buf = kmalloc(len, GFP_KERNEL);
 	if (unlikely(!buf)) {
 		mutex_unlock(&epdata->lock);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	if (is_sync_kiocb(iocb)) {
 		value = ep_io(epdata, buf, len);
@@ -616,7 +616,7 @@ ep_read_iter(struct kiocb *iocb, struct iov_iter *to)
 			value = -EFAULT;
 	} else {
 		struct kiocb_priv *priv = kzalloc(sizeof *priv, GFP_KERNEL);
-		value = -ENOMEM;
+		value = -EANALMEM;
 		if (!priv)
 			goto fail;
 		priv->to_free = dup_iter(&priv->to, to, GFP_KERNEL);
@@ -670,7 +670,7 @@ ep_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	buf = kmalloc(len, GFP_KERNEL);
 	if (unlikely(!buf)) {
 		mutex_unlock(&epdata->lock);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (unlikely(!copy_from_iter_full(buf, len, from))) {
@@ -684,7 +684,7 @@ ep_write_iter(struct kiocb *iocb, struct iov_iter *from)
 		value = ep_io(epdata, buf, len);
 	} else {
 		struct kiocb_priv *priv = kzalloc(sizeof *priv, GFP_KERNEL);
-		value = -ENOMEM;
+		value = -EANALMEM;
 		if (priv) {
 			value = ep_aio(iocb, priv, epdata, buf, len);
 			if (value == -EIOCBQUEUED)
@@ -705,7 +705,7 @@ static const struct file_operations ep_io_operations = {
 
 	.open =		ep_open,
 	.release =	ep_release,
-	.llseek =	no_llseek,
+	.llseek =	anal_llseek,
 	.unlocked_ioctl = ep_ioctl,
 	.read_iter =	ep_read_iter,
 	.write_iter =	ep_write_iter,
@@ -717,7 +717,7 @@ static const struct file_operations ep_io_operations = {
  *     status = write (fd, descriptors, sizeof descriptors)
  *
  * That write establishes the endpoint configuration, configuring
- * the controller to process bulk, interrupt, or isochronous transfers
+ * the controller to process bulk, interrupt, or isochroanalus transfers
  * at the right maxpacket size, and so on.
  *
  * The descriptors are message type 1, identified by a host order u32
@@ -749,7 +749,7 @@ ep_config (struct ep_data *data, const char *buf, size_t len)
 	buf += 4;
 	len -= 4;
 
-	/* NOTE:  audio endpoint extensions not accepted here;
+	/* ANALTE:  audio endpoint extensions analt accepted here;
 	 * just don't include the extra bytes.
 	 */
 
@@ -774,12 +774,12 @@ ep_config (struct ep_data *data, const char *buf, size_t len)
 
 	spin_lock_irq (&data->dev->lock);
 	if (data->dev->state == STATE_DEV_UNBOUND) {
-		value = -ENOENT;
+		value = -EANALENT;
 		goto gone;
 	} else {
 		ep = data->ep;
 		if (ep == NULL) {
-			value = -ENODEV;
+			value = -EANALDEV;
 			goto gone;
 		}
 	}
@@ -817,16 +817,16 @@ fail0:
 }
 
 static int
-ep_open (struct inode *inode, struct file *fd)
+ep_open (struct ianalde *ianalde, struct file *fd)
 {
-	struct ep_data		*data = inode->i_private;
+	struct ep_data		*data = ianalde->i_private;
 	int			value = -EBUSY;
 
 	if (mutex_lock_interruptible(&data->lock) != 0)
 		return -EINTR;
 	spin_lock_irq (&data->dev->lock);
 	if (data->dev->state == STATE_DEV_UNBOUND)
-		value = -ENOENT;
+		value = -EANALENT;
 	else if (data->state == STATE_EP_DISABLED) {
 		value = 0;
 		data->state = STATE_EP_READY;
@@ -903,7 +903,7 @@ static int setup_req (struct usb_ep *ep, struct usb_request *req, u16 len)
 		req->buf = kmalloc(len, GFP_ATOMIC);
 	if (req->buf == NULL) {
 		req->buf = dev->rbuf;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	req->complete = ep0_complete;
 	req->length = len;
@@ -967,7 +967,7 @@ ep0_read (struct file *fd, char __user *buf, size_t len, loff_t *ptr)
 			}
 
 		} else {			/* collect OUT data */
-			if ((fd->f_flags & O_NONBLOCK) != 0
+			if ((fd->f_flags & O_ANALNBLOCK) != 0
 					&& !dev->setup_out_ready) {
 				retval = -EAGAIN;
 				goto done;
@@ -1000,13 +1000,13 @@ ep0_read (struct file *fd, char __user *buf, size_t len, loff_t *ptr)
 				spin_lock_irq(&dev->lock);
 				--dev->udc_usage;
 				clean_req (dev->gadget->ep0, dev->req);
-				/* NOTE userspace can't yet choose to stall */
+				/* ANALTE userspace can't yet choose to stall */
 			}
 		}
 		goto done;
 	}
 
-	/* else normal: return event data */
+	/* else analrmal: return event data */
 	if (len < sizeof dev->event [0]) {
 		retval = -EINVAL;
 		goto done;
@@ -1038,7 +1038,7 @@ scan:
 		else
 			retval = len;
 		if (len > 0) {
-			/* NOTE this doesn't guard against broken drivers;
+			/* ANALTE this doesn't guard against broken drivers;
 			 * concurrent ep0 readers may lose events.
 			 */
 			spin_lock_irq (&dev->lock);
@@ -1052,7 +1052,7 @@ scan:
 		}
 		return retval;
 	}
-	if (fd->f_flags & O_NONBLOCK) {
+	if (fd->f_flags & O_ANALNBLOCK) {
 		retval = -EAGAIN;
 		goto done;
 	}
@@ -1190,7 +1190,7 @@ ep0_fasync (int f, struct file *fd, int on)
 static struct usb_gadget_driver gadgetfs_driver;
 
 static int
-dev_release (struct inode *inode, struct file *fd)
+dev_release (struct ianalde *ianalde, struct file *fd)
 {
 	struct dev_data		*dev = fd->private_data;
 
@@ -1254,12 +1254,12 @@ static long gadget_dev_ioctl (struct file *fd, unsigned code, unsigned long valu
 {
 	struct dev_data		*dev = fd->private_data;
 	struct usb_gadget	*gadget = dev->gadget;
-	long ret = -ENOTTY;
+	long ret = -EANALTTY;
 
 	spin_lock_irq(&dev->lock);
 	if (dev->state == STATE_DEV_OPENED ||
 			dev->state == STATE_DEV_UNBOUND) {
-		/* Not bound to a UDC */
+		/* Analt bound to a UDC */
 	} else if (gadget->ops->ioctl) {
 		++dev->udc_usage;
 		spin_unlock_irq(&dev->lock);
@@ -1336,7 +1336,7 @@ gadgetfs_setup (struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 {
 	struct dev_data			*dev = get_gadget_data (gadget);
 	struct usb_request		*req = dev->req;
-	int				value = -EOPNOTSUPP;
+	int				value = -EOPANALTSUPP;
 	struct usb_gadgetfs_event	*event;
 	u16				w_value = le16_to_cpu(ctrl->wValue);
 	u16				w_length = le16_to_cpu(ctrl->wLength);
@@ -1360,7 +1360,7 @@ gadgetfs_setup (struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 				&& gadget->speed == USB_SPEED_HIGH
 				&& dev->hs_config == NULL) {
 			spin_unlock(&dev->lock);
-			ERROR (dev, "no high speed config??\n");
+			ERROR (dev, "anal high speed config??\n");
 			return -EINVAL;
 		}
 
@@ -1445,11 +1445,11 @@ gadgetfs_setup (struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 		}
 
 		/* report SET_CONFIGURATION like any other control request,
-		 * except that usermode may not stall this.  the next
+		 * except that usermode may analt stall this.  the next
 		 * request mustn't be allowed start until this finishes:
 		 * endpoints and threads set up, etc.
 		 *
-		 * NOTE:  older PXA hardware (before PXA 255: without UDCCFR)
+		 * ANALTE:  older PXA hardware (before PXA 255: without UDCCFR)
 		 * has bad/racey automagic that prevents synchronizing here.
 		 * even kernel mode drivers often miss them.
 		 */
@@ -1561,7 +1561,7 @@ static void destroy_ep_files (struct dev_data *dev)
 	spin_lock_irq (&dev->lock);
 	while (!list_empty(&dev->epfiles)) {
 		struct ep_data	*ep;
-		struct inode	*parent;
+		struct ianalde	*parent;
 		struct dentry	*dentry;
 
 		/* break link to FS */
@@ -1571,7 +1571,7 @@ static void destroy_ep_files (struct dev_data *dev)
 
 		dentry = ep->dentry;
 		ep->dentry = NULL;
-		parent = d_inode(dentry->d_parent);
+		parent = d_ianalde(dentry->d_parent);
 
 		/* break link to controller */
 		mutex_lock(&ep->lock);
@@ -1586,10 +1586,10 @@ static void destroy_ep_files (struct dev_data *dev)
 		put_ep (ep);
 
 		/* break link to dcache */
-		inode_lock(parent);
+		ianalde_lock(parent);
 		d_delete (dentry);
 		dput (dentry);
-		inode_unlock(parent);
+		ianalde_unlock(parent);
 
 		spin_lock_irq (&dev->lock);
 	}
@@ -1610,7 +1610,7 @@ static int activate_ep_files (struct dev_data *dev)
 
 		data = kzalloc(sizeof(*data), GFP_KERNEL);
 		if (!data)
-			goto enomem0;
+			goto eanalmem0;
 		data->state = STATE_EP_DISABLED;
 		mutex_init(&data->lock);
 		init_waitqueue_head (&data->wait);
@@ -1625,25 +1625,25 @@ static int activate_ep_files (struct dev_data *dev)
 
 		data->req = usb_ep_alloc_request (ep, GFP_KERNEL);
 		if (!data->req)
-			goto enomem1;
+			goto eanalmem1;
 
 		data->dentry = gadgetfs_create_file (dev->sb, data->name,
 				data, &ep_io_operations);
 		if (!data->dentry)
-			goto enomem2;
+			goto eanalmem2;
 		list_add_tail (&data->epfiles, &dev->epfiles);
 	}
 	return 0;
 
-enomem2:
+eanalmem2:
 	usb_ep_free_request (ep, data->req);
-enomem1:
+eanalmem1:
 	put_dev (dev);
 	kfree (data);
-enomem0:
-	DBG (dev, "%s enomem\n", __func__);
+eanalmem0:
+	DBG (dev, "%s eanalmem\n", __func__);
 	destroy_ep_files (dev);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void
@@ -1666,7 +1666,7 @@ gadgetfs_unbind (struct usb_gadget *gadget)
 	gadget->ep0->driver_data = NULL;
 	set_gadget_data (gadget, NULL);
 
-	/* we've already been disconnected ... no i/o is active */
+	/* we've already been disconnected ... anal i/o is active */
 	if (dev->req)
 		usb_ep_free_request (gadget->ep0, dev->req);
 	DBG (dev, "%s done\n", __func__);
@@ -1683,9 +1683,9 @@ static int gadgetfs_bind(struct usb_gadget *gadget,
 	if (!dev)
 		return -ESRCH;
 	if (0 != strcmp (CHIP, gadget->name)) {
-		pr_err("%s expected %s controller not %s\n",
+		pr_err("%s expected %s controller analt %s\n",
 			shortname, CHIP, gadget->name);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	set_gadget_data (gadget, dev);
@@ -1695,12 +1695,12 @@ static int gadgetfs_bind(struct usb_gadget *gadget,
 	/* preallocate control response and buffer */
 	dev->req = usb_ep_alloc_request (gadget->ep0, GFP_KERNEL);
 	if (!dev->req)
-		goto enomem;
+		goto eanalmem;
 	dev->req->context = NULL;
 	dev->req->complete = epio_complete;
 
 	if (activate_ep_files (dev) < 0)
-		goto enomem;
+		goto eanalmem;
 
 	INFO (dev, "bound to %s driver\n", gadget->name);
 	spin_lock_irq(&dev->lock);
@@ -1709,9 +1709,9 @@ static int gadgetfs_bind(struct usb_gadget *gadget,
 	get_dev (dev);
 	return 0;
 
-enomem:
+eanalmem:
 	gadgetfs_unbind (gadget);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void
@@ -1777,7 +1777,7 @@ static struct usb_gadget_driver gadgetfs_driver = {
  * bind to the controller ... guaranteeing it can handle enumeration
  * at all necessary speeds.  Descriptor order is:
  *
- * . message tag (u32, host order) ... for now, must be zero; it
+ * . message tag (u32, host order) ... for analw, must be zero; it
  *	would change to support features like multi-config devices
  * . full/low speed config ... all wTotalLength bytes (with interface,
  *	class, altsetting, endpoint, and other descriptors)
@@ -1785,13 +1785,13 @@ static struct usb_gadget_driver gadgetfs_driver = {
  *	this one's optional except for high-speed hardware
  * . device descriptor
  *
- * Endpoints are not yet enabled. Drivers must wait until device
+ * Endpoints are analt yet enabled. Drivers must wait until device
  * configuration and interface altsetting changes create
  * the need to configure (or unconfigure) them.
  *
  * After initialization, the device stays active for as long as that
  * $CHIP file is open.  Events must then be read from that descriptor,
- * such as configuration notifications.
+ * such as configuration analtifications.
  */
 
 static int is_valid_config(struct usb_config_descriptor *config,
@@ -1871,9 +1871,9 @@ dev_config (struct file *fd, const char __user *buf, size_t len, loff_t *ptr)
 		dev->hs_config = NULL;
 	}
 
-	/* could support multiple configs, using another encoding! */
+	/* could support multiple configs, using aanalther encoding! */
 
-	/* device descriptor (tweaked for paranoia) */
+	/* device descriptor (tweaked for paraanalia) */
 	if (length != USB_DT_DEVICE_SIZE)
 		goto fail;
 	dev->dev = (void *)kbuf;
@@ -1899,8 +1899,8 @@ dev_config (struct file *fd, const char __user *buf, size_t len, loff_t *ptr)
 		 * let the USB the host see us.  alternatively, if users
 		 * unplug/replug that will clear all the error state.
 		 *
-		 * note:  everything running before here was guaranteed
-		 * to choke driver model style diagnostics.  from here
+		 * analte:  everything running before here was guaranteed
+		 * to choke driver model style diaganalstics.  from here
 		 * on, they can work ... except in cleanup paths that
 		 * kick in after the ep0 descriptor is closed.
 		 */
@@ -1921,9 +1921,9 @@ fail:
 }
 
 static int
-gadget_dev_open (struct inode *inode, struct file *fd)
+gadget_dev_open (struct ianalde *ianalde, struct file *fd)
 {
-	struct dev_data		*dev = inode->i_private;
+	struct dev_data		*dev = ianalde->i_private;
 	int			value = -EBUSY;
 
 	spin_lock_irq(&dev->lock);
@@ -1939,7 +1939,7 @@ gadget_dev_open (struct inode *inode, struct file *fd)
 }
 
 static const struct file_operations ep0_operations = {
-	.llseek =	no_llseek,
+	.llseek =	anal_llseek,
 
 	.open =		gadget_dev_open,
 	.read =		ep0_read,
@@ -1972,58 +1972,58 @@ module_param (default_gid, uint, 0644);
 module_param (default_perm, uint, 0644);
 
 
-static struct inode *
-gadgetfs_make_inode (struct super_block *sb,
+static struct ianalde *
+gadgetfs_make_ianalde (struct super_block *sb,
 		void *data, const struct file_operations *fops,
 		int mode)
 {
-	struct inode *inode = new_inode (sb);
+	struct ianalde *ianalde = new_ianalde (sb);
 
-	if (inode) {
-		inode->i_ino = get_next_ino();
-		inode->i_mode = mode;
-		inode->i_uid = make_kuid(&init_user_ns, default_uid);
-		inode->i_gid = make_kgid(&init_user_ns, default_gid);
-		simple_inode_init_ts(inode);
-		inode->i_private = data;
-		inode->i_fop = fops;
+	if (ianalde) {
+		ianalde->i_ianal = get_next_ianal();
+		ianalde->i_mode = mode;
+		ianalde->i_uid = make_kuid(&init_user_ns, default_uid);
+		ianalde->i_gid = make_kgid(&init_user_ns, default_gid);
+		simple_ianalde_init_ts(ianalde);
+		ianalde->i_private = data;
+		ianalde->i_fop = fops;
 	}
-	return inode;
+	return ianalde;
 }
 
-/* creates in fs root directory, so non-renamable and non-linkable.
- * so inode and dentry are paired, until device reconfig.
+/* creates in fs root directory, so analn-renamable and analn-linkable.
+ * so ianalde and dentry are paired, until device reconfig.
  */
 static struct dentry *
 gadgetfs_create_file (struct super_block *sb, char const *name,
 		void *data, const struct file_operations *fops)
 {
 	struct dentry	*dentry;
-	struct inode	*inode;
+	struct ianalde	*ianalde;
 
 	dentry = d_alloc_name(sb->s_root, name);
 	if (!dentry)
 		return NULL;
 
-	inode = gadgetfs_make_inode (sb, data, fops,
+	ianalde = gadgetfs_make_ianalde (sb, data, fops,
 			S_IFREG | (default_perm & S_IRWXUGO));
-	if (!inode) {
+	if (!ianalde) {
 		dput(dentry);
 		return NULL;
 	}
-	d_add (dentry, inode);
+	d_add (dentry, ianalde);
 	return dentry;
 }
 
 static const struct super_operations gadget_fs_operations = {
 	.statfs =	simple_statfs,
-	.drop_inode =	generic_delete_inode,
+	.drop_ianalde =	generic_delete_ianalde,
 };
 
 static int
 gadgetfs_fill_super (struct super_block *sb, struct fs_context *fc)
 {
-	struct inode	*inode;
+	struct ianalde	*ianalde;
 	struct dev_data	*dev;
 	int		rc;
 
@@ -2036,7 +2036,7 @@ gadgetfs_fill_super (struct super_block *sb, struct fs_context *fc)
 
 	CHIP = usb_get_gadget_udc_name();
 	if (!CHIP) {
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto Done;
 	}
 
@@ -2047,28 +2047,28 @@ gadgetfs_fill_super (struct super_block *sb, struct fs_context *fc)
 	sb->s_op = &gadget_fs_operations;
 	sb->s_time_gran = 1;
 
-	/* root inode */
-	inode = gadgetfs_make_inode (sb,
+	/* root ianalde */
+	ianalde = gadgetfs_make_ianalde (sb,
 			NULL, &simple_dir_operations,
 			S_IFDIR | S_IRUGO | S_IXUGO);
-	if (!inode)
-		goto Enomem;
-	inode->i_op = &simple_dir_inode_operations;
-	if (!(sb->s_root = d_make_root (inode)))
-		goto Enomem;
+	if (!ianalde)
+		goto Eanalmem;
+	ianalde->i_op = &simple_dir_ianalde_operations;
+	if (!(sb->s_root = d_make_root (ianalde)))
+		goto Eanalmem;
 
 	/* the ep0 file is named after the controller we expect;
 	 * user mode code can use it for sanity checks, like we do.
 	 */
 	dev = dev_new ();
 	if (!dev)
-		goto Enomem;
+		goto Eanalmem;
 
 	dev->sb = sb;
 	dev->dentry = gadgetfs_create_file(sb, CHIP, dev, &ep0_operations);
 	if (!dev->dentry) {
 		put_dev(dev);
-		goto Enomem;
+		goto Eanalmem;
 	}
 
 	/* other endpoint files are available after hardware setup,
@@ -2078,10 +2078,10 @@ gadgetfs_fill_super (struct super_block *sb, struct fs_context *fc)
 	rc = 0;
 	goto Done;
 
- Enomem:
+ Eanalmem:
 	kfree(CHIP);
 	CHIP = NULL;
-	rc = -ENOMEM;
+	rc = -EANALMEM;
 
  Done:
 	mutex_unlock(&sb_mutex);

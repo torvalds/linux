@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2018-2019 Synopsys, Inc. and/or its affiliates.
- * Synopsys DesignWare eDMA PCIe driver
+ * Copyright (c) 2018-2019 Syanalpsys, Inc. and/or its affiliates.
+ * Syanalpsys DesignWare eDMA PCIe driver
  *
- * Author: Gustavo Pimentel <gustavo.pimentel@synopsys.com>
+ * Author: Gustavo Pimentel <gustavo.pimentel@syanalpsys.com>
  */
 
 #include <linux/kernel.h>
@@ -31,7 +31,7 @@
 	},
 
 struct dw_edma_block {
-	enum pci_barno			bar;
+	enum pci_baranal			bar;
 	off_t				off;
 	size_t				sz;
 };
@@ -121,7 +121,7 @@ static void dw_edma_pcie_get_vsec_dma_data(struct pci_dev *pdev,
 	u16 vsec;
 	u64 off;
 
-	vsec = pci_find_vsec_capability(pdev, PCI_VENDOR_ID_SYNOPSYS,
+	vsec = pci_find_vsec_capability(pdev, PCI_VENDOR_ID_SYANALPSYS,
 					DW_PCIE_VSEC_DMA_ID);
 	if (!vsec)
 		return;
@@ -209,7 +209,7 @@ static int dw_edma_pcie_probe(struct pci_dev *pdev,
 	/* Data structure allocation */
 	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* IRQs allocation */
 	nr_irqs = pci_alloc_irq_vectors(pdev, 1, vsec_data.irqs,
@@ -232,7 +232,7 @@ static int dw_edma_pcie_probe(struct pci_dev *pdev,
 
 	chip->reg_base = pcim_iomap_table(pdev)[vsec_data.rg.bar];
 	if (!chip->reg_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < chip->ll_wr_cnt; i++) {
 		struct dw_edma_region *ll_region = &chip->ll_region_wr[i];
@@ -242,7 +242,7 @@ static int dw_edma_pcie_probe(struct pci_dev *pdev,
 
 		ll_region->vaddr.io = pcim_iomap_table(pdev)[ll_block->bar];
 		if (!ll_region->vaddr.io)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ll_region->vaddr.io += ll_block->off;
 		ll_region->paddr = pci_bus_address(pdev, ll_block->bar);
@@ -251,7 +251,7 @@ static int dw_edma_pcie_probe(struct pci_dev *pdev,
 
 		dt_region->vaddr.io = pcim_iomap_table(pdev)[dt_block->bar];
 		if (!dt_region->vaddr.io)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		dt_region->vaddr.io += dt_block->off;
 		dt_region->paddr = pci_bus_address(pdev, dt_block->bar);
@@ -267,7 +267,7 @@ static int dw_edma_pcie_probe(struct pci_dev *pdev,
 
 		ll_region->vaddr.io = pcim_iomap_table(pdev)[ll_block->bar];
 		if (!ll_region->vaddr.io)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ll_region->vaddr.io += ll_block->off;
 		ll_region->paddr = pci_bus_address(pdev, ll_block->bar);
@@ -276,7 +276,7 @@ static int dw_edma_pcie_probe(struct pci_dev *pdev,
 
 		dt_region->vaddr.io = pcim_iomap_table(pdev)[dt_block->bar];
 		if (!dt_region->vaddr.io)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		dt_region->vaddr.io += dt_block->off;
 		dt_region->paddr = pci_bus_address(pdev, dt_block->bar);
@@ -292,7 +292,7 @@ static int dw_edma_pcie_probe(struct pci_dev *pdev,
 	else if (chip->mf == EDMA_MF_HDMA_COMPAT)
 		pci_dbg(pdev, "Version:\tHDMA Compatible (0x%x)\n", chip->mf);
 	else
-		pci_dbg(pdev, "Version:\tUnknown (0x%x)\n", chip->mf);
+		pci_dbg(pdev, "Version:\tUnkanalwn (0x%x)\n", chip->mf);
 
 	pci_dbg(pdev, "Registers:\tBAR=%u, off=0x%.8lx, sz=0x%zx bytes, addr(v=%p)\n",
 		vsec_data.rg.bar, vsec_data.rg.off, vsec_data.rg.sz,
@@ -359,7 +359,7 @@ static void dw_edma_pcie_remove(struct pci_dev *pdev)
 }
 
 static const struct pci_device_id dw_edma_pcie_id_table[] = {
-	{ PCI_DEVICE_DATA(SYNOPSYS, EDDA, &snps_edda_data) },
+	{ PCI_DEVICE_DATA(SYANALPSYS, EDDA, &snps_edda_data) },
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, dw_edma_pcie_id_table);
@@ -374,5 +374,5 @@ static struct pci_driver dw_edma_pcie_driver = {
 module_pci_driver(dw_edma_pcie_driver);
 
 MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION("Synopsys DesignWare eDMA PCIe driver");
-MODULE_AUTHOR("Gustavo Pimentel <gustavo.pimentel@synopsys.com>");
+MODULE_DESCRIPTION("Syanalpsys DesignWare eDMA PCIe driver");
+MODULE_AUTHOR("Gustavo Pimentel <gustavo.pimentel@syanalpsys.com>");

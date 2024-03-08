@@ -4,7 +4,7 @@
 #ifndef __PHY_COMMON__
 #define __PHY_COMMON__
 
-#define RT_CANNOT_IO(hw)			false
+#define RT_CANANALT_IO(hw)			false
 
 enum swchnlcmd_id {
 	CMDID_END,

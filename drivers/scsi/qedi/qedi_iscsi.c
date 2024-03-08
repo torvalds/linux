@@ -158,7 +158,7 @@ login_resp_buf_failure:
 login_req_buf_failure:
 	iscsi_conn_printk(KERN_ERR, qedi_conn->cls_conn->dd_data,
 			  "login resource alloc failed!!\n");
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void qedi_destroy_cmd_pool(struct qedi_ctx *qedi,
@@ -197,8 +197,8 @@ static int qedi_alloc_sget(struct qedi_ctx *qedi, struct iscsi_session *session,
 					 &io->sge_tbl_dma, GFP_KERNEL);
 	if (!io->sge_tbl) {
 		iscsi_session_printk(KERN_ERR, session,
-				     "Could not allocate BD table.\n");
-		return -ENOMEM;
+				     "Could analt allocate BD table.\n");
+		return -EANALMEM;
 	}
 
 	io->sge_valid = 0;
@@ -232,7 +232,7 @@ static int qedi_setup_cmd_pool(struct qedi_ctx *qedi,
 
 free_sgets:
 	qedi_destroy_cmd_pool(qedi, session);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static struct iscsi_cls_session *
@@ -356,7 +356,7 @@ static int qedi_bind_conn_to_iscsi_cid(struct qedi_ctx *qedi,
 
 	if (qedi->cid_que.conn_cid_tbl[iscsi_cid]) {
 		iscsi_conn_printk(KERN_ALERT, qedi_conn->cls_conn->dd_data,
-				  "conn bind - entry #%d not free\n",
+				  "conn bind - entry #%d analt free\n",
 				  iscsi_cid);
 		return -EBUSY;
 	}
@@ -443,7 +443,7 @@ static int qedi_iscsi_update_conn(struct qedi_ctx *qedi,
 	conn_info = kzalloc(sizeof(*conn_info), GFP_KERNEL);
 	if (!conn_info) {
 		QEDI_ERR(&qedi->dbg_ctx, "memory alloc failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	conn_info->update_flag = 0;
@@ -473,7 +473,7 @@ static int qedi_iscsi_update_conn(struct qedi_ctx *qedi,
 				     conn_info);
 	if (rval) {
 		rval = -ENXIO;
-		QEDI_ERR(&qedi->dbg_ctx, "Could not update connection\n");
+		QEDI_ERR(&qedi->dbg_ctx, "Could analt update connection\n");
 	}
 
 	kfree(conn_info);
@@ -509,7 +509,7 @@ static int qedi_iscsi_offload_conn(struct qedi_endpoint *qedi_ep)
 	if (!conn_info) {
 		QEDI_ERR(&qedi->dbg_ctx,
 			 "Failed to allocate memory ep=%p\n", qedi_ep);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ether_addr_copy(conn_info->src.mac, qedi_ep->src_mac);
@@ -669,7 +669,7 @@ static int qedi_ep_get_param(struct iscsi_endpoint *ep,
 	int len;
 
 	if (!qedi_ep)
-		return -ENOTCONN;
+		return -EANALTCONN;
 
 	switch (param) {
 	case ISCSI_PARAM_CONN_PORT:
@@ -682,7 +682,7 @@ static int qedi_ep_get_param(struct iscsi_endpoint *ep,
 			len = sprintf(buf, "%pI6\n", qedi_ep->dst_addr);
 		break;
 	default:
-		return -ENOTCONN;
+		return -EANALTCONN;
 	}
 
 	return len;
@@ -701,7 +701,7 @@ static int qedi_host_get_param(struct Scsi_Host *shost,
 		len = sysfs_format_mac(buf, qedi->mac, 6);
 		break;
 	case ISCSI_HOST_PARAM_NETDEV_NAME:
-		len = sprintf(buf, "host%d\n", shost->host_no);
+		len = sprintf(buf, "host%d\n", shost->host_anal);
 		break;
 	case ISCSI_HOST_PARAM_IPADDRESS:
 		if (qedi->ip_type == TCP_IPV4)
@@ -781,14 +781,14 @@ static int qedi_iscsi_send_generic_request(struct iscsi_task *task)
 	case ISCSI_OP_LOGIN:
 		qedi_send_iscsi_login(qedi_conn, task);
 		break;
-	case ISCSI_OP_NOOP_OUT:
+	case ISCSI_OP_ANALOP_OUT:
 		data_len = qedi_conn->gen_pdu.req_buf_size;
 		buf = qedi_conn->gen_pdu.req_buf;
 		if (data_len)
-			rc = qedi_send_iscsi_nopout(qedi_conn, task,
+			rc = qedi_send_iscsi_analpout(qedi_conn, task,
 						    buf, data_len, 1);
 		else
-			rc = qedi_send_iscsi_nopout(qedi_conn, task,
+			rc = qedi_send_iscsi_analpout(qedi_conn, task,
 						    NULL, 0, 1);
 		break;
 	case ISCSI_OP_LOGOUT:
@@ -835,12 +835,12 @@ static int qedi_task_xmit(struct iscsi_task *task)
 	struct qedi_cmd *cmd = task->dd_data;
 	struct scsi_cmnd *sc = task->sc;
 
-	/* Clear now so in cleanup_task we know it didn't make it */
+	/* Clear analw so in cleanup_task we kanalw it didn't make it */
 	cmd->scsi_cmd = NULL;
 	cmd->task_id = U16_MAX;
 
 	if (test_bit(QEDI_IN_SHUTDOWN, &qedi_conn->qedi->flags))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (test_bit(QEDI_BLOCK_IO, &qedi_conn->qedi->flags))
 		return -EACCES;
@@ -893,7 +893,7 @@ static void qedi_offload_work(struct work_struct *work)
 
 static struct iscsi_endpoint *
 qedi_ep_connect(struct Scsi_Host *shost, struct sockaddr *dst_addr,
-		int non_blocking)
+		int analn_blocking)
 {
 	struct qedi_ctx *qedi;
 	struct iscsi_endpoint *ep;
@@ -913,8 +913,8 @@ qedi_ep_connect(struct Scsi_Host *shost, struct sockaddr *dst_addr,
 		return ERR_PTR(ret);
 	}
 
-	if (qedi_do_not_recover) {
-		ret = -ENOMEM;
+	if (qedi_do_analt_recover) {
+		ret = -EANALMEM;
 		return ERR_PTR(ret);
 	}
 
@@ -922,7 +922,7 @@ qedi_ep_connect(struct Scsi_Host *shost, struct sockaddr *dst_addr,
 
 	if (test_bit(QEDI_IN_OFFLINE, &qedi->flags) ||
 	    test_bit(QEDI_IN_RECOVERY, &qedi->flags)) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		return ERR_PTR(ret);
 	}
 
@@ -934,7 +934,7 @@ qedi_ep_connect(struct Scsi_Host *shost, struct sockaddr *dst_addr,
 	ep = iscsi_create_endpoint(sizeof(struct qedi_endpoint));
 	if (!ep) {
 		QEDI_ERR(&qedi->dbg_ctx, "endpoint create fail\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		return ERR_PTR(ret);
 	}
 	qedi_ep = ep->dd_data;
@@ -974,7 +974,7 @@ qedi_ep_connect(struct Scsi_Host *shost, struct sockaddr *dst_addr,
 				     &qedi_ep->fw_cid, &qedi_ep->p_doorbell);
 
 	if (ret) {
-		QEDI_ERR(&qedi->dbg_ctx, "Could not acquire connection\n");
+		QEDI_ERR(&qedi->dbg_ctx, "Could analt acquire connection\n");
 		ret = -ENXIO;
 		goto ep_free_sq;
 	}
@@ -1035,12 +1035,12 @@ static int qedi_ep_poll(struct iscsi_endpoint *ep, int timeout_ms)
 	struct qedi_endpoint *qedi_ep;
 	int ret = 0;
 
-	if (qedi_do_not_recover)
+	if (qedi_do_analt_recover)
 		return 1;
 
 	qedi_ep = ep->dd_data;
 	if (qedi_ep->state == EP_STATE_IDLE ||
-	    qedi_ep->state == EP_STATE_OFLDCONN_NONE ||
+	    qedi_ep->state == EP_STATE_OFLDCONN_ANALNE ||
 	    qedi_ep->state == EP_STATE_OFLDCONN_FAILED)
 		return -1;
 
@@ -1112,9 +1112,9 @@ static void qedi_ep_disconnect(struct iscsi_endpoint *ep)
 		spin_unlock(&qedi_conn->tmf_work_lock);
 
 		if (test_bit(QEDI_IN_RECOVERY, &qedi->flags)) {
-			if (qedi_do_not_recover) {
+			if (qedi_do_analt_recover) {
 				QEDI_INFO(&qedi->dbg_ctx, QEDI_LOG_INFO,
-					  "Do not recover cid=0x%x\n",
+					  "Do analt recover cid=0x%x\n",
 					  qedi_ep->iscsi_cid);
 				goto ep_exit_recover;
 			}
@@ -1126,12 +1126,12 @@ static void qedi_ep_disconnect(struct iscsi_endpoint *ep)
 		}
 	}
 
-	if (qedi_do_not_recover)
+	if (qedi_do_analt_recover)
 		goto ep_exit_recover;
 
 	switch (qedi_ep->state) {
 	case EP_STATE_OFLDCONN_START:
-	case EP_STATE_OFLDCONN_NONE:
+	case EP_STATE_OFLDCONN_ANALNE:
 		goto ep_release_conn;
 	case EP_STATE_OFLDCONN_FAILED:
 			break;
@@ -1248,7 +1248,7 @@ static int qedi_data_avail(struct qedi_ctx *qedi, u16 vlanid)
 
 	skb_put(skb, len);
 	memcpy(skb->data, udev->tx_pkt, len);
-	skb->ip_summed = CHECKSUM_NONE;
+	skb->ip_summed = CHECKSUM_ANALNE;
 
 	if (vlanid)
 		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vlanid);
@@ -1307,8 +1307,8 @@ static int qedi_set_path(struct Scsi_Host *shost, struct iscsi_path *path_data)
 	}
 
 	if (!is_valid_ether_addr(&path_data->mac_addr[0])) {
-		QEDI_NOTICE(&qedi->dbg_ctx, "dst mac NOT VALID\n");
-		qedi_ep->state = EP_STATE_OFLDCONN_NONE;
+		QEDI_ANALTICE(&qedi->dbg_ctx, "dst mac ANALT VALID\n");
+		qedi_ep->state = EP_STATE_OFLDCONN_ANALNE;
 		ret = -EIO;
 		goto set_path_exit;
 	}
@@ -1320,7 +1320,7 @@ static int qedi_set_path(struct Scsi_Host *shost, struct iscsi_path *path_data)
 	if (path_data->pmtu < DEF_PATH_MTU) {
 		qedi_ep->pmtu = qedi->ll2_mtu;
 		QEDI_INFO(&qedi->dbg_ctx, QEDI_LOG_INFO,
-			  "MTU cannot be %u, using default MTU %u\n",
+			  "MTU cananalt be %u, using default MTU %u\n",
 			   path_data->pmtu, qedi_ep->pmtu);
 	}
 
@@ -1350,7 +1350,7 @@ static int qedi_set_path(struct Scsi_Host *shost, struct iscsi_path *path_data)
 			QEDI_ERR(&qedi->dbg_ctx,
 				 "Failed to allocate port id for iscsi_cid=0x%x\n",
 				 iscsi_cid);
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto set_path_exit;
 		}
 	}
@@ -1419,8 +1419,8 @@ static umode_t qedi_attr_is_visible(int param_type, int param)
 		case ISCSI_PARAM_IMM_DATA_EN:
 		case ISCSI_PARAM_FIRST_BURST:
 		case ISCSI_PARAM_MAX_BURST:
-		case ISCSI_PARAM_PDU_INORDER_EN:
-		case ISCSI_PARAM_DATASEQ_INORDER_EN:
+		case ISCSI_PARAM_PDU_IANALRDER_EN:
+		case ISCSI_PARAM_DATASEQ_IANALRDER_EN:
 		case ISCSI_PARAM_ERL:
 		case ISCSI_PARAM_TARGET_NAME:
 		case ISCSI_PARAM_TPGT:
@@ -1523,13 +1523,13 @@ static const struct {
 	enum iscsi_error_types error_code;
 	char *err_string;
 } qedi_iscsi_error[] = {
-	{ ISCSI_STATUS_NONE,
-	  "tcp_error none"
+	{ ISCSI_STATUS_ANALNE,
+	  "tcp_error analne"
 	},
 	{ ISCSI_CONN_ERROR_TASK_CID_MISMATCH,
 	  "task cid mismatch"
 	},
-	{ ISCSI_CONN_ERROR_TASK_NOT_VALID,
+	{ ISCSI_CONN_ERROR_TASK_ANALT_VALID,
 	  "invalid task"
 	},
 	{ ISCSI_CONN_ERROR_RQ_RING_IS_FULL,
@@ -1571,11 +1571,11 @@ static const struct {
 	{ ISCSI_CONN_ERROR_PROTOCOL_ERR_INVALID_OPCODE_BEFORE_UPDATE,
 	  "invalid opcode before update"
 	},
-	{ ISCSI_CONN_ERROR_UNVALID_NOPIN_DSL,
+	{ ISCSI_CONN_ERROR_UNVALID_ANALPIN_DSL,
 	  "unexpected opcode"
 	},
-	{ ISCSI_CONN_ERROR_PROTOCOL_ERR_R2T_CARRIES_NO_DATA,
-	  "r2t carries no data"
+	{ ISCSI_CONN_ERROR_PROTOCOL_ERR_R2T_CARRIES_ANAL_DATA,
+	  "r2t carries anal data"
 	},
 	{ ISCSI_CONN_ERROR_PROTOCOL_ERR_DATA_SN,
 	  "data sn error"
@@ -1613,8 +1613,8 @@ static const struct {
 	{ ISCSI_CONN_ERROR_PROTOCOL_ERR_EXP_STAT_SN,
 	  "exp stat sn error"
 	},
-	{ ISCSI_CONN_ERROR_PROTOCOL_ERR_DSL_NOT_ZERO,
-	  "dsl not zero error"
+	{ ISCSI_CONN_ERROR_PROTOCOL_ERR_DSL_ANALT_ZERO,
+	  "dsl analt zero error"
 	},
 	{ ISCSI_CONN_ERROR_PROTOCOL_ERR_INVALID_DSL,
 	  "invalid dsl"
@@ -1649,9 +1649,9 @@ void qedi_process_iscsi_error(struct qedi_endpoint *ep,
 {
 	struct qedi_conn *qedi_conn;
 	struct qedi_ctx *qedi;
-	char warn_notice[] = "iscsi_warning";
-	char error_notice[] = "iscsi_error";
-	char unknown_msg[] = "Unknown error";
+	char warn_analtice[] = "iscsi_warning";
+	char error_analtice[] = "iscsi_error";
+	char unkanalwn_msg[] = "Unkanalwn error";
 	char *message;
 	int need_recovery = 0;
 	u32 err_mask = 0;
@@ -1671,16 +1671,16 @@ void qedi_process_iscsi_error(struct qedi_endpoint *ep,
 
 	if (err_mask) {
 		need_recovery = 0;
-		message = warn_notice;
+		message = warn_analtice;
 	} else {
 		need_recovery = 1;
-		message = error_notice;
+		message = error_analtice;
 	}
 
 	msg = qedi_get_iscsi_error(data->error_code);
 	if (!msg) {
 		need_recovery = 0;
-		msg = unknown_msg;
+		msg = unkanalwn_msg;
 	}
 
 	iscsi_conn_printk(KERN_ALERT,

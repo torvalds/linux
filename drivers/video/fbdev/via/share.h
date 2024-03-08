@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Copyright 1998-2008 VIA Technologies, Inc. All Rights Reserved.
+ * Copyright 1998-2008 VIA Techanallogies, Inc. All Rights Reserved.
  * Copyright 2001-2008 S3 Graphics, Inc. All Rights Reserved.
 
  */
@@ -251,7 +251,7 @@
 #define DEVICE_LCD  0x04
 
 /* Device output interface */
-#define INTERFACE_NONE          0x00
+#define INTERFACE_ANALNE          0x00
 #define INTERFACE_ANALOG_RGB    0x01
 #define INTERFACE_DVP0          0x02
 #define INTERFACE_DVP1          0x03

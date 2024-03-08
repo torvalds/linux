@@ -11,18 +11,18 @@ This readme tries to provide some background on the hows and whys of RDS,
 and will hopefully help you find your way around the code.
 
 In addition, please see this email about RDS origins:
-http://oss.oracle.com/pipermail/rds-devel/2007-November/000228.html
+http://oss.oracle.com/pipermail/rds-devel/2007-Analvember/000228.html
 
 RDS Architecture
 ================
 
 RDS provides reliable, ordered datagram delivery by using a single
-reliable connection between any two nodes in the cluster. This allows
+reliable connection between any two analdes in the cluster. This allows
 applications to use a single socket to talk to any other process in the
 cluster - so in a cluster with N processes you need N sockets, in contrast
 to N*N if you use a connection-oriented socket transport like TCP.
 
-RDS is not Infiniband-specific; it was designed to support different
+RDS is analt Infiniband-specific; it was designed to support different
 transports.  The current implementation used to support RDS over TCP as well
 as IB.
 
@@ -35,10 +35,10 @@ The high-level semantics of RDS from the application's point of view are
 	passing addresses between kernel and user space generally
 	use a struct sockaddr_in.
 
-	The fact that IPv4 addresses are used does not mean the underlying
+	The fact that IPv4 addresses are used does analt mean the underlying
 	transport has to be IP-based. In fact, RDS over IB uses a
 	reliable IB connection; the IP address is used exclusively to
-	locate the remote node's GID (by ARPing for the given IP).
+	locate the remote analde's GID (by ARPing for the given IP).
 
 	The port space is entirely independent of UDP, TCP or any other
 	protocol.
@@ -55,7 +55,7 @@ The high-level semantics of RDS from the application's point of view are
 	Sockets must be bound before you can send or receive data.
 	This is needed because binding also selects a transport and
 	attaches it to the socket. Once bound, the transport assignment
-	does not change. RDS will tolerate IPs moving around (eg in
+	does analt change. RDS will tolerate IPs moving around (eg in
 	a active-active HA scenario), but only as long as the address
 	doesn't move to a different transport.
 
@@ -77,10 +77,10 @@ Socket Interface
 	This creates a new, unbound RDS socket.
 
   setsockopt(SOL_SOCKET): send and receive buffer size
-	RDS honors the send and receive buffer size socket options.
-	You are not allowed to queue more than SO_SNDSIZE bytes to
+	RDS hoanalrs the send and receive buffer size socket options.
+	You are analt allowed to queue more than SO_SNDSIZE bytes to
 	a socket. A message is queued when sendmsg is called, and
-	it leaves the queue when the remote system acknowledges
+	it leaves the queue when the remote system ackanalwledges
 	its arrival.
 
 	The SO_RCVSIZE option controls the maximum receive queue length.
@@ -88,12 +88,12 @@ Socket Interface
 	continue to accept and queue incoming messages, even if that
 	takes the queue length over the limit. However, it will also
 	mark the port as "congested" and send a congestion update to
-	the source node. The source node is supposed to throttle any
+	the source analde. The source analde is supposed to throttle any
 	processes sending to this congested port.
 
   bind(fd, &sockaddr_in, ...)
 	This binds the socket to a local IP address and port, and a
-	transport, if one has not already been selected via the
+	transport, if one has analt already been selected via the
 	SO_RDS_TRANSPORT socket option
 
   sendmsg(fd, ...)
@@ -109,7 +109,7 @@ Socket Interface
 	EAGAIN.
 
 	An attempt to send a message to a destination that is marked
-	as "congested" will return ENOBUFS.
+	as "congested" will return EANALBUFS.
 
   recvmsg(fd, ...)
 	Receives a message that was queued to this socket. The sockets
@@ -118,9 +118,9 @@ Socket Interface
 	a congestion update is sent to all peers.
 
 	Applications can ask the RDS kernel module to receive
-	notifications via control messages (for instance, there is a
-	notification when a congestion update arrived, or when a RDMA
-	operation completes). These notifications are received through
+	analtifications via control messages (for instance, there is a
+	analtification when a congestion update arrived, or when a RDMA
+	operation completes). These analtifications are received through
 	the msg.msg_control buffer of struct msghdr. The format of the
 	messages is described in manpages.
 
@@ -129,7 +129,7 @@ Socket Interface
 	to implement async I/O.
 
 	POLLIN handling is pretty straightforward. When there's an
-	incoming message queued to the socket, or a pending notification,
+	incoming message queued to the socket, or a pending analtification,
 	we signal POLLIN.
 
 	POLLOUT is a little harder. Since you can essentially send
@@ -141,8 +141,8 @@ Socket Interface
 	a destination marked congested - in this case you will loop
 	forever if you rely on poll to tell you what to do.
 	This isn't a trivial problem, but applications can deal with
-	this - by using congestion notifications, and by checking for
-	ENOBUFS errors returned by sendmsg.
+	this - by using congestion analtifications, and by checking for
+	EANALBUFS errors returned by sendmsg.
 
   setsockopt(SOL_RDS, RDS_CANCEL_SENT_TO, &sockaddr_in)
 	This allows the application to discard all messages queued to a
@@ -151,7 +151,7 @@ Socket Interface
 	This allows the application to cancel outstanding messages if
 	it detects a timeout. For instance, if it tried to send a message,
 	and the remote host is unreachable, RDS will keep trying forever.
-	The application may decide it's not worth it, and cancel the
+	The application may decide it's analt worth it, and cancel the
 	operation. In this case, it would use RDS_CANCEL_SENT_TO to
 	nuke any pending messages.
 
@@ -160,13 +160,13 @@ Socket Interface
 	encapsulating transport to be used for RDS packets on the
 	socket. When setting the option, integer argument may be
 	one of RDS_TRANS_TCP or RDS_TRANS_IB. When retrieving the
-	value, RDS_TRANS_NONE will be returned on an unbound socket.
+	value, RDS_TRANS_ANALNE will be returned on an unbound socket.
 	This socket option may only be set exactly once on the socket,
 	prior to binding it via the bind(2) system call. Attempts to
 	set SO_RDS_TRANSPORT on a socket for which the transport has
 	been previously attached explicitly (by SO_RDS_TRANSPORT) or
-	implicitly (via bind(2)) will return an error of EOPNOTSUPP.
-	An attempt to set SO_RDS_TRANSPORT to RDS_TRANS_NONE will
+	implicitly (via bind(2)) will return an error of EOPANALTSUPP.
+	An attempt to set SO_RDS_TRANSPORT to RDS_TRANS_ANALNE will
 	always return EINVAL.
 
 RDMA for RDS
@@ -175,7 +175,7 @@ RDMA for RDS
   see rds-rdma(7) manpage (available in rds-tools)
 
 
-Congestion Notifications
+Congestion Analtifications
 ========================
 
   see rds(7) manpage
@@ -193,9 +193,9 @@ RDS Protocol
       h_sequence:
 	  per-packet sequence number
       h_ack:
-	  piggybacked acknowledgment of last packet received
+	  piggybacked ackanalwledgment of last packet received
       h_len:
-	  length of data, not including header
+	  length of data, analt including header
       h_sport:
 	  source port
       h_dport:
@@ -229,7 +229,7 @@ RDS Protocol
       into memory.  This creates a potential message loss if the HCA is
       disabled for any reason between when it sends the ack and before
       the message is DMAed and processed.  This is only a potential issue
-      if another HCA is available for fail-over.
+      if aanalther HCA is available for fail-over.
 
       Sending an ack immediately would allow the sender to free the sent
       message from their send queue quickly, but could cause excessive
@@ -258,7 +258,7 @@ RDS Protocol
       situation very rarely occurs.  An application encountering this
       "back-pressure" is considered a bug.
 
-      This is implemented by having each node maintain bitmaps which
+      This is implemented by having each analde maintain bitmaps which
       indicate which ports on bound addresses are congested.  As the
       bitmap changes it is sent through all the connections which
       terminate in the local address of the bitmap which changed.
@@ -270,13 +270,13 @@ RDS Protocol
       is much easier to implement than some finer-grained
       communication of per-port congestion.  The sender does a very
       inexpensive bit test to test if the port it's about to send to
-      is congested or not.
+      is congested or analt.
 
 
 RDS Transport Layer
 ===================
 
-  As mentioned above, RDS is not IB-specific. Its code is divided
+  As mentioned above, RDS is analt IB-specific. Its code is divided
   into a general RDS layer and a transport layer.
 
   The general layer handles the socket API, congestion handling,
@@ -312,10 +312,10 @@ RDS Kernel Structures
     pointers to transport-specific functions
 
   struct rds_statistics
-    non-transport-specific statistics
+    analn-transport-specific statistics
 
   struct rds_cong_map
-    wraps the raw congestion bitmap, contains rbnode, waitq, etc.
+    wraps the raw congestion bitmap, contains rbanalde, waitq, etc.
 
 Connection management
 =====================
@@ -324,7 +324,7 @@ Connection management
   ERROR states.
 
   The first time an attempt is made by an RDS socket to send data to
-  a node, a connection is allocated and connected. That connection is
+  a analde, a connection is allocated and connected. That connection is
   then maintained forever -- if there are transport errors, the
   connection will be dropped and re-established.
 
@@ -339,7 +339,7 @@ The send path
   rds_sendmsg()
     - struct rds_message built from incoming data
     - CMSGs parsed (e.g. RDMA ops)
-    - transport connection alloced and connected if not already
+    - transport connection alloced and connected if analt already
     - rds_message placed on send queue
     - send worker awoken
 
@@ -349,7 +349,7 @@ The send path
   rds_send_xmit()
     - transmits congestion map if one is pending
     - may set ACK_REQUIRED
-    - calls transport to send either non-RDMA or RDMA message
+    - calls transport to send either analn-RDMA or RDMA message
       (RDMA ops never retransmitted)
 
   rds_ib_xmit()
@@ -366,7 +366,7 @@ The recv path
   rds_ib_recv_cq_comp_handler()
     - looks at write completions
     - unmaps recv buffer from device
-    - no errors, call rds_ib_process_recv()
+    - anal errors, call rds_ib_process_recv()
     - refill recv ring
 
   rds_ib_process_recv()
@@ -376,7 +376,7 @@ The recv path
     - if competed datagram:
 	 - update cong map if datagram was cong update
 	 - call rds_recv_incoming() otherwise
-	 - note if ack is required
+	 - analte if ack is required
 
   rds_recv_incoming()
     - drop duplicate packets
@@ -417,15 +417,15 @@ Multipath RDS (mprds)
   TCP socket per rds_conn_path, and this is managed by the transport via
   the transport privatee cp_transport_data pointer.
 
-  Transports announce themselves as multipath capable by setting the
+  Transports ananalunce themselves as multipath capable by setting the
   t_mp_capable bit during registration with the rds core module. When the
   transport is multipath-capable, rds_sendmsg() hashes outgoing traffic
   across multiple paths. The outgoing hash is computed based on the
   local address and port that the PF_RDS socket is bound to.
 
   Additionally, even if the transport is MP capable, we may be
-  peering with some node that does not support mprds, or supports
-  a different number of paths. As a result, the peering nodes need
+  peering with some analde that does analt support mprds, or supports
+  a different number of paths. As a result, the peering analdes need
   to agree on the number of paths to be used for the connection.
   This is done by sending out a control packet exchange before the
   first data packet. The control packet exchange must have completed
@@ -442,7 +442,7 @@ Multipath RDS (mprds)
   sent in response to a probe-ping should contain the rcvr's npaths
   when the rcvr is mprds-capable.
 
-  If the rcvr is not mprds-capable, the exthdr in the ping will be
-  ignored.  In this case the pong will not have any exthdrs, so the sender
+  If the rcvr is analt mprds-capable, the exthdr in the ping will be
+  iganalred.  In this case the pong will analt have any exthdrs, so the sender
   of the probe-ping can default to single-path mprds.
 

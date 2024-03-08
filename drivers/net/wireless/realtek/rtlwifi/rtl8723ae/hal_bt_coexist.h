@@ -76,7 +76,7 @@
 #define	BT_FW_NAV_OFF				0
 #define	BT_FW_NAV_ON				1
 
-#define	BT_COEX_MECH_NONE			0
+#define	BT_COEX_MECH_ANALNE			0
 #define	BT_COEX_MECH_SCO			1
 #define	BT_COEX_MECH_HID			2
 #define	BT_COEX_MECH_A2DP			3
@@ -89,7 +89,7 @@
 #define	BT_COEX_MECH_COMMON			10
 #define	BT_COEX_MECH_MAX			11
 
-#define	BT_DBG_PROFILE_NONE			0
+#define	BT_DBG_PROFILE_ANALNE			0
 #define	BT_DBG_PROFILE_SCO			1
 #define	BT_DBG_PROFILE_HID			2
 #define	BT_DBG_PROFILE_A2DP			3

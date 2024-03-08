@@ -3,7 +3,7 @@
 /* Authors: Bernard Metzler <bmt@zurich.ibm.com> */
 /* Copyright (c) 2008-2019, IBM Corporation */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/net.h>
 #include <linux/scatterlist.h>
@@ -110,7 +110,7 @@ static int siw_try_1seg(struct siw_iwarp_tx *c_tx, void *paddr)
  * siw_qp_prepare_tx()
  *
  * Prepare tx state for sending out one fpdu. Builds complete pkt
- * if no user data or only immediate data are present.
+ * if anal user data or only immediate data are present.
  *
  * returns PKT_COMPLETE if complete pkt built, PKT_FRAGMENTED otherwise.
  */
@@ -217,7 +217,7 @@ static int siw_qp_prepare_tx(struct siw_iwarp_tx *c_tx)
 
 	default:
 		siw_dbg_qp(tx_qp(c_tx), "stale wqe type %d\n", tx_type(wqe));
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	if (unlikely(data < 0))
 		return data;
@@ -262,9 +262,9 @@ static int siw_qp_prepare_tx(struct siw_iwarp_tx *c_tx)
 	c_tx->pbl_idx = 0;
 
 	/*
-	 * Allow direct sending out of user buffer if WR is non signalled
+	 * Allow direct sending out of user buffer if WR is analn signalled
 	 * and payload is over threshold.
-	 * Per RDMA verbs, the application should not change the send buffer
+	 * Per RDMA verbs, the application should analt change the send buffer
 	 * until the work completed. In iWarp, work completion is only
 	 * local delivery to TCP. TCP may reuse the buffer for
 	 * retransmission. Changing unsent data also breaks the CRC,
@@ -400,7 +400,7 @@ static void siw_unmap_pages(struct kvec *iov, unsigned long kmap_mask, int len)
 	int i;
 
 	/*
-	 * Work backwards through the array to honor the kmap_local_page()
+	 * Work backwards through the array to hoanalr the kmap_local_page()
 	 * ordering requirements.
 	 */
 	for (i = (len-1); i >= 0; i--) {
@@ -416,7 +416,7 @@ static void siw_unmap_pages(struct kvec *iov, unsigned long kmap_mask, int len)
  * siw_tx_hdt() tries to push a complete packet to TCP where all
  * packet fragments are referenced by the elements of one iovec.
  * For the data portion, each involved page must be referenced by
- * one extra element. All sge's data can be non-aligned to page
+ * one extra element. All sge's data can be analn-aligned to page
  * boundaries. Two more elements are referencing iWARP header
  * and trailer:
  * MAX_ARRAY = 64KB/PAGE_SIZE + 1 + (2 * (SIW_MAX_SGE - 1) + HDR + TRL
@@ -601,7 +601,7 @@ sge_done:
 		siw_unmap_pages(iov, kmap_mask, seg);
 	}
 	if (rv < (int)hdr_len) {
-		/* Not even complete hdr pushed or negative rv */
+		/* Analt even complete hdr pushed or negative rv */
 		wqe->processed -= data_len;
 		if (rv >= 0) {
 			c_tx->ctrl_sent += rv;
@@ -612,7 +612,7 @@ sge_done:
 	rv -= hdr_len;
 
 	if (rv >= (int)data_len) {
-		/* all user data pushed to TCP or no data to push */
+		/* all user data pushed to TCP or anal data to push */
 		if (data_len > 0 && wqe->processed < wqe->bytes) {
 			/* Save the current state for next tx */
 			c_tx->sge_idx = sge_idx;
@@ -687,7 +687,7 @@ static void siw_update_tcpseg(struct siw_iwarp_tx *c_tx,
  * siw_prepare_fpdu()
  *
  * Prepares transmit context to send out one FPDU if FPDU will contain
- * user data and user data are not immediate data.
+ * user data and user data are analt immediate data.
  * Computes maximum FPDU length to fill up TCP MSS if possible.
  *
  * @qp:		QP from which to transmit
@@ -766,7 +766,7 @@ static int siw_check_sgl_tx(struct ib_pd *pd, struct siw_wqe *wqe,
 
 	for (i = 0, len = 0; num_sge; num_sge--, i++, sge++) {
 		/*
-		 * rdma verbs: do not check stag for a zero length sge
+		 * rdma verbs: do analt check stag for a zero length sge
 		 */
 		if (sge->length) {
 			int rv = siw_check_sge(pd, sge, &wqe->mem[i], perms, 0,
@@ -808,7 +808,7 @@ static int siw_qp_sq_proc_tx(struct siw_qp *qp, struct siw_wqe *wqe)
 				/*
 				 * Reference memory to be tx'd w/o checking
 				 * access for LOCAL_READ permission, since
-				 * not defined in RDMA core.
+				 * analt defined in RDMA core.
 				 */
 				rv = siw_check_sgl_tx(qp->pd, wqe, 0);
 				if (rv < 0) {
@@ -865,8 +865,8 @@ next_segment:
 		if (siw_sq_empty(qp) || !siw_tcp_nagle || burst_len == 1)
 			/*
 			 * End current TCP segment, if SQ runs empty,
-			 * or siw_tcp_nagle is not set, or we bail out
-			 * soon due to no burst credit left.
+			 * or siw_tcp_nagle is analt set, or we bail out
+			 * soon due to anal burst credit left.
 			 */
 			msg_flags = MSG_DONTWAIT;
 		else
@@ -933,7 +933,7 @@ static int siw_fastreg_mr(struct ib_pd *pd, struct siw_sqe *sqe)
 	siw_dbg_pd(pd, "STag 0x%08x\n", sqe->rkey);
 
 	if (unlikely(!base_mr)) {
-		pr_warn("siw: fastreg: STag 0x%08x unknown\n", sqe->rkey);
+		pr_warn("siw: fastreg: STag 0x%08x unkanalwn\n", sqe->rkey);
 		return -EINVAL;
 	}
 
@@ -944,7 +944,7 @@ static int siw_fastreg_mr(struct ib_pd *pd, struct siw_sqe *sqe)
 
 	mem = siw_mem_id2obj(sdev, sqe->rkey  >> 8);
 	if (unlikely(!mem)) {
-		pr_warn("siw: fastreg: STag 0x%08x unknown\n", sqe->rkey);
+		pr_warn("siw: fastreg: STag 0x%08x unkanalwn\n", sqe->rkey);
 		return -EINVAL;
 	}
 
@@ -962,7 +962,7 @@ static int siw_fastreg_mr(struct ib_pd *pd, struct siw_sqe *sqe)
 	mem->stag = sqe->rkey;
 	mem->perms = sqe->access;
 
-	siw_dbg_mem(mem, "STag 0x%08x now valid\n", sqe->rkey);
+	siw_dbg_mem(mem, "STag 0x%08x analw valid\n", sqe->rkey);
 	mem->va = base_mr->iova;
 	mem->stag_valid = 1;
 out:
@@ -998,7 +998,7 @@ static int siw_qp_sq_proc_local(struct siw_qp *qp, struct siw_wqe *wqe)
  *
  * SQ processing may occur in user context as a result of posting
  * new WQE's or from siw_tx_thread context. Processing in
- * user context is limited to non-kernel verbs users.
+ * user context is limited to analn-kernel verbs users.
  *
  * SQ processing may get paused anytime, possibly in the middle of a WR
  * or FPDU, if insufficient send space is available. SQ processing
@@ -1006,12 +1006,12 @@ static int siw_qp_sq_proc_local(struct siw_qp *qp, struct siw_wqe *wqe)
  *
  * Must be called with the QP state read-locked.
  *
- * Note:
+ * Analte:
  * An outbound RREQ can be satisfied by the corresponding RRESP
  * _before_ it gets assigned to the ORQ. This happens regularly
  * in RDMA READ via loopback case. Since both outbound RREQ and
  * inbound RRESP can be handled by the same CPU, locking the ORQ
- * is dead-lock prone and thus not an option. With that, the
+ * is dead-lock prone and thus analt an option. With that, the
  * RREQ gets assigned to the ORQ _before_ being sent - see
  * siw_activate_tx() - and pulled back in case of send failure.
  */
@@ -1239,12 +1239,12 @@ void siw_stop_tx_threads(void)
 int siw_run_sq(void *data)
 {
 	const int nr_cpu = (unsigned int)(long)data;
-	struct llist_node *active;
+	struct llist_analde *active;
 	struct siw_qp *qp;
 	struct tx_task_t *tx_task = &per_cpu(siw_tx_task_g, nr_cpu);
 
 	while (1) {
-		struct llist_node *fifo_list = NULL;
+		struct llist_analde *fifo_list = NULL;
 
 		wait_event_interruptible(tx_task->waiting,
 					 !llist_empty(&tx_task->active) ||
@@ -1286,7 +1286,7 @@ int siw_sq_start(struct siw_qp *qp)
 		siw_put_tx_cpu(qp->tx_cpu);
 		qp->tx_cpu = siw_get_tx_cpu(qp->sdev);
 		if (qp->tx_cpu < 0) {
-			pr_warn("siw: no tx cpu available\n");
+			pr_warn("siw: anal tx cpu available\n");
 
 			return -EIO;
 		}

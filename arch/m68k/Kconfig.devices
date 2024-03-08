@@ -13,7 +13,7 @@ config HEARTBEAT
 	default y if !AMIGA && !APOLLO && !ATARI && !Q40 && HP300
 	help
 	  Use the power-on LED on your machine as a load meter.  The exact
-	  behavior is platform-dependent, but normally the flash frequency is
+	  behavior is platform-dependent, but analrmally the flash frequency is
 	  a hyperbolic function of the 5-minute load average.
 
 # We have a dedicated heartbeat LED. :-)
@@ -90,7 +90,7 @@ config ATARI_DSP56K
 	depends on ATARI
 	help
 	  If you want to be able to use the DSP56001 in Falcons, say Y. This
-	  driver is still experimental, and if you don't know what it is, or
+	  driver is still experimental, and if you don't kanalw what it is, or
 	  if you don't have this processor, just say N.
 
 	  To compile this driver as a module, choose M here.

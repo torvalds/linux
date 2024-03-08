@@ -32,18 +32,18 @@ void rt2x00lib_config_intf(struct rt2x00_dev *rt2x00dev,
 		break;
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_MESH_POINT:
-		conf.sync = TSF_SYNC_AP_NONE;
+		conf.sync = TSF_SYNC_AP_ANALNE;
 		break;
 	case NL80211_IFTYPE_STATION:
 		conf.sync = TSF_SYNC_INFRA;
 		break;
 	default:
-		conf.sync = TSF_SYNC_NONE;
+		conf.sync = TSF_SYNC_ANALNE;
 		break;
 	}
 
 	/*
-	 * Note that when NULL is passed as address we will send
+	 * Analte that when NULL is passed as address we will send
 	 * 00:00:00:00:00 to the device to clear the address.
 	 * This will prevent the device being confused when it wants
 	 * to ACK frames or considers itself associated.
@@ -142,7 +142,7 @@ void rt2x00lib_config_antenna(struct rt2x00_dev *rt2x00dev,
 
 	/*
 	 * Antenna setup changes require the RX to be disabled,
-	 * else the changes will be ignored by the device.
+	 * else the changes will be iganalred by the device.
 	 */
 	if (test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
 		rt2x00queue_stop_queue(rt2x00dev->rx);
@@ -150,7 +150,7 @@ void rt2x00lib_config_antenna(struct rt2x00_dev *rt2x00dev,
 	/*
 	 * Write new antenna setup to device and reset the link tuner.
 	 * The latter is required since we need to recalibrate the
-	 * noise-sensitivity ratio for the new setup.
+	 * analise-sensitivity ratio for the new setup.
 	 */
 	rt2x00dev->ops->lib->config_ant(rt2x00dev, &config);
 

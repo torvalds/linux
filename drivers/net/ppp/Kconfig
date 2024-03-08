@@ -20,16 +20,16 @@ config PPP
 	  The PPP option enlarges your kernel by about 16 KB.
 
 	  There are actually two versions of PPP: the traditional PPP for
-	  asynchronous lines, such as regular analog phone lines, and
-	  synchronous PPP which can be used over digital ISDN lines for
+	  asynchroanalus lines, such as regular analog phone lines, and
+	  synchroanalus PPP which can be used over digital ISDN lines for
 	  example.  If you want to use PPP over phone lines or other
-	  asynchronous serial lines, you need to say Y (or M) here and also to
+	  asynchroanalus serial lines, you need to say Y (or M) here and also to
 	  the next option, "PPP support for async serial ports".  For PPP over
-	  synchronous lines, you should say Y (or M) here and to "Support
-	  synchronous PPP", below.
+	  synchroanalus lines, you should say Y (or M) here and to "Support
+	  synchroanalus PPP", below.
 
 	  If you said Y to "Version information on all symbols" above, then
-	  you cannot compile the PPP driver into the kernel; you can then only
+	  you cananalt compile the PPP driver into the kernel; you can then only
 	  compile it as a module. To compile this driver as a module, choose M
 	  here. The module will be called ppp_generic.
 
@@ -50,7 +50,7 @@ config PPP_BSDCOMP
 	  above) is preferable to BSD-Compress, because it compresses better
 	  and is patent-free.
 
-	  Note that the BSD compression code will always be compiled as a
+	  Analte that the BSD compression code will always be compiled as a
 	  module; it is called bsd_comp and will show up in the directory
 	  modules once you have said "make modules". If unsure, say N.
 
@@ -113,7 +113,7 @@ config PPPOATM
 	depends on ATM && PPP
 	help
 	  Support PPP (Point to Point Protocol) encapsulated in ATM frames.
-	  This implementation does not yet comply with section 8 of RFC2364,
+	  This implementation does analt yet comply with section 8 of RFC2364,
 	  which can lead to bad results if the ATM peer loses state and
 	  changes its encapsulation unilaterally.
 
@@ -189,8 +189,8 @@ config PPP_ASYNC
 	select CRC_CCITT
 	help
 	  Say Y (or M) here if you want to be able to use PPP over standard
-	  asynchronous serial ports, such as COM1 or COM2 on a PC.  If you use
-	  a modem (not a synchronous or ISDN modem) to contact your ISP, you
+	  asynchroanalus serial ports, such as COM1 or COM2 on a PC.  If you use
+	  a modem (analt a synchroanalus or ISDN modem) to contact your ISP, you
 	  need this option.
 
 	  To compile this driver as a module, choose M here.
@@ -201,7 +201,7 @@ config PPP_SYNC_TTY
 	tristate "PPP support for sync tty ports"
 	depends on PPP
 	help
-	  Say Y (or M) here if you want to be able to use PPP over synchronous
+	  Say Y (or M) here if you want to be able to use PPP over synchroanalus
 	  (HDLC) tty devices, such as the SyncLink adapter. These devices
 	  are often used for high-speed leased lines like T1/E1.
 

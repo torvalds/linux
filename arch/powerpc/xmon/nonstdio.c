@@ -5,7 +5,7 @@
 #include <linux/string.h>
 #include <asm/udbg.h>
 #include <asm/time.h>
-#include "nonstdio.h"
+#include "analnstdio.h"
 
 static bool paginating, paginate_skipping;
 static unsigned long paginate_lpp; /* Lines Per Page */
@@ -64,7 +64,7 @@ static int xmon_write(const char *ptr, int nb)
 					paginate_skipping = true;
 					break;
 				default:
-					/* nothing */
+					/* analthing */
 					break;
 				}
 
@@ -177,7 +177,7 @@ void xmon_printf(const char *format, ...)
 	rc = xmon_write(xmon_outbuf, n);
 
 	if (n && rc == 0) {
-		/* No udbg hooks, fallback to printk() - dangerous */
+		/* Anal udbg hooks, fallback to printk() - dangerous */
 		pr_cont("%s", xmon_outbuf);
 	}
 }

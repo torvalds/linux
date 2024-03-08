@@ -18,7 +18,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 #include <linux/major.h>
@@ -116,7 +116,7 @@ receive_chars(struct uart_sunsab_port *up,
 	int count = 0;
 	int i;
 
-	if (up->port.state != NULL)		/* Unopened serial console */
+	if (up->port.state != NULL)		/* Uanalpened serial console */
 		port = &up->port.state->port;
 
 	/* Read number of BYTES (Character + Status) available. */
@@ -167,7 +167,7 @@ receive_chars(struct uart_sunsab_port *up,
 	for (i = 0; i < count; i++) {
 		unsigned char ch = buf[i], flag;
 
-		flag = TTY_NORMAL;
+		flag = TTY_ANALRMAL;
 		up->port.icount.rx++;
 
 		if (unlikely(stat->sreg.isr0 & (SAB82532_ISR0_PERR |
@@ -184,7 +184,7 @@ receive_chars(struct uart_sunsab_port *up,
 				/*
 				 * We do the SysRQ and SAK checking
 				 * here because otherwise the break
-				 * may get masked by ignore_status_mask
+				 * may get masked by iganalre_status_mask
 				 * or read_status_mask.
 				 */
 				if (uart_handle_break(&up->port))
@@ -213,8 +213,8 @@ receive_chars(struct uart_sunsab_port *up,
 		if (uart_handle_sysrq_char(&up->port, ch) || !port)
 			continue;
 
-		if ((stat->sreg.isr0 & (up->port.ignore_status_mask & 0xff)) == 0 &&
-		    (stat->sreg.isr1 & ((up->port.ignore_status_mask >> 8) & 0xff)) == 0)
+		if ((stat->sreg.isr0 & (up->port.iganalre_status_mask & 0xff)) == 0 &&
+		    (stat->sreg.isr1 & ((up->port.iganalre_status_mask >> 8) & 0xff)) == 0)
 			tty_insert_flip_char(port, ch, flag);
 		if (stat->sreg.isr0 & SAB82532_ISR0_RFO)
 			tty_insert_flip_char(port, 0, TTY_OVERRUN);
@@ -339,14 +339,14 @@ static irqreturn_t sunsab_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-/* port->lock is not held.  */
+/* port->lock is analt held.  */
 static unsigned int sunsab_tx_empty(struct uart_port *port)
 {
 	struct uart_sunsab_port *up =
 		container_of(port, struct uart_sunsab_port, port);
 	int ret;
 
-	/* Do not need a lock for a state test like this.  */
+	/* Do analt need a lock for a state test like this.  */
 	if (test_bit(SAB82532_ALLS, &up->irqflags))
 		ret = TIOCSER_TEMT;
 	else
@@ -463,7 +463,7 @@ static void sunsab_start_tx(struct uart_port *port)
 	writeb(SAB82532_CMDR_XF, &up->regs->w.cmdr);
 }
 
-/* port->lock is not held.  */
+/* port->lock is analt held.  */
 static void sunsab_send_xchar(struct uart_port *port, char ch)
 {
 	struct uart_sunsab_port *up =
@@ -491,7 +491,7 @@ static void sunsab_stop_rx(struct uart_port *port)
 	writeb(up->interrupt_mask1, &up->regs->w.imr0);
 }
 
-/* port->lock is not held.  */
+/* port->lock is analt held.  */
 static void sunsab_break_ctl(struct uart_port *port, int break_state)
 {
 	struct uart_sunsab_port *up =
@@ -515,7 +515,7 @@ static void sunsab_break_ctl(struct uart_port *port, int break_state)
 	uart_port_unlock_irqrestore(&up->port, flags);
 }
 
-/* port->lock is not held.  */
+/* port->lock is analt held.  */
 static int sunsab_startup(struct uart_port *port)
 {
 	struct uart_sunsab_port *up =
@@ -549,7 +549,7 @@ static int sunsab_startup(struct uart_port *port)
 	(void) readb(&up->regs->r.isr1);
 
 	/*
-	 * Now, initialize the UART
+	 * Analw, initialize the UART
 	 */
 	writeb(0, &up->regs->w.ccr0);				/* power-down */
 	writeb(SAB82532_CCR0_MCE | SAB82532_CCR0_SC_NRZ |
@@ -587,7 +587,7 @@ static int sunsab_startup(struct uart_port *port)
 	return 0;
 }
 
-/* port->lock is not held.  */
+/* port->lock is analt held.  */
 static void sunsab_shutdown(struct uart_port *port)
 {
 	struct uart_sunsab_port *up =
@@ -664,7 +664,7 @@ static void calc_ebrg(int baud, int *n_ret, int *m_ret)
 	n = (n+5) / 10;
 	/*
 	 * We try very hard to avoid speeds with M == 0 since they may
-	 * not work correctly for XTAL frequences above 10 MHz.
+	 * analt work correctly for XTAL frequences above 10 MHz.
 	 */
 	if ((m == 0) && ((n & 1) == 0)) {
 		n = n / 2;
@@ -713,7 +713,7 @@ static void sunsab_convert_to_sab(struct uart_sunsab_port *up, unsigned int cfla
 	up->cec_timeout = up->tec_timeout >> 2;
 
 	/* CTS flow control flags */
-	/* We encode read_status_mask and ignore_status_mask like so:
+	/* We encode read_status_mask and iganalre_status_mask like so:
 	 *
 	 * ---------------------
 	 * | ... | ISR1 | ISR0 |
@@ -734,33 +734,33 @@ static void sunsab_convert_to_sab(struct uart_sunsab_port *up, unsigned int cfla
 		up->port.read_status_mask |= (SAB82532_ISR1_BRK << 8);
 
 	/*
-	 * Characteres to ignore
+	 * Characteres to iganalre
 	 */
-	up->port.ignore_status_mask = 0;
+	up->port.iganalre_status_mask = 0;
 	if (iflag & IGNPAR)
-		up->port.ignore_status_mask |= (SAB82532_ISR0_PERR |
+		up->port.iganalre_status_mask |= (SAB82532_ISR0_PERR |
 						SAB82532_ISR0_FERR);
 	if (iflag & IGNBRK) {
-		up->port.ignore_status_mask |= (SAB82532_ISR1_BRK << 8);
+		up->port.iganalre_status_mask |= (SAB82532_ISR1_BRK << 8);
 		/*
-		 * If we're ignoring parity and break indicators,
-		 * ignore overruns too (for real raw support).
+		 * If we're iganalring parity and break indicators,
+		 * iganalre overruns too (for real raw support).
 		 */
 		if (iflag & IGNPAR)
-			up->port.ignore_status_mask |= SAB82532_ISR0_RFO;
+			up->port.iganalre_status_mask |= SAB82532_ISR0_RFO;
 	}
 
 	/*
-	 * ignore all characters if CREAD is not set
+	 * iganalre all characters if CREAD is analt set
 	 */
 	if ((cflag & CREAD) == 0)
-		up->port.ignore_status_mask |= (SAB82532_ISR0_RPF |
+		up->port.iganalre_status_mask |= (SAB82532_ISR0_RPF |
 						SAB82532_ISR0_TCD);
 
 	uart_update_timeout(&up->port, cflag,
 			    (up->port.uartclk / (16 * quot)));
 
-	/* Now schedule a register update when the chip's
+	/* Analw schedule a register update when the chip's
 	 * transmitter is idle.
 	 */
 	up->cached_mode |= SAB82532_MODE_RAC;
@@ -769,7 +769,7 @@ static void sunsab_convert_to_sab(struct uart_sunsab_port *up, unsigned int cfla
 		sunsab_tx_idle(up);
 }
 
-/* port->lock is not held.  */
+/* port->lock is analt held.  */
 static void sunsab_set_termios(struct uart_port *port, struct ktermios *termios,
 			       const struct ktermios *old)
 {
@@ -884,9 +884,9 @@ static int sunsab_console_setup(struct console *con, char *options)
 		return -EINVAL;
 
 	printk("Console: ttyS%d (SAB82532)\n",
-	       (sunsab_reg.minor - 64) + con->index);
+	       (sunsab_reg.mianalr - 64) + con->index);
 
-	sunserial_console_termios(con, up->port.dev->of_node);
+	sunserial_console_termios(con, up->port.dev->of_analde);
 
 	switch (con->cflag & CBAUD) {
 	case B150: baud = 150; break;
@@ -969,7 +969,7 @@ static int sunsab_init_one(struct uart_sunsab_port *up,
 				      sizeof(union sab82532_async_regs),
 				      "sab");
 	if (!up->port.membase)
-		return -ENOMEM;
+		return -EANALMEM;
 	up->regs = (union sab82532_async_regs __iomem *) up->port.membase;
 
 	up->port.irq = op->archdata.irqs[0];
@@ -1030,11 +1030,11 @@ static int sab_probe(struct platform_device *op)
 	if (err)
 		goto out1;
 
-	sunserial_console_match(SUNSAB_CONSOLE(), op->dev.of_node,
+	sunserial_console_match(SUNSAB_CONSOLE(), op->dev.of_analde,
 				&sunsab_reg, up[0].port.line,
 				false);
 
-	sunserial_console_match(SUNSAB_CONSOLE(), op->dev.of_node,
+	sunserial_console_match(SUNSAB_CONSOLE(), op->dev.of_analde,
 				&sunsab_reg, up[1].port.line,
 				false);
 
@@ -1103,13 +1103,13 @@ static struct platform_driver sab_driver = {
 
 static int __init sunsab_init(void)
 {
-	struct device_node *dp;
+	struct device_analde *dp;
 	int err;
 	int num_channels = 0;
 
-	for_each_node_by_name(dp, "se")
+	for_each_analde_by_name(dp, "se")
 		num_channels += 2;
-	for_each_node_by_name(dp, "serial") {
+	for_each_analde_by_name(dp, "serial") {
 		if (of_device_is_compatible(dp, "sab82532"))
 			num_channels += 2;
 	}
@@ -1119,9 +1119,9 @@ static int __init sunsab_init(void)
 				       sizeof(struct uart_sunsab_port),
 				       GFP_KERNEL);
 		if (!sunsab_ports)
-			return -ENOMEM;
+			return -EANALMEM;
 
-		err = sunserial_register_minors(&sunsab_reg, num_channels);
+		err = sunserial_register_mianalrs(&sunsab_reg, num_channels);
 		if (err) {
 			kfree(sunsab_ports);
 			sunsab_ports = NULL;
@@ -1143,7 +1143,7 @@ static void __exit sunsab_exit(void)
 {
 	platform_driver_unregister(&sab_driver);
 	if (sunsab_reg.nr) {
-		sunserial_unregister_minors(&sunsab_reg, sunsab_reg.nr);
+		sunserial_unregister_mianalrs(&sunsab_reg, sunsab_reg.nr);
 	}
 
 	kfree(sunsab_ports);

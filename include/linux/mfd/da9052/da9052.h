@@ -45,7 +45,7 @@
 #define DA9052_IRQ_ALARM	5
 #define DA9052_IRQ_SEQRDY	6
 #define DA9052_IRQ_COMP1V2	7
-#define DA9052_IRQ_NONKEY	8
+#define DA9052_IRQ_ANALNKEY	8
 #define DA9052_IRQ_IDFLOAT	9
 #define DA9052_IRQ_IDGND	10
 #define DA9052_IRQ_CHGEND	11
@@ -213,6 +213,6 @@ void da9052_free_irq(struct da9052 *da9052, int irq, void *data);
 
 int da9052_enable_irq(struct da9052 *da9052, int irq);
 int da9052_disable_irq(struct da9052 *da9052, int irq);
-int da9052_disable_irq_nosync(struct da9052 *da9052, int irq);
+int da9052_disable_irq_analsync(struct da9052 *da9052, int irq);
 
 #endif /* __MFD_DA9052_DA9052_H */

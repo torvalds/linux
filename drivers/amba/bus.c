@@ -37,7 +37,7 @@ amba_cs_uci_id_match(const struct amba_id *table, struct amba_device *dev)
 
 	uci = table->data;
 
-	/* no table data or zero mask - return match on periphid */
+	/* anal table data or zero mask - return match on periphid */
 	if (!uci || (uci->devarch_mask == 0))
 		return 1;
 
@@ -153,7 +153,7 @@ static int amba_read_periphid(struct amba_device *dev)
 	/*
 	 * Find reset control(s) of the amba bus and de-assert them.
 	 */
-	rstc = of_reset_control_array_get_optional_shared(dev->dev.of_node);
+	rstc = of_reset_control_array_get_optional_shared(dev->dev.of_analde);
 	if (IS_ERR(rstc)) {
 		ret = PTR_ERR(rstc);
 		if (ret != -EPROBE_DEFER)
@@ -166,7 +166,7 @@ static int amba_read_periphid(struct amba_device *dev)
 	size = resource_size(&dev->res);
 	tmp = ioremap(dev->res.start, size);
 	if (!tmp) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_clk;
 	}
 
@@ -193,7 +193,7 @@ static int amba_read_periphid(struct amba_device *dev)
 	}
 
 	if (!dev->periphid)
-		ret = -ENODEV;
+		ret = -EANALDEV;
 
 	iounmap(tmp);
 
@@ -251,13 +251,13 @@ static int amba_uevent(const struct device *dev, struct kobj_uevent_env *env)
 
 static int of_amba_device_decode_irq(struct amba_device *dev)
 {
-	struct device_node *node = dev->dev.of_node;
+	struct device_analde *analde = dev->dev.of_analde;
 	int i, irq = 0;
 
-	if (IS_ENABLED(CONFIG_OF_IRQ) && node) {
+	if (IS_ENABLED(CONFIG_OF_IRQ) && analde) {
 		/* Decode the IRQs and address ranges */
 		for (i = 0; i < AMBA_NR_IRQS; i++) {
-			irq = of_irq_get(node, i);
+			irq = of_irq_get(analde, i);
 			if (irq < 0) {
 				if (irq == -EPROBE_DEFER)
 					return irq;
@@ -287,7 +287,7 @@ static int amba_probe(struct device *dev)
 		if (ret)
 			break;
 
-		ret = of_clk_set_defaults(dev->of_node, false);
+		ret = of_clk_set_defaults(dev->of_analde, false);
 		if (ret < 0)
 			break;
 
@@ -301,7 +301,7 @@ static int amba_probe(struct device *dev)
 			break;
 		}
 
-		pm_runtime_get_noresume(dev);
+		pm_runtime_get_analresume(dev);
 		pm_runtime_set_active(dev);
 		pm_runtime_enable(dev);
 
@@ -311,7 +311,7 @@ static int amba_probe(struct device *dev)
 
 		pm_runtime_disable(dev);
 		pm_runtime_set_suspended(dev);
-		pm_runtime_put_noidle(dev);
+		pm_runtime_put_analidle(dev);
 
 		amba_put_disable_pclk(pcdev);
 		dev_pm_domain_detach(dev, true);
@@ -328,12 +328,12 @@ static void amba_remove(struct device *dev)
 	pm_runtime_get_sync(dev);
 	if (drv->remove)
 		drv->remove(pcdev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 
 	/* Undo the runtime PM settings in amba_probe() */
 	pm_runtime_disable(dev);
 	pm_runtime_set_suspended(dev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 
 	amba_put_disable_pclk(pcdev);
 	dev_pm_domain_detach(dev, true);
@@ -357,10 +357,10 @@ static int amba_dma_configure(struct device *dev)
 	enum dev_dma_attr attr;
 	int ret = 0;
 
-	if (dev->of_node) {
-		ret = of_dma_configure(dev, dev->of_node, true);
+	if (dev->of_analde) {
+		ret = of_dma_configure(dev, dev->of_analde, true);
 	} else if (has_acpi_companion(dev)) {
-		attr = acpi_get_dma_attr(to_acpi_device_node(dev->fwnode));
+		attr = acpi_get_dma_attr(to_acpi_device_analde(dev->fwanalde));
 		ret = acpi_dma_configure(dev, attr);
 	}
 
@@ -385,7 +385,7 @@ static void amba_dma_cleanup(struct device *dev)
 /*
  * Hooks to provide runtime PM of the pclk (bus clock).  It is safe to
  * enable/disable the bus clock at runtime PM suspend/resume as this
- * does not result in loss of context.
+ * does analt result in loss of context.
  */
 static int amba_pm_runtime_suspend(struct device *dev)
 {
@@ -460,7 +460,7 @@ static int amba_proxy_probe(struct amba_device *adev,
 			    const struct amba_id *id)
 {
 	WARN(1, "Stub driver should never match any device.\n");
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static const struct amba_id amba_stub_drv_ids[] = {
@@ -486,7 +486,7 @@ static int __init amba_stub_drv_init(void)
 	 * only loaded based on uevents, then we'll hit a chicken-and-egg
 	 * situation where amba_match() is waiting on drivers and drivers are
 	 * waiting on amba_match(). So, register a stub driver to make sure
-	 * amba_match() is called even if no amba driver has been registered.
+	 * amba_match() is called even if anal amba driver has been registered.
 	 */
 	return amba_driver_register(&amba_proxy_drv);
 }
@@ -529,7 +529,7 @@ static void amba_device_release(struct device *dev)
 {
 	struct amba_device *d = to_amba_device(dev);
 
-	fwnode_handle_put(dev_fwnode(&d->dev));
+	fwanalde_handle_put(dev_fwanalde(&d->dev));
 	if (d->res.parent)
 		release_resource(&d->res);
 	mutex_destroy(&d->periphid_lock);
@@ -541,7 +541,7 @@ static void amba_device_release(struct device *dev)
  *	@dev: AMBA device allocated by amba_device_alloc
  *	@parent: resource parent for this devices resources
  *
- *	Claim the resource, and read the device cell ID if not already
+ *	Claim the resource, and read the device cell ID if analt already
  *	initialized.  Register the AMBA device with the Linux device
  *	manager.
  */
@@ -549,7 +549,7 @@ int amba_device_add(struct amba_device *dev, struct resource *parent)
 {
 	int ret;
 
-	fwnode_handle_get(dev_fwnode(&dev->dev));
+	fwanalde_handle_get(dev_fwanalde(&dev->dev));
 
 	ret = request_resource(parent, &dev->res);
 	if (ret)
@@ -561,7 +561,7 @@ int amba_device_add(struct amba_device *dev, struct resource *parent)
 		 * AMBA device uevents require reading its pid and cid
 		 * registers.  To do this, the device must be on, clocked and
 		 * out of reset.  However in some cases those resources might
-		 * not yet be available.  If that's the case, we suppress the
+		 * analt yet be available.  If that's the case, we suppress the
 		 * generation of uevents until we can read the pid and cid
 		 * registers.  See also amba_match().
 		 */
@@ -650,7 +650,7 @@ EXPORT_SYMBOL_GPL(amba_device_put);
  *
  *	Remove the specified AMBA device from the Linux device
  *	manager.  All files associated with this object will be
- *	destroyed, and device drivers notified that the device has
+ *	destroyed, and device drivers analtified that the device has
  *	been removed.  The AMBA device's resources including
  *	the amba_device structure will be freed once all
  *	references to it have been dropped.

@@ -75,7 +75,7 @@ static int hsu_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	chip = devm_kzalloc(&pdev->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_ALL_TYPES);
 	if (ret < 0)
@@ -108,7 +108,7 @@ static int hsu_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	 * handling, disable the interrupt entirely.
 	 */
 	if (pdev->device == PCI_DEVICE_ID_INTEL_MRFLD_HSU_DMA)
-		disable_irq_nosync(chip->irq);
+		disable_irq_analsync(chip->irq);
 
 	pci_set_drvdata(pdev, chip);
 

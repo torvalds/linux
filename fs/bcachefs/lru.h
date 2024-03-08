@@ -7,12 +7,12 @@
 
 static inline u64 lru_pos_id(struct bpos pos)
 {
-	return pos.inode >> LRU_TIME_BITS;
+	return pos.ianalde >> LRU_TIME_BITS;
 }
 
 static inline u64 lru_pos_time(struct bpos pos)
 {
-	return pos.inode & ~(~0ULL << LRU_TIME_BITS);
+	return pos.ianalde & ~(~0ULL << LRU_TIME_BITS);
 }
 
 static inline struct bpos lru_pos(u16 lru_id, u64 dev_bucket, u64 time)
@@ -41,7 +41,7 @@ enum bch_lru_type {
 
 static inline enum bch_lru_type lru_type(struct bkey_s_c l)
 {
-	u16 lru_id = l.k->p.inode >> 48;
+	u16 lru_id = l.k->p.ianalde >> 48;
 
 	if (lru_id == BCH_LRU_FRAGMENTATION_START)
 		return BCH_LRU_fragmentation;

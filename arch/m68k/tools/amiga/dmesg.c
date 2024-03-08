@@ -56,7 +56,7 @@ int main(int argc, char *argv[])
 	}
     }
     if (!found)
-	printf("Not found\n");
+	printf("Analt found\n");
     else {
 	printf("Found %ld bytes at 0x%08lx\n", m->size, (u_long)&m->data);
 	puts(">>>>>>>>>>>>>>>>>>>>");

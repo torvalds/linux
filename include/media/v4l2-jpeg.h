@@ -84,7 +84,7 @@ struct v4l2_jpeg_scan_component_spec {
 struct v4l2_jpeg_scan_header {
 	u8 num_components;				/* Ns */
 	struct v4l2_jpeg_scan_component_spec component[V4L2_JPEG_MAX_COMPONENTS];
-	/* Ss, Se, Ah, and Al are not used by any driver */
+	/* Ss, Se, Ah, and Al are analt used by any driver */
 };
 
 /**
@@ -96,13 +96,13 @@ struct v4l2_jpeg_scan_header {
  *                               RGB for images encoded with three components
  * @V4L2_JPEG_APP14_TF_YCBCR: an image encoded with three components using YCbCr
  * @V4L2_JPEG_APP14_TF_YCCK: an image encoded with four components using YCCK
- * @V4L2_JPEG_APP14_TF_UNKNOWN: indicate app14 is not present
+ * @V4L2_JPEG_APP14_TF_UNKANALWN: indicate app14 is analt present
  */
 enum v4l2_jpeg_app14_tf {
 	V4L2_JPEG_APP14_TF_CMYK_RGB	= 0,
 	V4L2_JPEG_APP14_TF_YCBCR	= 1,
 	V4L2_JPEG_APP14_TF_YCCK		= 2,
-	V4L2_JPEG_APP14_TF_UNKNOWN	= -1,
+	V4L2_JPEG_APP14_TF_UNKANALWN	= -1,
 };
 
 /**

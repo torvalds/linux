@@ -14,28 +14,28 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
  * Written and Maintained by:
- *	Manoj Malviya (manojmalviya@chelsio.com)
+ *	Maanalj Malviya (maanaljmalviya@chelsio.com)
  *	Atul Gupta (atul.gupta@chelsio.com)
  *	Jitendra Lulla (jlulla@chelsio.com)
- *	Yeshaswi M R Gowda (yeshaswi@chelsio.com)
+ *	Analhaswi M R Gowda (analhaswi@chelsio.com)
  *	Harsh Jain (harsh@chelsio.com)
  */
 
@@ -341,7 +341,7 @@ static int chcr_compute_partial_hash(struct shash_desc *desc,
 		memcpy(result_hash, sha512_st.state, SHA512_DIGEST_SIZE);
 	} else {
 		error = -EINVAL;
-		pr_err("Unknown digest size %d\n", digest_size);
+		pr_err("Unkanalwn digest size %d\n", digest_size);
 	}
 	return error;
 }
@@ -389,13 +389,13 @@ static inline void dsgl_walk_end(struct dsgl_walk *walk, unsigned short qid,
 
 	phys_cpl->op_to_tid = htonl(CPL_RX_PHYS_DSGL_OPCODE_V(CPL_RX_PHYS_DSGL)
 				    | CPL_RX_PHYS_DSGL_ISRDMA_V(0));
-	phys_cpl->pcirlxorder_to_noofsgentr =
+	phys_cpl->pcirlxorder_to_analofsgentr =
 		htonl(CPL_RX_PHYS_DSGL_PCIRLXORDER_V(0) |
-		      CPL_RX_PHYS_DSGL_PCINOSNOOP_V(0) |
+		      CPL_RX_PHYS_DSGL_PCIANALSANALOP_V(0) |
 		      CPL_RX_PHYS_DSGL_PCITPHNTENB_V(0) |
 		      CPL_RX_PHYS_DSGL_PCITPHNT_V(0) |
 		      CPL_RX_PHYS_DSGL_DCAID_V(0) |
-		      CPL_RX_PHYS_DSGL_NOOFSGENTR_V(walk->nents));
+		      CPL_RX_PHYS_DSGL_ANALOFSGENTR_V(walk->nents));
 	phys_cpl->rss_hdr_int.opcode = CPL_RX_PHYS_ADDR;
 	phys_cpl->rss_hdr_int.qid = htons(qid);
 	phys_cpl->rss_hdr_int.hash_val = 0;
@@ -525,7 +525,7 @@ static void  ulptx_walk_add_sg(struct ulptx_walk *walk,
 			skip = 0;
 		}
 	}
-	WARN(!sg, "SG should not be null here\n");
+	WARN(!sg, "SG should analt be null here\n");
 	if (sg && (walk->nents == 0)) {
 		small = min_t(unsigned int, sg_dma_len(sg) - skip_len, len);
 		sgmin = min_t(unsigned int, small, CHCR_SRC_SG_SIZE);
@@ -764,14 +764,14 @@ static inline void create_wreq(struct chcr_context *ctx,
 	struct uld_ctx *u_ctx = ULD_CTX(ctx);
 	unsigned int tx_channel_id, rx_channel_id;
 	unsigned int txqidx = 0, rxqidx = 0;
-	unsigned int qid, fid, portno;
+	unsigned int qid, fid, portanal;
 
 	get_qidxs(req, &txqidx, &rxqidx);
 	qid = u_ctx->lldi.rxq_ids[rxqidx];
 	fid = u_ctx->lldi.rxq_ids[0];
-	portno = rxqidx / ctx->rxq_perchan;
+	portanal = rxqidx / ctx->rxq_perchan;
 	tx_channel_id = txqidx / ctx->txq_perchan;
-	rx_channel_id = cxgb4_port_e2cchan(u_ctx->lldi.ports[portno]);
+	rx_channel_id = cxgb4_port_e2cchan(u_ctx->lldi.ports[portanal]);
 
 
 	chcr_req->wreq.op_to_cctx_size = FILL_WR_OP_CCTX_SIZE;
@@ -830,7 +830,7 @@ static struct sk_buff *create_cipher_wr(struct cipher_wr_param *wrparam)
 	transhdr_len = roundup(transhdr_len, 16);
 	skb = alloc_skb(SGE_MAX_WR_LEN, flags);
 	if (!skb) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto err;
 	}
 	chcr_req = __skb_put_zero(skb, transhdr_len);
@@ -843,7 +843,7 @@ static struct sk_buff *create_cipher_wr(struct cipher_wr_param *wrparam)
 
 	chcr_req->sec_cpl.cipherstop_lo_authinsert =
 			FILL_SEC_CPL_AUTHINSERT(0, 0, 0, 0);
-	chcr_req->sec_cpl.seqno_numivs = FILL_SEC_CPL_SCMD0_SEQNO(reqctx->op, 0,
+	chcr_req->sec_cpl.seqanal_numivs = FILL_SEC_CPL_SCMD0_SEQANAL(reqctx->op, 0,
 							 ablkctx->ciph_mode,
 							 0, 0, IV >> 1);
 	chcr_req->sec_cpl.ivgen_hdrlen = FILL_SEC_CPL_IVGEN_HDRLEN(0, 0, 0,
@@ -944,7 +944,7 @@ static int chcr_aes_cbc_setkey(struct crypto_skcipher *cipher,
 	context_size = (KEY_CONTEXT_HDR_SALT_AND_PAD +
 			keylen + alignment) >> 4;
 
-	ablkctx->key_ctx_hdr = FILL_KEY_CTX_HDR(ck_size, CHCR_KEYCTX_NO_KEY,
+	ablkctx->key_ctx_hdr = FILL_KEY_CTX_HDR(ck_size, CHCR_KEYCTX_ANAL_KEY,
 						0, 0, context_size);
 	ablkctx->ciph_mode = CHCR_SCMD_CIPHER_MODE_AES_CBC;
 	return 0;
@@ -973,7 +973,7 @@ static int chcr_aes_ctr_setkey(struct crypto_skcipher *cipher,
 	context_size = (KEY_CONTEXT_HDR_SALT_AND_PAD +
 			keylen + alignment) >> 4;
 
-	ablkctx->key_ctx_hdr = FILL_KEY_CTX_HDR(ck_size, CHCR_KEYCTX_NO_KEY,
+	ablkctx->key_ctx_hdr = FILL_KEY_CTX_HDR(ck_size, CHCR_KEYCTX_ANAL_KEY,
 						0, 0, context_size);
 	ablkctx->ciph_mode = CHCR_SCMD_CIPHER_MODE_AES_CTR;
 
@@ -993,12 +993,12 @@ static int chcr_aes_rfc3686_setkey(struct crypto_skcipher *cipher,
 	u16 alignment = 0;
 	int err;
 
-	if (keylen < CTR_RFC3686_NONCE_SIZE)
+	if (keylen < CTR_RFC3686_ANALNCE_SIZE)
 		return -EINVAL;
-	memcpy(ablkctx->nonce, key + (keylen - CTR_RFC3686_NONCE_SIZE),
-	       CTR_RFC3686_NONCE_SIZE);
+	memcpy(ablkctx->analnce, key + (keylen - CTR_RFC3686_ANALNCE_SIZE),
+	       CTR_RFC3686_ANALNCE_SIZE);
 
-	keylen -= CTR_RFC3686_NONCE_SIZE;
+	keylen -= CTR_RFC3686_ANALNCE_SIZE;
 	err = chcr_cipher_fallback_setkey(cipher, key, keylen);
 	if (err)
 		goto badkey_err;
@@ -1010,7 +1010,7 @@ static int chcr_aes_rfc3686_setkey(struct crypto_skcipher *cipher,
 	context_size = (KEY_CONTEXT_HDR_SALT_AND_PAD +
 			keylen + alignment) >> 4;
 
-	ablkctx->key_ctx_hdr = FILL_KEY_CTX_HDR(ck_size, CHCR_KEYCTX_NO_KEY,
+	ablkctx->key_ctx_hdr = FILL_KEY_CTX_HDR(ck_size, CHCR_KEYCTX_ANAL_KEY,
 						0, 0, context_size);
 	ablkctx->ciph_mode = CHCR_SCMD_CIPHER_MODE_AES_CTR;
 
@@ -1045,7 +1045,7 @@ static unsigned int adjust_ctr_overflow(u8 *iv, u32 bytes)
 	u32 temp = be32_to_cpu(*--b);
 
 	temp = ~temp;
-	c = (u64)temp +  1; // No of block can processed without overflow
+	c = (u64)temp +  1; // Anal of block can processed without overflow
 	if ((bytes / AES_BLOCK_SIZE) >= c)
 		bytes = c * AES_BLOCK_SIZE;
 	return bytes;
@@ -1104,7 +1104,7 @@ static int chcr_update_cipher_iv(struct skcipher_request *req,
 		ctr_add_iv(iv, req->iv, (reqctx->processed /
 			   AES_BLOCK_SIZE));
 	else if (subtype == CRYPTO_ALG_SUB_TYPE_CTR_RFC3686)
-		*(__be32 *)(reqctx->iv + CTR_RFC3686_NONCE_SIZE +
+		*(__be32 *)(reqctx->iv + CTR_RFC3686_ANALNCE_SIZE +
 			CTR_RFC3686_IV_SIZE) = cpu_to_be32((reqctx->processed /
 						AES_BLOCK_SIZE) + 1);
 	else if (subtype == CRYPTO_ALG_SUB_TYPE_XTS)
@@ -1211,7 +1211,7 @@ static int chcr_handle_cipher_resp(struct skcipher_request *req,
 	wrparam.bytes = bytes;
 	skb = create_cipher_wr(&wrparam);
 	if (IS_ERR(skb)) {
-		pr_err("%s : Failed to form WR. No memory\n", __func__);
+		pr_err("%s : Failed to form WR. Anal memory\n", __func__);
 		err = PTR_ERR(skb);
 		goto unmap;
 	}
@@ -1310,12 +1310,12 @@ static int process_cipher(struct skcipher_request *req,
 		bytes = adjust_ctr_overflow(req->iv, bytes);
 	}
 	if (subtype == CRYPTO_ALG_SUB_TYPE_CTR_RFC3686) {
-		memcpy(reqctx->iv, ablkctx->nonce, CTR_RFC3686_NONCE_SIZE);
-		memcpy(reqctx->iv + CTR_RFC3686_NONCE_SIZE, req->iv,
+		memcpy(reqctx->iv, ablkctx->analnce, CTR_RFC3686_ANALNCE_SIZE);
+		memcpy(reqctx->iv + CTR_RFC3686_ANALNCE_SIZE, req->iv,
 				CTR_RFC3686_IV_SIZE);
 
 		/* initialize counter portion of counter block */
-		*(__be32 *)(reqctx->iv + CTR_RFC3686_NONCE_SIZE +
+		*(__be32 *)(reqctx->iv + CTR_RFC3686_ANALNCE_SIZE +
 			CTR_RFC3686_IV_SIZE) = cpu_to_be32(1);
 		memcpy(reqctx->init_iv, reqctx->iv, IV);
 
@@ -1381,7 +1381,7 @@ static int chcr_aes_encrypt(struct skcipher_request *req)
 	if (unlikely(cxgb4_is_crypto_q_full(u_ctx->lldi.ports[0],
 						reqctx->txqidx) &&
 		(!(req->base.flags & CRYPTO_TFM_REQ_MAY_BACKLOG)))) {
-			err = -ENOSPC;
+			err = -EANALSPC;
 			goto error;
 	}
 
@@ -1427,7 +1427,7 @@ static int chcr_aes_decrypt(struct skcipher_request *req)
 	if (unlikely(cxgb4_is_crypto_q_full(u_ctx->lldi.ports[0],
 						reqctx->txqidx) &&
 		(!(req->base.flags & CRYPTO_TFM_REQ_MAY_BACKLOG))))
-			return -ENOSPC;
+			return -EANALSPC;
 	err = process_cipher(req, u_ctx->lldi.rxq_ids[reqctx->rxqidx],
 			     &skb, CHCR_DECRYPT_OP);
 	if (err || !skb)
@@ -1489,7 +1489,7 @@ static int chcr_rfc3686_init(struct crypto_skcipher *tfm)
 	struct ablk_ctx *ablkctx = ABLK_CTX(ctx);
 
 	/*RFC3686 initialises IV counter value to 1, rfc3686(ctr(aes))
-	 * cannot be used as fallback in chcr_handle_cipher_response
+	 * cananalt be used as fallback in chcr_handle_cipher_response
 	 */
 	ablkctx->sw_cipher = crypto_alloc_skcipher("ctr(aes)", 0,
 				CRYPTO_ALG_NEED_FALLBACK);
@@ -1589,7 +1589,7 @@ static struct sk_buff *create_hash_wr(struct ahash_request *req,
 
 	skb = alloc_skb(transhdr_len, flags);
 	if (!skb)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	chcr_req = __skb_put_zero(skb, transhdr_len);
 
 	chcr_req->sec_cpl.op_ivinsrtofst =
@@ -1601,8 +1601,8 @@ static struct sk_buff *create_hash_wr(struct ahash_request *req,
 		FILL_SEC_CPL_CIPHERSTOP_HI(0, 0, 0, 0);
 	chcr_req->sec_cpl.cipherstop_lo_authinsert =
 		FILL_SEC_CPL_AUTHINSERT(0, 1, 0, 0);
-	chcr_req->sec_cpl.seqno_numivs =
-		FILL_SEC_CPL_SCMD0_SEQNO(0, 0, 0, param->alg_prm.auth_mode,
+	chcr_req->sec_cpl.seqanal_numivs =
+		FILL_SEC_CPL_SCMD0_SEQANAL(0, 0, 0, param->alg_prm.auth_mode,
 					 param->opad_needed, 0);
 
 	chcr_req->sec_cpl.ivgen_hdrlen =
@@ -1617,7 +1617,7 @@ static struct sk_buff *create_hash_wr(struct ahash_request *req,
 			CHCR_HASH_MAX_DIGEST_SIZE),
 		       hmacctx->opad, param->alg_prm.result_size);
 
-	chcr_req->key_ctx.ctx_hdr = FILL_KEY_CTX_HDR(CHCR_KEYCTX_NO_KEY,
+	chcr_req->key_ctx.ctx_hdr = FILL_KEY_CTX_HDR(CHCR_KEYCTX_ANAL_KEY,
 					    param->alg_prm.mk_size, 0,
 					    param->opad_needed,
 					    ((param->kctx_len +
@@ -1631,7 +1631,7 @@ static struct sk_buff *create_hash_wr(struct ahash_request *req,
 				       param->bfr_len, DMA_TO_DEVICE);
 		if (dma_mapping_error(&u_ctx->lldi.pdev->dev,
 				       req_ctx->hctx_wr. dma_addr)) {
-			error = -ENOMEM;
+			error = -EANALMEM;
 			goto err;
 		}
 		req_ctx->hctx_wr.dma_len = param->bfr_len;
@@ -1692,14 +1692,14 @@ static int chcr_ahash_update(struct ahash_request *req)
 	if (unlikely(cxgb4_is_crypto_q_full(u_ctx->lldi.ports[0],
 						req_ctx->txqidx) &&
 		(!(req->base.flags & CRYPTO_TFM_REQ_MAY_BACKLOG)))) {
-			error = -ENOSPC;
+			error = -EANALSPC;
 			goto err;
 	}
 
 	chcr_init_hctx_per_wr(req_ctx);
 	error = chcr_hash_dma_map(&u_ctx->lldi.pdev->dev, req);
 	if (error) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto err;
 	}
 	get_alg_config(&params.alg_prm, crypto_ahash_digestsize(rtfm));
@@ -1851,13 +1851,13 @@ static int chcr_ahash_finup(struct ahash_request *req)
 	if (unlikely(cxgb4_is_crypto_q_full(u_ctx->lldi.ports[0],
 						req_ctx->txqidx) &&
 		(!(req->base.flags & CRYPTO_TFM_REQ_MAY_BACKLOG)))) {
-			error = -ENOSPC;
+			error = -EANALSPC;
 			goto err;
 	}
 	chcr_init_hctx_per_wr(req_ctx);
 	error = chcr_hash_dma_map(&u_ctx->lldi.pdev->dev, req);
 	if (error) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto err;
 	}
 
@@ -1954,14 +1954,14 @@ static int chcr_ahash_digest(struct ahash_request *req)
 	if (unlikely(cxgb4_is_crypto_q_full(u_ctx->lldi.ports[0],
 						req_ctx->txqidx) &&
 		(!(req->base.flags & CRYPTO_TFM_REQ_MAY_BACKLOG)))) {
-			error = -ENOSPC;
+			error = -EANALSPC;
 			goto err;
 	}
 
 	chcr_init_hctx_per_wr(req_ctx);
 	error = chcr_hash_dma_map(&u_ctx->lldi.pdev->dev, req);
 	if (error) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto err;
 	}
 
@@ -2278,14 +2278,14 @@ static int chcr_aes_xts_setkey(struct crypto_skcipher *cipher, const u8 *key,
 		ablkctx->enckey_len = 64;
 		ablkctx->key_ctx_hdr =
 			FILL_KEY_CTX_HDR(CHCR_KEYCTX_CIPHER_KEY_SIZE_192,
-					 CHCR_KEYCTX_NO_KEY, 1,
+					 CHCR_KEYCTX_ANAL_KEY, 1,
 					 0, context_size);
 	} else {
 		ablkctx->key_ctx_hdr =
 		FILL_KEY_CTX_HDR((key_len == AES_KEYSIZE_256) ?
 				 CHCR_KEYCTX_CIPHER_KEY_SIZE_128 :
 				 CHCR_KEYCTX_CIPHER_KEY_SIZE_256,
-				 CHCR_KEYCTX_NO_KEY, 1,
+				 CHCR_KEYCTX_ANAL_KEY, 1,
 				 0, context_size);
 	}
 	ablkctx->ciph_mode = CHCR_SCMD_CIPHER_MODE_AES_XTS;
@@ -2398,7 +2398,7 @@ static int chcr_aead_common_init(struct aead_request *req)
 	error = chcr_aead_dma_map(&ULD_CTX(a_ctx(tfm))->lldi.pdev->dev, req,
 				  reqctx->op);
 	if (error) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto err;
 	}
 
@@ -2500,7 +2500,7 @@ static struct sk_buff *create_authenc_wr(struct aead_request *req,
 	}
 	skb = alloc_skb(transhdr_len, flags);
 	if (!skb) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto err;
 	}
 
@@ -2530,7 +2530,7 @@ static struct sk_buff *create_authenc_wr(struct aead_request *req,
 		temp = CHCR_SCMD_CIPHER_MODE_AES_CTR;
 	else
 		temp = CHCR_SCMD_CIPHER_MODE_AES_CBC;
-	chcr_req->sec_cpl.seqno_numivs = FILL_SEC_CPL_SCMD0_SEQNO(reqctx->op,
+	chcr_req->sec_cpl.seqanal_numivs = FILL_SEC_CPL_SCMD0_SEQANAL(reqctx->op,
 					(reqctx->op == CHCR_ENCRYPT_OP) ? 1 : 0,
 					temp,
 					actx->auth_mode, aeadctx->hmac_ctrl,
@@ -2555,10 +2555,10 @@ static struct sk_buff *create_authenc_wr(struct aead_request *req,
 	ulptx = (struct ulptx_sgl *)(ivptr + IV);
 	if (subtype == CRYPTO_ALG_SUB_TYPE_CTR_SHA ||
 	    subtype == CRYPTO_ALG_SUB_TYPE_CTR_NULL) {
-		memcpy(ivptr, aeadctx->nonce, CTR_RFC3686_NONCE_SIZE);
-		memcpy(ivptr + CTR_RFC3686_NONCE_SIZE, req->iv,
+		memcpy(ivptr, aeadctx->analnce, CTR_RFC3686_ANALNCE_SIZE);
+		memcpy(ivptr + CTR_RFC3686_ANALNCE_SIZE, req->iv,
 				CTR_RFC3686_IV_SIZE);
-		*(__be32 *)(ivptr + CTR_RFC3686_NONCE_SIZE +
+		*(__be32 *)(ivptr + CTR_RFC3686_ANALNCE_SIZE +
 			CTR_RFC3686_IV_SIZE) = cpu_to_be32(1);
 	} else {
 		memcpy(ivptr, req->iv, IV);
@@ -2607,7 +2607,7 @@ int chcr_aead_dma_map(struct device *dev,
 	reqctx->iv_dma = dma_map_single(dev, reqctx->iv, (IV + reqctx->b0_len),
 					DMA_BIDIRECTIONAL);
 	if (dma_mapping_error(dev, reqctx->iv_dma))
-		return -ENOMEM;
+		return -EANALMEM;
 	if (reqctx->b0_len)
 		reqctx->b0_dma = reqctx->iv_dma + IV;
 	else
@@ -2638,7 +2638,7 @@ int chcr_aead_dma_map(struct device *dev,
 	return 0;
 err:
 	dma_unmap_single(dev, reqctx->iv_dma, IV, DMA_BIDIRECTIONAL);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 void chcr_aead_dma_unmap(struct device *dev,
@@ -2816,7 +2816,7 @@ int chcr_hash_dma_map(struct device *dev,
 	error = dma_map_sg(dev, req->src, sg_nents(req->src),
 			   DMA_TO_DEVICE);
 	if (!error)
-		return -ENOMEM;
+		return -EANALMEM;
 	req_ctx->hctx_wr.is_sg_map = 1;
 	return 0;
 }
@@ -2861,7 +2861,7 @@ int chcr_cipher_dma_map(struct device *dev,
 
 	return 0;
 err:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 void chcr_cipher_dma_unmap(struct device *dev,
@@ -3009,7 +3009,7 @@ static void fill_sec_cpl_for_aead(struct cpl_tx_sec_pdu *sec_cpl,
 					auth_offset, tag_offset,
 					(op_type == CHCR_ENCRYPT_OP) ? 0 :
 					crypto_aead_authsize(tfm));
-	sec_cpl->seqno_numivs =  FILL_SEC_CPL_SCMD0_SEQNO(op_type,
+	sec_cpl->seqanal_numivs =  FILL_SEC_CPL_SCMD0_SEQANAL(op_type,
 					(op_type == CHCR_ENCRYPT_OP) ? 0 : 1,
 					cipher_mode, mac_mode,
 					aeadctx->hmac_ctrl, IV >> 1);
@@ -3097,7 +3097,7 @@ static struct sk_buff *create_aead_ccm_wr(struct aead_request *req,
 	skb = alloc_skb(transhdr_len,  flags);
 
 	if (!skb) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto err;
 	}
 
@@ -3190,7 +3190,7 @@ static struct sk_buff *create_gcm_wr(struct aead_request *req,
 	}
 	skb = alloc_skb(transhdr_len, flags);
 	if (!skb) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto err;
 	}
 
@@ -3209,8 +3209,8 @@ static struct sk_buff *create_gcm_wr(struct aead_request *req,
 	chcr_req->sec_cpl.cipherstop_lo_authinsert =
 			FILL_SEC_CPL_AUTHINSERT(0, req->assoclen + IV + 1,
 						temp, temp);
-	chcr_req->sec_cpl.seqno_numivs =
-			FILL_SEC_CPL_SCMD0_SEQNO(reqctx->op, (reqctx->op ==
+	chcr_req->sec_cpl.seqanal_numivs =
+			FILL_SEC_CPL_SCMD0_SEQANAL(reqctx->op, (reqctx->op ==
 					CHCR_ENCRYPT_OP) ? 1 : 0,
 					CHCR_SCMD_CIPHER_MODE_AES_GCM,
 					CHCR_SCMD_AUTH_MODE_GHASH,
@@ -3282,7 +3282,7 @@ static int chcr_authenc_null_setauthsize(struct crypto_aead *tfm,
 {
 	struct chcr_aead_ctx *aeadctx = AEAD_CTX(a_ctx(tfm));
 
-	aeadctx->hmac_ctrl = CHCR_SCMD_HMAC_CTRL_NOP;
+	aeadctx->hmac_ctrl = CHCR_SCMD_HMAC_CTRL_ANALP;
 	aeadctx->mayverify = VERIFY_HW;
 	return crypto_aead_setauthsize(aeadctx->sw_cipher, authsize);
 }
@@ -3292,7 +3292,7 @@ static int chcr_authenc_setauthsize(struct crypto_aead *tfm,
 	struct chcr_aead_ctx *aeadctx = AEAD_CTX(a_ctx(tfm));
 	u32 maxauth = crypto_aead_maxauthsize(tfm);
 
-	/*SHA1 authsize in ipsec is 12 instead of 10 i.e maxauthsize / 2 is not
+	/*SHA1 authsize in ipsec is 12 instead of 10 i.e maxauthsize / 2 is analt
 	 * true for sha1. authsize == 12 condition should be before
 	 * authsize == (maxauth >> 1)
 	 */
@@ -3315,10 +3315,10 @@ static int chcr_authenc_setauthsize(struct crypto_aead *tfm,
 		aeadctx->hmac_ctrl = CHCR_SCMD_HMAC_CTRL_DIV2;
 		aeadctx->mayverify = VERIFY_HW;
 	} else if (authsize == maxauth) {
-		aeadctx->hmac_ctrl = CHCR_SCMD_HMAC_CTRL_NO_TRUNC;
+		aeadctx->hmac_ctrl = CHCR_SCMD_HMAC_CTRL_ANAL_TRUNC;
 		aeadctx->mayverify = VERIFY_HW;
 	} else {
-		aeadctx->hmac_ctrl = CHCR_SCMD_HMAC_CTRL_NO_TRUNC;
+		aeadctx->hmac_ctrl = CHCR_SCMD_HMAC_CTRL_ANAL_TRUNC;
 		aeadctx->mayverify = VERIFY_SW;
 	}
 	return crypto_aead_setauthsize(aeadctx->sw_cipher, authsize);
@@ -3347,12 +3347,12 @@ static int chcr_gcm_setauthsize(struct crypto_aead *tfm, unsigned int authsize)
 		aeadctx->mayverify = VERIFY_HW;
 		break;
 	case ICV_16:
-		aeadctx->hmac_ctrl = CHCR_SCMD_HMAC_CTRL_NO_TRUNC;
+		aeadctx->hmac_ctrl = CHCR_SCMD_HMAC_CTRL_ANAL_TRUNC;
 		aeadctx->mayverify = VERIFY_HW;
 		break;
 	case ICV_13:
 	case ICV_15:
-		aeadctx->hmac_ctrl = CHCR_SCMD_HMAC_CTRL_NO_TRUNC;
+		aeadctx->hmac_ctrl = CHCR_SCMD_HMAC_CTRL_ANAL_TRUNC;
 		aeadctx->mayverify = VERIFY_SW;
 		break;
 	default:
@@ -3376,7 +3376,7 @@ static int chcr_4106_4309_setauthsize(struct crypto_aead *tfm,
 		aeadctx->mayverify = VERIFY_HW;
 		break;
 	case ICV_16:
-		aeadctx->hmac_ctrl = CHCR_SCMD_HMAC_CTRL_NO_TRUNC;
+		aeadctx->hmac_ctrl = CHCR_SCMD_HMAC_CTRL_ANAL_TRUNC;
 		aeadctx->mayverify = VERIFY_HW;
 		break;
 	default:
@@ -3416,7 +3416,7 @@ static int chcr_ccm_setauthsize(struct crypto_aead *tfm,
 		aeadctx->mayverify = VERIFY_HW;
 		break;
 	case ICV_16:
-		aeadctx->hmac_ctrl = CHCR_SCMD_HMAC_CTRL_NO_TRUNC;
+		aeadctx->hmac_ctrl = CHCR_SCMD_HMAC_CTRL_ANAL_TRUNC;
 		aeadctx->mayverify = VERIFY_HW;
 		break;
 	default:
@@ -3511,7 +3511,7 @@ static int chcr_gcm_setkey(struct crypto_aead *aead, const u8 *key,
 
 	if (get_aead_subtype(aead) == CRYPTO_ALG_SUB_TYPE_AEAD_RFC4106 &&
 	    keylen > 3) {
-		keylen -= 4;  /* nonce/salt is present in the last 4 bytes */
+		keylen -= 4;  /* analnce/salt is present in the last 4 bytes */
 		memcpy(aeadctx->salt, key + keylen, 4);
 	}
 	if (keylen == AES_KEYSIZE_128) {
@@ -3584,11 +3584,11 @@ static int chcr_authenc_setkey(struct crypto_aead *authenc, const u8 *key,
 	subtype = get_aead_subtype(authenc);
 	if (subtype == CRYPTO_ALG_SUB_TYPE_CTR_SHA ||
 		subtype == CRYPTO_ALG_SUB_TYPE_CTR_NULL) {
-		if (keys.enckeylen < CTR_RFC3686_NONCE_SIZE)
+		if (keys.enckeylen < CTR_RFC3686_ANALNCE_SIZE)
 			goto out;
-		memcpy(aeadctx->nonce, keys.enckey + (keys.enckeylen
-		- CTR_RFC3686_NONCE_SIZE), CTR_RFC3686_NONCE_SIZE);
-		keys.enckeylen -= CTR_RFC3686_NONCE_SIZE;
+		memcpy(aeadctx->analnce, keys.enckey + (keys.enckeylen
+		- CTR_RFC3686_ANALNCE_SIZE), CTR_RFC3686_ANALNCE_SIZE);
+		keys.enckeylen -= CTR_RFC3686_ANALNCE_SIZE;
 	}
 	if (keys.enckeylen == AES_KEYSIZE_128) {
 		ck_size = CHCR_KEYCTX_CIPHER_KEY_SIZE_128;
@@ -3602,7 +3602,7 @@ static int chcr_authenc_setkey(struct crypto_aead *authenc, const u8 *key,
 	}
 
 	/* Copy only encryption key. We use authkey to generate h(ipad) and
-	 * h(opad) so authkey is not needed again. authkeylen size have the
+	 * h(opad) so authkey is analt needed again. authkeylen size have the
 	 * size of the hash digest size.
 	 */
 	memcpy(aeadctx->key, keys.enckey, keys.enckeylen);
@@ -3615,7 +3615,7 @@ static int chcr_authenc_setkey(struct crypto_aead *authenc, const u8 *key,
 	}
 	base_hash  = chcr_alloc_shash(max_authsize);
 	if (IS_ERR(base_hash)) {
-		pr_err("Base driver cannot be loaded\n");
+		pr_err("Base driver cananalt be loaded\n");
 		goto out;
 	}
 	{
@@ -3631,7 +3631,7 @@ static int chcr_authenc_setkey(struct crypto_aead *authenc, const u8 *key,
 						  keys.authkeylen,
 						  o_ptr);
 			if (err) {
-				pr_err("Base driver cannot be loaded\n");
+				pr_err("Base driver cananalt be loaded\n");
 				goto out;
 			}
 			keys.authkeylen = max_authsize;
@@ -3703,11 +3703,11 @@ static int chcr_aead_digest_null_setkey(struct crypto_aead *authenc,
 	subtype = get_aead_subtype(authenc);
 	if (subtype == CRYPTO_ALG_SUB_TYPE_CTR_SHA ||
 	    subtype == CRYPTO_ALG_SUB_TYPE_CTR_NULL) {
-		if (keys.enckeylen < CTR_RFC3686_NONCE_SIZE)
+		if (keys.enckeylen < CTR_RFC3686_ANALNCE_SIZE)
 			goto out;
-		memcpy(aeadctx->nonce, keys.enckey + (keys.enckeylen
-			- CTR_RFC3686_NONCE_SIZE), CTR_RFC3686_NONCE_SIZE);
-		keys.enckeylen -= CTR_RFC3686_NONCE_SIZE;
+		memcpy(aeadctx->analnce, keys.enckey + (keys.enckeylen
+			- CTR_RFC3686_ANALNCE_SIZE), CTR_RFC3686_ANALNCE_SIZE);
+		keys.enckeylen -= CTR_RFC3686_ANALNCE_SIZE;
 	}
 	if (keys.enckeylen == AES_KEYSIZE_128) {
 		ck_size = CHCR_KEYCTX_CIPHER_KEY_SIZE_128;
@@ -3728,9 +3728,9 @@ static int chcr_aead_digest_null_setkey(struct crypto_aead *authenc,
 	}
 	key_ctx_len =  sizeof(struct _key_ctx) + roundup(keys.enckeylen, 16);
 
-	aeadctx->key_ctx_hdr = FILL_KEY_CTX_HDR(ck_size, CHCR_KEYCTX_NO_KEY, 0,
+	aeadctx->key_ctx_hdr = FILL_KEY_CTX_HDR(ck_size, CHCR_KEYCTX_ANAL_KEY, 0,
 						0, key_ctx_len >> 4);
-	actx->auth_mode = CHCR_SCMD_AUTH_MODE_NOP;
+	actx->auth_mode = CHCR_SCMD_AUTH_MODE_ANALP;
 	memzero_explicit(&keys, sizeof(keys));
 	return 0;
 out:
@@ -3752,13 +3752,13 @@ static int chcr_aead_op(struct aead_request *req,
 
 	cdev = a_ctx(tfm)->dev;
 	if (!cdev) {
-		pr_err("%s : No crypto device.\n", __func__);
+		pr_err("%s : Anal crypto device.\n", __func__);
 		return -ENXIO;
 	}
 
 	if (chcr_inc_wrcount(cdev)) {
 	/* Detach state for CHCR means lldi or padap is freed.
-	 * We cannot increment fallback here.
+	 * We cananalt increment fallback here.
 	 */
 		return chcr_aead_fallback(req, reqctx->op);
 	}
@@ -3767,7 +3767,7 @@ static int chcr_aead_op(struct aead_request *req,
 					reqctx->txqidx) &&
 		(!(req->base.flags & CRYPTO_TFM_REQ_MAY_BACKLOG))) {
 			chcr_dec_wrcount(cdev);
-			return -ENOSPC;
+			return -EANALSPC;
 	}
 
 	if (get_aead_subtype(tfm) == CRYPTO_ALG_SUB_TYPE_AEAD_RFC4106 &&
@@ -3923,8 +3923,8 @@ static struct chcr_alg_template driver_algs[] = {
 
 			.init			= chcr_rfc3686_init,
 			.exit			= chcr_exit_tfm,
-			.min_keysize		= AES_MIN_KEY_SIZE + CTR_RFC3686_NONCE_SIZE,
-			.max_keysize		= AES_MAX_KEY_SIZE + CTR_RFC3686_NONCE_SIZE,
+			.min_keysize		= AES_MIN_KEY_SIZE + CTR_RFC3686_ANALNCE_SIZE,
+			.max_keysize		= AES_MAX_KEY_SIZE + CTR_RFC3686_ANALNCE_SIZE,
 			.ivsize			= CTR_RFC3686_IV_SIZE,
 			.setkey			= chcr_aes_rfc3686_setkey,
 			.encrypt		= chcr_aes_encrypt,
@@ -4531,7 +4531,7 @@ int start_crypto(void)
 /*
  *	stop_crypto - Deregister all the crypto algorithms with kernel.
  *	This should be called once when the last device goes down. After this
- *	kernel will not call the driver API for crypto operations.
+ *	kernel will analt call the driver API for crypto operations.
  */
 int stop_crypto(void)
 {

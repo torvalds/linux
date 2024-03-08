@@ -422,7 +422,7 @@ static const struct sppctl_grp sp7021grps_prbp[] = {
 /*
  * Due to compatible reason, the first valid item should start at the third
  * position of the array. Please keep the first two items of the table
- * no use (dummy).
+ * anal use (dummy).
  */
 const struct sppctl_func sppctl_list_funcs[] = {
 	FNCN("", pinmux_type_fpmx, 0x00, 0, 0),

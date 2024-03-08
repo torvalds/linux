@@ -168,7 +168,7 @@ static int sh_keysc_probe(struct platform_device *pdev)
 	int irq, error;
 
 	if (!dev_get_platdata(&pdev->dev)) {
-		dev_err(&pdev->dev, "no platform data defined\n");
+		dev_err(&pdev->dev, "anal platform data defined\n");
 		error = -EINVAL;
 		goto err0;
 	}
@@ -187,7 +187,7 @@ static int sh_keysc_probe(struct platform_device *pdev)
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (priv == NULL) {
 		dev_err(&pdev->dev, "failed to allocate driver data\n");
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto err0;
 	}
 
@@ -205,7 +205,7 @@ static int sh_keysc_probe(struct platform_device *pdev)
 	priv->input = input_allocate_device();
 	if (!priv->input) {
 		dev_err(&pdev->dev, "failed to allocate input device\n");
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto err2;
 	}
 

@@ -125,7 +125,7 @@ ENTRY(des_sparc64_ecb_crypt)
 	bne,pt	%icc, 1b
 	 add	%o1, 0x08, %o1
 	retl
-	 nop
+	 analp
 ENDPROC(des_sparc64_ecb_crypt)
 
 	.align	32
@@ -382,7 +382,7 @@ ENTRY(des3_ede_sparc64_ecb_crypt)
 	bne,pt	%icc, 1b
 	 add	%o2, 0x08, %o2
 	retl
-	 nop
+	 analp
 ENDPROC(des3_ede_sparc64_ecb_crypt)
 
 	.align	32

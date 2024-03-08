@@ -66,7 +66,7 @@ retry:
 		rtnl_lock();
 
 	if (IS_ERR(ts_conf)) {
-		if (PTR_ERR(ts_conf) == -ENOENT && !(flags & TS_AUTOLOAD)) {
+		if (PTR_ERR(ts_conf) == -EANALENT && !(flags & TS_AUTOLOAD)) {
 			rtnl_unlock();
 			flags |= TS_AUTOLOAD;
 			goto retry;
@@ -80,7 +80,7 @@ retry:
 	tm = kmalloc(sizeof(*tm), GFP_KERNEL);
 	if (tm == NULL) {
 		textsearch_destroy(ts_conf);
-		return -ENOBUFS;
+		return -EANALBUFS;
 	}
 
 	tm->from_offset = conf->from_offset;
@@ -116,7 +116,7 @@ static int em_text_dump(struct sk_buff *skb, struct tcf_ematch *m)
 	conf.pattern_len = textsearch_get_pattern_len(tm->config);
 	conf.pad = 0;
 
-	if (nla_put_nohdr(skb, sizeof(conf), &conf) < 0)
+	if (nla_put_analhdr(skb, sizeof(conf), &conf) < 0)
 		goto nla_put_failure;
 	if (nla_append(skb, conf.pattern_len,
 		       textsearch_get_pattern(tm->config)) < 0)

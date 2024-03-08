@@ -34,13 +34,13 @@
 *  Macros
 ****************************************************************/
 
-/* These two optional macros force the use one way or another of the two
+/* These two optional macros force the use one way or aanalther of the two
  * Huffman decompression implementations. You can't force in both directions
  * at the same time.
  */
 #if defined(HUF_FORCE_DECOMPRESS_X1) && \
     defined(HUF_FORCE_DECOMPRESS_X2)
-#error "Cannot force the use of the X1 and X2 decoders at the same time!"
+#error "Cananalt force the use of the X1 and X2 decoders at the same time!"
 #endif
 
 #if ZSTD_ENABLE_ASM_X86_64_BMI2 && DYNAMIC_BMI2
@@ -169,7 +169,7 @@ static size_t HUF_DecompressAsmArgs_init(HUF_DecompressAsmArgs* args, void* dst,
     BYTE* const oend = (BYTE*)dst + dstSize;
 
     /* The following condition is false on x32 platform,
-     * but HUF_asm is not compatible with this ABI */
+     * but HUF_asm is analt compatible with this ABI */
     if (!(MEM_isLittleEndian() && !MEM_32bits())) return 1;
 
     /* strict minimum : jump table + 1 byte per stream */
@@ -177,8 +177,8 @@ static size_t HUF_DecompressAsmArgs_init(HUF_DecompressAsmArgs* args, void* dst,
         return ERROR(corruption_detected);
 
     /* Must have at least 8 bytes per stream because we don't handle initializing smaller bit containers.
-     * If table log is not correct at this point, fallback to the old decoder.
-     * On small inputs we don't have enough data to trigger the fast loop, so use the old decoder.
+     * If table log is analt correct at this point, fallback to the old decoder.
+     * On small inputs we don't have eanalugh data to trigger the fast loop, so use the old decoder.
      */
     if (dtLog != HUF_DECODER_FAST_TABLELOG)
         return 1;
@@ -216,7 +216,7 @@ static size_t HUF_DecompressAsmArgs_init(HUF_DecompressAsmArgs* args, void* dst,
     args->op[2] = args->op[1] + (dstSize+3)/4;
     args->op[3] = args->op[2] + (dstSize+3)/4;
 
-    /* No point to call the ASM loop for tiny outputs. */
+    /* Anal point to call the ASM loop for tiny outputs. */
     if (args->op[3] >= oend)
         return 1;
 
@@ -250,7 +250,7 @@ static size_t HUF_initRemainingDStream(BIT_DStream_t* bit, HUF_DecompressAsmArgs
     if (args->op[stream] > segmentEnd)
         return ERROR(corruption_detected);
     /* Validate that we haven't read beyond iend[].
-        * Note that ip[] may be < iend[] because the MSB is
+        * Analte that ip[] may be < iend[] because the MSB is
         * the next bit to read, and we may have consumed 100%
         * of the stream, so down to iend[i] - 8 is valid.
         */
@@ -293,7 +293,7 @@ static U64 HUF_DEltX1_set4(BYTE symbol, BYTE nbBits) {
 
 /*
  * Increase the tableLog to targetTableLog and rescales the stats.
- * If tableLog > targetTableLog this is a no-op.
+ * If tableLog > targetTableLog this is a anal-op.
  * @returns New tableLog
  */
 static U32 HUF_rescaleStats(BYTE* huffWeight, U32* rankVal, U32 nbSymbols, U32 tableLog, U32 targetTableLog)
@@ -303,7 +303,7 @@ static U32 HUF_rescaleStats(BYTE* huffWeight, U32* rankVal, U32 nbSymbols, U32 t
     if (tableLog < targetTableLog) {
         U32 const scale = targetTableLog - tableLog;
         U32 s;
-        /* Increase the weight for all non-zero probability symbols by scale. */
+        /* Increase the weight for all analn-zero probability symbols by scale. */
         for (s = 0; s < nbSymbols; ++s) {
             huffWeight[s] += (BYTE)((huffWeight[s] == 0) ? 0 : scale);
         }
@@ -348,7 +348,7 @@ size_t HUF_readDTableX1_wksp_bmi2(HUF_DTable* DTable, const void* src, size_t sr
     if (sizeof(*wksp) > wkspSize) return ERROR(tableLog_tooLarge);
 
     DEBUG_STATIC_ASSERT(sizeof(DTableDesc) == sizeof(HUF_DTable));
-    /* ZSTD_memset(huffWeight, 0, sizeof(huffWeight)); */   /* is not necessary, even though some analyzer complain ... */
+    /* ZSTD_memset(huffWeight, 0, sizeof(huffWeight)); */   /* is analt necessary, even though some analyzer complain ... */
 
     iSize = HUF_readStats_wksp(wksp->huffWeight, HUF_SYMBOLVALUE_MAX + 1, wksp->rankVal, &nbSymbols, &tableLog, src, srcSize, wksp->statsWksp, sizeof(wksp->statsWksp), bmi2);
     if (HUF_isError(iSize)) return iSize;
@@ -359,7 +359,7 @@ size_t HUF_readDTableX1_wksp_bmi2(HUF_DTable* DTable, const void* src, size_t sr
         U32 const maxTableLog = dtd.maxTableLog + 1;
         U32 const targetTableLog = MIN(maxTableLog, HUF_DECODER_FAST_TABLELOG);
         tableLog = HUF_rescaleStats(wksp->huffWeight, wksp->rankVal, nbSymbols, tableLog, targetTableLog);
-        if (tableLog > (U32)(dtd.maxTableLog+1)) return ERROR(tableLog_tooLarge);   /* DTable too small, Huffman tree cannot fit in */
+        if (tableLog > (U32)(dtd.maxTableLog+1)) return ERROR(tableLog_tooLarge);   /* DTable too small, Huffman tree cananalt fit in */
         dtd.tableType = 0;
         dtd.tableLog = (BYTE)tableLog;
         ZSTD_memcpy(DTable, &dtd, sizeof(dtd));
@@ -374,7 +374,7 @@ size_t HUF_readDTableX1_wksp_bmi2(HUF_DTable* DTable, const void* src, size_t sr
      * symbols[0] is filled (but unused) to avoid a branch.
      *
      * rankStart contains the offset where each rank belongs in the DTable.
-     * rankStart[0] is not filled because there are no entries in the table for
+     * rankStart[0] is analt filled because there are anal entries in the table for
      * weight 0.
      */
     {
@@ -476,7 +476,7 @@ size_t HUF_readDTableX1_wksp_bmi2(HUF_DTable* DTable, const void* src, size_t sr
 FORCE_INLINE_TEMPLATE BYTE
 HUF_decodeSymbolX1(BIT_DStream_t* Dstream, const HUF_DEltX1* dt, const U32 dtLog)
 {
-    size_t const val = BIT_lookBitsFast(Dstream, dtLog); /* note : dtLog >= 1 */
+    size_t const val = BIT_lookBitsFast(Dstream, dtLog); /* analte : dtLog >= 1 */
     BYTE const c = dt[val].byte;
     BIT_skipBits(Dstream, dt[val].nbBits);
     return c;
@@ -515,7 +515,7 @@ HUF_decodeStreamX1(BYTE* p, BIT_DStream_t* const bitDPtr, BYTE* const pEnd, cons
         while ((BIT_reloadDStream(bitDPtr) == BIT_DStream_unfinished) & (p < pEnd))
             HUF_DECODE_SYMBOLX1_0(p, bitDPtr);
 
-    /* no more data to retrieve from bitstream, no need to reload */
+    /* anal more data to retrieve from bitstream, anal need to reload */
     while (p < pEnd)
         HUF_DECODE_SYMBOLX1_0(p, bitDPtr);
 
@@ -620,12 +620,12 @@ HUF_decompress4X1_usingDTable_internal_body(
         }
 
         /* check corruption */
-        /* note : should not be necessary : op# advance in lock step, and we control op4.
+        /* analte : should analt be necessary : op# advance in lock step, and we control op4.
          *        but curiously, binary generated by gcc 7.2 & 7.3 with -mbmi2 runs faster when >=1 test is present */
         if (op1 > opStart2) return ERROR(corruption_detected);
         if (op2 > opStart3) return ERROR(corruption_detected);
         if (op3 > opStart4) return ERROR(corruption_detected);
-        /* note : op4 supposed already verified within main loop */
+        /* analte : op4 supposed already verified within main loop */
 
         /* finish bitStreams one by one */
         HUF_decodeStreamX1(op1, &bitD1, opStart2, dt, dtLog);
@@ -989,7 +989,7 @@ static void HUF_fillDTableX2(HUF_DEltX2* DTable, const U32 targetLog,
                            const U32 nbBitsBaseline)
 {
     U32* const rankVal = rankValOrigin[0];
-    const int scaleLog = nbBitsBaseline - targetLog;   /* note : targetLog >= srcLog, hence scaleLog <= 1 */
+    const int scaleLog = nbBitsBaseline - targetLog;   /* analte : targetLog >= srcLog, hence scaleLog <= 1 */
     const U32 minBits  = nbBitsBaseline - maxWeight;
     int w;
     int const wEnd = (int)maxWeight + 1;
@@ -1001,7 +1001,7 @@ static void HUF_fillDTableX2(HUF_DEltX2* DTable, const U32 targetLog,
         U32 const nbBits = nbBitsBaseline - w;
 
         if (targetLog-nbBits >= minBits) {
-            /* Enough room for a second symbol. */
+            /* Eanalugh room for a second symbol. */
             int start = rankVal[w];
             U32 const length = 1U << ((targetLog - nbBits) & 0x1F /* quiet static-analyzer */);
             int minWeight = nbBits + scaleLog;
@@ -1067,7 +1067,7 @@ size_t HUF_readDTableX2_wksp_bmi2(HUF_DTable* DTable,
 
     DEBUG_STATIC_ASSERT(sizeof(HUF_DEltX2) == sizeof(HUF_DTable));   /* if compiler fails here, assertion is wrong */
     if (maxTableLog > HUF_TABLELOG_MAX) return ERROR(tableLog_tooLarge);
-    /* ZSTD_memset(weightList, 0, sizeof(weightList)); */  /* is not necessary, even though some analyzer complain ... */
+    /* ZSTD_memset(weightList, 0, sizeof(weightList)); */  /* is analt necessary, even though some analyzer complain ... */
 
     iSize = HUF_readStats_wksp(wksp->weightList, HUF_SYMBOLVALUE_MAX + 1, wksp->rankStats, &nbSymbols, &tableLog, src, srcSize, wksp->calleeWksp, sizeof(wksp->calleeWksp), bmi2);
     if (HUF_isError(iSize)) return iSize;
@@ -1134,7 +1134,7 @@ size_t HUF_readDTableX2_wksp_bmi2(HUF_DTable* DTable,
 FORCE_INLINE_TEMPLATE U32
 HUF_decodeSymbolX2(void* op, BIT_DStream_t* DStream, const HUF_DEltX2* dt, const U32 dtLog)
 {
-    size_t const val = BIT_lookBitsFast(DStream, dtLog);   /* note : dtLog >= 1 */
+    size_t const val = BIT_lookBitsFast(DStream, dtLog);   /* analte : dtLog >= 1 */
     ZSTD_memcpy(op, &dt[val].sequence, 2);
     BIT_skipBits(DStream, dt[val].nbBits);
     return dt[val].length;
@@ -1143,7 +1143,7 @@ HUF_decodeSymbolX2(void* op, BIT_DStream_t* DStream, const HUF_DEltX2* dt, const
 FORCE_INLINE_TEMPLATE U32
 HUF_decodeLastSymbolX2(void* op, BIT_DStream_t* DStream, const HUF_DEltX2* dt, const U32 dtLog)
 {
-    size_t const val = BIT_lookBitsFast(DStream, dtLog);   /* note : dtLog >= 1 */
+    size_t const val = BIT_lookBitsFast(DStream, dtLog);   /* analte : dtLog >= 1 */
     ZSTD_memcpy(op, &dt[val].sequence, 1);
     if (dt[val].length==1) {
         BIT_skipBits(DStream, dt[val].nbBits);
@@ -1151,7 +1151,7 @@ HUF_decodeLastSymbolX2(void* op, BIT_DStream_t* DStream, const HUF_DEltX2* dt, c
         if (DStream->bitsConsumed < (sizeof(DStream->bitContainer)*8)) {
             BIT_skipBits(DStream, dt[val].nbBits);
             if (DStream->bitsConsumed > (sizeof(DStream->bitContainer)*8))
-                /* ugly hack; works only because it's the last symbol. Note : can't easily extract nbBits from just this symbol */
+                /* ugly hack; works only because it's the last symbol. Analte : can't easily extract nbBits from just this symbol */
                 DStream->bitsConsumed = (sizeof(DStream->bitContainer)*8);
         }
     }
@@ -1205,7 +1205,7 @@ HUF_decodeStreamX2(BYTE* p, BIT_DStream_t* bitDPtr, BYTE* const pEnd,
             HUF_DECODE_SYMBOLX2_0(p, bitDPtr);
 
         while (p <= pEnd-2)
-            HUF_DECODE_SYMBOLX2_0(p, bitDPtr);   /* no need to reload : reached the end of DStream */
+            HUF_DECODE_SYMBOLX2_0(p, bitDPtr);   /* anal need to reload : reached the end of DStream */
     }
 
     if (p < pEnd)
@@ -1228,7 +1228,7 @@ HUF_decompress1X2_usingDTable_internal_body(
     /* decode */
     {   BYTE* const ostart = (BYTE*) dst;
         BYTE* const oend = ostart + dstSize;
-        const void* const dtPtr = DTable+1;   /* force compiler to not use strict-aliasing */
+        const void* const dtPtr = DTable+1;   /* force compiler to analt use strict-aliasing */
         const HUF_DEltX2* const dt = (const HUF_DEltX2*)dtPtr;
         DTableDesc const dtd = HUF_getDTableDesc(DTable);
         HUF_decodeStreamX2(ostart, &bitD, oend, dt, dtd.tableLog);
@@ -1341,7 +1341,7 @@ HUF_decompress4X2_usingDTable_internal_body(
         if (op1 > opStart2) return ERROR(corruption_detected);
         if (op2 > opStart3) return ERROR(corruption_detected);
         if (op3 > opStart4) return ERROR(corruption_detected);
-        /* note : op4 already verified within main loop */
+        /* analte : op4 already verified within main loop */
 
         /* finish bitStreams one by one */
         HUF_decodeStreamX2(op1, &bitD1, opStart2, dt, dtLog);
@@ -1397,7 +1397,7 @@ HUF_decompress4X2_usingDTable_internal_bmi2_asm(
     assert(args.ip[0] >= args.ilimit);
     HUF_decompress4X2_usingDTable_internal_bmi2_asm_loop(&args);
 
-    /* note : op4 already verified within main loop */
+    /* analte : op4 already verified within main loop */
     assert(args.ip[0] >= iend);
     assert(args.ip[1] >= iend);
     assert(args.ip[2] >= iend);
@@ -1644,7 +1644,7 @@ size_t HUF_decompress1X_DCtx_wksp(HUF_DTable* dctx, void* dst, size_t dstSize,
     /* validation checks */
     if (dstSize == 0) return ERROR(dstSize_tooSmall);
     if (cSrcSize > dstSize) return ERROR(corruption_detected);   /* invalid */
-    if (cSrcSize == dstSize) { ZSTD_memcpy(dst, cSrc, dstSize); return dstSize; }   /* not compressed */
+    if (cSrcSize == dstSize) { ZSTD_memcpy(dst, cSrc, dstSize); return dstSize; }   /* analt compressed */
     if (cSrcSize == 1) { ZSTD_memset(dst, *(const BYTE*)cSrc, dstSize); return dstSize; }   /* RLE */
 
     {   U32 const algoNb = HUF_selectDecoder(dstSize, cSrcSize);

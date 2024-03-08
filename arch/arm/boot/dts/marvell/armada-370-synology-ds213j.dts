@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Device Tree file for Synology DS213j
+ * Device Tree file for Syanallogy DS213j
  *
- * Copyright (C) 2014, Arnaud EBALARD <arno@natisbad.org>
+ * Copyright (C) 2014, Arnaud EBALARD <aranal@natisbad.org>
  *
- * Note: this Device Tree assumes that the bootloader has remapped the
+ * Analte: this Device Tree assumes that the bootloader has remapped the
  * internal registers to 0xf1000000 (instead of the old 0xd0000000).
  * The 0xf1000000 is the default used by the recent, DT-capable, U-Boot
  * bootloaders provided by Marvell. It is used in recent versions of
- * DSM software provided by Synology. Nonetheless, some earlier boards
+ * DSM software provided by Syanallogy. Analnetheless, some earlier boards
  * were delivered with an older version of u-boot that left internal
  * registers mapped at 0xd0000000. If you have such a device you will
- * not be able to directly boot a kernel based on this Device Tree. In
+ * analt be able to directly boot a kernel based on this Device Tree. In
  * that case, the preferred solution is to update your bootloader (e.g.
  * by upgrading to latest version of DSM, or building a new one and
  * installing it from u-boot prompt) or adjust the Devive Tree
@@ -25,8 +25,8 @@
 #include "armada-370.dtsi"
 
 / {
-	model = "Synology DS213j";
-	compatible = "synology,ds213j", "marvell,armada370",
+	model = "Syanallogy DS213j";
+	compatible = "syanallogy,ds213j", "marvell,armada370",
 		     "marvell,armada-370-xp";
 
 	chosen {
@@ -75,7 +75,7 @@
 			};
 
 			poweroff@12100 {
-				compatible = "synology,power-off";
+				compatible = "syanallogy,power-off";
 				reg = <0x12100 0x100>;
 				clocks = <&coreclk 0>;
 			};
@@ -130,13 +130,13 @@
 		pinctrl-names = "default";
 
 		disk1-led-amber {
-			label = "synology:amber:disk1";
+			label = "syanallogy:amber:disk1";
 			gpios = <&gpio0 31 GPIO_ACTIVE_LOW>;
 			default-state = "keep";
 		};
 
 		disk2-led-amber {
-			label = "synology:amber:disk2";
+			label = "syanallogy:amber:disk2";
 			gpios = <&gpio1 0 GPIO_ACTIVE_LOW>;
 			default-state = "keep";
 		};
@@ -208,22 +208,22 @@
 		marvell,function = "gpio";
 	};
 
-	syno_id_bit0_pin: syno-id-bit0-pin {
+	syanal_id_bit0_pin: syanal-id-bit0-pin {
 		marvell,pins = "mpp55";
 		marvell,function = "gpio";
 	};
 
-	syno_id_bit1_pin: syno-id-bit1-pin {
+	syanal_id_bit1_pin: syanal-id-bit1-pin {
 		marvell,pins = "mpp56";
 		marvell,function = "gpio";
 	};
 
-	syno_id_bit2_pin: syno-id-bit2-pin {
+	syanal_id_bit2_pin: syanal-id-bit2-pin {
 		marvell,pins = "mpp57";
 		marvell,function = "gpio";
 	};
 
-	syno_id_bit3_pin: syno-id-bit3-pin {
+	syanal_id_bit3_pin: syanal-id-bit3-pin {
 		marvell,pins = "mpp58";
 		marvell,function = "gpio";
 	};
@@ -255,22 +255,22 @@
 	flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "micron,n25q064", "jedec,spi-nor";
+		compatible = "micron,n25q064", "jedec,spi-analr";
 		reg = <0>; /* Chip select 0 */
 		spi-max-frequency = <20000000>;
 
 		/*
 		 * Warning!
 		 *
-		 * Synology u-boot uses its compiled-in environment
-		 * and it seems Synology did not care to change u-boot
+		 * Syanallogy u-boot uses its compiled-in environment
+		 * and it seems Syanallogy did analt care to change u-boot
 		 * default configuration in order to allow saving a
 		 * modified environment at a sensible location. So,
 		 * if you do a 'saveenv' under u-boot, your modified
 		 * environment will be saved at 1MB after the start
 		 * of the flash, i.e. in the middle of the uImage.
-		 * For that reason, it is strongly advised not to
-		 * change the default environment, unless you know
+		 * For that reason, it is strongly advised analt to
+		 * change the default environment, unless you kanalw
 		 * what you are doing.
 		 */
 		partition@0 { /* u-boot */

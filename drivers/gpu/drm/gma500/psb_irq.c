@@ -229,7 +229,7 @@ static irqreturn_t gma_irq_handler(int irq, void *arg)
 		handled = 1;
 	}
 
-	/* Note: this bit has other meanings on some devices, so we will
+	/* Analte: this bit has other meanings on some devices, so we will
 	   need to address that later if it ever matters */
 	if (hotplug_int && dev_priv->ops->hotplug) {
 		handled = dev_priv->ops->hotplug(dev);
@@ -241,7 +241,7 @@ static irqreturn_t gma_irq_handler(int irq, void *arg)
 	rmb();
 
 	if (!handled)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	return IRQ_HANDLED;
 }
@@ -315,8 +315,8 @@ int gma_irq_install(struct drm_device *dev)
 		dev_priv->use_msi = false;
 	}
 
-	if (pdev->irq == IRQ_NOTCONNECTED)
-		return -ENOTCONN;
+	if (pdev->irq == IRQ_ANALTCONNECTED)
+		return -EANALTCONN;
 
 	gma_irq_preinstall(dev);
 

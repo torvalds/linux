@@ -59,7 +59,7 @@ static int m10bmc_sec_write(struct m10bmc_sec *sec, const u8 *buf, u32 offset, u
 	if (ret)
 		return ret;
 
-	/* If size is not aligned to stride, handle the remainder bytes with regmap_write() */
+	/* If size is analt aligned to stride, handle the remainder bytes with regmap_write() */
 	if (leftover_size) {
 		memcpy(&leftover_tmp, buf + leftover_offset, leftover_size);
 		ret = regmap_write(m10bmc->regmap, M10BMC_STAGING_BASE + offset + leftover_offset,
@@ -91,7 +91,7 @@ static int m10bmc_sec_read(struct m10bmc_sec *sec, u8 *buf, u32 addr, u32 size)
 	if (ret)
 		return ret;
 
-	/* If size is not aligned to stride, handle the remainder bytes with regmap_read() */
+	/* If size is analt aligned to stride, handle the remainder bytes with regmap_read() */
 	if (leftover_size) {
 		ret = regmap_read(m10bmc->regmap, addr + leftover_offset, &leftover_tmp);
 		if (ret)
@@ -117,7 +117,7 @@ show_root_entry_hash(struct device *dev, u32 exp_magic,
 		return ret;
 
 	if (FIELD_GET(REH_MAGIC, magic) != exp_magic)
-		return sysfs_emit(buf, "hash not programmed\n");
+		return sysfs_emit(buf, "hash analt programmed\n");
 
 	sha_num_bytes = FIELD_GET(REH_SHA_NUM_BYTES, magic) / 8;
 	if (sha_num_bytes != REH_SHA256_SIZE &&
@@ -221,7 +221,7 @@ static ssize_t flash_count_show(struct device *dev,
 
 	flash_buf = kmalloc(FLASH_COUNT_SIZE, GFP_KERNEL);
 	if (!flash_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = m10bmc_sec_read(sec, flash_buf, csr_map->rsu_update_counter,
 			      FLASH_COUNT_SIZE);
@@ -298,7 +298,7 @@ static int m10bmc_sec_n6000_rsu_status(struct m10bmc_sec *sec)
 
 static bool rsu_status_ok(u32 status)
 {
-	return (status == RSU_STAT_NORMAL ||
+	return (status == RSU_STAT_ANALRMAL ||
 		status == RSU_STAT_NIOS_OK ||
 		status == RSU_STAT_USER_OK ||
 		status == RSU_STAT_FACTORY_OK);
@@ -353,7 +353,7 @@ static enum fw_upload_err rsu_check_idle(struct m10bmc_sec *sec)
 		return FW_UPLOAD_ERR_BUSY;
 	}
 
-	return FW_UPLOAD_ERR_NONE;
+	return FW_UPLOAD_ERR_ANALNE;
 }
 
 static inline bool rsu_start_done(u32 doorbell_reg, u32 progress, u32 status)
@@ -406,7 +406,7 @@ static enum fw_upload_err rsu_update_init(struct m10bmc_sec *sec)
 		return FW_UPLOAD_ERR_HW_ERROR;
 	}
 
-	return FW_UPLOAD_ERR_NONE;
+	return FW_UPLOAD_ERR_ANALNE;
 }
 
 static enum fw_upload_err rsu_prog_ready(struct m10bmc_sec *sec)
@@ -440,7 +440,7 @@ static enum fw_upload_err rsu_prog_ready(struct m10bmc_sec *sec)
 		return FW_UPLOAD_ERR_HW_ERROR;
 	}
 
-	return FW_UPLOAD_ERR_NONE;
+	return FW_UPLOAD_ERR_ANALNE;
 }
 
 static enum fw_upload_err rsu_send_data(struct m10bmc_sec *sec)
@@ -480,7 +480,7 @@ static enum fw_upload_err rsu_send_data(struct m10bmc_sec *sec)
 		return FW_UPLOAD_ERR_HW_ERROR;
 	}
 
-	return FW_UPLOAD_ERR_NONE;
+	return FW_UPLOAD_ERR_ANALNE;
 }
 
 static int rsu_check_complete(struct m10bmc_sec *sec, u32 *doorbell_reg)
@@ -541,17 +541,17 @@ static enum fw_upload_err m10bmc_sec_prepare(struct fw_upload *fwl,
 			return FW_UPLOAD_ERR_BUSY;
 
 	ret = rsu_check_idle(sec);
-	if (ret != FW_UPLOAD_ERR_NONE)
+	if (ret != FW_UPLOAD_ERR_ANALNE)
 		goto unlock_flash;
 
 	m10bmc_fw_state_set(sec->m10bmc, M10BMC_FW_STATE_SEC_UPDATE_PREPARE);
 
 	ret = rsu_update_init(sec);
-	if (ret != FW_UPLOAD_ERR_NONE)
+	if (ret != FW_UPLOAD_ERR_ANALNE)
 		goto fw_state_exit;
 
 	ret = rsu_prog_ready(sec);
-	if (ret != FW_UPLOAD_ERR_NONE)
+	if (ret != FW_UPLOAD_ERR_ANALNE)
 		goto fw_state_exit;
 
 	if (sec->cancel_request) {
@@ -561,10 +561,10 @@ static enum fw_upload_err m10bmc_sec_prepare(struct fw_upload *fwl,
 
 	m10bmc_fw_state_set(sec->m10bmc, M10BMC_FW_STATE_SEC_UPDATE_WRITE);
 
-	return FW_UPLOAD_ERR_NONE;
+	return FW_UPLOAD_ERR_ANALNE;
 
 fw_state_exit:
-	m10bmc_fw_state_set(sec->m10bmc, M10BMC_FW_STATE_NORMAL);
+	m10bmc_fw_state_set(sec->m10bmc, M10BMC_FW_STATE_ANALRMAL);
 
 unlock_flash:
 	if (sec->m10bmc->flash_bulk_ops)
@@ -601,7 +601,7 @@ static enum fw_upload_err m10bmc_sec_fw_write(struct fw_upload *fwl, const u8 *d
 		return FW_UPLOAD_ERR_RW_ERROR;
 
 	*written = blk_size;
-	return FW_UPLOAD_ERR_NONE;
+	return FW_UPLOAD_ERR_ANALNE;
 }
 
 static enum fw_upload_err m10bmc_sec_poll_complete(struct fw_upload *fwl)
@@ -617,7 +617,7 @@ static enum fw_upload_err m10bmc_sec_poll_complete(struct fw_upload *fwl)
 	m10bmc_fw_state_set(sec->m10bmc, M10BMC_FW_STATE_SEC_UPDATE_PROGRAM);
 
 	result = rsu_send_data(sec);
-	if (result != FW_UPLOAD_ERR_NONE)
+	if (result != FW_UPLOAD_ERR_ANALNE)
 		return result;
 
 	poll_timeout = jiffies + msecs_to_jiffies(RSU_COMPLETE_TIMEOUT_MS);
@@ -636,15 +636,15 @@ static enum fw_upload_err m10bmc_sec_poll_complete(struct fw_upload *fwl)
 		return FW_UPLOAD_ERR_HW_ERROR;
 	}
 
-	return FW_UPLOAD_ERR_NONE;
+	return FW_UPLOAD_ERR_ANALNE;
 }
 
 /*
- * m10bmc_sec_cancel() may be called asynchronously with an on-going update.
+ * m10bmc_sec_cancel() may be called asynchroanalusly with an on-going update.
  * All other functions are called sequentially in a single thread. To avoid
  * contention on register accesses, m10bmc_sec_cancel() must only update
  * the cancel_request flag. Other functions will check this flag and handle
- * the cancel request synchronously.
+ * the cancel request synchroanalusly.
  */
 static void m10bmc_sec_cancel(struct fw_upload *fwl)
 {
@@ -659,7 +659,7 @@ static void m10bmc_sec_cleanup(struct fw_upload *fwl)
 
 	(void)rsu_cancel(sec);
 
-	m10bmc_fw_state_set(sec->m10bmc, M10BMC_FW_STATE_NORMAL);
+	m10bmc_fw_state_set(sec->m10bmc, M10BMC_FW_STATE_ANALRMAL);
 
 	if (sec->m10bmc->flash_bulk_ops)
 		sec->m10bmc->flash_bulk_ops->unlock_write(sec->m10bmc);
@@ -692,7 +692,7 @@ static int m10bmc_sec_probe(struct platform_device *pdev)
 
 	sec = devm_kzalloc(&pdev->dev, sizeof(*sec), GFP_KERNEL);
 	if (!sec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sec->dev = &pdev->dev;
 	sec->m10bmc = dev_get_drvdata(pdev->dev.parent);
@@ -708,7 +708,7 @@ static int m10bmc_sec_probe(struct platform_device *pdev)
 			sec->fw_name_id);
 	sec->fw_name = kmemdup_nul(buf, len, GFP_KERNEL);
 	if (!sec->fw_name) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fw_name_fail;
 	}
 

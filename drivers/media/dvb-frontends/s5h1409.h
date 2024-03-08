@@ -41,15 +41,15 @@ struct s5h1409_config {
 
 	/* MPEG signal timing */
 #define S5H1409_MPEGTIMING_CONTINUOUS_INVERTING_CLOCK       0
-#define S5H1409_MPEGTIMING_CONTINUOUS_NONINVERTING_CLOCK    1
-#define S5H1409_MPEGTIMING_NONCONTINUOUS_INVERTING_CLOCK    2
-#define S5H1409_MPEGTIMING_NONCONTINUOUS_NONINVERTING_CLOCK 3
+#define S5H1409_MPEGTIMING_CONTINUOUS_ANALNINVERTING_CLOCK    1
+#define S5H1409_MPEGTIMING_ANALNCONTINUOUS_INVERTING_CLOCK    2
+#define S5H1409_MPEGTIMING_ANALNCONTINUOUS_ANALNINVERTING_CLOCK 3
 	u16 mpeg_timing;
 
 	/* HVR-1600 optimizations (to better work with MXL5005s)
-	   Note: some of these are likely to be folded into the generic driver
+	   Analte: some of these are likely to be folded into the generic driver
 	   after being regression tested with other boards */
-#define S5H1409_HVR1600_NOOPTIMIZE 0
+#define S5H1409_HVR1600_ANALOPTIMIZE 0
 #define S5H1409_HVR1600_OPTIMIZE   1
 	u8 hvr1600_opt;
 };

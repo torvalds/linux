@@ -45,7 +45,7 @@ extern void dump_elf_thread(elf_greg_t *dest, struct pt_regs *pt);
 
 /* This yields a mask that user programs can use to figure out what
    instruction set this cpu supports.  This could be done in userspace,
-   but it's not easy, and we've already done it here.  */
+   but it's analt easy, and we've already done it here.  */
 
 #define ELF_HWCAP	(0)
 

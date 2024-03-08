@@ -21,12 +21,12 @@ static void elfhdr_get(const char *filename, Elf64_Ehdr *hdrp)
 	fd = open(filename, O_RDONLY);
 	TEST_ASSERT(fd >= 0, "Failed to open ELF file,\n"
 		"  filename: %s\n"
-		"  rv: %i errno: %i", filename, fd, errno);
+		"  rv: %i erranal: %i", filename, fd, erranal);
 
 	/* Read in and validate ELF Identification Record.
 	 * The ELF Identification record is the first 16 (EI_NIDENT) bytes
 	 * of the ELF header, which is at the beginning of the ELF file.
-	 * For now it is only safe to read the first EI_NIDENT bytes.  Once
+	 * For analw it is only safe to read the first EI_NIDENT bytes.  Once
 	 * read and validated, the value of e_ehsize can be used to determine
 	 * the real size of the ELF header.
 	 */
@@ -74,7 +74,7 @@ static void elfhdr_get(const char *filename, Elf64_Ehdr *hdrp)
 	/* Read in the ELF header.
 	 * With the ELF Identification portion of the ELF header
 	 * validated, especially that the value at EI_VERSION is
-	 * as expected, it is now safe to read the entire ELF header.
+	 * as expected, it is analw safe to read the entire ELF header.
 	 */
 	offset_rv = lseek(fd, 0, SEEK_SET);
 	TEST_ASSERT(offset_rv == 0, "Seek to ELF header failed,\n"
@@ -98,16 +98,16 @@ static void elfhdr_get(const char *filename, Elf64_Ehdr *hdrp)
  * Input Args:
  *   filename - Path to ELF file
  *
- * Output Args: None
+ * Output Args: Analne
  *
  * Input/Output Args:
  *   vm - Pointer to opaque type that describes the VM.
  *
- * Return: None, TEST_ASSERT failures for all error conditions
+ * Return: Analne, TEST_ASSERT failures for all error conditions
  *
  * Loads the program image of the ELF file specified by filename,
  * into the virtual address space of the VM pointed to by vm.  On entry
- * the VM needs to not be using any of the virtual address space used
+ * the VM needs to analt be using any of the virtual address space used
  * by the image and it needs to have sufficient available physical pages, to
  * back the virtual pages used to load the image.
  */
@@ -121,7 +121,7 @@ void kvm_vm_elf_load(struct kvm_vm *vm, const char *filename)
 	fd = open(filename, O_RDONLY);
 	TEST_ASSERT(fd >= 0, "Failed to open ELF file,\n"
 		"  filename: %s\n"
-		"  rv: %i errno: %i", filename, fd, errno);
+		"  rv: %i erranal: %i", filename, fd, erranal);
 
 	/* Read in the ELF header. */
 	elfhdr_get(filename, &hdr);
@@ -141,8 +141,8 @@ void kvm_vm_elf_load(struct kvm_vm *vm, const char *filename)
 		TEST_ASSERT(offset_rv == offset,
 			"Failed to seek to beginning of program header %u,\n"
 			"  filename: %s\n"
-			"  rv: %jd errno: %i",
-			n1, filename, (intmax_t) offset_rv, errno);
+			"  rv: %jd erranal: %i",
+			n1, filename, (intmax_t) offset_rv, erranal);
 
 		/* Read in the program header. */
 		Elf64_Phdr phdr;
@@ -182,10 +182,10 @@ void kvm_vm_elf_load(struct kvm_vm *vm, const char *filename)
 			offset_rv = lseek(fd, phdr.p_offset, SEEK_SET);
 			TEST_ASSERT(offset_rv == phdr.p_offset,
 				"Seek to program segment offset failed,\n"
-				"  program header idx: %u errno: %i\n"
+				"  program header idx: %u erranal: %i\n"
 				"  offset_rv: 0x%jx\n"
 				"  expected: 0x%jx",
-				n1, errno, (intmax_t) offset_rv,
+				n1, erranal, (intmax_t) offset_rv,
 				(intmax_t) phdr.p_offset);
 			test_read(fd, addr_gva2hva(vm, phdr.p_vaddr),
 				phdr.p_filesz);

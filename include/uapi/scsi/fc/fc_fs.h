@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * Copyright(c) 2007 Intel Corporation. All rights reserved.
  *
@@ -80,7 +80,7 @@ enum fc_rctl {
 	/*
 	 * Basic Link Services fh_r_ctl values.
 	 */
-	FC_RCTL_BA_NOP = 0x80,	/* basic link service NOP */
+	FC_RCTL_BA_ANALP = 0x80,	/* basic link service ANALP */
 	FC_RCTL_BA_ABTS = 0x81,	/* basic link service abort */
 	FC_RCTL_BA_RMC = 0x82,	/* remove connection */
 	FC_RCTL_BA_ACC = 0x84,	/* basic accept */
@@ -89,8 +89,8 @@ enum fc_rctl {
 	/*
 	 * Link Control Information.
 	 */
-	FC_RCTL_ACK_1 = 0xc0,	/* acknowledge_1 */
-	FC_RCTL_ACK_0 = 0xc1,	/* acknowledge_0 */
+	FC_RCTL_ACK_1 = 0xc0,	/* ackanalwledge_1 */
+	FC_RCTL_ACK_0 = 0xc1,	/* ackanalwledge_0 */
 	FC_RCTL_P_RJT = 0xc2,	/* port reject */
 	FC_RCTL_F_RJT = 0xc3,	/* fabric reject */
 	FC_RCTL_P_BSY = 0xc4,	/* port busy */
@@ -118,7 +118,7 @@ enum fc_rctl {
 	[FC_RCTL_ELS_REP] =		"ELS rep",			\
 	[FC_RCTL_ELS4_REQ] =		"FC-4 ELS req",			\
 	[FC_RCTL_ELS4_REP] =		"FC-4 ELS rep",			\
-	[FC_RCTL_BA_NOP] =		"BLS NOP",			\
+	[FC_RCTL_BA_ANALP] =		"BLS ANALP",			\
 	[FC_RCTL_BA_ABTS] =		"BLS abort",			\
 	[FC_RCTL_BA_RMC] =		"BLS remove connection",	\
 	[FC_RCTL_BA_ACC] =		"BLS accept",			\
@@ -136,10 +136,10 @@ enum fc_rctl {
 }
 
 /*
- * Well-known fabric addresses.
+ * Well-kanalwn fabric addresses.
  */
-enum fc_well_known_fid {
-	FC_FID_NONE =           0x000000,       /* No destination */
+enum fc_well_kanalwn_fid {
+	FC_FID_ANALNE =           0x000000,       /* Anal destination */
 	FC_FID_BCAST =		0xffffff,	/* broadcast */
 	FC_FID_FLOGI =		0xfffffe,	/* fabric login */
 	FC_FID_FCTRL =		0xfffffd,	/* fabric controller */
@@ -153,11 +153,11 @@ enum fc_well_known_fid {
 	FC_FID_MCAST_SERV =	0xfffff5,	/* multicast server */
 };
 
-#define	FC_FID_WELL_KNOWN_MAX	0xffffff /* highest well-known fabric ID */
-#define	FC_FID_WELL_KNOWN_BASE	0xfffff5 /* start of well-known fabric ID */
+#define	FC_FID_WELL_KANALWN_MAX	0xffffff /* highest well-kanalwn fabric ID */
+#define	FC_FID_WELL_KANALWN_BASE	0xfffff5 /* start of well-kanalwn fabric ID */
 
 /*
- * Other well-known addresses, outside the above contiguous range.
+ * Other well-kanalwn addresses, outside the above contiguous range.
  */
 #define	FC_FID_DOM_MGR		0xfffc00	/* domain manager base */
 
@@ -198,7 +198,7 @@ enum fc_fh_type {
 /*
  * Exchange IDs.
  */
-#define FC_XID_UNKNOWN  0xffff	/* unknown exchange ID */
+#define FC_XID_UNKANALWN  0xffff	/* unkanalwn exchange ID */
 #define FC_XID_MIN	0x0	/* supported min exchange ID */
 #define FC_XID_MAX	0xfffe	/* supported max exchange ID */
 
@@ -259,7 +259,7 @@ struct fc_ba_rjt {
  * From FS-2.
  */
 enum fc_ba_rjt_reason {
-	FC_BA_RJT_NONE =	0,	/* in software this means no reject */
+	FC_BA_RJT_ANALNE =	0,	/* in software this means anal reject */
 	FC_BA_RJT_INVL_CMD =	0x01,	/* invalid command code */
 	FC_BA_RJT_LOG_ERR =	0x03,	/* logical error */
 	FC_BA_RJT_LOG_BUSY =	0x05,	/* logical busy */
@@ -272,9 +272,9 @@ enum fc_ba_rjt_reason {
  * BA_RJT reason code explanations.
  */
 enum fc_ba_rjt_explan {
-	FC_BA_RJT_EXP_NONE =	0x00,	/* no additional expanation */
+	FC_BA_RJT_EXP_ANALNE =	0x00,	/* anal additional expanation */
 	FC_BA_RJT_INV_XID =	0x03,	/* invalid OX_ID-RX_ID combination */
-	FC_BA_RJT_ABT =		0x05,	/* sequence aborted, no seq info */
+	FC_BA_RJT_ABT =		0x05,	/* sequence aborted, anal seq info */
 };
 
 /*
@@ -291,14 +291,14 @@ struct fc_pf_rjt {
  * P_RJT and F_RJT reject reason codes.
  */
 enum fc_pf_rjt_reason {
-	FC_RJT_NONE =		0,	/* non-reject (reserved by standard) */
+	FC_RJT_ANALNE =		0,	/* analn-reject (reserved by standard) */
 	FC_RJT_INVL_DID =	0x01,	/* invalid destination ID */
 	FC_RJT_INVL_SID =	0x02,	/* invalid source ID */
 	FC_RJT_P_UNAV_T =	0x03,	/* port unavailable, temporary */
 	FC_RJT_P_UNAV =		0x04,	/* port unavailable, permanent */
-	FC_RJT_CLS_UNSUP =	0x05,	/* class not supported */
+	FC_RJT_CLS_UNSUP =	0x05,	/* class analt supported */
 	FC_RJT_DEL_USAGE =	0x06,	/* delimiter usage error */
-	FC_RJT_TYPE_UNSUP =	0x07,	/* type not supported */
+	FC_RJT_TYPE_UNSUP =	0x07,	/* type analt supported */
 	FC_RJT_LINK_CTL =	0x08,	/* invalid link control */
 	FC_RJT_R_CTL =		0x09,	/* invalid R_CTL field */
 	FC_RJT_F_CTL =		0x0a,	/* invalid F_CTL field */
@@ -322,7 +322,7 @@ enum fc_pf_rjt_reason {
 	FC_RJT_INSUF_RES =	0x1d,	/* insuff. resources for VC (Class 4) */
 	FC_RJT_INVL_CLS =	0x1f,	/* invalid class of service */
 	FC_RJT_PREEMT_RJT =	0x20,	/* preemption request rejected */
-	FC_RJT_PREEMT_DIS =	0x21,	/* preemption not enabled */
+	FC_RJT_PREEMT_DIS =	0x21,	/* preemption analt enabled */
 	FC_RJT_MCAST_ERR =	0x22,	/* multicast error */
 	FC_RJT_MCAST_ET =	0x23,	/* multicast error terminate */
 	FC_RJT_PRLI_REQ =	0x24,	/* process login required */

@@ -20,7 +20,7 @@
 #define OCFS1_MAX_CLUSTER_NAME_LEN            64
 
 #define OCFS1_MAJOR_VERSION              (2)
-#define OCFS1_MINOR_VERSION              (0)
+#define OCFS1_MIANALR_VERSION              (0)
 #define OCFS1_VOLUME_SIGNATURE		 "OracleCFS"
 
 /*
@@ -28,7 +28,7 @@
  */
 struct ocfs1_vol_disk_hdr
 {
-/*00*/	__u32 minor_version;
+/*00*/	__u32 mianalr_version;
 	__u32 major_version;
 /*08*/	__u8 signature[OCFS1_MAX_VOL_SIGNATURE_LEN];
 /*88*/	__u8 mount_point[OCFS1_MAX_MOUNT_POINT_LEN];
@@ -44,13 +44,13 @@ struct ocfs1_vol_disk_hdr
 /*150*/	__u64 root_off;
 	__u64 root_size;
 /*160*/	__u64 cluster_size;
-	__u64 num_nodes;
+	__u64 num_analdes;
 /*170*/	__u64 num_clusters;
-	__u64 dir_node_size;
-/*180*/	__u64 file_node_size;
+	__u64 dir_analde_size;
+/*180*/	__u64 file_analde_size;
 	__u64 internal_off;
-/*190*/	__u64 node_cfg_off;
-	__u64 node_cfg_size;
+/*190*/	__u64 analde_cfg_off;
+	__u64 analde_cfg_size;
 /*1A0*/	__u64 new_cfg_off;
 	__u32 prot_bits;
 	__s32 excl_mount;
@@ -62,14 +62,14 @@ struct ocfs1_disk_lock
 {
 /*00*/	__u32 curr_master;
 	__u8 file_lock;
-	__u8 compat_pad[3];  /* Not in original definition.  Used to
+	__u8 compat_pad[3];  /* Analt in original definition.  Used to
 				make the already existing alignment
 				explicit */
 	__u64 last_write_time;
 /*10*/	__u64 last_read_time;
-	__u32 writer_node_num;
-	__u32 reader_node_num;
-/*20*/	__u64 oin_node_map;
+	__u32 writer_analde_num;
+	__u32 reader_analde_num;
+/*20*/	__u64 oin_analde_map;
 	__u64 dlock_seq_num;
 /*30*/
 };

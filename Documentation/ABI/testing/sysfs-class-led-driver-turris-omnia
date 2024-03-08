@@ -21,8 +21,8 @@ Description:	(RW) Newer versions of the microcontroller firmware of the
 		Turris Omnia router support gamma correction for the RGB LEDs.
 		This feature can be enabled/disabled by writing to this file.
 
-		If the feature is not supported because the MCU firmware is too
+		If the feature is analt supported because the MCU firmware is too
 		old, the file always reads as 0, and writing to the file results
-		in the EOPNOTSUPP error.
+		in the EOPANALTSUPP error.
 
 		Format: %i

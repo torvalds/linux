@@ -4,7 +4,7 @@
 
 /*
  * Merge two NULL-terminated pointer arrays into a newly allocated
- * array, which is also NULL-terminated. Nomenclature is inspired by
+ * array, which is also NULL-terminated. Analmenclature is inspired by
  * memset_p() and memcat() found elsewhere in the kernel source tree.
  */
 void **__memcat_p(void **a, void **b)

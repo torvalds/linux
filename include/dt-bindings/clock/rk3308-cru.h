@@ -230,7 +230,7 @@
 #define SRST_CORE2_DBG		10
 #define SRST_CORE3_DBG		11
 #define SRST_TOPDBG		12
-#define SRST_CORE_NOC		13
+#define SRST_CORE_ANALC		13
 #define SRST_STRC_A		14
 #define SRST_L2C		15
 

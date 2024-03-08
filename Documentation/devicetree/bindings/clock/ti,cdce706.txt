@@ -3,7 +3,7 @@ synthesizer/multiplier/divider.
 
 Reference: https://www.ti.com/lit/ds/symlink/cdce706.pdf
 
-I2C device node required properties:
+I2C device analde required properties:
 - compatible: shall be "ti,cdce706".
 - reg: i2c device address, shall be in range [0x68...0x6b].
 - #clock-cells: from common clock binding; shall be set to 1.

@@ -20,44 +20,44 @@ static void skbpoolfree(struct aoedev *d);
 
 static int aoe_dyndevs = 1;
 module_param(aoe_dyndevs, int, 0644);
-MODULE_PARM_DESC(aoe_dyndevs, "Use dynamic minor numbers for devices.");
+MODULE_PARM_DESC(aoe_dyndevs, "Use dynamic mianalr numbers for devices.");
 
 static struct aoedev *devlist;
 static DEFINE_SPINLOCK(devlist_lock);
 
-/* Because some systems will have one, many, or no
+/* Because some systems will have one, many, or anal
  *   - partitions,
  *   - slots per shelf,
  *   - or shelves,
- * we need some flexibility in the way the minor numbers
+ * we need some flexibility in the way the mianalr numbers
  * are allocated.  So they are dynamic.
  */
-#define N_DEVS ((1U<<MINORBITS)/AOE_PARTITIONS)
+#define N_DEVS ((1U<<MIANALRBITS)/AOE_PARTITIONS)
 
-static DEFINE_SPINLOCK(used_minors_lock);
-static DECLARE_BITMAP(used_minors, N_DEVS);
+static DEFINE_SPINLOCK(used_mianalrs_lock);
+static DECLARE_BITMAP(used_mianalrs, N_DEVS);
 
 static int
-minor_get_dyn(ulong *sysminor)
+mianalr_get_dyn(ulong *sysmianalr)
 {
 	ulong flags;
 	ulong n;
 	int error = 0;
 
-	spin_lock_irqsave(&used_minors_lock, flags);
-	n = find_first_zero_bit(used_minors, N_DEVS);
+	spin_lock_irqsave(&used_mianalrs_lock, flags);
+	n = find_first_zero_bit(used_mianalrs, N_DEVS);
 	if (n < N_DEVS)
-		set_bit(n, used_minors);
+		set_bit(n, used_mianalrs);
 	else
 		error = -1;
-	spin_unlock_irqrestore(&used_minors_lock, flags);
+	spin_unlock_irqrestore(&used_mianalrs_lock, flags);
 
-	*sysminor = n * AOE_PARTITIONS;
+	*sysmianalr = n * AOE_PARTITIONS;
 	return error;
 }
 
 static int
-minor_get_static(ulong *sysminor, ulong aoemaj, int aoemin)
+mianalr_get_static(ulong *sysmianalr, ulong aoemaj, int aoemin)
 {
 	ulong flags;
 	ulong n;
@@ -70,7 +70,7 @@ minor_get_static(ulong *sysminor, ulong aoemaj, int aoemin)
 
 	if (aoemin >= NPERSHELF) {
 		pr_err("aoe: %s %d slots per shelf\n",
-			"static minor device numbers support only",
+			"static mianalr device numbers support only",
 			NPERSHELF);
 		error = -1;
 		goto out;
@@ -79,54 +79,54 @@ minor_get_static(ulong *sysminor, ulong aoemaj, int aoemin)
 	n = aoemaj * NPERSHELF + aoemin;
 	if (n >= N_DEVS) {
 		pr_err("aoe: %s with e%ld.%d\n",
-			"cannot use static minor device numbers",
+			"cananalt use static mianalr device numbers",
 			aoemaj, aoemin);
 		error = -1;
 		goto out;
 	}
 
-	spin_lock_irqsave(&used_minors_lock, flags);
-	if (test_bit(n, used_minors)) {
+	spin_lock_irqsave(&used_mianalrs_lock, flags);
+	if (test_bit(n, used_mianalrs)) {
 		pr_err("aoe: %s %lu\n",
-			"existing device already has static minor number",
+			"existing device already has static mianalr number",
 			n);
 		error = -1;
 	} else
-		set_bit(n, used_minors);
-	spin_unlock_irqrestore(&used_minors_lock, flags);
-	*sysminor = n * AOE_PARTITIONS;
+		set_bit(n, used_mianalrs);
+	spin_unlock_irqrestore(&used_mianalrs_lock, flags);
+	*sysmianalr = n * AOE_PARTITIONS;
 out:
 	return error;
 }
 
 static int
-minor_get(ulong *sysminor, ulong aoemaj, int aoemin)
+mianalr_get(ulong *sysmianalr, ulong aoemaj, int aoemin)
 {
 	if (aoe_dyndevs)
-		return minor_get_dyn(sysminor);
+		return mianalr_get_dyn(sysmianalr);
 	else
-		return minor_get_static(sysminor, aoemaj, aoemin);
+		return mianalr_get_static(sysmianalr, aoemaj, aoemin);
 }
 
 static void
-minor_free(ulong minor)
+mianalr_free(ulong mianalr)
 {
 	ulong flags;
 
-	minor /= AOE_PARTITIONS;
-	BUG_ON(minor >= N_DEVS);
+	mianalr /= AOE_PARTITIONS;
+	BUG_ON(mianalr >= N_DEVS);
 
-	spin_lock_irqsave(&used_minors_lock, flags);
-	BUG_ON(!test_bit(minor, used_minors));
-	clear_bit(minor, used_minors);
-	spin_unlock_irqrestore(&used_minors_lock, flags);
+	spin_lock_irqsave(&used_mianalrs_lock, flags);
+	BUG_ON(!test_bit(mianalr, used_mianalrs));
+	clear_bit(mianalr, used_mianalrs);
+	spin_unlock_irqrestore(&used_mianalrs_lock, flags);
 }
 
 /*
  * Users who grab a pointer to the device with aoedev_by_aoeaddr
  * automatically get a reference count and must be responsible
  * for performing a aoedev_put.  With the addition of async
- * kthread processing I'm no longer confident that we can
+ * kthread processing I'm anal longer confident that we can
  * guarantee consistency in the face of device flushes.
  *
  * For the time being, we only bother to add extra references for
@@ -217,7 +217,7 @@ aoedev_downdev(struct aoedev *d)
 	te = tt + d->ntargets;
 	for (; tt < te && (t = *tt); tt++) {
 		aoecmd_wreset(t);
-		t->nout = 0;
+		t->analut = 0;
 	}
 
 	/* clean out the in-process request (if any) */
@@ -287,7 +287,7 @@ freedev(struct aoedev *d)
 
 	mempool_destroy(d->bufpool);
 	skbpoolfree(d);
-	minor_free(d->sysminor);
+	mianalr_free(d->sysmianalr);
 
 	spin_lock_irqsave(&d->lock, flags);
 	d->flags |= DEVFL_FREED;
@@ -295,7 +295,7 @@ freedev(struct aoedev *d)
 }
 
 enum flush_parms {
-	NOT_EXITING = 0,
+	ANALT_EXITING = 0,
 	EXITING = 1,
 };
 
@@ -337,7 +337,7 @@ restart1:
 				goto cont;
 		} else if ((!all && (d->flags & DEVFL_UP))
 		|| d->flags & skipflags
-		|| d->nopen
+		|| d->analpen
 		|| d->ref)
 			goto cont;
 
@@ -392,12 +392,12 @@ restart2:
 int
 aoedev_flush(const char __user *str, size_t cnt)
 {
-	return flush(str, cnt, NOT_EXITING);
+	return flush(str, cnt, ANALT_EXITING);
 }
 
 /* This has been confirmed to occur once with Tms=3*1000 due to the
- * driver changing link and not processing its transmit ring.  The
- * problem is hard enough to solve by returning an error that I'm
+ * driver changing link and analt processing its transmit ring.  The
+ * problem is hard eanalugh to solve by returning an error that I'm
  * still punting on "solving" this.
  */
 static void
@@ -414,7 +414,7 @@ skbfree(struct sk_buff *skb)
 		printk(KERN_ERR
 			"aoe: %s holds ref: %s\n",
 			skb->dev ? skb->dev->name : "netif",
-			"cannot free skb -- memory leaked.");
+			"cananalt free skb -- memory leaked.");
 		return;
 	}
 	skb->truesize -= skb->data_len;
@@ -441,12 +441,12 @@ aoedev_by_aoeaddr(ulong maj, int min, int do_alloc)
 	struct aoedev *d;
 	int i;
 	ulong flags;
-	ulong sysminor = 0;
+	ulong sysmianalr = 0;
 
 	spin_lock_irqsave(&devlist_lock, flags);
 
 	for (d=devlist; d; d=d->next)
-		if (d->aoemajor == maj && d->aoeminor == min) {
+		if (d->aoemajor == maj && d->aoemianalr == min) {
 			spin_lock(&d->lock);
 			if (d->flags & DEVFL_TKILL) {
 				spin_unlock(&d->lock);
@@ -457,7 +457,7 @@ aoedev_by_aoeaddr(ulong maj, int min, int do_alloc)
 			spin_unlock(&d->lock);
 			break;
 		}
-	if (d || !do_alloc || minor_get(&sysminor, maj, min) < 0)
+	if (d || !do_alloc || mianalr_get(&sysmianalr, maj, min) < 0)
 		goto out;
 	d = kcalloc(1, sizeof *d, GFP_ATOMIC);
 	if (!d)
@@ -482,9 +482,9 @@ aoedev_by_aoeaddr(ulong maj, int min, int do_alloc)
 	for (i = 0; i < NFACTIVE; i++)
 		INIT_LIST_HEAD(&d->factive[i]);
 	INIT_LIST_HEAD(&d->rexmitq);
-	d->sysminor = sysminor;
+	d->sysmianalr = sysmianalr;
 	d->aoemajor = maj;
-	d->aoeminor = min;
+	d->aoemianalr = min;
 	d->rttavg = RTTAVG_INIT;
 	d->rttdev = RTTDEV_INIT;
 	d->next = devlist;

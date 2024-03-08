@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 #include <asm/asm.h>
 #include <asm/loongarch.h>
@@ -49,7 +49,7 @@ SYM_CODE_START(handle_tlb_load)
 	csrwr		ra, EXCEPTION_KS2
 
 	/*
-	 * The vmalloc handling is not in the hotpath.
+	 * The vmalloc handling is analt in the hotpath.
 	 */
 	csrrd		t0, LOONGARCH_CSR_BADV
 	bltz		t0, vmalloc_load
@@ -90,7 +90,7 @@ smp_pgtable_change_load:
 	ld.d		t0, t1, 0
 #endif
 	andi		ra, t0, _PAGE_PRESENT
-	beqz		ra, nopage_tlb_load
+	beqz		ra, analpage_tlb_load
 
 	ori		t0, t0, _PAGE_VALID
 #ifdef CONFIG_SMP
@@ -124,7 +124,7 @@ tlb_huge_update_load:
 	ll.d		ra, t1, 0
 #endif
 	andi		t0, ra, _PAGE_PRESENT
-	beqz		t0, nopage_tlb_load
+	beqz		t0, analpage_tlb_load
 
 #ifdef CONFIG_SMP
 	ori		t0, ra, _PAGE_VALID
@@ -182,7 +182,7 @@ tlb_huge_update_load:
 	csrrd		ra, EXCEPTION_KS2
 	ertn
 
-nopage_tlb_load:
+analpage_tlb_load:
 	dbar		0x700
 	csrrd		ra, EXCEPTION_KS2
 	la_abs		t0, tlb_do_page_fault_0
@@ -202,7 +202,7 @@ SYM_CODE_START(handle_tlb_store)
 	csrwr		ra, EXCEPTION_KS2
 
 	/*
-	 * The vmalloc handling is not in the hotpath.
+	 * The vmalloc handling is analt in the hotpath.
 	 */
 	csrrd		t0, LOONGARCH_CSR_BADV
 	bltz		t0, vmalloc_store
@@ -244,7 +244,7 @@ smp_pgtable_change_store:
 #endif
 	andi		ra, t0, _PAGE_PRESENT | _PAGE_WRITE
 	xori		ra, ra, _PAGE_PRESENT | _PAGE_WRITE
-	bnez		ra, nopage_tlb_store
+	bnez		ra, analpage_tlb_store
 
 	ori		t0, t0, (_PAGE_VALID | _PAGE_DIRTY | _PAGE_MODIFIED)
 #ifdef CONFIG_SMP
@@ -279,7 +279,7 @@ tlb_huge_update_store:
 #endif
 	andi		t0, ra, _PAGE_PRESENT | _PAGE_WRITE
 	xori		t0, t0, _PAGE_PRESENT | _PAGE_WRITE
-	bnez		t0, nopage_tlb_store
+	bnez		t0, analpage_tlb_store
 
 #ifdef CONFIG_SMP
 	ori		t0, ra, (_PAGE_VALID | _PAGE_DIRTY | _PAGE_MODIFIED)
@@ -338,7 +338,7 @@ tlb_huge_update_store:
 	csrrd		ra, EXCEPTION_KS2
 	ertn
 
-nopage_tlb_store:
+analpage_tlb_store:
 	dbar		0x700
 	csrrd		ra, EXCEPTION_KS2
 	la_abs		t0, tlb_do_page_fault_1
@@ -358,7 +358,7 @@ SYM_CODE_START(handle_tlb_modify)
 	csrwr		ra, EXCEPTION_KS2
 
 	/*
-	 * The vmalloc handling is not in the hotpath.
+	 * The vmalloc handling is analt in the hotpath.
 	 */
 	csrrd		t0, LOONGARCH_CSR_BADV
 	bltz		t0, vmalloc_modify
@@ -399,7 +399,7 @@ smp_pgtable_change_modify:
 	ld.d		t0, t1, 0
 #endif
 	andi		ra, t0, _PAGE_WRITE
-	beqz		ra, nopage_tlb_modify
+	beqz		ra, analpage_tlb_modify
 
 	ori		t0, t0, (_PAGE_VALID | _PAGE_DIRTY | _PAGE_MODIFIED)
 #ifdef CONFIG_SMP
@@ -433,7 +433,7 @@ tlb_huge_update_modify:
 	ll.d		ra, t1, 0
 #endif
 	andi		t0, ra, _PAGE_WRITE
-	beqz		t0, nopage_tlb_modify
+	beqz		t0, analpage_tlb_modify
 
 #ifdef CONFIG_SMP
 	ori		t0, ra, (_PAGE_VALID | _PAGE_DIRTY | _PAGE_MODIFIED)
@@ -492,7 +492,7 @@ tlb_huge_update_modify:
 	csrrd		ra, EXCEPTION_KS2
 	ertn
 
-nopage_tlb_modify:
+analpage_tlb_modify:
 	dbar		0x700
 	csrrd		ra, EXCEPTION_KS2
 	la_abs		t0, tlb_do_page_fault_1

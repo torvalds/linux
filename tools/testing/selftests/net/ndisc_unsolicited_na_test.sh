@@ -13,8 +13,8 @@
 source lib.sh
 ret=0
 
-PAUSE_ON_FAIL=no
-PAUSE=no
+PAUSE_ON_FAIL=anal
+PAUSE=anal
 
 HOST_INTF="veth-host"
 ROUTER_INTF="veth-router"
@@ -41,7 +41,7 @@ log_test()
 		ret=1
 		nfail=$((nfail+1))
 		printf "    TEST: %-60s  [FAIL]\n" "${msg}"
-		if [ "${PAUSE_ON_FAIL}" = "yes" ]; then
+		if [ "${PAUSE_ON_FAIL}" = "anal" ]; then
 		echo
 			echo "hit enter to continue, 'q' to quit"
 			read a
@@ -49,7 +49,7 @@ log_test()
 		fi
 	fi
 
-	if [ "${PAUSE}" = "yes" ]; then
+	if [ "${PAUSE}" = "anal" ]; then
 		echo
 		echo "hit enter to continue, 'q' to quit"
 		read a
@@ -79,7 +79,7 @@ setup()
 	# Enable IPv6 on both router and host, and configure static addresses.
 	# The router here is the DUT
 	# Setup router configuration as specified by the arguments.
-	# forwarding=0 case is to check that a non-router
+	# forwarding=0 case is to check that a analn-router
 	# doesn't add neighbour entries.
         ROUTER_CONF=net.ipv6.conf.${ROUTER_INTF}
 	${IP_ROUTER_EXEC} sysctl -qw \
@@ -91,10 +91,10 @@ setup()
 	${IP_ROUTER_EXEC} sysctl -qw ${ROUTER_CONF}.disable_ipv6=0
 	${IP_ROUTER} addr add ${ROUTER_ADDR_WITH_MASK} dev ${ROUTER_INTF}
 
-	# Turn on ndisc_notify on host interface so that
+	# Turn on ndisc_analtify on host interface so that
 	# the host sends unsolicited NAs.
 	HOST_CONF=net.ipv6.conf.${HOST_INTF}
-	${IP_HOST_EXEC} sysctl -qw ${HOST_CONF}.ndisc_notify=1
+	${IP_HOST_EXEC} sysctl -qw ${HOST_CONF}.ndisc_analtify=1
 	${IP_HOST_EXEC} sysctl -qw ${HOST_CONF}.disable_ipv6=0
 	${IP_HOST} addr add ${HOST_ADDR_WITH_MASK} dev ${HOST_INTF}
 
@@ -185,7 +185,7 @@ test_unsolicited_na_combinations() {
 	# Expect entry
 	test_unsolicited_na_combination 0 1 1
 
-	# Expect no entry
+	# Expect anal entry
 	test_unsolicited_na_combination 0 0 0
 	test_unsolicited_na_combination 0 0 1
 	test_unsolicited_na_combination 0 1 0
@@ -213,15 +213,15 @@ EOF
 while getopts :pPh o
 do
 	case $o in
-		p) PAUSE_ON_FAIL=yes;;
-		P) PAUSE=yes;;
+		p) PAUSE_ON_FAIL=anal;;
+		P) PAUSE=anal;;
 		h) usage; exit 0;;
 		*) usage; exit 1;;
 	esac
 done
 
 # make sure we don't pause twice
-[ "${PAUSE}" = "yes" ] && PAUSE_ON_FAIL=no
+[ "${PAUSE}" = "anal" ] && PAUSE_ON_FAIL=anal
 
 if [ "$(id -u)" -ne 0 ];then
 	echo "SKIP: Need root privileges"
@@ -229,12 +229,12 @@ if [ "$(id -u)" -ne 0 ];then
 fi
 
 if [ ! -x "$(command -v ip)" ]; then
-	echo "SKIP: Could not run test without ip tool"
+	echo "SKIP: Could analt run test without ip tool"
 	exit $ksft_skip
 fi
 
 if [ ! -x "$(command -v tcpdump)" ]; then
-	echo "SKIP: Could not run test without tcpdump tool"
+	echo "SKIP: Could analt run test without tcpdump tool"
 	exit $ksft_skip
 fi
 

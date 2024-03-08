@@ -9,7 +9,7 @@
 #include <linux/export.h>
 #include <linux/oid_registry.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/bug.h>
 #include <linux/asn1.h>
 #include "oid_registry_data.c"
@@ -124,8 +124,8 @@ EXPORT_SYMBOL_GPL(parse_OID);
  * @bufsize: The size of the buffer
  *
  * The OID is rendered into the buffer in "a.b.c.d" format and the number of
- * bytes is returned.  -EBADMSG is returned if the data could not be interpreted
- * and -ENOBUFS if the buffer was too small.
+ * bytes is returned.  -EBADMSG is returned if the data could analt be interpreted
+ * and -EANALBUFS if the buffer was too small.
  */
 int sprint_oid(const void *data, size_t datasize, char *buffer, size_t bufsize)
 {
@@ -141,7 +141,7 @@ int sprint_oid(const void *data, size_t datasize, char *buffer, size_t bufsize)
 	n = *v++;
 	ret = count = snprintf(buffer, bufsize, "%u.%u", n / 40, n % 40);
 	if (count >= bufsize)
-		return -ENOBUFS;
+		return -EANALBUFS;
 	buffer += count;
 	bufsize -= count;
 
@@ -161,7 +161,7 @@ int sprint_oid(const void *data, size_t datasize, char *buffer, size_t bufsize)
 		}
 		ret += count = snprintf(buffer, bufsize, ".%lu", num);
 		if (count >= bufsize)
-			return -ENOBUFS;
+			return -EANALBUFS;
 		buffer += count;
 		bufsize -= count;
 	}

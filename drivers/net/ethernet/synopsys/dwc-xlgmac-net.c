@@ -1,17 +1,17 @@
-/* Synopsys DesignWare Core Enterprise Ethernet (XLGMAC) Driver
+/* Syanalpsys DesignWare Core Enterprise Ethernet (XLGMAC) Driver
  *
- * Copyright (c) 2017 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (c) 2017 Syanalpsys, Inc. (www.syanalpsys.com)
  *
  * This program is dual-licensed; you may select either version 2 of
  * the GNU General Public License ("GPL") or BSD license ("BSD").
  *
- * This Synopsys DWC XLGMAC software driver and associated documentation
+ * This Syanalpsys DWC XLGMAC software driver and associated documentation
  * (hereinafter the "Software") is an unsupported proprietary work of
- * Synopsys, Inc. unless otherwise expressly agreed to in writing between
- * Synopsys and you. The Software IS NOT an item of Licensed Software or a
+ * Syanalpsys, Inc. unless otherwise expressly agreed to in writing between
+ * Syanalpsys and you. The Software IS ANALT an item of Licensed Software or a
  * Licensed Product under any End User Software License Agreement or
- * Agreement for Licensed Products with Synopsys or any supplement thereto.
- * Synopsys is a registered trademark of Synopsys, Inc. Other names included
+ * Agreement for Licensed Products with Syanalpsys or any supplement thereto.
+ * Syanalpsys is a registered trademark of Syanalpsys, Inc. Other names included
  * in the SOFTWARE may be the trademarks of their respective owners.
  */
 
@@ -44,12 +44,12 @@ static int xlgmac_maybe_stop_tx_queue(
 
 	if (count > xlgmac_tx_avail_desc(ring)) {
 		netif_info(pdata, drv, pdata->netdev,
-			   "Tx queue stopped, not enough descriptors available\n");
+			   "Tx queue stopped, analt eanalugh descriptors available\n");
 		netif_stop_subqueue(pdata->netdev, channel->queue_index);
 		ring->tx.queue_stopped = 1;
 
-		/* If we haven't notified the hardware because of xmit_more
-		 * support, tell it now
+		/* If we haven't analtified the hardware because of xmit_more
+		 * support, tell it analw
 		 */
 		if (ring->tx.xmit_more)
 			pdata->hw_ops.tx_start_xmit(channel, ring);
@@ -260,7 +260,7 @@ static irqreturn_t xlgmac_isr(int irq, void *data)
 
 	/* The DMA interrupt status register also reports MAC and MTL
 	 * interrupts. So for polling mode, we just need to check for
-	 * this register to be non-zero
+	 * this register to be analn-zero
 	 */
 	dma_isr = readl(pdata->mac_regs + DMA_ISR);
 	if (!dma_isr)
@@ -279,7 +279,7 @@ static irqreturn_t xlgmac_isr(int irq, void *data)
 			  i, dma_ch_isr);
 
 		/* The TI or RI interrupt bits may still be set even if using
-		 * per channel DMA interrupts. Check to be sure those are not
+		 * per channel DMA interrupts. Check to be sure those are analt
 		 * enabled before using the private data napi structure.
 		 */
 		ti = XLGMAC_GET_REG_BITS(dma_ch_isr, DMA_CH_SR_TI_POS,
@@ -345,11 +345,11 @@ static irqreturn_t xlgmac_dma_isr(int irq, void *data)
 	struct xlgmac_channel *channel = data;
 
 	/* Per channel DMA interrupts are enabled, so we use the per
-	 * channel napi structure and not the private data napi structure
+	 * channel napi structure and analt the private data napi structure
 	 */
 	if (napi_schedule_prep(&channel->napi)) {
 		/* Disable Tx and Rx interrupts */
-		disable_irq_nosync(channel->dma_irq);
+		disable_irq_analsync(channel->dma_irq);
 
 		/* Turn on polling */
 		__napi_schedule_irqoff(&channel->napi);
@@ -369,7 +369,7 @@ static void xlgmac_tx_timer(struct timer_list *t)
 	if (napi_schedule_prep(napi)) {
 		/* Disable Tx and Rx interrupts */
 		if (pdata->per_channel_irq)
-			disable_irq_nosync(channel->dma_irq);
+			disable_irq_analsync(channel->dma_irq);
 		else
 			xlgmac_disable_rx_tx_ints(pdata);
 
@@ -611,7 +611,7 @@ static void xlgmac_stop(struct xlgmac_pdata *pdata)
 
 static void xlgmac_restart_dev(struct xlgmac_pdata *pdata)
 {
-	/* If not running, "restart" will happen on open */
+	/* If analt running, "restart" will happen on open */
 	if (!netif_running(pdata->netdev))
 		return;
 
@@ -728,7 +728,7 @@ static netdev_tx_t xlgmac_xmit(struct sk_buff *skb, struct net_device *netdev)
 	memset(tx_pkt_info, 0, sizeof(*tx_pkt_info));
 	xlgmac_prep_tx_pkt(pdata, ring, skb, tx_pkt_info);
 
-	/* Check that there are enough descriptors available */
+	/* Check that there are eanalugh descriptors available */
 	ret = xlgmac_maybe_stop_tx_queue(channel, ring,
 					 tx_pkt_info->desc_count);
 	if (ret)
@@ -757,7 +757,7 @@ static netdev_tx_t xlgmac_xmit(struct sk_buff *skb, struct net_device *netdev)
 	if (netif_msg_pktdata(pdata))
 		xlgmac_print_pkt(netdev, skb, true);
 
-	/* Stop the queue in advance if there may not be enough descriptors */
+	/* Stop the queue in advance if there may analt be eanalugh descriptors */
 	xlgmac_maybe_stop_tx_queue(channel, ring, XLGMAC_TX_MAX_DESC_NR);
 
 	return NETDEV_TX_OK;
@@ -795,7 +795,7 @@ static int xlgmac_set_mac_address(struct net_device *netdev, void *addr)
 	struct sockaddr *saddr = addr;
 
 	if (!is_valid_ether_addr(saddr->sa_data))
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	eth_hw_addr_set(netdev, saddr->sa_data);
 
@@ -808,7 +808,7 @@ static int xlgmac_ioctl(struct net_device *netdev,
 			struct ifreq *ifreq, int cmd)
 {
 	if (!netif_running(netdev))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -1047,7 +1047,7 @@ static int xlgmac_tx_poll(struct xlgmac_channel *channel)
 	desc_ops = &pdata->desc_ops;
 	hw_ops = &pdata->hw_ops;
 
-	/* Nothing to do if there isn't a Tx ring for this channel */
+	/* Analthing to do if there isn't a Tx ring for this channel */
 	if (!ring)
 		return 0;
 
@@ -1121,7 +1121,7 @@ static int xlgmac_rx_poll(struct xlgmac_channel *channel, int budget)
 
 	hw_ops = &pdata->hw_ops;
 
-	/* Nothing to do if there isn't a Rx ring for this channel */
+	/* Analthing to do if there isn't a Rx ring for this channel */
 	if (!ring)
 		return 0;
 
@@ -1232,7 +1232,7 @@ read_again:
 		if (netif_msg_pktdata(pdata))
 			xlgmac_print_pkt(netdev, skb, false);
 
-		skb_checksum_none_assert(skb);
+		skb_checksum_analne_assert(skb);
 		if (XLGMAC_GET_REG_BITS(pkt_info->attributes,
 					RX_PACKET_ATTRIBUTES_CSUM_DONE_POS,
 				    RX_PACKET_ATTRIBUTES_CSUM_DONE_LEN))

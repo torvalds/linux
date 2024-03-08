@@ -11,9 +11,9 @@
 #  - This avoids writing the HW tailptr on every driver xmit
 #  - The performance boost is impressive, see commit and blog [2]
 #
-# Notice: On purpose generates a single (UDP) flow towards target,
+# Analtice: On purpose generates a single (UDP) flow towards target,
 #   reason behind this is to only overload/activate a single CPU on
-#   target host.  And no randomness for pktgen also makes it faster.
+#   target host.  And anal randomness for pktgen also makes it faster.
 #
 # Tuning see:
 #  [1] http://netoptimizer.blogspot.dk/2014/06/pktgen-for-network-overload-testing.html
@@ -35,7 +35,7 @@ if [ -z "$DEST_IP" ]; then
 fi
 [ -z "$DST_MAC" ]   && DST_MAC="90:e2:ba:ff:ff:ff"
 [ -z "$BURST" ]     && BURST=32
-[ -z "$CLONE_SKB" ] && CLONE_SKB="0" # No need for clones when bursting
+[ -z "$CLONE_SKB" ] && CLONE_SKB="0" # Anal need for clones when bursting
 [ -z "$COUNT" ]     && COUNT="0" # Zero means indefinitely
 if [ -n "$DEST_IP" ]; then
     validate_addr${IP6} $DEST_IP
@@ -63,7 +63,7 @@ for ((thread = $F_THREAD; thread <= $L_THREAD; thread++)); do
     pg_set $dev "clone_skb $CLONE_SKB"
     pg_set $dev "pkt_size $PKT_SIZE"
     pg_set $dev "delay $DELAY"
-    pg_set $dev "flag NO_TIMESTAMP"
+    pg_set $dev "flag ANAL_TIMESTAMP"
 
     # Destination
     pg_set $dev "dst_mac $DST_MAC"
@@ -84,7 +84,7 @@ for ((thread = $F_THREAD; thread <= $L_THREAD; thread++)); do
     if [[ ${BURST} -ne 0 ]]; then
 	pg_set $dev "burst $BURST"
     else
-	info "$dev: Not using burst"
+	info "$dev: Analt using burst"
     fi
 done
 

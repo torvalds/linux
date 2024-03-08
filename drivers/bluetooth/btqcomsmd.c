@@ -33,7 +33,7 @@ static int btqcomsmd_recv(struct hci_dev *hdev, unsigned int type,
 	skb = bt_skb_alloc(count, GFP_ATOMIC);
 	if (!skb) {
 		hdev->stat.err_rx++;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	hci_skb_pkt_type(skb) = type;
@@ -114,8 +114,8 @@ static int btqcomsmd_setup(struct hci_dev *hdev)
 		return PTR_ERR(skb);
 	kfree_skb(skb);
 
-	/* Devices do not have persistent storage for BD address. Retrieve
-	 * it from the firmware node property.
+	/* Devices do analt have persistent storage for BD address. Retrieve
+	 * it from the firmware analde property.
 	 */
 	set_bit(HCI_QUIRK_USE_BDADDR_PROPERTY, &hdev->quirks);
 
@@ -146,7 +146,7 @@ static int btqcomsmd_probe(struct platform_device *pdev)
 
 	btq = devm_kzalloc(&pdev->dev, sizeof(*btq), GFP_KERNEL);
 	if (!btq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wcnss = dev_get_drvdata(pdev->dev.parent);
 
@@ -164,7 +164,7 @@ static int btqcomsmd_probe(struct platform_device *pdev)
 
 	hdev = hci_alloc_dev();
 	if (!hdev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto destroy_cmd_channel;
 	}
 

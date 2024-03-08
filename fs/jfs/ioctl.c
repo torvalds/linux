@@ -20,8 +20,8 @@
 #include "jfs_filsys.h"
 #include "jfs_debug.h"
 #include "jfs_incore.h"
-#include "jfs_dinode.h"
-#include "jfs_inode.h"
+#include "jfs_dianalde.h"
+#include "jfs_ianalde.h"
 #include "jfs_dmap.h"
 #include "jfs_discard.h"
 
@@ -29,7 +29,7 @@ static struct {
 	long jfs_flag;
 	long ext2_flag;
 } jfs_map[] = {
-	{JFS_NOATIME_FL,	FS_NOATIME_FL},
+	{JFS_ANALATIME_FL,	FS_ANALATIME_FL},
 	{JFS_DIRSYNC_FL,	FS_DIRSYNC_FL},
 	{JFS_SYNC_FL,		FS_SYNC_FL},
 	{JFS_SECRM_FL,		FS_SECRM_FL},
@@ -59,11 +59,11 @@ static long jfs_map_ext2(unsigned long flags, int from)
 
 int jfs_fileattr_get(struct dentry *dentry, struct fileattr *fa)
 {
-	struct jfs_inode_info *jfs_inode = JFS_IP(d_inode(dentry));
-	unsigned int flags = jfs_inode->mode2 & JFS_FL_USER_VISIBLE;
+	struct jfs_ianalde_info *jfs_ianalde = JFS_IP(d_ianalde(dentry));
+	unsigned int flags = jfs_ianalde->mode2 & JFS_FL_USER_VISIBLE;
 
 	if (d_is_special(dentry))
-		return -ENOTTY;
+		return -EANALTTY;
 
 	fileattr_fill_flags(fa, jfs_map_ext2(flags, 0));
 
@@ -73,43 +73,43 @@ int jfs_fileattr_get(struct dentry *dentry, struct fileattr *fa)
 int jfs_fileattr_set(struct mnt_idmap *idmap,
 		     struct dentry *dentry, struct fileattr *fa)
 {
-	struct inode *inode = d_inode(dentry);
-	struct jfs_inode_info *jfs_inode = JFS_IP(inode);
+	struct ianalde *ianalde = d_ianalde(dentry);
+	struct jfs_ianalde_info *jfs_ianalde = JFS_IP(ianalde);
 	unsigned int flags;
 
 	if (d_is_special(dentry))
-		return -ENOTTY;
+		return -EANALTTY;
 
 	if (fileattr_has_fsx(fa))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	flags = jfs_map_ext2(fa->flags, 1);
-	if (!S_ISDIR(inode->i_mode))
+	if (!S_ISDIR(ianalde->i_mode))
 		flags &= ~JFS_DIRSYNC_FL;
 
-	/* Is it quota file? Do not allow user to mess with it */
-	if (IS_NOQUOTA(inode))
+	/* Is it quota file? Do analt allow user to mess with it */
+	if (IS_ANALQUOTA(ianalde))
 		return -EPERM;
 
 	flags = flags & JFS_FL_USER_MODIFIABLE;
-	flags |= jfs_inode->mode2 & ~JFS_FL_USER_MODIFIABLE;
-	jfs_inode->mode2 = flags;
+	flags |= jfs_ianalde->mode2 & ~JFS_FL_USER_MODIFIABLE;
+	jfs_ianalde->mode2 = flags;
 
-	jfs_set_inode_flags(inode);
-	inode_set_ctime_current(inode);
-	mark_inode_dirty(inode);
+	jfs_set_ianalde_flags(ianalde);
+	ianalde_set_ctime_current(ianalde);
+	mark_ianalde_dirty(ianalde);
 
 	return 0;
 }
 
 long jfs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
-	struct inode *inode = file_inode(filp);
+	struct ianalde *ianalde = file_ianalde(filp);
 
 	switch (cmd) {
 	case FITRIM:
 	{
-		struct super_block *sb = inode->i_sb;
+		struct super_block *sb = ianalde->i_sb;
 		struct fstrim_range range;
 		s64 ret = 0;
 
@@ -117,8 +117,8 @@ long jfs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			return -EPERM;
 
 		if (!bdev_max_discard_sectors(sb->s_bdev)) {
-			jfs_warn("FITRIM not supported on device");
-			return -EOPNOTSUPP;
+			jfs_warn("FITRIM analt supported on device");
+			return -EOPANALTSUPP;
 		}
 
 		if (copy_from_user(&range, (struct fstrim_range __user *)arg,
@@ -128,7 +128,7 @@ long jfs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		range.minlen = max_t(unsigned int, range.minlen,
 				     bdev_discard_granularity(sb->s_bdev));
 
-		ret = jfs_ioc_trim(inode, &range);
+		ret = jfs_ioc_trim(ianalde, &range);
 		if (ret < 0)
 			return ret;
 
@@ -140,6 +140,6 @@ long jfs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	}
 
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 }

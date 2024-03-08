@@ -124,7 +124,7 @@ static void snd_cmi8328_cfg_write(u16 port, u8 reg, u8 val)
 	outb(0x43, port + 3);
 	outb(0x21, port + 3);
 	outb(reg, port + 3);
-	outb(val, port + 3);	/* yes, value goes to the same port as index */
+	outb(val, port + 3);	/* anal, value goes to the same port as index */
 }
 
 #ifdef CONFIG_PM
@@ -239,11 +239,11 @@ static int snd_cmi8328_probe(struct device *pdev, unsigned int ndev)
 
 	/* 0xff is invalid configuration (but settable - hope it isn't set) */
 	if (snd_cmi8328_cfg_read(port, CFG1) == 0xff)
-		return -ENODEV;
+		return -EANALDEV;
 	/* the SB disable bit must NEVER EVER be cleared or the WSS dies */
 	snd_cmi8328_cfg_write(port, CFG1, CFG1_SB_DISABLE);
 	if (snd_cmi8328_cfg_read(port, CFG1) != CFG1_SB_DISABLE)
-		return -ENODEV;
+		return -EANALDEV;
 	/* disable everything first */
 	snd_cmi8328_cfg_write(port, CFG2, 0);	/* disable CDROM and MPU401 */
 	snd_cmi8328_cfg_write(port, CFG3, 0);	/* disable CDROM IRQ and DMA */
@@ -265,7 +265,7 @@ static int snd_cmi8328_probe(struct device *pdev, unsigned int ndev)
 	if (dma2[ndev] == SNDRV_AUTO_DMA) {
 		dma2[ndev] = snd_legacy_find_free_dma(dma2s[dma1[ndev] % 4]);
 		if (dma2[ndev] < 0) {
-			snd_printk(KERN_WARNING "unable to find a free DMA2, full-duplex will not work\n");
+			snd_printk(KERN_WARNING "unable to find a free DMA2, full-duplex will analt work\n");
 			dma2[ndev] = -1;
 		}
 	}
@@ -355,7 +355,7 @@ static int snd_cmi8328_probe(struct device *pdev, unsigned int ndev)
 			}
 		}
 	}
-	/* OPL3 is hardwired to 0x388 and cannot be disabled */
+	/* OPL3 is hardwired to 0x388 and cananalt be disabled */
 	if (snd_opl3_create(card, 0x388, 0x38a, OPL3_HW_AUTO, 0, &opl3) < 0)
 		snd_printk(KERN_ERR "error initializing OPL3\n");
 	else
@@ -418,7 +418,7 @@ static int snd_cmi8328_suspend(struct device *pdev, unsigned int n,
 	struct snd_card *card = dev_get_drvdata(pdev);
 	struct snd_cmi8328 *cmi;
 
-	if (!card)	/* ignore absent devices */
+	if (!card)	/* iganalre absent devices */
 		return 0;
 	cmi = card->private_data;
 	snd_cmi8328_cfg_save(cmi->port, cmi->cfg);
@@ -433,7 +433,7 @@ static int snd_cmi8328_resume(struct device *pdev, unsigned int n)
 	struct snd_card *card = dev_get_drvdata(pdev);
 	struct snd_cmi8328 *cmi;
 
-	if (!card)	/* ignore absent devices */
+	if (!card)	/* iganalre absent devices */
 		return 0;
 	cmi = card->private_data;
 	snd_cmi8328_cfg_restore(cmi->port, cmi->cfg);

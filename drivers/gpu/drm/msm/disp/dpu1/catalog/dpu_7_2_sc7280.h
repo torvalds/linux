@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2022. Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022. Qualcomm Inanalvation Center, Inc. All rights reserved.
  * Copyright (c) 2015-2018, 2020 The Linux Foundation. All rights reserved.
  */
 
@@ -154,7 +154,7 @@ static const struct dpu_pingpong_cfg sc7280_pp[] = {
 	},
 };
 
-/* NOTE: sc7280 only has one DSC hard slice encoder */
+/* ANALTE: sc7280 only has one DSC hard slice encoder */
 static const struct dpu_dsc_cfg sc7280_dsc[] = {
 	{
 		.name = "dce_0_0", .id = DSC_0,
@@ -241,7 +241,7 @@ static const struct dpu_perf_cfg sc7280_perf_data = {
 
 static const struct dpu_mdss_version sc7280_mdss_ver = {
 	.core_major_ver = 7,
-	.core_minor_ver = 2,
+	.core_mianalr_ver = 2,
 };
 
 const struct dpu_mdss_cfg dpu_sc7280_cfg = {

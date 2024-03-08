@@ -27,7 +27,7 @@ void arch_static_call_transform(void *site, void *tramp, void *func, bool tail)
 	else if (is_short)
 		err = patch_branch(tramp, target, 0);
 	else
-		err = patch_instruction(tramp, ppc_inst(PPC_RAW_NOP()));
+		err = patch_instruction(tramp, ppc_inst(PPC_RAW_ANALP()));
 out:
 	mutex_unlock(&text_mutex);
 

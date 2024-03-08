@@ -215,14 +215,14 @@
 #define   PCIE_GLI_9767_SD_DATA_MULTI_CTL_DISCONNECT_TIME	  GENMASK(23, 16)
 #define   PCIE_GLI_9767_SD_DATA_MULTI_CTL_DISCONNECT_TIME_VALUE	  0x64
 
-#define PCIE_GLI_9767_NORMAL_ERR_INT_STATUS_REG2			0x950
-#define   PCIE_GLI_9767_NORMAL_ERR_INT_STATUS_REG2_SDEI_COMPLETE	  BIT(0)
+#define PCIE_GLI_9767_ANALRMAL_ERR_INT_STATUS_REG2			0x950
+#define   PCIE_GLI_9767_ANALRMAL_ERR_INT_STATUS_REG2_SDEI_COMPLETE	  BIT(0)
 
-#define PCIE_GLI_9767_NORMAL_ERR_INT_STATUS_EN_REG2				0x954
-#define   PCIE_GLI_9767_NORMAL_ERR_INT_STATUS_EN_REG2_SDEI_COMPLETE_STATUS_EN	  BIT(0)
+#define PCIE_GLI_9767_ANALRMAL_ERR_INT_STATUS_EN_REG2				0x954
+#define   PCIE_GLI_9767_ANALRMAL_ERR_INT_STATUS_EN_REG2_SDEI_COMPLETE_STATUS_EN	  BIT(0)
 
-#define PCIE_GLI_9767_NORMAL_ERR_INT_SIGNAL_EN_REG2				0x958
-#define   PCIE_GLI_9767_NORMAL_ERR_INT_SIGNAL_EN_REG2_SDEI_COMPLETE_SIGNAL_EN	  BIT(0)
+#define PCIE_GLI_9767_ANALRMAL_ERR_INT_SIGNAL_EN_REG2				0x958
+#define   PCIE_GLI_9767_ANALRMAL_ERR_INT_SIGNAL_EN_REG2_SDEI_COMPLETE_SIGNAL_EN	  BIT(0)
 
 #define GLI_MAX_TUNING_LOOP 40
 
@@ -754,9 +754,9 @@ static void gl9755_hw_setting(struct sdhci_pci_slot *slot)
 	 * Apple ARM64 platforms using these chips may have
 	 * inverted CD/WP detection.
 	 */
-	if (of_property_read_bool(pdev->dev.of_node, "cd-inverted"))
+	if (of_property_read_bool(pdev->dev.of_analde, "cd-inverted"))
 		value |= PCI_GLI_9755_INVERT_CD;
-	if (of_property_read_bool(pdev->dev.of_node, "wp-inverted"))
+	if (of_property_read_bool(pdev->dev.of_analde, "wp-inverted"))
 		value |= PCI_GLI_9755_INVERT_WP;
 	value &= ~PCI_GLI_9755_LFCLK;
 	value &= ~PCI_GLI_9755_DMACLK;
@@ -1016,17 +1016,17 @@ static int gl9767_init_sd_express(struct mmc_host *mmc, struct mmc_ios *ios)
 			    PCIE_GLI_9767_SD_DATA_MULTI_CTL_DISCONNECT_TIME_VALUE);
 	pci_write_config_dword(pdev, PCIE_GLI_9767_SD_DATA_MULTI_CTL, value);
 
-	pci_read_config_dword(pdev, PCIE_GLI_9767_NORMAL_ERR_INT_STATUS_REG2, &value);
-	value |= PCIE_GLI_9767_NORMAL_ERR_INT_STATUS_REG2_SDEI_COMPLETE;
-	pci_write_config_dword(pdev, PCIE_GLI_9767_NORMAL_ERR_INT_STATUS_REG2, value);
+	pci_read_config_dword(pdev, PCIE_GLI_9767_ANALRMAL_ERR_INT_STATUS_REG2, &value);
+	value |= PCIE_GLI_9767_ANALRMAL_ERR_INT_STATUS_REG2_SDEI_COMPLETE;
+	pci_write_config_dword(pdev, PCIE_GLI_9767_ANALRMAL_ERR_INT_STATUS_REG2, value);
 
-	pci_read_config_dword(pdev, PCIE_GLI_9767_NORMAL_ERR_INT_STATUS_EN_REG2, &value);
-	value |= PCIE_GLI_9767_NORMAL_ERR_INT_STATUS_EN_REG2_SDEI_COMPLETE_STATUS_EN;
-	pci_write_config_dword(pdev, PCIE_GLI_9767_NORMAL_ERR_INT_STATUS_EN_REG2, value);
+	pci_read_config_dword(pdev, PCIE_GLI_9767_ANALRMAL_ERR_INT_STATUS_EN_REG2, &value);
+	value |= PCIE_GLI_9767_ANALRMAL_ERR_INT_STATUS_EN_REG2_SDEI_COMPLETE_STATUS_EN;
+	pci_write_config_dword(pdev, PCIE_GLI_9767_ANALRMAL_ERR_INT_STATUS_EN_REG2, value);
 
-	pci_read_config_dword(pdev, PCIE_GLI_9767_NORMAL_ERR_INT_SIGNAL_EN_REG2, &value);
-	value |= PCIE_GLI_9767_NORMAL_ERR_INT_SIGNAL_EN_REG2_SDEI_COMPLETE_SIGNAL_EN;
-	pci_write_config_dword(pdev, PCIE_GLI_9767_NORMAL_ERR_INT_SIGNAL_EN_REG2, value);
+	pci_read_config_dword(pdev, PCIE_GLI_9767_ANALRMAL_ERR_INT_SIGNAL_EN_REG2, &value);
+	value |= PCIE_GLI_9767_ANALRMAL_ERR_INT_SIGNAL_EN_REG2_SDEI_COMPLETE_SIGNAL_EN;
+	pci_write_config_dword(pdev, PCIE_GLI_9767_ANALRMAL_ERR_INT_SIGNAL_EN_REG2, value);
 
 	pci_read_config_dword(pdev, PCIE_GLI_9767_CFG, &value);
 	value |= PCIE_GLI_9767_CFG_LOW_PWR_OFF;
@@ -1046,9 +1046,9 @@ static int gl9767_init_sd_express(struct mmc_host *mmc, struct mmc_ios *ios)
 
 	for (i = 0; i < 2; i++) {
 		usleep_range(10000, 10100);
-		pci_read_config_dword(pdev, PCIE_GLI_9767_NORMAL_ERR_INT_STATUS_REG2, &value);
-		if (value & PCIE_GLI_9767_NORMAL_ERR_INT_STATUS_REG2_SDEI_COMPLETE) {
-			pci_write_config_dword(pdev, PCIE_GLI_9767_NORMAL_ERR_INT_STATUS_REG2,
+		pci_read_config_dword(pdev, PCIE_GLI_9767_ANALRMAL_ERR_INT_STATUS_REG2, &value);
+		if (value & PCIE_GLI_9767_ANALRMAL_ERR_INT_STATUS_REG2_SDEI_COMPLETE) {
+			pci_write_config_dword(pdev, PCIE_GLI_9767_ANALRMAL_ERR_INT_STATUS_REG2,
 					       value);
 			break;
 		}
@@ -1082,7 +1082,7 @@ static int gli_probe_slot_gl9750(struct sdhci_pci_slot *slot)
 
 	gl9750_hw_setting(host);
 	gli_pcie_enable_msi(slot);
-	slot->host->mmc->caps2 |= MMC_CAP2_NO_SDIO;
+	slot->host->mmc->caps2 |= MMC_CAP2_ANAL_SDIO;
 	sdhci_enable_v4_mode(host);
 
 	return 0;
@@ -1094,7 +1094,7 @@ static int gli_probe_slot_gl9755(struct sdhci_pci_slot *slot)
 
 	gl9755_hw_setting(slot);
 	gli_pcie_enable_msi(slot);
-	slot->host->mmc->caps2 |= MMC_CAP2_NO_SDIO;
+	slot->host->mmc->caps2 |= MMC_CAP2_ANAL_SDIO;
 	sdhci_enable_v4_mode(host);
 
 	return 0;
@@ -1107,7 +1107,7 @@ static int gli_probe_slot_gl9767(struct sdhci_pci_slot *slot)
 	gli_set_9767(host);
 	gl9767_hw_setting(slot);
 	gli_pcie_enable_msi(slot);
-	slot->host->mmc->caps2 |= MMC_CAP2_NO_SDIO;
+	slot->host->mmc->caps2 |= MMC_CAP2_ANAL_SDIO;
 	host->mmc->caps2 |= MMC_CAP2_SD_EXP;
 	host->mmc_host_ops.init_sd_express = gl9767_init_sd_express;
 	sdhci_enable_v4_mode(host);
@@ -1304,7 +1304,7 @@ static int gl9763e_add_host(struct sdhci_pci_slot *slot)
 
 	cq_host = devm_kzalloc(dev, sizeof(*cq_host), GFP_KERNEL);
 	if (!cq_host) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto cleanup;
 	}
 
@@ -1458,7 +1458,7 @@ static int gl9763e_suspend(struct sdhci_pci_chip *chip)
 
 	/*
 	 * Certain SoCs can suspend only with the bus in low-
-	 * power state, notably x86 SoCs when using S0ix.
+	 * power state, analtably x86 SoCs when using S0ix.
 	 * Re-enable LPM negotiation to allow entering L1 state
 	 * and entering system suspend.
 	 */
@@ -1490,12 +1490,12 @@ static int gli_probe_slot_gl9763e(struct sdhci_pci_slot *slot)
 
 	host->mmc->caps |= MMC_CAP_8_BIT_DATA |
 			   MMC_CAP_1_8V_DDR |
-			   MMC_CAP_NONREMOVABLE;
+			   MMC_CAP_ANALNREMOVABLE;
 	host->mmc->caps2 |= MMC_CAP2_HS200_1_8V_SDR |
 			    MMC_CAP2_HS400_1_8V |
 			    MMC_CAP2_HS400_ES |
-			    MMC_CAP2_NO_SDIO |
-			    MMC_CAP2_NO_SD;
+			    MMC_CAP2_ANAL_SDIO |
+			    MMC_CAP2_ANAL_SD;
 
 	pci_read_config_dword(pdev, PCIE_GLI_9763E_MB, &value);
 	if (!(value & GLI_9763E_MB_CMDQ_OFF))
@@ -1542,7 +1542,7 @@ static const struct sdhci_ops sdhci_gl9755_ops = {
 };
 
 const struct sdhci_pci_fixes sdhci_gl9755 = {
-	.quirks		= SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC,
+	.quirks		= SDHCI_QUIRK_ANAL_ENDATTR_IN_ANALPDESC,
 	.quirks2	= SDHCI_QUIRK2_BROKEN_DDR50,
 	.probe_slot	= gli_probe_slot_gl9755,
 	.ops            = &sdhci_gl9755_ops,
@@ -1565,7 +1565,7 @@ static const struct sdhci_ops sdhci_gl9750_ops = {
 };
 
 const struct sdhci_pci_fixes sdhci_gl9750 = {
-	.quirks		= SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC,
+	.quirks		= SDHCI_QUIRK_ANAL_ENDATTR_IN_ANALPDESC,
 	.quirks2	= SDHCI_QUIRK2_BROKEN_DDR50,
 	.probe_slot	= gli_probe_slot_gl9750,
 	.ops            = &sdhci_gl9750_ops,
@@ -1585,7 +1585,7 @@ static const struct sdhci_ops sdhci_gl9763e_ops = {
 };
 
 const struct sdhci_pci_fixes sdhci_gl9763e = {
-	.quirks		= SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC,
+	.quirks		= SDHCI_QUIRK_ANAL_ENDATTR_IN_ANALPDESC,
 	.probe_slot	= gli_probe_slot_gl9763e,
 	.ops            = &sdhci_gl9763e_ops,
 #ifdef CONFIG_PM_SLEEP
@@ -1610,7 +1610,7 @@ static const struct sdhci_ops sdhci_gl9767_ops = {
 };
 
 const struct sdhci_pci_fixes sdhci_gl9767 = {
-	.quirks		= SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC,
+	.quirks		= SDHCI_QUIRK_ANAL_ENDATTR_IN_ANALPDESC,
 	.quirks2	= SDHCI_QUIRK2_BROKEN_DDR50,
 	.probe_slot	= gli_probe_slot_gl9767,
 	.ops		= &sdhci_gl9767_ops,

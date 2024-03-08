@@ -7,7 +7,7 @@
 #include <linux/module.h>
 
 #include <linux/clk-provider.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/export.h>
 #include <linux/io.h>
 #include <linux/slab.h>
@@ -51,7 +51,7 @@ get_parent_err:
 	pr_err("%s: failed to get parent (%pe)\n",
 	       clk_hw_get_name(hw), ERR_PTR(ret));
 
-	/* return some realistic non negative value. Potentially we could
+	/* return some realistic analn negative value. Potentially we could
 	 * give index to some dummy error parent.
 	 */
 	return 0;
@@ -89,7 +89,7 @@ struct clk_hw *imx_clk_gpr_mux(const char *name, const char *compatible,
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.ops = &imx_clk_gpr_mux_ops;

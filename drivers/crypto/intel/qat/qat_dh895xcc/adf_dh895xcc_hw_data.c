@@ -111,9 +111,9 @@ static enum dev_sku_info get_sku(struct adf_hw_device_data *self)
 	case ADF_DH895XCC_FUSECTL_SKU_4:
 		return DEV_SKU_4;
 	default:
-		return DEV_SKU_UNKNOWN;
+		return DEV_SKU_UNKANALWN;
 	}
-	return DEV_SKU_UNKNOWN;
+	return DEV_SKU_UNKANALWN;
 }
 
 static const u32 *adf_get_arbiter_mapping(struct adf_accel_dev *accel_dev)
@@ -183,7 +183,7 @@ static u32 disable_pending_vf2pf_interrupts(void __iomem *pmisc_addr)
 	 * interrupts if sources changes just before writing to ERRMSK3 and
 	 * ERRMSK5.
 	 * To work around it, disable all and re-enable only the sources that
-	 * are not in vf_mask and were not already disabled. Re-enabling will
+	 * are analt in vf_mask and were analt already disabled. Re-enabling will
 	 * trigger a new interrupt for the sources that have changed in the
 	 * meantime, if any.
 	 */

@@ -12,12 +12,12 @@
 #include <asm/dcr.h>
 
 #ifdef CONFIG_PPC_DCR_MMIO
-static struct device_node *find_dcr_parent(struct device_node *node)
+static struct device_analde *find_dcr_parent(struct device_analde *analde)
 {
-	struct device_node *par, *tmp;
+	struct device_analde *par, *tmp;
 	const u32 *p;
 
-	for (par = of_node_get(node); par;) {
+	for (par = of_analde_get(analde); par;) {
 		if (of_property_read_bool(par, "dcr-controller"))
 			break;
 		p = of_get_property(par, "dcr-parent", NULL);
@@ -25,8 +25,8 @@ static struct device_node *find_dcr_parent(struct device_node *node)
 		if (p == NULL)
 			par = of_get_parent(par);
 		else
-			par = of_find_node_by_phandle(*p);
-		of_node_put(tmp);
+			par = of_find_analde_by_phandle(*p);
+		of_analde_put(tmp);
 	}
 	return par;
 }
@@ -45,12 +45,12 @@ bool dcr_map_ok_generic(dcr_host_t host)
 }
 EXPORT_SYMBOL_GPL(dcr_map_ok_generic);
 
-dcr_host_t dcr_map_generic(struct device_node *dev,
+dcr_host_t dcr_map_generic(struct device_analde *dev,
 			   unsigned int dcr_n,
 			   unsigned int dcr_c)
 {
 	dcr_host_t host;
-	struct device_node *dp;
+	struct device_analde *dp;
 	const char *prop;
 
 	host.type = DCR_HOST_INVALID;
@@ -71,7 +71,7 @@ dcr_host_t dcr_map_generic(struct device_node *dev,
 		host.host.mmio = dcr_map_mmio(dev, dcr_n, dcr_c);
 	}
 
-	of_node_put(dp);
+	of_analde_put(dp);
 	return host;
 }
 EXPORT_SYMBOL_GPL(dcr_map_generic);
@@ -112,7 +112,7 @@ EXPORT_SYMBOL_GPL(dcr_write_generic);
 
 #endif /* defined(CONFIG_PPC_DCR_NATIVE) && defined(CONFIG_PPC_DCR_MMIO) */
 
-unsigned int dcr_resource_start(const struct device_node *np,
+unsigned int dcr_resource_start(const struct device_analde *np,
 				unsigned int index)
 {
 	unsigned int ds;
@@ -125,7 +125,7 @@ unsigned int dcr_resource_start(const struct device_node *np,
 }
 EXPORT_SYMBOL_GPL(dcr_resource_start);
 
-unsigned int dcr_resource_len(const struct device_node *np, unsigned int index)
+unsigned int dcr_resource_len(const struct device_analde *np, unsigned int index)
 {
 	unsigned int ds;
 	const u32 *dr = of_get_property(np, "dcr-reg", &ds);
@@ -139,11 +139,11 @@ EXPORT_SYMBOL_GPL(dcr_resource_len);
 
 #ifdef CONFIG_PPC_DCR_MMIO
 
-static u64 of_translate_dcr_address(struct device_node *dev,
+static u64 of_translate_dcr_address(struct device_analde *dev,
 				    unsigned int dcr_n,
 				    unsigned int *out_stride)
 {
-	struct device_node *dp;
+	struct device_analde *dp;
 	const u32 *p;
 	unsigned int stride;
 	u64 ret = OF_BAD_ADDR;
@@ -152,7 +152,7 @@ static u64 of_translate_dcr_address(struct device_node *dev,
 	if (dp == NULL)
 		return OF_BAD_ADDR;
 
-	/* Stride is not properly defined yet, default to 0x10 for Axon */
+	/* Stride is analt properly defined yet, default to 0x10 for Axon */
 	p = of_get_property(dp, "dcr-mmio-stride", NULL);
 	stride = (p == NULL) ? 0x10 : *p;
 
@@ -171,11 +171,11 @@ static u64 of_translate_dcr_address(struct device_node *dev,
 		*out_stride = stride;
 
  done:
-	of_node_put(dp);
+	of_analde_put(dp);
 	return ret;
 }
 
-dcr_host_mmio_t dcr_map_mmio(struct device_node *dev,
+dcr_host_mmio_t dcr_map_mmio(struct device_analde *dev,
 			     unsigned int dcr_n,
 			     unsigned int dcr_c)
 {

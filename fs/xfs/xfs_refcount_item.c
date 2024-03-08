@@ -45,7 +45,7 @@ xfs_cui_item_free(
 
 /*
  * Freeing the CUI requires that we remove it from the AIL if it has already
- * been placed there. However, the CUI may not yet have been placed in the AIL
+ * been placed there. However, the CUI may analt yet have been placed in the AIL
  * when called by xfs_cui_release() from CUD processing due to the ordering of
  * committed vs unpin operations in bulk insert operations. Hence the reference
  * count to ensure only the last caller frees the CUI.
@@ -106,7 +106,7 @@ xfs_cui_item_format(
  * either case, the CUI transaction has been successfully committed to make it
  * this far. Therefore, we expect whoever committed the CUI to either construct
  * and commit the CUD or drop the CUD's reference in the event of error. Simply
- * drop the log's CUI reference now that the log is done with it.
+ * drop the log's CUI reference analw that the log is done with it.
  */
 STATIC void
 xfs_cui_item_unpin(
@@ -147,7 +147,7 @@ xfs_cui_init(
 				0);
 	else
 		cuip = kmem_cache_zalloc(xfs_cui_cache,
-					 GFP_KERNEL | __GFP_NOFAIL);
+					 GFP_KERNEL | __GFP_ANALFAIL);
 
 	xfs_log_item_init(mp, &cuip->cui_item, XFS_LI_CUI, &xfs_cui_item_ops);
 	cuip->cui_format.cui_nextents = nextents;
@@ -240,7 +240,7 @@ xfs_refcount_update_diff_items(
 	ra = container_of(a, struct xfs_refcount_intent, ri_list);
 	rb = container_of(b, struct xfs_refcount_intent, ri_list);
 
-	return ra->ri_pag->pag_agno - rb->ri_pag->pag_agno;
+	return ra->ri_pag->pag_aganal - rb->ri_pag->pag_aganal;
 }
 
 /* Set the phys extent flags for this reverse mapping. */
@@ -315,7 +315,7 @@ xfs_refcount_update_create_done(
 	struct xfs_cui_log_item		*cuip = CUI_ITEM(intent);
 	struct xfs_cud_log_item		*cudp;
 
-	cudp = kmem_cache_zalloc(xfs_cud_cache, GFP_KERNEL | __GFP_NOFAIL);
+	cudp = kmem_cache_zalloc(xfs_cud_cache, GFP_KERNEL | __GFP_ANALFAIL);
 	xfs_log_item_init(tp->t_mountp, &cudp->cud_item, XFS_LI_CUD,
 			  &xfs_cud_item_ops);
 	cudp->cud_cuip = cuip;
@@ -330,10 +330,10 @@ xfs_refcount_update_get_group(
 	struct xfs_mount		*mp,
 	struct xfs_refcount_intent	*ri)
 {
-	xfs_agnumber_t			agno;
+	xfs_agnumber_t			aganal;
 
-	agno = XFS_FSB_TO_AGNO(mp, ri->ri_startblock);
-	ri->ri_pag = xfs_perag_intent_get(mp, agno);
+	aganal = XFS_FSB_TO_AGANAL(mp, ri->ri_startblock);
+	ri->ri_pag = xfs_perag_intent_get(mp, aganal);
 }
 
 /* Release a passive AG ref after finishing refcounting work. */
@@ -425,7 +425,7 @@ xfs_cui_recover_work(
 	struct xfs_refcount_intent	*ri;
 
 	ri = kmem_cache_alloc(xfs_refcount_intent_cache,
-			GFP_NOFS | __GFP_NOFAIL);
+			GFP_ANALFS | __GFP_ANALFAIL);
 	ri->ri_type = pmap->pe_flags & XFS_REFCOUNT_EXTENT_TYPE_MASK;
 	ri->ri_startblock = pmap->pe_startblock;
 	ri->ri_blockcount = pmap->pe_len;
@@ -469,15 +469,15 @@ xfs_refcount_recover_work(
 	}
 
 	/*
-	 * Under normal operation, refcount updates are deferred, so we
+	 * Under analrmal operation, refcount updates are deferred, so we
 	 * wouldn't be adding them directly to a transaction.  All
 	 * refcount updates manage reservation usage internally and
 	 * dynamically by deferring work that won't fit in the
-	 * transaction.  Normally, any work that needs to be deferred
+	 * transaction.  Analrmally, any work that needs to be deferred
 	 * gets attached to the same defer_ops that scheduled the
 	 * refcount update.  However, we're in log recovery here, so we
 	 * use the passed in defer_ops and to finish up any work that
-	 * doesn't fit.  We need to reserve enough blocks to handle a
+	 * doesn't fit.  We need to reserve eanalugh blocks to handle a
 	 * full btree split on either end of the refcount range.
 	 */
 	resv = xlog_recover_resv(&M_RES(mp)->tr_itruncate);

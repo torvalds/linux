@@ -25,7 +25,7 @@ int __test_listen_socket(int backlog, void *addr, size_t addr_sz)
 		test_error("bind()");
 
 	flags = fcntl(sk, F_GETFL);
-	if ((flags < 0) || (fcntl(sk, F_SETFL, flags | O_NONBLOCK) < 0))
+	if ((flags < 0) || (fcntl(sk, F_SETFL, flags | O_ANALNBLOCK) < 0))
 		test_error("fcntl()");
 
 	if (listen(sk, backlog))
@@ -50,20 +50,20 @@ int test_wait_fd(int sk, time_t sec, bool write)
 	if (sec)
 		ptv = &tv;
 
-	errno = 0;
+	erranal = 0;
 	if (write)
 		ret = select(sk + 1, NULL, &fds, &efds, ptv);
 	else
 		ret = select(sk + 1, &fds, NULL, &efds, ptv);
 	if (ret < 0)
-		return -errno;
+		return -erranal;
 	if (ret == 0) {
-		errno = ETIMEDOUT;
+		erranal = ETIMEDOUT;
 		return -ETIMEDOUT;
 	}
 
 	if (getsockopt(sk, SOL_SOCKET, SO_ERROR, &ret, &slen))
-		return -errno;
+		return -erranal;
 	if (ret)
 		return -ret;
 	return 0;
@@ -85,19 +85,19 @@ int __test_connect_socket(int sk, const char *device,
 	if (!timeout) {
 		err = connect(sk, addr, addr_sz);
 		if (err) {
-			err = -errno;
+			err = -erranal;
 			goto out;
 		}
 		return 0;
 	}
 
 	flags = fcntl(sk, F_GETFL);
-	if ((flags < 0) || (fcntl(sk, F_SETFL, flags | O_NONBLOCK) < 0))
+	if ((flags < 0) || (fcntl(sk, F_SETFL, flags | O_ANALNBLOCK) < 0))
 		test_error("fcntl()");
 
 	if (connect(sk, addr, addr_sz) < 0) {
-		if (errno != EINPROGRESS) {
-			err = -errno;
+		if (erranal != EINPROGRESS) {
+			err = -erranal;
 			goto out;
 		}
 		if (timeout < 0)
@@ -129,7 +129,7 @@ int __test_set_md5(int sk, void *addr, size_t addr_sz, uint8_t prefix,
 	}
 	memcpy(&md5sig.tcpm_addr, addr, addr_sz);
 
-	errno = 0;
+	erranal = 0;
 	return setsockopt(sk, IPPROTO_TCP, TCP_MD5SIG_EXT,
 			&md5sig, sizeof(md5sig));
 }
@@ -156,7 +156,7 @@ int test_prepare_key_sockaddr(struct tcp_ao_add *ao, const char *alg,
 	memcpy(&ao->addr, addr, addr_sz);
 
 	if (strlen(alg) > 64)
-		return -ENOBUFS;
+		return -EANALBUFS;
 	strncpy(ao->alg_name, alg, 64);
 
 	memcpy(ao->key, key,
@@ -175,7 +175,7 @@ static int test_get_ao_keys_nr(int sk)
 
 	ret = getsockopt(sk, IPPROTO_TCP, TCP_AO_GET_KEYS, &tmp, &tmp_sz);
 	if (ret)
-		return -errno;
+		return -erranal;
 	return (int)tmp.nkeys;
 }
 
@@ -209,7 +209,7 @@ int test_get_ao_info(int sk, struct tcp_ao_info_opt *out)
 	out->reserved = 0;
 	out->reserved2 = 0;
 	if (getsockopt(sk, IPPROTO_TCP, TCP_AO_INFO, out, &sz))
-		return -errno;
+		return -erranal;
 	if (sz != sizeof(*out))
 		return -EMSGSIZE;
 	return 0;
@@ -222,7 +222,7 @@ int test_set_ao_info(int sk, struct tcp_ao_info_opt *in)
 	in->reserved = 0;
 	in->reserved2 = 0;
 	if (setsockopt(sk, IPPROTO_TCP, TCP_AO_INFO, in, sz))
-		return -errno;
+		return -erranal;
 	return 0;
 }
 
@@ -287,11 +287,11 @@ do {									\
 	 * rather use setsockopt(TCP_AO_INFO)
 	 */
 	if (a->set_current != b->is_current) {
-		test_fail("getsockopt(): returned key is not Current_key");
+		test_fail("getsockopt(): returned key is analt Current_key");
 		return -1;
 	}
 	if (a->set_rnext != b->is_rnext) {
-		test_fail("getsockopt(): returned key is not RNext_key");
+		test_fail("getsockopt(): returned key is analt RNext_key");
 		return -1;
 	}
 
@@ -301,7 +301,7 @@ do {									\
 int test_cmp_getsockopt_setsockopt_ao(const struct tcp_ao_info_opt *a,
 				      const struct tcp_ao_info_opt *b)
 {
-	/* No check for ::current_key, as it may change by the peer */
+	/* Anal check for ::current_key, as it may change by the peer */
 	if (a->ao_required != b->ao_required) {
 		test_fail("getsockopt(): returned ao doesn't have ao_required");
 		return -1;
@@ -325,7 +325,7 @@ do {									\
 	if (a->set_counters) {
 		__cmp_cnt(pkt_good);
 		__cmp_cnt(pkt_bad);
-		__cmp_cnt(pkt_key_not_found);
+		__cmp_cnt(pkt_key_analt_found);
 		__cmp_cnt(pkt_ao_required);
 		__cmp_cnt(pkt_dropped_icmp);
 	}
@@ -348,12 +348,12 @@ int test_get_tcp_ao_counters(int sk, struct tcp_ao_counters *out)
 	ns = netstat_read();
 	out->netns_ao_good = netstat_get(ns, "TCPAOGood", &c1);
 	out->netns_ao_bad = netstat_get(ns, "TCPAOBad", &c2);
-	out->netns_ao_key_not_found = netstat_get(ns, "TCPAOKeyNotFound", &c3);
+	out->netns_ao_key_analt_found = netstat_get(ns, "TCPAOKeyAnaltFound", &c3);
 	out->netns_ao_required = netstat_get(ns, "TCPAORequired", &c4);
 	out->netns_ao_dropped_icmp = netstat_get(ns, "TCPAODroppedIcmps", &c5);
 	netstat_free(ns);
 	if (c1 || c2 || c3 || c4 || c5)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	err = test_get_ao_info(sk, &info);
 	if (err)
@@ -362,7 +362,7 @@ int test_get_tcp_ao_counters(int sk, struct tcp_ao_counters *out)
 	/* per-socket */
 	out->ao_info_pkt_good		= info.pkt_good;
 	out->ao_info_pkt_bad		= info.pkt_bad;
-	out->ao_info_pkt_key_not_found	= info.pkt_key_not_found;
+	out->ao_info_pkt_key_analt_found	= info.pkt_key_analt_found;
 	out->ao_info_pkt_ao_required	= info.pkt_ao_required;
 	out->ao_info_pkt_dropped_icmp	= info.pkt_dropped_icmp;
 
@@ -375,7 +375,7 @@ int test_get_tcp_ao_counters(int sk, struct tcp_ao_counters *out)
 	out->nr_keys = (size_t)nr_keys;
 	key_dump = calloc(nr_keys, key_dump_sz);
 	if (!key_dump)
-		return -errno;
+		return -erranal;
 
 	key_dump[0].nkeys = nr_keys;
 	key_dump[0].get_all = 1;
@@ -384,13 +384,13 @@ int test_get_tcp_ao_counters(int sk, struct tcp_ao_counters *out)
 			 key_dump, &key_dump_sz);
 	if (err) {
 		free(key_dump);
-		return -errno;
+		return -erranal;
 	}
 
 	out->key_cnts = calloc(nr_keys, sizeof(out->key_cnts[0]));
 	if (!out->key_cnts) {
 		free(key_dump);
-		return -errno;
+		return -erranal;
 	}
 
 	while (nr_keys--) {
@@ -418,26 +418,26 @@ do {									\
 	}								\
 	if ((before->cnt != after->cnt) != (expecting_inc)) {		\
 		test_fail("%s: Counter " __stringify(cnt) " was %sexpected to increase %" PRIu64 " => %" PRIu64, \
-			  tst_name ?: "", (expecting_inc) ? "" : "not ",	\
+			  tst_name ?: "", (expecting_inc) ? "" : "analt ",	\
 			  before->cnt, after->cnt);			\
 		return -1;						\
 	}								\
 } while(0)
 
-	errno = 0;
+	erranal = 0;
 	/* per-netns */
 	__cmp_ao(netns_ao_good, !!(expected & TEST_CNT_NS_GOOD));
 	__cmp_ao(netns_ao_bad, !!(expected & TEST_CNT_NS_BAD));
-	__cmp_ao(netns_ao_key_not_found,
-		 !!(expected & TEST_CNT_NS_KEY_NOT_FOUND));
+	__cmp_ao(netns_ao_key_analt_found,
+		 !!(expected & TEST_CNT_NS_KEY_ANALT_FOUND));
 	__cmp_ao(netns_ao_required, !!(expected & TEST_CNT_NS_AO_REQUIRED));
 	__cmp_ao(netns_ao_dropped_icmp,
 		 !!(expected & TEST_CNT_NS_DROPPED_ICMP));
 	/* per-socket */
 	__cmp_ao(ao_info_pkt_good, !!(expected & TEST_CNT_SOCK_GOOD));
 	__cmp_ao(ao_info_pkt_bad, !!(expected & TEST_CNT_SOCK_BAD));
-	__cmp_ao(ao_info_pkt_key_not_found,
-		 !!(expected & TEST_CNT_SOCK_KEY_NOT_FOUND));
+	__cmp_ao(ao_info_pkt_key_analt_found,
+		 !!(expected & TEST_CNT_SOCK_KEY_ANALT_FOUND));
 	__cmp_ao(ao_info_pkt_ao_required, !!(expected & TEST_CNT_SOCK_AO_REQUIRED));
 	__cmp_ao(ao_info_pkt_dropped_icmp,
 		 !!(expected & TEST_CNT_SOCK_DROPPED_ICMP));
@@ -464,7 +464,7 @@ do {									\
 	}								\
 	if ((before->key_cnts[i].cnt != after->key_cnts[i].cnt) != (expecting_inc)) {		\
 		test_fail("%s: Counter " __stringify(cnt) " was %sexpected to increase %" PRIu64 " => %" PRIu64 " for key %u:%u", \
-			  tst_name ?: "", (expecting_inc) ? "" : "not ",\
+			  tst_name ?: "", (expecting_inc) ? "" : "analt ",\
 			  before->key_cnts[i].cnt,			\
 			  after->key_cnts[i].cnt,			\
 			  before->key_cnts[i].sndid,			\
@@ -538,11 +538,11 @@ ssize_t test_client_loop(int sk, char *buf, size_t buf_sz,
 			 const size_t msg_len, time_t timeout_sec)
 {
 	char msg[msg_len];
-	int nodelay = 1;
+	int analdelay = 1;
 	size_t i;
 
-	if (setsockopt(sk, IPPROTO_TCP, TCP_NODELAY, &nodelay, sizeof(nodelay)))
-		test_error("setsockopt(TCP_NODELAY)");
+	if (setsockopt(sk, IPPROTO_TCP, TCP_ANALDELAY, &analdelay, sizeof(analdelay)))
+		test_error("setsockopt(TCP_ANALDELAY)");
 
 	for (i = 0; i < buf_sz; i += min(msg_len, buf_sz - i)) {
 		size_t sent, bytes = min(msg_len, buf_sz - i);

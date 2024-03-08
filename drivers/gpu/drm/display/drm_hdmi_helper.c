@@ -45,7 +45,7 @@ int drm_hdmi_infoframe_set_hdr_metadata(struct hdmi_drm_infoframe *frame,
 	/* Sink EOTF is Bit map while infoframe is absolute values */
 	if (!is_eotf_supported(hdr_metadata->hdmi_metadata_type1.eotf,
 	    connector->hdr_sink_metadata.hdmi_type1.eotf))
-		DRM_DEBUG_KMS("Unknown EOTF %d\n", hdr_metadata->hdmi_metadata_type1.eotf);
+		DRM_DEBUG_KMS("Unkanalwn EOTF %d\n", hdr_metadata->hdmi_metadata_type1.eotf);
 
 	err = hdmi_drm_infoframe_init(frame);
 	if (err < 0)
@@ -80,7 +80,7 @@ EXPORT_SYMBOL(drm_hdmi_infoframe_set_hdr_metadata);
 
 /* HDMI Colorspace Spec Definitions */
 #define FULL_COLORIMETRY_MASK		0x1FF
-#define NORMAL_COLORIMETRY_MASK		0x3
+#define ANALRMAL_COLORIMETRY_MASK		0x3
 #define EXTENDED_COLORIMETRY_MASK	0x7
 #define EXTENDED_ACE_COLORIMETRY_MASK	0xF
 
@@ -88,7 +88,7 @@ EXPORT_SYMBOL(drm_hdmi_infoframe_set_hdr_metadata);
 #define EC(x) ((x) << 2)
 #define ACE(x) ((x) << 5)
 
-#define HDMI_COLORIMETRY_NO_DATA		0x0
+#define HDMI_COLORIMETRY_ANAL_DATA		0x0
 #define HDMI_COLORIMETRY_SMPTE_170M_YCC		(C(1) | EC(0) | ACE(0))
 #define HDMI_COLORIMETRY_BT709_YCC		(C(2) | EC(0) | ACE(0))
 #define HDMI_COLORIMETRY_XVYCC_601		(C(3) | EC(0) | ACE(0))
@@ -103,7 +103,7 @@ EXPORT_SYMBOL(drm_hdmi_infoframe_set_hdr_metadata);
 #define HDMI_COLORIMETRY_DCI_P3_RGB_THEATER	(C(3) | EC(7) | ACE(1))
 
 static const u32 hdmi_colorimetry_val[] = {
-	[DRM_MODE_COLORIMETRY_NO_DATA] = HDMI_COLORIMETRY_NO_DATA,
+	[DRM_MODE_COLORIMETRY_ANAL_DATA] = HDMI_COLORIMETRY_ANAL_DATA,
 	[DRM_MODE_COLORIMETRY_SMPTE_170M_YCC] = HDMI_COLORIMETRY_SMPTE_170M_YCC,
 	[DRM_MODE_COLORIMETRY_BT709_YCC] = HDMI_COLORIMETRY_BT709_YCC,
 	[DRM_MODE_COLORIMETRY_XVYCC_601] = HDMI_COLORIMETRY_XVYCC_601,
@@ -133,11 +133,11 @@ void drm_hdmi_avi_infoframe_colorimetry(struct hdmi_avi_infoframe *frame,
 	u32 colorimetry_index = conn_state->colorspace & FULL_COLORIMETRY_MASK;
 
 	if (colorimetry_index >= ARRAY_SIZE(hdmi_colorimetry_val))
-		colorimetry_val = HDMI_COLORIMETRY_NO_DATA;
+		colorimetry_val = HDMI_COLORIMETRY_ANAL_DATA;
 	else
 		colorimetry_val = hdmi_colorimetry_val[colorimetry_index];
 
-	frame->colorimetry = colorimetry_val & NORMAL_COLORIMETRY_MASK;
+	frame->colorimetry = colorimetry_val & ANALRMAL_COLORIMETRY_MASK;
 	/*
 	 * ToDo: Extend it for ACE formats as well. Modify the infoframe
 	 * structure and extend it in drivers/video/hdmi
@@ -192,6 +192,6 @@ void drm_hdmi_avi_infoframe_content_type(struct hdmi_avi_infoframe *frame,
 		frame->content_type = HDMI_CONTENT_TYPE_GRAPHICS;
 	}
 
-	frame->itc = conn_state->content_type != DRM_MODE_CONTENT_TYPE_NO_DATA;
+	frame->itc = conn_state->content_type != DRM_MODE_CONTENT_TYPE_ANAL_DATA;
 }
 EXPORT_SYMBOL(drm_hdmi_avi_infoframe_content_type);

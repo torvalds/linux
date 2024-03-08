@@ -155,7 +155,7 @@ static int _msm_mdss_irq_domain_add(struct msm_mdss *msm_mdss)
 
 	dev = msm_mdss->dev;
 
-	domain = irq_domain_add_linear(dev->of_node, 32,
+	domain = irq_domain_add_linear(dev->of_analde, 32,
 			&msm_mdss_irqdomain_ops, msm_mdss);
 	if (!domain) {
 		dev_err(dev, "failed to add irq_domain\n");
@@ -231,7 +231,7 @@ static int msm_mdss_enable(struct msm_mdss *msm_mdss)
 
 	/*
 	 * Several components have AXI clocks that can only be turned on if
-	 * the interconnect is enabled (non-zero bandwidth). Let's make sure
+	 * the interconnect is enabled (analn-zero bandwidth). Let's make sure
 	 * that the interconnects are at least at a minimum amount.
 	 */
 	for (i = 0; i < msm_mdss->num_mdp_paths; i++)
@@ -251,23 +251,23 @@ static int msm_mdss_enable(struct msm_mdss *msm_mdss)
 	}
 
 	/*
-	 * Register access requires MDSS_MDP_CLK, which is not enabled by the
-	 * mdss on mdp5 hardware. Skip it for now.
+	 * Register access requires MDSS_MDP_CLK, which is analt enabled by the
+	 * mdss on mdp5 hardware. Skip it for analw.
 	 */
 	if (msm_mdss->is_mdp5 || !msm_mdss->mdss_data)
 		return 0;
 
 	/*
-	 * ubwc config is part of the "mdss" region which is not accessible
-	 * from the rest of the driver. hardcode known configurations here
+	 * ubwc config is part of the "mdss" region which is analt accessible
+	 * from the rest of the driver. hardcode kanalwn configurations here
 	 *
 	 * Decoder version can be read from the UBWC_DEC_HW_VERSION reg,
 	 * UBWC_n and the rest of params comes from hw data.
 	 */
 	switch (msm_mdss->mdss_data->ubwc_dec_version) {
-	case 0: /* no UBWC */
+	case 0: /* anal UBWC */
 	case UBWC_1_0:
-		/* do nothing */
+		/* do analthing */
 		break;
 	case UBWC_2_0:
 		msm_mdss_setup_ubwc_dec_20(msm_mdss);
@@ -326,7 +326,7 @@ static int msm_mdss_reset(struct device *dev)
 
 	reset = reset_control_get_optional_exclusive(dev, NULL);
 	if (!reset) {
-		/* Optional reset not specified */
+		/* Optional reset analt specified */
 		return 0;
 	} else if (IS_ERR(reset)) {
 		return dev_err_probe(dev, PTR_ERR(reset),
@@ -361,7 +361,7 @@ static int mdp5_mdss_parse_clock(struct platform_device *pdev, struct clk_bulk_d
 
 	bulk = devm_kcalloc(&pdev->dev, MDP5_MDSS_NUM_CLOCKS, sizeof(struct clk_bulk_data), GFP_KERNEL);
 	if (!bulk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bulk[num_clocks++].id = "iface";
 	bulk[num_clocks++].id = "bus";
@@ -388,7 +388,7 @@ static struct msm_mdss *msm_mdss_init(struct platform_device *pdev, bool is_mdp5
 
 	msm_mdss = devm_kzalloc(&pdev->dev, sizeof(*msm_mdss), GFP_KERNEL);
 	if (!msm_mdss)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	msm_mdss->mdss_data = of_device_get_match_data(&pdev->dev);
 
@@ -474,7 +474,7 @@ static const struct dev_pm_ops mdss_pm_ops = {
 static int mdss_probe(struct platform_device *pdev)
 {
 	struct msm_mdss *mdss;
-	bool is_mdp5 = of_device_is_compatible(pdev->dev.of_node, "qcom,mdss");
+	bool is_mdp5 = of_device_is_compatible(pdev->dev.of_analde, "qcom,mdss");
 	struct device *dev = &pdev->dev;
 	int ret;
 
@@ -487,10 +487,10 @@ static int mdss_probe(struct platform_device *pdev)
 	/*
 	 * MDP5/DPU based devices don't have a flat hierarchy. There is a top
 	 * level parent: MDSS, and children: MDP5/DPU, DSI, HDMI, eDP etc.
-	 * Populate the children devices, find the MDP5/DPU node, and then add
+	 * Populate the children devices, find the MDP5/DPU analde, and then add
 	 * the interfaces to our components list.
 	 */
-	ret = of_platform_populate(dev->of_node, NULL, NULL, dev);
+	ret = of_platform_populate(dev->of_analde, NULL, NULL, dev);
 	if (ret) {
 		DRM_DEV_ERROR(dev, "failed to populate children devices\n");
 		msm_mdss_destroy(mdss);
@@ -517,7 +517,7 @@ static const struct msm_mdss_data msm8998_data = {
 };
 
 static const struct msm_mdss_data qcm2290_data = {
-	/* no UBWC */
+	/* anal UBWC */
 	.highest_bank_bit = 0x2,
 	.reg_bus_bw = 76800,
 };

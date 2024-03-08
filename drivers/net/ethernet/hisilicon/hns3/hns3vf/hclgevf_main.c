@@ -85,7 +85,7 @@ static void hclgevf_update_stats(struct hnae3_handle *handle)
 static int hclgevf_get_sset_count(struct hnae3_handle *handle, int strset)
 {
 	if (strset == ETH_SS_TEST)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	else if (strset == ETH_SS_STATS)
 		return hclge_comm_tqps_get_sset_count(handle);
 
@@ -270,7 +270,7 @@ static int hclgevf_alloc_tqps(struct hclgevf_dev *hdev)
 	hdev->htqp = devm_kcalloc(&hdev->pdev->dev, hdev->num_tqps,
 				  sizeof(struct hclge_comm_tqp), GFP_KERNEL);
 	if (!hdev->htqp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tqp = hdev->htqp;
 
@@ -336,7 +336,7 @@ static int hclgevf_knic_setup(struct hclgevf_dev *hdev)
 	kinfo->tqp = devm_kcalloc(&hdev->pdev->dev, kinfo->num_tqps,
 				  sizeof(struct hnae3_queue *), GFP_KERNEL);
 	if (!kinfo->tqp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < kinfo->num_tqps; i++) {
 		hdev->htqp[i].q.handle = &hdev->nic;
@@ -412,7 +412,7 @@ static int hclgevf_set_handle_info(struct hclgevf_dev *hdev)
 
 	nic->ae_algo = &ae_algovf;
 	nic->pdev = hdev->pdev;
-	nic->numa_node_mask = hdev->numa_node_mask;
+	nic->numa_analde_mask = hdev->numa_analde_mask;
 	nic->flags |= HNAE3_SUPPORT_VF;
 	nic->kinfo.io_base = hdev->hw.hw.io_base;
 
@@ -576,7 +576,7 @@ static int hclgevf_set_rss_tuple(struct hnae3_handle *handle,
 	int ret;
 
 	if (hdev->ae_dev->dev_version < HNAE3_DEVICE_VERSION_V2)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = hclge_comm_set_rss_tuple(hdev->ae_dev, &hdev->hw.hw,
 				       &hdev->rss_cfg, nfc);
@@ -595,7 +595,7 @@ static int hclgevf_get_rss_tuple(struct hnae3_handle *handle,
 	int ret;
 
 	if (hdev->ae_dev->dev_version < HNAE3_DEVICE_VERSION_V2)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	nfc->data = 0;
 
@@ -619,11 +619,11 @@ static int hclgevf_get_tc_size(struct hnae3_handle *handle)
 
 static int hclgevf_bind_ring_to_vector(struct hnae3_handle *handle, bool en,
 				       int vector_id,
-				       struct hnae3_ring_chain_node *ring_chain)
+				       struct hnae3_ring_chain_analde *ring_chain)
 {
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
 	struct hclge_vf_to_pf_msg send_msg;
-	struct hnae3_ring_chain_node *node;
+	struct hnae3_ring_chain_analde *analde;
 	int status;
 	int i = 0;
 
@@ -632,18 +632,18 @@ static int hclgevf_bind_ring_to_vector(struct hnae3_handle *handle, bool en,
 		HCLGE_MBX_UNMAP_RING_TO_VECTOR;
 	send_msg.vector_id = vector_id;
 
-	for (node = ring_chain; node; node = node->next) {
+	for (analde = ring_chain; analde; analde = analde->next) {
 		send_msg.param[i].ring_type =
-				hnae3_get_bit(node->flag, HNAE3_RING_TYPE_B);
+				hnae3_get_bit(analde->flag, HNAE3_RING_TYPE_B);
 
-		send_msg.param[i].tqp_index = node->tqp_index;
+		send_msg.param[i].tqp_index = analde->tqp_index;
 		send_msg.param[i].int_gl_index =
-					hnae3_get_field(node->int_gl_idx,
+					hnae3_get_field(analde->int_gl_idx,
 							HNAE3_RING_GL_IDX_M,
 							HNAE3_RING_GL_IDX_S);
 
 		i++;
-		if (i == HCLGE_MBX_MAX_RING_CHAIN_PARAM_NUM || !node->next) {
+		if (i == HCLGE_MBX_MAX_RING_CHAIN_PARAM_NUM || !analde->next) {
 			send_msg.ring_num = i;
 
 			status = hclgevf_send_mbx_msg(hdev, &send_msg, false,
@@ -662,7 +662,7 @@ static int hclgevf_bind_ring_to_vector(struct hnae3_handle *handle, bool en,
 }
 
 static int hclgevf_map_ring_to_vector(struct hnae3_handle *handle, int vector,
-				      struct hnae3_ring_chain_node *ring_chain)
+				      struct hnae3_ring_chain_analde *ring_chain)
 {
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
 	int vector_id;
@@ -680,7 +680,7 @@ static int hclgevf_map_ring_to_vector(struct hnae3_handle *handle, int vector,
 static int hclgevf_unmap_ring_from_vector(
 				struct hnae3_handle *handle,
 				int vector,
-				struct hnae3_ring_chain_node *ring_chain)
+				struct hnae3_ring_chain_analde *ring_chain)
 {
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
 	int ret, vector_id;
@@ -871,53 +871,53 @@ static int hclgevf_set_mac_addr(struct hnae3_handle *handle, const void *p,
 	return status;
 }
 
-static struct hclgevf_mac_addr_node *
-hclgevf_find_mac_node(struct list_head *list, const u8 *mac_addr)
+static struct hclgevf_mac_addr_analde *
+hclgevf_find_mac_analde(struct list_head *list, const u8 *mac_addr)
 {
-	struct hclgevf_mac_addr_node *mac_node, *tmp;
+	struct hclgevf_mac_addr_analde *mac_analde, *tmp;
 
-	list_for_each_entry_safe(mac_node, tmp, list, node)
-		if (ether_addr_equal(mac_addr, mac_node->mac_addr))
-			return mac_node;
+	list_for_each_entry_safe(mac_analde, tmp, list, analde)
+		if (ether_addr_equal(mac_addr, mac_analde->mac_addr))
+			return mac_analde;
 
 	return NULL;
 }
 
-static void hclgevf_update_mac_node(struct hclgevf_mac_addr_node *mac_node,
-				    enum HCLGEVF_MAC_NODE_STATE state)
+static void hclgevf_update_mac_analde(struct hclgevf_mac_addr_analde *mac_analde,
+				    enum HCLGEVF_MAC_ANALDE_STATE state)
 {
 	switch (state) {
 	/* from set_rx_mode or tmp_add_list */
 	case HCLGEVF_MAC_TO_ADD:
-		if (mac_node->state == HCLGEVF_MAC_TO_DEL)
-			mac_node->state = HCLGEVF_MAC_ACTIVE;
+		if (mac_analde->state == HCLGEVF_MAC_TO_DEL)
+			mac_analde->state = HCLGEVF_MAC_ACTIVE;
 		break;
 	/* only from set_rx_mode */
 	case HCLGEVF_MAC_TO_DEL:
-		if (mac_node->state == HCLGEVF_MAC_TO_ADD) {
-			list_del(&mac_node->node);
-			kfree(mac_node);
+		if (mac_analde->state == HCLGEVF_MAC_TO_ADD) {
+			list_del(&mac_analde->analde);
+			kfree(mac_analde);
 		} else {
-			mac_node->state = HCLGEVF_MAC_TO_DEL;
+			mac_analde->state = HCLGEVF_MAC_TO_DEL;
 		}
 		break;
-	/* only from tmp_add_list, the mac_node->state won't be
+	/* only from tmp_add_list, the mac_analde->state won't be
 	 * HCLGEVF_MAC_ACTIVE
 	 */
 	case HCLGEVF_MAC_ACTIVE:
-		if (mac_node->state == HCLGEVF_MAC_TO_ADD)
-			mac_node->state = HCLGEVF_MAC_ACTIVE;
+		if (mac_analde->state == HCLGEVF_MAC_TO_ADD)
+			mac_analde->state = HCLGEVF_MAC_ACTIVE;
 		break;
 	}
 }
 
 static int hclgevf_update_mac_list(struct hnae3_handle *handle,
-				   enum HCLGEVF_MAC_NODE_STATE state,
+				   enum HCLGEVF_MAC_ANALDE_STATE state,
 				   enum HCLGEVF_MAC_ADDR_TYPE mac_type,
 				   const unsigned char *addr)
 {
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
-	struct hclgevf_mac_addr_node *mac_node;
+	struct hclgevf_mac_addr_analde *mac_analde;
 	struct list_head *list;
 
 	list = (mac_type == HCLGEVF_MAC_ADDR_UC) ?
@@ -925,31 +925,31 @@ static int hclgevf_update_mac_list(struct hnae3_handle *handle,
 
 	spin_lock_bh(&hdev->mac_table.mac_list_lock);
 
-	/* if the mac addr is already in the mac list, no need to add a new
+	/* if the mac addr is already in the mac list, anal need to add a new
 	 * one into it, just check the mac addr state, convert it to a new
-	 * state, or just remove it, or do nothing.
+	 * state, or just remove it, or do analthing.
 	 */
-	mac_node = hclgevf_find_mac_node(list, addr);
-	if (mac_node) {
-		hclgevf_update_mac_node(mac_node, state);
+	mac_analde = hclgevf_find_mac_analde(list, addr);
+	if (mac_analde) {
+		hclgevf_update_mac_analde(mac_analde, state);
 		spin_unlock_bh(&hdev->mac_table.mac_list_lock);
 		return 0;
 	}
 	/* if this address is never added, unnecessary to delete */
 	if (state == HCLGEVF_MAC_TO_DEL) {
 		spin_unlock_bh(&hdev->mac_table.mac_list_lock);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
-	mac_node = kzalloc(sizeof(*mac_node), GFP_ATOMIC);
-	if (!mac_node) {
+	mac_analde = kzalloc(sizeof(*mac_analde), GFP_ATOMIC);
+	if (!mac_analde) {
 		spin_unlock_bh(&hdev->mac_table.mac_list_lock);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
-	mac_node->state = state;
-	ether_addr_copy(mac_node->mac_addr, addr);
-	list_add_tail(&mac_node->node, list);
+	mac_analde->state = state;
+	ether_addr_copy(mac_analde->mac_addr, addr);
+	list_add_tail(&mac_analde->analde, list);
 
 	spin_unlock_bh(&hdev->mac_table.mac_list_lock);
 	return 0;
@@ -984,7 +984,7 @@ static int hclgevf_rm_mc_addr(struct hnae3_handle *handle,
 }
 
 static int hclgevf_add_del_mac_addr(struct hclgevf_dev *hdev,
-				    struct hclgevf_mac_addr_node *mac_node,
+				    struct hclgevf_mac_addr_analde *mac_analde,
 				    enum HCLGEVF_MAC_ADDR_TYPE mac_type)
 {
 	struct hclge_vf_to_pf_msg send_msg;
@@ -992,20 +992,20 @@ static int hclgevf_add_del_mac_addr(struct hclgevf_dev *hdev,
 
 	if (mac_type == HCLGEVF_MAC_ADDR_UC) {
 		code = HCLGE_MBX_SET_UNICAST;
-		if (mac_node->state == HCLGEVF_MAC_TO_ADD)
+		if (mac_analde->state == HCLGEVF_MAC_TO_ADD)
 			subcode = HCLGE_MBX_MAC_VLAN_UC_ADD;
 		else
 			subcode = HCLGE_MBX_MAC_VLAN_UC_REMOVE;
 	} else {
 		code = HCLGE_MBX_SET_MULTICAST;
-		if (mac_node->state == HCLGEVF_MAC_TO_ADD)
+		if (mac_analde->state == HCLGEVF_MAC_TO_ADD)
 			subcode = HCLGE_MBX_MAC_VLAN_MC_ADD;
 		else
 			subcode = HCLGE_MBX_MAC_VLAN_MC_REMOVE;
 	}
 
 	hclgevf_build_send_msg(&send_msg, code, subcode);
-	ether_addr_copy(send_msg.data, mac_node->mac_addr);
+	ether_addr_copy(send_msg.data, mac_analde->mac_addr);
 	return hclgevf_send_mbx_msg(hdev, &send_msg, false, NULL, 0);
 }
 
@@ -1014,24 +1014,24 @@ static void hclgevf_config_mac_list(struct hclgevf_dev *hdev,
 				    enum HCLGEVF_MAC_ADDR_TYPE mac_type)
 {
 	char format_mac_addr[HNAE3_FORMAT_MAC_ADDR_LEN];
-	struct hclgevf_mac_addr_node *mac_node, *tmp;
+	struct hclgevf_mac_addr_analde *mac_analde, *tmp;
 	int ret;
 
-	list_for_each_entry_safe(mac_node, tmp, list, node) {
-		ret = hclgevf_add_del_mac_addr(hdev, mac_node, mac_type);
+	list_for_each_entry_safe(mac_analde, tmp, list, analde) {
+		ret = hclgevf_add_del_mac_addr(hdev, mac_analde, mac_type);
 		if  (ret) {
 			hnae3_format_mac_addr(format_mac_addr,
-					      mac_node->mac_addr);
+					      mac_analde->mac_addr);
 			dev_err(&hdev->pdev->dev,
 				"failed to configure mac %s, state = %d, ret = %d\n",
-				format_mac_addr, mac_node->state, ret);
+				format_mac_addr, mac_analde->state, ret);
 			return;
 		}
-		if (mac_node->state == HCLGEVF_MAC_TO_ADD) {
-			mac_node->state = HCLGEVF_MAC_ACTIVE;
+		if (mac_analde->state == HCLGEVF_MAC_TO_ADD) {
+			mac_analde->state = HCLGEVF_MAC_ACTIVE;
 		} else {
-			list_del(&mac_node->node);
-			kfree(mac_node);
+			list_del(&mac_analde->analde);
+			kfree(mac_analde);
 		}
 	}
 }
@@ -1039,27 +1039,27 @@ static void hclgevf_config_mac_list(struct hclgevf_dev *hdev,
 static void hclgevf_sync_from_add_list(struct list_head *add_list,
 				       struct list_head *mac_list)
 {
-	struct hclgevf_mac_addr_node *mac_node, *tmp, *new_node;
+	struct hclgevf_mac_addr_analde *mac_analde, *tmp, *new_analde;
 
-	list_for_each_entry_safe(mac_node, tmp, add_list, node) {
-		/* if the mac address from tmp_add_list is not in the
+	list_for_each_entry_safe(mac_analde, tmp, add_list, analde) {
+		/* if the mac address from tmp_add_list is analt in the
 		 * uc/mc_mac_list, it means have received a TO_DEL request
 		 * during the time window of sending mac config request to PF
-		 * If mac_node state is ACTIVE, then change its state to TO_DEL,
+		 * If mac_analde state is ACTIVE, then change its state to TO_DEL,
 		 * then it will be removed at next time. If is TO_ADD, it means
-		 * send TO_ADD request failed, so just remove the mac node.
+		 * send TO_ADD request failed, so just remove the mac analde.
 		 */
-		new_node = hclgevf_find_mac_node(mac_list, mac_node->mac_addr);
-		if (new_node) {
-			hclgevf_update_mac_node(new_node, mac_node->state);
-			list_del(&mac_node->node);
-			kfree(mac_node);
-		} else if (mac_node->state == HCLGEVF_MAC_ACTIVE) {
-			mac_node->state = HCLGEVF_MAC_TO_DEL;
-			list_move_tail(&mac_node->node, mac_list);
+		new_analde = hclgevf_find_mac_analde(mac_list, mac_analde->mac_addr);
+		if (new_analde) {
+			hclgevf_update_mac_analde(new_analde, mac_analde->state);
+			list_del(&mac_analde->analde);
+			kfree(mac_analde);
+		} else if (mac_analde->state == HCLGEVF_MAC_ACTIVE) {
+			mac_analde->state = HCLGEVF_MAC_TO_DEL;
+			list_move_tail(&mac_analde->analde, mac_list);
 		} else {
-			list_del(&mac_node->node);
-			kfree(mac_node);
+			list_del(&mac_analde->analde);
+			kfree(mac_analde);
 		}
 	}
 }
@@ -1067,39 +1067,39 @@ static void hclgevf_sync_from_add_list(struct list_head *add_list,
 static void hclgevf_sync_from_del_list(struct list_head *del_list,
 				       struct list_head *mac_list)
 {
-	struct hclgevf_mac_addr_node *mac_node, *tmp, *new_node;
+	struct hclgevf_mac_addr_analde *mac_analde, *tmp, *new_analde;
 
-	list_for_each_entry_safe(mac_node, tmp, del_list, node) {
-		new_node = hclgevf_find_mac_node(mac_list, mac_node->mac_addr);
-		if (new_node) {
+	list_for_each_entry_safe(mac_analde, tmp, del_list, analde) {
+		new_analde = hclgevf_find_mac_analde(mac_list, mac_analde->mac_addr);
+		if (new_analde) {
 			/* If the mac addr is exist in the mac list, it means
 			 * received a new request TO_ADD during the time window
 			 * of sending mac addr configurrequest to PF, so just
 			 * change the mac state to ACTIVE.
 			 */
-			new_node->state = HCLGEVF_MAC_ACTIVE;
-			list_del(&mac_node->node);
-			kfree(mac_node);
+			new_analde->state = HCLGEVF_MAC_ACTIVE;
+			list_del(&mac_analde->analde);
+			kfree(mac_analde);
 		} else {
-			list_move_tail(&mac_node->node, mac_list);
+			list_move_tail(&mac_analde->analde, mac_list);
 		}
 	}
 }
 
 static void hclgevf_clear_list(struct list_head *list)
 {
-	struct hclgevf_mac_addr_node *mac_node, *tmp;
+	struct hclgevf_mac_addr_analde *mac_analde, *tmp;
 
-	list_for_each_entry_safe(mac_node, tmp, list, node) {
-		list_del(&mac_node->node);
-		kfree(mac_node);
+	list_for_each_entry_safe(mac_analde, tmp, list, analde) {
+		list_del(&mac_analde->analde);
+		kfree(mac_analde);
 	}
 }
 
 static void hclgevf_sync_mac_list(struct hclgevf_dev *hdev,
 				  enum HCLGEVF_MAC_ADDR_TYPE mac_type)
 {
-	struct hclgevf_mac_addr_node *mac_node, *tmp, *new_node;
+	struct hclgevf_mac_addr_analde *mac_analde, *tmp, *new_analde;
 	struct list_head tmp_add_list, tmp_del_list;
 	struct list_head *list;
 
@@ -1114,19 +1114,19 @@ static void hclgevf_sync_mac_list(struct hclgevf_dev *hdev,
 
 	spin_lock_bh(&hdev->mac_table.mac_list_lock);
 
-	list_for_each_entry_safe(mac_node, tmp, list, node) {
-		switch (mac_node->state) {
+	list_for_each_entry_safe(mac_analde, tmp, list, analde) {
+		switch (mac_analde->state) {
 		case HCLGEVF_MAC_TO_DEL:
-			list_move_tail(&mac_node->node, &tmp_del_list);
+			list_move_tail(&mac_analde->analde, &tmp_del_list);
 			break;
 		case HCLGEVF_MAC_TO_ADD:
-			new_node = kzalloc(sizeof(*new_node), GFP_ATOMIC);
-			if (!new_node)
+			new_analde = kzalloc(sizeof(*new_analde), GFP_ATOMIC);
+			if (!new_analde)
 				goto stop_traverse;
 
-			ether_addr_copy(new_node->mac_addr, mac_node->mac_addr);
-			new_node->state = mac_node->state;
-			list_add_tail(&new_node->node, &tmp_add_list);
+			ether_addr_copy(new_analde->mac_addr, mac_analde->mac_addr);
+			new_analde->state = mac_analde->state;
+			list_add_tail(&new_analde->analde, &tmp_add_list);
 			break;
 		default:
 			break;
@@ -1174,7 +1174,7 @@ static int hclgevf_enable_vlan_filter(struct hnae3_handle *handle, bool enable)
 	struct hclge_vf_to_pf_msg send_msg;
 
 	if (!test_bit(HNAE3_DEV_SUPPORT_VLAN_FLTR_MDF_B, ae_dev->caps))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	hclgevf_build_send_msg(&send_msg, HCLGE_MBX_SET_VLAN,
 			       HCLGE_MBX_ENABLE_VLAN_FILTER);
@@ -1196,7 +1196,7 @@ static int hclgevf_set_vlan_filter(struct hnae3_handle *handle,
 		return -EINVAL;
 
 	if (proto != htons(ETH_P_8021Q))
-		return -EPROTONOSUPPORT;
+		return -EPROTOANALSUPPORT;
 
 	/* When device is resetting or reset failed, firmware is unable to
 	 * handle mailbox. Just record the vlan id, and remove it after
@@ -1315,8 +1315,8 @@ static int hclgevf_set_mtu(struct hnae3_handle *handle, int new_mtu)
 	return hclgevf_send_mbx_msg(hdev, &send_msg, true, NULL, 0);
 }
 
-static int hclgevf_notify_client(struct hclgevf_dev *hdev,
-				 enum hnae3_reset_notify_type type)
+static int hclgevf_analtify_client(struct hclgevf_dev *hdev,
+				 enum hnae3_reset_analtify_type type)
 {
 	struct hnae3_client *client = hdev->nic_client;
 	struct hnae3_handle *handle = &hdev->nic;
@@ -1326,19 +1326,19 @@ static int hclgevf_notify_client(struct hclgevf_dev *hdev,
 	    !client)
 		return 0;
 
-	if (!client->ops->reset_notify)
-		return -EOPNOTSUPP;
+	if (!client->ops->reset_analtify)
+		return -EOPANALTSUPP;
 
-	ret = client->ops->reset_notify(handle, type);
+	ret = client->ops->reset_analtify(handle, type);
 	if (ret)
-		dev_err(&hdev->pdev->dev, "notify nic client failed %d(%d)\n",
+		dev_err(&hdev->pdev->dev, "analtify nic client failed %d(%d)\n",
 			type, ret);
 
 	return ret;
 }
 
-static int hclgevf_notify_roce_client(struct hclgevf_dev *hdev,
-				      enum hnae3_reset_notify_type type)
+static int hclgevf_analtify_roce_client(struct hclgevf_dev *hdev,
+				      enum hnae3_reset_analtify_type type)
 {
 	struct hnae3_client *client = hdev->roce_client;
 	struct hnae3_handle *handle = &hdev->roce;
@@ -1347,12 +1347,12 @@ static int hclgevf_notify_roce_client(struct hclgevf_dev *hdev,
 	if (!test_bit(HCLGEVF_STATE_ROCE_REGISTERED, &hdev->state) || !client)
 		return 0;
 
-	if (!client->ops->reset_notify)
-		return -EOPNOTSUPP;
+	if (!client->ops->reset_analtify)
+		return -EOPANALTSUPP;
 
-	ret = client->ops->reset_notify(handle, type);
+	ret = client->ops->reset_analtify(handle, type);
 	if (ret)
-		dev_err(&hdev->pdev->dev, "notify roce client failed %d(%d)",
+		dev_err(&hdev->pdev->dev, "analtify roce client failed %d(%d)",
 			type, ret);
 	return ret;
 }
@@ -1388,7 +1388,7 @@ static int hclgevf_reset_wait(struct hclgevf_dev *hdev)
 	}
 
 	/* we will wait a bit more to let reset of the stack to complete. This
-	 * might happen in case reset assertion was made by PF. Yes, this also
+	 * might happen in case reset assertion was made by PF. Anal, this also
 	 * means we might end up waiting bit more even for VF reset.
 	 */
 	if (hdev->reset_type == HNAE3_VF_FULL_RESET)
@@ -1418,7 +1418,7 @@ static int hclgevf_reset_stack(struct hclgevf_dev *hdev)
 	int ret;
 
 	/* uninitialize the nic client */
-	ret = hclgevf_notify_client(hdev, HNAE3_UNINIT_CLIENT);
+	ret = hclgevf_analtify_client(hdev, HNAE3_UNINIT_CLIENT);
 	if (ret)
 		return ret;
 
@@ -1431,7 +1431,7 @@ static int hclgevf_reset_stack(struct hclgevf_dev *hdev)
 	}
 
 	/* bring up the nic client again */
-	ret = hclgevf_notify_client(hdev, HNAE3_INIT_CLIENT);
+	ret = hclgevf_analtify_client(hdev, HNAE3_INIT_CLIENT);
 	if (ret)
 		return ret;
 
@@ -1439,7 +1439,7 @@ static int hclgevf_reset_stack(struct hclgevf_dev *hdev)
 	hclgevf_reset_handshake(hdev, false);
 
 	/* bring up the nic to enable TX/RX again */
-	return hclgevf_notify_client(hdev, HNAE3_UP_CLIENT);
+	return hclgevf_analtify_client(hdev, HNAE3_UP_CLIENT);
 }
 
 static int hclgevf_reset_prepare_wait(struct hclgevf_dev *hdev)
@@ -1524,13 +1524,13 @@ static int hclgevf_reset_prepare(struct hclgevf_dev *hdev)
 	hdev->rst_stats.rst_cnt++;
 
 	/* perform reset of the stack & ae device for a client */
-	ret = hclgevf_notify_roce_client(hdev, HNAE3_DOWN_CLIENT);
+	ret = hclgevf_analtify_roce_client(hdev, HNAE3_DOWN_CLIENT);
 	if (ret)
 		return ret;
 
 	rtnl_lock();
 	/* bring down the nic to stop any ongoing TX/RX */
-	ret = hclgevf_notify_client(hdev, HNAE3_DOWN_CLIENT);
+	ret = hclgevf_analtify_client(hdev, HNAE3_DOWN_CLIENT);
 	rtnl_unlock();
 	if (ret)
 		return ret;
@@ -1543,12 +1543,12 @@ static int hclgevf_reset_rebuild(struct hclgevf_dev *hdev)
 	int ret;
 
 	hdev->rst_stats.hw_rst_done_cnt++;
-	ret = hclgevf_notify_roce_client(hdev, HNAE3_UNINIT_CLIENT);
+	ret = hclgevf_analtify_roce_client(hdev, HNAE3_UNINIT_CLIENT);
 	if (ret)
 		return ret;
 
 	rtnl_lock();
-	/* now, re-initialize the nic client and ae device */
+	/* analw, re-initialize the nic client and ae device */
 	ret = hclgevf_reset_stack(hdev);
 	rtnl_unlock();
 	if (ret) {
@@ -1556,15 +1556,15 @@ static int hclgevf_reset_rebuild(struct hclgevf_dev *hdev)
 		return ret;
 	}
 
-	ret = hclgevf_notify_roce_client(hdev, HNAE3_INIT_CLIENT);
-	/* ignore RoCE notify error if it fails HCLGEVF_RESET_MAX_FAIL_CNT - 1
+	ret = hclgevf_analtify_roce_client(hdev, HNAE3_INIT_CLIENT);
+	/* iganalre RoCE analtify error if it fails HCLGEVF_RESET_MAX_FAIL_CNT - 1
 	 * times
 	 */
 	if (ret &&
 	    hdev->rst_stats.rst_fail_cnt < HCLGEVF_RESET_MAX_FAIL_CNT - 1)
 		return ret;
 
-	ret = hclgevf_notify_roce_client(hdev, HNAE3_UP_CLIENT);
+	ret = hclgevf_analtify_roce_client(hdev, HNAE3_UP_CLIENT);
 	if (ret)
 		return ret;
 
@@ -1602,7 +1602,7 @@ err_reset:
 
 static enum hnae3_reset_type hclgevf_get_reset_level(unsigned long *addr)
 {
-	enum hnae3_reset_type rst_level = HNAE3_NONE_RESET;
+	enum hnae3_reset_type rst_level = HNAE3_ANALNE_RESET;
 
 	/* return the highest priority reset level amongst all */
 	if (test_bit(HNAE3_VF_RESET, addr)) {
@@ -1708,7 +1708,7 @@ static void hclgevf_reset_done(struct hnae3_ae_dev *ae_dev)
 		dev_warn(&hdev->pdev->dev, "fail to rebuild, ret=%d\n",
 			 ret);
 
-	hdev->reset_type = HNAE3_NONE_RESET;
+	hdev->reset_type = HNAE3_ANALNE_RESET;
 	clear_bit(HCLGEVF_STATE_RST_HANDLING, &hdev->state);
 	up(&hdev->reset_sem);
 }
@@ -1773,7 +1773,7 @@ static void hclgevf_reset_service_task(struct hclgevf_dev *hdev)
 	if (test_and_clear_bit(HCLGEVF_RESET_PENDING,
 			       &hdev->reset_state)) {
 		/* PF has intimated that it is about to reset the hardware.
-		 * We now have to poll & check if hardware has actually
+		 * We analw have to poll & check if hardware has actually
 		 * completed the reset sequence. On hardware reset completion,
 		 * VF needs to reset the client and ae device.
 		 */
@@ -1782,7 +1782,7 @@ static void hclgevf_reset_service_task(struct hclgevf_dev *hdev)
 		hdev->last_reset_time = jiffies;
 		hdev->reset_type =
 			hclgevf_get_reset_level(&hdev->reset_pending);
-		if (hdev->reset_type != HNAE3_NONE_RESET)
+		if (hdev->reset_type != HNAE3_ANALNE_RESET)
 			hclgevf_reset(hdev);
 	} else if (test_and_clear_bit(HCLGEVF_RESET_REQUESTED,
 				      &hdev->reset_state)) {
@@ -1792,21 +1792,21 @@ static void hclgevf_reset_service_task(struct hclgevf_dev *hdev)
 		 *       which resulted in watchdog reacting and inducing VF
 		 *       reset. This also means our cmdq would be unreliable.
 		 *    b. problem in TX due to other lower layer(example link
-		 *       layer not functioning properly etc.)
+		 *       layer analt functioning properly etc.)
 		 * 2. VF reset might have been initiated due to some config
 		 *    change.
 		 *
-		 * NOTE: Theres no clear way to detect above cases than to react
+		 * ANALTE: Theres anal clear way to detect above cases than to react
 		 * to the response of PF for this reset request. PF will ack the
-		 * 1b and 2. cases but we will not get any intimation about 1a
+		 * 1b and 2. cases but we will analt get any intimation about 1a
 		 * from PF as cmdq would be in unreliable state i.e. mailbox
 		 * communication between PF and VF would be broken.
 		 *
 		 * if we are never geting into pending state it means either:
-		 * 1. PF is not receiving our request which could be due to IMP
+		 * 1. PF is analt receiving our request which could be due to IMP
 		 *    reset
 		 * 2. PF is screwed
-		 * We cannot do much for 2. but to check first we can try reset
+		 * We cananalt do much for 2. but to check first we can try reset
 		 * our PCIe + stack and see if it alleviates the problem.
 		 */
 		if (hdev->reset_attempts > HCLGEVF_MAX_RESET_ATTEMPTS_CNT) {
@@ -1824,7 +1824,7 @@ static void hclgevf_reset_service_task(struct hclgevf_dev *hdev)
 		hclgevf_reset_task_schedule(hdev);
 	}
 
-	hdev->reset_type = HNAE3_NONE_RESET;
+	hdev->reset_type = HNAE3_ANALNE_RESET;
 	clear_bit(HCLGEVF_STATE_RST_HANDLING, &hdev->state);
 	up(&hdev->reset_sem);
 }
@@ -1887,7 +1887,7 @@ static void hclgevf_periodic_service_task(struct hclgevf_dev *hdev)
 	if (!(hdev->serv_processed_cnt % HCLGEVF_STATS_TIMER_INTERVAL))
 		hclge_comm_tqps_update_stats(handle, &hdev->hw.hw);
 
-	/* VF does not need to request link status when this bit is set, because
+	/* VF does analt need to request link status when this bit is set, because
 	 * PF will push its link status to VFs when link status changed.
 	 */
 	if (!test_bit(HCLGEVF_STATE_PF_PUSH_LINK_STATUS, &hdev->state))
@@ -1975,7 +1975,7 @@ static enum hclgevf_evt_cause hclgevf_check_evt_cause(struct hclgevf_dev *hdev,
 
 	/* print other vector0 event source */
 	dev_info(&hdev->pdev->dev,
-		 "vector 0 interrupt from unknown source, cmdq_src = %#x\n",
+		 "vector 0 interrupt from unkanalwn source, cmdq_src = %#x\n",
 		 cmdq_stat_reg);
 
 	return HCLGEVF_VECTOR0_EVENT_OTHER;
@@ -2054,7 +2054,7 @@ static int hclgevf_alloc_hdev(struct hnae3_ae_dev *ae_dev)
 
 	hdev = devm_kzalloc(&pdev->dev, sizeof(*hdev), GFP_KERNEL);
 	if (!hdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hdev->pdev = pdev;
 	hdev->ae_dev = ae_dev;
@@ -2082,7 +2082,7 @@ static int hclgevf_init_roce_base_info(struct hclgevf_dev *hdev)
 
 	roce->pdev = nic->pdev;
 	roce->ae_algo = nic->ae_algo;
-	roce->numa_node_mask = nic->numa_node_mask;
+	roce->numa_analde_mask = nic->numa_analde_mask;
 
 	return 0;
 }
@@ -2218,14 +2218,14 @@ static void hclgevf_ae_stop(struct hnae3_handle *handle)
 static int hclgevf_set_alive(struct hnae3_handle *handle, bool alive)
 {
 #define HCLGEVF_STATE_ALIVE	1
-#define HCLGEVF_STATE_NOT_ALIVE	0
+#define HCLGEVF_STATE_ANALT_ALIVE	0
 
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
 	struct hclge_vf_to_pf_msg send_msg;
 
 	hclgevf_build_send_msg(&send_msg, HCLGE_MBX_SET_ALIVE, 0);
 	send_msg.data[0] = alive ? HCLGEVF_STATE_ALIVE :
-				HCLGEVF_STATE_NOT_ALIVE;
+				HCLGEVF_STATE_ANALT_ALIVE;
 	return hclgevf_send_mbx_msg(hdev, &send_msg, false, NULL, 0);
 }
 
@@ -2309,7 +2309,7 @@ static int hclgevf_init_msi(struct hclgevf_dev *hdev)
 					   sizeof(u16), GFP_KERNEL);
 	if (!hdev->vector_status) {
 		pci_free_irq_vectors(pdev);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for (i = 0; i < hdev->num_msi; i++)
@@ -2320,7 +2320,7 @@ static int hclgevf_init_msi(struct hclgevf_dev *hdev)
 	if (!hdev->vector_irq) {
 		devm_kfree(&pdev->dev, hdev->vector_status);
 		pci_free_irq_vectors(pdev);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -2501,7 +2501,7 @@ static void hclgevf_uninit_client_instance(struct hnae3_client *client,
 		hdev->roce.client = NULL;
 	}
 
-	/* un-init nic/unic, if this was not called by roce client */
+	/* un-init nic/unic, if this was analt called by roce client */
 	if (client->ops->uninit_instance && hdev->nic_client &&
 	    client->type != HNAE3_CLIENT_ROCE) {
 		while (test_bit(HCLGEVF_STATE_RST_HANDLING, &hdev->state))
@@ -2519,7 +2519,7 @@ static int hclgevf_dev_mem_map(struct hclgevf_dev *hdev)
 	struct pci_dev *pdev = hdev->pdev;
 	struct hclgevf_hw *hw = &hdev->hw;
 
-	/* for device does not have device memory, return directly */
+	/* for device does analt have device memory, return directly */
 	if (!(pci_select_bars(pdev, IORESOURCE_MEM) & BIT(HCLGEVF_MEM_BAR)))
 		return 0;
 
@@ -2564,7 +2564,7 @@ static int hclgevf_pci_init(struct hclgevf_dev *hdev)
 	hw->hw.io_base = pci_iomap(pdev, 2, 0);
 	if (!hw->hw.io_base) {
 		dev_err(&pdev->dev, "can't map configuration register space\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_release_regions;
 	}
 
@@ -2639,7 +2639,7 @@ static int hclgevf_query_vf_resource(struct hclgevf_dev *hdev)
 
 	if (hdev->num_nic_msix < HNAE3_MIN_VECTOR_NUM) {
 		dev_err(&hdev->pdev->dev,
-			"Just %u msi resources, not enough for vf(min:2).\n",
+			"Just %u msi resources, analt eanalugh for vf(min:2).\n",
 			hdev->num_nic_msix);
 		return -EINVAL;
 	}
@@ -2649,12 +2649,12 @@ static int hclgevf_query_vf_resource(struct hclgevf_dev *hdev)
 
 static void hclgevf_set_default_dev_specs(struct hclgevf_dev *hdev)
 {
-#define HCLGEVF_MAX_NON_TSO_BD_NUM			8U
+#define HCLGEVF_MAX_ANALN_TSO_BD_NUM			8U
 
 	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(hdev->pdev);
 
-	ae_dev->dev_specs.max_non_tso_bd_num =
-					HCLGEVF_MAX_NON_TSO_BD_NUM;
+	ae_dev->dev_specs.max_analn_tso_bd_num =
+					HCLGEVF_MAX_ANALN_TSO_BD_NUM;
 	ae_dev->dev_specs.rss_ind_tbl_size = HCLGEVF_RSS_IND_TBL_SIZE;
 	ae_dev->dev_specs.rss_key_size = HCLGE_COMM_RSS_KEY_SIZE;
 	ae_dev->dev_specs.max_int_gl = HCLGEVF_DEF_MAX_INT_GL;
@@ -2671,7 +2671,7 @@ static void hclgevf_parse_dev_specs(struct hclgevf_dev *hdev,
 	req0 = (struct hclgevf_dev_specs_0_cmd *)desc[0].data;
 	req1 = (struct hclgevf_dev_specs_1_cmd *)desc[1].data;
 
-	ae_dev->dev_specs.max_non_tso_bd_num = req0->max_non_tso_bd_num;
+	ae_dev->dev_specs.max_analn_tso_bd_num = req0->max_analn_tso_bd_num;
 	ae_dev->dev_specs.rss_ind_tbl_size =
 					le16_to_cpu(req0->rss_ind_tbl_size);
 	ae_dev->dev_specs.int_ql_max = le16_to_cpu(req0->int_ql_max);
@@ -2684,8 +2684,8 @@ static void hclgevf_check_dev_specs(struct hclgevf_dev *hdev)
 {
 	struct hnae3_dev_specs *dev_specs = &hdev->ae_dev->dev_specs;
 
-	if (!dev_specs->max_non_tso_bd_num)
-		dev_specs->max_non_tso_bd_num = HCLGEVF_MAX_NON_TSO_BD_NUM;
+	if (!dev_specs->max_analn_tso_bd_num)
+		dev_specs->max_analn_tso_bd_num = HCLGEVF_MAX_ANALN_TSO_BD_NUM;
 	if (!dev_specs->rss_ind_tbl_size)
 		dev_specs->rss_ind_tbl_size = HCLGEVF_RSS_IND_TBL_SIZE;
 	if (!dev_specs->rss_key_size)
@@ -2702,7 +2702,7 @@ static int hclgevf_query_dev_specs(struct hclgevf_dev *hdev)
 	int ret;
 	int i;
 
-	/* set default specifications as devices lower than version V3 do not
+	/* set default specifications as devices lower than version V3 do analt
 	 * support querying specifications from firmware.
 	 */
 	if (hdev->ae_dev->dev_version < HNAE3_DEVICE_VERSION_V3) {
@@ -2880,7 +2880,7 @@ static int hclgevf_init_hdev(struct hclgevf_dev *hdev)
 
 	hclgevf_state_init(hdev);
 	hdev->reset_level = HNAE3_VF_FUNC_RESET;
-	hdev->reset_type = HNAE3_NONE_RESET;
+	hdev->reset_type = HNAE3_ANALNE_RESET;
 
 	ret = hclgevf_misc_irq_init(hdev);
 	if (ret)
@@ -3032,7 +3032,7 @@ static u32 hclgevf_get_max_channels(struct hclgevf_dev *hdev)
  *
  * We don't support separate tx and rx queues as channels. The other count
  * represents how many queues are being used for control. max_combined counts
- * how many queue pairs we can support. They may not be mapped 1 to 1 with
+ * how many queue pairs we can support. They may analt be mapped 1 to 1 with
  * q_vectors since we support a lot more queue pairs than q_vectors.
  **/
 static void hclgevf_get_channels(struct hnae3_handle *handle,
@@ -3067,7 +3067,7 @@ static void hclgevf_update_rss_size(struct hnae3_handle *handle,
 	max_rss_size = min_t(u16, hdev->rss_size_max,
 			     hdev->num_tqps / kinfo->tc_info.num_tc);
 
-	/* Use the user's configuration when it is not larger than
+	/* Use the user's configuration when it is analt larger than
 	 * max_rss_size, otherwise, use the maximum specification value.
 	 */
 	if (kinfo->req_rss_size != kinfo->rss_size && kinfo->req_rss_size &&
@@ -3111,7 +3111,7 @@ static int hclgevf_set_channels(struct hnae3_handle *handle, u32 new_tqps_num,
 	rss_indir = kcalloc(hdev->ae_dev->dev_specs.rss_ind_tbl_size,
 			    sizeof(u32), GFP_KERNEL);
 	if (!rss_indir)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < hdev->ae_dev->dev_specs.rss_ind_tbl_size; i++)
 		rss_indir[i] = i % kinfo->rss_size;
@@ -3244,7 +3244,7 @@ void hclgevf_update_port_base_vlan_info(struct hclgevf_dev *hdev, u16 state,
 		return;
 	}
 
-	ret = hclgevf_notify_client(hdev, HNAE3_DOWN_CLIENT);
+	ret = hclgevf_analtify_client(hdev, HNAE3_DOWN_CLIENT);
 	if (ret) {
 		rtnl_unlock();
 		return;
@@ -3262,7 +3262,7 @@ void hclgevf_update_port_base_vlan_info(struct hclgevf_dev *hdev, u16 state,
 			nic->port_base_vlan_state = HNAE3_PORT_BASE_VLAN_ENABLE;
 	}
 
-	hclgevf_notify_client(hdev, HNAE3_UP_CLIENT);
+	hclgevf_analtify_client(hdev, HNAE3_UP_CLIENT);
 	rtnl_unlock();
 }
 
@@ -3337,7 +3337,7 @@ static int __init hclgevf_init(void)
 	hclgevf_wq = alloc_workqueue("%s", WQ_UNBOUND, 0, HCLGEVF_NAME);
 	if (!hclgevf_wq) {
 		pr_err("%s: failed to create workqueue\n", HCLGEVF_NAME);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	hnae3_register_ae_algo(&ae_algovf);

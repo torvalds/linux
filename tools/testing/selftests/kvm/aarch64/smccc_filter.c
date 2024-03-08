@@ -68,7 +68,7 @@ static struct kvm_vm *setup_vm(struct kvm_vcpu **vcpu)
 
 	/*
 	 * Enable in-kernel emulation of PSCI to ensure that calls are denied
-	 * due to the SMCCC filter, not because of KVM.
+	 * due to the SMCCC filter, analt because of KVM.
 	 */
 	init.features[0] |= (1 << KVM_ARM_VCPU_PSCI_0_2);
 
@@ -90,11 +90,11 @@ static void test_pad_must_be_zero(void)
 
 	r = __kvm_device_attr_set(vm->fd, KVM_ARM_VM_SMCCC_CTRL,
 				  KVM_ARM_VM_SMCCC_FILTER, &filter);
-	TEST_ASSERT(r < 0 && errno == EINVAL,
-		    "Setting filter with nonzero padding should return EINVAL");
+	TEST_ASSERT(r < 0 && erranal == EINVAL,
+		    "Setting filter with analnzero padding should return EINVAL");
 }
 
-/* Ensure that userspace cannot filter the Arm Architecture SMCCC range */
+/* Ensure that userspace cananalt filter the Arm Architecture SMCCC range */
 static void test_filter_reserved_range(void)
 {
 	struct kvm_vcpu *vcpu;
@@ -104,14 +104,14 @@ static void test_filter_reserved_range(void)
 
 	r = __set_smccc_filter(vm, ARM_SMCCC_ARCH_WORKAROUND_1,
 			       1, KVM_SMCCC_FILTER_DENY);
-	TEST_ASSERT(r < 0 && errno == EEXIST,
+	TEST_ASSERT(r < 0 && erranal == EEXIST,
 		    "Attempt to filter reserved range should return EEXIST");
 
 	smc64_fn = ARM_SMCCC_CALL_VAL(ARM_SMCCC_FAST_CALL, ARM_SMCCC_SMC_64,
 				      0, 0);
 
 	r = __set_smccc_filter(vm, smc64_fn, 1, KVM_SMCCC_FILTER_DENY);
-	TEST_ASSERT(r < 0 && errno == EEXIST,
+	TEST_ASSERT(r < 0 && erranal == EEXIST,
 		    "Attempt to filter reserved range should return EEXIST");
 
 	kvm_vm_free(vm);
@@ -124,7 +124,7 @@ static void test_invalid_nr_functions(void)
 	int r;
 
 	r = __set_smccc_filter(vm, PSCI_0_2_FN64_CPU_ON, 0, KVM_SMCCC_FILTER_DENY);
-	TEST_ASSERT(r < 0 && errno == EINVAL,
+	TEST_ASSERT(r < 0 && erranal == EINVAL,
 		    "Attempt to filter 0 functions should return EINVAL");
 
 	kvm_vm_free(vm);
@@ -137,7 +137,7 @@ static void test_overflow_nr_functions(void)
 	int r;
 
 	r = __set_smccc_filter(vm, ~0, ~0, KVM_SMCCC_FILTER_DENY);
-	TEST_ASSERT(r < 0 && errno == EINVAL,
+	TEST_ASSERT(r < 0 && erranal == EINVAL,
 		    "Attempt to overflow filter range should return EINVAL");
 
 	kvm_vm_free(vm);
@@ -150,7 +150,7 @@ static void test_reserved_action(void)
 	int r;
 
 	r = __set_smccc_filter(vm, PSCI_0_2_FN64_CPU_ON, 1, -1);
-	TEST_ASSERT(r < 0 && errno == EINVAL,
+	TEST_ASSERT(r < 0 && erranal == EINVAL,
 		    "Attempt to use reserved filter action should return EINVAL");
 
 	kvm_vm_free(vm);
@@ -167,7 +167,7 @@ static void test_filter_overlap(void)
 	set_smccc_filter(vm, PSCI_0_2_FN64_CPU_ON, 1, KVM_SMCCC_FILTER_DENY);
 
 	r = __set_smccc_filter(vm, PSCI_0_2_FN64_CPU_ON, 1, KVM_SMCCC_FILTER_DENY);
-	TEST_ASSERT(r < 0 && errno == EEXIST,
+	TEST_ASSERT(r < 0 && erranal == EEXIST,
 		    "Attempt to filter already configured range should return EEXIST");
 
 	kvm_vm_free(vm);
@@ -180,11 +180,11 @@ static void expect_call_denied(struct kvm_vcpu *vcpu)
 	if (get_ucall(vcpu, &uc) != UCALL_SYNC)
 		TEST_FAIL("Unexpected ucall: %lu", uc.cmd);
 
-	TEST_ASSERT(uc.args[1] == SMCCC_RET_NOT_SUPPORTED,
+	TEST_ASSERT(uc.args[1] == SMCCC_RET_ANALT_SUPPORTED,
 		    "Unexpected SMCCC return code: %lu", uc.args[1]);
 }
 
-/* Denied SMCCC calls have a return code of SMCCC_RET_NOT_SUPPORTED */
+/* Denied SMCCC calls have a return code of SMCCC_RET_ANALT_SUPPORTED */
 static void test_filter_denied(void)
 {
 	enum smccc_conduit conduit;
@@ -216,7 +216,7 @@ static void expect_call_fwd_to_user(struct kvm_vcpu *vcpu, uint32_t func_id,
 
 	if (conduit == SMC_INSN)
 		TEST_ASSERT(run->hypercall.flags & KVM_HYPERCALL_EXIT_SMC,
-			    "KVM_HYPERCALL_EXIT_SMC is not set");
+			    "KVM_HYPERCALL_EXIT_SMC is analt set");
 	else
 		TEST_ASSERT(!(run->hypercall.flags & KVM_HYPERCALL_EXIT_SMC),
 			    "KVM_HYPERCALL_EXIT_SMC is set");

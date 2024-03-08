@@ -298,18 +298,18 @@ static int lm3642_probe(struct i2c_client *client)
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		dev_err(&client->dev, "i2c functionality check fail.\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (pdata == NULL) {
 		dev_err(&client->dev, "needs Platform Data.\n");
-		return -ENODATA;
+		return -EANALDATA;
 	}
 
 	chip = devm_kzalloc(&client->dev,
 			    sizeof(struct lm3642_chip_data), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->dev = &client->dev;
 	chip->pdata = pdata;

@@ -8,7 +8,7 @@
 
 long long get_time();
 
-int set_cpufreq_governor(char *governor, unsigned int cpu);
+int set_cpufreq_goveranalr(char *goveranalr, unsigned int cpu);
 int set_cpu_affinity(unsigned int cpu);
 int set_process_priority(int priority);
 

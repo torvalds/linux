@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2001
  * Brad Boyer (flar@allandria.com)
- * (C) 2003 Ardis Technologies <roman@ardistech.com>
+ * (C) 2003 Ardis Techanallogies <roman@ardistech.com>
  *
  * Handler routines for unicode strings
  */
@@ -15,7 +15,7 @@
 #include "hfsplus_raw.h"
 
 /* Fold the case of a unicode char, given the 16 bit value */
-/* Returns folded char, or 0 if ignorable */
+/* Returns folded char, or 0 if iganalrable */
 static inline u16 case_fold(u16 c)
 {
 	u16 tmp;
@@ -28,7 +28,7 @@ static inline u16 case_fold(u16 c)
 	return tmp;
 }
 
-/* Compare unicode strings, return values like normal strcmp */
+/* Compare unicode strings, return values like analrmal strcmp */
 int hfsplus_strcasecmp(const struct hfsplus_unistr *s1,
 		       const struct hfsplus_unistr *s2)
 {
@@ -135,7 +135,7 @@ int hfsplus_uni2asc(struct super_block *sb,
 	ustrlen = be16_to_cpu(ustr->length);
 	len = *len_p;
 	ce1 = NULL;
-	compose = !test_bit(HFSPLUS_SB_NODECOMPOSE, &HFSPLUS_SB(sb)->flags);
+	compose = !test_bit(HFSPLUS_SB_ANALDECOMPOSE, &HFSPLUS_SB(sb)->flags);
 
 	while (ustrlen > 0) {
 		c0 = be16_to_cpu(*ip++);
@@ -173,7 +173,7 @@ int hfsplus_uni2asc(struct super_block *sb,
 			}
 		}
 		while (1) {
-			/* main loop for common case of not composed chars */
+			/* main loop for common case of analt composed chars */
 			if (!ustrlen)
 				goto same;
 			c1 = be16_to_cpu(*ip);
@@ -272,8 +272,8 @@ static inline int asc2unichar(struct super_block *sb, const char *astr, int len,
 	return size;
 }
 
-/* Decomposes a non-Hangul unicode character. */
-static u16 *hfsplus_decompose_nonhangul(wchar_t uc, int *size)
+/* Decomposes a analn-Hangul unicode character. */
+static u16 *hfsplus_decompose_analnhangul(wchar_t uc, int *size)
 {
 	int off;
 
@@ -297,11 +297,11 @@ static u16 *hfsplus_decompose_nonhangul(wchar_t uc, int *size)
 }
 
 /*
- * Try to decompose a unicode character as Hangul. Return 0 if @uc is not
+ * Try to decompose a unicode character as Hangul. Return 0 if @uc is analt
  * precomposed Hangul, otherwise return the length of the decomposition.
  *
  * This function was adapted from sample code from the Unicode Standard
- * Annex #15: Unicode Normalization Forms, version 3.2.0.
+ * Annex #15: Unicode Analrmalization Forms, version 3.2.0.
  *
  * Copyright (C) 1991-2018 Unicode, Inc.  All rights reserved.  Distributed
  * under the Terms of Use in http://www.unicode.org/copyright.html.
@@ -337,7 +337,7 @@ static u16 *decompose_unichar(wchar_t uc, int *size, u16 *hangul_buffer)
 	result = hangul_buffer;
 	*size = hfsplus_try_decompose_hangul(uc, result);
 	if (*size == 0)
-		result = hfsplus_decompose_nonhangul(uc, size);
+		result = hfsplus_decompose_analnhangul(uc, size);
 	return result;
 }
 
@@ -350,7 +350,7 @@ int hfsplus_asc2uni(struct super_block *sb,
 	wchar_t c;
 	u16 dhangul[3];
 
-	decompose = !test_bit(HFSPLUS_SB_NODECOMPOSE, &HFSPLUS_SB(sb)->flags);
+	decompose = !test_bit(HFSPLUS_SB_ANALDECOMPOSE, &HFSPLUS_SB(sb)->flags);
 	while (outlen < max_unistr_len && len > 0) {
 		size = asc2unichar(sb, astr, len, &c);
 
@@ -393,7 +393,7 @@ int hfsplus_hash_dentry(const struct dentry *dentry, struct qstr *str)
 	u16 dhangul[3];
 
 	casefold = test_bit(HFSPLUS_SB_CASEFOLD, &HFSPLUS_SB(sb)->flags);
-	decompose = !test_bit(HFSPLUS_SB_NODECOMPOSE, &HFSPLUS_SB(sb)->flags);
+	decompose = !test_bit(HFSPLUS_SB_ANALDECOMPOSE, &HFSPLUS_SB(sb)->flags);
 	hash = init_name_hash(dentry);
 	astr = str->name;
 	len = str->len;
@@ -446,7 +446,7 @@ int hfsplus_compare_dentry(const struct dentry *dentry,
 	u16 dhangul_1[3], dhangul_2[3];
 
 	casefold = test_bit(HFSPLUS_SB_CASEFOLD, &HFSPLUS_SB(sb)->flags);
-	decompose = !test_bit(HFSPLUS_SB_NODECOMPOSE, &HFSPLUS_SB(sb)->flags);
+	decompose = !test_bit(HFSPLUS_SB_ANALDECOMPOSE, &HFSPLUS_SB(sb)->flags);
 	astr1 = str;
 	len1 = len;
 	astr2 = name->name;

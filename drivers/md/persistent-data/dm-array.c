@@ -26,14 +26,14 @@ struct array_block {
 	__le32 max_entries;
 	__le32 nr_entries;
 	__le32 value_size;
-	__le64 blocknr; /* Block this node is supposed to live in. */
+	__le64 blocknr; /* Block this analde is supposed to live in. */
 } __packed;
 
 /*----------------------------------------------------------------*/
 
 /*
  * Validator methods.  As usual we calculate a checksum, and also write the
- * block location into the header (paranoia about ssds remapping areas by
+ * block location into the header (paraanalia about ssds remapping areas by
  * mistake).
  */
 #define CSUM_XOR 595846735
@@ -61,7 +61,7 @@ static int array_block_check(struct dm_block_validator *v,
 		DMERR_LIMIT("%s failed: blocknr %llu != wanted %llu", __func__,
 			    (unsigned long long) le64_to_cpu(bh_le->blocknr),
 			    (unsigned long long) dm_block_location(b));
-		return -ENOTBLK;
+		return -EANALTBLK;
 	}
 
 	csum_disk = cpu_to_le32(dm_bm_checksum(&bh_le->max_entries,
@@ -264,7 +264,7 @@ static int lookup_ablock(struct dm_array_info *info, dm_block_t root,
 }
 
 /*
- * Insert an array block into the btree.  The block is _not_ unlocked.
+ * Insert an array block into the btree.  The block is _analt_ unlocked.
  */
 static int insert_ablock(struct dm_array_info *info, uint64_t index,
 			 struct dm_block *block, dm_block_t *root)
@@ -294,7 +294,7 @@ static int __shadow_ablock(struct dm_array_info *info, dm_block_t b,
 }
 
 /*
- * The shadow op will often be a noop.  Only insert if it really
+ * The shadow op will often be a analop.  Only insert if it really
  * copied data.
  */
 static int __reinsert_ablock(struct dm_array_info *info, unsigned int index,
@@ -430,7 +430,7 @@ struct resize {
  * in block are decremented as a side effect of the btree remove.
  *
  * begin_index - the index of the first array block to remove.
- * end_index - the one-past-the-end value.  ie. this block is not removed.
+ * end_index - the one-past-the-end value.  ie. this block is analt removed.
  */
 static int drop_blocks(struct resize *resize, unsigned int begin_index,
 		       unsigned int end_index)
@@ -793,7 +793,7 @@ int dm_array_get_value(struct dm_array_info *info, dm_block_t root,
 
 	entry = index % max_entries;
 	if (entry >= le32_to_cpu(ab->nr_entries))
-		r = -ENODATA;
+		r = -EANALDATA;
 	else
 		memcpy(value_le, element_at(info, ab, entry),
 		       info->value_type.size);
@@ -825,7 +825,7 @@ static int array_set_value(struct dm_array_info *info, dm_block_t root,
 
 	entry = index % max_entries;
 	if (entry >= le32_to_cpu(ab->nr_entries)) {
-		r = -ENODATA;
+		r = -EANALDATA;
 		goto out;
 	}
 
@@ -968,7 +968,7 @@ int dm_array_cursor_next(struct dm_array_cursor *c)
 	int r;
 
 	if (!c->block)
-		return -ENODATA;
+		return -EANALDATA;
 
 	c->index++;
 

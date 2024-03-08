@@ -17,14 +17,14 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
+   along with this program; if analt, write to the Free Software
    Foundation, Inc., 59 Temple Place - Suite 330, Boston,
    MA  02111-1307, USA.
 
    *************************************************************************
 
  Translation from C++ and adaptation for use in ALSA-Driver
- were made by Giuliano Pochini <pochini@shiny.it>
+ were made by Giuliaanal Pochini <pochini@shiny.it>
 
 ****************************************************************************/
 
@@ -47,12 +47,12 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 
 	local_irq_enable();
 	if (snd_BUG_ON((subdevice_id & 0xfff0) != ECHO3G))
-		return -ENODEV;
+		return -EANALDEV;
 
 	err = init_dsp_comm_page(chip);
 	if (err) {
 		dev_err(chip->card->dev,
-			"init_hw - could not initialize DSP comm page\n");
+			"init_hw - could analt initialize DSP comm page\n");
 		return err;
 	}
 
@@ -80,7 +80,7 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 		chip->px_digital_in = chip->bx_digital_in = 16;
 		chip->px_num = chip->bx_num = 24;
 		chip->has_phantom_power = true;
-		chip->hasnt_input_nominal_level = true;
+		chip->hasnt_input_analminal_level = true;
 	} else if (err == E3G_LAYLA3G_BOX_TYPE) {
 		chip->input_clock_types =	ECHO_CLOCK_BIT_INTERNAL |
 						ECHO_CLOCK_BIT_SPDIF |
@@ -92,7 +92,7 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 		chip->px_digital_in = chip->bx_digital_in = 24;
 		chip->px_num = chip->bx_num = 32;
 	} else {
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	chip->digital_modes =	ECHOCAPS_HAS_DIGITAL_MODE_SPDIF_RCA |
@@ -108,7 +108,7 @@ static int set_mixer_defaults(struct echoaudio *chip)
 {
 	chip->digital_mode = DIGITAL_MODE_SPDIF_RCA;
 	chip->professional_spdif = false;
-	chip->non_audio_spdif = false;
+	chip->analn_audio_spdif = false;
 	chip->bad_board = false;
 	chip->phantom_power = false;
 	return init_line_levels(chip);

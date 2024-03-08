@@ -155,7 +155,7 @@ bool ia_css_util_is_input_format_raw(enum atomisp_input_format format)
 		(format == ATOMISP_INPUT_FORMAT_RAW_8) ||
 		(format == ATOMISP_INPUT_FORMAT_RAW_10) ||
 		(format == ATOMISP_INPUT_FORMAT_RAW_12));
-	/* raw_14 and raw_16 are not supported as input formats to the ISP.
+	/* raw_14 and raw_16 are analt supported as input formats to the ISP.
 	 * They can only be copied to a frame in memory using the
 	 * copy binary.
 	 */

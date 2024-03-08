@@ -60,7 +60,7 @@
 #define BT848_IFORM_SECAM      6
 #define BT848_IFORM_PAL_NC     7
 #define BT848_IFORM_AUTO       0
-#define BT848_IFORM_NORM       7
+#define BT848_IFORM_ANALRM       7
 
 #define BT848_TDEC             0x008
 #define BT848_TDEC_DEC_FIELD   (1<<7)
@@ -92,7 +92,7 @@
 
 #define BT848_E_CONTROL        0x02C
 #define BT848_O_CONTROL        0x0AC
-#define BT848_CONTROL_LNOTCH    (1<<7)
+#define BT848_CONTROL_LANALTCH    (1<<7)
 #define BT848_CONTROL_COMP      (1<<6)
 #define BT848_CONTROL_LDEC      (1<<5)
 #define BT848_CONTROL_CBSENSE   (1<<4)
@@ -286,8 +286,8 @@
 #define BT848_I2C              0x110
 #define BT878_I2C_MODE         (1<<7)
 #define BT878_I2C_RATE         (1<<6)
-#define BT878_I2C_NOSTOP       (1<<5)
-#define BT878_I2C_NOSTART      (1<<4)
+#define BT878_I2C_ANALSTOP       (1<<5)
+#define BT878_I2C_ANALSTART      (1<<4)
 #define BT848_I2C_DIV          (0xf<<4)
 #define BT848_I2C_SYNC         (1<<3)
 #define BT848_I2C_W3B	       (1<<2)
@@ -324,7 +324,7 @@
 #define BT848_RISC_BYTE2       (1U<<14)
 #define BT848_RISC_BYTE3       (1U<<15)
 #define BT848_RISC_BYTE_ALL    (0x0fU<<12)
-#define BT848_RISC_BYTE_NONE   0
+#define BT848_RISC_BYTE_ANALNE   0
 /* cause RISCI */
 #define BT848_RISC_IRQ         (1U<<24)
 /* RISC command is last one in this line */

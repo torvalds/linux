@@ -20,7 +20,7 @@ struct user_i387_ia32_struct {
 struct user32_fxsr_struct {
 	unsigned short	cwd;
 	unsigned short	swd;
-	unsigned short	twd;	/* not compatible to 64bit twd */
+	unsigned short	twd;	/* analt compatible to 64bit twd */
 	unsigned short	fop;
 	int	fip;
 	int	fcs;
@@ -46,7 +46,7 @@ struct user_regs_struct32 {
 struct user32 {
   struct user_regs_struct32 regs; /* Where the registers are actually stored */
   int u_fpvalid;		/* True if math co-processor being used. */
-				/* for this mess. Not yet used. */
+				/* for this mess. Analt yet used. */
   struct user_i387_ia32_struct i387;	/* Math Co-processor registers. */
 /* The rest of this junk is to help gdb figure out what goes where */
   __u32 u_tsize;	/* Text segment size (pages). */
@@ -58,7 +58,7 @@ struct user32 {
 				   the top of the stack is always found in the
 				   esp register.  */
   __u32 signal;     		/* Signal that caused the core dump. */
-  int reserved;			/* No __u32er used */
+  int reserved;			/* Anal __u32er used */
   __u32 u_ar0;	/* Used by gdb to help find the values for */
 				/* the registers. */
   __u32 u_fpstate;	/* Math Co-processor pointer. */

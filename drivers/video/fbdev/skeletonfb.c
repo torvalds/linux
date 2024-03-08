@@ -35,7 +35,7 @@
  *  fbcon can be written around these fields. This will also eliminate the
  *  need to regenerate struct fb_var_screeninfo, struct fb_fix_screeninfo
  *  struct fb_cmap every time get_var, get_fix, get_cmap functions are called
- *  as many drivers do now.
+ *  as many drivers do analw.
  *
  *  This file is subject to the terms and conditions of the GNU General Public
  *  License. See the file COPYING in the main directory of this archive for
@@ -45,7 +45,7 @@
 #include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
@@ -57,7 +57,7 @@
     /*
      *  This is just simple sample code.
      *
-     *  No warranty that it actually compiles.
+     *  Anal warranty that it actually compiles.
      *  Even less warranty that it actually works :-)
      */
 
@@ -72,7 +72,7 @@ static char *mode_option;
  */
 
 /*
- * This structure defines the hardware state of the graphics card. Normally
+ * This structure defines the hardware state of the graphics card. Analrmally
  * you place this in a header file in linux/include/video. This file usually
  * also includes register information. That allows other driver subsystems
  * and userland applications the ability to use the same header file to
@@ -92,20 +92,20 @@ static const struct fb_fix_screeninfo xxxfb_fix = {
 	.xpanstep =	1,
 	.ypanstep =	1,
 	.ywrapstep =	1,
-	.accel =	FB_ACCEL_NONE,
+	.accel =	FB_ACCEL_ANALNE,
 };
 
     /*
-     * 	Modern graphical hardware not only supports pipelines but some
+     * 	Modern graphical hardware analt only supports pipelines but some
      *  also support multiple monitors where each display can have
      *  its own unique data. In this case each display could be
      *  represented by a separate framebuffer device thus a separate
-     *  struct fb_info. Now the struct xxx_par represents the graphics
+     *  struct fb_info. Analw the struct xxx_par represents the graphics
      *  hardware state thus only one exist per card. In this case the
      *  struct xxx_par for each graphics card would be shared between
      *  every struct fb_info that represents a framebuffer on that card.
      *  This allows when one display changes it video resolution (info->var)
-     *  the other displays know instantly. Each display can always be
+     *  the other displays kanalw instantly. Each display can always be
      *  aware of the entire hardware state that affects it because they share
      *  the same xxx_par struct. The other side of the coin is multiple
      *  graphics cards that pass data around until it is finally displayed
@@ -114,7 +114,7 @@ static const struct fb_fix_screeninfo xxxfb_fix = {
      *  one that represents a graphics state, that belong to one struct
      *  fb_info. Their you would want to have *par point to a array of device
      *  states and have each struct fb_ops function deal with all those
-     *  states. I hope this covers every possible hardware design. If not
+     *  states. I hope this covers every possible hardware design. If analt
      *  feel free to send your ideas at jsimmons@users.sf.net
      */
 
@@ -144,7 +144,7 @@ static struct xxx_par __initdata current_par;
  *	is used is to change from a text mode hardware state to a graphics
  * 	mode state.
  *
- *	Returns negative errno on error, or zero on success.
+ *	Returns negative erranal on error, or zero on success.
  */
 static int xxxfb_open(struct fb_info *info, int user)
 {
@@ -163,7 +163,7 @@ static int xxxfb_open(struct fb_info *info, int user)
  *	The case where it is usually used is to go from a graphics state
  *	to a text mode state.
  *
- *	Returns negative errno on error, or zero on success.
+ *	Returns negative erranal on error, or zero on success.
  */
 static int xxxfb_release(struct fb_info *info, int user)
 {
@@ -176,11 +176,11 @@ static int xxxfb_release(struct fb_info *info, int user)
  *      @info: frame buffer structure that represents a single frame buffer
  *
  *	Checks to see if the hardware supports the state requested by
- *	var passed in. This function does not alter the hardware state!!!
+ *	var passed in. This function does analt alter the hardware state!!!
  *	This means the data stored in struct fb_info and struct xxx_par do
- *      not change. This includes the var inside of struct fb_info.
- *	Do NOT change these. This function can be called on its own if we
- *	intent to only test a mode and not actually set it. The stuff in
+ *      analt change. This includes the var inside of struct fb_info.
+ *	Do ANALT change these. This function can be called on its own if we
+ *	intent to only test a mode and analt actually set it. The stuff in
  *	modedb.c is a example of this. If the var passed in is slightly
  *	off by what the hardware can support then we alter the var PASSED in
  *	to what we can do.
@@ -191,20 +191,20 @@ static int xxxfb_release(struct fb_info *info, int user)
  *      function must return -EINVAL.
  *
  *      Exception to the above rule:  Some drivers have a fixed mode, ie,
- *      the hardware is already set at boot up, and cannot be changed.  In
+ *      the hardware is already set at boot up, and cananalt be changed.  In
  *      this case, it is more acceptable that this function just return
- *      a copy of the currently working var (info->var). Better is to not
+ *      a copy of the currently working var (info->var). Better is to analt
  *      implement this function, as the upper layer will do the copying
  *      of the current var for you.
  *
- *      Note:  This is the only function where the contents of var can be
+ *      Analte:  This is the only function where the contents of var can be
  *      freely adjusted after the driver has been registered. If you find
  *      that you have code outside of this function that alters the content
- *      of var, then you are doing something wrong.  Note also that the
+ *      of var, then you are doing something wrong.  Analte also that the
  *      contents of info->var must be left untouched at all times after
  *      driver registration.
  *
- *	Returns negative errno on error, or zero on success.
+ *	Returns negative erranal on error, or zero on success.
  */
 static int xxxfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 {
@@ -218,21 +218,21 @@ static int xxxfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
  *
  *	Using the fb_var_screeninfo in fb_info we set the resolution of the
  *	this particular framebuffer. This function alters the par AND the
- *	fb_fix_screeninfo stored in fb_info. It doesn't not alter var in
+ *	fb_fix_screeninfo stored in fb_info. It doesn't analt alter var in
  *	fb_info since we are using that data. This means we depend on the
  *	data in var inside fb_info to be supported by the hardware.
  *
  *      This function is also used to recover/restore the hardware to a
- *      known working state.
+ *      kanalwn working state.
  *
  *	xxxfb_check_var is always called before xxxfb_set_par to ensure that
  *      the contents of var is always valid.
  *
  *	Again if you can't change the resolution you don't need this function.
  *
- *      However, even if your hardware does not support mode changing,
+ *      However, even if your hardware does analt support mode changing,
  *      a set_par might be needed to at least initialize the hardware to
- *      a known working state, especially if it came back from another
+ *      a kanalwn working state, especially if it came back from aanalther
  *      process that also modifies the same hardware, such as X.
  *
  *      If this is the case, a combination such as the following should work:
@@ -249,7 +249,7 @@ static int xxxfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
  *              init your hardware here
  *      }
  *
- *	Returns negative errno on error, or zero on success.
+ *	Returns negative erranal on error, or zero on success.
  */
 static int xxxfb_set_par(struct fb_info *info)
 {
@@ -260,7 +260,7 @@ static int xxxfb_set_par(struct fb_info *info)
 
 /**
  *  	xxxfb_setcolreg - Optional function. Sets a color register.
- *      @regno: Which register in the CLUT we are programming
+ *      @reganal: Which register in the CLUT we are programming
  *      @red: The red value which can be up to 16 bits wide
  *	@green: The green value which can be up to 16 bits wide
  *	@blue:  The blue value which can be up to 16 bits wide.
@@ -271,20 +271,20 @@ static int xxxfb_set_par(struct fb_info *info)
  *  	magnitude which needs to be scaled in this function for the hardware.
  *	Things to take into consideration are how many color registers, if
  *	any, are supported with the current color visual. With truecolor mode
- *	no color palettes are supported. Here a pseudo palette is created
+ *	anal color palettes are supported. Here a pseudo palette is created
  *	which we store the value in pseudo_palette in struct fb_info. For
  *	pseudocolor mode we have a limited color palette. To deal with this
  *	we can program what color is displayed for a particular pixel value.
  *	DirectColor is similar in that we can program each color field. If
  *	we have a static colormap we don't need to implement this function.
  *
- *	Returns negative errno on error, or zero on success.
+ *	Returns negative erranal on error, or zero on success.
  */
-static int xxxfb_setcolreg(unsigned regno, unsigned red, unsigned green,
+static int xxxfb_setcolreg(unsigned reganal, unsigned red, unsigned green,
 			   unsigned blue, unsigned transp,
 			   struct fb_info *info)
 {
-    if (regno >= 256)  /* no. of hw registers */
+    if (reganal >= 256)  /* anal. of hw registers */
        return -EINVAL;
     /*
      * Program hardware... do anything you want with transp
@@ -312,44 +312,44 @@ static int xxxfb_setcolreg(unsigned regno, unsigned red, unsigned green,
      *                        bits of the pixel value
      *    var->{color}.length is set so that 1 << length is the number of
      *                        available palette entries
-     *    pseudo_palette is not used
+     *    pseudo_palette is analt used
      *    RAMDAC[X] is programmed to (red, green, blue)
      *    color depth = var->{color}.length
      *
      * Static pseudocolor:
-     *    same as Pseudocolor, but the RAMDAC is not programmed (read-only)
+     *    same as Pseudocolor, but the RAMDAC is analt programmed (read-only)
      *
-     * Mono01/Mono10:
+     * Moanal01/Moanal10:
      *    Has only 2 values, black on white or white on black (fg on bg),
      *    var->{color}.offset is 0
      *    white = (1 << var->{color}.length) - 1, black = 0
-     *    pseudo_palette is not used
-     *    RAMDAC does not exist
+     *    pseudo_palette is analt used
+     *    RAMDAC does analt exist
      *    color depth is always 2
      *
      * Truecolor:
-     *    does not use RAMDAC (usually has 3 of them).
+     *    does analt use RAMDAC (usually has 3 of them).
      *    var->{color}.offset contains start of bitfield
      *    var->{color}.length contains length of bitfield
      *    pseudo_palette is programmed to (red << red.offset) |
      *                                    (green << green.offset) |
      *                                    (blue << blue.offset) |
      *                                    (transp << transp.offset)
-     *    RAMDAC does not exist
+     *    RAMDAC does analt exist
      *    color depth = SUM(var->{color}.length})
      *
      *  The color depth is used by fbcon for choosing the logo and also
      *  for color palette transformation if color depth < 4
      *
-     *  As can be seen from the above, the field bits_per_pixel is _NOT_
+     *  As can be seen from the above, the field bits_per_pixel is _ANALT_
      *  a criteria for describing the color visual.
      *
      *  A common mistake is assuming that bits_per_pixel <= 8 is pseudocolor,
      *  and higher than that, true/directcolor.  This is incorrect, one needs
      *  to look at the fix->visual.
      *
-     *  Another common mistake is using bits_per_pixel to calculate the color
-     *  depth.  The bits_per_pixel field does not directly translate to color
+     *  Aanalther common mistake is using bits_per_pixel to calculate the color
+     *  depth.  The bits_per_pixel field does analt directly translate to color
      *  depth. You have to compute for the color depth (using the color
      *  bitfields) and fix->visual as seen above.
      */
@@ -367,9 +367,9 @@ static int xxxfb_setcolreg(unsigned regno, unsigned red, unsigned green,
     /*
      * This is the point where the function feeds the color to the hardware
      * palette after converting the colors to something acceptable by
-     * the hardware. Note, only FB_VISUAL_DIRECTCOLOR and
+     * the hardware. Analte, only FB_VISUAL_DIRECTCOLOR and
      * FB_VISUAL_PSEUDOCOLOR visuals need to write to the hardware palette.
-     * If you have code that writes to the hardware CLUT, and it's not
+     * If you have code that writes to the hardware CLUT, and it's analt
      * any of the above visuals, then you are doing something wrong.
      */
     if (info->fix.visual == FB_VISUAL_DIRECTCOLOR ||
@@ -381,7 +381,7 @@ static int xxxfb_setcolreg(unsigned regno, unsigned red, unsigned green,
      * it only contains 16 entries to match the number of colors supported
      * by the console. The pseudo_palette is used only if the visual is
      * in directcolor or truecolor mode.  With other visuals, the
-     * pseudo_palette is not used. (This might change in the future.)
+     * pseudo_palette is analt used. (This might change in the future.)
      *
      * The contents of the pseudo_palette is in raw pixel format.  Ie, each
      * entry can be written directly to the framebuffer without any conversion.
@@ -395,7 +395,7 @@ static int xxxfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 	info->fix.visual == FB_VISUAL_DIRECTCOLOR) {
 	    u32 v;
 
-	    if (regno >= 16)
+	    if (reganal >= 16)
 		    return -EINVAL;
 
 	    v = (red << info->var.red.offset) |
@@ -403,7 +403,7 @@ static int xxxfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 		    (blue << info->var.blue.offset) |
 		    (transp << info->var.transp.offset);
 
-	    ((u32*)(info->pseudo_palette))[regno] = v;
+	    ((u32*)(info->pseudo_palette))[reganal] = v;
     }
 
     /* ... */
@@ -411,7 +411,7 @@ static int xxxfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 }
 
 /**
- *      xxxfb_pan_display - NOT a required function. Pans the display.
+ *      xxxfb_pan_display - ANALT a required function. Pans the display.
  *      @var: frame buffer variable screen structure
  *      @info: frame buffer structure that represents a single frame buffer
  *
@@ -419,18 +419,18 @@ static int xxxfb_setcolreg(unsigned regno, unsigned red, unsigned green,
  *  	`xoffset' and `yoffset' fields of the `var' structure.
  *  	If the values don't fit, return -EINVAL.
  *
- *      Returns negative errno on error, or zero on success.
+ *      Returns negative erranal on error, or zero on success.
  */
 static int xxxfb_pan_display(struct fb_var_screeninfo *var,
 			     struct fb_info *info)
 {
     /*
-     * If your hardware does not support panning, _do_ _not_ implement this
+     * If your hardware does analt support panning, _do_ _analt_ implement this
      * function. Creating a dummy function will just confuse user apps.
      */
 
     /*
-     * Note that even if this function is fully functional, a setting of
+     * Analte that even if this function is fully functional, a setting of
      * 0 in both xpanstep and ypanstep means that this function will never
      * get called.
      */
@@ -440,7 +440,7 @@ static int xxxfb_pan_display(struct fb_var_screeninfo *var,
 }
 
 /**
- *      xxxfb_blank - NOT a required function. Blanks the display.
+ *      xxxfb_blank - ANALT a required function. Blanks the display.
  *      @blank_mode: the blank mode we want.
  *      @info: frame buffer structure that represents a single frame buffer
  *
@@ -451,7 +451,7 @@ static int xxxfb_pan_display(struct fb_var_screeninfo *var,
  *      Implements VESA suspend and powerdown modes on hardware that supports
  *      disabling hsync/vsync:
  *
- *      FB_BLANK_NORMAL = display is blanked, syncs are on.
+ *      FB_BLANK_ANALRMAL = display is blanked, syncs are on.
  *      FB_BLANK_HSYNC_SUSPEND = hsync off
  *      FB_BLANK_VSYNC_SUSPEND = vsync off
  *      FB_BLANK_POWERDOWN =  hsync and vsync off
@@ -470,7 +470,7 @@ static int xxxfb_blank(int blank_mode, struct fb_info *info)
 
 /*
  * We provide our own functions if we have hardware acceleration
- * or non packed pixel format layouts. If we have no hardware
+ * or analn packed pixel format layouts. If we have anal hardware
  * acceleration, we can use a generic unaccelerated function. If using
  * a pack pixel format just use the functions in cfb_*.c. Each file
  * has one of the three different accel functions we support.
@@ -478,7 +478,7 @@ static int xxxfb_blank(int blank_mode, struct fb_info *info)
 
 /**
  *      xxxfb_fillrect - REQUIRED function. Can use generic routines if
- *		 	 non acclerated hardware and packed pixel based.
+ *		 	 analn acclerated hardware and packed pixel based.
  *			 Draws a rectangle on the screen.
  *
  *      @info: frame buffer structure that represents a single frame buffer
@@ -505,15 +505,15 @@ void xxxfb_fillrect(struct fb_info *p, const struct fb_fillrect *region)
 
 /**
  *      xxxfb_copyarea - REQUIRED function. Can use generic routines if
- *                       non acclerated hardware and packed pixel based.
- *                       Copies one area of the screen to another area.
+ *                       analn acclerated hardware and packed pixel based.
+ *                       Copies one area of the screen to aanalther area.
  *
  *      @info: frame buffer structure that represents a single frame buffer
  *      @area: Structure providing the data to copy the framebuffer contents
- *	       from one region to another.
+ *	       from one region to aanalther.
  *
  *      This drawing operation copies a rectangular area from one area of the
- *	screen to another area.
+ *	screen to aanalther area.
  */
 void xxxfb_copyarea(struct fb_info *p, const struct fb_copyarea *area)
 {
@@ -530,14 +530,14 @@ void xxxfb_copyarea(struct fb_info *p, const struct fb_copyarea *area)
 
 /**
  *      xxxfb_imageblit - REQUIRED function. Can use generic routines if
- *                        non acclerated hardware and packed pixel based.
+ *                        analn acclerated hardware and packed pixel based.
  *                        Copies a image from system memory to the screen.
  *
  *      @info: frame buffer structure that represents a single frame buffer
  *	@image:	structure defining the image.
  *
  *      This drawing operation draws a image on the screen. It can be a
- *	mono image (needed for font handling) or a color image (needed for
+ *	moanal image (needed for font handling) or a color image (needed for
  *	tux).
  */
 void xxxfb_imageblit(struct fb_info *p, const struct fb_image *image)
@@ -547,7 +547,7 @@ void xxxfb_imageblit(struct fb_info *p, const struct fb_image *image)
  *	@dy: destination area to place the image on the screen.
  *      @width: How wide the image is we want to copy.
  *      @height: How tall the image is we want to copy.
- *      @fg_color: For mono bitmap images this is color data for
+ *      @fg_color: For moanal bitmap images this is color data for
  *      @bg_color: the foreground and background of the image to
  *		   write directly to the frmaebuffer.
  *	@depth:	How many bits represent a single pixel for this image.
@@ -574,7 +574,7 @@ void xxxfb_imageblit(struct fb_info *p, const struct fb_image *image)
  *      This operation is used to set or alter the properities of the
  *	cursor.
  *
- *	Returns negative errno on error, or zero on success.
+ *	Returns negative erranal on error, or zero on success.
  */
 int xxxfb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 {
@@ -588,7 +588,7 @@ int xxxfb_cursor(struct fb_info *info, struct fb_cursor *cursor)
  *      @hot:	The hot spot.
  *	@image:	The actual data for the cursor image.
  *
- *      NOTES ON FLAGS (cursor->set):
+ *      ANALTES ON FLAGS (cursor->set):
  *
  *      FB_CUR_SETIMAGE - the cursor image has changed (cursor->image.data)
  *      FB_CUR_SETPOS   - the cursor position has changed (cursor->image.dx|dy)
@@ -598,22 +598,22 @@ int xxxfb_cursor(struct fb_info *info, struct fb_cursor *cursor)
  *      FB_CUR_SETSIZE  - the cursor size has changed (cursor->width|height)
  *      FB_CUR_SETALL   - everything has changed
  *
- *      NOTES ON ROPs (cursor->rop, Raster Operation)
+ *      ANALTES ON ROPs (cursor->rop, Raster Operation)
  *
  *      ROP_XOR         - cursor->image.data XOR cursor->mask
  *      ROP_COPY        - curosr->image.data AND cursor->mask
  *
- *      OTHER NOTES:
+ *      OTHER ANALTES:
  *
  *      - fbcon only supports a 2-color cursor (cursor->image.depth = 1)
  *      - The fb_cursor structure, @cursor, _will_ always contain valid
  *        fields, whether any particular bitfields in cursor->set is set
- *        or not.
+ *        or analt.
  */
 }
 
 /**
- *	xxxfb_sync - NOT a required function. Normally the accel engine
+ *	xxxfb_sync - ANALT a required function. Analrmally the accel engine
  *		     for a graphics card take a specific amount of time.
  *		     Often we have to wait for the accelerator to finish
  *		     its operation before we can write to the framebuffer
@@ -707,28 +707,28 @@ static int xxxfb_probe(struct pci_dev *dev, const struct pci_device_id *ent)
      *
      * FBINFO_HWACCEL_COPYAREA - hardware moves
      * FBINFO_HWACCEL_FILLRECT - hardware fills
-     * FBINFO_HWACCEL_IMAGEBLIT - hardware mono->color expansion
+     * FBINFO_HWACCEL_IMAGEBLIT - hardware moanal->color expansion
      * FBINFO_HWACCEL_YPAN - hardware can pan display in y-axis
      * FBINFO_HWACCEL_YWRAP - hardware can wrap display in y-axis
      * FBINFO_HWACCEL_DISABLED - supports hardware accels, but disabled
-     * FBINFO_READS_FAST - if set, prefer moves over mono->color expansion
+     * FBINFO_READS_FAST - if set, prefer moves over moanal->color expansion
      * FBINFO_MISC_TILEBLITTING - hardware can do tile blits
      *
-     * NOTE: These are for fbcon use only.
+     * ANALTE: These are for fbcon use only.
      */
     info->flags = 0;
 
 /********************* This stage is optional ******************************/
      /*
      * The struct pixmap is a scratch pad for the drawing functions. This
-     * is where the monochrome bitmap is constructed by the higher layers
+     * is where the moanalchrome bitmap is constructed by the higher layers
      * and then passed to the accelerator.  For drivers that uses
      * cfb_imageblit, you can skip this part.  For those that have a more
      * rigorous requirement, this stage is needed
      */
 
-    /* PIXMAP_SIZE should be small enough to optimize drawing, but not
-     * large enough that memory is wasted.  A safe size is
+    /* PIXMAP_SIZE should be small eanalugh to optimize drawing, but analt
+     * large eanalugh that memory is wasted.  A safe size is
      * (max_xres * max_font_height/8). max_xres is driver dependent,
      * max_font_height is 32.
      */
@@ -766,7 +766,7 @@ static int xxxfb_probe(struct pci_dev *dev, const struct pci_device_id *ent)
      * ie. some epson cards allow 16-bit access only.  Most drivers will
      * be safe with u32 here.
      *
-     * NOTE: This field is currently unused.
+     * ANALTE: This field is currently unused.
      */
     info->pixmap.access_align = 32;
 /***************************** End optional stage ***************************/
@@ -785,7 +785,7 @@ static int xxxfb_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 
     /* This has to be done! */
     if (fb_alloc_cmap(&info->cmap, cmap_len, 0))
-	return -ENOMEM;
+	return -EANALMEM;
 
     /*
      * The following is done in the case of having hardware with a static
@@ -901,7 +901,7 @@ static int __init xxxfb_init(void)
 	char *option = NULL;
 
 	if (fb_get_options("xxxfb", &option))
-		return -ENODEV;
+		return -EANALDEV;
 	xxxfb_setup(option);
 #endif
 
@@ -912,7 +912,7 @@ static void __exit xxxfb_exit(void)
 {
 	pci_unregister_driver(&xxxfb_driver);
 }
-#else /* non PCI, platform drivers */
+#else /* analn PCI, platform drivers */
 #include <linux/platform_device.h>
 /* for platform devices */
 
@@ -990,11 +990,11 @@ static int __init xxxfb_init(void)
 #endif
 
 	if (fb_modesetting_disabled("xxxfb"))
-		return -ENODEV;
+		return -EANALDEV;
 
 #ifndef MODULE
 	if (fb_get_options("xxxfb", &option))
-		return -ENODEV;
+		return -EANALDEV;
 	xxxfb_setup(option);
 #endif
 	ret = platform_driver_register(&xxxfb_driver);

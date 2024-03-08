@@ -58,7 +58,7 @@ void l2_guest_code(void)
 	l2_save_restore_done = 1;
 
 	/*
-	 * Now wait for the preemption timer to fire and
+	 * Analw wait for the preemption timer to fire and
 	 * exit to L1
 	 */
 	while ((l2_vmx_pt_finish = rdtsc()))
@@ -163,7 +163,7 @@ int main(int argc, char *argv[])
 	int stage;
 
 	/*
-	 * AMD currently does not implement any VMX features, so for now we
+	 * AMD currently does analt implement any VMX features, so for analw we
 	 * just early out.
 	 */
 	TEST_REQUIRE(kvm_cpu_has(X86_FEATURE_VMX));
@@ -185,13 +185,13 @@ int main(int argc, char *argv[])
 		switch (get_ucall(vcpu, &uc)) {
 		case UCALL_ABORT:
 			REPORT_GUEST_ASSERT(uc);
-			/* NOT REACHED */
+			/* ANALT REACHED */
 		case UCALL_SYNC:
 			break;
 		case UCALL_DONE:
 			goto done;
 		default:
-			TEST_FAIL("Unknown ucall %lu", uc.cmd);
+			TEST_FAIL("Unkanalwn ucall %lu", uc.cmd);
 		}
 
 		/* UCALL_SYNC is handled here.  */

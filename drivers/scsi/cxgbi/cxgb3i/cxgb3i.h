@@ -15,7 +15,7 @@
 
 #define CXGB3I_SCSI_HOST_QDEPTH 1024
 #define CXGB3I_MAX_LUN		512
-#define ISCSI_PDU_NONPAYLOAD_MAX \
+#define ISCSI_PDU_ANALNPAYLOAD_MAX \
 	(sizeof(struct iscsi_hdr) + ISCSI_MAX_AHS_SIZE + 2*ISCSI_DIGEST_SIZE)
 
 /*for TX: a skb must have a headroom of at least TX_HEADER_LEN bytes */
@@ -40,7 +40,7 @@ static inline void cxgb3i_set_private_ipv4addr(struct net_device *ndev,
 		memcpy(pi->iscsic.mac_addr, ndev->dev_addr, ETH_ALEN);
 }
 
-struct cpl_iscsi_hdr_norss {
+struct cpl_iscsi_hdr_analrss {
 	union opcode_tid ot;
 	u16 pdu_len_ddp;
 	u16 len;
@@ -50,7 +50,7 @@ struct cpl_iscsi_hdr_norss {
 	u8 status;
 };
 
-struct cpl_rx_data_ddp_norss {
+struct cpl_rx_data_ddp_analrss {
 	union opcode_tid ot;
 	u16 urg;
 	u16 len;

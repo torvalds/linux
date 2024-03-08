@@ -12,9 +12,9 @@ maintainers:
 
 description:
   Chrome OS devices have an Embedded Controller(EC) which has access to
-  Type C port state. This node is intended to allow the host to read and
-  control the Type C ports. The node for this device should be under a
-  cros-ec node like google,cros-ec-spi.
+  Type C port state. This analde is intended to allow the host to read and
+  control the Type C ports. The analde for this device should be under a
+  cros-ec analde like google,cros-ec-spi.
 
 properties:
   compatible:

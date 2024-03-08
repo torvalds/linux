@@ -156,7 +156,7 @@ static int palmas_gpio_probe(struct platform_device *pdev)
 	palmas_gpio = devm_kzalloc(&pdev->dev,
 				sizeof(*palmas_gpio), GFP_KERNEL);
 	if (!palmas_gpio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	palmas_gpio->palmas = palmas;
 	palmas_gpio->gpio_chip.owner = THIS_MODULE;
@@ -179,7 +179,7 @@ static int palmas_gpio_probe(struct platform_device *pdev)
 	ret = devm_gpiochip_add_data(&pdev->dev, &palmas_gpio->gpio_chip,
 				     palmas_gpio);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "Could not register gpiochip, %d\n", ret);
+		dev_err(&pdev->dev, "Could analt register gpiochip, %d\n", ret);
 		return ret;
 	}
 

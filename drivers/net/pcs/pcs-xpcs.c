@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2020 Synopsys, Inc. and/or its affiliates.
- * Synopsys DesignWare XPCS helpers
+ * Copyright (c) 2020 Syanalpsys, Inc. and/or its affiliates.
+ * Syanalpsys DesignWare XPCS helpers
  *
- * Author: Jose Abreu <Jose.Abreu@synopsys.com>
+ * Author: Jose Abreu <Jose.Abreu@syanalpsys.com>
  */
 
 #include <linux/delay.h>
@@ -180,7 +180,7 @@ int xpcs_get_an_mode(struct dw_xpcs *xpcs, phy_interface_t interface)
 
 	compat = xpcs_find_compat(xpcs->id, interface);
 	if (!compat)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return compat->an_mode;
 }
@@ -343,7 +343,7 @@ static int xpcs_read_fault_c73(struct dw_xpcs *xpcs,
 		return ret;
 
 	if (!(ret & MDIO_PCS_10GBRT_STAT1_BLKLK))
-		xpcs_warn(xpcs, state, "Link is not locked!\n");
+		xpcs_warn(xpcs, state, "Link is analt locked!\n");
 
 	ret = xpcs_read(xpcs, MDIO_MMD_PCS, MDIO_PCS_10GBRT_STAT2);
 	if (ret < 0)
@@ -381,7 +381,7 @@ static void xpcs_config_usxgmii(struct dw_xpcs *xpcs, int speed)
 		speed_sel = DW_USXGMII_10000;
 		break;
 	default:
-		/* Nothing to do here */
+		/* Analthing to do here */
 		return;
 	}
 
@@ -426,7 +426,7 @@ static int _xpcs_config_aneg_c73(struct dw_xpcs *xpcs,
 	/* By default, in USXGMII mode XPCS operates at 10G baud and
 	 * replicates data to achieve lower speeds. Hereby, in this
 	 * default configuration we need to advertise all supported
-	 * modes and not only the ones we want to use.
+	 * modes and analt only the ones we want to use.
 	 */
 
 	/* SR_AN_ADV3 */
@@ -535,11 +535,11 @@ static int xpcs_get_max_xlgmii_speed(struct dw_xpcs *xpcs,
 				     struct phylink_link_state *state)
 {
 	unsigned long *adv = state->advertising;
-	int speed = SPEED_UNKNOWN;
+	int speed = SPEED_UNKANALWN;
 	int bit;
 
 	for_each_set_bit(bit, adv, __ETHTOOL_LINK_MODE_MASK_NBITS) {
-		int new_speed = SPEED_UNKNOWN;
+		int new_speed = SPEED_UNKANALWN;
 
 		switch (bit) {
 		case ETHTOOL_LINK_MODE_25000baseCR_Full_BIT:
@@ -599,7 +599,7 @@ static void xpcs_resolve_pma(struct dw_xpcs *xpcs,
 		state->speed = xpcs_get_max_xlgmii_speed(xpcs, state);
 		break;
 	default:
-		state->speed = SPEED_UNKNOWN;
+		state->speed = SPEED_UNKANALWN;
 		break;
 	}
 }
@@ -698,10 +698,10 @@ static int xpcs_config_aneg_c37_sgmii(struct dw_xpcs *xpcs,
 	 *    speed/duplex mode change by HW after SGMII AN complete)
 	 * 5) VR_MII_MMD_CTRL Bit(12) [AN_ENABLE] = 1b (Enable SGMII AN)
 	 *
-	 * Note: Since it is MAC side SGMII, there is no need to set
+	 * Analte: Since it is MAC side SGMII, there is anal need to set
 	 *	 SR_MII_AN_ADV. MAC side SGMII receives AN Tx Config from
 	 *	 PHY about the link state change after C28 AN is completed
-	 *	 between PHY and Link Partner. There is also no need to
+	 *	 between PHY and Link Partner. There is also anal need to
 	 *	 trigger AN restart for MAC-side SGMII.
 	 */
 	mdio_ctrl = xpcs_read(xpcs, MDIO_MMD_VEND2, DW_VR_MII_MMD_CTRL);
@@ -856,7 +856,7 @@ int xpcs_do_config(struct dw_xpcs *xpcs, phy_interface_t interface,
 
 	compat = xpcs_find_compat(xpcs->id, interface);
 	if (!compat)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (xpcs->dev_flag == DW_DEV_TXGBE) {
 		ret = txgbe_xpcs_switch_mode(xpcs, interface);
@@ -949,7 +949,7 @@ static int xpcs_get_state_c73(struct dw_xpcs *xpcs,
 				      PHYLINK_PCS_NEG_INBAND_ENABLED);
 	}
 
-	/* There is no point doing anything else if the link is down. */
+	/* There is anal point doing anything else if the link is down. */
 	if (!state->link)
 		return 0;
 
@@ -994,8 +994,8 @@ static int xpcs_get_state_c37_sgmii(struct dw_xpcs *xpcs,
 
 	/* Reset link_state */
 	state->link = false;
-	state->speed = SPEED_UNKNOWN;
-	state->duplex = DUPLEX_UNKNOWN;
+	state->speed = SPEED_UNKANALWN;
+	state->duplex = DUPLEX_UNKANALWN;
 	state->pause = 0;
 
 	/* For C37 SGMII mode, we check DW_VR_MII_AN_INTR_STS for link
@@ -1197,7 +1197,7 @@ static void xpcs_link_up_1000basex(struct dw_xpcs *xpcs, unsigned int neg_mode,
 	if (duplex == DUPLEX_FULL)
 		val |= BMCR_FULLDPLX;
 	else
-		pr_err("%s: half duplex not supported\n", __func__);
+		pr_err("%s: half duplex analt supported\n", __func__);
 
 	ret = xpcs_write(xpcs, MDIO_MMD_VEND2, MDIO_CTRL1, val);
 	if (ret)
@@ -1246,7 +1246,7 @@ static u32 xpcs_get_id(struct dw_xpcs *xpcs)
 	if (ret < 0)
 		return 0xffffffff;
 
-	/* If Device IDs are not all zeros or all ones,
+	/* If Device IDs are analt all zeros or all ones,
 	 * we found C73 AN-type device
 	 */
 	if ((id | ret) && (id | ret) != 0xffffffff)
@@ -1263,14 +1263,14 @@ static u32 xpcs_get_id(struct dw_xpcs *xpcs)
 	if (ret < 0)
 		return 0xffffffff;
 
-	/* If Device IDs are not all zeros, we found C37 AN-type device */
+	/* If Device IDs are analt all zeros, we found C37 AN-type device */
 	if (id | ret)
 		return id | ret;
 
 	return 0xffffffff;
 }
 
-static const struct xpcs_compat synopsys_xpcs_compat[DW_XPCS_INTERFACE_MAX] = {
+static const struct xpcs_compat syanalpsys_xpcs_compat[DW_XPCS_INTERFACE_MAX] = {
 	[DW_XPCS_USXGMII] = {
 		.supported = xpcs_usxgmii_features,
 		.interface = xpcs_usxgmii_interfaces,
@@ -1344,16 +1344,16 @@ static const struct xpcs_compat nxp_sja1110_xpcs_compat[DW_XPCS_INTERFACE_MAX] =
 
 static const struct xpcs_id xpcs_id_list[] = {
 	{
-		.id = SYNOPSYS_XPCS_ID,
-		.mask = SYNOPSYS_XPCS_MASK,
-		.compat = synopsys_xpcs_compat,
+		.id = SYANALPSYS_XPCS_ID,
+		.mask = SYANALPSYS_XPCS_MASK,
+		.compat = syanalpsys_xpcs_compat,
 	}, {
 		.id = NXP_SJA1105_XPCS_ID,
-		.mask = SYNOPSYS_XPCS_MASK,
+		.mask = SYANALPSYS_XPCS_MASK,
 		.compat = nxp_sja1105_xpcs_compat,
 	}, {
 		.id = NXP_SJA1110_XPCS_ID,
-		.mask = SYNOPSYS_XPCS_MASK,
+		.mask = SYANALPSYS_XPCS_MASK,
 		.compat = nxp_sja1110_xpcs_compat,
 	},
 };
@@ -1375,7 +1375,7 @@ static struct dw_xpcs *xpcs_create(struct mdio_device *mdiodev,
 
 	xpcs = kzalloc(sizeof(*xpcs), GFP_KERNEL);
 	if (!xpcs)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mdio_device_get(mdiodev);
 	xpcs->mdiodev = mdiodev;
@@ -1393,7 +1393,7 @@ static struct dw_xpcs *xpcs_create(struct mdio_device *mdiodev,
 
 		compat = xpcs_find_compat(entry, interface);
 		if (!compat) {
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			goto out;
 		}
 
@@ -1415,7 +1415,7 @@ static struct dw_xpcs *xpcs_create(struct mdio_device *mdiodev,
 		return xpcs;
 	}
 
-	ret = -ENODEV;
+	ret = -EANALDEV;
 
 out:
 	mdio_device_put(mdiodev);

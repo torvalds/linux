@@ -2,10 +2,10 @@
 /*
  * Processor capabilities determination functions.
  *
- * Copyright (C) xxxx  the Anonymous
+ * Copyright (C) xxxx  the Aanalnymous
  * Copyright (C) 1994 - 2006 Ralf Baechle
  * Copyright (C) 2003, 2004  Maciej W. Rozycki
- * Copyright (C) 2001, 2004, 2011, 2012	 MIPS Technologies, Inc.
+ * Copyright (C) 2001, 2004, 2011, 2012	 MIPS Techanallogies, Inc.
  */
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -76,9 +76,9 @@ void cpu_probe(void)
 	 */
 	set_elf_platform(cpu, "mips");
 
-	c->processor_id = PRID_IMP_UNKNOWN;
-	c->fpu_id	= FPIR_IMP_NONE;
-	c->cputype	= CPU_UNKNOWN;
+	c->processor_id = PRID_IMP_UNKANALWN;
+	c->fpu_id	= FPIR_IMP_ANALNE;
+	c->cputype	= CPU_UNKANALWN;
 	c->writecombine = _CACHE_UNCACHED;
 
 	c->fpu_csr31	= FPU_CSR_RN;
@@ -93,7 +93,7 @@ void cpu_probe(void)
 		c->cputype = CPU_R2000;
 		__cpu_name[cpu] = "R2000";
 		c->options = MIPS_CPU_TLB | MIPS_CPU_3K_CACHE |
-			     MIPS_CPU_NOFPUEX;
+			     MIPS_CPU_ANALFPUEX;
 		if (__cpu_has_fpu())
 			c->options |= MIPS_CPU_FPU;
 		c->tlbsize = 64;
@@ -112,7 +112,7 @@ void cpu_probe(void)
 			__cpu_name[cpu] = "R3000";
 		}
 		c->options = MIPS_CPU_TLB | MIPS_CPU_3K_CACHE |
-			     MIPS_CPU_NOFPUEX;
+			     MIPS_CPU_ANALFPUEX;
 		if (__cpu_has_fpu())
 			c->options |= MIPS_CPU_FPU;
 		c->tlbsize = 64;
@@ -120,7 +120,7 @@ void cpu_probe(void)
 	}
 
 	BUG_ON(!__cpu_name[cpu]);
-	BUG_ON(c->cputype == CPU_UNKNOWN);
+	BUG_ON(c->cputype == CPU_UNKANALWN);
 
 	/*
 	 * Platform code can force the cpu type to optimize code
@@ -135,7 +135,7 @@ void cpu_probe(void)
 	if (c->options & MIPS_CPU_FPU)
 		cpu_set_fpu_opts(c);
 	else
-		cpu_set_nofpu_opts(c);
+		cpu_set_analfpu_opts(c);
 
 	reserve_exception_space(0, 0x400);
 }

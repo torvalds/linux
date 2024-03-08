@@ -56,7 +56,7 @@ struct nfsd_net {
 	struct dentry *nfsd_client_dir;
 
 	/*
-	 * reclaim_str_hashtbl[] holds known client info from previous reset/reboot
+	 * reclaim_str_hashtbl[] holds kanalwn client info from previous reset/reboot
 	 * used in reboot/reset lease grace period processing
 	 *
 	 * conf_id_hashtbl[], and conf_name_tree hold confirmed
@@ -139,7 +139,7 @@ struct nfsd_net {
 	 * Version information
 	 */
 	bool *nfsd_versions;
-	bool *nfsd4_minorversions;
+	bool *nfsd4_mianalrversions;
 
 	/*
 	 * Duplicate reply cache
@@ -180,7 +180,7 @@ struct nfsd_net {
 	wait_queue_head_t       nfsd_ssc_waitq;
 
 	/* utsname taken from the process that starts the server */
-	char			nfsd_name[UNX_MAXNODENAME+1];
+	char			nfsd_name[UNX_MAXANALDENAME+1];
 
 	struct nfsd_fcache_disposal *fcache_disposal;
 

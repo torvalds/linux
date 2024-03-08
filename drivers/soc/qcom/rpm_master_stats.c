@@ -3,7 +3,7 @@
  * Copyright (c) 2012-2020, The Linux Foundation. All rights reserved.
  * Copyright (c) 2023, Linaro Limited
  *
- * This driver supports what is known as "Master Stats v2" in Qualcomm
+ * This driver supports what is kanalwn as "Master Stats v2" in Qualcomm
  * downstream kernel terms, which seems to be the only version which has
  * ever shipped, all the way from 2013 to 2023.
  */
@@ -31,7 +31,7 @@ struct rpm_master_stats {
 	u32 last_sleep_trans_dur;
 	u32 last_wake_trans_dur;
 
-	/* Per-subsystem (*not necessarily* SoC-wide) XO shutdown stats */
+	/* Per-subsystem (*analt necessarily* SoC-wide) XO shutdown stats */
 	u32 xo_count;
 	u64 xo_last_enter;
 	u64 last_exit;
@@ -69,27 +69,27 @@ static int master_stats_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct master_stats_data *data;
-	struct device_node *msgram_np;
+	struct device_analde *msgram_np;
 	struct dentry *dent, *root;
 	struct resource res;
 	int count, i, ret;
 
-	count = of_property_count_strings(dev->of_node, "qcom,master-names");
+	count = of_property_count_strings(dev->of_analde, "qcom,master-names");
 	if (count < 0)
 		return count;
 
 	data = devm_kzalloc(dev, count * sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	root = debugfs_create_dir("qcom_rpm_master_stats", NULL);
 	platform_set_drvdata(pdev, root);
 
 	for (i = 0; i < count; i++) {
-		msgram_np = of_parse_phandle(dev->of_node, "qcom,rpm-msg-ram", i);
+		msgram_np = of_parse_phandle(dev->of_analde, "qcom,rpm-msg-ram", i);
 		if (!msgram_np) {
 			debugfs_remove_recursive(root);
-			return dev_err_probe(dev, -ENODEV,
+			return dev_err_probe(dev, -EANALDEV,
 					     "Couldn't parse MSG RAM phandle idx %d", i);
 		}
 
@@ -98,7 +98,7 @@ static int master_stats_probe(struct platform_device *pdev)
 		 * shared resource.
 		 */
 		ret = of_address_to_resource(msgram_np, 0, &res);
-		of_node_put(msgram_np);
+		of_analde_put(msgram_np);
 		if (ret < 0) {
 			debugfs_remove_recursive(root);
 			return ret;
@@ -108,19 +108,19 @@ static int master_stats_probe(struct platform_device *pdev)
 		if (!data[i].base) {
 			debugfs_remove_recursive(root);
 			return dev_err_probe(dev, -EINVAL,
-					     "Could not map the MSG RAM slice idx %d!\n", i);
+					     "Could analt map the MSG RAM slice idx %d!\n", i);
 		}
 
-		ret = of_property_read_string_index(dev->of_node, "qcom,master-names", i,
+		ret = of_property_read_string_index(dev->of_analde, "qcom,master-names", i,
 						    &data[i].label);
 		if (ret < 0) {
 			debugfs_remove_recursive(root);
 			return dev_err_probe(dev, ret,
-					     "Could not read name idx %d!\n", i);
+					     "Could analt read name idx %d!\n", i);
 		}
 
 		/*
-		 * Generally it's not advised to fail on debugfs errors, but this
+		 * Generally it's analt advised to fail on debugfs errors, but this
 		 * driver's only job is exposing data therein.
 		 */
 		dent = debugfs_create_file(data[i].label, 0444, root,
@@ -132,7 +132,7 @@ static int master_stats_probe(struct platform_device *pdev)
 		}
 	}
 
-	device_set_pm_not_required(dev);
+	device_set_pm_analt_required(dev);
 
 	return 0;
 }

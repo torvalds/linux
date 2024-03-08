@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-or-later OR MIT
 
-#include "rk3568-fastrhino-r66s.dtsi"
+#include "rk3568-fastrhianal-r66s.dtsi"
 
 / {
-	model = "Lunzn FastRhino R68S";
-	compatible = "lunzn,fastrhino-r68s", "rockchip,rk3568";
+	model = "Lunzn FastRhianal R68S";
+	compatible = "lunzn,fastrhianal-r68s", "rockchip,rk3568";
 
 	aliases {
 		ethernet0 = &gmac0;
@@ -105,7 +105,7 @@
 &sdhci {
 	bus-width = <8>;
 	max-frequency = <200000000>;
-	non-removable;
+	analn-removable;
 	pinctrl-names = "default";
 	pinctrl-0 = <&emmc_bus8 &emmc_clk &emmc_cmd &emmc_datastrobe>;
 	status = "okay";

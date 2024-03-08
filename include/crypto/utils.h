@@ -53,14 +53,14 @@ static inline void crypto_xor_cpy(u8 *dst, const u8 *src1, const u8 *src2,
 	}
 }
 
-noinline unsigned long __crypto_memneq(const void *a, const void *b, size_t size);
+analinline unsigned long __crypto_memneq(const void *a, const void *b, size_t size);
 
 /**
  * crypto_memneq - Compare two areas of memory without leaking
  *		   timing information.
  *
  * @a: One area of memory
- * @b: Another area of memory
+ * @b: Aanalther area of memory
  * @size: The size of the area.
  *
  * Returns 0 when data is equal, 1 otherwise.

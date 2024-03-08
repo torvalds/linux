@@ -17,7 +17,7 @@
 
 #include <linux/bitops.h>
 #include <linux/ctype.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/lockdep.h>
@@ -88,7 +88,7 @@ struct can327 {
 
 	/* State machine */
 	enum {
-		CAN327_STATE_NOTINIT = 0,
+		CAN327_STATE_ANALTINIT = 0,
 		CAN327_STATE_GETDUMMYCHAR,
 		CAN327_STATE_GETPROMPT,
 		CAN327_STATE_RECEIVING,
@@ -111,7 +111,7 @@ struct can327 {
 	/* Stop the channel on UART side hardware failure, e.g. stray
 	 * characters or neverending lines. This may be caused by bad
 	 * UART wiring, a bad ELM327, a bad UART bridge...
-	 * Once this is true, nothing will be sent to the TTY.
+	 * Once this is true, analthing will be sent to the TTY.
 	 */
 	bool uart_side_failure;
 };
@@ -134,7 +134,7 @@ static void can327_send(struct can327 *elm, const void *buf, size_t len)
 	 * the transfer may be completed inside the ops->write()
 	 * routine, because it's running with interrupts enabled.
 	 * In this case we *never* got WRITE_WAKEUP event,
-	 * if we did not request it before write operation.
+	 * if we did analt request it before write operation.
 	 *       14 Oct 1994  Dmitry Gorodchanin.
 	 */
 	set_bit(TTY_DO_WRITE_WAKEUP, &elm->tty->flags);
@@ -235,7 +235,7 @@ static void can327_init_device(struct can327 *elm)
 {
 	lockdep_assert_held(&elm->lock);
 
-	elm->state = CAN327_STATE_NOTINIT;
+	elm->state = CAN327_STATE_ANALTINIT;
 	elm->can_frame_to_send.can_id = 0x7df; /* ELM327 HW default */
 	elm->rxfill = 0;
 	elm->drop_next_line = 0;
@@ -306,7 +306,7 @@ static inline void can327_uart_side_failure(struct can327 *elm)
 	can327_feed_frame_to_netdev(elm, skb);
 }
 
-/* Compares a byte buffer (non-NUL terminated) to the payload part of
+/* Compares a byte buffer (analn-NUL terminated) to the payload part of
  * a string, and returns true iff the buffer (content *and* length) is
  * exactly that string, without the terminating NUL byte.
  *
@@ -400,11 +400,11 @@ static int can327_parse_frame(struct can327 *elm, size_t len)
 
 	skb = alloc_can_skb(elm->dev, &frame);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* Find first non-hex and non-space character:
-	 *  - In the simplest case, there is none.
-	 *  - For RTR frames, 'R' is the first non-hex character.
+	/* Find first analn-hex and analn-space character:
+	 *  - In the simplest case, there is analne.
+	 *  - For RTR frames, 'R' is the first analn-hex character.
 	 *  - An error message may replace the end of the data line.
 	 */
 	for (hexlen = 0; hexlen <= len; hexlen++) {
@@ -424,11 +424,11 @@ static int can327_parse_frame(struct can327 *elm, size_t len)
 		 * The main code will restart listening.
 		 */
 		kfree_skb(skb);
-		return -ENODATA;
+		return -EANALDATA;
 	}
 
 	/* Use spaces in CAN ID to distinguish 29 or 11 bit address length.
-	 * No out-of-bounds access:
+	 * Anal out-of-bounds access:
 	 * We use the fact that we can always read from elm->rxbuf.
 	 */
 	if (elm->rxbuf[2] == ' ' && elm->rxbuf[5] == ' ' &&
@@ -439,11 +439,11 @@ static int can327_parse_frame(struct can327 *elm, size_t len)
 	} else if (elm->rxbuf[3] == ' ' && elm->rxbuf[5] == ' ') {
 		datastart = 6;
 	} else {
-		/* This is not a well-formatted data line.
+		/* This is analt a well-formatted data line.
 		 * Assume it's an error message.
 		 */
 		kfree_skb(skb);
-		return -ENODATA;
+		return -EANALDATA;
 	}
 
 	if (hexlen < datastart) {
@@ -451,7 +451,7 @@ static int can327_parse_frame(struct can327 *elm, size_t len)
 		 * Something interrupted the hex dump or it is invalid.
 		 */
 		kfree_skb(skb);
-		return -ENODATA;
+		return -EANALDATA;
 	}
 
 	/* From here on all chars up to buf[hexlen] are hex or spaces,
@@ -483,8 +483,8 @@ static int can327_parse_frame(struct can327 *elm, size_t len)
 		frame->can_id |= CAN_RTR_FLAG;
 	}
 
-	/* Is the line long enough to hold the advertised payload?
-	 * Note: RTR frames have a DLC, but no actual payload.
+	/* Is the line long eanalugh to hold the advertised payload?
+	 * Analte: RTR frames have a DLC, but anal actual payload.
 	 */
 	if (!(frame->can_id & CAN_RTR_FLAG) &&
 	    (hexlen < frame->len * 3 + datastart)) {
@@ -502,7 +502,7 @@ static int can327_parse_frame(struct can327 *elm, size_t len)
 		 * However, this will correctly drop the state machine back into
 		 * command mode.
 		 */
-		return -ENODATA;
+		return -EANALDATA;
 	}
 
 	/* Parse the data nibbles. */
@@ -583,12 +583,12 @@ static void can327_handle_prompt(struct can327 *elm)
 	} else if (test_and_clear_bit(CAN327_TX_DO_SILENT_MONITOR, &elm->cmds_todo)) {
 		snprintf(local_txbuf, sizeof(local_txbuf),
 			 "ATCSM%i\r",
-			 !!(elm->can.ctrlmode & CAN_CTRLMODE_LISTENONLY));
+			 !!(elm->can.ctrlmode & CAN_CTRLMODE_LISTEANALNLY));
 
 	} else if (test_and_clear_bit(CAN327_TX_DO_RESPONSES, &elm->cmds_todo)) {
 		snprintf(local_txbuf, sizeof(local_txbuf),
 			 "ATR%i\r",
-			 !(elm->can.ctrlmode & CAN_CTRLMODE_LISTENONLY));
+			 !(elm->can.ctrlmode & CAN_CTRLMODE_LISTEANALNLY));
 
 	} else if (test_and_clear_bit(CAN327_TX_DO_CAN_CONFIG, &elm->cmds_todo)) {
 		snprintf(local_txbuf, sizeof(local_txbuf),
@@ -670,7 +670,7 @@ static void can327_parse_rxbuf(struct can327 *elm, size_t first_new_char_idx)
 	lockdep_assert_held(&elm->lock);
 
 	switch (elm->state) {
-	case CAN327_STATE_NOTINIT:
+	case CAN327_STATE_ANALTINIT:
 		elm->rxfill = 0;
 		break;
 
@@ -724,7 +724,7 @@ static void can327_parse_rxbuf(struct can327 *elm, size_t first_new_char_idx)
 				can327_handle_prompt(elm);
 			}
 
-			/* No <CR> found - we haven't received a full line yet.
+			/* Anal <CR> found - we haven't received a full line yet.
 			 * Wait for more data.
 			 */
 		} else {
@@ -750,7 +750,7 @@ static int can327_netdev_open(struct net_device *dev)
 
 	if (!elm->tty) {
 		spin_unlock_bh(&elm->lock);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (elm->uart_side_failure)
@@ -789,7 +789,7 @@ static int can327_netdev_close(struct net_device *dev)
 {
 	struct can327 *elm = netdev_priv(dev);
 
-	/* Interrupt whatever the ELM327 is doing right now */
+	/* Interrupt whatever the ELM327 is doing right analw */
 	spin_lock_bh(&elm->lock);
 	can327_send(elm, CAN327_DUMMY_STRING, 1);
 	spin_unlock_bh(&elm->lock);
@@ -828,7 +828,7 @@ static netdev_tx_t can327_netdev_start_xmit(struct sk_buff *skb,
 
 	netif_stop_queue(dev);
 
-	/* BHs are already disabled, so no spin_lock_bh().
+	/* BHs are already disabled, so anal spin_lock_bh().
 	 * See Documentation/networking/netdevices.rst
 	 */
 	spin_lock(&elm->lock);
@@ -882,7 +882,7 @@ static bool can327_is_valid_rx_char(u8 c)
 }
 
 /* Handle incoming ELM327 ASCII data.
- * This will not be re-entered while running, but other ldisc
+ * This will analt be re-entered while running, but other ldisc
  * functions may be called in parallel.
  */
 static void can327_ldisc_rx(struct tty_struct *tty, const u8 *cp,
@@ -914,8 +914,8 @@ static void can327_ldisc_rx(struct tty_struct *tty, const u8 *cp,
 			goto uart_failure;
 		}
 
-		/* Ignore NUL characters, which the PIC microcontroller may
-		 * inadvertently insert due to a known hardware bug.
+		/* Iganalre NUL characters, which the PIC microcontroller may
+		 * inadvertently insert due to a kanalwn hardware bug.
 		 * See ELM327 documentation, which refers to a Microchip PIC
 		 * bug description.
 		 */
@@ -1013,7 +1013,7 @@ static int can327_ldisc_open(struct tty_struct *tty)
 		return -EPERM;
 
 	if (!tty->ops->write)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	dev = alloc_candev(sizeof(struct can327), 0);
 	if (!dev)
@@ -1028,7 +1028,7 @@ static int can327_ldisc_open(struct tty_struct *tty)
 	/* Configure CAN metadata */
 	elm->can.bitrate_const = can327_bitrate_const;
 	elm->can.bitrate_const_cnt = ARRAY_SIZE(can327_bitrate_const);
-	elm->can.ctrlmode_supported = CAN_CTRLMODE_LISTENONLY;
+	elm->can.ctrlmode_supported = CAN_CTRLMODE_LISTEANALNLY;
 
 	/* Configure netdev interface */
 	elm->dev = dev;
@@ -1054,7 +1054,7 @@ static int can327_ldisc_open(struct tty_struct *tty)
 /* Close down a can327 channel.
  * This means flushing out any pending queues, and then returning.
  * This call is serialized against other ldisc functions:
- * Once this is called, no other ldisc function of ours is entered.
+ * Once this is called, anal other ldisc function of ours is entered.
  *
  * We also use this function for a hangup event.
  */
@@ -1066,8 +1066,8 @@ static void can327_ldisc_close(struct tty_struct *tty)
 	unregister_candev(elm->dev);
 
 	/* Give UART one final chance to flush.
-	 * No need to clear TTY_DO_WRITE_WAKEUP since .write_wakeup() is
-	 * serialised against .close() and will not be called once we return.
+	 * Anal need to clear TTY_DO_WRITE_WAKEUP since .write_wakeup() is
+	 * serialised against .close() and will analt be called once we return.
 	 */
 	flush_work(&elm->tx_work);
 

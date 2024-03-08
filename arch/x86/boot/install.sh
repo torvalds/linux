@@ -33,5 +33,5 @@ elif [ -x /etc/lilo/install ]; then
        /etc/lilo/install
 else
        sync
-       echo "Cannot find LILO."
+       echo "Cananalt find LILO."
 fi

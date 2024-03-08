@@ -34,7 +34,7 @@ static const struct of_device_id sun6i_a31_apb0_gates_clk_dt_ids[] = {
 
 static int sun6i_a31_apb0_gates_clk_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct clk_onecell_data *clk_data;
 	const struct gates_data *data;
 	const char *clk_parent;
@@ -45,11 +45,11 @@ static int sun6i_a31_apb0_gates_clk_probe(struct platform_device *pdev)
 	int j = 0;
 
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	data = of_device_get_match_data(&pdev->dev);
 	if (!data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	reg = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(reg))
@@ -62,14 +62,14 @@ static int sun6i_a31_apb0_gates_clk_probe(struct platform_device *pdev)
 	clk_data = devm_kzalloc(&pdev->dev, sizeof(struct clk_onecell_data),
 				GFP_KERNEL);
 	if (!clk_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Worst-case size approximation and memory allocation */
 	ngates = find_last_bit(data->mask, SUN6I_APB0_GATES_MAX_SIZE);
 	clk_data->clks = devm_kcalloc(&pdev->dev, (ngates + 1),
 				      sizeof(struct clk *), GFP_KERNEL);
 	if (!clk_data->clks)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for_each_set_bit(i, data->mask, SUN6I_APB0_GATES_MAX_SIZE) {
 		of_property_read_string_index(np, "clock-output-names",

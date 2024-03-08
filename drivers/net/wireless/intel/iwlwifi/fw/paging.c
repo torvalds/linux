@@ -73,7 +73,7 @@ static int iwl_alloc_fw_paging_mem(struct iwl_fw_runtime *fwrt,
 		if (!block) {
 			/* free all the previous pages since we failed */
 			iwl_free_fw_paging(fwrt);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		fwrt->fw_paging_db[blk_idx].fw_paging_block = block;
@@ -88,7 +88,7 @@ static int iwl_alloc_fw_paging_mem(struct iwl_fw_runtime *fwrt,
 			 * since we failed to map_page.
 			 */
 			iwl_free_fw_paging(fwrt);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		fwrt->fw_paging_db[blk_idx].fw_paging_phys = phys;
 
@@ -116,9 +116,9 @@ static int iwl_fill_paging_mem(struct iwl_fw_runtime *fwrt,
 	 * if CPU2 exist and it's in paging format, then the image looks like:
 	 * CPU1 sections (2 or more)
 	 * CPU1_CPU2_SEPARATOR_SECTION delimiter - separate between CPU1 to CPU2
-	 * CPU2 sections (not paged)
+	 * CPU2 sections (analt paged)
 	 * PAGING_SEPARATOR_SECTION delimiter - separate between CPU2
-	 * non paged to CPU2 paging sec
+	 * analn paged to CPU2 paging sec
 	 * CPU2 paging CSS
 	 * CPU2 paging image (including instruction and data)
 	 */
@@ -190,7 +190,7 @@ static int iwl_fill_paging_mem(struct iwl_fw_runtime *fwrt,
 			}
 		} else if (block->fw_paging_size > remaining) {
 			IWL_ERR(fwrt,
-				"Paging: not enough data in other in block %d (%d)\n",
+				"Paging: analt eanalugh data in other in block %d (%d)\n",
 				idx, remaining);
 			ret = -EINVAL;
 			goto err;

@@ -485,7 +485,7 @@
 #define MASK_ISRC2		BIT(5) /* ISRC2 packet */
 #define MASK_ISRC1		BIT(4) /* ISRC1 packet */
 #define MASK_ACP		BIT(3) /* Audio Content Protection packet */
-#define MASK_DC_NO_GCP		BIT(2) /* GCP not received in 5 frames */
+#define MASK_DC_ANAL_GCP		BIT(2) /* GCP analt received in 5 frames */
 #define MASK_DC_PHASE		BIT(1) /* deepcolor pixel phase needs update */
 #define MASK_DC_MODE		BIT(0) /* deepcolor color depth changed */
 
@@ -555,7 +555,7 @@
 #define HS_HREF_SEL_HS_VHREF	0L	/* HS from VHREF */
 #define HS_HREF_SEL_HREF_VHREF	1L	/* HREF from VHREF */
 #define HS_HREF_SEL_HREF_HDMI	2L	/* HREF from HDMI */
-#define HS_HREF_SEL_NONE	3L	/* not generated */
+#define HS_HREF_SEL_ANALNE	3L	/* analt generated */
 
 /* VS output control */
 #define VS_VREF_DELAY_MASK	0xf0
@@ -566,7 +566,7 @@
 #define VS_VREF_SEL_VS_VHREF	0L	/* VS from VHREF */
 #define VS_VREF_SEL_VREF_VHREF	1L	/* VREF from VHREF */
 #define VS_VREF_SEL_VREF_HDMI	2L	/* VREF from HDMI */
-#define VS_VREF_SEL_NONE	3L	/* not generated */
+#define VS_VREF_SEL_ANALNE	3L	/* analt generated */
 
 /* DE/FREF output control */
 #define DE_FREF_DELAY_MASK	0xf0
@@ -575,10 +575,10 @@
 #define DE_FREF_INV_SHIFT	2	/* polarity (1=invert) */
 #define DE_FREF_SEL_MASK	0x03
 #define DE_FREF_SEL_SHIFT	0
-#define DE_FREF_SEL_DE_VHREF	0L	/* DE from VHREF (HREF and not(VREF) */
+#define DE_FREF_SEL_DE_VHREF	0L	/* DE from VHREF (HREF and analt(VREF) */
 #define DE_FREF_SEL_FREF_VHREF	1L	/* FREF from VHREF */
 #define DE_FREF_SEL_FREF_HDMI	2L	/* FREF from HDMI */
-#define DE_FREF_SEL_NONE	3L	/* not generated */
+#define DE_FREF_SEL_ANALNE	3L	/* analt generated */
 
 /* HDMI_SOFT_RST bits */
 #define RESET_DC		BIT(7)	/* Reset deep color module */
@@ -591,7 +591,7 @@
 #define RESET_TMDS		BIT(0)	/* Reset TMDS (calib, encoding, flow) */
 
 /* HDMI_INFO_RST bits */
-#define NACK_HDCP		BIT(7)	/* No ACK on HDCP request */
+#define NACK_HDCP		BIT(7)	/* Anal ACK on HDCP request */
 #define RESET_FIFO		BIT(4)	/* Reset Audio FIFO control */
 #define RESET_GAMUT		BIT(3)	/* Clear Gamut packet */
 #define RESET_AI		BIT(2)	/* Clear ACP and ISRC packets */

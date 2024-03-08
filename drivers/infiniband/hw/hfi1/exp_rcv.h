@@ -86,7 +86,7 @@ struct tid_group {
  * Write an "empty" RcvArray entry.
  * This function exists so the TID registaration code can use it
  * to write to unused/unneeded entries and still take advantage
- * of the WC performance improvements. The HFI will ignore this
+ * of the WC performance improvements. The HFI will iganalre this
  * write to the RcvArray entry.
  */
 static inline void rcv_array_wc_fill(struct hfi1_devdata *dd, u32 index)

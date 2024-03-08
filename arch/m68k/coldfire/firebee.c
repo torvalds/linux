@@ -22,7 +22,7 @@
 /***************************************************************************/
 
 /*
- *	8MB of NOR flash fitted to the FireBee board.
+ *	8MB of ANALR flash fitted to the FireBee board.
  */
 #define	FLASH_PHYS_ADDR		0xe0000000	/* Physical address of flash */
 #define	FLASH_PHYS_SIZE		0x00800000	/* Size of flash */

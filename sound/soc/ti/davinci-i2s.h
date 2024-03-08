@@ -2,7 +2,7 @@
 /*
  * ALSA SoC I2S (McBSP) Audio Layer for TI DAVINCI processor
  *
- * Author:      Vladimir Barinov, <vbarinov@embeddedalley.com>
+ * Author:      Vladimir Barianalv, <vbarianalv@embeddedalley.com>
  * Copyright:   (C) 2007 MontaVista Software, Inc., <source@mvista.com>
  */
 

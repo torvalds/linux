@@ -9,8 +9,8 @@ ret=0
 TESTS="gre_gso"
 
 VERBOSE=0
-PAUSE_ON_FAIL=no
-PAUSE=no
+PAUSE_ON_FAIL=anal
+PAUSE=anal
 TMPFILE=`mktemp`
 PID=
 
@@ -27,7 +27,7 @@ log_test()
 		ret=1
 		nfail=$((nfail+1))
 		printf "    TEST: %-60s  [FAIL]\n" "${msg}"
-		if [ "${PAUSE_ON_FAIL}" = "yes" ]; then
+		if [ "${PAUSE_ON_FAIL}" = "anal" ]; then
 		echo
 			echo "hit enter to continue, 'q' to quit"
 			read a
@@ -35,7 +35,7 @@ log_test()
 		fi
 	fi
 
-	if [ "${PAUSE}" = "yes" ]; then
+	if [ "${PAUSE}" = "anal" ]; then
 		echo
 		echo "hit enter to continue, 'q' to quit"
 		read a
@@ -148,8 +148,8 @@ gre6_gso_test()
 	ip  addr add 172.16.2.1/24 dev gre1
 	$IP addr add 172.16.2.2/24 dev gre1
 
-	ip  -6 addr add 2001:db8:1::1/64 dev gre1 nodad
-	$IP -6 addr add 2001:db8:1::2/64 dev gre1 nodad
+	ip  -6 addr add 2001:db8:1::1/64 dev gre1 analdad
+	$IP -6 addr add 2001:db8:1::2/64 dev gre1 analdad
 
 	sleep 2
 
@@ -187,8 +187,8 @@ while getopts :t:pPhv o
 do
 	case $o in
 		t) TESTS=$OPTARG;;
-		p) PAUSE_ON_FAIL=yes;;
-		P) PAUSE=yes;;
+		p) PAUSE_ON_FAIL=anal;;
+		P) PAUSE=anal;;
 		v) VERBOSE=$(($VERBOSE + 1));;
 		h) usage; exit 0;;
 		*) usage; exit 1;;
@@ -198,7 +198,7 @@ done
 PEER_CMD="ip netns exec ${PEER_NS}"
 
 # make sure we don't pause twice
-[ "${PAUSE}" = "yes" ] && PAUSE_ON_FAIL=no
+[ "${PAUSE}" = "anal" ] && PAUSE_ON_FAIL=anal
 
 if [ "$(id -u)" -ne 0 ];then
 	echo "SKIP: Need root privileges"
@@ -206,12 +206,12 @@ if [ "$(id -u)" -ne 0 ];then
 fi
 
 if [ ! -x "$(command -v ip)" ]; then
-	echo "SKIP: Could not run test without ip tool"
+	echo "SKIP: Could analt run test without ip tool"
 	exit $ksft_skip
 fi
 
 if [ ! -x "$(command -v socat)" ]; then
-	echo "SKIP: Could not run test without socat tool"
+	echo "SKIP: Could analt run test without socat tool"
 	exit $ksft_skip
 fi
 
@@ -227,7 +227,7 @@ do
 	esac
 done
 
-if [ "$TESTS" != "none" ]; then
+if [ "$TESTS" != "analne" ]; then
 	printf "\nTests passed: %3d\n" ${nsuccess}
 	printf "Tests failed: %3d\n"   ${nfail}
 fi

@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: V4L
 
 .. _VIDIOC_ENUMINPUT:
@@ -12,7 +12,7 @@ Name
 
 VIDIOC_ENUMINPUT - Enumerate video inputs
 
-Synopsis
+Syanalpsis
 ========
 
 .. c:macro:: VIDIOC_ENUMINPUT
@@ -64,12 +64,12 @@ at index zero, incrementing by one until the driver returns ``EINVAL``.
 	shows which audio inputs were selectable as audio source if this
 	was the currently selected video input. It is a bit mask. The LSB
 	corresponds to audio input 0, the MSB to input 31. Any number of
-	bits can be set, or none.
+	bits can be set, or analne.
 
-	When the driver does not enumerate audio inputs no bits must be
-	set. Applications shall not interpret this as lack of audio
+	When the driver does analt enumerate audio inputs anal bits must be
+	set. Applications shall analt interpret this as lack of audio
 	support. Some drivers automatically select audio sources and do
-	not enumerate them since there is no choice anyway.
+	analt enumerate them since there is anal choice anyway.
 
 	For details on audio inputs and how to select the current input
 	see :ref:`audio`.
@@ -115,7 +115,7 @@ at index zero, incrementing by one until the driver returns ``EINVAL``.
       - This input uses a tuner (RF demodulator).
     * - ``V4L2_INPUT_TYPE_CAMERA``
       - 2
-      - Any non-tuner video input, for example Composite Video,
+      - Any analn-tuner video input, for example Composite Video,
 	S-Video, HDMI, camera sensor. The naming as ``_TYPE_CAMERA`` is historical,
 	today we would have called it ``_TYPE_VIDEO``.
     * - ``V4L2_INPUT_TYPE_TOUCH``
@@ -132,52 +132,52 @@ at index zero, incrementing by one until the driver returns ``EINVAL``.
     :stub-columns: 0
 
     * - :cspan:`2` General
-    * - ``V4L2_IN_ST_NO_POWER``
+    * - ``V4L2_IN_ST_ANAL_POWER``
       - 0x00000001
       - Attached device is off.
-    * - ``V4L2_IN_ST_NO_SIGNAL``
+    * - ``V4L2_IN_ST_ANAL_SIGNAL``
       - 0x00000002
       -
-    * - ``V4L2_IN_ST_NO_COLOR``
+    * - ``V4L2_IN_ST_ANAL_COLOR``
       - 0x00000004
-      - The hardware supports color decoding, but does not detect color
+      - The hardware supports color decoding, but does analt detect color
 	modulation in the signal.
     * - :cspan:`2` Sensor Orientation
     * - ``V4L2_IN_ST_HFLIP``
       - 0x00000010
       - The input is connected to a device that produces a signal that is
-	flipped horizontally and does not correct this before passing the
+	flipped horizontally and does analt correct this before passing the
 	signal to userspace.
     * - ``V4L2_IN_ST_VFLIP``
       - 0x00000020
       - The input is connected to a device that produces a signal that is
-	flipped vertically and does not correct this before passing the
+	flipped vertically and does analt correct this before passing the
 	signal to userspace.
-	.. note:: A 180 degree rotation is the same as HFLIP | VFLIP
+	.. analte:: A 180 degree rotation is the same as HFLIP | VFLIP
     * - :cspan:`2` Analog Video
-    * - ``V4L2_IN_ST_NO_H_LOCK``
+    * - ``V4L2_IN_ST_ANAL_H_LOCK``
       - 0x00000100
-      - No horizontal sync lock.
+      - Anal horizontal sync lock.
     * - ``V4L2_IN_ST_COLOR_KILL``
       - 0x00000200
       - A color killer circuit automatically disables color decoding when
-	it detects no color modulation. When this flag is set the color
+	it detects anal color modulation. When this flag is set the color
 	killer is enabled *and* has shut off color decoding.
-    * - ``V4L2_IN_ST_NO_V_LOCK``
+    * - ``V4L2_IN_ST_ANAL_V_LOCK``
       - 0x00000400
-      - No vertical sync lock.
-    * - ``V4L2_IN_ST_NO_STD_LOCK``
+      - Anal vertical sync lock.
+    * - ``V4L2_IN_ST_ANAL_STD_LOCK``
       - 0x00000800
-      - No standard format lock in case of auto-detection format
+      - Anal standard format lock in case of auto-detection format
 	by the component.
     * - :cspan:`2` Digital Video
-    * - ``V4L2_IN_ST_NO_SYNC``
+    * - ``V4L2_IN_ST_ANAL_SYNC``
       - 0x00010000
-      - No synchronization lock.
-    * - ``V4L2_IN_ST_NO_EQU``
+      - Anal synchronization lock.
+    * - ``V4L2_IN_ST_ANAL_EQU``
       - 0x00020000
-      - No equalizer lock.
-    * - ``V4L2_IN_ST_NO_CARRIER``
+      - Anal equalizer lock.
+    * - ``V4L2_IN_ST_ANAL_CARRIER``
       - 0x00040000
       - Carrier recovery failed.
     * - :cspan:`2` VCR and Set-Top Box
@@ -186,7 +186,7 @@ at index zero, incrementing by one until the driver returns ``EINVAL``.
       - Macrovision is an analog copy prevention system mangling the video
 	signal to confuse video recorders. When this flag is set
 	Macrovision has been detected.
-    * - ``V4L2_IN_ST_NO_ACCESS``
+    * - ``V4L2_IN_ST_ANAL_ACCESS``
       - 0x02000000
       - Conditional access denied.
     * - ``V4L2_IN_ST_VTR``
@@ -220,7 +220,7 @@ at index zero, incrementing by one until the driver returns ``EINVAL``.
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 

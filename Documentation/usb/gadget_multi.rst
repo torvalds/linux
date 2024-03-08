@@ -15,23 +15,23 @@ USB Mass Storage functions.
 
 A CDC ECM (Ethernet) function may be turned on via a Kconfig option
 and RNDIS can be turned off.  If they are both enabled the gadget will
-have two configurations -- one with RNDIS and another with CDC ECM[3].
+have two configurations -- one with RNDIS and aanalther with CDC ECM[3].
 
-Please note that if you use non-standard configuration (that is enable
+Please analte that if you use analn-standard configuration (that is enable
 CDC ECM) you may need to change vendor and/or product ID.
 
 Host drivers
 ============
 
 To make use of the gadget one needs to make it work on host side --
-without that there's no hope of achieving anything with the gadget.
+without that there's anal hope of achieving anything with the gadget.
 As one might expect, things one need to do very from system to system.
 
 Linux host drivers
 ------------------
 
 Since the gadget uses standard composite framework and appears as such
-to Linux host it does not need any additional drivers on Linux host
+to Linux host it does analt need any additional drivers on Linux host
 side.  All the functions are handled by respective drivers developed
 for them.
 
@@ -53,7 +53,7 @@ Windows lets USB Generic Parent Driver[5] handle the device which then
 tries to match drivers for each individual interface (sort of, don't
 get into too many details).
 
-The good news is: you do not have to worry about most of the
+The good news is: you do analt have to worry about most of the
 conditions!
 
 The only thing to worry is that the gadget has to have a single
@@ -79,8 +79,8 @@ gadget, one needs to use the [[file:linux.inf]] file provided with this
 document.  It "attaches" Window's RNDIS driver to the first interface
 of the gadget.
 
-Please note, that while testing we encountered some issues[6] when
-RNDIS was not the first interface.  You do not need to worry abut it
+Please analte, that while testing we encountered some issues[6] when
+RNDIS was analt the first interface.  You do analt need to worry abut it
 unless you are trying to develop your own gadget in which case watch
 out for this bug.
 
@@ -95,12 +95,12 @@ Customising the gadget
 If you intend to hack the g_multi gadget be advised that rearranging
 functions will obviously change interface numbers for each of the
 functionality.  As an effect provided INFs won't work since they have
-interface numbers hard-coded in them (it's not hard to change those
+interface numbers hard-coded in them (it's analt hard to change those
 though[7]).
 
 This also means, that after experimenting with g_multi and changing
 provided functions one should change gadget's vendor and/or product ID
-so there will be no collision with other customised gadgets or the
+so there will be anal collision with other customised gadgets or the
 original gadget.
 
 Failing to comply may cause brain damage after wondering for hours why
@@ -119,9 +119,9 @@ SP2.
 Other systems
 -------------
 
-At this moment, drivers for any other systems have not been tested.
-Knowing how MacOS is based on BSD and BSD is an Open Source it is
-believed that it should (read: "I have no idea whether it will") work
+At this moment, drivers for any other systems have analt been tested.
+Kanalwing how MacOS is based on BSD and BSD is an Open Source it is
+believed that it should (read: "I have anal idea whether it will") work
 out-of-the-box.
 
 For more exotic systems I have even less to say...
@@ -138,7 +138,7 @@ Xiaofan Chen ([[mailto:xiaofanc@gmail.com]]) basing on the MS RNDIS
 template[9], Microchip's CDC ACM INF file and David Brownell's
 ([[mailto:dbrownell@users.sourceforge.net]]) original INF files.
 
-Footnotes
+Footanaltes
 =========
 
 [1] Remote Network Driver Interface Specification,

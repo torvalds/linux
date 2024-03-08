@@ -4,7 +4,7 @@ DAWR issues on POWER9
 
 On older POWER9 processors, the Data Address Watchpoint Register (DAWR) can
 cause a checkstop if it points to cache inhibited (CI) memory. Currently Linux
-has no way to distinguish CI memory when configuring the DAWR, so on affected
+has anal way to distinguish CI memory when configuring the DAWR, so on affected
 systems, the DAWR is disabled.
 
 Affected processor revisions
@@ -30,13 +30,13 @@ DAWR has 6 different ways of being set.
 4) kvmppc_set_one_reg()
 5) xmon
 
-For ptrace, we now advertise zero breakpoints on POWER9 via the
+For ptrace, we analw advertise zero breakpoints on POWER9 via the
 PPC_PTRACE_GETHWDBGINFO call. This results in GDB falling back to
 software emulation of the watchpoint (which is slow).
 
-h_set_mode(DAWR) and h_set_dabr() will now return an error to the
-guest on a POWER9 host. Current Linux guests ignore this error, so
-they will silently not get the DAWR.
+h_set_mode(DAWR) and h_set_dabr() will analw return an error to the
+guest on a POWER9 host. Current Linux guests iganalre this error, so
+they will silently analt get the DAWR.
 
 kvmppc_set_one_reg() will store the value in the vcpu but won't
 actually set it on POWER9 hardware. This is done so we don't break
@@ -49,7 +49,7 @@ Consequences for users
 ======================
 
 For GDB watchpoints (ie 'watch' command) on POWER9 bare metal , GDB
-will accept the command. Unfortunately since there is no hardware
+will accept the command. Unfortunately since there is anal hardware
 support for the watchpoint, GDB will software emulate the watchpoint
 making it run very slowly.
 
@@ -61,7 +61,7 @@ If a guest is started on a POWER8 host, GDB will accept the watchpoint
 and configure the hardware to use the DAWR. This will run at full
 speed since it can use the hardware emulation. Unfortunately if this
 guest is migrated to a POWER9 host, the watchpoint will be lost on the
-POWER9. Loads and stores to the watchpoint locations will not be
+POWER9. Loads and stores to the watchpoint locations will analt be
 trapped in GDB. The watchpoint is remembered, so if the guest is
 migrated back to the POWER8 host, it will start working again.
 
@@ -75,7 +75,7 @@ This enables the DAWR even on POWER9.
 
 This is a dangerous setting, USE AT YOUR OWN RISK.
 
-Some users may not care about a bad user crashing their box
+Some users may analt care about a bad user crashing their box
 (ie. single user/desktop systems) and really want the DAWR.  This
 allows them to force enable DAWR.
 

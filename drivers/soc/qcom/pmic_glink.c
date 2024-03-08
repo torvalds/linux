@@ -44,13 +44,13 @@ static struct pmic_glink *__pmic_glink;
 static DEFINE_MUTEX(__pmic_glink_lock);
 
 struct pmic_glink_client {
-	struct list_head node;
+	struct list_head analde;
 
 	struct pmic_glink *pg;
 	unsigned int id;
 
 	void (*cb)(const void *data, size_t len, void *priv);
-	void (*pdr_notify)(void *priv, int state);
+	void (*pdr_analtify)(void *priv, int state);
 	void *priv;
 };
 
@@ -60,7 +60,7 @@ static void _devm_pmic_glink_release_client(struct device *dev, void *res)
 	struct pmic_glink *pg = client->pg;
 
 	mutex_lock(&pg->client_lock);
-	list_del(&client->node);
+	list_del(&client->analde);
 	mutex_unlock(&pg->client_lock);
 }
 
@@ -75,16 +75,16 @@ struct pmic_glink_client *devm_pmic_glink_register_client(struct device *dev,
 
 	client = devres_alloc(_devm_pmic_glink_release_client, sizeof(*client), GFP_KERNEL);
 	if (!client)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	client->pg = pg;
 	client->id = id;
 	client->cb = cb;
-	client->pdr_notify = pdr;
+	client->pdr_analtify = pdr;
 	client->priv = priv;
 
 	mutex_lock(&pg->client_lock);
-	list_add(&client->node, &pg->clients);
+	list_add(&client->analde, &pg->clients);
 	mutex_unlock(&pg->client_lock);
 
 	devres_add(dev, client);
@@ -109,13 +109,13 @@ static int pmic_glink_rpmsg_callback(struct rpmsg_device *rpdev, void *data,
 	struct pmic_glink *pg = dev_get_drvdata(&rpdev->dev);
 
 	if (len < sizeof(*hdr)) {
-		dev_warn(pg->dev, "ignoring truncated message\n");
+		dev_warn(pg->dev, "iganalring truncated message\n");
 		return 0;
 	}
 
 	hdr = data;
 
-	list_for_each_entry(client, &pg->clients, node) {
+	list_for_each_entry(client, &pg->clients, analde) {
 		if (client->id == le32_to_cpu(hdr->owner))
 			client->cb(data, len, client->priv);
 	}
@@ -135,7 +135,7 @@ static int pmic_glink_add_aux_device(struct pmic_glink *pg,
 	aux->name = name;
 	aux->dev.parent = parent;
 	aux->dev.release = pmic_glink_aux_release;
-	device_set_of_node_from_dev(&aux->dev, parent);
+	device_set_of_analde_from_dev(&aux->dev, parent);
 	ret = auxiliary_device_init(aux);
 	if (ret)
 		return ret;
@@ -154,7 +154,7 @@ static void pmic_glink_del_aux_device(struct pmic_glink *pg,
 	auxiliary_device_uninit(aux);
 }
 
-static void pmic_glink_state_notify_clients(struct pmic_glink *pg)
+static void pmic_glink_state_analtify_clients(struct pmic_glink *pg)
 {
 	struct pmic_glink_client *client;
 	unsigned int new_state = pg->client_state;
@@ -168,8 +168,8 @@ static void pmic_glink_state_notify_clients(struct pmic_glink *pg)
 	}
 
 	if (new_state != pg->client_state) {
-		list_for_each_entry(client, &pg->clients, node)
-			client->pdr_notify(client->priv, new_state);
+		list_for_each_entry(client, &pg->clients, analde)
+			client->pdr_analtify(client->priv, new_state);
 		pg->client_state = new_state;
 	}
 }
@@ -181,7 +181,7 @@ static void pmic_glink_pdr_callback(int state, char *svc_path, void *priv)
 	mutex_lock(&pg->state_lock);
 	pg->pdr_state = state;
 
-	pmic_glink_state_notify_clients(pg);
+	pmic_glink_state_analtify_clients(pg);
 	mutex_unlock(&pg->state_lock);
 }
 
@@ -192,7 +192,7 @@ static int pmic_glink_rpmsg_probe(struct rpmsg_device *rpdev)
 
 	mutex_lock(&__pmic_glink_lock);
 	if (!pg) {
-		ret = dev_err_probe(&rpdev->dev, -ENODEV, "no pmic_glink device to attach to\n");
+		ret = dev_err_probe(&rpdev->dev, -EANALDEV, "anal pmic_glink device to attach to\n");
 		goto out_unlock;
 	}
 
@@ -200,7 +200,7 @@ static int pmic_glink_rpmsg_probe(struct rpmsg_device *rpdev)
 
 	mutex_lock(&pg->state_lock);
 	pg->ept = rpdev->ept;
-	pmic_glink_state_notify_clients(pg);
+	pmic_glink_state_analtify_clients(pg);
 	mutex_unlock(&pg->state_lock);
 
 out_unlock:
@@ -219,7 +219,7 @@ static void pmic_glink_rpmsg_remove(struct rpmsg_device *rpdev)
 
 	mutex_lock(&pg->state_lock);
 	pg->ept = NULL;
-	pmic_glink_state_notify_clients(pg);
+	pmic_glink_state_analtify_clients(pg);
 	mutex_unlock(&pg->state_lock);
 out_unlock:
 	mutex_unlock(&__pmic_glink_lock);
@@ -249,7 +249,7 @@ static int pmic_glink_probe(struct platform_device *pdev)
 
 	pg = devm_kzalloc(&pdev->dev, sizeof(*pg), GFP_KERNEL);
 	if (!pg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(&pdev->dev, pg);
 

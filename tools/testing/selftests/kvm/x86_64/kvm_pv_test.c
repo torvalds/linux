@@ -40,12 +40,12 @@ static struct msr_data msrs_to_test[] = {
 
 static void test_msr(struct msr_data *msr)
 {
-	uint64_t ignored;
+	uint64_t iganalred;
 	uint8_t vector;
 
 	PR_MSR(msr);
 
-	vector = rdmsr_safe(msr->idx, &ignored);
+	vector = rdmsr_safe(msr->idx, &iganalred);
 	GUEST_ASSERT_EQ(vector, GP_VECTOR);
 
 	vector = wrmsr_safe(msr->idx, 0);
@@ -62,7 +62,7 @@ struct hcall_data {
 #define PR_HCALL(hc) ucall(UCALL_PR_HCALL, 1, hc)
 
 /*
- * KVM hypercalls to test. Expect -KVM_ENOSYS when called, as the corresponding
+ * KVM hypercalls to test. Expect -KVM_EANALSYS when called, as the corresponding
  * features have been cleared in KVM_CPUID_FEATURES.
  */
 static struct hcall_data hcalls_to_test[] = {
@@ -77,7 +77,7 @@ static void test_hcall(struct hcall_data *hc)
 
 	PR_HCALL(hc);
 	r = kvm_hypercall(hc->nr, 0, 0, 0, 0);
-	GUEST_ASSERT_EQ(r, -KVM_ENOSYS);
+	GUEST_ASSERT_EQ(r, -KVM_EANALSYS);
 }
 
 static void guest_main(void)

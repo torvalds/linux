@@ -93,7 +93,7 @@ static int wm8400_outpga_put_volsw_vu(struct snd_kcontrol *kcontrol,
         if (ret < 0)
                 return ret;
 
-        /* now hit the volume update bits (always bit 8) */
+        /* analw hit the volume update bits (always bit 8) */
 	val = snd_soc_component_read(component, reg);
         return snd_soc_component_write(component, reg, val | 0x0100);
 }
@@ -104,7 +104,7 @@ static int wm8400_outpga_put_volsw_vu(struct snd_kcontrol *kcontrol,
 
 
 static const char *wm8400_digital_sidetone[] =
-	{"None", "Left ADC", "Right ADC", "Reserved"};
+	{"Analne", "Left ADC", "Right ADC", "Reserved"};
 
 static SOC_ENUM_SINGLE_DECL(wm8400_left_digital_sidetone_enum,
 			    WM8400_DIGITAL_SIDE_TONE,
@@ -327,7 +327,7 @@ static int outmixer_event (struct snd_soc_dapm_widget *w,
 		reg = snd_soc_component_read(component, WM8400_OUTPUT_MIXER1);
 		if (reg & WM8400_LDLO) {
 			printk(KERN_WARNING
-			"Cannot set as Output Mixer 1 LDLO Set\n");
+			"Cananalt set as Output Mixer 1 LDLO Set\n");
 			ret = -1;
 		}
 		break;
@@ -335,7 +335,7 @@ static int outmixer_event (struct snd_soc_dapm_widget *w,
 		reg = snd_soc_component_read(component, WM8400_OUTPUT_MIXER2);
 		if (reg & WM8400_RDRO) {
 			printk(KERN_WARNING
-			"Cannot set as Output Mixer 2 RDRO Set\n");
+			"Cananalt set as Output Mixer 2 RDRO Set\n");
 			ret = -1;
 		}
 		break;
@@ -343,7 +343,7 @@ static int outmixer_event (struct snd_soc_dapm_widget *w,
 		reg = snd_soc_component_read(component, WM8400_SPEAKER_MIXER);
 		if (reg & WM8400_LDSPK) {
 			printk(KERN_WARNING
-			"Cannot set as Speaker Mixer LDSPK Set\n");
+			"Cananalt set as Speaker Mixer LDSPK Set\n");
 			ret = -1;
 		}
 		break;
@@ -351,7 +351,7 @@ static int outmixer_event (struct snd_soc_dapm_widget *w,
 		reg = snd_soc_component_read(component, WM8400_SPEAKER_MIXER);
 		if (reg & WM8400_RDSPK) {
 			printk(KERN_WARNING
-			"Cannot set as Speaker Mixer RDSPK Set\n");
+			"Cananalt set as Speaker Mixer RDSPK Set\n");
 			ret = -1;
 		}
 		break;
@@ -590,20 +590,20 @@ SND_SOC_DAPM_SUPPLY("INR", WM8400_POWER_MANAGEMENT_2, WM8400_AINR_ENA_SHIFT,
 		    0, NULL, 0),
 
 /* INMIXL */
-SND_SOC_DAPM_MIXER("INMIXL", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MIXER("INMIXL", SND_SOC_ANALPM, 0, 0,
 	&wm8400_dapm_inmixl_controls[0],
 	ARRAY_SIZE(wm8400_dapm_inmixl_controls)),
 
 /* AINLMUX */
-SND_SOC_DAPM_MUX("AILNMUX", SND_SOC_NOPM, 0, 0, &wm8400_dapm_ainlmux_controls),
+SND_SOC_DAPM_MUX("AILNMUX", SND_SOC_ANALPM, 0, 0, &wm8400_dapm_ainlmux_controls),
 
 /* INMIXR */
-SND_SOC_DAPM_MIXER("INMIXR", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MIXER("INMIXR", SND_SOC_ANALPM, 0, 0,
 	&wm8400_dapm_inmixr_controls[0],
 	ARRAY_SIZE(wm8400_dapm_inmixr_controls)),
 
 /* AINRMUX */
-SND_SOC_DAPM_MUX("AIRNMUX", SND_SOC_NOPM, 0, 0, &wm8400_dapm_ainrmux_controls),
+SND_SOC_DAPM_MUX("AIRNMUX", SND_SOC_ANALPM, 0, 0, &wm8400_dapm_ainrmux_controls),
 
 /* Output Side */
 /* DACs */
@@ -697,12 +697,12 @@ SND_SOC_DAPM_OUTPUT("Internal DAC Sink"),
 };
 
 static const struct snd_soc_dapm_route wm8400_dapm_routes[] = {
-	/* Make DACs turn on when playing even if not mixed into any outputs */
+	/* Make DACs turn on when playing even if analt mixed into any outputs */
 	{"Internal DAC Sink", NULL, "Left DAC"},
 	{"Internal DAC Sink", NULL, "Right DAC"},
 
 	/* Make ADCs turn on when recording
-	 * even if not mixed from any inputs */
+	 * even if analt mixed from any inputs */
 	{"Left ADC", NULL, "Internal ADC Source"},
 	{"Right ADC", NULL, "Internal ADC Source"},
 
@@ -906,7 +906,7 @@ static int fll_factors(struct wm8400_priv *wm8400, struct fll_factors *factors,
 	if ((K % 10) >= 5)
 		K += 5;
 
-	/* Move down to proper range now rounding is done */
+	/* Move down to proper range analw rounding is done */
 	factors->k = K / 10;
 
 	dev_dbg(wm8400->wm8400->dev,
@@ -1227,7 +1227,7 @@ static const struct snd_soc_dai_ops wm8400_dai_ops = {
 	.set_clkdiv = wm8400_set_dai_clkdiv,
 	.set_sysclk = wm8400_set_dai_sysclk,
 	.set_pll = wm8400_set_dai_pll,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 /*
@@ -1267,7 +1267,7 @@ static int wm8400_component_probe(struct snd_soc_component *component)
 	priv = devm_kzalloc(component->dev, sizeof(struct wm8400_priv),
 			    GFP_KERNEL);
 	if (priv == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	snd_soc_component_init_regmap(component, wm8400->regmap);
 	snd_soc_component_set_drvdata(component, priv);

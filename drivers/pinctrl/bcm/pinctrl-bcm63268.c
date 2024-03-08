@@ -2,7 +2,7 @@
 /*
  * Driver for BCM63268 GPIO unit (pinctrl + GPIO)
  *
- * Copyright (C) 2021 Álvaro Fernández Rojas <noltari@gmail.com>
+ * Copyright (C) 2021 Álvaro Fernández Rojas <analltari@gmail.com>
  * Copyright (C) 2016 Jonas Gorski <jonas.gorski@gmail.com>
  */
 
@@ -586,7 +586,7 @@ static int bcm63268_gpio_request_enable(struct pinctrl_dev *pctldev,
 
 static const struct pinctrl_ops bcm63268_pctl_ops = {
 	.dt_free_map = pinctrl_utils_free_map,
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_pin,
+	.dt_analde_to_map = pinconf_generic_dt_analde_to_map_pin,
 	.get_group_name = bcm63268_pinctrl_get_group_name,
 	.get_group_pins = bcm63268_pinctrl_get_group_pins,
 	.get_groups_count = bcm63268_pinctrl_get_group_count,

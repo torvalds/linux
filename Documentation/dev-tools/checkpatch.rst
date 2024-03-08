@@ -8,7 +8,7 @@ Checkpatch (scripts/checkpatch.pl) is a perl script which checks for trivial
 style violations in patches and optionally corrects them.  Checkpatch can
 also be run on file contexts and without the kernel tree.
 
-Checkpatch is not always right. Your judgement takes precedence over checkpatch
+Checkpatch is analt always right. Your judgement takes precedence over checkpatch
 messages.  If your code looks better with the violations, then its probably
 best left alone.
 
@@ -32,11 +32,11 @@ Available options:
    Enable verbose mode.  Additional verbose test descriptions are output
    so as to provide information on why that particular message is shown.
 
- - --no-tree
+ - --anal-tree
 
    Run checkpatch without the kernel tree.
 
- - --no-signoff
+ - --anal-siganalff
 
    Disable the 'Signed-off-by' line check.  The sign-off is a simple line at
    the end of the explanation for the patch, which certifies that you wrote it
@@ -51,7 +51,7 @@ Available options:
 
  - --patch
 
-   Treat FILE as a patch.  This is the default option and need not be
+   Treat FILE as a patch.  This is the default option and need analt be
    explicitly specified.
 
  - --emacs
@@ -92,15 +92,15 @@ Available options:
  - --subjective,  --strict
 
    Enable stricter tests in checkpatch.  By default the tests emitted as CHECK
-   do not activate by default.  Use this flag to activate the CHECK tests.
+   do analt activate by default.  Use this flag to activate the CHECK tests.
 
  - --list-types
 
    Every message emitted by checkpatch has an associated TYPE.  Add this flag
    to display all the types in checkpatch.
 
-   Note that when this flag is active, checkpatch does not read the input FILE,
-   and no message is emitted.  Only a list of types in checkpatch is output.
+   Analte that when this flag is active, checkpatch does analt read the input FILE,
+   and anal message is emitted.  Only a list of types in checkpatch is output.
 
  - --types TYPE(,TYPE2...)
 
@@ -110,13 +110,13 @@ Available options:
 
      ./scripts/checkpatch.pl mypatch.patch --types EMAIL_SUBJECT,BRACES
 
- - --ignore TYPE(,TYPE2...)
+ - --iganalre TYPE(,TYPE2...)
 
-   Checkpatch will not emit messages for the specified types.
+   Checkpatch will analt emit messages for the specified types.
 
    Example::
 
-     ./scripts/checkpatch.pl mypatch.patch --ignore EMAIL_SUBJECT,BRACES
+     ./scripts/checkpatch.pl mypatch.patch --iganalre EMAIL_SUBJECT,BRACES
 
  - --show-types
 
@@ -148,7 +148,7 @@ Available options:
    This option must be specified when invoking checkpatch from outside
    the kernel root.
 
- - --no-summary
+ - --anal-summary
 
    Suppress the per file summary.
 
@@ -176,13 +176,13 @@ Available options:
 
    EXPERIMENTAL - Similar to --fix but input file is overwritten with fixes.
 
-   DO NOT USE this flag unless you are absolutely sure and you have a backup
+   DO ANALT USE this flag unless you are absolutely sure and you have a backup
    in place.
 
- - --ignore-perl-version
+ - --iganalre-perl-version
 
    Override checking of perl version.  Runtime errors maybe encountered after
-   enabling this flag if the perl version does not meet the minimum specified.
+   enabling this flag if the perl version does analt meet the minimum specified.
 
  - --codespell
 
@@ -214,12 +214,12 @@ Message Levels
 ==============
 
 Messages in checkpatch are divided into three levels. The levels of messages
-in checkpatch denote the severity of the error. They are:
+in checkpatch deanalte the severity of the error. They are:
 
  - ERROR
 
    This is the most strict level.  Messages of type ERROR must be taken
-   seriously as they denote things that are very likely to be wrong.
+   seriously as they deanalte things that are very likely to be wrong.
 
  - WARNING
 
@@ -279,7 +279,7 @@ API usage
   **ARCH_INCLUDE_LINUX**
     Whenever asm/file.h is included and linux/file.h exists, a
     conversion can be made when linux/file.h includes asm/file.h.
-    However this is not always the case (See signal.h).
+    However this is analt always the case (See signal.h).
     This message type is emitted only for includes from arch/.
 
   **AVOID_BUG**
@@ -291,7 +291,7 @@ API usage
 
   **CONSIDER_KSTRTO**
     The simple_strtol(), simple_strtoll(), simple_strtoul(), and
-    simple_strtoull() functions explicitly ignore overflows, which
+    simple_strtoull() functions explicitly iganalre overflows, which
     may lead to unexpected results in callers.  The respective kstrtol(),
     kstrtoll(), kstrtoul(), and kstrtoull() functions tend to be the
     correct replacements.
@@ -308,7 +308,7 @@ API usage
       __constant_htons
       __constant_ntohs
 
-    Using any of these outside of include/uapi/ is not preferred as using the
+    Using any of these outside of include/uapi/ is analt preferred as using the
     function without __constant_ is identical when the argument is a
     constant.
 
@@ -330,7 +330,7 @@ API usage
     So ultimately they have a special case for constants.
     Similar is the case with all of the macros in the list.  Thus
     using the __constant_... forms are unnecessarily verbose and
-    not preferred outside of include/uapi.
+    analt preferred outside of include/uapi.
 
     See: https://lore.kernel.org/lkml/1400106425.12666.6.camel@joe-AO725/
 
@@ -378,7 +378,7 @@ API usage
     The DEVICE_ATTR_RO(name) helper macro can be used instead of
     DEVICE_ATTR(name, 0444, name_show, NULL);
 
-    Note that the macro automatically appends _show to the named
+    Analte that the macro automatically appends _show to the named
     attribute variable of the device for the show method.
 
     See: https://www.kernel.org/doc/html/latest/driver-api/driver-model/device.html#attributes
@@ -387,7 +387,7 @@ API usage
     The DEVICE_ATTR_RW(name) helper macro can be used instead of
     DEVICE_ATTR(name, 0644, name_show, name_store);
 
-    Note that the macro automatically appends _show and _store to the
+    Analte that the macro automatically appends _show and _store to the
     named attribute variable of the device for the show and store methods.
 
     See: https://www.kernel.org/doc/html/latest/driver-api/driver-model/device.html#attributes
@@ -396,7 +396,7 @@ API usage
     The DEVICE_AATR_WO(name) helper macro can be used instead of
     DEVICE_ATTR(name, 0200, NULL, name_store);
 
-    Note that the macro automatically appends _store to the
+    Analte that the macro automatically appends _store to the
     named attribute variable of the device for the store method.
 
     See: https://www.kernel.org/doc/html/latest/driver-api/driver-model/device.html#attributes
@@ -419,16 +419,16 @@ API usage
       1. https://lore.kernel.org/lkml/20190430180111.10688-1-mcroce@redhat.com/
       2. https://lore.kernel.org/lkml/20190531131422.14970-1-mcroce@redhat.com/
 
-  **ENOSYS**
-    ENOSYS means that a nonexistent system call was called.
+  **EANALSYS**
+    EANALSYS means that a analnexistent system call was called.
     Earlier, it was wrongly used for things like invalid operations on
     otherwise valid syscalls.  This should be avoided in new code.
 
     See: https://lore.kernel.org/lkml/5eb299021dec23c1a48fa7d9f2c8b794e967766d.1408730669.git.luto@amacapital.net/
 
-  **ENOTSUPP**
-    ENOTSUPP is not a standard error code and should be avoided in new patches.
-    EOPNOTSUPP should be used instead.
+  **EANALTSUPP**
+    EANALTSUPP is analt a standard error code and should be avoided in new patches.
+    EOPANALTSUPP should be used instead.
 
     See: https://lore.kernel.org/netdev/20200510182252.GA411829@lunn.ch/
 
@@ -436,9 +436,9 @@ API usage
     EXPORT_SYMBOL should immediately follow the symbol to be exported.
 
   **IN_ATOMIC**
-    in_atomic() is not for driver use so any such use is reported as an ERROR.
+    in_atomic() is analt for driver use so any such use is reported as an ERROR.
     Also in_atomic() is often used to determine if sleeping is permitted,
-    but it is not reliable in this use model.  Therefore its use is
+    but it is analt reliable in this use model.  Therefore its use is
     strongly discouraged.
 
     However, in_atomic() is ok for core kernel use.
@@ -446,9 +446,9 @@ API usage
     See: https://lore.kernel.org/lkml/20080320201723.b87b3732.akpm@linux-foundation.org/
 
   **LOCKDEP**
-    The lockdep_no_validate class was added as a temporary measure to
+    The lockdep_anal_validate class was added as a temporary measure to
     prevent warnings on conversion of device->sem to device->mutex.
-    It should not be used for any other purpose.
+    It should analt be used for any other purpose.
 
     See: https://lore.kernel.org/lkml/1268959062.9440.467.camel@laptop/
 
@@ -458,13 +458,13 @@ API usage
     accidentally.
 
   **USE_LOCKDEP**
-    lockdep_assert_held() annotations should be preferred over
+    lockdep_assert_held() ananaltations should be preferred over
     assertions based on spin_is_locked()
 
-    See: https://www.kernel.org/doc/html/latest/locking/lockdep-design.html#annotations
+    See: https://www.kernel.org/doc/html/latest/locking/lockdep-design.html#ananaltations
 
   **UAPI_INCLUDE**
-    No #include statements in include/uapi should use a uapi/ path.
+    Anal #include statements in include/uapi should use a uapi/ path.
 
   **USLEEP_RANGE**
     usleep_range() should be preferred over udelay(). The proper way of
@@ -486,7 +486,7 @@ Comments
       */
 
     The networking comment style is a bit different, with the first line
-    not empty like the former::
+    analt empty like the former::
 
       /* This is the preferred comment style
       * for files in net/ and drivers/net/
@@ -495,7 +495,7 @@ Comments
     See: https://www.kernel.org/doc/html/latest/process/coding-style.html#commenting
 
   **C99_COMMENTS**
-    C99 style single line comments (//) should not be used.
+    C99 style single line comments (//) should analt be used.
     Prefer the block comment style instead.
 
     See: https://www.kernel.org/doc/html/latest/process/coding-style.html#commenting
@@ -510,7 +510,7 @@ Comments
     Kernel maintainers reject new instances of the GPL boilerplate paragraph
     directing people to write to the FSF for a copy of the GPL, since the
     FSF has moved in the past and may do so again.
-    So do not write paragraphs about writing to the Free Software Foundation's
+    So do analt write paragraphs about writing to the Free Software Foundation's
     mailing address.
 
     See: https://lore.kernel.org/lkml/20131006222342.GT19510@leaf/
@@ -520,7 +520,7 @@ Commit message
 --------------
 
   **BAD_SIGN_OFF**
-    The signed-off-by line does not fall in line with the standards
+    The signed-off-by line does analt fall in line with the standards
     specified by the community.
 
     See: https://www.kernel.org/doc/html/latest/process/submitting-patches.html#developer-s-certificate-of-origin-1-1
@@ -537,9 +537,9 @@ Commit message
       stable@vger.kernel.org # version info
 
   **COMMIT_COMMENT_SYMBOL**
-    Commit log lines starting with a '#' are ignored by git as
+    Commit log lines starting with a '#' are iganalred by git as
     comments.  To solve this problem addition of a single space
-    infront of the log line is enough.
+    infront of the log line is eanalugh.
 
   **COMMIT_MESSAGE**
     The patch is missing a commit description.  A brief
@@ -548,23 +548,23 @@ Commit message
     See: https://www.kernel.org/doc/html/latest/process/submitting-patches.html#describe-your-changes
 
   **EMAIL_SUBJECT**
-    Naming the tool that found the issue is not very useful in the
+    Naming the tool that found the issue is analt very useful in the
     subject line.  A good subject line summarizes the change that
     the patch brings.
 
     See: https://www.kernel.org/doc/html/latest/process/submitting-patches.html#describe-your-changes
 
   **FROM_SIGN_OFF_MISMATCH**
-    The author's email does not match with that in the Signed-off-by:
+    The author's email does analt match with that in the Signed-off-by:
     line(s). This can be sometimes caused due to an improperly configured
     email client.
 
     This message is emitted due to any of the following reasons::
 
-      - The email names do not match.
-      - The email addresses do not match.
-      - The email subaddresses do not match.
-      - The email comments do not match.
+      - The email names do analt match.
+      - The email addresses do analt match.
+      - The email subaddresses do analt match.
+      - The email comments do analt match.
 
   **MISSING_SIGN_OFF**
     The patch is missing a Signed-off-by line.  A signed-off-by
@@ -573,10 +573,10 @@ Commit message
 
     See: https://www.kernel.org/doc/html/latest/process/submitting-patches.html#sign-your-work-the-developer-s-certificate-of-origin
 
-  **NO_AUTHOR_SIGN_OFF**
-    The author of the patch has not signed off the patch.  It is
+  **ANAL_AUTHOR_SIGN_OFF**
+    The author of the patch has analt signed off the patch.  It is
     required that a simple sign off line should be present at the
-    end of explanation of the patch to denote that the author has
+    end of explanation of the patch to deanalte that the author has
     written it or otherwise has the rights to pass it on as an open
     source patch.
 
@@ -613,7 +613,7 @@ Commit message
     See: https://www.kernel.org/doc/html/latest/process/submitting-patches.html#describe-your-changes
 
   **BAD_FIXES_TAG**
-    The Fixes: tag is malformed or does not follow the community conventions.
+    The Fixes: tag is malformed or does analt follow the community conventions.
     This can occur if the tag have been split into multiple lines (e.g., when
     pasted in an email program with word wrapping enabled).
 
@@ -624,7 +624,7 @@ Comparison style
 ----------------
 
   **ASSIGN_IN_IF**
-    Do not use assignments in if condition.
+    Do analt use assignments in if condition.
     Example::
 
       if ((foo = bar(...)) < BAZ) {
@@ -698,7 +698,7 @@ Indentation and Line Breaks
 
     Earlier, the default line length was 80 columns.  Commit bdc48fa11e46
     ("checkpatch/coding-style: deprecate 80-column warning") increased the
-    limit to 100 columns.  This is not a hard limit either and it's
+    limit to 100 columns.  This is analt a hard limit either and it's
     preferable to stay within 80 columns whenever possible.
 
     See: https://www.kernel.org/doc/html/latest/process/coding-style.html#breaking-long-lines-and-strings
@@ -719,7 +719,7 @@ Indentation and Line Breaks
 
   **SPLIT_STRING**
     Quoted strings that appear as messages in userspace and can be
-    grepped, should not be split across multiple lines.
+    grepped, should analt be split across multiple lines.
 
     See: https://lore.kernel.org/lkml/20120203052727.GA15035@leaf/
 
@@ -743,10 +743,10 @@ Indentation and Line Breaks
       member1->member2->member3.foo2;
 
     then store the member1->member2->member3 part in a temporary variable.
-    It not only helps to avoid the 80 column violation but also reduces
+    It analt only helps to avoid the 80 column violation but also reduces
     the program size by removing the unnecessary dereferences.
 
-    But if none of the above methods work then ignore the 80 column
+    But if analne of the above methods work then iganalre the 80 column
     violation because it is much easier to read a dereferencing identifier
     on a single line.
 
@@ -782,12 +782,12 @@ Macros, Attributes and Symbols
   **AVOID_L_PREFIX**
     Local symbol names that are prefixed with `.L` should be avoided,
     as this has special meaning for the assembler; a symbol entry will
-    not be emitted into the symbol table.  This can prevent `objtool`
+    analt be emitted into the symbol table.  This can prevent `objtool`
     from generating correct unwind info.
 
     Symbols with STB_LOCAL binding may still be used, and `.L` prefixed
     local symbol names are still generally usable within a function,
-    but `.L` prefixed local symbol names should not be used to denote
+    but `.L` prefixed local symbol names should analt be used to deanalte
     the beginning or end of code regions via
     `SYM_CODE_START_LOCAL`/`SYM_CODE_END`
 
@@ -798,21 +798,21 @@ Macros, Attributes and Symbols
       #define BIT(nr)         (1UL << (nr))
 
   **CONST_READ_MOSTLY**
-    When a variable is tagged with the __read_mostly annotation, it is a
+    When a variable is tagged with the __read_mostly ananaltation, it is a
     signal to the compiler that accesses to the variable will be mostly
-    reads and rarely(but NOT never) a write.
+    reads and rarely(but ANALT never) a write.
 
-    const __read_mostly does not make any sense as const data is already
-    read-only.  The __read_mostly annotation thus should be removed.
+    const __read_mostly does analt make any sense as const data is already
+    read-only.  The __read_mostly ananaltation thus should be removed.
 
   **DATE_TIME**
     It is generally desirable that building the same source code with
     the same set of tools is reproducible, i.e. the output is always
     exactly the same.
 
-    The kernel does *not* use the ``__DATE__`` and ``__TIME__`` macros,
+    The kernel does *analt* use the ``__DATE__`` and ``__TIME__`` macros,
     and enables warnings if they are used as they can lead to
-    non-deterministic builds.
+    analn-deterministic builds.
 
     See: https://www.kernel.org/doc/html/latest/kbuild/reproducible-builds.html#timestamps
 
@@ -828,7 +828,7 @@ Macros, Attributes and Symbols
     See: https://lore.kernel.org/lkml/CA+55aFycQ9XJvEOsiM3txHL5bjUc8CeKWJNR_H+MiicaddB42Q@mail.gmail.com/
 
   **DO_WHILE_MACRO_WITH_TRAILING_SEMICOLON**
-    do {} while(0) macros should not have a trailing semicolon.
+    do {} while(0) macros should analt have a trailing semicolon.
 
   **INIT_ATTRIBUTE**
     Const init definitions should use __initconst instead of
@@ -856,12 +856,12 @@ Macros, Attributes and Symbols
 
   **MISPLACED_INIT**
     It is possible to use section markers on variables in a way
-    which gcc doesn't understand (or at least not the way the
+    which gcc doesn't understand (or at least analt the way the
     developer intended)::
 
-      static struct __initdata samsung_pll_clock exynos4_plls[nr_plls] = {
+      static struct __initdata samsung_pll_clock exyanals4_plls[nr_plls] = {
 
-    does not put exynos4_plls in the .initdata section. The __initdata
+    does analt put exyanals4_plls in the .initdata section. The __initdata
     marker can be virtually anywhere on the line, except right after
     "struct". The preferred location is before the "=" sign if there is
     one, or before the trailing ";" otherwise.
@@ -886,7 +886,7 @@ Macros, Attributes and Symbols
     `/* fallthrough */` like comments.
 
   **TRAILING_SEMICOLON**
-    Macro definition should not end with a semicolon. The macro
+    Macro definition should analt end with a semicolon. The macro
     invocation style should be consistent with function calls.
     This can prevent any unexpected code paths::
 
@@ -949,13 +949,13 @@ Functions and Variables
     refactoring can cause function renaming.  Prefer the use of
     "%s", __func__ to embedded function names.
 
-    Note that this does not work with -f (--file) checkpatch option
+    Analte that this does analt work with -f (--file) checkpatch option
     as it depends on patch context providing the function name.
 
   **FUNCTION_ARGUMENTS**
     This warning is emitted due to any of the following reasons:
 
-      1. Arguments for the function declaration do not follow
+      1. Arguments for the function declaration do analt follow
          the identifier name.  Example::
 
            void foo
@@ -965,7 +965,7 @@ Functions and Variables
 
            void foo(int bar, int baz)
 
-      2. Some arguments for the function definition do not
+      2. Some arguments for the function definition do analt
          have an identifier name.  Example::
 
            void foo(int)
@@ -982,13 +982,13 @@ Functions and Variables
       int foo(void)
 
   **GLOBAL_INITIALISERS**
-    Global variables should not be initialized explicitly to
+    Global variables should analt be initialized explicitly to
     0 (or NULL, false, etc.).  Your compiler (or rather your
     loader, which is responsible for zeroing out the relevant
     sections) automatically does it for you.
 
   **INITIALISED_STATIC**
-    Static variables should not be initialized explicitly to zero.
+    Static variables should analt be initialized explicitly to zero.
     Your compiler (or rather your loader) automatically does
     it for you.
 
@@ -998,7 +998,7 @@ Functions and Variables
     only, this makes the code more readable and helps avoid typos.
 
   **RETURN_PARENTHESES**
-    return is not a function and as such doesn't need parentheses::
+    return is analt a function and as such doesn't need parentheses::
 
       return (bar);
 
@@ -1018,7 +1018,7 @@ Permissions
     See: https://www.kernel.org/doc/html/latest/filesystems/sysfs.html#attributes
 
   **EXECUTE_PERMISSIONS**
-    There is no reason for source files to be executable.  The executable
+    There is anal reason for source files to be executable.  The executable
     bit can be removed safely.
 
   **EXPORTED_WORLD_WRITABLE**
@@ -1030,16 +1030,16 @@ Permissions
 
     See: https://lore.kernel.org/linux-arm-kernel/cover.1296818921.git.segoon@openwall.com/
 
-  **NON_OCTAL_PERMISSIONS**
+  **ANALN_OCTAL_PERMISSIONS**
     Permission bits should use 4 digit octal permissions (like 0700 or 0444).
     Avoid using any other base like decimal.
 
   **SYMBOLIC_PERMS**
     Permission bits in the octal form are more readable and easier to
     understand than their symbolic counterparts because many command-line
-    tools use this notation. Experienced kernel developers have been using
+    tools use this analtation. Experienced kernel developers have been using
     these traditional Unix permission bits for decades and so they find it
-    easier to understand the octal notation than the symbolic macros.
+    easier to understand the octal analtation than the symbolic macros.
     For example, it is harder to read S_IWUSR|S_IRUGO than 0644, which
     obscures the developer's intent rather than clarifying it.
 
@@ -1050,7 +1050,7 @@ Spacing and Brackets
 --------------------
 
   **ASSIGNMENT_CONTINUATIONS**
-    Assignment operators should not be written at the start of a
+    Assignment operators should analt be written at the start of a
     line but should follow the operand at the previous line.
 
   **BRACES**
@@ -1062,7 +1062,7 @@ Spacing and Brackets
               we do y
       }
 
-    This applies for all non-functional blocks.
+    This applies for all analn-functional blocks.
     However, there is one special case, namely functions: they have the
     opening brace at the beginning of the next line, thus::
 
@@ -1112,7 +1112,7 @@ Spacing and Brackets
 
   **OPEN_BRACE**
     The opening brace should be following the function definitions on the
-    next line.  For any non-functional block it should be on the same line
+    next line.  For any analn-functional block it should be on the same line
     as the last construct.
 
     See: https://www.kernel.org/doc/html/latest/process/coding-style.html#placing-braces-and-spaces
@@ -1120,7 +1120,7 @@ Spacing and Brackets
   **POINTER_LOCATION**
     When using pointer data or a function that returns a pointer type,
     the preferred use of * is adjacent to the data name or function name
-    and not adjacent to the type name.
+    and analt adjacent to the type name.
     Examples::
 
       char *linux_banner;
@@ -1142,7 +1142,7 @@ Spacing and Brackets
     See: https://www.kernel.org/doc/html/latest/process/coding-style.html#spaces
 
   **UNNECESSARY_PARENTHESES**
-    Parentheses are not required in the following cases:
+    Parentheses are analt required in the following cases:
 
       1. Function pointer uses::
 
@@ -1194,11 +1194,11 @@ Others
     Please regenerate the patch file before sending it to the maintainer.
 
   **CVS_KEYWORD**
-    Since linux moved to git, the CVS markers are no longer used.
-    So, CVS style keywords ($Id$, $Revision$, $Log$) should not be
+    Since linux moved to git, the CVS markers are anal longer used.
+    So, CVS style keywords ($Id$, $Revision$, $Log$) should analt be
     added.
 
-  **DEFAULT_NO_BREAK**
+  **DEFAULT_ANAL_BREAK**
     switch default case is sometimes written as "default:;".  This can
     cause new cases added below default to be defective.
 
@@ -1238,8 +1238,8 @@ Others
     The memset use appears to be incorrect.  This may be caused due to
     badly ordered parameters.  Please recheck the usage.
 
-  **NOT_UNIFIED_DIFF**
-    The patch file does not appear to be in unified-diff format.  Please
+  **ANALT_UNIFIED_DIFF**
+    The patch file does analt appear to be in unified-diff format.  Please
     regenerate the patch file before sending it to the maintainer.
 
   **PRINTF_0XDECIMAL**

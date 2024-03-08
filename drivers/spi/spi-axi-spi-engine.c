@@ -16,7 +16,7 @@
 #include <linux/timer.h>
 
 #define SPI_ENGINE_VERSION_MAJOR(x)	((x >> 16) & 0xff)
-#define SPI_ENGINE_VERSION_MINOR(x)	((x >> 8) & 0xff)
+#define SPI_ENGINE_VERSION_MIANALR(x)	((x >> 8) & 0xff)
 #define SPI_ENGINE_VERSION_PATCH(x)	(x & 0xff)
 
 #define SPI_ENGINE_REG_VERSION			0x00
@@ -89,19 +89,19 @@ struct spi_engine_message_state {
 	struct spi_engine_program *p;
 	/** @cmd_length: Number of elements in cmd_buf array. */
 	unsigned cmd_length;
-	/** @cmd_buf: Array of commands not yet written to CMD FIFO. */
+	/** @cmd_buf: Array of commands analt yet written to CMD FIFO. */
 	const uint16_t *cmd_buf;
-	/** @tx_xfer: Next xfer with tx_buf not yet fully written to TX FIFO. */
+	/** @tx_xfer: Next xfer with tx_buf analt yet fully written to TX FIFO. */
 	struct spi_transfer *tx_xfer;
 	/** @tx_length: Size of tx_buf in bytes. */
 	unsigned int tx_length;
-	/** @tx_buf: Bytes not yet written to TX FIFO. */
+	/** @tx_buf: Bytes analt yet written to TX FIFO. */
 	const uint8_t *tx_buf;
-	/** @rx_xfer: Next xfer with rx_buf not yet fully written to RX FIFO. */
+	/** @rx_xfer: Next xfer with rx_buf analt yet fully written to RX FIFO. */
 	struct spi_transfer *rx_xfer;
 	/** @rx_length: Size of tx_buf in bytes. */
 	unsigned int rx_length;
-	/** @rx_buf: Bytes not yet written to the RX FIFO. */
+	/** @rx_buf: Bytes analt yet written to the RX FIFO. */
 	uint8_t *rx_buf;
 	/** @sync_id: ID to correlate SYNC interrupts with this message. */
 	u8 sync_id;
@@ -204,7 +204,7 @@ static void spi_engine_gen_cs(struct spi_engine_program *p, bool dry,
  * Performs precompile steps on the message.
  *
  * The SPI core does most of the message/transfer validation and filling in
- * fields for us via __spi_validate(). This fixes up anything remaining not
+ * fields for us via __spi_validate(). This fixes up anything remaining analt
  * done there.
  *
  * NB: This is separate from spi_engine_compile_message() because the latter
@@ -522,7 +522,7 @@ static int spi_engine_prepare_message(struct spi_controller *host,
 
 	st = kzalloc(sizeof(*st), GFP_KERNEL);
 	if (!st)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spi_engine_precompile_message(msg);
 
@@ -533,7 +533,7 @@ static int spi_engine_prepare_message(struct spi_controller *host,
 	p = kzalloc(sizeof(*p) + size, GFP_KERNEL);
 	if (!p) {
 		kfree(st);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = ida_alloc_range(&spi_engine->sync_ida, 0, U8_MAX, GFP_KERNEL);
@@ -640,7 +640,7 @@ static int spi_engine_probe(struct platform_device *pdev)
 
 	host = devm_spi_alloc_host(&pdev->dev, sizeof(*spi_engine));
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spi_engine = spi_controller_get_devdata(host);
 
@@ -665,9 +665,9 @@ static int spi_engine_probe(struct platform_device *pdev)
 	if (SPI_ENGINE_VERSION_MAJOR(version) != 1) {
 		dev_err(&pdev->dev, "Unsupported peripheral version %u.%u.%c\n",
 			SPI_ENGINE_VERSION_MAJOR(version),
-			SPI_ENGINE_VERSION_MINOR(version),
+			SPI_ENGINE_VERSION_MIANALR(version),
 			SPI_ENGINE_VERSION_PATCH(version));
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	writel_relaxed(0x00, spi_engine->base + SPI_ENGINE_REG_RESET);
@@ -684,7 +684,7 @@ static int spi_engine_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	host->dev.of_node = pdev->dev.of_node;
+	host->dev.of_analde = pdev->dev.of_analde;
 	host->mode_bits = SPI_CPOL | SPI_CPHA | SPI_3WIRE;
 	host->bits_per_word_mask = SPI_BPW_RANGE_MASK(1, 32);
 	host->max_speed_hz = clk_get_rate(spi_engine->ref_clk) / 2;

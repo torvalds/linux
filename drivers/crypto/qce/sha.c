@@ -224,14 +224,14 @@ static int qce_ahash_update(struct ahash_request *req)
 	 * the available data to transfer is exactly a multiple of block
 	 * size, save the last block to be transferred in qce_ahash_final
 	 * (with the last block bit set) if this is indeed the end of data
-	 * stream. If not this saved block will be transferred as part of
-	 * next update. If this block is not held back and if this is
+	 * stream. If analt this saved block will be transferred as part of
+	 * next update. If this block is analt held back and if this is
 	 * indeed the end of data stream, the digest obtained will be wrong
 	 * since qce_ahash_final will see that rctx->buflen is 0 and return
-	 * doing nothing which in turn means that a digest will not be
-	 * copied to the destination result buffer.  qce_ahash_final cannot
+	 * doing analthing which in turn means that a digest will analt be
+	 * copied to the destination result buffer.  qce_ahash_final cananalt
 	 * be made to alter this behavior and allowed to proceed if
-	 * rctx->buflen is 0 because the crypto engine BAM does not allow
+	 * rctx->buflen is 0 because the crypto engine BAM does analt allow
 	 * for zero length transfers.
 	 */
 	if (!hash_later)
@@ -361,7 +361,7 @@ static int qce_ahash_hmac_setkey(struct crypto_ahash *tfm, const u8 *key,
 
 	req = ahash_request_alloc(ahash_tfm, GFP_KERNEL);
 	if (!req) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_ahash;
 	}
 
@@ -372,7 +372,7 @@ static int qce_ahash_hmac_setkey(struct crypto_ahash *tfm, const u8 *key,
 
 	buf = kzalloc(keylen + QCE_MAX_ALIGN_SIZE, GFP_KERNEL);
 	if (!buf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_req;
 	}
 
@@ -459,7 +459,7 @@ static int qce_ahash_register_one(const struct qce_ahash_def *def,
 
 	tmpl = kzalloc(sizeof(*tmpl), GFP_KERNEL);
 	if (!tmpl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tmpl->std_iv = def->std_iv;
 

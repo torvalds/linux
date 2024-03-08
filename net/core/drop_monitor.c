@@ -107,14 +107,14 @@ static u32 net_dm_trunc_len;
 static u32 net_dm_queue_len = 1000;
 
 struct net_dm_alert_ops {
-	void (*kfree_skb_probe)(void *ignore, struct sk_buff *skb,
+	void (*kfree_skb_probe)(void *iganalre, struct sk_buff *skb,
 				void *location,
 				enum skb_drop_reason reason);
-	void (*napi_poll_probe)(void *ignore, struct napi_struct *napi,
+	void (*napi_poll_probe)(void *iganalre, struct napi_struct *napi,
 				int work, int budget);
 	void (*work_item_func)(struct work_struct *work);
 	void (*hw_work_item_func)(struct work_struct *work);
-	void (*hw_trap_probe)(void *ignore, const struct devlink *devlink,
+	void (*hw_trap_probe)(void *iganalre, const struct devlink *devlink,
 			      struct sk_buff *skb,
 			      const struct devlink_trap_metadata *metadata);
 };
@@ -247,7 +247,7 @@ static void trace_drop_common(struct sk_buff *skb, void *location)
 	/*
 	 * We need to create a new entry
 	 */
-	__nla_reserve_nohdr(dskb, sizeof(struct net_dm_drop_point));
+	__nla_reserve_analhdr(dskb, sizeof(struct net_dm_drop_point));
 	nla->nla_len += NLA_ALIGN(sizeof(struct net_dm_drop_point));
 	memcpy(point->pc, &location, sizeof(void *));
 	point->count = 1;
@@ -262,20 +262,20 @@ out:
 	spin_unlock_irqrestore(&data->lock, flags);
 }
 
-static void trace_kfree_skb_hit(void *ignore, struct sk_buff *skb,
+static void trace_kfree_skb_hit(void *iganalre, struct sk_buff *skb,
 				void *location,
 				enum skb_drop_reason reason)
 {
 	trace_drop_common(skb, location);
 }
 
-static void trace_napi_poll_hit(void *ignore, struct napi_struct *napi,
+static void trace_napi_poll_hit(void *iganalre, struct napi_struct *napi,
 				int work, int budget)
 {
 	struct net_device *dev = napi->dev;
 	struct dm_hw_stat_delta *stat;
 	/*
-	 * Don't check napi structures with no associated device
+	 * Don't check napi structures with anal associated device
 	 */
 	if (!dev)
 		return;
@@ -284,7 +284,7 @@ static void trace_napi_poll_hit(void *ignore, struct napi_struct *napi,
 	stat = rcu_dereference(dev->dm_private);
 	if (stat) {
 		/*
-		 * only add a note to our monitor buffer if:
+		 * only add a analte to our monitor buffer if:
 		 * 1) its after the last_rx delta
 		 * 2) our rx_dropped count has gone up
 		 */
@@ -307,7 +307,7 @@ net_dm_hw_reset_per_cpu_data(struct per_cpu_dm_data *hw_data)
 	hw_entries = kzalloc(struct_size(hw_entries, entries, dm_hit_limit),
 			     GFP_KERNEL);
 	if (!hw_entries) {
-		/* If the memory allocation failed, we try to perform another
+		/* If the memory allocation failed, we try to perform aanalther
 		 * allocation in 1/10 second. Otherwise, the probe function
 		 * will constantly bail out.
 		 */
@@ -385,7 +385,7 @@ net_dm_hw_summary_report_fill(struct sk_buff *msg,
 	if (!hdr)
 		return -EMSGSIZE;
 
-	/* We need to put the ancillary header in order not to break user
+	/* We need to put the ancillary header in order analt to break user
 	 * space.
 	 */
 	if (nla_put(msg, NLA_UNSPEC, sizeof(anc_hdr), &anc_hdr))
@@ -434,7 +434,7 @@ out:
 }
 
 static void
-net_dm_hw_trap_summary_probe(void *ignore, const struct devlink *devlink,
+net_dm_hw_trap_summary_probe(void *iganalre, const struct devlink *devlink,
 			     struct sk_buff *skb,
 			     const struct devlink_trap_metadata *metadata)
 {
@@ -488,7 +488,7 @@ static const struct net_dm_alert_ops net_dm_alert_summary_ops = {
 	.hw_trap_probe		= net_dm_hw_trap_summary_probe,
 };
 
-static void net_dm_packet_trace_kfree_skb_hit(void *ignore,
+static void net_dm_packet_trace_kfree_skb_hit(void *iganalre,
 					      struct sk_buff *skb,
 					      void *location,
 					      enum skb_drop_reason reason)
@@ -535,7 +535,7 @@ unlock_free:
 	consume_skb(nskb);
 }
 
-static void net_dm_packet_trace_napi_poll_hit(void *ignore,
+static void net_dm_packet_trace_napi_poll_hit(void *iganalre,
 					      struct napi_struct *napi,
 					      int work, int budget)
 {
@@ -639,7 +639,7 @@ static int net_dm_packet_report_fill(struct sk_buff *msg, struct sk_buff *skb,
 	    !list->reasons[subsys_reason] ||
 	    strlen(list->reasons[subsys_reason]) > NET_DM_MAX_REASON_LEN) {
 		list = rcu_dereference(drop_reasons_by_subsys[SKB_DROP_REASON_SUBSYS_CORE]);
-		subsys_reason = SKB_DROP_REASON_NOT_SPECIFIED;
+		subsys_reason = SKB_DROP_REASON_ANALT_SPECIFIED;
 	}
 	if (nla_put_string(msg, NET_DM_ATTR_REASON,
 			   list->reasons[subsys_reason])) {
@@ -958,7 +958,7 @@ static void net_dm_hw_packet_work(struct work_struct *work)
 }
 
 static void
-net_dm_hw_trap_packet_probe(void *ignore, const struct devlink *devlink,
+net_dm_hw_trap_packet_probe(void *iganalre, const struct devlink *devlink,
 			    struct sk_buff *skb,
 			    const struct devlink_trap_metadata *metadata)
 {
@@ -1035,7 +1035,7 @@ static void net_dm_hw_probe_unregister(const struct net_dm_alert_ops *ops)
 #else
 static int net_dm_hw_probe_register(const struct net_dm_alert_ops *ops)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static void net_dm_hw_probe_unregister(const struct net_dm_alert_ops *ops)
@@ -1057,7 +1057,7 @@ static int net_dm_hw_monitor_start(struct netlink_ext_ack *extack)
 
 	if (!try_module_get(THIS_MODULE)) {
 		NL_SET_ERR_MSG_MOD(extack, "Failed to take reference on module");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	for_each_possible_cpu(cpu) {
@@ -1142,7 +1142,7 @@ static int net_dm_trace_on_set(struct netlink_ext_ack *extack)
 
 	if (!try_module_get(THIS_MODULE)) {
 		NL_SET_ERR_MSG_MOD(extack, "Failed to take reference on module");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	for_each_possible_cpu(cpu) {
@@ -1201,7 +1201,7 @@ static void net_dm_trace_off_set(void)
 
 	tracepoint_synchronize_unregister();
 
-	/* Make sure we do not send notifications to user space after request
+	/* Make sure we do analt send analtifications to user space after request
 	 * to stop tracing returns.
 	 */
 	for_each_possible_cpu(cpu) {
@@ -1313,7 +1313,7 @@ static int net_dm_cmd_config(struct sk_buff *skb,
 	int rc;
 
 	if (net_dm_is_monitoring()) {
-		NL_SET_ERR_MSG_MOD(extack, "Cannot configure drop monitor during monitoring");
+		NL_SET_ERR_MSG_MOD(extack, "Cananalt configure drop monitor during monitoring");
 		return -EBUSY;
 	}
 
@@ -1372,7 +1372,7 @@ static int net_dm_cmd_trace(struct sk_buff *skb,
 	struct netlink_ext_ack *extack = info->extack;
 
 	/* To maintain backward compatibility, we start / stop monitoring of
-	 * software drops if no flag is specified.
+	 * software drops if anal flag is specified.
 	 */
 	if (!set_sw && !set_hw)
 		set_sw = true;
@@ -1385,7 +1385,7 @@ static int net_dm_cmd_trace(struct sk_buff *skb,
 		return 0;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int net_dm_config_fill(struct sk_buff *msg, struct genl_info *info)
@@ -1422,7 +1422,7 @@ static int net_dm_cmd_config_get(struct sk_buff *skb, struct genl_info *info)
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = net_dm_config_fill(msg, info);
 	if (rc)
@@ -1557,7 +1557,7 @@ static int net_dm_cmd_stats_get(struct sk_buff *skb, struct genl_info *info)
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = net_dm_stats_fill(msg, info);
 	if (rc)
@@ -1570,10 +1570,10 @@ free_msg:
 	return rc;
 }
 
-static int dropmon_net_event(struct notifier_block *ev_block,
+static int dropmon_net_event(struct analtifier_block *ev_block,
 			     unsigned long event, void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_analtifier_info_to_dev(ptr);
 	struct dm_hw_stat_delta *stat;
 
 	switch (event) {
@@ -1596,7 +1596,7 @@ static int dropmon_net_event(struct notifier_block *ev_block,
 		}
 		break;
 	}
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static const struct nla_policy net_dm_nl_policy[NET_DM_ATTR_MAX + 1] = {
@@ -1667,8 +1667,8 @@ static struct genl_family net_drop_monitor_family __ro_after_init = {
 	.n_mcgrps	= ARRAY_SIZE(dropmon_mcgrps),
 };
 
-static struct notifier_block dropmon_net_notifier = {
-	.notifier_call = dropmon_net_event
+static struct analtifier_block dropmon_net_analtifier = {
+	.analtifier_call = dropmon_net_event
 };
 
 static void __net_dm_cpu_data_init(struct per_cpu_dm_data *data)
@@ -1728,19 +1728,19 @@ static int __init init_net_drop_monitor(void)
 
 	if (sizeof(void *) > 8) {
 		pr_err("Unable to store program counters on this arch, Drop monitor failed\n");
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	rc = genl_register_family(&net_drop_monitor_family);
 	if (rc) {
-		pr_err("Could not create drop monitor netlink family\n");
+		pr_err("Could analt create drop monitor netlink family\n");
 		return rc;
 	}
 	WARN_ON(net_drop_monitor_family.mcgrp_offset != NET_DM_GRP_ALERT);
 
-	rc = register_netdevice_notifier(&dropmon_net_notifier);
+	rc = register_netdevice_analtifier(&dropmon_net_analtifier);
 	if (rc < 0) {
-		pr_crit("Failed to register netdevice notifier\n");
+		pr_crit("Failed to register netdevice analtifier\n");
 		goto out_unreg;
 	}
 
@@ -1763,11 +1763,11 @@ static void exit_net_drop_monitor(void)
 {
 	int cpu;
 
-	BUG_ON(unregister_netdevice_notifier(&dropmon_net_notifier));
+	BUG_ON(unregister_netdevice_analtifier(&dropmon_net_analtifier));
 
 	/*
 	 * Because of the module_get/put we do in the trace state change path
-	 * we are guaranteed not to have any current users when we get here
+	 * we are guaranteed analt to have any current users when we get here
 	 */
 
 	for_each_possible_cpu(cpu) {

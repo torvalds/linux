@@ -160,7 +160,7 @@ static int snd_sh_dac_pcm_copy(struct snd_pcm_substream *substream,
 			       int channel, unsigned long pos,
 			       struct iov_iter *src, unsigned long count)
 {
-	/* channel is not used (interleaved data) */
+	/* channel is analt used (interleaved data) */
 	struct snd_sh_dac *chip = snd_pcm_substream_chip(substream);
 
 	if (copy_from_iter_toio(chip->data_buffer + pos, src, count))
@@ -179,7 +179,7 @@ static int snd_sh_dac_pcm_silence(struct snd_pcm_substream *substream,
 				  int channel, unsigned long pos,
 				  unsigned long count)
 {
-	/* channel is not used (interleaved data) */
+	/* channel is analt used (interleaved data) */
 	struct snd_sh_dac *chip = snd_pcm_substream_chip(substream);
 
 	memset_io(chip->data_buffer + pos, 0, count);
@@ -290,7 +290,7 @@ static enum hrtimer_restart sh_dac_audio_timer(struct hrtimer *handle)
 		hrtimer_start(&chip->hrtimer, chip->wakeups_per_second,
 			      HRTIMER_MODE_REL);
 
-	return HRTIMER_NORESTART;
+	return HRTIMER_ANALRESTART;
 }
 
 /* create  --  chip-specific constructor for the cards components */
@@ -309,11 +309,11 @@ static int snd_sh_dac_create(struct snd_card *card,
 
 	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (chip == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->card = card;
 
-	hrtimer_init(&chip->hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	hrtimer_init(&chip->hrtimer, CLOCK_MOANALTONIC, HRTIMER_MODE_REL);
 	chip->hrtimer.function = sh_dac_audio_timer;
 
 	dac_audio_reset(chip);
@@ -325,7 +325,7 @@ static int snd_sh_dac_create(struct snd_card *card,
 	chip->data_buffer = kmalloc(chip->pdata->buffer_size, GFP_KERNEL);
 	if (chip->data_buffer == NULL) {
 		kfree(chip);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops);
@@ -348,7 +348,7 @@ static int snd_sh_dac_probe(struct platform_device *devptr)
 
 	err = snd_card_new(&devptr->dev, index, id, THIS_MODULE, 0, &card);
 	if (err < 0) {
-			snd_printk(KERN_ERR "cannot allocate the card\n");
+			snd_printk(KERN_ERR "cananalt allocate the card\n");
 			return err;
 	}
 

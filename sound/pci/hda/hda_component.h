@@ -17,8 +17,8 @@ struct hda_component {
 	char name[HDA_MAX_NAME_SIZE];
 	struct hda_codec *codec;
 	struct acpi_device *adev;
-	bool acpi_notifications_supported;
-	void (*acpi_notify)(acpi_handle handle, u32 event, struct device *dev);
+	bool acpi_analtifications_supported;
+	void (*acpi_analtify)(acpi_handle handle, u32 event, struct device *dev);
 	void (*pre_playback_hook)(struct device *dev, int action);
 	void (*playback_hook)(struct device *dev, int action);
 	void (*post_playback_hook)(struct device *dev, int action);

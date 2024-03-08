@@ -5,9 +5,9 @@
  * Copyright (C) 2008 Greg Kroah-Hartman <greg@kroah.com>
  * Copyright (C) 2010 Dan Williams <dcbw@redhat.com>
  *
- * Devices listed here usually provide a CDC ACM port on which normal modem
+ * Devices listed here usually provide a CDC ACM port on which analrmal modem
  * AT commands and PPP can be used.  But when that port is in-use by PPP it
- * cannot be used simultaneously for status or signal strength.  Instead, the
+ * cananalt be used simultaneously for status or signal strength.  Instead, the
  * ports here can be queried for that information using the Qualcomm DM
  * protocol.
  */
@@ -18,9 +18,9 @@
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
 
-/* NOTE: for now, only use this driver for devices that provide a CDC-ACM port
- * for normal AT commands, but also provide secondary USB interfaces for the
- * QCDM-capable ports.  Devices that do not provide a CDC-ACM port should
+/* ANALTE: for analw, only use this driver for devices that provide a CDC-ACM port
+ * for analrmal AT commands, but also provide secondary USB interfaces for the
+ * QCDM-capable ports.  Devices that do analt provide a CDC-ACM port should
  * probably be driven by option.ko.
  */
 

@@ -36,7 +36,7 @@
 #define USB_MS_GR_TRM_BLOCK_TYPE_OUTPUT_ONLY	0x02
 
 /* A.7 Group Terminal Default MIDI Protocol */
-#define USB_MS_MIDI_PROTO_UNKNOWN	0x00 /* Unknown (Use MIDI-CI) */
+#define USB_MS_MIDI_PROTO_UNKANALWN	0x00 /* Unkanalwn (Use MIDI-CI) */
 #define USB_MS_MIDI_PROTO_1_0_64	0x01 /* MIDI 1.0, UMP up to 64bits */
 #define USB_MS_MIDI_PROTO_1_0_64_JRTS	0x02 /* MIDI 1.0, UMP up to 64bits, Jitter Reduction Timestamps */
 #define USB_MS_MIDI_PROTO_1_0_128	0x03 /* MIDI 1.0, UMP up to 128bits */

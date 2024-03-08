@@ -56,7 +56,7 @@ static ssize_t link_show(struct device *dev, struct device_attribute *attr,
 	else if (port->xdomain)
 		link = port->xdomain->link_usb4 ? "usb4" : "tbt";
 	else
-		link = "none";
+		link = "analne";
 
 	mutex_unlock(&tb->lock);
 
@@ -136,7 +136,7 @@ static ssize_t offline_store(struct device *dev,
 	if (val == usb4->offline)
 		goto out_unlock;
 
-	/* Offline mode works only for ports that are not connected */
+	/* Offline mode works only for ports that are analt connected */
 	if (tb_port_has_remote(port)) {
 		ret = -EBUSY;
 		goto out_unlock;
@@ -263,7 +263,7 @@ struct usb4_port *usb4_port_device_add(struct tb_port *port)
 
 	usb4 = kzalloc(sizeof(*usb4), GFP_KERNEL);
 	if (!usb4)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	usb4->port = port;
 	usb4->dev.type = &usb4_port_device_type;
@@ -276,7 +276,7 @@ struct usb4_port *usb4_port_device_add(struct tb_port *port)
 		return ERR_PTR(ret);
 	}
 
-	if (dev_fwnode(&usb4->dev)) {
+	if (dev_fwanalde(&usb4->dev)) {
 		ret = component_add(&usb4->dev, &connector_ops);
 		if (ret) {
 			dev_err(&usb4->dev, "failed to add component\n");
@@ -287,7 +287,7 @@ struct usb4_port *usb4_port_device_add(struct tb_port *port)
 	if (!tb_is_upstream_port(port))
 		device_set_wakeup_capable(&usb4->dev, true);
 
-	pm_runtime_no_callbacks(&usb4->dev);
+	pm_runtime_anal_callbacks(&usb4->dev);
 	pm_runtime_set_active(&usb4->dev);
 	pm_runtime_enable(&usb4->dev);
 	pm_runtime_set_autosuspend_delay(&usb4->dev, TB_AUTOSUSPEND_DELAY);
@@ -306,7 +306,7 @@ struct usb4_port *usb4_port_device_add(struct tb_port *port)
  */
 void usb4_port_device_remove(struct usb4_port *usb4)
 {
-	if (dev_fwnode(&usb4->dev))
+	if (dev_fwanalde(&usb4->dev))
 		component_del(&usb4->dev, &connector_ops);
 	device_unregister(&usb4->dev);
 }

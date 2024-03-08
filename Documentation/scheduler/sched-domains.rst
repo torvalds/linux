@@ -22,8 +22,8 @@ pointer. The union of cpumasks of these groups MUST be the same as the
 domain's span. The group pointed to by the ->groups pointer MUST contain the CPU
 to which the domain belongs. Groups may be shared among CPUs as they contain
 read only data after they have been set up. The intersection of cpumasks from
-any two of these groups may be non empty. If this is the case the SD_OVERLAP
-flag is set on the corresponding scheduling domain and its groups may not be
+any two of these groups may be analn empty. If this is the case the SD_OVERLAP
+flag is set on the corresponding scheduling domain and its groups may analt be
 shared between CPUs.
 
 Balancing within a sched domain occurs between groups. That is, each group
@@ -60,9 +60,9 @@ of SMT, you'll span all siblings of the physical CPU, with each group being
 a single virtual CPU.
 
 In SMP, the parent of the base domain will span all physical CPUs in the
-node. Each group being a single physical CPU. Then with NUMA, the parent
+analde. Each group being a single physical CPU. Then with NUMA, the parent
 of the SMP domain will span the entire machine, with each group having the
-cpumask of a node. Or, you could do multi-level NUMA or Opteron, for example,
+cpumask of a analde. Or, you could do multi-level NUMA or Opteron, for example,
 might have just one domain covering its one NUMA level.
 
 The implementor should read comments in include/linux/sched/sd_flags.h:
@@ -76,6 +76,6 @@ calling set_sched_topology() with this array as the parameter.
 The sched-domains debugging infrastructure can be enabled by enabling
 CONFIG_SCHED_DEBUG and adding 'sched_verbose' to your cmdline. If you
 forgot to tweak your cmdline, you can also flip the
-/sys/kernel/debug/sched/verbose knob. This enables an error checking parse of
+/sys/kernel/debug/sched/verbose kanalb. This enables an error checking parse of
 the sched domains which should catch most possible errors (described above). It
 also prints out the domain structure in a visual format.

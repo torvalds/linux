@@ -6,7 +6,7 @@
  */
 
 #include <linux/export.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/delay.h>
 #include <linux/jump_label.h>
 #include <asm/asm-extable.h>
@@ -133,7 +133,7 @@ int zpci_refresh_trans(u64 fn, u64 addr, u64 range)
 		zpci_err_insn_addr(1, 'R', cc, status, addr, range);
 
 	if (cc == 1 && (status == 4 || status == 16))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return (cc) ? -EIO : 0;
 }

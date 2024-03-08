@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 #ifndef _UAPI_LINUX_RSEQ_H
 #define _UAPI_LINUX_RSEQ_H
 
@@ -7,7 +7,7 @@
  *
  * Restartable sequences system call API
  *
- * Copyright (c) 2015-2018 Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+ * Copyright (c) 2015-2018 Mathieu Desanalyers <mathieu.desanalyers@efficios.com>
  */
 
 #include <linux/types.h>
@@ -23,18 +23,18 @@ enum rseq_flags {
 };
 
 enum rseq_cs_flags_bit {
-	RSEQ_CS_FLAG_NO_RESTART_ON_PREEMPT_BIT	= 0,
-	RSEQ_CS_FLAG_NO_RESTART_ON_SIGNAL_BIT	= 1,
-	RSEQ_CS_FLAG_NO_RESTART_ON_MIGRATE_BIT	= 2,
+	RSEQ_CS_FLAG_ANAL_RESTART_ON_PREEMPT_BIT	= 0,
+	RSEQ_CS_FLAG_ANAL_RESTART_ON_SIGNAL_BIT	= 1,
+	RSEQ_CS_FLAG_ANAL_RESTART_ON_MIGRATE_BIT	= 2,
 };
 
 enum rseq_cs_flags {
-	RSEQ_CS_FLAG_NO_RESTART_ON_PREEMPT	=
-		(1U << RSEQ_CS_FLAG_NO_RESTART_ON_PREEMPT_BIT),
-	RSEQ_CS_FLAG_NO_RESTART_ON_SIGNAL	=
-		(1U << RSEQ_CS_FLAG_NO_RESTART_ON_SIGNAL_BIT),
-	RSEQ_CS_FLAG_NO_RESTART_ON_MIGRATE	=
-		(1U << RSEQ_CS_FLAG_NO_RESTART_ON_MIGRATE_BIT),
+	RSEQ_CS_FLAG_ANAL_RESTART_ON_PREEMPT	=
+		(1U << RSEQ_CS_FLAG_ANAL_RESTART_ON_PREEMPT_BIT),
+	RSEQ_CS_FLAG_ANAL_RESTART_ON_SIGNAL	=
+		(1U << RSEQ_CS_FLAG_ANAL_RESTART_ON_SIGNAL_BIT),
+	RSEQ_CS_FLAG_ANAL_RESTART_ON_MIGRATE	=
+		(1U << RSEQ_CS_FLAG_ANAL_RESTART_ON_MIGRATE_BIT),
 };
 
 /*
@@ -66,7 +66,7 @@ struct rseq {
 	 * semantics. This field should only be read by the thread which
 	 * registered this data structure. Aligned on 32-bit. Always
 	 * contains a value in the range of possible CPUs, although the
-	 * value may not be the actual current CPU (e.g. if rseq is not
+	 * value may analt be the actual current CPU (e.g. if rseq is analt
 	 * initialized). This CPU number value should always be compared
 	 * against the value of the cpu_id field before performing a rseq
 	 * commit or returning a value read from a data structure indexed
@@ -91,7 +91,7 @@ struct rseq {
 	/*
 	 * Restartable sequences rseq_cs field.
 	 *
-	 * Contains NULL when no critical section is active for the current
+	 * Contains NULL when anal critical section is active for the current
 	 * thread, or holds a pointer to the currently active struct rseq_cs.
 	 *
 	 * Updated by user-space, which sets the address of the currently
@@ -119,25 +119,25 @@ struct rseq {
 	 * Mainly used for single-stepping through rseq critical sections
 	 * with debuggers.
 	 *
-	 * - RSEQ_CS_FLAG_NO_RESTART_ON_PREEMPT
+	 * - RSEQ_CS_FLAG_ANAL_RESTART_ON_PREEMPT
 	 *     Inhibit instruction sequence block restart on preemption
 	 *     for this thread.
-	 * - RSEQ_CS_FLAG_NO_RESTART_ON_SIGNAL
+	 * - RSEQ_CS_FLAG_ANAL_RESTART_ON_SIGNAL
 	 *     Inhibit instruction sequence block restart on signal
 	 *     delivery for this thread.
-	 * - RSEQ_CS_FLAG_NO_RESTART_ON_MIGRATE
+	 * - RSEQ_CS_FLAG_ANAL_RESTART_ON_MIGRATE
 	 *     Inhibit instruction sequence block restart on migration for
 	 *     this thread.
 	 */
 	__u32 flags;
 
 	/*
-	 * Restartable sequences node_id field. Updated by the kernel. Read by
+	 * Restartable sequences analde_id field. Updated by the kernel. Read by
 	 * user-space with single-copy atomicity semantics. This field should
 	 * only be read by the thread which registered this data structure.
-	 * Aligned on 32-bit. Contains the current NUMA node ID.
+	 * Aligned on 32-bit. Contains the current NUMA analde ID.
 	 */
-	__u32 node_id;
+	__u32 analde_id;
 
 	/*
 	 * Restartable sequences mm_cid field. Updated by the kernel. Read by

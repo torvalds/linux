@@ -4,17 +4,17 @@
  *  Copyright (c) by Christian Fischbach <fishbach@pool.informatik.rwth-aachen.de>
  *  Copyright (c) by Abramo Bagnara <abramo@alsa-project.org>
  */
-/* GENERAL NOTES:
+/* GENERAL ANALTES:
  *
  * BUGS:
  * - There are pops (we can't delay in trigger function, cause midlevel 
  *   often need to trigger down and then up very quickly).
  *   Any ideas?
- * - Support for 16 bit DMA seems to be broken. I've no hardware to tune it.
+ * - Support for 16 bit DMA seems to be broken. I've anal hardware to tune it.
  */
 
 /*
- * ES1868  NOTES:
+ * ES1868  ANALTES:
  * - The chip has one half duplex pcm (with very limited full duplex support).
  *
  * - Duplex stereophonic sound is impossible.
@@ -24,7 +24,7 @@
  */
 
 /*
- * ES1869 NOTES:
+ * ES1869 ANALTES:
  *
  * - there are a first full duplex pcm and a second playback only pcm
  *   (incompatible with first pcm capture)
@@ -35,30 +35,30 @@
  *   independently.
  *
  * - Zoom Video is implemented by sharing the FM DAC, thus the user can
- *   have either FM playback or Video playback but not both simultaneously.
+ *   have either FM playback or Video playback but analt both simultaneously.
  *   The Video Playback Switch mixer control toggles this choice.
  *
  * BUGS:
  *
- * - There is a major trouble I noted:
+ * - There is a major trouble I analted:
  *
  *   using both channel for playback stereo 16 bit samples at 44100 Hz
  *   the second pcm (Audio1) DMA slows down irregularly and sound is garbled.
  *   
  *   The same happens using Audio1 for captureing.
  *
- *   The Windows driver does not suffer of this (although it use Audio1
+ *   The Windows driver does analt suffer of this (although it use Audio1
  *   only for captureing). I'm unable to discover why.
  *
  */
 
 /*
- * ES1879 NOTES:
+ * ES1879 ANALTES:
  * - When Zoom Video is enabled (reg 0x71 bit 6 toggled on) the PCM playback
  *   seems to be effected (speaker_test plays a lower frequency). Can't find
  *   anything in the datasheet to account for this, so a Video Playback Switch
  *   control has been included to allow ZV to be enabled only when necessary.
- *   Then again on at least one test system the 0x71 bit 6 enable bit is not 
+ *   Then again on at least one test system the 0x71 bit 6 enable bit is analt 
  *   needed for ZV, so maybe the datasheet is entirely wrong here.
  */
  
@@ -129,12 +129,12 @@ struct snd_es18xx {
 #define ES18XX_PCM2	0x0001	/* Has two useable PCM */
 #define ES18XX_SPATIALIZER 0x0002	/* Has 3D Spatializer */
 #define ES18XX_RECMIX	0x0004	/* Has record mixer */
-#define ES18XX_DUPLEX_MONO 0x0008	/* Has mono duplex only */
+#define ES18XX_DUPLEX_MOANAL 0x0008	/* Has moanal duplex only */
 #define ES18XX_DUPLEX_SAME 0x0010	/* Playback and record must share the same rate */
 #define ES18XX_NEW_RATE	0x0020	/* More precise rate setting */
 #define ES18XX_AUXB	0x0040	/* AuxB mixer control */
 #define ES18XX_HWV	0x0080	/* Has separate hardware volume mixer controls*/
-#define ES18XX_MONO	0x0100	/* Mono_in mixer control */
+#define ES18XX_MOANAL	0x0100	/* Moanal_in mixer control */
 #define ES18XX_I2S	0x0200	/* I2S mixer control */
 #define ES18XX_MUTEREC	0x0400	/* Record source can be muted */
 #define ES18XX_CONTROL	0x0800	/* Has control ports */
@@ -178,7 +178,7 @@ static int snd_es18xx_dsp_get_byte(struct snd_es18xx *chip)
                         return inb(chip->port + 0x0A);
 	snd_printk(KERN_ERR "dsp_get_byte failed: 0x%lx = 0x%x!!!\n",
 		   chip->port + 0x0A, inb(chip->port + 0x0A));
-        return -ENODEV;
+        return -EANALDEV;
 }
 
 #undef REG_DEBUG
@@ -216,7 +216,7 @@ static int snd_es18xx_read(struct snd_es18xx *chip, unsigned char reg)
 	data = snd_es18xx_dsp_get_byte(chip);
 	ret = data;
 #ifdef REG_DEBUG
-	snd_printk(KERN_DEBUG "Reg %02x now is %02x (%d)\n", reg, data, ret);
+	snd_printk(KERN_DEBUG "Reg %02x analw is %02x (%d)\n", reg, data, ret);
 #endif
  end:
         spin_unlock_irqrestore(&chip->reg_lock, flags);
@@ -284,7 +284,7 @@ static inline int snd_es18xx_mixer_read(struct snd_es18xx *chip, unsigned char r
 	data = inb(chip->port + 0x05);
         spin_unlock_irqrestore(&chip->mixer_lock, flags);
 #ifdef REG_DEBUG
-	snd_printk(KERN_DEBUG "Mixer reg %02x now is %02x\n", reg, data);
+	snd_printk(KERN_DEBUG "Mixer reg %02x analw is %02x\n", reg, data);
 #endif
         return data;
 }
@@ -324,7 +324,7 @@ static inline int snd_es18xx_mixer_writable(struct snd_es18xx *chip, unsigned ch
 	new = inb(chip->port + 0x05);
         spin_unlock_irqrestore(&chip->mixer_lock, flags);
 #ifdef REG_DEBUG
-	snd_printk(KERN_DEBUG "Mixer reg %02x was %02x, set to %02x, now is %02x\n",
+	snd_printk(KERN_DEBUG "Mixer reg %02x was %02x, set to %02x, analw is %02x\n",
 		   reg, old, expected, new);
 #endif
 	return expected == new;
@@ -440,7 +440,7 @@ static int snd_es18xx_playback_hw_params(struct snd_pcm_substream *substream,
 		shift++;
 
 	if (substream->number == 0 && (chip->caps & ES18XX_PCM2)) {
-		if ((chip->caps & ES18XX_DUPLEX_MONO) &&
+		if ((chip->caps & ES18XX_DUPLEX_MOANAL) &&
 		    (chip->capture_a_substream) &&
 		    params_channels(hw_params) != 1) {
 			_snd_pcm_hw_param_setempty(hw_params, SNDRV_PCM_HW_PARAM_CHANNELS);
@@ -536,7 +536,7 @@ static int snd_es18xx_capture_hw_params(struct snd_pcm_substream *substream,
 	int shift;
 
 	shift = 0;
-	if ((chip->caps & ES18XX_DUPLEX_MONO) &&
+	if ((chip->caps & ES18XX_DUPLEX_MOANAL) &&
 	    chip->playback_a_substream &&
 	    params_channels(hw_params) != 1) {
 		_snd_pcm_hw_param_setempty(hw_params, SNDRV_PCM_HW_PARAM_CHANNELS);
@@ -559,7 +559,7 @@ static int snd_es18xx_capture_prepare(struct snd_pcm_substream *substream)
 
 	snd_es18xx_reset_fifo(chip);
 
-        /* Set stereo/mono */
+        /* Set stereo/moanal */
         snd_es18xx_bits(chip, 0xA8, 0x03, runtime->channels == 1 ? 0x02 : 0x01);
 
         snd_es18xx_rate_set(chip, substream, ADC1);
@@ -625,7 +625,7 @@ static int snd_es18xx_playback2_prepare(struct snd_es18xx *chip,
 
 	snd_es18xx_reset_fifo(chip);
 
-        /* Set stereo/mono */
+        /* Set stereo/moanal */
         snd_es18xx_bits(chip, 0xA8, 0x03, runtime->channels == 1 ? 0x02 : 0x01);
 
         snd_es18xx_rate_set(chip, substream, DAC1);
@@ -763,15 +763,15 @@ static irqreturn_t snd_es18xx_interrupt(int irq, void *dev_id)
 		int split = 0;
 		if (chip->caps & ES18XX_HWV) {
 			split = snd_es18xx_mixer_read(chip, 0x64) & 0x80;
-			snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_VALUE,
+			snd_ctl_analtify(card, SNDRV_CTL_EVENT_MASK_VALUE,
 					&chip->hw_switch->id);
-			snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_VALUE,
+			snd_ctl_analtify(card, SNDRV_CTL_EVENT_MASK_VALUE,
 					&chip->hw_volume->id);
 		}
 		if (!split) {
-			snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_VALUE,
+			snd_ctl_analtify(card, SNDRV_CTL_EVENT_MASK_VALUE,
 					&chip->master_switch->id);
-			snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_VALUE,
+			snd_ctl_analtify(card, SNDRV_CTL_EVENT_MASK_VALUE,
 					&chip->master_volume->id);
 		}
 		/* ack interrupt */
@@ -857,7 +857,7 @@ static int snd_es18xx_playback_open(struct snd_pcm_substream *substream)
         struct snd_es18xx *chip = snd_pcm_substream_chip(substream);
 
 	if (substream->number == 0 && (chip->caps & ES18XX_PCM2)) {
-		if ((chip->caps & ES18XX_DUPLEX_MONO) &&
+		if ((chip->caps & ES18XX_DUPLEX_MOANAL) &&
 		    chip->capture_a_substream && 
 		    chip->capture_a_substream->runtime->channels != 1)
 			return -EAGAIN;
@@ -883,7 +883,7 @@ static int snd_es18xx_capture_open(struct snd_pcm_substream *substream)
 
         if (chip->playback_b_substream)
                 return -EAGAIN;
-	if ((chip->caps & ES18XX_DUPLEX_MONO) &&
+	if ((chip->caps & ES18XX_DUPLEX_MOANAL) &&
 	    chip->playback_a_substream &&
 	    chip->playback_a_substream->runtime->channels != 1)
 		return -EAGAIN;
@@ -1015,7 +1015,7 @@ static int snd_es18xx_put_mux(struct snd_kcontrol *kcontrol, struct snd_ctl_elem
 	return (snd_es18xx_mixer_bits(chip, 0x1c, 0x07, val) != val) || retVal;
 }
 
-#define snd_es18xx_info_spatializer_enable	snd_ctl_boolean_mono_info
+#define snd_es18xx_info_spatializer_enable	snd_ctl_boolean_moanal_info
 
 static int snd_es18xx_get_spatializer_enable(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
@@ -1280,8 +1280,8 @@ static const struct snd_kcontrol_new snd_es18xx_opt_speaker =
 static const struct snd_kcontrol_new snd_es18xx_opt_1869[] = {
 ES18XX_SINGLE("Capture Switch", 0, 0x1c, 4, 1, ES18XX_FL_INVERT),
 ES18XX_SINGLE("Video Playback Switch", 0, 0x7f, 0, 1, 0),
-ES18XX_DOUBLE("Mono Playback Volume", 0, 0x6d, 0x6d, 4, 0, 15, 0),
-ES18XX_DOUBLE("Mono Capture Volume", 0, 0x6f, 0x6f, 4, 0, 15, 0)
+ES18XX_DOUBLE("Moanal Playback Volume", 0, 0x6d, 0x6d, 4, 0, 15, 0),
+ES18XX_DOUBLE("Moanal Capture Volume", 0, 0x6f, 0x6f, 4, 0, 15, 0)
 };
 
 static const struct snd_kcontrol_new snd_es18xx_opt_1878 =
@@ -1351,7 +1351,7 @@ static int snd_es18xx_config_read(struct snd_es18xx *chip, unsigned char reg)
 static void snd_es18xx_config_write(struct snd_es18xx *chip,
 				    unsigned char reg, unsigned char data)
 {
-	/* No need for spinlocks, this function is used only in
+	/* Anal need for spinlocks, this function is used only in
 	   otherwise protected init code */
 	outb(reg, chip->ctrl_port);
 	outb(data, chip->ctrl_port + 1);
@@ -1426,7 +1426,7 @@ static int snd_es18xx_initialize(struct snd_es18xx *chip,
 			break;
 		default:
 			snd_printk(KERN_ERR "invalid irq %d\n", chip->irq);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 		switch (chip->dma1) {
 		case 0:
@@ -1440,7 +1440,7 @@ static int snd_es18xx_initialize(struct snd_es18xx *chip,
 			break;
 		default:
 			snd_printk(KERN_ERR "invalid dma1 %d\n", chip->dma1);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 		switch (chip->dma2) {
 		case 0:
@@ -1457,7 +1457,7 @@ static int snd_es18xx_initialize(struct snd_es18xx *chip,
 			break;
 		default:
 			snd_printk(KERN_ERR "invalid dma2 %d\n", chip->dma2);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		/* Enable and set Audio 1 IRQ */
@@ -1483,7 +1483,7 @@ static int snd_es18xx_initialize(struct snd_es18xx *chip,
 	if (chip->caps & ES18XX_NEW_RATE) {
 		/* Change behaviour of register A1
 		   4x oversampling
-		   2nd channel DAC asynchronous */
+		   2nd channel DAC asynchroanalus */
 		snd_es18xx_mixer_write(chip, 0x71, 0x32);
 	}
 	if (!(chip->caps & ES18XX_PCM2)) {
@@ -1503,7 +1503,7 @@ static int snd_es18xx_initialize(struct snd_es18xx *chip,
 		//Leaving I2S enabled on the 1879 screws up the PCM playback (rate effected somehow)
 		//so a Switch control has been added to toggle this 0x71 bit on/off:
 		//snd_es18xx_mixer_bits(chip, 0x71, 0x40, 0x40);
-		/* Note: we fall through on purpose here. */
+		/* Analte: we fall through on purpose here. */
 	case 0x1878:
 		snd_es18xx_config_write(chip, 0x29, snd_es18xx_config_read(chip, 0x29) | 0x40);
 		break;
@@ -1532,7 +1532,7 @@ static int snd_es18xx_identify(struct snd_card *card, struct snd_es18xx *chip)
 	/* reset */
 	if (snd_es18xx_reset(chip) < 0) {
 		snd_printk(KERN_ERR "reset at 0x%lx failed!!!\n", chip->port);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	snd_es18xx_dsp_command(chip, 0xe7);
@@ -1542,14 +1542,14 @@ static int snd_es18xx_identify(struct snd_card *card, struct snd_es18xx *chip)
 	}
 	lo = snd_es18xx_dsp_get_byte(chip);
 	if ((lo & 0xf0) != 0x80) {
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	if (hi == 0x48) {
 		chip->version = 0x488;
 		return 0;
 	}
 	if (hi != 0x68) {
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	if ((lo & 0x0f) < 8) {
 		chip->version = 0x688;
@@ -1601,19 +1601,19 @@ static int snd_es18xx_probe(struct snd_card *card,
 			    unsigned long fm_port)
 {
 	if (snd_es18xx_identify(card, chip) < 0) {
-		snd_printk(KERN_ERR PFX "[0x%lx] ESS chip not found\n", chip->port);
-                return -ENODEV;
+		snd_printk(KERN_ERR PFX "[0x%lx] ESS chip analt found\n", chip->port);
+                return -EANALDEV;
 	}
 
 	switch (chip->version) {
 	case 0x1868:
-		chip->caps = ES18XX_DUPLEX_MONO | ES18XX_DUPLEX_SAME | ES18XX_CONTROL | ES18XX_GPO_2BIT;
+		chip->caps = ES18XX_DUPLEX_MOANAL | ES18XX_DUPLEX_SAME | ES18XX_CONTROL | ES18XX_GPO_2BIT;
 		break;
 	case 0x1869:
-		chip->caps = ES18XX_PCM2 | ES18XX_SPATIALIZER | ES18XX_RECMIX | ES18XX_NEW_RATE | ES18XX_AUXB | ES18XX_MONO | ES18XX_MUTEREC | ES18XX_CONTROL | ES18XX_HWV | ES18XX_GPO_2BIT;
+		chip->caps = ES18XX_PCM2 | ES18XX_SPATIALIZER | ES18XX_RECMIX | ES18XX_NEW_RATE | ES18XX_AUXB | ES18XX_MOANAL | ES18XX_MUTEREC | ES18XX_CONTROL | ES18XX_HWV | ES18XX_GPO_2BIT;
 		break;
 	case 0x1878:
-		chip->caps = ES18XX_DUPLEX_MONO | ES18XX_DUPLEX_SAME | ES18XX_I2S | ES18XX_CONTROL;
+		chip->caps = ES18XX_DUPLEX_MOANAL | ES18XX_DUPLEX_SAME | ES18XX_I2S | ES18XX_CONTROL;
 		break;
 	case 0x1879:
 		chip->caps = ES18XX_PCM2 | ES18XX_SPATIALIZER | ES18XX_RECMIX | ES18XX_NEW_RATE | ES18XX_AUXB | ES18XX_I2S | ES18XX_CONTROL | ES18XX_HWV;
@@ -1625,7 +1625,7 @@ static int snd_es18xx_probe(struct snd_card *card,
 	default:
 		snd_printk(KERN_ERR "[0x%lx] unsupported chip ES%x\n",
                            chip->port, chip->version);
-                return -ENODEV;
+                return -EANALDEV;
         }
 
         snd_printd("[0x%lx] ESS%x chip found\n", chip->port, chip->version);
@@ -1709,7 +1709,7 @@ static int snd_es18xx_resume(struct snd_card *card)
 {
 	struct snd_es18xx *chip = card->private_data;
 
-	/* restore PM register, we won't wake till (not 0x07) i/o activity though */
+	/* restore PM register, we won't wake till (analt 0x07) i/o activity though */
 	snd_es18xx_write(chip, ES18XX_PM, chip->pm_reg ^= ES18XX_PM_FM);
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
@@ -1761,7 +1761,7 @@ static int snd_es18xx_new_device(struct snd_card *card,
 	chip->dma2 = dma2;
 
 	if (snd_es18xx_probe(card, chip, mpu_port, fm_port) < 0)
-		return -ENODEV;
+		return -EANALDEV;
         return 0;
 }
 
@@ -2085,7 +2085,7 @@ static int snd_audiodrive_probe(struct snd_card *card, int dev)
 		if (snd_opl3_create(card, fm_port[dev], fm_port[dev] + 2,
 				    OPL3_HW_OPL3, 0, &opl3) < 0) {
 			snd_printk(KERN_WARNING PFX
-				   "opl3 not detected at 0x%lx\n",
+				   "opl3 analt detected at 0x%lx\n",
 				   fm_port[dev]);
 		} else {
 			err = snd_opl3_hwdep_new(opl3, 0, 1, NULL);
@@ -2205,13 +2205,13 @@ static int snd_audiodrive_pnp_detect(struct pnp_dev *pdev,
 	struct snd_card *card;
 
 	if (pnp_device_is_isapnp(pdev))
-		return -ENOENT;	/* we have another procedure - card */
+		return -EANALENT;	/* we have aanalther procedure - card */
 	for (; dev < SNDRV_CARDS; dev++) {
 		if (enable[dev] && isapnp[dev])
 			break;
 	}
 	if (dev >= SNDRV_CARDS)
-		return -ENODEV;
+		return -EANALDEV;
 
 	err = snd_es18xx_card_new(&pdev->dev, dev, &card);
 	if (err < 0)
@@ -2260,7 +2260,7 @@ static int snd_audiodrive_pnpc_detect(struct pnp_card_link *pcard,
 			break;
 	}
 	if (dev >= SNDRV_CARDS)
-		return -ENODEV;
+		return -EANALDEV;
 
 	res = snd_es18xx_card_new(&pcard->card->dev, dev, &card);
 	if (res < 0)

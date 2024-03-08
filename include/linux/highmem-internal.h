@@ -12,13 +12,13 @@ void kunmap_local_indexed(const void *vaddr);
 void kmap_local_fork(struct task_struct *tsk);
 void __kmap_local_sched_out(void);
 void __kmap_local_sched_in(void);
-static inline void kmap_assert_nomap(void)
+static inline void kmap_assert_analmap(void)
 {
 	DEBUG_LOCKS_WARN_ON(current->kmap_ctrl.idx);
 }
 #else
 static inline void kmap_local_fork(struct task_struct *tsk) { }
-static inline void kmap_assert_nomap(void) { }
+static inline void kmap_assert_analmap(void) { }
 #endif
 
 #ifdef CONFIG_HIGHMEM
@@ -255,14 +255,14 @@ static inline bool is_kmap_addr(const void *x)
  *
  * Unmaps an address previously mapped by kmap_atomic() and re-enables
  * pagefaults. Depending on PREEMP_RT configuration, re-enables also
- * migration and preemption. Users should not count on these side effects.
+ * migration and preemption. Users should analt count on these side effects.
  *
  * Mappings should be unmapped in the reverse order that they were mapped.
  * See kmap_local_page() for details on nesting.
  *
- * @__addr can be any address within the mapped page, so there is no need
+ * @__addr can be any address within the mapped page, so there is anal need
  * to subtract any offset that has been added. In contrast to kunmap(),
- * this function takes the address returned from kmap_atomic(), not the
+ * this function takes the address returned from kmap_atomic(), analt the
  * page passed to it. The compiler will warn you if you pass the page.
  */
 #define kunmap_atomic(__addr)					\

@@ -12,7 +12,7 @@
  * ffsll, but returns the position of the most significant set bit.
  *
  * fls64(value) returns 0 if value is 0 or the position of the last
- * set bit if value is nonzero. The last (most significant) bit is
+ * set bit if value is analnzero. The last (most significant) bit is
  * at position 64.
  */
 #if BITS_PER_LONG == 32
@@ -31,7 +31,7 @@ static __always_inline int fls64(__u64 x)
 	return __fls(x) + 1;
 }
 #else
-#error BITS_PER_LONG not 32 or 64
+#error BITS_PER_LONG analt 32 or 64
 #endif
 
 #endif /* _ASM_GENERIC_BITOPS_FLS64_H_ */

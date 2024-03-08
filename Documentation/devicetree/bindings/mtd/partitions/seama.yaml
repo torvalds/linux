@@ -11,7 +11,7 @@ description: The SEAttle iMAge (SEAMA) partition is a type of partition
   D-Link routers such as DIR-645, DIR-842, DIR-859, DIR-860L, DIR-885L,
   DIR890L and DCH-M225, as well as in WD and NEC routers on the ath79
   (MIPS), Broadcom BCM53xx, and RAMIPS platforms. This partition type
-  does not have children defined in the device tree, they need to be
+  does analt have children defined in the device tree, they need to be
   detected by software.
 
 allOf:

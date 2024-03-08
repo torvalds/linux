@@ -75,7 +75,7 @@ static int rzv2m_usb3drd_probe(struct platform_device *pdev)
 
 	usb3 = devm_kzalloc(&pdev->dev, sizeof(*usb3), GFP_KERNEL);
 	if (!usb3)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	usb3->dev = &pdev->dev;
 
@@ -100,7 +100,7 @@ static int rzv2m_usb3drd_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_rst;
 
-	ret = of_platform_populate(usb3->dev->of_node, NULL, NULL, usb3->dev);
+	ret = of_platform_populate(usb3->dev->of_analde, NULL, NULL, usb3->dev);
 	if (ret)
 		goto err_pm;
 

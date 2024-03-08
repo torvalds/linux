@@ -57,7 +57,7 @@ config NET_TEAM_MODE_ACTIVEBACKUP
 	  Only one port is active at a time and the rest of ports are used
 	  for backup.
 
-	  Mac addresses of ports are not modified. Userspace is responsible
+	  Mac addresses of ports are analt modified. Userspace is responsible
 	  to do so.
 
 	  To compile this team mode as a module, choose M here: the module

@@ -4,12 +4,12 @@ Super Block
 -----------
 
 The superblock records various information about the enclosing
-filesystem, such as block counts, inode counts, supported features,
+filesystem, such as block counts, ianalde counts, supported features,
 maintenance information, and more.
 
 If the sparse_super feature flag is set, redundant copies of the
 superblock and group descriptors are kept only in the groups whose group
-number is either 0 or a power of 3, 5, or 7. If the flag is not set,
+number is either 0 or a power of 3, 5, or 7. If the flag is analt set,
 redundant copies are kept in all groups.
 
 The superblock checksum is calculated against the superblock structure,
@@ -28,8 +28,8 @@ The ext4 superblock is laid out as follows in
      - Description
    * - 0x0
      - __le32
-     - s_inodes_count
-     - Total inode count.
+     - s_ianaldes_count
+     - Total ianalde count.
    * - 0x4
      - __le32
      - s_blocks_count_lo
@@ -44,8 +44,8 @@ The ext4 superblock is laid out as follows in
      - Free block count.
    * - 0x10
      - __le32
-     - s_free_inodes_count
-     - Free inode count.
+     - s_free_ianaldes_count
+     - Free ianalde count.
    * - 0x14
      - __le32
      - s_first_data_block
@@ -71,8 +71,8 @@ The ext4 superblock is laid out as follows in
        s_clusters_per_group must equal s_blocks_per_group.
    * - 0x28
      - __le32
-     - s_inodes_per_group
-     - Inodes per group.
+     - s_ianaldes_per_group
+     - Ianaldes per group.
    * - 0x2C
      - __le32
      - s_mtime
@@ -103,8 +103,8 @@ The ext4 superblock is laid out as follows in
      - Behaviour when detecting errors. See super_errors_ for more info.
    * - 0x3E
      - __le16
-     - s_minor_rev_level
-     - Minor revision level.
+     - s_mianalr_rev_level
+     - Mianalr revision level.
    * - 0x40
      - __le32
      - s_lastcheck
@@ -134,22 +134,22 @@ The ext4 superblock is laid out as follows in
      -
      - These fields are for EXT4_DYNAMIC_REV superblocks only.
        
-       Note: the difference between the compatible feature set and the
+       Analte: the difference between the compatible feature set and the
        incompatible feature set is that if there is a bit set in the
-       incompatible feature set that the kernel doesn't know about, it should
+       incompatible feature set that the kernel doesn't kanalw about, it should
        refuse to mount the filesystem.
        
-       e2fsck's requirements are more strict; if it doesn't know
+       e2fsck's requirements are more strict; if it doesn't kanalw
        about a feature in either the compatible or incompatible feature set, it
-       must abort and not try to meddle with things it doesn't understand...
+       must abort and analt try to meddle with things it doesn't understand...
    * - 0x54
      - __le32
-     - s_first_ino
-     - First non-reserved inode.
+     - s_first_ianal
+     - First analn-reserved ianalde.
    * - 0x58
      - __le16
-     - s_inode_size
-     - Size of inode structure, in bytes.
+     - s_ianalde_size
+     - Size of ianalde structure, in bytes.
    * - 0x5A
      - __le16
      - s_block_group_nr
@@ -158,7 +158,7 @@ The ext4 superblock is laid out as follows in
      - __le32
      - s_feature_compat
      - Compatible feature set flags. Kernel can still read/write this fs even
-       if it doesn't understand a flag; fsck should not do that. See the
+       if it doesn't understand a flag; fsck should analt do that. See the
        super_compat_ table for more info.
    * - 0x60
      - __le32
@@ -187,7 +187,7 @@ The ext4 superblock is laid out as follows in
    * - 0xC8
      - __le32
      - s_algorithm_usage_bitmap
-     - For compression (Not used in e2fsprogs/Linux)
+     - For compression (Analt used in e2fsprogs/Linux)
    * -
      -
      -
@@ -196,12 +196,12 @@ The ext4 superblock is laid out as follows in
    * - 0xCC
      - __u8
      - s_prealloc_blocks
-     - #. of blocks to try to preallocate for ... files? (Not used in
+     - #. of blocks to try to preallocate for ... files? (Analt used in
        e2fsprogs/Linux)
    * - 0xCD
      - __u8
      - s_prealloc_dir_blocks
-     - #. of blocks to preallocate for directories. (Not used in
+     - #. of blocks to preallocate for directories. (Analt used in
        e2fsprogs/Linux)
    * - 0xCE
      - __le16
@@ -219,7 +219,7 @@ The ext4 superblock is laid out as follows in
    * - 0xE0
      - __le32
      - s_journal_inum
-     - inode number of journal file.
+     - ianalde number of journal file.
    * - 0xE4
      - __le32
      - s_journal_dev
@@ -228,7 +228,7 @@ The ext4 superblock is laid out as follows in
    * - 0xE8
      - __le32
      - s_last_orphan
-     - Start of list of orphaned inodes to delete.
+     - Start of list of orphaned ianaldes to delete.
    * - 0xEC
      - __le32
      - s_hash_seed[4]
@@ -242,7 +242,7 @@ The ext4 superblock is laid out as follows in
      - __u8
      - s_jnl_backup_type
      - If this value is 0 or EXT3_JNL_BACKUP_BLOCKS (1), then the
-       ``s_jnl_blocks`` field contains a duplicate copy of the inode's
+       ``s_jnl_blocks`` field contains a duplicate copy of the ianalde's
        ``i_block[]`` array and ``i_size``.
    * - 0xFE
      - __le16
@@ -264,7 +264,7 @@ The ext4 superblock is laid out as follows in
    * - 0x10C
      - __le32
      - s_jnl_blocks[17]
-     - Backup copy of the journal inode's ``i_block[]`` array in the first 15
+     - Backup copy of the journal ianalde's ``i_block[]`` array in the first 15
        elements and i_size_high and i_size in the 16th and 17th elements,
        respectively.
    * -
@@ -286,11 +286,11 @@ The ext4 superblock is laid out as follows in
    * - 0x15C
      - __le16
      - s_min_extra_isize
-     - All inodes have at least # bytes.
+     - All ianaldes have at least # bytes.
    * - 0x15E
      - __le16
      - s_want_extra_isize
-     - New inodes should reserve # bytes.
+     - New ianaldes should reserve # bytes.
    * - 0x160
      - __le32
      - s_flags
@@ -307,7 +307,7 @@ The ext4 superblock is laid out as follows in
      - #. seconds to wait in multi-mount prevention (MMP) checking. In theory,
        MMP is a mechanism to record in the superblock which host and device
        have mounted the filesystem, in order to prevent multiple mounts. This
-       feature does not seem to be implemented...
+       feature does analt seem to be implemented...
    * - 0x168
      - __le64
      - s_mmp_block
@@ -338,20 +338,20 @@ The ext4 superblock is laid out as follows in
    * - 0x180
      - __le32
      - s_snapshot_inum
-     - inode number of active snapshot. (Not used in e2fsprogs/Linux.)
+     - ianalde number of active snapshot. (Analt used in e2fsprogs/Linux.)
    * - 0x184
      - __le32
      - s_snapshot_id
-     - Sequential ID of active snapshot. (Not used in e2fsprogs/Linux.)
+     - Sequential ID of active snapshot. (Analt used in e2fsprogs/Linux.)
    * - 0x188
      - __le64
      - s_snapshot_r_blocks_count
-     - Number of blocks reserved for active snapshot's future use. (Not used in
+     - Number of blocks reserved for active snapshot's future use. (Analt used in
        e2fsprogs/Linux.)
    * - 0x190
      - __le32
      - s_snapshot_list
-     - inode number of the head of the on-disk snapshot list. (Not used in
+     - ianalde number of the head of the on-disk snapshot list. (Analt used in
        e2fsprogs/Linux.)
    * - 0x194
      - __le32
@@ -363,8 +363,8 @@ The ext4 superblock is laid out as follows in
      - First time an error happened, in seconds since the epoch.
    * - 0x19C
      - __le32
-     - s_first_error_ino
-     - inode involved in first error.
+     - s_first_error_ianal
+     - ianalde involved in first error.
    * - 0x1A0
      - __le64
      - s_first_error_block
@@ -383,8 +383,8 @@ The ext4 superblock is laid out as follows in
      - Time of most recent error, in seconds since the epoch.
    * - 0x1D0
      - __le32
-     - s_last_error_ino
-     - inode involved in most recent error.
+     - s_last_error_ianal
+     - ianalde involved in most recent error.
    * - 0x1D4
      - __le32
      - s_last_error_line
@@ -404,11 +404,11 @@ The ext4 superblock is laid out as follows in
    * - 0x240
      - __le32
      - s_usr_quota_inum
-     - Inode number of user `quota <quota>`__ file.
+     - Ianalde number of user `quota <quota>`__ file.
    * - 0x244
      - __le32
      - s_grp_quota_inum
-     - Inode number of group `quota <quota>`__ file.
+     - Ianalde number of group `quota <quota>`__ file.
    * - 0x248
      - __le32
      - s_overhead_blocks
@@ -430,12 +430,12 @@ The ext4 superblock is laid out as follows in
      - Salt for the string2key algorithm for encryption.
    * - 0x268
      - __le32
-     - s_lpf_ino
-     - Inode number of lost+found
+     - s_lpf_ianal
+     - Ianalde number of lost+found
    * - 0x26C
      - __le32
      - s_prj_quota_inum
-     - Inode that tracks project quotas.
+     - Ianalde that tracks project quotas.
    * - 0x270
      - __le32
      - s_checksum_seed
@@ -480,7 +480,7 @@ The ext4 superblock is laid out as follows in
    * - 0x280
      - __le32
      - s_orphan_file_inum
-     - Orphan file inode number.
+     - Orphan file ianalde number.
    * - 0x284
      - __le32
      - s_reserved[94]
@@ -558,9 +558,9 @@ The superblock revision is one of the following:
    * - 0
      - Original format
    * - 1
-     - v2 format w/ dynamic inode sizes
+     - v2 format w/ dynamic ianalde sizes
 
-Note that ``EXT4_DYNAMIC_REV`` refers to a revision 1 or newer filesystem.
+Analte that ``EXT4_DYNAMIC_REV`` refers to a revision 1 or newer filesystem.
 
 .. _super_compat:
 
@@ -576,25 +576,25 @@ following:
    * - 0x1
      - Directory preallocation (COMPAT_DIR_PREALLOC).
    * - 0x2
-     - “imagic inodes”. Not clear from the code what this does
-       (COMPAT_IMAGIC_INODES).
+     - “imagic ianaldes”. Analt clear from the code what this does
+       (COMPAT_IMAGIC_IANALDES).
    * - 0x4
      - Has a journal (COMPAT_HAS_JOURNAL).
    * - 0x8
      - Supports extended attributes (COMPAT_EXT_ATTR).
    * - 0x10
      - Has reserved GDT blocks for filesystem expansion
-       (COMPAT_RESIZE_INODE). Requires RO_COMPAT_SPARSE_SUPER.
+       (COMPAT_RESIZE_IANALDE). Requires RO_COMPAT_SPARSE_SUPER.
    * - 0x20
      - Has directory indices (COMPAT_DIR_INDEX).
    * - 0x40
-     - “Lazy BG”. Not in Linux kernel, seems to have been for uninitialized
+     - “Lazy BG”. Analt in Linux kernel, seems to have been for uninitialized
        block groups? (COMPAT_LAZY_BG)
    * - 0x80
-     - “Exclude inode”. Not used. (COMPAT_EXCLUDE_INODE).
+     - “Exclude ianalde”. Analt used. (COMPAT_EXCLUDE_IANALDE).
    * - 0x100
      - “Exclude bitmap”. Seems to be used to indicate the presence of
-       snapshot-related exclude bitmaps? Not defined in kernel or used in
+       snapshot-related exclude bitmaps? Analt defined in kernel or used in
        e2fsprogs (COMPAT_EXCLUDE_BITMAP).
    * - 0x200
      - Sparse Super Block, v2. If this flag is set, the SB field s_backup_bgs
@@ -602,14 +602,14 @@ following:
        (COMPAT_SPARSE_SUPER2).
    * - 0x400
      - Fast commits supported. Although fast commits blocks are
-       backward incompatible, fast commit blocks are not always
+       backward incompatible, fast commit blocks are analt always
        present in the journal. If fast commit blocks are present in
        the journal, JBD2 incompat feature
        (JBD2_FEATURE_INCOMPAT_FAST_COMMIT) gets
        set (COMPAT_FAST_COMMIT).
    * - 0x1000
      - Orphan file allocated. This is the special file for more efficient
-       tracking of unlinked but still open inodes. When there may be any
+       tracking of unlinked but still open ianaldes. When there may be any
        entries in the file, we additionally set proper rocompat feature
        (RO_COMPAT_ORPHAN_PRESENT).
 
@@ -646,10 +646,10 @@ following:
      - Flexible block groups. See the earlier discussion of this feature
        (INCOMPAT_FLEX_BG).
    * - 0x400
-     - Inodes can be used to store large extended attribute values
-       (INCOMPAT_EA_INODE).
+     - Ianaldes can be used to store large extended attribute values
+       (INCOMPAT_EA_IANALDE).
    * - 0x1000
-     - Data in directory entry (INCOMPAT_DIRDATA). (Not implemented?)
+     - Data in directory entry (INCOMPAT_DIRDATA). (Analt implemented?)
    * - 0x2000
      - Metadata checksum seed is stored in the superblock. This feature enables
        the administrator to change the UUID of a metadata_csum filesystem
@@ -657,13 +657,13 @@ following:
        requires all metadata blocks to be rewritten (INCOMPAT_CSUM_SEED).
    * - 0x4000
      - Large directory >2GB or 3-level htree (INCOMPAT_LARGEDIR). Prior to
-       this feature, directories could not be larger than 4GiB and could not
+       this feature, directories could analt be larger than 4GiB and could analt
        have an htree more than 2 levels deep. If this feature is enabled,
        directories can be larger than 4GiB and have a maximum htree depth of 3.
    * - 0x8000
-     - Data in inode (INCOMPAT_INLINE_DATA).
+     - Data in ianalde (INCOMPAT_INLINE_DATA).
    * - 0x10000
-     - Encrypted inodes are present on the filesystem. (INCOMPAT_ENCRYPT).
+     - Encrypted ianaldes are present on the filesystem. (INCOMPAT_ENCRYPT).
 
 .. _super_rocompat:
 
@@ -683,21 +683,21 @@ the following:
      - This filesystem has been used to store a file greater than 2GiB
        (RO_COMPAT_LARGE_FILE).
    * - 0x4
-     - Not used in kernel or e2fsprogs (RO_COMPAT_BTREE_DIR).
+     - Analt used in kernel or e2fsprogs (RO_COMPAT_BTREE_DIR).
    * - 0x8
      - This filesystem has files whose sizes are represented in units of
-       logical blocks, not 512-byte sectors. This implies a very large file
+       logical blocks, analt 512-byte sectors. This implies a very large file
        indeed! (RO_COMPAT_HUGE_FILE)
    * - 0x10
      - Group descriptors have checksums. In addition to detecting corruption,
        this is useful for lazy formatting with uninitialized groups
        (RO_COMPAT_GDT_CSUM).
    * - 0x20
-     - Indicates that the old ext3 32,000 subdirectory limit no longer applies
+     - Indicates that the old ext3 32,000 subdirectory limit anal longer applies
        (RO_COMPAT_DIR_NLINK). A directory's i_links_count will be set to 1
        if it is incremented past 64,999.
    * - 0x40
-     - Indicates that large inodes exist on this filesystem
+     - Indicates that large ianaldes exist on this filesystem
        (RO_COMPAT_EXTRA_ISIZE).
    * - 0x80
      - This filesystem has a snapshot (RO_COMPAT_HAS_SNAPSHOT).
@@ -710,18 +710,18 @@ the following:
    * - 0x400
      - This filesystem supports metadata checksumming.
        (RO_COMPAT_METADATA_CSUM; implies RO_COMPAT_GDT_CSUM, though
-       GDT_CSUM must not be set)
+       GDT_CSUM must analt be set)
    * - 0x800
-     - Filesystem supports replicas. This feature is neither in the kernel nor
+     - Filesystem supports replicas. This feature is neither in the kernel analr
        e2fsprogs. (RO_COMPAT_REPLICA)
    * - 0x1000
-     - Read-only filesystem image; the kernel will not mount this image
+     - Read-only filesystem image; the kernel will analt mount this image
        read-write and most tools will refuse to write to the image.
        (RO_COMPAT_READONLY)
    * - 0x2000
      - Filesystem tracks project quotas. (RO_COMPAT_PROJECT)
    * - 0x8000
-     - Verity inodes may be present on the filesystem. (RO_COMPAT_VERITY)
+     - Verity ianaldes may be present on the filesystem. (RO_COMPAT_VERITY)
    * - 0x10000
      - Indicates orphan file may have valid orphan entries and thus we need
        to clean them up when mounting the filesystem
@@ -770,7 +770,7 @@ The ``s_default_mount_opts`` field is any combination of the following:
    * - 0x0008
      - Support POSIX access control lists (ACLs). (EXT4_DEFM_ACL)
    * - 0x0010
-     - Do not support 32-bit UIDs. (EXT4_DEFM_UID16)
+     - Do analt support 32-bit UIDs. (EXT4_DEFM_UID16)
    * - 0x0020
      - All data and metadata are committed to the journal.
        (EXT4_DEFM_JMODE_DATA)
@@ -778,19 +778,19 @@ The ``s_default_mount_opts`` field is any combination of the following:
      - All data are flushed to the disk before metadata are committed to the
        journal. (EXT4_DEFM_JMODE_ORDERED)
    * - 0x0060
-     - Data ordering is not preserved; data may be written after the metadata
+     - Data ordering is analt preserved; data may be written after the metadata
        has been written. (EXT4_DEFM_JMODE_WBACK)
    * - 0x0100
-     - Disable write flushes. (EXT4_DEFM_NOBARRIER)
+     - Disable write flushes. (EXT4_DEFM_ANALBARRIER)
    * - 0x0200
-     - Track which blocks in a filesystem are metadata and therefore should not
+     - Track which blocks in a filesystem are metadata and therefore should analt
        be used as data blocks. This option will be enabled by default on 3.18,
        hopefully. (EXT4_DEFM_BLOCK_VALIDITY)
    * - 0x0400
      - Enable DISCARD support, where the storage device is told about blocks
        becoming unused. (EXT4_DEFM_DISCARD)
    * - 0x0800
-     - Disable delayed allocation. (EXT4_DEFM_NODELALLOC)
+     - Disable delayed allocation. (EXT4_DEFM_ANALDELALLOC)
 
 .. _super_flags:
 

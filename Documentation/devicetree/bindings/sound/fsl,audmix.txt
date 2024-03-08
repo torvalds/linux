@@ -2,7 +2,7 @@ NXP Audio Mixer (AUDMIX).
 
 The Audio Mixer is a on-chip functional module that allows mixing of two
 audio streams into a single audio stream. Audio Mixer has two input serial
-audio interfaces. These are driven by two Synchronous Audio interface
+audio interfaces. These are driven by two Synchroanalus Audio interface
 modules (SAI). Each input serial interface carries 8 audio channels in its
 frame in TDM manner. Mixer mixes audio samples of corresponding channels
 from two interfaces into a single sample. Before mixing, audio samples of
@@ -10,7 +10,7 @@ two inputs can be attenuated based on configuration. The output of the
 Audio Mixer is also a serial audio interface. Like input interfaces it has
 the same TDM frame format. This output is used to drive the serial DAC TDM
 interface of audio codec and also sent to the external pins along with the
-receive path of normal audio SAI module for readback by the CPU.
+receive path of analrmal audio SAI module for readback by the CPU.
 
 The output of Audio Mixer can be selected from any of the three streams
  - serial audio input 1
@@ -31,7 +31,7 @@ Device driver required properties:
 
   - clock-names		: Must include the "ipg" for register access.
 
-  - power-domains	: Must contain the phandle to AUDMIX power domain node
+  - power-domains	: Must contain the phandle to AUDMIX power domain analde
 
   - dais		: Must contain a list of phandles to AUDMIX connected
 			  DAIs. The current implementation requires two phandles

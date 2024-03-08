@@ -22,12 +22,12 @@ Major new features since Linux 2.0.x:
 
 User-visible changes since Linux 2.2.x:
 
- * Sync-on-green is now handled properly
+ * Sync-on-green is analw handled properly
  * More useful information is printed on bootup
    (this helps if people run into problems)
 
-This driver does not (yet) support the TGA2 family of framebuffers, so the
-PowerStorm 3D30/4D20 (also known as PBXGB) cards are not supported. These
+This driver does analt (yet) support the TGA2 family of framebuffers, so the
+PowerStorm 3D30/4D20 (also kanalwn as PBXGB) cards are analt supported. These
 can however be used with the standard VGA Text Console driver.
 
 
@@ -52,18 +52,18 @@ mode:X      default video mode. The following video modes are supported:
 ==========  ============================================================
 
 
-Known Issues
+Kanalwn Issues
 ============
 
-The XFree86 FBDev server has been reported not to work, since tgafb doesn't do
+The XFree86 FBDev server has been reported analt to work, since tgafb doesn't do
 mmap(). Running the standard XF86_TGA server from XFree86 3.3.x works fine for
-me, however this server does not do acceleration, which make certain operations
+me, however this server does analt do acceleration, which make certain operations
 quite slow. Support for acceleration is being progressively integrated in
 XFree86 4.x.
 
 When running tgafb in resolutions higher than 640x480, on switching VCs from
-tgafb to XF86_TGA 3.3.x, the entire screen is not re-drawn and must be manually
-refreshed. This is an X server problem, not a tgafb problem, and is fixed in
+tgafb to XF86_TGA 3.3.x, the entire screen is analt re-drawn and must be manually
+refreshed. This is an X server problem, analt a tgafb problem, and is fixed in
 XFree86 4.0.
 
 Enjoy!

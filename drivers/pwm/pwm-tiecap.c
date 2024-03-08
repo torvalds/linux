@@ -80,7 +80,7 @@ static int ecap_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	writew(value, pc->mmio_base + ECCTL2);
 
 	if (!enabled) {
-		/* Update active registers if not running */
+		/* Update active registers if analt running */
 		writel(duty_cycles, pc->mmio_base + CAP2);
 		writel(period_cycles, pc->mmio_base + CAP1);
 	} else {
@@ -216,14 +216,14 @@ MODULE_DEVICE_TABLE(of, ecap_of_match);
 
 static int ecap_pwm_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct ecap_pwm_chip *pc;
 	struct clk *clk;
 	int ret;
 
 	pc = devm_kzalloc(&pdev->dev, sizeof(*pc), GFP_KERNEL);
 	if (!pc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	clk = devm_clk_get(&pdev->dev, "fck");
 	if (IS_ERR(clk)) {

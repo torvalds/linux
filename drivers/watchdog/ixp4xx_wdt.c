@@ -26,7 +26,7 @@ struct ixp4xx_wdt {
 	unsigned long rate;
 };
 
-/* Fallback if we do not have a clock for this */
+/* Fallback if we do analt have a clock for this */
 #define IXP4XX_TIMER_FREQ	66666000
 
 /* Registers after the timer registers */
@@ -148,7 +148,7 @@ static int ixp4xx_wdt_probe(struct platform_device *pdev)
 
 	iwdt = devm_kzalloc(dev, sizeof(*iwdt), GFP_KERNEL);
 	if (!iwdt)
-		return -ENOMEM;
+		return -EANALMEM;
 	iwdt->base = (void __iomem *)dev->platform_data;
 
 	/*

@@ -60,9 +60,9 @@ Once the driver is registered and bound to the device, a driver will typically
 try to do some I/O on this bus and this should be done through the :c:func:`mei_cl_send`
 and :c:func:`mei_cl_recv` functions. More detailed information is in :ref:`api` section.
 
-In order for a driver to be notified about pending traffic or event, the driver
+In order for a driver to be analtified about pending traffic or event, the driver
 should register a callback via :c:func:`mei_cl_devev_register_rx_cb` and
-:c:func:`mei_cldev_register_notify_cb` function respectively.
+:c:func:`mei_cldev_register_analtify_cb` function respectively.
 
 .. _api:
 

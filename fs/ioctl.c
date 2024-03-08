@@ -37,20 +37,20 @@
  * @arg:	command-specific argument for ioctl
  *
  * Invokes filesystem specific ->unlocked_ioctl, if one exists; otherwise
- * returns -ENOTTY.
+ * returns -EANALTTY.
  *
- * Returns 0 on success, -errno on error.
+ * Returns 0 on success, -erranal on error.
  */
 long vfs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
-	int error = -ENOTTY;
+	int error = -EANALTTY;
 
 	if (!filp->f_op->unlocked_ioctl)
 		goto out;
 
 	error = filp->f_op->unlocked_ioctl(filp, cmd, arg);
-	if (error == -ENOIOCTLCMD)
-		error = -ENOTTY;
+	if (error == -EANALIOCTLCMD)
+		error = -EANALTTY;
  out:
 	return error;
 }
@@ -58,8 +58,8 @@ EXPORT_SYMBOL(vfs_ioctl);
 
 static int ioctl_fibmap(struct file *filp, int __user *p)
 {
-	struct inode *inode = file_inode(filp);
-	struct super_block *sb = inode->i_sb;
+	struct ianalde *ianalde = file_ianalde(filp);
+	struct super_block *sb = ianalde->i_sb;
 	int error, ur_block;
 	sector_t block;
 
@@ -74,7 +74,7 @@ static int ioctl_fibmap(struct file *filp, int __user *p)
 		return -EINVAL;
 
 	block = ur_block;
-	error = bmap(inode, &block);
+	error = bmap(ianalde, &block);
 
 	if (block > INT_MAX) {
 		error = -ERANGE;
@@ -106,7 +106,7 @@ static int ioctl_fibmap(struct file *filp, int __user *p)
  * info as passed in via arguments and copy to user memory. On
  * success, extent count on fieinfo is incremented.
  *
- * Returns 0 on success, -errno on error, 1 if this was the last
+ * Returns 0 on success, -erranal on error, 1 if this was the last
  * extent that will fit in user array.
  */
 int fiemap_fill_next_extent(struct fiemap_extent_info *fieinfo, u64 logical,
@@ -124,16 +124,16 @@ int fiemap_fill_next_extent(struct fiemap_extent_info *fieinfo, u64 logical,
 	if (fieinfo->fi_extents_mapped >= fieinfo->fi_extents_max)
 		return 1;
 
-#define SET_UNKNOWN_FLAGS	(FIEMAP_EXTENT_DELALLOC)
-#define SET_NO_UNMOUNTED_IO_FLAGS	(FIEMAP_EXTENT_DATA_ENCRYPTED)
-#define SET_NOT_ALIGNED_FLAGS	(FIEMAP_EXTENT_DATA_TAIL|FIEMAP_EXTENT_DATA_INLINE)
+#define SET_UNKANALWN_FLAGS	(FIEMAP_EXTENT_DELALLOC)
+#define SET_ANAL_UNMOUNTED_IO_FLAGS	(FIEMAP_EXTENT_DATA_ENCRYPTED)
+#define SET_ANALT_ALIGNED_FLAGS	(FIEMAP_EXTENT_DATA_TAIL|FIEMAP_EXTENT_DATA_INLINE)
 
-	if (flags & SET_UNKNOWN_FLAGS)
-		flags |= FIEMAP_EXTENT_UNKNOWN;
-	if (flags & SET_NO_UNMOUNTED_IO_FLAGS)
+	if (flags & SET_UNKANALWN_FLAGS)
+		flags |= FIEMAP_EXTENT_UNKANALWN;
+	if (flags & SET_ANAL_UNMOUNTED_IO_FLAGS)
 		flags |= FIEMAP_EXTENT_ENCODED;
-	if (flags & SET_NOT_ALIGNED_FLAGS)
-		flags |= FIEMAP_EXTENT_NOT_ALIGNED;
+	if (flags & SET_ANALT_ALIGNED_FLAGS)
+		flags |= FIEMAP_EXTENT_ANALT_ALIGNED;
 
 	memset(&extent, 0, sizeof(extent));
 	extent.fe_logical = logical;
@@ -154,7 +154,7 @@ EXPORT_SYMBOL(fiemap_fill_next_extent);
 
 /**
  * fiemap_prep - check validity of requested flags for fiemap
- * @inode:	Inode to operate on
+ * @ianalde:	Ianalde to operate on
  * @fieinfo:	Fiemap context passed into ->fiemap
  * @start:	Start of the mapped range
  * @len:	Length of the mapped range, can be truncated by this function.
@@ -165,10 +165,10 @@ EXPORT_SYMBOL(fiemap_fill_next_extent);
  *
  * Returns 0 on success, or a negative error on failure.
  */
-int fiemap_prep(struct inode *inode, struct fiemap_extent_info *fieinfo,
+int fiemap_prep(struct ianalde *ianalde, struct fiemap_extent_info *fieinfo,
 		u64 start, u64 *len, u32 supported_flags)
 {
-	u64 maxbytes = inode->i_sb->s_maxbytes;
+	u64 maxbytes = ianalde->i_sb->s_maxbytes;
 	u32 incompat_flags;
 	int ret = 0;
 
@@ -192,7 +192,7 @@ int fiemap_prep(struct inode *inode, struct fiemap_extent_info *fieinfo,
 	}
 
 	if (fieinfo->fi_flags & FIEMAP_FLAG_SYNC)
-		ret = filemap_write_and_wait(inode->i_mapping);
+		ret = filemap_write_and_wait(ianalde->i_mapping);
 	return ret;
 }
 EXPORT_SYMBOL(fiemap_prep);
@@ -201,11 +201,11 @@ static int ioctl_fiemap(struct file *filp, struct fiemap __user *ufiemap)
 {
 	struct fiemap fiemap;
 	struct fiemap_extent_info fieinfo = { 0, };
-	struct inode *inode = file_inode(filp);
+	struct ianalde *ianalde = file_ianalde(filp);
 	int error;
 
-	if (!inode->i_op->fiemap)
-		return -EOPNOTSUPP;
+	if (!ianalde->i_op->fiemap)
+		return -EOPANALTSUPP;
 
 	if (copy_from_user(&fiemap, ufiemap, sizeof(fiemap)))
 		return -EFAULT;
@@ -217,7 +217,7 @@ static int ioctl_fiemap(struct file *filp, struct fiemap __user *ufiemap)
 	fieinfo.fi_extents_max = fiemap.fm_extent_count;
 	fieinfo.fi_extents_start = ufiemap->fm_extents;
 
-	error = inode->i_op->fiemap(inode, &fieinfo, fiemap.fm_start,
+	error = ianalde->i_op->fiemap(ianalde, &fieinfo, fiemap.fm_start,
 			fiemap.fm_length);
 
 	fiemap.fm_flags = fieinfo.fi_flags;
@@ -265,11 +265,11 @@ static long ioctl_file_clone_range(struct file *file,
  * which predate the fallocate syscall.
  *
  * Only the l_start, l_len and l_whence fields of the 'struct space_resv'
- * are used here, rest are ignored.
+ * are used here, rest are iganalred.
  */
 static int ioctl_preallocate(struct file *filp, int mode, void __user *argp)
 {
-	struct inode *inode = file_inode(filp);
+	struct ianalde *ianalde = file_ianalde(filp);
 	struct space_resv sr;
 
 	if (copy_from_user(&sr, argp, sizeof(sr)))
@@ -282,7 +282,7 @@ static int ioctl_preallocate(struct file *filp, int mode, void __user *argp)
 		sr.l_start += filp->f_pos;
 		break;
 	case SEEK_END:
-		sr.l_start += i_size_read(inode);
+		sr.l_start += i_size_read(ianalde);
 		break;
 	default:
 		return -EINVAL;
@@ -298,7 +298,7 @@ static int ioctl_preallocate(struct file *filp, int mode, void __user *argp)
 static int compat_ioctl_preallocate(struct file *file, int mode,
 				    struct space_resv_32 __user *argp)
 {
-	struct inode *inode = file_inode(file);
+	struct ianalde *ianalde = file_ianalde(file);
 	struct space_resv_32 sr;
 
 	if (copy_from_user(&sr, argp, sizeof(sr)))
@@ -311,7 +311,7 @@ static int compat_ioctl_preallocate(struct file *file, int mode,
 		sr.l_start += file->f_pos;
 		break;
 	case SEEK_END:
-		sr.l_start += i_size_read(inode);
+		sr.l_start += i_size_read(ianalde);
 		break;
 	default:
 		return -EINVAL;
@@ -336,7 +336,7 @@ static int file_ioctl(struct file *filp, unsigned int cmd, int __user *p)
 		return ioctl_preallocate(filp, FALLOC_FL_ZERO_RANGE, p);
 	}
 
-	return -ENOIOCTLCMD;
+	return -EANALIOCTLCMD;
 }
 
 static int ioctl_fionbio(struct file *filp, int __user *argp)
@@ -347,10 +347,10 @@ static int ioctl_fionbio(struct file *filp, int __user *argp)
 	error = get_user(on, argp);
 	if (error)
 		return error;
-	flag = O_NONBLOCK;
+	flag = O_ANALNBLOCK;
 #ifdef __sparc__
 	/* SunOS compatibility item. */
-	if (O_NONBLOCK != O_NDELAY)
+	if (O_ANALNBLOCK != O_NDELAY)
 		flag |= O_NDELAY;
 #endif
 	spin_lock(&filp->f_lock);
@@ -379,21 +379,21 @@ static int ioctl_fioasync(unsigned int fd, struct file *filp,
 			/* fasync() adjusts filp->f_flags */
 			error = filp->f_op->fasync(fd, filp, on);
 		else
-			error = -ENOTTY;
+			error = -EANALTTY;
 	}
 	return error < 0 ? error : 0;
 }
 
 static int ioctl_fsfreeze(struct file *filp)
 {
-	struct super_block *sb = file_inode(filp)->i_sb;
+	struct super_block *sb = file_ianalde(filp)->i_sb;
 
 	if (!ns_capable(sb->s_user_ns, CAP_SYS_ADMIN))
 		return -EPERM;
 
 	/* If filesystem doesn't support freeze feature, return. */
 	if (sb->s_op->freeze_fs == NULL && sb->s_op->freeze_super == NULL)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Freeze */
 	if (sb->s_op->freeze_super)
@@ -403,7 +403,7 @@ static int ioctl_fsfreeze(struct file *filp)
 
 static int ioctl_fsthaw(struct file *filp)
 {
-	struct super_block *sb = file_inode(filp)->i_sb;
+	struct super_block *sb = file_ianalde(filp)->i_sb;
 
 	if (!ns_capable(sb->s_user_ns, CAP_SYS_ADMIN))
 		return -EPERM;
@@ -429,7 +429,7 @@ static int ioctl_file_dedupe_range(struct file *file,
 
 	size = offsetof(struct file_dedupe_range, info[count]);
 	if (size > PAGE_SIZE) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -473,10 +473,10 @@ void fileattr_fill_xflags(struct fileattr *fa, u32 xflags)
 		fa->flags |= FS_APPEND_FL;
 	if (fa->fsx_xflags & FS_XFLAG_SYNC)
 		fa->flags |= FS_SYNC_FL;
-	if (fa->fsx_xflags & FS_XFLAG_NOATIME)
-		fa->flags |= FS_NOATIME_FL;
-	if (fa->fsx_xflags & FS_XFLAG_NODUMP)
-		fa->flags |= FS_NODUMP_FL;
+	if (fa->fsx_xflags & FS_XFLAG_ANALATIME)
+		fa->flags |= FS_ANALATIME_FL;
+	if (fa->fsx_xflags & FS_XFLAG_ANALDUMP)
+		fa->flags |= FS_ANALDUMP_FL;
 	if (fa->fsx_xflags & FS_XFLAG_DAX)
 		fa->flags |= FS_DAX_FL;
 	if (fa->fsx_xflags & FS_XFLAG_PROJINHERIT)
@@ -503,10 +503,10 @@ void fileattr_fill_flags(struct fileattr *fa, u32 flags)
 		fa->fsx_xflags |= FS_XFLAG_IMMUTABLE;
 	if (fa->flags & FS_APPEND_FL)
 		fa->fsx_xflags |= FS_XFLAG_APPEND;
-	if (fa->flags & FS_NODUMP_FL)
-		fa->fsx_xflags |= FS_XFLAG_NODUMP;
-	if (fa->flags & FS_NOATIME_FL)
-		fa->fsx_xflags |= FS_XFLAG_NOATIME;
+	if (fa->flags & FS_ANALDUMP_FL)
+		fa->fsx_xflags |= FS_XFLAG_ANALDUMP;
+	if (fa->flags & FS_ANALATIME_FL)
+		fa->fsx_xflags |= FS_XFLAG_ANALATIME;
 	if (fa->flags & FS_DAX_FL)
 		fa->fsx_xflags |= FS_XFLAG_DAX;
 	if (fa->flags & FS_PROJINHERIT_FL)
@@ -525,12 +525,12 @@ EXPORT_SYMBOL(fileattr_fill_flags);
  */
 int vfs_fileattr_get(struct dentry *dentry, struct fileattr *fa)
 {
-	struct inode *inode = d_inode(dentry);
+	struct ianalde *ianalde = d_ianalde(dentry);
 
-	if (!inode->i_op->fileattr_get)
-		return -ENOIOCTLCMD;
+	if (!ianalde->i_op->fileattr_get)
+		return -EANALIOCTLCMD;
 
-	return inode->i_op->fileattr_get(dentry, fa);
+	return ianalde->i_op->fileattr_get(dentry, fa);
 }
 EXPORT_SYMBOL(vfs_fileattr_get);
 
@@ -580,9 +580,9 @@ static int copy_fsxattr_from_user(struct fileattr *fa,
  * Generic function to check FS_IOC_FSSETXATTR/FS_IOC_SETFLAGS values and reject
  * any invalid configurations.
  *
- * Note: must be called with inode lock held.
+ * Analte: must be called with ianalde lock held.
  */
-static int fileattr_set_prepare(struct inode *inode,
+static int fileattr_set_prepare(struct ianalde *ianalde,
 			      const struct fileattr *old_ma,
 			      struct fileattr *fa)
 {
@@ -596,7 +596,7 @@ static int fileattr_set_prepare(struct inode *inode,
 	    !capable(CAP_LINUX_IMMUTABLE))
 		return -EPERM;
 
-	err = fscrypt_prepare_setflags(inode, old_ma->flags, fa->flags);
+	err = fscrypt_prepare_setflags(ianalde, old_ma->flags, fa->flags);
 	if (err)
 		return err;
 
@@ -622,15 +622,15 @@ static int fileattr_set_prepare(struct inode *inode,
 	}
 
 	/* Check extent size hints. */
-	if ((fa->fsx_xflags & FS_XFLAG_EXTSIZE) && !S_ISREG(inode->i_mode))
+	if ((fa->fsx_xflags & FS_XFLAG_EXTSIZE) && !S_ISREG(ianalde->i_mode))
 		return -EINVAL;
 
 	if ((fa->fsx_xflags & FS_XFLAG_EXTSZINHERIT) &&
-			!S_ISDIR(inode->i_mode))
+			!S_ISDIR(ianalde->i_mode))
 		return -EINVAL;
 
 	if ((fa->fsx_xflags & FS_XFLAG_COWEXTSIZE) &&
-	    !S_ISREG(inode->i_mode) && !S_ISDIR(inode->i_mode))
+	    !S_ISREG(ianalde->i_mode) && !S_ISDIR(ianalde->i_mode))
 		return -EINVAL;
 
 	/*
@@ -638,7 +638,7 @@ static int fileattr_set_prepare(struct inode *inode,
 	 * directories on filesystems.
 	 */
 	if ((fa->fsx_xflags & FS_XFLAG_DAX) &&
-	    !(S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode)))
+	    !(S_ISREG(ianalde->i_mode) || S_ISDIR(ianalde->i_mode)))
 		return -EINVAL;
 
 	/* Extent size hints of zero turn off the flags. */
@@ -661,25 +661,25 @@ static int fileattr_set_prepare(struct inode *inode,
  *
  * Verifying attributes involves retrieving current attributes with
  * i_op->fileattr_get(), this also allows initializing attributes that have
- * not been set by the caller to current values.  Inode lock is held
- * thoughout to prevent racing with another instance.
+ * analt been set by the caller to current values.  Ianalde lock is held
+ * thoughout to prevent racing with aanalther instance.
  *
  * Return: 0 on success, or a negative error on failure.
  */
 int vfs_fileattr_set(struct mnt_idmap *idmap, struct dentry *dentry,
 		     struct fileattr *fa)
 {
-	struct inode *inode = d_inode(dentry);
+	struct ianalde *ianalde = d_ianalde(dentry);
 	struct fileattr old_ma = {};
 	int err;
 
-	if (!inode->i_op->fileattr_set)
-		return -ENOIOCTLCMD;
+	if (!ianalde->i_op->fileattr_set)
+		return -EANALIOCTLCMD;
 
-	if (!inode_owner_or_capable(idmap, inode))
+	if (!ianalde_owner_or_capable(idmap, ianalde))
 		return -EPERM;
 
-	inode_lock(inode);
+	ianalde_lock(ianalde);
 	err = vfs_fileattr_get(dentry, &old_ma);
 	if (!err) {
 		/* initialize missing bits from old_ma */
@@ -692,11 +692,11 @@ int vfs_fileattr_set(struct mnt_idmap *idmap, struct dentry *dentry,
 		} else {
 			fa->flags |= old_ma.flags & ~FS_COMMON_FL;
 		}
-		err = fileattr_set_prepare(inode, &old_ma, fa);
+		err = fileattr_set_prepare(ianalde, &old_ma, fa);
 		if (!err)
-			err = inode->i_op->fileattr_set(idmap, dentry, fa);
+			err = ianalde->i_op->fileattr_set(idmap, dentry, fa);
 	}
-	inode_unlock(inode);
+	ianalde_unlock(ianalde);
 
 	return err;
 }
@@ -764,7 +764,7 @@ static int ioctl_fssetxattr(struct file *file, void __user *argp)
 }
 
 /*
- * do_vfs_ioctl() is not for drivers and not intended to be EXPORT_SYMBOL()'d.
+ * do_vfs_ioctl() is analt for drivers and analt intended to be EXPORT_SYMBOL()'d.
  * It's just a simple helper for sys_ioctl and compat_sys_ioctl.
  *
  * When you add any new common ioctls to the switches above and below,
@@ -774,7 +774,7 @@ static int do_vfs_ioctl(struct file *filp, unsigned int fd,
 			unsigned int cmd, unsigned long arg)
 {
 	void __user *argp = (void __user *)arg;
-	struct inode *inode = file_inode(filp);
+	struct ianalde *ianalde = file_ianalde(filp);
 
 	switch (cmd) {
 	case FIOCLEX:
@@ -792,14 +792,14 @@ static int do_vfs_ioctl(struct file *filp, unsigned int fd,
 		return ioctl_fioasync(fd, filp, argp);
 
 	case FIOQSIZE:
-		if (S_ISDIR(inode->i_mode) || S_ISREG(inode->i_mode) ||
-		    S_ISLNK(inode->i_mode)) {
-			loff_t res = inode_get_bytes(inode);
+		if (S_ISDIR(ianalde->i_mode) || S_ISREG(ianalde->i_mode) ||
+		    S_ISLNK(ianalde->i_mode)) {
+			loff_t res = ianalde_get_bytes(ianalde);
 			return copy_to_user(argp, &res, sizeof(res)) ?
 					    -EFAULT : 0;
 		}
 
-		return -ENOTTY;
+		return -EANALTTY;
 
 	case FIFREEZE:
 		return ioctl_fsfreeze(filp);
@@ -811,11 +811,11 @@ static int do_vfs_ioctl(struct file *filp, unsigned int fd,
 		return ioctl_fiemap(filp, argp);
 
 	case FIGETBSZ:
-		/* anon_bdev filesystems may not have a block size */
-		if (!inode->i_sb->s_blocksize)
+		/* aanaln_bdev filesystems may analt have a block size */
+		if (!ianalde->i_sb->s_blocksize)
 			return -EINVAL;
 
-		return put_user(inode->i_sb->s_blocksize, (int __user *)argp);
+		return put_user(ianalde->i_sb->s_blocksize, (int __user *)argp);
 
 	case FICLONE:
 		return ioctl_file_clone(filp, arg, 0, 0, 0);
@@ -827,10 +827,10 @@ static int do_vfs_ioctl(struct file *filp, unsigned int fd,
 		return ioctl_file_dedupe_range(filp, argp);
 
 	case FIONREAD:
-		if (!S_ISREG(inode->i_mode))
+		if (!S_ISREG(ianalde->i_mode))
 			return vfs_ioctl(filp, cmd, arg);
 
-		return put_user(i_size_read(inode) - filp->f_pos,
+		return put_user(i_size_read(ianalde) - filp->f_pos,
 				(int __user *)argp);
 
 	case FS_IOC_GETFLAGS:
@@ -846,12 +846,12 @@ static int do_vfs_ioctl(struct file *filp, unsigned int fd,
 		return ioctl_fssetxattr(filp, argp);
 
 	default:
-		if (S_ISREG(inode->i_mode))
+		if (S_ISREG(ianalde->i_mode))
 			return file_ioctl(filp, cmd, argp);
 		break;
 	}
 
-	return -ENOIOCTLCMD;
+	return -EANALIOCTLCMD;
 }
 
 SYSCALL_DEFINE3(ioctl, unsigned int, fd, unsigned int, cmd, unsigned long, arg)
@@ -867,7 +867,7 @@ SYSCALL_DEFINE3(ioctl, unsigned int, fd, unsigned int, cmd, unsigned long, arg)
 		goto out;
 
 	error = do_vfs_ioctl(f.file, fd, cmd, arg);
-	if (error == -ENOIOCTLCMD)
+	if (error == -EANALIOCTLCMD)
 		error = vfs_ioctl(f.file, cmd, arg);
 
 out:
@@ -882,7 +882,7 @@ out:
  * @cmd: The ioctl command number.
  * @arg: The argument to the ioctl.
  *
- * This is not normally called as a function, but instead set in struct
+ * This is analt analrmally called as a function, but instead set in struct
  * file_operations as
  *
  *     .compat_ioctl = compat_ptr_ioctl,
@@ -894,7 +894,7 @@ out:
  * native 32-bit s390 user space.
  *
  * The compat_ptr_ioctl() function must therefore be used only with ioctl
- * functions that either ignore the argument or pass a pointer to a
+ * functions that either iganalre the argument or pass a pointer to a
  * compatible data type.
  *
  * If any ioctl command handled by fops->unlocked_ioctl passes a plain
@@ -905,7 +905,7 @@ out:
 long compat_ptr_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	if (!file->f_op->unlocked_ioctl)
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 
 	return file->f_op->unlocked_ioctl(file, cmd, (unsigned long)compat_ptr(arg));
 }
@@ -948,7 +948,7 @@ COMPAT_SYSCALL_DEFINE3(ioctl, unsigned int, fd, unsigned int, cmd,
 #endif
 
 	/*
-	 * These access 32-bit values anyway so no further handling is
+	 * These access 32-bit values anyway so anal further handling is
 	 * necessary.
 	 */
 	case FS_IOC32_GETFLAGS:
@@ -958,19 +958,19 @@ COMPAT_SYSCALL_DEFINE3(ioctl, unsigned int, fd, unsigned int, cmd,
 		fallthrough;
 	/*
 	 * everything else in do_vfs_ioctl() takes either a compatible
-	 * pointer argument or no argument -- call it with a modified
+	 * pointer argument or anal argument -- call it with a modified
 	 * argument.
 	 */
 	default:
 		error = do_vfs_ioctl(f.file, fd, cmd,
 				     (unsigned long)compat_ptr(arg));
-		if (error != -ENOIOCTLCMD)
+		if (error != -EANALIOCTLCMD)
 			break;
 
 		if (f.file->f_op->compat_ioctl)
 			error = f.file->f_op->compat_ioctl(f.file, cmd, arg);
-		if (error == -ENOIOCTLCMD)
-			error = -ENOTTY;
+		if (error == -EANALIOCTLCMD)
+			error = -EANALTTY;
 		break;
 	}
 

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2020, Mellanox Technologies inc.  All rights reserved. */
+/* Copyright (c) 2020, Mellaanalx Techanallogies inc.  All rights reserved. */
 
 #include "en/devlink.h"
 #include "eswitch.h"
@@ -17,7 +17,7 @@ struct mlx5e_dev *mlx5e_create_devlink(struct device *dev,
 	devlink = devlink_alloc_ns(&mlx5e_devlink_ops, sizeof(*mlx5e_dev),
 				   devlink_net(priv_to_devlink(mdev)), dev);
 	if (!devlink)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	err = devl_nested_devlink_set(priv_to_devlink(mdev), devlink);
 	if (err) {

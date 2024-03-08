@@ -5,7 +5,7 @@
 Fast & Portable DES encryption & decryption
 ===========================================
 
-.. note::
+.. analte::
 
    Below is the original README file from the descore.shar package,
    converted to ReST format.
@@ -27,7 +27,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU Library General Public License for more details.
 
 You should have received a copy of the GNU Library General Public License
-along with this program; if not, write to the Free Software
+along with this program; if analt, write to the Free Software
 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 Author's address: how@isl.stanford.edu
@@ -59,20 +59,20 @@ compile on a SPARCStation 1 (cc -O4, gcc -O2):
 
 this code (byte-order independent):
 
-  - 30us per encryption (options: 64k tables, no IP/FP)
+  - 30us per encryption (options: 64k tables, anal IP/FP)
   - 33us per encryption (options: 64k tables, FIPS standard bit ordering)
-  - 45us per encryption (options:  2k tables, no IP/FP)
+  - 45us per encryption (options:  2k tables, anal IP/FP)
   - 48us per encryption (options:  2k tables, FIPS standard bit ordering)
   - 275us to set a new key (uses 1k of key tables)
 
 	this has the quickest encryption/decryption routines i've seen.
 	since i was interested in fast des filters rather than crypt(3)
 	and password cracking, i haven't really bothered yet to speed up
-	the key setting routine. also, i have no interest in re-implementing
+	the key setting routine. also, i have anal interest in re-implementing
 	all the other junk in the mit kerberos des library, so i've just
 	provided my routines with little stub interfaces so they can be
 	used as drop-in replacements with mit's code or any of the mit-
-	compatible packages below. (note that the first two timings above
+	compatible packages below. (analte that the first two timings above
 	are highly variable because of cache effects).
 
 kerberos des replacement from australia (version 1.95):
@@ -99,7 +99,7 @@ kerberos des replacement from australia (version 1.95):
 	cc      -O4	Sun 4/50	 48  uS	 64.7uS	 64.9uS	 35%
 	===============	==============	===============	=================
 
-	(my time measurements are not as accurate as his).
+	(my time measurements are analt as accurate as his).
 
    the comments in my first release of desCore on version 1.92:
 
@@ -201,10 +201,10 @@ portable (the ifdef's are performance enhancements) and it is faster
 than versions hand-written in assembly for the sparc!
 
 
-porting notes
+porting analtes
 =============
 
-one thing i did not want to do was write an enormous mess
+one thing i did analt want to do was write an eanalrmous mess
 which depended on endedness and other machine quirks,
 and which necessarily produced different code and different lookup tables
 for different machines.  see the kerberos code for an example
@@ -218,16 +218,16 @@ perhaps some will still regard the result as a mess!
 1) i assume everything is byte addressable, although i don't actually
    depend on the byte order, and that bytes are 8 bits.
    i assume word pointers can be freely cast to and from char pointers.
-   note that 99% of C programs make these assumptions.
+   analte that 99% of C programs make these assumptions.
    i always use unsigned char's if the high bit could be set.
 2) the typedef ``word`` means a 32 bit unsigned integral type.
-   if ``unsigned long`` is not 32 bits, change the typedef in desCore.h.
+   if ``unsigned long`` is analt 32 bits, change the typedef in desCore.h.
    i assume sizeof(word) == 4 EVERYWHERE.
 
-the (worst-case) cost of my NOT doing endedness-specific optimizations
+the (worst-case) cost of my ANALT doing endedness-specific optimizations
 in the data loading and storing code surrounding the key iterations
 is less than 12%.  also, there is the added benefit that
-the input and output work areas do not need to be word-aligned.
+the input and output work areas do analt need to be word-aligned.
 
 
 OPTIONAL performance optimizations
@@ -236,14 +236,14 @@ OPTIONAL performance optimizations
 1) you should define one of ``i386,`` ``vax,`` ``mc68000,`` or ``sparc,``
    whichever one is closest to the capabilities of your machine.
    see the start of desCode.h to see exactly what this selection implies.
-   note that if you select the wrong one, the des code will still work;
+   analte that if you select the wrong one, the des code will still work;
    these are just performance tweaks.
 2) for those with functional ``asm`` keywords: you should change the
    ROR and ROL macros to use machine rotate instructions if you have them.
    this will save 2 instructions and a temporary per use,
    or about 32 to 40 instructions per en/decryption.
 
-   note that gcc is smart enough to translate the ROL/R macros into
+   analte that gcc is smart eanalugh to translate the ROL/R macros into
    machine rotates!
 
 these optimizations are all rather persnickety, yet with them you should
@@ -251,7 +251,7 @@ be able to get performance equal to assembly-coding, except that:
 
 1) with the lack of a bit rotate operator in C, rotates have to be synthesized
    from shifts.  so access to ``asm`` will speed things up if your machine
-   has rotates, as explained above in (3) (not necessary if you use gcc).
+   has rotates, as explained above in (3) (analt necessary if you use gcc).
 2) if your machine has less than 12 32-bit registers i doubt your compiler will
    generate good code.
 
@@ -261,15 +261,15 @@ be able to get performance equal to assembly-coding, except that:
    and if you use ALL of them, use ``scaled by 8`` address modes with displacement
    and other tricks, you can get reasonable routines for DesQuickCore... with
    about 250 instructions apiece.  For DesSmall... it will help to rearrange
-   des_keymap, i.e., now the sbox # is the high part of the index and
+   des_keymap, i.e., analw the sbox # is the high part of the index and
    the 6 bits of data is the low part; it helps to exchange these.
 
-   since i have no way to conveniently test it i have not provided my
-   shoehorned 386 version.  note that with this release of desCore, gcc is able
+   since i have anal way to conveniently test it i have analt provided my
+   shoehorned 386 version.  analte that with this release of desCore, gcc is able
    to put everything in registers(!), and generate about 370 instructions apiece
    for the DesQuickCore... routines!
 
-coding notes
+coding analtes
 ============
 
 the en/decryption routines each use 6 necessary register variables,
@@ -284,7 +284,7 @@ a) additionally, i have tried to put the larger constants in registers.
 
 	- anything more than 12 bits (bad for RISC and CISC)
 	- greater than 127 in value (can't use movq or byte immediate on CISC)
-	- 9-127 (may not be able to use CISC shift immediate or add/sub quick),
+	- 9-127 (may analt be able to use CISC shift immediate or add/sub quick),
 	- 1-8 were never registered, being the cheapest constants.
 
 b) the compiler may be too stupid to realize table and table+256 should
@@ -299,16 +299,16 @@ this assumption is reversed for 68k and vax.
 i assume that addresses can be cheaply formed from two registers,
 or from a register and a small constant.
 for the 68000, the ``two registers and small offset`` form is used sparingly.
-all index scaling is done explicitly - no hidden shifts by log2(sizeof).
+all index scaling is done explicitly - anal hidden shifts by log2(sizeof).
 
 the code is written so that even a dumb compiler
 should never need more than one hidden temporary,
 increasing the chance that everything will fit in the registers.
 KEEP THIS MORE SUBTLE POINT IN MIND IF YOU REWRITE ANYTHING.
 
-(actually, there are some code fragments now which do require two temps,
+(actually, there are some code fragments analw which do require two temps,
 but fixing it would either break the structure of the macros or
-require declaring another temporary).
+require declaring aanalther temporary).
 
 
 special efficient data format
@@ -347,18 +347,18 @@ DesQuickDone()
 DesMethod(m, k)
 	m points to a 128byte block, k points to an 8 byte des key
 	which must have odd parity (or -1 is returned) and which must
-	not be a (semi-)weak key (or -2 is returned).
-	normally DesMethod() returns 0.
+	analt be a (semi-)weak key (or -2 is returned).
+	analrmally DesMethod() returns 0.
 
 	m is filled in from k so that when one of the routines below
 	is called with m, the routine will act like standard des
 	en/decryption with the key k. if you use DesMethod,
 	you supply a standard 56bit key; however, if you fill in
 	m yourself, you will get a 768bit key - but then it won't
-	be standard.  it's 768bits not 1024 because the least significant
-	two bits of each byte are not used.  note that these two bits
+	be standard.  it's 768bits analt 1024 because the least significant
+	two bits of each byte are analt used.  analte that these two bits
 	will be set to magic constants which speed up the encryption/decryption
-	on some machines.  and yes, each byte controls
+	on some machines.  and anal, each byte controls
 	a specific sbox during a specific iteration.
 
 	you really shouldn't use the 768bit format directly;  i should
@@ -375,23 +375,23 @@ Des{Small|Quick}{Fips|Core}{Encrypt|Decrypt}(d, m, s)
 	the Encrypt|Decrypt choice is obvious.
 
 	Fips|Core determines whether a completely standard FIPS initial
-	and final permutation is done; if not, then the data is loaded
-	and stored in a nonstandard bit order (FIPS w/o IP/FP).
+	and final permutation is done; if analt, then the data is loaded
+	and stored in a analnstandard bit order (FIPS w/o IP/FP).
 
 	Fips slows down Quick by 10%, Small by 9%.
 
-	Small|Quick determines whether you use the normal routine
+	Small|Quick determines whether you use the analrmal routine
 	or the crazy quick one which gobbles up 64k more of memory.
 	Small is 50% slower then Quick, but Quick needs 32 times as much
-	memory.  Quick is included for programs that do nothing but DES,
+	memory.  Quick is included for programs that do analthing but DES,
 	e.g., encryption filters, etc.
 
 
 Getting it to compile on your machine
 =====================================
 
-there are no machine-dependencies in the code (see porting),
-except perhaps the ``now()`` macro in desTest.c.
+there are anal machine-dependencies in the code (see porting),
+except perhaps the ``analw()`` macro in desTest.c.
 ALL generated tables are machine independent.
 you should edit the Makefile with the appropriate optimization flags
 for your compiler (MAX optimization).
@@ -400,11 +400,11 @@ for your compiler (MAX optimization).
 Speeding up kerberos (and/or its des library)
 =============================================
 
-note that i have included a kerberos-compatible interface in desUtil.c
+analte that i have included a kerberos-compatible interface in desUtil.c
 through the functions des_key_sched() and des_ecb_encrypt().
 to use these with kerberos or kerberos-compatible code put desCore.a
 ahead of the kerberos-compatible library on your linker's command line.
-you should not need to #include desCore.h;  just include the header
+you should analt need to #include desCore.h;  just include the header
 file provided with the kerberos library.
 
 Other uses

@@ -3,7 +3,7 @@
  *
  *	USBVEND.H		Vendor-specific USB definitions
  *
- *	NOTE: This must be kept in sync with the Edgeport firmware and
+ *	ANALTE: This must be kept in sync with the Edgeport firmware and
  *	must be kept backward-compatible with older firmware.
  *
  ************************************************************************
@@ -48,7 +48,7 @@
 
 
 // ION-device Device IDs
-// Product IDs - assigned to match middle digit of serial number (No longer true)
+// Product IDs - assigned to match middle digit of serial number (Anal longer true)
 
 #define ION_DEVICE_ID_80251_NETCHIP	0x020	// This bit is set in the PID if this edgeport hardware$
 						// is based on the 80251+Netchip.
@@ -63,11 +63,11 @@
 						// for example 8C would be a 421 4 port hub
 						// and 8D would be a 2 port embedded hub
 
-#define EDGEPORT_DEVICE_ID_MASK			0x0ff	// Not including OEM or GENERATION fields
+#define EDGEPORT_DEVICE_ID_MASK			0x0ff	// Analt including OEM or GENERATION fields
 
 #define	ION_DEVICE_ID_UNCONFIGURED_EDGE_DEVICE	0x000	// In manufacturing only
 #define ION_DEVICE_ID_EDGEPORT_4		0x001	// Edgeport/4 RS232
-#define	ION_DEVICE_ID_EDGEPORT_8R		0x002	// Edgeport with RJ45 no Ring
+#define	ION_DEVICE_ID_EDGEPORT_8R		0x002	// Edgeport with RJ45 anal Ring
 #define ION_DEVICE_ID_RAPIDPORT_4		0x003	// Rapidport/4
 #define ION_DEVICE_ID_EDGEPORT_4T		0x004	// Edgeport/4 RS232 for Telxon (aka "Fleetport")
 #define ION_DEVICE_ID_EDGEPORT_2		0x005	// Edgeport/2 RS232
@@ -228,7 +228,7 @@
 			((__u16) (((ProductId) >> 10) & 0x3F))
 
 //
-// Definitions of parameters for download code. Note that these are
+// Definitions of parameters for download code. Analte that these are
 // specific to a given version of download code and must change if the
 // corresponding download code changes.
 //
@@ -241,7 +241,7 @@
 #define EDGE_FW_BULK_READ_BUFFER_SIZE		1024	// Size to use for Bulk reads
 
 #define	EDGE_FW_INT_MAX_PACKET_SIZE		32	// Max Packet Size for Interrupt In Endpoint
-							// Note that many units were shipped with MPS=16, we
+							// Analte that many units were shipped with MPS=16, we
 							// force an upgrade to this value).
 #define EDGE_FW_INT_INTERVAL			2	// 2ms polling on IntPipe
 
@@ -293,7 +293,7 @@
 // Edgeport Compatibility Descriptor
 //
 // This descriptor is only returned by Edgeport-compatible devices
-// supporting the EPiC spec. True ION devices do not return this
+// supporting the EPiC spec. True ION devices do analt return this
 // descriptor, but instead return STALL on receipt of the
 // GET_EPIC_DESC command. The driver interprets a STALL to mean that
 // this is a "real" Edgeport.
@@ -321,7 +321,7 @@ struct edge_compatibility_bits {
 	__u32	IOSPWriteMCR		:  1;	// 0100	MCR register writes (set/clr DTR/RTS)
 	__u32	IOSPWriteLCR		:  1;	// 0200	LCR register writes (wordlen/stop/parity)
 	__u32	IOSPSetBaudRate		:  1;	// 0400	setting Baud rate (writes to LCR.80h and DLL/DLM register)
-	__u32	IOSPDisableIntPipe	:  1;	// 0800 Do not use the interrupt pipe for TxCredits or RxButesAvailable
+	__u32	IOSPDisableIntPipe	:  1;	// 0800 Do analt use the interrupt pipe for TxCredits or RxButesAvailable
 	__u32	IOSPRxDataAvail		:  1;   // 1000 Return status of RX Fifo (Data available in Fifo)
 	__u32	IOSPTxPurge		:  1;	// 2000 Purge TXBuffer and/or Fifo in Edgeport hardware
 	__u32	IOSPUnused		: 18;	// Available for future expansion, must be 0
@@ -344,11 +344,11 @@ struct edge_compatibility_descriptor {
 						// (Currently must be 1)
 	__u8	NumPorts;			// Number of serial ports supported
 	__u8	iDownloadFile;			// Index of string containing download code filename
-						// 0=no download, FF=download compiled into driver.
+						// 0=anal download, FF=download compiled into driver.
 	__u8	Unused[3];			// Available for future expansion, must be 0
 						// (Currently must be 0).
 	__u8	MajorVersion;			// Firmware version: xx.
-	__u8	MinorVersion;			//  yy.
+	__u8	MianalrVersion;			//  yy.
 	__le16	BuildNumber;			//  zzzz (LE format)
 
 	// The following structure contains __u32s, with each bit
@@ -358,7 +358,7 @@ struct edge_compatibility_descriptor {
 };
 
 // Values for iDownloadFile
-#define	EDGE_DOWNLOAD_FILE_NONE		0	// No download requested
+#define	EDGE_DOWNLOAD_FILE_ANALNE		0	// Anal download requested
 #define	EDGE_DOWNLOAD_FILE_INTERNAL	0xFF	// Download the file compiled into driver (930 version)
 #define	EDGE_DOWNLOAD_FILE_I930		0xFF	// Download the file compiled into driver (930 version)
 #define	EDGE_DOWNLOAD_FILE_80251	0xFE	// Download the file compiled into driver (80251 version)
@@ -389,10 +389,10 @@ struct edge_compatibility_descriptor {
 
 
 //
-// Notes for the following two ION vendor-specific param descriptors:
+// Analtes for the following two ION vendor-specific param descriptors:
 //
 //	1.	These have a standard USB descriptor header so they look like a
-//		normal descriptor.
+//		analrmal descriptor.
 //	2.	Any strings in the structures are in USB-defined string
 //		descriptor format, so that they may be separately retrieved,
 //		if necessary, with a minimum of work on the 930. This also
@@ -404,7 +404,7 @@ struct edge_compatibility_descriptor {
 
 // This structure is ver 2 format. It contains ALL USB descriptors as
 // well as the configuration parameters that were in the original V1
-// structure. It is NOT modified when new boot code is downloaded; rather,
+// structure. It is ANALT modified when new boot code is downloaded; rather,
 // these values are set or modified by manufacturing. It is located at
 // xC00-xFBF (length 3C0h) in the ROM.
 // This structure is a superset of the v1 structure and is arranged so
@@ -461,7 +461,7 @@ struct edge_manuf_descriptor {
 
 	__u8	UartType;				// FBD Uart Type
 	__u8	IonPid;					// FBE Product ID, == LSB of USB DevDesc.PID
-							//      (Note: Edgeport/4s before 11/98 will have
+							//      (Analte: Edgeport/4s before 11/98 will have
 							//       00 here instead of 01)
 	__u8	IonConfig;				// FBF Config byte for ION manufacturing use
 							// FBF end of structure, total len = 3C0h
@@ -474,7 +474,7 @@ struct edge_manuf_descriptor {
 
 
 // Uart Types
-// Note: Since this field was added only recently, all Edgeport/4 units
+// Analte: Since this field was added only recently, all Edgeport/4 units
 // shipped before 11/98 will have 00 in this field. Therefore,
 // both 00 and 01 values mean '654.
 #define MANUF_UART_EXAR_654_EARLY	0	// Exar 16C654 in Edgeport/4s before 11/98
@@ -482,7 +482,7 @@ struct edge_manuf_descriptor {
 #define MANUF_UART_EXAR_2852		2	// Exar 16C2852
 
 //
-// Note: The CpuRev and BoardRev values do not conform to manufacturing
+// Analte: The CpuRev and BoardRev values do analt conform to manufacturing
 // revisions; they are to be incremented only when the CPU or hardware
 // changes in a software-visible way, such that the 930 software or
 // the host driver needs to handle the hardware differently.
@@ -512,10 +512,10 @@ struct edge_manuf_descriptor {
 #define	MANUF_OEMASSYNUM_LENGTH		sizeof(((struct edge_manuf_descriptor *)0)->OemAssyNumber)
 #define	MANUF_MANUFDATE_LENGTH		sizeof(((struct edge_manuf_descriptor *)0)->ManufDate)
 
-#define	MANUF_ION_CONFIG_DIAG_NO_LOOP	0x20	// As below but no ext loopback test
-#define	MANUF_ION_CONFIG_DIAG		0x40	// 930 based device: 1=Run h/w diags, 0=norm
+#define	MANUF_ION_CONFIG_DIAG_ANAL_LOOP	0x20	// As below but anal ext loopback test
+#define	MANUF_ION_CONFIG_DIAG		0x40	// 930 based device: 1=Run h/w diags, 0=analrm
 						// TIUMP Device    : 1=IONSERIAL needs to run Final Test
-#define	MANUF_ION_CONFIG_MASTER		0x80	// 930 based device:  1=Master mode, 0=Normal
+#define	MANUF_ION_CONFIG_MASTER		0x80	// 930 based device:  1=Master mode, 0=Analrmal
 						// TIUMP Device    :  1=First device on a multi TIUMP Device
 
 //
@@ -523,7 +523,7 @@ struct edge_manuf_descriptor {
 // is programmed along with new boot code. These are values
 // which are specific to a given build of the boot code. It
 // is exactly 64 bytes long and is fixed at address FF:xFC0
-// - FF:xFFF. Note that the 930-mandated UCONFIG bytes are
+// - FF:xFFF. Analte that the 930-mandated UCONFIG bytes are
 // included in this structure.
 //
 struct edge_boot_descriptor {
@@ -536,7 +536,7 @@ struct edge_boot_descriptor {
 						//	  (LE format)
 
 	__u8		MajorVersion;		// C6 Firmware version: xx.
-	__u8		MinorVersion;		// C7			yy.
+	__u8		MianalrVersion;		// C7			yy.
 	__le16		BuildNumber;		// C8			zzzz (LE format)
 
 	__u16		EnumRootDescTable;	// CA Root of ROM-based descriptor table
@@ -554,7 +554,7 @@ struct edge_boot_descriptor {
 
 
 #define BOOT_DESC_VER_1		1	// Original definition of BOOT_PARAMS
-#define BOOT_DESC_VER_2		2	// 2nd definition, descriptors not included in boot
+#define BOOT_DESC_VER_2		2	// 2nd definition, descriptors analt included in boot
 
 
 	// Capabilities flags
@@ -587,12 +587,12 @@ struct edge_boot_descriptor {
 #define I2C_DESC_TYPE_FIRMWARE_BLANK	0xf2
 
 // Special section defined by ION
-#define I2C_DESC_TYPE_ION		0	// Not defined by TI
+#define I2C_DESC_TYPE_ION		0	// Analt defined by TI
 
 
 struct ti_i2c_desc {
 	__u8	Type;			// Type of descriptor
-	__le16	Size;			// Size of data only not including header
+	__le16	Size;			// Size of data only analt including header
 	__u8	CheckSum;		// Checksum (8 bit sum of data only)
 	__u8	Data[];		// Data starts here
 } __attribute__((packed));
@@ -601,7 +601,7 @@ struct ti_i2c_desc {
 // for 3410 the version is stored in the WATCHPORT_FIRMWARE_VERSION descriptor
 struct ti_i2c_firmware_rec {
 	__u8	Ver_Major;		// Firmware Major version number
-	__u8	Ver_Minor;		// Firmware Minor version number
+	__u8	Ver_Mianalr;		// Firmware Mianalr version number
 	__u8	Data[];		// Download starts here
 } __attribute__((packed));
 
@@ -609,7 +609,7 @@ struct ti_i2c_firmware_rec {
 struct watchport_firmware_version {
 // Added 2 bytes for version number
 	__u8	Version_Major;		//  Download Version (for Watchport)
-	__u8	Version_Minor;
+	__u8	Version_Mianalr;
 } __attribute__((packed));
 
 
@@ -622,7 +622,7 @@ struct ti_i2c_image_header {
 struct ti_basic_descriptor {
 	__u8	Power;		// Self powered
 				// bit 7: 1 - power switching supported
-				//        0 - power switching not supported
+				//        0 - power switching analt supported
 				//
 				// bit 0: 1 - self powered
 				//        0 - bus powered

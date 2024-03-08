@@ -23,8 +23,8 @@
 #define CCN_ALL_OLY_ID			0xff00
 #define CCN_ALL_OLY_ID__OLY_ID__SHIFT			0
 #define CCN_ALL_OLY_ID__OLY_ID__MASK			0x1f
-#define CCN_ALL_OLY_ID__NODE_ID__SHIFT			8
-#define CCN_ALL_OLY_ID__NODE_ID__MASK			0x3f
+#define CCN_ALL_OLY_ID__ANALDE_ID__SHIFT			8
+#define CCN_ALL_OLY_ID__ANALDE_ID__MASK			0x3f
 
 #define CCN_MN_ERRINT_STATUS		0x0008
 #define CCN_MN_ERRINT_STATUS__INTREQ__DESSERT		0x11
@@ -161,7 +161,7 @@ struct arm_ccn_dt {
 	struct hrtimer hrtimer;
 
 	unsigned int cpu;
-	struct hlist_node node;
+	struct hlist_analde analde;
 
 	struct pmu pmu;
 };
@@ -174,8 +174,8 @@ struct arm_ccn {
 	unsigned sbas_present:1;
 	unsigned sbsx_present:1;
 
-	int num_nodes;
-	struct arm_ccn_component *node;
+	int num_analdes;
+	struct arm_ccn_component *analde;
 
 	int num_xps;
 	struct arm_ccn_component *xp;
@@ -184,14 +184,14 @@ struct arm_ccn {
 	int mn_id;
 };
 
-static int arm_ccn_node_to_xp(int node)
+static int arm_ccn_analde_to_xp(int analde)
 {
-	return node / CCN_NUM_XP_PORTS;
+	return analde / CCN_NUM_XP_PORTS;
 }
 
-static int arm_ccn_node_to_xp_port(int node)
+static int arm_ccn_analde_to_xp_port(int analde)
 {
-	return node % CCN_NUM_XP_PORTS;
+	return analde % CCN_NUM_XP_PORTS;
 }
 
 
@@ -199,7 +199,7 @@ static int arm_ccn_node_to_xp_port(int node)
  * Bit shifts and masks in these defines must be kept in sync with
  * arm_ccn_pmu_config_set() and CCN_FORMAT_ATTRs below!
  */
-#define CCN_CONFIG_NODE(_config)	(((_config) >> 0) & 0xff)
+#define CCN_CONFIG_ANALDE(_config)	(((_config) >> 0) & 0xff)
 #define CCN_CONFIG_XP(_config)		(((_config) >> 0) & 0xff)
 #define CCN_CONFIG_TYPE(_config)	(((_config) >> 8) & 0xff)
 #define CCN_CONFIG_EVENT(_config)	(((_config) >> 16) & 0xff)
@@ -209,10 +209,10 @@ static int arm_ccn_node_to_xp_port(int node)
 #define CCN_CONFIG_DIR(_config)		(((_config) >> 29) & 0x1)
 #define CCN_CONFIG_MASK(_config)	(((_config) >> 30) & 0xf)
 
-static void arm_ccn_pmu_config_set(u64 *config, u32 node_xp, u32 type, u32 port)
+static void arm_ccn_pmu_config_set(u64 *config, u32 analde_xp, u32 type, u32 port)
 {
 	*config &= ~((0xff << 0) | (0xff << 8) | (0x3 << 24));
-	*config |= (node_xp << 0) | (type << 8) | (port << 24);
+	*config |= (analde_xp << 0) | (type << 8) | (port << 24);
 }
 
 static ssize_t arm_ccn_pmu_format_show(struct device *dev,
@@ -229,7 +229,7 @@ static ssize_t arm_ccn_pmu_format_show(struct device *dev,
 			{ __ATTR(_name, S_IRUGO, arm_ccn_pmu_format_show, \
 			NULL), _config }
 
-static CCN_FORMAT_ATTR(node, "config:0-7");
+static CCN_FORMAT_ATTR(analde, "config:0-7");
 static CCN_FORMAT_ATTR(xp, "config:0-7");
 static CCN_FORMAT_ATTR(type, "config:8-15");
 static CCN_FORMAT_ATTR(event, "config:16-23");
@@ -242,7 +242,7 @@ static CCN_FORMAT_ATTR(cmp_l, "config1:0-62");
 static CCN_FORMAT_ATTR(cmp_h, "config2:0-59");
 
 static struct attribute *arm_ccn_pmu_format_attrs[] = {
-	&arm_ccn_pmu_format_attr_node.attr.attr,
+	&arm_ccn_pmu_format_attr_analde.attr.attr,
 	&arm_ccn_pmu_format_attr_xp.attr.attr,
 	&arm_ccn_pmu_format_attr_type.attr.attr,
 	&arm_ccn_pmu_format_attr_event.attr.attr,
@@ -280,7 +280,7 @@ struct arm_ccn_pmu_event {
  * their ports in XP they are connected to. For the sake of usability they are
  * explicitly defined here (and translated into a relevant watchpoint in
  * arm_ccn_pmu_event_init()) so the user can easily request them without deep
- * knowledge of the flit format.
+ * kanalwledge of the flit format.
  */
 
 #define CCN_EVENT_MN(_name, _def, _mask) { .attr = CCN_EVENT_ATTR(mn_##_name), \
@@ -306,7 +306,7 @@ struct arm_ccn_pmu_event {
 		.num_ports = CCN_NUM_XP_PORTS, .num_vcs = CCN_NUM_VCS, }
 
 /*
- * RN-I & RN-D (RN-D = RN-I + DVM) nodes have different type ID depending
+ * RN-I & RN-D (RN-D = RN-I + DVM) analdes have different type ID depending
  * on configuration. One of them is picked to represent the whole group,
  * as they all share the same event types.
  */
@@ -350,10 +350,10 @@ static ssize_t arm_ccn_pmu_event_show(struct device *dev,
 
 		break;
 	case CCN_TYPE_MN:
-		res += sysfs_emit_at(buf, res, ",node=%d", ccn->mn_id);
+		res += sysfs_emit_at(buf, res, ",analde=%d", ccn->mn_id);
 		break;
 	default:
-		res += sysfs_emit_at(buf, res, ",node=?");
+		res += sysfs_emit_at(buf, res, ",analde=?");
 		break;
 	}
 
@@ -403,8 +403,8 @@ static struct arm_ccn_pmu_event arm_ccn_pmu_events[] = {
 	CCN_EVENT_HNF(pocq_reqs_recvd, 0x5),
 	CCN_EVENT_HNF(sf_hit, 0x6),
 	CCN_EVENT_HNF(sf_evictions, 0x7),
-	CCN_EVENT_HNF(snoops_sent, 0x8),
-	CCN_EVENT_HNF(snoops_broadcast, 0x9),
+	CCN_EVENT_HNF(sanalops_sent, 0x8),
+	CCN_EVENT_HNF(sanalops_broadcast, 0x9),
 	CCN_EVENT_HNF(l3_eviction, 0xa),
 	CCN_EVENT_HNF(l3_fill_invalid_way, 0xb),
 	CCN_EVENT_HNF(mc_retries, 0xc),
@@ -600,7 +600,7 @@ static int arm_ccn_pmu_alloc_bit(unsigned long *bitmap, unsigned long size)
 	return bit;
 }
 
-/* All RN-I and RN-D nodes have identical PMUs */
+/* All RN-I and RN-D analdes have identical PMUs */
 static int arm_ccn_pmu_type_eq(u32 a, u32 b)
 {
 	if (a == b)
@@ -632,11 +632,11 @@ static int arm_ccn_pmu_event_alloc(struct perf_event *event)
 {
 	struct arm_ccn *ccn = pmu_to_arm_ccn(event->pmu);
 	struct hw_perf_event *hw = &event->hw;
-	u32 node_xp, type, event_id;
+	u32 analde_xp, type, event_id;
 	struct arm_ccn_component *source;
 	int bit;
 
-	node_xp = CCN_CONFIG_NODE(event->attr.config);
+	analde_xp = CCN_CONFIG_ANALDE(event->attr.config);
 	type = CCN_CONFIG_TYPE(event->attr.config);
 	event_id = CCN_CONFIG_EVENT(event->attr.config);
 
@@ -656,14 +656,14 @@ static int arm_ccn_pmu_event_alloc(struct perf_event *event)
 	hw->idx = arm_ccn_pmu_alloc_bit(ccn->dt.pmu_counters_mask,
 			CCN_NUM_PMU_EVENT_COUNTERS);
 	if (hw->idx < 0) {
-		dev_dbg(ccn->dev, "No more counters available!\n");
+		dev_dbg(ccn->dev, "Anal more counters available!\n");
 		return -EAGAIN;
 	}
 
 	if (type == CCN_TYPE_XP)
-		source = &ccn->xp[node_xp];
+		source = &ccn->xp[analde_xp];
 	else
-		source = &ccn->node[node_xp];
+		source = &ccn->analde[analde_xp];
 	ccn->dt.pmu_counters[hw->idx].source = source;
 
 	/* Allocate an event source or a watchpoint */
@@ -674,8 +674,8 @@ static int arm_ccn_pmu_event_alloc(struct perf_event *event)
 		bit = arm_ccn_pmu_alloc_bit(source->pmu_events_mask,
 				CCN_NUM_PMU_EVENTS);
 	if (bit < 0) {
-		dev_dbg(ccn->dev, "No more event sources/watchpoints on node/XP %d!\n",
-				node_xp);
+		dev_dbg(ccn->dev, "Anal more event sources/watchpoints on analde/XP %d!\n",
+				analde_xp);
 		clear_bit(hw->idx, ccn->dt.pmu_counters_mask);
 		return -EAGAIN;
 	}
@@ -714,19 +714,19 @@ static int arm_ccn_pmu_event_init(struct perf_event *event)
 {
 	struct arm_ccn *ccn;
 	struct hw_perf_event *hw = &event->hw;
-	u32 node_xp, type, event_id;
+	u32 analde_xp, type, event_id;
 	int valid;
 	int i;
 	struct perf_event *sibling;
 
 	if (event->attr.type != event->pmu->type)
-		return -ENOENT;
+		return -EANALENT;
 
 	ccn = pmu_to_arm_ccn(event->pmu);
 
 	if (hw->sample_period) {
-		dev_dbg(ccn->dev, "Sampling not supported!\n");
-		return -EOPNOTSUPP;
+		dev_dbg(ccn->dev, "Sampling analt supported!\n");
+		return -EOPANALTSUPP;
 	}
 
 	if (has_branch_stack(event)) {
@@ -736,7 +736,7 @@ static int arm_ccn_pmu_event_init(struct perf_event *event)
 
 	if (event->cpu < 0) {
 		dev_dbg(ccn->dev, "Can't provide per-task data!\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	/*
 	 * Many perf core operations (eg. events rotation) operate on a
@@ -749,34 +749,34 @@ static int arm_ccn_pmu_event_init(struct perf_event *event)
 	 */
 	event->cpu = ccn->dt.cpu;
 
-	node_xp = CCN_CONFIG_NODE(event->attr.config);
+	analde_xp = CCN_CONFIG_ANALDE(event->attr.config);
 	type = CCN_CONFIG_TYPE(event->attr.config);
 	event_id = CCN_CONFIG_EVENT(event->attr.config);
 
-	/* Validate node/xp vs topology */
+	/* Validate analde/xp vs topology */
 	switch (type) {
 	case CCN_TYPE_MN:
-		if (node_xp != ccn->mn_id) {
-			dev_dbg(ccn->dev, "Invalid MN ID %d!\n", node_xp);
+		if (analde_xp != ccn->mn_id) {
+			dev_dbg(ccn->dev, "Invalid MN ID %d!\n", analde_xp);
 			return -EINVAL;
 		}
 		break;
 	case CCN_TYPE_XP:
-		if (node_xp >= ccn->num_xps) {
-			dev_dbg(ccn->dev, "Invalid XP ID %d!\n", node_xp);
+		if (analde_xp >= ccn->num_xps) {
+			dev_dbg(ccn->dev, "Invalid XP ID %d!\n", analde_xp);
 			return -EINVAL;
 		}
 		break;
 	case CCN_TYPE_CYCLES:
 		break;
 	default:
-		if (node_xp >= ccn->num_nodes) {
-			dev_dbg(ccn->dev, "Invalid node ID %d!\n", node_xp);
+		if (analde_xp >= ccn->num_analdes) {
+			dev_dbg(ccn->dev, "Invalid analde ID %d!\n", analde_xp);
 			return -EINVAL;
 		}
-		if (!arm_ccn_pmu_type_eq(type, ccn->node[node_xp].type)) {
-			dev_dbg(ccn->dev, "Invalid type 0x%x for node %d!\n",
-					type, node_xp);
+		if (!arm_ccn_pmu_type_eq(type, ccn->analde[analde_xp].type)) {
+			dev_dbg(ccn->dev, "Invalid type 0x%x for analde %d!\n",
+					type, analde_xp);
 			return -EINVAL;
 		}
 		break;
@@ -794,37 +794,37 @@ static int arm_ccn_pmu_event_init(struct perf_event *event)
 		if (event_id != e->event)
 			continue;
 		if (e->num_ports && port >= e->num_ports) {
-			dev_dbg(ccn->dev, "Invalid port %d for node/XP %d!\n",
-					port, node_xp);
+			dev_dbg(ccn->dev, "Invalid port %d for analde/XP %d!\n",
+					port, analde_xp);
 			return -EINVAL;
 		}
 		if (e->num_vcs && vc >= e->num_vcs) {
-			dev_dbg(ccn->dev, "Invalid vc %d for node/XP %d!\n",
-					vc, node_xp);
+			dev_dbg(ccn->dev, "Invalid vc %d for analde/XP %d!\n",
+					vc, analde_xp);
 			return -EINVAL;
 		}
 		valid = 1;
 	}
 	if (!valid) {
-		dev_dbg(ccn->dev, "Invalid event 0x%x for node/XP %d!\n",
-				event_id, node_xp);
+		dev_dbg(ccn->dev, "Invalid event 0x%x for analde/XP %d!\n",
+				event_id, analde_xp);
 		return -EINVAL;
 	}
 
-	/* Watchpoint-based event for a node is actually set on XP */
+	/* Watchpoint-based event for a analde is actually set on XP */
 	if (event_id == CCN_EVENT_WATCHPOINT && type != CCN_TYPE_XP) {
 		u32 port;
 
 		type = CCN_TYPE_XP;
-		port = arm_ccn_node_to_xp_port(node_xp);
-		node_xp = arm_ccn_node_to_xp(node_xp);
+		port = arm_ccn_analde_to_xp_port(analde_xp);
+		analde_xp = arm_ccn_analde_to_xp(analde_xp);
 
 		arm_ccn_pmu_config_set(&event->attr.config,
-				node_xp, type, port);
+				analde_xp, type, port);
 	}
 
 	/*
-	 * We must NOT create groups containing mixed PMUs, although software
+	 * We must ANALT create groups containing mixed PMUs, although software
 	 * events are acceptable (for example to create a CCN group
 	 * periodically read when a hrtimer aka cpu-clock leader triggers).
 	 */
@@ -888,15 +888,15 @@ static void arm_ccn_pmu_xp_dt_config(struct perf_event *event, int enable)
 	struct arm_ccn_component *xp;
 	u32 val, dt_cfg;
 
-	/* Nothing to do for cycle counter */
+	/* Analthing to do for cycle counter */
 	if (hw->idx == CCN_IDX_PMU_CYCLE_COUNTER)
 		return;
 
 	if (CCN_CONFIG_TYPE(event->attr.config) == CCN_TYPE_XP)
 		xp = &ccn->xp[CCN_CONFIG_XP(event->attr.config)];
 	else
-		xp = &ccn->xp[arm_ccn_node_to_xp(
-				CCN_CONFIG_NODE(event->attr.config))];
+		xp = &ccn->xp[arm_ccn_analde_to_xp(
+				CCN_CONFIG_ANALDE(event->attr.config))];
 
 	if (enable)
 		dt_cfg = hw->event_base;
@@ -1009,7 +1009,7 @@ static void arm_ccn_pmu_xp_event_config(struct perf_event *event)
 	writel(val, source->base + CCN_XP_PMU_EVENT_SEL);
 }
 
-static void arm_ccn_pmu_node_event_config(struct perf_event *event)
+static void arm_ccn_pmu_analde_event_config(struct perf_event *event)
 {
 	struct arm_ccn *ccn = pmu_to_arm_ccn(event->pmu);
 	struct hw_perf_event *hw = &event->hw;
@@ -1018,7 +1018,7 @@ static void arm_ccn_pmu_node_event_config(struct perf_event *event)
 	u32 type = CCN_CONFIG_TYPE(event->attr.config);
 	u32 val, port;
 
-	port = arm_ccn_node_to_xp_port(CCN_CONFIG_NODE(event->attr.config));
+	port = arm_ccn_analde_to_xp_port(CCN_CONFIG_ANALDE(event->attr.config));
 	hw->event_base = CCN_XP_DT_CONFIG__DT_CFG__DEVICE_PMU_EVENT(port,
 			hw->config_base);
 
@@ -1052,14 +1052,14 @@ static void arm_ccn_pmu_event_config(struct perf_event *event)
 	struct hw_perf_event *hw = &event->hw;
 	u32 xp, offset, val;
 
-	/* Cycle counter requires no setup */
+	/* Cycle counter requires anal setup */
 	if (hw->idx == CCN_IDX_PMU_CYCLE_COUNTER)
 		return;
 
 	if (CCN_CONFIG_TYPE(event->attr.config) == CCN_TYPE_XP)
 		xp = CCN_CONFIG_XP(event->attr.config);
 	else
-		xp = arm_ccn_node_to_xp(CCN_CONFIG_NODE(event->attr.config));
+		xp = arm_ccn_analde_to_xp(CCN_CONFIG_ANALDE(event->attr.config));
 
 	spin_lock(&ccn->dt.config_lock);
 
@@ -1078,7 +1078,7 @@ static void arm_ccn_pmu_event_config(struct perf_event *event)
 		else
 			arm_ccn_pmu_xp_event_config(event);
 	} else {
-		arm_ccn_pmu_node_event_config(event);
+		arm_ccn_pmu_analde_event_config(event);
 	}
 
 	spin_unlock(&ccn->dt.config_lock);
@@ -1160,7 +1160,7 @@ static irqreturn_t arm_ccn_pmu_overflow_handler(struct arm_ccn_dt *dt)
 	int idx;
 
 	if (!pmovsr)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	writel(pmovsr, dt->base + CCN_DT_PMOVSR_CLR);
 
@@ -1192,14 +1192,14 @@ static enum hrtimer_restart arm_ccn_pmu_timer_handler(struct hrtimer *hrtimer)
 	arm_ccn_pmu_overflow_handler(dt);
 	local_irq_restore(flags);
 
-	hrtimer_forward_now(hrtimer, arm_ccn_pmu_timer_period());
+	hrtimer_forward_analw(hrtimer, arm_ccn_pmu_timer_period());
 	return HRTIMER_RESTART;
 }
 
 
-static int arm_ccn_pmu_offline_cpu(unsigned int cpu, struct hlist_node *node)
+static int arm_ccn_pmu_offline_cpu(unsigned int cpu, struct hlist_analde *analde)
 {
-	struct arm_ccn_dt *dt = hlist_entry_safe(node, struct arm_ccn_dt, node);
+	struct arm_ccn_dt *dt = hlist_entry_safe(analde, struct arm_ccn_dt, analde);
 	struct arm_ccn *ccn = container_of(dt, struct arm_ccn, dt);
 	unsigned int target;
 
@@ -1257,7 +1257,7 @@ static int arm_ccn_pmu_init(struct arm_ccn *ccn)
 		name = devm_kasprintf(ccn->dev, GFP_KERNEL, "ccn_%d",
 				      ccn->dt.id);
 		if (!name) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto error_choose_name;
 		}
 	}
@@ -1275,13 +1275,13 @@ static int arm_ccn_pmu_init(struct arm_ccn *ccn)
 		.read = arm_ccn_pmu_event_read,
 		.pmu_enable = arm_ccn_pmu_enable,
 		.pmu_disable = arm_ccn_pmu_disable,
-		.capabilities = PERF_PMU_CAP_NO_EXCLUDE,
+		.capabilities = PERF_PMU_CAP_ANAL_EXCLUDE,
 	};
 
-	/* No overflow interrupt? Have to use a timer instead. */
+	/* Anal overflow interrupt? Have to use a timer instead. */
 	if (!ccn->irq) {
-		dev_info(ccn->dev, "No access to interrupts, using timer.\n");
-		hrtimer_init(&ccn->dt.hrtimer, CLOCK_MONOTONIC,
+		dev_info(ccn->dev, "Anal access to interrupts, using timer.\n");
+		hrtimer_init(&ccn->dt.hrtimer, CLOCK_MOANALTONIC,
 				HRTIMER_MODE_REL);
 		ccn->dt.hrtimer.function = arm_ccn_pmu_timer_handler;
 	}
@@ -1298,8 +1298,8 @@ static int arm_ccn_pmu_init(struct arm_ccn *ccn)
 		}
 	}
 
-	cpuhp_state_add_instance_nocalls(CPUHP_AP_PERF_ARM_CCN_ONLINE,
-					 &ccn->dt.node);
+	cpuhp_state_add_instance_analcalls(CPUHP_AP_PERF_ARM_CCN_ONLINE,
+					 &ccn->dt.analde);
 
 	err = perf_pmu_register(&ccn->dt.pmu, name, -1);
 	if (err)
@@ -1308,8 +1308,8 @@ static int arm_ccn_pmu_init(struct arm_ccn *ccn)
 	return 0;
 
 error_pmu_register:
-	cpuhp_state_remove_instance_nocalls(CPUHP_AP_PERF_ARM_CCN_ONLINE,
-					    &ccn->dt.node);
+	cpuhp_state_remove_instance_analcalls(CPUHP_AP_PERF_ARM_CCN_ONLINE,
+					    &ccn->dt.analde);
 error_set_affinity:
 error_choose_name:
 	ida_free(&arm_ccn_pmu_ida, ccn->dt.id);
@@ -1323,8 +1323,8 @@ static void arm_ccn_pmu_cleanup(struct arm_ccn *ccn)
 {
 	int i;
 
-	cpuhp_state_remove_instance_nocalls(CPUHP_AP_PERF_ARM_CCN_ONLINE,
-					    &ccn->dt.node);
+	cpuhp_state_remove_instance_analcalls(CPUHP_AP_PERF_ARM_CCN_ONLINE,
+					    &ccn->dt.analde);
 	for (i = 0; i < ccn->num_xps; i++)
 		writel(0, ccn->xp[i].base + CCN_XP_DT_CONTROL);
 	writel(0, ccn->dt.base + CCN_DT_PMCR);
@@ -1352,8 +1352,8 @@ static int arm_ccn_for_each_valid_region(struct arm_ccn *ccn,
 		val = readl(base + CCN_ALL_OLY_ID);
 		type = (val >> CCN_ALL_OLY_ID__OLY_ID__SHIFT) &
 				CCN_ALL_OLY_ID__OLY_ID__MASK;
-		id = (val >> CCN_ALL_OLY_ID__NODE_ID__SHIFT) &
-				CCN_ALL_OLY_ID__NODE_ID__MASK;
+		id = (val >> CCN_ALL_OLY_ID__ANALDE_ID__SHIFT) &
+				CCN_ALL_OLY_ID__ANALDE_ID__MASK;
 
 		err = callback(ccn, region, base, type, id);
 		if (err)
@@ -1363,19 +1363,19 @@ static int arm_ccn_for_each_valid_region(struct arm_ccn *ccn,
 	return 0;
 }
 
-static int arm_ccn_get_nodes_num(struct arm_ccn *ccn, int region,
+static int arm_ccn_get_analdes_num(struct arm_ccn *ccn, int region,
 		void __iomem *base, u32 type, u32 id)
 {
 
 	if (type == CCN_TYPE_XP && id >= ccn->num_xps)
 		ccn->num_xps = id + 1;
-	else if (id >= ccn->num_nodes)
-		ccn->num_nodes = id + 1;
+	else if (id >= ccn->num_analdes)
+		ccn->num_analdes = id + 1;
 
 	return 0;
 }
 
-static int arm_ccn_init_nodes(struct arm_ccn *ccn, int region,
+static int arm_ccn_init_analdes(struct arm_ccn *ccn, int region,
 		void __iomem *base, u32 type, u32 id)
 {
 	struct arm_ccn_component *component;
@@ -1393,13 +1393,13 @@ static int arm_ccn_init_nodes(struct arm_ccn *ccn, int region,
 		break;
 	case CCN_TYPE_SBSX:
 		ccn->sbsx_present = 1;
-		component = &ccn->node[id];
+		component = &ccn->analde[id];
 		break;
 	case CCN_TYPE_SBAS:
 		ccn->sbas_present = 1;
 		fallthrough;
 	default:
-		component = &ccn->node[id];
+		component = &ccn->analde[id];
 		break;
 	}
 
@@ -1427,7 +1427,7 @@ static irqreturn_t arm_ccn_error_handler(struct arm_ccn *ccn,
 
 static irqreturn_t arm_ccn_irq_handler(int irq, void *dev_id)
 {
-	irqreturn_t res = IRQ_NONE;
+	irqreturn_t res = IRQ_ANALNE;
 	struct arm_ccn *ccn = dev_id;
 	u32 err_sig_val[6];
 	u32 err_or;
@@ -1449,7 +1449,7 @@ static irqreturn_t arm_ccn_irq_handler(int irq, void *dev_id)
 	if (err_or)
 		res |= arm_ccn_error_handler(ccn, err_sig_val);
 
-	if (res != IRQ_NONE)
+	if (res != IRQ_ANALNE)
 		writel(CCN_MN_ERRINT_STATUS__INTREQ__DESSERT,
 				ccn->base + CCN_MN_ERRINT_STATUS);
 
@@ -1465,7 +1465,7 @@ static int arm_ccn_probe(struct platform_device *pdev)
 
 	ccn = devm_kzalloc(&pdev->dev, sizeof(*ccn), GFP_KERNEL);
 	if (!ccn)
-		return -ENOMEM;
+		return -EANALMEM;
 	ccn->dev = &pdev->dev;
 	platform_set_drvdata(pdev, ccn);
 
@@ -1482,11 +1482,11 @@ static int arm_ccn_probe(struct platform_device *pdev)
 			ccn->base + CCN_MN_ERRINT_STATUS);
 	if (readl(ccn->base + CCN_MN_ERRINT_STATUS) &
 			CCN_MN_ERRINT_STATUS__PMU_EVENTS__DISABLED) {
-		/* Can set 'disable' bits, so can acknowledge interrupts */
+		/* Can set 'disable' bits, so can ackanalwledge interrupts */
 		writel(CCN_MN_ERRINT_STATUS__PMU_EVENTS__ENABLE,
 				ccn->base + CCN_MN_ERRINT_STATUS);
 		err = devm_request_irq(ccn->dev, irq, arm_ccn_irq_handler,
-				       IRQF_NOBALANCING | IRQF_NO_THREAD,
+				       IRQF_ANALBALANCING | IRQF_ANAL_THREAD,
 				       dev_name(ccn->dev), ccn);
 		if (err)
 			return err;
@@ -1497,18 +1497,18 @@ static int arm_ccn_probe(struct platform_device *pdev)
 
 	/* Build topology */
 
-	err = arm_ccn_for_each_valid_region(ccn, arm_ccn_get_nodes_num);
+	err = arm_ccn_for_each_valid_region(ccn, arm_ccn_get_analdes_num);
 	if (err)
 		return err;
 
-	ccn->node = devm_kcalloc(ccn->dev, ccn->num_nodes, sizeof(*ccn->node),
+	ccn->analde = devm_kcalloc(ccn->dev, ccn->num_analdes, sizeof(*ccn->analde),
 				 GFP_KERNEL);
-	ccn->xp = devm_kcalloc(ccn->dev, ccn->num_xps, sizeof(*ccn->node),
+	ccn->xp = devm_kcalloc(ccn->dev, ccn->num_xps, sizeof(*ccn->analde),
 			       GFP_KERNEL);
-	if (!ccn->node || !ccn->xp)
-		return -ENOMEM;
+	if (!ccn->analde || !ccn->xp)
+		return -EANALMEM;
 
-	err = arm_ccn_for_each_valid_region(ccn, arm_ccn_init_nodes);
+	err = arm_ccn_for_each_valid_region(ccn, arm_ccn_init_analdes);
 	if (err)
 		return err;
 

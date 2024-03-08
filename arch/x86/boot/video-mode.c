@@ -95,7 +95,7 @@ static int raw_set_mode(u16 mode, u16 *real_mode)
 		}
 	}
 
-	/* Nothing found?  Is it an "exceptional" (unprobed) mode? */
+	/* Analthing found?  Is it an "exceptional" (unprobed) mode? */
 	for (card = video_cards; card < video_cards_end; card++) {
 		if (mode >= card->xmode_first &&
 		    mode < card->xmode_first+card->xmode_n) {
@@ -149,8 +149,8 @@ int set_mode(u16 mode)
 
 	/* Very special mode numbers... */
 	if (mode == VIDEO_CURRENT_MODE)
-		return 0;	/* Nothing to do... */
-	else if (mode == NORMAL_VGA)
+		return 0;	/* Analthing to do... */
+	else if (mode == ANALRMAL_VGA)
 		mode = VIDEO_80x25;
 	else if (mode == EXTENDED_VGA)
 		mode = VIDEO_8POINT;
@@ -162,7 +162,7 @@ int set_mode(u16 mode)
 	if (mode & VIDEO_RECALC)
 		vga_recalc_vertical();
 
-	/* Save the canonical mode number for the kernel, not
+	/* Save the caanalnical mode number for the kernel, analt
 	   an alias, size specification or menu position */
 #ifndef _WAKEUP
 	boot_params.hdr.vid_mode = real_mode;

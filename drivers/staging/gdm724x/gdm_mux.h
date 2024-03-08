@@ -10,7 +10,7 @@
 
 #include "gdm_tty.h"
 
-#define PM_NORMAL 0
+#define PM_ANALRMAL 0
 #define PM_SUSPEND 1
 
 #define USB_RT_ACM          (USB_TYPE_CLASS | USB_RECIP_INTERFACE)

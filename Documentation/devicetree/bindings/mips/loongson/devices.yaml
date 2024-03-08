@@ -12,7 +12,7 @@ description: |
   Devices with a Loongson CPU shall have the following properties.
 
 properties:
-  $nodename:
+  $analdename:
     const: '/'
   compatible:
     oneOf:

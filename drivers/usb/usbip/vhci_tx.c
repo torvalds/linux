@@ -61,7 +61,7 @@ static int vhci_send_cmd_submit(struct vhci_device *vdev)
 
 	size_t total_size = 0;
 	int iovnum;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 	int i;
 
 	while ((priv = dequeue_from_priv_tx(vdev)) != NULL) {
@@ -85,7 +85,7 @@ static int vhci_send_cmd_submit(struct vhci_device *vdev)
 		iov = kcalloc(iovnum, sizeof(*iov), GFP_KERNEL);
 		if (!iov) {
 			usbip_event_add(&vdev->ud, SDEV_EVENT_ERROR_MALLOC);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		if (urb->num_sgs)
@@ -120,7 +120,7 @@ static int vhci_send_cmd_submit(struct vhci_device *vdev)
 		}
 
 		/* 3. setup iso_packet_descriptor */
-		if (usb_pipetype(urb->pipe) == PIPE_ISOCHRONOUS) {
+		if (usb_pipetype(urb->pipe) == PIPE_ISOCHROANALUS) {
 			ssize_t len = 0;
 
 			iso_buffer = usbip_alloc_iso_desc_pdu(urb, &len);
@@ -147,7 +147,7 @@ static int vhci_send_cmd_submit(struct vhci_device *vdev)
 		}
 
 		kfree(iov);
-		/* This is only for isochronous case */
+		/* This is only for isochroanalus case */
 		kfree(iso_buffer);
 		iso_buffer = NULL;
 
@@ -249,7 +249,7 @@ int vhci_tx_loop(void *data)
 					  !list_empty(&vdev->unlink_tx) ||
 					  kthread_should_stop()));
 
-		usbip_dbg_vhci_tx("pending urbs ?, now wake up\n");
+		usbip_dbg_vhci_tx("pending urbs ?, analw wake up\n");
 	}
 
 	return 0;

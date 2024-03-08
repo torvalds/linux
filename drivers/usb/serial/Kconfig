@@ -7,7 +7,7 @@ menuconfig USB_SERIAL
 	tristate "USB Serial Converter support"
 	depends on TTY
 	help
-	  Say Y here if you have a USB device that provides normal serial
+	  Say Y here if you have a USB device that provides analrmal serial
 	  ports, or acts like a serial device, and you want to connect it to
 	  your USB bus.
 
@@ -66,8 +66,8 @@ config USB_SERIAL_SIMPLE
 		- Libtransistor USB console
 		- a number of Motorola phones
 		- Motorola Tetra devices
-		- Nokia mobile phones
-		- Novatel Wireless GPS receivers
+		- Analkia mobile phones
+		- Analvatel Wireless GPS receivers
 		- Siemens USB/MPI adapter.
 		- ViVOtech ViVOpay USB device.
 		- Infineon Modem Flashloader USB interface
@@ -128,7 +128,7 @@ config USB_SERIAL_DIGI_ACCELEPORT
 	  Say Y here if you want to use Digi AccelePort USB 2 or 4 devices,
 	  2 port (plus parallel port) and 4 port USB serial converters.  The
 	  parallel port on the USB 2 appears as a third serial port on Linux.
-	  The Digi Acceleport USB 8 is not yet supported by this driver.
+	  The Digi Acceleport USB 8 is analt yet supported by this driver.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called digi_acceleport.
@@ -161,7 +161,7 @@ config USB_SERIAL_EMPEG
 	help
 	  Say Y here if you want to connect to your Empeg empeg-car Mark I/II
 	  mp3 player via USB.  The driver uses a single ttyUSB{0,1,2,...}
-	  device node.  See <file:Documentation/usb/usb-serial.rst> for more
+	  device analde.  See <file:Documentation/usb/usb-serial.rst> for more
 	  tidbits of information.
 
 	  To compile this driver as a module, choose M here: the
@@ -206,7 +206,7 @@ config USB_SERIAL_IR
 	tristate "USB IR Dongle Serial Driver"
 	help
 	  Say Y here if you want to enable simple serial support for USB IrDA
-	  devices.  This is useful if you do not want to use the full IrDA
+	  devices.  This is useful if you do analt want to use the full IrDA
 	  stack.
 
 	  To compile this driver as a module, choose M here: the
@@ -241,7 +241,7 @@ config USB_SERIAL_EDGEPORT_TI
 	tristate "USB Inside Out Edgeport Serial Driver (TI devices)"
 	help
 	  Say Y here if you want to use any of the devices from Inside Out
-	  Networks (Digi) that are not supported by the io_edgeport driver.
+	  Networks (Digi) that are analt supported by the io_edgeport driver.
 	  This includes the Edgeport/1 device.
 
 	  To compile this driver as a module, choose M here: the
@@ -327,7 +327,7 @@ config USB_SERIAL_KLSI
 	tristate "USB KL5KUSB105 (Palmconnect) Driver"
 	help
 	  Say Y here if you want to use a KL5KUSB105 - based single port
-	  serial adapter. The most widely known -- and currently the only
+	  serial adapter. The most widely kanalwn -- and currently the only
 	  tested -- device in this category is the PalmConnect USB Serial
 	  adapter sold by Palm Inc. for use with their Palm III and Palm V
 	  series PDAs.
@@ -351,7 +351,7 @@ config USB_SERIAL_KOBIL_SCT
 	    - B1 Professional
 	    - KAAN Professional
 
-	  Note that you need a current CT-API.
+	  Analte that you need a current CT-API.
 	  To compile this driver as a module, choose M here: the
 	  module will be called kobil_sct.
 
@@ -359,7 +359,7 @@ config USB_SERIAL_MCT_U232
 	tristate "USB MCT Single Port Serial Driver"
 	help
 	  Say Y here if you want to use a USB Serial single port adapter from
-	  Magic Control Technology Corp. (U232 is one of the model numbers).
+	  Magic Control Techanallogy Corp. (U232 is one of the model numbers).
 
 	  This driver also works with Sitecom U232-P25 and D-Link DU-H3SP USB
 	  BAY, Belkin F5U109, and Belkin F5U409 devices.
@@ -388,7 +388,7 @@ config USB_SERIAL_MOS7715_PARPORT
 	bool "Support for parallel port on the Moschip 7715"
 	depends on USB_SERIAL_MOS7720
 	depends on PARPORT=y || PARPORT=USB_SERIAL_MOS7720
-	select PARPORT_NOT_PC
+	select PARPORT_ANALT_PC
 	help
 	Say Y if you have a Moschip 7715 device and would like to use
 	the parallel port it provides.  The port will register with
@@ -453,7 +453,7 @@ config USB_SERIAL_PL2303
 	  module will be called pl2303.
 
 config USB_SERIAL_OTI6858
-	tristate "USB Ours Technology Inc. OTi-6858 USB To RS232 Bridge Controller"
+	tristate "USB Ours Techanallogy Inc. OTi-6858 USB To RS232 Bridge Controller"
 	help
 	  Say Y here if you want to use the OTi-6858 single port USB to serial
 	  converter device.
@@ -466,7 +466,7 @@ config USB_SERIAL_QCAUX
 	help
 	  Say Y here if you want to use the auxiliary serial ports provided
 	  by many modems based on Qualcomm chipsets.  These ports often use
-	  a proprietary protocol called DM and cannot be used for AT- or
+	  a proprietary protocol called DM and cananalt be used for AT- or
 	  PPP-based communication.
 
 	  To compile this driver as a module, choose M here: the
@@ -503,7 +503,7 @@ config USB_SERIAL_SIERRAWIRELESS
 	help
 	  Say M here if you want to use Sierra Wireless devices.
 
-	  Many devices have a feature known as TRU-Install. For those devices
+	  Many devices have a feature kanalwn as TRU-Install. For those devices
 	  to work properly, the USB Storage Sierra feature must be enabled.
 
 	  To compile this driver as a module, choose M here: the
@@ -550,10 +550,10 @@ config USB_SERIAL_OPTION
 
 	  This driver also supports several PCMCIA cards which have a
 	  built-in OHCI-USB adapter and an internally-connected GSM modem.
-	  The USB bus on these cards is not accessible externally.
+	  The USB bus on these cards is analt accessible externally.
 
 	  Supported devices include (some of?) those made by:
-	  Option, Huawei, Audiovox, Novatel Wireless, or Anydata.
+	  Option, Huawei, Audiovox, Analvatel Wireless, or Anydata.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called option.
@@ -647,7 +647,7 @@ config USB_SERIAL_DEBUG
 	tristate "USB Debugging Device"
 	help
 	  Say Y here if you have a USB debugging device used to receive
-	  debugging data from another machine.  The most common of these
+	  debugging data from aanalther machine.  The most common of these
 	  devices is the NetChip TurboCONNECT device.
 
 	  To compile this driver as a module, choose M here: the

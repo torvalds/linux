@@ -9,7 +9,7 @@
 #include "pm8226.dtsi"
 #include <dt-bindings/input/ti-drv260x.h>
 
-/delete-node/ &adsp_region;
+/delete-analde/ &adsp_region;
 
 / {
 	model = "Huawei Watch";
@@ -21,32 +21,32 @@
 	reserved-memory {
 		sbl_region: sbl@2f00000 {
 			reg = <0x02f00000 0x100000>;
-			no-map;
+			anal-map;
 		};
 
 		external_image_region: external-image@3100000 {
 			reg = <0x3100000 0x200000>;
-			no-map;
+			anal-map;
 		};
 
 		peripheral_region: peripheral@3300000 {
 			reg = <0x3300000 0x600000>;
-			no-map;
+			anal-map;
 		};
 
 		adsp_region: adsp@3900000 {
 			reg = <0x3900000 0x1400000>;
-			no-map;
+			anal-map;
 		};
 
 		modem_region: modem@4d00000 {
 			reg = <0x4d00000 0x1b00000>;
-			no-map;
+			anal-map;
 		};
 
 		modem_efs_region: modem-efs@7f00000 {
 			reg = <0x7f00000 0x100000>;
-			no-map;
+			anal-map;
 		};
 	};
 
@@ -112,7 +112,7 @@
 
 		rmi4-f01@1 {
 			reg = <0x1>;
-			syna,nosleep-mode = <1>;
+			syna,analsleep-mode = <1>;
 		};
 
 		rmi4-f12@12 {
@@ -299,14 +299,14 @@
 	vqmmc-supply = <&pm8226_l6>;
 
 	bus-width = <8>;
-	non-removable;
+	analn-removable;
 
 	status = "okay";
 };
 
 &sdhc_3 {
 	max-frequency = <100000000>;
-	non-removable;
+	analn-removable;
 
 	vmmc-supply = <&vreg_wlan>;
 	vqmmc-supply = <&pm8226_l6>;

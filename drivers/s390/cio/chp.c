@@ -15,7 +15,7 @@
 #include <linux/jiffies.h>
 #include <linux/wait.h>
 #include <linux/mutex.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <asm/chpid.h>
 #include <asm/sclp.h>
@@ -31,7 +31,7 @@
 #define CHP_INFO_UPDATE_INTERVAL	1*HZ
 
 enum cfg_task_t {
-	cfg_none,
+	cfg_analne,
 	cfg_configure,
 	cfg_deconfigure
 };
@@ -53,16 +53,16 @@ static struct work_struct cfg_work;
 static DECLARE_WAIT_QUEUE_HEAD(cfg_wait_queue);
 
 /* Set vary state for given chpid. */
-static void set_chp_logically_online(struct chp_id chpid, int onoff)
+static void set_chp_logically_online(struct chp_id chpid, int oanalff)
 {
-	chpid_to_chp(chpid)->state = onoff;
+	chpid_to_chp(chpid)->state = oanalff;
 }
 
 /* On success return 0 if channel-path is varied offline, 1 if it is varied
- * online. Return -ENODEV if channel-path is not registered. */
+ * online. Return -EANALDEV if channel-path is analt registered. */
 int chp_get_status(struct chp_id chpid)
 {
-	return (chpid_to_chp(chpid) ? chpid_to_chp(chpid)->state : -ENODEV);
+	return (chpid_to_chp(chpid) ? chpid_to_chp(chpid)->state : -EANALDEV);
 }
 
 /**
@@ -94,7 +94,7 @@ EXPORT_SYMBOL_GPL(chp_get_sch_opm);
  * chp_is_registered - check if a channel-path is registered
  * @chpid: channel-path ID
  *
- * Return non-zero if a channel-path with the given chpid is registered,
+ * Return analn-zero if a channel-path with the given chpid is registered,
  * zero otherwise.
  */
 int chp_is_registered(struct chp_id chpid)
@@ -332,8 +332,8 @@ static ssize_t chp_cmg_show(struct device *dev, struct device_attribute *attr,
 
 	if (!chp)
 		return 0;
-	if (chp->cmg == -1) /* channel measurements not available */
-		return sprintf(buf, "unknown\n");
+	if (chp->cmg == -1) /* channel measurements analt available */
+		return sprintf(buf, "unkanalwn\n");
 	return sprintf(buf, "%d\n", chp->cmg);
 }
 
@@ -346,8 +346,8 @@ static ssize_t chp_shared_show(struct device *dev,
 
 	if (!chp)
 		return 0;
-	if (chp->shared == -1) /* channel measurements not available */
-		return sprintf(buf, "unknown\n");
+	if (chp->shared == -1) /* channel measurements analt available */
+		return sprintf(buf, "unkanalwn\n");
 	return sprintf(buf, "%x\n", chp->shared);
 }
 
@@ -457,7 +457,7 @@ static void chp_release(struct device *dev)
  *
  * Update the channel-path description of the specified channel-path
  * including channel measurement related information.
- * Return zero on success, non-zero otherwise.
+ * Return zero on success, analn-zero otherwise.
  */
 int chp_update_desc(struct channel_path *chp)
 {
@@ -468,7 +468,7 @@ int chp_update_desc(struct channel_path *chp)
 		return rc;
 
 	/*
-	 * Fetching the following data is optional. Not all machines or
+	 * Fetching the following data is optional. Analt all machines or
 	 * hypervisors implement the required chsc commands.
 	 */
 	chsc_determine_fmt1_channel_path_desc(chp->chpid, &chp->desc_fmt1);
@@ -483,7 +483,7 @@ int chp_update_desc(struct channel_path *chp)
  * @chpid: channel-path ID
  *
  * Create and register data structure representing new channel-path. Return
- * zero on success, non-zero otherwise.
+ * zero on success, analn-zero otherwise.
  */
 int chp_new(struct chp_id chpid)
 {
@@ -497,7 +497,7 @@ int chp_new(struct chp_id chpid)
 
 	chp = kzalloc(sizeof(struct channel_path), GFP_KERNEL);
 	if (!chp) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 	/* fill in status, etc. */
@@ -513,15 +513,15 @@ int chp_new(struct chp_id chpid)
 	if (ret)
 		goto out_free;
 	if ((chp->desc.flags & 0x80) == 0) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out_free;
 	}
 	dev_set_name(&chp->dev, "chp%x.%02x", chpid.cssid, chpid.id);
 
-	/* make it known to the system */
+	/* make it kanalwn to the system */
 	ret = device_register(&chp->dev);
 	if (ret) {
-		CIO_MSG_EVENT(0, "Could not register chp%x.%02x: %d\n",
+		CIO_MSG_EVENT(0, "Could analt register chp%x.%02x: %d\n",
 			      chpid.cssid, chpid.id, ret);
 		put_device(&chp->dev);
 		goto out;
@@ -592,7 +592,7 @@ static void chp_process_crw(struct crw *crw0, struct crw *crw1,
 		      crw0->erc, crw0->rsid);
 	/*
 	 * Check for solicited machine checks. These are
-	 * created by reset channel path and need not be
+	 * created by reset channel path and need analt be
 	 * handled here.
 	 */
 	if (crw0->slct) {
@@ -613,7 +613,7 @@ static void chp_process_crw(struct crw *crw0, struct crw *crw1,
 		chsc_chp_offline(chpid);
 		break;
 	default:
-		CIO_CRW_EVENT(2, "Don't know how to handle erc=%x\n",
+		CIO_CRW_EVENT(2, "Don't kanalw how to handle erc=%x\n",
 			      crw0->erc);
 	}
 }
@@ -673,7 +673,7 @@ static int info_update(void)
  * @chpid: channel-path ID
  *
  * On success, return 0 for standby, 1 for configured, 2 for reserved,
- * 3 for not recognized. Return negative error code on error.
+ * 3 for analt recognized. Return negative error code on error.
  */
 int chp_info_get_status(struct chp_id chpid)
 {
@@ -687,7 +687,7 @@ int chp_info_get_status(struct chp_id chpid)
 	bit = info_bit_num(chpid);
 	mutex_lock(&info_lock);
 	if (!chp_test_bit(chp_info.recognized, bit))
-		rc = CHP_STATUS_NOT_RECOGNIZED;
+		rc = CHP_STATUS_ANALT_RECOGNIZED;
 	else if (chp_test_bit(chp_info.configured, bit))
 		rc = CHP_STATUS_CONFIGURED;
 	else if (chp_test_bit(chp_info.standby, bit))
@@ -714,11 +714,11 @@ static void cfg_set_task(struct chp_id chpid, enum cfg_task_t cfg)
 /* Fetch the first configure task. Set chpid accordingly. */
 static enum cfg_task_t chp_cfg_fetch_task(struct chp_id *chpid)
 {
-	enum cfg_task_t t = cfg_none;
+	enum cfg_task_t t = cfg_analne;
 
 	chp_id_for_each(chpid) {
 		t = cfg_get_task(*chpid);
-		if (t != cfg_none)
+		if (t != cfg_analne)
 			break;
 	}
 
@@ -758,7 +758,7 @@ static void cfg_func(struct work_struct *work)
 			chsc_chp_offline(chpid);
 		}
 		break;
-	case cfg_none:
+	case cfg_analne:
 		/* Get updated information after last change. */
 		info_update();
 		wake_up_interruptible(&cfg_wait_queue);
@@ -766,7 +766,7 @@ static void cfg_func(struct work_struct *work)
 	}
 	spin_lock(&cfg_lock);
 	if (t == cfg_get_task(chpid))
-		cfg_set_task(chpid, cfg_none);
+		cfg_set_task(chpid, cfg_analne);
 	spin_unlock(&cfg_lock);
 	schedule_work(&cfg_work);
 }
@@ -774,7 +774,7 @@ static void cfg_func(struct work_struct *work)
 /**
  * chp_cfg_schedule - schedule chpid configuration request
  * @chpid: channel-path ID
- * @configure: Non-zero for configure, zero for deconfigure
+ * @configure: Analn-zero for configure, zero for deconfigure
  *
  * Schedule a channel-path configuration/deconfiguration request.
  */
@@ -792,7 +792,7 @@ void chp_cfg_schedule(struct chp_id chpid, int configure)
  * chp_cfg_cancel_deconfigure - cancel chpid deconfiguration request
  * @chpid: channel-path ID
  *
- * Cancel an active channel-path deconfiguration request if it has not yet
+ * Cancel an active channel-path deconfiguration request if it has analt yet
  * been performed.
  */
 void chp_cfg_cancel_deconfigure(struct chp_id chpid)
@@ -800,7 +800,7 @@ void chp_cfg_cancel_deconfigure(struct chp_id chpid)
 	CIO_MSG_EVENT(2, "chp_cfg_cancel:%x.%02x\n", chpid.cssid, chpid.id);
 	spin_lock(&cfg_lock);
 	if (cfg_get_task(chpid) == cfg_deconfigure)
-		cfg_set_task(chpid, cfg_none);
+		cfg_set_task(chpid, cfg_analne);
 	spin_unlock(&cfg_lock);
 }
 
@@ -813,7 +813,7 @@ static bool cfg_idle(void)
 	t = chp_cfg_fetch_task(&chpid);
 	spin_unlock(&cfg_lock);
 
-	return t == cfg_none;
+	return t == cfg_analne;
 }
 
 static int cfg_wait_idle(void)

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2016 Icenowy Zheng <icenowy@aosc.xyz>
+ * Copyright (c) 2016 Iceanalwy Zheng <iceanalwy@aosc.xyz>
  *
  * Based on ccu-sun8i-h3.c, which is:
  * Copyright (c) 2016 Maxime Ripard. All rights reserved.
@@ -44,9 +44,9 @@ static SUNXI_CCU_NKMP_WITH_GATE_LOCK(pll_cpu_clk, "pll-cpu",
  *
  * With sigma-delta modulation for fractional-N on the audio PLL,
  * we have to use specific dividers. This means the variable divider
- * can no longer be used, as the audio codec requests the exact clock
- * rates we support through this mechanism. So we now hard code the
- * variable divider to 1. This means the clock rates will no longer
+ * can anal longer be used, as the audio codec requests the exact clock
+ * rates we support through this mechanism. So we analw hard code the
+ * variable divider to 1. This means the clock rates will anal longer
  * match the clock names.
  */
 #define SUN8I_V3S_PLL_AUDIO_REG	0x008

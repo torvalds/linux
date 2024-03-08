@@ -8,7 +8,7 @@
 #include <asm/unaligned.h>
 #include <linux/completion.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/iio/buffer.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/trigger_consumer.h>
@@ -129,7 +129,7 @@ static irqreturn_t pms7003_trigger_handler(int irq, void *p)
 	iio_push_to_buffers_with_timestamp(indio_dev, &state->scan,
 					   iio_get_time_ns(indio_dev));
 err:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -275,7 +275,7 @@ static int pms7003_probe(struct serdev_device *serdev)
 
 	indio_dev = devm_iio_device_alloc(&serdev->dev, sizeof(*state));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	state = iio_priv(indio_dev);
 	serdev_device_set_drvdata(serdev, indio_dev);
@@ -298,7 +298,7 @@ static int pms7003_probe(struct serdev_device *serdev)
 	serdev_device_set_baudrate(serdev, 9600);
 	serdev_device_set_flow_control(serdev, false);
 
-	ret = serdev_device_set_parity(serdev, SERDEV_PARITY_NONE);
+	ret = serdev_device_set_parity(serdev, SERDEV_PARITY_ANALNE);
 	if (ret)
 		return ret;
 

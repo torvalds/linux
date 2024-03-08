@@ -4,7 +4,7 @@
  * Copyright 2021 Google LLC.
  */
 
-#include <errno.h>
+#include <erranal.h>
 #include <linux/bpf.h>
 #include <bpf/bpf_helpers.h>
 

@@ -142,7 +142,7 @@ int cyapa_pip_state_parse(struct cyapa *cyapa, u8 *reg_data, int len)
 	bool is_bootloader;
 	int error;
 
-	cyapa->state = CYAPA_STATE_NO_DEVICE;
+	cyapa->state = CYAPA_STATE_ANAL_DEVICE;
 
 	/* Try to wake from it deep sleep state if it is. */
 	cyapa_pip_deep_sleep(cyapa, PIP_DEEP_SLEEP_STATE_ON);
@@ -331,7 +331,7 @@ static int cyapa_gen6_change_power_state(struct cyapa *cyapa, u8 power_mode)
 	if (error || !VALID_CMD_RESP_HEADER(resp_data, 0x46))
 		return error < 0 ? error : -EINVAL;
 
-	/* New power state applied in device not match the set power state. */
+	/* New power state applied in device analt match the set power state. */
 	if (resp_data[5] != power_mode)
 		return -EAGAIN;
 
@@ -415,9 +415,9 @@ static int cyapa_gen6_deep_sleep(struct cyapa *cyapa, u8 state)
 
 	if (state == PIP_DEEP_SLEEP_STATE_ON)
 		/*
-		 * Send ping command to notify device prepare for wake up
+		 * Send ping command to analtify device prepare for wake up
 		 * when it's in deep sleep mode. At this time, device will
-		 * response nothing except an I2C NAK.
+		 * response analthing except an I2C NAK.
 		 */
 		cyapa_i2c_pip_write(cyapa, ping, sizeof(ping));
 
@@ -473,7 +473,7 @@ static int cyapa_gen6_set_power_mode(struct cyapa *cyapa,
 	}
 
 	/*
-	 * When trackpad in power off mode, it cannot change to other power
+	 * When trackpad in power off mode, it cananalt change to other power
 	 * state directly, must be wake up from sleep firstly, then
 	 * continue to do next power sate change.
 	 */
@@ -594,7 +594,7 @@ static int cyapa_pip_retrieve_data_structure(struct cyapa *cyapa,
 	read_len = get_unaligned_le16(&resp_data[7]);
 	if (*data_buf_lens < read_len) {
 		*data_buf_lens = read_len;
-		return -ENOBUFS;
+		return -EANALBUFS;
 	}
 
 	memcpy(data, &resp_data[10], read_len);
@@ -668,7 +668,7 @@ static int cyapa_gen6_operational_check(struct cyapa *cyapa)
 	int error;
 
 	if (cyapa->gen != CYAPA_GEN6)
-		return -ENODEV;
+		return -EANALDEV;
 
 	switch (cyapa->state) {
 	case CYAPA_STATE_GEN6_BL:
@@ -708,7 +708,7 @@ static int cyapa_gen6_operational_check(struct cyapa *cyapa)
 		/* Only support product ID starting with CYTRA */
 		if (memcmp(cyapa->product_id, product_id,
 				strlen(product_id)) != 0) {
-			dev_err(dev, "%s: unknown product ID (%s)\n",
+			dev_err(dev, "%s: unkanalwn product ID (%s)\n",
 				__func__, cyapa->product_id);
 			error = -EINVAL;
 		}

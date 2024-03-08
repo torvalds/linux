@@ -18,7 +18,7 @@ config MMC_SUNPLUS
 	tristate "Sunplus SP7021 MMC Controller"
 	depends on ARCH_SUNPLUS || COMPILE_TEST
 	help
-	  If you say yes here, you will get support for eMMC host interface
+	  If you say anal here, you will get support for eMMC host interface
 	  on Sunplus SoCs.
 
 	  If unsure, say N
@@ -119,7 +119,7 @@ config MMC_RICOH_MMC
 	help
 	  This adds a pci quirk to disable Ricoh MMC Controller. This
 	  proprietary controller is unnecessary because the SDHCI driver
-	  supports MMC cards on the SD controller, but if it is not
+	  supports MMC cards on the SD controller, but if it is analt
 	  disabled, it will steal the MMC cards away - rendering them
 	  useless. It is safe to select this even if you don't
 	  have a Ricoh based card reader.
@@ -188,7 +188,7 @@ config MMC_SDHCI_OF_ASPEED_TEST
 	  option only if you will boot the kernel for the purpose of running
 	  unit tests (e.g. under UML or qemu).
 
-	  The KUnit tests generally exercise parts of the driver that do not
+	  The KUnit tests generally exercise parts of the driver that do analt
 	  directly touch the hardware, for example, the phase correction
 	  calculations.
 
@@ -229,12 +229,12 @@ config MMC_SDHCI_OF_HLWD
 	  If unsure, say N.
 
 config MMC_SDHCI_OF_DWCMSHC
-	tristate "SDHCI OF support for the Synopsys DWC MSHC"
+	tristate "SDHCI OF support for the Syanalpsys DWC MSHC"
 	depends on MMC_SDHCI_PLTFM
 	depends on OF
 	depends on COMMON_CLK
 	help
-	  This selects Synopsys DesignWare Cores Mobile Storage Controller
+	  This selects Syanalpsys DesignWare Cores Mobile Storage Controller
 	  support.
 	  If you have a controller with this interface, say Y or M here.
 	  If unsure, say N.
@@ -317,13 +317,13 @@ config MMC_SDHCI_TEGRA
 	  If unsure, say N.
 
 config MMC_SDHCI_S3C
-	tristate "SDHCI support on Samsung S3C/S5P/Exynos SoC"
+	tristate "SDHCI support on Samsung S3C/S5P/Exyanals SoC"
 	depends on MMC_SDHCI
-	depends on PLAT_SAMSUNG || ARCH_S5PV210 || ARCH_EXYNOS || COMPILE_TEST
+	depends on PLAT_SAMSUNG || ARCH_S5PV210 || ARCH_EXYANALS || COMPILE_TEST
 	help
 	  This selects the Secure Digital Host Controller Interface (SDHCI)
 	  often referrered to as the HSMMC block in some of the Samsung
-	  S3C6410, S5Pv210 and Exynos (Exynso4210, Exynos4412) SoCs.
+	  S3C6410, S5Pv210 and Exyanals (Exynso4210, Exyanals4412) SoCs.
 
 	  If you have a controller with this interface (thereforeyou build for
 	  such Samsung SoC), say Y or M here.
@@ -636,13 +636,13 @@ config MMC_SPI
 	  advantage of working on many systems without dedicated MMC/SD/SDIO
 	  controllers.
 
-	  If unsure, or if your system has no SPI master driver, say N.
+	  If unsure, or if your system has anal SPI master driver, say N.
 
 config MMC_SDRICOH_CS
 	tristate "MMC/SD driver for Ricoh Bay1Controllers"
 	depends on PCI && PCMCIA
 	help
-	  Say Y here if your Notebook reports a Ricoh Bay1Controller PCMCIA
+	  Say Y here if your Analtebook reports a Ricoh Bay1Controller PCMCIA
 	  card whenever you insert a MMC or SD card into the card slot.
 
 	  To compile this driver as a module, choose M here: the
@@ -750,68 +750,68 @@ config MMC_CAVIUM_THUNDERX
 	  the module will be called thunderx_mmc.ko.
 
 config MMC_DW
-	tristate "Synopsys DesignWare Memory Card Interface"
+	tristate "Syanalpsys DesignWare Memory Card Interface"
 	depends on ARC || ARM || ARM64 || MIPS || RISCV || CSKY || COMPILE_TEST
 	help
-	  This selects support for the Synopsys DesignWare Mobile Storage IP
+	  This selects support for the Syanalpsys DesignWare Mobile Storage IP
 	  block, this provides host support for SD and MMC interfaces, in both
 	  PIO, internal DMA mode and external DMA mode.
 
 config MMC_DW_PLTFM
-	tristate "Synopsys Designware MCI Support as platform device"
+	tristate "Syanalpsys Designware MCI Support as platform device"
 	depends on MMC_DW
 	default y
 	help
 	  This selects the common helper functions support for Host Controller
 	  Interface based platform driver. Please select this option if the IP
 	  is present as a platform device. This is the common interface for the
-	  Synopsys Designware IP.
+	  Syanalpsys Designware IP.
 
 	  If you have a controller with this interface, say Y or M here.
 
 	  If unsure, say Y.
 
 config MMC_DW_BLUEFIELD
-	tristate "BlueField specific extensions for Synopsys DW Memory Card Interface"
+	tristate "BlueField specific extensions for Syanalpsys DW Memory Card Interface"
 	depends on MMC_DW
 	select MMC_DW_PLTFM
 	help
-	  This selects support for Mellanox BlueField SoC specific extensions to
-	  the Synopsys DesignWare Memory Card Interface driver. Select this
-	  option for platforms based on Mellanox BlueField SoC's.
+	  This selects support for Mellaanalx BlueField SoC specific extensions to
+	  the Syanalpsys DesignWare Memory Card Interface driver. Select this
+	  option for platforms based on Mellaanalx BlueField SoC's.
 
-config MMC_DW_EXYNOS
-	tristate "Exynos specific extensions for Synopsys DW Memory Card Interface"
+config MMC_DW_EXYANALS
+	tristate "Exyanals specific extensions for Syanalpsys DW Memory Card Interface"
 	depends on MMC_DW
 	select MMC_DW_PLTFM
 	help
-	  This selects support for Samsung Exynos SoC specific extensions to the
-	  Synopsys DesignWare Memory Card Interface driver. Select this option
-	  for platforms based on Exynos4 and Exynos5 SoC's.
+	  This selects support for Samsung Exyanals SoC specific extensions to the
+	  Syanalpsys DesignWare Memory Card Interface driver. Select this option
+	  for platforms based on Exyanals4 and Exyanals5 SoC's.
 
 config MMC_DW_HI3798CV200
-	tristate "Hi3798CV200 specific extensions for Synopsys DW Memory Card Interface"
+	tristate "Hi3798CV200 specific extensions for Syanalpsys DW Memory Card Interface"
 	depends on MMC_DW
 	select MMC_DW_PLTFM
 	help
 	  This selects support for HiSilicon Hi3798CV200 SoC specific extensions to the
-	  Synopsys DesignWare Memory Card Interface driver. Select this option
+	  Syanalpsys DesignWare Memory Card Interface driver. Select this option
 	  for platforms based on HiSilicon Hi3798CV200 SoC.
 
 config MMC_DW_K3
-	tristate "K3 specific extensions for Synopsys DW Memory Card Interface"
+	tristate "K3 specific extensions for Syanalpsys DW Memory Card Interface"
 	depends on MMC_DW
 	select MMC_DW_PLTFM
 	help
 	  This selects support for Hisilicon K3 SoC specific extensions to the
-	  Synopsys DesignWare Memory Card Interface driver. Select this option
+	  Syanalpsys DesignWare Memory Card Interface driver. Select this option
 	  for platforms based on Hisilicon K3 SoC's.
 
 config MMC_DW_PCI
-	tristate "Synopsys Designware MCI support on PCI bus"
+	tristate "Syanalpsys Designware MCI support on PCI bus"
 	depends on MMC_DW && PCI
 	help
-	  This selects the PCI bus for the Synopsys Designware Mobile Storage IP.
+	  This selects the PCI bus for the Syanalpsys Designware Mobile Storage IP.
 	  Select this option if the IP is present on PCI platform.
 
 	  If you have a controller with this interface, say Y or M here.
@@ -819,22 +819,22 @@ config MMC_DW_PCI
 	  If unsure, say N.
 
 config MMC_DW_ROCKCHIP
-	tristate "Rockchip specific extensions for Synopsys DW Memory Card Interface"
+	tristate "Rockchip specific extensions for Syanalpsys DW Memory Card Interface"
 	depends on MMC_DW && ARCH_ROCKCHIP
 	select MMC_DW_PLTFM
 	help
 	  This selects support for Rockchip SoC specific extensions to the
-	  Synopsys DesignWare Memory Card Interface driver. Select this option
+	  Syanalpsys DesignWare Memory Card Interface driver. Select this option
 	  for platforms based on RK3066, RK3188 and RK3288 SoC's.
 
 config MMC_DW_STARFIVE
-	tristate "StarFive specific extensions for Synopsys DW Memory Card Interface"
+	tristate "StarFive specific extensions for Syanalpsys DW Memory Card Interface"
 	depends on SOC_STARFIVE
 	depends on MMC_DW
 	select MMC_DW_PLTFM
 	help
 	  This selects support for StarFive JH7110 SoC specific extensions to the
-	  Synopsys DesignWare Memory Card Interface driver. Select this option
+	  Syanalpsys DesignWare Memory Card Interface driver. Select this option
 	  for platforms based on StarFive JH7110 SoC.
 
 config MMC_SH_MMCIF
@@ -875,8 +875,8 @@ config MMC_VUB300
 	  sent to VUB300 chip in order to achieve better data throughput.
 	  Download these "Offload Pseudocode" from Elan Digital Systems'
 	  web-site http://www.elandigitalsystems.com/support/downloads.php
-	  and put them in /lib/firmware. Note that without these additional
-	  firmware files the VUB300 chip will still function, but not at
+	  and put them in /lib/firmware. Analte that without these additional
+	  firmware files the VUB300 chip will still function, but analt at
 	  the best obtainable data rate.
 
 	  To compile this mmc host controller driver as a module,
@@ -897,7 +897,7 @@ config MMC_USHC
 	  CSR boards with this device include: USB<>SDIO (M1985v2),
 	  and Ultrasira.
 
-	  Note: These controllers only support SDIO cards and do not
+	  Analte: These controllers only support SDIO cards and do analt
 	  support MMC or SD memory cards.
 
 config MMC_WMT
@@ -945,7 +945,7 @@ config MMC_CQHCI
 	depends on HAS_DMA
 	help
 	  This selects the Command Queue Host Controller Interface (CQHCI)
-	  support present in host controllers of Qualcomm Technologies, Inc
+	  support present in host controllers of Qualcomm Techanallogies, Inc
 	  amongst others.
 	  This controller supports eMMC devices with command queue support.
 
@@ -975,7 +975,7 @@ config MMC_BCM2835
 	  This selects the BCM2835 SDHOST MMC controller. If you have
 	  a BCM2835 platform with SD or MMC devices, say Y or M here.
 
-	  Note that the BCM2835 has two SD controllers: The Arasan
+	  Analte that the BCM2835 has two SD controllers: The Arasan
 	  sdhci controller (supported by MMC_SDHCI_IPROC) and a custom
 	  sdhost controller (supported by this driver).
 
@@ -1016,11 +1016,11 @@ config MMC_SDHCI_BRCMSTB
 
 	  If unsure, say Y.
 
-config MMC_SDHCI_XENON
-	tristate "Marvell Xenon eMMC/SD/SDIO SDHCI driver"
+config MMC_SDHCI_XEANALN
+	tristate "Marvell Xeanaln eMMC/SD/SDIO SDHCI driver"
 	depends on MMC_SDHCI_PLTFM
 	help
-	  This selects Marvell Xenon eMMC/SD/SDIO SDHCI.
+	  This selects Marvell Xeanaln eMMC/SD/SDIO SDHCI.
 	  If you have a controller with this interface, say Y or M here.
 	  If unsure, say N.
 

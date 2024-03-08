@@ -1,5 +1,5 @@
 What:		/sys/kernel/oops_count
-Date:		November 2022
+Date:		Analvember 2022
 KernelVersion:	6.2.0
 Contact:	Linux Kernel Hardening List <linux-hardening@vger.kernel.org>
 Description:

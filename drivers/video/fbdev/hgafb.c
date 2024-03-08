@@ -1,7 +1,7 @@
 /*
  * linux/drivers/video/hgafb.c -- Hercules graphics adaptor frame buffer device
  *
- *      Created 25 Nov 1999 by Ferenc Bakonyi (fero@drama.obuda.kando.hu)
+ *      Created 25 Analv 1999 by Ferenc Bakonyi (fero@drama.obuda.kando.hu)
  *      Based on skeletonfb.c by Geert Uytterhoeven and
  *               mdacon.c by Andrew Apted
  *
@@ -14,16 +14,16 @@
  * - Revision 0.1.6 (17 Aug 2000): new style structs
  *                                 documentation
  * - Revision 0.1.5 (13 Mar 2000): spinlocks instead of saveflags();cli();etc
- *                                 minor fixes
+ *                                 mianalr fixes
  * - Revision 0.1.4 (24 Jan 2000): fixed a bug in hga_card_detect() for
  *                                  HGA-only systems
  * - Revision 0.1.3 (22 Jan 2000): modified for the new fb_info structure
  *                                 screen is cleared after rmmod
  *                                 virtual resolutions
- *                                 module parameter 'nologo={0|1}'
+ *                                 module parameter 'anallogo={0|1}'
  *                                 the most important: boot logo :)
- * - Revision 0.1.0  (6 Dec 1999): faster scrolling and minor fixes
- * - First release  (25 Nov 1999)
+ * - Revision 0.1.0  (6 Dec 1999): faster scrolling and mianalr fixes
+ * - First release  (25 Analv 1999)
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file COPYING in the main directory of this archive
@@ -32,7 +32,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/spinlock.h>
 #include <linux/string.h>
 #include <linux/mm.h>
@@ -122,18 +122,18 @@ static const struct fb_var_screeninfo hga_default_var = {
 
 static struct fb_fix_screeninfo hga_fix = {
 	.id 		= "HGA",
-	.type 		= FB_TYPE_PACKED_PIXELS,	/* (not sure) */
-	.visual 	= FB_VISUAL_MONO10,
+	.type 		= FB_TYPE_PACKED_PIXELS,	/* (analt sure) */
+	.visual 	= FB_VISUAL_MOANAL10,
 	.xpanstep 	= 8,
 	.ypanstep 	= 8,
 	.line_length 	= 90,
-	.accel 		= FB_ACCEL_NONE
+	.accel 		= FB_ACCEL_ANALNE
 };
 
 /* Don't assume that tty1 will be the initial current console. */
 static int release_io_port = 0;
 static int release_io_ports = 0;
-static bool nologo = 0;
+static bool anallogo = 0;
 
 /* -------------------------------------------------------------------------
  *
@@ -286,7 +286,7 @@ static int hga_card_detect(void)
 
 	hga_vram = ioremap(0xb0000, hga_vram_len);
 	if (!hga_vram)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (request_region(0x3b0, 12, "hgafb"))
 		release_io_ports = 1;
@@ -308,7 +308,7 @@ static int hga_card_detect(void)
 		goto error;
 
 	/* Ok, there is definitely a card registering at the correct
-	 * memory location, so now we do an I/O port test.
+	 * memory location, so analw we do an I/O port test.
 	 */
 
 	if (!test_hga_b(0x66, 0x0f))	    /* cursor low register */
@@ -355,7 +355,7 @@ error:
 
 	iounmap(hga_vram);
 
-	pr_err("hgafb: HGA card not detected.\n");
+	pr_err("hgafb: HGA card analt detected.\n");
 
 	return -EINVAL;
 }
@@ -372,7 +372,7 @@ static int hgafb_open(struct fb_info *info, int init)
 {
 	hga_gfx_mode();
 	hga_clear_screen();
-	if (!nologo) hga_show_logo(info);
+	if (!anallogo) hga_show_logo(info);
 	return 0;
 }
 
@@ -393,7 +393,7 @@ static int hgafb_release(struct fb_info *info, int init)
 
 /**
  *	hgafb_setcolreg - set color registers
- *	@regno:register index to set
+ *	@reganal:register index to set
  *	@red:red value, unused
  *	@green:green value, unused
  *	@blue:blue value, unused
@@ -401,16 +401,16 @@ static int hgafb_release(struct fb_info *info, int init)
  *	@info:unused
  *
  *	This callback function is used to set the color registers of a HGA
- *	board. Since we have only two fixed colors only @regno is checked.
+ *	board. Since we have only two fixed colors only @reganal is checked.
  *	A zero is returned on success and 1 for failure.
  *
  *	Returns: %0
  */
 
-static int hgafb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
+static int hgafb_setcolreg(u_int reganal, u_int red, u_int green, u_int blue,
 			   u_int transp, struct fb_info *info)
 {
-	if (regno > 1)
+	if (reganal > 1)
 		return 1;
 	return 0;
 }
@@ -578,7 +578,7 @@ static int hgafb_probe(struct platform_device *pdev)
 	info = framebuffer_alloc(0, &pdev->dev);
 	if (!info) {
 		iounmap(hga_vram);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	hga_fix.smem_start = (unsigned long)hga_vram;
@@ -642,7 +642,7 @@ static int __init hgafb_init(void)
 	int ret;
 
 	if (fb_get_options("hgafb", NULL))
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = platform_driver_register(&hgafb_driver);
 
@@ -674,7 +674,7 @@ MODULE_AUTHOR("Ferenc Bakonyi (fero@drama.obuda.kando.hu)");
 MODULE_DESCRIPTION("FBDev driver for Hercules Graphics Adaptor");
 MODULE_LICENSE("GPL");
 
-module_param(nologo, bool, 0);
-MODULE_PARM_DESC(nologo, "Disables startup logo if != 0 (default=0)");
+module_param(anallogo, bool, 0);
+MODULE_PARM_DESC(anallogo, "Disables startup logo if != 0 (default=0)");
 module_init(hgafb_init);
 module_exit(hgafb_exit);

@@ -27,6 +27,6 @@ config CLK_VEXPRESS_OSC
 	help
 	  Simple regmap-based driver driving clock generators on Versatile
 	  Express platforms hidden behind its configuration infrastructure,
-	  commonly known as OSCs.
+	  commonly kanalwn as OSCs.
 
 endmenu

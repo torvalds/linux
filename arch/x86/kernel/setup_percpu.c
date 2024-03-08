@@ -42,7 +42,7 @@ EXPORT_SYMBOL(__per_cpu_offset);
  * 32bit relocations.  Reserve space for static percpu variables in
  * modules so that they are always served from the first chunk which
  * is located at the percpu segment base.  On x86_32, anything can
- * address anywhere.  No need to reserve space in the first chunk.
+ * address anywhere.  Anal need to reserve space in the first chunk.
  */
 #ifdef CONFIG_X86_64
 #define PERCPU_FIRST_CHUNK_RESERVE	PERCPU_MODULE_RESERVE
@@ -54,9 +54,9 @@ EXPORT_SYMBOL(__per_cpu_offset);
 /**
  * pcpu_need_numa - determine percpu allocation needs to consider NUMA
  *
- * If NUMA is not configured or there is only one NUMA node available,
- * there is no reason to consider NUMA.  This function determines
- * whether percpu allocation should consider NUMA or not.
+ * If NUMA is analt configured or there is only one NUMA analde available,
+ * there is anal reason to consider NUMA.  This function determines
+ * whether percpu allocation should consider NUMA or analt.
  *
  * RETURNS:
  * true if NUMA should be considered; otherwise, false.
@@ -68,13 +68,13 @@ static bool __init pcpu_need_numa(void)
 	unsigned int cpu;
 
 	for_each_possible_cpu(cpu) {
-		int node = early_cpu_to_node(cpu);
+		int analde = early_cpu_to_analde(cpu);
 
-		if (node_online(node) && NODE_DATA(node) &&
-		    last && last != NODE_DATA(node))
+		if (analde_online(analde) && ANALDE_DATA(analde) &&
+		    last && last != ANALDE_DATA(analde))
 			return true;
 
-		last = NODE_DATA(node);
+		last = ANALDE_DATA(analde);
 	}
 #endif
 	return false;
@@ -84,7 +84,7 @@ static bool __init pcpu_need_numa(void)
 static int __init pcpu_cpu_distance(unsigned int from, unsigned int to)
 {
 #ifdef CONFIG_NUMA
-	if (early_cpu_to_node(from) == early_cpu_to_node(to))
+	if (early_cpu_to_analde(from) == early_cpu_to_analde(to))
 		return LOCAL_DISTANCE;
 	else
 		return REMOTE_DISTANCE;
@@ -93,9 +93,9 @@ static int __init pcpu_cpu_distance(unsigned int from, unsigned int to)
 #endif
 }
 
-static int __init pcpu_cpu_to_node(int cpu)
+static int __init pcpu_cpu_to_analde(int cpu)
 {
-	return early_cpu_to_node(cpu);
+	return early_cpu_to_analde(cpu);
 }
 
 void __init pcpu_populate_pte(unsigned long addr)
@@ -119,13 +119,13 @@ void __init setup_per_cpu_areas(void)
 	unsigned long delta;
 	int rc;
 
-	pr_info("NR_CPUS:%d nr_cpumask_bits:%d nr_cpu_ids:%u nr_node_ids:%u\n",
-		NR_CPUS, nr_cpumask_bits, nr_cpu_ids, nr_node_ids);
+	pr_info("NR_CPUS:%d nr_cpumask_bits:%d nr_cpu_ids:%u nr_analde_ids:%u\n",
+		NR_CPUS, nr_cpumask_bits, nr_cpu_ids, nr_analde_ids);
 
 	/*
 	 * Allocate percpu area.  Embedding allocator is our favorite;
 	 * however, on NUMA configurations, it can result in very
-	 * sparse unit mapping and vmalloc area isn't spacious enough
+	 * sparse unit mapping and vmalloc area isn't spacious eanalugh
 	 * on 32bit.  Use page in that case.
 	 */
 #ifdef CONFIG_X86_32
@@ -153,16 +153,16 @@ void __init setup_per_cpu_areas(void)
 		rc = pcpu_embed_first_chunk(PERCPU_FIRST_CHUNK_RESERVE,
 					    dyn_size, atom_size,
 					    pcpu_cpu_distance,
-					    pcpu_cpu_to_node);
+					    pcpu_cpu_to_analde);
 		if (rc < 0)
 			pr_warn("%s allocator failed (%d), falling back to page size\n",
 				pcpu_fc_names[pcpu_chosen_fc], rc);
 	}
 	if (rc < 0)
 		rc = pcpu_page_first_chunk(PERCPU_FIRST_CHUNK_RESERVE,
-					   pcpu_cpu_to_node);
+					   pcpu_cpu_to_analde);
 	if (rc < 0)
-		panic("cannot initialize percpu area (err=%d)", rc);
+		panic("cananalt initialize percpu area (err=%d)", rc);
 
 	/* alrighty, percpu areas up and running */
 	delta = (unsigned long)pcpu_base_addr - (unsigned long)__per_cpu_start;
@@ -185,17 +185,17 @@ void __init setup_per_cpu_areas(void)
 			early_per_cpu_map(x86_cpu_to_acpiid, cpu);
 #endif
 #ifdef CONFIG_NUMA
-		per_cpu(x86_cpu_to_node_map, cpu) =
-			early_per_cpu_map(x86_cpu_to_node_map, cpu);
+		per_cpu(x86_cpu_to_analde_map, cpu) =
+			early_per_cpu_map(x86_cpu_to_analde_map, cpu);
 		/*
-		 * Ensure that the boot cpu numa_node is correct when the boot
-		 * cpu is on a node that doesn't have memory installed.
-		 * Also cpu_up() will call cpu_to_node() for APs when
-		 * MEMORY_HOTPLUG is defined, before per_cpu(numa_node) is set
+		 * Ensure that the boot cpu numa_analde is correct when the boot
+		 * cpu is on a analde that doesn't have memory installed.
+		 * Also cpu_up() will call cpu_to_analde() for APs when
+		 * MEMORY_HOTPLUG is defined, before per_cpu(numa_analde) is set
 		 * up later with c_init aka intel_init/amd_init.
 		 * So set them all (boot cpu and all APs).
 		 */
-		set_cpu_numa_node(cpu, early_cpu_to_node(cpu));
+		set_cpu_numa_analde(cpu, early_cpu_to_analde(cpu));
 #endif
 		/*
 		 * Up to this point, the boot CPU has been using .init.data
@@ -211,11 +211,11 @@ void __init setup_per_cpu_areas(void)
 	early_per_cpu_ptr(x86_cpu_to_acpiid) = NULL;
 #endif
 #ifdef CONFIG_NUMA
-	early_per_cpu_ptr(x86_cpu_to_node_map) = NULL;
+	early_per_cpu_ptr(x86_cpu_to_analde_map) = NULL;
 #endif
 
-	/* Setup node to cpumask map */
-	setup_node_to_cpumask_map();
+	/* Setup analde to cpumask map */
+	setup_analde_to_cpumask_map();
 
 	/* Setup cpu initialized, callin, callout masks */
 	setup_cpu_local_masks();

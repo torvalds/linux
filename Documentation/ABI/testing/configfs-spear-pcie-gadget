@@ -9,18 +9,18 @@ Description:
 	as a particular device type.
 	This interfaces can be used to show spear's PCIe device capability.
 
-	Nodes are only visible when configfs is mounted. To mount configfs
+	Analdes are only visible when configfs is mounted. To mount configfs
 	in /config directory use::
 
-	  # mount -t configfs none /config/
+	  # mount -t configfs analne /config/
 
 	For nth PCIe Device Controller /config/pcie-gadget.n/:
 
 	=============== ======================================================
 	link		used to enable ltssm and read its status.
 	int_type	used to configure and read type of supported interrupt
-	no_of_msi	used to configure number of MSI vector needed and
-			to read no of MSI granted.
+	anal_of_msi	used to configure number of MSI vector needed and
+			to read anal of MSI granted.
 	inta		write 1 to assert INTA and 0 to de-assert.
 	send_msi	write MSI vector to be sent.
 	vendor_id	used to write and read vendor id (hex)

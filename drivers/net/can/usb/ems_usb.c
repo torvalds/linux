@@ -81,7 +81,7 @@ MODULE_LICENSE("GPL v2");
 #define USB_CPCUSB_ARM7_PRODUCT_ID 0x0444
 
 /* Mode register NXP LPC2119/SJA1000 CAN Controller */
-#define SJA1000_MOD_NORMAL 0x00
+#define SJA1000_MOD_ANALRMAL 0x00
 #define SJA1000_MOD_RM     0x01
 
 /* ECC register NXP LPC2119/SJA1000 CAN Controller */
@@ -193,7 +193,7 @@ struct __packed ems_cpc_msg {
 	u8 length;	/* length of data within union 'msg' */
 	u8 msgid;	/* confirmation handle */
 	__le32 ts_sec;	/* timestamp in seconds */
-	__le32 ts_nsec;	/* timestamp in nano seconds */
+	__le32 ts_nsec;	/* timestamp in naanal seconds */
 
 	union __packed {
 		u8 generic[64];
@@ -209,7 +209,7 @@ struct __packed ems_cpc_msg {
 
 /*
  * Table of devices that work with this driver
- * NOTE: This driver supports only CPC-USB/ARM7 (LPC2119) yet.
+ * ANALTE: This driver supports only CPC-USB/ARM7 (LPC2119) yet.
  */
 static struct usb_device_id ems_usb_table[] = {
 	{USB_DEVICE(USB_CPCUSB_VENDOR_ID, USB_CPCUSB_ARM7_PRODUCT_ID)},
@@ -277,7 +277,7 @@ static void ems_usb_read_interrupt_callback(struct urb *urb)
 		break;
 
 	case -ECONNRESET: /* unlink */
-	case -ENOENT:
+	case -EANALENT:
 	case -EPIPE:
 	case -EPROTO:
 	case -ESHUTDOWN:
@@ -290,7 +290,7 @@ static void ems_usb_read_interrupt_callback(struct urb *urb)
 
 	err = usb_submit_urb(urb, GFP_ATOMIC);
 
-	if (err == -ENODEV)
+	if (err == -EANALDEV)
 		netif_device_detach(netdev);
 	else if (err)
 		netdev_err(netdev, "failed resubmitting intr urb: %d\n", err);
@@ -419,7 +419,7 @@ static void ems_usb_read_bulk_callback(struct urb *urb)
 	case 0: /* success */
 		break;
 
-	case -ENOENT:
+	case -EANALENT:
 		return;
 
 	default:
@@ -480,7 +480,7 @@ resubmit_urb:
 
 	retval = usb_submit_urb(urb, GFP_ATOMIC);
 
-	if (retval == -ENODEV)
+	if (retval == -EANALDEV)
 		netif_device_detach(netdev);
 	else if (retval)
 		netdev_err(netdev,
@@ -526,7 +526,7 @@ static void ems_usb_write_bulk_callback(struct urb *urb)
 }
 
 /*
- * Send the given CPC command synchronously
+ * Send the given CPC command synchroanalusly
  */
 static int ems_usb_command_msg(struct ems_usb *dev, struct ems_cpc_msg *msg)
 {
@@ -557,7 +557,7 @@ static int ems_usb_write_mode(struct ems_usb *dev, u8 mode)
 
 /*
  * Send a CPC_Control command to change behaviour when interface receives a CAN
- * message, bus error or CAN state changed notifications.
+ * message, bus error or CAN state changed analtifications.
  */
 static int ems_usb_control_cmd(struct ems_usb *dev, u8 val)
 {
@@ -592,16 +592,16 @@ static int ems_usb_start(struct ems_usb *dev)
 		/* create a URB, and a buffer for it */
 		urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!urb) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			break;
 		}
 
 		buf = usb_alloc_coherent(dev->udev, RX_BUFFER_SIZE, GFP_KERNEL,
 					 &buf_dma);
 		if (!buf) {
-			netdev_err(netdev, "No memory left for USB buffer\n");
+			netdev_err(netdev, "Anal memory left for USB buffer\n");
 			usb_free_urb(urb);
-			err = -ENOMEM;
+			err = -EANALMEM;
 			break;
 		}
 
@@ -610,7 +610,7 @@ static int ems_usb_start(struct ems_usb *dev)
 		usb_fill_bulk_urb(urb, dev->udev, usb_rcvbulkpipe(dev->udev, 2),
 				  buf, RX_BUFFER_SIZE,
 				  ems_usb_read_bulk_callback, dev);
-		urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+		urb->transfer_flags |= URB_ANAL_TRANSFER_DMA_MAP;
 		usb_anchor_urb(urb, &dev->rx_submitted);
 
 		err = usb_submit_urb(urb, GFP_KERNEL);
@@ -668,7 +668,7 @@ static int ems_usb_start(struct ems_usb *dev)
 	if (err)
 		goto failed;
 
-	err = ems_usb_write_mode(dev, SJA1000_MOD_NORMAL);
+	err = ems_usb_write_mode(dev, SJA1000_MOD_ANALRMAL);
 	if (err)
 		goto failed;
 
@@ -718,7 +718,7 @@ static int ems_usb_open(struct net_device *netdev)
 	/* finally start device */
 	err = ems_usb_start(dev);
 	if (err) {
-		if (err == -ENODEV)
+		if (err == -EANALDEV)
 			netif_device_detach(dev->netdev);
 
 		netdev_warn(netdev, "couldn't start device: %d\n", err);
@@ -753,13 +753,13 @@ static netdev_tx_t ems_usb_start_xmit(struct sk_buff *skb, struct net_device *ne
 	/* create a URB, and a buffer for it, and copy the data to the URB */
 	urb = usb_alloc_urb(0, GFP_ATOMIC);
 	if (!urb)
-		goto nomem;
+		goto analmem;
 
 	buf = usb_alloc_coherent(dev->udev, size, GFP_ATOMIC, &urb->transfer_dma);
 	if (!buf) {
-		netdev_err(netdev, "No memory left for USB buffer\n");
+		netdev_err(netdev, "Anal memory left for USB buffer\n");
 		usb_free_urb(urb);
-		goto nomem;
+		goto analmem;
 	}
 
 	msg = (struct ems_cpc_msg *)&buf[CPC_HEADER_SIZE];
@@ -807,7 +807,7 @@ static netdev_tx_t ems_usb_start_xmit(struct sk_buff *skb, struct net_device *ne
 
 	usb_fill_bulk_urb(urb, dev->udev, usb_sndbulkpipe(dev->udev, 2), buf,
 			  size, ems_usb_write_bulk_callback, context);
-	urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+	urb->transfer_flags |= URB_ANAL_TRANSFER_DMA_MAP;
 	usb_anchor_urb(urb, &dev->tx_submitted);
 
 	can_put_echo_skb(skb, netdev, context->echo_index, 0);
@@ -823,7 +823,7 @@ static netdev_tx_t ems_usb_start_xmit(struct sk_buff *skb, struct net_device *ne
 
 		atomic_dec(&dev->active_tx_urbs);
 
-		if (err == -ENODEV) {
+		if (err == -EANALDEV) {
 			netif_device_detach(netdev);
 		} else {
 			netdev_warn(netdev, "failed tx_urb %d\n", err);
@@ -848,7 +848,7 @@ static netdev_tx_t ems_usb_start_xmit(struct sk_buff *skb, struct net_device *ne
 
 	return NETDEV_TX_OK;
 
-nomem:
+analmem:
 	dev_kfree_skb(skb);
 	stats->tx_dropped++;
 
@@ -902,7 +902,7 @@ static int ems_usb_set_mode(struct net_device *netdev, enum can_mode mode)
 
 	switch (mode) {
 	case CAN_MODE_START:
-		if (ems_usb_write_mode(dev, SJA1000_MOD_NORMAL))
+		if (ems_usb_write_mode(dev, SJA1000_MOD_ANALRMAL))
 			netdev_warn(netdev, "couldn't start device");
 
 		if (netif_queue_stopped(netdev))
@@ -910,7 +910,7 @@ static int ems_usb_set_mode(struct net_device *netdev, enum can_mode mode)
 		break;
 
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -974,12 +974,12 @@ static int ems_usb_probe(struct usb_interface *intf,
 {
 	struct net_device *netdev;
 	struct ems_usb *dev;
-	int i, err = -ENOMEM;
+	int i, err = -EANALMEM;
 
 	netdev = alloc_candev(sizeof(struct ems_usb), MAX_TX_URBS);
 	if (!netdev) {
 		dev_err(&intf->dev, "ems_usb: Couldn't alloc candev\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	dev = netdev_priv(netdev);

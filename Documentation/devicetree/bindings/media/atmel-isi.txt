@@ -10,18 +10,18 @@ Required properties for ISI:
 - clock-names: required elements: "isi_clk".
 - pinctrl-names, pinctrl-0: please refer to pinctrl-bindings.txt.
 
-ISI supports a single port node with parallel bus. It shall contain one
-'port' child node with child 'endpoint' node. Please refer to the bindings
+ISI supports a single port analde with parallel bus. It shall contain one
+'port' child analde with child 'endpoint' analde. Please refer to the bindings
 defined in Documentation/devicetree/bindings/media/video-interfaces.txt.
 
-Endpoint node properties
+Endpoint analde properties
 ------------------------
 
 - bus-width: <8> or <10> (mandatory)
 - hsync-active (default: active high)
 - vsync-active (default: active high)
 - pclk-sample (default: sample on falling edge)
-- remote-endpoint: A phandle to the bus receiver's endpoint node (mandatory).
+- remote-endpoint: A phandle to the bus receiver's endpoint analde (mandatory).
 
 Example:
 

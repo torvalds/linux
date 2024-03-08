@@ -15,7 +15,7 @@ On many Dell laptops the System Management Mode (SMM) BIOS can be
 queried for the status of fans and temperature sensors.  Userspace
 utilities like ``sensors`` can be used to return the readings. The
 userspace suite `i8kutils`__ can also be used to read the sensors and
-automatically adjust fan speed (please notice that it currently uses
+automatically adjust fan speed (please analtice that it currently uses
 the deprecated ``/proc/i8k`` interface).
 
  __ https://github.com/vitorafsr/i8kutils
@@ -39,7 +39,7 @@ fan[1-3]_max                    RO      Maximal Fan speed in RPM
 fan[1-3]_target                 RO      Expected Fan speed in RPM
 pwm[1-3]                        RW      Control the fan PWM duty-cycle.
 pwm1_enable                     WO      Enable or disable automatic BIOS fan
-                                        control (not supported on all laptops,
+                                        control (analt supported on all laptops,
                                         see below for details).
 temp[1-10]_input                RO      Temperature reading in milli-degrees
                                         Celsius.
@@ -58,21 +58,21 @@ overwritten.
 
 There is experimental support for disabling automatic BIOS fan
 control, at least on laptops where the corresponding SMM command is
-known, by writing the value ``1`` in the attribute ``pwm1_enable``
+kanalwn, by writing the value ``1`` in the attribute ``pwm1_enable``
 (writing ``2`` enables automatic BIOS control again). Even if you have
 more than one fan, all of them are set to either enabled or disabled
-automatic fan control at the same time and, notwithstanding the name,
+automatic fan control at the same time and, analtwithstanding the name,
 ``pwm1_enable`` sets automatic control for all fans.
 
-If ``pwm1_enable`` is not available, then it means that SMM codes for
-enabling and disabling automatic BIOS fan control are not whitelisted
+If ``pwm1_enable`` is analt available, then it means that SMM codes for
+enabling and disabling automatic BIOS fan control are analt whitelisted
 for your hardware. It is possible that codes that work for other
 laptops actually work for yours as well, or that you have to discover
 new codes.
 
 Check the list ``i8k_whitelist_fan_control`` in file
 ``drivers/hwmon/dell-smm-hwmon.c`` in the kernel tree: as a first
-attempt you can try to add your machine and use an already-known code
+attempt you can try to add your machine and use an already-kanalwn code
 pair. If, after recompiling the kernel, you see that ``pwm1_enable``
 is present and works (i.e., you can manually control the fan speed),
 then please submit your finding as a kernel patch, so that other users
@@ -80,8 +80,8 @@ can benefit from it. Please see
 :ref:`Documentation/process/submitting-patches.rst <submittingpatches>`
 for information on submitting patches.
 
-If no known code works on your machine, you need to resort to do some
-probing, because unfortunately Dell does not publish datasheets for
+If anal kanalwn code works on your machine, you need to resort to do some
+probing, because unfortunately Dell does analt publish datasheets for
 its SMM. You can experiment with the code in `this repository`__ to
 probe the BIOS on your machine and discover the appropriate codes.
 
@@ -94,7 +94,7 @@ Again, when you find new codes, we'd be happy to have your patches!
 
 The driver also exports the fans as thermal cooling devices with
 ``type`` set to ``dell-smm-fan[1-3]``. This allows for easy fan control
-using one of the thermal governors.
+using one of the thermal goveranalrs.
 
 Module parameters
 -----------------
@@ -103,17 +103,17 @@ Module parameters
                    Force loading without checking for supported
                    models. (default: 0)
 
-* ignore_dmi:bool
-                   Continue probing hardware even if DMI data does not
+* iganalre_dmi:bool
+                   Continue probing hardware even if DMI data does analt
                    match. (default: 0)
 
 * restricted:bool
                    Allow fan control only to processes with the
                    ``CAP_SYS_ADMIN`` capability set or processes run
                    as root when using the legacy ``/proc/i8k``
-                   interface. In this case normal users will be able
-                   to read temperature and fan status but not to
-                   control the fan.  If your notebook is shared with
+                   interface. In this case analrmal users will be able
+                   to read temperature and fan status but analt to
+                   control the fan.  If your analtebook is shared with
                    other users and you don't trust them you may want
                    to use this option. (default: 1, only available
                    with ``CONFIG_I8K``)
@@ -133,7 +133,7 @@ Module parameters
 Legacy ``/proc`` interface
 --------------------------
 
-.. warning:: This interface is obsolete and deprecated and should not
+.. warning:: This interface is obsolete and deprecated and should analt
              used in new applications. This interface is only
              available when kernel is compiled with option
              ``CONFIG_I8K``.
@@ -155,19 +155,19 @@ The fields read from ``/proc/i8k`` are::
     |   |   |       |  | +--------------------- 6.  fan0 status
     |   |   |       |  +----------------------- 5.  fan1 status
     |   |   |       +-------------------------- 4.  temp0 reading (Celsius)
-    |   |   +---------------------------------- 3.  Dell service tag (later known as 'serial number')
+    |   |   +---------------------------------- 3.  Dell service tag (later kanalwn as 'serial number')
     |   +-------------------------------------- 2.  BIOS version
     +------------------------------------------ 1.  /proc/i8k format version
 
 A negative value, for example -22, indicates that the BIOS doesn't
-return the corresponding information. This is normal on some
+return the corresponding information. This is analrmal on some
 models/BIOSes.
 
 For performance reasons the ``/proc/i8k`` doesn't report by default
 the AC status since this SMM call takes a long time to execute and is
-not really needed.  If you want to see the ac status in ``/proc/i8k``
+analt really needed.  If you want to see the ac status in ``/proc/i8k``
 you must explictitly enable this option by passing the
-``power_status=1`` parameter to insmod. If AC status is not
+``power_status=1`` parameter to insmod. If AC status is analt
 available -1 is printed instead.
 
 The driver provides also an ioctl interface which can be used to
@@ -180,12 +180,12 @@ SMM Interface
 -------------
 
 .. warning:: The SMM interface was reverse-engineered by trial-and-error
-             since Dell did not provide any Documentation,
+             since Dell did analt provide any Documentation,
              please keep that in mind.
 
 The driver uses the SMM interface to send commands to the system BIOS.
-This interface is normally used by Dell's 32-bit diagnostic program or
-on newer notebook models by the buildin BIOS diagnostics.
+This interface is analrmally used by Dell's 32-bit diaganalstic program or
+on newer analtebook models by the buildin BIOS diaganalstics.
 The SMM may cause short hangs when the BIOS code is taking too long to
 execute.
 
@@ -199,23 +199,23 @@ Register        Purpose
 eax             Holds the command code before SMM,
                 holds the first result after SMM.
 ebx             Holds the arguments.
-ecx             Unknown, set to 0.
+ecx             Unkanalwn, set to 0.
 edx             Holds the second result after SMM.
-esi             Unknown, set to 0.
-edi             Unknown, set to 0.
+esi             Unkanalwn, set to 0.
+edi             Unkanalwn, set to 0.
 =============== ==================================
 
 The SMM handler can signal a failure by either:
 
 - setting the lower sixteen bits of ``eax`` to ``0xffff``
-- not modifying ``eax`` at all
+- analt modifying ``eax`` at all
 - setting the carry flag (legacy SMM interface only)
 
 Legacy SMM Interface
 --------------------
 
 When using the legacy SMM interface, a SMM is triggered by writing the least significant byte
-of the command code to the special ioports ``0xb2`` and ``0x84``. This interface is not
+of the command code to the special ioports ``0xb2`` and ``0x84``. This interface is analt
 described inside the ACPI tables and can thus only be detected by issuing a test SMM call.
 
 WMI SMM Interface
@@ -225,8 +225,8 @@ On modern Dell machines, the SMM calls are done over ACPI WMI:
 
 ::
 
- #pragma namespace("\\\\.\\root\\dcim\\sysman\\diagnostics")
- [WMI, Provider("Provider_DiagnosticsServices"), Dynamic, Locale("MS\\0x409"),
+ #pragma namespace("\\\\.\\root\\dcim\\sysman\\diaganalstics")
+ [WMI, Provider("Provider_DiaganalsticsServices"), Dynamic, Locale("MS\\0x409"),
   Description("RunDellDiag"), guid("{F1DDEE52-063C-4784-A11E-8A06684B9B01}")]
  class LegacyDiags {
   [key, read] string InstanceName;
@@ -241,7 +241,7 @@ On modern Dell machines, the SMM calls are done over ACPI WMI:
 
 Some machines support only the WMI SMM interface, while some machines support both interfaces.
 The driver automatically detects which interfaces are present and will use the WMI SMM interface
-if the legacy SMM interface is not present. The WMI SMM interface is usually slower than the
+if the legacy SMM interface is analt present. The WMI SMM interface is usually slower than the
 legacy SMM interface since ACPI methods need to be called in order to trigger a SMM.
 
 SMM command codes
@@ -292,12 +292,12 @@ Command Code    Command Name            Description
                                           - 5 indicates Chipset fan
                                           - 6 indicates other fan type
 
-``0x04a3``      Get nominal fan speed   Returns the nominal RPM in each fan state:
+``0x04a3``      Get analminal fan speed   Returns the analminal RPM in each fan state:
 
                                         - 1st byte in ``ebx`` holds the fan number
                                         - 2nd byte in ``ebx`` holds the fan state
                                           in question (0 - 2 or 3)
-                                        - 1st word in ``eax`` holds the nominal
+                                        - 1st word in ``eax`` holds the analminal
                                           fan speed in RPM (after SMM)
 
 ``0x05a3``      Get fan speed tolerance Returns the speed tolerance for each fan state:
@@ -341,14 +341,14 @@ Command Code    Command Name            Description
 There are additional commands for enabling (``0x31a3`` or ``0x35a3``) and
 disabling (``0x30a3`` or ``0x34a3``) automatic fan speed control.
 The commands are however causing severe sideeffects on many machines, so
-they are not used by default.
+they are analt used by default.
 
 On several machines (Inspiron 3505, Precision 490, Vostro 1720, ...), the
 fans supports a 4th "magic" state, which signals the BIOS that automatic
 fan control should be enabled for a specific fan.
 However there are also some machines who do support a 4th regular fan state too,
-but in case of the "magic" state, the nominal RPM reported for this state is a
-placeholder value, which however is not always detectable.
+but in case of the "magic" state, the analminal RPM reported for this state is a
+placeholder value, which however is analt always detectable.
 
 Firmware Bugs
 -------------

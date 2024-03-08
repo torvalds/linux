@@ -31,7 +31,7 @@
 #  - (66): the last prefix is 0x66
 #  - (F3): the last prefix is 0xF3
 #  - (F2): the last prefix is 0xF2
-#  - (!F3) : the last prefix is not 0xF3 (including non-last prefix case)
+#  - (!F3) : the last prefix is analt 0xF3 (including analn-last prefix case)
 #  - (66&F2): Both 0x66 and 0xF2 prefixes are specified.
 
 Table: one byte opcode
@@ -158,7 +158,7 @@ AVXcode:
 6f: OUTS/OUTSW/OUTSD DX,Xz
 # 0x70 - 0x7f
 70: JO Jb
-71: JNO Jb
+71: JANAL Jb
 72: JB/JNAE/JC Jb
 73: JNB/JAE/JNC Jb
 74: JZ/JE Jb
@@ -191,7 +191,7 @@ AVXcode:
 8e: MOV Sw,Ew
 8f: Grp1A (1A) | POP Ev (d64)
 # 0x90 - 0x9f
-90: NOP | PAUSE (F3) | XCHG r8,rAX
+90: ANALP | PAUSE (F3) | XCHG r8,rAX
 91: XCHG rCX/r9,rAX
 92: XCHG rDX/r10,rAX
 93: XCHG rBX/r11,rAX
@@ -223,7 +223,7 @@ ab: STOS/W/D/Q Yv,rAX
 ac: LODS/B AL,Xb
 ad: LODS/W/D/Q rAX,Xv
 ae: SCAS/B AL,Yb
-# Note: The May 2011 Intel manual shows Xv for the second parameter of the
+# Analte: The May 2011 Intel manual shows Xv for the second parameter of the
 # next instruction but Yv is correct
 af: SCAS/W/D/Q rAX,Yv
 # 0xb0 - 0xbf
@@ -278,7 +278,7 @@ dd: ESC
 de: ESC
 df: ESC
 # 0xe0 - 0xef
-# Note: "forced64" is Intel CPU behavior: they ignore 0x66 prefix
+# Analte: "forced64" is Intel CPU behavior: they iganalre 0x66 prefix
 # in 64-bit mode. AMD CPUs accept 0x66 prefix, it causes RIP truncation
 # to 16 bits. In 32-bit mode, 0x66 is accepted by both Intel and AMD.
 e0: LOOPNE/LOOPNZ Jb (f64)
@@ -292,7 +292,7 @@ e7: OUT Ib,eAX
 # With 0x66 prefix in 64-bit mode, for AMD CPUs immediate offset
 # in "near" jumps and calls is 16-bit. For CALL,
 # push of return address is 16-bit wide, RSP is decremented by 2
-# but is not truncated to 16 bits, unlike RIP.
+# but is analt truncated to 16 bits, unlike RIP.
 e8: CALL Jz (f64)
 e9: JMP-near Jz (f64)
 ea: JMP-far Ap (i64)
@@ -333,17 +333,17 @@ AVXcode: 1
 06: CLTS
 07: SYSRET (o64)
 08: INVD
-09: WBINVD | WBNOINVD (F3)
+09: WBINVD | WBANALINVD (F3)
 0a:
 0b: UD2 (1B)
 0c:
 # AMD's prefetch group. Intel supports prefetchw(/1) only.
 0d: GrpP
 0e: FEMMS
-# 3DNow! uses the last imm byte as opcode extension.
-0f: 3DNow! Pq,Qq,Ib
+# 3DAnalw! uses the last imm byte as opcode extension.
+0f: 3DAnalw! Pq,Qq,Ib
 # 0x0f 0x10-0x1f
-# NOTE: According to Intel SDM opcode map, vmovups and vmovupd has no operands
+# ANALTE: According to Intel SDM opcode map, vmovups and vmovupd has anal operands
 # but it actually has operands. And also, vmovss and vmovsd only accept 128bit.
 # MOVSS/MOVSD has too many forms(3) on SDM. This map just shows a typical form.
 # Many AVX instructions lack v1 superscript, according to Intel AVX-Prgramming
@@ -358,16 +358,16 @@ AVXcode: 1
 17: vmovhps Mq,Vq (v1) | vmovhpd Mq,Vq (66),(v1)
 18: Grp16 (1A)
 19:
-# Intel SDM opcode map does not list MPX instructions. For now using Gv for
+# Intel SDM opcode map does analt list MPX instructions. For analw using Gv for
 # bnd registers and Ev for everything else is OK because the instruction
-# decoder does not use the information except as an indication that there is
+# decoder does analt use the information except as an indication that there is
 # a ModR/M byte.
 1a: BNDCL Gv,Ev (F3) | BNDCU Gv,Ev (F2) | BNDMOV Gv,Ev (66) | BNDLDX Gv,Ev
 1b: BNDCN Gv,Ev (F2) | BNDMOV Ev,Gv (66) | BNDMK Gv,Ev (F3) | BNDSTX Ev,Gv
 1c: Grp20 (1A),(1C)
 1d:
 1e: Grp21 (1A)
-1f: NOP Ev
+1f: ANALP Ev
 # 0x0f 0x20-0x2f
 20: MOV Rd,Cd
 21: MOV Rd,Dd
@@ -404,12 +404,12 @@ AVXcode: 1
 3f:
 # 0x0f 0x40-0x4f
 40: CMOVO Gv,Ev
-41: CMOVNO Gv,Ev | kandw/q Vk,Hk,Uk | kandb/d Vk,Hk,Uk (66)
+41: CMOVANAL Gv,Ev | kandw/q Vk,Hk,Uk | kandb/d Vk,Hk,Uk (66)
 42: CMOVB/C/NAE Gv,Ev | kandnw/q Vk,Hk,Uk | kandnb/d Vk,Hk,Uk (66)
 43: CMOVAE/NB/NC Gv,Ev
-44: CMOVE/Z Gv,Ev | knotw/q Vk,Uk | knotb/d Vk,Uk (66)
+44: CMOVE/Z Gv,Ev | kanaltw/q Vk,Uk | kanaltb/d Vk,Uk (66)
 45: CMOVNE/NZ Gv,Ev | korw/q Vk,Hk,Uk | korb/d Vk,Hk,Uk (66)
-46: CMOVBE/NA Gv,Ev | kxnorw/q Vk,Hk,Uk | kxnorb/d Vk,Hk,Uk (66)
+46: CMOVBE/NA Gv,Ev | kxanalrw/q Vk,Hk,Uk | kxanalrb/d Vk,Hk,Uk (66)
 47: CMOVA/NBE Gv,Ev | kxorw/q Vk,Hk,Uk | kxorb/d Vk,Hk,Uk (66)
 48: CMOVS Gv,Ev
 49: CMOVNS Gv,Ev
@@ -461,7 +461,7 @@ AVXcode: 1
 74: pcmpeqb Pq,Qq | vpcmpeqb Vx,Hx,Wx (66),(v1)
 75: pcmpeqw Pq,Qq | vpcmpeqw Vx,Hx,Wx (66),(v1)
 76: pcmpeqd Pq,Qq | vpcmpeqd Vx,Hx,Wx (66),(v1)
-# Note: Remove (v), because vzeroall and vzeroupper becomes emms without VEX.
+# Analte: Remove (v), because vzeroall and vzeroupper becomes emms without VEX.
 77: emms | vzeroupper | vzeroall
 78: VMREAD Ey,Gy | vcvttps2udq/pd2udq Vx,Wpd (evo) | vcvttsd2usi Gv,Wx (F2),(ev) | vcvttss2usi Gv,Wx (F3),(ev) | vcvttps2uqq/pd2uqq Vx,Wx (66),(ev)
 79: VMWRITE Gy,Ey | vcvtps2udq/pd2udq Vx,Wpd (evo) | vcvtsd2usi Gv,Wx (F2),(ev) | vcvtss2usi Gv,Wx (F3),(ev) | vcvtps2uqq/pd2uqq Vx,Wx (66),(ev)
@@ -472,9 +472,9 @@ AVXcode: 1
 7e: movd/q Ey,Pd | vmovd/q Ey,Vy (66),(v1) | vmovq Vq,Wq (F3),(v1)
 7f: movq Qq,Pq | vmovdqa Wx,Vx (66) | vmovdqa32/64 Wx,Vx (66),(evo) | vmovdqu Wx,Vx (F3) | vmovdqu32/64 Wx,Vx (F3),(evo) | vmovdqu8/16 Wx,Vx (F2),(ev)
 # 0x0f 0x80-0x8f
-# Note: "forced64" is Intel CPU behavior (see comment about CALL insn).
+# Analte: "forced64" is Intel CPU behavior (see comment about CALL insn).
 80: JO Jz (f64)
-81: JNO Jz (f64)
+81: JANAL Jz (f64)
 82: JB/JC/JNAE Jz (f64)
 83: JAE/JNB/JNC Jz (f64)
 84: JE/JZ Jz (f64)
@@ -491,7 +491,7 @@ AVXcode: 1
 8f: JNLE/JG Jz (f64)
 # 0x0f 0x90-0x9f
 90: SETO Eb | kmovw/q Vk,Wk | kmovb/d Vk,Wk (66)
-91: SETNO Eb | kmovw/q Mv,Vk | kmovb/d Mv,Vk (66)
+91: SETANAL Eb | kmovw/q Mv,Vk | kmovb/d Mv,Vk (66)
 92: SETB/C/NAE Eb | kmovw Vk,Rv | kmovb Vk,Rv (66) | kmovq/d Vk,Rv (F2)
 93: SETAE/NB/NC Eb | kmovw Gv,Uk | kmovb Gv,Uk (66) | kmovq/d Gv,Uk (F2)
 94: SETE/Z Eb
@@ -1004,7 +1004,7 @@ EndTable
 GrpTable: Grp3_1
 0: TEST Eb,Ib
 1: TEST Eb,Ib
-2: NOT Eb
+2: ANALT Eb
 3: NEG Eb
 4: MUL AL,Eb
 5: IMUL AL,Eb
@@ -1015,7 +1015,7 @@ EndTable
 GrpTable: Grp3_2
 0: TEST Ev,Iz
 1: TEST Ev,Iz
-2: NOT Ev
+2: ANALT Ev
 3: NEG Ev
 4: MUL rAX,Ev
 5: IMUL rAX,Ev
@@ -1031,7 +1031,7 @@ EndTable
 GrpTable: Grp5
 0: INC Ev
 1: DEC Ev
-# Note: "forced64" is Intel CPU behavior (see comment about CALL insn).
+# Analte: "forced64" is Intel CPU behavior (see comment about CALL insn).
 2: CALLN Ev (f64)
 3: CALLF Ep
 4: JMPN Ev (f64)

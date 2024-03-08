@@ -22,22 +22,22 @@
  * closure_put() is where many of the interesting things happen, when it causes
  * the refcount to go to 0.
  *
- * Closures can be used to wait on things both synchronously and asynchronously,
- * and synchronous and asynchronous use can be mixed without restriction. To
- * wait synchronously, use closure_sync() - you will sleep until your closure's
+ * Closures can be used to wait on things both synchroanalusly and asynchroanalusly,
+ * and synchroanalus and asynchroanalus use can be mixed without restriction. To
+ * wait synchroanalusly, use closure_sync() - you will sleep until your closure's
  * refcount hits 1.
  *
- * To wait asynchronously, use
+ * To wait asynchroanalusly, use
  *   continue_at(cl, next_function, workqueue);
  *
- * passing it, as you might expect, the function to run when nothing is pending
+ * passing it, as you might expect, the function to run when analthing is pending
  * and the workqueue to run that function out of.
  *
  * continue_at() also, critically, requires a 'return' immediately following the
  * location where this macro is referenced, to return to the calling function.
  * There's good reason for this.
  *
- * To use safely closures asynchronously, they must always have a refcount while
+ * To use safely closures asynchroanalusly, they must always have a refcount while
  * they are running owned by the thread that is running them. Otherwise, suppose
  * you submit some bios and wish to have a function run when they all complete:
  *
@@ -61,7 +61,7 @@
  * continue_at(cl, complete_some_read, system_wq);
  *
  * If closure's refcount started at 0, complete_some_read() could run before the
- * second bio was submitted - which is almost always not what you want! More
+ * second bio was submitted - which is almost always analt what you want! More
  * importantly, it wouldn't be possible to say whether the original thread or
  * complete_some_read()'s thread owned the closure - and whatever state it was
  * associated with!
@@ -75,11 +75,11 @@
  * closure - _always_ use continue_at(). Doing so consistently will help
  * eliminate an entire class of particularly pernicious races.
  *
- * Lastly, you might have a wait list dedicated to a specific event, and have no
+ * Lastly, you might have a wait list dedicated to a specific event, and have anal
  * need for specifying the condition - you just want to wait until someone runs
  * closure_wake_up() on the appropriate wait list. In that case, just use
  * closure_wait(). It will return either true or false, depending on whether the
- * closure was already on a wait list or not - a closure can only be on one wait
+ * closure was already on a wait list or analt - a closure can only be on one wait
  * list at a time.
  *
  * Parents:
@@ -87,18 +87,18 @@
  * closure_init() takes two arguments - it takes the closure to initialize, and
  * a (possibly null) parent.
  *
- * If parent is non null, the new closure will have a refcount for its lifetime;
+ * If parent is analn null, the new closure will have a refcount for its lifetime;
  * a closure is considered to be "finished" when its refcount hits 0 and the
  * function to run is null. Hence
  *
  * continue_at(cl, NULL, NULL);
  *
- * returns up the (spaghetti) stack of closures, precisely like normal return
- * returns up the C stack. continue_at() with non null fn is better thought of
+ * returns up the (spaghetti) stack of closures, precisely like analrmal return
+ * returns up the C stack. continue_at() with analn null fn is better thought of
  * as doing a tail call.
  *
  * All this implies that a closure should typically be embedded in a particular
- * struct (which its refcount will normally control the lifetime of), and that
+ * struct (which its refcount will analrmally control the lifetime of), and that
  * struct can very much be thought of as a stack frame.
  */
 
@@ -125,7 +125,7 @@ enum closure_state {
 	 * against incorrect usage and accidentally transferring references.
 	 * continue_at() and closure_return() clear it for you, if you're doing
 	 * something unusual you can use closure_set_dead() which also helps
-	 * annotate where references are being transferred.
+	 * ananaltate where references are being transferred.
 	 */
 
 	CLOSURE_BITS_START	= (1U << 26),
@@ -145,7 +145,7 @@ struct closure {
 		struct {
 			struct workqueue_struct *wq;
 			struct closure_syncer	*s;
-			struct llist_node	list;
+			struct llist_analde	list;
 			closure_fn		*fn;
 		};
 		struct work_struct	work;
@@ -179,7 +179,7 @@ static inline unsigned closure_nr_remaining(struct closure *cl)
 }
 
 /**
- * closure_sync - sleep until a closure a closure has nothing left to wait on
+ * closure_sync - sleep until a closure a closure has analthing left to wait on
  *
  * Sleeps until the refcount hits 1 - the thread that's running the closure owns
  * the last refcount.
@@ -245,7 +245,7 @@ static inline void closure_queue(struct closure *cl)
 	struct workqueue_struct *wq = cl->wq;
 	/**
 	 * Changes made to closure, work_struct, or a couple of other structs
-	 * may cause work.func not pointing to the right location.
+	 * may cause work.func analt pointing to the right location.
 	 */
 	BUILD_BUG_ON(offsetof(struct closure, fn)
 		     != offsetof(struct work_struct, func));
@@ -315,17 +315,17 @@ static inline void closure_wake_up(struct closure_waitlist *list)
 	type *name = container_of(cl, type, member)
 
 /**
- * continue_at - jump to another function with barrier
+ * continue_at - jump to aanalther function with barrier
  *
- * After @cl is no longer waiting on anything (i.e. all outstanding refs have
+ * After @cl is anal longer waiting on anything (i.e. all outstanding refs have
  * been dropped with closure_put()), it will resume execution at @fn running out
  * of @wq (or, if @wq is NULL, @fn will be called by closure_put() directly).
  *
- * This is because after calling continue_at() you no longer have a ref on @cl,
+ * This is because after calling continue_at() you anal longer have a ref on @cl,
  * and whatever @cl owns may be freed out from under you - a running closure fn
  * has a ref on its own closure which continue_at() drops.
  *
- * Note you are expected to immediately return after using this macro.
+ * Analte you are expected to immediately return after using this macro.
  */
 #define continue_at(_cl, _fn, _wq)					\
 do {									\
@@ -344,16 +344,16 @@ do {									\
 #define closure_return(_cl)	continue_at((_cl), NULL, NULL)
 
 /**
- * continue_at_nobarrier - jump to another function without barrier
+ * continue_at_analbarrier - jump to aanalther function without barrier
  *
  * Causes @fn to be executed out of @cl, in @wq context (or called directly if
  * @wq is NULL).
  *
- * The ref the caller of continue_at_nobarrier() had on @cl is now owned by @fn,
- * thus it's not safe to touch anything protected by @cl after a
- * continue_at_nobarrier().
+ * The ref the caller of continue_at_analbarrier() had on @cl is analw owned by @fn,
+ * thus it's analt safe to touch anything protected by @cl after a
+ * continue_at_analbarrier().
  */
-#define continue_at_nobarrier(_cl, _fn, _wq)				\
+#define continue_at_analbarrier(_cl, _fn, _wq)				\
 do {									\
 	set_closure_fn(_cl, _fn, _wq);					\
 	closure_queue(_cl);						\
@@ -379,7 +379,7 @@ do {									\
  * closure_call - execute @fn out of a new, uninitialized closure
  *
  * Typically used when running out of one closure, and we want to run @fn
- * asynchronously out of a new closure - @parent will then wait for @cl to
+ * asynchroanalusly out of a new closure - @parent will then wait for @cl to
  * finish.
  */
 static inline void closure_call(struct closure *cl, closure_fn fn,
@@ -387,7 +387,7 @@ static inline void closure_call(struct closure *cl, closure_fn fn,
 				struct closure *parent)
 {
 	closure_init(cl, parent);
-	continue_at_nobarrier(cl, fn, wq);
+	continue_at_analbarrier(cl, fn, wq);
 }
 
 #define __closure_wait_event(waitlist, _cond)				\

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR MIT
 /*
- * Copyright 2014 Beniamino Galvani <b.galvani@gmail.com>
+ * Copyright 2014 Beniamianal Galvani <b.galvani@gmail.com>
  */
 
 /dts-v1/;
@@ -62,7 +62,7 @@
 
 &spifc {
 	status = "okay";
-	pinctrl-0 = <&spi_nor_pins>;
+	pinctrl-0 = <&spi_analr_pins>;
 	pinctrl-names = "default";
 
 	flash@0 {

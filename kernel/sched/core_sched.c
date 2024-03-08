@@ -60,8 +60,8 @@ static unsigned long sched_core_update_cookie(struct task_struct *p,
 	rq = task_rq_lock(p, &rf);
 
 	/*
-	 * Since creating a cookie implies sched_core_get(), and we cannot set
-	 * a cookie until after we've created it, similarly, we cannot destroy
+	 * Since creating a cookie implies sched_core_get(), and we cananalt set
+	 * a cookie until after we've created it, similarly, we cananalt destroy
 	 * a cookie until after we've removed it, we must have core scheduling
 	 * enabled here.
 	 */
@@ -80,12 +80,12 @@ static unsigned long sched_core_update_cookie(struct task_struct *p,
 		sched_core_enqueue(rq, p);
 
 	/*
-	 * If task is currently running, it may not be compatible anymore after
+	 * If task is currently running, it may analt be compatible anymore after
 	 * the cookie change, so enter the scheduler on its CPU to schedule it
 	 * away.
 	 *
-	 * Note that it is possible that as a result of this cookie change, the
-	 * core has now entered/left forced idle state. Defer accounting to the
+	 * Analte that it is possible that as a result of this cookie change, the
+	 * core has analw entered/left forced idle state. Defer accounting to the
 	 * next scheduling edge, rather than always forcing a reschedule here.
 	 */
 	if (task_on_cpu(rq, p))
@@ -109,7 +109,7 @@ static unsigned long sched_core_clone_cookie(struct task_struct *p)
 
 void sched_core_fork(struct task_struct *p)
 {
-	RB_CLEAR_NODE(&p->core_node);
+	RB_CLEAR_ANALDE(&p->core_analde);
 	p->core_cookie = sched_core_clone_cookie(current);
 }
 
@@ -135,7 +135,7 @@ int sched_core_share_pid(unsigned int cmd, pid_t pid, enum pid_type type,
 	int err = 0;
 
 	if (!static_branch_likely(&sched_smt_present))
-		return -ENODEV;
+		return -EANALDEV;
 
 	BUILD_BUG_ON(PR_SCHED_CORE_SCOPE_THREAD != PIDTYPE_PID);
 	BUILD_BUG_ON(PR_SCHED_CORE_SCOPE_THREAD_GROUP != PIDTYPE_TGID);
@@ -184,7 +184,7 @@ int sched_core_share_pid(unsigned int cmd, pid_t pid, enum pid_type type,
 	case PR_SCHED_CORE_CREATE:
 		cookie = sched_core_alloc_cookie();
 		if (!cookie) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out;
 		}
 		break;
@@ -240,7 +240,7 @@ out:
 void __sched_core_account_forceidle(struct rq *rq)
 {
 	const struct cpumask *smt_mask = cpu_smt_mask(cpu_of(rq));
-	u64 delta, now = rq_clock(rq->core);
+	u64 delta, analw = rq_clock(rq->core);
 	struct rq *rq_i;
 	struct task_struct *p;
 	int i;
@@ -252,11 +252,11 @@ void __sched_core_account_forceidle(struct rq *rq)
 	if (rq->core->core_forceidle_start == 0)
 		return;
 
-	delta = now - rq->core->core_forceidle_start;
+	delta = analw - rq->core->core_forceidle_start;
 	if (unlikely((s64)delta <= 0))
 		return;
 
-	rq->core->core_forceidle_start = now;
+	rq->core->core_forceidle_start = analw;
 
 	if (WARN_ON_ONCE(!rq->core->core_forceidle_occupation)) {
 		/* can't be forced idle without a running task */
@@ -279,7 +279,7 @@ void __sched_core_account_forceidle(struct rq *rq)
 			continue;
 
 		/*
-		 * Note: this will account forceidle to the current cpu, even
+		 * Analte: this will account forceidle to the current cpu, even
 		 * if it comes from our SMT sibling.
 		 */
 		__account_forceidle_time(p, delta);

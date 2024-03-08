@@ -25,7 +25,7 @@ static int da9052_spi_probe(struct spi_device *spi)
 
 	da9052 = devm_kzalloc(&spi->dev, sizeof(struct da9052), GFP_KERNEL);
 	if (!da9052)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spi->mode = SPI_MODE_0;
 	spi->bits_per_word = 8;

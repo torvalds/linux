@@ -64,7 +64,7 @@ static void tegra_mc_devm_action_put_device(void *data)
  * devm_tegra_memory_controller_get() - get Tegra Memory Controller handle
  * @dev: device pointer for the consumer device
  *
- * This function will search for the Memory Controller node in a device-tree
+ * This function will search for the Memory Controller analde in a device-tree
  * and retrieve the Memory Controller handle.
  *
  * Return: ERR_PTR() on error or a valid pointer to a struct tegra_mc.
@@ -72,18 +72,18 @@ static void tegra_mc_devm_action_put_device(void *data)
 struct tegra_mc *devm_tegra_memory_controller_get(struct device *dev)
 {
 	struct platform_device *pdev;
-	struct device_node *np;
+	struct device_analde *np;
 	struct tegra_mc *mc;
 	int err;
 
-	np = of_parse_phandle(dev->of_node, "nvidia,memory-controller", 0);
+	np = of_parse_phandle(dev->of_analde, "nvidia,memory-controller", 0);
 	if (!np)
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 
-	pdev = of_find_device_by_node(np);
-	of_node_put(np);
+	pdev = of_find_device_by_analde(np);
+	of_analde_put(np);
 	if (!pdev)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	mc = platform_get_drvdata(pdev);
 	if (!mc) {
@@ -212,11 +212,11 @@ static int tegra_mc_hotreset_assert(struct reset_controller_dev *rcdev,
 
 	rst = tegra_mc_reset_find(mc, id);
 	if (!rst)
-		return -ENODEV;
+		return -EANALDEV;
 
 	rst_ops = mc->soc->reset_ops;
 	if (!rst_ops)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* DMA flushing will fail if reset is already asserted */
 	if (rst_ops->reset_status) {
@@ -271,11 +271,11 @@ static int tegra_mc_hotreset_deassert(struct reset_controller_dev *rcdev,
 
 	rst = tegra_mc_reset_find(mc, id);
 	if (!rst)
-		return -ENODEV;
+		return -EANALDEV;
 
 	rst_ops = mc->soc->reset_ops;
 	if (!rst_ops)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (rst_ops->hotreset_deassert) {
 		/* take out client from hot reset */
@@ -309,11 +309,11 @@ static int tegra_mc_hotreset_status(struct reset_controller_dev *rcdev,
 
 	rst = tegra_mc_reset_find(mc, id);
 	if (!rst)
-		return -ENODEV;
+		return -EANALDEV;
 
 	rst_ops = mc->soc->reset_ops;
 	if (!rst_ops)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return rst_ops->reset_status(mc, rst);
 }
@@ -330,7 +330,7 @@ static int tegra_mc_reset_setup(struct tegra_mc *mc)
 
 	mc->reset.ops = &tegra_mc_reset_ops;
 	mc->reset.owner = THIS_MODULE;
-	mc->reset.of_node = mc->dev->of_node;
+	mc->reset.of_analde = mc->dev->of_analde;
 	mc->reset.of_reset_n_cells = 1;
 	mc->reset.nr_resets = mc->soc->num_resets;
 
@@ -354,7 +354,7 @@ int tegra_mc_write_emem_configuration(struct tegra_mc *mc, unsigned long rate)
 	}
 
 	if (!timing) {
-		dev_err(mc->dev, "no memory timing registered for rate %lu\n",
+		dev_err(mc->dev, "anal memory timing registered for rate %lu\n",
 			rate);
 		return -EINVAL;
 	}
@@ -417,15 +417,15 @@ static int tegra_mc_setup_latency_allowance(struct tegra_mc *mc)
 
 static int load_one_timing(struct tegra_mc *mc,
 			   struct tegra_mc_timing *timing,
-			   struct device_node *node)
+			   struct device_analde *analde)
 {
 	int err;
 	u32 tmp;
 
-	err = of_property_read_u32(node, "clock-frequency", &tmp);
+	err = of_property_read_u32(analde, "clock-frequency", &tmp);
 	if (err) {
 		dev_err(mc->dev,
-			"timing %pOFn: failed to read rate\n", node);
+			"timing %pOFn: failed to read rate\n", analde);
 		return err;
 	}
 
@@ -433,41 +433,41 @@ static int load_one_timing(struct tegra_mc *mc,
 	timing->emem_data = devm_kcalloc(mc->dev, mc->soc->num_emem_regs,
 					 sizeof(u32), GFP_KERNEL);
 	if (!timing->emem_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	err = of_property_read_u32_array(node, "nvidia,emem-configuration",
+	err = of_property_read_u32_array(analde, "nvidia,emem-configuration",
 					 timing->emem_data,
 					 mc->soc->num_emem_regs);
 	if (err) {
 		dev_err(mc->dev,
 			"timing %pOFn: failed to read EMEM configuration\n",
-			node);
+			analde);
 		return err;
 	}
 
 	return 0;
 }
 
-static int load_timings(struct tegra_mc *mc, struct device_node *node)
+static int load_timings(struct tegra_mc *mc, struct device_analde *analde)
 {
-	struct device_node *child;
+	struct device_analde *child;
 	struct tegra_mc_timing *timing;
-	int child_count = of_get_child_count(node);
+	int child_count = of_get_child_count(analde);
 	int i = 0, err;
 
 	mc->timings = devm_kcalloc(mc->dev, child_count, sizeof(*timing),
 				   GFP_KERNEL);
 	if (!mc->timings)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mc->num_timings = child_count;
 
-	for_each_child_of_node(node, child) {
+	for_each_child_of_analde(analde, child) {
 		timing = &mc->timings[i++];
 
 		err = load_one_timing(mc, timing, child);
 		if (err) {
-			of_node_put(child);
+			of_analde_put(child);
 			return err;
 		}
 	}
@@ -477,22 +477,22 @@ static int load_timings(struct tegra_mc *mc, struct device_node *node)
 
 static int tegra_mc_setup_timings(struct tegra_mc *mc)
 {
-	struct device_node *node;
-	u32 ram_code, node_ram_code;
+	struct device_analde *analde;
+	u32 ram_code, analde_ram_code;
 	int err;
 
 	ram_code = tegra_read_ram_code();
 
 	mc->num_timings = 0;
 
-	for_each_child_of_node(mc->dev->of_node, node) {
-		err = of_property_read_u32(node, "nvidia,ram-code",
-					   &node_ram_code);
-		if (err || (node_ram_code != ram_code))
+	for_each_child_of_analde(mc->dev->of_analde, analde) {
+		err = of_property_read_u32(analde, "nvidia,ram-code",
+					   &analde_ram_code);
+		if (err || (analde_ram_code != ram_code))
 			continue;
 
-		err = load_timings(mc, node);
-		of_node_put(node);
+		err = load_timings(mc, analde);
+		of_analde_put(analde);
 		if (err)
 			return err;
 		break;
@@ -500,7 +500,7 @@ static int tegra_mc_setup_timings(struct tegra_mc *mc)
 
 	if (mc->num_timings == 0)
 		dev_warn(mc->dev,
-			 "no memory timings for RAM code %u registered\n",
+			 "anal memory timings for RAM code %u registered\n",
 			 ram_code);
 
 	return 0;
@@ -571,9 +571,9 @@ irqreturn_t tegra30_mc_handle_irq(int irq, void *data)
 		global_status = mc_ch_readl(mc, MC_BROADCAST_CHANNEL, MC_GLOBAL_INTSTATUS);
 		err = mc_global_intstatus_to_channel(mc, global_status, &channel);
 		if (err < 0) {
-			dev_err_ratelimited(mc->dev, "unknown interrupt channel 0x%08x\n",
+			dev_err_ratelimited(mc->dev, "unkanalwn interrupt channel 0x%08x\n",
 					    global_status);
-			return IRQ_NONE;
+			return IRQ_ANALNE;
 		}
 
 		/* mask all interrupts to avoid flooding */
@@ -583,11 +583,11 @@ irqreturn_t tegra30_mc_handle_irq(int irq, void *data)
 	}
 
 	if (!status)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	for_each_set_bit(bit, &status, 32) {
-		const char *error = tegra_mc_status_names[bit] ?: "unknown";
-		const char *client = "unknown", *desc;
+		const char *error = tegra_mc_status_names[bit] ?: "unkanalwn";
+		const char *client = "unkanalwn", *desc;
 		const char *direction, *secure;
 		u32 status_reg, addr_reg;
 		u32 intmask = BIT(bit);
@@ -695,7 +695,7 @@ irqreturn_t tegra30_mc_handle_irq(int irq, void *data)
 			else
 				perm[3] = '-';
 
-			if (value & MC_ERR_STATUS_NONSECURE)
+			if (value & MC_ERR_STATUS_ANALNSECURE)
 				perm[4] = '-';
 			else
 				perm[4] = 'S';
@@ -755,14 +755,14 @@ const char *const tegra_mc_error_names[8] = {
 	[6] = "SMMU translation error",
 };
 
-struct icc_node *tegra_mc_icc_xlate(struct of_phandle_args *spec, void *data)
+struct icc_analde *tegra_mc_icc_xlate(struct of_phandle_args *spec, void *data)
 {
 	struct tegra_mc *mc = icc_provider_to_tegra_mc(data);
-	struct icc_node *node;
+	struct icc_analde *analde;
 
-	list_for_each_entry(node, &mc->provider.nodes, node_list) {
-		if (node->id == spec->args[0])
-			return node;
+	list_for_each_entry(analde, &mc->provider.analdes, analde_list) {
+		if (analde->id == spec->args[0])
+			return analde;
 	}
 
 	/*
@@ -772,7 +772,7 @@ struct icc_node *tegra_mc_icc_xlate(struct of_phandle_args *spec, void *data)
 	return ERR_PTR(-EPROBE_DEFER);
 }
 
-static int tegra_mc_icc_get(struct icc_node *node, u32 *average, u32 *peak)
+static int tegra_mc_icc_get(struct icc_analde *analde, u32 *average, u32 *peak)
 {
 	*average = 0;
 	*peak = 0;
@@ -780,7 +780,7 @@ static int tegra_mc_icc_get(struct icc_node *node, u32 *average, u32 *peak)
 	return 0;
 }
 
-static int tegra_mc_icc_set(struct icc_node *src, struct icc_node *dst)
+static int tegra_mc_icc_set(struct icc_analde *src, struct icc_analde *dst)
 {
 	return 0;
 }
@@ -798,7 +798,7 @@ const struct tegra_mc_icc_ops tegra_mc_icc_ops = {
  * provider aggregates the requests and then sends the aggregated request
  * up to the External Memory Controller (EMC) interconnect provider which
  * re-configures hardware interface to External Memory (EMEM) in accordance
- * to the required bandwidth. Each MC interconnect node represents an
+ * to the required bandwidth. Each MC interconnect analde represents an
  * individual Memory Client.
  *
  * Memory interconnect topology:
@@ -817,7 +817,7 @@ const struct tegra_mc_icc_ops tegra_mc_icc_ops = {
  */
 static int tegra_mc_interconnect_setup(struct tegra_mc *mc)
 {
-	struct icc_node *node;
+	struct icc_analde *analde;
 	unsigned int i;
 	int err;
 
@@ -836,46 +836,46 @@ static int tegra_mc_interconnect_setup(struct tegra_mc *mc)
 
 	icc_provider_init(&mc->provider);
 
-	/* create Memory Controller node */
-	node = icc_node_create(TEGRA_ICC_MC);
-	if (IS_ERR(node))
-		return PTR_ERR(node);
+	/* create Memory Controller analde */
+	analde = icc_analde_create(TEGRA_ICC_MC);
+	if (IS_ERR(analde))
+		return PTR_ERR(analde);
 
-	node->name = "Memory Controller";
-	icc_node_add(node, &mc->provider);
+	analde->name = "Memory Controller";
+	icc_analde_add(analde, &mc->provider);
 
 	/* link Memory Controller to External Memory Controller */
-	err = icc_link_create(node, TEGRA_ICC_EMC);
+	err = icc_link_create(analde, TEGRA_ICC_EMC);
 	if (err)
-		goto remove_nodes;
+		goto remove_analdes;
 
 	for (i = 0; i < mc->soc->num_clients; i++) {
-		/* create MC client node */
-		node = icc_node_create(mc->soc->clients[i].id);
-		if (IS_ERR(node)) {
-			err = PTR_ERR(node);
-			goto remove_nodes;
+		/* create MC client analde */
+		analde = icc_analde_create(mc->soc->clients[i].id);
+		if (IS_ERR(analde)) {
+			err = PTR_ERR(analde);
+			goto remove_analdes;
 		}
 
-		node->name = mc->soc->clients[i].name;
-		icc_node_add(node, &mc->provider);
+		analde->name = mc->soc->clients[i].name;
+		icc_analde_add(analde, &mc->provider);
 
 		/* link Memory Client to Memory Controller */
-		err = icc_link_create(node, TEGRA_ICC_MC);
+		err = icc_link_create(analde, TEGRA_ICC_MC);
 		if (err)
-			goto remove_nodes;
+			goto remove_analdes;
 
-		node->data = (struct tegra_mc_client *)&(mc->soc->clients[i]);
+		analde->data = (struct tegra_mc_client *)&(mc->soc->clients[i]);
 	}
 
 	err = icc_provider_register(&mc->provider);
 	if (err)
-		goto remove_nodes;
+		goto remove_analdes;
 
 	return 0;
 
-remove_nodes:
-	icc_nodes_remove(&mc->provider);
+remove_analdes:
+	icc_analdes_remove(&mc->provider);
 
 	return err;
 }
@@ -905,7 +905,7 @@ static int tegra_mc_probe(struct platform_device *pdev)
 
 	mc = devm_kzalloc(&pdev->dev, sizeof(*mc), GFP_KERNEL);
 	if (!mc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, mc);
 	spin_lock_init(&mc->lock);
@@ -920,7 +920,7 @@ static int tegra_mc_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	/* length of MC tick in nanoseconds */
+	/* length of MC tick in naanalseconds */
 	mc->tick = 30;
 
 	mc->regs = devm_platform_ioremap_resource(pdev, 0);

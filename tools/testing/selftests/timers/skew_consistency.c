@@ -3,7 +3,7 @@
  *		(C) Copyright IBM 2012
  *		Licensed under the GPLv2
  *
- *  NOTE: This is a meta-test which cranks the ADJ_FREQ knob back
+ *  ANALTE: This is a meta-test which cranks the ADJ_FREQ kanalb back
  *  and forth and watches for consistency problems. Thus this test requires
  *  that the inconsistency-check tests be present in the same directory it
  *  is run from.
@@ -45,7 +45,7 @@ int main(int argc, char **argv)
 	pid_t pid;
 
 
-	printf("Running Asynchronous Frequency Changing Tests...\n");
+	printf("Running Asynchroanalus Frequency Changing Tests...\n");
 
 	pid = fork();
 	if (!pid)
@@ -54,7 +54,7 @@ int main(int argc, char **argv)
 	ppm = 500;
 	ret = 0;
 
-	while (pid != waitpid(pid, &ret, WNOHANG)) {
+	while (pid != waitpid(pid, &ret, WANALHANG)) {
 		ppm = -ppm;
 		tx.modes = ADJ_FREQUENCY;
 		tx.freq = ppm << 16;

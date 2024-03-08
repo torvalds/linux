@@ -7,7 +7,7 @@
 #include <asm/alternative.h> /* Provides LOCK_PREFIX */
 
 /*
- * Non-existent functions to indicate usage errors at link time
+ * Analn-existent functions to indicate usage errors at link time
  * (or compile-time if the compiler implements __compiletime_error().
  */
 extern void __xchg_wrong_size(void)
@@ -70,7 +70,7 @@ extern void __add_wrong_size(void)
 	})
 
 /*
- * Note: no "lock" prefix even on SMP: xchg always implies lock anyway.
+ * Analte: anal "lock" prefix even on SMP: xchg always implies lock anyway.
  * Since this is generally used to protect other memory information, we
  * use "asm volatile" and "memory" clobbers to prevent gcc from moving
  * information around.

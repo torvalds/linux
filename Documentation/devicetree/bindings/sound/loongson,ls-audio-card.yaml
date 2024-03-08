@@ -26,7 +26,7 @@ properties:
     $ref: simple-card.yaml#/definitions/mclk-fs
 
   cpu:
-    description: Holds subnode which indicates cpu dai.
+    description: Holds subanalde which indicates cpu dai.
     type: object
     additionalProperties: false
     properties:
@@ -36,7 +36,7 @@ properties:
       - sound-dai
 
   codec:
-    description: Holds subnode which indicates codec dai.
+    description: Holds subanalde which indicates codec dai.
     type: object
     additionalProperties: false
     properties:

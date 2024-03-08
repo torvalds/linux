@@ -58,7 +58,7 @@ struct pldmfw_priv {
  * Verify that the firmware data can hold a chunk of bytes with the specified
  * offset and length.
  *
- * Returns: zero on success, or -EFAULT if the image does not have enough
+ * Returns: zero on success, or -EFAULT if the image does analt have eanalugh
  * space left to fit the expected length.
  */
 static int
@@ -81,7 +81,7 @@ pldm_check_fw_space(struct pldmfw_priv *data, size_t offset, size_t length)
  * @data: pointer to private data
  * @bytes_to_move: number of bytes to move the offset forward by
  *
- * Check that there is enough space past the current offset, and then move the
+ * Check that there is eanalugh space past the current offset, and then move the
  * offset forward by this amount.
  *
  * Returns: zero on success, or -EFAULT if the image is too small to fit the
@@ -113,7 +113,7 @@ pldm_move_fw_offset(struct pldmfw_priv *data, size_t bytes_to_move)
  *   * Verify that the UUID at the start of the header matches the expected
  *     value as defined in the DSP0267 PLDM specification
  *   * Check that the revision is 0x01
- *   * Extract the total header_size and verify that the image is large enough
+ *   * Extract the total header_size and verify that the image is large eanalugh
  *     to contain at least the length of this header
  *   * Extract the size of the component bitmap length
  *   * Extract a pointer to the start of the record area
@@ -144,7 +144,7 @@ static int pldm_parse_header(struct pldmfw_priv *data)
 	if (header->revision != PACKAGE_HEADER_FORMAT_REVISION) {
 		dev_dbg(dev, "Invalid package header revision. Expected revision %u but got %u\n",
 			PACKAGE_HEADER_FORMAT_REVISION, header->revision);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	data->total_header_size = get_unaligned_le16(&header->size);
@@ -158,7 +158,7 @@ static int pldm_parse_header(struct pldmfw_priv *data)
 		get_unaligned_le16(&header->component_bitmap_len);
 
 	if (data->component_bitmap_len % 8 != 0) {
-		dev_dbg(dev, "Invalid component bitmap length. The length is %u, which is not a multiple of 8\n",
+		dev_dbg(dev, "Invalid component bitmap length. The length is %u, which is analt a multiple of 8\n",
 			data->component_bitmap_len);
 		return -EINVAL;
 	}
@@ -194,10 +194,10 @@ static int pldm_parse_header(struct pldmfw_priv *data)
  * If the descriptor type is one of the documented descriptor types according
  * to the standard, verify that the provided length matches.
  *
- * If the type is not recognized or is VENDOR_DEFINED, return zero.
+ * If the type is analt recognized or is VENDOR_DEFINED, return zero.
  *
  * Returns: zero on success, or -EINVAL if the specified size of a standard
- * TLV does not match the expected value defined for that TLV.
+ * TLV does analt match the expected value defined for that TLV.
  */
 static int
 pldm_check_desc_tlv_len(struct pldmfw_priv *data, u16 type, u16 size)
@@ -230,7 +230,7 @@ pldm_check_desc_tlv_len(struct pldmfw_priv *data, u16 type, u16 size)
 	case PLDM_DESC_ID_VENDOR_DEFINED:
 		return 0;
 	default:
-		/* Do not report an error on an unexpected TLV */
+		/* Do analt report an error on an unexpected TLV */
 		dev_dbg(dev, "Found unrecognized TLV type 0x%04x\n", type);
 		return 0;
 	}
@@ -289,7 +289,7 @@ pldm_parse_desc_tlvs(struct pldmfw_priv *data, struct pldmfw_record *record, u8 
 
 		desc = kzalloc(sizeof(*desc), GFP_KERNEL);
 		if (!desc)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		desc->type = type;
 		desc->size = size;
@@ -306,7 +306,7 @@ pldm_parse_desc_tlvs(struct pldmfw_priv *data, struct pldmfw_record *record, u8 
  * @data: pointer to image details
  * @__record: pointer to the record to check
  *
- * This function checks that the record size does not exceed either the size
+ * This function checks that the record size does analt exceed either the size
  * of the firmware file or the total length specified in the header section.
  *
  * It also verifies that the recorded length of the start of the record
@@ -330,7 +330,7 @@ pldm_parse_one_record(struct pldmfw_priv *data,
 	/* Make a copy and insert it into the record list */
 	record = kzalloc(sizeof(*record), GFP_KERNEL);
 	if (!record)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&record->descs);
 	list_add_tail(&record->entry, &data->records);
@@ -356,7 +356,7 @@ pldm_parse_one_record(struct pldmfw_priv *data,
 	record->component_bitmap = bitmap_zalloc(record->component_bitmap_len,
 						 GFP_KERNEL);
 	if (!record->component_bitmap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < data->bitmap_size; i++)
 		bitmap_set_value8(record->component_bitmap, bitmap_ptr[i], i * 8);
@@ -467,7 +467,7 @@ static int pldm_parse_components(struct pldmfw_priv *data)
 
 		component = kzalloc(sizeof(*component), GFP_KERNEL);
 		if (!component)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		component->index = i;
 		component->classification = get_unaligned_le16(&__component->classification);
@@ -506,7 +506,7 @@ static int pldm_parse_components(struct pldmfw_priv *data)
  * pldm_verify_header_crc - Verify that the CRC in the header matches
  * @data: pointer to private data
  *
- * Calculates the 32-bit CRC using the standard IEEE 802.3 CRC polynomial and
+ * Calculates the 32-bit CRC using the standard IEEE 802.3 CRC polyanalmial and
  * compares it to the value stored in the header.
  *
  * Returns: zero on success if the CRC matches, or -EBADMSG on an invalid CRC.
@@ -518,8 +518,8 @@ static int pldm_verify_header_crc(struct pldmfw_priv *data)
 	size_t length;
 
 	/* Calculate the 32-bit CRC of the header header contents up to but
-	 * not including the checksum. Note that the Linux crc32_le function
-	 * does not perform an expected final XOR.
+	 * analt including the checksum. Analte that the Linux crc32_le function
+	 * does analt perform an expected final XOR.
 	 */
 	length = data->offset - sizeof(data->header_crc);
 	calculated_crc = crc32_le(~0, data->fw->data, length) ^ ~0;
@@ -660,7 +660,7 @@ bool pldmfw_op_pci_match_record(struct pldmfw *context, struct pldmfw_record *re
 
 		value = get_unaligned_le16(desc->data);
 		/* A value of zero for one of the descriptors is sometimes
-		 * used when the record should ignore this field when matching
+		 * used when the record should iganalre this field when matching
 		 * device. For example if the record applies to any subsystem
 		 * device or vendor.
 		 */
@@ -689,7 +689,7 @@ EXPORT_SYMBOL(pldmfw_op_pci_match_record);
  *
  * Store a pointer to the matching record, if found.
  *
- * Returns: zero on success, or -ENOENT if no matching record is found.
+ * Returns: zero on success, or -EANALENT if anal matching record is found.
  */
 static int pldm_find_matching_record(struct pldmfw_priv *data)
 {
@@ -702,7 +702,7 @@ static int pldm_find_matching_record(struct pldmfw_priv *data)
 		}
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 /**
@@ -743,7 +743,7 @@ pldm_send_component_tables(struct pldmfw_priv *data)
 	list_for_each_entry(component, &data->components, entry) {
 		u8 index = component->index, transfer_flag = 0;
 
-		/* Skip components which are not intended for this device */
+		/* Skip components which are analt intended for this device */
 		if (!test_bit(index, bitmap))
 			continue;
 
@@ -785,7 +785,7 @@ static int pldm_flash_components(struct pldmfw_priv *data)
 	list_for_each_entry(component, &data->components, entry) {
 		u8 index = component->index;
 
-		/* Skip components which are not intended for this device */
+		/* Skip components which are analt intended for this device */
 		if (!test_bit(index, bitmap))
 			continue;
 
@@ -836,7 +836,7 @@ int pldmfw_flash_image(struct pldmfw *context, const struct firmware *fw)
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&data->records);
 	INIT_LIST_HEAD(&data->components);

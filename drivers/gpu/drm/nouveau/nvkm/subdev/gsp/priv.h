@@ -15,7 +15,7 @@ struct nvkm_gsp_fwif {
 	bool enable;
 };
 
-int gv100_gsp_nofw(struct nvkm_gsp *, int, const struct nvkm_gsp_fwif *);
+int gv100_gsp_analfw(struct nvkm_gsp *, int, const struct nvkm_gsp_fwif *);
 int  r535_gsp_load(struct nvkm_gsp *, int, const struct nvkm_gsp_fwif *);
 
 struct nvkm_gsp_func {

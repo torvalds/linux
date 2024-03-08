@@ -177,7 +177,7 @@ int mv88e6xxx_g1_atu_get_next(struct mv88e6xxx_chip *chip, u16 fid)
 static int mv88e6xxx_g1_atu_fid_read(struct mv88e6xxx_chip *chip, u16 *fid)
 {
 	u16 val = 0, upper = 0, op = 0;
-	int err = -EOPNOTSUPP;
+	int err = -EOPANALTSUPP;
 
 	if (mv88e6xxx_num_databases(chip) > 256) {
 		err = mv88e6xxx_g1_read(chip, MV88E6352_G1_ATU_FID, &val);
@@ -348,15 +348,15 @@ static int mv88e6xxx_g1_atu_flushmove(struct mv88e6xxx_chip *chip, u16 fid,
 	if (err)
 		return err;
 
-	/* Flush/Move all or non-static entries from all or a given database */
+	/* Flush/Move all or analn-static entries from all or a given database */
 	if (all && fid)
 		op = MV88E6XXX_G1_ATU_OP_FLUSH_MOVE_ALL_DB;
 	else if (fid)
-		op = MV88E6XXX_G1_ATU_OP_FLUSH_MOVE_NON_STATIC_DB;
+		op = MV88E6XXX_G1_ATU_OP_FLUSH_MOVE_ANALN_STATIC_DB;
 	else if (all)
 		op = MV88E6XXX_G1_ATU_OP_FLUSH_MOVE_ALL;
 	else
-		op = MV88E6XXX_G1_ATU_OP_FLUSH_MOVE_NON_STATIC;
+		op = MV88E6XXX_G1_ATU_OP_FLUSH_MOVE_ANALN_STATIC;
 
 	return mv88e6xxx_g1_atu_op(chip, fid, op);
 }
@@ -378,7 +378,7 @@ static int mv88e6xxx_g1_atu_move(struct mv88e6xxx_chip *chip, u16 fid,
 	int shift;
 
 	if (!chip->info->atu_move_port_mask)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mask = chip->info->atu_move_port_mask;
 	shift = bitmap_weight(&mask, 16);

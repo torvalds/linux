@@ -101,7 +101,7 @@ static int iforce_serio_get_id(struct iforce *iforce, u8 id,
 
 static int iforce_serio_start_io(struct iforce *iforce)
 {
-	/* No special handling required */
+	/* Anal special handling required */
 	return 0;
 }
 
@@ -193,7 +193,7 @@ static int iforce_serio_connect(struct serio *serio, struct serio_driver *drv)
 
 	iforce_serio = kzalloc(sizeof(*iforce_serio), GFP_KERNEL);
 	if (!iforce_serio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	iforce_serio->iforce.xport_ops = &iforce_serio_xport_ops;
 

@@ -29,7 +29,7 @@
  *      pick choice1 when rweight1 is <= 0
  *      pick choice2 when rweight2 is <= 0
  *
- *    Return choice2 if choice2 has less connections than choice 1 normalized
+ *    Return choice2 if choice2 has less connections than choice 1 analrmalized
  *    by weight
  *
  * References
@@ -63,7 +63,7 @@ static struct ip_vs_dest *ip_vs_twos_schedule(struct ip_vs_service *svc,
 	}
 
 	if (!choice1) {
-		ip_vs_scheduler_err(svc, "no destination available");
+		ip_vs_scheduler_err(svc, "anal destination available");
 		return NULL;
 	}
 

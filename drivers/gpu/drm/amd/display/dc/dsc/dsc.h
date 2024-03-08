@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -28,7 +28,7 @@
 #include "dc_dsc.h"
 #include "dc_hw_types.h"
 #include "dc_types.h"
-/* do not include any other headers
+/* do analt include any other headers
  * or else it might break Edid Utility functionality.
  */
 
@@ -73,7 +73,7 @@ union dsc_enc_slice_caps {
 	struct {
 		uint8_t NUM_SLICES_1 : 1;
 		uint8_t NUM_SLICES_2 : 1;
-		uint8_t NUM_SLICES_3 : 1; /* This one is not per DSC spec, but our encoder supports it */
+		uint8_t NUM_SLICES_3 : 1; /* This one is analt per DSC spec, but our encoder supports it */
 		uint8_t NUM_SLICES_4 : 1;
 		uint8_t NUM_SLICES_8 : 1;
 		uint8_t NUM_SLICES_12 : 1;

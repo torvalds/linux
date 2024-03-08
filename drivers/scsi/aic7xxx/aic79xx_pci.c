@@ -10,14 +10,14 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    analtice, this list of conditions, and the following disclaimer,
  *    without modification.
  * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
+ *    substantially similar to the "ANAL WARRANTY" disclaimer below
  *    ("Disclaimer") and any redistribution must be conditioned upon
  *    including a substantially similar Disclaimer requirement for further
  *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
+ * 3. Neither the names of the above-listed copyright holders analr the names
  *    of any contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -25,13 +25,13 @@
  * GNU General Public License ("GPL") version 2 as published by the Free
  * Software Foundation.
  *
- * NO WARRANTY
+ * ANAL WARRANTY
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
@@ -83,7 +83,7 @@ ahd_compose_id(u_int device, u_int vendor, u_int subdevice, u_int subvendor)
 #define SUBID_9005_LEGACYCONN_FUNC(id) ((id) & 0x20)
 
 #define SUBID_9005_SEEPTYPE(id) (((id) & 0x0C0) >> 6)
-#define		SUBID_9005_SEEPTYPE_NONE	0x0
+#define		SUBID_9005_SEEPTYPE_ANALNE	0x0
 #define		SUBID_9005_SEEPTYPE_4K		0x1
 
 static ahd_device_setup_t ahd_aic7901_setup;
@@ -180,7 +180,7 @@ static const struct ahd_pci_identity ahd_pci_ident_table[] =
 		"Adaptec (HP OEM) 39320D Ultra320 SCSI adapter",
 		ahd_aic7902_setup
 	},
-	/* Generic chip probes for devices we don't know 'exactly' */
+	/* Generic chip probes for devices we don't kanalw 'exactly' */
 	{
 		ID_AIC7901 & ID_9005_GENERIC_MASK,
 		ID_9005_GENERIC_MASK,
@@ -213,10 +213,10 @@ static const u_int ahd_num_pci_devs = ARRAY_SIZE(ahd_pci_ident_table);
 	(((devconfig) & PCIXINITPAT) >> 13)
 static const char *pci_bus_modes[] =
 {
-	"PCI bus mode unknown",
-	"PCI bus mode unknown",
-	"PCI bus mode unknown",
-	"PCI bus mode unknown",
+	"PCI bus mode unkanalwn",
+	"PCI bus mode unkanalwn",
+	"PCI bus mode unkanalwn",
+	"PCI bus mode unkanalwn",
 	"PCI-X 101-133MHz",
 	"PCI-X 67-100MHz",
 	"PCI-X 50-66MHz",
@@ -276,7 +276,7 @@ ahd_find_pci_device(ahd_dev_softc_t pci)
 	for (i = 0; i < ahd_num_pci_devs; i++) {
 		entry = &ahd_pci_ident_table[i];
 		if (entry->full_id == (full_id & entry->id_mask)) {
-			/* Honor exclusion entries. */
+			/* Hoanalr exclusion entries. */
 			if (entry->name == NULL)
 				return (NULL);
 			return (entry);
@@ -372,7 +372,7 @@ ahd_pci_config(struct ahd_softc *ahd, const struct ahd_pci_identity *entry)
 	ahd->init_level++;
 
 	/*
-	 * Allow interrupts now that we are completely setup.
+	 * Allow interrupts analw that we are completely setup.
 	 */
 	return ahd_pci_map_int(ahd);
 }
@@ -430,7 +430,7 @@ ahd_pci_test_register_access(struct ahd_softc *ahd)
 	/*
 	 * First a simple test to see if any
 	 * registers can be read.  Reading
-	 * HCNTRL has no side effects and has
+	 * HCNTRL has anal side effects and has
 	 * at least one bit that is guaranteed to
 	 * be zero so it is a good register to
 	 * use for this test.
@@ -442,9 +442,9 @@ ahd_pci_test_register_access(struct ahd_softc *ahd)
 	/*
 	 * Next create a situation where write combining
 	 * or read prefetching could be initiated by the
-	 * CPU or host bridge.  Our device does not support
+	 * CPU or host bridge.  Our device does analt support
 	 * either, so look for data corruption and/or flaged
-	 * PCI errors.  First pause without causing another
+	 * PCI errors.  First pause without causing aanalther
 	 * chip reset.
 	 */
 	hcntrl &= ~CHIPRST;
@@ -615,7 +615,7 @@ ahd_check_extport(struct ahd_softc *ahd)
 
 	if (!have_seeprom) {
 		if (bootverbose)
-			printk("%s: No SEEPROM available.\n", ahd_name(ahd));
+			printk("%s: Anal SEEPROM available.\n", ahd_name(ahd));
 		ahd->flags |= AHD_USEDEFAULTS;
 		error = ahd_default_config(ahd);
 		adapter_control = CFAUTOTERM|CFSEAUTOTERM;
@@ -690,7 +690,7 @@ ahd_configure_termination(struct ahd_softc *ahd, u_int adapter_control)
 	}
 
 	/*
-	 * Now set the termination based on what we found.
+	 * Analw set the termination based on what we found.
 	 */
 	sxfrctl1 = ahd_inb(ahd, SXFRCTL1) & ~STPWEN;
 	ahd->flags &= ~AHD_TERM_ENB_A;
@@ -748,7 +748,7 @@ static const char *pci_status_source[] =
 	"SG",
 	"CMC",
 	"OVLY",
-	"NONE",
+	"ANALNE",
 	"MSI",
 	"TARG"
 };
@@ -758,7 +758,7 @@ static const char *split_status_strings[] =
 	"%s: Received split response in %s.\n",
 	"%s: Received split completion error message in %s\n",
 	"%s: Receive overrun in %s\n",
-	"%s: Count not complete in %s\n",
+	"%s: Count analt complete in %s\n",
 	"%s: Split completion data bucket in %s\n",
 	"%s: Split completion address error in %s\n",
 	"%s: Split completion byte count error in %s\n",
@@ -945,13 +945,13 @@ ahd_aic790X_setup(struct ahd_softc *ahd)
 		ahd->bugs |= AHD_SENT_SCB_UPDATE_BUG|AHD_ABORT_LQI_BUG
 			  |  AHD_PKT_BITBUCKET_BUG|AHD_LONG_SETIMO_BUG
 			  |  AHD_NLQICRC_DELAYED_BUG|AHD_SCSIRST_BUG
-			  |  AHD_LQO_ATNO_BUG|AHD_AUTOFLUSH_BUG
+			  |  AHD_LQO_ATANAL_BUG|AHD_AUTOFLUSH_BUG
 			  |  AHD_CLRLQO_AUTOCLR_BUG|AHD_PCIX_MMAPIO_BUG
 			  |  AHD_PCIX_CHIPRST_BUG|AHD_PCIX_SCBRAM_RD_BUG
 			  |  AHD_PKTIZED_STATUS_BUG|AHD_PKT_LUN_BUG
 			  |  AHD_MDFF_WSCBPTR_BUG|AHD_REG_SLOW_SETTLE_BUG
 			  |  AHD_SET_MODE_BUG|AHD_BUSFREEREV_BUG
-			  |  AHD_NONPACKFIFO_BUG|AHD_PACED_NEGTABLE_BUG
+			  |  AHD_ANALNPACKFIFO_BUG|AHD_PACED_NEGTABLE_BUG
 			  |  AHD_FAINT_LED_BUG;
 
 		/*

@@ -5,7 +5,7 @@
  *
  * Copyright (c) 2009 Zhang Le <r0bertz@gentoo.org>
  */
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <asm/bootinfo.h>
 
 #include <loongson.h>
@@ -15,7 +15,7 @@
 #define MACHTYPE_LEN 50
 
 static const char *system_types[] = {
-	[MACH_LOONGSON_UNKNOWN]	= "unknown loongson machine",
+	[MACH_LOONGSON_UNKANALWN]	= "unkanalwn loongson machine",
 	[MACH_LEMOTE_FL2E]	= "lemote-fuloong-2e-box",
 	[MACH_LEMOTE_FL2F]	= "lemote-fuloong-2f-box",
 	[MACH_LEMOTE_ML2F7]	= "lemote-mengloong-2f-7inches",

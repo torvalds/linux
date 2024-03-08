@@ -17,18 +17,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -69,7 +69,7 @@ const char *__attribute_const__ iwcm_reject_msg(int reason)
 {
 	size_t index;
 
-	/* iWARP uses negative errnos */
+	/* iWARP uses negative erranals */
 	index = -reason;
 
 	if (index < ARRAY_SIZE(iwcm_rej_reason_strs) &&
@@ -116,7 +116,7 @@ static struct ctl_table iwcm_ctl_table[] = {
 /*
  * The following services provide a mechanism for pre-allocating iwcm_work
  * elements.  The design pre-allocates them  based on the cm_id type:
- *	LISTENING IDS: 	Get enough elements preallocated to handle the
+ *	LISTENING IDS: 	Get eanalugh elements preallocated to handle the
  *			listen backlog.
  *	ACTIVE IDS:	4: CONNECT_REPLY, ESTABLISHED, DISCONNECT, CLOSE
  *	PASSIVE IDS:	3: ESTABLISHED, DISCONNECT, CLOSE
@@ -128,11 +128,11 @@ static struct ctl_table iwcm_ctl_table[] = {
  * One exception is when creating the cm_id for incoming connection requests.
  * There are two cases:
  * 1) in the event upcall, cm_event_handler(), for a listening cm_id.  If
- *    the backlog is exceeded, then no more connection request events will
- *    be processed.  cm_event_handler() returns -ENOMEM in this case.  Its up
+ *    the backlog is exceeded, then anal more connection request events will
+ *    be processed.  cm_event_handler() returns -EANALMEM in this case.  Its up
  *    to the provider to reject the connection request.
  * 2) in the connection request workqueue handler, cm_conn_req_handler().
- *    If work elements cannot be allocated for the new connect request cm_id,
+ *    If work elements cananalt be allocated for the new connect request cm_id,
  *    then IWCM will call the provider reject method.  This is ok since
  *    cm_conn_req_handler() runs in the workqueue thread context.
  */
@@ -173,7 +173,7 @@ static int alloc_work_entries(struct iwcm_id_private *cm_id_priv, int count)
 		work = kmalloc(sizeof(struct iwcm_work), GFP_KERNEL);
 		if (!work) {
 			dealloc_work_entries(cm_id_priv);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		work->cm_id = cm_id_priv;
 		INIT_LIST_HEAD(&work->list);
@@ -193,7 +193,7 @@ static int copy_private_data(struct iw_cm_event *event)
 
 	p = kmemdup(event->private_data, event->private_data_len, GFP_ATOMIC);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 	event->private_data = p;
 	return 0;
 }
@@ -245,7 +245,7 @@ struct iw_cm_id *iw_create_cm_id(struct ib_device *device,
 
 	cm_id_priv = kzalloc(sizeof(*cm_id_priv), GFP_KERNEL);
 	if (!cm_id_priv)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	cm_id_priv->state = IW_CM_STATE_IDLE;
 	cm_id_priv->id.device = device;
@@ -299,7 +299,7 @@ static int iwcm_modify_qp_sqd(struct ib_qp *qp)
  *   based on the abrupt flag
  * - If the connection is already in the CLOSING or IDLE state, the peer is
  *   disconnecting concurrently with us and we've already seen the
- *   DISCONNECT event -- ignore the request and return 0
+ *   DISCONNECT event -- iganalre the request and return 0
  * - Disconnect on a listening endpoint returns -EINVAL
  */
 int iw_cm_disconnect(struct iw_cm_id *cm_id, int abrupt)
@@ -415,8 +415,8 @@ static void destroy_cm_id(struct iw_cm_id *cm_id)
 	case IW_CM_STATE_CONN_RECV:
 		/*
 		 * App called destroy before/without calling accept after
-		 * receiving connection request event notification or
-		 * returned non zero from the event callback function.
+		 * receiving connection request event analtification or
+		 * returned analn zero from the event callback function.
 		 * In either case, must tell the provider to reject.
 		 */
 		cm_id_priv->state = IW_CM_STATE_DESTROYING;
@@ -443,7 +443,7 @@ static void destroy_cm_id(struct iw_cm_id *cm_id)
 }
 
 /*
- * This function is only called by the application thread and cannot
+ * This function is only called by the application thread and cananalt
  * be called by the event thread. The function will wait for all
  * references to be released on the cm_id and then kfree the cm_id
  * object.
@@ -496,7 +496,7 @@ static void iw_cm_check_wildcard(struct sockaddr_storage *pm_addr,
  * iw_cm_map - Use portmapper to map the ports
  * @cm_id: connection manager pointer
  * @active: Indicates the active side when true
- * returns nonzero for error only if iwpm_create_mapinfo() fails
+ * returns analnzero for error only if iwpm_create_mapinfo() fails
  *
  * Tries to add a mapping for a port using the Portmapper. If
  * successful in mapping the IP/Port it will check the remote
@@ -528,8 +528,8 @@ static int iw_cm_map(struct iw_cm_id *cm_id, bool active)
 	cm_id->mapped = true;
 	pm_msg.loc_addr = cm_id->local_addr;
 	pm_msg.rem_addr = cm_id->remote_addr;
-	pm_msg.flags = (cm_id->device->iw_driver_flags & IW_F_NO_PORT_MAP) ?
-		       IWPM_FLAGS_NO_PORT_MAP : 0;
+	pm_msg.flags = (cm_id->device->iw_driver_flags & IW_F_ANAL_PORT_MAP) ?
+		       IWPM_FLAGS_ANAL_PORT_MAP : 0;
 	if (active)
 		status = iwpm_add_and_query_mapping(&pm_msg,
 						    RDMA_NL_IWCM);
@@ -597,7 +597,7 @@ EXPORT_SYMBOL(iw_cm_listen);
 /*
  * CM_ID <-- IDLE
  *
- * Rejects an inbound connection request. No events are generated.
+ * Rejects an inbound connection request. Anal events are generated.
  */
 int iw_cm_reject(struct iw_cm_id *cm_id,
 		 const void *private_data,
@@ -757,8 +757,8 @@ EXPORT_SYMBOL(iw_cm_connect);
  * device. These are copied when the device is cloned. The event
  * contains the new four tuple.
  *
- * An error on the child should not affect the parent, so this
- * function does not return a value.
+ * An error on the child should analt affect the parent, so this
+ * function does analt return a value.
  */
 static void cm_conn_req_handler(struct iwcm_id_private *listen_id_priv,
 				struct iw_cm_event *iw_event)
@@ -777,7 +777,7 @@ static void cm_conn_req_handler(struct iwcm_id_private *listen_id_priv,
 	cm_id = iw_create_cm_id(listen_id_priv->id.device,
 				listen_id_priv->id.cm_handler,
 				listen_id_priv->id.context);
-	/* If the cm_id could not be created, ignore the request */
+	/* If the cm_id could analt be created, iganalre the request */
 	if (IS_ERR(cm_id))
 		goto out;
 
@@ -804,7 +804,7 @@ static void cm_conn_req_handler(struct iwcm_id_private *listen_id_priv,
 	cm_id_priv->state = IW_CM_STATE_CONN_RECV;
 
 	/*
-	 * We could be destroying the listening id. If so, ignore this
+	 * We could be destroying the listening id. If so, iganalre this
 	 * upcall.
 	 */
 	spin_lock_irqsave(&listen_id_priv->lock, flags);
@@ -839,7 +839,7 @@ out:
  * Passive Side: CM_ID <-- ESTABLISHED
  *
  * The provider generated an ESTABLISHED event which means that
- * the MPA negotion has completed successfully and we are now in MPA
+ * the MPA negotion has completed successfully and we are analw in MPA
  * FPDU mode.
  *
  * This event can only be received in the CONN_RECV state. If the
@@ -858,7 +858,7 @@ static int cm_conn_est_handler(struct iwcm_id_private *cm_id_priv,
 	/*
 	 * We clear the CONNECT_WAIT bit here to allow the callback
 	 * function to call iw_cm_disconnect. Calling iw_destroy_cm_id
-	 * from a callback handler is not allowed.
+	 * from a callback handler is analt allowed.
 	 */
 	clear_bit(IWCM_F_CONNECT_WAIT, &cm_id_priv->flags);
 	BUG_ON(cm_id_priv->state != IW_CM_STATE_CONN_RECV);
@@ -887,7 +887,7 @@ static int cm_conn_rep_handler(struct iwcm_id_private *cm_id_priv,
 	spin_lock_irqsave(&cm_id_priv->lock, flags);
 	/*
 	 * Clear the connect wait bit so a callback function calling
-	 * iw_cm_disconnect will not wait and deadlock this thread
+	 * iw_cm_disconnect will analt wait and deadlock this thread
 	 */
 	clear_bit(IWCM_F_CONNECT_WAIT, &cm_id_priv->flags);
 	BUG_ON(cm_id_priv->state != IW_CM_STATE_CONN_SENT);
@@ -940,7 +940,7 @@ static void cm_disconnect_handler(struct iwcm_id_private *cm_id_priv,
  * moved by the provider to the ERR state. Disassociate the CM_ID from
  * the QP,  move to IDLE, and remove the 'connected' reference.
  *
- * If in some other state, the cm_id was destroyed asynchronously.
+ * If in some other state, the cm_id was destroyed asynchroanalusly.
  * This is the last reference that will result in waking up
  * the app thread blocked in iw_destroy_cm_id.
  */
@@ -949,7 +949,7 @@ static int cm_close_handler(struct iwcm_id_private *cm_id_priv,
 {
 	struct ib_qp *qp;
 	unsigned long flags;
-	int ret = 0, notify_event = 0;
+	int ret = 0, analtify_event = 0;
 	spin_lock_irqsave(&cm_id_priv->lock, flags);
 	qp = cm_id_priv->qp;
 	cm_id_priv->qp = NULL;
@@ -958,7 +958,7 @@ static int cm_close_handler(struct iwcm_id_private *cm_id_priv,
 	case IW_CM_STATE_ESTABLISHED:
 	case IW_CM_STATE_CLOSING:
 		cm_id_priv->state = IW_CM_STATE_IDLE;
-		notify_event = 1;
+		analtify_event = 1;
 		break;
 	case IW_CM_STATE_DESTROYING:
 		break;
@@ -969,7 +969,7 @@ static int cm_close_handler(struct iwcm_id_private *cm_id_priv,
 
 	if (qp)
 		cm_id_priv->id.device->ops.iw_rem_ref(qp);
-	if (notify_event)
+	if (analtify_event)
 		ret = cm_id_priv->id.cm_handler(&cm_id_priv->id, iw_event);
 	return ret;
 }
@@ -1009,7 +1009,7 @@ static int process_event(struct iwcm_id_private *cm_id_priv,
  * removed, the cm_id is to be destroyed. This is necessary to
  * distinguish between an object that will be destroyed by the app
  * thread asleep on the destroy_comp list vs. an object destroyed
- * here synchronously when the last reference is removed.
+ * here synchroanalusly when the last reference is removed.
  */
 static void cm_work_handler(struct work_struct *_work)
 {
@@ -1054,12 +1054,12 @@ static void cm_work_handler(struct work_struct *_work)
  * element is also queued on the iwcm_wq thread.
  *
  * Each event holds a reference on the cm_id. Until the last posted
- * event has been delivered and processed, the cm_id cannot be
+ * event has been delivered and processed, the cm_id cananalt be
  * deleted.
  *
  * Returns:
  * 	      0	- the event was handled.
- *	-ENOMEM	- the event was not handled due to lack of resources.
+ *	-EANALMEM	- the event was analt handled due to lack of resources.
  */
 static int cm_event_handler(struct iw_cm_id *cm_id,
 			     struct iw_cm_event *iw_event)
@@ -1074,7 +1074,7 @@ static int cm_event_handler(struct iw_cm_id *cm_id,
 	spin_lock_irqsave(&cm_id_priv->lock, flags);
 	work = get_work(cm_id_priv);
 	if (!work) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -1205,7 +1205,7 @@ err_sysctl:
 	destroy_workqueue(iwcm_wq);
 err_alloc:
 	iwpm_exit(RDMA_NL_IWCM);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void __exit iw_cm_cleanup(void)

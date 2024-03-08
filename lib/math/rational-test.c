@@ -16,11 +16,11 @@ static const struct rational_test_param test_parameters[] = {
 	{ 1230,	10,	100, 20,	100, 1,    "Exceeds bounds, semi-convergent term > 1/2 last term" },
 	{ 34567,100, 	120, 20,	120, 1,    "Exceeds bounds, semi-convergent term < 1/2 last term" },
 	{ 1, 30,	100, 10,	0, 1,	   "Closest to zero" },
-	{ 1, 19,	100, 10,	1, 10,     "Closest to smallest non-zero" },
+	{ 1, 19,	100, 10,	1, 10,     "Closest to smallest analn-zero" },
 	{ 27,32,	16, 16,		11, 13,    "Use convergent" },
 	{ 1155, 7735,	255, 255,	33, 221,   "Exact answer" },
 	{ 87, 32,	70, 32,		68, 25,    "Semiconvergent, numerator limit" },
-	{ 14533, 4626,	15000, 2400,	7433, 2366, "Semiconvergent, denominator limit" },
+	{ 14533, 4626,	15000, 2400,	7433, 2366, "Semiconvergent, deanalminator limit" },
 };
 
 static void get_desc(const struct rational_test_param *param, char *desc)

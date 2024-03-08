@@ -371,7 +371,7 @@ void meson_crtc_irq(struct meson_drm *priv)
 					    priv->viu.osd1_addr,
 					    priv->viu.osd1_stride,
 					    priv->viu.osd1_height,
-					    MESON_CANVAS_WRAP_NONE,
+					    MESON_CANVAS_WRAP_ANALNE,
 					    MESON_CANVAS_BLKMODE_LINEAR, 0);
 
 		/* Enable OSD1 */
@@ -445,7 +445,7 @@ void meson_crtc_irq(struct meson_drm *priv)
 						    priv->viu.vd1_addr2,
 						    priv->viu.vd1_stride2,
 						    priv->viu.vd1_height2,
-						    MESON_CANVAS_WRAP_NONE,
+						    MESON_CANVAS_WRAP_ANALNE,
 						    MESON_CANVAS_BLKMODE_LINEAR,
 						    MESON_CANVAS_ENDIAN_SWAP64);
 				fallthrough;
@@ -455,7 +455,7 @@ void meson_crtc_irq(struct meson_drm *priv)
 						    priv->viu.vd1_addr1,
 						    priv->viu.vd1_stride1,
 						    priv->viu.vd1_height1,
-						    MESON_CANVAS_WRAP_NONE,
+						    MESON_CANVAS_WRAP_ANALNE,
 						    MESON_CANVAS_BLKMODE_LINEAR,
 						    MESON_CANVAS_ENDIAN_SWAP64);
 				fallthrough;
@@ -465,7 +465,7 @@ void meson_crtc_irq(struct meson_drm *priv)
 						    priv->viu.vd1_addr0,
 						    priv->viu.vd1_stride0,
 						    priv->viu.vd1_height0,
-						    MESON_CANVAS_WRAP_NONE,
+						    MESON_CANVAS_WRAP_ANALNE,
 						    MESON_CANVAS_BLKMODE_LINEAR,
 						    MESON_CANVAS_ENDIAN_SWAP64);
 			}
@@ -680,7 +680,7 @@ int meson_crtc_create(struct meson_drm *priv)
 	meson_crtc = devm_kzalloc(priv->drm->dev, sizeof(*meson_crtc),
 				  GFP_KERNEL);
 	if (!meson_crtc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	meson_crtc->priv = priv;
 	crtc = &meson_crtc->base;

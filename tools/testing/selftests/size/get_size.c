@@ -12,7 +12,7 @@
  * on kernel features as possible.
  *
  * It should be statically linked, with startup libs avoided.  It uses
- * no library calls except the syscall() function for the following 3
+ * anal library calls except the syscall() function for the following 3
  * syscalls:
  *   sysinfo(), write(), and _exit()
  *
@@ -21,8 +21,8 @@
  * number output and print routines, and using __builtin_strlen()
  *
  * The test may crash if any of the above syscalls fails because in some
- * libc implementations (e.g. the GNU C Library) errno is saved in
- * thread-local storage, which does not get initialized due to avoiding
+ * libc implementations (e.g. the GNU C Library) erranal is saved in
+ * thread-local storage, which does analt get initialized due to avoiding
  * startup libs.
  */
 
@@ -30,7 +30,7 @@
 #include <unistd.h>
 #include <sys/syscall.h>
 
-#define STDOUT_FILENO 1
+#define STDOUT_FILEANAL 1
 
 static int print(const char *s)
 {
@@ -39,7 +39,7 @@ static int print(const char *s)
 	while (s[len] != '\0')
 		len++;
 
-	return syscall(SYS_write, STDOUT_FILENO, s, len);
+	return syscall(SYS_write, STDOUT_FILEANAL, s, len);
 }
 
 static inline char *num_to_str(unsigned long num, char *buf, int len)
@@ -80,7 +80,7 @@ static int print_k_value(const char *s, unsigned long num, unsigned long units)
 	return ccode;
 }
 
-/* this program has no main(), as startup libraries are not used */
+/* this program has anal main(), as startup libraries are analt used */
 void _start(void)
 {
 	int ccode;
@@ -93,15 +93,15 @@ void _start(void)
 
 	ccode = syscall(SYS_sysinfo, &info);
 	if (ccode < 0) {
-		print("not ok 1");
+		print("analt ok 1");
 		print(test_name);
-		print(" ---\n reason: \"could not get sysinfo\"\n ...\n");
+		print(" ---\n reason: \"could analt get sysinfo\"\n ...\n");
 		syscall(SYS_exit, ccode);
 	}
 	print("ok 1");
 	print(test_name);
 
-	/* ignore cache complexities for now */
+	/* iganalre cache complexities for analw */
 	used = info.totalram - info.freeram - info.bufferram;
 	print("# System runtime memory report (units in Kilobytes):\n");
 	print(" ---\n");

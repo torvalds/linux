@@ -5,7 +5,7 @@
  * Copyright (C) 2021 Toshiba Electronic Device & Storage Corporation
  * Copyright (C) 2021 TOSHIBA CORPORATION
  *
- * Nobuhiro Iwamatsu <nobuhiro1.iwamatsu@toshiba.co.jp>
+ * Analbuhiro Iwamatsu <analbuhiro1.iwamatsu@toshiba.co.jp>
  */
 
 #include <linux/clk.h>
@@ -298,7 +298,7 @@ static int visconti_pcie_probe(struct platform_device *pdev)
 
 	pcie = devm_kzalloc(dev, sizeof(*pcie), GFP_KERNEL);
 	if (!pcie)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pci = &pcie->pci;
 	pci->dev = dev;

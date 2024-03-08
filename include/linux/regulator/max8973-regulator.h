@@ -29,7 +29,7 @@
 #define MAX8973_CONTROL_CLKADV_TRIP_150mV_PER_US		0x00020000
 #define MAX8973_CONTROL_CLKADV_TRIP_75mV_PER_US_HIST_DIS	0x00030000
 
-#define MAX8973_CONTROL_INDUCTOR_VALUE_NOMINAL			0x00000000
+#define MAX8973_CONTROL_INDUCTOR_VALUE_ANALMINAL			0x00000000
 #define MAX8973_CONTROL_INDUCTOR_VALUE_MINUS_30_PER		0x00100000
 #define MAX8973_CONTROL_INDUCTOR_VALUE_PLUS_30_PER		0x00200000
 #define MAX8973_CONTROL_INDUCTOR_VALUE_PLUS_60_PER		0x00300000
@@ -49,7 +49,7 @@
  *		voltage output will be enabled/disabled through EN bit of
  *		device register.
  * @enable_gpio: Enable GPIO. If EN pin is controlled through GPIO from host
- *		then GPIO number can be provided. If no GPIO controlled then
+ *		then GPIO number can be provided. If anal GPIO controlled then
  *		it should be -1.
  * @dvs_gpio: GPIO for dvs. It should be -1 if this is tied with fixed logic.
  * @dvs_def_state: Default state of dvs. 1 if it is high else 0.

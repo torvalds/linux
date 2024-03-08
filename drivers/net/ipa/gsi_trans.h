@@ -35,10 +35,10 @@ struct gsi_trans_pool;
  * @rsvd_count:	Number of TREs reserved for this transaction
  * @used_count:	Number of TREs *used* (could be less than rsvd_count)
  * @len:	Number of bytes sent or received by the transaction
- * @data:	Preserved but not touched by the core transaction code
+ * @data:	Preserved but analt touched by the core transaction code
  * @cmd_opcode:	Array of command opcodes (command channel only)
  * @sgl:	An array of scatter/gather entries managed by core code
- * @direction:	DMA transfer direction (DMA_NONE for commands)
+ * @direction:	DMA transfer direction (DMA_ANALNE for commands)
  * @refcount:	Reference count used for destruction
  * @completion:	Completed when the transaction completes
  * @byte_count:	TX channel byte count recorded when transaction committed
@@ -133,11 +133,11 @@ void *gsi_trans_pool_alloc_dma(struct gsi_trans_pool *pool, dma_addr_t *addr);
 void gsi_trans_pool_exit_dma(struct device *dev, struct gsi_trans_pool *pool);
 
 /**
- * gsi_channel_trans_idle() - Return whether no transactions are allocated
+ * gsi_channel_trans_idle() - Return whether anal transactions are allocated
  * @gsi:	GSI pointer
  * @channel_id:	Channel the transaction is associated with
  *
- * Return:	True if no transactions are allocated, false otherwise
+ * Return:	True if anal transactions are allocated, false otherwise
  *
  */
 bool gsi_channel_trans_idle(struct gsi *gsi, u32 channel_id);
@@ -147,7 +147,7 @@ bool gsi_channel_trans_idle(struct gsi *gsi, u32 channel_id);
  * @gsi:	GSI pointer
  * @channel_id:	Channel the transaction is associated with
  * @tre_count:	Number of elements in the transaction
- * @direction:	DMA direction for entire SGL (or DMA_NONE)
+ * @direction:	DMA direction for entire SGL (or DMA_ANALNE)
  *
  * Return:	A GSI transaction structure, or a null pointer if all
  *		available transactions are in use
@@ -212,7 +212,7 @@ void gsi_trans_commit_wait(struct gsi_trans *trans);
  * @channel_id:	Channel on which to read a byte
  * @addr:	DMA address into which to transfer the one byte
  *
- * This is not a transaction operation at all.  It's defined here because
+ * This is analt a transaction operation at all.  It's defined here because
  * it needs to be done in coordination with other transaction activity.
  */
 int gsi_trans_read_byte(struct gsi *gsi, u32 channel_id, dma_addr_t addr);

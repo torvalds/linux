@@ -15,7 +15,7 @@
 #include <linux/mutex.h>
 
 /* Addresses scanned */
-static const unsigned short normal_i2c[] = { 0x2E, I2C_CLIENT_END };
+static const unsigned short analrmal_i2c[] = { 0x2E, I2C_CLIENT_END };
 
 static const u8 REG_TEMP[4] = { 0x00, 0x02, 0x04, 0x06 };
 static const u8 REG_TEMP_MIN[4] = { 0x3c, 0x38, 0x39, 0x3a };
@@ -61,8 +61,8 @@ struct emc2103_data {
 	int			temp_count;	/* num of temp sensors */
 	unsigned long		last_updated;	/* in jiffies */
 	struct temperature	temp[4];	/* internal + 3 external */
-	s8			temp_min[4];	/* no fractional part */
-	s8			temp_max[4];    /* no fractional part */
+	s8			temp_min[4];	/* anal fractional part */
+	s8			temp_max[4];    /* anal fractional part */
 	u8			temp_min_alarm;
 	u8			temp_max_alarm;
 	u8			fan_multiplier;
@@ -291,7 +291,7 @@ fan1_div_show(struct device *dev, struct device_attribute *da, char *buf)
 }
 
 /*
- * Note: we also update the fan target here, because its value is
+ * Analte: we also update the fan target here, because its value is
  * determined in part by the fan clock divider.  This follows the principle
  * of least surprise; the user doesn't expect the fan target to change just
  * because the divider changed.
@@ -308,7 +308,7 @@ static ssize_t fan1_div_store(struct device *dev, struct device_attribute *da,
 	if (status < 0)
 		return status;
 
-	if (new_div == old_div) /* No change */
+	if (new_div == old_div) /* Anal change */
 		return count;
 
 	switch (new_div) {
@@ -343,7 +343,7 @@ static ssize_t fan1_div_store(struct device *dev, struct device_attribute *da,
 
 	data->fan_multiplier = 8 / new_div;
 
-	/* update fan target if high byte is not disabled */
+	/* update fan target if high byte is analt disabled */
 	if ((data->fan_target & 0x1fe0) != 0x1fe0) {
 		u16 new_target = (data->fan_target * old_div) / new_div;
 		data->fan_target = min(new_target, (u16)0x1fff);
@@ -563,7 +563,7 @@ emc2103_probe(struct i2c_client *client)
 	data = devm_kzalloc(&client->dev, sizeof(struct emc2103_data),
 			    GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, data);
 	data->client = client;
@@ -625,7 +625,7 @@ static const struct i2c_device_id emc2103_ids[] = {
 };
 MODULE_DEVICE_TABLE(i2c, emc2103_ids);
 
-/* Return 0 if detection is successful, -ENODEV otherwise */
+/* Return 0 if detection is successful, -EANALDEV otherwise */
 static int
 emc2103_detect(struct i2c_client *new_client, struct i2c_board_info *info)
 {
@@ -633,15 +633,15 @@ emc2103_detect(struct i2c_client *new_client, struct i2c_board_info *info)
 	int manufacturer, product;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	manufacturer = i2c_smbus_read_byte_data(new_client, REG_MFG_ID);
 	if (manufacturer != 0x5D)
-		return -ENODEV;
+		return -EANALDEV;
 
 	product = i2c_smbus_read_byte_data(new_client, REG_PRODUCT_ID);
 	if ((product != 0x24) && (product != 0x26))
-		return -ENODEV;
+		return -EANALDEV;
 
 	strscpy(info->type, "emc2103", I2C_NAME_SIZE);
 
@@ -656,7 +656,7 @@ static struct i2c_driver emc2103_driver = {
 	.probe		= emc2103_probe,
 	.id_table	= emc2103_ids,
 	.detect		= emc2103_detect,
-	.address_list	= normal_i2c,
+	.address_list	= analrmal_i2c,
 };
 
 module_i2c_driver(emc2103_driver);

@@ -174,8 +174,8 @@ static int fsl_easrc_set_rs_ratio(struct fsl_asrc_pair *ctx)
 	struct fsl_asrc *easrc = ctx->asrc;
 	struct fsl_easrc_priv *easrc_priv = easrc->private;
 	struct fsl_easrc_ctx_priv *ctx_priv = ctx->private;
-	unsigned int in_rate = ctx_priv->in_params.norm_rate;
-	unsigned int out_rate = ctx_priv->out_params.norm_rate;
+	unsigned int in_rate = ctx_priv->in_params.analrm_rate;
+	unsigned int out_rate = ctx_priv->out_params.analrm_rate;
 	unsigned int frac_bits;
 	u64 val;
 	u32 *r;
@@ -214,8 +214,8 @@ static int fsl_easrc_set_rs_ratio(struct fsl_asrc_pair *ctx)
 	return 0;
 }
 
-/* Normalize input and output sample rates */
-static void fsl_easrc_normalize_rates(struct fsl_asrc_pair *ctx)
+/* Analrmalize input and output sample rates */
+static void fsl_easrc_analrmalize_rates(struct fsl_asrc_pair *ctx)
 {
 	struct fsl_easrc_ctx_priv *ctx_priv;
 	int a, b;
@@ -230,9 +230,9 @@ static void fsl_easrc_normalize_rates(struct fsl_asrc_pair *ctx)
 
 	a = gcd(a, b);
 
-	/* Divide by gcd to normalize the rate */
-	ctx_priv->in_params.norm_rate = ctx_priv->in_params.sample_rate / a;
-	ctx_priv->out_params.norm_rate = ctx_priv->out_params.sample_rate / a;
+	/* Divide by gcd to analrmalize the rate */
+	ctx_priv->in_params.analrm_rate = ctx_priv->in_params.sample_rate / a;
+	ctx_priv->out_params.analrm_rate = ctx_priv->out_params.sample_rate / a;
 }
 
 /* Resets the pointer of the coeff memory pointers */
@@ -243,7 +243,7 @@ static int fsl_easrc_coeff_mem_ptr_reset(struct fsl_asrc *easrc,
 	u32 reg, mask, val;
 
 	if (!easrc)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dev = &easrc->pdev->dev;
 
@@ -266,7 +266,7 @@ static int fsl_easrc_coeff_mem_ptr_reset(struct fsl_asrc *easrc,
 		val = EASRC_CRCC_RS_CPR;
 		break;
 	default:
-		dev_err(dev, "Unknown memory type\n");
+		dev_err(dev, "Unkanalwn memory type\n");
 		return -EINVAL;
 	}
 
@@ -310,8 +310,8 @@ static int fsl_easrc_resampler_config(struct fsl_asrc *easrc)
 	int ret;
 
 	if (!hdr) {
-		dev_err(dev, "firmware not loaded!\n");
-		return -ENODEV;
+		dev_err(dev, "firmware analt loaded!\n");
+		return -EANALDEV;
 	}
 
 	for (i = 0; i < hdr->interp_scen; i++) {
@@ -363,7 +363,7 @@ static int fsl_easrc_resampler_config(struct fsl_asrc *easrc)
 	 * 32-tap mode, 16-taps, 128-phases 4-coefficients per phase
 	 * 64-tap mode, 32-taps, 64-phases 4-coefficients per phase
 	 * 128-tap mode, 64-taps, 32-phases 4-coefficients per phase
-	 * This means the number of writes is constant no matter
+	 * This means the number of writes is constant anal matter
 	 * the mode we are using
 	 */
 	num_coeff = 16 * 128 * 4;
@@ -380,19 +380,19 @@ static int fsl_easrc_resampler_config(struct fsl_asrc *easrc)
 }
 
 /**
- *  fsl_easrc_normalize_filter - Scale filter coefficients (64 bits float)
- *  For input float32 normalized range (1.0,-1.0) -> output int[16,24,32]:
+ *  fsl_easrc_analrmalize_filter - Scale filter coefficients (64 bits float)
+ *  For input float32 analrmalized range (1.0,-1.0) -> output int[16,24,32]:
  *      scale it by multiplying filter coefficients by 2^31
  *  For input int[16, 24, 32] -> output float32
  *      scale it by multiplying filter coefficients by 2^-15, 2^-23, 2^-31
  *  input:
  *      @easrc:  Structure pointer of fsl_asrc
- *      @infilter : Pointer to non-scaled input filter
+ *      @infilter : Pointer to analn-scaled input filter
  *      @shift:  The multiply factor
  *  output:
  *      @outfilter: scaled filter
  */
-static int fsl_easrc_normalize_filter(struct fsl_asrc *easrc,
+static int fsl_easrc_analrmalize_filter(struct fsl_asrc *easrc,
 				      u64 *infilter,
 				      u64 *outfilter,
 				      int shift)
@@ -452,7 +452,7 @@ static int fsl_easrc_write_pf_coeff_mem(struct fsl_asrc *easrc, int ctx_id,
 		return ret;
 
 	for (i = 0; i < (n_taps + 1) / 2; i++) {
-		ret = fsl_easrc_normalize_filter(easrc, &coef[i], &tmp, shift);
+		ret = fsl_easrc_analrmalize_filter(easrc, &coef[i], &tmp, shift);
 		if (ret)
 			return ret;
 
@@ -481,7 +481,7 @@ static int fsl_easrc_prefilter_config(struct fsl_asrc *easrc,
 	int ret, i;
 
 	if (!easrc)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dev = &easrc->pdev->dev;
 
@@ -567,8 +567,8 @@ static int fsl_easrc_prefilter_config(struct fsl_asrc *easrc,
 			 out_s_fmt == SNDRV_PCM_FORMAT_FLOAT_LE)
 			ctx_priv->st1_addexp -= ctx_priv->in_params.fmt.addexp;
 	} else {
-		inrate = ctx_priv->in_params.norm_rate;
-		outrate = ctx_priv->out_params.norm_rate;
+		inrate = ctx_priv->in_params.analrm_rate;
+		outrate = ctx_priv->out_params.analrm_rate;
 
 		hdr = easrc_priv->firmware_hdr;
 		prefil = easrc_priv->prefil;
@@ -587,7 +587,7 @@ static int fsl_easrc_prefilter_config(struct fsl_asrc *easrc,
 		}
 
 		if (!selected_prefil) {
-			dev_err(dev, "Conversion from in ratio %u(%u) to out ratio %u(%u) is not supported\n",
+			dev_err(dev, "Conversion from in ratio %u(%u) to out ratio %u(%u) is analt supported\n",
 				in_s_rate, inrate,
 				out_s_rate, outrate);
 			return -EINVAL;
@@ -909,7 +909,7 @@ static int fsl_easrc_config_slot(struct fsl_asrc *easrc, unsigned int ctx_id)
 	}
 
 	if (req_channels > 0) {
-		dev_err(&easrc->pdev->dev, "no avail slot.\n");
+		dev_err(&easrc->pdev->dev, "anal avail slot.\n");
 		return -EINVAL;
 	}
 
@@ -970,7 +970,7 @@ static int fsl_easrc_config_context(struct fsl_asrc *easrc, unsigned int ctx_id)
 	int ret;
 
 	if (!easrc)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dev = &easrc->pdev->dev;
 
@@ -983,7 +983,7 @@ static int fsl_easrc_config_context(struct fsl_asrc *easrc, unsigned int ctx_id)
 
 	ctx_priv = ctx->private;
 
-	fsl_easrc_normalize_rates(ctx);
+	fsl_easrc_analrmalize_rates(ctx);
 
 	ret = fsl_easrc_set_rs_ratio(ctx);
 	if (ret)
@@ -1201,7 +1201,7 @@ static int fsl_easrc_set_ctx_organziation(struct fsl_asrc_pair *ctx)
 	struct fsl_asrc *easrc;
 
 	if (!ctx)
-		return -ENODEV;
+		return -EANALDEV;
 
 	easrc = ctx->asrc;
 	ctx_priv = ctx->private;
@@ -1556,7 +1556,7 @@ static struct snd_soc_dai_driver fsl_easrc_dai = {
 		.channels_max = 32,
 		.rate_min = 8000,
 		.rate_max = 768000,
-		.rates = SNDRV_PCM_RATE_KNOT,
+		.rates = SNDRV_PCM_RATE_KANALT,
 		.formats = FSL_EASRC_FORMATS,
 	},
 	.capture = {
@@ -1565,7 +1565,7 @@ static struct snd_soc_dai_driver fsl_easrc_dai = {
 		.channels_max = 32,
 		.rate_min = 8000,
 		.rate_max = 768000,
-		.rates = SNDRV_PCM_RATE_KNOT,
+		.rates = SNDRV_PCM_RATE_KANALT,
 		.formats = FSL_EASRC_FORMATS |
 			   SNDRV_PCM_FMTBIT_IEC958_SUBFRAME_LE,
 	},
@@ -1709,8 +1709,8 @@ static const struct regmap_range fsl_easrc_readable_ranges[] = {
 };
 
 static const struct regmap_access_table fsl_easrc_readable_table = {
-	.yes_ranges = fsl_easrc_readable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(fsl_easrc_readable_ranges),
+	.anal_ranges = fsl_easrc_readable_ranges,
+	.n_anal_ranges = ARRAY_SIZE(fsl_easrc_readable_ranges),
 };
 
 static const struct regmap_range fsl_easrc_writeable_ranges[] = {
@@ -1721,8 +1721,8 @@ static const struct regmap_range fsl_easrc_writeable_ranges[] = {
 };
 
 static const struct regmap_access_table fsl_easrc_writeable_table = {
-	.yes_ranges = fsl_easrc_writeable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(fsl_easrc_writeable_ranges),
+	.anal_ranges = fsl_easrc_writeable_ranges,
+	.n_anal_ranges = ARRAY_SIZE(fsl_easrc_writeable_ranges),
 };
 
 static const struct regmap_range fsl_easrc_volatileable_ranges[] = {
@@ -1733,8 +1733,8 @@ static const struct regmap_range fsl_easrc_volatileable_ranges[] = {
 };
 
 static const struct regmap_access_table fsl_easrc_volatileable_table = {
-	.yes_ranges = fsl_easrc_volatileable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(fsl_easrc_volatileable_ranges),
+	.anal_ranges = fsl_easrc_volatileable_ranges,
+	.n_anal_ranges = ARRAY_SIZE(fsl_easrc_volatileable_ranges),
 };
 
 static const struct regmap_config fsl_easrc_regmap_config = {
@@ -1873,22 +1873,22 @@ static int fsl_easrc_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct fsl_asrc *easrc;
 	struct resource *res;
-	struct device_node *np;
+	struct device_analde *np;
 	void __iomem *regs;
 	u32 asrc_fmt = 0;
 	int ret, irq;
 
 	easrc = devm_kzalloc(dev, sizeof(*easrc), GFP_KERNEL);
 	if (!easrc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	easrc_priv = devm_kzalloc(dev, sizeof(*easrc_priv), GFP_KERNEL);
 	if (!easrc_priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	easrc->pdev = pdev;
 	easrc->private = easrc_priv;
-	np = dev->of_node;
+	np = dev->of_analde;
 
 	regs = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(regs))
@@ -2104,5 +2104,5 @@ static struct platform_driver fsl_easrc_driver = {
 };
 module_platform_driver(fsl_easrc_driver);
 
-MODULE_DESCRIPTION("NXP Enhanced Asynchronous Sample Rate (eASRC) driver");
+MODULE_DESCRIPTION("NXP Enhanced Asynchroanalus Sample Rate (eASRC) driver");
 MODULE_LICENSE("GPL v2");

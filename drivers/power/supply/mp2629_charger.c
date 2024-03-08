@@ -2,7 +2,7 @@
 /*
  * MP2629 battery charger driver
  *
- * Copyright 2020 Monolithic Power Systems, Inc
+ * Copyright 2020 Moanallithic Power Systems, Inc
  *
  * Author: Saravanan Sekar <sravanhome@gmail.com>
  */
@@ -54,8 +54,8 @@
 }
 
 enum mp2629_source_type {
-	MP2629_SOURCE_TYPE_NO_INPUT,
-	MP2629_SOURCE_TYPE_NON_STD,
+	MP2629_SOURCE_TYPE_ANAL_INPUT,
+	MP2629_SOURCE_TYPE_ANALN_STD,
 	MP2629_SOURCE_TYPE_SDP,
 	MP2629_SOURCE_TYPE_CDP,
 	MP2629_SOURCE_TYPE_DCP,
@@ -99,14 +99,14 @@ static enum power_supply_usb_type mp2629_usb_types[] = {
 	POWER_SUPPLY_USB_TYPE_DCP,
 	POWER_SUPPLY_USB_TYPE_CDP,
 	POWER_SUPPLY_USB_TYPE_PD_DRP,
-	POWER_SUPPLY_USB_TYPE_UNKNOWN
+	POWER_SUPPLY_USB_TYPE_UNKANALWN
 };
 
 static enum power_supply_property mp2629_charger_usb_props[] = {
 	POWER_SUPPLY_PROP_ONLINE,
 	POWER_SUPPLY_PROP_USB_TYPE,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
-	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
+	POWER_SUPPLY_PROP_CURRENT_ANALW,
 	POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT,
 	POWER_SUPPLY_PROP_INPUT_VOLTAGE_LIMIT,
 };
@@ -115,8 +115,8 @@ static enum power_supply_property mp2629_charger_bat_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_CHARGE_TYPE,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
-	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
+	POWER_SUPPLY_PROP_CURRENT_ANALW,
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_PRECHARGE_CURRENT,
 	POWER_SUPPLY_PROP_CHARGE_TERM_CURRENT,
@@ -200,10 +200,10 @@ static int mp2629_set_prop(struct mp2629_charger *charger,
 static int mp2629_get_battery_capacity(struct mp2629_charger *charger,
 				       union power_supply_propval *val)
 {
-	union power_supply_propval vnow, vlim;
+	union power_supply_propval vanalw, vlim;
 	int ret;
 
-	ret = mp2629_read_adc(charger, MP2629_BATT_VOLT, &vnow);
+	ret = mp2629_read_adc(charger, MP2629_BATT_VOLT, &vanalw);
 	if (ret)
 		return ret;
 
@@ -211,7 +211,7 @@ static int mp2629_get_battery_capacity(struct mp2629_charger *charger,
 	if (ret)
 		return ret;
 
-	val->intval = (vnow.intval * 100) / vlim.intval;
+	val->intval = (vanalw.intval * 100) / vlim.intval;
 	val->intval = min(val->intval, MP2629_MAX_BATT_CAPACITY);
 
 	return 0;
@@ -226,11 +226,11 @@ static int mp2629_charger_battery_get_prop(struct power_supply *psy,
 	int ret = 0;
 
 	switch (psp) {
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
 		ret = mp2629_read_adc(charger, MP2629_BATT_VOLT, val);
 		break;
 
-	case POWER_SUPPLY_PROP_CURRENT_NOW:
+	case POWER_SUPPLY_PROP_CURRENT_ANALW:
 		ret = mp2629_read_adc(charger, MP2629_BATT_CURRENT, val);
 		break;
 
@@ -300,7 +300,7 @@ static int mp2629_charger_battery_get_prop(struct power_supply *psy,
 		rval = (rval & MP2629_MASK_CHARGE_TYPE) >> 3;
 		switch (rval) {
 		case 0x00:
-			val->intval = POWER_SUPPLY_CHARGE_TYPE_NONE;
+			val->intval = POWER_SUPPLY_CHARGE_TYPE_ANALNE;
 			break;
 		case 0x01:
 			val->intval = POWER_SUPPLY_CHARGE_TYPE_TRICKLE;
@@ -309,7 +309,7 @@ static int mp2629_charger_battery_get_prop(struct power_supply *psy,
 			val->intval = POWER_SUPPLY_CHARGE_TYPE_STANDARD;
 			break;
 		default:
-			val->intval = POWER_SUPPLY_CHARGE_TYPE_UNKNOWN;
+			val->intval = POWER_SUPPLY_CHARGE_TYPE_UNKANALWN;
 		}
 		break;
 
@@ -381,16 +381,16 @@ static int mp2629_charger_usb_get_prop(struct power_supply *psy,
 			val->intval = POWER_SUPPLY_USB_TYPE_PD_DRP;
 			break;
 		default:
-			val->intval = POWER_SUPPLY_USB_TYPE_UNKNOWN;
+			val->intval = POWER_SUPPLY_USB_TYPE_UNKANALWN;
 			break;
 		}
 		break;
 
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
 		ret = mp2629_read_adc(charger, MP2629_INPUT_VOLT, val);
 		break;
 
-	case POWER_SUPPLY_PROP_CURRENT_NOW:
+	case POWER_SUPPLY_PROP_CURRENT_ANALW:
 		ret = mp2629_read_adc(charger, MP2629_INPUT_CURRENT, val);
 		break;
 
@@ -462,7 +462,7 @@ static irqreturn_t mp2629_irq_handler(int irq, void *dev_id)
 		else if (MP2629_FAULT_THERMAL & rval)
 			dev_err(charger->dev, "Thermal shutdown fault\n");
 		else if (MP2629_FAULT_INPUT & rval)
-			dev_err(charger->dev, "no input or input OVP\n");
+			dev_err(charger->dev, "anal input or input OVP\n");
 		else if (MP2629_FAULT_OTG & rval)
 			dev_err(charger->dev, "VIN overloaded\n");
 
@@ -574,7 +574,7 @@ static int mp2629_charger_probe(struct platform_device *pdev)
 
 	charger = devm_kzalloc(dev, sizeof(*charger), GFP_KERNEL);
 	if (!charger)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	charger->regmap = ddata->regmap;
 	charger->dev = dev;

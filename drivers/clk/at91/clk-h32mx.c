@@ -91,7 +91,7 @@ at91_clk_register_h32mx(struct regmap *regmap, const char *name,
 
 	h32mxclk = kzalloc(sizeof(*h32mxclk), GFP_KERNEL);
 	if (!h32mxclk)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.ops = &h32mx_ops;

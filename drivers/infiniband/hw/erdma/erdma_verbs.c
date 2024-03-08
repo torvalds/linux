@@ -7,7 +7,7 @@
 /* Authors: Bernard Metzler <bmt@zurich.ibm.com> */
 /* Copyright (c) 2008-2019, IBM Corporation */
 
-/* Copyright (c) 2013-2015, Mellanox Technologies. All rights reserved. */
+/* Copyright (c) 2013-2015, Mellaanalx Techanallogies. All rights reserved. */
 
 #include <linux/vmalloc.h>
 #include <net/addrconf.h>
@@ -166,7 +166,7 @@ static int regmr_cmd(struct erdma_dev *dev, struct erdma_mr *mr)
 	if (mr->type == ERDMA_MR_TYPE_DMA)
 		goto post_cmd;
 
-	if (mr->type == ERDMA_MR_TYPE_NORMAL) {
+	if (mr->type == ERDMA_MR_TYPE_ANALRMAL) {
 		req.start_va = mr->mem.va;
 		req.size = mr->mem.len;
 	}
@@ -259,7 +259,7 @@ static int erdma_alloc_idx(struct erdma_resource_cb *res_cb)
 		if (idx == res_cb->max_cap) {
 			res_cb->next_alloc_idx = 1;
 			spin_unlock_irqrestore(&res_cb->lock, flags);
-			return -ENOSPC;
+			return -EANALSPC;
 		}
 	}
 
@@ -463,13 +463,13 @@ static int erdma_qp_validate_attr(struct erdma_dev *dev,
 				  struct ib_qp_init_attr *attrs)
 {
 	if (attrs->qp_type != IB_QPT_RC)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (attrs->srq)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!attrs->send_cq || !attrs->recv_cq)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return 0;
 }
@@ -535,7 +535,7 @@ static int init_kernel_qp(struct erdma_dev *dev, struct erdma_qp *qp,
 
 err_out:
 	free_kernel_qp(qp);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void erdma_fill_bottom_mtt(struct erdma_dev *dev, struct erdma_mem *mem)
@@ -558,7 +558,7 @@ static struct erdma_mtt *erdma_create_cont_mtt(struct erdma_dev *dev,
 
 	mtt = kzalloc(sizeof(*mtt), GFP_KERNEL);
 	if (!mtt)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mtt->size = size;
 	mtt->buf = kzalloc(mtt->size, GFP_KERNEL);
@@ -579,7 +579,7 @@ err_free_mtt_buf:
 err_free_mtt:
 	kfree(mtt);
 
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(-EANALMEM);
 }
 
 static void erdma_destroy_mtt_buf_sg(struct erdma_dev *dev,
@@ -614,14 +614,14 @@ static int erdma_create_mtt_buf_sg(struct erdma_dev *dev, struct erdma_mtt *mtt)
 	u32 npages, i, nsg;
 	struct page *pg;
 
-	/* Failed if buf is not page aligned */
+	/* Failed if buf is analt page aligned */
 	if ((uintptr_t)buf & ~PAGE_MASK)
 		return -EINVAL;
 
 	npages = DIV_ROUND_UP(mtt->size, PAGE_SIZE);
 	sglist = vzalloc(npages * sizeof(*sglist));
 	if (!sglist)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sg_init_table(sglist, npages);
 	for (i = 0; i < npages; i++) {
@@ -643,18 +643,18 @@ static int erdma_create_mtt_buf_sg(struct erdma_dev *dev, struct erdma_mtt *mtt)
 err:
 	vfree(sglist);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static struct erdma_mtt *erdma_create_scatter_mtt(struct erdma_dev *dev,
 						  size_t size)
 {
 	struct erdma_mtt *mtt;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	mtt = kzalloc(sizeof(*mtt), GFP_KERNEL);
 	if (!mtt)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mtt->size = ALIGN(size, PAGE_SIZE);
 	mtt->buf = vzalloc(mtt->size);
@@ -714,7 +714,7 @@ static struct erdma_mtt *erdma_create_mtt(struct erdma_dev *dev, size_t size,
 	}
 
 	if (level > 3) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_mtt;
 	}
 
@@ -817,7 +817,7 @@ static int erdma_map_user_dbrecords(struct erdma_ucontext *ctx,
 
 	page = kmalloc(sizeof(*page), GFP_KERNEL);
 	if (!page) {
-		rv = -ENOMEM;
+		rv = -EANALMEM;
 		goto out;
 	}
 
@@ -948,7 +948,7 @@ int erdma_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *attrs,
 			      XA_LIMIT(1, dev->attrs.max_qp - 1),
 			      &dev->next_alloc_qpn, GFP_KERNEL);
 	if (ret < 0) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_out;
 	}
 
@@ -1013,7 +1013,7 @@ static int erdma_create_stag(struct erdma_dev *dev, u32 *stag)
 	if (stag_idx < 0)
 		return stag_idx;
 
-	/* For now, we always let key field be zero. */
+	/* For analw, we always let key field be zero. */
 	*stag = (stag_idx << 8);
 
 	return 0;
@@ -1028,7 +1028,7 @@ struct ib_mr *erdma_get_dma_mr(struct ib_pd *ibpd, int acc)
 
 	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
 	if (!mr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ret = erdma_create_stag(dev, &stag);
 	if (ret)
@@ -1065,14 +1065,14 @@ struct ib_mr *erdma_ib_alloc_mr(struct ib_pd *ibpd, enum ib_mr_type mr_type,
 	u32 stag;
 
 	if (mr_type != IB_MR_TYPE_MEM_REG)
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 
 	if (max_num_sg > ERDMA_MR_MAX_MTT_CNT)
 		return ERR_PTR(-EINVAL);
 
 	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
 	if (!mr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ret = erdma_create_stag(dev, &stag);
 	if (ret)
@@ -1154,7 +1154,7 @@ struct ib_mr *erdma_reg_user_mr(struct ib_pd *ibpd, u64 start, u64 len,
 
 	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
 	if (!mr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ret = get_mtt_entries(dev, &mr->mem, start, len, access, virt,
 			      SZ_2G - SZ_4K, false);
@@ -1171,7 +1171,7 @@ struct ib_mr *erdma_reg_user_mr(struct ib_pd *ibpd, u64 start, u64 len,
 	mr->mem.len = len;
 	mr->access = ERDMA_MR_ACC_LR | to_erdma_access_flags(access);
 	mr->valid = 1;
-	mr->type = ERDMA_MR_TYPE_NORMAL;
+	mr->type = ERDMA_MR_TYPE_ANALRMAL;
 
 	ret = regmr_cmd(dev, mr);
 	if (ret)
@@ -1358,7 +1358,7 @@ static int alloc_db_resources(struct erdma_dev *dev, struct erdma_ucontext *ctx,
 	int ret;
 
 	/*
-	 * CAP_SYS_RAWIO is required if hardware does not support extend
+	 * CAP_SYS_RAWIO is required if hardware does analt support extend
 	 * doorbell mechanism.
 	 */
 	if (!ext_db_en && !capable(CAP_SYS_RAWIO))
@@ -1434,7 +1434,7 @@ int erdma_alloc_ucontext(struct ib_ucontext *ibctx, struct ib_udata *udata)
 	struct erdma_uresp_alloc_ctx uresp = {};
 
 	if (atomic_inc_return(&dev->num_ctx) > ERDMA_MAX_CONTEXT) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_out;
 	}
 
@@ -1455,7 +1455,7 @@ int erdma_alloc_ucontext(struct ib_ucontext *ibctx, struct ib_udata *udata)
 	ctx->sq_db_mmap_entry = erdma_user_mmap_entry_insert(
 		ctx, (void *)ctx->sdb, PAGE_SIZE, ERDMA_MMAP_IO_NC, &uresp.sdb);
 	if (!ctx->sq_db_mmap_entry) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_ext_db;
 	}
 
@@ -1521,7 +1521,7 @@ int erdma_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask,
 	int ret = 0;
 
 	if (attr_mask & ~IB_QP_ATTR_STANDARD_BITS)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	memset(&new_attrs, 0, sizeof(new_attrs));
 
@@ -1604,7 +1604,7 @@ static int erdma_init_kernel_cq(struct erdma_cq *cq)
 				   WARPPED_BUFSIZE(cq->depth << CQE_SHIFT),
 				   &cq->kern_cq.qbuf_dma_addr, GFP_KERNEL);
 	if (!cq->kern_cq.qbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cq->kern_cq.db_record =
 		(u64 *)(cq->kern_cq.qbuf + (cq->depth << CQE_SHIFT));
@@ -1760,7 +1760,7 @@ static int erdma_query_hw_stats(struct erdma_dev *dev,
 
 	resp = dma_pool_zalloc(dev->resp_pool, GFP_KERNEL, &dma_addr);
 	if (!resp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	req.target_addr = dma_addr;
 	req.target_length = ERDMA_HW_RESP_SIZE;

@@ -23,21 +23,21 @@
 int stvdebug = 1;
 module_param_named(debug, stvdebug, int, 0644);
 
-/* internal params node */
-struct stv0900_inode {
+/* internal params analde */
+struct stv0900_ianalde {
 	/* pointer for internal params, one for each pair of demods */
 	struct stv0900_internal		*internal;
-	struct stv0900_inode		*next_inode;
+	struct stv0900_ianalde		*next_ianalde;
 };
 
 /* first internal params */
-static struct stv0900_inode *stv0900_first_inode;
+static struct stv0900_ianalde *stv0900_first_ianalde;
 
 /* find chip by i2c adapter and i2c address */
-static struct stv0900_inode *find_inode(struct i2c_adapter *i2c_adap,
+static struct stv0900_ianalde *find_ianalde(struct i2c_adapter *i2c_adap,
 							u8 i2c_addr)
 {
-	struct stv0900_inode *temp_chip = stv0900_first_inode;
+	struct stv0900_ianalde *temp_chip = stv0900_first_ianalde;
 
 	if (temp_chip != NULL) {
 		/*
@@ -47,7 +47,7 @@ static struct stv0900_inode *find_inode(struct i2c_adapter *i2c_adap,
 			((temp_chip->internal->i2c_adap != i2c_adap) ||
 			(temp_chip->internal->i2c_addr != i2c_addr)))
 
-			temp_chip = temp_chip->next_inode;
+			temp_chip = temp_chip->next_ianalde;
 
 	}
 
@@ -55,56 +55,56 @@ static struct stv0900_inode *find_inode(struct i2c_adapter *i2c_adap,
 }
 
 /* deallocating chip */
-static void remove_inode(struct stv0900_internal *internal)
+static void remove_ianalde(struct stv0900_internal *internal)
 {
-	struct stv0900_inode *prev_node = stv0900_first_inode;
-	struct stv0900_inode *del_node = find_inode(internal->i2c_adap,
+	struct stv0900_ianalde *prev_analde = stv0900_first_ianalde;
+	struct stv0900_ianalde *del_analde = find_ianalde(internal->i2c_adap,
 						internal->i2c_addr);
 
-	if (del_node != NULL) {
-		if (del_node == stv0900_first_inode) {
-			stv0900_first_inode = del_node->next_inode;
+	if (del_analde != NULL) {
+		if (del_analde == stv0900_first_ianalde) {
+			stv0900_first_ianalde = del_analde->next_ianalde;
 		} else {
-			while (prev_node->next_inode != del_node)
-				prev_node = prev_node->next_inode;
+			while (prev_analde->next_ianalde != del_analde)
+				prev_analde = prev_analde->next_ianalde;
 
-			if (del_node->next_inode == NULL)
-				prev_node->next_inode = NULL;
+			if (del_analde->next_ianalde == NULL)
+				prev_analde->next_ianalde = NULL;
 			else
-				prev_node->next_inode =
-					prev_node->next_inode->next_inode;
+				prev_analde->next_ianalde =
+					prev_analde->next_ianalde->next_ianalde;
 		}
 
-		kfree(del_node);
+		kfree(del_analde);
 	}
 }
 
 /* allocating new chip */
-static struct stv0900_inode *append_internal(struct stv0900_internal *internal)
+static struct stv0900_ianalde *append_internal(struct stv0900_internal *internal)
 {
-	struct stv0900_inode *new_node = stv0900_first_inode;
+	struct stv0900_ianalde *new_analde = stv0900_first_ianalde;
 
-	if (new_node == NULL) {
-		new_node = kmalloc(sizeof(struct stv0900_inode), GFP_KERNEL);
-		stv0900_first_inode = new_node;
+	if (new_analde == NULL) {
+		new_analde = kmalloc(sizeof(struct stv0900_ianalde), GFP_KERNEL);
+		stv0900_first_ianalde = new_analde;
 	} else {
-		while (new_node->next_inode != NULL)
-			new_node = new_node->next_inode;
+		while (new_analde->next_ianalde != NULL)
+			new_analde = new_analde->next_ianalde;
 
-		new_node->next_inode = kmalloc(sizeof(struct stv0900_inode),
+		new_analde->next_ianalde = kmalloc(sizeof(struct stv0900_ianalde),
 								GFP_KERNEL);
-		if (new_node->next_inode != NULL)
-			new_node = new_node->next_inode;
+		if (new_analde->next_ianalde != NULL)
+			new_analde = new_analde->next_ianalde;
 		else
-			new_node = NULL;
+			new_analde = NULL;
 	}
 
-	if (new_node != NULL) {
-		new_node->internal = internal;
-		new_node->next_inode = NULL;
+	if (new_analde != NULL) {
+		new_analde->internal = internal;
+		new_analde->next_ianalde = NULL;
 	}
 
-	return new_node;
+	return new_analde;
 }
 
 s32 ge2comp(s32 a, s32 width)
@@ -213,7 +213,7 @@ static enum fe_stv0900_error stv0900_initialize(struct stv0900_internal *intp)
 
 	intp->chip_id = stv0900_read_reg(intp, R0900_MID);
 
-	if (intp->errs != STV0900_NO_ERROR)
+	if (intp->errs != STV0900_ANAL_ERROR)
 		return intp->errs;
 
 	/*Startup sequence*/
@@ -265,7 +265,7 @@ static enum fe_stv0900_error stv0900_initialize(struct stv0900_internal *intp)
 	stv0900_write_reg(intp, R0900_TSTRES0, 0x80);
 	stv0900_write_reg(intp, R0900_TSTRES0, 0x00);
 
-	return STV0900_NO_ERROR;
+	return STV0900_ANAL_ERROR;
 }
 
 static u32 stv0900_get_mclk_freq(struct stv0900_internal *intp, u32 ext_clk)
@@ -317,7 +317,7 @@ static enum fe_stv0900_error stv0900_set_mclk(struct stv0900_internal *intp, u32
 	if ((intp->errs))
 		return STV0900_I2C_ERROR;
 
-	return STV0900_NO_ERROR;
+	return STV0900_ANAL_ERROR;
 }
 
 static u32 stv0900_get_err_count(struct stv0900_internal *intp, int cntr,
@@ -667,17 +667,17 @@ static s32 stv0900_carr_get_quality(struct dvb_frontend *fe,
 		imin,
 		imax,
 		i,
-		noise_field1,
-		noise_field0;
+		analise_field1,
+		analise_field0;
 
 	dprintk("%s\n", __func__);
 
 	if (stv0900_get_standard(fe, demod) == STV0900_DVBS2_STANDARD) {
-		noise_field1 = NOSPLHT_NORMED1;
-		noise_field0 = NOSPLHT_NORMED0;
+		analise_field1 = ANALSPLHT_ANALRMED1;
+		analise_field0 = ANALSPLHT_ANALRMED0;
 	} else {
-		noise_field1 = NOSDATAT_NORMED1;
-		noise_field0 = NOSDATAT_NORMED0;
+		analise_field1 = ANALSDATAT_ANALRMED1;
+		analise_field0 = ANALSDATAT_ANALRMED0;
 	}
 
 	if (stv0900_get_bits(intp, LOCK_DEFINITIF)) {
@@ -686,9 +686,9 @@ static s32 stv0900_carr_get_quality(struct dvb_frontend *fe,
 			msleep(5);
 			for (i = 0; i < 16; i++) {
 				regval += MAKEWORD(stv0900_get_bits(intp,
-								noise_field1),
+								analise_field1),
 						stv0900_get_bits(intp,
-								noise_field0));
+								analise_field0));
 				msleep(1);
 			}
 
@@ -734,12 +734,12 @@ static int stv0900_read_ucblocks(struct dvb_frontend *fe, u32 * ucblocks)
 	if (stv0900_get_standard(fe, demod) == STV0900_DVBS2_STANDARD) {
 		/* DVB-S2 delineator errors count */
 
-		/* retrieving number for errnous headers */
+		/* retrieving number for erranalus headers */
 		err_val1 = stv0900_read_reg(intp, BBFCRCKO1);
 		err_val0 = stv0900_read_reg(intp, BBFCRCKO0);
 		header_err_val = (err_val1 << 8) | err_val0;
 
-		/* retrieving number for errnous packets */
+		/* retrieving number for erranalus packets */
 		err_val1 = stv0900_read_reg(intp, UPCRCKO1);
 		err_val0 = stv0900_read_reg(intp, UPCRCKO0);
 		*ucblocks = (err_val1 << 8) | err_val0;
@@ -1325,19 +1325,19 @@ enum fe_stv0900_error stv0900_st_dvbs2_single(struct stv0900_internal *intp,
 		break;
 	}
 
-	return STV0900_NO_ERROR;
+	return STV0900_ANAL_ERROR;
 }
 
 static enum fe_stv0900_error stv0900_init_internal(struct dvb_frontend *fe,
 					struct stv0900_init_params *p_init)
 {
 	struct stv0900_state *state = fe->demodulator_priv;
-	enum fe_stv0900_error error = STV0900_NO_ERROR;
-	enum fe_stv0900_error demodError = STV0900_NO_ERROR;
+	enum fe_stv0900_error error = STV0900_ANAL_ERROR;
+	enum fe_stv0900_error demodError = STV0900_ANAL_ERROR;
 	struct stv0900_internal *intp = NULL;
 	int selosci, i;
 
-	struct stv0900_inode *temp_int = find_inode(state->i2c_adap,
+	struct stv0900_ianalde *temp_int = find_ianalde(state->i2c_adap,
 						state->config->demod_address);
 
 	dprintk("%s\n", __func__);
@@ -1346,7 +1346,7 @@ static enum fe_stv0900_error stv0900_init_internal(struct dvb_frontend *fe,
 		state->internal = temp_int->internal;
 		(state->internal->dmds_used)++;
 		dprintk("%s: Find Internal Structure!\n", __func__);
-		return STV0900_NO_ERROR;
+		return STV0900_ANAL_ERROR;
 	} else {
 		state->internal = kmalloc(sizeof(struct stv0900_internal),
 								GFP_KERNEL);
@@ -1362,7 +1362,7 @@ static enum fe_stv0900_error stv0900_init_internal(struct dvb_frontend *fe,
 		state->internal->i2c_adap = state->i2c_adap;
 		state->internal->i2c_addr = state->config->demod_address;
 		state->internal->clkmode = state->config->clkmode;
-		state->internal->errs = STV0900_NO_ERROR;
+		state->internal->errs = STV0900_ANAL_ERROR;
 		dprintk("%s: Create New Internal Structure!\n", __func__);
 	}
 
@@ -1372,8 +1372,8 @@ static enum fe_stv0900_error stv0900_init_internal(struct dvb_frontend *fe,
 	}
 
 	demodError = stv0900_initialize(state->internal);
-	if (demodError == STV0900_NO_ERROR) {
-			error = STV0900_NO_ERROR;
+	if (demodError == STV0900_ANAL_ERROR) {
+			error = STV0900_ANAL_ERROR;
 	} else {
 		if (demodError == STV0900_INVALID_HANDLE)
 			error = STV0900_INVALID_HANDLE;
@@ -1555,7 +1555,7 @@ static int stv0900_set_mis(struct stv0900_internal *intp,
 		stv0900_write_reg(intp, ISIBITENA, 0xff);
 	}
 
-	return STV0900_NO_ERROR;
+	return STV0900_ANAL_ERROR;
 }
 
 
@@ -1569,7 +1569,7 @@ static enum dvbfe_search stv0900_search(struct dvb_frontend *fe)
 	struct stv0900_search_params p_search;
 	struct stv0900_signal_info p_result = intp->result[demod];
 
-	enum fe_stv0900_error error = STV0900_NO_ERROR;
+	enum fe_stv0900_error error = STV0900_ANAL_ERROR;
 
 	dprintk("%s: ", __func__);
 
@@ -1586,7 +1586,7 @@ static enum dvbfe_search stv0900_search(struct dvb_frontend *fe)
 	p_search.frequency = c->frequency;
 	p_search.symbol_rate = c->symbol_rate;
 	p_search.search_range = 10000000;
-	p_search.fec = STV0900_FEC_UNKNOWN;
+	p_search.fec = STV0900_FEC_UNKANALWN;
 	p_search.standard = STV0900_AUTO_SEARCH;
 	p_search.iq_inversion = STV0900_IQ_AUTO;
 	p_search.search_algo = STV0900_BLIND_SEARCH;
@@ -1602,7 +1602,7 @@ static enum dvbfe_search stv0900_search(struct dvb_frontend *fe)
 	intp->srch_iq_inv[demod] = p_search.iq_inversion;
 	intp->fec[demod] = p_search.fec;
 	if ((stv0900_algo(fe) == STV0900_RANGEOK) &&
-				(intp->errs == STV0900_NO_ERROR)) {
+				(intp->errs == STV0900_ANAL_ERROR)) {
 		p_result.locked = intp->result[demod].locked;
 		p_result.standard = intp->result[demod].standard;
 		p_result.frequency = intp->result[demod].frequency;
@@ -1620,14 +1620,14 @@ static enum dvbfe_search stv0900_search(struct dvb_frontend *fe)
 		case STV0900_I2C_ERROR:
 			error = STV0900_I2C_ERROR;
 			break;
-		case STV0900_NO_ERROR:
+		case STV0900_ANAL_ERROR:
 		default:
 			error = STV0900_SEARCH_FAILED;
 			break;
 		}
 	}
 
-	if ((p_result.locked == TRUE) && (error == STV0900_NO_ERROR)) {
+	if ((p_result.locked == TRUE) && (error == STV0900_ANAL_ERROR)) {
 		dprintk("Search Success\n");
 		return DVBFE_ALGO_SEARCH_SUCCESS;
 	} else {
@@ -1829,7 +1829,7 @@ static void stv0900_release(struct dvb_frontend *fe)
 
 		dprintk("%s: Actually removing\n", __func__);
 
-		remove_inode(state->internal);
+		remove_ianalde(state->internal);
 		kfree(state->internal);
 	}
 
@@ -1923,7 +1923,7 @@ struct dvb_frontend *stv0900_attach(const struct stv0900_config *config,
 		init_params.rolloff		= STV0900_35;
 		init_params.path1_ts_clock	= config->path1_mode;
 		init_params.tun1_maddress	= config->tun1_maddress;
-		init_params.tun1_iq_inv		= STV0900_IQ_NORMAL;
+		init_params.tun1_iq_inv		= STV0900_IQ_ANALRMAL;
 		init_params.tuner1_adc		= config->tun1_adc;
 		init_params.tuner1_type		= config->tun1_type;
 		init_params.path2_ts_clock	= config->path2_mode;

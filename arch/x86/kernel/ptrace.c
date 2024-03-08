@@ -10,7 +10,7 @@
 #include <linux/sched/task_stack.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/ptrace.h>
 #include <linux/user.h>
@@ -24,7 +24,7 @@
 #include <linux/rcupdate.h>
 #include <linux/export.h>
 #include <linux/context_tracking.h>
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 
 #include <linux/uaccess.h>
 #include <asm/processor.h>
@@ -148,12 +148,12 @@ const char *regs_query_register_name(unsigned int offset)
 }
 
 /*
- * does not yet catch signals sent when the child dies.
+ * does analt yet catch signals sent when the child dies.
  * in exit.c or in signal.c.
  */
 
 /*
- * Determines which flags the user has access to [1 = access, 0 = no access].
+ * Determines which flags the user has access to [1 = access, 0 = anal access].
  */
 #define FLAG_MASK_32		((unsigned long)			\
 				 (X86_EFLAGS_CF | X86_EFLAGS_PF |	\
@@ -174,10 +174,10 @@ static inline bool invalid_selector(u16 value)
 
 #define FLAG_MASK		FLAG_MASK_32
 
-static unsigned long *pt_regs_access(struct pt_regs *regs, unsigned long regno)
+static unsigned long *pt_regs_access(struct pt_regs *regs, unsigned long reganal)
 {
 	BUILD_BUG_ON(offsetof(struct pt_regs, bx) != 0);
-	return &regs->bx + (regno >> 2);
+	return &regs->bx + (reganal >> 2);
 }
 
 static u16 get_segment_reg(struct task_struct *task, unsigned long offset)
@@ -210,7 +210,7 @@ static int set_segment_reg(struct task_struct *task,
 		return -EIO;
 
 	/*
-	 * For %cs and %ss we cannot permit a null selector.
+	 * For %cs and %ss we cananalt permit a null selector.
 	 * We can permit a bogus selector as long as it has USER_RPL.
 	 * Null selectors are fine for other segment registers, but
 	 * we will never get back to user mode with invalid %cs or %ss
@@ -358,8 +358,8 @@ static int set_flags(struct task_struct *task, unsigned long value)
 
 	/*
 	 * If the user value contains TF, mark that
-	 * it was not "us" (the debugger) that set it.
-	 * If not, make sure it stays set if we had.
+	 * it was analt "us" (the debugger) that set it.
+	 * If analt, make sure it stays set if we had.
 	 */
 	if (value & X86_EFLAGS_TF)
 		clear_tsk_thread_flag(task, TIF_FORCED_TF);
@@ -614,7 +614,7 @@ static unsigned long ptrace_get_debugreg(struct task_struct *tsk, int n)
 	unsigned long val = 0;
 
 	if (n < HBP_NUM) {
-		int index = array_index_nospec(n, HBP_NUM);
+		int index = array_index_analspec(n, HBP_NUM);
 		struct perf_event *bp = thread->ptrace_bps[index];
 
 		if (bp)
@@ -670,7 +670,7 @@ static int ptrace_set_debugreg(struct task_struct *tsk, int n,
 			       unsigned long val)
 {
 	struct thread_struct *thread = &tsk->thread;
-	/* There are no DR4 or DR5 registers */
+	/* There are anal DR4 or DR5 registers */
 	int rc = -EIO;
 
 	if (n < HBP_NUM) {
@@ -687,7 +687,7 @@ static int ptrace_set_debugreg(struct task_struct *tsk, int n,
 }
 
 /*
- * These access the current or another (stopped) task's io permission
+ * These access the current or aanalther (stopped) task's io permission
  * bitmap for debugging or core dump.
  */
 static int ioperm_active(struct task_struct *target,
@@ -713,7 +713,7 @@ static int ioperm_get(struct task_struct *target,
 /*
  * Called by kernel/ptrace.c when detaching..
  *
- * Make sure the single step bit is not set.
+ * Make sure the single step bit is analt set.
  */
 void ptrace_disable(struct task_struct *child)
 {
@@ -836,7 +836,7 @@ long arch_ptrace(struct task_struct *child, long request,
 #endif
 
 #ifdef CONFIG_X86_64
-		/* normal 64bit interface to access TLS data.
+		/* analrmal 64bit interface to access TLS data.
 		   Works just like arch_prctl, except that the arguments
 		   are reversed. */
 	case PTRACE_ARCH_PRCTL:
@@ -870,12 +870,12 @@ long arch_ptrace(struct task_struct *child, long request,
 				       value);				\
 		break
 
-static int putreg32(struct task_struct *child, unsigned regno, u32 value)
+static int putreg32(struct task_struct *child, unsigned reganal, u32 value)
 {
 	struct pt_regs *regs = task_pt_regs(child);
 	int ret;
 
-	switch (regno) {
+	switch (reganal) {
 
 	SEG32(cs);
 	SEG32(ds);
@@ -925,7 +925,7 @@ static int putreg32(struct task_struct *child, unsigned regno, u32 value)
 		 * syscall restart.  Make sure that the syscall
 		 * restart code sign-extends orig_ax.  Also make sure
 		 * we interpret the -ERESTART* codes correctly if
-		 * loaded into regs->ax in case the task is not
+		 * loaded into regs->ax in case the task is analt
 		 * actually still sitting at the exit from a 32-bit
 		 * syscall with TS_COMPAT still set.
 		 */
@@ -939,16 +939,16 @@ static int putreg32(struct task_struct *child, unsigned regno, u32 value)
 
 	case offsetof(struct user32, u_debugreg[0]) ...
 		offsetof(struct user32, u_debugreg[7]):
-		regno -= offsetof(struct user32, u_debugreg[0]);
-		return ptrace_set_debugreg(child, regno / 4, value);
+		reganal -= offsetof(struct user32, u_debugreg[0]);
+		return ptrace_set_debugreg(child, reganal / 4, value);
 
 	default:
-		if (regno > sizeof(struct user32) || (regno & 3))
+		if (reganal > sizeof(struct user32) || (reganal & 3))
 			return -EIO;
 
 		/*
 		 * Other dummy fields in the virtual user structure
-		 * are ignored
+		 * are iganalred
 		 */
 		break;
 	}
@@ -968,11 +968,11 @@ static int putreg32(struct task_struct *child, unsigned regno, u32 value)
 				       offsetof(struct user_regs_struct, rs)); \
 		break
 
-static int getreg32(struct task_struct *child, unsigned regno, u32 *val)
+static int getreg32(struct task_struct *child, unsigned reganal, u32 *val)
 {
 	struct pt_regs *regs = task_pt_regs(child);
 
-	switch (regno) {
+	switch (reganal) {
 
 	SEG32(ds);
 	SEG32(es);
@@ -998,17 +998,17 @@ static int getreg32(struct task_struct *child, unsigned regno, u32 *val)
 
 	case offsetof(struct user32, u_debugreg[0]) ...
 		offsetof(struct user32, u_debugreg[7]):
-		regno -= offsetof(struct user32, u_debugreg[0]);
-		*val = ptrace_get_debugreg(child, regno / 4);
+		reganal -= offsetof(struct user32, u_debugreg[0]);
+		*val = ptrace_get_debugreg(child, reganal / 4);
 		break;
 
 	default:
-		if (regno > sizeof(struct user32) || (regno & 3))
+		if (reganal > sizeof(struct user32) || (reganal & 3))
 			return -EIO;
 
 		/*
 		 * Other dummy fields in the virtual user structure
-		 * are ignored
+		 * are iganalred
 		 */
 		*val = 0;
 		break;
@@ -1236,7 +1236,7 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 
 static struct user_regset x86_64_regsets[] __ro_after_init = {
 	[REGSET64_GENERAL] = {
-		.core_note_type	= NT_PRSTATUS,
+		.core_analte_type	= NT_PRSTATUS,
 		.n		= sizeof(struct user_regs_struct) / sizeof(long),
 		.size		= sizeof(long),
 		.align		= sizeof(long),
@@ -1244,7 +1244,7 @@ static struct user_regset x86_64_regsets[] __ro_after_init = {
 		.set		= genregs_set
 	},
 	[REGSET64_FP] = {
-		.core_note_type	= NT_PRFPREG,
+		.core_analte_type	= NT_PRFPREG,
 		.n		= sizeof(struct fxregs_state) / sizeof(long),
 		.size		= sizeof(long),
 		.align		= sizeof(long),
@@ -1253,7 +1253,7 @@ static struct user_regset x86_64_regsets[] __ro_after_init = {
 		.set		= xfpregs_set
 	},
 	[REGSET64_XSTATE] = {
-		.core_note_type	= NT_X86_XSTATE,
+		.core_analte_type	= NT_X86_XSTATE,
 		.size		= sizeof(u64),
 		.align		= sizeof(u64),
 		.active		= xstateregs_active,
@@ -1261,7 +1261,7 @@ static struct user_regset x86_64_regsets[] __ro_after_init = {
 		.set		= xstateregs_set
 	},
 	[REGSET64_IOPERM] = {
-		.core_note_type	= NT_386_IOPERM,
+		.core_analte_type	= NT_386_IOPERM,
 		.n		= IO_BITMAP_LONGS,
 		.size		= sizeof(long),
 		.align		= sizeof(long),
@@ -1270,7 +1270,7 @@ static struct user_regset x86_64_regsets[] __ro_after_init = {
 	},
 #ifdef CONFIG_X86_USER_SHADOW_STACK
 	[REGSET64_SSP] = {
-		.core_note_type	= NT_X86_SHSTK,
+		.core_analte_type	= NT_X86_SHSTK,
 		.n		= 1,
 		.size		= sizeof(u64),
 		.align		= sizeof(u64),
@@ -1297,7 +1297,7 @@ static const struct user_regset_view user_x86_64_view = {
 #if defined CONFIG_X86_32 || defined CONFIG_IA32_EMULATION
 static struct user_regset x86_32_regsets[] __ro_after_init = {
 	[REGSET32_GENERAL] = {
-		.core_note_type	= NT_PRSTATUS,
+		.core_analte_type	= NT_PRSTATUS,
 		.n		= sizeof(struct user_regs_struct32) / sizeof(u32),
 		.size		= sizeof(u32),
 		.align		= sizeof(u32),
@@ -1305,7 +1305,7 @@ static struct user_regset x86_32_regsets[] __ro_after_init = {
 		.set		= genregs32_set
 	},
 	[REGSET32_FP] = {
-		.core_note_type	= NT_PRFPREG,
+		.core_analte_type	= NT_PRFPREG,
 		.n		= sizeof(struct user_i387_ia32_struct) / sizeof(u32),
 		.size		= sizeof(u32),
 		.align		= sizeof(u32),
@@ -1314,7 +1314,7 @@ static struct user_regset x86_32_regsets[] __ro_after_init = {
 		.set		= fpregs_set
 	},
 	[REGSET32_XFP] = {
-		.core_note_type	= NT_PRXFPREG,
+		.core_analte_type	= NT_PRXFPREG,
 		.n		= sizeof(struct fxregs_state) / sizeof(u32),
 		.size		= sizeof(u32),
 		.align		= sizeof(u32),
@@ -1323,7 +1323,7 @@ static struct user_regset x86_32_regsets[] __ro_after_init = {
 		.set		= xfpregs_set
 	},
 	[REGSET32_XSTATE] = {
-		.core_note_type	= NT_X86_XSTATE,
+		.core_analte_type	= NT_X86_XSTATE,
 		.size		= sizeof(u64),
 		.align		= sizeof(u64),
 		.active		= xstateregs_active,
@@ -1331,7 +1331,7 @@ static struct user_regset x86_32_regsets[] __ro_after_init = {
 		.set		= xstateregs_set
 	},
 	[REGSET32_TLS] = {
-		.core_note_type	= NT_386_TLS,
+		.core_analte_type	= NT_386_TLS,
 		.n		= GDT_ENTRY_TLS_ENTRIES,
 		.bias		= GDT_ENTRY_TLS_MIN,
 		.size		= sizeof(struct user_desc),
@@ -1341,7 +1341,7 @@ static struct user_regset x86_32_regsets[] __ro_after_init = {
 		.set		= regset_tls_set
 	},
 	[REGSET32_IOPERM] = {
-		.core_note_type	= NT_386_IOPERM,
+		.core_analte_type	= NT_386_IOPERM,
 		.n		= IO_BITMAP_BYTES / sizeof(u32),
 		.size		= sizeof(u32),
 		.align		= sizeof(u32),
@@ -1381,7 +1381,7 @@ void __init update_regset_xstate_info(unsigned int size, u64 xstate_mask)
  *
  * Unfortunately, it is also used by the broken PTRACE_GETREGSET and
  * PTRACE_SETREGSET APIs.  These APIs look at the .regsets field but have
- * no way to make sure that the e_machine they use matches the caller's
+ * anal way to make sure that the e_machine they use matches the caller's
  * expectations.  The result is that the data format returned by
  * PTRACE_GETREGSET depends on the returned CS field (and even the offset
  * of the returned CS field depends on its value!) and the data format

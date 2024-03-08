@@ -233,7 +233,7 @@ cdv_dpll_set_clock_cdv(struct drm_device *dev, struct drm_crtc *crtc,
 
 	cdv_sb_write(dev, SB_REF_SFR(pipe), ref_value);
 
-	/* We don't know what the other fields of these regs are, so
+	/* We don't kanalw what the other fields of these regs are, so
 	 * leave them in place.
 	 */
 	/*
@@ -367,7 +367,7 @@ static const struct gma_limit_t *cdv_intel_limit(struct drm_crtc *crtc,
 	const struct gma_limit_t *limit;
 	if (gma_pipe_has_type(crtc, INTEL_OUTPUT_LVDS)) {
 		/*
-		 * Now only single-channel LVDS is supported on CDV. If it is
+		 * Analw only single-channel LVDS is supported on CDV. If it is
 		 * incorrect, please add the dual-channel LVDS.
 		 */
 		if (refclk == 96000)
@@ -513,7 +513,7 @@ void cdv_update_wm(struct drm_device *dev, struct drm_crtc *crtc)
 
 		REG_WRITE(DSPFW3, 0x36000000);
 
-		/* ignore FW4 */
+		/* iganalre FW4 */
 
 		/* Is pipe b lvds ? */
 		if (gma_crtc->pipe == 1 &&
@@ -554,7 +554,7 @@ void cdv_update_wm(struct drm_device *dev, struct drm_crtc *crtc)
 
 /*
  * Return the pipe currently connected to the panel fitter,
- * or -1 if the panel fitter is not present or not in use
+ * or -1 if the panel fitter is analt present or analt in use
  */
 static int cdv_intel_panel_fitter_pipe(struct drm_device *dev)
 {
@@ -739,7 +739,7 @@ static int cdv_intel_crtc_mode_set(struct drm_crtc *crtc,
 		    LVDS_PIPEB_SELECT;
 		/* Set the B0-B3 data pairs corresponding to
 		 * whether we're going to
-		 * set the DPLLs for dual-channel mode or not.
+		 * set the DPLLs for dual-channel mode or analt.
 		 */
 		if (clock.p2 == 7)
 			lvds |= LVDS_B0B3_POWER_UP | LVDS_CLKB_POWER_UP;
@@ -881,7 +881,7 @@ static int cdv_intel_crtc_clock_get(struct drm_device *dev,
 
 		if ((dpll & PLL_REF_INPUT_MASK) ==
 		    PLLB_REF_INPUT_SPREADSPECTRUMIN) {
-			/* XXX: might not be 66MHz */
+			/* XXX: might analt be 66MHz */
 			i8xx_clock(66000, &clock);
 		} else
 			i8xx_clock(48000, &clock);

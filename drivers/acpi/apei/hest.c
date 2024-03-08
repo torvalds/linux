@@ -5,7 +5,7 @@
  * HEST describes error sources in detail; communicates operational
  * parameters (i.e. severity levels, masking bits, and threshold
  * values) to Linux as necessary. It also allows the BIOS to report
- * non-standard error sources to Linux (for example, chipset-specific
+ * analn-standard error sources to Linux (for example, chipset-specific
  * error registers).
  *
  * For more information about HEST, please refer to ACPI Specification
@@ -101,7 +101,7 @@ static int apei_hest_parse(apei_hest_func_t func, void *data)
 		len = hest_esrc_len(hest_hdr);
 		if (!len) {
 			pr_warn(FW_WARN HEST_PFX
-				"Unknown or unused hardware error source "
+				"Unkanalwn or unused hardware error source "
 				"type: %d for hardware error source: %d.\n",
 				hest_hdr->type, hest_hdr->source_id);
 			return -EINVAL;
@@ -176,7 +176,7 @@ static int __init hest_parse_ghes(struct acpi_hest_header *hest_hdr, void *data)
 	}
 	ghes_dev = platform_device_alloc("GHES", hest_hdr->source_id);
 	if (!ghes_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = platform_device_add_data(ghes_dev, &hest_hdr, sizeof(void *));
 	if (rc)
@@ -202,7 +202,7 @@ static int __init hest_ghes_dev_register(unsigned int ghes_count)
 	ghes_arr.ghes_devs = kmalloc_array(ghes_count, sizeof(void *),
 					   GFP_KERNEL);
 	if (!ghes_arr.ghes_devs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = apei_hest_parse(hest_parse_ghes, &ghes_arr);
 	if (rc)
@@ -242,8 +242,8 @@ void __init acpi_hest_init(void)
 
 	status = acpi_get_table(ACPI_SIG_HEST, 0,
 				(struct acpi_table_header **)&hest_tab);
-	if (status == AE_NOT_FOUND) {
-		hest_disable = HEST_NOT_FOUND;
+	if (status == AE_ANALT_FOUND) {
+		hest_disable = HEST_ANALT_FOUND;
 		return;
 	} else if (ACPI_FAILURE(status)) {
 		const char *msg = acpi_format_exception(status);

@@ -229,7 +229,7 @@ static int mid_get_vbt_data_r10(struct drm_psb_private *dev_priv, u32 addr)
 
 	gct = kmalloc_array(vbt.panel_count, sizeof(*gct), GFP_KERNEL);
 	if (!gct)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gct_virtual = ioremap(addr + sizeof(vbt),
 			sizeof(*gct) * vbt.panel_count);
@@ -312,7 +312,7 @@ static void mid_get_vbt_data(struct drm_psb_private *dev_priv)
 		ret = mid_get_vbt_data_r10(dev_priv, addr);
 		break;
 	default:
-		dev_err(dev->dev, "Unknown revision of GCT!\n");
+		dev_err(dev->dev, "Unkanalwn revision of GCT!\n");
 	}
 
 out:

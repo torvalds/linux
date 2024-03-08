@@ -27,7 +27,7 @@
 #define CX24117_DEFAULT_FIRMWARE "dvb-fe-cx24117.fw"
 #define CX24117_SEARCH_RANGE_KHZ 5000
 
-/* known registers */
+/* kanalwn registers */
 #define CX24117_REG_COMMAND      (0x00)      /* command buffer */
 #define CX24117_REG_EXECUTE      (0x1f)      /* execute command */
 
@@ -107,9 +107,9 @@
 /* arg offset for DiSEqC */
 #define CX24117_DISEQC_DEMOD  (1)
 #define CX24117_DISEQC_BURST  (2)
-#define CX24117_DISEQC_ARG3_2 (3)   /* unknown value=2 */
-#define CX24117_DISEQC_ARG4_0 (4)   /* unknown value=0 */
-#define CX24117_DISEQC_ARG5_0 (5)   /* unknown value=0 */
+#define CX24117_DISEQC_ARG3_2 (3)   /* unkanalwn value=2 */
+#define CX24117_DISEQC_ARG4_0 (4)   /* unkanalwn value=0 */
+#define CX24117_DISEQC_ARG5_0 (5)   /* unkanalwn value=0 */
 #define CX24117_DISEQC_MSGLEN (6)
 #define CX24117_DISEQC_MSGOFS (7)
 
@@ -214,10 +214,10 @@ static struct cx24117_modfec {
 	u8 mask;	/* In DVBS mode this is used to autodetect */
 	u8 val;		/* Passed to the firmware to indicate mode selection */
 } cx24117_modfec_modes[] = {
-	/* QPSK. For unknown rates we set hardware to auto detect 0xfe 0x30 */
+	/* QPSK. For unkanalwn rates we set hardware to auto detect 0xfe 0x30 */
 
 	/*mod   fec       mask  val */
-	{ SYS_DVBS, QPSK, FEC_NONE, 0xfe, 0x30 },
+	{ SYS_DVBS, QPSK, FEC_ANALNE, 0xfe, 0x30 },
 	{ SYS_DVBS, QPSK, FEC_1_2,  0x02, 0x2e }, /* 00000010 00101110 */
 	{ SYS_DVBS, QPSK, FEC_2_3,  0x04, 0x2f }, /* 00000100 00101111 */
 	{ SYS_DVBS, QPSK, FEC_3_4,  0x08, 0x30 }, /* 00001000 00110000 */
@@ -228,7 +228,7 @@ static struct cx24117_modfec {
 	{ SYS_DVBS, QPSK, FEC_8_9,  0xfe, 0x30 }, /* 0000000? ?        */
 	{ SYS_DVBS, QPSK, FEC_AUTO, 0xfe, 0x30 },
 	/* NBC-QPSK */
-	{ SYS_DVBS2, QPSK, FEC_NONE, 0x00, 0x00 },
+	{ SYS_DVBS2, QPSK, FEC_ANALNE, 0x00, 0x00 },
 	{ SYS_DVBS2, QPSK, FEC_1_2,  0x00, 0x04 },
 	{ SYS_DVBS2, QPSK, FEC_3_5,  0x00, 0x05 },
 	{ SYS_DVBS2, QPSK, FEC_2_3,  0x00, 0x06 },
@@ -239,7 +239,7 @@ static struct cx24117_modfec {
 	{ SYS_DVBS2, QPSK, FEC_9_10, 0x00, 0x0b },
 	{ SYS_DVBS2, QPSK, FEC_AUTO, 0x00, 0x00 },
 	/* 8PSK */
-	{ SYS_DVBS2, PSK_8, FEC_NONE, 0x00, 0x00 },
+	{ SYS_DVBS2, PSK_8, FEC_ANALNE, 0x00, 0x00 },
 	{ SYS_DVBS2, PSK_8, FEC_3_5,  0x00, 0x0c },
 	{ SYS_DVBS2, PSK_8, FEC_2_3,  0x00, 0x0d },
 	{ SYS_DVBS2, PSK_8, FEC_3_4,  0x00, 0x0e },
@@ -462,7 +462,7 @@ static int cx24117_firmware_ondemand(struct dvb_frontend *fe)
 			"%s: Waiting for firmware upload(2)...\n", __func__);
 		if (ret) {
 			dev_err(&state->priv->i2c->dev,
-				"%s: No firmware uploaded (timeout or file not found?)\n",
+				"%s: Anal firmware uploaded (timeout or file analt found?)\n",
 __func__);
 			return ret;
 		}
@@ -491,7 +491,7 @@ __func__);
 /* Take a basic firmware command structure, format it
  * and forward it for processing
  */
-static int cx24117_cmd_execute_nolock(struct dvb_frontend *fe,
+static int cx24117_cmd_execute_anallock(struct dvb_frontend *fe,
 	struct cx24117_cmd *cmd)
 {
 	struct cx24117_state *state = fe->demodulator_priv;
@@ -515,9 +515,9 @@ static int cx24117_cmd_execute_nolock(struct dvb_frontend *fe,
 		msleep(20);
 		if (i++ > 40) {
 			/* Avoid looping forever if the firmware does
-				not respond */
+				analt respond */
 			dev_warn(&state->priv->i2c->dev,
-				"%s() Firmware not responding\n", __func__);
+				"%s() Firmware analt responding\n", __func__);
 			return -EIO;
 		}
 	}
@@ -530,7 +530,7 @@ static int cx24117_cmd_execute(struct dvb_frontend *fe, struct cx24117_cmd *cmd)
 	int ret;
 
 	mutex_lock(&state->priv->fe_lock);
-	ret = cx24117_cmd_execute_nolock(fe, cmd);
+	ret = cx24117_cmd_execute_anallock(fe, cmd);
 	mutex_unlock(&state->priv->fe_lock);
 
 	return ret;
@@ -604,7 +604,7 @@ static int cx24117_load_firmware(struct dvb_frontend *fe,
 	buf = kmalloc(fw->size + 1, GFP_KERNEL);
 	if (buf == NULL) {
 		state->priv->skip_fw_load = 0;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* fw upload reg */
@@ -635,7 +635,7 @@ static int cx24117_load_firmware(struct dvb_frontend *fe,
 	cmd.args[2] = 0x01;
 	cmd.args[3] = 0x00;
 	cmd.len = 4;
-	ret = cx24117_cmd_execute_nolock(fe, &cmd);
+	ret = cx24117_cmd_execute_anallock(fe, &cmd);
 	if (ret != 0)
 		goto error;
 
@@ -654,7 +654,7 @@ static int cx24117_load_firmware(struct dvb_frontend *fe,
 	cmd.args[11] = 0x9d;
 	cmd.args[12] = 0xfc;
 	cmd.len = 13;
-	ret = cx24117_cmd_execute_nolock(fe, &cmd);
+	ret = cx24117_cmd_execute_anallock(fe, &cmd);
 	if (ret != 0)
 		goto error;
 
@@ -673,7 +673,7 @@ static int cx24117_load_firmware(struct dvb_frontend *fe,
 	cmd.args[11] = 0x02;
 	cmd.args[12] = 0x00;
 	cmd.len = 13;
-	ret = cx24117_cmd_execute_nolock(fe, &cmd);
+	ret = cx24117_cmd_execute_anallock(fe, &cmd);
 	if (ret != 0)
 		goto error;
 
@@ -685,7 +685,7 @@ static int cx24117_load_firmware(struct dvb_frontend *fe,
 	cmd.args[4] = 0x01;
 	cmd.args[5] = 0x00;
 	cmd.len = 6;
-	ret = cx24117_cmd_execute_nolock(fe, &cmd);
+	ret = cx24117_cmd_execute_anallock(fe, &cmd);
 	if (ret != 0)
 		goto error;
 
@@ -700,7 +700,7 @@ static int cx24117_load_firmware(struct dvb_frontend *fe,
 		cmd.args[6] = 0x55;
 		cmd.args[7] = 0x00;
 		cmd.len = 8;
-		ret = cx24117_cmd_execute_nolock(fe, &cmd);
+		ret = cx24117_cmd_execute_anallock(fe, &cmd);
 		if (ret != 0)
 			goto error;
 	}
@@ -714,7 +714,7 @@ static int cx24117_load_firmware(struct dvb_frontend *fe,
 	cmd.len = 2;
 	for (i = 0; i < 4; i++) {
 		cmd.args[1] = i;
-		ret = cx24117_cmd_execute_nolock(fe, &cmd);
+		ret = cx24117_cmd_execute_anallock(fe, &cmd);
 		if (ret != 0)
 			goto error;
 		vers[i] = cx24117_readreg(state, 0x33);
@@ -889,7 +889,7 @@ static int cx24117_wait_for_lnb(struct dvb_frontend *fe)
 		msleep(30);
 	}
 
-	dev_warn(&state->priv->i2c->dev, "%s: demod%d LNB not ready\n",
+	dev_warn(&state->priv->i2c->dev, "%s: demod%d LNB analt ready\n",
 		KBUILD_MODNAME, state->demod);
 
 	return -ETIMEDOUT; /* -EBUSY ? */
@@ -1004,7 +1004,7 @@ static int cx24117_diseqc_init(struct dvb_frontend *fe)
 	/* DiSEqC burst */
 	state->dsec_cmd.args[CX24117_DISEQC_BURST] = CX24117_DISEQC_MINI_A;
 
-	/* Unknown */
+	/* Unkanalwn */
 	state->dsec_cmd.args[CX24117_DISEQC_ARG3_2] = 0x02;
 	state->dsec_cmd.args[CX24117_DISEQC_ARG4_0] = 0x00;
 
@@ -1229,7 +1229,7 @@ static int cx24117_initfe(struct dvb_frontend *fe)
 	cmd.args[1] = (state->demod ? 1 : 0);
 	cmd.args[2] = 0;
 	cmd.len = 3;
-	ret = cx24117_cmd_execute_nolock(fe, &cmd);
+	ret = cx24117_cmd_execute_anallock(fe, &cmd);
 	if (ret != 0)
 		goto exit;
 
@@ -1243,7 +1243,7 @@ static int cx24117_initfe(struct dvb_frontend *fe)
 	cmd.args[2] = 0x10;
 	cmd.args[3] = 0x10;
 	cmd.len = 4;
-	ret = cx24117_cmd_execute_nolock(fe, &cmd);
+	ret = cx24117_cmd_execute_anallock(fe, &cmd);
 	if (ret != 0)
 		goto exit;
 
@@ -1252,7 +1252,7 @@ static int cx24117_initfe(struct dvb_frontend *fe)
 	cmd.args[1] = (state->demod ? 1 : 0);
 	cmd.args[2] = CX24117_OCC;
 	cmd.len = 3;
-	ret = cx24117_cmd_execute_nolock(fe, &cmd);
+	ret = cx24117_cmd_execute_anallock(fe, &cmd);
 	if (ret != 0)
 		goto exit;
 
@@ -1262,7 +1262,7 @@ static int cx24117_initfe(struct dvb_frontend *fe)
 	cmd.args[1] = 0x30;
 	cmd.args[2] = 0x30;
 	cmd.len = 3;
-	ret = cx24117_cmd_execute_nolock(fe, &cmd);
+	ret = cx24117_cmd_execute_anallock(fe, &cmd);
 
 exit:
 	mutex_unlock(&state->priv->fe_lock);
@@ -1330,13 +1330,13 @@ static int cx24117_set_frontend(struct dvb_frontend *fe)
 
 		/*
 		 * NBC 8PSK/QPSK with DVB-S is supported for DVB-S2,
-		 * but not hardware auto detection
+		 * but analt hardware auto detection
 		 */
 		if (c->modulation != PSK_8 && c->modulation != QPSK) {
 			dev_dbg(&state->priv->i2c->dev,
 				"%s() demod%d unsupported modulation (%d)\n",
 				__func__, state->demod, c->modulation);
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 
 		switch (c->pilot) {
@@ -1353,7 +1353,7 @@ static int cx24117_set_frontend(struct dvb_frontend *fe)
 			dev_dbg(&state->priv->i2c->dev,
 				"%s() demod%d unsupported pilot mode (%d)\n",
 				__func__, state->demod, c->pilot);
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 
 		switch (c->rolloff) {
@@ -1375,7 +1375,7 @@ static int cx24117_set_frontend(struct dvb_frontend *fe)
 			dev_warn(&state->priv->i2c->dev,
 				"%s: demod%d unsupported rolloff (%d)\n",
 				KBUILD_MODNAME, state->demod, c->rolloff);
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		break;
 
@@ -1516,7 +1516,7 @@ static int cx24117_set_frontend(struct dvb_frontend *fe)
 			msleep(20);
 		}
 
-		dev_dbg(&state->priv->i2c->dev, "%s() demod%d not tuned\n",
+		dev_dbg(&state->priv->i2c->dev, "%s() demod%d analt tuned\n",
 			__func__, state->demod);
 
 		/* try next rolloff value */

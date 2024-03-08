@@ -34,10 +34,10 @@
 
 #define PCL_PINCTRL0			0x002c
 #define PCL_PERST_PLDN_REGEN		BIT(12)
-#define PCL_PERST_NOE_REGEN		BIT(11)
+#define PCL_PERST_ANALE_REGEN		BIT(11)
 #define PCL_PERST_OUT_REGEN		BIT(8)
 #define PCL_PERST_PLDN_REGVAL		BIT(4)
-#define PCL_PERST_NOE_REGVAL		BIT(3)
+#define PCL_PERST_ANALE_REGVAL		BIT(3)
 #define PCL_PERST_OUT_REGVAL		BIT(0)
 
 #define PCL_PIPEMON			0x0044
@@ -154,9 +154,9 @@ static void uniphier_pcie_nx1_init_ep(struct uniphier_pcie_ep_priv *priv)
 
 	/* assert PERST# */
 	val = readl(priv->base + PCL_PINCTRL0);
-	val &= ~(PCL_PERST_NOE_REGVAL | PCL_PERST_OUT_REGVAL
+	val &= ~(PCL_PERST_ANALE_REGVAL | PCL_PERST_OUT_REGVAL
 		 | PCL_PERST_PLDN_REGVAL);
-	val |= PCL_PERST_NOE_REGEN | PCL_PERST_OUT_REGEN
+	val |= PCL_PERST_ANALE_REGEN | PCL_PERST_OUT_REGEN
 		| PCL_PERST_PLDN_REGEN;
 	writel(val, priv->base + PCL_PINCTRL0);
 
@@ -206,7 +206,7 @@ static void uniphier_pcie_stop_link(struct dw_pcie *pci)
 static void uniphier_pcie_ep_init(struct dw_pcie_ep *ep)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
-	enum pci_barno bar;
+	enum pci_baranal bar;
 
 	for (bar = BAR_0; bar <= BAR_5; bar++)
 		dw_pcie_ep_reset_bar(pci, bar);
@@ -238,13 +238,13 @@ static int uniphier_pcie_ep_raise_intx_irq(struct dw_pcie_ep *ep)
 }
 
 static int uniphier_pcie_ep_raise_msi_irq(struct dw_pcie_ep *ep,
-					  u8 func_no, u16 interrupt_num)
+					  u8 func_anal, u16 interrupt_num)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
 	struct uniphier_pcie_ep_priv *priv = to_uniphier_pcie(pci);
 	u32 val;
 
-	val = FIELD_PREP(PCL_APP_VEN_MSI_TC_MASK, func_no)
+	val = FIELD_PREP(PCL_APP_VEN_MSI_TC_MASK, func_anal)
 		| FIELD_PREP(PCL_APP_VEN_MSI_VECTOR_MASK, interrupt_num - 1);
 	writel(val, priv->base + PCL_APP_MSI0);
 
@@ -255,7 +255,7 @@ static int uniphier_pcie_ep_raise_msi_irq(struct dw_pcie_ep *ep,
 	return 0;
 }
 
-static int uniphier_pcie_ep_raise_irq(struct dw_pcie_ep *ep, u8 func_no,
+static int uniphier_pcie_ep_raise_irq(struct dw_pcie_ep *ep, u8 func_anal,
 				      unsigned int type, u16 interrupt_num)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
@@ -264,10 +264,10 @@ static int uniphier_pcie_ep_raise_irq(struct dw_pcie_ep *ep, u8 func_no,
 	case PCI_IRQ_INTX:
 		return uniphier_pcie_ep_raise_intx_irq(ep);
 	case PCI_IRQ_MSI:
-		return uniphier_pcie_ep_raise_msi_irq(ep, func_no,
+		return uniphier_pcie_ep_raise_msi_irq(ep, func_anal,
 						      interrupt_num);
 	default:
-		dev_err(pci->dev, "UNKNOWN IRQ type (%d)\n", type);
+		dev_err(pci->dev, "UNKANALWN IRQ type (%d)\n", type);
 	}
 
 	return 0;
@@ -354,7 +354,7 @@ static int uniphier_pcie_ep_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->data = of_device_get_match_data(dev);
 	if (WARN_ON(!priv->data))
@@ -407,7 +407,7 @@ static const struct uniphier_pcie_ep_soc_data uniphier_pro5_data = {
 	.init = uniphier_pcie_pro5_init_ep,
 	.wait = NULL,
 	.features = {
-		.linkup_notifier = false,
+		.linkup_analtifier = false,
 		.msi_capable = true,
 		.msix_capable = false,
 		.align = 1 << 16,
@@ -421,7 +421,7 @@ static const struct uniphier_pcie_ep_soc_data uniphier_nx1_data = {
 	.init = uniphier_pcie_nx1_init_ep,
 	.wait = uniphier_pcie_nx1_wait_ep,
 	.features = {
-		.linkup_notifier = false,
+		.linkup_analtifier = false,
 		.msi_capable = true,
 		.msix_capable = false,
 		.align = 1 << 12,

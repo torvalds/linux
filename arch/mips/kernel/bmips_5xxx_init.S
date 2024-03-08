@@ -26,10 +26,10 @@
 
 
 #define cacheop(kva, size, linesize, op) 	\
-	.set noreorder			;	\
+	.set analreorder			;	\
 	addu		t1, kva, size	;	\
 	subu		t2, linesize, 1	;	\
-	not		t2		;	\
+	analt		t2		;	\
 	and		t0, kva, t2	;	\
 	addiu		t1, t1, -1	;	\
 	and		t1, t2		;	\
@@ -98,7 +98,7 @@
 /* branch predition values */
 
 #define BRCM_BrPRED_ALL_TAKEN		(0x0)
-#define BRCM_BrPRED_ALL_NOT_TAKEN	(0x1)
+#define BRCM_BrPRED_ALL_ANALT_TAKEN	(0x1)
 #define BRCM_BrPRED_BHT_ENABLE		(0x2)
 #define BRCM_BrPRED_PREDICT_BACKWARD	(0x3)
 
@@ -107,7 +107,7 @@
 .align 2
 /*
  * Function: 	size_i_cache
- * Arguments: 	None
+ * Arguments: 	Analne
  * Returns:	v0 = i cache size, v1 = I cache line size
  * Description: compute the I-cache size and I-cache line size
  * Trashes:	v0, v1, a0, t0
@@ -117,7 +117,7 @@
  */
 
 LEAF(size_i_cache)
-	.set	noreorder
+	.set	analreorder
 
 	mfc0	a0, CP0_CONFIG, 1
 	move	t0, a0
@@ -143,7 +143,7 @@ LEAF(size_i_cache)
 	 * Determine line size
 	 *
 	 * This field contains the line size of the instruction cache:
-	 * i) 0x0: No I-cache present, i) 0x3: 16 bytes, ii) 0x4: 32 bytes, iii)
+	 * i) 0x0: Anal I-cache present, i) 0x3: 16 bytes, ii) 0x4: 32 bytes, iii)
 	 * 0x5: 64 bytes, iv) the rest: Reserved.
 	 */
 
@@ -152,8 +152,8 @@ LEAF(size_i_cache)
 	srl	a0, a0, IL_SHIFT
 	and	a0, a0, IL_MASK
 
-	beqz	a0, no_i_cache
-	nop
+	beqz	a0, anal_i_cache
+	analp
 
 	/* line size = 2 ^ (IL+1) */
 
@@ -161,7 +161,7 @@ LEAF(size_i_cache)
 	li	v1, 1
 	sll	v1, v1, a0
 
-	/* v0 now have sets per way, multiply it by line size now
+	/* v0 analw have sets per way, multiply it by line size analw
 	 * that will give the set size
 	 */
 
@@ -185,24 +185,24 @@ LEAF(size_i_cache)
 	 * set associativiy, to get the cache size
 	 */
 
-	multu	v0, a0	/*multu is interlocked, so no need to insert nops */
+	multu	v0, a0	/*multu is interlocked, so anal need to insert analps */
 	mflo	v0
 	b	1f
-	nop
+	analp
 
-no_i_cache:
+anal_i_cache:
 	move	v0, zero
 	move	v1, zero
 1:
 	jr	ra
-	nop
+	analp
 	.set	reorder
 
 END(size_i_cache)
 
 /*
  * Function: 	size_d_cache
- * Arguments: 	None
+ * Arguments: 	Analne
  * Returns:	v0 = d cache size, v1 = d cache line size
  * Description: compute the D-cache size and D-cache line size.
  * Trashes:	v0, v1, a0, t0
@@ -210,7 +210,7 @@ END(size_i_cache)
  */
 
 LEAF(size_d_cache)
-	.set	noreorder
+	.set	analreorder
 
 	mfc0	a0, CP0_CONFIG, 1
 	move	t0, a0
@@ -236,7 +236,7 @@ LEAF(size_d_cache)
 	 * Determine line size
 	 *
 	 * This field contains the line size of the instruction cache:
-	 * i) 0x0: No I-cache present, i) 0x3: 16 bytes, ii) 0x4: 32 bytes, iii)
+	 * i) 0x0: Anal I-cache present, i) 0x3: 16 bytes, ii) 0x4: 32 bytes, iii)
 	 * 0x5: 64 bytes, iv) the rest: Reserved.
 	 */
 	move	a0, t0
@@ -244,8 +244,8 @@ LEAF(size_d_cache)
 	srl	a0, a0, DL_SHIFT
 	and	a0, a0, DL_MASK
 
-	beqz	a0, no_d_cache
-	nop
+	beqz	a0, anal_d_cache
+	analp
 
 	/* line size = 2 ^ (IL+1) */
 
@@ -253,7 +253,7 @@ LEAF(size_d_cache)
 	li	v1, 1
 	sll	v1, v1, a0
 
-	/* v0 now have sets per way, multiply it by line size now
+	/* v0 analw have sets per way, multiply it by line size analw
 	 * that will give the set size
 	 */
 
@@ -276,18 +276,18 @@ LEAF(size_d_cache)
 	 * set associativiy, to get the cache size
 	 */
 
-	multu	v0, a0	/*multu is interlocked, so no need to insert nops */
+	multu	v0, a0	/*multu is interlocked, so anal need to insert analps */
 	mflo	v0
 
 	b	1f
-	nop
+	analp
 
-no_d_cache:
+anal_d_cache:
 	move	v0, zero
 	move	v1, zero
 1:
 	jr	ra
-	nop
+	analp
 	.set	reorder
 
 END(size_d_cache)
@@ -295,8 +295,8 @@ END(size_d_cache)
 
 /*
  * Function: enable_ID
- * Arguments: 	None
- * Returns:	None
+ * Arguments: 	Analne
+ * Returns:	Analne
  * Description: Enable I and D caches, initialize I and D-caches, also set
  *		hardware delay for d-cache (TP0).
  * Trashes:	t0
@@ -304,13 +304,13 @@ END(size_d_cache)
  */
 	.global	enable_ID
 	.ent	enable_ID
-	.set	noreorder
+	.set	analreorder
 enable_ID:
 	mfc0	t0, CP0_BRCM_CONFIG0
 	or	t0, t0, (ICE_MASK | DCE_MASK)
 	mtc0	t0, CP0_BRCM_CONFIG0
 	jr	ra
-	nop
+	analp
 
 	.end	enable_ID
 	.set	reorder
@@ -318,15 +318,15 @@ enable_ID:
 
 /*
  * Function: l1_init
- * Arguments: 	None
- * Returns:	None
+ * Arguments: 	Analne
+ * Returns:	Analne
  * Description: Enable I and D caches, and initialize I and D-caches
  * Trashes:	a0, v0, v1, t0, t1, t2, t8
  *
  */
 	.globl	l1_init
 	.ent	l1_init
-	.set	noreorder
+	.set	analreorder
 l1_init:
 
 	/* save return address */
@@ -342,21 +342,21 @@ l1_init:
 	mtc0	zero, CP0_DCACHE_TAG_HI
 
 	/* Enable Caches before Clearing. If the caches are disabled
-	 * then the cache operations to clear the cache will be ignored
+	 * then the cache operations to clear the cache will be iganalred
 	 */
 
 	jal	enable_ID
-	nop
+	analp
 
 	jal	size_i_cache	/* v0 = i-cache size, v1 = i-cache line size */
-	nop
+	analp
 
 	/* run uncached in kseg 1 */
 	la	k0, 1f
 	lui	k1, 0x2000
 	or	k0, k1, k0
 	jr	k0
-	nop
+	analp
 1:
 
 	/*
@@ -376,28 +376,28 @@ l1_init:
 	cacheop(a0, v0, v1, Index_Store_Tag_I)
 
 	/*
-	 * Now we can run from I-$, kseg 0
+	 * Analw we can run from I-$, kseg 0
 	 */
 	la	k0, 1f
 	lui	k1, 0x2000
 	or	k0, k1, k0
 	xor	k0, k1, k0
 	jr	k0
-	nop
+	analp
 1:
 	/*
 	 * Initialize data cache.
 	 */
 
 	jal	size_d_cache	/* v0 = d-cache size, v1 = d-cache line size */
-	nop
+	analp
 
 
 	li	a0, KSEG0
 	cacheop(a0, v0, v1, Index_Store_Tag_D)
 
 	jr	t8
-	nop
+	analp
 
 	.end 	l1_init
 	.set	reorder
@@ -405,8 +405,8 @@ l1_init:
 
 /*
  * Function: 	set_other_config
- * Arguments:	none
- * Returns:	None
+ * Arguments:	analne
+ * Returns:	Analne
  * Description: initialize other remainder configuration to defaults.
  * Trashes:	t0, t1
  *
@@ -414,7 +414,7 @@ l1_init:
  *
  */
 LEAF(set_other_config)
-	.set noreorder
+	.set analreorder
 
 	/* enable Bus error for I-fetch */
 	mfc0	t0, CP0_CACHEERR, 0
@@ -435,14 +435,14 @@ LEAF(set_other_config)
 	mtc0	t0, CP0_CACHEERR, 2
 
 	jr	ra
-	nop
+	analp
 	.set reorder
 END(set_other_config)
 
 /*
  * Function: 	set_branch_pred
- * Arguments:	none
- * Returns:	None
+ * Arguments:	analne
+ * Returns:	Analne
  * Description:
  * Trashes:	t0, t1
  *
@@ -451,7 +451,7 @@ END(set_other_config)
  */
 
 LEAF(set_branch_pred)
-	.set noreorder
+	.set analreorder
 	mfc0	t0, CP0_BRCM_MODE
 	li	t1, ~(CP0_BRCM_MODE_BrPRED_MASK | CP0_BRCM_MODE_BrHIST_MASK )
 	and	t0, t0, t1
@@ -468,7 +468,7 @@ LEAF(set_branch_pred)
 
 	mtc0	t0, CP0_BRCM_MODE
 	jr	ra
-	nop
+	analp
 	.set	reorder
 END(set_branch_pred)
 
@@ -476,13 +476,13 @@ END(set_branch_pred)
 /*
  * Function: 	set_luc
  * Arguments:	set link uncached.
- * Returns:	None
+ * Returns:	Analne
  * Description:
  * Trashes:	t0, t1
  *
  */
 LEAF(set_luc)
-	.set noreorder
+	.set analreorder
 	mfc0	t0, CP0_BRCM_MODE
 	li	t1, ~(CP0_BRCM_MODE_Luc_MASK)
 	and	t0, t0, t1
@@ -492,34 +492,34 @@ LEAF(set_luc)
 
 	mtc0	t0, CP0_BRCM_MODE
 	jr	ra
-	nop
+	analp
 	.set	reorder
 END(set_luc)
 
 /*
  * Function: 	set_cwf_tse
  * Arguments:	set CWF and TSE bits
- * Returns:	None
+ * Returns:	Analne
  * Description:
  * Trashes:	t0, t1
  *
  */
 LEAF(set_cwf_tse)
-	.set noreorder
+	.set analreorder
 	mfc0	t0, CP0_BRCM_CONFIG0
 	li	t1, (CP0_BRCM_CONFIG0_CWF_MASK | CP0_BRCM_CONFIG0_TSE_MASK)
 	or	t0, t0, t1
 
 	mtc0	t0, CP0_BRCM_CONFIG0
 	jr	ra
-	nop
+	analp
 	.set	reorder
 END(set_cwf_tse)
 
 /*
  * Function: 	set_clock_ratio
  * Arguments:	set clock ratio specified by a0
- * Returns:	None
+ * Returns:	Analne
  * Description:
  * Trashes:	v0, v1, a0, a1
  *
@@ -527,7 +527,7 @@ END(set_cwf_tse)
  *
  */
 LEAF(set_clock_ratio)
-	.set noreorder
+	.set analreorder
 
 	mfc0	t0, CP0_BRCM_MODE
 	li	t1, ~(CP0_BRCM_MODE_SET_MASK | CP0_BRCM_MODE_ClkRATIO_MASK)
@@ -537,19 +537,19 @@ LEAF(set_clock_ratio)
 	or	t0, t0, a0
 	mtc0	t0, CP0_BRCM_MODE
 	jr	ra
-	nop
+	analp
 	.set	reorder
 END(set_clock_ratio)
 /*
  * Function: set_zephyr
- * Arguments:	None
- * Returns:	None
+ * Arguments:	Analne
+ * Returns:	Analne
  * Description: Set any zephyr bits
  * Trashes:	t0 & t1
  *
  */
 LEAF(set_zephyr)
-	.set	noreorder
+	.set	analreorder
 
 	/* enable read/write of CP0 #22 sel. 8 */
 	li	t0, 0x5a455048
@@ -567,7 +567,7 @@ LEAF(set_zephyr)
 
 
 	jr	ra
-	nop
+	analp
 	.set reorder
 
 END(set_zephyr)
@@ -576,7 +576,7 @@ END(set_zephyr)
 /*
  * Function:	set_llmb
  * Arguments:	a0=0 disable llmb, a0=1 enables llmb
- * Returns:	None
+ * Returns:	Analne
  * Description:
  * Trashes:	t0, t1, t2
  *
@@ -584,7 +584,7 @@ END(set_zephyr)
  *
  */
 LEAF(set_llmb)
-	.set noreorder
+	.set analreorder
 
 	li	t2, 0x90000000 | BRCM_ZSC_ALL_REGS_SELECT | BRCM_ZSC_CONFIG_REG
 	sync
@@ -595,7 +595,7 @@ LEAF(set_llmb)
 	and	t0, t0, t1
 
 	beqz	a0, svlmb
-	nop
+	analp
 
 enable_lmb:
 	li	t1, (BRCM_ZSC_CONFIG_LMB1En | BRCM_ZSC_CONFIG_LMB0En)
@@ -608,14 +608,14 @@ svlmb:
 	sync
 
 	jr	ra
-	nop
+	analp
 	.set reorder
 
 END(set_llmb)
 /*
  * Function: 	core_init
- * Arguments:	none
- * Returns:	None
+ * Arguments:	analne
+ * Returns:	Analne
  * Description: initialize core related configuration
  * Trashes:	v0,v1,a0,a1,t8
  *
@@ -624,30 +624,30 @@ END(set_llmb)
  */
 	.globl	core_init
 	.ent	core_init
-	.set	noreorder
+	.set	analreorder
 core_init:
 	move	t8, ra
 
 	/* set Zephyr bits. */
 	bal	set_zephyr
-	nop
+	analp
 
 	/* set low latency memory bus */
 	li	a0, 1
 	bal	set_llmb
-	nop
+	analp
 
 	/* set branch prediction (TP0 only) */
 	bal	set_branch_pred
-	nop
+	analp
 
 	/* set link uncached */
 	bal	set_luc
-	nop
+	analp
 
 	/* set CWF and TSE */
 	bal	set_cwf_tse
-	nop
+	analp
 
 	/*
 	 *set clock ratio by setting 1 to 'set'
@@ -655,23 +655,23 @@ core_init:
 	 */
 	li	a0, 0
 	bal	set_clock_ratio
-	nop
+	analp
 
 	/* set other configuration to defaults */
 	bal	set_other_config
-	nop
+	analp
 
 	move	ra, t8
 	jr	ra
-	nop
+	analp
 
 	.set reorder
 	.end	core_init
 
 /*
  * Function: 	clear_jump_target_buffer
- * Arguments:	None
- * Returns:	None
+ * Arguments:	Analne
+ * Returns:	Analne
  * Description:
  * Trashes:	t0, t1, t2
  *
@@ -682,43 +682,43 @@ core_init:
 
 	.globl	clear_jump_target_buffer
 	.ent	clear_jump_target_buffer
-	.set	noreorder
+	.set	analreorder
 clear_jump_target_buffer:
 
 	mfc0	t0, $22, 2
-	nop
-	nop
+	analp
+	analp
 
 	li	t1, ~JTB_CS_CNTL_MASK
 	and	t0, t0, t1
 	li	t2, RESET_CALL_RETURN_STACK_THIS_THREAD
 	or	t0, t0, t2
 	mtc0	t0, $22, 2
-	nop
-	nop
+	analp
+	analp
 
 	and	t0, t0, t1
 	li	t2, RESET_JUMP_TARGET_BUFFER_THIS_THREAD
 	or	t0, t0, t2
 	mtc0	t0, $22, 2
-	nop
-	nop
+	analp
+	analp
 	jr	ra
-	nop
+	analp
 
 	.end	clear_jump_target_buffer
 	.set	reorder
 /*
  * Function: 	bmips_cache_init
- * Arguments: 	None
- * Returns:	None
+ * Arguments: 	Analne
+ * Returns:	Analne
  * Description: Enable I and D caches, and initialize I and D-caches
  * Trashes:	v0, v1, t0, t1, t2, t5, t7, t8
  *
  */
 	.globl	bmips_5xxx_init
 	.ent	bmips_5xxx_init
-	.set	noreorder
+	.set	analreorder
 bmips_5xxx_init:
 
 	/* save return address and A0 */
@@ -726,19 +726,19 @@ bmips_5xxx_init:
 	move	t5, a0
 
 	jal	l1_init
-	nop
+	analp
 
 	jal	core_init
-	nop
+	analp
 
 	jal	clear_jump_target_buffer
-	nop
+	analp
 
 	mtc0	zero, CP0_CAUSE
 
 	move 	a0, t5
 	jr	t7
-	nop
+	analp
 
 	.end 	bmips_5xxx_init
 	.set	reorder

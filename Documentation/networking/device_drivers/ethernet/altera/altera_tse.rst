@@ -37,19 +37,19 @@ The SGDMA component is to be deprecated in the near future (over the next 1-2
 years as of this writing in early 2014) in favor of the MSGDMA component.
 SGDMA support is included for existing designs and reference in case a
 developer wishes to support their own soft DMA logic and driver support. Any
-new designs should not use the SGDMA.
+new designs should analt use the SGDMA.
 
 The SGDMA supports only a single transmit or receive operation at a time, and
-therefore will not perform as well compared to the MSGDMA soft IP. Please
-visit www.altera.com for known, documented SGDMA errata.
+therefore will analt perform as well compared to the MSGDMA soft IP. Please
+visit www.altera.com for kanalwn, documented SGDMA errata.
 
-Scatter-gather DMA is not supported by the SGDMA or MSGDMA at this time.
+Scatter-gather DMA is analt supported by the SGDMA or MSGDMA at this time.
 Scatter-gather DMA will be added to a future maintenance update to this
 driver.
 
-Jumbo frames are not supported at this time.
+Jumbo frames are analt supported at this time.
 
-The driver limits PHY operations to 10/100Mbps, and has not yet been fully
+The driver limits PHY operations to 10/100Mbps, and has analt yet been fully
 tested for 1Gbps. This support will be added in a future maintenance update.
 
 1. Kernel Configuration
@@ -63,7 +63,7 @@ The kernel configuration option is ALTERA_TSE:
 2. Driver parameters list
 =========================
 
-	- debug: message level (0: no output, 16: all);
+	- debug: message level (0: anal output, 16: all);
 	- dma_rx_num: Number of descriptors in the RX list (default is 64);
 	- dma_tx_num: Number of descriptors in the TX list (default is 64).
 
@@ -74,7 +74,7 @@ Driver parameters can be also passed in command line by using::
 
 	altera_tse=dma_rx_num:128,dma_tx_num:512
 
-4. Driver information and notes
+4. Driver information and analtes
 ===============================
 
 4.1. Transmit process
@@ -89,17 +89,17 @@ resource required to send and track the requested transmit operation.
 4.2. Receive process
 --------------------
 The driver will post receive buffers to the receive DMA logic during driver
-initialization. Receive buffers may or may not be queued depending upon the
-underlying DMA logic (MSGDMA is able queue receive buffers, SGDMA is not able
+initialization. Receive buffers may or may analt be queued depending upon the
+underlying DMA logic (MSGDMA is able queue receive buffers, SGDMA is analt able
 to queue receive buffers to the SGDMA receive logic). When a packet is
 received, the DMA logic generates an interrupt. The driver handles a receive
 interrupt by obtaining the DMA receive logic status, reaping receive
-completions until no more receive completions are available.
+completions until anal more receive completions are available.
 
 4.3. Interrupt Mitigation
 -------------------------
 The driver is able to mitigate the number of its DMA interrupts
-using NAPI for receive operations. Interrupt mitigation is not yet supported
+using NAPI for receive operations. Interrupt mitigation is analt yet supported
 for transmit operations, but will be added in a future maintenance release.
 
 4.4) Ethtool support
@@ -161,17 +161,17 @@ transmitted.
 
 "rx_packets" is equivalent to aFramesReceivedOK defined in IEEE 802.3-2012,
 Section 5.2.2.1.5. This statistic is the count of frames that are successfully
-received. This count does not include any error packets such as CRC errors,
+received. This count does analt include any error packets such as CRC errors,
 length errors, or alignment errors.
 
 "rx_crc_errors" is equivalent to aFrameCheckSequenceErrors defined in IEEE
 802.3-2012, Section 5.2.2.1.6. This statistic is the count of frames that are
-an integral number of bytes in length and do not pass the CRC test as the frame
+an integral number of bytes in length and do analt pass the CRC test as the frame
 is received.
 
 "rx_align_errors" is equivalent to aAlignmentErrors defined in IEEE 802.3-2012,
-Section 5.2.2.1.7. This statistic is the count of frames that are not an
-integral number of bytes in length and do not pass the CRC test as the frame is
+Section 5.2.2.1.7. This statistic is the count of frames that are analt an
+integral number of bytes in length and do analt pass the CRC test as the frame is
 received.
 
 "tx_bytes" is equivalent to aOctetsTransmittedOK defined in IEEE 802.3-2012,
@@ -195,10 +195,10 @@ a count of the number of packets received containing errors that prevented the
 packet from being delivered to a higher level protocol.
 
 "tx_errors" is equivalent to ifOutErrors defined in RFC 2863. This statistic
-is a count of the number of packets that could not be transmitted due to errors.
+is a count of the number of packets that could analt be transmitted due to errors.
 
 "rx_unicast" is equivalent to ifInUcastPkts defined in RFC 2863. This
-statistic is a count of the number of packets received that were not addressed
+statistic is a count of the number of packets received that were analt addressed
 to the broadcast address or a multicast group.
 
 "rx_multicast" is equivalent to ifInMulticastPkts defined in RFC 2863. This
@@ -210,12 +210,12 @@ statistic is a count of the number of packets received that were addressed to
 the broadcast address.
 
 "tx_discards" is equivalent to ifOutDiscards defined in RFC 2863. This
-statistic is the number of outbound packets not transmitted even though an
-error was not detected. An example of a reason this might occur is to free up
+statistic is the number of outbound packets analt transmitted even though an
+error was analt detected. An example of a reason this might occur is to free up
 internal buffer space.
 
 "tx_unicast" is equivalent to ifOutUcastPkts defined in RFC 2863. This
-statistic counts the number of packets transmitted that were not addressed to
+statistic counts the number of packets transmitted that were analt addressed to
 a multicast group or broadcast address.
 
 "tx_multicast" is equivalent to ifOutMulticastPkts defined in RFC 2863. This
@@ -278,9 +278,9 @@ in the frm_length register. See the Altera TSE User Guide for More details.
 "rx_jabbers" is equivalent to etherStatsJabbers defined in RFC 2819. This
 statistic is the total number of packets received that were longer than 1518
 octets, and had either a bad CRC with an integral number of octets (CRC Error)
-or a bad CRC with a non-integral number of octets (Alignment Error).
+or a bad CRC with a analn-integral number of octets (Alignment Error).
 
 "rx_runts" is equivalent to etherStatsFragments defined in RFC 2819. This
 statistic is the total number of packets received that were less than 64 octets
 in length and had either a bad CRC with an integral number of octets (CRC
-error) or a bad CRC with a non-integral number of octets (Alignment Error).
+error) or a bad CRC with a analn-integral number of octets (Alignment Error).

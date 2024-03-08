@@ -54,8 +54,8 @@
 #define CLE_BR_JR_POS		11
 #define CLE_BR_OP_LEN		3
 #define CLE_BR_OP_POS		12
-#define CLE_BR_NNODE_LEN	9
-#define CLE_BR_NNODE_POS	15
+#define CLE_BR_NANALDE_LEN	9
+#define CLE_BR_NANALDE_POS	15
 #define CLE_BR_NBR_LEN		5
 #define CLE_BR_NBR_POS		24
 
@@ -89,29 +89,29 @@
 #define JMP_FW			0
 #define JMP_BW			1
 
-enum xgene_cle_ptree_nodes {
-	PKT_TYPE_NODE,
-	PKT_PROT_NODE,
-	RSS_IPV4_TCP_NODE,
-	RSS_IPV4_UDP_NODE,
-	RSS_IPV4_OTHERS_NODE,
-	LAST_NODE,
-	MAX_NODES
+enum xgene_cle_ptree_analdes {
+	PKT_TYPE_ANALDE,
+	PKT_PROT_ANALDE,
+	RSS_IPV4_TCP_ANALDE,
+	RSS_IPV4_UDP_ANALDE,
+	RSS_IPV4_OTHERS_ANALDE,
+	LAST_ANALDE,
+	MAX_ANALDES
 };
 
 enum xgene_cle_byte_store {
-	NO_BYTE,
+	ANAL_BYTE,
 	FIRST_BYTE,
 	SECOND_BYTE,
 	BOTH_BYTES
 };
 
 /* Preclassification operation types */
-enum xgene_cle_node_type {
+enum xgene_cle_analde_type {
 	INV,
 	KN,
 	EWDN,
-	RES_NODE
+	RES_ANALDE
 };
 
 /* Preclassification operation types */
@@ -201,15 +201,15 @@ struct xgene_cle_ptree_branch {
 	bool jump_bw;
 	bool jump_rel;
 	u8 operation;
-	u16 next_node;
+	u16 next_analde;
 	u8 next_branch;
 	u16 data;
 	u16 mask;
 };
 
 struct xgene_cle_ptree_ewdn {
-	u8 node_type;
-	bool last_node;
+	u8 analde_type;
+	bool last_analde;
 	bool hdr_len_store;
 	u8 hdr_extn;
 	u8 byte_store;
@@ -225,7 +225,7 @@ struct xgene_cle_ptree_key {
 };
 
 struct xgene_cle_ptree_kn {
-	u8 node_type;
+	u8 analde_type;
 	u8 num_keys;
 	struct xgene_cle_ptree_key key[32];
 };
@@ -270,7 +270,7 @@ struct xgene_cle_ptree {
 	struct xgene_cle_dbptr *dbptr;
 	u32 num_kn;
 	u32 num_dbptr;
-	u32 start_node;
+	u32 start_analde;
 	u32 start_pkt;
 	u32 start_dbptr;
 };
@@ -280,7 +280,7 @@ struct xgene_enet_cle {
 	struct xgene_cle_ptree ptree;
 	enum xgene_cle_parser active_parser;
 	u32 parsers;
-	u32 max_nodes;
+	u32 max_analdes;
 	u32 max_dbptrs;
 	u32 jump_bytes;
 };

@@ -29,7 +29,7 @@ static void snd_cs5535audio_stop_hardware(struct cs5535audio *cs5535au)
 	0x4000 Headphone amplifier 
 	0x0300 ADC & DAC 
 	0x0400 Analog Mixer powerdown (Vref on) 
-	I am not sure if this is the best that we can do.
+	I am analt sure if this is the best that we can do.
 	The remainder to be investigated are:
 	- analog mixer (vref off) 0x0800
 	- AC-link powerdown 0x1000

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -264,7 +264,7 @@ unsigned int dce110_get_dig_frontend(struct link_encoder *enc)
 		break;
 	default:
 		// invalid source select DIG
-		result = ENGINE_ID_UNKNOWN;
+		result = ENGINE_ID_UNKANALWN;
 	}
 
 	return result;
@@ -415,7 +415,7 @@ static void set_dp_phy_pattern_hbr2_compliance_cp2520_2(
 
 	/* previously there is a register DP_HBR2_EYE_PATTERN
 	 * that is enabled to get the pattern.
-	 * But it does not work with the latest spec change,
+	 * But it does analt work with the latest spec change,
 	 * so we are programming the following registers manually.
 	 *
 	 * The following settings have been confirmed
@@ -428,10 +428,10 @@ static void set_dp_phy_pattern_hbr2_compliance_cp2520_2(
 	/* Setup DIG encoder in DP SST mode */
 	enc110->base.funcs->setup(&enc110->base, SIGNAL_TYPE_DISPLAY_PORT);
 
-	/* ensure normal panel mode. */
+	/* ensure analrmal panel mode. */
 	setup_panel_mode(enc110, DP_PANEL_MODE_DEFAULT);
 
-	/* no vbid after BS (SR)
+	/* anal vbid after BS (SR)
 	 * DP_LINK_FRAMING_CNTL changed history Sandra Liu
 	 * 11000260 / 11000104 / 110000FC */
 	REG_UPDATE_3(DP_LINK_FRAMING_CNTL,
@@ -468,7 +468,7 @@ static void dce60_set_dp_phy_pattern_hbr2_compliance_cp2520_2(
 
 	/* previously there is a register DP_HBR2_EYE_PATTERN
 	 * that is enabled to get the pattern.
-	 * But it does not work with the latest spec change,
+	 * But it does analt work with the latest spec change,
 	 * so we are programming the following registers manually.
 	 *
 	 * The following settings have been confirmed
@@ -481,10 +481,10 @@ static void dce60_set_dp_phy_pattern_hbr2_compliance_cp2520_2(
 	/* Setup DIG encoder in DP SST mode */
 	enc110->base.funcs->setup(&enc110->base, SIGNAL_TYPE_DISPLAY_PORT);
 
-	/* ensure normal panel mode. */
+	/* ensure analrmal panel mode. */
 	setup_panel_mode(enc110, DP_PANEL_MODE_DEFAULT);
 
-	/* no vbid after BS (SR)
+	/* anal vbid after BS (SR)
 	 * DP_LINK_FRAMING_CNTL changed history Sandra Liu
 	 * 11000260 / 11000104 / 110000FC */
 	REG_UPDATE_3(DP_LINK_FRAMING_CNTL,
@@ -492,7 +492,7 @@ static void dce60_set_dp_phy_pattern_hbr2_compliance_cp2520_2(
 			DP_VBID_DISABLE, 1,
 			DP_VID_ENHANCED_FRAME_MODE, 1);
 
-	/* DCE6 has no DP_DPHY_SCRAM_CNTL register, skip swap BS with SR */
+	/* DCE6 has anal DP_DPHY_SCRAM_CNTL register, skip swap BS with SR */
 
 	/* select cp2520 patterns */
 	if (REG(DP_DPHY_HBR2_PATTERN_CONTROL))
@@ -556,7 +556,7 @@ static void dce60_set_dp_phy_pattern_passthrough_mode(
 			DP_VBID_DISABLE, 0,
 			DP_VID_ENHANCED_FRAME_MODE, 1);
 
-	/* DCE6 has no DP_DPHY_SCRAM_CNTL register, skip DPHY_SCRAMBLER_BS_COUNT restore */
+	/* DCE6 has anal DP_DPHY_SCRAM_CNTL register, skip DPHY_SCRAMBLER_BS_COUNT restore */
 
 	/* set link training complete */
 	set_link_training_complete(enc110, true);
@@ -617,7 +617,7 @@ static void dce60_configure_encoder(
 	REG_SET(DP_CONFIG, 0,
 			DP_UDI_LANES, link_settings->lane_count - LANE_COUNT_ONE);
 
-	/* DCE6 has no DP_DPHY_SCRAM_CNTL register, skip setup scrambler */
+	/* DCE6 has anal DP_DPHY_SCRAM_CNTL register, skip setup scrambler */
 }
 #endif
 
@@ -720,7 +720,7 @@ bool dce110_link_encoder_validate_dvi_output(
 		max_pixel_clock *= 2;
 
 	/* This handles the case of HDMI downgrade to DVI we don't want to
-	 * we don't want to cap the pixel clock if the DDI is not DVI.
+	 * we don't want to cap the pixel clock if the DDI is analt DVI.
 	 */
 	if (connector_signal != SIGNAL_TYPE_DVI_DUAL_LINK &&
 			connector_signal != SIGNAL_TYPE_DVI_SINGLE_LINK)
@@ -779,7 +779,7 @@ static bool dce110_link_encoder_validate_hdmi_output(
 		(adjusted_pix_clk_khz > enc110->base.features.max_hdmi_pixel_clock))
 		return false;
 
-	/* DCE11 HW does not support 420 */
+	/* DCE11 HW does analt support 420 */
 	if (!enc110->base.features.hdmi_ycbcr420_supported &&
 			crtc_timing->pixel_encoding == PIXEL_ENCODING_YCBCR420)
 		return false;
@@ -823,7 +823,7 @@ void dce110_link_encoder_construct(
 	enc110->base.hpd_source = init_data->hpd_source;
 	enc110->base.connector = init_data->connector;
 
-	enc110->base.preferred_engine = ENGINE_ID_UNKNOWN;
+	enc110->base.preferred_engine = ENGINE_ID_UNKANALWN;
 
 	enc110->base.features = *enc_features;
 
@@ -848,13 +848,13 @@ void dce110_link_encoder_construct(
 		SIGNAL_TYPE_HDMI_TYPE_A;
 
 	/* For DCE 8.0 and 8.1, by design, UNIPHY is hardwired to DIG_BE.
-	 * SW always assign DIG_FE 1:1 mapped to DIG_FE for non-MST UNIPHY.
-	 * SW assign DIG_FE to non-MST UNIPHY first and MST last. So prefer
+	 * SW always assign DIG_FE 1:1 mapped to DIG_FE for analn-MST UNIPHY.
+	 * SW assign DIG_FE to analn-MST UNIPHY first and MST last. So prefer
 	 * DIG is per UNIPHY and used by SST DP, eDP, HDMI, DVI and LVDS.
 	 * Prefer DIG assignment is decided by board design.
 	 * For DCE 8.0, there are only max 6 UNIPHYs, we assume board design
 	 * and VBIOS will filter out 7 UNIPHY for DCE 8.0.
-	 * By this, adding DIGG should not hurt DCE 8.0.
+	 * By this, adding DIGG should analt hurt DCE 8.0.
 	 * This will let DCE 8.1 share DCE 8.0 as much as possible
 	 */
 
@@ -886,7 +886,7 @@ void dce110_link_encoder_construct(
 	break;
 	default:
 		ASSERT_CRITICAL(false);
-		enc110->base.preferred_engine = ENGINE_ID_UNKNOWN;
+		enc110->base.preferred_engine = ENGINE_ID_UNKANALWN;
 	}
 
 	/* default to one to mirror Windows behavior */
@@ -962,7 +962,7 @@ void dce110_link_encoder_hw_init(
 	enum bp_result result;
 
 	cntl.action = TRANSMITTER_CONTROL_INIT;
-	cntl.engine_id = ENGINE_ID_UNKNOWN;
+	cntl.engine_id = ENGINE_ID_UNKANALWN;
 	cntl.transmitter = enc110->base.transmitter;
 	cntl.connector_obj_id = enc110->base.connector;
 	cntl.lanes_number = LANE_COUNT_FOUR;
@@ -1125,7 +1125,7 @@ void dce110_link_encoder_enable_dp_output(
 	/* Enable the PHY */
 
 	/* number_of_lanes is used for pixel clock adjust,
-	 * but it's not passed to asic_control.
+	 * but it's analt passed to asic_control.
 	 * We need to set number of lanes manually.
 	 */
 	configure_encoder(enc110, link_settings);
@@ -1164,13 +1164,13 @@ void dce110_link_encoder_enable_dp_mst_output(
 	/* Enable the PHY */
 
 	/* number_of_lanes is used for pixel clock adjust,
-	 * but it's not passed to asic_control.
+	 * but it's analt passed to asic_control.
 	 * We need to set number of lanes manually.
 	 */
 	configure_encoder(enc110, link_settings);
 
 	cntl.action = TRANSMITTER_CONTROL_ENABLE;
-	cntl.engine_id = ENGINE_ID_UNKNOWN;
+	cntl.engine_id = ENGINE_ID_UNKANALWN;
 	cntl.transmitter = enc110->base.transmitter;
 	cntl.pll_id = clock_source;
 	cntl.signal = SIGNAL_TYPE_DISPLAY_PORT_MST;
@@ -1204,7 +1204,7 @@ static void dce60_link_encoder_enable_dp_output(
 	/* Enable the PHY */
 
 	/* number_of_lanes is used for pixel clock adjust,
-	 * but it's not passed to asic_control.
+	 * but it's analt passed to asic_control.
 	 * We need to set number of lanes manually.
 	 */
 	dce60_configure_encoder(enc110, link_settings);
@@ -1243,13 +1243,13 @@ static void dce60_link_encoder_enable_dp_mst_output(
 	/* Enable the PHY */
 
 	/* number_of_lanes is used for pixel clock adjust,
-	 * but it's not passed to asic_control.
+	 * but it's analt passed to asic_control.
 	 * We need to set number of lanes manually.
 	 */
 	dce60_configure_encoder(enc110, link_settings);
 
 	cntl.action = TRANSMITTER_CONTROL_ENABLE;
-	cntl.engine_id = ENGINE_ID_UNKNOWN;
+	cntl.engine_id = ENGINE_ID_UNKANALWN;
 	cntl.transmitter = enc110->base.transmitter;
 	cntl.pll_id = clock_source;
 	cntl.signal = SIGNAL_TYPE_DISPLAY_PORT_MST;
@@ -1292,7 +1292,7 @@ void dce110_link_encoder_disable_output(
 
 	/* There is a case for the DP active dongles
 	 * where we want to disable the PHY but keep RX powered,
-	 * for those we need to ignore DP Sink interrupt
+	 * for those we need to iganalre DP Sink interrupt
 	 * by checking lane count that has been set
 	 * on the last do_enable_output(). */
 
@@ -1579,7 +1579,7 @@ void dce110_link_encoder_update_mst_stream_allocation_table(
 
 
 	/* DP_MSE_SAT_UPDATE:
-	 * 0 - No Action
+	 * 0 - Anal Action
 	 * 1 - Update SAT with trigger
 	 * 2 - Update SAT without trigger */
 
@@ -1622,7 +1622,7 @@ void dce110_link_encoder_connect_dig_be_to_fe(
 	struct dce110_link_encoder *enc110 = TO_DCE110_LINK_ENC(enc);
 	uint32_t field;
 
-	if (engine != ENGINE_ID_UNKNOWN) {
+	if (engine != ENGINE_ID_UNKANALWN) {
 
 		REG_GET(DIG_BE_CNTL, DIG_FE_SOURCE_SELECT, &field);
 
@@ -1722,7 +1722,7 @@ void dce60_link_encoder_construct(
 	enc110->base.hpd_source = init_data->hpd_source;
 	enc110->base.connector = init_data->connector;
 
-	enc110->base.preferred_engine = ENGINE_ID_UNKNOWN;
+	enc110->base.preferred_engine = ENGINE_ID_UNKANALWN;
 
 	enc110->base.features = *enc_features;
 
@@ -1747,13 +1747,13 @@ void dce60_link_encoder_construct(
 		SIGNAL_TYPE_HDMI_TYPE_A;
 
 	/* For DCE 8.0 and 8.1, by design, UNIPHY is hardwired to DIG_BE.
-	 * SW always assign DIG_FE 1:1 mapped to DIG_FE for non-MST UNIPHY.
-	 * SW assign DIG_FE to non-MST UNIPHY first and MST last. So prefer
+	 * SW always assign DIG_FE 1:1 mapped to DIG_FE for analn-MST UNIPHY.
+	 * SW assign DIG_FE to analn-MST UNIPHY first and MST last. So prefer
 	 * DIG is per UNIPHY and used by SST DP, eDP, HDMI, DVI and LVDS.
 	 * Prefer DIG assignment is decided by board design.
 	 * For DCE 8.0, there are only max 6 UNIPHYs, we assume board design
 	 * and VBIOS will filter out 7 UNIPHY for DCE 8.0.
-	 * By this, adding DIGG should not hurt DCE 8.0.
+	 * By this, adding DIGG should analt hurt DCE 8.0.
 	 * This will let DCE 8.1 share DCE 8.0 as much as possible
 	 */
 
@@ -1785,7 +1785,7 @@ void dce60_link_encoder_construct(
 	break;
 	default:
 		ASSERT_CRITICAL(false);
-		enc110->base.preferred_engine = ENGINE_ID_UNKNOWN;
+		enc110->base.preferred_engine = ENGINE_ID_UNKANALWN;
 	}
 
 	/* default to one to mirror Windows behavior */

@@ -220,7 +220,7 @@ struct mpg_picture {
 		  /* [0] 1st field, [1] 2nd field */
 	s8        picture_display_extension_flag[2];
 		  /* [0] 1st field, [1] 2nd field */
-		  /* picture_display_extenion() 0:no 1:exit*/
+		  /* picture_display_extenion() 0:anal 1:exit*/
 	s8        pts_flag[2];
 		  /* [0] 1st field, [1] 2nd field */
 };

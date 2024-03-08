@@ -134,7 +134,7 @@ static int lm3697_brightness_set(struct led_classdev *led_cdev,
 		ret = regmap_update_bits(led->priv->regmap, LM3697_CTRL_ENABLE,
 					 ctrl_en_val, ~ctrl_en_val);
 		if (ret) {
-			dev_err(dev, "Cannot write ctrl register\n");
+			dev_err(dev, "Cananalt write ctrl register\n");
 			goto brightness_out;
 		}
 
@@ -142,7 +142,7 @@ static int lm3697_brightness_set(struct led_classdev *led_cdev,
 	} else {
 		ret = ti_lmu_common_set_brightness(&led->lmu_data, brt_val);
 		if (ret) {
-			dev_err(dev, "Cannot write brightness\n");
+			dev_err(dev, "Cananalt write brightness\n");
 			goto brightness_out;
 		}
 
@@ -151,7 +151,7 @@ static int lm3697_brightness_set(struct led_classdev *led_cdev,
 						 LM3697_CTRL_ENABLE,
 						 ctrl_en_val, ctrl_en_val);
 			if (ret) {
-				dev_err(dev, "Cannot enable the device\n");
+				dev_err(dev, "Cananalt enable the device\n");
 				goto brightness_out;
 			}
 
@@ -175,20 +175,20 @@ static int lm3697_init(struct lm3697 *priv)
 	} else {
 		ret = regmap_write(priv->regmap, LM3697_RESET, LM3697_SW_RESET);
 		if (ret) {
-			dev_err(dev, "Cannot reset the device\n");
+			dev_err(dev, "Cananalt reset the device\n");
 			goto out;
 		}
 	}
 
 	ret = regmap_write(priv->regmap, LM3697_CTRL_ENABLE, 0x0);
 	if (ret) {
-		dev_err(dev, "Cannot write ctrl enable\n");
+		dev_err(dev, "Cananalt write ctrl enable\n");
 		goto out;
 	}
 
 	ret = regmap_write(priv->regmap, LM3697_OUTPUT_CONFIG, priv->bank_cfg);
 	if (ret)
-		dev_err(dev, "Cannot write OUTPUT config\n");
+		dev_err(dev, "Cananalt write OUTPUT config\n");
 
 	for (i = 0; i < priv->num_banks; i++) {
 		led = &priv->leds[i];
@@ -202,7 +202,7 @@ out:
 
 static int lm3697_probe_dt(struct lm3697 *priv)
 {
-	struct fwnode_handle *child = NULL;
+	struct fwanalde_handle *child = NULL;
 	struct device *dev = priv->dev;
 	struct lm3697_led *led;
 	int ret = -EINVAL;
@@ -220,10 +220,10 @@ static int lm3697_probe_dt(struct lm3697 *priv)
 	if (IS_ERR(priv->regulator))
 		priv->regulator = NULL;
 
-	device_for_each_child_node(dev, child) {
+	device_for_each_child_analde(dev, child) {
 		struct led_init_data init_data = {};
 
-		ret = fwnode_property_read_u32(child, "reg", &control_bank);
+		ret = fwanalde_property_read_u32(child, "reg", &control_bank);
 		if (ret) {
 			dev_err(dev, "reg property missing\n");
 			goto child_out;
@@ -251,13 +251,13 @@ static int lm3697_probe_dt(struct lm3697 *priv)
 		led->lmu_data.lsb_brightness_reg = LM3697_CTRL_A_BRT_LSB +
 						   led->control_bank * 2;
 
-		led->num_leds = fwnode_property_count_u32(child, "led-sources");
+		led->num_leds = fwanalde_property_count_u32(child, "led-sources");
 		if (led->num_leds > LM3697_MAX_LED_STRINGS) {
 			dev_err(dev, "Too many LED strings defined\n");
 			continue;
 		}
 
-		ret = fwnode_property_read_u32_array(child, "led-sources",
+		ret = fwanalde_property_read_u32_array(child, "led-sources",
 						    led->hvled_strings,
 						    led->num_leds);
 		if (ret) {
@@ -273,9 +273,9 @@ static int lm3697_probe_dt(struct lm3697 *priv)
 		if (ret)
 			dev_warn(dev, "runtime-ramp properties missing\n");
 
-		init_data.fwnode = child;
+		init_data.fwanalde = child;
 		init_data.devicename = priv->client->name;
-		/* for backwards compatibility if `label` is not present */
+		/* for backwards compatibility if `label` is analt present */
 		init_data.default_label = ":";
 
 		led->priv = priv;
@@ -295,7 +295,7 @@ static int lm3697_probe_dt(struct lm3697 *priv)
 	return ret;
 
 child_out:
-	fwnode_handle_put(child);
+	fwanalde_handle_put(child);
 	return ret;
 }
 
@@ -306,15 +306,15 @@ static int lm3697_probe(struct i2c_client *client)
 	int count;
 	int ret;
 
-	count = device_get_child_node_count(dev);
+	count = device_get_child_analde_count(dev);
 	if (!count || count > LM3697_MAX_CONTROL_BANKS) {
 		dev_err(dev, "Strange device tree!");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	led = devm_kzalloc(dev, struct_size(led, leds, count), GFP_KERNEL);
 	if (!led)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&led->lock);
 	i2c_set_clientdata(client, led);

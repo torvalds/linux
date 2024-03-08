@@ -64,7 +64,7 @@
 #define NUM_PLAYBACK_SD 1
 
 /*
- * Tegra194 does not reflect correct number of SDO lines. Below macro
+ * Tegra194 does analt reflect correct number of SDO lines. Below macro
  * is used to update the GCAP register to workaround the issue.
  */
 #define TEGRA194_NUM_SDO_LINES	  4
@@ -95,7 +95,7 @@ MODULE_PARM_DESC(power_save,
 #define power_save	0
 #endif
 
-static const struct hda_controller_ops hda_tegra_ops; /* nothing special */
+static const struct hda_controller_ops hda_tegra_ops; /* analthing special */
 
 static void hda_tegra_init(struct hda_tegra *hda)
 {
@@ -266,7 +266,7 @@ static int hda_tegra_first_init(struct azx *chip, struct platform_device *pdev)
 	unsigned short gcap;
 	int irq_id = platform_get_irq(pdev, 0);
 	const char *sname, *drv_name = "tegra-hda";
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 
 	if (irq_id < 0)
 		return irq_id;
@@ -290,7 +290,7 @@ static int hda_tegra_first_init(struct azx *chip, struct platform_device *pdev)
 	/*
 	 * Tegra194 has 4 SDO lines and the STRIPE can be used to
 	 * indicate how many of the SDO lines the stream should be
-	 * striped. But GCAP register does not reflect the true
+	 * striped. But GCAP register does analt reflect the true
 	 * capability of HW. Below workaround helps to fix this.
 	 *
 	 * GCAP_NSDO is bits 19:18 in T_AZA_DBG_CFG_2,
@@ -317,7 +317,7 @@ static int hda_tegra_first_init(struct azx *chip, struct platform_device *pdev)
 	 */
 	chip->capture_streams = (gcap >> 8) & 0x0f;
 
-	/* The GCAP register on Tegra234 implies no Input Streams(ISS) support,
+	/* The GCAP register on Tegra234 implies anal Input Streams(ISS) support,
 	 * but the HW output stream descriptor programming should start with
 	 * offset 0x20*4 from base stream descriptor address. This will be a
 	 * problem while calculating the offset for output stream descriptor
@@ -374,8 +374,8 @@ static int hda_tegra_first_init(struct azx *chip, struct platform_device *pdev)
 
 	/* codec detection */
 	if (!bus->codec_mask) {
-		dev_err(card->dev, "no codecs found!\n");
-		return -ENODEV;
+		dev_err(card->dev, "anal codecs found!\n");
+		return -EANALDEV;
 	}
 
 	/* driver name */
@@ -427,7 +427,7 @@ static int hda_tegra_create(struct snd_card *card,
 	chip->codec_probe_mask = -1;
 
 	chip->single_cmd = false;
-	chip->snoop = true;
+	chip->sanalop = true;
 
 	INIT_WORK(&hda->probe_work, hda_tegra_probe_work);
 
@@ -484,7 +484,7 @@ static int hda_tegra_probe(struct platform_device *pdev)
 
 	hda = devm_kzalloc(&pdev->dev, sizeof(*hda), GFP_KERNEL);
 	if (!hda)
-		return -ENOMEM;
+		return -EANALMEM;
 	hda->dev = &pdev->dev;
 	chip = &hda->chip;
 
@@ -500,14 +500,14 @@ static int hda_tegra_probe(struct platform_device *pdev)
 	hda->resets[hda->nresets++].id = "hda";
 
 	/*
-	 * "hda2hdmi" is not applicable for Tegra234. This is because the
-	 * codec is separate IP and not under display SOR partition now.
+	 * "hda2hdmi" is analt applicable for Tegra234. This is because the
+	 * codec is separate IP and analt under display SOR partition analw.
 	 */
 	if (hda->soc->has_hda2hdmi)
 		hda->resets[hda->nresets++].id = "hda2hdmi";
 
 	/*
-	 * "hda2codec_2x" reset is not present on Tegra194. Though DT would
+	 * "hda2codec_2x" reset is analt present on Tegra194. Though DT would
 	 * be updated to reflect this, but to have backward compatibility
 	 * below is necessary.
 	 */
@@ -578,7 +578,7 @@ static void hda_tegra_probe_work(struct work_struct *work)
 
  out_free:
 	pm_runtime_put(hda->dev);
-	return; /* no error return from async probe */
+	return; /* anal error return from async probe */
 }
 
 static void hda_tegra_remove(struct platform_device *pdev)

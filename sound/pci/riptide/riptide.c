@@ -2,7 +2,7 @@
 /*
  *   Driver for the Conexant Riptide Soundchip
  *
- *	Copyright (c) 2004 Peter Gruber <nokos@gmx.net>
+ *	Copyright (c) 2004 Peter Gruber <analkos@gmx.net>
  */
 /*
   History:
@@ -100,7 +100,7 @@
 #define SUPPORT_JOYSTICK 1
 #endif
 
-MODULE_AUTHOR("Peter Gruber <nokos@gmx.net>");
+MODULE_AUTHOR("Peter Gruber <analkos@gmx.net>");
 MODULE_DESCRIPTION("riptide");
 MODULE_LICENSE("GPL");
 MODULE_FIRMWARE("riptide.hex");
@@ -175,7 +175,7 @@ MODULE_PARM_DESC(opl3_port, "OPL3 port # for Riptide driver.");
 #define UNSET_GRESET(p)   MASK_AUDIO_CONTROL(p,~0x0001)
 #define SET_AIE(p)        UMASK_AUDIO_CONTROL(p,0x0004)	/* interrupt enable */
 #define UNSET_AIE(p)      MASK_AUDIO_CONTROL(p,~0x0004)
-#define SET_AIACK(p)      UMASK_AUDIO_CONTROL(p,0x0008)	/* interrupt acknowledge */
+#define SET_AIACK(p)      UMASK_AUDIO_CONTROL(p,0x0008)	/* interrupt ackanalwledge */
 #define UNSET_AIACKT(p)   MASKAUDIO_CONTROL(p,~0x0008)
 #define SET_ECMDAE(p)     UMASK_AUDIO_CONTROL(p,0x0010)
 #define UNSET_ECMDAE(p)   MASK_AUDIO_CONTROL(p,~0x0010)
@@ -268,7 +268,7 @@ MODULE_PARM_DESC(opl3_port, "OPL3 port # for Riptide driver.");
 #define ERR_STATUS         0x10000000
 #define EMPTY_STATUS       0x08000000
 
-#define IEOB_ENABLE        0x1	/* enable interrupts for status notification above */
+#define IEOB_ENABLE        0x1	/* enable interrupts for status analtification above */
 #define IEOS_ENABLE        0x2
 #define IEOC_ENABLE        0x4
 #define RDONCE             0x8
@@ -324,7 +324,7 @@ enum E1SOURCE {
 	GAINFUNC3_OUT, GAINFUNC4_OUT, SOFTMODEMTX, SPLITTER0_OUTL,
 	SPLITTER0_OUTR, SPLITTER1_OUTL, SPLITTER1_OUTR, SPLITTER2_OUTL,
 	SPLITTER2_OUTR, SPLITTER3_OUTL, SPLITTER3_OUTR, MERGER0_OUT,
-	MERGER1_OUT, MERGER2_OUT, MERGER3_OUT, ARM2LBUS_FIFO_DIRECT, NO_OUT
+	MERGER1_OUT, MERGER2_OUT, MERGER3_OUT, ARM2LBUS_FIFO_DIRECT, ANAL_OUT
 };
 
 enum E2SINK {
@@ -347,7 +347,7 @@ enum E2SINK {
 enum LBUS_SINK {
 	LS_SRC_INTERPOLATOR = 0, LS_SRC_INTERPOLATORM, LS_SRC_DECIMATOR,
 	LS_SRC_DECIMATORM, LS_MIXER_IN, LS_MIXER_GAIN_FUNCTION,
-	LS_SRC_SPLITTER, LS_SRC_MERGER, LS_NONE1, LS_NONE2,
+	LS_SRC_SPLITTER, LS_SRC_MERGER, LS_ANALNE1, LS_ANALNE2,
 };
 
 enum RT_CHANNEL_IDS {
@@ -360,9 +360,9 @@ enum RT_CHANNEL_IDS {
 enum { SB_CMD = 0, MODEM_CMD, I2S_CMD0, I2S_CMD1, FM_CMD, MAX_CMD };
 
 struct lbuspath {
-	const unsigned char *noconv;
+	const unsigned char *analconv;
 	const unsigned char *stereo;
-	const unsigned char *mono;
+	const unsigned char *moanal;
 };
 
 struct cmdport {
@@ -516,10 +516,10 @@ MODULE_DEVICE_TABLE(pci, snd_riptide_ids);
  */
 
 static const unsigned char lbusin2out[E2SINK_MAX + 1][2] = {
-	{NO_OUT, LS_NONE1}, {NO_OUT, LS_NONE2}, {NO_OUT, LS_NONE1}, {NO_OUT,
-								     LS_NONE2},
-	{NO_OUT, LS_NONE1}, {NO_OUT, LS_NONE2}, {NO_OUT, LS_NONE1}, {NO_OUT,
-								     LS_NONE2},
+	{ANAL_OUT, LS_ANALNE1}, {ANAL_OUT, LS_ANALNE2}, {ANAL_OUT, LS_ANALNE1}, {ANAL_OUT,
+								     LS_ANALNE2},
+	{ANAL_OUT, LS_ANALNE1}, {ANAL_OUT, LS_ANALNE2}, {ANAL_OUT, LS_ANALNE1}, {ANAL_OUT,
+								     LS_ANALNE2},
 	{INTER0_OUT, LS_SRC_INTERPOLATOR}, {INTER1_OUT, LS_SRC_INTERPOLATOR},
 	{INTER2_OUT, LS_SRC_INTERPOLATOR}, {INTER3_OUT, LS_SRC_INTERPOLATOR},
 	{INTER4_OUT, LS_SRC_INTERPOLATOR}, {INTERM0_OUT, LS_SRC_INTERPOLATORM},
@@ -531,9 +531,9 @@ static const unsigned char lbusin2out[E2SINK_MAX + 1][2] = {
 					      LS_SRC_INTERPOLATORM},
 	{DECIMM0_OUT, LS_SRC_DECIMATORM}, {DECIMM1_OUT, LS_SRC_DECIMATORM},
 	{DECIMM2_OUT, LS_SRC_DECIMATORM}, {DECIMM3_OUT, LS_SRC_DECIMATORM},
-	{DECIM0_OUT, LS_SRC_DECIMATOR}, {SR3_4_OUT, LS_NONE1}, {NO_OUT,
-								LS_NONE2},
-	{NO_OUT, LS_NONE1}, {NO_OUT, LS_NONE2}, {NO_OUT, LS_NONE1},
+	{DECIM0_OUT, LS_SRC_DECIMATOR}, {SR3_4_OUT, LS_ANALNE1}, {ANAL_OUT,
+								LS_ANALNE2},
+	{ANAL_OUT, LS_ANALNE1}, {ANAL_OUT, LS_ANALNE2}, {ANAL_OUT, LS_ANALNE1},
 	{DIGITAL_MIXER_OUT0, LS_MIXER_IN}, {DIGITAL_MIXER_OUT0, LS_MIXER_IN},
 	{DIGITAL_MIXER_OUT0, LS_MIXER_IN}, {DIGITAL_MIXER_OUT0, LS_MIXER_IN},
 	{DIGITAL_MIXER_OUT0, LS_MIXER_IN}, {DIGITAL_MIXER_OUT0, LS_MIXER_IN},
@@ -544,15 +544,15 @@ static const unsigned char lbusin2out[E2SINK_MAX + 1][2] = {
 						  LS_MIXER_GAIN_FUNCTION},
 	{GAINFUNC2_OUT, LS_MIXER_GAIN_FUNCTION}, {GAINFUNC3_OUT,
 						  LS_MIXER_GAIN_FUNCTION},
-	{GAINFUNC4_OUT, LS_MIXER_GAIN_FUNCTION}, {SOFTMODEMTX, LS_NONE1},
+	{GAINFUNC4_OUT, LS_MIXER_GAIN_FUNCTION}, {SOFTMODEMTX, LS_ANALNE1},
 	{SPLITTER0_OUTL, LS_SRC_SPLITTER}, {SPLITTER1_OUTL, LS_SRC_SPLITTER},
 	{SPLITTER2_OUTL, LS_SRC_SPLITTER}, {SPLITTER3_OUTL, LS_SRC_SPLITTER},
 	{MERGER0_OUT, LS_SRC_MERGER}, {MERGER0_OUT, LS_SRC_MERGER},
 	{MERGER1_OUT, LS_SRC_MERGER},
 	{MERGER1_OUT, LS_SRC_MERGER}, {MERGER2_OUT, LS_SRC_MERGER},
 	{MERGER2_OUT, LS_SRC_MERGER},
-	{MERGER3_OUT, LS_SRC_MERGER}, {MERGER3_OUT, LS_SRC_MERGER}, {NO_OUT,
-								     LS_NONE2},
+	{MERGER3_OUT, LS_SRC_MERGER}, {MERGER3_OUT, LS_SRC_MERGER}, {ANAL_OUT,
+								     LS_ANALNE2},
 };
 
 static const unsigned char lbus_play_opl3[] = {
@@ -570,40 +570,40 @@ static const unsigned char lbus_play_out[] = {
 static const unsigned char lbus_play_outhp[] = {
 	HNDSPK2ACLNK, 0xff
 };
-static const unsigned char lbus_play_noconv1[] = {
+static const unsigned char lbus_play_analconv1[] = {
 	DIGITAL_MIXER_IN0, 0xff
 };
 static const unsigned char lbus_play_stereo1[] = {
 	INTER0_IN, DIGITAL_MIXER_IN0, 0xff
 };
-static const unsigned char lbus_play_mono1[] = {
+static const unsigned char lbus_play_moanal1[] = {
 	INTERM0_IN, DIGITAL_MIXER_IN0, 0xff
 };
-static const unsigned char lbus_play_noconv2[] = {
+static const unsigned char lbus_play_analconv2[] = {
 	DIGITAL_MIXER_IN1, 0xff
 };
 static const unsigned char lbus_play_stereo2[] = {
 	INTER1_IN, DIGITAL_MIXER_IN1, 0xff
 };
-static const unsigned char lbus_play_mono2[] = {
+static const unsigned char lbus_play_moanal2[] = {
 	INTERM1_IN, DIGITAL_MIXER_IN1, 0xff
 };
-static const unsigned char lbus_play_noconv3[] = {
+static const unsigned char lbus_play_analconv3[] = {
 	DIGITAL_MIXER_IN2, 0xff
 };
 static const unsigned char lbus_play_stereo3[] = {
 	INTER2_IN, DIGITAL_MIXER_IN2, 0xff
 };
-static const unsigned char lbus_play_mono3[] = {
+static const unsigned char lbus_play_moanal3[] = {
 	INTERM2_IN, DIGITAL_MIXER_IN2, 0xff
 };
-static const unsigned char lbus_rec_noconv1[] = {
+static const unsigned char lbus_rec_analconv1[] = {
 	LBUS2ARM_FIFO5, 0xff
 };
 static const unsigned char lbus_rec_stereo1[] = {
 	DECIM0_IN, LBUS2ARM_FIFO5, 0xff
 };
-static const unsigned char lbus_rec_mono1[] = {
+static const unsigned char lbus_rec_moanal1[] = {
 	DECIMM3_IN, LBUS2ARM_FIFO5, 0xff
 };
 
@@ -613,25 +613,25 @@ static const unsigned char play_sources[] = {
 };
 static const struct lbuspath lbus_play_paths[] = {
 	{
-	 .noconv = lbus_play_noconv1,
+	 .analconv = lbus_play_analconv1,
 	 .stereo = lbus_play_stereo1,
-	 .mono = lbus_play_mono1,
+	 .moanal = lbus_play_moanal1,
 	 },
 	{
-	 .noconv = lbus_play_noconv2,
+	 .analconv = lbus_play_analconv2,
 	 .stereo = lbus_play_stereo2,
-	 .mono = lbus_play_mono2,
+	 .moanal = lbus_play_moanal2,
 	 },
 	{
-	 .noconv = lbus_play_noconv3,
+	 .analconv = lbus_play_analconv3,
 	 .stereo = lbus_play_stereo3,
-	 .mono = lbus_play_mono3,
+	 .moanal = lbus_play_moanal3,
 	 },
 };
 static const struct lbuspath lbus_rec_path = {
-	.noconv = lbus_rec_noconv1,
+	.analconv = lbus_rec_analconv1,
 	.stereo = lbus_rec_stereo1,
-	.mono = lbus_rec_mono1,
+	.moanal = lbus_rec_moanal1,
 };
 
 #define FIRMWARE_VERSIONS 1
@@ -880,7 +880,7 @@ static int sendcmd(struct cmdif *cif, u32 flags, u32 cmd, u32 parm,
 					ret->retlongs[1] =
 					    READ_PORT_ULONG(cmdport->data2);
 				} else {
-					err = -ENOSYS;
+					err = -EANALSYS;
 					goto errout;
 				}
 			}
@@ -889,7 +889,7 @@ static int sendcmd(struct cmdif *cif, u32 flags, u32 cmd, u32 parm,
 		udelay(20);
 	}
 	if (time == CMDIF_TIMEOUT) {
-		err = -ENODATA;
+		err = -EANALDATA;
 		goto errout;
 	}
 	spin_unlock_irqrestore(&cif->lock, irqflags);
@@ -1192,7 +1192,7 @@ static int try_to_load_firmware(struct cmdif *cif, struct snd_riptide *chip)
 	}
 	if (!timeout) {
 		snd_printk(KERN_ERR
-			   "Riptide: device not ready, audio status: 0x%x "
+			   "Riptide: device analt ready, audio status: 0x%x "
 			   "ready: %d gerr: %d\n",
 			   READ_AUDIO_STATUS(cif->hwport),
 			   IS_READY(cif->hwport), IS_GERR(cif->hwport));
@@ -1224,14 +1224,14 @@ static int try_to_load_firmware(struct cmdif *cif, struct snd_riptide *chip)
 				       &chip->pci->dev);
 		if (err) {
 			snd_printk(KERN_ERR
-				   "Riptide: Firmware not available %d\n", err);
+				   "Riptide: Firmware analt available %d\n", err);
 			return -EIO;
 		}
 	}
 	err = loadfirmware(cif, chip->fw_entry->data, chip->fw_entry->size);
 	if (err) {
 		snd_printk(KERN_ERR
-			   "Riptide: Could not load firmware %d\n", err);
+			   "Riptide: Could analt load firmware %d\n", err);
 		return err;
 	}
 
@@ -1313,7 +1313,7 @@ static const struct snd_pcm_hardware snd_riptide_playback = {
 	.formats =
 	    SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S8
 	    | SNDRV_PCM_FMTBIT_U16_LE,
-	.rates = SNDRV_PCM_RATE_KNOT | SNDRV_PCM_RATE_8000_48000,
+	.rates = SNDRV_PCM_RATE_KANALT | SNDRV_PCM_RATE_8000_48000,
 	.rate_min = 5500,
 	.rate_max = 48000,
 	.channels_min = 1,
@@ -1332,7 +1332,7 @@ static const struct snd_pcm_hardware snd_riptide_capture = {
 	.formats =
 	    SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S8
 	    | SNDRV_PCM_FMTBIT_U16_LE,
-	.rates = SNDRV_PCM_RATE_KNOT | SNDRV_PCM_RATE_8000_48000,
+	.rates = SNDRV_PCM_RATE_KANALT | SNDRV_PCM_RATE_8000_48000,
 	.rate_min = 5500,
 	.rate_max = 48000,
 	.channels_min = 1,
@@ -1372,7 +1372,7 @@ static snd_pcm_uframes_t snd_riptide_pointer(struct snd_pcm_substream
 			    bytes_to_frames(runtime,
 					    data->pointer % data->size);
 	} else {
-		snd_printdd("stream not started or strange parms (%d %ld)\n",
+		snd_printdd("stream analt started or strange parms (%d %ld)\n",
 			    data->size, runtime->period_size);
 		ret = bytes_to_frames(runtime, 0);
 	}
@@ -1417,7 +1417,7 @@ static int snd_riptide_trigger(struct snd_pcm_substream *substream, int cmd)
 			udelay(1);
 		} while (i != rptr.retlongs[1] && j++ < MAX_WRITE_RETRY);
 		if (j > MAX_WRITE_RETRY)
-			snd_printk(KERN_ERR "Riptide: Could not stop stream!");
+			snd_printk(KERN_ERR "Riptide: Could analt stop stream!");
 		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		if (!(data->state & ST_PAUSE)) {
@@ -1465,13 +1465,13 @@ static int snd_riptide_prepare(struct snd_pcm_substream *substream)
 	switch (channels) {
 	case 1:
 		if (rate == 48000 && format == SNDRV_PCM_FORMAT_S16_LE)
-			lbuspath = data->paths.noconv;
+			lbuspath = data->paths.analconv;
 		else
-			lbuspath = data->paths.mono;
+			lbuspath = data->paths.moanal;
 		break;
 	case 2:
 		if (rate == 48000 && format == SNDRV_PCM_FORMAT_S16_LE)
-			lbuspath = data->paths.noconv;
+			lbuspath = data->paths.analconv;
 		else
 			lbuspath = data->paths.stereo;
 		break;
@@ -1601,7 +1601,7 @@ static int snd_riptide_playback_open(struct snd_pcm_substream *substream)
 
 	data = kzalloc(sizeof(struct pcmhw), GFP_KERNEL);
 	if (data == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	data->paths = lbus_play_paths[sub_num];
 	data->id = play_ids[sub_num];
 	data->source = play_sources[sub_num];
@@ -1624,7 +1624,7 @@ static int snd_riptide_capture_open(struct snd_pcm_substream *substream)
 
 	data = kzalloc(sizeof(struct pcmhw), GFP_KERNEL);
 	if (data == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	data->paths = lbus_rec_path;
 	data->id = PADC;
 	data->source = ACLNK2PADC;
@@ -1774,7 +1774,7 @@ static int snd_riptide_initialize(struct snd_riptide *chip)
 	if (!cif) {
 		cif = kzalloc(sizeof(struct cmdif), GFP_KERNEL);
 		if (!cif)
-			return -ENOMEM;
+			return -EANALMEM;
 		cif->hwport = (struct riptideport *)chip->port;
 		spin_lock_init(&cif->lock);
 		chip->cif = cif;
@@ -1976,10 +1976,10 @@ snd_riptide_joystick_probe(struct pci_dev *pci, const struct pci_device_id *id)
 	int ret;
 
 	if (dev >= SNDRV_CARDS)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!enable[dev]) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto inc_dev;
 	}
 
@@ -1990,12 +1990,12 @@ snd_riptide_joystick_probe(struct pci_dev *pci, const struct pci_device_id *id)
 
 	gameport = gameport_allocate_port();
 	if (!gameport) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto inc_dev;
 	}
 	if (!request_region(joystick_port[dev], 8, "Riptide gameport")) {
 		snd_printk(KERN_WARNING
-			   "Riptide: cannot grab gameport 0x%x\n",
+			   "Riptide: cananalt grab gameport 0x%x\n",
 			   joystick_port[dev]);
 		gameport_free_port(gameport);
 		ret = -EBUSY;
@@ -2032,10 +2032,10 @@ __snd_card_riptide_probe(struct pci_dev *pci, const struct pci_device_id *pci_id
 	int err;
 
 	if (dev >= SNDRV_CARDS)
-		return -ENODEV;
+		return -EANALDEV;
 	if (!enable[dev]) {
 		dev++;
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	err = snd_devm_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,

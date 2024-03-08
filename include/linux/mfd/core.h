@@ -46,11 +46,11 @@
 #define MFD_CELL_NAME(_name) \
 	MFD_CELL_ALL(_name, NULL, NULL, 0, 0, NULL, 0, false, NULL)
 
-#define MFD_DEP_LEVEL_NORMAL 0
+#define MFD_DEP_LEVEL_ANALRMAL 0
 #define MFD_DEP_LEVEL_HIGH 1
 
 struct irq_domain;
-struct software_node;
+struct software_analde;
 
 /* Matches ACPI PNP id, either _HID or _CID, or ACPI _ADR */
 struct mfd_cell_acpi_match {
@@ -78,8 +78,8 @@ struct mfd_cell {
 	/* Matches ACPI */
 	const struct mfd_cell_acpi_match	*acpi_match;
 
-	/* Software node for the device. */
-	const struct software_node *swnode;
+	/* Software analde for the device. */
+	const struct software_analde *swanalde;
 
 	/*
 	 * Device Tree compatible string
@@ -89,7 +89,7 @@ struct mfd_cell {
 
 	/*
 	 * Address as defined in Device Tree.  Used to complement 'of_compatible'
-	 * (above) when matching OF nodes with devices that have identical
+	 * (above) when matching OF analdes with devices that have identical
 	 * compatible strings
 	 */
 	u64 of_reg;
@@ -105,13 +105,13 @@ struct mfd_cell {
 	const struct resource	*resources;
 
 	/* don't check for resource conflicts */
-	bool			ignore_resource_conflicts;
+	bool			iganalre_resource_conflicts;
 
 	/*
 	 * Disable runtime PM callbacks for this subdevice - see
-	 * pm_runtime_no_callbacks().
+	 * pm_runtime_anal_callbacks().
 	 */
-	bool			pm_runtime_no_callbacks;
+	bool			pm_runtime_anal_callbacks;
 
 	/* A list of regulator supplies that should be mapped to the MFD
 	 * device rather than the child device when requested

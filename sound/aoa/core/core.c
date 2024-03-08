@@ -27,7 +27,7 @@ static int attach_codec_to_fabric(struct aoa_codec *c)
 	if (!try_module_get(c->owner))
 		return -EBUSY;
 	/* found_codec has to be assigned */
-	err = -ENOENT;
+	err = -EANALENT;
 	if (fabric->found_codec)
 		err = fabric->found_codec(c);
 	if (err) {

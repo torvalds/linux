@@ -30,7 +30,7 @@ module_param(ac97_quirk, charp, 0444);
 MODULE_PARM_DESC(ac97_quirk, "AC'97 board specific workarounds.");
 
 static const struct ac97_quirk ac97_quirks[] = {
-#if 0 /* Not yet confirmed if all 5536 boards are HP only */
+#if 0 /* Analt yet confirmed if all 5536 boards are HP only */
 	{
 		.subvendor = PCI_VENDOR_ID_AMD, 
 		.subdevice = PCI_DEVICE_ID_AMD_CS5536_AUDIO, 
@@ -205,12 +205,12 @@ static irqreturn_t snd_cs5535audio_interrupt(int irq, void *dev_id)
 	struct cs5535audio *cs5535au = dev_id;
 
 	if (cs5535au == NULL)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	acc_irq_stat = cs_readw(cs5535au, ACC_IRQ_STATUS);
 
 	if (!acc_irq_stat)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	for (count = 0; count < 4; count++) {
 		if (acc_irq_stat & (1 << count)) {
 			switch (count) {
@@ -290,10 +290,10 @@ static int __snd_cs5535audio_probe(struct pci_dev *pci,
 	int err;
 
 	if (dev >= SNDRV_CARDS)
-		return -ENODEV;
+		return -EANALDEV;
 	if (!enable[dev]) {
 		dev++;
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	err = snd_devm_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,

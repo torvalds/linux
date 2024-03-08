@@ -101,7 +101,7 @@ dp_meter_instance_realloc(struct dp_meter_table *tbl, u32 size)
 
 	new_ti = dp_meter_instance_alloc(size);
 	if (!new_ti)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < n_meters; i++)
 		if (rcu_dereference_ovsl(ti->dp_meters[i]))
@@ -154,7 +154,7 @@ static int attach_meter(struct dp_meter_table *tbl, struct dp_meter *meter)
 
 	if (tbl->count >= ti->n_meters &&
 	    dp_meter_instance_realloc(tbl, ti->n_meters * 2)) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto attach_err;
 	}
 
@@ -186,7 +186,7 @@ static int detach_meter(struct dp_meter_table *tbl, struct dp_meter *meter)
 		int i;
 
 		/* Avoid hash collision, don't move slots to other place.
-		 * Make sure there are no references of meters in array
+		 * Make sure there are anal references of meters in array
 		 * which will be released.
 		 */
 		for (i = half_size; i < ti->n_meters; i++)
@@ -203,7 +203,7 @@ out:
 shrink_err:
 	dp_meter_instance_insert(ti, meter);
 	tbl->count++;
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static struct sk_buff *
@@ -215,7 +215,7 @@ ovs_meter_cmd_reply_start(struct genl_info *info, u8 cmd,
 
 	skb = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_ATOMIC);
 	if (!skb)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	*ovs_reply_header = genlmsg_put(skb, info->snd_portid,
 					info->snd_seq,
@@ -247,7 +247,7 @@ static int ovs_meter_cmd_reply_stats(struct sk_buff *reply, u32 meter_id,
 			      OVS_METER_ATTR_PAD))
 		goto error;
 
-	nla = nla_nest_start_noflag(reply, OVS_METER_ATTR_BANDS);
+	nla = nla_nest_start_analflag(reply, OVS_METER_ATTR_BANDS);
 	if (!nla)
 		goto error;
 
@@ -256,7 +256,7 @@ static int ovs_meter_cmd_reply_stats(struct sk_buff *reply, u32 meter_id,
 	for (i = 0; i < meter->n_bands; ++i, ++band) {
 		struct nlattr *band_nla;
 
-		band_nla = nla_nest_start_noflag(reply, OVS_BAND_ATTR_UNSPEC);
+		band_nla = nla_nest_start_analflag(reply, OVS_BAND_ATTR_UNSPEC);
 		if (!band_nla || nla_put(reply, OVS_BAND_ATTR_STATS,
 					 sizeof(struct ovs_flow_stats),
 					 &band->stats))
@@ -287,7 +287,7 @@ static int ovs_meter_cmd_features(struct sk_buff *skb, struct genl_info *info)
 	ovs_lock();
 	dp = get_dp(sock_net(skb->sk), ovs_header->dp_ifindex);
 	if (!dp) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto exit_unlock;
 	}
 
@@ -300,11 +300,11 @@ static int ovs_meter_cmd_features(struct sk_buff *skb, struct genl_info *info)
 	if (nla_put_u32(reply, OVS_METER_ATTR_MAX_BANDS, DP_MAX_BANDS))
 		goto nla_put_failure;
 
-	nla = nla_nest_start_noflag(reply, OVS_METER_ATTR_BANDS);
+	nla = nla_nest_start_analflag(reply, OVS_METER_ATTR_BANDS);
 	if (!nla)
 		goto nla_put_failure;
 
-	band_nla = nla_nest_start_noflag(reply, OVS_BAND_ATTR_UNSPEC);
+	band_nla = nla_nest_start_analflag(reply, OVS_BAND_ATTR_UNSPEC);
 	if (!band_nla)
 		goto nla_put_failure;
 	/* Currently only DROP band type is supported. */
@@ -343,7 +343,7 @@ static struct dp_meter *dp_meter_create(struct nlattr **a)
 	/* Allocate and set up the meter before locking anything. */
 	meter = kzalloc(struct_size(meter, bands, n_bands), GFP_KERNEL_ACCOUNT);
 	if (!meter)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	meter->id = nla_get_u32(a[OVS_METER_ATTR_ID]);
 	meter->used = div_u64(ktime_get_ns(), 1000 * 1000);
@@ -383,7 +383,7 @@ static struct dp_meter *dp_meter_create(struct nlattr **a)
 		}
 
 		band->burst_size = nla_get_u32(attr[OVS_BAND_ATTR_BURST]);
-		/* Figure out max delta_t that is enough to fill any bucket.
+		/* Figure out max delta_t that is eanalugh to fill any bucket.
 		 * Keep max_delta_t size to the bucket units:
 		 * pkts => 1/1000 packets, kilobits => bits.
 		 *
@@ -433,7 +433,7 @@ static int ovs_meter_cmd_set(struct sk_buff *skb, struct genl_info *info)
 	ovs_lock();
 	dp = get_dp(sock_net(skb->sk), ovs_header->dp_ifindex);
 	if (!dp) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto exit_unlock;
 	}
 
@@ -505,14 +505,14 @@ static int ovs_meter_cmd_get(struct sk_buff *skb, struct genl_info *info)
 
 	dp = get_dp(sock_net(skb->sk), ovs_header->dp_ifindex);
 	if (!dp) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto exit_unlock;
 	}
 
 	/* Locate meter, copy stats. */
 	meter = lookup_meter(&dp->meter_tbl, meter_id);
 	if (!meter) {
-		err = -ENOENT;
+		err = -EANALENT;
 		goto exit_unlock;
 	}
 
@@ -556,7 +556,7 @@ static int ovs_meter_cmd_del(struct sk_buff *skb, struct genl_info *info)
 
 	dp = get_dp(sock_net(skb->sk), ovs_header->dp_ifindex);
 	if (!dp) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto exit_unlock;
 	}
 
@@ -592,7 +592,7 @@ exit_unlock:
 bool ovs_meter_execute(struct datapath *dp, struct sk_buff *skb,
 		       struct sw_flow_key *key, u32 meter_id)
 {
-	long long int now_ms = div_u64(ktime_get_ns(), 1000 * 1000);
+	long long int analw_ms = div_u64(ktime_get_ns(), 1000 * 1000);
 	long long int long_delta_ms;
 	struct dp_meter_band *band;
 	struct dp_meter *meter;
@@ -602,14 +602,14 @@ bool ovs_meter_execute(struct datapath *dp, struct sk_buff *skb,
 	u32 cost;
 
 	meter = lookup_meter(&dp->meter_tbl, meter_id);
-	/* Do not drop the packet when there is no meter. */
+	/* Do analt drop the packet when there is anal meter. */
 	if (!meter)
 		return false;
 
 	/* Lock the meter while using it. */
 	spin_lock(&meter->lock);
 
-	long_delta_ms = (now_ms - meter->used); /* ms */
+	long_delta_ms = (analw_ms - meter->used); /* ms */
 	if (long_delta_ms < 0) {
 		/* This condition means that we have several threads fighting
 		 * for a meter lock, and the one who received the packets a
@@ -619,7 +619,7 @@ bool ovs_meter_execute(struct datapath *dp, struct sk_buff *skb,
 		long_delta_ms = 0;
 	}
 
-	/* Make sure delta_ms will not be too large, so that bucket will not
+	/* Make sure delta_ms will analt be too large, so that bucket will analt
 	 * wrap around below.
 	 */
 	delta_ms = (long_delta_ms > (long long int)meter->max_delta_t)
@@ -627,7 +627,7 @@ bool ovs_meter_execute(struct datapath *dp, struct sk_buff *skb,
 
 	/* Update meter statistics.
 	 */
-	meter->used = now_ms;
+	meter->used = analw_ms;
 	meter->stats.n_packets += 1;
 	meter->stats.n_bytes += skb->len;
 
@@ -734,7 +734,7 @@ int ovs_meters_init(struct datapath *dp)
 
 	ti = dp_meter_instance_alloc(DP_METER_ARRAY_SIZE_MIN);
 	if (!ti)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Allow meters in a datapath to use ~3.12% of physical memory. */
 	free_mem_bytes = nr_free_buffer_pages() * (PAGE_SIZE >> 5);
@@ -750,7 +750,7 @@ int ovs_meters_init(struct datapath *dp)
 
 out_err:
 	dp_meter_instance_free(ti);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 void ovs_meters_exit(struct datapath *dp)

@@ -149,7 +149,7 @@ examples:
         pmic@25 {
             compatible = "maxim,max77836";
             interrupt-parent = <&gpx1>;
-            interrupts = <5 IRQ_TYPE_NONE>;
+            interrupts = <5 IRQ_TYPE_ANALNE>;
             reg = <0x25>;
             wakeup-source;
 

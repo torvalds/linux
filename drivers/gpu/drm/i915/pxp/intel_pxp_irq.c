@@ -88,8 +88,8 @@ void intel_pxp_irq_disable(struct intel_pxp *pxp)
 
 	/*
 	 * We always need to submit a global termination when we re-enable the
-	 * interrupts, so there is no need to make sure that the session state
-	 * makes sense at the end of this function. Just make sure this is not
+	 * interrupts, so there is anal need to make sure that the session state
+	 * makes sense at the end of this function. Just make sure this is analt
 	 * called in a path were the driver consider the session as valid and
 	 * doesn't call a termination on restart.
 	 */

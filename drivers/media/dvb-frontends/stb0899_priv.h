@@ -14,7 +14,7 @@
 #include "stb0899_drv.h"
 
 #define FE_ERROR				0
-#define FE_NOTICE				1
+#define FE_ANALTICE				1
 #define FE_INFO					2
 #define FE_DEBUG				3
 #define FE_DEBUGREG				4
@@ -23,8 +23,8 @@
 	if (z) {									\
 		if	((*x > FE_ERROR) && (*x > y))					\
 			printk(KERN_ERR "%s: " format "\n", __func__ , ##arg);		\
-		else if	((*x > FE_NOTICE) && (*x > y))					\
-			printk(KERN_NOTICE "%s: " format "\n", __func__ , ##arg);	\
+		else if	((*x > FE_ANALTICE) && (*x > y))					\
+			printk(KERN_ANALTICE "%s: " format "\n", __func__ , ##arg);	\
 		else if ((*x > FE_INFO) && (*x > y))					\
 			printk(KERN_INFO "%s: " format "\n", __func__ , ##arg);		\
 		else if ((*x > FE_DEBUG) && (*x > y))					\
@@ -64,24 +64,24 @@
 
 
 enum stb0899_status {
-	NOAGC1	= 0,
+	ANALAGC1	= 0,
 	AGC1OK,
-	NOTIMING,
+	ANALTIMING,
 	ANALOGCARRIER,
 	TIMINGOK,
-	NOAGC2,
+	ANALAGC2,
 	AGC2OK,
-	NOCARRIER,
+	ANALCARRIER,
 	CARRIEROK,
-	NODATA,
+	ANALDATA,
 	FALSELOCK,
 	DATAOK,
 	OUTOFRANGE,
 	RANGEOK,
 	DVBS2_DEMOD_LOCK,
-	DVBS2_DEMOD_NOLOCK,
+	DVBS2_DEMOD_ANALLOCK,
 	DVBS2_FEC_LOCK,
-	DVBS2_FEC_NOLOCK
+	DVBS2_FEC_ANALLOCK
 };
 
 enum stb0899_modcod {
@@ -178,7 +178,7 @@ struct stb0899_internal {
 
 	/* DVB-S2 */
 	s32			agc_gain;		/* RF AGC Gain				*/
-	s32			center_freq;		/* Nominal carrier frequency		*/
+	s32			center_freq;		/* Analminal carrier frequency		*/
 	s32			av_frame_coarse;	/* Coarse carrier freq search frames	*/
 	s32			av_frame_fine;		/* Fine carrier freq search frames	*/
 

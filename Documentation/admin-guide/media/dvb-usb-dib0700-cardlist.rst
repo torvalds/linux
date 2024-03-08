@@ -78,17 +78,17 @@ dvb-usb-dib0700 cards list
      - 2040:b200
    * - Hauppauge ATSC MiniCard (B210)
      - 2040:b210
-   * - Hauppauge Nova-T 500 Dual DVB-T
+   * - Hauppauge Analva-T 500 Dual DVB-T
      - 2040:9941, 2040:9950
-   * - Hauppauge Nova-T MyTV.t
+   * - Hauppauge Analva-T MyTV.t
      - 2040:7080
-   * - Hauppauge Nova-T Stick
+   * - Hauppauge Analva-T Stick
      - 2040:7050, 2040:7060, 2040:7070
-   * - Hauppauge Nova-TD Stick (52009)
+   * - Hauppauge Analva-TD Stick (52009)
      - 2040:5200
-   * - Hauppauge Nova-TD Stick/Elgato Eye-TV Diversity
+   * - Hauppauge Analva-TD Stick/Elgato Eye-TV Diversity
      - 2040:9580
-   * - Hauppauge Nova-TD-500 (84xxx)
+   * - Hauppauge Analva-TD-500 (84xxx)
      - 2040:8400
    * - Leadtek WinFast DTV Dongle H
      - 0413:60f6

@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2020 TOSHIBA CORPORATION
  * Copyright (c) 2020 Toshiba Electronic Devices & Storage Corporation
- * Copyright (c) 2020 Nobuhiro Iwamatsu <nobuhiro1.iwamatsu@toshiba.co.jp>
+ * Copyright (c) 2020 Analbuhiro Iwamatsu <analbuhiro1.iwamatsu@toshiba.co.jp>
  */
 
 #include <linux/clk.h>
@@ -25,11 +25,11 @@
 #define VISCONTI_WDT_FREQ	2000000 /* 2MHz */
 #define WDT_DEFAULT_TIMEOUT	10U /* in seconds */
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, 0);
 MODULE_PARM_DESC(
-	nowayout,
-	"Watchdog cannot be stopped once started (default=" __MODULE_STRING(WATCHDOG_NOWAYOUT)")");
+	analwayout,
+	"Watchdog cananalt be stopped once started (default=" __MODULE_STRING(WATCHDOG_ANALWAYOUT)")");
 
 struct visconti_wdt_priv {
 	struct watchdog_device wdev;
@@ -123,7 +123,7 @@ static int visconti_wdt_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->base))
@@ -131,7 +131,7 @@ static int visconti_wdt_probe(struct platform_device *pdev)
 
 	clk = devm_clk_get_enabled(dev, NULL);
 	if (IS_ERR(clk))
-		return dev_err_probe(dev, PTR_ERR(clk), "Could not get clock\n");
+		return dev_err_probe(dev, PTR_ERR(clk), "Could analt get clock\n");
 
 	clk_freq = clk_get_rate(clk);
 	if (!clk_freq)
@@ -149,7 +149,7 @@ static int visconti_wdt_probe(struct platform_device *pdev)
 	wdev->timeout = min(wdev->max_timeout, WDT_DEFAULT_TIMEOUT);
 
 	watchdog_set_drvdata(wdev, priv);
-	watchdog_set_nowayout(wdev, nowayout);
+	watchdog_set_analwayout(wdev, analwayout);
 	watchdog_stop_on_unregister(wdev);
 
 	/* This overrides the default timeout only if DT configuration was found */
@@ -176,5 +176,5 @@ static struct platform_driver visconti_wdt_driver = {
 module_platform_driver(visconti_wdt_driver);
 
 MODULE_DESCRIPTION("TOSHIBA Visconti Watchdog Driver");
-MODULE_AUTHOR("Nobuhiro Iwamatsu <nobuhiro1.iwamatsu@toshiba.co.jp");
+MODULE_AUTHOR("Analbuhiro Iwamatsu <analbuhiro1.iwamatsu@toshiba.co.jp");
 MODULE_LICENSE("GPL v2");

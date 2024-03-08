@@ -50,7 +50,7 @@ static int timeriomem_rng_read(struct hwrng *hwrng, void *data,
 	int period_us = ktime_to_us(priv->period);
 
 	/*
-	 * There may not have been enough time for new data to be generated
+	 * There may analt have been eanalugh time for new data to be generated
 	 * since the last request.  If the caller doesn't want to wait, let them
 	 * bail out.  Otherwise, wait for the completion.  If the new data has
 	 * already been generated, the completion should already be available.
@@ -83,7 +83,7 @@ static int timeriomem_rng_read(struct hwrng *hwrng, void *data,
 	 */
 	priv->present = 0;
 	reinit_completion(&priv->completion);
-	hrtimer_forward_now(&priv->timer, priv->period);
+	hrtimer_forward_analw(&priv->timer, priv->period);
 	hrtimer_restart(&priv->timer);
 
 	return retval;
@@ -97,7 +97,7 @@ static enum hrtimer_restart timeriomem_rng_trigger(struct hrtimer *timer)
 	priv->present = 1;
 	complete(&priv->completion);
 
-	return HRTIMER_NORESTART;
+	return HRTIMER_ANALRESTART;
 }
 
 static int timeriomem_rng_probe(struct platform_device *pdev)
@@ -108,7 +108,7 @@ static int timeriomem_rng_probe(struct platform_device *pdev)
 	int err = 0;
 	int period;
 
-	if (!pdev->dev.of_node && !pdata) {
+	if (!pdev->dev.of_analde && !pdata) {
 		dev_err(&pdev->dev, "timeriomem_rng_data is missing\n");
 		return -EINVAL;
 	}
@@ -117,7 +117,7 @@ static int timeriomem_rng_probe(struct platform_device *pdev)
 	priv = devm_kzalloc(&pdev->dev,
 			sizeof(struct timeriomem_rng_private), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, priv);
 
@@ -131,10 +131,10 @@ static int timeriomem_rng_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	if (pdev->dev.of_node) {
+	if (pdev->dev.of_analde) {
 		int i;
 
-		if (!of_property_read_u32(pdev->dev.of_node,
+		if (!of_property_read_u32(pdev->dev.of_analde,
 						"period", &i))
 			period = i;
 		else {
@@ -142,7 +142,7 @@ static int timeriomem_rng_probe(struct platform_device *pdev)
 			return -EINVAL;
 		}
 
-		if (!of_property_read_u32(pdev->dev.of_node,
+		if (!of_property_read_u32(pdev->dev.of_analde,
 						"quality", &i))
 			priv->rng_ops.quality = i;
 	} else {
@@ -152,7 +152,7 @@ static int timeriomem_rng_probe(struct platform_device *pdev)
 
 	priv->period = ns_to_ktime(period * NSEC_PER_USEC);
 	init_completion(&priv->completion);
-	hrtimer_init(&priv->timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
+	hrtimer_init(&priv->timer, CLOCK_MOANALTONIC, HRTIMER_MODE_ABS);
 	priv->timer.function = timeriomem_rng_trigger;
 
 	priv->rng_ops.name = dev_name(&pdev->dev);

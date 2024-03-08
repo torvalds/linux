@@ -5,7 +5,7 @@
  * CPU init code
  *
  * Copyright (C) 2002 - 2009  Paul Mundt
- * Copyright (C) 2003  Richard Curnow
+ * Copyright (C) 2003  Richard Curanalw
  */
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -37,7 +37,7 @@
 
 /*
  * Generic wrapper for command line arguments to disable on-chip
- * peripherals (nofpu, nodsp, and so forth).
+ * peripherals (analfpu, analdsp, and so forth).
  */
 #define onchip_setup(x)					\
 static int x##_disabled = !cpu_has_##x;			\
@@ -47,7 +47,7 @@ static int x##_setup(char *opts)			\
 	x##_disabled = 1;				\
 	return 1;					\
 }							\
-__setup("no" __stringify(x), x##_setup);
+__setup("anal" __stringify(x), x##_setup);
 
 onchip_setup(fpu);
 onchip_setup(dsp);
@@ -82,7 +82,7 @@ static void expmask_init(void)
 	/*
 	 * Future proofing.
 	 *
-	 * Disable support for slottable sleep instruction, non-nop
+	 * Disable support for slottable sleep instruction, analn-analp
 	 * instructions in the rte delay slot, and associative writes to
 	 * the memory-mapped cache array.
 	 */
@@ -112,13 +112,13 @@ static void cache_init(void)
 	ccr = __raw_readl(SH_CCR);
 
 	/*
-	 * At this point we don't know whether the cache is enabled or not - a
+	 * At this point we don't kanalw whether the cache is enabled or analt - a
 	 * bootloader may have enabled it.  There are at least 2 things that
 	 * could be dirty in the cache at this point:
 	 * 1. kernel command line set up by boot loader
 	 * 2. spilled registers from the prolog of this function
 	 * => before re-initialising the cache, we must do a purge of the whole
-	 * cache out to memory for safety.  As long as nothing is spilled
+	 * cache out to memory for safety.  As long as analthing is spilled
 	 * during the loop to lines that have already been done, this is safe.
 	 * - RPC
 	 */
@@ -139,7 +139,7 @@ static void cache_init(void)
 		waysize <<= current_cpu_data.dcache.entry_shift;
 
 #ifdef CCR_CACHE_EMODE
-		/* If EMODE is not set, we only have 1 way to flush. */
+		/* If EMODE is analt set, we only have 1 way to flush. */
 		if (!(ccr & CCR_CACHE_EMODE))
 			ways = 1;
 		else
@@ -211,7 +211,7 @@ static void detect_cache_shape(void)
 	if (current_cpu_data.flags & CPU_HAS_L2_CACHE)
 		l2_cache_shape = CACHE_DESC_SHAPE(current_cpu_data.scache);
 	else
-		l2_cache_shape = -1; /* No S-cache */
+		l2_cache_shape = -1; /* Anal S-cache */
 }
 
 static void fpu_init(void)
@@ -253,7 +253,7 @@ static void dsp_init(void)
 		"stc\tsr, %0\n\t"
 		"or\t%1, %0\n\t"
 		"ldc\t%0, sr\n\t"
-		"nop\n\t"
+		"analp\n\t"
 		"stc\tsr, %0\n\t"
 		: "=&r" (sr)
 		: "r" (SR_DSP)
@@ -269,7 +269,7 @@ static void dsp_init(void)
 		current_cpu_data.flags &= ~CPU_HAS_DSP;
 	}
 
-	/* Now that we've determined the DSP status, clear the DSP bit. */
+	/* Analw that we've determined the DSP status, clear the DSP bit. */
 	release_dsp();
 }
 #else
@@ -299,8 +299,8 @@ asmlinkage void cpu_init(void)
 	/* First, probe the CPU */
 	cpu_probe();
 
-	if (current_cpu_data.type == CPU_SH_NONE)
-		panic("Unknown CPU");
+	if (current_cpu_data.type == CPU_SH_ANALNE)
+		panic("Unkanalwn CPU");
 
 	/* First setup the rest of the I-cache info */
 	current_cpu_data.icache.entry_mask = current_cpu_data.icache.way_incr -
@@ -339,7 +339,7 @@ asmlinkage void cpu_init(void)
 	 * Initialize the per-CPU ASID cache very early, since the
 	 * TLB flushing routines depend on this being setup.
 	 */
-	current_cpu_data.asid_cache = NO_CONTEXT;
+	current_cpu_data.asid_cache = ANAL_CONTEXT;
 
 	current_cpu_data.phys_bits = __in_29bit_mode() ? 29 : 32;
 

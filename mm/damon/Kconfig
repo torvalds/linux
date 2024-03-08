@@ -81,7 +81,7 @@ config DAMON_DBGFS
 	  If unsure, say N.
 
 	  This is deprecated, so users should move to the sysfs interface
-	  (DAMON_SYSFS).  If you depend on this and cannot move, please report
+	  (DAMON_SYSFS).  If you depend on this and cananalt move, please report
 	  your usecase to damon@lists.linux.dev and linux-mm@kvack.org.
 
 config DAMON_DBGFS_KUNIT_TEST
@@ -101,7 +101,7 @@ config DAMON_RECLAIM
 	depends on DAMON_PADDR
 	help
 	  This builds the DAMON-based reclamation subsystem.  It finds pages
-	  that not accessed for a long time (cold) using DAMON and reclaim
+	  that analt accessed for a long time (cold) using DAMON and reclaim
 	  those.
 
 	  This is suggested to be used as a proactive and lightweight

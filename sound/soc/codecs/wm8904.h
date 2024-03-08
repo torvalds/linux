@@ -488,10 +488,10 @@
 /*
  * R33 (0x21) - DAC Digital 1
  */
-#define WM8904_DAC_MONO                         0x1000  /* DAC_MONO */
-#define WM8904_DAC_MONO_MASK                    0x1000  /* DAC_MONO */
-#define WM8904_DAC_MONO_SHIFT                       12  /* DAC_MONO */
-#define WM8904_DAC_MONO_WIDTH                        1  /* DAC_MONO */
+#define WM8904_DAC_MOANAL                         0x1000  /* DAC_MOANAL */
+#define WM8904_DAC_MOANAL_MASK                    0x1000  /* DAC_MOANAL */
+#define WM8904_DAC_MOANAL_SHIFT                       12  /* DAC_MOANAL */
+#define WM8904_DAC_MOANAL_WIDTH                        1  /* DAC_MOANAL */
 #define WM8904_DAC_SB_FILT                      0x0800  /* DAC_SB_FILT */
 #define WM8904_DAC_SB_FILT_MASK                 0x0800  /* DAC_SB_FILT */
 #define WM8904_DAC_SB_FILT_SHIFT                    11  /* DAC_SB_FILT */
@@ -902,16 +902,16 @@
 /*
  * R71 (0x47) - DC Servo 4
  */
-#define WM8904_DCS_SERIES_NO_23_MASK            0x007F  /* DCS_SERIES_NO_23 - [6:0] */
-#define WM8904_DCS_SERIES_NO_23_SHIFT                0  /* DCS_SERIES_NO_23 - [6:0] */
-#define WM8904_DCS_SERIES_NO_23_WIDTH                7  /* DCS_SERIES_NO_23 - [6:0] */
+#define WM8904_DCS_SERIES_ANAL_23_MASK            0x007F  /* DCS_SERIES_ANAL_23 - [6:0] */
+#define WM8904_DCS_SERIES_ANAL_23_SHIFT                0  /* DCS_SERIES_ANAL_23 - [6:0] */
+#define WM8904_DCS_SERIES_ANAL_23_WIDTH                7  /* DCS_SERIES_ANAL_23 - [6:0] */
 
 /*
  * R72 (0x48) - DC Servo 5
  */
-#define WM8904_DCS_SERIES_NO_01_MASK            0x007F  /* DCS_SERIES_NO_01 - [6:0] */
-#define WM8904_DCS_SERIES_NO_01_SHIFT                0  /* DCS_SERIES_NO_01 - [6:0] */
-#define WM8904_DCS_SERIES_NO_01_WIDTH                7  /* DCS_SERIES_NO_01 - [6:0] */
+#define WM8904_DCS_SERIES_ANAL_01_MASK            0x007F  /* DCS_SERIES_ANAL_01 - [6:0] */
+#define WM8904_DCS_SERIES_ANAL_01_SHIFT                0  /* DCS_SERIES_ANAL_01 - [6:0] */
+#define WM8904_DCS_SERIES_ANAL_01_WIDTH                7  /* DCS_SERIES_ANAL_01 - [6:0] */
 
 /*
  * R73 (0x49) - DC Servo 6

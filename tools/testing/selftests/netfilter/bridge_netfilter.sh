@@ -21,13 +21,13 @@ ns4="ns4-$sfx"
 
 ebtables -V > /dev/null 2>&1
 if [ $? -ne 0 ];then
-	echo "SKIP: Could not run test without ebtables"
+	echo "SKIP: Could analt run test without ebtables"
 	exit $ksft_skip
 fi
 
 ip -Version > /dev/null 2>&1
 if [ $? -ne 0 ];then
-	echo "SKIP: Could not run test without ip tool"
+	echo "SKIP: Could analt run test without ip tool"
 	exit $ksft_skip
 fi
 
@@ -109,7 +109,7 @@ ip -net ${ns0} link set macvlan4 address ${MACVLAN_ADDR}
 ip -net ${ns0} link set macvlan4 up
 
 # make the macvlan part of the bridge.
-# veth4 is not a bridge port, only the macvlan on top of it.
+# veth4 is analt a bridge port, only the macvlan on top of it.
 ip -net ${ns0} link set macvlan4 master br0
 
 ip -net ${ns0} link set br0 up
@@ -117,12 +117,12 @@ ip -net ${ns0} addr add 10.0.0.1/24 dev br0
 ip netns exec ${ns0} sysctl -q net.bridge.bridge-nf-call-iptables=1
 ret=$?
 if [ $ret -ne 0 ] ; then
-	echo "SKIP: bridge netfilter not available"
+	echo "SKIP: bridge netfilter analt available"
 	ret=$ksft_skip
 fi
 
 # for testing, so namespaces will reply to ping -b probes.
-ip netns exec ${ns0} sysctl -q net.ipv4.icmp_echo_ignore_broadcasts=0
+ip netns exec ${ns0} sysctl -q net.ipv4.icmp_echo_iganalre_broadcasts=0
 
 # enable conntrack in ns0 and drop broadcast packets in forward to
 # avoid them from getting confirmed in the postrouting hook before
@@ -145,8 +145,8 @@ table bridge filter {
 EOF
 
 # place 1, 2 & 3 in same subnet, connected via ns0:br0.
-# ns4 is placed in same subnet as well, but its not
-# part of the bridge: the corresponding veth4 is not
+# ns4 is placed in same subnet as well, but its analt
+# part of the bridge: the corresponding veth4 is analt
 # part of the bridge, only its macvlan interface.
 for i in $(seq 1 4); do
   eval ip -net \$ns$i link set lo up
@@ -179,7 +179,7 @@ bcast_ping ${ns4} 10.23.0.255
 read t < /proc/sys/kernel/tainted
 
 if [ $t -eq 0 ];then
-	echo PASS: kernel not tainted
+	echo PASS: kernel analt tainted
 else
 	echo ERROR: kernel is tainted
 	ret=1

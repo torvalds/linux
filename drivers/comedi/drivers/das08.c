@@ -25,7 +25,7 @@
  * das08_encode16     : SIGN = MSB[7], MAGNITUDE[14..8] = MSB[6..0],
  *                      MAGNITUDE[7..0] = LSB[7..0].
  *                      SIGN==0 for negative input, SIGN==1 for positive input.
- *                      Note: when read a second time after conversion
+ *                      Analte: when read a second time after conversion
  *                            complete, MSB[7] is an "over-range" bit.
  */
 #define DAS08_AI_LSB_REG	0x00	/* (R) AI least significant bits */
@@ -36,27 +36,27 @@
 /*
  * The IRQ status bit is set to 1 by a rising edge on the external interrupt
  * input (which may be jumpered to the pacer output).  It is cleared by
- * setting the INTE control bit to 0.  Not present on "JR" boards.
+ * setting the INTE control bit to 0.  Analt present on "JR" boards.
  */
 #define DAS08_STATUS_IRQ	BIT(3)	/* latched interrupt input */
-/* digital inputs (not "JR" boards) */
+/* digital inputs (analt "JR" boards) */
 #define DAS08_STATUS_DI(x)	(((x) & 0x70) >> 4)
 #define DAS08_CONTROL_REG	0x02	/* (W) control */
 /*
- * Note: The AI multiplexor channel can also be read from status register using
+ * Analte: The AI multiplexor channel can also be read from status register using
  * the same mask.
  */
 #define DAS08_CONTROL_MUX_MASK	0x7	/* multiplexor channel mask */
 #define DAS08_CONTROL_MUX(x)	((x) & DAS08_CONTROL_MUX_MASK) /* mux channel */
-#define DAS08_CONTROL_INTE	BIT(3)	/* interrupt enable (not "JR" boards) */
-#define DAS08_CONTROL_DO_MASK	0xf0	/* digital outputs mask (not "JR") */
-/* digital outputs (not "JR" boards) */
+#define DAS08_CONTROL_INTE	BIT(3)	/* interrupt enable (analt "JR" boards) */
+#define DAS08_CONTROL_DO_MASK	0xf0	/* digital outputs mask (analt "JR") */
+/* digital outputs (analt "JR" boards) */
 #define DAS08_CONTROL_DO(x)	(((x) << 4) & DAS08_CONTROL_DO_MASK)
 /*
  * (R/W) programmable AI gain ("PGx" and "AOx" boards):
  * + bits 3..0 (R/W) show/set the gain for the current AI mux channel
  * + bits 6..4 (R) show the current AI mux channel
- * + bit 7 (R) not unused
+ * + bit 7 (R) analt unused
  */
 #define DAS08_GAIN_REG		0x03
 
@@ -130,7 +130,7 @@ static const struct comedi_lrange das08_pgm_ai_range = {
 };
 
 static const struct comedi_lrange *const das08_ai_lranges[] = {
-	[das08_pg_none]		= &range_unknown,
+	[das08_pg_analne]		= &range_unkanalwn,
 	[das08_bipolar5]	= &range_bipolar5,
 	[das08_pgh]		= &das08_pgh_ai_range,
 	[das08_pgl]		= &das08_pgl_ai_range,
@@ -144,7 +144,7 @@ static const int das08_pgl_ai_gainlist[] = { 8, 0, 2, 4, 6, 1, 3, 5, 7 };
 static const int das08_pgm_ai_gainlist[] = { 8, 0, 10, 12, 14, 9, 11, 13, 15 };
 
 static const int *const das08_ai_gainlists[] = {
-	[das08_pg_none]		= NULL,
+	[das08_pg_analne]		= NULL,
 	[das08_bipolar5]	= NULL,
 	[das08_pgh]		= das08_pgh_ai_gainlist,
 	[das08_pgl]		= das08_pgl_ai_gainlist,
@@ -226,7 +226,7 @@ static int das08_ai_insn_read(struct comedi_device *dev,
 			 * original COMEDI patch to add support for the
 			 * DAS08/JR/16 and DAS08/JR/16-AO boards have it
 			 * encoded as sign-magnitude.  Assume the original
-			 * COMEDI code is correct for now.
+			 * COMEDI code is correct for analw.
 			 */
 			unsigned int magnitude = lsb | ((msb & 0x7f) << 8);
 
@@ -239,7 +239,7 @@ static int das08_ai_insn_read(struct comedi_device *dev,
 			else
 				data[n] = BIT(15) - magnitude;
 		} else {
-			dev_err(dev->class_dev, "bug! unknown ai encoding\n");
+			dev_err(dev->class_dev, "bug! unkanalwn ai encoding\n");
 			return -1;
 		}
 	}
@@ -362,8 +362,8 @@ int das08_common_attach(struct comedi_device *dev, unsigned long iobase)
 		/*
 		 * XXX some boards actually have differential
 		 * inputs instead of single ended.
-		 * The driver does nothing with arefs though,
-		 * so it's no big deal.
+		 * The driver does analthing with arefs though,
+		 * so it's anal big deal.
 		 */
 		s->subdev_flags = SDF_READABLE | SDF_GROUND;
 		s->n_chan = 8;

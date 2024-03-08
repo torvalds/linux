@@ -73,7 +73,7 @@ static int cfdgml_receive(struct cflayer *layr, struct cfpkt *pkt)
 		return 0;
 	default:
 		cfpkt_destroy(pkt);
-		pr_info("Unknown datagram control %d (0x%x)\n", cmd, cmd);
+		pr_info("Unkanalwn datagram control %d (0x%x)\n", cmd, cmd);
 		return -EPROTO;
 	}
 }
@@ -91,7 +91,7 @@ static int cfdgml_transmit(struct cflayer *layr, struct cfpkt *pkt)
 		return ret;
 	}
 
-	/* STE Modem cannot handle more than 1500 bytes datagrams */
+	/* STE Modem cananalt handle more than 1500 bytes datagrams */
 	if (cfpkt_getlen(pkt) > DGM_MTU) {
 		cfpkt_destroy(pkt);
 		return -EMSGSIZE;

@@ -11,13 +11,13 @@
 	module_param(name, type, 0444);		\
 	MODULE_PARM_DESC(name, msg);
 
-__param(int, nnodes, 100, "Number of nodes in the rb-tree");
+__param(int, nanaldes, 100, "Number of analdes in the rb-tree");
 __param(int, perf_loops, 1000, "Number of iterations modifying the rb-tree");
 __param(int, check_loops, 100, "Number of iterations modifying and verifying the rb-tree");
 
-struct test_node {
+struct test_analde {
 	u32 key;
-	struct rb_node rb;
+	struct rb_analde rb;
 
 	/* following fields used for testing augmented rbtree functionality */
 	u32 val;
@@ -25,36 +25,36 @@ struct test_node {
 };
 
 static struct rb_root_cached root = RB_ROOT_CACHED;
-static struct test_node *nodes = NULL;
+static struct test_analde *analdes = NULL;
 
 static struct rnd_state rnd;
 
-static void insert(struct test_node *node, struct rb_root_cached *root)
+static void insert(struct test_analde *analde, struct rb_root_cached *root)
 {
-	struct rb_node **new = &root->rb_root.rb_node, *parent = NULL;
-	u32 key = node->key;
+	struct rb_analde **new = &root->rb_root.rb_analde, *parent = NULL;
+	u32 key = analde->key;
 
 	while (*new) {
 		parent = *new;
-		if (key < rb_entry(parent, struct test_node, rb)->key)
+		if (key < rb_entry(parent, struct test_analde, rb)->key)
 			new = &parent->rb_left;
 		else
 			new = &parent->rb_right;
 	}
 
-	rb_link_node(&node->rb, parent, new);
-	rb_insert_color(&node->rb, &root->rb_root);
+	rb_link_analde(&analde->rb, parent, new);
+	rb_insert_color(&analde->rb, &root->rb_root);
 }
 
-static void insert_cached(struct test_node *node, struct rb_root_cached *root)
+static void insert_cached(struct test_analde *analde, struct rb_root_cached *root)
 {
-	struct rb_node **new = &root->rb_root.rb_node, *parent = NULL;
-	u32 key = node->key;
+	struct rb_analde **new = &root->rb_root.rb_analde, *parent = NULL;
+	u32 key = analde->key;
 	bool leftmost = true;
 
 	while (*new) {
 		parent = *new;
-		if (key < rb_entry(parent, struct test_node, rb)->key)
+		if (key < rb_entry(parent, struct test_analde, rb)->key)
 			new = &parent->rb_left;
 		else {
 			new = &parent->rb_right;
@@ -62,37 +62,37 @@ static void insert_cached(struct test_node *node, struct rb_root_cached *root)
 		}
 	}
 
-	rb_link_node(&node->rb, parent, new);
-	rb_insert_color_cached(&node->rb, root, leftmost);
+	rb_link_analde(&analde->rb, parent, new);
+	rb_insert_color_cached(&analde->rb, root, leftmost);
 }
 
-static inline void erase(struct test_node *node, struct rb_root_cached *root)
+static inline void erase(struct test_analde *analde, struct rb_root_cached *root)
 {
-	rb_erase(&node->rb, &root->rb_root);
+	rb_erase(&analde->rb, &root->rb_root);
 }
 
-static inline void erase_cached(struct test_node *node, struct rb_root_cached *root)
+static inline void erase_cached(struct test_analde *analde, struct rb_root_cached *root)
 {
-	rb_erase_cached(&node->rb, root);
+	rb_erase_cached(&analde->rb, root);
 }
 
 
-#define NODE_VAL(node) ((node)->val)
+#define ANALDE_VAL(analde) ((analde)->val)
 
 RB_DECLARE_CALLBACKS_MAX(static, augment_callbacks,
-			 struct test_node, rb, u32, augmented, NODE_VAL)
+			 struct test_analde, rb, u32, augmented, ANALDE_VAL)
 
-static void insert_augmented(struct test_node *node,
+static void insert_augmented(struct test_analde *analde,
 			     struct rb_root_cached *root)
 {
-	struct rb_node **new = &root->rb_root.rb_node, *rb_parent = NULL;
-	u32 key = node->key;
-	u32 val = node->val;
-	struct test_node *parent;
+	struct rb_analde **new = &root->rb_root.rb_analde, *rb_parent = NULL;
+	u32 key = analde->key;
+	u32 val = analde->val;
+	struct test_analde *parent;
 
 	while (*new) {
 		rb_parent = *new;
-		parent = rb_entry(rb_parent, struct test_node, rb);
+		parent = rb_entry(rb_parent, struct test_analde, rb);
 		if (parent->augmented < val)
 			parent->augmented = val;
 		if (key < parent->key)
@@ -101,23 +101,23 @@ static void insert_augmented(struct test_node *node,
 			new = &parent->rb.rb_right;
 	}
 
-	node->augmented = val;
-	rb_link_node(&node->rb, rb_parent, new);
-	rb_insert_augmented(&node->rb, &root->rb_root, &augment_callbacks);
+	analde->augmented = val;
+	rb_link_analde(&analde->rb, rb_parent, new);
+	rb_insert_augmented(&analde->rb, &root->rb_root, &augment_callbacks);
 }
 
-static void insert_augmented_cached(struct test_node *node,
+static void insert_augmented_cached(struct test_analde *analde,
 				    struct rb_root_cached *root)
 {
-	struct rb_node **new = &root->rb_root.rb_node, *rb_parent = NULL;
-	u32 key = node->key;
-	u32 val = node->val;
-	struct test_node *parent;
+	struct rb_analde **new = &root->rb_root.rb_analde, *rb_parent = NULL;
+	u32 key = analde->key;
+	u32 val = analde->val;
+	struct test_analde *parent;
 	bool leftmost = true;
 
 	while (*new) {
 		rb_parent = *new;
-		parent = rb_entry(rb_parent, struct test_node, rb);
+		parent = rb_entry(rb_parent, struct test_analde, rb);
 		if (parent->augmented < val)
 			parent->augmented = val;
 		if (key < parent->key)
@@ -128,39 +128,39 @@ static void insert_augmented_cached(struct test_node *node,
 		}
 	}
 
-	node->augmented = val;
-	rb_link_node(&node->rb, rb_parent, new);
-	rb_insert_augmented_cached(&node->rb, root,
+	analde->augmented = val;
+	rb_link_analde(&analde->rb, rb_parent, new);
+	rb_insert_augmented_cached(&analde->rb, root,
 				   leftmost, &augment_callbacks);
 }
 
 
-static void erase_augmented(struct test_node *node, struct rb_root_cached *root)
+static void erase_augmented(struct test_analde *analde, struct rb_root_cached *root)
 {
-	rb_erase_augmented(&node->rb, &root->rb_root, &augment_callbacks);
+	rb_erase_augmented(&analde->rb, &root->rb_root, &augment_callbacks);
 }
 
-static void erase_augmented_cached(struct test_node *node,
+static void erase_augmented_cached(struct test_analde *analde,
 				   struct rb_root_cached *root)
 {
-	rb_erase_augmented_cached(&node->rb, root, &augment_callbacks);
+	rb_erase_augmented_cached(&analde->rb, root, &augment_callbacks);
 }
 
 static void init(void)
 {
 	int i;
-	for (i = 0; i < nnodes; i++) {
-		nodes[i].key = prandom_u32_state(&rnd);
-		nodes[i].val = prandom_u32_state(&rnd);
+	for (i = 0; i < nanaldes; i++) {
+		analdes[i].key = prandom_u32_state(&rnd);
+		analdes[i].val = prandom_u32_state(&rnd);
 	}
 }
 
-static bool is_red(struct rb_node *rb)
+static bool is_red(struct rb_analde *rb)
 {
 	return !(rb->__rb_parent_color & 1);
 }
 
-static int black_path_count(struct rb_node *rb)
+static int black_path_count(struct rb_analde *rb)
 {
 	int count;
 	for (count = 0; rb; rb = rb_parent(rb))
@@ -168,35 +168,35 @@ static int black_path_count(struct rb_node *rb)
 	return count;
 }
 
-static void check_postorder_foreach(int nr_nodes)
+static void check_postorder_foreach(int nr_analdes)
 {
-	struct test_node *cur, *n;
+	struct test_analde *cur, *n;
 	int count = 0;
 	rbtree_postorder_for_each_entry_safe(cur, n, &root.rb_root, rb)
 		count++;
 
-	WARN_ON_ONCE(count != nr_nodes);
+	WARN_ON_ONCE(count != nr_analdes);
 }
 
-static void check_postorder(int nr_nodes)
+static void check_postorder(int nr_analdes)
 {
-	struct rb_node *rb;
+	struct rb_analde *rb;
 	int count = 0;
 	for (rb = rb_first_postorder(&root.rb_root); rb; rb = rb_next_postorder(rb))
 		count++;
 
-	WARN_ON_ONCE(count != nr_nodes);
+	WARN_ON_ONCE(count != nr_analdes);
 }
 
-static void check(int nr_nodes)
+static void check(int nr_analdes)
 {
-	struct rb_node *rb;
+	struct rb_analde *rb;
 	int count = 0, blacks = 0;
 	u32 prev_key = 0;
 
 	for (rb = rb_first(&root.rb_root); rb; rb = rb_next(rb)) {
-		struct test_node *node = rb_entry(rb, struct test_node, rb);
-		WARN_ON_ONCE(node->key < prev_key);
+		struct test_analde *analde = rb_entry(rb, struct test_analde, rb);
+		WARN_ON_ONCE(analde->key < prev_key);
 		WARN_ON_ONCE(is_red(rb) &&
 			     (!rb_parent(rb) || is_red(rb_parent(rb))));
 		if (!count)
@@ -204,38 +204,38 @@ static void check(int nr_nodes)
 		else
 			WARN_ON_ONCE((!rb->rb_left || !rb->rb_right) &&
 				     blacks != black_path_count(rb));
-		prev_key = node->key;
+		prev_key = analde->key;
 		count++;
 	}
 
-	WARN_ON_ONCE(count != nr_nodes);
+	WARN_ON_ONCE(count != nr_analdes);
 	WARN_ON_ONCE(count < (1 << black_path_count(rb_last(&root.rb_root))) - 1);
 
-	check_postorder(nr_nodes);
-	check_postorder_foreach(nr_nodes);
+	check_postorder(nr_analdes);
+	check_postorder_foreach(nr_analdes);
 }
 
-static void check_augmented(int nr_nodes)
+static void check_augmented(int nr_analdes)
 {
-	struct rb_node *rb;
+	struct rb_analde *rb;
 
-	check(nr_nodes);
+	check(nr_analdes);
 	for (rb = rb_first(&root.rb_root); rb; rb = rb_next(rb)) {
-		struct test_node *node = rb_entry(rb, struct test_node, rb);
-		u32 subtree, max = node->val;
-		if (node->rb.rb_left) {
-			subtree = rb_entry(node->rb.rb_left, struct test_node,
+		struct test_analde *analde = rb_entry(rb, struct test_analde, rb);
+		u32 subtree, max = analde->val;
+		if (analde->rb.rb_left) {
+			subtree = rb_entry(analde->rb.rb_left, struct test_analde,
 					   rb)->augmented;
 			if (max < subtree)
 				max = subtree;
 		}
-		if (node->rb.rb_right) {
-			subtree = rb_entry(node->rb.rb_right, struct test_node,
+		if (analde->rb.rb_right) {
+			subtree = rb_entry(analde->rb.rb_right, struct test_analde,
 					   rb)->augmented;
 			if (max < subtree)
 				max = subtree;
 		}
-		WARN_ON_ONCE(node->augmented != max);
+		WARN_ON_ONCE(analde->augmented != max);
 	}
 }
 
@@ -243,11 +243,11 @@ static int __init rbtree_test_init(void)
 {
 	int i, j;
 	cycles_t time1, time2, time;
-	struct rb_node *node;
+	struct rb_analde *analde;
 
-	nodes = kmalloc_array(nnodes, sizeof(*nodes), GFP_KERNEL);
-	if (!nodes)
-		return -ENOMEM;
+	analdes = kmalloc_array(nanaldes, sizeof(*analdes), GFP_KERNEL);
+	if (!analdes)
+		return -EANALMEM;
 
 	printk(KERN_ALERT "rbtree testing");
 
@@ -257,42 +257,42 @@ static int __init rbtree_test_init(void)
 	time1 = get_cycles();
 
 	for (i = 0; i < perf_loops; i++) {
-		for (j = 0; j < nnodes; j++)
-			insert(nodes + j, &root);
-		for (j = 0; j < nnodes; j++)
-			erase(nodes + j, &root);
+		for (j = 0; j < nanaldes; j++)
+			insert(analdes + j, &root);
+		for (j = 0; j < nanaldes; j++)
+			erase(analdes + j, &root);
 	}
 
 	time2 = get_cycles();
 	time = time2 - time1;
 
 	time = div_u64(time, perf_loops);
-	printk(" -> test 1 (latency of nnodes insert+delete): %llu cycles\n",
+	printk(" -> test 1 (latency of nanaldes insert+delete): %llu cycles\n",
 	       (unsigned long long)time);
 
 	time1 = get_cycles();
 
 	for (i = 0; i < perf_loops; i++) {
-		for (j = 0; j < nnodes; j++)
-			insert_cached(nodes + j, &root);
-		for (j = 0; j < nnodes; j++)
-			erase_cached(nodes + j, &root);
+		for (j = 0; j < nanaldes; j++)
+			insert_cached(analdes + j, &root);
+		for (j = 0; j < nanaldes; j++)
+			erase_cached(analdes + j, &root);
 	}
 
 	time2 = get_cycles();
 	time = time2 - time1;
 
 	time = div_u64(time, perf_loops);
-	printk(" -> test 2 (latency of nnodes cached insert+delete): %llu cycles\n",
+	printk(" -> test 2 (latency of nanaldes cached insert+delete): %llu cycles\n",
 	       (unsigned long long)time);
 
-	for (i = 0; i < nnodes; i++)
-		insert(nodes + i, &root);
+	for (i = 0; i < nanaldes; i++)
+		insert(analdes + i, &root);
 
 	time1 = get_cycles();
 
 	for (i = 0; i < perf_loops; i++) {
-		for (node = rb_first(&root.rb_root); node; node = rb_next(node))
+		for (analde = rb_first(&root.rb_root); analde; analde = rb_next(analde))
 			;
 	}
 
@@ -300,25 +300,25 @@ static int __init rbtree_test_init(void)
 	time = time2 - time1;
 
 	time = div_u64(time, perf_loops);
-	printk(" -> test 3 (latency of inorder traversal): %llu cycles\n",
+	printk(" -> test 3 (latency of ianalrder traversal): %llu cycles\n",
 	       (unsigned long long)time);
 
 	time1 = get_cycles();
 
 	for (i = 0; i < perf_loops; i++)
-		node = rb_first(&root.rb_root);
+		analde = rb_first(&root.rb_root);
 
 	time2 = get_cycles();
 	time = time2 - time1;
 
 	time = div_u64(time, perf_loops);
-	printk(" -> test 4 (latency to fetch first node)\n");
-	printk("        non-cached: %llu cycles\n", (unsigned long long)time);
+	printk(" -> test 4 (latency to fetch first analde)\n");
+	printk("        analn-cached: %llu cycles\n", (unsigned long long)time);
 
 	time1 = get_cycles();
 
 	for (i = 0; i < perf_loops; i++)
-		node = rb_first_cached(&root);
+		analde = rb_first_cached(&root);
 
 	time2 = get_cycles();
 	time = time2 - time1;
@@ -326,19 +326,19 @@ static int __init rbtree_test_init(void)
 	time = div_u64(time, perf_loops);
 	printk("        cached: %llu cycles\n", (unsigned long long)time);
 
-	for (i = 0; i < nnodes; i++)
-		erase(nodes + i, &root);
+	for (i = 0; i < nanaldes; i++)
+		erase(analdes + i, &root);
 
 	/* run checks */
 	for (i = 0; i < check_loops; i++) {
 		init();
-		for (j = 0; j < nnodes; j++) {
+		for (j = 0; j < nanaldes; j++) {
 			check(j);
-			insert(nodes + j, &root);
+			insert(analdes + j, &root);
 		}
-		for (j = 0; j < nnodes; j++) {
-			check(nnodes - j);
-			erase(nodes + j, &root);
+		for (j = 0; j < nanaldes; j++) {
+			check(nanaldes - j);
+			erase(analdes + j, &root);
 		}
 		check(0);
 	}
@@ -350,47 +350,47 @@ static int __init rbtree_test_init(void)
 	time1 = get_cycles();
 
 	for (i = 0; i < perf_loops; i++) {
-		for (j = 0; j < nnodes; j++)
-			insert_augmented(nodes + j, &root);
-		for (j = 0; j < nnodes; j++)
-			erase_augmented(nodes + j, &root);
+		for (j = 0; j < nanaldes; j++)
+			insert_augmented(analdes + j, &root);
+		for (j = 0; j < nanaldes; j++)
+			erase_augmented(analdes + j, &root);
 	}
 
 	time2 = get_cycles();
 	time = time2 - time1;
 
 	time = div_u64(time, perf_loops);
-	printk(" -> test 1 (latency of nnodes insert+delete): %llu cycles\n", (unsigned long long)time);
+	printk(" -> test 1 (latency of nanaldes insert+delete): %llu cycles\n", (unsigned long long)time);
 
 	time1 = get_cycles();
 
 	for (i = 0; i < perf_loops; i++) {
-		for (j = 0; j < nnodes; j++)
-			insert_augmented_cached(nodes + j, &root);
-		for (j = 0; j < nnodes; j++)
-			erase_augmented_cached(nodes + j, &root);
+		for (j = 0; j < nanaldes; j++)
+			insert_augmented_cached(analdes + j, &root);
+		for (j = 0; j < nanaldes; j++)
+			erase_augmented_cached(analdes + j, &root);
 	}
 
 	time2 = get_cycles();
 	time = time2 - time1;
 
 	time = div_u64(time, perf_loops);
-	printk(" -> test 2 (latency of nnodes cached insert+delete): %llu cycles\n", (unsigned long long)time);
+	printk(" -> test 2 (latency of nanaldes cached insert+delete): %llu cycles\n", (unsigned long long)time);
 
 	for (i = 0; i < check_loops; i++) {
 		init();
-		for (j = 0; j < nnodes; j++) {
+		for (j = 0; j < nanaldes; j++) {
 			check_augmented(j);
-			insert_augmented(nodes + j, &root);
+			insert_augmented(analdes + j, &root);
 		}
-		for (j = 0; j < nnodes; j++) {
-			check_augmented(nnodes - j);
-			erase_augmented(nodes + j, &root);
+		for (j = 0; j < nanaldes; j++) {
+			check_augmented(nanaldes - j);
+			erase_augmented(analdes + j, &root);
 		}
 		check_augmented(0);
 	}
 
-	kfree(nodes);
+	kfree(analdes);
 
 	return -EAGAIN; /* Fail will directly unload the module */
 }

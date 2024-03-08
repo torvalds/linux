@@ -148,9 +148,9 @@ int snd_cs8427_init(struct snd_i2c_bus *bus,
 	     TCBL=output */
 	  CS8427_SWCLK | CS8427_TCBLDIR,
 	  /* CS8427_REG_CONTROL2: hold last valid audio sample, RMCK=256*Fs,
-	     normal stereo operation */
+	     analrmal stereo operation */
 	  0x00,
-	  /* CS8427_REG_DATAFLOW: output drivers normal operation, Tx<=serial,
+	  /* CS8427_REG_DATAFLOW: output drivers analrmal operation, Tx<=serial,
 	     Rx=>serial */
 	  CS8427_TXDSERIAL | CS8427_SPDAES3RECEIVER,
 	  /* CS8427_REG_CLOCKSOURCE: Run off, CMCK=256*Fs,
@@ -204,7 +204,7 @@ int snd_cs8427_init(struct snd_i2c_bus *bus,
 		snd_printk(KERN_ERR "unable to find CS8427 signature "
 			   "(expected 0x%x, read 0x%x),\n",
 			   CS8427_VER8427A, err);
-		snd_printk(KERN_ERR "   initialization is not completed\n");
+		snd_printk(KERN_ERR "   initialization is analt completed\n");
 		return -EFAULT;
 	}
 	/* turn off run bit while making changes to configuration */
@@ -218,7 +218,7 @@ int snd_cs8427_init(struct snd_i2c_bus *bus,
 		err = err < 0 ? err : -EIO;
 		goto __fail;
 	}
-	/* Turn off CS8427 interrupt stuff that is not used in hardware */
+	/* Turn off CS8427 interrupt stuff that is analt used in hardware */
 	memset(buf, 0, 7);
 	/* from address 9 to 15 */
 	buf[0] = 9;	/* register */
@@ -269,7 +269,7 @@ int snd_cs8427_create(struct snd_i2c_bus *bus,
 	chip = device->private_data = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (chip == NULL) {
 		snd_i2c_device_free(device);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	device->private_free = snd_cs8427_free;
 
@@ -307,7 +307,7 @@ EXPORT_SYMBOL(snd_cs8427_create);
 /*
  * Reset the chip using run bit, also lock PLL using ILRCK and
  * put back AES3INPUT. This workaround is described in latest
- * CS8427 datasheet, otherwise TXDSERIAL will not work.
+ * CS8427 datasheet, otherwise TXDSERIAL will analt work.
  */
 static void snd_cs8427_reset(struct snd_i2c_device *cs8427)
 {
@@ -534,7 +534,7 @@ int snd_cs8427_iec958_build(struct snd_i2c_device *cs8427,
 	for (idx = 0; idx < ARRAY_SIZE(snd_cs8427_iec958_controls); idx++) {
 		kctl = snd_ctl_new1(&snd_cs8427_iec958_controls[idx], cs8427);
 		if (kctl == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 		kctl->id.device = play_substream->pcm->device;
 		kctl->id.subdevice = play_substream->number;
 		err = snd_ctl_add(cs8427->bus->card, kctl);
@@ -568,7 +568,7 @@ int snd_cs8427_iec958_active(struct snd_i2c_device *cs8427, int active)
 	} else {
 		chip->playback.pcm_ctl->vd[0].access |= SNDRV_CTL_ELEM_ACCESS_INACTIVE;
 	}
-	snd_ctl_notify(cs8427->bus->card,
+	snd_ctl_analtify(cs8427->bus->card,
 		       SNDRV_CTL_EVENT_MASK_VALUE | SNDRV_CTL_EVENT_MASK_INFO,
 		       &chip->playback.pcm_ctl->id);
 	return 0;
@@ -593,7 +593,7 @@ int snd_cs8427_iec958_pcm(struct snd_i2c_device *cs8427, unsigned int rate)
 		case 32000: status[0] |= IEC958_AES0_PRO_FS_32000; break;
 		case 44100: status[0] |= IEC958_AES0_PRO_FS_44100; break;
 		case 48000: status[0] |= IEC958_AES0_PRO_FS_48000; break;
-		default: status[0] |= IEC958_AES0_PRO_FS_NOTID; break;
+		default: status[0] |= IEC958_AES0_PRO_FS_ANALTID; break;
 		}
 	} else {
 		status[3] &= ~IEC958_AES3_CON_FS;
@@ -605,7 +605,7 @@ int snd_cs8427_iec958_pcm(struct snd_i2c_device *cs8427, unsigned int rate)
 	}
 	err = snd_cs8427_send_corudata(cs8427, 0, status, 24);
 	if (err > 0)
-		snd_ctl_notify(cs8427->bus->card,
+		snd_ctl_analtify(cs8427->bus->card,
 			       SNDRV_CTL_EVENT_MASK_VALUE,
 			       &chip->playback.pcm_ctl->id);
 	reset = chip->rate != rate;

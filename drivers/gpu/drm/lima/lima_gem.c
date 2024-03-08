@@ -30,7 +30,7 @@ int lima_heap_alloc(struct lima_bo *bo, struct lima_vm *vm)
 	int i, ret;
 
 	if (bo->heap_size >= bo->base.base.size)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	new_size = min(new_size, bo->base.base.size);
 
@@ -43,7 +43,7 @@ int lima_heap_alloc(struct lima_bo *bo, struct lima_vm *vm)
 				       sizeof(*pages), GFP_KERNEL | __GFP_ZERO);
 		if (!pages) {
 			dma_resv_unlock(bo->base.base.resv);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		bo->base.pages = pages;
@@ -76,7 +76,7 @@ int lima_heap_alloc(struct lima_bo *bo, struct lima_vm *vm)
 		bo->base.sgt = kmalloc(sizeof(*bo->base.sgt), GFP_KERNEL);
 		if (!bo->base.sgt) {
 			sg_free_table(&sgt);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -139,7 +139,7 @@ int lima_gem_create_handle(struct drm_device *dev, struct drm_file *file,
 	err = drm_gem_handle_create(file, obj, handle);
 
 out:
-	/* drop reference from allocate - handle holds it now */
+	/* drop reference from allocate - handle holds it analw */
 	drm_gem_object_put(obj);
 
 	return err;
@@ -223,7 +223,7 @@ struct drm_gem_object *lima_gem_create_object(struct drm_device *dev, size_t siz
 
 	bo = kzalloc(sizeof(*bo), GFP_KERNEL);
 	if (!bo)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mutex_init(&bo->lock);
 	INIT_LIST_HEAD(&bo->va);
@@ -242,13 +242,13 @@ int lima_gem_get_info(struct drm_file *file, u32 handle, u32 *va, u64 *offset)
 
 	obj = drm_gem_object_lookup(file, handle);
 	if (!obj)
-		return -ENOENT;
+		return -EANALENT;
 
 	bo = to_lima_bo(obj);
 
 	*va = lima_vm_get_va(vm, bo);
 
-	*offset = drm_vma_node_offset_addr(&obj->vma_node);
+	*offset = drm_vma_analde_offset_addr(&obj->vma_analde);
 
 	drm_gem_object_put(obj);
 	return 0;
@@ -302,7 +302,7 @@ int lima_gem_submit(struct drm_file *file, struct lima_submit *submit)
 	if (submit->out_sync) {
 		out_sync = drm_syncobj_find(file, submit->out_sync);
 		if (!out_sync)
-			return -ENOENT;
+			return -EANALENT;
 	}
 
 	for (i = 0; i < submit->nr_bos; i++) {
@@ -311,7 +311,7 @@ int lima_gem_submit(struct drm_file *file, struct lima_submit *submit)
 
 		obj = drm_gem_object_lookup(file, submit->bos[i].handle);
 		if (!obj) {
-			err = -ENOENT;
+			err = -EANALENT;
 			goto err_out0;
 		}
 

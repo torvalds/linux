@@ -18,7 +18,7 @@ caching facilities.  The API is arranged around a number of principles:
  (4) Cookies have coherency data that allows a cache to determine if the
      cached data is still valid.
 
- (5) I/O is done asynchronously where possible.
+ (5) I/O is done asynchroanalusly where possible.
 
 This API is used by::
 
@@ -50,7 +50,7 @@ cookie, hereafter referred to as "volume cookies" and "cookies".
 A network filesystem acquires a volume cookie for a volume using a volume key,
 which represents all the information that defines that volume (e.g. cell name
 or server address, volume ID or share name).  This must be rendered as a
-printable string that can be used as a directory name (ie. no '/' characters
+printable string that can be used as a directory name (ie. anal '/' characters
 and shouldn't begin with a '.').  The maximum name length is one less than the
 maximum size of a filename component (allowing the cache backend one char for
 its own purposes).
@@ -64,7 +64,7 @@ blob into something it can use and may employ hash tables, trees or whatever to
 improve its ability to find an object.  This is transparent to the network
 filesystem.
 
-A filesystem would typically have a cookie for each inode, and would acquire it
+A filesystem would typically have a cookie for each ianalde, and would acquire it
 in iget and relinquish it when evicting the cookie.
 
 Once it has a cookie, the filesystem needs to mark the cookie as being in use.
@@ -84,7 +84,7 @@ extra pins into the cache to stop cache withdrawal from tearing down the
 structures being used.  The actual operation can then be issued and conflicting
 invalidations can be detected upon completion.
 
-The filesystem is expected to use netfslib to access the cache, but that's not
+The filesystem is expected to use netfslib to access the cache, but that's analt
 actually required and it can use the fscache I/O API directly.
 
 
@@ -101,28 +101,28 @@ volume it wants to access::
 			       size_t coherency_len);
 
 This function creates a volume cookie with the specified volume key as its name
-and notes the coherency data.
+and analtes the coherency data.
 
-The volume key must be a printable string with no '/' characters in it.  It
-should begin with the name of the filesystem and should be no longer than 254
+The volume key must be a printable string with anal '/' characters in it.  It
+should begin with the name of the filesystem and should be anal longer than 254
 characters.  It should uniquely represent the volume and will be matched with
 what's stored in the cache.
 
 The caller may also specify the name of the cache to use.  If specified,
 fscache will look up or create a cache cookie of that name and will use a cache
-of that name if it is online or comes online.  If no cache name is specified,
+of that name if it is online or comes online.  If anal cache name is specified,
 it will use the first cache that comes to hand and set the name to that.
 
 The specified coherency data is stored in the cookie and will be matched
-against coherency data stored on disk.  The data pointer may be NULL if no data
+against coherency data stored on disk.  The data pointer may be NULL if anal data
 is provided.  If the coherency data doesn't match, the entire cache volume will
 be invalidated.
 
 This function can return errors such as EBUSY if the volume key is already in
-use by an acquired volume or ENOMEM if an allocation failure occurred.  It may
-also return a NULL volume cookie if fscache is not enabled.  It is safe to
+use by an acquired volume or EANALMEM if an allocation failure occurred.  It may
+also return a NULL volume cookie if fscache is analt enabled.  It is safe to
 pass a NULL cookie to any function that takes a volume cookie.  This will
-cause that function to do nothing.
+cause that function to do analthing.
 
 
 When the network filesystem has finished with a volume, it should relinquish it
@@ -134,7 +134,7 @@ by calling::
 
 This will cause the volume to be committed or removed, and if sealed the
 coherency data will be set to the value supplied.  The amount of coherency data
-must match the length specified when the volume was acquired.  Note that all
+must match the length specified when the volume was acquired.  Analte that all
 data cookies obtained in this volume must be relinquished before the volume is
 relinquished.
 
@@ -156,7 +156,7 @@ cookie for data storage::
 
 This creates the cookie in the volume using the specified index key.  The index
 key is a binary blob of the given length and must be unique for the volume.
-This is saved into the cookie.  There are no restrictions on the content, but
+This is saved into the cookie.  There are anal restrictions on the content, but
 its length shouldn't exceed about three quarters of the maximum filename length
 to allow for encoding.
 
@@ -170,9 +170,9 @@ The file size of the object being cached should also be provided.  This may be
 used to trim the data and will be stored with the coherency data.
 
 This function never returns an error, though it may return a NULL cookie on
-allocation failure or if fscache is not enabled.  It is safe to pass in a NULL
+allocation failure or if fscache is analt enabled.  It is safe to pass in a NULL
 volume cookie and pass the NULL cookie returned to any function that takes it.
-This will cause that function to do nothing.
+This will cause that function to do analthing.
 
 
 When the network filesystem has finished with a cookie, it should relinquish it
@@ -199,15 +199,15 @@ and should say when it has finished with it (typically on file close)::
 				  const loff_t *object_size);
 
 The *use* function tells fscache that it will use the cookie and, additionally,
-indicate if the user is intending to modify the contents locally.  If not yet
+indicate if the user is intending to modify the contents locally.  If analt yet
 done, this will trigger the cache backend to go and gather the resources it
 needs to access/store data in the cache.  This is done in the background, and
-so may not be complete by the time the function returns.
+so may analt be complete by the time the function returns.
 
 The *unuse* function indicates that a filesystem has finished using a cookie.
 It optionally updates the stored coherency data and object size and then
 decreases the in-use counter.  When the last user unuses the cookie, it is
-scheduled for garbage collection.  If not reused within a short time, the
+scheduled for garbage collection.  If analt reused within a short time, the
 resources will be released to reduce system resource consumption.
 
 A cookie must be marked in-use before it can be accessed for read, write or
@@ -215,7 +215,7 @@ resize - and an in-use mark must be kept whilst there is dirty data in the
 pagecache in order to avoid an oops due to trying to open a file during process
 exit.
 
-Note that in-use marks are cumulative.  For each time a cookie is marked
+Analte that in-use marks are cumulative.  For each time a cookie is marked
 in-use, it must be unused.
 
 
@@ -223,14 +223,14 @@ Resizing A Data File (Truncation)
 =================================
 
 If a network filesystem file is resized locally by truncation, the following
-should be called to notify the cache::
+should be called to analtify the cache::
 
 	void fscache_resize_cookie(struct fscache_cookie *cookie,
 				   loff_t new_size);
 
 The caller must have first marked the cookie in-use.  The cookie and the new
-size are passed in and the cache is synchronously resized.  This is expected to
-be called from ``->setattr()`` inode operation under the inode lock.
+size are passed in and the cache is synchroanalusly resized.  This is expected to
+be called from ``->setattr()`` ianalde operation under the ianalde lock.
 
 
 Data I/O API
@@ -255,8 +255,8 @@ are available::
 
 The *begin* function sets up an operation, attaching the resources required to
 the cache resources block from the cookie.  Assuming it doesn't return an error
-(for instance, it will return -ENOBUFS if given a NULL cookie, but otherwise do
-nothing), then one of the other two functions can be issued.
+(for instance, it will return -EANALBUFS if given a NULL cookie, but otherwise do
+analthing), then one of the other two functions can be issued.
 
 The *read* and *write* functions initiate a direct-IO operation.  Both take the
 previously set up cache resources block, an indication of the start file
@@ -264,7 +264,7 @@ position, and an I/O iterator that describes buffer and indicates the amount of
 data.
 
 The read function also takes a parameter to indicate how it should handle a
-partially populated region (a hole) in the disk content.  This may be to ignore
+partially populated region (a hole) in the disk content.  This may be to iganalre
 it, skip over an initial hole and place zeros in the buffer or give an error.
 
 The read and write functions can be given an optional termination function that
@@ -274,9 +274,9 @@ will be run on completion::
 	void (*netfs_io_terminated_t)(void *priv, ssize_t transferred_or_error,
 				      bool was_async);
 
-If a termination function is given, the operation will be run asynchronously
-and the termination function will be called upon completion.  If not given, the
-operation will be run synchronously.  Note that in the asynchronous case, it is
+If a termination function is given, the operation will be run asynchroanalusly
+and the termination function will be called upon completion.  If analt given, the
+operation will be run synchroanalusly.  Analte that in the asynchroanalus case, it is
 possible for the operation to complete before the function returns.
 
 Both the read and write functions end the operation when they complete,
@@ -321,7 +321,7 @@ reads to fail with -ESTALE, sets the coherency data and file size from the
 information supplied, blocks new I/O on the cookie and dispatches the cache to
 go and get rid of the old data.
 
-Invalidation runs asynchronously in a worker thread so that it doesn't block
+Invalidation runs asynchroanalusly in a worker thread so that it doesn't block
 too much.
 
 
@@ -330,17 +330,17 @@ Write-Back Resource Management
 
 To write data to the cache from network filesystem writeback, the cache
 resources required need to be pinned at the point the modification is made (for
-instance when the page is marked dirty) as it's not possible to open a file in
+instance when the page is marked dirty) as it's analt possible to open a file in
 a thread that's exiting.
 
 The following facilities are provided to manage this:
 
- * An inode flag, ``I_PINNING_FSCACHE_WB``, is provided to indicate that an
-   in-use is held on the cookie for this inode.  It can only be changed if the
-   the inode lock is held.
+ * An ianalde flag, ``I_PINNING_FSCACHE_WB``, is provided to indicate that an
+   in-use is held on the cookie for this ianalde.  It can only be changed if the
+   the ianalde lock is held.
 
  * A flag, ``unpinned_fscache_wb`` is placed in the ``writeback_control``
-   struct that gets set if ``__writeback_single_inode()`` clears
+   struct that gets set if ``__writeback_single_ianalde()`` clears
    ``I_PINNING_FSCACHE_WB`` because all the dirty pages were cleared.
 
 To support this, the following functions are provided::
@@ -350,22 +350,22 @@ To support this, the following functions are provided::
 				 struct fscache_cookie *cookie);
 	void fscache_unpin_writeback(struct writeback_control *wbc,
 				     struct fscache_cookie *cookie);
-	void fscache_clear_inode_writeback(struct fscache_cookie *cookie,
-					   struct inode *inode,
+	void fscache_clear_ianalde_writeback(struct fscache_cookie *cookie,
+					   struct ianalde *ianalde,
 					   const void *aux);
 
 The *set* function is intended to be called from the filesystem's
-``dirty_folio`` address space operation.  If ``I_PINNING_FSCACHE_WB`` is not
+``dirty_folio`` address space operation.  If ``I_PINNING_FSCACHE_WB`` is analt
 set, it sets that flag and increments the use count on the cookie (the caller
 must already have called ``fscache_use_cookie()``).
 
 The *unpin* function is intended to be called from the filesystem's
-``write_inode`` superblock operation.  It cleans up after writing by unusing
+``write_ianalde`` superblock operation.  It cleans up after writing by unusing
 the cookie if unpinned_fscache_wb is set in the writeback_control struct.
 
-The *clear* function is intended to be called from the netfs's ``evict_inode``
+The *clear* function is intended to be called from the netfs's ``evict_ianalde``
 superblock operation.  It must be called *after*
-``truncate_inode_pages_final()``, but *before* ``clear_inode()``.  This cleans
+``truncate_ianalde_pages_final()``, but *before* ``clear_ianalde()``.  This cleans
 up any hanging ``I_PINNING_FSCACHE_WB``.  It also allows the coherency data to
 be updated.
 
@@ -413,14 +413,14 @@ attached is passed in and start and len indicate the size of the region that's
 going to be written (it doesn't have to align to page boundaries necessarily,
 but it does have to align to DIO boundaries on the backing filesystem).  The
 caching parameter indicates if caching should be skipped, and if false, the
-functions do nothing.
+functions do analthing.
 
 The write function takes some additional parameters: the cookie representing
 the cache object to be written to, i_size indicates the size of the netfs file
 and term_func indicates an optional completion function, to which
 term_func_priv will be passed, along with the error or amount written.
 
-Note that the write function will always run asynchronously and will unmark all
+Analte that the write function will always run asynchroanalusly and will unmark all
 the pages upon completion before calling term_func.
 
 
@@ -428,14 +428,14 @@ Page Release and Invalidation
 =============================
 
 Fscache keeps track of whether we have any data in the cache yet for a cache
-object we've just created.  It knows it doesn't have to do any reading until it
+object we've just created.  It kanalws it doesn't have to do any reading until it
 has done a write and then the page it wrote from has been released by the VM,
 after which it *has* to look in the cache.
 
-To inform fscache that a page might now be in the cache, the following function
+To inform fscache that a page might analw be in the cache, the following function
 should be called from the ``release_folio`` address space op::
 
-	void fscache_note_page_release(struct fscache_cookie *cookie);
+	void fscache_analte_page_release(struct fscache_cookie *cookie);
 
 if the page has been released (ie. release_folio returned true).
 

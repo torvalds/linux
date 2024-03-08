@@ -10,7 +10,7 @@
 
 /* GPL HEADER START
  *
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+ * DO ANALT ALTER OR REMOVE COPYRIGHT ANALTICES OR THIS FILE HEADER.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 only,
@@ -23,7 +23,7 @@
  * in the LICENSE file that accompanied this code).
  *
  * You should have received a copy of the GNU General Public License
- * version 2 along with this program; If not, see http://www.gnu.org/licenses
+ * version 2 along with this program; If analt, see http://www.gnu.org/licenses
  *
  * Please  visit http://www.xyratex.com/contact if you need additional
  * information or have any questions.
@@ -32,11 +32,11 @@
  */
 
 /*
- * Copyright 2012 Xyratex Technology Limited
+ * Copyright 2012 Xyratex Techanallogy Limited
  *
  * Using hardware provided PCLMULQDQ instruction to accelerate the CRC32
  * calculation.
- * CRC32 polynomial:0x04c11db7(BE)/0xEDB88320(LE)
+ * CRC32 polyanalmial:0x04c11db7(BE)/0xEDB88320(LE)
  * PCLMULQDQ is a new instruction in Intel SSE4.2, the reference can be found
  * at:
  * https://www.intel.com/products/processor/manuals/

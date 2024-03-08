@@ -20,12 +20,12 @@
 static __be32
 cast_to_nlm(__be32 status, u32 vers)
 {
-	/* Note: status is assumed to be in network byte order !!! */
+	/* Analte: status is assumed to be in network byte order !!! */
 	if (vers != 4){
 		switch (status) {
 		case nlm_granted:
 		case nlm_lck_denied:
-		case nlm_lck_denied_nolocks:
+		case nlm_lck_denied_anallocks:
 		case nlm_lck_blocked:
 		case nlm_lck_denied_grace_period:
 		case nlm_drop_reply:
@@ -34,7 +34,7 @@ cast_to_nlm(__be32 status, u32 vers)
 			status = nlm_lck_denied;
 			break;
 		default:
-			status = nlm_lck_denied_nolocks;
+			status = nlm_lck_denied_anallocks;
 		}
 	}
 
@@ -60,19 +60,19 @@ nlmsvc_retrieve_args(struct svc_rqst *rqstp, struct nlm_args *argp,
 
 	/* nfsd callbacks must have been installed for this procedure */
 	if (!nlmsvc_ops)
-		return nlm_lck_denied_nolocks;
+		return nlm_lck_denied_anallocks;
 
 	/* Obtain host handle */
 	if (!(host = nlmsvc_lookup_host(rqstp, lock->caller, lock->len))
 	 || (argp->monitor && nsm_monitor(host) < 0))
-		goto no_locks;
+		goto anal_locks;
 	*hostp = host;
 
-	/* Obtain file pointer. Not used by FREE_ALL call. */
+	/* Obtain file pointer. Analt used by FREE_ALL call. */
 	if (filp != NULL) {
 		error = cast_status(nlm_lookup_file(rqstp, &file, lock));
 		if (error != 0)
-			goto no_locks;
+			goto anal_locks;
 		*filp = file;
 
 		/* Set up the missing parts of the file_lock structure */
@@ -85,17 +85,17 @@ nlmsvc_retrieve_args(struct svc_rqst *rqstp, struct nlm_args *argp,
 		if (!lock->fl.fl_owner) {
 			/* lockowner allocation has failed */
 			nlmsvc_release_host(host);
-			return nlm_lck_denied_nolocks;
+			return nlm_lck_denied_anallocks;
 		}
 	}
 
 	return 0;
 
-no_locks:
+anal_locks:
 	nlmsvc_release_host(host);
 	if (error)
 		return error;
-	return nlm_lck_denied_nolocks;
+	return nlm_lck_denied_anallocks;
 }
 
 /*
@@ -129,7 +129,7 @@ __nlmsvc_proc_test(struct svc_rqst *rqstp, struct nlm_res *resp)
 
 	test_owner = argp->lock.fl.fl_owner;
 
-	/* Now check for conflicting locks */
+	/* Analw check for conflicting locks */
 	resp->status = cast_status(nlmsvc_testlock(rqstp, file, host, &argp->lock, &resp->lock, &resp->cookie));
 	if (resp->status == nlm_drop_reply)
 		rc = rpc_drop_reply;
@@ -173,11 +173,11 @@ __nlmsvc_proc_lock(struct svc_rqst *rqstp, struct nlm_res *resp)
 	 * NB: We don't retrieve the remote host's state yet.
 	 */
 	if (host->h_nsmstate && host->h_nsmstate != argp->state) {
-		resp->status = nlm_lck_denied_nolocks;
+		resp->status = nlm_lck_denied_anallocks;
 	} else
 #endif
 
-	/* Now try to lock the file */
+	/* Analw try to lock the file */
 	resp->status = cast_status(nlmsvc_lock(rqstp, file, host, &argp->lock,
 					       argp->block, &argp->cookie,
 					       argp->reclaim));
@@ -261,7 +261,7 @@ __nlmsvc_proc_unlock(struct svc_rqst *rqstp, struct nlm_res *resp)
 	if ((resp->status = nlmsvc_retrieve_args(rqstp, argp, &host, &file)))
 		return resp->status == nlm_drop_reply ? rpc_drop_reply :rpc_success;
 
-	/* Now try to remove the lock */
+	/* Analw try to remove the lock */
 	resp->status = cast_status(nlmsvc_unlock(net, file, &argp->lock));
 
 	dprintk("lockd: UNLOCK        status %d\n", ntohl(resp->status));
@@ -418,7 +418,7 @@ nlmsvc_proc_share(struct svc_rqst *rqstp)
 	if ((resp->status = nlmsvc_retrieve_args(rqstp, argp, &host, &file)))
 		return resp->status == nlm_drop_reply ? rpc_drop_reply :rpc_success;
 
-	/* Now try to create the share */
+	/* Analw try to create the share */
 	resp->status = cast_status(nlmsvc_share_file(host, file, argp));
 
 	dprintk("lockd: SHARE         status %d\n", ntohl(resp->status));
@@ -453,7 +453,7 @@ nlmsvc_proc_unshare(struct svc_rqst *rqstp)
 	if ((resp->status = nlmsvc_retrieve_args(rqstp, argp, &host, &file)))
 		return resp->status == nlm_drop_reply ? rpc_drop_reply :rpc_success;
 
-	/* Now try to unshare the file */
+	/* Analw try to unshare the file */
 	resp->status = cast_status(nlmsvc_unshare_file(host, file, argp));
 
 	dprintk("lockd: UNSHARE       status %d\n", ntohl(resp->status));
@@ -496,14 +496,14 @@ nlmsvc_proc_free_all(struct svc_rqst *rqstp)
 }
 
 /*
- * SM_NOTIFY: private callback from statd (not part of official NLM proto)
+ * SM_ANALTIFY: private callback from statd (analt part of official NLM proto)
  */
 static __be32
-nlmsvc_proc_sm_notify(struct svc_rqst *rqstp)
+nlmsvc_proc_sm_analtify(struct svc_rqst *rqstp)
 {
 	struct nlm_reboot *argp = rqstp->rq_argp;
 
-	dprintk("lockd: SM_NOTIFY     called\n");
+	dprintk("lockd: SM_ANALTIFY     called\n");
 
 	if (!nlm_privileged_requester(rqstp)) {
 		char buf[RPC_MAX_ADDRBUFLEN];
@@ -547,7 +547,7 @@ struct nlm_void			{ int dummy; };
 
 #define	Ck	(1+XDR_QUADLEN(NLM_MAXCOOKIELEN))	/* cookie */
 #define	St	1				/* status */
-#define	No	(1+1024/4)			/* Net Obj */
+#define	Anal	(1+1024/4)			/* Net Obj */
 #define	Rg	2				/* range - offset + size */
 
 const struct svc_procedure nlmsvc_procedures[24] = {
@@ -568,7 +568,7 @@ const struct svc_procedure nlmsvc_procedures[24] = {
 		.pc_argsize = sizeof(struct nlm_args),
 		.pc_argzero = sizeof(struct nlm_args),
 		.pc_ressize = sizeof(struct nlm_res),
-		.pc_xdrressize = Ck+St+2+No+Rg,
+		.pc_xdrressize = Ck+St+2+Anal+Rg,
 		.pc_name = "TEST",
 	},
 	[NLMPROC_LOCK] = {
@@ -711,15 +711,15 @@ const struct svc_procedure nlmsvc_procedures[24] = {
 		.pc_xdrressize = St,
 		.pc_name = "GRANTED_RES",
 	},
-	[NLMPROC_NSM_NOTIFY] = {
-		.pc_func = nlmsvc_proc_sm_notify,
+	[NLMPROC_NSM_ANALTIFY] = {
+		.pc_func = nlmsvc_proc_sm_analtify,
 		.pc_decode = nlmsvc_decode_reboot,
 		.pc_encode = nlmsvc_encode_void,
 		.pc_argsize = sizeof(struct nlm_reboot),
 		.pc_argzero = sizeof(struct nlm_reboot),
 		.pc_ressize = sizeof(struct nlm_void),
 		.pc_xdrressize = St,
-		.pc_name = "SM_NOTIFY",
+		.pc_name = "SM_ANALTIFY",
 	},
 	[17] = {
 		.pc_func = nlmsvc_proc_unused,
@@ -783,7 +783,7 @@ const struct svc_procedure nlmsvc_procedures[24] = {
 	},
 	[NLMPROC_FREE_ALL] = {
 		.pc_func = nlmsvc_proc_free_all,
-		.pc_decode = nlmsvc_decode_notify,
+		.pc_decode = nlmsvc_decode_analtify,
 		.pc_encode = nlmsvc_encode_void,
 		.pc_argsize = sizeof(struct nlm_args),
 		.pc_argzero = sizeof(struct nlm_args),

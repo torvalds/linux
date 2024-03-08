@@ -4,7 +4,7 @@
  *
  * This file contains AppArmor policy loading interface function definitions.
  *
- * Copyright 2013 Canonical Ltd.
+ * Copyright 2013 Caanalnical Ltd.
  */
 
 #ifndef __APPARMOR_CRYPTO_H

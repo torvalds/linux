@@ -43,7 +43,7 @@
 #define BCMA_RESET_ST			0x0804
 
 #define BCMA_NS_ROM_IOST_BOOT_DEV_MASK	0x0003
-#define BCMA_NS_ROM_IOST_BOOT_DEV_NOR	0x0000
+#define BCMA_NS_ROM_IOST_BOOT_DEV_ANALR	0x0000
 #define BCMA_NS_ROM_IOST_BOOT_DEV_NAND	0x0001
 #define BCMA_NS_ROM_IOST_BOOT_DEV_ROM	0x0002
 
@@ -70,7 +70,7 @@
 #define BCMA_PCIE2_BAR0_WIN2		0x70
 
 /* SiliconBackplane Address Map.
- * All regions may not exist on all chips.
+ * All regions may analt exist on all chips.
  */
 #define BCMA_SOC_SDRAM_BASE		0x00000000U	/* Physical SDRAM */
 #define BCMA_SOC_PCI_MEM		0x08000000U	/* Host Mode sb2pcitranslation0 (64 MB) */

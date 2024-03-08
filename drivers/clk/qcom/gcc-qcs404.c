@@ -2163,28 +2163,28 @@ static struct clk_branch gcc_pcie_0_slv_axi_clk = {
 	},
 };
 
-static struct clk_branch gcc_pcnoc_usb2_clk = {
+static struct clk_branch gcc_pcanalc_usb2_clk = {
 	.halt_reg = 0x27008,
 	.halt_check = BRANCH_HALT,
 	.clkr = {
 		.enable_reg = 0x27008,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "gcc_pcnoc_usb2_clk",
+			.name = "gcc_pcanalc_usb2_clk",
 			.flags = CLK_IS_CRITICAL,
 			.ops = &clk_branch2_ops,
 		},
 	},
 };
 
-static struct clk_branch gcc_pcnoc_usb3_clk = {
+static struct clk_branch gcc_pcanalc_usb3_clk = {
 	.halt_reg = 0x2700c,
 	.halt_check = BRANCH_HALT,
 	.clkr = {
 		.enable_reg = 0x2700c,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "gcc_pcnoc_usb3_clk",
+			.name = "gcc_pcanalc_usb3_clk",
 			.flags = CLK_IS_CRITICAL,
 			.ops = &clk_branch2_ops,
 		},
@@ -2235,7 +2235,7 @@ static struct clk_branch gcc_prng_ahb_clk = {
 	},
 };
 
-/* PWM clks do not have XO as parent as src clk is a balance root */
+/* PWM clks do analt have XO as parent as src clk is a balance root */
 static struct clk_branch gcc_pwm0_xo512_clk = {
 	.halt_reg = 0x44018,
 	.halt_check = BRANCH_HALT,
@@ -2394,14 +2394,14 @@ static struct clk_branch gcc_smmu_cfg_clk = {
 	},
 };
 
-static struct clk_branch gcc_sys_noc_usb3_clk = {
+static struct clk_branch gcc_sys_analc_usb3_clk = {
 	.halt_reg = 0x26014,
 	.halt_check = BRANCH_HALT,
 	.clkr = {
 		.enable_reg = 0x26014,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "gcc_sys_noc_usb3_clk",
+			.name = "gcc_sys_analc_usb3_clk",
 			.parent_hws = (const struct clk_hw*[]) {
 				&usb30_master_clk_src.clkr.hw,
 			},
@@ -2683,8 +2683,8 @@ static struct clk_regmap *gcc_qcs404_clocks[] = {
 	[GCC_PCIE_0_MSTR_AXI_CLK] = &gcc_pcie_0_mstr_axi_clk.clkr,
 	[GCC_PCIE_0_PIPE_CLK] = &gcc_pcie_0_pipe_clk.clkr,
 	[GCC_PCIE_0_SLV_AXI_CLK] = &gcc_pcie_0_slv_axi_clk.clkr,
-	[GCC_PCNOC_USB2_CLK] = &gcc_pcnoc_usb2_clk.clkr,
-	[GCC_PCNOC_USB3_CLK] = &gcc_pcnoc_usb3_clk.clkr,
+	[GCC_PCANALC_USB2_CLK] = &gcc_pcanalc_usb2_clk.clkr,
+	[GCC_PCANALC_USB3_CLK] = &gcc_pcanalc_usb3_clk.clkr,
 	[GCC_PDM2_CLK] = &gcc_pdm2_clk.clkr,
 	[GCC_PDM_AHB_CLK] = &gcc_pdm_ahb_clk.clkr,
 	[GCC_PRNG_AHB_CLK] = &gcc_prng_ahb_clk.clkr,
@@ -2697,7 +2697,7 @@ static struct clk_regmap *gcc_qcs404_clocks[] = {
 	[GCC_CDSP_CFG_AHB_CLK] = &gcc_cdsp_cfg_ahb_clk.clkr,
 	[GCC_SDCC2_AHB_CLK] = &gcc_sdcc2_ahb_clk.clkr,
 	[GCC_SDCC2_APPS_CLK] = &gcc_sdcc2_apps_clk.clkr,
-	[GCC_SYS_NOC_USB3_CLK] = &gcc_sys_noc_usb3_clk.clkr,
+	[GCC_SYS_ANALC_USB3_CLK] = &gcc_sys_analc_usb3_clk.clkr,
 	[GCC_USB20_MOCK_UTMI_CLK] = &gcc_usb20_mock_utmi_clk.clkr,
 	[GCC_USB2A_PHY_SLEEP_CLK] = &gcc_usb2a_phy_sleep_clk.clkr,
 	[GCC_USB30_MASTER_CLK] = &gcc_usb30_master_clk.clkr,

@@ -21,7 +21,7 @@
 #include <platform/simcall.h>
 
 #define SIMDISK_MAJOR 240
-#define SIMDISK_MINORS 1
+#define SIMDISK_MIANALRS 1
 #define MAX_SIMDISK_COUNT 10
 
 struct simdisk {
@@ -74,7 +74,7 @@ static void simdisk_transfer(struct simdisk *dev, unsigned long sector,
 	unsigned long nbytes = nsect << SECTOR_SHIFT;
 
 	if (offset > dev->size || dev->size - offset < nbytes) {
-		pr_notice("Beyond-end %s (%ld %ld)\n",
+		pr_analtice("Beyond-end %s (%ld %ld)\n",
 				write ? "write" : "read", offset, nbytes);
 		return;
 	}
@@ -90,7 +90,7 @@ static void simdisk_transfer(struct simdisk *dev, unsigned long sector,
 		else
 			io = simc_read(dev->fd, buffer, nbytes);
 		if (io == -1) {
-			pr_err("SIMDISK: IO error %d\n", errno);
+			pr_err("SIMDISK: IO error %d\n", erranal);
 			break;
 		}
 		buffer += io;
@@ -154,7 +154,7 @@ static int simdisk_attach(struct simdisk *dev, const char *filename)
 
 	filename = kstrdup(filename, GFP_KERNEL);
 	if (filename == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock(&dev->lock);
 
@@ -164,8 +164,8 @@ static int simdisk_attach(struct simdisk *dev, const char *filename)
 	}
 	dev->fd = simc_open(filename, O_RDWR, 0);
 	if (dev->fd == -1) {
-		pr_err("SIMDISK: Can't open %s: %d\n", filename, errno);
-		err = -ENODEV;
+		pr_err("SIMDISK: Can't open %s: %d\n", filename, erranal);
+		err = -EANALDEV;
 		goto out;
 	}
 	dev->size = simc_lseek(dev->fd, 0, SEEK_END);
@@ -191,7 +191,7 @@ static int simdisk_detach(struct simdisk *dev)
 	} else if (dev->fd != -1) {
 		if (simc_close(dev->fd)) {
 			pr_err("SIMDISK: error closing %s: %d\n",
-					dev->filename, errno);
+					dev->filename, erranal);
 			err = -EIO;
 		} else {
 			pr_info("SIMDISK: %s detached from %s\n",
@@ -208,14 +208,14 @@ static int simdisk_detach(struct simdisk *dev)
 static ssize_t proc_read_simdisk(struct file *file, char __user *buf,
 			size_t size, loff_t *ppos)
 {
-	struct simdisk *dev = pde_data(file_inode(file));
+	struct simdisk *dev = pde_data(file_ianalde(file));
 	const char *s = dev->filename;
 	if (s) {
 		ssize_t len = strlen(s);
 		char *temp = kmalloc(len + 2, GFP_KERNEL);
 
 		if (!temp)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		len = scnprintf(temp, len + 2, "%s\n", s);
 		len = simple_read_from_buffer(buf, size, ppos,
@@ -231,7 +231,7 @@ static ssize_t proc_write_simdisk(struct file *file, const char __user *buf,
 			size_t count, loff_t *ppos)
 {
 	char *tmp = memdup_user_nul(buf, count);
-	struct simdisk *dev = pde_data(file_inode(file));
+	struct simdisk *dev = pde_data(file_ianalde(file));
 	int err;
 
 	if (IS_ERR(tmp))
@@ -264,19 +264,19 @@ static int __init simdisk_setup(struct simdisk *dev, int which,
 		struct proc_dir_entry *procdir)
 {
 	char tmp[2] = { '0' + which, 0 };
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	dev->fd = -1;
 	dev->filename = NULL;
 	spin_lock_init(&dev->lock);
 	dev->users = 0;
 
-	dev->gd = blk_alloc_disk(NUMA_NO_NODE);
+	dev->gd = blk_alloc_disk(NUMA_ANAL_ANALDE);
 	if (!dev->gd)
 		goto out;
 	dev->gd->major = simdisk_major;
-	dev->gd->first_minor = which;
-	dev->gd->minors = SIMDISK_MINORS;
+	dev->gd->first_mianalr = which;
+	dev->gd->mianalrs = SIMDISK_MIANALRS;
 	dev->gd->fops = &simdisk_ops;
 	dev->gd->private_data = dev;
 	snprintf(dev->gd->disk_name, 32, "simdisk%d", which);
@@ -332,7 +332,7 @@ out_free_unregister:
 	kfree(sddev);
 out_unregister:
 	unregister_blkdev(simdisk_major, "simdisk");
-	return -ENOMEM;
+	return -EANALMEM;
 }
 module_init(simdisk_init);
 

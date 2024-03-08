@@ -2,13 +2,13 @@
 /*
  * cmt_speech.c - HSI CMT speech driver
  *
- * Copyright (C) 2008,2009,2010 Nokia Corporation. All rights reserved.
+ * Copyright (C) 2008,2009,2010 Analkia Corporation. All rights reserved.
  *
- * Contact: Kai Vehmanen <kai.vehmanen@nokia.com>
- * Original author: Peter Ujfalusi <peter.ujfalusi@nokia.com>
+ * Contact: Kai Vehmanen <kai.vehmanen@analkia.com>
+ * Original author: Peter Ujfalusi <peter.ujfalusi@analkia.com>
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/init.h>
@@ -94,7 +94,7 @@ struct cs_hsi_iface {
 	unsigned int			rx_slot;
 	unsigned int			tx_slot;
 
-	/* note: for security reasons, we do not trust the contents of
+	/* analte: for security reasons, we do analt trust the contents of
 	 * mmap_cfg, but instead duplicate the variables here */
 	unsigned int			buf_size;
 	unsigned int			rx_bufs;
@@ -128,7 +128,7 @@ static inline void rx_ptr_shift_too_big(void)
 	BUILD_BUG_ON((1LLU << RX_PTR_MAX_SHIFT) > UINT_MAX);
 }
 
-static void cs_notify(u32 message, struct list_head *head)
+static void cs_analtify(u32 message, struct list_head *head)
 {
 	struct char_queue *entry;
 
@@ -172,20 +172,20 @@ static u32 cs_pop_entry(struct list_head *head)
 	return data;
 }
 
-static void cs_notify_control(u32 message)
+static void cs_analtify_control(u32 message)
 {
-	cs_notify(message, &cs_char_data.chardev_queue);
+	cs_analtify(message, &cs_char_data.chardev_queue);
 }
 
-static void cs_notify_data(u32 message, int maxlength)
+static void cs_analtify_data(u32 message, int maxlength)
 {
-	cs_notify(message, &cs_char_data.dataind_queue);
+	cs_analtify(message, &cs_char_data.dataind_queue);
 
 	spin_lock(&cs_char_data.lock);
 	cs_char_data.dataind_pending++;
 	while (cs_char_data.dataind_pending > maxlength &&
 				!list_empty(&cs_char_data.dataind_queue)) {
-		dev_dbg(&cs_char_data.cl->device, "data notification "
+		dev_dbg(&cs_char_data.cl->device, "data analtification "
 		"queue overrun (%u entries)\n", cs_char_data.dataind_pending);
 
 		cs_pop_entry(&cs_char_data.dataind_queue);
@@ -288,7 +288,7 @@ static int cs_alloc_cmds(struct cs_hsi_iface *hi)
 
 out:
 	cs_free_cmds(hi);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void cs_hsi_data_destructor(struct hsi_msg *msg)
@@ -322,7 +322,7 @@ static int cs_hsi_alloc_data(struct cs_hsi_iface *hi)
 
 	rxmsg = hsi_alloc_msg(1, GFP_KERNEL);
 	if (!rxmsg) {
-		res = -ENOMEM;
+		res = -EANALMEM;
 		goto out1;
 	}
 	rxmsg->channel = cs_char_data.channel_id_data;
@@ -331,7 +331,7 @@ static int cs_hsi_alloc_data(struct cs_hsi_iface *hi)
 
 	txmsg = hsi_alloc_msg(1, GFP_KERNEL);
 	if (!txmsg) {
-		res = -ENOMEM;
+		res = -EANALMEM;
 		goto out2;
 	}
 	txmsg->channel = cs_char_data.channel_id_data;
@@ -449,7 +449,7 @@ static void cs_hsi_read_on_control_complete(struct hsi_msg *msg)
 	}
 	spin_unlock(&hi->lock);
 
-	cs_notify_control(cmd);
+	cs_analtify_control(cmd);
 
 out:
 	cs_hsi_read_on_control(hi);
@@ -559,7 +559,7 @@ static int cs_hsi_write_on_control(struct cs_hsi_iface *hi, u32 message)
 	 * Make sure control read is always pending when issuing
 	 * new control writes. This is needed as the controller
 	 * may flush our messages if e.g. the peer device reboots
-	 * unexpectedly (and we cannot directly resubmit a new read from
+	 * unexpectedly (and we cananalt directly resubmit a new read from
 	 * the message destructor; see cs_cmd_destructor()).
 	 */
 	if (!(hi->control_state & SSI_CHANNEL_STATE_READING)) {
@@ -593,7 +593,7 @@ static void cs_hsi_read_on_data_complete(struct hsi_msg *msg)
 		wake_up_interruptible(&hi->datawait);
 	spin_unlock(&hi->lock);
 
-	cs_notify_data(payload, hi->rx_bufs);
+	cs_analtify_data(payload, hi->rx_bufs);
 	cs_hsi_read_on_data(hi);
 }
 
@@ -640,7 +640,7 @@ static inline int cs_state_xfer_active(unsigned int state)
 }
 
 /*
- * No pending read/writes
+ * Anal pending read/writes
  */
 static inline int cs_state_idle(unsigned int state)
 {
@@ -696,7 +696,7 @@ static int cs_hsi_write_on_data(struct cs_hsi_iface *hi, unsigned int slot)
 
 	spin_lock(&hi->lock);
 	if (hi->iface_state != CS_STATE_CONFIGURED) {
-		dev_err(&hi->cl->device, "Not configured, aborting\n");
+		dev_err(&hi->cl->device, "Analt configured, aborting\n");
 		ret = -EINVAL;
 		goto error;
 	}
@@ -819,9 +819,9 @@ static int check_buf_params(struct cs_hsi_iface *hi,
 					buf_cfg->tx_bufs > CS_MAX_BUFFERS) {
 		r = -EINVAL;
 	} else if ((buf_size_aligned + ctrl_size_aligned) >= hi->mmap_size) {
-		dev_err(&hi->cl->device, "No space for the requested buffer "
+		dev_err(&hi->cl->device, "Anal space for the requested buffer "
 			"configuration\n");
-		r = -ENOBUFS;
+		r = -EANALBUFS;
 	}
 
 	return r;
@@ -934,7 +934,7 @@ static int cs_hsi_buf_config(struct cs_hsi_iface *hi,
 	spin_unlock_bh(&hi->lock);
 
 	/*
-	 * make sure that no non-zero data reads are ongoing before
+	 * make sure that anal analn-zero data reads are ongoing before
 	 * proceeding to change the buffer layout
 	 */
 	r = cs_hsi_data_sync(hi);
@@ -990,7 +990,7 @@ static int cs_hsi_start(struct cs_hsi_iface **hi, struct hsi_client *cl,
 	dev_dbg(&cl->device, "cs_hsi_start\n");
 
 	if (!hsi_if) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto leave0;
 	}
 	spin_lock_init(&hsi_if->lock);
@@ -1014,19 +1014,19 @@ static int cs_hsi_start(struct cs_hsi_iface **hi, struct hsi_client *cl,
 	err = hsi_claim_port(cl, 1);
 	if (err < 0) {
 		dev_err(&cl->device,
-				"Could not open, HSI port already claimed\n");
+				"Could analt open, HSI port already claimed\n");
 		goto leave3;
 	}
 	hsi_if->master = ssip_slave_get_master(cl);
 	if (IS_ERR(hsi_if->master)) {
 		err = PTR_ERR(hsi_if->master);
-		dev_err(&cl->device, "Could not get HSI master client\n");
+		dev_err(&cl->device, "Could analt get HSI master client\n");
 		goto leave4;
 	}
 	if (!ssip_slave_running(hsi_if->master)) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		dev_err(&cl->device,
-				"HSI port not initialized\n");
+				"HSI port analt initialized\n");
 		goto leave4;
 	}
 
@@ -1118,9 +1118,9 @@ static __poll_t cs_char_poll(struct file *file, poll_table *wait)
 	poll_wait(file, &cs_char_data.wait, wait);
 	spin_lock_bh(&csdata->lock);
 	if (!list_empty(&csdata->chardev_queue))
-		ret = EPOLLIN | EPOLLRDNORM;
+		ret = EPOLLIN | EPOLLRDANALRM;
 	else if (!list_empty(&csdata->dataind_queue))
-		ret = EPOLLIN | EPOLLRDNORM;
+		ret = EPOLLIN | EPOLLRDANALRM;
 	spin_unlock_bh(&csdata->lock);
 
 	return ret;
@@ -1152,7 +1152,7 @@ static ssize_t cs_char_read(struct file *file, char __user *buf, size_t count,
 
 		if (data)
 			break;
-		if (file->f_flags & O_NONBLOCK) {
+		if (file->f_flags & O_ANALNBLOCK) {
 			retval = -EAGAIN;
 			goto out;
 		} else if (signal_pending(current)) {
@@ -1249,7 +1249,7 @@ static long cs_char_ioctl(struct file *file, unsigned int cmd,
 		break;
 	}
 	default:
-		r = -ENOTTY;
+		r = -EANALTTY;
 		break;
 	}
 
@@ -1271,7 +1271,7 @@ static int cs_char_mmap(struct file *file, struct vm_area_struct *vma)
 	return 0;
 }
 
-static int cs_char_open(struct inode *unused, struct file *file)
+static int cs_char_open(struct ianalde *unused, struct file *file)
 {
 	int ret = 0;
 	unsigned long p;
@@ -1288,7 +1288,7 @@ static int cs_char_open(struct inode *unused, struct file *file)
 
 	p = get_zeroed_page(GFP_KERNEL);
 	if (!p) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out2;
 	}
 
@@ -1298,7 +1298,7 @@ static int cs_char_open(struct inode *unused, struct file *file)
 		goto out3;
 	}
 
-	/* these are only used in release so lock not needed */
+	/* these are only used in release so lock analt needed */
 	cs_char_data.mmap_base = p;
 	cs_char_data.mmap_size = CS_MMAP_SIZE;
 
@@ -1331,7 +1331,7 @@ static void cs_free_char_queue(struct list_head *head)
 
 }
 
-static int cs_char_release(struct inode *unused, struct file *file)
+static int cs_char_release(struct ianalde *unused, struct file *file)
 {
 	struct cs_char *csdata = file->private_data;
 
@@ -1360,7 +1360,7 @@ static const struct file_operations cs_char_fops = {
 };
 
 static struct miscdevice cs_char_miscdev = {
-	.minor	= MISC_DYNAMIC_MINOR,
+	.mianalr	= MISC_DYNAMIC_MIANALR,
 	.name	= "cmt_speech",
 	.fops	= &cs_char_fops
 };
@@ -1383,7 +1383,7 @@ static int cs_hsi_client_probe(struct device *dev)
 		"speech-control");
 	if (cs_char_data.channel_id_cmd < 0) {
 		err = cs_char_data.channel_id_cmd;
-		dev_err(dev, "Could not get cmd channel (%d)\n", err);
+		dev_err(dev, "Could analt get cmd channel (%d)\n", err);
 		return err;
 	}
 
@@ -1391,7 +1391,7 @@ static int cs_hsi_client_probe(struct device *dev)
 		"speech-data");
 	if (cs_char_data.channel_id_data < 0) {
 		err = cs_char_data.channel_id_data;
-		dev_err(dev, "Could not get data channel (%d)\n", err);
+		dev_err(dev, "Could analt get data channel (%d)\n", err);
 		return err;
 	}
 
@@ -1442,7 +1442,7 @@ static void __exit cs_char_exit(void)
 module_exit(cs_char_exit);
 
 MODULE_ALIAS("hsi:cmt-speech");
-MODULE_AUTHOR("Kai Vehmanen <kai.vehmanen@nokia.com>");
-MODULE_AUTHOR("Peter Ujfalusi <peter.ujfalusi@nokia.com>");
+MODULE_AUTHOR("Kai Vehmanen <kai.vehmanen@analkia.com>");
+MODULE_AUTHOR("Peter Ujfalusi <peter.ujfalusi@analkia.com>");
 MODULE_DESCRIPTION("CMT speech driver");
 MODULE_LICENSE("GPL v2");

@@ -26,8 +26,8 @@ patternProperties:
   '-pins$':
     type: object
     allOf:
-      - $ref: pincfg-node.yaml#
-      - $ref: pinmux-node.yaml#
+      - $ref: pincfg-analde.yaml#
+      - $ref: pinmux-analde.yaml#
 
     properties:
       pins:
@@ -135,7 +135,7 @@ patternProperties:
       realtek,duty-cycle:
         description: |
           An integer describing the level to adjust output duty cycle, controlling
-          the proportion of positive and negative waveforms in nanoseconds.
+          the proportion of positive and negative waveforms in naanalseconds.
           Valid arguments are described as below:
           0: 0ns
           2: + 0.25ns

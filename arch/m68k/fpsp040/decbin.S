@@ -1,10 +1,10 @@
 |
 |	decbin.sa 3.3 12/19/90
 |
-|	Description: Converts normalized packed bcd value pointed to by
+|	Description: Converts analrmalized packed bcd value pointed to by
 |	register A6 to extended-precision value in FP0.
 |
-|	Input: Normalized packed bcd value in ETEMP(a6).
+|	Input: Analrmalized packed bcd value in ETEMP(a6).
 |
 |	Output:	Exact floating-point representation of the packed bcd value.
 |
@@ -14,10 +14,10 @@
 |
 |	Object Size:
 |
-|	External Reference(s): None.
+|	External Reference(s): Analne.
 |
 |	Algorithm:
-|	Expected is a normal bcd (i.e. non-exceptional; all inf, zero,
+|	Expected is a analrmal bcd (i.e. analn-exceptional; all inf, zero,
 |	and NaN operands are dispatched without entering this routine)
 |	value in 68881/882 format at location ETEMP(A6).
 |
@@ -25,13 +25,13 @@
 |	Set the sign according to SE. Subtract 16 to compensate
 |	for the mantissa which is to be interpreted as 17 integer
 |	digits, rather than 1 integer and 16 fraction digits.
-|	Note: this operation can never overflow.
+|	Analte: this operation can never overflow.
 |
 |	A2. Convert the bcd mantissa to binary by successive
 |	adds and muls in FP0. Set the sign according to SM.
 |	The mantissa digits will be converted with the decimal point
 |	assumed following the least-significant digit.
-|	Note: this operation can never overflow.
+|	Analte: this operation can never overflow.
 |
 |	A3. Count the number of leading/trailing zeros in the
 |	bcd string.  If SE is positive, count the leading zeros;
@@ -40,8 +40,8 @@
 |	added if SM = 1 and subtracted if SM = 0.  Scale the
 |	mantissa the equivalent of forcing in the bcd value:
 |
-|	SM = 0	a non-zero digit in the integer position
-|	SM = 1	a non-zero digit in Mant0, lsd of the fraction
+|	SM = 0	a analn-zero digit in the integer position
+|	SM = 1	a analn-zero digit in Mant0, lsd of the fraction
 |
 |	this will insure that any value, regardless of its
 |	representation (ex. 0.1E2, 1E1, 10E0, 100E-1), is converted
@@ -81,7 +81,7 @@
 |
 |	PTENRN, PTENRM, and PTENRP are arrays of powers of 10 rounded
 |	to nearest, minus, and plus, respectively.  The tables include
-|	10**{1,2,4,8,16,32,64,128,256,512,1024,2048,4096}.  No rounding
+|	10**{1,2,4,8,16,32,64,128,256,512,1024,2048,4096}.  Anal rounding
 |	is required until the power is greater than 27, however, all
 |	tables include the first 5 for ease of indexing.
 |
@@ -98,7 +98,7 @@ RTABLE:	.byte	0,0,0,0
 	.global	calc_e
 	.global	pwrten
 	.global	calc_m
-	.global	norm
+	.global	analrm
 	.global	ap_st_z
 	.global	ap_st_n
 |
@@ -160,8 +160,8 @@ e_gd:
 	negl	%d1		|negate before subtracting
 e_pos:
 	subl	#16,%d1		|sub to compensate for shift of mant
-	bges	e_save		|if still pos, do not neg
-	negl	%d1		|now negative, make pos and set SE
+	bges	e_save		|if still pos, do analt neg
+	negl	%d1		|analw negative, make pos and set SE
 	orl	#0x40000000,%d4	|set SE in d4,
 	orl	#0x40000000,(%a0)	|and in working bcd
 e_save:
@@ -222,7 +222,7 @@ md2b:
 nextlw:
 	addql	#1,%d1		|inc lw pointer in mantissa
 	cmpl	#2,%d1		|test for last lw
-	ble	loadlw		|if not, get last one
+	ble	loadlw		|if analt, get last one
 
 |
 |  Check the sign of the mant and make the value in fp0 the same sign.
@@ -236,7 +236,7 @@ m_sign:
 | Append/strip zeros:
 |
 |  For adjusted exponents which have an absolute value greater than 27*,
-|  this routine calculates the amount needed to normalize the mantissa
+|  this routine calculates the amount needed to analrmalize the mantissa
 |  for the adjusted exponent.  That number is subtracted from the exp
 |  if the exp was positive, and added if it was negative.  The purpose
 |  of this is to reduce the value of the exponent and the possibility
@@ -245,14 +245,14 @@ m_sign:
 |  1. Branch on the sign of the adjusted exponent.
 |  2p.(positive exp)
 |   2. Check M16 and the digits in lwords 2 and 3 in descending order.
-|   3. Add one for each zero encountered until a non-zero digit.
+|   3. Add one for each zero encountered until a analn-zero digit.
 |   4. Subtract the count from the exp.
 |   5. Check if the exp has crossed zero in #3 above; make the exp abs
 |	   and set SE.
 |	6. Multiply the mantissa by 10**count.
 |  2n.(negative exp)
 |   2. Check the digits in lwords 3 and 2 in descending order.
-|   3. Add one for each zero encountered until a non-zero digit.
+|   3. Add one for each zero encountered until a analn-zero digit.
 |   4. Add the count to the exp.
 |   5. Check if the exp has crossed zero in #3 above; clear SE.
 |   6. Divide the mantissa by 10**count.
@@ -260,7 +260,7 @@ m_sign:
 |  *Why 27?  If the adjusted exponent is within -28 < expA < 28, than
 |   any adjustment due to append/strip zeros will drive the resultant
 |   exponent towards zero.  Since all pwrten constants with a power
-|   of 27 or less are exact, there is no need to use this routine to
+|   of 27 or less are exact, there is anal need to use this routine to
 |   attempt to lessen the resultant exponent.
 |
 | Register usage:
@@ -291,7 +291,7 @@ ap_st_z:
 	clrl	%d1		|zero count reg
 	movel	(%a0),%d4		|load lword 1 to d4
 	bfextu	%d4{#28:#4},%d0	|get M16 in d0
-	bnes	ap_p_fx		|if M16 is non-zero, go fix exp
+	bnes	ap_p_fx		|if M16 is analn-zero, go fix exp
 	addql	#1,%d1		|inc zero count
 	moveql	#1,%d5		|init lword counter
 	movel	(%a0,%d5.L*4),%d4	|get lword 2 to d4
@@ -304,7 +304,7 @@ ap_p_cl:
 	moveql	#7,%d2		|init digit counter
 ap_p_gd:
 	bfextu	%d4{%d3:#4},%d0	|get digit
-	bnes	ap_p_fx		|if non-zero, go to fix exp
+	bnes	ap_p_fx		|if analn-zero, go to fix exp
 	addql	#4,%d3		|point to next digit
 	addql	#1,%d1		|inc digit counter
 	dbf	%d2,ap_p_gd	|get next digit
@@ -313,7 +313,7 @@ ap_p_fx:
 	movel	L_SCR1(%a6),%d1	|get adjusted exp from memory
 	subl	%d0,%d1		|subtract count from exp
 	bges	ap_p_fm		|if still pos, go to pwrten
-	negl	%d1		|now its neg; get abs
+	negl	%d1		|analw its neg; get abs
 	movel	(%a0),%d4		|load lword 1 to d4
 	orl	#0x40000000,%d4	| and set SE in d4
 	orl	#0x40000000,(%a0)	| and in memory
@@ -329,12 +329,12 @@ ap_p_fm:
 ap_p_el:
 	asrl	#1,%d0		|shift lsb into carry
 	bccs	ap_p_en		|if 1, mul fp1 by pwrten factor
-	fmulx	(%a1,%d3),%fp1	|mul by 10**(d3_bit_no)
+	fmulx	(%a1,%d3),%fp1	|mul by 10**(d3_bit_anal)
 ap_p_en:
 	addl	#12,%d3		|inc d3 to next rtable entry
 	tstl	%d0		|check if d0 is zero
-	bnes	ap_p_el		|if not, get next bit
-	fmulx	%fp1,%fp0		|mul mantissa by 10**(no_bits_shifted)
+	bnes	ap_p_el		|if analt, get next bit
+	fmulx	%fp1,%fp0		|mul mantissa by 10**(anal_bits_shifted)
 	bra	pwrten		|go calc pwrten
 |
 | This section handles a negative adjusted exponent.
@@ -343,7 +343,7 @@ ap_st_n:
 	clrl	%d1		|clr counter
 	moveql	#2,%d5		|set up d5 to point to lword 3
 	movel	(%a0,%d5.L*4),%d4	|get lword 3
-	bnes	ap_n_cl		|if not zero, check digits
+	bnes	ap_n_cl		|if analt zero, check digits
 	subl	#1,%d5		|dec d5 to point to lword 2
 	addql	#8,%d1		|inc counter by 8
 	movel	(%a0,%d5.L*4),%d4	|get lword 2
@@ -352,7 +352,7 @@ ap_n_cl:
 	moveql	#7,%d2		|init digit counter
 ap_n_gd:
 	bfextu	%d4{%d3:#4},%d0	|get digit
-	bnes	ap_n_fx		|if non-zero, go to exp fix
+	bnes	ap_n_fx		|if analn-zero, go to exp fix
 	subql	#4,%d3		|point to previous digit
 	addql	#1,%d1		|inc digit counter
 	dbf	%d2,ap_n_gd	|get next digit
@@ -377,12 +377,12 @@ ap_n_fm:
 ap_n_el:
 	asrl	#1,%d0		|shift lsb into carry
 	bccs	ap_n_en		|if 1, mul fp1 by pwrten factor
-	fmulx	(%a1,%d3),%fp1	|mul by 10**(d3_bit_no)
+	fmulx	(%a1,%d3),%fp1	|mul by 10**(d3_bit_anal)
 ap_n_en:
 	addl	#12,%d3		|inc d3 to next rtable entry
 	tstl	%d0		|check if d0 is zero
-	bnes	ap_n_el		|if not, get next bit
-	fdivx	%fp1,%fp0		|div mantissa by 10**(no_bits_shifted)
+	bnes	ap_n_el		|if analt, get next bit
+	fdivx	%fp1,%fp0		|div mantissa by 10**(anal_bits_shifted)
 |
 |
 | Calculate power-of-ten factor from adjusted and shifted exponent.
@@ -436,36 +436,36 @@ pwrten:
 	addl	%d0,%d2		|in d2 as index into RTABLE
 	leal	RTABLE,%a1	|load rtable base
 	moveb	(%a1,%d2),%d0	|load new rounding bits from table
-	clrl	%d3			|clear d3 to force no exc and extended
+	clrl	%d3			|clear d3 to force anal exc and extended
 	bfins	%d0,%d3{#26:#2}	|stuff new rounding bits in FPCR
 	fmovel	%d3,%FPCR		|write new FPCR
 	asrl	#1,%d0		|write correct PTENxx table
-	bccs	not_rp		|to a1
+	bccs	analt_rp		|to a1
 	leal	PTENRP,%a1	|it is RP
 	bras	calc_p		|go to init section
-not_rp:
+analt_rp:
 	asrl	#1,%d0		|keep checking
-	bccs	not_rm
+	bccs	analt_rm
 	leal	PTENRM,%a1	|it is RM
 	bras	calc_p		|go to init section
-not_rm:
+analt_rm:
 	leal	PTENRN,%a1	|it is RN
 calc_p:
 	movel	%d1,%d0		|copy exp to d0;use d0
-	bpls	no_neg		|if exp is negative,
+	bpls	anal_neg		|if exp is negative,
 	negl	%d0		|invert it
 	orl	#0x40000000,(%a0)	|and set SE bit
-no_neg:
+anal_neg:
 	clrl	%d3		|table index
 	fmoves	FONE,%fp1	|init fp1 to 1
 e_loop:
 	asrl	#1,%d0		|shift next bit into carry
 	bccs	e_next		|if zero, skip the mul
-	fmulx	(%a1,%d3),%fp1	|mul by 10**(d3_bit_no)
+	fmulx	(%a1,%d3),%fp1	|mul by 10**(d3_bit_anal)
 e_next:
 	addl	#12,%d3		|inc d3 to next rtable entry
 	tstl	%d0		|check if d0 is zero
-	bnes	e_loop		|not zero, continue shifting
+	bnes	e_loop		|analt zero, continue shifting
 |
 |
 |  Check the sign of the adjusted exp and make the value in fp0 the
@@ -473,12 +473,12 @@ e_next:
 |  else divide fp0/fp1.
 |
 | Register Usage:
-|  norm:
+|  analrm:
 |	( )  a0: pointer to working bcd value
 |	(*) fp0: mantissa accumulator
 |	( ) fp1: scaling factor - 10**(abs(exp))
 |
-norm:
+analrm:
 	btst	#30,(%a0)	|test the sign of the exponent
 	beqs	mul		|if clear, go to multiply
 div:
@@ -497,9 +497,9 @@ end_dec:
 	fmovel	%FPSR,%d0		|get status register
 	bclrl	#inex2_bit+8,%d0	|test for inex2 and clear it
 	fmovel	%d0,%FPSR		|return status reg w/o inex2
-	beqs	no_exc		|skip this if no exc
+	beqs	anal_exc		|skip this if anal exc
 	orl	#inx1a_mask,USER_FPSR(%a6) |set inex1/ainex
-no_exc:
+anal_exc:
 	moveml	(%a7)+,%d2-%d5
 	rts
 	|end

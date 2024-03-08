@@ -12,7 +12,7 @@ maintainers:
 
 description: |
   The System Management Unit is described in user's manual R19UH0037EJ1000_SMU.
-  This is not a clock provider, but clocks under SMU depend on it.
+  This is analt a clock provider, but clocks under SMU depend on it.
 
 properties:
   compatible:
@@ -41,7 +41,7 @@ patternProperties:
       Function block with an input mux and a divider, which corresponds to
       "Serial clock generator" in fig. "Clock System Overview" of the manual,
       and "xxx frequency division setting register" (XXXCLKDIV) registers.
-      This makes internal (neither input nor output) clock that is provided
+      This makes internal (neither input analr output) clock that is provided
       to input of xxxGCLK block.
 
     properties:
@@ -72,7 +72,7 @@ patternProperties:
     type: object
 
     description: |
-      Clock gating node shown as "Clock stop processing block" in the
+      Clock gating analde shown as "Clock stop processing block" in the
       fig. "Clock System Overview" of the manual.
       Registers are "xxx clock gate control register" (XXXGCLKCTRL).
 

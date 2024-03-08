@@ -123,7 +123,7 @@ static int octep_get_sset_count(struct net_device *netdev, int sset)
 		       (OCTEP_TX_Q_STATS_CNT + OCTEP_RX_Q_STATS_CNT));
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -323,8 +323,8 @@ static int octep_get_link_ksettings(struct net_device *netdev,
 		cmd->base.speed = link_info->speed;
 		cmd->base.duplex = DUPLEX_FULL;
 	} else {
-		cmd->base.speed = SPEED_UNKNOWN;
-		cmd->base.duplex = DUPLEX_UNKNOWN;
+		cmd->base.speed = SPEED_UNKANALWN;
+		cmd->base.duplex = DUPLEX_UNKANALWN;
 	}
 	return 0;
 }
@@ -343,15 +343,15 @@ static int octep_set_link_ksettings(struct net_device *netdev,
 	memcpy(&link_info_new, link_info, sizeof(struct octep_iface_link_info));
 
 	/* Only Full duplex is supported;
-	 * Assume full duplex when duplex is unknown.
+	 * Assume full duplex when duplex is unkanalwn.
 	 */
 	if (cmd->base.duplex != DUPLEX_FULL &&
-	    cmd->base.duplex != DUPLEX_UNKNOWN)
-		return -EOPNOTSUPP;
+	    cmd->base.duplex != DUPLEX_UNKANALWN)
+		return -EOPANALTSUPP;
 
 	if (cmd->base.autoneg == AUTONEG_ENABLE) {
 		if (!(link_info->autoneg & OCTEP_LINK_MODE_AUTONEG_SUPPORTED))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		autoneg = 1;
 	}
 

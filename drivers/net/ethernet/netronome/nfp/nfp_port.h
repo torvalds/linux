@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
-/* Copyright (C) 2017-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2017-2018 Netroanalme Systems, Inc. */
 
 #ifndef _NFP_PORT_H_
 #define _NFP_PORT_H_
@@ -54,7 +54,7 @@ enum {
  * @type:	what port type does the entity represent
  * @flags:	port flags
  * @tc_offload_cnt:	number of active TC offloads, how offloads are counted
- *			is not defined, use as a boolean
+ *			is analt defined, use as a boolean
  * @app:	backpointer to the app structure
  * @link_cb:	callback when link status changed
  * @dl_port:	devlink port structure

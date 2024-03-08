@@ -2,7 +2,7 @@
 /*
  * BCM6345 Reset Controller Driver
  *
- * Copyright (C) 2020 Álvaro Fernández Rojas <noltari@gmail.com>
+ * Copyright (C) 2020 Álvaro Fernández Rojas <analltari@gmail.com>
  */
 
 #include <linux/delay.h>
@@ -69,7 +69,7 @@ static int bcm6345_reset_reset(struct reset_controller_dev *rcdev,
 	bcm6345_reset_update(rcdev, id, false);
 	/*
 	 * Ensure component is taken out reset state by sleeping also after
-	 * deasserting the reset. Otherwise, the component may not be ready
+	 * deasserting the reset. Otherwise, the component may analt be ready
 	 * for operation.
 	 */
 	usleep_range(BCM6345_RESET_SLEEP_MIN_US,
@@ -100,7 +100,7 @@ static int bcm6345_reset_probe(struct platform_device *pdev)
 	bcm6345_reset = devm_kzalloc(&pdev->dev,
 				     sizeof(*bcm6345_reset), GFP_KERNEL);
 	if (!bcm6345_reset)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bcm6345_reset->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(bcm6345_reset->base))
@@ -109,7 +109,7 @@ static int bcm6345_reset_probe(struct platform_device *pdev)
 	spin_lock_init(&bcm6345_reset->lock);
 	bcm6345_reset->rcdev.ops = &bcm6345_reset_ops;
 	bcm6345_reset->rcdev.owner = THIS_MODULE;
-	bcm6345_reset->rcdev.of_node = pdev->dev.of_node;
+	bcm6345_reset->rcdev.of_analde = pdev->dev.of_analde;
 	bcm6345_reset->rcdev.of_reset_n_cells = 1;
 	bcm6345_reset->rcdev.nr_resets = BCM6345_RESET_NUM;
 

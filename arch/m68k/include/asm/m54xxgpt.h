@@ -3,7 +3,7 @@
  * File:	m54xxgpt.h
  * Purpose:	Register and bit definitions for the MCF54XX
  *
- * Notes:
+ * Analtes:
  *
  */
 

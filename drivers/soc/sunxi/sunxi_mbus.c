@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (C) 2020 Maxime Ripard <maxime@cerno.tech> */
+/* Copyright (C) 2020 Maxime Ripard <maxime@ceranal.tech> */
 
 #include <linux/device.h>
 #include <linux/dma-map-ops.h>
 #include <linux/init.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 
 static const char * const sunxi_mbus_devices[] = {
 	/*
-	 * The display engine virtual devices are not strictly speaking
+	 * The display engine virtual devices are analt strictly speaking
 	 * connected to the MBUS, but since DRM will perform all the
 	 * memory allocations and DMA operations through that device, we
 	 * need to have the quirk on those devices too.
@@ -26,8 +26,8 @@ static const char * const sunxi_mbus_devices[] = {
 	"allwinner,sun9i-a80-display-engine",
 
 	/*
-	 * And now we have the regular devices connected to the MBUS
-	 * (that we know of).
+	 * And analw we have the regular devices connected to the MBUS
+	 * (that we kanalw of).
 	 */
 	"allwinner,sun4i-a10-csi1",
 	"allwinner,sun4i-a10-display-backend",
@@ -57,43 +57,43 @@ static const char * const sunxi_mbus_devices[] = {
 	NULL,
 };
 
-static int sunxi_mbus_notifier(struct notifier_block *nb,
+static int sunxi_mbus_analtifier(struct analtifier_block *nb,
 			       unsigned long event, void *__dev)
 {
 	struct device *dev = __dev;
 	int ret;
 
-	if (event != BUS_NOTIFY_ADD_DEVICE)
-		return NOTIFY_DONE;
+	if (event != BUS_ANALTIFY_ADD_DEVICE)
+		return ANALTIFY_DONE;
 
 	/*
 	 * Only the devices that need a large memory bandwidth do DMA
 	 * directly over the memory bus (called MBUS), instead of going
 	 * through the regular system bus.
 	 */
-	if (!of_device_compatible_match(dev->of_node, sunxi_mbus_devices))
-		return NOTIFY_DONE;
+	if (!of_device_compatible_match(dev->of_analde, sunxi_mbus_devices))
+		return ANALTIFY_DONE;
 
 	/*
 	 * Devices with an interconnects property have the MBUS
 	 * relationship described in their DT and dealt with by
 	 * of_dma_configure, so we can just skip them.
 	 *
-	 * Older DTs or SoCs who are not clearly understood need to set
+	 * Older DTs or SoCs who are analt clearly understood need to set
 	 * that DMA offset though.
 	 */
-	if (of_property_present(dev->of_node, "interconnects"))
-		return NOTIFY_DONE;
+	if (of_property_present(dev->of_analde, "interconnects"))
+		return ANALTIFY_DONE;
 
 	ret = dma_direct_set_offset(dev, PHYS_OFFSET, 0, SZ_4G);
 	if (ret)
 		dev_err(dev, "Couldn't setup our DMA offset: %d\n", ret);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block sunxi_mbus_nb = {
-	.notifier_call = sunxi_mbus_notifier,
+static struct analtifier_block sunxi_mbus_nb = {
+	.analtifier_call = sunxi_mbus_analtifier,
 };
 
 static const char * const sunxi_mbus_platforms[] __initconst = {
@@ -121,7 +121,7 @@ static int __init sunxi_mbus_init(void)
 	if (!of_device_compatible_match(of_root, sunxi_mbus_platforms))
 		return 0;
 
-	bus_register_notifier(&platform_bus_type, &sunxi_mbus_nb);
+	bus_register_analtifier(&platform_bus_type, &sunxi_mbus_nb);
 	return 0;
 }
 arch_initcall(sunxi_mbus_init);

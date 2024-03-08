@@ -5,7 +5,7 @@
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <linux/workqueue.h>
 #include "adf_accel_devices.h"
@@ -70,7 +70,7 @@ static void adf_dev_stop_async(struct work_struct *work)
 		container_of(work, struct adf_vf_stop_data, work);
 	struct adf_accel_dev *accel_dev = stop_data->accel_dev;
 
-	adf_dev_restarting_notify(accel_dev);
+	adf_dev_restarting_analtify(accel_dev);
 	adf_dev_down(accel_dev, false);
 
 	/* Re-enable PF2VF interrupts */
@@ -88,7 +88,7 @@ int adf_pf2vf_handle_pf_restarting(struct adf_accel_dev *accel_dev)
 		dev_err(&GET_DEV(accel_dev),
 			"Couldn't schedule stop for vf_%d\n",
 			accel_dev->accel_id);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	stop_data->accel_dev = accel_dev;
 	INIT_WORK(&stop_data->work, adf_dev_stop_async);
@@ -145,7 +145,7 @@ static irqreturn_t adf_isr(int irq, void *privdata)
 	v_mask = ADF_CSR_RD(pmisc_bar_addr, ADF_VINTMSK_OFFSET);
 
 	/*
-	 * Recompute v_int ignoring sources that are masked. This is to
+	 * Recompute v_int iganalring sources that are masked. This is to
 	 * avoid rescheduling the tasklet for interrupts already handled
 	 */
 	v_int &= ~v_mask;
@@ -172,7 +172,7 @@ static irqreturn_t adf_isr(int irq, void *privdata)
 		handled = true;
 	}
 
-	return handled ? IRQ_HANDLED : IRQ_NONE;
+	return handled ? IRQ_HANDLED : IRQ_ANALNE;
 }
 
 static int adf_request_msi_irq(struct adf_accel_dev *accel_dev)
@@ -277,7 +277,7 @@ EXPORT_SYMBOL_GPL(adf_vf_isr_resource_alloc);
  * adf_flush_vf_wq() - Flush workqueue for VF
  * @accel_dev:  Pointer to acceleration device.
  *
- * Function disables the PF/VF interrupts on the VF so that no new messages
+ * Function disables the PF/VF interrupts on the VF so that anal new messages
  * are received and flushes the workqueue 'adf_vf_stop_wq'.
  *
  * Return: void.

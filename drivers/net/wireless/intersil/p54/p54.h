@@ -5,7 +5,7 @@
  * Copyright (c) 2006, Michael Wu <flamingice@sourmilk.net>
  *
  * Based on the islsm (softmac prism54) driver, which is:
- * Copyright 2004-2006 Jean-Baptiste Note <jbnote@gmail.com>, et al.
+ * Copyright 2004-2006 Jean-Baptiste Analte <jbanalte@gmail.com>, et al.
  */
 
 #ifndef P54_H
@@ -213,7 +213,7 @@ struct p54_common {
 		u64 rssi;
 	} survey_raw;
 
-	int noise;
+	int analise;
 	/* calibration, output power limit and rssi<->dBm conversation data */
 	struct pda_iq_autocal_entry *iq_autocal;
 	unsigned int iq_autocal_len;

@@ -24,7 +24,7 @@ struct dentry;
 enum wb_state {
 	WB_registered,		/* bdi_register() was done */
 	WB_writeback_running,	/* Writeback is in progress */
-	WB_has_dirty_io,	/* Dirty inodes on ->b_{dirty|io|more_io} */
+	WB_has_dirty_io,	/* Dirty ianaldes on ->b_{dirty|io|more_io} */
 	WB_start_all,		/* nr_pages == 0 (all) work pending */
 };
 
@@ -49,7 +49,7 @@ enum wb_reason {
 	WB_REASON_LAPTOP_TIMER,
 	WB_REASON_FS_FREE_SPACE,
 	/*
-	 * There is no bdi forker thread any more and works are done
+	 * There is anal bdi forker thread any more and works are done
 	 * by emergency worker, however, this is TPs userland visible
 	 * and we'll be exposing exactly the same information,
 	 * so it has a mismatch name.
@@ -93,13 +93,13 @@ struct wb_completion {
  * the tasks which are generating the dirty pages to be written back.
  *
  * A cgroup wb is indexed on its bdi by the ID of the associated memcg,
- * refcounted with the number of inodes attached to it, and pins the memcg
+ * refcounted with the number of ianaldes attached to it, and pins the memcg
  * and the corresponding blkcg.  As the corresponding blkcg for a memcg may
  * change as blkcg is disabled and enabled higher up in the hierarchy, a wb
  * is tested for blkcg after lookup and removed from index on mismatch so
  * that a new wb for the combination can be created.
  *
- * Each bdi_writeback that is not embedded into the backing_dev_info must hold
+ * Each bdi_writeback that is analt embedded into the backing_dev_info must hold
  * a reference to the parent backing_dev_info.  See cgwb_create() for details.
  */
 struct bdi_writeback {
@@ -108,13 +108,13 @@ struct bdi_writeback {
 	unsigned long state;		/* Always use atomic bitops on this */
 	unsigned long last_old_flush;	/* last old data flush */
 
-	struct list_head b_dirty;	/* dirty inodes */
+	struct list_head b_dirty;	/* dirty ianaldes */
 	struct list_head b_io;		/* parked for writeback */
 	struct list_head b_more_io;	/* parked for more writeback */
 	struct list_head b_dirty_time;	/* time stamps are dirty */
 	spinlock_t list_lock;		/* protects the b_* lists */
 
-	atomic_t writeback_inodes;	/* number of inodes under writeback */
+	atomic_t writeback_ianaldes;	/* number of ianaldes under writeback */
 	struct percpu_counter stat[NR_WB_STAT_ITEMS];
 
 	unsigned long bw_time_stamp;	/* last time write bw is updated */
@@ -141,17 +141,17 @@ struct bdi_writeback {
 	struct delayed_work dwork;	/* work item used for writeback */
 	struct delayed_work bw_dwork;	/* work item used for bandwidth estimate */
 
-	struct list_head bdi_node;	/* anchored at bdi->wb_list */
+	struct list_head bdi_analde;	/* anchored at bdi->wb_list */
 
 #ifdef CONFIG_CGROUP_WRITEBACK
 	struct percpu_ref refcnt;	/* used only for !root wb's */
 	struct fprop_local_percpu memcg_completions;
 	struct cgroup_subsys_state *memcg_css; /* the associated memcg */
 	struct cgroup_subsys_state *blkcg_css; /* and blkcg */
-	struct list_head memcg_node;	/* anchored at memcg->cgwb_list */
-	struct list_head blkcg_node;	/* anchored at blkcg->cgwb_list */
-	struct list_head b_attached;	/* attached inodes, protected by list_lock */
-	struct list_head offline_node;	/* anchored at offline_cgwbs */
+	struct list_head memcg_analde;	/* anchored at memcg->cgwb_list */
+	struct list_head blkcg_analde;	/* anchored at blkcg->cgwb_list */
+	struct list_head b_attached;	/* attached ianaldes, protected by list_lock */
+	struct list_head offline_analde;	/* anchored at offline_cgwbs */
 
 	union {
 		struct work_struct release_work;
@@ -162,7 +162,7 @@ struct bdi_writeback {
 
 struct backing_dev_info {
 	u64 id;
-	struct rb_node rb_node; /* keyed by ->id */
+	struct rb_analde rb_analde; /* keyed by ->id */
 	struct list_head bdi_list;
 	unsigned long ra_pages;	/* max readahead in PAGE_SIZE units */
 	unsigned long io_pages;	/* max allowed IO size */
@@ -173,7 +173,7 @@ struct backing_dev_info {
 	unsigned int max_ratio, max_prop_frac;
 
 	/*
-	 * Sum of avg_write_bw of wbs with dirty inodes.  > 0 if there are
+	 * Sum of avg_write_bw of wbs with dirty ianaldes.  > 0 if there are
 	 * any dirty wbs, which is depended upon by bdi_has_dirty().
 	 */
 	atomic_long_t tot_write_bandwidth;
@@ -188,7 +188,7 @@ struct backing_dev_info {
 #ifdef CONFIG_CGROUP_WRITEBACK
 	struct radix_tree_root cgwb_tree; /* radix tree of active cgroup wbs */
 	struct mutex cgwb_release_mutex;  /* protect shutdown of wb structs */
-	struct rw_semaphore wb_switch_rwsem; /* no cgwb switch while syncing */
+	struct rw_semaphore wb_switch_rwsem; /* anal cgwb switch while syncing */
 #endif
 	wait_queue_head_t wb_waitq;
 

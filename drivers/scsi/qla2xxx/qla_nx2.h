@@ -86,7 +86,7 @@ static inline bool addr_in_range(u64 addr, u64 low, u64 high)
 
 /* IDC Registers : Driver Coexistence Defines */
 #define QLA8044_CRB_IDC_VER_MAJOR	0x3780
-#define QLA8044_CRB_IDC_VER_MINOR	0x3798
+#define QLA8044_CRB_IDC_VER_MIANALR	0x3798
 #define QLA8044_IDC_DRV_AUDIT		0x3794
 #define QLA8044_SRE_SHIM_CONTROL	0x0D200284
 #define QLA8044_PORT0_RXB_PAUSE_THRS	0x0B2003A4
@@ -112,7 +112,7 @@ static inline bool addr_in_range(u64 addr, u64 low, u64 high)
 #define QLA8044_CRB_DEV_PART_INFO1	0x37E0
 #define QLA8044_CRB_DEV_PART_INFO2	0x37E4
 #define QLA8044_FW_VER_MAJOR		0x3550
-#define QLA8044_FW_VER_MINOR		0x3554
+#define QLA8044_FW_VER_MIANALR		0x3554
 #define QLA8044_FW_VER_SUB		0x3558
 #define QLA8044_NPAR_STATE		0x359C
 #define QLA8044_FW_IMAGE_VALID		0x35FC
@@ -197,7 +197,7 @@ static inline bool addr_in_range(u64 addr, u64 low, u64 high)
 #define QLA8044_RESET_SEQ_VERSION	0x0101
 
 /* Reset template entry opcodes */
-#define OPCODE_NOP			0x0000
+#define OPCODE_ANALP			0x0000
 #define OPCODE_WRITE_LIST		0x0001
 #define OPCODE_READ_WRITE_LIST		0x0002
 #define OPCODE_POLL_LIST		0x0004
@@ -211,7 +211,7 @@ static inline bool addr_in_range(u64 addr, u64 low, u64 high)
 /* Template Header */
 #define RESET_TMPLT_HDR_SIGNATURE	0xCAFE
 #define QLA8044_IDC_DRV_CTRL            0x3790
-#define AF_8044_NO_FW_DUMP              27 /* 0x08000000 */
+#define AF_8044_ANAL_FW_DUMP              27 /* 0x08000000 */
 
 #define MINIDUMP_SIZE_36K		36864
 
@@ -280,7 +280,7 @@ struct qla8044_reset_template {
 };
 
 /* Driver_code is for driver to write some info about the entry
- * currently not used.
+ * currently analt used.
  */
 struct qla8044_minidump_entry_hdr {
 	uint32_t entry_type;
@@ -520,7 +520,7 @@ enum qla_regs {
 	QLA8044_CRB_DEV_PART_INFO_INDEX,
 	QLA8044_CRB_DRV_IDC_VERSION_INDEX,
 	QLA8044_FW_VERSION_MAJOR_INDEX,
-	QLA8044_FW_VERSION_MINOR_INDEX,
+	QLA8044_FW_VERSION_MIANALR_INDEX,
 	QLA8044_FW_VERSION_SUB_INDEX,
 	QLA8044_CRB_CMDPEG_STATE_INDEX,
 	QLA8044_CRB_TEMP_STATE_INDEX,
@@ -533,7 +533,7 @@ enum qla_regs {
 /* MiniDump Structures */
 
 /* Driver_code is for driver to write some info about the entry
- * currently not used.
+ * currently analt used.
  */
 #define QLA8044_SS_OCM_WNDREG_INDEX             3
 #define QLA8044_DBG_STATE_ARRAY_LEN             16

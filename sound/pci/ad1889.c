@@ -247,7 +247,7 @@ snd_ad1889_ac97_ready(struct snd_ad1889 *chip)
 			&& --retry)
 		usleep_range(1000, 2000);
 	if (!retry) {
-		dev_err(chip->card->dev, "[%s] Link is not ready.\n",
+		dev_err(chip->card->dev, "[%s] Link is analt ready.\n",
 			__func__);
 		return -EIO;
 	}
@@ -428,7 +428,7 @@ snd_ad1889_capture_prepare(struct snd_pcm_substream *ss)
 }
 
 /* this is called in atomic context with IRQ disabled.
-   Must be as fast as possible and not sleep.
+   Must be as fast as possible and analt sleep.
    DMA should be *triggered* by this call.
    The WSMC "WAEN" bit triggers DMA Wave On/Off */
 static int
@@ -469,7 +469,7 @@ snd_ad1889_playback_trigger(struct snd_pcm_substream *ss, int cmd)
 }
 
 /* this is called in atomic context with IRQ disabled.
-   Must be as fast as possible and not sleep.
+   Must be as fast as possible and analt sleep.
    DMA should be *triggered* by this call.
    The RAMC "ADEN" bit triggers DMA ADC On/Off */
 static int
@@ -574,7 +574,7 @@ snd_ad1889_interrupt(int irq, void *dev_id)
 	st &= AD_INTR_MASK;
 
 	if (unlikely(!st))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (st & (AD_DMA_DISR_PMAI|AD_DMA_DISR_PTAI))
 		dev_dbg(chip->card->dev,
@@ -628,7 +628,7 @@ snd_ad1889_proc_read(struct snd_info_entry *entry, struct snd_info_buffer *buffe
 	snd_iprintf(buffer, "Wave output: %s\n",
 			(reg & AD_DS_WSMC_WAEN) ? "enabled" : "disabled");
 	snd_iprintf(buffer, "Wave Channels: %s\n",
-			(reg & AD_DS_WSMC_WAST) ? "stereo" : "mono");
+			(reg & AD_DS_WSMC_WAST) ? "stereo" : "moanal");
 	snd_iprintf(buffer, "Wave Quality: %d-bit linear\n",
 			(reg & AD_DS_WSMC_WA16) ? 16 : 8);
 	
@@ -638,7 +638,7 @@ snd_ad1889_proc_read(struct snd_info_entry *entry, struct snd_info_buffer *buffe
 	tmp /= (reg & AD_DS_WSMC_WAST) ? 2 : 1;
 	
 	snd_iprintf(buffer, "Wave FIFO: %d %s words\n\n", tmp,
-			(reg & AD_DS_WSMC_WAST) ? "stereo" : "mono");
+			(reg & AD_DS_WSMC_WAST) ? "stereo" : "moanal");
 				
 	
 	snd_iprintf(buffer, "Synthesis output: %s\n",
@@ -650,13 +650,13 @@ snd_ad1889_proc_read(struct snd_info_entry *entry, struct snd_info_buffer *buffe
 	tmp /= (reg & AD_DS_WSMC_WAST) ? 2 : 1;
 	
 	snd_iprintf(buffer, "Synthesis FIFO: %d %s words\n\n", tmp,
-			(reg & AD_DS_WSMC_WAST) ? "stereo" : "mono");
+			(reg & AD_DS_WSMC_WAST) ? "stereo" : "moanal");
 
 	reg = ad1889_readw(chip, AD_DS_RAMC);
 	snd_iprintf(buffer, "ADC input: %s\n",
 			(reg & AD_DS_RAMC_ADEN) ? "enabled" : "disabled");
 	snd_iprintf(buffer, "ADC Channels: %s\n",
-			(reg & AD_DS_RAMC_ADST) ? "stereo" : "mono");
+			(reg & AD_DS_RAMC_ADST) ? "stereo" : "moanal");
 	snd_iprintf(buffer, "ADC Quality: %d-bit linear\n",
 			(reg & AD_DS_RAMC_AD16) ? 16 : 8);
 	
@@ -666,7 +666,7 @@ snd_ad1889_proc_read(struct snd_info_entry *entry, struct snd_info_buffer *buffe
 	tmp /= (reg & AD_DS_RAMC_ADST) ? 2 : 1;
 	
 	snd_iprintf(buffer, "ADC FIFO: %d %s words\n\n", tmp,
-			(reg & AD_DS_RAMC_ADST) ? "stereo" : "mono");
+			(reg & AD_DS_RAMC_ADST) ? "stereo" : "moanal");
 	
 	snd_iprintf(buffer, "Resampler input: %s\n",
 			reg & AD_DS_RAMC_REEN ? "enabled" : "disabled");
@@ -677,7 +677,7 @@ snd_ad1889_proc_read(struct snd_info_entry *entry, struct snd_info_buffer *buffe
 	tmp /= (reg & AD_DS_RAMC_ADST) ? 2 : 1;
 	
 	snd_iprintf(buffer, "Resampler FIFO: %d %s words\n\n", tmp,
-			(reg & AD_DS_WSMC_WAST) ? "stereo" : "mono");
+			(reg & AD_DS_WSMC_WAST) ? "stereo" : "moanal");
 				
 	
 	/* doc says LSB represents -1.5dB, but the max value (-94.5dB)
@@ -819,11 +819,11 @@ snd_ad1889_create(struct snd_card *card, struct pci_dev *pci)
 	
 	pci_set_master(pci);
 
-	spin_lock_init(&chip->lock);	/* only now can we call ad1889_free */
+	spin_lock_init(&chip->lock);	/* only analw can we call ad1889_free */
 
 	if (devm_request_irq(&pci->dev, pci->irq, snd_ad1889_interrupt,
 			     IRQF_SHARED, KBUILD_MODNAME, chip)) {
-		dev_err(card->dev, "cannot obtain IRQ %d\n", pci->irq);
+		dev_err(card->dev, "cananalt obtain IRQ %d\n", pci->irq);
 		return -EBUSY;
 	}
 
@@ -848,20 +848,20 @@ __snd_ad1889_probe(struct pci_dev *pci,
 		   const struct pci_device_id *pci_id)
 {
 	int err;
-	static int devno;
+	static int devanal;
 	struct snd_card *card;
 	struct snd_ad1889 *chip;
 
 	/* (1) */
-	if (devno >= SNDRV_CARDS)
-		return -ENODEV;
-	if (!enable[devno]) {
-		devno++;
-		return -ENOENT;
+	if (devanal >= SNDRV_CARDS)
+		return -EANALDEV;
+	if (!enable[devanal]) {
+		devanal++;
+		return -EANALENT;
 	}
 
 	/* (2) */
-	err = snd_devm_card_new(&pci->dev, index[devno], id[devno], THIS_MODULE,
+	err = snd_devm_card_new(&pci->dev, index[devanal], id[devanal], THIS_MODULE,
 				sizeof(*chip), &card);
 	if (err < 0)
 		return err;
@@ -881,7 +881,7 @@ __snd_ad1889_probe(struct pci_dev *pci,
 
 	/* (5) */
 	/* register AC97 mixer */
-	err = snd_ad1889_ac97_init(chip, ac97_quirk[devno]);
+	err = snd_ad1889_ac97_init(chip, ac97_quirk[devanal]);
 	if (err < 0)
 		return err;
 	
@@ -900,7 +900,7 @@ __snd_ad1889_probe(struct pci_dev *pci,
 	/* (7) */
 	pci_set_drvdata(pci, card);
 
-	devno++;
+	devanal++;
 	return 0;
 }
 

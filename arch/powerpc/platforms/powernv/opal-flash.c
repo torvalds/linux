@@ -21,15 +21,15 @@
 #include <asm/opal.h>
 
 /* FLASH status codes */
-#define FLASH_NO_OP		-1099	/* No operation initiated by user */
-#define FLASH_NO_AUTH		-9002	/* Not a service authority partition */
+#define FLASH_ANAL_OP		-1099	/* Anal operation initiated by user */
+#define FLASH_ANAL_AUTH		-9002	/* Analt a service authority partition */
 
 /* Validate image status values */
 #define VALIDATE_IMG_READY	-1001	/* Image ready for validation */
 #define VALIDATE_IMG_INCOMPLETE	-1002	/* User copied < VALIDATE_BUF_SIZE */
 
 /* Manage image status values */
-#define MANAGE_ACTIVE_ERR	-9001	/* Cannot overwrite active img */
+#define MANAGE_ACTIVE_ERR	-9001	/* Cananalt overwrite active img */
 
 /* Flash image status values */
 #define FLASH_IMG_READY		0	/* Img ready for flash on reboot */
@@ -47,9 +47,9 @@
 
 /* Validate image update result tokens */
 #define VALIDATE_TMP_UPDATE	0     /* T side will be updated */
-#define VALIDATE_FLASH_AUTH	1     /* Partition does not have authority */
-#define VALIDATE_INVALID_IMG	2     /* Candidate image is not valid */
-#define VALIDATE_CUR_UNKNOWN	3     /* Current fixpack level is unknown */
+#define VALIDATE_FLASH_AUTH	1     /* Partition does analt have authority */
+#define VALIDATE_INVALID_IMG	2     /* Candidate image is analt valid */
+#define VALIDATE_CUR_UNKANALWN	3     /* Current fixpack level is unkanalwn */
 /*
  * Current T side will be committed to P side before being replace with new
  * image, and the new image is downlevel from current image
@@ -117,9 +117,9 @@ static struct image_data_t	image_data;
 static struct validate_flash_t	validate_flash_data;
 static struct manage_flash_t	manage_flash_data;
 
-/* Initialize update_flash_data status to No Operation */
+/* Initialize update_flash_data status to Anal Operation */
 static struct update_flash_t	update_flash_data = {
-	.status = FLASH_NO_OP,
+	.status = FLASH_ANAL_OP,
 };
 
 static DEFINE_MUTEX(image_data_mutex);
@@ -153,7 +153,7 @@ static ssize_t validate_show(struct kobject *kobj,
 	struct validate_flash_t *args_buf = &validate_flash_data;
 	int len;
 
-	/* Candidate image is not validated */
+	/* Candidate image is analt validated */
 	if (args_buf->status < VALIDATE_TMP_UPDATE) {
 		len = sprintf(buf, "%d\n", args_buf->status);
 		goto out;
@@ -164,7 +164,7 @@ static ssize_t validate_show(struct kobject *kobj,
 
 	/* Current and candidate image version details */
 	if ((args_buf->result != VALIDATE_TMP_UPDATE) &&
-	    (args_buf->result < VALIDATE_CUR_UNKNOWN))
+	    (args_buf->result < VALIDATE_CUR_UNKANALWN))
 		goto out;
 
 	if (args_buf->buf_size > (VALIDATE_BUF_SIZE - len)) {
@@ -176,14 +176,14 @@ static ssize_t validate_show(struct kobject *kobj,
 	}
 out:
 	/* Set status to default */
-	args_buf->status = FLASH_NO_OP;
+	args_buf->status = FLASH_ANAL_OP;
 	return len;
 }
 
 /*
  * Validate candidate firmware image
  *
- * Note:
+ * Analte:
  *   We are only interested in first 4K bytes of the
  *   candidate image.
  */
@@ -240,7 +240,7 @@ static ssize_t manage_show(struct kobject *kobj,
 
 	rc = sprintf(buf, "%d\n", args_buf->status);
 	/* Set status to default*/
-	args_buf->status = FLASH_NO_OP;
+	args_buf->status = FLASH_ANAL_OP;
 	return rc;
 }
 
@@ -308,7 +308,7 @@ void opal_flash_update_print_message(void)
 	pr_alert("FLASH: Flashing new firmware\n");
 	pr_alert("FLASH: Image is %u bytes\n", image_data.size);
 	pr_alert("FLASH: Performing flash and reboot/shutdown\n");
-	pr_alert("FLASH: This will take several minutes. Do not power off!\n");
+	pr_alert("FLASH: This will take several minutes. Do analt power off!\n");
 
 	/* Small delay to help getting the above message out */
 	msleep(500);
@@ -342,7 +342,7 @@ static ssize_t update_store(struct kobject *kobj,
 	case '0':
 		if (args_buf->status == FLASH_IMG_READY)
 			opal_flash_update(FLASH_UPDATE_CANCEL);
-		args_buf->status = FLASH_NO_OP;
+		args_buf->status = FLASH_ANAL_OP;
 		break;
 	case '1':
 		/* Image is loaded? */
@@ -409,7 +409,7 @@ static int alloc_image_buf(char *buffer, size_t count)
 	image_data.data = vzalloc(PAGE_ALIGN(image_data.size));
 	if (!image_data.data) {
 		pr_err("%s : Failed to allocate memory\n", __func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Pin memory */
@@ -456,7 +456,7 @@ static ssize_t image_data_write(struct file *filp, struct kobject *kobj,
 	}
 
 	if (image_data.status != IMAGE_LOADING) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out;
 	}
 
@@ -520,7 +520,7 @@ void __init opal_flash_update_init(void)
 {
 	int ret;
 
-	/* Firmware update is not supported by firmware */
+	/* Firmware update is analt supported by firmware */
 	if (!opal_check_token(OPAL_FLASH_VALIDATE))
 		return;
 
@@ -533,34 +533,34 @@ void __init opal_flash_update_init(void)
 
 	/* Make sure /sys/firmware/opal directory is created */
 	if (!opal_kobj) {
-		pr_warn("FLASH: opal kobject is not available\n");
-		goto nokobj;
+		pr_warn("FLASH: opal kobject is analt available\n");
+		goto analkobj;
 	}
 
 	/* Create the sysfs files */
 	ret = sysfs_create_group(opal_kobj, &image_op_attr_group);
 	if (ret) {
 		pr_warn("FLASH: Failed to create sysfs files\n");
-		goto nokobj;
+		goto analkobj;
 	}
 
 	ret = sysfs_create_bin_file(opal_kobj, &image_data_attr);
 	if (ret) {
 		pr_warn("FLASH: Failed to create sysfs files\n");
-		goto nosysfs_file;
+		goto analsysfs_file;
 	}
 
 	/* Set default status */
-	validate_flash_data.status = FLASH_NO_OP;
-	manage_flash_data.status = FLASH_NO_OP;
-	update_flash_data.status = FLASH_NO_OP;
+	validate_flash_data.status = FLASH_ANAL_OP;
+	manage_flash_data.status = FLASH_ANAL_OP;
+	update_flash_data.status = FLASH_ANAL_OP;
 	image_data.status = IMAGE_INVALID;
 	return;
 
-nosysfs_file:
+analsysfs_file:
 	sysfs_remove_group(opal_kobj, &image_op_attr_group);
 
-nokobj:
+analkobj:
 	kfree(validate_flash_data.buf);
 	return;
 }

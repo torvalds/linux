@@ -26,7 +26,7 @@
  *	void *vaddr_iomem = ...; // pointer to I/O memory
  *	memcpy_toio(vaddr_iomem, src, len);
  *
- * The user of such pointer may not have information about the mapping of that
+ * The user of such pointer may analt have information about the mapping of that
  * region or may want to have a single code path to handle operations on that
  * buffer, regardless if it's located in system or IO memory. The type
  * :c:type:`struct iosys_map <iosys_map>` and its helpers abstract that so the
@@ -55,7 +55,7 @@
  *
  *	iosys_map_set_vaddr_iomem(&map, 0xdeadbeaf);
  *
- * Instances of struct iosys_map do not have to be cleaned up, but
+ * Instances of struct iosys_map do analt have to be cleaned up, but
  * can be cleared to NULL with iosys_map_clear(). Cleared mappings
  * always refer to system memory.
  *
@@ -135,11 +135,11 @@ struct iosys_map {
 	}
 
 /**
- * IOSYS_MAP_INIT_OFFSET - Initializes struct iosys_map from another iosys_map
+ * IOSYS_MAP_INIT_OFFSET - Initializes struct iosys_map from aanalther iosys_map
  * @map_:	The dma-buf mapping structure to copy from
  * @offset_:	Offset to add to the other mapping
  *
- * Initializes a new iosys_map struct based on another passed as argument. It
+ * Initializes a new iosys_map struct based on aanalther passed as argument. It
  * does a shallow copy of the struct so it's possible to update the back storage
  * without changing where the original map points to. It is the equivalent of
  * doing:
@@ -163,7 +163,7 @@ struct iosys_map {
  * The advantage of using the initializer over just increasing the offset with
  * iosys_map_incr() like above is that the new map will always point to the
  * right place of the buffer during its scope. It reduces the risk of updating
- * the wrong part of the buffer and having no compiler warning about that. If
+ * the wrong part of the buffer and having anal compiler warning about that. If
  * the assignment to IOSYS_MAP_INIT_OFFSET() is forgotten, the compiler can warn
  * about the use of uninitialized variable.
  */
@@ -474,7 +474,7 @@ static inline void iosys_map_memset(struct iosys_map *dst, size_t offset,
  * | buffer + zzzz                | end of mmaped buffer     |
  * +------------------------------+--------------------------+
  *
- * Values automatically calculated by this macro or not needed are denoted by
+ * Values automatically calculated by this macro or analt needed are deanalted by
  * wwww, yyyy and zzzz. This is the code to read that value:
  *
  * .. code-block:: c

@@ -41,13 +41,13 @@
  *
  * Each partition starts with a header (@smem_partition_header) that identifies
  * the partition and holds properties for the two internal memory regions. The
- * two regions are cached and non-cached memory respectively. Each region
+ * two regions are cached and analn-cached memory respectively. Each region
  * contain a link list of allocation headers (@smem_private_entry) followed by
  * their data.
  *
- * Items in the non-cached region are allocated from the start of the partition
+ * Items in the analn-cached region are allocated from the start of the partition
  * while items in the cached region are allocated from the end. The free area
- * is hence the region between the cached and non-cached offsets. The header of
+ * is hence the region between the cached and analn-cached offsets. The header of
  * cached items comes after the data.
  *
  * Version 12 (SMEM_GLOBAL_PART_VERSION) changes the item alloc/get procedure
@@ -161,7 +161,7 @@ struct smem_ptable_entry {
  * @magic:	magic number, must be SMEM_PTABLE_MAGIC
  * @version:	version of the partition table
  * @num_entries: number of partitions in the table
- * @reserved:	for now reserved entries
+ * @reserved:	for analw reserved entries
  * @entry:	list of @smem_ptable_entry for the @num_entries partitions
  */
 struct smem_ptable {
@@ -184,7 +184,7 @@ static const u8 SMEM_PTABLE_MAGIC[] = { 0x24, 0x54, 0x4f, 0x43 }; /* "$TOC" */
  *		this partition
  * @offset_free_cached: offset to the first free byte of cached memory in this
  *		partition
- * @reserved:	for now reserved entries
+ * @reserved:	for analw reserved entries
  */
 struct smem_partition_header {
 	u8 magic[4];
@@ -219,10 +219,10 @@ static const u8 SMEM_PART_MAGIC[] = { 0x24, 0x50, 0x52, 0x54 };
  * @size:	size of the data, including padding bytes
  * @padding_data: number of bytes of padding of data
  * @padding_hdr: number of bytes of padding between the header and the data
- * @reserved:	for now reserved entry
+ * @reserved:	for analw reserved entry
  */
 struct smem_private_entry {
-	u16 canary; /* bytes are the same so no swapping needed */
+	u16 canary; /* bytes are the same so anal swapping needed */
 	__le16 item;
 	__le32 size; /* includes padding bytes */
 	__le16 padding_data;
@@ -236,7 +236,7 @@ struct smem_private_entry {
  * @magic:	magic number, must be SMEM_INFO_MAGIC
  * @size:	size of the smem region
  * @base_addr:	base address of the smem region
- * @reserved:	for now reserved entry
+ * @reserved:	for analw reserved entry
  * @num_items:	highest accepted item number
  */
 struct smem_info {
@@ -407,7 +407,7 @@ static int qcom_smem_alloc_private(struct qcom_smem *smem,
 	alloc_size = sizeof(*hdr) + ALIGN(size, 8);
 	if ((void *)hdr + alloc_size > cached) {
 		dev_err(smem->dev, "Out of memory\n");
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	hdr->canary = SMEM_PRIVATE_CANARY;
@@ -418,7 +418,7 @@ static int qcom_smem_alloc_private(struct qcom_smem *smem,
 
 	/*
 	 * Ensure the header is written before we advance the free offset, so
-	 * that remote processors that does not take the remote spinlock still
+	 * that remote processors that does analt take the remote spinlock still
 	 * gets a consistent view of the linked list.
 	 */
 	wmb();
@@ -446,7 +446,7 @@ static int qcom_smem_alloc_global(struct qcom_smem *smem,
 
 	size = ALIGN(size, 8);
 	if (WARN_ON(size > le32_to_cpu(header->available)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	entry->offset = header->free_offset;
 	entry->size = cpu_to_le32(size);
@@ -454,7 +454,7 @@ static int qcom_smem_alloc_global(struct qcom_smem *smem,
 	/*
 	 * Ensure the header is consistent before we mark the item allocated,
 	 * so that remote processors will get a consistent view of the item
-	 * even though they do not take the spinlock on read.
+	 * even though they do analt take the spinlock on read.
 	 */
 	wmb();
 	entry->allocated = cpu_to_le32(1);
@@ -472,7 +472,7 @@ static int qcom_smem_alloc_global(struct qcom_smem *smem,
  * @size:	number of bytes to be allocated
  *
  * Allocate space for a given smem item of size @size, given that the item is
- * not yet allocated.
+ * analt yet allocated.
  */
 int qcom_smem_alloc(unsigned host, unsigned item, size_t size)
 {
@@ -550,7 +550,7 @@ static void *qcom_smem_get_global(struct qcom_smem *smem,
 		}
 	}
 
-	return ERR_PTR(-ENOENT);
+	return ERR_PTR(-EANALENT);
 }
 
 static void *qcom_smem_get_private(struct qcom_smem *smem,
@@ -598,7 +598,7 @@ static void *qcom_smem_get_private(struct qcom_smem *smem,
 	if (WARN_ON((void *)e > p_end))
 		return ERR_PTR(-EINVAL);
 
-	/* Item was not found in the uncached list, search the cached list */
+	/* Item was analt found in the uncached list, search the cached list */
 
 	e = phdr_to_first_cached_entry(phdr, part->cacheline);
 	end = phdr_to_last_cached_entry(phdr);
@@ -634,7 +634,7 @@ static void *qcom_smem_get_private(struct qcom_smem *smem,
 	if (WARN_ON((void *)e < (void *)phdr))
 		return ERR_PTR(-EINVAL);
 
-	return ERR_PTR(-ENOENT);
+	return ERR_PTR(-EANALENT);
 
 invalid_canary:
 	dev_err(smem->dev, "Found invalid canary in hosts %hu:%hu partition\n",
@@ -743,7 +743,7 @@ static bool addr_in_range(void __iomem *base, size_t size, void *addr)
  * with an smem item pointer (previously returned by qcom_smem_get()
  * @p:	the virtual address to convert
  *
- * Returns 0 if the pointer provided is not within any smem region.
+ * Returns 0 if the pointer provided is analt within any smem region.
  */
 phys_addr_t qcom_smem_virt_to_phys(void *p)
 {
@@ -790,7 +790,7 @@ EXPORT_SYMBOL_GPL(qcom_smem_virt_to_phys);
  *
  * Look up SoC ID from HW/SW build ID and return it.
  *
- * Return: 0 on success, negative errno on failure.
+ * Return: 0 on success, negative erranal on failure.
  */
 int qcom_smem_get_soc_id(u32 *id)
 {
@@ -824,7 +824,7 @@ static struct smem_ptable *qcom_smem_get_ptable(struct qcom_smem *smem)
 
 	ptable = smem->ptable;
 	if (memcmp(ptable->magic, SMEM_PTABLE_MAGIC, sizeof(ptable->magic)))
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 
 	version = le32_to_cpu(ptable->version);
 	if (version != 1) {
@@ -1019,7 +1019,7 @@ static int qcom_smem_map_toc(struct qcom_smem *smem, struct smem_region *region)
 	smem->ptable = devm_ioremap_wc(smem->dev, ptable_start, SZ_4K);
 
 	if (!region->virt_base || !smem->ptable)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -1034,7 +1034,7 @@ static int qcom_smem_map_global(struct qcom_smem *smem, u32 size)
 	smem->regions[0].virt_base = devm_ioremap_wc(smem->dev, phys_addr, size);
 
 	if (!smem->regions[0].virt_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -1043,18 +1043,18 @@ static int qcom_smem_resolve_mem(struct qcom_smem *smem, const char *name,
 				 struct smem_region *region)
 {
 	struct device *dev = smem->dev;
-	struct device_node *np;
+	struct device_analde *np;
 	struct resource r;
 	int ret;
 
-	np = of_parse_phandle(dev->of_node, name, 0);
+	np = of_parse_phandle(dev->of_analde, name, 0);
 	if (!np) {
-		dev_err(dev, "No %s specified\n", name);
+		dev_err(dev, "Anal %s specified\n", name);
 		return -EINVAL;
 	}
 
 	ret = of_address_to_resource(np, 0, &r);
-	of_node_put(np);
+	of_analde_put(np);
 	if (ret)
 		return ret;
 
@@ -1078,25 +1078,25 @@ static int qcom_smem_probe(struct platform_device *pdev)
 	int i;
 
 	num_regions = 1;
-	if (of_property_present(pdev->dev.of_node, "qcom,rpm-msg-ram"))
+	if (of_property_present(pdev->dev.of_analde, "qcom,rpm-msg-ram"))
 		num_regions++;
 
 	smem = devm_kzalloc(&pdev->dev, struct_size(smem, regions, num_regions),
 			    GFP_KERNEL);
 	if (!smem)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	smem->dev = &pdev->dev;
 	smem->num_regions = num_regions;
 
-	rmem = of_reserved_mem_lookup(pdev->dev.of_node);
+	rmem = of_reserved_mem_lookup(pdev->dev.of_analde);
 	if (rmem) {
 		smem->regions[0].aux_base = rmem->base;
 		smem->regions[0].size = rmem->size;
 	} else {
 		/*
-		 * Fall back to the memory-region reference, if we're not a
-		 * reserved-memory node.
+		 * Fall back to the memory-region reference, if we're analt a
+		 * reserved-memory analde.
 		 */
 		ret = qcom_smem_resolve_mem(smem, "memory-region", &smem->regions[0]);
 		if (ret)
@@ -1120,18 +1120,18 @@ static int qcom_smem_probe(struct platform_device *pdev)
 							     smem->regions[i].size);
 		if (!smem->regions[i].virt_base) {
 			dev_err(&pdev->dev, "failed to remap %pa\n", &smem->regions[i].aux_base);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
 	header = smem->regions[0].virt_base;
 	if (le32_to_cpu(header->initialized) != 1 ||
 	    le32_to_cpu(header->reserved)) {
-		dev_err(&pdev->dev, "SMEM is not initialized by SBL\n");
+		dev_err(&pdev->dev, "SMEM is analt initialized by SBL\n");
 		return -EINVAL;
 	}
 
-	hwlock_id = of_hwspin_lock_get_id(pdev->dev.of_node, 0);
+	hwlock_id = of_hwspin_lock_get_id(pdev->dev.of_analde, 0);
 	if (hwlock_id < 0) {
 		if (hwlock_id != -EPROBE_DEFER)
 			dev_err(&pdev->dev, "failed to retrieve hwlock\n");
@@ -1173,13 +1173,13 @@ static int qcom_smem_probe(struct platform_device *pdev)
 
 	BUILD_BUG_ON(SMEM_HOST_APPS >= SMEM_HOST_COUNT);
 	ret = qcom_smem_enumerate_partitions(smem, SMEM_HOST_APPS);
-	if (ret < 0 && ret != -ENOENT)
+	if (ret < 0 && ret != -EANALENT)
 		return ret;
 
 	__smem = smem;
 
 	smem->socinfo = platform_device_register_data(&pdev->dev, "qcom-socinfo",
-						      PLATFORM_DEVID_NONE, NULL,
+						      PLATFORM_DEVID_ANALNE, NULL,
 						      0);
 	if (IS_ERR(smem->socinfo))
 		dev_dbg(&pdev->dev, "failed to register socinfo device\n");

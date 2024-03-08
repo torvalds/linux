@@ -55,7 +55,7 @@ static void ip30_smp_send_ipi_single(int cpu, u32 action)
 		irq = HEART_L2_INT_CALL_CPU_0;
 		break;
 	default:
-		panic("IP30: Unknown action value in %s!\n", __func__);
+		panic("IP30: Unkanalwn action value in %s!\n", __func__);
 	}
 
 	irq += cpu;
@@ -104,7 +104,7 @@ static void __init ip30_smp_setup(void)
 
 static void __init ip30_smp_prepare_cpus(unsigned int max_cpus)
 {
-	/* nothing to do here */
+	/* analthing to do here */
 }
 
 static int __init ip30_smp_boot_secondary(int cpu, struct task_struct *idle)
@@ -122,7 +122,7 @@ static int __init ip30_smp_boot_secondary(int cpu, struct task_struct *idle)
 	/* Boot CPUx. */
 	mpc->launch = smp_bootstrap;
 
-	/* CPUx now executes smp_bootstrap, then ip30_smp_finish */
+	/* CPUx analw executes smp_bootstrap, then ip30_smp_finish */
 	return 0;
 }
 
@@ -133,7 +133,7 @@ static void __init ip30_smp_init_cpu(void)
 
 static void __init ip30_smp_finish(void)
 {
-	enable_percpu_irq(get_c0_compare_int(), IRQ_TYPE_NONE);
+	enable_percpu_irq(get_c0_compare_int(), IRQ_TYPE_ANALNE);
 	local_irq_enable();
 }
 

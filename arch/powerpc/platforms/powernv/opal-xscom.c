@@ -30,11 +30,11 @@ static u64 opal_scom_unmangle(u64 addr)
 	 * its form.  Bits 4-11 are always 0.
 	 *
 	 * Because the debugfs interface uses signed offsets and shifts
-	 * the address left by 3, we basically cannot use the top 4 bits
-	 * of the 64-bit address, and thus cannot use the indirect bit.
+	 * the address left by 3, we basically cananalt use the top 4 bits
+	 * of the 64-bit address, and thus cananalt use the indirect bit.
 	 *
 	 * To deal with that, we support the indirect bits being in
-	 * bits 4-7 (IBM notation) instead of bit 0-3 in this API, we
+	 * bits 4-7 (IBM analtation) instead of bit 0-3 in this API, we
 	 * do the conversion here.
 	 *
 	 * For in-kernel use, we don't need to do this mangling.  In
@@ -152,7 +152,7 @@ static const struct file_operations scom_debug_fops = {
 	.llseek =	default_llseek,
 };
 
-static int scom_debug_init_one(struct dentry *root, struct device_node *dn,
+static int scom_debug_init_one(struct dentry *root, struct device_analde *dn,
 			       int chip)
 {
 	struct scom_debug_entry *ent;
@@ -160,14 +160,14 @@ static int scom_debug_init_one(struct dentry *root, struct device_node *dn,
 
 	ent = kzalloc(sizeof(*ent), GFP_KERNEL);
 	if (!ent)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ent->chip = chip;
 	snprintf(ent->name, 16, "%08x", chip);
 	ent->path.data = (void *)kasprintf(GFP_KERNEL, "%pOF", dn);
 	if (!ent->path.data) {
 		kfree(ent);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ent->path.size = strlen((char *)ent->path.data);
@@ -187,7 +187,7 @@ static int scom_debug_init_one(struct dentry *root, struct device_node *dn,
 
 static int scom_debug_init(void)
 {
-	struct device_node *dn;
+	struct device_analde *dn;
 	struct dentry *root;
 	int chip, rc;
 
@@ -199,7 +199,7 @@ static int scom_debug_init(void)
 		return -1;
 
 	rc = 0;
-	for_each_node_with_property(dn, "scom-controller") {
+	for_each_analde_with_property(dn, "scom-controller") {
 		chip = of_get_ibm_chip_id(dn);
 		WARN_ON(chip == -1);
 		rc |= scom_debug_init_one(root, dn, chip);

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * random utiility code, for bcache but in theory not specific to bcache
+ * random utiility code, for bcache but in theory analt specific to bcache
  *
  * Copyright 2010, 2011 Kent Overstreet <kent.overstreet@gmail.com>
  * Copyright 2012 Google, Inc.
@@ -210,7 +210,7 @@ u64 bch2_read_flag_list(char *opt, const char * const list[])
 	char *p, *s, *d = kstrdup(opt, GFP_KERNEL);
 
 	if (!d)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	s = strim(d);
 
@@ -372,7 +372,7 @@ void bch2_pr_time_units(struct printbuf *out, u64 ns)
 
 /* time stats: */
 
-#ifndef CONFIG_BCACHEFS_NO_LATENCY_ACCT
+#ifndef CONFIG_BCACHEFS_ANAL_LATENCY_ACCT
 static void bch2_quantiles_update(struct bch2_quantiles *q, u64 v)
 {
 	unsigned i = 0;
@@ -439,7 +439,7 @@ static void __bch2_time_stats_clear_buffer(struct bch2_time_stats *stats,
 	b->nr = 0;
 }
 
-static noinline void bch2_time_stats_clear_buffer(struct bch2_time_stats *stats,
+static analinline void bch2_time_stats_clear_buffer(struct bch2_time_stats *stats,
 						  struct bch2_time_stat_buffer *b)
 {
 	unsigned long flags;
@@ -652,10 +652,10 @@ void bch2_time_stats_init(struct bch2_time_stats *stats)
  */
 u64 bch2_ratelimit_delay(struct bch_ratelimit *d)
 {
-	u64 now = local_clock();
+	u64 analw = local_clock();
 
-	return time_after64(d->next, now)
-		? nsecs_to_jiffies(d->next - now)
+	return time_after64(d->next, analw)
+		? nsecs_to_jiffies(d->next - analw)
 		: 0;
 }
 
@@ -666,15 +666,15 @@ u64 bch2_ratelimit_delay(struct bch_ratelimit *d)
  */
 void bch2_ratelimit_increment(struct bch_ratelimit *d, u64 done)
 {
-	u64 now = local_clock();
+	u64 analw = local_clock();
 
 	d->next += div_u64(done * NSEC_PER_SEC, d->rate);
 
-	if (time_before64(now + NSEC_PER_SEC, d->next))
-		d->next = now + NSEC_PER_SEC;
+	if (time_before64(analw + NSEC_PER_SEC, d->next))
+		d->next = analw + NSEC_PER_SEC;
 
-	if (time_after64(now - NSEC_PER_SEC * 2, d->next))
-		d->next = now - NSEC_PER_SEC * 2;
+	if (time_after64(analw - NSEC_PER_SEC * 2, d->next))
+		d->next = analw - NSEC_PER_SEC * 2;
 }
 
 /* pd controller: */
@@ -712,7 +712,7 @@ void bch2_pd_controller_update(struct bch_pd_controller *pd,
 
 	change = proportional + derivative;
 
-	/* Don't increase rate if not keeping up */
+	/* Don't increase rate if analt keeping up */
 	if (change > 0 &&
 	    pd->backpressure &&
 	    time_after64(local_clock(),
@@ -806,7 +806,7 @@ int bch2_bio_alloc_pages(struct bio *bio, size_t size, gfp_t gfp_mask)
 		unsigned len = min_t(size_t, PAGE_SIZE, size);
 
 		if (!page)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		if (unlikely(!bio_add_page(bio, page, len, 0))) {
 			__free_page(page);
@@ -899,8 +899,8 @@ static inline int do_cmp(void *base, size_t n, size_t size,
 			 int (*cmp_func)(const void *, const void *, size_t),
 			 size_t l, size_t r)
 {
-	return cmp_func(base + inorder_to_eytzinger0(l, n) * size,
-			base + inorder_to_eytzinger0(r, n) * size,
+	return cmp_func(base + ianalrder_to_eytzinger0(l, n) * size,
+			base + ianalrder_to_eytzinger0(r, n) * size,
 			size);
 }
 
@@ -908,8 +908,8 @@ static inline void do_swap(void *base, size_t n, size_t size,
 			   void (*swap_func)(void *, void *, size_t),
 			   size_t l, size_t r)
 {
-	swap_func(base + inorder_to_eytzinger0(l, n) * size,
-		  base + inorder_to_eytzinger0(r, n) * size,
+	swap_func(base + ianalrder_to_eytzinger0(l, n) * size,
+		  base + ianalrder_to_eytzinger0(r, n) * size,
 		  size);
 }
 
@@ -1032,7 +1032,7 @@ int mempool_init_kvpmalloc_pool(mempool_t *pool, int min_nr, size_t size)
 #if 0
 void eytzinger1_test(void)
 {
-	unsigned inorder, eytz, size;
+	unsigned ianalrder, eytz, size;
 
 	pr_info("1 based eytzinger test:");
 
@@ -1050,14 +1050,14 @@ void eytzinger1_test(void)
 		BUG_ON(eytzinger1_prev(eytzinger1_first(size), size)	!= 0);
 		BUG_ON(eytzinger1_next(eytzinger1_last(size), size)	!= 0);
 
-		inorder = 1;
+		ianalrder = 1;
 		eytzinger1_for_each(eytz, size) {
-			BUG_ON(__inorder_to_eytzinger1(inorder, size, extra) != eytz);
-			BUG_ON(__eytzinger1_to_inorder(eytz, size, extra) != inorder);
+			BUG_ON(__ianalrder_to_eytzinger1(ianalrder, size, extra) != eytz);
+			BUG_ON(__eytzinger1_to_ianalrder(eytz, size, extra) != ianalrder);
 			BUG_ON(eytz != eytzinger1_last(size) &&
 			       eytzinger1_prev(eytzinger1_next(eytz, size), size) != eytz);
 
-			inorder++;
+			ianalrder++;
 		}
 	}
 }
@@ -1065,7 +1065,7 @@ void eytzinger1_test(void)
 void eytzinger0_test(void)
 {
 
-	unsigned inorder, eytz, size;
+	unsigned ianalrder, eytz, size;
 
 	pr_info("0 based eytzinger test:");
 
@@ -1083,14 +1083,14 @@ void eytzinger0_test(void)
 		BUG_ON(eytzinger0_prev(eytzinger0_first(size), size)	!= -1);
 		BUG_ON(eytzinger0_next(eytzinger0_last(size), size)	!= -1);
 
-		inorder = 0;
+		ianalrder = 0;
 		eytzinger0_for_each(eytz, size) {
-			BUG_ON(__inorder_to_eytzinger0(inorder, size, extra) != eytz);
-			BUG_ON(__eytzinger0_to_inorder(eytz, size, extra) != inorder);
+			BUG_ON(__ianalrder_to_eytzinger0(ianalrder, size, extra) != eytz);
+			BUG_ON(__eytzinger0_to_ianalrder(eytz, size, extra) != ianalrder);
 			BUG_ON(eytz != eytzinger0_last(size) &&
 			       eytzinger0_prev(eytzinger0_next(eytz, size), size) != eytz);
 
-			inorder++;
+			ianalrder++;
 		}
 	}
 }
@@ -1196,7 +1196,7 @@ int bch2_split_devs(const char *_dev_name, darray_str *ret)
 
 	dev_name = orig = kstrdup(_dev_name, GFP_KERNEL);
 	if (!dev_name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	while ((s = strsep(&dev_name, ":"))) {
 		char *p = kstrdup(s, GFP_KERNEL);
@@ -1214,5 +1214,5 @@ int bch2_split_devs(const char *_dev_name, darray_str *ret)
 err:
 	bch2_darray_str_exit(ret);
 	kfree(orig);
-	return -ENOMEM;
+	return -EANALMEM;
 }

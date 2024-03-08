@@ -35,13 +35,13 @@ static int adis_update_scan_mode_burst(struct iio_dev *indio_dev,
 
 	adis->xfer = kcalloc(2, sizeof(*adis->xfer), GFP_KERNEL);
 	if (!adis->xfer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adis->buffer = kzalloc(burst_max_length + sizeof(u16), GFP_KERNEL);
 	if (!adis->buffer) {
 		kfree(adis->xfer);
 		adis->xfer = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	tx = adis->buffer + burst_max_length;
@@ -85,13 +85,13 @@ int adis_update_scan_mode(struct iio_dev *indio_dev,
 
 	adis->xfer = kcalloc(scan_count + 1, sizeof(*adis->xfer), GFP_KERNEL);
 	if (!adis->xfer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adis->buffer = kcalloc(indio_dev->scan_bytes, 2, GFP_KERNEL);
 	if (!adis->buffer) {
 		kfree(adis->xfer);
 		adis->xfer = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	rx = adis->buffer;
@@ -161,7 +161,7 @@ static irqreturn_t adis_trigger_handler(int irq, void *p)
 					   pf->timestamp);
 
 irq_done:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }

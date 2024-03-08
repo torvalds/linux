@@ -51,7 +51,7 @@ static int waveshare_command(struct mipi_dbi *mipi, u8 *cmd, u8 *par,
 
 	buf = kmalloc(32 * sizeof(u16), GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * The displays are Raspberry Pi HATs and connected to the 8-bit only
@@ -67,7 +67,7 @@ static int waveshare_command(struct mipi_dbi *mipi, u8 *cmd, u8 *par,
 	if (ret || !num)
 		goto free;
 
-	/* 8-bit configuration data, not 16-bit pixel data */
+	/* 8-bit configuration data, analt 16-bit pixel data */
 	if (num <= 32) {
 		for (i = 0; i < num; i++)
 			buf[i] = cpu_to_be16(par[i]);
@@ -76,7 +76,7 @@ static int waveshare_command(struct mipi_dbi *mipi, u8 *cmd, u8 *par,
 	}
 
 	/*
-	 * Check whether pixel data bytes needs to be swapped or not
+	 * Check whether pixel data bytes needs to be swapped or analt
 	 */
 	if (*cmd == MIPI_DCS_WRITE_MEMORY_START && !mipi->swap_bytes)
 		bpw = 16;
@@ -177,7 +177,7 @@ static const struct drm_driver ili9486_driver = {
 	.desc			= "Ilitek ILI9486",
 	.date			= "20200118",
 	.major			= 1,
-	.minor			= 0,
+	.mianalr			= 0,
 };
 
 static const struct of_device_id ili9486_of_match[] = {

@@ -84,7 +84,7 @@ static struct clk_regmap axg_fixed_pll = {
 		.num_parents = 1,
 		/*
 		 * This clock won't ever change at runtime so
-		 * CLK_SET_RATE_PARENT is not required
+		 * CLK_SET_RATE_PARENT is analt required
 		 */
 	},
 };
@@ -1050,7 +1050,7 @@ static struct clk_regmap axg_vpu_0_sel = {
 		.parent_hws = axg_vpu_parent_hws,
 		.num_parents = ARRAY_SIZE(axg_vpu_parent_hws),
 		/* We need a specific parent for VPU clock source, let it be set in DT */
-		.flags = CLK_SET_RATE_NO_REPARENT,
+		.flags = CLK_SET_RATE_ANAL_REPARENT,
 	},
 };
 
@@ -1083,7 +1083,7 @@ static struct clk_regmap axg_vpu_0 = {
 		 * We want to avoid CCF to disable the VPU clock if
 		 * display has been set by Bootloader
 		 */
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -1099,7 +1099,7 @@ static struct clk_regmap axg_vpu_1_sel = {
 		.parent_hws = axg_vpu_parent_hws,
 		.num_parents = ARRAY_SIZE(axg_vpu_parent_hws),
 		/* We need a specific parent for VPU clock source, let it be set in DT */
-		.flags = CLK_SET_RATE_NO_REPARENT,
+		.flags = CLK_SET_RATE_ANAL_REPARENT,
 	},
 };
 
@@ -1132,7 +1132,7 @@ static struct clk_regmap axg_vpu_1 = {
 		 * We want to avoid CCF to disable the VPU clock if
 		 * display has been set by Bootloader
 		 */
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -1150,7 +1150,7 @@ static struct clk_regmap axg_vpu = {
 			&axg_vpu_1.hw
 		},
 		.num_parents = 2,
-		.flags = CLK_SET_RATE_NO_REPARENT,
+		.flags = CLK_SET_RATE_ANAL_REPARENT,
 	},
 };
 
@@ -1167,7 +1167,7 @@ static struct clk_regmap axg_vapb_0_sel = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_hws = axg_vpu_parent_hws,
 		.num_parents = ARRAY_SIZE(axg_vpu_parent_hws),
-		.flags = CLK_SET_RATE_NO_REPARENT,
+		.flags = CLK_SET_RATE_ANAL_REPARENT,
 	},
 };
 
@@ -1200,7 +1200,7 @@ static struct clk_regmap axg_vapb_0 = {
 			&axg_vapb_0_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -1215,7 +1215,7 @@ static struct clk_regmap axg_vapb_1_sel = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_hws = axg_vpu_parent_hws,
 		.num_parents = ARRAY_SIZE(axg_vpu_parent_hws),
-		.flags = CLK_SET_RATE_NO_REPARENT,
+		.flags = CLK_SET_RATE_ANAL_REPARENT,
 	},
 };
 
@@ -1248,7 +1248,7 @@ static struct clk_regmap axg_vapb_1 = {
 			&axg_vapb_1_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -1266,7 +1266,7 @@ static struct clk_regmap axg_vapb_sel = {
 			&axg_vapb_1.hw
 		},
 		.num_parents = 2,
-		.flags = CLK_SET_RATE_NO_REPARENT,
+		.flags = CLK_SET_RATE_ANAL_REPARENT,
 	},
 };
 
@@ -1280,7 +1280,7 @@ static struct clk_regmap axg_vapb = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) { &axg_vapb_sel.hw },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -1307,7 +1307,7 @@ static struct clk_regmap axg_vclk_sel = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_hws = axg_vclk_parent_hws,
 		.num_parents = ARRAY_SIZE(axg_vclk_parent_hws),
-		.flags = CLK_SET_RATE_NO_REPARENT | CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_ANAL_REPARENT | CLK_GET_RATE_ANALCACHE,
 	},
 };
 
@@ -1322,7 +1322,7 @@ static struct clk_regmap axg_vclk2_sel = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_hws = axg_vclk_parent_hws,
 		.num_parents = ARRAY_SIZE(axg_vclk_parent_hws),
-		.flags = CLK_SET_RATE_NO_REPARENT | CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_ANAL_REPARENT | CLK_GET_RATE_ANALCACHE,
 	},
 };
 
@@ -1336,7 +1336,7 @@ static struct clk_regmap axg_vclk_input = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) { &axg_vclk_sel.hw },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -1350,7 +1350,7 @@ static struct clk_regmap axg_vclk2_input = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) { &axg_vclk2_sel.hw },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -1367,7 +1367,7 @@ static struct clk_regmap axg_vclk_div = {
 			&axg_vclk_input.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE,
+		.flags = CLK_GET_RATE_ANALCACHE,
 	},
 };
 
@@ -1384,7 +1384,7 @@ static struct clk_regmap axg_vclk2_div = {
 			&axg_vclk2_input.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE,
+		.flags = CLK_GET_RATE_ANALCACHE,
 	},
 };
 
@@ -1398,7 +1398,7 @@ static struct clk_regmap axg_vclk = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) { &axg_vclk_div.hw },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -1412,7 +1412,7 @@ static struct clk_regmap axg_vclk2 = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) { &axg_vclk2_div.hw },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -1426,7 +1426,7 @@ static struct clk_regmap axg_vclk_div1 = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) { &axg_vclk.hw },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -1440,7 +1440,7 @@ static struct clk_regmap axg_vclk_div2_en = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) { &axg_vclk.hw },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -1454,7 +1454,7 @@ static struct clk_regmap axg_vclk_div4_en = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) { &axg_vclk.hw },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -1468,7 +1468,7 @@ static struct clk_regmap axg_vclk_div6_en = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) { &axg_vclk.hw },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -1482,7 +1482,7 @@ static struct clk_regmap axg_vclk_div12_en = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) { &axg_vclk.hw },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -1496,7 +1496,7 @@ static struct clk_regmap axg_vclk2_div1 = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) { &axg_vclk2.hw },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -1510,7 +1510,7 @@ static struct clk_regmap axg_vclk2_div2_en = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) { &axg_vclk2.hw },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -1524,7 +1524,7 @@ static struct clk_regmap axg_vclk2_div4_en = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) { &axg_vclk2.hw },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -1538,7 +1538,7 @@ static struct clk_regmap axg_vclk2_div6_en = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) { &axg_vclk2.hw },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -1552,7 +1552,7 @@ static struct clk_regmap axg_vclk2_div12_en = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) { &axg_vclk2.hw },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 
@@ -1686,7 +1686,7 @@ static struct clk_regmap axg_cts_encl_sel = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_hws = axg_cts_parent_hws,
 		.num_parents = ARRAY_SIZE(axg_cts_parent_hws),
-		.flags = CLK_SET_RATE_NO_REPARENT | CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_ANAL_REPARENT | CLK_GET_RATE_ANALCACHE,
 	},
 };
 
@@ -1702,7 +1702,7 @@ static struct clk_regmap axg_cts_encl = {
 			&axg_cts_encl_sel.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 	},
 };
 

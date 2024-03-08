@@ -60,7 +60,7 @@ int i40e_set_mac_type(struct i40e_hw *hw)
 			break;
 		}
 	} else {
-		status = -ENODEV;
+		status = -EANALDEV;
 	}
 
 	hw_dbg(hw, "i40e_set_mac_type found mac: %d, returns: %d\n",
@@ -80,8 +80,8 @@ const char *i40e_aq_str(struct i40e_hw *hw, enum i40e_admin_queue_err aq_err)
 		return "OK";
 	case I40E_AQ_RC_EPERM:
 		return "I40E_AQ_RC_EPERM";
-	case I40E_AQ_RC_ENOENT:
-		return "I40E_AQ_RC_ENOENT";
+	case I40E_AQ_RC_EANALENT:
+		return "I40E_AQ_RC_EANALENT";
 	case I40E_AQ_RC_ESRCH:
 		return "I40E_AQ_RC_ESRCH";
 	case I40E_AQ_RC_EINTR:
@@ -94,8 +94,8 @@ const char *i40e_aq_str(struct i40e_hw *hw, enum i40e_admin_queue_err aq_err)
 		return "I40E_AQ_RC_E2BIG";
 	case I40E_AQ_RC_EAGAIN:
 		return "I40E_AQ_RC_EAGAIN";
-	case I40E_AQ_RC_ENOMEM:
-		return "I40E_AQ_RC_ENOMEM";
+	case I40E_AQ_RC_EANALMEM:
+		return "I40E_AQ_RC_EANALMEM";
 	case I40E_AQ_RC_EACCES:
 		return "I40E_AQ_RC_EACCES";
 	case I40E_AQ_RC_EFAULT:
@@ -106,12 +106,12 @@ const char *i40e_aq_str(struct i40e_hw *hw, enum i40e_admin_queue_err aq_err)
 		return "I40E_AQ_RC_EEXIST";
 	case I40E_AQ_RC_EINVAL:
 		return "I40E_AQ_RC_EINVAL";
-	case I40E_AQ_RC_ENOTTY:
-		return "I40E_AQ_RC_ENOTTY";
-	case I40E_AQ_RC_ENOSPC:
-		return "I40E_AQ_RC_ENOSPC";
-	case I40E_AQ_RC_ENOSYS:
-		return "I40E_AQ_RC_ENOSYS";
+	case I40E_AQ_RC_EANALTTY:
+		return "I40E_AQ_RC_EANALTTY";
+	case I40E_AQ_RC_EANALSPC:
+		return "I40E_AQ_RC_EANALSPC";
+	case I40E_AQ_RC_EANALSYS:
+		return "I40E_AQ_RC_EANALSYS";
 	case I40E_AQ_RC_ERANGE:
 		return "I40E_AQ_RC_ERANGE";
 	case I40E_AQ_RC_EFLUSHED:
@@ -209,7 +209,7 @@ bool i40e_check_asq_alive(struct i40e_hw *hw)
  * @unloading: is the driver unloading itself
  *
  * Tell the Firmware that we're shutting down the AdminQ and whether
- * or not the driver is unloading as well.
+ * or analt the driver is unloading as well.
  **/
 int i40e_aq_queue_shutdown(struct i40e_hw *hw,
 			   bool unloading)
@@ -394,9 +394,9 @@ int i40e_aq_set_rss_key(struct i40e_hw *hw,
  *
  * Typical work flow:
  *
- * IF NOT i40e_ptype_lookup[ptype].known
+ * IF ANALT i40e_ptype_lookup[ptype].kanalwn
  * THEN
- *      Packet is unknown
+ *      Packet is unkanalwn
  * ELSE IF i40e_ptype_lookup[ptype].outer_ip == I40E_RX_PTYPE_OUTER_IP
  *      Use the rest of the fields to look at the tunnels, inner protocols, etc
  * ELSE
@@ -420,7 +420,7 @@ int i40e_aq_set_rss_key(struct i40e_hw *hw,
 #define I40E_PTT_UNUSED_ENTRY(PTYPE) [PTYPE] = { 0, 0, 0, 0, 0, 0, 0, 0, 0 }
 
 /* shorter macros makes the table fit but are terse */
-#define I40E_RX_PTYPE_NOF		I40E_RX_PTYPE_NOT_FRAG
+#define I40E_RX_PTYPE_ANALF		I40E_RX_PTYPE_ANALT_FRAG
 #define I40E_RX_PTYPE_FRG		I40E_RX_PTYPE_FRAG
 #define I40E_RX_PTYPE_INNER_PROT_TS	I40E_RX_PTYPE_INNER_PROT_TIMESYNC
 
@@ -428,207 +428,207 @@ int i40e_aq_set_rss_key(struct i40e_hw *hw,
 struct i40e_rx_ptype_decoded i40e_ptype_lookup[BIT(8)] = {
 	/* L2 Packet types */
 	I40E_PTT_UNUSED_ENTRY(0),
-	I40E_PTT(1,  L2, NONE, NOF, NONE, NONE, NOF, NONE, PAY2),
-	I40E_PTT(2,  L2, NONE, NOF, NONE, NONE, NOF, TS,   PAY2),
-	I40E_PTT(3,  L2, NONE, NOF, NONE, NONE, NOF, NONE, PAY2),
+	I40E_PTT(1,  L2, ANALNE, ANALF, ANALNE, ANALNE, ANALF, ANALNE, PAY2),
+	I40E_PTT(2,  L2, ANALNE, ANALF, ANALNE, ANALNE, ANALF, TS,   PAY2),
+	I40E_PTT(3,  L2, ANALNE, ANALF, ANALNE, ANALNE, ANALF, ANALNE, PAY2),
 	I40E_PTT_UNUSED_ENTRY(4),
 	I40E_PTT_UNUSED_ENTRY(5),
-	I40E_PTT(6,  L2, NONE, NOF, NONE, NONE, NOF, NONE, PAY2),
-	I40E_PTT(7,  L2, NONE, NOF, NONE, NONE, NOF, NONE, PAY2),
+	I40E_PTT(6,  L2, ANALNE, ANALF, ANALNE, ANALNE, ANALF, ANALNE, PAY2),
+	I40E_PTT(7,  L2, ANALNE, ANALF, ANALNE, ANALNE, ANALF, ANALNE, PAY2),
 	I40E_PTT_UNUSED_ENTRY(8),
 	I40E_PTT_UNUSED_ENTRY(9),
-	I40E_PTT(10, L2, NONE, NOF, NONE, NONE, NOF, NONE, PAY2),
-	I40E_PTT(11, L2, NONE, NOF, NONE, NONE, NOF, NONE, NONE),
-	I40E_PTT(12, L2, NONE, NOF, NONE, NONE, NOF, NONE, PAY3),
-	I40E_PTT(13, L2, NONE, NOF, NONE, NONE, NOF, NONE, PAY3),
-	I40E_PTT(14, L2, NONE, NOF, NONE, NONE, NOF, NONE, PAY3),
-	I40E_PTT(15, L2, NONE, NOF, NONE, NONE, NOF, NONE, PAY3),
-	I40E_PTT(16, L2, NONE, NOF, NONE, NONE, NOF, NONE, PAY3),
-	I40E_PTT(17, L2, NONE, NOF, NONE, NONE, NOF, NONE, PAY3),
-	I40E_PTT(18, L2, NONE, NOF, NONE, NONE, NOF, NONE, PAY3),
-	I40E_PTT(19, L2, NONE, NOF, NONE, NONE, NOF, NONE, PAY3),
-	I40E_PTT(20, L2, NONE, NOF, NONE, NONE, NOF, NONE, PAY3),
-	I40E_PTT(21, L2, NONE, NOF, NONE, NONE, NOF, NONE, PAY3),
+	I40E_PTT(10, L2, ANALNE, ANALF, ANALNE, ANALNE, ANALF, ANALNE, PAY2),
+	I40E_PTT(11, L2, ANALNE, ANALF, ANALNE, ANALNE, ANALF, ANALNE, ANALNE),
+	I40E_PTT(12, L2, ANALNE, ANALF, ANALNE, ANALNE, ANALF, ANALNE, PAY3),
+	I40E_PTT(13, L2, ANALNE, ANALF, ANALNE, ANALNE, ANALF, ANALNE, PAY3),
+	I40E_PTT(14, L2, ANALNE, ANALF, ANALNE, ANALNE, ANALF, ANALNE, PAY3),
+	I40E_PTT(15, L2, ANALNE, ANALF, ANALNE, ANALNE, ANALF, ANALNE, PAY3),
+	I40E_PTT(16, L2, ANALNE, ANALF, ANALNE, ANALNE, ANALF, ANALNE, PAY3),
+	I40E_PTT(17, L2, ANALNE, ANALF, ANALNE, ANALNE, ANALF, ANALNE, PAY3),
+	I40E_PTT(18, L2, ANALNE, ANALF, ANALNE, ANALNE, ANALF, ANALNE, PAY3),
+	I40E_PTT(19, L2, ANALNE, ANALF, ANALNE, ANALNE, ANALF, ANALNE, PAY3),
+	I40E_PTT(20, L2, ANALNE, ANALF, ANALNE, ANALNE, ANALF, ANALNE, PAY3),
+	I40E_PTT(21, L2, ANALNE, ANALF, ANALNE, ANALNE, ANALF, ANALNE, PAY3),
 
-	/* Non Tunneled IPv4 */
-	I40E_PTT(22, IP, IPV4, FRG, NONE, NONE, NOF, NONE, PAY3),
-	I40E_PTT(23, IP, IPV4, NOF, NONE, NONE, NOF, NONE, PAY3),
-	I40E_PTT(24, IP, IPV4, NOF, NONE, NONE, NOF, UDP,  PAY4),
+	/* Analn Tunneled IPv4 */
+	I40E_PTT(22, IP, IPV4, FRG, ANALNE, ANALNE, ANALF, ANALNE, PAY3),
+	I40E_PTT(23, IP, IPV4, ANALF, ANALNE, ANALNE, ANALF, ANALNE, PAY3),
+	I40E_PTT(24, IP, IPV4, ANALF, ANALNE, ANALNE, ANALF, UDP,  PAY4),
 	I40E_PTT_UNUSED_ENTRY(25),
-	I40E_PTT(26, IP, IPV4, NOF, NONE, NONE, NOF, TCP,  PAY4),
-	I40E_PTT(27, IP, IPV4, NOF, NONE, NONE, NOF, SCTP, PAY4),
-	I40E_PTT(28, IP, IPV4, NOF, NONE, NONE, NOF, ICMP, PAY4),
+	I40E_PTT(26, IP, IPV4, ANALF, ANALNE, ANALNE, ANALF, TCP,  PAY4),
+	I40E_PTT(27, IP, IPV4, ANALF, ANALNE, ANALNE, ANALF, SCTP, PAY4),
+	I40E_PTT(28, IP, IPV4, ANALF, ANALNE, ANALNE, ANALF, ICMP, PAY4),
 
 	/* IPv4 --> IPv4 */
-	I40E_PTT(29, IP, IPV4, NOF, IP_IP, IPV4, FRG, NONE, PAY3),
-	I40E_PTT(30, IP, IPV4, NOF, IP_IP, IPV4, NOF, NONE, PAY3),
-	I40E_PTT(31, IP, IPV4, NOF, IP_IP, IPV4, NOF, UDP,  PAY4),
+	I40E_PTT(29, IP, IPV4, ANALF, IP_IP, IPV4, FRG, ANALNE, PAY3),
+	I40E_PTT(30, IP, IPV4, ANALF, IP_IP, IPV4, ANALF, ANALNE, PAY3),
+	I40E_PTT(31, IP, IPV4, ANALF, IP_IP, IPV4, ANALF, UDP,  PAY4),
 	I40E_PTT_UNUSED_ENTRY(32),
-	I40E_PTT(33, IP, IPV4, NOF, IP_IP, IPV4, NOF, TCP,  PAY4),
-	I40E_PTT(34, IP, IPV4, NOF, IP_IP, IPV4, NOF, SCTP, PAY4),
-	I40E_PTT(35, IP, IPV4, NOF, IP_IP, IPV4, NOF, ICMP, PAY4),
+	I40E_PTT(33, IP, IPV4, ANALF, IP_IP, IPV4, ANALF, TCP,  PAY4),
+	I40E_PTT(34, IP, IPV4, ANALF, IP_IP, IPV4, ANALF, SCTP, PAY4),
+	I40E_PTT(35, IP, IPV4, ANALF, IP_IP, IPV4, ANALF, ICMP, PAY4),
 
 	/* IPv4 --> IPv6 */
-	I40E_PTT(36, IP, IPV4, NOF, IP_IP, IPV6, FRG, NONE, PAY3),
-	I40E_PTT(37, IP, IPV4, NOF, IP_IP, IPV6, NOF, NONE, PAY3),
-	I40E_PTT(38, IP, IPV4, NOF, IP_IP, IPV6, NOF, UDP,  PAY4),
+	I40E_PTT(36, IP, IPV4, ANALF, IP_IP, IPV6, FRG, ANALNE, PAY3),
+	I40E_PTT(37, IP, IPV4, ANALF, IP_IP, IPV6, ANALF, ANALNE, PAY3),
+	I40E_PTT(38, IP, IPV4, ANALF, IP_IP, IPV6, ANALF, UDP,  PAY4),
 	I40E_PTT_UNUSED_ENTRY(39),
-	I40E_PTT(40, IP, IPV4, NOF, IP_IP, IPV6, NOF, TCP,  PAY4),
-	I40E_PTT(41, IP, IPV4, NOF, IP_IP, IPV6, NOF, SCTP, PAY4),
-	I40E_PTT(42, IP, IPV4, NOF, IP_IP, IPV6, NOF, ICMP, PAY4),
+	I40E_PTT(40, IP, IPV4, ANALF, IP_IP, IPV6, ANALF, TCP,  PAY4),
+	I40E_PTT(41, IP, IPV4, ANALF, IP_IP, IPV6, ANALF, SCTP, PAY4),
+	I40E_PTT(42, IP, IPV4, ANALF, IP_IP, IPV6, ANALF, ICMP, PAY4),
 
 	/* IPv4 --> GRE/NAT */
-	I40E_PTT(43, IP, IPV4, NOF, IP_GRENAT, NONE, NOF, NONE, PAY3),
+	I40E_PTT(43, IP, IPV4, ANALF, IP_GRENAT, ANALNE, ANALF, ANALNE, PAY3),
 
 	/* IPv4 --> GRE/NAT --> IPv4 */
-	I40E_PTT(44, IP, IPV4, NOF, IP_GRENAT, IPV4, FRG, NONE, PAY3),
-	I40E_PTT(45, IP, IPV4, NOF, IP_GRENAT, IPV4, NOF, NONE, PAY3),
-	I40E_PTT(46, IP, IPV4, NOF, IP_GRENAT, IPV4, NOF, UDP,  PAY4),
+	I40E_PTT(44, IP, IPV4, ANALF, IP_GRENAT, IPV4, FRG, ANALNE, PAY3),
+	I40E_PTT(45, IP, IPV4, ANALF, IP_GRENAT, IPV4, ANALF, ANALNE, PAY3),
+	I40E_PTT(46, IP, IPV4, ANALF, IP_GRENAT, IPV4, ANALF, UDP,  PAY4),
 	I40E_PTT_UNUSED_ENTRY(47),
-	I40E_PTT(48, IP, IPV4, NOF, IP_GRENAT, IPV4, NOF, TCP,  PAY4),
-	I40E_PTT(49, IP, IPV4, NOF, IP_GRENAT, IPV4, NOF, SCTP, PAY4),
-	I40E_PTT(50, IP, IPV4, NOF, IP_GRENAT, IPV4, NOF, ICMP, PAY4),
+	I40E_PTT(48, IP, IPV4, ANALF, IP_GRENAT, IPV4, ANALF, TCP,  PAY4),
+	I40E_PTT(49, IP, IPV4, ANALF, IP_GRENAT, IPV4, ANALF, SCTP, PAY4),
+	I40E_PTT(50, IP, IPV4, ANALF, IP_GRENAT, IPV4, ANALF, ICMP, PAY4),
 
 	/* IPv4 --> GRE/NAT --> IPv6 */
-	I40E_PTT(51, IP, IPV4, NOF, IP_GRENAT, IPV6, FRG, NONE, PAY3),
-	I40E_PTT(52, IP, IPV4, NOF, IP_GRENAT, IPV6, NOF, NONE, PAY3),
-	I40E_PTT(53, IP, IPV4, NOF, IP_GRENAT, IPV6, NOF, UDP,  PAY4),
+	I40E_PTT(51, IP, IPV4, ANALF, IP_GRENAT, IPV6, FRG, ANALNE, PAY3),
+	I40E_PTT(52, IP, IPV4, ANALF, IP_GRENAT, IPV6, ANALF, ANALNE, PAY3),
+	I40E_PTT(53, IP, IPV4, ANALF, IP_GRENAT, IPV6, ANALF, UDP,  PAY4),
 	I40E_PTT_UNUSED_ENTRY(54),
-	I40E_PTT(55, IP, IPV4, NOF, IP_GRENAT, IPV6, NOF, TCP,  PAY4),
-	I40E_PTT(56, IP, IPV4, NOF, IP_GRENAT, IPV6, NOF, SCTP, PAY4),
-	I40E_PTT(57, IP, IPV4, NOF, IP_GRENAT, IPV6, NOF, ICMP, PAY4),
+	I40E_PTT(55, IP, IPV4, ANALF, IP_GRENAT, IPV6, ANALF, TCP,  PAY4),
+	I40E_PTT(56, IP, IPV4, ANALF, IP_GRENAT, IPV6, ANALF, SCTP, PAY4),
+	I40E_PTT(57, IP, IPV4, ANALF, IP_GRENAT, IPV6, ANALF, ICMP, PAY4),
 
 	/* IPv4 --> GRE/NAT --> MAC */
-	I40E_PTT(58, IP, IPV4, NOF, IP_GRENAT_MAC, NONE, NOF, NONE, PAY3),
+	I40E_PTT(58, IP, IPV4, ANALF, IP_GRENAT_MAC, ANALNE, ANALF, ANALNE, PAY3),
 
 	/* IPv4 --> GRE/NAT --> MAC --> IPv4 */
-	I40E_PTT(59, IP, IPV4, NOF, IP_GRENAT_MAC, IPV4, FRG, NONE, PAY3),
-	I40E_PTT(60, IP, IPV4, NOF, IP_GRENAT_MAC, IPV4, NOF, NONE, PAY3),
-	I40E_PTT(61, IP, IPV4, NOF, IP_GRENAT_MAC, IPV4, NOF, UDP,  PAY4),
+	I40E_PTT(59, IP, IPV4, ANALF, IP_GRENAT_MAC, IPV4, FRG, ANALNE, PAY3),
+	I40E_PTT(60, IP, IPV4, ANALF, IP_GRENAT_MAC, IPV4, ANALF, ANALNE, PAY3),
+	I40E_PTT(61, IP, IPV4, ANALF, IP_GRENAT_MAC, IPV4, ANALF, UDP,  PAY4),
 	I40E_PTT_UNUSED_ENTRY(62),
-	I40E_PTT(63, IP, IPV4, NOF, IP_GRENAT_MAC, IPV4, NOF, TCP,  PAY4),
-	I40E_PTT(64, IP, IPV4, NOF, IP_GRENAT_MAC, IPV4, NOF, SCTP, PAY4),
-	I40E_PTT(65, IP, IPV4, NOF, IP_GRENAT_MAC, IPV4, NOF, ICMP, PAY4),
+	I40E_PTT(63, IP, IPV4, ANALF, IP_GRENAT_MAC, IPV4, ANALF, TCP,  PAY4),
+	I40E_PTT(64, IP, IPV4, ANALF, IP_GRENAT_MAC, IPV4, ANALF, SCTP, PAY4),
+	I40E_PTT(65, IP, IPV4, ANALF, IP_GRENAT_MAC, IPV4, ANALF, ICMP, PAY4),
 
 	/* IPv4 --> GRE/NAT -> MAC --> IPv6 */
-	I40E_PTT(66, IP, IPV4, NOF, IP_GRENAT_MAC, IPV6, FRG, NONE, PAY3),
-	I40E_PTT(67, IP, IPV4, NOF, IP_GRENAT_MAC, IPV6, NOF, NONE, PAY3),
-	I40E_PTT(68, IP, IPV4, NOF, IP_GRENAT_MAC, IPV6, NOF, UDP,  PAY4),
+	I40E_PTT(66, IP, IPV4, ANALF, IP_GRENAT_MAC, IPV6, FRG, ANALNE, PAY3),
+	I40E_PTT(67, IP, IPV4, ANALF, IP_GRENAT_MAC, IPV6, ANALF, ANALNE, PAY3),
+	I40E_PTT(68, IP, IPV4, ANALF, IP_GRENAT_MAC, IPV6, ANALF, UDP,  PAY4),
 	I40E_PTT_UNUSED_ENTRY(69),
-	I40E_PTT(70, IP, IPV4, NOF, IP_GRENAT_MAC, IPV6, NOF, TCP,  PAY4),
-	I40E_PTT(71, IP, IPV4, NOF, IP_GRENAT_MAC, IPV6, NOF, SCTP, PAY4),
-	I40E_PTT(72, IP, IPV4, NOF, IP_GRENAT_MAC, IPV6, NOF, ICMP, PAY4),
+	I40E_PTT(70, IP, IPV4, ANALF, IP_GRENAT_MAC, IPV6, ANALF, TCP,  PAY4),
+	I40E_PTT(71, IP, IPV4, ANALF, IP_GRENAT_MAC, IPV6, ANALF, SCTP, PAY4),
+	I40E_PTT(72, IP, IPV4, ANALF, IP_GRENAT_MAC, IPV6, ANALF, ICMP, PAY4),
 
 	/* IPv4 --> GRE/NAT --> MAC/VLAN */
-	I40E_PTT(73, IP, IPV4, NOF, IP_GRENAT_MAC_VLAN, NONE, NOF, NONE, PAY3),
+	I40E_PTT(73, IP, IPV4, ANALF, IP_GRENAT_MAC_VLAN, ANALNE, ANALF, ANALNE, PAY3),
 
 	/* IPv4 ---> GRE/NAT -> MAC/VLAN --> IPv4 */
-	I40E_PTT(74, IP, IPV4, NOF, IP_GRENAT_MAC_VLAN, IPV4, FRG, NONE, PAY3),
-	I40E_PTT(75, IP, IPV4, NOF, IP_GRENAT_MAC_VLAN, IPV4, NOF, NONE, PAY3),
-	I40E_PTT(76, IP, IPV4, NOF, IP_GRENAT_MAC_VLAN, IPV4, NOF, UDP,  PAY4),
+	I40E_PTT(74, IP, IPV4, ANALF, IP_GRENAT_MAC_VLAN, IPV4, FRG, ANALNE, PAY3),
+	I40E_PTT(75, IP, IPV4, ANALF, IP_GRENAT_MAC_VLAN, IPV4, ANALF, ANALNE, PAY3),
+	I40E_PTT(76, IP, IPV4, ANALF, IP_GRENAT_MAC_VLAN, IPV4, ANALF, UDP,  PAY4),
 	I40E_PTT_UNUSED_ENTRY(77),
-	I40E_PTT(78, IP, IPV4, NOF, IP_GRENAT_MAC_VLAN, IPV4, NOF, TCP,  PAY4),
-	I40E_PTT(79, IP, IPV4, NOF, IP_GRENAT_MAC_VLAN, IPV4, NOF, SCTP, PAY4),
-	I40E_PTT(80, IP, IPV4, NOF, IP_GRENAT_MAC_VLAN, IPV4, NOF, ICMP, PAY4),
+	I40E_PTT(78, IP, IPV4, ANALF, IP_GRENAT_MAC_VLAN, IPV4, ANALF, TCP,  PAY4),
+	I40E_PTT(79, IP, IPV4, ANALF, IP_GRENAT_MAC_VLAN, IPV4, ANALF, SCTP, PAY4),
+	I40E_PTT(80, IP, IPV4, ANALF, IP_GRENAT_MAC_VLAN, IPV4, ANALF, ICMP, PAY4),
 
 	/* IPv4 -> GRE/NAT -> MAC/VLAN --> IPv6 */
-	I40E_PTT(81, IP, IPV4, NOF, IP_GRENAT_MAC_VLAN, IPV6, FRG, NONE, PAY3),
-	I40E_PTT(82, IP, IPV4, NOF, IP_GRENAT_MAC_VLAN, IPV6, NOF, NONE, PAY3),
-	I40E_PTT(83, IP, IPV4, NOF, IP_GRENAT_MAC_VLAN, IPV6, NOF, UDP,  PAY4),
+	I40E_PTT(81, IP, IPV4, ANALF, IP_GRENAT_MAC_VLAN, IPV6, FRG, ANALNE, PAY3),
+	I40E_PTT(82, IP, IPV4, ANALF, IP_GRENAT_MAC_VLAN, IPV6, ANALF, ANALNE, PAY3),
+	I40E_PTT(83, IP, IPV4, ANALF, IP_GRENAT_MAC_VLAN, IPV6, ANALF, UDP,  PAY4),
 	I40E_PTT_UNUSED_ENTRY(84),
-	I40E_PTT(85, IP, IPV4, NOF, IP_GRENAT_MAC_VLAN, IPV6, NOF, TCP,  PAY4),
-	I40E_PTT(86, IP, IPV4, NOF, IP_GRENAT_MAC_VLAN, IPV6, NOF, SCTP, PAY4),
-	I40E_PTT(87, IP, IPV4, NOF, IP_GRENAT_MAC_VLAN, IPV6, NOF, ICMP, PAY4),
+	I40E_PTT(85, IP, IPV4, ANALF, IP_GRENAT_MAC_VLAN, IPV6, ANALF, TCP,  PAY4),
+	I40E_PTT(86, IP, IPV4, ANALF, IP_GRENAT_MAC_VLAN, IPV6, ANALF, SCTP, PAY4),
+	I40E_PTT(87, IP, IPV4, ANALF, IP_GRENAT_MAC_VLAN, IPV6, ANALF, ICMP, PAY4),
 
-	/* Non Tunneled IPv6 */
-	I40E_PTT(88, IP, IPV6, FRG, NONE, NONE, NOF, NONE, PAY3),
-	I40E_PTT(89, IP, IPV6, NOF, NONE, NONE, NOF, NONE, PAY3),
-	I40E_PTT(90, IP, IPV6, NOF, NONE, NONE, NOF, UDP,  PAY4),
+	/* Analn Tunneled IPv6 */
+	I40E_PTT(88, IP, IPV6, FRG, ANALNE, ANALNE, ANALF, ANALNE, PAY3),
+	I40E_PTT(89, IP, IPV6, ANALF, ANALNE, ANALNE, ANALF, ANALNE, PAY3),
+	I40E_PTT(90, IP, IPV6, ANALF, ANALNE, ANALNE, ANALF, UDP,  PAY4),
 	I40E_PTT_UNUSED_ENTRY(91),
-	I40E_PTT(92, IP, IPV6, NOF, NONE, NONE, NOF, TCP,  PAY4),
-	I40E_PTT(93, IP, IPV6, NOF, NONE, NONE, NOF, SCTP, PAY4),
-	I40E_PTT(94, IP, IPV6, NOF, NONE, NONE, NOF, ICMP, PAY4),
+	I40E_PTT(92, IP, IPV6, ANALF, ANALNE, ANALNE, ANALF, TCP,  PAY4),
+	I40E_PTT(93, IP, IPV6, ANALF, ANALNE, ANALNE, ANALF, SCTP, PAY4),
+	I40E_PTT(94, IP, IPV6, ANALF, ANALNE, ANALNE, ANALF, ICMP, PAY4),
 
 	/* IPv6 --> IPv4 */
-	I40E_PTT(95,  IP, IPV6, NOF, IP_IP, IPV4, FRG, NONE, PAY3),
-	I40E_PTT(96,  IP, IPV6, NOF, IP_IP, IPV4, NOF, NONE, PAY3),
-	I40E_PTT(97,  IP, IPV6, NOF, IP_IP, IPV4, NOF, UDP,  PAY4),
+	I40E_PTT(95,  IP, IPV6, ANALF, IP_IP, IPV4, FRG, ANALNE, PAY3),
+	I40E_PTT(96,  IP, IPV6, ANALF, IP_IP, IPV4, ANALF, ANALNE, PAY3),
+	I40E_PTT(97,  IP, IPV6, ANALF, IP_IP, IPV4, ANALF, UDP,  PAY4),
 	I40E_PTT_UNUSED_ENTRY(98),
-	I40E_PTT(99,  IP, IPV6, NOF, IP_IP, IPV4, NOF, TCP,  PAY4),
-	I40E_PTT(100, IP, IPV6, NOF, IP_IP, IPV4, NOF, SCTP, PAY4),
-	I40E_PTT(101, IP, IPV6, NOF, IP_IP, IPV4, NOF, ICMP, PAY4),
+	I40E_PTT(99,  IP, IPV6, ANALF, IP_IP, IPV4, ANALF, TCP,  PAY4),
+	I40E_PTT(100, IP, IPV6, ANALF, IP_IP, IPV4, ANALF, SCTP, PAY4),
+	I40E_PTT(101, IP, IPV6, ANALF, IP_IP, IPV4, ANALF, ICMP, PAY4),
 
 	/* IPv6 --> IPv6 */
-	I40E_PTT(102, IP, IPV6, NOF, IP_IP, IPV6, FRG, NONE, PAY3),
-	I40E_PTT(103, IP, IPV6, NOF, IP_IP, IPV6, NOF, NONE, PAY3),
-	I40E_PTT(104, IP, IPV6, NOF, IP_IP, IPV6, NOF, UDP,  PAY4),
+	I40E_PTT(102, IP, IPV6, ANALF, IP_IP, IPV6, FRG, ANALNE, PAY3),
+	I40E_PTT(103, IP, IPV6, ANALF, IP_IP, IPV6, ANALF, ANALNE, PAY3),
+	I40E_PTT(104, IP, IPV6, ANALF, IP_IP, IPV6, ANALF, UDP,  PAY4),
 	I40E_PTT_UNUSED_ENTRY(105),
-	I40E_PTT(106, IP, IPV6, NOF, IP_IP, IPV6, NOF, TCP,  PAY4),
-	I40E_PTT(107, IP, IPV6, NOF, IP_IP, IPV6, NOF, SCTP, PAY4),
-	I40E_PTT(108, IP, IPV6, NOF, IP_IP, IPV6, NOF, ICMP, PAY4),
+	I40E_PTT(106, IP, IPV6, ANALF, IP_IP, IPV6, ANALF, TCP,  PAY4),
+	I40E_PTT(107, IP, IPV6, ANALF, IP_IP, IPV6, ANALF, SCTP, PAY4),
+	I40E_PTT(108, IP, IPV6, ANALF, IP_IP, IPV6, ANALF, ICMP, PAY4),
 
 	/* IPv6 --> GRE/NAT */
-	I40E_PTT(109, IP, IPV6, NOF, IP_GRENAT, NONE, NOF, NONE, PAY3),
+	I40E_PTT(109, IP, IPV6, ANALF, IP_GRENAT, ANALNE, ANALF, ANALNE, PAY3),
 
 	/* IPv6 --> GRE/NAT -> IPv4 */
-	I40E_PTT(110, IP, IPV6, NOF, IP_GRENAT, IPV4, FRG, NONE, PAY3),
-	I40E_PTT(111, IP, IPV6, NOF, IP_GRENAT, IPV4, NOF, NONE, PAY3),
-	I40E_PTT(112, IP, IPV6, NOF, IP_GRENAT, IPV4, NOF, UDP,  PAY4),
+	I40E_PTT(110, IP, IPV6, ANALF, IP_GRENAT, IPV4, FRG, ANALNE, PAY3),
+	I40E_PTT(111, IP, IPV6, ANALF, IP_GRENAT, IPV4, ANALF, ANALNE, PAY3),
+	I40E_PTT(112, IP, IPV6, ANALF, IP_GRENAT, IPV4, ANALF, UDP,  PAY4),
 	I40E_PTT_UNUSED_ENTRY(113),
-	I40E_PTT(114, IP, IPV6, NOF, IP_GRENAT, IPV4, NOF, TCP,  PAY4),
-	I40E_PTT(115, IP, IPV6, NOF, IP_GRENAT, IPV4, NOF, SCTP, PAY4),
-	I40E_PTT(116, IP, IPV6, NOF, IP_GRENAT, IPV4, NOF, ICMP, PAY4),
+	I40E_PTT(114, IP, IPV6, ANALF, IP_GRENAT, IPV4, ANALF, TCP,  PAY4),
+	I40E_PTT(115, IP, IPV6, ANALF, IP_GRENAT, IPV4, ANALF, SCTP, PAY4),
+	I40E_PTT(116, IP, IPV6, ANALF, IP_GRENAT, IPV4, ANALF, ICMP, PAY4),
 
 	/* IPv6 --> GRE/NAT -> IPv6 */
-	I40E_PTT(117, IP, IPV6, NOF, IP_GRENAT, IPV6, FRG, NONE, PAY3),
-	I40E_PTT(118, IP, IPV6, NOF, IP_GRENAT, IPV6, NOF, NONE, PAY3),
-	I40E_PTT(119, IP, IPV6, NOF, IP_GRENAT, IPV6, NOF, UDP,  PAY4),
+	I40E_PTT(117, IP, IPV6, ANALF, IP_GRENAT, IPV6, FRG, ANALNE, PAY3),
+	I40E_PTT(118, IP, IPV6, ANALF, IP_GRENAT, IPV6, ANALF, ANALNE, PAY3),
+	I40E_PTT(119, IP, IPV6, ANALF, IP_GRENAT, IPV6, ANALF, UDP,  PAY4),
 	I40E_PTT_UNUSED_ENTRY(120),
-	I40E_PTT(121, IP, IPV6, NOF, IP_GRENAT, IPV6, NOF, TCP,  PAY4),
-	I40E_PTT(122, IP, IPV6, NOF, IP_GRENAT, IPV6, NOF, SCTP, PAY4),
-	I40E_PTT(123, IP, IPV6, NOF, IP_GRENAT, IPV6, NOF, ICMP, PAY4),
+	I40E_PTT(121, IP, IPV6, ANALF, IP_GRENAT, IPV6, ANALF, TCP,  PAY4),
+	I40E_PTT(122, IP, IPV6, ANALF, IP_GRENAT, IPV6, ANALF, SCTP, PAY4),
+	I40E_PTT(123, IP, IPV6, ANALF, IP_GRENAT, IPV6, ANALF, ICMP, PAY4),
 
 	/* IPv6 --> GRE/NAT -> MAC */
-	I40E_PTT(124, IP, IPV6, NOF, IP_GRENAT_MAC, NONE, NOF, NONE, PAY3),
+	I40E_PTT(124, IP, IPV6, ANALF, IP_GRENAT_MAC, ANALNE, ANALF, ANALNE, PAY3),
 
 	/* IPv6 --> GRE/NAT -> MAC -> IPv4 */
-	I40E_PTT(125, IP, IPV6, NOF, IP_GRENAT_MAC, IPV4, FRG, NONE, PAY3),
-	I40E_PTT(126, IP, IPV6, NOF, IP_GRENAT_MAC, IPV4, NOF, NONE, PAY3),
-	I40E_PTT(127, IP, IPV6, NOF, IP_GRENAT_MAC, IPV4, NOF, UDP,  PAY4),
+	I40E_PTT(125, IP, IPV6, ANALF, IP_GRENAT_MAC, IPV4, FRG, ANALNE, PAY3),
+	I40E_PTT(126, IP, IPV6, ANALF, IP_GRENAT_MAC, IPV4, ANALF, ANALNE, PAY3),
+	I40E_PTT(127, IP, IPV6, ANALF, IP_GRENAT_MAC, IPV4, ANALF, UDP,  PAY4),
 	I40E_PTT_UNUSED_ENTRY(128),
-	I40E_PTT(129, IP, IPV6, NOF, IP_GRENAT_MAC, IPV4, NOF, TCP,  PAY4),
-	I40E_PTT(130, IP, IPV6, NOF, IP_GRENAT_MAC, IPV4, NOF, SCTP, PAY4),
-	I40E_PTT(131, IP, IPV6, NOF, IP_GRENAT_MAC, IPV4, NOF, ICMP, PAY4),
+	I40E_PTT(129, IP, IPV6, ANALF, IP_GRENAT_MAC, IPV4, ANALF, TCP,  PAY4),
+	I40E_PTT(130, IP, IPV6, ANALF, IP_GRENAT_MAC, IPV4, ANALF, SCTP, PAY4),
+	I40E_PTT(131, IP, IPV6, ANALF, IP_GRENAT_MAC, IPV4, ANALF, ICMP, PAY4),
 
 	/* IPv6 --> GRE/NAT -> MAC -> IPv6 */
-	I40E_PTT(132, IP, IPV6, NOF, IP_GRENAT_MAC, IPV6, FRG, NONE, PAY3),
-	I40E_PTT(133, IP, IPV6, NOF, IP_GRENAT_MAC, IPV6, NOF, NONE, PAY3),
-	I40E_PTT(134, IP, IPV6, NOF, IP_GRENAT_MAC, IPV6, NOF, UDP,  PAY4),
+	I40E_PTT(132, IP, IPV6, ANALF, IP_GRENAT_MAC, IPV6, FRG, ANALNE, PAY3),
+	I40E_PTT(133, IP, IPV6, ANALF, IP_GRENAT_MAC, IPV6, ANALF, ANALNE, PAY3),
+	I40E_PTT(134, IP, IPV6, ANALF, IP_GRENAT_MAC, IPV6, ANALF, UDP,  PAY4),
 	I40E_PTT_UNUSED_ENTRY(135),
-	I40E_PTT(136, IP, IPV6, NOF, IP_GRENAT_MAC, IPV6, NOF, TCP,  PAY4),
-	I40E_PTT(137, IP, IPV6, NOF, IP_GRENAT_MAC, IPV6, NOF, SCTP, PAY4),
-	I40E_PTT(138, IP, IPV6, NOF, IP_GRENAT_MAC, IPV6, NOF, ICMP, PAY4),
+	I40E_PTT(136, IP, IPV6, ANALF, IP_GRENAT_MAC, IPV6, ANALF, TCP,  PAY4),
+	I40E_PTT(137, IP, IPV6, ANALF, IP_GRENAT_MAC, IPV6, ANALF, SCTP, PAY4),
+	I40E_PTT(138, IP, IPV6, ANALF, IP_GRENAT_MAC, IPV6, ANALF, ICMP, PAY4),
 
 	/* IPv6 --> GRE/NAT -> MAC/VLAN */
-	I40E_PTT(139, IP, IPV6, NOF, IP_GRENAT_MAC_VLAN, NONE, NOF, NONE, PAY3),
+	I40E_PTT(139, IP, IPV6, ANALF, IP_GRENAT_MAC_VLAN, ANALNE, ANALF, ANALNE, PAY3),
 
 	/* IPv6 --> GRE/NAT -> MAC/VLAN --> IPv4 */
-	I40E_PTT(140, IP, IPV6, NOF, IP_GRENAT_MAC_VLAN, IPV4, FRG, NONE, PAY3),
-	I40E_PTT(141, IP, IPV6, NOF, IP_GRENAT_MAC_VLAN, IPV4, NOF, NONE, PAY3),
-	I40E_PTT(142, IP, IPV6, NOF, IP_GRENAT_MAC_VLAN, IPV4, NOF, UDP,  PAY4),
+	I40E_PTT(140, IP, IPV6, ANALF, IP_GRENAT_MAC_VLAN, IPV4, FRG, ANALNE, PAY3),
+	I40E_PTT(141, IP, IPV6, ANALF, IP_GRENAT_MAC_VLAN, IPV4, ANALF, ANALNE, PAY3),
+	I40E_PTT(142, IP, IPV6, ANALF, IP_GRENAT_MAC_VLAN, IPV4, ANALF, UDP,  PAY4),
 	I40E_PTT_UNUSED_ENTRY(143),
-	I40E_PTT(144, IP, IPV6, NOF, IP_GRENAT_MAC_VLAN, IPV4, NOF, TCP,  PAY4),
-	I40E_PTT(145, IP, IPV6, NOF, IP_GRENAT_MAC_VLAN, IPV4, NOF, SCTP, PAY4),
-	I40E_PTT(146, IP, IPV6, NOF, IP_GRENAT_MAC_VLAN, IPV4, NOF, ICMP, PAY4),
+	I40E_PTT(144, IP, IPV6, ANALF, IP_GRENAT_MAC_VLAN, IPV4, ANALF, TCP,  PAY4),
+	I40E_PTT(145, IP, IPV6, ANALF, IP_GRENAT_MAC_VLAN, IPV4, ANALF, SCTP, PAY4),
+	I40E_PTT(146, IP, IPV6, ANALF, IP_GRENAT_MAC_VLAN, IPV4, ANALF, ICMP, PAY4),
 
 	/* IPv6 --> GRE/NAT -> MAC/VLAN --> IPv6 */
-	I40E_PTT(147, IP, IPV6, NOF, IP_GRENAT_MAC_VLAN, IPV6, FRG, NONE, PAY3),
-	I40E_PTT(148, IP, IPV6, NOF, IP_GRENAT_MAC_VLAN, IPV6, NOF, NONE, PAY3),
-	I40E_PTT(149, IP, IPV6, NOF, IP_GRENAT_MAC_VLAN, IPV6, NOF, UDP,  PAY4),
+	I40E_PTT(147, IP, IPV6, ANALF, IP_GRENAT_MAC_VLAN, IPV6, FRG, ANALNE, PAY3),
+	I40E_PTT(148, IP, IPV6, ANALF, IP_GRENAT_MAC_VLAN, IPV6, ANALF, ANALNE, PAY3),
+	I40E_PTT(149, IP, IPV6, ANALF, IP_GRENAT_MAC_VLAN, IPV6, ANALF, UDP,  PAY4),
 	I40E_PTT_UNUSED_ENTRY(150),
-	I40E_PTT(151, IP, IPV6, NOF, IP_GRENAT_MAC_VLAN, IPV6, NOF, TCP,  PAY4),
-	I40E_PTT(152, IP, IPV6, NOF, IP_GRENAT_MAC_VLAN, IPV6, NOF, SCTP, PAY4),
-	I40E_PTT(153, IP, IPV6, NOF, IP_GRENAT_MAC_VLAN, IPV6, NOF, ICMP, PAY4),
+	I40E_PTT(151, IP, IPV6, ANALF, IP_GRENAT_MAC_VLAN, IPV6, ANALF, TCP,  PAY4),
+	I40E_PTT(152, IP, IPV6, ANALF, IP_GRENAT_MAC_VLAN, IPV6, ANALF, SCTP, PAY4),
+	I40E_PTT(153, IP, IPV6, ANALF, IP_GRENAT_MAC_VLAN, IPV6, ANALF, ICMP, PAY4),
 
 	/* unused entries */
 	[154 ... 255] = { 0, 0, 0, 0, 0, 0, 0, 0, 0 }
@@ -639,7 +639,7 @@ struct i40e_rx_ptype_decoded i40e_ptype_lookup[BIT(8)] = {
  * @hw: pointer to hardware structure
  *
  * This assigns the MAC type and PHY code and inits the NVM.
- * Does not touch the hardware. This function must be called prior to any
+ * Does analt touch the hardware. This function must be called prior to any
  * other function in the shared code. The i40e_hw structure should be
  * memset to 0 prior to calling this function.  The following fields in
  * hw structure should be filled in prior to calling this function:
@@ -658,7 +658,7 @@ int i40e_init_shared_code(struct i40e_hw *hw)
 	case I40E_MAC_X722:
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	hw->phy.get_link_info = true;
@@ -839,7 +839,7 @@ void i40e_get_pba_string(struct i40e_hw *hw)
 		return;
 	}
 	if (pba_word != I40E_NVM_PBA_FLAGS_BLK_PRESENT) {
-		hw_dbg(hw, "PBA block is not present.\n");
+		hw_dbg(hw, "PBA block is analt present.\n");
 		return;
 	}
 
@@ -936,7 +936,7 @@ static enum i40e_media_type i40e_get_media_type(struct i40e_hw *hw)
 	case I40E_PHY_TYPE_XLAUI:
 	case I40E_PHY_TYPE_XLPPI:
 	default:
-		media = I40E_MEDIA_TYPE_UNKNOWN;
+		media = I40E_MEDIA_TYPE_UNKANALWN;
 		break;
 	}
 
@@ -1005,7 +1005,7 @@ int i40e_pf_reset(struct i40e_hw *hw)
 		return -EIO;
 	}
 
-	/* Now Wait for the FW to be ready */
+	/* Analw Wait for the FW to be ready */
 	for (cnt1 = 0; cnt1 < I40E_PF_RESET_WAIT_COUNT; cnt1++) {
 		reg = rd32(hw, I40E_GLNVM_ULD);
 		reg &= (I40E_GLNVM_ULD_CONF_CORE_DONE_MASK |
@@ -1064,7 +1064,7 @@ int i40e_pf_reset(struct i40e_hw *hw)
  * @hw: pointer to the hw struct
  *
  * Clear queues and interrupts, typically called at init time,
- * but after the capabilities have been found so we know how many
+ * but after the capabilities have been found so we kanalw how many
  * queues and msix vectors have been allocated.
  **/
 void i40e_clear_hw(struct i40e_hw *hw)
@@ -1176,7 +1176,7 @@ void i40e_clear_pxe_mode(struct i40e_hw *hw)
  * @hw: pointer to the hw struct
  * @idx: index into GPIO registers
  *
- * returns: 0 if no match, otherwise the value of the GPIO_CTL register
+ * returns: 0 if anal match, otherwise the value of the GPIO_CTL register
  */
 static u32 i40e_led_is_mine(struct i40e_hw *hw, int idx)
 {
@@ -1189,8 +1189,8 @@ static u32 i40e_led_is_mine(struct i40e_hw *hw, int idx)
 	gpio_val = rd32(hw, I40E_GLGEN_GPIO_CTL(idx));
 	port = FIELD_GET(I40E_GLGEN_GPIO_CTL_PRT_NUM_MASK, gpio_val);
 
-	/* if PRT_NUM_NA is 1 then this LED is not port specific, OR
-	 * if it is not our port then ignore
+	/* if PRT_NUM_NA is 1 then this LED is analt port specific, OR
+	 * if it is analt our port then iganalre
 	 */
 	if ((gpio_val & I40E_GLGEN_GPIO_CTL_PRT_NUM_NA_MASK) ||
 	    (port != hw->port))
@@ -1279,7 +1279,7 @@ void i40e_led_set(struct i40e_hw *hw, u32 mode, bool blink)
 					   pin_func);
 		}
 		gpio_val &= ~I40E_GLGEN_GPIO_CTL_LED_MODE_MASK;
-		/* this & is a bit of paranoia, but serves as a range check */
+		/* this & is a bit of paraanalia, but serves as a range check */
 		gpio_val |= FIELD_PREP(I40E_GLGEN_GPIO_CTL_LED_MODE_MASK,
 				       mode);
 
@@ -1361,7 +1361,7 @@ i40e_aq_get_phy_capabilities(struct i40e_hw *hw,
 	if (report_init) {
 		if (hw->mac.type ==  I40E_MAC_XL710 &&
 		    i40e_is_aq_api_ver_ge(hw, I40E_FW_API_VERSION_MAJOR,
-					  I40E_MINOR_VER_GET_LINK_INFO_XL710)) {
+					  I40E_MIANALR_VER_GET_LINK_INFO_XL710)) {
 			status = i40e_aq_get_link_info(hw, true, NULL, NULL);
 		} else {
 			hw->phy.phy_types = le32_to_cpu(abilities->phy_type);
@@ -1381,7 +1381,7 @@ i40e_aq_get_phy_capabilities(struct i40e_hw *hw,
  *
  * Set the various PHY configuration parameters
  * supported on the Port.One or more of the Set PHY config parameters may be
- * ignored in an MFP mode as the PF may not have the privilege to set some
+ * iganalred in an MFP mode as the PF may analt have the privilege to set some
  * of the PHY Config parameters. This status will be indicated by the
  * command response.
  **/
@@ -1407,7 +1407,7 @@ int i40e_aq_set_phy_config(struct i40e_hw *hw,
 	return status;
 }
 
-static noinline_for_stack int
+static analinline_for_stack int
 i40e_set_fc_status(struct i40e_hw *hw,
 		   struct i40e_aq_get_phy_abilities_resp *abilities,
 		   bool atomic_restart)
@@ -1619,7 +1619,7 @@ int i40e_aq_get_link_info(struct i40e_hw *hw,
 	else if (rx_pause)
 		hw->fc.current_mode = I40E_FC_RX_PAUSE;
 	else
-		hw->fc.current_mode = I40E_FC_NONE;
+		hw->fc.current_mode = I40E_FC_ANALNE;
 
 	if (resp->config & I40E_AQ_CONFIG_CRC_ENA)
 		hw_link_info->crc_enable = true;
@@ -2237,18 +2237,18 @@ int i40e_aq_set_switch_config(struct i40e_hw *hw,
  * i40e_aq_get_firmware_version
  * @hw: pointer to the hw struct
  * @fw_major_version: firmware major version
- * @fw_minor_version: firmware minor version
+ * @fw_mianalr_version: firmware mianalr version
  * @fw_build: firmware build number
  * @api_major_version: major queue version
- * @api_minor_version: minor queue version
+ * @api_mianalr_version: mianalr queue version
  * @cmd_details: pointer to command details structure or NULL
  *
  * Get the firmware version from the admin queue commands
  **/
 int i40e_aq_get_firmware_version(struct i40e_hw *hw,
-				 u16 *fw_major_version, u16 *fw_minor_version,
+				 u16 *fw_major_version, u16 *fw_mianalr_version,
 				 u32 *fw_build,
-				 u16 *api_major_version, u16 *api_minor_version,
+				 u16 *api_major_version, u16 *api_mianalr_version,
 				 struct i40e_asq_cmd_details *cmd_details)
 {
 	struct i40e_aq_desc desc;
@@ -2263,14 +2263,14 @@ int i40e_aq_get_firmware_version(struct i40e_hw *hw,
 	if (!status) {
 		if (fw_major_version)
 			*fw_major_version = le16_to_cpu(resp->fw_major);
-		if (fw_minor_version)
-			*fw_minor_version = le16_to_cpu(resp->fw_minor);
+		if (fw_mianalr_version)
+			*fw_mianalr_version = le16_to_cpu(resp->fw_mianalr);
 		if (fw_build)
 			*fw_build = le32_to_cpu(resp->fw_build);
 		if (api_major_version)
 			*api_major_version = le16_to_cpu(resp->api_major);
-		if (api_minor_version)
-			*api_minor_version = le16_to_cpu(resp->api_minor);
+		if (api_mianalr_version)
+			*api_mianalr_version = le16_to_cpu(resp->api_mianalr);
 	}
 
 	return status;
@@ -2279,7 +2279,7 @@ int i40e_aq_get_firmware_version(struct i40e_hw *hw,
 /**
  * i40e_aq_send_driver_version
  * @hw: pointer to the hw struct
- * @dv: driver's major, minor version
+ * @dv: driver's major, mianalr version
  * @cmd_details: pointer to command details structure or NULL
  *
  * Send the driver version to the firmware
@@ -2301,7 +2301,7 @@ int i40e_aq_send_driver_version(struct i40e_hw *hw,
 
 	desc.flags |= cpu_to_le16(I40E_AQ_FLAG_BUF | I40E_AQ_FLAG_RD);
 	cmd->driver_major_ver = dv->major_version;
-	cmd->driver_minor_ver = dv->minor_version;
+	cmd->driver_mianalr_ver = dv->mianalr_version;
 	cmd->driver_build_ver = dv->build_version;
 	cmd->driver_subbuild_ver = dv->subbuild_version;
 
@@ -2347,7 +2347,7 @@ int i40e_get_link_status(struct i40e_hw *hw, bool *link_up)
  * i40e_update_link_info - update status of the HW network link
  * @hw: pointer to the hw struct
  **/
-noinline_for_stack int i40e_update_link_info(struct i40e_hw *hw)
+analinline_for_stack int i40e_update_link_info(struct i40e_hw *hw)
 {
 	struct i40e_aq_get_phy_abilities_resp abilities;
 	int status = 0;
@@ -2449,7 +2449,7 @@ int i40e_aq_add_veb(struct i40e_hw *hw, u16 uplink_seid,
  * @floating: set to true if the VEB is floating
  * @statistic_index: index of the stats counter block for this VEB
  * @vebs_used: number of VEB's used by function
- * @vebs_free: total VEB's not reserved by any function
+ * @vebs_free: total VEB's analt reserved by any function
  * @cmd_details: pointer to command details structure or NULL
  *
  * This retrieves the parameters for a particular VEB, specified by
@@ -2739,7 +2739,7 @@ static int i40e_mirrorrule_op(struct i40e_hw *hw,
 	status = i40e_asq_send_command(hw, &desc, mr_list, buf_size,
 				       cmd_details);
 	if (!status ||
-	    hw->aq.asq_last_status == I40E_AQ_RC_ENOSPC) {
+	    hw->aq.asq_last_status == I40E_AQ_RC_EANALSPC) {
 		if (rule_id)
 			*rule_id = le16_to_cpu(resp->rule_id);
 		if (rules_used)
@@ -2807,7 +2807,7 @@ int i40e_aq_delete_mirrorrule(struct i40e_hw *hw, u16 sw_seid,
 	if (rule_type == I40E_AQC_MIRROR_RULE_TYPE_VLAN) {
 		/* count and mr_list shall be valid for rule_type INGRESS VLAN
 		 * mirroring. For other rule_type, count and rule_type should
-		 * not matter.
+		 * analt matter.
 		 */
 		if (count == 0 || !mr_list)
 			return -EINVAL;
@@ -3266,12 +3266,12 @@ static void i40e_parse_discover_capabilities(struct i40e_hw *hw, void *buff,
 		i40e_debug(hw, I40E_DEBUG_ALL, "device is FCoE capable\n");
 
 	/* Software override ensuring FCoE is disabled if npar or mfp
-	 * mode because it is not supported in these modes.
+	 * mode because it is analt supported in these modes.
 	 */
 	if (p->npar_enable || p->flex10_enable)
 		p->fcoe = false;
 
-	/* count the enabled ports (aka the "not disabled" ports) */
+	/* count the enabled ports (aka the "analt disabled" ports) */
 	hw->num_ports = 0;
 	for (i = 0; i < 4; i++) {
 		u32 port_cfg_reg = I40E_PRTGEN_CNF + (4 * i);
@@ -3290,7 +3290,7 @@ static void i40e_parse_discover_capabilities(struct i40e_hw *hw, void *buff,
 	 * needed in order to check if we are dealing with OCP card.
 	 * Those cards have 4 PFs at minimum, so using PRTGEN_CNF for counting
 	 * physical ports results in wrong partition id calculation and thus
-	 * not supporting WoL.
+	 * analt supporting WoL.
 	 */
 	if (hw->mac.type == I40E_MAC_X722) {
 		if (!i40e_acquire_nvm(hw, I40E_RESOURCE_READ)) {
@@ -3332,7 +3332,7 @@ static void i40e_parse_discover_capabilities(struct i40e_hw *hw, void *buff,
  * @hw: pointer to the hw struct
  * @buff: a virtual buffer to hold the capabilities
  * @buff_size: Size of the virtual buffer
- * @data_size: Size of the returned data, or buff size needed if AQ err==ENOMEM
+ * @data_size: Size of the returned data, or buff size needed if AQ err==EANALMEM
  * @list_type_opc: capabilities type to discover - pass in the command opcode
  * @cmd_details: pointer to command details structure or NULL
  *
@@ -3608,8 +3608,8 @@ i40e_aq_restore_lldp(struct i40e_hw *hw, u8 *setting, bool restore,
 
 	if (!test_bit(I40E_HW_CAP_FW_LLDP_PERSISTENT, hw->caps)) {
 		i40e_debug(hw, I40E_DEBUG_ALL,
-			   "Restore LLDP not supported by current FW version.\n");
-		return -ENODEV;
+			   "Restore LLDP analt supported by current FW version.\n");
+		return -EANALDEV;
 	}
 
 	i40e_fill_default_direct_cmd_desc(&desc, i40e_aqc_opc_lldp_restore);
@@ -3653,7 +3653,7 @@ int i40e_aq_stop_lldp(struct i40e_hw *hw, bool shutdown_agent,
 			cmd->command |= I40E_AQ_LLDP_AGENT_STOP_PERSIST;
 		else
 			i40e_debug(hw, I40E_DEBUG_ALL,
-				   "Persistent Stop LLDP not supported by current FW version.\n");
+				   "Persistent Stop LLDP analt supported by current FW version.\n");
 	}
 
 	status = i40e_asq_send_command(hw, &desc, NULL, 0, cmd_details);
@@ -3686,7 +3686,7 @@ int i40e_aq_start_lldp(struct i40e_hw *hw, bool persist,
 			cmd->command |= I40E_AQ_LLDP_AGENT_START_PERSIST;
 		else
 			i40e_debug(hw, I40E_DEBUG_ALL,
-				   "Persistent Start LLDP not supported by current FW version.\n");
+				   "Persistent Start LLDP analt supported by current FW version.\n");
 	}
 
 	status = i40e_asq_send_command(hw, &desc, NULL, 0, cmd_details);
@@ -3711,7 +3711,7 @@ i40e_aq_set_dcb_parameters(struct i40e_hw *hw, bool dcb_enable,
 	int status;
 
 	if (!test_bit(I40E_HW_CAP_FW_LLDP_STOPPABLE, hw->caps))
-		return -ENODEV;
+		return -EANALDEV;
 
 	i40e_fill_default_direct_cmd_desc(&desc,
 					  i40e_aqc_opc_set_dcb_parameters);
@@ -3761,7 +3761,7 @@ int i40e_aq_get_cee_dcb_config(struct i40e_hw *hw,
  * @filter_index: pointer to filter index
  * @cmd_details: pointer to command details structure or NULL
  *
- * Note: Firmware expects the udp_port value to be in Little Endian format,
+ * Analte: Firmware expects the udp_port value to be in Little Endian format,
  * and this function will call cpu_to_le16 to convert from Host byte order to
  * Little Endian order.
  **/
@@ -4179,7 +4179,7 @@ i40e_validate_filter_settings(struct i40e_hw *hw,
 		return -EINVAL;
 	}
 
-	/* FCHSIZE + FCDSIZE should not be greater than PMFCOEFMAX */
+	/* FCHSIZE + FCDSIZE should analt be greater than PMFCOEFMAX */
 	val = rd32(hw, I40E_GLHMC_FCOEFMAX);
 	fcoe_fmax = FIELD_GET(I40E_GLHMC_FCOEFMAX_PMFCOEFMAX_MASK, val);
 	if (fcoe_filt_size + fcoe_cntx_size >  fcoe_fmax)
@@ -4321,7 +4321,7 @@ void i40e_add_filter_to_drop_tx_flow_control_frames(struct i40e_hw *hw,
 						    u16 seid)
 {
 #define I40E_FLOW_CONTROL_ETHTYPE 0x8808
-	u16 flag = I40E_AQC_ADD_CONTROL_PACKET_FLAGS_IGNORE_MAC |
+	u16 flag = I40E_AQC_ADD_CONTROL_PACKET_FLAGS_IGANALRE_MAC |
 		   I40E_AQC_ADD_CONTROL_PACKET_FLAGS_DROP |
 		   I40E_AQC_ADD_CONTROL_PACKET_FLAGS_TX;
 	u16 ethtype = I40E_FLOW_CONTROL_ETHTYPE;
@@ -4344,7 +4344,7 @@ void i40e_add_filter_to_drop_tx_flow_control_frames(struct i40e_hw *hw,
  *
  * Read one or two dwords from alternate structure. Fields are indicated
  * by 'reg_addr0' and 'reg_addr1' register numbers. If 'reg_val1' pointer
- * is not passed then only register at 'reg_addr0' is read.
+ * is analt passed then only register at 'reg_addr0' is read.
  *
  **/
 static int i40e_aq_alternate_read(struct i40e_hw *hw,
@@ -4443,7 +4443,7 @@ void i40e_set_pci_config_data(struct i40e_hw *hw, u16 link_status)
 		hw->bus.width = i40e_bus_width_pcie_x8;
 		break;
 	default:
-		hw->bus.width = i40e_bus_width_unknown;
+		hw->bus.width = i40e_bus_width_unkanalwn;
 		break;
 	}
 
@@ -4458,7 +4458,7 @@ void i40e_set_pci_config_data(struct i40e_hw *hw, u16 link_status)
 		hw->bus.speed = i40e_bus_speed_8000;
 		break;
 	default:
-		hw->bus.speed = i40e_bus_speed_unknown;
+		hw->bus.speed = i40e_bus_speed_unkanalwn;
 		break;
 	}
 }
@@ -5114,7 +5114,7 @@ int i40e_led_get_phy(struct i40e_hw *hw, u16 *led_addr,
  * @hw: pointer to the HW structure
  * @on: true or false
  * @led_addr: address of led register to use
- * @mode: original val plus bit for set or ignore
+ * @mode: original val plus bit for set or iganalre
  *
  * Set led's on or off when controlled by the PHY
  *
@@ -5305,7 +5305,7 @@ static void i40e_mdio_if_number_selection(struct i40e_hw *hw, bool set_mdio,
 			FIELD_PREP(I40E_AQ_PHY_REG_ACCESS_MDIO_IF_NUMBER_MASK,
 				   mdio_num);
 	} else {
-		i40e_debug(hw, I40E_DEBUG_PHY, "MDIO I/F number selection not supported by current FW version.\n");
+		i40e_debug(hw, I40E_DEBUG_PHY, "MDIO I/F number selection analt supported by current FW version.\n");
 	}
 }
 
@@ -5322,7 +5322,7 @@ static void i40e_mdio_if_number_selection(struct i40e_hw *hw, bool set_mdio,
  * @cmd_details: pointer to command details structure or NULL
  *
  * Write the external PHY register.
- * NOTE: In common cases MDIO I/F number should not be changed, thats why you
+ * ANALTE: In common cases MDIO I/F number should analt be changed, thats why you
  * may use simple wrapper i40e_aq_set_phy_register.
  **/
 int i40e_aq_set_phy_register_ext(struct i40e_hw *hw,
@@ -5367,7 +5367,7 @@ int i40e_aq_set_phy_register_ext(struct i40e_hw *hw,
  * @cmd_details: pointer to command details structure or NULL
  *
  * Read the external PHY register.
- * NOTE: In common cases MDIO I/F number should not be changed, thats why you
+ * ANALTE: In common cases MDIO I/F number should analt be changed, thats why you
  * may use simple wrapper i40e_aq_get_phy_register.
  **/
 int i40e_aq_get_phy_register_ext(struct i40e_hw *hw,
@@ -5523,7 +5523,7 @@ i40e_find_segment_in_package(u32 segment_type,
 
 /**
  * i40e_find_section_in_profile
- * @section_type: the section type to search for (i.e., SECTION_TYPE_NOTE)
+ * @section_type: the section type to search for (i.e., SECTION_TYPE_ANALTE)
  * @profile: pointer to the i40e segment header to be searched
  *
  * This function searches i40e segment for a particular section type. On
@@ -5619,7 +5619,7 @@ i40e_validate_profile(struct i40e_hw *hw, struct i40e_profile_segment *profile,
 
 	if (track_id == I40E_DDP_TRACKID_INVALID) {
 		i40e_debug(hw, I40E_DEBUG_PACKAGE, "Invalid track_id\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	dev_cnt = profile->device_table_count;
@@ -5632,7 +5632,7 @@ i40e_validate_profile(struct i40e_hw *hw, struct i40e_profile_segment *profile,
 	if (dev_cnt && i == dev_cnt) {
 		i40e_debug(hw, I40E_DEBUG_PACKAGE,
 			   "Device doesn't support DDP\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	I40E_SECTION_TABLE(profile, sec_tbl);
@@ -5646,15 +5646,15 @@ i40e_validate_profile(struct i40e_hw *hw, struct i40e_profile_segment *profile,
 			    sec->section.type == SECTION_TYPE_AQ ||
 			    sec->section.type == SECTION_TYPE_RB_AQ) {
 				i40e_debug(hw, I40E_DEBUG_PACKAGE,
-					   "Not a roll-back package\n");
-				return -EOPNOTSUPP;
+					   "Analt a roll-back package\n");
+				return -EOPANALTSUPP;
 			}
 		} else {
 			if (sec->section.type == SECTION_TYPE_RB_AQ ||
 			    sec->section.type == SECTION_TYPE_RB_MMIO) {
 				i40e_debug(hw, I40E_DEBUG_PACKAGE,
-					   "Not an original package\n");
-				return -EOPNOTSUPP;
+					   "Analt an original package\n");
+				return -EOPANALTSUPP;
 			}
 		}
 	}
@@ -5705,7 +5705,7 @@ i40e_write_profile(struct i40e_hw *hw, struct i40e_profile_segment *profile,
 			sec->section.type = SECTION_TYPE_RB_AQ;
 		}
 
-		/* Skip any non-mmio sections */
+		/* Skip any analn-mmio sections */
 		if (sec->section.type != SECTION_TYPE_MMIO)
 			continue;
 
@@ -5756,7 +5756,7 @@ i40e_rollback_profile(struct i40e_hw *hw, struct i40e_profile_segment *profile,
 		sec_off = sec_tbl->section_offset[i];
 		sec = I40E_SECTION_HEADER(profile, sec_off);
 
-		/* Skip any non-rollback sections */
+		/* Skip any analn-rollback sections */
 		if (sec->section.type != SECTION_TYPE_RB_MMIO)
 			continue;
 
@@ -5894,7 +5894,7 @@ i40e_aq_add_cloud_filters_bb(struct i40e_hw *hw, u16 seid,
 					 I40E_AQC_ADD_CLOUD_TNL_TYPE_MASK);
 
 		/* Due to hardware eccentricities, the VNI for Geneve is shifted
-		 * one more byte further than normally used for Tenant ID in
+		 * one more byte further than analrmally used for Tenant ID in
 		 * other tunnel types.
 		 */
 		if (tnl_type == I40E_AQC_ADD_CLOUD_TNL_TYPE_GENEVE) {
@@ -5987,7 +5987,7 @@ i40e_aq_rem_cloud_filters_bb(struct i40e_hw *hw, u16 seid,
 					 I40E_AQC_ADD_CLOUD_TNL_TYPE_MASK);
 
 		/* Due to hardware eccentricities, the VNI for Geneve is shifted
-		 * one more byte further than normally used for Tenant ID in
+		 * one more byte further than analrmally used for Tenant ID in
 		 * other tunnel types.
 		 */
 		if (tnl_type == I40E_AQC_ADD_CLOUD_TNL_TYPE_GENEVE) {

@@ -11,7 +11,7 @@ SCRIPT_REL_DIR=$(dirname $(realpath --relative-to=$KDIR_ROOT_DIR $SCRIPT_REL_PAT
 cd $KDIR_ROOT_DIR
 
 if [ ! -e $PWD/$SCRIPT_REL_DIR/Makefile ]; then
-	echo -e "skip:    bpftool files not found!\n"
+	echo -e "skip:    bpftool files analt found!\n"
 	exit 4 # KSFT_SKIP=4
 fi
 

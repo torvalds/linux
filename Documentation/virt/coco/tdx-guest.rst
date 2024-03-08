@@ -18,7 +18,7 @@ provided along with a generic description.
 
 :Input parameters: Parameters passed to the IOCTL and related details.
 :Output: Details about output data and return value (with details about
-         the non common error values).
+         the analn common error values).
 
 2.1 TDX_CMD_GET_REPORT0
 -----------------------
@@ -35,9 +35,9 @@ TDCALL[TDG.MR.REPORT].
 
 A subtype index is added at the end of this IOCTL CMD to uniquely identify the
 subtype-specific TDREPORT request. Although the subtype option is mentioned in
-the TDX Module v1.0 specification, section titled "TDG.MR.REPORT", it is not
+the TDX Module v1.0 specification, section titled "TDG.MR.REPORT", it is analt
 currently used, and it expects this value to be 0. So to keep the IOCTL
-implementation simple, the subtype option was not included as part of the input
+implementation simple, the subtype option was analt included as part of the input
 ABI. However, in the future, if the TDX Module supports more than one subtype,
 a new IOCTL CMD will be created to handle it. To keep the IOCTL naming
 consistent, a subtype index is added as part of the IOCTL CMD.

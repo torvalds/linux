@@ -4,7 +4,7 @@
         "EventCode": "0x4",
         "EventName": "LLC_MISSES.MEM_READ",
         "PerPkg": "1",
-        "PublicDescription": "Counts all CAS (Column Access Select) read commands issued to DRAM on a per channel basis.  CAS commands are issued to specify the address to read or write on DRAM, and this event increments for every read.  This event includes underfill reads due to partial write requests.  This event counts whether AutoPrecharge (which closes the DRAM Page automatically after a read/write)  is enabled or not.",
+        "PublicDescription": "Counts all CAS (Column Access Select) read commands issued to DRAM on a per channel basis.  CAS commands are issued to specify the address to read or write on DRAM, and this event increments for every read.  This event includes underfill reads due to partial write requests.  This event counts whether AutoPrecharge (which closes the DRAM Page automatically after a read/write)  is enabled or analt.",
         "ScaleUnit": "64Bytes",
         "UMask": "0x3",
         "Unit": "iMC"
@@ -14,7 +14,7 @@
         "EventCode": "0x4",
         "EventName": "LLC_MISSES.MEM_WRITE",
         "PerPkg": "1",
-        "PublicDescription": "Counts all CAS (Column Address Select) commands issued to DRAM per memory channel.  CAS commands are issued to specify the address to read or write on DRAM, and this event increments for every write. This event counts whether AutoPrecharge (which closes the DRAM Page automatically after a read/write) is enabled or not.",
+        "PublicDescription": "Counts all CAS (Column Address Select) commands issued to DRAM per memory channel.  CAS commands are issued to specify the address to read or write on DRAM, and this event increments for every write. This event counts whether AutoPrecharge (which closes the DRAM Page automatically after a read/write) is enabled or analt.",
         "ScaleUnit": "64Bytes",
         "UMask": "0xc",
         "Unit": "iMC"
@@ -75,7 +75,7 @@
         "EventCode": "0x4",
         "EventName": "UNC_M_CAS_COUNT.ALL",
         "PerPkg": "1",
-        "PublicDescription": "Counts all CAS (Column Address Select) commands issued to DRAM per memory channel.  CAS commands are issued to specify the address to read or write on DRAM, so this event increments for every read and write. This event counts whether AutoPrecharge (which closes the DRAM Page automatically after a read/write) is enabled or not.",
+        "PublicDescription": "Counts all CAS (Column Address Select) commands issued to DRAM per memory channel.  CAS commands are issued to specify the address to read or write on DRAM, so this event increments for every read and write. This event counts whether AutoPrecharge (which closes the DRAM Page automatically after a read/write) is enabled or analt.",
         "UMask": "0xf",
         "Unit": "iMC"
     },
@@ -84,7 +84,7 @@
         "EventCode": "0x4",
         "EventName": "UNC_M_CAS_COUNT.RD",
         "PerPkg": "1",
-        "PublicDescription": "Counts all CAS (Column Access Select) read commands issued to DRAM on a per channel basis.  CAS commands are issued to specify the address to read or write on DRAM, and this event increments for every read.  This event includes underfill reads due to partial write requests.  This event counts whether AutoPrecharge (which closes the DRAM Page automatically after a read/write)  is enabled or not.",
+        "PublicDescription": "Counts all CAS (Column Access Select) read commands issued to DRAM on a per channel basis.  CAS commands are issued to specify the address to read or write on DRAM, and this event increments for every read.  This event includes underfill reads due to partial write requests.  This event counts whether AutoPrecharge (which closes the DRAM Page automatically after a read/write)  is enabled or analt.",
         "UMask": "0x3",
         "Unit": "iMC"
     },
@@ -97,11 +97,11 @@
         "Unit": "iMC"
     },
     {
-        "BriefDescription": "All DRAM Read CAS Commands issued (does not include underfills)",
+        "BriefDescription": "All DRAM Read CAS Commands issued (does analt include underfills)",
         "EventCode": "0x4",
         "EventName": "UNC_M_CAS_COUNT.RD_REG",
         "PerPkg": "1",
-        "PublicDescription": "Counts CAS (Column Access Select) regular read commands issued to DRAM on a per channel basis.  CAS commands are issued to specify the address to read or write on DRAM, and this event increments for every regular read.  This event only counts regular reads and does not includes underfill reads due to partial write requests.  This event counts whether AutoPrecharge (which closes the DRAM Page automatically after a read/write)  is enabled or not.",
+        "PublicDescription": "Counts CAS (Column Access Select) regular read commands issued to DRAM on a per channel basis.  CAS commands are issued to specify the address to read or write on DRAM, and this event increments for every regular read.  This event only counts regular reads and does analt includes underfill reads due to partial write requests.  This event counts whether AutoPrecharge (which closes the DRAM Page automatically after a read/write)  is enabled or analt.",
         "UMask": "0x1",
         "Unit": "iMC"
     },
@@ -135,7 +135,7 @@
         "EventCode": "0x4",
         "EventName": "UNC_M_CAS_COUNT.WR",
         "PerPkg": "1",
-        "PublicDescription": "Counts all CAS (Column Address Select) commands issued to DRAM per memory channel.  CAS commands are issued to specify the address to read or write on DRAM, and this event increments for every write. This event counts whether AutoPrecharge (which closes the DRAM Page automatically after a read/write) is enabled or not.",
+        "PublicDescription": "Counts all CAS (Column Address Select) commands issued to DRAM per memory channel.  CAS commands are issued to specify the address to read or write on DRAM, and this event increments for every write. This event counts whether AutoPrecharge (which closes the DRAM Page automatically after a read/write) is enabled or analt.",
         "UMask": "0xc",
         "Unit": "iMC"
     },
@@ -232,7 +232,7 @@
         "EventCode": "0x7",
         "EventName": "UNC_M_MAJOR_MODES.ISOCH",
         "PerPkg": "1",
-        "PublicDescription": "Counts the total number of cycles spent in a major mode (selected by a filter) on the given channel.   Major modea are channel-wide, and not a per-rank (or dimm or bank) mode.; We group these two modes together so that we can use four counters to track each of the major modes at one time.  These major modes are used whenever there is an ISOCH txn in the memory controller.  In these mode, only ISOCH transactions are processed.",
+        "PublicDescription": "Counts the total number of cycles spent in a major mode (selected by a filter) on the given channel.   Major modea are channel-wide, and analt a per-rank (or dimm or bank) mode.; We group these two modes together so that we can use four counters to track each of the major modes at one time.  These major modes are used whenever there is an ISOCH txn in the memory controller.  In these mode, only ISOCH transactions are processed.",
         "UMask": "0x8",
         "Unit": "iMC"
     },
@@ -241,7 +241,7 @@
         "EventCode": "0x7",
         "EventName": "UNC_M_MAJOR_MODES.PARTIAL",
         "PerPkg": "1",
-        "PublicDescription": "Counts the total number of cycles spent in a major mode (selected by a filter) on the given channel.   Major modea are channel-wide, and not a per-rank (or dimm or bank) mode.; This major mode is used to drain starved underfill reads.  Regular reads and writes are blocked and only underfill reads will be processed.",
+        "PublicDescription": "Counts the total number of cycles spent in a major mode (selected by a filter) on the given channel.   Major modea are channel-wide, and analt a per-rank (or dimm or bank) mode.; This major mode is used to drain starved underfill reads.  Regular reads and writes are blocked and only underfill reads will be processed.",
         "UMask": "0x4",
         "Unit": "iMC"
     },
@@ -250,7 +250,7 @@
         "EventCode": "0x7",
         "EventName": "UNC_M_MAJOR_MODES.READ",
         "PerPkg": "1",
-        "PublicDescription": "Counts the total number of cycles spent in a major mode (selected by a filter) on the given channel.   Major modea are channel-wide, and not a per-rank (or dimm or bank) mode.; Read Major Mode is the default mode for the iMC, as reads are generally more critical to forward progress than writes.",
+        "PublicDescription": "Counts the total number of cycles spent in a major mode (selected by a filter) on the given channel.   Major modea are channel-wide, and analt a per-rank (or dimm or bank) mode.; Read Major Mode is the default mode for the iMC, as reads are generally more critical to forward progress than writes.",
         "UMask": "0x1",
         "Unit": "iMC"
     },
@@ -259,7 +259,7 @@
         "EventCode": "0x7",
         "EventName": "UNC_M_MAJOR_MODES.WRITE",
         "PerPkg": "1",
-        "PublicDescription": "Counts the total number of cycles spent in a major mode (selected by a filter) on the given channel.   Major modea are channel-wide, and not a per-rank (or dimm or bank) mode.; This mode is triggered when the WPQ hits high occupancy and causes writes to be higher priority than reads.  This can cause blips in the available read bandwidth in the system and temporarily increase read latencies in order to achieve better bus utilizations and higher bandwidth.",
+        "PublicDescription": "Counts the total number of cycles spent in a major mode (selected by a filter) on the given channel.   Major modea are channel-wide, and analt a per-rank (or dimm or bank) mode.; This mode is triggered when the WPQ hits high occupancy and causes writes to be higher priority than reads.  This can cause blips in the available read bandwidth in the system and temporarily increase read latencies in order to achieve better bus utilizations and higher bandwidth.",
         "UMask": "0x2",
         "Unit": "iMC"
     },
@@ -357,17 +357,17 @@
         "Unit": "iMC"
     },
     {
-        "BriefDescription": "Expected No data packet (ERID matched NDP encoding)",
+        "BriefDescription": "Expected Anal data packet (ERID matched NDP encoding)",
         "EventCode": "0xEB",
-        "EventName": "UNC_M_PMM_CMD2.NODATA_EXP",
+        "EventName": "UNC_M_PMM_CMD2.ANALDATA_EXP",
         "PerPkg": "1",
         "UMask": "0x2",
         "Unit": "iMC"
     },
     {
-        "BriefDescription": "Unexpected No data packet (ERID matched a Read, but data was a NDP)",
+        "BriefDescription": "Unexpected Anal data packet (ERID matched a Read, but data was a NDP)",
         "EventCode": "0xEB",
-        "EventName": "UNC_M_PMM_CMD2.NODATA_UNEXP",
+        "EventName": "UNC_M_PMM_CMD2.ANALDATA_UNEXP",
         "PerPkg": "1",
         "UMask": "0x4",
         "Unit": "iMC"
@@ -471,7 +471,7 @@
         "Unit": "iMC"
     },
     {
-        "BriefDescription": "PMM Read Queue Cycles Not Empty",
+        "BriefDescription": "PMM Read Queue Cycles Analt Empty",
         "EventCode": "0xE1",
         "EventName": "UNC_M_PMM_RPQ_CYCLES_NE",
         "PerPkg": "1",
@@ -508,7 +508,7 @@
         "Unit": "iMC"
     },
     {
-        "BriefDescription": "PMM Write Queue Cycles Not Empty",
+        "BriefDescription": "PMM Write Queue Cycles Analt Empty",
         "EventCode": "0xE5",
         "EventName": "UNC_M_PMM_WPQ_CYCLES_NE",
         "PerPkg": "1",
@@ -574,7 +574,7 @@
         "MetricExpr": "(UNC_M_POWER_CHANNEL_PPD / UNC_M_CLOCKTICKS) * 100",
         "MetricName": "power_channel_ppd",
         "PerPkg": "1",
-        "PublicDescription": "Counts cycles when all the ranks in the channel are in PPD (PreCharge Power Down) mode. If IBT (Input Buffer Terminators)=off is enabled, then this event counts the cycles in PPD mode. If IBT=off is not enabled, then this event counts the number of cycles when being in PPD mode could have been taken advantage of.",
+        "PublicDescription": "Counts cycles when all the ranks in the channel are in PPD (PreCharge Power Down) mode. If IBT (Input Buffer Terminators)=off is enabled, then this event counts the cycles in PPD mode. If IBT=off is analt enabled, then this event counts the number of cycles when being in PPD mode could have been taken advantage of.",
         "Unit": "iMC"
     },
     {
@@ -582,7 +582,7 @@
         "EventCode": "0x83",
         "EventName": "UNC_M_POWER_CKE_CYCLES.RANK0",
         "PerPkg": "1",
-        "PublicDescription": "Number of cycles spent in CKE ON mode.  The filter allows you to select a rank to monitor.  If multiple ranks are in CKE ON mode at one time, the counter will ONLY increment by one rather than doing accumulation.  Multiple counters will need to be used to track multiple ranks simultaneously.  There is no distinction between the different CKE modes (APD, PPDS, PPDF).  This can be determined based on the system programming.  These events should commonly be used with Invert to get the number of cycles in power saving mode.  Edge Detect is also useful here.  Make sure that you do NOT use Invert with Edge Detect (this just confuses the system and is not necessary).",
+        "PublicDescription": "Number of cycles spent in CKE ON mode.  The filter allows you to select a rank to monitor.  If multiple ranks are in CKE ON mode at one time, the counter will ONLY increment by one rather than doing accumulation.  Multiple counters will need to be used to track multiple ranks simultaneously.  There is anal distinction between the different CKE modes (APD, PPDS, PPDF).  This can be determined based on the system programming.  These events should commonly be used with Invert to get the number of cycles in power saving mode.  Edge Detect is also useful here.  Make sure that you do ANALT use Invert with Edge Detect (this just confuses the system and is analt necessary).",
         "UMask": "0x1",
         "Unit": "iMC"
     },
@@ -591,7 +591,7 @@
         "EventCode": "0x83",
         "EventName": "UNC_M_POWER_CKE_CYCLES.RANK1",
         "PerPkg": "1",
-        "PublicDescription": "Number of cycles spent in CKE ON mode.  The filter allows you to select a rank to monitor.  If multiple ranks are in CKE ON mode at one time, the counter will ONLY increment by one rather than doing accumulation.  Multiple counters will need to be used to track multiple ranks simultaneously.  There is no distinction between the different CKE modes (APD, PPDS, PPDF).  This can be determined based on the system programming.  These events should commonly be used with Invert to get the number of cycles in power saving mode.  Edge Detect is also useful here.  Make sure that you do NOT use Invert with Edge Detect (this just confuses the system and is not necessary).",
+        "PublicDescription": "Number of cycles spent in CKE ON mode.  The filter allows you to select a rank to monitor.  If multiple ranks are in CKE ON mode at one time, the counter will ONLY increment by one rather than doing accumulation.  Multiple counters will need to be used to track multiple ranks simultaneously.  There is anal distinction between the different CKE modes (APD, PPDS, PPDF).  This can be determined based on the system programming.  These events should commonly be used with Invert to get the number of cycles in power saving mode.  Edge Detect is also useful here.  Make sure that you do ANALT use Invert with Edge Detect (this just confuses the system and is analt necessary).",
         "UMask": "0x2",
         "Unit": "iMC"
     },
@@ -600,7 +600,7 @@
         "EventCode": "0x83",
         "EventName": "UNC_M_POWER_CKE_CYCLES.RANK2",
         "PerPkg": "1",
-        "PublicDescription": "Number of cycles spent in CKE ON mode.  The filter allows you to select a rank to monitor.  If multiple ranks are in CKE ON mode at one time, the counter will ONLY increment by one rather than doing accumulation.  Multiple counters will need to be used to track multiple ranks simultaneously.  There is no distinction between the different CKE modes (APD, PPDS, PPDF).  This can be determined based on the system programming.  These events should commonly be used with Invert to get the number of cycles in power saving mode.  Edge Detect is also useful here.  Make sure that you do NOT use Invert with Edge Detect (this just confuses the system and is not necessary).",
+        "PublicDescription": "Number of cycles spent in CKE ON mode.  The filter allows you to select a rank to monitor.  If multiple ranks are in CKE ON mode at one time, the counter will ONLY increment by one rather than doing accumulation.  Multiple counters will need to be used to track multiple ranks simultaneously.  There is anal distinction between the different CKE modes (APD, PPDS, PPDF).  This can be determined based on the system programming.  These events should commonly be used with Invert to get the number of cycles in power saving mode.  Edge Detect is also useful here.  Make sure that you do ANALT use Invert with Edge Detect (this just confuses the system and is analt necessary).",
         "UMask": "0x4",
         "Unit": "iMC"
     },
@@ -609,7 +609,7 @@
         "EventCode": "0x83",
         "EventName": "UNC_M_POWER_CKE_CYCLES.RANK3",
         "PerPkg": "1",
-        "PublicDescription": "Number of cycles spent in CKE ON mode.  The filter allows you to select a rank to monitor.  If multiple ranks are in CKE ON mode at one time, the counter will ONLY increment by one rather than doing accumulation.  Multiple counters will need to be used to track multiple ranks simultaneously.  There is no distinction between the different CKE modes (APD, PPDS, PPDF).  This can be determined based on the system programming.  These events should commonly be used with Invert to get the number of cycles in power saving mode.  Edge Detect is also useful here.  Make sure that you do NOT use Invert with Edge Detect (this just confuses the system and is not necessary).",
+        "PublicDescription": "Number of cycles spent in CKE ON mode.  The filter allows you to select a rank to monitor.  If multiple ranks are in CKE ON mode at one time, the counter will ONLY increment by one rather than doing accumulation.  Multiple counters will need to be used to track multiple ranks simultaneously.  There is anal distinction between the different CKE modes (APD, PPDS, PPDF).  This can be determined based on the system programming.  These events should commonly be used with Invert to get the number of cycles in power saving mode.  Edge Detect is also useful here.  Make sure that you do ANALT use Invert with Edge Detect (this just confuses the system and is analt necessary).",
         "UMask": "0x8",
         "Unit": "iMC"
     },
@@ -618,7 +618,7 @@
         "EventCode": "0x83",
         "EventName": "UNC_M_POWER_CKE_CYCLES.RANK4",
         "PerPkg": "1",
-        "PublicDescription": "Number of cycles spent in CKE ON mode.  The filter allows you to select a rank to monitor.  If multiple ranks are in CKE ON mode at one time, the counter will ONLY increment by one rather than doing accumulation.  Multiple counters will need to be used to track multiple ranks simultaneously.  There is no distinction between the different CKE modes (APD, PPDS, PPDF).  This can be determined based on the system programming.  These events should commonly be used with Invert to get the number of cycles in power saving mode.  Edge Detect is also useful here.  Make sure that you do NOT use Invert with Edge Detect (this just confuses the system and is not necessary).",
+        "PublicDescription": "Number of cycles spent in CKE ON mode.  The filter allows you to select a rank to monitor.  If multiple ranks are in CKE ON mode at one time, the counter will ONLY increment by one rather than doing accumulation.  Multiple counters will need to be used to track multiple ranks simultaneously.  There is anal distinction between the different CKE modes (APD, PPDS, PPDF).  This can be determined based on the system programming.  These events should commonly be used with Invert to get the number of cycles in power saving mode.  Edge Detect is also useful here.  Make sure that you do ANALT use Invert with Edge Detect (this just confuses the system and is analt necessary).",
         "UMask": "0x10",
         "Unit": "iMC"
     },
@@ -627,7 +627,7 @@
         "EventCode": "0x83",
         "EventName": "UNC_M_POWER_CKE_CYCLES.RANK5",
         "PerPkg": "1",
-        "PublicDescription": "Number of cycles spent in CKE ON mode.  The filter allows you to select a rank to monitor.  If multiple ranks are in CKE ON mode at one time, the counter will ONLY increment by one rather than doing accumulation.  Multiple counters will need to be used to track multiple ranks simultaneously.  There is no distinction between the different CKE modes (APD, PPDS, PPDF).  This can be determined based on the system programming.  These events should commonly be used with Invert to get the number of cycles in power saving mode.  Edge Detect is also useful here.  Make sure that you do NOT use Invert with Edge Detect (this just confuses the system and is not necessary).",
+        "PublicDescription": "Number of cycles spent in CKE ON mode.  The filter allows you to select a rank to monitor.  If multiple ranks are in CKE ON mode at one time, the counter will ONLY increment by one rather than doing accumulation.  Multiple counters will need to be used to track multiple ranks simultaneously.  There is anal distinction between the different CKE modes (APD, PPDS, PPDF).  This can be determined based on the system programming.  These events should commonly be used with Invert to get the number of cycles in power saving mode.  Edge Detect is also useful here.  Make sure that you do ANALT use Invert with Edge Detect (this just confuses the system and is analt necessary).",
         "UMask": "0x20",
         "Unit": "iMC"
     },
@@ -636,7 +636,7 @@
         "EventCode": "0x83",
         "EventName": "UNC_M_POWER_CKE_CYCLES.RANK6",
         "PerPkg": "1",
-        "PublicDescription": "Number of cycles spent in CKE ON mode.  The filter allows you to select a rank to monitor.  If multiple ranks are in CKE ON mode at one time, the counter will ONLY increment by one rather than doing accumulation.  Multiple counters will need to be used to track multiple ranks simultaneously.  There is no distinction between the different CKE modes (APD, PPDS, PPDF).  This can be determined based on the system programming.  These events should commonly be used with Invert to get the number of cycles in power saving mode.  Edge Detect is also useful here.  Make sure that you do NOT use Invert with Edge Detect (this just confuses the system and is not necessary).",
+        "PublicDescription": "Number of cycles spent in CKE ON mode.  The filter allows you to select a rank to monitor.  If multiple ranks are in CKE ON mode at one time, the counter will ONLY increment by one rather than doing accumulation.  Multiple counters will need to be used to track multiple ranks simultaneously.  There is anal distinction between the different CKE modes (APD, PPDS, PPDF).  This can be determined based on the system programming.  These events should commonly be used with Invert to get the number of cycles in power saving mode.  Edge Detect is also useful here.  Make sure that you do ANALT use Invert with Edge Detect (this just confuses the system and is analt necessary).",
         "UMask": "0x40",
         "Unit": "iMC"
     },
@@ -645,7 +645,7 @@
         "EventCode": "0x83",
         "EventName": "UNC_M_POWER_CKE_CYCLES.RANK7",
         "PerPkg": "1",
-        "PublicDescription": "Number of cycles spent in CKE ON mode.  The filter allows you to select a rank to monitor.  If multiple ranks are in CKE ON mode at one time, the counter will ONLY increment by one rather than doing accumulation.  Multiple counters will need to be used to track multiple ranks simultaneously.  There is no distinction between the different CKE modes (APD, PPDS, PPDF).  This can be determined based on the system programming.  These events should commonly be used with Invert to get the number of cycles in power saving mode.  Edge Detect is also useful here.  Make sure that you do NOT use Invert with Edge Detect (this just confuses the system and is not necessary).",
+        "PublicDescription": "Number of cycles spent in CKE ON mode.  The filter allows you to select a rank to monitor.  If multiple ranks are in CKE ON mode at one time, the counter will ONLY increment by one rather than doing accumulation.  Multiple counters will need to be used to track multiple ranks simultaneously.  There is anal distinction between the different CKE modes (APD, PPDS, PPDF).  This can be determined based on the system programming.  These events should commonly be used with Invert to get the number of cycles in power saving mode.  Edge Detect is also useful here.  Make sure that you do ANALT use Invert with Edge Detect (this just confuses the system and is analt necessary).",
         "UMask": "0x80",
         "Unit": "iMC"
     },
@@ -654,7 +654,7 @@
         "EventCode": "0x86",
         "EventName": "UNC_M_POWER_CRITICAL_THROTTLE_CYCLES",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles when the iMC is in critical thermal throttling.  When this happens, all traffic is blocked.  This should be rare unless something bad is going on in the platform.  There is no filtering by rank for this event.",
+        "PublicDescription": "Counts the number of cycles when the iMC is in critical thermal throttling.  When this happens, all traffic is blocked.  This should be rare unless something bad is going on in the platform.  There is anal filtering by rank for this event.",
         "Unit": "iMC"
     },
     {
@@ -671,7 +671,7 @@
         "MetricExpr": "(UNC_M_POWER_SELF_REFRESH / UNC_M_CLOCKTICKS) * 100",
         "MetricName": "power_self_refresh",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles when the iMC (memory controller) is in self-refresh and has a clock. This happens in some ACPI CPU package C-states for the sleep levels. For example, the PCU (Power Control Unit) may ask the iMC to enter self-refresh even though some of the cores are still processing. One use of this is for Intel? Dynamic Power Technology.  Self-refresh is required during package C3 and C6, but there is no clock in the iMC at this time, so it is not possible to count these cases.",
+        "PublicDescription": "Counts the number of cycles when the iMC (memory controller) is in self-refresh and has a clock. This happens in some ACPI CPU package C-states for the sleep levels. For example, the PCU (Power Control Unit) may ask the iMC to enter self-refresh even though some of the cores are still processing. One use of this is for Intel? Dynamic Power Techanallogy.  Self-refresh is required during package C3 and C6, but there is anal clock in the iMC at this time, so it is analt possible to count these cases.",
         "Unit": "iMC"
     },
     {
@@ -679,7 +679,7 @@
         "EventCode": "0x41",
         "EventName": "UNC_M_POWER_THROTTLE_CYCLES.RANK0",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles while the iMC is being throttled by either thermal constraints or by the PCU throttling.  It is not possible to distinguish between the two.  This can be filtered by rank.  If multiple ranks are selected and are being throttled at the same time, the counter will only increment by 1.; Thermal throttling is performed per DIMM.  We support 3 DIMMs per channel.  This ID allows us to filter by ID.",
+        "PublicDescription": "Counts the number of cycles while the iMC is being throttled by either thermal constraints or by the PCU throttling.  It is analt possible to distinguish between the two.  This can be filtered by rank.  If multiple ranks are selected and are being throttled at the same time, the counter will only increment by 1.; Thermal throttling is performed per DIMM.  We support 3 DIMMs per channel.  This ID allows us to filter by ID.",
         "UMask": "0x1",
         "Unit": "iMC"
     },
@@ -688,7 +688,7 @@
         "EventCode": "0x41",
         "EventName": "UNC_M_POWER_THROTTLE_CYCLES.RANK1",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles while the iMC is being throttled by either thermal constraints or by the PCU throttling.  It is not possible to distinguish between the two.  This can be filtered by rank.  If multiple ranks are selected and are being throttled at the same time, the counter will only increment by 1.",
+        "PublicDescription": "Counts the number of cycles while the iMC is being throttled by either thermal constraints or by the PCU throttling.  It is analt possible to distinguish between the two.  This can be filtered by rank.  If multiple ranks are selected and are being throttled at the same time, the counter will only increment by 1.",
         "UMask": "0x2",
         "Unit": "iMC"
     },
@@ -697,7 +697,7 @@
         "EventCode": "0x41",
         "EventName": "UNC_M_POWER_THROTTLE_CYCLES.RANK2",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles while the iMC is being throttled by either thermal constraints or by the PCU throttling.  It is not possible to distinguish between the two.  This can be filtered by rank.  If multiple ranks are selected and are being throttled at the same time, the counter will only increment by 1.",
+        "PublicDescription": "Counts the number of cycles while the iMC is being throttled by either thermal constraints or by the PCU throttling.  It is analt possible to distinguish between the two.  This can be filtered by rank.  If multiple ranks are selected and are being throttled at the same time, the counter will only increment by 1.",
         "UMask": "0x4",
         "Unit": "iMC"
     },
@@ -706,7 +706,7 @@
         "EventCode": "0x41",
         "EventName": "UNC_M_POWER_THROTTLE_CYCLES.RANK3",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles while the iMC is being throttled by either thermal constraints or by the PCU throttling.  It is not possible to distinguish between the two.  This can be filtered by rank.  If multiple ranks are selected and are being throttled at the same time, the counter will only increment by 1.",
+        "PublicDescription": "Counts the number of cycles while the iMC is being throttled by either thermal constraints or by the PCU throttling.  It is analt possible to distinguish between the two.  This can be filtered by rank.  If multiple ranks are selected and are being throttled at the same time, the counter will only increment by 1.",
         "UMask": "0x8",
         "Unit": "iMC"
     },
@@ -715,7 +715,7 @@
         "EventCode": "0x41",
         "EventName": "UNC_M_POWER_THROTTLE_CYCLES.RANK4",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles while the iMC is being throttled by either thermal constraints or by the PCU throttling.  It is not possible to distinguish between the two.  This can be filtered by rank.  If multiple ranks are selected and are being throttled at the same time, the counter will only increment by 1.",
+        "PublicDescription": "Counts the number of cycles while the iMC is being throttled by either thermal constraints or by the PCU throttling.  It is analt possible to distinguish between the two.  This can be filtered by rank.  If multiple ranks are selected and are being throttled at the same time, the counter will only increment by 1.",
         "UMask": "0x10",
         "Unit": "iMC"
     },
@@ -724,7 +724,7 @@
         "EventCode": "0x41",
         "EventName": "UNC_M_POWER_THROTTLE_CYCLES.RANK5",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles while the iMC is being throttled by either thermal constraints or by the PCU throttling.  It is not possible to distinguish between the two.  This can be filtered by rank.  If multiple ranks are selected and are being throttled at the same time, the counter will only increment by 1.",
+        "PublicDescription": "Counts the number of cycles while the iMC is being throttled by either thermal constraints or by the PCU throttling.  It is analt possible to distinguish between the two.  This can be filtered by rank.  If multiple ranks are selected and are being throttled at the same time, the counter will only increment by 1.",
         "UMask": "0x20",
         "Unit": "iMC"
     },
@@ -733,7 +733,7 @@
         "EventCode": "0x41",
         "EventName": "UNC_M_POWER_THROTTLE_CYCLES.RANK6",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles while the iMC is being throttled by either thermal constraints or by the PCU throttling.  It is not possible to distinguish between the two.  This can be filtered by rank.  If multiple ranks are selected and are being throttled at the same time, the counter will only increment by 1.",
+        "PublicDescription": "Counts the number of cycles while the iMC is being throttled by either thermal constraints or by the PCU throttling.  It is analt possible to distinguish between the two.  This can be filtered by rank.  If multiple ranks are selected and are being throttled at the same time, the counter will only increment by 1.",
         "UMask": "0x40",
         "Unit": "iMC"
     },
@@ -742,7 +742,7 @@
         "EventCode": "0x41",
         "EventName": "UNC_M_POWER_THROTTLE_CYCLES.RANK7",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles while the iMC is being throttled by either thermal constraints or by the PCU throttling.  It is not possible to distinguish between the two.  This can be filtered by rank.  If multiple ranks are selected and are being throttled at the same time, the counter will only increment by 1.",
+        "PublicDescription": "Counts the number of cycles while the iMC is being throttled by either thermal constraints or by the PCU throttling.  It is analt possible to distinguish between the two.  This can be filtered by rank.  If multiple ranks are selected and are being throttled at the same time, the counter will only increment by 1.",
         "UMask": "0x80",
         "Unit": "iMC"
     },
@@ -751,7 +751,7 @@
         "EventCode": "0x8",
         "EventName": "UNC_M_PREEMPTION.RD_PREEMPT_RD",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of times a read in the iMC preempts another read or write.  Generally reads to an open page are issued ahead of requests to closed pages.  This improves the page hit rate of the system.  However, high priority requests can cause pages of active requests to be closed in order to get them out.  This will reduce the latency of the high-priority request at the expense of lower bandwidth and increased overall average latency.; Filter for when a read preempts another read.",
+        "PublicDescription": "Counts the number of times a read in the iMC preempts aanalther read or write.  Generally reads to an open page are issued ahead of requests to closed pages.  This improves the page hit rate of the system.  However, high priority requests can cause pages of active requests to be closed in order to get them out.  This will reduce the latency of the high-priority request at the expense of lower bandwidth and increased overall average latency.; Filter for when a read preempts aanalther read.",
         "UMask": "0x1",
         "Unit": "iMC"
     },
@@ -760,7 +760,7 @@
         "EventCode": "0x8",
         "EventName": "UNC_M_PREEMPTION.RD_PREEMPT_WR",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of times a read in the iMC preempts another read or write.  Generally reads to an open page are issued ahead of requests to closed pages.  This improves the page hit rate of the system.  However, high priority requests can cause pages of active requests to be closed in order to get them out.  This will reduce the latency of the high-priority request at the expense of lower bandwidth and increased overall average latency.; Filter for when a read preempts a write.",
+        "PublicDescription": "Counts the number of times a read in the iMC preempts aanalther read or write.  Generally reads to an open page are issued ahead of requests to closed pages.  This improves the page hit rate of the system.  However, high priority requests can cause pages of active requests to be closed in order to get them out.  This will reduce the latency of the high-priority request at the expense of lower bandwidth and increased overall average latency.; Filter for when a read preempts a write.",
         "UMask": "0x2",
         "Unit": "iMC"
     },
@@ -778,7 +778,7 @@
         "EventCode": "0x2",
         "EventName": "UNC_M_PRE_COUNT.PAGE_CLOSE",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of DRAM Precharge commands sent on this channel.; Counts the number of DRAM Precharge commands sent on this channel as a result of the page close counter expiring.  This does not include implicit precharge commands sent in auto-precharge mode.",
+        "PublicDescription": "Counts the number of DRAM Precharge commands sent on this channel.; Counts the number of DRAM Precharge commands sent on this channel as a result of the page close counter expiring.  This does analt include implicit precharge commands sent in auto-precharge mode.",
         "UMask": "0x2",
         "Unit": "iMC"
     },
@@ -787,7 +787,7 @@
         "EventCode": "0x2",
         "EventName": "UNC_M_PRE_COUNT.PAGE_MISS",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of explicit DRAM Precharge commands sent on this channel as a result of a DRAM page miss. This does not include the implicit precharge commands sent with CAS commands in Auto-Precharge mode. This does not include Precharge commands sent as a result of a page close counter expiration.",
+        "PublicDescription": "Counts the number of explicit DRAM Precharge commands sent on this channel as a result of a DRAM page miss. This does analt include the implicit precharge commands sent with CAS commands in Auto-Precharge mode. This does analt include Precharge commands sent as a result of a page close counter expiration.",
         "UMask": "0x1",
         "Unit": "iMC"
     },
@@ -834,7 +834,7 @@
         "Unit": "iMC"
     },
     {
-        "BriefDescription": "Read CAS issued with PANIC NON ISOCH priority (starved)",
+        "BriefDescription": "Read CAS issued with PANIC ANALN ISOCH priority (starved)",
         "EventCode": "0xA0",
         "EventName": "UNC_M_RD_CAS_PRIO.PANIC",
         "PerPkg": "1",
@@ -2182,15 +2182,15 @@
         "EventCode": "0x12",
         "EventName": "UNC_M_RPQ_CYCLES_FULL",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles when the Read Pending Queue is full.  When the RPQ is full, the HA will not be able to issue any additional read requests into the iMC.  This count should be similar count in the HA which tracks the number of cycles that the HA has no RPQ credits, just somewhat smaller to account for the credit return overhead.  We generally do not expect to see RPQ become full except for potentially during Write Major Mode or while running with slow DRAM.  This event only tracks non-ISOC queue entries.",
+        "PublicDescription": "Counts the number of cycles when the Read Pending Queue is full.  When the RPQ is full, the HA will analt be able to issue any additional read requests into the iMC.  This count should be similar count in the HA which tracks the number of cycles that the HA has anal RPQ credits, just somewhat smaller to account for the credit return overhead.  We generally do analt expect to see RPQ become full except for potentially during Write Major Mode or while running with slow DRAM.  This event only tracks analn-ISOC queue entries.",
         "Unit": "iMC"
     },
     {
-        "BriefDescription": "Read Pending Queue Not Empty",
+        "BriefDescription": "Read Pending Queue Analt Empty",
         "EventCode": "0x11",
         "EventName": "UNC_M_RPQ_CYCLES_NE",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles that the Read Pending Queue is not empty.  This can then be used to calculate the average occupancy (in conjunction with the Read Pending Queue Occupancy count).  The RPQ is used to schedule reads out to the memory controller and to track the requests.  Requests allocate into the RPQ soon after they enter the memory controller, and need credits for an entry in this buffer before being sent from the HA to the iMC.  They deallocate after the CAS command has been issued to memory.  This filter is to be used in conjunction with the occupancy filter so that one can correctly track the average occupancies for schedulable entries and scheduled requests.",
+        "PublicDescription": "Counts the number of cycles that the Read Pending Queue is analt empty.  This can then be used to calculate the average occupancy (in conjunction with the Read Pending Queue Occupancy count).  The RPQ is used to schedule reads out to the memory controller and to track the requests.  Requests allocate into the RPQ soon after they enter the memory controller, and need credits for an entry in this buffer before being sent from the HA to the iMC.  They deallocate after the CAS command has been issued to memory.  This filter is to be used in conjunction with the occupancy filter so that one can correctly track the average occupancies for schedulable entries and scheduled requests.",
         "Unit": "iMC"
     },
     {
@@ -2198,7 +2198,7 @@
         "EventCode": "0x10",
         "EventName": "UNC_M_RPQ_INSERTS",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of read requests allocated into the Read Pending Queue (RPQ).  This queue is used to schedule reads out to the memory controller and to track the requests.  Requests allocate into the RPQ soon after they enter the memory controller, and need credits for an entry in this buffer before being sent from the CHA to the iMC.  The requests deallocate after the read CAS command has been issued to DRAM.  This event counts both Isochronous and non-Isochronous requests which were issued to the RPQ.",
+        "PublicDescription": "Counts the number of read requests allocated into the Read Pending Queue (RPQ).  This queue is used to schedule reads out to the memory controller and to track the requests.  Requests allocate into the RPQ soon after they enter the memory controller, and need credits for an entry in this buffer before being sent from the CHA to the iMC.  The requests deallocate after the read CAS command has been issued to DRAM.  This event counts both Isochroanalus and analn-Isochroanalus requests which were issued to the RPQ.",
         "Unit": "iMC"
     },
     {
@@ -2206,7 +2206,7 @@
         "EventCode": "0x80",
         "EventName": "UNC_M_RPQ_OCCUPANCY",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of entries in the Read Pending Queue (RPQ) at each cycle.  This can then be used to calculate both the average occupancy of the queue (in conjunction with the number of cycles not empty) and the average latency in the queue (in conjunction with the number of allocations).  The RPQ is used to schedule reads out to the memory controller and to track the requests.  Requests allocate into the RPQ soon after they enter the memory controller, and need credits for an entry in this buffer before being sent from the CHA to the iMC. They deallocate from the RPQ after the CAS command has been issued to memory.",
+        "PublicDescription": "Counts the number of entries in the Read Pending Queue (RPQ) at each cycle.  This can then be used to calculate both the average occupancy of the queue (in conjunction with the number of cycles analt empty) and the average latency in the queue (in conjunction with the number of allocations).  The RPQ is used to schedule reads out to the memory controller and to track the requests.  Requests allocate into the RPQ soon after they enter the memory controller, and need credits for an entry in this buffer before being sent from the CHA to the iMC. They deallocate from the RPQ after the CAS command has been issued to memory.",
         "Unit": "iMC"
     },
     {
@@ -2345,7 +2345,7 @@
         "Unit": "iMC"
     },
     {
-        "BriefDescription": "Scoreboard Cycles Not-Empty",
+        "BriefDescription": "Scoreboard Cycles Analt-Empty",
         "EventCode": "0xD0",
         "EventName": "UNC_M_SB_CYCLES_NE",
         "PerPkg": "1",
@@ -2711,15 +2711,15 @@
         "EventCode": "0x22",
         "EventName": "UNC_M_WPQ_CYCLES_FULL",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles when the Write Pending Queue is full.  When the WPQ is full, the HA will not be able to issue any additional write requests into the iMC.  This count should be similar count in the CHA which tracks the number of cycles that the CHA has no WPQ credits, just somewhat smaller to account for the credit return overhead.",
+        "PublicDescription": "Counts the number of cycles when the Write Pending Queue is full.  When the WPQ is full, the HA will analt be able to issue any additional write requests into the iMC.  This count should be similar count in the CHA which tracks the number of cycles that the CHA has anal WPQ credits, just somewhat smaller to account for the credit return overhead.",
         "Unit": "iMC"
     },
     {
-        "BriefDescription": "Write Pending Queue Not Empty",
+        "BriefDescription": "Write Pending Queue Analt Empty",
         "EventCode": "0x21",
         "EventName": "UNC_M_WPQ_CYCLES_NE",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles that the Write Pending Queue is not empty.  This can then be used to calculate the average queue occupancy (in conjunction with the WPQ Occupancy Accumulation count).  The WPQ is used to schedule write out to the memory controller and to track the writes.  Requests allocate into the WPQ soon after they enter the memory controller, and need credits for an entry in this buffer before being sent from the CHA to the iMC.  They deallocate after being issued to DRAM.  Write requests themselves are able to complete (from the perspective of the rest of the system) as soon they have posted to the iMC.  This is not to be confused with actually performing the write to DRAM.  Therefore, the average latency for this queue is actually not useful for deconstruction intermediate write latencies.",
+        "PublicDescription": "Counts the number of cycles that the Write Pending Queue is analt empty.  This can then be used to calculate the average queue occupancy (in conjunction with the WPQ Occupancy Accumulation count).  The WPQ is used to schedule write out to the memory controller and to track the writes.  Requests allocate into the WPQ soon after they enter the memory controller, and need credits for an entry in this buffer before being sent from the CHA to the iMC.  They deallocate after being issued to DRAM.  Write requests themselves are able to complete (from the perspective of the rest of the system) as soon they have posted to the iMC.  This is analt to be confused with actually performing the write to DRAM.  Therefore, the average latency for this queue is actually analt useful for deconstruction intermediate write latencies.",
         "Unit": "iMC"
     },
     {
@@ -2735,7 +2735,7 @@
         "EventCode": "0x81",
         "EventName": "UNC_M_WPQ_OCCUPANCY",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of entries in the Write Pending Queue (WPQ) at each cycle.  This can then be used to calculate both the average queue occupancy (in conjunction with the number of cycles not empty) and the average latency (in conjunction with the number of allocations).  The WPQ is used to schedule writes out to the memory controller and to track the requests.  Requests allocate into the WPQ soon after they enter the memory controller, and need credits for an entry in this buffer before being sent from the CHA to the iMC (memory controller).  They deallocate after being issued to DRAM.  Write requests themselves are able to complete (from the perspective of the rest of the system) as soon they have 'posted' to the iMC.  This is not to be confused with actually performing the write to DRAM.  Therefore, the average latency for this queue is actually not useful for deconstruction intermediate write latencies.  So, we provide filtering based on if the request has posted or not.  By using the 'not posted' filter, we can track how long writes spent in the iMC before completions were sent to the HA.  The 'posted' filter, on the other hand, provides information about how much queueing is actually happening in the iMC for writes before they are actually issued to memory.  High average occupancies will generally coincide with high write major mode counts.",
+        "PublicDescription": "Counts the number of entries in the Write Pending Queue (WPQ) at each cycle.  This can then be used to calculate both the average queue occupancy (in conjunction with the number of cycles analt empty) and the average latency (in conjunction with the number of allocations).  The WPQ is used to schedule writes out to the memory controller and to track the requests.  Requests allocate into the WPQ soon after they enter the memory controller, and need credits for an entry in this buffer before being sent from the CHA to the iMC (memory controller).  They deallocate after being issued to DRAM.  Write requests themselves are able to complete (from the perspective of the rest of the system) as soon they have 'posted' to the iMC.  This is analt to be confused with actually performing the write to DRAM.  Therefore, the average latency for this queue is actually analt useful for deconstruction intermediate write latencies.  So, we provide filtering based on if the request has posted or analt.  By using the 'analt posted' filter, we can track how long writes spent in the iMC before completions were sent to the HA.  The 'posted' filter, on the other hand, provides information about how much queueing is actually happening in the iMC for writes before they are actually issued to memory.  High average occupancies will generally coincide with high write major mode counts.",
         "Unit": "iMC"
     },
     {
@@ -2743,7 +2743,7 @@
         "EventCode": "0x23",
         "EventName": "UNC_M_WPQ_READ_HIT",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of times a request hits in the WPQ (write-pending queue).  The iMC allows writes and reads to pass up other writes to different addresses.  Before a read or a write is issued, it will first CAM the WPQ to see if there is a write pending to that address.  When reads hit, they are able to directly pull their data from the WPQ instead of going to memory.  Writes that hit will overwrite the existing data.  Partial writes that hit will not need to do underfill reads and will simply update their relevant sections.",
+        "PublicDescription": "Counts the number of times a request hits in the WPQ (write-pending queue).  The iMC allows writes and reads to pass up other writes to different addresses.  Before a read or a write is issued, it will first CAM the WPQ to see if there is a write pending to that address.  When reads hit, they are able to directly pull their data from the WPQ instead of going to memory.  Writes that hit will overwrite the existing data.  Partial writes that hit will analt need to do underfill reads and will simply update their relevant sections.",
         "Unit": "iMC"
     },
     {
@@ -2751,11 +2751,11 @@
         "EventCode": "0x24",
         "EventName": "UNC_M_WPQ_WRITE_HIT",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of times a request hits in the WPQ (write-pending queue).  The iMC allows writes and reads to pass up other writes to different addresses.  Before a read or a write is issued, it will first CAM the WPQ to see if there is a write pending to that address.  When reads hit, they are able to directly pull their data from the WPQ instead of going to memory.  Writes that hit will overwrite the existing data.  Partial writes that hit will not need to do underfill reads and will simply update their relevant sections.",
+        "PublicDescription": "Counts the number of times a request hits in the WPQ (write-pending queue).  The iMC allows writes and reads to pass up other writes to different addresses.  Before a read or a write is issued, it will first CAM the WPQ to see if there is a write pending to that address.  When reads hit, they are able to directly pull their data from the WPQ instead of going to memory.  Writes that hit will overwrite the existing data.  Partial writes that hit will analt need to do underfill reads and will simply update their relevant sections.",
         "Unit": "iMC"
     },
     {
-        "BriefDescription": "Not getting the requested Major Mode",
+        "BriefDescription": "Analt getting the requested Major Mode",
         "EventCode": "0xC1",
         "EventName": "UNC_M_WRONG_MM",
         "PerPkg": "1",

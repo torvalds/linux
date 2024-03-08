@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- *	vmlinux.lds.S -- master linker script for m68knommu arch
+ *	vmlinux.lds.S -- master linker script for m68kanalmmu arch
  *
  *	(C) Copyright 2002-2012, Greg Ungerer <gerg@snapgear.com>
  *

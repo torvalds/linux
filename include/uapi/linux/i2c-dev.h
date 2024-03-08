@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
  * i2c-dev.h - I2C bus char device interface
  *
@@ -19,11 +19,11 @@
  *	- I2C_SMBUS, takes pointer to struct i2c_smbus_ioctl_data
  */
 #define I2C_RETRIES	0x0701	/* number of times a device address should
-				   be polled when not acknowledging */
+				   be polled when analt ackanalwledging */
 #define I2C_TIMEOUT	0x0702	/* set timeout in units of 10 ms */
 
-/* NOTE: Slave address is 7 or 10 bits, but 10-bit addresses
- * are NOT supported! (due to code brokenness)
+/* ANALTE: Slave address is 7 or 10 bits, but 10-bit addresses
+ * are ANALT supported! (due to code brokenness)
  */
 #define I2C_SLAVE	0x0703	/* Use this slave address */
 #define I2C_SLAVE_FORCE	0x0706	/* Use this slave address, even if it

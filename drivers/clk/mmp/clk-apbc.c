@@ -65,7 +65,7 @@ static int clk_apbc_prepare(struct clk_hw *hw)
 
 	udelay(apbc->delay);
 
-	if (!(apbc->flags & APBC_NO_BUS_CTRL)) {
+	if (!(apbc->flags & APBC_ANAL_BUS_CTRL)) {
 		if (apbc->lock)
 			spin_lock_irqsave(apbc->lock, flags);
 

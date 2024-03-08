@@ -1,7 +1,7 @@
 Max8925 Voltage regulators
 
-Required nodes:
--nodes:
+Required analdes:
+-analdes:
   - SDV1 for SDV SDV1
   - SDV2 for SDV SDV2
   - SDV3 for SDV SDV3

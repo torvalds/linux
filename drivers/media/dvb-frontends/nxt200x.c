@@ -9,7 +9,7 @@
 */
 
 /*
- *                      NOTES ABOUT THIS DRIVER
+ *                      ANALTES ABOUT THIS DRIVER
  *
  * This Linux driver supports:
  *   B2C2/BBTI Technisat Air2PC - ATSC (NXT2002)
@@ -155,7 +155,7 @@ static int nxt200x_writereg_multibyte (struct nxt200x_state* state, u8 reg, u8* 
 			buf = 0x02;
 			break;
 		case NXT2004:
-			/* probably not right, but gives correct values */
+			/* probably analt right, but gives correct values */
 			attr = 0x02;
 			if (reg & 0x80) {
 				attr = attr << 1;
@@ -215,7 +215,7 @@ static int nxt200x_readreg_multibyte (struct nxt200x_state* state, u8 reg, u8* d
 			nxt200x_readbytes(state, reg, data, len);
 			return 0;
 		case NXT2004:
-			/* probably not right, but gives correct values */
+			/* probably analt right, but gives correct values */
 			attr = 0x02;
 			if (reg & 0x80) {
 				attr = attr << 1;
@@ -543,7 +543,7 @@ static int nxt200x_setup_frontend_parameters(struct dvb_frontend *fe)
 				state->config->set_ts_params(fe, 1);
 			break;
 		case VSB_8:
-			/* Set non-punctured clock for VSB */
+			/* Set analn-punctured clock for VSB */
 			if (state->config->set_ts_params)
 				state->config->set_ts_params(fe, 0);
 			break;
@@ -559,7 +559,7 @@ static int nxt200x_setup_frontend_parameters(struct dvb_frontend *fe)
 		nxt200x_writetuner(state, buf);
 	}
 
-	/* reset the agc now that tuning has been completed */
+	/* reset the agc analw that tuning has been completed */
 	nxt200x_agc_reset(state);
 
 	/* set target power level */
@@ -746,7 +746,7 @@ static int nxt200x_setup_frontend_parameters(struct dvb_frontend *fe)
 	}
 
 	/* adjacent channel detection should be done here, but I don't
-	have any stations with this need so I cannot test it */
+	have any stations with this need so I cananalt test it */
 
 	return 0;
 }
@@ -863,7 +863,7 @@ static int nxt2002_init(struct dvb_frontend* fe)
 			       state->i2c->dev.parent);
 	pr_debug("%s: Waiting for firmware upload(2)...\n", __func__);
 	if (ret) {
-		pr_err("%s: No firmware uploaded (timeout or file not found?)\n",
+		pr_err("%s: Anal firmware uploaded (timeout or file analt found?)\n",
 		       __func__);
 		return ret;
 	}
@@ -930,7 +930,7 @@ static int nxt2004_init(struct dvb_frontend* fe)
 			       state->i2c->dev.parent);
 	pr_debug("%s: Waiting for firmware upload(2)...\n", __func__);
 	if (ret) {
-		pr_err("%s: No firmware uploaded (timeout or file not found?)\n",
+		pr_err("%s: Anal firmware uploaded (timeout or file analt found?)\n",
 		       __func__);
 		return ret;
 	}
@@ -1178,7 +1178,7 @@ struct dvb_frontend* nxt200x_attach(const struct nxt200x_config* config,
 
 error:
 	kfree(state);
-	pr_err("Unknown/Unsupported NXT chip: %*ph\n", 5, buf);
+	pr_err("Unkanalwn/Unsupported NXT chip: %*ph\n", 5, buf);
 	return NULL;
 }
 

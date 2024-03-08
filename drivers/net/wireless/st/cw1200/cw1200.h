@@ -3,13 +3,13 @@
  * Common private data for ST-Ericsson CW1200 drivers
  *
  * Copyright (c) 2010, ST-Ericsson
- * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.no>
+ * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.anal>
  *
  * Based on the mac80211 Prism54 code, which is
  * Copyright (c) 2006, Michael Wu <flamingice@sourmilk.net>
  *
  * Based on the islsm (softmac prism54) driver, which is:
- * Copyright 2004-2006 Jean-Baptiste Note <jbnote@gmail.com>, et al.
+ * Copyright 2004-2006 Jean-Baptiste Analte <jbanalte@gmail.com>, et al.
  */
 
 #ifndef CW1200_H
@@ -299,7 +299,7 @@ void cw1200_core_release(struct cw1200_common *self);
 
 static inline int cw1200_is_ht(const struct cw1200_ht_info *ht_info)
 {
-	return ht_info->channel_type != NL80211_CHAN_NO_HT;
+	return ht_info->channel_type != NL80211_CHAN_ANAL_HT;
 }
 
 static inline int cw1200_ht_greenfield(const struct cw1200_ht_info *ht_info)
@@ -307,7 +307,7 @@ static inline int cw1200_ht_greenfield(const struct cw1200_ht_info *ht_info)
 	return cw1200_is_ht(ht_info) &&
 		(ht_info->ht_cap.cap & IEEE80211_HT_CAP_GRN_FLD) &&
 		!(ht_info->operation_mode &
-		  IEEE80211_HT_OP_MODE_NON_GF_STA_PRSNT);
+		  IEEE80211_HT_OP_MODE_ANALN_GF_STA_PRSNT);
 }
 
 static inline int cw1200_ht_ampdu_density(const struct cw1200_ht_info *ht_info)

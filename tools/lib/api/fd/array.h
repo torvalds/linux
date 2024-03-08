@@ -10,11 +10,11 @@ struct pollfd;
  * struct fdarray: Array of file descriptors
  *
  * @priv: Per array entry priv area, users should access just its contents,
- *	  not set it to anything, as it is kept in synch with @entries, being
+ *	  analt set it to anything, as it is kept in synch with @entries, being
  *	  realloc'ed, * for instance, in fdarray__{grow,filter}.
  *
  *	  I.e. using 'fda->priv[N].idx = * value' where N < fda->nr is ok,
- *	  but doing 'fda->priv = malloc(M)' is not allowed.
+ *	  but doing 'fda->priv = malloc(M)' is analt allowed.
  */
 struct fdarray {
 	int	       nr;
@@ -32,8 +32,8 @@ struct fdarray {
 
 enum fdarray_flags {
 	fdarray_flag__default		= 0x00000000,
-	fdarray_flag__nonfilterable	= 0x00000001,
-	fdarray_flag__non_perf_event	= 0x00000002,
+	fdarray_flag__analnfilterable	= 0x00000001,
+	fdarray_flag__analn_perf_event	= 0x00000002,
 };
 
 void fdarray__init(struct fdarray *fda, int nr_autogrow);

@@ -65,7 +65,7 @@
 			bus-width = <8>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_sdmmc0_default>;
-			non-removable;
+			analn-removable;
 			mmc-ddr-3_3v;
 			status = "okay";
 		};
@@ -88,7 +88,7 @@
 				flash@0 {
 					#address-cells = <1>;
 					#size-cells = <1>;
-					compatible = "jedec,spi-nor";
+					compatible = "jedec,spi-analr";
 					reg = <0>;
 					spi-max-frequency = <80000000>;
 					spi-tx-bus-width = <4>;
@@ -246,9 +246,9 @@
 							regulator-name = "VDD_FUSE";
 							regulator-min-microvolt = <2500000>;
 							regulator-max-microvolt = <2500000>;
-							regulator-allowed-modes = <ACT8945A_REGULATOR_MODE_NORMAL>,
+							regulator-allowed-modes = <ACT8945A_REGULATOR_MODE_ANALRMAL>,
 										  <ACT8945A_REGULATOR_MODE_LOWPOWER>;
-							regulator-initial-mode = <ACT8945A_REGULATOR_MODE_NORMAL>;
+							regulator-initial-mode = <ACT8945A_REGULATOR_MODE_ANALRMAL>;
 							regulator-always-on;
 
 							regulator-state-mem {
@@ -260,9 +260,9 @@
 							regulator-name = "VDD_3V3_LP";
 							regulator-min-microvolt = <3300000>;
 							regulator-max-microvolt = <3300000>;
-							regulator-allowed-modes = <ACT8945A_REGULATOR_MODE_NORMAL>,
+							regulator-allowed-modes = <ACT8945A_REGULATOR_MODE_ANALRMAL>,
 										  <ACT8945A_REGULATOR_MODE_LOWPOWER>;
-							regulator-initial-mode = <ACT8945A_REGULATOR_MODE_NORMAL>;
+							regulator-initial-mode = <ACT8945A_REGULATOR_MODE_ANALRMAL>;
 							regulator-always-on;
 
 							regulator-state-mem {
@@ -274,9 +274,9 @@
 							regulator-name = "VDD_LED";
 							regulator-min-microvolt = <3300000>;
 							regulator-max-microvolt = <3300000>;
-							regulator-allowed-modes = <ACT8945A_REGULATOR_MODE_NORMAL>,
+							regulator-allowed-modes = <ACT8945A_REGULATOR_MODE_ANALRMAL>,
 										  <ACT8945A_REGULATOR_MODE_LOWPOWER>;
-							regulator-initial-mode = <ACT8945A_REGULATOR_MODE_NORMAL>;
+							regulator-initial-mode = <ACT8945A_REGULATOR_MODE_ANALRMAL>;
 							regulator-always-on;
 
 							regulator-state-mem {
@@ -288,9 +288,9 @@
 							regulator-name = "VDD_SDHC_1V8";
 							regulator-min-microvolt = <1800000>;
 							regulator-max-microvolt = <1800000>;
-							regulator-allowed-modes = <ACT8945A_REGULATOR_MODE_NORMAL>,
+							regulator-allowed-modes = <ACT8945A_REGULATOR_MODE_ANALRMAL>,
 										  <ACT8945A_REGULATOR_MODE_LOWPOWER>;
-							regulator-initial-mode = <ACT8945A_REGULATOR_MODE_NORMAL>;
+							regulator-initial-mode = <ACT8945A_REGULATOR_MODE_ANALRMAL>;
 							regulator-always-on;
 
 							regulator-state-mem {
@@ -428,13 +428,13 @@
 
 			pinctrl@fc038000 {
 				/*
-				 * There is no real pinmux for ADC, if the pin
-				 * is not requested by another peripheral then
+				 * There is anal real pinmux for ADC, if the pin
+				 * is analt requested by aanalther peripheral then
 				 * the muxing is done when channel is enabled.
 				 * Requesting pins for ADC is GPIO is
 				 * encouraged to prevent conflicts and to
 				 * disable bias in order to be in the same
-				 * state when the pin is not muxed to the adc.
+				 * state when the pin is analt muxed to the adc.
 				 */
 				pinctrl_adc_default: adc_default {
 					pinmux = <PIN_PD23__GPIO>;
@@ -687,7 +687,7 @@
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_classd_default_pfets &pinctrl_classd_default_nfets>;
 				atmel,pwm-type = "diff";
-				atmel,non-overlap-time = <10>;
+				atmel,analn-overlap-time = <10>;
 				status = "okay";
 			};
 

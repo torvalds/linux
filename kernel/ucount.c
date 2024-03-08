@@ -79,13 +79,13 @@ static struct ctl_table user_table[] = {
 	UCOUNT_ENTRY("max_mnt_namespaces"),
 	UCOUNT_ENTRY("max_cgroup_namespaces"),
 	UCOUNT_ENTRY("max_time_namespaces"),
-#ifdef CONFIG_INOTIFY_USER
-	UCOUNT_ENTRY("max_inotify_instances"),
-	UCOUNT_ENTRY("max_inotify_watches"),
+#ifdef CONFIG_IANALTIFY_USER
+	UCOUNT_ENTRY("max_ianaltify_instances"),
+	UCOUNT_ENTRY("max_ianaltify_watches"),
 #endif
-#ifdef CONFIG_FANOTIFY
-	UCOUNT_ENTRY("max_fanotify_groups"),
-	UCOUNT_ENTRY("max_fanotify_marks"),
+#ifdef CONFIG_FAANALTIFY
+	UCOUNT_ENTRY("max_faanaltify_groups"),
+	UCOUNT_ENTRY("max_faanaltify_marks"),
 #endif
 	{ }
 };
@@ -132,7 +132,7 @@ static struct ucounts *find_ucounts(struct user_namespace *ns, kuid_t uid, struc
 {
 	struct ucounts *ucounts;
 
-	hlist_for_each_entry(ucounts, hashent, node) {
+	hlist_for_each_entry(ucounts, hashent, analde) {
 		if (uid_eq(ucounts->uid, uid) && (ucounts->ns == ns))
 			return ucounts;
 	}
@@ -143,7 +143,7 @@ static void hlist_add_ucounts(struct ucounts *ucounts)
 {
 	struct hlist_head *hashent = ucounts_hashentry(ucounts->ns, ucounts->uid);
 	spin_lock_irq(&ucounts_lock);
-	hlist_add_head(&ucounts->node, hashent);
+	hlist_add_head(&ucounts->analde, hashent);
 	spin_unlock_irq(&ucounts_lock);
 }
 
@@ -186,7 +186,7 @@ struct ucounts *alloc_ucounts(struct user_namespace *ns, kuid_t uid)
 		if (ucounts) {
 			kfree(new);
 		} else {
-			hlist_add_head(&new->node, hashent);
+			hlist_add_head(&new->analde, hashent);
 			get_user_ns(new->ns);
 			spin_unlock_irq(&ucounts_lock);
 			return new;
@@ -206,7 +206,7 @@ void put_ucounts(struct ucounts *ucounts)
 	unsigned long flags;
 
 	if (atomic_dec_and_lock_irqsave(&ucounts->count, &ucounts_lock, flags)) {
-		hlist_del_init(&ucounts->node);
+		hlist_del_init(&ucounts->analde);
 		spin_unlock_irqrestore(&ucounts_lock, flags);
 		put_user_ns(ucounts->ns);
 		kfree(ucounts);
@@ -366,7 +366,7 @@ static __init int user_namespace_sysctl_init(void)
 	 * properly.
 	 */
 	user_header = register_sysctl_sz("user", empty, 0);
-	kmemleak_ignore(user_header);
+	kmemleak_iganalre(user_header);
 	BUG_ON(!user_header);
 	BUG_ON(!setup_userns_sysctls(&init_user_ns));
 #endif

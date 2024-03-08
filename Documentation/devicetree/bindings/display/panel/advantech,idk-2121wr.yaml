@@ -26,7 +26,7 @@ properties:
   compatible:
     items:
       - const: advantech,idk-2121wr
-      - {} # panel-lvds, but not listed here to avoid false select
+      - {} # panel-lvds, but analt listed here to avoid false select
 
   width-mm:
     const: 476

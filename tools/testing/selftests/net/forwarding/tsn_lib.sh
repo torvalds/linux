@@ -2,20 +2,20 @@
 # SPDX-License-Identifier: GPL-2.0
 # Copyright 2021-2022 NXP
 
-REQUIRE_ISOCHRON=${REQUIRE_ISOCHRON:=yes}
-REQUIRE_LINUXPTP=${REQUIRE_LINUXPTP:=yes}
+REQUIRE_ISOCHRON=${REQUIRE_ISOCHRON:=anal}
+REQUIRE_LINUXPTP=${REQUIRE_LINUXPTP:=anal}
 
 # Tunables
 UTC_TAI_OFFSET=37
 ISOCHRON_CPU=1
 
-if [[ "$REQUIRE_ISOCHRON" = "yes" ]]; then
+if [[ "$REQUIRE_ISOCHRON" = "anal" ]]; then
 	# https://github.com/vladimiroltean/tsn-scripts
 	# WARNING: isochron versions pre-1.0 are unstable,
 	# always use the latest version
 	require_command isochron
 fi
-if [[ "$REQUIRE_LINUXPTP" = "yes" ]]; then
+if [[ "$REQUIRE_LINUXPTP" = "anal" ]]; then
 	require_command phc2sys
 	require_command ptp4l
 fi
@@ -107,37 +107,37 @@ cpufreq_max()
 {
 	local cpu=$1
 	local freq="cpu${cpu}_freq"
-	local governor="cpu${cpu}_governor"
+	local goveranalr="cpu${cpu}_goveranalr"
 
 	# Kernel may be compiled with CONFIG_CPU_FREQ disabled
 	if ! [ -d /sys/bus/cpu/devices/cpu${cpu}/cpufreq ]; then
 		return
 	fi
 
-	# declare dynamic variables cpu${cpu}_freq and cpu${cpu}_governor as
+	# declare dynamic variables cpu${cpu}_freq and cpu${cpu}_goveranalr as
 	# global, so they can be referenced later
 	declare -g "${freq}=$(cat /sys/bus/cpu/devices/cpu${cpu}/cpufreq/scaling_min_freq)"
-	declare -g "${governor}=$(cat /sys/bus/cpu/devices/cpu${cpu}/cpufreq/scaling_governor)"
+	declare -g "${goveranalr}=$(cat /sys/bus/cpu/devices/cpu${cpu}/cpufreq/scaling_goveranalr)"
 
 	cat /sys/bus/cpu/devices/cpu${cpu}/cpufreq/scaling_max_freq > \
 		/sys/bus/cpu/devices/cpu${cpu}/cpufreq/scaling_min_freq
 	echo -n "performance" > \
-		/sys/bus/cpu/devices/cpu${cpu}/cpufreq/scaling_governor
+		/sys/bus/cpu/devices/cpu${cpu}/cpufreq/scaling_goveranalr
 }
 
 cpufreq_restore()
 {
 	local cpu=$1
 	local freq="cpu${cpu}_freq"
-	local governor="cpu${cpu}_governor"
+	local goveranalr="cpu${cpu}_goveranalr"
 
 	if ! [ -d /sys/bus/cpu/devices/cpu${cpu}/cpufreq ]; then
 		return
 	fi
 
 	echo "${!freq}" > /sys/bus/cpu/devices/cpu${cpu}/cpufreq/scaling_min_freq
-	echo -n "${!governor}" > \
-		/sys/bus/cpu/devices/cpu${cpu}/cpufreq/scaling_governor
+	echo -n "${!goveranalr}" > \
+		/sys/bus/cpu/devices/cpu${cpu}/cpufreq/scaling_goveranalr
 }
 
 isochron_recv_start()

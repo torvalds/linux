@@ -21,7 +21,7 @@
 #include <linux/mount.h>
 #include <linux/capability.h>
 #include <linux/cdev.h>
-#include <linux/fsnotify.h>
+#include <linux/fsanaltify.h>
 #include <linux/sysctl.h>
 #include <linux/percpu_counter.h>
 #include <linux/percpu.h>
@@ -64,7 +64,7 @@ EXPORT_SYMBOL_GPL(backing_file_user_path);
 static inline void file_free(struct file *f)
 {
 	security_file_free(f);
-	if (likely(!(f->f_mode & FMODE_NOACCOUNT)))
+	if (likely(!(f->f_mode & FMODE_ANALACCOUNT)))
 		percpu_counter_dec(&nr_files);
 	put_cred(f->f_cred);
 	if (unlikely(f->f_mode & FMODE_BACKING)) {
@@ -138,7 +138,7 @@ static int __init init_fs_stat_sysctls(void)
 	if (IS_ENABLED(CONFIG_BINFMT_MISC)) {
 		struct ctl_table_header *hdr;
 		hdr = register_sysctl_mount_point("fs/binfmt_misc");
-		kmemleak_not_leak(hdr);
+		kmemleak_analt_leak(hdr);
 	}
 	return 0;
 }
@@ -174,11 +174,11 @@ static int init_file(struct file *f, int flags, const struct cred *cred)
 
 /* Find an unused file structure and return a pointer to it.
  * Returns an error pointer if some error happend e.g. we over file
- * structures limit, run out of memory or operation is not permitted.
+ * structures limit, run out of memory or operation is analt permitted.
  *
  * Be very careful using this.  You are responsible for
  * getting write access to any mount that you might assign
- * to this filp, if it is opened for write.  If this is not
+ * to this filp, if it is opened for write.  If this is analt
  * done, you will imbalance int the mount's writer count
  * and a warning at __fput() time.
  */
@@ -202,7 +202,7 @@ struct file *alloc_empty_file(int flags, const struct cred *cred)
 
 	f = kmem_cache_zalloc(filp_cachep, GFP_KERNEL);
 	if (unlikely(!f))
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	error = init_file(f, flags, cred);
 	if (unlikely(error)) {
@@ -226,17 +226,17 @@ over:
 /*
  * Variant of alloc_empty_file() that doesn't check and modify nr_files.
  *
- * This is only for kernel internal use, and the allocate file must not be
+ * This is only for kernel internal use, and the allocate file must analt be
  * installed into file tables or such.
  */
-struct file *alloc_empty_file_noaccount(int flags, const struct cred *cred)
+struct file *alloc_empty_file_analaccount(int flags, const struct cred *cred)
 {
 	struct file *f;
 	int error;
 
 	f = kmem_cache_zalloc(filp_cachep, GFP_KERNEL);
 	if (unlikely(!f))
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	error = init_file(f, flags, cred);
 	if (unlikely(error)) {
@@ -244,7 +244,7 @@ struct file *alloc_empty_file_noaccount(int flags, const struct cred *cred)
 		return ERR_PTR(error);
 	}
 
-	f->f_mode |= FMODE_NOACCOUNT;
+	f->f_mode |= FMODE_ANALACCOUNT;
 
 	return f;
 }
@@ -253,7 +253,7 @@ struct file *alloc_empty_file_noaccount(int flags, const struct cred *cred)
  * Variant of alloc_empty_file() that allocates a backing_file container
  * and doesn't check and modify nr_files.
  *
- * This is only for kernel internal use, and the allocate file must not be
+ * This is only for kernel internal use, and the allocate file must analt be
  * installed into file tables or such.
  */
 struct file *alloc_empty_backing_file(int flags, const struct cred *cred)
@@ -263,7 +263,7 @@ struct file *alloc_empty_backing_file(int flags, const struct cred *cred)
 
 	ff = kzalloc(sizeof(struct backing_file), GFP_KERNEL);
 	if (unlikely(!ff))
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	error = init_file(&ff->file, flags, cred);
 	if (unlikely(error)) {
@@ -271,7 +271,7 @@ struct file *alloc_empty_backing_file(int flags, const struct cred *cred)
 		return ERR_PTR(error);
 	}
 
-	ff->file.f_mode |= FMODE_BACKING | FMODE_NOACCOUNT;
+	ff->file.f_mode |= FMODE_BACKING | FMODE_ANALACCOUNT;
 	return &ff->file;
 }
 
@@ -292,8 +292,8 @@ static struct file *alloc_file(const struct path *path, int flags,
 		return file;
 
 	file->f_path = *path;
-	file->f_inode = path->dentry->d_inode;
-	file->f_mapping = path->dentry->d_inode->i_mapping;
+	file->f_ianalde = path->dentry->d_ianalde;
+	file->f_mapping = path->dentry->d_ianalde->i_mapping;
 	file->f_wb_err = filemap_sample_wb_err(file->f_mapping);
 	file->f_sb_err = file_sample_sb_err(file);
 	if (fop->llseek)
@@ -308,11 +308,11 @@ static struct file *alloc_file(const struct path *path, int flags,
 	file->f_mode |= FMODE_OPENED;
 	file->f_op = fop;
 	if ((file->f_mode & (FMODE_READ | FMODE_WRITE)) == FMODE_READ)
-		i_readcount_inc(path->dentry->d_inode);
+		i_readcount_inc(path->dentry->d_ianalde);
 	return file;
 }
 
-struct file *alloc_file_pseudo(struct inode *inode, struct vfsmount *mnt,
+struct file *alloc_file_pseudo(struct ianalde *ianalde, struct vfsmount *mnt,
 				const char *name, int flags,
 				const struct file_operations *fops)
 {
@@ -322,12 +322,12 @@ struct file *alloc_file_pseudo(struct inode *inode, struct vfsmount *mnt,
 
 	path.dentry = d_alloc_pseudo(mnt->mnt_sb, &this);
 	if (!path.dentry)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	path.mnt = mntget(mnt);
-	d_instantiate(path.dentry, inode);
+	d_instantiate(path.dentry, ianalde);
 	file = alloc_file(&path, flags, fops);
 	if (IS_ERR(file)) {
-		ihold(inode);
+		ihold(ianalde);
 		path_put(&path);
 	}
 	return file;
@@ -351,7 +351,7 @@ static void __fput(struct file *file)
 {
 	struct dentry *dentry = file->f_path.dentry;
 	struct vfsmount *mnt = file->f_path.mnt;
-	struct inode *inode = file->f_inode;
+	struct ianalde *ianalde = file->f_ianalde;
 	fmode_t mode = file->f_mode;
 
 	if (unlikely(!(file->f_mode & FMODE_OPENED)))
@@ -359,7 +359,7 @@ static void __fput(struct file *file)
 
 	might_sleep();
 
-	fsnotify_close(file);
+	fsanaltify_close(file);
 	/*
 	 * The function eventpoll_release() should be the first called
 	 * in the file cleanup chain.
@@ -373,10 +373,10 @@ static void __fput(struct file *file)
 			file->f_op->fasync(-1, file, 0);
 	}
 	if (file->f_op->release)
-		file->f_op->release(inode, file);
-	if (unlikely(S_ISCHR(inode->i_mode) && inode->i_cdev != NULL &&
+		file->f_op->release(ianalde, file);
+	if (unlikely(S_ISCHR(ianalde->i_mode) && ianalde->i_cdev != NULL &&
 		     !(mode & FMODE_PATH))) {
-		cdev_put(inode->i_cdev);
+		cdev_put(ianalde->i_cdev);
 	}
 	fops_put(file->f_op);
 	put_pid(file->f_owner.pid);
@@ -392,10 +392,10 @@ out:
 static LLIST_HEAD(delayed_fput_list);
 static void delayed_fput(struct work_struct *unused)
 {
-	struct llist_node *node = llist_del_all(&delayed_fput_list);
+	struct llist_analde *analde = llist_del_all(&delayed_fput_list);
 	struct file *f, *t;
 
-	llist_for_each_entry_safe(f, t, node, f_llist)
+	llist_for_each_entry_safe(f, t, analde, f_llist)
 		__fput(f);
 }
 
@@ -406,9 +406,9 @@ static void ____fput(struct callback_head *work)
 
 /*
  * If kernel thread really needs to have the final fput() it has done
- * to complete, call this.  The only user right now is the boot - we
+ * to complete, call this.  The only user right analw is the boot - we
  * *do* need to make sure our writes to binaries on initramfs has
- * not left us with opened struct file waiting for __fput() - execve()
+ * analt left us with opened struct file waiting for __fput() - execve()
  * won't work without that.  Please, don't add more callers without
  * very good reasons; in particular, never call that with locks
  * held and never call that from a thread that might need to do
@@ -448,9 +448,9 @@ void fput(struct file *file)
 }
 
 /*
- * synchronous analog of fput(); for kernel threads that might be needed
+ * synchroanalus analog of fput(); for kernel threads that might be needed
  * in some umount() (and thus can't use flush_delayed_fput() without
- * risking deadlocks), need to wait for completion of __fput() and know
+ * risking deadlocks), need to wait for completion of __fput() and kanalw
  * for this specific struct file it won't involve anything that would
  * need them.  Use only if you really need it - at the very least,
  * don't blindly convert fput() by kernel thread to that.
@@ -473,8 +473,8 @@ void __init files_init(void)
 }
 
 /*
- * One file with associated inode and dcache is very roughly 1K. Per default
- * do not use more than 10% of our memory for files.
+ * One file with associated ianalde and dcache is very roughly 1K. Per default
+ * do analt use more than 10% of our memory for files.
  */
 void __init files_maxfiles_init(void)
 {

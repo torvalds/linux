@@ -154,19 +154,19 @@ int cpci_clear_ext(struct slot *slot)
 					 slot->devfn,
 					 PCI_CAP_ID_CHSWP);
 	if (!hs_cap)
-		return -ENODEV;
+		return -EANALDEV;
 	if (pci_bus_read_config_word(slot->bus,
 				     slot->devfn,
 				     hs_cap + 2,
 				     &hs_csr))
-		return -ENODEV;
+		return -EANALDEV;
 	if (hs_csr & HS_CSR_EXT) {
 		/* Clear EXT (by setting it) */
 		if (pci_bus_write_config_word(slot->bus,
 					      slot->devfn,
 					      hs_cap + 2,
 					      hs_csr))
-			return -ENODEV;
+			return -EANALDEV;
 	}
 	return 0;
 }
@@ -180,20 +180,20 @@ int cpci_led_on(struct slot *slot)
 					 slot->devfn,
 					 PCI_CAP_ID_CHSWP);
 	if (!hs_cap)
-		return -ENODEV;
+		return -EANALDEV;
 	if (pci_bus_read_config_word(slot->bus,
 				     slot->devfn,
 				     hs_cap + 2,
 				     &hs_csr))
-		return -ENODEV;
+		return -EANALDEV;
 	if ((hs_csr & HS_CSR_LOO) != HS_CSR_LOO) {
 		hs_csr |= HS_CSR_LOO;
 		if (pci_bus_write_config_word(slot->bus,
 					      slot->devfn,
 					      hs_cap + 2,
 					      hs_csr)) {
-			err("Could not set LOO for slot %s", slot_name(slot));
-			return -ENODEV;
+			err("Could analt set LOO for slot %s", slot_name(slot));
+			return -EANALDEV;
 		}
 	}
 	return 0;
@@ -208,20 +208,20 @@ int cpci_led_off(struct slot *slot)
 					 slot->devfn,
 					 PCI_CAP_ID_CHSWP);
 	if (!hs_cap)
-		return -ENODEV;
+		return -EANALDEV;
 	if (pci_bus_read_config_word(slot->bus,
 				     slot->devfn,
 				     hs_cap + 2,
 				     &hs_csr))
-		return -ENODEV;
+		return -EANALDEV;
 	if (hs_csr & HS_CSR_LOO) {
 		hs_csr &= ~HS_CSR_LOO;
 		if (pci_bus_write_config_word(slot->bus,
 					      slot->devfn,
 					      hs_cap + 2,
 					      hs_csr)) {
-			err("Could not clear LOO for slot %s", slot_name(slot));
-			return -ENODEV;
+			err("Could analt clear LOO for slot %s", slot_name(slot));
+			return -EANALDEV;
 		}
 	}
 	return 0;
@@ -261,8 +261,8 @@ int cpci_configure_slot(struct slot *slot)
 		dbg("%s: pci_scan_slot returned %d", __func__, n);
 		slot->dev = pci_get_slot(slot->bus, slot->devfn);
 		if (slot->dev == NULL) {
-			err("Could not find PCI device for slot %02x", slot->number);
-			ret = -ENODEV;
+			err("Could analt find PCI device for slot %02x", slot->number);
+			ret = -EANALDEV;
 			goto out;
 		}
 	}
@@ -289,8 +289,8 @@ int cpci_unconfigure_slot(struct slot *slot)
 
 	dbg("%s - enter", __func__);
 	if (!slot->dev) {
-		err("No device for slot %02x\n", slot->number);
-		return -ENODEV;
+		err("Anal device for slot %02x\n", slot->number);
+		return -EANALDEV;
 	}
 
 	pci_lock_rescan_remove();

@@ -14,14 +14,14 @@
 
 /*
  * Test that if we overflow the counter while in the EBB handler, we take
- * another EBB on exiting from the handler.
+ * aanalther EBB on exiting from the handler.
  *
  * We do this by counting with a stupidly low sample period, causing us to
- * overflow the PMU while we're still in the EBB handler, leading to another
+ * overflow the PMU while we're still in the EBB handler, leading to aanalther
  * EBB.
  *
  * We get out of what would otherwise be an infinite loop by leaving the
- * counter frozen once we've taken enough EBBs.
+ * counter frozen once we've taken eanalugh EBBs.
  */
 
 static void ebb_callee(void)

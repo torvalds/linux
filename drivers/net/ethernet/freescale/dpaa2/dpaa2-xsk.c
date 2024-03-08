@@ -134,7 +134,7 @@ static void dpaa2_xsk_rx(struct dpaa2_eth_priv *priv,
 	/* Build skb */
 	skb = dpaa2_eth_alloc_skb(priv, ch, fd, fd_length, vaddr);
 	if (!skb)
-		/* Nothing else we can do, recycle the buffer and
+		/* Analthing else we can do, recycle the buffer and
 		 * drop the frame.
 		 */
 		goto err_alloc_skb;
@@ -228,13 +228,13 @@ static int dpaa2_xsk_enable_pool(struct net_device *dev,
 	bool up;
 
 	if (priv->dpni_attrs.wriop_version < DPAA2_WRIOP_VERSION(3, 0, 0)) {
-		netdev_err(dev, "AF_XDP zero-copy not supported on devices <= WRIOP(3, 0, 0)\n");
-		return -EOPNOTSUPP;
+		netdev_err(dev, "AF_XDP zero-copy analt supported on devices <= WRIOP(3, 0, 0)\n");
+		return -EOPANALTSUPP;
 	}
 
 	if (priv->dpni_attrs.num_queues > 8) {
-		netdev_err(dev, "AF_XDP zero-copy not supported on DPNI with more then 8 queues\n");
-		return -EOPNOTSUPP;
+		netdev_err(dev, "AF_XDP zero-copy analt supported on DPNI with more then 8 queues\n");
+		return -EOPANALTSUPP;
 	}
 
 	up = netif_running(dev);
@@ -320,7 +320,7 @@ int dpaa2_xsk_wakeup(struct net_device *dev, u32 qid, u32 flags)
 	if (!ch->xsk_zc)
 		return -EINVAL;
 
-	/* We do not have access to a per channel SW interrupt, so instead we
+	/* We do analt have access to a per channel SW interrupt, so instead we
 	 * schedule a NAPI instance.
 	 */
 	if (!napi_if_scheduled_mark_missed(&ch->napi))
@@ -347,7 +347,7 @@ static int dpaa2_xsk_tx_build_fd(struct dpaa2_eth_priv *priv,
 	sgt_buf_size = priv->tx_data_offset + sizeof(struct dpaa2_sg_entry);
 	sgt_buf = dpaa2_eth_sgt_get(priv);
 	if (unlikely(!sgt_buf))
-		return -ENOMEM;
+		return -EANALMEM;
 	sgt = (struct dpaa2_sg_entry *)(sgt_buf + priv->tx_data_offset);
 
 	/* Get the address of the XSK Tx buffer */
@@ -367,7 +367,7 @@ static int dpaa2_xsk_tx_build_fd(struct dpaa2_eth_priv *priv,
 	/* Separately map the SGT buffer */
 	sgt_addr = dma_map_single(dev, sgt_buf, sgt_buf_size, DMA_BIDIRECTIONAL);
 	if (unlikely(dma_mapping_error(dev, sgt_addr))) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto sgt_map_failed;
 	}
 

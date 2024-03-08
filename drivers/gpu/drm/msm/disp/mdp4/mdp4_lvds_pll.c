@@ -30,7 +30,7 @@ struct pll_rate {
 	} conf[32];
 };
 
-/* NOTE: keep sorted highest freq to lowest: */
+/* ANALTE: keep sorted highest freq to lowest: */
 static const struct pll_rate freqtbl[] = {
 	{ 72000000, {
 		{ 0x8f, REG_MDP4_LVDS_PHY_PLL_CTRL_1 },
@@ -141,7 +141,7 @@ struct clk *mpd4_lvds_pll_init(struct drm_device *dev)
 
 	lvds_pll = devm_kzalloc(dev->dev, sizeof(*lvds_pll), GFP_KERNEL);
 	if (!lvds_pll) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail;
 	}
 

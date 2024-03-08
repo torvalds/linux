@@ -109,7 +109,7 @@ int meson_sm_call(struct meson_sm_firmware *fw, unsigned int cmd_index,
 	s32 lret;
 
 	if (!fw->chip)
-		return -ENOENT;
+		return -EANALENT;
 
 	cmd = meson_sm_get_cmd(fw->chip, cmd_index);
 	if (!cmd)
@@ -138,7 +138,7 @@ EXPORT_SYMBOL(meson_sm_call);
  * @arg4:	SMC32 Argument 4
  *
  * Return:	size of read data on success, a negative value on error
- *		When 0 is returned there is no guarantee about the amount of
+ *		When 0 is returned there is anal guarantee about the amount of
  *		data read and bsize bytes are copied in buffer.
  */
 int meson_sm_call_read(struct meson_sm_firmware *fw, void *buffer,
@@ -149,7 +149,7 @@ int meson_sm_call_read(struct meson_sm_firmware *fw, void *buffer,
 	int ret;
 
 	if (!fw->chip)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (!fw->chip->cmd_shmem_out_base)
 		return -EINVAL;
@@ -202,7 +202,7 @@ int meson_sm_call_write(struct meson_sm_firmware *fw, void *buffer,
 	s32 written;
 
 	if (!fw->chip)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (size > fw->chip->shmem_size)
 		return -EINVAL;
@@ -225,13 +225,13 @@ EXPORT_SYMBOL(meson_sm_call_write);
 /**
  * meson_sm_get - get pointer to meson_sm_firmware structure.
  *
- * @sm_node:		Pointer to the secure-monitor Device Tree node.
+ * @sm_analde:		Pointer to the secure-monitor Device Tree analde.
  *
- * Return:		NULL is the secure-monitor device is not ready.
+ * Return:		NULL is the secure-monitor device is analt ready.
  */
-struct meson_sm_firmware *meson_sm_get(struct device_node *sm_node)
+struct meson_sm_firmware *meson_sm_get(struct device_analde *sm_analde)
 {
-	struct platform_device *pdev = of_find_device_by_node(sm_node);
+	struct platform_device *pdev = of_find_device_by_analde(sm_analde);
 
 	if (!pdev)
 		return NULL;
@@ -256,7 +256,7 @@ static ssize_t serial_show(struct device *dev, struct device_attribute *attr,
 
 	id_buf = kmalloc(SM_CHIP_ID_LENGTH, GFP_KERNEL);
 	if (!id_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = meson_sm_call_read(fw, id_buf, SM_CHIP_ID_LENGTH, SM_GET_CHIP_ID,
 				 0, 0, 0, 0, 0);
@@ -293,7 +293,7 @@ static int __init meson_sm_probe(struct platform_device *pdev)
 
 	fw = devm_kzalloc(dev, sizeof(*fw), GFP_KERNEL);
 	if (!fw)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip = device_get_match_data(dev);
 	if (!chip)

@@ -53,7 +53,7 @@ config EISA_VIRTUAL_ROOT
 	default y
 	help
 	  Activate this option if your system only have EISA bus
-	  (no PCI slots). The Alpha Jensen is an example of such
+	  (anal PCI slots). The Alpha Jensen is an example of such
 	  a system.
 
 	  When in doubt, say Y.
@@ -63,7 +63,7 @@ config EISA_NAMES
 	depends on EISA
 	default y
 	help
-	  By default, the kernel contains a database of all known EISA
+	  By default, the kernel contains a database of all kanalwn EISA
 	  device names to make the information in sysfs comprehensible
 	  to the user. This database increases size of the kernel
 	  image by about 40KB, but it gets freed after the system

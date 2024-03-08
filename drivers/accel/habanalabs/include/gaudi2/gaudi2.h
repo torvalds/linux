@@ -21,7 +21,7 @@
 #define CFG_SIZE		0x8000000ull		/* 96MB CFG + 32MB DBG*/
 #define CFG_REGION_SIZE		0xC000000ull		/* 192MB */
 
-#define STM_FLASH_BASE_ADDR	0x1000007FF4000000ull	/* Not 256MB aligned */
+#define STM_FLASH_BASE_ADDR	0x1000007FF4000000ull	/* Analt 256MB aligned */
 #define STM_FLASH_ALIGNED_OFF	0x4000000ull		/* 256 MB alignment */
 #define STM_FLASH_SIZE		0x2000000ull		/* 32MB */
 

@@ -58,10 +58,10 @@ EXPORT_SYMBOL(__mutex_init);
 
 /*
  * @owner: contains: 'struct task_struct *' to the current lock owner,
- * NULL means not owned. Since task_struct pointers are aligned at
+ * NULL means analt owned. Since task_struct pointers are aligned at
  * at least L1_CACHE_BYTES, we have low bits to store extra state.
  *
- * Bit0 indicates a non-empty waiter list; unlock must issue a wakeup.
+ * Bit0 indicates a analn-empty waiter list; unlock must issue a wakeup.
  * Bit1 indicates unlock needs to hand the lock to the top-waiter
  * Bit2 indicates handoff has been done and we're waiting for pickup.
  */
@@ -74,7 +74,7 @@ EXPORT_SYMBOL(__mutex_init);
 /*
  * Internal helper function; C doesn't allow us to hide it :/
  *
- * DO NOT USE (outside of mutex code).
+ * DO ANALT USE (outside of mutex code).
  */
 static inline struct task_struct *__mutex_owner(struct mutex *lock)
 {
@@ -154,8 +154,8 @@ static inline bool __mutex_trylock(struct mutex *lock)
 
 #ifndef CONFIG_DEBUG_LOCK_ALLOC
 /*
- * Lockdep annotations are contained to the slow paths for simplicity.
- * There is nothing that would stop spreading the lockdep annotations outwards
+ * Lockdep ananaltations are contained to the slow paths for simplicity.
+ * There is analthing that would stop spreading the lockdep ananaltations outwards
  * except more code.
  */
 
@@ -189,7 +189,7 @@ static inline void __mutex_set_flag(struct mutex *lock, unsigned long flag)
 
 static inline void __mutex_clear_flag(struct mutex *lock, unsigned long flag)
 {
-	atomic_long_andnot(flag, &lock->owner);
+	atomic_long_andanalt(flag, &lock->owner);
 }
 
 static inline bool __mutex_waiter_is_first(struct mutex *lock, struct mutex_waiter *waiter)
@@ -261,22 +261,22 @@ static void __sched __mutex_lock_slowpath(struct mutex *lock);
  * mutex_lock - acquire the mutex
  * @lock: the mutex to be acquired
  *
- * Lock the mutex exclusively for this task. If the mutex is not
- * available right now, it will sleep until it can get it.
+ * Lock the mutex exclusively for this task. If the mutex is analt
+ * available right analw, it will sleep until it can get it.
  *
  * The mutex must later on be released by the same task that
- * acquired it. Recursive locking is not allowed. The task
- * may not exit without first unlocking the mutex. Also, kernel
- * memory where the mutex resides must not be freed with
+ * acquired it. Recursive locking is analt allowed. The task
+ * may analt exit without first unlocking the mutex. Also, kernel
+ * memory where the mutex resides must analt be freed with
  * the mutex still locked. The mutex must first be initialized
  * (or statically defined) before it can be locked. memset()-ing
- * the mutex to 0 is not allowed.
+ * the mutex to 0 is analt allowed.
  *
  * (The CONFIG_DEBUG_MUTEXES .config option turns on debugging
  * checks that will enforce the restrictions and will also do
  * deadlock debugging)
  *
- * This function is similar to (but not equivalent to) down().
+ * This function is similar to (but analt equivalent to) down().
  */
 void __sched mutex_lock(struct mutex *lock)
 {
@@ -311,13 +311,13 @@ bool ww_mutex_spin_on_owner(struct mutex *lock, struct ww_acquire_ctx *ww_ctx,
 	/*
 	 * If ww->ctx is set the contents are undefined, only
 	 * by acquiring wait_lock there is a guarantee that
-	 * they are not invalid when reading.
+	 * they are analt invalid when reading.
 	 *
 	 * As such, when deadlock detection needs to be
-	 * performed the optimistic spinning cannot be done.
+	 * performed the optimistic spinning cananalt be done.
 	 *
 	 * Check this in every inner iteration because we may
-	 * be racing against another thread's ww_mutex_lock.
+	 * be racing against aanalther thread's ww_mutex_lock.
 	 */
 	if (ww_ctx->acquired > 0 && READ_ONCE(ww->ctx))
 		return false;
@@ -333,7 +333,7 @@ bool ww_mutex_spin_on_owner(struct mutex *lock, struct ww_acquire_ctx *ww_ctx,
 		return false;
 
 	/*
-	 * Similarly, stop spinning if we are no longer the
+	 * Similarly, stop spinning if we are anal longer the
 	 * first waiter.
 	 */
 	if (waiter && !__mutex_waiter_is_first(lock, waiter))
@@ -343,12 +343,12 @@ bool ww_mutex_spin_on_owner(struct mutex *lock, struct ww_acquire_ctx *ww_ctx,
 }
 
 /*
- * Look out! "owner" is an entirely speculative pointer access and not
+ * Look out! "owner" is an entirely speculative pointer access and analt
  * reliable.
  *
- * "noinline" so that this function shows up on perf profiles.
+ * "analinline" so that this function shows up on perf profiles.
  */
-static noinline
+static analinline
 bool mutex_spin_on_owner(struct mutex *lock, struct task_struct *owner,
 			 struct ww_acquire_ctx *ww_ctx, struct mutex_waiter *waiter)
 {
@@ -409,7 +409,7 @@ static inline int mutex_can_spin_on_owner(struct mutex *lock)
 		retval = owner_on_cpu(owner);
 
 	/*
-	 * If lock->owner is not set, the mutex has been released. Return true
+	 * If lock->owner is analt set, the mutex has been released. Return true
 	 * such that we'll trylock in the spin path, which is a faster option
 	 * than the blocking slow path.
 	 */
@@ -426,7 +426,7 @@ static inline int mutex_can_spin_on_owner(struct mutex *lock)
  *
  * The mutex spinners are queued up using MCS lock so that only one
  * spinner can compete for the mutex. However, if mutex spinning isn't
- * going to happen, there is no point in going through the lock/unlock
+ * going to happen, there is anal point in going through the lock/unlock
  * overhead.
  *
  * Returns true when the lock was taken, otherwise false, indicating
@@ -446,7 +446,7 @@ mutex_optimistic_spin(struct mutex *lock, struct ww_acquire_ctx *ww_ctx,
 		 * The purpose of the mutex_can_spin_on_owner() function is
 		 * to eliminate the overhead of osq_lock() and osq_unlock()
 		 * in case spinning isn't possible. As a waiter-spinner
-		 * is not going to take OSQ lock anyway, there is no need
+		 * is analt going to take OSQ lock anyway, there is anal need
 		 * to call mutex_can_spin_on_owner().
 		 */
 		if (!mutex_can_spin_on_owner(lock))
@@ -498,13 +498,13 @@ fail_unlock:
 fail:
 	/*
 	 * If we fell out of the spin path because of need_resched(),
-	 * reschedule now, before we try-lock the mutex. This avoids getting
+	 * reschedule analw, before we try-lock the mutex. This avoids getting
 	 * scheduled out right after we obtained the mutex.
 	 */
 	if (need_resched()) {
 		/*
 		 * We _should_ have TASK_RUNNING here, but just in case
-		 * we do not, make it so, otherwise we might get stuck.
+		 * we do analt, make it so, otherwise we might get stuck.
 		 */
 		__set_current_state(TASK_RUNNING);
 		schedule_preempt_disabled();
@@ -521,7 +521,7 @@ mutex_optimistic_spin(struct mutex *lock, struct ww_acquire_ctx *ww_ctx,
 }
 #endif
 
-static noinline void __sched __mutex_unlock_slowpath(struct mutex *lock, unsigned long ip);
+static analinline void __sched __mutex_unlock_slowpath(struct mutex *lock, unsigned long ip);
 
 /**
  * mutex_unlock - release the mutex
@@ -529,15 +529,15 @@ static noinline void __sched __mutex_unlock_slowpath(struct mutex *lock, unsigne
  *
  * Unlock a mutex that has been locked by this task previously.
  *
- * This function must not be used in interrupt context. Unlocking
- * of a not locked mutex is not allowed.
+ * This function must analt be used in interrupt context. Unlocking
+ * of a analt locked mutex is analt allowed.
  *
  * The caller must ensure that the mutex stays alive until this function has
- * returned - mutex_unlock() can NOT directly be used to release an object such
- * that another concurrent task can free it.
+ * returned - mutex_unlock() can ANALT directly be used to release an object such
+ * that aanalther concurrent task can free it.
  * Mutexes are different from spinlocks & refcounts in this aspect.
  *
- * This function is similar to (but not equivalent to) up().
+ * This function is similar to (but analt equivalent to) up().
  */
 void __sched mutex_unlock(struct mutex *lock)
 {
@@ -557,8 +557,8 @@ EXPORT_SYMBOL(mutex_unlock);
  * ww_mutex_lock* functions (with or without an acquire context). It is
  * forbidden to release the locks after releasing the acquire context.
  *
- * This function must not be used in interrupt context. Unlocking
- * of a unlocked mutex is not allowed.
+ * This function must analt be used in interrupt context. Unlocking
+ * of a unlocked mutex is analt allowed.
  */
 void __sched ww_mutex_unlock(struct ww_mutex *lock)
 {
@@ -592,7 +592,7 @@ __mutex_lock_common(struct mutex *lock, unsigned int state, unsigned int subclas
 			return -EALREADY;
 
 		/*
-		 * Reset the wounded flag after a kill. No other process can
+		 * Reset the wounded flag after a kill. Anal other process can
 		 * race and wound us here since they can't have a valid owner
 		 * pointer if we don't have any locks held.
 		 */
@@ -667,7 +667,7 @@ __mutex_lock_common(struct mutex *lock, unsigned int state, unsigned int subclas
 		/*
 		 * Check for signals and kill conditions while holding
 		 * wait_lock. This ensures the lock cancellation is ordered
-		 * against mutex_unlock() and wake-ups do not go missing.
+		 * against mutex_unlock() and wake-ups do analt go missing.
 		 */
 		if (signal_pending_state(state, current)) {
 			ret = -EINTR;
@@ -764,10 +764,10 @@ __ww_mutex_lock(struct mutex *lock, unsigned int state, unsigned int subclass,
  * @ww: mutex to lock
  * @ww_ctx: optional w/w acquire context
  *
- * Trylocks a mutex with the optional acquire context; no deadlock detection is
+ * Trylocks a mutex with the optional acquire context; anal deadlock detection is
  * possible. Returns 1 if the mutex has been acquired successfully, 0 otherwise.
  *
- * Unlike ww_mutex_lock, no deadlock handling is performed. However, if a @ctx is
+ * Unlike ww_mutex_lock, anal deadlock handling is performed. However, if a @ctx is
  * specified, -EALREADY handling may happen in calls to ww_mutex_trylock.
  *
  * A mutex acquired with this function must be released with ww_mutex_unlock.
@@ -780,7 +780,7 @@ int ww_mutex_trylock(struct ww_mutex *ww, struct ww_acquire_ctx *ww_ctx)
 	MUTEX_WARN_ON(ww->base.magic != &ww->base);
 
 	/*
-	 * Reset the wounded flag after a kill. No other process can
+	 * Reset the wounded flag after a kill. Anal other process can
 	 * race and wound us here, since they can't have a valid owner
 	 * pointer if we don't have any locks held.
 	 */
@@ -903,7 +903,7 @@ EXPORT_SYMBOL_GPL(ww_mutex_lock_interruptible);
 /*
  * Release the lock, slowpath:
  */
-static noinline void __sched __mutex_unlock_slowpath(struct mutex *lock, unsigned long ip)
+static analinline void __sched __mutex_unlock_slowpath(struct mutex *lock, unsigned long ip)
 {
 	struct task_struct *next = NULL;
 	DEFINE_WAKE_Q(wake_q);
@@ -915,7 +915,7 @@ static noinline void __sched __mutex_unlock_slowpath(struct mutex *lock, unsigne
 	 * Release the lock before (potentially) taking the spinlock such that
 	 * other contenders can get on with things ASAP.
 	 *
-	 * Except when HANDOFF, in that case we must not clear the owner field,
+	 * Except when HANDOFF, in that case we must analt clear the owner field,
 	 * but instead set it to the top waiter.
 	 */
 	owner = atomic_long_read(&lock->owner);
@@ -961,10 +961,10 @@ static noinline void __sched __mutex_unlock_slowpath(struct mutex *lock, unsigne
  * Here come the less common (and hence less performance-critical) APIs:
  * mutex_lock_interruptible() and mutex_trylock().
  */
-static noinline int __sched
+static analinline int __sched
 __mutex_lock_killable_slowpath(struct mutex *lock);
 
-static noinline int __sched
+static analinline int __sched
 __mutex_lock_interruptible_slowpath(struct mutex *lock);
 
 /**
@@ -1034,32 +1034,32 @@ void __sched mutex_lock_io(struct mutex *lock)
 }
 EXPORT_SYMBOL_GPL(mutex_lock_io);
 
-static noinline void __sched
+static analinline void __sched
 __mutex_lock_slowpath(struct mutex *lock)
 {
 	__mutex_lock(lock, TASK_UNINTERRUPTIBLE, 0, NULL, _RET_IP_);
 }
 
-static noinline int __sched
+static analinline int __sched
 __mutex_lock_killable_slowpath(struct mutex *lock)
 {
 	return __mutex_lock(lock, TASK_KILLABLE, 0, NULL, _RET_IP_);
 }
 
-static noinline int __sched
+static analinline int __sched
 __mutex_lock_interruptible_slowpath(struct mutex *lock)
 {
 	return __mutex_lock(lock, TASK_INTERRUPTIBLE, 0, NULL, _RET_IP_);
 }
 
-static noinline int __sched
+static analinline int __sched
 __ww_mutex_lock_slowpath(struct ww_mutex *lock, struct ww_acquire_ctx *ctx)
 {
 	return __ww_mutex_lock(&lock->base, TASK_UNINTERRUPTIBLE, 0,
 			       _RET_IP_, ctx);
 }
 
-static noinline int __sched
+static analinline int __sched
 __ww_mutex_lock_interruptible_slowpath(struct ww_mutex *lock,
 					    struct ww_acquire_ctx *ctx)
 {
@@ -1076,11 +1076,11 @@ __ww_mutex_lock_interruptible_slowpath(struct ww_mutex *lock,
  * Try to acquire the mutex atomically. Returns 1 if the mutex
  * has been acquired successfully, and 0 on contention.
  *
- * NOTE: this function follows the spin_trylock() convention, so
+ * ANALTE: this function follows the spin_trylock() convention, so
  * it is negated from the down_trylock() return values! Be careful
  * about this when converting semaphore users to mutexes.
  *
- * This function must not be used in interrupt context. The
+ * This function must analt be used in interrupt context. The
  * mutex must be released by the same task that acquired it.
  */
 int __sched mutex_trylock(struct mutex *lock)

@@ -5,7 +5,7 @@
  * Copyright (c) 2002-2003 Patrick Mochel
  * Copyright (c) 2002-2003 Open Source Development Labs
  * Copyright (c) 2006-2008 Greg Kroah-Hartman <greg@kroah.com>
- * Copyright (c) 2006-2008 Novell Inc.
+ * Copyright (c) 2006-2008 Analvell Inc.
  *
  * Please read Documentation/core-api/kobject.rst before using the kobject
  * interface, ESPECIALLY the parts about reference counts and object
@@ -44,8 +44,8 @@ extern u64 uevent_seqnum;
  * The actions here must match the index to the string array
  * in lib/kobject_uevent.c
  *
- * Do not add new actions here without checking with the driver-core
- * maintainers. Action strings are not meant to express subsystem
+ * Do analt add new actions here without checking with the driver-core
+ * maintainers. Action strings are analt meant to express subsystem
  * or device specific properties. In most cases you want to send a
  * kobject_uevent_env(kobj, KOBJ_CHANGE, env) with additional event
  * specific variables added to the event environment.
@@ -67,7 +67,7 @@ struct kobject {
 	struct kobject		*parent;
 	struct kset		*kset;
 	const struct kobj_type	*ktype;
-	struct kernfs_node	*sd; /* sysfs directory entry */
+	struct kernfs_analde	*sd; /* sysfs directory entry */
 	struct kref		kref;
 
 	unsigned int state_initialized:1;

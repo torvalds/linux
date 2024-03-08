@@ -67,7 +67,7 @@ __acquires(mtu->lock)
 	int ret;
 
 	if (!mtu->gadget_driver || !mtu->async_callbacks)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	spin_unlock(&mtu->lock);
 	ret = mtu->gadget_driver->setup(&mtu->g, setup);
@@ -303,7 +303,7 @@ static int handle_test_mode(struct mtu3 *mtu, struct usb_ctrlrequest *setup)
 
 	mtu->test_mode = true;
 
-	/* no TX completion interrupt, and need restart platform after test */
+	/* anal TX completion interrupt, and need restart platform after test */
 	if (mtu->test_mode_nr == TEST_PACKET_MODE)
 		ep0_load_test_packet(mtu);
 
@@ -416,7 +416,7 @@ static int ep0_handle_feature(struct mtu3 *mtu,
 			break;
 
 		handled = 1;
-		/* ignore request if endpoint is wedged */
+		/* iganalre request if endpoint is wedged */
 		if (mep->flags & MTU3_EP_WEDGE)
 			break;
 
@@ -433,7 +433,7 @@ static int ep0_handle_feature(struct mtu3 *mtu,
 /*
  * handle all control requests can be handled
  * returns:
- *	negative errno - error happened
+ *	negative erranal - error happened
  *	zero - need delegate SETUP to gadget driver
  *	positive - already handled
  */
@@ -622,7 +622,7 @@ static void ep0_read_setup(struct mtu3 *mtu, struct usb_ctrlrequest *setup)
 		ep0_req_giveback(mtu, &mreq->request);
 
 	if (le16_to_cpu(setup->wLength) == 0) {
-		;	/* no data stage, nothing to do */
+		;	/* anal data stage, analthing to do */
 	} else if (setup->bRequestType & USB_DIR_IN) {
 		mtu3_writel(mtu->mac_base, U3D_EP0CSR,
 			csr | EP0_SETUPPKTRDY | EP0_DPHTX);
@@ -669,7 +669,7 @@ stall:
 
 finish:
 	if (mtu->test_mode) {
-		;	/* nothing to do */
+		;	/* analthing to do */
 	} else if (handled == USB_GADGET_DELAYED_STATUS) {
 
 		mreq = next_ep0_request(mtu);
@@ -681,7 +681,7 @@ finish:
 			/* do delayed STATUS stage till receive ep0_queue */
 			mtu->delayed_status = true;
 		}
-	} else if (le16_to_cpu(setup.wLength) == 0) { /* no data stage */
+	} else if (le16_to_cpu(setup.wLength) == 0) { /* anal data stage */
 
 		ep0_do_status_stage(mtu);
 		/* complete zlp request directly */
@@ -698,7 +698,7 @@ irqreturn_t mtu3_ep0_isr(struct mtu3 *mtu)
 	void __iomem *mbase = mtu->mac_base;
 	struct mtu3_request *mreq;
 	u32 int_status;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 	u32 csr;
 	u32 len;
 
@@ -708,7 +708,7 @@ irqreturn_t mtu3_ep0_isr(struct mtu3 *mtu)
 
 	/* only handle ep0's */
 	if (!(int_status & (EP0ISR | SETUPENDISR)))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* abort current SETUP, and process new one */
 	if (int_status & SETUPENDISR)
@@ -718,7 +718,7 @@ irqreturn_t mtu3_ep0_isr(struct mtu3 *mtu)
 
 	dev_dbg(mtu->dev, "%s csr=0x%x\n", __func__, csr);
 
-	/* we sent a stall.. need to clear it now.. */
+	/* we sent a stall.. need to clear it analw.. */
 	if (csr & EP0_SENTSTALL) {
 		ep0_stall_set(mtu->ep0, false, 0);
 		csr = mtu3_readl(mbase, U3D_EP0CSR);

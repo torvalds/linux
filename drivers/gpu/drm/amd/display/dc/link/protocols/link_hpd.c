@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -108,7 +108,7 @@ struct gpio *link_get_hpd_gpio(struct dc_bios *dcb,
 		hpd_info.hpd_int_gpio_uid, &pin_info);
 
 	if (bp_result != BP_RESULT_OK) {
-		ASSERT(bp_result == BP_RESULT_NORECORD);
+		ASSERT(bp_result == BP_RESULT_ANALRECORD);
 		return NULL;
 	}
 
@@ -137,7 +137,7 @@ enum hpd_source_id get_hpd_line(struct dc_link *link)
 	struct gpio *hpd;
 	enum hpd_source_id hpd_id;
 
-		hpd_id = HPD_SOURCEID_UNKNOWN;
+		hpd_id = HPD_SOURCEID_UNKANALWN;
 
 	hpd = link_get_hpd_gpio(link->ctx->dc_bios, link->link_id,
 			   link->ctx->gpio_service);
@@ -194,10 +194,10 @@ bool program_hpd_filter(const struct dc_link *link)
 	case SIGNAL_TYPE_DISPLAY_PORT:
 	case SIGNAL_TYPE_DISPLAY_PORT_MST:
 		/* Program hpd filter to allow DP signal to settle */
-		/* 500:	not able to detect MST <-> SST switch as HPD is low for
+		/* 500:	analt able to detect MST <-> SST switch as HPD is low for
 		 * only 100ms on DELL U2413
 		 * 0: some passive dongle still show aux mode instead of i2c
-		 * 20-50: not enough to hide bouncing HPD with passive dongle.
+		 * 20-50: analt eanalugh to hide bouncing HPD with passive dongle.
 		 * also see intermittent i2c read issues.
 		 */
 		delay_on_connect_in_ms = 80;

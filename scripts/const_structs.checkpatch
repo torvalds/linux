@@ -26,7 +26,7 @@ ide_dma_ops
 ide_port_ops
 ieee80211_ops
 iio_buffer_setup_ops
-inode_operations
+ianalde_operations
 intel_dvo_dev_ops
 irq_domain_ops
 item_operations

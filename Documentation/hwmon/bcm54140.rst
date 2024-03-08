@@ -7,7 +7,7 @@ Supported chips:
 
    * Broadcom BCM54140
 
-     Datasheet: not public
+     Datasheet: analt public
 
 Author: Michael Walle <michael@walle.cc>
 

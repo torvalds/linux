@@ -56,8 +56,8 @@ enum ccid3_options {
 
 /* TFRC sender states */
 enum ccid3_hc_tx_states {
-	TFRC_SSTATE_NO_SENT = 1,
-	TFRC_SSTATE_NO_FBACK,
+	TFRC_SSTATE_ANAL_SENT = 1,
+	TFRC_SSTATE_ANAL_FBACK,
 	TFRC_SSTATE_FBACK,
 };
 
@@ -69,15 +69,15 @@ enum ccid3_hc_tx_states {
  * @tx_rtt:		  Estimate of current round trip time in usecs
  * @tx_p:		  Current loss event rate (0-1) scaled by 1000000
  * @tx_s:		  Packet size in bytes
- * @tx_t_rto:		  Nofeedback Timer setting in usecs
+ * @tx_t_rto:		  Analfeedback Timer setting in usecs
  * @tx_t_ipi:		  Interpacket (send) interval (RFC 3448, 4.6) in usecs
  * @tx_state:		  Sender state, one of %ccid3_hc_tx_states
  * @tx_last_win_count:	  Last window counter sent
  * @tx_t_last_win_count:  Timestamp of earliest packet
  *			  with last_win_count value sent
- * @tx_no_feedback_timer: Handle to no feedback timer
+ * @tx_anal_feedback_timer: Handle to anal feedback timer
  * @tx_t_ld:		  Time last doubled during slow start
- * @tx_t_nom:		  Nominal send time of next packet
+ * @tx_t_analm:		  Analminal send time of next packet
  * @tx_hist:		  Packet history
  */
 struct ccid3_hc_tx_sock {
@@ -92,10 +92,10 @@ struct ccid3_hc_tx_sock {
 	enum ccid3_hc_tx_states		tx_state:8;
 	u8				tx_last_win_count;
 	ktime_t				tx_t_last_win_count;
-	struct timer_list		tx_no_feedback_timer;
+	struct timer_list		tx_anal_feedback_timer;
 	struct sock			*sk;
 	ktime_t				tx_t_ld;
-	ktime_t				tx_t_nom;
+	ktime_t				tx_t_analm;
 	struct tfrc_tx_hist_entry	*tx_hist;
 };
 
@@ -108,7 +108,7 @@ static inline struct ccid3_hc_tx_sock *ccid3_hc_tx_sk(const struct sock *sk)
 
 /* TFRC receiver states */
 enum ccid3_hc_rx_states {
-	TFRC_RSTATE_NO_DATA = 1,
+	TFRC_RSTATE_ANAL_DATA = 1,
 	TFRC_RSTATE_DATA,
 };
 

@@ -10,7 +10,7 @@ maintainers:
   - ChiYuan Huang <cy_huang@richtek.com>
 
 description: |
-  The RT6245 is a high-performance, synchronous step-down converter
+  The RT6245 is a high-performance, synchroanalus step-down converter
   that can deliver up to 14A output current with an input supply
   voltage range of 4.5V to 17V.
 
@@ -27,7 +27,7 @@ properties:
 
   enable-gpios:
     description: |
-      A connection of the chip 'enable' gpio line. If not provided,
+      A connection of the chip 'enable' gpio line. If analt provided,
       it will be treat as a default-on power.
     maxItems: 1
 

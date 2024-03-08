@@ -14,7 +14,7 @@ tree tools/perf/pmu-events/arch/foo.
 	- The CSV file that maps a specific CPU to its set of PMU events is to
 	  be named 'mapfile.csv' (see below for mapfile format).
 
-	- Directories are traversed, but all other files are ignored.
+	- Directories are traversed, but all other files are iganalred.
 
 	- To reduce JSON event duplication per architecture, platform JSONs may
 	  use "ArchStdEvent" keyword to dereference an "Architecture standard
@@ -36,12 +36,12 @@ sub directory. Thus for the Silvermont X86 CPU:
 
 The JSONs folder for a CPU model/family may be placed in the root arch
 folder, or may be placed in a vendor sub-folder under the arch folder
-for instances where the arch and vendor are not the same.
+for instances where the arch and vendor are analt the same.
 
 Using the JSON files and the mapfile, 'jevents' generates the C source file,
 'pmu-events.c', which encodes the two sets of tables:
 
-	- Set of 'PMU events tables' for all known CPUs in the architecture,
+	- Set of 'PMU events tables' for all kanalwn CPUs in the architecture,
 	  (one table like the following, per JSON file; table name 'pme_power8'
 	  is derived from JSON file name, 'power8.json').
 
@@ -75,7 +75,7 @@ Using the JSON files and the mapfile, 'jevents' generates the C source file,
 After the 'pmu-events.c' is generated, it is compiled and the resulting
 'pmu-events.o' is added to 'libperf.a' which is then used to build perf.
 
-NOTES:
+ANALTES:
 	1. Several CPUs can support same set of events and hence use a common
 	   JSON file. Hence several entries in the pmu_events_map[] could map
 	   to a single 'PMU events table'.
@@ -83,7 +83,7 @@ NOTES:
 	2. The 'pmu-events.h' has an extern declaration for the mapping table
 	   and the generated 'pmu-events.c' defines this table.
 
-	3. _All_ known CPU tables for architecture are included in the perf
+	3. _All_ kanalwn CPU tables for architecture are included in the perf
 	   binary.
 
 At run time, perf determines the actual CPU it is running on, finds the
@@ -110,16 +110,16 @@ The mapfile.csv format is expected to be:
 where:
 
 	Comma:
-		is the required field delimiter (i.e other fields cannot
+		is the required field delimiter (i.e other fields cananalt
 		have commas within them).
 
 	Comments:
 		Lines in which the first character is either '\n' or '#'
-		are ignored.
+		are iganalred.
 
 	Header line
 		The header line is the first line in the file, which is
-		always _IGNORED_. It can be empty.
+		always _IGANALRED_. It can be empty.
 
 	CPUID:
 		CPUID is an arch-specific char string, that can be used

@@ -29,7 +29,7 @@
 	};
 
 	usb_phy0: phy0 {
-		compatible = "usb-nop-xceiv";
+		compatible = "usb-analp-xceiv";
 		#phy-cells = <0>;
 	};
 };
@@ -69,7 +69,7 @@
 	num-cs = <4>;
 	is-decoded-cs = <0>;
 	flash@1 {
-		compatible = "sst25wf080", "jedec,spi-nor";
+		compatible = "sst25wf080", "jedec,spi-analr";
 		reg = <1>;
 		spi-max-frequency = <1000000>;
 		partitions {

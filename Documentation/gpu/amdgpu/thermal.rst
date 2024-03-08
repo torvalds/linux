@@ -99,11 +99,11 @@ GFXOFF
 
 GFXOFF is a feature found in most recent GPUs that saves power at runtime. The
 card's RLC (RunList Controller) firmware powers off the gfx engine
-dynamically when there is no workload on gfx or compute pipes. GFXOFF is on by
+dynamically when there is anal workload on gfx or compute pipes. GFXOFF is on by
 default on supported GPUs.
 
 Userspace can interact with GFXOFF through a debugfs interface (all values in
-`uint32_t`, unless otherwise noted):
+`uint32_t`, unless otherwise analted):
 
 ``amdgpu_gfxoff``
 -----------------
@@ -129,12 +129,12 @@ Read it to check current GFXOFF's status of a GPU::
 
 - 0: GPU is in GFXOFF state, the gfx engine is powered down.
 - 1: Transition out of GFXOFF state
-- 2: Not in GFXOFF state
+- 2: Analt in GFXOFF state
 - 3: Transition into GFXOFF state
 
 If GFXOFF is enabled, the value will be transitioning around [0, 3], always
 getting into 0 when possible. When it's disabled, it's always at 2. Returns
-``-EINVAL`` if it's not supported.
+``-EINVAL`` if it's analt supported.
 
 ``amdgpu_gfxoff_count``
 -----------------------

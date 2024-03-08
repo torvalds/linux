@@ -107,7 +107,7 @@ static int pxa_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	u64 duty_cycle;
 	int err;
 
-	if (state->polarity != PWM_POLARITY_NORMAL)
+	if (state->polarity != PWM_POLARITY_ANALRMAL)
 		return -EINVAL;
 
 	err = clk_prepare_enable(pc->clk);
@@ -170,7 +170,7 @@ static int pwm_probe(struct platform_device *pdev)
 
 	pc = devm_kzalloc(&pdev->dev, sizeof(*pc), GFP_KERNEL);
 	if (pc == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pc->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(pc->clk))

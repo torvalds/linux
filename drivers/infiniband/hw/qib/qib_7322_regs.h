@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -55,9 +55,9 @@
 #define QIB_7322_Revision_R_ChipRevMajor_LSB 0x8
 #define QIB_7322_Revision_R_ChipRevMajor_MSB 0xF
 #define QIB_7322_Revision_R_ChipRevMajor_RMASK 0xFF
-#define QIB_7322_Revision_R_ChipRevMinor_LSB 0x0
-#define QIB_7322_Revision_R_ChipRevMinor_MSB 0x7
-#define QIB_7322_Revision_R_ChipRevMinor_RMASK 0xFF
+#define QIB_7322_Revision_R_ChipRevMianalr_LSB 0x0
+#define QIB_7322_Revision_R_ChipRevMianalr_MSB 0x7
+#define QIB_7322_Revision_R_ChipRevMianalr_RMASK 0xFF
 
 #define QIB_7322_Control_OFFS 0x8
 #define QIB_7322_Control_DEF 0x0000000000000000
@@ -703,15 +703,15 @@
 
 #define QIB_7322_HwErrMask_OFFS 0x98
 #define QIB_7322_HwErrMask_DEF 0x0000000000000000
-#define QIB_7322_HwErrMask_IBSerdesPClkNotDetectMask_1_LSB 0x3F
-#define QIB_7322_HwErrMask_IBSerdesPClkNotDetectMask_1_MSB 0x3F
-#define QIB_7322_HwErrMask_IBSerdesPClkNotDetectMask_1_RMASK 0x1
-#define QIB_7322_HwErrMask_IBSerdesPClkNotDetectMask_0_LSB 0x3E
-#define QIB_7322_HwErrMask_IBSerdesPClkNotDetectMask_0_MSB 0x3E
-#define QIB_7322_HwErrMask_IBSerdesPClkNotDetectMask_0_RMASK 0x1
-#define QIB_7322_HwErrMask_PCIESerdesPClkNotDetectMask_LSB 0x37
-#define QIB_7322_HwErrMask_PCIESerdesPClkNotDetectMask_MSB 0x37
-#define QIB_7322_HwErrMask_PCIESerdesPClkNotDetectMask_RMASK 0x1
+#define QIB_7322_HwErrMask_IBSerdesPClkAnaltDetectMask_1_LSB 0x3F
+#define QIB_7322_HwErrMask_IBSerdesPClkAnaltDetectMask_1_MSB 0x3F
+#define QIB_7322_HwErrMask_IBSerdesPClkAnaltDetectMask_1_RMASK 0x1
+#define QIB_7322_HwErrMask_IBSerdesPClkAnaltDetectMask_0_LSB 0x3E
+#define QIB_7322_HwErrMask_IBSerdesPClkAnaltDetectMask_0_MSB 0x3E
+#define QIB_7322_HwErrMask_IBSerdesPClkAnaltDetectMask_0_RMASK 0x1
+#define QIB_7322_HwErrMask_PCIESerdesPClkAnaltDetectMask_LSB 0x37
+#define QIB_7322_HwErrMask_PCIESerdesPClkAnaltDetectMask_MSB 0x37
+#define QIB_7322_HwErrMask_PCIESerdesPClkAnaltDetectMask_RMASK 0x1
 #define QIB_7322_HwErrMask_PowerOnBISTFailedMask_LSB 0x36
 #define QIB_7322_HwErrMask_PowerOnBISTFailedMask_MSB 0x36
 #define QIB_7322_HwErrMask_PowerOnBISTFailedMask_RMASK 0x1
@@ -748,24 +748,24 @@
 #define QIB_7322_HwErrMask_IBCBusFromSPCParityErrMask_0_LSB 0xD
 #define QIB_7322_HwErrMask_IBCBusFromSPCParityErrMask_0_MSB 0xD
 #define QIB_7322_HwErrMask_IBCBusFromSPCParityErrMask_0_RMASK 0x1
-#define QIB_7322_HwErrMask_statusValidNoEopMask_LSB 0xC
-#define QIB_7322_HwErrMask_statusValidNoEopMask_MSB 0xC
-#define QIB_7322_HwErrMask_statusValidNoEopMask_RMASK 0x1
+#define QIB_7322_HwErrMask_statusValidAnalEopMask_LSB 0xC
+#define QIB_7322_HwErrMask_statusValidAnalEopMask_MSB 0xC
+#define QIB_7322_HwErrMask_statusValidAnalEopMask_RMASK 0x1
 #define QIB_7322_HwErrMask_LATriggeredMask_LSB 0xB
 #define QIB_7322_HwErrMask_LATriggeredMask_MSB 0xB
 #define QIB_7322_HwErrMask_LATriggeredMask_RMASK 0x1
 
 #define QIB_7322_HwErrStatus_OFFS 0xA0
 #define QIB_7322_HwErrStatus_DEF 0x0000000000000000
-#define QIB_7322_HwErrStatus_IBSerdesPClkNotDetect_1_LSB 0x3F
-#define QIB_7322_HwErrStatus_IBSerdesPClkNotDetect_1_MSB 0x3F
-#define QIB_7322_HwErrStatus_IBSerdesPClkNotDetect_1_RMASK 0x1
-#define QIB_7322_HwErrStatus_IBSerdesPClkNotDetect_0_LSB 0x3E
-#define QIB_7322_HwErrStatus_IBSerdesPClkNotDetect_0_MSB 0x3E
-#define QIB_7322_HwErrStatus_IBSerdesPClkNotDetect_0_RMASK 0x1
-#define QIB_7322_HwErrStatus_PCIESerdesPClkNotDetect_LSB 0x37
-#define QIB_7322_HwErrStatus_PCIESerdesPClkNotDetect_MSB 0x37
-#define QIB_7322_HwErrStatus_PCIESerdesPClkNotDetect_RMASK 0x1
+#define QIB_7322_HwErrStatus_IBSerdesPClkAnaltDetect_1_LSB 0x3F
+#define QIB_7322_HwErrStatus_IBSerdesPClkAnaltDetect_1_MSB 0x3F
+#define QIB_7322_HwErrStatus_IBSerdesPClkAnaltDetect_1_RMASK 0x1
+#define QIB_7322_HwErrStatus_IBSerdesPClkAnaltDetect_0_LSB 0x3E
+#define QIB_7322_HwErrStatus_IBSerdesPClkAnaltDetect_0_MSB 0x3E
+#define QIB_7322_HwErrStatus_IBSerdesPClkAnaltDetect_0_RMASK 0x1
+#define QIB_7322_HwErrStatus_PCIESerdesPClkAnaltDetect_LSB 0x37
+#define QIB_7322_HwErrStatus_PCIESerdesPClkAnaltDetect_MSB 0x37
+#define QIB_7322_HwErrStatus_PCIESerdesPClkAnaltDetect_RMASK 0x1
 #define QIB_7322_HwErrStatus_PowerOnBISTFailed_LSB 0x36
 #define QIB_7322_HwErrStatus_PowerOnBISTFailed_MSB 0x36
 #define QIB_7322_HwErrStatus_PowerOnBISTFailed_RMASK 0x1
@@ -802,24 +802,24 @@
 #define QIB_7322_HwErrStatus_IBCBusFromSPCParityErr_0_LSB 0xD
 #define QIB_7322_HwErrStatus_IBCBusFromSPCParityErr_0_MSB 0xD
 #define QIB_7322_HwErrStatus_IBCBusFromSPCParityErr_0_RMASK 0x1
-#define QIB_7322_HwErrStatus_statusValidNoEop_LSB 0xC
-#define QIB_7322_HwErrStatus_statusValidNoEop_MSB 0xC
-#define QIB_7322_HwErrStatus_statusValidNoEop_RMASK 0x1
+#define QIB_7322_HwErrStatus_statusValidAnalEop_LSB 0xC
+#define QIB_7322_HwErrStatus_statusValidAnalEop_MSB 0xC
+#define QIB_7322_HwErrStatus_statusValidAnalEop_RMASK 0x1
 #define QIB_7322_HwErrStatus_LATriggered_LSB 0xB
 #define QIB_7322_HwErrStatus_LATriggered_MSB 0xB
 #define QIB_7322_HwErrStatus_LATriggered_RMASK 0x1
 
 #define QIB_7322_HwErrClear_OFFS 0xA8
 #define QIB_7322_HwErrClear_DEF 0x0000000000000000
-#define QIB_7322_HwErrClear_IBSerdesPClkNotDetectClear_1_LSB 0x3F
-#define QIB_7322_HwErrClear_IBSerdesPClkNotDetectClear_1_MSB 0x3F
-#define QIB_7322_HwErrClear_IBSerdesPClkNotDetectClear_1_RMASK 0x1
-#define QIB_7322_HwErrClear_IBSerdesPClkNotDetectClear_0_LSB 0x3E
-#define QIB_7322_HwErrClear_IBSerdesPClkNotDetectClear_0_MSB 0x3E
-#define QIB_7322_HwErrClear_IBSerdesPClkNotDetectClear_0_RMASK 0x1
-#define QIB_7322_HwErrClear_PCIESerdesPClkNotDetectClear_LSB 0x37
-#define QIB_7322_HwErrClear_PCIESerdesPClkNotDetectClear_MSB 0x37
-#define QIB_7322_HwErrClear_PCIESerdesPClkNotDetectClear_RMASK 0x1
+#define QIB_7322_HwErrClear_IBSerdesPClkAnaltDetectClear_1_LSB 0x3F
+#define QIB_7322_HwErrClear_IBSerdesPClkAnaltDetectClear_1_MSB 0x3F
+#define QIB_7322_HwErrClear_IBSerdesPClkAnaltDetectClear_1_RMASK 0x1
+#define QIB_7322_HwErrClear_IBSerdesPClkAnaltDetectClear_0_LSB 0x3E
+#define QIB_7322_HwErrClear_IBSerdesPClkAnaltDetectClear_0_MSB 0x3E
+#define QIB_7322_HwErrClear_IBSerdesPClkAnaltDetectClear_0_RMASK 0x1
+#define QIB_7322_HwErrClear_PCIESerdesPClkAnaltDetectClear_LSB 0x37
+#define QIB_7322_HwErrClear_PCIESerdesPClkAnaltDetectClear_MSB 0x37
+#define QIB_7322_HwErrClear_PCIESerdesPClkAnaltDetectClear_RMASK 0x1
 #define QIB_7322_HwErrClear_PowerOnBISTFailedClear_LSB 0x36
 #define QIB_7322_HwErrClear_PowerOnBISTFailedClear_MSB 0x36
 #define QIB_7322_HwErrClear_PowerOnBISTFailedClear_RMASK 0x1
@@ -856,18 +856,18 @@
 #define QIB_7322_HwErrClear_IBCBusFromSPCParityErrClear_0_LSB 0xD
 #define QIB_7322_HwErrClear_IBCBusFromSPCParityErrClear_0_MSB 0xD
 #define QIB_7322_HwErrClear_IBCBusFromSPCParityErrClear_0_RMASK 0x1
-#define QIB_7322_HwErrClear_statusValidNoEopClear_LSB 0xC
-#define QIB_7322_HwErrClear_statusValidNoEopClear_MSB 0xC
-#define QIB_7322_HwErrClear_statusValidNoEopClear_RMASK 0x1
+#define QIB_7322_HwErrClear_statusValidAnalEopClear_LSB 0xC
+#define QIB_7322_HwErrClear_statusValidAnalEopClear_MSB 0xC
+#define QIB_7322_HwErrClear_statusValidAnalEopClear_RMASK 0x1
 #define QIB_7322_HwErrClear_LATriggeredClear_LSB 0xB
 #define QIB_7322_HwErrClear_LATriggeredClear_MSB 0xB
 #define QIB_7322_HwErrClear_LATriggeredClear_RMASK 0x1
 
 #define QIB_7322_HwDiagCtrl_OFFS 0xB0
 #define QIB_7322_HwDiagCtrl_DEF 0x0000000000000000
-#define QIB_7322_HwDiagCtrl_Diagnostic_LSB 0x3F
-#define QIB_7322_HwDiagCtrl_Diagnostic_MSB 0x3F
-#define QIB_7322_HwDiagCtrl_Diagnostic_RMASK 0x1
+#define QIB_7322_HwDiagCtrl_Diaganalstic_LSB 0x3F
+#define QIB_7322_HwDiagCtrl_Diaganalstic_MSB 0x3F
+#define QIB_7322_HwDiagCtrl_Diaganalstic_RMASK 0x1
 #define QIB_7322_HwDiagCtrl_CounterWrEnable_LSB 0x3D
 #define QIB_7322_HwDiagCtrl_CounterWrEnable_MSB 0x3D
 #define QIB_7322_HwDiagCtrl_CounterWrEnable_RMASK 0x1
@@ -1117,9 +1117,9 @@
 #define QIB_7322_ahb_transaction_reg_ahb_req_err_LSB 0x1E
 #define QIB_7322_ahb_transaction_reg_ahb_req_err_MSB 0x1E
 #define QIB_7322_ahb_transaction_reg_ahb_req_err_RMASK 0x1
-#define QIB_7322_ahb_transaction_reg_write_not_read_LSB 0x1B
-#define QIB_7322_ahb_transaction_reg_write_not_read_MSB 0x1B
-#define QIB_7322_ahb_transaction_reg_write_not_read_RMASK 0x1
+#define QIB_7322_ahb_transaction_reg_write_analt_read_LSB 0x1B
+#define QIB_7322_ahb_transaction_reg_write_analt_read_MSB 0x1B
+#define QIB_7322_ahb_transaction_reg_write_analt_read_RMASK 0x1
 #define QIB_7322_ahb_transaction_reg_ahb_address_LSB 0x10
 #define QIB_7322_ahb_transaction_reg_ahb_address_MSB 0x1A
 #define QIB_7322_ahb_transaction_reg_ahb_address_RMASK 0x7FF
@@ -2098,9 +2098,9 @@
 
 #define QIB_7322_SendHdrErrSymptom_0_OFFS 0x1260
 #define QIB_7322_SendHdrErrSymptom_0_DEF 0x0000000000000000
-#define QIB_7322_SendHdrErrSymptom_0_NonKeyPacket_LSB 0x6
-#define QIB_7322_SendHdrErrSymptom_0_NonKeyPacket_MSB 0x6
-#define QIB_7322_SendHdrErrSymptom_0_NonKeyPacket_RMASK 0x1
+#define QIB_7322_SendHdrErrSymptom_0_AnalnKeyPacket_LSB 0x6
+#define QIB_7322_SendHdrErrSymptom_0_AnalnKeyPacket_MSB 0x6
+#define QIB_7322_SendHdrErrSymptom_0_AnalnKeyPacket_RMASK 0x1
 #define QIB_7322_SendHdrErrSymptom_0_GRHFail_LSB 0x5
 #define QIB_7322_SendHdrErrSymptom_0_GRHFail_MSB 0x5
 #define QIB_7322_SendHdrErrSymptom_0_GRHFail_RMASK 0x1
@@ -2428,9 +2428,9 @@
 #define QIB_7322_IBNCModeCtrl_0_TSMCode_TS1_LSB 0x8
 #define QIB_7322_IBNCModeCtrl_0_TSMCode_TS1_MSB 0x10
 #define QIB_7322_IBNCModeCtrl_0_TSMCode_TS1_RMASK 0x1FF
-#define QIB_7322_IBNCModeCtrl_0_TSMEnable_ignore_TSM_on_rx_LSB 0x2
-#define QIB_7322_IBNCModeCtrl_0_TSMEnable_ignore_TSM_on_rx_MSB 0x2
-#define QIB_7322_IBNCModeCtrl_0_TSMEnable_ignore_TSM_on_rx_RMASK 0x1
+#define QIB_7322_IBNCModeCtrl_0_TSMEnable_iganalre_TSM_on_rx_LSB 0x2
+#define QIB_7322_IBNCModeCtrl_0_TSMEnable_iganalre_TSM_on_rx_MSB 0x2
+#define QIB_7322_IBNCModeCtrl_0_TSMEnable_iganalre_TSM_on_rx_RMASK 0x1
 #define QIB_7322_IBNCModeCtrl_0_TSMEnable_send_TS2_LSB 0x1
 #define QIB_7322_IBNCModeCtrl_0_TSMEnable_send_TS2_MSB 0x1
 #define QIB_7322_IBNCModeCtrl_0_TSMEnable_send_TS2_RMASK 0x1

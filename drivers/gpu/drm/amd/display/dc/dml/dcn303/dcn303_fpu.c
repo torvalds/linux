@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -135,8 +135,8 @@ struct _vcs_dpi_soc_bounding_box_st dcn3_03_soc = {
 		.pct_ideal_dram_sdp_bw_after_urgent_pixel_only = 80.0,
 		.pct_ideal_dram_sdp_bw_after_urgent_pixel_and_vm = 60.0,
 		.pct_ideal_dram_sdp_bw_after_urgent_vm_only = 40.0,
-		.max_avg_sdp_bw_use_normal_percent = 60.0,
-		.max_avg_dram_bw_use_normal_percent = 40.0,
+		.max_avg_sdp_bw_use_analrmal_percent = 60.0,
+		.max_avg_dram_bw_use_analrmal_percent = 40.0,
 		.writeback_latency_us = 12.0,
 		.max_request_size_bytes = 256,
 		.fabric_datapath_to_dcn_data_return_bytes = 64,
@@ -171,20 +171,20 @@ static void dcn303_get_optimal_dcfclk_fclk_for_uclk(unsigned int uclk_mts,
 	double bw_from_dram, bw_from_dram1, bw_from_dram2;
 
 	bw_from_dram1 = uclk_mts * dcn3_03_soc.num_chans *
-		dcn3_03_soc.dram_channel_width_bytes * (dcn3_03_soc.max_avg_dram_bw_use_normal_percent / 100);
+		dcn3_03_soc.dram_channel_width_bytes * (dcn3_03_soc.max_avg_dram_bw_use_analrmal_percent / 100);
 	bw_from_dram2 = uclk_mts * dcn3_03_soc.num_chans *
-		dcn3_03_soc.dram_channel_width_bytes * (dcn3_03_soc.max_avg_sdp_bw_use_normal_percent / 100);
+		dcn3_03_soc.dram_channel_width_bytes * (dcn3_03_soc.max_avg_sdp_bw_use_analrmal_percent / 100);
 
 	bw_from_dram = (bw_from_dram1 < bw_from_dram2) ? bw_from_dram1 : bw_from_dram2;
 
 	if (optimal_fclk)
 		*optimal_fclk = bw_from_dram /
 		(dcn3_03_soc.fabric_datapath_to_dcn_data_return_bytes *
-				(dcn3_03_soc.max_avg_sdp_bw_use_normal_percent / 100));
+				(dcn3_03_soc.max_avg_sdp_bw_use_analrmal_percent / 100));
 
 	if (optimal_dcfclk)
 		*optimal_dcfclk =  bw_from_dram /
-		(dcn3_03_soc.return_bus_width_bytes * (dcn3_03_soc.max_avg_sdp_bw_use_normal_percent / 100));
+		(dcn3_03_soc.return_bus_width_bytes * (dcn3_03_soc.max_avg_sdp_bw_use_analrmal_percent / 100));
 }
 
 
@@ -319,7 +319,7 @@ void dcn303_fpu_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_p
 				dcn3_03_soc.clock_limits[i].socclk_mhz = dcn3_03_soc.clock_limits[i-1].socclk_mhz;
 			else
 				dcn3_03_soc.clock_limits[i].socclk_mhz = bw_params->clk_table.entries[i].socclk_mhz;
-			/* These clocks cannot come from bw_params, always fill from dcn3_03_soc[1] */
+			/* These clocks cananalt come from bw_params, always fill from dcn3_03_soc[1] */
 			/* FCLK, PHYCLK_D18, DSCCLK */
 			dcn3_03_soc.clock_limits[i].phyclk_d18_mhz = dcn3_03_soc.clock_limits[0].phyclk_d18_mhz;
 			dcn3_03_soc.clock_limits[i].dscclk_mhz = dcn3_03_soc.clock_limits[0].dscclk_mhz;

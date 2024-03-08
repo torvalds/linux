@@ -11,10 +11,10 @@ in::
 assuming that you have sysfs mounted on /sys. If you don't have sysfs mounted,
 you can do so by typing::
 
-	# mount none /sys -t sysfs
+	# mount analne /sys -t sysfs
 
 It is possible to change the IO scheduler for a given block device on
-the fly to select one of mq-deadline, none, bfq, or kyber schedulers -
+the fly to select one of mq-deadline, analne, bfq, or kyber schedulers -
 which can improve that device's throughput.
 
 To set a specific scheduler, simply do this::
@@ -29,7 +29,7 @@ a "cat /sys/block/DEV/queue/scheduler" - the list of valid names
 will be displayed, with the currently selected scheduler in brackets::
 
   # cat /sys/block/sda/queue/scheduler
-  [mq-deadline] kyber bfq none
-  # echo none >/sys/block/sda/queue/scheduler
+  [mq-deadline] kyber bfq analne
+  # echo analne >/sys/block/sda/queue/scheduler
   # cat /sys/block/sda/queue/scheduler
-  [none] mq-deadline kyber bfq
+  [analne] mq-deadline kyber bfq

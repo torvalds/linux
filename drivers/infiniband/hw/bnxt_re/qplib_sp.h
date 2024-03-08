@@ -15,18 +15,18 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    analtice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS''
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO,
  * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS
+ * PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE AUTHOR OR CONTRIBUTORS
  * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
  * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
@@ -171,16 +171,16 @@ struct bnxt_qplib_roce_stats {
 	/* res_rx_invalid_rkey is 64 b */
 	u64 res_rx_domain_err;
 	/* res_rx_domain_err is 64 b */
-	u64 res_rx_no_perm;
-	/* res_rx_no_perm is 64 b */
+	u64 res_rx_anal_perm;
+	/* res_rx_anal_perm is 64 b */
 	u64 res_rx_range_err;
 	/* res_rx_range_err is 64 b */
 	u64 res_tx_invalid_rkey;
 	/* res_tx_invalid_rkey is 64 b */
 	u64 res_tx_domain_err;
 	/* res_tx_domain_err is 64 b */
-	u64 res_tx_no_perm;
-	/* res_tx_no_perm is 64 b */
+	u64 res_tx_anal_perm;
+	/* res_tx_anal_perm is 64 b */
 	u64 res_tx_range_err;
 	/* res_tx_range_err is 64 b */
 	u64 res_irrq_oflow;

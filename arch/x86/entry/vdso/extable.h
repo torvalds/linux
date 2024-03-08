@@ -3,9 +3,9 @@
 #define __VDSO_EXTABLE_H
 
 /*
- * Inject exception fixup for vDSO code.  Unlike normal exception fixup,
+ * Inject exception fixup for vDSO code.  Unlike analrmal exception fixup,
  * vDSO uses a dedicated handler the addresses are relative to the overall
- * exception table, not each individual entry.
+ * exception table, analt each individual entry.
  */
 #ifdef __ASSEMBLY__
 #define _ASM_VDSO_EXTABLE_HANDLE(from, to)	\

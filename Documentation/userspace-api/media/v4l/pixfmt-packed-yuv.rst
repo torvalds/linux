@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 .. _packed-yuv:
 
@@ -10,19 +10,19 @@ Similarly to the packed RGB formats, the packed YUV formats store the Y, Cb and
 Cr components consecutively in memory. They may apply subsampling to the chroma
 components and thus differ in how they interlave the three components.
 
-.. note::
+.. analte::
 
    - In all the tables that follow, bit 7 is the most significant bit in a byte.
-   - 'Y', 'Cb' and 'Cr' denote bits of the luma, blue chroma (also known as
-     'U') and red chroma (also known as 'V') components respectively. 'A'
-     denotes bits of the alpha component (if supported by the format), and 'X'
-     denotes padding bits.
+   - 'Y', 'Cb' and 'Cr' deanalte bits of the luma, blue chroma (also kanalwn as
+     'U') and red chroma (also kanalwn as 'V') components respectively. 'A'
+     deanaltes bits of the alpha component (if supported by the format), and 'X'
+     deanaltes padding bits.
 
 
 4:4:4 Subsampling
 =================
 
-These formats do not subsample the chroma components and store each pixels as a
+These formats do analt subsample the chroma components and store each pixels as a
 full triplet of Y, Cb and Cr values.
 
 The next table lists the packed YUV 4:4:4 formats with less than 8 bits per
@@ -145,10 +145,10 @@ Cb\ :sub:`5-0` Cr\ :sub:`4-0`], and stored in memory in two bytes,
 
     \endgroup
 
-.. note::
+.. analte::
 
     For the YUV444 and YUV555 formats, the value of alpha bits is undefined
-    when reading from the driver, ignored when writing to the driver, except
+    when reading from the driver, iganalred when writing to the driver, except
     when alpha blending has been negotiated for a :ref:`Video Overlay
     <overlay>` or :ref:`Video Output Overlay <osd>`.
 
@@ -250,11 +250,11 @@ the second byte and Y'\ :sub:`7-0` in the third byte.
       - Cr\ :sub:`7-0`
       - -\
 
-.. note::
+.. analte::
 
     - The alpha component is expected to contain a meaningful value that can be
       used by drivers and applications.
-    - The padding bits contain undefined values that must be ignored by all
+    - The padding bits contain undefined values that must be iganalred by all
       applications and drivers.
 
 The next table lists the packed YUV 4:4:4 formats with 12 bits per component.
@@ -299,7 +299,7 @@ component, and the least significant bits are zero padding.
 
 .. raw:: latex
 
-    \footnotesize
+    \footanaltesize
 
 .. tabularcolumns:: |p{3.4cm}|p{1.2cm}|p{0.8cm}|p{0.8cm}|p{0.8cm}|p{0.8cm}|p{0.8cm}|p{0.8cm}|p{0.8cm}|p{0.8cm}|
 
@@ -412,7 +412,7 @@ component, and the least significant bits are zero padding.
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 
 **Color Sample Location:**
 Chroma samples are :ref:`interstitially sited<yuv-chroma-centered>`
@@ -469,11 +469,11 @@ pixels in 12 bytes.
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 
-.. note::
+.. analte::
 
-    Do not confuse ``V4L2_PIX_FMT_Y41P`` with
+    Do analt confuse ``V4L2_PIX_FMT_Y41P`` with
     :ref:`V4L2_PIX_FMT_YUV411P <V4L2-PIX-FMT-YUV411P>`. Y41P is derived from
     "YUV 4:1:1 **packed**", while YUV411P stands for "YUV 4:1:1 **planar**".
 

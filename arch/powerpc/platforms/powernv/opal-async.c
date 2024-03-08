@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * PowerNV OPAL asynchronous completion interfaces
+ * PowerNV OPAL asynchroanalus completion interfaces
  *
  * Copyright 2013-2017 IBM Corp.
  */
@@ -58,9 +58,9 @@ static int __opal_async_get_token(void)
 }
 
 /*
- * Note: If the returned token is used in an opal call and opal returns
+ * Analte: If the returned token is used in an opal call and opal returns
  * OPAL_ASYNC_COMPLETION you MUST call one of opal_async_wait_response() or
- * opal_async_wait_response_interruptible() at least once before calling another
+ * opal_async_wait_response_interruptible() at least once before calling aanalther
  * opal_async_* function
  */
 int opal_async_get_token_interruptible(void)
@@ -100,7 +100,7 @@ static int __opal_async_release_token(int token)
 	/*
 	 * DISPATCHED and ABANDONED tokens must wait for OPAL to respond.
 	 * Mark a DISPATCHED token as ABANDONED so that the response handling
-	 * code knows no one cares and that it can free it then.
+	 * code kanalws anal one cares and that it can free it then.
 	 */
 	case ASYNC_TOKEN_DISPATCHED:
 		opal_async_tokens[token].state = ASYNC_TOKEN_ABANDONED;
@@ -138,7 +138,7 @@ int opal_async_wait_response(uint64_t token, struct opal_msg *msg)
 	}
 
 	/*
-	 * There is no need to mark the token as dispatched, wait_event()
+	 * There is anal need to mark the token as dispatched, wait_event()
 	 * will block until the token completes.
 	 *
 	 * Wakeup the poller before we wait for events to speed things
@@ -171,8 +171,8 @@ int opal_async_wait_response_interruptible(uint64_t token, struct opal_msg *msg)
 
 	/*
 	 * The first time this gets called we mark the token as DISPATCHED
-	 * so that if wait_event_interruptible() returns not zero and the
-	 * caller frees the token, we know not to actually free the token
+	 * so that if wait_event_interruptible() returns analt zero and the
+	 * caller frees the token, we kanalw analt to actually free the token
 	 * until the response comes.
 	 *
 	 * Only change if the token is ALLOCATED - it may have been
@@ -181,7 +181,7 @@ int opal_async_wait_response_interruptible(uint64_t token, struct opal_msg *msg)
 	 *
 	 * There is also a dirty great comment at the token allocation
 	 * function that if the opal call returns OPAL_ASYNC_COMPLETION to
-	 * the caller then the caller *must* call this or the not
+	 * the caller then the caller *must* call this or the analt
 	 * interruptible version before doing anything else with the
 	 * token.
 	 */
@@ -209,7 +209,7 @@ int opal_async_wait_response_interruptible(uint64_t token, struct opal_msg *msg)
 EXPORT_SYMBOL_GPL(opal_async_wait_response_interruptible);
 
 /* Called from interrupt context */
-static int opal_async_comp_event(struct notifier_block *nb,
+static int opal_async_comp_event(struct analtifier_block *nb,
 		unsigned long msg_type, void *msg)
 {
 	struct opal_msg *comp_msg = msg;
@@ -227,7 +227,7 @@ static int opal_async_comp_event(struct notifier_block *nb,
 	spin_unlock_irqrestore(&opal_async_comp_lock, flags);
 
 	if (state == ASYNC_TOKEN_ABANDONED) {
-		/* Free the token, no one else will */
+		/* Free the token, anal one else will */
 		opal_async_release_token(token);
 		return 0;
 	}
@@ -237,54 +237,54 @@ static int opal_async_comp_event(struct notifier_block *nb,
 	return 0;
 }
 
-static struct notifier_block opal_async_comp_nb = {
-		.notifier_call	= opal_async_comp_event,
+static struct analtifier_block opal_async_comp_nb = {
+		.analtifier_call	= opal_async_comp_event,
 		.next		= NULL,
 		.priority	= 0,
 };
 
 int __init opal_async_comp_init(void)
 {
-	struct device_node *opal_node;
+	struct device_analde *opal_analde;
 	const __be32 *async;
 	int err;
 
-	opal_node = of_find_node_by_path("/ibm,opal");
-	if (!opal_node) {
-		pr_err("%s: Opal node not found\n", __func__);
-		err = -ENOENT;
+	opal_analde = of_find_analde_by_path("/ibm,opal");
+	if (!opal_analde) {
+		pr_err("%s: Opal analde analt found\n", __func__);
+		err = -EANALENT;
 		goto out;
 	}
 
-	async = of_get_property(opal_node, "opal-msg-async-num", NULL);
+	async = of_get_property(opal_analde, "opal-msg-async-num", NULL);
 	if (!async) {
-		pr_err("%s: %pOF has no opal-msg-async-num\n",
-				__func__, opal_node);
-		err = -ENOENT;
-		goto out_opal_node;
+		pr_err("%s: %pOF has anal opal-msg-async-num\n",
+				__func__, opal_analde);
+		err = -EANALENT;
+		goto out_opal_analde;
 	}
 
 	opal_max_async_tokens = be32_to_cpup(async);
 	opal_async_tokens = kcalloc(opal_max_async_tokens,
 			sizeof(*opal_async_tokens), GFP_KERNEL);
 	if (!opal_async_tokens) {
-		err = -ENOMEM;
-		goto out_opal_node;
+		err = -EANALMEM;
+		goto out_opal_analde;
 	}
 
-	err = opal_message_notifier_register(OPAL_MSG_ASYNC_COMP,
+	err = opal_message_analtifier_register(OPAL_MSG_ASYNC_COMP,
 			&opal_async_comp_nb);
 	if (err) {
-		pr_err("%s: Can't register OPAL event notifier (%d)\n",
+		pr_err("%s: Can't register OPAL event analtifier (%d)\n",
 				__func__, err);
 		kfree(opal_async_tokens);
-		goto out_opal_node;
+		goto out_opal_analde;
 	}
 
 	sema_init(&opal_async_sem, opal_max_async_tokens);
 
-out_opal_node:
-	of_node_put(opal_node);
+out_opal_analde:
+	of_analde_put(opal_analde);
 out:
 	return err;
 }

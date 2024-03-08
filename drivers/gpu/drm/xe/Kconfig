@@ -30,14 +30,14 @@ config DRM_XE
 	select IOSF_MBI
 	select CRC32
 	select SND_HDA_I915 if SND_HDA_CORE
-	select CEC_CORE if CEC_NOTIFIER
+	select CEC_CORE if CEC_ANALTIFIER
 	select VMAP_PFN
 	select DRM_TTM
 	select DRM_TTM_HELPER
 	select DRM_EXEC
 	select DRM_GPUVM
 	select DRM_SCHED
-	select MMU_NOTIFIER
+	select MMU_ANALTIFIER
 	select WANT_DEV_COREDUMP
 	select AUXILIARY_BUS
 	help
@@ -63,7 +63,7 @@ config DRM_XE_FORCE_PROBE
 	  parameter. Using the module parameter overrides this option.
 
 	  Force probe the xe for Intel graphics devices that are
-	  recognized but not properly supported by this kernel version. It is
+	  recognized but analt properly supported by this kernel version. It is
 	  recommended to upgrade to a kernel version with proper support as soon
 	  as it is available.
 
@@ -75,13 +75,13 @@ config DRM_XE_FORCE_PROBE
 	  Use "<pci-id>[,<pci-id>,...]" to force probe the xe for listed
 	  devices. For example, "4500" or "4500,4571".
 
-	  Use "*" to force probe the driver for all known devices.
+	  Use "*" to force probe the driver for all kanalwn devices.
 
 	  Use "!" right before the ID to block the probe of the device. For
 	  example, "4500,!4571" forces the probe of 4500 and blocks the probe of
 	  4571.
 
-	  Use "!*" to block the probe of the driver for all known devices.
+	  Use "!*" to block the probe of the driver for all kanalwn devices.
 
 menu "drm/Xe Debugging"
 depends on DRM_XE

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <errno.h>
+#include <erranal.h>
 #include <regex.h>
 #include <string.h>
 #include <sys/auxv.h>
@@ -108,7 +108,7 @@ int arch_sdt_arg_parse_op(char *old_op, char **new_op)
 
 		*new_op = zalloc(new_len);
 		if (!*new_op)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		scnprintf(*new_op, new_len, "%%%.*s",
 			(int)(rm[1].rm_eo - rm[1].rm_so), old_op + rm[1].rm_so);
@@ -124,7 +124,7 @@ int arch_sdt_arg_parse_op(char *old_op, char **new_op)
 
 		*new_op = zalloc(new_len);
 		if (!*new_op)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		if (rm[2].rm_so == -1)
 			scnprintf(*new_op, new_len, "+0(%%sp)");

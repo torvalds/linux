@@ -99,7 +99,7 @@ static void _sun4i_csi_try_fmt(struct sun4i_csi *csi,
 	if (!_fmt)
 		_fmt = &sun4i_csi_formats[0];
 
-	pix->field = V4L2_FIELD_NONE;
+	pix->field = V4L2_FIELD_ANALNE;
 	pix->colorspace = V4L2_COLORSPACE_SRGB;
 	pix->xfer_func = V4L2_MAP_XFER_FUNC_DEFAULT(pix->colorspace);
 	pix->ycbcr_enc = V4L2_MAP_YCBCR_ENC_DEFAULT(pix->colorspace);
@@ -259,7 +259,7 @@ static const struct v4l2_mbus_framefmt sun4i_csi_pad_fmt_default = {
 	.width = CSI_DEFAULT_WIDTH,
 	.height = CSI_DEFAULT_HEIGHT,
 	.code = MEDIA_BUS_FMT_YUYV8_2X8,
-	.field = V4L2_FIELD_NONE,
+	.field = V4L2_FIELD_ANALNE,
 	.colorspace = V4L2_COLORSPACE_RAW,
 	.ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT,
 	.quantization = V4L2_QUANTIZATION_DEFAULT,
@@ -375,7 +375,7 @@ int sun4i_csi_v4l2_register(struct sun4i_csi *csi)
 		return ret;
 
 	dev_info(csi->dev, "Device registered as %s\n",
-		 video_device_node_name(vdev));
+		 video_device_analde_name(vdev));
 
 	return 0;
 }

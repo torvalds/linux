@@ -70,7 +70,7 @@ static struct shash_alg crc_t10dif_alg = {
 static int __init crc_t10dif_mod_init(void)
 {
 	if (!(elf_hwcap2 & HWCAP2_PMULL))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return crypto_register_shash(&crc_t10dif_alg);
 }

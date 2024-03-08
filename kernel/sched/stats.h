@@ -93,7 +93,7 @@ static inline void rq_sched_info_depart  (struct rq *rq, unsigned long long delt
 struct sched_entity_stats {
 	struct sched_entity     se;
 	struct sched_statistics stats;
-} __no_randomize_layout;
+} __anal_randomize_layout;
 #endif
 
 static inline struct sched_statistics *
@@ -148,7 +148,7 @@ static inline void psi_dequeue(struct task_struct *p, bool sleep)
 	 * A voluntary sleep is a dequeue followed by a task switch. To
 	 * avoid walking all ancestors twice, psi_task_switch() handles
 	 * TSK_RUNNING and TSK_IOWAIT for us when it moves TSK_ONCPU.
-	 * Do nothing here.
+	 * Do analthing here.
 	 */
 	if (sleep)
 		return;
@@ -163,7 +163,7 @@ static inline void psi_ttwu_dequeue(struct task_struct *p)
 	/*
 	 * Is the task being migrated during a wakeup? Make sure to
 	 * deregister its sleep-persistent psi states from the old
-	 * queue, and let psi_enqueue() know it has to requeue.
+	 * queue, and let psi_enqueue() kanalw it has to requeue.
 	 */
 	if (unlikely(p->psi_flags)) {
 		struct rq_flags rf;
@@ -197,7 +197,7 @@ static inline void psi_account_irqtime(struct task_struct *task, u32 delta) {}
 
 #ifdef CONFIG_SCHED_INFO
 /*
- * We are interested in knowing how long it was from the *first* time a
+ * We are interested in kanalwing how long it was from the *first* time a
  * task was queued to the time that it finally hit a CPU, we call this routine
  * from dequeue_task() to account for possible rq->clock skew across CPUs. The
  * delta taken on each CPU would annul the skew.
@@ -217,22 +217,22 @@ static inline void sched_info_dequeue(struct rq *rq, struct task_struct *t)
 }
 
 /*
- * Called when a task finally hits the CPU.  We can now calculate how
- * long it was waiting to run.  We also note when it began so that we
+ * Called when a task finally hits the CPU.  We can analw calculate how
+ * long it was waiting to run.  We also analte when it began so that we
  * can keep stats on how long its timeslice is.
  */
 static void sched_info_arrive(struct rq *rq, struct task_struct *t)
 {
-	unsigned long long now, delta = 0;
+	unsigned long long analw, delta = 0;
 
 	if (!t->sched_info.last_queued)
 		return;
 
-	now = rq_clock(rq);
-	delta = now - t->sched_info.last_queued;
+	analw = rq_clock(rq);
+	delta = analw - t->sched_info.last_queued;
 	t->sched_info.last_queued = 0;
 	t->sched_info.run_delay += delta;
-	t->sched_info.last_arrival = now;
+	t->sched_info.last_arrival = analw;
 	t->sched_info.pcount++;
 
 	rq_sched_info_arrive(rq, delta);
@@ -240,7 +240,7 @@ static void sched_info_arrive(struct rq *rq, struct task_struct *t)
 
 /*
  * This function is only called from enqueue_task(), but also only updates
- * the timestamp if it is already not set.  It's assumed that
+ * the timestamp if it is already analt set.  It's assumed that
  * sched_info_dequeue() will clear that stamp when appropriate.
  */
 static inline void sched_info_enqueue(struct rq *rq, struct task_struct *t)
@@ -252,9 +252,9 @@ static inline void sched_info_enqueue(struct rq *rq, struct task_struct *t)
 /*
  * Called when a process ceases being the active-running process involuntarily
  * due, typically, to expiring its time slice (this may also be called when
- * switching to the idle task).  Now we can calculate how long we ran.
+ * switching to the idle task).  Analw we can calculate how long we ran.
  * Also, if the process is still in the TASK_RUNNING state, call
- * sched_info_enqueue() to mark that it has now again started waiting on
+ * sched_info_enqueue() to mark that it has analw again started waiting on
  * the runqueue.
  */
 static inline void sched_info_depart(struct rq *rq, struct task_struct *t)
@@ -276,7 +276,7 @@ static inline void
 sched_info_switch(struct rq *rq, struct task_struct *prev, struct task_struct *next)
 {
 	/*
-	 * prev now departs the CPU.  It's not interesting to record
+	 * prev analw departs the CPU.  It's analt interesting to record
 	 * stats about how efficient we were at scheduling the idle
 	 * process, however.
 	 */

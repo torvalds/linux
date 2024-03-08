@@ -111,10 +111,10 @@ void __init ip30_per_cpu_init(void)
 	ip30_install_ipi();
 #endif
 
-	enable_percpu_irq(IP30_HEART_L0_IRQ, IRQ_TYPE_NONE);
-	enable_percpu_irq(IP30_HEART_L1_IRQ, IRQ_TYPE_NONE);
-	enable_percpu_irq(IP30_HEART_L2_IRQ, IRQ_TYPE_NONE);
-	enable_percpu_irq(IP30_HEART_ERR_IRQ, IRQ_TYPE_NONE);
+	enable_percpu_irq(IP30_HEART_L0_IRQ, IRQ_TYPE_ANALNE);
+	enable_percpu_irq(IP30_HEART_L1_IRQ, IRQ_TYPE_ANALNE);
+	enable_percpu_irq(IP30_HEART_L2_IRQ, IRQ_TYPE_ANALNE);
+	enable_percpu_irq(IP30_HEART_ERR_IRQ, IRQ_TYPE_ANALNE);
 }
 
 /**

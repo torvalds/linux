@@ -73,9 +73,9 @@ __naked void invalid_fp_arithmetic(void)
 }
 
 SEC("socket")
-__description("non-invalid fp arithmetic")
+__description("analn-invalid fp arithmetic")
 __success __success_unpriv __retval(0)
-__naked void non_invalid_fp_arithmetic(void)
+__naked void analn_invalid_fp_arithmetic(void)
 {
 	asm volatile ("					\
 	r0 = 0;						\

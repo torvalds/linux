@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Sophgo sg2042 CLINT Machine-level Software Interrupt Device
 
 maintainers:
-  - Inochi Amaoto <inochiama@outlook.com>
+  - Ianalchi Amaoto <ianalchiama@outlook.com>
 
 properties:
   compatible:

@@ -9,7 +9,7 @@
 
 #include <linux/compiler.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/ctype.h>
 #include <linux/lockdep.h>
@@ -35,17 +35,17 @@
 #include "entry.h"
 
 #define decompressor_handled_param(param)			\
-static int __init ignore_decompressor_param_##param(char *s)	\
+static int __init iganalre_decompressor_param_##param(char *s)	\
 {								\
 	return 0;						\
 }								\
-early_param(#param, ignore_decompressor_param_##param)
+early_param(#param, iganalre_decompressor_param_##param)
 
 decompressor_handled_param(mem);
 decompressor_handled_param(vmalloc);
 decompressor_handled_param(dfltcc);
 decompressor_handled_param(facilities);
-decompressor_handled_param(nokaslr);
+decompressor_handled_param(analkaslr);
 decompressor_handled_param(cmma);
 #if IS_ENABLED(CONFIG_KVM)
 decompressor_handled_param(prot_virt);
@@ -65,7 +65,7 @@ static void __init reset_tod_clock(void)
 
 	if (store_tod_clock_ext_cc(&clk) == 0)
 		return;
-	/* TOD clock not running. Set the clock to Unix Epoch. */
+	/* TOD clock analt running. Set the clock to Unix Epoch. */
 	if (set_tod_clock(TOD_UNIX_EPOCH) || store_tod_clock_ext_cc(&clk))
 		disabled_wait();
 
@@ -77,7 +77,7 @@ static void __init reset_tod_clock(void)
 /*
  * Initialize storage key for kernel pages
  */
-static noinline __init void init_kernel_storage_key(void)
+static analinline __init void init_kernel_storage_key(void)
 {
 #if PAGE_DEFAULT_KEY
 	unsigned long end_pfn, init_pfn;
@@ -92,7 +92,7 @@ static noinline __init void init_kernel_storage_key(void)
 
 static __initdata char sysinfo_page[PAGE_SIZE] __aligned(PAGE_SIZE);
 
-static noinline __init void detect_machine_type(void)
+static analinline __init void detect_machine_type(void)
 {
 	struct sysinfo_3_2_2 *vmms = (struct sysinfo_3_2_2 *)&sysinfo_page;
 
@@ -105,7 +105,7 @@ static noinline __init void detect_machine_type(void)
 	if (stsi(vmms, 3, 2, 2) || !vmms->count)
 		return;
 
-	/* Detect known hypervisors */
+	/* Detect kanalwn hypervisors */
 	if (!memcmp(vmms->vm[0].cpi, "\xd2\xe5\xd4", 3))
 		S390_lowcore.machine_flags |= MACHINE_FLAG_KVM;
 	else if (!memcmp(vmms->vm[0].cpi, "\xa9\x61\xe5\xd4", 4))
@@ -130,7 +130,7 @@ static inline void strim_all(char *str)
 	}
 }
 
-static noinline __init void setup_arch_string(void)
+static analinline __init void setup_arch_string(void)
 {
 	struct sysinfo_1_1_1 *mach = (struct sysinfo_1_1_1 *)&sysinfo_page;
 	struct sysinfo_3_2_2 *vm = (struct sysinfo_3_2_2 *)&sysinfo_page;
@@ -154,7 +154,7 @@ static noinline __init void setup_arch_string(void)
 		sprintf(hvstr, "%s",
 			MACHINE_IS_LPAR ? "LPAR" :
 			MACHINE_IS_VM ? "z/VM" :
-			MACHINE_IS_KVM ? "KVM" : "unknown");
+			MACHINE_IS_KVM ? "KVM" : "unkanalwn");
 	}
 	dump_stack_set_arch_desc("%s (%s)", mstr, hvstr);
 }
@@ -179,7 +179,7 @@ void __do_early_pgm_check(struct pt_regs *regs)
 		disabled_wait();
 }
 
-static noinline __init void setup_lowcore_early(void)
+static analinline __init void setup_lowcore_early(void)
 {
 	psw_t psw;
 
@@ -189,10 +189,10 @@ static noinline __init void setup_lowcore_early(void)
 	S390_lowcore.preempt_count = INIT_PREEMPT_COUNT;
 }
 
-static noinline __init void setup_facility_list(void)
+static analinline __init void setup_facility_list(void)
 {
 	memcpy(alt_stfle_fac_list, stfle_fac_list, sizeof(alt_stfle_fac_list));
-	if (!IS_ENABLED(CONFIG_KERNEL_NOBP))
+	if (!IS_ENABLED(CONFIG_KERNEL_ANALBP))
 		__clear_facility(82, alt_stfle_fac_list);
 }
 
@@ -208,7 +208,7 @@ static __init void detect_diag9c(void)
 		"0:	la	%0,0\n"
 		"1:\n"
 		EX_TABLE(0b,1b)
-		: "=d" (rc) : "0" (-EOPNOTSUPP), "d" (cpu_address) : "cc");
+		: "=d" (rc) : "0" (-EOPANALTSUPP), "d" (cpu_address) : "cc");
 	if (!rc)
 		S390_lowcore.machine_flags |= MACHINE_FLAG_DIAG9C;
 }

@@ -8,7 +8,7 @@ config CRYPTO_CRC32C_VPMSUM
 	select CRYPTO_HASH
 	select CRC32
 	help
-	  CRC32c CRC algorithm with the iSCSI polynomial (RFC 3385 and RFC 3720)
+	  CRC32c CRC algorithm with the iSCSI polyanalmial (RFC 3385 and RFC 3720)
 
 	  Architecture: powerpc64 using
 	  - AltiVec extensions
@@ -90,7 +90,7 @@ config CRYPTO_AES_PPC_SPE
 	  This module should only be used for low power (router) devices
 	  without hardware AES acceleration (e.g. caam crypto). It reduces the
 	  size of the AES tables from 16KB to 8KB + 256 bytes and mitigates
-	  timining attacks. Nevertheless it might be not as secure as other
+	  timining attacks. Nevertheless it might be analt as secure as other
 	  architecture specific assembler implementations that work on 1KB
 	  tables or 256 bytes S-boxes.
 

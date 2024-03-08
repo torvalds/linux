@@ -5,7 +5,7 @@
 ///
 // Confidence: High
 // Comments:
-// Options: --no-includes --include-headers
+// Options: --anal-includes --include-headers
 
 virtual patch
 virtual report
@@ -14,7 +14,7 @@ virtual report
 identifier open_f != simple_open;
 identifier i, f;
 @@
--int open_f(struct inode *i, struct file *f)
+-int open_f(struct ianalde *i, struct file *f)
 -{
 (
 -if (i->i_private)
@@ -41,7 +41,7 @@ identifier open_f != simple_open;
 identifier i, f;
 position p;
 @@
-int open_f@p(struct inode *i, struct file *f)
+int open_f@p(struct ianalde *i, struct file *f)
 {
 (
 if (i->i_private)

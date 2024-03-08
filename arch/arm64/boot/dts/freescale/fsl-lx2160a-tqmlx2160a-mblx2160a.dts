@@ -173,8 +173,8 @@
 	sd-uhs-sdr50;
 	sd-uhs-sdr25;
 	sd-uhs-sdr12;
-	no-mmc;
-	no-sdio;
+	anal-mmc;
+	anal-sdio;
 	wp-gpios = <&gpio0 30 GPIO_ACTIVE_LOW>;
 	cd-gpios = <&gpio0 31 GPIO_ACTIVE_LOW>;
 	status = "okay";

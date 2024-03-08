@@ -35,14 +35,14 @@ int ethnl_ops_begin(struct net_device *dev)
 	int ret;
 
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (dev->dev.parent)
 		pm_runtime_get_sync(dev->dev.parent);
 
 	if (!netif_device_present(dev) ||
 	    dev->reg_state == NETREG_UNREGISTERING) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err;
 	}
 
@@ -75,12 +75,12 @@ void ethnl_ops_complete(struct net_device *dev)
  * @header:      nest attribute with request header
  * @net:         request netns
  * @extack:      netlink extack for error reporting
- * @require_dev: fail if no device identified in header
+ * @require_dev: fail if anal device identified in header
  *
  * Parse request header in nested attribute @nest and puts results into
  * the structure pointed to by @req_info. Extack from @info is used for error
- * reporting. If req_info->dev is not null on return, reference to it has
- * been taken. If error is returned, *req_info is null initialized and no
+ * reporting. If req_info->dev is analt null on return, reference to it has
+ * been taken. If error is returned, *req_info is null initialized and anal
  * reference is held.
  *
  * Return: 0 on success or negative error code
@@ -101,7 +101,7 @@ int ethnl_parse_header_dev_get(struct ethnl_req_info *req_info,
 		NL_SET_ERR_MSG(extack, "request header missing");
 		return -EINVAL;
 	}
-	/* No validation here, command policy should have a nested policy set
+	/* Anal validation here, command policy should have a nested policy set
 	 * for the header, therefore validation should have already been done.
 	 */
 	ret = nla_parse_nested(tb, ARRAY_SIZE(ethnl_header_policy) - 1, header,
@@ -120,28 +120,28 @@ int ethnl_parse_header_dev_get(struct ethnl_req_info *req_info,
 		if (!dev) {
 			NL_SET_ERR_MSG_ATTR(extack,
 					    tb[ETHTOOL_A_HEADER_DEV_INDEX],
-					    "no device matches ifindex");
-			return -ENODEV;
+					    "anal device matches ifindex");
+			return -EANALDEV;
 		}
 		/* if both ifindex and ifname are passed, they must match */
 		if (devname_attr &&
 		    strncmp(dev->name, nla_data(devname_attr), IFNAMSIZ)) {
 			netdev_put(dev, &req_info->dev_tracker);
 			NL_SET_ERR_MSG_ATTR(extack, header,
-					    "ifindex and name do not match");
-			return -ENODEV;
+					    "ifindex and name do analt match");
+			return -EANALDEV;
 		}
 	} else if (devname_attr) {
 		dev = netdev_get_by_name(net, nla_data(devname_attr),
 					 &req_info->dev_tracker, GFP_KERNEL);
 		if (!dev) {
 			NL_SET_ERR_MSG_ATTR(extack, devname_attr,
-					    "no device matches name");
-			return -ENODEV;
+					    "anal device matches name");
+			return -EANALDEV;
 		}
 	} else if (require_dev) {
 		NL_SET_ERR_MSG_ATTR(extack, header,
-				    "neither ifindex nor name specified");
+				    "neither ifindex analr name specified");
 		return -EINVAL;
 	}
 
@@ -318,7 +318,7 @@ static struct ethnl_dump_ctx *ethnl_dump_context(struct netlink_callback *cb)
  * @req_info:    pointer to structure to put data into
  * @info:	 genl_info from the request
  * @request_ops: struct request_ops for request type
- * @require_dev: fail if no device identified in header
+ * @require_dev: fail if anal device identified in header
  *
  * Parse universal request header and call request specific ->parse_request()
  * callback (if defined) to parse the rest of the message.
@@ -379,21 +379,21 @@ static int ethnl_default_doit(struct sk_buff *skb, struct genl_info *info)
 	int ret;
 
 	ops = ethnl_default_requests[cmd];
-	if (WARN_ONCE(!ops, "cmd %u has no ethnl_request_ops\n", cmd))
-		return -EOPNOTSUPP;
+	if (WARN_ONCE(!ops, "cmd %u has anal ethnl_request_ops\n", cmd))
+		return -EOPANALTSUPP;
 	if (GENL_REQ_ATTR_CHECK(info, ops->hdr_attr))
 		return -EINVAL;
 
 	req_info = kzalloc(ops->req_info_size, GFP_KERNEL);
 	if (!req_info)
-		return -ENOMEM;
+		return -EANALMEM;
 	reply_data = kmalloc(ops->reply_data_size, GFP_KERNEL);
 	if (!reply_data) {
 		kfree(req_info);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
-	ret = ethnl_default_parse(req_info, info, ops, !ops->allow_nodev_do);
+	ret = ethnl_default_parse(req_info, info, ops, !ops->allow_analdev_do);
 	if (ret < 0)
 		goto err_dev;
 	ethnl_init_reply_data(reply_data, ops, req_info->dev);
@@ -407,7 +407,7 @@ static int ethnl_default_doit(struct sk_buff *skb, struct genl_info *info)
 	if (ret < 0)
 		goto err_cleanup;
 	reply_len = ret;
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	rskb = ethnl_reply_init(reply_len + ethnl_reply_header_size(),
 				req_info->dev, ops->reply_cmd,
 				ops->hdr_attr, info, &reply_payload);
@@ -430,7 +430,7 @@ static int ethnl_default_doit(struct sk_buff *skb, struct genl_info *info)
 	return genlmsg_reply(rskb, info);
 
 err_msg:
-	WARN_ONCE(ret == -EMSGSIZE, "calculated message payload length (%d) not sufficient\n", reply_len);
+	WARN_ONCE(ret == -EMSGSIZE, "calculated message payload length (%d) analt sufficient\n", reply_len);
 	nlmsg_free(rskb);
 err_cleanup:
 	if (ops->cleanup_data)
@@ -479,7 +479,7 @@ out:
 
 /* Default ->dumpit() handler for GET requests. Device iteration copied from
  * rtnl_dump_ifinfo(); we have to be more careful about device hashtable
- * persistence as we cannot guarantee to hold RTNL lock through the whole
+ * persistence as we cananalt guarantee to hold RTNL lock through the whole
  * function as rtnetnlink does.
  */
 static int ethnl_default_dumpit(struct sk_buff *skb,
@@ -500,7 +500,7 @@ static int ethnl_default_dumpit(struct sk_buff *skb,
 		rtnl_lock();
 		dev_put(dev);
 
-		if (ret < 0 && ret != -EOPNOTSUPP) {
+		if (ret < 0 && ret != -EOPANALTSUPP) {
 			if (likely(skb->len))
 				ret = skb->len;
 			break;
@@ -527,21 +527,21 @@ static int ethnl_default_start(struct netlink_callback *cb)
 
 	ghdr = nlmsg_data(cb->nlh);
 	ops = ethnl_default_requests[ghdr->cmd];
-	if (WARN_ONCE(!ops, "cmd %u has no ethnl_request_ops\n", ghdr->cmd))
-		return -EOPNOTSUPP;
+	if (WARN_ONCE(!ops, "cmd %u has anal ethnl_request_ops\n", ghdr->cmd))
+		return -EOPANALTSUPP;
 	req_info = kzalloc(ops->req_info_size, GFP_KERNEL);
 	if (!req_info)
-		return -ENOMEM;
+		return -EANALMEM;
 	reply_data = kmalloc(ops->reply_data_size, GFP_KERNEL);
 	if (!reply_data) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_req_info;
 	}
 
 	ret = ethnl_default_parse(req_info, &info->info, ops, false);
 	if (req_info->dev) {
-		/* We ignore device specification in dump requests but as the
-		 * same parser as for non-dump (doit) requests is used, it
+		/* We iganalre device specification in dump requests but as the
+		 * same parser as for analn-dump (doit) requests is used, it
 		 * would take reference to the device if it finds one
 		 */
 		netdev_put(req_info->dev, &req_info->dev_tracker);
@@ -584,8 +584,8 @@ static int ethnl_default_set_doit(struct sk_buff *skb, struct genl_info *info)
 	int ret;
 
 	ops = ethnl_default_requests[cmd];
-	if (WARN_ONCE(!ops, "cmd %u has no ethnl_request_ops\n", cmd))
-		return -EOPNOTSUPP;
+	if (WARN_ONCE(!ops, "cmd %u has anal ethnl_request_ops\n", cmd))
+		return -EOPANALTSUPP;
 	if (GENL_REQ_ATTR_CHECK(info, ops->hdr_attr))
 		return -EINVAL;
 
@@ -597,7 +597,7 @@ static int ethnl_default_set_doit(struct sk_buff *skb, struct genl_info *info)
 
 	if (ops->set_validate) {
 		ret = ops->set_validate(&req_info, info);
-		/* 0 means nothing to do */
+		/* 0 means analthing to do */
 		if (ret <= 0)
 			goto out_dev;
 	}
@@ -610,7 +610,7 @@ static int ethnl_default_set_doit(struct sk_buff *skb, struct genl_info *info)
 	ret = ops->set(&req_info, info);
 	if (ret <= 0)
 		goto out_ops;
-	ethtool_notify(req_info.dev, ops->set_ntf_cmd, NULL);
+	ethtool_analtify(req_info.dev, ops->set_ntf_cmd, NULL);
 
 	ret = 0;
 out_ops:
@@ -623,7 +623,7 @@ out_dev:
 }
 
 static const struct ethnl_request_ops *
-ethnl_default_notify_ops[ETHTOOL_MSG_KERNEL_MAX + 1] = {
+ethnl_default_analtify_ops[ETHTOOL_MSG_KERNEL_MAX + 1] = {
 	[ETHTOOL_MSG_LINKINFO_NTF]	= &ethnl_linkinfo_request_ops,
 	[ETHTOOL_MSG_LINKMODES_NTF]	= &ethnl_linkmodes_request_ops,
 	[ETHTOOL_MSG_DEBUG_NTF]		= &ethnl_debug_request_ops,
@@ -641,8 +641,8 @@ ethnl_default_notify_ops[ETHTOOL_MSG_KERNEL_MAX + 1] = {
 	[ETHTOOL_MSG_MM_NTF]		= &ethnl_mm_request_ops,
 };
 
-/* default notification handler */
-static void ethnl_default_notify(struct net_device *dev, unsigned int cmd,
+/* default analtification handler */
+static void ethnl_default_analtify(struct net_device *dev, unsigned int cmd,
 				 const void *data)
 {
 	struct ethnl_reply_data *reply_data;
@@ -657,10 +657,10 @@ static void ethnl_default_notify(struct net_device *dev, unsigned int cmd,
 	genl_info_init_ntf(&info, &ethtool_genl_family, cmd);
 
 	if (WARN_ONCE(cmd > ETHTOOL_MSG_KERNEL_MAX ||
-		      !ethnl_default_notify_ops[cmd],
-		      "unexpected notification type %u\n", cmd))
+		      !ethnl_default_analtify_ops[cmd],
+		      "unexpected analtification type %u\n", cmd))
 		return;
-	ops = ethnl_default_notify_ops[cmd];
+	ops = ethnl_default_analtify_ops[cmd];
 	req_info = kzalloc(ops->req_info_size, GFP_KERNEL);
 	if (!req_info)
 		return;
@@ -704,7 +704,7 @@ static void ethnl_default_notify(struct net_device *dev, unsigned int cmd,
 
 err_msg:
 	WARN_ONCE(ret == -EMSGSIZE,
-		  "calculated message payload length (%d) not sufficient\n",
+		  "calculated message payload length (%d) analt sufficient\n",
 		  reply_len);
 err_skb:
 	nlmsg_free(skb);
@@ -716,65 +716,65 @@ err_cleanup:
 	return;
 }
 
-/* notifications */
+/* analtifications */
 
-typedef void (*ethnl_notify_handler_t)(struct net_device *dev, unsigned int cmd,
+typedef void (*ethnl_analtify_handler_t)(struct net_device *dev, unsigned int cmd,
 				       const void *data);
 
-static const ethnl_notify_handler_t ethnl_notify_handlers[] = {
-	[ETHTOOL_MSG_LINKINFO_NTF]	= ethnl_default_notify,
-	[ETHTOOL_MSG_LINKMODES_NTF]	= ethnl_default_notify,
-	[ETHTOOL_MSG_DEBUG_NTF]		= ethnl_default_notify,
-	[ETHTOOL_MSG_WOL_NTF]		= ethnl_default_notify,
-	[ETHTOOL_MSG_FEATURES_NTF]	= ethnl_default_notify,
-	[ETHTOOL_MSG_PRIVFLAGS_NTF]	= ethnl_default_notify,
-	[ETHTOOL_MSG_RINGS_NTF]		= ethnl_default_notify,
-	[ETHTOOL_MSG_CHANNELS_NTF]	= ethnl_default_notify,
-	[ETHTOOL_MSG_COALESCE_NTF]	= ethnl_default_notify,
-	[ETHTOOL_MSG_PAUSE_NTF]		= ethnl_default_notify,
-	[ETHTOOL_MSG_EEE_NTF]		= ethnl_default_notify,
-	[ETHTOOL_MSG_FEC_NTF]		= ethnl_default_notify,
-	[ETHTOOL_MSG_MODULE_NTF]	= ethnl_default_notify,
-	[ETHTOOL_MSG_PLCA_NTF]		= ethnl_default_notify,
-	[ETHTOOL_MSG_MM_NTF]		= ethnl_default_notify,
+static const ethnl_analtify_handler_t ethnl_analtify_handlers[] = {
+	[ETHTOOL_MSG_LINKINFO_NTF]	= ethnl_default_analtify,
+	[ETHTOOL_MSG_LINKMODES_NTF]	= ethnl_default_analtify,
+	[ETHTOOL_MSG_DEBUG_NTF]		= ethnl_default_analtify,
+	[ETHTOOL_MSG_WOL_NTF]		= ethnl_default_analtify,
+	[ETHTOOL_MSG_FEATURES_NTF]	= ethnl_default_analtify,
+	[ETHTOOL_MSG_PRIVFLAGS_NTF]	= ethnl_default_analtify,
+	[ETHTOOL_MSG_RINGS_NTF]		= ethnl_default_analtify,
+	[ETHTOOL_MSG_CHANNELS_NTF]	= ethnl_default_analtify,
+	[ETHTOOL_MSG_COALESCE_NTF]	= ethnl_default_analtify,
+	[ETHTOOL_MSG_PAUSE_NTF]		= ethnl_default_analtify,
+	[ETHTOOL_MSG_EEE_NTF]		= ethnl_default_analtify,
+	[ETHTOOL_MSG_FEC_NTF]		= ethnl_default_analtify,
+	[ETHTOOL_MSG_MODULE_NTF]	= ethnl_default_analtify,
+	[ETHTOOL_MSG_PLCA_NTF]		= ethnl_default_analtify,
+	[ETHTOOL_MSG_MM_NTF]		= ethnl_default_analtify,
 };
 
-void ethtool_notify(struct net_device *dev, unsigned int cmd, const void *data)
+void ethtool_analtify(struct net_device *dev, unsigned int cmd, const void *data)
 {
 	if (unlikely(!ethnl_ok))
 		return;
 	ASSERT_RTNL();
 
-	if (likely(cmd < ARRAY_SIZE(ethnl_notify_handlers) &&
-		   ethnl_notify_handlers[cmd]))
-		ethnl_notify_handlers[cmd](dev, cmd, data);
+	if (likely(cmd < ARRAY_SIZE(ethnl_analtify_handlers) &&
+		   ethnl_analtify_handlers[cmd]))
+		ethnl_analtify_handlers[cmd](dev, cmd, data);
 	else
-		WARN_ONCE(1, "notification %u not implemented (dev=%s)\n",
+		WARN_ONCE(1, "analtification %u analt implemented (dev=%s)\n",
 			  cmd, netdev_name(dev));
 }
-EXPORT_SYMBOL(ethtool_notify);
+EXPORT_SYMBOL(ethtool_analtify);
 
-static void ethnl_notify_features(struct netdev_notifier_info *info)
+static void ethnl_analtify_features(struct netdev_analtifier_info *info)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(info);
+	struct net_device *dev = netdev_analtifier_info_to_dev(info);
 
-	ethtool_notify(dev, ETHTOOL_MSG_FEATURES_NTF, NULL);
+	ethtool_analtify(dev, ETHTOOL_MSG_FEATURES_NTF, NULL);
 }
 
-static int ethnl_netdev_event(struct notifier_block *this, unsigned long event,
+static int ethnl_netdev_event(struct analtifier_block *this, unsigned long event,
 			      void *ptr)
 {
 	switch (event) {
 	case NETDEV_FEAT_CHANGE:
-		ethnl_notify_features(ptr);
+		ethnl_analtify_features(ptr);
 		break;
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block ethnl_netdev_notifier = {
-	.notifier_call = ethnl_netdev_event,
+static struct analtifier_block ethnl_netdev_analtifier = {
+	.analtifier_call = ethnl_netdev_event,
 };
 
 /* genetlink setup */
@@ -1158,8 +1158,8 @@ static int __init ethnl_init(void)
 		return ret;
 	ethnl_ok = true;
 
-	ret = register_netdevice_notifier(&ethnl_netdev_notifier);
-	WARN(ret < 0, "ethtool: net device notifier registration failed");
+	ret = register_netdevice_analtifier(&ethnl_netdev_analtifier);
+	WARN(ret < 0, "ethtool: net device analtifier registration failed");
 	return ret;
 }
 

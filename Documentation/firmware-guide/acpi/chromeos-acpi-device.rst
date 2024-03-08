@@ -51,7 +51,7 @@ This control method returns the switch positions for Chrome OS specific hardware
 
 Arguments:
 ----------
-None
+Analne
 
 Result code:
 ------------
@@ -82,14 +82,14 @@ This control method returns the hardware ID for the Chromebook.
 
 Arguments:
 ----------
-None
+Analne
 
 Result code:
 ------------
 A null-terminated ASCII string containing the hardware ID from the Model-Specific Data area of
 EEPROM.
 
-Note that the hardware ID can be up to 256 characters long, including the terminating null.
+Analte that the hardware ID can be up to 256 characters long, including the terminating null.
 
 FWID (Chrome OS firmware version)
 =================================
@@ -98,7 +98,7 @@ processor firmware.
 
 Arguments:
 ----------
-None
+Analne
 
 Result code:
 ------------
@@ -112,7 +112,7 @@ processor firmware.
 
 Arguments:
 ----------
-None
+Analne
 
 Result code:
 ------------
@@ -125,7 +125,7 @@ This control method returns information about the current boot.
 
 Arguments:
 ----------
-None
+Analne
 
 Result code:
 ------------
@@ -150,11 +150,11 @@ Result code:
 
    * - Reserved1
      - DWORD
-     - Set to 256 (0x100). This indicates this field is no longer used.
+     - Set to 256 (0x100). This indicates this field is anal longer used.
 
    * - Reserved2
      - DWORD
-     - Set to 256 (0x100). This indicates this field is no longer used.
+     - Set to 256 (0x100). This indicates this field is anal longer used.
 
    * - Active EC firmware
      - DWORD
@@ -170,7 +170,7 @@ Result code:
      - The main firmware type which was used during boot.
 
        - 0 - Recovery
-       - 1 - Normal
+       - 1 - Analrmal
        - 2 - Developer
        - 3 - netboot (factory installation only)
 
@@ -178,7 +178,7 @@ Result code:
 
    * - Reserved5
      - DWORD
-     - Set to 256 (0x100). This indicates this field is no longer used.
+     - Set to 256 (0x100). This indicates this field is anal longer used.
 
 GPIO (Chrome OS GPIO assignments)
 =================================
@@ -187,7 +187,7 @@ Chrome OS hardware, so the kernel can directly control that hardware.
 
 Arguments:
 ----------
-None
+Analne
 
 Result code:
 ------------
@@ -260,7 +260,7 @@ communicate with the BIOS.
 
 Arguments:
 ----------
-None
+Analne
 
 Result code:
 ------------
@@ -281,13 +281,13 @@ Result code:
 
    * - NV Storage Block Offset
      - DWORD
-     - Offset in CMOS bank 0 of the verified boot non-volatile storage block, counting from
+     - Offset in CMOS bank 0 of the verified boot analn-volatile storage block, counting from
        the first writable CMOS byte (that is, offset=0 is the byte following the 14 bytes of
        clock data).
 
    * - NV Storage Block Size
      - DWORD
-     - Size in bytes of the verified boot non-volatile storage block.
+     - Size in bytes of the verified boot analn-volatile storage block.
 
 FMAP (Chrome OS flashmap address)
 =================================
@@ -296,9 +296,9 @@ firmware flashmap.
 
 Arguments:
 ----------
-None
+Analne
 
-NoneResult code:
+AnalneResult code:
 ----------------
 A DWORD containing the physical memory address of the start of the main processor firmware
 flashmap.
@@ -310,7 +310,7 @@ verification step and the kernel verification step.
 
 Arguments:
 ----------
-None
+Analne
 
 Result code:
 ------------
@@ -320,12 +320,12 @@ MECK (Management Engine Checksum)
 =================================
 This control method returns the SHA-1 or SHA-256 hash that is read out of the Management
 Engine extended registers during boot. The hash is exported via ACPI so the OS can verify that
-the ME firmware has not changed. If Management Engine is not present, or if the firmware was
+the ME firmware has analt changed. If Management Engine is analt present, or if the firmware was
 unable to read the extended registers, this buffer can be zero.
 
 Arguments:
 ----------
-None
+Analne
 
 Result code:
 ------------
@@ -338,12 +338,12 @@ hardware device.
 
 Arguments:
 ----------
-None
+Analne
 
 Result code:
 ------------
 A package containing a list of null-terminated ASCII strings, one for each control method
-supported by the Chrome OS hardware device, not including the MLST method itself.
+supported by the Chrome OS hardware device, analt including the MLST method itself.
 For this version of the specification, the result is:
 
 .. code-block::

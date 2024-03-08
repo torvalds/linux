@@ -64,7 +64,7 @@ int pci_epc_multi_mem_init(struct pci_epc *epc,
 
 	epc->windows = kcalloc(num_windows, sizeof(*epc->windows), GFP_KERNEL);
 	if (!epc->windows)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num_windows; i++) {
 		page_size = windows[i].page_size;
@@ -76,14 +76,14 @@ int pci_epc_multi_mem_init(struct pci_epc *epc,
 
 		mem = kzalloc(sizeof(*mem), GFP_KERNEL);
 		if (!mem) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			i--;
 			goto err_mem;
 		}
 
 		bitmap = kzalloc(bitmap_size, GFP_KERNEL);
 		if (!bitmap) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			kfree(mem);
 			i--;
 			goto err_mem;
@@ -182,7 +182,7 @@ void __iomem *pci_epc_mem_alloc_addr(struct pci_epc *epc,
 	struct pci_epc_mem *mem;
 	unsigned int page_shift;
 	size_t align_size;
-	int pageno;
+	int pageanal;
 	int order;
 	int i;
 
@@ -192,16 +192,16 @@ void __iomem *pci_epc_mem_alloc_addr(struct pci_epc *epc,
 		align_size = ALIGN(size, mem->window.page_size);
 		order = pci_epc_mem_get_order(mem, align_size);
 
-		pageno = bitmap_find_free_region(mem->bitmap, mem->pages,
+		pageanal = bitmap_find_free_region(mem->bitmap, mem->pages,
 						 order);
-		if (pageno >= 0) {
+		if (pageanal >= 0) {
 			page_shift = ilog2(mem->window.page_size);
 			*phys_addr = mem->window.phys_base +
-				((phys_addr_t)pageno << page_shift);
+				((phys_addr_t)pageanal << page_shift);
 			virt_addr = ioremap(*phys_addr, align_size);
 			if (!virt_addr) {
 				bitmap_release_region(mem->bitmap,
-						      pageno, order);
+						      pageanal, order);
 				mutex_unlock(&mem->lock);
 				continue;
 			}
@@ -247,7 +247,7 @@ void pci_epc_mem_free_addr(struct pci_epc *epc, phys_addr_t phys_addr,
 	struct pci_epc_mem *mem;
 	unsigned int page_shift;
 	size_t page_size;
-	int pageno;
+	int pageanal;
 	int order;
 
 	mem = pci_epc_get_matching_window(epc, phys_addr);
@@ -259,11 +259,11 @@ void pci_epc_mem_free_addr(struct pci_epc *epc, phys_addr_t phys_addr,
 	page_size = mem->window.page_size;
 	page_shift = ilog2(page_size);
 	iounmap(virt_addr);
-	pageno = (phys_addr - mem->window.phys_base) >> page_shift;
+	pageanal = (phys_addr - mem->window.phys_base) >> page_shift;
 	size = ALIGN(size, page_size);
 	order = pci_epc_mem_get_order(mem, size);
 	mutex_lock(&mem->lock);
-	bitmap_release_region(mem->bitmap, pageno, order);
+	bitmap_release_region(mem->bitmap, pageanal, order);
 	mutex_unlock(&mem->lock);
 }
 EXPORT_SYMBOL_GPL(pci_epc_mem_free_addr);

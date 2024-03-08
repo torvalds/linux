@@ -157,24 +157,24 @@ static irqreturn_t bbnsm_rtc_irq_handler(int irq, void *dev_id)
 		return IRQ_HANDLED;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static int bbnsm_rtc_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct bbnsm_rtc *bbnsm;
 	int ret;
 
 	bbnsm = devm_kzalloc(&pdev->dev, sizeof(*bbnsm), GFP_KERNEL);
 	if (!bbnsm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bbnsm->rtc = devm_rtc_allocate_device(&pdev->dev);
 	if (IS_ERR(bbnsm->rtc))
 		return PTR_ERR(bbnsm->rtc);
 
-	bbnsm->regmap = syscon_node_to_regmap(np->parent);
+	bbnsm->regmap = syscon_analde_to_regmap(np->parent);
 	if (IS_ERR(bbnsm->regmap)) {
 		dev_dbg(&pdev->dev, "bbnsm get regmap failed\n");
 		return PTR_ERR(bbnsm->regmap);

@@ -15,7 +15,7 @@ maintainers:
 description: |
   The EIC is the abbreviation of external interrupt controller, which can
   be used only in input mode. The Spreadtrum platform has 2 EIC controllers,
-  one is in digital chip, and another one is in PMIC. The digital chip EIC
+  one is in digital chip, and aanalther one is in PMIC. The digital chip EIC
   controller contains 4 sub-modules, i.e. EIC-debounce, EIC-latch, EIC-async and
   EIC-sync. But the PMIC EIC controller contains only one EIC-debounce sub-
   module.
@@ -27,10 +27,10 @@ description: |
   reliability. In addition, this sub-module's clock can be shut off
   automatically to reduce power dissipation. Moreover the debounce range
   is from 1ms to 4s with a step size of 1ms. The input signal will be
-  ignored if it is asserted for less than 1 ms.
+  iganalred if it is asserted for less than 1 ms.
 
   The EIC-latch sub-module is used to latch some special power down signals
-  and generate interrupts, since the EIC-latch does not depend on the APB
+  and generate interrupts, since the EIC-latch does analt depend on the APB
   clock to capture signals.
 
   The EIC-async sub-module uses a 32kHz clock to capture the short signals

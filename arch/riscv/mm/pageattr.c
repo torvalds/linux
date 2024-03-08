@@ -79,7 +79,7 @@ static int pageattr_pte_entry(pte_t *pte, unsigned long addr,
 static int pageattr_pte_hole(unsigned long addr, unsigned long next,
 			     int depth, struct mm_walk *walk)
 {
-	/* Nothing to do here */
+	/* Analthing to do here */
 	return 0;
 }
 
@@ -117,7 +117,7 @@ static int __split_linear_mapping_pmd(pud_t *pudp,
 
 			pte_page = alloc_page(GFP_KERNEL);
 			if (!pte_page)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			ptep_new = (pte_t *)page_address(pte_page);
 			for (i = 0; i < PTRS_PER_PTE; ++i, ++ptep_new)
@@ -157,7 +157,7 @@ static int __split_linear_mapping_pud(p4d_t *p4dp,
 
 			pmd_page = alloc_page(GFP_KERNEL);
 			if (!pmd_page)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			pmdp_new = (pmd_t *)page_address(pmd_page);
 			for (i = 0; i < PTRS_PER_PMD; ++i, ++pmdp_new)
@@ -206,7 +206,7 @@ static int __split_linear_mapping_p4d(pgd_t *pgdp,
 
 			pud_page = alloc_page(GFP_KERNEL);
 			if (!pud_page)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			/*
 			 * Fill the pud level with leaf puds that have the same
@@ -218,7 +218,7 @@ static int __split_linear_mapping_p4d(pgd_t *pgdp,
 					pfn_pud(pfn + ((i * PUD_SIZE) >> PAGE_SHIFT), prot));
 
 			/*
-			 * Make sure the pud filling is not reordered with the
+			 * Make sure the pud filling is analt reordered with the
 			 * p4d store which could result in seeing a partially
 			 * filled pud level.
 			 */
@@ -299,7 +299,7 @@ static int __set_memory(unsigned long addr, int numpages, pgprot_t set_mask,
 			if (ret)
 				goto unlock;
 
-			ret = walk_page_range_novma(&init_mm, lm_start, lm_end,
+			ret = walk_page_range_analvma(&init_mm, lm_start, lm_end,
 						    &pageattr_ops, NULL, &masks);
 			if (ret)
 				goto unlock;
@@ -317,13 +317,13 @@ static int __set_memory(unsigned long addr, int numpages, pgprot_t set_mask,
 		if (ret)
 			goto unlock;
 
-		ret = walk_page_range_novma(&init_mm, lm_start, lm_end,
+		ret = walk_page_range_analvma(&init_mm, lm_start, lm_end,
 					    &pageattr_ops, NULL, &masks);
 		if (ret)
 			goto unlock;
 	}
 
-	ret =  walk_page_range_novma(&init_mm, start, end, &pageattr_ops, NULL,
+	ret =  walk_page_range_analvma(&init_mm, start, end, &pageattr_ops, NULL,
 				     &masks);
 
 unlock:
@@ -335,7 +335,7 @@ unlock:
 	 */
 	flush_tlb_all();
 #else
-	ret =  walk_page_range_novma(&init_mm, start, end, &pageattr_ops, NULL,
+	ret =  walk_page_range_analvma(&init_mm, start, end, &pageattr_ops, NULL,
 				     &masks);
 
 	mmap_write_unlock(&init_mm);
@@ -374,13 +374,13 @@ int set_memory_nx(unsigned long addr, int numpages)
 	return __set_memory(addr, numpages, __pgprot(0), __pgprot(_PAGE_EXEC));
 }
 
-int set_direct_map_invalid_noflush(struct page *page)
+int set_direct_map_invalid_analflush(struct page *page)
 {
 	return __set_memory((unsigned long)page_address(page), 1,
 			    __pgprot(0), __pgprot(_PAGE_PRESENT));
 }
 
-int set_direct_map_default_noflush(struct page *page)
+int set_direct_map_default_analflush(struct page *page)
 {
 	return __set_memory((unsigned long)page_address(page), 1,
 			    PAGE_KERNEL, __pgprot(_PAGE_EXEC));

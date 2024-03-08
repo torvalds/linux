@@ -84,7 +84,7 @@ GnuPG agent是一个辅助工具，每当你使用该命令时，它都会自动
     default-cache-ttl 1800
     max-cache-ttl 7200
 
-.. note::
+.. analte::
 
     不需要在 shell 会话开始时手动启动 gpg-agent。你可能需要检查
     rc 文件来删除旧版本 GnuPG 中的所有内容，因为它可能不再做正确
@@ -173,7 +173,7 @@ GnuPG 在将私钥存储到磁盘之前使用密码对其进行加密。这样�
 
     $ gpg --quick-addkey [fpr] ed25519 sign
 
-.. note:: GnuPG 中的 ECC 支持
+.. analte:: GnuPG 中的 ECC 支持
 
     请注意，如果你打算使用不支持 ED25519 ECC 密钥的硬件密钥，则
     应选择“nistp256”或“ed25519”。请参阅下面有关推荐硬件设备的
@@ -201,7 +201,7 @@ GnuPG 在将私钥存储到磁盘之前使用密码对其进行加密。这样�
 将生成的打印输出和手写密码放入信封中，并存放在安全且受到良好保护的地
 方，最好远离你的家，例如银行保险柜。
 
-.. note::
+.. analte::
 
     你的打印机可能不再是连接到并行端口的简单哑设备，但由于输出仍然使
     用你的密码进行加密，因此即使“云端打印”的现代打印机也应该保持相
@@ -352,7 +352,7 @@ USB 设备插入并安装时，操作系统能够访问私钥内容。
 你的选择将取决于成本、你所在地理区域的货运便利性以及开放/专有硬件考虑
 因素。
 
-.. note::
+.. analte::
 
     如果你位列于 MAINTAINERS 中或在 kernel.org 上拥有帐户，则你有
     资格获得Linux 基金会提供的_`qualify for a free Nitrokey Start` 。
@@ -392,7 +392,7 @@ USB 设备插入并安装时，操作系统能够访问私钥内容。
 回到主卡菜单，你还可以设置其他值（例如姓名、性别、登录数据等），但这
 不是必需的，并且如果你丢失智能卡，还会泄露有关智能卡的信息。
 
-.. note::
+.. analte::
 
     尽管名称为“PIN”，但卡上的用户 PIN 和管理员 PIN 都不需要是数字。
 
@@ -617,13 +617,13 @@ Git 的核心功能之一是它的分散性——一旦将仓库克隆到你的�
 如果你正在验证其他人的 git 标签，那么你将需要导入他们的 PGP 密钥。
 请参阅下面的":ref:`身份验证`"部分。
 
-配置 git 始终对带注释的标签（annotated tags）进行签名annotated tags
+配置 git 始终对带注释的标签（ananaltated tags）进行签名ananaltated tags
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 如果你要创建带注释的标签，你很可能会想要对其进行签名。要强制 git 始终签
 署带注释的标签，你可以设置一个全局配置选项::
 
-    $ git config --global tag.forceSignAnnotated true
+    $ git config --global tag.forceSignAnanaltated true
 
 如何使用签名的提交
 ------------------
@@ -661,7 +661,7 @@ infradead.org、ozlabs.org 或其他）上公开可用，那么建议你签署�
 
     git config --global commit.gpgSign true
 
-.. note::
+.. analte::
 
     确保 ``gpg-agent`` 在打开此功能之前进行配置。
 
@@ -712,7 +712,7 @@ DKIM 和 patatt 签名，例如::
       ✓ Signed: openpgp/broonie@kernel.org
       ✓ Signed: DKIM/kernel.org
 
-.. note::
+.. analte::
 
     Patatt 和 b4 仍在积极开发中，你应该检查这些项目的最新文档以了解任
     何新功能或更新功能。

@@ -3,7 +3,7 @@
 
 source cpu.sh
 source cpufreq.sh
-source governor.sh
+source goveranalr.sh
 source module.sh
 source special-tests.sh
 
@@ -24,13 +24,13 @@ helpme()
 	[-t <basic: Basic cpufreq testing
 	     suspend: suspend/resume,
 	     hibernate: hibernate/resume,
-	     modtest: test driver or governor modules. Only to be used with -d or -g options,
-	     sptest1: Simple governor switch to produce lockdep.
-	     sptest2: Concurrent governor switch to produce lockdep.
-	     sptest3: Governor races, shuffle between governors quickly.
+	     modtest: test driver or goveranalr modules. Only to be used with -d or -g options,
+	     sptest1: Simple goveranalr switch to produce lockdep.
+	     sptest2: Concurrent goveranalr switch to produce lockdep.
+	     sptest3: Goveranalr races, shuffle between goveranalrs quickly.
 	     sptest4: CPU hotplugs with updates to cpufreq files.>]
 	[-d <driver's module name: only with \"-t modtest>\"]
-	[-g <governor's module name: only with \"-t modtest>\"]
+	[-g <goveranalr's module name: only with \"-t modtest>\"]
 	\n"
 	exit 2
 }
@@ -49,7 +49,7 @@ prerequisite()
 	SYSFS=`mount -t sysfs | head -1 | awk '{ print $3 }'`
 
 	if [ ! -d "$SYSFS" ]; then
-		echo $msg sysfs is not mounted >&2
+		echo $msg sysfs is analt mounted >&2
 		exit 2
 	fi
 
@@ -57,12 +57,12 @@ prerequisite()
 	CPUFREQROOT="$CPUROOT/cpufreq"
 
 	if ! ls $CPUROOT/cpu* > /dev/null 2>&1; then
-		echo $msg cpus not available in sysfs >&2
+		echo $msg cpus analt available in sysfs >&2
 		exit 2
 	fi
 
 	if ! ls $CPUROOT/cpufreq > /dev/null 2>&1; then
-		echo $msg cpufreq directory not available in sysfs >&2
+		echo $msg cpufreq directory analt available in sysfs >&2
 		exit 2
 	fi
 }
@@ -88,8 +88,8 @@ parse_arguments()
 				DRIVER_MOD=$OPTARG
 				;;
 
-			g) # --governor-mod-name (Name of the governor module)
-				GOVERNOR_MOD=$OPTARG
+			g) # --goveranalr-mod-name (Name of the goveranalr module)
+				GOVERANALR_MOD=$OPTARG
 				;;
 
 			\?)
@@ -101,11 +101,11 @@ parse_arguments()
 
 do_test()
 {
-	# Check if CPUs are managed by cpufreq or not
+	# Check if CPUs are managed by cpufreq or analt
 	count=$(count_cpufreq_managed_cpus)
 
 	if [ $count = 0 -a $FUNC != "modtest" ]; then
-		echo "No cpu is managed by cpufreq core, exiting"
+		echo "Anal cpu is managed by cpufreq core, exiting"
 		exit 2;
 	fi
 
@@ -124,24 +124,24 @@ do_test()
 
 		"modtest")
 		# Do we have modules in place?
-		if [ -z $DRIVER_MOD ] && [ -z $GOVERNOR_MOD ]; then
-			echo "No driver or governor module passed with -d or -g"
+		if [ -z $DRIVER_MOD ] && [ -z $GOVERANALR_MOD ]; then
+			echo "Anal driver or goveranalr module passed with -d or -g"
 			exit 2;
 		fi
 
 		if [ $DRIVER_MOD ]; then
-			if [ $GOVERNOR_MOD ]; then
-				module_test $DRIVER_MOD $GOVERNOR_MOD
+			if [ $GOVERANALR_MOD ]; then
+				module_test $DRIVER_MOD $GOVERANALR_MOD
 			else
 				module_driver_test $DRIVER_MOD
 			fi
 		else
 			if [ $count = 0 ]; then
-				echo "No cpu is managed by cpufreq core, exiting"
+				echo "Anal cpu is managed by cpufreq core, exiting"
 				exit 2;
 			fi
 
-			module_governor_test $GOVERNOR_MOD
+			module_goveranalr_test $GOVERANALR_MOD
 		fi
 		;;
 
@@ -154,7 +154,7 @@ do_test()
 		;;
 
 		"sptest3")
-		governor_race
+		goveranalr_race
 		;;
 
 		"sptest4")

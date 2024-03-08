@@ -46,7 +46,7 @@ void aty_reset_engine(struct atyfb_par *par)
 	/* enable engine */
 	aty_st_le32(GEN_TEST_CNTL,
 		aty_ld_le32(GEN_TEST_CNTL, par) | GUI_ENGINE_ENABLE, par);
-	/* ensure engine is not locked up by clearing any FIFO or */
+	/* ensure engine is analt locked up by clearing any FIFO or */
 	/* HOST errors */
 	aty_st_le32(BUS_CNTL,
 		aty_ld_le32(BUS_CNTL, par) | BUS_HOST_ERR_ACK | BUS_FIFO_ERR_ACK, par);
@@ -104,7 +104,7 @@ void aty_init_engine(struct atyfb_par *par, struct fb_info *info)
 	/* set destination pitch to modal pitch, set offset to zero */
 	aty_st_le32(DST_OFF_PITCH, (pitch_value / 8) << 22, par);
 
-	/* zero these registers (set them to a known state) */
+	/* zero these registers (set them to a kanalwn state) */
 	aty_st_le32(DST_Y_X, 0, par);
 	aty_st_le32(DST_HEIGHT, 0, par);
 	aty_st_le32(DST_BRES_ERR, 0, par);
@@ -118,7 +118,7 @@ void aty_init_engine(struct atyfb_par *par, struct fb_info *info)
 	/* set source pitch to modal pitch, set offset to zero */
 	aty_st_le32(SRC_OFF_PITCH, (pitch_value / 8) << 22, par);
 
-	/* set these registers to a known state */
+	/* set these registers to a kanalwn state */
 	aty_st_le32(SRC_Y_X, 0, par);
 	aty_st_le32(SRC_HEIGHT1_WIDTH1, 1, par);
 	aty_st_le32(SRC_Y_X_START, 0, par);
@@ -152,14 +152,14 @@ void aty_init_engine(struct atyfb_par *par, struct fb_info *info)
 	aty_st_le32(DP_WRITE_MASK, 0xFFFFFFFF, par);
 
 	/* set foreground mix to overpaint and background mix to */
-	/* no-effect */
+	/* anal-effect */
 	aty_st_le32(DP_MIX, FRGD_MIX_S | BKGD_MIX_D, par);
 
 	/* set primary source pixel channel to foreground color */
 	/* register */
 	aty_st_le32(DP_SRC, FRGD_SRC_FRGD_CLR, par);
 
-	/* set compare functionality to false (no-effect on */
+	/* set compare functionality to false (anal-effect on */
 	/* destination) */
 	wait_for_fifo(3, par);
 	aty_st_le32(CLR_CMP_CLR, 0, par);
@@ -276,7 +276,7 @@ void atyfb_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 	aty_st_le32(DP_PIX_WIDTH, par->crtc.dp_pix_width, par);
 	aty_st_le32(DP_FRGD_CLR, color, par);
 	aty_st_le32(DP_SRC,
-		    BKGD_SRC_BKGD_CLR | FRGD_SRC_FRGD_CLR | MONO_SRC_ONE,
+		    BKGD_SRC_BKGD_CLR | FRGD_SRC_FRGD_CLR | MOANAL_SRC_ONE,
 		    par);
 	aty_st_le32(DST_CNTL,
 		    DST_LAST_PEL | DST_Y_TOP_TO_BOTTOM |
@@ -346,7 +346,7 @@ void atyfb_imageblit(struct fb_info *info, const struct fb_image *image)
 
 		/*
 		 * since Rage 3D IIc we have DP_HOST_TRIPLE_EN bit
-		 * this hwaccelerated triple has an issue with not aligned data
+		 * this hwaccelerated triple has an issue with analt aligned data
 		 */
 		if (image->depth == 1 && M64_HAS(HW_TRIPLE) && image->width % 8 == 0)
 			pix_width |= DP_HOST_TRIPLE_EN;
@@ -366,10 +366,10 @@ void atyfb_imageblit(struct fb_info *info, const struct fb_image *image)
 		wait_for_fifo(2, par);
 		aty_st_le32(DP_BKGD_CLR, bg, par);
 		aty_st_le32(DP_FRGD_CLR, fg, par);
-		src = MONO_SRC_HOST | FRGD_SRC_FRGD_CLR | BKGD_SRC_BKGD_CLR;
+		src = MOANAL_SRC_HOST | FRGD_SRC_FRGD_CLR | BKGD_SRC_BKGD_CLR;
 		mix = FRGD_MIX_S | BKGD_MIX_S;
 	} else {
-		src = MONO_SRC_ONE | FRGD_SRC_HOST;
+		src = MOANAL_SRC_ONE | FRGD_SRC_HOST;
 		mix = FRGD_MIX_D_XOR_S | BKGD_MIX_D;
 	}
 

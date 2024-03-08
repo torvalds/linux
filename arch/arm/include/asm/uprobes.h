@@ -21,7 +21,7 @@ typedef u32 uprobe_opcode_t;
 
 struct arch_uprobe_task {
 	u32 backup;
-	unsigned long	saved_trap_no;
+	unsigned long	saved_trap_anal;
 };
 
 struct arch_uprobe {

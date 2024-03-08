@@ -97,7 +97,7 @@ static int qcom_aoss_reset_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->desc = desc;
 	data->base = devm_platform_ioremap_resource(pdev, 0);
@@ -107,7 +107,7 @@ static int qcom_aoss_reset_probe(struct platform_device *pdev)
 	data->rcdev.owner = THIS_MODULE;
 	data->rcdev.ops = &qcom_aoss_reset_ops;
 	data->rcdev.nr_resets = desc->num_resets;
-	data->rcdev.of_node = dev->of_node;
+	data->rcdev.of_analde = dev->of_analde;
 
 	return devm_reset_controller_register(dev, &data->rcdev);
 }

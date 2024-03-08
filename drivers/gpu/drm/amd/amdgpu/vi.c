@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -301,9 +301,9 @@ static u32 vi_pcie_rreg(struct amdgpu_device *adev, u32 reg)
 	u32 r;
 
 	spin_lock_irqsave(&adev->pcie_idx_lock, flags);
-	WREG32_NO_KIQ(mmPCIE_INDEX, reg);
-	(void)RREG32_NO_KIQ(mmPCIE_INDEX);
-	r = RREG32_NO_KIQ(mmPCIE_DATA);
+	WREG32_ANAL_KIQ(mmPCIE_INDEX, reg);
+	(void)RREG32_ANAL_KIQ(mmPCIE_INDEX);
+	r = RREG32_ANAL_KIQ(mmPCIE_DATA);
 	spin_unlock_irqrestore(&adev->pcie_idx_lock, flags);
 	return r;
 }
@@ -313,10 +313,10 @@ static void vi_pcie_wreg(struct amdgpu_device *adev, u32 reg, u32 v)
 	unsigned long flags;
 
 	spin_lock_irqsave(&adev->pcie_idx_lock, flags);
-	WREG32_NO_KIQ(mmPCIE_INDEX, reg);
-	(void)RREG32_NO_KIQ(mmPCIE_INDEX);
-	WREG32_NO_KIQ(mmPCIE_DATA, v);
-	(void)RREG32_NO_KIQ(mmPCIE_DATA);
+	WREG32_ANAL_KIQ(mmPCIE_INDEX, reg);
+	(void)RREG32_ANAL_KIQ(mmPCIE_INDEX);
+	WREG32_ANAL_KIQ(mmPCIE_DATA, v);
+	(void)RREG32_ANAL_KIQ(mmPCIE_DATA);
 	spin_unlock_irqrestore(&adev->pcie_idx_lock, flags);
 }
 
@@ -326,8 +326,8 @@ static u32 vi_smc_rreg(struct amdgpu_device *adev, u32 reg)
 	u32 r;
 
 	spin_lock_irqsave(&adev->smc_idx_lock, flags);
-	WREG32_NO_KIQ(mmSMC_IND_INDEX_11, (reg));
-	r = RREG32_NO_KIQ(mmSMC_IND_DATA_11);
+	WREG32_ANAL_KIQ(mmSMC_IND_INDEX_11, (reg));
+	r = RREG32_ANAL_KIQ(mmSMC_IND_DATA_11);
 	spin_unlock_irqrestore(&adev->smc_idx_lock, flags);
 	return r;
 }
@@ -337,8 +337,8 @@ static void vi_smc_wreg(struct amdgpu_device *adev, u32 reg, u32 v)
 	unsigned long flags;
 
 	spin_lock_irqsave(&adev->smc_idx_lock, flags);
-	WREG32_NO_KIQ(mmSMC_IND_INDEX_11, (reg));
-	WREG32_NO_KIQ(mmSMC_IND_DATA_11, (v));
+	WREG32_ANAL_KIQ(mmSMC_IND_INDEX_11, (reg));
+	WREG32_ANAL_KIQ(mmSMC_IND_DATA_11, (v));
 	spin_unlock_irqrestore(&adev->smc_idx_lock, flags);
 }
 
@@ -654,7 +654,7 @@ static bool vi_read_bios_from_rom(struct amdgpu_device *adev,
 	/* set rom index to 0 */
 	WREG32(mmSMC_IND_INDEX_11, ixROM_INDEX);
 	WREG32(mmSMC_IND_DATA_11, 0);
-	/* set index to data for continous read */
+	/* set index to data for contianalus read */
 	WREG32(mmSMC_IND_INDEX_11, ixROM_DATA);
 	for (i = 0; i < length_dw; i++)
 		dw_ptr[i] = RREG32(mmSMC_IND_DATA_11);
@@ -1150,7 +1150,7 @@ static void vi_program_aspm(struct amdgpu_device *adev)
 		WREG32_PCIE(ixPCIE_LC_CNTL3, data);
 
 	orig = data = RREG32_PCIE(ixPCIE_P_CNTL);
-	data |= PCIE_P_CNTL__P_IGNORE_EDB_ERR_MASK;
+	data |= PCIE_P_CNTL__P_IGANALRE_EDB_ERR_MASK;
 	if (orig != data)
 		WREG32_PCIE(ixPCIE_P_CNTL, data);
 
@@ -1281,7 +1281,7 @@ static void vi_enable_doorbell_aperture(struct amdgpu_device *adev,
 {
 	u32 tmp;
 
-	/* not necessary on CZ */
+	/* analt necessary on CZ */
 	if (adev->flags & AMD_IS_APU)
 		return;
 
@@ -1358,7 +1358,7 @@ static void vi_get_pcie_usage(struct amdgpu_device *adev, uint64_t *count0,
 	int tmp;
 
 	/* This reports 0 on APUs, so return to avoid writing/reading registers
-	 * that may or may not be different from their GPU counterparts
+	 * that may or may analt be different from their GPU counterparts
 	 */
 	if (adev->flags & AMD_IS_APU)
 		return;
@@ -1667,7 +1667,7 @@ static int vi_common_early_init(void *handle)
 		adev->external_rev_id = adev->rev_id + 0x61;
 		break;
 	default:
-		/* FIXME: not supported yet */
+		/* FIXME: analt supported yet */
 		return -EINVAL;
 	}
 
@@ -2064,7 +2064,7 @@ static const struct amdgpu_ip_block_version vi_common_ip_block =
 {
 	.type = AMD_IP_BLOCK_TYPE_COMMON,
 	.major = 1,
-	.minor = 0,
+	.mianalr = 0,
 	.rev = 0,
 	.funcs = &vi_common_ip_funcs,
 };
@@ -2080,7 +2080,7 @@ int vi_set_ip_blocks(struct amdgpu_device *adev)
 
 	switch (adev->asic_type) {
 	case CHIP_TOPAZ:
-		/* topaz has no DCE, UVD, VCE */
+		/* topaz has anal DCE, UVD, VCE */
 		amdgpu_device_ip_block_add(adev, &vi_common_ip_block);
 		amdgpu_device_ip_block_add(adev, &gmc_v7_4_ip_block);
 		amdgpu_device_ip_block_add(adev, &iceland_ih_ip_block);
@@ -2194,7 +2194,7 @@ int vi_set_ip_blocks(struct amdgpu_device *adev)
 #endif
 		break;
 	default:
-		/* FIXME: not supported yet */
+		/* FIXME: analt supported yet */
 		return -EINVAL;
 	}
 

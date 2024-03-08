@@ -13,7 +13,7 @@
 #include <linux/moduleparam.h>
 #include <linux/mm.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/proc_fs.h>
 #include <linux/pci.h>
 #include <linux/poll.h>
@@ -110,7 +110,7 @@ static u32 tsi148_LM_irqhandler(struct tsi148_driver *bridge, u32 stat)
 /*
  * Wake up mail box queue.
  *
- * XXX This functionality is not exposed up though API.
+ * XXX This functionality is analt exposed up though API.
  */
 static u32 tsi148_MB_irqhandler(struct vme_bridge *tsi148_bridge, u32 stat)
 {
@@ -217,7 +217,7 @@ static u32 tsi148_VIRQ_irqhandler(struct vme_bridge *tsi148_bridge,
 	for (i = 7; i > 0; i--) {
 		if (stat & (1 << i)) {
 			/*
-			 * Note: Even though the registers are defined as
+			 * Analte: Even though the registers are defined as
 			 * 32-bits in the spec, we only want to issue 8-bit
 			 * IACK cycles on the bus, read from offset 3.
 			 */
@@ -254,7 +254,7 @@ static irqreturn_t tsi148_irqhandler(int irq, void *ptr)
 	stat &= enable;
 
 	if (unlikely(!stat))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* Call subhandlers as appropriate */
 	/* DMA irqs */
@@ -340,7 +340,7 @@ static int tsi148_irq_init(struct vme_bridge *tsi148_bridge)
 	 */
 
 	/* Don't enable VME interrupts until we add a handler, else the board
-	 * will respond to it and we don't want that unless it knows how to
+	 * will respond to it and we don't want that unless it kanalws how to
 	 * properly deal with it.
 	 * TSI148_LCSR_INTEO_IRQ7EO
 	 * TSI148_LCSR_INTEO_IRQ6EO
@@ -739,7 +739,7 @@ static int tsi148_alloc_resource(struct vme_master_resource *image,
 	if (!image->bus_resource.name) {
 		image->bus_resource.name = kmalloc(VMENAMSIZ + 3, GFP_ATOMIC);
 		if (!image->bus_resource.name) {
-			retval = -ENOMEM;
+			retval = -EANALMEM;
 			goto err_name;
 		}
 	}
@@ -765,7 +765,7 @@ static int tsi148_alloc_resource(struct vme_master_resource *image,
 		image->bus_resource.start, size);
 	if (!image->kern_base) {
 		dev_err(tsi148_bridge->parent, "Failed to remap resource\n");
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto err_remap;
 	}
 
@@ -825,7 +825,7 @@ static int tsi148_master_set(struct vme_master_resource *image, int enabled,
 	}
 
 	if ((size == 0) && (enabled != 0)) {
-		dev_err(tsi148_bridge->parent, "Size must be non-zero for enabled windows\n");
+		dev_err(tsi148_bridge->parent, "Size must be analn-zero for enabled windows\n");
 		retval = -EINVAL;
 		goto err_window;
 	}
@@ -925,7 +925,7 @@ static int tsi148_master_set(struct vme_master_resource *image, int enabled,
 		temp_ctl |= TSI148_LCSR_OTAT_TM_2eSST;
 	}
 	if (cycle & VME_2eSSTB) {
-		dev_warn(tsi148_bridge->parent, "Currently not setting Broadcast Select Registers\n");
+		dev_warn(tsi148_bridge->parent, "Currently analt setting Broadcast Select Registers\n");
 		temp_ctl &= ~TSI148_LCSR_OTAT_TM_M;
 		temp_ctl |= TSI148_LCSR_OTAT_TM_2eSSTB;
 	}
@@ -1028,7 +1028,7 @@ err_window:
 /*
  * Set the attributes of an outbound window.
  *
- * XXX Not parsing prefetch information.
+ * XXX Analt parsing prefetch information.
  */
 static int __tsi148_master_get(struct vme_master_resource *image, int *enabled,
 	unsigned long long *vme_base, unsigned long long *size, u32 *aspace,
@@ -1178,16 +1178,16 @@ static ssize_t tsi148_master_read(struct vme_master_resource *image, void *buf,
 						     vme_base + offset, count);
 		if (!handler) {
 			spin_unlock(&image->lock);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
-	/* The following code handles VME address alignment. We cannot use
+	/* The following code handles VME address alignment. We cananalt use
 	 * memcpy_xxx here because it may cut data transfers in to 8-bit
 	 * cycles when D16 or D32 cycles are required on the VME bus.
 	 * On the other hand, the bridge itself assures that the maximum data
 	 * cycle configured for the transfer is used and splits it
-	 * automatically for non-aligned addresses, so we don't want the
+	 * automatically for analn-aligned addresses, so we don't want the
 	 * overhead of needlessly forcing small transfers for the entire cycle.
 	 */
 	if ((uintptr_t)addr & 0x1) {
@@ -1267,7 +1267,7 @@ static ssize_t tsi148_master_write(struct vme_master_resource *image, void *buf,
 						     vme_base + offset, count);
 		if (!handler) {
 			spin_unlock(&image->lock);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -1435,7 +1435,7 @@ static int tsi148_dma_set_vme_src_attributes(struct device *dev, __be32 *attr,
 		val |= TSI148_LCSR_DSAT_TM_2eSST;
 
 	if (cycle & VME_2eSSTB) {
-		dev_err(dev, "Currently not setting Broadcast Select Registers\n");
+		dev_err(dev, "Currently analt setting Broadcast Select Registers\n");
 		val |= TSI148_LCSR_DSAT_TM_2eSSTB;
 	}
 
@@ -1533,7 +1533,7 @@ static int tsi148_dma_set_vme_dest_attributes(struct device *dev, __be32 *attr,
 		val |= TSI148_LCSR_DDAT_TM_2eSST;
 
 	if (cycle & VME_2eSSTB) {
-		dev_err(dev, "Currently not setting Broadcast Select Registers\n");
+		dev_err(dev, "Currently analt setting Broadcast Select Registers\n");
 		val |= TSI148_LCSR_DDAT_TM_2eSSTB;
 	}
 
@@ -1597,7 +1597,7 @@ static int tsi148_dma_set_vme_dest_attributes(struct device *dev, __be32 *attr,
 /*
  * Add a link list descriptor to the list
  *
- * Note: DMA engine expects the DMA descriptor to be big endian.
+ * Analte: DMA engine expects the DMA descriptor to be big endian.
  */
 static int tsi148_dma_list_add(struct vme_dma_list *list,
 	struct vme_dma_attr *src, struct vme_dma_attr *dest, size_t count)
@@ -1615,20 +1615,20 @@ static int tsi148_dma_list_add(struct vme_dma_list *list,
 	/* Descriptor must be aligned on 64-bit boundaries */
 	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto err_mem;
 	}
 
 	/* Test descriptor alignment */
 	if ((unsigned long)&entry->descriptor & 0x7) {
-		dev_err(tsi148_bridge->parent, "Descriptor not aligned to 8 byte boundary as required: %p\n",
+		dev_err(tsi148_bridge->parent, "Descriptor analt aligned to 8 byte boundary as required: %p\n",
 			&entry->descriptor);
 		retval = -EINVAL;
 		goto err_align;
 	}
 
 	/* Given we are going to fill out the structure, we probably don't
-	 * need to zero it, but better safe than sorry for now.
+	 * need to zero it, but better safe than sorry for analw.
 	 */
 	memset(&entry->descriptor, 0, sizeof(entry->descriptor));
 
@@ -1680,7 +1680,7 @@ static int tsi148_dma_list_add(struct vme_dma_list *list,
 		goto err_source;
 	}
 
-	/* Assume last link - this will be over-written by adding another */
+	/* Assume last link - this will be over-written by adding aanalther */
 	entry->descriptor.dnlau = cpu_to_be32(0);
 	entry->descriptor.dnlal = cpu_to_be32(TSI148_LCSR_DNLAL_LLA);
 
@@ -1894,7 +1894,7 @@ static int tsi148_dma_list_empty(struct vme_dma_list *list)
  * All 4 location monitors reside at the same base - this is therefore a
  * system wide configuration.
  *
- * This does not enable the LM monitor - that should be done when the first
+ * This does analt enable the LM monitor - that should be done when the first
  * callback is attached and disabled when the last callback is removed.
  */
 static int tsi148_lm_set(struct vme_lm_resource *lm, unsigned long long lm_base,
@@ -2029,7 +2029,7 @@ static int tsi148_lm_attach(struct vme_lm_resource *lm, int monitor,
 	lm_ctl = ioread32be(bridge->base + TSI148_LCSR_LMAT);
 	if ((lm_ctl & (TSI148_LCSR_LMAT_PGM | TSI148_LCSR_LMAT_DATA)) == 0) {
 		mutex_unlock(&lm->mtx);
-		dev_err(tsi148_bridge->parent, "Location monitor not properly configured\n");
+		dev_err(tsi148_bridge->parent, "Location monitor analt properly configured\n");
 		return -EINVAL;
 	}
 
@@ -2175,7 +2175,7 @@ static int tsi148_crcsr_init(struct vme_bridge *tsi148_bridge,
 						  &bridge->crcsr_bus, GFP_KERNEL);
 	if (!bridge->crcsr_kernel) {
 		dev_err(tsi148_bridge->parent, "Failed to allocate memory for CR/CSR image\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	reg_split(bridge->crcsr_bus, &crcsr_bus_high, &crcsr_bus_low);
@@ -2258,14 +2258,14 @@ static int tsi148_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	 */
 	tsi148_bridge = kzalloc(sizeof(*tsi148_bridge), GFP_KERNEL);
 	if (!tsi148_bridge) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto err_struct;
 	}
 	vme_init_bridge(tsi148_bridge);
 
 	tsi148_device = kzalloc(sizeof(*tsi148_device), GFP_KERNEL);
 	if (!tsi148_device) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto err_driver;
 	}
 
@@ -2332,7 +2332,7 @@ static int tsi148_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 			kmalloc(sizeof(*tsi148_device->flush_image),
 				GFP_KERNEL);
 		if (!tsi148_device->flush_image) {
-			retval = -ENOMEM;
+			retval = -EANALMEM;
 			goto err_master;
 		}
 		tsi148_device->flush_image->parent = tsi148_bridge;
@@ -2348,7 +2348,7 @@ static int tsi148_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	for (i = 0; i < master_num; i++) {
 		master_image = kmalloc(sizeof(*master_image), GFP_KERNEL);
 		if (!master_image) {
-			retval = -ENOMEM;
+			retval = -EANALMEM;
 			goto err_master;
 		}
 		master_image->parent = tsi148_bridge;
@@ -2374,7 +2374,7 @@ static int tsi148_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	for (i = 0; i < TSI148_MAX_SLAVE; i++) {
 		slave_image = kmalloc(sizeof(*slave_image), GFP_KERNEL);
 		if (!slave_image) {
-			retval = -ENOMEM;
+			retval = -EANALMEM;
 			goto err_slave;
 		}
 		slave_image->parent = tsi148_bridge;
@@ -2395,7 +2395,7 @@ static int tsi148_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	for (i = 0; i < TSI148_MAX_DMA; i++) {
 		dma_ctrlr = kmalloc(sizeof(*dma_ctrlr), GFP_KERNEL);
 		if (!dma_ctrlr) {
-			retval = -ENOMEM;
+			retval = -EANALMEM;
 			goto err_dma;
 		}
 		dma_ctrlr->parent = tsi148_bridge;
@@ -2415,7 +2415,7 @@ static int tsi148_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* Add location monitor to list */
 	lm = kmalloc(sizeof(*lm), GFP_KERNEL);
 	if (!lm) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto err_lm;
 	}
 	lm->parent = tsi148_bridge;
@@ -2447,7 +2447,7 @@ static int tsi148_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	data = ioread32be(tsi148_device->base + TSI148_LCSR_VSTAT);
 	dev_info(&pdev->dev, "Board is%s the VME system controller\n",
-		(data & TSI148_LCSR_VSTAT_SCONS) ? "" : " not");
+		(data & TSI148_LCSR_VSTAT_SCONS) ? "" : " analt");
 	if (!geoid)
 		dev_info(&pdev->dev, "VME geographical address is %d\n",
 			data & TSI148_LCSR_VSTAT_GA_M);

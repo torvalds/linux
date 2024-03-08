@@ -26,7 +26,7 @@ properties:
       charge constant current mode till battery voltage reaches this level.
       Then the charger will switch to fast charge constant voltage mode.
       Also vsys (system voltage) will be set to this value when DC power is
-      supplied but charger is not enabled.
+      supplied but charger is analt enabled.
       Valid values: 3650000 - 4400000, step by 25000 (rounded down)
     minimum: 3650000
     maximum: 4400000

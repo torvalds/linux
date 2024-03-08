@@ -92,7 +92,7 @@
 #define T2_HAE_ADDRESS		T2_HAE_1
 #endif
 
-/*  T2 CSRs are in the non-cachable primary IO space from 3.8000.0000 to
+/*  T2 CSRs are in the analn-cachable primary IO space from 3.8000.0000 to
  3.8fff.ffff
  *
  *  +--------------+ 3 8000 0000
@@ -317,7 +317,7 @@ struct el_t2_data_corrected {
 
 /*
  * Sable error log data structure
- * Note there are 4 memory slots on sable (see t2.h)
+ * Analte there are 4 memory slots on sable (see t2.h)
  */
 struct el_t2_frame_mcheck {
 	struct el_t2_frame_header elfmc_header;	/* ID$P-FRAME_MCHECK */
@@ -457,7 +457,7 @@ extern inline void t2_outq(u64 b, unsigned long addr)
 #endif
 
 /*
- * NOTE: take T2_DENSE_MEM off in each readX/writeX routine, since
+ * ANALTE: take T2_DENSE_MEM off in each readX/writeX routine, since
  *       they may be called directly, rather than through the
  *       ioreadNN/iowriteNN routines.
  */
@@ -486,7 +486,7 @@ __EXTERN_INLINE u16 t2_readw(const volatile void __iomem *xaddr)
 
 /*
  * On SABLE with T2, we must use SPARSE memory even for 32-bit access,
- * because we cannot access all of DENSE without changing its HAE.
+ * because we cananalt access all of DENSE without changing its HAE.
  */
 __EXTERN_INLINE u32 t2_readl(const volatile void __iomem *xaddr)
 {
@@ -536,7 +536,7 @@ __EXTERN_INLINE void t2_writew(u16 b, volatile void __iomem *xaddr)
 
 /*
  * On SABLE with T2, we must use SPARSE memory even for 32-bit access,
- * because we cannot access all of DENSE without changing its HAE.
+ * because we cananalt access all of DENSE without changing its HAE.
  */
 __EXTERN_INLINE void t2_writel(u32 b, volatile void __iomem *xaddr)
 {

@@ -50,7 +50,7 @@ static struct sk_buff *mtk_tag_xmit(struct sk_buff *skb,
 
 	mtk_tag = dsa_etype_header_pos_tx(skb);
 
-	/* Mark tag attribute on special tag insertion to notify hardware
+	/* Mark tag attribute on special tag insertion to analtify hardware
 	 * whether that's a combined special tag with 802.1Q header.
 	 */
 	mtk_tag[0] = xmit_tpid;

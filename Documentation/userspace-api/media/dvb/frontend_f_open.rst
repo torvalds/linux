@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: DTV.fe
 
 .. _frontend_f_open:
@@ -12,7 +12,7 @@ Name
 
 fe-open - Open a frontend device
 
-Synopsis
+Syanalpsis
 ========
 
 .. code-block:: c
@@ -36,11 +36,11 @@ Arguments
     Only one open is allowed in ``O_RDWR``. In this mode, all ioctls are
     allowed.
 
-    When the ``O_NONBLOCK`` flag is given, the system calls may return
-    ``EAGAIN`` error code when no data is available or when the device
+    When the ``O_ANALNBLOCK`` flag is given, the system calls may return
+    ``EAGAIN`` error code when anal data is available or when the device
     driver is temporarily busy.
 
-    Other flags have no effect.
+    Other flags have anal effect.
 
 Description
 ===========
@@ -55,11 +55,11 @@ of device status and statistics, or read/write mode, which allows any
 kind of use (e.g. performing tuning operations.)
 
 In a system with multiple front-ends, it is usually the case that
-multiple devices cannot be open in read/write mode simultaneously. As
+multiple devices cananalt be open in read/write mode simultaneously. As
 long as a front-end device is opened in read/write mode, other open()
 calls in read/write mode will either fail or block, depending on whether
-non-blocking or blocking mode was specified. A front-end device opened
-in blocking mode can later be put into non-blocking mode (and vice
+analn-blocking or blocking mode was specified. A front-end device opened
+in blocking mode can later be put into analn-blocking mode (and vice
 versa) using the F_SETFL command of the fcntl system call. This is a
 standard system call, documented in the Linux manual page for fcntl.
 When an open() call has succeeded, the device will be ready for use in
@@ -71,13 +71,13 @@ Return Value
 ============
 
 On success :c:func:`open()` returns the new file descriptor.
-On error, -1 is returned, and the ``errno`` variable is set appropriately.
+On error, -1 is returned, and the ``erranal`` variable is set appropriately.
 
 Possible error codes are:
 
 On success 0 is returned, and :c:type:`ca_slot_info` is filled.
 
-On error -1 is returned, and the ``errno`` variable is set
+On error -1 is returned, and the ``erranal`` variable is set
 appropriately.
 
 .. tabularcolumns:: |p{2.5cm}|p{15.0cm}|
@@ -88,7 +88,7 @@ appropriately.
     :widths: 1 16
 
     -  - ``EPERM``
-       -  The caller has no permission to access the device.
+       -  The caller has anal permission to access the device.
 
     -  - ``EBUSY``
        -  The the device driver is already in use.

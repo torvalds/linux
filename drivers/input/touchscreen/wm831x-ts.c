@@ -102,7 +102,7 @@ static irqreturn_t wm831x_ts_data_irq(int irq, void *irq_data)
 	if (ret != 0) {
 		dev_err(wm831x->dev, "Failed to read touch data: %d\n",
 			ret);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	/*
@@ -123,7 +123,7 @@ static irqreturn_t wm831x_ts_data_irq(int irq, void *irq_data)
 		/* Switch from data to pen down */
 		dev_dbg(wm831x->dev, "IRQ DATA->PD\n");
 
-		disable_irq_nosync(wm831x_ts->data_irq);
+		disable_irq_analsync(wm831x_ts->data_irq);
 
 		/* Don't need data any more */
 		wm831x_set_bits(wm831x, WM831X_TOUCH_CONTROL_1,
@@ -161,7 +161,7 @@ static irqreturn_t wm831x_ts_pen_down_irq(int irq, void *irq_data)
 	if (wm831x_ts->pen_down)
 		return IRQ_HANDLED;
 
-	disable_irq_nosync(wm831x_ts->pd_irq);
+	disable_irq_analsync(wm831x_ts->pd_irq);
 
 	/* Start collecting data */
 	if (wm831x_ts->pressure)
@@ -244,7 +244,7 @@ static int wm831x_ts_probe(struct platform_device *pdev)
 				 GFP_KERNEL);
 	input_dev = devm_input_allocate_device(&pdev->dev);
 	if (!wm831x_ts || !input_dev) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto err_alloc;
 	}
 
@@ -277,7 +277,7 @@ static int wm831x_ts_probe(struct platform_device *pdev)
 		wm831x_set_bits(wm831x, WM831X_TOUCH_CONTROL_2,
 				WM831X_TCH_5WIRE, WM831X_TCH_5WIRE);
 
-		/* Pressure measurements are not possible for five wire mode */
+		/* Pressure measurements are analt possible for five wire mode */
 		WARN_ON(pdata->pressure && pdata->fivewire);
 		wm831x_ts->pressure = false;
 	} else {
@@ -317,7 +317,7 @@ static int wm831x_ts_probe(struct platform_device *pdev)
 
 	error = request_threaded_irq(wm831x_ts->data_irq,
 				     NULL, wm831x_ts_data_irq,
-				     irqf | IRQF_ONESHOT | IRQF_NO_AUTOEN,
+				     irqf | IRQF_ONESHOT | IRQF_ANAL_AUTOEN,
 				     "Touchscreen data", wm831x_ts);
 	if (error) {
 		dev_err(&pdev->dev, "Failed to request data IRQ %d: %d\n",

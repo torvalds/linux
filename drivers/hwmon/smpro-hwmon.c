@@ -221,7 +221,7 @@ static int smpro_read_temp(struct device *dev, u32 attr, int channel, long *val)
 			return ret;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	*val = sign_extend32(value, 8) * 1000;
@@ -243,7 +243,7 @@ static int smpro_read_in(struct device *dev, u32 attr, int channel, long *val)
 		*val = value & 0x7fff;
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -262,7 +262,7 @@ static int smpro_read_curr(struct device *dev, u32 attr, int channel, long *val)
 		*val = value & 0x7fff;
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -286,7 +286,7 @@ static int smpro_read_power(struct device *dev, u32 attr, int channel, long *val
 		return 0;
 
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -303,7 +303,7 @@ static int smpro_read(struct device *dev, enum hwmon_sensor_types type,
 	case hwmon_curr:
 		return smpro_read_curr(dev, attr, channel, val);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -354,7 +354,7 @@ static int smpro_read_string(struct device *dev, enum hwmon_sensor_types type,
 		break;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static umode_t smpro_is_visible(const void *data, enum hwmon_sensor_types type,
@@ -439,11 +439,11 @@ static int smpro_hwmon_probe(struct platform_device *pdev)
 
 	hwmon = devm_kzalloc(&pdev->dev, sizeof(struct smpro_hwmon), GFP_KERNEL);
 	if (!hwmon)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hwmon->regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!hwmon->regmap)
-		return -ENODEV;
+		return -EANALDEV;
 
 	hwmon_dev = devm_hwmon_device_register_with_info(&pdev->dev, "smpro_hwmon",
 							 hwmon, &smpro_chip_info, NULL);

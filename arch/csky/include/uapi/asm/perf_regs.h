@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 
 #ifndef _ASM_CSKY_PERF_REGS_H
 #define _ASM_CSKY_PERF_REGS_H

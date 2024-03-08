@@ -107,16 +107,16 @@ static void afs_clear_contig_bits(union afs_xdr_dir_block *block,
 /*
  * Get a new directory folio.
  */
-static struct folio *afs_dir_get_folio(struct afs_vnode *vnode, pgoff_t index)
+static struct folio *afs_dir_get_folio(struct afs_vanalde *vanalde, pgoff_t index)
 {
-	struct address_space *mapping = vnode->netfs.inode.i_mapping;
+	struct address_space *mapping = vanalde->netfs.ianalde.i_mapping;
 	struct folio *folio;
 
 	folio = __filemap_get_folio(mapping, index,
 				    FGP_LOCK | FGP_ACCESSED | FGP_CREAT,
 				    mapping->gfp_mask);
 	if (IS_ERR(folio)) {
-		clear_bit(AFS_VNODE_DIR_VALID, &vnode->flags);
+		clear_bit(AFS_VANALDE_DIR_VALID, &vanalde->flags);
 		return NULL;
 	}
 	if (!folio_test_private(folio))
@@ -169,7 +169,7 @@ static int afs_dir_scan_block(union afs_xdr_dir_block *block, struct qstr *name,
 }
 
 /*
- * Initialise a new directory block.  Note that block 0 is special and contains
+ * Initialise a new directory block.  Analte that block 0 is special and contains
  * some extra metadata.
  */
 static void afs_edit_init_block(union afs_xdr_dir_block *meta,
@@ -201,9 +201,9 @@ static void afs_edit_init_block(union afs_xdr_dir_block *meta,
  * incremented by exactly one avoids the need to re-download the entire
  * directory contents.
  *
- * The caller must hold the inode locked.
+ * The caller must hold the ianalde locked.
  */
-void afs_edit_dir_add(struct afs_vnode *vnode,
+void afs_edit_dir_add(struct afs_vanalde *vanalde,
 		      struct qstr *name, struct afs_fid *new_fid,
 		      enum afs_edit_dir_reason why)
 {
@@ -217,14 +217,14 @@ void afs_edit_dir_add(struct afs_vnode *vnode,
 
 	_enter(",,{%d,%s},", name->len, name->name);
 
-	i_size = i_size_read(&vnode->netfs.inode);
+	i_size = i_size_read(&vanalde->netfs.ianalde);
 	if (i_size > AFS_DIR_BLOCK_SIZE * AFS_DIR_MAX_BLOCKS ||
 	    (i_size & (AFS_DIR_BLOCK_SIZE - 1))) {
-		clear_bit(AFS_VNODE_DIR_VALID, &vnode->flags);
+		clear_bit(AFS_VANALDE_DIR_VALID, &vanalde->flags);
 		return;
 	}
 
-	folio0 = afs_dir_get_folio(vnode, 0);
+	folio0 = afs_dir_get_folio(vanalde, 0);
 	if (!folio0) {
 		_leave(" [fgp]");
 		return;
@@ -249,7 +249,7 @@ void afs_edit_dir_add(struct afs_vnode *vnode,
 		if (nr_blocks >= AFS_DIR_MAX_BLOCKS)
 			goto error;
 		if (index >= folio_nr_pages(folio0)) {
-			folio = afs_dir_get_folio(vnode, index);
+			folio = afs_dir_get_folio(vanalde, index);
 			if (!folio)
 				goto error;
 		} else {
@@ -259,7 +259,7 @@ void afs_edit_dir_add(struct afs_vnode *vnode,
 		block = kmap_local_folio(folio, b * AFS_DIR_BLOCK_SIZE - folio_file_pos(folio));
 
 		/* Abandon the edit if we got a callback break. */
-		if (!test_bit(AFS_VNODE_DIR_VALID, &vnode->flags))
+		if (!test_bit(AFS_VANALDE_DIR_VALID, &vanalde->flags))
 			goto invalidated;
 
 		_debug("block %u: %2u %3u %u",
@@ -272,7 +272,7 @@ void afs_edit_dir_add(struct afs_vnode *vnode,
 		if (b == nr_blocks) {
 			_debug("init %u", b);
 			afs_edit_init_block(meta, block, b);
-			afs_set_i_size(vnode, (b + 1) * AFS_DIR_BLOCK_SIZE);
+			afs_set_i_size(vanalde, (b + 1) * AFS_DIR_BLOCK_SIZE);
 		}
 
 		/* Only lower dir blocks have a counter in the header. */
@@ -295,17 +295,17 @@ void afs_edit_dir_add(struct afs_vnode *vnode,
 		}
 	}
 
-	/* There are no spare slots of sufficient size, yet the operation
+	/* There are anal spare slots of sufficient size, yet the operation
 	 * succeeded.  Download the directory again.
 	 */
-	trace_afs_edit_dir(vnode, why, afs_edit_dir_create_nospc, 0, 0, 0, 0, name->name);
-	clear_bit(AFS_VNODE_DIR_VALID, &vnode->flags);
+	trace_afs_edit_dir(vanalde, why, afs_edit_dir_create_analspc, 0, 0, 0, 0, name->name);
+	clear_bit(AFS_VANALDE_DIR_VALID, &vanalde->flags);
 	goto out_unmap;
 
 new_directory:
 	afs_edit_init_block(meta, meta, 0);
 	i_size = AFS_DIR_BLOCK_SIZE;
-	afs_set_i_size(vnode, i_size);
+	afs_set_i_size(vanalde, i_size);
 	slot = AFS_DIR_RESV_BLOCKS0;
 	folio = folio0;
 	block = kmap_local_folio(folio, 0);
@@ -314,13 +314,13 @@ new_directory:
 
 found_space:
 	/* Set the dirent slot. */
-	trace_afs_edit_dir(vnode, why, afs_edit_dir_create, b, slot,
-			   new_fid->vnode, new_fid->unique, name->name);
+	trace_afs_edit_dir(vanalde, why, afs_edit_dir_create, b, slot,
+			   new_fid->vanalde, new_fid->unique, name->name);
 	de = &block->dirents[slot];
 	de->u.valid	= 1;
 	de->u.unused[0]	= 0;
 	de->u.hash_next	= 0; // TODO: Really need to maintain this
-	de->u.vnode	= htonl(new_fid->vnode);
+	de->u.vanalde	= htonl(new_fid->vanalde);
 	de->u.unique	= htonl(new_fid->unique);
 	memcpy(de->u.name, name->name, name->len + 1);
 	de->u.name[name->len] = 0;
@@ -337,8 +337,8 @@ found_space:
 	if (b < AFS_DIR_BLOCKS_WITH_CTR)
 		meta->meta.alloc_ctrs[b] -= need_slots;
 
-	inode_inc_iversion_raw(&vnode->netfs.inode);
-	afs_stat_v(vnode, n_dir_cr);
+	ianalde_inc_iversion_raw(&vanalde->netfs.ianalde);
+	afs_stat_v(vanalde, n_dir_cr);
 	_debug("Insert %s in %u[%u]", name->name, b, slot);
 
 out_unmap:
@@ -349,8 +349,8 @@ out_unmap:
 	return;
 
 invalidated:
-	trace_afs_edit_dir(vnode, why, afs_edit_dir_create_inval, 0, 0, 0, 0, name->name);
-	clear_bit(AFS_VNODE_DIR_VALID, &vnode->flags);
+	trace_afs_edit_dir(vanalde, why, afs_edit_dir_create_inval, 0, 0, 0, 0, name->name);
+	clear_bit(AFS_VANALDE_DIR_VALID, &vanalde->flags);
 	kunmap_local(block);
 	if (folio != folio0) {
 		folio_unlock(folio);
@@ -359,8 +359,8 @@ invalidated:
 	goto out_unmap;
 
 error:
-	trace_afs_edit_dir(vnode, why, afs_edit_dir_create_error, 0, 0, 0, 0, name->name);
-	clear_bit(AFS_VNODE_DIR_VALID, &vnode->flags);
+	trace_afs_edit_dir(vanalde, why, afs_edit_dir_create_error, 0, 0, 0, 0, name->name);
+	clear_bit(AFS_VANALDE_DIR_VALID, &vanalde->flags);
 	goto out_unmap;
 }
 
@@ -369,9 +369,9 @@ error:
  * after unlink, rmdir or rename if the data version number is incremented by
  * exactly one avoids the need to re-download the entire directory contents.
  *
- * The caller must hold the inode locked.
+ * The caller must hold the ianalde locked.
  */
-void afs_edit_dir_remove(struct afs_vnode *vnode,
+void afs_edit_dir_remove(struct afs_vanalde *vanalde,
 			 struct qstr *name, enum afs_edit_dir_reason why)
 {
 	union afs_xdr_dir_block *meta, *block;
@@ -384,16 +384,16 @@ void afs_edit_dir_remove(struct afs_vnode *vnode,
 
 	_enter(",,{%d,%s},", name->len, name->name);
 
-	i_size = i_size_read(&vnode->netfs.inode);
+	i_size = i_size_read(&vanalde->netfs.ianalde);
 	if (i_size < AFS_DIR_BLOCK_SIZE ||
 	    i_size > AFS_DIR_BLOCK_SIZE * AFS_DIR_MAX_BLOCKS ||
 	    (i_size & (AFS_DIR_BLOCK_SIZE - 1))) {
-		clear_bit(AFS_VNODE_DIR_VALID, &vnode->flags);
+		clear_bit(AFS_VANALDE_DIR_VALID, &vanalde->flags);
 		return;
 	}
 	nr_blocks = i_size / AFS_DIR_BLOCK_SIZE;
 
-	folio0 = afs_dir_get_folio(vnode, 0);
+	folio0 = afs_dir_get_folio(vanalde, 0);
 	if (!folio0) {
 		_leave(" [fgp]");
 		return;
@@ -410,7 +410,7 @@ void afs_edit_dir_remove(struct afs_vnode *vnode,
 	for (b = 0; b < nr_blocks; b++) {
 		index = b / AFS_DIR_BLOCKS_PER_PAGE;
 		if (index >= folio_nr_pages(folio0)) {
-			folio = afs_dir_get_folio(vnode, index);
+			folio = afs_dir_get_folio(vanalde, index);
 			if (!folio)
 				goto error;
 		} else {
@@ -420,7 +420,7 @@ void afs_edit_dir_remove(struct afs_vnode *vnode,
 		block = kmap_local_folio(folio, b * AFS_DIR_BLOCK_SIZE - folio_file_pos(folio));
 
 		/* Abandon the edit if we got a callback break. */
-		if (!test_bit(AFS_VNODE_DIR_VALID, &vnode->flags))
+		if (!test_bit(AFS_VANALDE_DIR_VALID, &vanalde->flags))
 			goto invalidated;
 
 		if (b > AFS_DIR_BLOCKS_WITH_CTR ||
@@ -438,16 +438,16 @@ void afs_edit_dir_remove(struct afs_vnode *vnode,
 	}
 
 	/* Didn't find the dirent to clobber.  Download the directory again. */
-	trace_afs_edit_dir(vnode, why, afs_edit_dir_delete_noent,
+	trace_afs_edit_dir(vanalde, why, afs_edit_dir_delete_analent,
 			   0, 0, 0, 0, name->name);
-	clear_bit(AFS_VNODE_DIR_VALID, &vnode->flags);
+	clear_bit(AFS_VANALDE_DIR_VALID, &vanalde->flags);
 	goto out_unmap;
 
 found_dirent:
 	de = &block->dirents[slot];
 
-	trace_afs_edit_dir(vnode, why, afs_edit_dir_delete, b, slot,
-			   ntohl(de->u.vnode), ntohl(de->u.unique),
+	trace_afs_edit_dir(vanalde, why, afs_edit_dir_delete, b, slot,
+			   ntohl(de->u.vanalde), ntohl(de->u.unique),
 			   name->name);
 
 	memset(de, 0, sizeof(*de) * need_slots);
@@ -464,8 +464,8 @@ found_dirent:
 	if (b < AFS_DIR_BLOCKS_WITH_CTR)
 		meta->meta.alloc_ctrs[b] += need_slots;
 
-	inode_set_iversion_raw(&vnode->netfs.inode, vnode->status.data_version);
-	afs_stat_v(vnode, n_dir_rm);
+	ianalde_set_iversion_raw(&vanalde->netfs.ianalde, vanalde->status.data_version);
+	afs_stat_v(vanalde, n_dir_rm);
 	_debug("Remove %s from %u[%u]", name->name, b, slot);
 
 out_unmap:
@@ -476,9 +476,9 @@ out_unmap:
 	return;
 
 invalidated:
-	trace_afs_edit_dir(vnode, why, afs_edit_dir_delete_inval,
+	trace_afs_edit_dir(vanalde, why, afs_edit_dir_delete_inval,
 			   0, 0, 0, 0, name->name);
-	clear_bit(AFS_VNODE_DIR_VALID, &vnode->flags);
+	clear_bit(AFS_VANALDE_DIR_VALID, &vanalde->flags);
 	kunmap_local(block);
 	if (folio != folio0) {
 		folio_unlock(folio);
@@ -487,8 +487,8 @@ invalidated:
 	goto out_unmap;
 
 error:
-	trace_afs_edit_dir(vnode, why, afs_edit_dir_delete_error,
+	trace_afs_edit_dir(vanalde, why, afs_edit_dir_delete_error,
 			   0, 0, 0, 0, name->name);
-	clear_bit(AFS_VNODE_DIR_VALID, &vnode->flags);
+	clear_bit(AFS_VANALDE_DIR_VALID, &vanalde->flags);
 	goto out_unmap;
 }

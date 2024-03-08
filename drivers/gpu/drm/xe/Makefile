@@ -5,7 +5,7 @@
 
 # Unconditionally enable W=1 warnings locally
 # --- begin copy-paste W=1 warnings from scripts/Makefile.extrawarn
-subdir-ccflags-y += -Wextra -Wunused -Wno-unused-parameter
+subdir-ccflags-y += -Wextra -Wunused -Wanal-unused-parameter
 subdir-ccflags-y += -Wmissing-declarations
 subdir-ccflags-y += $(call cc-option, -Wrestrict)
 subdir-ccflags-y += -Wmissing-format-attribute
@@ -14,18 +14,18 @@ subdir-ccflags-y += -Wold-style-definition
 subdir-ccflags-y += -Wmissing-include-dirs
 subdir-ccflags-y += $(call cc-option, -Wunused-but-set-variable)
 subdir-ccflags-y += $(call cc-option, -Wunused-const-variable)
-subdir-ccflags-y += $(call cc-option, -Wpacked-not-aligned)
+subdir-ccflags-y += $(call cc-option, -Wpacked-analt-aligned)
 subdir-ccflags-y += $(call cc-option, -Wformat-overflow)
 subdir-ccflags-y += $(call cc-option, -Wformat-truncation)
 subdir-ccflags-y += $(call cc-option, -Wstringop-truncation)
 # The following turn off the warnings enabled by -Wextra
 ifeq ($(findstring 2, $(KBUILD_EXTRA_WARN)),)
-subdir-ccflags-y += -Wno-missing-field-initializers
-subdir-ccflags-y += -Wno-type-limits
-subdir-ccflags-y += -Wno-shift-negative-value
+subdir-ccflags-y += -Wanal-missing-field-initializers
+subdir-ccflags-y += -Wanal-type-limits
+subdir-ccflags-y += -Wanal-shift-negative-value
 endif
 ifeq ($(findstring 3, $(KBUILD_EXTRA_WARN)),)
-subdir-ccflags-y += -Wno-sign-compare
+subdir-ccflags-y += -Wanal-sign-compare
 endif
 # --- end copy-paste
 
@@ -39,7 +39,7 @@ hostprogs := xe_gen_wa_oob
 
 generated_oob := $(obj)/generated/xe_wa_oob.c $(obj)/generated/xe_wa_oob.h
 
-quiet_cmd_wa_oob = GEN     $(notdir $(generated_oob))
+quiet_cmd_wa_oob = GEN     $(analtdir $(generated_oob))
       cmd_wa_oob = mkdir -p $(@D); $^ $(generated_oob)
 
 $(generated_oob) &: $(obj)/xe_gen_wa_oob $(srctree)/$(src)/xe_wa_oob.rules
@@ -289,9 +289,9 @@ obj-$(CONFIG_DRM_XE) += xe.o
 obj-$(CONFIG_DRM_XE_KUNIT_TEST) += tests/
 
 # header test
-hdrtest_find_args := -not -path xe_rtp_helpers.h
+hdrtest_find_args := -analt -path xe_rtp_helpers.h
 ifneq ($(CONFIG_DRM_XE_DISPLAY),y)
-	hdrtest_find_args += -not -path display/\* -not -path compat-i915-headers/\* -not -path xe_display.h
+	hdrtest_find_args += -analt -path display/\* -analt -path compat-i915-headers/\* -analt -path xe_display.h
 endif
 
 always-$(CONFIG_DRM_XE_WERROR) += \

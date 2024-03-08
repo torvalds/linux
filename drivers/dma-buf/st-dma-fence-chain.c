@@ -60,7 +60,7 @@ static struct dma_fence *mock_fence(void)
 
 static struct dma_fence *mock_chain(struct dma_fence *prev,
 				    struct dma_fence *fence,
-				    u64 seqno)
+				    u64 seqanal)
 {
 	struct dma_fence_chain *f;
 
@@ -69,7 +69,7 @@ static struct dma_fence *mock_chain(struct dma_fence *prev,
 		return NULL;
 
 	dma_fence_chain_init(f, dma_fence_get(prev), dma_fence_get(fence),
-			     seqno);
+			     seqanal);
 
 	return &f->base;
 }
@@ -81,11 +81,11 @@ static int sanitycheck(void *arg)
 
 	f = mock_fence();
 	if (!f)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chain = mock_chain(NULL, f, 1);
 	if (!chain)
-		err = -ENOMEM;
+		err = -EANALMEM;
 
 	dma_fence_enable_sw_signaling(chain);
 
@@ -105,13 +105,13 @@ struct fence_chains {
 	struct dma_fence *tail;
 };
 
-static uint64_t seqno_inc(unsigned int i)
+static uint64_t seqanal_inc(unsigned int i)
 {
 	return i + 1;
 }
 
 static int fence_chains_init(struct fence_chains *fc, unsigned int count,
-			     uint64_t (*seqno_fn)(unsigned int))
+			     uint64_t (*seqanal_fn)(unsigned int))
 {
 	unsigned int i;
 	int err = 0;
@@ -119,12 +119,12 @@ static int fence_chains_init(struct fence_chains *fc, unsigned int count,
 	fc->chains = kvmalloc_array(count, sizeof(*fc->chains),
 				    GFP_KERNEL | __GFP_ZERO);
 	if (!fc->chains)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fc->fences = kvmalloc_array(count, sizeof(*fc->fences),
 				    GFP_KERNEL | __GFP_ZERO);
 	if (!fc->fences) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_chains;
 	}
 
@@ -132,15 +132,15 @@ static int fence_chains_init(struct fence_chains *fc, unsigned int count,
 	for (i = 0; i < count; i++) {
 		fc->fences[i] = mock_fence();
 		if (!fc->fences[i]) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto unwind;
 		}
 
 		fc->chains[i] = mock_chain(fc->tail,
 					   fc->fences[i],
-					   seqno_fn(i));
+					   seqanal_fn(i));
 		if (!fc->chains[i]) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto unwind;
 		}
 
@@ -178,43 +178,43 @@ static void fence_chains_fini(struct fence_chains *fc)
 	kvfree(fc->chains);
 }
 
-static int find_seqno(void *arg)
+static int find_seqanal(void *arg)
 {
 	struct fence_chains fc;
 	struct dma_fence *fence;
 	int err;
 	int i;
 
-	err = fence_chains_init(&fc, 64, seqno_inc);
+	err = fence_chains_init(&fc, 64, seqanal_inc);
 	if (err)
 		return err;
 
 	fence = dma_fence_get(fc.tail);
-	err = dma_fence_chain_find_seqno(&fence, 0);
+	err = dma_fence_chain_find_seqanal(&fence, 0);
 	dma_fence_put(fence);
 	if (err) {
-		pr_err("Reported %d for find_seqno(0)!\n", err);
+		pr_err("Reported %d for find_seqanal(0)!\n", err);
 		goto err;
 	}
 
 	for (i = 0; i < fc.chain_length; i++) {
 		fence = dma_fence_get(fc.tail);
-		err = dma_fence_chain_find_seqno(&fence, i + 1);
+		err = dma_fence_chain_find_seqanal(&fence, i + 1);
 		dma_fence_put(fence);
 		if (err) {
-			pr_err("Reported %d for find_seqno(%d:%d)!\n",
+			pr_err("Reported %d for find_seqanal(%d:%d)!\n",
 			       err, fc.chain_length + 1, i + 1);
 			goto err;
 		}
 		if (fence != fc.chains[i]) {
-			pr_err("Incorrect fence reported by find_seqno(%d:%d)\n",
+			pr_err("Incorrect fence reported by find_seqanal(%d:%d)\n",
 			       fc.chain_length + 1, i + 1);
 			err = -EINVAL;
 			goto err;
 		}
 
 		dma_fence_get(fence);
-		err = dma_fence_chain_find_seqno(&fence, i + 1);
+		err = dma_fence_chain_find_seqanal(&fence, i + 1);
 		dma_fence_put(fence);
 		if (err) {
 			pr_err("Error reported for finding self\n");
@@ -227,24 +227,24 @@ static int find_seqno(void *arg)
 		}
 
 		dma_fence_get(fence);
-		err = dma_fence_chain_find_seqno(&fence, i + 2);
+		err = dma_fence_chain_find_seqanal(&fence, i + 2);
 		dma_fence_put(fence);
 		if (!err) {
-			pr_err("Error not reported for future fence: find_seqno(%d:%d)!\n",
+			pr_err("Error analt reported for future fence: find_seqanal(%d:%d)!\n",
 			       i + 1, i + 2);
 			err = -EINVAL;
 			goto err;
 		}
 
 		dma_fence_get(fence);
-		err = dma_fence_chain_find_seqno(&fence, i);
+		err = dma_fence_chain_find_seqanal(&fence, i);
 		dma_fence_put(fence);
 		if (err) {
 			pr_err("Error reported for previous fence!\n");
 			goto err;
 		}
 		if (i > 0 && fence != fc.chains[i - 1]) {
-			pr_err("Incorrect fence reported by find_seqno(%d:%d)\n",
+			pr_err("Incorrect fence reported by find_seqanal(%d:%d)\n",
 			       i + 1, i);
 			err = -EINVAL;
 			goto err;
@@ -262,26 +262,26 @@ static int find_signaled(void *arg)
 	struct dma_fence *fence;
 	int err;
 
-	err = fence_chains_init(&fc, 2, seqno_inc);
+	err = fence_chains_init(&fc, 2, seqanal_inc);
 	if (err)
 		return err;
 
 	dma_fence_signal(fc.fences[0]);
 
 	fence = dma_fence_get(fc.tail);
-	err = dma_fence_chain_find_seqno(&fence, 1);
+	err = dma_fence_chain_find_seqanal(&fence, 1);
 	dma_fence_put(fence);
 	if (err) {
-		pr_err("Reported %d for find_seqno()!\n", err);
+		pr_err("Reported %d for find_seqanal()!\n", err);
 		goto err;
 	}
 
 	if (fence && fence != fc.chains[0]) {
-		pr_err("Incorrect chain-fence.seqno:%lld reported for completed seqno:1\n",
-		       fence->seqno);
+		pr_err("Incorrect chain-fence.seqanal:%lld reported for completed seqanal:1\n",
+		       fence->seqanal);
 
 		dma_fence_get(fence);
-		err = dma_fence_chain_find_seqno(&fence, 1);
+		err = dma_fence_chain_find_seqanal(&fence, 1);
 		dma_fence_put(fence);
 		if (err)
 			pr_err("Reported %d for finding self!\n", err);
@@ -300,30 +300,30 @@ static int find_out_of_order(void *arg)
 	struct dma_fence *fence;
 	int err;
 
-	err = fence_chains_init(&fc, 3, seqno_inc);
+	err = fence_chains_init(&fc, 3, seqanal_inc);
 	if (err)
 		return err;
 
 	dma_fence_signal(fc.fences[1]);
 
 	fence = dma_fence_get(fc.tail);
-	err = dma_fence_chain_find_seqno(&fence, 2);
+	err = dma_fence_chain_find_seqanal(&fence, 2);
 	dma_fence_put(fence);
 	if (err) {
-		pr_err("Reported %d for find_seqno()!\n", err);
+		pr_err("Reported %d for find_seqanal()!\n", err);
 		goto err;
 	}
 
 	/*
 	 * We signaled the middle fence (2) of the 1-2-3 chain. The behavior
 	 * of the dma-fence-chain is to make us wait for all the fences up to
-	 * the point we want. Since fence 1 is still not signaled, this what
+	 * the point we want. Since fence 1 is still analt signaled, this what
 	 * we should get as fence to wait upon (fence 2 being garbage
 	 * collected during the traversal of the chain).
 	 */
 	if (fence != fc.chains[0]) {
-		pr_err("Incorrect chain-fence.seqno:%lld reported for completed seqno:2\n",
-		       fence ? fence->seqno : 0);
+		pr_err("Incorrect chain-fence.seqanal:%lld reported for completed seqanal:2\n",
+		       fence ? fence->seqanal : 0);
 
 		err = -EINVAL;
 	}
@@ -333,7 +333,7 @@ err:
 	return err;
 }
 
-static uint64_t seqno_inc2(unsigned int i)
+static uint64_t seqanal_inc2(unsigned int i)
 {
 	return 2 * i + 2;
 }
@@ -345,22 +345,22 @@ static int find_gap(void *arg)
 	int err;
 	int i;
 
-	err = fence_chains_init(&fc, 64, seqno_inc2);
+	err = fence_chains_init(&fc, 64, seqanal_inc2);
 	if (err)
 		return err;
 
 	for (i = 0; i < fc.chain_length; i++) {
 		fence = dma_fence_get(fc.tail);
-		err = dma_fence_chain_find_seqno(&fence, 2 * i + 1);
+		err = dma_fence_chain_find_seqanal(&fence, 2 * i + 1);
 		dma_fence_put(fence);
 		if (err) {
-			pr_err("Reported %d for find_seqno(%d:%d)!\n",
+			pr_err("Reported %d for find_seqanal(%d:%d)!\n",
 			       err, fc.chain_length + 1, 2 * i + 1);
 			goto err;
 		}
 		if (fence != fc.chains[i]) {
-			pr_err("Incorrect fence.seqno:%lld reported by find_seqno(%d:%d)\n",
-			       fence->seqno,
+			pr_err("Incorrect fence.seqanal:%lld reported by find_seqanal(%d:%d)\n",
+			       fence->seqanal,
 			       fc.chain_length + 1,
 			       2 * i + 1);
 			err = -EINVAL;
@@ -368,7 +368,7 @@ static int find_gap(void *arg)
 		}
 
 		dma_fence_get(fence);
-		err = dma_fence_chain_find_seqno(&fence, 2 * i + 2);
+		err = dma_fence_chain_find_seqanal(&fence, 2 * i + 2);
 		dma_fence_put(fence);
 		if (err) {
 			pr_err("Error reported for finding self\n");
@@ -398,14 +398,14 @@ static int __find_race(void *arg)
 
 	while (!kthread_should_stop()) {
 		struct dma_fence *fence = dma_fence_get(data->fc.tail);
-		int seqno;
+		int seqanal;
 
-		seqno = get_random_u32_inclusive(1, data->fc.chain_length);
+		seqanal = get_random_u32_inclusive(1, data->fc.chain_length);
 
-		err = dma_fence_chain_find_seqno(&fence, seqno);
+		err = dma_fence_chain_find_seqanal(&fence, seqanal);
 		if (err) {
-			pr_err("Failed to find fence seqno:%d\n",
-			       seqno);
+			pr_err("Failed to find fence seqanal:%d\n",
+			       seqanal);
 			dma_fence_put(fence);
 			break;
 		}
@@ -416,11 +416,11 @@ static int __find_race(void *arg)
 		 * We can only find ourselves if we are on fence we were
 		 * looking for.
 		 */
-		if (fence->seqno == seqno) {
-			err = dma_fence_chain_find_seqno(&fence, seqno);
+		if (fence->seqanal == seqanal) {
+			err = dma_fence_chain_find_seqanal(&fence, seqanal);
 			if (err) {
 				pr_err("Reported an invalid fence for find-self:%d\n",
-				       seqno);
+				       seqanal);
 				dma_fence_put(fence);
 				break;
 			}
@@ -429,8 +429,8 @@ static int __find_race(void *arg)
 		dma_fence_put(fence);
 
 signal:
-		seqno = get_random_u32_below(data->fc.chain_length - 1);
-		dma_fence_signal(data->fc.fences[seqno]);
+		seqanal = get_random_u32_below(data->fc.chain_length - 1);
+		dma_fence_signal(data->fc.fences[seqanal]);
 		cond_resched();
 	}
 
@@ -448,13 +448,13 @@ static int find_race(void *arg)
 	int err;
 	int i;
 
-	err = fence_chains_init(&data.fc, CHAIN_SZ, seqno_inc);
+	err = fence_chains_init(&data.fc, CHAIN_SZ, seqanal_inc);
 	if (err)
 		return err;
 
 	threads = kmalloc_array(ncpus, sizeof(*threads), GFP_KERNEL);
 	if (!threads) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err;
 	}
 
@@ -499,7 +499,7 @@ static int signal_forward(void *arg)
 	int err;
 	int i;
 
-	err = fence_chains_init(&fc, 64, seqno_inc);
+	err = fence_chains_init(&fc, 64, seqanal_inc);
 	if (err)
 		return err;
 
@@ -507,7 +507,7 @@ static int signal_forward(void *arg)
 		dma_fence_signal(fc.fences[i]);
 
 		if (!dma_fence_is_signaled(fc.chains[i])) {
-			pr_err("chain[%d] not signaled!\n", i);
+			pr_err("chain[%d] analt signaled!\n", i);
 			err = -EINVAL;
 			goto err;
 		}
@@ -531,7 +531,7 @@ static int signal_backward(void *arg)
 	int err;
 	int i;
 
-	err = fence_chains_init(&fc, 64, seqno_inc);
+	err = fence_chains_init(&fc, 64, seqanal_inc);
 	if (err)
 		return err;
 
@@ -547,7 +547,7 @@ static int signal_backward(void *arg)
 
 	for (i = 0; i < fc.chain_length; i++) {
 		if (!dma_fence_is_signaled(fc.chains[i])) {
-			pr_err("chain[%d] was not signaled!\n", i);
+			pr_err("chain[%d] was analt signaled!\n", i);
 			err = -EINVAL;
 			goto err;
 		}
@@ -575,7 +575,7 @@ static int wait_forward(void *arg)
 	int err;
 	int i;
 
-	err = fence_chains_init(&fc, CHAIN_SZ, seqno_inc);
+	err = fence_chains_init(&fc, CHAIN_SZ, seqanal_inc);
 	if (err)
 		return err;
 
@@ -604,7 +604,7 @@ static int wait_backward(void *arg)
 	int err;
 	int i;
 
-	err = fence_chains_init(&fc, CHAIN_SZ, seqno_inc);
+	err = fence_chains_init(&fc, CHAIN_SZ, seqanal_inc);
 	if (err)
 		return err;
 
@@ -649,7 +649,7 @@ static int wait_random(void *arg)
 	int err;
 	int i;
 
-	err = fence_chains_init(&fc, CHAIN_SZ, seqno_inc);
+	err = fence_chains_init(&fc, CHAIN_SZ, seqanal_inc);
 	if (err)
 		return err;
 
@@ -677,7 +677,7 @@ int dma_fence_chain(void)
 {
 	static const struct subtest tests[] = {
 		SUBTEST(sanitycheck),
-		SUBTEST(find_seqno),
+		SUBTEST(find_seqanal),
 		SUBTEST(find_signaled),
 		SUBTEST(find_out_of_order),
 		SUBTEST(find_gap),
@@ -697,7 +697,7 @@ int dma_fence_chain(void)
 				 SLAB_TYPESAFE_BY_RCU |
 				 SLAB_HWCACHE_ALIGN);
 	if (!slab_fences)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = subtests(tests, NULL);
 

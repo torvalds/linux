@@ -15,15 +15,15 @@ struct catpt_dev;
 enum catpt_reply_status {
 	CATPT_REPLY_SUCCESS = 0,
 	CATPT_REPLY_ERROR_INVALID_PARAM = 1,
-	CATPT_REPLY_UNKNOWN_MESSAGE_TYPE = 2,
+	CATPT_REPLY_UNKANALWN_MESSAGE_TYPE = 2,
 	CATPT_REPLY_OUT_OF_RESOURCES = 3,
 	CATPT_REPLY_BUSY = 4,
 	CATPT_REPLY_PENDING = 5,
 	CATPT_REPLY_FAILURE = 6,
 	CATPT_REPLY_INVALID_REQUEST = 7,
 	CATPT_REPLY_UNINITIALIZED = 8,
-	CATPT_REPLY_NOT_FOUND = 9,
-	CATPT_REPLY_SOURCE_NOT_STARTED = 10,
+	CATPT_REPLY_ANALT_FOUND = 9,
+	CATPT_REPLY_SOURCE_ANALT_STARTED = 10,
 };
 
 /* GLOBAL messages */
@@ -59,7 +59,7 @@ union catpt_global_msg {
 
 struct catpt_fw_version {
 	u8 build;
-	u8 minor;
+	u8 mianalr;
 	u8 major;
 	u8 type;
 	u8 build_hash[BUILD_HASH_SIZE];
@@ -118,7 +118,7 @@ enum catpt_channel_index {
 };
 
 enum catpt_channel_config {
-	CATPT_CHANNEL_CONFIG_MONO	= 0, /* One channel only */
+	CATPT_CHANNEL_CONFIG_MOANAL	= 0, /* One channel only */
 	CATPT_CHANNEL_CONFIG_STEREO	= 1, /* L & R */
 	CATPT_CHANNEL_CONFIG_2_POINT_1	= 2, /* L, R & LFE; PCM only */
 	CATPT_CHANNEL_CONFIG_3_POINT_0	= 3, /* L, C & R; MP3 & AAC only */
@@ -127,7 +127,7 @@ enum catpt_channel_config {
 	CATPT_CHANNEL_CONFIG_4_POINT_0	= 6, /* L, C, R & Cs; MP3 & AAC only */
 	CATPT_CHANNEL_CONFIG_5_POINT_0	= 7, /* L, C, R, Ls & Rs */
 	CATPT_CHANNEL_CONFIG_5_POINT_1	= 8, /* L, C, R, Ls, Rs & LFE */
-	CATPT_CHANNEL_CONFIG_DUAL_MONO	= 9, /* One channel replicated in two */
+	CATPT_CHANNEL_CONFIG_DUAL_MOANAL	= 9, /* One channel replicated in two */
 	CATPT_CHANNEL_CONFIG_INVALID	= 10,
 };
 
@@ -287,7 +287,7 @@ enum catpt_stream_msg_type {
 	CATPT_STRM_PAUSE_STREAM = 1,
 	CATPT_STRM_RESUME_STREAM = 2,
 	CATPT_STRM_STAGE_MESSAGE = 3,
-	CATPT_STRM_NOTIFICATION = 4,
+	CATPT_STRM_ANALTIFICATION = 4,
 };
 
 enum catpt_stage_action {
@@ -328,7 +328,7 @@ int catpt_ipc_resume_stream(struct catpt_dev *cdev, u8 stream_hw_id);
 /* STREAM messages - STAGE subtype */
 
 enum catpt_audio_curve_type {
-	CATPT_AUDIO_CURVE_NONE = 0,
+	CATPT_AUDIO_CURVE_ANALNE = 0,
 	CATPT_AUDIO_CURVE_WINDOWS_FADE = 1,
 };
 
@@ -342,14 +342,14 @@ int catpt_ipc_set_write_pos(struct catpt_dev *cdev, u8 stream_hw_id,
 
 int catpt_ipc_mute_loopback(struct catpt_dev *cdev, u8 stream_hw_id, bool mute);
 
-/* NOTIFICATION messages */
+/* ANALTIFICATION messages */
 
-enum catpt_notify_reason {
-	CATPT_NOTIFY_POSITION_CHANGED = 0,
-	CATPT_NOTIFY_GLITCH_OCCURRED = 1,
+enum catpt_analtify_reason {
+	CATPT_ANALTIFY_POSITION_CHANGED = 0,
+	CATPT_ANALTIFY_GLITCH_OCCURRED = 1,
 };
 
-union catpt_notify_msg {
+union catpt_analtify_msg {
 	u32 val;
 	struct {
 		u32 mailbox_address:29;
@@ -360,7 +360,7 @@ union catpt_notify_msg {
 	struct {
 		u32 status:5;
 		u32 reserved:7;
-		u32 notify_reason:4;
+		u32 analtify_reason:4;
 		u32 stream_hw_id:4;
 		u32 stream_msg_type:4;
 		u32 global_msg_type:5;
@@ -379,7 +379,7 @@ struct catpt_fw_ready {
 	char fw_info[FW_INFO_SIZE_MAX];
 } __packed;
 
-struct catpt_notify_position {
+struct catpt_analtify_position {
 	u32 stream_position;
 	u32 fw_cycle_count;
 } __packed;
@@ -390,7 +390,7 @@ enum catpt_glitch_type {
 	CATPT_GLITCH_DOUBLED_WRITE_POS = 3,
 };
 
-struct catpt_notify_glitch {
+struct catpt_analtify_glitch {
 	u32 type;
 	u64 presentation_pos;
 	u32 write_pos;

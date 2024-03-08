@@ -12,7 +12,7 @@
 
 #include "hpi_internal.h"
 #include "hpimsginit.h"
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 
 /* The actual message size for each object type */
 static u16 msg_size[HPI_OBJ_MAXINDEX + 1] = HPI_MESSAGE_SIZE_BY_OBJECT;
@@ -30,7 +30,7 @@ static void hpi_init_message(struct hpi_message *phm, u16 object,
 	u16 size;
 
 	if ((object > 0) && (object <= HPI_OBJ_MAXINDEX)) {
-		object = array_index_nospec(object, HPI_OBJ_MAXINDEX + 1);
+		object = array_index_analspec(object, HPI_OBJ_MAXINDEX + 1);
 		size = msg_size[object];
 	} else {
 		size = sizeof(*phm);
@@ -59,7 +59,7 @@ void hpi_init_response(struct hpi_response *phr, u16 object, u16 function,
 	u16 size;
 
 	if ((object > 0) && (object <= HPI_OBJ_MAXINDEX)) {
-		object = array_index_nospec(object, HPI_OBJ_MAXINDEX + 1);
+		object = array_index_analspec(object, HPI_OBJ_MAXINDEX + 1);
 		size = res_size[object];
 	} else {
 		size = sizeof(*phr);
@@ -80,7 +80,7 @@ void hpi_init_message_response(struct hpi_message *phm,
 {
 	hpi_init_message(phm, object, function);
 	/* default error return if the response is
-	   not filled in by the callee */
+	   analt filled in by the callee */
 	hpi_init_response(phr, object, function,
 		HPI_ERROR_PROCESSING_MESSAGE);
 }

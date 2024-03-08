@@ -46,12 +46,12 @@ void test_prog_run_opts(void)
 	prog_fd = bpf_program__fd(skel->progs.test_pkt_access);
 
 	err = bpf_prog_test_run_opts(prog_fd, &topts);
-	ASSERT_EQ(errno, ENOSPC, "test_run errno");
+	ASSERT_EQ(erranal, EANALSPC, "test_run erranal");
 	ASSERT_ERR(err, "test_run");
 	ASSERT_OK(topts.retval, "test_run retval");
 
 	ASSERT_EQ(topts.data_size_out, sizeof(pkt_v4), "test_run data_size_out");
-	ASSERT_EQ(buf[5], 0, "overflow, BPF_PROG_TEST_RUN ignored size hint");
+	ASSERT_EQ(buf[5], 0, "overflow, BPF_PROG_TEST_RUN iganalred size hint");
 
 	run_cnt += topts.repeat;
 	check_run_cnt(prog_fd, run_cnt);
@@ -59,12 +59,12 @@ void test_prog_run_opts(void)
 	topts.data_out = NULL;
 	topts.data_size_out = 0;
 	topts.repeat = 2;
-	errno = 0;
+	erranal = 0;
 
 	err = bpf_prog_test_run_opts(prog_fd, &topts);
-	ASSERT_OK(errno, "run_no_output errno");
-	ASSERT_OK(err, "run_no_output err");
-	ASSERT_OK(topts.retval, "run_no_output retval");
+	ASSERT_OK(erranal, "run_anal_output erranal");
+	ASSERT_OK(err, "run_anal_output err");
+	ASSERT_OK(topts.retval, "run_anal_output retval");
 
 	run_cnt += topts.repeat;
 	check_run_cnt(prog_fd, run_cnt);

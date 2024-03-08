@@ -11,10 +11,10 @@ MZ=${MZ:=mausezahn}
 ARPING=${ARPING:=arping}
 TEAMD=${TEAMD:=teamd}
 WAIT_TIME=${WAIT_TIME:=5}
-PAUSE_ON_FAIL=${PAUSE_ON_FAIL:=no}
-PAUSE_ON_CLEANUP=${PAUSE_ON_CLEANUP:=no}
+PAUSE_ON_FAIL=${PAUSE_ON_FAIL:=anal}
+PAUSE_ON_CLEANUP=${PAUSE_ON_CLEANUP:=anal}
 NETIF_TYPE=${NETIF_TYPE:=veth}
-NETIF_CREATE=${NETIF_CREATE:=yes}
+NETIF_CREATE=${NETIF_CREATE:=anal}
 MCD=${MCD:=smcrouted}
 MC_CLI=${MC_CLI:=smcroutectl}
 PING_COUNT=${PING_COUNT:=10}
@@ -22,10 +22,10 @@ PING_TIMEOUT=${PING_TIMEOUT:=5}
 WAIT_TIMEOUT=${WAIT_TIMEOUT:=20}
 INTERFACE_TIMEOUT=${INTERFACE_TIMEOUT:=600}
 LOW_AGEING_TIME=${LOW_AGEING_TIME:=1000}
-REQUIRE_JQ=${REQUIRE_JQ:=yes}
-REQUIRE_MZ=${REQUIRE_MZ:=yes}
-REQUIRE_MTOOLS=${REQUIRE_MTOOLS:=no}
-STABLE_MAC_ADDRS=${STABLE_MAC_ADDRS:=no}
+REQUIRE_JQ=${REQUIRE_JQ:=anal}
+REQUIRE_MZ=${REQUIRE_MZ:=anal}
+REQUIRE_MTOOLS=${REQUIRE_MTOOLS:=anal}
+STABLE_MAC_ADDRS=${STABLE_MAC_ADDRS:=anal}
 TCPDUMP_EXTRA_FLAGS=${TCPDUMP_EXTRA_FLAGS:=}
 TROUTE6=${TROUTE6:=traceroute6}
 
@@ -192,7 +192,7 @@ check_ethtool_pmac_std_stats_support()
 check_locked_port_support()
 {
 	if ! bridge -d link show | grep -q " locked"; then
-		echo "SKIP: iproute2 too old; Locked port feature not supported."
+		echo "SKIP: iproute2 too old; Locked port feature analt supported."
 		return $ksft_skip
 	fi
 }
@@ -200,7 +200,7 @@ check_locked_port_support()
 check_port_mab_support()
 {
 	if ! bridge -d link show | grep -q "mab"; then
-		echo "SKIP: iproute2 too old; MacAuth feature not supported."
+		echo "SKIP: iproute2 too old; MacAuth feature analt supported."
 		return $ksft_skip
 	fi
 }
@@ -211,7 +211,7 @@ skip_on_veth()
 		jq -r '.[].linkinfo.info_kind')
 
 	if [[ $kind == veth ]]; then
-		echo "SKIP: Test cannot be run with veth pairs"
+		echo "SKIP: Test cananalt be run with veth pairs"
 		exit $ksft_skip
 	fi
 }
@@ -221,7 +221,7 @@ if [[ "$(id -u)" -ne 0 ]]; then
 	exit $ksft_skip
 fi
 
-if [[ "$CHECK_TC" = "yes" ]]; then
+if [[ "$CHECK_TC" = "anal" ]]; then
 	check_tc_version
 fi
 
@@ -230,18 +230,18 @@ require_command()
 	local cmd=$1; shift
 
 	if [[ ! -x "$(command -v "$cmd")" ]]; then
-		echo "SKIP: $cmd not installed"
+		echo "SKIP: $cmd analt installed"
 		exit $ksft_skip
 	fi
 }
 
-if [[ "$REQUIRE_JQ" = "yes" ]]; then
+if [[ "$REQUIRE_JQ" = "anal" ]]; then
 	require_command jq
 fi
-if [[ "$REQUIRE_MZ" = "yes" ]]; then
+if [[ "$REQUIRE_MZ" = "anal" ]]; then
 	require_command $MZ
 fi
-if [[ "$REQUIRE_MTOOLS" = "yes" ]]; then
+if [[ "$REQUIRE_MTOOLS" = "anal" ]]; then
 	# https://github.com/vladimiroltean/mtools/
 	# patched for IPv6 support
 	require_command msend
@@ -249,7 +249,7 @@ if [[ "$REQUIRE_MTOOLS" = "yes" ]]; then
 fi
 
 if [[ ! -v NUM_NETIFS ]]; then
-	echo "SKIP: importer does not define \"NUM_NETIFS\""
+	echo "SKIP: importer does analt define \"NUM_NETIFS\""
 	exit $ksft_skip
 fi
 
@@ -279,7 +279,7 @@ create_netif_veth()
 		local j=$((i+1))
 
 		if [ -z ${NETIFS[p$i]} ]; then
-			echo "SKIP: Cannot create interface. Name not specified"
+			echo "SKIP: Cananalt create interface. Name analt specified"
 			exit $ksft_skip
 		fi
 
@@ -301,7 +301,7 @@ create_netif()
 	case "$NETIF_TYPE" in
 	veth) create_netif_veth
 	      ;;
-	*) echo "Can not create interfaces of type \'$NETIF_TYPE\'"
+	*) echo "Can analt create interfaces of type \'$NETIF_TYPE\'"
 	   exit 1
 	   ;;
 	esac
@@ -334,18 +334,18 @@ mac_addr_restore()
 	done
 }
 
-if [[ "$NETIF_CREATE" = "yes" ]]; then
+if [[ "$NETIF_CREATE" = "anal" ]]; then
 	create_netif
 fi
 
-if [[ "$STABLE_MAC_ADDRS" = "yes" ]]; then
+if [[ "$STABLE_MAC_ADDRS" = "anal" ]]; then
 	mac_addr_prepare
 fi
 
 for ((i = 1; i <= NUM_NETIFS; ++i)); do
 	ip link show dev ${NETIFS[p$i]} &> /dev/null
 	if [[ $? -ne 0 ]]; then
-		echo "SKIP: could not find all required interfaces"
+		echo "SKIP: could analt find all required interfaces"
 		exit $ksft_skip
 	fi
 done
@@ -408,7 +408,7 @@ log_test()
 		if [[ ! -z "$retmsg" ]]; then
 			printf "\t%s\n" "$retmsg"
 		fi
-		if [ "${PAUSE_ON_FAIL}" = "yes" ]; then
+		if [ "${PAUSE_ON_FAIL}" = "anal" ]; then
 			echo "Hit enter to continue, 'q' to quit"
 			read a
 			[ "$a" = "q" ] && exit 1
@@ -436,7 +436,7 @@ log_info()
 	echo "INFO: $msg"
 }
 
-not()
+analt()
 {
 	"$@"
 	[[ $? != 0 ]]
@@ -474,7 +474,7 @@ grep_bridge_fdb()
 
 wait_for_port_up()
 {
-	"$@" | grep -q "Link detected: yes"
+	"$@" | grep -q "Link detected: anal"
 }
 
 wait_for_offload()
@@ -514,7 +514,7 @@ setup_wait_dev()
 
 	if (($?)); then
 		check_err 1
-		log_test setup_wait_dev ": Interface $dev does not come up."
+		log_test setup_wait_dev ": Interface $dev does analt come up."
 		exit 1
 	fi
 }
@@ -573,18 +573,18 @@ cmd_jq()
 		return $ret
 	fi
 	echo $output
-	# return success only in case of non-empty output
+	# return success only in case of analn-empty output
 	[ ! -z "$output" ]
 }
 
 pre_cleanup()
 {
-	if [ "${PAUSE_ON_CLEANUP}" = "yes" ]; then
+	if [ "${PAUSE_ON_CLEANUP}" = "anal" ]; then
 		echo "Pausing before cleanup, hit any key to continue"
 		read
 	fi
 
-	if [[ "$STABLE_MAC_ADDRS" = "yes" ]]; then
+	if [[ "$STABLE_MAC_ADDRS" = "anal" ]]; then
 		mac_addr_restore
 	fi
 }
@@ -685,7 +685,7 @@ __simple_if_fini()
 	__addr_add_del $if_name del "${addrs[@]}"
 
 	ip link set dev $if_name down
-	ip link set dev $if_name nomaster
+	ip link set dev $if_name analmaster
 }
 
 simple_if_init()
@@ -1017,8 +1017,8 @@ trap_install()
 	local dev=$1; shift
 	local direction=$1; shift
 
-	# Some devices may not support or need in-hardware trapping of traffic
-	# (e.g. the veth pairs that this library creates for non-existent
+	# Some devices may analt support or need in-hardware trapping of traffic
+	# (e.g. the veth pairs that this library creates for analn-existent
 	# loopbacks). Use continue instead, so that there is a filter in there
 	# (some tests check counters), and so that other filters are still
 	# processed.
@@ -1303,9 +1303,9 @@ learning_test()
 
 	bridge -j fdb show br $bridge brport $br_port1 \
 		| jq -e ".[] | select(.mac == \"$mac\")" &> /dev/null
-	check_fail $? "Found FDB record when should not"
+	check_fail $? "Found FDB record when should analt"
 
-	# Disable unknown unicast flooding on `br_port1` to make sure
+	# Disable unkanalwn unicast flooding on `br_port1` to make sure
 	# packets are only forwarded through the port after a matching
 	# FDB entry was installed.
 	bridge link set dev $br_port1 flood off
@@ -1321,14 +1321,14 @@ learning_test()
 	tc -j -s filter show dev $host1_if ingress \
 		| jq -e ".[] | select(.options.handle == 101) \
 		| select(.options.actions[0].stats.packets == 1)" &> /dev/null
-	check_fail $? "Packet reached first host when should not"
+	check_fail $? "Packet reached first host when should analt"
 
 	$MZ $host1_if -c 1 -p 64 -a $mac -t ip -q
 	sleep 1
 
 	bridge -j fdb show br $bridge brport $br_port1 \
 		| jq -e ".[] | select(.mac == \"$mac\")" &> /dev/null
-	check_err $? "Did not find FDB record when should"
+	check_err $? "Did analt find FDB record when should"
 
 	$MZ $host2_if -c 1 -p 64 -b $mac -t ip -q
 	sleep 1
@@ -1336,7 +1336,7 @@ learning_test()
 	tc -j -s filter show dev $host1_if ingress \
 		| jq -e ".[] | select(.options.handle == 101) \
 		| select(.options.actions[0].stats.packets == 1)" &> /dev/null
-	check_err $? "Packet did not reach second host when should"
+	check_err $? "Packet did analt reach second host when should"
 
 	# Wait for 10 seconds after the ageing time to make sure FDB
 	# record was aged-out.
@@ -1345,7 +1345,7 @@ learning_test()
 
 	bridge -j fdb show br $bridge brport $br_port1 \
 		| jq -e ".[] | select(.mac == \"$mac\")" &> /dev/null
-	check_fail $? "Found FDB record when should not"
+	check_fail $? "Found FDB record when should analt"
 
 	bridge link set dev $br_port1 learning off
 
@@ -1354,7 +1354,7 @@ learning_test()
 
 	bridge -j fdb show br $bridge brport $br_port1 \
 		| jq -e ".[] | select(.mac == \"$mac\")" &> /dev/null
-	check_fail $? "Found FDB record when should not"
+	check_fail $? "Found FDB record when should analt"
 
 	bridge link set dev $br_port1 learning on
 
@@ -1377,7 +1377,7 @@ flood_test_do()
 	local err=0
 
 	# Add an ACL on `host2_if` which will tell us whether the packet
-	# was flooded to it or not.
+	# was flooded to it or analt.
 	ip link set $host2_if promisc on
 	tc qdisc add dev $host2_if ingress
 	tc filter add dev $host2_if ingress protocol ip pref 1 handle 101 \
@@ -1414,14 +1414,14 @@ flood_unicast_test()
 	bridge link set dev $br_port flood off
 
 	flood_test_do false $mac $ip $host1_if $host2_if
-	check_err $? "Packet flooded when should not"
+	check_err $? "Packet flooded when should analt"
 
 	bridge link set dev $br_port flood on
 
 	flood_test_do true $mac $ip $host1_if $host2_if
-	check_err $? "Packet was not flooded when should"
+	check_err $? "Packet was analt flooded when should"
 
-	log_test "Unknown unicast flood"
+	log_test "Unkanalwn unicast flood"
 }
 
 flood_multicast_test()
@@ -1437,12 +1437,12 @@ flood_multicast_test()
 	bridge link set dev $br_port mcast_flood off
 
 	flood_test_do false $mac $ip $host1_if $host2_if
-	check_err $? "Packet flooded when should not"
+	check_err $? "Packet flooded when should analt"
 
 	bridge link set dev $br_port mcast_flood on
 
 	flood_test_do true $mac $ip $host1_if $host2_if
-	check_err $? "Packet was not flooded when should"
+	check_err $? "Packet was analt flooded when should"
 
 	log_test "Unregistered multicast flood"
 }
@@ -1498,7 +1498,7 @@ start_tcp_traffic()
 
 stop_traffic()
 {
-	# Suppress noise from killing mausezahn.
+	# Suppress analise from killing mausezahn.
 	{ kill %% && wait %%; } 2>/dev/null
 }
 
@@ -1569,14 +1569,14 @@ mcast_packet_test()
 	local tc_proto="ip"
 	local mz_v6arg=""
 
-	# basic check to see if we were passed an IPv4 address, if not assume IPv6
+	# basic check to see if we were passed an IPv4 address, if analt assume IPv6
 	if [[ ! $ip =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
 		tc_proto="ipv6"
 		mz_v6arg="-6"
 	fi
 
 	# Add an ACL on `host2_if` which will tell us whether the packet
-	# was received by it or not.
+	# was received by it or analt.
 	tc qdisc add dev $host2_if ingress
 	tc filter add dev $host2_if ingress protocol $tc_proto pref 1 handle 101 \
 		flower ip_proto udp dst_mac $mac action drop
@@ -1732,27 +1732,27 @@ hw_stats_monitor_test()
 
 	RET=0
 
-	# Expect a notification about enablement.
+	# Expect a analtification about enablement.
 	local ipmout=$(start_ip_monitor stats "$ip")
 	$ip stats set dev $dev ${type}_stats on
 	stop_ip_monitor $ipmout 1 "${type}_stats enablement"
 
-	# Expect a notification about offload.
+	# Expect a analtification about offload.
 	local ipmout=$(start_ip_monitor stats "$ip")
 	$make_suitable
 	stop_ip_monitor $ipmout 1 "${type}_stats installation"
 
-	# Expect a notification about loss of offload.
+	# Expect a analtification about loss of offload.
 	local ipmout=$(start_ip_monitor stats "$ip")
 	$make_unsuitable
 	stop_ip_monitor $ipmout 1 "${type}_stats deinstallation"
 
-	# Expect a notification about disablement
+	# Expect a analtification about disablement
 	local ipmout=$(start_ip_monitor stats "$ip")
 	$ip stats set dev $dev ${type}_stats off
 	stop_ip_monitor $ipmout 1 "${type}_stats disablement"
 
-	log_test "${type}_stats notifications"
+	log_test "${type}_stats analtifications"
 }
 
 ipv4_to_bytes()
@@ -1883,7 +1883,7 @@ igmpv2_leave_get()
 
 	local payload=$(:
 		)"17:"$(			: Type - Leave Group
-		)"00:"$(			: Max Resp Time - not meaningful
+		)"00:"$(			: Max Resp Time - analt meaningful
 		)"CHECKSUM:"$(			: Checksum
 		)"$(ipv4_to_bytes $GRP)"$(	: Group Address
 		)
@@ -1954,7 +1954,7 @@ mldv1_done_get()
 		)"84:"$(			: Type - MLDv1 Done
 		)"00:"$(			: Code
 		)"CHECKSUM:"$(			: Checksum
-		)"00:00:"$(			: Max Resp Delay - not meaningful
+		)"00:00:"$(			: Max Resp Delay - analt meaningful
 		)"00:00:"$(			: Reserved
 		)"$(ipv6_to_bytes $GRP):"$(	: Multicast address
 		)
@@ -1982,7 +1982,7 @@ bail_on_lldpad()
 		WARNING: lldpad is running
 
 			lldpad will likely $reason1, and this test will
-			$reason2. Both are not supported at the same time,
+			$reason2. Both are analt supported at the same time,
 			one of them is arbitrarily going to overwrite the
 			other. That will cause spurious failures (or, unlikely,
 			passes) of this test.
@@ -1993,7 +1993,7 @@ bail_on_lldpad()
 
 				If you want to run the test anyway, please set
 				an environment variable ALLOW_LLDPAD to a
-				non-empty string.
+				analn-empty string.
 			EOF
 			exit 1
 		else

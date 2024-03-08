@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -54,7 +54,7 @@ struct amdgpu_pasid_cb {
  * available if possible.
  *
  * Returns a positive integer on success. Returns %-EINVAL if bits==0.
- * Returns %-ENOSPC if no PASID was available. Returns %-ENOMEM on
+ * Returns %-EANALSPC if anal PASID was available. Returns %-EANALMEM on
  * memory allocation failure.
  */
 int amdgpu_pasid_alloc(unsigned int bits)
@@ -65,7 +65,7 @@ int amdgpu_pasid_alloc(unsigned int bits)
 		pasid = ida_simple_get(&amdgpu_pasid_ida,
 				       1U << (bits - 1), 1U << bits,
 				       GFP_KERNEL);
-		if (pasid != -ENOSPC)
+		if (pasid != -EANALSPC)
 			break;
 	}
 
@@ -136,7 +136,7 @@ void amdgpu_pasid_free_delayed(struct dma_resv *resv,
 	return;
 
 fallback:
-	/* Not enough memory for the delayed delete, as last resort
+	/* Analt eanalugh memory for the delayed delete, as last resort
 	 * block for all the fences to complete.
 	 */
 	dma_resv_wait_timeout(resv, DMA_RESV_USAGE_BOOKKEEP,
@@ -165,7 +165,7 @@ bool amdgpu_vmid_had_gpu_reset(struct amdgpu_device *adev,
 		atomic_read(&adev->gpu_reset_counter);
 }
 
-/* Check if we need to switch to another set of resources */
+/* Check if we need to switch to aanalther set of resources */
 static bool amdgpu_vmid_gds_switch_needed(struct amdgpu_vmid *id,
 					  struct amdgpu_job *job)
 {
@@ -190,10 +190,10 @@ static bool amdgpu_vmid_compatible(struct amdgpu_vmid *id,
  *
  * @ring: ring we want to submit job to
  * @idle: resulting idle VMID
- * @fence: fence to wait for if no id could be grabbed
+ * @fence: fence to wait for if anal id could be grabbed
  *
- * Try to find an idle VMID, if none is idle add a fence to wait to the sync
- * object. Returns -ENOMEM when we are out of memory.
+ * Try to find an idle VMID, if analne is idle add a fence to wait to the sync
+ * object. Returns -EANALMEM when we are out of memory.
  */
 static int amdgpu_vmid_grab_idle(struct amdgpu_ring *ring,
 				 struct amdgpu_vmid **idle,
@@ -212,7 +212,7 @@ static int amdgpu_vmid_grab_idle(struct amdgpu_ring *ring,
 
 	fences = kmalloc_array(id_mgr->num_ids, sizeof(void *), GFP_KERNEL);
 	if (!fences)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Check if we have an idle VMID */
 	i = 0;
@@ -230,7 +230,7 @@ static int amdgpu_vmid_grab_idle(struct amdgpu_ring *ring,
 	/* If we can't find a idle VMID to use, wait till one becomes available */
 	if (&(*idle)->list == &id_mgr->ids_lru) {
 		u64 fence_context = adev->vm_manager.fence_context + ring->idx;
-		unsigned seqno = ++adev->vm_manager.seqno[ring->idx];
+		unsigned seqanal = ++adev->vm_manager.seqanal[ring->idx];
 		struct dma_fence_array *array;
 		unsigned j;
 
@@ -239,12 +239,12 @@ static int amdgpu_vmid_grab_idle(struct amdgpu_ring *ring,
 			dma_fence_get(fences[j]);
 
 		array = dma_fence_array_create(i, fences, fence_context,
-					       seqno, true);
+					       seqanal, true);
 		if (!array) {
 			for (j = 0; j < i; ++j)
 				dma_fence_put(fences[j]);
 			kfree(fences);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		*fence = dma_fence_get(&array->base);
@@ -264,7 +264,7 @@ static int amdgpu_vmid_grab_idle(struct amdgpu_ring *ring,
  * @ring: ring we want to submit job to
  * @job: job who wants to use the VMID
  * @id: resulting VMID
- * @fence: fence to wait for if no id could be grabbed
+ * @fence: fence to wait for if anal id could be grabbed
  *
  * Try to assign a reserved VMID.
  */
@@ -295,7 +295,7 @@ static int amdgpu_vmid_grab_reserved(struct amdgpu_vm *vm,
 		if (adev->vm_manager.concurrent_flush)
 			ring = NULL;
 
-		/* to prevent one context starved by another context */
+		/* to prevent one context starved by aanalther context */
 		(*id)->pd_gpu_addr = 0;
 		tmp = amdgpu_sync_peek_fence(&(*id)->active, ring);
 		if (tmp) {
@@ -325,7 +325,7 @@ static int amdgpu_vmid_grab_reserved(struct amdgpu_vm *vm,
  * @ring: ring we want to submit job to
  * @job: job who wants to use the VMID
  * @id: resulting VMID
- * @fence: fence to wait for if no id could be grabbed
+ * @fence: fence to wait for if anal id could be grabbed
  *
  * Try to reuse a VMID for this submission.
  */
@@ -388,7 +388,7 @@ static int amdgpu_vmid_grab_used(struct amdgpu_vm *vm,
  * @vm: vm to allocate id for
  * @ring: ring we want to submit job to
  * @job: job who wants to use the VMID
- * @fence: fence to wait for if no id could be grabbed
+ * @fence: fence to wait for if anal id could be grabbed
  *
  * Allocate an id for the vm, adding fences to the sync obj as necessary.
  */
@@ -417,7 +417,7 @@ int amdgpu_vmid_grab(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 			goto error;
 
 		if (!id) {
-			/* Still no ID to use? Then use the idle one found earlier */
+			/* Still anal ID to use? Then use the idle one found earlier */
 			id = idle;
 
 			/* Remember this submission as user of the VMID */
@@ -470,7 +470,7 @@ int amdgpu_vmid_alloc_reserved(struct amdgpu_device *adev,
 
 		id = list_first_entry(&id_mgr->ids_lru, struct amdgpu_vmid,
 				      list);
-		/* Remove from normal round robin handling */
+		/* Remove from analrmal round robin handling */
 		list_del_init(&id->list);
 		id_mgr->reserved = id;
 	}
@@ -486,7 +486,7 @@ void amdgpu_vmid_free_reserved(struct amdgpu_device *adev,
 
 	mutex_lock(&id_mgr->lock);
 	if (!--id_mgr->reserved_use_count) {
-		/* give the reserved ID back to normal round robin */
+		/* give the reserved ID back to analrmal round robin */
 		list_add(&id_mgr->reserved->list, &id_mgr->ids_lru);
 		id_mgr->reserved = NULL;
 	}
@@ -559,7 +559,7 @@ void amdgpu_vmid_mgr_init(struct amdgpu_device *adev)
 		INIT_LIST_HEAD(&id_mgr->ids_lru);
 		id_mgr->reserved_use_count = 0;
 
-		/* manage only VMIDs not used by KFD */
+		/* manage only VMIDs analt used by KFD */
 		id_mgr->num_ids = adev->vm_manager.first_kfd_vmid;
 
 		/* skip over VMID 0, since it is the system VM */

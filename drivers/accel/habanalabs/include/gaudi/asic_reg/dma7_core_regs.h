@@ -7,7 +7,7 @@
 
 /************************************
  ** This is an auto-generated file **
- **       DO NOT EDIT BELOW        **
+ **       DO ANALT EDIT BELOW        **
  ************************************/
 
 #ifndef ASIC_REG_DMA7_CORE_REGS_H_
@@ -85,7 +85,7 @@
 
 #define mmDMA7_CORE_SECURE_PROPS                                     0x5E00F0
 
-#define mmDMA7_CORE_NON_SECURE_PROPS                                 0x5E00F4
+#define mmDMA7_CORE_ANALN_SECURE_PROPS                                 0x5E00F4
 
 #define mmDMA7_CORE_RD_MAX_OUTSTAND                                  0x5E0100
 

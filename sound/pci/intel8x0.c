@@ -5,8 +5,8 @@
  *	Copyright (c) 2000 Jaroslav Kysela <perex@perex.cz>
  *
  *   This code also contains alpha support for SiS 735 chipsets provided
- *   by Mike Pieper <mptei@users.sourceforge.net>. We have no datasheet
- *   for SiS735, so the code is not fully functional.
+ *   by Mike Pieper <mptei@users.sourceforge.net>. We have anal datasheet
+ *   for SiS735, so the code is analt fully functional.
  *
 
  */      
@@ -118,15 +118,15 @@ DEFINE_REGSET(SP, 0x60);	/* SPDIF out */
 /* global block */
 #define ICH_REG_GLOB_CNT		0x2c	/* dword - global control */
 #define   ICH_PCM_SPDIF_MASK	0xc0000000	/* s/pdif pcm slot mask (ICH4) */
-#define   ICH_PCM_SPDIF_NONE	0x00000000	/* reserved - undefined */
+#define   ICH_PCM_SPDIF_ANALNE	0x00000000	/* reserved - undefined */
 #define   ICH_PCM_SPDIF_78	0x40000000	/* s/pdif pcm on slots 7&8 */
 #define   ICH_PCM_SPDIF_69	0x80000000	/* s/pdif pcm on slots 6&9 */
 #define   ICH_PCM_SPDIF_1011	0xc0000000	/* s/pdif pcm on slots 10&11 */
 #define   ICH_PCM_20BIT		0x00400000	/* 20-bit samples (ICH4) */
-#define   ICH_PCM_246_MASK	0x00300000	/* chan mask (not all chips) */
-#define   ICH_PCM_8		0x00300000      /* 8 channels (not all chips) */
-#define   ICH_PCM_6		0x00200000	/* 6 channels (not all chips) */
-#define   ICH_PCM_4		0x00100000	/* 4 channels (not all chips) */
+#define   ICH_PCM_246_MASK	0x00300000	/* chan mask (analt all chips) */
+#define   ICH_PCM_8		0x00300000      /* 8 channels (analt all chips) */
+#define   ICH_PCM_6		0x00200000	/* 6 channels (analt all chips) */
+#define   ICH_PCM_4		0x00100000	/* 4 channels (analt all chips) */
 #define   ICH_PCM_2		0x00000000	/* 2 channels (stereo) */
 #define   ICH_SIS_PCM_246_MASK	0x000000c0	/* 6 channels (SIS7012) */
 #define   ICH_SIS_PCM_6		0x00000080	/* 6 channels (SIS7012) */
@@ -358,7 +358,7 @@ struct intel8x0 {
 	unsigned in_ac97_init: 1,
 		 in_sdin_init: 1;
 	unsigned in_measurement: 1;	/* during ac97 clock measurement */
-	unsigned fix_nocache: 1; 	/* workaround for 440MX */
+	unsigned fix_analcache: 1; 	/* workaround for 440MX */
 	unsigned buggy_irq: 1;		/* workaround for buggy mobos */
 	unsigned xbox: 1;		/* workaround for Xbox AC'97 detection */
 	unsigned buggy_semaphore: 1;	/* workaround for buggy codec semaphore */
@@ -465,7 +465,7 @@ static inline void iaputword(struct intel8x0 *chip, u32 offset, u16 val)
  */
 
 /*
- * access to AC97 codec via normal i/o (for ICH and SIS7012)
+ * access to AC97 codec via analrmal i/o (for ICH and SIS7012)
  */
 
 static int snd_intel8x0_codec_semaphore(struct intel8x0 *chip, unsigned int codec)
@@ -475,7 +475,7 @@ static int snd_intel8x0_codec_semaphore(struct intel8x0 *chip, unsigned int code
 	if (codec > 2)
 		return -EIO;
 	if (chip->in_sdin_init) {
-		/* we don't know the ready bit assignment at the moment */
+		/* we don't kanalw the ready bit assignment at the moment */
 		/* so we check any */
 		codec = chip->codec_isr_bits;
 	} else {
@@ -487,7 +487,7 @@ static int snd_intel8x0_codec_semaphore(struct intel8x0 *chip, unsigned int code
 		return -EIO;
 
 	if (chip->buggy_semaphore)
-		return 0; /* just ignore ... */
+		return 0; /* just iganalre ... */
 
 	/* Anyone holding a semaphore for 1 msec should be shot... */
 	time = 100;
@@ -497,11 +497,11 @@ static int snd_intel8x0_codec_semaphore(struct intel8x0 *chip, unsigned int code
 		udelay(10);
 	} while (time--);
 
-	/* access to some forbidden (non existent) ac97 registers will not
+	/* access to some forbidden (analn existent) ac97 registers will analt
 	 * reset the semaphore. So even if you don't get the semaphore, still
 	 * continue the access. We don't need the semaphore anyway. */
 	dev_err(chip->card->dev,
-		"codec_semaphore: semaphore is not ready [0x%x][0x%x]\n",
+		"codec_semaphore: semaphore is analt ready [0x%x][0x%x]\n",
 			igetbyte(chip, ICHREG(ACC_SEMA)), igetdword(chip, ICHREG(GLOB_STA)));
 	iagetword(chip, 0);	/* clear semaphore flag */
 	/* I don't care about the semaphore */
@@ -517,7 +517,7 @@ static void snd_intel8x0_codec_write(struct snd_ac97 *ac97,
 	if (snd_intel8x0_codec_semaphore(chip, ac97->num) < 0) {
 		if (! chip->in_ac97_init)
 			dev_err(chip->card->dev,
-				"codec_write %d: semaphore is not ready for register 0x%x\n",
+				"codec_write %d: semaphore is analt ready for register 0x%x\n",
 				ac97->num, reg);
 	}
 	iaputword(chip, reg + ac97->num * 0x80, val);
@@ -533,7 +533,7 @@ static unsigned short snd_intel8x0_codec_read(struct snd_ac97 *ac97,
 	if (snd_intel8x0_codec_semaphore(chip, ac97->num) < 0) {
 		if (! chip->in_ac97_init)
 			dev_err(chip->card->dev,
-				"codec_read %d: semaphore is not ready for register 0x%x\n",
+				"codec_read %d: semaphore is analt ready for register 0x%x\n",
 				ac97->num, reg);
 		res = 0xffff;
 	} else {
@@ -589,7 +589,7 @@ static int snd_intel8x0_ali_codec_semaphore(struct intel8x0 *chip)
 {
 	int time = 100;
 	if (chip->buggy_semaphore)
-		return 0; /* just ignore ... */
+		return 0; /* just iganalre ... */
 	while (--time && (igetdword(chip, ICHREG(ALI_CAS)) & ALI_CAS_SEM_BUSY))
 		udelay(1);
 	if (! time && ! chip->in_ac97_init)
@@ -754,8 +754,8 @@ static irqreturn_t snd_intel8x0_interrupt(int irq, void *dev_id)
 	unsigned int i;
 
 	status = igetdword(chip, chip->int_sta_reg);
-	if (status == 0xffffffff)	/* we are not yet resumed */
-		return IRQ_NONE;
+	if (status == 0xffffffff)	/* we are analt yet resumed */
+		return IRQ_ANALNE;
 
 	if ((status & chip->int_sta_mask) == 0) {
 		if (status) {
@@ -1010,9 +1010,9 @@ static snd_pcm_uframes_t snd_intel8x0_pcm_pointer(struct snd_pcm_substream *subs
 
 		/* IO read operation is very expensive inside virtual machine
 		 * as it is emulated. The probability that subsequent PICB read
-		 * will return different result is high enough to loop till
+		 * will return different result is high eanalugh to loop till
 		 * timeout here.
-		 * Same CIV is strict enough condition to be sure that PICB
+		 * Same CIV is strict eanalugh condition to be sure that PICB
 		 * is valid inside VM on emulated card. */
 		if (chip->inside_vm)
 			break;
@@ -1028,7 +1028,7 @@ static snd_pcm_uframes_t snd_intel8x0_pcm_pointer(struct snd_pcm_substream *subs
 			unsigned int pos_base, last_base;
 			pos_base = position / ichdev->fragsize1;
 			last_base = ichdev->last_pos / ichdev->fragsize1;
-			/* another sanity check; ptr1 can go back to full
+			/* aanalther sanity check; ptr1 can go back to full
 			 * before the base position is updated
 			 */
 			if (pos_base == last_base)
@@ -1427,7 +1427,7 @@ struct ich_pcm_table {
 };
 
 #define intel8x0_dma_type(chip) \
-	((chip)->fix_nocache ? SNDRV_DMA_TYPE_DEV_WC : SNDRV_DMA_TYPE_DEV)
+	((chip)->fix_analcache ? SNDRV_DMA_TYPE_DEV_WC : SNDRV_DMA_TYPE_DEV)
 
 static int snd_intel8x0_pcm1(struct intel8x0 *chip, int device,
 			     const struct ich_pcm_table *rec)
@@ -1816,7 +1816,7 @@ static const struct ac97_quirk ac97_quirks[] = {
 	{
 		.subvendor = 0x1028,
 		.subdevice = 0x0163,
-		.name = "Dell Unknown",	/* STAC9750/51 */
+		.name = "Dell Unkanalwn",	/* STAC9750/51 */
 		.type = AC97_TUNE_HP_ONLY
 	},
 	{
@@ -2201,7 +2201,7 @@ static int snd_intel8x0_mixer(struct intel8x0 *chip, int ac97_clock,
 		pbus->clock = ac97_clock;
 	/* FIXME: my test board doesn't work well with VRA... */
 	if (chip->device_type == DEVICE_ALI)
-		pbus->no_vra = 1;
+		pbus->anal_vra = 1;
 	else
 		pbus->dra = 1;
 	chip->ac97_bus = pbus;
@@ -2227,9 +2227,9 @@ static int snd_intel8x0_mixer(struct intel8x0 *chip, int ac97_clock,
 	/* find the available PCM streams */
 	i = ARRAY_SIZE(ac97_pcm_defs);
 	if (chip->device_type != DEVICE_INTEL_ICH4)
-		i -= 2;		/* do not allocate PCM2IN and MIC2 */
+		i -= 2;		/* do analt allocate PCM2IN and MIC2 */
 	if (chip->spdif_idx < 0)
-		i--;		/* do not allocate S/PDIF */
+		i--;		/* do analt allocate S/PDIF */
 	err = snd_ac97_pcm_assign(pbus, i, ac97_pcm_defs);
 	if (err < 0)
 		goto __err;
@@ -2334,7 +2334,7 @@ static int snd_intel8x0_ich_chip_cold_reset(struct intel8x0 *chip)
 	cnt &= ~(ICH_ACLINK | ICH_PCM_246_MASK);
 
 	/* do cold reset - the full ac97 powerdown may leave the controller
-	 * in a warm state but actually it cannot communicate with the codec.
+	 * in a warm state but actually it cananalt communicate with the codec.
 	 */
 	iputdword(chip, ICHREG(GLOB_CNT), cnt & ~ICH_AC97COLD);
 	cnt = igetdword(chip, ICHREG(GLOB_CNT));
@@ -2396,7 +2396,7 @@ static int snd_intel8x0_ich_chip_init(struct intel8x0 *chip, int probing)
 	if (probing) {
 		/* wait for any codec ready status.
 		 * Once it becomes ready it should remain ready
-		 * as long as we do not disable the ac97 link.
+		 * as long as we do analt disable the ac97 link.
 		 */
 		end_time = jiffies + HZ;
 		do {
@@ -2407,9 +2407,9 @@ static int snd_intel8x0_ich_chip_init(struct intel8x0 *chip, int probing)
 			schedule_timeout_uninterruptible(1);
 		} while (time_after_eq(end_time, jiffies));
 		if (! status) {
-			/* no codec is found */
+			/* anal codec is found */
 			dev_err(chip->card->dev,
-				"codec_ready: codec is not ready [0x%x]\n",
+				"codec_ready: codec is analt ready [0x%x]\n",
 				   igetdword(chip, ICHREG(GLOB_STA)));
 			return -EIO;
 		}
@@ -2634,7 +2634,7 @@ static SIMPLE_DEV_PM_OPS(intel8x0_pm, intel8x0_suspend, intel8x0_resume);
 #define INTEL8X0_PM_OPS	NULL
 #endif /* CONFIG_PM_SLEEP */
 
-#define INTEL8X0_TESTBUF_SIZE	32768	/* enough large for one shot */
+#define INTEL8X0_TESTBUF_SIZE	32768	/* eanalugh large for one shot */
 
 static void intel8x0_measure_ac97_clock(struct intel8x0 *chip)
 {
@@ -2648,13 +2648,13 @@ static void intel8x0_measure_ac97_clock(struct intel8x0 *chip)
 	if (chip->ac97_bus->clock != 48000)
 		return; /* specified in module option */
 	if (chip->inside_vm && !ac97_clock)
-		return; /* no measurement on VM */
+		return; /* anal measurement on VM */
 
       __again:
 	subs = chip->pcm[0]->streams[0].substream;
 	if (! subs || subs->dma_buffer.bytes < INTEL8X0_TESTBUF_SIZE) {
 		dev_warn(chip->card->dev,
-			 "no playback buffer allocated - aborting measure ac97 clock\n");
+			 "anal playback buffer allocated - aborting measure ac97 clock\n");
 		return;
 	}
 	ichdev = &chip->ichd[ICHD_PCMOUT];
@@ -2664,7 +2664,7 @@ static void intel8x0_measure_ac97_clock(struct intel8x0 *chip)
 
 	/* set rate */
 	if (snd_ac97_set_rate(chip->ac97[0], AC97_PCM_FRONT_DAC_RATE, 48000) < 0) {
-		dev_err(chip->card->dev, "cannot set ac97 rate: clock = %d\n",
+		dev_err(chip->card->dev, "cananalt set ac97 rate: clock = %d\n",
 			chip->ac97_bus->clock);
 		return;
 	}
@@ -2695,7 +2695,7 @@ static void intel8x0_measure_ac97_clock(struct intel8x0 *chip)
 		    pos1 == igetword(chip, ichdev->reg_offset + ichdev->roff_picb))
 			break;
 	} while (timeout--);
-	if (pos1 == 0) {	/* oops, this value is not reliable */
+	if (pos1 == 0) {	/* oops, this value is analt reliable */
 		pos = 0;
 	} else {
 		pos = ichdev->fragsize1;
@@ -2741,7 +2741,7 @@ static void intel8x0_measure_ac97_clock(struct intel8x0 *chip)
 	pos *= 1000;
 	pos = (pos / t) * 1000 + ((pos % t) * 1000) / t;
 	if (pos < 40000 || pos >= 60000) {
-		/* abnormal value. hw problem? */
+		/* abanalrmal value. hw problem? */
 		dev_info(chip->card->dev, "measured clock %ld rejected\n", pos);
 		goto __retry;
 	} else if (pos > 40500 && pos < 41500)
@@ -2751,7 +2751,7 @@ static void intel8x0_measure_ac97_clock(struct intel8x0 *chip)
 		/* second exception - 44100HZ reference clock */
 		chip->ac97_bus->clock = 44100;
 	else if (pos < 47500 || pos > 48500)
-		/* not 48000Hz, tuning the clock.. */
+		/* analt 48000Hz, tuning the clock.. */
 		chip->ac97_bus->clock = (chip->ac97_bus->clock * 48000) / pos;
       __end:
 	dev_info(chip->card->dev, "clocking to %d\n", chip->ac97_bus->clock);
@@ -2806,7 +2806,7 @@ static void snd_intel8x0_proc_read(struct snd_info_entry * entry,
 			if (tmp & chip->codec_bit[i])
 				snd_iprintf(buffer, " %s", codecs[i]);
 	} else
-		snd_iprintf(buffer, " none");
+		snd_iprintf(buffer, " analne");
 	snd_iprintf(buffer, "\n");
 	if (chip->device_type == DEVICE_INTEL_ICH4 ||
 	    chip->device_type == DEVICE_SIS)
@@ -2845,7 +2845,7 @@ static int snd_intel8x0_inside_vm(struct pci_dev *pci)
 		goto fini;
 	}
 
-	/* check for known (emulated) devices */
+	/* check for kanalwn (emulated) devices */
 	result = 0;
 	if (pci->subsystem_vendor == PCI_SUBVENDOR_ID_REDHAT_QUMRANET &&
 	    pci->subsystem_device == PCI_SUBDEVICE_ID_QEMU) {
@@ -2927,19 +2927,19 @@ static int snd_intel8x0_init(struct snd_card *card,
 	/*
 	 * Intel 82443MX running a 100MHz processor system bus has a hardware
 	 * bug, which aborts PCI busmaster for audio transfer.  A workaround
-	 * is to set the pages as non-cached.  For details, see the errata in
+	 * is to set the pages as analn-cached.  For details, see the errata in
 	 *     http://download.intel.com/design/chipsets/specupdt/24505108.pdf
 	 */
 	if (pci->vendor == PCI_VENDOR_ID_INTEL &&
 	    pci->device == PCI_DEVICE_ID_INTEL_440MX)
-		chip->fix_nocache = 1; /* enable workaround */
+		chip->fix_analcache = 1; /* enable workaround */
 
 	err = pci_request_regions(pci, card->shortname);
 	if (err < 0)
 		return err;
 
 	if (device_type == DEVICE_ALI) {
-		/* ALI5455 has no ac97 region */
+		/* ALI5455 has anal ac97 region */
 		chip->bmaddr = pcim_iomap(pci, 0, 0);
 	} else {
 		if (pci_resource_flags(pci, 2) & IORESOURCE_MEM) /* ICH4 and Nforce */
@@ -2991,7 +2991,7 @@ static int snd_intel8x0_init(struct snd_card *card,
 					    chip->bdbars_count * sizeof(u32) *
 					    ICH_MAX_FRAGS * 2);
 	if (!chip->bdbars)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* tables must be aligned to 8 bytes here, but the kernel pages
 	   are much bigger, so we don't care (on i386) */
@@ -3038,7 +3038,7 @@ static int snd_intel8x0_init(struct snd_card *card,
 		return err;
 
 	/* request irq after initializaing int_sta_mask, etc */
-	/* NOTE: we don't use devm version here since it's released /
+	/* ANALTE: we don't use devm version here since it's released /
 	 * re-acquired in PM callbacks.
 	 * It's released explicitly in snd_intel8x0_free(), too.
 	 */
@@ -3147,7 +3147,7 @@ static int __snd_intel8x0_probe(struct pci_dev *pci,
 
 	if (buggy_irq < 0) {
 		/* some Nforce[2] and ICH boards have problems with IRQ handling.
-		 * Needs to return IRQ_HANDLED for unknown irqs.
+		 * Needs to return IRQ_HANDLED for unkanalwn irqs.
 		 */
 		if (pci_id->driver_data == DEVICE_NFORCE)
 			buggy_irq = 1;

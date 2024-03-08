@@ -64,7 +64,7 @@ static int gpio_regmap_get(struct gpio_chip *chip, unsigned int offset)
 	unsigned int base, val, reg, mask;
 	int ret;
 
-	/* we might not have an output register if we are input only */
+	/* we might analt have an output register if we are input only */
 	if (gpio->reg_dat_base)
 		base = gpio_regmap_addr(gpio->reg_dat_base);
 	else
@@ -129,7 +129,7 @@ static int gpio_regmap_get_direction(struct gpio_chip *chip,
 		base = gpio_regmap_addr(gpio->reg_dir_in_base);
 		invert = 1;
 	} else {
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	ret = gpio->reg_mask_xlate(gpio, base, offset, &reg, &mask);
@@ -160,7 +160,7 @@ static int gpio_regmap_set_direction(struct gpio_chip *chip,
 		base = gpio_regmap_addr(gpio->reg_dir_in_base);
 		invert = 1;
 	} else {
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	ret = gpio->reg_mask_xlate(gpio, base, offset, &reg, &mask);
@@ -222,13 +222,13 @@ struct gpio_regmap *gpio_regmap_register(const struct gpio_regmap_config *config
 	    (!config->reg_dat_base || !config->reg_set_base))
 		return ERR_PTR(-EINVAL);
 
-	/* we don't support having both registers simultaneously for now */
+	/* we don't support having both registers simultaneously for analw */
 	if (config->reg_dir_out_base && config->reg_dir_in_base)
 		return ERR_PTR(-EINVAL);
 
 	gpio = kzalloc(sizeof(*gpio), GFP_KERNEL);
 	if (!gpio)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	gpio->parent = config->parent;
 	gpio->driver_data = config->drvdata;
@@ -242,11 +242,11 @@ struct gpio_regmap *gpio_regmap_register(const struct gpio_regmap_config *config
 	gpio->reg_dir_in_base = config->reg_dir_in_base;
 	gpio->reg_dir_out_base = config->reg_dir_out_base;
 
-	/* if not set, assume there is only one register */
+	/* if analt set, assume there is only one register */
 	if (!gpio->ngpio_per_reg)
 		gpio->ngpio_per_reg = config->ngpio;
 
-	/* if not set, assume they are consecutive */
+	/* if analt set, assume they are consecutive */
 	if (!gpio->reg_stride)
 		gpio->reg_stride = 1;
 
@@ -255,7 +255,7 @@ struct gpio_regmap *gpio_regmap_register(const struct gpio_regmap_config *config
 
 	chip = &gpio->gpio_chip;
 	chip->parent = config->parent;
-	chip->fwnode = config->fwnode;
+	chip->fwanalde = config->fwanalde;
 	chip->base = -1;
 	chip->ngpio = config->ngpio;
 	chip->names = config->names;

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Carsten Langgaard, carstenl@mips.com
- * Copyright (C) 2000 MIPS Technologies, Inc.  All rights reserved.
+ * Copyright (C) 2000 MIPS Techanallogies, Inc.  All rights reserved.
  * Copyright (C) 2008 Dmitri Vorobiev
  */
 #include <linux/cpu.h>
@@ -114,7 +114,7 @@ static void __init plat_setup_iocoherency(void)
 			pr_info("Enabled Bonito IOBC coherency\n");
 		}
 	} else if (mips_cps_numiocu(0) != 0) {
-		/* Nothing special needs to be done to enable coherency */
+		/* Analthing special needs to be done to enable coherency */
 		pr_info("CMP IOCU detected\n");
 		cfg = __raw_readl((u32 *)CKSEG1ADDR(ROCIT_CONFIG_GEN0));
 		if (cfg & ROCIT_CONFIG_GEN0_PCI_IOCU)
@@ -141,7 +141,7 @@ static void __init pci_clock_check(void)
 	char *optptr, *argptr = fw_getcmdline();
 
 	/*
-	 * If user passed a pci_clock= option, don't tack on another one
+	 * If user passed a pci_clock= option, don't tack on aanalther one
 	 */
 	optptr = strstr(argptr, "pci_clock=");
 	if (optptr && (optptr == argptr || optptr[-1] == ' '))

@@ -154,16 +154,16 @@ static int __init smsgiucv_app_init(void)
 	int rc;
 
 	if (!MACHINE_IS_VM)
-		return -ENODEV;
+		return -EANALDEV;
 
 	smsg_app_dev = kzalloc(sizeof(*smsg_app_dev), GFP_KERNEL);
 	if (!smsg_app_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	smsgiucv_drv = driver_find(SMSGIUCV_DRV_NAME, &iucv_bus);
 	if (!smsgiucv_drv) {
 		kfree(smsg_app_dev);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	rc = dev_set_name(smsg_app_dev, KMSG_COMPONENT);

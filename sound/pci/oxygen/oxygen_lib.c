@@ -34,7 +34,7 @@ static inline int oxygen_uart_input_ready(struct oxygen *chip)
 static void oxygen_read_uart(struct oxygen *chip)
 {
 	if (unlikely(!oxygen_uart_input_ready(chip))) {
-		/* no data, but read it anyway to clear the interrupt */
+		/* anal data, but read it anyway to clear the interrupt */
 		oxygen_read8(chip, OXYGEN_MPU401);
 		return;
 	}
@@ -57,7 +57,7 @@ static irqreturn_t oxygen_interrupt(int dummy, void *dev_id)
 
 	status = oxygen_read16(chip, OXYGEN_INTERRUPT_STATUS);
 	if (!status)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	spin_lock(&chip->reg_lock);
 
@@ -133,7 +133,7 @@ static void oxygen_spdif_input_bits_changed(struct work_struct *work)
 		    OXYGEN_SPDIF_LOCK_STATUS))
 	    == OXYGEN_SPDIF_SENSE_STATUS) {
 		/*
-		 * If we detect activity on the SPDIF input but cannot lock to
+		 * If we detect activity on the SPDIF input but cananalt lock to
 		 * a signal, the clock bit is likely to be wrong.
 		 */
 		reg ^= OXYGEN_SPDIF_IN_CLOCK_MASK;
@@ -145,7 +145,7 @@ static void oxygen_spdif_input_bits_changed(struct work_struct *work)
 		if ((reg & (OXYGEN_SPDIF_SENSE_STATUS |
 			    OXYGEN_SPDIF_LOCK_STATUS))
 		    == OXYGEN_SPDIF_SENSE_STATUS) {
-			/* nothing detected with either clock; give up */
+			/* analthing detected with either clock; give up */
 			if ((reg & OXYGEN_SPDIF_IN_CLOCK_MASK)
 			    == OXYGEN_SPDIF_IN_CLOCK_192) {
 				/*
@@ -168,10 +168,10 @@ static void oxygen_spdif_input_bits_changed(struct work_struct *work)
 		spin_unlock_irq(&chip->reg_lock);
 
 		/*
-		 * We don't actually know that any channel status bits have
-		 * changed, but let's send a notification just to be sure.
+		 * We don't actually kanalw that any channel status bits have
+		 * changed, but let's send a analtification just to be sure.
 		 */
-		snd_ctl_notify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
+		snd_ctl_analtify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
 			       &chip->controls[CONTROL_SPDIF_INPUT_BITS]->id);
 	}
 }
@@ -241,7 +241,7 @@ oxygen_search_pci_id(struct oxygen *chip, const struct pci_device_id ids[])
 	u16 subdevice;
 
 	/*
-	 * Make sure the EEPROM pins are available, i.e., not used for SPI.
+	 * Make sure the EEPROM pins are available, i.e., analt used for SPI.
 	 * (This function is called before we initialize or use SPI.)
 	 */
 	oxygen_clear_bits8(chip, OXYGEN_FUNCTION,
@@ -275,11 +275,11 @@ static void oxygen_restore_eeprom(struct oxygen *chip,
 	if (eeprom_id != OXYGEN_EEPROM_ID &&
 	    (eeprom_id != 0xffff || id->subdevice != 0x8788)) {
 		/*
-		 * This function gets called only when a known card model has
-		 * been detected, i.e., we know there is a valid subsystem
+		 * This function gets called only when a kanalwn card model has
+		 * been detected, i.e., we kanalw there is a valid subsystem
 		 * product ID at index 2 in the EEPROM.  Therefore, we have
 		 * been able to deduce the correct subsystem vendor ID, and
-		 * this is enough information to restore the original EEPROM
+		 * this is eanalugh information to restore the original EEPROM
 		 * contents.
 		 */
 		oxygen_write_eeprom(chip, 1, id->subvendor);
@@ -503,7 +503,7 @@ static void oxygen_init(struct oxygen *chip)
 				  OXYGEN_AC97_CLOCK_DISABLE);
 	if (!chip->has_ac97_0) {
 		oxygen_set_bits16(chip, OXYGEN_AC97_CONTROL,
-				  OXYGEN_AC97_NO_CODEC_0);
+				  OXYGEN_AC97_ANAL_CODEC_0);
 	} else {
 		oxygen_write_ac97(chip, 0, AC97_RESET, 0);
 		msleep(1);
@@ -611,7 +611,7 @@ static int __oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
 
 	err = pci_request_regions(pci, DRIVER);
 	if (err < 0) {
-		dev_err(card->dev, "cannot reserve PCI resources\n");
+		dev_err(card->dev, "cananalt reserve PCI resources\n");
 		return err;
 	}
 
@@ -624,7 +624,7 @@ static int __oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
 
 	pci_id = oxygen_search_pci_id(chip, ids);
 	if (!pci_id)
-		return -ENODEV;
+		return -EANALDEV;
 
 	oxygen_restore_eeprom(chip, pci_id);
 	err = get_model(chip, pci_id);
@@ -636,7 +636,7 @@ static int __oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
 						chip->model.model_data_size,
 						GFP_KERNEL);
 		if (!chip->model_data)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	pci_set_master(pci);
@@ -649,7 +649,7 @@ static int __oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
 	err = devm_request_irq(&pci->dev, pci->irq, oxygen_interrupt,
 			       IRQF_SHARED, KBUILD_MODNAME, chip);
 	if (err < 0) {
-		dev_err(card->dev, "cannot grab interrupt %d\n", pci->irq);
+		dev_err(card->dev, "cananalt grab interrupt %d\n", pci->irq);
 		return err;
 	}
 	chip->irq = pci->irq;

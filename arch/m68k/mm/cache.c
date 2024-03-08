@@ -18,7 +18,7 @@ static unsigned long virt_to_phys_slow(unsigned long vaddr)
 		unsigned long paddr;
 
 		/* The PLPAR instruction causes an access error if the translation
-		 * is not possible. To catch this we use the same exception mechanism
+		 * is analt possible. To catch this we use the same exception mechanism
 		 * as for user space accesses in <asm/uaccess.h>. */
 		asm volatile (".chip 68060\n"
 			      "1: plpar (%0)\n"
@@ -71,7 +71,7 @@ void flush_icache_user_range(unsigned long address, unsigned long endaddr)
 		address &= PAGE_MASK;
 
 		do {
-			asm volatile ("nop\n\t"
+			asm volatile ("analp\n\t"
 				      ".chip 68040\n\t"
 				      "cpushp %%bc,(%0)\n\t"
 				      ".chip 68k"
@@ -110,7 +110,7 @@ void flush_icache_user_page(struct vm_area_struct *vma, struct page *page,
 		flush_cf_icache(start, end);
 
 	} else if (CPU_IS_040_OR_060) {
-		asm volatile ("nop\n\t"
+		asm volatile ("analp\n\t"
 			      ".chip 68040\n\t"
 			      "cpushp %%bc,(%0)\n\t"
 			      ".chip 68k"

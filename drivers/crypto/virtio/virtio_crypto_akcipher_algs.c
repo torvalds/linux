@@ -119,11 +119,11 @@ static int virtio_crypto_alg_akcipher_init_session(struct virtio_crypto_akcipher
 
 	pkey = kmemdup(key, keylen, GFP_KERNEL);
 	if (!pkey)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vc_ctrl_req = kzalloc(sizeof(*vc_ctrl_req), GFP_KERNEL);
 	if (!vc_ctrl_req) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -180,7 +180,7 @@ static int virtio_crypto_alg_akcipher_close_session(struct virtio_crypto_akciphe
 
 	vc_ctrl_req = kzalloc(sizeof(*vc_ctrl_req), GFP_KERNEL);
 	if (!vc_ctrl_req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctrl_status = &vc_ctrl_req->ctrl_status;
 	ctrl_status->status = VIRTIO_CRYPTO_ERR;
@@ -227,9 +227,9 @@ static int __virtio_crypto_akcipher_do_req(struct virtio_crypto_akcipher_request
 	struct scatterlist *sgs[4], outhdr_sg, inhdr_sg, srcdata_sg, dstdata_sg;
 	void *src_buf = NULL, *dst_buf = NULL;
 	unsigned int num_out = 0, num_in = 0;
-	int node = dev_to_node(&vcrypto->vdev->dev);
+	int analde = dev_to_analde(&vcrypto->vdev->dev);
 	unsigned long flags;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 	bool verify = vc_akcipher_req->opcode == VIRTIO_CRYPTO_AKCIPHER_VERIFY;
 	unsigned int src_len = verify ? req->src_len + req->dst_len : req->src_len;
 
@@ -238,7 +238,7 @@ static int __virtio_crypto_akcipher_do_req(struct virtio_crypto_akcipher_request
 	sgs[num_out++] = &outhdr_sg;
 
 	/* src data */
-	src_buf = kcalloc_node(src_len, 1, GFP_KERNEL, node);
+	src_buf = kcalloc_analde(src_len, 1, GFP_KERNEL, analde);
 	if (!src_buf)
 		goto err;
 
@@ -253,7 +253,7 @@ static int __virtio_crypto_akcipher_do_req(struct virtio_crypto_akcipher_request
 		sgs[num_out++] = &srcdata_sg;
 
 		/* dst data */
-		dst_buf = kcalloc_node(req->dst_len, 1, GFP_KERNEL, node);
+		dst_buf = kcalloc_analde(req->dst_len, 1, GFP_KERNEL, analde);
 		if (!dst_buf)
 			goto err;
 
@@ -281,7 +281,7 @@ err:
 	kfree(src_buf);
 	kfree(dst_buf);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int virtio_crypto_rsa_do_req(struct crypto_engine *engine, void *vreq)
@@ -297,10 +297,10 @@ static int virtio_crypto_rsa_do_req(struct crypto_engine *engine, void *vreq)
 	int ret;
 
 	vc_req->sgs = NULL;
-	vc_req->req_data = kzalloc_node(sizeof(*vc_req->req_data),
-		GFP_KERNEL, dev_to_node(&vcrypto->vdev->dev));
+	vc_req->req_data = kzalloc_analde(sizeof(*vc_req->req_data),
+		GFP_KERNEL, dev_to_analde(&vcrypto->vdev->dev));
 	if (!vc_req->req_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* build request header */
 	header = &vc_req->req_data->header;
@@ -375,7 +375,7 @@ static int virtio_crypto_rsa_set_key(struct crypto_akcipher *tfm,
 	struct virtio_crypto_ctrl_header header;
 	struct virtio_crypto_akcipher_session_para para;
 	struct rsa_key rsa_key = {0};
-	int node = virtio_crypto_get_current_node();
+	int analde = virtio_crypto_get_current_analde();
 	uint32_t keytype;
 	int ret;
 
@@ -396,14 +396,14 @@ static int virtio_crypto_rsa_set_key(struct crypto_akcipher *tfm,
 
 	rsa_ctx->n = mpi_read_raw_data(rsa_key.n, rsa_key.n_sz);
 	if (!rsa_ctx->n)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!ctx->vcrypto) {
-		vcrypto = virtcrypto_get_dev_node(node, VIRTIO_CRYPTO_SERVICE_AKCIPHER,
+		vcrypto = virtcrypto_get_dev_analde(analde, VIRTIO_CRYPTO_SERVICE_AKCIPHER,
 						VIRTIO_CRYPTO_AKCIPHER_RSA);
 		if (!vcrypto) {
-			pr_err("virtio_crypto: Could not find a virtio device in the system or unsupported algo\n");
-			return -ENODEV;
+			pr_err("virtio_crypto: Could analt find a virtio device in the system or unsupported algo\n");
+			return -EANALDEV;
 		}
 
 		ctx->vcrypto = vcrypto;
@@ -432,7 +432,7 @@ static int virtio_crypto_rsa_raw_set_priv_key(struct crypto_akcipher *tfm,
 {
 	return virtio_crypto_rsa_set_key(tfm, key, keylen, 1,
 					 VIRTIO_CRYPTO_RSA_RAW_PADDING,
-					 VIRTIO_CRYPTO_RSA_NO_HASH);
+					 VIRTIO_CRYPTO_RSA_ANAL_HASH);
 }
 
 
@@ -451,7 +451,7 @@ static int virtio_crypto_rsa_raw_set_pub_key(struct crypto_akcipher *tfm,
 {
 	return virtio_crypto_rsa_set_key(tfm, key, keylen, 0,
 					 VIRTIO_CRYPTO_RSA_RAW_PADDING,
-					 VIRTIO_CRYPTO_RSA_NO_HASH);
+					 VIRTIO_CRYPTO_RSA_ANAL_HASH);
 }
 
 static int virtio_crypto_p1pad_rsa_sha1_set_pub_key(struct crypto_akcipher *tfm,

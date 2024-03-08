@@ -23,8 +23,8 @@ This section describes ioctls that is used for querying the SEV guest report
 from the SEV firmware. For each ioctl, the following information is provided
 along with a description:
 
-  Technology:
-      which SEV technology provides this ioctl. SEV, SEV-ES, SEV-SNP or all.
+  Techanallogy:
+      which SEV techanallogy provides this ioctl. SEV, SEV-ES, SEV-SNP or all.
 
   Type:
       hypervisor or guest. The ioctl can be used inside the guest or the
@@ -34,8 +34,8 @@ along with a description:
       what parameters are accepted by the ioctl.
 
   Returns:
-      the return value.  General error numbers (-ENOMEM, -EINVAL)
-      are not detailed, but errors with specific meanings are.
+      the return value.  General error numbers (-EANALMEM, -EINVAL)
+      are analt detailed, but errors with specific meanings are.
 
 The guest ioctl should be issued on a file descriptor of the /dev/sev-guest
 device.  The ioctl accepts struct snp_user_guest_request. The input and
@@ -70,7 +70,7 @@ counter (e.g. counter overflow), then -EIO will be returned.
 2.1 SNP_GET_REPORT
 ------------------
 
-:Technology: sev-snp
+:Techanallogy: sev-snp
 :Type: guest ioctl
 :Parameters (in): struct snp_report_req
 :Returns (out): struct snp_report_resp on success, -negative on error
@@ -85,7 +85,7 @@ specification for further details.
 
 2.2 SNP_GET_DERIVED_KEY
 -----------------------
-:Technology: sev-snp
+:Techanallogy: sev-snp
 :Type: guest ioctl
 :Parameters (in): struct snp_derived_key_req
 :Returns (out): struct snp_derived_key_resp on success, -negative on error
@@ -104,7 +104,7 @@ the SEV-SNP specification for further details.
 
 2.3 SNP_GET_EXT_REPORT
 ----------------------
-:Technology: sev-snp
+:Techanallogy: sev-snp
 :Type: guest ioctl
 :Parameters (in/out): struct snp_ext_report_req
 :Returns (out): struct snp_report_resp on success, -negative on error
@@ -138,18 +138,18 @@ values:
    it during run-time will result in garbage being written, or #VC exceptions
    being generated due to changes in validation state if the hypervisor tries
    to swap the backing page.
- - Attempts to bypass PSP checks by the hypervisor by using a normal page, or
-   a non-CPUID encrypted page will change the measurement provided by the
+ - Attempts to bypass PSP checks by the hypervisor by using a analrmal page, or
+   a analn-CPUID encrypted page will change the measurement provided by the
    SEV-SNP attestation report.
- - The CPUID page contents are *not* measured, but attempts to modify the
+ - The CPUID page contents are *analt* measured, but attempts to modify the
    expected contents of a CPUID page as part of guest initialization will be
    gated by the PSP CPUID enforcement policy checks performed on the page
-   during SNP_LAUNCH_UPDATE, and noticeable later if the guest owner
+   during SNP_LAUNCH_UPDATE, and analticeable later if the guest owner
    implements their own checks of the CPUID values.
 
-It is important to note that this last assurance is only useful if the kernel
+It is important to analte that this last assurance is only useful if the kernel
 has taken care to make use of the SEV-SNP CPUID throughout all stages of boot.
-Otherwise, guest owner attestation provides no assurance that the kernel wasn't
+Otherwise, guest owner attestation provides anal assurance that the kernel wasn't
 fed incorrect values at some point during boot.
 
 

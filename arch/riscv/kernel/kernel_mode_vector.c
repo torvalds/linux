@@ -67,7 +67,7 @@ void get_cpu_vector_context(void)
  * Release the CPU vector context.
  *
  * Must be called from a context in which get_cpu_vector_context() was
- * previously called, with no call to put_cpu_vector_context() in the
+ * previously called, with anal call to put_cpu_vector_context() in the
  * meantime.
  */
 void put_cpu_vector_context(void)
@@ -127,7 +127,7 @@ static int riscv_v_start_kernel_context(bool *is_nested)
 
 	kvstate = &current->thread.kernel_vstate;
 	if (!kvstate->datap)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (riscv_preempt_v_started(current)) {
 		WARN_ON(riscv_v_ctx_get_depth() == 0);
@@ -187,15 +187,15 @@ asmlinkage void riscv_v_context_nesting_end(struct pt_regs *regs)
 	}
 }
 #else
-#define riscv_v_start_kernel_context(nested)	(-ENOENT)
-#define riscv_v_stop_kernel_context()		(-ENOENT)
+#define riscv_v_start_kernel_context(nested)	(-EANALENT)
+#define riscv_v_stop_kernel_context()		(-EANALENT)
 #endif /* CONFIG_RISCV_ISA_V_PREEMPTIVE */
 
 /*
  * kernel_vector_begin(): obtain the CPU vector registers for use by the calling
  * context
  *
- * Must not be called unless may_use_simd() returns true.
+ * Must analt be called unless may_use_simd() returns true.
  * Task context in the vector registers is saved back to memory as necessary.
  *
  * A matching call to kernel_vector_end() must be made before returning from the
@@ -229,9 +229,9 @@ EXPORT_SYMBOL_GPL(kernel_vector_begin);
  * kernel_vector_end(): give the CPU vector registers back to the current task
  *
  * Must be called from a context in which kernel_vector_begin() was previously
- * called, with no call to kernel_vector_end() in the meantime.
+ * called, with anal call to kernel_vector_end() in the meantime.
  *
- * The caller must not use the vector registers after this function is called,
+ * The caller must analt use the vector registers after this function is called,
  * unless kernel_vector_begin() is called again in the meantime.
  */
 void kernel_vector_end(void)

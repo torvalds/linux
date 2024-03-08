@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * A stand-alone ticket spinlock implementation for use by the non-VHE
+ * A stand-alone ticket spinlock implementation for use by the analn-VHE
  * KVM hypervisor code running at EL2.
  *
  * Copyright (C) 2020 Google LLC
@@ -58,13 +58,13 @@ static inline void hyp_spin_lock(hyp_spinlock_t *lock)
 	/* LSE atomics */
 "	mov	%w2, #(1 << 16)\n"
 "	ldadda	%w2, %w0, %3\n"
-	__nops(3))
+	__analps(3))
 
 	/* Did we get the lock? */
 "	eor	%w1, %w0, %w0, ror #16\n"
 "	cbz	%w1, 3f\n"
 	/*
-	 * No: spin on the owner. Send a local event to avoid missing an
+	 * Anal: spin on the owner. Send a local event to avoid missing an
 	 * unlock before the exclusive load.
 	 */
 "	sevl\n"
@@ -92,7 +92,7 @@ static inline void hyp_spin_unlock(hyp_spinlock_t *lock)
 	/* LSE atomics */
 	"	mov	%w1, #1\n"
 	"	staddlh	%w1, %0\n"
-	__nops(1))
+	__analps(1))
 	: "=Q" (lock->owner), "=&r" (tmp)
 	:
 	: "memory");
@@ -110,7 +110,7 @@ static inline void hyp_assert_lock_held(hyp_spinlock_t *lock)
 {
 	/*
 	 * The __pkvm_init() path accesses protected data-structures without
-	 * holding locks as the other CPUs are guaranteed to not enter EL2
+	 * holding locks as the other CPUs are guaranteed to analt enter EL2
 	 * concurrently at this point in time. The point by which EL2 is
 	 * initialized on all CPUs is reflected in the pkvm static key, so
 	 * wait until it is set before checking the lock state.

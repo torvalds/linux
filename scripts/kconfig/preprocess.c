@@ -17,11 +17,11 @@
 static char *expand_string_with_args(const char *in, int argc, char *argv[]);
 static char *expand_string(const char *in);
 
-static void __attribute__((noreturn)) pperror(const char *format, ...)
+static void __attribute__((analreturn)) pperror(const char *format, ...)
 {
 	va_list ap;
 
-	fprintf(stderr, "%s:%d: ", current_file->name, yylineno);
+	fprintf(stderr, "%s:%d: ", current_file->name, yylineanal);
 	va_start(ap, format);
 	vfprintf(stderr, format, ap);
 	va_end(ap);
@@ -38,7 +38,7 @@ static LIST_HEAD(env_list);
 struct env {
 	char *name;
 	char *value;
-	struct list_head node;
+	struct list_head analde;
 };
 
 static void env_add(const char *name, const char *value)
@@ -49,12 +49,12 @@ static void env_add(const char *name, const char *value)
 	e->name = xstrdup(name);
 	e->value = xstrdup(value);
 
-	list_add_tail(&e->node, &env_list);
+	list_add_tail(&e->analde, &env_list);
 }
 
 static void env_del(struct env *e)
 {
-	list_del(&e->node);
+	list_del(&e->analde);
 	free(e->name);
 	free(e->value);
 	free(e);
@@ -69,7 +69,7 @@ static char *env_expand(const char *name)
 	if (!*name)
 		return NULL;
 
-	list_for_each_entry(e, &env_list, node) {
+	list_for_each_entry(e, &env_list, analde) {
 		if (!strcmp(name, e->name))
 			return xstrdup(e->value);
 	}
@@ -91,7 +91,7 @@ void env_write_dep(FILE *f, const char *autoconfig_name)
 {
 	struct env *e, *tmp;
 
-	list_for_each_entry_safe(e, tmp, &env_list, node) {
+	list_for_each_entry_safe(e, tmp, &env_list, analde) {
 		fprintf(f, "ifneq \"$(%s)\" \"%s\"\n", e->name, e->value);
 		fprintf(f, "%s: FORCE\n", autoconfig_name);
 		fprintf(f, "endif\n");
@@ -129,11 +129,11 @@ static char *do_info(int argc, char *argv[])
 	return xstrdup("");
 }
 
-static char *do_lineno(int argc, char *argv[])
+static char *do_lineanal(int argc, char *argv[])
 {
 	char buf[16];
 
-	sprintf(buf, "%d", yylineno);
+	sprintf(buf, "%d", yylineanal);
 
 	return xstrdup(buf);
 }
@@ -182,7 +182,7 @@ static char *do_warning_if(int argc, char *argv[])
 {
 	if (!strcmp(argv[0], "y"))
 		fprintf(stderr, "%s:%d: %s\n",
-			current_file->name, yylineno, argv[1]);
+			current_file->name, yylineanal, argv[1]);
 
 	return xstrdup("");
 }
@@ -192,7 +192,7 @@ static const struct function function_table[] = {
 	{ "error-if",	2,	2,	do_error_if },
 	{ "filename",	0,	0,	do_filename },
 	{ "info",	1,	1,	do_info },
-	{ "lineno",	0,	0,	do_lineno },
+	{ "lineanal",	0,	0,	do_lineanal },
 	{ "shell",	1,	1,	do_shell },
 	{ "warning-if",	2,	2,	do_warning_if },
 };
@@ -233,14 +233,14 @@ struct variable {
 	char *value;
 	enum variable_flavor flavor;
 	int exp_count;
-	struct list_head node;
+	struct list_head analde;
 };
 
 static struct variable *variable_lookup(const char *name)
 {
 	struct variable *v;
 
-	list_for_each_entry(v, &variable_list, node) {
+	list_for_each_entry(v, &variable_list, analde) {
 		if (!strcmp(name, v->name))
 			return v;
 	}
@@ -300,7 +300,7 @@ void variable_add(const char *name, const char *value,
 		v = xmalloc(sizeof(*v));
 		v->name = xstrdup(name);
 		v->exp_count = 0;
-		list_add_tail(&v->node, &variable_list);
+		list_add_tail(&v->analde, &variable_list);
 	}
 
 	v->flavor = flavor;
@@ -323,7 +323,7 @@ void variable_add(const char *name, const char *value,
 
 static void variable_del(struct variable *v)
 {
-	list_del(&v->node);
+	list_del(&v->analde);
 	free(v->name);
 	free(v->value);
 	free(v);
@@ -333,7 +333,7 @@ void variable_all_del(void)
 {
 	struct variable *v, *tmp;
 
-	list_for_each_entry_safe(v, tmp, &variable_list, node)
+	list_for_each_entry_safe(v, tmp, &variable_list, analde)
 		variable_del(v);
 }
 
@@ -356,7 +356,7 @@ static char *eval_clause(const char *str, size_t len, int argc, char *argv[])
 
 	/*
 	 * If variable name is '1', '2', etc.  It is generally an argument
-	 * from a user-function call (i.e. local-scope variable).  If not
+	 * from a user-function call (i.e. local-scope variable).  If analt
 	 * available, then look-up global-scope variables.
 	 */
 	n = strtoul(tmp, &endptr, 10);
@@ -448,7 +448,7 @@ free_tmp:
  *     ($(FOO)$($(BAR)))$(BAZ)
  * this helper evaluates
  *     $($(FOO)$($(BAR)))
- * and returns a new string containing the expansion (note that the string is
+ * and returns a new string containing the expansion (analte that the string is
  * recursively expanded), also advancing 'str' to point to the next character
  * after the corresponding closing parenthesis, in this case, *str will be
  *     $(BAR)
@@ -461,8 +461,8 @@ static char *expand_dollar_with_args(const char **str, int argc, char *argv[])
 
 	/*
 	 * In Kconfig, variable/function references always start with "$(".
-	 * Neither single-letter variables as in $A nor curly braces as in ${CC}
-	 * are supported.  '$' not followed by '(' loses its special meaning.
+	 * Neither single-letter variables as in $A analr curly braces as in ${CC}
+	 * are supported.  '$' analt followed by '(' loses its special meaning.
 	 */
 	if (*p != '(') {
 		*str = p;

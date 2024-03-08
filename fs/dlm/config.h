@@ -14,8 +14,8 @@
 
 #define DLM_MAX_SOCKET_BUFSIZE	4096
 
-struct dlm_config_node {
-	int nodeid;
+struct dlm_config_analde {
+	int analdeid;
 	int weight;
 	int new;
 	uint32_t comm_seq;
@@ -46,10 +46,10 @@ extern struct dlm_config_info dlm_config;
 
 int dlm_config_init(void);
 void dlm_config_exit(void);
-int dlm_config_nodes(char *lsname, struct dlm_config_node **nodes_out,
+int dlm_config_analdes(char *lsname, struct dlm_config_analde **analdes_out,
 		     int *count_out);
-int dlm_comm_seq(int nodeid, uint32_t *seq);
-int dlm_our_nodeid(void);
+int dlm_comm_seq(int analdeid, uint32_t *seq);
+int dlm_our_analdeid(void);
 int dlm_our_addr(struct sockaddr_storage *addr, int num);
 
 #endif				/* __CONFIG_DOT_H__ */

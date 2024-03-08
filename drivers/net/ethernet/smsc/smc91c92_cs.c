@@ -83,7 +83,7 @@ INT_MODULE_PARM(if_port, 0);
 
 /*====================================================================*/
 
-/* Operational parameter that usually are not changed. */
+/* Operational parameter that usually are analt changed. */
 
 /* Time in jiffies before concluding Tx hung */
 #define TX_TIMEOUT		((400*HZ)/1000)
@@ -92,7 +92,7 @@ INT_MODULE_PARM(if_port, 0);
 #define INTR_WORK		4
 
 /* Times to check the check the chip before concluding that it doesn't
-   currently have room for another Tx packet. */
+   currently have room for aanalther Tx packet. */
 #define MEMORY_WAIT_TIME       	8
 
 struct smc_private {
@@ -124,7 +124,7 @@ struct smc_private {
 #define MOT_UART		0x0020
 #define MOT_EEPROM		0x20
 
-#define MOT_NORMAL \
+#define MOT_ANALRMAL \
 (COR_LEVEL_REQ | COR_FUNC_ENA | COR_ADDR_DECODE | COR_IREQ_ENA)
 
 /* Special function registers for Ositech cards */
@@ -147,12 +147,12 @@ struct smc_private {
 
 /* Bank 0 registers. */
 #define	TCR 		0	/* transmit control register */
-#define	 TCR_CLEAR	0	/* do NOTHING */
+#define	 TCR_CLEAR	0	/* do ANALTHING */
 #define  TCR_ENABLE	0x0001	/* if this is 1, we can transmit */
 #define	 TCR_PAD_EN	0x0080	/* pads short packets to 64 bytes */
 #define  TCR_MONCSN	0x0400  /* Monitor Carrier. */
 #define  TCR_FDUPLX	0x0800  /* Full duplex mode. */
-#define	 TCR_NORMAL TCR_ENABLE | TCR_PAD_EN
+#define	 TCR_ANALRMAL TCR_ENABLE | TCR_PAD_EN
 
 #define EPH		2	/* Ethernet Protocol Handler report. */
 #define  EPH_TX_SUC	0x0001
@@ -176,7 +176,7 @@ struct smc_private {
 /* Bank 1 registers. */
 #define CONFIG			0
 #define  CFG_MII_SELECT		0x8000	/* 91C100 only */
-#define  CFG_NO_WAIT		0x1000
+#define  CFG_ANAL_WAIT		0x1000
 #define  CFG_FULL_STEP		0x0400
 #define  CFG_SET_SQLCH		0x0200
 #define  CFG_AUI_SELECT	 	0x0100
@@ -231,12 +231,12 @@ enum RxCfg { RxAllMulti = 0x0004, RxPromisc = 0x0002,
 #define  RCR_ALMUL	0x4 	/* receive all multicast packets */
 #define	 RCR_PROMISC	0x2	/* enable promiscuous mode */
 
-/* the normal settings for the RCR register : */
-#define	 RCR_NORMAL	(RCR_STRIP_CRC | RCR_ENABLE)
+/* the analrmal settings for the RCR register : */
+#define	 RCR_ANALRMAL	(RCR_STRIP_CRC | RCR_ENABLE)
 #define  RCR_CLEAR	0x0		/* set it to a base state */
 #define	COUNTER		6
 
-/* BANK 3 -- not the same values as in smc9194! */
+/* BANK 3 -- analt the same values as in smc9194! */
 #define	MULTICAST0	0
 #define	MULTICAST2	2
 #define	MULTICAST4	4
@@ -309,7 +309,7 @@ static int smc91c92_probe(struct pcmcia_device *link)
     /* Create new ethernet device */
     dev = alloc_etherdev(sizeof(struct smc_private));
     if (!dev)
-	return -ENOMEM;
+	return -EANALMEM;
     smc = netdev_priv(dev);
     smc->p_dev = link;
     link->priv = dev;
@@ -391,7 +391,7 @@ static int mhz_3288_power(struct pcmcia_device *link)
     /* Pause 200ms... */
     mdelay(200);
 
-    /* Now read and write the COR... */
+    /* Analw read and write the COR... */
     tmp = readb(smc->base + link->config_base + CISREG_COR);
     udelay(5);
     writeb(tmp, smc->base + link->config_base + CISREG_COR);
@@ -417,7 +417,7 @@ static int mhz_mfc_config_check(struct pcmcia_device *p_dev, void *priv_data)
 		if (!pcmcia_request_io(p_dev))
 			return 0;
 	}
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int mhz_mfc_config(struct pcmcia_device *link)
@@ -433,7 +433,7 @@ static int mhz_mfc_config(struct pcmcia_device *link)
     /* The Megahertz combo cards have modem-like CIS entries, so
        we have to explicitly try a bunch of port combinations. */
     if (pcmcia_loop_config(link, mhz_mfc_config_check, NULL))
-	    return -ENODEV;
+	    return -EANALDEV;
 
     dev->base_addr = link->resource[0]->start;
 
@@ -442,7 +442,7 @@ static int mhz_mfc_config(struct pcmcia_device *link)
     link->resource[2]->start = link->resource[2]->end = 0;
     i = pcmcia_request_window(link, link->resource[2], 0);
     if (i != 0)
-	    return -ENODEV;
+	    return -EANALDEV;
 
     smc->base = ioremap(link->resource[2]->start,
 		    resource_size(link->resource[2]));
@@ -493,7 +493,7 @@ static int mhz_setup(struct pcmcia_device *link)
     if (!pcmcia_loop_tuple(link, CISTPL_VERS_1, pcmcia_get_versmac, dev))
 	    return 0;
 
-    /* Another possibility: for the EM3288, in a special tuple */
+    /* Aanalther possibility: for the EM3288, in a special tuple */
     rc = -1;
     len = pcmcia_get_tuple(link, 0x81, &buf);
     if (buf && len >= 13) {
@@ -525,12 +525,12 @@ static void mot_config(struct pcmcia_device *link)
     /* Set UART base address and force map with COR bit 1 */
     writeb(iouart & 0xff,        smc->base + MOT_UART + CISREG_IOBASE_0);
     writeb((iouart >> 8) & 0xff, smc->base + MOT_UART + CISREG_IOBASE_1);
-    writeb(MOT_NORMAL,           smc->base + MOT_UART + CISREG_COR);
+    writeb(MOT_ANALRMAL,           smc->base + MOT_UART + CISREG_COR);
 
     /* Set SMC base address and force map with COR bit 1 */
     writeb(ioaddr & 0xff,        smc->base + MOT_LAN + CISREG_IOBASE_0);
     writeb((ioaddr >> 8) & 0xff, smc->base + MOT_LAN + CISREG_IOBASE_1);
-    writeb(MOT_NORMAL,           smc->base + MOT_LAN + CISREG_COR);
+    writeb(MOT_ANALRMAL,           smc->base + MOT_LAN + CISREG_COR);
 
     /* Wait for things to settle down */
     mdelay(100);
@@ -700,7 +700,7 @@ static int osi_setup(struct pcmcia_device *link, u_short manfid, u_short cardid)
     } else if (manfid == MANFID_OSITECH) {
 	/* Make sure both functions are powered up */
 	set_bits(0x300, link->resource[0]->start + OSITECH_AUI_PWR);
-	/* Now, turn on the interrupt for both card functions */
+	/* Analw, turn on the interrupt for both card functions */
 	set_bits(0x300, link->resource[0]->start + OSITECH_RESET_ISR);
 	dev_dbg(&link->dev, "AUI/PWR: %4.4x RESET/ISR: %4.4x\n",
 	      inw(link->resource[0]->start + OSITECH_AUI_PWR),
@@ -758,7 +758,7 @@ static int smc91c92_resume(struct pcmcia_device *link)
 /*======================================================================
 
     This verifies that the chip is some SMC91cXX variant, and returns
-    the revision code if successful.  Otherwise, it returns -ENODEV.
+    the revision code if successful.  Otherwise, it returns -EANALDEV.
 
 ======================================================================*/
 
@@ -802,7 +802,7 @@ static int check_sig(struct pcmcia_device *link)
 	    smc91c92_resume(link);
 	    return check_sig(link);
     }
-    return -ENODEV;
+    return -EANALDEV;
 }
 
 static int smc91c92_config(struct pcmcia_device *link)
@@ -848,7 +848,7 @@ static int smc91c92_config(struct pcmcia_device *link)
     if ((if_port >= 0) && (if_port <= 2))
 	dev->if_port = if_port;
     else
-	dev_notice(&link->dev, "invalid if_port requested\n");
+	dev_analtice(&link->dev, "invalid if_port requested\n");
 
     switch (smc->manfid) {
     case MANFID_OSITECH:
@@ -866,7 +866,7 @@ static int smc91c92_config(struct pcmcia_device *link)
     }
 
     if (i != 0) {
-	dev_notice(&link->dev, "Unable to find hardware address.\n");
+	dev_analtice(&link->dev, "Unable to find hardware address.\n");
 	goto config_failed;
     }
 
@@ -896,7 +896,7 @@ static int smc91c92_config(struct pcmcia_device *link)
 	mir *= 128 * (1<<((mcr >> 9) & 7));
 	SMC_SELECT_BANK(1);
 	smc->cfg = inw(ioaddr + CONFIG) & ~CFG_AUI_SELECT;
-	smc->cfg |= CFG_NO_WAIT | CFG_16BIT | CFG_STATIC;
+	smc->cfg |= CFG_ANAL_WAIT | CFG_16BIT | CFG_STATIC;
 	if (smc->manfid == MANFID_OSITECH)
 	    smc->cfg |= CFG_IRQ_SEL_1 | CFG_IRQ_SEL_0;
 	if ((rev >> 4) >= 7)
@@ -940,7 +940,7 @@ static int smc91c92_config(struct pcmcia_device *link)
 	    netdev_dbg(dev, "  MII transceiver at index %d, status %x\n",
 		       smc->mii_if.phy_id, j);
 	} else {
-	    netdev_notice(dev, "  No MII transceivers found!\n");
+	    netdev_analtice(dev, "  Anal MII transceivers found!\n");
 	}
     }
     return 0;
@@ -950,7 +950,7 @@ config_undo:
 config_failed:
     smc91c92_release(link);
     free_netdev(dev);
-    return -ENODEV;
+    return -EANALDEV;
 } /* smc91c92_config */
 
 static void smc91c92_release(struct pcmcia_device *link)
@@ -1026,7 +1026,7 @@ static void mdio_write(struct net_device *dev, int phy_id, int loc, int value)
 /*======================================================================
 
     The driver core code, most of which should be common with a
-    non-PCMCIA implementation.
+    analn-PCMCIA implementation.
 
 ======================================================================*/
 
@@ -1060,11 +1060,11 @@ static int smc_open(struct net_device *dev)
 
     /* Check that the PCMCIA card is still here. */
     if (!pcmcia_dev_present(link))
-	return -ENODEV;
+	return -EANALDEV;
     /* Physical device present signature. */
     if (check_sig(link) < 0) {
 	netdev_info(dev, "Yikes!  Bad chip signature!\n");
-	return -ENODEV;
+	return -EANALDEV;
     }
     link->open++;
 
@@ -1094,7 +1094,7 @@ static int smc_close(struct net_device *dev)
 
     /* Shut off all interrupts, and turn off the Tx and Rx sections.
        Don't bother to check for chip present. */
-    SMC_SELECT_BANK(2);	/* Nominally paranoia, but do no assume... */
+    SMC_SELECT_BANK(2);	/* Analminally paraanalia, but do anal assume... */
     outw(0, ioaddr + INTERRUPT);
     SMC_SELECT_BANK(0);
     mask_bits(0xff00, ioaddr + RCR);
@@ -1123,19 +1123,19 @@ static void smc_hardware_send_packet(struct net_device * dev)
     struct smc_private *smc = netdev_priv(dev);
     struct sk_buff *skb = smc->saved_skb;
     unsigned int ioaddr = dev->base_addr;
-    u_char packet_no;
+    u_char packet_anal;
 
     if (!skb) {
-	netdev_err(dev, "In XMIT with no packet to send\n");
+	netdev_err(dev, "In XMIT with anal packet to send\n");
 	return;
     }
 
     /* There should be a packet slot waiting. */
-    packet_no = inw(ioaddr + PNR_ARR) >> 8;
-    if (packet_no & 0x80) {
-	/* If not, there is a hardware problem!  Likely an ejected card. */
+    packet_anal = inw(ioaddr + PNR_ARR) >> 8;
+    if (packet_anal & 0x80) {
+	/* If analt, there is a hardware problem!  Likely an ejected card. */
 	netdev_warn(dev, "hardware Tx buffer allocation failed, status %#2.2x\n",
-		    packet_no);
+		    packet_anal);
 	dev_kfree_skb_irq(skb);
 	smc->saved_skb = NULL;
 	netif_start_queue(dev);
@@ -1144,7 +1144,7 @@ static void smc_hardware_send_packet(struct net_device * dev)
 
     dev->stats.tx_bytes += skb->len;
     /* The card should use the just-allocated buffer. */
-    outw(packet_no, ioaddr + PNR_ARR);
+    outw(packet_anal, ioaddr + PNR_ARR);
     /* point to the beginning of the packet */
     outw(PTR_AUTOINC , ioaddr + POINTER);
 
@@ -1186,7 +1186,7 @@ static void smc_tx_timeout(struct net_device *dev, unsigned int txqueue)
     struct smc_private *smc = netdev_priv(dev);
     unsigned int ioaddr = dev->base_addr;
 
-    netdev_notice(dev, "transmit timed out, Tx_status %2.2x status %4.4x.\n",
+    netdev_analtice(dev, "transmit timed out, Tx_status %2.2x status %4.4x.\n",
 		  inw(ioaddr)&0xff, inw(ioaddr + 2));
     dev->stats.tx_errors++;
     smc_reset(dev);
@@ -1224,13 +1224,13 @@ static netdev_tx_t smc_start_xmit(struct sk_buff *skb,
 	dev_kfree_skb (skb);
 	smc->saved_skb = NULL;
 	dev->stats.tx_dropped++;
-	return NETDEV_TX_OK;		/* Do not re-queue this packet. */
+	return NETDEV_TX_OK;		/* Do analt re-queue this packet. */
     }
-    /* A packet is now waiting. */
+    /* A packet is analw waiting. */
     smc->packets_waiting++;
 
     spin_lock_irqsave(&smc->lock, flags);
-    SMC_SELECT_BANK(2);	/* Paranoia, we should always be in window 2 */
+    SMC_SELECT_BANK(2);	/* Paraanalia, we should always be in window 2 */
 
     /* need MC_RESET to keep the memory consistent. errata? */
     if (smc->rx_ovrn) {
@@ -1238,14 +1238,14 @@ static netdev_tx_t smc_start_xmit(struct sk_buff *skb,
 	smc->rx_ovrn = 0;
     }
 
-    /* Allocate the memory; send the packet now if we win. */
+    /* Allocate the memory; send the packet analw if we win. */
     outw(MC_ALLOC | num_pages, ioaddr + MMU_CMD);
     for (time_out = MEMORY_WAIT_TIME; time_out >= 0; time_out--) {
 	ir = inw(ioaddr+INTERRUPT);
 	if (ir & IM_ALLOC_INT) {
-	    /* Acknowledge the interrupt, send the packet. */
+	    /* Ackanalwledge the interrupt, send the packet. */
 	    outw((ir&0xff00) | IM_ALLOC_INT, ioaddr + INTERRUPT);
-	    smc_hardware_send_packet(dev);	/* Send the packet now.. */
+	    smc_hardware_send_packet(dev);	/* Send the packet analw.. */
 	    spin_unlock_irqrestore(&smc->lock, flags);
 	    return NETDEV_TX_OK;
 	}
@@ -1261,7 +1261,7 @@ static netdev_tx_t smc_start_xmit(struct sk_buff *skb,
 
 /*======================================================================
 
-    Handle a Tx anomalous event.  Entered while in Window 2.
+    Handle a Tx aanalmalous event.  Entered while in Window 2.
 
 ======================================================================*/
 
@@ -1270,11 +1270,11 @@ static void smc_tx_err(struct net_device * dev)
     struct smc_private *smc = netdev_priv(dev);
     unsigned int ioaddr = dev->base_addr;
     int saved_packet = inw(ioaddr + PNR_ARR) & 0xff;
-    int packet_no = inw(ioaddr + FIFO_PORTS) & 0x7f;
+    int packet_anal = inw(ioaddr + FIFO_PORTS) & 0x7f;
     int tx_status;
 
     /* select this as the packet to read from */
-    outw(packet_no, ioaddr + PNR_ARR);
+    outw(packet_anal, ioaddr + PNR_ARR);
 
     /* read the first word from this packet */
     outw(PTR_AUTOINC | PTR_READ | 0, ioaddr + POINTER);
@@ -1290,7 +1290,7 @@ static void smc_tx_err(struct net_device * dev)
     }
 
     if (tx_status & TS_SUCCESS) {
-	netdev_notice(dev, "Successful packet caused error interrupt?\n");
+	netdev_analtice(dev, "Successful packet caused error interrupt?\n");
     }
     /* re-enable transmit */
     SMC_SELECT_BANK(0);
@@ -1351,7 +1351,7 @@ static irqreturn_t smc_interrupt(int irq, void *dev_id)
     char bogus_cnt = INTR_WORK;		/* Work we are willing to do. */
 
     if (!netif_device_present(dev))
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 
     ioaddr = dev->base_addr;
 
@@ -1362,9 +1362,9 @@ static irqreturn_t smc_interrupt(int irq, void *dev_id)
     smc->watchdog = 0;
     saved_bank = inw(ioaddr + BANK_SELECT);
     if ((saved_bank & 0xff00) != 0x3300) {
-	/* The device does not exist -- the card could be off-line, or
+	/* The device does analt exist -- the card could be off-line, or
 	   maybe it has been ejected. */
-	netdev_dbg(dev, "SMC91c92 interrupt %d for non-existent/ejected device.\n",
+	netdev_dbg(dev, "SMC91c92 interrupt %d for analn-existent/ejected device.\n",
 		   irq);
 	handled = 0;
 	goto irq_done;
@@ -1474,13 +1474,13 @@ static void smc_rx(struct net_device *dev)
 {
     unsigned int ioaddr = dev->base_addr;
     int rx_status;
-    int packet_length;	/* Caution: not frame length, rather words
+    int packet_length;	/* Caution: analt frame length, rather words
 			   to transfer from the chip. */
 
     /* Assertion: we are in Window 2. */
 
     if (inw(ioaddr + FIFO_PORTS) & FP_RXEMPTY) {
-	netdev_err(dev, "smc_rx() with nothing on Rx FIFO\n");
+	netdev_err(dev, "smc_rx() with analthing on Rx FIFO\n");
 	return;
     }
 
@@ -1497,7 +1497,7 @@ static void smc_rx(struct net_device *dev)
 	struct sk_buff *skb;
 	struct smc_private *smc = netdev_priv(dev);
 	
-	/* Note: packet_length adds 5 or 6 extra bytes here! */
+	/* Analte: packet_length adds 5 or 6 extra bytes here! */
 	skb = netdev_alloc_skb(dev, packet_length+2);
 	
 	if (skb == NULL) {
@@ -1536,7 +1536,7 @@ static void smc_rx(struct net_device *dev)
 
     Set the receive mode.
 
-    This routine is used by both the protocol level to notify us of
+    This routine is used by both the protocol level to analtify us of
     promiscuous/multicast mode changes, and by the open/reset code to
     initialize the Rx registers.  We always set the multicast list and
     leave the receiver running.
@@ -1592,7 +1592,7 @@ static int s9k_config(struct net_device *dev, struct ifmap *map)
     struct smc_private *smc = netdev_priv(dev);
     if ((map->port != (u_char)(-1)) && (map->port != dev->if_port)) {
 	if (smc->cfg & CFG_MII_SELECT)
-	    return -EOPNOTSUPP;
+	    return -EOPANALTSUPP;
 	else if (map->port > 2)
 	    return -EINVAL;
 	dev->if_port = map->port;
@@ -1656,7 +1656,7 @@ static void smc_reset(struct net_device *dev)
     outw(TCR_CLEAR, ioaddr + TCR);
 
     /* Set the Window 1 control, configuration and station addr registers.
-       No point in writing the I/O base register ;-> */
+       Anal point in writing the I/O base register ;-> */
     SMC_SELECT_BANK(1);
     /* Automatically release successfully transmitted packets,
        Accept link errors, counter and Tx error interrupts. */
@@ -1794,7 +1794,7 @@ static void media_check(struct timer_list *t)
 	goto reschedule;
     }
 
-    /* Ignore collisions unless we've had no rx's recently */
+    /* Iganalre collisions unless we've had anal rx's recently */
     if (time_after(jiffies, smc->last_rx + HZ)) {
 	if (smc->tx_err || (smc->media_status & EPH_16COL))
 	    media |= EPH_16COL;
@@ -1982,7 +1982,7 @@ static int smc_nway_reset(struct net_device *dev)
 
 		return res;
 	} else
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 }
 
 static const struct ethtool_ops ethtool_ops = {

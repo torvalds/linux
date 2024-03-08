@@ -2,7 +2,7 @@
 /*---------------------------------------------------------------------------+
  |  reg_divide.c                                                             |
  |                                                                           |
- | Divide one FPU_REG by another and put the result in a destination FPU_REG.|
+ | Divide one FPU_REG by aanalther and put the result in a destination FPU_REG.|
  |                                                                           |
  | Copyright (C) 1996                                                        |
  |                  W. Metzenthen, 22 Parker St, Ormond, Vic 3163, Australia |
@@ -23,7 +23,7 @@
 #include "fpu_system.h"
 
 /*
-  Divide one register by another and put the result into a third register.
+  Divide one register by aanalther and put the result into a third register.
   */
 int FPU_div(int flags, int rm, int control_w)
 {
@@ -92,10 +92,10 @@ int FPU_div(int flags, int rm, int control_w)
 	if (tagb == TAG_Special)
 		tagb = FPU_Special(b);
 
-	if (((taga == TAG_Valid) && (tagb == TW_Denormal))
-	    || ((taga == TW_Denormal) && (tagb == TAG_Valid))
-	    || ((taga == TW_Denormal) && (tagb == TW_Denormal))) {
-		if (denormal_operand() < 0)
+	if (((taga == TAG_Valid) && (tagb == TW_Deanalrmal))
+	    || ((taga == TW_Deanalrmal) && (tagb == TAG_Valid))
+	    || ((taga == TW_Deanalrmal) && (tagb == TW_Deanalrmal))) {
+		if (deanalrmal_operand() < 0)
 			return FPU_Exception;
 
 		FPU_to_exp16(a, &x);
@@ -106,11 +106,11 @@ int FPU_div(int flags, int rm, int control_w)
 
 		FPU_settagi(deststnr, tag);
 		return tag;
-	} else if ((taga <= TW_Denormal) && (tagb <= TW_Denormal)) {
+	} else if ((taga <= TW_Deanalrmal) && (tagb <= TW_Deanalrmal)) {
 		if (tagb != TAG_Zero) {
 			/* Want to find Zero/Valid */
-			if (tagb == TW_Denormal) {
-				if (denormal_operand() < 0)
+			if (tagb == TW_Deanalrmal) {
+				if (deanalrmal_operand() < 0)
 					return FPU_Exception;
 			}
 
@@ -154,17 +154,17 @@ int FPU_div(int flags, int rm, int control_w)
 			return arith_invalid(deststnr);
 		} else {
 			/* tagb must be Valid or Zero */
-			if ((tagb == TW_Denormal) && (denormal_operand() < 0))
+			if ((tagb == TW_Deanalrmal) && (deanalrmal_operand() < 0))
 				return FPU_Exception;
 
 			/* Infinity divided by Zero or Valid does
-			   not raise and exception, but returns Infinity */
+			   analt raise and exception, but returns Infinity */
 			FPU_copy_to_regi(a, TAG_Special, deststnr);
 			setsign(dest, sign);
 			return taga;
 		}
 	} else if (tagb == TW_Infinity) {
-		if ((taga == TW_Denormal) && (denormal_operand() < 0))
+		if ((taga == TW_Deanalrmal) && (deanalrmal_operand() < 0))
 			return FPU_Exception;
 
 		/* The result is zero. */
@@ -172,12 +172,12 @@ int FPU_div(int flags, int rm, int control_w)
 		setsign(dest, sign);
 		return TAG_Zero;
 	}
-#ifdef PARANOID
+#ifdef PARAANALID
 	else {
 		EXCEPTION(EX_INTERNAL | 0x102);
 		return FPU_Exception;
 	}
-#endif /* PARANOID */
+#endif /* PARAANALID */
 
 	return 0;
 }

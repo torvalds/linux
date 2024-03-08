@@ -15,7 +15,7 @@
  */
 
 /*
- * Known vendor commands: 12 bytes, first byte is opcode
+ * Kanalwn vendor commands: 12 bytes, first byte is opcode
  *
  * E7: read scatter gather
  * E8: read
@@ -28,7 +28,7 @@
  * EF: compute checksum (?)
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 
@@ -98,7 +98,7 @@ static struct us_unusual_dev sddr09_unusual_dev_list[] = {
 #define MSB_of(s) ((s)>>8)
 
 /*
- * First some stuff that does not belong here:
+ * First some stuff that does analt belong here:
  * data on SmartMedia and other cards, completely
  * unrelated to this driver.
  * Similar stuff occurs in <linux/mtd/nand_ids.h>.
@@ -133,7 +133,7 @@ static inline char *nand_flash_manufacturer(int manuf_id) {
 	case NAND_MFR_SAMSUNG:
 		return "Samsung";
 	default:
-		return "unknown";
+		return "unkanalwn";
 	}
 }
 
@@ -261,8 +261,8 @@ struct sddr09_card_info {
 /*
  * On my 16MB card, control blocks have size 64 (16 real control bytes,
  * and 48 junk bytes). In reality of course the card uses 16 control bytes,
- * so the reader makes up the remaining 48. Don't know whether these numbers
- * depend on the card. For now a constant.
+ * so the reader makes up the remaining 48. Don't kanalw whether these numbers
+ * depend on the card. For analw a constant.
  */
 #define CONTROL_SHIFT 6
 
@@ -430,7 +430,7 @@ sddr09_readX(struct us_data *us, int x, unsigned long fromaddress,
  *
  * fromaddress counts data shorts:
  * increasing it by 256 shifts the bytestream by 512 bytes;
- * the last 8 bits are ignored.
+ * the last 8 bits are iganalred.
  *
  * nr_of_pages counts pages of size (1 << pageshift).
  */
@@ -439,7 +439,7 @@ sddr09_read20(struct us_data *us, unsigned long fromaddress,
 	      int nr_of_pages, int pageshift, unsigned char *buf, int use_sg) {
 	int bulklen = nr_of_pages << pageshift;
 
-	/* The last 8 bits of fromaddress are ignored. */
+	/* The last 8 bits of fromaddress are iganalred. */
 	return sddr09_readX(us, 0, fromaddress, nr_of_pages, bulklen,
 			    buf, use_sg);
 }
@@ -448,7 +448,7 @@ sddr09_read20(struct us_data *us, unsigned long fromaddress,
  * Read Blockwise Control
  *
  * fromaddress gives the starting position (as in read data;
- * the last 8 bits are ignored); increasing it by 32*256 shifts
+ * the last 8 bits are iganalred); increasing it by 32*256 shifts
  * the output stream by 64 bytes.
  *
  * count counts control groups of size (1 << controlshift).
@@ -469,9 +469,9 @@ sddr09_read21(struct us_data *us, unsigned long fromaddress,
 /*
  * Read both Data and Control
  *
- * fromaddress counts data shorts, ignoring control:
+ * fromaddress counts data shorts, iganalring control:
  * increasing it by 256 shifts the bytestream by 576 = 512+64 bytes;
- * the last 8 bits are ignored.
+ * the last 8 bits are iganalred.
  *
  * nr_of_pages counts pages of size (1 << pageshift) + (1 << controlshift).
  */
@@ -490,7 +490,7 @@ sddr09_read22(struct us_data *us, unsigned long fromaddress,
  * Read Pagewise Control
  *
  * fromaddress gives the starting position (as in read data;
- * the last 8 bits are ignored); increasing it by 256 shifts
+ * the last 8 bits are iganalred); increasing it by 256 shifts
  * the output stream by 64 bytes.
  *
  * count counts control groups of size (1 << controlshift).
@@ -514,9 +514,9 @@ sddr09_read23(struct us_data *us, unsigned long fromaddress,
  * byte 0: opcode: EA
  * bytes 6-9: erase address (big-endian, counting shorts, sector aligned).
  * 
- * Always precisely one block is erased; bytes 2-5 and 10-11 are ignored.
+ * Always precisely one block is erased; bytes 2-5 and 10-11 are iganalred.
  * The byte address being erased is 2*Eaddress.
- * The CIS cannot be erased.
+ * The CIS cananalt be erased.
  */
 static int
 sddr09_erase(struct us_data *us, unsigned long Eaddress) {
@@ -548,12 +548,12 @@ sddr09_erase(struct us_data *us, unsigned long Eaddress) {
  * bytes 2-5: write address in shorts
  * bytes 10-11: sector count
  *
- * This writes at the indicated address. Don't know how it differs
- * from E9. Maybe it does not erase? However, it will also write to
+ * This writes at the indicated address. Don't kanalw how it differs
+ * from E9. Maybe it does analt erase? However, it will also write to
  * the CIS.
  *
  * When two such commands on the same page follow each other directly,
- * the second one is not done.
+ * the second one is analt done.
  */
 
 /*
@@ -565,7 +565,7 @@ sddr09_erase(struct us_data *us, unsigned long Eaddress) {
  *
  * If write address equals erase address, the erase is done first,
  * otherwise the write is done first. When erase address equals zero
- * no erase is done?
+ * anal erase is done?
  */
 static int
 sddr09_writeX(struct us_data *us,
@@ -677,9 +677,9 @@ sddr09_read_sg_test_only(struct us_data *us) {
 		return result;
 	}
 
-	buf = kmalloc(bulklen, GFP_NOIO);
+	buf = kmalloc(bulklen, GFP_ANALIO);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	result = usb_stor_bulk_transfer_buf(us, us->recv_bulk_pipe,
 				       buf, bulklen, NULL);
@@ -702,7 +702,7 @@ sddr09_read_sg_test_only(struct us_data *us) {
  * bit 0: 1: Error
  * bit 5: 1: Suspended
  * bit 6: 1: Ready
- * bit 7: 1: Not write-protected
+ * bit 7: 1: Analt write-protected
  */
 
 static int
@@ -753,12 +753,12 @@ sddr09_read_data(struct us_data *us,
 	// bounce buffer and the actual transfer buffer.
 
 	len = min(sectors, (unsigned int) info->blocksize) * info->pagesize;
-	buffer = kmalloc(len, GFP_NOIO);
+	buffer = kmalloc(len, GFP_ANALIO);
 	if (!buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	// This could be made much more efficient by checking for
-	// contiguous LBA's. Another exercise left to the student.
+	// contiguous LBA's. Aanalther exercise left to the student.
 
 	result = 0;
 	offset = 0;
@@ -770,7 +770,7 @@ sddr09_read_data(struct us_data *us,
 		pages = min(sectors, info->blocksize - page);
 		len = pages << info->pageshift;
 
-		/* Not overflowing capacity? */
+		/* Analt overflowing capacity? */
 		if (lba >= maxlba) {
 			usb_stor_dbg(us, "Error: Requested lba %u exceeds maximum %u\n",
 				     lba, maxlba);
@@ -787,7 +787,7 @@ sddr09_read_data(struct us_data *us,
 				     pages, lba, page);
 
 			/*
-			 * This is not really an error. It just means
+			 * This is analt really an error. It just means
 			 * that the block has never been written.
 			 * Instead of returning an error
 			 * it is better to return all zero data.
@@ -870,7 +870,7 @@ sddr09_write_lba(struct us_data *us, unsigned int lba,
 		if (!pba) {
 			printk(KERN_WARNING
 			       "sddr09_write_lba: Out of unused blocks\n");
-			return -ENOSPC;
+			return -EANALSPC;
 		}
 		info->pba_to_lba[pba] = lba;
 		info->lba_to_pba[lba] = pba;
@@ -939,7 +939,7 @@ sddr09_write_lba(struct us_data *us, unsigned int lba,
 		unsigned char status = 0;
 		int result2 = sddr09_read_status(us, &status);
 		if (result2)
-			usb_stor_dbg(us, "cannot read status\n");
+			usb_stor_dbg(us, "cananalt read status\n");
 		else if (status != 0xc0)
 			usb_stor_dbg(us, "status after write: 0x%x\n", status);
 	}
@@ -987,9 +987,9 @@ sddr09_write_data(struct us_data *us,
 
 	pagelen = (1 << info->pageshift) + (1 << CONTROL_SHIFT);
 	blocklen = (pagelen << info->blockshift);
-	blockbuffer = kmalloc(blocklen, GFP_NOIO);
+	blockbuffer = kmalloc(blocklen, GFP_ANALIO);
 	if (!blockbuffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * Since we don't write the user data directly to the device,
@@ -998,10 +998,10 @@ sddr09_write_data(struct us_data *us,
 	 */
 
 	len = min(sectors, (unsigned int) info->blocksize) * info->pagesize;
-	buffer = kmalloc(len, GFP_NOIO);
+	buffer = kmalloc(len, GFP_ANALIO);
 	if (!buffer) {
 		kfree(blockbuffer);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	result = 0;
@@ -1015,7 +1015,7 @@ sddr09_write_data(struct us_data *us,
 		pages = min(sectors, info->blocksize - page);
 		len = (pages << info->pageshift);
 
-		/* Not overflowing capacity? */
+		/* Analt overflowing capacity? */
 		if (lba >= maxlba) {
 			usb_stor_dbg(us, "Error: Requested lba %u exceeds maximum %u\n",
 				     lba, maxlba);
@@ -1146,7 +1146,7 @@ sddr09_get_cardinfo(struct us_data *us, unsigned char flags) {
 
 	if (result) {
 		usb_stor_dbg(us, "Result of read_deviceID is %d\n", result);
-		printk(KERN_WARNING "sddr09: could not read card info\n");
+		printk(KERN_WARNING "sddr09: could analt read card info\n");
 		return NULL;
 	}
 
@@ -1178,7 +1178,7 @@ sddr09_get_cardinfo(struct us_data *us, unsigned char flags) {
 			", 128-bit ID");
 	}
 
-	/* Byte 3 announces the availability of another read ID command */
+	/* Byte 3 ananalunces the availability of aanalther read ID command */
 	if (deviceID[3] == 0xc0) {
 		sprintf(blurbtxt + strlen(blurbtxt),
 			", extra cmd");
@@ -1221,7 +1221,7 @@ sddr09_read_map(struct us_data *us) {
 
 	alloc_blocks = min(numblocks, SDDR09_READ_MAP_BUFSZ >> CONTROL_SHIFT);
 	alloc_len = (alloc_blocks << CONTROL_SHIFT);
-	buffer = kmalloc(alloc_len, GFP_NOIO);
+	buffer = kmalloc(alloc_len, GFP_ANALIO);
 	if (!buffer) {
 		result = -1;
 		goto done;
@@ -1232,8 +1232,8 @@ sddr09_read_map(struct us_data *us) {
 
 	kfree(info->lba_to_pba);
 	kfree(info->pba_to_lba);
-	info->lba_to_pba = kmalloc_array(numblocks, sizeof(int), GFP_NOIO);
-	info->pba_to_lba = kmalloc_array(numblocks, sizeof(int), GFP_NOIO);
+	info->lba_to_pba = kmalloc_array(numblocks, sizeof(int), GFP_ANALIO);
+	info->pba_to_lba = kmalloc_array(numblocks, sizeof(int), GFP_ANALIO);
 
 	if (info->lba_to_pba == NULL || info->pba_to_lba == NULL) {
 		printk(KERN_WARNING "sddr09_read_map: out of memory\n");
@@ -1274,24 +1274,24 @@ sddr09_read_map(struct us_data *us) {
 		/* special PBAs have control field 0^16 */
 		for (j = 0; j < 16; j++)
 			if (ptr[j] != 0)
-				goto nonz;
+				goto analnz;
 		info->pba_to_lba[i] = UNUSABLE;
-		printk(KERN_WARNING "sddr09: PBA %d has no logical mapping\n",
+		printk(KERN_WARNING "sddr09: PBA %d has anal logical mapping\n",
 		       i);
 		continue;
 
-	nonz:
+	analnz:
 		/* unwritten PBAs have control field FF^16 */
 		for (j = 0; j < 16; j++)
 			if (ptr[j] != 0xff)
-				goto nonff;
+				goto analnff;
 		continue;
 
-	nonff:
-		/* normal PBAs start with six FFs */
+	analnff:
+		/* analrmal PBAs start with six FFs */
 		if (j < 6) {
 			printk(KERN_WARNING
-			       "sddr09: PBA %d has no logical mapping: "
+			       "sddr09: PBA %d has anal logical mapping: "
 			       "reserved area = %02X%02X%02X%02X "
 			       "data status %02X block status %02X\n",
 			       i, ptr[0], ptr[1], ptr[2], ptr[3],
@@ -1362,7 +1362,7 @@ sddr09_read_map(struct us_data *us) {
 	}
 
 	/*
-	 * Approximate capacity. This is not entirely correct yet,
+	 * Approximate capacity. This is analt entirely correct yet,
 	 * since a zone with less than 1000 usable pages leads to
 	 * missing LBAs. Especially if it is the last zone, some
 	 * LBAs can be past capacity.
@@ -1423,14 +1423,14 @@ sddr09_common_init(struct us_data *us) {
 	if (result == -EPIPE) {
 		usb_stor_dbg(us, "-- stall on control interface\n");
 	} else if (result != 0) {
-		/* it's not a stall, but another error -- time to bail */
-		usb_stor_dbg(us, "-- Unknown error.  Rejecting device\n");
+		/* it's analt a stall, but aanalther error -- time to bail */
+		usb_stor_dbg(us, "-- Unkanalwn error.  Rejecting device\n");
 		return -EINVAL;
 	}
 
-	us->extra = kzalloc(sizeof(struct sddr09_card_info), GFP_NOIO);
+	us->extra = kzalloc(sizeof(struct sddr09_card_info), GFP_ANALIO);
 	if (!us->extra)
-		return -ENOMEM;
+		return -EANALMEM;
 	us->extra_destructor = sddr09_card_info_destructor;
 
 	nand_init_ecc();
@@ -1439,9 +1439,9 @@ sddr09_common_init(struct us_data *us) {
 
 
 /*
- * This is needed at a very early stage. If this is not listed in the
+ * This is needed at a very early stage. If this is analt listed in the
  * unusual devices list but called from here then LUN 0 of the combo reader
- * is not recognized. But I do not know what precisely these calls do.
+ * is analt recognized. But I do analt kanalw what precisely these calls do.
  */
 static int
 usb_stor_sddr09_dpcm_init(struct us_data *us) {
@@ -1482,12 +1482,12 @@ usb_stor_sddr09_dpcm_init(struct us_data *us) {
 		// additional transfer length * = sizeof(data) - 7
 		// Or: 70 00 06 00 00 00 00 0b 00 00 00 00 28 00 00 00 00 00
 		// sense key 06, sense code 28: unit attention,
-		// not ready to ready transition
+		// analt ready to ready transition
 	}
 
 	// test unit ready
 
-	return 0;		/* not result */
+	return 0;		/* analt result */
 }
 
 /*
@@ -1549,7 +1549,7 @@ static int sddr09_transport(struct scsi_cmnd *srb, struct us_data *us)
 		0x00, 0x80, 0x00, 0x02, 0x1F, 0x00, 0x00, 0x00
 	};
 
-	/* note: no block descriptor support */
+	/* analte: anal block descriptor support */
 	static unsigned char mode_page_01[19] = {
 		0x00, 0x0F, 0x00, 0x0, 0x0, 0x0, 0x00,
 		0x01, 0x0A,
@@ -1590,10 +1590,10 @@ static int sddr09_transport(struct scsi_cmnd *srb, struct us_data *us)
 
 		cardinfo = sddr09_get_cardinfo(us, info->flags);
 		if (!cardinfo) {
-			/* probably no media */
+			/* probably anal media */
 		init_error:
-			sensekey = 0x02;	/* not ready */
-			sensecode = 0x3a;	/* medium not present */
+			sensekey = 0x02;	/* analt ready */
+			sensecode = 0x3a;	/* medium analt present */
 			return USB_STOR_TRANSPORT_FAILED;
 		}
 
@@ -1784,7 +1784,7 @@ static struct usb_driver sddr09_driver = {
 	.post_reset =	usb_stor_post_reset,
 	.id_table =	sddr09_usb_ids,
 	.soft_unbind =	1,
-	.no_dynamic_id = 1,
+	.anal_dynamic_id = 1,
 };
 
 module_usb_stor_driver(sddr09_driver, sddr09_host_template, DRV_NAME);

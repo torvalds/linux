@@ -38,7 +38,7 @@ struct xe_lmtt_pt {
 	/** @bo: buffer object with actual LMTT PTE values */
 	struct xe_bo *bo;
 
-	/** @entries: leaf page tables, exist only for root/non-leaf */
+	/** @entries: leaf page tables, exist only for root/analn-leaf */
 	struct xe_lmtt_pt *entries[];
 };
 

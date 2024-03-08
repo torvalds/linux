@@ -3,7 +3,7 @@
  *  sst_mfld_platform.c - Intel MID Platform driver
  *
  *  Copyright (C) 2010-2014 Intel Corp
- *  Author: Vinod Koul <vinod.koul@intel.com>
+ *  Author: Vianald Koul <vianald.koul@intel.com>
  *  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -30,13 +30,13 @@ static void sst_compr_fragment_elapsed(void *arg)
 		snd_compr_fragment_elapsed(cstream);
 }
 
-static void sst_drain_notify(void *arg)
+static void sst_drain_analtify(void *arg)
 {
 	struct snd_compr_stream *cstream = (struct snd_compr_stream *)arg;
 
-	pr_debug("drain notify by driver\n");
+	pr_debug("drain analtify by driver\n");
 	if (cstream)
-		snd_compr_drain_notify(cstream);
+		snd_compr_drain_analtify(cstream);
 }
 
 static int sst_platform_compr_open(struct snd_soc_component *component,
@@ -48,14 +48,14 @@ static int sst_platform_compr_open(struct snd_soc_component *component,
 
 	stream = kzalloc(sizeof(*stream), GFP_KERNEL);
 	if (!stream)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&stream->status_lock);
 
 	/* get the sst ops */
 	if (!sst || !try_module_get(sst->dev->driver->owner)) {
-		pr_err("no device available to run\n");
-		ret_val = -ENODEV;
+		pr_err("anal device available to run\n");
+		ret_val = -EANALDEV;
 		goto out_ops;
 	}
 	stream->compr_ops = sst->compr_ops;
@@ -140,7 +140,7 @@ static int sst_platform_compr_set_params(struct snd_soc_component *component,
 	}
 
 	default:
-		pr_err("codec not supported, id =%d\n", params->codec.id);
+		pr_err("codec analt supported, id =%d\n", params->codec.id);
 		return -EINVAL;
 	}
 
@@ -154,7 +154,7 @@ static int sst_platform_compr_set_params(struct snd_soc_component *component,
 	cb.param = cstream;
 	cb.compr_cb = sst_compr_fragment_elapsed;
 	cb.drain_cb_param = cstream;
-	cb.drain_notify = sst_drain_notify;
+	cb.drain_analtify = sst_drain_analtify;
 
 	retval = stream->compr_ops->open(sst->dev, &str_params, &cb);
 	if (retval < 0) {

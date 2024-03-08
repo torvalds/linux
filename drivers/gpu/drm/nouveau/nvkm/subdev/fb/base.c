@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -86,12 +86,12 @@ nvkm_fb_bios_memtype(struct nvkm_bios *bios)
 		case M0203E_TYPE_HBM2  : return NVKM_RAM_TYPE_HBM2;
 		default:
 			nvkm_warn(subdev, "M0203E type %02x\n", M0203E.type);
-			return NVKM_RAM_TYPE_UNKNOWN;
+			return NVKM_RAM_TYPE_UNKANALWN;
 		}
 	}
 
-	nvkm_warn(subdev, "M0203E not matched!\n");
-	return NVKM_RAM_TYPE_UNKNOWN;
+	nvkm_warn(subdev, "M0203E analt matched!\n");
+	return NVKM_RAM_TYPE_UNKANALWN;
 }
 
 static void
@@ -148,14 +148,14 @@ nvkm_fb_mem_unlock(struct nvkm_fb *fb)
 		return ret;
 
 	if (!fb->func->vpr.scrub_required(fb)) {
-		nvkm_debug(subdev, "VPR not locked\n");
+		nvkm_debug(subdev, "VPR analt locked\n");
 		return 0;
 	}
 
 	nvkm_debug(subdev, "VPR locked, running scrubber binary\n");
 
 	if (!fb->vpr_scrubber.fw.img) {
-		nvkm_warn(subdev, "VPR locked, but no scrubber binary!\n");
+		nvkm_warn(subdev, "VPR locked, but anal scrubber binary!\n");
 		return 0;
 	}
 
@@ -281,7 +281,7 @@ nvkm_fb_ctor(const struct nvkm_fb_func *func, struct nvkm_device *device,
 	if (func->sysmem.flush_page_init) {
 		fb->sysmem.flush_page = alloc_page(GFP_KERNEL | __GFP_ZERO);
 		if (!fb->sysmem.flush_page)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		fb->sysmem.flush_page_addr = dma_map_page(device->dev, fb->sysmem.flush_page,
 							  0, PAGE_SIZE, DMA_BIDIRECTIONAL);
@@ -297,6 +297,6 @@ nvkm_fb_new_(const struct nvkm_fb_func *func, struct nvkm_device *device,
 	     enum nvkm_subdev_type type, int inst, struct nvkm_fb **pfb)
 {
 	if (!(*pfb = kzalloc(sizeof(**pfb), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	return nvkm_fb_ctor(func, device, type, inst, *pfb);
 }

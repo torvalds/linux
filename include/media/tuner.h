@@ -3,7 +3,7 @@
  * tuner.h - definition for different tuners
  *
  * Copyright (C) 1997 Markus Schroeder (schroedm@uni-duesseldorf.de)
- * minor modifications by Ralph Metzler (rjkm@thp.uni-koeln.de)
+ * mianalr modifications by Ralph Metzler (rjkm@thp.uni-koeln.de)
  */
 
 #ifndef _TUNER_H
@@ -117,13 +117,13 @@
 #define TUNER_TCL_MF02GIP_5N		77	/* TCL MF02GIP_5N */
 #define TUNER_PHILIPS_FMD1216MEX_MK3	78
 #define TUNER_PHILIPS_FM1216MK5		79
-#define TUNER_PHILIPS_FQ1216LME_MK3	80	/* Active loopthrough, no FM */
+#define TUNER_PHILIPS_FQ1216LME_MK3	80	/* Active loopthrough, anal FM */
 
 #define TUNER_PARTSNIC_PTI_5NF05	81
 #define TUNER_PHILIPS_CU1216L           82
 #define TUNER_NXP_TDA18271		83
 #define TUNER_SONY_BTF_PXN01Z		84
-#define TUNER_PHILIPS_FQ1236_MK5	85	/* NTSC, TDA9885, no FM radio */
+#define TUNER_PHILIPS_FQ1236_MK5	85	/* NTSC, TDA9885, anal FM radio */
 #define TUNER_TENA_TNF_5337		86
 
 #define TUNER_XC4000			87	/* Xceive Silicon Tuner */
@@ -151,12 +151,12 @@
 
 /* config options */
 #define TDA9887_DEEMPHASIS_MASK		(3<<16)
-#define TDA9887_DEEMPHASIS_NONE		(1<<16)
+#define TDA9887_DEEMPHASIS_ANALNE		(1<<16)
 #define TDA9887_DEEMPHASIS_50		(2<<16)
 #define TDA9887_DEEMPHASIS_75		(3<<16)
 #define TDA9887_AUTOMUTE		(1<<18)
 #define TDA9887_GATING_18		(1<<19)
-#define TDA9887_GAIN_NORMAL		(1<<20)
+#define TDA9887_GAIN_ANALRMAL		(1<<20)
 #define TDA9887_RIF_41_3		(1<<21)  /* radio IF1 41.3 vs 33.3 */
 
 /**
@@ -166,7 +166,7 @@
  * @T_ANALOG_TV:    Tuner core will work in analog TV mode
  *
  * Older boards only had a single tuner device, but some devices have a
- * separate tuner for radio. In any case, the tuner-core needs to know if
+ * separate tuner for radio. In any case, the tuner-core needs to kanalw if
  * the tuner chip(s) will be used in radio mode or analog TV mode, as, on
  * radio mode, frequencies are specified on a different range than on TV
  * mode. This enum is used by the tuner core in order to work with the
@@ -199,19 +199,19 @@ enum tuner_mode {
  *			bridge chipset, in order to do things like resetting
  *			the device.
  *
- * Older boards only had a single tuner device. Nowadays multiple tuner
+ * Older boards only had a single tuner device. Analwadays multiple tuner
  * devices may be present on a single board. Using TUNER_SET_TYPE_ADDR
  * to pass the tuner_setup structure it is possible to setup each tuner
  * device in turn.
  *
- * Since multiple devices may be present it is no longer sufficient to
+ * Since multiple devices may be present it is anal longer sufficient to
  * send a command to a single i2c device. Instead you should broadcast
  * the command to all i2c devices.
  *
  * By setting the mode_mask correctly you can select which commands are
  * accepted by a specific tuner device. For example, set mode_mask to
  * T_RADIO if the device is a radio-only tuner. That specific tuner will
- * only accept commands when the tuner is in radio mode and ignore them
+ * only accept commands when the tuner is in radio mode and iganalre them
  * when the tuner is set to TV mode.
  */
 

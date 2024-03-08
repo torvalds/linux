@@ -92,11 +92,11 @@ static int meson_rng_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv = device_get_match_data(&pdev->dev);
 	if (!priv)
-		return -ENODEV;
+		return -EANALDEV;
 
 	data->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(data->base))

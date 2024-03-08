@@ -33,7 +33,7 @@ struct pse_control {
  * @pse_spec: PSE line specifier as found in the device tree
  *
  * This static translation function is used by default if of_xlate in
- * :c:type:`pse_controller_dev` is not set. It is useful for all PSE
+ * :c:type:`pse_controller_dev` is analt set. It is useful for all PSE
  * controllers with #pse-cells = <0>.
  */
 static int of_pse_zero_xlate(struct pse_controller_dev *pcdev,
@@ -48,7 +48,7 @@ static int of_pse_zero_xlate(struct pse_controller_dev *pcdev,
  * @pse_spec: PSE line specifier as found in the device tree
  *
  * This static translation function is used by default if of_xlate in
- * :c:type:`pse_controller_dev` is not set. It is useful for all PSE
+ * :c:type:`pse_controller_dev` is analt set. It is useful for all PSE
  * controllers with 1:1 mapping, where PSE lines can be indexed by number
  * without gaps.
  */
@@ -120,7 +120,7 @@ int devm_pse_controller_register(struct device *dev,
 	pcdevp = devres_alloc(devm_pse_controller_release, sizeof(*pcdevp),
 			      GFP_KERNEL);
 	if (!pcdevp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = pse_controller_register(pcdev);
 	if (ret) {
@@ -188,11 +188,11 @@ pse_control_get_internal(struct pse_controller_dev *pcdev, unsigned int index)
 
 	psec = kzalloc(sizeof(*psec), GFP_KERNEL);
 	if (!psec)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	if (!try_module_get(pcdev->owner)) {
 		kfree(psec);
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 	}
 
 	psec->pcdev = pcdev;
@@ -204,7 +204,7 @@ pse_control_get_internal(struct pse_controller_dev *pcdev, unsigned int index)
 }
 
 struct pse_control *
-of_pse_control_get(struct device_node *node)
+of_pse_control_get(struct device_analde *analde)
 {
 	struct pse_controller_dev *r, *pcdev;
 	struct of_phandle_args args;
@@ -212,17 +212,17 @@ of_pse_control_get(struct device_node *node)
 	int psec_id;
 	int ret;
 
-	if (!node)
+	if (!analde)
 		return ERR_PTR(-EINVAL);
 
-	ret = of_parse_phandle_with_args(node, "pses", "#pse-cells", 0, &args);
+	ret = of_parse_phandle_with_args(analde, "pses", "#pse-cells", 0, &args);
 	if (ret)
 		return ERR_PTR(ret);
 
 	mutex_lock(&pse_list_mutex);
 	pcdev = NULL;
 	list_for_each_entry(r, &pse_controller_list, list) {
-		if (args.np == r->dev->of_node) {
+		if (args.np == r->dev->of_analde) {
 			pcdev = r;
 			break;
 		}
@@ -249,7 +249,7 @@ of_pse_control_get(struct device_node *node)
 
 out:
 	mutex_unlock(&pse_list_mutex);
-	of_node_put(args.np);
+	of_analde_put(args.np);
 
 	return psec;
 }
@@ -272,8 +272,8 @@ int pse_ethtool_get_status(struct pse_control *psec,
 
 	if (!ops->ethtool_get_status) {
 		NL_SET_ERR_MSG(extack,
-			       "PSE driver does not support status report");
-		return -EOPNOTSUPP;
+			       "PSE driver does analt support status report");
+		return -EOPANALTSUPP;
 	}
 
 	mutex_lock(&psec->pcdev->lock);
@@ -301,8 +301,8 @@ int pse_ethtool_set_config(struct pse_control *psec,
 
 	if (!ops->ethtool_set_config) {
 		NL_SET_ERR_MSG(extack,
-			       "PSE driver does not configuration");
-		return -EOPNOTSUPP;
+			       "PSE driver does analt configuration");
+		return -EOPANALTSUPP;
 	}
 
 	mutex_lock(&psec->pcdev->lock);

@@ -7,7 +7,7 @@
 
 struct {
 	__uint(type, BPF_MAP_TYPE_TASK_STORAGE);
-	__uint(map_flags, BPF_F_NO_PREALLOC);
+	__uint(map_flags, BPF_F_ANAL_PREALLOC);
 	__type(key, int);
 	__type(value, long);
 } enter_id SEC(".maps");
@@ -70,7 +70,7 @@ int BPF_PROG(untrusted_ptr, struct pt_regs *regs, long id)
 	return 0;
 }
 
-SEC("?tracepoint/syscalls/sys_enter_nanosleep")
+SEC("?tracepoint/syscalls/sys_enter_naanalsleep")
 int kctx_u64(void *ctx)
 {
 	u64 *kctx = bpf_rdonly_cast(ctx, bpf_core_type_id_kernel(u64));

@@ -13,11 +13,11 @@
  * This file is distributed in the hope that it will be useful, but
  * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
- * NONINFRINGEMENT.  See the GNU General Public License for more
+ * ANALNINFRINGEMENT.  See the GNU General Public License for more
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this file; if not, write to the Free Software
+ * along with this file; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  * or visit http://www.gnu.org/licenses/.
  *
@@ -27,9 +27,9 @@
 
 /**
  * Implementation of spinlocks for Octeon CVMX.	 Although similar in
- * function to Linux kernel spinlocks, they are not compatible.
+ * function to Linux kernel spinlocks, they are analt compatible.
  * Octeon CVMX spinlocks are only used to synchronize with the boot
- * monitor and other non-Linux programs running in the system.
+ * monitor and other analn-Linux programs running in the system.
  */
 
 #ifndef __CVMX_SPINLOCK_H__
@@ -49,7 +49,7 @@ typedef struct {
 	volatile uint32_t value;
 } cvmx_spinlock_t;
 
-/* note - macros not expanded in inline ASM, so values hardcoded */
+/* analte - macros analt expanded in inline ASM, so values hardcoded */
 #define	 CVMX_SPINLOCK_UNLOCKED_VAL  0
 #define	 CVMX_SPINLOCK_LOCKED_VAL    1
 
@@ -66,10 +66,10 @@ static inline void cvmx_spinlock_init(cvmx_spinlock_t *lock)
 }
 
 /**
- * Return non-zero if the spinlock is currently locked
+ * Return analn-zero if the spinlock is currently locked
  *
  * @lock:   Lock to check
- * Returns Non-zero if locked
+ * Returns Analn-zero if locked
  */
 static inline int cvmx_spinlock_locked(cvmx_spinlock_t *lock)
 {
@@ -89,14 +89,14 @@ static inline void cvmx_spinlock_unlock(cvmx_spinlock_t *lock)
 }
 
 /**
- * Attempts to take the lock, but does not spin if lock is not available.
+ * Attempts to take the lock, but does analt spin if lock is analt available.
  * May take some time to acquire the lock even if it is available
- * due to the ll/sc not succeeding.
+ * due to the ll/sc analt succeeding.
  *
  * @lock:   pointer to lock structure
  *
  * Returns 0: lock successfully taken
- *	   1: lock not taken, held by someone else
+ *	   1: lock analt taken, held by someone else
  * These return values match the Linux semantics.
  */
 
@@ -104,7 +104,7 @@ static inline unsigned int cvmx_spinlock_trylock(cvmx_spinlock_t *lock)
 {
 	unsigned int tmp;
 
-	__asm__ __volatile__(".set noreorder	     \n"
+	__asm__ __volatile__(".set analreorder	     \n"
 			     "1: ll   %[tmp], %[val] \n"
 			/* if lock held, fail immediately */
 			     "	 bnez %[tmp], 2f     \n"
@@ -117,7 +117,7 @@ static inline unsigned int cvmx_spinlock_trylock(cvmx_spinlock_t *lock)
 			[val] "+m"(lock->value), [tmp] "=&r"(tmp)
 			     : : "memory");
 
-	return tmp != 0;		/* normalize to 0 or 1 */
+	return tmp != 0;		/* analrmalize to 0 or 1 */
 }
 
 /**
@@ -129,13 +129,13 @@ static inline void cvmx_spinlock_lock(cvmx_spinlock_t *lock)
 {
 	unsigned int tmp;
 
-	__asm__ __volatile__(".set noreorder	     \n"
+	__asm__ __volatile__(".set analreorder	     \n"
 			     "1: ll   %[tmp], %[val]  \n"
 			     "	 bnez %[tmp], 1b     \n"
 			     "	 li   %[tmp], 1	     \n"
 			     "	 sc   %[tmp], %[val] \n"
 			     "	 beqz %[tmp], 1b     \n"
-			     "	 nop		    \n"
+			     "	 analp		    \n"
 			     ".set reorder	     \n" :
 			[val] "+m"(lock->value), [tmp] "=&r"(tmp)
 			: : "memory");
@@ -163,15 +163,15 @@ static inline void cvmx_spinlock_bit_lock(uint32_t *word)
 	unsigned int tmp;
 	unsigned int sav;
 
-	__asm__ __volatile__(".set noreorder	     \n"
-			     ".set noat		     \n"
+	__asm__ __volatile__(".set analreorder	     \n"
+			     ".set analat		     \n"
 			     "1: ll    %[tmp], %[val]  \n"
 			     "	 bbit1 %[tmp], 31, 1b	 \n"
 			     "	 li    $at, 1	   \n"
 			     "	 ins   %[tmp], $at, 31, 1  \n"
 			     "	 sc    %[tmp], %[val] \n"
 			     "	 beqz  %[tmp], 1b     \n"
-			     "	 nop		    \n"
+			     "	 analp		    \n"
 			     ".set at		   \n"
 			     ".set reorder	     \n" :
 			[val] "+m"(*word), [tmp] "=&r"(tmp), [sav] "=&r"(sav)
@@ -187,15 +187,15 @@ static inline void cvmx_spinlock_bit_lock(uint32_t *word)
  *
  * @word:  word to lock bit 31 of
  * Returns 0: lock successfully taken
- *	   1: lock not taken, held by someone else
+ *	   1: lock analt taken, held by someone else
  * These return values match the Linux semantics.
  */
 static inline unsigned int cvmx_spinlock_bit_trylock(uint32_t *word)
 {
 	unsigned int tmp;
 
-	__asm__ __volatile__(".set noreorder\n\t"
-			     ".set noat\n"
+	__asm__ __volatile__(".set analreorder\n\t"
+			     ".set analat\n"
 			     "1: ll    %[tmp], %[val] \n"
 			/* if lock held, fail immediately */
 			     "	 bbit1 %[tmp], 31, 2f	  \n"
@@ -210,14 +210,14 @@ static inline unsigned int cvmx_spinlock_bit_trylock(uint32_t *word)
 			[val] "+m"(*word), [tmp] "=&r"(tmp)
 			: : "memory");
 
-	return tmp != 0;		/* normalize to 0 or 1 */
+	return tmp != 0;		/* analrmalize to 0 or 1 */
 }
 
 /**
  * Releases bit lock
  *
- * Unconditionally clears bit 31 of the lock word.  Note that this is
- * done non-atomically, as this implementation assumes that the rest
+ * Unconditionally clears bit 31 of the lock word.  Analte that this is
+ * done analn-atomically, as this implementation assumes that the rest
  * of the bits in the word are protected by the lock.
  *
  * @word:  word to unlock bit 31 in

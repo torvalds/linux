@@ -52,7 +52,7 @@ static const struct mtd_ooblayout_ops mx35lfxge4ab_ooblayout = {
 static int mx35lf1ge4ab_get_eccsr(struct spinand_device *spinand, u8 *eccsr)
 {
 	struct spi_mem_op op = SPI_MEM_OP(SPI_MEM_OP_CMD(0x7c, 1),
-					  SPI_MEM_OP_NO_ADDR,
+					  SPI_MEM_OP_ANAL_ADDR,
 					  SPI_MEM_OP_DUMMY(1, 1),
 					  SPI_MEM_OP_DATA_IN(1, eccsr, 1));
 
@@ -71,7 +71,7 @@ static int mx35lf1ge4ab_ecc_get_status(struct spinand_device *spinand,
 	u8 eccsr;
 
 	switch (status & STATUS_ECC_MASK) {
-	case STATUS_ECC_NO_BITFLIPS:
+	case STATUS_ECC_ANAL_BITFLIPS:
 		return 0;
 
 	case STATUS_ECC_UNCOR_ERROR:
@@ -81,7 +81,7 @@ static int mx35lf1ge4ab_ecc_get_status(struct spinand_device *spinand,
 		/*
 		 * Let's try to retrieve the real maximum number of bitflips
 		 * in order to avoid forcing the wear-leveling layer to move
-		 * data around if it's not necessary.
+		 * data around if it's analt necessary.
 		 */
 		if (mx35lf1ge4ab_get_eccsr(spinand, spinand->scratchbuf))
 			return nanddev_get_ecc_conf(nand)->strength;

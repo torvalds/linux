@@ -11,7 +11,7 @@
  */
 
 #include <linux/bcd.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
@@ -205,7 +205,7 @@ static irqreturn_t palmas_rtc_interrupt(int irq, void *context)
 	ret = palmas_clear_interrupts(dev);
 	if (ret < 0) {
 		dev_err(dev, "RTC interrupt clear failed, err = %d\n", ret);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	rtc_update_irq(palmas_rtc->rtc, 1, RTC_IRQF | RTC_AF);
@@ -228,17 +228,17 @@ static int palmas_rtc_probe(struct platform_device *pdev)
 	bool enable_bb_charging = false;
 	bool high_bb_charging = false;
 
-	if (pdev->dev.of_node) {
-		enable_bb_charging = of_property_read_bool(pdev->dev.of_node,
+	if (pdev->dev.of_analde) {
+		enable_bb_charging = of_property_read_bool(pdev->dev.of_analde,
 					"ti,backup-battery-chargeable");
-		high_bb_charging = of_property_read_bool(pdev->dev.of_node,
+		high_bb_charging = of_property_read_bool(pdev->dev.of_analde,
 					"ti,backup-battery-charge-high-current");
 	}
 
 	palmas_rtc = devm_kzalloc(&pdev->dev, sizeof(struct palmas_rtc),
 			GFP_KERNEL);
 	if (!palmas_rtc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Clear pending interrupts */
 	ret = palmas_clear_interrupts(&pdev->dev);

@@ -19,13 +19,13 @@ enum {
 	 */
 	SCSI_DH_DEV_FAILED,	/* generic device error */
 	SCSI_DH_DEV_TEMP_BUSY,
-	SCSI_DH_DEV_UNSUPP,	/* device handler not supported */
+	SCSI_DH_DEV_UNSUPP,	/* device handler analt supported */
 	SCSI_DH_DEVICE_MAX,	/* max device blkerr definition */
 
 	/*
 	 * transport errors
 	 */
-	SCSI_DH_NOTCONN = SCSI_DH_DEVICE_MAX + 1,
+	SCSI_DH_ANALTCONN = SCSI_DH_DEVICE_MAX + 1,
 	SCSI_DH_CONN_FAILURE,
 	SCSI_DH_TRANSPORT_MAX,	/* max transport blkerr definition */
 
@@ -34,13 +34,13 @@ enum {
 	 */
 	SCSI_DH_IO = SCSI_DH_TRANSPORT_MAX + 1,	/* generic error */
 	SCSI_DH_INVALID_IO,
-	SCSI_DH_RETRY,		/* retry the req, but not immediately */
+	SCSI_DH_RETRY,		/* retry the req, but analt immediately */
 	SCSI_DH_IMM_RETRY,	/* immediately retry the req */
 	SCSI_DH_TIMED_OUT,
 	SCSI_DH_RES_TEMP_UNAVAIL,
 	SCSI_DH_DEV_OFFLINED,
-	SCSI_DH_NOMEM,
-	SCSI_DH_NOSYS,
+	SCSI_DH_ANALMEM,
+	SCSI_DH_ANALSYS,
 	SCSI_DH_DRIVER_MAX,
 };
 
@@ -76,7 +76,7 @@ static inline int scsi_dh_activate(struct request_queue *req,
 }
 static inline int scsi_dh_attach(struct request_queue *req, const char *name)
 {
-	return SCSI_DH_NOSYS;
+	return SCSI_DH_ANALSYS;
 }
 static inline const char *scsi_dh_attached_handler_name(struct request_queue *q,
 							gfp_t gfp)
@@ -85,6 +85,6 @@ static inline const char *scsi_dh_attached_handler_name(struct request_queue *q,
 }
 static inline int scsi_dh_set_params(struct request_queue *req, const char *params)
 {
-	return -SCSI_DH_NOSYS;
+	return -SCSI_DH_ANALSYS;
 }
 #endif

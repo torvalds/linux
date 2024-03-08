@@ -58,7 +58,7 @@ extern const struct squashfs_decompressor_thread_ops squashfs_decompressor_percp
 #endif
 
 /* export.c */
-extern __le64 *squashfs_read_inode_lookup_table(struct super_block *, u64, u64,
+extern __le64 *squashfs_read_ianalde_lookup_table(struct super_block *, u64, u64,
 				unsigned int);
 
 /* fragment.c */
@@ -79,16 +79,16 @@ extern int squashfs_get_id(struct super_block *, unsigned int, unsigned int *);
 extern __le64 *squashfs_read_id_index_table(struct super_block *, u64, u64,
 				unsigned short);
 
-/* inode.c */
-extern struct inode *squashfs_iget(struct super_block *, long long,
+/* ianalde.c */
+extern struct ianalde *squashfs_iget(struct super_block *, long long,
 				unsigned int);
-extern int squashfs_read_inode(struct inode *, long long);
+extern int squashfs_read_ianalde(struct ianalde *, long long);
 
 /* xattr.c */
 extern ssize_t squashfs_listxattr(struct dentry *, char *, size_t);
 
 /*
- * Inodes, files,  decompressor and xattr operations
+ * Ianaldes, files,  decompressor and xattr operations
  */
 
 /* dir.c */
@@ -100,15 +100,15 @@ extern const struct export_operations squashfs_export_ops;
 /* file.c */
 extern const struct address_space_operations squashfs_aops;
 
-/* inode.c */
-extern const struct inode_operations squashfs_inode_ops;
+/* ianalde.c */
+extern const struct ianalde_operations squashfs_ianalde_ops;
 
 /* namei.c */
-extern const struct inode_operations squashfs_dir_inode_ops;
+extern const struct ianalde_operations squashfs_dir_ianalde_ops;
 
 /* symlink.c */
 extern const struct address_space_operations squashfs_symlink_aops;
-extern const struct inode_operations squashfs_symlink_inode_ops;
+extern const struct ianalde_operations squashfs_symlink_ianalde_ops;
 
 /* xattr.c */
 extern const struct xattr_handler * const squashfs_xattr_handlers[];

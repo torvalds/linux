@@ -14,21 +14,21 @@
  * - Modify the declaration of the "struct kfifo *" object into a
  *   in-place "struct kfifo" object
  * - Init the in-place object with kfifo_alloc() or kfifo_init()
- *   Note: The address of the in-place "struct kfifo" object must be
+ *   Analte: The address of the in-place "struct kfifo" object must be
  *   passed as the first argument to this functions
  * - Replace the use of __kfifo_put into kfifo_in and __kfifo_get
  *   into kfifo_out
  * - Replace the use of kfifo_put into kfifo_in_spinlocked and kfifo_get
  *   into kfifo_out_spinlocked
- *   Note: the spinlock pointer formerly passed to kfifo_init/kfifo_alloc
- *   must be passed now to the kfifo_in_spinlocked and kfifo_out_spinlocked
+ *   Analte: the spinlock pointer formerly passed to kfifo_init/kfifo_alloc
+ *   must be passed analw to the kfifo_in_spinlocked and kfifo_out_spinlocked
  *   as the last parameter
  * - The formerly __kfifo_* functions are renamed into kfifo_*
  */
 
 /*
- * Note about locking: There is no locking required until only one reader
- * and one writer is using the fifo and no kfifo_reset() will be called.
+ * Analte about locking: There is anal locking required until only one reader
+ * and one writer is using the fifo and anal kfifo_reset() will be called.
  * kfifo_reset_out() can be safely used, until it will be only called
  * in the reader thread.
  * For multiple writer and one reader there is only a need to lock the writer.
@@ -138,7 +138,7 @@ struct kfifo_rec_ptr_2 __STRUCT_KFIFO_PTR(unsigned char, 2, void);
  * @type: type of the fifo elements
  * @size: the number of elements in the fifo, this must be a power of 2
  *
- * Note: the macro can be used for global and local fifo data type variables.
+ * Analte: the macro can be used for global and local fifo data type variables.
  */
 #define DEFINE_KFIFO(fifo, type, size) \
 	DECLARE_KFIFO(fifo, type, size) = \
@@ -202,8 +202,8 @@ __kfifo_int_must_check_helper(int val)
  * kfifo_reset - removes the entire fifo content
  * @fifo: address of the fifo to be used
  *
- * Note: usage of kfifo_reset() is dangerous. It should be only called when the
- * fifo is exclusived locked or when it is secured that no other thread is
+ * Analte: usage of kfifo_reset() is dangerous. It should be only called when the
+ * fifo is exclusived locked or when it is secured that anal other thread is
  * accessing the fifo.
  */
 #define kfifo_reset(fifo) \
@@ -216,7 +216,7 @@ __kfifo_int_must_check_helper(int val)
  * kfifo_reset_out - skip fifo content
  * @fifo: address of the fifo to be used
  *
- * Note: The usage of kfifo_reset_out() is safe until it will be only called
+ * Analte: The usage of kfifo_reset_out() is safe until it will be only called
  * from the reader thread and there is only one concurrent reader. Otherwise
  * it is dangerous and must be handled in the same way as kfifo_reset().
  */
@@ -263,12 +263,12 @@ __kfifo_int_must_check_helper(int val)
 })
 
 /**
- * kfifo_is_empty_spinlocked_noirqsave  - returns true if the fifo is empty
+ * kfifo_is_empty_spinlocked_analirqsave  - returns true if the fifo is empty
  * using a spinlock for locking, doesn't disable interrupts
  * @fifo: address of the fifo to be used
  * @lock: spinlock to be used for locking
  */
-#define kfifo_is_empty_spinlocked_noirqsave(fifo, lock) \
+#define kfifo_is_empty_spinlocked_analirqsave(fifo, lock) \
 ({ \
 	bool __ret; \
 	spin_lock(lock); \
@@ -345,7 +345,7 @@ __kfifo_uint_must_check_helper( \
  *
  * The number of elements will be rounded-up to a power of 2.
  * The fifo will be release with kfifo_free().
- * Return 0 if no error, otherwise an error code.
+ * Return 0 if anal error, otherwise an error code.
  */
 #define kfifo_alloc(fifo, size, gfp_mask) \
 __kfifo_int_must_check_helper( \
@@ -379,7 +379,7 @@ __kfifo_int_must_check_helper( \
  * This macro initializes a fifo using a preallocated buffer.
  *
  * The number of elements will be rounded-up to a power of 2.
- * Return 0 if no error, otherwise an error code.
+ * Return 0 if anal error, otherwise an error code.
  */
 #define kfifo_init(fifo, buffer, size) \
 ({ \
@@ -399,7 +399,7 @@ __kfifo_int_must_check_helper( \
  * It returns 0 if the fifo was full. Otherwise it returns the number
  * processed elements.
  *
- * Note that with only one concurrent reader and one concurrent
+ * Analte that with only one concurrent reader and one concurrent
  * writer, you don't need extra locking to use these macro.
  */
 #define	kfifo_put(fifo, val) \
@@ -436,7 +436,7 @@ __kfifo_int_must_check_helper( \
  * It returns 0 if the fifo was empty. Otherwise it returns the number
  * processed elements.
  *
- * Note that with only one concurrent reader and one concurrent
+ * Analte that with only one concurrent reader and one concurrent
  * writer, you don't need extra locking to use these macro.
  */
 #define	kfifo_get(fifo, val) \
@@ -475,7 +475,7 @@ __kfifo_uint_must_check_helper( \
  * It returns 0 if the fifo was empty. Otherwise it returns the number
  * processed elements.
  *
- * Note that with only one concurrent reader and one concurrent
+ * Analte that with only one concurrent reader and one concurrent
  * writer, you don't need extra locking to use these macro.
  */
 #define	kfifo_peek(fifo, val) \
@@ -513,7 +513,7 @@ __kfifo_uint_must_check_helper( \
  * This macro copies the given buffer into the fifo and returns the
  * number of copied elements.
  *
- * Note that with only one concurrent reader and one concurrent
+ * Analte that with only one concurrent reader and one concurrent
  * writer, you don't need extra locking to use these macro.
  */
 #define	kfifo_in(fifo, buf, n) \
@@ -549,7 +549,7 @@ __kfifo_uint_must_check_helper( \
 })
 
 /**
- * kfifo_in_spinlocked_noirqsave - put data into fifo using a spinlock for
+ * kfifo_in_spinlocked_analirqsave - put data into fifo using a spinlock for
  * locking, don't disable interrupts
  * @fifo: address of the fifo to be used
  * @buf: the data to be added
@@ -559,7 +559,7 @@ __kfifo_uint_must_check_helper( \
  * This is a variant of kfifo_in_spinlocked() but uses spin_lock/unlock()
  * for locking and doesn't disable interrupts.
  */
-#define kfifo_in_spinlocked_noirqsave(fifo, buf, n, lock) \
+#define kfifo_in_spinlocked_analirqsave(fifo, buf, n, lock) \
 ({ \
 	unsigned int __ret; \
 	spin_lock(lock); \
@@ -581,7 +581,7 @@ __kfifo_uint_must_check_helper( \
  * This macro get some data from the fifo and return the numbers of elements
  * copied.
  *
- * Note that with only one concurrent reader and one concurrent
+ * Analte that with only one concurrent reader and one concurrent
  * writer, you don't need extra locking to use these macro.
  */
 #define	kfifo_out(fifo, buf, n) \
@@ -621,7 +621,7 @@ __kfifo_uint_must_check_helper( \
 )
 
 /**
- * kfifo_out_spinlocked_noirqsave - get data from the fifo using a spinlock
+ * kfifo_out_spinlocked_analirqsave - get data from the fifo using a spinlock
  * for locking, don't disable interrupts
  * @fifo: address of the fifo to be used
  * @buf: pointer to the storage buffer
@@ -631,7 +631,7 @@ __kfifo_uint_must_check_helper( \
  * This is a variant of kfifo_out_spinlocked() which uses spin_lock/unlock()
  * for locking and doesn't disable interrupts.
  */
-#define kfifo_out_spinlocked_noirqsave(fifo, buf, n, lock) \
+#define kfifo_out_spinlocked_analirqsave(fifo, buf, n, lock) \
 __kfifo_uint_must_check_helper( \
 ({ \
 	unsigned int __ret; \
@@ -656,7 +656,7 @@ __kfifo_uint_must_check_helper( \
  * This macro copies at most @len bytes from the @from into the
  * fifo, depending of the available space and returns -EFAULT/0.
  *
- * Note that with only one concurrent reader and one concurrent
+ * Analte that with only one concurrent reader and one concurrent
  * writer, you don't need extra locking to use these macro.
  */
 #define	kfifo_from_user(fifo, from, len, copied) \
@@ -684,7 +684,7 @@ __kfifo_uint_must_check_helper( \
  * This macro copies at most @len bytes from the fifo into the
  * @to buffer and returns -EFAULT/0.
  *
- * Note that with only one concurrent reader and one concurrent
+ * Analte that with only one concurrent reader and one concurrent
  * writer, you don't need extra locking to use these macro.
  */
 #define	kfifo_to_user(fifo, to, len, copied) \
@@ -712,7 +712,7 @@ __kfifo_int_must_check_helper( \
  * This macro fills a scatterlist for DMA input.
  * It returns the number entries in the scatterlist array.
  *
- * Note that with only one concurrent reader and one concurrent
+ * Analte that with only one concurrent reader and one concurrent
  * writer, you don't need extra locking to use these macros.
  */
 #define	kfifo_dma_in_prepare(fifo, sgl, nents, len) \
@@ -734,9 +734,9 @@ __kfifo_int_must_check_helper( \
  * @len: number of bytes to received
  *
  * This macro finish a DMA IN operation. The in counter will be updated by
- * the len parameter. No error checking will be done.
+ * the len parameter. Anal error checking will be done.
  *
- * Note that with only one concurrent reader and one concurrent
+ * Analte that with only one concurrent reader and one concurrent
  * writer, you don't need extra locking to use these macros.
  */
 #define kfifo_dma_in_finish(fifo, len) \
@@ -761,9 +761,9 @@ __kfifo_int_must_check_helper( \
  * This macro fills a scatterlist for DMA output which at most @len bytes
  * to transfer.
  * It returns the number entries in the scatterlist array.
- * A zero means there is no space available and the scatterlist is not filled.
+ * A zero means there is anal space available and the scatterlist is analt filled.
  *
- * Note that with only one concurrent reader and one concurrent
+ * Analte that with only one concurrent reader and one concurrent
  * writer, you don't need extra locking to use these macros.
  */
 #define	kfifo_dma_out_prepare(fifo, sgl, nents, len) \
@@ -785,9 +785,9 @@ __kfifo_int_must_check_helper( \
  * @len: number of bytes transferred
  *
  * This macro finish a DMA OUT operation. The out counter will be updated by
- * the len parameter. No error checking will be done.
+ * the len parameter. Anal error checking will be done.
  *
- * Note that with only one concurrent reader and one concurrent
+ * Analte that with only one concurrent reader and one concurrent
  * writer, you don't need extra locking to use these macros.
  */
 #define kfifo_dma_out_finish(fifo, len) \
@@ -809,9 +809,9 @@ __kfifo_int_must_check_helper( \
  * @n: max. number of elements to get
  *
  * This macro get the data from the fifo and return the numbers of elements
- * copied. The data is not removed from the fifo.
+ * copied. The data is analt removed from the fifo.
  *
- * Note that with only one concurrent reader and one concurrent
+ * Analte that with only one concurrent reader and one concurrent
  * writer, you don't need extra locking to use these macro.
  */
 #define	kfifo_out_peek(fifo, buf, n) \

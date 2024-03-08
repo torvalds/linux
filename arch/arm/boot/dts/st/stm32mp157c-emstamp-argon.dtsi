@@ -36,37 +36,37 @@
 		mcuram2: mcuram2@10000000 {
 			compatible = "shared-dma-pool";
 			reg = <0x10000000 0x40000>;
-			no-map;
+			anal-map;
 		};
 
 		vdev0vring0: vdev0vring0@10040000 {
 			compatible = "shared-dma-pool";
 			reg = <0x10040000 0x2000>;
-			no-map;
+			anal-map;
 		};
 
 		vdev0vring1: vdev0vring1@10042000 {
 			compatible = "shared-dma-pool";
 			reg = <0x10042000 0x2000>;
-			no-map;
+			anal-map;
 		};
 
 		vdev0buffer: vdev0buffer@10044000 {
 			compatible = "shared-dma-pool";
 			reg = <0x10044000 0x4000>;
-			no-map;
+			anal-map;
 		};
 
 		mcuram: mcuram@30000000 {
 			compatible = "shared-dma-pool";
 			reg = <0x30000000 0x40000>;
-			no-map;
+			anal-map;
 		};
 
 		retram: retram@38000000 {
 			compatible = "shared-dma-pool";
 			reg = <0x38000000 0x10000>;
-			no-map;
+			anal-map;
 		};
 	};
 
@@ -75,7 +75,7 @@
 		led-0 {
 			label = "panic";
 			gpios = <&gpioa 13 GPIO_ACTIVE_LOW>;
-			linux,default-trigger = "none";
+			linux,default-trigger = "analne";
 			default-state = "off";
 			panic-indicator;
 		};
@@ -395,7 +395,7 @@
 	status = "okay";
 
 	flash0: flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <133000000>;
 		spi-rx-bus-width = <1>;
@@ -419,7 +419,7 @@
 	pinctrl-0 = <&sdmmc2_b4_pins_b>;
 	pinctrl-1 = <&sdmmc2_b4_od_pins_b>;
 	pinctrl-2 = <&sdmmc2_b4_sleep_pins_a>;
-	non-removable;
+	analn-removable;
 	st,neg-edge;
 	bus-width = <4>;
 	vmmc-supply = <&v3v3>;

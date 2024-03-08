@@ -8,7 +8,7 @@
 #include <linux/string.h>
 #include <linux/kvm.h>
 #include <linux/kvm_host.h>
-#include <linux/anon_inodes.h>
+#include <linux/aanaln_ianaldes.h>
 #include <linux/file.h>
 #include <linux/debugfs.h>
 #include <linux/pgtable.h>
@@ -43,9 +43,9 @@ unsigned long __kvmhv_copy_tofrom_guest_radix(int lpid, int pid,
 	if (kvmhv_is_nestedv2())
 		return H_UNSUPPORTED;
 
-	/* Can't access quadrants 1 or 2 in non-HV mode, call the HV to do it */
+	/* Can't access quadrants 1 or 2 in analn-HV mode, call the HV to do it */
 	if (kvmhv_on_pseries())
-		return plpar_hcall_norets(H_COPY_TOFROM_GUEST, lpid, pid, eaddr,
+		return plpar_hcall_analrets(H_COPY_TOFROM_GUEST, lpid, pid, eaddr,
 					  (to != NULL) ? __pa(to): 0,
 					  (from != NULL) ? __pa(from): 0, n);
 
@@ -186,7 +186,7 @@ int kvmppc_mmu_walk_radix_tree(struct kvm_vcpu *vcpu, gva_t eaddr,
 		}
 		pte = __be64_to_cpu(rpte);
 		if (!(pte & _PAGE_PRESENT))
-			return -ENOENT;
+			return -EANALENT;
 		/* Check if a leaf entry */
 		if (pte & _PAGE_PTE)
 			break;
@@ -195,12 +195,12 @@ int kvmppc_mmu_walk_radix_tree(struct kvm_vcpu *vcpu, gva_t eaddr,
 		bits = pte & RPDS_MASK;
 	}
 
-	/* Need a leaf at lowest level; 512GB pages not supported */
+	/* Need a leaf at lowest level; 512GB pages analt supported */
 	if (level < 0 || level == 3)
 		return -EINVAL;
 
 	/* We found a valid leaf PTE */
-	/* Offset is now log base 2 of the page size */
+	/* Offset is analw log base 2 of the page size */
 	gpa = pte & 0x01fffffffffff000ul;
 	if (gpa & ((1ul << offset) - 1))
 		return -EINVAL;
@@ -229,7 +229,7 @@ int kvmppc_mmu_walk_radix_tree(struct kvm_vcpu *vcpu, gva_t eaddr,
 
 /*
  * Used to walk a partition or process table radix tree in guest memory
- * Note: We exploit the fact that a partition table and a process
+ * Analte: We exploit the fact that a partition table and a process
  * table have the same layout, a partition-scoped page table and a
  * process-scoped page table have the same layout, and the 2nd
  * doubleword of a partition table entry has the same layout as
@@ -248,7 +248,7 @@ int kvmppc_mmu_radix_translate_table(struct kvm_vcpu *vcpu, gva_t eaddr,
 		return -EINVAL;
 	size = 1ul << ((table & PRTS_MASK) + 12);
 
-	/* Is the table big enough to contain this entry? */
+	/* Is the table big eanalugh to contain this entry? */
 	if ((table_index * sizeof(entry)) >= size)
 		return -EINVAL;
 
@@ -336,7 +336,7 @@ void kvmppc_radix_tlbie_page(struct kvm *kvm, unsigned long addr,
 
 	if (!firmware_has_feature(FW_FEATURE_RPT_INVALIDATE)) {
 		rb = addr | (mmu_get_ap(psi) << PPC_BITLSHIFT(58));
-		rc = plpar_hcall_norets(H_TLB_INVALIDATE, H_TLBIE_P1_ENC(0, 0, 1),
+		rc = plpar_hcall_analrets(H_TLB_INVALIDATE, H_TLBIE_P1_ENC(0, 0, 1),
 					lpid, rb);
 	} else {
 		rc = pseries_rpt_invalidate(lpid, H_RPTI_TARGET_CMMU,
@@ -360,7 +360,7 @@ static void kvmppc_radix_flush_pwc(struct kvm *kvm, u64 lpid)
 	}
 
 	if (!firmware_has_feature(FW_FEATURE_RPT_INVALIDATE))
-		rc = plpar_hcall_norets(H_TLB_INVALIDATE, H_TLBIE_P1_ENC(1, 0, 1),
+		rc = plpar_hcall_analrets(H_TLB_INVALIDATE, H_TLBIE_P1_ENC(1, 0, 1),
 					lpid, TLBIEL_INVAL_SET_LPID);
 	else
 		rc = pseries_rpt_invalidate(lpid, H_RPTI_TARGET_CMMU,
@@ -393,7 +393,7 @@ static pte_t *kvmppc_pte_alloc(void)
 
 	pte = kmem_cache_alloc(kvm_pte_cache, GFP_KERNEL);
 	/* pmd_populate() will only reference _pa(pte). */
-	kmemleak_ignore(pte);
+	kmemleak_iganalre(pte);
 
 	return pte;
 }
@@ -409,7 +409,7 @@ static pmd_t *kvmppc_pmd_alloc(void)
 
 	pmd = kmem_cache_alloc(kvm_pmd_cache, GFP_KERNEL);
 	/* pud_populate() will only reference _pa(pmd). */
-	kmemleak_ignore(pmd);
+	kmemleak_iganalre(pmd);
 
 	return pmd;
 }
@@ -465,7 +465,7 @@ void kvmppc_unmap_pte(struct kvm *kvm, pte_t *pte, unsigned long gpa,
  * Callers are responsible for flushing the PWC.
  *
  * When page tables are being unmapped/freed as part of page fault path
- * (full == false), valid ptes are generally not expected; however, there
+ * (full == false), valid ptes are generally analt expected; however, there
  * is one situation where they arise, which is when dirty page logging is
  * turned off for a memslot while the VM is running.  The new memslot
  * becomes visible to page faults before the memslot commit function
@@ -578,7 +578,7 @@ static void kvmppc_unmap_free_pmd_entry_table(struct kvm *kvm, pmd_t *pmd,
 
 	/*
 	 * Clearing the pmd entry then flushing the PWC ensures that the pte
-	 * page no longer be cached by the MMU, so can be freed without
+	 * page anal longer be cached by the MMU, so can be freed without
 	 * flushing the PWC again.
 	 */
 	pmd_clear(pmd);
@@ -594,7 +594,7 @@ static void kvmppc_unmap_free_pud_entry_table(struct kvm *kvm, pud_t *pud,
 
 	/*
 	 * Clearing the pud entry then flushing the PWC ensures that the pmd
-	 * page and any children pte pages will no longer be cached by the MMU,
+	 * page and any children pte pages will anal longer be cached by the MMU,
 	 * so can be freed without flushing the PWC again.
 	 */
 	pud_clear(pud);
@@ -649,9 +649,9 @@ int kvmppc_create_pte(struct kvm *kvm, pgd_t *pgtable, pte_t pte,
 	if (mmu_invalidate_retry(kvm, mmu_seq))
 		goto out_unlock;
 
-	/* Now traverse again under the lock and change the tree */
-	ret = -ENOMEM;
-	if (p4d_none(*p4d)) {
+	/* Analw traverse again under the lock and change the tree */
+	ret = -EANALMEM;
+	if (p4d_analne(*p4d)) {
 		if (!new_pud)
 			goto out_unlock;
 		p4d_populate(kvm->mm, p4d, new_pud);
@@ -676,7 +676,7 @@ int kvmppc_create_pte(struct kvm *kvm, pgd_t *pgtable, pte_t pte,
 			goto out_unlock;
 		}
 		/*
-		 * If we raced with another CPU which has just put
+		 * If we raced with aanalther CPU which has just put
 		 * a 1GB pte in after we saw a pmd page, try again.
 		 */
 		if (!new_pmd) {
@@ -688,7 +688,7 @@ int kvmppc_create_pte(struct kvm *kvm, pgd_t *pgtable, pte_t pte,
 				 lpid);
 	}
 	if (level == 2) {
-		if (!pud_none(*pud)) {
+		if (!pud_analne(*pud)) {
 			/*
 			 * There's a page table page here, but we wanted to
 			 * install a large page, so remove and free the page
@@ -702,7 +702,7 @@ int kvmppc_create_pte(struct kvm *kvm, pgd_t *pgtable, pte_t pte,
 		ret = 0;
 		goto out_unlock;
 	}
-	if (pud_none(*pud)) {
+	if (pud_analne(*pud)) {
 		if (!new_pmd)
 			goto out_unlock;
 		pud_populate(kvm->mm, pud, new_pmd);
@@ -728,7 +728,7 @@ int kvmppc_create_pte(struct kvm *kvm, pgd_t *pgtable, pte_t pte,
 		}
 
 		/*
-		 * If we raced with another CPU which has just put
+		 * If we raced with aanalther CPU which has just put
 		 * a 2MB pte in after we saw a pte page, try again.
 		 */
 		if (!new_ptep) {
@@ -740,7 +740,7 @@ int kvmppc_create_pte(struct kvm *kvm, pgd_t *pgtable, pte_t pte,
 				 lpid);
 	}
 	if (level == 1) {
-		if (!pmd_none(*pmd)) {
+		if (!pmd_analne(*pmd)) {
 			/*
 			 * There's a page table page here, but we wanted to
 			 * install a large page, so remove and free the page
@@ -754,7 +754,7 @@ int kvmppc_create_pte(struct kvm *kvm, pgd_t *pgtable, pte_t pte,
 		ret = 0;
 		goto out_unlock;
 	}
-	if (pmd_none(*pmd)) {
+	if (pmd_analne(*pmd)) {
 		if (!new_ptep)
 			goto out_unlock;
 		pmd_populate(kvm->mm, pmd, new_ptep);
@@ -854,7 +854,7 @@ int kvmppc_book3s_instantiate_page(struct kvm_vcpu *vcpu,
 		/* Call KVM generic code to do the slow-path check */
 		pfn = __gfn_to_pfn_memslot(memslot, gfn, false, false, NULL,
 					   writing, upgrade_p, NULL);
-		if (is_error_noslot_pfn(pfn))
+		if (is_error_analslot_pfn(pfn))
 			return -EFAULT;
 		page = NULL;
 		if (pfn_valid(pfn)) {
@@ -979,7 +979,7 @@ int kvmppc_book3s_radix_page_fault(struct kvm_vcpu *vcpu,
 	/* Get the corresponding memslot */
 	memslot = gfn_to_memslot(kvm, gfn);
 
-	/* No memslot means it's an emulated MMIO region */
+	/* Anal memslot means it's an emulated MMIO region */
 	if (!memslot || (memslot->flags & KVM_MEMSLOT_INVALID)) {
 		if (dsisr & (DSISR_PRTABLE_FAULT | DSISR_BADACCESS |
 			     DSISR_SET_RC)) {
@@ -1014,7 +1014,7 @@ int kvmppc_book3s_radix_page_fault(struct kvm_vcpu *vcpu,
 			dsisr &= ~DSISR_SET_RC;
 		spin_unlock(&kvm->mmu_lock);
 
-		if (!(dsisr & (DSISR_BAD_FAULT_64S | DSISR_NOHPTE |
+		if (!(dsisr & (DSISR_BAD_FAULT_64S | DSISR_ANALHPTE |
 			       DSISR_PROTFAULT | DSISR_SET_RC)))
 			return RESUME_GUEST;
 	}
@@ -1160,7 +1160,7 @@ long kvmppc_hv_get_dirty_log_radix(struct kvm *kvm,
 		npages = kvm_radix_test_clear_dirty(kvm, memslot, i);
 
 		/*
-		 * Note that if npages > 0 then i must be a multiple of npages,
+		 * Analte that if npages > 0 then i must be a multiple of npages,
 		 * since huge pages are only used to back the guest at guest
 		 * real addresses that are a multiple of their size.
 		 * Since we have at most one PTE covering any given guest
@@ -1199,7 +1199,7 @@ void kvmppc_radix_flush_memslot(struct kvm *kvm,
 		gpa += PAGE_SIZE;
 	}
 	/*
-	 * Increase the mmu notifier sequence number to prevent any page
+	 * Increase the mmu analtifier sequence number to prevent any page
 	 * fault that read the memslot earlier from writing a PTE.
 	 */
 	kvm->mmu_invalidate_seq++;
@@ -1247,7 +1247,7 @@ int kvmppc_init_vm_radix(struct kvm *kvm)
 {
 	kvm->arch.pgtable = pgd_alloc(kvm->mm);
 	if (!kvm->arch.pgtable)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
@@ -1272,24 +1272,24 @@ struct debugfs_radix_state {
 	u8		hdr;
 };
 
-static int debugfs_radix_open(struct inode *inode, struct file *file)
+static int debugfs_radix_open(struct ianalde *ianalde, struct file *file)
 {
-	struct kvm *kvm = inode->i_private;
+	struct kvm *kvm = ianalde->i_private;
 	struct debugfs_radix_state *p;
 
 	p = kzalloc(sizeof(*p), GFP_KERNEL);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	kvm_get_kvm(kvm);
 	p->kvm = kvm;
 	mutex_init(&p->mutex);
 	file->private_data = p;
 
-	return nonseekable_open(inode, file);
+	return analnseekable_open(ianalde, file);
 }
 
-static int debugfs_radix_release(struct inode *inode, struct file *file)
+static int debugfs_radix_release(struct ianalde *ianalde, struct file *file)
 {
 	struct debugfs_radix_state *p = file->private_data;
 
@@ -1477,14 +1477,14 @@ int kvmppc_radix_init(void)
 
 	kvm_pte_cache = kmem_cache_create("kvm-pte", size, size, 0, pte_ctor);
 	if (!kvm_pte_cache)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	size = sizeof(void *) << RADIX_PMD_INDEX_SIZE;
 
 	kvm_pmd_cache = kmem_cache_create("kvm-pmd", size, size, 0, pmd_ctor);
 	if (!kvm_pmd_cache) {
 		kmem_cache_destroy(kvm_pte_cache);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;

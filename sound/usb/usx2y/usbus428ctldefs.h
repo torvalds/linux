@@ -45,7 +45,7 @@ struct us428_ctls {
 	unsigned char	filters_elect;
 	unsigned char	select;
 	unsigned char	mute;
-	unsigned char	unknown;
+	unsigned char	unkanalwn;
 	unsigned char	wswitch;
 	unsigned char	wheel[5];
 };

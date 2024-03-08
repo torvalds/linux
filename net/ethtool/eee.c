@@ -33,7 +33,7 @@ static int eee_prepare_data(const struct ethnl_req_info *req_base,
 	int ret;
 
 	if (!dev->ethtool_ops->get_eee)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	ret = ethnl_ops_begin(dev);
 	if (ret < 0)
 		return ret;
@@ -124,7 +124,7 @@ ethnl_set_eee_validate(struct ethnl_req_info *req_info, struct genl_info *info)
 {
 	const struct ethtool_ops *ops = req_info->dev->ethtool_ops;
 
-	return ops->get_eee && ops->set_eee ? 1 : -EOPNOTSUPP;
+	return ops->get_eee && ops->set_eee ? 1 : -EOPANALTSUPP;
 }
 
 static int

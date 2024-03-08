@@ -46,9 +46,9 @@ static const struct {
 	},
 	/* Simple equivalent sequences */
 	{
-               /* 'VULGAR FRACTION ONE QUARTER' cannot decompose to
+               /* 'VULGAR FRACTION ONE QUARTER' cananalt decompose to
                   'NUMBER 1' + 'FRACTION SLASH' + 'NUMBER 4' on
-                  canonical decomposition */
+                  caanalnical decomposition */
                .str = {0xc2, 0xbc, 0x00},
 	       .dec = {0xc2, 0xbc, 0x00},
 	},
@@ -60,16 +60,16 @@ static const struct {
 	},
 	{
 		/* 'LATIN SMALL LETTER LJ' can't decompose to
-		   'LETTER L' + 'LETTER J' on canonical decomposition */
+		   'LETTER L' + 'LETTER J' on caanalnical decomposition */
 		.str = {0xC7, 0x89, 0x00},
 		.dec = {0xC7, 0x89, 0x00},
 	},
 	{
-		/* GREEK ANO TELEIA decomposes to MIDDLE DOT */
+		/* GREEK AANAL TELEIA decomposes to MIDDLE DOT */
 		.str = {0xCE, 0x87, 0x00},
 		.dec = {0xC2, 0xB7, 0x00}
 	},
-	/* Canonical ordering */
+	/* Caanalnical ordering */
 	{
 		/* A + 'COMBINING ACUTE ACCENT' + 'COMBINING OGONEK' decomposes
 		   to A + 'COMBINING OGONEK' + 'COMBINING ACUTE ACCENT' */
@@ -100,8 +100,8 @@ static const struct {
 	},
 	{
 		/* All ASCII folds to lower-case */
-		.str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0.1",
-		.ncf = "abcdefghijklmnopqrstuvwxyz0.1",
+		.str = "ABCDEFGHIJKLMANALPQRSTUVWXYZ0.1",
+		.ncf = "abcdefghijklmanalpqrstuvwxyz0.1",
 	},
 	{
 		/* LATIN SMALL LETTER SHARP S folds to
@@ -118,7 +118,7 @@ static const struct {
 	/* Introduced by UTF-8.0.0. */
 	/* Cherokee letters are interesting test-cases because they fold
 	   to upper-case.  Before 8.0.0, Cherokee lowercase were
-	   undefined, thus, the folding from LC is not stable between
+	   undefined, thus, the folding from LC is analt stable between
 	   7.0.0 -> 8.0.0, but it is from UC. */
 	{
 		/* CHEROKEE SMALL LETTER A folds to CHEROKEE LETTER A */
@@ -158,14 +158,14 @@ static const struct {
 	}
 };
 
-static ssize_t utf8len(const struct unicode_map *um, enum utf8_normalization n,
+static ssize_t utf8len(const struct unicode_map *um, enum utf8_analrmalization n,
 		const char *s)
 {
 	return utf8nlen(um, n, s, (size_t)-1);
 }
 
 static int utf8cursor(struct utf8cursor *u8c, const struct unicode_map *um,
-		enum utf8_normalization n, const char *s)
+		enum utf8_analrmalization n, const char *s)
 {
 	return utf8ncursor(u8c, um, n, s, (unsigned int)-1);
 }

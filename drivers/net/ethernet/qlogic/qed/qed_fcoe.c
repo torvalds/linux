@@ -18,7 +18,7 @@
 #include <linux/stddef.h>
 #include <linux/string.h>
 #include <linux/workqueue.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #define __PREVENT_DUMP_MEM_ARR__
@@ -119,7 +119,7 @@ qed_sp_fcoe_func_start(struct qed_hwfn *p_hwfn,
 	/* Sanity */
 	if (fcoe_pf_params->num_cqs > p_hwfn->hw_info.feat_num[QED_FCOE_CQ]) {
 		DP_ERR(p_hwfn,
-		       "Cannot satisfy CQ amount. CQs requested %d, CQs available %d. Aborting function start\n",
+		       "Cananalt satisfy CQ amount. CQs requested %d, CQs available %d. Aborting function start\n",
 		       fcoe_pf_params->num_cqs,
 		       p_hwfn->hw_info.feat_num[QED_FCOE_CQ]);
 		rc = -EINVAL;
@@ -137,7 +137,7 @@ qed_sp_fcoe_func_start(struct qed_hwfn *p_hwfn,
 	cxt_info.iid = dummy_cid;
 	rc = qed_cxt_get_cid_info(p_hwfn, &cxt_info);
 	if (rc) {
-		DP_NOTICE(p_hwfn, "Cannot find context info for dummy cid=%d\n",
+		DP_ANALTICE(p_hwfn, "Cananalt find context info for dummy cid=%d\n",
 			  dummy_cid);
 		goto err;
 	}
@@ -385,13 +385,13 @@ qed_fcoe_allocate_connection(struct qed_hwfn *p_hwfn,
 
 	p_conn = kzalloc(sizeof(*p_conn), GFP_KERNEL);
 	if (!p_conn)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	p_addr = dma_alloc_coherent(&p_hwfn->cdev->pdev->dev,
 				    QED_CHAIN_PAGE_SIZE,
 				    &p_conn->xferq_pbl_addr, GFP_KERNEL);
 	if (!p_addr)
-		goto nomem_pbl_xferq;
+		goto analmem_pbl_xferq;
 	p_conn->xferq_pbl_addr_virt_addr = p_addr;
 
 	for (i = 0; i < ARRAY_SIZE(p_conn->xferq_addr); i++) {
@@ -399,7 +399,7 @@ qed_fcoe_allocate_connection(struct qed_hwfn *p_hwfn,
 					    QED_CHAIN_PAGE_SIZE,
 					    &p_conn->xferq_addr[i], GFP_KERNEL);
 		if (!p_addr)
-			goto nomem_xferq;
+			goto analmem_xferq;
 		p_conn->xferq_addr_virt_addr[i] = p_addr;
 
 		p_addr = p_conn->xferq_pbl_addr_virt_addr;
@@ -410,7 +410,7 @@ qed_fcoe_allocate_connection(struct qed_hwfn *p_hwfn,
 				    QED_CHAIN_PAGE_SIZE,
 				    &p_conn->confq_pbl_addr, GFP_KERNEL);
 	if (!p_addr)
-		goto nomem_xferq;
+		goto analmem_xferq;
 	p_conn->confq_pbl_addr_virt_addr = p_addr;
 
 	for (i = 0; i < ARRAY_SIZE(p_conn->confq_addr); i++) {
@@ -418,7 +418,7 @@ qed_fcoe_allocate_connection(struct qed_hwfn *p_hwfn,
 					    QED_CHAIN_PAGE_SIZE,
 					    &p_conn->confq_addr[i], GFP_KERNEL);
 		if (!p_addr)
-			goto nomem_confq;
+			goto analmem_confq;
 		p_conn->confq_addr_virt_addr[i] = p_addr;
 
 		p_addr = p_conn->confq_pbl_addr_virt_addr;
@@ -429,7 +429,7 @@ qed_fcoe_allocate_connection(struct qed_hwfn *p_hwfn,
 	*p_out_conn = p_conn;
 	return 0;
 
-nomem_confq:
+analmem_confq:
 	dma_free_coherent(&p_hwfn->cdev->pdev->dev,
 			  QED_CHAIN_PAGE_SIZE,
 			  p_conn->confq_pbl_addr_virt_addr,
@@ -440,7 +440,7 @@ nomem_confq:
 					  QED_CHAIN_PAGE_SIZE,
 					  p_conn->confq_addr_virt_addr[i],
 					  p_conn->confq_addr[i]);
-nomem_xferq:
+analmem_xferq:
 	dma_free_coherent(&p_hwfn->cdev->pdev->dev,
 			  QED_CHAIN_PAGE_SIZE,
 			  p_conn->xferq_pbl_addr_virt_addr,
@@ -451,9 +451,9 @@ nomem_xferq:
 					  QED_CHAIN_PAGE_SIZE,
 					  p_conn->xferq_addr_virt_addr[i],
 					  p_conn->xferq_addr[i]);
-nomem_pbl_xferq:
+analmem_pbl_xferq:
 	kfree(p_conn);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void qed_fcoe_free_connection(struct qed_hwfn *p_hwfn,
@@ -511,7 +511,7 @@ static void __iomem *qed_fcoe_get_primary_bdq_prod(struct qed_hwfn *p_hwfn,
 					 MSTORM_SCSI_BDQ_EXT_PROD,
 					 RESC_START(p_hwfn, QED_BDQ), bdq_id);
 	} else {
-		DP_NOTICE(p_hwfn, "BDQ is not allocated!\n");
+		DP_ANALTICE(p_hwfn, "BDQ is analt allocated!\n");
 		return NULL;
 	}
 }
@@ -525,7 +525,7 @@ static void __iomem *qed_fcoe_get_secondary_bdq_prod(struct qed_hwfn *p_hwfn,
 					 TSTORM_SCSI_BDQ_EXT_PROD,
 					 RESC_START(p_hwfn, QED_BDQ), bdq_id);
 	} else {
-		DP_NOTICE(p_hwfn, "BDQ is not allocated!\n");
+		DP_ANALTICE(p_hwfn, "BDQ is analt allocated!\n");
 		return NULL;
 	}
 }
@@ -537,8 +537,8 @@ int qed_fcoe_alloc(struct qed_hwfn *p_hwfn)
 	/* Allocate LL2's set struct */
 	p_fcoe_info = kzalloc(sizeof(*p_fcoe_info), GFP_KERNEL);
 	if (!p_fcoe_info) {
-		DP_NOTICE(p_hwfn, "Failed to allocate qed_fcoe_info'\n");
-		return -ENOMEM;
+		DP_ANALTICE(p_hwfn, "Failed to allocate qed_fcoe_info'\n");
+		return -EANALMEM;
 	}
 	INIT_LIST_HEAD(&p_fcoe_info->free_list);
 
@@ -716,7 +716,7 @@ static int qed_fcoe_get_stats(struct qed_hwfn *p_hwfn,
 }
 
 struct qed_hash_fcoe_con {
-	struct hlist_node node;
+	struct hlist_analde analde;
 	struct qed_fcoe_conn *con;
 };
 
@@ -735,7 +735,7 @@ static int qed_fill_fcoe_dev_info(struct qed_dev *cdev,
 	    qed_fcoe_get_secondary_bdq_prod(hwfn, BDQ_ID_RQ);
 
 	info->wwpn = hwfn->mcp_info->func_info.wwn_port;
-	info->wwnn = hwfn->mcp_info->func_info.wwn_node;
+	info->wwnn = hwfn->mcp_info->func_info.wwn_analde;
 
 	info->num_cqs = FEAT_NUM(hwfn, QED_FCOE_CQ);
 
@@ -757,7 +757,7 @@ static struct qed_hash_fcoe_con *qed_fcoe_get_hash(struct qed_dev *cdev,
 	if (!(cdev->flags & QED_FLAG_STORAGE_STARTED))
 		return NULL;
 
-	hash_for_each_possible(cdev->connections, hash_con, node, handle) {
+	hash_for_each_possible(cdev->connections, hash_con, analde, handle) {
 		if (hash_con->con->icid == handle)
 			break;
 	}
@@ -774,13 +774,13 @@ static int qed_fcoe_stop(struct qed_dev *cdev)
 	int rc;
 
 	if (!(cdev->flags & QED_FLAG_STORAGE_STARTED)) {
-		DP_NOTICE(cdev, "fcoe already stopped\n");
+		DP_ANALTICE(cdev, "fcoe already stopped\n");
 		return 0;
 	}
 
 	if (!hash_empty(cdev->connections)) {
-		DP_NOTICE(cdev,
-			  "Can't stop fcoe - not all connections were returned\n");
+		DP_ANALTICE(cdev,
+			  "Can't stop fcoe - analt all connections were returned\n");
 		return -EINVAL;
 	}
 
@@ -802,14 +802,14 @@ static int qed_fcoe_start(struct qed_dev *cdev, struct qed_fcoe_tid *tasks)
 	int rc;
 
 	if (cdev->flags & QED_FLAG_STORAGE_STARTED) {
-		DP_NOTICE(cdev, "fcoe already started;\n");
+		DP_ANALTICE(cdev, "fcoe already started;\n");
 		return 0;
 	}
 
 	rc = qed_sp_fcoe_func_start(QED_AFFIN_HWFN(cdev), QED_SPQ_MODE_EBLOCK,
 				    NULL);
 	if (rc) {
-		DP_NOTICE(cdev, "Failed to start fcoe\n");
+		DP_ANALTICE(cdev, "Failed to start fcoe\n");
 		return rc;
 	}
 
@@ -821,15 +821,15 @@ static int qed_fcoe_start(struct qed_dev *cdev, struct qed_fcoe_tid *tasks)
 						       GFP_ATOMIC);
 
 		if (!tid_info) {
-			DP_NOTICE(cdev,
+			DP_ANALTICE(cdev,
 				  "Failed to allocate tasks information\n");
 			qed_fcoe_stop(cdev);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		rc = qed_cxt_get_tid_mem_info(QED_AFFIN_HWFN(cdev), tid_info);
 		if (rc) {
-			DP_NOTICE(cdev, "Failed to gather task information\n");
+			DP_ANALTICE(cdev, "Failed to gather task information\n");
 			qed_fcoe_stop(cdev);
 			kfree(tid_info);
 			return rc;
@@ -857,15 +857,15 @@ static int qed_fcoe_acquire_conn(struct qed_dev *cdev,
 	/* Allocate a hashed connection */
 	hash_con = kzalloc(sizeof(*hash_con), GFP_KERNEL);
 	if (!hash_con) {
-		DP_NOTICE(cdev, "Failed to allocate hashed connection\n");
-		return -ENOMEM;
+		DP_ANALTICE(cdev, "Failed to allocate hashed connection\n");
+		return -EANALMEM;
 	}
 
 	/* Acquire the connection */
 	rc = qed_fcoe_acquire_connection(QED_AFFIN_HWFN(cdev), NULL,
 					 &hash_con->con);
 	if (rc) {
-		DP_NOTICE(cdev, "Failed to acquire Connection\n");
+		DP_ANALTICE(cdev, "Failed to acquire Connection\n");
 		kfree(hash_con);
 		return rc;
 	}
@@ -873,7 +873,7 @@ static int qed_fcoe_acquire_conn(struct qed_dev *cdev,
 	/* Added the connection to hash table */
 	*handle = hash_con->con->icid;
 	*fw_cid = hash_con->con->fw_cid;
-	hash_add(cdev->connections, &hash_con->node, *handle);
+	hash_add(cdev->connections, &hash_con->analde, *handle);
 
 	if (p_doorbell)
 		*p_doorbell = qed_fcoe_get_db_addr(QED_AFFIN_HWFN(cdev),
@@ -888,12 +888,12 @@ static int qed_fcoe_release_conn(struct qed_dev *cdev, u32 handle)
 
 	hash_con = qed_fcoe_get_hash(cdev, handle);
 	if (!hash_con) {
-		DP_NOTICE(cdev, "Failed to find connection for handle %d\n",
+		DP_ANALTICE(cdev, "Failed to find connection for handle %d\n",
 			  handle);
 		return -EINVAL;
 	}
 
-	hlist_del(&hash_con->node);
+	hlist_del(&hash_con->analde);
 	qed_fcoe_release_connection(QED_AFFIN_HWFN(cdev), hash_con->con);
 	kfree(hash_con);
 
@@ -909,7 +909,7 @@ static int qed_fcoe_offload_conn(struct qed_dev *cdev,
 
 	hash_con = qed_fcoe_get_hash(cdev, handle);
 	if (!hash_con) {
-		DP_NOTICE(cdev, "Failed to find connection for handle %d\n",
+		DP_ANALTICE(cdev, "Failed to find connection for handle %d\n",
 			  handle);
 		return -EINVAL;
 	}
@@ -961,7 +961,7 @@ static int qed_fcoe_destroy_conn(struct qed_dev *cdev,
 
 	hash_con = qed_fcoe_get_hash(cdev, handle);
 	if (!hash_con) {
-		DP_NOTICE(cdev, "Failed to find connection for handle %d\n",
+		DP_ANALTICE(cdev, "Failed to find connection for handle %d\n",
 			  handle);
 		return -EINVAL;
 	}

@@ -131,8 +131,8 @@ static void sun4i_hdmi_mode_set(struct drm_encoder *encoder,
 	clk_set_rate(hdmi->tmds_clk, mode->crtc_clock * 1000);
 
 	/* Set input sync enable */
-	writel(SUN4I_HDMI_UNKNOWN_INPUT_SYNC,
-	       hdmi->base + SUN4I_HDMI_UNKNOWN_REG);
+	writel(SUN4I_HDMI_UNKANALWN_INPUT_SYNC,
+	       hdmi->base + SUN4I_HDMI_UNKANALWN_REG);
 
 	/*
 	 * Setup output pad (?) controls
@@ -196,7 +196,7 @@ static enum drm_mode_status sun4i_hdmi_mode_valid(struct drm_encoder *encoder,
 	    max_t(unsigned long, rounded_rate, rate) -
 	    min_t(unsigned long, rounded_rate, rate) < diff)
 		return MODE_OK;
-	return MODE_NOCLOCK;
+	return MODE_ANALCLOCK;
 }
 
 static const struct drm_encoder_helper_funcs sun4i_hdmi_helper_funcs = {
@@ -230,20 +230,20 @@ static int sun4i_hdmi_get_modes(struct drm_connector *connector)
 
 static struct i2c_adapter *sun4i_hdmi_get_ddc(struct device *dev)
 {
-	struct device_node *phandle, *remote;
+	struct device_analde *phandle, *remote;
 	struct i2c_adapter *ddc;
 
-	remote = of_graph_get_remote_node(dev->of_node, 1, -1);
+	remote = of_graph_get_remote_analde(dev->of_analde, 1, -1);
 	if (!remote)
 		return ERR_PTR(-EINVAL);
 
 	phandle = of_parse_phandle(remote, "ddc-i2c-bus", 0);
-	of_node_put(remote);
+	of_analde_put(remote);
 	if (!phandle)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
-	ddc = of_get_i2c_adapter_by_node(phandle);
-	of_node_put(phandle);
+	ddc = of_get_i2c_adapter_by_analde(phandle);
+	of_analde_put(phandle);
 	if (!ddc)
 		return ERR_PTR(-EPROBE_DEFER);
 
@@ -300,7 +300,7 @@ static void sun4i_hdmi_cec_pin_high(struct cec_adapter *adap)
 
 	/*
 	 * Stop driving the CEC pin, the pull up will take over
-	 * unless another CEC device is driving the pin low.
+	 * unless aanalther CEC device is driving the pin low.
 	 */
 	writel(0, hdmi->base + SUN4I_HDMI_CEC);
 }
@@ -439,7 +439,7 @@ static const struct sun4i_hdmi_variant sun6i_variant = {
 				  SUN4I_HDMI_PAD_CTRL1_PWSCK |
 				  SUN4I_HDMI_PAD_CTRL1_AMPCK_OPT |
 				  SUN4I_HDMI_PAD_CTRL1_AMP_OPT |
-				  SUN4I_HDMI_PAD_CTRL1_UNKNOWN,
+				  SUN4I_HDMI_PAD_CTRL1_UNKANALWN,
 	.pll_ctrl_init_val	= SUN4I_HDMI_PLL_CTRL_VCO_S(8) |
 				  SUN4I_HDMI_PLL_CTRL_CS(3) |
 				  SUN4I_HDMI_PLL_CTRL_CP_S(10) |
@@ -495,7 +495,7 @@ static int sun4i_hdmi_bind(struct device *dev, struct device *master,
 
 	hdmi = devm_kzalloc(dev, sizeof(*hdmi), GFP_KERNEL);
 	if (!hdmi)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev_set_drvdata(dev, hdmi);
 	hdmi->dev = dev;
 	hdmi->drv = drv;
@@ -598,7 +598,7 @@ static int sun4i_hdmi_bind(struct device *dev, struct device *master,
 	hdmi->ddc_i2c = sun4i_hdmi_get_ddc(dev);
 	if (IS_ERR(hdmi->ddc_i2c)) {
 		ret = PTR_ERR(hdmi->ddc_i2c);
-		if (ret == -ENODEV)
+		if (ret == -EANALDEV)
 			hdmi->ddc_i2c = NULL;
 		else
 			goto err_del_i2c_adapter;
@@ -614,7 +614,7 @@ static int sun4i_hdmi_bind(struct device *dev, struct device *master,
 	}
 
 	hdmi->encoder.possible_crtcs = drm_of_find_possible_crtcs(drm,
-								  dev->of_node);
+								  dev->of_analde);
 	if (!hdmi->encoder.possible_crtcs) {
 		ret = -EPROBE_DEFER;
 		goto err_put_ddc_i2c;
@@ -644,7 +644,7 @@ static int sun4i_hdmi_bind(struct device *dev, struct device *master,
 	cec_fill_conn_info_from_drm(&conn_info, &hdmi->connector);
 	cec_s_conn_info(hdmi->cec_adap, &conn_info);
 
-	/* There is no HPD interrupt, so we need to poll the controller */
+	/* There is anal HPD interrupt, so we need to poll the controller */
 	hdmi->connector.polled = DRM_CONNECTOR_POLL_CONNECT |
 		DRM_CONNECTOR_POLL_DISCONNECT;
 

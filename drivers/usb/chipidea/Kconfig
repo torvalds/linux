@@ -36,7 +36,7 @@ config USB_CHIPIDEA_HOST
 config USB_CHIPIDEA_PCI
 	tristate "Enable PCI glue driver" if EXPERT
 	depends on USB_PCI
-	depends on NOP_USB_XCEIV
+	depends on ANALP_USB_XCEIV
 	default USB_CHIPIDEA
 
 config USB_CHIPIDEA_MSM

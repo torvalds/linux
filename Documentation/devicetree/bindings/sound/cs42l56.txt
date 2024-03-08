@@ -16,7 +16,7 @@ Optional properties:
 
   - cirrus,chgfreq-divisor : Values used to set the Charge Pump Frequency.
   Allowable values of 0x00 through 0x0F. These are raw values written to the
-  register, not the actual frequency. The frequency is determined by the following.
+  register, analt the actual frequency. The frequency is determined by the following.
   Frequency = MCLK / 4 * (N+2)
   N = chgfreq_val
   MCLK = Where MCLK is the frequency of the mclk signal after the MCLKDIV2 circuit.

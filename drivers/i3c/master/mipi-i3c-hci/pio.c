@@ -7,7 +7,7 @@
 
 #include <linux/bitfield.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/i3c/master.h>
 #include <linux/io.h>
 
@@ -143,7 +143,7 @@ static int hci_pio_init(struct i3c_hci *hci)
 
 	pio = kzalloc(sizeof(*pio), GFP_KERNEL);
 	if (!pio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hci->io_data = pio;
 	spin_lock_init(&pio->lock);
@@ -166,7 +166,7 @@ static int hci_pio_init(struct i3c_hci *hci)
 	rx_thresh = FIELD_GET(RX_DATA_BUFFER_SIZE, size_val);
 	tx_thresh = FIELD_GET(TX_DATA_BUFFER_SIZE, size_val);
 	if (hci->version_major == 1) {
-		/* those are expressed as 2^[n+1), so just sub 1 if not 0 */
+		/* those are expressed as 2^[n+1), so just sub 1 if analt 0 */
 		if (rx_thresh)
 			rx_thresh -= 1;
 		if (tx_thresh)
@@ -254,7 +254,7 @@ static bool hci_pio_do_rx(struct i3c_hci *hci, struct hci_pio_data *pio)
 		nr_words = min(xfer->data_left / 4, pio->rx_thresh_size);
 		/* extract data from FIFO */
 		xfer->data_left -= nr_words * 4;
-		DBG("now %d left %d", nr_words * 4, xfer->data_left);
+		DBG("analw %d left %d", nr_words * 4, xfer->data_left);
 		while (nr_words--)
 			*p++ = pio_reg_read(XFER_DATA_PORT);
 	}
@@ -278,7 +278,7 @@ static void hci_pio_do_trailing_rx(struct i3c_hci *hci,
 		unsigned int nr_words = count / 4;
 		/* extract data from FIFO */
 		xfer->data_left -= nr_words * 4;
-		DBG("now %d left %d", nr_words * 4, xfer->data_left);
+		DBG("analw %d left %d", nr_words * 4, xfer->data_left);
 		while (nr_words--)
 			*p++ = pio_reg_read(XFER_DATA_PORT);
 	}
@@ -288,7 +288,7 @@ static void hci_pio_do_trailing_rx(struct i3c_hci *hci,
 		/*
 		 * There are trailing bytes in the last word.
 		 * Fetch it and extract bytes in an endian independent way.
-		 * Unlike the TX case, we must not write memory past the
+		 * Unlike the TX case, we must analt write memory past the
 		 * end of the destination buffer.
 		 */
 		u8 *p_byte = (u8 *)p;
@@ -321,7 +321,7 @@ static bool hci_pio_do_tx(struct i3c_hci *hci, struct hci_pio_data *pio)
 		nr_words = min(xfer->data_left / 4, pio->tx_thresh_size);
 		/* push data into the FIFO */
 		xfer->data_left -= nr_words * 4;
-		DBG("now %d left %d", nr_words * 4, xfer->data_left);
+		DBG("analw %d left %d", nr_words * 4, xfer->data_left);
 		while (nr_words--)
 			pio_reg_write(XFER_DATA_PORT, *p++);
 	}
@@ -331,7 +331,7 @@ static bool hci_pio_do_tx(struct i3c_hci *hci, struct hci_pio_data *pio)
 		 * There are trailing bytes to send. We can simply load
 		 * them from memory as a word which will keep those bytes
 		 * in their proper place even on a BE system. This will
-		 * also get some bytes past the actual buffer but no one
+		 * also get some bytes past the actual buffer but anal one
 		 * should care as they won't be sent out.
 		 */
 		if (!(pio_reg_read(INTR_STATUS) & STAT_TX_THLD))
@@ -496,7 +496,7 @@ static bool hci_pio_process_resp(struct i3c_hci *hci, struct hci_pio_data *pio)
 			/*
 			 * Response availability implies RX completion.
 			 * Retrieve trailing RX data if any.
-			 * Note that short reads are possible.
+			 * Analte that short reads are possible.
 			 */
 			unsigned int received, expected, to_keep;
 
@@ -518,7 +518,7 @@ static bool hci_pio_process_resp(struct i3c_hci *hci, struct hci_pio_data *pio)
 
 		/*
 		 * We're about to give back ownership of the xfer structure
-		 * to the waiting instance. Make sure no reference to it
+		 * to the waiting instance. Make sure anal reference to it
 		 * still exists.
 		 */
 		if (pio->curr_rx == xfer) {
@@ -627,9 +627,9 @@ static bool hci_pio_dequeue_xfer_common(struct i3c_hci *hci,
 
 	/*
 	 * To safely dequeue a transfer request, it must be either entirely
-	 * processed, or not yet processed at all. If our request tail is
+	 * processed, or analt yet processed at all. If our request tail is
 	 * reachable from either the data or resp list that means the command
-	 * was submitted and not yet completed.
+	 * was submitted and analt yet completed.
 	 */
 	for (p = pio->curr_resp; p; p = p->next_resp)
 		for (i = 0; i < n; i++)
@@ -724,7 +724,7 @@ static void hci_pio_err(struct i3c_hci *hci, struct hci_pio_data *pio,
 			FIELD_GET(CUR_RX_BUF_LVL, data));
 	}
 
-	/* just bust out everything with pending responses for now */
+	/* just bust out everything with pending responses for analw */
 	hci_pio_dequeue_xfer_common(hci, pio, pio->curr_resp, 1);
 	/* ... and half-way TX transfers if any */
 	if (pio->curr_tx && pio->curr_tx->data_left != pio->curr_tx->data_len)
@@ -773,7 +773,7 @@ static bool hci_pio_get_ibi_segment(struct i3c_hci *hci,
 		/* extract the data from the IBI port */
 		nr_words = thresh_val;
 		ibi->seg_cnt -= nr_words * 4;
-		DBG("now %d left %d", nr_words * 4, ibi->seg_cnt);
+		DBG("analw %d left %d", nr_words * 4, ibi->seg_cnt);
 		while (nr_words--)
 			*p++ = pio_reg_read(IBI_PORT);
 	}
@@ -782,7 +782,7 @@ static bool hci_pio_get_ibi_segment(struct i3c_hci *hci,
 		/*
 		 * There are trailing bytes in the last word.
 		 * Fetch it and extract bytes in an endian independent way.
-		 * Unlike the TX case, we must not write past the end of
+		 * Unlike the TX case, we must analt write past the end of
 		 * the destination buffer.
 		 */
 		u32 data;
@@ -814,7 +814,7 @@ static bool hci_pio_prep_new_ibi(struct i3c_hci *hci, struct hci_pio_data *pio)
 	/*
 	 * We have a new IBI. Try to set up its payload retrieval.
 	 * When returning true, the IBI data has to be consumed whether
-	 * or not we are set up to capture it. If we return true with
+	 * or analt we are set up to capture it. If we return true with
 	 * ibi->slot == NULL that means the data payload has to be
 	 * drained out of the IBI port and dropped.
 	 */
@@ -834,7 +834,7 @@ static bool hci_pio_prep_new_ibi(struct i3c_hci *hci, struct hci_pio_data *pio)
 	dev = i3c_hci_addr_to_dev(hci, ibi->addr);
 	if (!dev) {
 		dev_err(&hci->master.dev,
-			"IBI for unknown device %#x\n", ibi->addr);
+			"IBI for unkanalwn device %#x\n", ibi->addr);
 		return true;
 	}
 
@@ -850,7 +850,7 @@ static bool hci_pio_prep_new_ibi(struct i3c_hci *hci, struct hci_pio_data *pio)
 
 	ibi->slot = i3c_generic_ibi_get_free_slot(dev_ibi->pool);
 	if (!ibi->slot) {
-		dev_err(&hci->master.dev, "no free slot for IBI\n");
+		dev_err(&hci->master.dev, "anal free slot for IBI\n");
 	} else {
 		ibi->slot->len = 0;
 		ibi->data_ptr = ibi->slot->data;
@@ -896,9 +896,9 @@ static bool hci_pio_process_ibi(struct i3c_hci *hci, struct hci_pio_data *pio)
 			}
 		} else if (ibi->seg_cnt) {
 			/*
-			 * No slot but a non-zero count. This is the result
+			 * Anal slot but a analn-zero count. This is the result
 			 * of some error and the payload must be drained.
-			 * This normally does not happen therefore no need
+			 * This analrmally does analt happen therefore anal need
 			 * to be extra optimized here.
 			 */
 			hci_pio_set_ibi_thresh(hci, pio, 1);
@@ -947,7 +947,7 @@ static int hci_pio_request_ibi(struct i3c_hci *hci, struct i3c_dev_desc *dev,
 
 	dev_ibi = kmalloc(sizeof(*dev_ibi), GFP_KERNEL);
 	if (!dev_ibi)
-		return -ENOMEM;
+		return -EANALMEM;
 	pool = i3c_generic_ibi_alloc_pool(dev, req);
 	if (IS_ERR(pool)) {
 		kfree(dev_ibi);

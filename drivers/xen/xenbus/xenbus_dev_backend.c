@@ -19,12 +19,12 @@
 
 #include "xenbus.h"
 
-static int xenbus_backend_open(struct inode *inode, struct file *filp)
+static int xenbus_backend_open(struct ianalde *ianalde, struct file *filp)
 {
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	return nonseekable_open(inode, filp);
+	return analnseekable_open(ianalde, filp);
 }
 
 static long xenbus_alloc(domid_t domid)
@@ -34,10 +34,10 @@ static long xenbus_alloc(domid_t domid)
 
 	xs_suspend();
 
-	/* If xenstored_ready is nonzero, that means we have already talked to
+	/* If xenstored_ready is analnzero, that means we have already talked to
 	 * xenstore and set up watches. These watches will be restored by
 	 * xs_resume, but that requires communication over the port established
-	 * below that is not visible to anyone until the ioctl returns.
+	 * below that is analt visible to anyone until the ioctl returns.
 	 *
 	 * This can be resolved by splitting the ioctl into two parts
 	 * (postponing the resume until xenstored is active) but this is
@@ -53,7 +53,7 @@ static long xenbus_alloc(domid_t domid)
 	arg.dom = DOMID_SELF;
 	arg.remote_dom = domid;
 
-	err = HYPERVISOR_event_channel_op(EVTCHNOP_alloc_unbound, &arg);
+	err = HYPERVISOR_event_channel_op(EVTCHANALP_alloc_unbound, &arg);
 	if (err)
 		goto out_err;
 
@@ -81,11 +81,11 @@ static long xenbus_backend_ioctl(struct file *file, unsigned int cmd,
 	case IOCTL_XENBUS_BACKEND_EVTCHN:
 		if (xen_store_evtchn > 0)
 			return xen_store_evtchn;
-		return -ENODEV;
+		return -EANALDEV;
 	case IOCTL_XENBUS_BACKEND_SETUP:
 		return xenbus_alloc(data);
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 }
 
@@ -114,7 +114,7 @@ static const struct file_operations xenbus_backend_fops = {
 };
 
 static struct miscdevice xenbus_backend_dev = {
-	.minor = MISC_DYNAMIC_MINOR,
+	.mianalr = MISC_DYNAMIC_MIANALR,
 	.name = "xen/xenbus_backend",
 	.fops = &xenbus_backend_fops,
 };
@@ -124,11 +124,11 @@ static int __init xenbus_backend_init(void)
 	int err;
 
 	if (!xen_initial_domain())
-		return -ENODEV;
+		return -EANALDEV;
 
 	err = misc_register(&xenbus_backend_dev);
 	if (err)
-		pr_err("Could not register xenbus backend device\n");
+		pr_err("Could analt register xenbus backend device\n");
 	return err;
 }
 device_initcall(xenbus_backend_init);

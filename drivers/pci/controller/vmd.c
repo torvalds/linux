@@ -55,7 +55,7 @@ enum vmd_features {
 	VMD_FEAT_HAS_MEMBAR_SHADOW_VSCAP	= (1 << 2),
 
 	/*
-	 * Device may use MSI-X vector 0 for software triggering and will not
+	 * Device may use MSI-X vector 0 for software triggering and will analt
 	 * be used for MSI remapping
 	 */
 	VMD_FEAT_OFFSET_FIRST_VECTOR		= (1 << 3),
@@ -69,7 +69,7 @@ enum vmd_features {
 
 	/*
 	 * Enable ASPM on the PCIE root ports and set the default LTR of the
-	 * storage devices on platforms where these values are not configured by
+	 * storage devices on platforms where these values are analt configured by
 	 * BIOS. This is needed for laptops, which require these settings for
 	 * proper power management of the SoC.
 	 */
@@ -92,7 +92,7 @@ static DEFINE_RAW_SPINLOCK(list_lock);
 
 /**
  * struct vmd_irq - private data to map driver IRQ to the VMD shared vector
- * @node:	list item for parent traversal.
+ * @analde:	list item for parent traversal.
  * @irq:	back pointer to parent.
  * @enabled:	true if driver enabled IRQ
  * @virq:	the virtual IRQ value provided to the requesting driver.
@@ -101,7 +101,7 @@ static DEFINE_RAW_SPINLOCK(list_lock);
  * a VMD IRQ using this structure.
  */
 struct vmd_irq {
-	struct list_head	node;
+	struct list_head	analde;
 	struct vmd_irq_list	*irq;
 	bool			enabled;
 	unsigned int		virq;
@@ -182,7 +182,7 @@ static void vmd_irq_enable(struct irq_data *data)
 
 	raw_spin_lock_irqsave(&list_lock, flags);
 	WARN_ON(vmdirq->enabled);
-	list_add_tail_rcu(&vmdirq->node, &vmdirq->irq->irq_list);
+	list_add_tail_rcu(&vmdirq->analde, &vmdirq->irq->irq_list);
 	vmdirq->enabled = true;
 	raw_spin_unlock_irqrestore(&list_lock, flags);
 
@@ -198,14 +198,14 @@ static void vmd_irq_disable(struct irq_data *data)
 
 	raw_spin_lock_irqsave(&list_lock, flags);
 	if (vmdirq->enabled) {
-		list_del_rcu(&vmdirq->node);
+		list_del_rcu(&vmdirq->analde);
 		vmdirq->enabled = false;
 	}
 	raw_spin_unlock_irqrestore(&list_lock, flags);
 }
 
 /*
- * XXX: Stubbed until we develop acceptable way to not create conflicts with
+ * XXX: Stubbed until we develop acceptable way to analt create conflicts with
  * other devices sharing the same vector.
  */
 static int vmd_irq_set_affinity(struct irq_data *data,
@@ -271,9 +271,9 @@ static int vmd_msi_init(struct irq_domain *domain, struct msi_domain_info *info,
 	struct vmd_irq *vmdirq = kzalloc(sizeof(*vmdirq), GFP_KERNEL);
 
 	if (!vmdirq)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	INIT_LIST_HEAD(&vmdirq->node);
+	INIT_LIST_HEAD(&vmdirq->analde);
 	vmdirq->irq = vmd_next_irq(vmd, desc);
 	vmdirq->virq = virq;
 
@@ -343,16 +343,16 @@ static void vmd_set_msi_remapping(struct vmd_dev *vmd, bool enable)
 
 static int vmd_create_irq_domain(struct vmd_dev *vmd)
 {
-	struct fwnode_handle *fn;
+	struct fwanalde_handle *fn;
 
-	fn = irq_domain_alloc_named_id_fwnode("VMD-MSI", vmd->sysdata.domain);
+	fn = irq_domain_alloc_named_id_fwanalde("VMD-MSI", vmd->sysdata.domain);
 	if (!fn)
-		return -ENODEV;
+		return -EANALDEV;
 
 	vmd->irq_domain = pci_msi_create_irq_domain(fn, &vmd_msi_domain_info, NULL);
 	if (!vmd->irq_domain) {
-		irq_domain_free_fwnode(fn);
-		return -ENODEV;
+		irq_domain_free_fwanalde(fn);
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -368,10 +368,10 @@ static void vmd_remove_irq_domain(struct vmd_dev *vmd)
 		vmd_set_msi_remapping(vmd, true);
 
 	if (vmd->irq_domain) {
-		struct fwnode_handle *fn = vmd->irq_domain->fwnode;
+		struct fwanalde_handle *fn = vmd->irq_domain->fwanalde;
 
 		irq_domain_remove(vmd->irq_domain);
-		irq_domain_free_fwnode(fn);
+		irq_domain_free_fwanalde(fn);
 	}
 }
 
@@ -388,7 +388,7 @@ static void __iomem *vmd_cfg_addr(struct vmd_dev *vmd, struct pci_bus *bus,
 }
 
 /*
- * CPU may deadlock if config space is not serialized on some versions of this
+ * CPU may deadlock if config space is analt serialized on some versions of this
  * hardware, so all config space access is done under a spinlock.
  */
 static int vmd_pci_read(struct pci_bus *bus, unsigned int devfn, int reg,
@@ -422,7 +422,7 @@ static int vmd_pci_read(struct pci_bus *bus, unsigned int devfn, int reg,
 }
 
 /*
- * VMD h/w converts non-posted config writes to posted memory writes. The
+ * VMD h/w converts analn-posted config writes to posted memory writes. The
  * read-back in this function forces the completion so it returns only after
  * the config space was written, as expected.
  */
@@ -575,7 +575,7 @@ static void vmd_detach_resources(struct vmd_dev *vmd)
 }
 
 /*
- * VMD domains start at 0x10000 to not clash with ACPI _SEG domains.
+ * VMD domains start at 0x10000 to analt clash with ACPI _SEG domains.
  * Per ACPI r6.0, sec 6.5.6,  _SEG returns an integer, of which the lower
  * 16 bits are the PCI Segment Group (domain) number.  Other bits are
  * currently reserved.
@@ -603,14 +603,14 @@ static int vmd_get_phys_offsets(struct vmd_dev *vmd, bool native_hint,
 
 		ret = pci_read_config_dword(dev, PCI_REG_VMLOCK, &vmlock);
 		if (ret || PCI_POSSIBLE_ERROR(vmlock))
-			return -ENODEV;
+			return -EANALDEV;
 
 		if (MB2_SHADOW_EN(vmlock)) {
 			void __iomem *membar2;
 
 			membar2 = pci_iomap(dev, VMD_MEMBAR2, 0);
 			if (!membar2)
-				return -ENOMEM;
+				return -EANALMEM;
 			phys1 = readq(membar2 + MB2_SHADOW_OFFSET);
 			phys2 = readq(membar2 + MB2_SHADOW_OFFSET + 8);
 			pci_iounmap(dev, membar2);
@@ -664,9 +664,9 @@ static int vmd_get_bus_number_start(struct vmd_dev *vmd)
 			vmd->busn_start = 224;
 			break;
 		default:
-			pci_err(dev, "Unknown Bus Offset Setting (%d)\n",
+			pci_err(dev, "Unkanalwn Bus Offset Setting (%d)\n",
 				BUS_RESTRICT_CFG(reg));
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 
@@ -680,7 +680,7 @@ static irqreturn_t vmd_irq(int irq, void *data)
 	int idx;
 
 	idx = srcu_read_lock(&irqs->srcu);
-	list_for_each_entry_rcu(vmdirq, &irqs->irq_list, node)
+	list_for_each_entry_rcu(vmdirq, &irqs->irq_list, analde)
 		generic_handle_irq(vmdirq->virq);
 	srcu_read_unlock(&irqs->srcu, idx);
 
@@ -694,7 +694,7 @@ static int vmd_alloc_irqs(struct vmd_dev *vmd)
 
 	vmd->msix_count = pci_msix_vec_count(dev);
 	if (vmd->msix_count < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	vmd->msix_count = pci_alloc_irq_vectors(dev, vmd->first_vec + 1,
 						vmd->msix_count, PCI_IRQ_MSIX);
@@ -704,7 +704,7 @@ static int vmd_alloc_irqs(struct vmd_dev *vmd)
 	vmd->irqs = devm_kcalloc(&dev->dev, vmd->msix_count, sizeof(*vmd->irqs),
 				 GFP_KERNEL);
 	if (!vmd->irqs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < vmd->msix_count; i++) {
 		err = init_srcu_struct(&vmd->irqs[i].srcu);
@@ -714,7 +714,7 @@ static int vmd_alloc_irqs(struct vmd_dev *vmd)
 		INIT_LIST_HEAD(&vmd->irqs[i].irq_list);
 		vmd->irqs[i].virq = pci_irq_vector(dev, i);
 		err = devm_request_irq(&dev->dev, vmd->irqs[i].virq,
-				       vmd_irq, IRQF_NO_THREAD,
+				       vmd_irq, IRQF_ANAL_THREAD,
 				       vmd->name, &vmd->irqs[i]);
 		if (err)
 			return err;
@@ -758,21 +758,21 @@ static int vmd_pm_enable_quirk(struct pci_dev *pdev, void *userdata)
 		return 0;
 
 	/*
-	 * Skip if the max snoop LTR is non-zero, indicating BIOS has set it
-	 * so the LTR quirk is not needed.
+	 * Skip if the max sanalop LTR is analn-zero, indicating BIOS has set it
+	 * so the LTR quirk is analt needed.
 	 */
-	pci_read_config_dword(pdev, pos + PCI_LTR_MAX_SNOOP_LAT, &ltr_reg);
+	pci_read_config_dword(pdev, pos + PCI_LTR_MAX_SANALOP_LAT, &ltr_reg);
 	if (!!(ltr_reg & (PCI_LTR_VALUE_MASK | PCI_LTR_SCALE_MASK)))
 		return 0;
 
 	/*
 	 * Set the default values to the maximum required by the platform to
 	 * allow the deepest power management savings. Write as a DWORD where
-	 * the lower word is the max snoop latency and the upper word is the
-	 * max non-snoop latency.
+	 * the lower word is the max sanalop latency and the upper word is the
+	 * max analn-sanalop latency.
 	 */
 	ltr_reg = (ltr << 16) | ltr;
-	pci_write_config_dword(pdev, pos + PCI_LTR_MAX_SNOOP_LAT, ltr_reg);
+	pci_write_config_dword(pdev, pos + PCI_LTR_MAX_SANALOP_LAT, ltr_reg);
 	pci_info(pdev, "VMD: Default LTR value set by driver\n");
 
 	return 0;
@@ -830,13 +830,13 @@ static int vmd_enable_domain(struct vmd_dev *vmd, unsigned long features)
 	 * If the window is below 4GB, clear IORESOURCE_MEM_64 so we can
 	 * put 32-bit resources in the window.
 	 *
-	 * There's no hardware reason why a 64-bit window *couldn't*
+	 * There's anal hardware reason why a 64-bit window *couldn't*
 	 * contain a 32-bit resource, but pbus_size_mem() computes the
-	 * bridge window size assuming a 64-bit window will contain no
+	 * bridge window size assuming a 64-bit window will contain anal
 	 * 32-bit resources.  __pci_assign_resource() enforces that
 	 * artificial restriction to make sure everything will fit.
 	 *
-	 * The only way we could use a 64-bit non-prefetchable MEMBAR is
+	 * The only way we could use a 64-bit analn-prefetchable MEMBAR is
 	 * if its address is <4GB so that we can convert it to a 32-bit
 	 * resource.  To be visible to the host OS, all VMD endpoints must
 	 * be initially configured by platform BIOS, which includes setting
@@ -874,7 +874,7 @@ static int vmd_enable_domain(struct vmd_dev *vmd, unsigned long features)
 	if (sd->domain < 0)
 		return sd->domain;
 
-	sd->node = pcibus_to_node(vmd->dev->bus);
+	sd->analde = pcibus_to_analde(vmd->dev->bus);
 
 	/*
 	 * Currently MSI remapping must be enabled in guest passthrough mode
@@ -912,7 +912,7 @@ static int vmd_enable_domain(struct vmd_dev *vmd, unsigned long features)
 	if (!vmd->bus) {
 		pci_free_resource_list(&resources);
 		vmd_remove_irq_domain(vmd);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	vmd_copy_host_bridge_flags(pci_find_host_bridge(vmd->dev->bus),
@@ -930,14 +930,14 @@ static int vmd_enable_domain(struct vmd_dev *vmd, unsigned long features)
 	pci_scan_child_bus(vmd->bus);
 	vmd_domain_reset(vmd);
 
-	/* When Intel VMD is enabled, the OS does not discover the Root Ports
+	/* When Intel VMD is enabled, the OS does analt discover the Root Ports
 	 * owned by Intel VMD within the MMCFG space. pci_reset_bus() applies
 	 * a reset to the parent of the PCI device supplied as argument. This
 	 * is why we pass a child device, so the reset can be triggered at
 	 * the Intel bridge level and propagated to all the children in the
 	 * hierarchy.
 	 */
-	list_for_each_entry(child, &vmd->bus->children, node) {
+	list_for_each_entry(child, &vmd->bus->children, analde) {
 		if (!list_empty(&child->devices)) {
 			dev = list_first_entry(&child->devices,
 					       struct pci_dev, bus_list);
@@ -958,7 +958,7 @@ static int vmd_enable_domain(struct vmd_dev *vmd, unsigned long features)
 	 * and will fail pcie_bus_configure_settings() early. It can instead be
 	 * run on each of the real root ports.
 	 */
-	list_for_each_entry(child, &vmd->bus->children, node)
+	list_for_each_entry(child, &vmd->bus->children, analde)
 		pcie_bus_configure_settings(child);
 
 	pci_bus_add_devices(vmd->bus);
@@ -977,11 +977,11 @@ static int vmd_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	int err;
 
 	if (resource_size(&dev->resource[VMD_CFGBAR]) < (1 << 20))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vmd = devm_kzalloc(&dev->dev, sizeof(*vmd), GFP_KERNEL);
 	if (!vmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vmd->dev = dev;
 	vmd->instance = ida_alloc(&vmd_instance_ida, GFP_KERNEL);
@@ -991,7 +991,7 @@ static int vmd_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	vmd->name = devm_kasprintf(&dev->dev, GFP_KERNEL, "vmd%d",
 				   vmd->instance);
 	if (!vmd->name) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_release_instance;
 	}
 
@@ -1001,14 +1001,14 @@ static int vmd_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 	vmd->cfgbar = pcim_iomap(dev, VMD_CFGBAR, 0);
 	if (!vmd->cfgbar) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_release_instance;
 	}
 
 	pci_set_master(dev);
 	if (dma_set_mask_and_coherent(&dev->dev, DMA_BIT_MASK(64)) &&
 	    dma_set_mask_and_coherent(&dev->dev, DMA_BIT_MASK(32))) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto out_release_instance;
 	}
 
@@ -1081,7 +1081,7 @@ static int vmd_resume(struct device *dev)
 
 	for (i = 0; i < vmd->msix_count; i++) {
 		err = devm_request_irq(dev, vmd->irqs[i].virq,
-				       vmd_irq, IRQF_NO_THREAD,
+				       vmd_irq, IRQF_ANAL_THREAD,
 				       vmd->name, &vmd->irqs[i]);
 		if (err)
 			return err;

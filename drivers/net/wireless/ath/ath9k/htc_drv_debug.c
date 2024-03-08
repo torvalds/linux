@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -128,8 +128,8 @@ static ssize_t read_file_tgt_tx_stats(struct file *file, char __user *user_buf,
 			 be32_to_cpu(cmd_rsp.encap_fail));
 
 	len += scnprintf(buf + len, sizeof(buf) - len,
-			 "%20s : %10u\n", "NoBuf",
-			 be32_to_cpu(cmd_rsp.nobuf));
+			 "%20s : %10u\n", "AnalBuf",
+			 be32_to_cpu(cmd_rsp.analbuf));
 
 	if (len > sizeof(buf))
 		len = sizeof(buf);
@@ -166,8 +166,8 @@ static ssize_t read_file_tgt_rx_stats(struct file *file, char __user *user_buf,
 	ath9k_htc_ps_restore(priv);
 
 	len += scnprintf(buf + len, sizeof(buf) - len,
-			 "%20s : %10u\n", "NoBuf",
-			 be32_to_cpu(cmd_rsp.nobuf));
+			 "%20s : %10u\n", "AnalBuf",
+			 be32_to_cpu(cmd_rsp.analbuf));
 
 	len += scnprintf(buf + len, sizeof(buf) - len,
 			 "%20s : %10u\n", "HostSend",
@@ -258,7 +258,7 @@ static ssize_t read_file_skb_rx(struct file *file, char __user *user_buf,
 
 	buf = kzalloc(size, GFP_KERNEL);
 	if (buf == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	len += scnprintf(buf + len, size - len,
 			 "%20s : %10u\n", "SKBs allocated",
@@ -487,7 +487,7 @@ int ath9k_htc_init_debug(struct ath_hw *ah)
 	priv->debug.debugfs_phy = debugfs_create_dir(KBUILD_MODNAME,
 					     priv->hw->wiphy->debugfsdir);
 	if (IS_ERR(priv->debug.debugfs_phy))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ath9k_cmn_spectral_init_debug(&priv->spec_priv, priv->debug.debugfs_phy);
 

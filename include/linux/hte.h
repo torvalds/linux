@@ -3,7 +3,7 @@
 #ifndef __LINUX_HTE_H
 #define __LINUX_HTE_H
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 struct hte_chip;
 struct hte_device;
@@ -12,14 +12,14 @@ struct of_phandle_args;
 /**
  * enum hte_edge - HTE line edge flags.
  *
- * @HTE_EDGE_NO_SETUP: No edge setup. In this case consumer will setup edges,
+ * @HTE_EDGE_ANAL_SETUP: Anal edge setup. In this case consumer will setup edges,
  * for example during request irq call.
  * @HTE_RISING_EDGE_TS: Rising edge.
  * @HTE_FALLING_EDGE_TS: Falling edge.
  *
  */
 enum hte_edge {
-	HTE_EDGE_NO_SETUP = 1U << 0,
+	HTE_EDGE_ANAL_SETUP = 1U << 0,
 	HTE_RISING_EDGE_TS = 1U << 1,
 	HTE_FALLING_EDGE_TS = 1U << 2,
 };
@@ -66,7 +66,7 @@ struct hte_clk_info {
  * typedef hte_ts_cb_t - HTE timestamp data processing primary callback.
  *
  * The callback is used to push timestamp data to the client and it is
- * not allowed to sleep.
+ * analt allowed to sleep.
  *
  * @ts: HW timestamp data.
  * @data: Client supplied data.
@@ -119,13 +119,13 @@ struct hte_ts_desc {
  * struct hte_ops - HTE operations set by providers.
  *
  * @request: Hook for requesting a HTE timestamp. Returns 0 on success,
- * non-zero for failures.
+ * analn-zero for failures.
  * @release: Hook for releasing a HTE timestamp. Returns 0 on success,
- * non-zero for failures.
+ * analn-zero for failures.
  * @enable: Hook to enable the specified timestamp. Returns 0 on success,
- * non-zero for failures.
+ * analn-zero for failures.
  * @disable: Hook to disable specified timestamp. Returns 0 on success,
- * non-zero for failures.
+ * analn-zero for failures.
  * @get_clk_src_info: Hook to get the clock information the provider uses
  * to timestamp. Returns 0 for success and negative error code for failure. On
  * success HTE subsystem fills up provided struct hte_clk_info.
@@ -154,7 +154,7 @@ struct hte_ops {
  * @xlate_of: Callback which translates consumer supplied logical ids to
  * physical ids, return 0 for the success and negative for the failures.
  * It stores (between 0 to @nlines) in xlated_id parameter for the success.
- * @xlate_plat: Same as above but for the consumers with no DT node.
+ * @xlate_plat: Same as above but for the consumers with anal DT analde.
  * @match_from_linedata: Match HTE device using the line_data.
  * @of_hte_n_cells: Number of cells used to form the HTE specifier.
  * @gdev: HTE subsystem abstract device, internal to the HTE subsystem.
@@ -203,38 +203,38 @@ int hte_get_clk_src_info(const struct hte_ts_desc *desc,
 #else /* !CONFIG_HTE */
 static inline int devm_hte_register_chip(struct hte_chip *chip)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int hte_push_ts_ns(const struct hte_chip *chip,
 				 u32 xlated_id,
 				 const struct hte_ts_data *data)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int hte_init_line_attr(struct hte_ts_desc *desc, u32 line_id,
 				     unsigned long edge_flags,
 				     const char *name, void *data)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int hte_ts_get(struct device *dev, struct hte_ts_desc *desc,
 			     int index)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int hte_ts_put(struct hte_ts_desc *desc)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int hte_request_ts_ns(struct hte_ts_desc *desc, hte_ts_cb_t cb,
 				    hte_ts_sec_cb_t tcb, void *data)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int devm_hte_request_ts_ns(struct device *dev,
@@ -243,28 +243,28 @@ static inline int devm_hte_request_ts_ns(struct device *dev,
 					 hte_ts_sec_cb_t tcb,
 					 void *data)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int of_hte_req_count(struct device *dev)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int hte_enable_ts(struct hte_ts_desc *desc)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int hte_disable_ts(struct hte_ts_desc *desc)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int hte_get_clk_src_info(const struct hte_ts_desc *desc,
 				       struct hte_clk_info *ci)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 #endif /* !CONFIG_HTE */
 

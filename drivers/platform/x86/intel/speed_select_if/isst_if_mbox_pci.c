@@ -174,7 +174,7 @@ static int isst_if_mbox_probe(struct pci_dev *pdev,
 
 	punit_dev = devm_kzalloc(&pdev->dev, sizeof(*punit_dev), GFP_KERNEL);
 	if (!punit_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = pcim_enable_device(pdev);
 	if (ret)

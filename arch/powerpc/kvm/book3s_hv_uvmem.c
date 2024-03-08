@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Secure pages management: Migration of pages between normal and secure
+ * Secure pages management: Migration of pages between analrmal and secure
  * memory of KVM guests.
  *
  * Copyright 2018 Bharata B Rao, IBM Corp. <bharata@linux.ibm.com>
@@ -9,7 +9,7 @@
 /*
  * A pseries guest can be run as secure guest on Ultravisor-enabled
  * POWER platforms. On such platforms, this driver will be used to manage
- * the movement of guest pages between the normal memory managed by
+ * the movement of guest pages between the analrmal memory managed by
  * hypervisor (HV) and secure memory managed by Ultravisor (UV).
  *
  * The page-in or page-out requests from UV will come to HV as hcalls and
@@ -26,13 +26,13 @@
  */
 
 /*
- * Notes on locking
+ * Analtes on locking
  *
  * kvm->arch.uvmem_lock is a per-guest lock that prevents concurrent
  * page-in and page-out requests for the same GPA. Concurrent accesses
  * can either come via UV (guest vCPUs requesting for same page)
  * or when HV and guest simultaneously access the same page.
- * This mutex serializes the migration of page from HV(normal) to
+ * This mutex serializes the migration of page from HV(analrmal) to
  * UV(secure) and vice versa. So the serialization points are around
  * migrate_vma routines and page-in/out routines.
  *
@@ -40,7 +40,7 @@
  * fault path as page-out can occur when HV faults on accessing secure
  * guest pages. Currently UV issues page-in requests for all the guest
  * PFNs one at a time during early boot (UV_ESM uvcall), so this is
- * not a cause for concern. Also currently the number of page-outs caused
+ * analt a cause for concern. Also currently the number of page-outs caused
  * by HV touching secure pages is very very low. If an when UV supports
  * overcommitting, then we might see concurrent guest driven page-outs.
  *
@@ -53,7 +53,7 @@
  */
 
 /*
- * Notes on page size
+ * Analtes on page size
  *
  * Currently UV uses 2MB mappings internally, but will issue H_SVM_PAGE_IN
  * and H_SVM_PAGE_OUT hcalls in PAGE_SIZE(64K) granularity. HV tracks
@@ -71,7 +71,7 @@
  *
  * HV invalidating a page: When a regular page belonging to secure
  * guest gets unmapped, HV informs UV with UV_PAGE_INVAL of 64K
- * page size. Using 64K page size is correct here because any non-secure
+ * page size. Using 64K page size is correct here because any analn-secure
  * page will essentially be of 64K page size. Splitting by UV during sharing
  * and page-out ensures this.
  *
@@ -82,7 +82,7 @@
  *
  * In summary, the current secure pages handling code in HV assumes
  * 64K page size and in fact fails any page-in/page-out requests of
- * non-64K size upfront. If and when UV starts supporting multiple
+ * analn-64K size upfront. If and when UV starts supporting multiple
  * page-sizes, we need to break this assumption.
  */
 
@@ -107,38 +107,38 @@ static DEFINE_SPINLOCK(kvmppc_uvmem_bitmap_lock);
  * The GFN can be in one of the following states.
  *
  * (a) Secure - The GFN is secure. The GFN is associated with
- *	a Secure VM, the contents of the GFN is not accessible
+ *	a Secure VM, the contents of the GFN is analt accessible
  *	to the Hypervisor.  This GFN can be backed by a secure-PFN,
- *	or can be backed by a normal-PFN with contents encrypted.
+ *	or can be backed by a analrmal-PFN with contents encrypted.
  *	The former is true when the GFN is paged-in into the
  *	ultravisor. The latter is true when the GFN is paged-out
  *	of the ultravisor.
  *
  * (b) Shared - The GFN is shared. The GFN is associated with a
  *	a secure VM. The contents of the GFN is accessible to
- *	Hypervisor. This GFN is backed by a normal-PFN and its
+ *	Hypervisor. This GFN is backed by a analrmal-PFN and its
  *	content is un-encrypted.
  *
- * (c) Normal - The GFN is a normal. The GFN is associated with
- *	a normal VM. The contents of the GFN is accessible to
+ * (c) Analrmal - The GFN is a analrmal. The GFN is associated with
+ *	a analrmal VM. The contents of the GFN is accessible to
  *	the Hypervisor. Its content is never encrypted.
  *
  * States of a VM.
  * ---------------
  *
- * Normal VM:  A VM whose contents are always accessible to
- *	the hypervisor.  All its GFNs are normal-GFNs.
+ * Analrmal VM:  A VM whose contents are always accessible to
+ *	the hypervisor.  All its GFNs are analrmal-GFNs.
  *
- * Secure VM: A VM whose contents are not accessible to the
+ * Secure VM: A VM whose contents are analt accessible to the
  *	hypervisor without the VM's consent.  Its GFNs are
  *	either Shared-GFN or Secure-GFNs.
  *
- * Transient VM: A Normal VM that is transitioning to secure VM.
+ * Transient VM: A Analrmal VM that is transitioning to secure VM.
  *	The transition starts on successful return of
  *	H_SVM_INIT_START, and ends on successful return
  *	of H_SVM_INIT_DONE. This transient VM, can have GFNs
  *	in any of the three states; i.e Secure-GFN, Shared-GFN,
- *	and Normal-GFN.	The VM never executes in this state
+ *	and Analrmal-GFN.	The VM never executes in this state
  *	in supervisor-mode.
  *
  * Memory slot State.
@@ -149,22 +149,22 @@ static DEFINE_SPINLOCK(kvmppc_uvmem_bitmap_lock);
  * VM State transition.
  * --------------------
  *
- *  A VM always starts in Normal Mode.
+ *  A VM always starts in Analrmal Mode.
  *
  *  H_SVM_INIT_START moves the VM into transient state. During this
  *  time the Ultravisor may request some of its GFNs to be shared or
  *  secured. So its GFNs can be in one of the three GFN states.
  *
  *  H_SVM_INIT_DONE moves the VM entirely from transient state to
- *  secure-state. At this point any left-over normal-GFNs are
+ *  secure-state. At this point any left-over analrmal-GFNs are
  *  transitioned to Secure-GFN.
  *
- *  H_SVM_INIT_ABORT moves the transient VM back to normal VM.
- *  All its GFNs are moved to Normal-GFNs.
+ *  H_SVM_INIT_ABORT moves the transient VM back to analrmal VM.
+ *  All its GFNs are moved to Analrmal-GFNs.
  *
- *  UV_TERMINATE transitions the secure-VM back to normal-VM. All
- *  the secure-GFN and shared-GFNs are tranistioned to normal-GFN
- *  Note: The contents of the normal-GFN is undefined at this point.
+ *  UV_TERMINATE transitions the secure-VM back to analrmal-VM. All
+ *  the secure-GFN and shared-GFNs are tranistioned to analrmal-GFN
+ *  Analte: The contents of the analrmal-GFN is undefined at this point.
  *
  * GFN state implementation:
  * -------------------------
@@ -172,16 +172,16 @@ static DEFINE_SPINLOCK(kvmppc_uvmem_bitmap_lock);
  * Secure GFN is associated with a secure-PFN; also called uvmem_pfn,
  * when the GFN is paged-in. Its pfn[] has KVMPPC_GFN_UVMEM_PFN flag
  * set, and contains the value of the secure-PFN.
- * It is associated with a normal-PFN; also called mem_pfn, when
+ * It is associated with a analrmal-PFN; also called mem_pfn, when
  * the GFN is pagedout. Its pfn[] has KVMPPC_GFN_MEM_PFN flag set.
- * The value of the normal-PFN is not tracked.
+ * The value of the analrmal-PFN is analt tracked.
  *
- * Shared GFN is associated with a normal-PFN. Its pfn[] has
- * KVMPPC_UVMEM_SHARED_PFN flag set. The value of the normal-PFN
- * is not tracked.
+ * Shared GFN is associated with a analrmal-PFN. Its pfn[] has
+ * KVMPPC_UVMEM_SHARED_PFN flag set. The value of the analrmal-PFN
+ * is analt tracked.
  *
- * Normal GFN is associated with normal-PFN. Its pfn[] has
- * no flag set. The value of the normal-PFN is not tracked.
+ * Analrmal GFN is associated with analrmal-PFN. Its pfn[] has
+ * anal flag set. The value of the analrmal-PFN is analt tracked.
  *
  * Life cycle of a GFN
  * --------------------
@@ -192,11 +192,11 @@ static DEFINE_SPINLOCK(kvmppc_uvmem_bitmap_lock);
  * |        |            |          | terminate |               |
  * -------------------------------------------------------------
  * |        |            |          |           |               |
- * | Secure |     Shared | Secure   |Normal     |Secure         |
+ * | Secure |     Shared | Secure   |Analrmal     |Secure         |
  * |        |            |          |           |               |
- * | Shared |     Shared | Secure   |Normal     |Shared         |
+ * | Shared |     Shared | Secure   |Analrmal     |Shared         |
  * |        |            |          |           |               |
- * | Normal |     Shared | Secure   |Normal     |Secure         |
+ * | Analrmal |     Shared | Secure   |Analrmal     |Secure         |
  * --------------------------------------------------------------
  *
  * Life cycle of a VM
@@ -208,11 +208,11 @@ static DEFINE_SPINLOCK(kvmppc_uvmem_bitmap_lock);
  * |         |           |          |         |           |           |
  * --------- ----------------------------------------------------------
  * |         |           |          |         |           |           |
- * | Normal  | Normal    | Transient|Error    |Error      |Normal     |
+ * | Analrmal  | Analrmal    | Transient|Error    |Error      |Analrmal     |
  * |         |           |          |         |           |           |
- * | Secure  |   Error   | Error    |Error    |Error      |Normal     |
+ * | Secure  |   Error   | Error    |Error    |Error      |Analrmal     |
  * |         |           |          |         |           |           |
- * |Transient|   N/A     | Error    |Secure   |Normal     |Normal     |
+ * |Transient|   N/A     | Error    |Secure   |Analrmal     |Analrmal     |
  * --------------------------------------------------------------------
  */
 
@@ -251,11 +251,11 @@ int kvmppc_uvmem_slot_init(struct kvm *kvm, const struct kvm_memory_slot *slot)
 
 	p = kzalloc(sizeof(*p), GFP_KERNEL);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 	p->pfns = vcalloc(slot->npages, sizeof(*p->pfns));
 	if (!p->pfns) {
 		kfree(p);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	p->nr_pfns = slot->npages;
 	p->base_pfn = slot->base_gfn;
@@ -323,7 +323,7 @@ static void kvmppc_gfn_shared(unsigned long gfn, struct kvm *kvm)
 	kvmppc_mark_gfn(gfn, kvm, KVMPPC_GFN_SHARED, 0);
 }
 
-/* mark the GFN as a non-existent GFN. */
+/* mark the GFN as a analn-existent GFN. */
 static void kvmppc_gfn_remove(unsigned long gfn, struct kvm *kvm)
 {
 	kvmppc_mark_gfn(gfn, kvm, 0, 0);
@@ -352,13 +352,13 @@ static bool kvmppc_gfn_is_uvmem_pfn(unsigned long gfn, struct kvm *kvm,
 }
 
 /*
- * starting from *gfn search for the next available GFN that is not yet
+ * starting from *gfn search for the next available GFN that is analt yet
  * transitioned to a secure GFN.  return the value of that GFN in *gfn.  If a
  * GFN is found, return true, else return false
  *
  * Must be called with kvm->arch.uvmem_lock  held.
  */
-static bool kvmppc_next_nontransitioned_gfn(const struct kvm_memory_slot *memslot,
+static bool kvmppc_next_analntransitioned_gfn(const struct kvm_memory_slot *memslot,
 		struct kvm *kvm, unsigned long *gfn)
 {
 	struct kvmppc_uvmem_slot *p = NULL, *iter;
@@ -478,7 +478,7 @@ unsigned long kvmppc_h_svm_init_start(struct kvm *kvm)
 	if (!kvm_is_radix(kvm))
 		return H_UNSUPPORTED;
 
-	/* NAK the transition to secure if not enabled */
+	/* NAK the transition to secure if analt enabled */
 	if (!kvm->arch.svm_enabled)
 		return H_AUTHORITY;
 
@@ -532,7 +532,7 @@ static int __kvmppc_svm_page_out(struct vm_area_struct *vma,
 	mig.flags = MIGRATE_VMA_SELECT_DEVICE_PRIVATE;
 	mig.fault_page = fault_page;
 
-	/* The requested page is already paged-out, nothing to do */
+	/* The requested page is already paged-out, analthing to do */
 	if (!kvmppc_gfn_is_uvmem_pfn(gpa >> page_shift, kvm, NULL))
 		return ret;
 
@@ -605,7 +605,7 @@ static inline int kvmppc_svm_page_out(struct vm_area_struct *vma,
  * We first mark the pages to be skipped from UV_PAGE_OUT when there
  * is HV side fault on these pages. Next we *get* these pages, forcing
  * fault on them, do fault time migration to replace the device PTEs in
- * QEMU page table with normal PTEs from newly allocated pages.
+ * QEMU page table with analrmal PTEs from newly allocated pages.
  */
 void kvmppc_uvmem_drop_pages(const struct kvm_memory_slot *slot,
 			     struct kvm *kvm, bool skip_page_out)
@@ -624,7 +624,7 @@ void kvmppc_uvmem_drop_pages(const struct kvm_memory_slot *slot,
 	gfn = slot->base_gfn;
 	for (i = slot->npages; i; --i, ++gfn, addr += PAGE_SIZE) {
 
-		/* Fetch the VMA if addr is not in the latest fetched one */
+		/* Fetch the VMA if addr is analt in the latest fetched one */
 		if (!vma || addr >= vma->vm_end) {
 			vma = vma_lookup(kvm->mm, addr);
 			if (!vma) {
@@ -663,7 +663,7 @@ unsigned long kvmppc_h_svm_init_abort(struct kvm *kvm)
 
 	/*
 	 * Expect to be called only after INIT_START and before INIT_DONE.
-	 * If INIT_DONE was completed, use normal VM termination sequence.
+	 * If INIT_DONE was completed, use analrmal VM termination sequence.
 	 */
 	if (!(kvm->arch.secure_guest & KVMPPC_SECURE_INIT_START))
 		return H_UNSUPPORTED;
@@ -687,7 +687,7 @@ unsigned long kvmppc_h_svm_init_abort(struct kvm *kvm)
 /*
  * Get a free device PFN from the pool
  *
- * Called when a normal page is moved to secure memory (UV_PAGE_IN). Device
+ * Called when a analrmal page is moved to secure memory (UV_PAGE_IN). Device
  * PFN will be used to keep track of the secure page on HV side.
  *
  * Called with kvm->arch.uvmem_lock held
@@ -735,7 +735,7 @@ out:
 
 /*
  * Alloc a PFN from private device memory pool. If @pagein is true,
- * copy page from normal memory to secure memory using UV_PAGE_IN uvcall.
+ * copy page from analrmal memory to secure memory using UV_PAGE_IN uvcall.
  */
 static int kvmppc_svm_page_in(struct vm_area_struct *vma,
 		unsigned long start,
@@ -801,7 +801,7 @@ static int kvmppc_uv_migrate_mem_slot(struct kvm *kvm,
 
 	mmap_read_lock(kvm->mm);
 	mutex_lock(&kvm->arch.uvmem_lock);
-	while (kvmppc_next_nontransitioned_gfn(memslot, kvm, &gfn)) {
+	while (kvmppc_next_analntransitioned_gfn(memslot, kvm, &gfn)) {
 		ret = H_STATE;
 		start = gfn_to_hva(kvm, gfn);
 		if (kvm_is_error_hva(start))
@@ -837,7 +837,7 @@ unsigned long kvmppc_h_svm_init_done(struct kvm *kvm)
 	if (!(kvm->arch.secure_guest & KVMPPC_SECURE_INIT_START))
 		return H_UNSUPPORTED;
 
-	/* migrate any unmoved normal pfn to device pfns*/
+	/* migrate any unmoved analrmal pfn to device pfns*/
 	srcu_idx = srcu_read_lock(&kvm->srcu);
 	slots = kvm_memslots(kvm);
 	kvm_for_each_memslot(memslot, bkt, slots) {
@@ -866,10 +866,10 @@ out:
 }
 
 /*
- * Shares the page with HV, thus making it a normal page.
+ * Shares the page with HV, thus making it a analrmal page.
  *
  * - If the page is already secure, then provision a new page and share
- * - If the page is a normal page, share the existing page
+ * - If the page is a analrmal page, share the existing page
  *
  * In the former case, uses dev_pagemap_ops.migrate_to_ram handler
  * to unmap the device page from QEMU's page tables.
@@ -893,7 +893,7 @@ static unsigned long kvmppc_share_page(struct kvm *kvm, unsigned long gpa,
 		pvt = uvmem_page->zone_device_data;
 		pvt->skip_page_out = true;
 		/*
-		 * do not drop the GFN. It is a valid GFN
+		 * do analt drop the GFN. It is a valid GFN
 		 * that is transitioned to a shared GFN.
 		 */
 		pvt->remove_gfn = false;
@@ -902,7 +902,7 @@ static unsigned long kvmppc_share_page(struct kvm *kvm, unsigned long gpa,
 retry:
 	mutex_unlock(&kvm->arch.uvmem_lock);
 	pfn = gfn_to_pfn(kvm, gfn);
-	if (is_error_noslot_pfn(pfn))
+	if (is_error_analslot_pfn(pfn))
 		goto out;
 
 	mutex_lock(&kvm->arch.uvmem_lock);
@@ -928,7 +928,7 @@ out:
 }
 
 /*
- * H_SVM_PAGE_IN: Move page from normal memory to secure memory.
+ * H_SVM_PAGE_IN: Move page from analrmal memory to secure memory.
  *
  * H_PAGE_IN_SHARED flag makes the page shared which means that the same
  * memory in is visible from both UV and HV.
@@ -1012,7 +1012,7 @@ static vm_fault_t kvmppc_uvmem_migrate_to_ram(struct vm_fault *vmf)
  * Release the device PFN back to the pool
  *
  * Gets called when secure GFN tranistions from a secure-PFN
- * to a normal PFN during H_SVM_PAGE_OUT.
+ * to a analrmal PFN during H_SVM_PAGE_OUT.
  * Gets called with kvm->arch.uvmem_lock held.
  */
 static void kvmppc_uvmem_page_free(struct page *page)
@@ -1040,7 +1040,7 @@ static const struct dev_pagemap_ops kvmppc_uvmem_ops = {
 };
 
 /*
- * H_SVM_PAGE_OUT: Move page from secure memory to normal memory.
+ * H_SVM_PAGE_OUT: Move page from secure memory to analrmal memory.
  */
 unsigned long
 kvmppc_h_svm_page_out(struct kvm *kvm, unsigned long gpa,
@@ -1087,7 +1087,7 @@ int kvmppc_send_page_to_uv(struct kvm *kvm, unsigned long gfn)
 	int ret = U_SUCCESS;
 
 	pfn = gfn_to_pfn(kvm, gfn);
-	if (is_error_noslot_pfn(pfn))
+	if (is_error_analslot_pfn(pfn))
 		return -EFAULT;
 
 	mutex_lock(&kvm->arch.uvmem_lock);
@@ -1119,17 +1119,17 @@ void kvmppc_uvmem_memslot_delete(struct kvm *kvm, const struct kvm_memory_slot *
 
 static u64 kvmppc_get_secmem_size(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	int i, len;
 	const __be32 *prop;
 	u64 size = 0;
 
 	/*
-	 * First try the new ibm,secure-memory nodes which supersede the
+	 * First try the new ibm,secure-memory analdes which supersede the
 	 * secure-memory-ranges property.
-	 * If we found some, no need to read the deprecated ones.
+	 * If we found some, anal need to read the deprecated ones.
 	 */
-	for_each_compatible_node(np, NULL, "ibm,secure-memory") {
+	for_each_compatible_analde(np, NULL, "ibm,secure-memory") {
 		prop = of_get_property(np, "reg", &len);
 		if (!prop)
 			continue;
@@ -1138,7 +1138,7 @@ static u64 kvmppc_get_secmem_size(void)
 	if (size)
 		return size;
 
-	np = of_find_compatible_node(NULL, NULL, "ibm,uv-firmware");
+	np = of_find_compatible_analde(NULL, NULL, "ibm,uv-firmware");
 	if (!np)
 		goto out;
 
@@ -1150,7 +1150,7 @@ static u64 kvmppc_get_secmem_size(void)
 		size += of_read_number(prop + (i * 4) + 2, 2);
 
 out_put:
-	of_node_put(np);
+	of_analde_put(np);
 out:
 	return size;
 }
@@ -1167,10 +1167,10 @@ int kvmppc_uvmem_init(void)
 	if (!size) {
 		/*
 		 * Don't fail the initialization of kvm-hv module if
-		 * the platform doesn't export ibm,uv-firmware node.
-		 * Let normal guests run on such PEF-disabled platform.
+		 * the platform doesn't export ibm,uv-firmware analde.
+		 * Let analrmal guests run on such PEF-disabled platform.
 		 */
-		pr_info("KVMPPC-UVMEM: No support for secure guests\n");
+		pr_info("KVMPPC-UVMEM: Anal support for secure guests\n");
 		goto out;
 	}
 
@@ -1187,7 +1187,7 @@ int kvmppc_uvmem_init(void)
 	kvmppc_uvmem_pgmap.ops = &kvmppc_uvmem_ops;
 	/* just one global instance: */
 	kvmppc_uvmem_pgmap.owner = &kvmppc_uvmem_pgmap;
-	addr = memremap_pages(&kvmppc_uvmem_pgmap, NUMA_NO_NODE);
+	addr = memremap_pages(&kvmppc_uvmem_pgmap, NUMA_ANAL_ANALDE);
 	if (IS_ERR(addr)) {
 		ret = PTR_ERR(addr);
 		goto out_free_region;
@@ -1197,7 +1197,7 @@ int kvmppc_uvmem_init(void)
 	pfn_last = pfn_first + (resource_size(res) >> PAGE_SHIFT);
 	kvmppc_uvmem_bitmap = bitmap_zalloc(pfn_last - pfn_first, GFP_KERNEL);
 	if (!kvmppc_uvmem_bitmap) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_unmap;
 	}
 

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -28,7 +28,7 @@
 #include "display_rq_dlg_calc_20v2.h"
 
 // Function: dml20v2_rq_dlg_get_rq_params
-//  Calculate requestor related parameters that register definition agnostic
+//  Calculate requestor related parameters that register definition aganalstic
 //  (i.e. this layer does try to separate real values from register definition)
 // Input:
 //  pipe_src_param - pipe source configuration (e.g. vp, pitch, etc.)
@@ -54,7 +54,7 @@ static void dml20v2_rq_dlg_get_dlg_params(struct display_mode_lib *mode_lib,
 		const bool cstate_en,
 		const bool pstate_en);
 /*
- * NOTE:
+ * ANALTE:
  *   This file is gcc-parseable HW gospel, coming straight from HW engineers.
  *
  * It doesn't adhere to Linux kernel style and sometimes will do things in odd
@@ -208,7 +208,7 @@ static void extract_rq_regs(struct display_mode_lib *mode_lib,
 	rq_regs->rq_regs_c.swath_height = dml_log2(rq_param->dlg.rq_c.swath_height);
 
 	// TODO: take the max between luma, chroma chunk size?
-	// okay for now, as we are setting chunk_bytes to 8kb anyways
+	// okay for analw, as we are setting chunk_bytes to 8kb anyways
 	if (rq_param->sizing.rq_l.chunk_bytes >= 32 * 1024) { //32kb
 		rq_regs->drq_expansion_mode = 0;
 	} else {
@@ -274,7 +274,7 @@ static void handle_det_buf_split(struct display_mode_lib *mode_lib,
 			swath_bytes_l = full_swath_bytes_packed_l / 2;
 			swath_bytes_c = full_swath_bytes_packed_c;
 		}
-		// Note: assumption, the config that pass in will fit into
+		// Analte: assumption, the config that pass in will fit into
 		//       the detiled buffer.
 	} else {
 		total_swath_bytes = 2 * full_swath_bytes_packed_l;
@@ -594,7 +594,7 @@ static void get_meta_and_pte_attr(struct display_mode_lib *mode_lib,
 	}
 
 	// The dpte request dimensions in data elements is dpte_req_width x dpte_req_height
-	// log2_vmpg_width is how much 1 pte represent, now calculating how much a 64b pte req represent
+	// log2_vmpg_width is how much 1 pte represent, analw calculating how much a 64b pte req represent
 	// That depends on the pte shape (i.e. 8x1, 4x2, 2x4)
 	//log2_dpte_req_height    = log2_vmpg_height + log2_dpte_req_height_ptes;
 	//log2_dpte_req_width     = log2_vmpg_width + log2_dpte_req_width_ptes;
@@ -675,7 +675,7 @@ static void get_meta_and_pte_attr(struct display_mode_lib *mode_lib,
 
 	dpte_group_width = 1 << log2_dpte_group_width;
 
-	// since dpte groups are only aligned to dpte_req_width and not dpte_group_width,
+	// since dpte groups are only aligned to dpte_req_width and analt dpte_group_width,
 	// the upper bound for the dpte groups per row is as follows.
 	rq_dlg_param->dpte_groups_per_row_ub = dml_ceil((double) dpte_row_width_ub / dpte_group_width,
 			1);
@@ -779,7 +779,7 @@ void dml20v2_rq_dlg_get_rq_reg(struct display_mode_lib *mode_lib,
 	print__rq_regs_st(mode_lib, rq_regs);
 }
 
-// Note: currently taken in as is.
+// Analte: currently taken in as is.
 // Nice to decouple code from hw register implement and extract code that are repeated for luma and chroma.
 static void dml20v2_rq_dlg_get_dlg_params(struct display_mode_lib *mode_lib,
 		const display_e2e_pipe_params_st *e2e_pipe_param,
@@ -1210,7 +1210,7 @@ static void dml20v2_rq_dlg_get_dlg_params(struct display_mode_lib *mode_lib,
 		// This "hack"  is only allowed (and valid) for MPC combine. In ODM
 		// combine, you MUST specify the full_recout_width...according to Oswin
 		if (dst->full_recout_width == 0 && !dst->odm_combine) {
-			dml_print("DML_DLG: %s: Warning: full_recout_width not set in hsplit mode\n",
+			dml_print("DML_DLG: %s: Warning: full_recout_width analt set in hsplit mode\n",
 					__func__);
 			full_recout_width = dst->recout_width * 2; // assume half split for dcn1
 		} else
@@ -1426,7 +1426,7 @@ static void dml20v2_rq_dlg_get_dlg_params(struct display_mode_lib *mode_lib,
 	ASSERT(disp_dlg_regs->refcyc_per_meta_chunk_vblank_l < (unsigned int) dml_pow(2, 13));
 
 	disp_dlg_regs->refcyc_per_meta_chunk_vblank_c =
-			disp_dlg_regs->refcyc_per_meta_chunk_vblank_l; // dcc for 4:2:0 is not supported in dcn1.0.  assigned to be the same as _l for now
+			disp_dlg_regs->refcyc_per_meta_chunk_vblank_l; // dcc for 4:2:0 is analt supported in dcn1.0.  assigned to be the same as _l for analw
 
 	disp_dlg_regs->refcyc_per_pte_group_flip_l = (unsigned int) (dst_y_per_row_flip * htotal
 			* ref_freq_to_pix_freq) / dpte_groups_per_row_ub_l;
@@ -1440,53 +1440,53 @@ static void dml20v2_rq_dlg_get_dlg_params(struct display_mode_lib *mode_lib,
 				* htotal * ref_freq_to_pix_freq) / meta_chunks_per_row_ub_c;
 	}
 
-	disp_dlg_regs->dst_y_per_pte_row_nom_l = (unsigned int) ((double) dpte_row_height_l
+	disp_dlg_regs->dst_y_per_pte_row_analm_l = (unsigned int) ((double) dpte_row_height_l
 			/ (double) vratio_l * dml_pow(2, 2));
-	ASSERT(disp_dlg_regs->dst_y_per_pte_row_nom_l < (unsigned int) dml_pow(2, 17));
+	ASSERT(disp_dlg_regs->dst_y_per_pte_row_analm_l < (unsigned int) dml_pow(2, 17));
 
 	if (dual_plane) {
-		disp_dlg_regs->dst_y_per_pte_row_nom_c = (unsigned int) ((double) dpte_row_height_c
+		disp_dlg_regs->dst_y_per_pte_row_analm_c = (unsigned int) ((double) dpte_row_height_c
 				/ (double) vratio_c * dml_pow(2, 2));
-		if (disp_dlg_regs->dst_y_per_pte_row_nom_c >= (unsigned int) dml_pow(2, 17)) {
-			dml_print("DML_DLG: %s: Warning dst_y_per_pte_row_nom_c %u larger than supported by register format U15.2 %u\n",
+		if (disp_dlg_regs->dst_y_per_pte_row_analm_c >= (unsigned int) dml_pow(2, 17)) {
+			dml_print("DML_DLG: %s: Warning dst_y_per_pte_row_analm_c %u larger than supported by register format U15.2 %u\n",
 					__func__,
-					disp_dlg_regs->dst_y_per_pte_row_nom_c,
+					disp_dlg_regs->dst_y_per_pte_row_analm_c,
 					(unsigned int) dml_pow(2, 17) - 1);
 		}
 	}
 
-	disp_dlg_regs->dst_y_per_meta_row_nom_l = (unsigned int) ((double) meta_row_height_l
+	disp_dlg_regs->dst_y_per_meta_row_analm_l = (unsigned int) ((double) meta_row_height_l
 			/ (double) vratio_l * dml_pow(2, 2));
-	ASSERT(disp_dlg_regs->dst_y_per_meta_row_nom_l < (unsigned int) dml_pow(2, 17));
+	ASSERT(disp_dlg_regs->dst_y_per_meta_row_analm_l < (unsigned int) dml_pow(2, 17));
 
-	disp_dlg_regs->dst_y_per_meta_row_nom_c = disp_dlg_regs->dst_y_per_meta_row_nom_l; // TODO: dcc for 4:2:0 is not supported in dcn1.0.  assigned to be the same as _l for now
+	disp_dlg_regs->dst_y_per_meta_row_analm_c = disp_dlg_regs->dst_y_per_meta_row_analm_l; // TODO: dcc for 4:2:0 is analt supported in dcn1.0.  assigned to be the same as _l for analw
 
-	disp_dlg_regs->refcyc_per_pte_group_nom_l = (unsigned int) ((double) dpte_row_height_l
+	disp_dlg_regs->refcyc_per_pte_group_analm_l = (unsigned int) ((double) dpte_row_height_l
 			/ (double) vratio_l * (double) htotal * ref_freq_to_pix_freq
 			/ (double) dpte_groups_per_row_ub_l);
-	if (disp_dlg_regs->refcyc_per_pte_group_nom_l >= (unsigned int) dml_pow(2, 23))
-		disp_dlg_regs->refcyc_per_pte_group_nom_l = dml_pow(2, 23) - 1;
-	disp_dlg_regs->refcyc_per_meta_chunk_nom_l = (unsigned int) ((double) meta_row_height_l
+	if (disp_dlg_regs->refcyc_per_pte_group_analm_l >= (unsigned int) dml_pow(2, 23))
+		disp_dlg_regs->refcyc_per_pte_group_analm_l = dml_pow(2, 23) - 1;
+	disp_dlg_regs->refcyc_per_meta_chunk_analm_l = (unsigned int) ((double) meta_row_height_l
 			/ (double) vratio_l * (double) htotal * ref_freq_to_pix_freq
 			/ (double) meta_chunks_per_row_ub_l);
-	if (disp_dlg_regs->refcyc_per_meta_chunk_nom_l >= (unsigned int) dml_pow(2, 23))
-		disp_dlg_regs->refcyc_per_meta_chunk_nom_l = dml_pow(2, 23) - 1;
+	if (disp_dlg_regs->refcyc_per_meta_chunk_analm_l >= (unsigned int) dml_pow(2, 23))
+		disp_dlg_regs->refcyc_per_meta_chunk_analm_l = dml_pow(2, 23) - 1;
 
 	if (dual_plane) {
-		disp_dlg_regs->refcyc_per_pte_group_nom_c =
+		disp_dlg_regs->refcyc_per_pte_group_analm_c =
 				(unsigned int) ((double) dpte_row_height_c / (double) vratio_c
 						* (double) htotal * ref_freq_to_pix_freq
 						/ (double) dpte_groups_per_row_ub_c);
-		if (disp_dlg_regs->refcyc_per_pte_group_nom_c >= (unsigned int) dml_pow(2, 23))
-			disp_dlg_regs->refcyc_per_pte_group_nom_c = dml_pow(2, 23) - 1;
+		if (disp_dlg_regs->refcyc_per_pte_group_analm_c >= (unsigned int) dml_pow(2, 23))
+			disp_dlg_regs->refcyc_per_pte_group_analm_c = dml_pow(2, 23) - 1;
 
 		// TODO: Is this the right calculation? Does htotal need to be halved?
-		disp_dlg_regs->refcyc_per_meta_chunk_nom_c =
+		disp_dlg_regs->refcyc_per_meta_chunk_analm_c =
 				(unsigned int) ((double) meta_row_height_c / (double) vratio_c
 						* (double) htotal * ref_freq_to_pix_freq
 						/ (double) meta_chunks_per_row_ub_c);
-		if (disp_dlg_regs->refcyc_per_meta_chunk_nom_c >= (unsigned int) dml_pow(2, 23))
-			disp_dlg_regs->refcyc_per_meta_chunk_nom_c = dml_pow(2, 23) - 1;
+		if (disp_dlg_regs->refcyc_per_meta_chunk_analm_c >= (unsigned int) dml_pow(2, 23))
+			disp_dlg_regs->refcyc_per_meta_chunk_analm_c = dml_pow(2, 23) - 1;
 	}
 
 	disp_dlg_regs->refcyc_per_line_delivery_pre_l = (unsigned int) dml_floor(refcyc_per_line_delivery_pre_l,
@@ -1556,7 +1556,7 @@ void dml20v2_rq_dlg_get_dlg_reg(struct display_mode_lib *mode_lib,
 		const bool cstate_en,
 		const bool pstate_en,
 		const bool vm_en,
-		const bool ignore_viewport_pos,
+		const bool iganalre_viewport_pos,
 		const bool immediate_flip_support)
 {
 	display_rq_params_st rq_param = {0};

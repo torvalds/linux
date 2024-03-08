@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/socket.h>
 #include <linux/skbuff.h>
 #include <linux/ip.h>
@@ -32,7 +32,7 @@ struct fou {
 	struct rcu_head rcu;
 };
 
-#define FOU_F_REMCSUM_NOPARTIAL BIT(0)
+#define FOU_F_REMCSUM_ANALPARTIAL BIT(0)
 
 struct fou_cfg {
 	u16 type;
@@ -89,7 +89,7 @@ drop:
 
 static struct guehdr *gue_remcsum(struct sk_buff *skb, struct guehdr *guehdr,
 				  void *data, size_t hdrlen, u8 ipproto,
-				  bool nopartial)
+				  bool analpartial)
 {
 	__be16 *pd = data;
 	size_t start = ntohs(pd[0]);
@@ -105,14 +105,14 @@ static struct guehdr *gue_remcsum(struct sk_buff *skb, struct guehdr *guehdr,
 	guehdr = (struct guehdr *)&udp_hdr(skb)[1];
 
 	skb_remcsum_process(skb, (void *)guehdr + hdrlen,
-			    start, offset, nopartial);
+			    start, offset, analpartial);
 
 	return guehdr;
 }
 
 static int gue_control_message(struct sk_buff *skb, struct guehdr *guehdr)
 {
-	/* No support yet */
+	/* Anal support yet */
 	kfree_skb(skb);
 	return 0;
 }
@@ -185,7 +185,7 @@ static int gue_udp_recv(struct sock *sk, struct sk_buff *skb)
 		ipv6_hdr(skb)->payload_len =
 		    htons(ntohs(ipv6_hdr(skb)->payload_len) - len);
 
-	/* Pull csum through the guehdr now . This can be used if
+	/* Pull csum through the guehdr analw . This can be used if
 	 * there is a remote checksum offload.
 	 */
 	skb_postpull_rcsum(skb, udp_hdr(skb), len);
@@ -201,7 +201,7 @@ static int gue_udp_recv(struct sock *sk, struct sk_buff *skb)
 			guehdr = gue_remcsum(skb, guehdr, data + doffset,
 					     hdrlen, guehdr->proto_ctype,
 					     !!(fou->flags &
-						FOU_F_REMCSUM_NOPARTIAL));
+						FOU_F_REMCSUM_ANALPARTIAL));
 			if (!guehdr)
 				goto drop;
 
@@ -265,7 +265,7 @@ static int fou_gro_complete(struct sock *sk, struct sk_buff *skb,
 	const struct net_offload __rcu **offloads;
 	u8 proto = fou_from_sock(sk)->protocol;
 	const struct net_offload *ops;
-	int err = -ENOSYS;
+	int err = -EANALSYS;
 
 	offloads = NAPI_GRO_CB(skb)->is_ipv6 ? inet6_offloads : inet_offloads;
 	ops = rcu_dereference(offloads[proto]);
@@ -283,7 +283,7 @@ out:
 static struct guehdr *gue_gro_remcsum(struct sk_buff *skb, unsigned int off,
 				      struct guehdr *guehdr, void *data,
 				      size_t hdrlen, struct gro_remcsum *grc,
-				      bool nopartial)
+				      bool analpartial)
 {
 	__be16 *pd = data;
 	size_t start = ntohs(pd[0]);
@@ -296,7 +296,7 @@ static struct guehdr *gue_gro_remcsum(struct sk_buff *skb, unsigned int off,
 		return NULL;
 
 	guehdr = skb_gro_remcsum_process(skb, (void *)guehdr, off, hdrlen,
-					 start, offset, grc, nopartial);
+					 start, offset, grc, analpartial);
 
 	skb->remcsum_offload = 1;
 
@@ -379,7 +379,7 @@ static struct sk_buff *gue_gro_receive(struct sock *sk,
 			guehdr = gue_gro_remcsum(skb, off, guehdr,
 						 data + doffset, hdrlen, &grc,
 						 !!(fou->flags &
-						    FOU_F_REMCSUM_NOPARTIAL));
+						    FOU_F_REMCSUM_ANALPARTIAL));
 
 			if (!guehdr)
 				goto out;
@@ -452,7 +452,7 @@ static int gue_gro_complete(struct sock *sk, struct sk_buff *skb, int nhoff)
 	const struct net_offload *ops;
 	unsigned int guehlen = 0;
 	u8 proto;
-	int err = -ENOENT;
+	int err = -EANALENT;
 
 	switch (guehdr->version) {
 	case 0:
@@ -565,7 +565,7 @@ static int fou_create(struct net *net, struct fou_cfg *cfg,
 	/* Allocate FOU port structure */
 	fou = kzalloc(sizeof(*fou), GFP_KERNEL);
 	if (!fou) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto error;
 	}
 
@@ -664,7 +664,7 @@ static int parse_nl_config(struct genl_info *info,
 			cfg->udp_config.ipv6_v6only = 1;
 			break;
 		default:
-			return -EAFNOSUPPORT;
+			return -EAFANALSUPPORT;
 		}
 
 		cfg->udp_config.family = family;
@@ -681,8 +681,8 @@ static int parse_nl_config(struct genl_info *info,
 	if (info->attrs[FOU_ATTR_TYPE])
 		cfg->type = nla_get_u8(info->attrs[FOU_ATTR_TYPE]);
 
-	if (info->attrs[FOU_ATTR_REMCSUM_NOPARTIAL])
-		cfg->flags |= FOU_F_REMCSUM_NOPARTIAL;
+	if (info->attrs[FOU_ATTR_REMCSUM_ANALPARTIAL])
+		cfg->flags |= FOU_F_REMCSUM_ANALPARTIAL;
 
 	if (cfg->udp_config.family == AF_INET) {
 		if (info->attrs[FOU_ATTR_LOCAL_V4]) {
@@ -771,8 +771,8 @@ static int fou_fill_info(struct fou *fou, struct sk_buff *msg)
 	    nla_put_s32(msg, FOU_ATTR_IFINDEX, sk->sk_bound_dev_if))
 		return -1;
 
-	if (fou->flags & FOU_F_REMCSUM_NOPARTIAL)
-		if (nla_put_flag(msg, FOU_ATTR_REMCSUM_NOPARTIAL))
+	if (fou->flags & FOU_F_REMCSUM_ANALPARTIAL)
+		if (nla_put_flag(msg, FOU_ATTR_REMCSUM_ANALPARTIAL))
 			return -1;
 
 	if (fou->sock->sk->sk_family == AF_INET) {
@@ -802,7 +802,7 @@ static int fou_dump_info(struct fou *fou, u32 portid, u32 seq,
 
 	hdr = genlmsg_put(skb, portid, seq, &fou_nl_family, flags, cmd);
 	if (!hdr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (fou_fill_info(fou, skb) < 0)
 		goto nla_put_failure;
@@ -839,7 +839,7 @@ int fou_nl_get_doit(struct sk_buff *skb, struct genl_info *info)
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = -ESRCH;
 	mutex_lock(&fn->fou_lock);
@@ -997,7 +997,7 @@ int __gue_build_header(struct sk_buff *skb, struct ip_tunnel_encap *e,
 			pd[1] = htons(csum_start + skb->csum_offset);
 
 			if (!skb_is_gso(skb)) {
-				skb->ip_summed = CHECKSUM_NONE;
+				skb->ip_summed = CHECKSUM_ANALNE;
 				skb->encapsulation = 0;
 			}
 
@@ -1075,7 +1075,7 @@ static int gue_err_proto_handler(int proto, struct sk_buff *skb, u32 info)
 			return 0;
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static int gue_err(struct sk_buff *skb, u32 info)
@@ -1108,16 +1108,16 @@ static int gue_err(struct sk_buff *skb, u32 info)
 			goto out;
 #endif
 		default:
-			ret = -EOPNOTSUPP;
+			ret = -EOPANALTSUPP;
 			goto out;
 		}
 	}
 	default: /* Undefined version */
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (guehdr->control)
-		return -ENOENT;
+		return -EANALENT;
 
 	optlen = guehdr->hlen << 2;
 
@@ -1134,7 +1134,7 @@ static int gue_err(struct sk_buff *skb, u32 info)
 	 */
 	if (guehdr->proto_ctype == IPPROTO_UDP ||
 	    guehdr->proto_ctype == IPPROTO_UDPLITE)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	skb_set_transport_header(skb, -(int)sizeof(struct icmphdr));
 	ret = gue_err_proto_handler(guehdr->proto_ctype, skb, info);

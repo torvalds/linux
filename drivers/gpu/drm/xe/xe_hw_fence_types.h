@@ -37,7 +37,7 @@ struct xe_hw_fence_irq {
  * struct xe_hw_fence_ctx - hardware fence context
  *
  * The context for a hardware fence. 1 to 1 relationship with xe_engine. Points
- * to a xe_hw_fence_irq, maintains serial seqno.
+ * to a xe_hw_fence_irq, maintains serial seqanal.
  */
 struct xe_hw_fence_ctx {
 	/** @gt: graphics tile of hardware fence context */
@@ -46,8 +46,8 @@ struct xe_hw_fence_ctx {
 	struct xe_hw_fence_irq *irq;
 	/** @dma_fence_ctx: dma fence context for hardware fence */
 	u64 dma_fence_ctx;
-	/** @next_seqno: next seqno for hardware fence */
-	u32 next_seqno;
+	/** @next_seqanal: next seqanal for hardware fence */
+	u32 next_seqanal;
 	/** @name: name of hardware fence context */
 	char name[MAX_FENCE_NAME_LEN];
 };
@@ -55,16 +55,16 @@ struct xe_hw_fence_ctx {
 /**
  * struct xe_hw_fence - hardware fence
  *
- * Used to indicate a xe_sched_job is complete via a seqno written to memory.
- * Signals on error or seqno past.
+ * Used to indicate a xe_sched_job is complete via a seqanal written to memory.
+ * Signals on error or seqanal past.
  */
 struct xe_hw_fence {
 	/** @dma: base dma fence for hardware fence context */
 	struct dma_fence dma;
 	/** @ctx: hardware fence context */
 	struct xe_hw_fence_ctx *ctx;
-	/** @seqno_map: I/O map for seqno */
-	struct iosys_map seqno_map;
+	/** @seqanal_map: I/O map for seqanal */
+	struct iosys_map seqanal_map;
 	/** @irq_link: Link in struct xe_hw_fence_irq.pending */
 	struct list_head irq_link;
 };

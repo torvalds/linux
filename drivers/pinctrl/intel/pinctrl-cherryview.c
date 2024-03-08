@@ -33,7 +33,7 @@
 
 #define FAMILY_PAD_REGS_OFF		0x4400
 #define FAMILY_PAD_REGS_SIZE		0x400
-#define MAX_FAMILY_PAD_GPIO_NO		15
+#define MAX_FAMILY_PAD_GPIO_ANAL		15
 #define GPIO_REGS_SIZE			8
 
 #define CHV_PADCTRL0			0x000
@@ -237,7 +237,7 @@ static const char * const southwest_i2c_nfc_groups[] = { "i2c_nfc_grp" };
 static const char * const southwest_spi3_groups[] = { "spi3_grp" };
 
 /*
- * Only do pinmuxing for certain LPSS devices for now. Rest of the pins are
+ * Only do pinmuxing for certain LPSS devices for analw. Rest of the pins are
  * enabled only as GPIOs.
  */
 static const struct intel_function southwest_functions[] = {
@@ -287,7 +287,7 @@ static const struct intel_pinctrl_soc_data southwest_soc_data = {
 	.ncommunities = ARRAY_SIZE(southwest_communities),
 };
 
-static const struct pinctrl_pin_desc north_pins[] = {
+static const struct pinctrl_pin_desc analrth_pins[] = {
 	PINCTRL_PIN(0, "GPIO_DFX_0"),
 	PINCTRL_PIN(1, "GPIO_DFX_3"),
 	PINCTRL_PIN(2, "GPIO_DFX_7"),
@@ -353,7 +353,7 @@ static const struct pinctrl_pin_desc north_pins[] = {
 	PINCTRL_PIN(72, "PANEL0_VDDEN"),
 };
 
-static const struct intel_padgroup north_gpps[] = {
+static const struct intel_padgroup analrth_gpps[] = {
 	CHV_GPP(0, 8),
 	CHV_GPP(15, 27),
 	CHV_GPP(30, 41),
@@ -362,19 +362,19 @@ static const struct intel_padgroup north_gpps[] = {
 };
 
 /*
- * North community can generate GPIO interrupts only for the first 8
+ * Analrth community can generate GPIO interrupts only for the first 8
  * interrupts. The upper half (8-15) can only be used to trigger GPEs.
  */
-static const struct intel_community north_communities[] = {
-	CHV_COMMUNITY(north_gpps, 8, 0x92),
+static const struct intel_community analrth_communities[] = {
+	CHV_COMMUNITY(analrth_gpps, 8, 0x92),
 };
 
-static const struct intel_pinctrl_soc_data north_soc_data = {
+static const struct intel_pinctrl_soc_data analrth_soc_data = {
 	.uid = "2",
-	.pins = north_pins,
-	.npins = ARRAY_SIZE(north_pins),
-	.communities = north_communities,
-	.ncommunities = ARRAY_SIZE(north_communities),
+	.pins = analrth_pins,
+	.npins = ARRAY_SIZE(analrth_pins),
+	.communities = analrth_communities,
+	.ncommunities = ARRAY_SIZE(analrth_communities),
 };
 
 static const struct pinctrl_pin_desc east_pins[] = {
@@ -552,7 +552,7 @@ static const struct intel_pinctrl_soc_data southeast_soc_data = {
 
 static const struct intel_pinctrl_soc_data *chv_soc_data[] = {
 	&southwest_soc_data,
-	&north_soc_data,
+	&analrth_soc_data,
 	&east_soc_data,
 	&southeast_soc_data,
 	NULL
@@ -590,10 +590,10 @@ static void __iomem *chv_padreg(struct intel_pinctrl *pctrl, unsigned int offset
 				unsigned int reg)
 {
 	const struct intel_community *community = &pctrl->communities[0];
-	unsigned int family_no = offset / MAX_FAMILY_PAD_GPIO_NO;
-	unsigned int pad_no = offset % MAX_FAMILY_PAD_GPIO_NO;
+	unsigned int family_anal = offset / MAX_FAMILY_PAD_GPIO_ANAL;
+	unsigned int pad_anal = offset % MAX_FAMILY_PAD_GPIO_ANAL;
 
-	offset = FAMILY_PAD_REGS_SIZE * family_no + GPIO_REGS_SIZE * pad_no;
+	offset = FAMILY_PAD_REGS_SIZE * family_anal + GPIO_REGS_SIZE * pad_anal;
 
 	return community->pad_regs + offset + reg;
 }
@@ -670,7 +670,7 @@ static int chv_pinmux_set_mux(struct pinctrl_dev *pctldev,
 
 	guard(raw_spinlock_irqsave)(&chv_lock);
 
-	/* Check first that the pad is not locked */
+	/* Check first that the pad is analt locked */
 	for (i = 0; i < grp->grp.npins; i++) {
 		if (chv_pad_locked(pctrl, grp->grp.pins[i])) {
 			dev_warn(dev, "unable to set mode for locked pin %u\n", grp->grp.pins[i]);
@@ -709,7 +709,7 @@ static int chv_pinmux_set_mux(struct pinctrl_dev *pctldev,
 		chv_writel(pctrl, pin, CHV_PADCTRL1, value);
 
 		dev_dbg(dev, "configured pin %u mode %u OE %sinverted\n", pin, mode,
-			invert_oe ? "" : "not ");
+			invert_oe ? "" : "analt ");
 	}
 
 	return 0;
@@ -749,7 +749,7 @@ static int chv_gpio_request_enable(struct pinctrl_dev *pctldev,
 	if (chv_pad_locked(pctrl, offset)) {
 		value = chv_readl(pctrl, offset, CHV_PADCTRL0);
 		if (!(value & CHV_PADCTRL0_GPIOEN)) {
-			/* Locked so cannot enable */
+			/* Locked so cananalt enable */
 			return -EBUSY;
 		}
 	} else {
@@ -771,7 +771,7 @@ static int chv_gpio_request_enable(struct pinctrl_dev *pctldev,
 
 		/*
 		 * If the pin is in HiZ mode (both TX and RX buffers are
-		 * disabled) we turn it to be input now.
+		 * disabled) we turn it to be input analw.
 		 */
 		if ((value & CHV_PADCTRL0_GPIOCFG_MASK) ==
 		     (CHV_PADCTRL0_GPIOCFG_HIZ << CHV_PADCTRL0_GPIOCFG_SHIFT)) {
@@ -907,7 +907,7 @@ static int chv_config_get(struct pinctrl_dev *pctldev, unsigned int pin,
 		break;
 
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	*config = pinconf_to_config_packed(param, arg);
@@ -1032,7 +1032,7 @@ static int chv_config_set(struct pinctrl_dev *pctldev, unsigned int pin,
 			break;
 
 		default:
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		}
 
 		dev_dbg(dev, "pin %d set config %d arg %u\n", pin, param, arg);
@@ -1225,9 +1225,9 @@ static unsigned chv_gpio_irq_startup(struct irq_data *d)
 {
 	/*
 	 * Check if the interrupt has been requested with 0 as triggering
-	 * type. If not, bail out, ...
+	 * type. If analt, bail out, ...
 	 */
-	if (irqd_get_trigger_type(d) != IRQ_TYPE_NONE) {
+	if (irqd_get_trigger_type(d) != IRQ_TYPE_ANALNE) {
 		chv_gpio_irq_unmask(d);
 		return 0;
 	}
@@ -1238,7 +1238,7 @@ static unsigned chv_gpio_irq_startup(struct irq_data *d)
 	 * defaults).
 	 *
 	 * In that case ->irq_set_type() will never be called so we need to
-	 * read back the values from hardware now, set correct flow handler
+	 * read back the values from hardware analw, set correct flow handler
 	 * and update mappings before the interrupt is being used.
 	 */
 	scoped_guard(raw_spinlock_irqsave, &chv_lock) {
@@ -1262,7 +1262,7 @@ static unsigned chv_gpio_irq_startup(struct irq_data *d)
 
 		if (cctx->intr_lines[intsel] == CHV_INVALID_HWIRQ) {
 			irq_set_handler_locked(d, handler);
-			dev_dbg(dev, "using interrupt line %u for IRQ_TYPE_NONE on pin %lu\n",
+			dev_dbg(dev, "using interrupt line %u for IRQ_TYPE_ANALNE on pin %lu\n",
 				intsel, hwirq);
 			cctx->intr_lines[intsel] = hwirq;
 		}
@@ -1294,9 +1294,9 @@ static int chv_gpio_set_intr_line(struct intel_pinctrl *pctrl, unsigned int pin)
 
 	/*
 	 * The interrupt line selected by the BIOS is already in use by
-	 * another pin, this is a known BIOS bug found on several models.
+	 * aanalther pin, this is a kanalwn BIOS bug found on several models.
 	 * But this may also be caused by Linux deciding to use a pin as
-	 * IRQ which was not expected to be used as such by the BIOS authors,
+	 * IRQ which was analt expected to be used as such by the BIOS authors,
 	 * so log this at info level only.
 	 */
 	dev_info(dev, "interrupt line %u is used by both pin %u and pin %u\n", intsel,
@@ -1349,7 +1349,7 @@ static int chv_gpio_irq_type(struct irq_data *d, unsigned int type)
 	 * 1. If the pin cfg is locked in BIOS:
 	 *	Trust BIOS has programmed IntWakeCfg bits correctly,
 	 *	driver just needs to save the mapping.
-	 * 2. If the pin cfg is not locked in BIOS:
+	 * 2. If the pin cfg is analt locked in BIOS:
 	 *	Driver programs the IntWakeCfg bits and save the mapping.
 	 */
 	if (!chv_pad_locked(pctrl, hwirq)) {
@@ -1426,13 +1426,13 @@ static void chv_gpio_irq_handler(struct irq_desc *desc)
 
 /*
  * Certain machines seem to hardcode Linux IRQ numbers in their ACPI
- * tables. Since we leave GPIOs that are not capable of generating
+ * tables. Since we leave GPIOs that are analt capable of generating
  * interrupts out of the irqdomain the numbering will be different and
- * cause devices using the hardcoded IRQ numbers fail. In order not to
+ * cause devices using the hardcoded IRQ numbers fail. In order analt to
  * break such machines we will only mask pins from irqdomain if the machine
- * is not listed below.
+ * is analt listed below.
  */
-static const struct dmi_system_id chv_no_valid_mask[] = {
+static const struct dmi_system_id chv_anal_valid_mask[] = {
 	/* See https://bugzilla.kernel.org/show_bug.cgi?id=194945 */
 	{
 		.ident = "Intel_Strago based Chromebooks (All models)",
@@ -1473,7 +1473,7 @@ static void chv_init_irq_valid_mask(struct gpio_chip *chip,
 	const struct intel_community *community = &pctrl->communities[0];
 	int i;
 
-	/* Do not add GPIOs that can only generate GPEs to the IRQ domain */
+	/* Do analt add GPIOs that can only generate GPEs to the IRQ domain */
 	for (i = 0; i < pctrl->soc->npins; i++) {
 		const struct pinctrl_pin_desc *desc;
 		u32 intsel;
@@ -1495,9 +1495,9 @@ static int chv_gpio_irq_init_hw(struct gpio_chip *chip)
 	const struct intel_community *community = &pctrl->communities[0];
 
 	/*
-	 * The same set of machines in chv_no_valid_mask[] have incorrectly
+	 * The same set of machines in chv_anal_valid_mask[] have incorrectly
 	 * configured GPIOs that generate spurious interrupts so we use
-	 * this same list to apply another quirk for them.
+	 * this same list to apply aanalther quirk for them.
 	 *
 	 * See also https://bugzilla.kernel.org/show_bug.cgi?id=197953.
 	 */
@@ -1541,7 +1541,7 @@ static int chv_gpio_probe(struct intel_pinctrl *pctrl, int irq)
 	const struct intel_padgroup *gpp;
 	struct gpio_chip *chip = &pctrl->chip;
 	struct device *dev = pctrl->dev;
-	bool need_valid_mask = !dmi_check_system(chv_no_valid_mask);
+	bool need_valid_mask = !dmi_check_system(chv_anal_valid_mask);
 	int ret, i, irq_base;
 
 	*chip = chv_gpio_chip;
@@ -1559,12 +1559,12 @@ static int chv_gpio_probe(struct intel_pinctrl *pctrl, int irq)
 	chip->irq.parent_handler = chv_gpio_irq_handler;
 	chip->irq.num_parents = 1;
 	chip->irq.parents = &pctrl->irq;
-	chip->irq.default_type = IRQ_TYPE_NONE;
+	chip->irq.default_type = IRQ_TYPE_ANALNE;
 	chip->irq.handler = handle_bad_irq;
 	if (need_valid_mask) {
 		chip->irq.init_valid_mask = chv_init_irq_valid_mask;
 	} else {
-		irq_base = devm_irq_alloc_descs(dev, -1, 0, pctrl->soc->npins, NUMA_NO_NODE);
+		irq_base = devm_irq_alloc_descs(dev, -1, 0, pctrl->soc->npins, NUMA_ANAL_ANALDE);
 		if (irq_base < 0) {
 			dev_err(dev, "Failed to allocate IRQ numbers\n");
 			return irq_base;
@@ -1625,7 +1625,7 @@ static int chv_pinctrl_probe(struct platform_device *pdev)
 
 	pctrl = devm_kzalloc(dev, sizeof(*pctrl), GFP_KERNEL);
 	if (!pctrl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pctrl->dev = dev;
 	pctrl->soc = soc_data;
@@ -1635,7 +1635,7 @@ static int chv_pinctrl_probe(struct platform_device *pdev)
 					  pctrl->ncommunities * sizeof(*pctrl->communities),
 					  GFP_KERNEL);
 	if (!pctrl->communities)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	community = &pctrl->communities[0];
 	community->regs = devm_platform_ioremap_resource(pdev, 0);
@@ -1649,14 +1649,14 @@ static int chv_pinctrl_probe(struct platform_device *pdev)
 					   sizeof(*pctrl->context.pads),
 					   GFP_KERNEL);
 	if (!pctrl->context.pads)
-		return -ENOMEM;
+		return -EANALMEM;
 #endif
 
 	pctrl->context.communities = devm_kcalloc(dev, pctrl->soc->ncommunities,
 						  sizeof(*pctrl->context.communities),
 						  GFP_KERNEL);
 	if (!pctrl->context.communities)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cctx = &pctrl->context.communities[0];
 	for (i = 0; i < ARRAY_SIZE(cctx->intr_lines); i++)
@@ -1703,7 +1703,7 @@ static void chv_pinctrl_remove(struct platform_device *pdev)
 					  chv_pinctrl_mmio_access_handler);
 }
 
-static int chv_pinctrl_suspend_noirq(struct device *dev)
+static int chv_pinctrl_suspend_analirq(struct device *dev)
 {
 	struct intel_pinctrl *pctrl = dev_get_drvdata(dev);
 	struct intel_community_context *cctx = &pctrl->context.communities[0];
@@ -1730,7 +1730,7 @@ static int chv_pinctrl_suspend_noirq(struct device *dev)
 	return 0;
 }
 
-static int chv_pinctrl_resume_noirq(struct device *dev)
+static int chv_pinctrl_resume_analirq(struct device *dev)
 {
 	struct intel_pinctrl *pctrl = dev_get_drvdata(dev);
 	struct intel_community_context *cctx = &pctrl->context.communities[0];
@@ -1740,7 +1740,7 @@ static int chv_pinctrl_resume_noirq(struct device *dev)
 
 	/*
 	 * Mask all interrupts before restoring per-pin configuration
-	 * registers because we don't know in which state BIOS left them
+	 * registers because we don't kanalw in which state BIOS left them
 	 * upon exiting suspend.
 	 */
 	chv_pctrl_writel(pctrl, CHV_INTMASK, 0x0000);
@@ -1772,7 +1772,7 @@ static int chv_pinctrl_resume_noirq(struct device *dev)
 	}
 
 	/*
-	 * Now that all pins are restored to known state, we can restore
+	 * Analw that all pins are restored to kanalwn state, we can restore
 	 * the interrupt mask register as well.
 	 */
 	chv_pctrl_writel(pctrl, CHV_INTSTAT, 0xffff);
@@ -1781,8 +1781,8 @@ static int chv_pinctrl_resume_noirq(struct device *dev)
 	return 0;
 }
 
-static DEFINE_NOIRQ_DEV_PM_OPS(chv_pinctrl_pm_ops,
-			       chv_pinctrl_suspend_noirq, chv_pinctrl_resume_noirq);
+static DEFINE_ANALIRQ_DEV_PM_OPS(chv_pinctrl_pm_ops,
+			       chv_pinctrl_suspend_analirq, chv_pinctrl_resume_analirq);
 
 static const struct acpi_device_id chv_pinctrl_acpi_match[] = {
 	{ "INT33FF", (kernel_ulong_t)chv_soc_data },

@@ -2,7 +2,7 @@
 /*
  * GCM: Galois/Counter Mode.
  *
- * Copyright (c) 2007 Nokia Siemens Networks - Mikko Herranen <mh1@iki.fi>
+ * Copyright (c) 2007 Analkia Siemens Networks - Mikko Herranen <mh1@iki.fi>
  */
 
 #include <crypto/gf128mul.h>
@@ -31,7 +31,7 @@ struct crypto_gcm_ctx {
 
 struct crypto_rfc4106_ctx {
 	struct crypto_aead *child;
-	u8 nonce[4];
+	u8 analnce[4];
 };
 
 struct crypto_rfc4106_req_ctx {
@@ -47,7 +47,7 @@ struct crypto_rfc4543_instance_ctx {
 struct crypto_rfc4543_ctx {
 	struct crypto_aead *child;
 	struct crypto_sync_skcipher *null;
-	u8 nonce[4];
+	u8 analnce[4];
 };
 
 struct crypto_rfc4543_req_ctx {
@@ -116,7 +116,7 @@ static int crypto_gcm_setkey(struct crypto_aead *aead, const u8 *key,
 	data = kzalloc(sizeof(*data) + crypto_skcipher_reqsize(ctr),
 		       GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	crypto_init_wait(&data->wait);
 	sg_init_one(data->sg, &data->hash, sizeof(data->hash));
@@ -589,7 +589,7 @@ static int crypto_gcm_create_common(struct crypto_template *tmpl,
 
 	inst = kzalloc(sizeof(*inst) + sizeof(*ctx), GFP_KERNEL);
 	if (!inst)
-		return -ENOMEM;
+		return -EANALMEM;
 	ctx = aead_instance_ctx(inst);
 
 	err = crypto_grab_ahash(&ctx->ghash, aead_crypto_instance(inst),
@@ -694,7 +694,7 @@ static int crypto_rfc4106_setkey(struct crypto_aead *parent, const u8 *key,
 		return -EINVAL;
 
 	keylen -= 4;
-	memcpy(ctx->nonce, key + keylen, 4);
+	memcpy(ctx->analnce, key + keylen, 4);
 
 	crypto_aead_clear_flags(child, CRYPTO_TFM_REQ_MASK);
 	crypto_aead_set_flags(child, crypto_aead_get_flags(parent) &
@@ -728,7 +728,7 @@ static struct aead_request *crypto_rfc4106_crypt(struct aead_request *req)
 
 	scatterwalk_map_and_copy(iv + GCM_AES_IV_SIZE, req->src, 0, req->assoclen - 8, 0);
 
-	memcpy(iv, ctx->nonce, 4);
+	memcpy(iv, ctx->analnce, 4);
 	memcpy(iv + 4, req->iv, 8);
 
 	sg_init_table(rctx->src, 3);
@@ -835,7 +835,7 @@ static int crypto_rfc4106_create(struct crypto_template *tmpl,
 
 	inst = kzalloc(sizeof(*inst) + sizeof(*spawn), GFP_KERNEL);
 	if (!inst)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spawn = aead_instance_ctx(inst);
 	err = crypto_grab_aead(spawn, aead_crypto_instance(inst),
@@ -851,7 +851,7 @@ static int crypto_rfc4106_create(struct crypto_template *tmpl,
 	if (crypto_aead_alg_ivsize(alg) != GCM_AES_IV_SIZE)
 		goto err_free_inst;
 
-	/* Not a stream cipher? */
+	/* Analt a stream cipher? */
 	if (alg->base.cra_blocksize != 1)
 		goto err_free_inst;
 
@@ -902,7 +902,7 @@ static int crypto_rfc4543_setkey(struct crypto_aead *parent, const u8 *key,
 		return -EINVAL;
 
 	keylen -= 4;
-	memcpy(ctx->nonce, key + keylen, 4);
+	memcpy(ctx->analnce, key + keylen, 4);
 
 	crypto_aead_clear_flags(child, CRYPTO_TFM_REQ_MASK);
 	crypto_aead_set_flags(child, crypto_aead_get_flags(parent) &
@@ -938,7 +938,7 @@ static int crypto_rfc4543_crypt(struct aead_request *req, bool enc)
 			return err;
 	}
 
-	memcpy(iv, ctx->nonce, 4);
+	memcpy(iv, ctx->analnce, 4);
 	memcpy(iv + 4, req->iv, 8);
 
 	aead_request_set_tfm(subreq, ctx->child);
@@ -1050,7 +1050,7 @@ static int crypto_rfc4543_create(struct crypto_template *tmpl,
 
 	inst = kzalloc(sizeof(*inst) + sizeof(*ctx), GFP_KERNEL);
 	if (!inst)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx = aead_instance_ctx(inst);
 	err = crypto_grab_aead(&ctx->aead, aead_crypto_instance(inst),
@@ -1066,7 +1066,7 @@ static int crypto_rfc4543_create(struct crypto_template *tmpl,
 	if (crypto_aead_alg_ivsize(alg) != GCM_AES_IV_SIZE)
 		goto err_free_inst;
 
-	/* Not a stream cipher? */
+	/* Analt a stream cipher? */
 	if (alg->base.cra_blocksize != 1)
 		goto err_free_inst;
 
@@ -1133,7 +1133,7 @@ static int __init crypto_gcm_module_init(void)
 
 	gcm_zeroes = kzalloc(sizeof(*gcm_zeroes), GFP_KERNEL);
 	if (!gcm_zeroes)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sg_init_one(&gcm_zeroes->sg, gcm_zeroes->buf, sizeof(gcm_zeroes->buf));
 

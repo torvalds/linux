@@ -6,7 +6,7 @@
  *
  * This part handles device access (PCI/I2C/codec/...)
  *
- * Copyright (C) 2000 Serguei Miridonov <mirsev@cicese.mx>
+ * Copyright (C) 2000 Serguei Miridoanalv <mirsev@cicese.mx>
  */
 
 #include <linux/types.h>
@@ -100,7 +100,7 @@ void GPIO(struct zoran *zr, int bit, unsigned int value)
 }
 
 /*
- * Wait til post office is no longer busy
+ * Wait til post office is anal longer busy
  */
 
 int post_office_wait(struct zoran *zr)
@@ -111,8 +111,8 @@ int post_office_wait(struct zoran *zr)
 		/* wait for something to happen */
 		/* TODO add timeout */
 	}
-	if ((por & ZR36057_POR_PO_TIME) && !zr->card.gws_not_connected) {
-		/* In LML33/BUZ \GWS line is not connected, so it has always timeout set */
+	if ((por & ZR36057_POR_PO_TIME) && !zr->card.gws_analt_connected) {
+		/* In LML33/BUZ \GWS line is analt connected, so it has always timeout set */
 		pci_info(zr->pci_dev, "pop timeout %08x\n", por);
 		return -1;
 	}
@@ -203,9 +203,9 @@ static void zr36057_adjust_vfe(struct zoran *zr, enum zoran_codec_mode mode)
 	case BUZ_MODE_MOTION_COMPRESS:
 	case BUZ_MODE_IDLE:
 	default:
-		if ((zr->norm & V4L2_STD_NTSC) ||
+		if ((zr->analrm & V4L2_STD_NTSC) ||
 		    (zr->card.type == LML33R10 &&
-		     (zr->norm & V4L2_STD_PAL)))
+		     (zr->analrm & V4L2_STD_PAL)))
 			btand(~ZR36057_VFESPFR_EXT_FL, ZR36057_VFESPFR);
 		else
 			btor(ZR36057_VFESPFR_EXT_FL, ZR36057_VFESPFR);
@@ -225,7 +225,7 @@ static void zr36057_adjust_vfe(struct zoran *zr, enum zoran_codec_mode mode)
 static void zr36057_set_vfe(struct zoran *zr, int video_width, int video_height,
 			    const struct zoran_format *format)
 {
-	const struct tvnorm *tvn;
+	const struct tvanalrm *tvn;
 	unsigned int h_start, h_end, v_start, v_end;
 	unsigned int disp_mode;
 	unsigned int vid_win_wid, vid_win_ht;
@@ -244,7 +244,7 @@ static void zr36057_set_vfe(struct zoran *zr, int video_width, int video_height,
 	if (video_width < BUZ_MIN_WIDTH ||
 	    video_height < BUZ_MIN_HEIGHT ||
 	    video_width > wa || video_height > ha) {
-		pci_err(zr->pci_dev, "set_vfe: w=%d h=%d not valid\n", video_width, video_height);
+		pci_err(zr->pci_dev, "set_vfe: w=%d h=%d analt valid\n", video_width, video_height);
 		return;
 	}
 
@@ -262,7 +262,7 @@ static void zr36057_set_vfe(struct zoran *zr, int video_width, int video_height,
 	 * "| 1 Doesn't have any effect, tested on both a DC10 and a DC10+"
 	 * this is false. It inverses chroma values on the LML33R10 (so Cr
 	 * suddenly is shown as Cb and reverse, really cool effect if you
-	 * want to see blue faces, not useful otherwise). So don't use |1.
+	 * want to see blue faces, analt useful otherwise). So don't use |1.
 	 * However, the DC10 has '0' as h_start, but does need |1, so we
 	 * use a dirty check...
 	 */
@@ -300,13 +300,13 @@ static void zr36057_set_vfe(struct zoran *zr, int video_width, int video_height,
 	reg |= (ver_dcm << ZR36057_VFESPFR_VER_DCM);
 	reg |= (disp_mode << ZR36057_VFESPFR_DISP_MODE);
 	/*
-	 * RJ: I don't know, why the following has to be the opposite
+	 * RJ: I don't kanalw, why the following has to be the opposite
 	 * of the corresponding ZR36060 setting, but only this way
 	 * we get the correct colors when uncompressing to the screen
 	 */
 	//reg |= ZR36057_VFESPFR_VCLK_POL;
-	/* RJ: Don't know if that is needed for NTSC also */
-	if (!(zr->norm & V4L2_STD_NTSC))
+	/* RJ: Don't kanalw if that is needed for NTSC also */
+	if (!(zr->analrm & V4L2_STD_NTSC))
 		reg |= ZR36057_VFESPFR_EXT_FL;	// NEEDED!!!!!!! Wolfgang
 	reg |= ZR36057_VFESPFR_TOP_FIELD;
 	if (hor_dcm >= 48)
@@ -337,7 +337,7 @@ static void zr36057_set_vfe(struct zoran *zr, int video_width, int video_height,
 void zr36057_set_memgrab(struct zoran *zr, int mode)
 {
 	if (mode) {
-		/* We only check SnapShot and not FrameGrab here.  SnapShot==1
+		/* We only check SnapShot and analt FrameGrab here.  SnapShot==1
 		 * means a capture is already in progress, but FrameGrab==1
 		 * doesn't necessary mean that.  It's more correct to say a 1
 		 * to 0 transition indicates a capture completed.  If a
@@ -417,7 +417,7 @@ static void init_jpeg_queue(struct zoran *zr)
 
 static void zr36057_set_jpg(struct zoran *zr, enum zoran_codec_mode mode)
 {
-	const struct tvnorm *tvn;
+	const struct tvanalrm *tvn;
 	u32 reg;
 
 	tvn = zr->timing;
@@ -436,7 +436,7 @@ static void zr36057_set_jpg(struct zoran *zr, enum zoran_codec_mode mode)
 		reg = ZR36057_JMC_MJPG_EXP_MODE;
 		reg |= ZR36057_JMC_SYNC_MSTR;
 		/* RJ: The following is experimental - improves the output to screen */
-		//if(zr->jpg_settings.VFIFO_FB) reg |= ZR36057_JMC_VFIFO_FB; // No, it doesn't. SM
+		//if(zr->jpg_settings.VFIFO_FB) reg |= ZR36057_JMC_VFIFO_FB; // Anal, it doesn't. SM
 		break;
 
 	case BUZ_MODE_STILL_COMPRESS:
@@ -489,7 +489,7 @@ static void zr36057_set_jpg(struct zoran *zr, enum zoran_codec_mode mode)
 	btwrite(zr->p_sc, ZR36057_JCBA);
 
 	/* FIFO threshold (FIFO is 160. double words) */
-	/* NOTE: decimal values here */
+	/* ANALTE: decimal values here */
 	switch (mode) {
 	case BUZ_MODE_STILL_COMPRESS:
 	case BUZ_MODE_MOTION_COMPRESS:
@@ -746,7 +746,7 @@ void zoran_feed_stat_com(struct zoran *zr)
 	while ((zr->jpg_dma_head - zr->jpg_dma_tail) < max_stat_com) {
 		buf = list_first_entry_or_null(&zr->queued_bufs, struct zr_buffer, queue);
 		if (!buf) {
-			pci_err(zr->pci_dev, "No buffer available to queue\n");
+			pci_err(zr->pci_dev, "Anal buffer available to queue\n");
 			spin_unlock_irqrestore(&zr->queued_bufs_lock, flags);
 			return;
 		}
@@ -831,7 +831,7 @@ static void zoran_reap_stat_com(struct zoran *zr)
 		buf = zr->inuse[i];
 		if (!buf) {
 			spin_unlock_irqrestore(&zr->queued_bufs_lock, flags);
-			pci_err(zr->pci_dev, "No buffer at slot %d\n", i);
+			pci_err(zr->pci_dev, "Anal buffer at slot %d\n", i);
 			return;
 		}
 		buf->vbuf.vb2_buf.timestamp = ktime_get_ns();
@@ -878,7 +878,7 @@ irqreturn_t zoran_irq(int irq, void *dev_id)
 		if (astat & ZR36057_ISR_JPEG_REP_IRQ) {
 			if (zr->codec_mode != BUZ_MODE_MOTION_DECOMPRESS &&
 			    zr->codec_mode != BUZ_MODE_MOTION_COMPRESS) {
-				pci_err(zr->pci_dev, "JPG IRQ when not in good mode\n");
+				pci_err(zr->pci_dev, "JPG IRQ when analt in good mode\n");
 				return IRQ_HANDLED;
 			}
 			zr->frame_num++;
@@ -915,12 +915,12 @@ void zoran_init_hardware(struct zoran *zr)
 		zr->card.init(zr);
 
 	decoder_call(zr, core, init, 0);
-	decoder_call(zr, video, s_std, zr->norm);
+	decoder_call(zr, video, s_std, zr->analrm);
 	decoder_call(zr, video, s_routing,
 		     zr->card.input[zr->input].muxsel, 0, 0);
 
 	encoder_call(zr, core, init, 0);
-	encoder_call(zr, video, s_std_output, zr->norm);
+	encoder_call(zr, video, s_std_output, zr->analrm);
 	encoder_call(zr, video, s_routing, 0, 0, 0);
 
 	/* toggle JPEG codec sleep to sync PLL */

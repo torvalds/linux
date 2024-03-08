@@ -69,7 +69,7 @@ struct ad_sigma_delta_info {
  * @spi: The spi device associated with the Sigma Delta device.
  * @trig: The IIO trigger associated with the Sigma Delta device.
  *
- * Most of the fields are private to the sigma delta library code and should not
+ * Most of the fields are private to the sigma delta library code and should analt
  * be accessed by individual drivers.
  */
 struct ad_sigma_delta {
@@ -90,7 +90,7 @@ struct ad_sigma_delta {
 	unsigned int		current_slot;
 	unsigned int		num_slots;
 	bool			status_appended;
-	/* map slots to channels in order to know what to expect from devices */
+	/* map slots to channels in order to kanalw what to expect from devices */
 	unsigned int		*slots;
 	uint8_t			*samples_buf;
 

@@ -11,7 +11,7 @@
 
 #define show_fs_dirent_type(x) \
 	__print_symbolic(x, \
-		{ DT_UNKNOWN,		"UNKNOWN" }, \
+		{ DT_UNKANALWN,		"UNKANALWN" }, \
 		{ DT_FIFO,		"FIFO" }, \
 		{ DT_CHR,		"CHR" }, \
 		{ DT_DIR,		"DIR" }, \
@@ -27,16 +27,16 @@
 		{ O_RDWR,		"O_RDWR" }, \
 		{ O_CREAT,		"O_CREAT" }, \
 		{ O_EXCL,		"O_EXCL" }, \
-		{ O_NOCTTY,		"O_NOCTTY" }, \
+		{ O_ANALCTTY,		"O_ANALCTTY" }, \
 		{ O_TRUNC,		"O_TRUNC" }, \
 		{ O_APPEND,		"O_APPEND" }, \
-		{ O_NONBLOCK,		"O_NONBLOCK" }, \
+		{ O_ANALNBLOCK,		"O_ANALNBLOCK" }, \
 		{ O_DSYNC,		"O_DSYNC" }, \
 		{ O_DIRECT,		"O_DIRECT" }, \
 		{ O_LARGEFILE,		"O_LARGEFILE" }, \
 		{ O_DIRECTORY,		"O_DIRECTORY" }, \
-		{ O_NOFOLLOW,		"O_NOFOLLOW" }, \
-		{ O_NOATIME,		"O_NOATIME" }, \
+		{ O_ANALFOLLOW,		"O_ANALFOLLOW" }, \
+		{ O_ANALATIME,		"O_ANALATIME" }, \
 		{ O_CLOEXEC,		"O_CLOEXEC" })
 
 #define __fmode_flag(x)	{ (__force unsigned long)FMODE_##x, #x }
@@ -114,9 +114,9 @@
 		{ LOOKUP_EXCL,		"EXCL" }, \
 		{ LOOKUP_RENAME_TARGET,	"RENAME_TARGET" }, \
 		{ LOOKUP_PARENT,	"PARENT" }, \
-		{ LOOKUP_NO_SYMLINKS,	"NO_SYMLINKS" }, \
-		{ LOOKUP_NO_MAGICLINKS,	"NO_MAGICLINKS" }, \
-		{ LOOKUP_NO_XDEV,	"NO_XDEV" }, \
+		{ LOOKUP_ANAL_SYMLINKS,	"ANAL_SYMLINKS" }, \
+		{ LOOKUP_ANAL_MAGICLINKS,	"ANAL_MAGICLINKS" }, \
+		{ LOOKUP_ANAL_XDEV,	"ANAL_XDEV" }, \
 		{ LOOKUP_BENEATH,	"BENEATH" }, \
 		{ LOOKUP_IN_ROOT,	"IN_ROOT" }, \
 		{ LOOKUP_CACHED,	"CACHED" })

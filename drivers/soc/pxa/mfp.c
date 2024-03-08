@@ -33,7 +33,7 @@
 #define MFPR_DRIVE(x)		(((x) & 0x7) << 10)
 #define MFPR_AF_SEL(x)		(((x) & 0x7) << 0)
 
-#define MFPR_EDGE_NONE		(0)
+#define MFPR_EDGE_ANALNE		(0)
 #define MFPR_EDGE_RISE		(MFPR_EDGE_RISE_EN)
 #define MFPR_EDGE_FALL		(MFPR_EDGE_FALL_EN)
 #define MFPR_EDGE_BOTH		(MFPR_EDGE_RISE | MFPR_EDGE_FALL)
@@ -42,7 +42,7 @@
  * Table that determines the low power modes outputs, with actual settings
  * used in parentheses for don't-care values. Except for the float output,
  * the configured driven and pulled levels match, so if there is a need for
- * non-LPM pulled output, the same configuration could probably be used.
+ * analn-LPM pulled output, the same configuration could probably be used.
  *
  * Output value  sleep_oe_n  sleep_data  pullup_en  pulldown_en  pull_sel
  *                 (bit 7)    (bit 8)    (bit 14)     (bit 13)   (bit 15)
@@ -69,13 +69,13 @@
  * indicates the setting of corresponding MFPR bits
  *
  * Definition       pull_sel  pullup_en  pulldown_en
- * MFPR_PULL_NONE       0         0        0
+ * MFPR_PULL_ANALNE       0         0        0
  * MFPR_PULL_LOW        1         0        1
  * MFPR_PULL_HIGH       1         1        0
  * MFPR_PULL_BOTH       1         1        1
  * MFPR_PULL_FLOAT	1         0        0
  */
-#define MFPR_PULL_NONE		(0)
+#define MFPR_PULL_ANALNE		(0)
 #define MFPR_PULL_LOW		(MFPR_PULL_SEL | MFPR_PULLDOWN_EN)
 #define MFPR_PULL_BOTH		(MFPR_PULL_LOW | MFPR_PULLUP_EN)
 #define MFPR_PULL_HIGH		(MFPR_PULL_SEL | MFPR_PULLUP_EN)
@@ -90,7 +90,7 @@ static DEFINE_SPINLOCK(mfp_spin_lock);
 static void __iomem *mfpr_mmio_base;
 
 struct mfp_pin {
-	unsigned long	config;		/* -1 for not configured */
+	unsigned long	config;		/* -1 for analt configured */
 	unsigned long	mfpr_off;	/* MFPRxx Register offset */
 	unsigned long	mfpr_run;	/* Run-Mode Register Value */
 	unsigned long	mfpr_lpm;	/* Low Power Mode Register Value */
@@ -111,7 +111,7 @@ static const unsigned long mfpr_lpm[] = {
 
 /* mapping of MFP_PULL_* definitions to MFPR_PULL_* register bits */
 static const unsigned long mfpr_pull[] = {
-	MFPR_PULL_NONE,
+	MFPR_PULL_ANALNE,
 	MFPR_PULL_LOW,
 	MFPR_PULL_HIGH,
 	MFPR_PULL_BOTH,
@@ -120,7 +120,7 @@ static const unsigned long mfpr_pull[] = {
 
 /* mapping of MFP_LPM_EDGE_* definitions to MFPR_EDGE_* register bits */
 static const unsigned long mfpr_edge[] = {
-	MFPR_EDGE_NONE,
+	MFPR_EDGE_ANALNE,
 	MFPR_EDGE_RISE,
 	MFPR_EDGE_FALL,
 	MFPR_EDGE_BOTH,
@@ -182,11 +182,11 @@ void mfp_config(unsigned long *mfp_cfgs, int num)
 
 		/* run-mode pull settings will conflict with MFPR bits of
 		 * low power mode state,  calculate mfpr_run and mfpr_lpm
-		 * individually if pull != MFP_PULL_NONE
+		 * individually if pull != MFP_PULL_ANALNE
 		 */
 		tmp = MFPR_AF_SEL(af) | MFPR_DRIVE(drv);
 
-		if (likely(pull == MFP_PULL_NONE)) {
+		if (likely(pull == MFP_PULL_ANALNE)) {
 			p->mfpr_run = tmp | mfpr_lpm[lpm] | mfpr_edge[edge];
 			p->mfpr_lpm = p->mfpr_run;
 		} else {

@@ -11,7 +11,7 @@ maintainers:
 
 description: |
   This document defines device tree properties common to most Parallel
-  ATA (PATA, also known as IDE) AT attachment storage devices.
+  ATA (PATA, also kanalwn as IDE) AT attachment storage devices.
   It doesn't constitute a device tree binding specification by itself but is
   meant to be referenced by device tree bindings.
 
@@ -19,10 +19,10 @@ description: |
   defining whether each property is required or optional.
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^ide(@.*)?$"
     description:
-      Specifies the host controller node. PATA host controller nodes are named
+      Specifies the host controller analde. PATA host controller analdes are named
       "ide".
 
   "#address-cells":
@@ -34,9 +34,9 @@ properties:
 patternProperties:
   "^ide-port@[0-1]$":
     description: |
-      DT nodes for ports connected on the PATA host. The master drive will have
+      DT analdes for ports connected on the PATA host. The master drive will have
       ID number 0 and the slave drive will have ID number 1. The PATA port
-      nodes will be named "ide-port".
+      analdes will be named "ide-port".
     type: object
     additionalProperties: false
 

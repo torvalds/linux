@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #ifndef ATH11K_DP_H
@@ -28,7 +28,7 @@ struct dp_rx_tid {
 
 	/* Info related to rx fragments */
 	u32 cur_sn;
-	u16 last_frag_no;
+	u16 last_frag_anal;
 	u16 rx_frag_bitmap;
 
 	struct sk_buff_head rx_frags;
@@ -93,8 +93,8 @@ struct dp_tx_ring {
 enum dp_mon_status_buf_state {
 	/* PPDU id matches in dst ring and status ring */
 	DP_MON_STATUS_MATCH,
-	/* status ring dma is not done */
-	DP_MON_STATUS_NO_DMA,
+	/* status ring dma is analt done */
+	DP_MON_STATUS_ANAL_DMA,
 	/* status ring is lagging, reap status ring */
 	DP_MON_STATUS_LAG,
 	/* status ring is leading, reap dst ring and drop */
@@ -117,7 +117,7 @@ struct ath11k_pdev_mon_stats {
 	u32 dup_mon_linkdesc_cnt;
 	u32 dup_mon_buf_cnt;
 	u32 dest_mon_stuck;
-	u32 dest_mon_not_reaped;
+	u32 dest_mon_analt_reaped;
 };
 
 struct dp_full_mon_mpdu {
@@ -142,7 +142,7 @@ struct dp_link_desc_bank {
 #define DP_RX_DESC_COOKIE_POOL_ID_MAX		0x1c0000
 #define DP_RX_DESC_COOKIE_MAX	\
 	(DP_RX_DESC_COOKIE_INDEX_MAX | DP_RX_DESC_COOKIE_POOL_ID_MAX)
-#define DP_NOT_PPDU_ID_WRAP_AROUND 20000
+#define DP_ANALT_PPDU_ID_WRAP_AROUND 20000
 
 enum ath11k_dp_ppdu_state {
 	DP_PPDU_STATUS_START,
@@ -156,7 +156,7 @@ struct ath11k_mon_data {
 	u32 mon_ppdu_status;
 	u32 mon_last_buf_cookie;
 	u64 mon_last_linkdesc_paddr;
-	u16 chan_noise_floor;
+	u16 chan_analise_floor;
 	bool hold_mon_dst_ring;
 	enum dp_mon_status_buf_state buf_state;
 	dma_addr_t mon_status_paddr;
@@ -259,7 +259,7 @@ struct ath11k_dp {
 	enum ath11k_htc_ep_id eid;
 	struct completion htt_tgt_version_received;
 	u8 htt_tgt_ver_major;
-	u8 htt_tgt_ver_minor;
+	u8 htt_tgt_ver_mianalr;
 	struct dp_link_desc_bank link_desc_banks[DP_LINK_DESC_BANKS_MAX];
 	struct dp_srng wbm_idle_ring;
 	struct dp_srng wbm_desc_rel_ring;
@@ -350,7 +350,7 @@ enum htt_srng_ring_id {
 	HTT_RXDMA_MONITOR_DEST_RING,
 	HTT_HOST1_TO_FW_RXBUF_RING,
 	HTT_HOST2_TO_FW_RXBUF_RING,
-	HTT_RXDMA_NON_MONITOR_DEST_RING,
+	HTT_RXDMA_ANALN_MONITOR_DEST_RING,
 };
 
 /* host -> target  HTT_SRING_SETUP message
@@ -735,9 +735,9 @@ enum htt_rx_mgmt_pkt_filter_tlv_flags1 {
 	HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS1_ACTION		= BIT(9),
 	HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS1_ACTION		= BIT(10),
 	HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS1_ACTION		= BIT(11),
-	HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS1_ACTION_NOACK	= BIT(12),
-	HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS1_ACTION_NOACK	= BIT(13),
-	HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS1_ACTION_NOACK	= BIT(14),
+	HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS1_ACTION_ANALACK	= BIT(12),
+	HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS1_ACTION_ANALACK	= BIT(13),
+	HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS1_ACTION_ANALACK	= BIT(14),
 	HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS1_RESERVED_15	= BIT(15),
 	HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS1_RESERVED_15	= BIT(16),
 	HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS1_RESERVED_15	= BIT(17),
@@ -846,19 +846,19 @@ enum htt_rx_data_pkt_filter_tlv_flasg3 {
 				     | HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS1_AUTH \
 				     | HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS1_DEAUTH \
 				     | HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS1_ACTION \
-				     | HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS1_ACTION_NOACK)
+				     | HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS1_ACTION_ANALACK)
 
 #define HTT_RX_MD_MGMT_FILTER_FLAGS1 (HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS1_DISASSOC \
 				     | HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS1_AUTH \
 				     | HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS1_DEAUTH \
 				     | HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS1_ACTION \
-				     | HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS1_ACTION_NOACK)
+				     | HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS1_ACTION_ANALACK)
 
 #define HTT_RX_MO_MGMT_FILTER_FLAGS1 (HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS1_DISASSOC \
 				     | HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS1_AUTH \
 				     | HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS1_DEAUTH \
 				     | HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS1_ACTION \
-				     | HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS1_ACTION_NOACK)
+				     | HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS1_ACTION_ANALACK)
 
 #define HTT_RX_FP_CTRL_FILTER_FLASG2 (HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_WRAPPER \
 				     | HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS2_BAR \
@@ -998,7 +998,7 @@ struct htt_rx_ring_tlv_filter {
 
 #define HTT_RX_FULL_MON_MODE_CFG_CMD_CFG_ENABLE			BIT(0)
 #define HTT_RX_FULL_MON_MODE_CFG_CMD_CFG_ZERO_MPDUS_END		BIT(1)
-#define HTT_RX_FULL_MON_MODE_CFG_CMD_CFG_NON_ZERO_MPDUS_END	BIT(2)
+#define HTT_RX_FULL_MON_MODE_CFG_CMD_CFG_ANALN_ZERO_MPDUS_END	BIT(2)
 #define HTT_RX_FULL_MON_MODE_CFG_CMD_CFG_RELEASE_RING		GENMASK(10, 3)
 
 /* Enumeration for full monitor mode destination ring select
@@ -1038,7 +1038,7 @@ enum htt_t2h_msg_type {
 #define HTT_TARGET_VERSION_MAJOR 3
 
 #define HTT_T2H_MSG_TYPE		GENMASK(7, 0)
-#define HTT_T2H_VERSION_CONF_MINOR	GENMASK(15, 8)
+#define HTT_T2H_VERSION_CONF_MIANALR	GENMASK(15, 8)
 #define HTT_T2H_VERSION_CONF_MAJOR	GENMASK(23, 16)
 
 struct htt_t2h_version_conf_msg {
@@ -1285,7 +1285,7 @@ struct htt_ppdu_stats_user_rate {
 	u16 resp_ru_start;
 	u32 info1; /* %HTT_PPDU_STATS_USER_RATE_INFO1_ */
 	u32 rate_flags; /* %HTT_PPDU_STATS_USER_RATE_FLAGS_ */
-	/* Note: resp_rate_info is only valid for if resp_type is UL */
+	/* Analte: resp_rate_info is only valid for if resp_type is UL */
 	u32 resp_rate_flags; /* %HTT_PPDU_STATS_USER_RATE_RESP_FLAGS_ */
 } __packed;
 
@@ -1341,7 +1341,7 @@ struct htt_ppdu_stats_usr_cmpltn_cmn {
 	u8 status;
 	u8 tid_num;
 	u16 sw_peer_id;
-	/* RSSI value of last ack packet (units = dB above noise floor) */
+	/* RSSI value of last ack packet (units = dB above analise floor) */
 	u32 ack_rssi;
 	u16 mpdu_tried;
 	u16 mpdu_success;
@@ -1352,7 +1352,7 @@ struct htt_ppdu_stats_usr_cmpltn_cmn {
 #define HTT_PPDU_STATS_ACK_BA_INFO_NUM_MSDU_M	GENMASK(24, 9)
 #define HTT_PPDU_STATS_ACK_BA_INFO_TID_NUM	GENMASK(31, 25)
 
-#define HTT_PPDU_STATS_NON_QOS_TID	16
+#define HTT_PPDU_STATS_ANALN_QOS_TID	16
 
 struct htt_ppdu_stats_usr_cmpltn_ack_ba_status {
 	u32 ppdu_id;
@@ -1641,7 +1641,7 @@ struct htt_ext_stats_cfg_params {
  *    Purpose: indicate the stats information size
  *    Value: This field specifies the number of bytes of stats information
  *       that follows the element tag-length header.
- *       It is expected but not required that this length is a multiple of
+ *       It is expected but analt required that this length is a multiple of
  *       4 bytes.
  */
 

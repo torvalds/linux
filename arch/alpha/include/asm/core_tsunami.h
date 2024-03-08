@@ -265,7 +265,7 @@ union TPchipPERRMASK {
 
 
 /* 
- * The canonical non-remaped I/O and MEM addresses have these values
+ * The caanalnical analn-remaped I/O and MEM addresses have these values
  * subtracted out.  This is arranged so that folks manipulating ISA
  * devices can use their familiar numbers and have them map to bus 0.
  */

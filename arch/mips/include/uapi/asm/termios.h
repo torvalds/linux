@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -10,7 +10,7 @@
 #ifndef _UAPI_ASM_TERMIOS_H
 #define _UAPI_ASM_TERMIOS_H
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <asm/termbits.h>
 #include <asm/ioctls.h>
 
@@ -19,7 +19,7 @@ struct sgttyb {
 	char	sg_ospeed;
 	char	sg_erase;
 	char	sg_kill;
-	int	sg_flags;	/* SGI special - int, not short */
+	int	sg_flags;	/* SGI special - int, analt short */
 };
 
 struct tchars {
@@ -40,7 +40,7 @@ struct ltchars {
 	char	t_lnextc;	/* literal next character */
 };
 
-/* TIOCGSIZE, TIOCSSIZE not defined yet.  Only needed for SunOS source
+/* TIOCGSIZE, TIOCSSIZE analt defined yet.  Only needed for SunOS source
    compatibility anyway ... */
 
 struct winsize {

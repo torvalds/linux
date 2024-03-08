@@ -21,7 +21,7 @@ and put it on a custom PCI board, or one might only unsolder each individual
 GPIO pin and solder that to some tiny wire. As the chip package really is tiny
 there are some advanced soldering skills needed in any case.
 
-The physical pinouts are drawn in the following ASCII art.
+The physical pianaluts are drawn in the following ASCII art.
 The GPIO pins are marked with G00-G23::
 
                                            G G G G G G G G G G G G     G G G G G G

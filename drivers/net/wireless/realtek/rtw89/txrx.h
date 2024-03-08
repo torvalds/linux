@@ -9,8 +9,8 @@
 
 #define DATA_RATE_MODE_CTRL_MASK	GENMASK(8, 7)
 #define DATA_RATE_MODE_CTRL_MASK_V1	GENMASK(10, 8)
-#define DATA_RATE_NOT_HT_IDX_MASK	GENMASK(3, 0)
-#define DATA_RATE_MODE_NON_HT		0x0
+#define DATA_RATE_ANALT_HT_IDX_MASK	GENMASK(3, 0)
+#define DATA_RATE_MODE_ANALN_HT		0x0
 #define DATA_RATE_HT_IDX_MASK		GENMASK(4, 0)
 #define DATA_RATE_HT_IDX_MASK_V1	GENMASK(4, 0)
 #define DATA_RATE_MODE_HT		0x1
@@ -30,9 +30,9 @@ static inline u8 rtw89_get_data_rate_mode(struct rtw89_dev *rtwdev, u16 hw_rate)
 	return u16_get_bits(hw_rate, DATA_RATE_MODE_CTRL_MASK);
 }
 
-static inline u8 rtw89_get_data_not_ht_idx(struct rtw89_dev *rtwdev, u16 hw_rate)
+static inline u8 rtw89_get_data_analt_ht_idx(struct rtw89_dev *rtwdev, u16 hw_rate)
 {
-	return u16_get_bits(hw_rate, DATA_RATE_NOT_HT_IDX_MASK);
+	return u16_get_bits(hw_rate, DATA_RATE_ANALT_HT_IDX_MASK);
 }
 
 static inline u8 rtw89_get_data_ht_mcs(struct rtw89_dev *rtwdev, u16 hw_rate)
@@ -205,7 +205,7 @@ static inline u8 rtw89_get_data_nss(struct rtw89_dev *rtwdev, u16 hw_rate)
 #define BE_TXD_BODY6_RU_TC GENMASK(9, 5)
 #define BE_TXD_BODY6_PS160 BIT(10)
 #define BE_TXD_BODY6_BMC BIT(11)
-#define BE_TXD_BODY6_NO_ACK BIT(12)
+#define BE_TXD_BODY6_ANAL_ACK BIT(12)
 #define BE_TXD_BODY6_UPD_WLAN_HDR BIT(13)
 #define BE_TXD_BODY6_A4_HDR BIT(14)
 #define BE_TXD_BODY6_EOSP_BIT BIT(15)
@@ -330,9 +330,9 @@ static inline u8 rtw89_get_data_nss(struct rtw89_dev *rtwdev, u16 hw_rate)
 #define AX_RXD_USER_ID_v1_MASK GENMASK(13, 8)
 #define AX_RXD_RX_DATARATE_MASK GENMASK(24, 16)
 #define AX_RXD_RX_GI_LTF_MASK GENMASK(27, 25)
-#define AX_RXD_NON_SRG_PPDU BIT(28)
+#define AX_RXD_ANALN_SRG_PPDU BIT(28)
 #define AX_RXD_INTER_PPDU BIT(29)
-#define AX_RXD_NON_SRG_PPDU_v1 BIT(14)
+#define AX_RXD_ANALN_SRG_PPDU_v1 BIT(14)
 #define AX_RXD_INTER_PPDU_v1 BIT(15)
 #define AX_RXD_BW_MASK GENMASK(31, 30)
 #define AX_RXD_BW_v1_MASK GENMASK(31, 29)
@@ -513,7 +513,7 @@ struct rtw89_phy_sts_iehdr {
 /* BE RXD dword6 */
 #define BE_RXD_ADDR_CAM_MASK GENMASK(7, 0)
 #define BE_RXD_SR_EN BIT(13)
-#define BE_RXD_NON_SRG_PPDU BIT(14)
+#define BE_RXD_ANALN_SRG_PPDU BIT(14)
 #define BE_RXD_INTER_PPDU BIT(15)
 #define BE_RXD_USER_ID_MASK GENMASK(21, 16)
 #define BE_RXD_RX_STATISTICS BIT(22)
@@ -606,7 +606,7 @@ enum rtw89_tx_qsel {
 	RTW89_TX_QSEL_B0_BCN		= 0x10,
 	RTW89_TX_QSEL_B0_HI		= 0x11,
 	RTW89_TX_QSEL_B0_MGMT		= 0x12,
-	RTW89_TX_QSEL_B0_NOPS		= 0x13,
+	RTW89_TX_QSEL_B0_ANALPS		= 0x13,
 	RTW89_TX_QSEL_B0_MGMT_FAST	= 0x14,
 	/* reserved */
 	/* reserved */
@@ -614,7 +614,7 @@ enum rtw89_tx_qsel {
 	RTW89_TX_QSEL_B1_BCN		= 0x18,
 	RTW89_TX_QSEL_B1_HI		= 0x19,
 	RTW89_TX_QSEL_B1_MGMT		= 0x1a,
-	RTW89_TX_QSEL_B1_NOPS		= 0x1b,
+	RTW89_TX_QSEL_B1_ANALPS		= 0x1b,
 	RTW89_TX_QSEL_B1_MGMT_FAST	= 0x1c,
 	/* reserved */
 	/* reserved */
@@ -646,7 +646,7 @@ static inline u8 rtw89_core_get_ch_dma(struct rtw89_dev *rtwdev, u8 qsel)
 {
 	switch (qsel) {
 	default:
-		rtw89_warn(rtwdev, "Cannot map qsel to dma: %d\n", qsel);
+		rtw89_warn(rtwdev, "Cananalt map qsel to dma: %d\n", qsel);
 		fallthrough;
 	case RTW89_TX_QSEL_BE_0:
 		return RTW89_TXCH_ACH0;

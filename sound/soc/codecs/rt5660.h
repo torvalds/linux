@@ -452,7 +452,7 @@
 #define RT5660_I2S_I_CP_A_LAW			(0x2 << 8)
 #define RT5660_I2S_BP_MASK			(0x1 << 7)
 #define RT5660_I2S_BP_SFT			7
-#define RT5660_I2S_BP_NOR			(0x0 << 7)
+#define RT5660_I2S_BP_ANALR			(0x0 << 7)
 #define RT5660_I2S_BP_INV			(0x1 << 7)
 #define RT5660_I2S_DL_MASK			(0x3 << 2)
 #define RT5660_I2S_DL_SFT			2
@@ -661,11 +661,11 @@
 #define RT5660_IRQ_JD_MASK			(0x1 << 15)
 #define RT5660_IRQ_JD_SFT			15
 #define RT5660_IRQ_JD_BP			(0x0 << 15)
-#define RT5660_IRQ_JD_NOR			(0x1 << 15)
+#define RT5660_IRQ_JD_ANALR			(0x1 << 15)
 #define RT5660_IRQ_OT_MASK			(0x1 << 14)
 #define RT5660_IRQ_OT_SFT			14
 #define RT5660_IRQ_OT_BP			(0x0 << 14)
-#define RT5660_IRQ_OT_NOR			(0x1 << 14)
+#define RT5660_IRQ_OT_ANALR			(0x1 << 14)
 #define RT5660_JD_STKY_MASK			(0x1 << 13)
 #define RT5660_JD_STKY_SFT			13
 #define RT5660_JD_STKY_DIS			(0x0 << 13)
@@ -676,22 +676,22 @@
 #define RT5660_OT_STKY_EN			(0x1 << 12)
 #define RT5660_JD_P_MASK			(0x1 << 11)
 #define RT5660_JD_P_SFT				11
-#define RT5660_JD_P_NOR				(0x0 << 11)
+#define RT5660_JD_P_ANALR				(0x0 << 11)
 #define RT5660_JD_P_INV				(0x1 << 11)
 #define RT5660_OT_P_MASK			(0x1 << 10)
 #define RT5660_OT_P_SFT				10
-#define RT5660_OT_P_NOR				(0x0 << 10)
+#define RT5660_OT_P_ANALR				(0x0 << 10)
 #define RT5660_OT_P_INV				(0x1 << 10)
 
 /* IRQ Control 2 (0xbe) */
 #define RT5660_IRQ_MB1_OC_MASK			(0x1 << 15)
 #define RT5660_IRQ_MB1_OC_SFT			15
 #define RT5660_IRQ_MB1_OC_BP			(0x0 << 15)
-#define RT5660_IRQ_MB1_OC_NOR			(0x1 << 15)
+#define RT5660_IRQ_MB1_OC_ANALR			(0x1 << 15)
 #define RT5660_IRQ_MB2_OC_MASK			(0x1 << 14)
 #define RT5660_IRQ_MB2_OC_SFT			14
 #define RT5660_IRQ_MB2_OC_BP			(0x0 << 14)
-#define RT5660_IRQ_MB2_OC_NOR			(0x1 << 14)
+#define RT5660_IRQ_MB2_OC_ANALR			(0x1 << 14)
 #define RT5660_MB1_OC_STKY_MASK			(0x1 << 11)
 #define RT5660_MB1_OC_STKY_SFT			11
 #define RT5660_MB1_OC_STKY_DIS			(0x0 << 11)
@@ -702,11 +702,11 @@
 #define RT5660_MB2_OC_STKY_EN			(0x1 << 10)
 #define RT5660_MB1_OC_P_MASK			(0x1 << 7)
 #define RT5660_MB1_OC_P_SFT			7
-#define RT5660_MB1_OC_P_NOR			(0x0 << 7)
+#define RT5660_MB1_OC_P_ANALR			(0x0 << 7)
 #define RT5660_MB1_OC_P_INV			(0x1 << 7)
 #define RT5660_MB2_OC_P_MASK			(0x1 << 6)
 #define RT5660_MB2_OC_P_SFT			6
-#define RT5660_MB2_OC_P_NOR			(0x0 << 6)
+#define RT5660_MB2_OC_P_ANALR			(0x0 << 6)
 #define RT5660_MB2_OC_P_INV			(0x1 << 6)
 #define RT5660_MB1_OC_CLR			(0x1 << 3)
 #define RT5660_MB1_OC_CLR_SFT			3
@@ -739,7 +739,7 @@
 #define RT5660_GP2_OUT_HI			(0x1 << 4)
 #define RT5660_GP2_P_MASK			(0x1 << 3)
 #define RT5660_GP2_P_SFT			3
-#define RT5660_GP2_P_NOR			(0x0 << 3)
+#define RT5660_GP2_P_ANALR			(0x0 << 3)
 #define RT5660_GP2_P_INV			(0x1 << 3)
 #define RT5660_GP1_PF_MASK			(0x1 << 2)
 #define RT5660_GP1_PF_SFT			2
@@ -751,7 +751,7 @@
 #define RT5660_GP1_OUT_HI			(0x1 << 1)
 #define RT5660_GP1_P_MASK			(0x1)
 #define RT5660_GP1_P_SFT			0
-#define RT5660_GP1_P_NOR			(0x0)
+#define RT5660_GP1_P_ANALR			(0x0)
 #define RT5660_GP1_P_INV			(0x1)
 
 /* Soft volume and zero cross control 1 (0xd9) */

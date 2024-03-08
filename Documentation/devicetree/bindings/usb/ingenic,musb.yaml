@@ -10,7 +10,7 @@ maintainers:
   - Paul Cercueil <paul@crapouillou.net>
 
 properties:
-  $nodename:
+  $analdename:
     pattern: '^usb@.*'
 
   compatible:
@@ -60,7 +60,7 @@ examples:
   - |
     #include <dt-bindings/clock/ingenic,jz4740-cgu.h>
     usb_phy: usb-phy {
-      compatible = "usb-nop-xceiv";
+      compatible = "usb-analp-xceiv";
       #phy-cells = <0>;
     };
 

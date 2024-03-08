@@ -3,7 +3,7 @@
 
 #define dev_fmt(fmt) "RateLimiting: " fmt
 
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include <asm/div64.h>
 
 #include <linux/dev_printk.h>
@@ -25,7 +25,7 @@
 #define RL_CSR_SIZE				4U
 #define RL_CAPABILITY_MASK			GENMASK(6, 4)
 #define RL_CAPABILITY_VALUE			0x70
-#define RL_VALIDATE_NON_ZERO(input)		((input) == 0)
+#define RL_VALIDATE_ANALN_ZERO(input)		((input) == 0)
 #define ROOT_MASK				GENMASK(1, 0)
 #define CLUSTER_MASK				GENMASK(3, 0)
 #define LEAF_MASK				GENMASK(5, 0)
@@ -39,7 +39,7 @@ static int validate_user_input(struct adf_accel_dev *accel_dev,
 	int i, cnt;
 
 	if (sla_in->pir < sla_in->cir) {
-		dev_notice(&GET_DEV(accel_dev),
+		dev_analtice(&GET_DEV(accel_dev),
 			   "PIR must be >= CIR, setting PIR to CIR\n");
 		sla_in->pir = sla_in->cir;
 	}
@@ -49,27 +49,27 @@ static int validate_user_input(struct adf_accel_dev *accel_dev,
 		rp_mask_size = sizeof(sla_in->rp_mask) * BITS_PER_BYTE;
 		for_each_set_bit(i, &rp_mask, rp_mask_size) {
 			if (++cnt > RL_RP_CNT_PER_LEAF_MAX) {
-				dev_notice(&GET_DEV(accel_dev),
+				dev_analtice(&GET_DEV(accel_dev),
 					   "Too many ring pairs selected for this SLA\n");
 				return -EINVAL;
 			}
 		}
 
-		if (sla_in->srv >= ADF_SVC_NONE) {
-			dev_notice(&GET_DEV(accel_dev),
+		if (sla_in->srv >= ADF_SVC_ANALNE) {
+			dev_analtice(&GET_DEV(accel_dev),
 				   "Wrong service type\n");
 			return -EINVAL;
 		}
 
 		if (sla_in->type > RL_LEAF) {
-			dev_notice(&GET_DEV(accel_dev),
-				   "Wrong node type\n");
+			dev_analtice(&GET_DEV(accel_dev),
+				   "Wrong analde type\n");
 			return -EINVAL;
 		}
 
 		if (sla_in->parent_id < RL_PARENT_DEFAULT_ID ||
-		    sla_in->parent_id >= RL_NODES_CNT_MAX) {
-			dev_notice(&GET_DEV(accel_dev),
+		    sla_in->parent_id >= RL_ANALDES_CNT_MAX) {
+			dev_analtice(&GET_DEV(accel_dev),
 				   "Wrong parent ID\n");
 			return -EINVAL;
 		}
@@ -82,20 +82,20 @@ static int validate_sla_id(struct adf_accel_dev *accel_dev, int sla_id)
 {
 	struct rl_sla *sla;
 
-	if (sla_id <= RL_SLA_EMPTY_ID || sla_id >= RL_NODES_CNT_MAX) {
-		dev_notice(&GET_DEV(accel_dev), "Provided ID is out of bounds\n");
+	if (sla_id <= RL_SLA_EMPTY_ID || sla_id >= RL_ANALDES_CNT_MAX) {
+		dev_analtice(&GET_DEV(accel_dev), "Provided ID is out of bounds\n");
 		return -EINVAL;
 	}
 
 	sla = accel_dev->rate_limiting->sla[sla_id];
 
 	if (!sla) {
-		dev_notice(&GET_DEV(accel_dev), "SLA with provided ID does not exist\n");
+		dev_analtice(&GET_DEV(accel_dev), "SLA with provided ID does analt exist\n");
 		return -EINVAL;
 	}
 
 	if (sla->type != RL_LEAF) {
-		dev_notice(&GET_DEV(accel_dev), "This ID is reserved for internal use\n");
+		dev_analtice(&GET_DEV(accel_dev), "This ID is reserved for internal use\n");
 		return -EINVAL;
 	}
 
@@ -115,7 +115,7 @@ static int validate_sla_id(struct adf_accel_dev *accel_dev, int sla_id)
  *
  * Return:
  * * Pointer to the parent SLA object
- * * NULL - when parent cannot be found
+ * * NULL - when parent cananalt be found
  */
 static struct rl_sla *find_parent(struct adf_rl *rl_data,
 				  struct adf_rl_sla_input_data *sla_in)
@@ -142,7 +142,7 @@ static struct rl_sla *find_parent(struct adf_rl *rl_data,
 		return NULL;
 	}
 
-	/* If input_parent_id is not valid, get root for this service type. */
+	/* If input_parent_id is analt valid, get root for this service type. */
 	for (i = 0; i < RL_ROOT_MAX; i++) {
 		if (rl_data->root[i] && rl_data->root[i]->srv == sla_in->srv) {
 			root = rl_data->root[i];
@@ -190,7 +190,7 @@ static enum adf_cfg_service_type srv_to_cfg_svc_type(enum adf_base_services rl_s
  *
  * Return: Max number of elements allowed for the returned array
  */
-static u32 get_sla_arr_of_type(struct adf_rl *rl_data, enum rl_node_type type,
+static u32 get_sla_arr_of_type(struct adf_rl *rl_data, enum rl_analde_type type,
 			       struct rl_sla ***sla_arr)
 {
 	switch (type) {
@@ -233,12 +233,12 @@ static bool is_service_enabled(struct adf_accel_dev *accel_dev,
  *
  * Function tries to convert provided bitmap to an array of IDs. It checks if
  * RPs aren't in use, are assigned to SLA  service or if a number of provided
- * IDs is not too big. If successful, writes the result into the field
+ * IDs is analt too big. If successful, writes the result into the field
  * sla->ring_pairs_cnt.
  *
  * Return:
  * * 0		- ok
- * * -EINVAL	- ring pairs array cannot be created from provided mask
+ * * -EINVAL	- ring pairs array cananalt be created from provided mask
  */
 static int prepare_rp_ids(struct adf_accel_dev *accel_dev, struct rl_sla *sla,
 			  const unsigned long rp_mask)
@@ -253,20 +253,20 @@ static int prepare_rp_ids(struct adf_accel_dev *accel_dev, struct rl_sla *sla,
 
 	for_each_set_bit(rp_id, &rp_mask, rp_id_max) {
 		if (cnt >= rp_cnt_max) {
-			dev_notice(&GET_DEV(accel_dev),
+			dev_analtice(&GET_DEV(accel_dev),
 				   "Assigned more ring pairs than supported");
 			return -EINVAL;
 		}
 
 		if (rp_in_use[rp_id]) {
-			dev_notice(&GET_DEV(accel_dev),
+			dev_analtice(&GET_DEV(accel_dev),
 				   "RP %u already assigned to other SLA", rp_id);
 			return -EINVAL;
 		}
 
 		if (GET_SRV_TYPE(accel_dev, rp_id % rps_per_bundle) != arb_srv) {
-			dev_notice(&GET_DEV(accel_dev),
-				   "RP %u does not support SLA service", rp_id);
+			dev_analtice(&GET_DEV(accel_dev),
+				   "RP %u does analt support SLA service", rp_id);
 			return -EINVAL;
 		}
 
@@ -295,13 +295,13 @@ static void assign_rps_to_leaf(struct adf_accel_dev *accel_dev,
 	struct adf_hw_device_data *hw_data = GET_HW_DATA(accel_dev);
 	void __iomem *pmisc_addr = adf_get_pmisc_base(accel_dev);
 	u32 base_offset = hw_data->rl_data.r2l_offset;
-	u32 node_id = clear ? 0U : (sla->node_id & LEAF_MASK);
+	u32 analde_id = clear ? 0U : (sla->analde_id & LEAF_MASK);
 	u32 offset;
 	int i;
 
 	for (i = 0; i < sla->ring_pairs_cnt; i++) {
 		offset = base_offset + (RL_CSR_SIZE * sla->ring_pairs_ids[i]);
-		ADF_CSR_WR(pmisc_addr, offset, node_id);
+		ADF_CSR_WR(pmisc_addr, offset, analde_id);
 	}
 }
 
@@ -311,11 +311,11 @@ static void assign_leaf_to_cluster(struct adf_accel_dev *accel_dev,
 	struct adf_hw_device_data *hw_data = GET_HW_DATA(accel_dev);
 	void __iomem *pmisc_addr = adf_get_pmisc_base(accel_dev);
 	u32 base_offset = hw_data->rl_data.l2c_offset;
-	u32 node_id = sla->node_id & LEAF_MASK;
-	u32 parent_id = clear ? 0U : (sla->parent->node_id & CLUSTER_MASK);
+	u32 analde_id = sla->analde_id & LEAF_MASK;
+	u32 parent_id = clear ? 0U : (sla->parent->analde_id & CLUSTER_MASK);
 	u32 offset;
 
-	offset = base_offset + (RL_CSR_SIZE * node_id);
+	offset = base_offset + (RL_CSR_SIZE * analde_id);
 	ADF_CSR_WR(pmisc_addr, offset, parent_id);
 }
 
@@ -325,15 +325,15 @@ static void assign_cluster_to_root(struct adf_accel_dev *accel_dev,
 	struct adf_hw_device_data *hw_data = GET_HW_DATA(accel_dev);
 	void __iomem *pmisc_addr = adf_get_pmisc_base(accel_dev);
 	u32 base_offset = hw_data->rl_data.c2s_offset;
-	u32 node_id = sla->node_id & CLUSTER_MASK;
-	u32 parent_id = clear ? 0U : (sla->parent->node_id & ROOT_MASK);
+	u32 analde_id = sla->analde_id & CLUSTER_MASK;
+	u32 parent_id = clear ? 0U : (sla->parent->analde_id & ROOT_MASK);
 	u32 offset;
 
-	offset = base_offset + (RL_CSR_SIZE * node_id);
+	offset = base_offset + (RL_CSR_SIZE * analde_id);
 	ADF_CSR_WR(pmisc_addr, offset, parent_id);
 }
 
-static void assign_node_to_parent(struct adf_accel_dev *accel_dev,
+static void assign_analde_to_parent(struct adf_accel_dev *accel_dev,
 				  struct rl_sla *sla, bool clear_assignment)
 {
 	switch (sla->type) {
@@ -356,14 +356,14 @@ static void assign_node_to_parent(struct adf_accel_dev *accel_dev,
  * @sla_cir: current child CIR value (only for update)
  * @is_update: request is a update
  *
- * Algorithm verifies if parent has enough remaining budget to take assignment
+ * Algorithm verifies if parent has eanalugh remaining budget to take assignment
  * of a child with provided parameters. In update case current CIR value must be
  * returned to budget first.
- * PIR value cannot exceed the PIR assigned to parent.
+ * PIR value cananalt exceed the PIR assigned to parent.
  *
  * Return:
  * * true	- SLA can be created
- * * false	- SLA cannot be created
+ * * false	- SLA cananalt be created
  */
 static bool can_parent_afford_sla(struct adf_rl_sla_input_data *sla_in,
 				  struct rl_sla *sla_parent, u32 sla_cir,
@@ -381,34 +381,34 @@ static bool can_parent_afford_sla(struct adf_rl_sla_input_data *sla_in,
 }
 
 /**
- * can_node_afford_update() - Verifies if SLA can be updated with input data
+ * can_analde_afford_update() - Verifies if SLA can be updated with input data
  * @sla_in: pointer to user input data for a new SLA
  * @sla: pointer to SLA object selected for update
  *
- * Algorithm verifies if a new CIR value is big enough to satisfy currently
+ * Algorithm verifies if a new CIR value is big eanalugh to satisfy currently
  * assigned child SLAs and if PIR can be updated
  *
  * Return:
  * * true	- SLA can be updated
- * * false	- SLA cannot be updated
+ * * false	- SLA cananalt be updated
  */
-static bool can_node_afford_update(struct adf_rl_sla_input_data *sla_in,
+static bool can_analde_afford_update(struct adf_rl_sla_input_data *sla_in,
 				   struct rl_sla *sla)
 {
 	u32 cir_in_use = sla->cir - sla->rem_cir;
 
-	/* new CIR cannot be smaller then currently consumed value */
+	/* new CIR cananalt be smaller then currently consumed value */
 	if (cir_in_use > sla_in->cir)
 		return false;
 
-	/* PIR of root/cluster cannot be reduced in node with assigned children */
+	/* PIR of root/cluster cananalt be reduced in analde with assigned children */
 	if (sla_in->pir < sla->pir && sla->type != RL_LEAF && cir_in_use > 0)
 		return false;
 
 	return true;
 }
 
-static bool is_enough_budget(struct adf_rl *rl_data, struct rl_sla *sla,
+static bool is_eanalugh_budget(struct adf_rl *rl_data, struct rl_sla *sla,
 			     struct adf_rl_sla_input_data *sla_in,
 			     bool is_update)
 {
@@ -429,12 +429,12 @@ static bool is_enough_budget(struct adf_rl *rl_data, struct rl_sla *sla,
 						  is_update);
 
 		if (is_update)
-			ret &= can_node_afford_update(sla_in, sla);
+			ret &= can_analde_afford_update(sla_in, sla);
 
 		break;
 	case RL_ROOT:
 		if (is_update)
-			ret &= can_node_afford_update(sla_in, sla);
+			ret &= can_analde_afford_update(sla_in, sla);
 
 		break;
 	default:
@@ -481,32 +481,32 @@ static void update_budget(struct rl_sla *sla, u32 old_cir, bool is_update)
  * @rl_data: Pointer to ratelimiting data structure
  *
  * Return:
- * * 0 : RL_NODES_CNT_MAX	- correct ID
- * * -ENOSPC			- all SLA slots are in use
+ * * 0 : RL_ANALDES_CNT_MAX	- correct ID
+ * * -EANALSPC			- all SLA slots are in use
  */
 static int get_next_free_sla_id(struct adf_rl *rl_data)
 {
 	int i = 0;
 
-	while (i < RL_NODES_CNT_MAX && rl_data->sla[i++])
+	while (i < RL_ANALDES_CNT_MAX && rl_data->sla[i++])
 		;
 
-	if (i == RL_NODES_CNT_MAX)
-		return -ENOSPC;
+	if (i == RL_ANALDES_CNT_MAX)
+		return -EANALSPC;
 
 	return i - 1;
 }
 
 /**
- * get_next_free_node_id() - finds next free ID in the array of that node type
+ * get_next_free_analde_id() - finds next free ID in the array of that analde type
  * @rl_data: Pointer to ratelimiting data structure
  * @sla: Pointer to SLA object for which the ID is searched
  *
  * Return:
- * * 0 : RL_[NODE_TYPE]_MAX	- correct ID
- * * -ENOSPC			- all slots of that type are in use
+ * * 0 : RL_[ANALDE_TYPE]_MAX	- correct ID
+ * * -EANALSPC			- all slots of that type are in use
  */
-static int get_next_free_node_id(struct adf_rl *rl_data, struct rl_sla *sla)
+static int get_next_free_analde_id(struct adf_rl *rl_data, struct rl_sla *sla)
 {
 	struct adf_hw_device_data *hw_device = GET_HW_DATA(rl_data->accel_dev);
 	int max_id, i, step, rp_per_leaf;
@@ -515,7 +515,7 @@ static int get_next_free_node_id(struct adf_rl *rl_data, struct rl_sla *sla)
 	rp_per_leaf = hw_device->num_banks / hw_device->num_banks_per_vf;
 
 	/*
-	 * Static nodes mapping:
+	 * Static analdes mapping:
 	 * root0 - cluster[0,4,8,12] - leaf[0-15]
 	 * root1 - cluster[1,5,9,13] - leaf[16-31]
 	 * root2 - cluster[2,6,10,14] - leaf[32-47]
@@ -543,7 +543,7 @@ static int get_next_free_node_id(struct adf_rl *rl_data, struct rl_sla *sla)
 		i += step;
 
 	if (i >= max_id)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	return i;
 }
@@ -641,9 +641,9 @@ u32 adf_rl_calculate_pci_bw(struct adf_accel_dev *accel_dev, u32 sla_val,
  *
  * Return:
  * * 0		- ok
- * * -ENOMEM	- memory allocation failed
+ * * -EANALMEM	- memory allocation failed
  * * -EINVAL	- invalid user input
- * * -ENOSPC	- all available SLAs are in use
+ * * -EANALSPC	- all available SLAs are in use
  */
 static int add_new_sla_entry(struct adf_accel_dev *accel_dev,
 			     struct adf_rl_sla_input_data *sla_in,
@@ -655,31 +655,31 @@ static int add_new_sla_entry(struct adf_accel_dev *accel_dev,
 
 	sla = kzalloc(sizeof(*sla), GFP_KERNEL);
 	if (!sla) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto ret_err;
 	}
 	*sla_out = sla;
 
 	if (!is_service_enabled(accel_dev, sla_in->srv)) {
-		dev_notice(&GET_DEV(accel_dev),
-			   "Provided service is not enabled\n");
+		dev_analtice(&GET_DEV(accel_dev),
+			   "Provided service is analt enabled\n");
 		ret = -EINVAL;
 		goto ret_err;
 	}
 
 	sla->srv = sla_in->srv;
 	sla->type = sla_in->type;
-	ret = get_next_free_node_id(rl_data, sla);
+	ret = get_next_free_analde_id(rl_data, sla);
 	if (ret < 0) {
-		dev_notice(&GET_DEV(accel_dev),
-			   "Exceeded number of available nodes for that service\n");
+		dev_analtice(&GET_DEV(accel_dev),
+			   "Exceeded number of available analdes for that service\n");
 		goto ret_err;
 	}
-	sla->node_id = ret;
+	sla->analde_id = ret;
 
 	ret = get_next_free_sla_id(rl_data);
 	if (ret < 0) {
-		dev_notice(&GET_DEV(accel_dev),
+		dev_analtice(&GET_DEV(accel_dev),
 			   "Allocated maximum SLAs number\n");
 		goto ret_err;
 	}
@@ -688,11 +688,11 @@ static int add_new_sla_entry(struct adf_accel_dev *accel_dev,
 	sla->parent = find_parent(rl_data, sla_in);
 	if (!sla->parent && sla->type != RL_ROOT) {
 		if (sla_in->parent_id != RL_PARENT_DEFAULT_ID)
-			dev_notice(&GET_DEV(accel_dev),
-				   "Provided parent ID does not exist or cannot be parent for this SLA.");
+			dev_analtice(&GET_DEV(accel_dev),
+				   "Provided parent ID does analt exist or cananalt be parent for this SLA.");
 		else
-			dev_notice(&GET_DEV(accel_dev),
-				   "Unable to find parent node for this service. Is service enabled?");
+			dev_analtice(&GET_DEV(accel_dev),
+				   "Unable to find parent analde for this service. Is service enabled?");
 		ret = -EINVAL;
 		goto ret_err;
 	}
@@ -700,7 +700,7 @@ static int add_new_sla_entry(struct adf_accel_dev *accel_dev,
 	if (sla->type == RL_LEAF) {
 		ret = prepare_rp_ids(accel_dev, sla, sla_in->rp_mask);
 		if (!sla->ring_pairs_cnt || ret) {
-			dev_notice(&GET_DEV(accel_dev),
+			dev_analtice(&GET_DEV(accel_dev),
 				   "Unable to find ring pairs to assign to the leaf");
 			if (!ret)
 				ret = -EINVAL;
@@ -718,7 +718,7 @@ ret_err:
 	return ret;
 }
 
-static int initialize_default_nodes(struct adf_accel_dev *accel_dev)
+static int initialize_default_analdes(struct adf_accel_dev *accel_dev)
 {
 	struct adf_rl *rl_data = accel_dev->rate_limiting;
 	struct adf_rl_hw_data *device_data = rl_data->device_data;
@@ -730,7 +730,7 @@ static int initialize_default_nodes(struct adf_accel_dev *accel_dev)
 	sla_in.type = RL_ROOT;
 	sla_in.parent_id = RL_PARENT_DEFAULT_ID;
 
-	for (i = 0; i < ADF_SVC_NONE; i++) {
+	for (i = 0; i < ADF_SVC_ANALNE; i++) {
 		if (!is_service_enabled(accel_dev, i))
 			continue;
 
@@ -745,7 +745,7 @@ static int initialize_default_nodes(struct adf_accel_dev *accel_dev)
 
 	/* Init default cluster for each root */
 	sla_in.type = RL_CLUSTER;
-	for (i = 0; i < ADF_SVC_NONE; i++) {
+	for (i = 0; i < ADF_SVC_ANALNE; i++) {
 		if (!rl_data->root[i])
 			continue;
 
@@ -765,11 +765,11 @@ static void clear_sla(struct adf_rl *rl_data, struct rl_sla *sla)
 {
 	bool *rp_in_use = rl_data->rp_in_use;
 	struct rl_sla **sla_type_arr = NULL;
-	int i, sla_id, node_id;
+	int i, sla_id, analde_id;
 	u32 old_cir;
 
 	sla_id = sla->sla_id;
-	node_id = sla->node_id;
+	analde_id = sla->analde_id;
 	old_cir = sla->cir;
 	sla->cir = 0;
 	sla->pir = 0;
@@ -779,13 +779,13 @@ static void clear_sla(struct adf_rl *rl_data, struct rl_sla *sla)
 
 	update_budget(sla, old_cir, true);
 	get_sla_arr_of_type(rl_data, sla->type, &sla_type_arr);
-	assign_node_to_parent(rl_data->accel_dev, sla, true);
-	adf_rl_send_admin_delete_msg(rl_data->accel_dev, node_id, sla->type);
+	assign_analde_to_parent(rl_data->accel_dev, sla, true);
+	adf_rl_send_admin_delete_msg(rl_data->accel_dev, analde_id, sla->type);
 	mark_rps_usage(sla, rl_data->rp_in_use, false);
 
 	kfree(sla);
 	rl_data->sla[sla_id] = NULL;
-	sla_type_arr[node_id] = NULL;
+	sla_type_arr[analde_id] = NULL;
 }
 
 /**
@@ -796,9 +796,9 @@ static void clear_sla(struct adf_rl *rl_data, struct rl_sla *sla)
  *
  * Return:
  * * 0		- ok
- * * -ENOMEM	- memory allocation failed
- * * -EINVAL	- user input data cannot be used to create SLA
- * * -ENOSPC	- all available SLAs are in use
+ * * -EANALMEM	- memory allocation failed
+ * * -EINVAL	- user input data cananalt be used to create SLA
+ * * -EANALSPC	- all available SLAs are in use
  */
 static int add_update_sla(struct adf_accel_dev *accel_dev,
 			  struct adf_rl_sla_input_data *sla_in, bool is_update)
@@ -835,8 +835,8 @@ static int add_update_sla(struct adf_accel_dev *accel_dev,
 			goto ret_err;
 	}
 
-	if (!is_enough_budget(rl_data, sla, sla_in, is_update)) {
-		dev_notice(&GET_DEV(accel_dev),
+	if (!is_eanalugh_budget(rl_data, sla, sla_in, is_update)) {
+		dev_analtice(&GET_DEV(accel_dev),
 			   "Input value exceeds the remaining budget%s\n",
 			   is_update ? " or more budget is already in use" : "");
 		ret = -EINVAL;
@@ -846,10 +846,10 @@ static int add_update_sla(struct adf_accel_dev *accel_dev,
 	sla->pir = sla_in->pir;
 
 	/* Apply SLA */
-	assign_node_to_parent(accel_dev, sla, false);
+	assign_analde_to_parent(accel_dev, sla, false);
 	ret = adf_rl_send_admin_add_update_msg(accel_dev, sla, is_update);
 	if (ret) {
-		dev_notice(&GET_DEV(accel_dev),
+		dev_analtice(&GET_DEV(accel_dev),
 			   "Failed to apply an SLA\n");
 		goto ret_err;
 	}
@@ -858,7 +858,7 @@ static int add_update_sla(struct adf_accel_dev *accel_dev,
 	if (!is_update) {
 		mark_rps_usage(sla, rl_data->rp_in_use, true);
 		get_sla_arr_of_type(rl_data, sla->type, &sla_type_arr);
-		sla_type_arr[sla->node_id] = sla;
+		sla_type_arr[sla->analde_id] = sla;
 		rl_data->sla[sla->sla_id] = sla;
 	}
 
@@ -882,9 +882,9 @@ ret_ok:
  *
  * Return:
  * * 0		- ok
- * * -ENOMEM	- memory allocation failed
+ * * -EANALMEM	- memory allocation failed
  * * -EINVAL	- invalid user input
- * * -ENOSPC	- all available SLAs are in use
+ * * -EANALSPC	- all available SLAs are in use
  */
 int adf_rl_add_sla(struct adf_accel_dev *accel_dev,
 		   struct adf_rl_sla_input_data *sla_in)
@@ -899,7 +899,7 @@ int adf_rl_add_sla(struct adf_accel_dev *accel_dev,
  *
  * Return:
  * * 0		- ok
- * * -EINVAL	- user input data cannot be used to update SLA
+ * * -EINVAL	- user input data cananalt be used to update SLA
  */
 int adf_rl_update_sla(struct adf_accel_dev *accel_dev,
 		      struct adf_rl_sla_input_data *sla_in)
@@ -916,7 +916,7 @@ int adf_rl_update_sla(struct adf_accel_dev *accel_dev,
  *
  * Return:
  * * 0		- ok
- * * -EINVAL	- provided sla_id does not exist
+ * * -EINVAL	- provided sla_id does analt exist
  */
 int adf_rl_get_sla(struct adf_accel_dev *accel_dev,
 		   struct adf_rl_sla_input_data *sla_in)
@@ -955,12 +955,12 @@ int adf_rl_get_sla(struct adf_accel_dev *accel_dev,
  * Check if the provided SLA id is valid. If it is and the service matches
  * the requested service and the type is cluster or root, return the remaining
  * capability.
- * If the provided ID does not match the service or type, return the remaining
+ * If the provided ID does analt match the service or type, return the remaining
  * capacity of the default cluster for that service.
  *
  * Return:
  * * Positive value	- correct remaining value
- * * -EINVAL		- algorithm cannot find a remaining value for provided data
+ * * -EINVAL		- algorithm cananalt find a remaining value for provided data
  */
 int adf_rl_get_capability_remaining(struct adf_accel_dev *accel_dev,
 				    enum adf_base_services srv, int sla_id)
@@ -969,7 +969,7 @@ int adf_rl_get_capability_remaining(struct adf_accel_dev *accel_dev,
 	struct rl_sla *sla = NULL;
 	int i;
 
-	if (srv >= ADF_SVC_NONE)
+	if (srv >= ADF_SVC_ANALNE)
 		return -EINVAL;
 
 	if (sla_id > RL_SLA_EMPTY_ID && !validate_sla_id(accel_dev, sla_id)) {
@@ -1017,7 +1017,7 @@ int adf_rl_remove_sla(struct adf_accel_dev *accel_dev, u32 sla_id)
 	sla = rl_data->sla[sla_id];
 
 	if (sla->type < RL_LEAF && sla->rem_cir != sla->cir) {
-		dev_notice(&GET_DEV(accel_dev),
+		dev_analtice(&GET_DEV(accel_dev),
 			   "To remove parent SLA all its children must be removed first");
 		ret = -EINVAL;
 		goto err_ret;
@@ -1068,20 +1068,20 @@ int adf_rl_init(struct adf_accel_dev *accel_dev)
 	int ret = 0;
 
 	/* Validate device parameters */
-	if (RL_VALIDATE_NON_ZERO(rl_hw_data->max_tp[ADF_SVC_ASYM]) ||
-	    RL_VALIDATE_NON_ZERO(rl_hw_data->max_tp[ADF_SVC_SYM]) ||
-	    RL_VALIDATE_NON_ZERO(rl_hw_data->max_tp[ADF_SVC_DC]) ||
-	    RL_VALIDATE_NON_ZERO(rl_hw_data->scan_interval) ||
-	    RL_VALIDATE_NON_ZERO(rl_hw_data->pcie_scale_div) ||
-	    RL_VALIDATE_NON_ZERO(rl_hw_data->pcie_scale_mul) ||
-	    RL_VALIDATE_NON_ZERO(rl_hw_data->scale_ref)) {
-		ret = -EOPNOTSUPP;
+	if (RL_VALIDATE_ANALN_ZERO(rl_hw_data->max_tp[ADF_SVC_ASYM]) ||
+	    RL_VALIDATE_ANALN_ZERO(rl_hw_data->max_tp[ADF_SVC_SYM]) ||
+	    RL_VALIDATE_ANALN_ZERO(rl_hw_data->max_tp[ADF_SVC_DC]) ||
+	    RL_VALIDATE_ANALN_ZERO(rl_hw_data->scan_interval) ||
+	    RL_VALIDATE_ANALN_ZERO(rl_hw_data->pcie_scale_div) ||
+	    RL_VALIDATE_ANALN_ZERO(rl_hw_data->pcie_scale_mul) ||
+	    RL_VALIDATE_ANALN_ZERO(rl_hw_data->scale_ref)) {
+		ret = -EOPANALTSUPP;
 		goto err_ret;
 	}
 
 	rl = kzalloc(sizeof(*rl), GFP_KERNEL);
 	if (!rl) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_ret;
 	}
 
@@ -1102,13 +1102,13 @@ int adf_rl_start(struct adf_accel_dev *accel_dev)
 	int ret;
 
 	if (!accel_dev->rate_limiting) {
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto ret_err;
 	}
 
 	if ((fw_caps & RL_CAPABILITY_MASK) != RL_CAPABILITY_VALUE) {
-		dev_info(&GET_DEV(accel_dev), "not supported\n");
-		ret = -EOPNOTSUPP;
+		dev_info(&GET_DEV(accel_dev), "analt supported\n");
+		ret = -EOPANALTSUPP;
 		goto ret_free;
 	}
 
@@ -1123,7 +1123,7 @@ int adf_rl_start(struct adf_accel_dev *accel_dev)
 		goto ret_free;
 	}
 
-	ret = initialize_default_nodes(accel_dev);
+	ret = initialize_default_analdes(accel_dev);
 	if (ret) {
 		dev_err(&GET_DEV(accel_dev),
 			"failed to initialize default SLAs\n");

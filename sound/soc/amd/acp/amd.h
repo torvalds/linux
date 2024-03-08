@@ -155,7 +155,7 @@ struct acp_stream {
 
 struct acp_resource {
 	int offset;
-	int no_of_ctrls;
+	int anal_of_ctrls;
 	int irqp_used;
 	bool soc_mclk;
 	u32 irq_reg_offset;

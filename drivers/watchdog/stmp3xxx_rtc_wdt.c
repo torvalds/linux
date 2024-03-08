@@ -11,7 +11,7 @@
 #include <linux/watchdog.h>
 #include <linux/platform_device.h>
 #include <linux/stmp3xxx_rtc_wdt.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/reboot.h>
 
 #define WDOG_TICK_RATE 1000 /* 1 kHz clock */
@@ -65,10 +65,10 @@ static struct watchdog_device stmp3xxx_wdd = {
 	.ops = &stmp3xxx_wdt_ops,
 	.min_timeout = 1,
 	.max_timeout = STMP3XXX_MAX_TIMEOUT,
-	.status = WATCHDOG_NOWAYOUT_INIT_STATUS,
+	.status = WATCHDOG_ANALWAYOUT_INIT_STATUS,
 };
 
-static int wdt_notify_sys(struct notifier_block *nb, unsigned long code,
+static int wdt_analtify_sys(struct analtifier_block *nb, unsigned long code,
 			  void *unused)
 {
 	switch (code) {
@@ -80,11 +80,11 @@ static int wdt_notify_sys(struct notifier_block *nb, unsigned long code,
 		break;
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block wdt_notifier = {
-	.notifier_call = wdt_notify_sys,
+static struct analtifier_block wdt_analtifier = {
+	.analtifier_call = wdt_analtify_sys,
 };
 
 static int stmp3xxx_wdt_probe(struct platform_device *pdev)
@@ -101,8 +101,8 @@ static int stmp3xxx_wdt_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
-	if (register_reboot_notifier(&wdt_notifier))
-		dev_warn(dev, "cannot register reboot notifier\n");
+	if (register_reboot_analtifier(&wdt_analtifier))
+		dev_warn(dev, "cananalt register reboot analtifier\n");
 
 	dev_info(dev, "initialized watchdog with heartbeat %ds\n",
 		 stmp3xxx_wdd.timeout);
@@ -111,7 +111,7 @@ static int stmp3xxx_wdt_probe(struct platform_device *pdev)
 
 static void stmp3xxx_wdt_remove(struct platform_device *pdev)
 {
-	unregister_reboot_notifier(&wdt_notifier);
+	unregister_reboot_analtifier(&wdt_analtifier);
 }
 
 static int __maybe_unused stmp3xxx_wdt_suspend(struct device *dev)

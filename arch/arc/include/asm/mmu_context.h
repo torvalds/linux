@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syanalpsys, Inc. (www.syanalpsys.com)
  *
  * vineetg: May 2011
  *  -Refactored get_new_mmu_context( ) to only handle live-mm.
@@ -9,7 +9,7 @@
  * Vineetg: March 25th, 2008: Bug #92690
  *  -Major rewrite of Core ASID allocation routine get_new_mmu_context
  *
- * Amit Bhor, Sameer Dhavale: Codito Technologies 2004
+ * Amit Bhor, Sameer Dhavale: Codito Techanallogies 2004
  */
 
 #ifndef _ASM_ARC_MMU_CONTEXT_H
@@ -44,7 +44,7 @@
 #define MM_CTXT_CYCLE_MASK	(~MM_CTXT_ASID_MASK)
 
 #define MM_CTXT_FIRST_CYCLE	(MM_CTXT_ASID_MASK + 1)
-#define MM_CTXT_NO_ASID		0UL
+#define MM_CTXT_ANAL_ASID		0UL
 
 #define asid_mm(mm, cpu)	mm->context.asid[cpu]
 #define hw_pid(mm, cpu)		(asid_mm(mm, cpu) & MM_CTXT_ASID_MASK)
@@ -64,11 +64,11 @@ static inline void get_new_mmu_context(struct mm_struct *mm)
 	local_irq_save(flags);
 
 	/*
-	 * Move to new ASID if it was not from current alloc-cycle/generation.
+	 * Move to new ASID if it was analt from current alloc-cycle/generation.
 	 * This is done by ensuring that the generation bits in both mm->ASID
 	 * and cpu's ASID counter are exactly same.
 	 *
-	 * Note: Callers needing new ASID unconditionally, independent of
+	 * Analte: Callers needing new ASID unconditionally, independent of
 	 * 	 generation, e.g. local_flush_tlb_mm() for forking  parent,
 	 * 	 first need to destroy the context, setting it to invalid
 	 * 	 value.
@@ -83,8 +83,8 @@ static inline void get_new_mmu_context(struct mm_struct *mm)
 
 		/*
 		 * Above check for rollover of 8 bit ASID in 32 bit container.
-		 * If the container itself wrapped around, set it to a non zero
-		 * "generation" to distinguish from no context
+		 * If the container itself wrapped around, set it to a analn zero
+		 * "generation" to distinguish from anal context
 		 */
 		if (!asid_cpu(cpu))
 			asid_cpu(cpu) = MM_CTXT_FIRST_CYCLE;
@@ -110,7 +110,7 @@ init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 	int i;
 
 	for_each_possible_cpu(i)
-		asid_mm(mm, i) = MM_CTXT_NO_ASID;
+		asid_mm(mm, i) = MM_CTXT_ANAL_ASID;
 
 	return 0;
 }
@@ -122,7 +122,7 @@ static inline void destroy_context(struct mm_struct *mm)
 
 	/* Needed to elide CONFIG_DEBUG_PREEMPT warning */
 	local_irq_save(flags);
-	asid_mm(mm, smp_processor_id()) = MM_CTXT_NO_ASID;
+	asid_mm(mm, smp_processor_id()) = MM_CTXT_ANAL_ASID;
 	local_irq_restore(flags);
 }
 
@@ -135,13 +135,13 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 	const int cpu = smp_processor_id();
 
 	/*
-	 * Note that the mm_cpumask is "aggregating" only, we don't clear it
+	 * Analte that the mm_cpumask is "aggregating" only, we don't clear it
 	 * for the switched-out task, unlike some other arches.
-	 * It is used to enlist cpus for sending TLB flush IPIs and not sending
+	 * It is used to enlist cpus for sending TLB flush IPIs and analt sending
 	 * it to CPUs where a task once ran-on, could cause stale TLB entry
 	 * re-use, specially for a multi-threaded task.
 	 * e.g. T1 runs on C1, migrates to C3. T2 running on C2 munmaps.
-	 *      For a non-aggregating mm_cpumask, IPI not sent C1, and if T1
+	 *      For a analn-aggregating mm_cpumask, IPI analt sent C1, and if T1
 	 *      were to re-migrate to C1, it could access the unmapped region
 	 *      via any existing stale TLB entries.
 	 */
@@ -154,7 +154,7 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 
 /*
  * activate_mm defaults (in asm-generic) to switch_mm and is called at the
- * time of execve() to get a new ASID Note the subtlety here:
+ * time of execve() to get a new ASID Analte the subtlety here:
  * get_new_mmu_context() behaves differently here vs. in switch_mm(). Here
  * it always returns a new ASID, because mm has an unallocated "initial"
  * value, while in latter, it moves to a new ASID, only if it was

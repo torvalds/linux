@@ -25,7 +25,7 @@ static int avs_module_entry_index(struct avs_dev *adev, const guid_t *uuid)
 			return i;
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 /* Caller responsible for holding adev->modres_mutex. */
@@ -41,7 +41,7 @@ static int avs_module_id_entry_index(struct avs_dev *adev, u32 module_id)
 			return i;
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 int avs_get_module_entry(struct avs_dev *adev, const guid_t *uuid, struct avs_module_entry *entry)
@@ -78,7 +78,7 @@ int avs_get_module_id(struct avs_dev *adev, const guid_t *uuid)
 	int ret;
 
 	ret = avs_get_module_entry(adev, uuid, &module);
-	return !ret ? module.module_id : -ENOENT;
+	return !ret ? module.module_id : -EANALENT;
 }
 
 bool avs_is_module_ida_empty(struct avs_dev *adev, u32 module_id)
@@ -126,7 +126,7 @@ avs_module_ida_alloc(struct avs_dev *adev, struct avs_mods_info *newinfo, bool p
 
 	ida_ptrs = kcalloc(newinfo->count, sizeof(*ida_ptrs), GFP_KERNEL);
 	if (!ida_ptrs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (tocopy_count)
 		memcpy(ida_ptrs, adev->mod_idas, tocopy_count * sizeof(*ida_ptrs));
@@ -138,7 +138,7 @@ avs_module_ida_alloc(struct avs_dev *adev, struct avs_mods_info *newinfo, bool p
 				kfree(ida_ptrs[i]);
 
 			kfree(ida_ptrs);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		ida_init(ida_ptrs[i]);
@@ -198,7 +198,7 @@ int avs_module_id_alloc(struct avs_dev *adev, u16 module_id)
 	mutex_lock(&adev->modres_mutex);
 
 	idx = avs_module_id_entry_index(adev, module_id);
-	if (idx == -ENOENT) {
+	if (idx == -EANALENT) {
 		dev_err(adev->dev, "invalid module id: %d", module_id);
 		ret = -EINVAL;
 		goto exit;
@@ -217,7 +217,7 @@ void avs_module_id_free(struct avs_dev *adev, u16 module_id, u8 instance_id)
 	mutex_lock(&adev->modres_mutex);
 
 	idx = avs_module_id_entry_index(adev, module_id);
-	if (idx == -ENOENT) {
+	if (idx == -EANALENT) {
 		dev_err(adev->dev, "invalid module id: %d", module_id);
 		goto exit;
 	}
@@ -228,7 +228,7 @@ exit:
 }
 
 /*
- * Once driver loads FW it should keep it in memory, so we are not affected
+ * Once driver loads FW it should keep it in memory, so we are analt affected
  * by FW removal from filesystem or even worse by loading different FW at
  * runtime suspend/resume.
  */
@@ -237,23 +237,23 @@ int avs_request_firmware(struct avs_dev *adev, const struct firmware **fw_p, con
 	struct avs_fw_entry *entry;
 	int ret;
 
-	/* first check in list if it is not already loaded */
-	list_for_each_entry(entry, &adev->fw_list, node) {
+	/* first check in list if it is analt already loaded */
+	list_for_each_entry(entry, &adev->fw_list, analde) {
 		if (!strcmp(name, entry->name)) {
 			*fw_p = entry->fw;
 			return 0;
 		}
 	}
 
-	/* FW is not loaded, let's load it now and add to the list */
+	/* FW is analt loaded, let's load it analw and add to the list */
 	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	entry->name = kstrdup(name, GFP_KERNEL);
 	if (!entry->name) {
 		kfree(entry);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = request_firmware(&entry->fw, name, adev->dev);
@@ -265,7 +265,7 @@ int avs_request_firmware(struct avs_dev *adev, const struct firmware **fw_p, con
 
 	*fw_p = entry->fw;
 
-	list_add_tail(&entry->node, &adev->fw_list);
+	list_add_tail(&entry->analde, &adev->fw_list);
 
 	return 0;
 }
@@ -278,9 +278,9 @@ void avs_release_last_firmware(struct avs_dev *adev)
 {
 	struct avs_fw_entry *entry;
 
-	entry = list_last_entry(&adev->fw_list, typeof(*entry), node);
+	entry = list_last_entry(&adev->fw_list, typeof(*entry), analde);
 
-	list_del(&entry->node);
+	list_del(&entry->analde);
 	release_firmware(entry->fw);
 	kfree(entry->name);
 	kfree(entry);
@@ -293,8 +293,8 @@ void avs_release_firmwares(struct avs_dev *adev)
 {
 	struct avs_fw_entry *entry, *tmp;
 
-	list_for_each_entry_safe(entry, tmp, &adev->fw_list, node) {
-		list_del(&entry->node);
+	list_for_each_entry_safe(entry, tmp, &adev->fw_list, analde) {
+		list_del(&entry->analde);
 		release_firmware(entry->fw);
 		kfree(entry->name);
 		kfree(entry);

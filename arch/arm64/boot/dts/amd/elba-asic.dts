@@ -14,7 +14,7 @@
 
 / {
 	model = "AMD Pensando Elba Board";
-	compatible = "amd,pensando-elba-ortano", "amd,pensando-elba";
+	compatible = "amd,pensando-elba-ortaanal", "amd,pensando-elba";
 
 	aliases {
 		serial0 = &uart0;

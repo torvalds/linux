@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Common definition for Hardkernel's Exynos4412 based ODROID-X/X2/U2/U3 boards
+ * Common definition for Hardkernel's Exyanals4412 based ODROID-X/X2/U2/U3 boards
  * device tree source
  */
 
 #include <dt-bindings/sound/samsung-i2s.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/clock/maxim,max77686.h>
-#include "exynos4412.dtsi"
-#include "exynos4412-ppmu-common.dtsi"
+#include "exyanals4412.dtsi"
+#include "exyanals4412-ppmu-common.dtsi"
 #include <dt-bindings/gpio/gpio.h>
-#include "exynos-mfc-reserved-memory.dtsi"
+#include "exyanals-mfc-reserved-memory.dtsi"
 
 / {
 	aliases {
@@ -131,14 +131,14 @@
 };
 
 &clock_audss {
-	assigned-clocks = <&clock_audss EXYNOS_MOUT_AUDSS>,
-			<&clock_audss EXYNOS_MOUT_I2S>,
-			<&clock_audss EXYNOS_DOUT_SRP>,
-			<&clock_audss EXYNOS_DOUT_AUD_BUS>,
-			<&clock_audss EXYNOS_DOUT_I2S>;
+	assigned-clocks = <&clock_audss EXYANALS_MOUT_AUDSS>,
+			<&clock_audss EXYANALS_MOUT_I2S>,
+			<&clock_audss EXYANALS_DOUT_SRP>,
+			<&clock_audss EXYANALS_DOUT_AUD_BUS>,
+			<&clock_audss EXYANALS_DOUT_I2S>;
 
 	assigned-clock-parents = <&clock CLK_FOUT_EPLL>,
-			  <&clock_audss EXYNOS_MOUT_AUDSS>;
+			  <&clock_audss EXYANALS_MOUT_AUDSS>;
 
 	assigned-clock-rates = <0>, <0>,
 			<196608001>,
@@ -177,24 +177,24 @@
 &pinctrl_1 {
 	gpio_power_key: power-key-pins {
 		samsung,pins = "gpx1-3";
-		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-pud = <EXYANALS_PIN_PULL_ANALNE>;
 	};
 
 	max77686_irq: max77686-irq-pins {
 		samsung,pins = "gpx3-2";
-		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
-		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
-		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
+		samsung,pin-function = <EXYANALS_PIN_FUNC_INPUT>;
+		samsung,pin-pud = <EXYANALS_PIN_PULL_ANALNE>;
+		samsung,pin-drv = <EXYANALS4_PIN_DRV_LV1>;
 	};
 
 	hdmi_hpd: hdmi-hpd-pins {
 		samsung,pins = "gpx3-7";
-		samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
+		samsung,pin-pud = <EXYANALS_PIN_PULL_DOWN>;
 	};
 
 	emmc_rstn: emmc-rstn-pins {
 		samsung,pins = "gpk1-2";
-		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-pud = <EXYANALS_PIN_PULL_ANALNE>;
 	};
 };
 
@@ -202,7 +202,7 @@
 	status = "okay";
 };
 
-&exynos_usbphy {
+&exyanals_usbphy {
 	status = "okay";
 };
 
@@ -500,7 +500,7 @@
 		compatible = "maxim,max98090";
 		reg = <0x10>;
 		interrupt-parent = <&gpx0>;
-		interrupts = <0 IRQ_TYPE_NONE>;
+		interrupts = <0 IRQ_TYPE_ANALNE>;
 		clocks = <&i2s0 CLK_I2S_CDCLK>;
 		clock-names = "mclk";
 		#sound-dai-cells = <0>;
@@ -520,7 +520,7 @@
 	pinctrl-names = "default";
 	status = "okay";
 	assigned-clocks = <&i2s0 CLK_I2S_RCLK_SRC>;
-	assigned-clock-parents = <&clock_audss EXYNOS_SCLK_I2S>;
+	assigned-clock-parents = <&clock_audss EXYANALS_SCLK_I2S>;
 };
 
 &mixer {

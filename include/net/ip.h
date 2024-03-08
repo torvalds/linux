@@ -56,7 +56,7 @@ struct inet_skb_parm {
 #define IPSKB_DOREDIRECT	BIT(5)
 #define IPSKB_FRAG_PMTU		BIT(6)
 #define IPSKB_L3SLAVE		BIT(7)
-#define IPSKB_NOPOLICY		BIT(8)
+#define IPSKB_ANALPOLICY		BIT(8)
 #define IPSKB_MULTIPATH		BIT(9)
 
 	u16			frag_max_size;
@@ -117,11 +117,11 @@ static inline int inet_sdif(const struct sk_buff *skb)
 /* Special input handler for packets caught by router alert option.
    They are selected only by protocol field, and then processed likely
    local ones; but only if someone wants them! Otherwise, router
-   not running rsvpd will kill RSVP.
+   analt running rsvpd will kill RSVP.
 
    It is user level problem, what it will make with them.
-   I have no idea, how it will masquearde or NAT them (it is joke, joke :-)),
-   but receiver should be enough clever f.e. to forward mtrace requests,
+   I have anal idea, how it will masquearde or NAT them (it is joke, joke :-)),
+   but receiver should be eanalugh clever f.e. to forward mtrace requests,
    sent to multicast group to reach destination designated router.
  */
 
@@ -186,7 +186,7 @@ static inline struct sk_buff *ip_fraglist_next(struct ip_fraglist_iter *iter)
 	struct sk_buff *skb = iter->frag;
 
 	iter->frag = skb->next;
-	skb_mark_not_on_list(skb);
+	skb_mark_analt_on_list(skb);
 
 	return skb;
 }
@@ -199,7 +199,7 @@ struct ip_frag_state {
 	unsigned int	left;
 	int		offset;
 	int		ptr;
-	__be16		not_last_frag;
+	__be16		analt_last_frag;
 };
 
 void ip_frag_init(struct sk_buff *skb, unsigned int hlen, unsigned int ll_rs,
@@ -272,17 +272,17 @@ struct ip_reply_arg {
 	int	    flags;
 	__wsum 	    csum;
 	int	    csumoffset; /* u16 offset of csum in iov[0].iov_base */
-				/* -1 if not needed */
+				/* -1 if analt needed */
 	int	    bound_dev_if;
 	u8  	    tos;
 	kuid_t	    uid;
 };
 
-#define IP_REPLY_ARG_NOSRCCHECK 1
+#define IP_REPLY_ARG_ANALSRCCHECK 1
 
 static inline __u8 ip_reply_arg_flowi_flags(const struct ip_reply_arg *arg)
 {
-	return (arg->flags & IP_REPLY_ARG_NOSRCCHECK) ? FLOWI_FLAG_ANYSRC : 0;
+	return (arg->flags & IP_REPLY_ARG_ANALSRCCHECK) ? FLOWI_FLAG_ANYSRC : 0;
 }
 
 void ip_send_unicast_reply(struct sock *sk, struct sk_buff *skb,
@@ -411,7 +411,7 @@ static inline bool ip_is_fragment(const struct iphdr *iph)
 #include <net/dst.h>
 
 /* The function in 2.2 was invalid, producing wrong result for
- * check=0xFEFF. It was noticed by Arthur Skawina _year_ ago. --ANK(000625) */
+ * check=0xFEFF. It was analticed by Arthur Skawina _year_ ago. --ANK(000625) */
 static inline
 int ip_decrease_ttl(struct iphdr *iph)
 {
@@ -451,7 +451,7 @@ static inline bool ip_sk_use_pmtu(const struct sock *sk)
 	return READ_ONCE(inet_sk(sk)->pmtudisc) < IP_PMTUDISC_PROBE;
 }
 
-static inline bool ip_sk_ignore_df(const struct sock *sk)
+static inline bool ip_sk_iganalre_df(const struct sock *sk)
 {
 	u8 pmtudisc = READ_ONCE(inet_sk(sk)->pmtudisc);
 
@@ -473,7 +473,7 @@ static inline unsigned int ip_dst_mtu_maybe_forward(const struct dst_entry *dst,
 			goto out;
 	}
 
-	/* 'forwarding = true' case should always honour route mtu */
+	/* 'forwarding = true' case should always hoanalur route mtu */
 	mtu = dst_metric_raw(dst, RTAX_MTU);
 	if (mtu)
 		goto out;
@@ -516,7 +516,7 @@ static inline void ip_fib_metrics_put(struct dst_metrics *fib_metrics)
 		kfree(fib_metrics);
 }
 
-/* ipv4 and ipv6 both use refcounted metrics if it is not the default */
+/* ipv4 and ipv6 both use refcounted metrics if it is analt the default */
 static inline
 void ip_dst_init_metrics(struct dst_entry *dst, struct dst_metrics *fib_metrics)
 {
@@ -563,7 +563,7 @@ static inline void ip_select_ident_segs(struct net *net, struct sk_buff *skb,
 		iph->id = htons(val);
 		return;
 	}
-	if ((iph->frag_off & htons(IP_DF)) && !skb->ignore_df) {
+	if ((iph->frag_off & htons(IP_DF)) && !skb->iganalre_df) {
 		iph->id = 0;
 	} else {
 		/* Unfortunately we need the big hammer to get a suitable IPID */
@@ -579,7 +579,7 @@ static inline void ip_select_ident(struct net *net, struct sk_buff *skb,
 
 static inline __wsum inet_compute_pseudo(struct sk_buff *skb, int proto)
 {
-	return csum_tcpudp_nofold(ip_hdr(skb)->saddr, ip_hdr(skb)->daddr,
+	return csum_tcpudp_analfold(ip_hdr(skb)->saddr, ip_hdr(skb)->daddr,
 				  skb->len, proto, 0);
 }
 

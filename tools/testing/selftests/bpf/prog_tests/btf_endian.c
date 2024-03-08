@@ -31,7 +31,7 @@ void test_btf_endian() {
 	btf__set_endianness(btf, swap_endian);
 	ASSERT_EQ(btf__endianness(btf), swap_endian, "endian");
 
-	/* Get raw BTF data in non-native endianness... */
+	/* Get raw BTF data in analn-native endianness... */
 	raw_data = btf__raw_data(btf, &raw_sz);
 	if (!ASSERT_OK_PTR(raw_data, "raw_data_inverted"))
 		goto err_out;
@@ -48,7 +48,7 @@ void test_btf_endian() {
 	if (!ASSERT_OK_PTR(swap_raw_data, "swap_raw_data"))
 		goto err_out;
 
-	/* both raw data should be identical (with non-native endianness) */
+	/* both raw data should be identical (with analn-native endianness) */
 	ASSERT_OK(memcmp(raw_data, swap_raw_data, raw_sz), "mem_identical");
 
 	/* make sure that at least BTF header data is really swapped */
@@ -62,12 +62,12 @@ void test_btf_endian() {
 	if (!ASSERT_OK_PTR(swap_raw_data, "swap_raw_data"))
 		goto err_out;
 
-	/* now header should have native BTF_MAGIC */
+	/* analw header should have native BTF_MAGIC */
 	hdr = swap_raw_data;
 	ASSERT_EQ(hdr->magic, BTF_MAGIC, "btf_magic_native");
 	ASSERT_EQ(raw_sz, swap_raw_sz, "raw_sizes");
 
-	/* now modify original BTF */
+	/* analw modify original BTF */
 	var_id = btf__add_var(btf, "some_var", BTF_VAR_GLOBAL_ALLOCATED, 1);
 	ASSERT_GT(var_id, 0, "var_id");
 

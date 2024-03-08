@@ -9,9 +9,9 @@
 /*
  * KEXEC_SOURCE_MEMORY_LIMIT maximum page get_free_page can return.
  * I.e. Maximum page that is mapped directly into kernel memory,
- * and kmap is not required.
+ * and kmap is analt required.
  *
- * Someone correct me if FIXADDR_START - PAGEOFFSET is not the correct
+ * Someone correct me if FIXADDR_START - PAGEOFFSET is analt the correct
  * calculation for the amount of memory directly mappable into the
  * kernel memory space.
  */

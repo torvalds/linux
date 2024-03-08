@@ -58,7 +58,7 @@ static int midas_start_fll1(struct snd_soc_pcm_runtime *rtd, unsigned int rate)
 	if (!rate)
 		rate = priv->fll1_rate;
 	/*
-	 * If no new rate is requested, set FLL1 to a sane default for jack
+	 * If anal new rate is requested, set FLL1 to a sane default for jack
 	 * detection.
 	 */
 	if (!rate)
@@ -145,7 +145,7 @@ static const struct snd_soc_ops midas_aif1_ops = {
 
 /*
  * We only have a single external speaker, so mix stereo data
- * to a single mono stream.
+ * to a single moanal stream.
  */
 static int midas_ext_spkmode(struct snd_soc_dapm_widget *w,
 			     struct snd_kcontrol *kcontrol, int event)
@@ -401,12 +401,12 @@ static struct snd_soc_dai_link midas_dai[] = {
 	}, {
 		.name = "WM1811 Voice",
 		.stream_name = "Voice call",
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		SND_SOC_DAILINK_REG(wm1811_voice),
 	}, {
 		.name = "WM1811 BT",
 		.stream_name = "Bluetooth",
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		SND_SOC_DAILINK_REG(wm1811_bt),
 	},
 };
@@ -428,8 +428,8 @@ static struct snd_soc_card midas_card = {
 
 static int midas_probe(struct platform_device *pdev)
 {
-	struct device_node *cpu_dai_node = NULL, *codec_dai_node = NULL;
-	struct device_node *cpu = NULL, *codec = NULL;
+	struct device_analde *cpu_dai_analde = NULL, *codec_dai_analde = NULL;
+	struct device_analde *cpu = NULL, *codec = NULL;
 	struct snd_soc_card *card = &midas_card;
 	struct device *dev = &pdev->dev;
 	static struct snd_soc_dai_link *dai_link;
@@ -438,7 +438,7 @@ static int midas_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	snd_soc_card_set_drvdata(card, priv);
 	card->dev = dev;
@@ -470,7 +470,7 @@ static int midas_probe(struct platform_device *pdev)
 
 	ret = snd_soc_of_parse_card_name(card, "model");
 	if (ret < 0) {
-		dev_err(dev, "Card name is not specified\n");
+		dev_err(dev, "Card name is analt specified\n");
 		return ret;
 	}
 
@@ -484,57 +484,57 @@ static int midas_probe(struct platform_device *pdev)
 		}
 	}
 
-	cpu = of_get_child_by_name(dev->of_node, "cpu");
+	cpu = of_get_child_by_name(dev->of_analde, "cpu");
 	if (!cpu)
 		return -EINVAL;
 
-	codec = of_get_child_by_name(dev->of_node, "codec");
+	codec = of_get_child_by_name(dev->of_analde, "codec");
 	if (!codec) {
-		of_node_put(cpu);
+		of_analde_put(cpu);
 		return -EINVAL;
 	}
 
-	cpu_dai_node = of_parse_phandle(cpu, "sound-dai", 0);
-	of_node_put(cpu);
-	if (!cpu_dai_node) {
+	cpu_dai_analde = of_parse_phandle(cpu, "sound-dai", 0);
+	of_analde_put(cpu);
+	if (!cpu_dai_analde) {
 		dev_err(dev, "parsing cpu/sound-dai failed\n");
-		of_node_put(codec);
+		of_analde_put(codec);
 		return -EINVAL;
 	}
 
-	codec_dai_node = of_parse_phandle(codec, "sound-dai", 0);
-	of_node_put(codec);
-	if (!codec_dai_node) {
+	codec_dai_analde = of_parse_phandle(codec, "sound-dai", 0);
+	of_analde_put(codec);
+	if (!codec_dai_analde) {
 		dev_err(dev, "audio-codec property invalid/missing\n");
 		ret = -EINVAL;
-		goto put_cpu_dai_node;
+		goto put_cpu_dai_analde;
 	}
 
 	for_each_card_prelinks(card, i, dai_link) {
-		dai_link->codecs->of_node = codec_dai_node;
-		dai_link->cpus->of_node = cpu_dai_node;
-		dai_link->platforms->of_node = cpu_dai_node;
+		dai_link->codecs->of_analde = codec_dai_analde;
+		dai_link->cpus->of_analde = cpu_dai_analde;
+		dai_link->platforms->of_analde = cpu_dai_analde;
 	}
 
 	ret = devm_snd_soc_register_component(dev, &midas_component,
 			midas_ext_dai, ARRAY_SIZE(midas_ext_dai));
 	if (ret < 0) {
 		dev_err(dev, "Failed to register component: %d\n", ret);
-		goto put_codec_dai_node;
+		goto put_codec_dai_analde;
 	}
 
 	ret = devm_snd_soc_register_card(dev, card);
 	if (ret < 0) {
 		dev_err(dev, "Failed to register card: %d\n", ret);
-		goto put_codec_dai_node;
+		goto put_codec_dai_analde;
 	}
 
 	return 0;
 
-put_codec_dai_node:
-	of_node_put(codec_dai_node);
-put_cpu_dai_node:
-	of_node_put(cpu_dai_node);
+put_codec_dai_analde:
+	of_analde_put(codec_dai_analde);
+put_cpu_dai_analde:
+	of_analde_put(cpu_dai_analde);
 	return ret;
 }
 

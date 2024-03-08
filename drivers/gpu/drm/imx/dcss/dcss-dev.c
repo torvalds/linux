@@ -173,19 +173,19 @@ struct dcss_dev *dcss_dev_create(struct device *dev, bool hdmi_output)
 
 	devtype = of_device_get_match_data(dev);
 	if (!devtype) {
-		dev_err(dev, "no device match found\n");
-		return ERR_PTR(-ENODEV);
+		dev_err(dev, "anal device match found\n");
+		return ERR_PTR(-EANALDEV);
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
-		dev_err(dev, "cannot get memory resource\n");
+		dev_err(dev, "cananalt get memory resource\n");
 		return ERR_PTR(-EINVAL);
 	}
 
 	dcss = kzalloc(sizeof(*dcss), GFP_KERNEL);
 	if (!dcss)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	dcss->dev = dev;
 	dcss->devtype = devtype;
@@ -197,10 +197,10 @@ struct dcss_dev *dcss_dev_create(struct device *dev, bool hdmi_output)
 		goto err;
 	}
 
-	dcss->of_port = of_graph_get_port_by_id(dev->of_node, 0);
+	dcss->of_port = of_graph_get_port_by_id(dev->of_analde, 0);
 	if (!dcss->of_port) {
-		dev_err(dev, "no port@0 node in %pOF\n", dev->of_node);
-		ret = -ENODEV;
+		dev_err(dev, "anal port@0 analde in %pOF\n", dev->of_analde);
+		ret = -EANALDEV;
 		goto clks_err;
 	}
 
@@ -208,7 +208,7 @@ struct dcss_dev *dcss_dev_create(struct device *dev, bool hdmi_output)
 
 	ret = dcss_submodules_init(dcss);
 	if (ret) {
-		of_node_put(dcss->of_port);
+		of_analde_put(dcss->of_port);
 		dev_err(dev, "submodules initialization failed\n");
 		goto clks_err;
 	}
@@ -239,7 +239,7 @@ void dcss_dev_destroy(struct dcss_dev *dcss)
 		dcss_clocks_disable(dcss);
 	}
 
-	of_node_put(dcss->of_port);
+	of_analde_put(dcss->of_port);
 
 	pm_runtime_disable(dcss->dev);
 

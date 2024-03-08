@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
 /*
- * Copyright (c) 2017, Mellanox Technologies inc.  All rights reserved.
+ * Copyright (c) 2017, Mellaanalx Techanallogies inc.  All rights reserved.
  */
 
 #ifndef _UVERBS_STD_TYPES__
@@ -10,7 +10,7 @@
 #include <rdma/uverbs_ioctl.h>
 #include <rdma/ib_user_ioctl_verbs.h>
 
-/* Returns _id, or causes a compile error if _id is not a u32.
+/* Returns _id, or causes a compile error if _id is analt a u32.
  *
  * The uobj APIs should only be used with the write based uAPI to access
  * object IDs. The write API must use a u32 for the object handle, which is

@@ -26,7 +26,7 @@
 #include <asm/io.h>
 #include <asm/smp.h>
 #include <asm/irq.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include <asm/xive.h>
 #include <asm/xive-regs.h>
 #include <asm/hvcall.h>
@@ -53,7 +53,7 @@ static int __init xive_irq_bitmap_add(int base, int count)
 
 	xibm = kzalloc(sizeof(*xibm), GFP_KERNEL);
 	if (!xibm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&xibm->lock);
 	xibm->base = base;
@@ -61,7 +61,7 @@ static int __init xive_irq_bitmap_add(int base, int count)
 	xibm->bitmap = bitmap_zalloc(xibm->count, GFP_KERNEL);
 	if (!xibm->bitmap) {
 		kfree(xibm);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	list_add(&xibm->list, &xive_irq_bitmaps);
 
@@ -90,7 +90,7 @@ static int __xive_irq_bitmap_alloc(struct xive_irq_bitmap *xibm)
 		set_bit(irq, xibm->bitmap);
 		irq += xibm->base;
 	} else {
-		irq = -ENOMEM;
+		irq = -EANALMEM;
 	}
 
 	return irq;
@@ -100,7 +100,7 @@ static int xive_irq_bitmap_alloc(void)
 {
 	struct xive_irq_bitmap *xibm;
 	unsigned long flags;
-	int irq = -ENOENT;
+	int irq = -EANALENT;
 
 	list_for_each_entry(xibm, &xive_irq_bitmaps, list) {
 		spin_lock_irqsave(&xibm->lock, flags);
@@ -154,7 +154,7 @@ static unsigned int plpar_busy_delay(int rc)
 }
 
 /*
- * Note: this call has a partition wide scope and can take a while to
+ * Analte: this call has a partition wide scope and can take a while to
  * complete. If it returns H_LONG_BUSY_* it should be retried
  * periodically.
  */
@@ -163,7 +163,7 @@ static long plpar_int_reset(unsigned long flags)
 	long rc;
 
 	do {
-		rc = plpar_hcall_norets(H_INT_RESET, flags);
+		rc = plpar_hcall_analrets(H_INT_RESET, flags);
 	} while (plpar_busy_delay(rc));
 
 	if (rc)
@@ -219,7 +219,7 @@ static long plpar_int_set_source_config(unsigned long flags,
 
 
 	do {
-		rc = plpar_hcall_norets(H_INT_SET_SOURCE_CONFIG, flags, lisn,
+		rc = plpar_hcall_analrets(H_INT_SET_SOURCE_CONFIG, flags, lisn,
 					target, prio, sw_irq);
 	} while (plpar_busy_delay(rc));
 
@@ -293,7 +293,7 @@ static long plpar_int_get_queue_info(unsigned long flags,
 	return 0;
 }
 
-#define XIVE_EQ_ALWAYS_NOTIFY (1ull << (63 - 63))
+#define XIVE_EQ_ALWAYS_ANALTIFY (1ull << (63 - 63))
 
 static long plpar_int_set_queue_config(unsigned long flags,
 				       unsigned long target,
@@ -307,7 +307,7 @@ static long plpar_int_set_queue_config(unsigned long flags,
 		 flags,  target, priority, qpage, qsize);
 
 	do {
-		rc = plpar_hcall_norets(H_INT_SET_QUEUE_CONFIG, flags, target,
+		rc = plpar_hcall_analrets(H_INT_SET_QUEUE_CONFIG, flags, target,
 					priority, qpage, qsize);
 	} while (plpar_busy_delay(rc));
 
@@ -325,7 +325,7 @@ static long plpar_int_sync(unsigned long flags, unsigned long lisn)
 	long rc;
 
 	do {
-		rc = plpar_hcall_norets(H_INT_SYNC, flags, lisn);
+		rc = plpar_hcall_analrets(H_INT_SYNC, flags, lisn);
 	} while (plpar_busy_delay(rc));
 
 	if (rc) {
@@ -412,7 +412,7 @@ static int xive_spapr_populate_irq_data(u32 hw_irq, struct xive_irq_data *data)
 	data->hw_irq = hw_irq;
 
 	/*
-	 * No chip-id for the sPAPR backend. This has an impact how we
+	 * Anal chip-id for the sPAPR backend. This has an impact how we
 	 * pick a target. See xive_pick_irq_target().
 	 */
 	data->src_chip = XIVE_INVALID_CHIP_ID;
@@ -420,7 +420,7 @@ static int xive_spapr_populate_irq_data(u32 hw_irq, struct xive_irq_data *data)
 	/*
 	 * When the H_INT_ESB flag is set, the H_INT_ESB hcall should
 	 * be used for interrupt management. Skip the remapping of the
-	 * ESB pages which are not available.
+	 * ESB pages which are analt available.
 	 */
 	if (data->flags & XIVE_IRQ_FLAG_H_INT_ESB)
 		return 0;
@@ -428,7 +428,7 @@ static int xive_spapr_populate_irq_data(u32 hw_irq, struct xive_irq_data *data)
 	data->eoi_mmio = ioremap(data->eoi_page, 1u << data->esb_shift);
 	if (!data->eoi_mmio) {
 		pr_err("Failed to map EOI page for irq 0x%x\n", hw_irq);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Full function page supports trigger */
@@ -441,7 +441,7 @@ static int xive_spapr_populate_irq_data(u32 hw_irq, struct xive_irq_data *data)
 	if (!data->trig_mmio) {
 		iounmap(data->eoi_mmio);
 		pr_err("Failed to map trigger page for irq 0x%x\n", hw_irq);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	return 0;
 }
@@ -505,11 +505,11 @@ static int xive_spapr_configure_queue(u32 target, struct xive_q *q, u8 prio,
 		goto fail;
 	}
 
-	/* TODO: add support for the notification page */
+	/* TODO: add support for the analtification page */
 	q->eoi_phys = esn_page;
 
-	/* Default is to always notify */
-	flags = XIVE_EQ_ALWAYS_NOTIFY;
+	/* Default is to always analtify */
+	flags = XIVE_EQ_ALWAYS_ANALTIFY;
 
 	/* Configure and enable the queue in HW */
 	rc = plpar_int_set_queue_config(flags, target, prio, qpage_phys, order);
@@ -561,9 +561,9 @@ static void xive_spapr_cleanup_queue(unsigned int cpu, struct xive_cpu *xc,
 	q->qpage = NULL;
 }
 
-static bool xive_spapr_match(struct device_node *node)
+static bool xive_spapr_match(struct device_analde *analde)
 {
-	/* Ignore cascaded controllers for the moment */
+	/* Iganalre cascaded controllers for the moment */
 	return true;
 }
 
@@ -606,7 +606,7 @@ static void xive_spapr_update_pending(struct xive_cpu *xc)
 	u16 ack;
 
 	/*
-	 * Perform the "Acknowledge O/S to Register" cycle.
+	 * Perform the "Ackanalwledge O/S to Register" cycle.
 	 *
 	 * Let's speedup the access to the TIMA using the raw I/O
 	 * accessor as we don't need the synchronisation routine of
@@ -654,7 +654,7 @@ static void xive_spapr_setup_cpu(unsigned int cpu, struct xive_cpu *xc)
 
 static void xive_spapr_teardown_cpu(unsigned int cpu, struct xive_cpu *xc)
 {
-	/* Nothing to do */;
+	/* Analthing to do */;
 }
 
 static void xive_spapr_sync_source(u32 hw_irq)
@@ -669,7 +669,7 @@ static int xive_spapr_debug_show(struct seq_file *m, void *private)
 	char *buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
 
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	list_for_each_entry(xibm, &xive_irq_bitmaps, list) {
 		memset(buf, 0, PAGE_SIZE);
@@ -707,19 +707,19 @@ static const struct xive_ops xive_spapr_ops = {
  */
 static bool __init xive_get_max_prio(u8 *max_prio)
 {
-	struct device_node *rootdn;
+	struct device_analde *rootdn;
 	const __be32 *reg;
 	u32 len;
 	int prio, found;
 
-	rootdn = of_find_node_by_path("/");
+	rootdn = of_find_analde_by_path("/");
 	if (!rootdn) {
-		pr_err("not root node found !\n");
+		pr_err("analt root analde found !\n");
 		return false;
 	}
 
 	reg = of_get_property(rootdn, "ibm,plat-res-int-priorities", &len);
-	of_node_put(rootdn);
+	of_analde_put(rootdn);
 	if (!reg) {
 		pr_err("Failed to read 'ibm,plat-res-int-priorities' property\n");
 		return false;
@@ -752,7 +752,7 @@ static bool __init xive_get_max_prio(u8 *max_prio)
 	}
 
 	if (found == 0xFF) {
-		pr_err("no valid priority found in 'ibm,plat-res-int-priorities'\n");
+		pr_err("anal valid priority found in 'ibm,plat-res-int-priorities'\n");
 		return false;
 	}
 
@@ -767,8 +767,8 @@ static const u8 *__init get_vec5_feature(unsigned int index)
 	const u8 *vec5;
 
 	root = of_get_flat_dt_root();
-	chosen = of_get_flat_dt_subnode_by_name(root, "chosen");
-	if (chosen == -FDT_ERR_NOTFOUND)
+	chosen = of_get_flat_dt_subanalde_by_name(root, "chosen");
+	if (chosen == -FDT_ERR_ANALTFOUND)
 		return NULL;
 
 	vec5 = of_get_flat_dt_prop(chosen, "ibm,architecture-vec-5", &size);
@@ -797,10 +797,10 @@ static bool __init xive_spapr_disabled(void)
 		case OV5_FEAT(OV5_XIVE_EXPLOIT):
 			/* Hypervisor only supports XIVE */
 			if (xive_cmdline_disabled)
-				pr_warn("WARNING: Ignoring cmdline option xive=off\n");
+				pr_warn("WARNING: Iganalring cmdline option xive=off\n");
 			return false;
 		default:
-			pr_warn("%s: Unknown xive support option: 0x%x\n",
+			pr_warn("%s: Unkanalwn xive support option: 0x%x\n",
 				__func__, val);
 			break;
 		}
@@ -811,7 +811,7 @@ static bool __init xive_spapr_disabled(void)
 
 bool __init xive_spapr_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	struct resource r;
 	void __iomem *tima;
 	struct property *prop;
@@ -825,9 +825,9 @@ bool __init xive_spapr_init(void)
 		return false;
 
 	pr_devel("%s()\n", __func__);
-	np = of_find_compatible_node(NULL, NULL, "ibm,power-ivpe");
+	np = of_find_compatible_analde(NULL, NULL, "ibm,power-ivpe");
 	if (!np) {
-		pr_devel("not found !\n");
+		pr_devel("analt found !\n");
 		return false;
 	}
 	pr_devel("Found %s\n", np->full_name);
@@ -876,7 +876,7 @@ bool __init xive_spapr_init(void)
 	if (!xive_core_init(np, &xive_spapr_ops, tima, TM_QW1_OS, max_prio))
 		goto err_mem_free;
 
-	of_node_put(np);
+	of_analde_put(np);
 	pr_info("Using %dkB queues\n", 1 << (xive_queue_shift - 10));
 	return true;
 
@@ -885,7 +885,7 @@ err_mem_free:
 err_unmap:
 	iounmap(tima);
 err_put:
-	of_node_put(np);
+	of_analde_put(np);
 	return false;
 }
 

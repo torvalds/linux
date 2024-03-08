@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI__LINUX_MROUTE_H
 #define _UAPI__LINUX_MROUTE_H
 
@@ -179,7 +179,7 @@ enum {
 #define MFC_ASSERT_THRESH (3*HZ)		/* Maximal freq. of asserts */
 
 /* Pseudo messages used by mrouted */
-#define IGMPMSG_NOCACHE		1		/* Kern cache fill request to mrouted */
+#define IGMPMSG_ANALCACHE		1		/* Kern cache fill request to mrouted */
 #define IGMPMSG_WRONGVIF	2		/* For PIM assert processing (unused) */
 #define IGMPMSG_WHOLEPKT	3		/* For PIM Register processing */
 #define IGMPMSG_WRVIFWHOLE	4		/* For PIM Register and assert processing */

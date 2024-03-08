@@ -28,7 +28,7 @@ struct gb_i2c_device {
  */
 static u32 gb_i2c_functionality_map(u32 gb_i2c_functionality)
 {
-	return gb_i2c_functionality;	/* All bits the same for now */
+	return gb_i2c_functionality;	/* All bits the same for analw */
 }
 
 /*
@@ -36,7 +36,7 @@ static u32 gb_i2c_functionality_map(u32 gb_i2c_functionality)
  * can support it (based on the protocol version it advertises).
  * If that's OK, we get and cached its functionality bits.
  *
- * Note: gb_i2c_dev->connection is assumed to have been valid.
+ * Analte: gb_i2c_dev->connection is assumed to have been valid.
  */
 static int gb_i2c_device_setup(struct gb_i2c_device *gb_i2c_dev)
 {
@@ -61,7 +61,7 @@ static int gb_i2c_device_setup(struct gb_i2c_device *gb_i2c_dev)
  */
 static u16 gb_i2c_transfer_op_flags_map(u16 flags)
 {
-	return flags;	/* All flags the same for now */
+	return flags;	/* All flags the same for analw */
 }
 
 static void
@@ -99,7 +99,7 @@ gb_i2c_operation_create(struct gb_connection *connection,
 
 	/*
 	 * In addition to space for all message descriptors we need
-	 * to have enough to hold all outbound message data.
+	 * to have eanalugh to hold all outbound message data.
 	 */
 	msg = msgs;
 	for (i = 0; i < msg_count; i++, msg++)
@@ -165,9 +165,9 @@ static void gb_i2c_decode_response(struct i2c_msg *msgs, u32 msg_count,
 /*
  * Some i2c transfer operations return results that are expected.
  */
-static bool gb_i2c_expected_transfer_error(int errno)
+static bool gb_i2c_expected_transfer_error(int erranal)
 {
-	return errno == -EAGAIN || errno == -ENODEV;
+	return erranal == -EAGAIN || erranal == -EANALDEV;
 }
 
 static int gb_i2c_transfer_operation(struct gb_i2c_device *gb_i2c_dev,
@@ -180,7 +180,7 @@ static int gb_i2c_transfer_operation(struct gb_i2c_device *gb_i2c_dev,
 
 	operation = gb_i2c_operation_create(connection, msgs, msg_count);
 	if (!operation)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = gbphy_runtime_get_sync(gb_i2c_dev->gbphy_dev);
 	if (ret)
@@ -237,7 +237,7 @@ static int gb_i2c_probe(struct gbphy_device *gbphy_dev,
 
 	gb_i2c_dev = kzalloc(sizeof(*gb_i2c_dev), GFP_KERNEL);
 	if (!gb_i2c_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	connection =
 		gb_connection_create(gbphy_dev->bundle,
@@ -296,7 +296,7 @@ static void gb_i2c_remove(struct gbphy_device *gbphy_dev)
 
 	ret = gbphy_runtime_get_sync(gbphy_dev);
 	if (ret)
-		gbphy_runtime_get_noresume(gbphy_dev);
+		gbphy_runtime_get_analresume(gbphy_dev);
 
 	i2c_del_adapter(&gb_i2c_dev->adapter);
 	gb_connection_disable(connection);

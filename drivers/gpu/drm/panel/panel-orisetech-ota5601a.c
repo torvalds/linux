@@ -200,7 +200,7 @@ static int ota5601a_get_modes(struct drm_panel *drm_panel,
 		mode = drm_mode_duplicate(connector->dev,
 					  &panel_info->display_modes[i]);
 		if (!mode)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		drm_mode_set_name(mode);
 
@@ -239,7 +239,7 @@ static int ota5601a_probe(struct spi_device *spi)
 
 	panel = devm_kzalloc(dev, sizeof(*panel), GFP_KERNEL);
 	if (!panel)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spi_set_drvdata(spi, panel);
 

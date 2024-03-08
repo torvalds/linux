@@ -37,7 +37,7 @@ struct flowi_common {
 	__u8	flowic_proto;
 	__u8	flowic_flags;
 #define FLOWI_FLAG_ANYSRC		0x01
-#define FLOWI_FLAG_KNOWN_NH		0x02
+#define FLOWI_FLAG_KANALWN_NH		0x02
 	__u32	flowic_secid;
 	kuid_t  flowic_uid;
 	__u32		flowic_multipath_hash;
@@ -139,7 +139,7 @@ struct flowi6 {
 #define flowi6_uid		__fl_common.flowic_uid
 	struct in6_addr		daddr;
 	struct in6_addr		saddr;
-	/* Note: flowi6_tos is encoded in flowlabel, too. */
+	/* Analte: flowi6_tos is encoded in flowlabel, too. */
 	__be32			flowlabel;
 	union flowi_uli		uli;
 #define fl6_sport		uli.ports.sport

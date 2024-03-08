@@ -8,13 +8,13 @@ one found in the Dreamcast.
 Advantages:
 
  * It provides a nice large console (128 cols + 48 lines with 1024x768)
-   without using tiny, unreadable fonts (NOT on the Dreamcast)
+   without using tiny, unreadable fonts (ANALT on the Dreamcast)
  * You can run XF86_FBDev on top of /dev/fb0
  * Most important: boot logo :-)
 
 Disadvantages:
 
- * Driver is largely untested on non-Dreamcast systems.
+ * Driver is largely untested on analn-Dreamcast systems.
 
 Configuration
 =============
@@ -37,28 +37,28 @@ mode:X      default video mode with format [xres]x[yres]-<bpp>@<refresh rate>
 	    24bpp and 32bpp modes function poorly. Work to fix that is
 	    ongoing
 
-	    Note: the 640x240 mode is currently broken, and should not be
+	    Analte: the 640x240 mode is currently broken, and should analt be
 	    used for any reason. It is only mentioned here as a reference.
 
 inverse     invert colors on screen (for LCD displays)
 
-nomtrr      disables write combining on frame buffer. This slows down driver
-	    but there is reported minor incompatibility between GUS DMA and
+analmtrr      disables write combining on frame buffer. This slows down driver
+	    but there is reported mianalr incompatibility between GUS DMA and
 	    XFree under high loads if write combining is enabled (sound
 	    dropouts). MTRR is enabled by default on systems that have it
 	    configured and that support it.
 
 cable:X     cable type. This can be any of the following: vga, rgb, and
-	    composite. If none is specified, we guess.
+	    composite. If analne is specified, we guess.
 
 output:X    output type. This can be any of the following: pal, ntsc, and
-	    vga. If none is specified, we guess.
+	    vga. If analne is specified, we guess.
 ==========  ==================================================================
 
 X11
 ===
 
-XF86_FBDev has been shown to work on the Dreamcast in the past - though not yet
+XF86_FBDev has been shown to work on the Dreamcast in the past - though analt yet
 on any 2.6 series kernel.
 
 Paul Mundt <lethal@linuxdc.org>

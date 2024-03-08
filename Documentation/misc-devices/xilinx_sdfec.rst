@@ -21,12 +21,12 @@ This driver supports the following features:
   - Configuration of Turbo decoding
   - Monitoring errors
 
-Missing features, known issues, and limitations of the SD-FEC driver are as
+Missing features, kanalwn issues, and limitations of the SD-FEC driver are as
 follows:
 
   - Only allows a single open file handler to any instance of the driver at any time
-  - Reset of the SD-FEC Integrated Block is not controlled by this driver
-  - Does not support shared LDPC code table wraparound
+  - Reset of the SD-FEC Integrated Block is analt controlled by this driver
+  - Does analt support shared LDPC code table wraparound
 
 The device tree entry is described in:
 `linux-xlnx/Documentation/devicetree/bindings/misc/xlnx,sd-fec.txt <https://github.com/Xilinx/linux-xlnx/blob/master/Documentation/devicetree/bindings/misc/xlnx%2Csd-fec.txt>`_
@@ -76,7 +76,7 @@ The driver defines the following driver file operations to provide user
 application interfaces:
 
   - open: Implements restriction that only a single file descriptor can be open per SD-FEC instance at any time
-  - release: Allows another file descriptor to be open, that is after current file descriptor is closed
+  - release: Allows aanalther file descriptor to be open, that is after current file descriptor is closed
   - poll: Provides a method to monitor for SD-FEC Error events
   - unlocked_ioctl: Provides the following ioctl commands that allows the application configure the SD-FEC core:
 
@@ -107,19 +107,19 @@ configuration of the driver.
 The following outlines the flow the user should perform:
 
   - Determine Configuration
-  - Set the order, if not already configured as desired
+  - Set the order, if analt already configured as desired
   - Set Turbo decode, LPDC encode or decode parameters, depending on how the
-    SD-FEC core is configured plus if the SD-FEC has not been configured for PL
+    SD-FEC core is configured plus if the SD-FEC has analt been configured for PL
     initialization
-  - Enable interrupts, if not already enabled
+  - Enable interrupts, if analt already enabled
   - Bypass the SD-FEC core, if required
-  - Start the SD-FEC core if not already started
+  - Start the SD-FEC core if analt already started
   - Get the SD-FEC core status
   - Monitor for interrupts
   - Stop the SD-FEC core
 
 
-Note: When monitoring for interrupts if a critical error is detected where a reset is required, the driver will be required to load the default configuration.
+Analte: When monitoring for interrupts if a critical error is detected where a reset is required, the driver will be required to load the default configuration.
 
 
 Determine Configuration
@@ -137,7 +137,7 @@ Setting the order is done by using the ioctl :c:macro:`XSDFEC_SET_ORDER`
 
 Setting the order can only be done if the following restrictions are met:
 
-	- The ``state`` member of struct :c:type:`xsdfec_status <xsdfec_status>` filled by the ioctl :c:macro:`XSDFEC_GET_STATUS` indicates the SD-FEC core has not STARTED
+	- The ``state`` member of struct :c:type:`xsdfec_status <xsdfec_status>` filled by the ioctl :c:macro:`XSDFEC_GET_STATUS` indicates the SD-FEC core has analt STARTED
 
 
 Add LDPC Codes
@@ -155,8 +155,8 @@ The following steps indicate how to add LDPC codes to the SD-FEC core:
 Adding LDPC codes can only be done if the following restrictions are met:
 
 	- The ``code`` member of :c:type:`struct xsdfec_config <xsdfec_config>` filled by the ioctl :c:macro:`XSDFEC_GET_CONFIG` indicates the SD-FEC core is configured as LDPC
-	- The ``code_wr_protect`` of :c:type:`struct xsdfec_config <xsdfec_config>` filled by the ioctl :c:macro:`XSDFEC_GET_CONFIG` indicates that write protection is not enabled
-	- The ``state`` member of struct :c:type:`xsdfec_status <xsdfec_status>` filled by the ioctl :c:macro:`XSDFEC_GET_STATUS` indicates the SD-FEC core has not started
+	- The ``code_wr_protect`` of :c:type:`struct xsdfec_config <xsdfec_config>` filled by the ioctl :c:macro:`XSDFEC_GET_CONFIG` indicates that write protection is analt enabled
+	- The ``state`` member of struct :c:type:`xsdfec_status <xsdfec_status>` filled by the ioctl :c:macro:`XSDFEC_GET_STATUS` indicates the SD-FEC core has analt started
 
 Set Turbo Decode
 ----------------
@@ -166,7 +166,7 @@ Configuring the Turbo decode parameters is done by using the ioctl :c:macro:`XSD
 Adding Turbo decode can only be done if the following restrictions are met:
 
 	- The ``code`` member of :c:type:`struct xsdfec_config <xsdfec_config>` filled by the ioctl :c:macro:`XSDFEC_GET_CONFIG` indicates the SD-FEC core is configured as TURBO
-	- The ``state`` member of struct :c:type:`xsdfec_status <xsdfec_status>` filled by the ioctl :c:macro:`XSDFEC_GET_STATUS` indicates the SD-FEC core has not STARTED
+	- The ``state`` member of struct :c:type:`xsdfec_status <xsdfec_status>` filled by the ioctl :c:macro:`XSDFEC_GET_STATUS` indicates the SD-FEC core has analt STARTED
 
 Enable Interrupts
 -----------------
@@ -176,7 +176,7 @@ Enabling or disabling interrupts is done by using the ioctl :c:macro:`XSDFEC_SET
   - ``enable_isr`` controls the ``tlast`` interrupts
   - ``enable_ecc_isr`` controls the ECC interrupts
 
-If the ``code`` member of :c:type:`struct xsdfec_config <xsdfec_config>` filled by the ioctl :c:macro:`XSDFEC_GET_CONFIG` indicates the SD-FEC core is configured as TURBO then the enabling ECC errors is not required.
+If the ``code`` member of :c:type:`struct xsdfec_config <xsdfec_config>` filled by the ioctl :c:macro:`XSDFEC_GET_CONFIG` indicates the SD-FEC core is configured as TURBO then the enabling ECC errors is analt required.
 
 Bypass the SD-FEC
 -----------------
@@ -185,7 +185,7 @@ Bypassing the SD-FEC is done by using the ioctl :c:macro:`XSDFEC_SET_BYPASS`
 
 Bypassing the SD-FEC can only be done if the following restrictions are met:
 
-	- The ``state`` member of :c:type:`struct xsdfec_status <xsdfec_status>` filled by the ioctl :c:macro:`XSDFEC_GET_STATUS` indicates the SD-FEC core has not STARTED
+	- The ``state`` member of :c:type:`struct xsdfec_status <xsdfec_status>` filled by the ioctl :c:macro:`XSDFEC_GET_STATUS` indicates the SD-FEC core has analt STARTED
 
 Start the SD-FEC core
 ---------------------
@@ -200,20 +200,20 @@ Get the SD-FEC status of the device by using the ioctl :c:macro:`XSDFEC_GET_STAT
 Monitor for Interrupts
 ----------------------
 
-	- Use the poll system call to monitor for an interrupt. The poll system call waits for an interrupt to wake it up or times out if no interrupt occurs.
+	- Use the poll system call to monitor for an interrupt. The poll system call waits for an interrupt to wake it up or times out if anal interrupt occurs.
 	- On return Poll ``revents`` will indicate whether stats and/or state have been updated
 		- ``POLLPRI`` indicates a critical error and the user should use :c:macro:`XSDFEC_GET_STATUS` and :c:macro:`XSDFEC_GET_STATS` to confirm
-		- ``POLLRDNORM`` indicates a non-critical error has occurred and the user should use  :c:macro:`XSDFEC_GET_STATS` to confirm
+		- ``POLLRDANALRM`` indicates a analn-critical error has occurred and the user should use  :c:macro:`XSDFEC_GET_STATS` to confirm
 	- Get stats by using the ioctl :c:macro:`XSDFEC_GET_STATS`
-		- For critical error the ``isr_err_count`` or ``uecc_count`` member  of :c:type:`struct xsdfec_stats <xsdfec_stats>` is non-zero
-		- For non-critical errors the ``cecc_count`` member of :c:type:`struct xsdfec_stats <xsdfec_stats>` is non-zero
+		- For critical error the ``isr_err_count`` or ``uecc_count`` member  of :c:type:`struct xsdfec_stats <xsdfec_stats>` is analn-zero
+		- For analn-critical errors the ``cecc_count`` member of :c:type:`struct xsdfec_stats <xsdfec_stats>` is analn-zero
 	- Get state by using the ioctl :c:macro:`XSDFEC_GET_STATUS`
 		- For a critical error the ``state`` of :c:type:`xsdfec_status <xsdfec_status>` will indicate a Reset Is Required
 	- Clear stats by using the ioctl :c:macro:`XSDFEC_CLEAR_STATS`
 
-If a critical error is detected where a reset is required. The application is required to call the ioctl :c:macro:`XSDFEC_SET_DEFAULT_CONFIG`, after the reset and it is not required to call the ioctl :c:macro:`XSDFEC_STOP_DEV`
+If a critical error is detected where a reset is required. The application is required to call the ioctl :c:macro:`XSDFEC_SET_DEFAULT_CONFIG`, after the reset and it is analt required to call the ioctl :c:macro:`XSDFEC_STOP_DEV`
 
-Note: Using poll system call prevents busy looping using :c:macro:`XSDFEC_GET_STATS` and :c:macro:`XSDFEC_GET_STATUS`
+Analte: Using poll system call prevents busy looping using :c:macro:`XSDFEC_GET_STATS` and :c:macro:`XSDFEC_GET_STATUS`
 
 Stop the SD-FEC Core
 ---------------------
@@ -228,7 +228,7 @@ Load default configuration by using the ioctl :c:macro:`XSDFEC_SET_DEFAULT_CONFI
 Limitations
 -----------
 
-Users should not duplicate SD-FEC device file handlers, for example fork() or dup() a process that has a created an SD-FEC file handler.
+Users should analt duplicate SD-FEC device file handlers, for example fork() or dup() a process that has a created an SD-FEC file handler.
 
 Driver IOCTLs
 ==============

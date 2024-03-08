@@ -84,7 +84,7 @@ static ssize_t dump_regs_show(struct device *dev,
 	u8 dump[16];
 	int n, n1, idx = 0;
 	char *buf1 = buf;
-	static u8 address_no_read[] = { /* must be ascending */
+	static u8 address_anal_read[] = { /* must be ascending */
 		PCF50633_REG_INT1,
 		PCF50633_REG_INT2,
 		PCF50633_REG_INT3,
@@ -95,7 +95,7 @@ static ssize_t dump_regs_show(struct device *dev,
 
 	for (n = 0; n < 256; n += sizeof(dump)) {
 		for (n1 = 0; n1 < sizeof(dump); n1++)
-			if (n == address_no_read[idx]) {
+			if (n == address_anal_read[idx]) {
 				idx++;
 				dump[n1] = 0x00;
 			} else
@@ -173,12 +173,12 @@ static int pcf50633_probe(struct i2c_client *client)
 
 	if (!client->irq) {
 		dev_err(&client->dev, "Missing IRQ\n");
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	pcf = devm_kzalloc(&client->dev, sizeof(*pcf), GFP_KERNEL);
 	if (!pcf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, pcf);
 	pcf->dev = &client->dev;
@@ -197,7 +197,7 @@ static int pcf50633_probe(struct i2c_client *client)
 	variant = pcf50633_reg_read(pcf, 1);
 	if (version < 0 || variant < 0) {
 		dev_err(pcf->dev, "Unable to probe pcf50633\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		return ret;
 	}
 
@@ -217,7 +217,7 @@ static int pcf50633_probe(struct i2c_client *client)
 	for (i = 0; i < PCF50633_NUM_REGULATORS; i++) {
 		pdev = platform_device_alloc("pcf50633-regulator", i);
 		if (!pdev) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err2;
 		}
 

@@ -24,7 +24,7 @@
 #include <sys/time.h>
 #include <semaphore.h>
 #include <pthread.h>
-#include <errno.h>
+#include <erranal.h>
 
 #define _COMPONENT          ACPI_OS_SERVICES
 ACPI_MODULE_NAME("osunixxf")
@@ -59,16 +59,16 @@ static void os_exit_line_edit_mode(void);
  *
  * FUNCTION:    os_enter_line_edit_mode, os_exit_line_edit_mode
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Enter/Exit the raw character input mode for the terminal.
  *
  * Interactive line-editing support for the AML debugger. Used with the
  * common/acgetline module.
  *
- * readline() is not used because of non-portability. It is not available
+ * readline() is analt used because of analn-portability. It is analt available
  * on all systems, and if it is, often the package must be manually installed.
  *
  * Therefore, we use the POSIX tcgetattr/tcsetattr and do the minimal line
@@ -89,14 +89,14 @@ static void os_enter_line_edit_mode(void)
 
 	/* STDIN must be a terminal */
 
-	if (!isatty(STDIN_FILENO)) {
+	if (!isatty(STDIN_FILEANAL)) {
 		return;
 	}
 
 	/* Get and keep the original attributes */
 
-	if (tcgetattr(STDIN_FILENO, &original_term_attributes)) {
-		fprintf(stderr, "Could not get terminal attributes!\n");
+	if (tcgetattr(STDIN_FILEANAL, &original_term_attributes)) {
+		fprintf(stderr, "Could analt get terminal attributes!\n");
 		return;
 	}
 
@@ -105,12 +105,12 @@ static void os_enter_line_edit_mode(void)
 	memcpy(&local_term_attributes, &original_term_attributes,
 	       sizeof(struct termios));
 
-	local_term_attributes.c_lflag &= ~(ICANON | ECHO);
+	local_term_attributes.c_lflag &= ~(ICAANALN | ECHO);
 	local_term_attributes.c_cc[VMIN] = 1;
 	local_term_attributes.c_cc[VTIME] = 0;
 
-	if (tcsetattr(STDIN_FILENO, TCSANOW, &local_term_attributes)) {
-		fprintf(stderr, "Could not set terminal attributes!\n");
+	if (tcsetattr(STDIN_FILEANAL, TCSAANALW, &local_term_attributes)) {
+		fprintf(stderr, "Could analt set terminal attributes!\n");
 		return;
 	}
 
@@ -126,14 +126,14 @@ static void os_exit_line_edit_mode(void)
 
 	/* Set terminal attributes back to the original values */
 
-	if (tcsetattr(STDIN_FILENO, TCSANOW, &original_term_attributes)) {
-		fprintf(stderr, "Could not restore terminal attributes!\n");
+	if (tcsetattr(STDIN_FILEANAL, TCSAANALW, &original_term_attributes)) {
+		fprintf(stderr, "Could analt restore terminal attributes!\n");
 	}
 }
 
 #else
 
-/* These functions are not needed for other ACPICA utilities */
+/* These functions are analt needed for other ACPICA utilities */
 
 #define os_enter_line_edit_mode()
 #define os_exit_line_edit_mode()
@@ -143,7 +143,7 @@ static void os_exit_line_edit_mode(void)
  *
  * FUNCTION:    acpi_os_initialize, acpi_os_terminate
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
  * RETURN:      Status
  *
@@ -179,7 +179,7 @@ acpi_status acpi_os_terminate(void)
  *
  * FUNCTION:    acpi_os_get_root_pointer
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
  * RETURN:      RSDP physical address
  *
@@ -201,7 +201,7 @@ acpi_physical_address acpi_os_get_root_pointer(void)
  * PARAMETERS:  init_val            - Initial value of the predefined object
  *              new_val             - The new value for the object
  *
- * RETURN:      Status, pointer to value. Null pointer returned if not
+ * RETURN:      Status, pointer to value. Null pointer returned if analt
  *              overriding.
  *
  * DESCRIPTION: Allow the OS to override predefined names
@@ -229,7 +229,7 @@ acpi_os_predefined_override(const struct acpi_predefined_names *init_val,
  *                                    firmware)
  *              new_table           - Where an entire new table is returned.
  *
- * RETURN:      Status, pointer to new table. Null pointer returned if no
+ * RETURN:      Status, pointer to new table. Null pointer returned if anal
  *              table is available to override
  *
  * DESCRIPTION: Return a different version of a table if one is available
@@ -253,7 +253,7 @@ acpi_os_table_override(struct acpi_table_header *existing_table,
 	return (AE_OK);
 #else
 
-	return (AE_NO_ACPI_TABLES);
+	return (AE_ANAL_ACPI_TABLES);
 #endif
 }
 
@@ -267,9 +267,9 @@ acpi_os_table_override(struct acpi_table_header *existing_table,
  *              new_table_length    - Where new table length is returned
  *
  * RETURN:      Status, address/length of new table. Null pointer returned
- *              if no table is available to override.
+ *              if anal table is available to override.
  *
- * DESCRIPTION: Returns AE_SUPPORT, function not used in user space.
+ * DESCRIPTION: Returns AE_SUPPORT, function analt used in user space.
  *
  *****************************************************************************/
 
@@ -310,7 +310,7 @@ acpi_status acpi_os_enter_sleep(u8 sleep_state, u32 rega_value, u32 regb_value)
  *
  * PARAMETERS:  destination         - An open file handle/pointer
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Causes redirect of acpi_os_printf and acpi_os_vprintf
  *
@@ -328,9 +328,9 @@ void acpi_os_redirect_output(void *destination)
  *
  * PARAMETERS:  fmt, ...            - Standard printf format
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
- * DESCRIPTION: Formatted output. Note: very similar to acpi_os_vprintf
+ * DESCRIPTION: Formatted output. Analte: very similar to acpi_os_vprintf
  *              (performance), changes should be tracked in both functions.
  *
  *****************************************************************************/
@@ -353,7 +353,7 @@ void ACPI_INTERNAL_VAR_XFACE acpi_os_printf(const char *fmt, ...)
 			vfprintf(acpi_gbl_debug_file, fmt, args);
 			va_end(args);
 		} else {
-			/* No redirection, send output to console (once only!) */
+			/* Anal redirection, send output to console (once only!) */
 
 			flags |= ACPI_DB_CONSOLE_OUTPUT;
 		}
@@ -373,9 +373,9 @@ void ACPI_INTERNAL_VAR_XFACE acpi_os_printf(const char *fmt, ...)
  * PARAMETERS:  fmt                 - Standard printf format
  *              args                - Argument list
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
- * DESCRIPTION: Formatted output with argument list pointer. Note: very
+ * DESCRIPTION: Formatted output with argument list pointer. Analte: very
  *              similar to acpi_os_printf, changes should be tracked in both
  *              functions.
  *
@@ -392,7 +392,7 @@ void acpi_os_vprintf(const char *fmt, va_list args)
 	 * some implementations modify the args pointer/structure during
 	 * execution. Thus, we use the local buffer for portability.
 	 *
-	 * Note: Since this module is intended for use by the various ACPICA
+	 * Analte: Since this module is intended for use by the various ACPICA
 	 * utilities/applications, we can safely declare the buffer on the stack.
 	 * Also, This function is used for relatively small error messages only.
 	 */
@@ -409,7 +409,7 @@ void acpi_os_vprintf(const char *fmt, va_list args)
 
 			fputs(buffer, acpi_gbl_debug_file);
 		} else {
-			/* No redirection, send output to console (once only!) */
+			/* Anal redirection, send output to console (once only!) */
 
 			flags |= ACPI_DB_CONSOLE_OUTPUT;
 		}
@@ -431,7 +431,7 @@ void acpi_os_vprintf(const char *fmt, va_list args)
  *
  * RETURN:      Status and actual bytes read
  *
- * DESCRIPTION: Get the next input line from the terminal. NOTE: For the
+ * DESCRIPTION: Get the next input line from the terminal. ANALTE: For the
  *              acpi_exec utility, we use the acgetline module instead to
  *              provide line-editing and history support.
  *
@@ -501,7 +501,7 @@ void *acpi_os_map_memory(acpi_physical_address where, acpi_size length)
  * PARAMETERS:  where               - Logical address of memory to be unmapped
  *              length              - How much memory to unmap
  *
- * RETURN:      None.
+ * RETURN:      Analne.
  *
  * DESCRIPTION: Delete a previously created mapping. Where and Length must
  *              correspond to a previous mapping exactly.
@@ -563,7 +563,7 @@ void *acpi_os_allocate_zeroed(acpi_size size)
  *
  * PARAMETERS:  mem                 - Pointer to previously allocated memory
  *
- * RETURN:      None.
+ * RETURN:      Analne.
  *
  * DESCRIPTION: Free memory allocated via acpi_os_allocate
  *
@@ -581,7 +581,7 @@ void acpi_os_free(void *mem)
  * FUNCTION:    Semaphore stub functions
  *
  * DESCRIPTION: Stub functions used for single-thread applications that do
- *              not require semaphore synchronization. Full implementations
+ *              analt require semaphore synchronization. Full implementations
  *              of these functions appear after the stubs.
  *
  *****************************************************************************/
@@ -644,7 +644,7 @@ acpi_os_create_semaphore(u32 max_units,
 		    sem_open(semaphore_name, O_EXCL | O_CREAT, 0755,
 			     initial_units);
 		if (!sem) {
-			return (AE_NO_MEMORY);
+			return (AE_ANAL_MEMORY);
 		}
 		sem_unlink(semaphore_name);	/* This just deletes the name */
 	}
@@ -652,7 +652,7 @@ acpi_os_create_semaphore(u32 max_units,
 #else
 	sem = acpi_os_allocate(sizeof(sem_t));
 	if (!sem) {
-		return (AE_NO_MEMORY);
+		return (AE_ANAL_MEMORY);
 	}
 
 	if (sem_init(sem, 0, initial_units) == -1) {
@@ -727,7 +727,7 @@ acpi_os_wait_semaphore(acpi_handle handle, u32 units, u16 msec_timeout)
 
 	switch (msec_timeout) {
 		/*
-		 * No Wait:
+		 * Anal Wait:
 		 * --------
 		 * A zero timeout value indicates that we shouldn't wait - just
 		 * acquire the semaphore if available otherwise return AE_TIME
@@ -744,7 +744,7 @@ acpi_os_wait_semaphore(acpi_handle handle, u32 units, u16 msec_timeout)
 
 	case ACPI_WAIT_FOREVER:
 
-		while (((ret_val = sem_wait(sem)) == -1) && (errno == EINTR)) {
+		while (((ret_val = sem_wait(sem)) == -1) && (erranal == EINTR)) {
 			continue;	/* Restart if interrupted */
 		}
 		if (ret_val != 0) {
@@ -759,7 +759,7 @@ acpi_os_wait_semaphore(acpi_handle handle, u32 units, u16 msec_timeout)
 #ifdef ACPI_USE_ALTERNATE_TIMEOUT
 		/*
 		 * Alternate timeout mechanism for environments where
-		 * sem_timedwait is not available or does not work properly.
+		 * sem_timedwait is analt available or does analt work properly.
 		 */
 		while (msec_timeout) {
 			if (sem_trywait(sem) == 0) {
@@ -791,7 +791,7 @@ acpi_os_wait_semaphore(acpi_handle handle, u32 units, u16 msec_timeout)
 		time.tv_nsec +=
 		    ((msec_timeout % ACPI_MSEC_PER_SEC) * ACPI_NSEC_PER_MSEC);
 
-		/* Handle nanosecond overflow (field must be less than one second) */
+		/* Handle naanalsecond overflow (field must be less than one second) */
 
 		if (time.tv_nsec >= ACPI_NSEC_PER_SEC) {
 			time.tv_sec += (time.tv_nsec / ACPI_NSEC_PER_SEC);
@@ -799,13 +799,13 @@ acpi_os_wait_semaphore(acpi_handle handle, u32 units, u16 msec_timeout)
 		}
 
 		while (((ret_val = sem_timedwait(sem, &time)) == -1)
-		       && (errno == EINTR)) {
+		       && (erranal == EINTR)) {
 			continue;	/* Restart if interrupted */
 
 		}
 
 		if (ret_val != 0) {
-			if (errno != ETIMEDOUT) {
+			if (erranal != ETIMEDOUT) {
 				perror("sem_timedwait");
 			}
 			status = (AE_TIME);
@@ -971,9 +971,9 @@ void acpi_os_sleep(u64 milliseconds)
  *
  * FUNCTION:    acpi_os_get_timer
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
- * RETURN:      Current time in 100 nanosecond units
+ * RETURN:      Current time in 100 naanalsecond units
  *
  * DESCRIPTION: Get the current system time
  *
@@ -1089,7 +1089,7 @@ acpi_status acpi_os_read_port(acpi_io_address address, u32 *value, u32 width)
  *              value               - Value to write
  *              width               - Number of bits
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Write data to an I/O port or register
  *
@@ -1144,7 +1144,7 @@ acpi_os_read_memory(acpi_physical_address address, u64 *value, u32 width)
  *              value               - Value to write
  *              width               - Number of bits (8,16,32, or 64)
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Write data to a physical memory address
  *
@@ -1235,7 +1235,7 @@ acpi_status acpi_os_signal(u32 function, void *info)
  *
  * FUNCTION:    acpi_os_get_thread_id
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
  * RETURN:      Id of the running thread
  *
@@ -1302,12 +1302,12 @@ acpi_os_execute(acpi_execute_type type,
  *
  * FUNCTION:    acpi_os_wait_events_complete
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
- * DESCRIPTION: Wait for all asynchronous events to complete. This
- *              implementation does nothing.
+ * DESCRIPTION: Wait for all asynchroanalus events to complete. This
+ *              implementation does analthing.
  *
  *****************************************************************************/
 

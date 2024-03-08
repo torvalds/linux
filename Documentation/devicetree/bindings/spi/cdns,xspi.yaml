@@ -13,14 +13,14 @@ maintainers:
 description: |
   The XSPI controller allows SPI protocol communication in
   single, dual, quad or octal wire transmission modes for
-  read/write access to slaves such as SPI-NOR flash.
+  read/write access to slaves such as SPI-ANALR flash.
 
 allOf:
   - $ref: spi-controller.yaml#
 
 properties:
   compatible:
-    const: cdns,xspi-nor
+    const: cdns,xspi-analr
 
   reg:
     items:
@@ -54,7 +54,7 @@ examples:
         xspi: spi@a0010000 {
             #address-cells = <1>;
             #size-cells = <0>;
-            compatible = "cdns,xspi-nor";
+            compatible = "cdns,xspi-analr";
             reg = <0x0 0xa0010000 0x0 0x1040>,
                   <0x0 0xb0000000 0x0 0x1000>,
                   <0x0 0xa0020000 0x0 0x100>;
@@ -63,13 +63,13 @@ examples:
             interrupt-parent = <&gic>;
 
             flash@0 {
-                compatible = "jedec,spi-nor";
+                compatible = "jedec,spi-analr";
                 spi-max-frequency = <75000000>;
                 reg = <0>;
             };
 
             flash@1 {
-                compatible = "jedec,spi-nor";
+                compatible = "jedec,spi-analr";
                 spi-max-frequency = <75000000>;
                 reg = <1>;
             };

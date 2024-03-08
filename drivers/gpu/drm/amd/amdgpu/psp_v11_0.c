@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -383,7 +383,7 @@ static int psp_v11_0_mode1_reset(struct psp_context *psp)
 	ret = psp_wait_for(psp, offset, 0x80000000, 0x8000FFFF, false);
 
 	if (ret) {
-		DRM_INFO("psp is not working correctly before mode1 reset!\n");
+		DRM_INFO("psp is analt working correctly before mode1 reset!\n");
 		return -EINVAL;
 	}
 
@@ -450,8 +450,8 @@ static int psp_v11_0_memory_training(struct psp_context *psp, uint32_t ops)
 	void *buf;
 	int ret, idx;
 
-	if (ctx->init == PSP_MEM_TRAIN_NOT_SUPPORT) {
-		DRM_DEBUG("Memory training is not supported.\n");
+	if (ctx->init == PSP_MEM_TRAIN_ANALT_SUPPORT) {
+		DRM_DEBUG("Memory training is analt supported.\n");
 		return 0;
 	} else if (ctx->init != PSP_MEM_TRAIN_INIT_SUCCESS) {
 		DRM_ERROR("Memory training initialization failure.\n");
@@ -509,7 +509,7 @@ static int psp_v11_0_memory_training(struct psp_context *psp, uint32_t ops)
 		sz = GDDR6_MEM_TRAINING_ENCROACHED_SIZE;
 
 		if (adev->gmc.visible_vram_size < sz || !adev->mman.aper_base_kaddr) {
-			DRM_ERROR("visible_vram_size %llx or aper_base_kaddr %p is not initialized.\n",
+			DRM_ERROR("visible_vram_size %llx or aper_base_kaddr %p is analt initialized.\n",
 				  adev->gmc.visible_vram_size,
 				  adev->mman.aper_base_kaddr);
 			return -EINVAL;
@@ -518,7 +518,7 @@ static int psp_v11_0_memory_training(struct psp_context *psp, uint32_t ops)
 		buf = vmalloc(sz);
 		if (!buf) {
 			DRM_ERROR("failed to allocate system memory.\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		if (drm_dev_enter(adev_to_drm(adev), &idx)) {
@@ -537,7 +537,7 @@ static int psp_v11_0_memory_training(struct psp_context *psp, uint32_t ops)
 			drm_dev_exit(idx);
 		} else {
 			vfree(buf);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 

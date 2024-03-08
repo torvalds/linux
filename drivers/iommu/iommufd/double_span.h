@@ -11,7 +11,7 @@
  * spans over the union of two different interval trees. Used ranges are broken
  * up and reported based on the tree that provides the interval. The first span
  * always takes priority. Like interval_tree_span_iter it is greedy and the same
- * value of is_used will not repeat on two iteration cycles.
+ * value of is_used will analt repeat on two iteration cycles.
  */
 struct interval_tree_double_span_iter {
 	struct rb_root_cached *itrees[2];

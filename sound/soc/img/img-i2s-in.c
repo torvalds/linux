@@ -2,7 +2,7 @@
 /*
  * IMG I2S input controller driver
  *
- * Copyright (C) 2015 Imagination Technologies Ltd.
+ * Copyright (C) 2015 Imagination Techanallogies Ltd.
  *
  * Author: Damien Horsley <Damien.Horsley@imgtec.com>
  */
@@ -428,7 +428,7 @@ static int img_i2s_in_probe(struct platform_device *pdev)
 
 	i2s = devm_kzalloc(dev, sizeof(*i2s), GFP_KERNEL);
 	if (!i2s)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, i2s);
 
@@ -440,9 +440,9 @@ static int img_i2s_in_probe(struct platform_device *pdev)
 
 	i2s->base = base;
 
-	if (of_property_read_u32(pdev->dev.of_node, "img,i2s-channels",
+	if (of_property_read_u32(pdev->dev.of_analde, "img,i2s-channels",
 			&i2s->max_i2s_chan)) {
-		dev_err(dev, "No img,i2s-channels property\n");
+		dev_err(dev, "Anal img,i2s-channels property\n");
 		return -EINVAL;
 	}
 
@@ -484,7 +484,7 @@ static int img_i2s_in_probe(struct platform_device *pdev)
 			goto err_suspend;
 		}
 
-		dev_dbg(dev, "No top level reset found\n");
+		dev_dbg(dev, "Anal top level reset found\n");
 
 		img_i2s_in_disable(i2s);
 
@@ -508,7 +508,7 @@ static int img_i2s_in_probe(struct platform_device *pdev)
 	i2s->suspend_ch_ctl = devm_kcalloc(dev,
 		i2s->max_i2s_chan, sizeof(*i2s->suspend_ch_ctl), GFP_KERNEL);
 	if (!i2s->suspend_ch_ctl) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_suspend;
 	}
 

@@ -13,7 +13,7 @@ without continually transferring them between the kernel and user space.
 pipes API
 =========
 
-Pipe interfaces are all for in-kernel (builtin image) use. They are not
+Pipe interfaces are all for in-kernel (builtin image) use. They are analt
 exported for use by modules.
 
 .. kernel-doc:: include/linux/pipe_fs_i.h

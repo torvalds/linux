@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2013 Imagination Technologies Ltd.
+ * Copyright (C) 2013 Imagination Techanallogies Ltd.
  *
  * Arbitrary Monitor Support (AMON)
  */

@@ -6,7 +6,7 @@
  * Operation:
  * When user space enables workload type prediction:
  * - Use mailbox to:
- *	Configure notification delay
+ *	Configure analtification delay
  *	Enable processor thermal device interrupt
  *
  * - The predicted workload type can be read from MMIO:
@@ -22,7 +22,7 @@
  *
  * - proc_thermal_wt_intr_callback():
  *     Callback for interrupt processing in thread context. This involves
- *	sending notification to user space that there is a change in the
+ *	sending analtification to user space that there is a change in the
  *     workload type.
  *
  * Copyright (c) 2023, Intel Corporation.
@@ -42,8 +42,8 @@
  * Closest possible to 1 Second is 1024 ms with programmed time delay
  * of 0x0A.
  */
-static u8 notify_delay = 0x0A;
-static u16 notify_delay_ms = 1024;
+static u8 analtify_delay = 0x0A;
+static u16 analtify_delay_ms = 1024;
 
 static DEFINE_MUTEX(wt_lock);
 static u8 wt_enable;
@@ -61,7 +61,7 @@ static ssize_t workload_type_index_show(struct device *dev,
 	mutex_lock(&wt_lock);
 	if (!wt_enable) {
 		mutex_unlock(&wt_lock);
-		return -ENODATA;
+		return -EANALDATA;
 	}
 
 	proc_priv = pci_get_drvdata(pdev);
@@ -100,7 +100,7 @@ static ssize_t workload_hint_enable_store(struct device *dev,
 	if (mode)
 		ret = processor_thermal_mbox_interrupt_config(pdev, true,
 							      SOC_WT_PREDICTION_INT_ENABLE_BIT,
-							      notify_delay);
+							      analtify_delay);
 	else
 		ret = processor_thermal_mbox_interrupt_config(pdev, false,
 							      SOC_WT_PREDICTION_INT_ENABLE_BIT, 0);
@@ -119,14 +119,14 @@ ret_enable_store:
 
 static DEVICE_ATTR_RW(workload_hint_enable);
 
-static ssize_t notification_delay_ms_show(struct device *dev,
+static ssize_t analtification_delay_ms_show(struct device *dev,
 					  struct device_attribute *attr,
 					  char *buf)
 {
-	return sysfs_emit(buf, "%u\n", notify_delay_ms);
+	return sysfs_emit(buf, "%u\n", analtify_delay_ms);
 }
 
-static ssize_t notification_delay_ms_store(struct device *dev,
+static ssize_t analtification_delay_ms_store(struct device *dev,
 					   struct device_attribute *attr,
 					   const char *buf, size_t size)
 {
@@ -167,8 +167,8 @@ static ssize_t notification_delay_ms_store(struct device *dev,
 
 	if (!ret) {
 		ret = size;
-		notify_delay = tm;
-		notify_delay_ms = new_tw;
+		analtify_delay = tm;
+		analtify_delay_ms = new_tw;
 	}
 
 	mutex_unlock(&wt_lock);
@@ -176,12 +176,12 @@ static ssize_t notification_delay_ms_store(struct device *dev,
 	return ret;
 }
 
-static DEVICE_ATTR_RW(notification_delay_ms);
+static DEVICE_ATTR_RW(analtification_delay_ms);
 
 static struct attribute *workload_hint_attrs[] = {
 	&dev_attr_workload_type_index.attr,
 	&dev_attr_workload_hint_enable.attr,
-	&dev_attr_notification_delay_ms.attr,
+	&dev_attr_analtification_delay_ms.attr,
 	NULL
 };
 
@@ -206,7 +206,7 @@ bool proc_thermal_check_wt_intr(struct proc_thermal_device *proc_priv)
 }
 EXPORT_SYMBOL_NS_GPL(proc_thermal_check_wt_intr, INT340X_THERMAL);
 
-/* Callback to notify user space */
+/* Callback to analtify user space */
 void proc_thermal_wt_intr_callback(struct pci_dev *pdev, struct proc_thermal_device *proc_priv)
 {
 	u64 status;
@@ -215,7 +215,7 @@ void proc_thermal_wt_intr_callback(struct pci_dev *pdev, struct proc_thermal_dev
 	if (!(status & SOC_WT_PREDICTION_INT_ACTIVE))
 		return;
 
-	sysfs_notify(&pdev->dev.kobj, "workload_hint", "workload_type_index");
+	sysfs_analtify(&pdev->dev.kobj, "workload_hint", "workload_type_index");
 }
 EXPORT_SYMBOL_NS_GPL(proc_thermal_wt_intr_callback, INT340X_THERMAL);
 

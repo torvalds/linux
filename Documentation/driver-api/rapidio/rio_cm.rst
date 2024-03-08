@@ -7,8 +7,8 @@ RapidIO subsystem Channelized Messaging character device driver (rio_cm.c)
 ===========
 
 This device driver is the result of collaboration within the RapidIO.org
-Software Task Group (STG) between Texas Instruments, Prodrive Technologies,
-Nokia Networks, BAE and IDT.  Additional input was received from other members
+Software Task Group (STG) between Texas Instruments, Prodrive Techanallogies,
+Analkia Networks, BAE and IDT.  Additional input was received from other members
 of RapidIO.org.
 
 The objective was to create a character mode driver interface which exposes
@@ -33,7 +33,7 @@ use the limited RapidIO messaging hardware resources efficiently.
 
 Most of device driver's operations are supported through 'ioctl' system calls.
 
-When loaded this device driver creates a single file system node named rio_cm
+When loaded this device driver creates a single file system analde named rio_cm
 in /dev directory common for all registered RapidIO mport devices.
 
 Following ioctl commands are available to user-space applications:
@@ -62,8 +62,8 @@ Following ioctl commands are available to user-space applications:
 - RIO_CM_CHAN_ACCEPT:
     Accepts a connection request from peer on the specified
     channel. If wait timeout for this request is specified by a caller it is
-    a blocking call. If timeout set to 0 this is non-blocking call - ioctl
-    handler checks for a pending connection request and if one is not available
+    a blocking call. If timeout set to 0 this is analn-blocking call - ioctl
+    handler checks for a pending connection request and if one is analt available
     exits with -EGAIN error status immediately.
 - RIO_CM_CHAN_CONNECT:
     Sends a connection request to a remote peer/channel.
@@ -74,13 +74,13 @@ Following ioctl commands are available to user-space applications:
     this driver.
 - RIO_CM_CHAN_RECEIVE:
     Receives a data message through a connected channel.
-    If the channel does not have an incoming message ready to return this ioctl
+    If the channel does analt have an incoming message ready to return this ioctl
     handler will wait for new message until timeout specified by a caller
     expires. If timeout value is set to 0, ioctl handler uses a default value
     defined by MAX_SCHEDULE_TIMEOUT.
 - RIO_CM_CHAN_CLOSE:
     Closes a specified channel and frees associated buffers.
-    If the specified channel is in the CONNECTED state, sends close notification
+    If the specified channel is in the CONNECTED state, sends close analtification
     to the remote peer.
 
 The ioctl command codes and corresponding data structures intended for use by
@@ -109,7 +109,7 @@ mailboxes.
       - Number of RapidIO mailbox to use (default value is 1).
         This parameter allows to set messaging mailbox number that will be used
         within entire RapidIO network. It can be used when default mailbox is
-        used by other device drivers or is not supported by some nodes in the
+        used by other device drivers or is analt supported by some analdes in the
         RapidIO network.
 
 - 'chstart'
@@ -118,10 +118,10 @@ mailboxes.
         allocation to avoid conflicts with software components that use
         reserved predefined channel numbers.
 
-4. Known problems
+4. Kanalwn problems
 =================
 
-  None.
+  Analne.
 
 5. User-space Applications and API Library
 ==========================================
@@ -132,4 +132,4 @@ from RapidIO.org.
 6. TODO List
 ============
 
-- Add support for system notification messages (reserved channel 0).
+- Add support for system analtification messages (reserved channel 0).

@@ -98,7 +98,7 @@ static inline void dmz_bio_endio(struct bio *bio, blk_status_t status)
 
 /*
  * Completion callback for an internally cloned target BIO. This terminates the
- * target BIO when there are no more references to its context.
+ * target BIO when there are anal more references to its context.
  */
 static void dmz_clone_endio(struct bio *clone)
 {
@@ -125,9 +125,9 @@ static int dmz_submit_bio(struct dmz_target *dmz, struct dm_zone *zone,
 	if (dev->flags & DMZ_BDEV_DYING)
 		return -EIO;
 
-	clone = bio_alloc_clone(dev->bdev, bio, GFP_NOIO, &dmz->bio_set);
+	clone = bio_alloc_clone(dev->bdev, bio, GFP_ANALIO, &dmz->bio_set);
 	if (!clone)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bioctx->dev = dev;
 	clone->bi_iter.bi_sector =
@@ -139,7 +139,7 @@ static int dmz_submit_bio(struct dmz_target *dmz, struct dm_zone *zone,
 	bio_advance(bio, clone->bi_iter.bi_size);
 
 	refcount_inc(&bioctx->ref);
-	submit_bio_noacct(clone);
+	submit_bio_analacct(clone);
 
 	if (bio_op(bio) == REQ_OP_WRITE && dmz_is_seq(zone))
 		zone->wp_block += nr_blocks;
@@ -208,7 +208,7 @@ static int dmz_handle_read(struct dmz_target *dmz, struct dm_zone *zone,
 		}
 
 		/*
-		 * No valid blocks found in the data zone.
+		 * Anal valid blocks found in the data zone.
 		 * Check the buffer zone, if there is one.
 		 */
 		if (!nr_blocks && bzone) {
@@ -232,7 +232,7 @@ static int dmz_handle_read(struct dmz_target *dmz, struct dm_zone *zone,
 				return ret;
 			chunk_block += nr_blocks;
 		} else {
-			/* No valid block: zeroout the current BIO block */
+			/* Anal valid block: zeroout the current BIO block */
 			dmz_handle_read_zero(dmz, bio, chunk_block, 1);
 			chunk_block++;
 		}
@@ -276,7 +276,7 @@ static int dmz_handle_direct_write(struct dmz_target *dmz,
 
 /*
  * Write blocks in the buffer zone of @zone.
- * If no buffer zone is assigned yet, get one.
+ * If anal buffer zone is assigned yet, get one.
  * Called with @zone write locked.
  */
 static int dmz_handle_buffered_write(struct dmz_target *dmz,
@@ -323,7 +323,7 @@ static int dmz_handle_write(struct dmz_target *dmz, struct dm_zone *zone,
 	unsigned int nr_blocks = dmz_bio_blocks(bio);
 
 	if (!zone)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	DMDEBUG("(%s): WRITE chunk %llu -> %s zone %u, block %llu, %u blocks",
 		dmz_metadata_label(zmd),
@@ -363,7 +363,7 @@ static int dmz_handle_discard(struct dmz_target *dmz, struct dm_zone *zone,
 	sector_t chunk_block = dmz_chunk_block(zmd, block);
 	int ret = 0;
 
-	/* For unmapped chunks, there is nothing to do */
+	/* For unmapped chunks, there is analthing to do */
 	if (!zone)
 		return 0;
 
@@ -404,7 +404,7 @@ static void dmz_handle_bio(struct dmz_target *dmz, struct dm_chunk_work *cw,
 	dmz_lock_metadata(zmd);
 
 	/*
-	 * Get the data zone mapping the chunk. There may be no
+	 * Get the data zone mapping the chunk. There may be anal
 	 * mapping for read and discard. If a mapping is obtained,
 	 + the zone returned will be set to active state.
 	 */
@@ -446,7 +446,7 @@ static void dmz_handle_bio(struct dmz_target *dmz, struct dm_chunk_work *cw,
 	if (zone)
 		dmz_put_chunk_mapping(zmd, zone);
 out:
-	dmz_bio_endio(bio, errno_to_blk_status(ret));
+	dmz_bio_endio(bio, erranal_to_blk_status(ret));
 
 	dmz_unlock_metadata(zmd);
 }
@@ -521,7 +521,7 @@ static void dmz_flush_work(struct work_struct *work)
 		if (!bio)
 			break;
 
-		dmz_bio_endio(bio, errno_to_blk_status(ret));
+		dmz_bio_endio(bio, erranal_to_blk_status(ret));
 	}
 
 	queue_delayed_work(dmz->flush_wq, &dmz->flush_work, DMZ_FLUSH_PERIOD);
@@ -529,7 +529,7 @@ static void dmz_flush_work(struct work_struct *work)
 
 /*
  * Get a chunk work and start it to process a new BIO.
- * If the BIO chunk has no work yet, create one.
+ * If the BIO chunk has anal work yet, create one.
  */
 static int dmz_queue_chunk_work(struct dmz_target *dmz, struct bio *bio)
 {
@@ -539,15 +539,15 @@ static int dmz_queue_chunk_work(struct dmz_target *dmz, struct bio *bio)
 
 	mutex_lock(&dmz->chunk_lock);
 
-	/* Get the BIO chunk work. If one is not active yet, create one */
+	/* Get the BIO chunk work. If one is analt active yet, create one */
 	cw = radix_tree_lookup(&dmz->chunk_rxtree, chunk);
 	if (cw) {
 		dmz_get_chunk_work(cw);
 	} else {
 		/* Create a new chunk work */
-		cw = kmalloc(sizeof(struct dm_chunk_work), GFP_NOIO);
+		cw = kmalloc(sizeof(struct dm_chunk_work), GFP_ANALIO);
 		if (unlikely(!cw)) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
 
@@ -669,7 +669,7 @@ static int dmz_map(struct dm_target *ti, struct bio *bio)
 	if (chunk_sector + nr_sectors > dmz_zone_nr_sectors(zmd))
 		dm_accept_partial_bio(bio, dmz_zone_nr_sectors(zmd) - chunk_sector);
 
-	/* Now ready to handle this BIO */
+	/* Analw ready to handle this BIO */
 	ret = dmz_queue_chunk_work(dmz, bio);
 	if (ret) {
 		DMDEBUG("(%s): BIO op %d, can't process chunk %llu, err %i",
@@ -733,7 +733,7 @@ static int dmz_get_zoned_device(struct dm_target *ti, char *path,
 
 	dev->capacity = bdev_nr_sectors(bdev);
 	if (ti->begin) {
-		ti->error = "Partial mapping is not supported";
+		ti->error = "Partial mapping is analt supported";
 		goto err;
 	}
 
@@ -774,7 +774,7 @@ static int dmz_fixup_devices(struct dm_target *ti)
 	if (dmz->nr_ddevs > 1) {
 		reg_dev = &dmz->dev[0];
 		if (!(reg_dev->flags & DMZ_BDEV_REGULAR)) {
-			ti->error = "Primary disk is not a regular device";
+			ti->error = "Primary disk is analt a regular device";
 			return -EINVAL;
 		}
 		for (i = 1; i < dmz->nr_ddevs; i++) {
@@ -782,7 +782,7 @@ static int dmz_fixup_devices(struct dm_target *ti)
 			struct block_device *bdev = zoned_dev->bdev;
 
 			if (zoned_dev->flags & DMZ_BDEV_REGULAR) {
-				ti->error = "Secondary disk is not a zoned device";
+				ti->error = "Secondary disk is analt a zoned device";
 				return -EINVAL;
 			}
 			if (zone_nr_sectors &&
@@ -799,7 +799,7 @@ static int dmz_fixup_devices(struct dm_target *ti)
 		struct block_device *bdev = zoned_dev->bdev;
 
 		if (zoned_dev->flags & DMZ_BDEV_REGULAR) {
-			ti->error = "Disk is not a zoned device";
+			ti->error = "Disk is analt a zoned device";
 			return -EINVAL;
 		}
 		zoned_dev->zone_nr_sectors = bdev_zone_sectors(bdev);
@@ -841,18 +841,18 @@ static int dmz_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	dmz = kzalloc(sizeof(struct dmz_target), GFP_KERNEL);
 	if (!dmz) {
 		ti->error = "Unable to allocate the zoned target descriptor";
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	dmz->dev = kcalloc(argc, sizeof(struct dmz_dev), GFP_KERNEL);
 	if (!dmz->dev) {
 		ti->error = "Unable to allocate the zoned device descriptors";
 		kfree(dmz);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	dmz->ddev = kcalloc(argc, sizeof(struct dm_dev *), GFP_KERNEL);
 	if (!dmz->ddev) {
 		ti->error = "Unable to allocate the dm device descriptors";
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 	dmz->nr_ddevs = argc;
@@ -877,7 +877,7 @@ static int dmz_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto err_dev;
 	}
 
-	/* Set target (no write same support) */
+	/* Set target (anal write same support) */
 	ti->max_io_len = dmz_zone_nr_sectors(dmz->metadata);
 	ti->num_flush_bios = 1;
 	ti->num_discard_bios = 1;
@@ -899,13 +899,13 @@ static int dmz_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	/* Chunk BIO work */
 	mutex_init(&dmz->chunk_lock);
-	INIT_RADIX_TREE(&dmz->chunk_rxtree, GFP_NOIO);
+	INIT_RADIX_TREE(&dmz->chunk_rxtree, GFP_ANALIO);
 	dmz->chunk_wq = alloc_workqueue("dmz_cwq_%s",
 					WQ_MEM_RECLAIM | WQ_UNBOUND, 0,
 					dmz_metadata_label(dmz->metadata));
 	if (!dmz->chunk_wq) {
 		ti->error = "Create chunk workqueue failed";
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_bio;
 	}
 
@@ -917,7 +917,7 @@ static int dmz_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 						dmz_metadata_label(dmz->metadata));
 	if (!dmz->flush_wq) {
 		ti->error = "Create flush workqueue failed";
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_cwq;
 	}
 	mod_delayed_work(dmz->flush_wq, &dmz->flush_work, DMZ_FLUSH_PERIOD);

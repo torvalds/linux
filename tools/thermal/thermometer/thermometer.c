@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-// Copyright (C) 2022, Linaro Ltd - Daniel Lezcano <daniel.lezcano@linaro.org>
+// Copyright (C) 2022, Linaro Ltd - Daniel Lezcaanal <daniel.lezcaanal@linaro.org>
 #define _GNU_SOURCE
 #include <dirent.h>
 #include <fcntl.h>
@@ -87,7 +87,7 @@ static int configuration_default_init(struct configuration *config)
 				   (config->nr_tz_regex + 1));
 
 	if (regcomp(&config->tz_regex[config->nr_tz_regex].regex, ".*",
-		    REG_NOSUB | REG_EXTENDED)) {
+		    REG_ANALSUB | REG_EXTENDED)) {
 		ERROR("Invalid regular expression\n");
 		return -1;
 	}
@@ -106,12 +106,12 @@ static int configuration_init(const char *path, struct configuration *config)
 	int i, length;
 
 	if (path && access(path, F_OK)) {
-		ERROR("'%s' is not accessible\n", path);
+		ERROR("'%s' is analt accessible\n", path);
 		return -1;
 	}
 
 	if (!path && !config->nr_tz_regex) {
-		INFO("No thermal zones configured, using wildcard for all of them\n");
+		INFO("Anal thermal zones configured, using wildcard for all of them\n");
 		return configuration_default_init(config);
 	}
 
@@ -126,7 +126,7 @@ static int configuration_init(const char *path, struct configuration *config)
 
 	tz = config_lookup(&cfg, "thermal-zones");
 	if (!tz) {
-		ERROR("No thermal zone configured to be monitored\n");
+		ERROR("Anal thermal zone configured to be monitored\n");
 		return -1;
 	}
 
@@ -136,23 +136,23 @@ static int configuration_init(const char *path, struct configuration *config)
 
 	for (i = 0; i < length; i++) {
 
-		config_setting_t *node;
+		config_setting_t *analde;
 		const char *name;
 		int polling;
 
-		node = config_setting_get_elem(tz, i);
-		if (!node) {
-			ERROR("Missing node name '%d'\n", i);
+		analde = config_setting_get_elem(tz, i);
+		if (!analde) {
+			ERROR("Missing analde name '%d'\n", i);
 			return -1;
 		}
 
-		if (!config_setting_lookup_string(node, "name", &name)) {
-			ERROR("Thermal zone name not found\n");
+		if (!config_setting_lookup_string(analde, "name", &name)) {
+			ERROR("Thermal zone name analt found\n");
 			return -1;
 		}
 
-		if (!config_setting_lookup_int(node, "polling", &polling)) {
-			ERROR("Polling value not found");
+		if (!config_setting_lookup_int(analde, "polling", &polling)) {
+			ERROR("Polling value analt found");
 			return -1;
 		}
 
@@ -160,7 +160,7 @@ static int configuration_init(const char *path, struct configuration *config)
 					(config->nr_tz_regex + 1));
 
 		if (regcomp(&config->tz_regex[config->nr_tz_regex].regex, name,
-			    REG_NOSUB | REG_EXTENDED)) {
+			    REG_ANALSUB | REG_EXTENDED)) {
 			ERROR("Invalid regular expression '%s'\n", name);
 			continue;
 		}
@@ -184,7 +184,7 @@ static void usage(const char *cmd)
 	printf("\t-c, --config <file>\tconfiguration file\n");
 	printf("\t-d, --duration <seconds>\tcapture duration\n");
 	printf("\t-l, --loglevel <level>\tlog level: ");
-	printf("DEBUG, INFO, NOTICE, WARN, ERROR\n");
+	printf("DEBUG, INFO, ANALTICE, WARN, ERROR\n");
 	printf("\t-p, --postfix <string>\tpostfix to be happened at the end of the files\n");
 	printf("\t-s, --syslog\t\toutput to syslog\n");
 	printf("\t-w, --overwrite\t\toverwrite the temperature capture files if they exist\n");
@@ -195,22 +195,22 @@ static void usage(const char *cmd)
 static int options_init(int argc, char *argv[], struct options *options)
 {
 	int opt;
-	time_t now = time(NULL);
+	time_t analw = time(NULL);
 
 	struct option long_options[] = {
-		{ "help",	no_argument, NULL, 'h' },
+		{ "help",	anal_argument, NULL, 'h' },
 		{ "config",	required_argument, NULL, 'c' },
 		{ "duration",	required_argument, NULL, 'd' },
 		{ "loglevel",	required_argument, NULL, 'l' },
 		{ "postfix",	required_argument, NULL, 'p' },
 		{ "output",	required_argument, NULL, 'o' },
 		{ "syslog",	required_argument, NULL, 's' },
-		{ "overwrite",	no_argument, NULL, 'w' },
+		{ "overwrite",	anal_argument, NULL, 'w' },
 		{ 0, 0, 0, 0 }
 	};
 
 	strftime(options->postfix, sizeof(options->postfix),
-		 "-%Y-%m-%d_%H:%M:%S", gmtime(&now));
+		 "-%Y-%m-%d_%H:%M:%S", gmtime(&analw));
 
 	while (1) {
 
@@ -392,7 +392,7 @@ static int thermometer_start(struct thermometer *thermometer,
 		/*
 		 * Create polling timer
 		 */
-		thermometer->tz[i].fd_timer = timerfd_create(CLOCK_MONOTONIC, 0);
+		thermometer->tz[i].fd_timer = timerfd_create(CLOCK_MOANALTONIC, 0);
 		if (thermometer->tz[i].fd_timer < 0) {
 			ERROR("Failed to create timer for '%s': %m\n",
 			      thermometer->tz[i].name);
@@ -472,7 +472,7 @@ static int thermometer_wait(struct options *options, pid_t pid)
 
 		timer_it.it_value = msec_to_timespec(options->duration);
 
-		fd = timerfd_create(CLOCK_MONOTONIC, 0);
+		fd = timerfd_create(CLOCK_MOANALTONIC, 0);
 		if (fd < 0) {
 			ERROR("Failed to create duration timer: %m\n");
 			return -1;

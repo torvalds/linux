@@ -14,12 +14,12 @@
 #include <stdlib.h>
 
 #define SCRIPT_NAMELEN	128
-#define SCRIPT_MAX_NO	64
+#define SCRIPT_MAX_ANAL	64
 /*
  * Usually the full path for a script is:
  *	/home/username/libexec/perf-core/scripts/python/xxx.py
  *	/home/username/libexec/perf-core/scripts/perl/xxx.pl
- * So 256 should be long enough to contain the full path.
+ * So 256 should be long eanalugh to contain the full path.
  */
 #define SCRIPT_FULLPATH_LEN	256
 
@@ -65,7 +65,7 @@ static int scripts_config(const char *var, const char *value, void *data)
 
 	if (!strstarts(var, "scripts."))
 		return -1;
-	if (c->index >= SCRIPT_MAX_NO)
+	if (c->index >= SCRIPT_MAX_ANAL)
 		return -1;
 	c->names[c->index] = strdup(var + 7);
 	if (!c->names[c->index])
@@ -85,7 +85,7 @@ static int scripts_config(const char *var, const char *value, void *data)
 static int list_scripts(char *script_name, bool *custom,
 			struct evsel *evsel)
 {
-	char *buf, *paths[SCRIPT_MAX_NO], *names[SCRIPT_MAX_NO];
+	char *buf, *paths[SCRIPT_MAX_ANAL], *names[SCRIPT_MAX_ANAL];
 	int i, num, choice;
 	int ret = 0;
 	int max_std, custom_perf;
@@ -100,7 +100,7 @@ static int list_scripts(char *script_name, bool *custom,
 	script_name[0] = 0;
 
 	/* Preset the script name to SCRIPT_NAMELEN */
-	buf = malloc(SCRIPT_MAX_NO * (SCRIPT_NAMELEN + SCRIPT_FULLPATH_LEN));
+	buf = malloc(SCRIPT_MAX_ANAL * (SCRIPT_NAMELEN + SCRIPT_FULLPATH_LEN));
 	if (!buf)
 		return -1;
 
@@ -117,12 +117,12 @@ static int list_scripts(char *script_name, bool *custom,
 	i = scriptc.index;
 	max_std = i;
 
-	for (; i < SCRIPT_MAX_NO; i++) {
+	for (; i < SCRIPT_MAX_ANAL; i++) {
 		names[i] = buf + (i - max_std) * (SCRIPT_NAMELEN + SCRIPT_FULLPATH_LEN);
 		paths[i] = names[i] + SCRIPT_NAMELEN;
 	}
 
-	num = find_scripts(names + max_std, paths + max_std, SCRIPT_MAX_NO - max_std,
+	num = find_scripts(names + max_std, paths + max_std, SCRIPT_MAX_ANAL - max_std,
 			SCRIPT_FULLPATH_LEN);
 	if (num < 0)
 		num = 0;
@@ -158,7 +158,7 @@ void run_script(char *cmd)
 	pr_debug("Running %s\n", cmd);
 	SLang_reset_tty();
 	if (system(cmd) < 0)
-		pr_warning("Cannot run %s\n", cmd);
+		pr_warning("Cananalt run %s\n", cmd);
 	/*
 	 * SLang doesn't seem to reset the whole terminal, so be more
 	 * forceful to get back to the original state.

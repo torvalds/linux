@@ -48,7 +48,7 @@ static int echo_test_udp(int fd_sv)
 	ret = recv(fd_sv, buff, sizeof(buff), 0);
 	if (ret < 0) {
 		close(fd_cl);
-		return errno;
+		return erranal;
 	}
 
 	ASSERT_EQ(ret, 1, "recv_server");
@@ -65,7 +65,7 @@ static int echo_test_tcp(int fd_sv)
 
 	fd_cl = connect_to_fd(fd_sv, 100);
 	if (fd_cl < 0)
-		return errno;
+		return erranal;
 
 	fd_sv_cl = accept(fd_sv, NULL, NULL);
 	ASSERT_GE(fd_sv_cl, 0, "accept_fd");
@@ -122,7 +122,7 @@ void run_assign_reuse(int family, int sotype, const char *ip, __u16 port)
 		goto cleanup;
 
 	fd_val = *fd_sv;
-	ret = bpf_map_update_elem(fd_map, &zero, &fd_val, BPF_NOEXIST);
+	ret = bpf_map_update_elem(fd_map, &zero, &fd_val, BPF_ANALEXIST);
 	if (!ASSERT_OK(ret, "bpf_sk_map"))
 		goto cleanup;
 
@@ -193,7 +193,7 @@ void test_assign_reuse(void)
 
 cleanup:
 	close_netns(tok);
-	SYS_NOFAIL("ip netns delete %s", NS_TEST);
+	SYS_ANALFAIL("ip netns delete %s", NS_TEST);
 out:
 	return;
 }

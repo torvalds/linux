@@ -89,7 +89,7 @@ static int marvell_c22_pcs_restore_page(struct marvell_c22_pcs *mpcs,
 static irqreturn_t marvell_c22_pcs_handle_irq(int irq, void *dev_id)
 {
 	struct marvell_c22_pcs *mpcs = dev_id;
-	irqreturn_t status = IRQ_NONE;
+	irqreturn_t status = IRQ_ANALNE;
 	int err, oldpage;
 
 	oldpage = marvell_c22_pcs_set_fiber_page(mpcs);
@@ -338,7 +338,7 @@ static int mv88e6352_pcs_init(struct mv88e6xxx_chip *chip, int port)
 
 	mpcs = marvell_c22_pcs_alloc(dev, bus, MV88E6352_ADDR_SERDES);
 	if (!mpcs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	snprintf(mpcs->name, sizeof(mpcs->name),
 		 "mv88e6xxx-%s-serdes-%d", dev_name(dev), port);

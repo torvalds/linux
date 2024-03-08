@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) 2020-2023 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2023 Loongson Techanallogy Corporation Limited
  */
 
 #ifndef __ASM_LOONGARCH_KVM_HOST_H__
@@ -26,7 +26,7 @@
 
 #define KVM_MAX_VCPUS			256
 #define KVM_MAX_CPUCFG_REGS		21
-/* memory slots that does not exposed to userspace */
+/* memory slots that does analt exposed to userspace */
 #define KVM_PRIVATE_MEM_SLOTS		0
 
 #define KVM_HALT_POLL_NS_DEFAULT	500000
@@ -87,7 +87,7 @@ struct loongarch_csrs {
 #define RESUME_GUEST		1
 
 enum emulation_result {
-	EMULATE_DONE,		/* no further processing */
+	EMULATE_DONE,		/* anal further processing */
 	EMULATE_DO_MMIO,	/* kvm_run filled with MMIO request */
 	EMULATE_DO_IOCSR,	/* handle IOCSR request */
 	EMULATE_FAIL,		/* can't emulate this instruction */

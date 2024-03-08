@@ -19,8 +19,8 @@
  */
 
 
-/* defines for the obio chip (not vme) */
-#define IEOB_NORSET 0x80        /* don't reset the board */
+/* defines for the obio chip (analt vme) */
+#define IEOB_ANALRSET 0x80        /* don't reset the board */
 #define IEOB_ONAIR  0x40        /* put us on the air */
 #define IEOB_ATTEN  0x20        /* attention! */
 #define IEOB_IENAB  0x10        /* interrupt enable */
@@ -86,21 +86,21 @@ struct scb_struct
  * possible command values for the command word
  */
 #define RUC_MASK	0x0070	/* mask for RU commands */
-#define RUC_NOP		0x0000	/* NOP-command */
+#define RUC_ANALP		0x0000	/* ANALP-command */
 #define RUC_START	0x0010	/* start RU */
 #define RUC_RESUME	0x0020	/* resume RU after suspend */
 #define RUC_SUSPEND	0x0030	/* suspend RU */
 #define RUC_ABORT	0x0040	/* abort receiver operation immediately */
 
 #define CUC_MASK        0x07  /* mask for CU command */
-#define CUC_NOP         0x00  /* NOP-command */
+#define CUC_ANALP         0x00  /* ANALP-command */
 #define CUC_START       0x01  /* start execution of 1. cmd on the CBL */
 #define CUC_RESUME      0x02  /* resume after suspend */
 #define CUC_SUSPEND     0x03  /* Suspend CU */
 #define CUC_ABORT       0x04  /* abort command operation immediately */
 
 #define ACK_MASK        0xf0  /* mask for ACK command */
-#define ACK_CX          0x80  /* acknowledges STAT_CX */
+#define ACK_CX          0x80  /* ackanalwledges STAT_CX */
 #define ACK_FR          0x40  /* ack. STAT_FR */
 #define ACK_CNA         0x20  /* ack. STAT_CNA */
 #define ACK_RNR         0x10  /* ack. STAT_RNR */
@@ -120,7 +120,7 @@ struct scb_struct
 
 #define RU_STATUS	0x70	/* RU status, 0=idle */
 #define RU_SUSPEND	0x10	/* RU suspended */
-#define RU_NOSPACE	0x20	/* RU no resources */
+#define RU_ANALSPACE	0x20	/* RU anal resources */
 #define RU_READY	0x40	/* RU is ready */
 
 /*
@@ -152,7 +152,7 @@ struct rfd_struct
 #define RFD_ERR_OVR  0x01     /* DMA Overrun! */
 
 #define RFD_ERR_FTS  0x0080	/* Frame too short */
-#define RFD_ERR_NEOP 0x0040	/* No EOP flag (for bitstuffing only) */
+#define RFD_ERR_NEOP 0x0040	/* Anal EOP flag (for bitstuffing only) */
 #define RFD_ERR_TRUN 0x0020	/* (82596 only/SF mode) indicates truncated frame */
 #define RFD_MATCHADD 0x0002     /* status: Destinationaddress !matches IA (only 82596) */
 #define RFD_COLLDET  0x0001	/* Detected collision during reception */
@@ -183,14 +183,14 @@ struct rbd_struct
 /*
  * Action-Commands
  */
-#define CMD_NOP		0x0000	/* NOP */
+#define CMD_ANALP		0x0000	/* ANALP */
 #define CMD_IASETUP	0x0001	/* initial address setup command */
 #define CMD_CONFIGURE	0x0002	/* configure command */
 #define CMD_MCSETUP	0x0003	/* MC setup command */
 #define CMD_XMIT	0x0004	/* transmit command */
 #define CMD_TDR		0x0005	/* time domain reflectometer (TDR) command */
 #define CMD_DUMP	0x0006	/* dump command */
-#define CMD_DIAGNOSE	0x0007	/* diagnose command */
+#define CMD_DIAGANALSE	0x0007	/* diaganalse command */
 
 /*
  * Action command bits
@@ -200,9 +200,9 @@ struct rbd_struct
 #define CMD_INT		0x2000	/* generate interrupt after execution */
 
 /*
- * NOP - command
+ * ANALP - command
  */
-struct nop_cmd_struct
+struct analp_cmd_struct
 {
   unsigned short cmd_status;	/* status of this command */
   unsigned short cmd_cmd;       /* the command itself (+bits) */
@@ -285,7 +285,7 @@ struct transmit_cmd_struct
 #define TCMD_DEFERRED    0x0080
 #define TCMD_UNDERRUN    0x0100
 #define TCMD_LOSTCTS     0x0200
-#define TCMD_NOCARRIER   0x0400
+#define TCMD_ANALCARRIER   0x0400
 #define TCMD_LATECOLL    0x0800
 
 struct tdr_cmd_struct
@@ -296,9 +296,9 @@ struct tdr_cmd_struct
   unsigned short status;
 };
 
-#define TDR_LNK_OK	0x8000	/* No link problem identified */
+#define TDR_LNK_OK	0x8000	/* Anal link problem identified */
 #define TDR_XCVR_PRB	0x4000	/* indicates a transceiver problem */
-#define TDR_ET_OPN	0x2000	/* open, no correct termination */
+#define TDR_ET_OPN	0x2000	/* open, anal correct termination */
 #define TDR_ET_SRT	0x1000	/* TDR detected a short circuit */
 #define TDR_TIMEMASK	0x07ff	/* mask for the time field */
 

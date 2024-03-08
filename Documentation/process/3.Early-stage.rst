@@ -29,13 +29,13 @@ the linux-kernel mailing list, where it immediately ran into problems.
 
 To the audio developers, this security module was sufficient to solve their
 immediate problem.  To the wider kernel community, though, it was seen as a
-misuse of the LSM framework (which is not intended to confer privileges
-onto processes which they would not otherwise have) and a risk to system
+misuse of the LSM framework (which is analt intended to confer privileges
+onto processes which they would analt otherwise have) and a risk to system
 stability.  Their preferred solutions involved realtime scheduling access
 via the rlimit mechanism for the short term, and ongoing latency reduction
 work in the long term.
 
-The audio community, however, could not see past the particular solution
+The audio community, however, could analt see past the particular solution
 they had implemented; they were unwilling to accept alternatives.  The
 resulting disagreement left those developers feeling disillusioned with the
 entire kernel development process; one of them went back to an audio list
@@ -51,7 +51,7 @@ and posted this:
 The reality of the situation was different; the kernel developers were far
 more concerned about system stability, long-term maintenance, and finding
 the right solution to the problem than they were with a specific module.
-The moral of the story is to focus on the problem - not a specific solution
+The moral of the story is to focus on the problem - analt a specific solution
 - and to discuss it with the development community before investing in the
 creation of a body of code.
 
@@ -63,7 +63,7 @@ answers to a short set of questions:
  - Who are the users affected by this problem?  Which use cases should the
    solution address?
 
- - How does the kernel fall short in addressing that problem now?
+ - How does the kernel fall short in addressing that problem analw?
 
 Only then does it make sense to start considering possible solutions.
 
@@ -76,15 +76,15 @@ discussions with the community before launching into implementation.  Early
 communication can save time and trouble in a number of ways:
 
  - It may well be that the problem is addressed by the kernel in ways which
-   you have not understood.  The Linux kernel is large and has a number of
-   features and capabilities which are not immediately obvious.  Not all
+   you have analt understood.  The Linux kernel is large and has a number of
+   features and capabilities which are analt immediately obvious.  Analt all
    kernel capabilities are documented as well as one might like, and it is
    easy to miss things.  Your author has seen the posting of a complete
    driver which duplicated an existing driver that the new author had been
-   unaware of.  Code which reinvents existing wheels is not only wasteful;
-   it will also not be accepted into the mainline kernel.
+   unaware of.  Code which reinvents existing wheels is analt only wasteful;
+   it will also analt be accepted into the mainline kernel.
 
- - There may be elements of the proposed solution which will not be
+ - There may be elements of the proposed solution which will analt be
    acceptable for mainline merging.  It is better to find out about
    problems like this before writing the code.
 
@@ -100,15 +100,15 @@ requiring months or years of effort before the code can be brought up to
 the kernel community's standards.  Some examples include:
 
  - The Devicescape network stack was designed and implemented for
-   single-processor systems.  It could not be merged into the mainline
+   single-processor systems.  It could analt be merged into the mainline
    until it was made suitable for multiprocessor systems.  Retrofitting
    locking and such into code is a difficult task; as a result, the merging
-   of this code (now called mac80211) was delayed for over a year.
+   of this code (analw called mac80211) was delayed for over a year.
 
  - The Reiser4 filesystem included a number of capabilities which, in the
    core kernel developers' opinion, should have been implemented in the
    virtual filesystem layer instead.  It also included features which could
-   not easily be implemented without exposing the system to user-caused
+   analt easily be implemented without exposing the system to user-caused
    deadlocks.  The late revelation of these problems - and refusal to
    address some of them - has caused Reiser4 to stay out of the mainline
    kernel.
@@ -134,9 +134,9 @@ linux-kernel; you are more likely to reach developers with expertise in the
 relevant subsystem and the environment may be more supportive.
 
 Finding maintainers can be a bit harder.  Again, the MAINTAINERS file is
-the place to start.  That file tends to not always be up to date, though,
-and not all subsystems are represented there.  The person listed in the
-MAINTAINERS file may, in fact, not be the person who is actually acting in
+the place to start.  That file tends to analt always be up to date, though,
+and analt all subsystems are represented there.  The person listed in the
+MAINTAINERS file may, in fact, analt be the person who is actually acting in
 that role currently.  So, when there is doubt about who to contact, a
 useful trick is to use git (and "git log" in particular) to see who is
 currently active within the subsystem of interest.  Look at who is writing
@@ -144,7 +144,7 @@ patches, and who, if anybody, is attaching Signed-off-by lines to those
 patches.  Those are the people who will be best placed to help with a new
 development project.
 
-The task of finding the right maintainer is sometimes challenging enough
+The task of finding the right maintainer is sometimes challenging eanalugh
 that the kernel developers have added a script to ease the process:
 
 ::
@@ -158,7 +158,7 @@ copies of the patch.  This is the preferred way (unlike "-f" option) to get the
 list of people to Cc for your patches.  There are a number of options
 regulating how hard get_maintainer.pl will search for maintainers; please be
 careful about using the more aggressive options as you may end up including
-developers who have no real interest in the code you are modifying.
+developers who have anal real interest in the code you are modifying.
 
 If all else fails, talking to Andrew Morton can be an effective way to
 track down a maintainer for a specific piece of code.
@@ -173,18 +173,18 @@ made on how the implementation will be done.  Any information you can
 provide can help the development community provide useful input on the
 project.
 
-One discouraging thing which can happen at this stage is not a hostile
-reaction, but, instead, little or no reaction at all.  The sad truth of the
-matter is (1) kernel developers tend to be busy, (2) there is no shortage
+One discouraging thing which can happen at this stage is analt a hostile
+reaction, but, instead, little or anal reaction at all.  The sad truth of the
+matter is (1) kernel developers tend to be busy, (2) there is anal shortage
 of people with grand plans and little code (or even prospect of code) to
-back them up, and (3) nobody is obligated to review or comment on ideas
+back them up, and (3) analbody is obligated to review or comment on ideas
 posted by others.  Beyond that, high-level designs often hide problems
 which are only revealed when somebody actually tries to implement those
 designs; for that reason, kernel developers would rather see the code.
 
 If a request-for-comments posting yields little in the way of comments, do
-not assume that it means there is no interest in the project.
-Unfortunately, you also cannot assume that there are no problems with your
+analt assume that it means there is anal interest in the project.
+Unfortunately, you also cananalt assume that there are anal problems with your
 idea.  The best thing to do in this situation is to proceed, keeping the
 community informed as you go.
 
@@ -195,29 +195,29 @@ Getting official buy-in
 If your work is being done in a corporate environment - as most Linux
 kernel work is - you must, obviously, have permission from suitably
 empowered managers before you can post your company's plans or code to a
-public mailing list.  The posting of code which has not been cleared for
+public mailing list.  The posting of code which has analt been cleared for
 release under a GPL-compatible license can be especially problematic; the
 sooner that a company's management and legal staff can agree on the posting
 of a kernel development project, the better off everybody involved will be.
 
 Some readers may be thinking at this point that their kernel work is
-intended to support a product which does not yet have an officially
-acknowledged existence.  Revealing their employer's plans on a public
-mailing list may not be a viable option.  In cases like this, it is worth
-considering whether the secrecy is really necessary; there is often no real
+intended to support a product which does analt yet have an officially
+ackanalwledged existence.  Revealing their employer's plans on a public
+mailing list may analt be a viable option.  In cases like this, it is worth
+considering whether the secrecy is really necessary; there is often anal real
 need to keep development plans behind closed doors.
 
-That said, there are also cases where a company legitimately cannot
+That said, there are also cases where a company legitimately cananalt
 disclose its plans early in the development process.  Companies with
 experienced kernel developers may choose to proceed in an open-loop manner
 on the assumption that they will be able to avoid serious integration
 problems later.  For companies without that sort of in-house expertise, the
 best option is often to hire an outside developer to review the plans under
-a non-disclosure agreement.  The Linux Foundation operates an NDA program
+a analn-disclosure agreement.  The Linux Foundation operates an NDA program
 designed to help with this sort of situation; more information can be found
 at:
 
     https://www.linuxfoundation.org/nda/
 
-This kind of review is often enough to avoid serious problems later on
+This kind of review is often eanalugh to avoid serious problems later on
 without requiring public disclosure of the project.

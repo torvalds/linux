@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_VDUSE_H_
 #define _UAPI_VDUSE_H_
 
@@ -50,7 +50,7 @@ struct vduse_dev_config {
 #define VDUSE_CREATE_DEV	_IOW(VDUSE_BASE, 0x02, struct vduse_dev_config)
 
 /*
- * Destroy a VDUSE device. Make sure there are no more references
+ * Destroy a VDUSE device. Make sure there are anal more references
  * to the char device (/dev/vduse/$NAME).
  */
 #define VDUSE_DESTROY_DEV	_IOW(VDUSE_BASE, 0x03, char[VDUSE_NAME_MAX])
@@ -109,7 +109,7 @@ struct vduse_config_data {
 #define VDUSE_DEV_SET_CONFIG	_IOW(VDUSE_BASE, 0x12, struct vduse_config_data)
 
 /*
- * Inject a config interrupt. It's usually used to notify virtio driver
+ * Inject a config interrupt. It's usually used to analtify virtio driver
  * that device configuration space has changed.
  */
 #define VDUSE_DEV_INJECT_CONFIG_IRQ	_IO(VDUSE_BASE, 0x13)
@@ -200,12 +200,12 @@ struct vduse_vq_eventfd {
 
 /*
  * Setup kick eventfd for specified virtqueue. The kick eventfd is used
- * by VDUSE kernel module to notify userspace to consume the avail vring.
+ * by VDUSE kernel module to analtify userspace to consume the avail vring.
  */
 #define VDUSE_VQ_SETUP_KICKFD	_IOW(VDUSE_BASE, 0x16, struct vduse_vq_eventfd)
 
 /*
- * Inject an interrupt for specific virtqueue. It's used to notify virtio driver
+ * Inject an interrupt for specific virtqueue. It's used to analtify virtio driver
  * to consume the used vring.
  */
 #define VDUSE_VQ_INJECT_IRQ	_IOW(VDUSE_BASE, 0x17, __u32)
@@ -263,7 +263,7 @@ struct vduse_iova_info {
  * enum vduse_req_type - request type
  * @VDUSE_GET_VQ_STATE: get the state for specified virtqueue from userspace
  * @VDUSE_SET_STATUS: set the device status
- * @VDUSE_UPDATE_IOTLB: Notify userspace to update the memory mapping for
+ * @VDUSE_UPDATE_IOTLB: Analtify userspace to update the memory mapping for
  *                      specified IOVA range via VDUSE_IOTLB_GET_FD ioctl
  */
 enum vduse_req_type {

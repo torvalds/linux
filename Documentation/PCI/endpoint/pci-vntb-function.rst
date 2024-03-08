@@ -103,7 +103,7 @@ Modeling Constructs:
 32-bit BARs.
 
 ======  ===============
-BAR NO  CONSTRUCTS USED
+BAR ANAL  CONSTRUCTS USED
 ======  ===============
 BAR0    Config Region
 BAR1    Doorbell
@@ -116,7 +116,7 @@ BAR5    Memory Window 4
 64-bit BARs.
 
 ======  ===============================
-BAR NO  CONSTRUCTS USED
+BAR ANAL  CONSTRUCTS USED
 ======  ===============================
 BAR0    Config Region + Scratchpad
 BAR1

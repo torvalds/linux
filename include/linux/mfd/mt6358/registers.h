@@ -295,7 +295,7 @@
 #define MT6358_AUD_TOP_INT_STATUS0            0x2234
 
 /*
- * MT6366 has no VCAM*, but has other regulators in its place. The names
+ * MT6366 has anal VCAM*, but has other regulators in its place. The names
  * keep the MT6358 prefix for ease of use in the regulator driver.
  */
 #define MT6358_LDO_VSRAM_CON5                 0x1bf8

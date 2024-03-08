@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
  * SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
@@ -155,10 +155,10 @@ static void brcms_c_scb_ampdu_update_max_txlen(struct ampdu_info *ampdu, u8 dur)
 
 	for (mcs = 0; mcs < MCS_TABLE_SIZE; mcs++) {
 		/* rate is in Kbps; dur is in msec ==> len = (rate * dur) / 8 */
-		/* 20MHz, No SGI */
+		/* 20MHz, Anal SGI */
 		rate = mcs_2_rate(mcs, false, false);
 		ampdu->max_txlen[mcs][0][0] = (rate * dur) >> 3;
-		/* 40 MHz, No SGI */
+		/* 40 MHz, Anal SGI */
 		rate = mcs_2_rate(mcs, true, false);
 		ampdu->max_txlen[mcs][1][0] = (rate * dur) >> 3;
 		/* 20MHz, SGI */
@@ -187,14 +187,14 @@ static int brcms_c_ampdu_set(struct ampdu_info *ampdu, bool on)
 
 	if (on) {
 		if (!(wlc->pub->_n_enab & SUPPORT_11N)) {
-			brcms_err(core, "wl%d: driver not nmode enabled\n",
+			brcms_err(core, "wl%d: driver analt nmode enabled\n",
 				  wlc->pub->unit);
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		}
 		if (!brcms_c_ampdu_cap(ampdu)) {
-			brcms_err(core, "wl%d: device not ampdu capable\n",
+			brcms_err(core, "wl%d: device analt ampdu capable\n",
 				  wlc->pub->unit);
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		}
 		wlc->pub->_ampdu = on;
 	}
@@ -237,8 +237,8 @@ struct ampdu_info *brcms_c_ampdu_attach(struct brcms_c_info *wlc)
 	ampdu->ini_enable[PRIO_8021D_VO] = false;
 	ampdu->ini_enable[PRIO_8021D_NC] = false;
 
-	/* Disable ampdu for BK by default since not enough fifo space */
-	ampdu->ini_enable[PRIO_8021D_NONE] = false;
+	/* Disable ampdu for BK by default since analt eanalugh fifo space */
+	ampdu->ini_enable[PRIO_8021D_ANALNE] = false;
 	ampdu->ini_enable[PRIO_8021D_BK] = false;
 
 	ampdu->ba_tx_wsize = AMPDU_TX_BA_DEF_WSIZE;
@@ -323,7 +323,7 @@ static void brcms_c_ffpld_calc_mcs2ampdu_table(struct ampdu_info *ampdu, int f)
 	struct brcms_fifo_info *fifo = (ampdu->fifo_tb + f);
 
 	/* recompute the dma rate */
-	/* note : we divide/multiply by 100 to avoid integer overflows */
+	/* analte : we divide/multiply by 100 to avoid integer overflows */
 	max_mpdu = min_t(u8, fifo->mcs2ampdu_table[FFPLD_MAX_MCS],
 			 AMPDU_NUM_MPDU_LEGACY);
 	phy_rate = mcs_2_rate(FFPLD_MAX_MCS, true, false);
@@ -333,7 +333,7 @@ static void brcms_c_ffpld_calc_mcs2ampdu_table(struct ampdu_info *ampdu, int f)
 	     / (max_mpdu * FFPLD_MPDU_SIZE)) * 100;
 	fifo->dmaxferrate = dma_rate;
 
-	/* fill up the mcs2ampdu table; do not recalc the last mcs */
+	/* fill up the mcs2ampdu table; do analt recalc the last mcs */
 	dma_rate = dma_rate >> 7;
 	for (i = 0; i < FFPLD_MAX_MCS; i++) {
 		/* shifting to keep it within integer range */
@@ -348,9 +348,9 @@ static void brcms_c_ffpld_calc_mcs2ampdu_table(struct ampdu_info *ampdu, int f)
 }
 
 /* evaluate the dma transfer rate using the tx underflows as feedback.
- * If necessary, increase tx fifo preloading. If not enough,
+ * If necessary, increase tx fifo preloading. If analt eanalugh,
  * decrease maximum ampdu size for each mcs till underflows stop
- * Return 1 if pre-loading not active, -1 if not an underflow event,
+ * Return 1 if pre-loading analt active, -1 if analt an underflow event,
  * 0 if pre-loading module took care of the event.
  */
 static int brcms_c_ffpld_check_txfunfl(struct brcms_c_info *wlc, int fid)
@@ -373,7 +373,7 @@ static int brcms_c_ffpld_check_txfunfl(struct brcms_c_info *wlc, int fid)
 	new_txunfl = (u16) (cur_txunfl - fifo->prev_txfunfl);
 	if (new_txunfl == 0) {
 		brcms_dbg_ht(wlc->hw->d11core,
-			     "TX status FRAG set but no tx underflows\n");
+			     "TX status FRAG set but anal tx underflows\n");
 		return -1;
 	}
 	fifo->prev_txfunfl = cur_txunfl;
@@ -381,7 +381,7 @@ static int brcms_c_ffpld_check_txfunfl(struct brcms_c_info *wlc, int fid)
 	if (!ampdu->tx_max_funl)
 		return 1;
 
-	/* check if fifo is big enough */
+	/* check if fifo is big eanalugh */
 	if (brcms_b_xmtfifo_sz_get(wlc->hw, fid, &xmtfifo_sz))
 		return -1;
 
@@ -402,7 +402,7 @@ static int brcms_c_ffpld_check_txfunfl(struct brcms_c_info *wlc, int fid)
 	   compute the current ratio of tx unfl per ampdu.
 	   When the current ampdu count becomes too
 	   big while the ratio remains small, we reset
-	   the current count in order to not
+	   the current count in order to analt
 	   introduce too big of a latency in detecting a
 	   large amount of tx underflows later.
 	 */
@@ -419,7 +419,7 @@ static int brcms_c_ffpld_check_txfunfl(struct brcms_c_info *wlc, int fid)
 			 AMPDU_NUM_MPDU_LEGACY);
 
 	/* In case max value max_pdu is already lower than
-	   the fifo depth, there is nothing more we can do.
+	   the fifo depth, there is analthing more we can do.
 	 */
 
 	if (fifo->ampdu_pld_size >= max_mpdu * FFPLD_MPDU_SIZE) {
@@ -439,10 +439,10 @@ static int brcms_c_ffpld_check_txfunfl(struct brcms_c_info *wlc, int fid)
 
 		/*
 		 * compute a new dma xfer rate for max_mpdu @ max mcs.
-		 * This is the minimum dma rate that can achieve no
+		 * This is the minimum dma rate that can achieve anal
 		 * underflow condition for the current mpdu size.
 		 *
-		 * note : we divide/multiply by 100 to avoid integer overflows
+		 * analte : we divide/multiply by 100 to avoid integer overflows
 		 */
 		fifo->dmaxferrate =
 		    (((phy_rate / 100) *
@@ -505,7 +505,7 @@ void brcms_c_ampdu_reset_session(struct brcms_ampdu_session *session,
 
 /*
  * Preps the given packet for AMPDU based on the session data. If the
- * frame cannot be accomodated in the current session, -ENOSPC is
+ * frame cananalt be accomodated in the current session, -EANALSPC is
  * returned.
  */
 int brcms_c_ampdu_add_frame(struct brcms_ampdu_session *session,
@@ -539,23 +539,23 @@ int brcms_c_ampdu_add_frame(struct brcms_ampdu_session *session,
 
 		if (ampdu_frames + 1 > session->max_ampdu_frames ||
 		    session->ampdu_len + len > session->max_ampdu_len)
-			return -ENOSPC;
+			return -EANALSPC;
 
 		/*
 		 * We aren't really out of space if the new frame is of
 		 * a different priority, but we want the same behaviour
-		 * so return -ENOSPC anyway.
+		 * so return -EANALSPC anyway.
 		 *
 		 * XXX: The old AMPDU code did this, but is it really
 		 * necessary?
 		 */
 		first = skb_peek(&session->skb_list);
 		if (p->priority != first->priority)
-			return -ENOSPC;
+			return -EANALSPC;
 	}
 
 	/*
-	 * Now that we're sure this frame can be accomodated, update the
+	 * Analw that we're sure this frame can be accomodated, update the
 	 * session information.
 	 */
 	session->ampdu_len += len;
@@ -673,7 +673,7 @@ void brcms_c_ampdu_finalize(struct brcms_ampdu_session *session)
 			  BRCMS_GET_MIMO_PLCP_LEN(txh->FragPLCPFallback);
 	session->ampdu_len -= roundup(len, 4) - len;
 
-	/* Now fix up the first MPDU */
+	/* Analw fix up the first MPDU */
 	tx_info = IEEE80211_SKB_CB(first);
 	txrate = tx_info->status.rates;
 	txh = (struct d11txh *)first->data;
@@ -790,9 +790,9 @@ void brcms_c_ampdu_finalize(struct brcms_ampdu_session *session)
 						   fbr_preamble_type,
 						   session->ampdu_len, true);
 		txh->RTSDurFallback = cpu_to_le16(durid);
-		/* set TxFesTimeNormal */
-		txh->TxFesTimeNormal = rts->duration;
-		/* set fallback rate version of TxFesTimeNormal */
+		/* set TxFesTimeAnalrmal */
+		txh->TxFesTimeAnalrmal = rts->duration;
+		/* set fallback rate version of TxFesTimeAnalrmal */
 		txh->TxFesTimeFallback = txh->RTSDurFallback;
 	}
 
@@ -895,7 +895,7 @@ brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 						  "%s: supr_status 0x%x\n",
 						  __func__, supr_status);
 			}
-			/* no need to retry for badch; will fail again */
+			/* anal need to retry for badch; will fail again */
 			if (supr_status == TX_STATUS_SUPR_BADCH ||
 			    supr_status == TX_STATUS_SUPR_EXPTIME) {
 				retry = false;
@@ -906,7 +906,7 @@ brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 			} else if (supr_status == TX_STATUS_SUPR_FRAG) {
 				/*
 				 * if there were underflows, but pre-loading
-				 * is not active, notify rate adaptation.
+				 * is analt active, analtify rate adaptation.
 				 */
 				brcms_c_ffpld_check_txfunfl(wlc, queue);
 			}
@@ -917,7 +917,7 @@ brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 		}
 	}
 
-	/* loop through all pkts and retry if not acked */
+	/* loop through all pkts and retry if analt acked */
 	while (p) {
 		tx_info = IEEE80211_SKB_CB(p);
 		txh = (struct d11txh *) p->data;
@@ -971,7 +971,7 @@ brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 				ack_recd = true;
 			}
 		}
-		/* either retransmit or send bar if ack not recd */
+		/* either retransmit or send bar if ack analt recd */
 		if (!ack_recd) {
 			if (retry && (ini->txretry[index] < (int)retry_limit)) {
 				int ret;
@@ -989,7 +989,7 @@ brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 				tx_info->status.ampdu_ack_len = 0;
 				tx_info->status.ampdu_len = 1;
 				tx_info->flags |=
-				    IEEE80211_TX_STAT_AMPDU_NO_BACK;
+				    IEEE80211_TX_STAT_AMPDU_ANAL_BACK;
 				skb_pull(p, D11_PHY_HDR_LEN);
 				skb_pull(p, D11_TXH_LEN);
 				brcms_dbg_ht(wlc->hw->d11core,
@@ -1020,7 +1020,7 @@ brcms_c_ampdu_dotxstatus(struct ampdu_info *ampdu, struct scb *scb,
 	struct brcms_c_info *wlc = ampdu->wlc;
 	u32 s1 = 0, s2 = 0;
 
-	/* BMAC_NOTE: For the split driver, second level txstatus comes later
+	/* BMAC_ANALTE: For the split driver, second level txstatus comes later
 	 * So if the ACK was received then wait for the second level else just
 	 * call the first one
 	 */
@@ -1113,7 +1113,7 @@ static void dma_cb_fn_ampdu(void *txi, void *arg_a)
 }
 
 /*
- * When a remote party is no longer available for ampdu communication, any
+ * When a remote party is anal longer available for ampdu communication, any
  * pending tx ampdu packets in the driver have to be flushed.
  */
 void brcms_c_ampdu_flush(struct brcms_c_info *wlc,

@@ -828,7 +828,7 @@ static int lpass_aon_cc_sc7280_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	if (of_property_read_bool(pdev->dev.of_node, "qcom,adsp-pil-mode")) {
+	if (of_property_read_bool(pdev->dev.of_analde, "qcom,adsp-pil-mode")) {
 		lpass_audio_cc_sc7280_regmap_config.name = "cc";
 		desc = &lpass_cc_sc7280_desc;
 		ret = qcom_cc_probe(pdev, desc);

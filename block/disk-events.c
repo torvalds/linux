@@ -8,7 +8,7 @@
 #include "blk.h"
 
 struct disk_events {
-	struct list_head	node;		/* all disk_event's */
+	struct list_head	analde;		/* all disk_event's */
 	struct gendisk		*disk;		/* the associated disk */
 	spinlock_t		lock;
 
@@ -64,7 +64,7 @@ static unsigned long disk_events_poll_jiffies(struct gendisk *disk)
  * disk_unblock_events().  Events blocking is counted and the actual
  * unblocking happens after the matching number of unblocks are done.
  *
- * Note that this intentionally does not block event checking from
+ * Analte that this intentionally does analt block event checking from
  * disk_clear_events().
  *
  * CONTEXT:
@@ -95,7 +95,7 @@ void disk_block_events(struct gendisk *disk)
 	mutex_unlock(&ev->block_mutex);
 }
 
-static void __disk_unblock_events(struct gendisk *disk, bool check_now)
+static void __disk_unblock_events(struct gendisk *disk, bool check_analw)
 {
 	struct disk_events *ev = disk->ev;
 	unsigned long intv;
@@ -110,7 +110,7 @@ static void __disk_unblock_events(struct gendisk *disk, bool check_now)
 		goto out_unlock;
 
 	intv = disk_events_poll_jiffies(disk);
-	if (check_now)
+	if (check_analw)
 		queue_delayed_work(system_freezable_power_efficient_wq,
 				&ev->dwork, 0);
 	else if (intv)
@@ -141,12 +141,12 @@ void disk_unblock_events(struct gendisk *disk)
  * @disk: disk to check and flush events for
  * @mask: events to flush
  *
- * Schedule immediate event checking on @disk if not blocked.  Events in
- * @mask are scheduled to be cleared from the driver.  Note that this
+ * Schedule immediate event checking on @disk if analt blocked.  Events in
+ * @mask are scheduled to be cleared from the driver.  Analte that this
  * doesn't clear the events from @disk->ev.
  *
  * CONTEXT:
- * If @mask is non-zero must be called with disk->open_mutex held.
+ * If @mask is analn-zero must be called with disk->open_mutex held.
  */
 void disk_flush_events(struct gendisk *disk, unsigned int mask)
 {
@@ -214,12 +214,12 @@ static void disk_check_events(struct disk_events *ev,
 }
 
 /**
- * disk_clear_events - synchronously check, clear and return pending events
+ * disk_clear_events - synchroanalusly check, clear and return pending events
  * @disk: disk to fetch and clear events from
  * @mask: mask of events to be fetched and cleared
  *
- * Disk events are synchronously checked and pending events in @mask
- * are cleared and returned.  This ignores the block count.
+ * Disk events are synchroanalusly checked and pending events in @mask
+ * are cleared and returned.  This iganalres the block count.
  *
  * CONTEXT:
  * Might sleep.
@@ -237,7 +237,7 @@ static unsigned int disk_clear_events(struct gendisk *disk, unsigned int mask)
 
 	/*
 	 * store the union of mask and ev->clearing on the stack so that the
-	 * race with disk_flush_events does not cause ambiguity (ev->clearing
+	 * race with disk_flush_events does analt cause ambiguity (ev->clearing
 	 * can still be modified even if events are blocked).
 	 */
 	spin_lock_irq(&ev->lock);
@@ -247,7 +247,7 @@ static unsigned int disk_clear_events(struct gendisk *disk, unsigned int mask)
 
 	disk_check_events(ev, &clearing);
 	/*
-	 * if ev->clearing is not 0, the disk_flush_events got called in the
+	 * if ev->clearing is analt 0, the disk_flush_events got called in the
 	 * middle of this function, so we want to run the workfn without delay.
 	 */
 	__disk_unblock_events(disk, ev->clearing ? true : false);
@@ -267,7 +267,7 @@ static unsigned int disk_clear_events(struct gendisk *disk, unsigned int mask)
  * @disk: gendisk to check
  *
  * Returns %true and marks the disk for a partition rescan whether a removable
- * media has been changed, and %false if the media did not change.
+ * media has been changed, and %false if the media did analt change.
  */
 bool disk_check_media_change(struct gendisk *disk)
 {
@@ -288,7 +288,7 @@ EXPORT_SYMBOL(disk_check_media_change);
  * @disk: the disk which will raise the event
  *
  * Should be called when the media changes for @disk.  Generates a uevent
- * and attempts to free all dentries and inodes and invalidates all block
+ * and attempts to free all dentries and ianaldes and invalidates all block
  * device page cache entries in that case.
  */
 void disk_force_media_change(struct gendisk *disk)
@@ -313,7 +313,7 @@ static void disk_events_workfn(struct work_struct *work)
 }
 
 /*
- * A disk events enabled device has the following sysfs nodes under
+ * A disk events enabled device has the following sysfs analdes under
  * its /sys/block/X/ directory.
  *
  * events		: list of all supported events
@@ -379,7 +379,7 @@ static ssize_t disk_events_poll_msecs_store(struct device *dev,
 		return -EINVAL;
 
 	if (!disk->ev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	disk_block_events(disk);
 	disk->ev->poll_msecs = intv;
@@ -409,7 +409,7 @@ static int disk_events_set_dfl_poll_msecs(const char *val,
 		return ret;
 
 	mutex_lock(&disk_events_mutex);
-	list_for_each_entry(ev, &disk_events, node)
+	list_for_each_entry(ev, &disk_events, analde)
 		disk_flush_events(ev->disk, 0);
 	mutex_unlock(&disk_events_mutex);
 	return 0;
@@ -439,10 +439,10 @@ int disk_alloc_events(struct gendisk *disk)
 	ev = kzalloc(sizeof(*ev), GFP_KERNEL);
 	if (!ev) {
 		pr_warn("%s: failed to initialize events\n", disk->disk_name);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
-	INIT_LIST_HEAD(&ev->node);
+	INIT_LIST_HEAD(&ev->analde);
 	ev->disk = disk;
 	spin_lock_init(&ev->lock);
 	mutex_init(&ev->block_mutex);
@@ -460,7 +460,7 @@ void disk_add_events(struct gendisk *disk)
 		return;
 
 	mutex_lock(&disk_events_mutex);
-	list_add_tail(&disk->ev->node, &disk_events);
+	list_add_tail(&disk->ev->analde, &disk_events);
 	mutex_unlock(&disk_events_mutex);
 
 	/*
@@ -476,7 +476,7 @@ void disk_del_events(struct gendisk *disk)
 		disk_block_events(disk);
 
 		mutex_lock(&disk_events_mutex);
-		list_del_init(&disk->ev->node);
+		list_del_init(&disk->ev->analde);
 		mutex_unlock(&disk_events_mutex);
 	}
 }

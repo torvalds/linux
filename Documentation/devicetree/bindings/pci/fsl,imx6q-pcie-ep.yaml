@@ -11,7 +11,7 @@ maintainers:
   - Richard Zhu <hongxing.zhu@nxp.com>
 
 description: |+
-  This PCIe controller is based on the Synopsys DesignWare PCIe IP and
+  This PCIe controller is based on the Syanalpsys DesignWare PCIe IP and
   thus inherits all the common properties defined in snps,dw-pcie-ep.yaml.
   The controller instances are dual mode where in they can work either in
   Root Port mode or Endpoint mode but one at a time.
@@ -114,8 +114,8 @@ examples:
       fsl,max-link-speed = <3>;
       power-domains = <&hsio_blk_ctrl IMX8MP_HSIOBLK_PD_PCIE>;
       resets = <&src IMX8MP_RESET_PCIE_CTRL_APPS_EN>,
-               <&src IMX8MP_RESET_PCIE_CTRL_APPS_TURNOFF>;
-      reset-names = "apps", "turnoff";
+               <&src IMX8MP_RESET_PCIE_CTRL_APPS_TURANALFF>;
+      reset-names = "apps", "turanalff";
       phys = <&pcie_phy>;
       phy-names = "pcie-phy";
       num-ib-windows = <4>;

@@ -34,7 +34,7 @@ enum {
 
 enum {
 	SSP_INITIALIZATION_STATE = 0,
-	SSP_NO_SENSOR_STATE,
+	SSP_ANAL_SENSOR_STATE,
 	SSP_ADD_SENSOR_STATE,
 	SSP_RUNNING_SENSOR_STATE,
 };
@@ -42,7 +42,7 @@ enum {
 /* Firmware download STATE */
 enum {
 	SSP_FW_DL_STATE_FAIL = -1,
-	SSP_FW_DL_STATE_NONE = 0,
+	SSP_FW_DL_STATE_ANALNE = 0,
 	SSP_FW_DL_STATE_NEED_TO_SCHEDULE,
 	SSP_FW_DL_STATE_SCHEDULED,
 	SSP_FW_DL_STATE_DOWNLOADING,
@@ -60,7 +60,7 @@ enum {
 #define SSP_MSG2SSP_INST_CHANGE_DELAY		0xa4
 #define SSP_MSG2SSP_INST_LIBRARY_ADD		0xb1
 #define SSP_MSG2SSP_INST_LIBRARY_REMOVE		0xb2
-#define SSP_MSG2SSP_INST_LIB_NOTI		0xb4
+#define SSP_MSG2SSP_INST_LIB_ANALTI		0xb4
 #define SSP_MSG2SSP_INST_LIB_DATA		0xc1
 
 #define SSP_MSG2SSP_AP_MCU_SET_GYRO_CAL		0xcd
@@ -158,13 +158,13 @@ struct ssp_sensorhub_info {
  * @cur_firm_rev:	cached current firmware revision
  * @last_resume_state:	last AP resume/suspend state used to handle the PM
  *                      state of ssp
- * @last_ap_state:	(obsolete) sleep notification for MCU
+ * @last_ap_state:	(obsolete) sleep analtification for MCU
  * @sensor_enable:	sensor enable mask
  * @delay_buf:		data acquisition intervals table
- * @batch_latency_buf:	yet unknown but existing in communication protocol
- * @batch_opt_buf:	yet unknown but existing in communication protocol
- * @accel_position:	yet unknown but existing in communication protocol
- * @mag_position:	yet unknown but existing in communication protocol
+ * @batch_latency_buf:	yet unkanalwn but existing in communication protocol
+ * @batch_opt_buf:	yet unkanalwn but existing in communication protocol
+ * @accel_position:	yet unkanalwn but existing in communication protocol
+ * @mag_position:	yet unkanalwn but existing in communication protocol
  * @fw_dl_state:	firmware download state
  * @comm_lock:		lock protecting the handshake
  * @pending_lock:	lock protecting pending list and completion

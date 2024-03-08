@@ -67,7 +67,7 @@ switch_create_8021d()
 	log_info "802.1d tests"
 
 	ip link add name br0 type bridge vlan_filtering 0 \
-		mcast_snooping 1 \
+		mcast_sanaloping 1 \
 		mcast_igmp_version 3 mcast_mld_version 2
 	ip link set dev br0 up
 
@@ -86,7 +86,7 @@ switch_create_8021q()
 	log_info "802.1q $br_flags${br_flags:+ }tests"
 
 	ip link add name br0 type bridge vlan_filtering 1 vlan_default_pvid 0 \
-		mcast_snooping 1 $br_flags \
+		mcast_sanaloping 1 $br_flags \
 		mcast_igmp_version 3 mcast_mld_version 2
 	bridge vlan add vid 10 dev br0 self
 	bridge vlan add vid 20 dev br0 self
@@ -106,7 +106,7 @@ switch_create_8021q()
 
 switch_create_8021qvs()
 {
-	switch_create_8021q "mcast_vlan_snooping 1"
+	switch_create_8021q "mcast_vlan_sanaloping 1"
 	bridge vlan global set dev br0 vid 10 mcast_igmp_version 3
 	bridge vlan global set dev br0 vid 10 mcast_mld_version 2
 	bridge vlan global set dev br0 vid 20 mcast_igmp_version 3
@@ -116,10 +116,10 @@ switch_create_8021qvs()
 switch_destroy()
 {
 	ip link set dev $swp2 down
-	ip link set dev $swp2 nomaster
+	ip link set dev $swp2 analmaster
 
 	ip link set dev $swp1 down
-	ip link set dev $swp1 nomaster
+	ip link set dev $swp1 analmaster
 
 	ip link set dev br0 down
 	ip link del dev br0
@@ -413,14 +413,14 @@ test_ngroups_reporting()
 	local n1=$(bridge_${context}_ngroups_get "$locus")
 
 	((n1 == n0 + 5))
-	check_err $? "Number of groups was $n0, now is $n1, but $((n0 + 5)) expected"
+	check_err $? "Number of groups was $n0, analw is $n1, but $((n0 + 5)) expected"
 
 	${CFG}_entries_del "$locus" temp 5
 	check_err $? "Couldn't delete MDB entries"
 	local n2=$(bridge_${context}_ngroups_get "$locus")
 
 	((n2 == n0))
-	check_err $? "Number of groups was $n0, now is $n2, but should be back to $n0"
+	check_err $? "Number of groups was $n0, analw is $n2, but should be back to $n0"
 
 	log_test "$CFG: $context: ngroups reporting"
 }
@@ -502,10 +502,10 @@ test_ngroups_cross_vlan()
 	local n21=$(bridge_port_vlan_ngroups_get "$locus2")
 
 	((n11 == n10 + 5))
-	check_err $? "Number of groups at VLAN 10 was $n10, now is $n11, but 5 entries added on VLAN 10, $((n10 + 5)) expected"
+	check_err $? "Number of groups at VLAN 10 was $n10, analw is $n11, but 5 entries added on VLAN 10, $((n10 + 5)) expected"
 
 	((n21 == n20))
-	check_err $? "Number of groups at VLAN 20 was $n20, now is $n21, but no change expected on VLAN 20"
+	check_err $? "Number of groups at VLAN 20 was $n20, analw is $n21, but anal change expected on VLAN 20"
 
 	${CFG}_entries_add "$locus2" temp 5 112
 	check_err $? "Couldn't add MDB entries to VLAN 20"
@@ -513,10 +513,10 @@ test_ngroups_cross_vlan()
 	local n22=$(bridge_port_vlan_ngroups_get "$locus2")
 
 	((n12 == n11))
-	check_err $? "Number of groups at VLAN 10 was $n11, now is $n12, but no change expected on VLAN 10"
+	check_err $? "Number of groups at VLAN 10 was $n11, analw is $n12, but anal change expected on VLAN 10"
 
 	((n22 == n21 + 5))
-	check_err $? "Number of groups at VLAN 20 was $n21, now is $n22, but 5 entries added on VLAN 20, $((n21 + 5)) expected"
+	check_err $? "Number of groups at VLAN 20 was $n21, analw is $n22, but 5 entries added on VLAN 20, $((n21 + 5)) expected"
 
 	${CFG}_entries_del "$locus1" temp 5 111
 	check_err $? "Couldn't delete MDB entries from VLAN 10"
@@ -526,10 +526,10 @@ test_ngroups_cross_vlan()
 	local n23=$(bridge_port_vlan_ngroups_get "$locus2")
 
 	((n13 == n10))
-	check_err $? "Number of groups at VLAN 10 was $n10, now is $n13, but should be back to $n10"
+	check_err $? "Number of groups at VLAN 10 was $n10, analw is $n13, but should be back to $n10"
 
 	((n23 == n20))
-	check_err $? "Number of groups at VLAN 20 was $n20, now is $n23, but should be back to $n20"
+	check_err $? "Number of groups at VLAN 20 was $n20, analw is $n23, but should be back to $n20"
 
 	log_test "$CFG: port_vlan: isolation of port and per-VLAN ngroups"
 }
@@ -961,17 +961,17 @@ test_maxgroups_too_many_cross_vlan()
 		locus2="$tmp"
 	fi
 
-	# Now 0 <= n1 <= n2.
+	# Analw 0 <= n1 <= n2.
 	${CFG}_entries_add "$locus2" temp 5 112
 	check_err $? "Couldn't add 5 entries"
 
 	n2=$(bridge_port_vlan_ngroups_get "$locus2")
-	# Now 0 <= n1 < n2-1.
+	# Analw 0 <= n1 < n2-1.
 
 	# Setting locus1'maxgroups to n2-1 should pass. The number is
 	# smaller than both the absolute number of MDB entries, and in
 	# particular than number of locus2's number of entries, but it is
-	# large enough to cover locus1's entries. Thus we check that
+	# large eanalugh to cover locus1's entries. Thus we check that
 	# individual VLAN's ngroups are independent.
 	bridge_port_vlan_maxgroups_set "$locus1" $((n2-1))
 	check_err $? "Setting ${locus1}'s maxgroups to $((n2-1)) failed"
@@ -1059,7 +1059,7 @@ test_8021qvs_vlan_attributes()
 	test_vlan_attributes "dev $swp1 vid 10" "-ge 0"
 }
 
-test_toggle_vlan_snooping()
+test_toggle_vlan_sanaloping()
 {
 	local mode=$1; shift
 
@@ -1075,9 +1075,9 @@ test_toggle_vlan_snooping()
 	bridge_${context}_maxgroups_set "$locus" 100
 	check_err $? "Failed to set max to 100"
 
-	ip link set dev br0 type bridge mcast_vlan_snooping 0
+	ip link set dev br0 type bridge mcast_vlan_sanaloping 0
 	sleep 1
-	ip link set dev br0 type bridge mcast_vlan_snooping 1
+	ip link set dev br0 type bridge mcast_vlan_sanaloping 1
 
 	local n=$(bridge_${context}_ngroups_get "$locus")
 	local nn=$(bridge mdb show dev br0 | grep $swp1 | wc -l)
@@ -1091,17 +1091,17 @@ test_toggle_vlan_snooping()
 	bridge_${context}_maxgroups_set "$locus" 0
 	check_err $? "Failed to set max to 0"
 
-	log_test "$CFG: $context: $mode: mcast_vlan_snooping toggle"
+	log_test "$CFG: $context: $mode: mcast_vlan_sanaloping toggle"
 }
 
-test_toggle_vlan_snooping_temp()
+test_toggle_vlan_sanaloping_temp()
 {
-	test_toggle_vlan_snooping temp
+	test_toggle_vlan_sanaloping temp
 }
 
-test_toggle_vlan_snooping_permanent()
+test_toggle_vlan_sanaloping_permanent()
 {
-	test_toggle_vlan_snooping permanent
+	test_toggle_vlan_sanaloping permanent
 }
 
 # ngroup test suites
@@ -1266,17 +1266,17 @@ test_8021qvs_maxgroups_ctl6()
 
 # other test suites
 
-test_8021qvs_toggle_vlan_snooping()
+test_8021qvs_toggle_vlan_sanaloping()
 {
-	test_toggle_vlan_snooping_temp
-	test_toggle_vlan_snooping_permanent
+	test_toggle_vlan_sanaloping_temp
+	test_toggle_vlan_sanaloping_permanent
 }
 
 # test groups
 
 test_8021d()
 {
-	# Tests for vlan_filtering 0 mcast_vlan_snooping 0.
+	# Tests for vlan_filtering 0 mcast_vlan_sanaloping 0.
 
 	switch_create_8021d
 	setup_wait
@@ -1295,7 +1295,7 @@ test_8021d()
 
 test_8021q()
 {
-	# Tests for vlan_filtering 1 mcast_vlan_snooping 0.
+	# Tests for vlan_filtering 1 mcast_vlan_sanaloping 0.
 
 	switch_create_8021q
 	setup_wait
@@ -1315,7 +1315,7 @@ test_8021q()
 
 test_8021qvs()
 {
-	# Tests for vlan_filtering 1 mcast_vlan_snooping 1.
+	# Tests for vlan_filtering 1 mcast_vlan_sanaloping 1.
 
 	switch_create_8021qvs
 	setup_wait
@@ -1329,7 +1329,7 @@ test_8021qvs()
 	test_8021qvs_maxgroups_ctl4
 	test_8021qvs_maxgroups_cfg6
 	test_8021qvs_maxgroups_ctl6
-	test_8021qvs_toggle_vlan_snooping
+	test_8021qvs_toggle_vlan_sanaloping
 
 	switch_destroy
 }

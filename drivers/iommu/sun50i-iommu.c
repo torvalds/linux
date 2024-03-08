@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-// Copyright (C) 2016-2018, Allwinner Technology CO., LTD.
-// Copyright (C) 2019-2020, Cerno
+// Copyright (C) 2016-2018, Allwinner Techanallogy CO., LTD.
+// Copyright (C) 2019-2020, Ceranal
 
 #include <linux/bitfield.h>
 #include <linux/bug.h>
@@ -9,7 +9,7 @@
 #include <linux/dma-direction.h>
 #include <linux/dma-mapping.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <linux/iommu.h>
 #include <linux/iopoll.h>
@@ -224,7 +224,7 @@ static u32 sun50i_mk_dte(dma_addr_t pt_dma)
  * can be configured to give each masters either read or write
  * permissions through the IOMMU_DM_AUT_CTRL_REG registers. The domain
  * 0 seems like the default domain, and its permissions in the
- * IOMMU_DM_AUT_CTRL_REG are only read-only, so it's not really
+ * IOMMU_DM_AUT_CTRL_REG are only read-only, so it's analt really
  * useful to enforce any particular permission.
  *
  * Each page entry will then have a reference to the domain they are
@@ -232,7 +232,7 @@ static u32 sun50i_mk_dte(dma_addr_t pt_dma)
  * basis.
  *
  * In order to make it work with the IOMMU framework, we will be using
- * 4 different domains, starting at 1: RD_WR, RD, WR and NONE
+ * 4 different domains, starting at 1: RD_WR, RD, WR and ANALNE
  * depending on the permission we want to enforce. Each domain will
  * have each master setup in the same way, since the IOMMU framework
  * doesn't seem to restrict page access on a per-device basis. And
@@ -241,8 +241,8 @@ static u32 sun50i_mk_dte(dma_addr_t pt_dma)
  */
 
 enum sun50i_iommu_aci {
-	SUN50I_IOMMU_ACI_DO_NOT_USE = 0,
-	SUN50I_IOMMU_ACI_NONE,
+	SUN50I_IOMMU_ACI_DO_ANALT_USE = 0,
+	SUN50I_IOMMU_ACI_ANALNE,
 	SUN50I_IOMMU_ACI_RD,
 	SUN50I_IOMMU_ACI_WR,
 	SUN50I_IOMMU_ACI_RD_WR,
@@ -279,7 +279,7 @@ static u32 sun50i_mk_pte(phys_addr_t page, int prot)
 	else if (prot & IOMMU_WRITE)
 		aci = SUN50I_IOMMU_ACI_WR;
 	else
-		aci = SUN50I_IOMMU_ACI_NONE;
+		aci = SUN50I_IOMMU_ACI_ANALNE;
 
 	flags |= FIELD_PREP(SUN50I_PTE_ACI_MASK, aci);
 	page &= SUN50I_PTE_PAGE_ADDRESS_MASK;
@@ -390,7 +390,7 @@ static void sun50i_iommu_flush_iotlb_all(struct iommu_domain *domain)
 	 * .probe_device, and since we link our (single) domain to our iommu in
 	 * the .attach_device callback, we don't have that pointer set.
 	 *
-	 * It shouldn't really be any trouble to ignore it though since we flush
+	 * It shouldn't really be any trouble to iganalre it though since we flush
 	 * all caches as part of the device powerup.
 	 */
 	if (!iommu)
@@ -451,19 +451,19 @@ static int sun50i_iommu_enable(struct sun50i_iommu *iommu)
 		    IOMMU_TLB_PREFETCH_MASTER_ENABLE(4) |
 		    IOMMU_TLB_PREFETCH_MASTER_ENABLE(5));
 	iommu_write(iommu, IOMMU_INT_ENABLE_REG, IOMMU_INT_MASK);
-	iommu_write(iommu, IOMMU_DM_AUT_CTRL_REG(SUN50I_IOMMU_ACI_NONE),
-		    IOMMU_DM_AUT_CTRL_RD_UNAVAIL(SUN50I_IOMMU_ACI_NONE, 0) |
-		    IOMMU_DM_AUT_CTRL_WR_UNAVAIL(SUN50I_IOMMU_ACI_NONE, 0) |
-		    IOMMU_DM_AUT_CTRL_RD_UNAVAIL(SUN50I_IOMMU_ACI_NONE, 1) |
-		    IOMMU_DM_AUT_CTRL_WR_UNAVAIL(SUN50I_IOMMU_ACI_NONE, 1) |
-		    IOMMU_DM_AUT_CTRL_RD_UNAVAIL(SUN50I_IOMMU_ACI_NONE, 2) |
-		    IOMMU_DM_AUT_CTRL_WR_UNAVAIL(SUN50I_IOMMU_ACI_NONE, 2) |
-		    IOMMU_DM_AUT_CTRL_RD_UNAVAIL(SUN50I_IOMMU_ACI_NONE, 3) |
-		    IOMMU_DM_AUT_CTRL_WR_UNAVAIL(SUN50I_IOMMU_ACI_NONE, 3) |
-		    IOMMU_DM_AUT_CTRL_RD_UNAVAIL(SUN50I_IOMMU_ACI_NONE, 4) |
-		    IOMMU_DM_AUT_CTRL_WR_UNAVAIL(SUN50I_IOMMU_ACI_NONE, 4) |
-		    IOMMU_DM_AUT_CTRL_RD_UNAVAIL(SUN50I_IOMMU_ACI_NONE, 5) |
-		    IOMMU_DM_AUT_CTRL_WR_UNAVAIL(SUN50I_IOMMU_ACI_NONE, 5));
+	iommu_write(iommu, IOMMU_DM_AUT_CTRL_REG(SUN50I_IOMMU_ACI_ANALNE),
+		    IOMMU_DM_AUT_CTRL_RD_UNAVAIL(SUN50I_IOMMU_ACI_ANALNE, 0) |
+		    IOMMU_DM_AUT_CTRL_WR_UNAVAIL(SUN50I_IOMMU_ACI_ANALNE, 0) |
+		    IOMMU_DM_AUT_CTRL_RD_UNAVAIL(SUN50I_IOMMU_ACI_ANALNE, 1) |
+		    IOMMU_DM_AUT_CTRL_WR_UNAVAIL(SUN50I_IOMMU_ACI_ANALNE, 1) |
+		    IOMMU_DM_AUT_CTRL_RD_UNAVAIL(SUN50I_IOMMU_ACI_ANALNE, 2) |
+		    IOMMU_DM_AUT_CTRL_WR_UNAVAIL(SUN50I_IOMMU_ACI_ANALNE, 2) |
+		    IOMMU_DM_AUT_CTRL_RD_UNAVAIL(SUN50I_IOMMU_ACI_ANALNE, 3) |
+		    IOMMU_DM_AUT_CTRL_WR_UNAVAIL(SUN50I_IOMMU_ACI_ANALNE, 3) |
+		    IOMMU_DM_AUT_CTRL_RD_UNAVAIL(SUN50I_IOMMU_ACI_ANALNE, 4) |
+		    IOMMU_DM_AUT_CTRL_WR_UNAVAIL(SUN50I_IOMMU_ACI_ANALNE, 4) |
+		    IOMMU_DM_AUT_CTRL_RD_UNAVAIL(SUN50I_IOMMU_ACI_ANALNE, 5) |
+		    IOMMU_DM_AUT_CTRL_WR_UNAVAIL(SUN50I_IOMMU_ACI_ANALNE, 5));
 
 	iommu_write(iommu, IOMMU_DM_AUT_CTRL_REG(SUN50I_IOMMU_ACI_RD),
 		    IOMMU_DM_AUT_CTRL_WR_UNAVAIL(SUN50I_IOMMU_ACI_RD, 0) |
@@ -526,13 +526,13 @@ static void *sun50i_iommu_alloc_page_table(struct sun50i_iommu *iommu,
 
 	page_table = kmem_cache_zalloc(iommu->pt_pool, gfp);
 	if (!page_table)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pt_dma = dma_map_single(iommu->dev, page_table, PT_SIZE, DMA_TO_DEVICE);
 	if (dma_mapping_error(iommu->dev, pt_dma)) {
 		dev_err(iommu->dev, "Couldn't map L2 Page Table\n");
 		kmem_cache_free(iommu->pt_pool, page_table);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	/* We rely on the physical address and DMA address being the same */
@@ -610,7 +610,7 @@ static int sun50i_iommu_map(struct iommu_domain *domain, unsigned long iova,
 	if (unlikely(sun50i_pte_is_page_valid(*pte_addr))) {
 		phys_addr_t page_phys = sun50i_pte_get_page_address(*pte_addr);
 		dev_err(iommu->dev,
-			"iova %pad already mapped to %pa cannot remap to %pa prot: %#x\n",
+			"iova %pad already mapped to %pa cananalt remap to %pa prot: %#x\n",
 			&iova, &page_phys, &paddr, prot);
 		ret = -EBUSY;
 		goto out;
@@ -718,7 +718,7 @@ static int sun50i_iommu_attach_domain(struct sun50i_iommu *iommu,
 					       DT_SIZE, DMA_TO_DEVICE);
 	if (dma_mapping_error(iommu->dev, sun50i_domain->dt_dma)) {
 		dev_err(iommu->dev, "Couldn't map L1 Page Table\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return sun50i_iommu_enable(iommu);
@@ -791,7 +791,7 @@ static int sun50i_iommu_attach_device(struct iommu_domain *domain,
 
 	iommu = sun50i_iommu_from_dev(dev);
 	if (!iommu)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dev_dbg(dev, "Attaching to IOMMU domain\n");
 
@@ -813,7 +813,7 @@ static struct iommu_device *sun50i_iommu_probe_device(struct device *dev)
 
 	iommu = sun50i_iommu_from_dev(dev);
 	if (!iommu)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	return &iommu->iommu;
 }
@@ -821,7 +821,7 @@ static struct iommu_device *sun50i_iommu_probe_device(struct device *dev)
 static int sun50i_iommu_of_xlate(struct device *dev,
 				 struct of_phandle_args *args)
 {
-	struct platform_device *iommu_pdev = of_find_device_by_node(args->np);
+	struct platform_device *iommu_pdev = of_find_device_by_analde(args->np);
 	unsigned id = args->args[0];
 
 	dev_iommu_priv_set(dev, platform_get_drvdata(iommu_pdev));
@@ -858,7 +858,7 @@ static void sun50i_iommu_report_fault(struct sun50i_iommu *iommu,
 	if (iommu->domain)
 		report_iommu_fault(iommu->domain, iommu->dev, iova, prot);
 	else
-		dev_err(iommu->dev, "Page fault while iommu not attached to any domain?\n");
+		dev_err(iommu->dev, "Page fault while iommu analt attached to any domain?\n");
 
 	sun50i_iommu_zap_range(iommu, iova, SPAGE_SIZE);
 }
@@ -878,7 +878,7 @@ static phys_addr_t sun50i_iommu_handle_pt_irq(struct sun50i_iommu *iommu,
 	master = ilog2(blame & IOMMU_INT_MASTER_MASK);
 
 	/*
-	 * If the address is not in the page table, we can't get what
+	 * If the address is analt in the page table, we can't get what
 	 * operation triggered the fault. Assume it's a read
 	 * operation.
 	 */
@@ -923,7 +923,7 @@ static phys_addr_t sun50i_iommu_handle_perm_irq(struct sun50i_iommu *iommu)
 		 * can't really tell. Let's default to a read
 		 * operation.
 		 */
-	case SUN50I_IOMMU_ACI_NONE:
+	case SUN50I_IOMMU_ACI_ANALNE:
 
 		/* WTF? */
 	case SUN50I_IOMMU_ACI_RD_WR:
@@ -933,7 +933,7 @@ static phys_addr_t sun50i_iommu_handle_perm_irq(struct sun50i_iommu *iommu)
 	}
 
 	/*
-	 * If the address is not in the page table, we can't get what
+	 * If the address is analt in the page table, we can't get what
 	 * operation triggered the fault. Assume it's a read
 	 * operation.
 	 */
@@ -952,7 +952,7 @@ static irqreturn_t sun50i_iommu_irq(int irq, void *dev_id)
 	status = iommu_read(iommu, IOMMU_INT_STA_REG);
 	if (!(status & IOMMU_INT_MASK)) {
 		spin_unlock(&iommu->iommu_lock);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	l1_status = iommu_read(iommu, IOMMU_L1PG_INT_REG);
@@ -987,7 +987,7 @@ static int sun50i_iommu_probe(struct platform_device *pdev)
 
 	iommu = devm_kzalloc(&pdev->dev, sizeof(*iommu), GFP_KERNEL);
 	if (!iommu)
-		return -ENOMEM;
+		return -EANALMEM;
 	spin_lock_init(&iommu->iommu_lock);
 	iommu->domain = &sun50i_iommu_identity_domain;
 	platform_set_drvdata(pdev, iommu);
@@ -998,7 +998,7 @@ static int sun50i_iommu_probe(struct platform_device *pdev)
 					   SLAB_HWCACHE_ALIGN,
 					   NULL);
 	if (!iommu->pt_pool)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	iommu->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(iommu->base)) {
@@ -1070,5 +1070,5 @@ static struct platform_driver sun50i_iommu_driver = {
 builtin_platform_driver_probe(sun50i_iommu_driver, sun50i_iommu_probe);
 
 MODULE_DESCRIPTION("Allwinner H6 IOMMU driver");
-MODULE_AUTHOR("Maxime Ripard <maxime@cerno.tech>");
+MODULE_AUTHOR("Maxime Ripard <maxime@ceranal.tech>");
 MODULE_AUTHOR("zhuxianbin <zhuxianbin@allwinnertech.com>");

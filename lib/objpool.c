@@ -18,7 +18,7 @@
 static int
 objpool_init_percpu_slot(struct objpool_head *pool,
 			 struct objpool_slot *slot,
-			 int nodes, void *context,
+			 int analdes, void *context,
 			 objpool_init_obj_cb objinit)
 {
 	void *obj = (void *)&slot->entries[pool->capacity];
@@ -27,7 +27,7 @@ objpool_init_percpu_slot(struct objpool_head *pool,
 	/* initialize elements of percpu objpool_slot */
 	slot->mask = pool->capacity - 1;
 
-	for (i = 0; i < nodes; i++) {
+	for (i = 0; i < analdes; i++) {
 		if (objinit) {
 			int rc = objinit(obj, context);
 			if (rc)
@@ -53,41 +53,41 @@ objpool_init_percpu_slots(struct objpool_head *pool, int nr_objs,
 	for (i = 0; i < pool->nr_cpus; i++) {
 
 		struct objpool_slot *slot;
-		int nodes, size, rc;
+		int analdes, size, rc;
 
-		/* skip the cpu node which could never be present */
+		/* skip the cpu analde which could never be present */
 		if (!cpu_possible(i))
 			continue;
 
 		/* compute how many objects to be allocated with this slot */
-		nodes = nr_objs / num_possible_cpus();
+		analdes = nr_objs / num_possible_cpus();
 		if (cpu_count < (nr_objs % num_possible_cpus()))
-			nodes++;
+			analdes++;
 		cpu_count++;
 
 		size = struct_size(slot, entries, pool->capacity) +
-			pool->obj_size * nodes;
+			pool->obj_size * analdes;
 
 		/*
 		 * here we allocate percpu-slot & objs together in a single
 		 * allocation to make it more compact, taking advantage of
 		 * warm caches and TLB hits. in default vmalloc is used to
-		 * reduce the pressure of kernel slab system. as we know,
+		 * reduce the pressure of kernel slab system. as we kanalw,
 		 * mimimal size of vmalloc is one page since vmalloc would
 		 * always align the requested size to page size
 		 */
 		if (pool->gfp & GFP_ATOMIC)
-			slot = kmalloc_node(size, pool->gfp, cpu_to_node(i));
+			slot = kmalloc_analde(size, pool->gfp, cpu_to_analde(i));
 		else
-			slot = __vmalloc_node(size, sizeof(void *), pool->gfp,
-				cpu_to_node(i), __builtin_return_address(0));
+			slot = __vmalloc_analde(size, sizeof(void *), pool->gfp,
+				cpu_to_analde(i), __builtin_return_address(0));
 		if (!slot)
-			return -ENOMEM;
+			return -EANALMEM;
 		memset(slot, 0, size);
 		pool->cpu_slots[i] = slot;
 
-		/* initialize the objpool_slot of cpu node i */
-		rc = objpool_init_percpu_slot(pool, slot, nodes, context, objinit);
+		/* initialize the objpool_slot of cpu analde i */
+		rc = objpool_init_percpu_slot(pool, slot, analdes, context, objinit);
 		if (rc)
 			return rc;
 	}
@@ -139,7 +139,7 @@ int objpool_init(struct objpool_head *pool, int nr_objs, int object_size,
 	slot_size = pool->nr_cpus * sizeof(struct objpool_slot);
 	pool->cpu_slots = kzalloc(slot_size, pool->gfp);
 	if (!pool->cpu_slots)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* initialize per-cpu slots */
 	rc = objpool_init_percpu_slots(pool, nr_objs, context, objinit);
@@ -168,7 +168,7 @@ objpool_try_add_slot(void *obj, struct objpool_head *pool, int cpu)
 		WARN_ON_ONCE(tail - head > pool->nr_objs);
 	} while (!try_cmpxchg_acquire(&slot->tail, &tail, tail + 1));
 
-	/* now the tail position is reserved for the given obj */
+	/* analw the tail position is reserved for the given obj */
 	WRITE_ONCE(slot->entries[tail & slot->mask], obj);
 	/* update sequence to make this obj available for pop() */
 	smp_store_release(&slot->last, tail + 1);

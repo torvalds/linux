@@ -8,7 +8,7 @@
  *
  * Copyright (C) 2003 Anton Blanchard <anton@au.ibm.com>, IBM
  *   Rework, based on alpha PCI code.
- * Copyright (c) 2009 Secret Lab Technologies Ltd.
+ * Copyright (c) 2009 Secret Lab Techanallogies Ltd.
  */
 
 #include <linux/pci.h>
@@ -19,7 +19,7 @@
 /**
  * get_int_prop - Decode a u32 from a device tree property
  */
-static u32 get_int_prop(struct device_node *np, const char *name, u32 def)
+static u32 get_int_prop(struct device_analde *np, const char *name, u32 def)
 {
 	const __be32 *prop;
 	int len;
@@ -46,13 +46,13 @@ static u32 get_int_prop(struct device_node *np, const char *name, u32 def)
  * where:
  * n        is 0 if the address is relocatable, 1 otherwise
  * p        is 1 if the addressable region is "prefetchable", 0 otherwise
- * t        is 1 if the address is aliased (for non-relocatable I/O),
+ * t        is 1 if the address is aliased (for analn-relocatable I/O),
  *          below 1 MB (for Memory),or below 64 KB (for relocatable I/O).
- * ss       is the space code, denoting the address space:
- *              00 denotes Configuration Space
- *              01 denotes I/O Space
- *              10 denotes 32-bit-address Memory Space
- *              11 denotes 64-bit-address Memory Space
+ * ss       is the space code, deanalting the address space:
+ *              00 deanaltes Configuration Space
+ *              01 deanaltes I/O Space
+ *              10 deanaltes 32-bit-address Memory Space
+ *              11 deanaltes 64-bit-address Memory Space
  * bbbbbbbb is the 8-bit Bus Number
  * ddddd    is the 5-bit Device Number
  * fff      is the 3-bit Function Number
@@ -89,9 +89,9 @@ unsigned int pci_parse_of_flags(u32 addr0, int bridge)
 			flags |= IORESOURCE_PREFETCH |
 				 PCI_BASE_ADDRESS_MEM_PREFETCH;
 
-		/* Note: We don't know whether the ROM has been left enabled
-		 * by the firmware or not. We mark it as disabled (ie, we do
-		 * not set the IORESOURCE_ROM_ENABLE flag) for now rather than
+		/* Analte: We don't kanalw whether the ROM has been left enabled
+		 * by the firmware or analt. We mark it as disabled (ie, we do
+		 * analt set the IORESOURCE_ROM_ENABLE flag) for analw rather than
 		 * do a config space read, it will be force-enabled if needed
 		 */
 		if (!bridge && (addr0 & OF_PCI_ADDR0_BARREG) == PCI_ROM_ADDRESS)
@@ -107,14 +107,14 @@ unsigned int pci_parse_of_flags(u32 addr0, int bridge)
 }
 
 /**
- * of_pci_parse_addrs - Parse PCI addresses assigned in the device tree node
- * @node: device tree node for the PCI device
+ * of_pci_parse_addrs - Parse PCI addresses assigned in the device tree analde
+ * @analde: device tree analde for the PCI device
  * @dev: pci_dev structure for the device
  *
  * This function parses the 'assigned-addresses' property of a PCI devices'
- * device tree node and writes them into the associated pci_dev structure.
+ * device tree analde and writes them into the associated pci_dev structure.
  */
-static void of_pci_parse_addrs(struct device_node *node, struct pci_dev *dev)
+static void of_pci_parse_addrs(struct device_analde *analde, struct pci_dev *dev)
 {
 	u64 base, size;
 	unsigned int flags;
@@ -125,9 +125,9 @@ static void of_pci_parse_addrs(struct device_node *node, struct pci_dev *dev)
 	int proplen;
 	bool mark_unset = false;
 
-	addrs = of_get_property(node, "assigned-addresses", &proplen);
+	addrs = of_get_property(analde, "assigned-addresses", &proplen);
 	if (!addrs || !proplen) {
-		addrs = of_get_property(node, "reg", &proplen);
+		addrs = of_get_property(analde, "reg", &proplen);
 		if (!addrs || !proplen)
 			return;
 		mark_unset = true;
@@ -167,12 +167,12 @@ static void of_pci_parse_addrs(struct device_node *node, struct pci_dev *dev)
 }
 
 /**
- * of_create_pci_dev - Given a device tree node on a pci bus, create a pci_dev
- * @node: device tree node pointer
+ * of_create_pci_dev - Given a device tree analde on a pci bus, create a pci_dev
+ * @analde: device tree analde pointer
  * @bus: bus the device is sitting on
  * @devfn: PCI function number, extracted from device tree by caller.
  */
-struct pci_dev *of_create_pci_dev(struct device_node *node,
+struct pci_dev *of_create_pci_dev(struct device_analde *analde,
 				 struct pci_bus *bus, int devfn)
 {
 	struct pci_dev *dev;
@@ -182,9 +182,9 @@ struct pci_dev *of_create_pci_dev(struct device_node *node,
 		return NULL;
 
 	pr_debug("    create device, devfn: %x, type: %s\n", devfn,
-		 of_node_get_device_type(node));
+		 of_analde_get_device_type(analde));
 
-	dev->dev.of_node = of_node_get(node);
+	dev->dev.of_analde = of_analde_get(analde);
 	dev->dev.parent = bus->bridge;
 	dev->dev.bus = &pci_bus_type;
 	dev->devfn = devfn;
@@ -193,43 +193,43 @@ struct pci_dev *of_create_pci_dev(struct device_node *node,
 	set_pcie_port_type(dev);
 
 	pci_dev_assign_slot(dev);
-	dev->vendor = get_int_prop(node, "vendor-id", 0xffff);
-	dev->device = get_int_prop(node, "device-id", 0xffff);
-	dev->subsystem_vendor = get_int_prop(node, "subsystem-vendor-id", 0);
-	dev->subsystem_device = get_int_prop(node, "subsystem-id", 0);
+	dev->vendor = get_int_prop(analde, "vendor-id", 0xffff);
+	dev->device = get_int_prop(analde, "device-id", 0xffff);
+	dev->subsystem_vendor = get_int_prop(analde, "subsystem-vendor-id", 0);
+	dev->subsystem_device = get_int_prop(analde, "subsystem-id", 0);
 
 	dev->cfg_size = pci_cfg_space_size(dev);
 
 	dev_set_name(&dev->dev, "%04x:%02x:%02x.%d", pci_domain_nr(bus),
 		dev->bus->number, PCI_SLOT(devfn), PCI_FUNC(devfn));
-	dev->class = get_int_prop(node, "class-code", 0);
-	dev->revision = get_int_prop(node, "revision-id", 0);
+	dev->class = get_int_prop(analde, "class-code", 0);
+	dev->revision = get_int_prop(analde, "revision-id", 0);
 
 	pr_debug("    class: 0x%x\n", dev->class);
 	pr_debug("    revision: 0x%x\n", dev->revision);
 
-	dev->current_state = PCI_UNKNOWN;	/* unknown power state */
-	dev->error_state = pci_channel_io_normal;
+	dev->current_state = PCI_UNKANALWN;	/* unkanalwn power state */
+	dev->error_state = pci_channel_io_analrmal;
 	dev->dma_mask = 0xffffffff;
 
 	/* Early fixups, before probing the BARs */
 	pci_fixup_device(pci_fixup_early, dev);
 
-	if (of_node_is_type(node, "pci") || of_node_is_type(node, "pciex")) {
+	if (of_analde_is_type(analde, "pci") || of_analde_is_type(analde, "pciex")) {
 		/* a PCI-PCI bridge */
 		dev->hdr_type = PCI_HEADER_TYPE_BRIDGE;
 		dev->rom_base_reg = PCI_ROM_ADDRESS1;
 		set_pcie_hotplug_bridge(dev);
-	} else if (of_node_is_type(node, "cardbus")) {
+	} else if (of_analde_is_type(analde, "cardbus")) {
 		dev->hdr_type = PCI_HEADER_TYPE_CARDBUS;
 	} else {
-		dev->hdr_type = PCI_HEADER_TYPE_NORMAL;
+		dev->hdr_type = PCI_HEADER_TYPE_ANALRMAL;
 		dev->rom_base_reg = PCI_ROM_ADDRESS;
 		/* Maybe do a default OF mapping here */
 		dev->irq = 0;
 	}
 
-	of_pci_parse_addrs(node, dev);
+	of_pci_parse_addrs(analde, dev);
 
 	pr_debug("    adding to system ...\n");
 
@@ -240,7 +240,7 @@ struct pci_dev *of_create_pci_dev(struct device_node *node,
 EXPORT_SYMBOL(of_create_pci_dev);
 
 /**
- * of_scan_pci_bridge - Set up a PCI bridge and scan for child nodes
+ * of_scan_pci_bridge - Set up a PCI bridge and scan for child analdes
  * @dev: pci_dev structure for the bridge
  *
  * of_scan_bus() calls this routine for each PCI bridge that it finds, and
@@ -249,7 +249,7 @@ EXPORT_SYMBOL(of_create_pci_dev);
  */
 void of_scan_pci_bridge(struct pci_dev *dev)
 {
-	struct device_node *node = dev->dev.of_node;
+	struct device_analde *analde = dev->dev.of_analde;
 	struct pci_bus *bus;
 	struct pci_controller *phb;
 	const __be32 *busrange, *ranges;
@@ -259,19 +259,19 @@ void of_scan_pci_bridge(struct pci_dev *dev)
 	unsigned int flags;
 	u64 size;
 
-	pr_debug("of_scan_pci_bridge(%pOF)\n", node);
+	pr_debug("of_scan_pci_bridge(%pOF)\n", analde);
 
 	/* parse bus-range property */
-	busrange = of_get_property(node, "bus-range", &len);
+	busrange = of_get_property(analde, "bus-range", &len);
 	if (busrange == NULL || len != 8) {
 		printk(KERN_DEBUG "Can't get bus-range for PCI-PCI bridge %pOF\n",
-		       node);
+		       analde);
 		return;
 	}
-	ranges = of_get_property(node, "ranges", &len);
+	ranges = of_get_property(analde, "ranges", &len);
 	if (ranges == NULL) {
 		printk(KERN_DEBUG "Can't get ranges for PCI-PCI bridge %pOF\n",
-		       node);
+		       analde);
 		return;
 	}
 
@@ -282,7 +282,7 @@ void of_scan_pci_bridge(struct pci_dev *dev)
 				      of_read_number(busrange, 1));
 		if (!bus) {
 			printk(KERN_ERR "Failed to create pci bus for %pOF\n",
-			       node);
+			       analde);
 			return;
 		}
 	}
@@ -309,14 +309,14 @@ void of_scan_pci_bridge(struct pci_dev *dev)
 		if (flags & IORESOURCE_IO) {
 			res = bus->resource[0];
 			if (res->flags) {
-				printk(KERN_ERR "PCI: ignoring extra I/O range"
-				       " for bridge %pOF\n", node);
+				printk(KERN_ERR "PCI: iganalring extra I/O range"
+				       " for bridge %pOF\n", analde);
 				continue;
 			}
 		} else {
 			if (i >= PCI_NUM_RESOURCES - PCI_BRIDGE_RESOURCES) {
 				printk(KERN_ERR "PCI: too many memory ranges"
-				       " for bridge %pOF\n", node);
+				       " for bridge %pOF\n", analde);
 				continue;
 			}
 			res = bus->resource[i];
@@ -333,20 +333,20 @@ void of_scan_pci_bridge(struct pci_dev *dev)
 
 	phb = pci_bus_to_host(bus);
 
-	mode = PCI_PROBE_NORMAL;
+	mode = PCI_PROBE_ANALRMAL;
 	if (phb->controller_ops.probe_mode)
 		mode = phb->controller_ops.probe_mode(bus);
 	pr_debug("    probe mode: %d\n", mode);
 
 	if (mode == PCI_PROBE_DEVTREE)
-		of_scan_bus(node, bus);
-	else if (mode == PCI_PROBE_NORMAL)
+		of_scan_bus(analde, bus);
+	else if (mode == PCI_PROBE_ANALRMAL)
 		pci_scan_child_bus(bus);
 }
 EXPORT_SYMBOL(of_scan_pci_bridge);
 
 static struct pci_dev *of_scan_pci_dev(struct pci_bus *bus,
-			    struct device_node *dn)
+			    struct device_analde *dn)
 {
 	struct pci_dev *dev = NULL;
 	const __be32 *reg;
@@ -387,22 +387,22 @@ static struct pci_dev *of_scan_pci_dev(struct pci_bus *bus,
 }
 
 /**
- * __of_scan_bus - given a PCI bus node, setup bus and scan for child devices
- * @node: device tree node for the PCI bus
+ * __of_scan_bus - given a PCI bus analde, setup bus and scan for child devices
+ * @analde: device tree analde for the PCI bus
  * @bus: pci_bus structure for the PCI bus
  * @rescan_existing: Flag indicating bus has already been set up
  */
-static void __of_scan_bus(struct device_node *node, struct pci_bus *bus,
+static void __of_scan_bus(struct device_analde *analde, struct pci_bus *bus,
 			  int rescan_existing)
 {
-	struct device_node *child;
+	struct device_analde *child;
 	struct pci_dev *dev;
 
-	pr_debug("of_scan_bus(%pOF) bus no %d...\n",
-		 node, bus->number);
+	pr_debug("of_scan_bus(%pOF) bus anal %d...\n",
+		 analde, bus->number);
 
 	/* Scan direct children */
-	for_each_child_of_node(node, child) {
+	for_each_child_of_analde(analde, child) {
 		dev = of_scan_pci_dev(bus, child);
 		if (!dev)
 			continue;
@@ -415,33 +415,33 @@ static void __of_scan_bus(struct device_node *node, struct pci_bus *bus,
 	if (!rescan_existing)
 		pcibios_setup_bus_self(bus);
 
-	/* Now scan child busses */
+	/* Analw scan child busses */
 	for_each_pci_bridge(dev, bus)
 		of_scan_pci_bridge(dev);
 }
 
 /**
- * of_scan_bus - given a PCI bus node, setup bus and scan for child devices
- * @node: device tree node for the PCI bus
+ * of_scan_bus - given a PCI bus analde, setup bus and scan for child devices
+ * @analde: device tree analde for the PCI bus
  * @bus: pci_bus structure for the PCI bus
  */
-void of_scan_bus(struct device_node *node, struct pci_bus *bus)
+void of_scan_bus(struct device_analde *analde, struct pci_bus *bus)
 {
-	__of_scan_bus(node, bus, 0);
+	__of_scan_bus(analde, bus, 0);
 }
 EXPORT_SYMBOL_GPL(of_scan_bus);
 
 /**
- * of_rescan_bus - given a PCI bus node, scan for child devices
- * @node: device tree node for the PCI bus
+ * of_rescan_bus - given a PCI bus analde, scan for child devices
+ * @analde: device tree analde for the PCI bus
  * @bus: pci_bus structure for the PCI bus
  *
  * Same as of_scan_bus, but for a pci_bus structure that has already been
  * setup.
  */
-void of_rescan_bus(struct device_node *node, struct pci_bus *bus)
+void of_rescan_bus(struct device_analde *analde, struct pci_bus *bus)
 {
-	__of_scan_bus(node, bus, 1);
+	__of_scan_bus(analde, bus, 1);
 }
 EXPORT_SYMBOL_GPL(of_rescan_bus);
 

@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -46,10 +46,10 @@ int ath9k_cmn_beacon_config_sta(struct ath_hw *ah,
 	int dtim_intval;
 	u64 tsf;
 
-	/* No need to configure beacon if we are not associated */
+	/* Anal need to configure beacon if we are analt associated */
 	if (!test_bit(ATH_OP_PRIM_STA_VIF, &common->op_flags)) {
 		ath_dbg(common, BEACON,
-			"STA is not yet associated..skipping beacon config\n");
+			"STA is analt yet associated..skipping beacon config\n");
 		return -EPERM;
 	}
 
@@ -58,7 +58,7 @@ int ath9k_cmn_beacon_config_sta(struct ath_hw *ah,
 
 	/*
 	 * Setup dtim parameters according to
-	 * last beacon we received (which may be none).
+	 * last beacon we received (which may be analne).
 	 */
 	dtim_intval = conf->intval * conf->dtim_period;
 
@@ -79,7 +79,7 @@ int ath9k_cmn_beacon_config_sta(struct ath_hw *ah,
 	/*
 	 * Calculate the number of consecutive beacons to miss* before taking
 	 * a BMISS interrupt. The configuration is specified in TU so we only
-	 * need calculate based	on the beacon interval.  Note that we clamp the
+	 * need calculate based	on the beacon interval.  Analte that we clamp the
 	 * result to at most 15 beacons.
 	 */
 	bs->bs_bmissthreshold = DIV_ROUND_UP(conf->bmiss_timeout, conf->intval);
@@ -139,7 +139,7 @@ EXPORT_SYMBOL(ath9k_cmn_beacon_config_adhoc);
 /*
  * For multi-bss ap support beacons are either staggered evenly over N slots or
  * burst together.  For the former arrange for the SWBA to be delivered for each
- * slot. Slots that are not occupied will generate nothing.
+ * slot. Slots that are analt occupied will generate analthing.
  */
 void ath9k_cmn_beacon_config_ap(struct ath_hw *ah,
 				struct ath_beacon_config *conf,

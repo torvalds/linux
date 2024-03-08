@@ -12,7 +12,7 @@ maintainers:
 
 description:
   The SRAM controller found on most Allwinner devices is represented
-  by a regular node for the SRAM controller itself, with sub-nodes
+  by a regular analde for the SRAM controller itself, with sub-analdes
   representing the SRAM handled by the SRAM controller.
 
 properties:

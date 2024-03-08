@@ -5,14 +5,14 @@
  * Copyright (C) 2001-2007 Greg Kroah-Hartman (greg@kroah.com)
  * Copyright (C) 2003 IBM Corp.
  *
- * Original driver for 2.2.x by anonymous
+ * Original driver for 2.2.x by aanalnymous
  *
  * See Documentation/usb/usb-serial.rst for more information on using this
  * driver
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -65,8 +65,8 @@ static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(ATEN_VENDOR_ID2, ATEN_PRODUCT_ID) },
 	{ USB_DEVICE(ELCOM_VENDOR_ID, ELCOM_PRODUCT_ID) },
 	{ USB_DEVICE(ELCOM_VENDOR_ID, ELCOM_PRODUCT_ID_UCSGT) },
-	{ USB_DEVICE(ITEGNO_VENDOR_ID, ITEGNO_PRODUCT_ID) },
-	{ USB_DEVICE(ITEGNO_VENDOR_ID, ITEGNO_PRODUCT_ID_2080) },
+	{ USB_DEVICE(ITEGANAL_VENDOR_ID, ITEGANAL_PRODUCT_ID) },
+	{ USB_DEVICE(ITEGANAL_VENDOR_ID, ITEGANAL_PRODUCT_ID_2080) },
 	{ USB_DEVICE(MA620_VENDOR_ID, MA620_PRODUCT_ID) },
 	{ USB_DEVICE(RATOC_VENDOR_ID, RATOC_PRODUCT_ID) },
 	{ USB_DEVICE(TRIPP_VENDOR_ID, TRIPP_PRODUCT_ID) },
@@ -84,7 +84,7 @@ static const struct usb_device_id id_table[] = {
 		.driver_info = PL2303_QUIRK_ENDPOINT_HACK },
 	{ USB_DEVICE(BENQ_VENDOR_ID, BENQ_PRODUCT_ID_S81) }, /* Benq/Siemens S81 */
 	{ USB_DEVICE(SYNTECH_VENDOR_ID, SYNTECH_PRODUCT_ID) },
-	{ USB_DEVICE(NOKIA_CA42_VENDOR_ID, NOKIA_CA42_PRODUCT_ID) },
+	{ USB_DEVICE(ANALKIA_CA42_VENDOR_ID, ANALKIA_CA42_PRODUCT_ID) },
 	{ USB_DEVICE(CA_42_CA42_VENDOR_ID, CA_42_CA42_PRODUCT_ID) },
 	{ USB_DEVICE(SAGEM_VENDOR_ID, SAGEM_PRODUCT_ID) },
 	{ USB_DEVICE(LEADTEK_VENDOR_ID, LEADTEK_9531_PRODUCT_ID) },
@@ -169,7 +169,7 @@ MODULE_DEVICE_TABLE(usb, id_table);
 
 #define PL2303_HXN_FLOWCTRL_REG		0x0a
 #define PL2303_HXN_FLOWCTRL_MASK	0x1c
-#define PL2303_HXN_FLOWCTRL_NONE	0x1c
+#define PL2303_HXN_FLOWCTRL_ANALNE	0x1c
 #define PL2303_HXN_FLOWCTRL_RTS_CTS	0x18
 #define PL2303_HXN_FLOWCTRL_XON_XOFF	0x0c
 
@@ -189,8 +189,8 @@ struct pl2303_type_data {
 	const char *name;
 	speed_t max_baud_rate;
 	unsigned long quirks;
-	unsigned int no_autoxonxoff:1;
-	unsigned int no_divisors:1;
+	unsigned int anal_autoxonxoff:1;
+	unsigned int anal_divisors:1;
 	unsigned int alt_divisors:1;
 };
 
@@ -212,7 +212,7 @@ static const struct pl2303_type_data pl2303_type_data[TYPE_COUNT] = {
 		.name			= "H",
 		.max_baud_rate		= 1228800,
 		.quirks			= PL2303_QUIRK_LEGACY,
-		.no_autoxonxoff		= true,
+		.anal_autoxonxoff		= true,
 	},
 	[TYPE_HX] = {
 		.name			= "HX",
@@ -235,7 +235,7 @@ static const struct pl2303_type_data pl2303_type_data[TYPE_COUNT] = {
 	[TYPE_HXN] = {
 		.name			= "G",
 		.max_baud_rate		= 12000000,
-		.no_divisors		= true,
+		.anal_divisors		= true,
 	},
 };
 
@@ -303,7 +303,7 @@ static int pl2303_update_reg(struct usb_serial *serial, u8 reg, u8 mask, u8 val)
 
 	buf = kmalloc(1, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (spriv->type == &pl2303_type_data[TYPE_HXN])
 		ret = pl2303_vendor_read(serial, reg, buf);
@@ -381,7 +381,7 @@ static int pl2303_calc_num_ports(struct usb_serial *serial,
 
 	if (epds->num_interrupt_in < 1) {
 		dev_err(dev, "required interrupt-in endpoint missing\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 1;
@@ -405,7 +405,7 @@ static int pl2303_detect_type(struct usb_serial *serial)
 	u16 bcdDevice, bcdUSB;
 
 	/*
-	 * Legacy PL2303H, variants 0 and 1 (difference unknown).
+	 * Legacy PL2303H, variants 0 and 1 (difference unkanalwn).
 	 */
 	if (desc->bDeviceClass == 0x02)
 		return TYPE_H;		/* variant 0 */
@@ -462,8 +462,8 @@ static int pl2303_detect_type(struct usb_serial *serial)
 	}
 
 	dev_err(&serial->interface->dev,
-			"unknown device type, please report to linux-usb@vger.kernel.org\n");
-	return -ENODEV;
+			"unkanalwn device type, please report to linux-usb@vger.kernel.org\n");
+	return -EANALDEV;
 }
 
 static int pl2303_startup(struct usb_serial *serial)
@@ -482,7 +482,7 @@ static int pl2303_startup(struct usb_serial *serial)
 
 	spriv = kzalloc(sizeof(*spriv), GFP_KERNEL);
 	if (!spriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spriv->type = &pl2303_type_data[type];
 	spriv->quirks = (unsigned long)usb_get_serial_data(serial);
@@ -494,7 +494,7 @@ static int pl2303_startup(struct usb_serial *serial)
 		buf = kmalloc(1, GFP_KERNEL);
 		if (!buf) {
 			kfree(spriv);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		pl2303_vendor_read(serial, 0x8484, buf);
@@ -531,7 +531,7 @@ static int pl2303_port_probe(struct usb_serial_port *port)
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&priv->lock);
 
@@ -595,7 +595,7 @@ static speed_t pl2303_get_supported_baud_rate(speed_t baud)
 }
 
 /*
- * NOTE: If unsupported baud rates are set directly, the PL2303 seems to
+ * ANALTE: If unsupported baud rates are set directly, the PL2303 seems to
  *       use 9600 baud.
  */
 static speed_t pl2303_encode_baud_rate_direct(unsigned char buf[4],
@@ -702,9 +702,9 @@ static void pl2303_encode_baud_rate(struct tty_struct *tty,
 		baud = min_t(speed_t, baud, spriv->type->max_baud_rate);
 	/*
 	 * Use direct method for supported baud rates, otherwise use divisors.
-	 * Newer chip types do not support divisor encoding.
+	 * Newer chip types do analt support divisor encoding.
 	 */
-	if (spriv->type->no_divisors)
+	if (spriv->type->anal_divisors)
 		baud_sup = baud;
 	else
 		baud_sup = pl2303_get_supported_baud_rate(baud);
@@ -782,7 +782,7 @@ static bool pl2303_enable_xonxoff(struct tty_struct *tty, const struct pl2303_ty
 	if (START_CHAR(tty) != 0x11 || STOP_CHAR(tty) != 0x13)
 		return false;
 
-	if (type->no_autoxonxoff)
+	if (type->anal_autoxonxoff)
 		return false;
 
 	return true;
@@ -805,7 +805,7 @@ static void pl2303_set_termios(struct tty_struct *tty,
 
 	buf = kzalloc(7, GFP_KERNEL);
 	if (!buf) {
-		/* Report back no change occurred */
+		/* Report back anal change occurred */
 		if (old_termios)
 			tty->termios = *old_termios;
 		return;
@@ -824,7 +824,7 @@ static void pl2303_set_termios(struct tty_struct *tty,
 	/* For reference buf[4]=2 is 2 stop bits */
 	if (C_CSTOPB(tty)) {
 		/*
-		 * NOTE: Comply with "real" UARTs / RS232:
+		 * ANALTE: Comply with "real" UARTs / RS232:
 		 *       use 1.5 instead of 2 stop bits with 5 data bits
 		 */
 		if (C_CSIZE(tty) == CS5) {
@@ -840,7 +840,7 @@ static void pl2303_set_termios(struct tty_struct *tty,
 	}
 
 	if (C_PARENB(tty)) {
-		/* For reference buf[5]=0 is none parity */
+		/* For reference buf[5]=0 is analne parity */
 		/* For reference buf[5]=1 is odd parity */
 		/* For reference buf[5]=2 is even parity */
 		/* For reference buf[5]=3 is mark parity */
@@ -864,19 +864,19 @@ static void pl2303_set_termios(struct tty_struct *tty,
 		}
 	} else {
 		buf[5] = 0;
-		dev_dbg(&port->dev, "parity = none\n");
+		dev_dbg(&port->dev, "parity = analne\n");
 	}
 
 	/*
-	 * Some PL2303 are known to lose bytes if you change serial settings
+	 * Some PL2303 are kanalwn to lose bytes if you change serial settings
 	 * even to the same values as before. Thus we actually need to filter
 	 * in this specific case.
 	 *
-	 * Note that the tty_termios_hw_change check above is not sufficient
+	 * Analte that the tty_termios_hw_change check above is analt sufficient
 	 * as a previously requested baud rate may differ from the one
 	 * actually used (and stored in old_termios).
 	 *
-	 * NOTE: No additional locking needed for line_settings as it is
+	 * ANALTE: Anal additional locking needed for line_settings as it is
 	 *       only used in set_termios, which is serialised against itself.
 	 */
 	if (!old_termios || memcmp(buf, priv->line_settings, 7)) {
@@ -922,7 +922,7 @@ static void pl2303_set_termios(struct tty_struct *tty,
 		if (spriv->type == &pl2303_type_data[TYPE_HXN]) {
 			pl2303_update_reg(serial, PL2303_HXN_FLOWCTRL_REG,
 					PL2303_HXN_FLOWCTRL_MASK,
-					PL2303_HXN_FLOWCTRL_NONE);
+					PL2303_HXN_FLOWCTRL_ANALNE);
 		} else {
 			pl2303_update_reg(serial, 0, PL2303_FLOWCTRL_MASK, 0);
 		}
@@ -1156,14 +1156,14 @@ static void pl2303_read_int_callback(struct urb *urb)
 		/* success */
 		break;
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
 		dev_dbg(&port->dev, "%s - urb shutting down with status: %d\n",
 			__func__, status);
 		return;
 	default:
-		dev_dbg(&port->dev, "%s - nonzero urb status received: %d\n",
+		dev_dbg(&port->dev, "%s - analnzero urb status received: %d\n",
 			__func__, status);
 		goto exit;
 	}
@@ -1187,7 +1187,7 @@ static void pl2303_process_read_urb(struct urb *urb)
 	struct usb_serial_port *port = urb->context;
 	struct pl2303_private *priv = usb_get_serial_port_data(port);
 	unsigned char *data = urb->transfer_buffer;
-	char tty_flag = TTY_NORMAL;
+	char tty_flag = TTY_ANALRMAL;
 	unsigned long flags;
 	u8 line_status;
 	int i;
@@ -1212,10 +1212,10 @@ static void pl2303_process_read_urb(struct urb *urb)
 	else if (line_status & UART_FRAME_ERROR)
 		tty_flag = TTY_FRAME;
 
-	if (tty_flag != TTY_NORMAL)
+	if (tty_flag != TTY_ANALRMAL)
 		dev_dbg(&port->dev, "%s - tty_flag = %d\n", __func__,
 								tty_flag);
-	/* overrun is special, not associated with a char */
+	/* overrun is special, analt associated with a char */
 	if (line_status & UART_OVERRUN_ERROR)
 		tty_insert_flip_char(&port->port, 0, TTY_OVERRUN);
 

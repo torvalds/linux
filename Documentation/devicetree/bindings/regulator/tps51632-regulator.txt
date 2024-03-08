@@ -7,7 +7,7 @@ Required properties:
 Optional properties:
 - ti,enable-pwm-dvfs: Enable the DVFS voltage control through the PWM interface.
 - ti,dvfs-step-20mV: The 20mV step voltage when PWM DVFS enabled. Missing this
-	will set 10mV step voltage in PWM DVFS mode. In normal mode, the voltage
+	will set 10mV step voltage in PWM DVFS mode. In analrmal mode, the voltage
 	step is 10mV as per datasheet.
 
 Any property defined as part of the core regulator binding, defined in

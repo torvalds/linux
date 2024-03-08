@@ -56,7 +56,7 @@ int kdb_stub(struct kgdb_state *ks)
 	kdb_bp_t *bp;
 	unsigned long addr = kgdb_arch_pc(ks->ex_vector, ks->linux_regs);
 	kdb_reason_t reason = KDB_REASON_OOPS;
-	kdb_dbtrap_t db_result = KDB_DB_NOBPT;
+	kdb_dbtrap_t db_result = KDB_DB_ANALBPT;
 	int i;
 
 	kdb_ks = ks;
@@ -69,7 +69,7 @@ int kdb_stub(struct kgdb_state *ks)
 	if (atomic_read(&kgdb_setting_breakpoint))
 		reason = KDB_REASON_KEYBOARD;
 
-	if (ks->err_code == KDB_REASON_SYSTEM_NMI && ks->signo == SIGTRAP)
+	if (ks->err_code == KDB_REASON_SYSTEM_NMI && ks->siganal == SIGTRAP)
 		reason = KDB_REASON_SYSTEM_NMI;
 
 	else if (in_nmi())
@@ -107,7 +107,7 @@ int kdb_stub(struct kgdb_state *ks)
 	}
 
 	if (reason != KDB_REASON_BREAK && ks->ex_vector == 0 &&
-		ks->signo == SIGTRAP) {
+		ks->siganal == SIGTRAP) {
 		reason = KDB_REASON_SSTEP;
 		db_result = KDB_DB_BPT;
 	}

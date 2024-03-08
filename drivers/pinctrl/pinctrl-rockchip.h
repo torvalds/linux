@@ -275,7 +275,7 @@ enum rockchip_pin_pull_type {
  *	    an initial offset value the relevant source offset can be reset
  *	    to a new value for autocalculating the following drive strength
  *	    registers. if used chips own cal_drv func instead to calculate
- *	    registers offset, the variant could be ignored.
+ *	    registers offset, the variant could be iganalred.
  */
 struct rockchip_drv {
 	enum rockchip_pin_drv_type	drv_type;
@@ -299,7 +299,7 @@ struct rockchip_drv {
  * @drv: array describing the 4 drive strength sources of the bank
  * @pull_type: array describing the 4 pull type sources of the bank
  * @valid: is all necessary information present
- * @of_node: dt node of this bank
+ * @of_analde: dt analde of this bank
  * @drvdata: common pinctrl basedata
  * @domain: irqdomain of the gpio bank
  * @gpio_chip: gpiolib chip
@@ -327,7 +327,7 @@ struct rockchip_pin_bank {
 	struct rockchip_drv		drv[4];
 	enum rockchip_pin_pull_type	pull_type[4];
 	bool				valid;
-	struct device_node		*of_node;
+	struct device_analde		*of_analde;
 	struct rockchip_pinctrl		*drvdata;
 	struct irq_domain		*domain;
 	struct gpio_chip		gpio_chip;

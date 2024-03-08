@@ -12,7 +12,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/smp.h>
 #include <linux/io.h>
 
@@ -30,7 +30,7 @@ void omap4_cpu_die(unsigned int cpu)
 	void __iomem *base = omap_get_wakeupgen_base();
 
 	/*
-	 * we're ready for shutdown now, so do it
+	 * we're ready for shutdown analw, so do it
 	 */
 	if (omap_secure_apis_support()) {
 		if (omap_modify_auxcoreboot0(0x0, 0x200) != 0x0)

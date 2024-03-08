@@ -26,8 +26,8 @@ static void pmu_apm_get_power_status(struct apm_power_info *info)
 	long amperage = 0;
 	unsigned long btype = 0;
 
-	info->battery_status = APM_BATTERY_STATUS_UNKNOWN;
-	info->battery_flag = APM_BATTERY_FLAG_UNKNOWN;
+	info->battery_status = APM_BATTERY_STATUS_UNKANALWN;
+	info->battery_flag = APM_BATTERY_FLAG_UNKANALWN;
 	info->units = APM_UNITS_MINS;
 
 	if (pmu_power_flags & PMU_PWR_AC_PRESENT)

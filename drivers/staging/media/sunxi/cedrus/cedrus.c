@@ -153,14 +153,14 @@ static const struct cedrus_control cedrus_controls[] = {
 	{
 		.cfg = {
 			.id	= V4L2_CID_STATELESS_H264_START_CODE,
-			.max	= V4L2_STATELESS_H264_START_CODE_NONE,
-			.def	= V4L2_STATELESS_H264_START_CODE_NONE,
+			.max	= V4L2_STATELESS_H264_START_CODE_ANALNE,
+			.def	= V4L2_STATELESS_H264_START_CODE_ANALNE,
 		},
 		.capabilities	= CEDRUS_CAPABILITY_H264_DEC,
 	},
 	/*
 	 * We only expose supported profiles information,
-	 * and not levels as it's not clear what is supported
+	 * and analt levels as it's analt clear what is supported
 	 * for each hardware/core version.
 	 * In any case, TRY/S_FMT will clamp the format resolution
 	 * to the maximum supported.
@@ -192,7 +192,7 @@ static const struct cedrus_control cedrus_controls[] = {
 	{
 		.cfg = {
 			.id	= V4L2_CID_STATELESS_HEVC_SLICE_PARAMS,
-			/* The driver can only handle 1 entry per slice for now */
+			/* The driver can only handle 1 entry per slice for analw */
 			.dims   = { 1 },
 		},
 		.capabilities	= CEDRUS_CAPABILITY_H265_DEC,
@@ -224,8 +224,8 @@ static const struct cedrus_control cedrus_controls[] = {
 	{
 		.cfg = {
 			.id	= V4L2_CID_STATELESS_HEVC_START_CODE,
-			.max	= V4L2_STATELESS_HEVC_START_CODE_NONE,
-			.def	= V4L2_STATELESS_HEVC_START_CODE_NONE,
+			.max	= V4L2_STATELESS_HEVC_START_CODE_ANALNE,
+			.def	= V4L2_STATELESS_HEVC_START_CODE_ANALNE,
 		},
 		.capabilities	= CEDRUS_CAPABILITY_H265_DEC,
 	},
@@ -286,7 +286,7 @@ static int cedrus_init_ctrls(struct cedrus_dev *dev, struct cedrus_ctx *ctx)
 
 	ctx->ctrls = kzalloc(ctrl_size, GFP_KERNEL);
 	if (!ctx->ctrls)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	j = 0;
 	for (i = 0; i < CEDRUS_CONTROLS_COUNT; i++) {
@@ -334,13 +334,13 @@ static int cedrus_request_validate(struct media_request *req)
 	}
 
 	if (!ctx)
-		return -ENOENT;
+		return -EANALENT;
 
 	count = vb2_request_buffer_cnt(req);
 	if (!count) {
 		v4l2_info(&ctx->dev->v4l2_dev,
-			  "No buffer was provided with the request\n");
-		return -ENOENT;
+			  "Anal buffer was provided with the request\n");
+		return -EANALENT;
 	} else if (count > 1) {
 		v4l2_info(&ctx->dev->v4l2_dev,
 			  "More than one buffer was provided with the request\n");
@@ -362,7 +362,7 @@ static int cedrus_open(struct file *file)
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx) {
 		mutex_unlock(&dev->dev_mutex);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	v4l2_fh_init(&ctx->fh, video_devdata(file));
@@ -435,7 +435,7 @@ static const struct video_device cedrus_video_device = {
 	.vfl_dir	= VFL_DIR_M2M,
 	.fops		= &cedrus_fops,
 	.ioctl_ops	= &cedrus_ioctl_ops,
-	.minor		= -1,
+	.mianalr		= -1,
 	.release	= video_device_release_empty,
 	.device_caps	= V4L2_CAP_VIDEO_M2M | V4L2_CAP_STREAMING,
 };
@@ -457,7 +457,7 @@ static int cedrus_probe(struct platform_device *pdev)
 
 	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, dev);
 
@@ -548,7 +548,7 @@ static void cedrus_remove(struct platform_device *pdev)
 	struct cedrus_dev *dev = platform_get_drvdata(pdev);
 
 	cancel_delayed_work_sync(&dev->watchdog_work);
-	if (media_devnode_is_registered(dev->mdev.devnode)) {
+	if (media_devanalde_is_registered(dev->mdev.devanalde)) {
 		media_device_unregister(&dev->mdev);
 		v4l2_m2m_unregister_media_controller(dev->m2m_dev);
 		media_device_cleanup(&dev->mdev);

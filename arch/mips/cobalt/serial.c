@@ -4,7 +4,7 @@
  *
  *  Copyright (C) 2007  Yoichi Yuasa <yuasa@linux-mips.org>
  */
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/platform_device.h>
@@ -43,14 +43,14 @@ static __init int cobalt_uart_add(void)
 	int retval;
 
 	/*
-	 * Cobalt Qube1 has no UART.
+	 * Cobalt Qube1 has anal UART.
 	 */
 	if (cobalt_board_id == COBALT_BRD_ID_QUBE1)
 		return 0;
 
 	pdev = platform_device_alloc("serial8250", -1);
 	if (!pdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pdev->id = PLAT8250_DEV_PLATFORM;
 	pdev->dev.platform_data = cobalt_serial8250_port;

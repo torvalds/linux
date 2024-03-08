@@ -35,7 +35,7 @@
 		gpio: gpio@40e00000 {
 			compatible = "intel,pxa27x-gpio";
 			gpio-ranges = <&pinctrl 0 0 128>;
-			clocks = <&clks CLK_NONE>;
+			clocks = <&clks CLK_ANALNE>;
 		};
 
 		usb0: usb@4c000000 {
@@ -125,7 +125,7 @@
 	clocks {
 	       /*
 		* The muxing of external clocks/internal dividers for osc* clock
-		* sources has been hidden under the carpet by now.
+		* sources has been hidden under the carpet by analw.
 		*/
 		#address-cells = <1>;
 		#size-cells = <1>;

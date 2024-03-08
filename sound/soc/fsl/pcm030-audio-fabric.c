@@ -54,8 +54,8 @@ static struct snd_soc_card pcm030_card = {
 
 static int pcm030_fabric_probe(struct platform_device *op)
 {
-	struct device_node *np = op->dev.of_node;
-	struct device_node *platform_np;
+	struct device_analde *np = op->dev.of_analde;
+	struct device_analde *platform_np;
 	struct snd_soc_card *card = &pcm030_card;
 	struct pcm030_audio_data *pdata;
 	struct snd_soc_dai_link *dai_link;
@@ -63,12 +63,12 @@ static int pcm030_fabric_probe(struct platform_device *op)
 	int i;
 
 	if (!of_machine_is_compatible("phytec,pcm030"))
-		return -ENODEV;
+		return -EANALDEV;
 
 	pdata = devm_kzalloc(&op->dev, sizeof(struct pcm030_audio_data),
 			     GFP_KERNEL);
 	if (!pdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	card->dev = &op->dev;
 
@@ -76,12 +76,12 @@ static int pcm030_fabric_probe(struct platform_device *op)
 
 	platform_np = of_parse_phandle(np, "asoc-platform", 0);
 	if (!platform_np) {
-		dev_err(&op->dev, "ac97 not registered\n");
-		return -ENODEV;
+		dev_err(&op->dev, "ac97 analt registered\n");
+		return -EANALDEV;
 	}
 
 	for_each_card_prelinks(card, i, dai_link)
-		dai_link->platforms->of_node = platform_np;
+		dai_link->platforms->of_analde = platform_np;
 
 	ret = request_module("snd-soc-wm9712");
 	if (ret)

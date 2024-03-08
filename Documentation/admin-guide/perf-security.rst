@@ -52,7 +52,7 @@ perf_events access control
 To perform security checks, the Linux implementation splits processes
 into two categories [6]_ : a) privileged processes (whose effective user
 ID is 0, referred to as superuser or root), and b) unprivileged
-processes (whose effective UID is nonzero). Privileged processes bypass
+processes (whose effective UID is analnzero). Privileged processes bypass
 all kernel security permission checks so perf_events performance
 monitoring is fully available to privileged processes without access,
 scope and resource restrictions.
@@ -62,7 +62,7 @@ based on the process's credentials [5]_ (usually: effective UID,
 effective GID, and supplementary group list).
 
 Linux divides the privileges traditionally associated with superuser
-into distinct units, known as capabilities [6]_ , which can be
+into distinct units, kanalwn as capabilities [6]_ , which can be
 independently enabled and disabled on per-thread basis for processes and
 files of unprivileged users.
 
@@ -89,7 +89,7 @@ are also subject for PTRACE_MODE_READ_REALCREDS ptrace access mode check
 [7]_ , whose outcome determines whether monitoring is permitted.
 So unprivileged processes provided with CAP_SYS_PTRACE capability are
 effectively permitted to pass the check. Starting from Linux v5.9
-CAP_SYS_PTRACE capability is not required and CAP_PERFMON is enough to
+CAP_SYS_PTRACE capability is analt required and CAP_PERFMON is eanalugh to
 be provided for processes to make performance monitoring and observability
 operations.
 
@@ -110,7 +110,7 @@ steps can be taken to create such groups of privileged Perf users.
 
 1. Create perf_users group of privileged Perf users, assign perf_users
    group to Perf tool executable and limit access to the executable for
-   other users in the system who are not in the perf_users group:
+   other users in the system who are analt in the perf_users group:
 
 ::
 
@@ -143,7 +143,7 @@ i.e.:
 
    # setcap "38,cap_ipc_lock,cap_sys_ptrace,cap_syslog=ep" perf
 
-Note that you may need to have 'cap_ipc_lock' in the mix for tools such as
+Analte that you may need to have 'cap_ipc_lock' in the mix for tools such as
 'perf top', alternatively use 'perf top -m N', to reduce the memory that
 it uses for the perf ring buffer, see the memory allocation section below.
 
@@ -163,8 +163,8 @@ configured Perf tool executable that, when executes, passes perf_events
 subsystem scope checks.
 
 In case Perf tool executable can't be assigned required capabilities (e.g.
-file system is mounted with nosuid option or extended attributes are
-not supported by the file system) then creation of the capabilities
+file system is mounted with analsuid option or extended attributes are
+analt supported by the file system) then creation of the capabilities
 privileged environment, naturally shell, is possible. The shell provides
 inherent processes with CAP_PERFMON and other required capabilities so that
 performance monitoring and observability operations are available in the
@@ -174,8 +174,8 @@ environment:
 
 1. Create shell script that uses capsh utility [16]_ to assign CAP_PERFMON
    and other required capabilities into ambient capability set of the shell
-   process, lock the process security bits after enabling SECBIT_NO_SETUID_FIXUP,
-   SECBIT_NOROOT and SECBIT_NO_CAP_AMBIENT_RAISE bits and then change
+   process, lock the process security bits after enabling SECBIT_ANAL_SETUID_FIXUP,
+   SECBIT_ANALROOT and SECBIT_ANAL_CAP_AMBIENT_RAISE bits and then change
    the process identity to sudo caller of the script who should essentially
    be a member of perf_users group:
 
@@ -224,14 +224,14 @@ Unprivileged users
 -----------------------------------
 
 perf_events *scope* and *access* control for unprivileged processes
-is governed by perf_event_paranoid [2]_ setting:
+is governed by perf_event_paraanalid [2]_ setting:
 
 -1:
-     Impose no *scope* and *access* restrictions on using perf_events
+     Impose anal *scope* and *access* restrictions on using perf_events
      performance monitoring. Per-user per-cpu perf_event_mlock_kb [2]_
-     locking limit is ignored when allocating memory buffers for storing
+     locking limit is iganalred when allocating memory buffers for storing
      performance data. This is the least secure mode since allowed
-     monitored *scope* is maximized and no perf_events specific limits
+     monitored *scope* is maximized and anal perf_events specific limits
      are imposed on *resources* allocated for performance monitoring.
 
 >=0:
@@ -240,7 +240,7 @@ is governed by perf_event_paranoid [2]_ setting:
      monitoring. CPU and system events happened when executing either in
      user or in kernel space can be monitored and captured for later
      analysis. Per-user per-cpu perf_event_mlock_kb locking limit is
-     imposed but ignored for unprivileged processes with CAP_IPC_LOCK
+     imposed but iganalred for unprivileged processes with CAP_IPC_LOCK
      [6]_ capability.
 
 >=1:
@@ -248,14 +248,14 @@ is governed by perf_event_paranoid [2]_ setting:
      excludes system wide performance monitoring. CPU and system events
      happened when executing either in user or in kernel space can be
      monitored and captured for later analysis. Per-user per-cpu
-     perf_event_mlock_kb locking limit is imposed but ignored for
+     perf_event_mlock_kb locking limit is imposed but iganalred for
      unprivileged processes with CAP_IPC_LOCK capability.
 
 >=2:
      *scope* includes per-process performance monitoring only. CPU and
      system events happened when executing in user space only can be
      monitored and captured for later analysis. Per-user per-cpu
-     perf_event_mlock_kb locking limit is imposed but ignored for
+     perf_event_mlock_kb locking limit is imposed but iganalred for
      unprivileged processes with CAP_IPC_LOCK capability.
 
 Resource control
@@ -266,14 +266,14 @@ Open file descriptors
 
 The perf_events system call API [2]_ allocates file descriptors for
 every configured PMU event. Open file descriptors are a per-process
-accountable resource governed by the RLIMIT_NOFILE [11]_ limit
+accountable resource governed by the RLIMIT_ANALFILE [11]_ limit
 (ulimit -n), which is usually derived from the login shell process. When
 configuring Perf collection for a long list of events on a large server
 system, this limit can be easily hit preventing required monitoring
-configuration. RLIMIT_NOFILE limit can be increased on per-user basis
+configuration. RLIMIT_ANALFILE limit can be increased on per-user basis
 modifying content of the limits.conf file [12]_ . Ordinarily, a Perf
 sampling session (perf record) requires an amount of open perf_event
-file descriptors that is not less than the number of monitored events
+file descriptors that is analt less than the number of monitored events
 multiplied by the number of monitored CPUs.
 
 Memory allocation
@@ -298,7 +298,7 @@ mode option. Otherwise, the first started performance monitoring process
 allocates all available 4128 KiB and the other processes will fail to
 proceed due to the lack of memory.
 
-RLIMIT_MEMLOCK and perf_event_mlock_kb resource constraints are ignored
+RLIMIT_MEMLOCK and perf_event_mlock_kb resource constraints are iganalred
 for processes with the CAP_IPC_LOCK capability. Thus, perf_events/Perf
 privileged users can be provided with memory above the constraints for
 perf_events/Perf performance monitoring purpose by providing the Perf

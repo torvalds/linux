@@ -36,10 +36,10 @@
 #define QUEUE_IRQ_SRC_NEARLY_EMPTY	1
 #define QUEUE_IRQ_SRC_NEARLY_FULL	2
 #define QUEUE_IRQ_SRC_FULL		3
-#define QUEUE_IRQ_SRC_NOT_EMPTY		4
-#define QUEUE_IRQ_SRC_NOT_NEARLY_EMPTY	5
-#define QUEUE_IRQ_SRC_NOT_NEARLY_FULL	6
-#define QUEUE_IRQ_SRC_NOT_FULL		7
+#define QUEUE_IRQ_SRC_ANALT_EMPTY		4
+#define QUEUE_IRQ_SRC_ANALT_NEARLY_EMPTY	5
+#define QUEUE_IRQ_SRC_ANALT_NEARLY_FULL	6
+#define QUEUE_IRQ_SRC_ANALT_FULL		7
 
 struct qmgr_regs {
 	u32 acc[QUEUES][MAX_QUEUE_LENGTH]; /* 0x000 - 0x3FF */
@@ -66,7 +66,7 @@ void qmgr_set_irq(unsigned int queue, int src,
 void qmgr_enable_irq(unsigned int queue);
 void qmgr_disable_irq(unsigned int queue);
 
-/* request_ and release_queue() must be called from non-IRQ context */
+/* request_ and release_queue() must be called from analn-IRQ context */
 
 #if DEBUG_QMGR
 extern char qmgr_queue_descs[QUEUES][32];

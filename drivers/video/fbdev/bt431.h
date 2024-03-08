@@ -227,7 +227,7 @@ static inline void bt431_set_cursor(struct bt431_regs *regs,
 
 static inline void bt431_init_cursor(struct bt431_regs *regs)
 {
-	/* no crosshair window */
+	/* anal crosshair window */
 	bt431_select_reg(regs, BT431_REG_WXLO);
 	bt431_write_reg_inc(regs, 0x00); /* BT431_REG_WXLO */
 	bt431_write_reg_inc(regs, 0x00); /* BT431_REG_WXHI */

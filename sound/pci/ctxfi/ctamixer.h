@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2008, Creative Technology Ltd. All Rights Reserved.
+ * Copyright (C) 2008, Creative Techanallogy Ltd. All Rights Reserved.
  *
  * @File	ctamixer.h
  *
@@ -19,7 +19,7 @@
 #include <linux/spinlock.h>
 #include <sound/core.h>
 
-/* Define the descriptor of a summation node resource */
+/* Define the descriptor of a summation analde resource */
 struct sum {
 	struct rsc rsc;		/* Basic resource info */
 	unsigned char idx[8];
@@ -53,7 +53,7 @@ struct amixer {
 	struct rsc rsc;		/* Basic resource info */
 	unsigned char idx[8];
 	struct rsc *input;	/* pointer to a resource acting as source */
-	struct sum *sum;	/* Put amixer output to this summation node */
+	struct sum *sum;	/* Put amixer output to this summation analde */
 	const struct amixer_rsc_ops *ops;	/* AMixer specific operations */
 };
 

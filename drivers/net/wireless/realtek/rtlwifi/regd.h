@@ -4,9 +4,9 @@
 #ifndef __RTL_REGD_H__
 #define __RTL_REGD_H__
 
-/* for kernel 3.14 , both value are changed to IEEE80211_CHAN_NO_IR*/
-#define IEEE80211_CHAN_NO_IBSS IEEE80211_CHAN_NO_IR
-#define IEEE80211_CHAN_PASSIVE_SCAN IEEE80211_CHAN_NO_IR
+/* for kernel 3.14 , both value are changed to IEEE80211_CHAN_ANAL_IR*/
+#define IEEE80211_CHAN_ANAL_IBSS IEEE80211_CHAN_ANAL_IR
+#define IEEE80211_CHAN_PASSIVE_SCAN IEEE80211_CHAN_ANAL_IR
 
 struct country_code_to_enum_rd {
 	u16 countrycode;
@@ -34,8 +34,8 @@ enum country_code_type_t {
 };
 
 int rtl_regd_init(struct ieee80211_hw *hw,
-		  void (*reg_notifier) (struct wiphy *wiphy,
+		  void (*reg_analtifier) (struct wiphy *wiphy,
 		  struct regulatory_request *request));
-void rtl_reg_notifier(struct wiphy *wiphy, struct regulatory_request *request);
+void rtl_reg_analtifier(struct wiphy *wiphy, struct regulatory_request *request);
 
 #endif

@@ -40,7 +40,7 @@ static int sys_move_mount(int from_dfd, const char *from_pathname,
 	return syscall(__NR_move_mount, from_dfd, from_pathname, to_dfd, to_pathname, flags);
 }
 
-static long get_file_dev_and_inode(void *addr, struct statx *stx)
+static long get_file_dev_and_ianalde(void *addr, struct statx *stx)
 {
 	char buf[4096];
 	FILE *mapf;
@@ -52,15 +52,15 @@ static long get_file_dev_and_inode(void *addr, struct statx *stx)
 	while (fgets(buf, sizeof(buf), mapf)) {
 		unsigned long start, end;
 		uint32_t maj, min;
-		__u64 ino;
+		__u64 ianal;
 
 		if (sscanf(buf, "%lx-%lx %*s %*s %x:%x %llu",
-				&start, &end, &maj, &min, &ino) != 5)
+				&start, &end, &maj, &min, &ianal) != 5)
 			return pr_perror("unable to parse: %s", buf);
 		if (start == (unsigned long)addr) {
 			stx->stx_dev_major = maj;
-			stx->stx_dev_minor = min;
-			stx->stx_ino = ino;
+			stx->stx_dev_mianalr = min;
+			stx->stx_ianal = ianal;
 			return 0;
 		}
 	}
@@ -113,7 +113,7 @@ static int ovl_mount(void)
 }
 
 /*
- * Check that the file device and inode shown in /proc/pid/maps match values
+ * Check that the file device and ianalde shown in /proc/pid/maps match values
  * returned by stat(2).
  */
 static int test(void)
@@ -134,17 +134,17 @@ static int test(void)
 	if (addr == MAP_FAILED)
 		return pr_perror("mmap");
 
-	if (get_file_dev_and_inode(addr, &mstx))
+	if (get_file_dev_and_ianalde(addr, &mstx))
 		return -1;
-	if (statx(fd, "", AT_EMPTY_PATH | AT_STATX_SYNC_AS_STAT, STATX_INO, &stx))
+	if (statx(fd, "", AT_EMPTY_PATH | AT_STATX_SYNC_AS_STAT, STATX_IANAL, &stx))
 		return pr_perror("statx");
 
 	if (stx.stx_dev_major != mstx.stx_dev_major ||
-	    stx.stx_dev_minor != mstx.stx_dev_minor ||
-	    stx.stx_ino != mstx.stx_ino)
-		return pr_fail("unmatched dev:ino %x:%x:%llx (expected %x:%x:%llx)\n",
-			mstx.stx_dev_major, mstx.stx_dev_minor, mstx.stx_ino,
-			stx.stx_dev_major, stx.stx_dev_minor, stx.stx_ino);
+	    stx.stx_dev_mianalr != mstx.stx_dev_mianalr ||
+	    stx.stx_ianal != mstx.stx_ianal)
+		return pr_fail("unmatched dev:ianal %x:%x:%llx (expected %x:%x:%llx)\n",
+			mstx.stx_dev_major, mstx.stx_dev_mianalr, mstx.stx_ianal,
+			stx.stx_dev_major, stx.stx_dev_mianalr, stx.stx_ianal);
 
 	ksft_test_result_pass("devices are matched\n");
 	return 0;
@@ -161,7 +161,7 @@ int main(int argc, char **argv)
 	}
 	close(fsfd);
 
-	/* Create a new mount namespace to not care about cleaning test mounts. */
+	/* Create a new mount namespace to analt care about cleaning test mounts. */
 	if (unshare(CLONE_NEWNS) == -1) {
 		ksft_test_result_skip("unable to create a new mount namespace\n");
 		return 1;

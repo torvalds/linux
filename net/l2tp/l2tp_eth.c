@@ -60,7 +60,7 @@ static void l2tp_eth_dev_uninit(struct net_device *dev)
 
 	spriv = l2tp_session_priv(priv->session);
 	RCU_INIT_POINTER(spriv->dev, NULL);
-	/* No need for synchronize_net() here. We're called by
+	/* Anal need for synchronize_net() here. We're called by
 	 * unregister_netdev*(), which does the synchronisation for us.
 	 */
 }
@@ -125,7 +125,7 @@ static void l2tp_eth_dev_recv(struct l2tp_session *session, struct sk_buff *skb,
 	secpath_reset(skb);
 
 	/* checksums verified by L2TP */
-	skb->ip_summed = CHECKSUM_NONE;
+	skb->ip_summed = CHECKSUM_ANALNE;
 
 	skb_dst_drop(skb);
 	nf_reset_ct(skb);
@@ -212,7 +212,7 @@ static void l2tp_eth_adjust_mtu(struct l2tp_tunnel *tunnel,
 	if (l3_overhead == 0) {
 		/* L3 Overhead couldn't be identified, this could be
 		 * because tunnel->sock was NULL or the socket's
-		 * address family was not IPv4 or IPv6,
+		 * address family was analt IPv4 or IPv6,
 		 * dev mtu stays at 1500.
 		 */
 		return;
@@ -261,7 +261,7 @@ static int l2tp_eth_create(struct net *net, struct l2tp_tunnel *tunnel,
 	dev = alloc_netdev(sizeof(*priv), name, name_assign_type,
 			   l2tp_eth_dev_setup);
 	if (!dev) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_sess;
 	}
 

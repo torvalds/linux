@@ -121,7 +121,7 @@
 				phy-handle = <&phy0>;
 			};
 			ethernet-port@1 {
-				/* Not used in this platform */
+				/* Analt used in this platform */
 			};
 		};
 

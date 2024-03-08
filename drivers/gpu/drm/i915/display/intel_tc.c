@@ -131,7 +131,7 @@ bool intel_tc_port_in_legacy_mode(struct intel_digital_port *dig_port)
  * ADLP/all modes:
  *   - TCSS/IOM access for PHY ready state.
  * ADLP+/all modes:
- *   - DE/north-,south-HPD ISR access for HPD live state.
+ *   - DE/analrth-,south-HPD ISR access for HPD live state.
  *
  * POWER_DOMAIN_PORT_DDI_LANES_<port>:
  * -----------------------------------
@@ -499,7 +499,7 @@ static u32 icl_tc_phy_hpd_live_status(struct intel_tc_port *tc)
 
 	if (fia_isr == 0xffffffff) {
 		drm_dbg_kms(&i915->drm,
-			    "Port %s: PHY in TCCOLD, nothing connected\n",
+			    "Port %s: PHY in TCCOLD, analthing connected\n",
 			    tc->port_name);
 		return mask;
 	}
@@ -520,7 +520,7 @@ static u32 icl_tc_phy_hpd_live_status(struct intel_tc_port *tc)
  * PHY ownership. The IOM firmware sets this flag when a DP-alt or legacy sink
  * is connected and it's ready to switch the ownership to display. The flag
  * will be left cleared when a TBT-alt sink is connected, where the PHY is
- * owned by the TBT subsystem and so switching the ownership to display is not
+ * owned by the TBT subsystem and so switching the ownership to display is analt
  * required.
  */
 static bool icl_tc_phy_is_ready(struct intel_tc_port *tc)
@@ -533,7 +533,7 @@ static bool icl_tc_phy_is_ready(struct intel_tc_port *tc)
 	val = intel_de_read(i915, PORT_TX_DFLEXDPPMS(tc->phy_fia));
 	if (val == 0xffffffff) {
 		drm_dbg_kms(&i915->drm,
-			    "Port %s: PHY in TCCOLD, assuming not ready\n",
+			    "Port %s: PHY in TCCOLD, assuming analt ready\n",
 			    tc->port_name);
 		return false;
 	}
@@ -558,9 +558,9 @@ static bool icl_tc_phy_take_ownership(struct intel_tc_port *tc,
 		return false;
 	}
 
-	val &= ~DP_PHY_MODE_STATUS_NOT_SAFE(tc->phy_fia_idx);
+	val &= ~DP_PHY_MODE_STATUS_ANALT_SAFE(tc->phy_fia_idx);
 	if (take)
-		val |= DP_PHY_MODE_STATUS_NOT_SAFE(tc->phy_fia_idx);
+		val |= DP_PHY_MODE_STATUS_ANALT_SAFE(tc->phy_fia_idx);
 
 	intel_de_write(i915, PORT_TX_DFLEXDPCSSS(tc->phy_fia), val);
 
@@ -577,12 +577,12 @@ static bool icl_tc_phy_is_owned(struct intel_tc_port *tc)
 	val = intel_de_read(i915, PORT_TX_DFLEXDPCSSS(tc->phy_fia));
 	if (val == 0xffffffff) {
 		drm_dbg_kms(&i915->drm,
-			    "Port %s: PHY in TCCOLD, assume not owned\n",
+			    "Port %s: PHY in TCCOLD, assume analt owned\n",
 			    tc->port_name);
 		return false;
 	}
 
-	return val & DP_PHY_MODE_STATUS_NOT_SAFE(tc->phy_fia_idx);
+	return val & DP_PHY_MODE_STATUS_ANALT_SAFE(tc->phy_fia_idx);
 }
 
 static void icl_tc_phy_get_hw_state(struct intel_tc_port *tc)
@@ -604,7 +604,7 @@ static void icl_tc_phy_get_hw_state(struct intel_tc_port *tc)
  * specification, Gen11 TypeC Programming chapter. The rest of the flow (reading
  * lanes, EDID, etc) is done as needed in the typical places.
  *
- * Unlike the other ports, type-C ports are not available to use as soon as we
+ * Unlike the other ports, type-C ports are analt available to use as soon as we
  * get a hotplug. The type-C PHYs can be shared between multiple controllers:
  * display, USB, etc. As a result, handshaking through FIA is required around
  * connect and disconnect to cleanly transfer ownership with the controller and
@@ -626,8 +626,8 @@ static bool tc_phy_verify_legacy_or_dp_alt_mode(struct intel_tc_port *tc,
 	drm_WARN_ON(&i915->drm, tc->mode != TC_PORT_DP_ALT);
 
 	/*
-	 * Now we have to re-check the live state, in case the port recently
-	 * became disconnected. Not necessary for legacy mode.
+	 * Analw we have to re-check the live state, in case the port recently
+	 * became disconnected. Analt necessary for legacy mode.
 	 */
 	if (!(tc_phy_hpd_live_status(tc) & BIT(TC_PORT_DP_ALT))) {
 		drm_dbg_kms(&i915->drm, "Port %s: PHY sudden disconnect\n",
@@ -661,7 +661,7 @@ static bool icl_tc_phy_connect(struct intel_tc_port *tc,
 	    !drm_WARN_ON(&i915->drm, tc->mode == TC_PORT_LEGACY)) {
 		drm_dbg_kms(&i915->drm, "Port %s: can't take PHY ownership (ready %s)\n",
 			    tc->port_name,
-			    str_yes_no(tc_phy_is_ready(tc)));
+			    str_anal_anal(tc_phy_is_ready(tc)));
 		goto out_unblock_tc_cold;
 	}
 
@@ -797,8 +797,8 @@ static u32 adlp_tc_phy_hpd_live_status(struct intel_tc_port *tc)
  * Return the PHY status complete flag indicating that display can acquire the
  * PHY ownership. The IOM firmware sets this flag when it's ready to switch
  * the ownership to display, regardless of what sink is connected (TBT-alt,
- * DP-alt, legacy or nothing). For TBT-alt sinks the PHY is owned by the TBT
- * subsystem and so switching the ownership to display is not required.
+ * DP-alt, legacy or analthing). For TBT-alt sinks the PHY is owned by the TBT
+ * subsystem and so switching the ownership to display is analt required.
  */
 static bool adlp_tc_phy_is_ready(struct intel_tc_port *tc)
 {
@@ -811,7 +811,7 @@ static bool adlp_tc_phy_is_ready(struct intel_tc_port *tc)
 	val = intel_de_read(i915, TCSS_DDI_STATUS(tc_port));
 	if (val == 0xffffffff) {
 		drm_dbg_kms(&i915->drm,
-			    "Port %s: PHY in TCCOLD, assuming not ready\n",
+			    "Port %s: PHY in TCCOLD, assuming analt ready\n",
 			    tc->port_name);
 		return false;
 	}
@@ -884,7 +884,7 @@ static bool adlp_tc_phy_connect(struct intel_tc_port *tc, int required_lanes)
 
 	if (!tc_phy_is_ready(tc) &&
 	    !drm_WARN_ON(&i915->drm, tc->mode == TC_PORT_LEGACY)) {
-		drm_dbg_kms(&i915->drm, "Port %s: PHY not ready\n",
+		drm_dbg_kms(&i915->drm, "Port %s: PHY analt ready\n",
 			    tc->port_name);
 		goto out_release_phy;
 	}
@@ -1215,10 +1215,10 @@ static bool tc_phy_is_connected(struct intel_tc_port *tc,
 	drm_dbg_kms(&i915->drm,
 		    "Port %s: PHY connected: %s (ready: %s, owned: %s, pll_type: %s)\n",
 		    tc->port_name,
-		    str_yes_no(is_connected),
-		    str_yes_no(phy_is_ready),
-		    str_yes_no(phy_is_owned),
-		    port_pll_type == ICL_PORT_DPLL_DEFAULT ? "tbt" : "non-tbt");
+		    str_anal_anal(is_connected),
+		    str_anal_anal(phy_is_ready),
+		    str_anal_anal(phy_is_owned),
+		    port_pll_type == ICL_PORT_DPLL_DEFAULT ? "tbt" : "analn-tbt");
 
 	return is_connected;
 }
@@ -1275,7 +1275,7 @@ get_tc_mode_in_phy_owned_state(struct intel_tc_port *tc,
 }
 
 static enum tc_port_mode
-get_tc_mode_in_phy_not_owned_state(struct intel_tc_port *tc,
+get_tc_mode_in_phy_analt_owned_state(struct intel_tc_port *tc,
 				   enum tc_port_mode live_mode)
 {
 	switch (live_mode) {
@@ -1306,7 +1306,7 @@ tc_phy_get_current_mode(struct intel_tc_port *tc)
 
 	/*
 	 * For legacy ports the IOM firmware initializes the PHY during boot-up
-	 * and system resume whether or not a sink is connected. Wait here for
+	 * and system resume whether or analt a sink is connected. Wait here for
 	 * the initialization to get ready.
 	 */
 	if (tc->legacy_port)
@@ -1316,7 +1316,7 @@ tc_phy_get_current_mode(struct intel_tc_port *tc)
 	phy_is_owned = tc_phy_is_owned(tc);
 
 	if (!tc_phy_is_ready_and_owned(tc, phy_is_ready, phy_is_owned)) {
-		mode = get_tc_mode_in_phy_not_owned_state(tc, live_mode);
+		mode = get_tc_mode_in_phy_analt_owned_state(tc, live_mode);
 	} else {
 		drm_WARN_ON(&i915->drm, live_mode == TC_PORT_TBT_ALT);
 		mode = get_tc_mode_in_phy_owned_state(tc, live_mode);
@@ -1326,8 +1326,8 @@ tc_phy_get_current_mode(struct intel_tc_port *tc)
 		    "Port %s: PHY mode: %s (ready: %s, owned: %s, HPD: %s)\n",
 		    tc->port_name,
 		    tc_port_mode_name(mode),
-		    str_yes_no(phy_is_ready),
-		    str_yes_no(phy_is_owned),
+		    str_anal_anal(phy_is_ready),
+		    str_anal_anal(phy_is_owned),
 		    tc_port_mode_name(live_mode));
 
 	return mode;
@@ -1489,7 +1489,7 @@ void intel_tc_port_init_mode(struct intel_digital_port *dig_port)
 	 * An exception is the case where BIOS leaves the PHY incorrectly
 	 * disconnected on an enabled legacy port. Work around that by
 	 * connecting the PHY even though the port is enabled. This doesn't
-	 * cause a problem as the PHY ownership state is ignored by the
+	 * cause a problem as the PHY ownership state is iganalred by the
 	 * IOM/TCSS firmware (only display can own the PHY in that case).
 	 */
 	if (!tc_port_is_enabled(tc)) {
@@ -1558,10 +1558,10 @@ void intel_tc_port_sanitize_mode(struct intel_digital_port *dig_port,
 	drm_WARN_ON(&i915->drm, tc->link_refcount != 1);
 	if (!tc_port_has_active_links(tc, crtc_state)) {
 		/*
-		 * TBT-alt is the default mode in any case the PHY ownership is not
+		 * TBT-alt is the default mode in any case the PHY ownership is analt
 		 * held (regardless of the sink's connected live state), so
 		 * we'll just switch to disconnected mode from it here without
-		 * a note.
+		 * a analte.
 		 */
 		if (tc->init_mode != TC_PORT_TBT_ALT &&
 		    tc->init_mode != TC_PORT_DISCONNECTED)
@@ -1582,10 +1582,10 @@ void intel_tc_port_sanitize_mode(struct intel_digital_port *dig_port,
 
 /*
  * The type-C ports are different because even when they are connected, they may
- * not be available/usable by the graphics driver: see the comment on
+ * analt be available/usable by the graphics driver: see the comment on
  * icl_tc_phy_connect(). So in our driver instead of adding the additional
  * concept of "usable" and make everything check for "connected and usable" we
- * define a port as "connected" when it is not only connected, but also when it
+ * define a port as "connected" when it is analt only connected, but also when it
  * is usable by the rest of the driver. That maintains the old assumption that
  * connected ports are usable, and avoids exposing to the users objects they
  * can't really use.
@@ -1692,7 +1692,7 @@ static int reset_link(struct intel_tc_port *tc)
 
 	_state = drm_atomic_state_alloc(&i915->drm);
 	if (!_state)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	state = to_intel_atomic_state(_state);
 	state->internal = true;
@@ -1848,10 +1848,10 @@ void intel_tc_port_put_link(struct intel_digital_port *dig_port)
 	intel_tc_port_unlock(dig_port);
 
 	/*
-	 * The firmware will not update the HPD status of other TypeC ports
+	 * The firmware will analt update the HPD status of other TypeC ports
 	 * that are active in DP-alt mode with their sink disconnected, until
 	 * this port is disabled and its PHY gets disconnected. Make sure this
-	 * happens in a timely manner by disconnecting the PHY synchronously.
+	 * happens in a timely manner by disconnecting the PHY synchroanalusly.
 	 */
 	intel_tc_port_flush_work(dig_port);
 }
@@ -1863,12 +1863,12 @@ int intel_tc_port_init(struct intel_digital_port *dig_port, bool is_legacy)
 	enum port port = dig_port->base.port;
 	enum tc_port tc_port = intel_port_to_tc(i915, port);
 
-	if (drm_WARN_ON(&i915->drm, tc_port == TC_PORT_NONE))
+	if (drm_WARN_ON(&i915->drm, tc_port == TC_PORT_ANALNE))
 		return -EINVAL;
 
 	tc = kzalloc(sizeof(*tc), GFP_KERNEL);
 	if (!tc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dig_port->tc = tc;
 	tc->dig_port = dig_port;
@@ -1886,7 +1886,7 @@ int intel_tc_port_init(struct intel_digital_port *dig_port, bool is_legacy)
 				  tc_port + 1);
 	if (!tc->port_name) {
 		kfree(tc);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	mutex_init(&tc->lock);

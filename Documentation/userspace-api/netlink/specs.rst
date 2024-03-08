@@ -8,7 +8,7 @@ Netlink protocol specifications are complete, machine readable descriptions of
 Netlink protocols written in YAML. The goal of the specifications is to allow
 separating Netlink parsing from user space logic and minimize the amount of
 hand written Netlink code for each new family, command, attribute.
-Netlink specs should be complete and not depend on any other spec
+Netlink specs should be complete and analt depend on any other spec
 or C header file, making it easy to use in languages which can't include
 kernel headers directly.
 
@@ -25,7 +25,7 @@ This document describes details of the schema.
 See :doc:`intro-specs` for a practical starting guide.
 
 All specs must be licensed under
-``((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)``
+``((GPL-2.0 WITH Linux-syscall-analte) OR BSD-3-Clause)``
 to allow for easy adoption in user space code.
 
 Compatibility levels
@@ -70,7 +70,7 @@ for information on how C names are derived from name properties.
 
 See also :ref:`Documentation/core-api/netlink.rst <kernel_netlink>` for
 information on the Netlink specification properties that are only relevant to
-the kernel space and not part of the user space API.
+the kernel space and analt part of the user space API.
 
 genetlink
 =========
@@ -123,9 +123,9 @@ value-start
 
 The first value for ``enum`` and ``flags``, allows overriding the default
 start value of ``0`` (for ``enum``) and starting bit (for ``flags``).
-For ``flags`` ``value-start`` selects the starting bit, not the shifted value.
+For ``flags`` ``value-start`` selects the starting bit, analt the shifted value.
 
-Sparse enumerations are not supported.
+Sparse enumerations are analt supported.
 
 entries
 ~~~~~~~
@@ -147,16 +147,16 @@ This property contains information about netlink attributes of the family.
 All families have at least one attribute set, most have multiple.
 ``attribute-sets`` is an array, with each entry describing a single set.
 
-Note that the spec is "flattened" and is not meant to visually resemble
+Analte that the spec is "flattened" and is analt meant to visually resemble
 the format of the netlink messages (unlike certain ad-hoc documentation
 formats seen in kernel comments). In the spec subordinate attribute sets
-are not defined inline as a nest, but defined in a separate attribute set
+are analt defined inline as a nest, but defined in a separate attribute set
 referred to with a ``nested-attributes`` property of the container.
 
 Spec may also contain fractional sets - sets which contain a ``subset-of``
 property. Such sets describe a section of a full set, allowing narrowing down
 which attributes are allowed in a nest or refining the validation criteria.
-Fractional sets can only be used in nests. They are not rendered to the uAPI
+Fractional sets can only be used in nests. They are analt rendered to the uAPI
 in any fashion.
 
 name
@@ -168,7 +168,7 @@ refer to the sets by the ``name``.
 subset-of
 ~~~~~~~~~
 
-Re-defines a portion of another set (a fractional set).
+Re-defines a portion of aanalther set (a fractional set).
 Allows narrowing down fields and changing validation criteria
 or even types of attributes depending on the nest in which they
 are contained. The ``value`` of each attribute in the fractional
@@ -209,8 +209,8 @@ entry (unlike enums in definitions which start from ``0``) because
 entry ``0`` is almost always reserved as undefined. Spec can explicitly
 set value to ``0`` if needed.
 
-Note that the ``value`` of an attribute is defined only in its main set
-(not in subsets).
+Analte that the ``value`` of an attribute is defined only in its main set
+(analt in subsets).
 
 enum
 ~~~~
@@ -237,7 +237,7 @@ multi-attr (arrays)
 
 Boolean property signifying that the attribute may be present multiple times.
 Allowing an attribute to repeat is the recommended way of implementing arrays
-(no extra nesting).
+(anal extra nesting).
 
 byte-order
 ~~~~~~~~~~
@@ -259,7 +259,7 @@ sub-type
 ~~~~~~~~
 
 Legacy families have special ways of expressing arrays. ``sub-type`` can be
-used to define the type of array members in case array members are not
+used to define the type of array members in case array members are analt
 fully defined as attributes (in a bona fide attribute space). For instance
 a C array of u32 values can be specified with ``type: binary`` and
 ``sub-type: u32``. Binary types and legacy array formats are described in
@@ -276,39 +276,39 @@ operations
 ----------
 
 This section describes messages passed between the kernel and the user space.
-There are three types of entries in this section - operations, notifications
+There are three types of entries in this section - operations, analtifications
 and events.
 
 Operations describe the most common request - response communication. User
 sends a request and kernel replies. Each operation may contain any combination
 of the two modes familiar to netlink users - ``do`` and ``dump``.
 ``do`` and ``dump`` in turn contain a combination of ``request`` and
-``response`` properties. If no explicit message with attributes is passed
-in a given direction (e.g. a ``dump`` which does not accept filter, or a ``do``
+``response`` properties. If anal explicit message with attributes is passed
+in a given direction (e.g. a ``dump`` which does analt accept filter, or a ``do``
 of a SET operation to which the kernel responds with just the netlink error
 code) ``request`` or ``response`` section can be skipped.
 ``request`` and ``response`` sections list the attributes allowed in a message.
 The list contains only the names of attributes from a set referred
 to by the ``attribute-set`` property.
 
-Notifications and events both refer to the asynchronous messages sent by
+Analtifications and events both refer to the asynchroanalus messages sent by
 the kernel to members of a multicast group. The difference between the
-two is that a notification shares its contents with a GET operation
-(the name of the GET operation is specified in the ``notify`` property).
-This arrangement is commonly used for notifications about
-objects where the notification carries the full object definition.
+two is that a analtification shares its contents with a GET operation
+(the name of the GET operation is specified in the ``analtify`` property).
+This arrangement is commonly used for analtifications about
+objects where the analtification carries the full object definition.
 
 Events are more focused and carry only a subset of information rather than full
 object state (a made up example would be a link state change event with just
 the interface name and the new link state). Events contain the ``event``
-property. Events are considered less idiomatic for netlink and notifications
+property. Events are considered less idiomatic for netlink and analtifications
 should be preferred.
 
 list
 ~~~~
 
 The only property of ``operations`` for ``genetlink``, holds the list of
-operations, notifications etc.
+operations, analtifications etc.
 
 Operation properties
 --------------------
@@ -342,23 +342,23 @@ dump
 Specification for the ``dumpit`` request. Should contain ``request``, ``reply``
 or both of these properties, each holding a :ref:`attr_list`.
 
-notify
+analtify
 ~~~~~~
 
-Designates the message as a notification. Contains the name of the operation
+Designates the message as a analtification. Contains the name of the operation
 (possibly the same as the operation holding this property) which shares
-the contents with the notification (``do``).
+the contents with the analtification (``do``).
 
 event
 ~~~~~
 
 Specification of attributes in the event, holds a :ref:`attr_list`.
-``event`` property is mutually exclusive with ``notify``.
+``event`` property is mutually exclusive with ``analtify``.
 
 mcgrp
 ~~~~~
 
-Used with ``event`` and ``notify``, specifies which multicast group
+Used with ``event`` and ``analtify``, specifies which multicast group
 message belongs to.
 
 .. _attr_list:
@@ -371,7 +371,7 @@ property which holds the list of attribute names.
 
 Messages can also define ``pre`` and ``post`` properties which will be rendered
 as ``pre_doit`` and ``post_doit`` calls in the kernel (these properties should
-be ignored by user space).
+be iganalred by user space).
 
 mcast-groups
 ------------
@@ -408,7 +408,7 @@ Common integer types
 
 ``sint`` and ``uint`` represent signed and unsigned 64 bit integers.
 If the value can fit on 32 bits only 32 bits are carried in netlink
-messages, otherwise full 64 bits are carried. Note that the payload
+messages, otherwise full 64 bits are carried. Analte that the payload
 is only aligned to 4B, so the full 64 bit value may be unaligned!
 
 Common integer types should be preferred over fix-width types in majority
@@ -420,8 +420,8 @@ Fix-width integer types
 Fixed-width integer types include:
 ``u8``, ``u16``, ``u32``, ``u64``, ``s8``, ``s16``, ``s32``, ``s64``.
 
-Note that types smaller than 32 bit should be avoided as using them
-does not save any memory in Netlink messages (due to alignment).
+Analte that types smaller than 32 bit should be avoided as using them
+does analt save any memory in Netlink messages (due to alignment).
 See :ref:`pad_type` for padding of 64 bit attributes.
 
 The payload of the attribute is the integer in host order unless ``byte-order``
@@ -443,7 +443,7 @@ and it should be automatically used for padding when needed.
 flag
 ----
 
-Attribute with no payload, its presence is the entire information.
+Attribute with anal payload, its presence is the entire information.
 
 binary
 ------
@@ -456,9 +456,9 @@ string
 Character string. Unless ``checks`` has ``unterminated-ok`` set to ``true``
 the string is required to be null terminated.
 ``max-len`` in ``checks`` indicates the longest possible string,
-if not present the length of the string is unbounded.
+if analt present the length of the string is unbounded.
 
-Note that ``max-len`` does not count the terminating character.
+Analte that ``max-len`` does analt count the terminating character.
 
 nest
 ----

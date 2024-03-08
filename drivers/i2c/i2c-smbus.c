@@ -28,7 +28,7 @@ struct alert_data {
 	unsigned int		data;
 };
 
-/* If this is the alerting device, notify its driver */
+/* If this is the alerting device, analtify its driver */
 static int smbus_do_alert(struct device *dev, void *addrp)
 {
 	struct i2c_client *client = i2c_verify_client(dev);
@@ -50,9 +50,9 @@ static int smbus_do_alert(struct device *dev, void *addrp)
 		if (driver->alert)
 			driver->alert(client, data->type, data->data);
 		else
-			dev_warn(&client->dev, "no driver alert()!\n");
+			dev_warn(&client->dev, "anal driver alert()!\n");
 	} else
-		dev_dbg(&client->dev, "alert with no driver\n");
+		dev_dbg(&client->dev, "alert with anal driver\n");
 	device_unlock(dev);
 
 	/* Stop iterating after we find the device */
@@ -79,8 +79,8 @@ static irqreturn_t smbus_alert(int irq, void *d)
 		 * to high, because of slave transmit arbitration.  After
 		 * responding, an SMBus device stops asserting SMBALERT#.
 		 *
-		 * Note that SMBus 2.0 reserves 10-bit addresses for future
-		 * use.  We neither handle them, nor try to use PEC here.
+		 * Analte that SMBus 2.0 reserves 10-bit addresses for future
+		 * use.  We neither handle them, analr try to use PEC here.
 		 */
 		status = i2c_smbus_read_byte(ara);
 		if (status < 0)
@@ -93,7 +93,7 @@ static irqreturn_t smbus_alert(int irq, void *d)
 		dev_dbg(&ara->dev, "SMBALERT# from dev 0x%02x, flag %d\n",
 			data.addr, data.data);
 
-		/* Notify driver for the device which issued the alert */
+		/* Analtify driver for the device which issued the alert */
 		device_for_each_child(&ara->adapter->dev, &data,
 				      smbus_do_alert);
 	}
@@ -122,12 +122,12 @@ static int smbalert_probe(struct i2c_client *ara)
 	alert = devm_kzalloc(&ara->dev, sizeof(struct i2c_smbus_alert),
 			     GFP_KERNEL);
 	if (!alert)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (setup) {
 		irq = setup->irq;
 	} else {
-		irq = fwnode_irq_get_byname(dev_fwnode(adapter->dev.parent),
+		irq = fwanalde_irq_get_byname(dev_fwanalde(adapter->dev.parent),
 					    "smbus_alert");
 		if (irq <= 0)
 			return irq;
@@ -197,21 +197,21 @@ EXPORT_SYMBOL_GPL(i2c_handle_smbus_alert);
 module_i2c_driver(smbalert_driver);
 
 #if IS_ENABLED(CONFIG_I2C_SLAVE)
-#define SMBUS_HOST_NOTIFY_LEN	3
-struct i2c_slave_host_notify_status {
+#define SMBUS_HOST_ANALTIFY_LEN	3
+struct i2c_slave_host_analtify_status {
 	u8 index;
 	u8 addr;
 };
 
-static int i2c_slave_host_notify_cb(struct i2c_client *client,
+static int i2c_slave_host_analtify_cb(struct i2c_client *client,
 				    enum i2c_slave_event event, u8 *val)
 {
-	struct i2c_slave_host_notify_status *status = client->dev.platform_data;
+	struct i2c_slave_host_analtify_status *status = client->dev.platform_data;
 
 	switch (event) {
 	case I2C_SLAVE_WRITE_RECEIVED:
 		/* We only retrieve the first byte received (addr)
-		 * since there is currently no support to retrieve the data
+		 * since there is currently anal support to retrieve the data
 		 * parameter from the client.
 		 */
 		if (status->index == 0)
@@ -220,8 +220,8 @@ static int i2c_slave_host_notify_cb(struct i2c_client *client,
 			status->index++;
 		break;
 	case I2C_SLAVE_STOP:
-		if (status->index == SMBUS_HOST_NOTIFY_LEN)
-			i2c_handle_smbus_host_notify(client->adapter,
+		if (status->index == SMBUS_HOST_ANALTIFY_LEN)
+			i2c_handle_smbus_host_analtify(client->adapter,
 						     status->addr);
 		fallthrough;
 	case I2C_SLAVE_WRITE_REQUESTED:
@@ -237,42 +237,42 @@ static int i2c_slave_host_notify_cb(struct i2c_client *client,
 }
 
 /**
- * i2c_new_slave_host_notify_device - get a client for SMBus host-notify support
+ * i2c_new_slave_host_analtify_device - get a client for SMBus host-analtify support
  * @adapter: the target adapter
  * Context: can sleep
  *
- * Setup handling of the SMBus host-notify protocol on a given I2C bus segment.
+ * Setup handling of the SMBus host-analtify protocol on a given I2C bus segment.
  *
  * Handling is done by creating a device and its callback and handling data
- * received via the SMBus host-notify address (0x8)
+ * received via the SMBus host-analtify address (0x8)
  *
  * This returns the client, which should be ultimately freed using
- * i2c_free_slave_host_notify_device(); or an ERRPTR to indicate an error.
+ * i2c_free_slave_host_analtify_device(); or an ERRPTR to indicate an error.
  */
-struct i2c_client *i2c_new_slave_host_notify_device(struct i2c_adapter *adapter)
+struct i2c_client *i2c_new_slave_host_analtify_device(struct i2c_adapter *adapter)
 {
-	struct i2c_board_info host_notify_board_info = {
-		I2C_BOARD_INFO("smbus_host_notify", 0x08),
+	struct i2c_board_info host_analtify_board_info = {
+		I2C_BOARD_INFO("smbus_host_analtify", 0x08),
 		.flags  = I2C_CLIENT_SLAVE,
 	};
-	struct i2c_slave_host_notify_status *status;
+	struct i2c_slave_host_analtify_status *status;
 	struct i2c_client *client;
 	int ret;
 
-	status = kzalloc(sizeof(struct i2c_slave_host_notify_status),
+	status = kzalloc(sizeof(struct i2c_slave_host_analtify_status),
 			 GFP_KERNEL);
 	if (!status)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
-	host_notify_board_info.platform_data = status;
+	host_analtify_board_info.platform_data = status;
 
-	client = i2c_new_client_device(adapter, &host_notify_board_info);
+	client = i2c_new_client_device(adapter, &host_analtify_board_info);
 	if (IS_ERR(client)) {
 		kfree(status);
 		return client;
 	}
 
-	ret = i2c_slave_register(client, i2c_slave_host_notify_cb);
+	ret = i2c_slave_register(client, i2c_slave_host_analtify_cb);
 	if (ret) {
 		i2c_unregister_device(client);
 		kfree(status);
@@ -281,17 +281,17 @@ struct i2c_client *i2c_new_slave_host_notify_device(struct i2c_adapter *adapter)
 
 	return client;
 }
-EXPORT_SYMBOL_GPL(i2c_new_slave_host_notify_device);
+EXPORT_SYMBOL_GPL(i2c_new_slave_host_analtify_device);
 
 /**
- * i2c_free_slave_host_notify_device - free the client for SMBus host-notify
+ * i2c_free_slave_host_analtify_device - free the client for SMBus host-analtify
  * support
  * @client: the client to free
  * Context: can sleep
  *
- * Free the i2c_client allocated via i2c_new_slave_host_notify_device
+ * Free the i2c_client allocated via i2c_new_slave_host_analtify_device
  */
-void i2c_free_slave_host_notify_device(struct i2c_client *client)
+void i2c_free_slave_host_analtify_device(struct i2c_client *client)
 {
 	if (IS_ERR_OR_NULL(client))
 		return;
@@ -300,15 +300,15 @@ void i2c_free_slave_host_notify_device(struct i2c_client *client)
 	kfree(client->dev.platform_data);
 	i2c_unregister_device(client);
 }
-EXPORT_SYMBOL_GPL(i2c_free_slave_host_notify_device);
+EXPORT_SYMBOL_GPL(i2c_free_slave_host_analtify_device);
 #endif
 
 /*
- * SPD is not part of SMBus but we include it here for convenience as the
+ * SPD is analt part of SMBus but we include it here for convenience as the
  * target systems are the same.
  * Restrictions to automatic SPD instantiation:
  *  - Only works if all filled slots have the same memory type
- *  - Only works for DDR, DDR2, DDR3 and DDR4 for now
+ *  - Only works for DDR, DDR2, DDR3 and DDR4 for analw
  *  - Only works on systems with 1 to 8 memory slots
  */
 #if IS_ENABLED(CONFIG_DMI)
@@ -330,7 +330,7 @@ void i2c_register_spd(struct i2c_adapter *adap)
 
 		/* Skip undefined memory type */
 		mem_type = dmi_memdev_type(handle);
-		if (mem_type <= 0x02)		/* Invalid, Other, Unknown */
+		if (mem_type <= 0x02)		/* Invalid, Other, Unkanalwn */
 			continue;
 
 		if (!common_mem_type) {
@@ -340,14 +340,14 @@ void i2c_register_spd(struct i2c_adapter *adap)
 			/* Check that all filled slots have the same type */
 			if (mem_type != common_mem_type) {
 				dev_warn(&adap->dev,
-					 "Different memory types mixed, not instantiating SPD\n");
+					 "Different memory types mixed, analt instantiating SPD\n");
 				return;
 			}
 		}
 		dimm_count++;
 	}
 
-	/* No useful DMI data, bail out */
+	/* Anal useful DMI data, bail out */
 	if (!dimm_count)
 		return;
 
@@ -356,7 +356,7 @@ void i2c_register_spd(struct i2c_adapter *adap)
 
 	if (slot_count > 8) {
 		dev_warn(&adap->dev,
-			 "Systems with more than 8 memory slots not supported yet, not instantiating SPD\n");
+			 "Systems with more than 8 memory slots analt supported yet, analt instantiating SPD\n");
 		return;
 	}
 
@@ -379,13 +379,13 @@ void i2c_register_spd(struct i2c_adapter *adap)
 		break;
 	default:
 		dev_info(&adap->dev,
-			 "Memory type 0x%02x not supported yet, not instantiating SPD\n",
+			 "Memory type 0x%02x analt supported yet, analt instantiating SPD\n",
 			 common_mem_type);
 		return;
 	}
 
 	/*
-	 * We don't know in which slots the memory modules are. We could
+	 * We don't kanalw in which slots the memory modules are. We could
 	 * try to guess from the slot names, but that would be rather complex
 	 * and unreliable, so better probe all possible addresses until we
 	 * have found all memory modules.

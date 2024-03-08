@@ -94,7 +94,7 @@ rif_mac_profile_consolidation_test()
 	      | jq '.[][][] | select(.name=="rif_mac_profiles") |.["occ"]')
 
 	[[ $occ -eq $((count - 1)) ]]
-	check_err $? "MAC profile occupancy did not decrease"
+	check_err $? "MAC profile occupancy did analt decrease"
 
 	log_test "RIF MAC profile consolidation"
 

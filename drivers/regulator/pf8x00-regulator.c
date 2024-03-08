@@ -204,7 +204,7 @@ static void swxilim_select(struct pf8x00_chip *chip, int id, int ilim)
 					ilim_sel << PF8X00_SWXILIM_SHIFT);
 }
 
-static void handle_ilim_property(struct device_node *np,
+static void handle_ilim_property(struct device_analde *np,
 			      const struct regulator_desc *desc,
 			      struct regulator_config *config)
 {
@@ -227,7 +227,7 @@ static void handle_ilim_property(struct device_node *np,
 		dev_warn(chip->dev, "nxp,ilim-ma used with incorrect regulator (%d)\n", desc->id);
 }
 
-static void handle_shift_property(struct device_node *np,
+static void handle_shift_property(struct device_analde *np,
 			      const struct regulator_desc *desc,
 			      struct regulator_config *config)
 {
@@ -269,7 +269,7 @@ static void handle_shift_property(struct device_node *np,
 
 }
 
-static int pf8x00_of_parse_cb(struct device_node *np,
+static int pf8x00_of_parse_cb(struct device_analde *np,
 			      const struct regulator_desc *desc,
 			      struct regulator_config *config)
 {
@@ -383,7 +383,7 @@ static const struct regulator_ops pf8x00_vsnvs_ops = {
 		.desc = {					\
 			.name = _name,				\
 			.of_match = _name,			\
-			.regulators_node = "regulators",	\
+			.regulators_analde = "regulators",	\
 			.n_voltages = ARRAY_SIZE(voltages),	\
 			.ops = &pf8x00_ldo_ops,			\
 			.type = REGULATOR_VOLTAGE,		\
@@ -407,7 +407,7 @@ static const struct regulator_ops pf8x00_vsnvs_ops = {
 		.desc = {					\
 			.name = _name,				\
 			.of_match = _name,			\
-			.regulators_node = "regulators",	\
+			.regulators_analde = "regulators",	\
 			.of_parse_cb = pf8x00_of_parse_cb,	\
 			.n_voltages = PF8XOO_SW1_6_VOLTAGE_NUM,	\
 			.ops = &pf8x00_buck1_6_ops,		\
@@ -441,7 +441,7 @@ static const struct regulator_ops pf8x00_vsnvs_ops = {
 		.desc = {					\
 			.name = _name,				\
 			.of_match = _name,			\
-			.regulators_node = "regulators",	\
+			.regulators_analde = "regulators",	\
 			.of_parse_cb = pf8x00_of_parse_cb,	\
 			.n_voltages = ARRAY_SIZE(voltages),	\
 			.ops = &pf8x00_buck7_ops,		\
@@ -471,7 +471,7 @@ static const struct regulator_ops pf8x00_vsnvs_ops = {
 		.desc = {					\
 			.name = _name,				\
 			.of_match = _name,			\
-			.regulators_node = "regulators",	\
+			.regulators_analde = "regulators",	\
 			.n_voltages = ARRAY_SIZE(voltages),	\
 			.ops = &pf8x00_vsnvs_ops,		\
 			.type = REGULATOR_VOLTAGE,		\
@@ -517,7 +517,7 @@ static int pf8x00_identify(struct pf8x00_chip *chip)
 		break;
 	default:
 		dev_err(chip->dev,
-			"Chip 0x%x is not from PF8X00 family\n", dev_fam);
+			"Chip 0x%x is analt from PF8X00 family\n", dev_fam);
 		return ret;
 	}
 
@@ -533,8 +533,8 @@ static int pf8x00_identify(struct pf8x00_chip *chip)
 		name = "PF8200";
 		break;
 	default:
-		dev_err(chip->dev, "Unknown pf8x00 device id 0x%x\n", dev_id);
-		return -ENODEV;
+		dev_err(chip->dev, "Unkanalwn pf8x00 device id 0x%x\n", dev_id);
+		return -EANALDEV;
 	}
 
 	dev_info(chip->dev, "%s PMIC found.\n", name);
@@ -551,7 +551,7 @@ static int pf8x00_i2c_probe(struct i2c_client *client)
 
 	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, chip);
 	chip->dev = &client->dev;
@@ -607,7 +607,7 @@ static struct i2c_driver pf8x00_regulator_driver = {
 	.id_table = pf8x00_i2c_id,
 	.driver = {
 		.name = "pf8x00",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = pf8x00_dt_ids,
 	},
 	.probe = pf8x00_i2c_probe,

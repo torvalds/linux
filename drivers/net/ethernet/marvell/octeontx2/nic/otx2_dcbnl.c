@@ -34,8 +34,8 @@ int otx2_pfc_txschq_config(struct otx2_nic *pfvf)
 	for (prio = 0; prio < NIX_PF_PFC_PRIO_MAX; prio++) {
 		pfc_bit_set = pfc_en & (1 << prio);
 
-		/* Either PFC bit is not set
-		 * or tx scheduler is not allocated for the priority
+		/* Either PFC bit is analt set
+		 * or tx scheduler is analt allocated for the priority
 		 */
 		if (!pfc_bit_set || !pfvf->pfc_alloc_status[prio])
 			continue;
@@ -64,7 +64,7 @@ static int otx2_pfc_txschq_alloc_one(struct otx2_nic *pfvf, u8 prio)
 	/* Get memory to put this msg */
 	req = otx2_mbox_alloc_msg_nix_txsch_alloc(&pfvf->mbox);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Request one schq per level upto max level as configured
 	 * link config level. These rest of the scheduler can be
@@ -85,7 +85,7 @@ static int otx2_pfc_txschq_alloc_one(struct otx2_nic *pfvf, u8 prio)
 	/* Setup transmit scheduler list */
 	for (lvl = 0; lvl <= pfvf->hw.txschq_link_cfg_lvl; lvl++) {
 		if (!rsp->schq[lvl])
-			return -ENOSPC;
+			return -EANALSPC;
 
 		pfvf->pfc_schq_list[lvl][prio] = rsp->schq_list[lvl][0];
 	}
@@ -127,7 +127,7 @@ static int otx2_pfc_txschq_stop_one(struct otx2_nic *pfvf, u8 prio)
 {
 	int lvl;
 
-	/* free PFC TLx nodes */
+	/* free PFC TLx analdes */
 	for (lvl = 0; lvl <= pfvf->hw.txschq_link_cfg_lvl; lvl++)
 		otx2_txschq_free_one(pfvf, lvl,
 				     pfvf->pfc_schq_list[lvl][prio]);
@@ -153,7 +153,7 @@ static int otx2_pfc_update_sq_smq_mapping(struct otx2_nic *pfvf, int prio)
 	if (test_bit(CN10K_LMTST, &pfvf->hw.cap_flag)) {
 		cn10k_sq_aq = otx2_mbox_alloc_msg_nix_cn10k_aq_enq(&pfvf->mbox);
 		if (!cn10k_sq_aq)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		/* Fill AQ info */
 		cn10k_sq_aq->qidx = prio;
@@ -168,7 +168,7 @@ static int otx2_pfc_update_sq_smq_mapping(struct otx2_nic *pfvf, int prio)
 	} else {
 		sq_aq = otx2_mbox_alloc_msg_nix_aq_enq(&pfvf->mbox);
 		if (!sq_aq)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		/* Fill AQ info */
 		sq_aq->qidx = prio;
@@ -205,7 +205,7 @@ int otx2_pfc_txschq_update(struct otx2_nic *pfvf)
 	for (prio = 0; prio < NIX_PF_PFC_PRIO_MAX; prio++) {
 		pfc_bit_set = pfc_en & (1 << prio);
 
-		/* tx scheduler was created but user wants to disable now */
+		/* tx scheduler was created but user wants to disable analw */
 		if (!pfc_bit_set && pfvf->pfc_alloc_status[prio]) {
 			mutex_unlock(&mbox->lock);
 			if (if_up)
@@ -228,7 +228,7 @@ int otx2_pfc_txschq_update(struct otx2_nic *pfvf)
 			goto update_sq_smq_map;
 		}
 
-		/* Either PFC bit is not set
+		/* Either PFC bit is analt set
 		 * or Tx scheduler is already mapped for the priority
 		 */
 		if (!pfc_bit_set || pfvf->pfc_alloc_status[prio])
@@ -295,7 +295,7 @@ int otx2_config_priority_flow_ctrl(struct otx2_nic *pfvf)
 	mutex_lock(&pfvf->mbox.lock);
 	req = otx2_mbox_alloc_msg_cgx_prio_flow_ctrl_cfg(&pfvf->mbox);
 	if (!req) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto unlock;
 	}
 
@@ -332,7 +332,7 @@ void otx2_update_bpid_in_rqctx(struct otx2_nic *pfvf, int vlan_prio, int qidx,
 
 	if (pfvf->queue_to_pfc_map[qidx] && pfc_enable) {
 		dev_warn(pfvf->dev,
-			 "PFC enable not permitted as Priority %d already mapped to Queue %d\n",
+			 "PFC enable analt permitted as Priority %d already mapped to Queue %d\n",
 			 pfvf->queue_to_pfc_map[qidx], qidx);
 		return;
 	}
@@ -346,7 +346,7 @@ void otx2_update_bpid_in_rqctx(struct otx2_nic *pfvf, int vlan_prio, int qidx,
 
 	aq = otx2_mbox_alloc_msg_nix_aq_enq(&pfvf->mbox);
 	if (!aq) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -362,7 +362,7 @@ void otx2_update_bpid_in_rqctx(struct otx2_nic *pfvf, int vlan_prio, int qidx,
 
 	npa_aq = otx2_mbox_alloc_msg_npa_aq_enq(&pfvf->mbox);
 	if (!npa_aq) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 	npa_aq->aura.nix0_bpid = pfvf->bpid[vlan_prio];
@@ -467,7 +467,7 @@ int otx2_dcbnl_set_ops(struct net_device *dev)
 	pfvf->queue_to_pfc_map = devm_kzalloc(pfvf->dev, pfvf->hw.rx_queues,
 					      GFP_KERNEL);
 	if (!pfvf->queue_to_pfc_map)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev->dcbnl_ops = &otx2_dcbnl_ops;
 
 	return 0;

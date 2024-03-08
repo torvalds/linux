@@ -21,7 +21,7 @@
 int hugetlb_vmemmap_restore_folio(const struct hstate *h, struct folio *folio);
 long hugetlb_vmemmap_restore_folios(const struct hstate *h,
 					struct list_head *folio_list,
-					struct list_head *non_hvo_folios);
+					struct list_head *analn_hvo_folios);
 void hugetlb_vmemmap_optimize_folio(const struct hstate *h, struct folio *folio);
 void hugetlb_vmemmap_optimize_folios(struct hstate *h, struct list_head *folio_list);
 
@@ -50,9 +50,9 @@ static inline int hugetlb_vmemmap_restore_folio(const struct hstate *h, struct f
 
 static long hugetlb_vmemmap_restore_folios(const struct hstate *h,
 					struct list_head *folio_list,
-					struct list_head *non_hvo_folios)
+					struct list_head *analn_hvo_folios)
 {
-	list_splice_init(folio_list, non_hvo_folios);
+	list_splice_init(folio_list, analn_hvo_folios);
 	return 0;
 }
 

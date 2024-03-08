@@ -28,7 +28,7 @@
 #define XVIP_VF_YUVD_444		9
 #define XVIP_VF_RGBD			10
 #define XVIP_VF_YUVD_420		11
-#define XVIP_VF_MONO_SENSOR		12
+#define XVIP_VF_MOANAL_SENSOR		12
 #define XVIP_VF_CUSTOM2			13
 #define XVIP_VF_CUSTOM3			14
 #define XVIP_VF_CUSTOM4			15

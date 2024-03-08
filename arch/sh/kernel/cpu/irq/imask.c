@@ -7,9 +7,9 @@
  * Simple interrupt handling using IMASK of SR register.
  *
  */
-/* NOTE: Will not work on level 15 */
+/* ANALTE: Will analt work on level 15 */
 #include <linux/ptrace.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel_stat.h>
 #include <linux/signal.h>
 #include <linux/sched.h>

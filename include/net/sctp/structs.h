@@ -19,10 +19,10 @@
  *    Karl Knutson	    <karl@athena.chicago.il.us>
  *    Jon Grimm		    <jgrimm@us.ibm.com>
  *    Xingang Guo	    <xingang.guo@intel.com>
- *    Hui Huang		    <hui.huang@nokia.com>
+ *    Hui Huang		    <hui.huang@analkia.com>
  *    Sridhar Samudrala	    <sri@us.ibm.com>
  *    Daisy Chang	    <daisyc@us.ibm.com>
- *    Dajiang Zhang	    <dajiang.zhang@nokia.com>
+ *    Dajiang Zhang	    <dajiang.zhang@analkia.com>
  *    Ardelle Fan	    <ardelle.fan@intel.com>
  *    Ryan Layer	    <rmlayer@us.ibm.com>
  *    Anup Pemmaiah	    <pemmaiah@cc.usu.edu>
@@ -84,7 +84,7 @@ struct sctp_bind_bucket {
 	signed char	fastreuse;
 	signed char	fastreuseport;
 	kuid_t		fastuid;
-	struct hlist_node	node;
+	struct hlist_analde	analde;
 	struct hlist_head	owner;
 	struct net	*net;
 };
@@ -219,7 +219,7 @@ struct sctp_sock {
 	__u32 autoclose;
 	__u32 adaptation_ind;
 	__u32 pd_point;
-	__u16	nodelay:1,
+	__u16	analdelay:1,
 		pf_expose:2,
 		reuse:1,
 		disable_fragments:1,
@@ -261,7 +261,7 @@ struct sctp6_sock {
 
 
 /* This is our APPLICATION-SPECIFIC state cookie.
- * THIS IS NOT DICTATED BY THE SPECIFICATION.
+ * THIS IS ANALT DICTATED BY THE SPECIFICATION.
  */
 /* These are the parts of an association which we send in the cookie.
  * Most of these are straight out of:
@@ -283,7 +283,7 @@ struct sctp_cookie {
 	 */
 	__u32 peer_vtag;
 
-	/* The rest of these are not from the spec, but really need to
+	/* The rest of these are analt from the spec, but really need to
 	 * be in the cookie.
 	 */
 
@@ -343,7 +343,7 @@ struct sctp_signed_cookie {
 	struct sctp_cookie c;
 } __packed;
 
-/* This is another convenience type to allocate memory for address
+/* This is aanalther convenience type to allocate memory for address
  * params for the maximum size and pass such structures around
  * internally.
  */
@@ -376,7 +376,7 @@ union sctp_params {
 
 /* RFC 2960.  Section 3.3.5 Heartbeat.
  *    Heartbeat Information: variable length
- *    The Sender-specific Heartbeat Info field should normally include
+ *    The Sender-specific Heartbeat Info field should analrmally include
  *    information about the sender's current time when this HEARTBEAT
  *    chunk is sent and the destination transport address to which this
  *    HEARTBEAT is sent (see Section 8.3).
@@ -385,7 +385,7 @@ struct sctp_sender_hb_info {
 	struct sctp_paramhdr param_hdr;
 	union sctp_addr daddr;
 	unsigned long sent_at;
-	__u64 hb_nonce;
+	__u64 hb_analnce;
 	__u32 probe_size;
 };
 
@@ -515,14 +515,14 @@ struct sctp_pf {
 
 
 /* Structure to track chunk fragments that have been acked, but peer
- * fragments of the same message have not.
+ * fragments of the same message have analt.
  */
 struct sctp_datamsg {
 	/* Chunks waiting to be submitted to lower layer. */
 	struct list_head chunks;
 	/* Reference counting. */
 	refcount_t refcnt;
-	/* When is this message no longer interesting to the peer? */
+	/* When is this message anal longer interesting to the peer? */
 	unsigned long expires_at;
 	/* Did the messenge fail to send? */
 	int send_error;
@@ -580,7 +580,7 @@ struct sctp_chunk {
 	};
 
 	/* These are the SCTP headers by reverse order in a packet.
-	 * Note that some of these may happen more than once.  In that
+	 * Analte that some of these may happen more than once.  In that
 	 * case, we point at the "current" one, whatever that means
 	 * for that level of header.
 	 */
@@ -633,7 +633,7 @@ struct sctp_chunk {
 
 	/* For an inbound chunk, this tells us where it came from.
 	 * For an outbound chunk, it tells us where we'd like it to
-	 * go.	It is NULL if we have no preference.
+	 * go.	It is NULL if we have anal preference.
 	 */
 	struct sctp_transport *transport;
 
@@ -654,7 +654,7 @@ struct sctp_chunk {
 		singleton:1,		/* Only chunk in the packet? */
 		end_of_packet:1,	/* Last chunk in the packet? */
 		ecn_ce_done:1,		/* Have we processed the ECN CE bit? */
-		pdiscard:1,		/* Discard the whole packet now? */
+		pdiscard:1,		/* Discard the whole packet analw? */
 		tsn_gap_acked:1,	/* Is this chunk acked by a GAP ACK? */
 		data_accepted:1,	/* At least 1 chunk accepted */
 		auth:1,			/* IN: was auth'ed | OUT: needs auth */
@@ -678,7 +678,7 @@ void sctp_init_addrs(struct sctp_chunk *, union sctp_addr *,
 		     union sctp_addr *);
 const union sctp_addr *sctp_source(const struct sctp_chunk *chunk);
 
-static inline __u16 sctp_chunk_stream_no(struct sctp_chunk *ch)
+static inline __u16 sctp_chunk_stream_anal(struct sctp_chunk *ch)
 {
 	return ntohs(ch->subh.data_hdr->stream);
 }
@@ -765,16 +765,16 @@ static inline int sctp_packet_empty(struct sctp_packet *packet)
  * RFC2960 Section 7.1 SCTP Differences from TCP Congestion control
  *
  *   o	The sender keeps a separate congestion control parameter set for
- *	each of the destination addresses it can send to (not each
+ *	each of the destination addresses it can send to (analt each
  *	source-destination pair but for each destination).  The parameters
- *	should decay if the address is not used for a long enough time
+ *	should decay if the address is analt used for a long eanalugh time
  *	period.
  *
  */
 struct sctp_transport {
 	/* A list of transports. */
 	struct list_head transports;
-	struct rhlist_head node;
+	struct rhlist_head analde;
 
 	/* Reference counting. */
 	refcount_t refcnt;
@@ -848,7 +848,7 @@ struct sctp_transport {
 	 */
 	__u32 partial_bytes_acked;
 
-	/* Data that has been sent, but not acknowledged. */
+	/* Data that has been sent, but analt ackanalwledged. */
 	__u32 flight_size;
 
 	__u32 burst_limited;	/* Holds old cwnd when max.burst is applied */
@@ -903,7 +903,7 @@ struct sctp_transport {
 	__u16 pf_retrans;
 	/* Used for primary path switchover. */
 	__u16 ps_retrans;
-	/* PMTU	      : The current known path MTU.  */
+	/* PMTU	      : The current kanalwn path MTU.  */
 	__u32 pathmtu;
 
 	/* Flags controlling Heartbeat, SACK delay, and Path MTU Discovery. */
@@ -913,7 +913,7 @@ struct sctp_transport {
 	int init_sent_count;
 
 	/* state       : The current state of this destination,
-	 *             : i.e. SCTP_ACTIVE, SCTP_INACTIVE, SCTP_UNKNOWN.
+	 *             : i.e. SCTP_ACTIVE, SCTP_INACTIVE, SCTP_UNKANALWN.
 	 */
 	int state;
 
@@ -945,7 +945,7 @@ struct sctp_transport {
 	/* Since we're using per-destination retransmission timers
 	 * (see above), we're also using per-destination "transmitted"
 	 * queues.  This probably ought to be a private struct
-	 * accessible only within the outqueue, but it's not, yet.
+	 * accessible only within the outqueue, but it's analt, yet.
 	 */
 	struct list_head transmitted;
 
@@ -993,7 +993,7 @@ struct sctp_transport {
 	} pl; /* plpmtud related */
 
 	/* 64-bit random number sent with heartbeat. */
-	__u64 hb_nonce;
+	__u64 hb_analnce;
 
 	struct rcu_head rcu;
 };
@@ -1237,7 +1237,7 @@ enum sctp_endpoint_type {
  *   2) Common interface for the inbound chunk handling/state machine.
  *   3) Common object handling routines for reference counting, etc.
  *   4) Disentangle association lookup from endpoint lookup, where we
- *	do not have to find our endpoint to find our association.
+ *	do analt have to find our endpoint to find our association.
  *
  */
 
@@ -1247,7 +1247,7 @@ struct sctp_ep_common {
 
 	/* Some fields to help us manage this object.
 	 *   refcnt   - Reference count access to this object.
-	 *   dead     - Do not attempt to use this object.
+	 *   dead     - Do analt attempt to use this object.
 	 */
 	refcount_t    refcnt;
 	bool	    dead;
@@ -1279,7 +1279,7 @@ struct sctp_ep_common {
  *   transport addresses from which SCTP packets can be received.
  *   All transport addresses used by an SCTP endpoint must use the
  *   same port number, but can use multiple IP addresses. A transport
- *   address used by an SCTP endpoint must not be used by another
+ *   address used by an SCTP endpoint must analt be used by aanalther
  *   SCTP endpoint. In other words, a transport address is unique
  *   to an SCTP endpoint.
  *
@@ -1294,7 +1294,7 @@ struct sctp_endpoint {
 	struct sctp_ep_common base;
 
 	/* Fields to help us manage our entries in the hash tables. */
-	struct hlist_node node;
+	struct hlist_analde analde;
 	int hashent;
 
 	/* Associations: A list of current associations and mappings
@@ -1319,7 +1319,7 @@ struct sctp_endpoint {
 
  	/* digest:  This is a digest of the sctp cookie.  This field is
  	 * 	    only used on the receive path when we try to validate
- 	 * 	    that the cookie has not been tampered with.  We put
+ 	 * 	    that the cookie has analt been tampered with.  We put
  	 * 	    this here so we pre-allocate this once and can re-use
  	 * 	    on every receive.
  	 */
@@ -1528,7 +1528,7 @@ static inline __u16 sctp_ftsnhdr_len(const struct sctp_stream *stream)
 /* SCTP_GET_ASSOC_STATS counters */
 struct sctp_priv_assoc_stats {
 	/* Maximum observed rto in the association during subsequent
-	 * observations. Value is set to 0 if no RTO measurement took place
+	 * observations. Value is set to 0 if anal RTO measurement took place
 	 * The transport where the max_rto was observed is returned in
 	 * obs_rto_ipaddr
 	 */
@@ -1548,7 +1548,7 @@ struct sctp_priv_assoc_stats {
 	__u64 idupchunks;
 	/* Gap Ack Blocks received */
 	__u64 gapcnt;
-	/* Unordered data chunks sent and received */
+	/* Uanalrdered data chunks sent and received */
 	__u64 ouodchunks;
 	__u64 iuodchunks;
 	/* Ordered data chunks sent and received */
@@ -1565,7 +1565,7 @@ struct sctp_priv_assoc_stats {
  *
  * This section details a recommended set of parameters that should
  * be contained within the TCB for an implementation. This section is
- * for illustrative purposes and should not be deemed as requirements
+ * for illustrative purposes and should analt be deemed as requirements
  * on an implementation or as an exhaustive list of all parameters
  * inside an SCTP TCB. Each implementation may need its own additional
  * parameters for optimization.
@@ -1601,7 +1601,7 @@ struct sctp_association {
 		 * Transport   : peer is bound to. This information is derived
 		 * Address     : from the INIT or INIT ACK and is used to
 		 * List	       : associate an inbound packet with a given
-		 *	       : association. Normally this information is
+		 *	       : association. Analrmally this information is
 		 *	       : hashed or keyed for quick lookup and access
 		 *	       : of the TCB.
 		 *	       : The list is also initialized with the list
@@ -1681,7 +1681,7 @@ struct sctp_association {
 		/*
 		 * Mapping  An array of bits or bytes indicating which out of
 		 * Array    order TSN's have been received (relative to the
-		 *	    Last Rcvd TSN). If no gaps exist, i.e. no out of
+		 *	    Last Rcvd TSN). If anal gaps exist, i.e. anal out of
 		 *	    order packets have been received, this array
 		 *	    will be set to all zero. This structure may be
 		 *	    in the form of a circular buffer or bit array.
@@ -1694,7 +1694,7 @@ struct sctp_association {
 		 *
 		 * Throughout most of the specification this is called the
 		 * "Cumulative TSN ACK Point".	In this case, we
-		 * ignore the advice in 12.2 in favour of the term
+		 * iganalre the advice in 12.2 in favour of the term
 		 * used in the bulk of the text.  This value is hidden
 		 * in tsn_map--we get it by calling sctp_tsnmap_get_ctsn().
 		 */
@@ -1720,14 +1720,14 @@ struct sctp_association {
 			 *   SACK. This is initialized to 0.  When a packet
 			 *   is received sack_cnt is incremented. If this value
 			 *   reaches 2 or more, a SACK is sent and the
-			 *   value is reset to 0. Note: This is used only
-			 *   when no DATA chunks are received out of
+			 *   value is reset to 0. Analte: This is used only
+			 *   when anal DATA chunks are received out of
 			 *   order.  When DATA chunks are out of order,
-			 *   SACK's are not delayed (see Section 6).
+			 *   SACK's are analt delayed (see Section 6).
 			 */
 			sack_needed:1,     /* Do we need to sack the peer? */
 			sack_generation:1,
-			zero_window_announced:1;
+			zero_window_ananalunced:1;
 
 		__u32	sack_cnt;
 
@@ -1743,7 +1743,7 @@ struct sctp_association {
 		 */
 		__u32 addip_serial;
 
-		/* SCTP-AUTH: We need to know pears random number, hmac list
+		/* SCTP-AUTH: We need to kanalw pears random number, hmac list
 		 * and authenticated chunk list.  All that is part of the
 		 * cookie and these are just pointers to those locations
 		 */
@@ -1757,7 +1757,7 @@ struct sctp_association {
 	 *	       : COOKIE-ECHOED, ESTABLISHED, SHUTDOWN-PENDING,
 	 *	       : SHUTDOWN-SENT, SHUTDOWN-RECEIVED, SHUTDOWN-ACK-SENT.
 	 *
-	 *		Note: No "CLOSED" state is illustrated since if a
+	 *		Analte: Anal "CLOSED" state is illustrated since if a
 	 *		association is "CLOSED" its TCB SHOULD be removed.
 	 *
 	 *		In this implementation we DO have a CLOSED
@@ -1857,7 +1857,7 @@ struct sctp_association {
 	 *	       : DATA chunk.  This is sent in the INIT or INIT
 	 *	       : ACK chunk to the peer and incremented each
 	 *	       : time a DATA chunk is assigned a TSN
-	 *	       : (normally just prior to transmit or during
+	 *	       : (analrmally just prior to transmit or during
 	 *	       : fragmentation).
 	 */
 	__u32 next_tsn;
@@ -1876,7 +1876,7 @@ struct sctp_association {
 	/* PR-SCTP Advanced.Peer.Ack.Point */
 	__u32 adv_peer_ack_point;
 
-	/* Highest TSN that is acknowledged by incoming SACKs. */
+	/* Highest TSN that is ackanalwledged by incoming SACKs. */
 	__u32 highest_sacked;
 
 	/* TSN marking the fast recovery exit point */
@@ -1885,7 +1885,7 @@ struct sctp_association {
 	/* Flag to track the current fast recovery state */
 	__u8 fast_recovery;
 
-	/* The number of unacknowledged data chunks.  Reported through
+	/* The number of unackanalwledged data chunks.  Reported through
 	 * the SCTP_STATUS sockopt.
 	 */
 	__u16 unack_data;
@@ -1909,7 +1909,7 @@ struct sctp_association {
 	__u32 rwnd_over;
 
 	/* Keeps treack of rwnd pressure.  This happens when we have
-	 * a window, but not recevie buffer (i.e small packets).  This one
+	 * a window, but analt recevie buffer (i.e small packets).  This one
 	 * is releases slowly (1 PMTU at a time ).
 	 */
 	__u32 rwnd_press;
@@ -1982,16 +1982,16 @@ struct sctp_association {
 	/* ADDIP Section 4.1.1 Congestion Control of ASCONF Chunks
 	 *
 	 * R1) One and only one ASCONF Chunk MAY be in transit and
-	 * unacknowledged at any one time.  If a sender, after sending
-	 * an ASCONF chunk, decides it needs to transfer another
+	 * unackanalwledged at any one time.  If a sender, after sending
+	 * an ASCONF chunk, decides it needs to transfer aanalther
 	 * ASCONF Chunk, it MUST wait until the ASCONF-ACK Chunk
 	 * returns from the previous ASCONF Chunk before sending a
-	 * subsequent ASCONF. Note this restriction binds each side,
+	 * subsequent ASCONF. Analte this restriction binds each side,
 	 * so at any time two ASCONF may be in-transit on any given
 	 * association (one sent from each endpoint).
 	 *
 	 * [This is our one-and-only-one ASCONF in flight.  If we do
-	 * not have an ASCONF in flight, this is NULL.]
+	 * analt have an ASCONF in flight, this is NULL.]
 	 */
 	struct sctp_chunk *addip_last_asconf;
 
@@ -2001,7 +2001,7 @@ struct sctp_association {
 	 * spec.  Here is the justification:
 	 *
 	 * Since the peer may bundle multiple ASCONF chunks toward us,
-	 * we now need the ability to cache multiple ACKs.  The section
+	 * we analw need the ability to cache multiple ACKs.  The section
 	 * describes in detail how they are cached and cleaned up.
 	 */
 	struct list_head asconf_ack_list;
@@ -2016,16 +2016,16 @@ struct sctp_association {
 	 * ADDIP Section 4.1.1 Congestion Control of ASCONF Chunks
 	 *
 	 * In defining the ASCONF Chunk transfer procedures, it is
-	 * essential that these transfers MUST NOT cause congestion
+	 * essential that these transfers MUST ANALT cause congestion
 	 * within the network.	To achieve this, we place these
 	 * restrictions on the transfer of ASCONF Chunks:
 	 *
 	 * R1) One and only one ASCONF Chunk MAY be in transit and
-	 * unacknowledged at any one time.  If a sender, after sending
-	 * an ASCONF chunk, decides it needs to transfer another
+	 * unackanalwledged at any one time.  If a sender, after sending
+	 * an ASCONF chunk, decides it needs to transfer aanalther
 	 * ASCONF Chunk, it MUST wait until the ASCONF-ACK Chunk
 	 * returns from the previous ASCONF Chunk before sending a
-	 * subsequent ASCONF. Note this restriction binds each side,
+	 * subsequent ASCONF. Analte this restriction binds each side,
 	 * so at any time two ASCONF may be in-transit on any given
 	 * association (one sent from each endpoint).
 	 *
@@ -2039,7 +2039,7 @@ struct sctp_association {
 	/* ADDIP Section 4.1 ASCONF Chunk Procedures
 	 *
 	 * A2) A serial number should be assigned to the Chunk. The
-	 * serial number SHOULD be a monotonically increasing
+	 * serial number SHOULD be a moanaltonically increasing
 	 * number. The serial number SHOULD be initialized at
 	 * the start of the association to the same value as the
 	 * Initial TSN and every time a new ASCONF chunk is created
@@ -2176,7 +2176,7 @@ void sctp_assoc_rwnd_increase(struct sctp_association *, unsigned int);
 void sctp_assoc_rwnd_decrease(struct sctp_association *, unsigned int);
 void sctp_assoc_set_primary(struct sctp_association *,
 			    struct sctp_transport *);
-void sctp_assoc_del_nonprimary_peers(struct sctp_association *,
+void sctp_assoc_del_analnprimary_peers(struct sctp_association *,
 				    struct sctp_transport *);
 int sctp_assoc_set_bind_addr_from_ep(struct sctp_association *asoc,
 				     enum sctp_scope scope, gfp_t gfp);

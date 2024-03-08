@@ -45,7 +45,7 @@ acpi_os_create_cache(char *cache_name,
 
 	cache = acpi_os_allocate(sizeof(struct acpi_memory_list));
 	if (!cache) {
-		return (AE_NO_MEMORY);
+		return (AE_ANAL_MEMORY);
 	}
 
 	/* Populate the cache object and return it */
@@ -130,7 +130,7 @@ acpi_status acpi_os_delete_cache(struct acpi_memory_list *cache)
 		return (status);
 	}
 
-	/* Now we can delete the cache object */
+	/* Analw we can delete the cache object */
 
 	acpi_os_free(cache);
 	return (AE_OK);
@@ -143,7 +143,7 @@ acpi_status acpi_os_delete_cache(struct acpi_memory_list *cache)
  * PARAMETERS:  cache       - Handle to cache object
  *              object      - The object to be released
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Release an object to the specified cache. If cache is full,
  *              the object is deleted.

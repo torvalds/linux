@@ -30,9 +30,9 @@ static void set_mgmt_allowed(struct hfi1_pportdata *ppd)
 /*
  * Our neighbor has indicated that we are allowed to act as a fabric
  * manager, so place the full management partition key in the second
- * (0-based) pkey array position. Note that we should already have
+ * (0-based) pkey array position. Analte that we should already have
  * the limited management partition key in array element 1, and also
- * that the port is not yet up when add_full_mgmt_pkey() is invoked.
+ * that the port is analt yet up when add_full_mgmt_pkey() is invoked.
  */
 static void add_full_mgmt_pkey(struct hfi1_pportdata *ppd)
 {
@@ -101,7 +101,7 @@ static void signal_ib_event(struct hfi1_pportdata *ppd, enum ib_event_type ev)
  * @dd: valid device
  * @linkup: link state information
  *
- * Handle a linkup or link down notification.
+ * Handle a linkup or link down analtification.
  * The HW needs time to finish its link up state change. Give it that chance.
  *
  * This is called outside an interrupt.
@@ -113,21 +113,21 @@ void handle_linkup_change(struct hfi1_devdata *dd, u32 linkup)
 	enum ib_event_type ev;
 
 	if (!(ppd->linkup ^ !!linkup))
-		return;	/* no change, nothing to do */
+		return;	/* anal change, analthing to do */
 
 	if (linkup) {
 		/*
-		 * Quick linkup and all link up on the simulator does not
+		 * Quick linkup and all link up on the simulator does analt
 		 * trigger or implement:
 		 *	- VerifyCap interrupt
 		 *	- VerifyCap frames
 		 * But rather moves directly to LinkUp.
 		 *
 		 * Do the work of the VerifyCap interrupt handler,
-		 * handle_verify_cap(), but do not try moving the state to
+		 * handle_verify_cap(), but do analt try moving the state to
 		 * LinkUp as we are already there.
 		 *
-		 * NOTE: This uses this device's vAU, vCU, and vl15_init for
+		 * ANALTE: This uses this device's vAU, vCU, and vl15_init for
 		 * the remote values.  Both sides must be using the values.
 		 */
 		if (quick_linkup || dd->icode == ICODE_FUNCTIONAL_SIMULATOR) {
@@ -139,11 +139,11 @@ void handle_linkup_change(struct hfi1_devdata *dd, u32 linkup)
 		ppd->neighbor_guid =
 			read_csr(dd, DC_DC8051_STS_REMOTE_GUID);
 		ppd->neighbor_type =
-			read_csr(dd, DC_DC8051_STS_REMOTE_NODE_TYPE) &
-				 DC_DC8051_STS_REMOTE_NODE_TYPE_VAL_MASK;
+			read_csr(dd, DC_DC8051_STS_REMOTE_ANALDE_TYPE) &
+				 DC_DC8051_STS_REMOTE_ANALDE_TYPE_VAL_MASK;
 		ppd->neighbor_port_number =
-			read_csr(dd, DC_DC8051_STS_REMOTE_PORT_NO) &
-				 DC_DC8051_STS_REMOTE_PORT_NO_VAL_SMASK;
+			read_csr(dd, DC_DC8051_STS_REMOTE_PORT_ANAL) &
+				 DC_DC8051_STS_REMOTE_PORT_ANAL_VAL_SMASK;
 		ppd->neighbor_fm_security =
 			read_csr(dd, DC_DC8051_STS_REMOTE_FM_SECURITY) &
 				 DC_DC8051_STS_LOCAL_FM_SECURITY_DISABLED_MASK;
@@ -167,9 +167,9 @@ void handle_linkup_change(struct hfi1_devdata *dd, u32 linkup)
 		/* physical link went up */
 		ppd->linkup = 1;
 		ppd->offline_disabled_reason =
-			HFI1_ODR_MASK(OPA_LINKDOWN_REASON_NONE);
+			HFI1_ODR_MASK(OPA_LINKDOWN_REASON_ANALNE);
 
-		/* link widths are not available until the link is fully up */
+		/* link widths are analt available until the link is fully up */
 		get_linkup_link_widths(ppd);
 
 	} else {
@@ -188,9 +188,9 @@ void handle_linkup_change(struct hfi1_devdata *dd, u32 linkup)
 		hfi1_set_uevent_bits(ppd, _HFI1_EVENT_LINKDOWN_BIT);
 
 		/* if we are down, the neighbor is down */
-		ppd->neighbor_normal = 0;
+		ppd->neighbor_analrmal = 0;
 
-		/* notify IB of the link change */
+		/* analtify IB of the link change */
 		signal_ib_event(ppd, ev);
 	}
 }

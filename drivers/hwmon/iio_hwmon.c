@@ -78,7 +78,7 @@ static int iio_hwmon_probe(struct platform_device *pdev)
 	channels = devm_iio_channel_get_all(dev);
 	if (IS_ERR(channels)) {
 		ret = PTR_ERR(channels);
-		if (ret == -ENODEV)
+		if (ret == -EANALDEV)
 			ret = -EPROBE_DEFER;
 		return dev_err_probe(dev, ret,
 				     "Failed to get channels\n");
@@ -86,7 +86,7 @@ static int iio_hwmon_probe(struct platform_device *pdev)
 
 	st = devm_kzalloc(dev, sizeof(*st), GFP_KERNEL);
 	if (st == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st->channels = channels;
 
@@ -98,7 +98,7 @@ static int iio_hwmon_probe(struct platform_device *pdev)
 				 st->num_channels + 1, sizeof(*st->attrs),
 				 GFP_KERNEL);
 	if (st->attrs == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < st->num_channels; i++) {
 		const char *prefix;
@@ -106,7 +106,7 @@ static int iio_hwmon_probe(struct platform_device *pdev)
 
 		a = devm_kzalloc(dev, sizeof(*a), GFP_KERNEL);
 		if (a == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		sysfs_attr_init(&a->dev_attr.attr);
 		ret = iio_get_channel_type(&st->channels[i], &type);
@@ -142,7 +142,7 @@ static int iio_hwmon_probe(struct platform_device *pdev)
 						       "%s%d_input",
 						       prefix, n);
 		if (a->dev_attr.attr.name == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		a->dev_attr.show = iio_hwmon_read_val;
 		a->dev_attr.attr.mode = 0444;
@@ -153,10 +153,10 @@ static int iio_hwmon_probe(struct platform_device *pdev)
 	st->attr_group.attrs = st->attrs;
 	st->groups[0] = &st->attr_group;
 
-	if (dev_fwnode(dev)) {
-		sname = devm_kasprintf(dev, GFP_KERNEL, "%pfwP", dev_fwnode(dev));
+	if (dev_fwanalde(dev)) {
+		sname = devm_kasprintf(dev, GFP_KERNEL, "%pfwP", dev_fwanalde(dev));
 		if (!sname)
-			return -ENOMEM;
+			return -EANALMEM;
 		strreplace(sname, '-', '_');
 	} else {
 		sname = "iio_hwmon";

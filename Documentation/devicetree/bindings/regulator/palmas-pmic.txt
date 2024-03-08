@@ -2,7 +2,7 @@
 
 The tps659038 for the AM57x class have OTP spins that
 have different part numbers but the same functionality. There
-is not a need to add the OTP spins to the palmas driver. The
+is analt a need to add the OTP spins to the palmas driver. The
 spin devices should use the tps659038 as it's compatible value.
 This is the list of those devices:
 tps659037
@@ -25,21 +25,21 @@ and also the generic series names
 Optional properties:
 - ti,ldo6-vibrator : ldo6 is in vibrator mode
 
-Optional nodes:
-- regulators : Must contain a sub-node per regulator from the list below.
-	       Each sub-node should contain the constraints and initialization
+Optional analdes:
+- regulators : Must contain a sub-analde per regulator from the list below.
+	       Each sub-analde should contain the constraints and initialization
 	       information for that regulator. See regulator.txt for a
-	       description of standard properties for these sub-nodes.
+	       description of standard properties for these sub-analdes.
 	       Additional custom properties  are listed below.
 
 	       For ti,palmas-pmic - smps12, smps123, smps3 depending on OTP,
 	       smps45, smps457, smps7 depending on variant, smps6, smps[8-9],
 	       smps10_out2, smps10_out1, ldo[1-9], ldoln, ldousb.
 
-	       Optional sub-node properties:
+	       Optional sub-analde properties:
 	       ti,warm-reset - maintain voltage during warm reset(boolean)
 	       ti,roof-floor - This takes as optional argument on platform supporting
-	       the rail from desired external control. If there is no argument then
+	       the rail from desired external control. If there is anal argument then
 	       it will be assume that it is controlled by NSLEEP pin.
 	       The valid value for external pins are:
 			ENABLE1 then 1,
@@ -50,7 +50,7 @@ Optional nodes:
 	       ti,smps-range - OTP has the wrong range set for the hardware so override
 	       0 - low range, 1 - high range.
 
-- ti,system-power-controller: Telling whether or not this pmic is controlling
+- ti,system-power-controller: Telling whether or analt this pmic is controlling
 			      the system power.
 
 Example:
@@ -60,7 +60,7 @@ Example:
 pmic {
 	compatible = "ti,twl6035-pmic", "ti,palmas-pmic";
 	interrupt-parent = <&palmas>;
-	interrupts = <14 IRQ_TYPE_NONE>;
+	interrupts = <14 IRQ_TYPE_ANALNE>;
 	interrupts-name = "short-irq";
 
 	ti,ldo6-vibrator;

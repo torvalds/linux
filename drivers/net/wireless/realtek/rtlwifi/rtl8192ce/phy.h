@@ -10,7 +10,7 @@
 
 #define MAX_DOZE_WAITING_TIMES_9x	64
 
-#define RT_CANNOT_IO(hw)		false
+#define RT_CANANALT_IO(hw)		false
 #define HIGHPOWER_RADIOA_ARRAYLEN	22
 
 #define MAX_TOLERANCE			5

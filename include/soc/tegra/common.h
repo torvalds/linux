@@ -6,7 +6,7 @@
 #ifndef __SOC_TEGRA_COMMON_H__
 #define __SOC_TEGRA_COMMON_H__
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 
 struct device;
@@ -35,7 +35,7 @@ static inline int
 devm_tegra_core_dev_init_opp_table(struct device *dev,
 				   struct tegra_core_opp_params *params)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 #endif
 
@@ -48,7 +48,7 @@ devm_tegra_core_dev_init_opp_table_common(struct device *dev)
 	opp_params.init_state = true;
 
 	err = devm_tegra_core_dev_init_opp_table(dev, &opp_params);
-	if (err != -ENODEV)
+	if (err != -EANALDEV)
 		return err;
 
 	return 0;

@@ -9,7 +9,7 @@
 #ifndef _ASM_S390_CPU_MF_H
 #define _ASM_S390_CPU_MF_H
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <asm/asm-extable.h>
 #include <asm/facility.h>
 
@@ -29,7 +29,7 @@ asm(".include \"asm/cpu_mf-insn.h\"\n");
 				 CPU_MF_INT_SF_PRA|CPU_MF_INT_SF_SACA|	\
 				 CPU_MF_INT_SF_LSDA)
 
-#define CPU_MF_SF_RIBM_NOTAV	0x1		/* Sampling unavailable */
+#define CPU_MF_SF_RIBM_ANALTAV	0x1		/* Sampling unavailable */
 
 /* CPU measurement facility support */
 static inline int cpum_cf_avail(void)
@@ -66,7 +66,7 @@ struct hws_qsi_info_block {	    /* Bit(s) */
 	unsigned int cs:1;	    /* 30: basic-sampling activation control */
 	unsigned int cd:1;	    /* 31: diag-sampling activation control */
 	unsigned int bsdes:16;	    /* 4-5: size of basic sampling entry */
-	unsigned int dsdes:16;	    /* 6-7: size of diagnostic sampling entry */
+	unsigned int dsdes:16;	    /* 6-7: size of diaganalstic sampling entry */
 	unsigned long min_sampl_rate; /* 8-15: minimum sampling interval */
 	unsigned long max_sampl_rate; /* 16-23: maximum sampling interval*/
 	unsigned long tear;	    /* 24-31: TEAR contents		 */
@@ -127,7 +127,7 @@ struct hws_diag_entry {
 
 struct hws_combined_entry {
 	struct hws_basic_entry	basic;	/* Basic-sampling data entry */
-	struct hws_diag_entry	diag;	/* Diagnostic-sampling data entry */
+	struct hws_diag_entry	diag;	/* Diaganalstic-sampling data entry */
 } __packed;
 
 union hws_trailer_header {
@@ -137,7 +137,7 @@ union hws_trailer_header {
 		unsigned int t:1;	/* 2 - Timestamp format	      */
 		unsigned int :29;	/* 3 - 31: Reserved	      */
 		unsigned int bsdes:16;	/* 32-47: size of basic SDE   */
-		unsigned int dsdes:16;	/* 48-63: size of diagnostic SDE */
+		unsigned int dsdes:16;	/* 48-63: size of diaganalstic SDE */
 		unsigned long long overflow; /* 64 - Overflow Count   */
 	};
 	u128 val;

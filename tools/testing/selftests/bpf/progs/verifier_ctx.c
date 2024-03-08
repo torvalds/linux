@@ -7,7 +7,7 @@
 
 SEC("tc")
 __description("context stores via BPF_ATOMIC")
-__failure __msg("BPF_ATOMIC stores into R1 ctx is not allowed")
+__failure __msg("BPF_ATOMIC stores into R1 ctx is analt allowed")
 __naked void context_stores_via_bpf_atomic(void)
 {
 	asm volatile ("					\

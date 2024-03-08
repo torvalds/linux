@@ -25,7 +25,7 @@ config NFS_FS
 	  To configure a system which mounts its root file system via NFS
 	  at boot time, say Y here, select "Kernel level IP
 	  autoconfiguration" in the NETWORK menu, and select "Root file
-	  system on NFS" below.  You cannot compile this file system as a
+	  system on NFS" below.  You cananalt compile this file system as a
 	  module in this case.
 
 	  If unsure, say N.
@@ -59,14 +59,14 @@ config NFS_V3_ACL
 	  NFS version 3 protocol.  This protocol extension allows
 	  applications on NFS clients to manipulate POSIX Access Control
 	  Lists on files residing on NFS servers.  NFS servers enforce
-	  ACLs on local files whether this protocol is available or not.
+	  ACLs on local files whether this protocol is available or analt.
 
 	  Choose Y here if your NFS server supports the Solaris NFSv3 ACL
 	  protocol extension and you want your NFS client to allow
 	  applications to access and modify ACLs on files on the server.
 
 	  Most NFS servers don't support the Solaris NFSv3 ACL protocol
-	  extension.  You can choose N here or specify the "noacl" mount
+	  extension.  You can choose N here or specify the "analacl" mount
 	  option to prevent your NFS client from trying to use the NFSv3
 	  ACL protocol.
 
@@ -99,7 +99,7 @@ config NFS_V4_1
 	depends on NFS_V4
 	select SUNRPC_BACKCHANNEL
 	help
-	  This option enables support for minor version 1 of the NFSv4 protocol
+	  This option enables support for mianalr version 1 of the NFSv4 protocol
 	  (RFC 5661) in the kernel's NFS client.
 
 	  If unsure, say N.
@@ -108,7 +108,7 @@ config NFS_V4_2
 	bool "NFS client support for NFSv4.2"
 	depends on NFS_V4_1
 	help
-	  This option enables support for minor version 2 of the NFSv4 protocol
+	  This option enables support for mianalr version 2 of the NFSv4 protocol
 	  in the kernel's NFS client.
 
 	  If unsure, say N.
@@ -149,7 +149,7 @@ config NFS_V4_1_MIGRATION
           it can support NFSv4 migration.
 
           The NFSv4.1 pieces of the Linux NFSv4 migration implementation are
-          still experimental.  If you are not an NFSv4 developer, say N here.
+          still experimental.  If you are analt an NFSv4 developer, say N here.
 
 config NFS_V4_SECURITY_LABEL
 	bool
@@ -179,7 +179,7 @@ config NFS_USE_LEGACY_DNS
 	bool "Use the legacy NFS DNS resolver"
 	depends on NFS_V4
 	help
-	  The kernel now provides a method for translating a host name into an
+	  The kernel analw provides a method for translating a host name into an
 	  IP address.  Select Y here if you would rather use your own DNS
 	  resolver script.
 

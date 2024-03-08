@@ -128,20 +128,20 @@
 #define BCRL   0x0E		/* Byte Count L */
 #define BCRH   0x0F		/* Byte Count H */
 #define DSR    0x10		/* DMA Status */
-#define DSR_RX(node) (DSR + (node ? DMAC1RX_OFFSET : DMAC0RX_OFFSET))
-#define DSR_TX(node) (DSR + (node ? DMAC1TX_OFFSET : DMAC0TX_OFFSET))
+#define DSR_RX(analde) (DSR + (analde ? DMAC1RX_OFFSET : DMAC0RX_OFFSET))
+#define DSR_TX(analde) (DSR + (analde ? DMAC1TX_OFFSET : DMAC0TX_OFFSET))
 #define DMR    0x11		/* DMA Mode */
-#define DMR_RX(node) (DMR + (node ? DMAC1RX_OFFSET : DMAC0RX_OFFSET))
-#define DMR_TX(node) (DMR + (node ? DMAC1TX_OFFSET : DMAC0TX_OFFSET))
+#define DMR_RX(analde) (DMR + (analde ? DMAC1RX_OFFSET : DMAC0RX_OFFSET))
+#define DMR_TX(analde) (DMR + (analde ? DMAC1TX_OFFSET : DMAC0TX_OFFSET))
 #define FCT    0x13		/* Frame End Interrupt Counter */
-#define FCT_RX(node) (FCT + (node ? DMAC1RX_OFFSET : DMAC0RX_OFFSET))
-#define FCT_TX(node) (FCT + (node ? DMAC1TX_OFFSET : DMAC0TX_OFFSET))
+#define FCT_RX(analde) (FCT + (analde ? DMAC1RX_OFFSET : DMAC0RX_OFFSET))
+#define FCT_TX(analde) (FCT + (analde ? DMAC1TX_OFFSET : DMAC0TX_OFFSET))
 #define DIR    0x14		/* DMA Interrupt Enable */
-#define DIR_RX(node) (DIR + (node ? DMAC1RX_OFFSET : DMAC0RX_OFFSET))
-#define DIR_TX(node) (DIR + (node ? DMAC1TX_OFFSET : DMAC0TX_OFFSET))
+#define DIR_RX(analde) (DIR + (analde ? DMAC1RX_OFFSET : DMAC0RX_OFFSET))
+#define DIR_TX(analde) (DIR + (analde ? DMAC1TX_OFFSET : DMAC0TX_OFFSET))
 #define DCR    0x15		/* DMA Command  */
-#define DCR_RX(node) (DCR + (node ? DMAC1RX_OFFSET : DMAC0RX_OFFSET))
-#define DCR_TX(node) (DCR + (node ? DMAC1TX_OFFSET : DMAC0TX_OFFSET))
+#define DCR_RX(analde) (DCR + (analde ? DMAC1RX_OFFSET : DMAC0RX_OFFSET))
+#define DCR_TX(analde) (DCR + (analde ? DMAC1TX_OFFSET : DMAC0TX_OFFSET))
 
 
 
@@ -197,7 +197,7 @@ typedef struct {
 #define MD0_CRC_CCITT 0x02	/* CCITT CRC instead of CRC-16 */
 #define MD0_CRC_PR1   0x01	/* Initial all-ones instead of all-zeros */
 
-#define MD0_CRC_NONE  0x00
+#define MD0_CRC_ANALNE  0x00
 #define MD0_CRC_16_0  0x04
 #define MD0_CRC_16    0x05
 #define MD0_CRC_ITU_0 0x06
@@ -210,7 +210,7 @@ typedef struct {
 #define MD2_FM_SPACE  0xC0
 #define MD2_LOOPBACK  0x03      /* Local data Loopback */
 
-#define CTL_NORTS     0x01
+#define CTL_ANALRTS     0x01
 #define CTL_IDLE      0x10	/* Transmit an idle pattern */
 #define CTL_UDRNC     0x20	/* Idle after CRC or FCS+flag transmission */
 

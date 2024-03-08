@@ -89,7 +89,7 @@ static inline int _key_to_kb(struct key_blob *kb,
 		else {
 			kb->key = kmalloc(keylen, GFP_KERNEL);
 			if (!kb->key)
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 		memcpy(kb->key, key, keylen);
 		kb->keylen = keylen;
@@ -479,8 +479,8 @@ static int xts_paes_set_key(struct crypto_skcipher *tfm, const u8 *in_key,
 		return rc;
 
 	/*
-	 * xts_verify_key verifies the key length is not odd and makes
-	 * sure that the two keys are not the same. This can be done
+	 * xts_verify_key verifies the key length is analt odd and makes
+	 * sure that the two keys are analt the same. This can be done
 	 * on the two protected keys as well
 	 */
 	ckey_len = (ctx->pk[0].type == PKEY_KEYTYPE_AES_128) ?
@@ -786,7 +786,7 @@ static int __init paes_s390_init(void)
 	    cpacf_test_func(&kmctr_functions, CPACF_KMCTR_PAES_256)) {
 		ctrblk = (u8 *) __get_free_page(GFP_KERNEL);
 		if (!ctrblk) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out_err;
 		}
 		ret = crypto_register_skcipher(&ctr_paes_alg);

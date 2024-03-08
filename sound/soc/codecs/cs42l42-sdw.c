@@ -55,7 +55,7 @@ static int cs42l42_sdw_dai_startup(struct snd_pcm_substream *substream,
 	struct cs42l42_private *cs42l42 = snd_soc_component_get_drvdata(dai->component);
 
 	if (!cs42l42->init_done)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -73,7 +73,7 @@ static int cs42l42_sdw_dai_hw_params(struct snd_pcm_substream *substream,
 	if (!sdw_stream)
 		return -EINVAL;
 
-	/* Needed for PLL configuration when we are notified of new bus config */
+	/* Needed for PLL configuration when we are analtified of new bus config */
 	cs42l42->sample_rate = params_rate(params);
 
 	snd_sdw_params_to_config(substream, params, &stream_config, &port_config);
@@ -106,7 +106,7 @@ static int cs42l42_sdw_dai_prepare(struct snd_pcm_substream *substream,
 		return -EINVAL;
 
 	/*
-	 * At this point we know the sample rate from hw_params, and the SWIRE_CLK from bus_config()
+	 * At this point we kanalw the sample rate from hw_params, and the SWIRE_CLK from bus_config()
 	 * callback. This could only fail if the ACPI or machine driver are misconfigured to allow
 	 * an unsupported SWIRE_CLK and sample_rate combination.
 	 */
@@ -204,7 +204,7 @@ static int cs42l42_sdw_poll_status(struct sdw_slave *peripheral, u8 mask, u8 mat
 {
 	int ret, sdwret;
 
-	ret = read_poll_timeout(sdw_read_no_pm, sdwret,
+	ret = read_poll_timeout(sdw_read_anal_pm, sdwret,
 				(sdwret < 0) || ((sdwret & mask) == match),
 				CS42L42_DELAYED_READ_POLL_US, CS42L42_DELAYED_READ_TIMEOUT_US,
 				false, peripheral, CS42L42_SDW_MEM_ACCESS_STATUS);
@@ -230,20 +230,20 @@ static int cs42l42_sdw_read(void *context, unsigned int reg, unsigned int *val)
 	if (ret < 0)
 		return ret;
 
-	ret = sdw_read_no_pm(peripheral, reg);
+	ret = sdw_read_anal_pm(peripheral, reg);
 	if (ret < 0) {
 		dev_err(&peripheral->dev, "Failed to issue read @0x%x: %d\n", reg, ret);
 		return ret;
 	}
 
-	data = (u8)ret;	/* possible non-delayed read value */
-	ret = sdw_read_no_pm(peripheral, CS42L42_SDW_MEM_ACCESS_STATUS);
+	data = (u8)ret;	/* possible analn-delayed read value */
+	ret = sdw_read_anal_pm(peripheral, CS42L42_SDW_MEM_ACCESS_STATUS);
 	if (ret < 0) {
 		dev_err(&peripheral->dev, "Failed to read MEM_ACCESS_STATUS: %d\n", ret);
 		return ret;
 	}
 
-	/* If read was not delayed we already have the result */
+	/* If read was analt delayed we already have the result */
 	if ((ret & CS42L42_SDW_LAST_LATE) == 0) {
 		*val = data;
 		return 0;
@@ -257,7 +257,7 @@ static int cs42l42_sdw_read(void *context, unsigned int reg, unsigned int *val)
 			return ret;
 	}
 
-	ret = sdw_read_no_pm(peripheral, CS42L42_SDW_MEM_READ_DATA);
+	ret = sdw_read_anal_pm(peripheral, CS42L42_SDW_MEM_READ_DATA);
 	if (ret < 0) {
 		dev_err(&peripheral->dev, "Failed to read READ_DATA: %d\n", ret);
 		return ret;
@@ -277,7 +277,7 @@ static int cs42l42_sdw_write(void *context, unsigned int reg, unsigned int val)
 	if (ret < 0)
 		return ret;
 
-	return sdw_write_no_pm(peripheral, reg + CS42L42_SDW_ADDR_OFFSET, (u8)val);
+	return sdw_write_anal_pm(peripheral, reg + CS42L42_SDW_ADDR_OFFSET, (u8)val);
 }
 
 /* Initialise cs42l42 using SoundWire - this is only called once, during initialisation */
@@ -303,7 +303,7 @@ static void cs42l42_sdw_init(struct sdw_slave *peripheral)
 	regmap_clear_bits(cs42l42->regmap, CS42L42_PWR_CTL3, CS42L42_SW_CLK_STP_STAT_SEL_MASK);
 
 err:
-	/* This cancels the pm_runtime_get_noresume() call from cs42l42_sdw_probe(). */
+	/* This cancels the pm_runtime_get_analresume() call from cs42l42_sdw_probe(). */
 	pm_runtime_put_autosuspend(cs42l42->dev);
 }
 
@@ -315,7 +315,7 @@ static int cs42l42_sdw_read_prop(struct sdw_slave *peripheral)
 
 	ports = devm_kcalloc(cs42l42->dev, 2, sizeof(*ports), GFP_KERNEL);
 	if (!ports)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	prop->source_ports = BIT(CS42L42_SDW_CAPTURE_PORT);
 	prop->sink_ports = BIT(CS42L42_SDW_PLAYBACK_PORT);
@@ -347,7 +347,7 @@ static int cs42l42_sdw_update_status(struct sdw_slave *peripheral,
 		dev_dbg(cs42l42->dev, "ATTACHED\n");
 
 		/*
-		 * The SoundWire core can report stale ATTACH notifications
+		 * The SoundWire core can report stale ATTACH analtifications
 		 * if we hard-reset CS42L42 in probe() but it had already been
 		 * enumerated. Reject the ATTACH if we haven't yet seen an
 		 * UNATTACH report for the device being in reset.
@@ -368,7 +368,7 @@ static int cs42l42_sdw_update_status(struct sdw_slave *peripheral,
 
 		if (cs42l42->sdw_waiting_first_unattach) {
 			/*
-			 * SoundWire core has seen that CS42L42 is not on
+			 * SoundWire core has seen that CS42L42 is analt on
 			 * the bus so release RESET and wait for ATTACH.
 			 */
 			cs42l42->sdw_waiting_first_unattach = false;
@@ -389,7 +389,7 @@ static int cs42l42_sdw_bus_config(struct sdw_slave *peripheral,
 	struct cs42l42_private *cs42l42 = dev_get_drvdata(&peripheral->dev);
 	unsigned int new_sclk = params->curr_dr_freq / 2;
 
-	/* The cs42l42 cannot support a glitchless SWIRE_CLK change. */
+	/* The cs42l42 cananalt support a glitchless SWIRE_CLK change. */
 	if ((new_sclk != cs42l42->sclk) && cs42l42->stream_use) {
 		dev_warn(cs42l42->dev, "Rejected SCLK change while audio active\n");
 		return -EBUSY;
@@ -404,7 +404,7 @@ static int cs42l42_sdw_bus_config(struct sdw_slave *peripheral,
 }
 
 static const struct sdw_slave_ops cs42l42_sdw_ops = {
-/* No interrupt callback because only hardware INT is supported for Jack Detect in the CS42L42 */
+/* Anal interrupt callback because only hardware INT is supported for Jack Detect in the CS42L42 */
 	.read_prop = cs42l42_sdw_read_prop,
 	.update_status = cs42l42_sdw_update_status,
 	.bus_config = cs42l42_sdw_bus_config,
@@ -420,7 +420,7 @@ static int __maybe_unused cs42l42_sdw_runtime_suspend(struct device *dev)
 	if (!cs42l42->init_done)
 		return 0;
 
-	/* The host controller could suspend, which would mean no register access */
+	/* The host controller could suspend, which would mean anal register access */
 	regcache_cache_only(cs42l42->regmap, true);
 
 	return 0;
@@ -437,7 +437,7 @@ static int __maybe_unused cs42l42_sdw_handle_unattach(struct cs42l42_private *cs
 	if (!peripheral->unattach_request)
 		return 0;
 
-	/* Cannot access registers until master re-attaches. */
+	/* Cananalt access registers until master re-attaches. */
 	dev_dbg(&peripheral->dev, "Wait for initialization_complete\n");
 	if (!wait_for_completion_timeout(&peripheral->initialization_complete,
 					 msecs_to_jiffies(5000))) {
@@ -524,21 +524,21 @@ static int cs42l42_sdw_probe(struct sdw_slave *peripheral, const struct sdw_devi
 
 	cs42l42 = devm_kzalloc(dev, sizeof(*cs42l42), GFP_KERNEL);
 	if (!cs42l42)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (has_acpi_companion(dev))
 		irq = acpi_dev_gpio_irq_get(ACPI_COMPANION(dev), 0);
 	else
-		irq = of_irq_get(dev->of_node, 0);
+		irq = of_irq_get(dev->of_analde, 0);
 
-	if (irq == -ENOENT)
+	if (irq == -EANALENT)
 		irq = 0;
 	else if (irq < 0)
 		return dev_err_probe(dev, irq, "Failed to get IRQ\n");
 
 	regmap_conf = devm_kmemdup(dev, &cs42l42_regmap, sizeof(cs42l42_regmap), GFP_KERNEL);
 	if (!regmap_conf)
-		return -ENOMEM;
+		return -EANALMEM;
 	regmap_conf->reg_bits = 16;
 	regmap_conf->num_ranges = 0;
 	regmap_conf->reg_read = cs42l42_sdw_read;
@@ -556,7 +556,7 @@ static int cs42l42_sdw_probe(struct sdw_slave *peripheral, const struct sdw_devi
 				     sizeof(cs42l42_soc_component),
 				     GFP_KERNEL);
 	if (!component_drv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	component_drv->dapm_routes = cs42l42_sdw_audio_map;
 	component_drv->num_dapm_routes = ARRAY_SIZE(cs42l42_sdw_audio_map);
@@ -575,7 +575,7 @@ static int cs42l42_sdw_probe(struct sdw_slave *peripheral, const struct sdw_devi
 	pm_runtime_use_autosuspend(cs42l42->dev);
 	pm_runtime_mark_last_busy(cs42l42->dev);
 	pm_runtime_set_active(cs42l42->dev);
-	pm_runtime_get_noresume(cs42l42->dev);
+	pm_runtime_get_analresume(cs42l42->dev);
 	pm_runtime_enable(cs42l42->dev);
 
 	ret = cs42l42_common_probe(cs42l42, component_drv, &cs42l42_sdw_dai);

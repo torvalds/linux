@@ -62,7 +62,7 @@ static DEFINE_MUTEX(quote_lock);
 
 /*
  * GetQuote request timeout in seconds. Expect that 30 seconds
- * is enough time for QE to respond to any Quote requests.
+ * is eanalugh time for QE to respond to any Quote requests.
  */
 static u32 getquote_timeout = 30;
 
@@ -73,11 +73,11 @@ static long tdx_get_report0(struct tdx_report_req __user *req)
 
 	reportdata = kmalloc(TDX_REPORTDATA_LEN, GFP_KERNEL);
 	if (!reportdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tdreport = kzalloc(TDX_REPORT_LEN, GFP_KERNEL);
 	if (!tdreport) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -188,13 +188,13 @@ static int tdx_report_new(struct tsm_report *report, void *data)
 
 	reportdata = kmalloc(TDX_REPORTDATA_LEN, GFP_KERNEL);
 	if (!reportdata) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto done;
 	}
 
 	tdreport = kzalloc(TDX_REPORT_LEN, GFP_KERNEL);
 	if (!tdreport) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto done;
 	}
 
@@ -230,7 +230,7 @@ static int tdx_report_new(struct tsm_report *report, void *data)
 
 	buf = kvmemdup(quote_buf->data, quote_buf->out_len, GFP_KERNEL);
 	if (!buf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto done;
 	}
 
@@ -256,19 +256,19 @@ static long tdx_guest_ioctl(struct file *file, unsigned int cmd,
 	case TDX_CMD_GET_REPORT0:
 		return tdx_get_report0((struct tdx_report_req __user *)arg);
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 }
 
 static const struct file_operations tdx_guest_fops = {
 	.owner = THIS_MODULE,
 	.unlocked_ioctl = tdx_guest_ioctl,
-	.llseek = no_llseek,
+	.llseek = anal_llseek,
 };
 
 static struct miscdevice tdx_misc_dev = {
 	.name = KBUILD_MODNAME,
-	.minor = MISC_DYNAMIC_MINOR,
+	.mianalr = MISC_DYNAMIC_MIANALR,
 	.fops = &tdx_guest_fops,
 };
 
@@ -288,7 +288,7 @@ static int __init tdx_guest_init(void)
 	int ret;
 
 	if (!x86_match_cpu(tdx_guest_ids))
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = misc_register(&tdx_misc_dev);
 	if (ret)
@@ -297,7 +297,7 @@ static int __init tdx_guest_init(void)
 	quote_data = alloc_quote_buf();
 	if (!quote_data) {
 		pr_err("Failed to allocate Quote buffer\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_misc;
 	}
 

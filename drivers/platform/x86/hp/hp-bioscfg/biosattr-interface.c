@@ -31,9 +31,9 @@ struct bios_args {
  * Sets an attribute to new value
  *
  * Returns zero on success
- *	-ENODEV if device is not found
- *	-EINVAL if the instance of 'Setup Admin' password is not found.
- *	-ENOMEM unable to allocate memory
+ *	-EANALDEV if device is analt found
+ *	-EINVAL if the instance of 'Setup Admin' password is analt found.
+ *	-EANALMEM unable to allocate memory
  */
 int hp_set_attribute(const char *a_name, const char *a_value)
 {
@@ -65,7 +65,7 @@ int hp_set_attribute(const char *a_name, const char *a_value)
 
 	buffer = kmalloc(buffer_size + 1, GFP_KERNEL);
 	if (!buffer) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_set_attribute;
 	}
 
@@ -106,10 +106,10 @@ out_set_attribute:
  *
  * returns zero on success
  *         an HP WMI query specific error code (which is positive)
- *         -EINVAL if the query was not successful at all
+ *         -EINVAL if the query was analt successful at all
  *         -EINVAL if the output buffer size exceeds buffersize
  *
- * Note: The buffersize must at least be the maximum of the input and output
+ * Analte: The buffersize must at least be the maximum of the input and output
  *       size. E.g. Battery info query is defined to have 1 byte input
  *       and 128 byte output. The caller would do:
  *       buffer = kzalloc(128, GFP_KERNEL);
@@ -133,7 +133,7 @@ int hp_wmi_perform_query(int query, enum hp_wmi_command command, void *buffer,
 	bios_args_size = struct_size(args, data, insize);
 	args = kmalloc(bios_args_size, GFP_KERNEL);
 	if (!args)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input.length = bios_args_size;
 	input.pointer = args;
@@ -170,7 +170,7 @@ int hp_wmi_perform_query(int query, enum hp_wmi_command command, void *buffer,
 		goto out_free;
 	}
 
-	/* Ignore output data of zero size */
+	/* Iganalre output data of zero size */
 	if (!outsize)
 		goto out_free;
 
@@ -196,7 +196,7 @@ static void *utf16_empty_string(u16 *p)
 /**
  * hp_ascii_to_utf16_unicode -  Convert ascii string to UTF-16 unicode
  *
- * BIOS supports UTF-16 characters that are 2 bytes long.  No variable
+ * BIOS supports UTF-16 characters that are 2 bytes long.  Anal variable
  * multi-byte language supported.
  *
  * @p:   Unicode buffer address
@@ -240,8 +240,8 @@ void *hp_ascii_to_utf16_unicode(u16 *p, const u8 *str)
  * @input_size:   Input buffer size
  *
  * Returns: Count of unicode characters written to BIOS if successful, otherwise
- *		-ENOMEM unable to allocate memory
- *		-EINVAL buffer not allocated or too small
+ *		-EANALMEM unable to allocate memory
+ *		-EINVAL buffer analt allocated or too small
  */
 int hp_wmi_set_bios_setting(u16 *input_buffer, u32 input_size)
 {

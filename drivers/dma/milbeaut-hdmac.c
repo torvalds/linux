@@ -104,7 +104,7 @@ milbeaut_hdmac_next_desc(struct milbeaut_hdmac_chan *mc)
 		return NULL;
 	}
 
-	list_del(&vd->node);
+	list_del(&vd->analde);
 
 	mc->md = to_milbeaut_hdmac_desc(vd);
 
@@ -265,11 +265,11 @@ milbeaut_hdmac_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 	if (!is_slave_direction(direction))
 		return NULL;
 
-	md = kzalloc(sizeof(*md), GFP_NOWAIT);
+	md = kzalloc(sizeof(*md), GFP_ANALWAIT);
 	if (!md)
 		return NULL;
 
-	md->sgl = kcalloc(sg_len, sizeof(*sgl), GFP_NOWAIT);
+	md->sgl = kcalloc(sg_len, sizeof(*sgl), GFP_ANALWAIT);
 	if (!md->sgl) {
 		kfree(md);
 		return NULL;
@@ -331,7 +331,7 @@ static enum dma_status milbeaut_hdmac_tx_status(struct dma_chan *chan,
 	int i;
 
 	stat = dma_cookie_status(chan, cookie, txstate);
-	/* Return immediately if we do not need to compute the residue. */
+	/* Return immediately if we do analt need to compute the residue. */
 	if (stat == DMA_COMPLETE || !txstate)
 		return stat;
 
@@ -437,7 +437,7 @@ static int milbeaut_hdmac_chan_init(struct platform_device *pdev,
 	irq_name = devm_kasprintf(dev, GFP_KERNEL, "milbeaut-hdmac-%d",
 				  chan_id);
 	if (!irq_name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = devm_request_irq(dev, irq, milbeaut_hdmac_interrupt,
 			       IRQF_SHARED, irq_name, mc);
@@ -470,7 +470,7 @@ static int milbeaut_hdmac_probe(struct platform_device *pdev)
 	mdev = devm_kzalloc(dev, struct_size(mdev, channels, nr_chans),
 			    GFP_KERNEL);
 	if (!mdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mdev->reg_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(mdev->reg_base))
@@ -514,7 +514,7 @@ static int milbeaut_hdmac_probe(struct platform_device *pdev)
 	if (ret)
 		goto disable_clk;
 
-	ret = of_dma_controller_register(dev->of_node,
+	ret = of_dma_controller_register(dev->of_analde,
 					 milbeaut_hdmac_xlate, mdev);
 	if (ret)
 		goto unregister_dmac;
@@ -541,10 +541,10 @@ static void milbeaut_hdmac_remove(struct platform_device *pdev)
 	 * Before reaching here, almost all descriptors have been freed by the
 	 * ->device_free_chan_resources() hook. However, each channel might
 	 * be still holding one descriptor that was on-flight at that moment.
-	 * Terminate it to make sure this hardware is no longer running. Then,
+	 * Terminate it to make sure this hardware is anal longer running. Then,
 	 * free the channel resources once again to avoid memory leak.
 	 */
-	list_for_each_entry(chan, &mdev->ddev.channels, device_node) {
+	list_for_each_entry(chan, &mdev->ddev.channels, device_analde) {
 		ret = dmaengine_terminate_sync(chan);
 		if (ret) {
 			/*
@@ -558,7 +558,7 @@ static void milbeaut_hdmac_remove(struct platform_device *pdev)
 		milbeaut_hdmac_free_chan_resources(chan);
 	}
 
-	of_dma_controller_free(pdev->dev.of_node);
+	of_dma_controller_free(pdev->dev.of_analde);
 	dma_async_device_unregister(&mdev->ddev);
 	clk_disable_unprepare(mdev->clk);
 }

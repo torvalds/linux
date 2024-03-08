@@ -250,7 +250,7 @@ static int flow_offload_hash_cmp(struct rhashtable_compare_arg *arg,
 }
 
 static const struct rhashtable_params nf_flow_offload_rhash_params = {
-	.head_offset		= offsetof(struct flow_offload_tuple_rhash, node),
+	.head_offset		= offsetof(struct flow_offload_tuple_rhash, analde),
 	.hashfn			= flow_offload_hash,
 	.obj_hashfn		= flow_offload_hash_obj,
 	.obj_cmpfn		= flow_offload_hash_cmp,
@@ -283,17 +283,17 @@ int flow_offload_add(struct nf_flowtable *flow_table, struct flow_offload *flow)
 	flow->timeout = nf_flowtable_time_stamp + flow_offload_get_timeout(flow);
 
 	err = rhashtable_insert_fast(&flow_table->rhashtable,
-				     &flow->tuplehash[0].node,
+				     &flow->tuplehash[0].analde,
 				     nf_flow_offload_rhash_params);
 	if (err < 0)
 		return err;
 
 	err = rhashtable_insert_fast(&flow_table->rhashtable,
-				     &flow->tuplehash[1].node,
+				     &flow->tuplehash[1].analde,
 				     nf_flow_offload_rhash_params);
 	if (err < 0) {
 		rhashtable_remove_fast(&flow_table->rhashtable,
-				       &flow->tuplehash[0].node,
+				       &flow->tuplehash[0].analde,
 				       nf_flow_offload_rhash_params);
 		return err;
 	}
@@ -336,10 +336,10 @@ static void flow_offload_del(struct nf_flowtable *flow_table,
 			     struct flow_offload *flow)
 {
 	rhashtable_remove_fast(&flow_table->rhashtable,
-			       &flow->tuplehash[FLOW_OFFLOAD_DIR_ORIGINAL].node,
+			       &flow->tuplehash[FLOW_OFFLOAD_DIR_ORIGINAL].analde,
 			       nf_flow_offload_rhash_params);
 	rhashtable_remove_fast(&flow_table->rhashtable,
-			       &flow->tuplehash[FLOW_OFFLOAD_DIR_REPLY].node,
+			       &flow->tuplehash[FLOW_OFFLOAD_DIR_REPLY].analde,
 			       nf_flow_offload_rhash_params);
 	flow_offload_free(flow);
 }
@@ -609,7 +609,7 @@ void nf_flow_table_free(struct nf_flowtable *flow_table)
 
 	cancel_delayed_work_sync(&flow_table->gc_work);
 	nf_flow_table_offload_flush(flow_table);
-	/* ... no more pending work after this stage ... */
+	/* ... anal more pending work after this stage ... */
 	nf_flow_table_iterate(flow_table, nf_flow_table_do_cleanup, NULL);
 	nf_flow_table_gc_run(flow_table);
 	nf_flow_table_offload_flush_cleanup(flow_table);
@@ -620,7 +620,7 @@ EXPORT_SYMBOL_GPL(nf_flow_table_free);
 static int nf_flow_table_init_net(struct net *net)
 {
 	net->ft.stat = alloc_percpu(struct nf_flow_table_stat);
-	return net->ft.stat ? 0 : -ENOMEM;
+	return net->ft.stat ? 0 : -EANALMEM;
 }
 
 static void nf_flow_table_fini_net(struct net *net)

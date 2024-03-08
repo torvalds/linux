@@ -90,11 +90,11 @@ config MACH_TS409
 	  QNAP TS-409 platform.
 
 config MACH_TS78XX
-	bool "Technologic Systems TS-78xx"
+	bool "Techanallogic Systems TS-78xx"
 	depends on ATAGS
 	help
 	  Say 'Y' here if you want your kernel to support the
-	  Technologic Systems TS-78xx platform.
+	  Techanallogic Systems TS-78xx platform.
 
 config MACH_MV2120
 	bool "HP Media Vault mv2120"

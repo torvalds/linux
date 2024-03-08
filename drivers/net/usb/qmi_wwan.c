@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2012  Bjørn Mork <bjorn@mork.no>
+ * Copyright (c) 2012  Bjørn Mork <bjorn@mork.anal>
  *
  * The probing code is heavily inspired by cdc_ether, which is:
  * Copyright (C) 2003-2005 by David Brownell
@@ -29,10 +29,10 @@
  *
  * QMI is wrapped in CDC, using CDC encapsulated commands on the
  * control ("master") interface of a two-interface CDC Union
- * resembling standard CDC ECM.  The devices do not use the control
+ * resembling standard CDC ECM.  The devices do analt use the control
  * interface for any other CDC messages.  Most likely because the
  * management protocol is used in place of the standard CDC
- * notifications NOTIFY_NETWORK_CONNECTION and NOTIFY_SPEED_CHANGE
+ * analtifications ANALTIFY_NETWORK_CONNECTION and ANALTIFY_SPEED_CHANGE
  *
  * Alternatively, control and data functions can be combined in a
  * single USB interface.
@@ -126,11 +126,11 @@ static const struct net_device_ops qmimux_netdev_ops = {
 
 static void qmimux_setup(struct net_device *dev)
 {
-	dev->header_ops      = NULL;  /* No header */
-	dev->type            = ARPHRD_NONE;
+	dev->header_ops      = NULL;  /* Anal header */
+	dev->type            = ARPHRD_ANALNE;
 	dev->hard_header_len = 0;
 	dev->addr_len        = 0;
-	dev->flags           = IFF_POINTOPOINT | IFF_NOARP | IFF_MULTICAST;
+	dev->flags           = IFF_POINTOPOINT | IFF_ANALARP | IFF_MULTICAST;
 	dev->netdev_ops      = &qmimux_netdev_ops;
 	dev->mtu             = 1500;
 	dev->needs_free_netdev = true;
@@ -175,7 +175,7 @@ static int qmimux_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 		if (offset + len + qmimux_hdr_sz > skb->len)
 			return 0;
 
-		/* control packet, we do not know what to do */
+		/* control packet, we do analt kanalw what to do */
 		if (hdr->pad & 0x80)
 			goto skip;
 
@@ -200,7 +200,7 @@ static int qmimux_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 			skbn->protocol = htons(ETH_P_IPV6);
 			break;
 		default:
-			/* not ip - do not know what to do */
+			/* analt ip - do analt kanalw what to do */
 			goto skip;
 		}
 
@@ -248,9 +248,9 @@ static int qmimux_register_device(struct net_device *real_dev, u8 mux_id)
 	int err;
 
 	new_dev = alloc_netdev(sizeof(struct qmimux_priv),
-			       "qmimux%d", NET_NAME_UNKNOWN, qmimux_setup);
+			       "qmimux%d", NET_NAME_UNKANALWN, qmimux_setup);
 	if (!new_dev)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	dev_net_set(new_dev, dev_net(real_dev));
 	priv = netdev_priv(new_dev);
@@ -259,7 +259,7 @@ static int qmimux_register_device(struct net_device *real_dev, u8 mux_id)
 
 	new_dev->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
 	if (!new_dev->tstats) {
-		err = -ENOBUFS;
+		err = -EANALBUFS;
 		goto out_free_newdev;
 	}
 
@@ -309,19 +309,19 @@ static void qmi_wwan_netdev_setup(struct net_device *net)
 	struct qmi_wwan_state *info = (void *)&dev->data;
 
 	if (info->flags & QMI_WWAN_FLAG_RAWIP) {
-		net->header_ops      = NULL;  /* No header */
-		net->type            = ARPHRD_NONE;
+		net->header_ops      = NULL;  /* Anal header */
+		net->type            = ARPHRD_ANALNE;
 		net->hard_header_len = 0;
 		net->addr_len        = 0;
-		net->flags           = IFF_POINTOPOINT | IFF_NOARP | IFF_MULTICAST;
-		set_bit(EVENT_NO_IP_ALIGN, &dev->flags);
+		net->flags           = IFF_POINTOPOINT | IFF_ANALARP | IFF_MULTICAST;
+		set_bit(EVENT_ANAL_IP_ALIGN, &dev->flags);
 		netdev_dbg(net, "mode: raw IP\n");
 	} else if (!net->header_ops) { /* don't bother if already set */
 		ether_setup(net);
 		/* Restoring min/max mtu values set originally by usbnet */
 		net->min_mtu = 0;
 		net->max_mtu = ETH_MAX_MTU;
-		clear_bit(EVENT_NO_IP_ALIGN, &dev->flags);
+		clear_bit(EVENT_ANAL_IP_ALIGN, &dev->flags);
 		netdev_dbg(net, "mode: Ethernet\n");
 	}
 
@@ -347,14 +347,14 @@ static ssize_t raw_ip_store(struct device *d,  struct device_attribute *attr, co
 	if (kstrtobool(buf, &enable))
 		return -EINVAL;
 
-	/* no change? */
+	/* anal change? */
 	if (enable == (info->flags & QMI_WWAN_FLAG_RAWIP))
 		return len;
 
-	/* ip mode cannot be cleared when pass through mode is set */
+	/* ip mode cananalt be cleared when pass through mode is set */
 	if (!enable && (info->flags & QMI_WWAN_FLAG_PASS_THROUGH)) {
 		netdev_err(dev->net,
-			   "Cannot clear ip mode on pass through device\n");
+			   "Cananalt clear ip mode on pass through device\n");
 		return -EINVAL;
 	}
 
@@ -363,14 +363,14 @@ static ssize_t raw_ip_store(struct device *d,  struct device_attribute *attr, co
 
 	/* we don't want to modify a running netdev */
 	if (netif_running(dev->net)) {
-		netdev_err(dev->net, "Cannot change a running device\n");
+		netdev_err(dev->net, "Cananalt change a running device\n");
 		ret = -EBUSY;
 		goto err;
 	}
 
 	/* let other drivers deny the change */
-	ret = call_netdevice_notifiers(NETDEV_PRE_TYPE_CHANGE, dev->net);
-	ret = notifier_to_errno(ret);
+	ret = call_netdevice_analtifiers(NETDEV_PRE_TYPE_CHANGE, dev->net);
+	ret = analtifier_to_erranal(ret);
 	if (ret) {
 		netdev_err(dev->net, "Type change was refused\n");
 		goto err;
@@ -381,7 +381,7 @@ static ssize_t raw_ip_store(struct device *d,  struct device_attribute *attr, co
 	else
 		info->flags &= ~QMI_WWAN_FLAG_RAWIP;
 	qmi_wwan_netdev_setup(dev->net);
-	call_netdevice_notifiers(NETDEV_POST_TYPE_CHANGE, dev->net);
+	call_netdevice_analtifiers(NETDEV_POST_TYPE_CHANGE, dev->net);
 	ret = len;
 err:
 	rtnl_unlock();
@@ -460,7 +460,7 @@ static ssize_t del_mux_store(struct device *d,  struct device_attribute *attr, c
 
 	del_dev = qmimux_find_dev(dev, mux_id);
 	if (!del_dev) {
-		netdev_err(dev->net, "mux_id not present\n");
+		netdev_err(dev->net, "mux_id analt present\n");
 		ret = -EINVAL;
 		goto err;
 	}
@@ -498,14 +498,14 @@ static ssize_t pass_through_store(struct device *d,
 
 	info = (void *)&dev->data;
 
-	/* no change? */
+	/* anal change? */
 	if (enable == (info->flags & QMI_WWAN_FLAG_PASS_THROUGH))
 		return len;
 
 	/* pass through mode can be set for raw ip devices only */
 	if (!(info->flags & QMI_WWAN_FLAG_RAWIP)) {
 		netdev_err(dev->net,
-			   "Cannot set pass through mode on non ip device\n");
+			   "Cananalt set pass through mode on analn ip device\n");
 		return -EINVAL;
 	}
 
@@ -543,8 +543,8 @@ static const u8 buggy_fw_addr[ETH_ALEN] = {0x00, 0xa0, 0xc6, 0x00, 0x00, 0x00};
 /* Make up an ethernet header if the packet doesn't have one.
  *
  * A firmware bug common among several devices cause them to send raw
- * IP packets under some circumstances.  There is no way for the
- * driver/host to know when this will happen.  And even when the bug
+ * IP packets under some circumstances.  There is anal way for the
+ * driver/host to kanalw when this will happen.  And even when the bug
  * hits, some packets will still arrive with an intact header.
  *
  * The supported devices are only capably of sending IPv4, IPv6 and
@@ -553,10 +553,10 @@ static const u8 buggy_fw_addr[ETH_ALEN] = {0x00, 0xa0, 0xc6, 0x00, 0x00, 0x00};
  * address as destination.  ARP packets will always have a header.
  *
  * This means that this function will reliably add the appropriate
- * header iff necessary, provided our hardware address does not start
+ * header iff necessary, provided our hardware address does analt start
  * with 4 or 6.
  *
- * Another common firmware bug results in all packets being addressed
+ * Aanalther common firmware bug results in all packets being addressed
  * to 00:a0:c6:00:00:00 despite the host address being different.
  * This function will also fixup such packets.
  */
@@ -566,7 +566,7 @@ static int qmi_wwan_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 	bool rawip = info->flags & QMI_WWAN_FLAG_RAWIP;
 	__be16 proto;
 
-	/* This check is no longer done by usbnet */
+	/* This check is anal longer done by usbnet */
 	if (skb->len < dev->net->hard_header_len)
 		return 0;
 
@@ -601,7 +601,7 @@ static int qmi_wwan_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 	}
 	if (rawip) {
 		skb_reset_mac_header(skb);
-		skb->dev = dev->net; /* normally set by eth_type_trans */
+		skb->dev = dev->net; /* analrmally set by eth_type_trans */
 		skb->protocol = proto;
 		return 1;
 	}
@@ -633,7 +633,7 @@ static int qmi_wwan_mac_addr(struct net_device *dev, void *p)
 	if (ret < 0)
 		return ret;
 	if (possibly_iphdr(addr->sa_data))
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 	eth_commit_mac_addr_change(dev, p);
 	return 0;
 }
@@ -777,7 +777,7 @@ static int qmi_wwan_bind(struct usbnet *dev, struct usb_interface *intf)
 				cdc_union->bMasterInterface0,
 				cdc_union->bSlaveInterface0);
 
-			/* ignore and continue... */
+			/* iganalre and continue... */
 			cdc_union = NULL;
 			info->data = intf;
 		}
@@ -803,7 +803,7 @@ static int qmi_wwan_bind(struct usbnet *dev, struct usb_interface *intf)
 	}
 
 	/* disabling remote wakeup on MDM9x30 devices has the same
-	 * effect as clearing DTR. The device will not respond to QMI
+	 * effect as clearing DTR. The device will analt respond to QMI
 	 * requests until we set DTR again.  This is similar to a
 	 * QMI_CTL SYNC request, clearing a lot of firmware state
 	 * including the client ID allocations.
@@ -826,7 +826,7 @@ static int qmi_wwan_bind(struct usbnet *dev, struct usb_interface *intf)
 	}
 
 	/* Never use the same address on both ends of the link, even if the
-	 * buggy firmware told us to. Or, if device is assigned the well-known
+	 * buggy firmware told us to. Or, if device is assigned the well-kanalwn
 	 * buggy firmware MAC address, replace it with a random address,
 	 */
 	if (ether_addr_equal(dev->net->dev_addr, default_modem_addr) ||
@@ -868,7 +868,7 @@ static void qmi_wwan_unbind(struct usbnet *dev, struct usb_interface *intf)
 	else
 		other = info->control;
 
-	/* only if not shared */
+	/* only if analt shared */
 	if (other && intf != other) {
 		usb_set_intfdata(other, NULL);
 		usb_driver_release_interface(driver, other);
@@ -882,7 +882,7 @@ static void qmi_wwan_unbind(struct usbnet *dev, struct usb_interface *intf)
 /* suspend/resume wrappers calling both usbnet and the cdc-wdm
  * subdriver if present.
  *
- * NOTE: cdc-wdm also supports pre/post_reset, but we cannot provide
+ * ANALTE: cdc-wdm also supports pre/post_reset, but we cananalt provide
  * wrappers for those without adding usbnet reset support first.
  */
 static int qmi_wwan_suspend(struct usb_interface *intf, pm_message_t message)
@@ -1023,60 +1023,60 @@ static const struct usb_device_id products[] = {
 		USB_VENDOR_AND_INTERFACE_INFO(0x106c, USB_CLASS_VENDOR_SPEC, 0xf1, 0xff),
 		.driver_info        = (unsigned long)&qmi_wwan_info,
 	},
-	{	/* Novatel USB551L and MC551 */
+	{	/* Analvatel USB551L and MC551 */
 		USB_DEVICE_AND_INTERFACE_INFO(0x1410, 0xb001,
 		                              USB_CLASS_COMM,
 		                              USB_CDC_SUBCLASS_ETHERNET,
-		                              USB_CDC_PROTO_NONE),
+		                              USB_CDC_PROTO_ANALNE),
 		.driver_info        = (unsigned long)&qmi_wwan_info,
 	},
-	{	/* Novatel E362 */
+	{	/* Analvatel E362 */
 		USB_DEVICE_AND_INTERFACE_INFO(0x1410, 0x9010,
 		                              USB_CLASS_COMM,
 		                              USB_CDC_SUBCLASS_ETHERNET,
-		                              USB_CDC_PROTO_NONE),
+		                              USB_CDC_PROTO_ANALNE),
 		.driver_info        = (unsigned long)&qmi_wwan_info,
 	},
-	{	/* Novatel Expedite E371 */
+	{	/* Analvatel Expedite E371 */
 		USB_DEVICE_AND_INTERFACE_INFO(0x1410, 0x9011,
 		                              USB_CLASS_COMM,
 		                              USB_CDC_SUBCLASS_ETHERNET,
-		                              USB_CDC_PROTO_NONE),
+		                              USB_CDC_PROTO_ANALNE),
 		.driver_info        = (unsigned long)&qmi_wwan_info,
 	},
-	{	/* Dell Wireless 5800 (Novatel E362) */
+	{	/* Dell Wireless 5800 (Analvatel E362) */
 		USB_DEVICE_AND_INTERFACE_INFO(0x413C, 0x8195,
 					      USB_CLASS_COMM,
 					      USB_CDC_SUBCLASS_ETHERNET,
-					      USB_CDC_PROTO_NONE),
+					      USB_CDC_PROTO_ANALNE),
 		.driver_info        = (unsigned long)&qmi_wwan_info,
 	},
-	{	/* Dell Wireless 5800 V2 (Novatel E362) */
+	{	/* Dell Wireless 5800 V2 (Analvatel E362) */
 		USB_DEVICE_AND_INTERFACE_INFO(0x413C, 0x8196,
 					      USB_CLASS_COMM,
 					      USB_CDC_SUBCLASS_ETHERNET,
-					      USB_CDC_PROTO_NONE),
+					      USB_CDC_PROTO_ANALNE),
 		.driver_info        = (unsigned long)&qmi_wwan_info,
 	},
-	{	/* Dell Wireless 5804 (Novatel E371) */
+	{	/* Dell Wireless 5804 (Analvatel E371) */
 		USB_DEVICE_AND_INTERFACE_INFO(0x413C, 0x819b,
 					      USB_CLASS_COMM,
 					      USB_CDC_SUBCLASS_ETHERNET,
-					      USB_CDC_PROTO_NONE),
+					      USB_CDC_PROTO_ANALNE),
 		.driver_info        = (unsigned long)&qmi_wwan_info,
 	},
 	{	/* ADU960S */
 		USB_DEVICE_AND_INTERFACE_INFO(0x16d5, 0x650a,
 					      USB_CLASS_COMM,
 					      USB_CDC_SUBCLASS_ETHERNET,
-					      USB_CDC_PROTO_NONE),
+					      USB_CDC_PROTO_ANALNE),
 		.driver_info        = (unsigned long)&qmi_wwan_info,
 	},
-	{	/* HP lt2523 (Novatel E371) */
+	{	/* HP lt2523 (Analvatel E371) */
 		USB_DEVICE_AND_INTERFACE_INFO(0x03f0, 0x421d,
 					      USB_CLASS_COMM,
 					      USB_CDC_SUBCLASS_ETHERNET,
-					      USB_CDC_PROTO_NONE),
+					      USB_CDC_PROTO_ANALNE),
 		.driver_info        = (unsigned long)&qmi_wwan_info,
 	},
 	{	/* HP lt4112 LTE/HSPA+ Gobi 4G Module (Huawei me906e) */
@@ -1437,13 +1437,13 @@ static const struct usb_device_id products[] = {
 	{QMI_GOBI1K_DEVICE(0x03f0, 0x1f1d)},	/* HP un2400 Gobi Modem Device */
 	{QMI_GOBI1K_DEVICE(0x04da, 0x250d)},	/* Panasonic Gobi Modem device */
 	{QMI_GOBI1K_DEVICE(0x413c, 0x8172)},	/* Dell Gobi Modem device */
-	{QMI_GOBI1K_DEVICE(0x1410, 0xa001)},	/* Novatel/Verizon USB-1000 */
-	{QMI_GOBI1K_DEVICE(0x1410, 0xa002)},	/* Novatel Gobi Modem device */
-	{QMI_GOBI1K_DEVICE(0x1410, 0xa003)},	/* Novatel Gobi Modem device */
-	{QMI_GOBI1K_DEVICE(0x1410, 0xa004)},	/* Novatel Gobi Modem device */
-	{QMI_GOBI1K_DEVICE(0x1410, 0xa005)},	/* Novatel Gobi Modem device */
-	{QMI_GOBI1K_DEVICE(0x1410, 0xa006)},	/* Novatel Gobi Modem device */
-	{QMI_GOBI1K_DEVICE(0x1410, 0xa007)},	/* Novatel Gobi Modem device */
+	{QMI_GOBI1K_DEVICE(0x1410, 0xa001)},	/* Analvatel/Verizon USB-1000 */
+	{QMI_GOBI1K_DEVICE(0x1410, 0xa002)},	/* Analvatel Gobi Modem device */
+	{QMI_GOBI1K_DEVICE(0x1410, 0xa003)},	/* Analvatel Gobi Modem device */
+	{QMI_GOBI1K_DEVICE(0x1410, 0xa004)},	/* Analvatel Gobi Modem device */
+	{QMI_GOBI1K_DEVICE(0x1410, 0xa005)},	/* Analvatel Gobi Modem device */
+	{QMI_GOBI1K_DEVICE(0x1410, 0xa006)},	/* Analvatel Gobi Modem device */
+	{QMI_GOBI1K_DEVICE(0x1410, 0xa007)},	/* Analvatel Gobi Modem device */
 	{QMI_GOBI1K_DEVICE(0x0b05, 0x1776)},	/* Asus Gobi Modem device */
 	{QMI_GOBI1K_DEVICE(0x19d2, 0xfff3)},	/* ONDA Gobi Modem device */
 	{QMI_GOBI1K_DEVICE(0x05c6, 0x9001)},	/* Generic Gobi Modem device */
@@ -1464,7 +1464,7 @@ static const struct usb_device_id products[] = {
 	{QMI_FIXED_INTF(0x05c6, 0x9215, 4)},	/* Quectel EC20 Mini PCIe */
 	{QMI_GOBI_DEVICE(0x05c6, 0x9265)},	/* Asus Gobi 2000 Modem device (VR305) */
 	{QMI_GOBI_DEVICE(0x05c6, 0x9235)},	/* Top Global Gobi 2000 Modem device (VR306) */
-	{QMI_GOBI_DEVICE(0x05c6, 0x9275)},	/* iRex Technologies Gobi 2000 Modem device (VR307) */
+	{QMI_GOBI_DEVICE(0x05c6, 0x9275)},	/* iRex Techanallogies Gobi 2000 Modem device (VR307) */
 	{QMI_GOBI_DEVICE(0x0af0, 0x8120)},	/* Option GTM681W */
 	{QMI_GOBI_DEVICE(0x1199, 0x68a5)},	/* Sierra Wireless Modem */
 	{QMI_GOBI_DEVICE(0x1199, 0x68a9)},	/* Sierra Wireless Modem */
@@ -1487,7 +1487,7 @@ static const struct usb_device_id products[] = {
 	{QMI_GOBI_DEVICE(0x1199, 0x9019)},	/* Sierra Wireless Gobi 3000 Modem device */
 	{QMI_GOBI_DEVICE(0x1199, 0x901b)},	/* Sierra Wireless MC7770 */
 	{QMI_GOBI_DEVICE(0x12d1, 0x14f1)},	/* Sony Gobi 3000 Composite */
-	{QMI_GOBI_DEVICE(0x1410, 0xa021)},	/* Foxconn Gobi 3000 Modem device (Novatel E396) */
+	{QMI_GOBI_DEVICE(0x1410, 0xa021)},	/* Foxconn Gobi 3000 Modem device (Analvatel E396) */
 
 	{ }					/* END */
 };
@@ -1531,23 +1531,23 @@ static int qmi_wwan_probe(struct usb_interface *intf,
 		dev_dbg(&intf->dev,
 			"Rejecting interface number match for class %02x\n",
 			desc->bInterfaceClass);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Quectel EC20 quirk where we've QMI on interface 4 instead of 0 */
 	if (quectel_ec20_detected(intf) && desc->bInterfaceNumber == 0) {
 		dev_dbg(&intf->dev, "Quectel EC20 quirk, skipping interface 0\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Several Quectel modems supports dynamic interface configuration, so
 	 * we need to match on class/subclass/protocol. These values are
-	 * identical for the diagnostic- and QMI-interface, but bNumEndpoints is
-	 * different. Ignore the current interface if the number of endpoints
+	 * identical for the diaganalstic- and QMI-interface, but bNumEndpoints is
+	 * different. Iganalre the current interface if the number of endpoints
 	 * equals the number for the diag interface (two).
 	 */
 	if (desc->bNumEndpoints == 2)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return usbnet_probe(intf, id);
 }
@@ -1594,6 +1594,6 @@ static struct usb_driver qmi_wwan_driver = {
 
 module_usb_driver(qmi_wwan_driver);
 
-MODULE_AUTHOR("Bjørn Mork <bjorn@mork.no>");
+MODULE_AUTHOR("Bjørn Mork <bjorn@mork.anal>");
 MODULE_DESCRIPTION("Qualcomm MSM Interface (QMI) WWAN driver");
 MODULE_LICENSE("GPL");

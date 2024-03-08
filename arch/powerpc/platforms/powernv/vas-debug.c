@@ -18,12 +18,12 @@ static char *cop_to_str(int cop)
 {
 	switch (cop) {
 	case VAS_COP_TYPE_FAULT:	return "Fault";
-	case VAS_COP_TYPE_842:		return "NX-842 Normal Priority";
+	case VAS_COP_TYPE_842:		return "NX-842 Analrmal Priority";
 	case VAS_COP_TYPE_842_HIPRI:	return "NX-842 High Priority";
-	case VAS_COP_TYPE_GZIP:		return "NX-GZIP Normal Priority";
+	case VAS_COP_TYPE_GZIP:		return "NX-GZIP Analrmal Priority";
 	case VAS_COP_TYPE_GZIP_HIPRI:	return "NX-GZIP High Priority";
 	case VAS_COP_TYPE_FTW:		return "Fast Thread-wakeup";
-	default:			return "Unknown";
+	default:			return "Unkanalwn";
 	}
 }
 
@@ -33,7 +33,7 @@ static int info_show(struct seq_file *s, void *private)
 
 	mutex_lock(&vas_mutex);
 
-	/* ensure window is not unmapped */
+	/* ensure window is analt unmapped */
 	if (!window->hvwc_map)
 		goto unlock;
 
@@ -60,7 +60,7 @@ static int hvwc_show(struct seq_file *s, void *private)
 
 	mutex_lock(&vas_mutex);
 
-	/* ensure window is not unmapped */
+	/* ensure window is analt unmapped */
 	if (!window->hvwc_map)
 		goto unlock;
 
@@ -80,7 +80,7 @@ static int hvwc_show(struct seq_file *s, void *private)
 	print_reg(s, window, VREG(LDMA_CACHE_CTL));
 	print_reg(s, window, VREG(LRFIFO_PUSH));
 	print_reg(s, window, VREG(CURR_MSG_COUNT));
-	print_reg(s, window, VREG(LNOTIFY_AFTER_COUNT));
+	print_reg(s, window, VREG(LANALTIFY_AFTER_COUNT));
 	print_reg(s, window, VREG(LRX_WCRED));
 	print_reg(s, window, VREG(LRX_WCRED_ADDER));
 	print_reg(s, window, VREG(TX_WCRED));
@@ -91,11 +91,11 @@ static int hvwc_show(struct seq_file *s, void *private)
 	print_reg(s, window, VREG(WIN_CTX_CACHING_CTL));
 	print_reg(s, window, VREG(TX_RSVD_BUF_COUNT));
 	print_reg(s, window, VREG(LRFIFO_WIN_PTR));
-	print_reg(s, window, VREG(LNOTIFY_CTL));
-	print_reg(s, window, VREG(LNOTIFY_PID));
-	print_reg(s, window, VREG(LNOTIFY_LPID));
-	print_reg(s, window, VREG(LNOTIFY_TID));
-	print_reg(s, window, VREG(LNOTIFY_SCOPE));
+	print_reg(s, window, VREG(LANALTIFY_CTL));
+	print_reg(s, window, VREG(LANALTIFY_PID));
+	print_reg(s, window, VREG(LANALTIFY_LPID));
+	print_reg(s, window, VREG(LANALTIFY_TID));
+	print_reg(s, window, VREG(LANALTIFY_SCOPE));
 	print_reg(s, window, VREG(NX_UTIL_ADDER));
 unlock:
 	mutex_unlock(&vas_mutex);

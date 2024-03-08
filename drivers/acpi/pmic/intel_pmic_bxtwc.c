@@ -17,7 +17,7 @@
 #define WHISKEY_COVE_ADC_CURSRC(x)	(((x & 0xF0) >> 4))
 #define VR_MODE_DISABLED        0
 #define VR_MODE_AUTO            BIT(0)
-#define VR_MODE_NORMAL          BIT(1)
+#define VR_MODE_ANALRMAL          BIT(1)
 #define VR_MODE_SWITCH          BIT(2)
 #define VR_MODE_ECO             (BIT(0)|BIT(1))
 #define VSWITCH2_OUTPUT         BIT(5)
@@ -48,47 +48,47 @@ static struct pmic_table power_table[] = {
 	{
 		.address = 0x10,
 		.reg = 0x6f,
-		.bit = VR_MODE_NORMAL,
+		.bit = VR_MODE_ANALRMAL,
 	}, /* VP1A -> VPROG1ACNT */
 	{
 		.address = 0x14,
 		.reg = 0x70,
-		.bit = VR_MODE_NORMAL,
+		.bit = VR_MODE_ANALRMAL,
 	}, /* VP1B -> VPROG1BCNT */
 	{
 		.address = 0x18,
 		.reg = 0x71,
-		.bit = VR_MODE_NORMAL,
+		.bit = VR_MODE_ANALRMAL,
 	}, /* VP1C -> VPROG1CCNT */
 	{
 		.address = 0x1c,
 		.reg = 0x72,
-		.bit = VR_MODE_NORMAL,
+		.bit = VR_MODE_ANALRMAL,
 	}, /* VP1D -> VPROG1DCNT */
 	{
 		.address = 0x20,
 		.reg = 0x73,
-		.bit = VR_MODE_NORMAL,
+		.bit = VR_MODE_ANALRMAL,
 	}, /* VP2A -> VPROG2ACNT */
 	{
 		.address = 0x24,
 		.reg = 0x74,
-		.bit = VR_MODE_NORMAL,
+		.bit = VR_MODE_ANALRMAL,
 	}, /* VP2B -> VPROG2BCNT */
 	{
 		.address = 0x28,
 		.reg = 0x75,
-		.bit = VR_MODE_NORMAL,
+		.bit = VR_MODE_ANALRMAL,
 	}, /* VP2C -> VPROG2CCNT */
 	{
 		.address = 0x2c,
 		.reg = 0x76,
-		.bit = VR_MODE_NORMAL,
+		.bit = VR_MODE_ANALRMAL,
 	}, /* VP3A -> VPROG3ACNT */
 	{
 		.address = 0x30,
 		.reg = 0x77,
-		.bit = VR_MODE_NORMAL,
+		.bit = VR_MODE_ANALRMAL,
 	}, /* VP3B -> VPROG3BCNT */
 	{
 		.address = 0x34,
@@ -108,62 +108,62 @@ static struct pmic_table power_table[] = {
 	{
 		.address = 0x40,
 		.reg = 0x7b,
-		.bit = VR_MODE_NORMAL,
+		.bit = VR_MODE_ANALRMAL,
 	}, /* VRSO -> VREFSOCCNT*/
 	{
 		.address = 0x44,
 		.reg = 0xA0,
-		.bit = VR_MODE_NORMAL,
+		.bit = VR_MODE_ANALRMAL,
 	}, /* VP1E -> VPROG1ECNT */
 	{
 		.address = 0x48,
 		.reg = 0xA1,
-		.bit = VR_MODE_NORMAL,
+		.bit = VR_MODE_ANALRMAL,
 	}, /* VP1F -> VPROG1FCNT */
 	{
 		.address = 0x4c,
 		.reg = 0xA2,
-		.bit = VR_MODE_NORMAL,
+		.bit = VR_MODE_ANALRMAL,
 	}, /* VP2D -> VPROG2DCNT */
 	{
 		.address = 0x50,
 		.reg = 0xA3,
-		.bit = VR_MODE_NORMAL,
+		.bit = VR_MODE_ANALRMAL,
 	}, /* VP4A -> VPROG4ACNT */
 	{
 		.address = 0x54,
 		.reg = 0xA4,
-		.bit = VR_MODE_NORMAL,
+		.bit = VR_MODE_ANALRMAL,
 	}, /* VP4B -> VPROG4BCNT */
 	{
 		.address = 0x58,
 		.reg = 0xA5,
-		.bit = VR_MODE_NORMAL,
+		.bit = VR_MODE_ANALRMAL,
 	}, /* VP4C -> VPROG4CCNT */
 	{
 		.address = 0x5c,
 		.reg = 0xA6,
-		.bit = VR_MODE_NORMAL,
+		.bit = VR_MODE_ANALRMAL,
 	}, /* VP4D -> VPROG4DCNT */
 	{
 		.address = 0x60,
 		.reg = 0xA7,
-		.bit = VR_MODE_NORMAL,
+		.bit = VR_MODE_ANALRMAL,
 	}, /* VP5A -> VPROG5ACNT */
 	{
 		.address = 0x64,
 		.reg = 0xA8,
-		.bit = VR_MODE_NORMAL,
+		.bit = VR_MODE_ANALRMAL,
 	}, /* VP5B -> VPROG5BCNT */
 	{
 		.address = 0x68,
 		.reg = 0xA9,
-		.bit = VR_MODE_NORMAL,
+		.bit = VR_MODE_ANALRMAL,
 	}, /* VP6A -> VPROG6ACNT */
 	{
 		.address = 0x6c,
 		.reg = 0xAA,
-		.bit = VR_MODE_NORMAL,
+		.bit = VR_MODE_ANALRMAL,
 	}, /* VP6B -> VPROG6BCNT */
 	{
 		.address = 0x70,

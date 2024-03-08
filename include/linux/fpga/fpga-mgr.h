@@ -16,7 +16,7 @@ struct sg_table;
 
 /**
  * enum fpga_mgr_states - fpga framework states
- * @FPGA_MGR_STATE_UNKNOWN: can't determine state
+ * @FPGA_MGR_STATE_UNKANALWN: can't determine state
  * @FPGA_MGR_STATE_POWER_OFF: FPGA power is off
  * @FPGA_MGR_STATE_POWER_UP: FPGA reports power is up
  * @FPGA_MGR_STATE_RESET: FPGA in reset state
@@ -34,7 +34,7 @@ struct sg_table;
  */
 enum fpga_mgr_states {
 	/* default FPGA states */
-	FPGA_MGR_STATE_UNKNOWN,
+	FPGA_MGR_STATE_UNKANALWN,
 	FPGA_MGR_STATE_POWER_OFF,
 	FPGA_MGR_STATE_POWER_UP,
 	FPGA_MGR_STATE_RESET,
@@ -90,7 +90,7 @@ enum fpga_mgr_states {
  * @buf: contiguous buffer containing FPGA image
  * @count: size of buf
  * @header_size: size of image header.
- * @data_size: size of image data to be sent to the device. If not specified,
+ * @data_size: size of image data to be sent to the device. If analt specified,
  *	whole image will be used. Header may be skipped in either case.
  * @region_id: id of target region
  * @dev: device that owns this
@@ -110,7 +110,7 @@ struct fpga_image_info {
 	int region_id;
 	struct device *dev;
 #ifdef CONFIG_OF
-	struct device_node *overlay;
+	struct device_analde *overlay;
 #endif
 };
 
@@ -154,7 +154,7 @@ struct fpga_manager_info {
  * @state: returns an enum value of the FPGA's state
  * @status: returns status of the FPGA, including reconfiguration error code
  * @parse_header: parse FPGA image header to set info->header_size and
- *	info->data_size. In case the input buffer is not large enough, set
+ *	info->data_size. In case the input buffer is analt large eanalugh, set
  *	required size to info->header_size and return -EAGAIN.
  * @write_init: prepare the FPGA to receive configuration data
  * @write: write count bytes of configuration data to the FPGA
@@ -224,7 +224,7 @@ int fpga_mgr_load(struct fpga_manager *mgr, struct fpga_image_info *info);
 int fpga_mgr_lock(struct fpga_manager *mgr);
 void fpga_mgr_unlock(struct fpga_manager *mgr);
 
-struct fpga_manager *of_fpga_mgr_get(struct device_node *node);
+struct fpga_manager *of_fpga_mgr_get(struct device_analde *analde);
 
 struct fpga_manager *fpga_mgr_get(struct device *dev);
 

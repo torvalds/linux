@@ -15,7 +15,7 @@ struct komeda_str {
 	u32 len;
 };
 
-/* return 0 on success,  < 0 on no space.
+/* return 0 on success,  < 0 on anal space.
  */
 __printf(2, 3)
 static int komeda_sprintf(struct komeda_str *str, const char *fmt, ...)
@@ -26,7 +26,7 @@ static int komeda_sprintf(struct komeda_str *str, const char *fmt, ...)
 
 	free_sz = str->sz - str->len - 1;
 	if (free_sz <= 0)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	va_start(args, fmt);
 
@@ -39,7 +39,7 @@ static int komeda_sprintf(struct komeda_str *str, const char *fmt, ...)
 		err = 0;
 	} else {
 		str->len = str->sz - 1;
-		err = -ENOSPC;
+		err = -EANALSPC;
 	}
 
 	return err;
@@ -54,7 +54,7 @@ static void evt_sprintf(struct komeda_str *str, u64 evt, const char *msg)
 static void evt_str(struct komeda_str *str, u64 events)
 {
 	if (events == 0ULL) {
-		komeda_sprintf(str, "None");
+		komeda_sprintf(str, "Analne");
 		return;
 	}
 

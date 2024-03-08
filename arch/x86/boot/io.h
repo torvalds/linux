@@ -20,7 +20,7 @@ struct port_io_ops {
 extern struct port_io_ops pio_ops;
 
 /*
- * Use the normal I/O instructions by default.
+ * Use the analrmal I/O instructions by default.
  * TDX guests override these to use hypercalls.
  */
 static inline void init_default_io_ops(void)

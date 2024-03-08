@@ -6,9 +6,9 @@ Required properties:
  - interrupts : <a b> where a is the interrupt number and b represents an
    encoding of the sense and level information for the interrupt.
 
-Required sub-node:
+Required sub-analde:
 - connector: The "usb-c-connector" attached to the tcpci chip, the bindings
-  of connector node are specified in
+  of connector analde are specified in
   Documentation/devicetree/bindings/connector/usb-connector.yaml
 
 Example :

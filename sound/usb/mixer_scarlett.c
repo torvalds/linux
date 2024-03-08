@@ -5,25 +5,25 @@
  *   Copyright (c) 2013 by Tobias Hoffmann
  *   Copyright (c) 2013 by Robin Gareus <robin at gareus.org>
  *   Copyright (c) 2002 by Takashi Iwai <tiwai at suse.de>
- *   Copyright (c) 2014 by Chris J Arges <chris.j.arges at canonical.com>
+ *   Copyright (c) 2014 by Chris J Arges <chris.j.arges at caanalnical.com>
  *
  *   Many codes borrowed from audio.c by
  *	    Alan Cox (alan at lxorguk.ukuu.org.uk)
  *	    Thomas Sailer (sailer at ife.ee.ethz.ch)
  *
  *   Code cleanup:
- *   David Henningsson <david.henningsson at canonical.com>
+ *   David Henningsson <david.henningsson at caanalnical.com>
  */
 
 /*
  * Rewritten and extended to support more models, e.g. Scarlett 18i8.
  *
- * Auto-detection via UAC2 is not feasible to properly discover the vast
+ * Auto-detection via UAC2 is analt feasible to properly discover the vast
  * majority of features. It's related to both Linux/ALSA's UAC2 as well as
  * Focusrite's implementation of it. Eventually quirks may be sufficient but
- * right now it's a major headache to work around these things.
+ * right analw it's a major headache to work around these things.
  *
- * NB. Neither the OSX nor the win driver provided by Focusrite performs
+ * NB. Neither the OSX analr the win driver provided by Focusrite performs
  * discovery, they seem to operate the same as this driver.
  */
 
@@ -55,7 +55,7 @@
  * 0x32 Mixer mux, wValue=0x0600 + mixer-channel, data=input-to-connect(2bytes)
  * 0x33 Output mux, wValue=bus, data=input-to-connect(2bytes)
  * 0x34 Capture mux, wValue=0...18, data=input-to-connect(2bytes)
- * 0x3c Matrix Mixer gains, wValue=mixer-node  data=gain(2bytes)
+ * 0x3c Matrix Mixer gains, wValue=mixer-analde  data=gain(2bytes)
  *      ?? [sometimes](4bytes, e.g 0x000003be 0x000003bf ...03ff)
  *
  * USB reads: (i.e. actually issued by original software)
@@ -225,7 +225,7 @@ static const struct scarlett_mixer_elem_enum_info opt_sync = {
 	.len = 2,
 	.offsets = {},
 	.names = (char const * const []){
-		"No Lock", "Locked"
+		"Anal Lock", "Locked"
 	}
 };
 
@@ -548,7 +548,7 @@ static int add_new_ctl(struct usb_mixer_interface *mixer,
 
 	elem = kzalloc(sizeof(*elem), GFP_KERNEL);
 	if (!elem)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	elem->head.mixer = mixer;
 	elem->head.resume = resume;
@@ -565,7 +565,7 @@ static int add_new_ctl(struct usb_mixer_interface *mixer,
 	kctl = snd_ctl_new1(ncontrol, elem);
 	if (!kctl) {
 		kfree(elem);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	kctl->private_free = snd_usb_mixer_elem_free;
 
@@ -939,7 +939,7 @@ int snd_scarlett_controls_create(struct usb_mixer_interface *mixer)
 	case USB_ID(0x1235, 0x800c):
 		info = &s18i20_info;
 		break;
-	default: /* device not (yet) supported */
+	default: /* device analt (yet) supported */
 		return -EINVAL;
 	}
 

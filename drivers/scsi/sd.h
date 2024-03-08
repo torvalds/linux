@@ -3,7 +3,7 @@
 #define _SCSI_DISK_H
 
 /*
- * More than enough for everybody ;)  The huge number of majors
+ * More than eanalugh for everybody ;)  The huge number of majors
  * is a leftover from 16bit dev_t days, we don't really need that
  * much numberspace.
  */
@@ -73,8 +73,8 @@ enum {
  * @zone_blocks: number of logical blocks per zone.
  *
  * This data structure holds the ZBC SCSI device properties that are retrieved
- * twice: a first time before the gendisk capacity is known and a second time
- * after the gendisk capacity is known.
+ * twice: a first time before the gendisk capacity is kanalwn and a second time
+ * after the gendisk capacity is kanalwn.
  */
 struct zoned_disk_info {
 	u32		nr_zones;
@@ -86,21 +86,21 @@ struct scsi_disk {
 
 	/*
 	 * disk_dev is used to show attributes in /sys/class/scsi_disk/,
-	 * but otherwise not really needed.  Do not use for refcounting.
+	 * but otherwise analt really needed.  Do analt use for refcounting.
 	 */
 	struct device	disk_dev;
 	struct gendisk	*disk;
 	struct opal_dev *opal_dev;
 #ifdef CONFIG_BLK_DEV_ZONED
-	/* Updated during revalidation before the gendisk capacity is known. */
+	/* Updated during revalidation before the gendisk capacity is kanalwn. */
 	struct zoned_disk_info	early_zone_info;
-	/* Updated during revalidation after the gendisk capacity is known. */
+	/* Updated during revalidation after the gendisk capacity is kanalwn. */
 	struct zoned_disk_info	zone_info;
 	u32		zones_optimal_open;
-	u32		zones_optimal_nonseq;
+	u32		zones_optimal_analnseq;
 	u32		zones_max_open;
 	/*
-	 * Either zero or a power of two. If not zero it means that the offset
+	 * Either zero or a power of two. If analt zero it means that the offset
 	 * between zone starting LBAs is constant.
 	 */
 	u32		zone_starting_lba_gran;
@@ -150,7 +150,7 @@ struct scsi_disk {
 	unsigned	zoned: 2;
 	unsigned	urswrz : 1;
 	unsigned	security : 1;
-	unsigned	ignore_medium_access_errors : 1;
+	unsigned	iganalre_medium_access_errors : 1;
 };
 #define to_scsi_disk(obj) container_of(obj, struct scsi_disk, disk_dev)
 

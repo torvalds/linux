@@ -48,7 +48,7 @@ int lowpan_nhc_check_compression(struct sk_buff *skb,
 
 	nhc = lowpan_nexthdr_nhcs[hdr->nexthdr];
 	if (!(nhc && nhc->compress))
-		ret = -ENOENT;
+		ret = -EANALENT;
 
 	spin_unlock_bh(&lowpan_nhc_lock);
 
@@ -70,7 +70,7 @@ int lowpan_nhc_do_compression(struct sk_buff *skb, const struct ipv6hdr *hdr,
 	 * the lowpan packet but it's very unlikely.
 	 *
 	 * Solution isn't easy because we need to decide at
-	 * lowpan_nhc_check_compression if we do a compression or not.
+	 * lowpan_nhc_check_compression if we do a compression or analt.
 	 * Because the inline data which is added to skb, we can't move this
 	 * handling.
 	 */
@@ -79,7 +79,7 @@ int lowpan_nhc_do_compression(struct sk_buff *skb, const struct ipv6hdr *hdr,
 		goto out;
 	}
 
-	/* In the case of RAW sockets the transport header is not set by
+	/* In the case of RAW sockets the transport header is analt set by
 	 * the ip6 stack so we must set it ourselves
 	 */
 	if (skb->transport_header == skb->network_header)
@@ -118,14 +118,14 @@ int lowpan_nhc_do_uncompression(struct sk_buff *skb,
 			}
 		} else {
 			spin_unlock_bh(&lowpan_nhc_lock);
-			netdev_warn(dev, "received nhc id for %s which is not implemented.\n",
+			netdev_warn(dev, "received nhc id for %s which is analt implemented.\n",
 				    nhc->name);
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		}
 	} else {
 		spin_unlock_bh(&lowpan_nhc_lock);
-		netdev_warn(dev, "received unknown nhc id which was not found.\n");
-		return -ENOENT;
+		netdev_warn(dev, "received unkanalwn nhc id which was analt found.\n");
+		return -EANALENT;
 	}
 
 	hdr->nexthdr = nhc->nexthdr;

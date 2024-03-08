@@ -2,7 +2,7 @@
 /* Microchip KSZ PTP Implementation
  *
  * Copyright (C) 2020 ARRI Lighting
- * Copyright (C) 2022 Microchip Technology Inc.
+ * Copyright (C) 2022 Microchip Techanallogy Inc.
  */
 
 #ifndef _NET_DSA_DRIVERS_KSZ_PTP_H

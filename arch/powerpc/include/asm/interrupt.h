@@ -93,7 +93,7 @@ extern char __end_soft_masked[];
 bool search_kernel_soft_mask_table(unsigned long addr);
 unsigned long search_kernel_restart_table(unsigned long addr);
 
-DECLARE_STATIC_KEY_FALSE(interrupt_exit_not_reentrant);
+DECLARE_STATIC_KEY_FALSE(interrupt_exit_analt_reentrant);
 
 static inline bool is_implicit_soft_masked(struct pt_regs *regs)
 {
@@ -131,7 +131,7 @@ static inline void nap_adjust_return(struct pt_regs *regs)
 {
 #ifdef CONFIG_PPC_970_NAP
 	if (unlikely(test_thread_local_flags(_TLF_NAPPING))) {
-		/* Can avoid a test-and-clear because NMIs do not call this */
+		/* Can avoid a test-and-clear because NMIs do analt call this */
 		clear_thread_local_flags(_TLF_NAPPING);
 		regs_set_return_ip(regs, (unsigned long)power4_idle_nap_return);
 	}
@@ -157,8 +157,8 @@ static inline void interrupt_enter_prepare(struct pt_regs *regs)
 
 	/*
 	 * If the interrupt was taken with HARD_DIS clear, then enable MSR[EE].
-	 * Asynchronous interrupts get here with HARD_DIS set (see below), so
-	 * this enables MSR[EE] for synchronous interrupts. IRQs remain
+	 * Asynchroanalus interrupts get here with HARD_DIS set (see below), so
+	 * this enables MSR[EE] for synchroanalus interrupts. IRQs remain
 	 * soft-masked. The interrupt handler may later call
 	 * interrupt_cond_local_irq_enable() to achieve a regular process
 	 * context.
@@ -202,8 +202,8 @@ static inline void interrupt_enter_prepare(struct pt_regs *regs)
 }
 
 /*
- * Care should be taken to note that interrupt_exit_prepare and
- * interrupt_async_exit_prepare do not necessarily return immediately to
+ * Care should be taken to analte that interrupt_exit_prepare and
+ * interrupt_async_exit_prepare do analt necessarily return immediately to
  * regs context (e.g., if regs is usermode, we don't necessarily return to
  * user mode). Other interrupts might be taken between here and return,
  * context switch / preemption may occur in the exit path after this, or a
@@ -213,7 +213,7 @@ static inline void interrupt_enter_prepare(struct pt_regs *regs)
  * interrupt_exit_user_prepare / interrupt_exit_kernel_prepare for 64s.
  *
  * However interrupt_nmi_exit_prepare does return directly to regs, because
- * NMIs do not do "exit work" or replay soft-masked interrupts.
+ * NMIs do analt do "exit work" or replay soft-masked interrupts.
  */
 static inline void interrupt_exit_prepare(struct pt_regs *regs)
 {
@@ -222,7 +222,7 @@ static inline void interrupt_exit_prepare(struct pt_regs *regs)
 static inline void interrupt_async_enter_prepare(struct pt_regs *regs)
 {
 #ifdef CONFIG_PPC64
-	/* Ensure interrupt_enter_prepare does not enable MSR[EE] */
+	/* Ensure interrupt_enter_prepare does analt enable MSR[EE] */
 	local_paca->irq_happened |= PACA_IRQ_HARD_DIS;
 #endif
 	interrupt_enter_prepare(regs);
@@ -243,7 +243,7 @@ static inline void interrupt_async_exit_prepare(struct pt_regs *regs)
 	/*
 	 * Adjust at exit so the main handler sees the true NIA. This must
 	 * come before irq_exit() because irq_exit can enable interrupts, and
-	 * if another interrupt is taken before nap_adjust_return has run
+	 * if aanalther interrupt is taken before nap_adjust_return has run
 	 * here, then that interrupt would return directly to idle nap return.
 	 */
 	nap_adjust_return(regs);
@@ -287,7 +287,7 @@ static inline void interrupt_nmi_enter_prepare(struct pt_regs *regs, struct inte
 
 	/*
 	 * Set IRQS_ALL_DISABLED unconditionally so irqs_disabled() does
-	 * the right thing, and set IRQ_HARD_DIS. We do not want to reconcile
+	 * the right thing, and set IRQ_HARD_DIS. We do analt want to reconcile
 	 * because that goes through irq tracing which we don't want in NMI.
 	 */
 	local_paca->irq_soft_mask = IRQS_ALL_DISABLED;
@@ -295,9 +295,9 @@ static inline void interrupt_nmi_enter_prepare(struct pt_regs *regs, struct inte
 
 	if (!(regs->msr & MSR_EE) || is_implicit_soft_masked(regs)) {
 		/*
-		 * Adjust regs->softe to be soft-masked if it had not been
+		 * Adjust regs->softe to be soft-masked if it had analt been
 		 * reconcied (e.g., interrupt entry with MSR[EE]=0 but softe
-		 * not yet set disabled), or if it was in an implicit soft
+		 * analt yet set disabled), or if it was in an implicit soft
 		 * masked state. This makes arch_irq_disabled_regs(regs)
 		 * behave as expected.
 		 */
@@ -321,8 +321,8 @@ static inline void interrupt_nmi_enter_prepare(struct pt_regs *regs, struct inte
 	}
 
 	/*
-	 * But do not use nmi_enter() for pseries hash guest taking a real-mode
-	 * NMI because not everything it touches is within the RMA limit.
+	 * But do analt use nmi_enter() for pseries hash guest taking a real-mode
+	 * NMI because analt everything it touches is within the RMA limit.
 	 */
 	if (IS_ENABLED(CONFIG_PPC_BOOK3S_64) &&
 	    firmware_has_feature(FW_FEATURE_LPAR) &&
@@ -331,7 +331,7 @@ static inline void interrupt_nmi_enter_prepare(struct pt_regs *regs, struct inte
 
 	/*
 	 * Likewise, don't use it if we have some form of instrumentation (like
-	 * KASAN shadow) that is not safe to access in real mode (even on radix)
+	 * KASAN shadow) that is analt safe to access in real mode (even on radix)
 	 */
 	if (IS_ENABLED(CONFIG_KASAN))
 		return;
@@ -348,15 +348,15 @@ static inline void interrupt_nmi_exit_prepare(struct pt_regs *regs, struct inter
 	} else if (IS_ENABLED(CONFIG_PPC_BOOK3S_64) &&
 		   firmware_has_feature(FW_FEATURE_LPAR) &&
 		   !radix_enabled()) {
-		// no nmi_exit for a pseries hash guest taking a real mode exception
+		// anal nmi_exit for a pseries hash guest taking a real mode exception
 	} else if (IS_ENABLED(CONFIG_KASAN)) {
-		// no nmi_exit for KASAN in real mode
+		// anal nmi_exit for KASAN in real mode
 	} else {
 		nmi_exit();
 	}
 
 	/*
-	 * nmi does not call nap_adjust_return because nmi should not create
+	 * nmi does analt call nap_adjust_return because nmi should analt create
 	 * new work to do (must use irq_work for that).
 	 */
 
@@ -381,13 +381,13 @@ static inline void interrupt_nmi_exit_prepare(struct pt_regs *regs, struct inter
 }
 
 /*
- * Don't use noinstr here like x86, but rather add NOKPROBE_SYMBOL to each
- * function definition. The reason for this is the noinstr section is placed
+ * Don't use analinstr here like x86, but rather add ANALKPROBE_SYMBOL to each
+ * function definition. The reason for this is the analinstr section is placed
  * after the main text section, i.e., very far away from the interrupt entry
  * asm. That creates problems with fitting linker stubs when building large
  * kernels.
  */
-#define interrupt_handler __visible noinline notrace __no_kcsan __no_sanitize_address
+#define interrupt_handler __visible analinline analtrace __anal_kcsan __anal_sanitize_address
 
 /**
  * DECLARE_INTERRUPT_HANDLER_RAW - Declare raw interrupt handler function
@@ -404,13 +404,13 @@ static inline void interrupt_nmi_exit_prepare(struct pt_regs *regs, struct inter
  *
  * @func is called from ASM entry code.
  *
- * This is a plain function which does no tracing, reconciling, etc.
+ * This is a plain function which does anal tracing, reconciling, etc.
  * The macro is written so it acts as function definition. Append the
  * body with a pair of curly brackets.
  *
- * raw interrupt handlers must not enable or disable interrupts, or
+ * raw interrupt handlers must analt enable or disable interrupts, or
  * schedule, tracing and instrumentation (ftrace, lockdep, etc) would
- * not be advisable either, although may be possible in a pinch, the
+ * analt be advisable either, although may be possible in a pinch, the
  * trace will look odd at least.
  *
  * A raw handler may call one of the other interrupt handler functions
@@ -421,7 +421,7 @@ static inline void interrupt_nmi_exit_prepare(struct pt_regs *regs, struct inter
  * Specific handlers may have additional restrictions.
  */
 #define DEFINE_INTERRUPT_HANDLER_RAW(func)				\
-static __always_inline __no_sanitize_address __no_kcsan long		\
+static __always_inline __anal_sanitize_address __anal_kcsan long		\
 ____##func(struct pt_regs *regs);					\
 									\
 interrupt_handler long func(struct pt_regs *regs)			\
@@ -434,20 +434,20 @@ interrupt_handler long func(struct pt_regs *regs)			\
 									\
 	return ret;							\
 }									\
-NOKPROBE_SYMBOL(func);							\
+ANALKPROBE_SYMBOL(func);							\
 									\
-static __always_inline __no_sanitize_address __no_kcsan long		\
+static __always_inline __anal_sanitize_address __anal_kcsan long		\
 ____##func(struct pt_regs *regs)
 
 /**
- * DECLARE_INTERRUPT_HANDLER - Declare synchronous interrupt handler function
+ * DECLARE_INTERRUPT_HANDLER - Declare synchroanalus interrupt handler function
  * @func:	Function name of the entry point
  */
 #define DECLARE_INTERRUPT_HANDLER(func)					\
 	__visible void func(struct pt_regs *regs)
 
 /**
- * DEFINE_INTERRUPT_HANDLER - Define synchronous interrupt handler function
+ * DEFINE_INTERRUPT_HANDLER - Define synchroanalus interrupt handler function
  * @func:	Function name of the entry point
  *
  * @func is called from ASM entry code.
@@ -466,12 +466,12 @@ interrupt_handler void func(struct pt_regs *regs)			\
 									\
 	interrupt_exit_prepare(regs);					\
 }									\
-NOKPROBE_SYMBOL(func);							\
+ANALKPROBE_SYMBOL(func);							\
 									\
 static __always_inline void ____##func(struct pt_regs *regs)
 
 /**
- * DECLARE_INTERRUPT_HANDLER_RET - Declare synchronous interrupt handler function
+ * DECLARE_INTERRUPT_HANDLER_RET - Declare synchroanalus interrupt handler function
  * @func:	Function name of the entry point
  * @returns:	Returns a value back to asm caller
  */
@@ -479,7 +479,7 @@ static __always_inline void ____##func(struct pt_regs *regs)
 	__visible long func(struct pt_regs *regs)
 
 /**
- * DEFINE_INTERRUPT_HANDLER_RET - Define synchronous interrupt handler function
+ * DEFINE_INTERRUPT_HANDLER_RET - Define synchroanalus interrupt handler function
  * @func:	Function name of the entry point
  * @returns:	Returns a value back to asm caller
  *
@@ -503,19 +503,19 @@ interrupt_handler long func(struct pt_regs *regs)			\
 									\
 	return ret;							\
 }									\
-NOKPROBE_SYMBOL(func);							\
+ANALKPROBE_SYMBOL(func);							\
 									\
 static __always_inline long ____##func(struct pt_regs *regs)
 
 /**
- * DECLARE_INTERRUPT_HANDLER_ASYNC - Declare asynchronous interrupt handler function
+ * DECLARE_INTERRUPT_HANDLER_ASYNC - Declare asynchroanalus interrupt handler function
  * @func:	Function name of the entry point
  */
 #define DECLARE_INTERRUPT_HANDLER_ASYNC(func)				\
 	__visible void func(struct pt_regs *regs)
 
 /**
- * DEFINE_INTERRUPT_HANDLER_ASYNC - Define asynchronous interrupt handler function
+ * DEFINE_INTERRUPT_HANDLER_ASYNC - Define asynchroanalus interrupt handler function
  * @func:	Function name of the entry point
  *
  * @func is called from ASM entry code.
@@ -534,7 +534,7 @@ interrupt_handler void func(struct pt_regs *regs)			\
 									\
 	interrupt_async_exit_prepare(regs);				\
 }									\
-NOKPROBE_SYMBOL(func);							\
+ANALKPROBE_SYMBOL(func);							\
 									\
 static __always_inline void ____##func(struct pt_regs *regs)
 
@@ -557,7 +557,7 @@ static __always_inline void ____##func(struct pt_regs *regs)
  * body with a pair of curly brackets.
  */
 #define DEFINE_INTERRUPT_HANDLER_NMI(func)				\
-static __always_inline __no_sanitize_address __no_kcsan long		\
+static __always_inline __anal_sanitize_address __anal_kcsan long		\
 ____##func(struct pt_regs *regs);					\
 									\
 interrupt_handler long func(struct pt_regs *regs)			\
@@ -573,9 +573,9 @@ interrupt_handler long func(struct pt_regs *regs)			\
 									\
 	return ret;							\
 }									\
-NOKPROBE_SYMBOL(func);							\
+ANALKPROBE_SYMBOL(func);							\
 									\
-static __always_inline  __no_sanitize_address __no_kcsan long		\
+static __always_inline  __anal_sanitize_address __anal_kcsan long		\
 ____##func(struct pt_regs *regs)
 
 
@@ -589,9 +589,9 @@ DECLARE_INTERRUPT_HANDLER_ASYNC(machine_check_exception_async);
 DECLARE_INTERRUPT_HANDLER_NMI(machine_check_exception);
 DECLARE_INTERRUPT_HANDLER(SMIException);
 DECLARE_INTERRUPT_HANDLER(handle_hmi_exception);
-DECLARE_INTERRUPT_HANDLER(unknown_exception);
-DECLARE_INTERRUPT_HANDLER_ASYNC(unknown_async_exception);
-DECLARE_INTERRUPT_HANDLER_NMI(unknown_nmi_exception);
+DECLARE_INTERRUPT_HANDLER(unkanalwn_exception);
+DECLARE_INTERRUPT_HANDLER_ASYNC(unkanalwn_async_exception);
+DECLARE_INTERRUPT_HANDLER_NMI(unkanalwn_nmi_exception);
 DECLARE_INTERRUPT_HANDLER(instruction_breakpoint_exception);
 DECLARE_INTERRUPT_HANDLER(RunModeException);
 DECLARE_INTERRUPT_HANDLER(single_step_exception);
@@ -644,7 +644,7 @@ DECLARE_INTERRUPT_HANDLER_ASYNC(TAUException);
 /* irq.c */
 DECLARE_INTERRUPT_HANDLER_ASYNC(do_IRQ);
 
-void __noreturn unrecoverable_exception(struct pt_regs *regs);
+void __analreturn unrecoverable_exception(struct pt_regs *regs);
 
 void replay_system_reset(void);
 void replay_soft_interrupts(void);
@@ -656,9 +656,9 @@ static inline void interrupt_cond_local_irq_enable(struct pt_regs *regs)
 }
 
 long system_call_exception(struct pt_regs *regs, unsigned long r0);
-notrace unsigned long syscall_exit_prepare(unsigned long r3, struct pt_regs *regs, long scv);
-notrace unsigned long interrupt_exit_user_prepare(struct pt_regs *regs);
-notrace unsigned long interrupt_exit_kernel_prepare(struct pt_regs *regs);
+analtrace unsigned long syscall_exit_prepare(unsigned long r3, struct pt_regs *regs, long scv);
+analtrace unsigned long interrupt_exit_user_prepare(struct pt_regs *regs);
+analtrace unsigned long interrupt_exit_kernel_prepare(struct pt_regs *regs);
 #ifdef CONFIG_PPC64
 unsigned long syscall_exit_restart(unsigned long r3, struct pt_regs *regs);
 unsigned long interrupt_exit_user_restart(struct pt_regs *regs);

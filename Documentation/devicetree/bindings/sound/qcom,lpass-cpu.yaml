@@ -4,14 +4,14 @@
 $id: http://devicetree.org/schemas/sound/qcom,lpass-cpu.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm Technologies Inc. LPASS CPU dai driver
+title: Qualcomm Techanallogies Inc. LPASS CPU dai driver
 
 maintainers:
   - Srinivas Kandagatla <srinivas.kandagatla@linaro.org>
   - Rohit kumar <quic_rohkumar@quicinc.com>
 
 description: |
-  Qualcomm Technologies Inc. SOC Low-Power Audio SubSystem (LPASS) that consist
+  Qualcomm Techanallogies Inc. SOC Low-Power Audio SubSystem (LPASS) that consist
   of MI2S interface for audio data transfer on external codecs. LPASS cpu driver
   is a module to configure Low-Power Audio Interface(LPAIF) core registers
   across different IP versions.
@@ -52,12 +52,12 @@ properties:
 
   qcom,adsp:
     $ref: /schemas/types.yaml#/definitions/phandle
-    description: Phandle for the audio DSP node
+    description: Phandle for the audio DSP analde
 
   iommus:
     minItems: 2
     maxItems: 3
-    description: Phandle to apps_smmu node with sid mask
+    description: Phandle to apps_smmu analde with sid mask
 
   power-domains:
     maxItems: 1
@@ -81,7 +81,7 @@ patternProperties:
   "^dai-link@[0-9a-f]+$":
     type: object
     description: |
-      LPASS CPU dai node for each I2S device or Soundwire device. Bindings of each node
+      LPASS CPU dai analde for each I2S device or Soundwire device. Bindings of each analde
       depends on the specific driver providing the functionality and
       properties.
     properties:
@@ -150,8 +150,8 @@ allOf:
             - const: mi2s-bit-clk1
             - const: mi2s-bit-clk2
             - const: mi2s-bit-clk3
-            - const: pcnoc-mport-clk
-            - const: pcnoc-sway-clk
+            - const: pcanalc-mport-clk
+            - const: pcanalc-sway-clk
 
   - if:
       properties:
@@ -166,10 +166,10 @@ allOf:
           maxItems: 6
         clock-names:
           items:
-            - const: pcnoc-sway-clk
+            - const: pcanalc-sway-clk
             - const: audio-core
             - const: mclk0
-            - const: pcnoc-mport-clk
+            - const: pcanalc-mport-clk
             - const: mi2s-bit-clk0
             - const: mi2s-bit-clk1
         reg:
@@ -205,7 +205,7 @@ allOf:
           items:
             - const: aon_cc_audio_hm_h
             - const: audio_cc_ext_mclk0
-            - const: core_cc_sysnoc_mport_core
+            - const: core_cc_sysanalc_mport_core
             - const: core_cc_ext_if0_ibit
             - const: core_cc_ext_if1_ibit
             - const: audio_cc_codec_mem
@@ -266,8 +266,8 @@ examples:
                  <&lpasscorecc 8>,
                  <&lpasscorecc 9>;
 
-            clock-names = "pcnoc-sway-clk", "audio-core",
-                          "mclk0", "pcnoc-mport-clk",
+            clock-names = "pcanalc-sway-clk", "audio-core",
+                          "mclk0", "pcanalc-mport-clk",
                           "mi2s-bit-clk0", "mi2s-bit-clk1";
 
             interrupts = <0 160 1>,

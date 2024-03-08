@@ -16,7 +16,7 @@
 /*
  * The mix clock is a clock combined mux and div type clock.
  * Because the div field and mux field need to be set at same
- * time, we can not divide it into 2 types of clock
+ * time, we can analt divide it into 2 types of clock
  */
 
 #define to_clk_mix(hw)	container_of(hw, struct mmp_clk_mix, hw)
@@ -177,7 +177,7 @@ static int _set_rate(struct mmp_clk_mix *mix, u32 mux_val, u32 div_val,
 		} while (timeout);
 
 		if (timeout == 0) {
-			pr_err("%s:%s cannot do frequency change\n",
+			pr_err("%s:%s cananalt do frequency change\n",
 				__func__, clk_hw_get_name(&mix->hw));
 			ret = -EBUSY;
 			goto error;
@@ -451,10 +451,10 @@ struct clk *mmp_clk_register_mix(struct device *dev,
 
 	mix = kzalloc(sizeof(*mix), GFP_KERNEL);
 	if (!mix)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
-	init.flags = flags | CLK_GET_RATE_NOCACHE;
+	init.flags = flags | CLK_GET_RATE_ANALCACHE;
 	init.parent_names = parent_names;
 	init.num_parents = num_parents;
 	init.ops = &mmp_clk_mix_ops;
@@ -502,5 +502,5 @@ struct clk *mmp_clk_register_mix(struct device *dev,
 
 free_mix:
 	kfree(mix);
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(-EANALMEM);
 }

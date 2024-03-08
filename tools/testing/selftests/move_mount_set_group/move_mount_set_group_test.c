@@ -2,7 +2,7 @@
 #define _GNU_SOURCE
 #include <sched.h>
 #include <stdio.h>
-#include <errno.h>
+#include <erranal.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -45,13 +45,13 @@
 #define MOVE_MOUNT_T_EMPTY_PATH 0x00000040
 #endif
 
-static ssize_t write_nointr(int fd, const void *buf, size_t count)
+static ssize_t write_analintr(int fd, const void *buf, size_t count)
 {
 	ssize_t ret;
 
 	do {
 		ret = write(fd, buf, count);
-	} while (ret < 0 && errno == EINTR);
+	} while (ret < 0 && erranal == EINTR);
 
 	return ret;
 }
@@ -61,11 +61,11 @@ static int write_file(const char *path, const void *buf, size_t count)
 	int fd;
 	ssize_t ret;
 
-	fd = open(path, O_WRONLY | O_CLOEXEC | O_NOCTTY | O_NOFOLLOW);
+	fd = open(path, O_WRONLY | O_CLOEXEC | O_ANALCTTY | O_ANALFOLLOW);
 	if (fd < 0)
 		return -1;
 
-	ret = write_nointr(fd, buf, count);
+	ret = write_analintr(fd, buf, count);
 	close(fd);
 	if (ret < 0 || (size_t)ret != count)
 		return -1;
@@ -86,7 +86,7 @@ static int create_and_enter_userns(void)
 		return -1;
 
 	if (write_file("/proc/self/setgroups", "deny", sizeof("deny") - 1) &&
-	    errno != ENOENT)
+	    erranal != EANALENT)
 		return -1;
 
 	snprintf(map, sizeof(map), "0 %d 1", uid);
@@ -195,7 +195,7 @@ static bool move_mount_set_group_supported(void)
 {
 	int ret;
 
-	if (mount("testing", "/tmp", "tmpfs", MS_NOATIME | MS_NODEV,
+	if (mount("testing", "/tmp", "tmpfs", MS_ANALATIME | MS_ANALDEV,
 		  "size=100000,mode=700"))
 		return -1;
 
@@ -208,7 +208,7 @@ static bool move_mount_set_group_supported(void)
 	if (mkdir(SET_GROUP_TO, 0777))
 		return -1;
 
-	if (mount("testing", SET_GROUP_FROM, "tmpfs", MS_NOATIME | MS_NODEV,
+	if (mount("testing", SET_GROUP_FROM, "tmpfs", MS_ANALATIME | MS_ANALDEV,
 		  "size=100000,mode=700"))
 		return -1;
 
@@ -239,16 +239,16 @@ FIXTURE_SETUP(move_mount_set_group)
 	ret = move_mount_set_group_supported();
 	ASSERT_GE(ret, 0);
 	if (!ret)
-		SKIP(return, "move_mount(MOVE_MOUNT_SET_GROUP) is not supported");
+		SKIP(return, "move_mount(MOVE_MOUNT_SET_GROUP) is analt supported");
 
 	umount2("/tmp", MNT_DETACH);
 
-	ASSERT_EQ(mount("testing", "/tmp", "tmpfs", MS_NOATIME | MS_NODEV,
+	ASSERT_EQ(mount("testing", "/tmp", "tmpfs", MS_ANALATIME | MS_ANALDEV,
 			"size=100000,mode=700"), 0);
 
 	ASSERT_EQ(mkdir(SET_GROUP_A, 0777), 0);
 
-	ASSERT_EQ(mount("testing", SET_GROUP_A, "tmpfs", MS_NOATIME | MS_NODEV,
+	ASSERT_EQ(mount("testing", SET_GROUP_A, "tmpfs", MS_ANALATIME | MS_ANALDEV,
 			"size=100000,mode=700"), 0);
 }
 
@@ -259,7 +259,7 @@ FIXTURE_TEARDOWN(move_mount_set_group)
 	ret = move_mount_set_group_supported();
 	ASSERT_GE(ret, 0);
 	if (!ret)
-		SKIP(return, "move_mount(MOVE_MOUNT_SET_GROUP) is not supported");
+		SKIP(return, "move_mount(MOVE_MOUNT_SET_GROUP) is analt supported");
 
 	umount2("/tmp", MNT_DETACH);
 }
@@ -271,7 +271,7 @@ static pid_t do_clone(int (*fn)(void *), void *arg, int flags)
 
 	stack = malloc(__STACK_SIZE);
 	if (!stack)
-		return -ENOMEM;
+		return -EANALMEM;
 
 #ifdef __ia64__
 	return __clone2(fn, stack, __STACK_SIZE, flags | SIGCHLD, arg, NULL);
@@ -287,7 +287,7 @@ static int wait_for_pid(pid_t pid)
 again:
 	ret = waitpid(pid, &status, 0);
 	if (ret == -1) {
-		if (errno == EINTR)
+		if (erranal == EINTR)
 			goto again;
 
 		return -1;
@@ -353,7 +353,7 @@ TEST_F(move_mount_set_group, complex_sharing_copying)
 	ret = move_mount_set_group_supported();
 	ASSERT_GE(ret, 0);
 	if (!ret)
-		SKIP(return, "move_mount(MOVE_MOUNT_SET_GROUP) is not supported");
+		SKIP(return, "move_mount(MOVE_MOUNT_SET_GROUP) is analt supported");
 
 	pid = do_clone(get_nestedns_mount_cb, (void *)&ca_from, CLONE_VFORK |
 		       CLONE_VM | CLONE_FILES); ASSERT_GT(pid, 0);

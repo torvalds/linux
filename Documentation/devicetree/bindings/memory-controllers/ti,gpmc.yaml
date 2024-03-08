@@ -13,8 +13,8 @@ maintainers:
 description:
   The GPMC is a unified memory controller dedicated for interfacing
   with external memory devices like
-  - Asynchronous SRAM-like memories and ASICs
-  - Asynchronous, synchronous, and page mode burst NOR flash
+  - Asynchroanalus SRAM-like memories and ASICs
+  - Asynchroanalus, synchroanalus, and page mode burst ANALR flash
   - NAND flash
   - Pseudo-SRAM devices
 
@@ -82,8 +82,8 @@ properties:
       <cs-number> 0 <physical address of mapping> <size>
     items:
       - description: NAND bank 0
-      - description: NOR/SRAM bank 0
-      - description: NOR/SRAM bank 1
+      - description: ANALR/SRAM bank 0
+      - description: ANALR/SRAM bank 1
 
   '#interrupt-cells':
     const: 2
@@ -115,7 +115,7 @@ properties:
     $ref: /schemas/types.yaml#/definitions/string
     deprecated: true
 
-  ti,no-idle-on-init:
+  ti,anal-idle-on-init:
     description:
       Prevent idling the module at init. This is for legacy omap2/3
       platforms only.
@@ -126,8 +126,8 @@ patternProperties:
   "@[0-7],[a-f0-9]+$":
     type: object
     description: |
-      The child device node represents the device connected to the GPMC
-      bus. The device can be a NAND chip, SRAM device, NOR device
+      The child device analde represents the device connected to the GPMC
+      bus. The device can be a NAND chip, SRAM device, ANALR device
       or an ASIC.
     $ref: ti,gpmc-child.yaml
     additionalProperties: true
@@ -180,8 +180,8 @@ examples:
         compatible = "ti,omap2-nand";
         reg = <0 0 4>;
         interrupt-parent = <&gpmc>;
-        interrupts = <0 IRQ_TYPE_NONE>, /* fifoevent */
-                     <1 IRQ_TYPE_NONE>; /* termcount */
+        interrupts = <0 IRQ_TYPE_ANALNE>, /* fifoevent */
+                     <1 IRQ_TYPE_ANALNE>; /* termcount */
         ti,nand-xfer-type = "prefetch-dma";
         ti,nand-ecc-opt = "bch16";
         ti,elm-id = <&elm>;

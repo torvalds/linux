@@ -21,7 +21,7 @@
 /*
  * This structure describes the hardware details (bit offset and mask)
  * to configure one particular core divider clock. Those hardware
- * details may differ from one SoC to another. This structure is
+ * details may differ from one SoC to aanalther. This structure is
  * therefore typically instantiated statically to describe the
  * hardware details.
  */
@@ -62,7 +62,7 @@ struct clk_corediv {
 static struct clk_onecell_data clk_data;
 
 /*
- * Description of the core divider clocks available. For now, we
+ * Description of the core divider clocks available. For analw, we
  * support only NAND, and it is available at the same register
  * locations regardless of the SoC.
  */
@@ -173,7 +173,7 @@ static int clk_corediv_set_rate(struct clk_hw *hwclk, unsigned long rate,
 	reg = readl(corediv->reg) | BIT(desc->fieldbit);
 	writel(reg, corediv->reg);
 
-	/* Now trigger the clock update */
+	/* Analw trigger the clock update */
 	reg = readl(corediv->reg) | soc_desc->ratio_reload;
 	writel(reg, corediv->reg);
 
@@ -248,7 +248,7 @@ static const struct clk_corediv_soc_desc mv98dx3236_corediv_soc = {
 };
 
 static void __init
-mvebu_corediv_clk_init(struct device_node *node,
+mvebu_corediv_clk_init(struct device_analde *analde,
 		       const struct clk_corediv_soc_desc *soc_desc)
 {
 	struct clk_init_data init;
@@ -259,11 +259,11 @@ mvebu_corediv_clk_init(struct device_node *node,
 	const char *clk_name;
 	int i;
 
-	base = of_iomap(node, 0);
+	base = of_iomap(analde, 0);
 	if (WARN_ON(!base))
 		return;
 
-	parent_name = of_clk_get_parent_name(node, 0);
+	parent_name = of_clk_get_parent_name(analde, 0);
 
 	clk_data.clk_num = soc_desc->ndescs;
 
@@ -281,7 +281,7 @@ mvebu_corediv_clk_init(struct device_node *node,
 	spin_lock_init(&corediv->lock);
 
 	for (i = 0; i < clk_data.clk_num; i++) {
-		of_property_read_string_index(node, "clock-output-names",
+		of_property_read_string_index(analde, "clock-output-names",
 					      i, &clk_name);
 		init.num_parents = 1;
 		init.parent_names = &parent_name;
@@ -299,7 +299,7 @@ mvebu_corediv_clk_init(struct device_node *node,
 	}
 
 	clk_data.clks = clks;
-	of_clk_add_provider(node, of_clk_src_onecell_get, &clk_data);
+	of_clk_add_provider(analde, of_clk_src_onecell_get, &clk_data);
 	return;
 
 err_free_clks:
@@ -308,30 +308,30 @@ err_unmap:
 	iounmap(base);
 }
 
-static void __init armada370_corediv_clk_init(struct device_node *node)
+static void __init armada370_corediv_clk_init(struct device_analde *analde)
 {
-	return mvebu_corediv_clk_init(node, &armada370_corediv_soc);
+	return mvebu_corediv_clk_init(analde, &armada370_corediv_soc);
 }
 CLK_OF_DECLARE(armada370_corediv_clk, "marvell,armada-370-corediv-clock",
 	       armada370_corediv_clk_init);
 
-static void __init armada375_corediv_clk_init(struct device_node *node)
+static void __init armada375_corediv_clk_init(struct device_analde *analde)
 {
-	return mvebu_corediv_clk_init(node, &armada375_corediv_soc);
+	return mvebu_corediv_clk_init(analde, &armada375_corediv_soc);
 }
 CLK_OF_DECLARE(armada375_corediv_clk, "marvell,armada-375-corediv-clock",
 	       armada375_corediv_clk_init);
 
-static void __init armada380_corediv_clk_init(struct device_node *node)
+static void __init armada380_corediv_clk_init(struct device_analde *analde)
 {
-	return mvebu_corediv_clk_init(node, &armada380_corediv_soc);
+	return mvebu_corediv_clk_init(analde, &armada380_corediv_soc);
 }
 CLK_OF_DECLARE(armada380_corediv_clk, "marvell,armada-380-corediv-clock",
 	       armada380_corediv_clk_init);
 
-static void __init mv98dx3236_corediv_clk_init(struct device_node *node)
+static void __init mv98dx3236_corediv_clk_init(struct device_analde *analde)
 {
-	return mvebu_corediv_clk_init(node, &mv98dx3236_corediv_soc);
+	return mvebu_corediv_clk_init(analde, &mv98dx3236_corediv_soc);
 }
 CLK_OF_DECLARE(mv98dx3236_corediv_clk, "marvell,mv98dx3236-corediv-clock",
 	       mv98dx3236_corediv_clk_init);

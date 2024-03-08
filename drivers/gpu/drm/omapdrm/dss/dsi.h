@@ -110,12 +110,12 @@ struct dsi_reg {
 #define DSI_VC_IRQ_FIFO_TX_OVF	(1 << 3)
 #define DSI_VC_IRQ_FIFO_RX_OVF	(1 << 4)
 #define DSI_VC_IRQ_BTA		(1 << 5)
-#define DSI_VC_IRQ_ECC_NO_CORR	(1 << 6)
+#define DSI_VC_IRQ_ECC_ANAL_CORR	(1 << 6)
 #define DSI_VC_IRQ_FIFO_TX_UDF	(1 << 7)
 #define DSI_VC_IRQ_PP_BUSY_CHANGE (1 << 8)
 #define DSI_VC_IRQ_ERROR_MASK \
 	(DSI_VC_IRQ_CS | DSI_VC_IRQ_ECC_CORR | DSI_VC_IRQ_FIFO_TX_OVF | \
-	DSI_VC_IRQ_FIFO_RX_OVF | DSI_VC_IRQ_ECC_NO_CORR | \
+	DSI_VC_IRQ_FIFO_RX_OVF | DSI_VC_IRQ_ECC_ANAL_CORR | \
 	DSI_VC_IRQ_FIFO_TX_UDF)
 
 /* ComplexIO interrupts */
@@ -149,8 +149,8 @@ struct dsi_reg {
 #define DSI_CIO_IRQ_ERRCONTENTIONLP1_4	(1 << 27)
 #define DSI_CIO_IRQ_ERRCONTENTIONLP0_5	(1 << 28)
 #define DSI_CIO_IRQ_ERRCONTENTIONLP1_5	(1 << 29)
-#define DSI_CIO_IRQ_ULPSACTIVENOT_ALL0	(1 << 30)
-#define DSI_CIO_IRQ_ULPSACTIVENOT_ALL1	(1 << 31)
+#define DSI_CIO_IRQ_ULPSACTIVEANALT_ALL0	(1 << 30)
+#define DSI_CIO_IRQ_ULPSACTIVEANALT_ALL1	(1 << 31)
 #define DSI_CIO_IRQ_ERROR_MASK \
 	(DSI_CIO_IRQ_ERRSYNCESC1 | DSI_CIO_IRQ_ERRSYNCESC2 | \
 	 DSI_CIO_IRQ_ERRSYNCESC3 | DSI_CIO_IRQ_ERRSYNCESC4 | \
@@ -301,7 +301,7 @@ struct dsi_clk_calc_ctx {
 
 	const struct omap_dss_dsi_config *config;
 
-	unsigned long req_pck_min, req_pck_nom, req_pck_max;
+	unsigned long req_pck_min, req_pck_analm, req_pck_max;
 
 	/* outputs */
 
@@ -319,7 +319,7 @@ struct dsi_module_id_data {
 };
 
 enum dsi_quirks {
-	DSI_QUIRK_PLL_PWR_BUG = (1 << 0),	/* DSI-PLL power command 0x3 is not working */
+	DSI_QUIRK_PLL_PWR_BUG = (1 << 0),	/* DSI-PLL power command 0x3 is analt working */
 	DSI_QUIRK_DCS_CMD_CONFIG_VC = (1 << 1),
 	DSI_QUIRK_VC_OCP_WIDTH = (1 << 2),
 	DSI_QUIRK_REVERSE_TXCLKESC = (1 << 3),

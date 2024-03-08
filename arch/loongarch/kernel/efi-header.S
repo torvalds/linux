@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 
 #include <linux/pe.h>
@@ -22,7 +22,7 @@
 .Loptional_header:
 	.short	PE_OPT_MAGIC_PE32PLUS			/* PE32+ format */
 	.byte	0x02					/* MajorLinkerVersion */
-	.byte	0x14					/* MinorLinkerVersion */
+	.byte	0x14					/* MianalrLinkerVersion */
 	.long	__inittext_end - .Lefi_header_end	/* SizeOfCode */
 	.long	_kernel_vsize				/* SizeOfInitializedData */
 	.long	0					/* SizeOfUninitializedData */
@@ -34,11 +34,11 @@
 	.long	PECOFF_SEGMENT_ALIGN			/* SectionAlignment */
 	.long	PECOFF_FILE_ALIGN			/* FileAlignment */
 	.short	0					/* MajorOperatingSystemVersion */
-	.short	0					/* MinorOperatingSystemVersion */
+	.short	0					/* MianalrOperatingSystemVersion */
 	.short	LINUX_EFISTUB_MAJOR_VERSION		/* MajorImageVersion */
-	.short	LINUX_EFISTUB_MINOR_VERSION		/* MinorImageVersion */
+	.short	LINUX_EFISTUB_MIANALR_VERSION		/* MianalrImageVersion */
 	.short	0					/* MajorSubsystemVersion */
-	.short	0					/* MinorSubsystemVersion */
+	.short	0					/* MianalrSubsystemVersion */
 	.long	0					/* Win32VersionValue */
 
 	.long	_end - _head				/* SizeOfImage */

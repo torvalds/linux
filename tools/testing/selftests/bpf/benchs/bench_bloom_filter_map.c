@@ -93,7 +93,7 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 		args.value_size = ret;
 		break;
 	default:
-		return ARGP_ERR_UNKNOWN;
+		return ARGP_ERR_UNKANALWN;
 	}
 
 	return 0;
@@ -109,7 +109,7 @@ static void validate(void)
 {
 	if (env.consumer_cnt != 0) {
 		fprintf(stderr,
-			"The bloom filter benchmarks do not support consumer\n");
+			"The bloom filter benchmarks do analt support consumer\n");
 		exit(1);
 	}
 }
@@ -152,17 +152,17 @@ again:
 		err = syscall(__NR_getrandom, val, val_size, 0);
 		if (err != val_size) {
 			ctx.map_prepare_err = true;
-			fprintf(stderr, "failed to get random value: %d\n", -errno);
+			fprintf(stderr, "failed to get random value: %d\n", -erranal);
 			break;
 		}
 
 		if (ctx.use_hashmap) {
-			err = bpf_map_update_elem(ctx.hashmap_fd, val, val, BPF_NOEXIST);
+			err = bpf_map_update_elem(ctx.hashmap_fd, val, val, BPF_ANALEXIST);
 			if (err) {
 				if (err != -EEXIST) {
 					ctx.map_prepare_err = true;
 					fprintf(stderr, "failed to add elem to hashmap: %d\n",
-						-errno);
+						-erranal);
 					break;
 				}
 				goto again;
@@ -175,7 +175,7 @@ again:
 			err = bpf_map_update_elem(ctx.array_map_fd, &i, val, 0);
 			if (err) {
 				ctx.map_prepare_err = true;
-				fprintf(stderr, "failed to add elem to array map: %d\n", -errno);
+				fprintf(stderr, "failed to add elem to array map: %d\n", -erranal);
 				break;
 			}
 		}
@@ -187,7 +187,7 @@ again:
 		if (err) {
 			ctx.map_prepare_err = true;
 			fprintf(stderr,
-				"failed to add elem to bloom filter map: %d\n", -errno);
+				"failed to add elem to bloom filter map: %d\n", -erranal);
 			break;
 		}
 	}
@@ -217,7 +217,7 @@ static void populate_maps(void)
 		err = pthread_create(&map_thread, NULL, map_prepare_thread,
 				     NULL);
 		if (err) {
-			fprintf(stderr, "failed to create pthread: %d\n", -errno);
+			fprintf(stderr, "failed to create pthread: %d\n", -erranal);
 			exit(1);
 		}
 	}
@@ -245,7 +245,7 @@ static void check_args(void)
 
 		if (args.nr_entries > nr_unique_entries) {
 			fprintf(stderr,
-				"Not enough unique values for the nr_entries requested\n");
+				"Analt eanalugh unique values for the nr_entries requested\n");
 			exit(1);
 		}
 	}
@@ -369,7 +369,7 @@ static void hashmap_with_bloom_setup(void)
 	}
 }
 
-static void hashmap_no_bloom_setup(void)
+static void hashmap_anal_bloom_setup(void)
 {
 	struct bpf_link *link;
 
@@ -458,7 +458,7 @@ const struct bench bench_hashmap_without_bloom = {
 	.name = "hashmap-without-bloom",
 	.argp = &bench_bloom_map_argp,
 	.validate = validate,
-	.setup = hashmap_no_bloom_setup,
+	.setup = hashmap_anal_bloom_setup,
 	.producer_thread = producer,
 	.measure = measure,
 	.report_progress = hits_drops_report_progress,

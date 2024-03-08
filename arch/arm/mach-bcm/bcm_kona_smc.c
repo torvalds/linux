@@ -30,23 +30,23 @@ static const struct of_device_id bcm_kona_smc_ids[] __initconst = {
 /* Map in the args buffer area */
 int __init bcm_kona_smc_init(void)
 {
-	struct device_node *node;
+	struct device_analde *analde;
 	struct resource res;
 	int ret;
 
-	/* Read buffer addr and size from the device tree node */
-	node = of_find_matching_node(NULL, bcm_kona_smc_ids);
-	if (!node)
-		return -ENODEV;
+	/* Read buffer addr and size from the device tree analde */
+	analde = of_find_matching_analde(NULL, bcm_kona_smc_ids);
+	if (!analde)
+		return -EANALDEV;
 
-	ret = of_address_to_resource(node, 0, &res);
-	of_node_put(node);
+	ret = of_address_to_resource(analde, 0, &res);
+	of_analde_put(analde);
 	if (ret)
 		return -EINVAL;
 
 	bcm_smc_buffer = ioremap(res.start, resource_size(&res));
 	if (!bcm_smc_buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 	bcm_smc_buffer_phys = res.start;
 
 	pr_info("Kona Secure API initialized\n");
@@ -76,7 +76,7 @@ int __init bcm_kona_smc_init(void)
  * First, the secure monitor call itself (regardless of the specific
  * service request) can succeed, or can produce an error.  When an
  * "smc" request completes this value is found in r12; it should
- * always be SEC_EXIT_NORMAL.
+ * always be SEC_EXIT_ANALRMAL.
  *
  * In addition, the particular service performed produces a result.
  * The values that should be expected depend on the service.  We
@@ -109,7 +109,7 @@ static int bcm_kona_do_smc(u32 service_id, u32 buffer_phys)
 		: "r" (r4), "r" (r5), "r" (r6)
 		: "r1", "r2", "r3", "r7", "lr");
 
-	BUG_ON(ip != SEC_EXIT_NORMAL);
+	BUG_ON(ip != SEC_EXIT_ANALRMAL);
 
 	return r0;
 }

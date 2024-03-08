@@ -272,7 +272,7 @@ union TPAchipAGPERR {
 		unsigned agperr_v_rescmd : 1;		/* [3]		*/
 		unsigned agperr_v_ipte : 1;		/* [4]		*/
 		unsigned agperr_v_ptp :	1;      	/* [5]		*/
-		unsigned agperr_v_nowindow : 1;		/* [6]		*/
+		unsigned agperr_v_analwindow : 1;		/* [6]		*/
 		unsigned agperr_v_rsvd0 : 8;		/* [14:7]	*/
 		unsigned agperr_v_addr : 32;		/* [46:15]	*/
 		unsigned agperr_v_rsvd1 : 1;		/* [47]		*/
@@ -306,7 +306,7 @@ union TPAchipAGPERR {
 #define TITAN_IACK_SC	     	_TITAN_IACK_SC(0) /* hack! */
 
 /* 
- * The canonical non-remaped I/O and MEM addresses have these values
+ * The caanalnical analn-remaped I/O and MEM addresses have these values
  * subtracted out.  This is arranged so that folks manipulating ISA
  * devices can use their familiar numbers and have them map to bus 0.
  */

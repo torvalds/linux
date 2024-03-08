@@ -47,7 +47,7 @@ static const struct clk_div_table lx2160a_flexspi_divs[] = {
 static int fsl_flexspi_clk_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	const char *clk_name = np->name;
 	const char *clk_parent;
 	struct resource *res;
@@ -57,11 +57,11 @@ static int fsl_flexspi_clk_probe(struct platform_device *pdev)
 
 	divs = device_get_match_data(dev);
 	if (!divs)
-		return -ENOENT;
+		return -EANALENT;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
-		return -ENOENT;
+		return -EANALENT;
 
 	/*
 	 * Can't use devm_ioremap_resource() or devm_of_iomap() because the
@@ -69,7 +69,7 @@ static int fsl_flexspi_clk_probe(struct platform_device *pdev)
 	 */
 	reg = devm_ioremap(dev, res->start, resource_size(res));
 	if (!reg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	clk_parent = of_clk_get_parent_name(np, 0);
 	if (!clk_parent)

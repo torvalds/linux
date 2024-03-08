@@ -39,7 +39,7 @@ struct threads {
 };
 
 struct machine {
-	struct rb_node	  rb_node;
+	struct rb_analde	  rb_analde;
 	pid_t		  pid;
 	u16		  id_hdr_size;
 	bool		  comm_exec;
@@ -217,7 +217,7 @@ static inline bool machine__is_host(struct machine *machine)
 
 bool machine__is_lock_function(struct machine *machine, u64 addr);
 bool machine__is(struct machine *machine, const char *arch);
-bool machine__normalized_is(struct machine *machine, const char *arch);
+bool machine__analrmalized_is(struct machine *machine, const char *arch);
 int machine__nr_cpus_avail(struct machine *machine);
 
 struct thread *__machine__findnew_thread(struct machine *machine, pid_t pid, pid_t tid);

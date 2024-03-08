@@ -8,8 +8,8 @@
 #include "rtd1295.dtsi"
 
 / {
-	compatible = "xnano,x5", "realtek,rtd1295";
-	model = "Xnano X5";
+	compatible = "xnaanal,x5", "realtek,rtd1295";
+	model = "Xnaanal X5";
 
 	memory@1f000 {
 		device_type = "memory";

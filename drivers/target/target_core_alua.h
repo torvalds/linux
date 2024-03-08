@@ -9,7 +9,7 @@
  *
  * from spc4r17 section 6.4.2 Table 135
  */
-#define TPGS_NO_ALUA				0x00
+#define TPGS_ANAL_ALUA				0x00
 #define TPGS_IMPLICIT_ALUA			0x10
 #define TPGS_EXPLICIT_ALUA			0x20
 
@@ -19,7 +19,7 @@
  * from spc4r36j section 6.37 Table 307
  */
 #define ALUA_ACCESS_STATE_ACTIVE_OPTIMIZED	0x0
-#define ALUA_ACCESS_STATE_ACTIVE_NON_OPTIMIZED	0x1
+#define ALUA_ACCESS_STATE_ACTIVE_ANALN_OPTIMIZED	0x1
 #define ALUA_ACCESS_STATE_STANDBY		0x2
 #define ALUA_ACCESS_STATE_UNAVAILABLE		0x3
 #define ALUA_ACCESS_STATE_LBA_DEPENDENT		0x4
@@ -42,7 +42,7 @@
  *
  * from spc4r17 section 6.27 Table 246
  */
-#define ALUA_STATUS_NONE				0x00
+#define ALUA_STATUS_ANALNE				0x00
 #define ALUA_STATUS_ALTERED_BY_EXPLICIT_STPG		0x01
 #define ALUA_STATUS_ALTERED_BY_IMPLICIT_ALUA		0x02
 
@@ -55,11 +55,11 @@
 #define ASCQ_04H_ALUA_OFFLINE				0x12
 
 /*
- * Used as the default for Active/NonOptimized delay (in milliseconds)
+ * Used as the default for Active/AnalnOptimized delay (in milliseconds)
  * This can also be changed via configfs on a per target port group basis..
  */
-#define ALUA_DEFAULT_NONOP_DELAY_MSECS			100
-#define ALUA_MAX_NONOP_DELAY_MSECS			10000 /* 10 seconds */
+#define ALUA_DEFAULT_ANALANALP_DELAY_MSECS			100
+#define ALUA_MAX_ANALANALP_DELAY_MSECS			10000 /* 10 seconds */
 /*
  * Used for implicit and explicit ALUA transitional delay, that is disabled
  * by default, and is intended to be used for debugging client side ALUA code.
@@ -85,10 +85,10 @@ extern struct kmem_cache *t10_alua_lba_map_mem_cache;
 extern sense_reason_t target_emulate_report_target_port_groups(struct se_cmd *);
 extern sense_reason_t target_emulate_set_target_port_groups(struct se_cmd *);
 extern sense_reason_t target_emulate_report_referrals(struct se_cmd *);
-extern int core_alua_check_nonop_delay(struct se_cmd *);
+extern int core_alua_check_analanalp_delay(struct se_cmd *);
 extern int core_alua_do_port_transition(struct t10_alua_tg_pt_gp *,
 				struct se_device *, struct se_lun *,
-				struct se_node_acl *, int, int);
+				struct se_analde_acl *, int, int);
 extern char *core_alua_dump_status(int);
 extern struct t10_alua_lba_map *core_alua_allocate_lba_map(
 				struct list_head *, u64, u64);
@@ -119,9 +119,9 @@ extern ssize_t core_alua_store_tg_pt_gp_info(struct se_lun *, const char *,
 extern ssize_t core_alua_show_access_type(struct t10_alua_tg_pt_gp *, char *);
 extern ssize_t core_alua_store_access_type(struct t10_alua_tg_pt_gp *,
 					const char *, size_t);
-extern ssize_t core_alua_show_nonop_delay_msecs(struct t10_alua_tg_pt_gp *,
+extern ssize_t core_alua_show_analanalp_delay_msecs(struct t10_alua_tg_pt_gp *,
 						char *);
-extern ssize_t core_alua_store_nonop_delay_msecs(struct t10_alua_tg_pt_gp *,
+extern ssize_t core_alua_store_analanalp_delay_msecs(struct t10_alua_tg_pt_gp *,
 					const char *, size_t);
 extern ssize_t core_alua_show_trans_delay_msecs(struct t10_alua_tg_pt_gp *,
 					char *);

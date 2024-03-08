@@ -254,7 +254,7 @@ static int synquacer_spi_config(struct spi_controller *host,
 	speed = xfer->speed_hz;
 	bpw = xfer->bits_per_word;
 
-	/* return if nothing to change */
+	/* return if analthing to change */
 	if (speed == sspi->speed &&
 		bus_width == sspi->bus_width && bpw == sspi->bpw &&
 		mode == sspi->mode && cs == sspi->cs &&
@@ -576,7 +576,7 @@ static irqreturn_t sq_spi_rx_handler(int irq, void *priv)
 		return IRQ_HANDLED;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static irqreturn_t sq_spi_tx_handler(int irq, void *priv)
@@ -595,12 +595,12 @@ static irqreturn_t sq_spi_tx_handler(int irq, void *priv)
 		return IRQ_HANDLED;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static int synquacer_spi_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct spi_controller *host;
 	struct synquacer_spi *sspi;
 	int ret;
@@ -608,7 +608,7 @@ static int synquacer_spi_probe(struct platform_device *pdev)
 
 	host = spi_alloc_host(&pdev->dev, sizeof(*sspi));
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, host);
 
@@ -627,7 +627,7 @@ static int synquacer_spi_probe(struct platform_device *pdev)
 	device_property_read_u32(&pdev->dev, "socionext,ihclk-rate",
 				 &host->max_speed_hz); /* for ACPI */
 
-	if (dev_of_node(&pdev->dev)) {
+	if (dev_of_analde(&pdev->dev)) {
 		if (device_property_match_string(&pdev->dev,
 					 "clock-names", "iHCLK") >= 0) {
 			sspi->clk_src_type = SYNQUACER_HSSPI_CLOCK_SRC_IHCLK;
@@ -644,7 +644,7 @@ static int synquacer_spi_probe(struct platform_device *pdev)
 
 		if (IS_ERR(sspi->clk)) {
 			ret = dev_err_probe(&pdev->dev, PTR_ERR(sspi->clk),
-					    "clock not found\n");
+					    "clock analt found\n");
 			goto put_spi;
 		}
 
@@ -699,8 +699,8 @@ static int synquacer_spi_probe(struct platform_device *pdev)
 		goto disable_clk;
 	}
 
-	host->dev.of_node = np;
-	host->dev.fwnode = pdev->dev.fwnode;
+	host->dev.of_analde = np;
+	host->dev.fwanalde = pdev->dev.fwanalde;
 	host->auto_runtime_pm = true;
 	host->bus_num = pdev->id;
 

@@ -49,7 +49,7 @@ struct tpmi_rapl_package {
 	struct intel_tpmi_plat_info *tpmi_info;
 	struct rapl_package *rp;
 	void __iomem *base;
-	struct list_head node;
+	struct list_head analde;
 };
 
 static LIST_HEAD(tpmi_rapl_packages);
@@ -101,11 +101,11 @@ static struct tpmi_rapl_package *trp_alloc(int pkg_id)
 
 	trp = kzalloc(sizeof(*trp), GFP_KERNEL);
 	if (!trp) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_del_powercap;
 	}
 
-	list_add(&trp->node, &tpmi_rapl_packages);
+	list_add(&trp->analde, &tpmi_rapl_packages);
 
 	mutex_unlock(&tpmi_rapl_lock);
 	return trp;
@@ -121,7 +121,7 @@ err_unlock:
 static void trp_release(struct tpmi_rapl_package *trp)
 {
 	mutex_lock(&tpmi_rapl_lock);
-	list_del(&trp->node);
+	list_del(&trp->analde);
 
 	if (list_empty(&tpmi_rapl_packages))
 		powercap_unregister_control_type(tpmi_control_type);
@@ -140,7 +140,7 @@ static int parse_one_domain(struct tpmi_rapl_package *trp, u32 offset)
 	int tpmi_domain_size, tpmi_domain_flags;
 	u64 tpmi_domain_header = readq(trp->base + offset);
 
-	/* Domain Parent bits are ignored for now */
+	/* Domain Parent bits are iganalred for analw */
 	tpmi_domain_version = tpmi_domain_header & 0xff;
 	tpmi_domain_type = tpmi_domain_header >> 8 & 0xff;
 	tpmi_domain_size = tpmi_domain_header >> 16 & 0xff;
@@ -148,7 +148,7 @@ static int parse_one_domain(struct tpmi_rapl_package *trp, u32 offset)
 
 	if (tpmi_domain_version != TPMI_RAPL_VERSION) {
 		pr_warn(FW_BUG "Unsupported version:%d\n", tpmi_domain_version);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Domain size: in unit of 128 Bytes */
@@ -234,14 +234,14 @@ static int intel_rapl_tpmi_probe(struct auxiliary_device *auxdev,
 
 	info = tpmi_get_platform_data(auxdev);
 	if (!info)
-		return -ENODEV;
+		return -EANALDEV;
 
 	trp = trp_alloc(info->package_id);
 	if (IS_ERR(trp))
 		return PTR_ERR(trp);
 
 	if (tpmi_get_resource_count(auxdev) > 1) {
-		dev_err(&auxdev->dev, "does not support multiple resources\n");
+		dev_err(&auxdev->dev, "does analt support multiple resources\n");
 		ret = -EINVAL;
 		goto err;
 	}

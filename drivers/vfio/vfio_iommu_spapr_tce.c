@@ -57,7 +57,7 @@ struct tce_iommu_prereg {
 
 /*
  * The container descriptor supports only a single group per container.
- * Required by the API as the container is not supplied with the IOMMU group
+ * Required by the API as the container is analt supplied with the IOMMU group
  * at the moment of initialization.
  */
 struct tce_container {
@@ -114,7 +114,7 @@ static long tce_iommu_unregister_pages(struct tce_container *container,
 
 	mem = mm_iommu_get(container->mm, vaddr, size >> PAGE_SHIFT);
 	if (!mem)
-		return -ENOENT;
+		return -EANALENT;
 
 	list_for_each_entry(tcemem, &container->prereg_list, next) {
 		if (tcemem->mem == mem) {
@@ -124,7 +124,7 @@ static long tce_iommu_unregister_pages(struct tce_container *container,
 	}
 
 	if (!found)
-		ret = -ENOENT;
+		ret = -EANALENT;
 	else
 		ret = tce_iommu_prereg_free(container, tcemem);
 
@@ -161,7 +161,7 @@ static long tce_iommu_register_pages(struct tce_container *container,
 
 	tcemem = kzalloc(sizeof(*tcemem), GFP_KERNEL);
 	if (!tcemem) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto put_exit;
 	}
 
@@ -188,7 +188,7 @@ static bool tce_page_is_contained(struct mm_struct *mm, unsigned long hpa,
 
 	page = pfn_to_page(hpa >> PAGE_SHIFT);
 	/*
-	 * Check that the TCE table granularity is not bigger than the size of
+	 * Check that the TCE table granularity is analt bigger than the size of
 	 * a page we just found. Otherwise the hardware can get access to
 	 * a bigger memory chunk that it should.
 	 */
@@ -232,7 +232,7 @@ static int tce_iommu_find_free_table(struct tce_container *container)
 			return i;
 	}
 
-	return -ENOSPC;
+	return -EANALSPC;
 }
 
 static int tce_iommu_enable(struct tce_container *container)
@@ -263,25 +263,25 @@ static int tce_iommu_enable(struct tce_container *container)
 	 * that would effectively kill the guest at random points, much better
 	 * enforcing the limit based on the max that the guest can map.
 	 *
-	 * Unfortunately at the moment it counts whole tables, no matter how
+	 * Unfortunately at the moment it counts whole tables, anal matter how
 	 * much memory the guest has. I.e. for 4GB guest and 4 IOMMU groups
 	 * each with 2GB DMA window, 8GB will be counted here. The reason for
-	 * this is that we cannot tell here the amount of RAM used by the guest
+	 * this is that we cananalt tell here the amount of RAM used by the guest
 	 * as this information is only available from KVM and VFIO is
-	 * KVM agnostic.
+	 * KVM aganalstic.
 	 *
-	 * So we do not allow enabling a container without a group attached
-	 * as there is no way to know how much we should increment
+	 * So we do analt allow enabling a container without a group attached
+	 * as there is anal way to kanalw how much we should increment
 	 * the locked_vm counter.
 	 */
 	if (!tce_groups_attached(container))
-		return -ENODEV;
+		return -EANALDEV;
 
 	tcegrp = list_first_entry(&container->group_list,
 			struct tce_iommu_group, next);
 	table_group = iommu_group_get_iommudata(tcegrp->grp);
 	if (!table_group)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!table_group->tce32_size)
 		return -EPERM;
@@ -324,7 +324,7 @@ static void *tce_iommu_open(unsigned long arg)
 
 	container = kzalloc(sizeof(*container), GFP_KERNEL);
 	if (!container)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mutex_init(&container->lock);
 	INIT_LIST_HEAD_RCU(&container->group_list);
@@ -355,8 +355,8 @@ static void tce_iommu_release(void *iommu_data)
 	}
 
 	/*
-	 * If VFIO created a table, it was not disposed
-	 * by tce_iommu_detach_group() so do it now.
+	 * If VFIO created a table, it was analt disposed
+	 * by tce_iommu_detach_group() so do it analw.
 	 */
 	for (i = 0; i < IOMMU_TABLE_GROUP_MAX_TABLES; ++i) {
 		struct iommu_table *tbl = container->tables[i];
@@ -421,7 +421,7 @@ static void tce_iommu_unuse_page_v2(struct tce_container *container,
 	ret = tce_iommu_prereg_ua_to_hpa(container, be64_to_cpu(*pua),
 			tbl->it_page_shift, &hpa, &mem);
 	if (ret)
-		pr_debug("%s: tce %llx at #%lx was not cached, ret=%d\n",
+		pr_debug("%s: tce %llx at #%lx was analt cached, ret=%d\n",
 				__func__, be64_to_cpu(*pua), entry, ret);
 	if (mem)
 		mm_iommu_mapped_dec(mem);
@@ -442,11 +442,11 @@ static int tce_iommu_clear(struct tce_container *container,
 		if (tbl->it_indirect_levels && tbl->it_userspace) {
 			/*
 			 * For multilevel tables, we can take a shortcut here
-			 * and skip some TCEs as we know that the userspace
+			 * and skip some TCEs as we kanalw that the userspace
 			 * addresses cache is a mirror of the real TCE table
 			 * and if it is missing some indirect levels, then
-			 * the hardware table does not have them allocated
-			 * either and therefore does not require updating.
+			 * the hardware table does analt have them allocated
+			 * either and therefore does analt require updating.
 			 */
 			__be64 *pua = IOMMU_TABLE_USERSPACE_ENTRY_RO(tbl,
 					entry);
@@ -459,14 +459,14 @@ static int tce_iommu_clear(struct tce_container *container,
 
 		cond_resched();
 
-		direction = DMA_NONE;
+		direction = DMA_ANALNE;
 		oldhpa = 0;
-		ret = iommu_tce_xchg_no_kill(container->mm, tbl, entry, &oldhpa,
+		ret = iommu_tce_xchg_anal_kill(container->mm, tbl, entry, &oldhpa,
 				&direction);
 		if (ret)
 			continue;
 
-		if (direction == DMA_NONE)
+		if (direction == DMA_ANALNE)
 			continue;
 
 		if (container->v2) {
@@ -521,7 +521,7 @@ static long tce_iommu_build(struct tce_container *container,
 
 		hpa |= offset;
 		dirtmp = direction;
-		ret = iommu_tce_xchg_no_kill(container->mm, tbl, entry + i,
+		ret = iommu_tce_xchg_anal_kill(container->mm, tbl, entry + i,
 				&hpa, &dirtmp);
 		if (ret) {
 			tce_iommu_unuse_page(hpa);
@@ -531,7 +531,7 @@ static long tce_iommu_build(struct tce_container *container,
 			break;
 		}
 
-		if (dirtmp != DMA_NONE)
+		if (dirtmp != DMA_ANALNE)
 			tce_iommu_unuse_page(hpa);
 
 		tce += IOMMU_PAGE_SIZE(tbl);
@@ -577,10 +577,10 @@ static long tce_iommu_build_v2(struct tce_container *container,
 		if (mm_iommu_mapped_inc(mem))
 			break;
 
-		ret = iommu_tce_xchg_no_kill(container->mm, tbl, entry + i,
+		ret = iommu_tce_xchg_anal_kill(container->mm, tbl, entry + i,
 				&hpa, &dirtmp);
 		if (ret) {
-			/* dirtmp cannot be DMA_NONE here */
+			/* dirtmp cananalt be DMA_ANALNE here */
 			tce_iommu_unuse_page_v2(container, tbl, entry + i);
 			pr_err("iommu_tce: %s failed ioba=%lx, tce=%lx, ret=%ld\n",
 					__func__, entry << tbl->it_page_shift,
@@ -588,7 +588,7 @@ static long tce_iommu_build_v2(struct tce_container *container,
 			break;
 		}
 
-		if (dirtmp != DMA_NONE)
+		if (dirtmp != DMA_ANALNE)
 			tce_iommu_unuse_page_v2(container, tbl, entry + i);
 
 		*pua = cpu_to_be64(tce);
@@ -728,7 +728,7 @@ static long tce_iommu_remove_window(struct tce_container *container,
 		 * SPAPR TCE IOMMU exposes the default DMA window to
 		 * the guest via dma32_window_start/size of
 		 * VFIO_IOMMU_SPAPR_TCE_GET_INFO. Some platforms allow
-		 * the userspace to remove this window, some do not so
+		 * the userspace to remove this window, some do analt so
 		 * here we check for the platform capability.
 		 */
 		if (!table_group->ops || !table_group->ops->unset_window)
@@ -756,13 +756,13 @@ static long tce_iommu_create_default_window(struct tce_container *container)
 		return 0;
 
 	if (!tce_groups_attached(container))
-		return -ENODEV;
+		return -EANALDEV;
 
 	tcegrp = list_first_entry(&container->group_list,
 			struct tce_iommu_group, next);
 	table_group = iommu_group_get_iommudata(tcegrp->grp);
 	if (!table_group)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = tce_iommu_create_window(container, IOMMU_PAGE_SHIFT_4K,
 			table_group->tce32_size, 1, &start_addr);
@@ -783,7 +783,7 @@ static long vfio_spapr_ioctl_eeh_pe_op(struct iommu_group *group,
 
 	pe = eeh_iommu_group_to_pe(group);
 	if (!pe)
-		return -ENODEV;
+		return -EANALDEV;
 
 	minsz = offsetofend(struct vfio_eeh_pe_op, op);
 	if (copy_from_user(&op, (void __user *)arg, minsz))
@@ -847,7 +847,7 @@ static long tce_iommu_ioctl(void *iommu_data,
 
 	/*
 	 * Sanity check to prevent one userspace from manipulating
-	 * another userspace mm.
+	 * aanalther userspace mm.
 	 */
 	BUG_ON(!container);
 	if (container->mm && container->mm != current->mm)
@@ -986,7 +986,7 @@ static long tce_iommu_ioctl(void *iommu_data,
 		if (param.argsz < minsz)
 			return -EINVAL;
 
-		/* No flag is supported now */
+		/* Anal flag is supported analw */
 		if (param.flags)
 			return -EINVAL;
 
@@ -1032,7 +1032,7 @@ static long tce_iommu_ioctl(void *iommu_data,
 		if (param.argsz < minsz)
 			return -EINVAL;
 
-		/* No flag is supported now */
+		/* Anal flag is supported analw */
 		if (param.flags)
 			return -EINVAL;
 
@@ -1061,7 +1061,7 @@ static long tce_iommu_ioctl(void *iommu_data,
 		if (param.argsz < minsz)
 			return -EINVAL;
 
-		/* No flag is supported now */
+		/* Anal flag is supported analw */
 		if (param.flags)
 			return -EINVAL;
 
@@ -1184,7 +1184,7 @@ static long tce_iommu_ioctl(void *iommu_data,
 	}
 	}
 
-	return -ENOTTY;
+	return -EANALTTY;
 }
 
 static void tce_iommu_release_ownership(struct tce_container *container,
@@ -1245,7 +1245,7 @@ static int tce_iommu_attach_group(void *iommu_data,
 			iommu_group_id(iommu_group), iommu_group); */
 	table_group = iommu_group_get_iommudata(iommu_group);
 	if (!table_group) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto unlock_exit;
 	}
 
@@ -1255,7 +1255,7 @@ static int tce_iommu_attach_group(void *iommu_data,
 		goto unlock_exit;
 	}
 
-	/* v1 reuses TCE tables and does not share them among PEs */
+	/* v1 reuses TCE tables and does analt share them among PEs */
 	if (!container->v2 && tce_groups_attached(container)) {
 		ret = -EBUSY;
 		goto unlock_exit;
@@ -1287,7 +1287,7 @@ static int tce_iommu_attach_group(void *iommu_data,
 
 	tcegrp = kzalloc(sizeof(*tcegrp), GFP_KERNEL);
 	if (!tcegrp) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto unlock_exit;
 	}
 

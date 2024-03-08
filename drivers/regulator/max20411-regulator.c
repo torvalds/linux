@@ -26,7 +26,7 @@
 
 struct max20411 {
 	struct device *dev;
-	struct device_node *of_node;
+	struct device_analde *of_analde;
 	struct regulator_desc desc;
 	struct regulator_dev *rdev;
 	struct regmap *regmap;
@@ -105,7 +105,7 @@ static int max20411_probe(struct i2c_client *client)
 
 	max20411 = devm_kzalloc(dev, sizeof(*max20411), GFP_KERNEL);
 	if (!max20411)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	max20411->regmap = devm_regmap_init_i2c(client, &max20411_regmap_config);
 	if (IS_ERR(max20411->regmap)) {
@@ -114,16 +114,16 @@ static int max20411_probe(struct i2c_client *client)
 	}
 
 	max20411->dev = dev;
-	max20411->of_node = dev->of_node;
+	max20411->of_analde = dev->of_analde;
 
 	max20411->desc = max20411_desc;
-	init_data = of_get_regulator_init_data(max20411->dev, max20411->of_node, &max20411->desc);
+	init_data = of_get_regulator_init_data(max20411->dev, max20411->of_analde, &max20411->desc);
 	if (!init_data)
-		return -ENODATA;
+		return -EANALDATA;
 
 	cfg.dev = max20411->dev;
 	cfg.init_data = init_data;
-	cfg.of_node = max20411->of_node;
+	cfg.of_analde = max20411->of_analde;
 	cfg.driver_data = max20411;
 
 	cfg.ena_gpiod = gpiod_get(max20411->dev, "enable", GPIOD_ASIS);
@@ -153,7 +153,7 @@ MODULE_DEVICE_TABLE(i2c, max20411_id);
 static struct i2c_driver max20411_i2c_driver = {
 	.driver	= {
 		.name = "max20411",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table	= of_max20411_match_tbl,
 	},
 	.probe = max20411_probe,

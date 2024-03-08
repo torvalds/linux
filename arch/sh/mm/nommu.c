@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * arch/sh/mm/nommu.c
+ * arch/sh/mm/analmmu.c
  *
  * Various helper routines and stubs for MMUless SH.
  *
@@ -15,7 +15,7 @@
 #include <linux/uaccess.h>
 
 /*
- * Nothing too terribly exciting here ..
+ * Analthing too terribly exciting here ..
  */
 void copy_page(void *to, void *from)
 {

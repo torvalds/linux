@@ -58,7 +58,7 @@
 
 #define ARM_SMCCC_FUNC_QUERY_CALL_UID  0xff01
 
-#define ARM_SMCCC_QUIRK_NONE		0
+#define ARM_SMCCC_QUIRK_ANALNE		0
 #define ARM_SMCCC_QUIRK_QCOM_A6		1 /* Save/restore register a6 */
 
 #define ARM_SMCCC_VERSION_1_0		0x10000
@@ -187,11 +187,11 @@
 
 /*
  * Return codes defined in ARM DEN 0070A
- * ARM DEN 0070A is now merged/consolidated into ARM DEN 0028 C
+ * ARM DEN 0070A is analw merged/consolidated into ARM DEN 0028 C
  */
 #define SMCCC_RET_SUCCESS			0
-#define SMCCC_RET_NOT_SUPPORTED			-1
-#define SMCCC_RET_NOT_REQUIRED			-2
+#define SMCCC_RET_ANALT_SUPPORTED			-1
+#define SMCCC_RET_ANALT_REQUIRED			-2
 #define SMCCC_RET_INVALID_PARAMETER		-3
 
 #ifndef __ASSEMBLY__
@@ -200,7 +200,7 @@
 #include <linux/types.h>
 
 enum arm_smccc_conduit {
-	SMCCC_CONDUIT_NONE,
+	SMCCC_CONDUIT_ANALNE,
 	SMCCC_CONDUIT_SMC,
 	SMCCC_CONDUIT_HVC,
 };
@@ -210,7 +210,7 @@ enum arm_smccc_conduit {
  *
  * Returns the conduit to be used for SMCCCv1.1 or later.
  *
- * When SMCCCv1.1 is not present, returns SMCCC_CONDUIT_NONE.
+ * When SMCCCv1.1 is analt present, returns SMCCC_CONDUIT_ANALNE.
  */
 enum arm_smccc_conduit arm_smccc_1_1_get_conduit(void);
 
@@ -219,8 +219,8 @@ enum arm_smccc_conduit arm_smccc_1_1_get_conduit(void);
  *
  * Returns the version to be used for SMCCCv1.1 or later.
  *
- * When SMCCCv1.1 or above is not present, returns SMCCCv1.0, but this
- * does not imply the presence of firmware or a valid conduit. Caller
+ * When SMCCCv1.1 or above is analt present, returns SMCCCv1.0, but this
+ * does analt imply the presence of firmware or a valid conduit. Caller
  * handling SMCCCv1.0 must determine the conduit by other means.
  */
 u32 arm_smccc_get_version(void);
@@ -234,7 +234,7 @@ extern u64 smccc_has_sve_hint;
  *
  * Returns the SOC ID version.
  *
- * When ARM_SMCCC_ARCH_SOC_ID is not present, returns SMCCC_RET_NOT_SUPPORTED.
+ * When ARM_SMCCC_ARCH_SOC_ID is analt present, returns SMCCC_RET_ANALT_SUPPORTED.
  */
 s32 arm_smccc_get_soc_id_version(void);
 
@@ -243,7 +243,7 @@ s32 arm_smccc_get_soc_id_version(void);
  *
  * Returns the SOC ID revision.
  *
- * When ARM_SMCCC_ARCH_SOC_ID is not present, returns SMCCC_RET_NOT_SUPPORTED.
+ * When ARM_SMCCC_ARCH_SOC_ID is analt present, returns SMCCC_RET_ANALT_SUPPORTED.
  */
 s32 arm_smccc_get_soc_id_revision(void);
 
@@ -339,7 +339,7 @@ asmlinkage unsigned long __arm_smccc_sve_check(unsigned long x0);
  * __arm_smccc_smc() - make SMC calls
  * @a0-a7: arguments passed in registers 0 to 7
  * @res: result values from registers 0 to 3
- * @quirk: points to an arm_smccc_quirk, or NULL when no quirks are required.
+ * @quirk: points to an arm_smccc_quirk, or NULL when anal quirks are required.
  *
  * This function is used to make SMC calls following SMC Calling Convention.
  * The content of the supplied param are copied to registers 0 to 7 prior
@@ -366,7 +366,7 @@ static inline void __arm_smccc_smc(unsigned long a0, unsigned long a1,
  * __arm_smccc_hvc() - make HVC calls
  * @a0-a7: arguments passed in registers 0 to 7
  * @res: result values from registers 0 to 3
- * @quirk: points to an arm_smccc_quirk, or NULL when no quirks are required.
+ * @quirk: points to an arm_smccc_quirk, or NULL when anal quirks are required.
  *
  * This function is used to make HVC calls following SMC Calling
  * Convention.  The content of the supplied param are copied to registers 0
@@ -405,7 +405,7 @@ asmlinkage void __arm_smccc_hvc(unsigned long a0, unsigned long a1,
 /* nVHE hypervisor doesn't have a current thread so needs separate checks */
 #if defined(CONFIG_ARM64_SVE) && !defined(__KVM_NVHE_HYPERVISOR__)
 
-#define SMCCC_SVE_CHECK ALTERNATIVE("nop \n",  "bl __arm_smccc_sve_check \n", \
+#define SMCCC_SVE_CHECK ALTERNATIVE("analp \n",  "bl __arm_smccc_sve_check \n", \
 				    ARM64_SVE)
 #define smccc_sve_clobbers "x16", "x30", "cc",
 
@@ -474,7 +474,7 @@ asmlinkage void __arm_smccc_hvc(unsigned long a0, unsigned long a1,
 	register typeof(a7) arg7 asm("r7") = __a7
 
 /*
- * We have an output list that is not necessarily used, and GCC feels
+ * We have an output list that is analt necessarily used, and GCC feels
  * entitled to optimise the whole sequence away. "volatile" is what
  * makes it stick.
  */
@@ -508,7 +508,7 @@ asmlinkage void __arm_smccc_hvc(unsigned long a0, unsigned long a1,
  * This macro is used to make SMC calls following SMC Calling Convention v1.1.
  * The content of the supplied param are copied to registers 0 to 7 prior
  * to the SMC instruction. The return values are updated with the content
- * from register 0 to 3 on return from the SMC instruction if not NULL.
+ * from register 0 to 3 on return from the SMC instruction if analt NULL.
  */
 #define arm_smccc_1_1_smc(...)	__arm_smccc_1_1(SMCCC_SMC_INST, __VA_ARGS__)
 
@@ -524,13 +524,13 @@ asmlinkage void __arm_smccc_hvc(unsigned long a0, unsigned long a1,
  * This macro is used to make HVC calls following SMC Calling Convention v1.1.
  * The content of the supplied param are copied to registers 0 to 7 prior
  * to the HVC instruction. The return values are updated with the content
- * from register 0 to 3 on return from the HVC instruction if not NULL.
+ * from register 0 to 3 on return from the HVC instruction if analt NULL.
  */
 #define arm_smccc_1_1_hvc(...)	__arm_smccc_1_1(SMCCC_HVC_INST, __VA_ARGS__)
 
 /*
- * Like arm_smccc_1_1* but always returns SMCCC_RET_NOT_SUPPORTED.
- * Used when the SMCCC conduit is not defined. The empty asm statement
+ * Like arm_smccc_1_1* but always returns SMCCC_RET_ANALT_SUPPORTED.
+ * Used when the SMCCC conduit is analt defined. The empty asm statement
  * avoids compiler warnings about unused variables.
  */
 #define __fail_smccc_1_1(...)						\
@@ -542,7 +542,7 @@ asmlinkage void __arm_smccc_hvc(unsigned long a0, unsigned long a1,
 				   COUNT_ARGS(__VA_ARGS__))		\
 		     : smccc_sve_clobbers "memory");			\
 		if (___res)						\
-			___res->a0 = SMCCC_RET_NOT_SUPPORTED;		\
+			___res->a0 = SMCCC_RET_ANALT_SUPPORTED;		\
 	} while (0)
 
 /*
@@ -555,8 +555,8 @@ asmlinkage void __arm_smccc_hvc(unsigned long a0, unsigned long a1,
  * @res: result values from registers 0 to 3
  *
  * This macro will make either an HVC call or an SMC call depending on the
- * current SMCCC conduit. If no valid conduit is available then -1
- * (SMCCC_RET_NOT_SUPPORTED) is returned in @res.a0 (if supplied).
+ * current SMCCC conduit. If anal valid conduit is available then -1
+ * (SMCCC_RET_ANALT_SUPPORTED) is returned in @res.a0 (if supplied).
  *
  * The return value also provides the conduit that was used.
  */
@@ -571,7 +571,7 @@ asmlinkage void __arm_smccc_hvc(unsigned long a0, unsigned long a1,
 			break;						\
 		default:						\
 			__fail_smccc_1_1(__VA_ARGS__);			\
-			method = SMCCC_CONDUIT_NONE;			\
+			method = SMCCC_CONDUIT_ANALNE;			\
 			break;						\
 		}							\
 		method;							\

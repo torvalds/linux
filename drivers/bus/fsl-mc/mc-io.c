@@ -56,7 +56,7 @@ static void fsl_mc_io_unset_dpmcp(struct fsl_mc_io *mc_io)
  * @mc_portal_phys_addr: physical address of the MC portal to use
  * @mc_portal_size: size in bytes of the MC portal
  * @dpmcp_dev: Pointer to the DPMCP object associated with this MC I/O
- * object or NULL if none.
+ * object or NULL if analne.
  * @flags: flags for the new MC I/O object
  * @new_mc_io: Area to return pointer to newly created MC I/O object
  *
@@ -75,7 +75,7 @@ int __must_check fsl_create_mc_io(struct device *dev,
 
 	mc_io = devm_kzalloc(dev, sizeof(*mc_io), GFP_KERNEL);
 	if (!mc_io)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mc_io->dev = dev;
 	mc_io->flags = flags;
@@ -195,12 +195,12 @@ int __must_check fsl_mc_portal_allocate(struct fsl_mc_device *mc_dev,
 
 	if (dpmcp_dev->obj_desc.ver_major < DPMCP_MIN_VER_MAJOR ||
 	    (dpmcp_dev->obj_desc.ver_major == DPMCP_MIN_VER_MAJOR &&
-	     dpmcp_dev->obj_desc.ver_minor < DPMCP_MIN_VER_MINOR)) {
+	     dpmcp_dev->obj_desc.ver_mianalr < DPMCP_MIN_VER_MIANALR)) {
 		dev_err(&dpmcp_dev->dev,
-			"ERROR: Version %d.%d of DPMCP not supported.\n",
+			"ERROR: Version %d.%d of DPMCP analt supported.\n",
 			dpmcp_dev->obj_desc.ver_major,
-			dpmcp_dev->obj_desc.ver_minor);
-		error = -ENOTSUPP;
+			dpmcp_dev->obj_desc.ver_mianalr);
+		error = -EANALTSUPP;
 		goto error_cleanup_resource;
 	}
 

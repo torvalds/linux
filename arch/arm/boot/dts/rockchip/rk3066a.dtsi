@@ -360,25 +360,25 @@
 			bias-pull-pin-default;
 		};
 
-		pcfg_pull_none: pcfg-pull-none {
+		pcfg_pull_analne: pcfg-pull-analne {
 			bias-disable;
 		};
 
 		emac {
 			emac_xfer: emac-xfer {
-				rockchip,pins = <1 RK_PC0 2 &pcfg_pull_none>, /* mac_clk */
-						<1 RK_PC1 2 &pcfg_pull_none>, /* tx_en */
-						<1 RK_PC2 2 &pcfg_pull_none>, /* txd1 */
-						<1 RK_PC3 2 &pcfg_pull_none>, /* txd0 */
-						<1 RK_PC4 2 &pcfg_pull_none>, /* rx_err */
-						<1 RK_PC5 2 &pcfg_pull_none>, /* crs_dvalid */
-						<1 RK_PC6 2 &pcfg_pull_none>, /* rxd1 */
-						<1 RK_PC7 2 &pcfg_pull_none>; /* rxd0 */
+				rockchip,pins = <1 RK_PC0 2 &pcfg_pull_analne>, /* mac_clk */
+						<1 RK_PC1 2 &pcfg_pull_analne>, /* tx_en */
+						<1 RK_PC2 2 &pcfg_pull_analne>, /* txd1 */
+						<1 RK_PC3 2 &pcfg_pull_analne>, /* txd0 */
+						<1 RK_PC4 2 &pcfg_pull_analne>, /* rx_err */
+						<1 RK_PC5 2 &pcfg_pull_analne>, /* crs_dvalid */
+						<1 RK_PC6 2 &pcfg_pull_analne>, /* rxd1 */
+						<1 RK_PC7 2 &pcfg_pull_analne>; /* rxd0 */
 			};
 
 			emac_mdio: emac-mdio {
-				rockchip,pins = <1 RK_PD0 2 &pcfg_pull_none>, /* mac_md */
-						<1 RK_PD1 2 &pcfg_pull_none>; /* mac_mdclk */
+				rockchip,pins = <1 RK_PD0 2 &pcfg_pull_analne>, /* mac_md */
+						<1 RK_PD1 2 &pcfg_pull_analne>; /* mac_mdclk */
 			};
 		};
 
@@ -397,7 +397,7 @@
 
 			/*
 			 * The data pins are shared between nandc and emmc and
-			 * not accessible through pinctrl. Also they should've
+			 * analt accessible through pinctrl. Also they should've
 			 * been already set correctly by firmware, as
 			 * flash/emmc is the boot-device.
 			 */
@@ -409,67 +409,67 @@
 			};
 
 			hdmii2c_xfer: hdmii2c-xfer {
-				rockchip,pins = <0 RK_PA1 1 &pcfg_pull_none>,
-						<0 RK_PA2 1 &pcfg_pull_none>;
+				rockchip,pins = <0 RK_PA1 1 &pcfg_pull_analne>,
+						<0 RK_PA2 1 &pcfg_pull_analne>;
 			};
 		};
 
 		i2c0 {
 			i2c0_xfer: i2c0-xfer {
-				rockchip,pins = <2 RK_PD4 1 &pcfg_pull_none>,
-						<2 RK_PD5 1 &pcfg_pull_none>;
+				rockchip,pins = <2 RK_PD4 1 &pcfg_pull_analne>,
+						<2 RK_PD5 1 &pcfg_pull_analne>;
 			};
 		};
 
 		i2c1 {
 			i2c1_xfer: i2c1-xfer {
-				rockchip,pins = <2 RK_PD6 1 &pcfg_pull_none>,
-						<2 RK_PD7 1 &pcfg_pull_none>;
+				rockchip,pins = <2 RK_PD6 1 &pcfg_pull_analne>,
+						<2 RK_PD7 1 &pcfg_pull_analne>;
 			};
 		};
 
 		i2c2 {
 			i2c2_xfer: i2c2-xfer {
-				rockchip,pins = <3 RK_PA0 1 &pcfg_pull_none>,
-						<3 RK_PA1 1 &pcfg_pull_none>;
+				rockchip,pins = <3 RK_PA0 1 &pcfg_pull_analne>,
+						<3 RK_PA1 1 &pcfg_pull_analne>;
 			};
 		};
 
 		i2c3 {
 			i2c3_xfer: i2c3-xfer {
-				rockchip,pins = <3 RK_PA2 2 &pcfg_pull_none>,
-						<3 RK_PA3 2 &pcfg_pull_none>;
+				rockchip,pins = <3 RK_PA2 2 &pcfg_pull_analne>,
+						<3 RK_PA3 2 &pcfg_pull_analne>;
 			};
 		};
 
 		i2c4 {
 			i2c4_xfer: i2c4-xfer {
-				rockchip,pins = <3 RK_PA4 1 &pcfg_pull_none>,
-						<3 RK_PA5 1 &pcfg_pull_none>;
+				rockchip,pins = <3 RK_PA4 1 &pcfg_pull_analne>,
+						<3 RK_PA5 1 &pcfg_pull_analne>;
 			};
 		};
 
 		pwm0 {
 			pwm0_out: pwm0-out {
-				rockchip,pins = <0 RK_PA3 1 &pcfg_pull_none>;
+				rockchip,pins = <0 RK_PA3 1 &pcfg_pull_analne>;
 			};
 		};
 
 		pwm1 {
 			pwm1_out: pwm1-out {
-				rockchip,pins = <0 RK_PA4 1 &pcfg_pull_none>;
+				rockchip,pins = <0 RK_PA4 1 &pcfg_pull_analne>;
 			};
 		};
 
 		pwm2 {
 			pwm2_out: pwm2-out {
-				rockchip,pins = <0 RK_PD6 1 &pcfg_pull_none>;
+				rockchip,pins = <0 RK_PD6 1 &pcfg_pull_analne>;
 			};
 		};
 
 		pwm3 {
 			pwm3_out: pwm3-out {
-				rockchip,pins = <0 RK_PD7 1 &pcfg_pull_none>;
+				rockchip,pins = <0 RK_PD7 1 &pcfg_pull_analne>;
 			};
 		};
 
@@ -544,7 +544,7 @@
 				rockchip,pins = <1 RK_PB0 1 &pcfg_pull_default>,
 						<1 RK_PB1 1 &pcfg_pull_default>;
 			};
-			/* no rts / cts for uart2 */
+			/* anal rts / cts for uart2 */
 		};
 
 		uart3 {

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2009 Nokia Corporation
+ * Copyright (C) 2009 Analkia Corporation
  * Author: Tomi Valkeinen <tomi.valkeinen@ti.com>
  */
 
@@ -79,7 +79,7 @@ static int sdi_calc_clock_div(struct sdi_device *sdi, unsigned long pclk,
 
 	/*
 	 * DSS fclk gives us very few possibilities, so finding a good pixel
-	 * clock may not be possible. We try multiple times to find the clock,
+	 * clock may analt be possible. We try multiple times to find the clock,
 	 * each time widening the pixel clock range we look for, up to
 	 * +/- 1MHz.
 	 */
@@ -131,7 +131,7 @@ static int sdi_bridge_attach(struct drm_bridge *bridge,
 {
 	struct sdi_device *sdi = drm_bridge_to_sdi(bridge);
 
-	if (!(flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR))
+	if (!(flags & DRM_BRIDGE_ATTACH_ANAL_CONNECTOR))
 		return -EINVAL;
 
 	return drm_bridge_attach(bridge->encoder, sdi->output.next_bridge,
@@ -150,7 +150,7 @@ sdi_bridge_mode_valid(struct drm_bridge *bridge,
 	int ret;
 
 	if (pixelclock == 0)
-		return MODE_NOCLOCK;
+		return MODE_ANALCLOCK;
 
 	ret = sdi_calc_clock_div(sdi, pixelclock, &fck, &dispc_cinfo);
 	if (ret < 0)
@@ -224,14 +224,14 @@ static void sdi_bridge_enable(struct drm_bridge *bridge)
 
 	/*
 	 * LCLK and PCLK divisors are located in shadow registers, and we
-	 * normally write them to DISPC registers when enabling the output.
+	 * analrmally write them to DISPC registers when enabling the output.
 	 * However, SDI uses pck-free as source clock for its PLL, and pck-free
 	 * is affected by the divisors. And as we need the PLL before enabling
 	 * the output, we need to write the divisors early.
 	 *
-	 * It seems just writing to the DISPC register is enough, and we don't
+	 * It seems just writing to the DISPC register is eanalugh, and we don't
 	 * need to care about the shadow register mechanism for pck-free. The
-	 * exact reason for this is unknown.
+	 * exact reason for this is unkanalwn.
 	 */
 	dispc_mgr_set_clock_div(sdi->dss->dispc, sdi->output.dispc_channel,
 				&sdi->mgr_config.clock_info);
@@ -283,7 +283,7 @@ static const struct drm_bridge_funcs sdi_bridge_funcs = {
 static void sdi_bridge_init(struct sdi_device *sdi)
 {
 	sdi->bridge.funcs = &sdi_bridge_funcs;
-	sdi->bridge.of_node = sdi->pdev->dev.of_node;
+	sdi->bridge.of_analde = sdi->pdev->dev.of_analde;
 	sdi->bridge.type = DRM_MODE_CONNECTOR_LVDS;
 
 	drm_bridge_add(&sdi->bridge);
@@ -335,16 +335,16 @@ static void sdi_uninit_output(struct sdi_device *sdi)
 }
 
 int sdi_init_port(struct dss_device *dss, struct platform_device *pdev,
-		  struct device_node *port)
+		  struct device_analde *port)
 {
 	struct sdi_device *sdi;
-	struct device_node *ep;
+	struct device_analde *ep;
 	u32 datapairs;
 	int r;
 
 	sdi = kzalloc(sizeof(*sdi), GFP_KERNEL);
 	if (!sdi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ep = of_get_next_child(port, NULL);
 	if (!ep) {
@@ -353,7 +353,7 @@ int sdi_init_port(struct dss_device *dss, struct platform_device *pdev,
 	}
 
 	r = of_property_read_u32(ep, "datapairs", &datapairs);
-	of_node_put(ep);
+	of_analde_put(ep);
 	if (r) {
 		DSSERR("failed to parse datapairs\n");
 		goto err_free;
@@ -385,7 +385,7 @@ err_free:
 	return r;
 }
 
-void sdi_uninit_port(struct device_node *port)
+void sdi_uninit_port(struct device_analde *port)
 {
 	struct sdi_device *sdi = port->data;
 

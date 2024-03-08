@@ -59,14 +59,14 @@ static int rzg2l_cru_ip_s_stream(struct v4l2_subdev *sd, int enable)
 			s_stream_ret = ret;
 
 		ret = v4l2_subdev_call(cru->ip.remote, video, post_streamoff);
-		if (ret == -ENOIOCTLCMD)
+		if (ret == -EANALIOCTLCMD)
 			ret = 0;
 		if (ret && !s_stream_ret)
 			s_stream_ret = ret;
 		rzg2l_cru_stop_image_processing(cru);
 	} else {
 		ret = v4l2_subdev_call(cru->ip.remote, video, pre_streamon, 0);
-		if (ret == -ENOIOCTLCMD)
+		if (ret == -EANALIOCTLCMD)
 			ret = 0;
 		if (ret)
 			return ret;
@@ -80,7 +80,7 @@ static int rzg2l_cru_ip_s_stream(struct v4l2_subdev *sd, int enable)
 		rzg2l_cru_vclk_unprepare(cru);
 
 		ret = v4l2_subdev_call(cru->ip.remote, video, s_stream, enable);
-		if (ret == -ENOIOCTLCMD)
+		if (ret == -EANALIOCTLCMD)
 			ret = 0;
 		if (!ret) {
 			ret = rzg2l_cru_vclk_prepare(cru);
@@ -121,7 +121,7 @@ static int rzg2l_cru_ip_set_format(struct v4l2_subdev *sd,
 	else
 		sink_format->code = fmt->format.code;
 
-	sink_format->field = V4L2_FIELD_NONE;
+	sink_format->field = V4L2_FIELD_ANALNE;
 	sink_format->colorspace = fmt->format.colorspace;
 	sink_format->xfer_func = fmt->format.xfer_func;
 	sink_format->ycbcr_enc = fmt->format.ycbcr_enc;
@@ -175,7 +175,7 @@ static int rzg2l_cru_ip_init_state(struct v4l2_subdev *sd,
 
 	fmt.format.width = RZG2L_CRU_MIN_INPUT_WIDTH;
 	fmt.format.height = RZG2L_CRU_MIN_INPUT_HEIGHT;
-	fmt.format.field = V4L2_FIELD_NONE;
+	fmt.format.field = V4L2_FIELD_ANALNE;
 	fmt.format.code = MEDIA_BUS_FMT_UYVY8_1X16;
 	fmt.format.colorspace = V4L2_COLORSPACE_SRGB;
 	fmt.format.ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
@@ -220,7 +220,7 @@ int rzg2l_cru_ip_subdev_register(struct rzg2l_cru_dev *cru)
 	v4l2_set_subdevdata(&ip->subdev, cru);
 	snprintf(ip->subdev.name, sizeof(ip->subdev.name),
 		 "cru-ip-%s", dev_name(cru->dev));
-	ip->subdev.flags = V4L2_SUBDEV_FL_HAS_DEVNODE;
+	ip->subdev.flags = V4L2_SUBDEV_FL_HAS_DEVANALDE;
 
 	ip->subdev.entity.function = MEDIA_ENT_F_PROC_VIDEO_PIXEL_FORMATTER;
 	ip->subdev.entity.ops = &rzg2l_cru_ip_entity_ops;

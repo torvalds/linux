@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-// Copyright (c) 2018 Mellanox Technologies
+// Copyright (c) 2018 Mellaanalx Techanallogies
 
 #include <linux/hyperv.h>
 #include "mlx5_core.h"
@@ -8,7 +8,7 @@
 static int mlx5_hv_config_common(struct mlx5_core_dev *dev, void *buf, int len,
 				 int offset, bool read)
 {
-	int rc = -EOPNOTSUPP;
+	int rc = -EOPANALTSUPP;
 	int bytes_returned;
 	int block_id;
 

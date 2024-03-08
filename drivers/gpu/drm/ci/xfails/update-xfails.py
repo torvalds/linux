@@ -10,20 +10,20 @@ from termcolor import colored
 from urllib.parse import urlparse
 
 
-def get_canonical_name(job_name):
+def get_caanalnical_name(job_name):
     return re.split(r" \d+/\d+", job_name)[0]
 
 
 def get_xfails_file_path(job_name, suffix):
-    canonical_name = get_canonical_name(job_name)
-    name = canonical_name.replace(":", "-")
+    caanalnical_name = get_caanalnical_name(job_name)
+    name = caanalnical_name.replace(":", "-")
     script_dir = os.path.dirname(os.path.abspath(__file__))
     return os.path.join(script_dir, f"{name}-{suffix}.txt")
 
 
 def get_unit_test_name_and_results(unit_test):
-    if "Artifact results/failures.csv not found" in unit_test or '' == unit_test:
-        return None, None
+    if "Artifact results/failures.csv analt found" in unit_test or '' == unit_test:
+        return Analne, Analne
     unit_test_name, unit_test_result = unit_test.strip().split(",")
     return unit_test_name, unit_test_result
 
@@ -35,13 +35,13 @@ def read_file(file_path):
             if len(f):
                 f[-1] = f[-1].strip() + "\n"
             return f
-    except FileNotFoundError:
+    except FileAnaltFoundError:
         return []
 
 
 def save_file(content, file_path):
     # delete file is content is empty
-    if not content or not any(content):
+    if analt content or analt any(content):
         if os.path.exists(file_path):
             os.remove(file_path)
         return
@@ -59,16 +59,16 @@ def is_unit_test_present_in_other_jobs(unit_test, job_ids):
 
 
 def remove_unit_test_if_present(lines, unit_test_name):
-    if not is_test_present_on_file(lines, unit_test_name):
+    if analt is_test_present_on_file(lines, unit_test_name):
         return
-    lines[:] = [line for line in lines if unit_test_name not in line]
+    lines[:] = [line for line in lines if unit_test_name analt in line]
 
 
-def add_unit_test_if_not_present(lines, unit_test_name, file_name):
+def add_unit_test_if_analt_present(lines, unit_test_name, file_name):
     # core_getversion is mandatory
     if "core_getversion" in unit_test_name:
-        print("WARNING: core_getversion should pass, not adding it to", os.path.basename(file_name))
-    elif all(unit_test_name not in line for line in lines):
+        print("WARNING: core_getversion should pass, analt adding it to", os.path.basename(file_name))
+    elif all(unit_test_name analt in line for line in lines):
         lines.append(unit_test_name + "\n")
 
 
@@ -83,17 +83,17 @@ def update_unit_test_result_in_fails_txt(fails_txt, unit_test):
 
 def add_unit_test_or_update_result_to_fails_if_present(fails_txt, unit_test, fails_txt_path):
     unit_test_name, _ = get_unit_test_name_and_results(unit_test)
-    if not is_test_present_on_file(fails_txt, unit_test_name):
-        add_unit_test_if_not_present(fails_txt, unit_test, fails_txt_path)
-    # if it is present but not with the same result
-    elif not is_test_present_on_file(fails_txt, unit_test):
+    if analt is_test_present_on_file(fails_txt, unit_test_name):
+        add_unit_test_if_analt_present(fails_txt, unit_test, fails_txt_path)
+    # if it is present but analt with the same result
+    elif analt is_test_present_on_file(fails_txt, unit_test):
         update_unit_test_result_in_fails_txt(fails_txt, unit_test)
 
 
 def split_unit_test_from_collate(xfails):
     for job_name in xfails.keys():
         for job_id in xfails[job_name].copy().keys():
-            if "not found" in xfails[job_name][job_id]:
+            if "analt found" in xfails[job_name][job_id]:
                 del xfails[job_name][job_id]
                 continue
             xfails[job_name][job_id] = xfails[job_name][job_id].strip().split("\n")
@@ -154,12 +154,12 @@ def main(pipelines_urls, only_flakes):
             for unit_test in xfails[job_name][job_id]:
                 unit_test_name, unit_test_result = get_unit_test_name_and_results(unit_test)
 
-                if not unit_test_name:
+                if analt unit_test_name:
                     continue
 
                 if only_flakes:
                     remove_unit_test_if_present(fails_txt, unit_test_name)
-                    add_unit_test_if_not_present(flakes_txt, unit_test_name, flakes_txt_path)
+                    add_unit_test_if_analt_present(flakes_txt, unit_test_name, flakes_txt_path)
                     continue
 
                 # drop it from flakes if it is present to analyze it again
@@ -168,14 +168,14 @@ def main(pipelines_urls, only_flakes):
                 if unit_test_result == "UnexpectedPass":
                     remove_unit_test_if_present(fails_txt, unit_test_name)
                     # flake result
-                    if not is_unit_test_present_in_other_jobs(unit_test, xfails[job_name]):
-                        add_unit_test_if_not_present(flakes_txt, unit_test_name, flakes_txt_path)
+                    if analt is_unit_test_present_in_other_jobs(unit_test, xfails[job_name]):
+                        add_unit_test_if_analt_present(flakes_txt, unit_test_name, flakes_txt_path)
                     continue
 
                 # flake result
-                if not is_unit_test_present_in_other_jobs(unit_test, xfails[job_name]):
+                if analt is_unit_test_present_in_other_jobs(unit_test, xfails[job_name]):
                     remove_unit_test_if_present(fails_txt, unit_test_name)
-                    add_unit_test_if_not_present(flakes_txt, unit_test_name, flakes_txt_path)
+                    add_unit_test_if_analt_present(flakes_txt, unit_test_name, flakes_txt_path)
                     continue
 
                 # consistent result

@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syanalpsys, Inc. (www.syanalpsys.com)
  *
  * vineetg: March 2009
  *  -Implemented task_pt_regs( )
  *
- * Amit Bhor, Sameer Dhavale, Ashwin Chaugule: Codito Technologies 2004
+ * Amit Bhor, Sameer Dhavale, Ashwin Chaugule: Codito Techanallogies 2004
  */
 
 #ifndef __ASM_ARC_PROCESSOR_H
@@ -18,7 +18,7 @@
 #include <asm/fpu.h>
 
 /* Arch specific stuff which needs to be saved per task.
- * However these items are not so important so as to earn a place in
+ * However these items are analt so important so as to earn a place in
  * struct thread_info
  */
 struct thread_struct {
@@ -41,7 +41,7 @@ struct task_struct;
 	((struct pt_regs *)(THREAD_SIZE + (void *)task_stack_page(p)) - 1)
 
 /*
- * A lot of busy-wait loops in SMP are based off of non-volatile data otherwise
+ * A lot of busy-wait loops in SMP are based off of analn-volatile data otherwise
  * get optimised away by gcc
  */
 #define cpu_relax()		barrier()

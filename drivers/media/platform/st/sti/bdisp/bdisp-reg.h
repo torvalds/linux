@@ -4,7 +4,7 @@
  * Authors: Fabien Dessenne <fabien.dessenne@st.com> for STMicroelectronics.
  */
 
-struct bdisp_node {
+struct bdisp_analde {
 	/* 0 - General */
 	u32 nip;
 	u32 cic;
@@ -109,7 +109,7 @@ struct bdisp_node {
 #define BLT_PLUGT_CHZ           0x0B88
 #define BLT_PLUGT_MSZ           0x0B8C
 #define BLT_PLUGT_PGZ           0x0B90
-/* HW registers : node */
+/* HW registers : analde */
 #define BLT_NIP                 0x0C00
 #define BLT_CIC                 0x0C04
 #define BLT_INS                 0x0C08
@@ -191,14 +191,14 @@ struct bdisp_node {
 #define BLT_INS_GRAD            BIT(19)         /* Gradient fill */
 #define BLT_INS_AQLOCK          BIT(29)         /* AQ lock */
 #define BLT_INS_PACE            BIT(30)         /* Pace down */
-#define BLT_INS_IRQ             BIT(31)         /* Raise IRQ when node done */
+#define BLT_INS_IRQ             BIT(31)         /* Raise IRQ when analde done */
 #define BLT_CIC_ALL_GRP         0x000FDFFC      /* all valid groups present */
 #define BLT_ACK_BYPASS_S2S3     0x00000007      /* Bypass src2 and src3 */
 
 #define BLT_TTY_COL_SHIFT       16              /* Color format */
 #define BLT_TTY_COL_MASK        0x001F0000      /* Color format mask */
 #define BLT_TTY_ALPHA_R         BIT(21)         /* Alpha range */
-#define BLT_TTY_CR_NOT_CB       BIT(22)         /* CR not Cb */
+#define BLT_TTY_CR_ANALT_CB       BIT(22)         /* CR analt Cb */
 #define BLT_TTY_MB              BIT(23)         /* MB frame / field*/
 #define BLT_TTY_HSO             BIT(24)         /* H scan order */
 #define BLT_TTY_VSO             BIT(25)         /* V scan order */

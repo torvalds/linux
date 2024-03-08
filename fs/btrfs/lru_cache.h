@@ -8,9 +8,9 @@
 
 /*
  * A cache entry. This is meant to be embedded in a structure of a user of
- * this module. Similar to how struct list_head and struct rb_node are used.
+ * this module. Similar to how struct list_head and struct rb_analde are used.
  *
- * Note: it should be embedded as the first element in a struct (offset 0), and
+ * Analte: it should be embedded as the first element in a struct (offset 0), and
  * this module assumes it was allocated with kmalloc(), so it calls kfree() when
  * it needs to free an entry.
  */
@@ -18,7 +18,7 @@ struct btrfs_lru_cache_entry {
 	struct list_head lru_list;
 	u64 key;
 	/*
-	 * Optional generation associated to a key. Use 0 if not needed/used.
+	 * Optional generation associated to a key. Use 0 if analt needed/used.
 	 * Entries with the same key and different generations are stored in a
 	 * linked list, so use this only for cases where there's a small number
 	 * of different generations.
@@ -27,7 +27,7 @@ struct btrfs_lru_cache_entry {
 	/*
 	 * The maple tree uses unsigned long type for the keys, which is 32 bits
 	 * on 32 bits systems, and 64 bits on 64 bits systems. So if we want to
-	 * use something like inode numbers as keys, which are always a u64, we
+	 * use something like ianalde numbers as keys, which are always a u64, we
 	 * have to deal with this in a special way - we store the key in the
 	 * entry itself, as a u64, and the values inserted into the maple tree
 	 * are linked lists of entries - so in case we are on a 64 bits system,

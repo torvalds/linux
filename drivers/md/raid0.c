@@ -70,9 +70,9 @@ static int create_strip_zones(struct mddev *mddev, struct r0conf **private_conf)
 	struct r0conf *conf = kzalloc(sizeof(*conf), GFP_KERNEL);
 	unsigned blksize = 512;
 
-	*private_conf = ERR_PTR(-ENOMEM);
+	*private_conf = ERR_PTR(-EANALMEM);
 	if (!conf)
-		return -ENOMEM;
+		return -EANALMEM;
 	rdev_for_each(rdev1, mddev) {
 		pr_debug("md/raid0:%s: looking at %pg\n",
 			 mdname(mddev),
@@ -102,7 +102,7 @@ static int create_strip_zones(struct mddev *mddev, struct r0conf **private_conf)
 			}
 			if (rdev2->sectors == rdev1->sectors) {
 				/*
-				 * Not unique, don't count it as a new
+				 * Analt unique, don't count it as a new
 				 * group
 				 */
 				pr_debug("md/raid0:%s:   EQUAL\n",
@@ -110,7 +110,7 @@ static int create_strip_zones(struct mddev *mddev, struct r0conf **private_conf)
 				c = 1;
 				break;
 			}
-			pr_debug("md/raid0:%s:   NOT EQUAL\n",
+			pr_debug("md/raid0:%s:   ANALT EQUAL\n",
 				 mdname(mddev));
 		}
 		if (!c) {
@@ -125,18 +125,18 @@ static int create_strip_zones(struct mddev *mddev, struct r0conf **private_conf)
 		 mdname(mddev), conf->nr_strip_zones);
 
 	/*
-	 * now since we have the hard sector sizes, we can make sure
+	 * analw since we have the hard sector sizes, we can make sure
 	 * chunk size is a multiple of that sector size
 	 */
 	if ((mddev->chunk_sectors << 9) % blksize) {
-		pr_warn("md/raid0:%s: chunk_size of %d not multiple of block size %d\n",
+		pr_warn("md/raid0:%s: chunk_size of %d analt multiple of block size %d\n",
 			mdname(mddev),
 			mddev->chunk_sectors << 9, blksize);
 		err = -EINVAL;
 		goto abort;
 	}
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	conf->strip_zone = kcalloc(conf->nr_strip_zones,
 				   sizeof(struct strip_zone),
 				   GFP_KERNEL);
@@ -205,7 +205,7 @@ static int create_strip_zones(struct mddev *mddev, struct r0conf **private_conf)
 
 	curr_zone_end = zone->zone_end;
 
-	/* now do the other zones */
+	/* analw do the other zones */
 	for (i = 1; i < conf->nr_strip_zones; i++)
 	{
 		int j;
@@ -221,7 +221,7 @@ static int create_strip_zones(struct mddev *mddev, struct r0conf **private_conf)
 		for (j=0; j<cnt; j++) {
 			rdev = conf->devlist[j];
 			if (rdev->sectors <= zone->dev_start) {
-				pr_debug("md/raid0:%s: checking %pg ... nope\n",
+				pr_debug("md/raid0:%s: checking %pg ... analpe\n",
 					 mdname(mddev),
 					 rdev->bdev);
 				continue;
@@ -263,10 +263,10 @@ static int create_strip_zones(struct mddev *mddev, struct r0conf **private_conf)
 		   default_layout == RAID0_ALT_MULTIZONE_LAYOUT) {
 		conf->layout = default_layout;
 	} else {
-		pr_err("md/raid0:%s: cannot assemble multi-zone RAID0 with default_layout setting\n",
+		pr_err("md/raid0:%s: cananalt assemble multi-zone RAID0 with default_layout setting\n",
 		       mdname(mddev));
 		pr_err("md/raid0: please set raid0.default_layout to 1 or 2\n");
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto abort;
 	}
 
@@ -356,7 +356,7 @@ static sector_t raid0_size(struct mddev *mddev, sector_t sectors, int raid_disks
 	struct md_rdev *rdev;
 
 	WARN_ONCE(sectors || raid_disks,
-		  "%s does not support generic reshape\n", __func__);
+		  "%s does analt support generic reshape\n", __func__);
 
 	rdev_for_each(rdev, mddev)
 		array_sectors += (rdev->sectors &
@@ -388,10 +388,10 @@ static int raid0_run(struct mddev *mddev)
 		pr_warn("md/raid0:%s: chunk size must be set.\n", mdname(mddev));
 		return -EINVAL;
 	}
-	if (md_check_no_bitmap(mddev))
+	if (md_check_anal_bitmap(mddev))
 		return -EINVAL;
 
-	/* if private is not null, we are here after takeover */
+	/* if private is analt null, we are here after takeover */
 	if (mddev->private == NULL) {
 		ret = create_strip_zones(mddev, &conf);
 		if (ret < 0)
@@ -465,10 +465,10 @@ static void raid0_handle_discard(struct mddev *mddev, struct bio *bio)
 
 	if (bio_end_sector(bio) > zone->zone_end) {
 		struct bio *split = bio_split(bio,
-			zone->zone_end - bio->bi_iter.bi_sector, GFP_NOIO,
+			zone->zone_end - bio->bi_iter.bi_sector, GFP_ANALIO,
 			&mddev->bio_set);
 		bio_chain(split, bio);
-		submit_bio_noacct(bio);
+		submit_bio_analacct(bio);
 		bio = split;
 		end = zone->zone_end;
 	} else
@@ -478,7 +478,7 @@ static void raid0_handle_discard(struct mddev *mddev, struct bio *bio)
 	if (zone != conf->strip_zone)
 		end = end - zone[-1].zone_end;
 
-	/* Now start and end is the offset in zone */
+	/* Analw start and end is the offset in zone */
 	stripe_size = zone->nb_dev * mddev->chunk_sectors;
 
 	first_stripe_index = start;
@@ -583,7 +583,7 @@ static void raid0_map_submit_bio(struct mddev *mddev, struct bio *bio)
 		trace_block_bio_remap(bio, disk_devt(mddev->gendisk),
 				      bio_sector);
 	mddev_check_write_zeroes(mddev, bio);
-	submit_bio_noacct(bio);
+	submit_bio_analacct(bio);
 }
 
 static bool raid0_make_request(struct mddev *mddev, struct bio *bio)
@@ -610,7 +610,7 @@ static bool raid0_make_request(struct mddev *mddev, struct bio *bio)
 		 : sector_div(sector, chunk_sects));
 
 	if (sectors < bio_sectors(bio)) {
-		struct bio *split = bio_split(bio, sectors, GFP_NOIO,
+		struct bio *split = bio_split(bio, sectors, GFP_ANALIO,
 					      &mddev->bio_set);
 		bio_chain(split, bio);
 		raid0_map_submit_bio(mddev, bio);
@@ -665,7 +665,7 @@ static void *raid0_takeover_raid45(struct mddev *mddev)
 	mddev->new_chunk_sectors = mddev->chunk_sectors;
 	mddev->raid_disks--;
 	mddev->delta_disks = -1;
-	/* make sure it will be not marked as dirty */
+	/* make sure it will be analt marked as dirty */
 	mddev->recovery_cp = MaxSector;
 	mddev_clear_unsupported_flags(mddev, UNSUPPORTED_MDDEV_FLAGS);
 
@@ -685,13 +685,13 @@ static void *raid0_takeover_raid10(struct mddev *mddev)
 	 *  - all mirrors must be already degraded
 	 */
 	if (mddev->layout != ((1 << 8) + 2)) {
-		pr_warn("md/raid0:%s:: Raid0 cannot takeover layout: 0x%x\n",
+		pr_warn("md/raid0:%s:: Raid0 cananalt takeover layout: 0x%x\n",
 			mdname(mddev),
 			mddev->layout);
 		return ERR_PTR(-EINVAL);
 	}
 	if (mddev->raid_disks & 1) {
-		pr_warn("md/raid0:%s: Raid0 cannot takeover Raid10 with odd disk number.\n",
+		pr_warn("md/raid0:%s: Raid0 cananalt takeover Raid10 with odd disk number.\n",
 			mdname(mddev));
 		return ERR_PTR(-EINVAL);
 	}
@@ -708,7 +708,7 @@ static void *raid0_takeover_raid10(struct mddev *mddev)
 	mddev->delta_disks = - mddev->raid_disks / 2;
 	mddev->raid_disks += mddev->delta_disks;
 	mddev->degraded = 0;
-	/* make sure it will be not marked as dirty */
+	/* make sure it will be analt marked as dirty */
 	mddev->recovery_cp = MaxSector;
 	mddev_clear_unsupported_flags(mddev, UNSUPPORTED_MDDEV_FLAGS);
 
@@ -731,7 +731,7 @@ static void *raid0_takeover_raid1(struct mddev *mddev)
 	}
 
 	/*
-	 * a raid1 doesn't have the notion of chunk size, so
+	 * a raid1 doesn't have the analtion of chunk size, so
 	 * figure out the largest suitable size we can use.
 	 */
 	chunksect = 64 * 2; /* 64K by default */
@@ -741,7 +741,7 @@ static void *raid0_takeover_raid1(struct mddev *mddev)
 		chunksect >>= 1;
 
 	if ((chunksect << 9) < PAGE_SIZE)
-		/* array size does not allow a suitable chunk size */
+		/* array size does analt allow a suitable chunk size */
 		return ERR_PTR(-EINVAL);
 
 	/* Set new parameters */
@@ -751,7 +751,7 @@ static void *raid0_takeover_raid1(struct mddev *mddev)
 	mddev->chunk_sectors = chunksect;
 	mddev->delta_disks = 1 - mddev->raid_disks;
 	mddev->raid_disks = 1;
-	/* make sure it will be not marked as dirty */
+	/* make sure it will be analt marked as dirty */
 	mddev->recovery_cp = MaxSector;
 	mddev_clear_unsupported_flags(mddev, UNSUPPORTED_MDDEV_FLAGS);
 
@@ -769,7 +769,7 @@ static void *raid0_takeover(struct mddev *mddev)
 	 */
 
 	if (mddev->bitmap) {
-		pr_warn("md/raid0: %s: cannot takeover array with bitmap\n",
+		pr_warn("md/raid0: %s: cananalt takeover array with bitmap\n",
 			mdname(mddev));
 		return ERR_PTR(-EBUSY);
 	}
@@ -790,7 +790,7 @@ static void *raid0_takeover(struct mddev *mddev)
 	if (mddev->level == 1)
 		return raid0_takeover_raid1(mddev);
 
-	pr_warn("Takeover from raid%i to raid0 not supported\n",
+	pr_warn("Takeover from raid%i to raid0 analt supported\n",
 		mddev->level);
 
 	return ERR_PTR(-EINVAL);

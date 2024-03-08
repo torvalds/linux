@@ -388,7 +388,7 @@ static unsigned long cdce925_clk_best_parent_rate(
 	u16 pdiv_min;
 	u16 pdiv_max;
 	u16 pdiv_best;
-	u16 pdiv_now;
+	u16 pdiv_analw;
 
 	if (root_rate % rate == 0)
 		return root_rate; /* Don't need the PLL, use bypass */
@@ -397,21 +397,21 @@ static unsigned long cdce925_clk_best_parent_rate(
 	pdiv_max = (u16)min(127ul, CDCE925_PLL_FREQUENCY_MAX / rate);
 
 	if (pdiv_min > pdiv_max)
-		return 0; /* No can do? */
+		return 0; /* Anal can do? */
 
 	pdiv_best = pdiv_min;
-	for (pdiv_now = pdiv_min; pdiv_now < pdiv_max; ++pdiv_now) {
-		unsigned long target_rate = rate * pdiv_now;
+	for (pdiv_analw = pdiv_min; pdiv_analw < pdiv_max; ++pdiv_analw) {
+		unsigned long target_rate = rate * pdiv_analw;
 		long pll_rate = clk_round_rate(pll, target_rate);
 		unsigned long actual_rate;
 		unsigned long rate_error;
 
 		if (pll_rate <= 0)
 			continue;
-		actual_rate = pll_rate / pdiv_now;
+		actual_rate = pll_rate / pdiv_analw;
 		rate_error = abs((long)actual_rate - (long)rate);
 		if (rate_error < best_rate_error) {
-			pdiv_best = pdiv_now;
+			pdiv_best = pdiv_analw;
 			best_rate_error = rate_error;
 		}
 		/* TODO: Consider PLL frequency based on smaller n/m values
@@ -515,7 +515,7 @@ static int cdce925_regmap_i2c_write(
 	u8 reg_data[2];
 
 	if (count != 2)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	/* First byte is command code */
 	reg_data[0] = CDCE925_I2C_COMMAND_BYTE_TRANSFER | ((u8 *)data)[0];
@@ -543,7 +543,7 @@ static int cdce925_regmap_i2c_read(void *context,
 	u8 reg_data[2];
 
 	if (reg_size != 1)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	xfer[0].addr = i2c->addr;
 	xfer[0].flags = 0;
@@ -610,14 +610,14 @@ static struct regmap_bus regmap_cdce925_bus = {
 static int cdce925_probe(struct i2c_client *client)
 {
 	struct clk_cdce925_chip *data;
-	struct device_node *node = client->dev.of_node;
+	struct device_analde *analde = client->dev.of_analde;
 	const char *parent_name;
 	const char *pll_clk_name[MAX_NUMBER_OF_PLLS] = {NULL,};
 	struct clk_init_data init;
 	u32 value;
 	int i;
 	int err;
-	struct device_node *np_output;
+	struct device_analde *np_output;
 	char child_name[6];
 	struct regmap_config config = {
 		.name = "configuration0",
@@ -638,7 +638,7 @@ static int cdce925_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(&client->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->i2c_client = client;
 	data->chip_info = i2c_get_match_data(client);
@@ -652,14 +652,14 @@ static int cdce925_probe(struct i2c_client *client)
 	}
 	i2c_set_clientdata(client, data);
 
-	parent_name = of_clk_get_parent_name(node, 0);
+	parent_name = of_clk_get_parent_name(analde, 0);
 	if (!parent_name) {
 		dev_err(&client->dev, "missing parent clock\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	dev_dbg(&client->dev, "parent is: %s\n", parent_name);
 
-	if (of_property_read_u32(node, "xtal-load-pf", &value) == 0)
+	if (of_property_read_u32(analde, "xtal-load-pf", &value) == 0)
 		regmap_write(data->regmap,
 			CDCE925_REG_XCSEL, (value << 3) & 0xF8);
 	/* PWDN bit */
@@ -676,9 +676,9 @@ static int cdce925_probe(struct i2c_client *client)
 	/* Register PLL clocks */
 	for (i = 0; i < data->chip_info->num_plls; ++i) {
 		pll_clk_name[i] = kasprintf(GFP_KERNEL, "%pOFn.pll%d",
-			client->dev.of_node, i);
+			client->dev.of_analde, i);
 		if (!pll_clk_name[i]) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto error;
 		}
 		init.name = pll_clk_name[i];
@@ -691,7 +691,7 @@ static int cdce925_probe(struct i2c_client *client)
 			goto error;
 		}
 		sprintf(child_name, "PLL%d", i+1);
-		np_output = of_get_child_by_name(node, child_name);
+		np_output = of_get_child_by_name(analde, child_name);
 		if (!np_output)
 			continue;
 		if (!of_property_read_u32(np_output,
@@ -713,7 +713,7 @@ static int cdce925_probe(struct i2c_client *client)
 				0x12 + (i*CDCE925_OFFSET_PLL),
 				0x07, value & 0x07);
 		}
-		of_node_put(np_output);
+		of_analde_put(np_output);
 	}
 
 	/* Register output clock Y1 */
@@ -721,9 +721,9 @@ static int cdce925_probe(struct i2c_client *client)
 	init.flags = 0;
 	init.num_parents = 1;
 	init.parent_names = &parent_name; /* Mux Y1 to input */
-	init.name = kasprintf(GFP_KERNEL, "%pOFn.Y1", client->dev.of_node);
+	init.name = kasprintf(GFP_KERNEL, "%pOFn.Y1", client->dev.of_analde);
 	if (!init.name) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto error;
 	}
 	data->clk[0].chip = data;
@@ -743,9 +743,9 @@ static int cdce925_probe(struct i2c_client *client)
 	init.num_parents = 1;
 	for (i = 1; i < data->chip_info->num_outputs; ++i) {
 		init.name = kasprintf(GFP_KERNEL, "%pOFn.Y%d",
-			client->dev.of_node, i+1);
+			client->dev.of_analde, i+1);
 		if (!init.name) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto error;
 		}
 		data->clk[i].chip = data;
@@ -783,7 +783,7 @@ static int cdce925_probe(struct i2c_client *client)
 	}
 
 	/* Register the output clocks */
-	err = of_clk_add_hw_provider(client->dev.of_node, of_clk_cdce925_get,
+	err = of_clk_add_hw_provider(client->dev.of_analde, of_clk_cdce925_get,
 				  data);
 	if (err)
 		dev_err(&client->dev, "unable to add OF clock provider\n");

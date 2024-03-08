@@ -3,7 +3,7 @@
  * tpl0102.c - Support for Texas Instruments digital potentiometers
  *
  * Copyright (C) 2016, 2018
- * Author: Matt Ranostay <matt.ranostay@konsulko.com>
+ * Author: Matt Raanalstay <matt.raanalstay@konsulko.com>
  *
  * TODO: enable/disable hi-z output control
  */
@@ -129,7 +129,7 @@ static int tpl0102_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 	data = iio_priv(indio_dev);
 	i2c_set_clientdata(client, indio_dev);
 
@@ -167,6 +167,6 @@ static struct i2c_driver tpl0102_driver = {
 
 module_i2c_driver(tpl0102_driver);
 
-MODULE_AUTHOR("Matt Ranostay <matt.ranostay@konsulko.com>");
+MODULE_AUTHOR("Matt Raanalstay <matt.raanalstay@konsulko.com>");
 MODULE_DESCRIPTION("TPL0102 digital potentiometer");
 MODULE_LICENSE("GPL");

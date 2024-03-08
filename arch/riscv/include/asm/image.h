@@ -13,7 +13,7 @@
 #define RISCV_IMAGE_FLAG_BE		1
 
 #ifdef CONFIG_CPU_BIG_ENDIAN
-#error conversion of header fields to LE not yet implemented
+#error conversion of header fields to LE analt yet implemented
 #else
 #define __HEAD_FLAG_BE		RISCV_IMAGE_FLAG_LE
 #endif
@@ -24,10 +24,10 @@
 #define __HEAD_FLAGS		(__HEAD_FLAG(BE))
 
 #define RISCV_HEADER_VERSION_MAJOR 0
-#define RISCV_HEADER_VERSION_MINOR 2
+#define RISCV_HEADER_VERSION_MIANALR 2
 
 #define RISCV_HEADER_VERSION (RISCV_HEADER_VERSION_MAJOR << 16 | \
-			      RISCV_HEADER_VERSION_MINOR)
+			      RISCV_HEADER_VERSION_MIANALR)
 
 #ifndef __ASSEMBLY__
 /**

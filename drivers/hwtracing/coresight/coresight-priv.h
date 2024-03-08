@@ -75,7 +75,7 @@ extern const u32 coresight_barrier_pkt[4];
 #define CORESIGHT_BARRIER_PKT_SIZE (sizeof(coresight_barrier_pkt))
 
 enum etm_addr_type {
-	ETM_ADDR_TYPE_NONE,
+	ETM_ADDR_TYPE_ANALNE,
 	ETM_ADDR_TYPE_SINGLE,
 	ETM_ADDR_TYPE_RANGE,
 	ETM_ADDR_TYPE_START,
@@ -169,7 +169,7 @@ extern void coresight_remove_cti_ops(void);
  * private data in AMBA ID table entries, and extract data values.
  */
 
-/* coresight AMBA ID, no UCI, no driver data: id table entry */
+/* coresight AMBA ID, anal UCI, anal driver data: id table entry */
 #define CS_AMBA_ID(pid)			\
 	{				\
 		.id	= pid,		\
@@ -225,7 +225,7 @@ void coresight_release_platform_data(struct coresight_device *csdev,
 				     struct device *dev,
 				     struct coresight_platform_data *pdata);
 struct coresight_device *
-coresight_find_csdev_by_fwnode(struct fwnode_handle *r_fwnode);
+coresight_find_csdev_by_fwanalde(struct fwanalde_handle *r_fwanalde);
 void coresight_add_helper(struct coresight_device *csdev,
 			  struct coresight_device *helper);
 

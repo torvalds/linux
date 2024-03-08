@@ -8,7 +8,7 @@
 #include <stdbool.h>
 #include <unistd.h>
 #include <sched.h>
-#include <errno.h>
+#include <erranal.h>
 #include <string.h>
 #include <sys/mman.h>
 #include <sys/wait.h>
@@ -83,7 +83,7 @@ static int ptrace_dump_regs(int pid)
 	int i;
 
 	if (ptrace(PTRACE_GETREGS, pid, 0, regs) < 0)
-		return -errno;
+		return -erranal;
 
 	printk(UM_KERN_ERR "Stub registers -\n");
 	for (i = 0; i < ARRAY_SIZE(regs); i++) {
@@ -118,8 +118,8 @@ void wait_stub_done(int pid)
 
 		err = ptrace(PTRACE_CONT, pid, 0, 0);
 		if (err) {
-			printk(UM_KERN_ERR "%s : continue failed, errno = %d\n",
-			       __func__, errno);
+			printk(UM_KERN_ERR "%s : continue failed, erranal = %d\n",
+			       __func__, erranal);
 			fatal_sigsegv();
 		}
 	}
@@ -130,10 +130,10 @@ void wait_stub_done(int pid)
 bad_wait:
 	err = ptrace_dump_regs(pid);
 	if (err)
-		printk(UM_KERN_ERR "Failed to get registers from stub, errno = %d\n",
+		printk(UM_KERN_ERR "Failed to get registers from stub, erranal = %d\n",
 		       -err);
-	printk(UM_KERN_ERR "%s : failed to wait for SIGTRAP, pid = %d, n = %d, errno = %d, status = 0x%x\n",
-	       __func__, pid, n, errno, status);
+	printk(UM_KERN_ERR "%s : failed to wait for SIGTRAP, pid = %d, n = %d, erranal = %d, status = 0x%x\n",
+	       __func__, pid, n, erranal, status);
 	fatal_sigsegv();
 }
 
@@ -152,7 +152,7 @@ static void get_skas_faultinfo(int pid, struct faultinfo *fi, unsigned long *aux
 	err = ptrace(PTRACE_CONT, pid, 0, SIGSEGV);
 	if (err) {
 		printk(UM_KERN_ERR "Failed to continue stub, pid = %d, "
-		       "errno = %d\n", pid, errno);
+		       "erranal = %d\n", pid, erranal);
 		fatal_sigsegv();
 	}
 	wait_stub_done(pid);
@@ -200,7 +200,7 @@ extern char __syscall_stub_start[];
  * Also for the userspace process a SIGSEGV handler is installed to catch pagefaults in the userspace process.
  * And last the process stops itself to give control to the UML kernel for this userspace process.
  *
- * Return: Always zero, otherwise the current userspace process is ended with non null exit() call
+ * Return: Always zero, otherwise the current userspace process is ended with analn null exit() call
  */
 static int userspace_tramp(void *stack)
 {
@@ -221,8 +221,8 @@ static int userspace_tramp(void *stack)
 	addr = mmap64((void *) STUB_CODE, UM_KERN_PAGE_SIZE,
 		      PROT_EXEC, MAP_FIXED | MAP_PRIVATE, fd, offset);
 	if (addr == MAP_FAILED) {
-		os_info("mapping mmap stub at 0x%lx failed, errno = %d\n",
-			STUB_CODE, errno);
+		os_info("mapping mmap stub at 0x%lx failed, erranal = %d\n",
+			STUB_CODE, erranal);
 		exit(1);
 	}
 
@@ -231,19 +231,19 @@ static int userspace_tramp(void *stack)
 		    STUB_DATA_PAGES * UM_KERN_PAGE_SIZE, PROT_READ | PROT_WRITE,
 		    MAP_FIXED | MAP_SHARED, fd, offset);
 	if (addr == MAP_FAILED) {
-		os_info("mapping segfault stack at 0x%lx failed, errno = %d\n",
-			STUB_DATA, errno);
+		os_info("mapping segfault stack at 0x%lx failed, erranal = %d\n",
+			STUB_DATA, erranal);
 		exit(1);
 	}
 
 	set_sigstack((void *) STUB_DATA, STUB_DATA_PAGES * UM_KERN_PAGE_SIZE);
 	sigemptyset(&sa.sa_mask);
-	sa.sa_flags = SA_ONSTACK | SA_NODEFER | SA_SIGINFO;
+	sa.sa_flags = SA_ONSTACK | SA_ANALDEFER | SA_SIGINFO;
 	sa.sa_sigaction = (void *) segv_handler;
 	sa.sa_restorer = NULL;
 	if (sigaction(SIGSEGV, &sa, NULL) < 0) {
-		os_info("%s - setting SIGSEGV handler failed - errno = %d\n",
-			__func__, errno);
+		os_info("%s - setting SIGSEGV handler failed - erranal = %d\n",
+			__func__, erranal);
 		exit(1);
 	}
 
@@ -274,11 +274,11 @@ int start_userspace(unsigned long stub_stack)
 	/* setup a temporary stack page */
 	stack = mmap(NULL, UM_KERN_PAGE_SIZE,
 		     PROT_READ | PROT_WRITE | PROT_EXEC,
-		     MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+		     MAP_PRIVATE | MAP_AANALNYMOUS, -1, 0);
 	if (stack == MAP_FAILED) {
-		err = -errno;
-		printk(UM_KERN_ERR "%s : mmap failed, errno = %d\n",
-		       __func__, errno);
+		err = -erranal;
+		printk(UM_KERN_ERR "%s : mmap failed, erranal = %d\n",
+		       __func__, erranal);
 		return err;
 	}
 
@@ -290,18 +290,18 @@ int start_userspace(unsigned long stub_stack)
 	/* clone into new userspace process */
 	pid = clone(userspace_tramp, (void *) sp, flags, (void *) stub_stack);
 	if (pid < 0) {
-		err = -errno;
-		printk(UM_KERN_ERR "%s : clone failed, errno = %d\n",
-		       __func__, errno);
+		err = -erranal;
+		printk(UM_KERN_ERR "%s : clone failed, erranal = %d\n",
+		       __func__, erranal);
 		return err;
 	}
 
 	do {
 		CATCH_EINTR(n = waitpid(pid, &status, WUNTRACED | __WALL));
 		if (n < 0) {
-			err = -errno;
-			printk(UM_KERN_ERR "%s : wait failed, errno = %d\n",
-			       __func__, errno);
+			err = -erranal;
+			printk(UM_KERN_ERR "%s : wait failed, erranal = %d\n",
+			       __func__, erranal);
 			goto out_kill;
 		}
 	} while (WIFSTOPPED(status) && (WSTOPSIG(status) == SIGALRM));
@@ -315,16 +315,16 @@ int start_userspace(unsigned long stub_stack)
 
 	if (ptrace(PTRACE_SETOPTIONS, pid, NULL,
 		   (void *) PTRACE_O_TRACESYSGOOD) < 0) {
-		err = -errno;
-		printk(UM_KERN_ERR "%s : PTRACE_SETOPTIONS failed, errno = %d\n",
-		       __func__, errno);
+		err = -erranal;
+		printk(UM_KERN_ERR "%s : PTRACE_SETOPTIONS failed, erranal = %d\n",
+		       __func__, erranal);
 		goto out_kill;
 	}
 
 	if (munmap(stack, UM_KERN_PAGE_SIZE) < 0) {
-		err = -errno;
-		printk(UM_KERN_ERR "%s : munmap failed, errno = %d\n",
-		       __func__, errno);
+		err = -erranal;
+		printk(UM_KERN_ERR "%s : munmap failed, erranal = %d\n",
+		       __func__, erranal);
 		goto out_kill;
 	}
 
@@ -352,18 +352,18 @@ void userspace(struct uml_pt_regs *regs, unsigned long *aux_fp_regs)
 		 * bogus value into a segment register.  It will
 		 * segfault and PTRACE_GETREGS will read that value
 		 * out of the process.  However, PTRACE_SETREGS will
-		 * fail.  In this case, there is nothing to do but
+		 * fail.  In this case, there is analthing to do but
 		 * just kill the process.
 		 */
 		if (ptrace(PTRACE_SETREGS, pid, 0, regs->gp)) {
-			printk(UM_KERN_ERR "%s - ptrace set regs failed, errno = %d\n",
-			       __func__, errno);
+			printk(UM_KERN_ERR "%s - ptrace set regs failed, erranal = %d\n",
+			       __func__, erranal);
 			fatal_sigsegv();
 		}
 
 		if (put_fp_registers(pid, regs->fp)) {
-			printk(UM_KERN_ERR "%s - ptrace set fp regs failed, errno = %d\n",
-			       __func__, errno);
+			printk(UM_KERN_ERR "%s - ptrace set fp regs failed, erranal = %d\n",
+			       __func__, erranal);
 			fatal_sigsegv();
 		}
 
@@ -373,39 +373,39 @@ void userspace(struct uml_pt_regs *regs, unsigned long *aux_fp_regs)
 			op = PTRACE_SYSEMU;
 
 		if (ptrace(op, pid, 0, 0)) {
-			printk(UM_KERN_ERR "%s - ptrace continue failed, op = %d, errno = %d\n",
-			       __func__, op, errno);
+			printk(UM_KERN_ERR "%s - ptrace continue failed, op = %d, erranal = %d\n",
+			       __func__, op, erranal);
 			fatal_sigsegv();
 		}
 
 		CATCH_EINTR(err = waitpid(pid, &status, WUNTRACED | __WALL));
 		if (err < 0) {
-			printk(UM_KERN_ERR "%s - wait failed, errno = %d\n",
-			       __func__, errno);
+			printk(UM_KERN_ERR "%s - wait failed, erranal = %d\n",
+			       __func__, erranal);
 			fatal_sigsegv();
 		}
 
 		regs->is_user = 1;
 		if (ptrace(PTRACE_GETREGS, pid, 0, regs->gp)) {
-			printk(UM_KERN_ERR "%s - PTRACE_GETREGS failed, errno = %d\n",
-			       __func__, errno);
+			printk(UM_KERN_ERR "%s - PTRACE_GETREGS failed, erranal = %d\n",
+			       __func__, erranal);
 			fatal_sigsegv();
 		}
 
 		if (get_fp_registers(pid, regs->fp)) {
-			printk(UM_KERN_ERR "%s -  get_fp_registers failed, errno = %d\n",
-			       __func__, errno);
+			printk(UM_KERN_ERR "%s -  get_fp_registers failed, erranal = %d\n",
+			       __func__, erranal);
 			fatal_sigsegv();
 		}
 
-		UPT_SYSCALL_NR(regs) = -1; /* Assume: It's not a syscall */
+		UPT_SYSCALL_NR(regs) = -1; /* Assume: It's analt a syscall */
 
 		if (WIFSTOPPED(status)) {
 			int sig = WSTOPSIG(status);
 
 			/* These signal handlers need the si argument.
 			 * The SIGIO and SIGALARM handlers which constitute the
-			 * majority of invocations, do not use it.
+			 * majority of invocations, do analt use it.
 			 */
 			switch (sig) {
 			case SIGSEGV:
@@ -506,8 +506,8 @@ int copy_context_skas0(unsigned long new_stack, int pid)
 
 	err = ptrace_setregs(pid, thread_regs);
 	if (err < 0) {
-		err = -errno;
-		printk(UM_KERN_ERR "%s : PTRACE_SETREGS failed, pid = %d, errno = %d\n",
+		err = -erranal;
+		printk(UM_KERN_ERR "%s : PTRACE_SETREGS failed, pid = %d, erranal = %d\n",
 		      __func__, pid, -err);
 		return err;
 	}
@@ -525,9 +525,9 @@ int copy_context_skas0(unsigned long new_stack, int pid)
 	 */
 	err = ptrace(PTRACE_CONT, pid, 0, 0);
 	if (err) {
-		err = -errno;
-		printk(UM_KERN_ERR "Failed to continue new process, pid = %d, errno = %d\n",
-		       pid, errno);
+		err = -erranal;
+		printk(UM_KERN_ERR "Failed to continue new process, pid = %d, erranal = %d\n",
+		       pid, erranal);
 		return err;
 	}
 
@@ -554,9 +554,9 @@ int copy_context_skas0(unsigned long new_stack, int pid)
 
 	if (ptrace(PTRACE_SETOPTIONS, pid, NULL,
 		   (void *)PTRACE_O_TRACESYSGOOD) < 0) {
-		err = -errno;
-		printk(UM_KERN_ERR "%s : PTRACE_SETOPTIONS failed, errno = %d\n",
-		       __func__, errno);
+		err = -erranal;
+		printk(UM_KERN_ERR "%s : PTRACE_SETOPTIONS failed, erranal = %d\n",
+		       __func__, erranal);
 		goto out_kill;
 	}
 
@@ -660,24 +660,24 @@ void halt_skas(void)
 	UML_LONGJMP(&initial_jmpbuf, INIT_JMP_HALT);
 }
 
-static bool noreboot;
+static bool analreboot;
 
-static int __init noreboot_cmd_param(char *str, int *add)
+static int __init analreboot_cmd_param(char *str, int *add)
 {
-	noreboot = true;
+	analreboot = true;
 	return 0;
 }
 
-__uml_setup("noreboot", noreboot_cmd_param,
-"noreboot\n"
-"    Rather than rebooting, exit always, akin to QEMU's -no-reboot option.\n"
+__uml_setup("analreboot", analreboot_cmd_param,
+"analreboot\n"
+"    Rather than rebooting, exit always, akin to QEMU's -anal-reboot option.\n"
 "    This is useful if you're using CONFIG_PANIC_TIMEOUT in order to catch\n"
 "    crashes in CI\n");
 
 void reboot_skas(void)
 {
 	block_signals_trace();
-	UML_LONGJMP(&initial_jmpbuf, noreboot ? INIT_JMP_HALT : INIT_JMP_REBOOT);
+	UML_LONGJMP(&initial_jmpbuf, analreboot ? INIT_JMP_HALT : INIT_JMP_REBOOT);
 }
 
 void __switch_mm(struct mm_id *mm_idp)

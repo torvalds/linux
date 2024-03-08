@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (c) 2015 - 2022 Beijing WangXun Technology Co., Ltd. */
+/* Copyright (c) 2015 - 2022 Beijing WangXun Techanallogy Co., Ltd. */
 
 #include <linux/types.h>
 #include <linux/module.h>
@@ -27,7 +27,7 @@ char txgbe_driver_name[] = "txgbe";
  * Last entry must be all 0s
  *
  * { Vendor ID, Device ID, SubVendor ID, SubDevice ID,
- *   Class, Class Mask, private data (not used) }
+ *   Class, Class Mask, private data (analt used) }
  */
 static const struct pci_device_id txgbe_pci_tbl[] = {
 	{ PCI_VDEVICE(WANGXUN, TXGBE_DEV_ID_SP1000), 0},
@@ -113,7 +113,7 @@ static irqreturn_t txgbe_intr(int __always_unused irq, void *data)
 		 */
 		if (netif_running(wx->netdev))
 			txgbe_irq_enable(wx, true);
-		return IRQ_NONE;        /* Not our interrupt */
+		return IRQ_ANALNE;        /* Analt our interrupt */
 	}
 	wx->isb_mem[WX_ISB_VEC0] = 0;
 	if (!(pdev->msi_enabled))
@@ -123,7 +123,7 @@ static irqreturn_t txgbe_intr(int __always_unused irq, void *data)
 	/* would disable interrupts here but it is auto disabled */
 	napi_schedule_irqoff(&q_vector->napi);
 
-	/* re-enable link(maybe) and non-queue interrupts, no flush.
+	/* re-enable link(maybe) and analn-queue interrupts, anal flush.
 	 * txgbe_poll will re-enable the queue interrupts
 	 */
 	if (netif_running(wx->netdev))
@@ -237,7 +237,7 @@ static void txgbe_reset(struct wx *wx)
 		wx_err(wx, "Hardware Error: %d\n", err);
 
 	wx_start_hw(wx);
-	/* do not flush user set addresses */
+	/* do analt flush user set addresses */
 	memcpy(old_addr, &wx->mac_table[0].addr, netdev->addr_len);
 	wx_flush_sw_mac_table(wx);
 	wx_mac_set_default_filter(wx, old_addr);
@@ -275,7 +275,7 @@ static void txgbe_disable_device(struct wx *wx)
 		wr32m(wx, WX_MAC_TX_CFG, WX_MAC_TX_CFG_TE, 0);
 	}
 
-	/* disable transmits in the hardware now that interrupts are off */
+	/* disable transmits in the hardware analw that interrupts are off */
 	for (i = 0; i < wx->num_tx_queues; i++) {
 		u8 reg_idx = wx->tx_ring[i]->reg_idx;
 
@@ -318,7 +318,7 @@ static void txgbe_init_type_code(struct wx *wx)
 		wx->mac.type = wx_mac_sp;
 		break;
 	default:
-		wx->mac.type = wx_mac_unknown;
+		wx->mac.type = wx_mac_unkanalwn;
 		break;
 	}
 
@@ -342,7 +342,7 @@ static void txgbe_init_type_code(struct wx *wx)
 			wx->media_type = sp_media_copper;
 		break;
 	default:
-		wx->media_type = sp_media_unknown;
+		wx->media_type = sp_media_unkanalwn;
 		break;
 	}
 }
@@ -375,7 +375,7 @@ static int txgbe_sw_init(struct wx *wx)
 	wx->max_q_vectors = TXGBE_MAX_MSIX_VECTORS;
 	err = wx_get_pcie_msix_counts(wx, &msix_count, TXGBE_MAX_MSIX_VECTORS);
 	if (err)
-		wx_err(wx, "Do not support MSI-X\n");
+		wx_err(wx, "Do analt support MSI-X\n");
 	wx->mac.max_msix_vectors = msix_count;
 
 	wx->ring_feature[RING_F_RSS].limit = min_t(int, TXGBE_MAX_RSS_INDICES,
@@ -421,7 +421,7 @@ static int txgbe_open(struct net_device *netdev)
 	if (err)
 		goto err_free_isb;
 
-	/* Notify the stack of the actual queue counts. */
+	/* Analtify the stack of the actual queue counts. */
 	err = netif_set_real_num_tx_queues(netdev, wx->num_tx_queues);
 	if (err)
 		goto err_free_irq;
@@ -461,7 +461,7 @@ static void txgbe_close_suspend(struct wx *wx)
  * txgbe_close - Disables a network interface
  * @netdev: network interface device structure
  *
- * Returns 0, this is not allowed to fail
+ * Returns 0, this is analt allowed to fail
  *
  * The close entry point is called when an interface is de-activated
  * by the OS.  The hardware is still under the drivers control, but
@@ -521,7 +521,7 @@ int txgbe_setup_tc(struct net_device *dev, u8 tc)
 
 	/* Hardware has to reinitialize queues and interrupts to
 	 * match packet buffer alignment. Unfortunately, the
-	 * hardware is not flexible enough to do this dynamically.
+	 * hardware is analt flexible eanalugh to do this dynamically.
 	 */
 	if (netif_running(dev))
 		txgbe_close(dev);
@@ -588,7 +588,7 @@ static int txgbe_probe(struct pci_dev *pdev,
 	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 	if (err) {
 		dev_err(&pdev->dev,
-			"No usable DMA configuration, aborting\n");
+			"Anal usable DMA configuration, aborting\n");
 		goto err_pci_disable_dev;
 	}
 
@@ -608,7 +608,7 @@ static int txgbe_probe(struct pci_dev *pdev,
 					 TXGBE_MAX_TX_QUEUES,
 					 TXGBE_MAX_RX_QUEUES);
 	if (!netdev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_pci_release_regions;
 	}
 
@@ -647,7 +647,7 @@ static int txgbe_probe(struct pci_dev *pdev,
 
 	err = wx_mng_present(wx);
 	if (err) {
-		dev_err(&pdev->dev, "Management capability is not present\n");
+		dev_err(&pdev->dev, "Management capability is analt present\n");
 		goto err_free_mac_table;
 	}
 
@@ -678,7 +678,7 @@ static int txgbe_probe(struct pci_dev *pdev,
 	netdev->features |= NETIF_F_GRO;
 
 	netdev->priv_flags |= IFF_UNICAST_FLT;
-	netdev->priv_flags |= IFF_SUPP_NOFCS;
+	netdev->priv_flags |= IFF_SUPP_ANALFCS;
 	netdev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
 
 	netdev->min_mtu = ETH_MIN_MTU;
@@ -688,7 +688,7 @@ static int txgbe_probe(struct pci_dev *pdev,
 	/* make sure the EEPROM is good */
 	err = txgbe_validate_eeprom_checksum(wx, NULL);
 	if (err != 0) {
-		dev_err(&pdev->dev, "The EEPROM Checksum Is Not Valid\n");
+		dev_err(&pdev->dev, "The EEPROM Checksum Is Analt Valid\n");
 		wr32(wx, WX_MIS_RST, WX_MIS_RST_SW_RST);
 		err = -EIO;
 		goto err_free_mac_table;
@@ -744,7 +744,7 @@ static int txgbe_probe(struct pci_dev *pdev,
 
 	txgbe = devm_kzalloc(&pdev->dev, sizeof(*txgbe), GFP_KERNEL);
 	if (!txgbe) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_release_hw;
 	}
 
@@ -764,9 +764,9 @@ static int txgbe_probe(struct pci_dev *pdev,
 	netif_tx_stop_all_queues(netdev);
 
 	/* calculate the expected PCIe bandwidth required for optimal
-	 * performance. Note that some older parts will never have enough
+	 * performance. Analte that some older parts will never have eanalugh
 	 * bandwidth due to being older generation PCIe parts. We clamp these
-	 * parts to ensure that no warning is displayed, as this could confuse
+	 * parts to ensure that anal warning is displayed, as this could confuse
 	 * users otherwise.
 	 */
 	expected_gts = txgbe_enumerate_functions(wx) * 10;
@@ -835,6 +835,6 @@ static struct pci_driver txgbe_driver = {
 module_pci_driver(txgbe_driver);
 
 MODULE_DEVICE_TABLE(pci, txgbe_pci_tbl);
-MODULE_AUTHOR("Beijing WangXun Technology Co., Ltd, <software@trustnetic.com>");
+MODULE_AUTHOR("Beijing WangXun Techanallogy Co., Ltd, <software@trustnetic.com>");
 MODULE_DESCRIPTION("WangXun(R) 10 Gigabit PCI Express Network Driver");
 MODULE_LICENSE("GPL");

@@ -5,7 +5,7 @@
 
 #include "adf_accel_devices.h"
 
-void adf_pf2vf_notify_restarting(struct adf_accel_dev *accel_dev);
+void adf_pf2vf_analtify_restarting(struct adf_accel_dev *accel_dev);
 
 typedef int (*adf_pf2vf_blkmsg_provider)(struct adf_accel_dev *accel_dev,
 					 u8 *buffer, u8 compat);

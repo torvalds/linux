@@ -29,7 +29,7 @@
 #define TCPC_RECEIVE_BUFFER_RX_BYTE_BUF_OFFSET		2
 
 /*
- * LongMessage not supported, hence 32 bytes for buf to be read from RECEIVE_BUFFER.
+ * LongMessage analt supported, hence 32 bytes for buf to be read from RECEIVE_BUFFER.
  * DEVICE_CAPABILITIES_2.LongMessage = 0, the value in READABLE_BYTE_COUNT reg shall be
  * less than or equal to 31. Since, RECEIVE_BUFFER len = 31 + 1(READABLE_BYTE_COUNT).
  */
@@ -46,8 +46,8 @@ static const struct regmap_range max_tcpci_tcpci_range[] = {
 };
 
 static const struct regmap_access_table max_tcpci_tcpci_write_table = {
-	.yes_ranges = max_tcpci_tcpci_range,
-	.n_yes_ranges = ARRAY_SIZE(max_tcpci_tcpci_range),
+	.anal_ranges = max_tcpci_tcpci_range,
+	.n_anal_ranges = ARRAY_SIZE(max_tcpci_tcpci_range),
 };
 
 static const struct regmap_config max_tcpci_regmap_config = {
@@ -146,7 +146,7 @@ static void process_rx(struct max_tcpci_chip *chip, u16 status)
 	if (count == 0 || frame_type != TCPC_RX_BUF_FRAME_TYPE_SOP) {
 		max_tcpci_write16(chip, TCPC_ALERT, TCPC_ALERT_RX_STATUS);
 		dev_err(chip->dev, "%s\n", count ==  0 ? "error: count is 0" :
-			"error frame_type is not SOP");
+			"error frame_type is analt SOP");
 		return;
 	}
 
@@ -191,7 +191,7 @@ static int max_tcpci_set_vbus(struct tcpci *tcpci, struct tcpci_data *tdata, boo
 	struct max_tcpci_chip *chip = tdata_to_max_tcpci(tdata);
 	u8 buffer_source[2] = {MAX_BUCK_BOOST_OP, MAX_BUCK_BOOST_SOURCE};
 	u8 buffer_sink[2] = {MAX_BUCK_BOOST_OP, MAX_BUCK_BOOST_SINK};
-	u8 buffer_none[2] = {MAX_BUCK_BOOST_OP, MAX_BUCK_BOOST_OFF};
+	u8 buffer_analne[2] = {MAX_BUCK_BOOST_OP, MAX_BUCK_BOOST_OFF};
 	struct i2c_client *i2c = chip->client;
 	int ret;
 
@@ -200,7 +200,7 @@ static int max_tcpci_set_vbus(struct tcpci *tcpci, struct tcpci_data *tdata, boo
 			.addr = MAX_BUCK_BOOST_SID,
 			.flags = i2c->flags & I2C_M_TEN,
 			.len = 2,
-			.buf = source ? buffer_source : sink ? buffer_sink : buffer_none,
+			.buf = source ? buffer_source : sink ? buffer_sink : buffer_analne,
 		},
 	};
 
@@ -234,7 +234,7 @@ static void process_power_status(struct max_tcpci_chip *chip)
 static void max_tcpci_frs_sourcing_vbus(struct tcpci *tcpci, struct tcpci_data *tdata)
 {
 	/*
-	 * For Fast Role Swap case, Boost turns on autonomously without
+	 * For Fast Role Swap case, Boost turns on autoanalmously without
 	 * AP intervention, but, needs AP to enable source mode explicitly
 	 * for AP to regain control.
 	 */
@@ -381,7 +381,7 @@ static irqreturn_t max_tcpci_irq(int irq, void *dev_id)
 	}
 	while (status) {
 		irq_return = _max_tcpci_irq(chip, status);
-		/* Do not return if the ALERT is already set. */
+		/* Do analt return if the ALERT is already set. */
 		ret = max_tcpci_read16(chip, TCPC_ALERT, &status);
 		if (ret < 0)
 			break;
@@ -452,7 +452,7 @@ static int max_tcpci_probe(struct i2c_client *client)
 
 	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->client = client;
 	chip->data.regmap = devm_regmap_init_i2c(client, &max_tcpci_regmap_config);

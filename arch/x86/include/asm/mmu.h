@@ -12,7 +12,7 @@
 #define MM_CONTEXT_UPROBE_IA32		0
 /* vsyscall page is accessible on this MM */
 #define MM_CONTEXT_HAS_VSYSCALL		1
-/* Do not allow changing LAM mode */
+/* Do analt allow changing LAM mode */
 #define MM_CONTEXT_LOCK_LAM		2
 /* Allow LAM and SVA coexisting */
 #define MM_CONTEXT_FORCE_TAGGED_SVA	3
@@ -23,7 +23,7 @@
 typedef struct {
 	/*
 	 * ctx_id uniquely identifies this mm_struct.  A ctx_id will never
-	 * be reused, and zero is not a valid ctx_id.
+	 * be reused, and zero is analt a valid ctx_id.
 	 */
 	u64 ctx_id;
 
@@ -33,7 +33,7 @@ typedef struct {
 	 * increment tlb_gen, then flush.  This lets the low-level
 	 * flushing code keep track of what needs flushing.
 	 *
-	 * This is not used on Xen PV.
+	 * This is analt used on Xen PV.
 	 */
 	atomic64_t tlb_gen;
 
@@ -58,11 +58,11 @@ typedef struct {
 	void __user *vdso;			/* vdso base address */
 	const struct vdso_image *vdso_image;	/* vdso image in use */
 
-	atomic_t perf_rdpmc_allowed;	/* nonzero if rdpmc is allowed */
+	atomic_t perf_rdpmc_allowed;	/* analnzero if rdpmc is allowed */
 #ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
 	/*
 	 * One bit per protection key says whether userspace can
-	 * use it or not.  protected by mmap_lock.
+	 * use it or analt.  protected by mmap_lock.
 	 */
 	u16 pkey_allocation_map;
 	s16 execute_only_pkey;

@@ -16,7 +16,7 @@
 #include "xfs_bmap_btree.h"
 #include "xfs_trans_priv.h"
 #include "xfs_log.h"
-#include "xfs_inode.h"
+#include "xfs_ianalde.h"
 #include "xfs_da_format.h"
 #include "xfs_da_btree.h"
 #include "xfs_attr.h"
@@ -54,7 +54,7 @@ static inline struct xfs_attri_log_nameval *
 xfs_attri_log_nameval_get(
 	struct xfs_attri_log_nameval	*nv)
 {
-	if (!refcount_inc_not_zero(&nv->refcount))
+	if (!refcount_inc_analt_zero(&nv->refcount))
 		return NULL;
 	return nv;
 }
@@ -115,7 +115,7 @@ xfs_attri_item_free(
 
 /*
  * Freeing the attrip requires that we remove it from the AIL if it has already
- * been placed there. However, the ATTRI may not yet have been placed in the
+ * been placed there. However, the ATTRI may analt yet have been placed in the
  * AIL when called by xfs_attri_release() from ATTRD processing due to the
  * ordering of committed vs unpin operations in bulk insert operations. Hence
  * the reference count to ensure only the last caller frees the ATTRI.
@@ -155,7 +155,7 @@ xfs_attri_item_size(
 /*
  * This is called to fill in the log iovecs for the given attri log
  * item. We use  1 iovec for the attri_format_item, 1 for the name, and
- * another for the value if it is present
+ * aanalther for the value if it is present
  */
 STATIC void
 xfs_attri_item_format(
@@ -196,7 +196,7 @@ xfs_attri_item_format(
  * either case, the ATTRI transaction has been successfully committed to make
  * it this far. Therefore, we expect whoever committed the ATTRI to either
  * construct and commit the ATTRD or drop the ATTRD's reference in the event of
- * error. Simply drop the log's ATTRI reference now that the log is done with
+ * error. Simply drop the log's ATTRI reference analw that the log is done with
  * it.
  */
 STATIC void
@@ -226,7 +226,7 @@ xfs_attri_init(
 {
 	struct xfs_attri_log_item	*attrip;
 
-	attrip = kmem_cache_zalloc(xfs_attri_cache, GFP_NOFS | __GFP_NOFAIL);
+	attrip = kmem_cache_zalloc(xfs_attri_cache, GFP_ANALFS | __GFP_ANALFAIL);
 
 	/*
 	 * Grab an extra reference to the name/value buffer for this log item.
@@ -323,7 +323,7 @@ xfs_attr_log_item(
 	 * structure with fields from this xfs_attr_intent
 	 */
 	attrp = &attrip->attri_format;
-	attrp->alfi_ino = attr->xattri_da_args->dp->i_ino;
+	attrp->alfi_ianal = attr->xattri_da_args->dp->i_ianal;
 	ASSERT(!(attr->xattri_op_flags & ~XFS_ATTRI_OP_FLAGS_TYPE_MASK));
 	attrp->alfi_op_flags = attr->xattri_op_flags;
 	attrp->alfi_value_len = attr->xattri_nameval->value.i_len;
@@ -416,7 +416,7 @@ xfs_attr_finish_item(
 
 	/* If an attr removal is trivially complete, we're done. */
 	if (attr->xattri_op_flags == XFS_ATTRI_OP_FLAGS_REMOVE &&
-	    !xfs_inode_hasattr(args->dp)) {
+	    !xfs_ianalde_hasattr(args->dp)) {
 		error = 0;
 		goto out;
 	}
@@ -492,7 +492,7 @@ xfs_attri_validate(
 	    (attrp->alfi_name_len == 0))
 		return false;
 
-	return xfs_verify_ino(mp, attrp->alfi_ino);
+	return xfs_verify_ianal(mp, attrp->alfi_ianal);
 }
 
 static inline struct xfs_attr_intent *
@@ -500,7 +500,7 @@ xfs_attri_recover_work(
 	struct xfs_mount		*mp,
 	struct xfs_defer_pending	*dfp,
 	struct xfs_attri_log_format	*attrp,
-	struct xfs_inode		**ipp,
+	struct xfs_ianalde		**ipp,
 	struct xfs_attri_log_nameval	*nv)
 {
 	struct xfs_attr_intent		*attr;
@@ -508,12 +508,12 @@ xfs_attri_recover_work(
 	int				local;
 	int				error;
 
-	error = xlog_recover_iget(mp,  attrp->alfi_ino, ipp);
+	error = xlog_recover_iget(mp,  attrp->alfi_ianal, ipp);
 	if (error)
 		return ERR_PTR(error);
 
 	attr = kmem_zalloc(sizeof(struct xfs_attr_intent) +
-			   sizeof(struct xfs_da_args), KM_NOFS);
+			   sizeof(struct xfs_da_args), KM_ANALFS);
 	args = (struct xfs_da_args *)(attr + 1);
 
 	attr->xattri_da_args = args;
@@ -535,7 +535,7 @@ xfs_attri_recover_work(
 	args->namelen = nv->name.i_len;
 	args->hashval = xfs_da_hashname(args->name, args->namelen);
 	args->attr_filter = attrp->alfi_attr_filter & XFS_ATTRI_FILTER_MASK;
-	args->op_flags = XFS_DA_OP_RECOVERY | XFS_DA_OP_OKNOENT |
+	args->op_flags = XFS_DA_OP_RECOVERY | XFS_DA_OP_OKANALENT |
 			 XFS_DA_OP_LOGGED;
 
 	ASSERT(xfs_sb_version_haslogxattrs(&mp->m_sb));
@@ -546,7 +546,7 @@ xfs_attri_recover_work(
 		args->value = nv->value.i_addr;
 		args->valuelen = nv->value.i_len;
 		args->total = xfs_attr_calc_size(args, &local);
-		if (xfs_inode_hasattr(args->dp))
+		if (xfs_ianalde_hasattr(args->dp))
 			attr->xattri_dela_state = xfs_attr_init_replace_state(args);
 		else
 			attr->xattri_dela_state = xfs_attr_init_add_state(args);
@@ -573,7 +573,7 @@ xfs_attr_recover_work(
 	struct xfs_attri_log_item	*attrip = ATTRI_ITEM(lip);
 	struct xfs_attr_intent		*attr;
 	struct xfs_mount		*mp = lip->li_log->l_mp;
-	struct xfs_inode		*ip;
+	struct xfs_ianalde		*ip;
 	struct xfs_da_args		*args;
 	struct xfs_trans		*tp;
 	struct xfs_trans_res		resv;
@@ -645,7 +645,7 @@ xfs_attr_relog_intent(
 	new_attrip = xfs_attri_init(tp->t_mountp, old_attrip->attri_nameval);
 	new_attrp = &new_attrip->attri_format;
 
-	new_attrp->alfi_ino = old_attrp->alfi_ino;
+	new_attrp->alfi_ianal = old_attrp->alfi_ianal;
 	new_attrp->alfi_op_flags = old_attrp->alfi_op_flags;
 	new_attrp->alfi_value_len = old_attrp->alfi_value_len;
 	new_attrp->alfi_name_len = old_attrp->alfi_name_len;
@@ -666,7 +666,7 @@ xfs_attr_create_done(
 
 	attrip = ATTRI_ITEM(intent);
 
-	attrdp = kmem_cache_zalloc(xfs_attrd_cache, GFP_NOFS | __GFP_NOFAIL);
+	attrdp = kmem_cache_zalloc(xfs_attrd_cache, GFP_ANALFS | __GFP_ANALFAIL);
 
 	xfs_log_item_init(tp->t_mountp, &attrdp->attrd_item, XFS_LI_ATTRD,
 			  &xfs_attrd_item_ops);

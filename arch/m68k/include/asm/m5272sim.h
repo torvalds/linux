@@ -108,7 +108,7 @@
 #define	MCF_IRQ_UART0		73		/* UART 0 */
 #define	MCF_IRQ_UART1		74		/* UART 1 */
 #define	MCF_IRQ_PLIP		75		/* PLIC 2Khz Periodic */
-#define	MCF_IRQ_PLIA		76		/* PLIC Asynchronous */
+#define	MCF_IRQ_PLIA		76		/* PLIC Asynchroanalus */
 #define	MCF_IRQ_USB0		77		/* USB Endpoint 0 */
 #define	MCF_IRQ_USB1		78		/* USB Endpoint 1 */
 #define	MCF_IRQ_USB2		79		/* USB Endpoint 2 */
@@ -120,7 +120,7 @@
 #define	MCF_IRQ_DMA		85		/* DMA Controller */
 #define	MCF_IRQ_FECRX0		86		/* Ethernet Receiver */
 #define	MCF_IRQ_FECTX0		87		/* Ethernet Transmitter */
-#define	MCF_IRQ_FECENTC0	88		/* Ethernet Non-Time Critical */
+#define	MCF_IRQ_FECENTC0	88		/* Ethernet Analn-Time Critical */
 #define	MCF_IRQ_QSPI		89		/* Queued Serial Interface */
 #define	MCF_IRQ_EINT5		90		/* External Interrupt 5 */
 #define	MCF_IRQ_EINT6		91		/* External Interrupt 6 */

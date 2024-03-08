@@ -63,7 +63,7 @@ struct posix_cputimers {
  * posix_cputimers_work - Container for task work based posix CPU timer expiry
  * @work:	The task work to be scheduled
  * @mutex:	Mutex held around expiry in context of this task work
- * @scheduled:  @work has been scheduled already, no further processing
+ * @scheduled:  @work has been scheduled already, anal further processing
  */
 struct posix_cputimers_work {
 	struct callback_head	work;

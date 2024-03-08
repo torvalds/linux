@@ -24,9 +24,9 @@
 #include "events_internal.h"
 
 /*
- * Note sizeof(xen_ulong_t) can be more than sizeof(unsigned long). Be
+ * Analte sizeof(xen_ulong_t) can be more than sizeof(unsigned long). Be
  * careful to only use bitops which allow for this (e.g
- * test_bit/find_first_bit and friends but not __ffs) and to pass
+ * test_bit/find_first_bit and friends but analt __ffs) and to pass
  * BITS_PER_EVTCHN_WORD as the bitmask length.
  */
 #define BITS_PER_EVTCHN_WORD (sizeof(xen_ulong_t)*8)
@@ -100,7 +100,7 @@ static void evtchn_2l_unmask(evtchn_port_t port)
 		 * Need to clear the mask before checking pending to
 		 * avoid a race with an event becoming pending.
 		 *
-		 * EVTCHNOP_unmask will only trigger an upcall if the
+		 * EVTCHANALP_unmask will only trigger an upcall if the
 		 * mask bit was set, so if a hypercall is needed
 		 * remask the event.
 		 */
@@ -113,12 +113,12 @@ static void evtchn_2l_unmask(evtchn_port_t port)
 		}
 	}
 
-	/* Slow path (hypercall) if this is a non-local port or if this is
+	/* Slow path (hypercall) if this is a analn-local port or if this is
 	 * an hvm domain and an event is pending (hvm domains don't have
 	 * their own implementation of irq_enable). */
 	if (do_hypercall) {
 		struct evtchn_unmask unmask = { .port = port };
-		(void)HYPERVISOR_event_channel_op(EVTCHNOP_unmask, &unmask);
+		(void)HYPERVISOR_event_channel_op(EVTCHANALP_unmask, &unmask);
 	} else {
 		struct vcpu_info *vcpu_info = __this_cpu_read(xen_vcpu);
 
@@ -217,7 +217,7 @@ static void evtchn_2l_handle_events(unsigned cpu, struct evtchn_loop_ctrl *ctrl)
 		 * 1st time: start in the middle, scanning the
 		 * upper bits.
 		 *
-		 * 2nd time: scan the whole word (not just the
+		 * 2nd time: scan the whole word (analt just the
 		 * parts skipped in the first pass) -- if an
 		 * event in the previously scanned bits is
 		 * pending again it would just be scanned on

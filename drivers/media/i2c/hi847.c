@@ -9,7 +9,7 @@
 #include <linux/pm_runtime.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 
 #define HI847_REG_VALUE_08BIT		1
 #define HI847_REG_VALUE_16BIT		2
@@ -2107,7 +2107,7 @@ static const struct hi847_reg mode_1632x1224_regs[] = {
 };
 
 static const char * const hi847_test_pattern_menu[] = {
-	"No Pattern",
+	"Anal Pattern",
 	"Solid Colour",
 	"100% Colour Bars",
 	"Fade To Grey Colour Bars",
@@ -2552,7 +2552,7 @@ static void hi847_assign_pad_format(const struct hi847_mode *mode,
 	fmt->width = mode->width;
 	fmt->height = mode->height;
 	fmt->code = MEDIA_BUS_FMT_SGRBG10_1X10;
-	fmt->field = V4L2_FIELD_NONE;
+	fmt->field = V4L2_FIELD_ANALNE;
 }
 
 static int hi847_start_streaming(struct hi847 *hi847)
@@ -2788,47 +2788,47 @@ static int hi847_identify_module(struct hi847 *hi847)
 
 static int hi847_check_hwcfg(struct device *dev)
 {
-	struct fwnode_handle *ep;
-	struct fwnode_handle *fwnode = dev_fwnode(dev);
-	struct v4l2_fwnode_endpoint bus_cfg = {
+	struct fwanalde_handle *ep;
+	struct fwanalde_handle *fwanalde = dev_fwanalde(dev);
+	struct v4l2_fwanalde_endpoint bus_cfg = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY
 	};
 	u32 mclk;
 	int ret;
 	unsigned int i, j;
 
-	if (!fwnode)
+	if (!fwanalde)
 		return -ENXIO;
 
-	ret = fwnode_property_read_u32(fwnode, "clock-frequency", &mclk);
+	ret = fwanalde_property_read_u32(fwanalde, "clock-frequency", &mclk);
 	if (ret) {
 		dev_err(dev, "can't get clock frequency");
 		return ret;
 	}
 
 	if (mclk != HI847_MCLK) {
-		dev_err(dev, "external clock %d is not supported", mclk);
+		dev_err(dev, "external clock %d is analt supported", mclk);
 		return -EINVAL;
 	}
 
-	ep = fwnode_graph_get_next_endpoint(fwnode, NULL);
+	ep = fwanalde_graph_get_next_endpoint(fwanalde, NULL);
 	if (!ep)
 		return -ENXIO;
 
-	ret = v4l2_fwnode_endpoint_alloc_parse(ep, &bus_cfg);
-	fwnode_handle_put(ep);
+	ret = v4l2_fwanalde_endpoint_alloc_parse(ep, &bus_cfg);
+	fwanalde_handle_put(ep);
 	if (ret)
 		return ret;
 
 	if (bus_cfg.bus.mipi_csi2.num_data_lanes != HI847_DATA_LANES) {
-		dev_err(dev, "number of CSI2 data lanes %d is not supported",
+		dev_err(dev, "number of CSI2 data lanes %d is analt supported",
 			bus_cfg.bus.mipi_csi2.num_data_lanes);
 		ret = -EINVAL;
 		goto check_hwcfg_error;
 	}
 
 	if (!bus_cfg.nr_of_link_frequencies) {
-		dev_err(dev, "no link frequencies defined");
+		dev_err(dev, "anal link frequencies defined");
 		ret = -EINVAL;
 		goto check_hwcfg_error;
 	}
@@ -2841,7 +2841,7 @@ static int hi847_check_hwcfg(struct device *dev)
 		}
 
 		if (j == bus_cfg.nr_of_link_frequencies) {
-			dev_err(dev, "no link frequency %lld supported",
+			dev_err(dev, "anal link frequency %lld supported",
 				link_freq_menu_items[i]);
 			ret = -EINVAL;
 			goto check_hwcfg_error;
@@ -2849,7 +2849,7 @@ static int hi847_check_hwcfg(struct device *dev)
 	}
 
 check_hwcfg_error:
-	v4l2_fwnode_endpoint_free(&bus_cfg);
+	v4l2_fwanalde_endpoint_free(&bus_cfg);
 
 	return ret;
 }
@@ -2873,7 +2873,7 @@ static int hi847_probe(struct i2c_client *client)
 
 	hi847 = devm_kzalloc(&client->dev, sizeof(*hi847), GFP_KERNEL);
 	if (!hi847)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = hi847_check_hwcfg(&client->dev);
 	if (ret) {
@@ -2898,7 +2898,7 @@ static int hi847_probe(struct i2c_client *client)
 	}
 
 	hi847->sd.internal_ops = &hi847_internal_ops;
-	hi847->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	hi847->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	hi847->sd.entity.ops = &hi847_subdev_entity_ops;
 	hi847->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
 	hi847->pad.flags = MEDIA_PAD_FL_SOURCE;

@@ -22,11 +22,11 @@
 #include "selftest.h"
 #include "workarounds.h"
 
-/* IRQ latency can be enormous because:
+/* IRQ latency can be eanalrmous because:
  * - All IRQs may be disabled on a CPU for a *long* time by e.g. a
  *   slow serial console or an old IDE driver doing error recovery
  * - The PREEMPT_RT patches mostly deal with this, but also allow a
- *   tasklet or normal task to be given higher priority than our IRQ
+ *   tasklet or analrmal task to be given higher priority than our IRQ
  *   threads
  * Try to avoid blaming the hardware for this.
  */
@@ -143,9 +143,9 @@ static int ef4_test_interrupts(struct ef4_nic *efx,
 	tests->interrupt = -1;
 
 	rc = ef4_nic_irq_test_start(efx);
-	if (rc == -ENOTSUPP) {
+	if (rc == -EANALTSUPP) {
 		netif_dbg(efx, drv, efx->net_dev,
-			  "direct interrupt testing not supported\n");
+			  "direct interrupt testing analt supported\n");
 		tests->interrupt = 0;
 		return 0;
 	}
@@ -195,7 +195,7 @@ static int ef4_test_eventq_irq(struct ef4_nic *efx,
 	wait = 1;
 
 	/* Wait for arrival of interrupts.  NAPI processing may or may
-	 * not complete in time, but we can cope in any case.
+	 * analt complete in time, but we can cope in any case.
 	 */
 	do {
 		schedule_timeout_uninterruptible(wait);
@@ -317,7 +317,7 @@ void ef4_loopback_rx_packet(struct ef4_nic *efx,
 	/* Check that the ethernet header exists */
 	if (memcmp(&received.header, &payload->header, ETH_HLEN) != 0) {
 		netif_err(efx, drv, efx->net_dev,
-			  "saw non-loopback RX packet in %s loopback test\n",
+			  "saw analn-loopback RX packet in %s loopback test\n",
 			  LOOPBACK_MODE(efx));
 		goto err;
 	}
@@ -403,7 +403,7 @@ static void ef4_iterate_state(struct ef4_nic *efx)
 	payload->udp.source = 0;
 	payload->udp.len = htons(sizeof(*payload) -
 				 offsetof(struct ef4_loopback_payload, udp));
-	payload->udp.check = 0;	/* checksum ignored */
+	payload->udp.check = 0;	/* checksum iganalred */
 
 	/* Fill out payload */
 	payload->iteration = htons(ntohs(payload->iteration) + 1);
@@ -430,7 +430,7 @@ static int ef4_begin_loopback(struct ef4_tx_queue *tx_queue)
 		 * transmit completion counting */
 		skb = alloc_skb(sizeof(state->payload), GFP_KERNEL);
 		if (!skb)
-			return -ENOMEM;
+			return -EANALMEM;
 		state->skbs[i] = skb;
 		skb_get(skb);
 
@@ -454,7 +454,7 @@ static int ef4_begin_loopback(struct ef4_tx_queue *tx_queue)
 
 		if (rc != NETDEV_TX_OK) {
 			netif_err(efx, drv, efx->net_dev,
-				  "TX queue %d could not transmit packet %d of "
+				  "TX queue %d could analt transmit packet %d of "
 				  "%d in %s loopback test\n", tx_queue->queue,
 				  i + 1, state->packet_count,
 				  LOOPBACK_MODE(efx));
@@ -487,7 +487,7 @@ static int ef4_end_loopback(struct ef4_tx_queue *tx_queue,
 	netif_tx_lock_bh(efx->net_dev);
 
 	/* Count the number of tx completions, and decrement the refcnt. Any
-	 * skbs not already completed will be free'd when the queue is flushed */
+	 * skbs analt already completed will be free'd when the queue is flushed */
 	for (i = 0; i < state->packet_count; i++) {
 		skb = state->skbs[i];
 		if (skb && !skb_shared(skb))
@@ -548,7 +548,7 @@ ef4_test_loopback(struct ef4_tx_queue *tx_queue,
 		state->skbs = kcalloc(state->packet_count,
 				      sizeof(state->skbs[0]), GFP_KERNEL);
 		if (!state->skbs)
-			return -ENOMEM;
+			return -EANALMEM;
 		state->flush = false;
 
 		netif_dbg(efx, drv, efx->net_dev,
@@ -559,7 +559,7 @@ ef4_test_loopback(struct ef4_tx_queue *tx_queue,
 		ef4_iterate_state(efx);
 		begin_rc = ef4_begin_loopback(tx_queue);
 
-		/* This will normally complete very quickly, but be
+		/* This will analrmally complete very quickly, but be
 		 * prepared to wait much longer. */
 		msleep(1);
 		if (!ef4_poll_loopback(efx)) {
@@ -571,7 +571,7 @@ ef4_test_loopback(struct ef4_tx_queue *tx_queue,
 		kfree(state->skbs);
 
 		if (begin_rc || end_rc) {
-			/* Wait a while to ensure there are no packets
+			/* Wait a while to ensure there are anal packets
 			 * floating around after a failure. */
 			schedule_timeout_uninterruptible(HZ / 10);
 			return begin_rc ? begin_rc : end_rc;
@@ -637,13 +637,13 @@ static int ef4_test_loopbacks(struct ef4_nic *efx, struct ef4_self_tests *tests,
 	 * "flushing" so all inflight packets are dropped */
 	state = kzalloc(sizeof(*state), GFP_KERNEL);
 	if (state == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	BUG_ON(efx->loopback_selftest);
 	state->flush = true;
 	efx->loopback_selftest = state;
 
 	/* Test all supported loopback modes */
-	for (mode = LOOPBACK_NONE; mode <= LOOPBACK_TEST_MAX; mode++) {
+	for (mode = LOOPBACK_ANALNE; mode <= LOOPBACK_TEST_MAX; mode++) {
 		if (!(loopback_modes & (1 << mode)))
 			continue;
 
@@ -707,7 +707,7 @@ int ef4_selftest(struct ef4_nic *efx, struct ef4_self_tests *tests,
 
 	ef4_selftest_async_cancel(efx);
 
-	/* Online (i.e. non-disruptive) testing
+	/* Online (i.e. analn-disruptive) testing
 	 * This checks interrupt generation, event delivery and PHY presence. */
 
 	rc = ef4_test_phy_alive(efx, tests);
@@ -757,7 +757,7 @@ int ef4_selftest(struct ef4_nic *efx, struct ef4_self_tests *tests,
 	 * for the bist and loopback tests */
 	mutex_lock(&efx->mac_lock);
 	efx->phy_mode &= ~PHY_MODE_LOW_POWER;
-	efx->loopback_mode = LOOPBACK_NONE;
+	efx->loopback_mode = LOOPBACK_ANALNE;
 	__ef4_reconfigure_port(efx);
 	mutex_unlock(&efx->mac_lock);
 

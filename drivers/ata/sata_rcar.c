@@ -2,7 +2,7 @@
 /*
  * Renesas R-Car SATA driver
  *
- * Author: Vladimir Barinov <source@cogentembedded.com>
+ * Author: Vladimir Barianalv <source@cogentembedded.com>
  * Copyright (C) 2013-2015 Cogent Embedded, Inc.
  * Copyright (C) 2013-2015 Renesas Solutions Corp.
  */
@@ -76,7 +76,7 @@
 #define SATAPHYRESET_PHYRST		BIT(1)
 #define SATAPHYRESET_PHYSRES		BIT(0)
 
-/* Physical layer control acknowledge register (SATAPHYACK) bits */
+/* Physical layer control ackanalwledge register (SATAPHYACK) bits */
 #define SATAPHYACK_PHYACK		BIT(0)
 
 /* Serial-ATA HOST control registers */
@@ -301,7 +301,7 @@ static bool sata_rcar_ata_devchk(struct ata_port *ap, unsigned int device)
 	if (nsect == 0x55 && lbal == 0xaa)
 		return true;	/* found a device */
 
-	return false;		/* nothing found */
+	return false;		/* analthing found */
 }
 
 static int sata_rcar_wait_after_reset(struct ata_link *link,
@@ -344,9 +344,9 @@ static int sata_rcar_softreset(struct ata_link *link, unsigned int *classes,
 
 	/* issue bus reset */
 	rc = sata_rcar_bus_softreset(ap, deadline);
-	/* if link is occupied, -ENODEV too is an error */
-	if (rc && (rc != -ENODEV || sata_scr_valid(link))) {
-		ata_link_err(link, "SRST failed (errno=%d)\n", rc);
+	/* if link is occupied, -EANALDEV too is an error */
+	if (rc && (rc != -EANALDEV || sata_scr_valid(link))) {
+		ata_link_err(link, "SRST failed (erranal=%d)\n", rc);
 		return rc;
 	}
 
@@ -509,7 +509,7 @@ static void sata_rcar_bmdma_fill_sg(struct ata_queued_cmd *qc)
 		u32 addr, sg_len;
 
 		/*
-		 * Note: h/w doesn't support 64-bit, so we unconditionally
+		 * Analte: h/w doesn't support 64-bit, so we unconditionally
 		 * truncate dma_addr_t to u32.
 		 */
 		addr = (u32)sg_dma_address(sg);
@@ -739,7 +739,7 @@ static void sata_rcar_setup_port(struct ata_host *host)
 	ap->flags	|= ATA_FLAG_SATA;
 
 	if (priv->type == RCAR_R8A7790_ES1_SATA)
-		ap->flags	|= ATA_FLAG_NO_DIPM;
+		ap->flags	|= ATA_FLAG_ANAL_DIPM;
 
 	ioaddr->cmd_addr = base + SDATA_REG;
 	ioaddr->ctl_addr = base + SSDEVCON_REG;
@@ -807,7 +807,7 @@ static void sata_rcar_init_controller(struct ata_host *host)
 	case RCAR_GEN3_SATA:
 		break;
 	default:
-		dev_warn(host->dev, "SATA phy is not initialized\n");
+		dev_warn(host->dev, "SATA phy is analt initialized\n");
 		break;
 	}
 
@@ -869,7 +869,7 @@ static int sata_rcar_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(struct sata_rcar_priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->type = (unsigned long)of_device_get_match_data(dev);
 
@@ -880,7 +880,7 @@ static int sata_rcar_probe(struct platform_device *pdev)
 
 	host = ata_host_alloc(dev, 1);
 	if (!host) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_pm_put;
 	}
 
@@ -1022,5 +1022,5 @@ static struct platform_driver sata_rcar_driver = {
 module_platform_driver(sata_rcar_driver);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Vladimir Barinov");
+MODULE_AUTHOR("Vladimir Barianalv");
 MODULE_DESCRIPTION("Renesas R-Car SATA controller low level driver");

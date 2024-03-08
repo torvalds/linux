@@ -43,7 +43,7 @@
 	|xref	sslog10d,sslog2d,sslognd,slognp1d
 	|xref	stentox,stentoxd,stwotox,stwotoxd
 
-|	instruction		;opcode-stag Notes
+|	instruction		;opcode-stag Analtes
 	.global	tblpre
 tblpre:
 	.long	smovcr		|$00-0 fmovecr all
@@ -55,29 +55,29 @@ tblpre:
 	.long	smovcr		|$00-6 fmovecr all
 	.long	smovcr		|$00-7 fmovecr all
 
-	.long	sint		|$01-0 fint norm
+	.long	sint		|$01-0 fint analrm
 	.long	szero		|$01-1 fint zero
 	.long	sinf		|$01-2 fint inf
 	.long	src_nan		|$01-3 fint nan
-	.long	sintd		|$01-4 fint denorm inx
+	.long	sintd		|$01-4 fint deanalrm inx
 	.long	serror		|$01-5 fint ERROR
 	.long	serror		|$01-6 fint ERROR
 	.long	serror		|$01-7 fint ERROR
 
-	.long	ssinh		|$02-0 fsinh norm
+	.long	ssinh		|$02-0 fsinh analrm
 	.long	szero		|$02-1 fsinh zero
 	.long	sinf		|$02-2 fsinh inf
 	.long	src_nan		|$02-3 fsinh nan
-	.long	ssinhd		|$02-4 fsinh denorm
+	.long	ssinhd		|$02-4 fsinh deanalrm
 	.long	serror		|$02-5 fsinh ERROR
 	.long	serror		|$02-6 fsinh ERROR
 	.long	serror		|$02-7 fsinh ERROR
 
-	.long	sintrz		|$03-0 fintrz norm
+	.long	sintrz		|$03-0 fintrz analrm
 	.long	szero		|$03-1 fintrz zero
 	.long	sinf		|$03-2 fintrz inf
 	.long	src_nan		|$03-3 fintrz nan
-	.long	snzrinx		|$03-4 fintrz denorm inx
+	.long	snzrinx		|$03-4 fintrz deanalrm inx
 	.long	serror		|$03-5 fintrz ERROR
 	.long	serror		|$03-6 fintrz ERROR
 	.long	serror		|$03-7 fintrz ERROR
@@ -100,11 +100,11 @@ tblpre:
 	.long	serror		|$05-6 ERROR - illegal extension
 	.long	serror		|$05-7 ERROR - illegal extension
 
-	.long	sslognp1	|$06-0 flognp1 norm
+	.long	sslognp1	|$06-0 flognp1 analrm
 	.long	szero		|$06-1 flognp1 zero
 	.long	sopr_inf	|$06-2 flognp1 inf
 	.long	src_nan		|$06-3 flognp1 nan
-	.long	slognp1d	|$06-4 flognp1 denorm
+	.long	slognp1d	|$06-4 flognp1 deanalrm
 	.long	serror		|$06-5 flognp1 ERROR
 	.long	serror		|$06-6 flognp1 ERROR
 	.long	serror		|$06-7 flognp1 ERROR
@@ -118,29 +118,29 @@ tblpre:
 	.long	serror		|$07-6 ERROR - illegal extension
 	.long	serror		|$07-7 ERROR - illegal extension
 
-	.long	setoxm1		|$08-0 fetoxm1 norm
+	.long	setoxm1		|$08-0 fetoxm1 analrm
 	.long	szero		|$08-1 fetoxm1 zero
 	.long	setoxm1i	|$08-2 fetoxm1 inf
 	.long	src_nan		|$08-3 fetoxm1 nan
-	.long	setoxm1d	|$08-4 fetoxm1 denorm
+	.long	setoxm1d	|$08-4 fetoxm1 deanalrm
 	.long	serror		|$08-5 fetoxm1 ERROR
 	.long	serror		|$08-6 fetoxm1 ERROR
 	.long	serror		|$08-7 fetoxm1 ERROR
 
-	.long	stanh		|$09-0 ftanh norm
+	.long	stanh		|$09-0 ftanh analrm
 	.long	szero		|$09-1 ftanh zero
 	.long	sone		|$09-2 ftanh inf
 	.long	src_nan		|$09-3 ftanh nan
-	.long	stanhd		|$09-4 ftanh denorm
+	.long	stanhd		|$09-4 ftanh deanalrm
 	.long	serror		|$09-5 ftanh ERROR
 	.long	serror		|$09-6 ftanh ERROR
 	.long	serror		|$09-7 ftanh ERROR
 
-	.long	satan		|$0a-0 fatan norm
+	.long	satan		|$0a-0 fatan analrm
 	.long	szero		|$0a-1 fatan zero
 	.long	spi_2		|$0a-2 fatan inf
 	.long	src_nan		|$0a-3 fatan nan
-	.long	satand		|$0a-4 fatan denorm
+	.long	satand		|$0a-4 fatan deanalrm
 	.long	serror		|$0a-5 fatan ERROR
 	.long	serror		|$0a-6 fatan ERROR
 	.long	serror		|$0a-7 fatan ERROR
@@ -154,65 +154,65 @@ tblpre:
 	.long	serror		|$0b-6 ERROR - illegal extension
 	.long	serror		|$0b-7 ERROR - illegal extension
 
-	.long	sasin		|$0c-0 fasin norm
+	.long	sasin		|$0c-0 fasin analrm
 	.long	szero		|$0c-1 fasin zero
 	.long	t_operr		|$0c-2 fasin inf
 	.long	src_nan		|$0c-3 fasin nan
-	.long	sasind		|$0c-4 fasin denorm
+	.long	sasind		|$0c-4 fasin deanalrm
 	.long	serror		|$0c-5 fasin ERROR
 	.long	serror		|$0c-6 fasin ERROR
 	.long	serror		|$0c-7 fasin ERROR
 
-	.long	satanh		|$0d-0 fatanh norm
+	.long	satanh		|$0d-0 fatanh analrm
 	.long	szero		|$0d-1 fatanh zero
 	.long	t_operr		|$0d-2 fatanh inf
 	.long	src_nan		|$0d-3 fatanh nan
-	.long	satanhd		|$0d-4 fatanh denorm
+	.long	satanhd		|$0d-4 fatanh deanalrm
 	.long	serror		|$0d-5 fatanh ERROR
 	.long	serror		|$0d-6 fatanh ERROR
 	.long	serror		|$0d-7 fatanh ERROR
 
-	.long	ssin		|$0e-0 fsin norm
+	.long	ssin		|$0e-0 fsin analrm
 	.long	szero		|$0e-1 fsin zero
 	.long	t_operr		|$0e-2 fsin inf
 	.long	src_nan		|$0e-3 fsin nan
-	.long	ssind		|$0e-4 fsin denorm
+	.long	ssind		|$0e-4 fsin deanalrm
 	.long	serror		|$0e-5 fsin ERROR
 	.long	serror		|$0e-6 fsin ERROR
 	.long	serror		|$0e-7 fsin ERROR
 
-	.long	stan		|$0f-0 ftan norm
+	.long	stan		|$0f-0 ftan analrm
 	.long	szero		|$0f-1 ftan zero
 	.long	t_operr		|$0f-2 ftan inf
 	.long	src_nan		|$0f-3 ftan nan
-	.long	stand		|$0f-4 ftan denorm
+	.long	stand		|$0f-4 ftan deanalrm
 	.long	serror		|$0f-5 ftan ERROR
 	.long	serror		|$0f-6 ftan ERROR
 	.long	serror		|$0f-7 ftan ERROR
 
-	.long	setox		|$10-0 fetox norm
+	.long	setox		|$10-0 fetox analrm
 	.long	ld_pone		|$10-1 fetox zero
 	.long	szr_inf		|$10-2 fetox inf
 	.long	src_nan		|$10-3 fetox nan
-	.long	setoxd		|$10-4 fetox denorm
+	.long	setoxd		|$10-4 fetox deanalrm
 	.long	serror		|$10-5 fetox ERROR
 	.long	serror		|$10-6 fetox ERROR
 	.long	serror		|$10-7 fetox ERROR
 
-	.long	stwotox		|$11-0 ftwotox norm
+	.long	stwotox		|$11-0 ftwotox analrm
 	.long	ld_pone		|$11-1 ftwotox zero
 	.long	szr_inf		|$11-2 ftwotox inf
 	.long	src_nan		|$11-3 ftwotox nan
-	.long	stwotoxd	|$11-4 ftwotox denorm
+	.long	stwotoxd	|$11-4 ftwotox deanalrm
 	.long	serror		|$11-5 ftwotox ERROR
 	.long	serror		|$11-6 ftwotox ERROR
 	.long	serror		|$11-7 ftwotox ERROR
 
-	.long	stentox		|$12-0 ftentox norm
+	.long	stentox		|$12-0 ftentox analrm
 	.long	ld_pone		|$12-1 ftentox zero
 	.long	szr_inf		|$12-2 ftentox inf
 	.long	src_nan		|$12-3 ftentox nan
-	.long	stentoxd	|$12-4 ftentox denorm
+	.long	stentoxd	|$12-4 ftentox deanalrm
 	.long	serror		|$12-5 ftentox ERROR
 	.long	serror		|$12-6 ftentox ERROR
 	.long	serror		|$12-7 ftentox ERROR
@@ -226,29 +226,29 @@ tblpre:
 	.long	serror		|$13-6 ERROR - illegal extension
 	.long	serror		|$13-7 ERROR - illegal extension
 
-	.long	sslogn		|$14-0 flogn norm
+	.long	sslogn		|$14-0 flogn analrm
 	.long	t_dz2		|$14-1 flogn zero
 	.long	sopr_inf	|$14-2 flogn inf
 	.long	src_nan		|$14-3 flogn nan
-	.long	sslognd		|$14-4 flogn denorm
+	.long	sslognd		|$14-4 flogn deanalrm
 	.long	serror		|$14-5 flogn ERROR
 	.long	serror		|$14-6 flogn ERROR
 	.long	serror		|$14-7 flogn ERROR
 
-	.long	sslog10		|$15-0 flog10 norm
+	.long	sslog10		|$15-0 flog10 analrm
 	.long	t_dz2		|$15-1 flog10 zero
 	.long	sopr_inf	|$15-2 flog10 inf
 	.long	src_nan		|$15-3 flog10 nan
-	.long	sslog10d	|$15-4 flog10 denorm
+	.long	sslog10d	|$15-4 flog10 deanalrm
 	.long	serror		|$15-5 flog10 ERROR
 	.long	serror		|$15-6 flog10 ERROR
 	.long	serror		|$15-7 flog10 ERROR
 
-	.long	sslog2		|$16-0 flog2 norm
+	.long	sslog2		|$16-0 flog2 analrm
 	.long	t_dz2		|$16-1 flog2 zero
 	.long	sopr_inf	|$16-2 flog2 inf
 	.long	src_nan		|$16-3 flog2 nan
-	.long	sslog2d		|$16-4 flog2 denorm
+	.long	sslog2d		|$16-4 flog2 deanalrm
 	.long	serror		|$16-5 flog2 ERROR
 	.long	serror		|$16-6 flog2 ERROR
 	.long	serror		|$16-7 flog2 ERROR
@@ -271,11 +271,11 @@ tblpre:
 	.long	serror		|$18-6 ERROR - illegal extension
 	.long	serror		|$18-7 ERROR - illegal extension
 
-	.long	scosh		|$19-0 fcosh norm
+	.long	scosh		|$19-0 fcosh analrm
 	.long	ld_pone		|$19-1 fcosh zero
 	.long	ld_pinf		|$19-2 fcosh inf
 	.long	src_nan		|$19-3 fcosh nan
-	.long	scoshd		|$19-4 fcosh denorm
+	.long	scoshd		|$19-4 fcosh deanalrm
 	.long	serror		|$19-5 fcosh ERROR
 	.long	serror		|$19-6 fcosh ERROR
 	.long	serror		|$19-7 fcosh ERROR
@@ -298,38 +298,38 @@ tblpre:
 	.long	serror		|$1b-6 ERROR - illegal extension
 	.long	serror		|$1b-7 ERROR - illegal extension
 
-	.long	sacos		|$1c-0 facos norm
+	.long	sacos		|$1c-0 facos analrm
 	.long	ld_ppi2		|$1c-1 facos zero
 	.long	t_operr		|$1c-2 facos inf
 	.long	src_nan		|$1c-3 facos nan
-	.long	sacosd		|$1c-4 facos denorm
+	.long	sacosd		|$1c-4 facos deanalrm
 	.long	serror		|$1c-5 facos ERROR
 	.long	serror		|$1c-6 facos ERROR
 	.long	serror		|$1c-7 facos ERROR
 
-	.long	scos		|$1d-0 fcos norm
+	.long	scos		|$1d-0 fcos analrm
 	.long	ld_pone		|$1d-1 fcos zero
 	.long	t_operr		|$1d-2 fcos inf
 	.long	src_nan		|$1d-3 fcos nan
-	.long	scosd		|$1d-4 fcos denorm
+	.long	scosd		|$1d-4 fcos deanalrm
 	.long	serror		|$1d-5 fcos ERROR
 	.long	serror		|$1d-6 fcos ERROR
 	.long	serror		|$1d-7 fcos ERROR
 
-	.long	sgetexp		|$1e-0 fgetexp norm
+	.long	sgetexp		|$1e-0 fgetexp analrm
 	.long	szero		|$1e-1 fgetexp zero
 	.long	t_operr		|$1e-2 fgetexp inf
 	.long	src_nan		|$1e-3 fgetexp nan
-	.long	sgetexpd	|$1e-4 fgetexp denorm
+	.long	sgetexpd	|$1e-4 fgetexp deanalrm
 	.long	serror		|$1e-5 fgetexp ERROR
 	.long	serror		|$1e-6 fgetexp ERROR
 	.long	serror		|$1e-7 fgetexp ERROR
 
-	.long	sgetman		|$1f-0 fgetman norm
+	.long	sgetman		|$1f-0 fgetman analrm
 	.long	szero		|$1f-1 fgetman zero
 	.long	t_operr		|$1f-2 fgetman inf
 	.long	src_nan		|$1f-3 fgetman nan
-	.long	sgetmand	|$1f-4 fgetman denorm
+	.long	sgetmand	|$1f-4 fgetman deanalrm
 	.long	serror		|$1f-5 fgetman ERROR
 	.long	serror		|$1f-6 fgetman ERROR
 	.long	serror		|$1f-7 fgetman ERROR
@@ -478,74 +478,74 @@ tblpre:
 	.long	serror		|$2f-6 ERROR - illegal extension
 	.long	serror		|$2f-7 ERROR - illegal extension
 
-	.long	ssincos		|$30-0 fsincos norm
+	.long	ssincos		|$30-0 fsincos analrm
 	.long	ssincosz	|$30-1 fsincos zero
 	.long	ssincosi	|$30-2 fsincos inf
 	.long	ssincosnan	|$30-3 fsincos nan
-	.long	ssincosd	|$30-4 fsincos denorm
+	.long	ssincosd	|$30-4 fsincos deanalrm
 	.long	serror		|$30-5 fsincos ERROR
 	.long	serror		|$30-6 fsincos ERROR
 	.long	serror		|$30-7 fsincos ERROR
 
-	.long	ssincos		|$31-0 fsincos norm
+	.long	ssincos		|$31-0 fsincos analrm
 	.long	ssincosz	|$31-1 fsincos zero
 	.long	ssincosi	|$31-2 fsincos inf
 	.long	ssincosnan	|$31-3 fsincos nan
-	.long	ssincosd	|$31-4 fsincos denorm
+	.long	ssincosd	|$31-4 fsincos deanalrm
 	.long	serror		|$31-5 fsincos ERROR
 	.long	serror		|$31-6 fsincos ERROR
 	.long	serror		|$31-7 fsincos ERROR
 
-	.long	ssincos		|$32-0 fsincos norm
+	.long	ssincos		|$32-0 fsincos analrm
 	.long	ssincosz	|$32-1 fsincos zero
 	.long	ssincosi	|$32-2 fsincos inf
 	.long	ssincosnan	|$32-3 fsincos nan
-	.long	ssincosd	|$32-4 fsincos denorm
+	.long	ssincosd	|$32-4 fsincos deanalrm
 	.long	serror		|$32-5 fsincos ERROR
 	.long	serror		|$32-6 fsincos ERROR
 	.long	serror		|$32-7 fsincos ERROR
 
-	.long	ssincos		|$33-0 fsincos norm
+	.long	ssincos		|$33-0 fsincos analrm
 	.long	ssincosz	|$33-1 fsincos zero
 	.long	ssincosi	|$33-2 fsincos inf
 	.long	ssincosnan	|$33-3 fsincos nan
-	.long	ssincosd	|$33-4 fsincos denorm
+	.long	ssincosd	|$33-4 fsincos deanalrm
 	.long	serror		|$33-5 fsincos ERROR
 	.long	serror		|$33-6 fsincos ERROR
 	.long	serror		|$33-7 fsincos ERROR
 
-	.long	ssincos		|$34-0 fsincos norm
+	.long	ssincos		|$34-0 fsincos analrm
 	.long	ssincosz	|$34-1 fsincos zero
 	.long	ssincosi	|$34-2 fsincos inf
 	.long	ssincosnan	|$34-3 fsincos nan
-	.long	ssincosd	|$34-4 fsincos denorm
+	.long	ssincosd	|$34-4 fsincos deanalrm
 	.long	serror		|$34-5 fsincos ERROR
 	.long	serror		|$34-6 fsincos ERROR
 	.long	serror		|$34-7 fsincos ERROR
 
-	.long	ssincos		|$35-0 fsincos norm
+	.long	ssincos		|$35-0 fsincos analrm
 	.long	ssincosz	|$35-1 fsincos zero
 	.long	ssincosi	|$35-2 fsincos inf
 	.long	ssincosnan	|$35-3 fsincos nan
-	.long	ssincosd	|$35-4 fsincos denorm
+	.long	ssincosd	|$35-4 fsincos deanalrm
 	.long	serror		|$35-5 fsincos ERROR
 	.long	serror		|$35-6 fsincos ERROR
 	.long	serror		|$35-7 fsincos ERROR
 
-	.long	ssincos		|$36-0 fsincos norm
+	.long	ssincos		|$36-0 fsincos analrm
 	.long	ssincosz	|$36-1 fsincos zero
 	.long	ssincosi	|$36-2 fsincos inf
 	.long	ssincosnan	|$36-3 fsincos nan
-	.long	ssincosd	|$36-4 fsincos denorm
+	.long	ssincosd	|$36-4 fsincos deanalrm
 	.long	serror		|$36-5 fsincos ERROR
 	.long	serror		|$36-6 fsincos ERROR
 	.long	serror		|$36-7 fsincos ERROR
 
-	.long	ssincos		|$37-0 fsincos norm
+	.long	ssincos		|$37-0 fsincos analrm
 	.long	ssincosz	|$37-1 fsincos zero
 	.long	ssincosi	|$37-2 fsincos inf
 	.long	ssincosnan	|$37-3 fsincos nan
-	.long	ssincosd	|$37-4 fsincos denorm
+	.long	ssincosd	|$37-4 fsincos deanalrm
 	.long	serror		|$37-5 fsincos ERROR
 	.long	serror		|$37-6 fsincos ERROR
 	.long	serror		|$37-7 fsincos ERROR

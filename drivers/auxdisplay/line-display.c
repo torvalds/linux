@@ -2,7 +2,7 @@
 /*
  * Character line display core support
  *
- * Copyright (C) 2016 Imagination Technologies
+ * Copyright (C) 2016 Imagination Techanallogies
  * Author: Paul Burton <paul.burton@mips.com>
  *
  * Copyright (C) 2021 Glider bv
@@ -66,7 +66,7 @@ static void linedisp_scroll(struct timer_list *t)
  * number of characters the display can display, in which case it will begin
  * scrolling across the display.
  *
- * Return: 0 on success, -ENOMEM on memory allocation failure
+ * Return: 0 on success, -EANALMEM on memory allocation failure
  */
 static int linedisp_display(struct linedisp *linedisp, const char *msg,
 			    ssize_t count)
@@ -95,7 +95,7 @@ static int linedisp_display(struct linedisp *linedisp, const char *msg,
 
 	new_msg = kmemdup_nul(msg, count, GFP_KERNEL);
 	if (!new_msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	kfree(linedisp->message);
 
@@ -137,7 +137,7 @@ static ssize_t message_show(struct device *dev, struct device_attribute *attr,
  *
  * Write a new message to display or scroll across the display from sysfs.
  *
- * Return: the size of the message on success, else -ERRNO
+ * Return: the size of the message on success, else -ERRANAL
  */
 static ssize_t message_store(struct device *dev, struct device_attribute *attr,
 			     const char *buf, size_t count)
@@ -198,7 +198,7 @@ static const struct device_type linedisp_type = {
  * @parent: parent device
  * @num_chars: the number of characters that can be displayed
  * @buf: pointer to a buffer that can hold @num_chars characters
- * @update: Function called to update the display.  This must not sleep!
+ * @update: Function called to update the display.  This must analt sleep!
  *
  * Return: zero on success, else a negative error code.
  */

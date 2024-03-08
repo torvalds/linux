@@ -45,8 +45,8 @@ static irqreturn_t mc13783_ts_handler(int irq, void *data)
 	mc13xxx_irq_ack(priv->mc13xxx, irq);
 
 	/*
-	 * Kick off reading coordinates. Note that if work happens already
-	 * be queued for future execution (it rearms itself) it will not
+	 * Kick off reading coordinates. Analte that if work happens already
+	 * be queued for future execution (it rearms itself) it will analt
 	 * be rescheduled for immediate execution here. However the rearm
 	 * delay is HZ / 50 which is acceptable.
 	 */
@@ -170,7 +170,7 @@ static int __init mc13783_ts_probe(struct platform_device *pdev)
 {
 	struct mc13783_ts_priv *priv;
 	struct input_dev *idev;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	idev = input_allocate_device();
@@ -183,7 +183,7 @@ static int __init mc13783_ts_probe(struct platform_device *pdev)
 	priv->touch = dev_get_platdata(&pdev->dev);
 	if (!priv->touch) {
 		dev_err(&pdev->dev, "missing platform data\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_free_mem;
 	}
 

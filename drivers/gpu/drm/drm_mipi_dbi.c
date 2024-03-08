@@ -2,7 +2,7 @@
 /*
  * MIPI Display Bus Interface (DBI) LCD controller support
  *
- * Copyright 2016 Noralf Trønnes
+ * Copyright 2016 Analralf Trønnes
  */
 
 #include <linux/backlight.h>
@@ -32,7 +32,7 @@
 #define MIPI_DBI_MAX_SPI_READ_SPEED 2000000 /* 2MHz */
 
 #define DCS_POWER_MODE_DISPLAY			BIT(2)
-#define DCS_POWER_MODE_DISPLAY_NORMAL_MODE	BIT(3)
+#define DCS_POWER_MODE_DISPLAY_ANALRMAL_MODE	BIT(3)
 #define DCS_POWER_MODE_SLEEP_MODE		BIT(4)
 #define DCS_POWER_MODE_PARTIAL_MODE		BIT(5)
 #define DCS_POWER_MODE_IDLE_MODE		BIT(6)
@@ -88,7 +88,7 @@ static const u8 mipi_dbi_dcs_read_commands[] = {
 	MIPI_DCS_GET_PIXEL_FORMAT,
 	MIPI_DCS_GET_DISPLAY_MODE,
 	MIPI_DCS_GET_SIGNAL_MODE,
-	MIPI_DCS_GET_DIAGNOSTIC_RESULT,
+	MIPI_DCS_GET_DIAGANALSTIC_RESULT,
 	MIPI_DCS_READ_MEMORY_START,
 	MIPI_DCS_READ_MEMORY_CONTINUE,
 	MIPI_DCS_GET_SCANLINE,
@@ -159,7 +159,7 @@ int mipi_dbi_command_buf(struct mipi_dbi *dbi, u8 cmd, u8 *data, size_t len)
 	/* SPI requires dma-safe buffers */
 	cmdbuf = kmemdup(&cmd, 1, GFP_KERNEL);
 	if (!cmdbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&dbi->cmdlock);
 	ret = dbi->command(dbi, cmdbuf, data, len);
@@ -180,7 +180,7 @@ int mipi_dbi_command_stackbuf(struct mipi_dbi *dbi, u8 cmd, const u8 *data,
 
 	buf = kmemdup(data, len, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = mipi_dbi_command_buf(dbi, cmd, buf, len);
 
@@ -226,7 +226,7 @@ int mipi_dbi_buf_copy(void *dst, struct iosys_map *src, struct drm_framebuffer *
 		drm_fb_xrgb8888_to_rgb565(&dst_map, NULL, src, fb, clip, fmtcnv_state, swap);
 		break;
 	default:
-		drm_err_once(fb->dev, "Format is not supported: %p4cc\n",
+		drm_err_once(fb->dev, "Format is analt supported: %p4cc\n",
 			     &fb->format->format);
 		ret = -EINVAL;
 	}
@@ -351,7 +351,7 @@ EXPORT_SYMBOL(mipi_dbi_pipe_update);
  * Flushes the whole framebuffer and enables the backlight. Drivers can use this
  * in their &drm_simple_display_pipe_funcs->enable callback.
  *
- * Note: Drivers which don't use mipi_dbi_pipe_update() because they have custom
+ * Analte: Drivers which don't use mipi_dbi_pipe_update() because they have custom
  * framebuffer flushing, can't use this function since they both use the same
  * flushing code.
  */
@@ -405,7 +405,7 @@ static void mipi_dbi_blank(struct mipi_dbi_dev *dbidev)
  * mipi_dbi_pipe_disable - MIPI DBI pipe disable helper
  * @pipe: Display pipe
  *
- * This function disables backlight if present, if not the display memory is
+ * This function disables backlight if present, if analt the display memory is
  * blanked. The regulator is disabled if in use. Drivers can use this as their
  * &drm_simple_display_pipe_funcs->disable callback.
  */
@@ -438,7 +438,7 @@ EXPORT_SYMBOL(mipi_dbi_pipe_disable);
  * for cleanup.
  *
  * Returns:
- * 0 on success, or a negative errno code otherwise.
+ * 0 on success, or a negative erranal code otherwise.
  */
 int mipi_dbi_pipe_begin_fb_access(struct drm_simple_display_pipe *pipe,
 				  struct drm_plane_state *plane_state)
@@ -574,7 +574,7 @@ static const uint32_t mipi_dbi_formats[] = {
  *
  * Use mipi_dbi_dev_init() if you don't need custom formats.
  *
- * Note:
+ * Analte:
  * Some of the helper functions expects RGB565 to be the default format and the
  * transmit buffer sized to fit that.
  *
@@ -603,7 +603,7 @@ int mipi_dbi_dev_init_with_formats(struct mipi_dbi_dev *dbidev,
 
 	dbidev->tx_buf = devm_kmalloc(drm->dev, tx_buf_size, GFP_KERNEL);
 	if (!dbidev->tx_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drm_mode_copy(&dbidev->mode, mode);
 	ret = mipi_dbi_rotate_mode(&dbidev->mode, rotation);
@@ -708,9 +708,9 @@ bool mipi_dbi_display_is_on(struct mipi_dbi *dbi)
 
 	val &= ~DCS_POWER_MODE_RESERVED_MASK;
 
-	/* The poweron/reset value is 08h DCS_POWER_MODE_DISPLAY_NORMAL_MODE */
+	/* The poweron/reset value is 08h DCS_POWER_MODE_DISPLAY_ANALRMAL_MODE */
 	if (val != (DCS_POWER_MODE_DISPLAY |
-	    DCS_POWER_MODE_DISPLAY_NORMAL_MODE | DCS_POWER_MODE_SLEEP_MODE))
+	    DCS_POWER_MODE_DISPLAY_ANALRMAL_MODE | DCS_POWER_MODE_SLEEP_MODE))
 		return false;
 
 	DRM_DEBUG_DRIVER("Display is ON\n");
@@ -758,7 +758,7 @@ static int mipi_dbi_poweron_reset_conditional(struct mipi_dbi_dev *dbidev, bool 
 	}
 
 	/*
-	 * If we did a hw reset, we know the controller is in Sleep mode and
+	 * If we did a hw reset, we kanalw the controller is in Sleep mode and
 	 * per MIPI DSC spec should wait 5ms after soft reset. If we didn't,
 	 * we assume worst case and wait 120ms.
 	 */
@@ -792,7 +792,7 @@ EXPORT_SYMBOL(mipi_dbi_poweron_reset);
  *
  * This function enables the regulator if used and if the display is off, it
  * does a hardware and software reset. If mipi_dbi_display_is_on() determines
- * that the display is on, no reset is performed.
+ * that the display is on, anal reset is performed.
  *
  * Returns:
  * Zero if the controller was reset, 1 if the display was already on, or a
@@ -838,7 +838,7 @@ static bool mipi_dbi_machine_little_endian(void)
  *
  * If the SPI controller doesn't have 9 bits per word support,
  * use blocks of 9 bytes to send 8x 9-bit words using a 8-bit SPI transfer.
- * Pad partial blocks with MIPI_DCS_NOP (zero).
+ * Pad partial blocks with MIPI_DCS_ANALP (zero).
  * This is how the D/C bit (x) is added:
  *     x7654321
  *     0x765432
@@ -878,7 +878,7 @@ static int mipi_dbi_spi1e_transfer(struct mipi_dbi *dbi, int dc,
 		if (WARN_ON_ONCE(len != 1))
 			return -EINVAL;
 
-		/* Command: pad no-op's (zeroes) at beginning of block */
+		/* Command: pad anal-op's (zeroes) at beginning of block */
 		dst = dbi->tx_buf9;
 		memset(dst, 0, 9);
 		dst[8] = *src;
@@ -889,7 +889,7 @@ static int mipi_dbi_spi1e_transfer(struct mipi_dbi *dbi, int dc,
 
 	/* max with room for adding one bit per byte */
 	max_chunk = max_chunk / 9 * 8;
-	/* but no bigger than len */
+	/* but anal bigger than len */
 	max_chunk = min(max_chunk, len);
 	/* 8 byte blocks */
 	max_chunk = max_t(size_t, 8, max_chunk & ~0x7);
@@ -904,7 +904,7 @@ static int mipi_dbi_spi1e_transfer(struct mipi_dbi *dbi, int dc,
 		if (chunk < 8) {
 			u8 val, carry = 0;
 
-			/* Data: pad no-op's (zeroes) at end of block */
+			/* Data: pad anal-op's (zeroes) at end of block */
 			memset(dst, 0, 9);
 
 			if (swap_bytes) {
@@ -1064,8 +1064,8 @@ static int mipi_dbi_typec1_command_read(struct mipi_dbi *dbi, u8 *cmd,
 		 * for reads using emulation.
 		 */
 		dev_err(&spi->dev,
-			"reading on host not supporting 9 bpw not yet implemented\n");
-		return -EOPNOTSUPP;
+			"reading on host analt supporting 9 bpw analt yet implemented\n");
+		return -EOPANALTSUPP;
 	}
 
 	/*
@@ -1129,7 +1129,7 @@ static int mipi_dbi_typec3_command_read(struct mipi_dbi *dbi, u8 *cmd,
 		return -EINVAL;
 
 	/*
-	 * Support non-standard 24-bit and 32-bit Nokia read commands which
+	 * Support analn-standard 24-bit and 32-bit Analkia read commands which
 	 * start with a dummy clock, so we need to read an extra byte.
 	 */
 	if (*cmd == MIPI_DCS_GET_DISPLAY_ID ||
@@ -1142,7 +1142,7 @@ static int mipi_dbi_typec3_command_read(struct mipi_dbi *dbi, u8 *cmd,
 
 	buf = kmalloc(tr[1].len, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tr[1].rx_buf = buf;
 
@@ -1215,13 +1215,13 @@ static int mipi_dbi_typec3_command(struct mipi_dbi *dbi, u8 *cmd,
  * usual read commands. It should be followed by a call to mipi_dbi_dev_init() or
  * a driver-specific init.
  *
- * If @dc is set, a Type C Option 3 interface is assumed, if not
+ * If @dc is set, a Type C Option 3 interface is assumed, if analt
  * Type C Option 1.
  *
  * If the SPI master driver doesn't support the necessary bits per word,
  * the following transformation is used:
  *
- * - 9-bit: reorder buffer as 9x 8-bit words, padded with no-op command.
+ * - 9-bit: reorder buffer as 9x 8-bit words, padded with anal-op command.
  * - 16-bit: if big endian send as 8-bit, if little endian swap bytes
  *
  * Returns:
@@ -1234,11 +1234,11 @@ int mipi_dbi_spi_init(struct spi_device *spi, struct mipi_dbi *dbi,
 	int ret;
 
 	/*
-	 * Even though it's not the SPI device that does DMA (the master does),
+	 * Even though it's analt the SPI device that does DMA (the master does),
 	 * the dma mask is necessary for the dma_alloc_wc() in the GEM code
 	 * (e.g., drm_gem_dma_create()). The dma_addr returned will be a physical
 	 * address which might be different from the bus address, but this is
-	 * not a problem since the address will not be used.
+	 * analt a problem since the address will analt be used.
 	 * The virtual address is used in the transfer and the SPI core
 	 * re-maps it on the SPI master device using the DMA streaming API
 	 * (spi_map_buf()).
@@ -1264,7 +1264,7 @@ int mipi_dbi_spi_init(struct spi_device *spi, struct mipi_dbi *dbi,
 		dbi->tx_buf9_len = SZ_16K;
 		dbi->tx_buf9 = devm_kmalloc(dev, dbi->tx_buf9_len, GFP_KERNEL);
 		if (!dbi->tx_buf9)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	mutex_init(&dbi->cmdlock);
@@ -1302,7 +1302,7 @@ int mipi_dbi_spi_transfer(struct spi_device *spi, u32 speed_hz,
 	size_t chunk;
 	int ret;
 
-	/* In __spi_validate, there's a validation that no partial transfers
+	/* In __spi_validate, there's a validation that anal partial transfers
 	 * are accepted (xfer->len % w_size must be zero).
 	 * Here we align max_chunk to multiple of 2 (16bits),
 	 * to prevent transfers from being rejected.
@@ -1343,7 +1343,7 @@ static ssize_t mipi_dbi_debugfs_command_write(struct file *file,
 	int i, ret, idx;
 
 	if (!drm_dev_enter(&dbidev->drm, &idx))
-		return -ENODEV;
+		return -EANALDEV;
 
 	buf = memdup_user_nul(ubuf, count);
 	if (IS_ERR(buf)) {
@@ -1400,7 +1400,7 @@ static int mipi_dbi_debugfs_command_show(struct seq_file *m, void *unused)
 	size_t len;
 
 	if (!drm_dev_enter(&dbidev->drm, &idx))
-		return -ENODEV;
+		return -EANALDEV;
 
 	for (cmd = 0; cmd < 255; cmd++) {
 		if (!mipi_dbi_command_is_read(dbi, cmd))
@@ -1436,11 +1436,11 @@ static int mipi_dbi_debugfs_command_show(struct seq_file *m, void *unused)
 	return 0;
 }
 
-static int mipi_dbi_debugfs_command_open(struct inode *inode,
+static int mipi_dbi_debugfs_command_open(struct ianalde *ianalde,
 					 struct file *file)
 {
 	return single_open(file, mipi_dbi_debugfs_command_show,
-			   inode->i_private);
+			   ianalde->i_private);
 }
 
 static const struct file_operations mipi_dbi_debugfs_command_fops = {
@@ -1454,21 +1454,21 @@ static const struct file_operations mipi_dbi_debugfs_command_fops = {
 
 /**
  * mipi_dbi_debugfs_init - Create debugfs entries
- * @minor: DRM minor
+ * @mianalr: DRM mianalr
  *
  * This function creates a 'command' debugfs file for sending commands to the
  * controller or getting the read command values.
  * Drivers can use this as their &drm_driver->debugfs_init callback.
  *
  */
-void mipi_dbi_debugfs_init(struct drm_minor *minor)
+void mipi_dbi_debugfs_init(struct drm_mianalr *mianalr)
 {
-	struct mipi_dbi_dev *dbidev = drm_to_mipi_dbi_dev(minor->dev);
+	struct mipi_dbi_dev *dbidev = drm_to_mipi_dbi_dev(mianalr->dev);
 	umode_t mode = S_IFREG | S_IWUSR;
 
 	if (dbidev->dbi.read_commands)
 		mode |= S_IRUGO;
-	debugfs_create_file("command", mode, minor->debugfs_root, dbidev,
+	debugfs_create_file("command", mode, mianalr->debugfs_root, dbidev,
 			    &mipi_dbi_debugfs_command_fops);
 }
 EXPORT_SYMBOL(mipi_dbi_debugfs_init);

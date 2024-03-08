@@ -32,7 +32,7 @@
 
 #undef DEBUG
 
-#define MAX_NODE_NAME_SIZE (20 - 12)
+#define MAX_ANALDE_NAME_SIZE (20 - 12)
 
 static struct macio_chip      *macio_on_hold;
 
@@ -68,7 +68,7 @@ void macio_dev_put(struct macio_dev *dev)
 
 static int macio_device_probe(struct device *dev)
 {
-	int error = -ENODEV;
+	int error = -EANALDEV;
 	struct macio_driver *drv;
 	struct macio_dev *macio_dev;
 	const struct of_device_id *match;
@@ -176,26 +176,26 @@ static void macio_release_dev(struct device *dev)
 
 /**
  * macio_resource_quirks - tweak or skip some resources for a device
- * @np: pointer to the device node
+ * @np: pointer to the device analde
  * @res: resulting resource
- * @index: index of resource in node
+ * @index: index of resource in analde
  *
- * If this routine returns non-null, then the resource is completely
+ * If this routine returns analn-null, then the resource is completely
  * skipped.
  */
-static int macio_resource_quirks(struct device_node *np, struct resource *res,
+static int macio_resource_quirks(struct device_analde *np, struct resource *res,
 				 int index)
 {
-	/* Only quirks for memory resources for now */
+	/* Only quirks for memory resources for analw */
 	if ((res->flags & IORESOURCE_MEM) == 0)
 		return 0;
 
 	/* Grand Central has too large resource 0 on some machines */
-	if (index == 0 && of_node_name_eq(np, "gc"))
+	if (index == 0 && of_analde_name_eq(np, "gc"))
 		res->end = res->start + 0x1ffff;
 
 	/* Airport has bogus resource 2 */
-	if (index >= 2 && of_node_name_eq(np, "radio"))
+	if (index >= 2 && of_analde_name_eq(np, "radio"))
 		return 1;
 
 #ifndef CONFIG_PPC64
@@ -208,21 +208,21 @@ static int macio_resource_quirks(struct device_node *np, struct resource *res,
 	 * level of hierarchy, but I don't really feel the need
 	 * for it
 	 */
-	if (of_node_name_eq(np, "escc"))
+	if (of_analde_name_eq(np, "escc"))
 		return 1;
 
 	/* ESCC has bogus resources >= 3 */
-	if (index >= 3 && (of_node_name_eq(np, "ch-a") ||
-			   of_node_name_eq(np, "ch-b")))
+	if (index >= 3 && (of_analde_name_eq(np, "ch-a") ||
+			   of_analde_name_eq(np, "ch-b")))
 		return 1;
 
 	/* Media bay has too many resources, keep only first one */
-	if (index > 0 && of_node_name_eq(np, "media-bay"))
+	if (index > 0 && of_analde_name_eq(np, "media-bay"))
 		return 1;
 
 	/* Some older IDE resources have bogus sizes */
-	if (of_node_name_eq(np, "IDE") || of_node_name_eq(np, "ATA") ||
-	    of_node_is_type(np, "ide") || of_node_is_type(np, "ata")) {
+	if (of_analde_name_eq(np, "IDE") || of_analde_name_eq(np, "ATA") ||
+	    of_analde_is_type(np, "ide") || of_analde_is_type(np, "ata")) {
 		if (index == 0 && (res->end - res->start) > 0xfff)
 			res->end = res->start + 0xfff;
 		if (index == 1 && (res->end - res->start) > 0xff)
@@ -248,20 +248,20 @@ static void macio_create_fixup_irq(struct macio_dev *dev, int index,
 
 static void macio_add_missing_resources(struct macio_dev *dev)
 {
-	struct device_node *np = dev->ofdev.dev.of_node;
+	struct device_analde *np = dev->ofdev.dev.of_analde;
 	unsigned int irq_base;
 
-	/* Gatwick has some missing interrupts on child nodes */
+	/* Gatwick has some missing interrupts on child analdes */
 	if (dev->bus->chip->type != macio_gatwick)
 		return;
 
-	/* irq_base is always 64 on gatwick. I have no cleaner way to get
+	/* irq_base is always 64 on gatwick. I have anal cleaner way to get
 	 * that value from here at this point
 	 */
 	irq_base = 64;
 
 	/* Fix SCC */
-	if (of_node_name_eq(np, "ch-a")) {
+	if (of_analde_name_eq(np, "ch-a")) {
 		macio_create_fixup_irq(dev, 0, 15 + irq_base);
 		macio_create_fixup_irq(dev, 1,  4 + irq_base);
 		macio_create_fixup_irq(dev, 2,  5 + irq_base);
@@ -269,18 +269,18 @@ static void macio_add_missing_resources(struct macio_dev *dev)
 	}
 
 	/* Fix media-bay */
-	if (of_node_name_eq(np, "media-bay")) {
+	if (of_analde_name_eq(np, "media-bay")) {
 		macio_create_fixup_irq(dev, 0, 29 + irq_base);
 		printk(KERN_INFO "macio: fixed media-bay irq on gatwick\n");
 	}
 
 	/* Fix left media bay childs */
-	if (dev->media_bay != NULL && of_node_name_eq(np, "floppy")) {
+	if (dev->media_bay != NULL && of_analde_name_eq(np, "floppy")) {
 		macio_create_fixup_irq(dev, 0, 19 + irq_base);
 		macio_create_fixup_irq(dev, 1,  1 + irq_base);
 		printk(KERN_INFO "macio: fixed left floppy irqs\n");
 	}
-	if (dev->media_bay != NULL && of_node_name_eq(np, "ata4")) {
+	if (dev->media_bay != NULL && of_analde_name_eq(np, "ata4")) {
 		macio_create_fixup_irq(dev, 0, 14 + irq_base);
 		macio_create_fixup_irq(dev, 0,  3 + irq_base);
 		printk(KERN_INFO "macio: fixed left ide irqs\n");
@@ -289,7 +289,7 @@ static void macio_add_missing_resources(struct macio_dev *dev)
 
 static void macio_setup_interrupts(struct macio_dev *dev)
 {
-	struct device_node *np = dev->ofdev.dev.of_node;
+	struct device_analde *np = dev->ofdev.dev.of_analde;
 	unsigned int irq;
 	int i = 0, j = 0;
 
@@ -317,7 +317,7 @@ static void macio_setup_interrupts(struct macio_dev *dev)
 static void macio_setup_resources(struct macio_dev *dev,
 				  struct resource *parent_res)
 {
-	struct device_node *np = dev->ofdev.dev.of_node;
+	struct device_analde *np = dev->ofdev.dev.of_analde;
 	struct resource r;
 	int index;
 
@@ -347,9 +347,9 @@ static void macio_setup_resources(struct macio_dev *dev,
 }
 
 /**
- * macio_add_one_device - Add one device from OF node to the device tree
+ * macio_add_one_device - Add one device from OF analde to the device tree
  * @chip: pointer to the macio_chip holding the device
- * @np: pointer to the device node in the OF tree
+ * @np: pointer to the device analde in the OF tree
  * @in_bay: set to 1 if device is part of a media-bay
  *
  * When media-bay is changed to hotswap drivers, this function will
@@ -357,11 +357,11 @@ static void macio_setup_resources(struct macio_dev *dev,
  */
 static struct macio_dev * macio_add_one_device(struct macio_chip *chip,
 					       struct device *parent,
-					       struct device_node *np,
+					       struct device_analde *np,
 					       struct macio_dev *in_bay,
 					       struct resource *parent_res)
 {
-	char name[MAX_NODE_NAME_SIZE + 1];
+	char name[MAX_ANALDE_NAME_SIZE + 1];
 	struct macio_dev *dev;
 	const u32 *reg;
 
@@ -374,7 +374,7 @@ static struct macio_dev * macio_add_one_device(struct macio_chip *chip,
 
 	dev->bus = &chip->lbus;
 	dev->media_bay = in_bay;
-	dev->ofdev.dev.of_node = np;
+	dev->ofdev.dev.of_analde = np;
 	dev->ofdev.archdata.dma_mask = 0xffffffffUL;
 	dev->ofdev.dev.dma_mask = &dev->ofdev.archdata.dma_mask;
 	dev->ofdev.dev.coherent_dma_mask = dev->ofdev.archdata.dma_mask;
@@ -389,7 +389,7 @@ static struct macio_dev * macio_add_one_device(struct macio_chip *chip,
 
 #if defined(CONFIG_PCI) && defined(CONFIG_DMA_OPS)
 	/* Set the DMA ops to the ones from the PCI device, this could be
-	 * fishy if we didn't know that on PowerMac it's always direct ops
+	 * fishy if we didn't kanalw that on PowerMac it's always direct ops
 	 * or iommu ops that will work fine
 	 *
 	 * To get all the fields, copy all archdata
@@ -405,7 +405,7 @@ static struct macio_dev * macio_add_one_device(struct macio_chip *chip,
 
 	/* MacIO itself has a different reg, we use it's PCI base */
 	snprintf(name, sizeof(name), "%pOFn", np);
-	if (np == chip->of_node) {
+	if (np == chip->of_analde) {
 		dev_set_name(&dev->ofdev.dev, "%1d.%08x:%.*s",
 			     chip->lbus.index,
 #ifdef CONFIG_PCI
@@ -413,12 +413,12 @@ static struct macio_dev * macio_add_one_device(struct macio_chip *chip,
 #else
 			0, /* NuBus may want to do something better here */
 #endif
-			MAX_NODE_NAME_SIZE, name);
+			MAX_ANALDE_NAME_SIZE, name);
 	} else {
 		reg = of_get_property(np, "reg", NULL);
 		dev_set_name(&dev->ofdev.dev, "%1d.%08x:%.*s",
 			     chip->lbus.index,
-			     reg ? *reg : 0, MAX_NODE_NAME_SIZE, name);
+			     reg ? *reg : 0, MAX_ANALDE_NAME_SIZE, name);
 	}
 
 	/* Setup interrupts & resources */
@@ -437,10 +437,10 @@ static struct macio_dev * macio_add_one_device(struct macio_chip *chip,
 	return dev;
 }
 
-static int macio_skip_device(struct device_node *np)
+static int macio_skip_device(struct device_analde *np)
 {
-	return of_node_name_prefix(np, "battery") ||
-	       of_node_name_prefix(np, "escc-legacy");
+	return of_analde_name_prefix(np, "battery") ||
+	       of_analde_name_prefix(np, "escc-legacy");
 }
 
 /**
@@ -451,71 +451,71 @@ static int macio_skip_device(struct device_node *np)
  * Open Firmware device tree, build macio_dev structures and add
  * them to the Linux device tree.
  * 
- * For now, childs of media-bay are added now as well. This will
+ * For analw, childs of media-bay are added analw as well. This will
  * change rsn though.
  */
 static void macio_pci_add_devices(struct macio_chip *chip)
 {
-	struct device_node *np, *pnode;
+	struct device_analde *np, *panalde;
 	struct macio_dev *rdev, *mdev, *mbdev = NULL, *sdev = NULL;
 	struct device *parent = NULL;
 	struct resource *root_res = &iomem_resource;
 	
-	/* Add a node for the macio bus itself */
+	/* Add a analde for the macio bus itself */
 #ifdef CONFIG_PCI
 	if (chip->lbus.pdev) {
 		parent = &chip->lbus.pdev->dev;
 		root_res = &chip->lbus.pdev->resource[0];
 	}
 #endif
-	pnode = of_node_get(chip->of_node);
-	if (pnode == NULL)
+	panalde = of_analde_get(chip->of_analde);
+	if (panalde == NULL)
 		return;
 
 	/* Add macio itself to hierarchy */
-	rdev = macio_add_one_device(chip, parent, pnode, NULL, root_res);
+	rdev = macio_add_one_device(chip, parent, panalde, NULL, root_res);
 	if (rdev == NULL)
 		return;
 	root_res = &rdev->resource[0];
 
 	/* First scan 1st level */
-	for_each_child_of_node(pnode, np) {
+	for_each_child_of_analde(panalde, np) {
 		if (macio_skip_device(np))
 			continue;
-		of_node_get(np);
+		of_analde_get(np);
 		mdev = macio_add_one_device(chip, &rdev->ofdev.dev, np, NULL,
 					    root_res);
 		if (mdev == NULL)
-			of_node_put(np);
-		else if (of_node_name_prefix(np, "media-bay"))
+			of_analde_put(np);
+		else if (of_analde_name_prefix(np, "media-bay"))
 			mbdev = mdev;
-		else if (of_node_name_prefix(np, "escc"))
+		else if (of_analde_name_prefix(np, "escc"))
 			sdev = mdev;
 	}
 
 	/* Add media bay devices if any */
 	if (mbdev) {
-		pnode = mbdev->ofdev.dev.of_node;
-		for_each_child_of_node(pnode, np) {
+		panalde = mbdev->ofdev.dev.of_analde;
+		for_each_child_of_analde(panalde, np) {
 			if (macio_skip_device(np))
 				continue;
-			of_node_get(np);
+			of_analde_get(np);
 			if (macio_add_one_device(chip, &mbdev->ofdev.dev, np,
 						 mbdev,  root_res) == NULL)
-				of_node_put(np);
+				of_analde_put(np);
 		}
 	}
 
 	/* Add serial ports if any */
 	if (sdev) {
-		pnode = sdev->ofdev.dev.of_node;
-		for_each_child_of_node(pnode, np) {
+		panalde = sdev->ofdev.dev.of_analde;
+		for_each_child_of_analde(panalde, np) {
 			if (macio_skip_device(np))
 				continue;
-			of_node_get(np);
+			of_analde_get(np);
 			if (macio_add_one_device(chip, &sdev->ofdev.dev, np,
 						 NULL, root_res) == NULL)
-				of_node_put(np);
+				of_analde_put(np);
 		}
 	}
 }
@@ -569,7 +569,7 @@ int macio_enable_devres(struct macio_dev *dev)
 	if (!dr) {
 		dr = devres_alloc(maciom_release, sizeof(*dr), GFP_KERNEL);
 		if (!dr)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 	return devres_get(&dev->ofdev.dev, dr, NULL, NULL) != NULL;
 }
@@ -582,41 +582,41 @@ static struct macio_devres * find_macio_dr(struct macio_dev *dev)
 /**
  *	macio_request_resource - Request an MMIO resource
  * 	@dev: pointer to the device holding the resource
- *	@resource_no: resource number to request
+ *	@resource_anal: resource number to request
  *	@name: resource name
  *
- *	Mark  memory region number @resource_no associated with MacIO
- *	device @dev as being reserved by owner @name.  Do not access
+ *	Mark  memory region number @resource_anal associated with MacIO
+ *	device @dev as being reserved by owner @name.  Do analt access
  *	any address inside the memory regions unless this call returns
  *	successfully.
  *
  *	Returns 0 on success, or %EBUSY on error.  A warning
  *	message is also printed on failure.
  */
-int macio_request_resource(struct macio_dev *dev, int resource_no,
+int macio_request_resource(struct macio_dev *dev, int resource_anal,
 			   const char *name)
 {
 	struct macio_devres *dr = find_macio_dr(dev);
 
-	if (macio_resource_len(dev, resource_no) == 0)
+	if (macio_resource_len(dev, resource_anal) == 0)
 		return 0;
 		
-	if (!request_mem_region(macio_resource_start(dev, resource_no),
-				macio_resource_len(dev, resource_no),
+	if (!request_mem_region(macio_resource_start(dev, resource_anal),
+				macio_resource_len(dev, resource_anal),
 				name))
 		goto err_out;
 
-	if (dr && resource_no < 32)
-		dr->res_mask |= 1 << resource_no;
+	if (dr && resource_anal < 32)
+		dr->res_mask |= 1 << resource_anal;
 	
 	return 0;
 
 err_out:
 	printk (KERN_WARNING "MacIO: Unable to reserve resource #%d:%lx@%lx"
 		" for device %s\n",
-		resource_no,
-		macio_resource_len(dev, resource_no),
-		macio_resource_start(dev, resource_no),
+		resource_anal,
+		macio_resource_len(dev, resource_anal),
+		macio_resource_start(dev, resource_anal),
 		dev_name(&dev->ofdev.dev));
 	return -EBUSY;
 }
@@ -624,18 +624,18 @@ err_out:
 /**
  * macio_release_resource - Release an MMIO resource
  * @dev: pointer to the device holding the resource
- * @resource_no: resource number to release
+ * @resource_anal: resource number to release
  */
-void macio_release_resource(struct macio_dev *dev, int resource_no)
+void macio_release_resource(struct macio_dev *dev, int resource_anal)
 {
 	struct macio_devres *dr = find_macio_dr(dev);
 
-	if (macio_resource_len(dev, resource_no) == 0)
+	if (macio_resource_len(dev, resource_anal) == 0)
 		return;
-	release_mem_region(macio_resource_start(dev, resource_no),
-			   macio_resource_len(dev, resource_no));
-	if (dr && resource_no < 32)
-		dr->res_mask &= ~(1 << resource_no);
+	release_mem_region(macio_resource_start(dev, resource_anal),
+			   macio_resource_len(dev, resource_anal));
+	if (dr && resource_anal < 32)
+		dr->res_mask &= ~(1 << resource_anal);
 }
 
 /**
@@ -644,7 +644,7 @@ void macio_release_resource(struct macio_dev *dev, int resource_no)
  *	@name: Name to be associated with resource.
  *
  *	Mark all memory regions associated with MacIO device @dev as
- *	being reserved by owner @name.  Do not access any address inside
+ *	being reserved by owner @name.  Do analt access any address inside
  *	the memory regions unless this call returns successfully.
  *
  *	Returns 0 on success, or %EBUSY on error.  A warning
@@ -684,31 +684,31 @@ void macio_release_resources(struct macio_dev *dev)
 
 static int macio_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	struct device_node* np;
+	struct device_analde* np;
 	struct macio_chip* chip;
 	
 	if (ent->vendor != PCI_VENDOR_ID_APPLE)
-		return -ENODEV;
+		return -EANALDEV;
 
-	/* Note regarding refcounting: We assume pci_device_to_OF_node() is
-	 * ported to new OF APIs and returns a node with refcount incremented.
+	/* Analte regarding refcounting: We assume pci_device_to_OF_analde() is
+	 * ported to new OF APIs and returns a analde with refcount incremented.
 	 */
-	np = pci_device_to_OF_node(pdev);
+	np = pci_device_to_OF_analde(pdev);
 	if (np == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* The above assumption is wrong !!!
-	 * fix that here for now until I fix the arch code
+	 * fix that here for analw until I fix the arch code
 	 */
-	of_node_get(np);
+	of_analde_get(np);
 
-	/* We also assume that pmac_feature will have done a get() on nodes
+	/* We also assume that pmac_feature will have done a get() on analdes
 	 * stored in the macio chips array
 	 */
-	chip = macio_find(np, macio_unknown);
-       	of_node_put(np);
+	chip = macio_find(np, macio_unkanalwn);
+       	of_analde_put(np);
 	if (chip == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* XXX Need locking ??? */
 	if (chip->lbus.pdev == NULL) {
@@ -744,12 +744,12 @@ static int macio_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent
 
 static void macio_pci_remove(struct pci_dev* pdev)
 {
-	panic("removing of macio-asic not supported !\n");
+	panic("removing of macio-asic analt supported !\n");
 }
 
 /*
  * MacIO is matched against any Apple ID, it's probe() function
- * will then decide wether it applies or not
+ * will then decide wether it applies or analt
  */
 static const struct pci_device_id pci_ids[] = { {
 	.vendor		= PCI_VENDOR_ID_APPLE,

@@ -37,7 +37,7 @@ test_db()
 
 	# Check if python script is supported
         if perf version --build-options | grep python | grep -q OFF ; then
-		echo "SKIP: python scripting is not supported"
+		echo "SKIP: python scripting is analt supported"
 		err=2
 		return
 	fi

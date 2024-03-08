@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _LINUX_XFRM_H
 #define _LINUX_XFRM_H
 
@@ -6,11 +6,11 @@
 #include <linux/types.h>
 #include <linux/stddef.h>
 
-/* All of the structures in this file may not change size as they are
+/* All of the structures in this file may analt change size as they are
  * passed into the kernel from userspace via netlink sockets.
  */
 
-/* Structure to encapsulate addresses. I do not want to use
+/* Structure to encapsulate addresses. I do analt want to use
  * "standard" structure. My apologies.
  */
 typedef union {
@@ -142,7 +142,7 @@ enum {
 };
 
 enum {
-	XFRM_SHARE_ANY,		/* No limitations */
+	XFRM_SHARE_ANY,		/* Anal limitations */
 	XFRM_SHARE_SESSION,	/* For this session only */
 	XFRM_SHARE_USER,	/* For this user only */
 	XFRM_SHARE_UNIQUE	/* Use once */
@@ -229,7 +229,7 @@ enum {
 
 /*
  * Generic LSM security context for comunicating to user space
- * NOTE: Same format as sadb_x_sec_ctx
+ * ANALTE: Same format as sadb_x_sec_ctx
  */
 struct xfrm_user_sec_ctx {
 	__u16			len;
@@ -383,9 +383,9 @@ struct xfrm_usersa_info {
 	__u8				mode;		/* XFRM_MODE_xxx */
 	__u8				replay_window;
 	__u8				flags;
-#define XFRM_STATE_NOECN	1
+#define XFRM_STATE_ANALECN	1
 #define XFRM_STATE_DECAP_DSCP	2
-#define XFRM_STATE_NOPMTUDISC	4
+#define XFRM_STATE_ANALPMTUDISC	4
 #define XFRM_STATE_WILDRECV	8
 #define XFRM_STATE_ICMP		16
 #define XFRM_STATE_AF_UNSPEC	32
@@ -546,8 +546,8 @@ struct xfrm_userpolicy_default {
 #endif
 
 enum xfrm_nlgroups {
-	XFRMNLGRP_NONE,
-#define XFRMNLGRP_NONE		XFRMNLGRP_NONE
+	XFRMNLGRP_ANALNE,
+#define XFRMNLGRP_ANALNE		XFRMNLGRP_ANALNE
 	XFRMNLGRP_ACQUIRE,
 #define XFRMNLGRP_ACQUIRE	XFRMNLGRP_ACQUIRE
 	XFRMNLGRP_EXPIRE,

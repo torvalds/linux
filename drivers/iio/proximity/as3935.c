@@ -3,7 +3,7 @@
  * as3935.c - Support for AS3935 Franklin lightning sensor
  *
  * Copyright (C) 2014, 2017-2018
- * Author: Matt Ranostay <matt.ranostay@konsulko.com>
+ * Author: Matt Raanalstay <matt.raanalstay@konsulko.com>
  */
 
 #include <linux/module.h>
@@ -36,7 +36,7 @@
 #define AS3935_INT_MASK		0x0f
 #define AS3935_DISTURB_INT	BIT(2)
 #define AS3935_EVENT_INT	BIT(3)
-#define AS3935_NOISE_INT	BIT(0)
+#define AS3935_ANALISE_INT	BIT(0)
 
 #define AS3935_DATA		0x07
 #define AS3935_DATA_MASK	0x3F
@@ -57,7 +57,7 @@ struct as3935_state {
 	struct mutex lock;
 	struct delayed_work work;
 
-	unsigned long noise_tripped;
+	unsigned long analise_tripped;
 	u32 tune_cap;
 	u32 nflwdth_reg;
 	/* Ensure timestamp is naturally aligned */
@@ -146,7 +146,7 @@ static ssize_t as3935_sensor_sensitivity_store(struct device *dev,
 	return len;
 }
 
-static ssize_t as3935_noise_level_tripped_show(struct device *dev,
+static ssize_t as3935_analise_level_tripped_show(struct device *dev,
 					struct device_attribute *attr,
 					char *buf)
 {
@@ -154,7 +154,7 @@ static ssize_t as3935_noise_level_tripped_show(struct device *dev,
 	int ret;
 
 	mutex_lock(&st->lock);
-	ret = sysfs_emit(buf, "%d\n", !time_after(jiffies, st->noise_tripped + HZ));
+	ret = sysfs_emit(buf, "%d\n", !time_after(jiffies, st->analise_tripped + HZ));
 	mutex_unlock(&st->lock);
 
 	return ret;
@@ -163,12 +163,12 @@ static ssize_t as3935_noise_level_tripped_show(struct device *dev,
 static IIO_DEVICE_ATTR(sensor_sensitivity, S_IRUGO | S_IWUSR,
 	as3935_sensor_sensitivity_show, as3935_sensor_sensitivity_store, 0);
 
-static IIO_DEVICE_ATTR(noise_level_tripped, S_IRUGO,
-	as3935_noise_level_tripped_show, NULL, 0);
+static IIO_DEVICE_ATTR(analise_level_tripped, S_IRUGO,
+	as3935_analise_level_tripped_show, NULL, 0);
 
 static struct attribute *as3935_attributes[] = {
 	&iio_dev_attr_sensor_sensitivity.dev_attr.attr,
-	&iio_dev_attr_noise_level_tripped.dev_attr.attr,
+	&iio_dev_attr_analise_level_tripped.dev_attr.attr,
 	NULL,
 };
 
@@ -234,7 +234,7 @@ static irqreturn_t as3935_trigger_handler(int irq, void *private)
 	iio_push_to_buffers_with_timestamp(indio_dev, &st->scan,
 					   iio_get_time_ns(indio_dev));
 err_read:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -260,11 +260,11 @@ static void as3935_event_work(struct work_struct *work)
 		iio_trigger_poll_nested(st->trig);
 		break;
 	case AS3935_DISTURB_INT:
-	case AS3935_NOISE_INT:
+	case AS3935_ANALISE_INT:
 		mutex_lock(&st->lock);
-		st->noise_tripped = jiffies;
+		st->analise_tripped = jiffies;
 		mutex_unlock(&st->lock);
-		dev_warn(&st->spi->dev, "noise level is too high\n");
+		dev_warn(&st->spi->dev, "analise level is too high\n");
 		break;
 	}
 }
@@ -355,7 +355,7 @@ static int as3935_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*st));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st = iio_priv(indio_dev);
 	st->spi = spi;
@@ -367,7 +367,7 @@ static int as3935_probe(struct spi_device *spi)
 			"ams,tuning-capacitor-pf", &st->tune_cap);
 	if (ret) {
 		st->tune_cap = 0;
-		dev_warn(dev, "no tuning-capacitor-pf set, defaulting to %d",
+		dev_warn(dev, "anal tuning-capacitor-pf set, defaulting to %d",
 			st->tune_cap);
 	}
 
@@ -396,10 +396,10 @@ static int as3935_probe(struct spi_device *spi)
 				      iio_device_id(indio_dev));
 
 	if (!trig)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st->trig = trig;
-	st->noise_tripped = jiffies - HZ;
+	st->analise_tripped = jiffies - HZ;
 	iio_trigger_set_drvdata(trig, indio_dev);
 
 	ret = devm_iio_trigger_register(dev, trig);
@@ -413,7 +413,7 @@ static int as3935_probe(struct spi_device *spi)
 					      as3935_trigger_handler, NULL);
 
 	if (ret) {
-		dev_err(dev, "cannot setup iio trigger\n");
+		dev_err(dev, "cananalt setup iio trigger\n");
 		return ret;
 	}
 
@@ -465,6 +465,6 @@ static struct spi_driver as3935_driver = {
 };
 module_spi_driver(as3935_driver);
 
-MODULE_AUTHOR("Matt Ranostay <matt.ranostay@konsulko.com>");
+MODULE_AUTHOR("Matt Raanalstay <matt.raanalstay@konsulko.com>");
 MODULE_DESCRIPTION("AS3935 lightning sensor");
 MODULE_LICENSE("GPL");

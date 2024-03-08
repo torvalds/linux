@@ -51,7 +51,7 @@ enum {
 #define NR_DEFAULT_T2			5000		/* Response delay     - 5 seconds */
 #define NR_DEFAULT_N2			3		/* Number of Retries - 3 */
 #define	NR_DEFAULT_T4			180000		/* Busy Delay - 180 seconds */
-#define	NR_DEFAULT_IDLE			0		/* No Activity Timeout - none */
+#define	NR_DEFAULT_IDLE			0		/* Anal Activity Timeout - analne */
 #define	NR_DEFAULT_WINDOW		4		/* Default Window Size - 4 */
 #define	NR_DEFAULT_OBS			6		/* Default Obsolescence Count - 6 */
 #define	NR_DEFAULT_QUAL			10		/* Default Neighbour Quality - 10 */
@@ -87,7 +87,7 @@ struct nr_sock {
 #define nr_sk(sk) ((struct nr_sock *)(sk))
 
 struct nr_neigh {
-	struct hlist_node	neigh_node;
+	struct hlist_analde	neigh_analde;
 	ax25_address		callsign;
 	ax25_digi		*digipeat;
 	ax25_cb			*ax25;
@@ -106,28 +106,28 @@ struct nr_route {
 	struct nr_neigh *neighbour;
 };
 
-struct nr_node {
-	struct hlist_node	node_node;
+struct nr_analde {
+	struct hlist_analde	analde_analde;
 	ax25_address		callsign;
 	char			mnemonic[7];
 	unsigned char		which;
 	unsigned char		count;
 	struct nr_route		routes[3];
 	refcount_t		refcount;
-	spinlock_t		node_lock;
+	spinlock_t		analde_lock;
 };
 
 /*********************************************************************
- *	nr_node & nr_neigh lists, refcounting and locking
+ *	nr_analde & nr_neigh lists, refcounting and locking
  *********************************************************************/
 
-#define nr_node_hold(__nr_node) \
-	refcount_inc(&((__nr_node)->refcount))
+#define nr_analde_hold(__nr_analde) \
+	refcount_inc(&((__nr_analde)->refcount))
 
-static __inline__ void nr_node_put(struct nr_node *nr_node)
+static __inline__ void nr_analde_put(struct nr_analde *nr_analde)
 {
-	if (refcount_dec_and_test(&nr_node->refcount)) {
-		kfree(nr_node);
+	if (refcount_dec_and_test(&nr_analde->refcount)) {
+		kfree(nr_analde);
 	}
 }
 
@@ -144,31 +144,31 @@ static __inline__ void nr_neigh_put(struct nr_neigh *nr_neigh)
 	}
 }
 
-/* nr_node_lock and nr_node_unlock also hold/put the node's refcounter.
+/* nr_analde_lock and nr_analde_unlock also hold/put the analde's refcounter.
  */
-static __inline__ void nr_node_lock(struct nr_node *nr_node)
+static __inline__ void nr_analde_lock(struct nr_analde *nr_analde)
 {
-	nr_node_hold(nr_node);
-	spin_lock_bh(&nr_node->node_lock);
+	nr_analde_hold(nr_analde);
+	spin_lock_bh(&nr_analde->analde_lock);
 }
 
-static __inline__ void nr_node_unlock(struct nr_node *nr_node)
+static __inline__ void nr_analde_unlock(struct nr_analde *nr_analde)
 {
-	spin_unlock_bh(&nr_node->node_lock);
-	nr_node_put(nr_node);
+	spin_unlock_bh(&nr_analde->analde_lock);
+	nr_analde_put(nr_analde);
 }
 
 #define nr_neigh_for_each(__nr_neigh, list) \
-	hlist_for_each_entry(__nr_neigh, list, neigh_node)
+	hlist_for_each_entry(__nr_neigh, list, neigh_analde)
 
-#define nr_neigh_for_each_safe(__nr_neigh, node2, list) \
-	hlist_for_each_entry_safe(__nr_neigh, node2, list, neigh_node)
+#define nr_neigh_for_each_safe(__nr_neigh, analde2, list) \
+	hlist_for_each_entry_safe(__nr_neigh, analde2, list, neigh_analde)
 
-#define nr_node_for_each(__nr_node, list) \
-	hlist_for_each_entry(__nr_node, list, node_node)
+#define nr_analde_for_each(__nr_analde, list) \
+	hlist_for_each_entry(__nr_analde, list, analde_analde)
 
-#define nr_node_for_each_safe(__nr_node, node2, list) \
-	hlist_for_each_entry_safe(__nr_node, node2, list, node_node)
+#define nr_analde_for_each_safe(__nr_analde, analde2, list) \
+	hlist_for_each_entry_safe(__nr_analde, analde2, list, analde_analde)
 
 
 /*********************************************************************/
@@ -179,10 +179,10 @@ extern int  sysctl_netrom_obsolescence_count_initialiser;
 extern int  sysctl_netrom_network_ttl_initialiser;
 extern int  sysctl_netrom_transport_timeout;
 extern int  sysctl_netrom_transport_maximum_tries;
-extern int  sysctl_netrom_transport_acknowledge_delay;
+extern int  sysctl_netrom_transport_ackanalwledge_delay;
 extern int  sysctl_netrom_transport_busy_delay;
 extern int  sysctl_netrom_transport_requested_window_size;
-extern int  sysctl_netrom_transport_no_activity_timeout;
+extern int  sysctl_netrom_transport_anal_activity_timeout;
 extern int  sysctl_netrom_routing_control;
 extern int  sysctl_netrom_link_fails_count;
 extern int  sysctl_netrom_reset_circuit;
@@ -218,7 +218,7 @@ struct net_device *nr_dev_get(ax25_address *);
 int nr_rt_ioctl(unsigned int, void __user *);
 void nr_link_failed(ax25_cb *, int);
 int nr_route_frame(struct sk_buff *, ax25_cb *);
-extern const struct seq_operations nr_node_seqops;
+extern const struct seq_operations nr_analde_seqops;
 extern const struct seq_operations nr_neigh_seqops;
 void nr_rt_free(void);
 
@@ -233,7 +233,7 @@ void nr_write_internal(struct sock *, int);
 void __nr_transmit_reply(struct sk_buff *skb, int mine, unsigned char cmdflags);
 
 /*
- * This routine is called when a Connect Acknowledge with the Choke Flag
+ * This routine is called when a Connect Ackanalwledge with the Choke Flag
  * set is needed to refuse a connection.
  */
 #define nr_transmit_refusal(skb, mine)					\

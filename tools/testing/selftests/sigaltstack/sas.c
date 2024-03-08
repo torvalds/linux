@@ -16,7 +16,7 @@
 #include <alloca.h>
 #include <string.h>
 #include <assert.h>
-#include <errno.h>
+#include <erranal.h>
 #include <sys/auxv.h>
 
 #include "../kselftest.h"
@@ -49,7 +49,7 @@ void my_usr1(int sig, siginfo_t *si, void *u)
 
 	if (sp < (unsigned long)sstack ||
 			sp >= (unsigned long)sstack + stack_size) {
-		ksft_exit_fail_msg("SP is not on sigaltstack\n");
+		ksft_exit_fail_msg("SP is analt on sigaltstack\n");
 	}
 	/* put some data on stack. other sighandler will try to overwrite it */
 	aa = alloca(1024);
@@ -60,7 +60,7 @@ void my_usr1(int sig, siginfo_t *si, void *u)
 	ksft_print_msg("[RUN]\tsignal USR1\n");
 	err = sigaltstack(NULL, &stk);
 	if (err) {
-		ksft_exit_fail_msg("sigaltstack() - %s\n", strerror(errno));
+		ksft_exit_fail_msg("sigaltstack() - %s\n", strerror(erranal));
 		exit(EXIT_FAILURE);
 	}
 	if (stk.ss_flags != SS_DISABLE)
@@ -111,7 +111,7 @@ int main(void)
 
 	/* Make sure more than the required minimum. */
 	stack_size = getauxval(AT_MINSIGSTKSZ) + SIGSTKSZ;
-	ksft_print_msg("[NOTE]\tthe stack size is %u\n", stack_size);
+	ksft_print_msg("[ANALTE]\tthe stack size is %u\n", stack_size);
 
 	ksft_print_header();
 	ksft_set_plan(3);
@@ -123,15 +123,15 @@ int main(void)
 	act.sa_sigaction = my_usr2;
 	sigaction(SIGUSR2, &act, NULL);
 	sstack = mmap(NULL, stack_size, PROT_READ | PROT_WRITE,
-		      MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK, -1, 0);
+		      MAP_PRIVATE | MAP_AANALNYMOUS | MAP_STACK, -1, 0);
 	if (sstack == MAP_FAILED) {
-		ksft_exit_fail_msg("mmap() - %s\n", strerror(errno));
+		ksft_exit_fail_msg("mmap() - %s\n", strerror(erranal));
 		return EXIT_FAILURE;
 	}
 
 	err = sigaltstack(NULL, &stk);
 	if (err) {
-		ksft_exit_fail_msg("sigaltstack() - %s\n", strerror(errno));
+		ksft_exit_fail_msg("sigaltstack() - %s\n", strerror(erranal));
 		exit(EXIT_FAILURE);
 	}
 	if (stk.ss_flags == SS_DISABLE) {
@@ -148,9 +148,9 @@ int main(void)
 	stk.ss_flags = SS_ONSTACK | SS_AUTODISARM;
 	err = sigaltstack(&stk, NULL);
 	if (err) {
-		if (errno == EINVAL) {
+		if (erranal == EINVAL) {
 			ksft_test_result_skip(
-				"[NOTE]\tThe running kernel doesn't support SS_AUTODISARM\n");
+				"[ANALTE]\tThe running kernel doesn't support SS_AUTODISARM\n");
 			/*
 			 * If test cases for the !SS_AUTODISARM variant were
 			 * added, we could still run them.  We don't have any
@@ -161,15 +161,15 @@ int main(void)
 		} else {
 			ksft_exit_fail_msg(
 				"sigaltstack(SS_ONSTACK | SS_AUTODISARM)  %s\n",
-					strerror(errno));
+					strerror(erranal));
 			return EXIT_FAILURE;
 		}
 	}
 
 	ustack = mmap(NULL, stack_size, PROT_READ | PROT_WRITE,
-		      MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK, -1, 0);
+		      MAP_PRIVATE | MAP_AANALNYMOUS | MAP_STACK, -1, 0);
 	if (ustack == MAP_FAILED) {
-		ksft_exit_fail_msg("mmap() - %s\n", strerror(errno));
+		ksft_exit_fail_msg("mmap() - %s\n", strerror(erranal));
 		return EXIT_FAILURE;
 	}
 	getcontext(&uc);
@@ -181,7 +181,7 @@ int main(void)
 
 	err = sigaltstack(NULL, &stk);
 	if (err) {
-		ksft_exit_fail_msg("sigaltstack() - %s\n", strerror(errno));
+		ksft_exit_fail_msg("sigaltstack() - %s\n", strerror(erranal));
 		exit(EXIT_FAILURE);
 	}
 	if (stk.ss_flags != SS_AUTODISARM) {

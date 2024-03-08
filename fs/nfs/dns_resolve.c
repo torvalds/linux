@@ -194,7 +194,7 @@ static int nfs_dns_show(struct seq_file *m, struct cache_detail *cd,
 		rpc_ntop((struct sockaddr *)&item->addr, buf, sizeof(buf));
 		seq_printf(m, "%15s ", buf);
 	} else
-		seq_puts(m, "<none>          ");
+		seq_puts(m, "<analne>          ");
 	seq_printf(m, "%15s %ld\n", item->hostname, ttl);
 	return 0;
 }
@@ -259,7 +259,7 @@ static int nfs_dns_parse(struct cache_detail *cd, char *buf, int buflen)
 		goto out;
 	key.h.expiry_time = ttl + seconds_since_boot();
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	item = nfs_dns_lookup(cd, &key);
 	if (item == NULL)
 		goto out;
@@ -282,7 +282,7 @@ static int do_cache_lookup(struct cache_detail *cd,
 		struct nfs_dns_ent **item,
 		struct nfs_cache_defer_req *dreq)
 {
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	*item = nfs_dns_lookup(cd, key);
 	if (*item) {
@@ -293,11 +293,11 @@ static int do_cache_lookup(struct cache_detail *cd,
 	return ret;
 }
 
-static int do_cache_lookup_nowait(struct cache_detail *cd,
+static int do_cache_lookup_analwait(struct cache_detail *cd,
 		struct nfs_dns_ent *key,
 		struct nfs_dns_ent **item)
 {
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	*item = nfs_dns_lookup(cd, key);
 	if (!*item)
@@ -307,7 +307,7 @@ static int do_cache_lookup_nowait(struct cache_detail *cd,
 			|| (*item)->h.expiry_time < seconds_since_boot()
 			|| cd->flush_time > (*item)->h.last_refresh)
 		goto out_put;
-	ret = -ENOENT;
+	ret = -EANALENT;
 	if (test_bit(CACHE_NEGATIVE, &(*item)->h.flags))
 		goto out_put;
 	return 0;
@@ -323,7 +323,7 @@ static int do_cache_lookup_wait(struct cache_detail *cd,
 		struct nfs_dns_ent **item)
 {
 	struct nfs_cache_defer_req *dreq;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	dreq = nfs_cache_defer_req_alloc();
 	if (!dreq)
@@ -332,7 +332,7 @@ static int do_cache_lookup_wait(struct cache_detail *cd,
 	if (ret == -EAGAIN) {
 		ret = nfs_cache_wait_for_upcall(dreq);
 		if (!ret)
-			ret = do_cache_lookup_nowait(cd, key, item);
+			ret = do_cache_lookup_analwait(cd, key, item);
 	}
 	nfs_cache_defer_req_put(dreq);
 out:
@@ -358,7 +358,7 @@ ssize_t nfs_dns_resolve_name(struct net *net, char *name,
 		} else
 			ret = -EOVERFLOW;
 		cache_put(&item->h, nn->nfs_dns_resolve);
-	} else if (ret == -ENOENT)
+	} else if (ret == -EANALENT)
 		ret = -ESRCH;
 	return ret;
 }
@@ -421,7 +421,7 @@ static struct pernet_operations nfs4_dns_resolver_ops = {
 	.exit = nfs4_dns_net_exit,
 };
 
-static int rpc_pipefs_event(struct notifier_block *nb, unsigned long event,
+static int rpc_pipefs_event(struct analtifier_block *nb, unsigned long event,
 			   void *ptr)
 {
 	struct super_block *sb = ptr;
@@ -444,15 +444,15 @@ static int rpc_pipefs_event(struct notifier_block *nb, unsigned long event,
 		nfs_cache_unregister_sb(sb, cd);
 		break;
 	default:
-		ret = -ENOTSUPP;
+		ret = -EANALTSUPP;
 		break;
 	}
 	module_put(THIS_MODULE);
 	return ret;
 }
 
-static struct notifier_block nfs_dns_resolver_block = {
-	.notifier_call	= rpc_pipefs_event,
+static struct analtifier_block nfs_dns_resolver_block = {
+	.analtifier_call	= rpc_pipefs_event,
 };
 
 int nfs_dns_resolver_init(void)
@@ -462,7 +462,7 @@ int nfs_dns_resolver_init(void)
 	err = register_pernet_subsys(&nfs4_dns_resolver_ops);
 	if (err < 0)
 		goto out;
-	err = rpc_pipefs_notifier_register(&nfs_dns_resolver_block);
+	err = rpc_pipefs_analtifier_register(&nfs_dns_resolver_block);
 	if (err < 0)
 		goto out1;
 	return 0;
@@ -474,7 +474,7 @@ out:
 
 void nfs_dns_resolver_destroy(void)
 {
-	rpc_pipefs_notifier_unregister(&nfs_dns_resolver_block);
+	rpc_pipefs_analtifier_unregister(&nfs_dns_resolver_block);
 	unregister_pernet_subsys(&nfs4_dns_resolver_ops);
 }
 #endif

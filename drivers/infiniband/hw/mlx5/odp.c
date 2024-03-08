@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2013-2015, Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -82,9 +82,9 @@ struct mlx5_pagefault {
 
 #define MAX_PREFETCH_LEN (4*1024*1024U)
 
-/* Timeout in ms to wait for an active mmu notifier to complete when handling
+/* Timeout in ms to wait for an active mmu analtifier to complete when handling
  * a pagefault. */
-#define MMU_NOTIFIER_TIMEOUT 1000
+#define MMU_ANALTIFIER_TIMEOUT 1000
 
 #define MLX5_IMR_MTT_BITS (30 - PAGE_SHIFT)
 #define MLX5_IMR_MTT_SHIFT (MLX5_IMR_MTT_BITS + PAGE_SHIFT)
@@ -112,7 +112,7 @@ static void populate_klm(struct mlx5_klm *pklm, size_t idx, size_t nentries,
 
 	/*
 	 * The locking here is pretty subtle. Ideally the implicit_children
-	 * xarray would be protected by the umem_mutex, however that is not
+	 * xarray would be protected by the umem_mutex, however that is analt
 	 * possible. Instead this uses a weaker update-then-lock pattern:
 	 *
 	 *    xa_store()
@@ -183,7 +183,7 @@ void mlx5_odp_populate_xlt(void *xlt, size_t idx, size_t nentries,
 
 /*
  * This must be called after the mr has been removed from implicit_children.
- * NOTE: The MR does not necessarily have to be
+ * ANALTE: The MR does analt necessarily have to be
  * empty here, parallel page faults could have raced with the free process and
  * added pages to it.
  */
@@ -213,7 +213,7 @@ static void destroy_unused_implicit_child_mr(struct mlx5_ib_mr *mr)
 	unsigned long idx = ib_umem_start(odp) >> MLX5_IMR_MTT_SHIFT;
 	struct mlx5_ib_mr *imr = mr->parent;
 
-	if (!refcount_inc_not_zero(&imr->mmkey.usecount))
+	if (!refcount_inc_analt_zero(&imr->mmkey.usecount))
 		return;
 
 	xa_erase(&imr->implicit_children, idx);
@@ -223,12 +223,12 @@ static void destroy_unused_implicit_child_mr(struct mlx5_ib_mr *mr)
 	queue_work(system_unbound_wq, &mr->odp_destroy.work);
 }
 
-static bool mlx5_ib_invalidate_range(struct mmu_interval_notifier *mni,
-				     const struct mmu_notifier_range *range,
+static bool mlx5_ib_invalidate_range(struct mmu_interval_analtifier *mni,
+				     const struct mmu_analtifier_range *range,
 				     unsigned long cur_seq)
 {
 	struct ib_umem_odp *umem_odp =
-		container_of(mni, struct ib_umem_odp, notifier);
+		container_of(mni, struct ib_umem_odp, analtifier);
 	struct mlx5_ib_mr *mr;
 	const u64 umr_block_mask = MLX5_UMR_MTT_NUM_ENTRIES_ALIGNMENT - 1;
 	u64 idx = 0, blk_start_idx = 0;
@@ -238,14 +238,14 @@ static bool mlx5_ib_invalidate_range(struct mmu_interval_notifier *mni,
 	int in_block = 0;
 	u64 addr;
 
-	if (!mmu_notifier_range_blockable(range))
+	if (!mmu_analtifier_range_blockable(range))
 		return false;
 
 	mutex_lock(&umem_odp->umem_mutex);
 	mmu_interval_set_seq(mni, cur_seq);
 	/*
-	 * If npages is zero then umem_odp->private may not be setup yet. This
-	 * does not complete until after the first page is mapped for DMA.
+	 * If npages is zero then umem_odp->private may analt be setup yet. This
+	 * does analt complete until after the first page is mapped for DMA.
 	 */
 	if (!umem_odp->npages)
 		goto out;
@@ -255,17 +255,17 @@ static bool mlx5_ib_invalidate_range(struct mmu_interval_notifier *mni,
 	end = min_t(u64, ib_umem_end(umem_odp), range->end);
 
 	/*
-	 * Iteration one - zap the HW's MTTs. The notifiers_count ensures that
-	 * while we are doing the invalidation, no page fault will attempt to
+	 * Iteration one - zap the HW's MTTs. The analtifiers_count ensures that
+	 * while we are doing the invalidation, anal page fault will attempt to
 	 * overwrite the same MTTs.  Concurent invalidations might race us,
-	 * but they will write 0s as well, so no difference in the end result.
+	 * but they will write 0s as well, so anal difference in the end result.
 	 */
 	for (addr = start; addr < end; addr += BIT(umem_odp->page_shift)) {
 		idx = (addr - ib_umem_start(umem_odp)) >> umem_odp->page_shift;
 		/*
 		 * Strive to write the MTTs in chunks, but avoid overwriting
-		 * non-existing MTTs. The huristic here can be improved to
-		 * estimate the cost of another UMR vs. the cost of bigger
+		 * analn-existing MTTs. The huristic here can be improved to
+		 * estimate the cost of aanalther UMR vs. the cost of bigger
 		 * UMR.
 		 */
 		if (umem_odp->dma_list[idx] &
@@ -298,7 +298,7 @@ static bool mlx5_ib_invalidate_range(struct mmu_interval_notifier *mni,
 	mlx5_update_odp_stats(mr, invalidations, invalidations);
 
 	/*
-	 * We are now sure that the device will not access the
+	 * We are analw sure that the device will analt access the
 	 * memory. We can safely unmap it, and mark it as dirty if
 	 * needed.
 	 */
@@ -312,7 +312,7 @@ out:
 	return true;
 }
 
-const struct mmu_interval_notifier_ops mlx5_mn_ops = {
+const struct mmu_interval_analtifier_ops mlx5_mn_ops = {
 	.invalidate = mlx5_ib_invalidate_range,
 };
 
@@ -460,7 +460,7 @@ static struct mlx5_ib_mr *implicit_get_child_mr(struct mlx5_ib_mr *imr,
 			goto out_lock;
 		}
 		/*
-		 * Another thread beat us to creating the child mr, use
+		 * Aanalther thread beat us to creating the child mr, use
 		 * theirs.
 		 */
 		refcount_inc(&ret->mmkey.usecount);
@@ -487,7 +487,7 @@ struct mlx5_ib_mr *mlx5_ib_alloc_implicit_mr(struct mlx5_ib_pd *pd,
 	int err;
 
 	if (!mlx5r_umr_can_load_pas(dev, MLX5_IMR_MTT_ENTRIES * PAGE_SIZE))
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 
 	umem_odp = ib_umem_odp_alloc_implicit(&dev->ib_dev, access_flags);
 	if (IS_ERR(umem_odp))
@@ -575,7 +575,7 @@ static int pagefault_real_mr(struct mlx5_ib_mr *mr, struct ib_umem_odp *odp,
 		return np;
 
 	/*
-	 * No need to check whether the MTTs really belong to this MR, since
+	 * Anal need to check whether the MTTs really belong to this MR, since
 	 * ib_umem_odp_map_dma_and_lock already checks this.
 	 */
 	ret = mlx5r_umr_update_xlt(mr, start_idx, np, page_shift, xlt_flags);
@@ -667,12 +667,12 @@ out:
 		return ret;
 
 	/*
-	 * Notice this is not strictly ordered right, the KSM is updated after
+	 * Analtice this is analt strictly ordered right, the KSM is updated after
 	 * the implicit_children is updated, so a parallel page fault could
-	 * see a MR that is not yet visible in the KSM.  This is similar to a
+	 * see a MR that is analt yet visible in the KSM.  This is similar to a
 	 * parallel page fault seeing a MR that is being concurrently removed
 	 * from the KSM. Both of these improbable situations are resolved
-	 * safely by resuming the HW and then taking another page fault. The
+	 * safely by resuming the HW and then taking aanalther page fault. The
 	 * next pagefault handler will see the new information.
 	 */
 	mutex_lock(&odp_imr->umem_mutex);
@@ -727,9 +727,9 @@ static int pagefault_dmabuf_mr(struct mlx5_ib_mr *mr, size_t bcnt,
 
 /*
  * Returns:
- *  -EFAULT: The io_virt->bcnt is not within the MR, it covers pages that are
- *           not accessible, or the MR is no longer valid.
- *  -EAGAIN/-ENOMEM: The operation should be retried
+ *  -EFAULT: The io_virt->bcnt is analt within the MR, it covers pages that are
+ *           analt accessible, or the MR is anal longer valid.
+ *  -EAGAIN/-EANALMEM: The operation should be retried
  *
  *  -EINVAL/others: General internal malfunction
  *  >0: Number of pages mapped
@@ -834,13 +834,13 @@ next_mr:
 		xa_unlock(&dev->odp_mkeys);
 		mlx5_ib_dbg(
 			dev,
-			"skipping non ODP MR (lkey=0x%06x) in page fault handler.\n",
+			"skipping analn ODP MR (lkey=0x%06x) in page fault handler.\n",
 			key);
 		if (bytes_mapped)
 			*bytes_mapped += bcnt;
 		/*
 		 * The user could specify a SGL with multiple lkeys and only
-		 * some of them are ODP. Treat the non-ODP ones as fully
+		 * some of them are ODP. Treat the analn-ODP ones as fully
 		 * faulted.
 		 */
 		ret = 0;
@@ -884,7 +884,7 @@ next_mr:
 			kfree(out);
 			out = kzalloc(outlen, GFP_KERNEL);
 			if (!out) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto end;
 			}
 			cur_outlen = outlen;
@@ -908,7 +908,7 @@ next_mr:
 
 			frame = kzalloc(sizeof(*frame), GFP_KERNEL);
 			if (!frame) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto end;
 			}
 
@@ -968,8 +968,8 @@ end:
  * @wqe_end: points after the end of the WQE.
  * @bytes_mapped: receives the number of bytes that the function was able to
  *                map. This allows the caller to decide intelligently whether
- *                enough memory was mapped to resolve the page fault
- *                successfully (e.g. enough for the next MTU, or the entire
+ *                eanalugh memory was mapped to resolve the page fault
+ *                successfully (e.g. eanalugh for the next MTU, or the entire
  *                WQE).
  * @total_wqe_bytes: receives the total data size of this WQE in bytes (minus
  *                   the committed bytes).
@@ -1137,7 +1137,7 @@ static int mlx5_ib_mr_responder_pfault_handler_rq(struct mlx5_ib_dev *dev,
 	int wqe_size = 1 << wq->wqe_shift;
 
 	if (qp->flags_en & MLX5_QP_FLAG_SIGNATURE) {
-		mlx5_ib_err(dev, "ODP fault with WQE signatures is not supported\n");
+		mlx5_ib_err(dev, "ODP fault with WQE signatures is analt supported\n");
 		return -EFAULT;
 	}
 
@@ -1299,7 +1299,7 @@ static void mlx5_ib_mr_rdma_pfault_handler(struct mlx5_ib_dev *dev,
 	/* The RDMA responder handler handles the page fault in two parts.
 	 * First it brings the necessary pages for the current packet
 	 * (and uses the pfault context), and then (after resuming the QP)
-	 * prefetches more pages. The second operation cannot use the pfault
+	 * prefetches more pages. The second operation cananalt use the pfault
 	 * context and therefore uses the dummy_pfault context allocated on
 	 * the stack */
 	pfault->rdma.rdma_va += pfault->bytes_committed;
@@ -1310,7 +1310,7 @@ static void mlx5_ib_mr_rdma_pfault_handler(struct mlx5_ib_dev *dev,
 	address = pfault->rdma.rdma_va;
 	length  = pfault->rdma.rdma_op_len;
 
-	/* For some operations, the hardware cannot tell the exact message
+	/* For some operations, the hardware cananalt tell the exact message
 	 * length, and in those cases it reports zero. Use prefetch
 	 * logic. */
 	if (length == 0) {
@@ -1326,7 +1326,7 @@ static void mlx5_ib_mr_rdma_pfault_handler(struct mlx5_ib_dev *dev,
 		prefetch_activated = 0;
 	} else if (ret < 0 || pages_in_range(address, length) > ret) {
 		mlx5_ib_page_fault_resume(dev, pfault, 1);
-		if (ret != -ENOENT)
+		if (ret != -EANALENT)
 			mlx5_ib_dbg(dev, "PAGE FAULT error %d. QP 0x%x, type: 0x%x\n",
 				    ret, pfault->token, pfault->type);
 		return;
@@ -1471,7 +1471,7 @@ static void mlx5_ib_eq_pf_process(struct mlx5_ib_pf_eq *eq)
 	mlx5_eq_update_ci(eq->core, cc, 1);
 }
 
-static int mlx5_ib_eq_pf_int(struct notifier_block *nb, unsigned long type,
+static int mlx5_ib_eq_pf_int(struct analtifier_block *nb, unsigned long type,
 			     void *data)
 {
 	struct mlx5_ib_pf_eq *eq =
@@ -1530,7 +1530,7 @@ int mlx5r_odp_create_eq(struct mlx5_ib_dev *dev, struct mlx5_ib_pf_eq *eq)
 	eq->pool = mempool_create_kmalloc_pool(MLX5_IB_NUM_PF_DRAIN,
 					       sizeof(struct mlx5_pagefault));
 	if (!eq->pool) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto unlock;
 	}
 
@@ -1538,11 +1538,11 @@ int mlx5r_odp_create_eq(struct mlx5_ib_dev *dev, struct mlx5_ib_pf_eq *eq)
 				 WQ_HIGHPRI | WQ_UNBOUND | WQ_MEM_RECLAIM,
 				 MLX5_NUM_CMD_EQE);
 	if (!eq->wq) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_mempool;
 	}
 
-	eq->irq_nb.notifier_call = mlx5_ib_eq_pf_int;
+	eq->irq_nb.analtifier_call = mlx5_ib_eq_pf_int;
 	param = (struct mlx5_eq_param) {
 		.nent = MLX5_IB_NUM_PF_EQE,
 	};
@@ -1671,7 +1671,7 @@ get_prefetchable_mr(struct ib_pd *pd, enum ib_uverbs_advise_mr_advice advice,
 	xa_lock(&dev->odp_mkeys);
 	mmkey = xa_load(&dev->odp_mkeys, mlx5_base_mkey(lkey));
 	if (!mmkey || mmkey->key != lkey) {
-		mr = ERR_PTR(-ENOENT);
+		mr = ERR_PTR(-EANALENT);
 		goto end;
 	}
 	if (mmkey->type != MLX5_MKEY_MR) {
@@ -1786,7 +1786,7 @@ int mlx5_ib_advise_mr_prefetch(struct ib_pd *pd,
 	if (advice == IB_UVERBS_ADVISE_MR_ADVICE_PREFETCH)
 		pf_flags |= MLX5_PF_FLAGS_DOWNGRADE;
 
-	if (advice == IB_UVERBS_ADVISE_MR_ADVICE_PREFETCH_NO_FAULT)
+	if (advice == IB_UVERBS_ADVISE_MR_ADVICE_PREFETCH_ANAL_FAULT)
 		pf_flags |= MLX5_PF_FLAGS_SNAPSHOT;
 
 	if (flags & IB_UVERBS_ADVISE_MR_FLAG_FLUSH)
@@ -1795,7 +1795,7 @@ int mlx5_ib_advise_mr_prefetch(struct ib_pd *pd,
 
 	work = kvzalloc(struct_size(work, frags, num_sge), GFP_KERNEL);
 	if (!work)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = init_prefetch_work(pd, advice, pf_flags, work, sg_list, num_sge);
 	if (rc) {

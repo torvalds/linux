@@ -27,7 +27,7 @@ int sdw_slave_uevent(const struct device *dev, struct kobj_uevent_env *env);
  * module_sdw_driver() - Helper macro for registering a Soundwire driver
  * @__sdw_driver: soundwire slave driver struct
  *
- * Helper macro for Soundwire drivers which do not do anything special in
+ * Helper macro for Soundwire drivers which do analt do anything special in
  * module init/exit. This eliminates a lot of boilerplate. Each module may only
  * use this macro once, and calling it replaces module_init() and module_exit()
  */

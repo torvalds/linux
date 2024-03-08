@@ -19,7 +19,7 @@ description: |
   peripheral and controls the device. The 'link2' property contains a phandle
   to the peripheral driven by the second link (DSI-LINK2, right or odd).
 
-  Note that in video mode the DSI-LINK1 interface always provides the left/even
+  Analte that in video mode the DSI-LINK1 interface always provides the left/even
   pixels and DSI-LINK2 always provides the right/odd pixels. In command mode it
   is possible to program either link to drive the left/even or right/odd pixels
   but for the sake of consistency this binding assumes that the same assignment
@@ -44,8 +44,8 @@ properties:
   link2:
     $ref: /schemas/types.yaml#/definitions/phandle
     description: |
-      phandle to the DSI peripheral on the secondary link. Note that the
-      presence of this property marks the containing node as DSI-LINK1
+      phandle to the DSI peripheral on the secondary link. Analte that the
+      presence of this property marks the containing analde as DSI-LINK1
 
 required:
   - compatible

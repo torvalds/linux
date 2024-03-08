@@ -10,9 +10,9 @@
 #include <linux/time.h>
 #include <linux/mutex.h>
 #include <linux/device.h>
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 #include <sound/core.h>
-#include <sound/minors.h>
+#include <sound/mianalrs.h>
 #include <sound/pcm.h>
 #include <sound/timer.h>
 #include <sound/control.h>
@@ -27,7 +27,7 @@ MODULE_LICENSE("GPL");
 static LIST_HEAD(snd_pcm_devices);
 static DEFINE_MUTEX(register_mutex);
 #if IS_ENABLED(CONFIG_SND_PCM_OSS)
-static LIST_HEAD(snd_pcm_notify_list);
+static LIST_HEAD(snd_pcm_analtify_list);
 #endif
 
 static int snd_pcm_free(struct snd_pcm *pcm);
@@ -115,7 +115,7 @@ static int snd_pcm_control_ioctl(struct snd_card *card,
 				return -EFAULT;
 			if (stream < 0 || stream > 1)
 				return -EINVAL;
-			stream = array_index_nospec(stream, 2);
+			stream = array_index_analspec(stream, 2);
 			if (get_user(subdevice, &info->subdevice))
 				return -EFAULT;
 			mutex_lock(&register_mutex);
@@ -126,7 +126,7 @@ static int snd_pcm_control_ioctl(struct snd_card *card,
 			}
 			pstr = &pcm->streams[stream];
 			if (pstr->substream_count == 0) {
-				err = -ENOENT;
+				err = -EANALENT;
 				goto _error;
 			}
 			if (subdevice >= pstr->substream_count) {
@@ -158,7 +158,7 @@ static int snd_pcm_control_ioctl(struct snd_card *card,
 			return 0;
 		}
 	}
-	return -ENOIOCTLCMD;
+	return -EANALIOCTLCMD;
 }
 
 #define FORMAT(v) [SNDRV_PCM_FORMAT_##v] = #v
@@ -226,7 +226,7 @@ static const char * const snd_pcm_format_names[] = {
 const char *snd_pcm_format_name(snd_pcm_format_t format)
 {
 	if ((__force unsigned int)format >= ARRAY_SIZE(snd_pcm_format_names))
-		return "Unknown";
+		return "Unkanalwn";
 	return snd_pcm_format_names[(__force unsigned int)format];
 }
 EXPORT_SYMBOL_GPL(snd_pcm_format_name);
@@ -262,10 +262,10 @@ static const char * const snd_pcm_state_names[] = {
 
 static const char * const snd_pcm_access_names[] = {
 	ACCESS(MMAP_INTERLEAVED), 
-	ACCESS(MMAP_NONINTERLEAVED),
+	ACCESS(MMAP_ANALNINTERLEAVED),
 	ACCESS(MMAP_COMPLEX),
 	ACCESS(RW_INTERLEAVED),
-	ACCESS(RW_NONINTERLEAVED),
+	ACCESS(RW_ANALNINTERLEAVED),
 };
 
 static const char * const snd_pcm_subformat_names[] = {
@@ -276,7 +276,7 @@ static const char * const snd_pcm_subformat_names[] = {
 };
 
 static const char * const snd_pcm_tstamp_mode_names[] = {
-	TSTAMP(NONE),
+	TSTAMP(ANALNE),
 	TSTAMP(ENABLE),
 };
 
@@ -332,7 +332,7 @@ static const char *snd_pcm_oss_format_name(int format)
 	case AFMT_MPEG:
 		return "MPEG";
 	default:
-		return "unknown";
+		return "unkanalwn";
 	}
 }
 #endif
@@ -396,7 +396,7 @@ static void snd_pcm_substream_proc_hw_params_read(struct snd_info_entry *entry,
 		goto unlock;
 	}
 	if (runtime->state == SNDRV_PCM_STATE_OPEN) {
-		snd_iprintf(buffer, "no setup\n");
+		snd_iprintf(buffer, "anal setup\n");
 		goto unlock;
 	}
 	snd_iprintf(buffer, "access: %s\n", snd_pcm_access_name(runtime->access));
@@ -433,7 +433,7 @@ static void snd_pcm_substream_proc_sw_params_read(struct snd_info_entry *entry,
 		goto unlock;
 	}
 	if (runtime->state == SNDRV_PCM_STATE_OPEN) {
-		snd_iprintf(buffer, "no setup\n");
+		snd_iprintf(buffer, "anal setup\n");
 		goto unlock;
 	}
 	snd_iprintf(buffer, "tstamp_mode: %s\n", snd_pcm_tstamp_mode_name(runtime->tstamp_mode));
@@ -521,7 +521,7 @@ static int snd_pcm_stream_proc_init(struct snd_pcm_str *pstr)
 	entry = snd_info_create_card_entry(pcm->card, name,
 					   pcm->card->proc_root);
 	if (!entry)
-		return -ENOMEM;
+		return -EANALMEM;
 	entry->mode = S_IFDIR | 0555;
 	pstr->proc_root = entry;
 	entry = snd_info_create_card_entry(pcm->card, "info", pstr->proc_root);
@@ -573,7 +573,7 @@ static int snd_pcm_substream_proc_init(struct snd_pcm_substream *substream)
 	entry = snd_info_create_card_entry(card, name,
 					   substream->pstr->proc_root);
 	if (!entry)
-		return -ENOMEM;
+		return -EANALMEM;
 	entry->mode = S_IFDIR | 0555;
 	substream->proc_root = entry;
 
@@ -614,7 +614,7 @@ static int do_pcm_suspend(struct device *dev)
 {
 	struct snd_pcm_str *pstr = dev_get_drvdata(dev);
 
-	if (!pstr->pcm->no_device_suspend)
+	if (!pstr->pcm->anal_device_suspend)
 		snd_pcm_suspend_all(pstr->pcm);
 	return 0;
 }
@@ -678,7 +678,7 @@ int snd_pcm_new_stream(struct snd_pcm *pcm, int stream, int substream_count)
 	for (idx = 0, prev = NULL; idx < substream_count; idx++) {
 		substream = kzalloc(sizeof(*substream), GFP_KERNEL);
 		if (!substream)
-			return -ENOMEM;
+			return -EANALMEM;
 		substream->pcm = pcm;
 		substream->pstr = pstr;
 		substream->number = idx;
@@ -734,7 +734,7 @@ static int _snd_pcm_new(struct snd_card *card, const char *id, int device,
 		*rpcm = NULL;
 	pcm = kzalloc(sizeof(*pcm), GFP_KERNEL);
 	if (!pcm)
-		return -ENOMEM;
+		return -EANALMEM;
 	pcm->card = card;
 	pcm->device = device;
 	pcm->internal = internal;
@@ -795,14 +795,14 @@ EXPORT_SYMBOL(snd_pcm_new);
  * snd_pcm_new_internal - create a new internal PCM instance
  * @card: the card instance
  * @id: the id string
- * @device: the device index (zero based - shared with normal PCMs)
+ * @device: the device index (zero based - shared with analrmal PCMs)
  * @playback_count: the number of substreams for playback
  * @capture_count: the number of substreams for capture
  * @rpcm: the pointer to store the new pcm instance
  *
- * Creates a new internal PCM instance with no userspace device or procfs
+ * Creates a new internal PCM instance with anal userspace device or procfs
  * entries. This is used by ASoC Back End PCMs in order to create a PCM that
- * will only be used internally by kernel drivers. i.e. it cannot be opened
+ * will only be used internally by kernel drivers. i.e. it cananalt be opened
  * by userspace. It provides existing ASoC components drivers with a substream
  * and access to any private data.
  *
@@ -860,14 +860,14 @@ static void snd_pcm_free_stream(struct snd_pcm_str * pstr)
 }
 
 #if IS_ENABLED(CONFIG_SND_PCM_OSS)
-#define pcm_call_notify(pcm, call)					\
+#define pcm_call_analtify(pcm, call)					\
 	do {								\
-		struct snd_pcm_notify *_notify;				\
-		list_for_each_entry(_notify, &snd_pcm_notify_list, list) \
-			_notify->call(pcm);				\
+		struct snd_pcm_analtify *_analtify;				\
+		list_for_each_entry(_analtify, &snd_pcm_analtify_list, list) \
+			_analtify->call(pcm);				\
 	} while (0)
 #else
-#define pcm_call_notify(pcm, call) do {} while (0)
+#define pcm_call_analtify(pcm, call) do {} while (0)
 #endif
 
 static int snd_pcm_free(struct snd_pcm *pcm)
@@ -875,7 +875,7 @@ static int snd_pcm_free(struct snd_pcm *pcm)
 	if (!pcm)
 		return 0;
 	if (!pcm->internal)
-		pcm_call_notify(pcm, n_unregister);
+		pcm_call_analtify(pcm, n_unregister);
 	if (pcm->private_free)
 		pcm->private_free(pcm);
 	snd_pcm_lib_preallocate_free_for_all(pcm);
@@ -910,7 +910,7 @@ int snd_pcm_attach_substream(struct snd_pcm *pcm, int stream,
 	*rsubstream = NULL;
 	pstr = &pcm->streams[stream];
 	if (pstr->substream == NULL || pstr->substream_count == 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	card = pcm->card;
 	prefer_subdevice = snd_ctl_get_preferred_subdevice(card, SND_CTL_SUBDEV_PCM);
@@ -937,7 +937,7 @@ int snd_pcm_attach_substream(struct snd_pcm *pcm, int stream,
 					break;
 		}
 		if (! substream)
-			return -ENODEV;
+			return -EANALDEV;
 		if (! SUBSTREAM_BUSY(substream))
 			return -EBADFD;
 		substream->ref_count++;
@@ -956,13 +956,13 @@ int snd_pcm_attach_substream(struct snd_pcm *pcm, int stream,
 
 	runtime = kzalloc(sizeof(*runtime), GFP_KERNEL);
 	if (runtime == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	size = PAGE_ALIGN(sizeof(struct snd_pcm_mmap_status));
 	runtime->status = alloc_pages_exact(size, GFP_KERNEL);
 	if (runtime->status == NULL) {
 		kfree(runtime);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	memset(runtime->status, 0, size);
 
@@ -972,7 +972,7 @@ int snd_pcm_attach_substream(struct snd_pcm *pcm, int stream,
 		free_pages_exact(runtime->status,
 			       PAGE_ALIGN(sizeof(struct snd_pcm_mmap_status)));
 		kfree(runtime);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	memset(runtime->control, 0, size);
 
@@ -1037,7 +1037,7 @@ static ssize_t pcm_class_show(struct device *dev,
 	};
 
 	if (pcm->dev_class > SNDRV_PCM_CLASS_LAST)
-		str = "none";
+		str = "analne";
 	else
 		str = strs[pcm->dev_class];
 	return sysfs_emit(buf, "%s\n", str);
@@ -1097,7 +1097,7 @@ static int snd_pcm_dev_register(struct snd_device *device)
 			snd_pcm_timer_init(substream);
 	}
 
-	pcm_call_notify(pcm, n_register);
+	pcm_call_analtify(pcm, n_register);
 
  unlock:
 	mutex_unlock(&register_mutex);
@@ -1132,7 +1132,7 @@ static int snd_pcm_dev_disconnect(struct snd_device *device)
 	for_each_pcm_substream(pcm, cidx, substream)
 		snd_pcm_sync_stop(substream, false);
 
-	pcm_call_notify(pcm, n_disconnect);
+	pcm_call_analtify(pcm, n_disconnect);
 	for (cidx = 0; cidx < 2; cidx++) {
 		if (pcm->streams[cidx].dev)
 			snd_unregister_device(pcm->streams[cidx].dev);
@@ -1145,39 +1145,39 @@ static int snd_pcm_dev_disconnect(struct snd_device *device)
 
 #if IS_ENABLED(CONFIG_SND_PCM_OSS)
 /**
- * snd_pcm_notify - Add/remove the notify list
- * @notify: PCM notify list
+ * snd_pcm_analtify - Add/remove the analtify list
+ * @analtify: PCM analtify list
  * @nfree: 0 = register, 1 = unregister
  *
- * This adds the given notifier to the global list so that the callback is
+ * This adds the given analtifier to the global list so that the callback is
  * called for each registered PCM devices.  This exists only for PCM OSS
  * emulation, so far.
  *
  * Return: zero if successful, or a negative error code
  */
-int snd_pcm_notify(struct snd_pcm_notify *notify, int nfree)
+int snd_pcm_analtify(struct snd_pcm_analtify *analtify, int nfree)
 {
 	struct snd_pcm *pcm;
 
-	if (snd_BUG_ON(!notify ||
-		       !notify->n_register ||
-		       !notify->n_unregister ||
-		       !notify->n_disconnect))
+	if (snd_BUG_ON(!analtify ||
+		       !analtify->n_register ||
+		       !analtify->n_unregister ||
+		       !analtify->n_disconnect))
 		return -EINVAL;
 	mutex_lock(&register_mutex);
 	if (nfree) {
-		list_del(&notify->list);
+		list_del(&analtify->list);
 		list_for_each_entry(pcm, &snd_pcm_devices, list)
-			notify->n_unregister(pcm);
+			analtify->n_unregister(pcm);
 	} else {
-		list_add_tail(&notify->list, &snd_pcm_notify_list);
+		list_add_tail(&analtify->list, &snd_pcm_analtify_list);
 		list_for_each_entry(pcm, &snd_pcm_devices, list)
-			notify->n_register(pcm);
+			analtify->n_register(pcm);
 	}
 	mutex_unlock(&register_mutex);
 	return 0;
 }
-EXPORT_SYMBOL(snd_pcm_notify);
+EXPORT_SYMBOL(snd_pcm_analtify);
 #endif /* CONFIG_SND_PCM_OSS */
 
 #ifdef CONFIG_SND_PROC_FS

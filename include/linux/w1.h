@@ -109,7 +109,7 @@ typedef void (*w1_slave_found_callback)(struct w1_master *, u64);
  * @return bit0=Id bit1=comp_id bit2=dir_taken
  *
  * @reset_bus: long write-0 with a read for the presence pulse detection
- * @return -1=Error, 0=Device present, 1=No device present
+ * @return -1=Error, 0=Device present, 1=Anal device present
  *
  * @set_pullup: Put out a strong pull-up pulse of the specified duration.
  * @return -1=Error, 0=completed
@@ -121,7 +121,7 @@ typedef void (*w1_slave_found_callback)(struct w1_master *, u64);
  * @dev_id: Optional device id string, which w1 slaves could use for
  * creating names, which then give a connection to the w1 master
  *
- * Note: read_bit and write_bit are very low level functions and should only
+ * Analte: read_bit and write_bit are very low level functions and should only
  * be used with hardware that doesn't really support 1-wire operations,
  * like a parallel/serial port.
  * Either define read_bit and write_bit OR define, at minimum, touch_bit and
@@ -176,7 +176,7 @@ enum w1_master_flags {
  * @slist:		linked list of slaves
  * @async_list:		linked list of netlink commands to execute
  * @max_slave_count:	maximum number of slaves to search for at a time
- * @slave_count:	current number of slaves known
+ * @slave_count:	current number of slaves kanalwn
  * @attempts:		number of searches ran
  * @slave_ttl:		number of searches before a slave is timed out
  * @initialized:	prevent init/removal race conditions
@@ -283,7 +283,7 @@ void w1_unregister_family(struct w1_family *family);
  * module_w1_family() - Helper macro for registering a 1-Wire families
  * @__w1_family: w1_family struct
  *
- * Helper macro for 1-Wire families which do not do anything special in module
+ * Helper macro for 1-Wire families which do analt do anything special in module
  * init/exit. This eliminates a lot of boilerplate. Each module may only
  * use this macro once, and calling it replaces module_init() and module_exit()
  */

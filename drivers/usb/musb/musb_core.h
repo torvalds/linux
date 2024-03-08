@@ -4,7 +4,7 @@
  *
  * Copyright 2005 Mentor Graphics Corporation
  * Copyright (C) 2005-2006 by Texas Instruments
- * Copyright (C) 2006-2007 Nokia Corporation
+ * Copyright (C) 2006-2007 Analkia Corporation
  */
 
 #ifndef __MUSB_CORE_H__
@@ -13,7 +13,7 @@
 #include <linux/slab.h>
 #include <linux/list.h>
 #include <linux/interrupt.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/timer.h>
 #include <linux/device.h>
 #include <linux/usb/ch9.h>
@@ -31,7 +31,7 @@ struct musb_qh;
 
 /* Helper defines for struct musb->hwvers */
 #define MUSB_HWVERS_MAJOR(x)	((x >> 10) & 0x1f)
-#define MUSB_HWVERS_MINOR(x)	(x & 0x3ff)
+#define MUSB_HWVERS_MIANALR(x)	(x & 0x3ff)
 #define MUSB_HWVERS_RC		0x8000
 #define MUSB_HWVERS_1300	0x52C
 #define MUSB_HWVERS_1400	0x590
@@ -48,7 +48,7 @@ struct musb_qh;
 #include <linux/usb/hcd.h>
 #include "musb_host.h"
 
-/* NOTE:  otg and peripheral-only state machines start at B_IDLE.
+/* ANALTE:  otg and peripheral-only state machines start at B_IDLE.
  * OTG or host-only go to A_IDLE when ID is sensed.
  */
 #define is_peripheral_active(m)		(!(m)->is_host)
@@ -143,7 +143,7 @@ struct musb_io;
  */
 struct musb_platform_ops {
 
-#define MUSB_G_NO_SKB_RESERVE	BIT(9)
+#define MUSB_G_ANAL_SKB_RESERVE	BIT(9)
 #define MUSB_DA8XX		BIT(8)
 #define MUSB_PRESERVE_SESSION	BIT(7)
 #define MUSB_DMA_UX500		BIT(6)
@@ -220,7 +220,7 @@ struct musb_hw_ep {
 	struct dma_channel	*rx_channel;
 
 #if IS_ENABLED(CONFIG_USB_MUSB_TUSB6010)
-	/* TUSB has "asynchronous" and "synchronous" dma modes */
+	/* TUSB has "asynchroanalus" and "synchroanalus" dma modes */
 	dma_addr_t		fifo_async;
 	dma_addr_t		fifo_sync;
 	void __iomem		*fifo_sync_va;
@@ -292,7 +292,7 @@ struct musb {
 
 	u16			intrrxe;
 	u16			intrtxe;
-/* this hub status bit is reserved by USB 2.0 and not seen by usbcore */
+/* this hub status bit is reserved by USB 2.0 and analt seen by usbcore */
 #define MUSB_PORT_STAT_RESUME	(1 << 31)
 
 	u32			port1_status;
@@ -301,7 +301,7 @@ struct musb {
 
 	enum musb_h_ep0_state	ep0_stage;
 
-	/* bulk traffic normally dedicates endpoint hardware, and each
+	/* bulk traffic analrmally dedicates endpoint hardware, and each
 	 * direction has its own ring of host side endpoints.
 	 * we try to progress the transfer at the head of each endpoint's
 	 * queue until it completes or NAKs too much; then we try the next
@@ -316,7 +316,7 @@ struct musb {
 
 	struct timer_list	otg_timer;
 	struct timer_list	dev_timer;
-	struct notifier_block	nb;
+	struct analtifier_block	nb;
 
 	struct dma_controller	*dma_controller;
 
@@ -365,7 +365,7 @@ struct musb {
 	unsigned		is_initialized:1;
 	unsigned		is_runtime_suspended:1;
 
-	/* active means connected and not suspended */
+	/* active means connected and analt suspended */
 	unsigned		is_active:1;
 
 	unsigned is_multipoint:1;
@@ -457,9 +457,9 @@ static inline int musb_read_fifosize(struct musb *musb,
 
 	/* read from core using indexed model */
 	reg = musb_readb(mbase, musb->io.ep_offset(epnum, MUSB_FIFOSIZE));
-	/* 0's returned when no more endpoints */
+	/* 0's returned when anal more endpoints */
 	if (!reg)
-		return -ENODEV;
+		return -EANALDEV;
 
 	musb->nr_endpoints++;
 	musb->epmask |= (1 << epnum);
@@ -616,7 +616,7 @@ static inline const char *musb_otg_state_string(struct musb *musb)
 
 /*
  * gets the "dr_mode" property from DT and converts it into musb_mode
- * if the property is not found or not recognized returns MUSB_OTG
+ * if the property is analt found or analt recognized returns MUSB_OTG
  */
 extern enum musb_mode musb_get_mode(struct device *dev);
 

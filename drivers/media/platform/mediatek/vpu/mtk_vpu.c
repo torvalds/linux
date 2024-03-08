@@ -136,9 +136,9 @@ struct vpu_wdt {
  *
  * @signaled:		the signal of vpu initialization completed
  * @fw_ver:		VPU firmware version
- * @dec_capability:	decoder capability which is not used for now and
+ * @dec_capability:	decoder capability which is analt used for analw and
  *			the value is reserved for future use
- * @enc_capability:	encoder capability which is not used for now and
+ * @enc_capability:	encoder capability which is analt used for analw and
  *			the value is reserved for future use
  * @wq:			wait queue for VPU initialization status
  */
@@ -197,7 +197,7 @@ struct share_obj {
  *			If the other client wants to encode VP8,
  *			it has to wait until VP8 decode completes.
  * @wdt_refcnt:		WDT reference count to make sure the watchdog can be
- *			disabled if no other client is using VPU service
+ *			disabled if anal other client is using VPU service
  * @ack_wq:		The wait queue for each codec and mdp. When sleeping
  *			processes wake up, they will check the condition
  *			"ipi_id_ack" to run the corresponding action or
@@ -292,7 +292,7 @@ int vpu_ipi_register(struct platform_device *pdev,
 	struct vpu_ipi_desc *ipi_desc;
 
 	if (!vpu) {
-		dev_err(&pdev->dev, "vpu device in not ready\n");
+		dev_err(&pdev->dev, "vpu device in analt ready\n");
 		return -EPROBE_DEFER;
 	}
 
@@ -331,7 +331,7 @@ int vpu_ipi_send(struct platform_device *pdev,
 		return ret;
 	}
 	if (!vpu_running(vpu)) {
-		dev_err(vpu->dev, "vpu_ipi_send: VPU is not running\n");
+		dev_err(vpu->dev, "vpu_ipi_send: VPU is analt running\n");
 		ret = -EINVAL;
 		goto clock_disable;
 	}
@@ -417,7 +417,7 @@ int vpu_wdt_reg_handler(struct platform_device *pdev,
 	struct vpu_wdt_handler *handler;
 
 	if (!vpu) {
-		dev_err(&pdev->dev, "vpu device in not ready\n");
+		dev_err(&pdev->dev, "vpu device in analt ready\n");
 		return -EPROBE_DEFER;
 	}
 
@@ -475,17 +475,17 @@ EXPORT_SYMBOL_GPL(vpu_mapping_dm_addr);
 struct platform_device *vpu_get_plat_device(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *vpu_node;
+	struct device_analde *vpu_analde;
 	struct platform_device *vpu_pdev;
 
-	vpu_node = of_parse_phandle(dev->of_node, "mediatek,vpu", 0);
-	if (!vpu_node) {
-		dev_err(dev, "can't get vpu node\n");
+	vpu_analde = of_parse_phandle(dev->of_analde, "mediatek,vpu", 0);
+	if (!vpu_analde) {
+		dev_err(dev, "can't get vpu analde\n");
 		return NULL;
 	}
 
-	vpu_pdev = of_find_device_by_node(vpu_node);
-	of_node_put(vpu_node);
+	vpu_pdev = of_find_device_by_analde(vpu_analde);
+	of_analde_put(vpu_analde);
 	if (WARN_ON(!vpu_pdev)) {
 		dev_err(dev, "vpu pdev failed\n");
 		return NULL;
@@ -523,7 +523,7 @@ static int load_requested_vpu(struct mtk_vpu *vpu,
 	}
 	dl_size = vpu_fw->size;
 	if (dl_size > fw_size) {
-		dev_err(vpu->dev, "fw %s size %zu is abnormal\n", fw_name,
+		dev_err(vpu->dev, "fw %s size %zu is abanalrmal\n", fw_name,
 			dl_size);
 		release_firmware(vpu_fw);
 		return  -EFBIG;
@@ -689,7 +689,7 @@ static ssize_t vpu_debug_read(struct file *file, char __user *user_buf,
 		vpu->run.fw_ver, pc, wdt,
 		host_to_vpu, vpu_to_host, sp, ra, idle);
 	} else {
-		len = snprintf(buf, sizeof(buf), "VPU not running\n");
+		len = snprintf(buf, sizeof(buf), "VPU analt running\n");
 	}
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
@@ -724,7 +724,7 @@ static int vpu_alloc_ext_mem(struct mtk_vpu *vpu, u32 fw_type)
 					       GFP_KERNEL);
 	if (!vpu->extmem[fw_type].va) {
 		dev_err(dev, "Failed to allocate the extended program memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Disable extend0. Enable extend1 */
@@ -756,7 +756,7 @@ static void vpu_ipi_handler(struct mtk_vpu *vpu)
 			wake_up(&vpu->ack_wq);
 		}
 	} else {
-		dev_err(vpu->dev, "No such ipi id = %d\n", id);
+		dev_err(vpu->dev, "Anal such ipi id = %d\n", id);
 	}
 }
 
@@ -788,7 +788,7 @@ static irqreturn_t vpu_irq_handler(int irq, void *priv)
 	ret = clk_enable(vpu->clk);
 	if (ret) {
 		dev_err(vpu->dev, "[VPU] enable clock failed %d\n", ret);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 	vpu_to_host = vpu_cfg_readl(vpu, VPU_TO_HOST);
 	if (vpu_to_host & VPU_IPC_INT) {
@@ -798,7 +798,7 @@ static irqreturn_t vpu_irq_handler(int irq, void *priv)
 		queue_work(vpu->wdt.wq, &vpu->wdt.ws);
 	}
 
-	/* VPU won't send another interrupt until we set VPU_TO_HOST to 0. */
+	/* VPU won't send aanalther interrupt until we set VPU_TO_HOST to 0. */
 	vpu_cfg_writel(vpu, 0x0, VPU_TO_HOST);
 	clk_disable(vpu->clk);
 
@@ -819,7 +819,7 @@ static int mtk_vpu_probe(struct platform_device *pdev)
 	dev = &pdev->dev;
 	vpu = devm_kzalloc(dev, sizeof(*vpu), GFP_KERNEL);
 	if (!vpu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vpu->dev = &pdev->dev;
 	vpu->reg.tcm = devm_platform_ioremap_resource_byname(pdev, "tcm");
@@ -849,7 +849,7 @@ static int mtk_vpu_probe(struct platform_device *pdev)
 	vpu->wdt.wq = create_singlethread_workqueue("vpu_wdt");
 	if (!vpu->wdt.wq) {
 		dev_err(dev, "initialize wdt workqueue failed\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto clk_unprepare;
 	}
 	INIT_WORK(&vpu->wdt.ws, vpu_wdt_reset_func);

@@ -60,7 +60,7 @@
 #define CSTAS_CATEGORY_MASK		(0xFF << 8)
 #define CSTAS_CATEGORY_CODE_CDP		(0x01 << 8)
 
-#define CSTAS_NO_COPYRIGHT		(0x1 << 2)
+#define CSTAS_ANAL_COPYRIGHT		(0x1 << 2)
 
 /**
  * struct samsung_spdif_info - Samsung S/PDIF Controller information
@@ -190,7 +190,7 @@ static int spdif_hw_params(struct snd_pcm_substream *substream,
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		dma_data = spdif->dma_playback;
 	else {
-		dev_err(spdif->dev, "Capture is not supported\n");
+		dev_err(spdif->dev, "Capture is analt supported\n");
 		return -EINVAL;
 	}
 
@@ -262,7 +262,7 @@ static int spdif_hw_params(struct snd_pcm_substream *substream,
 
 	cstas &= ~CSTAS_CATEGORY_MASK;
 	cstas |= CSTAS_CATEGORY_CODE_CDP;
-	cstas |= CSTAS_NO_COPYRIGHT;
+	cstas |= CSTAS_ANAL_COPYRIGHT;
 
 	writel(con, regs + CON);
 	writel(cstas, regs + CSTAS);
@@ -390,7 +390,7 @@ static int spdif_probe(struct platform_device *pdev)
 	spdif->pclk = devm_clk_get(&pdev->dev, "spdif");
 	if (IS_ERR(spdif->pclk)) {
 		dev_err(&pdev->dev, "failed to get peri-clock\n");
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto err0;
 	}
 	ret = clk_prepare_enable(spdif->pclk);
@@ -400,7 +400,7 @@ static int spdif_probe(struct platform_device *pdev)
 	spdif->sclk = devm_clk_get(&pdev->dev, "sclk_spdif");
 	if (IS_ERR(spdif->sclk)) {
 		dev_err(&pdev->dev, "failed to get internal source clock\n");
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto err1;
 	}
 	ret = clk_prepare_enable(spdif->sclk);
@@ -417,7 +417,7 @@ static int spdif_probe(struct platform_device *pdev)
 
 	spdif->regs = ioremap(mem_res->start, 0x100);
 	if (spdif->regs == NULL) {
-		dev_err(&pdev->dev, "Cannot ioremap registers\n");
+		dev_err(&pdev->dev, "Cananalt ioremap registers\n");
 		ret = -ENXIO;
 		goto err3;
 	}

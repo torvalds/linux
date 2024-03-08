@@ -3,7 +3,7 @@
 #include <linux/acpi.h>
 #include <linux/xarray.h>
 #include <linux/fw_table.h>
-#include <linux/node.h>
+#include <linux/analde.h>
 #include <linux/overflow.h>
 #include "cxlpci.h"
 #include "cxlmem.h"
@@ -41,7 +41,7 @@ static int cdat_dsmas_handler(union acpi_subtable_headers *header, void *arg,
 
 	dent = kzalloc(sizeof(*dent), GFP_KERNEL);
 	if (!dent)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dent->handle = dsmas->dsmad_handle;
 	dent->dpa_range.start = le64_to_cpu((__force __le64)dsmas->dpa_base_address);
@@ -111,13 +111,13 @@ static int cdat_dslbis_handler(union acpi_subtable_headers *header, void *arg,
 	if (dslbis->data_type > ACPI_HMAT_WRITE_BANDWIDTH)
 		return 0;
 
-	/* Not a memory type, skip */
+	/* Analt a memory type, skip */
 	if ((dslbis->flags & ACPI_HMAT_MEMORY_HIERARCHY) != ACPI_HMAT_MEMORY)
 		return 0;
 
 	dent = xa_load(dsmas_xa, dslbis->handle);
 	if (!dent) {
-		pr_warn("No matching DSMAS entry for DSLBIS entry.\n");
+		pr_warn("Anal matching DSMAS entry for DSLBIS entry.\n");
 		return 0;
 	}
 
@@ -138,7 +138,7 @@ static int cdat_table_parse_output(int rc)
 	if (rc < 0)
 		return rc;
 	if (rc == 0)
-		return -ENOENT;
+		return -EANALENT;
 
 	return 0;
 }
@@ -177,10 +177,10 @@ static int cxl_port_perf_data_calculate(struct cxl_port *port,
 	struct cxl_root *cxl_root __free(put_cxl_root) = find_cxl_root(port);
 
 	if (!cxl_root)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!cxl_root->ops || !cxl_root->ops->qos_class)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	xa_for_each(dsmas_xa, index, dent) {
 		int qos_class;
@@ -205,7 +205,7 @@ static int cxl_port_perf_data_calculate(struct cxl_port *port,
 	}
 
 	if (!valid_entries)
-		return -ENOENT;
+		return -EANALENT;
 
 	return 0;
 }
@@ -247,7 +247,7 @@ static void cxl_memdev_set_qos_class(struct cxl_dev_state *cxlds,
 			 range_contains(&pmem_range, &dent->dpa_range))
 			update_perf_entry(dev, dent, &mds->pmem_perf);
 		else
-			dev_dbg(dev, "no partition for dsmas dpa: %#llx\n",
+			dev_dbg(dev, "anal partition for dsmas dpa: %#llx\n",
 				dent->dpa_range.start);
 	}
 }
@@ -322,7 +322,7 @@ static int cxl_qos_class_verify(struct cxl_memdev *cxlmd)
 		find_cxl_root(cxlmd->endpoint);
 
 	if (!cxl_root)
-		return -ENODEV;
+		return -EANALDEV;
 
 	root_port = &cxl_root->port;
 

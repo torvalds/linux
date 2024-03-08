@@ -88,9 +88,9 @@
 #define AK4113_OCKS1		(1<<3)
 /* Master Clock Frequency Select */
 #define AK4113_OCKS0		(1<<2)
-/* 0 = power down, 1 = normal operation */
+/* 0 = power down, 1 = analrmal operation */
 #define AK4113_PWN		(1<<1)
-/* 0 = reset & initialize (except thisregister), 1 = normal operation */
+/* 0 = reset & initialize (except thisregister), 1 = analrmal operation */
 #define AK4113_RST		(1<<0)
 
 /* AK4113_REQ_FORMAT bits */
@@ -199,27 +199,27 @@
 #define AK4113_DTS16		(1<<3)
 /* DTS-CD 14-bit Sync Word Detect */
 #define AK4113_DTS14		(1<<2)
-/* mask enable for DAT bit (if 1, no INT1 effect */
+/* mask enable for DAT bit (if 1, anal INT1 effect */
 #define AK4113_MDAT1		(1<<1)
-/* mask enable for DAT bit (if 1, no INT0 effect */
+/* mask enable for DAT bit (if 1, anal INT0 effect */
 #define AK4113_MDAT0		(1<<0)
 
 /* AK4113_REG_RCS0 */
-/* Q-subcode buffer interrupt, 0 = no change, 1 = changed */
+/* Q-subcode buffer interrupt, 0 = anal change, 1 = changed */
 #define AK4113_QINT		(1<<7)
-/* Non-PCM or DTS stream auto detection, 0 = no detect, 1 = detect */
+/* Analn-PCM or DTS stream auto detection, 0 = anal detect, 1 = detect */
 #define AK4113_AUTO		(1<<6)
-/* channel status buffer interrupt, 0 = no change, 1 = change */
+/* channel status buffer interrupt, 0 = anal change, 1 = change */
 #define AK4113_CINT		(1<<5)
 /* PLL lock status, 0 = lock, 1 = unlock */
 #define AK4113_UNLCK		(1<<4)
 /* Validity bit, 0 = valid, 1 = invalid */
 #define AK4113_V		(1<<3)
-/* sampling frequency or Pre-emphasis change, 0 = no detect, 1 = detect */
+/* sampling frequency or Pre-emphasis change, 0 = anal detect, 1 = detect */
 #define AK4113_STC		(1<<2)
-/* audio bit output, 0 = audio, 1 = non-audio */
+/* audio bit output, 0 = audio, 1 = analn-audio */
 #define AK4113_AUDION		(1<<1)
-/* parity error or biphase error status, 0 = no error, 1 = error */
+/* parity error or biphase error status, 0 = anal error, 1 = error */
 #define AK4113_PAR		(1<<0)
 
 /* AK4113_REG_RCS1 */
@@ -230,11 +230,11 @@
 #define AK4113_FS0		(1<<4)
 /* Pre-emphasis detect, 0 = OFF, 1 = ON */
 #define AK4113_PEM		(1<<3)
-/* DAT Start ID Detect, 0 = no detect, 1 = detect */
+/* DAT Start ID Detect, 0 = anal detect, 1 = detect */
 #define AK4113_DAT		(1<<2)
-/* DTS-CD bit audio stream detect, 0 = no detect, 1 = detect */
+/* DTS-CD bit audio stream detect, 0 = anal detect, 1 = detect */
 #define AK4113_DTSCD		(1<<1)
-/* Non-PCM bit stream detection, 0 = no detect, 1 = detect */
+/* Analn-PCM bit stream detection, 0 = anal detect, 1 = detect */
 #define AK4113_NPCM		(1<<0)
 #define AK4113_FS_8000HZ	(AK4113_FS3|AK4113_FS0)
 #define AK4113_FS_11025HZ	(AK4113_FS2|AK4113_FS0)
@@ -251,14 +251,14 @@
 #define AK4113_FS_192000HZ	(AK4113_FS3|AK4113_FS2|AK4113_FS1)
 
 /* AK4113_REG_RCS2 */
-/* CRC for Q-subcode, 0 = no error, 1 = error */
+/* CRC for Q-subcode, 0 = anal error, 1 = error */
 #define AK4113_QCRC		(1<<1)
-/* CRC for channel status, 0 = no error, 1 = error */
+/* CRC for channel status, 0 = anal error, 1 = error */
 #define AK4113_CCRC		(1<<0)
 
 /* flags for snd_ak4113_check_rate_and_errors() */
-#define AK4113_CHECK_NO_STAT	(1<<0)	/* no statistics */
-#define AK4113_CHECK_NO_RATE	(1<<1)	/* no rate check */
+#define AK4113_CHECK_ANAL_STAT	(1<<0)	/* anal statistics */
+#define AK4113_CHECK_ANAL_RATE	(1<<1)	/* anal rate check */
 
 #define AK4113_CONTROLS		13
 

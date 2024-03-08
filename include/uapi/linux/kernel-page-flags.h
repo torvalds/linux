@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPILINUX_KERNEL_PAGE_FLAGS_H
 #define _UAPILINUX_KERNEL_PAGE_FLAGS_H
 
@@ -20,7 +20,7 @@
 
 /* 11-20: new additions in 2.6.31 */
 #define KPF_MMAP		11
-#define KPF_ANON		12
+#define KPF_AANALN		12
 #define KPF_SWAPCACHE		13
 #define KPF_SWAPBACKED		14
 #define KPF_COMPOUND_HEAD	15
@@ -28,7 +28,7 @@
 #define KPF_HUGE		17
 #define KPF_UNEVICTABLE		18
 #define KPF_HWPOISON		19
-#define KPF_NOPAGE		20
+#define KPF_ANALPAGE		20
 
 #define KPF_KSM			21
 #define KPF_THP			22

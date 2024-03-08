@@ -50,7 +50,7 @@ size_t xe_lrc_size(struct xe_device *xe, enum xe_engine_class class)
 		else
 			return 14 * SZ_4K;
 	default:
-		WARN(1, "Unknown engine class: %d", class);
+		WARN(1, "Unkanalwn engine class: %d", class);
 		fallthrough;
 	case XE_ENGINE_CLASS_COPY:
 	case XE_ENGINE_CLASS_VIDEO_DECODE:
@@ -66,10 +66,10 @@ size_t xe_lrc_size(struct xe_device *xe, enum xe_engine_class class)
  * for each byte. There are 2 steps: decoding commands and decoding addresses.
  *
  * Commands:
- * [7]: create NOPs - number of NOPs are set in lower bits
+ * [7]: create ANALPs - number of ANALPs are set in lower bits
  * [6]: When creating MI_LOAD_REGISTER_IMM command, allow to set
  *      MI_LRI_FORCE_POSTED
- * [5:0]: Number of NOPs or registers to set values to in case of
+ * [5:0]: Number of ANALPs or registers to set values to in case of
  *        MI_LOAD_REGISTER_IMM
  *
  * Addresses: these are decoded after a MI_LOAD_REGISTER_IMM command by "count"
@@ -81,13 +81,13 @@ size_t xe_lrc_size(struct xe_device *xe, enum xe_engine_class class)
  *      follow, for the lower bits
  * [6:0]: Register offset, without considering the engine base.
  *
- * This function only tweaks the commands and register offsets. Values are not
+ * This function only tweaks the commands and register offsets. Values are analt
  * filled out.
  */
 static void set_offsets(u32 *regs,
 			const u8 *data,
 			const struct xe_hw_engine *hwe)
-#define NOP(x) (BIT(7) | (x))
+#define ANALP(x) (BIT(7) | (x))
 #define LRI(count, flags) ((flags) << 6 | (count) | \
 			   BUILD_BUG_ON_ZERO(count >= BIT(6)))
 #define POSTED BIT(0)
@@ -138,7 +138,7 @@ static void set_offsets(u32 *regs,
 }
 
 static const u8 gen12_xcs_offsets[] = {
-	NOP(1),
+	ANALP(1),
 	LRI(13, POSTED),
 	REG16(0x244),
 	REG(0x034),
@@ -154,7 +154,7 @@ static const u8 gen12_xcs_offsets[] = {
 	REG(0x180),
 	REG16(0x2b4),
 
-	NOP(5),
+	ANALP(5),
 	LRI(9, POSTED),
 	REG16(0x3a8),
 	REG16(0x28c),
@@ -170,7 +170,7 @@ static const u8 gen12_xcs_offsets[] = {
 };
 
 static const u8 dg2_xcs_offsets[] = {
-	NOP(1),
+	ANALP(1),
 	LRI(15, POSTED),
 	REG16(0x244),
 	REG(0x034),
@@ -188,7 +188,7 @@ static const u8 dg2_xcs_offsets[] = {
 	REG(0x120),
 	REG(0x124),
 
-	NOP(1),
+	ANALP(1),
 	LRI(9, POSTED),
 	REG16(0x3a8),
 	REG16(0x28c),
@@ -204,7 +204,7 @@ static const u8 dg2_xcs_offsets[] = {
 };
 
 static const u8 gen12_rcs_offsets[] = {
-	NOP(1),
+	ANALP(1),
 	LRI(13, POSTED),
 	REG16(0x244),
 	REG(0x034),
@@ -220,7 +220,7 @@ static const u8 gen12_rcs_offsets[] = {
 	REG(0x180),
 	REG16(0x2b4),
 
-	NOP(5),
+	ANALP(5),
 	LRI(9, POSTED),
 	REG16(0x3a8),
 	REG16(0x28c),
@@ -237,10 +237,10 @@ static const u8 gen12_rcs_offsets[] = {
 	REG16(0x5a8),
 	REG16(0x5ac),
 
-	NOP(6),
+	ANALP(6),
 	LRI(1, 0),
 	REG(0x0c8),
-	NOP(3 + 9 + 1),
+	ANALP(3 + 9 + 1),
 
 	LRI(51, POSTED),
 	REG16(0x588),
@@ -294,13 +294,13 @@ static const u8 gen12_rcs_offsets[] = {
 	REG16(0x67c),
 	REG(0x068),
 	REG(0x084),
-	NOP(1),
+	ANALP(1),
 
 	END
 };
 
 static const u8 xehp_rcs_offsets[] = {
-	NOP(1),
+	ANALP(1),
 	LRI(13, POSTED),
 	REG16(0x244),
 	REG(0x034),
@@ -316,7 +316,7 @@ static const u8 xehp_rcs_offsets[] = {
 	REG(0x180),
 	REG16(0x2b4),
 
-	NOP(5),
+	ANALP(5),
 	LRI(9, POSTED),
 	REG16(0x3a8),
 	REG16(0x28c),
@@ -333,7 +333,7 @@ static const u8 xehp_rcs_offsets[] = {
 	REG16(0x5a8),
 	REG16(0x5ac),
 
-	NOP(6),
+	ANALP(6),
 	LRI(1, 0),
 	REG(0x0c8),
 
@@ -341,7 +341,7 @@ static const u8 xehp_rcs_offsets[] = {
 };
 
 static const u8 dg2_rcs_offsets[] = {
-	NOP(1),
+	ANALP(1),
 	LRI(15, POSTED),
 	REG16(0x244),
 	REG(0x034),
@@ -359,7 +359,7 @@ static const u8 dg2_rcs_offsets[] = {
 	REG(0x120),
 	REG(0x124),
 
-	NOP(1),
+	ANALP(1),
 	LRI(9, POSTED),
 	REG16(0x3a8),
 	REG16(0x28c),
@@ -376,7 +376,7 @@ static const u8 dg2_rcs_offsets[] = {
 	REG16(0x5a8),
 	REG16(0x5ac),
 
-	NOP(6),
+	ANALP(6),
 	LRI(1, 0),
 	REG(0x0c8),
 
@@ -384,7 +384,7 @@ static const u8 dg2_rcs_offsets[] = {
 };
 
 static const u8 mtl_rcs_offsets[] = {
-	NOP(1),
+	ANALP(1),
 	LRI(15, POSTED),
 	REG16(0x244),
 	REG(0x034),
@@ -402,7 +402,7 @@ static const u8 mtl_rcs_offsets[] = {
 	REG(0x120),
 	REG(0x124),
 
-	NOP(1),
+	ANALP(1),
 	LRI(9, POSTED),
 	REG16(0x3a8),
 	REG16(0x28c),
@@ -414,12 +414,12 @@ static const u8 mtl_rcs_offsets[] = {
 	REG16(0x274),
 	REG16(0x270),
 
-	NOP(2),
+	ANALP(2),
 	LRI(2, POSTED),
 	REG16(0x5a8),
 	REG16(0x5ac),
 
-	NOP(6),
+	ANALP(6),
 	LRI(1, 0),
 	REG(0x0c8),
 
@@ -427,7 +427,7 @@ static const u8 mtl_rcs_offsets[] = {
 };
 
 #define XE2_CTX_COMMON \
-	NOP(1),                 /* [0x00] */ \
+	ANALP(1),                 /* [0x00] */ \
 	LRI(15, POSTED),        /* [0x01] */ \
 	REG16(0x244),           /* [0x02] CTXT_SR_CTL */ \
 	REG(0x034),             /* [0x04] RING_BUFFER_HEAD */ \
@@ -445,7 +445,7 @@ static const u8 mtl_rcs_offsets[] = {
 	REG(0x120),             /* [0x1c] PRT_BB_STATE */ \
 	REG(0x124),             /* [0x1e] PRT_BB_STATE_UDW */ \
 	\
-	NOP(1),                 /* [0x20] */ \
+	ANALP(1),                 /* [0x20] */ \
 	LRI(9, POSTED),         /* [0x21] */ \
 	REG16(0x3a8),           /* [0x22] CTX_TIMESTAMP */ \
 	REG16(0x3ac),           /* [0x24] CTX_TIMESTAMP_UDW */ \
@@ -460,12 +460,12 @@ static const u8 mtl_rcs_offsets[] = {
 static const u8 xe2_rcs_offsets[] = {
 	XE2_CTX_COMMON,
 
-	NOP(2),                 /* [0x34] */
+	ANALP(2),                 /* [0x34] */
 	LRI(2, POSTED),         /* [0x36] */
 	REG16(0x5a8),           /* [0x37] CONTEXT_SCHEDULING_ATTRIBUTES */
 	REG16(0x5ac),           /* [0x39] PREEMPTION_STATUS */
 
-	NOP(6),                 /* [0x41] */
+	ANALP(6),                 /* [0x41] */
 	LRI(1, 0),              /* [0x47] */
 	REG(0x0c8),             /* [0x48] R_PWR_CLK_STATE */
 
@@ -475,7 +475,7 @@ static const u8 xe2_rcs_offsets[] = {
 static const u8 xe2_bcs_offsets[] = {
 	XE2_CTX_COMMON,
 
-	NOP(4 + 8 + 1),         /* [0x34] */
+	ANALP(4 + 8 + 1),         /* [0x34] */
 	LRI(2, POSTED),         /* [0x41] */
 	REG16(0x200),           /* [0x42] BCS_SWCTRL */
 	REG16(0x204),           /* [0x44] BLIT_CCTL */
@@ -493,7 +493,7 @@ static const u8 xe2_xcs_offsets[] = {
 #undef REG16
 #undef REG
 #undef LRI
-#undef NOP
+#undef ANALP
 
 static const u8 *reg_offsets(struct xe_device *xe, enum xe_engine_class class)
 {
@@ -564,8 +564,8 @@ u32 xe_lrc_pphwsp_offset(struct xe_lrc *lrc)
 /* Make the magic macros work */
 #define __xe_lrc_pphwsp_offset xe_lrc_pphwsp_offset
 
-#define LRC_SEQNO_PPHWSP_OFFSET 512
-#define LRC_START_SEQNO_PPHWSP_OFFSET (LRC_SEQNO_PPHWSP_OFFSET + 8)
+#define LRC_SEQANAL_PPHWSP_OFFSET 512
+#define LRC_START_SEQANAL_PPHWSP_OFFSET (LRC_SEQANAL_PPHWSP_OFFSET + 8)
 #define LRC_PARALLEL_PPHWSP_OFFSET 2048
 #define LRC_PPHWSP_SIZE SZ_4K
 
@@ -582,16 +582,16 @@ size_t xe_lrc_skip_size(struct xe_device *xe)
 	return LRC_PPHWSP_SIZE + lrc_reg_size(xe);
 }
 
-static inline u32 __xe_lrc_seqno_offset(struct xe_lrc *lrc)
+static inline u32 __xe_lrc_seqanal_offset(struct xe_lrc *lrc)
 {
-	/* The seqno is stored in the driver-defined portion of PPHWSP */
-	return xe_lrc_pphwsp_offset(lrc) + LRC_SEQNO_PPHWSP_OFFSET;
+	/* The seqanal is stored in the driver-defined portion of PPHWSP */
+	return xe_lrc_pphwsp_offset(lrc) + LRC_SEQANAL_PPHWSP_OFFSET;
 }
 
-static inline u32 __xe_lrc_start_seqno_offset(struct xe_lrc *lrc)
+static inline u32 __xe_lrc_start_seqanal_offset(struct xe_lrc *lrc)
 {
-	/* The start seqno is stored in the driver-defined portion of PPHWSP */
-	return xe_lrc_pphwsp_offset(lrc) + LRC_START_SEQNO_PPHWSP_OFFSET;
+	/* The start seqanal is stored in the driver-defined portion of PPHWSP */
+	return xe_lrc_pphwsp_offset(lrc) + LRC_START_SEQANAL_PPHWSP_OFFSET;
 }
 
 static inline u32 __xe_lrc_parallel_offset(struct xe_lrc *lrc)
@@ -621,9 +621,9 @@ static inline u32 __xe_lrc_##elem##_ggtt_addr(struct xe_lrc *lrc) \
 
 DECL_MAP_ADDR_HELPERS(ring)
 DECL_MAP_ADDR_HELPERS(pphwsp)
-DECL_MAP_ADDR_HELPERS(seqno)
+DECL_MAP_ADDR_HELPERS(seqanal)
 DECL_MAP_ADDR_HELPERS(regs)
-DECL_MAP_ADDR_HELPERS(start_seqno)
+DECL_MAP_ADDR_HELPERS(start_seqanal)
 DECL_MAP_ADDR_HELPERS(parallel)
 
 #undef DECL_MAP_ADDR_HELPERS
@@ -718,13 +718,13 @@ int xe_lrc_init(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
 	if (!gt->default_lrc[hwe->class]) {
 		init_data = empty_lrc_data(hwe);
 		if (!init_data) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_lrc_finish;
 		}
 	}
 
 	/*
-	 * Init Per-Process of HW status Page, LRC / context state to known
+	 * Init Per-Process of HW status Page, LRC / context state to kanalwn
 	 * values
 	 */
 	map = __xe_lrc_pphwsp_map(lrc);
@@ -772,11 +772,11 @@ int xe_lrc_init(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
 	arb_enable = MI_ARB_ON_OFF | MI_ARB_ENABLE;
 	xe_lrc_write_ring(lrc, &arb_enable, sizeof(arb_enable));
 
-	map = __xe_lrc_seqno_map(lrc);
-	xe_map_write32(lrc_to_xe(lrc), &map, lrc->fence_ctx.next_seqno - 1);
+	map = __xe_lrc_seqanal_map(lrc);
+	xe_map_write32(lrc_to_xe(lrc), &map, lrc->fence_ctx.next_seqanal - 1);
 
-	map = __xe_lrc_start_seqno_map(lrc);
-	xe_map_write32(lrc_to_xe(lrc), &map, lrc->fence_ctx.next_seqno - 1);
+	map = __xe_lrc_start_seqanal_map(lrc);
+	xe_map_write32(lrc_to_xe(lrc), &map, lrc->fence_ctx.next_seqanal - 1);
 
 	return 0;
 
@@ -845,9 +845,9 @@ void xe_lrc_write_ring(struct xe_lrc *lrc, const void *data, size_t size)
 	}
 
 	if (aligned_size > size) {
-		u32 noop = MI_NOOP;
+		u32 analop = MI_ANALOP;
 
-		__xe_lrc_write_ring(lrc, ring, &noop, sizeof(noop));
+		__xe_lrc_write_ring(lrc, ring, &analop, sizeof(analop));
 	}
 }
 
@@ -856,34 +856,34 @@ u64 xe_lrc_descriptor(struct xe_lrc *lrc)
 	return lrc->desc | xe_lrc_ggtt_addr(lrc);
 }
 
-u32 xe_lrc_seqno_ggtt_addr(struct xe_lrc *lrc)
+u32 xe_lrc_seqanal_ggtt_addr(struct xe_lrc *lrc)
 {
-	return __xe_lrc_seqno_ggtt_addr(lrc);
+	return __xe_lrc_seqanal_ggtt_addr(lrc);
 }
 
-struct dma_fence *xe_lrc_create_seqno_fence(struct xe_lrc *lrc)
+struct dma_fence *xe_lrc_create_seqanal_fence(struct xe_lrc *lrc)
 {
 	return &xe_hw_fence_create(&lrc->fence_ctx,
-				   __xe_lrc_seqno_map(lrc))->dma;
+				   __xe_lrc_seqanal_map(lrc))->dma;
 }
 
-s32 xe_lrc_seqno(struct xe_lrc *lrc)
+s32 xe_lrc_seqanal(struct xe_lrc *lrc)
 {
-	struct iosys_map map = __xe_lrc_seqno_map(lrc);
+	struct iosys_map map = __xe_lrc_seqanal_map(lrc);
 
 	return xe_map_read32(lrc_to_xe(lrc), &map);
 }
 
-s32 xe_lrc_start_seqno(struct xe_lrc *lrc)
+s32 xe_lrc_start_seqanal(struct xe_lrc *lrc)
 {
-	struct iosys_map map = __xe_lrc_start_seqno_map(lrc);
+	struct iosys_map map = __xe_lrc_start_seqanal_map(lrc);
 
 	return xe_map_read32(lrc_to_xe(lrc), &map);
 }
 
-u32 xe_lrc_start_seqno_ggtt_addr(struct xe_lrc *lrc)
+u32 xe_lrc_start_seqanal_ggtt_addr(struct xe_lrc *lrc)
 {
-	return __xe_lrc_start_seqno_ggtt_addr(lrc);
+	return __xe_lrc_start_seqanal_ggtt_addr(lrc);
 }
 
 u32 xe_lrc_parallel_ggtt_addr(struct xe_lrc *lrc)
@@ -919,17 +919,17 @@ static int dump_mi_command(struct drm_printer *p,
 	u32 inst_header = *dw;
 	u32 numdw = instr_dw(inst_header);
 	u32 opcode = REG_FIELD_GET(MI_OPCODE, inst_header);
-	int num_noop;
+	int num_analop;
 
 	/* First check for commands that don't have/use a '# DW' field */
 	switch (inst_header & MI_OPCODE) {
-	case MI_NOOP:
-		num_noop = 1;
-		while (num_noop < remaining_dw &&
-		       (*(++dw) & REG_GENMASK(31, 23)) == MI_NOOP)
-			num_noop++;
-		drm_printf(p, "[%#010x] MI_NOOP (%d dwords)\n", inst_header, num_noop);
-		return num_noop;
+	case MI_ANALOP:
+		num_analop = 1;
+		while (num_analop < remaining_dw &&
+		       (*(++dw) & REG_GENMASK(31, 23)) == MI_ANALOP)
+			num_analop++;
+		drm_printf(p, "[%#010x] MI_ANALOP (%d dwords)\n", inst_header, num_analop);
+		return num_analop;
 
 	case MI_TOPOLOGY_FILTER:
 		drm_printf(p, "[%#010x] MI_TOPOLOGY_FILTER\n", inst_header);
@@ -961,7 +961,7 @@ static int dump_mi_command(struct drm_printer *p,
 		return numdw;
 
 	default:
-		drm_printf(p, "[%#010x] unknown MI opcode %#x, likely %d dwords\n",
+		drm_printf(p, "[%#010x] unkanalwn MI opcode %#x, likely %d dwords\n",
 			   inst_header, opcode, numdw);
 		return numdw;
 	}
@@ -1093,7 +1093,7 @@ static int dump_gfxpipe_command(struct drm_printer *p,
 	MATCH3D(3DSTATE_POLY_STIPPLE_PATTERN);
 	MATCH3D(3DSTATE_LINE_STIPPLE);
 	MATCH3D(3DSTATE_AA_LINE_PARAMETERS);
-	MATCH3D(3DSTATE_MONOFILTER_SIZE);
+	MATCH3D(3DSTATE_MOANALFILTER_SIZE);
 	MATCH3D(3DSTATE_PUSH_CONSTANT_ALLOC_VS);
 	MATCH3D(3DSTATE_PUSH_CONSTANT_ALLOC_HS);
 	MATCH3D(3DSTATE_PUSH_CONSTANT_ALLOC_DS);
@@ -1109,7 +1109,7 @@ static int dump_gfxpipe_command(struct drm_printer *p,
 	MATCH3D(3DSTATE_PTBR_TILE_PASS_INFO);
 
 	default:
-		drm_printf(p, "[%#010x] unknown GFXPIPE command (pipeline=%#x, opcode=%#x, subopcode=%#x), likely %d dwords\n",
+		drm_printf(p, "[%#010x] unkanalwn GFXPIPE command (pipeline=%#x, opcode=%#x, subopcode=%#x), likely %d dwords\n",
 			   *dw, pipeline, opcode, subopcode, numdw);
 		return numdw;
 	}
@@ -1123,7 +1123,7 @@ void xe_lrc_dump_default(struct drm_printer *p,
 	int remaining_dw, num_dw;
 
 	if (!gt->default_lrc[hwe_class]) {
-		drm_printf(p, "No default LRC for class %d\n", hwe_class);
+		drm_printf(p, "Anal default LRC for class %d\n", hwe_class);
 		return;
 	}
 
@@ -1141,7 +1141,7 @@ void xe_lrc_dump_default(struct drm_printer *p,
 			num_dw = dump_gfxpipe_command(p, gt, dw, remaining_dw);
 		} else {
 			num_dw = min(instr_dw(*dw), remaining_dw);
-			drm_printf(p, "[%#10x] Unknown instruction of type %#x, likely %d dwords\n",
+			drm_printf(p, "[%#10x] Unkanalwn instruction of type %#x, likely %d dwords\n",
 				   *dw, REG_FIELD_GET(XE_INSTR_CMD_TYPE, *dw),
 				   num_dw);
 		}
@@ -1217,7 +1217,7 @@ void xe_lrc_emit_hwe_state_instructions(struct xe_exec_queue *q, struct xe_bb *b
 	int state_table_size = 0;
 
 	/*
-	 * At the moment we only need to emit non-register state for the RCS
+	 * At the moment we only need to emit analn-register state for the RCS
 	 * engine.
 	 */
 	if (q->hwe->class != XE_ENGINE_CLASS_RENDER)
@@ -1230,7 +1230,7 @@ void xe_lrc_emit_hwe_state_instructions(struct xe_exec_queue *q, struct xe_bb *b
 		state_table_size = ARRAY_SIZE(xe_hpg_svg_state);
 		break;
 	default:
-		xe_gt_dbg(gt, "No non-register state to emit on graphics ver %d.%02d\n",
+		xe_gt_dbg(gt, "Anal analn-register state to emit on graphics ver %d.%02d\n",
 			  GRAPHICS_VER(xe), GRAPHICS_VERx100(xe) % 100);
 		return;
 	}
@@ -1246,7 +1246,7 @@ void xe_lrc_emit_hwe_state_instructions(struct xe_exec_queue *q, struct xe_bb *b
 
 		/*
 		 * Xe2's SVG context is the same as the one on DG2 / MTL
-		 * except that 3DSTATE_DRAWING_RECTANGLE (non-pipelined) has
+		 * except that 3DSTATE_DRAWING_RECTANGLE (analn-pipelined) has
 		 * been replaced by 3DSTATE_DRAWING_RECTANGLE_FAST (pipelined).
 		 * Just make the replacement here rather than defining a
 		 * whole separate table for the single trivial change.

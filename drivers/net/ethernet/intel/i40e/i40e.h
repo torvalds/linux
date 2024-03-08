@@ -169,11 +169,11 @@ enum i40e_pf_flags {
 	/* TOTAL_PORT_SHUTDOWN_ENA
 	 * Allows to physically disable the link on the NIC's port.
 	 * If enabled, (after link down request from the OS)
-	 * no link, traffic or led activity is possible on that port.
+	 * anal link, traffic or led activity is possible on that port.
 	 *
 	 * If I40E_FLAG_TOTAL_PORT_SHUTDOWN_ENA is set, the
 	 * I40E_FLAG_LINK_DOWN_ON_CLOSE_ENA must be explicitly forced
-	 * to true and cannot be disabled by system admin at that time.
+	 * to true and cananalt be disabled by system admin at that time.
 	 * The functionalities are exclusive in terms of configuration, but
 	 * they also have similar behavior (allowing to disable physical
 	 * link of the port), with following differences:
@@ -183,7 +183,7 @@ enum i40e_pf_flags {
 	 *   (in BIOS) only if motherboard's BIOS and NIC's FW has support of it
 	 * - when LINK_DOWN_ON_CLOSE_ENABLED is used, the link is being brought
 	 *   down by sending phy_type=0 to NIC's FW
-	 * - when TOTAL_PORT_SHUTDOWN_ENA is used, phy_type is not altered,
+	 * - when TOTAL_PORT_SHUTDOWN_ENA is used, phy_type is analt altered,
 	 *   instead the link is being brought down by clearing
 	 *   bit (I40E_AQ_PHY_ENABLE_LINK) in abilities field of
 	 *   i40e_aq_set_phy_config structure
@@ -240,7 +240,7 @@ struct i40e_rx_flow_userdef {
 };
 
 struct i40e_fdir_filter {
-	struct hlist_node fdir_node;
+	struct hlist_analde fdir_analde;
 	/* filter ipnut set */
 	u8 flow_type;
 	u8 ipl4_proto;
@@ -292,7 +292,7 @@ struct i40e_fdir_filter {
 #define I40E_CLOUD_FILTER_FLAGS_IIP	I40E_CLOUD_FIELD_IIP
 
 struct i40e_cloud_filter {
-	struct hlist_node cloud_node;
+	struct hlist_analde cloud_analde;
 	unsigned long cookie;
 	/* cloud filter input set follows */
 	u8 dst_mac[ETH_ALEN];
@@ -319,7 +319,7 @@ struct i40e_cloud_filter {
 	u16 n_proto;    /* Ethernet Protocol */
 	u8 ip_proto;    /* IPPROTO value */
 	u8 flags;
-#define I40E_CLOUD_TNL_TYPE_NONE        0xff
+#define I40E_CLOUD_TNL_TYPE_ANALNE        0xff
 	u8 tunnel_type;
 };
 
@@ -423,7 +423,7 @@ struct i40e_flex_pit {
 
 struct i40e_fwd_adapter {
 	struct net_device *netdev;
-	int bit_no;
+	int bit_anal;
 };
 
 struct i40e_channel {
@@ -549,8 +549,8 @@ struct i40e_pf {
 	struct mutex switch_mutex;
 	u16 lan_vsi;       /* our default LAN VSI */
 	u16 lan_veb;       /* initial relay, if exists */
-#define I40E_NO_VEB	0xffff
-#define I40E_NO_VSI	0xffff
+#define I40E_ANAL_VEB	0xffff
+#define I40E_ANAL_VSI	0xffff
 	u16 next_vsi;      /* Next unallocated VSI - 0-based! */
 	struct i40e_vsi **vsi;
 	struct i40e_veb *veb[I40E_MAX_VEB];
@@ -570,13 +570,13 @@ struct i40e_pf {
 	struct i40e_vf *vf;
 	int num_alloc_vfs;	/* actual number of VFs allocated */
 	u32 vf_aq_requests;
-	u32 arq_overflows;	/* Not fatal, possibly indicative of problems */
+	u32 arq_overflows;	/* Analt fatal, possibly indicative of problems */
 
 	/* DCBx/DCBNL capability for PF that indicates
 	 * whether DCBx is managed by firmware or host
 	 * based agent (LLDPAD). Also, indicates what
 	 * flavor of DCBx protocol (IEEE/CEE) is supported
-	 * by the device. For now we're supporting IEEE
+	 * by the device. For analw we're supporting IEEE
 	 * mode only.
 	 */
 	u16 dcbx_cap;
@@ -614,25 +614,25 @@ struct i40e_pf {
 	(3 << I40E_GLGEN_GPIO_CTL_PIN_FUNC_SHIFT)
 #define I40E_GLGEN_GPIO_CTL_TIMESYNC_1 \
 	(4 << I40E_GLGEN_GPIO_CTL_PIN_FUNC_SHIFT)
-#define I40E_GLGEN_GPIO_CTL_NOT_FOR_PHY_CONN \
+#define I40E_GLGEN_GPIO_CTL_ANALT_FOR_PHY_CONN \
 	(0x3F << I40E_GLGEN_GPIO_CTL_PHY_PIN_NAME_SHIFT)
 #define I40E_GLGEN_GPIO_CTL_OUT_DEFAULT \
 	(1 << I40E_GLGEN_GPIO_CTL_OUT_DEFAULT_SHIFT)
 #define I40E_GLGEN_GPIO_CTL_PORT_0_IN_TIMESYNC_0 \
-	(I40E_GLGEN_GPIO_CTL_NOT_FOR_PHY_CONN | \
+	(I40E_GLGEN_GPIO_CTL_ANALT_FOR_PHY_CONN | \
 	 I40E_GLGEN_GPIO_CTL_TIMESYNC_0 | \
 	 I40E_GLGEN_GPIO_CTL_RESERVED | I40E_GLGEN_GPIO_CTL_PRT_NUM_0)
 #define I40E_GLGEN_GPIO_CTL_PORT_1_IN_TIMESYNC_0 \
-	(I40E_GLGEN_GPIO_CTL_NOT_FOR_PHY_CONN | \
+	(I40E_GLGEN_GPIO_CTL_ANALT_FOR_PHY_CONN | \
 	 I40E_GLGEN_GPIO_CTL_TIMESYNC_0 | \
 	 I40E_GLGEN_GPIO_CTL_RESERVED | I40E_GLGEN_GPIO_CTL_PRT_NUM_1)
 #define I40E_GLGEN_GPIO_CTL_PORT_0_OUT_TIMESYNC_1 \
-	(I40E_GLGEN_GPIO_CTL_NOT_FOR_PHY_CONN | \
+	(I40E_GLGEN_GPIO_CTL_ANALT_FOR_PHY_CONN | \
 	 I40E_GLGEN_GPIO_CTL_TIMESYNC_1 | I40E_GLGEN_GPIO_CTL_OUT_HI_RST | \
 	 I40E_GLGEN_GPIO_CTL_TRI_DRV_HI | I40E_GLGEN_GPIO_CTL_DIR_OUT | \
 	 I40E_GLGEN_GPIO_CTL_RESERVED | I40E_GLGEN_GPIO_CTL_PRT_NUM_0)
 #define I40E_GLGEN_GPIO_CTL_PORT_1_OUT_TIMESYNC_1 \
-	(I40E_GLGEN_GPIO_CTL_NOT_FOR_PHY_CONN | \
+	(I40E_GLGEN_GPIO_CTL_ANALT_FOR_PHY_CONN | \
 	 I40E_GLGEN_GPIO_CTL_TIMESYNC_1 | I40E_GLGEN_GPIO_CTL_OUT_HI_RST | \
 	 I40E_GLGEN_GPIO_CTL_TRI_DRV_HI | I40E_GLGEN_GPIO_CTL_DIR_OUT | \
 	 I40E_GLGEN_GPIO_CTL_RESERVED | I40E_GLGEN_GPIO_CTL_PRT_NUM_1)
@@ -642,7 +642,7 @@ struct i40e_pf {
 	 I40E_GLGEN_GPIO_CTL_TRI_DRV_HI | \
 	 I40E_GLGEN_GPIO_CTL_OUT_HI_RST | \
 	 I40E_GLGEN_GPIO_CTL_OUT_DEFAULT | \
-	 I40E_GLGEN_GPIO_CTL_NOT_FOR_PHY_CONN)
+	 I40E_GLGEN_GPIO_CTL_ANALT_FOR_PHY_CONN)
 #define I40E_PRTTSYN_AUX_1_INSTNT \
 	(1 << I40E_PRTTSYN_AUX_1_INSTNT_SHIFT)
 #define I40E_PRTTSYN_AUX_0_OUT_ENABLE \
@@ -650,7 +650,7 @@ struct i40e_pf {
 #define I40E_PRTTSYN_AUX_0_OUT_CLK_MOD	(3 << I40E_PRTTSYN_AUX_0_OUTMOD_SHIFT)
 #define I40E_PRTTSYN_AUX_0_OUT_ENABLE_CLK_MOD \
 	(I40E_PRTTSYN_AUX_0_OUT_ENABLE | I40E_PRTTSYN_AUX_0_OUT_CLK_MOD)
-#define I40E_PTP_HALF_SECOND		500000000LL /* nano seconds */
+#define I40E_PTP_HALF_SECOND		500000000LL /* naanal seconds */
 #define I40E_PTP_2_SEC_DELAY		2
 
 	struct ptp_clock *ptp_clock;
@@ -702,14 +702,14 @@ static inline u64 i40e_addr_to_hkey(const u8 *macaddr)
 
 enum i40e_filter_state {
 	I40E_FILTER_INVALID = 0,	/* Invalid state */
-	I40E_FILTER_NEW,		/* New, not sent to FW yet */
+	I40E_FILTER_NEW,		/* New, analt sent to FW yet */
 	I40E_FILTER_ACTIVE,		/* Added to switch by FW */
 	I40E_FILTER_FAILED,		/* Rejected by FW */
 	I40E_FILTER_REMOVE,		/* To be removed */
-/* There is no 'removed' state; the filter struct is freed */
+/* There is anal 'removed' state; the filter struct is freed */
 };
 struct i40e_mac_filter {
-	struct hlist_node hlist;
+	struct hlist_analde hlist;
 	u8 macaddr[ETH_ALEN];
 #define I40E_VLAN_ANY -1
 	s16 vlan;
@@ -717,7 +717,7 @@ struct i40e_mac_filter {
 };
 
 /* Wrapper structure to keep track of filters while we are preparing to send
- * firmware commands. We cannot send firmware commands while holding a
+ * firmware commands. We cananalt send firmware commands while holding a
  * spinlock, since it might sleep. To avoid this, we wrap the added filters in
  * a separate structure, which will track the state change and update the real
  * filter while under lock. We can't simply hold the filters in a separate
@@ -725,7 +725,7 @@ struct i40e_mac_filter {
  * addresses to all VLANs, or when adding new VLANs to all MAC addresses.
  */
 struct i40e_new_mac_filter {
-	struct hlist_node hlist;
+	struct hlist_analde hlist;
 	struct i40e_mac_filter *f;
 
 	/* Track future changes to state separately */
@@ -879,7 +879,7 @@ struct i40e_vsi {
 	irqreturn_t (*irq_handler)(int irq, void *data);
 
 	unsigned long *af_xdp_zc_qps; /* tracks AF_XDP ZC enabled qps */
-} ____cacheline_internodealigned_in_smp;
+} ____cacheline_interanaldealigned_in_smp;
 
 struct i40e_netdev_priv {
 	struct i40e_vsi *vsi;
@@ -903,13 +903,13 @@ struct i40e_q_vector {
 	u8 num_ringpairs;	/* total number of ring pairs in vector */
 
 	cpumask_t affinity_mask;
-	struct irq_affinity_notify affinity_notify;
+	struct irq_affinity_analtify affinity_analtify;
 
 	struct rcu_head rcu;	/* to avoid race with update stats on free */
 	char name[I40E_INT_NAME_STR_LEN];
 	bool arm_wb_state;
 	int irq_num;		/* IRQ assigned to this q_vector */
-} ____cacheline_internodealigned_in_smp;
+} ____cacheline_interanaldealigned_in_smp;
 
 /* lan device */
 struct i40e_device {
@@ -925,7 +925,7 @@ struct i40e_device {
  *
  * Formats NVM version string as:
  * <gen>.<snap>.<release> when eetrackid == I40E_OEM_EETRACK_ID
- * <nvm_major>.<nvm_minor> otherwise
+ * <nvm_major>.<nvm_mianalr> otherwise
  **/
 static inline void i40e_info_nvm_ver(struct i40e_hw *hw, char *buf, size_t len)
 {
@@ -941,11 +941,11 @@ static inline void i40e_info_nvm_ver(struct i40e_hw *hw, char *buf, size_t len)
 		release = FIELD_GET(I40E_OEM_RELEASE_MASK, full_ver);
 		snprintf(buf, len, "%x.%x.%x", gen, snap, release);
 	} else {
-		u8 major, minor;
+		u8 major, mianalr;
 
 		major = FIELD_GET(I40E_NVM_VERSION_HI_MASK, nvm->version);
-		minor = FIELD_GET(I40E_NVM_VERSION_LO_MASK, nvm->version);
-		snprintf(buf, len, "%x.%02x", major, minor);
+		mianalr = FIELD_GET(I40E_NVM_VERSION_LO_MASK, nvm->version);
+		snprintf(buf, len, "%x.%02x", major, mianalr);
 	}
 }
 
@@ -983,13 +983,13 @@ static inline void i40e_info_civd_ver(struct i40e_hw *hw, char *buf, size_t len)
 	buf[0] = '\0';
 	if (nvm->eetrack != I40E_OEM_EETRACK_ID) {
 		u32 full_ver = nvm->oem_ver;
-		u8 major, minor;
+		u8 major, mianalr;
 		u16 build;
 
 		major = FIELD_GET(I40E_OEM_VER_MASK, full_ver);
 		build = FIELD_GET(I40E_OEM_VER_BUILD_MASK, full_ver);
-		minor = FIELD_GET(I40E_OEM_VER_PATCH_MASK, full_ver);
-		snprintf(buf, len, "%d.%d.%d", major, build, minor);
+		mianalr = FIELD_GET(I40E_OEM_VER_PATCH_MASK, full_ver);
+		snprintf(buf, len, "%d.%d.%d", major, build, mianalr);
 	}
 }
 
@@ -1156,7 +1156,7 @@ struct i40e_vsi *i40e_vsi_setup(struct i40e_pf *pf, u8 type,
 				u16 uplink, u32 param1);
 int i40e_vsi_release(struct i40e_vsi *vsi);
 void i40e_service_event_schedule(struct i40e_pf *pf);
-void i40e_notify_client_of_vf_msg(struct i40e_vsi *vsi, u32 vf_id,
+void i40e_analtify_client_of_vf_msg(struct i40e_vsi *vsi, u32 vf_id,
 				  u8 *msg, u16 len);
 
 int i40e_control_wait_tx_q(int seid, struct i40e_pf *pf, int pf_q, bool is_xdp,
@@ -1164,7 +1164,7 @@ int i40e_control_wait_tx_q(int seid, struct i40e_pf *pf, int pf_q, bool is_xdp,
 int i40e_control_wait_rx_q(struct i40e_pf *pf, int pf_q, bool enable);
 int i40e_vsi_start_rings(struct i40e_vsi *vsi);
 void i40e_vsi_stop_rings(struct i40e_vsi *vsi);
-void i40e_vsi_stop_rings_no_wait(struct  i40e_vsi *vsi);
+void i40e_vsi_stop_rings_anal_wait(struct  i40e_vsi *vsi);
 int i40e_vsi_wait_queues_disabled(struct i40e_vsi *vsi);
 int i40e_reconfig_rss_queues(struct i40e_pf *pf, int queue_count);
 struct i40e_veb *i40e_veb_setup(struct i40e_pf *pf, u16 flags, u16 uplink_seid,
@@ -1191,10 +1191,10 @@ static inline void i40e_dbg_exit(void) {}
 int i40e_lan_add_device(struct i40e_pf *pf);
 int i40e_lan_del_device(struct i40e_pf *pf);
 void i40e_client_subtask(struct i40e_pf *pf);
-void i40e_notify_client_of_l2_param_changes(struct i40e_vsi *vsi);
-void i40e_notify_client_of_netdev_close(struct i40e_vsi *vsi, bool reset);
-void i40e_notify_client_of_vf_enable(struct i40e_pf *pf, u32 num_vfs);
-void i40e_notify_client_of_vf_reset(struct i40e_pf *pf, u32 vf_id);
+void i40e_analtify_client_of_l2_param_changes(struct i40e_vsi *vsi);
+void i40e_analtify_client_of_netdev_close(struct i40e_vsi *vsi, bool reset);
+void i40e_analtify_client_of_vf_enable(struct i40e_pf *pf, u32 num_vfs);
+void i40e_analtify_client_of_vf_reset(struct i40e_pf *pf, u32 vf_id);
 void i40e_client_update_msix_info(struct i40e_pf *pf);
 int i40e_vf_client_capable(struct i40e_pf *pf, u32 vf_id);
 /**
@@ -1210,7 +1210,7 @@ static inline void i40e_irq_dynamic_enable(struct i40e_vsi *vsi, int vector)
 
 	val = I40E_PFINT_DYN_CTLN_INTENA_MASK |
 	      I40E_PFINT_DYN_CTLN_CLEARPBA_MASK |
-	      (I40E_ITR_NONE << I40E_PFINT_DYN_CTLN_ITR_INDX_SHIFT);
+	      (I40E_ITR_ANALNE << I40E_PFINT_DYN_CTLN_ITR_INDX_SHIFT);
 	wr32(hw, I40E_PFINT_DYN_CTLN(vector + vsi->base_vector - 1), val);
 	/* skip the flush */
 }
@@ -1291,7 +1291,7 @@ int i40e_add_del_cloud_filter_big_buf(struct i40e_vsi *vsi,
  *
  * Check and return state of flag I40E_FLAG_TC_MQPRIO.
  *
- * Return: true/false if I40E_FLAG_TC_MQPRIO is set or not
+ * Return: true/false if I40E_FLAG_TC_MQPRIO is set or analt
  **/
 static inline bool i40e_is_tc_mqprio_enabled(struct i40e_pf *pf)
 {

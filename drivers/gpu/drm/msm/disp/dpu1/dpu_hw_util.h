@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  * Copyright (c) 2015-2021, The Linux Foundation. All rights reserved.
  */
 
@@ -47,7 +47,7 @@ struct dpu_hw_blk {
 /**
  * struct dpu_hw_scaler3_de_cfg : QSEEDv3 detail enhancer configuration
  * @enable:         detail enhancer enable/disable
- * @sharpen_level1: sharpening strength for noise
+ * @sharpen_level1: sharpening strength for analise
  * @sharpen_level2: sharpening strength for signal
  * @ clip:          clip shift
  * @ limit:         limit value
@@ -199,7 +199,7 @@ struct dpu_drm_pix_ext_v1 {
 /**
  * struct dpu_drm_de_v1 - version 1 of detail enhancer structure
  * @enable:         Enables/disables detail enhancer
- * @sharpen_level1: Sharpening strength for noise
+ * @sharpen_level1: Sharpening strength for analise
  * @sharpen_level2: Sharpening strength for context
  * @clip:           Clip coefficient
  * @limit:          Detail enhancer limit factor

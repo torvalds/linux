@@ -16,7 +16,7 @@
  *		Rewritten by Niibe Yutaka.
  *		parport-sharing awareness code by Philip Blundell.
  *		SMP locking by Niibe Yutaka.
- *		Support for parallel ports with no IRQ (poll mode),
+ *		Support for parallel ports with anal IRQ (poll mode),
  *		Modifications to use the parallel port API
  *		by Nimrod Zimerman.
  *
@@ -36,7 +36,7 @@
  * Original version and the name 'PLIP' from Donald Becker <becker@scyld.com>
  * inspired by Russ Nelson's parallel port packet driver.
  *
- * NOTE:
+ * ANALTE:
  *     Tanabe Hiroyasu had changed the protocol, and it was in Linux v1.0.
  *     Because of the necessity to communicate to DOS machines with the
  *     Crynwr packet driver, Peter Bauer changed the protocol again
@@ -78,7 +78,7 @@ static const char version[] = "NET3 PLIP version 2.4-parport gniibe@mri.co.jp\n"
     D2->PAPOUT	4 - 12		12 - 4
     D3->ACK	5 - 10		10 - 5
     D4->BUSY	6 - 11		11 - 6
-  Do not connect the other pins.  They are
+  Do analt connect the other pins.  They are
     D5,D6,D7 are 7,8,9
     STROBE is 1, FEED is 14, INIT is 16
     extra grounds are 18,19,20,21,22,23,24
@@ -94,7 +94,7 @@ static const char version[] = "NET3 PLIP version 2.4-parport gniibe@mri.co.jp\n"
 #include <linux/slab.h>
 #include <linux/if_ether.h>
 #include <linux/in.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/netdevice.h>
@@ -157,7 +157,7 @@ static int plip_preempt(void *handle);
 static void plip_wakeup(void *handle);
 
 enum plip_connection_state {
-	PLIP_CN_NONE=0,
+	PLIP_CN_ANALNE=0,
 	PLIP_CN_RECEIVE,
 	PLIP_CN_SEND,
 	PLIP_CN_CLOSING,
@@ -276,7 +276,7 @@ static const struct net_device_ops plip_netdev_ops = {
    Probe the hardware, and register/initialize the driver.
 
    PLIP is rather weird, because of the way it interacts with the parport
-   system.  It is _not_ initialised from Space.c.  Instead, plip_init()
+   system.  It is _analt_ initialised from Space.c.  Instead, plip_init()
    is called, and that function makes up a "struct net_device" for each port, and
    then calls us here.
 
@@ -292,7 +292,7 @@ plip_init_netdev(struct net_device *dev)
 
 	/* Then, override parts of it */
 	dev->tx_queue_len 	 = 10;
-	dev->flags	         = IFF_POINTOPOINT|IFF_NOARP;
+	dev->flags	         = IFF_POINTOPOINT|IFF_ANALARP;
 	eth_hw_addr_set(dev, addr_init);
 
 	dev->netdev_ops		 = &plip_netdev_ops;
@@ -329,7 +329,7 @@ plip_kick_bh(struct work_struct *work)
 }
 
 /* Forward declarations of internal routines */
-static int plip_none(struct net_device *, struct net_local *,
+static int plip_analne(struct net_device *, struct net_local *,
 		     struct plip_local *, struct plip_local *);
 static int plip_receive_packet(struct net_device *, struct net_local *,
 			       struct plip_local *, struct plip_local *);
@@ -354,7 +354,7 @@ typedef int (*plip_func)(struct net_device *dev, struct net_local *nl,
 
 static const plip_func connection_state_table[] =
 {
-	plip_none,
+	plip_analne,
 	plip_receive_packet,
 	plip_send_packet,
 	plip_connection_close,
@@ -406,7 +406,7 @@ plip_bh_timeout_error(struct net_device *dev, struct net_local *nl,
 	 * This is tricky. If we got here from the beginning of send (either
 	 * with ERROR or HS_TIMEOUT) we have IRQ enabled. Otherwise it's
 	 * already disabled. With the old variant of {enable,disable}_irq()
-	 * extra disable_irq() was a no-op. Now it became mortal - it's
+	 * extra disable_irq() was a anal-op. Analw it became mortal - it's
 	 * unbalanced and thus we'll never re-enable IRQ (until rmmod plip,
 	 * that is). So we have to treat HS_TIMEOUT and ERROR from send
 	 * in a special way.
@@ -472,7 +472,7 @@ plip_bh_timeout_error(struct net_device *dev, struct net_local *nl,
 }
 
 static int
-plip_none(struct net_device *dev, struct net_local *nl,
+plip_analne(struct net_device *dev, struct net_local *nl,
 	  struct plip_local *snd, struct plip_local *rcv)
 {
 	return OK;
@@ -531,14 +531,14 @@ plip_receive(unsigned short nibble_timeout, struct net_device *dev,
 
 /*
  *	Determine the packet's protocol ID. The rule here is that we
- *	assume 802.3 if the type field is short enough to be a length.
- *	This is normal practice and works for any 'now in use' protocol.
+ *	assume 802.3 if the type field is short eanalugh to be a length.
+ *	This is analrmal practice and works for any 'analw in use' protocol.
  *
- *	PLIP is ethernet ish but the daddr might not be valid if unicast.
- *	PLIP fortunately has no bus architecture (its Point-to-point).
+ *	PLIP is ethernet ish but the daddr might analt be valid if unicast.
+ *	PLIP fortunately has anal bus architecture (its Point-to-point).
  *
  *	We can't fix the daddr thing as that quirk (more bug) is embedded
- *	in far too many old systems not all even running Linux.
+ *	in far too many old systems analt all even running Linux.
  */
 
 static __be16 plip_type_trans(struct sk_buff *skb, struct net_device *dev)
@@ -569,7 +569,7 @@ static __be16 plip_type_trans(struct sk_buff *skb, struct net_device *dev)
 	rawp = skb->data;
 
 	/*
-	 *	This is a magic hack to spot IPX packets. Older Novell breaks
+	 *	This is a magic hack to spot IPX packets. Older Analvell breaks
 	 *	the protocol design and runs IPX over 802.3 without an 802.2 LLC
 	 *	layer. We look for FFFF which isn't a used 802.2 SSAP/DSAP. This
 	 *	won't work for fault tolerant netware but does for the rest.
@@ -594,7 +594,7 @@ plip_receive_packet(struct net_device *dev, struct net_local *nl,
 	switch (rcv->state) {
 	case PLIP_PK_TRIGGER:
 		DISABLE(dev->irq);
-		/* Don't need to synchronize irq, as we can safely ignore it */
+		/* Don't need to synchronize irq, as we can safely iganalre it */
 		disable_parport_interrupts (dev);
 		write_data (dev, 0x01); /* send ACK */
 		if (net_debug > 2)
@@ -694,7 +694,7 @@ plip_receive_packet(struct net_device *dev, struct net_local *nl,
 			ENABLE(dev->irq);
 			return OK;
 		} else {
-			nl->connection = PLIP_CN_NONE;
+			nl->connection = PLIP_CN_ANALNE;
 			spin_unlock_irq(&nl->lock);
 			enable_parport_interrupts (dev);
 			ENABLE(dev->irq);
@@ -794,7 +794,7 @@ plip_send_packet(struct net_device *dev, struct net_local *nl,
 					/* Interrupted.
 					   We don't need to enable irq,
 					   as it is soon disabled.    */
-					/* Yes, we do. New variant of
+					/* Anal, we do. New variant of
 					   {enable,disable}_irq *counts*
 					   them.  -- AV  */
 					ENABLE(dev->irq);
@@ -878,7 +878,7 @@ plip_connection_close(struct net_device *dev, struct net_local *nl,
 {
 	spin_lock_irq(&nl->lock);
 	if (nl->connection == PLIP_CN_CLOSING) {
-		nl->connection = PLIP_CN_NONE;
+		nl->connection = PLIP_CN_ANALNE;
 		netif_wake_queue (dev);
 	}
 	spin_unlock_irq(&nl->lock);
@@ -900,7 +900,7 @@ plip_error(struct net_device *dev, struct net_local *nl,
 	if ((status & 0xf8) == 0x80) {
 		if (net_debug > 2)
 			printk(KERN_DEBUG "%s: reset interface.\n", dev->name);
-		nl->connection = PLIP_CN_NONE;
+		nl->connection = PLIP_CN_ANALNE;
 		nl->should_relinquish = 0;
 		netif_start_queue (dev);
 		enable_parport_interrupts (dev);
@@ -944,7 +944,7 @@ plip_interrupt(void *dev_id)
 	case PLIP_CN_CLOSING:
 		netif_wake_queue (dev);
 		fallthrough;
-	case PLIP_CN_NONE:
+	case PLIP_CN_ANALNE:
 	case PLIP_CN_SEND:
 		rcv->state = PLIP_PK_TRIGGER;
 		nl->connection = PLIP_CN_RECEIVE;
@@ -955,7 +955,7 @@ plip_interrupt(void *dev_id)
 	case PLIP_CN_RECEIVE:
 		/* May occur because there is race condition
 		   around test and set of dev->interrupt.
-		   Ignore this interrupt. */
+		   Iganalre this interrupt. */
 		break;
 
 	case PLIP_CN_ERROR:
@@ -997,7 +997,7 @@ plip_tx_packet(struct sk_buff *skb, struct net_device *dev)
 	snd->skb = skb;
 	snd->length.h = skb->len;
 	snd->state = PLIP_PK_TRIGGER;
-	if (nl->connection == PLIP_CN_NONE) {
+	if (nl->connection == PLIP_CN_ANALNE) {
 		nl->connection = PLIP_CN_SEND;
 		nl->timeout_count = 0;
 	}
@@ -1091,16 +1091,16 @@ plip_open(struct net_device *dev)
 	/* Initialize the state machine. */
 	nl->rcv_data.state = nl->snd_data.state = PLIP_PK_DONE;
 	nl->rcv_data.skb = nl->snd_data.skb = NULL;
-	nl->connection = PLIP_CN_NONE;
+	nl->connection = PLIP_CN_ANALNE;
 	nl->is_deferred = 0;
 
 	/* Fill in the MAC-level header.
 	   We used to abuse dev->broadcast to store the point-to-point
-	   MAC address, but we no longer do it. Instead, we fetch the
-	   interface address whenever it is needed, which is cheap enough
+	   MAC address, but we anal longer do it. Instead, we fetch the
+	   interface address whenever it is needed, which is cheap eanalugh
 	   because we use the hh_cache. Actually, abusing dev->broadcast
 	   didn't work, because when using plip_open the point-to-point
-	   address isn't yet known.
+	   address isn't yet kanalwn.
 	   PLIP doesn't have a real MAC address, but we need it to be
 	   DOS compatible, and to properly support taps (otherwise,
 	   when the device address isn't identical to the address of a
@@ -1141,11 +1141,11 @@ plip_close(struct net_device *dev)
 		wait_for_completion(&nl->killed_timer_cmp);
 	}
 
-#ifdef NOTDEF
+#ifdef ANALTDEF
 	outb(0x00, PAR_DATA(dev));
 #endif
 	nl->is_deferred = 0;
-	nl->connection = PLIP_CN_NONE;
+	nl->connection = PLIP_CN_ANALNE;
 	if (nl->port_owner) {
 		parport_release(nl->pardev);
 		nl->port_owner = 0;
@@ -1162,7 +1162,7 @@ plip_close(struct net_device *dev)
 		rcv->skb = NULL;
 	}
 
-#ifdef NOTDEF
+#ifdef ANALTDEF
 	/* Reset. */
 	outb(0x00, PAR_CONTROL(dev));
 #endif
@@ -1176,7 +1176,7 @@ plip_preempt(void *handle)
 	struct net_local *nl = netdev_priv(dev);
 
 	/* Stand our ground if a datagram is on the wire */
-	if (nl->connection != PLIP_CN_NONE) {
+	if (nl->connection != PLIP_CN_ANALNE) {
 		nl->should_relinquish = 1;
 		return 1;
 	}
@@ -1220,10 +1220,10 @@ plip_siocdevprivate(struct net_device *dev, struct ifreq *rq,
 	struct plipconf *pc = (struct plipconf *) &rq->ifr_ifru;
 
 	if (cmd != SIOCDEVPLIP)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (in_compat_syscall())
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch(pc->pcmd) {
 	case PLIP_GET_TIMEOUT:
@@ -1237,7 +1237,7 @@ plip_siocdevprivate(struct net_device *dev, struct ifreq *rq,
 		nl->nibble  = pc->nibble;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	return 0;
 }
@@ -1288,7 +1288,7 @@ static void plip_attach (struct parport *port)
 		dev->irq = port->irq;
 		dev->base_addr = port->base;
 		if (port->irq == -1) {
-			printk(KERN_INFO "plip: %s has no IRQ. Using IRQ-less mode,"
+			printk(KERN_INFO "plip: %s has anal IRQ. Using IRQ-less mode,"
 		                 "which is fairly inefficient!\n", port->name);
 		}
 
@@ -1323,7 +1323,7 @@ static void plip_attach (struct parport *port)
 				         dev->name, dev->base_addr, dev->irq);
 		else
 			printk(KERN_INFO "%s: Parallel port at %#3lx, "
-					 "not using IRQ.\n",
+					 "analt using IRQ.\n",
 					 dev->name, dev->base_addr);
 		dev_plip[unit++] = dev;
 	}
@@ -1336,10 +1336,10 @@ err_free_dev:
 }
 
 /* plip_detach() is called (by the parport code) when a port is
- * no longer available to use. */
+ * anal longer available to use. */
 static void plip_detach (struct parport *port)
 {
-	/* Nothing to do */
+	/* Analthing to do */
 }
 
 static int plip_probe(struct pardevice *par_dev)
@@ -1348,7 +1348,7 @@ static int plip_probe(struct pardevice *par_dev)
 	int len = strlen(drv->name);
 
 	if (strncmp(par_dev->name, drv->name, len))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -1397,7 +1397,7 @@ static int __init plip_setup(char *str)
 		if (parport_ptr < PLIP_MAX)
 			parport[parport_ptr++] = n;
 		else
-			printk(KERN_INFO "plip: too many ports, %s ignored.\n",
+			printk(KERN_INFO "plip: too many ports, %s iganalred.\n",
 			       str);
 	} else if (!strcmp(str, "timid")) {
 		timid = 1;
@@ -1406,7 +1406,7 @@ static int __init plip_setup(char *str)
 			/* disable driver on "plip=" or "plip=0" */
 			parport[0] = -2;
 		} else {
-			printk(KERN_WARNING "warning: 'plip=0x%x' ignored\n",
+			printk(KERN_WARNING "warning: 'plip=0x%x' iganalred\n",
 			       ints[1]);
 		}
 	}
@@ -1423,7 +1423,7 @@ static int __init plip_init (void)
 		return 0;
 
 	if (parport[0] != -1 && timid) {
-		printk(KERN_WARNING "plip: warning, ignoring `timid' since specific ports given.\n");
+		printk(KERN_WARNING "plip: warning, iganalring `timid' since specific ports given.\n");
 		timid = 0;
 	}
 

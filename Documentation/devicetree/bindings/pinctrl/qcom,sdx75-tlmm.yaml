@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/pinctrl/qcom,sdx75-tlmm.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm Technologies, Inc. SDX75 TLMM block
+title: Qualcomm Techanallogies, Inc. SDX75 TLMM block
 
 maintainers:
   - Rohit Agarwal <quic_rohiagar@quicinc.com>
@@ -45,8 +45,8 @@ $defs:
   qcom-sdx75-tlmm-state:
     type: object
     description:
-      Pinctrl node's client devices use subnodes for desired pin configuration.
-      Client device subnodes use below standard properties.
+      Pinctrl analde's client devices use subanaldes for desired pin configuration.
+      Client device subanaldes use below standard properties.
     $ref: qcom,tlmm-common.yaml#/$defs/qcom-tlmm-state
     unevaluatedProperties: false
 
@@ -54,7 +54,7 @@ $defs:
       pins:
         description:
           List of gpio pins affected by the properties specified in this
-          subnode.
+          subanalde.
         items:
           oneOf:
             - pattern: "^gpio([0-9]|[1-9][0-9]|1[0-2][0-9]|13[0-2])$"

@@ -78,7 +78,7 @@ static int pisosr_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
 	struct pisosr_gpio *gpio = gpiochip_get_data(chip);
 
-	/* Refresh may not always be needed */
+	/* Refresh may analt always be needed */
 	pisosr_gpio_refresh(gpio);
 
 	return (gpio->buffer[offset / 8] >> (offset % 8)) & 0x1;
@@ -129,18 +129,18 @@ static int pisosr_gpio_probe(struct spi_device *spi)
 
 	gpio = devm_kzalloc(dev, sizeof(*gpio), GFP_KERNEL);
 	if (!gpio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gpio->chip = template_chip;
 	gpio->chip.parent = dev;
-	of_property_read_u16(dev->of_node, "ngpios", &gpio->chip.ngpio);
+	of_property_read_u16(dev->of_analde, "ngpios", &gpio->chip.ngpio);
 
 	gpio->spi = spi;
 
 	gpio->buffer_size = DIV_ROUND_UP(gpio->chip.ngpio, 8);
 	gpio->buffer = devm_kzalloc(dev, gpio->buffer_size, GFP_KERNEL);
 	if (!gpio->buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gpio->load_gpio = devm_gpiod_get_optional(dev, "load", GPIOD_OUT_LOW);
 	if (IS_ERR(gpio->load_gpio))

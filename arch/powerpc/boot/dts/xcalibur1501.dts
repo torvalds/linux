@@ -73,7 +73,7 @@
 			  3 0 0 0xef840000 0x40000    /* CS3: NAND CE2 */
 			  4 0 0 0xe9000000 0x100000>; /* CS4: USB */
 
-		nor-boot@0,0 {
+		analr-boot@0,0 {
 			compatible = "amd,s29gl01gp", "cfi-flash";
 			bank-width = <2>;
 			reg = <0 0 0x8000000>; /* 128MB */
@@ -102,7 +102,7 @@
 			};
 		};
 
-		nor-alternate@1,0 {
+		analr-alternate@1,0 {
 			compatible = "amd,s29gl01gp", "cfi-flash";
 			bank-width = <2>;
 			//reg = <0xf0000000 0x08000000>; /* 128MB */
@@ -647,10 +647,10 @@
 	};
 
 	/*
-	 * PCI Express controller 3 @ ef008000 is not used.
+	 * PCI Express controller 3 @ ef008000 is analt used.
 	 * This would have been pci0 on other mpc85xx platforms.
 	 *
-	 * PCI Express controller 2 @ ef009000 is not used.
+	 * PCI Express controller 2 @ ef009000 is analt used.
 	 * This would have been pci1 on other mpc85xx platforms.
 	 */
 

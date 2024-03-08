@@ -15,7 +15,7 @@
  * If a DMA address is requested and the SRAM supports DMA, its
  * mapped address is also returned.
  *
- * Errors include SRAM memory not being available, and requesting
+ * Errors include SRAM memory analt being available, and requesting
  * DMA mapped SRAM on systems which don't allow that.
  */
 extern void *sram_alloc(size_t len, dma_addr_t *dma);

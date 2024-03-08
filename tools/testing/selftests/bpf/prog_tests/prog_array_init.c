@@ -10,17 +10,17 @@ void test_prog_array_init(void)
 	int err;
 
 	skel = test_prog_array_init__open();
-	if (!ASSERT_OK_PTR(skel, "could not open BPF object"))
+	if (!ASSERT_OK_PTR(skel, "could analt open BPF object"))
 		return;
 
 	skel->rodata->my_pid = getpid();
 
 	err = test_prog_array_init__load(skel);
-	if (!ASSERT_OK(err, "could not load BPF object"))
+	if (!ASSERT_OK(err, "could analt load BPF object"))
 		goto cleanup;
 
 	skel->links.entry = bpf_program__attach_raw_tracepoint(skel->progs.entry, "sys_enter");
-	if (!ASSERT_OK_PTR(skel->links.entry, "could not attach BPF program"))
+	if (!ASSERT_OK_PTR(skel->links.entry, "could analt attach BPF program"))
 		goto cleanup;
 
 	usleep(1);

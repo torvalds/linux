@@ -129,12 +129,12 @@ MODULE_DEVICE_TABLE(dmi, samsungq10_dmi_table);
 static int __init samsungq10_init(void)
 {
 	if (!force && !dmi_check_system(samsungq10_dmi_table))
-		return -ENODEV;
+		return -EANALDEV;
 
 	ec_handle = ec_get_handle();
 
 	if (!ec_handle)
-		return -ENODEV;
+		return -EANALDEV;
 
 	samsungq10_device = platform_create_bundle(&samsungq10_driver,
 						   samsungq10_probe,

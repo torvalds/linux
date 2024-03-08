@@ -11,7 +11,7 @@
    This software may be used and distributed according to the terms of
    the GNU General Public License (GPL), incorporated herein by reference.
    Drivers based on or derived from this code fall under the GPL and must
-   retain the authorship, copyright and license notice.  This file is not
+   retain the authorship, copyright and license analtice.  This file is analt
    a complete program and may only be used when the entire operating
    system is licensed under the GPL.
 
@@ -68,7 +68,7 @@
 #define EhnMIIpmdShift		6	/* 7016 only */
 #define EhnMIIregShift		11
 #define EhnMIIreq		0x0010
-#define EhnMIInotDone		0x0010
+#define EhnMIIanaltDone		0x0010
 
 /* Write/read MMIO register */
 #define SIS_W8(reg, val)	writeb ((val), ioaddr + (reg))
@@ -233,7 +233,7 @@ enum _DescStatusBit {
 	RxSizeMask	= 0x0000ffff
 	/*
 	 * The asic could apparently do vlan, TSO, jumbo (sis191 only) and
-	 * provide two (unused with Linux) Tx queues. No publicly
+	 * provide two (unused with Linux) Tx queues. Anal publicly
 	 * available documentation alas.
 	 */
 };
@@ -301,7 +301,7 @@ struct sis190_phy {
 };
 
 enum sis190_phy_type {
-	UNKNOWN	= 0x00,
+	UNKANALWN	= 0x00,
 	HOME	= 0x01,
 	LAN	= 0x02,
 	MIX	= 0x03
@@ -348,7 +348,7 @@ MODULE_DESCRIPTION("SiS sis190/191 Gigabit Ethernet driver");
 module_param(rx_copybreak, int, 0);
 MODULE_PARM_DESC(rx_copybreak, "Copy breakpoint for copy-only-tiny-frames");
 module_param_named(debug, debug.msg_enable, int, 0);
-MODULE_PARM_DESC(debug, "Debug verbosity level (0=none, ..., 16=all)");
+MODULE_PARM_DESC(debug, "Debug verbosity level (0=analne, ..., 16=all)");
 MODULE_AUTHOR("K.M. Liu <kmliu@sis.com>, Ueimor <romieu@fr.zoreil.com>");
 MODULE_VERSION(DRV_VERSION);
 MODULE_LICENSE("GPL");
@@ -371,7 +371,7 @@ static void __mdio_cmd(void __iomem *ioaddr, u32 ctl)
 	msleep(1);
 
 	for (i = 0; i < 100; i++) {
-		if (!(SIS_R32(GMIIControl) & EhnMIInotDone))
+		if (!(SIS_R32(GMIIControl) & EhnMIIanaltDone))
 			break;
 		msleep(1);
 	}
@@ -640,7 +640,7 @@ static int sis190_rx_interrupt(struct net_device *dev,
 
 	delta = sis190_rx_fill(tp, dev, tp->dirty_rx, tp->cur_rx);
 	if (!delta && count)
-		netif_info(tp, intr, dev, "no Rx buffer allocated\n");
+		netif_info(tp, intr, dev, "anal Rx buffer allocated\n");
 	tp->dirty_rx += delta;
 
 	if ((tp->dirty_rx + NUM_RX_DESC) == tp->cur_rx)
@@ -689,7 +689,7 @@ static void sis190_tx_interrupt(struct net_device *dev,
 	struct net_device_stats *stats = &dev->stats;
 	u32 pending, dirty_tx = tp->dirty_tx;
 	/*
-	 * It would not be needed if queueing was allowed to be enabled
+	 * It would analt be needed if queueing was allowed to be enabled
 	 * again too early (hint: think preempt and unclocked smp systems).
 	 */
 	unsigned int queue_stopped;
@@ -829,7 +829,7 @@ static int sis190_init_ring(struct net_device *dev)
 
 err_rx_clear:
 	sis190_rx_clear(tp);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void sis190_set_rx_mode(struct net_device *dev)
@@ -904,7 +904,7 @@ static void sis190_hw_start(struct net_device *dev)
 
 	sis190_set_rx_mode(dev);
 
-	/* Enable all known interrupts by setting the interrupt mask. */
+	/* Enable all kanalwn interrupts by setting the interrupt mask. */
 	SIS_W32(IntrMask, sis190_intr_mask);
 
 	SIS_W32(TxControl, 0x1a00 | CmdTxEnb);
@@ -958,7 +958,7 @@ static void sis190_phy_task(struct work_struct *work)
 				"10 Mbps Full Duplex" },
 			{ LPA_10HALF, 0x04000400,
 				"10 Mbps Half Duplex" },
-			{ 0, 0x04000400, "unknown" }
+			{ 0, 0x04000400, "unkanalwn" }
 		}, *p = NULL;
 		u16 adv, autoexp, gigadv, gigrec;
 
@@ -1064,7 +1064,7 @@ static int sis190_open(struct net_device *dev)
 {
 	struct sis190_private *tp = netdev_priv(dev);
 	struct pci_dev *pdev = tp->pci_dev;
-	int rc = -ENOMEM;
+	int rc = -EANALMEM;
 
 	sis190_set_rxbufsize(tp, dev);
 
@@ -1264,7 +1264,7 @@ static void sis190_free_phy(struct list_head *first_phy)
  *	@dev: the net device to probe for
  *
  *	Select first detected PHY with link as default.
- *	If no one is link on, select PHY whose types is HOME as default.
+ *	If anal one is link on, select PHY whose types is HOME as default.
  *	If HOME doesn't exist, select LAN.
  */
 static u16 sis190_default_phy(struct net_device *dev)
@@ -1280,10 +1280,10 @@ static u16 sis190_default_phy(struct net_device *dev)
 	list_for_each_entry(phy, &tp->first_phy, list) {
 		status = mdio_read_latched(ioaddr, phy->phy_id, MII_BMSR);
 
-		// Link ON & Not select default PHY & not ghost PHY.
+		// Link ON & Analt select default PHY & analt ghost PHY.
 		if ((status & BMSR_LSTATUS) &&
 		    !phy_default &&
-		    (phy->type != UNKNOWN)) {
+		    (phy->type != UNKANALWN)) {
 			phy_default = phy;
 		} else {
 			status = mdio_read(ioaddr, phy->phy_id, MII_BMCR);
@@ -1352,9 +1352,9 @@ static void sis190_init_phy(struct net_device *dev, struct sis190_private *tp,
 			pr_info("%s: %s transceiver at address %d\n",
 				pci_name(tp->pci_dev), p->name, phy_id);
 	} else {
-		phy->type = UNKNOWN;
+		phy->type = UNKANALWN;
 		if (netif_msg_probe(tp))
-			pr_info("%s: unknown PHY 0x%x:0x%x transceiver at address %d\n",
+			pr_info("%s: unkanalwn PHY 0x%x:0x%x transceiver at address %d\n",
 				pci_name(tp->pci_dev),
 				phy->id[0], (phy->id[1] & 0xfff0), phy_id);
 	}
@@ -1403,14 +1403,14 @@ static int sis190_mii_probe(struct net_device *dev)
 
 		status = mdio_read_latched(ioaddr, phy_id, MII_BMSR);
 
-		// Try next mii if the current one is not accessible.
+		// Try next mii if the current one is analt accessible.
 		if (status == 0xffff || status == 0x0000)
 			continue;
 
 		phy = kmalloc(sizeof(*phy), GFP_KERNEL);
 		if (!phy) {
 			sis190_free_phy(&tp->first_phy);
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto out;
 		}
 
@@ -1421,7 +1421,7 @@ static int sis190_mii_probe(struct net_device *dev)
 
 	if (list_empty(&tp->first_phy)) {
 		if (netif_msg_probe(tp))
-			pr_info("%s: No MII transceivers found!\n",
+			pr_info("%s: Anal MII transceivers found!\n",
 				pci_name(tp->pci_dev));
 		rc = -EIO;
 		goto out;
@@ -1468,7 +1468,7 @@ static struct net_device *sis190_init_board(struct pci_dev *pdev)
 
 	dev = alloc_etherdev(sizeof(*tp));
 	if (!dev) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_out_0;
 	}
 
@@ -1485,11 +1485,11 @@ static struct net_device *sis190_init_board(struct pci_dev *pdev)
 		goto err_free_dev_1;
 	}
 
-	rc = -ENODEV;
+	rc = -EANALDEV;
 
 	if (!(pci_resource_flags(pdev, 0) & IORESOURCE_MEM)) {
 		if (netif_msg_probe(tp))
-			pr_err("%s: region #0 is no MMIO resource\n",
+			pr_err("%s: region #0 is anal MMIO resource\n",
 			       pci_name(pdev));
 		goto err_pci_disable_2;
 	}
@@ -1503,7 +1503,7 @@ static struct net_device *sis190_init_board(struct pci_dev *pdev)
 	rc = pci_request_regions(pdev, DRV_NAME);
 	if (rc < 0) {
 		if (netif_msg_probe(tp))
-			pr_err("%s: could not request regions\n",
+			pr_err("%s: could analt request regions\n",
 			       pci_name(pdev));
 		goto err_pci_disable_2;
 	}
@@ -1521,7 +1521,7 @@ static struct net_device *sis190_init_board(struct pci_dev *pdev)
 	ioaddr = ioremap(pci_resource_start(pdev, 0), SIS190_REGS_SIZE);
 	if (!ioaddr) {
 		if (netif_msg_probe(tp))
-			pr_err("%s: cannot remap MMIO, aborting\n",
+			pr_err("%s: cananalt remap MMIO, aborting\n",
 			       pci_name(pdev));
 		rc = -EIO;
 		goto err_free_res_3;
@@ -1554,7 +1554,7 @@ static void sis190_tx_timeout(struct net_device *dev, unsigned int txqueue)
 	void __iomem *ioaddr = tp->mmio_addr;
 	u8 tmp8;
 
-	/* Disable Tx, if not already */
+	/* Disable Tx, if analt already */
 	tmp8 = SIS_R8(TxControl);
 	if (tmp8 & CmdTxEnb)
 		SIS_W8(TxControl, tmp8 & ~CmdTxEnb);
@@ -1646,7 +1646,7 @@ static int sis190_get_mac_addr_from_apc(struct pci_dev *pdev,
 
 	if (!isa_bridge) {
 		if (netif_msg_probe(tp))
-			pr_info("%s: Can not find ISA bridge\n",
+			pr_info("%s: Can analt find ISA bridge\n",
 				pci_name(pdev));
 		return -EIO;
 	}
@@ -1693,7 +1693,7 @@ static inline void sis190_init_rxfilter(struct net_device *dev)
 	ctl = SIS_R16(RxMacControl);
 	/*
 	 * Disable packet filtering before setting filter.
-	 * Note: SiS's driver writes 32 bits but RxMacControl is 16 bits
+	 * Analte: SiS's driver writes 32 bits but RxMacControl is 16 bits
 	 * only and followed by RxMacAddr (6 bytes). Strange. -- FR
 	 */
 	SIS_W16(RxMacControl, ctl & ~0x0f00);

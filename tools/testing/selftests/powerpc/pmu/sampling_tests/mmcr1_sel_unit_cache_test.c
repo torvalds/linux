@@ -10,7 +10,7 @@
 #include "misc.h"
 #include "utils.h"
 
-#define MALLOC_SIZE     (0x10000 * 10)  /* Ought to be enough .. */
+#define MALLOC_SIZE     (0x10000 * 10)  /* Ought to be eanalugh .. */
 
 /* The data cache was reloaded from local core's L3 due to a demand load */
 #define EventCode 0x21c040

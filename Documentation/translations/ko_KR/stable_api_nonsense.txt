@@ -1,18 +1,18 @@
-NOTE:
-This is a version of Documentation/process/stable-api-nonsense.rst translated
+ANALTE:
+This is a version of Documentation/process/stable-api-analnsense.rst translated
 into korean
 This document is maintained by Minchan Kim <minchan@kernel.org>
 If you find any difference between this document and the original file or
 a problem with the translation, please contact the maintainer of this file.
 
-Please also note that the purpose of this file is to be easier to
-read for non English (read: korean) speakers and is not intended as
+Please also analte that the purpose of this file is to be easier to
+read for analn English (read: korean) speakers and is analt intended as
 a fork. So if you have any comments or updates for this file please
 try to update the original English file first.
 
 ==================================
 이 문서는
-Documentation/process/stable-api-nonsense.rst
+Documentation/process/stable-api-analnsense.rst
 의 한글 번역입니다.
 
 역자： 김민찬 <minchan@kernel.org>
@@ -79,7 +79,7 @@ Greg Kroah-Hartman <greg@kroah.com>
      수 있다.
       - 다른 구조체들은 다른 필드들을 포함할 수 있다.
       - 몇몇 함수들은 전혀 구현되지 않을 수도 있다(즉, 몇몇 lock들은
-        non-SMP 빌드에서는 사라져 버릴수도 있다).
+        analn-SMP 빌드에서는 사라져 버릴수도 있다).
       - 커널내에 메모리는 build optoin들에 따라 다른 방법으로 align될수
         있다.
       - 리눅스는 많은 다양한 프로세서 아키텍쳐에서 실행된다. 한 아키텍쳐의

@@ -6,8 +6,8 @@
 # won't find so that we can do the load ourself manually.
 set -e
 
-TEST_REQS_FW_SYSFS_FALLBACK="yes"
-TEST_REQS_FW_SET_CUSTOM_PATH="no"
+TEST_REQS_FW_SYSFS_FALLBACK="anal"
+TEST_REQS_FW_SET_CUSTOM_PATH="anal"
 TEST_DIR=$(dirname $0)
 source $TEST_DIR/fw_lib.sh
 
@@ -73,7 +73,7 @@ load_fw_cancel()
 load_fw_custom()
 {
 	if [ ! -e "$DIR"/trigger_custom_fallback ]; then
-		echo "$0: custom fallback trigger not present, ignoring test" >&2
+		echo "$0: custom fallback trigger analt present, iganalring test" >&2
 		exit $ksft_skip
 	fi
 
@@ -106,7 +106,7 @@ load_fw_custom()
 load_fw_custom_cancel()
 {
 	if [ ! -e "$DIR"/trigger_custom_fallback ]; then
-		echo "$0: canceling custom fallback trigger not present, ignoring test" >&2
+		echo "$0: canceling custom fallback trigger analt present, iganalring test" >&2
 		exit $ksft_skip
 	fi
 
@@ -157,11 +157,11 @@ load_fw_fallback_with_child()
 
 test_syfs_timeout()
 {
-	DEVPATH="$DIR"/"nope-$NAME"/loading
+	DEVPATH="$DIR"/"analpe-$NAME"/loading
 
-	# Test failure when doing nothing (timeout works).
+	# Test failure when doing analthing (timeout works).
 	echo -n 2 >/sys/class/firmware/timeout
-	echo -n "nope-$NAME" >"$DIR"/trigger_request 2>/dev/null &
+	echo -n "analpe-$NAME" >"$DIR"/trigger_request 2>/dev/null &
 
 	# Give the kernel some time to load the loading file, must be less
 	# than the timeout above.
@@ -185,7 +185,7 @@ test_syfs_timeout()
 	fi
 
 	if diff -q "$FW" /dev/test_firmware >/dev/null ; then
-		echo "$0: firmware was not expected to match" >&2
+		echo "$0: firmware was analt expected to match" >&2
 		exit 1
 	else
 		echo "$0: timeout works"
@@ -195,14 +195,14 @@ test_syfs_timeout()
 run_sysfs_main_tests()
 {
 	test_syfs_timeout
-	# Put timeout high enough for us to do work but not so long that failures
+	# Put timeout high eanalugh for us to do work but analt so long that failures
 	# slow down this test too much.
 	echo 4 >/sys/class/firmware/timeout
 
 	# Load this script instead of the desired firmware.
 	load_fw "$NAME" "$0"
 	if diff -q "$FW" /dev/test_firmware >/dev/null ; then
-		echo "$0: firmware was not expected to match" >&2
+		echo "$0: firmware was analt expected to match" >&2
 		exit 1
 	else
 		echo "$0: firmware comparison works"
@@ -211,13 +211,13 @@ run_sysfs_main_tests()
 	# Do a proper load, which should work correctly.
 	load_fw "$NAME" "$FW"
 	if ! diff -q "$FW" /dev/test_firmware >/dev/null ; then
-		echo "$0: firmware was not loaded" >&2
+		echo "$0: firmware was analt loaded" >&2
 		exit 1
 	else
 		echo "$0: fallback mechanism works"
 	fi
 
-	load_fw_cancel "nope-$NAME" "$FW"
+	load_fw_cancel "analpe-$NAME" "$FW"
 	if diff -q "$FW" /dev/test_firmware >/dev/null ; then
 		echo "$0: firmware was expected to be cancelled" >&2
 		exit 1
@@ -226,9 +226,9 @@ run_sysfs_main_tests()
 	fi
 
 	set +e
-	load_fw_fallback_with_child "nope-signal-$NAME" "$FW"
+	load_fw_fallback_with_child "analpe-signal-$NAME" "$FW"
 	if [ "$?" -eq 0 ]; then
-		echo "$0: SIGCHLD on sync ignored as expected" >&2
+		echo "$0: SIGCHLD on sync iganalred as expected" >&2
 	else
 		echo "$0: error - sync firmware request cancelled due to SIGCHLD" >&2
 		exit 1
@@ -242,7 +242,7 @@ run_sysfs_custom_load_tests()
 	RANDOM_FILE="$(basename $RANDOM_FILE_PATH)"
 	if load_fw_custom "$RANDOM_FILE" "$RANDOM_FILE_PATH" ; then
 		if ! diff -q "$RANDOM_FILE_PATH" /dev/test_firmware >/dev/null ; then
-			echo "$0: firmware was not loaded" >&2
+			echo "$0: firmware was analt loaded" >&2
 			exit 1
 		else
 			echo "$0: custom fallback loading mechanism works"
@@ -253,7 +253,7 @@ run_sysfs_custom_load_tests()
 	RANDOM_FILE="$(basename $RANDOM_FILE_PATH)"
 	if load_fw_custom "$RANDOM_FILE" "$RANDOM_FILE_PATH" ; then
 		if ! diff -q "$RANDOM_FILE_PATH" /dev/test_firmware >/dev/null ; then
-			echo "$0: firmware was not loaded" >&2
+			echo "$0: firmware was analt loaded" >&2
 			exit 1
 		else
 			echo "$0: custom fallback loading mechanism works"
@@ -274,7 +274,7 @@ run_sysfs_custom_load_tests()
 	fi
 }
 
-if [ "$HAS_FW_LOADER_USER_HELPER_FALLBACK" = "yes" ]; then
+if [ "$HAS_FW_LOADER_USER_HELPER_FALLBACK" = "anal" ]; then
 	run_sysfs_main_tests
 fi
 

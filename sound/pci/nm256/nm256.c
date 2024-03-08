@@ -4,8 +4,8 @@
  * Copyright (c) 2000 by Takashi Iwai <tiwai@suse.de>
  *
  * Based on nm256_audio.c OSS driver in linux kernel.
- * The original author of OSS nm256 driver wishes to remain anonymous,
- * so I just put my acknoledgment to him/her here.
+ * The original author of OSS nm256 driver wishes to remain aanalnymous,
+ * so I just put my ackanalledgment to him/her here.
  * The original author's web page is found at
  *	http://www.uglx.org/sony.html
  */
@@ -42,7 +42,7 @@ static char *id = SNDRV_DEFAULT_STR1;	/* ID for this card */
 static int playback_bufsize = 16;
 static int capture_bufsize = 16;
 static bool force_ac97;			/* disabled as default */
-static int buffer_top;			/* not specified */
+static int buffer_top;			/* analt specified */
 static bool use_cache;			/* disabled */
 static bool vaio_hack;			/* disabled */
 static bool reset_workaround;
@@ -63,7 +63,7 @@ MODULE_PARM_DESC(buffer_top, "Set the top address of audio buffer for " CARD_NAM
 module_param(use_cache, bool, 0444);
 MODULE_PARM_DESC(use_cache, "Enable the cache for coefficient table access.");
 module_param(vaio_hack, bool, 0444);
-MODULE_PARM_DESC(vaio_hack, "Enable workaround for Sony VAIO notebooks.");
+MODULE_PARM_DESC(vaio_hack, "Enable workaround for Sony VAIO analtebooks.");
 module_param(reset_workaround, bool, 0444);
 MODULE_PARM_DESC(reset_workaround, "Enable AC97 RESET workaround for some laptops.");
 module_param(reset_workaround_2, bool, 0444);
@@ -132,7 +132,7 @@ module_param(enable, bool, 0444);
 /* The rate register is located 2 bytes from the start of the register area. */
 #define NM_RATE_REG_OFFSET 2
 
-/* Mono/stereo flag, number of bits on playback, and rate mask. */
+/* Moanal/stereo flag, number of bits on playback, and rate mask. */
 #define NM_RATE_STEREO 1
 #define NM_RATE_BITS_16 2
 #define NM_RATE_MASK 0xf0
@@ -760,7 +760,7 @@ static const struct snd_pcm_hardware snd_nm256_playback =
 				/*SNDRV_PCM_INFO_PAUSE |*/
 				SNDRV_PCM_INFO_RESUME,
 	.formats =		SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_S16_LE,
-	.rates =		SNDRV_PCM_RATE_KNOT/*24k*/ | SNDRV_PCM_RATE_8000_48000,
+	.rates =		SNDRV_PCM_RATE_KANALT/*24k*/ | SNDRV_PCM_RATE_8000_48000,
 	.rate_min =		8000,
 	.rate_max =		48000,
 	.channels_min =		1,
@@ -779,7 +779,7 @@ static const struct snd_pcm_hardware snd_nm256_capture =
 				/*SNDRV_PCM_INFO_PAUSE |*/
 				SNDRV_PCM_INFO_RESUME,
 	.formats =		SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_S16_LE,
-	.rates =		SNDRV_PCM_RATE_KNOT/*24k*/ | SNDRV_PCM_RATE_8000_48000,
+	.rates =		SNDRV_PCM_RATE_KANALT/*24k*/ | SNDRV_PCM_RATE_8000_48000,
 	.rate_min =		8000,
 	.rate_max =		48000,
 	.channels_min =		1,
@@ -948,14 +948,14 @@ snd_nm256_intr_check(struct nm256 *chip)
 {
 	if (chip->badintrcount++ > 1000) {
 		/*
-		 * I'm not sure if the best thing is to stop the card from
+		 * I'm analt sure if the best thing is to stop the card from
 		 * playing or just release the interrupt (after all, we're in
-		 * a bad situation, so doing fancy stuff may not be such a good
+		 * a bad situation, so doing fancy stuff may analt be such a good
 		 * idea).
 		 *
-		 * I worry about the card engine continuing to play noise
+		 * I worry about the card engine continuing to play analise
 		 * over and over, however--that could become a very
-		 * obnoxious problem.  And we know that when this usually
+		 * obanalxious problem.  And we kanalw that when this usually
 		 * happens things are fairly safe, it just means the user's
 		 * inserted a PCMCIA card and someone's spamming us with IRQ 9s.
 		 */
@@ -966,7 +966,7 @@ snd_nm256_intr_check(struct nm256 *chip)
 		chip->badintrcount = 0;
 		return IRQ_HANDLED;
 	}
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 /* 
@@ -987,7 +987,7 @@ snd_nm256_interrupt(int irq, void *dev_id)
 
 	status = snd_nm256_readw(chip, NM_INT_REG);
 
-	/* Not ours. */
+	/* Analt ours. */
 	if (status == 0)
 		return snd_nm256_intr_check(chip);
 
@@ -1025,10 +1025,10 @@ snd_nm256_interrupt(int irq, void *dev_id)
 		snd_nm256_writeb(chip, 0x400, cbyte & ~2);
 	}
 
-	/* Unknown interrupt. */
+	/* Unkanalwn interrupt. */
 	if (status) {
 		dev_dbg(chip->card->dev,
-			"NM256: Fire in the hole! Unknown status 0x%x\n",
+			"NM256: Fire in the hole! Unkanalwn status 0x%x\n",
 			   status);
 		/* Pray. */
 		NM_ACK_INT(chip, status);
@@ -1040,7 +1040,7 @@ snd_nm256_interrupt(int irq, void *dev_id)
 
 /*
  * Handle a potential interrupt for the device referred to by DEV_ID.
- * This handler is for the 256ZX, and is very similar to the non-ZX
+ * This handler is for the 256ZX, and is very similar to the analn-ZX
  * routine.
  */
 
@@ -1053,7 +1053,7 @@ snd_nm256_interrupt_zx(int irq, void *dev_id)
 
 	status = snd_nm256_readl(chip, NM_INT_REG);
 
-	/* Not ours. */
+	/* Analt ours. */
 	if (status == 0)
 		return snd_nm256_intr_check(chip);
 
@@ -1090,10 +1090,10 @@ snd_nm256_interrupt_zx(int irq, void *dev_id)
 		snd_nm256_writeb(chip, 0x400, cbyte & ~2);
 	}
 
-	/* Unknown interrupt. */
+	/* Unkanalwn interrupt. */
 	if (status) {
 		dev_dbg(chip->card->dev,
-			"NM256: Fire in the hole! Unknown status 0x%x\n",
+			"NM256: Fire in the hole! Unkanalwn status 0x%x\n",
 			   status);
 		/* Pray. */
 		NM2_ACK_INT(chip, status);
@@ -1137,7 +1137,7 @@ snd_nm256_ac97_ready(struct nm256 *chip)
  * While most of these are identical to the reset values, we do this
  * so that we have most of the register contents cached--this avoids
  * reading from the mixer directly (which seems to be problematic,
- * probably due to ignorance).
+ * probably due to iganalrance).
  */
 
 struct initialValues {
@@ -1149,7 +1149,7 @@ static const struct initialValues nm256_ac97_init_val[] =
 {
 	{ AC97_MASTER, 		0x8000 },
 	{ AC97_HEADPHONE,	0x8000 },
-	{ AC97_MASTER_MONO,	0x8000 },
+	{ AC97_MASTER_MOANAL,	0x8000 },
 	{ AC97_PC_BEEP,		0x8000 },
 	{ AC97_PHONE,		0x8008 },
 	{ AC97_MIC,		0x8000 },
@@ -1219,14 +1219,14 @@ snd_nm256_ac97_write(struct snd_ac97 *ac97,
 			return;
 		}
 	}
-	dev_dbg(chip->card->dev, "nm256: ac97 codec not ready..\n");
+	dev_dbg(chip->card->dev, "nm256: ac97 codec analt ready..\n");
 }
 
 /* static resolution table */
 static const struct snd_ac97_res_table nm256_res_table[] = {
 	{ AC97_MASTER, 0x1f1f },
 	{ AC97_HEADPHONE, 0x1f1f },
-	{ AC97_MASTER_MONO, 0x001f },
+	{ AC97_MASTER_MOANAL, 0x001f },
 	{ AC97_PC_BEEP, 0x001f },
 	{ AC97_PHONE, 0x001f },
 	{ AC97_MIC, 0x001f },
@@ -1239,7 +1239,7 @@ static const struct snd_ac97_res_table nm256_res_table[] = {
 	{ } /* terminator */
 };
 
-/* initialize the ac97 into a known state */
+/* initialize the ac97 into a kanalwn state */
 static void
 snd_nm256_ac97_reset(struct snd_ac97 *ac97)
 {
@@ -1285,7 +1285,7 @@ snd_nm256_mixer(struct nm256 *chip)
 				       ARRAY_SIZE(nm256_ac97_init_val),
 				       sizeof(short), GFP_KERNEL);
 	if (! chip->ac97_regs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = snd_ac97_bus(chip->card, 0, &ops, NULL, &pbus);
 	if (err < 0)
@@ -1295,7 +1295,7 @@ snd_nm256_mixer(struct nm256 *chip)
 	ac97.scaps = AC97_SCAP_AUDIO; /* we support audio! */
 	ac97.private_data = chip;
 	ac97.res_table = nm256_res_table;
-	pbus->no_vra = 1;
+	pbus->anal_vra = 1;
 	err = snd_ac97_mixer(pbus, &ac97, &chip->ac97);
 	if (err < 0)
 		return err;
@@ -1341,7 +1341,7 @@ snd_nm256_peek_for_sig(struct nm256 *chip)
 			dev_err(chip->card->dev,
 				"invalid signature found: 0x%x\n", pointer);
 			iounmap(temp);
-			return -ENODEV;
+			return -EANALDEV;
 		} else {
 			pointer_found = pointer;
 			dev_info(chip->card->dev,
@@ -1439,7 +1439,7 @@ snd_nm256_create(struct snd_card *card, struct pci_dev *pci)
 	chip->streams[SNDRV_PCM_STREAM_CAPTURE].bufsize = capture_bufsize * 1024;
 
 	/* 
-	 * The NM256 has two memory ports.  The first port is nothing
+	 * The NM256 has two memory ports.  The first port is analthing
 	 * more than a chunk of video RAM, which is used as the I/O ring
 	 * buffer.  The second port has the actual juicy stuff (like the
 	 * mixer and the playback engine control registers).
@@ -1458,16 +1458,16 @@ snd_nm256_create(struct snd_card *card, struct pci_dev *pci)
 	if (!chip->cport) {
 		dev_err(card->dev, "unable to map control port %lx\n",
 			chip->cport_addr);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (!strcmp(card->driver, "NM256AV")) {
-		/* Ok, try to see if this is a non-AC97 version of the hardware. */
+		/* Ok, try to see if this is a analn-AC97 version of the hardware. */
 		pval = snd_nm256_readw(chip, NM_MIXER_PRESENCE);
 		if ((pval & NM_PRESENCE_MASK) != NM_PRESENCE_VALUE) {
 			if (! force_ac97) {
 				dev_err(card->dev,
-					"no ac97 is found!\n");
+					"anal ac97 is found!\n");
 				dev_err(card->dev,
 					"force the driver to load by passing in the module parameter\n");
 				dev_err(card->dev,
@@ -1482,7 +1482,7 @@ snd_nm256_create(struct snd_card *card, struct pci_dev *pci)
 		chip->mixer_status_offset = NM_MIXER_STATUS_OFFSET;
 		chip->mixer_status_mask = NM_MIXER_READY_MASK;
 	} else {
-		/* Not sure if there is any relevant detect for the ZX or not.  */
+		/* Analt sure if there is any relevant detect for the ZX or analt.  */
 		if (snd_nm256_readb(chip, 0xa0b) != 0)
 			chip->buffer_end = 6144 * 1024;
 		else
@@ -1520,7 +1520,7 @@ snd_nm256_create(struct snd_card *card, struct pci_dev *pci)
 	if (!chip->buffer) {
 		dev_err(card->dev, "unable to map ring buffer at %lx\n",
 			chip->buffer_addr);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* set offsets */
@@ -1549,11 +1549,11 @@ snd_nm256_create(struct snd_card *card, struct pci_dev *pci)
 }
 
 
-enum { NM_IGNORED, NM_RESET_WORKAROUND, NM_RESET_WORKAROUND_2 };
+enum { NM_IGANALRED, NM_RESET_WORKAROUND, NM_RESET_WORKAROUND_2 };
 
 static const struct snd_pci_quirk nm256_quirks[] = {
 	/* HP omnibook 4150 has cs4232 codec internally */
-	SND_PCI_QUIRK(0x103c, 0x0007, "HP omnibook 4150", NM_IGNORED),
+	SND_PCI_QUIRK(0x103c, 0x0007, "HP omnibook 4150", NM_IGANALRED),
 	/* Reset workarounds to avoid lock-ups */
 	SND_PCI_QUIRK(0x104d, 0x8041, "Sony PCG-F305", NM_RESET_WORKAROUND),
 	SND_PCI_QUIRK(0x1028, 0x0080, "Dell Latitude LS", NM_RESET_WORKAROUND),
@@ -1575,10 +1575,10 @@ static int snd_nm256_probe(struct pci_dev *pci,
 		dev_dbg(&pci->dev, "Enabled quirk for %s.\n",
 			    snd_pci_quirk_name(q));
 		switch (q->value) {
-		case NM_IGNORED:
+		case NM_IGANALRED:
 			dev_info(&pci->dev,
 				 "The device is on the denylist. Loading stopped\n");
-			return -ENODEV;
+			return -EANALDEV;
 		case NM_RESET_WORKAROUND_2:
 			reset_workaround_2 = 1;
 			fallthrough;

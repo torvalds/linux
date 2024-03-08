@@ -21,7 +21,7 @@
 
 /* Minimal supported DPSW version */
 #define DPSW_MIN_VER_MAJOR		8
-#define DPSW_MIN_VER_MINOR		9
+#define DPSW_MIN_VER_MIANALR		9
 
 #define DEFAULT_VLAN_ID			1
 
@@ -65,7 +65,7 @@ static u16 dpaa2_switch_port_set_fdb(struct ethsw_port_priv *port_priv,
 	if (!bridge_dev) {
 		fdb = dpaa2_switch_fdb_get_unused(port_priv->ethsw_data);
 
-		/* If there is no unused FDB, we must be the last port that
+		/* If there is anal unused FDB, we must be the last port that
 		 * leaves the last bridge, all the others are standalone. We
 		 * can just keep the FDB that we already have.
 		 */
@@ -106,7 +106,7 @@ static u16 dpaa2_switch_port_set_fdb(struct ethsw_port_priv *port_priv,
 	 */
 	if (other_port_priv) {
 		/* The previous FDB is about to become unused, since the
-		 * interface is no longer standalone.
+		 * interface is anal longer standalone.
 		 */
 		port_priv->fdb->in_use = false;
 		port_priv->fdb->bridge_dev = NULL;
@@ -166,7 +166,7 @@ static int dpaa2_switch_fdb_set_egress_flood(struct ethsw_core *ethsw, u16 fdb_i
 		return err;
 	}
 
-	/* Setup unknown flooding domain */
+	/* Setup unkanalwn flooding domain */
 	dpaa2_switch_fdb_get_flood_cfg(ethsw, fdb_id, DPSW_FLOODING, &flood_cfg);
 	err = dpsw_set_egress_flood(ethsw->mc_io, 0, ethsw->dpsw_handle,
 				    &flood_cfg);
@@ -354,7 +354,7 @@ static int dpaa2_switch_port_set_stp_state(struct ethsw_port_priv *port_priv, u8
 	u16 vid;
 
 	if (!netif_running(port_priv->netdev) || state == port_priv->stp_state)
-		return 0;	/* Nothing to do */
+		return 0;	/* Analthing to do */
 
 	stp_cfg.state = br_stp_state_to_dpsw(state);
 	for (vid = 0; vid <= VLAN_VID_MASK; vid++) {
@@ -382,7 +382,7 @@ static int dpaa2_switch_dellink(struct ethsw_core *ethsw, u16 vid)
 	int i, err;
 
 	if (!ethsw->vlans[vid])
-		return -ENOENT;
+		return -EANALENT;
 
 	err = dpsw_vlan_remove(ethsw->mc_io, 0, ethsw->dpsw_handle, vid);
 	if (err) {
@@ -600,17 +600,17 @@ static int dpaa2_switch_port_link_state_update(struct net_device *netdev)
 	struct dpsw_link_state state;
 	int err;
 
-	/* When we manage the MAC/PHY using phylink there is no need
+	/* When we manage the MAC/PHY using phylink there is anal need
 	 * to manually update the netif_carrier.
 	 * We can avoid locking because we are called from the "link changed"
 	 * IRQ handler, which is the same as the "endpoint changed" IRQ handler
-	 * (the writer to port_priv->mac), so we cannot race with it.
+	 * (the writer to port_priv->mac), so we cananalt race with it.
 	 */
 	if (dpaa2_mac_is_type_phy(port_priv->mac))
 		return 0;
 
-	/* Interrupts are received even though no one issued an 'ifconfig up'
-	 * on the switch interface. Ignore these link state update interrupts
+	/* Interrupts are received even though anal one issued an 'ifconfig up'
+	 * on the switch interface. Iganalre these link state update interrupts
 	 */
 	if (!netif_running(netdev))
 		return 0;
@@ -671,7 +671,7 @@ static void dpaa2_switch_disable_ctrl_if_napi(struct ethsw_core *ethsw)
 	/* Access to the ethsw->napi_users relies on the RTNL lock */
 	ASSERT_RTNL();
 
-	/* If we are not the last interface using the NAPI, return */
+	/* If we are analt the last interface using the NAPI, return */
 	ethsw->napi_users--;
 	if (ethsw->napi_users)
 		return;
@@ -692,7 +692,7 @@ static int dpaa2_switch_port_open(struct net_device *netdev)
 		/* Explicitly set carrier off, otherwise
 		 * netif_carrier_ok() will return true and cause 'ip link show'
 		 * to report the LOWER_UP flag, even though the link
-		 * notification wasn't even received.
+		 * analtification wasn't even received.
 		 */
 		netif_carrier_off(netdev);
 	}
@@ -801,7 +801,7 @@ static int dpaa2_switch_fdb_dump_nl(struct fdb_dump_entry *entry,
 	ndm->ndm_flags   = NTF_SELF;
 	ndm->ndm_type    = 0;
 	ndm->ndm_ifindex = dump->dev->ifindex;
-	ndm->ndm_state   = is_dynamic ? NUD_REACHABLE : NUD_NOARP;
+	ndm->ndm_state   = is_dynamic ? NUD_REACHABLE : NUD_ANALARP;
 
 	if (nla_put(dump->skb, NDA_LLADDR, ETH_ALEN, entry->mac_addr))
 		goto nla_put_failure;
@@ -849,13 +849,13 @@ static int dpaa2_switch_fdb_iterate(struct ethsw_port_priv *port_priv,
 	fdb_dump_size = ethsw->sw_attr.max_fdb_entries * sizeof(fdb_entry);
 	dma_mem = kzalloc(fdb_dump_size, GFP_KERNEL);
 	if (!dma_mem)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fdb_dump_iova = dma_map_single(dev, dma_mem, fdb_dump_size,
 				       DMA_FROM_DEVICE);
 	if (dma_mapping_error(dev, fdb_dump_iova)) {
 		netdev_err(net_dev, "dma_map_single() failed\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_map;
 	}
 
@@ -950,7 +950,7 @@ static int dpaa2_switch_port_vlan_add(struct net_device *netdev, __be16 proto,
 		.obj.id = SWITCHDEV_OBJ_ID_PORT_VLAN,
 		.vid = vid,
 		.obj.orig_dev = netdev,
-		/* This API only allows programming tagged, non-PVID VIDs */
+		/* This API only allows programming tagged, analn-PVID VIDs */
 		.flags = 0,
 	};
 
@@ -964,7 +964,7 @@ static int dpaa2_switch_port_vlan_kill(struct net_device *netdev, __be16 proto,
 		.obj.id = SWITCHDEV_OBJ_ID_PORT_VLAN,
 		.vid = vid,
 		.obj.orig_dev = netdev,
-		/* This API only allows programming tagged, non-PVID VIDs */
+		/* This API only allows programming tagged, analn-PVID VIDs */
 		.flags = 0,
 	};
 
@@ -994,7 +994,7 @@ static int dpaa2_switch_port_set_mac_addr(struct ethsw_port_priv *port_priv)
 	if (!is_zero_ether_addr(mac_addr)) {
 		eth_hw_addr_set(net_dev, mac_addr);
 	} else {
-		/* No MAC address configured, fill in net_dev->dev_addr
+		/* Anal MAC address configured, fill in net_dev->dev_addr
 		 * with a random one
 		 */
 		eth_hw_addr_random(net_dev);
@@ -1048,7 +1048,7 @@ static int dpaa2_switch_build_single_fd(struct ethsw_core *ethsw,
 			       DPAA2_SWITCH_TX_BUF_ALIGN);
 
 	/* Clear FAS to have consistent values for TX confirmation. It is
-	 * located in the first 8 bytes of the buffer's hardware annotation
+	 * located in the first 8 bytes of the buffer's hardware ananaltation
 	 * area
 	 */
 	hwa = buff_start + DPAA2_SWITCH_SWA_SIZE;
@@ -1065,7 +1065,7 @@ static int dpaa2_switch_build_single_fd(struct ethsw_core *ethsw,
 			      skb_tail_pointer(skb) - buff_start,
 			      DMA_TO_DEVICE);
 	if (unlikely(dma_mapping_error(dev, addr)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Setup the FD fields */
 	memset(fd, 0, sizeof(*fd));
@@ -1107,8 +1107,8 @@ static netdev_tx_t dpaa2_switch_port_tx(struct sk_buff *skb,
 		goto err_exit;
 	}
 
-	/* At this stage, we do not support non-linear skbs so just try to
-	 * linearize the skb and if that's not working, just drop the packet.
+	/* At this stage, we do analt support analn-linear skbs so just try to
+	 * linearize the skb and if that's analt working, just drop the packet.
 	 */
 	err = skb_linearize(skb);
 	if (err) {
@@ -1152,7 +1152,7 @@ dpaa2_switch_setup_tc_cls_flower(struct dpaa2_switch_filter_block *filter_block,
 	case FLOW_CLS_DESTROY:
 		return dpaa2_switch_cls_flower_destroy(filter_block, f);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1166,7 +1166,7 @@ dpaa2_switch_setup_tc_cls_matchall(struct dpaa2_switch_filter_block *block,
 	case TC_CLSMATCHALL_DESTROY:
 		return dpaa2_switch_cls_matchall_destroy(block, f);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1180,7 +1180,7 @@ static int dpaa2_switch_port_setup_tc_block_cb_ig(enum tc_setup_type type,
 	case TC_SETUP_CLSMATCHALL:
 		return dpaa2_switch_setup_tc_cls_matchall(cb_priv, type_data);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1252,7 +1252,7 @@ static int dpaa2_switch_port_block_bind(struct ethsw_port_priv *port_priv,
 	if (err)
 		return err;
 
-	/* If the port is already bound to this ACL table then do nothing. This
+	/* If the port is already bound to this ACL table then do analthing. This
 	 * can happen when this port is the first one to join a tc block
 	 */
 	if (port_priv->filter_block == block)
@@ -1279,10 +1279,10 @@ dpaa2_switch_port_block_unbind(struct ethsw_port_priv *port_priv,
 	struct dpaa2_switch_filter_block *new_block;
 	int err;
 
-	/* Unoffload all the mirror entries found in the block from the
+	/* Uanalffload all the mirror entries found in the block from the
 	 * port leaving it.
 	 */
-	err = dpaa2_switch_block_unoffload_mirror(block, port_priv);
+	err = dpaa2_switch_block_uanalffload_mirror(block, port_priv);
 	if (err)
 		return err;
 
@@ -1319,7 +1319,7 @@ static int dpaa2_switch_setup_tc_block_bind(struct net_device *netdev,
 					ethsw);
 
 	if (!block_cb) {
-		/* If the filter block is not already known, then this port
+		/* If the filter block is analt already kanalwn, then this port
 		 * must be the first to join it. In this case, we can just
 		 * continue to use our private table
 		 */
@@ -1381,7 +1381,7 @@ static int dpaa2_switch_setup_tc_block(struct net_device *netdev,
 				       struct flow_block_offload *f)
 {
 	if (f->binder_type != FLOW_BLOCK_BINDER_TYPE_CLSACT_INGRESS)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	f->driver_block_list = &dpaa2_switch_block_cb_list;
 
@@ -1392,7 +1392,7 @@ static int dpaa2_switch_setup_tc_block(struct net_device *netdev,
 		dpaa2_switch_setup_tc_block_unbind(netdev, f);
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1405,7 +1405,7 @@ static int dpaa2_switch_port_setup_tc(struct net_device *netdev,
 		return dpaa2_switch_setup_tc_block(netdev, type_data);
 	}
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -1452,7 +1452,7 @@ static int dpaa2_switch_port_connect_mac(struct ethsw_port_priv *port_priv)
 
 	mac = kzalloc(sizeof(*mac), GFP_KERNEL);
 	if (!mac)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mac->mc_dev = dpmac_dev;
 	mac->mc_io = port_priv->ethsw_data->mc_io;
@@ -1530,7 +1530,7 @@ static irqreturn_t dpaa2_switch_irq0_handler_thread(int irq_num, void *arg)
 		dpaa2_switch_port_set_mac_addr(port_priv);
 		/* We can avoid locking because the "endpoint changed" IRQ
 		 * handler is the only one who changes priv->mac at runtime,
-		 * so we are not racing with anyone.
+		 * so we are analt racing with anyone.
 		 */
 		had_mac = !!port_priv->mac;
 		if (had_mac)
@@ -1578,7 +1578,7 @@ static int dpaa2_switch_setup_irqs(struct fsl_mc_device *sw_dev)
 
 	err = devm_request_threaded_irq(dev, irq->virq, NULL,
 					dpaa2_switch_irq0_handler_thread,
-					IRQF_NO_SUSPEND | IRQF_ONESHOT,
+					IRQF_ANAL_SUSPEND | IRQF_ONESHOT,
 					dev_name(dev), dev);
 	if (err) {
 		dev_err(dev, "devm_request_threaded_irq(): %d\n", err);
@@ -1698,7 +1698,7 @@ static int dpaa2_switch_port_pre_bridge_flags(struct net_device *netdev,
 
 		if (unicast != multicast) {
 			NL_SET_ERR_MSG_MOD(extack,
-					   "Cannot configure multicast flooding independently of unicast");
+					   "Cananalt configure multicast flooding independently of unicast");
 			return -EINVAL;
 		}
 	}
@@ -1745,8 +1745,8 @@ static int dpaa2_switch_port_attr_set(struct net_device *netdev, const void *ctx
 	case SWITCHDEV_ATTR_ID_BRIDGE_VLAN_FILTERING:
 		if (!attr->u.vlan_filtering) {
 			NL_SET_ERR_MSG_MOD(extack,
-					   "The DPAA2 switch does not support VLAN-unaware operation");
-			return -EOPNOTSUPP;
+					   "The DPAA2 switch does analt support VLAN-unaware operation");
+			return -EOPANALTSUPP;
 		}
 		break;
 	case SWITCHDEV_ATTR_ID_PORT_PRE_BRIDGE_FLAGS:
@@ -1756,7 +1756,7 @@ static int dpaa2_switch_port_attr_set(struct net_device *netdev, const void *ctx
 		err = dpaa2_switch_port_bridge_flags(netdev, attr->u.brport_flags, extack);
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		break;
 	}
 
@@ -1771,7 +1771,7 @@ int dpaa2_switch_port_vlans_add(struct net_device *netdev,
 	struct dpsw_attr *attr = &ethsw->sw_attr;
 	int err = 0;
 
-	/* Make sure that the VLAN is not already configured
+	/* Make sure that the VLAN is analt already configured
 	 * on the switch port
 	 */
 	if (port_priv->vlans[vlan->vid] & ETHSW_VLAN_MEMBER) {
@@ -1787,7 +1787,7 @@ int dpaa2_switch_port_vlans_add(struct net_device *netdev,
 		return err;
 	}
 	if (attr->max_vlans - attr->num_vlans < 1)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	/* Check if there is space for a new VLAN */
 	err = dpsw_get_attributes(ethsw->mc_io, 0, ethsw->dpsw_handle,
@@ -1797,7 +1797,7 @@ int dpaa2_switch_port_vlans_add(struct net_device *netdev,
 		return err;
 	}
 	if (attr->max_vlans - attr->num_vlans < 1)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	if (!port_priv->ethsw_data->vlans[vlan->vid]) {
 		/* this is a new VLAN */
@@ -1866,7 +1866,7 @@ static int dpaa2_switch_port_obj_add(struct net_device *netdev,
 						SWITCHDEV_OBJ_PORT_MDB(obj));
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		break;
 	}
 
@@ -1881,11 +1881,11 @@ static int dpaa2_switch_port_del_vlan(struct ethsw_port_priv *port_priv, u16 vid
 	int i, err;
 
 	if (!port_priv->vlans[vid])
-		return -ENOENT;
+		return -EANALENT;
 
 	if (port_priv->vlans[vid] & ETHSW_VLAN_PVID) {
 		/* If we are deleting the PVID of a port, use VLAN 4095 instead
-		 * as we are sure that neither the bridge nor the 8021q module
+		 * as we are sure that neither the bridge analr the 8021q module
 		 * will use it
 		 */
 		err = dpaa2_switch_port_set_pvid(port_priv, 4095);
@@ -1917,7 +1917,7 @@ static int dpaa2_switch_port_del_vlan(struct ethsw_port_priv *port_priv, u16 vid
 		}
 		port_priv->vlans[vid] &= ~ETHSW_VLAN_MEMBER;
 
-		/* Delete VLAN from switch if it is no longer configured on
+		/* Delete VLAN from switch if it is anal longer configured on
 		 * any port
 		 */
 		for (i = 0; i < ethsw->sw_attr.num_ifs; i++) {
@@ -1942,7 +1942,7 @@ int dpaa2_switch_port_vlans_del(struct net_device *netdev,
 	struct ethsw_port_priv *port_priv = netdev_priv(netdev);
 
 	if (netif_is_bridge_master(vlan->obj.orig_dev))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return dpaa2_switch_port_del_vlan(port_priv, vlan->vid);
 }
@@ -1954,7 +1954,7 @@ static int dpaa2_switch_port_mdb_del(struct net_device *netdev,
 	int err;
 
 	if (!dpaa2_switch_port_lookup_address(netdev, 0, mdb->addr))
-		return -ENOENT;
+		return -EANALENT;
 
 	err = dpaa2_switch_port_fdb_del_mc(port_priv, mdb->addr);
 	if (err)
@@ -1982,21 +1982,21 @@ static int dpaa2_switch_port_obj_del(struct net_device *netdev,
 		err = dpaa2_switch_port_mdb_del(netdev, SWITCHDEV_OBJ_PORT_MDB(obj));
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		break;
 	}
 	return err;
 }
 
 static int dpaa2_switch_port_attr_set_event(struct net_device *netdev,
-					    struct switchdev_notifier_port_attr_info *ptr)
+					    struct switchdev_analtifier_port_attr_info *ptr)
 {
 	int err;
 
 	err = switchdev_handle_port_attr_set(netdev, ptr,
 					     dpaa2_switch_port_dev_check,
 					     dpaa2_switch_port_attr_set);
-	return notifier_from_errno(err);
+	return analtifier_from_erranal(err);
 }
 
 static int dpaa2_switch_port_bridge_join(struct net_device *netdev,
@@ -2021,7 +2021,7 @@ static int dpaa2_switch_port_bridge_join(struct net_device *netdev,
 	err = dpaa2_switch_port_set_learning(port_priv, learn_ena);
 	port_priv->learn_ena = learn_ena;
 
-	/* Setup the egress flood policy (broadcast, unknown unicast) */
+	/* Setup the egress flood policy (broadcast, unkanalwn unicast) */
 	err = dpaa2_switch_fdb_set_egress_flood(ethsw, port_priv->fdb->fdb_id);
 	if (err)
 		goto err_egress_flood;
@@ -2066,7 +2066,7 @@ static int dpaa2_switch_port_restore_rxvlan(struct net_device *vdev, int vid, vo
 
 static void dpaa2_switch_port_pre_bridge_leave(struct net_device *netdev)
 {
-	switchdev_bridge_port_unoffload(netdev, NULL, NULL, NULL);
+	switchdev_bridge_port_uanalffload(netdev, NULL, NULL, NULL);
 }
 
 static int dpaa2_switch_port_bridge_leave(struct net_device *netdev)
@@ -2094,15 +2094,15 @@ static int dpaa2_switch_port_bridge_leave(struct net_device *netdev)
 	if (err)
 		netdev_err(netdev, "Unable to restore RX VLANs to the new FDB, err (%d)\n", err);
 
-	/* Reset the flooding state to denote that this port can send any
+	/* Reset the flooding state to deanalte that this port can send any
 	 * packet in standalone mode. With this, we are also ensuring that any
 	 * later bridge join will have the flooding flag on.
 	 */
 	port_priv->bcast_flood = true;
 	port_priv->ucast_flood = true;
 
-	/* Setup the egress flood policy (broadcast, unknown unicast).
-	 * When the port is not under a bridge, only the CTRL interface is part
+	/* Setup the egress flood policy (broadcast, unkanalwn unicast).
+	 * When the port is analt under a bridge, only the CTRL interface is part
 	 * of the flooding domain besides the actual port
 	 */
 	err = dpaa2_switch_fdb_set_egress_flood(ethsw, port_priv->fdb->fdb_id);
@@ -2114,14 +2114,14 @@ static int dpaa2_switch_port_bridge_leave(struct net_device *netdev)
 	if (err)
 		return err;
 
-	/* No HW learning when not under a bridge */
+	/* Anal HW learning when analt under a bridge */
 	err = dpaa2_switch_port_set_learning(port_priv, false);
 	if (err)
 		return err;
 	port_priv->learn_ena = false;
 
-	/* Add the VLAN 1 as PVID when not under a bridge. We need this since
-	 * the dpaa2 switch interfaces are not capable to be VLAN unaware
+	/* Add the VLAN 1 as PVID when analt under a bridge. We need this since
+	 * the dpaa2 switch interfaces are analt capable to be VLAN unaware
 	 */
 	return dpaa2_switch_port_add_vlan(port_priv, DEFAULT_VLAN_ID,
 					  BRIDGE_VLAN_INFO_UNTAGGED | BRIDGE_VLAN_INFO_PVID);
@@ -2132,12 +2132,12 @@ static int dpaa2_switch_prevent_bridging_with_8021q_upper(struct net_device *net
 	struct net_device *upper_dev;
 	struct list_head *iter;
 
-	/* RCU read lock not necessary because we have write-side protection
-	 * (rtnl_mutex), however a non-rcu iterator does not exist.
+	/* RCU read lock analt necessary because we have write-side protection
+	 * (rtnl_mutex), however a analn-rcu iterator does analt exist.
 	 */
 	netdev_for_each_upper_dev_rcu(netdev, upper_dev, iter)
 		if (is_vlan_dev(upper_dev))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 	return 0;
 }
@@ -2154,14 +2154,14 @@ dpaa2_switch_prechangeupper_sanity_checks(struct net_device *netdev,
 	int err;
 
 	if (!br_vlan_enabled(upper_dev)) {
-		NL_SET_ERR_MSG_MOD(extack, "Cannot join a VLAN-unaware bridge");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG_MOD(extack, "Cananalt join a VLAN-unaware bridge");
+		return -EOPANALTSUPP;
 	}
 
 	err = dpaa2_switch_prevent_bridging_with_8021q_upper(netdev);
 	if (err) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Cannot join a bridge while VLAN uppers are present");
+				   "Cananalt join a bridge while VLAN uppers are present");
 		return 0;
 	}
 
@@ -2181,7 +2181,7 @@ dpaa2_switch_prechangeupper_sanity_checks(struct net_device *netdev,
 }
 
 static int dpaa2_switch_port_prechangeupper(struct net_device *netdev,
-					    struct netdev_notifier_changeupper_info *info)
+					    struct netdev_analtifier_changeupper_info *info)
 {
 	struct netlink_ext_ack *extack;
 	struct net_device *upper_dev;
@@ -2190,7 +2190,7 @@ static int dpaa2_switch_port_prechangeupper(struct net_device *netdev,
 	if (!dpaa2_switch_port_dev_check(netdev))
 		return 0;
 
-	extack = netdev_notifier_info_to_extack(&info->info);
+	extack = netdev_analtifier_info_to_extack(&info->info);
 	upper_dev = info->upper_dev;
 	if (netif_is_bridge_master(upper_dev)) {
 		err = dpaa2_switch_prechangeupper_sanity_checks(netdev,
@@ -2207,7 +2207,7 @@ static int dpaa2_switch_port_prechangeupper(struct net_device *netdev,
 }
 
 static int dpaa2_switch_port_changeupper(struct net_device *netdev,
-					 struct netdev_notifier_changeupper_info *info)
+					 struct netdev_analtifier_changeupper_info *info)
 {
 	struct netlink_ext_ack *extack;
 	struct net_device *upper_dev;
@@ -2215,7 +2215,7 @@ static int dpaa2_switch_port_changeupper(struct net_device *netdev,
 	if (!dpaa2_switch_port_dev_check(netdev))
 		return 0;
 
-	extack = netdev_notifier_info_to_extack(&info->info);
+	extack = netdev_analtifier_info_to_extack(&info->info);
 
 	upper_dev = info->upper_dev;
 	if (netif_is_bridge_master(upper_dev)) {
@@ -2230,33 +2230,33 @@ static int dpaa2_switch_port_changeupper(struct net_device *netdev,
 	return 0;
 }
 
-static int dpaa2_switch_port_netdevice_event(struct notifier_block *nb,
+static int dpaa2_switch_port_netdevice_event(struct analtifier_block *nb,
 					     unsigned long event, void *ptr)
 {
-	struct net_device *netdev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *netdev = netdev_analtifier_info_to_dev(ptr);
 	int err = 0;
 
 	switch (event) {
 	case NETDEV_PRECHANGEUPPER:
 		err = dpaa2_switch_port_prechangeupper(netdev, ptr);
 		if (err)
-			return notifier_from_errno(err);
+			return analtifier_from_erranal(err);
 
 		break;
 	case NETDEV_CHANGEUPPER:
 		err = dpaa2_switch_port_changeupper(netdev, ptr);
 		if (err)
-			return notifier_from_errno(err);
+			return analtifier_from_erranal(err);
 
 		break;
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 struct ethsw_switchdev_event_work {
 	struct work_struct work;
-	struct switchdev_notifier_fdb_info fdb_info;
+	struct switchdev_analtifier_fdb_info fdb_info;
 	struct net_device *dev;
 	unsigned long event;
 };
@@ -2266,7 +2266,7 @@ static void dpaa2_switch_event_work(struct work_struct *work)
 	struct ethsw_switchdev_event_work *switchdev_work =
 		container_of(work, struct ethsw_switchdev_event_work, work);
 	struct net_device *dev = switchdev_work->dev;
-	struct switchdev_notifier_fdb_info *fdb_info;
+	struct switchdev_analtifier_fdb_info *fdb_info;
 	int err;
 
 	rtnl_lock();
@@ -2285,7 +2285,7 @@ static void dpaa2_switch_event_work(struct work_struct *work)
 		if (err)
 			break;
 		fdb_info->offloaded = true;
-		call_switchdev_notifiers(SWITCHDEV_FDB_OFFLOADED, dev,
+		call_switchdev_analtifiers(SWITCHDEV_FDB_OFFLOADED, dev,
 					 &fdb_info->info, NULL);
 		break;
 	case SWITCHDEV_FDB_DEL_TO_DEVICE:
@@ -2305,24 +2305,24 @@ static void dpaa2_switch_event_work(struct work_struct *work)
 }
 
 /* Called under rcu_read_lock() */
-static int dpaa2_switch_port_event(struct notifier_block *nb,
+static int dpaa2_switch_port_event(struct analtifier_block *nb,
 				   unsigned long event, void *ptr)
 {
-	struct net_device *dev = switchdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = switchdev_analtifier_info_to_dev(ptr);
 	struct ethsw_port_priv *port_priv = netdev_priv(dev);
 	struct ethsw_switchdev_event_work *switchdev_work;
-	struct switchdev_notifier_fdb_info *fdb_info = ptr;
+	struct switchdev_analtifier_fdb_info *fdb_info = ptr;
 	struct ethsw_core *ethsw = port_priv->ethsw_data;
 
 	if (event == SWITCHDEV_PORT_ATTR_SET)
 		return dpaa2_switch_port_attr_set_event(dev, ptr);
 
 	if (!dpaa2_switch_port_dev_check(dev))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	switchdev_work = kzalloc(sizeof(*switchdev_work), GFP_ATOMIC);
 	if (!switchdev_work)
-		return NOTIFY_BAD;
+		return ANALTIFY_BAD;
 
 	INIT_WORK(&switchdev_work->work, dpaa2_switch_event_work);
 	switchdev_work->dev = dev;
@@ -2345,26 +2345,26 @@ static int dpaa2_switch_port_event(struct notifier_block *nb,
 		break;
 	default:
 		kfree(switchdev_work);
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 
 	queue_work(ethsw->workqueue, &switchdev_work->work);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 
 err_addr_alloc:
 	kfree(switchdev_work);
-	return NOTIFY_BAD;
+	return ANALTIFY_BAD;
 }
 
 static int dpaa2_switch_port_obj_event(unsigned long event,
 				       struct net_device *netdev,
-				       struct switchdev_notifier_port_obj_info *port_obj_info)
+				       struct switchdev_analtifier_port_obj_info *port_obj_info)
 {
-	int err = -EOPNOTSUPP;
+	int err = -EOPANALTSUPP;
 
 	if (!dpaa2_switch_port_dev_check(netdev))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	switch (event) {
 	case SWITCHDEV_PORT_OBJ_ADD:
@@ -2376,13 +2376,13 @@ static int dpaa2_switch_port_obj_event(unsigned long event,
 	}
 
 	port_obj_info->handled = true;
-	return notifier_from_errno(err);
+	return analtifier_from_erranal(err);
 }
 
-static int dpaa2_switch_port_blocking_event(struct notifier_block *nb,
+static int dpaa2_switch_port_blocking_event(struct analtifier_block *nb,
 					    unsigned long event, void *ptr)
 {
-	struct net_device *dev = switchdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = switchdev_analtifier_info_to_dev(ptr);
 
 	switch (event) {
 	case SWITCHDEV_PORT_OBJ_ADD:
@@ -2392,7 +2392,7 @@ static int dpaa2_switch_port_blocking_event(struct notifier_block *nb,
 		return dpaa2_switch_port_attr_set_event(dev, ptr);
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 /* Build a linear skb based on a single-buffer frame descriptor */
@@ -2446,7 +2446,7 @@ static void dpaa2_switch_rx(struct dpaa2_switch_fq *fq,
 	if_id = upper_32_bits(dpaa2_fd_get_flc(fd)) & 0x0000FFFF;
 
 	if (if_id >= ethsw->sw_attr.num_ifs) {
-		dev_err(ethsw->dev, "Frame received from unknown interface!\n");
+		dev_err(ethsw->dev, "Frame received from unkanalwn interface!\n");
 		goto err_free_fd;
 	}
 	port_priv = ethsw->ports[if_id];
@@ -2468,7 +2468,7 @@ static void dpaa2_switch_rx(struct dpaa2_switch_fq *fq,
 
 	/* Remove the VLAN header if the packet that we just received has a vid
 	 * equal to the port PVIDs. Since the dpaa2-switch can operate only in
-	 * VLAN-aware mode and no alterations are made on the packet when it's
+	 * VLAN-aware mode and anal alterations are made on the packet when it's
 	 * redirected/mirrored to the control interface, we are sure that there
 	 * will always be a VLAN header present.
 	 */
@@ -2500,7 +2500,7 @@ static void dpaa2_switch_detect_features(struct ethsw_core *ethsw)
 {
 	ethsw->features = 0;
 
-	if (ethsw->major > 8 || (ethsw->major == 8 && ethsw->minor >= 6))
+	if (ethsw->major > 8 || (ethsw->major == 8 && ethsw->mianalr >= 6))
 		ethsw->features |= ETHSW_FEATURE_MAC_ADDR;
 }
 
@@ -2621,7 +2621,7 @@ static int dpaa2_switch_refill_bp(struct ethsw_core *ethsw)
 		do {
 			new_count = dpaa2_switch_add_bufs(ethsw, ethsw->bpid);
 			if (unlikely(!new_count)) {
-				/* Out of memory; abort for now, we'll
+				/* Out of memory; abort for analw, we'll
 				 * try later on
 				 */
 				break;
@@ -2630,7 +2630,7 @@ static int dpaa2_switch_refill_bp(struct ethsw_core *ethsw)
 		} while (*count < DPAA2_ETHSW_NUM_BUFS);
 
 		if (unlikely(*count < DPAA2_ETHSW_NUM_BUFS))
-			err = -ENOMEM;
+			err = -EANALMEM;
 	}
 
 	return err;
@@ -2645,7 +2645,7 @@ static int dpaa2_switch_seed_bp(struct ethsw_core *ethsw)
 		*count += dpaa2_switch_add_bufs(ethsw, ethsw->bpid);
 
 		if (unlikely(*count < BUFS_PER_CMD))
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	return 0;
@@ -2758,7 +2758,7 @@ static int dpaa2_switch_alloc_rings(struct ethsw_core *ethsw)
 			dev_err(ethsw->dev, "dpaa2_io_store_create failed\n");
 			while (--i >= 0)
 				dpaa2_io_store_destroy(ethsw->fq[i].store);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -2805,7 +2805,7 @@ static int dpaa2_switch_store_consume(struct dpaa2_switch_fq *fq)
 		if (unlikely(!dq)) {
 			if (retries++ >= DPAA2_SWITCH_SWP_BUSY_RETRIES) {
 				dev_err_once(ethsw->dev,
-					     "No valid dequeue response\n");
+					     "Anal valid dequeue response\n");
 				return -ETIMEDOUT;
 			}
 			continue;
@@ -2850,7 +2850,7 @@ static int dpaa2_switch_poll(struct napi_struct *napi, int budget)
 	} while (store_cleaned);
 
 	/* We didn't consume the entire budget, so finish napi and re-enable
-	 * data availability notifications
+	 * data availability analtifications
 	 */
 	napi_complete_done(napi, cleaned);
 	do {
@@ -2864,7 +2864,7 @@ out:
 	return work_done;
 }
 
-static void dpaa2_switch_fqdan_cb(struct dpaa2_io_notification_ctx *nctx)
+static void dpaa2_switch_fqdan_cb(struct dpaa2_io_analtification_ctx *nctx)
 {
 	struct dpaa2_switch_fq *fq;
 
@@ -2876,7 +2876,7 @@ static void dpaa2_switch_fqdan_cb(struct dpaa2_io_notification_ctx *nctx)
 static int dpaa2_switch_setup_dpio(struct ethsw_core *ethsw)
 {
 	struct dpsw_ctrl_if_queue_cfg queue_cfg;
-	struct dpaa2_io_notification_ctx *nctx;
+	struct dpaa2_io_analtification_ctx *nctx;
 	int err, i, j;
 
 	for (i = 0; i < DPAA2_SWITCH_RX_NUM_FQS; i++) {
@@ -2884,7 +2884,7 @@ static int dpaa2_switch_setup_dpio(struct ethsw_core *ethsw)
 
 		/* Register a new software context for the FQID.
 		 * By using NULL as the first parameter, we specify that we do
-		 * not care on which cpu are interrupts received for this queue
+		 * analt care on which cpu are interrupts received for this queue
 		 */
 		nctx->is_cdan = 0;
 		nctx->id = ethsw->fq[i].fqid;
@@ -3015,7 +3015,7 @@ static int dpaa2_switch_init(struct fsl_mc_device *sw_dev)
 
 	err = dpsw_get_api_version(ethsw->mc_io, 0,
 				   &ethsw->major,
-				   &ethsw->minor);
+				   &ethsw->mianalr);
 	if (err) {
 		dev_err(dev, "dpsw_get_api_version err %d\n", err);
 		goto err_close;
@@ -3024,15 +3024,15 @@ static int dpaa2_switch_init(struct fsl_mc_device *sw_dev)
 	/* Minimum supported DPSW version check */
 	if (ethsw->major < DPSW_MIN_VER_MAJOR ||
 	    (ethsw->major == DPSW_MIN_VER_MAJOR &&
-	     ethsw->minor < DPSW_MIN_VER_MINOR)) {
-		dev_err(dev, "DPSW version %d:%d not supported. Use firmware 10.28.0 or greater.\n",
-			ethsw->major, ethsw->minor);
-		err = -EOPNOTSUPP;
+	     ethsw->mianalr < DPSW_MIN_VER_MIANALR)) {
+		dev_err(dev, "DPSW version %d:%d analt supported. Use firmware 10.28.0 or greater.\n",
+			ethsw->major, ethsw->mianalr);
+		err = -EOPANALTSUPP;
 		goto err_close;
 	}
 
 	if (!dpaa2_switch_supports_cpu_traffic(ethsw)) {
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto err_close;
 	}
 
@@ -3100,7 +3100,7 @@ static int dpaa2_switch_init(struct fsl_mc_device *sw_dev)
 						   WQ_MEM_RECLAIM, "ethsw",
 						   ethsw->sw_attr.id);
 	if (!ethsw->workqueue) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_close;
 	}
 
@@ -3185,14 +3185,14 @@ static int dpaa2_switch_port_init(struct ethsw_port_priv *port_priv, u16 port)
 	port_priv->fdb = fdb;
 
 	/* We need to add VLAN 1 as the PVID on this port until it is under a
-	 * bridge since the DPAA2 switch is not able to handle the traffic in a
+	 * bridge since the DPAA2 switch is analt able to handle the traffic in a
 	 * VLAN unaware fashion
 	 */
 	err = dpaa2_switch_port_vlans_add(netdev, &vlan);
 	if (err)
 		return err;
 
-	/* Setup the egress flooding domains (broadcast, unknown unicast */
+	/* Setup the egress flooding domains (broadcast, unkanalwn unicast */
 	err = dpaa2_switch_fdb_set_egress_flood(ethsw, port_priv->fdb->fdb_id);
 	if (err)
 		return err;
@@ -3293,7 +3293,7 @@ static int dpaa2_switch_probe_port(struct ethsw_core *ethsw,
 	port_netdev = alloc_etherdev(sizeof(struct ethsw_port_priv));
 	if (!port_netdev) {
 		dev_err(dev, "alloc_etherdev error\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	port_priv = netdev_priv(port_netdev);
@@ -3324,7 +3324,7 @@ static int dpaa2_switch_probe_port(struct ethsw_core *ethsw,
 	ethsw->ports[port_idx] = port_priv;
 
 	/* The DPAA2 switch's ingress path depends on the VLAN table,
-	 * thus we are not able to disable VLAN filtering.
+	 * thus we are analt able to disable VLAN filtering.
 	 */
 	port_netdev->features = NETIF_F_HW_VLAN_CTAG_FILTER |
 				NETIF_F_HW_VLAN_STAG_FILTER |
@@ -3367,7 +3367,7 @@ static int dpaa2_switch_probe(struct fsl_mc_device *sw_dev)
 	ethsw = kzalloc(sizeof(*ethsw), GFP_KERNEL);
 
 	if (!ethsw)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ethsw->dev = dev;
 	ethsw->iommu_domain = iommu_get_domain_for_dev(dev);
@@ -3390,14 +3390,14 @@ static int dpaa2_switch_probe(struct fsl_mc_device *sw_dev)
 	ethsw->ports = kcalloc(ethsw->sw_attr.num_ifs, sizeof(*ethsw->ports),
 			       GFP_KERNEL);
 	if (!(ethsw->ports)) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_teardown;
 	}
 
 	ethsw->fdbs = kcalloc(ethsw->sw_attr.num_ifs, sizeof(*ethsw->fdbs),
 			      GFP_KERNEL);
 	if (!ethsw->fdbs) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_free_ports;
 	}
 
@@ -3405,7 +3405,7 @@ static int dpaa2_switch_probe(struct fsl_mc_device *sw_dev)
 				       sizeof(*ethsw->filter_blocks),
 				       GFP_KERNEL);
 	if (!ethsw->filter_blocks) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_free_fdbs;
 	}
 
@@ -3416,7 +3416,7 @@ static int dpaa2_switch_probe(struct fsl_mc_device *sw_dev)
 	}
 
 	/* Add a NAPI instance for each of the Rx queues. The first port's
-	 * net_device will be associated with the instances since we do not have
+	 * net_device will be associated with the instances since we do analt have
 	 * different queues for each switch ports.
 	 */
 	for (i = 0; i < DPAA2_SWITCH_RX_NUM_FQS; i++)
@@ -3492,66 +3492,66 @@ static struct fsl_mc_driver dpaa2_switch_drv = {
 	.match_id_table = dpaa2_switch_match_id_table
 };
 
-static struct notifier_block dpaa2_switch_port_nb __read_mostly = {
-	.notifier_call = dpaa2_switch_port_netdevice_event,
+static struct analtifier_block dpaa2_switch_port_nb __read_mostly = {
+	.analtifier_call = dpaa2_switch_port_netdevice_event,
 };
 
-static struct notifier_block dpaa2_switch_port_switchdev_nb = {
-	.notifier_call = dpaa2_switch_port_event,
+static struct analtifier_block dpaa2_switch_port_switchdev_nb = {
+	.analtifier_call = dpaa2_switch_port_event,
 };
 
-static struct notifier_block dpaa2_switch_port_switchdev_blocking_nb = {
-	.notifier_call = dpaa2_switch_port_blocking_event,
+static struct analtifier_block dpaa2_switch_port_switchdev_blocking_nb = {
+	.analtifier_call = dpaa2_switch_port_blocking_event,
 };
 
-static int dpaa2_switch_register_notifiers(void)
+static int dpaa2_switch_register_analtifiers(void)
 {
 	int err;
 
-	err = register_netdevice_notifier(&dpaa2_switch_port_nb);
+	err = register_netdevice_analtifier(&dpaa2_switch_port_nb);
 	if (err) {
-		pr_err("dpaa2-switch: failed to register net_device notifier (%d)\n", err);
+		pr_err("dpaa2-switch: failed to register net_device analtifier (%d)\n", err);
 		return err;
 	}
 
-	err = register_switchdev_notifier(&dpaa2_switch_port_switchdev_nb);
+	err = register_switchdev_analtifier(&dpaa2_switch_port_switchdev_nb);
 	if (err) {
-		pr_err("dpaa2-switch: failed to register switchdev notifier (%d)\n", err);
+		pr_err("dpaa2-switch: failed to register switchdev analtifier (%d)\n", err);
 		goto err_switchdev_nb;
 	}
 
-	err = register_switchdev_blocking_notifier(&dpaa2_switch_port_switchdev_blocking_nb);
+	err = register_switchdev_blocking_analtifier(&dpaa2_switch_port_switchdev_blocking_nb);
 	if (err) {
-		pr_err("dpaa2-switch: failed to register switchdev blocking notifier (%d)\n", err);
+		pr_err("dpaa2-switch: failed to register switchdev blocking analtifier (%d)\n", err);
 		goto err_switchdev_blocking_nb;
 	}
 
 	return 0;
 
 err_switchdev_blocking_nb:
-	unregister_switchdev_notifier(&dpaa2_switch_port_switchdev_nb);
+	unregister_switchdev_analtifier(&dpaa2_switch_port_switchdev_nb);
 err_switchdev_nb:
-	unregister_netdevice_notifier(&dpaa2_switch_port_nb);
+	unregister_netdevice_analtifier(&dpaa2_switch_port_nb);
 
 	return err;
 }
 
-static void dpaa2_switch_unregister_notifiers(void)
+static void dpaa2_switch_unregister_analtifiers(void)
 {
 	int err;
 
-	err = unregister_switchdev_blocking_notifier(&dpaa2_switch_port_switchdev_blocking_nb);
+	err = unregister_switchdev_blocking_analtifier(&dpaa2_switch_port_switchdev_blocking_nb);
 	if (err)
-		pr_err("dpaa2-switch: failed to unregister switchdev blocking notifier (%d)\n",
+		pr_err("dpaa2-switch: failed to unregister switchdev blocking analtifier (%d)\n",
 		       err);
 
-	err = unregister_switchdev_notifier(&dpaa2_switch_port_switchdev_nb);
+	err = unregister_switchdev_analtifier(&dpaa2_switch_port_switchdev_nb);
 	if (err)
-		pr_err("dpaa2-switch: failed to unregister switchdev notifier (%d)\n", err);
+		pr_err("dpaa2-switch: failed to unregister switchdev analtifier (%d)\n", err);
 
-	err = unregister_netdevice_notifier(&dpaa2_switch_port_nb);
+	err = unregister_netdevice_analtifier(&dpaa2_switch_port_nb);
 	if (err)
-		pr_err("dpaa2-switch: failed to unregister net_device notifier (%d)\n", err);
+		pr_err("dpaa2-switch: failed to unregister net_device analtifier (%d)\n", err);
 }
 
 static int __init dpaa2_switch_driver_init(void)
@@ -3562,7 +3562,7 @@ static int __init dpaa2_switch_driver_init(void)
 	if (err)
 		return err;
 
-	err = dpaa2_switch_register_notifiers();
+	err = dpaa2_switch_register_analtifiers();
 	if (err) {
 		fsl_mc_driver_unregister(&dpaa2_switch_drv);
 		return err;
@@ -3573,7 +3573,7 @@ static int __init dpaa2_switch_driver_init(void)
 
 static void __exit dpaa2_switch_driver_exit(void)
 {
-	dpaa2_switch_unregister_notifiers();
+	dpaa2_switch_unregister_analtifiers();
 	fsl_mc_driver_unregister(&dpaa2_switch_drv);
 }
 

@@ -41,7 +41,7 @@ struct dma_fence *dma_fence_unwrap_next(struct dma_fence_unwrap *cursor);
  * @head: starting point for the iterator
  *
  * Unwrap dma_fence_chain and dma_fence_array containers and deep dive into all
- * potential fences in them. If @head is just a normal fence only that one is
+ * potential fences in them. If @head is just a analrmal fence only that one is
  * returned.
  */
 #define dma_fence_unwrap_for_each(fence, cursor, head)			\

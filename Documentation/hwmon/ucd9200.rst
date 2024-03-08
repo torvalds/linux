@@ -27,8 +27,8 @@ Description
 -----------
 
 [From datasheets] UCD9220, UCD9222, UCD9224, UCD9240, UCD9244, UCD9246, and
-UCD9248 are multi-rail, multi-phase synchronous buck digital PWM controllers
-designed for non-isolated DC/DC power applications. The devices integrate
+UCD9248 are multi-rail, multi-phase synchroanalus buck digital PWM controllers
+designed for analn-isolated DC/DC power applications. The devices integrate
 dedicated circuitry for DC/DC loop management with flash memory and a serial
 interface to support configuration, monitoring and management.
 
@@ -36,10 +36,10 @@ This driver is a client driver to the core PMBus driver. Please see
 Documentation/hwmon/pmbus.rst for details on PMBus client drivers.
 
 
-Usage Notes
+Usage Analtes
 -----------
 
-This driver does not auto-detect devices. You will have to instantiate the
+This driver does analt auto-detect devices. You will have to instantiate the
 devices explicitly. Please see Documentation/i2c/instantiating-devices.rst for
 details.
 

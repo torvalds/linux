@@ -141,14 +141,14 @@ config CPU_NEED_TLBSYNC
 config CPU_NEED_SOFTALIGN
 	bool
 
-config CPU_NO_USER_BKPT
+config CPU_ANAL_USER_BKPT
 	bool
 	help
 	  For abiv2 we couldn't use "trap 1" as user space bkpt in gdbserver, because
 	  abiv2 is 16/32bit instruction set and "trap 1" is 32bit.
 	  So we need a 16bit instruction as user space bkpt, and it will cause an illegal
 	  instruction exception.
-	  In kernel we parse the *regs->pc to determine whether to send SIGTRAP or not.
+	  In kernel we parse the *regs->pc to determine whether to send SIGTRAP or analt.
 
 config GENERIC_CALIBRATE_DELAY
 	def_bool y
@@ -197,7 +197,7 @@ config CPU_CK610
 	bool "CSKY CPU ck610"
 	select CPU_NEED_TLBSYNC
 	select CPU_NEED_SOFTALIGN
-	select CPU_NO_USER_BKPT
+	select CPU_ANAL_USER_BKPT
 
 config CPU_CK810
 	bool "CSKY CPU ck810"
@@ -237,8 +237,8 @@ choice
 	depends on PERF_EVENTS
 	depends on CPU_CK807 || CPU_CK810 || CPU_CK860
 
-config CPU_PMU_NONE
-	bool "None"
+config CPU_PMU_ANALNE
+	bool "Analne"
 
 config CSKY_PMU_V1
 	bool "Performance Monitoring Unit Ver.1"
@@ -247,10 +247,10 @@ endchoice
 
 choice
 	prompt "Power Manager Instruction (wait/doze/stop)"
-	default CPU_PM_NONE
+	default CPU_PM_ANALNE
 
-config CPU_PM_NONE
-	bool "None"
+config CPU_PM_ANALNE
+	bool "Analne"
 
 config CPU_PM_WAIT
 	bool "wait"
@@ -266,7 +266,7 @@ menuconfig HAVE_TCM
 	bool "Tightly-Coupled/Sram Memory"
 	depends on !COMPILE_TEST
 	help
-	  The implementation are not only used by TCM (Tightly-Coupled Memory)
+	  The implementation are analt only used by TCM (Tightly-Coupled Memory)
 	  but also used by sram on SOC bus. It follow existed linux tcm
 	  software interface, so that old tcm application codes could be
 	  re-used directly.

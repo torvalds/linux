@@ -352,22 +352,22 @@
 
 	usb {
 		vcc5v0_host_en: vcc5v0-host-en {
-			rockchip,pins = <3 RK_PC0 RK_FUNC_GPIO &pcfg_pull_none>,
+			rockchip,pins = <3 RK_PC0 RK_FUNC_GPIO &pcfg_pull_analne>,
 					<4 RK_PB5 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 
 		vcc5v0_u3host_en: vcc5v0-u3host-en {
-			rockchip,pins = <3 RK_PC1 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <3 RK_PC1 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	wireless-bluetooth {
 		bt_reset_gpio: bt-reset-pin {
-			rockchip,pins = <0 RK_PD3 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PD3 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		bt_wake_gpio: bt-wake-pin {
-			rockchip,pins = <0 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PC6 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		bt_wake_host_irq: bt-wake-host-irq {
@@ -407,9 +407,9 @@
 	max-frequency = <200000000>;
 	mmc-hs400-1_8v;
 	mmc-hs400-enhanced-strobe;
-	no-sdio;
-	no-sd;
-	non-removable;
+	anal-sdio;
+	anal-sd;
+	analn-removable;
 	status = "okay";
 };
 
@@ -421,9 +421,9 @@
 	keep-power-in-suspend;
 	max-frequency = <150000000>;
 	mmc-pwrseq = <&sdio_pwrseq>;
-	no-sd;
-	no-mmc;
-	non-removable;
+	anal-sd;
+	anal-mmc;
+	analn-removable;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdiom1_pins>,<&wifi_poweren_pin>;
 	status = "okay";
@@ -435,8 +435,8 @@
 	cap-sd-highspeed;
 	disable-wp;
 	max-frequency = <150000000>;
-	no-sdio;
-	no-mmc;
+	anal-sdio;
+	anal-mmc;
 	sd-uhs-sdr104;
 	vmmc-supply = <&vcc_3v3_s3>;
 	vqmmc-supply = <&vccio_sd_s0>;

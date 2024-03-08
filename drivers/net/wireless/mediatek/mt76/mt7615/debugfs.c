@@ -103,7 +103,7 @@ mt7615_pm_set(void *data, u64 val)
 		return 0;
 
 	if (!mt7615_firmware_offload(dev) || mt76_is_usb(&dev->mt76))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mutex_lock(&dev->mt76.mutex);
 
@@ -258,7 +258,7 @@ mt7615_reset_test_set(void *data, u64 val)
 
 	skb = alloc_skb(1, GFP_KERNEL);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_put(skb, 1);
 
@@ -449,7 +449,7 @@ mt7615_ext_mac_addr_read(struct file *file, char __user *userbuf,
 
 	buf = kzalloc(len, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < 32; i++) {
 		if (!(dev->muar_mask & BIT(i)))
@@ -551,7 +551,7 @@ int mt7615_init_debugfs(struct mt7615_dev *dev)
 
 	dir = mt76_register_debugfs_fops(&dev->mphy, &fops_regval);
 	if (!dir)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (is_mt7615(&dev->mt76))
 		debugfs_create_devm_seqfile(dev->mt76.dev, "xmit-queues", dir,
@@ -576,7 +576,7 @@ int mt7615_init_debugfs(struct mt7615_dev *dev)
 	if (is_mt7615(&dev->mt76)) {
 		debugfs_create_u32("dfs_hw_pattern", 0400, dir,
 				   &dev->hw_pattern);
-		/* test pattern knobs */
+		/* test pattern kanalbs */
 		debugfs_create_u8("pattern_len", 0600, dir,
 				  &dev->radar_pattern.n_pulses);
 		debugfs_create_u32("pulse_period", 0600, dir,

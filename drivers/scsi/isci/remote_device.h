@@ -16,7 +16,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  * The full GNU General Public License is included in this distribution
  * in the file called LICENSE.GPL.
@@ -31,21 +31,21 @@
  * are met:
  *
  *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
+ *     analtice, this list of conditions and the following disclaimer.
  *   * Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in
+ *     analtice, this list of conditions and the following disclaimer in
  *     the documentation and/or other materials provided with the
  *     distribution.
- *   * Neither the name of Intel Corporation nor the names of its
+ *   * Neither the name of Intel Corporation analr the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -57,24 +57,24 @@
 #define _ISCI_REMOTE_DEVICE_H_
 #include <scsi/libsas.h>
 #include <linux/kref.h>
-#include "scu_remote_node_context.h"
-#include "remote_node_context.h"
+#include "scu_remote_analde_context.h"
+#include "remote_analde_context.h"
 #include "port.h"
 
-enum sci_remote_device_not_ready_reason_code {
-	SCIC_REMOTE_DEVICE_NOT_READY_START_REQUESTED,
-	SCIC_REMOTE_DEVICE_NOT_READY_STOP_REQUESTED,
-	SCIC_REMOTE_DEVICE_NOT_READY_SATA_REQUEST_STARTED,
-	SCIC_REMOTE_DEVICE_NOT_READY_SATA_SDB_ERROR_FIS_RECEIVED,
-	SCIC_REMOTE_DEVICE_NOT_READY_SMP_REQUEST_STARTED,
-	SCIC_REMOTE_DEVICE_NOT_READY_REASON_CODE_MAX
+enum sci_remote_device_analt_ready_reason_code {
+	SCIC_REMOTE_DEVICE_ANALT_READY_START_REQUESTED,
+	SCIC_REMOTE_DEVICE_ANALT_READY_STOP_REQUESTED,
+	SCIC_REMOTE_DEVICE_ANALT_READY_SATA_REQUEST_STARTED,
+	SCIC_REMOTE_DEVICE_ANALT_READY_SATA_SDB_ERROR_FIS_RECEIVED,
+	SCIC_REMOTE_DEVICE_ANALT_READY_SMP_REQUEST_STARTED,
+	SCIC_REMOTE_DEVICE_ANALT_READY_REASON_CODE_MAX
 };
 
 /**
  * isci_remote_device - isci representation of a sas expander / end point
  * @device_port_width: hw setting for number of simultaneous connections
  * @connection_rate: per-taskcontext connection rate for this device
- * @working_request: SATA requests have no tag we for unaccelerated
+ * @working_request: SATA requests have anal tag we for unaccelerated
  *                   protocols we need a method to associate unsolicited
  *                   frames with a pending request
  */
@@ -92,17 +92,17 @@ struct isci_remote_device {
 	struct kref kref;
 	struct isci_port *isci_port;
 	struct domain_device *domain_dev;
-	struct list_head node;
+	struct list_head analde;
 	struct sci_base_state_machine sm;
 	u32 device_port_width;
 	enum sas_linkrate connection_rate;
 	struct isci_port *owning_port;
-	struct sci_remote_node_context rnc;
+	struct sci_remote_analde_context rnc;
 	/* XXX unify with device reference counting and delete */
 	u32 started_request_count;
 	struct isci_request *working_request;
-	u32 not_ready_reason;
-	scics_sds_remote_node_context_callback abort_resume_cb;
+	u32 analt_ready_reason;
+	scics_sds_remote_analde_context_callback abort_resume_cb;
 	void *abort_resume_cbparam;
 };
 
@@ -146,7 +146,7 @@ int isci_remote_device_found(struct domain_device *domain_dev);
 /**
  * sci_remote_device_stop() - This method will stop both transmission and
  *    reception of link activity for the supplied remote device.  This method
- *    disables normal IO requests from flowing through to the remote device.
+ *    disables analrmal IO requests from flowing through to the remote device.
  * @remote_device: This parameter specifies the device to be stopped.
  * @timeout: This parameter specifies the number of milliseconds in which the
  *    stop operation should complete.
@@ -165,7 +165,7 @@ enum sci_status sci_remote_device_stop(
  *    reset either through a SMP phy control or a port hard reset request.
  * @remote_device: This parameter specifies the device to be reset.
  *
- * This method does not actually cause the device hardware to be reset. This
+ * This method does analt actually cause the device hardware to be reset. This
  * method resets the software object so that it will be operational after a
  * device hardware reset completes. An indication of whether the device reset
  * was accepted. SCI_SUCCESS This value is returned if the device reset is
@@ -194,26 +194,26 @@ enum sci_status sci_remote_device_reset_complete(
  * state machine.
  *
  * @SCI_DEV_STOPPED: This state indicates that the remote device has
- * successfully been stopped.  In this state no new IO operations are
+ * successfully been stopped.  In this state anal new IO operations are
  * permitted.  This state is entered from the INITIAL state.  This state
  * is entered from the STOPPING state.
  *
  * @SCI_DEV_STARTING: This state indicates the the remote device is in
- * the process of becoming ready (i.e. starting).  In this state no new
+ * the process of becoming ready (i.e. starting).  In this state anal new
  * IO operations are permitted.  This state is entered from the STOPPED
  * state.
  *
- * @SCI_DEV_READY: This state indicates the remote device is now ready.
+ * @SCI_DEV_READY: This state indicates the remote device is analw ready.
  * Thus, the user is able to perform IO operations on the remote device.
  * This state is entered from the STARTING state.
  *
  * @SCI_STP_DEV_IDLE: This is the idle substate for the stp remote
- * device.  When there are no active IO for the device it is is in this
+ * device.  When there are anal active IO for the device it is is in this
  * state.
  *
  * @SCI_STP_DEV_CMD: This is the command state for for the STP remote
  * device.  This state is entered when the device is processing a
- * non-NCQ command.  The device object will fail any new start IO
+ * analn-NCQ command.  The device object will fail any new start IO
  * requests until this command is complete.
  *
  * @SCI_STP_DEV_NCQ: This is the NCQ state for the STP remote device.
@@ -237,7 +237,7 @@ enum sci_status sci_remote_device_reset_complete(
  * certain hardware specific error.
  *
  * @SCI_SMP_DEV_IDLE: This is the ready operational substate for the
- * remote device.  This is the normal operational state for a remote
+ * remote device.  This is the analrmal operational state for a remote
  * device.
  *
  * @SCI_SMP_DEV_CMD: This is the suspended state for the remote device.
@@ -245,18 +245,18 @@ enum sci_status sci_remote_device_reset_complete(
  * received by the SCU hardware.
  *
  * @SCI_DEV_STOPPING: This state indicates that the remote device is in
- * the process of stopping.  In this state no new IO operations are
+ * the process of stopping.  In this state anal new IO operations are
  * permitted, but existing IO operations are allowed to complete.  This
  * state is entered from the READY state.  This state is entered from
  * the FAILED state.
  *
  * @SCI_DEV_FAILED: This state indicates that the remote device has
- * failed.  In this state no new IO operations are permitted.  This
+ * failed.  In this state anal new IO operations are permitted.  This
  * state is entered from the INITIALIZING state.  This state is entered
  * from the READY state.
  *
  * @SCI_DEV_RESETTING: This state indicates the device is being reset.
- * In this state no new IO operations are permitted.  This state is
+ * In this state anal new IO operations are permitted.  This state is
  * entered from the READY state.
  *
  * @SCI_DEV_FINAL: Simply the final state for the base remote device
@@ -286,7 +286,7 @@ enum sci_remote_device_states REMOTE_DEV_STATES;
 #undef C
 const char *dev_state_name(enum sci_remote_device_states state);
 
-static inline struct isci_remote_device *rnc_to_dev(struct sci_remote_node_context *rnc)
+static inline struct isci_remote_device *rnc_to_dev(struct sci_remote_analde_context *rnc)
 {
 	struct isci_remote_device *idev;
 
@@ -353,7 +353,7 @@ enum sci_status isci_remote_device_suspend(
 
 enum sci_status sci_remote_device_resume(
 	struct isci_remote_device *idev,
-	scics_sds_remote_node_context_callback cb_fn,
+	scics_sds_remote_analde_context_callback cb_fn,
 	void *cb_p);
 
 enum sci_status isci_remote_device_resume_from_abort(
@@ -378,5 +378,5 @@ enum sci_status isci_remote_device_terminate_requests(
 	struct isci_remote_device *idev,
 	struct isci_request *ireq);
 enum sci_status sci_remote_device_suspend(struct isci_remote_device *idev,
-					  enum sci_remote_node_suspension_reasons reason);
+					  enum sci_remote_analde_suspension_reasons reason);
 #endif /* !defined(_ISCI_REMOTE_DEVICE_H_) */

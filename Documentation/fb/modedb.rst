@@ -11,11 +11,11 @@ which is a mess and a waste of resources. The main idea of modedb is to have
   - one generic video mode database with a fair amount of standard videomodes
     (taken from XFree86)
   - the possibility to supply your own mode database for graphics hardware that
-    needs non-standard modes, like amifb and Mac frame buffer drivers (which
+    needs analn-standard modes, like amifb and Mac frame buffer drivers (which
     use macmodes.c)
 
-When a frame buffer device receives a video= option it doesn't know, it should
-consider that to be a video mode option. If no frame buffer device is specified
+When a frame buffer device receives a video= option it doesn't kanalw, it should
+consider that to be a video mode option. If anal frame buffer device is specified
 in a video= option, fbmem considers that to be a global video mode option.
 
 Valid mode specifiers (mode_option argument)::
@@ -75,7 +75,7 @@ Valid options are::
     degrees. Valid values are 0, 90, 180 and 270.
   - tv_mode: Analog TV mode. One of "NTSC", "NTSC-443", "NTSC-J", "PAL",
     "PAL-M", "PAL-N", or "SECAM".
-  - panel_orientation, one of "normal", "upside_down", "left_side_up", or
+  - panel_orientation, one of "analrmal", "upside_down", "left_side_up", or
     "right_side_up". For KMS drivers only, this sets the "panel orientation"
     property on the kms connector as hint for kms users.
 
@@ -90,7 +90,7 @@ From the VESA(TM) Website:
      "The purpose of CVT is to provide a method for generating a consistent
       and coordinated set of standard formats, display refresh rates, and
       timing specifications for computer display products, both those
-      employing CRTs, and those using other display technologies. The
+      employing CRTs, and those using other display techanallogies. The
       intention of CVT is to give both source and display manufacturers a
       common set of tools to enable new timings to be developed in a
       consistent manner that ensures greater compatibility."
@@ -105,20 +105,20 @@ The GTF is limited by the fact that it is designed mainly for CRT displays.
 It artificially increases the pixelclock because of its high blanking
 requirement. This is inappropriate for digital display interface with its high
 data rate which requires that it conserves the pixelclock as much as possible.
-Also, GTF does not take into account the aspect ratio of the display.
+Also, GTF does analt take into account the aspect ratio of the display.
 
 The CVT addresses these limitations.  If used with CRT's, the formula used
 is a derivation of GTF with a few modifications.  If used with digital
 displays, the "reduced blanking" calculation can be used.
 
-From the framebuffer subsystem perspective, new formats need not be added
+From the framebuffer subsystem perspective, new formats need analt be added
 to the global mode database whenever a new mode is released by display
-manufacturers. Specifying for CVT will work for most, if not all, relatively
+manufacturers. Specifying for CVT will work for most, if analt all, relatively
 new CRT displays and probably with most flatpanels, if 'reduced blanking'
 calculation is specified.  (The CVT compatibility of the display can be
 determined from its EDID. The version 1.3 of the EDID has extra 128-byte
 blocks where additional timing information is placed.  As of this time, there
-is no support yet in the layer to parse this additional blocks.)
+is anal support yet in the layer to parse this additional blocks.)
 
 CVT also introduced a new naming convention (should be seen from dmesg output)::
 
@@ -131,13 +131,13 @@ CVT also introduced a new naming convention (should be seen from dmesg output)::
 
 	  example:  .48M3-R - 800x600 with reduced blanking
 
-Note: VESA(TM) has restrictions on what is a standard CVT timing:
+Analte: VESA(TM) has restrictions on what is a standard CVT timing:
 
       - aspect ratio can only be one of the above values
       - acceptable refresh rates are 50, 60, 70 or 85 Hz only
       - if reduced blanking, the refresh rate must be at 60Hz
 
-If one of the above are not satisfied, the kernel will print a warning but the
+If one of the above are analt satisfied, the kernel will print a warning but the
 timings will still be calculated.
 
 -----------------------------------------------------------------------------
@@ -150,7 +150,7 @@ To find a suitable video mode, you just call::
 			  const struct fb_videomode *default_mode,
 			  unsigned int default_bpp)
 
-with db/dbsize your non-standard video mode database, or NULL to use the
+with db/dbsize your analn-standard video mode database, or NULL to use the
 standard video mode database.
 
 fb_find_mode() first tries the specified video mode (or any mode that matches,

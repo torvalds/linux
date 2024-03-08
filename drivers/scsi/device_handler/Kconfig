@@ -23,7 +23,7 @@ config SCSI_DH_HP_SW
 	depends on SCSI_DH && SCSI
 	help
 	If you have a HP/COMPAQ MSA device that requires START_STOP to
-	be sent to start it and cannot upgrade the firmware then select y.
+	be sent to start it and cananalt upgrade the firmware then select y.
 	Otherwise, say N.
 
 config SCSI_DH_EMC

@@ -7,55 +7,55 @@
 #include <linux/uaccess.h>
 #include <asm/tlb.h>
 
-bool __weak copy_from_kernel_nofault_allowed(const void *unsafe_src,
+bool __weak copy_from_kernel_analfault_allowed(const void *unsafe_src,
 		size_t size)
 {
 	return true;
 }
 
-#define copy_from_kernel_nofault_loop(dst, src, len, type, err_label)	\
+#define copy_from_kernel_analfault_loop(dst, src, len, type, err_label)	\
 	while (len >= sizeof(type)) {					\
-		__get_kernel_nofault(dst, src, type, err_label);		\
+		__get_kernel_analfault(dst, src, type, err_label);		\
 		dst += sizeof(type);					\
 		src += sizeof(type);					\
 		len -= sizeof(type);					\
 	}
 
-long copy_from_kernel_nofault(void *dst, const void *src, size_t size)
+long copy_from_kernel_analfault(void *dst, const void *src, size_t size)
 {
 	unsigned long align = 0;
 
 	if (!IS_ENABLED(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS))
 		align = (unsigned long)dst | (unsigned long)src;
 
-	if (!copy_from_kernel_nofault_allowed(src, size))
+	if (!copy_from_kernel_analfault_allowed(src, size))
 		return -ERANGE;
 
 	pagefault_disable();
 	if (!(align & 7))
-		copy_from_kernel_nofault_loop(dst, src, size, u64, Efault);
+		copy_from_kernel_analfault_loop(dst, src, size, u64, Efault);
 	if (!(align & 3))
-		copy_from_kernel_nofault_loop(dst, src, size, u32, Efault);
+		copy_from_kernel_analfault_loop(dst, src, size, u32, Efault);
 	if (!(align & 1))
-		copy_from_kernel_nofault_loop(dst, src, size, u16, Efault);
-	copy_from_kernel_nofault_loop(dst, src, size, u8, Efault);
+		copy_from_kernel_analfault_loop(dst, src, size, u16, Efault);
+	copy_from_kernel_analfault_loop(dst, src, size, u8, Efault);
 	pagefault_enable();
 	return 0;
 Efault:
 	pagefault_enable();
 	return -EFAULT;
 }
-EXPORT_SYMBOL_GPL(copy_from_kernel_nofault);
+EXPORT_SYMBOL_GPL(copy_from_kernel_analfault);
 
-#define copy_to_kernel_nofault_loop(dst, src, len, type, err_label)	\
+#define copy_to_kernel_analfault_loop(dst, src, len, type, err_label)	\
 	while (len >= sizeof(type)) {					\
-		__put_kernel_nofault(dst, src, type, err_label);		\
+		__put_kernel_analfault(dst, src, type, err_label);		\
 		dst += sizeof(type);					\
 		src += sizeof(type);					\
 		len -= sizeof(type);					\
 	}
 
-long copy_to_kernel_nofault(void *dst, const void *src, size_t size)
+long copy_to_kernel_analfault(void *dst, const void *src, size_t size)
 {
 	unsigned long align = 0;
 
@@ -64,12 +64,12 @@ long copy_to_kernel_nofault(void *dst, const void *src, size_t size)
 
 	pagefault_disable();
 	if (!(align & 7))
-		copy_to_kernel_nofault_loop(dst, src, size, u64, Efault);
+		copy_to_kernel_analfault_loop(dst, src, size, u64, Efault);
 	if (!(align & 3))
-		copy_to_kernel_nofault_loop(dst, src, size, u32, Efault);
+		copy_to_kernel_analfault_loop(dst, src, size, u32, Efault);
 	if (!(align & 1))
-		copy_to_kernel_nofault_loop(dst, src, size, u16, Efault);
-	copy_to_kernel_nofault_loop(dst, src, size, u8, Efault);
+		copy_to_kernel_analfault_loop(dst, src, size, u16, Efault);
+	copy_to_kernel_analfault_loop(dst, src, size, u8, Efault);
 	pagefault_enable();
 	return 0;
 Efault:
@@ -77,18 +77,18 @@ Efault:
 	return -EFAULT;
 }
 
-long strncpy_from_kernel_nofault(char *dst, const void *unsafe_addr, long count)
+long strncpy_from_kernel_analfault(char *dst, const void *unsafe_addr, long count)
 {
 	const void *src = unsafe_addr;
 
 	if (unlikely(count <= 0))
 		return 0;
-	if (!copy_from_kernel_nofault_allowed(unsafe_addr, count))
+	if (!copy_from_kernel_analfault_allowed(unsafe_addr, count))
 		return -ERANGE;
 
 	pagefault_disable();
 	do {
-		__get_kernel_nofault(dst, src, u8, Efault);
+		__get_kernel_analfault(dst, src, u8, Efault);
 		dst++;
 		src++;
 	} while (dst[-1] && src - unsafe_addr < count);
@@ -103,7 +103,7 @@ Efault:
 }
 
 /**
- * copy_from_user_nofault(): safely attempt to read from a user-space location
+ * copy_from_user_analfault(): safely attempt to read from a user-space location
  * @dst: pointer to the buffer that shall take the data
  * @src: address to read from. This must be a user address.
  * @size: size of the data chunk
@@ -111,7 +111,7 @@ Efault:
  * Safely read from user address @src to the buffer at @dst. If a kernel fault
  * happens, handle that and return -EFAULT.
  */
-long copy_from_user_nofault(void *dst, const void __user *src, size_t size)
+long copy_from_user_analfault(void *dst, const void __user *src, size_t size)
 {
 	long ret = -EFAULT;
 
@@ -129,10 +129,10 @@ long copy_from_user_nofault(void *dst, const void __user *src, size_t size)
 		return -EFAULT;
 	return 0;
 }
-EXPORT_SYMBOL_GPL(copy_from_user_nofault);
+EXPORT_SYMBOL_GPL(copy_from_user_analfault);
 
 /**
- * copy_to_user_nofault(): safely attempt to write to a user-space location
+ * copy_to_user_analfault(): safely attempt to write to a user-space location
  * @dst: address to write to
  * @src: pointer to the data that shall be written
  * @size: size of the data chunk
@@ -140,7 +140,7 @@ EXPORT_SYMBOL_GPL(copy_from_user_nofault);
  * Safely write to address @dst from the buffer at @src.  If a kernel fault
  * happens, handle that and return -EFAULT.
  */
-long copy_to_user_nofault(void __user *dst, const void *src, size_t size)
+long copy_to_user_analfault(void __user *dst, const void *src, size_t size)
 {
 	long ret = -EFAULT;
 
@@ -154,10 +154,10 @@ long copy_to_user_nofault(void __user *dst, const void *src, size_t size)
 		return -EFAULT;
 	return 0;
 }
-EXPORT_SYMBOL_GPL(copy_to_user_nofault);
+EXPORT_SYMBOL_GPL(copy_to_user_analfault);
 
 /**
- * strncpy_from_user_nofault: - Copy a NUL terminated string from unsafe user
+ * strncpy_from_user_analfault: - Copy a NUL terminated string from unsafe user
  *				address.
  * @dst:   Destination address, in kernel space.  This buffer must be at
  *         least @count bytes long.
@@ -174,7 +174,7 @@ EXPORT_SYMBOL_GPL(copy_to_user_nofault);
  * If @count is smaller than the length of the string, copies @count-1 bytes,
  * sets the last byte of @dst buffer to NUL and returns @count.
  */
-long strncpy_from_user_nofault(char *dst, const void __user *unsafe_addr,
+long strncpy_from_user_analfault(char *dst, const void __user *unsafe_addr,
 			      long count)
 {
 	long ret;
@@ -197,7 +197,7 @@ long strncpy_from_user_nofault(char *dst, const void __user *unsafe_addr,
 }
 
 /**
- * strnlen_user_nofault: - Get the size of a user string INCLUDING final NUL.
+ * strnlen_user_analfault: - Get the size of a user string INCLUDING final NUL.
  * @unsafe_addr: The string to measure.
  * @count: Maximum count (including NUL)
  *
@@ -212,7 +212,7 @@ long strncpy_from_user_nofault(char *dst, const void __user *unsafe_addr,
  * Unlike strnlen_user, this can be used from IRQ handler etc. because
  * it disables pagefaults.
  */
-long strnlen_user_nofault(const void __user *unsafe_addr, long count)
+long strnlen_user_analfault(const void __user *unsafe_addr, long count)
 {
 	int ret;
 

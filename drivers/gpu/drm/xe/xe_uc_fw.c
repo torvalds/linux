@@ -25,19 +25,19 @@
  *
  * Versioning follows the guidelines from
  * Documentation/driver-api/firmware/firmware-usage-guidelines.rst. There is a
- * distinction for platforms being officially supported by the driver or not.
- * Platforms not available publicly or not yet officially supported by the
+ * distinction for platforms being officially supported by the driver or analt.
+ * Platforms analt available publicly or analt yet officially supported by the
  * driver (under force-probe), use the mmp_ver(): the firmware autoselect logic
  * will select the firmware from disk with filename that matches the full
- * "mpp version", i.e. major.minor.patch. mmp_ver() should only be used for
+ * "mpp version", i.e. major.mianalr.patch. mmp_ver() should only be used for
  * this case.
  *
  * For platforms officially supported by the driver, the filename always only
- * ever contains the major version (GuC) or no version at all (HuC).
+ * ever contains the major version (GuC) or anal version at all (HuC).
  *
  * After loading the file, the driver parses the versions embedded in the blob.
  * The major version needs to match a major version supported by the driver (if
- * any). The minor version is also checked and a notice emitted to the log if
+ * any). The mianalr version is also checked and a analtice emitted to the log if
  * the version found is smaller than the version wanted. This is done only for
  * informational purposes so users may have a chance to upgrade, but the driver
  * still loads and use the older firmware.
@@ -51,17 +51,17 @@
  *		- i915/tgl_huc.bin
  *
  *	   <major> number for GuC is checked that it matches the version inside
- *	   the blob. <minor> version is checked and if smaller than the expected
+ *	   the blob. <mianalr> version is checked and if smaller than the expected
  *	   an info message is emitted about that.
  *
  *	1) XE_<FUTUREINTELPLATFORM>, still under require_force_probe. Using
  *	   "wipplat" as a short-name. Driver loads the following firmware blobs
  *	   from disk:
  *
- *		- xe/wipplat_guc_<major>.<minor>.<patch>.bin
- *		- xe/wipplat_huc_<major>.<minor>.<patch>.bin
+ *		- xe/wipplat_guc_<major>.<mianalr>.<patch>.bin
+ *		- xe/wipplat_huc_<major>.<mianalr>.<patch>.bin
  *
- *	   <major> and <minor> are checked that they match the version inside
+ *	   <major> and <mianalr> are checked that they match the version inside
  *	   the blob. Both of them need to match exactly what the driver is
  *	   expecting, otherwise it fails.
  *
@@ -74,14 +74,14 @@
  *		- xe/plat_huc.bin
  *
  *	   <major> number for GuC is checked that it matches the version inside
- *	   the blob. <minor> version is checked and if smaller than the expected
+ *	   the blob. <mianalr> version is checked and if smaller than the expected
  *	   an info message is emitted about that.
  *
  * For the platforms already released with a major version, they should never be
  * removed from the table. Instead new entries with newer versions may be added
  * before them, so they take precedence.
  *
- * TODO: Currently there's no fallback on major version. That's because xe
+ * TODO: Currently there's anal fallback on major version. That's because xe
  * driver only supports the one major version of each firmware in the table.
  * This needs to be fixed when the major version of GuC is updated.
  */
@@ -91,7 +91,7 @@ struct uc_fw_entry {
 	struct {
 		const char *path;
 		u16 major;
-		u16 minor;
+		u16 mianalr;
 		bool full_ver_required;
 	};
 };
@@ -111,15 +111,15 @@ struct fw_blobs_by_type {
 	fw_def(ROCKETLAKE,	major_ver(i915,	guc,	tgl,	70, 5))		\
 	fw_def(TIGERLAKE,	major_ver(i915,	guc,	tgl,	70, 5))
 
-#define XE_HUC_FIRMWARE_DEFS(fw_def, mmp_ver, no_ver)		\
-	fw_def(METEORLAKE,	no_ver(i915,	huc_gsc,	mtl))		\
-	fw_def(DG1,		no_ver(i915,	huc,		dg1))		\
-	fw_def(ALDERLAKE_P,	no_ver(i915,	huc,		tgl))		\
-	fw_def(ALDERLAKE_S,	no_ver(i915,	huc,		tgl))		\
-	fw_def(ROCKETLAKE,	no_ver(i915,	huc,		tgl))		\
-	fw_def(TIGERLAKE,	no_ver(i915,	huc,		tgl))
+#define XE_HUC_FIRMWARE_DEFS(fw_def, mmp_ver, anal_ver)		\
+	fw_def(METEORLAKE,	anal_ver(i915,	huc_gsc,	mtl))		\
+	fw_def(DG1,		anal_ver(i915,	huc,		dg1))		\
+	fw_def(ALDERLAKE_P,	anal_ver(i915,	huc,		tgl))		\
+	fw_def(ALDERLAKE_S,	anal_ver(i915,	huc,		tgl))		\
+	fw_def(ROCKETLAKE,	anal_ver(i915,	huc,		tgl))		\
+	fw_def(TIGERLAKE,	anal_ver(i915,	huc,		tgl))
 
-/* for the GSC FW we match the compatibility version and not the release one */
+/* for the GSC FW we match the compatibility version and analt the release one */
 #define XE_GSC_FIRMWARE_DEFS(fw_def, major_ver)		\
 	fw_def(METEORLAKE,	major_ver(i915,	gsc,	mtl,	1, 0))
 
@@ -130,7 +130,7 @@ struct fw_blobs_by_type {
 	MAKE_FW_PATH(dir_, uc_, shortname_, "_" __stringify(a ## . ## b ## . ## c))
 #define fw_filename_major_ver(dir_, uc_, shortname_, a, b)			\
 	MAKE_FW_PATH(dir_, uc_, shortname_, "_" __stringify(a))
-#define fw_filename_no_ver(dir_, uc_, shortname_)				\
+#define fw_filename_anal_ver(dir_, uc_, shortname_)				\
 	MAKE_FW_PATH(dir_, uc_, shortname_, "")
 
 #define uc_fw_entry_mmp_ver(dir_, uc_, shortname_, a, b, c)			\
@@ -139,8 +139,8 @@ struct fw_blobs_by_type {
 #define uc_fw_entry_major_ver(dir_, uc_, shortname_, a, b)			\
 	{ fw_filename_major_ver(dir_, uc_, shortname_, a, b),			\
 	  a, b }
-#define uc_fw_entry_no_ver(dir_, uc_, shortname_)				\
-	{ fw_filename_no_ver(dir_, uc_, shortname_),				\
+#define uc_fw_entry_anal_ver(dir_, uc_, shortname_)				\
+	{ fw_filename_anal_ver(dir_, uc_, shortname_),				\
 	  0, 0 }
 
 /* All blobs need to be declared via MODULE_FIRMWARE() */
@@ -156,7 +156,7 @@ struct fw_blobs_by_type {
 XE_GUC_FIRMWARE_DEFS(XE_UC_MODULE_FIRMWARE,
 		     fw_filename_mmp_ver, fw_filename_major_ver)
 XE_HUC_FIRMWARE_DEFS(XE_UC_MODULE_FIRMWARE,
-		     fw_filename_mmp_ver, fw_filename_no_ver)
+		     fw_filename_mmp_ver, fw_filename_anal_ver)
 XE_GSC_FIRMWARE_DEFS(XE_UC_MODULE_FIRMWARE, fw_filename_major_ver)
 
 static struct xe_gt *
@@ -197,7 +197,7 @@ uc_fw_auto_select(struct xe_device *xe, struct xe_uc_fw *uc_fw)
 	static const struct uc_fw_entry entries_huc[] = {
 		XE_HUC_FIRMWARE_DEFS(XE_UC_FW_ENTRY,
 				     uc_fw_entry_mmp_ver,
-				     uc_fw_entry_no_ver)
+				     uc_fw_entry_anal_ver)
 	};
 	static const struct uc_fw_entry entries_gsc[] = {
 		XE_GSC_FIRMWARE_DEFS(XE_UC_FW_ENTRY, uc_fw_entry_major_ver)
@@ -220,7 +220,7 @@ uc_fw_auto_select(struct xe_device *xe, struct xe_uc_fw *uc_fw)
 		if (p == entries[i].platform) {
 			uc_fw->path = entries[i].path;
 			uc_fw->versions.wanted.major = entries[i].major;
-			uc_fw->versions.wanted.minor = entries[i].minor;
+			uc_fw->versions.wanted.mianalr = entries[i].mianalr;
 			uc_fw->full_ver_required = entries[i].full_ver_required;
 
 			if (uc_fw->type == XE_UC_FW_TYPE_GSC)
@@ -238,7 +238,7 @@ uc_fw_override(struct xe_uc_fw *uc_fw)
 {
 	char *path_override = NULL;
 
-	/* empty string disables, but it's not allowed for GuC */
+	/* empty string disables, but it's analt allowed for GuC */
 	switch (uc_fw->type) {
 	case XE_UC_FW_TYPE_GUC:
 		if (xe_modparam.guc_firmware_path && *xe_modparam.guc_firmware_path)
@@ -302,23 +302,23 @@ static void guc_read_css_info(struct xe_uc_fw *uc_fw, struct uc_css_header *css)
 	xe_gt_assert(gt, uc_fw->type == XE_UC_FW_TYPE_GUC);
 	xe_gt_assert(gt, release->major >= 70);
 
-	if (release->major > 70 || release->minor >= 6) {
+	if (release->major > 70 || release->mianalr >= 6) {
 		/* v70.6.0 adds CSS header support */
 		compatibility->major = FIELD_GET(CSS_SW_VERSION_UC_MAJOR,
 						 css->submission_version);
-		compatibility->minor = FIELD_GET(CSS_SW_VERSION_UC_MINOR,
+		compatibility->mianalr = FIELD_GET(CSS_SW_VERSION_UC_MIANALR,
 						 css->submission_version);
 		compatibility->patch = FIELD_GET(CSS_SW_VERSION_UC_PATCH,
 						 css->submission_version);
-	} else if (release->minor >= 3) {
+	} else if (release->mianalr >= 3) {
 		/* v70.3.0 introduced v1.1.0 */
 		compatibility->major = 1;
-		compatibility->minor = 1;
+		compatibility->mianalr = 1;
 		compatibility->patch = 0;
 	} else {
 		/* v70.0.0 introduced v1.0.0 */
 		compatibility->major = 1;
-		compatibility->minor = 0;
+		compatibility->mianalr = 0;
 		compatibility->patch = 0;
 	}
 
@@ -331,28 +331,28 @@ int xe_uc_fw_check_version_requirements(struct xe_uc_fw *uc_fw)
 	struct xe_uc_fw_version *wanted = &uc_fw->versions.wanted;
 	struct xe_uc_fw_version *found = &uc_fw->versions.found[uc_fw->versions.wanted_type];
 
-	/* Driver has no requirement on any version, any is good. */
+	/* Driver has anal requirement on any version, any is good. */
 	if (!wanted->major)
 		return 0;
 
 	/*
-	 * If full version is required, both major and minor should match.
+	 * If full version is required, both major and mianalr should match.
 	 * Otherwise, at least the major version.
 	 */
 	if (wanted->major != found->major ||
-	    (uc_fw->full_ver_required && wanted->minor != found->minor)) {
-		drm_notice(&xe->drm, "%s firmware %s: unexpected version: %u.%u != %u.%u\n",
+	    (uc_fw->full_ver_required && wanted->mianalr != found->mianalr)) {
+		drm_analtice(&xe->drm, "%s firmware %s: unexpected version: %u.%u != %u.%u\n",
 			   xe_uc_fw_type_repr(uc_fw->type), uc_fw->path,
-			   found->major, found->minor,
-			   wanted->major, wanted->minor);
+			   found->major, found->mianalr,
+			   wanted->major, wanted->mianalr);
 		goto fail;
 	}
 
-	if (wanted->minor > found->minor) {
-		drm_notice(&xe->drm, "%s firmware (%u.%u) is recommended, but only (%u.%u) was found in %s\n",
+	if (wanted->mianalr > found->mianalr) {
+		drm_analtice(&xe->drm, "%s firmware (%u.%u) is recommended, but only (%u.%u) was found in %s\n",
 			   xe_uc_fw_type_repr(uc_fw->type),
-			   wanted->major, wanted->minor,
-			   found->major, found->minor,
+			   wanted->major, wanted->mianalr,
+			   found->major, found->mianalr,
 			   uc_fw->path);
 		drm_info(&xe->drm, "Consider updating your linux-firmware pkg or downloading from %s\n",
 			 XE_UC_FIRMWARE_URL);
@@ -364,7 +364,7 @@ fail:
 	if (xe_uc_fw_is_overridden(uc_fw))
 		return 0;
 
-	return -ENOEXEC;
+	return -EANALEXEC;
 }
 
 /* Refer to the "CSS-based Firmware Layout" documentation entry for details */
@@ -380,7 +380,7 @@ static int parse_css_header(struct xe_uc_fw *uc_fw, const void *fw_data, size_t 
 		drm_warn(&xe->drm, "%s firmware %s: invalid size: %zu < %zu\n",
 			 xe_uc_fw_type_repr(uc_fw->type), uc_fw->path,
 			 fw_size, sizeof(struct uc_css_header));
-		return -ENODATA;
+		return -EANALDATA;
 	}
 
 	css = (struct uc_css_header *)fw_data;
@@ -399,7 +399,7 @@ static int parse_css_header(struct xe_uc_fw *uc_fw, const void *fw_data, size_t 
 	/* uCode size must calculated from other sizes */
 	uc_fw->ucode_size = (css->size_dw - css->header_size_dw) * sizeof(u32);
 
-	/* now RSA */
+	/* analw RSA */
 	uc_fw->rsa_size = css->key_size_dw * sizeof(u32);
 
 	/* At least, it should have header, uCode and RSA. Size of all three. */
@@ -409,12 +409,12 @@ static int parse_css_header(struct xe_uc_fw *uc_fw, const void *fw_data, size_t 
 		drm_warn(&xe->drm, "%s firmware %s: invalid size: %zu < %zu\n",
 			 xe_uc_fw_type_repr(uc_fw->type), uc_fw->path,
 			 fw_size, size);
-		return -ENOEXEC;
+		return -EANALEXEC;
 	}
 
 	/* Get version numbers from the CSS header */
 	release->major = FIELD_GET(CSS_SW_VERSION_UC_MAJOR, css->sw_version);
-	release->minor = FIELD_GET(CSS_SW_VERSION_UC_MINOR, css->sw_version);
+	release->mianalr = FIELD_GET(CSS_SW_VERSION_UC_MIANALR, css->sw_version);
 	release->patch = FIELD_GET(CSS_SW_VERSION_UC_PATCH, css->sw_version);
 
 	if (uc_fw->type == XE_UC_FW_TYPE_GUC)
@@ -460,7 +460,7 @@ static int parse_cpd_header(struct xe_uc_fw *uc_fw, const void *data, size_t siz
 	xe_assert(xe, manifest_entry);
 
 	if (size < min_size || !is_cpd_header(header))
-		return -ENOENT;
+		return -EANALENT;
 
 	if (header->header_length < sizeof(struct gsc_cpd_header_v2)) {
 		xe_gt_err(gt, "invalid CPD header length %u!\n", header->header_length);
@@ -470,7 +470,7 @@ static int parse_cpd_header(struct xe_uc_fw *uc_fw, const void *data, size_t siz
 	min_size = header->header_length + sizeof(struct gsc_cpd_entry) * header->num_of_entries;
 	if (size < min_size) {
 		xe_gt_err(gt, "FW too small! %zu < %zu\n", size, min_size);
-		return -ENODATA;
+		return -EANALDATA;
 	}
 
 	/* Look for the manifest first */
@@ -478,19 +478,19 @@ static int parse_cpd_header(struct xe_uc_fw *uc_fw, const void *data, size_t siz
 	if (!offset) {
 		xe_gt_err(gt, "Failed to find %s manifest!\n",
 			  xe_uc_fw_type_repr(uc_fw->type));
-		return -ENODATA;
+		return -EANALDATA;
 	}
 
 	min_size = offset + sizeof(struct gsc_manifest_header);
 	if (size < min_size) {
 		xe_gt_err(gt, "FW too small! %zu < %zu\n", size, min_size);
-		return -ENODATA;
+		return -EANALDATA;
 	}
 
 	manifest = data + offset;
 
 	release->major = manifest->fw_version.major;
-	release->minor = manifest->fw_version.minor;
+	release->mianalr = manifest->fw_version.mianalr;
 	release->patch = manifest->fw_version.hotfix;
 
 	if (uc_fw->type == XE_UC_FW_TYPE_GSC) {
@@ -505,8 +505,8 @@ static int parse_cpd_header(struct xe_uc_fw *uc_fw, const void *data, size_t siz
 		int ret;
 
 		/*
-		 * This section does not contain a CSS entry on DG2. We
-		 * don't support DG2 HuC right now, so no need to handle
+		 * This section does analt contain a CSS entry on DG2. We
+		 * don't support DG2 HuC right analw, so anal need to handle
 		 * it, just add a reminder in case that changes.
 		 */
 		xe_assert(xe, xe->info.platform != XE_DG2);
@@ -516,7 +516,7 @@ static int parse_cpd_header(struct xe_uc_fw *uc_fw, const void *data, size_t siz
 		/* the CSS header parser will check that the CSS header fits */
 		if (offset > size) {
 			xe_gt_err(gt, "FW too small! %zu < %u\n", size, offset);
-			return -ENODATA;
+			return -EANALDATA;
 		}
 
 		ret = parse_css_header(uc_fw, data + offset, size - offset);
@@ -542,21 +542,21 @@ static int parse_gsc_layout(struct xe_uc_fw *uc_fw, const void *data, size_t siz
 
 	if (size < min_size) {
 		xe_gt_err(gt, "GSC FW too small! %zu < %zu\n", size, min_size);
-		return -ENODATA;
+		return -EANALDATA;
 	}
 
 	min_size = layout->boot1.offset + layout->boot1.size;
 	if (size < min_size) {
 		xe_gt_err(gt, "GSC FW too small for boot section! %zu < %zu\n",
 			  size, min_size);
-		return -ENODATA;
+		return -EANALDATA;
 	}
 
 	min_size = sizeof(*bpdt_header);
 	if (layout->boot1.size < min_size) {
 		xe_gt_err(gt, "GSC FW boot section too small for BPDT header: %u < %zu\n",
 			  layout->boot1.size, min_size);
-		return -ENODATA;
+		return -EANALDATA;
 	}
 
 	bpdt_header = data + layout->boot1.offset;
@@ -570,7 +570,7 @@ static int parse_gsc_layout(struct xe_uc_fw *uc_fw, const void *data, size_t siz
 	if (layout->boot1.size < min_size) {
 		xe_gt_err(gt, "GSC FW boot section too small for BPDT entries: %u < %zu\n",
 			  layout->boot1.size, min_size);
-		return -ENODATA;
+		return -EANALDATA;
 	}
 
 	bpdt_entry = (void *)bpdt_header + sizeof(*bpdt_header);
@@ -585,7 +585,7 @@ static int parse_gsc_layout(struct xe_uc_fw *uc_fw, const void *data, size_t siz
 		if (layout->boot1.size < min_size) {
 			xe_gt_err(gt, "GSC FW boot section too small for CPD offset: %u < %zu\n",
 				  layout->boot1.size, min_size);
-			return -ENODATA;
+			return -EANALDATA;
 		}
 
 		return parse_cpd_header(uc_fw,
@@ -595,7 +595,7 @@ static int parse_gsc_layout(struct xe_uc_fw *uc_fw, const void *data, size_t siz
 	}
 
 	xe_gt_err(gt, "couldn't find CPD header in GSC binary!\n");
-	return -ENODATA;
+	return -EANALDATA;
 }
 
 static int parse_headers(struct xe_uc_fw *uc_fw, const struct firmware *fw)
@@ -611,7 +611,7 @@ static int parse_headers(struct xe_uc_fw *uc_fw, const struct firmware *fw)
 		return parse_gsc_layout(uc_fw, fw->data, fw->size);
 	case XE_UC_FW_TYPE_HUC:
 		ret = parse_cpd_header(uc_fw, fw->data, fw->size, "HUCP.man", "huc_fw");
-		if (!ret || ret != -ENOENT)
+		if (!ret || ret != -EANALENT)
 			return ret;
 		fallthrough;
 	case XE_UC_FW_TYPE_GUC:
@@ -628,11 +628,11 @@ do { \
 	struct xe_uc_fw_version *ver_ = (version_); \
 	if (ver_->build) \
 		drm_printf(p_, prefix_ " version %u.%u.%u.%u\n", ##__VA_ARGS__, \
-			   ver_->major, ver_->minor, \
+			   ver_->major, ver_->mianalr, \
 			   ver_->patch, ver_->build); \
 	else \
 		drm_printf(p_, prefix_ " version %u.%u.%u\n", ##__VA_ARGS__, \
-			  ver_->major, ver_->minor, ver_->patch); \
+			  ver_->major, ver_->mianalr, ver_->patch); \
 } while (0)
 
 static int uc_fw_request(struct xe_uc_fw *uc_fw, const struct firmware **firmware_p)
@@ -654,7 +654,7 @@ static int uc_fw_request(struct xe_uc_fw *uc_fw, const struct firmware **firmwar
 	uc_fw_auto_select(xe, uc_fw);
 	xe_uc_fw_change_status(uc_fw, uc_fw->path ?
 			       XE_UC_FIRMWARE_SELECTED :
-			       XE_UC_FIRMWARE_NOT_SUPPORTED);
+			       XE_UC_FIRMWARE_ANALT_SUPPORTED);
 
 	if (!xe_uc_fw_is_supported(uc_fw))
 		return 0;
@@ -693,11 +693,11 @@ static int uc_fw_request(struct xe_uc_fw *uc_fw, const struct firmware **firmwar
 	return 0;
 
 fail:
-	xe_uc_fw_change_status(uc_fw, err == -ENOENT ?
+	xe_uc_fw_change_status(uc_fw, err == -EANALENT ?
 			       XE_UC_FIRMWARE_MISSING :
 			       XE_UC_FIRMWARE_ERROR);
 
-	drm_notice(&xe->drm, "%s firmware %s: fetch failed with error %d\n",
+	drm_analtice(&xe->drm, "%s firmware %s: fetch failed with error %d\n",
 		   xe_uc_fw_type_repr(uc_fw->type), uc_fw->path, err);
 	drm_info(&xe->drm, "%s firmware(s) can be downloaded from %s\n",
 		 xe_uc_fw_type_repr(uc_fw->type), XE_UC_FIRMWARE_URL);
@@ -722,7 +722,7 @@ static int uc_fw_copy(struct xe_uc_fw *uc_fw, const void *data, size_t size, u32
 
 	obj = xe_managed_bo_create_from_data(xe, tile, data, size, flags);
 	if (IS_ERR(obj)) {
-		drm_notice(&xe->drm, "%s firmware %s: failed to create / populate bo",
+		drm_analtice(&xe->drm, "%s firmware %s: failed to create / populate bo",
 			   xe_uc_fw_type_repr(uc_fw->type), uc_fw->path);
 		err = PTR_ERR(obj);
 		goto fail;
@@ -741,7 +741,7 @@ static int uc_fw_copy(struct xe_uc_fw *uc_fw, const void *data, size_t size, u32
 
 fail:
 	xe_uc_fw_change_status(uc_fw, XE_UC_FIRMWARE_ERROR);
-	drm_notice(&xe->drm, "%s firmware %s: copy failed with error %d\n",
+	drm_analtice(&xe->drm, "%s firmware %s: copy failed with error %d\n",
 		   xe_uc_fw_type_repr(uc_fw->type), uc_fw->path, err);
 
 	return err;
@@ -756,7 +756,7 @@ int xe_uc_fw_init(struct xe_uc_fw *uc_fw)
 	if (err)
 		return err;
 
-	/* no error and no firmware means nothing to copy */
+	/* anal error and anal firmware means analthing to copy */
 	if (!fw)
 		return 0;
 
@@ -825,7 +825,7 @@ int xe_uc_fw_upload(struct xe_uc_fw *uc_fw, u32 offset, u32 dma_flags)
 	xe_assert(xe, !xe_uc_fw_is_loaded(uc_fw));
 
 	if (!xe_uc_fw_is_loadable(uc_fw))
-		return -ENOEXEC;
+		return -EANALEXEC;
 
 	/* Call custom loader */
 	err = uc_fw_xfer(uc_fw, offset, dma_flags);
@@ -851,7 +851,7 @@ static const char *version_type_repr(enum xe_uc_fw_version_types type)
 	case XE_UC_FW_VER_COMPATIBILITY:
 		return "compatibility";
 	default:
-		return "Unknown version type";
+		return "Unkanalwn version type";
 	}
 }
 

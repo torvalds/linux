@@ -177,22 +177,22 @@ static void g12_dump_reg(struct dmc_info *db)
 
 	for (i = 0; i < 9; i++) {
 		r  = readl(db->ddr_reg[0] + (DMC_MON_G12_CTRL0 + (i << 2)));
-		pr_notice("DMC_MON_CTRL%d:        %08x\n", i, r);
+		pr_analtice("DMC_MON_CTRL%d:        %08x\n", i, r);
 	}
 	r  = readl(db->ddr_reg[0] + DMC_MON_G12_ALL_REQ_CNT);
-	pr_notice("DMC_MON_ALL_REQ_CNT:  %08x\n", r);
+	pr_analtice("DMC_MON_ALL_REQ_CNT:  %08x\n", r);
 	r  = readl(db->ddr_reg[0] + DMC_MON_G12_ALL_GRANT_CNT);
-	pr_notice("DMC_MON_ALL_GRANT_CNT:%08x\n", r);
+	pr_analtice("DMC_MON_ALL_GRANT_CNT:%08x\n", r);
 	r  = readl(db->ddr_reg[0] + DMC_MON_G12_ONE_GRANT_CNT);
-	pr_notice("DMC_MON_ONE_GRANT_CNT:%08x\n", r);
+	pr_analtice("DMC_MON_ONE_GRANT_CNT:%08x\n", r);
 	r  = readl(db->ddr_reg[0] + DMC_MON_G12_SEC_GRANT_CNT);
-	pr_notice("DMC_MON_SEC_GRANT_CNT:%08x\n", r);
+	pr_analtice("DMC_MON_SEC_GRANT_CNT:%08x\n", r);
 	r  = readl(db->ddr_reg[0] + DMC_MON_G12_THD_GRANT_CNT);
-	pr_notice("DMC_MON_THD_GRANT_CNT:%08x\n", r);
+	pr_analtice("DMC_MON_THD_GRANT_CNT:%08x\n", r);
 	r  = readl(db->ddr_reg[0] + DMC_MON_G12_FOR_GRANT_CNT);
-	pr_notice("DMC_MON_FOR_GRANT_CNT:%08x\n", r);
+	pr_analtice("DMC_MON_FOR_GRANT_CNT:%08x\n", r);
 	r  = readl(db->ddr_reg[0] + DMC_MON_G12_TIMER);
-	pr_notice("DMC_MON_TIMER:        %08x\n", r);
+	pr_analtice("DMC_MON_TIMER:        %08x\n", r);
 }
 #endif
 

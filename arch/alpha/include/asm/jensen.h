@@ -9,8 +9,8 @@
  */
 
 /*
- * NOTE! The memory operations do not set any memory barriers, as it's
- * not needed for cases like a frame buffer that is essentially memory-like.
+ * ANALTE! The memory operations do analt set any memory barriers, as it's
+ * analt needed for cases like a frame buffer that is essentially memory-like.
  * You need to do them by hand if the operations depend on ordering.
  *
  * Similarly, the port IO operations do a "mb" only after a write operation:
@@ -19,17 +19,17 @@
  * done by hand.
  *
  * After the above has bitten me 100 times, I'll give up and just do the
- * mb all the time, but right now I'm hoping this will work out.  Avoiding
- * mb's may potentially be a noticeable speed improvement, but I can't
+ * mb all the time, but right analw I'm hoping this will work out.  Avoiding
+ * mb's may potentially be a analticeable speed improvement, but I can't
  * honestly say I've tested it.
  *
- * Handling interrupts that need to do mb's to synchronize to non-interrupts
- * is another fun race area.  Don't do it (because if you do, I'll have to
+ * Handling interrupts that need to do mb's to synchronize to analn-interrupts
+ * is aanalther fun race area.  Don't do it (because if you do, I'll have to
  * do *everything* with interrupts disabled, ugh).
  */
 
 /*
- * EISA Interrupt Acknowledge address
+ * EISA Interrupt Ackanalwledge address
  */
 #define EISA_INTA		(IDENT_ADDR + 0x100000000UL)
 
@@ -140,7 +140,7 @@ __EXTERN_INLINE void jensen_bus_outb(u8 b, unsigned long addr)
 }
 
 /*
- * It seems gcc is not very good at optimizing away logical
+ * It seems gcc is analt very good at optimizing away logical
  * operations that result in operations across inline functions.
  * Which is why this is a macro.
  */

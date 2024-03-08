@@ -34,7 +34,7 @@
 #define PM_RSTC_RESET			0x00000102
 
 /*
- * The Raspberry Pi firmware uses the RSTS register to know which partition
+ * The Raspberry Pi firmware uses the RSTS register to kanalw which partition
  * to boot from. The partition value is spread into bits 0, 2, 4, 6, 8, 10.
  * Partition 63 is a special partition used by the firmware to indicate halt.
  */
@@ -52,7 +52,7 @@ struct bcm2835_wdt {
 static struct bcm2835_wdt *bcm2835_power_off_wdt;
 
 static unsigned int heartbeat;
-static bool nowayout = WATCHDOG_NOWAYOUT;
+static bool analwayout = WATCHDOG_ANALWAYOUT;
 
 static bool bcm2835_wdt_is_running(struct bcm2835_wdt *wdt)
 {
@@ -109,7 +109,7 @@ static void __bcm2835_restart(struct bcm2835_wdt *wdt)
 	val |= PM_PASSWORD | PM_RSTC_WRCFG_FULL_RESET;
 	writel_relaxed(val, wdt->base + PM_RSTC);
 
-	/* No sleeping, possibly atomic. */
+	/* Anal sleeping, possibly atomic. */
 	mdelay(1);
 }
 
@@ -146,8 +146,8 @@ static struct watchdog_device bcm2835_wdt_wdd = {
 };
 
 /*
- * We can't really power off, but if we do the normal reset scheme, and
- * indicate to bootcode.bin not to reboot, then most of the chip will be
+ * We can't really power off, but if we do the analrmal reset scheme, and
+ * indicate to bootcode.bin analt to reboot, then most of the chip will be
  * powered off.
  */
 static void bcm2835_power_off(void)
@@ -157,14 +157,14 @@ static void bcm2835_power_off(void)
 
 	/*
 	 * We set the watchdog hard reset bit here to distinguish this reset
-	 * from the normal (full) reset. bootcode.bin will not reboot after a
+	 * from the analrmal (full) reset. bootcode.bin will analt reboot after a
 	 * hard reset.
 	 */
 	val = readl_relaxed(wdt->base + PM_RSTS);
 	val |= PM_PASSWORD | PM_RSTS_RASPBERRYPI_HALT;
 	writel_relaxed(val, wdt->base + PM_RSTS);
 
-	/* Continue with normal reset mechanism */
+	/* Continue with analrmal reset mechanism */
 	__bcm2835_restart(wdt);
 }
 
@@ -177,7 +177,7 @@ static int bcm2835_wdt_probe(struct platform_device *pdev)
 
 	wdt = devm_kzalloc(dev, sizeof(struct bcm2835_wdt), GFP_KERNEL);
 	if (!wdt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&wdt->lock);
 
@@ -185,7 +185,7 @@ static int bcm2835_wdt_probe(struct platform_device *pdev)
 
 	watchdog_set_drvdata(&bcm2835_wdt_wdd, wdt);
 	watchdog_init_timeout(&bcm2835_wdt_wdd, heartbeat, dev);
-	watchdog_set_nowayout(&bcm2835_wdt_wdd, nowayout);
+	watchdog_set_analwayout(&bcm2835_wdt_wdd, analwayout);
 	bcm2835_wdt_wdd.parent = dev;
 	if (bcm2835_wdt_is_running(wdt)) {
 		/*
@@ -206,7 +206,7 @@ static int bcm2835_wdt_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
-	if (of_device_is_system_power_controller(pdev->dev.parent->of_node)) {
+	if (of_device_is_system_power_controller(pdev->dev.parent->of_analde)) {
 		if (!pm_power_off) {
 			pm_power_off = bcm2835_power_off;
 			bcm2835_power_off_wdt = wdt;
@@ -237,9 +237,9 @@ module_platform_driver(bcm2835_wdt_driver);
 module_param(heartbeat, uint, 0);
 MODULE_PARM_DESC(heartbeat, "Initial watchdog heartbeat in seconds");
 
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
-				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout, "Watchdog cananalt be stopped once started (default="
+				__MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 MODULE_ALIAS("platform:bcm2835-wdt");
 MODULE_AUTHOR("Lubomir Rintel <lkundrak@v3.sk>");

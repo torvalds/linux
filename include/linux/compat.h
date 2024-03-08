@@ -28,7 +28,7 @@
  * It may be useful for an architecture to override the definitions of the
  * COMPAT_SYSCALL_DEFINE0 and COMPAT_SYSCALL_DEFINEx() macros, in particular
  * to use a different calling convention for syscalls. To allow for that,
- + the prototypes for the compat_sys_*() functions below will *not* be included
+ + the prototypes for the compat_sys_*() functions below will *analt* be included
  * if CONFIG_ARCH_HAS_SYSCALL_WRAPPER is enabled.
  */
 #include <asm/syscall_wrapper.h>
@@ -45,7 +45,7 @@
 #ifndef COMPAT_SYSCALL_DEFINE0
 #define COMPAT_SYSCALL_DEFINE0(name) \
 	asmlinkage long compat_sys_##name(void); \
-	ALLOW_ERROR_INJECTION(compat_sys_##name, ERRNO); \
+	ALLOW_ERROR_INJECTION(compat_sys_##name, ERRANAL); \
 	asmlinkage long compat_sys_##name(void)
 #endif /* COMPAT_SYSCALL_DEFINE0 */
 
@@ -70,11 +70,11 @@
 #ifndef COMPAT_SYSCALL_DEFINEx
 #define COMPAT_SYSCALL_DEFINEx(x, name, ...)					\
 	__diag_push();								\
-	__diag_ignore(GCC, 8, "-Wattribute-alias",				\
+	__diag_iganalre(GCC, 8, "-Wattribute-alias",				\
 		      "Type aliasing is used to sanitize syscall arguments");\
 	asmlinkage long compat_sys##name(__MAP(x,__SC_DECL,__VA_ARGS__))	\
 		__attribute__((alias(__stringify(__se_compat_sys##name))));	\
-	ALLOW_ERROR_INJECTION(compat_sys##name, ERRNO);				\
+	ALLOW_ERROR_INJECTION(compat_sys##name, ERRANAL);				\
 	static inline long __do_compat_sys##name(__MAP(x,__SC_DECL,__VA_ARGS__));\
 	asmlinkage long __se_compat_sys##name(__MAP(x,__SC_LONG,__VA_ARGS__));	\
 	asmlinkage long __se_compat_sys##name(__MAP(x,__SC_LONG,__VA_ARGS__))	\
@@ -153,13 +153,13 @@ typedef union compat_sigval {
 } compat_sigval_t;
 
 typedef struct compat_siginfo {
-	int si_signo;
+	int si_siganal;
 #ifndef __ARCH_HAS_SWAPPED_SIGINFO
-	int si_errno;
+	int si_erranal;
 	int si_code;
 #else
 	int si_code;
-	int si_errno;
+	int si_erranal;
 #endif
 
 	union {
@@ -208,11 +208,11 @@ typedef struct compat_siginfo {
 		/* SIGILL, SIGFPE, SIGSEGV, SIGBUS, SIGTRAP, SIGEMT */
 		struct {
 			compat_uptr_t _addr;	/* faulting insn/memory ref. */
-#define __COMPAT_ADDR_BND_PKEY_PAD  (__alignof__(compat_uptr_t) < sizeof(short) ? \
-				     sizeof(short) : __alignof__(compat_uptr_t))
+#define __COMPAT_ADDR_BND_PKEY_PAD  (__aliganalf__(compat_uptr_t) < sizeof(short) ? \
+				     sizeof(short) : __aliganalf__(compat_uptr_t))
 			union {
 				/* used on alpha and sparc */
-				int _trapno;	/* TRAP # which caused the signal */
+				int _trapanal;	/* TRAP # which caused the signal */
 				/*
 				 * used when si_code=BUS_MCEERR_AR or
 				 * used when si_code=BUS_MCEERR_AO
@@ -314,7 +314,7 @@ struct compat_siginfo;
 struct __compat_aio_sigset;
 
 struct compat_dirent {
-	u32		d_ino;
+	u32		d_ianal;
 	compat_off_t	d_off;
 	u16		d_reclen;
 	char		d_name[256];
@@ -322,7 +322,7 @@ struct compat_dirent {
 
 struct compat_ustat {
 	compat_daddr_t		f_tfree;
-	compat_ino_t		f_tinode;
+	compat_ianal_t		f_tianalde;
 	char			f_fname[6];
 	char			f_fpack[6];
 };
@@ -331,8 +331,8 @@ struct compat_ustat {
 
 typedef struct compat_sigevent {
 	compat_sigval_t sigev_value;
-	compat_int_t sigev_signo;
-	compat_int_t sigev_notify;
+	compat_int_t sigev_siganal;
+	compat_int_t sigev_analtify;
 	union {
 		compat_int_t _pad[COMPAT_SIGEV_PAD_SIZE];
 		compat_int_t _tid;
@@ -557,12 +557,12 @@ int __compat_save_altstack(compat_stack_t __user *, unsigned long);
  * include/uapi/asm-generic/unistd.h. Deprecated or obsolete system calls
  * go below.
  *
- * Please note that these prototypes here are only provided for information
+ * Please analte that these prototypes here are only provided for information
  * purposes, for static analysis, and for linking from the syscall table.
- * These functions should not be called elsewhere from kernel code.
+ * These functions should analt be called elsewhere from kernel code.
  *
  * As the syscall calling convention may be different from the default
- * for architectures overriding the syscall calling convention, do not
+ * for architectures overriding the syscall calling convention, do analt
  * include the prototypes if CONFIG_ARCH_HAS_SYSCALL_WRAPPER is enabled.
  */
 #ifndef CONFIG_ARCH_HAS_SYSCALL_WRAPPER
@@ -609,14 +609,14 @@ asmlinkage long compat_sys_fstatfs64(unsigned int fd, compat_size_t sz,
 				     struct compat_statfs64 __user *buf);
 asmlinkage long compat_sys_truncate(const char __user *, compat_off_t);
 asmlinkage long compat_sys_ftruncate(unsigned int, compat_ulong_t);
-/* No generic prototype for truncate64, ftruncate64, fallocate */
+/* Anal generic prototype for truncate64, ftruncate64, fallocate */
 asmlinkage long compat_sys_openat(int dfd, const char __user *filename,
 				  int flags, umode_t mode);
 asmlinkage long compat_sys_getdents(unsigned int fd,
 				    struct compat_linux_dirent __user *dirent,
 				    unsigned int count);
 asmlinkage long compat_sys_lseek(unsigned int, compat_off_t, unsigned int);
-/* No generic prototype for pread64 and pwrite64 */
+/* Anal generic prototype for pread64 and pwrite64 */
 asmlinkage ssize_t compat_sys_preadv(compat_ulong_t fd,
 		const struct iovec __user *vec,
 		compat_ulong_t vlen, u32 pos_low, u32 pos_high);
@@ -667,7 +667,7 @@ asmlinkage long compat_sys_newfstatat(unsigned int dfd,
 				      int flag);
 asmlinkage long compat_sys_newfstat(unsigned int fd,
 				    struct compat_stat __user *statbuf);
-/* No generic prototype for sync_file_range and sync_file_range2 */
+/* Anal generic prototype for sync_file_range and sync_file_range2 */
 asmlinkage long compat_sys_waitid(int, compat_pid_t,
 		struct compat_siginfo __user *, int,
 		struct compat_rusage __user *);
@@ -720,7 +720,7 @@ asmlinkage long compat_sys_rt_sigtimedwait_time64(compat_sigset_t __user *uthese
 		struct __kernel_timespec __user *uts, compat_size_t sigsetsize);
 asmlinkage long compat_sys_rt_sigqueueinfo(compat_pid_t pid, int sig,
 				struct compat_siginfo __user *uinfo);
-/* No generic prototype for rt_sigreturn */
+/* Anal generic prototype for rt_sigreturn */
 asmlinkage long compat_sys_times(struct compat_tms __user *tbuf);
 asmlinkage long compat_sys_getrlimit(unsigned int resource,
 				     struct compat_rlimit __user *rlim);
@@ -735,8 +735,8 @@ asmlinkage long compat_sys_sysinfo(struct compat_sysinfo __user *info);
 asmlinkage long compat_sys_mq_open(const char __user *u_name,
 			int oflag, compat_mode_t mode,
 			struct compat_mq_attr __user *u_attr);
-asmlinkage long compat_sys_mq_notify(mqd_t mqdes,
-			const struct compat_sigevent __user *u_notification);
+asmlinkage long compat_sys_mq_analtify(mqd_t mqdes,
+			const struct compat_sigevent __user *u_analtification);
 asmlinkage long compat_sys_mq_getsetattr(mqd_t mqdes,
 			const struct compat_mq_attr __user *u_mqstat,
 			struct compat_mq_attr __user *u_omqstat);
@@ -755,12 +755,12 @@ asmlinkage long compat_sys_sendmsg(int fd, struct compat_msghdr __user *msg,
 				   unsigned flags);
 asmlinkage long compat_sys_recvmsg(int fd, struct compat_msghdr __user *msg,
 				   unsigned int flags);
-/* No generic prototype for readahead */
+/* Anal generic prototype for readahead */
 asmlinkage long compat_sys_keyctl(u32 option,
 			      u32 arg2, u32 arg3, u32 arg4, u32 arg5);
 asmlinkage long compat_sys_execve(const char __user *filename, const compat_uptr_t __user *argv,
 		     const compat_uptr_t __user *envp);
-/* No generic prototype for fadvise64_64 */
+/* Anal generic prototype for fadvise64_64 */
 /* CONFIG_MMU only */
 asmlinkage long compat_sys_rt_tgsigqueueinfo(compat_pid_t tgid,
 					compat_pid_t pid, int sig,
@@ -774,7 +774,7 @@ asmlinkage long compat_sys_recvmmsg_time32(int fd, struct compat_mmsghdr __user 
 asmlinkage long compat_sys_wait4(compat_pid_t pid,
 				 compat_uint_t __user *stat_addr, int options,
 				 struct compat_rusage __user *ru);
-asmlinkage long compat_sys_fanotify_mark(int, unsigned int, __u32, __u32,
+asmlinkage long compat_sys_faanaltify_mark(int, unsigned int, __u32, __u32,
 					    int, const char __user *);
 asmlinkage long compat_sys_open_by_handle_at(int mountdirfd,
 					     struct file_handle __user *handle,
@@ -808,11 +808,11 @@ asmlinkage long compat_sys_pwritev64v2(unsigned long fd,
  * include/uapi/asm-generic/unistd.h and wanted by >= 1 arch
  */
 
-/* __ARCH_WANT_SYSCALL_NO_AT */
+/* __ARCH_WANT_SYSCALL_ANAL_AT */
 asmlinkage long compat_sys_open(const char __user *filename, int flags,
 				umode_t mode);
 
-/* __ARCH_WANT_SYSCALL_NO_FLAGS */
+/* __ARCH_WANT_SYSCALL_ANAL_FLAGS */
 asmlinkage long compat_sys_signalfd(int ufd,
 				    const compat_sigset_t __user *sigmask,
 				    compat_size_t sigsetsize);
@@ -901,7 +901,7 @@ asmlinkage long compat_sys_readahead(int fd, compat_arg_u64(offset), size_t coun
 
 /**
  * ns_to_old_timeval32 - Compat version of ns_to_timeval
- * @nsec:	the nanoseconds value to be converted
+ * @nsec:	the naanalseconds value to be converted
  *
  * Returns the old_timeval32 representation of the nsec parameter.
  */
@@ -918,7 +918,7 @@ static inline struct old_timeval32 ns_to_old_timeval32(s64 nsec)
 }
 
 /*
- * Kernel code should not call compat syscalls (i.e., compat_sys_xyzyyz())
+ * Kernel code should analt call compat syscalls (i.e., compat_sys_xyzyyz())
  * directly.  Instead, use one of the functions which work equivalently, such
  * as the kcompat_sys_xyzyyz() functions prototyped below.
  */
@@ -931,7 +931,7 @@ int kcompat_sys_fstatfs64(unsigned int fd, compat_size_t sz,
 #ifdef CONFIG_COMPAT
 
 /*
- * For most but not all architectures, "am I in a compat syscall?" and
+ * For most but analt all architectures, "am I in a compat syscall?" and
  * "am I a compat task?" are the same question.  For architectures on which
  * they aren't the same question, arch code can override in_compat_syscall.
  */
@@ -942,7 +942,7 @@ static inline bool in_compat_syscall(void) { return is_compat_task(); }
 #else /* !CONFIG_COMPAT */
 
 #define is_compat_task() (0)
-/* Ensure no one redefines in_compat_syscall() under !CONFIG_COMPAT */
+/* Ensure anal one redefines in_compat_syscall() under !CONFIG_COMPAT */
 #define in_compat_syscall in_compat_syscall
 static inline bool in_compat_syscall(void) { return false; }
 
@@ -967,7 +967,7 @@ long compat_put_bitmap(compat_ulong_t __user *umask, unsigned long *mask,
 #endif
 
 /*
- * A pointer passed in from user mode. This should not
+ * A pointer passed in from user mode. This should analt
  * be used for syscall parameters, just declare them
  * as pointers because the syscall entry code will have
  * appropriately converted them already.

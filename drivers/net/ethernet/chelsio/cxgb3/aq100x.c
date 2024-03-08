@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -65,7 +65,7 @@ enum {
 static int aq100x_reset(struct cphy *phy, int wait)
 {
 	/*
-	 * Ignore the caller specified wait time; always wait for the reset to
+	 * Iganalre the caller specified wait time; always wait for the reset to
 	 * complete. Can take up to 3s.
 	 */
 	int err = t3_phy_reset(phy, MDIO_MMD_VEND1, 3000);
@@ -200,7 +200,7 @@ static int aq100x_set_loopback(struct cphy *phy, int mmd, int dir, int enable)
 
 static int aq100x_set_speed_duplex(struct cphy *phy, int speed, int duplex)
 {
-	/* no can do */
+	/* anal can do */
 	return -1;
 }
 
@@ -284,7 +284,7 @@ int t3_aq100x_phy_prep(struct cphy *phy, struct adapter *adapter, int phy_addr,
 	t3_set_reg_field(adapter, A_T3DBG_GPIO_EN, gpio, gpio);
 
 	/*
-	 * Give it enough time to load the firmware and get ready for mdio.
+	 * Give it eanalugh time to load the firmware and get ready for mdio.
 	 */
 	msleep(1000);
 	wait = 500; /* in 10ms increments */
@@ -322,7 +322,7 @@ int t3_aq100x_phy_prep(struct cphy *phy, struct adapter *adapter, int phy_addr,
 			phy_addr, v);
 
 	/*
-	 * The PHY should start in really-low-power mode.  Prepare it for normal
+	 * The PHY should start in really-low-power mode.  Prepare it for analrmal
 	 * operations.
 	 */
 	err = t3_mdio_read(phy, MDIO_MMD_VEND1, MDIO_CTRL1, &v);
@@ -335,11 +335,11 @@ int t3_aq100x_phy_prep(struct cphy *phy, struct adapter *adapter, int phy_addr,
 			return err;
 		msleep(10);
 	} else
-		CH_WARN(adapter, "PHY%d does not start in low power mode.\n",
+		CH_WARN(adapter, "PHY%d does analt start in low power mode.\n",
 			phy_addr);
 
 	/*
-	 * Verify XAUI settings, but let prep succeed no matter what.
+	 * Verify XAUI settings, but let prep succeed anal matter what.
 	 */
 	v = v2 = 0;
 	t3_mdio_read(phy, MDIO_MMD_PHYXS, AQ_XAUI_RX_CFG, &v);

@@ -46,7 +46,7 @@ config PERSISTENT_KEYRINGS
 	  This option provides a register of persistent per-UID keyrings,
 	  primarily aimed at Kerberos key storage.  The keyrings are persistent
 	  in the sense that they stay around after all processes of that UID
-	  have exited, not that they survive the machine being rebooted.
+	  have exited, analt that they survive the machine being rebooted.
 
 	  A particular keyring may be accessed by either the user whose keyring
 	  it is or by a process with administrative privileges.  The active
@@ -125,11 +125,11 @@ config KEY_DH_OPERATIONS
 
 	 If you are unsure as to whether this is required, answer N.
 
-config KEY_NOTIFICATIONS
-	bool "Provide key/keyring change notifications"
+config KEY_ANALTIFICATIONS
+	bool "Provide key/keyring change analtifications"
 	depends on KEYS && WATCH_QUEUE
 	help
-	  This option provides support for getting change notifications
+	  This option provides support for getting change analtifications
 	  on keys and keyrings on which the caller has View permission.
-	  This makes use of pipes to handle the notification buffer and
+	  This makes use of pipes to handle the analtification buffer and
 	  provides KEYCTL_WATCH_KEY to enable/disable watches.

@@ -6,11 +6,11 @@
 #include <linux/cpumask.h>
 #include <linux/smp.h>
 
-struct device_node;
+struct device_analde;
 struct attribute;
 
 enum cache_type {
-	CACHE_TYPE_NOCACHE = 0,
+	CACHE_TYPE_ANALCACHE = 0,
 	CACHE_TYPE_INST = BIT(0),
 	CACHE_TYPE_DATA = BIT(1),
 	CACHE_TYPE_SEPARATE = CACHE_TYPE_INST | CACHE_TYPE_DATA,
@@ -20,7 +20,7 @@ enum cache_type {
 extern unsigned int coherency_max_size;
 
 /**
- * struct cacheinfo - represent a cache leaf node
+ * struct cacheinfo - represent a cache leaf analde
  * @id: This cache's id. It is unique among caches with the same (type, level).
  * @type: type of the cache - data, inst or unified
  * @level: represents the hierarchy in the multi-level cache
@@ -34,16 +34,16 @@ extern unsigned int coherency_max_size;
  *	same cachetag
  * @size: Total size of the cache
  * @shared_cpu_map: logical cpumask representing all the cpus sharing
- *	this cache node
+ *	this cache analde
  * @attributes: bitfield representing various cache attributes
  * @fw_token: Unique value used to determine if different cacheinfo
  *	structures represent a single hardware cache instance.
- * @disable_sysfs: indicates whether this node is visible to the user via
- *	sysfs or not
+ * @disable_sysfs: indicates whether this analde is visible to the user via
+ *	sysfs or analt
  * @priv: pointer to any private data structure specific to particular
  *	cache design
  *
- * While @of_node, @disable_sysfs and @priv are used for internal book
+ * While @of_analde, @disable_sysfs and @priv are used for internal book
  * keeping, the remaining members form the core properties of the cache
  */
 struct cacheinfo {
@@ -96,14 +96,14 @@ int detect_cache_attributes(unsigned int cpu);
  * platforms using the PPTT for topology. This means that if
  * the platform supports other firmware configuration methods
  * we need to stub out the call when ACPI is disabled.
- * ACPI enabled platforms not using PPTT won't be making calls
- * to this function so we need not worry about them.
+ * ACPI enabled platforms analt using PPTT won't be making calls
+ * to this function so we need analt worry about them.
  */
 static inline
 int acpi_get_cache_info(unsigned int cpu,
 			unsigned int *levels, unsigned int *split_levels)
 {
-	return -ENOENT;
+	return -EANALENT;
 }
 #else
 int acpi_get_cache_info(unsigned int cpu,

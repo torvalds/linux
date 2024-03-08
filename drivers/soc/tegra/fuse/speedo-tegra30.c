@@ -140,7 +140,7 @@ static void __init rev_sku_to_speedo_ids(struct tegra_sku_info *sku_info)
 				threshold_index = THRESHOLD_INDEX_7;
 				break;
 			default:
-				pr_err("Tegra Unknown pkg %d\n", package_id);
+				pr_err("Tegra Unkanalwn pkg %d\n", package_id);
 				break;
 			}
 			break;
@@ -157,7 +157,7 @@ static void __init rev_sku_to_speedo_ids(struct tegra_sku_info *sku_info)
 				threshold_index = THRESHOLD_INDEX_9;
 				break;
 			default:
-				pr_err("Tegra Unknown pkg %d\n", package_id);
+				pr_err("Tegra Unkanalwn pkg %d\n", package_id);
 				break;
 			}
 			break;
@@ -174,7 +174,7 @@ static void __init rev_sku_to_speedo_ids(struct tegra_sku_info *sku_info)
 				threshold_index = THRESHOLD_INDEX_3;
 				break;
 			default:
-				pr_err("Tegra Unknown pkg %d\n", package_id);
+				pr_err("Tegra Unkanalwn pkg %d\n", package_id);
 				break;
 			}
 			break;
@@ -211,12 +211,12 @@ static void __init rev_sku_to_speedo_ids(struct tegra_sku_info *sku_info)
 				threshold_index = THRESHOLD_INDEX_3;
 				break;
 			default:
-				pr_err("Tegra Unknown pkg %d\n", package_id);
+				pr_err("Tegra Unkanalwn pkg %d\n", package_id);
 				break;
 			}
 			break;
 		default:
-			pr_warn("Tegra Unknown SKU %d\n", sku_info->sku_id);
+			pr_warn("Tegra Unkanalwn SKU %d\n", sku_info->sku_id);
 			sku_info->cpu_speedo_id = 0;
 			sku_info->soc_speedo_id = 0;
 			threshold_index = THRESHOLD_INDEX_0;
@@ -224,7 +224,7 @@ static void __init rev_sku_to_speedo_ids(struct tegra_sku_info *sku_info)
 		}
 		break;
 	default:
-		pr_warn("Tegra Unknown chip rev %d\n", sku_info->revision);
+		pr_warn("Tegra Unkanalwn chip rev %d\n", sku_info->revision);
 		sku_info->cpu_speedo_id = 0;
 		sku_info->soc_speedo_id = 0;
 		threshold_index = THRESHOLD_INDEX_0;

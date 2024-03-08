@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Mellanox Technologies inc.  All rights reserved.
+ * Copyright (c) 2015, Mellaanalx Techanallogies inc.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -78,12 +78,12 @@ static int cma_configfs_params_get(struct config_item *item,
 	struct cma_device *cma_dev;
 
 	if (!group)
-		return -ENODEV;
+		return -EANALDEV;
 
 	cma_dev = cma_enum_devices_by_ibdev(filter_by_name,
 					    group->cma_dev_group->name);
 	if (!cma_dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	*pcma_dev = cma_dev;
 	*pgroup = group;
@@ -207,14 +207,14 @@ static int make_cma_ports(struct cma_dev_group *cma_dev_group,
 	ibdev = cma_get_ib_dev(cma_dev);
 
 	if (!ibdev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ports_num = ibdev->phys_port_cnt;
 	ports = kcalloc(ports_num, sizeof(*cma_dev_group->ports),
 			GFP_KERNEL);
 
 	if (!ports)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ports_num; i++) {
 		char port_str[11];
@@ -277,7 +277,7 @@ static const struct config_item_type cma_device_group_type = {
 static struct config_group *make_cma_dev(struct config_group *group,
 					 const char *name)
 {
-	int err = -ENODEV;
+	int err = -EANALDEV;
 	struct cma_device *cma_dev = cma_enum_devices_by_ibdev(filter_by_name,
 							       (void *)name);
 	struct cma_dev_group *cma_dev_group = NULL;
@@ -288,7 +288,7 @@ static struct config_group *make_cma_dev(struct config_group *group,
 	cma_dev_group = kzalloc(sizeof(*cma_dev_group), GFP_KERNEL);
 
 	if (!cma_dev_group) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto fail;
 	}
 

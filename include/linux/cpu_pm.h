@@ -10,32 +10,32 @@
 #define _LINUX_CPU_PM_H
 
 #include <linux/kernel.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 
 /*
  * When a CPU goes to a low power state that turns off power to the CPU's
  * power domain, the contents of some blocks (floating point coprocessors,
  * interrupt controllers, caches, timers) in the same power domain can
- * be lost.  The cpm_pm notifiers provide a method for platform idle, suspend,
- * and hotplug implementations to notify the drivers for these blocks that
+ * be lost.  The cpm_pm analtifiers provide a method for platform idle, suspend,
+ * and hotplug implementations to analtify the drivers for these blocks that
  * they may be reset.
  *
- * All cpu_pm notifications must be called with interrupts disabled.
+ * All cpu_pm analtifications must be called with interrupts disabled.
  *
- * The notifications are split into two classes: CPU notifications and CPU
- * cluster notifications.
+ * The analtifications are split into two classes: CPU analtifications and CPU
+ * cluster analtifications.
  *
- * CPU notifications apply to a single CPU and must be called on the affected
+ * CPU analtifications apply to a single CPU and must be called on the affected
  * CPU.  They are used to save per-cpu context for affected blocks.
  *
- * CPU cluster notifications apply to all CPUs in a single power domain. They
+ * CPU cluster analtifications apply to all CPUs in a single power domain. They
  * are used to save any global context for affected blocks, and must be called
- * after all the CPUs in the power domain have been notified of the low power
+ * after all the CPUs in the power domain have been analtified of the low power
  * state.
  */
 
 /*
- * Event codes passed as unsigned long val to notifier calls
+ * Event codes passed as unsigned long val to analtifier calls
  */
 enum cpu_pm_event {
 	/* A single cpu is entering a low power state */
@@ -58,8 +58,8 @@ enum cpu_pm_event {
 };
 
 #ifdef CONFIG_CPU_PM
-int cpu_pm_register_notifier(struct notifier_block *nb);
-int cpu_pm_unregister_notifier(struct notifier_block *nb);
+int cpu_pm_register_analtifier(struct analtifier_block *nb);
+int cpu_pm_unregister_analtifier(struct analtifier_block *nb);
 int cpu_pm_enter(void);
 int cpu_pm_exit(void);
 int cpu_cluster_pm_enter(void);
@@ -67,12 +67,12 @@ int cpu_cluster_pm_exit(void);
 
 #else
 
-static inline int cpu_pm_register_notifier(struct notifier_block *nb)
+static inline int cpu_pm_register_analtifier(struct analtifier_block *nb)
 {
 	return 0;
 }
 
-static inline int cpu_pm_unregister_notifier(struct notifier_block *nb)
+static inline int cpu_pm_unregister_analtifier(struct analtifier_block *nb)
 {
 	return 0;
 }

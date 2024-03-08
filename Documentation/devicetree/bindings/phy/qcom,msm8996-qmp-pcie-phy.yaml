@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Qualcomm QMP PHY controller (MSM8996 PCIe)
 
 maintainers:
-  - Vinod Koul <vkoul@kernel.org>
+  - Vianald Koul <vkoul@kernel.org>
 
 description:
   QMP PHY controller supports physical layer functionality for a number of
@@ -56,7 +56,7 @@ properties:
 patternProperties:
   "^phy@[0-9a-f]+$":
     type: object
-    description: one child node per PHY provided by this block
+    description: one child analde per PHY provided by this block
     properties:
       reg:
         items:
@@ -139,7 +139,7 @@ examples:
 
         resets = <&gcc GCC_PCIE_PHY_BCR>,
                  <&gcc GCC_PCIE_PHY_COM_BCR>,
-                 <&gcc GCC_PCIE_PHY_COM_NOCSR_BCR>;
+                 <&gcc GCC_PCIE_PHY_COM_ANALCSR_BCR>;
         reset-names = "phy", "common", "cfg";
 
         vdda-phy-supply = <&vreg_l28a_0p925>;

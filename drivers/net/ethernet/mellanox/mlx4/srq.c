@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2006, 2007 Cisco Systems, Inc. All rights reserved.
- * Copyright (c) 2007, 2008 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2007, 2008 Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -13,18 +13,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -98,7 +98,7 @@ int __mlx4_srq_alloc_icm(struct mlx4_dev *dev, int *srqn)
 
 	*srqn = mlx4_bitmap_alloc(&srq_table->bitmap);
 	if (*srqn == -1)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = mlx4_table_get(dev, &srq_table->table, *srqn);
 	if (err)
@@ -113,7 +113,7 @@ err_put:
 	mlx4_table_put(dev, &srq_table->table, *srqn);
 
 err_out:
-	mlx4_bitmap_free(&srq_table->bitmap, *srqn, MLX4_NO_RR);
+	mlx4_bitmap_free(&srq_table->bitmap, *srqn, MLX4_ANAL_RR);
 	return err;
 }
 
@@ -141,7 +141,7 @@ void __mlx4_srq_free_icm(struct mlx4_dev *dev, int srqn)
 
 	mlx4_table_put(dev, &srq_table->cmpt_table, srqn);
 	mlx4_table_put(dev, &srq_table->table, srqn);
-	mlx4_bitmap_free(&srq_table->bitmap, srqn, MLX4_NO_RR);
+	mlx4_bitmap_free(&srq_table->bitmap, srqn, MLX4_ANAL_RR);
 }
 
 static void mlx4_srq_free_icm(struct mlx4_dev *dev, int srqn)

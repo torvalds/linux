@@ -14,9 +14,9 @@ static const struct snd_soc_dapm_widget bt_sco_widgets[] = {
 	SND_SOC_DAPM_INPUT("RX"),
 	SND_SOC_DAPM_OUTPUT("TX"),
 	SND_SOC_DAPM_AIF_IN("BT_SCO_RX", "Playback", 0,
-			    SND_SOC_NOPM, 0, 0),
+			    SND_SOC_ANALPM, 0, 0),
 	SND_SOC_DAPM_AIF_OUT("BT_SCO_TX", "Capture", 0,
-			     SND_SOC_NOPM, 0, 0),
+			     SND_SOC_ANALPM, 0, 0),
 };
 
 static const struct snd_soc_dapm_route bt_sco_routes[] = {

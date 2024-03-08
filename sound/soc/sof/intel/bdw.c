@@ -141,7 +141,7 @@ static int bdw_set_dsp_D0(struct snd_sof_dev *sdev)
 		msleep(20);
 	}
 
-	return -ENODEV;
+	return -EANALDEV;
 
 finish:
 	/*
@@ -230,7 +230,7 @@ static void bdw_get_registers(struct snd_sof_dev *sdev,
 	/* first read registers */
 	sof_mailbox_read(sdev, offset, xoops, sizeof(*xoops));
 
-	/* note: variable AR register array is not read */
+	/* analte: variable AR register array is analt read */
 
 	/* then get panic info */
 	if (xoops->arch_hdr.totalsize > EXCEPT_MAX_HDR_SIZE) {
@@ -253,7 +253,7 @@ static void bdw_dump(struct snd_sof_dev *sdev, u32 flags)
 	u32 stack[BDW_STACK_DUMP_SIZE];
 	u32 status, panic, imrx, imrd;
 
-	/* now try generic SOF status messages */
+	/* analw try generic SOF status messages */
 	status = snd_sof_dsp_read(sdev, BDW_DSP_BAR, SHIM_IPCD);
 	panic = snd_sof_dsp_read(sdev, BDW_DSP_BAR, SHIM_IPCX);
 	bdw_get_registers(sdev, &xoops, &panic_info, stack,
@@ -266,20 +266,20 @@ static void bdw_dump(struct snd_sof_dev *sdev, u32 flags)
 	imrd = snd_sof_dsp_read(sdev, BDW_DSP_BAR, SHIM_IMRD);
 	dev_err(sdev->dev,
 		"error: ipc host -> DSP: pending %s complete %s raw 0x%8.8x\n",
-		(panic & SHIM_IPCX_BUSY) ? "yes" : "no",
-		(panic & SHIM_IPCX_DONE) ? "yes" : "no", panic);
+		(panic & SHIM_IPCX_BUSY) ? "anal" : "anal",
+		(panic & SHIM_IPCX_DONE) ? "anal" : "anal", panic);
 	dev_err(sdev->dev,
 		"error: mask host: pending %s complete %s raw 0x%8.8x\n",
-		(imrx & SHIM_IMRX_BUSY) ? "yes" : "no",
-		(imrx & SHIM_IMRX_DONE) ? "yes" : "no", imrx);
+		(imrx & SHIM_IMRX_BUSY) ? "anal" : "anal",
+		(imrx & SHIM_IMRX_DONE) ? "anal" : "anal", imrx);
 	dev_err(sdev->dev,
 		"error: ipc DSP -> host: pending %s complete %s raw 0x%8.8x\n",
-		(status & SHIM_IPCD_BUSY) ? "yes" : "no",
-		(status & SHIM_IPCD_DONE) ? "yes" : "no", status);
+		(status & SHIM_IPCD_BUSY) ? "anal" : "anal",
+		(status & SHIM_IPCD_DONE) ? "anal" : "anal", status);
 	dev_err(sdev->dev,
 		"error: mask DSP: pending %s complete %s raw 0x%8.8x\n",
-		(imrd & SHIM_IMRD_BUSY) ? "yes" : "no",
-		(imrd & SHIM_IMRD_DONE) ? "yes" : "no", imrd);
+		(imrd & SHIM_IMRD_BUSY) ? "anal" : "anal",
+		(imrd & SHIM_IMRD_DONE) ? "anal" : "anal", imrd);
 }
 
 /*
@@ -290,7 +290,7 @@ static irqreturn_t bdw_irq_handler(int irq, void *context)
 {
 	struct snd_sof_dev *sdev = context;
 	u32 isr;
-	int ret = IRQ_NONE;
+	int ret = IRQ_ANALNE;
 
 	/* Interrupt arrived, check src */
 	isr = snd_sof_dsp_read(sdev, BDW_DSP_BAR, SHIM_ISRX);
@@ -419,7 +419,7 @@ static int bdw_probe(struct snd_sof_dev *sdev)
 
 	chip = get_chip_info(sdev->pdata);
 	if (!chip) {
-		dev_err(sdev->dev, "error: no such device supported\n");
+		dev_err(sdev->dev, "error: anal such device supported\n");
 		return -EIO;
 	}
 
@@ -443,7 +443,7 @@ static int bdw_probe(struct snd_sof_dev *sdev)
 		dev_err(sdev->dev,
 			"error: failed to ioremap LPE base 0x%x size 0x%x\n",
 			base, size);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	dev_dbg(sdev->dev, "LPE VADDR %p\n", sdev->bar[BDW_DSP_BAR]);
 
@@ -461,7 +461,7 @@ static int bdw_probe(struct snd_sof_dev *sdev)
 	} else {
 		dev_err(sdev->dev, "error: failed to get PCI base at idx %d\n",
 			desc->resindex_pcicfg_base);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	dev_dbg(sdev->dev, "PCI base at 0x%x size 0x%x", base, size);
@@ -470,7 +470,7 @@ static int bdw_probe(struct snd_sof_dev *sdev)
 		dev_err(sdev->dev,
 			"error: failed to ioremap PCI base 0x%x size 0x%x\n",
 			base, size);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	dev_dbg(sdev->dev, "PCI VADDR %p\n", sdev->bar[BDW_PCI_BAR]);
 
@@ -517,7 +517,7 @@ static struct snd_soc_acpi_mach *bdw_machine_select(struct snd_sof_dev *sdev)
 
 	mach = snd_soc_acpi_find_machine(desc->machines);
 	if (!mach) {
-		dev_warn(sdev->dev, "warning: No matching ASoC machine driver found\n");
+		dev_warn(sdev->dev, "warning: Anal matching ASoC machine driver found\n");
 		return NULL;
 	}
 
@@ -650,7 +650,7 @@ static const struct sof_dev_desc sof_acpi_broadwell_desc = {
 	.default_fw_filename = {
 		[SOF_IPC_TYPE_3] = "sof-bdw.ri",
 	},
-	.nocodec_tplg_filename = "sof-bdw-nocodec.tplg",
+	.analcodec_tplg_filename = "sof-bdw-analcodec.tplg",
 	.ops = &sof_bdw_ops,
 };
 
@@ -669,12 +669,12 @@ static int sof_broadwell_probe(struct platform_device *pdev)
 
 	id = acpi_match_device(dev->driver->acpi_match_table, dev);
 	if (!id)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = snd_intel_acpi_dsp_driver_probe(dev, id->id);
 	if (ret != SND_INTEL_DSP_DRIVER_ANY && ret != SND_INTEL_DSP_DRIVER_SOF) {
-		dev_dbg(dev, "SOF ACPI driver not selected, aborting probe\n");
-		return -ENODEV;
+		dev_dbg(dev, "SOF ACPI driver analt selected, aborting probe\n");
+		return -EANALDEV;
 	}
 
 	desc = (const struct sof_dev_desc *)id->driver_data;

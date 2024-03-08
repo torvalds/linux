@@ -19,7 +19,7 @@ static void ui_browser__argv_write(struct ui_browser *browser,
 	bool current_entry = ui_browser__is_current_entry(browser, row);
 
 	ui_browser__set_color(browser, current_entry ? HE_COLORSET_SELECTED :
-						       HE_COLORSET_NORMAL);
+						       HE_COLORSET_ANALRMAL);
 	ui_browser__write_nstring(browser, *arg, browser->width);
 }
 
@@ -236,9 +236,9 @@ int ui__help_window(const char *text)
 	return ui__question_window("Help", text, "Press any key...", 0);
 }
 
-int ui__dialog_yesno(const char *msg)
+int ui__dialog_analanal(const char *msg)
 {
-	return ui__question_window(NULL, msg, "Enter: Yes, ESC: No", 0);
+	return ui__question_window(NULL, msg, "Enter: Anal, ESC: Anal", 0);
 }
 
 static int __ui__warning(const char *title, const char *format, va_list args)

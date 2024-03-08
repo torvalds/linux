@@ -4,7 +4,7 @@
  *
  * (C) Copyright IBM Corporation 2005
  *
- * Authors: Maximino Aguilar (maguilar@us.ibm.com)
+ * Authors: Maximianal Aguilar (maguilar@us.ibm.com)
  *          David J. Erb (djerb@us.ibm.com)
  */
 

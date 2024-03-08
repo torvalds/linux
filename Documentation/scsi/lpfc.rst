@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 =========================
-LPFC Driver Release Notes
+LPFC Driver Release Analtes
 =========================
 
 
@@ -13,11 +13,11 @@ LPFC Driver Release Notes
   run on one of the older kernels.
 
   The proposed modifications to the transport layer for FC remote ports
-  and extended attribute support is now part of the upstream kernel
-  as of 2.6.12. We no longer need to provide patches for this support,
-  nor a *full* version which has old an new kernel support.
+  and extended attribute support is analw part of the upstream kernel
+  as of 2.6.12. We anal longer need to provide patches for this support,
+  analr a *full* version which has old an new kernel support.
   
-  The driver now requires a 2.6.12 (if pre-release, 2.6.12-rc1) or later
+  The driver analw requires a 2.6.12 (if pre-release, 2.6.12-rc1) or later
   kernel.
   
   Please heed these dependencies....
@@ -34,8 +34,8 @@ Cable pull and temporary device Loss:
   being removed, a switch rebooting, or a device reboot), the driver could
   hide the disappearance of the device from the midlayer. I/O's issued to
   the LLDD would simply be queued for a short duration, allowing the device
-  to reappear or link come back alive, with no inadvertent side effects
-  to the system. If the driver did not hide these conditions, i/o would be
+  to reappear or link come back alive, with anal inadvertent side effects
+  to the system. If the driver did analt hide these conditions, i/o would be
   errored by the driver, the mid-layer would exhaust its retries, and the
   device would be taken offline. Manual intervention would be required to
   re-enable the device.
@@ -58,13 +58,13 @@ Cable pull and temporary device Loss:
   patch is part of the standard 2.6.10 kernel.
 
   By default, the driver expects the patches for block/unblock interfaces
-  to be present in the kernel. No #define needs to be set to enable support.
+  to be present in the kernel. Anal #define needs to be set to enable support.
 
 
 Kernel Support
 ==============
 
-  This source package is targeted for the upstream kernel only. (See notes
+  This source package is targeted for the upstream kernel only. (See analtes
   at the top of this file). It relies on interfaces that are slowing
   migrating into the kernel.org kernel.
 
@@ -78,4 +78,4 @@ Kernel Support
 Patches
 =======
 
-  Thankfully, at this time, patches are not needed.
+  Thankfully, at this time, patches are analt needed.

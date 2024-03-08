@@ -2,9 +2,9 @@
 /*
  * HSI clients registration interface
  *
- * Copyright (C) 2010 Nokia Corporation. All rights reserved.
+ * Copyright (C) 2010 Analkia Corporation. All rights reserved.
  *
- * Contact: Carlos Chinea <carlos.chinea@nokia.com>
+ * Contact: Carlos Chinea <carlos.chinea@analkia.com>
  */
 #include <linux/hsi/hsi.h>
 #include <linux/list.h>
@@ -13,7 +13,7 @@
 
 /*
  * hsi_board_list is only used internally by the HSI framework.
- * No one else is allowed to make use of it.
+ * Anal one else is allowed to make use of it.
  */
 LIST_HEAD(hsi_board_list);
 EXPORT_SYMBOL_GPL(hsi_board_list);
@@ -29,7 +29,7 @@ EXPORT_SYMBOL_GPL(hsi_board_list);
  * controller and the port where the clients wishes to attach are registered
  * to it.
  *
- * Return -errno on failure, 0 on success.
+ * Return -erranal on failure, 0 on success.
  */
 int __init hsi_register_board_info(struct hsi_board_info const *info,
 							unsigned int len)
@@ -38,7 +38,7 @@ int __init hsi_register_board_info(struct hsi_board_info const *info,
 
 	cl_info = kcalloc(len, sizeof(*cl_info), GFP_KERNEL);
 	if (!cl_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (; len; len--, info++, cl_info++) {
 		cl_info->info = *info;

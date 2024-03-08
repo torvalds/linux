@@ -10,12 +10,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -160,7 +160,7 @@ int rs400_gart_enable(struct radeon_device *rdev)
 		tmp = RREG32(RADEON_BUS_CNTL) & ~RADEON_BUS_MASTER_DIS;
 		WREG32(RADEON_BUS_CNTL, tmp);
 	}
-	/* Table should be in 32bits address space so ignore bits above. */
+	/* Table should be in 32bits address space so iganalre bits above. */
 	tmp = (u32)rdev->gart.table_addr & 0xfffff000;
 	tmp |= (upper_32_bits(rdev->gart.table_addr) & 0xff) << 4;
 
@@ -169,9 +169,9 @@ int rs400_gart_enable(struct radeon_device *rdev)
 	WREG32_MC(RS480_GART_FEATURE_ID,
 		  (RS480_TLB_ENABLE |
 		   RS480_GTW_LAC_EN | RS480_1LEVEL_GART));
-	/* Disable snooping */
+	/* Disable sanaloping */
 	WREG32_MC(RS480_AGP_MODE_CNTL,
-		  (1 << RS480_REQ_TYPE_SNOOP_SHIFT) | RS480_REQ_TYPE_SNOOP_DIS);
+		  (1 << RS480_REQ_TYPE_SANALOP_SHIFT) | RS480_REQ_TYPE_SANALOP_DIS);
 	/* Disable AGP mode */
 	/* FIXME: according to doc we should set HIDE_MMCFG_BAR=0,
 	 * AGPMODE30=0 & AGP30ENHANCED=0 in NB_CNTL */
@@ -211,7 +211,7 @@ void rs400_gart_fini(struct radeon_device *rdev)
 	radeon_gart_table_ram_free(rdev);
 }
 
-#define RS400_PTE_UNSNOOPED (1 << 0)
+#define RS400_PTE_UNSANALOPED (1 << 0)
 #define RS400_PTE_WRITEABLE (1 << 2)
 #define RS400_PTE_READABLE  (1 << 3)
 
@@ -225,8 +225,8 @@ uint64_t rs400_gart_get_page_entry(uint64_t addr, uint32_t flags)
 		entry |= RS400_PTE_READABLE;
 	if (flags & RADEON_GART_PAGE_WRITE)
 		entry |= RS400_PTE_WRITEABLE;
-	if (!(flags & RADEON_GART_PAGE_SNOOP))
-		entry |= RS400_PTE_UNSNOOPED;
+	if (!(flags & RADEON_GART_PAGE_SANALOP))
+		entry |= RS400_PTE_UNSANALOPED;
 	return entry;
 }
 
@@ -460,7 +460,7 @@ int rs400_resume(struct radeon_device *rdev)
 {
 	int r;
 
-	/* Make sur GART are not working */
+	/* Make sur GART are analt working */
 	rs400_gart_disable(rdev);
 	/* Resume clock before doing reset */
 	r300_clock_startup(rdev);
@@ -546,7 +546,7 @@ int rs400_init(struct radeon_device *rdev)
 			RREG32(R_000E40_RBBM_STATUS),
 			RREG32(R_0007C0_CP_STAT));
 	}
-	/* check if cards are posted or not */
+	/* check if cards are posted or analt */
 	if (radeon_boot_test_post_card(rdev) == false)
 		return -EINVAL;
 

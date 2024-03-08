@@ -2,7 +2,7 @@
 /*
  * tfa9879.h  --  driver for NXP Semiconductors TFA9879
  *
- * Copyright (C) 2014 Axentia Technologies AB
+ * Copyright (C) 2014 Axentia Techanallogies AB
  * Author: Peter Rosin <peda@axentia.se>
  */
 
@@ -43,11 +43,11 @@
 #define TFA9879_POWERUP_SHIFT		0
 
 /* TFA9879_SERIAL_INTERFACE */
-#define TFA9879_MONO_SEL_MASK		0x0c00
-#define TFA9879_MONO_SEL_SHIFT		10
-#define TFA9879_MONO_SEL_LEFT		0
-#define TFA9879_MONO_SEL_RIGHT		1
-#define TFA9879_MONO_SEL_BOTH		2
+#define TFA9879_MOANAL_SEL_MASK		0x0c00
+#define TFA9879_MOANAL_SEL_SHIFT		10
+#define TFA9879_MOANAL_SEL_LEFT		0
+#define TFA9879_MOANAL_SEL_RIGHT		1
+#define TFA9879_MOANAL_SEL_BOTH		2
 #define TFA9879_I2S_FS_MASK		0x03c0
 #define TFA9879_I2S_FS_SHIFT		6
 #define TFA9879_I2S_FS_8000		0
@@ -72,7 +72,7 @@
 #define TFA9879_I2S_SET_LSB_J_24	7
 #define TFA9879_SCK_POL_MASK		0x0004
 #define TFA9879_SCK_POL_SHIFT		2
-#define TFA9879_SCK_POL_NORMAL		0
+#define TFA9879_SCK_POL_ANALRMAL		0
 #define TFA9879_SCK_POL_INVERSE		1
 #define TFA9879_I_MODE_MASK		0x0003
 #define TFA9879_I_MODE_SHIFT		0

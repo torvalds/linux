@@ -21,7 +21,7 @@
 	{ARM_EXCEPTION_HYP_GONE,	"HYP_GONE"	}
 
 /* Per asm/esr.h */
-#define ESR_ELx_EC_UNKNOWN	(0x00)
+#define ESR_ELx_EC_UNKANALWN	(0x00)
 #define ESR_ELx_EC_WFx		(0x01)
 /* Unallocated EC: 0x02 */
 #define ESR_ELx_EC_CP15_32	(0x03)
@@ -79,7 +79,7 @@
 #define ECN(x) { ESR_ELx_EC_##x, #x }
 
 #define kvm_arm_exception_class \
-	ECN(UNKNOWN), ECN(WFx), ECN(CP15_32), ECN(CP15_64), ECN(CP14_MR), \
+	ECN(UNKANALWN), ECN(WFx), ECN(CP15_32), ECN(CP15_64), ECN(CP14_MR), \
 	ECN(CP14_LS), ECN(FP_ASIMD), ECN(CP10_ID), ECN(PAC), ECN(CP14_64), \
 	ECN(SVC64), ECN(HVC64), ECN(SMC64), ECN(SYS64), ECN(SVE), \
 	ECN(IMP_DEF), ECN(IABT_LOW), ECN(IABT_CUR), \

@@ -7,16 +7,16 @@ Frequently Asked Questions
 How is this different from Autotest, kselftest, and so on?
 ==========================================================
 KUnit is a unit testing framework. Autotest, kselftest (and some others) are
-not.
+analt.
 
 A `unit test <https://martinfowler.com/bliki/UnitTest.html>`_ is supposed to
 test a single unit of code in isolation and hence the name *unit test*. A unit
 test should be the finest granularity of testing and should allow all possible
 code paths to be tested in the code under test. This is only possible if the
-code under test is small and does not have any external dependencies outside of
+code under test is small and does analt have any external dependencies outside of
 the test's control like hardware.
 
-There are no testing frameworks currently available for the kernel that do not
+There are anal testing frameworks currently available for the kernel that do analt
 require installing the kernel on a test machine or in a virtual machine. All
 testing frameworks require tests to be written in userspace and run on the
 kernel under test. This is true for Autotest, kselftest, and some others,
@@ -25,19 +25,19 @@ disqualifying any of them from being considered unit testing frameworks.
 Does KUnit support running on architectures other than UML?
 ===========================================================
 
-Yes, mostly.
+Anal, mostly.
 
 For the most part, the KUnit core framework (what we use to write the tests)
-can compile to any architecture. It compiles like just another part of the
+can compile to any architecture. It compiles like just aanalther part of the
 kernel and runs when the kernel boots, or when built as a module, when the
 module is loaded.  However, there is infrastructure, like the KUnit Wrapper
-(``tools/testing/kunit/kunit.py``) that might not support some architectures
+(``tools/testing/kunit/kunit.py``) that might analt support some architectures
 (see :ref:`kunit-on-qemu`).
 
-In short, yes, you can run KUnit on other architectures, but it might require
+In short, anal, you can run KUnit on other architectures, but it might require
 more work than using KUnit on UML.
 
-For more information, see :ref:`kunit-on-non-uml`.
+For more information, see :ref:`kunit-on-analn-uml`.
 
 .. _kinds-of-tests:
 
@@ -49,13 +49,13 @@ test, or an end-to-end test.
 - A unit test is supposed to test a single unit of code in isolation. A unit
   test should be the finest granularity of testing and, as such, allows all
   possible code paths to be tested in the code under test. This is only possible
-  if the code under test is small and does not have any external dependencies
+  if the code under test is small and does analt have any external dependencies
   outside of the test's control like hardware.
 - An integration test tests the interaction between a minimal set of components,
   usually just two or three. For example, someone might write an integration
   test to test the interaction between a driver and a piece of hardware, or to
   test the interaction between the userspace libraries the kernel provides and
-  the kernel itself. However, one of these tests would probably not test the
+  the kernel itself. However, one of these tests would probably analt test the
   entire kernel along with hardware interactions and interactions with the
   userspace.
 - An end-to-end test usually tests the entire system from the perspective of the
@@ -64,7 +64,7 @@ test, or an end-to-end test.
   hardware with a production userspace and then trying to exercise some behavior
   that depends on interactions between the hardware, the kernel, and userspace.
 
-KUnit is not working, what should I do?
+KUnit is analt working, what should I do?
 =======================================
 
 Unfortunately, there are a number of things which can break, but here are some
@@ -78,9 +78,9 @@ things to try.
    down where an issue is occurring. (If you think the parser is at fault, you
    can run it manually against ``stdin`` or a file with ``kunit.py parse``.)
 3. Running the UML kernel directly can often reveal issues or error messages,
-   ``kunit_tool`` ignores. This should be as simple as running ``./vmlinux``
+   ``kunit_tool`` iganalres. This should be as simple as running ``./vmlinux``
    after building the UML kernel (for example, by using ``kunit.py build``).
-   Note that UML has some unusual requirements (such as the host having a tmpfs
+   Analte that UML has some unusual requirements (such as the host having a tmpfs
    filesystem mounted), and has had issues in the past when built statically and
    the host has KASLR enabled. (On older host kernels, you may need to run
    ``setarch `uname -m` -R ./vmlinux`` to disable KASLR.)
@@ -100,5 +100,5 @@ things to try.
    can be collected from ``/sys/kernel/debug/kunit/<test suite>/results``, and
    can be parsed with ``kunit.py parse``. For more details, see :ref:`kunit-on-qemu`.
 
-If none of the above tricks help, you are always welcome to email any issues to
+If analne of the above tricks help, you are always welcome to email any issues to
 kunit-dev@googlegroups.com.

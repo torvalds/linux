@@ -14,7 +14,7 @@
  *
  * Additional ACPI Tables
  *
- * These tables are not consumed directly by the ACPICA subsystem, but are
+ * These tables are analt consumed directly by the ACPICA subsystem, but are
  * included here to support device drivers and the AML disassembler.
  *
  ******************************************************************************/
@@ -59,7 +59,7 @@
 #define ACPI_SIG_MSDM           "MSDM"	/* Microsoft Data Management Table */
 
 /*
- * These tables have been seen in the field, but no definition has been found
+ * These tables have been seen in the field, but anal definition has been found
  */
 #ifdef ACPI_UNDEFINED_TABLES
 #define ACPI_SIG_ATKG           "ATKG"
@@ -74,14 +74,14 @@
 #pragma pack(1)
 
 /*
- * Note: C bitfields are not used for this reason:
+ * Analte: C bitfields are analt used for this reason:
  *
  * "Bitfields are great and easy to read, but unfortunately the C language
- * does not specify the layout of bitfields in memory, which means they are
+ * does analt specify the layout of bitfields in memory, which means they are
  * essentially useless for dealing with packed data in on-disk formats or
  * binary wire protocols." (Or ACPI tables and buffers.) "If you ask me,
  * this decision was a design error in C. Ritchie could have picked an order
- * and stuck with it." Norman Ramsey.
+ * and stuck with it." Analrman Ramsey.
  * See http://stackoverflow.com/a/1053662/41661
  */
 
@@ -282,7 +282,7 @@ struct acpi_table_bert {
 	u64 address;		/* Physical address of the error region */
 };
 
-/* Boot Error Region (not a subtable, pointed to by Address field above) */
+/* Boot Error Region (analt a subtable, pointed to by Address field above) */
 
 struct acpi_bert_region {
 	u32 block_status;	/* Type of error information */
@@ -306,12 +306,12 @@ enum acpi_bert_error_severity {
 	ACPI_BERT_ERROR_CORRECTABLE = 0,
 	ACPI_BERT_ERROR_FATAL = 1,
 	ACPI_BERT_ERROR_CORRECTED = 2,
-	ACPI_BERT_ERROR_NONE = 3,
+	ACPI_BERT_ERROR_ANALNE = 3,
 	ACPI_BERT_ERROR_RESERVED = 4	/* 4 and greater are reserved */
 };
 
 /*
- * Note: The generic error data that follows the error_severity field above
+ * Analte: The generic error data that follows the error_severity field above
  * uses the struct acpi_hest_generic_data defined under the HEST table below
  */
 
@@ -364,7 +364,7 @@ struct acpi_table_boot {
 
 struct acpi_table_cdat {
 	u32 length;		/* Length of table in bytes, including this header */
-	u8 revision;		/* ACPI Specification minor version number */
+	u8 revision;		/* ACPI Specification mianalr version number */
 	u8 checksum;		/* To make sum of entire table == 0 */
 	u8 reserved[6];
 	u32 sequence;		/* Used to detect runtime CDAT table changes */
@@ -402,7 +402,7 @@ struct acpi_cdat_dsmas {
 
 /* Flags for subtable above */
 
-#define ACPI_CDAT_DSMAS_NON_VOLATILE        (1 << 2)
+#define ACPI_CDAT_DSMAS_ANALN_VOLATILE        (1 << 2)
 
 /* Subtable 1: Device scoped Latency and Bandwidth Information Structure (DSLBIS) */
 
@@ -613,7 +613,7 @@ struct acpi_cpep_polling {
  * CSRT - Core System Resource Table
  *        Version 0
  *
- * Conforms to the "Core System Resource Table (CSRT)", November 14, 2011
+ * Conforms to the "Core System Resource Table (CSRT)", Analvember 14, 2011
  *
  ******************************************************************************/
 
@@ -640,7 +640,7 @@ struct acpi_csrt_group {
 
 struct acpi_csrt_shared_info {
 	u16 major_version;
-	u16 minor_version;
+	u16 mianalr_version;
 	u32 mmio_base_low;
 	u32 mmio_base_high;
 	u32 gsi_interrupt;
@@ -719,7 +719,7 @@ struct acpi_dbg2_device {
 	 * Data that follows:
 	 *    base_address (required) - Each in 12-byte Generic Address Structure format.
 	 *    address_size (required) - Array of u32 sizes corresponding to each base_address register.
-	 *    Namepath    (required) - Null terminated string. Single dot if not supported.
+	 *    Namepath    (required) - Null terminated string. Single dot if analt supported.
 	 *    oem_data    (optional) - Length is oem_data_length.
 	 */
 };
@@ -780,7 +780,7 @@ struct acpi_table_dbgp {
  * DMAR - DMA Remapping table
  *        Version 1
  *
- * Conforms to "Intel Virtualization Technology for Directed I/O",
+ * Conforms to "Intel Virtualization Techanallogy for Directed I/O",
  * Version 2.3, October 2014
  *
  ******************************************************************************/
@@ -830,7 +830,7 @@ struct acpi_dmar_device_scope {
 /* Values for entry_type in struct acpi_dmar_device_scope - device types */
 
 enum acpi_dmar_scope_type {
-	ACPI_DMAR_SCOPE_TYPE_NOT_USED = 0,
+	ACPI_DMAR_SCOPE_TYPE_ANALT_USED = 0,
 	ACPI_DMAR_SCOPE_TYPE_ENDPOINT = 1,
 	ACPI_DMAR_SCOPE_TYPE_BRIDGE = 2,
 	ACPI_DMAR_SCOPE_TYPE_IOAPIC = 3,
@@ -1040,7 +1040,7 @@ enum acpi_einj_instructions {
 	ACPI_EINJ_READ_REGISTER_VALUE = 1,
 	ACPI_EINJ_WRITE_REGISTER = 2,
 	ACPI_EINJ_WRITE_REGISTER_VALUE = 3,
-	ACPI_EINJ_NOOP = 4,
+	ACPI_EINJ_ANALOP = 4,
 	ACPI_EINJ_FLUSH_CACHELINE = 5,
 	ACPI_EINJ_INSTRUCTION_RESERVED = 6	/* 6 and greater are reserved */
 };
@@ -1137,7 +1137,7 @@ enum acpi_erst_actions {
 	ACPI_ERST_SET_RECORD_ID = 9,
 	ACPI_ERST_GET_RECORD_COUNT = 10,
 	ACPI_ERST_BEGIN_DUMMY_WRIITE = 11,
-	ACPI_ERST_NOT_USED = 12,
+	ACPI_ERST_ANALT_USED = 12,
 	ACPI_ERST_GET_ERROR_RANGE = 13,
 	ACPI_ERST_GET_ERROR_LENGTH = 14,
 	ACPI_ERST_GET_ERROR_ATTRIBUTES = 15,
@@ -1152,7 +1152,7 @@ enum acpi_erst_instructions {
 	ACPI_ERST_READ_REGISTER_VALUE = 1,
 	ACPI_ERST_WRITE_REGISTER = 2,
 	ACPI_ERST_WRITE_REGISTER_VALUE = 3,
-	ACPI_ERST_NOOP = 4,
+	ACPI_ERST_ANALOP = 4,
 	ACPI_ERST_LOAD_VAR1 = 5,
 	ACPI_ERST_LOAD_VAR2 = 6,
 	ACPI_ERST_STORE_VAR1 = 7,
@@ -1174,11 +1174,11 @@ enum acpi_erst_instructions {
 
 enum acpi_erst_command_status {
 	ACPI_ERST_SUCCESS = 0,
-	ACPI_ERST_NO_SPACE = 1,
-	ACPI_ERST_NOT_AVAILABLE = 2,
+	ACPI_ERST_ANAL_SPACE = 1,
+	ACPI_ERST_ANALT_AVAILABLE = 2,
 	ACPI_ERST_FAILURE = 3,
 	ACPI_ERST_RECORD_EMPTY = 4,
-	ACPI_ERST_NOT_FOUND = 5,
+	ACPI_ERST_ANALT_FOUND = 5,
 	ACPI_ERST_STATUS_RESERVED = 6	/* 6 and greater are reserved */
 };
 
@@ -1245,7 +1245,7 @@ struct acpi_table_s3pt {
 };
 
 /*
- * S3PT Subtables (Not part of the actual FPDT)
+ * S3PT Subtables (Analt part of the actual FPDT)
  */
 
 /* Values for Type field in S3PT header */
@@ -1270,7 +1270,7 @@ struct acpi_s3pt_suspend {
 };
 
 /*
- * FPDT Boot Performance Record (Not part of the actual FPDT)
+ * FPDT Boot Performance Record (Analt part of the actual FPDT)
  */
 struct acpi_fpdt_boot {
 	struct acpi_fpdt_header header;
@@ -1295,12 +1295,12 @@ struct acpi_table_gtdt {
 	u32 reserved;
 	u32 secure_el1_interrupt;
 	u32 secure_el1_flags;
-	u32 non_secure_el1_interrupt;
-	u32 non_secure_el1_flags;
+	u32 analn_secure_el1_interrupt;
+	u32 analn_secure_el1_flags;
 	u32 virtual_timer_interrupt;
 	u32 virtual_timer_flags;
-	u32 non_secure_el2_interrupt;
-	u32 non_secure_el2_flags;
+	u32 analn_secure_el2_interrupt;
+	u32 analn_secure_el2_flags;
 	u64 counter_read_block_address;
 	u32 platform_timer_count;
 	u32 platform_timer_offset;
@@ -1410,9 +1410,9 @@ enum acpi_hest_types {
 	ACPI_HEST_TYPE_IA32_CHECK = 0,
 	ACPI_HEST_TYPE_IA32_CORRECTED_CHECK = 1,
 	ACPI_HEST_TYPE_IA32_NMI = 2,
-	ACPI_HEST_TYPE_NOT_USED3 = 3,
-	ACPI_HEST_TYPE_NOT_USED4 = 4,
-	ACPI_HEST_TYPE_NOT_USED5 = 5,
+	ACPI_HEST_TYPE_ANALT_USED3 = 3,
+	ACPI_HEST_TYPE_ANALT_USED4 = 4,
+	ACPI_HEST_TYPE_ANALT_USED5 = 5,
 	ACPI_HEST_TYPE_AER_ROOT_PORT = 6,
 	ACPI_HEST_TYPE_AER_ENDPOINT = 7,
 	ACPI_HEST_TYPE_AER_BRIDGE = 8,
@@ -1475,9 +1475,9 @@ struct acpi_hest_aer_common {
 #define ACPI_HEST_BUS(bus)              ((bus) & 0xFF)
 #define ACPI_HEST_SEGMENT(bus)          (((bus) >> 8) & 0xFFFF)
 
-/* Hardware Error Notification */
+/* Hardware Error Analtification */
 
-struct acpi_hest_notify {
+struct acpi_hest_analtify {
 	u8 type;
 	u8 length;
 	u16 config_write_enable;
@@ -1489,22 +1489,22 @@ struct acpi_hest_notify {
 	u32 error_threshold_window;
 };
 
-/* Values for Notify Type field above */
+/* Values for Analtify Type field above */
 
-enum acpi_hest_notify_types {
-	ACPI_HEST_NOTIFY_POLLED = 0,
-	ACPI_HEST_NOTIFY_EXTERNAL = 1,
-	ACPI_HEST_NOTIFY_LOCAL = 2,
-	ACPI_HEST_NOTIFY_SCI = 3,
-	ACPI_HEST_NOTIFY_NMI = 4,
-	ACPI_HEST_NOTIFY_CMCI = 5,	/* ACPI 5.0 */
-	ACPI_HEST_NOTIFY_MCE = 6,	/* ACPI 5.0 */
-	ACPI_HEST_NOTIFY_GPIO = 7,	/* ACPI 6.0 */
-	ACPI_HEST_NOTIFY_SEA = 8,	/* ACPI 6.1 */
-	ACPI_HEST_NOTIFY_SEI = 9,	/* ACPI 6.1 */
-	ACPI_HEST_NOTIFY_GSIV = 10,	/* ACPI 6.1 */
-	ACPI_HEST_NOTIFY_SOFTWARE_DELEGATED = 11,	/* ACPI 6.2 */
-	ACPI_HEST_NOTIFY_RESERVED = 12	/* 12 and greater are reserved */
+enum acpi_hest_analtify_types {
+	ACPI_HEST_ANALTIFY_POLLED = 0,
+	ACPI_HEST_ANALTIFY_EXTERNAL = 1,
+	ACPI_HEST_ANALTIFY_LOCAL = 2,
+	ACPI_HEST_ANALTIFY_SCI = 3,
+	ACPI_HEST_ANALTIFY_NMI = 4,
+	ACPI_HEST_ANALTIFY_CMCI = 5,	/* ACPI 5.0 */
+	ACPI_HEST_ANALTIFY_MCE = 6,	/* ACPI 5.0 */
+	ACPI_HEST_ANALTIFY_GPIO = 7,	/* ACPI 6.0 */
+	ACPI_HEST_ANALTIFY_SEA = 8,	/* ACPI 6.1 */
+	ACPI_HEST_ANALTIFY_SEI = 9,	/* ACPI 6.1 */
+	ACPI_HEST_ANALTIFY_GSIV = 10,	/* ACPI 6.1 */
+	ACPI_HEST_ANALTIFY_SOFTWARE_DELEGATED = 11,	/* ACPI 6.2 */
+	ACPI_HEST_ANALTIFY_RESERVED = 12	/* 12 and greater are reserved */
 };
 
 /* Values for config_write_enable bitfield above */
@@ -1544,12 +1544,12 @@ struct acpi_hest_ia_corrected {
 	u8 enabled;
 	u32 records_to_preallocate;
 	u32 max_sections_per_record;
-	struct acpi_hest_notify notify;
+	struct acpi_hest_analtify analtify;
 	u8 num_hardware_banks;
 	u8 reserved2[3];
 };
 
-/* 2: IA32 Non-Maskable Interrupt */
+/* 2: IA32 Analn-Maskable Interrupt */
 
 struct acpi_hest_ia_nmi {
 	struct acpi_hest_header header;
@@ -1559,7 +1559,7 @@ struct acpi_hest_ia_nmi {
 	u32 max_raw_data_length;
 };
 
-/* 3,4,5: Not used */
+/* 3,4,5: Analt used */
 
 /* 6: PCI Express Root Port AER */
 
@@ -1597,7 +1597,7 @@ struct acpi_hest_generic {
 	u32 max_sections_per_record;
 	u32 max_raw_data_length;
 	struct acpi_generic_address error_status_address;
-	struct acpi_hest_notify notify;
+	struct acpi_hest_analtify analtify;
 	u32 error_block_length;
 };
 
@@ -1612,7 +1612,7 @@ struct acpi_hest_generic_v2 {
 	u32 max_sections_per_record;
 	u32 max_raw_data_length;
 	struct acpi_generic_address error_status_address;
-	struct acpi_hest_notify notify;
+	struct acpi_hest_analtify analtify;
 	u32 error_block_length;
 	struct acpi_generic_address read_ack_register;
 	u64 read_ack_preserve;
@@ -1669,7 +1669,7 @@ struct acpi_hest_generic_data_v300 {
 #define ACPI_HEST_GEN_ERROR_RECOVERABLE     0
 #define ACPI_HEST_GEN_ERROR_FATAL           1
 #define ACPI_HEST_GEN_ERROR_CORRECTED       2
-#define ACPI_HEST_GEN_ERROR_NONE            3
+#define ACPI_HEST_GEN_ERROR_ANALNE            3
 
 /* Flags for validation_bits above */
 
@@ -1686,7 +1686,7 @@ struct acpi_hest_ia_deferred_check {
 	u8 enabled;
 	u32 records_to_preallocate;
 	u32 max_sections_per_record;
-	struct acpi_hest_notify notify;
+	struct acpi_hest_analtify analtify;
 	u8 num_hardware_banks;
 	u8 reserved2[3];
 };
@@ -1767,7 +1767,7 @@ struct acpi_hmat_locality {
 #define ACPI_HMAT_2ND_LEVEL_CACHE   3
 #define ACPI_HMAT_3RD_LEVEL_CACHE   4
 #define ACPI_HMAT_MINIMUM_XFER_SIZE 0x10       /* Bit 4: ACPI 6.4 */
-#define ACPI_HMAT_NON_SEQUENTIAL_XFERS 0x20    /* Bit 5: ACPI 6.4 */
+#define ACPI_HMAT_ANALN_SEQUENTIAL_XFERS 0x20    /* Bit 5: ACPI 6.4 */
 
 
 /* Values for data_type field above */
@@ -1801,13 +1801,13 @@ struct acpi_hmat_cache {
 
 /* Values for cache associativity flag */
 
-#define ACPI_HMAT_CA_NONE                     (0)
+#define ACPI_HMAT_CA_ANALNE                     (0)
 #define ACPI_HMAT_CA_DIRECT_MAPPED            (1)
 #define ACPI_HMAT_CA_COMPLEX_CACHE_INDEXING   (2)
 
 /* Values for write policy flag */
 
-#define ACPI_HMAT_CP_NONE   (0)
+#define ACPI_HMAT_CP_ANALNE   (0)
 #define ACPI_HMAT_CP_WB     (1)
 #define ACPI_HMAT_CP_WT     (2)
 
@@ -1837,7 +1837,7 @@ struct acpi_table_hpet {
 /* Values for Page Protect flags */
 
 enum acpi_hpet_page_protect {
-	ACPI_HPET_NO_PAGE_PROTECT = 0,
+	ACPI_HPET_ANAL_PAGE_PROTECT = 0,
 	ACPI_HPET_PAGE_PROTECT4 = 1,
 	ACPI_HPET_PAGE_PROTECT64 = 2
 };
@@ -1850,8 +1850,8 @@ enum acpi_hpet_page_protect {
  * Conforms to "iSCSI Boot Firmware Table (iBFT) as Defined in ACPI 3.0b
  * Specification", Version 1.01, March 1, 2007
  *
- * Note: It appears that this table is not intended to appear in the RSDT/XSDT.
- * Therefore, it is not currently supported by the disassembler.
+ * Analte: It appears that this table is analt intended to appear in the RSDT/XSDT.
+ * Therefore, it is analt currently supported by the disassembler.
  *
  ******************************************************************************/
 
@@ -1873,7 +1873,7 @@ struct acpi_ibft_header {
 /* Values for Type field above */
 
 enum acpi_ibft_type {
-	ACPI_IBFT_TYPE_NOT_USED = 0,
+	ACPI_IBFT_TYPE_ANALT_USED = 0,
 	ACPI_IBFT_TYPE_CONTROL = 1,
 	ACPI_IBFT_TYPE_INITIATOR = 2,
 	ACPI_IBFT_TYPE_NIC = 3,

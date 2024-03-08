@@ -147,7 +147,7 @@ static int lb035q02_enable(struct omap_dss_device *dssdev)
 	int r;
 
 	if (!omapdss_device_is_connected(dssdev))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (omapdss_device_is_enabled(dssdev))
 		return 0;
@@ -229,7 +229,7 @@ static struct omap_dss_driver lb035q02_ops = {
 
 static int lb035q02_probe_of(struct spi_device *spi)
 {
-	struct device_node *node = spi->dev.of_node;
+	struct device_analde *analde = spi->dev.of_analde;
 	struct panel_drv_data *ddata = spi_get_drvdata(spi);
 	struct omap_dss_device *in;
 	struct gpio_desc *gpio;
@@ -241,7 +241,7 @@ static int lb035q02_probe_of(struct spi_device *spi)
 
 	ddata->enable_gpio = gpio;
 
-	in = omapdss_of_find_source_for_first_ep(node);
+	in = omapdss_of_find_source_for_first_ep(analde);
 	if (IS_ERR(in)) {
 		dev_err(&spi->dev, "failed to find video source\n");
 		return PTR_ERR(in);
@@ -258,12 +258,12 @@ static int lb035q02_panel_spi_probe(struct spi_device *spi)
 	struct omap_dss_device *dssdev;
 	int r;
 
-	if (!spi->dev.of_node)
-		return -ENODEV;
+	if (!spi->dev.of_analde)
+		return -EANALDEV;
 
 	ddata = devm_kzalloc(&spi->dev, sizeof(*ddata), GFP_KERNEL);
 	if (ddata == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spi_set_drvdata(spi, ddata);
 

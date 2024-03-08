@@ -135,13 +135,13 @@ static const struct snd_kcontrol_new g12a_tohdmitx_out_enable =
 				    CTRL0_ENABLE_SHIFT, 1, 0);
 
 static const struct snd_soc_dapm_widget g12a_tohdmitx_widgets[] = {
-	SND_SOC_DAPM_MUX("I2S SRC", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("I2S SRC", SND_SOC_ANALPM, 0, 0,
 			 &g12a_tohdmitx_i2s_mux),
-	SND_SOC_DAPM_SWITCH("I2S OUT EN", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SWITCH("I2S OUT EN", SND_SOC_ANALPM, 0, 0,
 			    &g12a_tohdmitx_out_enable),
-	SND_SOC_DAPM_MUX("SPDIF SRC", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("SPDIF SRC", SND_SOC_ANALPM, 0, 0,
 			 &g12a_tohdmitx_spdif_mux),
-	SND_SOC_DAPM_SWITCH("SPDIF OUT EN", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SWITCH("SPDIF OUT EN", SND_SOC_ANALPM, 0, 0,
 			    &g12a_tohdmitx_out_enable),
 };
 

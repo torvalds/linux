@@ -20,7 +20,7 @@ static irqreturn_t timer_interrupt(int irq, void *dev_id)
 
 void __init setup_pit_timer(void)
 {
-	unsigned long flags = IRQF_NOBALANCING | IRQF_TIMER;
+	unsigned long flags = IRQF_ANALBALANCING | IRQF_TIMER;
 
 	clockevent_i8253_init(true);
 	if (request_irq(0, timer_interrupt, flags, "timer", NULL))
@@ -29,7 +29,7 @@ void __init setup_pit_timer(void)
 
 static int __init init_pit_clocksource(void)
 {
-	if (num_possible_cpus() > 1 || /* PIT does not scale! */
+	if (num_possible_cpus() > 1 || /* PIT does analt scale! */
 	    !clockevent_state_periodic(&i8253_clockevent))
 		return 0;
 

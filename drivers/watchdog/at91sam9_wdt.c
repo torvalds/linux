@@ -2,7 +2,7 @@
 /*
  * Watchdog driver for Atmel AT91SAM9x processors.
  *
- * Copyright (C) 2008 Renaud CERRATO r.cerrato@til-technologies.fr
+ * Copyright (C) 2008 Renaud CERRATO r.cerrato@til-techanallogies.fr
  *
  */
 
@@ -15,7 +15,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/clk.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -72,10 +72,10 @@ module_param(heartbeat, int, 0);
 MODULE_PARM_DESC(heartbeat, "Watchdog heartbeats in seconds. "
 	"(default = " __MODULE_STRING(WDT_HEARTBEAT) ")");
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started "
-	"(default=" __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout, "Watchdog cananalt be stopped once started "
+	"(default=" __MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 #define to_wdt(wdd) container_of(wdd, struct at91wdt, wdd)
 struct at91wdt {
@@ -86,7 +86,7 @@ struct at91wdt {
 	u32 mr;
 	u32 mr_mask;
 	unsigned long heartbeat;	/* WDT heartbeat in jiffies */
-	bool nowayout;
+	bool analwayout;
 	unsigned int irq;
 	struct clk *sclk;
 };
@@ -139,7 +139,7 @@ static int at91_wdt_start(struct watchdog_device *wdd)
 
 static int at91_wdt_stop(struct watchdog_device *wdd)
 {
-	/* The watchdog timer hardware can not be stopped... */
+	/* The watchdog timer hardware can analt be stopped... */
 	return 0;
 }
 
@@ -191,7 +191,7 @@ static int at91_wdt_init(struct platform_device *pdev, struct at91wdt *wdt)
 	/*
 	 * Try to reset the watchdog counter 4 or 2 times more often than
 	 * actually requested, to avoid spurious watchdog reset.
-	 * If this is not possible because of the min_heartbeat value, reset
+	 * If this is analt possible because of the min_heartbeat value, reset
 	 * it at the min_heartbeat period.
 	 */
 	if ((max_heartbeat / 4) >= min_heartbeat)
@@ -207,7 +207,7 @@ static int at91_wdt_init(struct platform_device *pdev, struct at91wdt *wdt)
 
 	if ((tmp & AT91_WDT_WDFIEN) && wdt->irq) {
 		err = devm_request_irq(dev, wdt->irq, wdt_interrupt,
-				       IRQF_SHARED | IRQF_IRQPOLL | IRQF_NO_SUSPEND,
+				       IRQF_SHARED | IRQF_IRQPOLL | IRQF_ANAL_SUSPEND,
 				       pdev->name, wdt);
 		if (err)
 			return err;
@@ -222,8 +222,8 @@ static int at91_wdt_init(struct platform_device *pdev, struct at91wdt *wdt)
 
 	/*
 	 * Use min_heartbeat the first time to avoid spurious watchdog reset:
-	 * we don't know for how long the watchdog counter is running, and
-	 *  - resetting it right now might trigger a watchdog fault reset
+	 * we don't kanalw for how long the watchdog counter is running, and
+	 *  - resetting it right analw might trigger a watchdog fault reset
 	 *  - waiting for heartbeat time might lead to a watchdog timeout
 	 *    reset
 	 */
@@ -232,7 +232,7 @@ static int at91_wdt_init(struct platform_device *pdev, struct at91wdt *wdt)
 	/* Try to set timeout from device tree first */
 	if (watchdog_init_timeout(&wdt->wdd, 0, dev))
 		watchdog_init_timeout(&wdt->wdd, heartbeat, dev);
-	watchdog_set_nowayout(&wdt->wdd, wdt->nowayout);
+	watchdog_set_analwayout(&wdt->wdd, wdt->analwayout);
 	err = watchdog_register_device(&wdt->wdd);
 	if (err)
 		goto out_stop_timer;
@@ -262,7 +262,7 @@ static const struct watchdog_ops at91_wdt_ops = {
 };
 
 #if defined(CONFIG_OF)
-static int of_at91wdt_init(struct device_node *np, struct at91wdt *wdt)
+static int of_at91wdt_init(struct device_analde *np, struct at91wdt *wdt)
 {
 	u32 min = 0;
 	u32 max = WDT_COUNTER_MAX_SECS;
@@ -318,7 +318,7 @@ static int of_at91wdt_init(struct device_node *np, struct at91wdt *wdt)
 	return 0;
 }
 #else
-static inline int of_at91wdt_init(struct device_node *np, struct at91wdt *wdt)
+static inline int of_at91wdt_init(struct device_analde *np, struct at91wdt *wdt)
 {
 	return 0;
 }
@@ -331,12 +331,12 @@ static int at91wdt_probe(struct platform_device *pdev)
 
 	wdt = devm_kzalloc(&pdev->dev, sizeof(*wdt), GFP_KERNEL);
 	if (!wdt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wdt->mr = (WDT_HW_TIMEOUT * 256) | AT91_WDT_WDRSTEN | AT91_WDT_WDD |
 		  AT91_WDT_WDDBGHLT | AT91_WDT_WDIDLEHLT;
 	wdt->mr_mask = 0x3FFFFFFF;
-	wdt->nowayout = nowayout;
+	wdt->analwayout = analwayout;
 	wdt->wdd.parent = &pdev->dev;
 	wdt->wdd.info = &at91_wdt_info;
 	wdt->wdd.ops = &at91_wdt_ops;
@@ -350,12 +350,12 @@ static int at91wdt_probe(struct platform_device *pdev)
 
 	wdt->sclk = devm_clk_get_enabled(&pdev->dev, NULL);
 	if (IS_ERR(wdt->sclk)) {
-		dev_err(&pdev->dev, "Could not enable slow clock\n");
+		dev_err(&pdev->dev, "Could analt enable slow clock\n");
 		return PTR_ERR(wdt->sclk);
 	}
 
-	if (pdev->dev.of_node) {
-		err = of_at91wdt_init(pdev->dev.of_node, wdt);
+	if (pdev->dev.of_analde) {
+		err = of_at91wdt_init(pdev->dev.of_analde, wdt);
 		if (err)
 			return err;
 	}
@@ -366,8 +366,8 @@ static int at91wdt_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, wdt);
 
-	pr_info("enabled (heartbeat=%d sec, nowayout=%d)\n",
-		wdt->wdd.timeout, wdt->nowayout);
+	pr_info("enabled (heartbeat=%d sec, analwayout=%d)\n",
+		wdt->wdd.timeout, wdt->analwayout);
 
 	return 0;
 }
@@ -377,7 +377,7 @@ static void at91wdt_remove(struct platform_device *pdev)
 	struct at91wdt *wdt = platform_get_drvdata(pdev);
 	watchdog_unregister_device(&wdt->wdd);
 
-	pr_warn("I quit now, hardware will probably reboot!\n");
+	pr_warn("I quit analw, hardware will probably reboot!\n");
 	del_timer(&wdt->timer);
 }
 
@@ -400,6 +400,6 @@ static struct platform_driver at91wdt_driver = {
 };
 module_platform_driver(at91wdt_driver);
 
-MODULE_AUTHOR("Renaud CERRATO <r.cerrato@til-technologies.fr>");
+MODULE_AUTHOR("Renaud CERRATO <r.cerrato@til-techanallogies.fr>");
 MODULE_DESCRIPTION("Watchdog driver for Atmel AT91SAM9x processors");
 MODULE_LICENSE("GPL");

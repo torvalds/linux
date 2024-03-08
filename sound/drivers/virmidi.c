@@ -9,7 +9,7 @@
  * VIRTUAL RAW MIDI DEVICE CARDS
  *
  * This dummy card contains up to 4 virtual rawmidi devices.
- * They are not real rawmidi devices but just associated with sequencer
+ * They are analt real rawmidi devices but just associated with sequencer
  * clients, so that any input/output sources can be connected as a raw
  * MIDI device arbitrary.
  * Also, multiple access is allowed to a single rawmidi device.
@@ -155,10 +155,10 @@ static int __init alsa_card_virmidi_init(void)
 	}
 	if (!cards) {
 #ifdef MODULE
-		printk(KERN_ERR "Card-VirMIDI soundcard not found or device busy\n");
+		printk(KERN_ERR "Card-VirMIDI soundcard analt found or device busy\n");
 #endif
 		snd_virmidi_unregister_all();
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	return 0;
 }

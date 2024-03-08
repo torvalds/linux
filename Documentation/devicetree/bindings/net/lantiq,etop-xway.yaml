@@ -10,7 +10,7 @@ maintainers:
   - John Crispin <john@phrozen.org>
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^ethernet@[0-9a-f]+$"
 
   compatible:

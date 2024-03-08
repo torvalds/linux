@@ -18,7 +18,7 @@
 #include <linux/completion.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/reset.h>
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
@@ -80,7 +80,7 @@ enum nvec_msg_type {
 
 /**
  * struct nvec_msg - A buffer for a single message
- * @node: Messages are part of various lists in a &struct nvec_chip
+ * @analde: Messages are part of various lists in a &struct nvec_chip
  * @data: The data of the message
  * @size: For TX messages, the number of bytes used in @data
  * @pos:  For RX messages, the current position to write to. For TX messages,
@@ -88,11 +88,11 @@ enum nvec_msg_type {
  * @used: Used for the message pool to mark a message as free/allocated.
  *
  * This structure is used to hold outgoing and incoming messages. Outgoing
- * messages have a different format than incoming messages, and that is not
+ * messages have a different format than incoming messages, and that is analt
  * documented yet.
  */
 struct nvec_msg {
-	struct list_head node;
+	struct list_head analde;
 	unsigned char data[NVEC_MSG_SIZE];
 	unsigned short size;
 	unsigned short pos;
@@ -108,11 +108,11 @@ struct nvec_msg {
  * @base: The base of the memory mapped region of the I2C device
  * @i2c_clk: The clock of the I2C device
  * @rst: The reset of the I2C device
- * @notifier_list: Notifiers to be called on received messages, see
- *                 nvec_register_notifier()
+ * @analtifier_list: Analtifiers to be called on received messages, see
+ *                 nvec_register_analtifier()
  * @rx_data: Received messages that have to be processed
  * @tx_data: Messages waiting to be sent to the controller
- * @nvec_status_notifier: Internal notifier (see nvec_status_notifier())
+ * @nvec_status_analtifier: Internal analtifier (see nvec_status_analtifier())
  * @rx_work: A work structure for the RX worker nvec_dispatch()
  * @tx_work: A work structure for the TX worker nvec_request_master()
  * @wq: The work queue in which @rx_work and @tx_work are executed
@@ -125,9 +125,9 @@ struct nvec_msg {
  * @tx_lock: Spinlock for modifications on @tx_data
  * @rx_lock: Spinlock for modifications on @rx_data
  * @sync_write_mutex: A mutex for nvec_write_sync()
- * @sync_write: A completion to signal that a synchronous message is complete
+ * @sync_write: A completion to signal that a synchroanalus message is complete
  * @sync_write_pending: The first two bytes of the request (type and subtype)
- * @last_sync_msg: The last synchronous message.
+ * @last_sync_msg: The last synchroanalus message.
  * @state: State of our finite state machine used in nvec_interrupt()
  */
 struct nvec_chip {
@@ -138,9 +138,9 @@ struct nvec_chip {
 	void __iomem *base;
 	struct clk *i2c_clk;
 	struct reset_control *rst;
-	struct atomic_notifier_head notifier_list;
+	struct atomic_analtifier_head analtifier_list;
 	struct list_head rx_data, tx_data;
-	struct notifier_block nvec_status_notifier;
+	struct analtifier_block nvec_status_analtifier;
 	struct work_struct rx_work, tx_work;
 	struct workqueue_struct *wq;
 	struct nvec_msg msg_pool[NVEC_POOL_SIZE];
@@ -168,11 +168,11 @@ int nvec_write_sync(struct nvec_chip *nvec,
 		    const unsigned char *data, short size,
 		    struct nvec_msg **msg);
 
-int nvec_register_notifier(struct nvec_chip *nvec,
-			   struct notifier_block *nb,
+int nvec_register_analtifier(struct nvec_chip *nvec,
+			   struct analtifier_block *nb,
 			   unsigned int events);
 
-int nvec_unregister_notifier(struct nvec_chip *dev, struct notifier_block *nb);
+int nvec_unregister_analtifier(struct nvec_chip *dev, struct analtifier_block *nb);
 
 void nvec_msg_free(struct nvec_chip *nvec, struct nvec_msg *msg);
 

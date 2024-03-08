@@ -63,7 +63,7 @@ struct sd {
 #define FPS_HIGH       0x0100
 
 static const struct v4l2_pix_format depth_camera_mode[] = {
-	{640, 480, V4L2_PIX_FMT_Y10BPACK, V4L2_FIELD_NONE,
+	{640, 480, V4L2_PIX_FMT_Y10BPACK, V4L2_FIELD_ANALNE,
 	 .bytesperline = 640 * 10 / 8,
 	 .sizeimage =  640 * 480 * 10 / 8,
 	 .colorspace = V4L2_COLORSPACE_SRGB,
@@ -71,27 +71,27 @@ static const struct v4l2_pix_format depth_camera_mode[] = {
 };
 
 static const struct v4l2_pix_format video_camera_mode[] = {
-	{640, 480, V4L2_PIX_FMT_SGRBG8, V4L2_FIELD_NONE,
+	{640, 480, V4L2_PIX_FMT_SGRBG8, V4L2_FIELD_ANALNE,
 	 .bytesperline = 640,
 	 .sizeimage = 640 * 480,
 	 .colorspace = V4L2_COLORSPACE_SRGB,
 	 .priv = MODE_640x480 | FORMAT_BAYER | FPS_HIGH},
-	{640, 480, V4L2_PIX_FMT_UYVY, V4L2_FIELD_NONE,
+	{640, 480, V4L2_PIX_FMT_UYVY, V4L2_FIELD_ANALNE,
 	 .bytesperline = 640 * 2,
 	 .sizeimage = 640 * 480 * 2,
 	 .colorspace = V4L2_COLORSPACE_SRGB,
 	 .priv = MODE_640x480 | FORMAT_UYVY},
-	{1280, 1024, V4L2_PIX_FMT_SGRBG8, V4L2_FIELD_NONE,
+	{1280, 1024, V4L2_PIX_FMT_SGRBG8, V4L2_FIELD_ANALNE,
 	 .bytesperline = 1280,
 	 .sizeimage = 1280 * 1024,
 	 .colorspace = V4L2_COLORSPACE_SRGB,
 	 .priv = MODE_1280x1024 | FORMAT_BAYER},
-	{640, 488, V4L2_PIX_FMT_Y10BPACK, V4L2_FIELD_NONE,
+	{640, 488, V4L2_PIX_FMT_Y10BPACK, V4L2_FIELD_ANALNE,
 	 .bytesperline = 640 * 10 / 8,
 	 .sizeimage =  640 * 488 * 10 / 8,
 	 .colorspace = V4L2_COLORSPACE_SRGB,
 	 .priv = MODE_640x488 | FORMAT_Y10B | FPS_HIGH},
-	{1280, 1024, V4L2_PIX_FMT_Y10BPACK, V4L2_FIELD_NONE,
+	{1280, 1024, V4L2_PIX_FMT_Y10BPACK, V4L2_FIELD_ANALNE,
 	 .bytesperline = 1280 * 10 / 8,
 	 .sizeimage =  1280 * 1024 * 10 / 8,
 	 .colorspace = V4L2_COLORSPACE_SRGB,
@@ -235,7 +235,7 @@ static int sd_config_video(struct gspca_dev *gspca_dev,
 	gspca_dev->xfer_ep = 0x81;
 
 #if 0
-	/* Setting those values is not needed for video stream */
+	/* Setting those values is analt needed for video stream */
 	cam->npkt = 15;
 	gspca_dev->pkt_size = 960 * 2;
 #endif
@@ -407,7 +407,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev, u8 *__data, int len)
 		gspca_frame_add(gspca_dev, LAST_PACKET, data, datalen);
 
 	else
-		pr_warn("Packet type not recognized...\n");
+		pr_warn("Packet type analt recognized...\n");
 }
 
 /* sub-driver description */

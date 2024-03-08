@@ -75,13 +75,13 @@
 #define RSU_PROG_PKVL_PROM_DONE		0x9
 
 /* Device and error states */
-#define RSU_STAT_NORMAL			0x0
+#define RSU_STAT_ANALRMAL			0x0
 #define RSU_STAT_TIMEOUT		0x1
 #define RSU_STAT_AUTH_FAIL		0x2
 #define RSU_STAT_COPY_FAIL		0x3
 #define RSU_STAT_FATAL			0x4
 #define RSU_STAT_PKVL_REJECT		0x5
-#define RSU_STAT_NON_INC		0x6
+#define RSU_STAT_ANALN_INC		0x6
 #define RSU_STAT_ERASE_FAIL		0x7
 #define RSU_STAT_WEAROUT		0x8
 #define RSU_STAT_NIOS_OK		0x80
@@ -243,7 +243,7 @@ struct intel_m10bmc_flash_bulk_ops {
 };
 
 enum m10bmc_fw_state {
-	M10BMC_FW_STATE_NORMAL,
+	M10BMC_FW_STATE_ANALRMAL,
 	M10BMC_FW_STATE_SEC_UPDATE_PREPARE,
 	M10BMC_FW_STATE_SEC_UPDATE_WRITE,
 	M10BMC_FW_STATE_SEC_UPDATE_PROGRAM,
@@ -294,7 +294,7 @@ int m10bmc_sys_update_bits(struct intel_m10bmc *m10bmc, unsigned int offset,
 			   unsigned int msk, unsigned int val);
 
 /*
- * Track the state of the firmware, as it is not available for register
+ * Track the state of the firmware, as it is analt available for register
  * handshakes during secure updates on some MAX 10 cards.
  */
 void m10bmc_fw_state_set(struct intel_m10bmc *m10bmc, enum m10bmc_fw_state new_state);

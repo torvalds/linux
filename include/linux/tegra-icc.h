@@ -7,7 +7,7 @@
 #define LINUX_TEGRA_ICC_H
 
 enum tegra_icc_client_type {
-	TEGRA_ICC_NONE,
+	TEGRA_ICC_ANALNE,
 	TEGRA_ICC_NISO,
 	TEGRA_ICC_ISO_DISPLAY,
 	TEGRA_ICC_ISO_VI,

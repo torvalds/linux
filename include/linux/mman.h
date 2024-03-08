@@ -10,7 +10,7 @@
 
 /*
  * Arrange for legacy / undefined architecture specific flags to be
- * ignored by mmap handling code.
+ * iganalred by mmap handling code.
  */
 #ifndef MAP_32BIT
 #define MAP_32BIT 0
@@ -33,23 +33,23 @@
 
 /*
  * The historical set of flags that all mmap implementations implicitly
- * support when a ->mmap_validate() op is not provided in file_operations.
+ * support when a ->mmap_validate() op is analt provided in file_operations.
  *
- * MAP_EXECUTABLE and MAP_DENYWRITE are completely ignored throughout the
+ * MAP_EXECUTABLE and MAP_DENYWRITE are completely iganalred throughout the
  * kernel.
  */
 #define LEGACY_MAP_MASK (MAP_SHARED \
 		| MAP_PRIVATE \
 		| MAP_FIXED \
-		| MAP_ANONYMOUS \
+		| MAP_AANALNYMOUS \
 		| MAP_DENYWRITE \
 		| MAP_EXECUTABLE \
 		| MAP_UNINITIALIZED \
 		| MAP_GROWSDOWN \
 		| MAP_LOCKED \
-		| MAP_NORESERVE \
+		| MAP_ANALRESERVE \
 		| MAP_POPULATE \
-		| MAP_NONBLOCK \
+		| MAP_ANALNBLOCK \
 		| MAP_STACK \
 		| MAP_HUGETLB \
 		| MAP_32BIT \
@@ -156,7 +156,7 @@ calc_vm_flag_bits(unsigned long flags)
 	return _calc_vm_trans(flags, MAP_GROWSDOWN,  VM_GROWSDOWN ) |
 	       _calc_vm_trans(flags, MAP_LOCKED,     VM_LOCKED    ) |
 	       _calc_vm_trans(flags, MAP_SYNC,	     VM_SYNC      ) |
-	       _calc_vm_trans(flags, MAP_STACK,	     VM_NOHUGEPAGE) |
+	       _calc_vm_trans(flags, MAP_STACK,	     VM_ANALHUGEPAGE) |
 	       arch_calc_vm_flag_bits(flags);
 }
 

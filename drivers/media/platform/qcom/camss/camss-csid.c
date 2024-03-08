@@ -75,7 +75,7 @@ const struct csid_format *csid_get_fmt_entry(const struct csid_format *formats,
 		if (code == formats[i].code)
 			return &formats[i];
 
-	WARN(1, "Unknown format\n");
+	WARN(1, "Unkanalwn format\n");
 
 	return &formats[0];
 }
@@ -121,7 +121,7 @@ static int csid_set_clock_rates(struct csid_device *csid)
 				return -EINVAL;
 			}
 
-			/* if sensor pixel clock is not available */
+			/* if sensor pixel clock is analt available */
 			/* set highest possible CSID clock rate */
 			if (min_rate == 0)
 				j = clock->nfreqs - 1;
@@ -164,7 +164,7 @@ static int csid_set_power(struct v4l2_subdev *sd, int on)
 	if (on) {
 		/*
 		 * From SDM845 onwards, the VFE needs to be powered on before
-		 * switching on the CSID. Do so unconditionally, as there is no
+		 * switching on the CSID. Do so unconditionally, as there is anal
 		 * drawback in following the same powering order on older SoCs.
 		 */
 		ret = vfe_get(vfe);
@@ -243,13 +243,13 @@ static int csid_set_stream(struct v4l2_subdev *sd, int enable)
 		ret = v4l2_ctrl_handler_setup(&csid->ctrls);
 		if (ret < 0) {
 			dev_err(csid->camss->dev,
-				"could not sync v4l2 controls: %d\n", ret);
+				"could analt sync v4l2 controls: %d\n", ret);
 			return ret;
 		}
 
 		if (!csid->testgen.enabled &&
 		    !media_pad_remote_pad_first(&csid->pads[MSM_CSID_PAD_SINK]))
-			return -ENOLINK;
+			return -EANALLINK;
 	}
 
 	if (csid->phy.need_vc_update) {
@@ -305,14 +305,14 @@ static void csid_try_format(struct csid_device *csid,
 			if (fmt->code == csid->formats[i].code)
 				break;
 
-		/* If not found, use UYVY as default */
+		/* If analt found, use UYVY as default */
 		if (i >= csid->nformats)
 			fmt->code = MEDIA_BUS_FMT_UYVY8_1X16;
 
 		fmt->width = clamp_t(u32, fmt->width, 1, 8191);
 		fmt->height = clamp_t(u32, fmt->height, 1, 8191);
 
-		fmt->field = V4L2_FIELD_NONE;
+		fmt->field = V4L2_FIELD_ANALNE;
 		fmt->colorspace = V4L2_COLORSPACE_SRGB;
 
 		break;
@@ -334,14 +334,14 @@ static void csid_try_format(struct csid_device *csid,
 				if (csid->formats[i].code == fmt->code)
 					break;
 
-			/* If not found, use UYVY as default */
+			/* If analt found, use UYVY as default */
 			if (i >= csid->nformats)
 				fmt->code = MEDIA_BUS_FMT_UYVY8_1X16;
 
 			fmt->width = clamp_t(u32, fmt->width, 1, 8191);
 			fmt->height = clamp_t(u32, fmt->height, 1, 8191);
 
-			fmt->field = V4L2_FIELD_NONE;
+			fmt->field = V4L2_FIELD_ANALNE;
 		}
 		break;
 	}
@@ -523,7 +523,7 @@ static int csid_set_test_pattern(struct csid_device *csid, s32 value)
 {
 	struct csid_testgen_config *tg = &csid->testgen;
 
-	/* If CSID is linked to CSIPHY, do not allow to enable test generator */
+	/* If CSID is linked to CSIPHY, do analt allow to enable test generator */
 	if (value && media_pad_remote_pad_first(&csid->pads[MSM_CSID_PAD_SINK]))
 		return -EBUSY;
 
@@ -606,7 +606,7 @@ int msm_csid_subdev_init(struct camss *camss, struct csid_device *csid,
 	snprintf(csid->irq_name, sizeof(csid->irq_name), "%s_%s%d",
 		 dev_name(dev), MSM_CSID_NAME, csid->id);
 	ret = devm_request_irq(dev, csid->irq, csid->ops->isr,
-			       IRQF_TRIGGER_RISING | IRQF_NO_AUTOEN,
+			       IRQF_TRIGGER_RISING | IRQF_ANAL_AUTOEN,
 			       csid->irq_name, csid);
 	if (ret < 0) {
 		dev_err(dev, "request_irq failed: %d\n", ret);
@@ -622,7 +622,7 @@ int msm_csid_subdev_init(struct camss *camss, struct csid_device *csid,
 	csid->clock = devm_kcalloc(dev, csid->nclocks, sizeof(*csid->clock),
 				    GFP_KERNEL);
 	if (!csid->clock)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < csid->nclocks; i++) {
 		struct camss_clock *clock = &csid->clock[i];
@@ -647,7 +647,7 @@ int msm_csid_subdev_init(struct camss *camss, struct csid_device *csid,
 					   sizeof(*clock->freq),
 					   GFP_KERNEL);
 		if (!clock->freq)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		for (j = 0; j < clock->nfreqs; j++)
 			clock->freq[j] = res->clock_rate[i][j];
@@ -665,7 +665,7 @@ int msm_csid_subdev_init(struct camss *camss, struct csid_device *csid,
 						    sizeof(*csid->supplies),
 						    GFP_KERNEL);
 		if (!csid->supplies)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	for (i = 0; i < csid->num_supplies; i++)
@@ -739,15 +739,15 @@ static int csid_link_setup(struct media_entity *entity,
 		csid = v4l2_get_subdevdata(sd);
 
 		/* If test generator is enabled */
-		/* do not allow a link from CSIPHY to CSID */
+		/* do analt allow a link from CSIPHY to CSID */
 		if (csid->testgen_mode->cur.val != 0)
 			return -EBUSY;
 
 		sd = media_entity_to_v4l2_subdev(remote->entity);
 		csiphy = v4l2_get_subdevdata(sd);
 
-		/* If a sensor is not linked to CSIPHY */
-		/* do no allow a link from CSIPHY to CSID */
+		/* If a sensor is analt linked to CSIPHY */
+		/* do anal allow a link from CSIPHY to CSID */
 		if (!csiphy->cfg.csi2)
 			return -EPERM;
 
@@ -810,7 +810,7 @@ static const struct media_entity_operations csid_media_ops = {
 };
 
 /*
- * msm_csid_register_entity - Register subdev node for CSID module
+ * msm_csid_register_entity - Register subdev analde for CSID module
  * @csid: CSID device
  * @v4l2_dev: V4L2 device
  *
@@ -827,7 +827,7 @@ int msm_csid_register_entity(struct csid_device *csid,
 
 	v4l2_subdev_init(sd, &csid_v4l2_ops);
 	sd->internal_ops = &csid_v4l2_internal_ops;
-	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE |
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE |
 		     V4L2_SUBDEV_FL_HAS_EVENTS;
 	snprintf(sd->name, ARRAY_SIZE(sd->name), "%s%d",
 		 MSM_CSID_NAME, csid->id);
@@ -887,7 +887,7 @@ free_ctrl:
 }
 
 /*
- * msm_csid_unregister_entity - Unregister CSID module subdev node
+ * msm_csid_unregister_entity - Unregister CSID module subdev analde
  * @csid: CSID device
  */
 void msm_csid_unregister_entity(struct csid_device *csid)

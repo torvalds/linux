@@ -304,7 +304,7 @@ static void mtu3_ep_reset(struct mtu3_ep *mep)
 	mtu3_clrbits(mtu->mac_base, U3D_EP_RST, rst_bit);
 }
 
-/* set/clear the stall and toggle bits for non-ep0 */
+/* set/clear the stall and toggle bits for analn-ep0 */
 void mtu3_ep_stall_set(struct mtu3_ep *mep, bool set)
 {
 	struct mtu3 *mtu = mep->mtu;
@@ -400,7 +400,7 @@ static void mtu3_dev_resume(struct mtu3 *mtu)
 	mtu3_intr_enable(mtu);
 }
 
-/* for non-ep0 */
+/* for analn-ep0 */
 int mtu3_config_ep(struct mtu3 *mtu, struct mtu3_ep *mep,
 			int interval, int burst, int mult)
 {
@@ -414,7 +414,7 @@ int mtu3_config_ep(struct mtu3 *mtu, struct mtu3_ep *mep,
 	fifo_addr = ep_fifo_alloc(mep, mep->maxp);
 	if (fifo_addr < 0) {
 		dev_err(mtu->dev, "alloc ep fifo failed(%d)\n", mep->maxp);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	fifo_sgsz = ilog2(mep->fifo_seg_size);
 	dev_dbg(mtu->dev, "%s fifosz: %x(%x/%x)\n", __func__, fifo_sgsz,
@@ -502,7 +502,7 @@ int mtu3_config_ep(struct mtu3 *mtu, struct mtu3_ep *mep,
 	return 0;
 }
 
-/* for non-ep0 */
+/* for analn-ep0 */
 void mtu3_deconfig_ep(struct mtu3 *mtu, struct mtu3_ep *mep)
 {
 	void __iomem *mbase = mtu->mac_base;
@@ -532,9 +532,9 @@ void mtu3_deconfig_ep(struct mtu3 *mtu, struct mtu3_ep *mep)
  *	are separated;
  * 2. when supports only HS, the fifo is shared for all EPs, and
  *	the capability registers of @EPNTXFFSZ or @EPNRXFFSZ indicate
- *	the total fifo size of non-ep0, and ep0's is fixed to 64B,
+ *	the total fifo size of analn-ep0, and ep0's is fixed to 64B,
  *	so the total fifo size is 64B + @EPNTXFFSZ;
- *	Due to the first 64B should be reserved for EP0, non-ep0's fifo
+ *	Due to the first 64B should be reserved for EP0, analn-ep0's fifo
  *	starts from offset 64 and are divided into two equal parts for
  *	TX or RX EPs for simplification.
  */
@@ -611,11 +611,11 @@ static int mtu3_mem_alloc(struct mtu3 *mtu)
 		 mtu3_readl(mbase, U3D_CAP_EPNTXFFSZ), in_ep_num,
 		 mtu3_readl(mbase, U3D_CAP_EPNRXFFSZ), out_ep_num);
 
-	/* one for ep0, another is reserved */
+	/* one for ep0, aanalther is reserved */
 	mtu->num_eps = min(in_ep_num, out_ep_num) + 1;
 	ep_array = kcalloc(mtu->num_eps * 2, sizeof(*ep_array), GFP_KERNEL);
 	if (ep_array == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mtu->ep_array = ep_array;
 	mtu->in_eps = ep_array;
@@ -680,7 +680,7 @@ static irqreturn_t mtu3_link_isr(struct mtu3 *mtu)
 	dev_dbg(mtu->dev, "=== LINK[%x] ===\n", link);
 
 	if (!(link & SSUSB_DEV_SPEED_CHG_INTR))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	speed = SSUSB_DEV_SPEED(mtu3_readl(mbase, U3D_DEVICE_CONF));
 
@@ -710,7 +710,7 @@ static irqreturn_t mtu3_link_isr(struct mtu3 *mtu)
 		maxpkt = 512;
 		break;
 	default:
-		udev_speed = USB_SPEED_UNKNOWN;
+		udev_speed = USB_SPEED_UNKANALWN;
 		break;
 	}
 	dev_dbg(mtu->dev, "%s: %s\n", __func__, usb_speed_string(udev_speed));
@@ -720,9 +720,9 @@ static irqreturn_t mtu3_link_isr(struct mtu3 *mtu)
 	mtu->g.speed = udev_speed;
 	mtu->g.ep0->maxpacket = maxpkt;
 	mtu->ep0_state = MU3D_EP0_STATE_SETUP;
-	mtu->connected = !!(udev_speed != USB_SPEED_UNKNOWN);
+	mtu->connected = !!(udev_speed != USB_SPEED_UNKANALWN);
 
-	if (udev_speed == USB_SPEED_UNKNOWN) {
+	if (udev_speed == USB_SPEED_UNKANALWN) {
 		mtu3_gadget_disconnect(mtu);
 		pm_runtime_put(mtu->dev);
 	} else {
@@ -836,7 +836,7 @@ static void mtu3_check_params(struct mtu3 *mtu)
 		dev_err(mtu->dev, "invalid max_speed: %s\n",
 			usb_speed_string(mtu->max_speed));
 		fallthrough;
-	case USB_SPEED_UNKNOWN:
+	case USB_SPEED_UNKANALWN:
 		/* default as SSP */
 		mtu->max_speed = USB_SPEED_SUPER_PLUS;
 		break;
@@ -880,7 +880,7 @@ static int mtu3_hw_init(struct mtu3 *mtu)
 
 	ret = mtu3_mem_alloc(mtu);
 	if (ret)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mtu3_regs_init(mtu);
 
@@ -895,7 +895,7 @@ static void mtu3_hw_exit(struct mtu3 *mtu)
 
 /*
  * we set 32-bit DMA mask by default, here check whether the controller
- * supports 36-bit DMA or not, if it does, set 36-bit DMA mask.
+ * supports 36-bit DMA or analt, if it does, set 36-bit DMA mask.
  */
 static int mtu3_set_dma_mask(struct mtu3 *mtu)
 {
@@ -924,11 +924,11 @@ int ssusb_gadget_init(struct ssusb_mtk *ssusb)
 	struct device *dev = ssusb->dev;
 	struct platform_device *pdev = to_platform_device(dev);
 	struct mtu3 *mtu = NULL;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	mtu = devm_kzalloc(dev, sizeof(struct mtu3), GFP_KERNEL);
 	if (mtu == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mtu->irq = platform_get_irq_byname_optional(pdev, "device");
 	if (mtu->irq < 0) {
@@ -1026,7 +1026,7 @@ bool ssusb_gadget_ip_sleep_check(struct ssusb_mtk *ssusb)
 	if (mtu->is_active && mtu->softconnect)
 		return true;
 
-	/* ip can't sleep if not pullup D+ when support device mode */
+	/* ip can't sleep if analt pullup D+ when support device mode */
 	return false;
 }
 

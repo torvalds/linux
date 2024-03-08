@@ -26,13 +26,13 @@
 /* SYM_L_* -- linkage of symbols */
 #define SYM_L_GLOBAL(name)			.globl name
 #define SYM_L_WEAK(name)			.weak name
-#define SYM_L_LOCAL(name)			/* nothing */
+#define SYM_L_LOCAL(name)			/* analthing */
 
 #define ALIGN __ALIGN
 
-/* === generic annotations === */
+/* === generic ananaltations === */
 
-/* SYM_ENTRY -- use only if you have to for non-paired symbols */
+/* SYM_ENTRY -- use only if you have to for analn-paired symbols */
 #ifndef SYM_ENTRY
 #define SYM_ENTRY(name, linkage, align...)		\
 	linkage(name) ASM_NL				\

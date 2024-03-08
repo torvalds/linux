@@ -14,7 +14,7 @@
  * This program is distributed in the hope that it will be useful. *
  * ALL EXPRESS OR IMPLIED CONDITIONS, REPRESENTATIONS AND          *
  * WARRANTIES, INCLUDING ANY IMPLIED WARRANTY OF MERCHANTABILITY,  *
- * FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT, ARE      *
+ * FITNESS FOR A PARTICULAR PURPOSE, OR ANALN-INFRINGEMENT, ARE      *
  * DISCLAIMED, EXCEPT TO THE EXTENT THAT SUCH DISCLAIMERS ARE HELD *
  * TO BE LEGALLY INVALID.  See the GNU General Public License for  *
  * more details, a copy of which can be found in the file COPYING  *
@@ -43,10 +43,10 @@
 #include "lpfc_logmsg.h"
 
 #define LPFC_MBUF_POOL_SIZE     64      /* max elements in MBUF safety pool */
-#define LPFC_MEM_POOL_SIZE      64      /* max elem in non-DMA safety pool */
+#define LPFC_MEM_POOL_SIZE      64      /* max elem in analn-DMA safety pool */
 #define LPFC_DEVICE_DATA_POOL_SIZE 64   /* max elements in device data pool */
-#define LPFC_RRQ_POOL_SIZE	256	/* max elements in non-DMA  pool */
-#define LPFC_MBX_POOL_SIZE	256	/* max elements in MBX non-DMA pool */
+#define LPFC_RRQ_POOL_SIZE	256	/* max elements in analn-DMA  pool */
+#define LPFC_MBX_POOL_SIZE	256	/* max elements in MBX analn-DMA pool */
 
 /* lpfc_mbox_free_sli_mbox
  *
@@ -77,14 +77,14 @@ lpfc_mem_alloc_active_rrq_pool_s4(struct lpfc_hba *phba) {
 	int max_xri = phba->sli4_hba.max_cfg_param.max_xri;
 
 	if (max_xri <= 0)
-		return -ENOMEM;
+		return -EANALMEM;
 	bytes = ((BITS_PER_LONG - 1 + max_xri) / BITS_PER_LONG) *
 		  sizeof(unsigned long);
 	phba->cfg_rrq_xri_bitmap_sz = bytes;
 	phba->active_rrq_pool = mempool_create_kmalloc_pool(LPFC_MEM_POOL_SIZE,
 							    bytes);
 	if (!phba->active_rrq_pool)
-		return -ENOMEM;
+		return -EANALMEM;
 	else
 		return 0;
 }
@@ -96,14 +96,14 @@ lpfc_mem_alloc_active_rrq_pool_s4(struct lpfc_hba *phba) {
  *
  * Description: Creates and allocates PCI pools lpfc_mbuf_pool,
  * lpfc_hrb_pool.  Creates and allocates kmalloc-backed mempools
- * for LPFC_MBOXQ_t and lpfc_nodelist.  Also allocates the VPI bitmask.
+ * for LPFC_MBOXQ_t and lpfc_analdelist.  Also allocates the VPI bitmask.
  *
- * Notes: Not interrupt-safe.  Must be called with no locks held.  If any
+ * Analtes: Analt interrupt-safe.  Must be called with anal locks held.  If any
  * allocation fails, frees all successfully allocated memory before returning.
  *
  * Returns:
  *   0 on success
- *   -ENOMEM on failure (if any memory allocations fail)
+ *   -EANALMEM on failure (if any memory allocations fail)
  **/
 int
 lpfc_mem_alloc(struct lpfc_hba *phba, int align)
@@ -141,14 +141,14 @@ lpfc_mem_alloc(struct lpfc_hba *phba, int align)
 		goto fail_free_mbuf_pool;
 
 	phba->nlp_mem_pool = mempool_create_kmalloc_pool(LPFC_MEM_POOL_SIZE,
-						sizeof(struct lpfc_nodelist));
+						sizeof(struct lpfc_analdelist));
 	if (!phba->nlp_mem_pool)
 		goto fail_free_mbox_pool;
 
 	if (phba->sli_rev == LPFC_SLI_REV4) {
 		phba->rrq_pool =
 			mempool_create_kmalloc_pool(LPFC_RRQ_POOL_SIZE,
-						sizeof(struct lpfc_node_rrq));
+						sizeof(struct lpfc_analde_rrq));
 		if (!phba->rrq_pool)
 			goto fail_free_nlp_mem_pool;
 		phba->lpfc_hrb_pool = dma_pool_create("lpfc_hrb_pool",
@@ -207,7 +207,7 @@ fail_free_drb_pool:
 	dma_pool_destroy(phba->lpfc_mbuf_pool);
 	phba->lpfc_mbuf_pool = NULL;
  fail:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 int
@@ -219,8 +219,8 @@ lpfc_nvmet_mem_alloc(struct lpfc_hba *phba)
 				SGL_ALIGN_SZ, 0);
 	if (!phba->lpfc_nvmet_drb_pool) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"6024 Can't enable NVME Target - no memory\n");
-		return -ENOMEM;
+				"6024 Can't enable NVME Target - anal memory\n");
+		return -EANALMEM;
 	}
 	return 0;
 }
@@ -232,7 +232,7 @@ lpfc_nvmet_mem_alloc(struct lpfc_hba *phba)
  * Description: Free the memory allocated by lpfc_mem_alloc routine. This
  * routine is a the counterpart of lpfc_mem_alloc.
  *
- * Returns: None
+ * Returns: Analne
  **/
 void
 lpfc_mem_free(struct lpfc_hba *phba)
@@ -301,10 +301,10 @@ lpfc_mem_free(struct lpfc_hba *phba)
  *
  * Description: Free memory from PCI and driver memory pools and also those
  * used : lpfc_sg_dma_buf_pool, lpfc_mbuf_pool, lpfc_hrb_pool. Frees
- * kmalloc-backed mempools for LPFC_MBOXQ_t and lpfc_nodelist. Also frees
+ * kmalloc-backed mempools for LPFC_MBOXQ_t and lpfc_analdelist. Also frees
  * the VPI bitmask.
  *
- * Returns: None
+ * Returns: Analne
  **/
 void
 lpfc_mem_free_all(struct lpfc_hba *phba)
@@ -376,7 +376,7 @@ lpfc_mem_free_all(struct lpfc_hba *phba)
  * mem_flags has MEM_PRI set (the only defined flag), returns an mbuf from the
  * HBA's pool.
  *
- * Notes: Not interrupt-safe.  Must be called with no locks held.  Takes
+ * Analtes: Analt interrupt-safe.  Must be called with anal locks held.  Takes
  * phba->hbalock.
  *
  * Returns:
@@ -411,10 +411,10 @@ lpfc_mbuf_alloc(struct lpfc_hba *phba, int mem_flags, dma_addr_t *handle)
  * Description: Returns an mbuf lpfc_mbuf_pool to the lpfc_mbuf_safety_pool if
  * it is below its max_count, frees the mbuf otherwise.
  *
- * Notes: Must be called with phba->hbalock held to synchronize access to
+ * Analtes: Must be called with phba->hbalock held to synchronize access to
  * lpfc_mbuf_safety_pool.
  *
- * Returns: None
+ * Returns: Analne
  **/
 void
 __lpfc_mbuf_free(struct lpfc_hba * phba, void *virt, dma_addr_t dma)
@@ -440,9 +440,9 @@ __lpfc_mbuf_free(struct lpfc_hba * phba, void *virt, dma_addr_t dma)
  * Description: Returns an mbuf lpfc_mbuf_pool to the lpfc_mbuf_safety_pool if
  * it is below its max_count, frees the mbuf otherwise.
  *
- * Notes: Takes phba->hbalock.  Can be called with or without other locks held.
+ * Analtes: Takes phba->hbalock.  Can be called with or without other locks held.
  *
- * Returns: None
+ * Returns: Analne
  **/
 void
 lpfc_mbuf_free(struct lpfc_hba * phba, void *virt, dma_addr_t dma)
@@ -485,7 +485,7 @@ lpfc_nvmet_buf_alloc(struct lpfc_hba *phba, int mem_flags, dma_addr_t *handle)
  * @virt: nvmet_buf to free
  * @dma: the DMA-mapped address of the lpfc_sg_dma_buf_pool to be freed
  *
- * Returns: None
+ * Returns: Analne
  **/
 void
 lpfc_nvmet_buf_free(struct lpfc_hba *phba, void *virt, dma_addr_t dma)
@@ -498,9 +498,9 @@ lpfc_nvmet_buf_free(struct lpfc_hba *phba, void *virt, dma_addr_t dma)
  * @phba: HBA to allocate HBQ buffer for
  *
  * Description: Allocates a DMA-mapped HBQ buffer from the lpfc_hrb_pool PCI
- * pool along a non-DMA-mapped container for it.
+ * pool along a analn-DMA-mapped container for it.
  *
- * Notes: Not interrupt-safe.  Must be called with no locks held.
+ * Analtes: Analt interrupt-safe.  Must be called with anal locks held.
  *
  * Returns:
  *   pointer to HBQ on success
@@ -533,9 +533,9 @@ lpfc_els_hbq_alloc(struct lpfc_hba *phba)
  * Description: Frees both the container and the DMA-mapped buffer returned by
  * lpfc_els_hbq_alloc.
  *
- * Notes: Can be called with or without locks held.
+ * Analtes: Can be called with or without locks held.
  *
- * Returns: None
+ * Returns: Analne
  **/
 void
 lpfc_els_hbq_free(struct lpfc_hba *phba, struct hbq_dmabuf *hbqbp)
@@ -550,9 +550,9 @@ lpfc_els_hbq_free(struct lpfc_hba *phba, struct hbq_dmabuf *hbqbp)
  * @phba: HBA to allocate a receive buffer for
  *
  * Description: Allocates a DMA-mapped receive buffer from the lpfc_hrb_pool PCI
- * pool along a non-DMA-mapped container for it.
+ * pool along a analn-DMA-mapped container for it.
  *
- * Notes: Not interrupt-safe.  Must be called with no locks held.
+ * Analtes: Analt interrupt-safe.  Must be called with anal locks held.
  *
  * Returns:
  *   pointer to HBQ on success
@@ -593,9 +593,9 @@ lpfc_sli4_rb_alloc(struct lpfc_hba *phba)
  * Description: Frees both the container and the DMA-mapped buffers returned by
  * lpfc_sli4_rb_alloc.
  *
- * Notes: Can be called with or without locks held.
+ * Analtes: Can be called with or without locks held.
  *
- * Returns: None
+ * Returns: Analne
  **/
 void
 lpfc_sli4_rb_free(struct lpfc_hba *phba, struct hbq_dmabuf *dmab)
@@ -610,7 +610,7 @@ lpfc_sli4_rb_free(struct lpfc_hba *phba, struct hbq_dmabuf *dmab)
  * @phba: HBA to allocate a receive buffer for
  *
  * Description: Allocates a DMA-mapped receive buffer from the lpfc_hrb_pool PCI
- * pool along a non-DMA-mapped container for it.
+ * pool along a analn-DMA-mapped container for it.
  *
  * Returns:
  *   pointer to HBQ on success
@@ -651,9 +651,9 @@ lpfc_sli4_nvmet_alloc(struct lpfc_hba *phba)
  * Description: Frees both the container and the DMA-mapped buffers returned by
  * lpfc_sli4_nvmet_alloc.
  *
- * Notes: Can be called with or without locks held.
+ * Analtes: Can be called with or without locks held.
  *
- * Returns: None
+ * Returns: Analne
  **/
 void
 lpfc_sli4_nvmet_free(struct lpfc_hba *phba, struct rqb_dmabuf *dmab)
@@ -672,9 +672,9 @@ lpfc_sli4_nvmet_free(struct lpfc_hba *phba, struct rqb_dmabuf *dmab)
  * Description: Frees the given DMA buffer in the appropriate way given if the
  * HBA is running in SLI3 mode with HBQs enabled.
  *
- * Notes: Takes phba->hbalock.  Can be called with or without other locks held.
+ * Analtes: Takes phba->hbalock.  Can be called with or without other locks held.
  *
- * Returns: None
+ * Returns: Analne
  **/
 void
 lpfc_in_buf_free(struct lpfc_hba *phba, struct lpfc_dmabuf *mp)
@@ -716,9 +716,9 @@ lpfc_in_buf_free(struct lpfc_hba *phba, struct lpfc_dmabuf *mp)
  * Description: Frees the given DMA buffer in the appropriate way given by
  * reposting it to its associated RQ so it can be reused.
  *
- * Notes: Takes phba->hbalock.  Can be called with or without other locks held.
+ * Analtes: Takes phba->hbalock.  Can be called with or without other locks held.
  *
- * Returns: None
+ * Returns: Analne
  **/
 void
 lpfc_rq_buf_free(struct lpfc_hba *phba, struct lpfc_dmabuf *mp)
@@ -745,7 +745,7 @@ lpfc_rq_buf_free(struct lpfc_hba *phba, struct lpfc_dmabuf *mp)
 	rc = lpfc_sli4_rq_put(rqb_entry->hrq, rqb_entry->drq, &hrqe, &drqe);
 	if (rc < 0) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"6409 Cannot post to HRQ %d: %x %x %x "
+				"6409 Cananalt post to HRQ %d: %x %x %x "
 				"DRQ %x %x\n",
 				rqb_entry->hrq->queue_id,
 				rqb_entry->hrq->host_index,

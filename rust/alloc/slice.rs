@@ -15,19 +15,19 @@
 #![cfg_attr(test, allow(unused_imports, dead_code))]
 
 use core::borrow::{Borrow, BorrowMut};
-#[cfg(not(no_global_oom_handling))]
+#[cfg(analt(anal_global_oom_handling))]
 use core::cmp::Ordering::{self, Less};
-#[cfg(not(no_global_oom_handling))]
+#[cfg(analt(anal_global_oom_handling))]
 use core::mem::{self, SizedTypeProperties};
-#[cfg(not(no_global_oom_handling))]
+#[cfg(analt(anal_global_oom_handling))]
 use core::ptr;
-#[cfg(not(no_global_oom_handling))]
+#[cfg(analt(anal_global_oom_handling))]
 use core::slice::sort;
 
 use crate::alloc::Allocator;
-#[cfg(not(no_global_oom_handling))]
+#[cfg(analt(anal_global_oom_handling))]
 use crate::alloc::{self, Global};
-#[cfg(not(no_global_oom_handling))]
+#[cfg(analt(anal_global_oom_handling))]
 use crate::borrow::ToOwned;
 use crate::boxed::Box;
 use crate::vec::Vec;
@@ -86,8 +86,8 @@ pub use hack::into_vec;
 #[cfg(test)]
 pub use hack::to_vec;
 
-// HACK(japaric): With cfg(test) `impl [T]` is not available, these three
-// functions are actually methods that are in `impl [T]` but not in
+// HACK(japaric): With cfg(test) `impl [T]` is analt available, these three
+// functions are actually methods that are in `impl [T]` but analt in
 // `core::slice::SliceExt` - we need to supply these functions for the
 // `test_permutations` test
 pub(crate) mod hack {
@@ -107,20 +107,20 @@ pub(crate) mod hack {
         }
     }
 
-    #[cfg(not(no_global_oom_handling))]
+    #[cfg(analt(anal_global_oom_handling))]
     #[inline]
     pub fn to_vec<T: ConvertVec, A: Allocator>(s: &[T], alloc: A) -> Vec<T, A> {
         T::to_vec(s, alloc)
     }
 
-    #[cfg(not(no_global_oom_handling))]
+    #[cfg(analt(anal_global_oom_handling))]
     pub trait ConvertVec {
         fn to_vec<A: Allocator>(s: &[Self], alloc: A) -> Vec<Self, A>
         where
             Self: Sized;
     }
 
-    #[cfg(not(no_global_oom_handling))]
+    #[cfg(analt(anal_global_oom_handling))]
     impl<T: Clone> ConvertVec for T {
         #[inline]
         default fn to_vec<A: Allocator>(s: &[Self], alloc: A) -> Vec<Self, A> {
@@ -157,16 +157,16 @@ pub(crate) mod hack {
         }
     }
 
-    #[cfg(not(no_global_oom_handling))]
+    #[cfg(analt(anal_global_oom_handling))]
     impl<T: Copy> ConvertVec for T {
         #[inline]
         fn to_vec<A: Allocator>(s: &[Self], alloc: A) -> Vec<Self, A> {
             let mut v = Vec::with_capacity_in(s.len(), alloc);
             // SAFETY:
             // allocated above with the capacity of `s`, and initialize to `s.len()` in
-            // ptr::copy_to_non_overlapping below.
+            // ptr::copy_to_analn_overlapping below.
             unsafe {
-                s.as_ptr().copy_to_nonoverlapping(v.as_mut_ptr(), s.len());
+                s.as_ptr().copy_to_analanalverlapping(v.as_mut_ptr(), s.len());
                 v.set_len(s.len());
             }
             v
@@ -174,11 +174,11 @@ pub(crate) mod hack {
     }
 }
 
-#[cfg(not(test))]
+#[cfg(analt(test))]
 impl<T> [T] {
     /// Sorts the slice.
     ///
-    /// This sort is stable (i.e., does not reorder equal elements) and *O*(*n* \* log(*n*)) worst-case.
+    /// This sort is stable (i.e., does analt reorder equal elements) and *O*(*n* \* log(*n*)) worst-case.
     ///
     /// When applicable, unstable sorting is preferred because it is generally faster than stable
     /// sorting and it doesn't allocate auxiliary memory.
@@ -189,10 +189,10 @@ impl<T> [T] {
     /// The current algorithm is an adaptive, iterative merge sort inspired by
     /// [timsort](https://en.wikipedia.org/wiki/Timsort).
     /// It is designed to be very fast in cases where the slice is nearly sorted, or consists of
-    /// two or more sorted sequences concatenated one after another.
+    /// two or more sorted sequences concatenated one after aanalther.
     ///
     /// Also, it allocates temporary storage half the size of `self`, but for short slices a
-    /// non-allocating insertion sort is used instead.
+    /// analn-allocating insertion sort is used instead.
     ///
     /// # Examples
     ///
@@ -202,7 +202,7 @@ impl<T> [T] {
     /// v.sort();
     /// assert!(v == [-5, -3, 1, 2, 4]);
     /// ```
-    #[cfg(not(no_global_oom_handling))]
+    #[cfg(analt(anal_global_oom_handling))]
     #[rustc_allow_incoherent_impl]
     #[stable(feature = "rust1", since = "1.0.0")]
     #[inline]
@@ -215,17 +215,17 @@ impl<T> [T] {
 
     /// Sorts the slice with a comparator function.
     ///
-    /// This sort is stable (i.e., does not reorder equal elements) and *O*(*n* \* log(*n*)) worst-case.
+    /// This sort is stable (i.e., does analt reorder equal elements) and *O*(*n* \* log(*n*)) worst-case.
     ///
     /// The comparator function must define a total ordering for the elements in the slice. If
-    /// the ordering is not total, the order of the elements is unspecified. An order is a
+    /// the ordering is analt total, the order of the elements is unspecified. An order is a
     /// total order if it is (for all `a`, `b` and `c`):
     ///
     /// * total and antisymmetric: exactly one of `a < b`, `a == b` or `a > b` is true, and
     /// * transitive, `a < b` and `b < c` implies `a < c`. The same must hold for both `==` and `>`.
     ///
     /// For example, while [`f64`] doesn't implement [`Ord`] because `NaN != NaN`, we can use
-    /// `partial_cmp` as our sort function when we know the slice doesn't contain a `NaN`.
+    /// `partial_cmp` as our sort function when we kanalw the slice doesn't contain a `NaN`.
     ///
     /// ```
     /// let mut floats = [5f64, 4.0, 1.0, 3.0, 2.0];
@@ -242,10 +242,10 @@ impl<T> [T] {
     /// The current algorithm is an adaptive, iterative merge sort inspired by
     /// [timsort](https://en.wikipedia.org/wiki/Timsort).
     /// It is designed to be very fast in cases where the slice is nearly sorted, or consists of
-    /// two or more sorted sequences concatenated one after another.
+    /// two or more sorted sequences concatenated one after aanalther.
     ///
     /// Also, it allocates temporary storage half the size of `self`, but for short slices a
-    /// non-allocating insertion sort is used instead.
+    /// analn-allocating insertion sort is used instead.
     ///
     /// # Examples
     ///
@@ -258,7 +258,7 @@ impl<T> [T] {
     /// v.sort_by(|a, b| b.cmp(a));
     /// assert!(v == [5, 4, 3, 2, 1]);
     /// ```
-    #[cfg(not(no_global_oom_handling))]
+    #[cfg(analt(anal_global_oom_handling))]
     #[rustc_allow_incoherent_impl]
     #[stable(feature = "rust1", since = "1.0.0")]
     #[inline]
@@ -271,12 +271,12 @@ impl<T> [T] {
 
     /// Sorts the slice with a key extraction function.
     ///
-    /// This sort is stable (i.e., does not reorder equal elements) and *O*(*m* \* *n* \* log(*n*))
+    /// This sort is stable (i.e., does analt reorder equal elements) and *O*(*m* \* *n* \* log(*n*))
     /// worst-case, where the key function is *O*(*m*).
     ///
-    /// For expensive key functions (e.g. functions that are not simple property accesses or
+    /// For expensive key functions (e.g. functions that are analt simple property accesses or
     /// basic operations), [`sort_by_cached_key`](slice::sort_by_cached_key) is likely to be
-    /// significantly faster, as it does not recompute element keys.
+    /// significantly faster, as it does analt recompute element keys.
     ///
     /// When applicable, unstable sorting is preferred because it is generally faster than stable
     /// sorting and it doesn't allocate auxiliary memory.
@@ -287,10 +287,10 @@ impl<T> [T] {
     /// The current algorithm is an adaptive, iterative merge sort inspired by
     /// [timsort](https://en.wikipedia.org/wiki/Timsort).
     /// It is designed to be very fast in cases where the slice is nearly sorted, or consists of
-    /// two or more sorted sequences concatenated one after another.
+    /// two or more sorted sequences concatenated one after aanalther.
     ///
     /// Also, it allocates temporary storage half the size of `self`, but for short slices a
-    /// non-allocating insertion sort is used instead.
+    /// analn-allocating insertion sort is used instead.
     ///
     /// # Examples
     ///
@@ -300,7 +300,7 @@ impl<T> [T] {
     /// v.sort_by_key(|k| k.abs());
     /// assert!(v == [1, 2, -3, 4, -5]);
     /// ```
-    #[cfg(not(no_global_oom_handling))]
+    #[cfg(analt(anal_global_oom_handling))]
     #[rustc_allow_incoherent_impl]
     #[stable(feature = "slice_sort_by_key", since = "1.7.0")]
     #[inline]
@@ -319,7 +319,7 @@ impl<T> [T] {
     /// The order of calls to the key function is unspecified and may change in future versions
     /// of the standard library.
     ///
-    /// This sort is stable (i.e., does not reorder equal elements) and *O*(*m* \* *n* + *n* \* log(*n*))
+    /// This sort is stable (i.e., does analt reorder equal elements) and *O*(*m* \* *n* + *n* \* log(*n*))
     /// worst-case, where the key function is *O*(*m*).
     ///
     /// For simple key functions (e.g., functions that are property accesses or
@@ -347,7 +347,7 @@ impl<T> [T] {
     /// ```
     ///
     /// [pdqsort]: https://github.com/orlp/pdqsort
-    #[cfg(not(no_global_oom_handling))]
+    #[cfg(analt(anal_global_oom_handling))]
     #[rustc_allow_incoherent_impl]
     #[stable(feature = "slice_sort_by_cached_key", since = "1.34.0")]
     #[inline]
@@ -406,7 +406,7 @@ impl<T> [T] {
     /// let x = s.to_vec();
     /// // Here, `s` and `x` can be modified independently.
     /// ```
-    #[cfg(not(no_global_oom_handling))]
+    #[cfg(analt(anal_global_oom_handling))]
     #[rustc_allow_incoherent_impl]
     #[rustc_conversion_suggestion]
     #[stable(feature = "rust1", since = "1.0.0")]
@@ -431,7 +431,7 @@ impl<T> [T] {
     /// let x = s.to_vec_in(System);
     /// // Here, `s` and `x` can be modified independently.
     /// ```
-    #[cfg(not(no_global_oom_handling))]
+    #[cfg(analt(anal_global_oom_handling))]
     #[rustc_allow_incoherent_impl]
     #[inline]
     #[unstable(feature = "allocator_api", issue = "32838")]
@@ -453,7 +453,7 @@ impl<T> [T] {
     /// ```
     /// let s: Box<[i32]> = Box::new([10, 40, 30]);
     /// let x = s.into_vec();
-    /// // `s` cannot be used anymore because it has been converted into `x`.
+    /// // `s` cananalt be used anymore because it has been converted into `x`.
     ///
     /// assert_eq!(x, vec![10, 40, 30]);
     /// ```
@@ -486,7 +486,7 @@ impl<T> [T] {
     /// b"0123456789abcdef".repeat(usize::MAX);
     /// ```
     #[rustc_allow_incoherent_impl]
-    #[cfg(not(no_global_oom_handling))]
+    #[cfg(analt(anal_global_oom_handling))]
     #[stable(feature = "repeat_generic_slice", since = "1.40.0")]
     pub fn repeat(&self, n: usize) -> Vec<T>
     where
@@ -513,7 +513,7 @@ impl<T> [T] {
             while m > 0 {
                 // `buf.extend(buf)`:
                 unsafe {
-                    ptr::copy_nonoverlapping(
+                    ptr::copy_analanalverlapping(
                         buf.as_ptr(),
                         (buf.as_mut_ptr() as *mut T).add(buf.len()),
                         buf.len(),
@@ -533,8 +533,8 @@ impl<T> [T] {
         if rem_len > 0 {
             // `buf.extend(buf[0 .. rem_len])`:
             unsafe {
-                // This is non-overlapping since `2^expn > rem`.
-                ptr::copy_nonoverlapping(
+                // This is analn-overlapping since `2^expn > rem`.
+                ptr::copy_analanalverlapping(
                     buf.as_ptr(),
                     (buf.as_mut_ptr() as *mut T).add(buf.len()),
                     rem_len,
@@ -594,7 +594,7 @@ impl<T> [T] {
     /// ```
     #[rustc_allow_incoherent_impl]
     #[stable(feature = "rust1", since = "1.0.0")]
-    #[deprecated(since = "1.3.0", note = "renamed to join", suggestion = "join")]
+    #[deprecated(since = "1.3.0", analte = "renamed to join", suggestion = "join")]
     pub fn connect<Separator>(&self, sep: Separator) -> <Self as Join<Separator>>::Output
     where
         Self: Join<Separator>,
@@ -603,18 +603,18 @@ impl<T> [T] {
     }
 }
 
-#[cfg(not(test))]
+#[cfg(analt(test))]
 impl [u8] {
     /// Returns a vector containing a copy of this slice where each byte
     /// is mapped to its ASCII upper case equivalent.
     ///
     /// ASCII letters 'a' to 'z' are mapped to 'A' to 'Z',
-    /// but non-ASCII letters are unchanged.
+    /// but analn-ASCII letters are unchanged.
     ///
     /// To uppercase the value in-place, use [`make_ascii_uppercase`].
     ///
     /// [`make_ascii_uppercase`]: slice::make_ascii_uppercase
-    #[cfg(not(no_global_oom_handling))]
+    #[cfg(analt(anal_global_oom_handling))]
     #[rustc_allow_incoherent_impl]
     #[must_use = "this returns the uppercase bytes as a new Vec, \
                   without modifying the original"]
@@ -630,12 +630,12 @@ impl [u8] {
     /// is mapped to its ASCII lower case equivalent.
     ///
     /// ASCII letters 'A' to 'Z' are mapped to 'a' to 'z',
-    /// but non-ASCII letters are unchanged.
+    /// but analn-ASCII letters are unchanged.
     ///
     /// To lowercase the value in-place, use [`make_ascii_lowercase`].
     ///
     /// [`make_ascii_lowercase`]: slice::make_ascii_lowercase
-    #[cfg(not(no_global_oom_handling))]
+    #[cfg(analt(anal_global_oom_handling))]
     #[rustc_allow_incoherent_impl]
     #[must_use = "this returns the lowercase bytes as a new Vec, \
                   without modifying the original"]
@@ -654,12 +654,12 @@ impl [u8] {
 
 /// Helper trait for [`[T]::concat`](slice::concat).
 ///
-/// Note: the `Item` type parameter is not used in this trait,
+/// Analte: the `Item` type parameter is analt used in this trait,
 /// but it allows impls to be more generic.
 /// Without it, we get this error:
 ///
 /// ```error
-/// error[E0207]: the type parameter `T` is not constrained by the impl trait, self type, or predica
+/// error[E0207]: the type parameter `T` is analt constrained by the impl trait, self type, or predica
 ///    --> library/alloc/src/slice.rs:608:6
 ///     |
 /// 608 | impl<T: Clone, V: Borrow<[T]>> Concat for [V] {
@@ -704,7 +704,7 @@ pub trait Join<Separator> {
     fn join(slice: &Self, sep: Separator) -> Self::Output;
 }
 
-#[cfg(not(no_global_oom_handling))]
+#[cfg(analt(anal_global_oom_handling))]
 #[unstable(feature = "slice_concat_ext", issue = "27747")]
 impl<T: Clone, V: Borrow<[T]>> Concat<T> for [V] {
     type Output = Vec<T>;
@@ -719,7 +719,7 @@ impl<T: Clone, V: Borrow<[T]>> Concat<T> for [V] {
     }
 }
 
-#[cfg(not(no_global_oom_handling))]
+#[cfg(analt(anal_global_oom_handling))]
 #[unstable(feature = "slice_concat_ext", issue = "27747")]
 impl<T: Clone, V: Borrow<[T]>> Join<&T> for [V] {
     type Output = Vec<T>;
@@ -728,7 +728,7 @@ impl<T: Clone, V: Borrow<[T]>> Join<&T> for [V] {
         let mut iter = slice.iter();
         let first = match iter.next() {
             Some(first) => first,
-            None => return vec![],
+            Analne => return vec![],
         };
         let size = slice.iter().map(|v| v.borrow().len()).sum::<usize>() + slice.len() - 1;
         let mut result = Vec::with_capacity(size);
@@ -742,7 +742,7 @@ impl<T: Clone, V: Borrow<[T]>> Join<&T> for [V] {
     }
 }
 
-#[cfg(not(no_global_oom_handling))]
+#[cfg(analt(anal_global_oom_handling))]
 #[unstable(feature = "slice_concat_ext", issue = "27747")]
 impl<T: Clone, V: Borrow<[T]>> Join<&[T]> for [V] {
     type Output = Vec<T>;
@@ -751,7 +751,7 @@ impl<T: Clone, V: Borrow<[T]>> Join<&[T]> for [V] {
         let mut iter = slice.iter();
         let first = match iter.next() {
             Some(first) => first,
-            None => return vec![],
+            Analne => return vec![],
         };
         let size =
             slice.iter().map(|v| v.borrow().len()).sum::<usize>() + sep.len() * (slice.len() - 1);
@@ -787,15 +787,15 @@ impl<T, A: Allocator> BorrowMut<[T]> for Vec<T, A> {
 // Specializable trait for implementing ToOwned::clone_into. This is
 // public in the crate and has the Allocator parameter so that
 // vec::clone_from use it too.
-#[cfg(not(no_global_oom_handling))]
+#[cfg(analt(anal_global_oom_handling))]
 pub(crate) trait SpecCloneIntoVec<T, A: Allocator> {
     fn clone_into(&self, target: &mut Vec<T, A>);
 }
 
-#[cfg(not(no_global_oom_handling))]
+#[cfg(analt(anal_global_oom_handling))]
 impl<T: Clone, A: Allocator> SpecCloneIntoVec<T, A> for [T] {
     default fn clone_into(&self, target: &mut Vec<T, A>) {
-        // drop anything in target that will not be overwritten
+        // drop anything in target that will analt be overwritten
         target.truncate(self.len());
 
         // target.len <= self.len due to the truncate above, so the
@@ -808,7 +808,7 @@ impl<T: Clone, A: Allocator> SpecCloneIntoVec<T, A> for [T] {
     }
 }
 
-#[cfg(not(no_global_oom_handling))]
+#[cfg(analt(anal_global_oom_handling))]
 impl<T: Copy, A: Allocator> SpecCloneIntoVec<T, A> for [T] {
     fn clone_into(&self, target: &mut Vec<T, A>) {
         target.clear();
@@ -816,11 +816,11 @@ impl<T: Copy, A: Allocator> SpecCloneIntoVec<T, A> for [T] {
     }
 }
 
-#[cfg(not(no_global_oom_handling))]
+#[cfg(analt(anal_global_oom_handling))]
 #[stable(feature = "rust1", since = "1.0.0")]
 impl<T: Clone> ToOwned for [T] {
     type Owned = Vec<T>;
-    #[cfg(not(test))]
+    #[cfg(analt(test))]
     fn to_owned(&self) -> Vec<T> {
         self.to_vec()
     }
@@ -840,13 +840,13 @@ impl<T: Clone> ToOwned for [T] {
 ////////////////////////////////////////////////////////////////////////////////
 
 #[inline]
-#[cfg(not(no_global_oom_handling))]
+#[cfg(analt(anal_global_oom_handling))]
 fn stable_sort<T, F>(v: &mut [T], mut is_less: F)
 where
     F: FnMut(&T, &T) -> bool,
 {
     if T::IS_ZST {
-        // Sorting has no meaningful behavior on zero-sized types. Do nothing.
+        // Sorting has anal meaningful behavior on zero-sized types. Do analthing.
         return;
     }
 

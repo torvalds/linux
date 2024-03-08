@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2016, Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -303,7 +303,7 @@ static int mlx5e_rep_get_sset_count(struct net_device *dev, int sset)
 	case ETH_SS_STATS:
 		return mlx5e_stats_total_num(priv);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -440,7 +440,7 @@ static int mlx5e_sqs2vport_add_peers_rules(struct mlx5_eswitch *esw, struct mlx5
 
 		sq_peer = kzalloc(sizeof(*sq_peer), GFP_KERNEL);
 		if (!sq_peer)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		flow_rule = mlx5_eswitch_add_send_to_vport_rule(peer_esw, esw,
 								rep, rep_sq->sqn);
@@ -485,7 +485,7 @@ static int mlx5e_sqs2vport_start(struct mlx5_eswitch *esw,
 	for (i = 0; i < sqns_num; i++) {
 		rep_sq = kzalloc(sizeof(*rep_sq), GFP_KERNEL);
 		if (!rep_sq) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out_err;
 		}
 
@@ -538,14 +538,14 @@ mlx5e_add_sqs_fwd_rules(struct mlx5e_priv *priv)
 	struct mlx5_eswitch_rep *rep = rpriv->rep;
 	int n, tc, nch, num_sqs = 0;
 	struct mlx5e_channel *c;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 	bool ptp_sq;
 	u32 *sqs;
 
 	ptp_sq = !!(priv->channels.ptp &&
 		    MLX5E_GET_PFLAG(&priv->channels.params, MLX5E_PFLAG_TX_PORT_TS));
 	nch = priv->channels.num + ptp_sq;
-	/* +2 for xdpsqs, they don't exist on the ptp channel but will not be
+	/* +2 for xdpsqs, they don't exist on the ptp channel but will analt be
 	 * counted for by num_sqs.
 	 */
 	if (is_uplink_rep)
@@ -684,7 +684,7 @@ bool mlx5e_is_uplink_rep(struct mlx5e_priv *priv)
 	if (!MLX5_ESWITCH_MANAGER(priv->mdev))
 		return false;
 
-	if (!rpriv) /* non vport rep mlx5e instances don't use this field */
+	if (!rpriv) /* analn vport rep mlx5e instances don't use this field */
 		return false;
 
 	rep = rpriv->rep;
@@ -783,7 +783,7 @@ bool mlx5e_eswitch_vf_rep(const struct net_device *netdev)
 	return netdev->netdev_ops == &mlx5e_netdev_ops_rep;
 }
 
-/* One indirect TIR set for outer. Inner not supported in reps. */
+/* One indirect TIR set for outer. Inner analt supported in reps. */
 #define REP_NUM_INDIR_TIRS MLX5E_NUM_INDIR_TIRS
 
 static int mlx5e_rep_max_nch_limit(struct mlx5_core_dev *mdev)
@@ -824,7 +824,7 @@ static void mlx5e_build_rep_params(struct net_device *netdev)
 	mlx5e_build_rq_params(mdev, params);
 
 	/* If netdev is already registered (e.g. move from nic profile to uplink,
-	 * RTNL lock must be held before triggering netdev notifiers.
+	 * RTNL lock must be held before triggering netdev analtifiers.
 	 */
 	if (take_rtnl)
 		rtnl_lock();
@@ -880,7 +880,7 @@ static int mlx5e_init_rep(struct mlx5_core_dev *mdev,
 			      priv->dfs_root);
 	if (!priv->fs) {
 		netdev_err(priv->netdev, "FS allocation failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	mlx5e_build_rep_params(netdev);
@@ -903,7 +903,7 @@ static int mlx5e_init_ul_rep(struct mlx5_core_dev *mdev,
 	if (!priv->fs) {
 		netdev_err(priv->netdev, "FS allocation failed\n");
 		debugfs_remove_recursive(priv->dfs_root);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	mlx5e_vxlan_set_netdev_info(priv);
@@ -930,7 +930,7 @@ static int mlx5e_create_rep_ttc_table(struct mlx5e_priv *priv)
 			mlx5_get_flow_namespace(priv->mdev,
 						MLX5_FLOW_NAMESPACE_KERNEL), false);
 
-	/* The inner_ttc in the ttc params is intentionally not set */
+	/* The inner_ttc in the ttc params is intentionally analt set */
 	mlx5e_set_ttc_params(priv->fs, priv->rx_res, &ttc_params, false);
 
 	if (rep->vport != MLX5_VPORT_UPLINK)
@@ -956,7 +956,7 @@ static int mlx5e_create_rep_root_ft(struct mlx5e_priv *priv)
 	int err = 0;
 
 	if (rep->vport != MLX5_VPORT_UPLINK) {
-		/* non uplik reps will skip any bypass tables and go directly to
+		/* analn uplik reps will skip any bypass tables and go directly to
 		 * their own ttc
 		 */
 		rpriv->root_ft = mlx5_get_ttc_flow_table(mlx5e_fs_get_ttc(priv->fs, false));
@@ -967,7 +967,7 @@ static int mlx5e_create_rep_root_ft(struct mlx5e_priv *priv)
 	ns = mlx5_get_flow_namespace(priv->mdev, MLX5_FLOW_NAMESPACE_OFFLOADS);
 	if (!ns) {
 		netdev_err(priv->netdev, "Failed to get reps offloads namespace\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	ft_attr.max_fte = 0; /* Empty table, miss rule will always point to next table */
@@ -1155,7 +1155,7 @@ static int mlx5e_init_uplink_rep_tx(struct mlx5e_rep_priv *rpriv)
 	mlx5e_rep_bond_init(rpriv);
 	err = mlx5e_rep_tc_netdevice_event_register(rpriv);
 	if (err) {
-		mlx5_core_err(priv->mdev, "Failed to register netdev notifier, err: %d\n",
+		mlx5_core_err(priv->mdev, "Failed to register netdev analtifier, err: %d\n",
 			      err);
 		goto err_event_reg;
 	}
@@ -1237,14 +1237,14 @@ static int mlx5e_rep_event_mpesw(struct mlx5e_priv *priv)
 	struct mlx5_eswitch_rep *rep = rpriv->rep;
 
 	if (rep->vport != MLX5_VPORT_UPLINK)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	queue_work(priv->wq, &rpriv->uplink_priv.mpesw_work);
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static int uplink_rep_async_event(struct notifier_block *nb, unsigned long event, void *data)
+static int uplink_rep_async_event(struct analtifier_block *nb, unsigned long event, void *data)
 {
 	struct mlx5e_priv *priv = container_of(nb, struct mlx5e_priv, events_nb);
 
@@ -1257,10 +1257,10 @@ static int uplink_rep_async_event(struct notifier_block *nb, unsigned long event
 			queue_work(priv->wq, &priv->update_carrier_work);
 			break;
 		default:
-			return NOTIFY_DONE;
+			return ANALTIFY_DONE;
 		}
 
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 	}
 
 	if (event == MLX5_DEV_EVENT_PORT_AFFINITY)
@@ -1268,7 +1268,7 @@ static int uplink_rep_async_event(struct notifier_block *nb, unsigned long event
 	else if (event == MLX5_DEV_EVENT_MULTIPORT_ESW)
 		return mlx5e_rep_event_mpesw(priv);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static void mlx5e_uplink_rep_enable(struct mlx5e_priv *priv)
@@ -1290,8 +1290,8 @@ static void mlx5e_uplink_rep_enable(struct mlx5e_priv *priv)
 		mlx5_modify_vport_admin_state(mdev, MLX5_VPORT_STATE_OP_MOD_UPLINK,
 					      0, 0, MLX5_VPORT_ADMIN_STATE_AUTO);
 	mlx5_lag_add_netdev(mdev, netdev);
-	priv->events_nb.notifier_call = uplink_rep_async_event;
-	mlx5_notifier_register(mdev, &priv->events_nb);
+	priv->events_nb.analtifier_call = uplink_rep_async_event;
+	mlx5_analtifier_register(mdev, &priv->events_nb);
 	mlx5e_dcbnl_initialize(priv);
 	mlx5e_dcbnl_init_app(priv);
 	mlx5e_rep_bridge_init(priv);
@@ -1318,7 +1318,7 @@ static void mlx5e_uplink_rep_disable(struct mlx5e_priv *priv)
 
 	mlx5e_rep_bridge_cleanup(priv);
 	mlx5e_dcbnl_delete_app(priv);
-	mlx5_notifier_unregister(mdev, &priv->events_nb);
+	mlx5_analtifier_unregister(mdev, &priv->events_nb);
 	mlx5e_rep_tc_disable(priv);
 	mlx5_lag_remove_netdev(mdev, priv->netdev);
 	mlx5_vxlan_reset_to_default(mdev->vxlan);
@@ -1369,21 +1369,21 @@ static unsigned int mlx5e_ul_rep_stats_grps_num(struct mlx5e_priv *priv)
 }
 
 static int
-mlx5e_rep_vnic_reporter_diagnose(struct devlink_health_reporter *reporter,
+mlx5e_rep_vnic_reporter_diaganalse(struct devlink_health_reporter *reporter,
 				 struct devlink_fmsg *fmsg,
 				 struct netlink_ext_ack *extack)
 {
 	struct mlx5e_rep_priv *rpriv = devlink_health_reporter_priv(reporter);
 	struct mlx5_eswitch_rep *rep = rpriv->rep;
 
-	mlx5_reporter_vnic_diagnose_counters(rep->esw->dev, fmsg, rep->vport,
+	mlx5_reporter_vnic_diaganalse_counters(rep->esw->dev, fmsg, rep->vport,
 					     true);
 	return 0;
 }
 
 static const struct devlink_health_reporter_ops mlx5_rep_vnic_reporter_ops = {
 	.name = "vnic",
-	.diagnose = mlx5e_rep_vnic_reporter_diagnose,
+	.diaganalse = mlx5e_rep_vnic_reporter_diaganalse,
 };
 
 static void mlx5e_rep_vnic_reporter_create(struct mlx5e_priv *priv,
@@ -1547,7 +1547,7 @@ mlx5e_vport_rep_load(struct mlx5_core_dev *dev, struct mlx5_eswitch_rep *rep)
 
 	rpriv = kvzalloc(sizeof(*rpriv), GFP_KERNEL);
 	if (!rpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* rpriv->rep to be looked up when profile->init() is called */
 	rpriv->rep = rep;
@@ -1649,7 +1649,7 @@ static int mlx5e_vport_rep_event_pair(struct mlx5_eswitch *esw,
 		}
 		sq_peer = kzalloc(sizeof(*sq_peer), GFP_KERNEL);
 		if (!sq_peer) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_sq_alloc;
 		}
 		err = xa_insert(&rep_sq->sq_peer, i, sq_peer, GFP_KERNEL);

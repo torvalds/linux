@@ -32,7 +32,7 @@ enum ath10k_debug_mask {
 	ATH10K_DBG_SDIO_DUMP	= 0x00020000,
 	ATH10K_DBG_USB		= 0x00040000,
 	ATH10K_DBG_USB_BULK	= 0x00080000,
-	ATH10K_DBG_SNOC		= 0x00100000,
+	ATH10K_DBG_SANALC		= 0x00100000,
 	ATH10K_DBG_QMI		= 0x00200000,
 	ATH10K_DBG_STA		= 0x00400000,
 	ATH10K_DBG_ANY		= 0xffffffff,
@@ -276,7 +276,7 @@ static inline void ath10k_dbg_dump(struct ath10k *ar,
 }
 #endif /* CONFIG_ATH10K_DEBUG */
 
-/* Avoid calling __ath10k_dbg() if debug_mask is not set and tracing
+/* Avoid calling __ath10k_dbg() if debug_mask is analt set and tracing
  * disabled.
  */
 #define ath10k_dbg(ar, dbg_mask, fmt, ...)			\

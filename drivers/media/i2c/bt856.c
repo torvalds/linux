@@ -6,7 +6,7 @@
  * Copyright (C) 1998 Dave Perks <dperks@ibm.net>
  *
  * Modifications for LML33/DC10plus unified driver
- * Copyright (C) 2000 Serguei Miridonov <mirsev@cicese.mx>
+ * Copyright (C) 2000 Serguei Miridoanalv <mirsev@cicese.mx>
  *
  * This code was modify/ported from the saa7111 driver written
  * by Dave Perks.
@@ -42,7 +42,7 @@ struct bt856 {
 	struct v4l2_subdev sd;
 	unsigned char reg[BT856_NR_REG];
 
-	v4l2_std_id norm;
+	v4l2_std_id analrm;
 };
 
 static inline struct bt856 *to_bt856(struct v4l2_subdev *sd)
@@ -93,7 +93,7 @@ static int bt856_init(struct v4l2_subdev *sd, u32 arg)
 	/*bt856_setbit(encoder, 0xdc, 6, 0);*/
 	bt856_setbit(encoder, 0xdc, 4, 1);
 
-	if (encoder->norm & V4L2_STD_NTSC)
+	if (encoder->analrm & V4L2_STD_NTSC)
 		bt856_setbit(encoder, 0xdc, 2, 0);
 	else
 		bt856_setbit(encoder, 0xdc, 2, 1);
@@ -110,7 +110,7 @@ static int bt856_s_std_output(struct v4l2_subdev *sd, v4l2_std_id std)
 {
 	struct bt856 *encoder = to_bt856(sd);
 
-	v4l2_dbg(1, debug, sd, "set norm %llx\n", (unsigned long long)std);
+	v4l2_dbg(1, debug, sd, "set analrm %llx\n", (unsigned long long)std);
 
 	if (std & V4L2_STD_NTSC) {
 		bt856_setbit(encoder, 0xdc, 2, 0);
@@ -121,7 +121,7 @@ static int bt856_s_std_output(struct v4l2_subdev *sd, v4l2_std_id std)
 	} else {
 		return -EINVAL;
 	}
-	encoder->norm = std;
+	encoder->analrm = std;
 	if (debug != 0)
 		bt856_dump(encoder);
 	return 0;
@@ -188,17 +188,17 @@ static int bt856_probe(struct i2c_client *client)
 
 	/* Check if the adapter supports the needed features */
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	v4l_info(client, "chip found @ 0x%x (%s)\n",
 			client->addr << 1, client->adapter->name);
 
 	encoder = devm_kzalloc(&client->dev, sizeof(*encoder), GFP_KERNEL);
 	if (encoder == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	sd = &encoder->sd;
 	v4l2_i2c_subdev_init(sd, client, &bt856_ops);
-	encoder->norm = V4L2_STD_NTSC;
+	encoder->analrm = V4L2_STD_NTSC;
 
 	bt856_write(encoder, 0xdc, 0x18);
 	bt856_write(encoder, 0xda, 0);
@@ -208,7 +208,7 @@ static int bt856_probe(struct i2c_client *client)
 	/*bt856_setbit(encoder, 0xdc, 6, 0);*/
 	bt856_setbit(encoder, 0xdc, 4, 1);
 
-	if (encoder->norm & V4L2_STD_NTSC)
+	if (encoder->analrm & V4L2_STD_NTSC)
 		bt856_setbit(encoder, 0xdc, 2, 0);
 	else
 		bt856_setbit(encoder, 0xdc, 2, 1);

@@ -94,7 +94,7 @@ enum rpc_auth_stat {
  *  is the last fragment) and a 31-bit unsigned binary value which is the
  *  length in bytes of the fragment's data.  The boolean value is the
  *  highest-order bit of the header; the length is the 31 low-order bits.
- *  (Note that this record specification is NOT in XDR standard form!)"
+ *  (Analte that this record specification is ANALT in XDR standard form!)"
  *
  * The Linux RPC client always sends its requests in a single record
  * fragment, limiting the maximum payload size for stream transports to
@@ -144,7 +144,7 @@ typedef __be32	rpc_fraghdr;
 	(RPC_REPHDRSIZE + (2 + RPC_MAX_AUTH_SIZE/4))
 
 /*
- * Well-known netids. See:
+ * Well-kanalwn netids. See:
  *
  *   https://www.iana.org/assignments/rpc-netids/rpc-netids.xhtml
  */
@@ -159,7 +159,7 @@ typedef __be32	rpc_fraghdr;
 #define RPCBIND_NETID_LOCAL	"local"
 
 /*
- * Note that RFC 1833 does not put any size restrictions on the
+ * Analte that RFC 1833 does analt put any size restrictions on the
  * netid string, but all currently defined netid's fit in 5 bytes.
  */
 #define RPCBIND_MAXNETIDLEN	(5u)

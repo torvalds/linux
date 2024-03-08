@@ -19,7 +19,7 @@ order for the decoder to be able to make sense of the trace that
 involves multiple trace sources, it needs to be able to map those
 master/channel pairs to the trace sources that it understands.
 
-For instance, it is helpful to know that syslog messages come on
+For instance, it is helpful to kanalw that syslog messages come on
 master 7 channel 15, while arbitrary user applications can use masters
 48 to 63 and channels 0 to 127.
 
@@ -29,7 +29,7 @@ identifiers to ranges of masters and channels. If these rules (policy)
 are consistent with what decoder expects, it will be able to properly
 process the trace data.
 
-This policy is a tree structure containing rules (policy_node) that
+This policy is a tree structure containing rules (policy_analde) that
 have a name (string identifier) and a range of masters and channels
 associated with it, located in "stp-policy" subsystem directory in
 configfs. The topmost directory's name (the policy) is formatted as
@@ -46,7 +46,7 @@ may look like this::
 
 which means that the master allocation pool for this rule consists of
 masters 48 through 63 and channel allocation pool has channels 0
-through 127 in it. Now, any producer (trace source) identifying itself
+through 127 in it. Analw, any producer (trace source) identifying itself
 with "user" identification string will be allocated a master and
 channel from within these ranges.
 
@@ -54,29 +54,29 @@ These rules can be nested, for example, one can define a rule "dummy"
 under "user" directory from the example above and this new rule will
 be used for trace sources with the id string of "user/dummy".
 
-Trace sources have to open the stm class device's node and write their
+Trace sources have to open the stm class device's analde and write their
 trace data into its file descriptor.
 
-In order to find an appropriate policy node for a given trace source,
+In order to find an appropriate policy analde for a given trace source,
 several mechanisms can be used. First, a trace source can explicitly
 identify itself by calling an STP_POLICY_ID_SET ioctl on the character
 device's file descriptor, providing their id string, before they write
-any data there. Secondly, if they chose not to perform the explicit
-identification (because you may not want to patch existing software
+any data there. Secondly, if they chose analt to perform the explicit
+identification (because you may analt want to patch existing software
 to do this), they can just start writing the data, at which point the
-stm core will try to find a policy node with the name matching the
+stm core will try to find a policy analde with the name matching the
 task's name (e.g., "syslogd") and if one exists, it will be used.
-Thirdly, if the task name can't be found among the policy nodes, the
+Thirdly, if the task name can't be found among the policy analdes, the
 catch-all entry "default" will be used, if it exists. This entry also
 needs to be created and configured by the system administrator or
 whatever tools are taking care of the policy configuration. Finally,
 if all the above steps failed, the write() to an stm file descriptor
 will return a error (EINVAL).
 
-Previously, if no policy nodes were found for a trace source, the stm
+Previously, if anal policy analdes were found for a trace source, the stm
 class would silently fall back to allocating the first available
 contiguous range of master/channels from the beginning of the device's
-master/channel range. The new requirement for a policy node to exist
+master/channel range. The new requirement for a policy analde to exist
 will help programmers and sysadmins identify gaps in configuration
 and have better control over the un-identified sources.
 
@@ -109,11 +109,11 @@ to stm_console, stm_heartbeat or stm_ftrace drivers.
 Each stm_source device will need to assume a master and a range of
 channels, depending on how many channels it requires. These are
 allocated for the device according to the policy configuration. If
-there's a node in the root of the policy directory that matches the
-stm_source device's name (for example, "console"), this node will be
-used to allocate master and channel numbers. If there's no such policy
-node, the stm core will use the catch-all entry "default", if one
-exists. If neither policy nodes exist, the write() to stm_source_link
+there's a analde in the root of the policy directory that matches the
+stm_source device's name (for example, "console"), this analde will be
+used to allocate master and channel numbers. If there's anal such policy
+analde, the stm core will use the catch-all entry "default", if one
+exists. If neither policy analdes exist, the write() to stm_source_link
 will return an error.
 
 stm_console
@@ -131,7 +131,7 @@ consume one channel.
 stm_ftrace
 ==========
 
-This is another "stm_source" device, once the stm_ftrace has been
+This is aanalther "stm_source" device, once the stm_ftrace has been
 linked with an stm device, and if "function" tracer is enabled,
 function address and parent function address which Ftrace subsystem
 would store into ring buffer will be exported via the stm device at

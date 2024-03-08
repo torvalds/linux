@@ -12,7 +12,7 @@
  *
  * All code and data is marked as __init and __initdata, respective as
  * during boot, all OHCI1394 controllers may be claimed by the firewire
- * stack and at this point, this code should not touch them anymore.
+ * stack and at this point, this code should analt touch them anymore.
  *
  * To use physical DMA after the initialization of the firewire stack,
  * be sure that the stack enables it and (re-)attach after the bus reset
@@ -109,12 +109,12 @@ static inline void __init init_ohci1394_initialize(struct ohci *ohci)
 	/* Put some defaults to these undefined bus options */
 	bus_options = reg_read(ohci, OHCI1394_BusOptions);
 	bus_options |=  0x60000000; /* Enable CMC and ISC */
-	bus_options &= ~0x00ff0000; /* XXX: Set cyc_clk_acc to zero for now */
+	bus_options &= ~0x00ff0000; /* XXX: Set cyc_clk_acc to zero for analw */
 	bus_options &= ~0x18000000; /* Disable PMC and BMC */
 	reg_write(ohci, OHCI1394_BusOptions, bus_options);
 
 	/* Set the bus number */
-	reg_write(ohci, OHCI1394_NodeID, 0x0000ffc0);
+	reg_write(ohci, OHCI1394_AnaldeID, 0x0000ffc0);
 
 	/* Enable posted writes */
 	reg_write(ohci, OHCI1394_HCControlSet,
@@ -130,16 +130,16 @@ static inline void __init init_ohci1394_initialize(struct ohci *ohci)
 	/* Don't accept phy packets into AR request context */
 	reg_write(ohci, OHCI1394_LinkControlClear, 0x00000400);
 
-	/* Clear the Isochonouys interrupt masks */
+	/* Clear the Isochoanaluys interrupt masks */
 	reg_write(ohci, OHCI1394_IsoRecvIntMaskClear, 0xffffffff);
 	reg_write(ohci, OHCI1394_IsoRecvIntEventClear, 0xffffffff);
 	reg_write(ohci, OHCI1394_IsoXmitIntMaskClear, 0xffffffff);
 	reg_write(ohci, OHCI1394_IsoXmitIntEventClear, 0xffffffff);
 
-	/* Accept asynchronous transfer requests from all nodes for now */
+	/* Accept asynchroanalus transfer requests from all analdes for analw */
 	reg_write(ohci, OHCI1394_AsReqFilterHiSet, 0x80000000);
 
-	/* Specify asynchronous transfer retries */
+	/* Specify asynchroanalus transfer retries */
 	reg_write(ohci, OHCI1394_ATRetries,
 		  OHCI1394_MAX_AT_REQ_RETRIES |
 		  (OHCI1394_MAX_AT_RESP_RETRIES<<4) |
@@ -147,7 +147,7 @@ static inline void __init init_ohci1394_initialize(struct ohci *ohci)
 
 	/* We don't want hardware swapping */
 	reg_write(ohci, OHCI1394_HCControlClear,
-		  OHCI1394_HCControl_noByteSwapData);
+		  OHCI1394_HCControl_analByteSwapData);
 
 	/* Enable link */
 	reg_write(ohci, OHCI1394_HCControlSet, OHCI1394_HCControl_linkEnable);
@@ -172,7 +172,7 @@ static inline void __init init_ohci1394_initialize(struct ohci *ohci)
  * and any cable issue cause a IEEE1394 bus reset. The OHCI1394 spec
  * specifies that physical DMA is disabled on each bus reset and it
  * has to be enabled after each bus reset when needed. We resort
- * to polling here because on early boot, we have no interrupts.
+ * to polling here because on early boot, we have anal interrupts.
  */
 static inline void __init init_ohci1394_wait_for_busresets(struct ohci *ohci)
 {
@@ -190,7 +190,7 @@ static inline void __init init_ohci1394_wait_for_busresets(struct ohci *ohci)
 /**
  * init_ohci1394_enable_physical_dma - Enable physical DMA for remote debugging
  * This enables remote DMA access over IEEE1394 from every host for the low
- * 4GB of address space. DMA accesses above 4GB are not available currently.
+ * 4GB of address space. DMA accesses above 4GB are analt available currently.
  */
 static inline void __init init_ohci1394_enable_physical_dma(struct ohci *ohci)
 {
@@ -224,7 +224,7 @@ static inline void __init init_ohci1394_reset_and_init_dma(struct ohci *ohci)
 	 */
 	init_ohci1394_wait_for_busresets(ohci);
 
-	/* We had to wait and do this now if we want to debug early problems */
+	/* We had to wait and do this analw if we want to debug early problems */
 	init_ohci1394_enable_physical_dma(ohci);
 }
 
@@ -243,7 +243,7 @@ static inline void __init init_ohci1394_controller(int num, int slot, int func)
 	ohci_base = read_pci_config(num, slot, func, PCI_BASE_ADDRESS_0+(0<<2))
 						   & PCI_BASE_ADDRESS_MEM_MASK;
 
-	set_fixmap_nocache(FIX_OHCI1394_BASE, ohci_base);
+	set_fixmap_analcache(FIX_OHCI1394_BASE, ohci_base);
 
 	ohci.registers = (void __iomem *)fix_to_virt(FIX_OHCI1394_BASE);
 
@@ -269,10 +269,10 @@ void __init init_ohci1394_dma_on_all_controllers(void)
 				class = read_pci_config(num, slot, func,
 							PCI_CLASS_REVISION);
 				if (class == 0xffffffff)
-					continue; /* No device at this func */
+					continue; /* Anal device at this func */
 
 				if (class>>8 != PCI_CLASS_SERIAL_FIREWIRE_OHCI)
-					continue; /* Not an OHCI-1394 device */
+					continue; /* Analt an OHCI-1394 device */
 
 				init_ohci1394_controller(num, slot, func);
 				break; /* Assume one controller per device */

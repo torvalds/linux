@@ -21,7 +21,7 @@
 /* Allocate 16 interrupts per device, to give an alignment of 16,
  * since that's the size of the grouping w.r.t. affinity. If someone
  * needs more than 32 MSI's down the road we'll have to rethink this,
- * but it should be OK for now.
+ * but it should be OK for analw.
  */
 #define ALLOC_CHUNK 16
 
@@ -86,8 +86,8 @@ static int pasemi_msi_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 	msg.address_hi = 0;
 	msg.address_lo = PASEMI_MSI_ADDR;
 
-	msi_for_each_desc(entry, &pdev->dev, MSI_DESC_NOTASSOCIATED) {
-		/* Allocate 16 interrupts for now, since that's the grouping for
+	msi_for_each_desc(entry, &pdev->dev, MSI_DESC_ANALTASSOCIATED) {
+		/* Allocate 16 interrupts for analw, since that's the grouping for
 		 * affinity. This can be changed later if it turns out 32 is too
 		 * few MSIs for someone, but restrictions will apply to how the
 		 * sources can be changed independently.
@@ -105,7 +105,7 @@ static int pasemi_msi_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 				  hwirq);
 			msi_bitmap_free_hwirqs(&msi_mpic->msi_bitmap, hwirq,
 					       ALLOC_CHUNK);
-			return -ENOSPC;
+			return -EANALSPC;
 		}
 
 		/* Vector on MSI is really an offset, the hardware adds
@@ -135,13 +135,13 @@ int __init mpic_pasemi_msi_init(struct mpic *mpic)
 {
 	int rc;
 	struct pci_controller *phb;
-	struct device_node *of_node;
+	struct device_analde *of_analde;
 
-	of_node = irq_domain_get_of_node(mpic->irqhost);
-	if (!of_node ||
-	    !of_device_is_compatible(of_node,
+	of_analde = irq_domain_get_of_analde(mpic->irqhost);
+	if (!of_analde ||
+	    !of_device_is_compatible(of_analde,
 				     "pasemi,pwrficient-openpic"))
-		return -ENODEV;
+		return -EANALDEV;
 
 	rc = mpic_msi_init_allocator(mpic);
 	if (rc) {
@@ -152,7 +152,7 @@ int __init mpic_pasemi_msi_init(struct mpic *mpic)
 	pr_debug("pasemi_msi: Registering PA Semi MPIC MSI callbacks\n");
 
 	msi_mpic = mpic;
-	list_for_each_entry(phb, &hose_list, list_node) {
+	list_for_each_entry(phb, &hose_list, list_analde) {
 		WARN_ON(phb->controller_ops.setup_msi_irqs);
 		phb->controller_ops.setup_msi_irqs = pasemi_msi_setup_msi_irqs;
 		phb->controller_ops.teardown_msi_irqs = pasemi_msi_teardown_msi_irqs;

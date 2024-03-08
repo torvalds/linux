@@ -57,7 +57,7 @@ u16 lbs_region_code_to_index[MRVDRV_MAX_REGION_CODE] =
     { 0x10, 0x20, 0x30, 0x31, 0x32, 0x40 };
 
 /*
- * FW rate table.  FW refers to rates by their index in this table, not by the
+ * FW rate table.  FW refers to rates by their index in this table, analt by the
  * rate value itself.  Values of 0x00 are
  * reserved positions.
  */
@@ -120,7 +120,7 @@ int lbs_set_iface_type(struct lbs_private *priv, enum nl80211_iftype type)
 			ret = lbs_set_snmp_mib(priv, SNMP_MIB_OID_BSS_TYPE, 2);
 		break;
 	default:
-		ret = -ENOTSUPP;
+		ret = -EANALTSUPP;
 	}
 	return ret;
 }
@@ -455,11 +455,11 @@ static int lbs_thread(void *data)
 		else if (priv->surpriseremoved)
 			shouldsleep = 1;	/* We need to wait until we're _told_ to die */
 		else if (priv->psstate == PS_STATE_SLEEP)
-			shouldsleep = 1;	/* Sleep mode. Nothing we can do till it wakes */
+			shouldsleep = 1;	/* Sleep mode. Analthing we can do till it wakes */
 		else if (priv->cmd_timed_out)
 			shouldsleep = 0;	/* Command timed out. Recover */
 		else if (!priv->fw_ready)
-			shouldsleep = 1;	/* Firmware not ready. We're waiting for it */
+			shouldsleep = 1;	/* Firmware analt ready. We're waiting for it */
 		else if (priv->dnld_sent)
 			shouldsleep = 1;	/* Something is en route to the device already */
 		else if (priv->tx_pending_len > 0)
@@ -474,7 +474,7 @@ static int lbs_thread(void *data)
 		else if (kfifo_len(&priv->event_fifo))
 			shouldsleep = 0;	/* We have an event to process */
 		else
-			shouldsleep = 1;	/* No command */
+			shouldsleep = 1;	/* Anal command */
 
 		if (shouldsleep) {
 			lbs_deb_thread("sleeping, connect_status %d, "
@@ -546,11 +546,11 @@ static int lbs_thread(void *data)
 
 		/* command timeout stuff */
 		if (priv->cmd_timed_out && priv->cur_cmd) {
-			struct cmd_ctrl_node *cmdnode = priv->cur_cmd;
+			struct cmd_ctrl_analde *cmdanalde = priv->cur_cmd;
 
 			netdev_info(dev, "Timeout submitting command 0x%04x\n",
-				    le16_to_cpu(cmdnode->cmdbuf->command));
-			lbs_complete_command(priv, cmdnode, -ETIMEDOUT);
+				    le16_to_cpu(cmdanalde->cmdbuf->command));
+			lbs_complete_command(priv, cmdanalde, -ETIMEDOUT);
 
 			/* Reset card, but only when it isn't in the process
 			 * of being shutdown anyway. */
@@ -580,7 +580,7 @@ static int lbs_thread(void *data)
 				 */
 				priv->psstate = PS_STATE_AWAKE;
 				netdev_alert(dev,
-					     "ignore PS_SleepConfirm in non-connected state\n");
+					     "iganalre PS_SleepConfirm in analn-connected state\n");
 			}
 		}
 
@@ -738,7 +738,7 @@ static void lbs_cmd_timeout_handler(struct timer_list *t)
 	priv->cmd_timed_out = 1;
 
 	/*
-	 * If the device didn't even acknowledge the command, reset the state
+	 * If the device didn't even ackanalwledge the command, reset the state
 	 * so that we don't block all future commands due to this one timeout.
 	 */
 	if (priv->dnld_sent == DNLD_CMD_SENT)
@@ -751,7 +751,7 @@ out:
 
 /**
  * lbs_tx_lockup_handler - handles the timeout of the passing of TX frames
- * to the hardware. This is known to frequently happen with SD8686 when
+ * to the hardware. This is kanalwn to frequently happen with SD8686 when
  * waking up after a Wake-on-WLAN-triggered resume.
  *
  * @t: Context from which to retrieve a &struct lbs_private pointer
@@ -775,7 +775,7 @@ static void lbs_tx_lockup_handler(struct timer_list *t)
 
 /**
  * auto_deepsleep_timer_fn - put the device back to deep sleep mode when
- * timer expires and no activity (command, event, data etc.) is detected.
+ * timer expires and anal activity (command, event, data etc.) is detected.
  * @t: Context from which to retrieve a &struct lbs_private pointer
  * returns:	N/A
  */
@@ -859,7 +859,7 @@ static int lbs_init_adapter(struct lbs_private *priv)
 	/* Allocate the command buffers */
 	if (lbs_allocate_cmd_buffer(priv)) {
 		pr_err("Out of memory allocating command buffers\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 	priv->resp_idx = 0;
@@ -928,10 +928,10 @@ struct lbs_private *lbs_add_card(void *card, struct device *dmdev)
 		goto err_wdev;
 	}
 
-	dev = alloc_netdev(0, "wlan%d", NET_NAME_UNKNOWN, ether_setup);
+	dev = alloc_netdev(0, "wlan%d", NET_NAME_UNKANALWN, ether_setup);
 	if (!dev) {
-		err = -ENOMEM;
-		dev_err(dmdev, "no memory for network device instance\n");
+		err = -EANALMEM;
+		dev_err(dmdev, "anal memory for network device instance\n");
 		goto err_adapter;
 	}
 
@@ -1004,8 +1004,8 @@ void lbs_remove_card(struct lbs_private *priv)
 
 	if (priv->psmode == LBS802_11POWERMODEMAX_PSP) {
 		priv->psmode = LBS802_11POWERMODECAM;
-		/* no need to wakeup if already woken up,
-		 * on suspend, this exit ps command is not processed
+		/* anal need to wakeup if already woken up,
+		 * on suspend, this exit ps command is analt processed
 		 * the driver hangs
 		 */
 		if (priv->psstate != PS_STATE_FULL_POWER)
@@ -1060,7 +1060,7 @@ int lbs_start_card(struct lbs_private *priv)
 
 	ret = lbs_cfg_register(priv);
 	if (ret) {
-		pr_err("cannot register device\n");
+		pr_err("cananalt register device\n");
 		goto done;
 	}
 
@@ -1088,7 +1088,7 @@ void lbs_stop_card(struct lbs_private *priv)
 	dev = priv->dev;
 
 	/* If the netdev isn't registered, it means that lbs_start_card() was
-	 * never called so we have nothing to do here. */
+	 * never called so we have analthing to do here. */
 	if (dev->reg_state != NETREG_REGISTERED)
 		return;
 
@@ -1119,7 +1119,7 @@ void lbs_queue_event(struct lbs_private *priv, u32 event)
 }
 EXPORT_SYMBOL_GPL(lbs_queue_event);
 
-void lbs_notify_command_response(struct lbs_private *priv, u8 resp_idx)
+void lbs_analtify_command_response(struct lbs_private *priv, u8 resp_idx)
 {
 	if (priv->psstate == PS_STATE_SLEEP)
 		priv->psstate = PS_STATE_AWAKE;
@@ -1130,7 +1130,7 @@ void lbs_notify_command_response(struct lbs_private *priv, u8 resp_idx)
 
 	wake_up(&priv->waitq);
 }
-EXPORT_SYMBOL_GPL(lbs_notify_command_response);
+EXPORT_SYMBOL_GPL(lbs_analtify_command_response);
 
 static int __init lbs_init_module(void)
 {

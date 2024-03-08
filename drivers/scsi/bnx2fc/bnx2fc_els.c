@@ -80,10 +80,10 @@ int bnx2fc_send_rrq(struct bnx2fc_cmd *aborted_io_req)
 		   aborted_io_req->xid);
 	memset(&rrq, 0, sizeof(rrq));
 
-	cb_arg = kzalloc(sizeof(struct bnx2fc_els_cb_arg), GFP_NOIO);
+	cb_arg = kzalloc(sizeof(struct bnx2fc_els_cb_arg), GFP_ANALIO);
 	if (!cb_arg) {
 		printk(KERN_ERR PFX "Unable to allocate cb_arg for RRQ\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto rrq_err;
 	}
 
@@ -98,7 +98,7 @@ retry_rrq:
 	rc = bnx2fc_initiate_els(tgt, ELS_RRQ, &rrq, sizeof(rrq),
 				 bnx2fc_rrq_compl, cb_arg,
 				 r_a_tov);
-	if (rc == -ENOMEM) {
+	if (rc == -EANALMEM) {
 		if (time_after(jiffies, start + (10 * HZ))) {
 			BNX2FC_ELS_DBG("rrq Failed\n");
 			rc = FAILED;
@@ -192,7 +192,7 @@ int bnx2fc_send_adisc(struct bnx2fc_rport *tgt, struct fc_frame *fp)
 	cb_arg = kzalloc(sizeof(struct bnx2fc_els_cb_arg), GFP_ATOMIC);
 	if (!cb_arg) {
 		printk(KERN_ERR PFX "Unable to allocate cb_arg for ADISC\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	cb_arg->l2_oxid = ntohs(fh->fh_ox_id);
@@ -220,7 +220,7 @@ int bnx2fc_send_logo(struct bnx2fc_rport *tgt, struct fc_frame *fp)
 	cb_arg = kzalloc(sizeof(struct bnx2fc_els_cb_arg), GFP_ATOMIC);
 	if (!cb_arg) {
 		printk(KERN_ERR PFX "Unable to allocate cb_arg for LOGO\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	cb_arg->l2_oxid = ntohs(fh->fh_ox_id);
@@ -248,7 +248,7 @@ int bnx2fc_send_rls(struct bnx2fc_rport *tgt, struct fc_frame *fp)
 	cb_arg = kzalloc(sizeof(struct bnx2fc_els_cb_arg), GFP_ATOMIC);
 	if (!cb_arg) {
 		printk(KERN_ERR PFX "Unable to allocate cb_arg for LOGO\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	cb_arg->l2_oxid = ntohs(fh->fh_ox_id);
@@ -595,7 +595,7 @@ int bnx2fc_send_rec(struct bnx2fc_cmd *orig_io_req)
 	cb_arg = kzalloc(sizeof(struct bnx2fc_els_cb_arg), GFP_ATOMIC);
 	if (!cb_arg) {
 		printk(KERN_ERR PFX "Unable to allocate cb_arg for REC\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto rec_err;
 	}
 	kref_get(&orig_io_req->refcount);
@@ -636,7 +636,7 @@ int bnx2fc_send_srr(struct bnx2fc_cmd *orig_io_req, u32 offset, u8 r_ctl)
 	cb_arg = kzalloc(sizeof(struct bnx2fc_els_cb_arg), GFP_ATOMIC);
 	if (!cb_arg) {
 		printk(KERN_ERR PFX "Unable to allocate cb_arg for SRR\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto srr_err;
 	}
 	kref_get(&orig_io_req->refcount);
@@ -688,23 +688,23 @@ static int bnx2fc_initiate_els(struct bnx2fc_rport *tgt, unsigned int op,
 
 	rc = fc_remote_port_chkready(rport);
 	if (rc) {
-		printk(KERN_ERR PFX "els 0x%x: rport not ready\n", op);
+		printk(KERN_ERR PFX "els 0x%x: rport analt ready\n", op);
 		rc = -EINVAL;
 		goto els_err;
 	}
 	if (lport->state != LPORT_ST_READY || !(lport->link_up)) {
-		printk(KERN_ERR PFX "els 0x%x: link is not ready\n", op);
+		printk(KERN_ERR PFX "els 0x%x: link is analt ready\n", op);
 		rc = -EINVAL;
 		goto els_err;
 	}
 	if (!(test_bit(BNX2FC_FLAG_SESSION_READY, &tgt->flags))) {
-		printk(KERN_ERR PFX "els 0x%x: tgt not ready\n", op);
+		printk(KERN_ERR PFX "els 0x%x: tgt analt ready\n", op);
 		rc = -EINVAL;
 		goto els_err;
 	}
 	els_req = bnx2fc_elstm_alloc(tgt, BNX2FC_ELS);
 	if (!els_req) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto els_err;
 	}
 
@@ -723,7 +723,7 @@ static int bnx2fc_initiate_els(struct bnx2fc_rport *tgt, unsigned int op,
 		spin_lock_bh(&tgt->tgt_lock);
 		kref_put(&els_req->refcount, bnx2fc_cmd_release);
 		spin_unlock_bh(&tgt->tgt_lock);
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto els_err;
 	} else {
 		/* rc SUCCESS */
@@ -779,7 +779,7 @@ static int bnx2fc_initiate_els(struct bnx2fc_rport *tgt, unsigned int op,
 	spin_lock_bh(&tgt->tgt_lock);
 
 	if (!test_bit(BNX2FC_FLAG_SESSION_READY, &tgt->flags)) {
-		printk(KERN_ERR PFX "initiate_els.. session not ready\n");
+		printk(KERN_ERR PFX "initiate_els.. session analt ready\n");
 		els_req->cb_func = NULL;
 		els_req->cb_arg = NULL;
 		kref_put(&els_req->refcount, bnx2fc_cmd_release);
@@ -880,7 +880,7 @@ static void bnx2fc_flogi_resp(struct fc_seq *seq, struct fc_frame *fp,
 	 * We set the source MAC for FCoE traffic based on the Granted MAC
 	 * address from the switch.
 	 *
-	 * If granted_mac is non-zero, we use that.
+	 * If granted_mac is analn-zero, we use that.
 	 * If the granted_mac is zeroed out, create the FCoE MAC based on
 	 * the sel_fcf->fc_map and the d_id fo the FLOGI frame.
 	 * If sel_fcf->fc_map is 0, then we use the default FCF-MAC plus the
@@ -940,7 +940,7 @@ struct fc_seq *bnx2fc_elsct_send(struct fc_lport *lport, u32 did,
 		return fc_elsct_send(lport, did, fp, op, bnx2fc_flogi_resp,
 				     fip, timeout);
 	case ELS_LOGO:
-		/* only hook onto fabric logouts, not port logouts */
+		/* only hook onto fabric logouts, analt port logouts */
 		if (ntoh24(fh->fh_d_id) != FC_FID_FLOGI)
 			break;
 		return fc_elsct_send(lport, did, fp, op, bnx2fc_logo_resp,

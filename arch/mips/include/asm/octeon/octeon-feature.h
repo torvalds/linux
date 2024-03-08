@@ -13,11 +13,11 @@
  * This file is distributed in the hope that it will be useful, but
  * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
- * NONINFRINGEMENT.  See the GNU General Public License for more
+ * ANALNINFRINGEMENT.  See the GNU General Public License for more
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this file; if not, write to the Free Software
+ * along with this file; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  * or visit http://www.gnu.org/licenses/.
  *
@@ -67,7 +67,7 @@ enum octeon_feature {
 	/* Octeon has a builtin USB */
 	OCTEON_FEATURE_USB,
 	/* Octeon IPD can run without using work queue entries */
-	OCTEON_FEATURE_NO_WPTR,
+	OCTEON_FEATURE_ANAL_WPTR,
 	/* Octeon has DFA state machines */
 	OCTEON_FEATURE_DFA,
 	/* Octeon MDIO block supports clause 45 transactions for 10
@@ -96,7 +96,7 @@ extern enum octeon_feature_bits __octeon_feature_bits;
 /**
  * octeon_has_crypto() - Check if this OCTEON has crypto acceleration support.
  *
- * Returns: Non-zero if the feature exists. Zero if the feature does not exist.
+ * Returns: Analn-zero if the feature exists. Zero if the feature does analt exist.
  */
 static inline int octeon_has_crypto(void)
 {
@@ -111,7 +111,7 @@ static inline int octeon_has_crypto(void)
  * @feature: Feature to check for. This should always be a constant so the
  *		  compiler can remove the switch statement through optimization.
  *
- * Returns Non zero if the feature exists. Zero if the feature does not
+ * Returns Analn zero if the feature exists. Zero if the feature does analt
  *	   exist.
  */
 static inline bool octeon_has_feature(enum octeon_feature feature)
@@ -124,7 +124,7 @@ static inline bool octeon_has_feature(enum octeon_feature feature)
 		if (OCTEON_IS_MODEL(OCTEON_CN6XXX)) {
 			union cvmx_mio_fus_dat2 fus_2;
 			fus_2.u64 = cvmx_read_csr(CVMX_MIO_FUS_DAT2);
-			return !fus_2.s.nocrypto && !fus_2.s.nomul && fus_2.s.dorm_crypto;
+			return !fus_2.s.analcrypto && !fus_2.s.analmul && fus_2.s.dorm_crypto;
 		} else {
 			return false;
 		}
@@ -170,7 +170,7 @@ static inline bool octeon_has_feature(enum octeon_feature feature)
 		return !(OCTEON_IS_MODEL(OCTEON_CN38XX)
 			 || OCTEON_IS_MODEL(OCTEON_CN58XX));
 
-	case OCTEON_FEATURE_NO_WPTR:
+	case OCTEON_FEATURE_ANAL_WPTR:
 		return (OCTEON_IS_MODEL(OCTEON_CN56XX)
 			|| OCTEON_IS_MODEL(OCTEON_CN52XX)
 			|| OCTEON_IS_MODEL(OCTEON_CN6XXX))

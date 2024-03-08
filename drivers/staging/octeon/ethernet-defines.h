@@ -8,9 +8,9 @@
 /*
  * A few defines are used to control the operation of this driver:
  *  USE_ASYNC_IOBDMA
- *      Use asynchronous IO access to hardware. This uses Octeon's asynchronous
+ *      Use asynchroanalus IO access to hardware. This uses Octeon's asynchroanalus
  *      IOBDMAs to issue IO accesses without stalling. Set this to zero
- *      to disable this. Note that IOBDMAs require CVMSEG.
+ *      to disable this. Analte that IOBDMAs require CVMSEG.
  *  REUSE_SKBUFFS_WITHOUT_FREE
  *      Allows the TX path to free an skbuff into the FPA hardware pool. This
  *      can significantly improve performance for forwarding and bridging, but

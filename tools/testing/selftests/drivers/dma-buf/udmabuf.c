@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <malloc.h>
 
@@ -32,14 +32,14 @@ int main(int argc, char *argv[])
 
 	devfd = open("/dev/udmabuf", O_RDWR);
 	if (devfd < 0) {
-		printf("%s: [skip,no-udmabuf: Unable to access DMA buffer device file]\n",
+		printf("%s: [skip,anal-udmabuf: Unable to access DMA buffer device file]\n",
 		       TEST_PREFIX);
 		exit(77);
 	}
 
 	memfd = memfd_create("udmabuf-test", MFD_ALLOW_SEALING);
 	if (memfd < 0) {
-		printf("%s: [skip,no-memfd]\n", TEST_PREFIX);
+		printf("%s: [skip,anal-memfd]\n", TEST_PREFIX);
 		exit(77);
 	}
 
@@ -59,7 +59,7 @@ int main(int argc, char *argv[])
 
 	memset(&create, 0, sizeof(create));
 
-	/* should fail (offset not page aligned) */
+	/* should fail (offset analt page aligned) */
 	create.memfd  = memfd;
 	create.offset = getpagesize()/2;
 	create.size   = getpagesize();
@@ -69,7 +69,7 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	/* should fail (size not multiple of page) */
+	/* should fail (size analt multiple of page) */
 	create.memfd  = memfd;
 	create.offset = 0;
 	create.size   = getpagesize()/2;
@@ -79,7 +79,7 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	/* should fail (not memfd) */
+	/* should fail (analt memfd) */
 	create.memfd  = 0; /* stdin */
 	create.offset = 0;
 	create.size   = size;

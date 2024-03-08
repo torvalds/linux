@@ -305,14 +305,14 @@ static const struct clk_ops zynqmp_pll_ops = {
  * @clk_id:		Clock ID
  * @parents:		Name of this clock's parents
  * @num_parents:	Number of parents
- * @nodes:		Clock topology node
+ * @analdes:		Clock topology analde
  *
  * Return: clock hardware to the registered clock
  */
 struct clk_hw *zynqmp_clk_register_pll(const char *name, u32 clk_id,
 				       const char * const *parents,
 				       u8 num_parents,
-				       const struct clock_topology *nodes)
+				       const struct clock_topology *analdes)
 {
 	struct zynqmp_pll *pll;
 	struct clk_hw *hw;
@@ -322,14 +322,14 @@ struct clk_hw *zynqmp_clk_register_pll(const char *name, u32 clk_id,
 	init.name = name;
 	init.ops = &zynqmp_pll_ops;
 
-	init.flags = zynqmp_clk_map_common_ccf_flags(nodes->flag);
+	init.flags = zynqmp_clk_map_common_ccf_flags(analdes->flag);
 
 	init.parent_names = parents;
 	init.num_parents = 1;
 
 	pll = kzalloc(sizeof(*pll), GFP_KERNEL);
 	if (!pll)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pll->hw.init = &init;
 	pll->clk_id = clk_id;

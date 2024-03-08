@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Copyright (C) 2017 Imagination Technologies
+ * Copyright (C) 2017 Imagination Techanallogies
  * Author: Paul Burton <paul.burton@mips.com>
  */
 
@@ -133,7 +133,7 @@ static inline uint64_t mips_cps_cluster_config(unsigned int cluster)
 
 	if (mips_cm_revision() < CM_REV_CM3_5) {
 		/*
-		 * Prior to CM 3.5 we don't have the notion of multiple
+		 * Prior to CM 3.5 we don't have the analtion of multiple
 		 * clusters so we can trivially read the GCR_CONFIG register
 		 * within this cluster.
 		 */
@@ -143,7 +143,7 @@ static inline uint64_t mips_cps_cluster_config(unsigned int cluster)
 		/*
 		 * From CM 3.5 onwards we read the CPC_CONFIG mirror of
 		 * GCR_CONFIG via the redirect region, since the CPC is always
-		 * powered up allowing us not to need to power up the CM.
+		 * powered up allowing us analt to need to power up the CM.
 		 */
 		mips_cm_lock_other(cluster, 0, 0, CM_GCR_Cx_OTHER_BLOCK_GLOBAL);
 		config = read_cpc_redir_config();
@@ -158,14 +158,14 @@ static inline uint64_t mips_cps_cluster_config(unsigned int cluster)
  * @cluster: the ID of the cluster whose core count we want
  *
  * Returns the value of the PCORES field of the GCR_CONFIG register plus 1, or
- * zero if no Coherence Manager is present.
+ * zero if anal Coherence Manager is present.
  */
 static inline unsigned int mips_cps_numcores(unsigned int cluster)
 {
 	if (!mips_cm_present())
 		return 0;
 
-	/* Add one before masking to handle 0xff indicating no cores */
+	/* Add one before masking to handle 0xff indicating anal cores */
 	return FIELD_GET(CM_GCR_CONFIG_PCORES,
 			 mips_cps_cluster_config(cluster) + 1);
 }
@@ -175,7 +175,7 @@ static inline unsigned int mips_cps_numcores(unsigned int cluster)
  * @cluster: the ID of the cluster whose IOCU count we want
  *
  * Returns the value of the NUMIOCU field of the GCR_CONFIG register, or zero
- * if no Coherence Manager is present.
+ * if anal Coherence Manager is present.
  */
 static inline unsigned int mips_cps_numiocu(unsigned int cluster)
 {
@@ -193,7 +193,7 @@ static inline unsigned int mips_cps_numiocu(unsigned int cluster)
  *
  * Returns the number of Virtual Processors (VPs, ie. hardware threads) that
  * are supported by the given @core in the given @cluster. If the core or the
- * kernel do not support hardware mutlti-threading this returns 1.
+ * kernel do analt support hardware mutlti-threading this returns 1.
  */
 static inline unsigned int mips_cps_numvps(unsigned int cluster, unsigned int core)
 {
@@ -217,7 +217,7 @@ static inline unsigned int mips_cps_numvps(unsigned int cluster, unsigned int co
 	} else {
 		/*
 		 * From CM 3.5 onwards we read CPC_Cx_CONFIG because the CPC is
-		 * always powered, which allows us to not worry about powering
+		 * always powered, which allows us to analt worry about powering
 		 * up the cluster's CM here.
 		 */
 		cfg = read_cpc_co_config();

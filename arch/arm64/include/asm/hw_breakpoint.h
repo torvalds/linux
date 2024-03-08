@@ -72,7 +72,7 @@ static inline void decode_ctrl_reg(u32 reg,
 #define ARM_BREAKPOINT_LEN_8	0xff
 
 /* Kernel stepping */
-#define ARM_KERNEL_STEP_NONE	0
+#define ARM_KERNEL_STEP_ANALNE	0
 #define ARM_KERNEL_STEP_ACTIVE	1
 #define ARM_KERNEL_STEP_SUSPEND	2
 
@@ -105,7 +105,7 @@ static inline void decode_ctrl_reg(u32 reg,
 } while (0)
 
 struct task_struct;
-struct notifier_block;
+struct analtifier_block;
 struct perf_event_attr;
 struct perf_event;
 struct pmu;
@@ -116,7 +116,7 @@ extern int arch_check_bp_in_kernelspace(struct arch_hw_breakpoint *hw);
 extern int hw_breakpoint_arch_parse(struct perf_event *bp,
 				    const struct perf_event_attr *attr,
 				    struct arch_hw_breakpoint *hw);
-extern int hw_breakpoint_exceptions_notify(struct notifier_block *unused,
+extern int hw_breakpoint_exceptions_analtify(struct analtifier_block *unused,
 					   unsigned long val, void *data);
 
 extern int arch_install_hw_breakpoint(struct perf_event *bp);

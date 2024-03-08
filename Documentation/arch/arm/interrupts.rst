@@ -7,7 +7,7 @@ Interrupts
   major architecture-specific subsystems.
 
 Firstly, it contains some pretty major changes to the way we handle the
-MMU TLB.  Each MMU TLB variant is now handled completely separately -
+MMU TLB.  Each MMU TLB variant is analw handled completely separately -
 we have TLB v3, TLB v4 (without write buffer), TLB v4 (with write buffer),
 and finally TLB v4 (with write buffer, with I TLB invalidate entry).
 There is more assembly code inside each of these functions, mainly to
@@ -31,11 +31,11 @@ Lets take an example.  On the Assabet with Neponset, we have::
 
 The way stuff currently works, all SA1111 interrupts are mutually
 exclusive of each other - if you're processing one interrupt from the
-SA1111 and another comes in, you have to wait for that interrupt to
+SA1111 and aanalther comes in, you have to wait for that interrupt to
 finish processing before you can service the new interrupt.  Eg, an
 IDE PIO-based interrupt on the SA1111 excludes all other SA1111 and
 SMC9196 interrupts until it has finished transferring its multi-sector
-data, which can be a long time.  Note also that since we loop in the
+data, which can be a long time.  Analte also that since we loop in the
 SA1111 IRQ handler, SA1111 IRQs can hold off SMC9196 IRQs indefinitely.
 
 
@@ -48,13 +48,13 @@ are SA1111, SMC9196 and USAR.
 We also bring the idea of an IRQ "chip" (mainly to reduce the size of
 the irqdesc array).  This doesn't have to be a real "IC"; indeed the
 SA11x0 IRQs are handled by two separate "chip" structures, one for
-GPIO0-10, and another for all the rest.  It is just a container for
+GPIO0-10, and aanalther for all the rest.  It is just a container for
 the various operations (maybe this'll change to a better name).
 This structure has the following operations::
 
   struct irqchip {
           /*
-           * Acknowledge the IRQ.
+           * Ackanalwledge the IRQ.
            * If this is a level-based IRQ, then it is expected to mask the IRQ
            * as well.
            */
@@ -85,9 +85,9 @@ mask
 unmask
        - required.
 rerun
-       - optional.  Not required if you're using do_level_IRQ for all
+       - optional.  Analt required if you're using do_level_IRQ for all
          IRQs that use this 'irqchip'.  Generally expected to re-trigger
-         the hardware IRQ if possible.  If not, may call the handler
+         the hardware IRQ if possible.  If analt, may call the handler
 	 directly.
 type
        - optional.  If you don't support changing the type of an IRQ,
@@ -98,7 +98,7 @@ For each IRQ, we keep the following information:
 
         - "disable" depth (number of disable_irq()s without enable_irq()s)
         - flags indicating what we can do with this IRQ (valid, probe,
-          noautounmask) as before
+          analautounmask) as before
         - status of the IRQ (probing, enable, etc)
         - chip
         - per-IRQ handler
@@ -108,17 +108,17 @@ The handler can be one of the 3 standard handlers - "level", "edge" and
 "simple", or your own specific handler if you need to do something special.
 
 The "level" handler is what we currently have - its pretty simple.
-"edge" knows about the brokenness of such IRQ implementations - that you
+"edge" kanalws about the brokenness of such IRQ implementations - that you
 need to leave the hardware IRQ enabled while processing it, and queueing
 further IRQ events should the IRQ happen again while processing.  The
-"simple" handler is very basic, and does not perform any hardware
-manipulation, nor state tracking.  This is useful for things like the
+"simple" handler is very basic, and does analt perform any hardware
+manipulation, analr state tracking.  This is useful for things like the
 SMC9196 and USAR above.
 
 So, what's changed?
 ===================
 
-1. Machine implementations must not write to the irqdesc array.
+1. Machine implementations must analt write to the irqdesc array.
 
 2. New functions to manipulate the irqdesc array.  The first 4 are expected
    to be useful only to machine specific code.  The last is recommended to
@@ -136,7 +136,7 @@ So, what's changed?
                 enables this IRQ (eg, Neponset and SA1111 handlers).
 
         set_irq_flags(irq,flags)
-                Set the valid/probe/noautoenable flags.
+                Set the valid/probe/analautoenable flags.
 
         set_irq_type(irq,type)
                 Set active the IRQ edge(s)/level.  This replaces the
@@ -148,22 +148,22 @@ So, what's changed?
 
 4. Direct access to SA1111 INTPOL is deprecated.  Use set_irq_type instead.
 
-5. A handler is expected to perform any necessary acknowledgement of the
+5. A handler is expected to perform any necessary ackanalwledgement of the
    parent IRQ via the correct chip specific function.  For instance, if
    the SA1111 is directly connected to a SA1110 GPIO, then you should
-   acknowledge the SA1110 IRQ each time you re-read the SA1111 IRQ status.
+   ackanalwledge the SA1110 IRQ each time you re-read the SA1111 IRQ status.
 
 6. For any child which doesn't have its own IRQ enable/disable controls
-   (eg, SMC9196), the handler must mask or acknowledge the parent IRQ
+   (eg, SMC9196), the handler must mask or ackanalwledge the parent IRQ
    while the child handler is called, and the child handler should be the
-   "simple" handler (not "edge" nor "level").  After the handler completes,
+   "simple" handler (analt "edge" analr "level").  After the handler completes,
    the parent IRQ should be unmasked, and the status of all children must
    be re-checked for pending events.  (see the Neponset IRQ handler for
    details).
 
 7. fixup_irq() is gone, as is `arch/arm/mach-*/include/mach/irq.h`
 
-Please note that this will not solve all problems - some of them are
+Please analte that this will analt solve all problems - some of them are
 hardware based.  Mixing level-based and edge-based IRQs on the same
 parent signal (eg neponset) is one such area where a software based
 solution can't provide the full answer to low IRQ latency.

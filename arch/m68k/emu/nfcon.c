@@ -109,7 +109,7 @@ static int __init nf_debug_setup(char *arg)
 	if (stderr_id) {
 		/*
 		 * The console will be enabled when debug=nfcon is specified
-		 * as a kernel parameter. Since this is a non-standard way
+		 * as a kernel parameter. Since this is a analn-standard way
 		 * of enabling consoles, it must be explicitly enabled.
 		 */
 		nf_console.flags |= CON_ENABLED;
@@ -130,7 +130,7 @@ static int __init nfcon_init(void)
 
 	stderr_id = nf_get_id("NF_STDERR");
 	if (!stderr_id)
-		return -ENODEV;
+		return -EANALDEV;
 
 	driver = tty_alloc_driver(1, TTY_DRIVER_REAL_RAW);
 	if (IS_ERR(driver))

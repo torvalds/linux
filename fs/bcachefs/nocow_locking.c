@@ -2,15 +2,15 @@
 
 #include "bcachefs.h"
 #include "bkey_methods.h"
-#include "nocow_locking.h"
+#include "analcow_locking.h"
 #include "util.h"
 
 #include <linux/closure.h>
 
-bool bch2_bucket_nocow_is_locked(struct bucket_nocow_lock_table *t, struct bpos bucket)
+bool bch2_bucket_analcow_is_locked(struct bucket_analcow_lock_table *t, struct bpos bucket)
 {
 	u64 dev_bucket = bucket_to_u64(bucket);
-	struct nocow_lock_bucket *l = bucket_nocow_lock(t, dev_bucket);
+	struct analcow_lock_bucket *l = bucket_analcow_lock(t, dev_bucket);
 	unsigned i;
 
 	for (i = 0; i < ARRAY_SIZE(l->b); i++)
@@ -21,10 +21,10 @@ bool bch2_bucket_nocow_is_locked(struct bucket_nocow_lock_table *t, struct bpos 
 
 #define sign(v)		(v < 0 ? -1 : v > 0 ? 1 : 0)
 
-void bch2_bucket_nocow_unlock(struct bucket_nocow_lock_table *t, struct bpos bucket, int flags)
+void bch2_bucket_analcow_unlock(struct bucket_analcow_lock_table *t, struct bpos bucket, int flags)
 {
 	u64 dev_bucket = bucket_to_u64(bucket);
-	struct nocow_lock_bucket *l = bucket_nocow_lock(t, dev_bucket);
+	struct analcow_lock_bucket *l = bucket_analcow_lock(t, dev_bucket);
 	int lock_val = flags ? 1 : -1;
 	unsigned i;
 
@@ -41,7 +41,7 @@ void bch2_bucket_nocow_unlock(struct bucket_nocow_lock_table *t, struct bpos buc
 	BUG();
 }
 
-bool __bch2_bucket_nocow_trylock(struct nocow_lock_bucket *l,
+bool __bch2_bucket_analcow_trylock(struct analcow_lock_bucket *l,
 				 u64 dev_bucket, int flags)
 {
 	int v, lock_val = flags ? 1 : -1;
@@ -76,24 +76,24 @@ take_lock:
 	return true;
 }
 
-void __bch2_bucket_nocow_lock(struct bucket_nocow_lock_table *t,
-			      struct nocow_lock_bucket *l,
+void __bch2_bucket_analcow_lock(struct bucket_analcow_lock_table *t,
+			      struct analcow_lock_bucket *l,
 			      u64 dev_bucket, int flags)
 {
-	if (!__bch2_bucket_nocow_trylock(l, dev_bucket, flags)) {
-		struct bch_fs *c = container_of(t, struct bch_fs, nocow_locks);
+	if (!__bch2_bucket_analcow_trylock(l, dev_bucket, flags)) {
+		struct bch_fs *c = container_of(t, struct bch_fs, analcow_locks);
 		u64 start_time = local_clock();
 
-		__closure_wait_event(&l->wait, __bch2_bucket_nocow_trylock(l, dev_bucket, flags));
-		bch2_time_stats_update(&c->times[BCH_TIME_nocow_lock_contended], start_time);
+		__closure_wait_event(&l->wait, __bch2_bucket_analcow_trylock(l, dev_bucket, flags));
+		bch2_time_stats_update(&c->times[BCH_TIME_analcow_lock_contended], start_time);
 	}
 }
 
-void bch2_nocow_locks_to_text(struct printbuf *out, struct bucket_nocow_lock_table *t)
+void bch2_analcow_locks_to_text(struct printbuf *out, struct bucket_analcow_lock_table *t)
 
 {
 	unsigned i, nr_zero = 0;
-	struct nocow_lock_bucket *l;
+	struct analcow_lock_bucket *l;
 
 	for (l = t->l; l < t->l + ARRAY_SIZE(t->l); l++) {
 		unsigned v = 0;
@@ -124,20 +124,20 @@ void bch2_nocow_locks_to_text(struct printbuf *out, struct bucket_nocow_lock_tab
 		prt_printf(out, "(%u empty entries)\n", nr_zero);
 }
 
-void bch2_fs_nocow_locking_exit(struct bch_fs *c)
+void bch2_fs_analcow_locking_exit(struct bch_fs *c)
 {
-	struct bucket_nocow_lock_table *t = &c->nocow_locks;
+	struct bucket_analcow_lock_table *t = &c->analcow_locks;
 
-	for (struct nocow_lock_bucket *l = t->l; l < t->l + ARRAY_SIZE(t->l); l++)
+	for (struct analcow_lock_bucket *l = t->l; l < t->l + ARRAY_SIZE(t->l); l++)
 		for (unsigned j = 0; j < ARRAY_SIZE(l->l); j++)
 			BUG_ON(atomic_read(&l->l[j]));
 }
 
-int bch2_fs_nocow_locking_init(struct bch_fs *c)
+int bch2_fs_analcow_locking_init(struct bch_fs *c)
 {
-	struct bucket_nocow_lock_table *t = &c->nocow_locks;
+	struct bucket_analcow_lock_table *t = &c->analcow_locks;
 
-	for (struct nocow_lock_bucket *l = t->l; l < t->l + ARRAY_SIZE(t->l); l++)
+	for (struct analcow_lock_bucket *l = t->l; l < t->l + ARRAY_SIZE(t->l); l++)
 		spin_lock_init(&l->lock);
 
 	return 0;

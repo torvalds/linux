@@ -2,7 +2,7 @@
 /*
  * Copyright (C) 2018 Linaro Ltd
  *
- * Author: Daniel Lezcano <daniel.lezcano@linaro.org>
+ * Author: Daniel Lezcaanal <daniel.lezcaanal@linaro.org>
  *
  */
 #ifndef __IDLE_INJECT_H__

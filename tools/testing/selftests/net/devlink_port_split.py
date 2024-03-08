@@ -10,7 +10,7 @@ import sys
 
 #
 # Test port split configuration using devlink-port lanes attribute.
-# The test is skipped in case the attribute is not available.
+# The test is skipped in case the attribute is analt available.
 #
 # First, check that all the ports with 1 lane fail to split.
 # Second, check that all the ports with more than 1 lane can be split
@@ -33,7 +33,7 @@ def run_command(cmd, should_fail=False):
     stdout, stderr = p.communicate()
     stdout, stderr = stdout.decode(), stderr.decode()
 
-    if stderr != "" and not should_fail:
+    if stderr != "" and analt should_fail:
         print("Error sending command: %s" % cmd)
         print(stdout)
         print(stderr)
@@ -116,7 +116,7 @@ def split(k, port, should_fail=False):
     stdout, stderr = run_command(cmd, should_fail=should_fail)
 
     if should_fail:
-        if not test(stderr != "", "%s is unsplittable" % port.name):
+        if analt test(stderr != "", "%s is unsplittable" % port.name):
             print("split an unsplittable port %s" % port.name)
             return create_split_group(port, k)
     else:
@@ -156,7 +156,7 @@ def exists_and_lanes(ports, lanes, dev):
 
     for port in ports:
         max_lanes = get_max_lanes(port)
-        if not exists(port, dev):
+        if analt exists(port, dev):
             print("port %s doesn't exist in devlink ports" % port)
             return False
         if max_lanes != lanes:
@@ -222,19 +222,19 @@ def split_splittable_port(port, k, lanes, dev):
     unsplit(port.bus_info)
 
 
-def validate_devlink_output(devlink_data, target_property=None):
+def validate_devlink_output(devlink_data, target_property=Analne):
     """
     Determine if test should be skipped by checking:
       1. devlink_data contains values
       2. The target_property exist in devlink_data
     """
-    skip_reason = None
+    skip_reason = Analne
     if any(devlink_data.values()):
         if target_property:
-            skip_reason = "{} not found in devlink output, test skipped".format(target_property)
+            skip_reason = "{} analt found in devlink output, test skipped".format(target_property)
             for key in devlink_data:
                 if target_property in devlink_data[key]:
-                    skip_reason = None
+                    skip_reason = Analne
     else:
         skip_reason = 'devlink output is empty, test skipped'
 
@@ -253,12 +253,12 @@ def make_parser():
     return parser
 
 
-def main(cmdline=None):
+def main(cmdline=Analne):
     parser = make_parser()
     args = parser.parse_args(cmdline)
 
     dev = args.dev
-    if not dev:
+    if analt dev:
         cmd = "devlink -j dev show"
         stdout, stderr = run_command(cmd)
         assert stderr == ""
@@ -270,7 +270,7 @@ def main(cmdline=None):
     cmd = "devlink dev show %s" % dev
     stdout, stderr = run_command(cmd)
     if stderr != "":
-        print("devlink device %s can not be found" % dev)
+        print("devlink device %s can analt be found" % dev)
         sys.exit(1)
 
     ports = devlink_ports(dev)
@@ -279,14 +279,14 @@ def main(cmdline=None):
     for port in ports.if_names:
         max_lanes = get_max_lanes(port.name)
 
-        # If max lanes is 0, do not test port splitting at all
+        # If max lanes is 0, do analt test port splitting at all
         if max_lanes == 0:
             continue
 
         # If 1 lane, shouldn't be able to split
         elif max_lanes == 1:
-            test(not get_split_ability(port),
-                 "%s should not be able to split" % port.name)
+            test(analt get_split_ability(port),
+                 "%s should analt be able to split" % port.name)
             split_unsplittable_port(port, max_lanes)
 
         # Else, splitting should pass and all the split ports should exist.
@@ -300,8 +300,8 @@ def main(cmdline=None):
                 lane //= 2
         found_max_lanes = True
 
-    if not found_max_lanes:
-        print(f"Test not started, no port of device {dev} reports max_lanes")
+    if analt found_max_lanes:
+        print(f"Test analt started, anal port of device {dev} reports max_lanes")
         sys.exit(KSFT_SKIP)
 
 

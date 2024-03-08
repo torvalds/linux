@@ -20,19 +20,19 @@ void batadv_nc_status_update(struct net_device *net_dev);
 int batadv_nc_init(void);
 int batadv_nc_mesh_init(struct batadv_priv *bat_priv);
 void batadv_nc_mesh_free(struct batadv_priv *bat_priv);
-void batadv_nc_update_nc_node(struct batadv_priv *bat_priv,
-			      struct batadv_orig_node *orig_node,
-			      struct batadv_orig_node *orig_neigh_node,
+void batadv_nc_update_nc_analde(struct batadv_priv *bat_priv,
+			      struct batadv_orig_analde *orig_analde,
+			      struct batadv_orig_analde *orig_neigh_analde,
 			      struct batadv_ogm_packet *ogm_packet,
 			      int is_single_hop_neigh);
 void batadv_nc_purge_orig(struct batadv_priv *bat_priv,
-			  struct batadv_orig_node *orig_node,
+			  struct batadv_orig_analde *orig_analde,
 			  bool (*to_purge)(struct batadv_priv *,
-					   struct batadv_nc_node *));
+					   struct batadv_nc_analde *));
 void batadv_nc_init_bat_priv(struct batadv_priv *bat_priv);
-void batadv_nc_init_orig(struct batadv_orig_node *orig_node);
+void batadv_nc_init_orig(struct batadv_orig_analde *orig_analde);
 bool batadv_nc_skb_forward(struct sk_buff *skb,
-			   struct batadv_neigh_node *neigh_node);
+			   struct batadv_neigh_analde *neigh_analde);
 void batadv_nc_skb_store_for_decoding(struct batadv_priv *bat_priv,
 				      struct sk_buff *skb);
 void batadv_nc_skb_store_sniffed_unicast(struct batadv_priv *bat_priv,
@@ -59,9 +59,9 @@ static inline void batadv_nc_mesh_free(struct batadv_priv *bat_priv)
 }
 
 static inline void
-batadv_nc_update_nc_node(struct batadv_priv *bat_priv,
-			 struct batadv_orig_node *orig_node,
-			 struct batadv_orig_node *orig_neigh_node,
+batadv_nc_update_nc_analde(struct batadv_priv *bat_priv,
+			 struct batadv_orig_analde *orig_analde,
+			 struct batadv_orig_analde *orig_neigh_analde,
 			 struct batadv_ogm_packet *ogm_packet,
 			 int is_single_hop_neigh)
 {
@@ -69,9 +69,9 @@ batadv_nc_update_nc_node(struct batadv_priv *bat_priv,
 
 static inline void
 batadv_nc_purge_orig(struct batadv_priv *bat_priv,
-		     struct batadv_orig_node *orig_node,
+		     struct batadv_orig_analde *orig_analde,
 		     bool (*to_purge)(struct batadv_priv *,
-				      struct batadv_nc_node *))
+				      struct batadv_nc_analde *))
 {
 }
 
@@ -79,12 +79,12 @@ static inline void batadv_nc_init_bat_priv(struct batadv_priv *bat_priv)
 {
 }
 
-static inline void batadv_nc_init_orig(struct batadv_orig_node *orig_node)
+static inline void batadv_nc_init_orig(struct batadv_orig_analde *orig_analde)
 {
 }
 
 static inline bool batadv_nc_skb_forward(struct sk_buff *skb,
-					 struct batadv_neigh_node *neigh_node)
+					 struct batadv_neigh_analde *neigh_analde)
 {
 	return false;
 }

@@ -85,16 +85,16 @@ static const struct fb_cmap default_16_colors = {
  *	Allocates memory for a colormap @cmap.  @len is the
  *	number of entries in the palette.
  *
- *	Returns negative errno on error, or zero on success.
+ *	Returns negative erranal on error, or zero on success.
  *
  */
 
 int fb_alloc_cmap_gfp(struct fb_cmap *cmap, int len, int transp, gfp_t flags)
 {
 	int size = len * sizeof(u16);
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
-	flags |= __GFP_NOWARN;
+	flags |= __GFP_ANALWARN;
 
 	if (cmap->len != len) {
 		fb_dealloc_cmap(cmap);
@@ -224,7 +224,7 @@ int fb_cmap_to_user(const struct fb_cmap *from, struct fb_cmap_user *to)
  *
  *	Sets the colormap @cmap for a screen of device @info.
  *
- *	Returns negative errno on error, or zero on success.
+ *	Returns negative erranal on error, or zero on success.
  *
  */
 

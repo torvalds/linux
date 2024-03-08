@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Resource Director Technology(RDT)
+ * Resource Director Techanallogy(RDT)
  * - Cache Allocation code.
  *
  * Copyright (C) 2016 Intel Corporation
@@ -36,13 +36,13 @@ static bool bw_validate(char *buf, unsigned long *data, struct rdt_resource *r)
 	 * Only linear delay values is supported for current Intel SKUs.
 	 */
 	if (!r->membw.delay_linear && r->membw.arch_needs_linear) {
-		rdt_last_cmd_puts("No support for non-linear MB domains\n");
+		rdt_last_cmd_puts("Anal support for analn-linear MB domains\n");
 		return false;
 	}
 
 	ret = kstrtoul(buf, 10, &bw);
 	if (ret) {
-		rdt_last_cmd_printf("Non-decimal digit in MB value %s\n", buf);
+		rdt_last_cmd_printf("Analn-decimal digit in MB value %s\n", buf);
 		return false;
 	}
 
@@ -87,13 +87,13 @@ int parse_bw(struct rdt_parse_data *data, struct resctrl_schema *s,
 
 /*
  * Check whether a cache bit mask is valid.
- * On Intel CPUs, non-contiguous 1s value support is indicated by CPUID:
- *   - CPUID.0x10.1:ECX[3]: L3 non-contiguous 1s value supported if 1
- *   - CPUID.0x10.2:ECX[3]: L2 non-contiguous 1s value supported if 1
+ * On Intel CPUs, analn-contiguous 1s value support is indicated by CPUID:
+ *   - CPUID.0x10.1:ECX[3]: L3 analn-contiguous 1s value supported if 1
+ *   - CPUID.0x10.2:ECX[3]: L2 analn-contiguous 1s value supported if 1
  *
- * Haswell does not support a non-contiguous 1s value and additionally
+ * Haswell does analt support a analn-contiguous 1s value and additionally
  * requires at least two bits set.
- * AMD allows non-contiguous bitmasks.
+ * AMD allows analn-contiguous bitmasks.
  */
 static bool cbm_validate(char *buf, u32 *data, struct rdt_resource *r)
 {
@@ -103,7 +103,7 @@ static bool cbm_validate(char *buf, u32 *data, struct rdt_resource *r)
 
 	ret = kstrtoul(buf, 16, &val);
 	if (ret) {
-		rdt_last_cmd_printf("Non-hex character in the mask %s\n", buf);
+		rdt_last_cmd_printf("Analn-hex character in the mask %s\n", buf);
 		return false;
 	}
 
@@ -115,10 +115,10 @@ static bool cbm_validate(char *buf, u32 *data, struct rdt_resource *r)
 	first_bit = find_first_bit(&val, cbm_len);
 	zero_bit = find_next_zero_bit(&val, cbm_len, first_bit);
 
-	/* Are non-contiguous bitmasks allowed? */
+	/* Are analn-contiguous bitmasks allowed? */
 	if (!r->cache.arch_has_sparse_bitmasks &&
 	    (find_next_bit(&val, cbm_len, zero_bit) < cbm_len)) {
-		rdt_last_cmd_printf("The mask %lx has non-consecutive 1-bits\n", val);
+		rdt_last_cmd_printf("The mask %lx has analn-consecutive 1-bits\n", val);
 		return false;
 	}
 
@@ -151,7 +151,7 @@ int parse_cbm(struct rdt_parse_data *data, struct resctrl_schema *s,
 	}
 
 	/*
-	 * Cannot set up more than one pseudo-locked region in a cache
+	 * Cananalt set up more than one pseudo-locked region in a cache
 	 * hierarchy.
 	 */
 	if (rdtgrp->mode == RDT_MODE_PSEUDO_LOCKSETUP &&
@@ -171,7 +171,7 @@ int parse_cbm(struct rdt_parse_data *data, struct resctrl_schema *s,
 	}
 
 	/*
-	 * The CBM may not overlap with the CBM of another closid if
+	 * The CBM may analt overlap with the CBM of aanalther closid if
 	 * either is exclusive.
 	 */
 	if (rdtgroup_cbm_overlaps(s, d, cbm_val, rdtgrp->closid, true)) {
@@ -212,7 +212,7 @@ static int parse_line(char *line, struct resctrl_schema *s,
 
 	if (rdtgrp->mode == RDT_MODE_PSEUDO_LOCKSETUP &&
 	    (r->rid == RDT_RESOURCE_MBA || r->rid == RDT_RESOURCE_SMBA)) {
-		rdt_last_cmd_puts("Cannot pseudo-lock MBA resource\n");
+		rdt_last_cmd_puts("Cananalt pseudo-lock MBA resource\n");
 		return -EINVAL;
 	}
 
@@ -222,7 +222,7 @@ next:
 	dom = strsep(&line, ";");
 	id = strsep(&dom, "=");
 	if (!dom || kstrtoul(id, 10, &dom_id)) {
-		rdt_last_cmd_puts("Missing '=' or non-numeric domain\n");
+		rdt_last_cmd_puts("Missing '=' or analn-numeric domain\n");
 		return -EINVAL;
 	}
 	dom = strim(dom);
@@ -258,7 +258,7 @@ static u32 get_config_index(u32 closid, enum resctrl_conf_type type)
 {
 	switch (type) {
 	default:
-	case CDP_NONE:
+	case CDP_ANALNE:
 		return closid;
 	case CDP_CODE:
 		return closid * 2 + 1;
@@ -315,7 +315,7 @@ int resctrl_arch_update_domains(struct rdt_resource *r, u32 closid)
 	u32 idx;
 
 	if (!zalloc_cpumask_var(&cpu_mask, GFP_KERNEL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	msr_param.res = NULL;
 	list_for_each_entry(d, &r->domains, list) {
@@ -361,7 +361,7 @@ static int rdtgroup_parse_resource(char *resname, char *tok,
 		if (!strcmp(resname, s->name) && rdtgrp->closid < s->num_closid)
 			return parse_line(tok, s, rdtgrp);
 	}
-	rdt_last_cmd_printf("Unknown or unsupported resource name '%s'\n", resname);
+	rdt_last_cmd_printf("Unkanalwn or unsupported resource name '%s'\n", resname);
 	return -EINVAL;
 }
 
@@ -384,12 +384,12 @@ ssize_t rdtgroup_schemata_write(struct kernfs_open_file *of,
 	if (!rdtgrp) {
 		rdtgroup_kn_unlock(of->kn);
 		cpus_read_unlock();
-		return -ENOENT;
+		return -EANALENT;
 	}
 	rdt_last_cmd_clear();
 
 	/*
-	 * No changes to pseudo-locked region allowed. It has to be removed
+	 * Anal changes to pseudo-locked region allowed. It has to be removed
 	 * and re-created instead.
 	 */
 	if (rdtgrp->mode == RDT_MODE_PSEUDO_LOCKED) {
@@ -422,7 +422,7 @@ ssize_t rdtgroup_schemata_write(struct kernfs_open_file *of,
 
 		/*
 		 * Writes to mba_sc resources update the software controller,
-		 * not the control MSR.
+		 * analt the control MSR.
 		 */
 		if (is_mba_sc(r))
 			continue;
@@ -501,7 +501,7 @@ int rdtgroup_schemata_show(struct kernfs_open_file *of,
 			if (!rdtgrp->plr->d) {
 				rdt_last_cmd_clear();
 				rdt_last_cmd_puts("Cache domain offline\n");
-				ret = -ENODEV;
+				ret = -EANALDEV;
 			} else {
 				seq_printf(s, "%s:%d=%x\n",
 					   rdtgrp->plr->s->res->name,
@@ -516,7 +516,7 @@ int rdtgroup_schemata_show(struct kernfs_open_file *of,
 			}
 		}
 	} else {
-		ret = -ENOENT;
+		ret = -EANALENT;
 	}
 	rdtgroup_kn_unlock(of->kn);
 	return ret;
@@ -552,7 +552,7 @@ int rdtgroup_mondata_show(struct seq_file *m, void *arg)
 
 	rdtgrp = rdtgroup_kn_lock_live(of->kn);
 	if (!rdtgrp) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto out;
 	}
 
@@ -564,7 +564,7 @@ int rdtgroup_mondata_show(struct seq_file *m, void *arg)
 	r = &rdt_resources_all[resid].r_resctrl;
 	d = rdt_find_domain(r, domid, NULL);
 	if (IS_ERR_OR_NULL(d)) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto out;
 	}
 

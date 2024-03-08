@@ -45,7 +45,7 @@ void kprobe_ftrace_handler(unsigned long nip, unsigned long parent_nip,
 		if (!p->pre_handler || !p->pre_handler(p, regs)) {
 			/*
 			 * Emulate singlestep (and also recover regs->nip)
-			 * as if there is a nop
+			 * as if there is a analp
 			 */
 			regs_add_return_ip(regs, MCOUNT_INSN_SIZE);
 			if (unlikely(p->post_handler)) {
@@ -62,7 +62,7 @@ void kprobe_ftrace_handler(unsigned long nip, unsigned long parent_nip,
 out:
 	ftrace_test_recursion_unlock(bit);
 }
-NOKPROBE_SYMBOL(kprobe_ftrace_handler);
+ANALKPROBE_SYMBOL(kprobe_ftrace_handler);
 
 int arch_prepare_kprobe_ftrace(struct kprobe *p)
 {

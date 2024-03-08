@@ -63,7 +63,7 @@ s32 igc_acquire_nvm(struct igc_hw *hw)
 	if (!timeout) {
 		eecd &= ~IGC_EECD_REQ;
 		wr32(IGC_EECD, eecd);
-		hw_dbg("Could not acquire NVM grant\n");
+		hw_dbg("Could analt acquire NVM grant\n");
 		ret_val = -IGC_ERR_NVM;
 	}
 
@@ -101,7 +101,7 @@ s32 igc_read_nvm_eerd(struct igc_hw *hw, u16 offset, u16 words, u16 *data)
 	s32 ret_val = 0;
 
 	/* A check for invalid values:  offset too large, too many words,
-	 * and not enough words.
+	 * and analt eanalugh words.
 	 */
 	if (offset >= nvm->word_size || (words > (nvm->word_size - offset)) ||
 	    words == 0) {

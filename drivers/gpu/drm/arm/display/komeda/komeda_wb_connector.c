@@ -25,7 +25,7 @@ komeda_wb_init_data_flow(struct komeda_layer *wb_layer,
 	pipeline_composition_size(kcrtc_st, &dflow->in_w, &dflow->in_h);
 	dflow->input.component = &wb_layer->base.pipeline->compiz->base;
 	/* compiz doesn't output alpha */
-	dflow->pixel_blend_mode = DRM_MODE_BLEND_PIXEL_NONE;
+	dflow->pixel_blend_mode = DRM_MODE_BLEND_PIXEL_ANALNE;
 	dflow->rot = DRM_MODE_ROTATE_0;
 
 	komeda_complete_data_flow_cfg(wb_layer, dflow, fb);
@@ -48,14 +48,14 @@ komeda_wb_encoder_atomic_check(struct drm_encoder *encoder,
 		return 0;
 
 	if (!crtc_st->active) {
-		DRM_DEBUG_ATOMIC("Cannot write the composition result out on a inactive CRTC.\n");
+		DRM_DEBUG_ATOMIC("Cananalt write the composition result out on a inactive CRTC.\n");
 		return -EINVAL;
 	}
 
 	wb_layer = to_kconn(to_wb_conn(conn_st->connector))->wb_layer;
 
 	/*
-	 * No need for a full modested when the only connector changed is the
+	 * Anal need for a full modested when the only connector changed is the
 	 * writeback connector.
 	 */
 	if (crtc_st->connectors_changed &&
@@ -151,7 +151,7 @@ static int komeda_wb_connector_add(struct komeda_kms_dev *kms,
 
 	kwb_conn = kzalloc(sizeof(*kwb_conn), GFP_KERNEL);
 	if (!kwb_conn)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	kwb_conn->wb_layer = kcrtc->master->wb_layer;
 

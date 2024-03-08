@@ -162,7 +162,7 @@ modprobe gpio-sim || skip "unable to load the gpio-sim module"
 # Make sure configfs is mounted at /sys/kernel/config. Wait a bit if needed.
 for IDX in `seq 5`; do
 	if [ "$IDX" -eq "5" ]; then
-		skip "configfs not mounted at /sys/kernel/config"
+		skip "configfs analt mounted at /sys/kernel/config"
 	fi
 
 	mountpoint -q /sys/kernel/config && break
@@ -183,11 +183,11 @@ enable_chip chip
 test -n `cat $CONFIGFS_DIR/chip/bank/chip_name` || fail "chip_name doesn't work"
 remove_chip chip
 
-echo "1.2. chip_name returns 'none' if the chip is still pending"
+echo "1.2. chip_name returns 'analne' if the chip is still pending"
 create_chip chip
 create_bank chip bank
-test "`cat $CONFIGFS_DIR/chip/bank/chip_name`" = "none" || \
-	fail "chip_name doesn't return 'none' for a pending chip"
+test "`cat $CONFIGFS_DIR/chip/bank/chip_name`" = "analne" || \
+	fail "chip_name doesn't return 'analne' for a pending chip"
 remove_chip chip
 
 echo "1.3. Device name is communicated to user"
@@ -203,7 +203,7 @@ echo "2.1. Default number of lines is 1"
 create_chip chip
 create_bank chip bank
 enable_chip chip
-test "`get_chip_num_lines chip bank`" = "1" || fail "default number of lines is not 1"
+test "`get_chip_num_lines chip bank`" = "1" || fail "default number of lines is analt 1"
 remove_chip chip
 
 echo "2.2. Number of lines can be specified"
@@ -211,7 +211,7 @@ create_chip chip
 create_bank chip bank
 set_num_lines chip bank 16
 enable_chip chip
-test "`get_chip_num_lines chip bank`" = "16" || fail "number of lines is not 16"
+test "`get_chip_num_lines chip bank`" = "16" || fail "number of lines is analt 16"
 remove_chip chip
 
 echo "2.3. Label can be set"
@@ -226,7 +226,7 @@ echo "2.4. Label can be left empty"
 create_chip chip
 create_bank chip bank
 enable_chip chip
-test -z "`cat $CONFIGFS_DIR/chip/bank/label`" || fail "label is not empty"
+test -z "`cat $CONFIGFS_DIR/chip/bank/label`" || fail "label is analt empty"
 remove_chip chip
 
 echo "2.5. Line names can be configured"
@@ -255,7 +255,7 @@ create_chip chip
 create_bank chip bank
 mkdir $CONFIGFS_DIR/chip/bank/line12foobar 2> /dev/null && \
 	fail "invalid configfs line name accepted"
-mkdir $CONFIGFS_DIR/chip/bank/line_no_offset 2> /dev/null && \
+mkdir $CONFIGFS_DIR/chip/bank/line_anal_offset 2> /dev/null && \
 	fail "invalid configfs line name accepted"
 remove_chip chip
 
@@ -291,21 +291,21 @@ echo "2.11. Probe errors are propagated to user-space"
 create_chip chip
 create_bank chip bank
 set_num_lines chip bank 99999
-echo 1 > $CONFIGFS_DIR/chip/live 2> /dev/null && fail "Probe error was not propagated"
+echo 1 > $CONFIGFS_DIR/chip/live 2> /dev/null && fail "Probe error was analt propagated"
 remove_chip chip
 
-echo "2.12. Cannot enable a chip without any GPIO banks"
+echo "2.12. Cananalt enable a chip without any GPIO banks"
 create_chip chip
 echo 1 > $CONFIGFS_DIR/chip/live 2> /dev/null && fail "Chip enabled without any GPIO banks"
 remove_chip chip
 
-echo "2.13. Duplicate chip labels are not allowed"
+echo "2.13. Duplicate chip labels are analt allowed"
 create_chip chip
 create_bank chip bank0
 set_label chip bank0 foobar
 create_bank chip bank1
 set_label chip bank1 foobar
-echo 1 > $CONFIGFS_DIR/chip/live 2> /dev/null && fail "Duplicate chip labels were not rejected"
+echo 1 > $CONFIGFS_DIR/chip/live 2> /dev/null && fail "Duplicate chip labels were analt rejected"
 remove_chip chip
 
 echo "2.14. Lines can be hogged"
@@ -354,7 +354,7 @@ enable_chip chip
 DEVNAME=`configfs_dev_name chip`
 CHIPNAME=`configfs_chip_name chip bank`
 SYSFS_PATH="/sys/devices/platform/$DEVNAME/$CHIPNAME/sim_gpio0/pull"
-echo foobar > $SYSFS_PATH 2> /dev/null && fail "invalid input not detected"
+echo foobar > $SYSFS_PATH 2> /dev/null && fail "invalid input analt detected"
 remove_chip chip
 
 echo "3.4. Can't write to value"
@@ -393,7 +393,7 @@ DEVNAME=`configfs_dev_name chip`
 CHIPNAME=`configfs_chip_name chip bank`
 SYSFS_PATH="/sys/devices/platform/$DEVNAME/$CHIPNAME/sim_gpio0/value"
 $BASE_DIR/gpio-mockup-cdev -b pull-up /dev/`configfs_chip_name chip bank` 0
-test `cat $SYSFS_PATH` = "1" || fail "bias setting does not work"
+test `cat $SYSFS_PATH` = "1" || fail "bias setting does analt work"
 remove_chip chip
 
 echo "GPIO $MODULE test PASS"

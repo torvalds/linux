@@ -4,7 +4,7 @@ if (ARCH_QCOM || COMPILE_TEST)
 config PINCTRL_MSM
 	tristate "Qualcomm core pin controller driver"
 	depends on GPIOLIB
-	# OF for pinconf_generic_dt_node_to_map_group() from GENERIC_PINCONF
+	# OF for pinconf_generic_dt_analde_to_map_group() from GENERIC_PINCONF
 	depends on OF
 	select QCOM_SCM
 	select PINMUX
@@ -48,7 +48,7 @@ config PINCTRL_QCOM_SSBI_PMIC
 	 devices are pm8058 and pm8921.
 
 config PINCTRL_LPASS_LPI
-	tristate "Qualcomm Technologies Inc LPASS LPI pin controller driver"
+	tristate "Qualcomm Techanallogies Inc LPASS LPI pin controller driver"
 	select PINMUX
 	select PINCONF
 	select GENERIC_PINCONF
@@ -56,82 +56,82 @@ config PINCTRL_LPASS_LPI
 	depends on GPIOLIB
 	help
 	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
-	  Qualcomm Technologies Inc LPASS (Low Power Audio SubSystem) LPI
-	  (Low Power Island) found on the Qualcomm Technologies Inc SoCs.
+	  Qualcomm Techanallogies Inc LPASS (Low Power Audio SubSystem) LPI
+	  (Low Power Island) found on the Qualcomm Techanallogies Inc SoCs.
 
 config PINCTRL_SC7280_LPASS_LPI
-	tristate "Qualcomm Technologies Inc SC7280 LPASS LPI pin controller driver"
+	tristate "Qualcomm Techanallogies Inc SC7280 LPASS LPI pin controller driver"
 	depends on ARM64 || COMPILE_TEST
 	depends on PINCTRL_LPASS_LPI
 	help
 	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
-	  Qualcomm Technologies Inc LPASS (Low Power Audio SubSystem) LPI
-	  (Low Power Island) found on the Qualcomm Technologies Inc SC7280 platform.
+	  Qualcomm Techanallogies Inc LPASS (Low Power Audio SubSystem) LPI
+	  (Low Power Island) found on the Qualcomm Techanallogies Inc SC7280 platform.
 
 config PINCTRL_SM6115_LPASS_LPI
-	tristate "Qualcomm Technologies Inc SM6115 LPASS LPI pin controller driver"
+	tristate "Qualcomm Techanallogies Inc SM6115 LPASS LPI pin controller driver"
 	depends on ARM64 || COMPILE_TEST
 	depends on PINCTRL_LPASS_LPI
 	help
 	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
-	  Qualcomm Technologies Inc LPASS (Low Power Audio SubSystem) LPI
-	  (Low Power Island) found on the Qualcomm Technologies Inc SM6115 platform.
+	  Qualcomm Techanallogies Inc LPASS (Low Power Audio SubSystem) LPI
+	  (Low Power Island) found on the Qualcomm Techanallogies Inc SM6115 platform.
 
 config PINCTRL_SM8250_LPASS_LPI
-	tristate "Qualcomm Technologies Inc SM8250 LPASS LPI pin controller driver"
+	tristate "Qualcomm Techanallogies Inc SM8250 LPASS LPI pin controller driver"
 	depends on ARM64 || COMPILE_TEST
 	depends on PINCTRL_LPASS_LPI
 	help
 	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
-	  Qualcomm Technologies Inc LPASS (Low Power Audio SubSystem) LPI
-	  (Low Power Island) found on the Qualcomm Technologies Inc SM8250 platform.
+	  Qualcomm Techanallogies Inc LPASS (Low Power Audio SubSystem) LPI
+	  (Low Power Island) found on the Qualcomm Techanallogies Inc SM8250 platform.
 
 config PINCTRL_SM8350_LPASS_LPI
-	tristate "Qualcomm Technologies Inc SM8350 LPASS LPI pin controller driver"
+	tristate "Qualcomm Techanallogies Inc SM8350 LPASS LPI pin controller driver"
 	depends on ARM64 || COMPILE_TEST
 	depends on PINCTRL_LPASS_LPI
 	help
 	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
-	  Qualcomm Technologies Inc LPASS (Low Power Audio SubSystem) LPI
-	  (Low Power Island) found on the Qualcomm Technologies Inc SM8350
+	  Qualcomm Techanallogies Inc LPASS (Low Power Audio SubSystem) LPI
+	  (Low Power Island) found on the Qualcomm Techanallogies Inc SM8350
 	  platform.
 
 config PINCTRL_SM8450_LPASS_LPI
-	tristate "Qualcomm Technologies Inc SM8450 LPASS LPI pin controller driver"
+	tristate "Qualcomm Techanallogies Inc SM8450 LPASS LPI pin controller driver"
 	depends on ARM64 || COMPILE_TEST
 	depends on PINCTRL_LPASS_LPI
 	help
 	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
-	  Qualcomm Technologies Inc LPASS (Low Power Audio SubSystem) LPI
-	  (Low Power Island) found on the Qualcomm Technologies Inc SM8450 platform.
+	  Qualcomm Techanallogies Inc LPASS (Low Power Audio SubSystem) LPI
+	  (Low Power Island) found on the Qualcomm Techanallogies Inc SM8450 platform.
 
 config PINCTRL_SC8280XP_LPASS_LPI
-	tristate "Qualcomm Technologies Inc SC8280XP LPASS LPI pin controller driver"
+	tristate "Qualcomm Techanallogies Inc SC8280XP LPASS LPI pin controller driver"
 	depends on ARM64 || COMPILE_TEST
 	depends on PINCTRL_LPASS_LPI
 	help
 	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
-	  Qualcomm Technologies Inc LPASS (Low Power Audio SubSystem) LPI
-	  (Low Power Island) found on the Qualcomm Technologies Inc SC8280XP platform.
+	  Qualcomm Techanallogies Inc LPASS (Low Power Audio SubSystem) LPI
+	  (Low Power Island) found on the Qualcomm Techanallogies Inc SC8280XP platform.
 
 config PINCTRL_SM8550_LPASS_LPI
-	tristate "Qualcomm Technologies Inc SM8550 LPASS LPI pin controller driver"
+	tristate "Qualcomm Techanallogies Inc SM8550 LPASS LPI pin controller driver"
 	depends on ARM64 || COMPILE_TEST
 	depends on PINCTRL_LPASS_LPI
 	help
 	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
-	  Qualcomm Technologies Inc LPASS (Low Power Audio SubSystem) LPI
-	  (Low Power Island) found on the Qualcomm Technologies Inc SM8550
+	  Qualcomm Techanallogies Inc LPASS (Low Power Audio SubSystem) LPI
+	  (Low Power Island) found on the Qualcomm Techanallogies Inc SM8550
 	  platform.
 
 config PINCTRL_SM8650_LPASS_LPI
-	tristate "Qualcomm Technologies Inc SM8550 LPASS LPI pin controller driver"
+	tristate "Qualcomm Techanallogies Inc SM8550 LPASS LPI pin controller driver"
 	depends on ARM64 || COMPILE_TEST
 	depends on PINCTRL_LPASS_LPI
 	help
 	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
-	  Qualcomm Technologies Inc LPASS (Low Power Audio SubSystem) LPI
-	  (Low Power Island) found on the Qualcomm Technologies Inc SM8650
+	  Qualcomm Techanallogies Inc LPASS (Low Power Audio SubSystem) LPI
+	  (Low Power Island) found on the Qualcomm Techanallogies Inc SM8650
 	  platform.
 
 endif

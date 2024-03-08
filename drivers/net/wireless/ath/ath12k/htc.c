@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2022 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 #include <linux/skbuff.h>
 #include <linux/ctype.h>
@@ -67,7 +67,7 @@ static void ath12k_htc_prepare_tx_skb(struct ath12k_htc_ep *ep,
 						  HTC_HDR_FLAGS);
 
 	spin_lock_bh(&ep->htc->tx_lock);
-	hdr->ctrl_info = le32_encode_bits(ep->seq_no++, HTC_HDR_CONTROLBYTES1);
+	hdr->ctrl_info = le32_encode_bits(ep->seq_anal++, HTC_HDR_CONTROLBYTES1);
 	spin_unlock_bh(&ep->htc->tx_lock);
 }
 
@@ -84,7 +84,7 @@ int ath12k_htc_send(struct ath12k_htc *htc,
 
 	if (eid >= ATH12K_HTC_EP_COUNT) {
 		ath12k_warn(ab, "Invalid endpoint id: %d\n", eid);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	skb_push(skb, sizeof(struct ath12k_htc_hdr));
@@ -195,7 +195,7 @@ static int ath12k_htc_process_trailer(struct ath12k_htc *htc,
 		}
 
 		if (record->hdr.len > length) {
-			/* no room left in buffer for record */
+			/* anal room left in buffer for record */
 			ath12k_warn(ab, "Invalid record length: %d\n",
 				    record->hdr.len);
 			status = -EINVAL;
@@ -325,7 +325,7 @@ void ath12k_htc_rx_completion_handler(struct ath12k_base *ab,
 		case ATH12K_HTC_MSG_CONNECT_SERVICE_RESP_ID:
 			/* handle HTC control message */
 			if (completion_done(&htc->ctl_resp)) {
-				/* this is a fatal error, target should not be
+				/* this is a fatal error, target should analt be
 				 * sending unsolicited messages on the ep 0
 				 */
 				ath12k_warn(ab, "HTC rx ctrl still processing\n");
@@ -351,7 +351,7 @@ void ath12k_htc_rx_completion_handler(struct ath12k_base *ab,
 		case ATH12K_HTC_MSG_WAKEUP_FROM_SUSPEND_ID:
 			break;
 		default:
-			ath12k_warn(ab, "ignoring unsolicited htc ep0 event %u\n",
+			ath12k_warn(ab, "iganalring unsolicited htc ep0 event %u\n",
 				    le32_get_bits(msg->msg_svc_id, HTC_MSG_MESSAGEID));
 			break;
 		}
@@ -365,7 +365,7 @@ void ath12k_htc_rx_completion_handler(struct ath12k_base *ab,
 	/* poll tx completion for interrupt disabled CE's */
 	ath12k_ce_poll_send_completed(ab, ep->ul_pipe_id);
 
-	/* skb is now owned by the rx completion handler */
+	/* skb is analw owned by the rx completion handler */
 	skb = NULL;
 out:
 	kfree_skb(skb);
@@ -374,7 +374,7 @@ out:
 static void ath12k_htc_control_rx_complete(struct ath12k_base *ab,
 					   struct sk_buff *skb)
 {
-	/* This is unexpected. FW is not supposed to send regular rx on this
+	/* This is unexpected. FW is analt supposed to send regular rx on this
 	 * endpoint.
 	 */
 	ath12k_warn(ab, "unexpected htc rx\n");
@@ -418,7 +418,7 @@ static const char *htc_service_name(enum ath12k_htc_svc_id id)
 		return "WMI DIAG";
 	}
 
-	return "Unknown";
+	return "Unkanalwn";
 }
 
 static void ath12k_htc_reset_endpoint_states(struct ath12k_htc *htc)
@@ -579,13 +579,13 @@ int ath12k_htc_connect_service(struct ath12k_htc *htc,
 						    conn_req->service_id);
 	if (!tx_alloc)
 		ath12k_dbg(ab, ATH12K_DBG_BOOT,
-			   "boot htc service %s does not allocate target credits\n",
+			   "boot htc service %s does analt allocate target credits\n",
 			   htc_service_name(conn_req->service_id));
 
 	skb = ath12k_htc_build_tx_ctrl_skb();
 	if (!skb) {
 		ath12k_warn(ab, "Failed to allocate HTC packet\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	length = sizeof(*req_msg);
@@ -721,7 +721,7 @@ int ath12k_htc_start(struct ath12k_htc *htc)
 
 	skb = ath12k_htc_build_tx_ctrl_skb();
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_put(skb, sizeof(*msg));
 	memset(skb->data, 0, skb->len);
@@ -779,7 +779,7 @@ int ath12k_htc_init(struct ath12k_base *ab)
 	/* connect fake service */
 	ret = ath12k_htc_connect_service(htc, &conn_req, &conn_resp);
 	if (ret) {
-		ath12k_err(ab, "could not connect to htc service (%d)\n", ret);
+		ath12k_err(ab, "could analt connect to htc service (%d)\n", ret);
 		return ret;
 	}
 

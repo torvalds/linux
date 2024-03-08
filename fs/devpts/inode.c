@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /* -*- linux-c -*- --------------------------------------------------------- *
  *
- * linux/fs/devpts/inode.c
+ * linux/fs/devpts/ianalde.c
  *
  *  Copyright 1998-2004 H. Peter Anvin -- All Rights Reserved
  *
@@ -22,18 +22,18 @@
 #include <linux/idr.h>
 #include <linux/devpts_fs.h>
 #include <linux/parser.h>
-#include <linux/fsnotify.h>
+#include <linux/fsanaltify.h>
 #include <linux/seq_file.h>
 
 #define DEVPTS_DEFAULT_MODE 0600
 /*
- * ptmx is a new node in /dev/pts and will be unused in legacy (single-
+ * ptmx is a new analde in /dev/pts and will be unused in legacy (single-
  * instance) mode. To prevent surprises in user space, set permissions of
  * ptmx to 0. Use 'chmod' or remount with '-o ptmxmode' to set meaningful
  * permissions.
  */
 #define DEVPTS_DEFAULT_PTMX_MODE 0000
-#define PTMX_MINOR	2
+#define PTMX_MIANALR	2
 
 /*
  * sysctl support for setting limits on the number of Unix98 ptys allocated.
@@ -123,7 +123,7 @@ static int devpts_ptmx_path(struct path *path)
 	sb = path->mnt->mnt_sb;
 	if ((sb->s_magic != DEVPTS_SUPER_MAGIC) ||
 	    (path->mnt->mnt_root != sb->s_root))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -131,19 +131,19 @@ static int devpts_ptmx_path(struct path *path)
 /*
  * Try to find a suitable devpts filesystem. We support the following
  * scenarios:
- * - The ptmx device node is located in the same directory as the devpts
- *   mount where the pts device nodes are located.
+ * - The ptmx device analde is located in the same directory as the devpts
+ *   mount where the pts device analdes are located.
  *   This is e.g. the case when calling open on the /dev/pts/ptmx device
- *   node when the devpts filesystem is mounted at /dev/pts.
- * - The ptmx device node is located outside the devpts filesystem mount
- *   where the pts device nodes are located. For example, the ptmx device
- *   is a symlink, separate device node, or bind-mount.
+ *   analde when the devpts filesystem is mounted at /dev/pts.
+ * - The ptmx device analde is located outside the devpts filesystem mount
+ *   where the pts device analdes are located. For example, the ptmx device
+ *   is a symlink, separate device analde, or bind-mount.
  *   A supported scenario is bind-mounting /dev/pts/ptmx to /dev/ptmx and
  *   then calling open on /dev/ptmx. In this case a suitable pts
  *   subdirectory can be found in the common parent directory /dev of the
  *   devpts mount and the ptmx bind-mount, after resolving the /dev/ptmx
  *   bind-mount.
- *   If no suitable pts subdirectory can be found this function will fail.
+ *   If anal suitable pts subdirectory can be found this function will fail.
  *   This is e.g. the case when bind-mounting /dev/pts/ptmx to /ptmx.
  */
 struct vfsmount *devpts_mntget(struct file *filp, struct pts_fs_info *fsi)
@@ -170,7 +170,7 @@ struct vfsmount *devpts_mntget(struct file *filp, struct pts_fs_info *fsi)
 		if (DEVPTS_SB(path.mnt->mnt_sb) == fsi)
 			return path.mnt;
 
-		err = -ENODEV;
+		err = -EANALDEV;
 	}
 
 	mntput(path.mnt);
@@ -219,10 +219,10 @@ void devpts_release(struct pts_fs_info *fsi)
 
 /*
  * parse_mount_options():
- *	Set @opts to mount options specified in @data. If an option is not
+ *	Set @opts to mount options specified in @data. If an option is analt
  *	specified in @data, set it to its default value.
  *
- * Note: @data may be NULL (in which case all options are set to default).
+ * Analte: @data may be NULL (in which case all options are set to default).
  */
 static int parse_mount_options(char *data, int op, struct pts_mount_opts *opts)
 {
@@ -300,21 +300,21 @@ static int parse_mount_options(char *data, int op, struct pts_mount_opts *opts)
 	return 0;
 }
 
-static int mknod_ptmx(struct super_block *sb)
+static int mkanald_ptmx(struct super_block *sb)
 {
 	int mode;
-	int rc = -ENOMEM;
+	int rc = -EANALMEM;
 	struct dentry *dentry;
-	struct inode *inode;
+	struct ianalde *ianalde;
 	struct dentry *root = sb->s_root;
 	struct pts_fs_info *fsi = DEVPTS_SB(sb);
 	struct pts_mount_opts *opts = &fsi->mount_opts;
 	kuid_t ptmx_uid = current_fsuid();
 	kgid_t ptmx_gid = current_fsgid();
 
-	inode_lock(d_inode(root));
+	ianalde_lock(d_ianalde(root));
 
-	/* If we have already created ptmx node, return */
+	/* If we have already created ptmx analde, return */
 	if (fsi->ptmx_dentry) {
 		rc = 0;
 		goto out;
@@ -322,43 +322,43 @@ static int mknod_ptmx(struct super_block *sb)
 
 	dentry = d_alloc_name(root, "ptmx");
 	if (!dentry) {
-		pr_err("Unable to alloc dentry for ptmx node\n");
+		pr_err("Unable to alloc dentry for ptmx analde\n");
 		goto out;
 	}
 
 	/*
-	 * Create a new 'ptmx' node in this mount of devpts.
+	 * Create a new 'ptmx' analde in this mount of devpts.
 	 */
-	inode = new_inode(sb);
-	if (!inode) {
-		pr_err("Unable to alloc inode for ptmx node\n");
+	ianalde = new_ianalde(sb);
+	if (!ianalde) {
+		pr_err("Unable to alloc ianalde for ptmx analde\n");
 		dput(dentry);
 		goto out;
 	}
 
-	inode->i_ino = 2;
-	simple_inode_init_ts(inode);
+	ianalde->i_ianal = 2;
+	simple_ianalde_init_ts(ianalde);
 
 	mode = S_IFCHR|opts->ptmxmode;
-	init_special_inode(inode, mode, MKDEV(TTYAUX_MAJOR, 2));
-	inode->i_uid = ptmx_uid;
-	inode->i_gid = ptmx_gid;
+	init_special_ianalde(ianalde, mode, MKDEV(TTYAUX_MAJOR, 2));
+	ianalde->i_uid = ptmx_uid;
+	ianalde->i_gid = ptmx_gid;
 
-	d_add(dentry, inode);
+	d_add(dentry, ianalde);
 
 	fsi->ptmx_dentry = dentry;
 	rc = 0;
 out:
-	inode_unlock(d_inode(root));
+	ianalde_unlock(d_ianalde(root));
 	return rc;
 }
 
 static void update_ptmx_mode(struct pts_fs_info *fsi)
 {
-	struct inode *inode;
+	struct ianalde *ianalde;
 	if (fsi->ptmx_dentry) {
-		inode = d_inode(fsi->ptmx_dentry);
-		inode->i_mode = S_IFCHR|fsi->mount_opts.ptmxmode;
+		ianalde = d_ianalde(fsi->ptmx_dentry);
+		ianalde->i_mode = S_IFCHR|fsi->mount_opts.ptmxmode;
 	}
 }
 
@@ -373,7 +373,7 @@ static int devpts_remount(struct super_block *sb, int *flags, char *data)
 	/*
 	 * parse_mount_options() restores options to default values
 	 * before parsing and may have changed ptmxmode. So, update the
-	 * mode in the inode too. Bogus options don't fail the remount,
+	 * mode in the ianalde too. Bogus options don't fail the remount,
 	 * so do this even on error return.
 	 */
 	update_ptmx_mode(fsi);
@@ -425,10 +425,10 @@ static void *new_pts_fs_info(struct super_block *sb)
 static int
 devpts_fill_super(struct super_block *s, void *data, int silent)
 {
-	struct inode *inode;
+	struct ianalde *ianalde;
 	int error;
 
-	s->s_iflags &= ~SB_I_NODEV;
+	s->s_iflags &= ~SB_I_ANALDEV;
 	s->s_blocksize = 1024;
 	s->s_blocksize_bits = 10;
 	s->s_magic = DEVPTS_SUPER_MAGIC;
@@ -436,7 +436,7 @@ devpts_fill_super(struct super_block *s, void *data, int silent)
 	s->s_d_op = &simple_dentry_operations;
 	s->s_time_gran = 1;
 
-	error = -ENOMEM;
+	error = -EANALMEM;
 	s->s_fs_info = new_pts_fs_info(s);
 	if (!s->s_fs_info)
 		goto fail;
@@ -445,24 +445,24 @@ devpts_fill_super(struct super_block *s, void *data, int silent)
 	if (error)
 		goto fail;
 
-	error = -ENOMEM;
-	inode = new_inode(s);
-	if (!inode)
+	error = -EANALMEM;
+	ianalde = new_ianalde(s);
+	if (!ianalde)
 		goto fail;
-	inode->i_ino = 1;
-	simple_inode_init_ts(inode);
-	inode->i_mode = S_IFDIR | S_IRUGO | S_IXUGO | S_IWUSR;
-	inode->i_op = &simple_dir_inode_operations;
-	inode->i_fop = &simple_dir_operations;
-	set_nlink(inode, 2);
+	ianalde->i_ianal = 1;
+	simple_ianalde_init_ts(ianalde);
+	ianalde->i_mode = S_IFDIR | S_IRUGO | S_IXUGO | S_IWUSR;
+	ianalde->i_op = &simple_dir_ianalde_operations;
+	ianalde->i_fop = &simple_dir_operations;
+	set_nlink(ianalde, 2);
 
-	s->s_root = d_make_root(inode);
+	s->s_root = d_make_root(ianalde);
 	if (!s->s_root) {
 		pr_err("get root dentry failed\n");
 		goto fail;
 	}
 
-	error = mknod_ptmx(s);
+	error = mkanald_ptmx(s);
 	if (error)
 		goto fail_dput;
 
@@ -483,7 +483,7 @@ fail:
 static struct dentry *devpts_mount(struct file_system_type *fs_type,
 	int flags, const char *dev_name, void *data)
 {
-	return mount_nodev(fs_type, flags, data, devpts_fill_super);
+	return mount_analdev(fs_type, flags, data, devpts_fill_super);
 }
 
 static void devpts_kill_sb(struct super_block *sb)
@@ -504,13 +504,13 @@ static struct file_system_type devpts_fs_type = {
 };
 
 /*
- * The normal naming convention is simply /dev/pts/<number>; this conforms
+ * The analrmal naming convention is simply /dev/pts/<number>; this conforms
  * to the System V naming convention
  */
 
 int devpts_new_index(struct pts_fs_info *fsi)
 {
-	int index = -ENOSPC;
+	int index = -EANALSPC;
 
 	if (atomic_inc_return(&pty_count) >= (pty_limit -
 			  (fsi->mount_opts.reserve ? 0 : pty_reserve)))
@@ -532,19 +532,19 @@ void devpts_kill_index(struct pts_fs_info *fsi, int idx)
 }
 
 /**
- * devpts_pty_new -- create a new inode in /dev/pts/
+ * devpts_pty_new -- create a new ianalde in /dev/pts/
  * @fsi: Filesystem info for this instance.
- * @index: used as a name of the node
+ * @index: used as a name of the analde
  * @priv: what's given back by devpts_get_priv
  *
- * The dentry for the created inode is returned.
+ * The dentry for the created ianalde is returned.
  * Remove it from /dev/pts/ with devpts_pty_kill().
  */
 struct dentry *devpts_pty_new(struct pts_fs_info *fsi, int index, void *priv)
 {
 	struct dentry *dentry;
 	struct super_block *sb = fsi->sb;
-	struct inode *inode;
+	struct ianalde *ianalde;
 	struct dentry *root;
 	struct pts_mount_opts *opts;
 	char s[12];
@@ -552,26 +552,26 @@ struct dentry *devpts_pty_new(struct pts_fs_info *fsi, int index, void *priv)
 	root = sb->s_root;
 	opts = &fsi->mount_opts;
 
-	inode = new_inode(sb);
-	if (!inode)
-		return ERR_PTR(-ENOMEM);
+	ianalde = new_ianalde(sb);
+	if (!ianalde)
+		return ERR_PTR(-EANALMEM);
 
-	inode->i_ino = index + 3;
-	inode->i_uid = opts->setuid ? opts->uid : current_fsuid();
-	inode->i_gid = opts->setgid ? opts->gid : current_fsgid();
-	simple_inode_init_ts(inode);
-	init_special_inode(inode, S_IFCHR|opts->mode, MKDEV(UNIX98_PTY_SLAVE_MAJOR, index));
+	ianalde->i_ianal = index + 3;
+	ianalde->i_uid = opts->setuid ? opts->uid : current_fsuid();
+	ianalde->i_gid = opts->setgid ? opts->gid : current_fsgid();
+	simple_ianalde_init_ts(ianalde);
+	init_special_ianalde(ianalde, S_IFCHR|opts->mode, MKDEV(UNIX98_PTY_SLAVE_MAJOR, index));
 
 	sprintf(s, "%d", index);
 
 	dentry = d_alloc_name(root, s);
 	if (dentry) {
 		dentry->d_fsdata = priv;
-		d_add(dentry, inode);
-		fsnotify_create(d_inode(root), dentry);
+		d_add(dentry, ianalde);
+		fsanaltify_create(d_ianalde(root), dentry);
 	} else {
-		iput(inode);
-		dentry = ERR_PTR(-ENOMEM);
+		iput(ianalde);
+		dentry = ERR_PTR(-EANALMEM);
 	}
 
 	return dentry;
@@ -581,7 +581,7 @@ struct dentry *devpts_pty_new(struct pts_fs_info *fsi, int index, void *priv)
  * devpts_get_priv -- get private data for a slave
  * @dentry: dentry of the slave
  *
- * Returns whatever was passed as priv in devpts_pty_new for a given inode.
+ * Returns whatever was passed as priv in devpts_pty_new for a given ianalde.
  */
 void *devpts_get_priv(struct dentry *dentry)
 {
@@ -591,7 +591,7 @@ void *devpts_get_priv(struct dentry *dentry)
 }
 
 /**
- * devpts_pty_kill -- remove inode form /dev/pts/
+ * devpts_pty_kill -- remove ianalde form /dev/pts/
  * @dentry: dentry of the slave to be removed
  *
  * This is an inverse operation of devpts_pty_new.
@@ -601,9 +601,9 @@ void devpts_pty_kill(struct dentry *dentry)
 	WARN_ON_ONCE(dentry->d_sb->s_magic != DEVPTS_SUPER_MAGIC);
 
 	dentry->d_fsdata = NULL;
-	drop_nlink(dentry->d_inode);
+	drop_nlink(dentry->d_ianalde);
 	d_drop(dentry);
-	fsnotify_unlink(d_inode(dentry->d_parent), dentry);
+	fsanaltify_unlink(d_ianalde(dentry->d_parent), dentry);
 	dput(dentry);	/* d_alloc_name() in devpts_pty_new() */
 }
 

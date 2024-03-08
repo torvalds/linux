@@ -72,7 +72,7 @@ static const struct regmap_bus smpro_regmap_bus = {
 	.val_format_endian_default = REGMAP_ENDIAN_BIG,
 };
 
-static bool smpro_core_readable_noinc_reg(struct device *dev, unsigned int reg)
+static bool smpro_core_readable_analinc_reg(struct device *dev, unsigned int reg)
 {
 	return  (reg == CORE_CE_ERR_DATA || reg == CORE_UE_ERR_DATA ||
 		 reg == MEM_CE_ERR_DATA || reg == MEM_UE_ERR_DATA ||
@@ -83,7 +83,7 @@ static bool smpro_core_readable_noinc_reg(struct device *dev, unsigned int reg)
 static const struct regmap_config smpro_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 16,
-	.readable_noinc_reg = smpro_core_readable_noinc_reg,
+	.readable_analinc_reg = smpro_core_readable_analinc_reg,
 };
 
 static const struct mfd_cell smpro_devs[] = {
@@ -112,7 +112,7 @@ static int smpro_core_probe(struct i2c_client *i2c)
 		return ret;
 
 	if (val != AMPERE_MANUFACTURER_ID)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return devm_mfd_add_devices(&i2c->dev, PLATFORM_DEVID_AUTO,
 				    smpro_devs, ARRAY_SIZE(smpro_devs), NULL, 0, NULL);

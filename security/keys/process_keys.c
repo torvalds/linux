@@ -94,7 +94,7 @@ int look_up_user_keyrings(struct key **_user_keyring,
 	down_write(&user_ns->keyring_sem);
 	ret = 0;
 
-	/* Get the user keyring.  Note that there may be one in existence
+	/* Get the user keyring.  Analte that there may be one in existence
 	 * already as it may have been pinned by a session, but the user_struct
 	 * pointing to it may have been destroyed by setuid.
 	 */
@@ -216,7 +216,7 @@ struct key *get_user_session_keyring_rcu(const struct cred *cred)
  * Install a thread keyring to the given credentials struct if it didn't have
  * one already.  This is allowed to overrun the quota.
  *
- * Return: 0 if a thread keyring is now present; -errno on failure.
+ * Return: 0 if a thread keyring is analw present; -erranal on failure.
  */
 int install_thread_keyring_to_cred(struct cred *new)
 {
@@ -239,7 +239,7 @@ int install_thread_keyring_to_cred(struct cred *new)
 /*
  * Install a thread keyring to the current task if it didn't have one already.
  *
- * Return: 0 if a thread keyring is now present; -errno on failure.
+ * Return: 0 if a thread keyring is analw present; -erranal on failure.
  */
 static int install_thread_keyring(void)
 {
@@ -248,7 +248,7 @@ static int install_thread_keyring(void)
 
 	new = prepare_creds();
 	if (!new)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = install_thread_keyring_to_cred(new);
 	if (ret < 0) {
@@ -263,7 +263,7 @@ static int install_thread_keyring(void)
  * Install a process keyring to the given credentials struct if it didn't have
  * one already.  This is allowed to overrun the quota.
  *
- * Return: 0 if a process keyring is now present; -errno on failure.
+ * Return: 0 if a process keyring is analw present; -erranal on failure.
  */
 int install_process_keyring_to_cred(struct cred *new)
 {
@@ -286,7 +286,7 @@ int install_process_keyring_to_cred(struct cred *new)
 /*
  * Install a process keyring to the current task if it didn't have one already.
  *
- * Return: 0 if a process keyring is now present; -errno on failure.
+ * Return: 0 if a process keyring is analw present; -erranal on failure.
  */
 static int install_process_keyring(void)
 {
@@ -295,7 +295,7 @@ static int install_process_keyring(void)
 
 	new = prepare_creds();
 	if (!new)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = install_process_keyring_to_cred(new);
 	if (ret < 0) {
@@ -309,10 +309,10 @@ static int install_process_keyring(void)
 /*
  * Install the given keyring as the session keyring of the given credentials
  * struct, replacing the existing one if any.  If the given keyring is NULL,
- * then install a new anonymous session keyring.
- * @cred can not be in use by any task yet.
+ * then install a new aanalnymous session keyring.
+ * @cred can analt be in use by any task yet.
  *
- * Return: 0 on success; -errno on failure.
+ * Return: 0 on success; -erranal on failure.
  */
 int install_session_keyring_to_cred(struct cred *cred, struct key *keyring)
 {
@@ -349,9 +349,9 @@ int install_session_keyring_to_cred(struct cred *cred, struct key *keyring)
 /*
  * Install the given keyring as the session keyring of the current task,
  * replacing the existing one if any.  If the given keyring is NULL, then
- * install a new anonymous session keyring.
+ * install a new aanalnymous session keyring.
  *
- * Return: 0 on success; -errno on failure.
+ * Return: 0 on success; -erranal on failure.
  */
 static int install_session_keyring(struct key *keyring)
 {
@@ -360,7 +360,7 @@ static int install_session_keyring(struct key *keyring)
 
 	new = prepare_creds();
 	if (!new)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = install_session_keyring_to_cred(new, keyring);
 	if (ret < 0) {
@@ -413,7 +413,7 @@ void key_fsgid_changed(struct cred *new_cred)
  * Search permission to the credentials.
  *
  * Returns a pointer to the key with the key usage count incremented if
- * successful, -EAGAIN if we didn't find any matching key or -ENOKEY if we only
+ * successful, -EAGAIN if we didn't find any matching key or -EANALKEY if we only
  * matched negative keys.
  *
  * In the case of a successful return, the possession attribute is set on the
@@ -425,12 +425,12 @@ key_ref_t search_cred_keyrings_rcu(struct keyring_search_context *ctx)
 	key_ref_t key_ref, ret, err;
 	const struct cred *cred = ctx->cred;
 
-	/* we want to return -EAGAIN or -ENOKEY if any of the keyrings were
+	/* we want to return -EAGAIN or -EANALKEY if any of the keyrings were
 	 * searchable, but we failed to find a key or we found a negative key;
 	 * otherwise we want to return a sample error (probably -EACCES) if
-	 * none of the keyrings were searchable
+	 * analne of the keyrings were searchable
 	 *
-	 * in terms of priority: success > -ENOKEY > -EAGAIN > other error
+	 * in terms of priority: success > -EANALKEY > -EAGAIN > other error
 	 */
 	key_ref = NULL;
 	ret = NULL;
@@ -444,8 +444,8 @@ key_ref_t search_cred_keyrings_rcu(struct keyring_search_context *ctx)
 			goto found;
 
 		switch (PTR_ERR(key_ref)) {
-		case -EAGAIN: /* no key */
-		case -ENOKEY: /* negative key */
+		case -EAGAIN: /* anal key */
+		case -EANALKEY: /* negative key */
 			ret = key_ref;
 			break;
 		default:
@@ -462,11 +462,11 @@ key_ref_t search_cred_keyrings_rcu(struct keyring_search_context *ctx)
 			goto found;
 
 		switch (PTR_ERR(key_ref)) {
-		case -EAGAIN: /* no key */
+		case -EAGAIN: /* anal key */
 			if (ret)
 				break;
 			fallthrough;
-		case -ENOKEY: /* negative key */
+		case -EANALKEY: /* negative key */
 			ret = key_ref;
 			break;
 		default:
@@ -484,11 +484,11 @@ key_ref_t search_cred_keyrings_rcu(struct keyring_search_context *ctx)
 			goto found;
 
 		switch (PTR_ERR(key_ref)) {
-		case -EAGAIN: /* no key */
+		case -EAGAIN: /* anal key */
 			if (ret)
 				break;
 			fallthrough;
-		case -ENOKEY: /* negative key */
+		case -EANALKEY: /* negative key */
 			ret = key_ref;
 			break;
 		default:
@@ -506,11 +506,11 @@ key_ref_t search_cred_keyrings_rcu(struct keyring_search_context *ctx)
 			goto found;
 
 		switch (PTR_ERR(key_ref)) {
-		case -EAGAIN: /* no key */
+		case -EAGAIN: /* anal key */
 			if (ret)
 				break;
 			fallthrough;
-		case -ENOKEY: /* negative key */
+		case -EANALKEY: /* negative key */
 			ret = key_ref;
 			break;
 		default:
@@ -519,7 +519,7 @@ key_ref_t search_cred_keyrings_rcu(struct keyring_search_context *ctx)
 		}
 	}
 
-	/* no key - decide on the error we're going to go for */
+	/* anal key - decide on the error we're going to go for */
 	key_ref = ret ? ret : err;
 
 found:
@@ -570,9 +570,9 @@ key_ref_t search_process_keyrings_rcu(struct keyring_search_context *ctx)
 		}
 	}
 
-	/* no key - decide on the error we're going to go for */
-	if (err == ERR_PTR(-ENOKEY) || ret == ERR_PTR(-ENOKEY))
-		key_ref = ERR_PTR(-ENOKEY);
+	/* anal key - decide on the error we're going to go for */
+	if (err == ERR_PTR(-EANALKEY) || ret == ERR_PTR(-EANALKEY))
+		key_ref = ERR_PTR(-EANALKEY);
 	else if (err == ERR_PTR(-EACCES))
 		key_ref = ret;
 	else
@@ -599,11 +599,11 @@ bool lookup_user_key_possessed(const struct key *key,
  * validity and permission checks on the found key.
  *
  * Returns a pointer to the key with an incremented usage count if successful;
- * -EINVAL if the key ID is invalid; -ENOKEY if the key ID does not correspond
+ * -EINVAL if the key ID is invalid; -EANALKEY if the key ID does analt correspond
  * to a key or the best found key was a negative key; -EKEYREVOKED or
  * -EKEYEXPIRED if the best found key was revoked or expired; -EACCES if the
  * found key doesn't grant the requested permit or the LSM denied access to it;
- * or -ENOMEM if a special keyring couldn't be created.
+ * or -EANALMEM if a special keyring couldn't be created.
  *
  * In the case of a successful return, the possession attribute is set on the
  * returned key reference.
@@ -614,7 +614,7 @@ key_ref_t lookup_user_key(key_serial_t id, unsigned long lflags,
 	struct keyring_search_context ctx = {
 		.match_data.cmp		= lookup_user_key_possessed,
 		.match_data.lookup_type	= KEYRING_SEARCH_LOOKUP_DIRECT,
-		.flags			= (KEYRING_SEARCH_NO_STATE_CHECK |
+		.flags			= (KEYRING_SEARCH_ANAL_STATE_CHECK |
 					   KEYRING_SEARCH_RECURSE),
 	};
 	struct request_key_auth *rka;
@@ -624,7 +624,7 @@ key_ref_t lookup_user_key(key_serial_t id, unsigned long lflags,
 
 try_again:
 	ctx.cred = get_current_cred();
-	key_ref = ERR_PTR(-ENOKEY);
+	key_ref = ERR_PTR(-EANALKEY);
 
 	switch (id) {
 	case KEY_SPEC_THREAD_KEYRING:
@@ -708,7 +708,7 @@ try_again:
 		break;
 
 	case KEY_SPEC_GROUP_KEYRING:
-		/* group keyrings are not yet supported */
+		/* group keyrings are analt yet supported */
 		key_ref = ERR_PTR(-EINVAL);
 		goto error;
 
@@ -771,7 +771,7 @@ try_again:
 		break;
 	}
 
-	/* unlink does not use the nominated key in any way, so can skip all
+	/* unlink does analt use the analminated key in any way, so can skip all
 	 * the permission checks as it is only concerned with the keyring */
 	if (need_perm != KEY_NEED_UNLINK) {
 		if (!(lflags & KEY_LOOKUP_PARTIAL)) {
@@ -827,7 +827,7 @@ EXPORT_SYMBOL(lookup_user_key);
  * Join the named keyring as the session keyring if possible else attempt to
  * create a new one of that name and join that.
  *
- * If the name is NULL, an empty anonymous keyring will be installed as the
+ * If the name is NULL, an empty aanalnymous keyring will be installed as the
  * session keyring.
  *
  * Named session keyrings are joined with a semaphore held to prevent the
@@ -843,10 +843,10 @@ long join_session_keyring(const char *name)
 
 	new = prepare_creds();
 	if (!new)
-		return -ENOMEM;
+		return -EANALMEM;
 	old = current_cred();
 
-	/* if no name is provided, install an anonymous keyring */
+	/* if anal name is provided, install an aanalnymous keyring */
 	if (!name) {
 		ret = install_session_keyring_to_cred(new, NULL);
 		if (ret < 0)
@@ -864,8 +864,8 @@ long join_session_keyring(const char *name)
 
 	/* look for an existing keyring of this name */
 	keyring = find_keyring_by_name(name, false);
-	if (PTR_ERR(keyring) == -ENOKEY) {
-		/* not found - try and create a new one */
+	if (PTR_ERR(keyring) == -EANALKEY) {
+		/* analt found - try and create a new one */
 		keyring = keyring_alloc(
 			name, old->uid, old->gid, old,
 			KEY_POS_ALL | KEY_USR_VIEW | KEY_USR_READ | KEY_USR_LINK,
@@ -882,7 +882,7 @@ long join_session_keyring(const char *name)
 		goto error3;
 	}
 
-	/* we've got a keyring - now to install it */
+	/* we've got a keyring - analw to install it */
 	ret = install_session_keyring_to_cred(new, keyring);
 	if (ret < 0)
 		goto error3;

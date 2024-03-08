@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /* Huawei HiNIC PCI Express Linux driver
- * Copyright(c) 2017 Huawei Technologies Co., Ltd
+ * Copyright(c) 2017 Huawei Techanallogies Co., Ltd
  */
 
 #ifndef HINIC_DEBUGFS_H
@@ -8,7 +8,7 @@
 
 #include "hinic_dev.h"
 
-#define    TBL_ID_FUNC_CFG_SM_NODE                      11
+#define    TBL_ID_FUNC_CFG_SM_ANALDE                      11
 #define    TBL_ID_FUNC_CFG_SM_INST                      1
 
 #define HINIC_FUNCTION_CONFIGURE_TABLE_SIZE             64
@@ -18,7 +18,7 @@ struct hinic_cmd_lt_rd {
 	u8	version;
 	u8	rsvd0[6];
 
-	unsigned char node;
+	unsigned char analde;
 	unsigned char inst;
 	unsigned char entry_size;
 	unsigned char rsvd;

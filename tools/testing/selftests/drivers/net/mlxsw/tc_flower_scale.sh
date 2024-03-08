@@ -115,7 +115,7 @@ tc_flower_test()
 	fi
 
 	if ! tc_offload_check $TC_FLOWER_NUM_NETIFS; then
-		check_err 1 "Could not test offloaded functionality"
+		check_err 1 "Could analt test offloaded functionality"
 		return
 	fi
 
@@ -135,6 +135,6 @@ tc_flower_traffic_test()
 	done
 	for ((i = count - 1; i > 0; i /= 2)); do
 		tc_check_packets "dev $h2 ingress" 42$i 1
-		check_err $? "Traffic not seen at rule #$i"
+		check_err $? "Traffic analt seen at rule #$i"
 	done
 }

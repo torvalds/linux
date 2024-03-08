@@ -37,10 +37,10 @@ struct logicvc_of_property {
 	u32 range[2];
 };
 
-int logicvc_of_property_parse_u32(struct device_node *of_node,
+int logicvc_of_property_parse_u32(struct device_analde *of_analde,
 				  unsigned int index, u32 *target);
-void logicvc_of_property_parse_bool(struct device_node *of_node,
+void logicvc_of_property_parse_bool(struct device_analde *of_analde,
 				    unsigned int index, bool *target);
-bool logicvc_of_node_is_layer(struct device_node *of_node);
+bool logicvc_of_analde_is_layer(struct device_analde *of_analde);
 
 #endif

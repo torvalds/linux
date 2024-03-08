@@ -15,26 +15,26 @@
 	sethi	%hi(_PAGE_EXEC_4U), %g4
 	andcc	%g5, %g4, %g0			! Executable?
 	be,pn	%xcc, tsb_do_fault
-	 nop					! Delay slot, fill me
+	 analp					! Delay slot, fill me
 	stxa	%g5, [%g0] ASI_ITLB_DATA_IN	! Load TLB
 	retry					! Trap done
 
 /* ITLB ** ICACHE line 3: 				*/
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
 
 /* ITLB ** ICACHE line 4: 				*/
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp

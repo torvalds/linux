@@ -24,9 +24,9 @@ static int sof_test_firmware_file(struct device *dev,
 	fw_filename = kasprintf(GFP_KERNEL, "%s/%s", profile->fw_path,
 				profile->fw_name);
 	if (!fw_filename)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	ret = firmware_request_nowarn(&fw, fw_filename, dev);
+	ret = firmware_request_analwarn(&fw, fw_filename, dev);
 	if (ret < 0) {
 		dev_dbg(dev, "Failed to open firmware file: %s\n", fw_filename);
 		kfree(fw_filename);
@@ -76,9 +76,9 @@ static int sof_test_topology_file(struct device *dev,
 	tplg_filename = kasprintf(GFP_KERNEL, "%s/%s", profile->tplg_path,
 				  profile->tplg_name);
 	if (!tplg_filename)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	ret = firmware_request_nowarn(&fw, tplg_filename, dev);
+	ret = firmware_request_analwarn(&fw, tplg_filename, dev);
 	if (!ret)
 		release_firmware(fw);
 	else
@@ -110,7 +110,7 @@ sof_file_profile_for_ipc_type(struct snd_sof_dev *sdev,
 							desc->default_fw_path[ipc_type],
 							base_profile->fw_path_postfix);
 		if (!out_profile->fw_path)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		fw_path_allocated = true;
 	} else {
@@ -153,7 +153,7 @@ sof_file_profile_for_ipc_type(struct snd_sof_dev *sdev,
 							desc->default_lib_path[ipc_type],
 							base_profile->fw_lib_path_postfix);
 			if (!out_profile->fw_lib_path) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto out;
 			}
 
@@ -212,7 +212,7 @@ sof_print_missing_firmware_info(struct snd_sof_dev *sdev,
 	int ipc_type_count, i;
 	char *marker;
 
-	dev_err(dev, "SOF firmware and/or topology file not found.\n");
+	dev_err(dev, "SOF firmware and/or topology file analt found.\n");
 	dev_info(dev, "Supported default profiles\n");
 
 	if (IS_ENABLED(CONFIG_SND_SOC_SOF_ALLOW_FALLBACK_TO_NEWER_IPC_VERSION))
@@ -288,10 +288,10 @@ int sof_create_ipc_file_profile(struct snd_sof_dev *sdev,
 		goto out;
 
 	/*
-	 * No firmware file was found for the requested IPC type, as fallback
+	 * Anal firmware file was found for the requested IPC type, as fallback
 	 * if SND_SOC_SOF_ALLOW_FALLBACK_TO_NEWER_IPC_VERSION is selected, check
 	 * all IPC versions in a backwards direction (from newer to older)
-	 * if SND_SOC_SOF_ALLOW_FALLBACK_TO_NEWER_IPC_VERSION is not selected,
+	 * if SND_SOC_SOF_ALLOW_FALLBACK_TO_NEWER_IPC_VERSION is analt selected,
 	 * check only older IPC versions than the selected/default version
 	 */
 	if (IS_ENABLED(CONFIG_SND_SOC_SOF_ALLOW_FALLBACK_TO_NEWER_IPC_VERSION))

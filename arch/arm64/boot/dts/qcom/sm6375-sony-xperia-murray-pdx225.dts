@@ -15,7 +15,7 @@
 #include "pmr735a.dtsi"
 
 /* PM6125 PON is used and we can't have duplicate labels */
-/delete-node/ &pmk8350_pon;
+/delete-analde/ &pmk8350_pon;
 
 / {
 	model = "Sony Xperia 10 IV";
@@ -37,7 +37,7 @@
 			format = "a8r8g8b8";
 			/*
 			 * That's (going to be) a lot of clocks, but it's necessary due
-			 * to unused clk cleanup & no panel driver yet
+			 * to unused clk cleanup & anal panel driver yet
 			 */
 			clocks = <&gcc GCC_DISP_AHB_CLK>,
 				 <&gcc GCC_DISP_HF_AXI_CLK>,
@@ -66,7 +66,7 @@
 	reserved-memory {
 		cont_splash_mem: memory@85200000 {
 			reg = <0 0x85200000 0 0xc00000>;
-			no-map;
+			anal-map;
 		};
 
 		ramoops@ffc40000 {
@@ -163,7 +163,7 @@
 &pmr735a_gpios {
 	vol_down_n: vol-down-n-state {
 		pins = "gpio1";
-		function = "normal";
+		function = "analrmal";
 		power-source = <1>;
 		bias-pull-up;
 		input-enable;

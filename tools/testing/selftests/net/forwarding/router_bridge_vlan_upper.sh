@@ -94,8 +94,8 @@ router_destroy()
 	bridge vlan del dev br1 vid 777 self
 	bridge vlan del dev br1 vid 555 self
 
-	ip link set dev $swp2 down nomaster
-	ip link set dev $swp1 down nomaster
+	ip link set dev $swp2 down analmaster
+	ip link set dev $swp1 down analmaster
 
 	ip link set dev br1 down
 	ip link del dev br1
@@ -147,8 +147,8 @@ respin_config()
 {
 	log_info "Remaster bridge slave"
 
-	ip link set dev $swp2 nomaster
-	ip link set dev $swp1 nomaster
+	ip link set dev $swp2 analmaster
+	ip link set dev $swp1 analmaster
 
 	sleep 2
 

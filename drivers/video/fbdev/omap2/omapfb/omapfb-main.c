@@ -2,8 +2,8 @@
 /*
  * linux/drivers/video/omap2/omapfb-main.c
  *
- * Copyright (C) 2008 Nokia Corporation
- * Author: Tomi Valkeinen <tomi.valkeinen@nokia.com>
+ * Copyright (C) 2008 Analkia Corporation
+ * Author: Tomi Valkeinen <tomi.valkeinen@analkia.com>
  *
  * Some code and ideas taken from drivers/video/omap/ driver
  * by Imre Deak.
@@ -205,11 +205,11 @@ static struct omapfb_colormode omapfb_colormodes[] = {
 	{
 		.dssmode = OMAP_DSS_COLOR_UYVY,
 		.bits_per_pixel = 16,
-		.nonstd = OMAPFB_COLOR_YUV422,
+		.analnstd = OMAPFB_COLOR_YUV422,
 	}, {
 		.dssmode = OMAP_DSS_COLOR_YUV2,
 		.bits_per_pixel = 16,
-		.nonstd = OMAPFB_COLOR_YUY422,
+		.analnstd = OMAPFB_COLOR_YUY422,
 	}, {
 		.dssmode = OMAP_DSS_COLOR_ARGB16,
 		.bits_per_pixel = 16,
@@ -289,7 +289,7 @@ static void assign_colormode_to_var(struct fb_var_screeninfo *var,
 		struct omapfb_colormode *color)
 {
 	var->bits_per_pixel = color->bits_per_pixel;
-	var->nonstd = color->nonstd;
+	var->analnstd = color->analnstd;
 	var->red = color->red;
 	var->green = color->green;
 	var->blue = color->blue;
@@ -302,11 +302,11 @@ static int fb_mode_to_dss_mode(struct fb_var_screeninfo *var,
 	enum omap_color_mode dssmode;
 	int i;
 
-	/* first match with nonstd field */
-	if (var->nonstd) {
+	/* first match with analnstd field */
+	if (var->analnstd) {
 		for (i = 0; i < ARRAY_SIZE(omapfb_colormodes); ++i) {
 			struct omapfb_colormode *m = &omapfb_colormodes[i];
-			if (var->nonstd == m->nonstd) {
+			if (var->analnstd == m->analnstd) {
 				assign_colormode_to_var(var, m);
 				*mode = m->dssmode;
 				return 0;
@@ -326,7 +326,7 @@ static int fb_mode_to_dss_mode(struct fb_var_screeninfo *var,
 		}
 	}
 
-	/* match with bpp if user has not filled color fields
+	/* match with bpp if user has analt filled color fields
 	 * properly */
 	switch (var->bits_per_pixel) {
 	case 1:
@@ -455,7 +455,7 @@ static int check_fb_size(const struct omapfb_info *ofbi,
 				line_size, var);
 
 		if (check_vrfb_fb_size(max_frame_size, var)) {
-			DBG("cannot fit FB to memory\n");
+			DBG("cananalt fit FB to memory\n");
 			return -EINVAL;
 		}
 
@@ -473,7 +473,7 @@ static int check_fb_size(const struct omapfb_info *ofbi,
 	}
 
 	if (line_size * var->yres_virtual > max_frame_size) {
-		DBG("cannot fit FB to memory\n");
+		DBG("cananalt fit FB to memory\n");
 		return -EINVAL;
 	}
 
@@ -484,7 +484,7 @@ static int check_fb_size(const struct omapfb_info *ofbi,
  * Consider if VRFB assisted rotation is in use and if the virtual space for
  * the zero degree view needs to be mapped. The need for mapping also acts as
  * the trigger for setting up the hardware on the context in question. This
- * ensures that one does not attempt to access the virtual view before the
+ * ensures that one does analt attempt to access the virtual view before the
  * hardware is serving the address translations.
  */
 static int setup_vrfb_rotation(struct fb_info *fbi)
@@ -545,7 +545,7 @@ static int setup_vrfb_rotation(struct fb_info *fbi)
 			var->yres_virtual,
 			bytespp, yuv_mode);
 
-	/* Now one can ioremap the 0 angle view */
+	/* Analw one can ioremap the 0 angle view */
 	r = omap_vrfb_map_angle(vrfb, var->yres_virtual, 0);
 	if (r)
 		return r;
@@ -555,7 +555,7 @@ static int setup_vrfb_rotation(struct fb_info *fbi)
 
 	fix->smem_start = ofbi->region->vrfb.paddr[0];
 
-	switch (var->nonstd) {
+	switch (var->analnstd) {
 	case OMAPFB_COLOR_YUV422:
 	case OMAPFB_COLOR_YUY422:
 		fix->line_length =
@@ -584,7 +584,7 @@ int dss_mode_to_fb_mode(enum omap_color_mode dssmode,
 			return 0;
 		}
 	}
-	return -ENOENT;
+	return -EANALENT;
 }
 
 void set_fb_fix(struct fb_info *fbi)
@@ -601,7 +601,7 @@ void set_fb_fix(struct fb_info *fbi)
 
 	/* used by mmap in fbmem.c */
 	if (ofbi->rotation_type == OMAP_DSS_ROT_VRFB) {
-		switch (var->nonstd) {
+		switch (var->analnstd) {
 		case OMAPFB_COLOR_YUV422:
 		case OMAPFB_COLOR_YUY422:
 			fix->line_length =
@@ -624,7 +624,7 @@ void set_fb_fix(struct fb_info *fbi)
 
 	fix->type = FB_TYPE_PACKED_PIXELS;
 
-	if (var->nonstd)
+	if (var->analnstd)
 		fix->visual = FB_VISUAL_PSEUDOCOLOR;
 	else {
 		switch (var->bits_per_pixel) {
@@ -644,7 +644,7 @@ void set_fb_fix(struct fb_info *fbi)
 		}
 	}
 
-	fix->accel = FB_ACCEL_NONE;
+	fix->accel = FB_ACCEL_ANALNE;
 
 	fix->xpanstep = 1;
 	fix->ypanstep = 1;
@@ -665,7 +665,7 @@ int check_fb_var(struct fb_info *fbi, struct fb_var_screeninfo *var)
 
 	r = fb_mode_to_dss_mode(var, &mode);
 	if (r) {
-		DBG("cannot convert var to omap dss mode\n");
+		DBG("cananalt convert var to omap dss mode\n");
 		return r;
 	}
 
@@ -682,7 +682,7 @@ int check_fb_var(struct fb_info *fbi, struct fb_var_screeninfo *var)
 	if (check_fb_res_bounds(var))
 		return -EINVAL;
 
-	/* When no memory is allocated ignore the size check */
+	/* When anal memory is allocated iganalre the size check */
 	if (ofbi->region->size != 0 && check_fb_size(ofbi, var))
 		return -EINVAL;
 
@@ -726,7 +726,7 @@ int check_fb_var(struct fb_info *fbi, struct fb_var_screeninfo *var)
 		var->sync |= timings.vsync_level == OMAPDSS_SIG_ACTIVE_HIGH ?
 				FB_SYNC_VERT_HIGH_ACT : 0;
 		var->vmode = timings.interlace ?
-				FB_VMODE_INTERLACED : FB_VMODE_NONINTERLACED;
+				FB_VMODE_INTERLACED : FB_VMODE_ANALNINTERLACED;
 	} else {
 		var->pixclock = 0;
 		var->left_margin = 0;
@@ -736,7 +736,7 @@ int check_fb_var(struct fb_info *fbi, struct fb_var_screeninfo *var)
 		var->hsync_len = 0;
 		var->vsync_len = 0;
 		var->sync = 0;
-		var->vmode = FB_VMODE_NONINTERLACED;
+		var->vmode = FB_VMODE_ANALNINTERLACED;
 	}
 
 	return 0;
@@ -874,7 +874,7 @@ int omapfb_setup_overlay(struct fb_info *fbi, struct omap_overlay *ovl,
 		goto err;
 	}
 
-	switch (var->nonstd) {
+	switch (var->analnstd) {
 	case OMAPFB_COLOR_YUV422:
 	case OMAPFB_COLOR_YUY422:
 		if (ofbi->rotation_type == OMAP_DSS_ROT_VRFB) {
@@ -946,7 +946,7 @@ int omapfb_apply_changes(struct fb_info *fbi, int init)
 		DBG("apply_changes, fb %d, ovl %d\n", ofbi->id, ovl->id);
 
 		if (ofbi->region->size == 0) {
-			/* the fb is not available. disable the overlay */
+			/* the fb is analt available. disable the overlay */
 			omapfb_overlay_enable(ovl, 0);
 			if (!init && ovl->manager)
 				ovl->manager->apply(ovl->manager);
@@ -994,7 +994,7 @@ err:
 }
 
 /* checks var and eventually tweaks it to something supported,
- * DO NOT MODIFY PAR */
+ * DO ANALT MODIFY PAR */
 static int omapfb_check_var(struct fb_var_screeninfo *var, struct fb_info *fbi)
 {
 	struct omapfb_info *ofbi = FB2OFB(fbi);
@@ -1127,10 +1127,10 @@ error:
 }
 
 /* Store a single color palette entry into a pseudo palette or the hardware
- * palette if one is available. For now we support only 16bpp and thus store
+ * palette if one is available. For analw we support only 16bpp and thus store
  * the entry only to the pseudo palette.
  */
-static int _setcolreg(struct fb_info *fbi, u_int regno, u_int red, u_int green,
+static int _setcolreg(struct fb_info *fbi, u_int reganal, u_int red, u_int green,
 		u_int blue, u_int transp, int update_hw_pal)
 {
 	/*struct omapfb_info *ofbi = FB2OFB(fbi);*/
@@ -1153,7 +1153,7 @@ static int _setcolreg(struct fb_info *fbi, u_int regno, u_int red, u_int green,
 	case OMAPFB_COLOR_CLUT_1BPP:
 		/*
 		   if (fbdev->ctrl->setcolreg)
-		   r = fbdev->ctrl->setcolreg(regno, red, green, blue,
+		   r = fbdev->ctrl->setcolreg(reganal, red, green, blue,
 		   transp, update_hw_pal);
 		   */
 		r = -EINVAL;
@@ -1162,14 +1162,14 @@ static int _setcolreg(struct fb_info *fbi, u_int regno, u_int red, u_int green,
 	case OMAPFB_COLOR_RGB444:
 	case OMAPFB_COLOR_RGB24P:
 	case OMAPFB_COLOR_RGB24U:
-		if (regno < 16) {
+		if (reganal < 16) {
 			u32 pal;
 			pal = ((red >> (16 - var->red.length)) <<
 					var->red.offset) |
 				((green >> (16 - var->green.length)) <<
 				 var->green.offset) |
 				(blue >> (16 - var->blue.length));
-			((u32 *)(fbi->pseudo_palette))[regno] = pal;
+			((u32 *)(fbi->pseudo_palette))[reganal] = pal;
 		}
 		break;
 	default:
@@ -1178,12 +1178,12 @@ static int _setcolreg(struct fb_info *fbi, u_int regno, u_int red, u_int green,
 	return r;
 }
 
-static int omapfb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
+static int omapfb_setcolreg(u_int reganal, u_int red, u_int green, u_int blue,
 		u_int transp, struct fb_info *info)
 {
 	DBG("setcolreg\n");
 
-	return _setcolreg(info, regno, red, green, blue, transp, 1);
+	return _setcolreg(info, reganal, red, green, blue, transp, 1);
 }
 
 static int omapfb_setcmap(struct fb_cmap *cmap, struct fb_info *info)
@@ -1241,8 +1241,8 @@ static int omapfb_blank(int blank, struct fb_info *fbi)
 
 		break;
 
-	case FB_BLANK_NORMAL:
-		/* FB_BLANK_NORMAL could be implemented.
+	case FB_BLANK_ANALRMAL:
+		/* FB_BLANK_ANALRMAL could be implemented.
 		 * Needs DSS additions. */
 	case FB_BLANK_VSYNC_SUSPEND:
 	case FB_BLANK_HSYNC_SUSPEND:
@@ -1376,7 +1376,7 @@ static int omapfb_alloc_fbmem(struct fb_info *fbi, unsigned long size,
 	attrs = DMA_ATTR_WRITE_COMBINE;
 
 	if (ofbi->rotation_type == OMAP_DSS_ROT_VRFB)
-		attrs |= DMA_ATTR_NO_KERNEL_MAPPING;
+		attrs |= DMA_ATTR_ANAL_KERNEL_MAPPING;
 
 	DBG("allocating %lu bytes for fb %d\n", size, ofbi->id);
 
@@ -1385,7 +1385,7 @@ static int omapfb_alloc_fbmem(struct fb_info *fbi, unsigned long size,
 
 	if (token == NULL) {
 		dev_err(fbdev->dev, "failed to allocate framebuffer\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	DBG("allocated VRAM paddr %lx, vaddr %p\n",
@@ -1501,7 +1501,7 @@ static int omapfb_parse_vram_param(const char *param, int max_entries,
 		}
 
 		WARN_ONCE(paddr,
-			"reserving memory at predefined address not supported\n");
+			"reserving memory at predefined address analt supported\n");
 
 		paddrs[fbnum] = paddr;
 		sizes[fbnum] = size;
@@ -1740,7 +1740,7 @@ static int omapfb_fb_init(struct omapfb2_device *fbdev, struct fb_info *fbi)
 		return 0;
 	}
 
-	var->nonstd = 0;
+	var->analnstd = 0;
 	var->bits_per_pixel = 0;
 
 	var->rotate = def_rotate;
@@ -1778,7 +1778,7 @@ static int omapfb_fb_init(struct omapfb2_device *fbdev, struct fb_info *fbi)
 			}
 		}
 	} else {
-		/* if there's no display, let's just guess some basic values */
+		/* if there's anal display, let's just guess some basic values */
 		var->xres = 320;
 		var->yres = 240;
 		var->xres_virtual = var->xres;
@@ -1877,7 +1877,7 @@ static int omapfb_create_framebuffers(struct omapfb2_device *fbdev)
 		fbi = framebuffer_alloc(sizeof(struct omapfb_info),
 				fbdev->dev);
 		if (!fbi)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		clear_fb_info(fbi);
 
@@ -2025,19 +2025,19 @@ static int omapfb_mode_to_timings(const char *mode_str,
 
 	fbi = kzalloc(sizeof(*fbi), GFP_KERNEL);
 	if (fbi == NULL) {
-		r = -ENOMEM;
+		r = -EANALMEM;
 		goto err;
 	}
 
 	var = kzalloc(sizeof(*var), GFP_KERNEL);
 	if (var == NULL) {
-		r = -ENOMEM;
+		r = -EANALMEM;
 		goto err;
 	}
 
 	fbops = kzalloc(sizeof(*fbops), GFP_KERNEL);
 	if (fbops == NULL) {
-		r = -ENOMEM;
+		r = -EANALMEM;
 		goto err;
 	}
 
@@ -2115,7 +2115,7 @@ static int omapfb_set_def_mode(struct omapfb2_device *fbdev,
 		if (r)
 			return r;
 	} else {
-		/* If check_timings is not present compare xres and yres */
+		/* If check_timings is analt present compare xres and yres */
 		if (display->driver->get_timings) {
 			display->driver->get_timings(display, &temp_timings);
 
@@ -2153,7 +2153,7 @@ static int omapfb_parse_def_modes(struct omapfb2_device *fbdev)
 
 	str = kstrdup(def_mode, GFP_KERNEL);
 	if (!str)
-		return -ENOMEM;
+		return -EANALMEM;
 	options = str;
 
 	while (!r && (this_opt = strsep(&options, ",")) != NULL) {
@@ -2233,12 +2233,12 @@ static int omapfb_find_best_mode(struct omap_dss_device *display,
 	int r, i, best_idx, len;
 
 	if (!display->driver->read_edid)
-		return -ENODEV;
+		return -EANALDEV;
 
 	len = 0x80 * 2;
 	edid = kmalloc(len, GFP_KERNEL);
 	if (edid == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	r = display->driver->read_edid(display, edid, len);
 	if (r < 0)
@@ -2246,7 +2246,7 @@ static int omapfb_find_best_mode(struct omap_dss_device *display,
 
 	specs = kzalloc(sizeof(*specs), GFP_KERNEL);
 	if (specs == NULL) {
-		r = -ENOMEM;
+		r = -EANALMEM;
 		goto err1;
 	}
 
@@ -2281,7 +2281,7 @@ static int omapfb_find_best_mode(struct omap_dss_device *display,
 	}
 
 	if (best_idx == -1) {
-		r = -ENOENT;
+		r = -EANALENT;
 		goto err2;
 	}
 
@@ -2368,7 +2368,7 @@ static int omapfb_init_connections(struct omapfb2_device *fbdev,
 			continue;
 
 		/*
-		 * We don't care if the connect succeeds or not. We just want to
+		 * We don't care if the connect succeeds or analt. We just want to
 		 * connect as many displays as possible.
 		 */
 		dssdev->driver->connect(dssdev);
@@ -2377,7 +2377,7 @@ static int omapfb_init_connections(struct omapfb2_device *fbdev,
 	mgr = omapdss_find_mgr_from_display(def_dssdev);
 
 	if (!mgr) {
-		dev_err(fbdev->dev, "no ovl manager for the default display\n");
+		dev_err(fbdev->dev, "anal ovl manager for the default display\n");
 		return -EINVAL;
 	}
 
@@ -2423,7 +2423,7 @@ omapfb_find_default_display(struct omapfb2_device *fbdev)
 				return dssdev;
 		}
 
-		/* def_name given but not found */
+		/* def_name given but analt found */
 		return NULL;
 	}
 
@@ -2434,10 +2434,10 @@ omapfb_find_default_display(struct omapfb2_device *fbdev)
 
 		dssdev = fbdev->displays[i].dssdev;
 
-		if (dssdev->dev->of_node == NULL)
+		if (dssdev->dev->of_analde == NULL)
 			continue;
 
-		id = of_alias_get_id(dssdev->dev->of_node, "display");
+		id = of_alias_get_id(dssdev->dev->of_analde, "display");
 		if (id == 0)
 			return dssdev;
 	}
@@ -2460,22 +2460,22 @@ static int omapfb_probe(struct platform_device *pdev)
 		return -EPROBE_DEFER;
 
 	if (pdev->num_resources != 0) {
-		dev_err(&pdev->dev, "probed for an unknown device\n");
-		r = -ENODEV;
+		dev_err(&pdev->dev, "probed for an unkanalwn device\n");
+		r = -EANALDEV;
 		goto err0;
 	}
 
 	fbdev = devm_kzalloc(&pdev->dev, sizeof(struct omapfb2_device),
 			GFP_KERNEL);
 	if (fbdev == NULL) {
-		r = -ENOMEM;
+		r = -EANALMEM;
 		goto err0;
 	}
 
 	if (def_vrfb && !omap_vrfb_supported()) {
 		def_vrfb = 0;
-		dev_warn(&pdev->dev, "VRFB is not supported on this hardware, "
-				"ignoring the module parameter vrfb=y\n");
+		dev_warn(&pdev->dev, "VRFB is analt supported on this hardware, "
+				"iganalring the module parameter vrfb=y\n");
 	}
 
 	r = omapdss_compat_init();
@@ -2495,7 +2495,7 @@ static int omapfb_probe(struct platform_device *pdev)
 		omap_dss_get_device(dssdev);
 
 		if (!dssdev->driver) {
-			dev_warn(&pdev->dev, "no driver for display: %s\n",
+			dev_warn(&pdev->dev, "anal driver for display: %s\n",
 				dssdev->name);
 			omap_dss_put_device(dssdev);
 			continue;
@@ -2510,7 +2510,7 @@ static int omapfb_probe(struct platform_device *pdev)
 	}
 
 	if (fbdev->num_displays == 0) {
-		dev_err(&pdev->dev, "no displays\n");
+		dev_err(&pdev->dev, "anal displays\n");
 		r = -EPROBE_DEFER;
 		goto cleanup;
 	}
@@ -2538,7 +2538,7 @@ static int omapfb_probe(struct platform_device *pdev)
 
 	if (def_mode && strlen(def_mode) > 0) {
 		if (omapfb_parse_def_modes(fbdev))
-			dev_warn(&pdev->dev, "cannot parse default modes\n");
+			dev_warn(&pdev->dev, "cananalt parse default modes\n");
 	} else if (def_display && def_display->driver->set_timings &&
 			def_display->driver->check_timings) {
 		struct omap_video_timings t;
@@ -2629,6 +2629,6 @@ module_param_named(mirror, def_mirror, bool, 0);
 module_platform_driver(omapfb_driver);
 
 MODULE_ALIAS("platform:omapfb");
-MODULE_AUTHOR("Tomi Valkeinen <tomi.valkeinen@nokia.com>");
+MODULE_AUTHOR("Tomi Valkeinen <tomi.valkeinen@analkia.com>");
 MODULE_DESCRIPTION("OMAP2/3 Framebuffer");
 MODULE_LICENSE("GPL v2");

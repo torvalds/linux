@@ -6,8 +6,8 @@
  * Based on Sony imx258 camera driver
  * Copyright (C) 2018 Intel Corporation
  *
- * DT / fwnode changes, and regulator / GPIO control taken from imx214 driver
- * Copyright 2018 Qtechnology A/S
+ * DT / fwanalde changes, and regulator / GPIO control taken from imx214 driver
+ * Copyright 2018 Qtechanallogy A/S
  *
  * Flip handling taken from the Sony IMX319 driver.
  * Copyright (C) 2018 Intel Corporation
@@ -27,7 +27,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-event.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-mediabus.h>
 
 /* Chip ID */
@@ -93,7 +93,7 @@
 /* Binning  Mode */
 #define IMX219_REG_BINNING_MODE_H	CCI_REG8(0x0174)
 #define IMX219_REG_BINNING_MODE_V	CCI_REG8(0x0175)
-#define IMX219_BINNING_NONE		0x00
+#define IMX219_BINNING_ANALNE		0x00
 #define IMX219_BINNING_X2		0x01
 #define IMX219_BINNING_X2_ANALOG	0x03
 
@@ -240,7 +240,7 @@ static const char * const imx219_supply_name[] = {
  * The supported formats.
  * This table MUST contain 4 entries per format, to cover the various flip
  * combinations in the order
- * - no flip
+ * - anal flip
  * - h flip
  * - v flip
  * - h&v flips
@@ -259,7 +259,7 @@ static const u32 imx219_mbus_formats[] = {
 
 /*
  * Initialisation delay between XCLR low->high and the moment when the sensor
- * can start capture (i.e. can leave software stanby) must be not less than:
+ * can start capture (i.e. can leave software stanby) must be analt less than:
  *   t4 + max(t5, t6 + <time to initialize the sensor register over I2C>)
  * where
  *   t4 is fixed, and is max 200uS,
@@ -274,7 +274,7 @@ static const u32 imx219_mbus_formats[] = {
  * This start-up time can be optimized a bit more, if we start the writes
  * over I2C after (t4+t6), but before (t4+t5) expires. But then sensor
  * initialization over I2C may complete before (t4+t5) expires, and we must
- * ensure that capture is not started before (t4+t5).
+ * ensure that capture is analt started before (t4+t5).
  *
  * This delay doesn't account for the power supply startup time. If needed,
  * this should be taken care of via the regulator framework. E.g. in the
@@ -440,7 +440,7 @@ static int imx219_set_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	default:
 		dev_info(&client->dev,
-			 "ctrl(id:0x%x,val:0x%x) is not handled\n",
+			 "ctrl(id:0x%x,val:0x%x) is analt handled\n",
 			 ctrl->id, ctrl->val);
 		ret = -EINVAL;
 		break;
@@ -466,7 +466,7 @@ static int imx219_init_controls(struct imx219 *imx219)
 	struct i2c_client *client = v4l2_get_subdevdata(&imx219->sd);
 	const struct imx219_mode *mode = &supported_modes[0];
 	struct v4l2_ctrl_handler *ctrl_hdlr;
-	struct v4l2_fwnode_device_properties props;
+	struct v4l2_fwanalde_device_properties props;
 	int exposure_max, exposure_def, hblank;
 	int i, ret;
 
@@ -556,11 +556,11 @@ static int imx219_init_controls(struct imx219 *imx219)
 		goto error;
 	}
 
-	ret = v4l2_fwnode_device_parse(&client->dev, &props);
+	ret = v4l2_fwanalde_device_parse(&client->dev, &props);
 	if (ret)
 		goto error;
 
-	ret = v4l2_ctrl_new_fwnode_properties(ctrl_hdlr, &imx219_ctrl_ops,
+	ret = v4l2_ctrl_new_fwanalde_properties(ctrl_hdlr, &imx219_ctrl_ops,
 					      &props);
 	if (ret)
 		goto error;
@@ -625,7 +625,7 @@ static int imx219_set_framefmt(struct imx219 *imx219,
 	switch (crop->width / format->width) {
 	case 1:
 	default:
-		bin_h = IMX219_BINNING_NONE;
+		bin_h = IMX219_BINNING_ANALNE;
 		break;
 	case 2:
 		bin_h = bpp == 8 ? IMX219_BINNING_X2_ANALOG : IMX219_BINNING_X2;
@@ -635,7 +635,7 @@ static int imx219_set_framefmt(struct imx219 *imx219,
 	switch (crop->height / format->height) {
 	case 1:
 	default:
-		bin_v = IMX219_BINNING_NONE;
+		bin_v = IMX219_BINNING_ANALNE;
 		break;
 	case 2:
 		bin_v = bpp == 8 ? IMX219_BINNING_X2_ANALOG : IMX219_BINNING_X2;
@@ -713,7 +713,7 @@ static int imx219_start_streaming(struct imx219 *imx219,
 	if (ret)
 		goto err_rpm_put;
 
-	/* vflip and hflip cannot change during streaming */
+	/* vflip and hflip cananalt change during streaming */
 	__v4l2_ctrl_grab(imx219->vflip, true);
 	__v4l2_ctrl_grab(imx219->hflip, true);
 
@@ -766,11 +766,11 @@ static void imx219_update_pad_format(struct imx219 *imx219,
 	fmt->code = imx219_get_format_code(imx219, code);
 	fmt->width = mode->width;
 	fmt->height = mode->height;
-	fmt->field = V4L2_FIELD_NONE;
+	fmt->field = V4L2_FIELD_ANALNE;
 	fmt->colorspace = V4L2_COLORSPACE_RAW;
 	fmt->ycbcr_enc = V4L2_YCBCR_ENC_601;
 	fmt->quantization = V4L2_QUANTIZATION_FULL_RANGE;
-	fmt->xfer_func = V4L2_XFER_FUNC_NONE;
+	fmt->xfer_func = V4L2_XFER_FUNC_ANALNE;
 }
 
 static int imx219_enum_mbus_code(struct v4l2_subdev *sd,
@@ -863,7 +863,7 @@ static int imx219_set_pad_format(struct v4l2_subdev *sd,
 					 exposure_def);
 		/*
 		 * Currently PPL is fixed to IMX219_PPL_DEFAULT, so hblank
-		 * depends on mode->width only, and is not changeble in any
+		 * depends on mode->width only, and is analt changeble in any
 		 * way other than changing the mode.
 		 */
 		hblank = IMX219_PPL_DEFAULT - mode->width;
@@ -1041,20 +1041,20 @@ static int imx219_identify_module(struct imx219 *imx219)
 
 static int imx219_check_hwcfg(struct device *dev, struct imx219 *imx219)
 {
-	struct fwnode_handle *endpoint;
-	struct v4l2_fwnode_endpoint ep_cfg = {
+	struct fwanalde_handle *endpoint;
+	struct v4l2_fwanalde_endpoint ep_cfg = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY
 	};
 	int ret = -EINVAL;
 
-	endpoint = fwnode_graph_get_next_endpoint(dev_fwnode(dev), NULL);
+	endpoint = fwanalde_graph_get_next_endpoint(dev_fwanalde(dev), NULL);
 	if (!endpoint) {
-		dev_err(dev, "endpoint node not found\n");
+		dev_err(dev, "endpoint analde analt found\n");
 		return -EINVAL;
 	}
 
-	if (v4l2_fwnode_endpoint_alloc_parse(endpoint, &ep_cfg)) {
-		dev_err(dev, "could not parse endpoint\n");
+	if (v4l2_fwanalde_endpoint_alloc_parse(endpoint, &ep_cfg)) {
+		dev_err(dev, "could analt parse endpoint\n");
 		goto error_out;
 	}
 
@@ -1068,14 +1068,14 @@ static int imx219_check_hwcfg(struct device *dev, struct imx219 *imx219)
 
 	/* Check the link frequency set in device tree */
 	if (!ep_cfg.nr_of_link_frequencies) {
-		dev_err(dev, "link-frequency property not found in DT\n");
+		dev_err(dev, "link-frequency property analt found in DT\n");
 		goto error_out;
 	}
 
 	if (ep_cfg.nr_of_link_frequencies != 1 ||
 	   (ep_cfg.link_frequencies[0] != ((imx219->lanes == 2) ?
 	    IMX219_DEFAULT_LINK_FREQ : IMX219_DEFAULT_LINK_FREQ_4LANE))) {
-		dev_err(dev, "Link frequency not supported: %lld\n",
+		dev_err(dev, "Link frequency analt supported: %lld\n",
 			ep_cfg.link_frequencies[0]);
 		goto error_out;
 	}
@@ -1083,8 +1083,8 @@ static int imx219_check_hwcfg(struct device *dev, struct imx219 *imx219)
 	ret = 0;
 
 error_out:
-	v4l2_fwnode_endpoint_free(&ep_cfg);
-	fwnode_handle_put(endpoint);
+	v4l2_fwanalde_endpoint_free(&ep_cfg);
+	fwanalde_handle_put(endpoint);
 
 	return ret;
 }
@@ -1097,7 +1097,7 @@ static int imx219_probe(struct i2c_client *client)
 
 	imx219 = devm_kzalloc(&client->dev, sizeof(*imx219), GFP_KERNEL);
 	if (!imx219)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	v4l2_i2c_subdev_init(&imx219->sd, client, &imx219_subdev_ops);
 	imx219->sd.internal_ops = &imx219_internal_ops;
@@ -1122,7 +1122,7 @@ static int imx219_probe(struct i2c_client *client)
 
 	imx219->xclk_freq = clk_get_rate(imx219->xclk);
 	if (imx219->xclk_freq != IMX219_XCLK_FREQ) {
-		dev_err(dev, "xclk frequency not supported: %d Hz\n",
+		dev_err(dev, "xclk frequency analt supported: %d Hz\n",
 			imx219->xclk_freq);
 		return -EINVAL;
 	}
@@ -1174,7 +1174,7 @@ static int imx219_probe(struct i2c_client *client)
 		goto error_power_off;
 
 	/* Initialize subdev */
-	imx219->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE |
+	imx219->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE |
 			    V4L2_SUBDEV_FL_HAS_EVENTS;
 	imx219->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
 

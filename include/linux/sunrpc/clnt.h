@@ -29,7 +29,7 @@
 #include <net/ipv6.h>
 #include <linux/sunrpc/xprtmultipath.h>
 
-struct rpc_inode;
+struct rpc_ianalde;
 struct rpc_sysfs_client {
 	struct kobject kobject;
 	struct net *net;
@@ -61,7 +61,7 @@ struct rpc_clnt {
 	unsigned int		cl_softrtry : 1,/* soft timeouts */
 				cl_softerr  : 1,/* Timeouts return errors */
 				cl_discrtry : 1,/* disconnect before retry */
-				cl_noretranstimeo: 1,/* No retransmit timeouts */
+				cl_analretranstimeo: 1,/* Anal retransmit timeouts */
 				cl_autobind : 1,/* use getport() */
 				cl_chatty   : 1,/* be verbose */
 				cl_shutdown : 1;/* rpc immediate -EIO */
@@ -71,8 +71,8 @@ struct rpc_clnt {
 	const struct rpc_timeout *cl_timeout;	/* Timeout strategy */
 
 	atomic_t		cl_swapper;	/* swapfile count */
-	int			cl_nodelen;	/* nodename length */
-	char 			cl_nodename[UNX_MAXNODENAME+1];
+	int			cl_analdelen;	/* analdename length */
+	char 			cl_analdename[UNX_MAXANALDENAME+1];
 	struct rpc_pipe_dir_head cl_pipedir_objects;
 	struct rpc_clnt *	cl_parent;	/* Points to parent of clones */
 	struct rpc_rtt		cl_rtt_default;
@@ -83,7 +83,7 @@ struct rpc_clnt {
 	struct dentry		*cl_debugfs;	/* debugfs directory */
 #endif
 	struct rpc_sysfs_client *cl_sysfs;	/* sysfs directory */
-	/* cl_work is only needed after cl_xpi is no longer used,
+	/* cl_work is only needed after cl_xpi is anal longer used,
 	 * and that are of similar size
 	 */
 	union {
@@ -91,7 +91,7 @@ struct rpc_clnt {
 		struct work_struct	cl_work;
 	};
 	const struct cred	*cl_cred;
-	unsigned int		cl_max_connect; /* max number of transports not to the same IP */
+	unsigned int		cl_max_connect; /* max number of transports analt to the same IP */
 	struct super_block *pipefs_sb;
 };
 
@@ -137,7 +137,7 @@ struct rpc_create_args {
 	struct sockaddr		*saddress;
 	const struct rpc_timeout *timeout;
 	const char		*servername;
-	const char		*nodename;
+	const char		*analdename;
 	const struct rpc_program *program;
 	u32			prognumber;	/* overrides program->number */
 	u32			version;
@@ -163,13 +163,13 @@ struct rpc_add_xprt_test {
 /* Values for "flags" field */
 #define RPC_CLNT_CREATE_HARDRTRY	(1UL << 0)
 #define RPC_CLNT_CREATE_AUTOBIND	(1UL << 2)
-#define RPC_CLNT_CREATE_NONPRIVPORT	(1UL << 3)
-#define RPC_CLNT_CREATE_NOPING		(1UL << 4)
+#define RPC_CLNT_CREATE_ANALNPRIVPORT	(1UL << 3)
+#define RPC_CLNT_CREATE_ANALPING		(1UL << 4)
 #define RPC_CLNT_CREATE_DISCRTRY	(1UL << 5)
 #define RPC_CLNT_CREATE_QUIET		(1UL << 6)
 #define RPC_CLNT_CREATE_INFINITE_SLOTS	(1UL << 7)
-#define RPC_CLNT_CREATE_NO_IDLE_TIMEOUT	(1UL << 8)
-#define RPC_CLNT_CREATE_NO_RETRANS_TIMEOUT	(1UL << 9)
+#define RPC_CLNT_CREATE_ANAL_IDLE_TIMEOUT	(1UL << 8)
+#define RPC_CLNT_CREATE_ANAL_RETRANS_TIMEOUT	(1UL << 9)
 #define RPC_CLNT_CREATE_SOFTERR		(1UL << 10)
 #define RPC_CLNT_CREATE_REUSEPORT	(1UL << 11)
 #define RPC_CLNT_CREATE_CONNECTED	(1UL << 12)

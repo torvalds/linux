@@ -11,7 +11,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 #include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/of_address.h>
@@ -31,7 +31,7 @@
  * The 508 kHz timers are ideal for use for the timer interrupt, as the
  * most common values of HZ divide 508 kHz nicely.  We pick the 32 bit
  * timer (timer 3) to get as long sleep intervals as possible when using
- * CONFIG_NO_HZ.
+ * CONFIG_ANAL_HZ.
  *
  * The higher clock rate of timer 4 makes it a better choice than the
  * other timers for use as clock source and for sched_clock(), providing
@@ -79,7 +79,7 @@ static u64 ep93xx_clocksource_read(struct clocksource *c)
 	return lo_hi_readq(tcu->base + EP93XX_TIMER4_VALUE_LOW) & GENMASK_ULL(39, 0);
 }
 
-static u64 notrace ep93xx_read_sched_clock(void)
+static u64 analtrace ep93xx_read_sched_clock(void)
 {
 	return ep93xx_clocksource_read(NULL);
 }
@@ -134,7 +134,7 @@ static irqreturn_t ep93xx_timer_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __init ep93xx_timer_of_init(struct device_node *np)
+static int __init ep93xx_timer_of_init(struct device_analde *np)
 {
 	int irq;
 	unsigned long flags = IRQF_TIMER | IRQF_IRQPOLL;
@@ -143,7 +143,7 @@ static int __init ep93xx_timer_of_init(struct device_node *np)
 
 	tcu = kzalloc(sizeof(*tcu), GFP_KERNEL);
 	if (!tcu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tcu->base = of_iomap(np, 0);
 	if (!tcu->base) {

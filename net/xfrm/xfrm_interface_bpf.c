@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Unstable XFRM Helpers for TC-BPF hook
  *
- * These are called from SCHED_CLS BPF programs. Note that it is
+ * These are called from SCHED_CLS BPF programs. Analte that it is
  * allowed to break compatibility for these functions since the interface they
  * are exposed through to BPF programs is explicitly unstable.
  */
@@ -33,9 +33,9 @@ __bpf_kfunc_start_defs();
  *
  * Parameters:
  * @skb_ctx	- Pointer to ctx (__sk_buff) in TC program
- *		    Cannot be NULL
+ *		    Cananalt be NULL
  * @to		- Pointer to memory to which the metadata will be copied
- *		    Cannot be NULL
+ *		    Cananalt be NULL
  */
 __bpf_kfunc int bpf_skb_get_xfrm_info(struct __sk_buff *skb_ctx, struct bpf_xfrm_info *to)
 {
@@ -55,9 +55,9 @@ __bpf_kfunc int bpf_skb_get_xfrm_info(struct __sk_buff *skb_ctx, struct bpf_xfrm
  *
  * Parameters:
  * @skb_ctx	- Pointer to ctx (__sk_buff) in TC program
- *		    Cannot be NULL
+ *		    Cananalt be NULL
  * @from	- Pointer to memory from which the metadata will be copied
- *		    Cannot be NULL
+ *		    Cananalt be NULL
  */
 __bpf_kfunc int bpf_skb_set_xfrm_info(struct __sk_buff *skb_ctx, const struct bpf_xfrm_info *from)
 {
@@ -73,7 +73,7 @@ __bpf_kfunc int bpf_skb_set_xfrm_info(struct __sk_buff *skb_ctx, const struct bp
 
 		tmp = metadata_dst_alloc_percpu(0, METADATA_XFRM, GFP_ATOMIC);
 		if (!tmp)
-			return -ENOMEM;
+			return -EANALMEM;
 		if (cmpxchg(&xfrm_bpf_md_dst, NULL, tmp))
 			metadata_dst_free_percpu(tmp);
 	}

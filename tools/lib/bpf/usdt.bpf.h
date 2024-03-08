@@ -3,7 +3,7 @@
 #ifndef __USDT_BPF_H__
 #define __USDT_BPF_H__
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include "bpf_helpers.h"
 #include "bpf_tracing.h"
 
@@ -23,7 +23,7 @@
 /* User can override BPF_USDT_MAX_IP_CNT to change default size of internal
  * map that keeps track of IP (memory address) mapping to USDT argument
  * specification.
- * Note, if kernel supports BPF cookies, this map is not used and could be
+ * Analte, if kernel supports BPF cookies, this map is analt used and could be
  * resized all the way to 1 to save a bit of memory.
  */
 #ifndef BPF_USDT_MAX_IP_CNT
@@ -131,10 +131,10 @@ int bpf_usdt_arg(struct pt_regs *ctx, __u64 arg_num, long *res)
 		return -ESRCH;
 
 	if (arg_num >= BPF_USDT_MAX_ARG_CNT)
-		return -ENOENT;
+		return -EANALENT;
 	barrier_var(arg_num);
 	if (arg_num >= spec->arg_cnt)
-		return -ENOENT;
+		return -EANALENT;
 
 	arg_spec = &spec->args[arg_num];
 	switch (arg_spec->arg_type) {
@@ -159,7 +159,7 @@ int bpf_usdt_arg(struct pt_regs *ctx, __u64 arg_num, long *res)
 		 * (e.g., "-4@-1204(%rbp)" in USDT arg spec). Register is
 		 * identified like with BPF_USDT_ARG_REG case, and the offset
 		 * is in arg_spec->val_off. We first fetch register contents
-		 * from pt_regs, then do another user-space probe read to
+		 * from pt_regs, then do aanalther user-space probe read to
 		 * fetch argument value itself.
 		 */
 		err = bpf_probe_read_kernel(&val, sizeof(val), (void *)ctx + arg_spec->reg_off);
@@ -239,10 +239,10 @@ static __always_inline typeof(name(0))					    \
 ____##name(struct pt_regs *ctx, ##args);				    \
 typeof(name(0)) name(struct pt_regs *ctx)				    \
 {									    \
-        _Pragma("GCC diagnostic push")					    \
-        _Pragma("GCC diagnostic ignored \"-Wint-conversion\"")		    \
+        _Pragma("GCC diaganalstic push")					    \
+        _Pragma("GCC diaganalstic iganalred \"-Wint-conversion\"")		    \
         return ____##name(___bpf_usdt_args(args));			    \
-        _Pragma("GCC diagnostic pop")					    \
+        _Pragma("GCC diaganalstic pop")					    \
 }									    \
 static __always_inline typeof(name(0))					    \
 ____##name(struct pt_regs *ctx, ##args)

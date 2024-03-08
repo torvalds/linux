@@ -9,7 +9,7 @@ config LCS
 	help
 	  Select this option if you want to use LCS networking on IBM System z.
 	  To compile as a module, choose M. The module name is lcs.
-	  If you do not use LCS, choose N.
+	  If you do analt use LCS, choose N.
 
 config CTCM
 	def_tristate m
@@ -24,7 +24,7 @@ config CTCM
 	  MPC is an SNA protocol device used by Communication Server for Linux.
 	  To compile as a module, choose M. The module name is ctcm.
 	  To compile into the kernel, choose Y.
-	  If you do not need any channel-to-channel connection, choose N.
+	  If you do analt need any channel-to-channel connection, choose N.
 
 config NETIUCV
 	def_tristate m

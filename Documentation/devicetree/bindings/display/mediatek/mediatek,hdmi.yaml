@@ -65,13 +65,13 @@ properties:
       port@0:
         $ref: /schemas/graph.yaml#/properties/port
         description: |
-          Input port node. This port should be connected to a DPI output port.
+          Input port analde. This port should be connected to a DPI output port.
 
       port@1:
         $ref: /schemas/graph.yaml#/properties/port
         description: |
-          Output port node. This port should be connected to the input port of a connector
-          node that contains a ddc-i2c-bus property, or to the  input port of an attached
+          Output port analde. This port should be connected to the input port of a connector
+          analde that contains a ddc-i2c-bus property, or to the  input port of an attached
           bridge chip, such as a SlimPort transmitter.
 
     required:

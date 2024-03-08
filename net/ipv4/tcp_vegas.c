@@ -12,18 +12,18 @@
  * See http://www.cs.arizona.edu/xkernel/ for their implementation.
  * The main aspects that distinguish this implementation from the
  * Arizona Vegas implementation are:
- *   o We do not change the loss detection or recovery mechanisms of
+ *   o We do analt change the loss detection or recovery mechanisms of
  *     Linux in any way. Linux already recovers from losses quite well,
- *     using fine-grained timers, NewReno, and FACK.
+ *     using fine-grained timers, NewReanal, and FACK.
  *   o To avoid the performance penalty imposed by increasing cwnd
  *     only every-other RTT during slow start, we increase during
- *     every RTT during slow start, just like Reno.
+ *     every RTT during slow start, just like Reanal.
  *   o Largely to allow continuous cwnd growth during slow start,
  *     we use the rate at which ACKs come back as the "actual"
  *     rate, rather than the rate at which data is sent.
  *   o To speed convergence to the right rate, we set the cwnd
  *     to achieve the right ("actual") rate when we exit slow start.
- *   o To filter out the noise caused by delayed ACKs, we use the
+ *   o To filter out the analise caused by delayed ACKs, we use the
  *     minimum RTT sample observed during the last RTT to calculate
  *     the actual rate.
  *   o When the sender re-starts from idle, it waits until it has
@@ -57,10 +57,10 @@ MODULE_PARM_DESC(gamma, "limit on increase (scale by 2)");
  *  o when a connection is established
  *  o after an RTO
  *  o after fast recovery
- *  o when we send a packet and there is no outstanding
- *    unacknowledged data (restarting an idle connection)
+ *  o when we send a packet and there is anal outstanding
+ *    unackanalwledged data (restarting an idle connection)
  *
- * In these circumstances we cannot do a Vegas calculation at the
+ * In these circumstances we cananalt do a Vegas calculation at the
  * end of the first RTT, because any calculation we do is using
  * stale info -- both the saved cwnd and congestion feedback are
  * stale.
@@ -74,7 +74,7 @@ static void vegas_enable(struct sock *sk)
 	struct vegas *vegas = inet_csk_ca(sk);
 
 	/* Begin taking Vegas samples next time we send something. */
-	vegas->doing_vegas_now = 1;
+	vegas->doing_vegas_analw = 1;
 
 	/* Set the beginning of the next send window. */
 	vegas->beg_snd_nxt = tp->snd_nxt;
@@ -83,12 +83,12 @@ static void vegas_enable(struct sock *sk)
 	vegas->minRTT = 0x7fffffff;
 }
 
-/* Stop taking Vegas samples for now. */
+/* Stop taking Vegas samples for analw. */
 static inline void vegas_disable(struct sock *sk)
 {
 	struct vegas *vegas = inet_csk_ca(sk);
 
-	vegas->doing_vegas_now = 0;
+	vegas->doing_vegas_analw = 0;
 }
 
 void tcp_vegas_init(struct sock *sk)
@@ -105,7 +105,7 @@ EXPORT_SYMBOL_GPL(tcp_vegas_init);
  *   o min-filter RTT samples from within an RTT to get the current
  *     propagation delay + queuing delay (we are min-filtering to try to
  *     avoid the effects of delayed ACKs)
- *   o min-filter RTT samples from a much longer window (forever for now)
+ *   o min-filter RTT samples from a much longer window (forever for analw)
  *     to find the propagation delay (baseRTT)
  */
 void tcp_vegas_pkts_acked(struct sock *sk, const struct ack_sample *sample)
@@ -167,8 +167,8 @@ static void tcp_vegas_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct vegas *vegas = inet_csk_ca(sk);
 
-	if (!vegas->doing_vegas_now) {
-		tcp_reno_cong_avoid(sk, ack, acked);
+	if (!vegas->doing_vegas_analw) {
+		tcp_reanal_cong_avoid(sk, ack, acked);
 		return;
 	}
 
@@ -180,7 +180,7 @@ static void tcp_vegas_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 		 */
 		vegas->beg_snd_nxt  = tp->snd_nxt;
 
-		/* We do the Vegas calculations only if we got enough RTT
+		/* We do the Vegas calculations only if we got eanalugh RTT
 		 * samples that we can be reasonably sure that we got
 		 * at least one RTT sample that wasn't from a delayed ACK.
 		 * If we only had 2 samples total,
@@ -190,15 +190,15 @@ static void tcp_vegas_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 		 */
 
 		if (vegas->cntRTT <= 2) {
-			/* We don't have enough RTT samples to do the Vegas
-			 * calculation, so we'll behave like Reno.
+			/* We don't have eanalugh RTT samples to do the Vegas
+			 * calculation, so we'll behave like Reanal.
 			 */
-			tcp_reno_cong_avoid(sk, ack, acked);
+			tcp_reanal_cong_avoid(sk, ack, acked);
 		} else {
 			u32 rtt, diff;
 			u64 target_cwnd;
 
-			/* We have enough RTT samples, so, using the Vegas
+			/* We have eanalugh RTT samples, so, using the Vegas
 			 * algorithm, we determine if we should increase or
 			 * decrease cwnd, and by how much.
 			 */
@@ -206,7 +206,7 @@ static void tcp_vegas_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 			/* Pluck out the RTT we are using for the Vegas
 			 * calculations. This is the min RTT seen during the
 			 * last RTT. Taking the min filters out the effects
-			 * of delayed ACKs, at the cost of noticing congestion
+			 * of delayed ACKs, at the cost of analticing congestion
 			 * a bit later.
 			 */
 			rtt = vegas->minRTT;
@@ -259,7 +259,7 @@ static void tcp_vegas_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 					tp->snd_ssthresh
 						= tcp_vegas_ssthresh(tp);
 				} else if (diff < alpha) {
-					/* We don't have enough extra packets
+					/* We don't have eanalugh extra packets
 					 * in the network, so speed up.
 					 */
 					tcp_snd_cwnd_set(tp, tcp_snd_cwnd(tp) + 1);
@@ -282,7 +282,7 @@ static void tcp_vegas_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 		vegas->cntRTT = 0;
 		vegas->minRTT = 0x7fffffff;
 	}
-	/* Use normal slow start */
+	/* Use analrmal slow start */
 	else if (tcp_in_slow_start(tp))
 		tcp_slow_start(tp, acked);
 }
@@ -294,7 +294,7 @@ size_t tcp_vegas_get_info(struct sock *sk, u32 ext, int *attr,
 	const struct vegas *ca = inet_csk_ca(sk);
 
 	if (ext & (1 << (INET_DIAG_VEGASINFO - 1))) {
-		info->vegas.tcpv_enabled = ca->doing_vegas_now;
+		info->vegas.tcpv_enabled = ca->doing_vegas_analw;
 		info->vegas.tcpv_rttcnt = ca->cntRTT;
 		info->vegas.tcpv_rtt = ca->baseRTT;
 		info->vegas.tcpv_minrtt = ca->minRTT;
@@ -308,8 +308,8 @@ EXPORT_SYMBOL_GPL(tcp_vegas_get_info);
 
 static struct tcp_congestion_ops tcp_vegas __read_mostly = {
 	.init		= tcp_vegas_init,
-	.ssthresh	= tcp_reno_ssthresh,
-	.undo_cwnd	= tcp_reno_undo_cwnd,
+	.ssthresh	= tcp_reanal_ssthresh,
+	.undo_cwnd	= tcp_reanal_undo_cwnd,
 	.cong_avoid	= tcp_vegas_cong_avoid,
 	.pkts_acked	= tcp_vegas_pkts_acked,
 	.set_state	= tcp_vegas_state,

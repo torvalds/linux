@@ -10,7 +10,7 @@
 / {
 	/*
 	 * Although the K210 is a 64-bit CPU, the address bus is only 32-bits
-	 * wide, and the upper half of all addresses is ignored.
+	 * wide, and the upper half of all addresses is iganalred.
 	 */
 	#address-cells = <1>;
 	#size-cells = <1>;
@@ -25,9 +25,9 @@
 
 	/*
 	 * The K210 has an sv39 MMU following the privileged specification v1.9.
-	 * Since this is a non-ratified draft specification, the kernel does not
+	 * Since this is a analn-ratified draft specification, the kernel does analt
 	 * support it and the K210 support enabled only for the !MMU case.
-	 * Be consistent with this by setting the CPUs MMU type to "none".
+	 * Be consistent with this by setting the CPUs MMU type to "analne".
 	 */
 	cpus {
 		#address-cells = <1>;
@@ -38,7 +38,7 @@
 			compatible = "canaan,k210", "riscv";
 			reg = <0>;
 			riscv,isa = "rv64imafdc";
-			mmu-type = "riscv,none";
+			mmu-type = "riscv,analne";
 			i-cache-block-size = <64>;
 			i-cache-size = <0x8000>;
 			d-cache-block-size = <64>;
@@ -54,7 +54,7 @@
 			compatible = "canaan,k210", "riscv";
 			reg = <1>;
 			riscv,isa = "rv64imafdc";
-			mmu-type = "riscv,none";
+			mmu-type = "riscv,analne";
 			i-cache-block-size = <64>;
 			i-cache-size = <0x8000>;
 			d-cache-block-size = <64>;

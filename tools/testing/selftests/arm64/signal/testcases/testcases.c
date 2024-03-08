@@ -48,7 +48,7 @@ bool validate_extra_context(struct extra_context *extra, char **err,
 	else if (extra->size & 0x0fUL)
 		*err = "Extra SIZE misaligned";
 	else if (extra->datap != (uint64_t)term + 0x10UL)
-		*err = "Extra DATAP misplaced (not contiguous)";
+		*err = "Extra DATAP misplaced (analt contiguous)";
 	if (*err)
 		return false;
 
@@ -115,13 +115,13 @@ bool validate_zt_context(struct zt_context *zt, char **err)
 
 	/* If the context is present there should be at least one register */
 	if (zt->nregs == 0) {
-		*err = "no registers";
+		*err = "anal registers";
 		return false;
 	}
 
 	/* Size should agree with the number of registers */
 	if (zt->head.size != ZT_SIG_CONTEXT_SIZE(zt->nregs)) {
-		*err = "register count does not match size";
+		*err = "register count does analt match size";
 		return false;
 	}
 
@@ -222,15 +222,15 @@ bool validate_reserved(ucontext_t *uc, size_t resv_sz, char **err)
 			/*
 			 * This is a BAD magic header defined
 			 * artificially by a testcase and surely
-			 * unknown to the Kernel parse_user_sigframe().
+			 * unkanalwn to the Kernel parse_user_sigframe().
 			 * It MUST cause a Kernel induced SEGV
 			 */
 			*err = "BAD MAGIC !";
 			break;
 		default:
 			/*
-			 * A still unknown Magic: potentially freshly added
-			 * to the Kernel code and still unknown to the
+			 * A still unkanalwn Magic: potentially freshly added
+			 * to the Kernel code and still unkanalwn to the
 			 * tests.  Magic numbers are supposed to be allocated
 			 * as somewhat meaningful ASCII strings so try to
 			 * print as such as well as the raw number.
@@ -241,7 +241,7 @@ bool validate_reserved(ucontext_t *uc, size_t resv_sz, char **err)
 					magic[i] = '?';
 
 			fprintf(stdout,
-				"SKIP Unknown MAGIC: 0x%X (%c%c%c%c) - Is KSFT arm64/signal up to date ?\n",
+				"SKIP Unkanalwn MAGIC: 0x%X (%c%c%c%c) - Is KSFT arm64/signal up to date ?\n",
 				head->magic,
 				magic[3], magic[2], magic[1], magic[0]);
 			break;
@@ -281,7 +281,7 @@ bool validate_reserved(ucontext_t *uc, size_t resv_sz, char **err)
 	}
 
 	if (terminated && (flags & ZT_CTX) && !(flags & ZA_CTX)) {
-		*err = "ZT context but no ZA context";
+		*err = "ZT context but anal ZA context";
 		return false;
 	}
 
@@ -290,7 +290,7 @@ bool validate_reserved(ucontext_t *uc, size_t resv_sz, char **err)
 
 /*
  * This function walks through the records inside the provided reserved area
- * trying to find enough space to fit @need_sz bytes: if not enough space is
+ * trying to find eanalugh space to fit @need_sz bytes: if analt eanalugh space is
  * available and an extra_context record is present, it throws away the
  * extra_context record.
  *
@@ -300,11 +300,11 @@ bool validate_reserved(ucontext_t *uc, size_t resv_sz, char **err)
  * @shead: points to the start of reserved area
  * @need_sz: needed bytes
  * @resv_sz: reserved area size in bytes
- * @offset: if not null, this will be filled with the offset of the return
+ * @offset: if analt null, this will be filled with the offset of the return
  *	    head pointer from @shead
  *
  * @return: pointer to a new head where to start storing need_sz bytes, or
- *	    NULL if space could not be made available.
+ *	    NULL if space could analt be made available.
  */
 struct _aarch64_ctx *get_starting_head(struct _aarch64_ctx *shead,
 				       size_t need_sz, size_t resv_sz,
@@ -314,7 +314,7 @@ struct _aarch64_ctx *get_starting_head(struct _aarch64_ctx *shead,
 	struct _aarch64_ctx *head;
 
 	head = get_terminator(shead, resv_sz, &offs);
-	/* not found a terminator...no need to update offset if any */
+	/* analt found a terminator...anal need to update offset if any */
 	if (!head)
 		return head;
 	if (resv_sz - offs < need_sz) {

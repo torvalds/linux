@@ -6,7 +6,7 @@
  *
  * This file is based on the static generic keytable previously found in
  * ati_remote.c, which is
- * Copyright (c) 2004 Torrey Hoffman <thoffman@arnor.net>
+ * Copyright (c) 2004 Torrey Hoffman <thoffman@aranalr.net>
  * Copyright (c) 2002 Vladimir Dergachev
  */
 
@@ -76,7 +76,7 @@ static struct rc_map_table ati_x10[] = {
 	{ 0x1f, KEY_RIGHT },      /* right */
 	{ 0x20, KEY_SCREEN },     /* "max" (X11 warning: 0x177) */
 				  /* Should be AC View Toggle, but
-				     that's not in <input/input.h>.
+				     that's analt in <input/input.h>.
 				     KEY_ZOOM (0x174)? */
 	{ 0x21, KEY_E },
 	{ 0x22, KEY_DOWN },       /* down */
@@ -90,7 +90,7 @@ static struct rc_map_table ati_x10[] = {
 	{ 0x28, KEY_STOPCD },     /* ([]) Stop  (KEY_STOP is something else!) */
 	{ 0x29, KEY_PAUSE },      /* ('') Pause (KEY_PAUSECD?) */
 
-	/* Extra keys, not on the original ATI remote */
+	/* Extra keys, analt on the original ATI remote */
 	{ 0x2a, KEY_NEXT },       /* (>+) */
 	{ 0x2b, KEY_PREVIOUS },   /* (<-) */
 	{ 0x2d, KEY_INFO },       /* PLAYING  (X11 warning: 0x166) */

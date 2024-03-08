@@ -6,7 +6,7 @@
  * The multi-planar buffers API is used.
  *
  * Baseline and extended sequential jpeg decoding is supported.
- * Progressive jpeg decoding is not supported by the IP.
+ * Progressive jpeg decoding is analt supported by the IP.
  * Supports encode and decode of various formats:
  *     YUV444, YUV422, YUV420, BGR, ABGR, Gray
  * YUV420 is the only multi-planar format supported.
@@ -19,7 +19,7 @@
  * from the jpeg stream, by parsing the jpeg markers.
  *
  * The IP has 4 slots available for context switching, but only slot 0
- * was fully tested to work. Context switching is not used by the driver.
+ * was fully tested to work. Context switching is analt used by the driver.
  * Each driver instance (context) allocates a slot for itself, but this
  * is postponed until device_run, to allow unlimited opens.
  *
@@ -590,7 +590,7 @@ static void _bswap16(u16 *a)
 static void print_mxc_buf(struct mxc_jpeg_dev *jpeg, struct vb2_buffer *buf,
 			  unsigned long len)
 {
-	unsigned int plane_no;
+	unsigned int plane_anal;
 	u32 dma_addr;
 	void *vaddr;
 	unsigned long payload;
@@ -598,15 +598,15 @@ static void print_mxc_buf(struct mxc_jpeg_dev *jpeg, struct vb2_buffer *buf,
 	if (debug < 3)
 		return;
 
-	for (plane_no = 0; plane_no < buf->num_planes; plane_no++) {
-		payload = vb2_get_plane_payload(buf, plane_no);
+	for (plane_anal = 0; plane_anal < buf->num_planes; plane_anal++) {
+		payload = vb2_get_plane_payload(buf, plane_anal);
 		if (len == 0)
 			len = payload;
-		dma_addr = vb2_dma_contig_plane_dma_addr(buf, plane_no);
-		vaddr = vb2_plane_vaddr(buf, plane_no);
+		dma_addr = vb2_dma_contig_plane_dma_addr(buf, plane_anal);
+		vaddr = vb2_plane_vaddr(buf, plane_anal);
 		v4l2_dbg(3, debug, &jpeg->v4l2_dev,
 			 "plane %d (vaddr=%p dma_addr=%x payload=%ld):",
-			  plane_no, vaddr, dma_addr, payload);
+			  plane_anal, vaddr, dma_addr, payload);
 		print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_OFFSET, 32, 1,
 			       vaddr, len, false);
 	}
@@ -634,7 +634,7 @@ static int enum_fmt(const struct mxc_jpeg_fmt *mxc_formats, int n,
 		}
 	}
 
-	/* Format not found */
+	/* Format analt found */
 	if (i >= n)
 		return -EINVAL;
 
@@ -724,24 +724,24 @@ static bool mxc_jpeg_is_extended_sequential(const struct mxc_jpeg_fmt *fmt)
 	return false;
 }
 
-static void notify_eos(struct mxc_jpeg_ctx *ctx)
+static void analtify_eos(struct mxc_jpeg_ctx *ctx)
 {
 	const struct v4l2_event ev = {
 		.type = V4L2_EVENT_EOS
 	};
 
-	dev_dbg(ctx->mxc_jpeg->dev, "Notify app event EOS reached");
+	dev_dbg(ctx->mxc_jpeg->dev, "Analtify app event EOS reached");
 	v4l2_event_queue_fh(&ctx->fh, &ev);
 }
 
-static void notify_src_chg(struct mxc_jpeg_ctx *ctx)
+static void analtify_src_chg(struct mxc_jpeg_ctx *ctx)
 {
 	const struct v4l2_event ev = {
 		.type = V4L2_EVENT_SOURCE_CHANGE,
 		.u.src_change.changes = V4L2_EVENT_SRC_CH_RESOLUTION,
 	};
 
-	dev_dbg(ctx->mxc_jpeg->dev, "Notify app event SRC_CH_RESOLUTION");
+	dev_dbg(ctx->mxc_jpeg->dev, "Analtify app event SRC_CH_RESOLUTION");
 	v4l2_event_queue_fh(&ctx->fh, &ev);
 }
 
@@ -793,7 +793,7 @@ skip_alloc:
 
 	return true;
 err:
-	dev_err(jpeg->dev, "Could not allocate descriptors for slot %d", jpeg->slot_data.slot);
+	dev_err(jpeg->dev, "Could analt allocate descriptors for slot %d", jpeg->slot_data.slot);
 
 	return false;
 }
@@ -825,7 +825,7 @@ static void mxc_jpeg_check_and_set_last_buffer(struct mxc_jpeg_ctx *ctx,
 	if (v4l2_m2m_is_last_draining_src_buf(ctx->fh.m2m_ctx, src_buf)) {
 		dst_buf->flags |= V4L2_BUF_FLAG_LAST;
 		v4l2_m2m_mark_stopped(ctx->fh.m2m_ctx);
-		notify_eos(ctx);
+		analtify_eos(ctx);
 		ctx->header_parsed = false;
 	}
 }
@@ -850,20 +850,20 @@ static void mxc_jpeg_job_finish(struct mxc_jpeg_ctx *ctx, enum vb2_buffer_state 
 		mxc_jpeg_sw_reset(reg);
 }
 
-static u32 mxc_jpeg_get_plane_size(struct mxc_jpeg_q_data *q_data, u32 plane_no)
+static u32 mxc_jpeg_get_plane_size(struct mxc_jpeg_q_data *q_data, u32 plane_anal)
 {
 	const struct mxc_jpeg_fmt *fmt = q_data->fmt;
 	u32 size;
 	int i;
 
-	if (plane_no >= fmt->mem_planes)
+	if (plane_anal >= fmt->mem_planes)
 		return 0;
 
 	if (fmt->mem_planes == fmt->comp_planes)
-		return q_data->sizeimage[plane_no];
+		return q_data->sizeimage[plane_anal];
 
-	if (plane_no < fmt->mem_planes - 1)
-		return q_data->sizeimage[plane_no];
+	if (plane_anal < fmt->mem_planes - 1)
+		return q_data->sizeimage[plane_anal];
 
 	size = q_data->sizeimage[fmt->mem_planes - 1];
 
@@ -918,7 +918,7 @@ static irqreturn_t mxc_jpeg_dec_irq(int irq, void *priv)
 	dst_buf = v4l2_m2m_next_dst_buf(ctx->fh.m2m_ctx);
 	src_buf = v4l2_m2m_next_src_buf(ctx->fh.m2m_ctx);
 	if (!dst_buf || !src_buf) {
-		dev_err(dev, "No source or destination buffer.\n");
+		dev_err(dev, "Anal source or destination buffer.\n");
 		goto job_unlock;
 	}
 	jpeg_src_buf = vb2_to_mxc_buf(&src_buf->vb2_buf);
@@ -1010,13 +1010,13 @@ static int mxc_jpeg_fixup_sof(struct mxc_jpeg_sof *sof,
 	case V4L2_PIX_FMT_NV12M:
 	case V4L2_PIX_FMT_P012:
 	case V4L2_PIX_FMT_P012M:
-		sof->components_no = 3;
+		sof->components_anal = 3;
 		sof->comp[0].v = 0x2;
 		sof->comp[0].h = 0x2;
 		break;
 	case V4L2_PIX_FMT_YUYV:
 	case V4L2_PIX_FMT_Y212:
-		sof->components_no = 3;
+		sof->components_anal = 3;
 		sof->comp[0].v = 0x1;
 		sof->comp[0].h = 0x2;
 		break;
@@ -1025,22 +1025,22 @@ static int mxc_jpeg_fixup_sof(struct mxc_jpeg_sof *sof,
 	case V4L2_PIX_FMT_BGR24:
 	case V4L2_PIX_FMT_BGR48_12:
 	default:
-		sof->components_no = 3;
+		sof->components_anal = 3;
 		break;
 	case V4L2_PIX_FMT_ABGR32:
 	case V4L2_PIX_FMT_ABGR64_12:
-		sof->components_no = 4;
+		sof->components_anal = 4;
 		break;
 	case V4L2_PIX_FMT_GREY:
 	case V4L2_PIX_FMT_Y012:
-		sof->components_no = 1;
+		sof->components_anal = 1;
 		break;
 	}
-	sof_length = 8 + 3 * sof->components_no;
+	sof_length = 8 + 3 * sof->components_anal;
 	sof->length = sof_length;
 	_bswap16(&sof->length);
 
-	return sof_length; /* not swaped */
+	return sof_length; /* analt swaped */
 }
 
 static int mxc_jpeg_fixup_sos(struct mxc_jpeg_sos *sos,
@@ -1054,38 +1054,38 @@ static int mxc_jpeg_fixup_sos(struct mxc_jpeg_sos *sos,
 	case V4L2_PIX_FMT_NV12M:
 	case V4L2_PIX_FMT_P012:
 	case V4L2_PIX_FMT_P012M:
-		sos->components_no = 3;
+		sos->components_anal = 3;
 		break;
 	case V4L2_PIX_FMT_YUYV:
 	case V4L2_PIX_FMT_Y212:
-		sos->components_no = 3;
+		sos->components_anal = 3;
 		break;
 	case V4L2_PIX_FMT_YUV24:
 	case V4L2_PIX_FMT_YUV48_12:
 	case V4L2_PIX_FMT_BGR24:
 	case V4L2_PIX_FMT_BGR48_12:
 	default:
-		sos->components_no = 3;
+		sos->components_anal = 3;
 		break;
 	case V4L2_PIX_FMT_ABGR32:
 	case V4L2_PIX_FMT_ABGR64_12:
-		sos->components_no = 4;
+		sos->components_anal = 4;
 		break;
 	case V4L2_PIX_FMT_GREY:
 	case V4L2_PIX_FMT_Y012:
-		sos->components_no = 1;
+		sos->components_anal = 1;
 		break;
 	}
-	sos_length = 6 + 2 * sos->components_no;
+	sos_length = 6 + 2 * sos->components_anal;
 	sos->length = sos_length;
 	_bswap16(&sos->length);
 
-	/* SOS ignorable bytes, not so ignorable after all */
+	/* SOS iganalrable bytes, analt so iganalrable after all */
 	sof_u8[sos_length - 1] = 0x0;
 	sof_u8[sos_length - 2] = 0x3f;
 	sof_u8[sos_length - 3] = 0x0;
 
-	return sos_length; /* not swaped */
+	return sos_length; /* analt swaped */
 }
 
 static unsigned int mxc_jpeg_setup_cfg_stream(void *cfg_stream_vaddr,
@@ -1096,7 +1096,7 @@ static unsigned int mxc_jpeg_setup_cfg_stream(void *cfg_stream_vaddr,
 	 * There is a hardware issue that first 128 bytes of configuration data
 	 * can't be loaded correctly.
 	 * To avoid this issue, we need to write the configuration from
-	 * an offset which should be no less than 0x80 (128 bytes).
+	 * an offset which should be anal less than 0x80 (128 bytes).
 	 */
 	unsigned int offset = 0x80;
 	u8 *cfg = (u8 *)cfg_stream_vaddr;
@@ -1258,7 +1258,7 @@ static void mxc_jpeg_config_enc_desc(struct vb2_buffer *out_buf,
 	cfg_desc->buf_base0 = jpeg->slot_data.cfg_stream_handle;
 	cfg_desc->buf_base1 = 0;
 	cfg_desc->line_pitch = 0;
-	cfg_desc->stm_bufbase = 0; /* no output expected */
+	cfg_desc->stm_bufbase = 0; /* anal output expected */
 	cfg_desc->stm_bufsize = 0x0;
 	cfg_desc->imgsize = 0;
 	cfg_desc->stm_ctrl = STM_CTRL_CONFIG_MOD(1);
@@ -1276,7 +1276,7 @@ static void mxc_jpeg_config_enc_desc(struct vb2_buffer *out_buf,
 	mxc_jpeg_set_bufsize(desc, ALIGN(vb2_plane_size(dst_buf, 0), 1024));
 	img_fmt = mxc_jpeg_fourcc_to_imgfmt(q_data->fmt->fourcc);
 	if (img_fmt == MXC_JPEG_INVALID)
-		dev_err(jpeg->dev, "No valid image format detected\n");
+		dev_err(jpeg->dev, "Anal valid image format detected\n");
 	desc->stm_ctrl = STM_CTRL_CONFIG_MOD(0) |
 			 STM_CTRL_IMAGE_FORMAT(img_fmt);
 	desc->stm_ctrl |= STM_CTRL_BITBUF_PTR_CLR(1);
@@ -1391,7 +1391,7 @@ static bool mxc_jpeg_source_change(struct mxc_jpeg_ctx *ctx,
 		/* setup bytesperline/sizeimage for capture queue */
 		mxc_jpeg_bytesperline(q_data_cap, jpeg_src_buf->fmt->precision);
 		mxc_jpeg_sizeimage(q_data_cap);
-		notify_src_chg(ctx);
+		analtify_src_chg(ctx);
 		ctx->source_change = 1;
 		ctx->need_initial_source_change_evt = false;
 		if (vb2_is_streaming(v4l2_m2m_get_dst_vq(ctx->fh.m2m_ctx)))
@@ -1486,11 +1486,11 @@ static void mxc_jpeg_device_run(void *priv)
 
 	ctx->slot = mxc_get_free_slot(&jpeg->slot_data);
 	if (ctx->slot < 0) {
-		dev_err(dev, "No more free slots\n");
+		dev_err(dev, "Anal more free slots\n");
 		goto end;
 	}
 	if (!mxc_jpeg_alloc_slot_data(jpeg)) {
-		dev_err(dev, "Cannot allocate slot data\n");
+		dev_err(dev, "Cananalt allocate slot data\n");
 		goto end;
 	}
 
@@ -1540,7 +1540,7 @@ static int mxc_jpeg_decoder_cmd(struct file *file, void *priv,
 
 	if (cmd->cmd == V4L2_DEC_CMD_STOP &&
 	    v4l2_m2m_has_stopped(fh->m2m_ctx)) {
-		notify_eos(ctx);
+		analtify_eos(ctx);
 		ctx->header_parsed = false;
 	}
 
@@ -1574,7 +1574,7 @@ static int mxc_jpeg_encoder_cmd(struct file *file, void *priv,
 
 	if (cmd->cmd == V4L2_ENC_CMD_STOP &&
 	    v4l2_m2m_has_stopped(fh->m2m_ctx))
-		notify_eos(ctx);
+		analtify_eos(ctx);
 
 	if (cmd->cmd == V4L2_ENC_CMD_START &&
 	    v4l2_m2m_has_stopped(fh->m2m_ctx))
@@ -1668,7 +1668,7 @@ static void mxc_jpeg_stop_streaming(struct vb2_queue *q)
 
 	if (V4L2_TYPE_IS_OUTPUT(q->type) &&
 	    v4l2_m2m_has_stopped(ctx->fh.m2m_ctx)) {
-		notify_eos(ctx);
+		analtify_eos(ctx);
 		ctx->header_parsed = false;
 	}
 
@@ -1684,9 +1684,9 @@ static int mxc_jpeg_valid_comp_id(struct device *dev,
 
 	/*
 	 * there's a limitation in the IP that the component IDs must be
-	 * between 0..4, if they are not, let's patch them
+	 * between 0..4, if they are analt, let's patch them
 	 */
-	for (i = 0; i < sof->components_no; i++)
+	for (i = 0; i < sof->components_anal; i++)
 		if (sof->comp[i].id > MXC_JPEG_MAX_COMPONENTS) {
 			valid = 0;
 			dev_err(dev, "Component %d has invalid ID: %d",
@@ -1694,7 +1694,7 @@ static int mxc_jpeg_valid_comp_id(struct device *dev,
 		}
 	if (!valid)
 		/* patch all comp IDs if at least one is invalid */
-		for (i = 0; i < sof->components_no; i++) {
+		for (i = 0; i < sof->components_anal; i++) {
 			dev_warn(dev, "Component %d ID patched to: %d",
 				 i, i + 1);
 			sof->comp[i].id = i + 1;
@@ -1740,7 +1740,7 @@ static u32 mxc_jpeg_get_image_format(struct device *dev,
 	}
 	if (fourcc == 0) {
 		dev_err(dev,
-			"Could not identify image format nc=%d, subsampling=%d, precision=%d\n",
+			"Could analt identify image format nc=%d, subsampling=%d, precision=%d\n",
 			header->frame.num_components,
 			header->frame.subsampling,
 			header->frame.precision);
@@ -1780,7 +1780,7 @@ static void mxc_jpeg_bytesperline(struct mxc_jpeg_q_data *q, u32 precision)
 static void mxc_jpeg_sizeimage(struct mxc_jpeg_q_data *q)
 {
 	if (q->fmt->fourcc == V4L2_PIX_FMT_JPEG) {
-		/* if no sizeimage from user, assume worst jpeg compression */
+		/* if anal sizeimage from user, assume worst jpeg compression */
 		if (!q->sizeimage[0])
 			q->sizeimage[0] = 6 * q->w * q->h;
 		q->sizeimage[1] = 0;
@@ -1819,7 +1819,7 @@ static int mxc_jpeg_parse(struct mxc_jpeg_ctx *ctx, struct vb2_buffer *vb)
 		return ret;
 	}
 
-	/* if DHT marker present, no need to inject default one */
+	/* if DHT marker present, anal need to inject default one */
 	jpeg_src_buf->dht_needed = (header.num_dht == 0);
 
 	q_data_out = mxc_jpeg_get_q_data(ctx,
@@ -1892,10 +1892,10 @@ static void mxc_jpeg_buf_queue(struct vb2_buffer *vb)
 		struct mxc_jpeg_q_data *q_data;
 
 		q_data = mxc_jpeg_get_q_data(ctx, vb->vb2_queue->type);
-		vbuf->field = V4L2_FIELD_NONE;
+		vbuf->field = V4L2_FIELD_ANALNE;
 		vbuf->sequence = q_data->sequence++;
 		v4l2_m2m_last_buffer_done(ctx->fh.m2m_ctx, vbuf);
-		notify_eos(ctx);
+		analtify_eos(ctx);
 		ctx->header_parsed = false;
 		return;
 	}
@@ -1921,7 +1921,7 @@ static int mxc_jpeg_buf_out_validate(struct vb2_buffer *vb)
 {
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 
-	vbuf->field = V4L2_FIELD_NONE;
+	vbuf->field = V4L2_FIELD_ANALNE;
 
 	return 0;
 }
@@ -1935,7 +1935,7 @@ static int mxc_jpeg_buf_prepare(struct vb2_buffer *vb)
 	unsigned long sizeimage;
 	int i;
 
-	vbuf->field = V4L2_FIELD_NONE;
+	vbuf->field = V4L2_FIELD_ANALNE;
 
 	q_data = mxc_jpeg_get_q_data(ctx, vb->vb2_queue->type);
 	if (!q_data)
@@ -2089,7 +2089,7 @@ static int mxc_jpeg_open(struct file *file)
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (mutex_lock_interruptible(&mxc_jpeg->lock)) {
 		ret = -ERESTARTSYS;
@@ -2117,7 +2117,7 @@ static int mxc_jpeg_open(struct file *file)
 	}
 	ctx->fh.ctrl_handler = &ctx->ctrl_handler;
 	mxc_jpeg_set_default_params(ctx);
-	ctx->slot = -1; /* slot not allocated yet */
+	ctx->slot = -1; /* slot analt allocated yet */
 	INIT_DELAYED_WORK(&ctx->task_timer, mxc_jpeg_device_run_timeout);
 
 	if (mxc_jpeg->mode == MXC_JPEG_DECODE)
@@ -2258,7 +2258,7 @@ static int mxc_jpeg_try_fmt(struct v4l2_format *f,
 
 	fmt = mxc_jpeg_find_format(fourcc);
 	if (!fmt || fmt->flags != mxc_jpeg_get_fmt_type(ctx, f->type)) {
-		dev_warn(ctx->mxc_jpeg->dev, "Format not supported: %c%c%c%c, use the default.\n",
+		dev_warn(ctx->mxc_jpeg->dev, "Format analt supported: %c%c%c%c, use the default.\n",
 			 (fourcc & 0xff),
 			 (fourcc >>  8) & 0xff,
 			 (fourcc >> 16) & 0xff,
@@ -2272,7 +2272,7 @@ static int mxc_jpeg_try_fmt(struct v4l2_format *f,
 	q_data->fmt = fmt;
 
 	memset(pix_mp->reserved, 0, sizeof(pix_mp->reserved));
-	pix_mp->field = V4L2_FIELD_NONE;
+	pix_mp->field = V4L2_FIELD_ANALNE;
 	pix_mp->num_planes = fmt->mem_planes;
 	pix_mp->pixelformat = fmt->fourcc;
 
@@ -2312,7 +2312,7 @@ static int mxc_jpeg_try_fmt(struct v4l2_format *f,
 	pix_mp->ycbcr_enc = V4L2_YCBCR_ENC_601;
 	pix_mp->xfer_func = V4L2_XFER_FUNC_SRGB;
 	/*
-	 * this hardware does not change the range of the samples
+	 * this hardware does analt change the range of the samples
 	 * but since inside JPEG the YUV quantization is full-range,
 	 * this driver will always use full-range for the raw frames, too
 	 */
@@ -2462,7 +2462,7 @@ static int mxc_jpeg_g_fmt_vid(struct file *file, void *priv,
 	pix_mp->pixelformat = q_data->fmt->fourcc;
 	pix_mp->width = q_data->w;
 	pix_mp->height = q_data->h;
-	pix_mp->field = V4L2_FIELD_NONE;
+	pix_mp->field = V4L2_FIELD_ANALNE;
 	if (q_data->fmt->flags == MXC_JPEG_FMT_TYPE_RAW) {
 		pix_mp->width = q_data->w_adjusted;
 		pix_mp->height = q_data->h_adjusted;
@@ -2556,7 +2556,7 @@ static int mxc_jpeg_s_selection(struct file *file, void *fh, struct v4l2_selecti
 	struct mxc_jpeg_q_data *q_data_out;
 
 	if (ctx->mxc_jpeg->mode != MXC_JPEG_ENCODE)
-		return -ENOTTY;
+		return -EANALTTY;
 
 	if (s->type != V4L2_BUF_TYPE_VIDEO_OUTPUT && s->type != V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
 		return -EINVAL;
@@ -2683,14 +2683,14 @@ static void mxc_jpeg_detach_pm_domains(struct mxc_jpeg_dev *jpeg)
 static int mxc_jpeg_attach_pm_domains(struct mxc_jpeg_dev *jpeg)
 {
 	struct device *dev = jpeg->dev;
-	struct device_node *np = jpeg->pdev->dev.of_node;
+	struct device_analde *np = jpeg->pdev->dev.of_analde;
 	int i;
 	int ret;
 
 	jpeg->num_domains = of_count_phandle_with_args(np, "power-domains",
 						       "#power-domain-cells");
 	if (jpeg->num_domains < 0) {
-		dev_err(dev, "No power domains defined for jpeg node\n");
+		dev_err(dev, "Anal power domains defined for jpeg analde\n");
 		return jpeg->num_domains;
 	}
 	if (jpeg->num_domains == 1) {
@@ -2702,12 +2702,12 @@ static int mxc_jpeg_attach_pm_domains(struct mxc_jpeg_dev *jpeg)
 	jpeg->pd_dev = devm_kmalloc_array(dev, jpeg->num_domains,
 					  sizeof(*jpeg->pd_dev), GFP_KERNEL);
 	if (!jpeg->pd_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	jpeg->pd_link = devm_kmalloc_array(dev, jpeg->num_domains,
 					   sizeof(*jpeg->pd_link), GFP_KERNEL);
 	if (!jpeg->pd_link)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < jpeg->num_domains; i++) {
 		jpeg->pd_dev[i] = dev_pm_domain_attach_by_id(dev, i);
@@ -2740,21 +2740,21 @@ static int mxc_jpeg_probe(struct platform_device *pdev)
 	int mode;
 	const struct of_device_id *of_id;
 
-	of_id = of_match_node(mxc_jpeg_match, dev->of_node);
+	of_id = of_match_analde(mxc_jpeg_match, dev->of_analde);
 	if (!of_id)
-		return -ENODEV;
+		return -EANALDEV;
 	mode = *(const int *)of_id->data;
 
 	jpeg = devm_kzalloc(dev, sizeof(struct mxc_jpeg_dev), GFP_KERNEL);
 	if (!jpeg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&jpeg->lock);
 	spin_lock_init(&jpeg->hw_lock);
 
 	ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
 	if (ret) {
-		dev_err(&pdev->dev, "No suitable DMA available.\n");
+		dev_err(&pdev->dev, "Anal suitable DMA available.\n");
 		goto err_irq;
 	}
 
@@ -2762,7 +2762,7 @@ static int mxc_jpeg_probe(struct platform_device *pdev)
 	if (IS_ERR(jpeg->base_reg))
 		return PTR_ERR(jpeg->base_reg);
 
-	ret = of_property_read_u32_index(pdev->dev.of_node, "slot", 0, &jpeg->slot_data.slot);
+	ret = of_property_read_u32_index(pdev->dev.of_analde, "slot", 0, &jpeg->slot_data.slot);
 	if (ret)
 		jpeg->slot_data.slot = 0;
 	dev_info(&pdev->dev, "choose slot %d\n", jpeg->slot_data.slot);
@@ -2813,7 +2813,7 @@ static int mxc_jpeg_probe(struct platform_device *pdev)
 	jpeg->dec_vdev = video_device_alloc();
 	if (!jpeg->dec_vdev) {
 		dev_err(dev, "failed to register v4l2 device\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_vdev_alloc;
 	}
 	if (mode == MXC_JPEG_ENCODE)
@@ -2827,7 +2827,7 @@ static int mxc_jpeg_probe(struct platform_device *pdev)
 
 	jpeg->dec_vdev->fops = &mxc_jpeg_fops;
 	jpeg->dec_vdev->ioctl_ops = &mxc_jpeg_ioctl_ops;
-	jpeg->dec_vdev->minor = -1;
+	jpeg->dec_vdev->mianalr = -1;
 	jpeg->dec_vdev->release = video_device_release;
 	jpeg->dec_vdev->lock = &jpeg->lock; /* lock for ioctl serialization */
 	jpeg->dec_vdev->v4l2_dev = &jpeg->v4l2_dev;
@@ -2851,12 +2851,12 @@ static int mxc_jpeg_probe(struct platform_device *pdev)
 		v4l2_info(&jpeg->v4l2_dev,
 			  "encoder device registered as /dev/video%d (%d,%d)\n",
 			  jpeg->dec_vdev->num, VIDEO_MAJOR,
-			  jpeg->dec_vdev->minor);
+			  jpeg->dec_vdev->mianalr);
 	else
 		v4l2_info(&jpeg->v4l2_dev,
 			  "decoder device registered as /dev/video%d (%d,%d)\n",
 			  jpeg->dec_vdev->num, VIDEO_MAJOR,
-			  jpeg->dec_vdev->minor);
+			  jpeg->dec_vdev->mianalr);
 
 	platform_set_drvdata(pdev, jpeg);
 	pm_runtime_enable(dev);

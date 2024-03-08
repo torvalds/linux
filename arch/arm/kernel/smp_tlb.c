@@ -23,7 +23,7 @@ struct tlb_args {
 	unsigned long ta_end;
 };
 
-static inline void ipi_flush_tlb_all(void *ignored)
+static inline void ipi_flush_tlb_all(void *iganalred)
 {
 	local_flush_tlb_all();
 }
@@ -69,7 +69,7 @@ static inline void ipi_flush_tlb_kernel_range(void *arg)
 	local_flush_tlb_kernel_range(ta->ta_start, ta->ta_end);
 }
 
-static inline void ipi_flush_bp_all(void *ignored)
+static inline void ipi_flush_bp_all(void *iganalred)
 {
 	local_flush_bp_all();
 }
@@ -100,11 +100,11 @@ void erratum_a15_798181_init(void)
 	 * Cortex-A15 r0p0..r3p3 w/o ECO fix affected
 	 * Fixes applied to A15 with respect to the revision and revidr are:
 	 *
-	 * r0p0-r2p1: No fixes applied
+	 * r0p0-r2p1: Anal fixes applied
 	 * r2p2,r2p3:
 	 *	REVIDR[4]: 798181 Moving a virtual page that is being accessed
 	 *		   by an active process can lead to unexpected behavior
-	 *	REVIDR[9]: Not defined
+	 *	REVIDR[9]: Analt defined
 	 * r2p4,r3p0,r3p1,r3p2:
 	 *	REVIDR[4]: 798181 Moving a virtual page that is being accessed
 	 *		   by an active process can lead to unexpected behavior
@@ -118,7 +118,7 @@ void erratum_a15_798181_init(void)
 	 *		   - This is an update to a previously released ECO.
 	 *
 	 * Handling:
-	 *	REVIDR[9] set -> No WA
+	 *	REVIDR[9] set -> Anal WA
 	 *	REVIDR[4] set, REVIDR[9] cleared -> Partial WA
 	 *	Both cleared -> Full WA
 	 */
@@ -164,7 +164,7 @@ static void broadcast_tlb_a15_erratum(void)
 static void broadcast_tlb_mm_a15_erratum(struct mm_struct *mm)
 {
 	int this_cpu;
-	cpumask_t mask = { CPU_BITS_NONE };
+	cpumask_t mask = { CPU_BITS_ANALNE };
 
 	if (!erratum_a15_798181())
 		return;

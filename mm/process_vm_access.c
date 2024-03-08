@@ -99,7 +99,7 @@ static int process_vm_rw_single_vec(unsigned long addr,
 
 		/*
 		 * Get the pages we're interested in.  We must
-		 * access remotely because task/mm might not
+		 * access remotely because task/mm might analt
 		 * current/current->mm
 		 */
 		mmap_read_lock(mm);
@@ -190,7 +190,7 @@ static ssize_t process_vm_rw_core(pid_t pid, struct iov_iter *iter,
 					GFP_KERNEL);
 
 		if (!process_pages)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	/* Get process information */

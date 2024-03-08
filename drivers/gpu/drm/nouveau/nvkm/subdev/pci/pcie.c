@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Karol Herbst <nouveau@karolherbst.de>
+ * Copyright 2015 Karol Herbst <analuveau@karolherbst.de>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -40,7 +40,7 @@ nvkm_pcie_speed(enum pci_bus_speed speed)
 	case PCIE_SPEED_8_0GT:
 		return NVKM_PCIE_SPEED_8_0;
 	default:
-		/* XXX 0x16 is 8_0, assume 0x17 will be 16_0 for now */
+		/* XXX 0x16 is 8_0, assume 0x17 will be 16_0 for analw */
 		if (speed == 0x17)
 			return NVKM_PCIE_SPEED_8_0;
 		return -1;
@@ -51,7 +51,7 @@ static int
 nvkm_pcie_get_version(struct nvkm_pci *pci)
 {
 	if (!pci->func->pcie.version)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	return pci->func->pcie.version(pci);
 }
@@ -60,7 +60,7 @@ static int
 nvkm_pcie_get_max_version(struct nvkm_pci *pci)
 {
 	if (!pci->func->pcie.version_supported)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	return pci->func->pcie.version_supported(pci);
 }
@@ -69,7 +69,7 @@ static int
 nvkm_pcie_set_version(struct nvkm_pci *pci, int version)
 {
 	if (!pci->func->pcie.set_version)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	nvkm_trace(&pci->subdev, "set to version %i\n", version);
 	pci->func->pcie.set_version(pci, version);
@@ -122,14 +122,14 @@ nvkm_pcie_set_link(struct nvkm_pci *pci, enum nvkm_pcie_speed speed, u8 width)
 		return 0;
 
 	if (!pci->func->pcie.set_link)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	subdev = &pci->subdev;
 	nvkm_trace(subdev, "requested %s\n", nvkm_pcie_speeds[speed]);
 
 	if (pci->func->pcie.version(pci) < 2) {
 		nvkm_error(subdev, "setting link failed due to low version\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	cur_speed = pci->func->pcie.cur_speed(pci);
@@ -139,7 +139,7 @@ nvkm_pcie_set_link(struct nvkm_pci *pci, enum nvkm_pcie_speed speed, u8 width)
 	nvkm_trace(subdev, "current speed: %s\n", nvkm_pcie_speeds[cur_speed]);
 
 	if (speed > max_speed) {
-		nvkm_debug(subdev, "%s not supported by bus or card, dropping"
+		nvkm_debug(subdev, "%s analt supported by bus or card, dropping"
 			   "requested speed to %s", nvkm_pcie_speeds[speed],
 			   nvkm_pcie_speeds[max_speed]);
 		speed = max_speed;

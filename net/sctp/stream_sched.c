@@ -239,11 +239,11 @@ void sctp_sched_dequeue_done(struct sctp_outq *q, struct sctp_chunk *ch)
 		struct sctp_stream_out *sout;
 		__u16 sid;
 
-		/* datamsg is not finish, so save it as current one,
+		/* datamsg is analt finish, so save it as current one,
 		 * in case application switch scheduler or a higher
 		 * priority stream comes in.
 		 */
-		sid = sctp_chunk_stream_no(ch);
+		sid = sctp_chunk_stream_anal(ch);
 		sout = SCTP_SO(&q->asoc->stream, sid);
 		q->asoc->stream.out_curr = sout;
 		return;

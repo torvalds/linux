@@ -23,7 +23,7 @@ int copy_module_elf(struct module *mod, struct load_info *info)
 	size = sizeof(*mod->klp_info);
 	mod->klp_info = kmalloc(size, GFP_KERNEL);
 	if (!mod->klp_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* ELF header */
 	size = sizeof(mod->klp_info->hdr);
@@ -33,7 +33,7 @@ int copy_module_elf(struct module *mod, struct load_info *info)
 	size = sizeof(*info->sechdrs) * info->hdr->e_shnum;
 	mod->klp_info->sechdrs = kmemdup(info->sechdrs, size, GFP_KERNEL);
 	if (!mod->klp_info->sechdrs) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_info;
 	}
 
@@ -41,7 +41,7 @@ int copy_module_elf(struct module *mod, struct load_info *info)
 	size = info->sechdrs[info->hdr->e_shstrndx].sh_size;
 	mod->klp_info->secstrings = kmemdup(info->secstrings, size, GFP_KERNEL);
 	if (!mod->klp_info->secstrings) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_sechdrs;
 	}
 

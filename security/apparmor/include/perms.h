@@ -4,7 +4,7 @@
  *
  * This file contains AppArmor basic permission sets definitions.
  *
- * Copyright 2017 Canonical Ltd.
+ * Copyright 2017 Caanalnical Ltd.
  */
 
 #ifndef __AA_PERM_H
@@ -93,7 +93,7 @@ struct aa_perms {
  */
 #define AA_INDEX_MASK			0x00ffffff
 #define AA_INDEX_FLAG_MASK		0xff000000
-#define AA_INDEX_NONE			0
+#define AA_INDEX_ANALNE			0
 
 #define ALL_PERMS_MASK 0xffffffff
 extern struct aa_perms nullperms;

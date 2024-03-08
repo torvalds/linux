@@ -2,10 +2,10 @@
 /*
  * powr1220.c - Driver for the Lattice POWR1220 programmable power supply
  * and monitor. Users can read all ADC inputs along with their labels
- * using the sysfs nodes.
+ * using the sysfs analdes.
  *
  * Copyright (c) 2014 Echo360 https://www.echo360.com
- * Scott Kanowitz <skanowitz@echo360.com> <scott.kanowitz@gmail.com>
+ * Scott Kaanalwitz <skaanalwitz@echo360.com> <scott.kaanalwitz@gmail.com>
  */
 
 #include <linux/module.h>
@@ -151,7 +151,7 @@ static int powr1220_read_adc(struct device *dev, int ch_num)
 
 		reading |= result << 4;
 
-		/* now convert the reading to a voltage */
+		/* analw convert the reading to a voltage */
 		reading *= ADC_STEP_MV;
 		data->adc_values[ch_num] = reading;
 		data->adc_valid[ch_num] = true;
@@ -208,14 +208,14 @@ powr1220_read_string(struct device *dev, enum hwmon_sensor_types type, u32 attr,
 			*str = input_names[channel];
 			return 0;
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int
@@ -238,11 +238,11 @@ powr1220_read(struct device *dev, enum hwmon_sensor_types type, u32
 			*val = data->adc_maxes[channel];
 			break;
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 }
 
 	return 0;
@@ -287,11 +287,11 @@ static int powr1220_probe(struct i2c_client *client)
 	struct device *hwmon_dev;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	data = devm_kzalloc(&client->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	switch (i2c_match_id(powr1220_ids, client)->driver_data) {
 	case powr1014:
@@ -333,6 +333,6 @@ static struct i2c_driver powr1220_driver = {
 
 module_i2c_driver(powr1220_driver);
 
-MODULE_AUTHOR("Scott Kanowitz");
+MODULE_AUTHOR("Scott Kaanalwitz");
 MODULE_DESCRIPTION("POWR1220 driver");
 MODULE_LICENSE("GPL");

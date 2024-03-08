@@ -294,7 +294,7 @@
  * swapped on the CPB.
  *
  * main_i2c1 of J7200 is connected to the CPB i2c bus labeled as i2c3.
- * The i2c1 of the CPB (as it is labeled) is not connected to j7200.
+ * The i2c1 of the CPB (as it is labeled) is analt connected to j7200.
  */
 &main_i2c1 {
 	status = "okay";
@@ -316,7 +316,7 @@
 &main_sdhci0 {
 	/* eMMC */
 	status = "okay";
-	non-removable;
+	analn-removable;
 	ti,driver-strength-ohm = <50>;
 	disable-wp;
 };

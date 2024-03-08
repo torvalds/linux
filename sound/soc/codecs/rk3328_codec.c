@@ -318,7 +318,7 @@ static const struct snd_soc_dai_ops rk3328_dai_ops = {
 	.mute_stream = rk3328_mute_stream,
 	.startup = rk3328_pcm_startup,
 	.shutdown = rk3328_pcm_shutdown,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver rk3328_dai[] = {
@@ -421,7 +421,7 @@ static const struct regmap_config rk3328_codec_regmap_config = {
 
 static int rk3328_platform_probe(struct platform_device *pdev)
 {
-	struct device_node *rk3328_np = pdev->dev.of_node;
+	struct device_analde *rk3328_np = pdev->dev.of_analde;
 	struct rk3328_codec_priv *rk3328;
 	struct regmap *grf;
 	void __iomem *base;
@@ -429,7 +429,7 @@ static int rk3328_platform_probe(struct platform_device *pdev)
 
 	rk3328 = devm_kzalloc(&pdev->dev, sizeof(*rk3328), GFP_KERNEL);
 	if (!rk3328)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	grf = syscon_regmap_lookup_by_phandle(rk3328_np,
 					      "rockchip,grf");

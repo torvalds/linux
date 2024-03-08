@@ -23,7 +23,7 @@ static int avs_create_dai_link(struct device *dev, const char *platform_name, in
 	dl = devm_kzalloc(dev, sizeof(*dl), GFP_KERNEL);
 	platform = devm_kzalloc(dev, sizeof(*platform), GFP_KERNEL);
 	if (!dl || !platform)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform->name = platform_name;
 
@@ -31,21 +31,21 @@ static int avs_create_dai_link(struct device *dev, const char *platform_name, in
 				  AVS_STRING_FMT("SSP", "-Codec", ssp_port, tdm_slot));
 	dl->cpus = devm_kzalloc(dev, sizeof(*dl->cpus), GFP_KERNEL);
 	if (!dl->name || !dl->cpus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dl->cpus->dai_name = devm_kasprintf(dev, GFP_KERNEL,
 					    AVS_STRING_FMT("SSP", " Pin", ssp_port, tdm_slot));
 	dl->codecs = &snd_soc_dummy_dlc;
 	if (!dl->cpus->dai_name || !dl->codecs->name || !dl->codecs->dai_name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dl->num_cpus = 1;
 	dl->num_codecs = 1;
 	dl->platforms = platform;
 	dl->num_platforms = 1;
 	dl->id = 0;
-	dl->nonatomic = 1;
-	dl->no_pcm = 1;
+	dl->analnatomic = 1;
+	dl->anal_pcm = 1;
 	dl->dpcm_capture = 1;
 	dl->dpcm_playback = 1;
 
@@ -62,21 +62,21 @@ static int avs_create_dapm_routes(struct device *dev, int ssp_port, int tdm_slot
 
 	dr = devm_kcalloc(dev, num_dr, sizeof(*dr), GFP_KERNEL);
 	if (!dr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dr[0].sink = devm_kasprintf(dev, GFP_KERNEL,
 				    AVS_STRING_FMT("ssp", "pb", ssp_port, tdm_slot));
 	dr[0].source = devm_kasprintf(dev, GFP_KERNEL,
 				      AVS_STRING_FMT("ssp", " Tx", ssp_port, tdm_slot));
 	if (!dr[0].sink || !dr[0].source)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dr[1].sink = devm_kasprintf(dev, GFP_KERNEL,
 				    AVS_STRING_FMT("ssp", " Rx", ssp_port, tdm_slot));
 	dr[1].source = devm_kasprintf(dev, GFP_KERNEL,
 				      AVS_STRING_FMT("ssp", "cp", ssp_port, tdm_slot));
 	if (!dr[1].sink || !dr[1].source)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*routes = dr;
 	*num_routes = num_dr;
@@ -92,21 +92,21 @@ static int avs_create_dapm_widgets(struct device *dev, int ssp_port, int tdm_slo
 
 	dw = devm_kcalloc(dev, num_dw, sizeof(*dw), GFP_KERNEL);
 	if (!dw)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dw[0].id = snd_soc_dapm_hp;
-	dw[0].reg = SND_SOC_NOPM;
+	dw[0].reg = SND_SOC_ANALPM;
 	dw[0].name = devm_kasprintf(dev, GFP_KERNEL,
 				    AVS_STRING_FMT("ssp", "pb", ssp_port, tdm_slot));
 	if (!dw[0].name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dw[1].id = snd_soc_dapm_mic;
-	dw[1].reg = SND_SOC_NOPM;
+	dw[1].reg = SND_SOC_ANALPM;
 	dw[1].name = devm_kasprintf(dev, GFP_KERNEL,
 				    AVS_STRING_FMT("ssp", "cp", ssp_port, tdm_slot));
 	if (!dw[1].name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*widgets = dw;
 	*num_widgets = num_dw;
@@ -143,12 +143,12 @@ static int avs_i2s_test_probe(struct platform_device *pdev)
 
 	card = devm_kzalloc(dev, sizeof(*card), GFP_KERNEL);
 	if (!card)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	card->name = devm_kasprintf(dev, GFP_KERNEL,
 				    AVS_STRING_FMT("ssp", "-loopback", ssp_port, tdm_slot));
 	if (!card->name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = avs_create_dai_link(dev, pname, ssp_port, tdm_slot, &dai_link);
 	if (ret) {

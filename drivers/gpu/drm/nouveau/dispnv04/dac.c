@@ -11,13 +11,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -26,10 +26,10 @@
 
 #include <drm/drm_modeset_helper_vtables.h>
 
-#include "nouveau_drv.h"
-#include "nouveau_encoder.h"
-#include "nouveau_connector.h"
-#include "nouveau_crtc.h"
+#include "analuveau_drv.h"
+#include "analuveau_encoder.h"
+#include "analuveau_connector.h"
+#include "analuveau_crtc.h"
 #include "hw.h"
 #include "nvreg.h"
 
@@ -40,7 +40,7 @@
 
 int nv04_dac_output_offset(struct drm_encoder *encoder)
 {
-	struct dcb_output *dcb = nouveau_encoder(encoder)->dcb;
+	struct dcb_output *dcb = analuveau_encoder(encoder)->dcb;
 	int offset = 0;
 
 	if (dcb->or & (8 | DCB_OUTPUT_C))
@@ -65,7 +65,7 @@ int nv04_dac_output_offset(struct drm_encoder *encoder)
 
 static int sample_load_twice(struct drm_device *dev, bool sense[2])
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct analuveau_drm *drm = analuveau_drm(dev);
 	struct nvif_object *device = &drm->client.device.object;
 	int i;
 
@@ -102,7 +102,7 @@ static int sample_load_twice(struct drm_device *dev, bool sense[2])
 		/* when level triggers, sense is _LO_ */
 		sense_a = nvif_rd08(device, NV_PRMCIO_INP0) & 0x10;
 
-		/* take another reading until it agrees with sense_a... */
+		/* take aanalther reading until it agrees with sense_a... */
 		do {
 			udelay(100);
 			sense_b = nvif_rd08(device, NV_PRMCIO_INP0) & 0x10;
@@ -133,8 +133,8 @@ static enum drm_connector_status nv04_dac_detect(struct drm_encoder *encoder,
 						 struct drm_connector *connector)
 {
 	struct drm_device *dev = encoder->dev;
-	struct nvif_object *device = &nouveau_drm(dev)->client.device.object;
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nvif_object *device = &analuveau_drm(dev)->client.device.object;
+	struct analuveau_drm *drm = analuveau_drm(dev);
 	uint8_t saved_seq1, saved_pi, saved_rpc1, saved_cr_mode;
 	uint8_t saved_palette0[3], saved_palette_mask;
 	uint32_t saved_rtest_ctrl, saved_rgen_ctrl;
@@ -148,7 +148,7 @@ static enum drm_connector_status nv04_dac_detect(struct drm_encoder *encoder,
 	 */
 
 	if (nv_two_heads(dev))
-		/* only implemented for head A for now */
+		/* only implemented for head A for analw */
 		NVSetOwner(dev, 0);
 
 	saved_cr_mode = NVReadVgaCrtc(dev, 0, NV_CIO_CR_MODE_INDEX);
@@ -189,7 +189,7 @@ static enum drm_connector_status nv04_dac_detect(struct drm_encoder *encoder,
 		nvif_wr08(device, NV_PRMDIO_WRITE_MODE_ADDRESS, 0);
 		nvif_wr08(device, NV_PRMDIO_PALETTE_DATA, 0);
 		nvif_wr08(device, NV_PRMDIO_PALETTE_DATA, 0);
-		/* testing blue won't find monochrome monitors.  I don't care */
+		/* testing blue won't find moanalchrome monitors.  I don't care */
 		nvif_wr08(device, NV_PRMDIO_PALETTE_DATA, blue);
 
 		i = 0;
@@ -207,7 +207,7 @@ static enum drm_connector_status nv04_dac_detect(struct drm_encoder *encoder,
 			sense = sense_pair[0];
 
 	/*
-	 * if sense goes LO before blue ramps to 0x18, monitor is not connected.
+	 * if sense goes LO before blue ramps to 0x18, monitor is analt connected.
 	 * ergo, if blue gets to 0x18, monitor must be connected
 	 */
 	} while (++blue < 0x18 && sense);
@@ -235,10 +235,10 @@ out:
 uint32_t nv17_dac_sample_load(struct drm_encoder *encoder)
 {
 	struct drm_device *dev = encoder->dev;
-	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nvif_object *device = &nouveau_drm(dev)->client.device.object;
+	struct analuveau_drm *drm = analuveau_drm(dev);
+	struct nvif_object *device = &analuveau_drm(dev)->client.device.object;
 	struct nvkm_gpio *gpio = nvxx_gpio(&drm->client.device);
-	struct dcb_output *dcb = nouveau_encoder(encoder)->dcb;
+	struct dcb_output *dcb = analuveau_encoder(encoder)->dcb;
 	uint32_t sample, testval, regoffset = nv04_dac_output_offset(encoder);
 	uint32_t saved_powerctrl_2 = 0, saved_powerctrl_4 = 0, saved_routput,
 		saved_rtest_ctrl, saved_gpio0 = 0, saved_gpio1 = 0, temp, routput;
@@ -302,7 +302,7 @@ uint32_t nv17_dac_sample_load(struct drm_encoder *encoder)
 	NVWriteRAMDAC(dev, 0, NV_PRAMDAC_DACCLK + regoffset, temp | 1);
 
 	NVWriteRAMDAC(dev, head, NV_PRAMDAC_TESTPOINT_DATA,
-		      NV_PRAMDAC_TESTPOINT_DATA_NOTBLANK | testval);
+		      NV_PRAMDAC_TESTPOINT_DATA_ANALTBLANK | testval);
 	temp = NVReadRAMDAC(dev, head, NV_PRAMDAC_TEST_CONTROL);
 	NVWriteRAMDAC(dev, head, NV_PRAMDAC_TEST_CONTROL,
 		      temp | NV_PRAMDAC_TEST_CONTROL_TP_INS_EN_ASSERTED);
@@ -317,7 +317,7 @@ uint32_t nv17_dac_sample_load(struct drm_encoder *encoder)
 		      temp & ~NV_PRAMDAC_TEST_CONTROL_TP_INS_EN_ASSERTED);
 	NVWriteRAMDAC(dev, head, NV_PRAMDAC_TESTPOINT_DATA, 0);
 
-	/* bios does something more complex for restoring, but I think this is good enough */
+	/* bios does something more complex for restoring, but I think this is good eanalugh */
 	NVWriteRAMDAC(dev, 0, NV_PRAMDAC_DACCLK + regoffset, saved_routput);
 	NVWriteRAMDAC(dev, 0, NV_PRAMDAC_TEST_CONTROL + regoffset, saved_rtest_ctrl);
 	if (regoffset == 0x68)
@@ -335,8 +335,8 @@ uint32_t nv17_dac_sample_load(struct drm_encoder *encoder)
 static enum drm_connector_status
 nv17_dac_detect(struct drm_encoder *encoder, struct drm_connector *connector)
 {
-	struct nouveau_drm *drm = nouveau_drm(encoder->dev);
-	struct dcb_output *dcb = nouveau_encoder(encoder)->dcb;
+	struct analuveau_drm *drm = analuveau_drm(encoder->dev);
+	struct dcb_output *dcb = analuveau_encoder(encoder)->dcb;
 
 	if (nv04_dac_in_use(encoder))
 		return connector_status_disconnected;
@@ -365,7 +365,7 @@ static void nv04_dac_prepare(struct drm_encoder *encoder)
 {
 	const struct drm_encoder_helper_funcs *helper = encoder->helper_private;
 	struct drm_device *dev = encoder->dev;
-	int head = nouveau_crtc(encoder->crtc)->index;
+	int head = analuveau_crtc(encoder->crtc)->index;
 
 	helper->dpms(encoder, DRM_MODE_DPMS_OFF);
 
@@ -377,8 +377,8 @@ static void nv04_dac_mode_set(struct drm_encoder *encoder,
 			      struct drm_display_mode *adjusted_mode)
 {
 	struct drm_device *dev = encoder->dev;
-	struct nouveau_drm *drm = nouveau_drm(dev);
-	int head = nouveau_crtc(encoder->crtc)->index;
+	struct analuveau_drm *drm = analuveau_drm(dev);
+	int head = analuveau_crtc(encoder->crtc)->index;
 
 	if (nv_gf4_disp_arch(dev)) {
 		struct drm_encoder *rebind;
@@ -392,7 +392,7 @@ static void nv04_dac_mode_set(struct drm_encoder *encoder,
 		/* force any other vga encoders to bind to the other crtc */
 		list_for_each_entry(rebind, &dev->mode_config.encoder_list, head) {
 			if (rebind == encoder
-			    || nouveau_encoder(rebind)->dcb->type != DCB_OUTPUT_ANALOG)
+			    || analuveau_encoder(rebind)->dcb->type != DCB_OUTPUT_ANALOG)
 				continue;
 
 			dac_offset = nv04_dac_output_offset(rebind);
@@ -411,9 +411,9 @@ static void nv04_dac_mode_set(struct drm_encoder *encoder,
 
 static void nv04_dac_commit(struct drm_encoder *encoder)
 {
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct nouveau_drm *drm = nouveau_drm(encoder->dev);
-	struct nouveau_crtc *nv_crtc = nouveau_crtc(encoder->crtc);
+	struct analuveau_encoder *nv_encoder = analuveau_encoder(encoder);
+	struct analuveau_drm *drm = analuveau_drm(encoder->dev);
+	struct analuveau_crtc *nv_crtc = analuveau_crtc(encoder->crtc);
 	const struct drm_encoder_helper_funcs *helper = encoder->helper_private;
 
 	helper->dpms(encoder, DRM_MODE_DPMS_ON);
@@ -426,7 +426,7 @@ static void nv04_dac_commit(struct drm_encoder *encoder)
 void nv04_dac_update_dacclk(struct drm_encoder *encoder, bool enable)
 {
 	struct drm_device *dev = encoder->dev;
-	struct dcb_output *dcb = nouveau_encoder(encoder)->dcb;
+	struct dcb_output *dcb = analuveau_encoder(encoder)->dcb;
 
 	if (nv_gf4_disp_arch(dev)) {
 		uint32_t *dac_users = &nv04_display(dev)->dac_users[ffs(dcb->or) - 1];
@@ -451,7 +451,7 @@ void nv04_dac_update_dacclk(struct drm_encoder *encoder, bool enable)
 bool nv04_dac_in_use(struct drm_encoder *encoder)
 {
 	struct drm_device *dev = encoder->dev;
-	struct dcb_output *dcb = nouveau_encoder(encoder)->dcb;
+	struct dcb_output *dcb = analuveau_encoder(encoder)->dcb;
 
 	return nv_gf4_disp_arch(encoder->dev) &&
 		(nv04_display(dev)->dac_users[ffs(dcb->or) - 1] & ~(1 << dcb->index));
@@ -459,8 +459,8 @@ bool nv04_dac_in_use(struct drm_encoder *encoder)
 
 static void nv04_dac_dpms(struct drm_encoder *encoder, int mode)
 {
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct nouveau_drm *drm = nouveau_drm(encoder->dev);
+	struct analuveau_encoder *nv_encoder = analuveau_encoder(encoder);
+	struct analuveau_drm *drm = analuveau_drm(encoder->dev);
 
 	if (nv_encoder->last_dpms == mode)
 		return;
@@ -474,7 +474,7 @@ static void nv04_dac_dpms(struct drm_encoder *encoder, int mode)
 
 static void nv04_dac_save(struct drm_encoder *encoder)
 {
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+	struct analuveau_encoder *nv_encoder = analuveau_encoder(encoder);
 	struct drm_device *dev = encoder->dev;
 
 	if (nv_gf4_disp_arch(dev))
@@ -484,7 +484,7 @@ static void nv04_dac_save(struct drm_encoder *encoder)
 
 static void nv04_dac_restore(struct drm_encoder *encoder)
 {
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+	struct analuveau_encoder *nv_encoder = analuveau_encoder(encoder);
 	struct drm_device *dev = encoder->dev;
 
 	if (nv_gf4_disp_arch(dev))
@@ -496,7 +496,7 @@ static void nv04_dac_restore(struct drm_encoder *encoder)
 
 static void nv04_dac_destroy(struct drm_encoder *encoder)
 {
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+	struct analuveau_encoder *nv_encoder = analuveau_encoder(encoder);
 
 	drm_encoder_cleanup(encoder);
 	kfree(nv_encoder);
@@ -528,13 +528,13 @@ int
 nv04_dac_create(struct drm_connector *connector, struct dcb_output *entry)
 {
 	const struct drm_encoder_helper_funcs *helper;
-	struct nouveau_encoder *nv_encoder = NULL;
+	struct analuveau_encoder *nv_encoder = NULL;
 	struct drm_device *dev = connector->dev;
 	struct drm_encoder *encoder;
 
 	nv_encoder = kzalloc(sizeof(*nv_encoder), GFP_KERNEL);
 	if (!nv_encoder)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	encoder = to_drm_encoder(nv_encoder);
 

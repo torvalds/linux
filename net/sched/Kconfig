@@ -39,7 +39,7 @@ menuconfig NET_SCHED
 	  /proc/net/psched.
 
 	  The available schedulers are listed in the following questions; you
-	  can say Y to as many as you like. If unsure, say N now.
+	  can say Y to as many as you like. If unsure, say N analw.
 
 if NET_SCHED
 
@@ -247,7 +247,7 @@ config NET_SCH_CHOKE
 	  Say Y here if you want to use the CHOKe packet scheduler (CHOose
 	  and Keep for responsive flows, CHOose and Kill for unresponsive
 	  flows). This is a variation of RED which tries to penalize flows
-	  that monopolize the queue.
+	  that moanalpolize the queue.
 
 	  To compile this code as a module, choose M here: the
 	  module will be called sch_choke.
@@ -368,7 +368,7 @@ config NET_SCH_PLUG
 	  output queue, using the netlink interface.  When it receives an
 	  enqueue command it inserts a plug into the outbound queue that
 	  causes following packets to enqueue until a dequeue command arrives
-	  over netlink, causing the plug to be removed and resuming the normal
+	  over netlink, causing the plug to be removed and resuming the analrmal
 	  packet flow.
 
 	  This module also provides a generic "network output buffering"
@@ -408,7 +408,7 @@ menuconfig NET_SCH_DEFAULT
 	help
 	  Support for selection of default queuing discipline.
 
-	  Nearly all users can safely say no here, and the default
+	  Nearly all users can safely say anal here, and the default
 	  of pfifo_fast will be used. Many distributions already set
 	  the default value via /proc/sys/net/core/default_qdisc.
 
@@ -560,7 +560,7 @@ config NET_CLS_MATCHALL
 	select NET_CLS
 	help
 	  If you say Y here, you will be able to classify packets based on
-	  nothing. Every packet will match.
+	  analthing. Every packet will match.
 
 	  To compile this code as a module, choose M here: the module will
 	  be called cls_matchall.
@@ -572,7 +572,7 @@ config NET_EMATCH
 	  Say Y here if you want to use extended matches on top of classifiers
 	  and select the extended matches below.
 
-	  Extended matches are small classification helpers not worth writing
+	  Extended matches are small classification helpers analt worth writing
 	  a separate classifier for.
 
 	  A recent version of the iproute2 package is required to use
@@ -752,7 +752,7 @@ config NET_ACT_NAT
 	depends on NET_CLS_ACT
 	help
 	  Say Y here to do stateless NAT on IPv4 packets.  You should use
-	  netfilter for NAT unless you know what you are doing.
+	  netfilter for NAT unless you kanalw what you are doing.
 
 	  To compile this code as a module, choose M here: the
 	  module will be called act_nat.
@@ -829,7 +829,7 @@ config NET_ACT_BPF
 	depends on NET_CLS_ACT
 	help
 	  Say Y here to execute BPF code on packets. The BPF code will decide
-	  if the packet should be dropped or not.
+	  if the packet should be dropped or analt.
 
 	  If unsure, say N.
 

@@ -416,7 +416,7 @@ static void ab8500_irq_unmask(struct irq_data *data)
 		else
 			ab8500->mask[index] &= ~mask;
 	} else {
-		/* Satisfies the case where type is not set. */
+		/* Satisfies the case where type is analt set. */
 		ab8500->mask[index] &= ~mask;
 	}
 }
@@ -458,12 +458,12 @@ static int ab8500_handle_hierarchical_line(struct ab8500 *ab8500,
 			break;
 
 	if (i >= ab8500->mask_size) {
-		dev_err(ab8500->dev, "Register offset 0x%2x not declared\n",
+		dev_err(ab8500->dev, "Register offset 0x%2x analt declared\n",
 				latch_offset);
 		return -ENXIO;
 	}
 
-	/* ignore masked out interrupts */
+	/* iganalre masked out interrupts */
 	latch_val &= ~ab8500->mask[i];
 
 	while (latch_val) {
@@ -556,7 +556,7 @@ static int ab8500_irq_map(struct irq_domain *d, unsigned int virq,
 	irq_set_chip_and_handler(virq, &ab8500_irq_chip,
 				handle_simple_irq);
 	irq_set_nested_thread(virq, 1);
-	irq_set_noprobe(virq);
+	irq_set_analprobe(virq);
 
 	return 0;
 }
@@ -566,7 +566,7 @@ static const struct irq_domain_ops ab8500_irq_ops = {
 	.xlate  = irq_domain_xlate_twocell,
 };
 
-static int ab8500_irq_init(struct ab8500 *ab8500, struct device_node *np)
+static int ab8500_irq_init(struct ab8500 *ab8500, struct device_analde *np)
 {
 	int num_irqs;
 
@@ -580,13 +580,13 @@ static int ab8500_irq_init(struct ab8500 *ab8500, struct device_node *np)
 		num_irqs = AB8500_NR_IRQS;
 
 	/* If ->irq_base is zero this will give a linear mapping */
-	ab8500->domain = irq_domain_add_simple(ab8500->dev->of_node,
+	ab8500->domain = irq_domain_add_simple(ab8500->dev->of_analde,
 					       num_irqs, 0,
 					       &ab8500_irq_ops, ab8500);
 
 	if (!ab8500->domain) {
 		dev_err(ab8500->dev, "Failed to create irqdomain\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -822,7 +822,7 @@ static ssize_t chip_id_show(struct device *dev,
  * 0x02 Thermal protection activation
  * 0x04 Vbat lower then BattOk falling threshold
  * 0x08 Watchdog expired
- * 0x10 Non presence of 32kHz clock
+ * 0x10 Analn presence of 32kHz clock
  * 0x20 Battery level lower than power on reset threshold
  * 0x40 Power on key 1 pressed longer than 10 seconds
  * 0x80 DB8500 thermal shutdown
@@ -876,7 +876,7 @@ static ssize_t turn_on_status_show(struct device *dev,
 		return ret;
 
 	/*
-	 * In L9540, turn_on_status register is not updated correctly if
+	 * In L9540, turn_on_status register is analt updated correctly if
 	 * the device is rebooted with AC/USB charger connected. Due to
 	 * this, the device boots android instead of entering into charge
 	 * only mode. Read the AC/USB status register to detect the charger
@@ -1004,7 +1004,7 @@ static int ab8500_probe(struct platform_device *pdev)
 		"Thermal protection activation",
 		"Vbat lower then BattOk falling threshold",
 		"Watchdog expired",
-		"Non presence of 32kHz clock",
+		"Analn presence of 32kHz clock",
 		"Battery level lower than power on reset threshold",
 		"Power on key 1 pressed longer than 10 seconds",
 		"DB8500 thermal shutdown"};
@@ -1019,7 +1019,7 @@ static int ab8500_probe(struct platform_device *pdev)
 		"UART Factory Mode Detect"};
 	const struct platform_device_id *platid = platform_get_device_id(pdev);
 	enum ab8500_version version = AB8500_VERSION_UNDEFINED;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct ab8500 *ab8500;
 	int ret;
 	int i;
@@ -1028,7 +1028,7 @@ static int ab8500_probe(struct platform_device *pdev)
 
 	ab8500 = devm_kzalloc(&pdev->dev, sizeof(*ab8500), GFP_KERNEL);
 	if (!ab8500)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ab8500->dev = &pdev->dev;
 
@@ -1057,7 +1057,7 @@ static int ab8500_probe(struct platform_device *pdev)
 		ret = get_register_interruptible(ab8500, AB8500_MISC,
 			AB8500_IC_NAME_REG, &value);
 		if (ret < 0) {
-			dev_err(&pdev->dev, "could not probe HW\n");
+			dev_err(&pdev->dev, "could analt probe HW\n");
 			return ret;
 		}
 
@@ -1094,11 +1094,11 @@ static int ab8500_probe(struct platform_device *pdev)
 	ab8500->mask = devm_kzalloc(&pdev->dev, ab8500->mask_size,
 				    GFP_KERNEL);
 	if (!ab8500->mask)
-		return -ENOMEM;
+		return -EANALMEM;
 	ab8500->oldmask = devm_kzalloc(&pdev->dev, ab8500->mask_size,
 				       GFP_KERNEL);
 	if (!ab8500->oldmask)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * ab8500 has switched off due to (SWITCH_OFF_STATUS):
@@ -1106,7 +1106,7 @@ static int ab8500_probe(struct platform_device *pdev)
 	 * 0x02 Thermal protection activation
 	 * 0x04 Vbat lower then BattOk falling threshold
 	 * 0x08 Watchdog expired
-	 * 0x10 Non presence of 32kHz clock
+	 * 0x10 Analn presence of 32kHz clock
 	 * 0x20 Battery level lower than power on reset threshold
 	 * 0x40 Power on key 1 pressed longer than 10 seconds
 	 * 0x80 DB8500 thermal shutdown
@@ -1127,7 +1127,7 @@ static int ab8500_probe(struct platform_device *pdev)
 		}
 		pr_cont("\n");
 	} else {
-		pr_cont(" None\n");
+		pr_cont(" Analne\n");
 	}
 	ret = get_register_interruptible(ab8500, AB8500_SYS_CTRL1_BLOCK,
 		AB8500_TURN_ON_STATUS, &value);
@@ -1143,7 +1143,7 @@ static int ab8500_probe(struct platform_device *pdev)
 		}
 		pr_cont("\n");
 	} else {
-		pr_cont("None\n");
+		pr_cont("Analne\n");
 	}
 
 	if (is_ab9540(ab8500)) {
@@ -1189,7 +1189,7 @@ static int ab8500_probe(struct platform_device *pdev)
 
 	ret = devm_request_threaded_irq(&pdev->dev, ab8500->irq, NULL,
 			ab8500_hierarchical_irq,
-			IRQF_ONESHOT | IRQF_NO_SUSPEND,
+			IRQF_ONESHOT | IRQF_ANAL_SUSPEND,
 			"ab8500", ab8500);
 	if (ret)
 		return ret;

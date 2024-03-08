@@ -9,7 +9,7 @@
  */
 
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -78,13 +78,13 @@ int jornada_ssp_byte(u8 byte)
 EXPORT_SYMBOL(jornada_ssp_byte);
 
 /**
- * jornada_ssp_inout - decide if input is command or trading byte
+ * jornada_ssp_ianalut - decide if input is command or trading byte
  * @byte: input byte to send (may be %TXDUMMY)
  *
  * returns : (jornada_ssp_byte(byte)) on success
  *         : %-ETIMEDOUT on timeout failure
  */
-int jornada_ssp_inout(u8 byte)
+int jornada_ssp_ianalut(u8 byte)
 {
 	int ret, i;
 
@@ -103,7 +103,7 @@ int jornada_ssp_inout(u8 byte)
 
 	return ret;
 };
-EXPORT_SYMBOL(jornada_ssp_inout);
+EXPORT_SYMBOL(jornada_ssp_ianalut);
 
 /**
  * jornada_ssp_start - enable mcu
@@ -138,13 +138,13 @@ static int jornada_ssp_probe(struct platform_device *dev)
 
 	ret = ssp_init();
 
-	/* worked fine, lets not bother with anything else */
+	/* worked fine, lets analt bother with anything else */
 	if (!ret) {
 		printk(KERN_INFO "SSP: device initialized with irq\n");
 		return ret;
 	}
 
-	printk(KERN_WARNING "SSP: initialization failed, trying non-irq solution \n");
+	printk(KERN_WARNING "SSP: initialization failed, trying analn-irq solution \n");
 
 	/* init of Serial 4 port */
 	Ser4MCCR0 = 0;
@@ -158,11 +158,11 @@ static int jornada_ssp_probe(struct platform_device *dev)
 	jornada_ssp_start();
 
 	/* see if return value makes sense */
-	ret = jornada_ssp_inout(GETBRIGHTNESS);
+	ret = jornada_ssp_ianalut(GETBRIGHTNESS);
 
 	/* seems like it worked, just feed it with TxDummy to get rid of data */
 	if (ret == TXDUMMY)
-		jornada_ssp_inout(TXDUMMY);
+		jornada_ssp_ianalut(TXDUMMY);
 
 	jornada_ssp_end();
 
@@ -170,7 +170,7 @@ static int jornada_ssp_probe(struct platform_device *dev)
 	if (ret == -ETIMEDOUT) {
 		printk(KERN_WARNING "SSP: attempts failed, bailing\n");
 		ssp_exit();
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* all fine */
@@ -180,7 +180,7 @@ static int jornada_ssp_probe(struct platform_device *dev)
 
 static void jornada_ssp_remove(struct platform_device *dev)
 {
-	/* Note that this doesn't actually remove the driver, since theres nothing to remove
+	/* Analte that this doesn't actually remove the driver, since theres analthing to remove
 	 * It just makes sure everything is turned off */
 	GPSR = GPIO_GPIO25;
 	ssp_exit();

@@ -74,7 +74,7 @@ static int mdp_path_subfrm_require(const struct mdp_path *path,
 		index = MDP_PIPE_WPEI2;
 		break;
 	default:
-		dev_err(dev, "Unknown pipeline and no mutex is assigned");
+		dev_err(dev, "Unkanalwn pipeline and anal mutex is assigned");
 		return -EINVAL;
 	}
 	*mutex_id = data->pipe_info[index].mutex_id;
@@ -122,7 +122,7 @@ static int mdp_path_subfrm_run(const struct mdp_path *path,
 		if (is_output_disabled(p_id, ctx->param, count))
 			continue;
 		event = ctx->comp->gce_event[MDP_GCE_EVENT_SOF];
-		if (event != MDP_GCE_NO_EVENT)
+		if (event != MDP_GCE_ANAL_EVENT)
 			MM_REG_CLEAR(cmd, event);
 	}
 
@@ -135,7 +135,7 @@ static int mdp_path_subfrm_run(const struct mdp_path *path,
 		if (is_output_disabled(p_id, ctx->param, count))
 			continue;
 		event = ctx->comp->gce_event[MDP_GCE_EVENT_SOF];
-		if (event != MDP_GCE_NO_EVENT)
+		if (event != MDP_GCE_ANAL_EVENT)
 			MM_REG_WAIT(cmd, event);
 	}
 
@@ -295,7 +295,7 @@ static int mdp_cmdq_pkt_create(struct cmdq_client *client, struct cmdq_pkt *pkt,
 
 	pkt->va_base = kzalloc(size, GFP_KERNEL);
 	if (!pkt->va_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pkt->buf_size = size;
 	pkt->cl = (void *)client;
@@ -306,7 +306,7 @@ static int mdp_cmdq_pkt_create(struct cmdq_client *client, struct cmdq_pkt *pkt,
 	if (dma_mapping_error(dev, dma_addr)) {
 		dev_err(dev, "dma map failed, size=%u\n", (u32)(u64)size);
 		kfree(pkt->va_base);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	pkt->pa_base = dma_addr;
@@ -357,7 +357,7 @@ static void mdp_handle_cmdq_callback(struct mbox_client *cl, void *mssg)
 	int id;
 
 	if (!mssg) {
-		pr_info("%s:no callback data\n", __func__);
+		pr_info("%s:anal callback data\n", __func__);
 		return;
 	}
 
@@ -414,7 +414,7 @@ int mdp_cmdq_send(struct mdp_dev *mdp, struct mdp_cmdq_param *param)
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_cancel_job;
 	}
 
@@ -430,13 +430,13 @@ int mdp_cmdq_send(struct mdp_dev *mdp, struct mdp_cmdq_param *param)
 	}
 	comps = kcalloc(num_comp, sizeof(*comps), GFP_KERNEL);
 	if (!comps) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_destroy_pkt;
 	}
 
 	path = kzalloc(sizeof(*path), GFP_KERNEL);
 	if (!path) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_comps;
 	}
 

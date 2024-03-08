@@ -133,7 +133,7 @@ static int sis_read_packet(struct i2c_client *client, u8 *buf,
 	if (report_id != SIS_ALL_IN_ONE_PACKAGE) {
 		if (SIS_PKT_IS_TOUCH(report_id)) {
 			/*
-			 * Calculate CRC ignoring packet length
+			 * Calculate CRC iganalring packet length
 			 * in the beginning and CRC transmitted
 			 * at the end of the packet.
 			 */
@@ -186,7 +186,7 @@ static int sis_ts_report_contact(struct sis_ts_data *ts, const u8 *data, u8 id)
 
 	slot = input_mt_get_slot_by_key(input, data[SIS_CONTACT_ID_OFFSET]);
 	if (slot < 0)
-		return -ENOENT;
+		return -EANALENT;
 
 	input_mt_slot(input, slot);
 	input_mt_report_slot_state(input, MT_TOOL_FINGER,
@@ -210,7 +210,7 @@ static int sis_ts_report_contact(struct sis_ts_data *ts, const u8 *data, u8 id)
 
 		input_report_abs(input, ABS_MT_TOUCH_MAJOR,
 				 width * SIS_AREA_UNIT);
-		input_report_abs(input, ABS_MT_TOUCH_MINOR,
+		input_report_abs(input, ABS_MT_TOUCH_MIANALR,
 				 height * SIS_AREA_UNIT);
 		input_report_abs(input, ABS_MT_PRESSURE, pressure);
 		input_report_abs(input, ABS_MT_POSITION_X, x);
@@ -240,7 +240,7 @@ static void sis_ts_handle_packet(struct sis_ts_data *ts)
 			num_to_report = num_contacts;
 		} else if (num_contacts != 0) {
 			dev_err(&ts->client->dev,
-				"%s: nonzero (%d) point count in tail packet\n",
+				"%s: analnzero (%d) point count in tail packet\n",
 				__func__, num_contacts);
 			break;
 		}
@@ -304,7 +304,7 @@ static int sis_ts_probe(struct i2c_client *client)
 
 	ts = devm_kzalloc(&client->dev, sizeof(*ts), GFP_KERNEL);
 	if (!ts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ts->client = client;
 
@@ -325,7 +325,7 @@ static int sis_ts_probe(struct i2c_client *client)
 	ts->input = input = devm_input_allocate_device(&client->dev);
 	if (!input) {
 		dev_err(&client->dev, "Failed to allocate input device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	input->name = "SiS Touchscreen";
@@ -336,7 +336,7 @@ static int sis_ts_probe(struct i2c_client *client)
 	input_set_abs_params(input, ABS_MT_PRESSURE, 0, SIS_MAX_PRESSURE, 0, 0);
 	input_set_abs_params(input, ABS_MT_TOUCH_MAJOR,
 			     0, SIS_AREA_LENGTH_LONGER, 0, 0);
-	input_set_abs_params(input, ABS_MT_TOUCH_MINOR,
+	input_set_abs_params(input, ABS_MT_TOUCH_MIANALR,
 			     0, SIS_AREA_LENGTH_SHORT, 0, 0);
 
 	error = input_mt_init_slots(input, SIS_MAX_FINGERS, INPUT_MT_DIRECT);

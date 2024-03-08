@@ -5,14 +5,14 @@
 #define __ARM64_KVM_RAS_H__
 
 #include <linux/acpi.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 
 #include <asm/acpi.h>
 
 /*
- * Was this synchronous external abort a RAS notification?
- * Returns '0' for errors handled by some RAS subsystem, or -ENOENT.
+ * Was this synchroanalus external abort a RAS analtification?
+ * Returns '0' for errors handled by some RAS subsystem, or -EANALENT.
  */
 static inline int kvm_handle_guest_sea(phys_addr_t addr, u64 esr)
 {

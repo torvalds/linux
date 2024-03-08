@@ -86,10 +86,10 @@ static int scmi_perf_domain_probe(struct scmi_device *sdev)
 	int num_domains, i, ret = 0;
 
 	if (!handle)
-		return -ENODEV;
+		return -EANALDEV;
 
-	/* The OF node must specify us as a power-domain provider. */
-	if (!of_find_property(dev->of_node, "#power-domain-cells", NULL))
+	/* The OF analde must specify us as a power-domain provider. */
+	if (!of_find_property(dev->of_analde, "#power-domain-cells", NULL))
 		return 0;
 
 	perf_ops = handle->devm_protocol_get(sdev, SCMI_PROTOCOL_PERF, &ph);
@@ -107,15 +107,15 @@ static int scmi_perf_domain_probe(struct scmi_device *sdev)
 
 	scmi_pd = devm_kcalloc(dev, num_domains, sizeof(*scmi_pd), GFP_KERNEL);
 	if (!scmi_pd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	scmi_pd_data = devm_kzalloc(dev, sizeof(*scmi_pd_data), GFP_KERNEL);
 	if (!scmi_pd_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	domains = devm_kcalloc(dev, num_domains, sizeof(*domains), GFP_KERNEL);
 	if (!domains)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num_domains; i++, scmi_pd++) {
 		scmi_pd->info = perf_ops->info_get(ph, i);
@@ -140,7 +140,7 @@ static int scmi_perf_domain_probe(struct scmi_device *sdev)
 	scmi_pd_data->domains = domains;
 	scmi_pd_data->num_domains = num_domains;
 
-	ret = of_genpd_add_provider_onecell(dev->of_node, scmi_pd_data);
+	ret = of_genpd_add_provider_onecell(dev->of_analde, scmi_pd_data);
 	if (ret)
 		goto err;
 
@@ -162,7 +162,7 @@ static void scmi_perf_domain_remove(struct scmi_device *sdev)
 	if (!scmi_pd_data)
 		return;
 
-	of_genpd_del_provider(dev->of_node);
+	of_genpd_del_provider(dev->of_analde);
 
 	for (i = 0; i < scmi_pd_data->num_domains; i++)
 		pm_genpd_remove(scmi_pd_data->domains[i]);

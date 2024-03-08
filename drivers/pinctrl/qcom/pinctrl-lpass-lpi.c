@@ -56,7 +56,7 @@ static const struct pinctrl_ops lpi_gpio_pinctrl_ops = {
 	.get_groups_count	= pinctrl_generic_get_group_count,
 	.get_group_name		= pinctrl_generic_get_group_name,
 	.get_group_pins		= pinctrl_generic_get_group_pins,
-	.dt_node_to_map		= pinconf_generic_dt_node_to_map_group,
+	.dt_analde_to_map		= pinconf_generic_dt_analde_to_map_group,
 	.dt_free_map		= pinctrl_utils_free_map,
 };
 
@@ -109,7 +109,7 @@ static int lpi_gpio_set_mux(struct pinctrl_dev *pctldev, unsigned int function,
 
 	/*
 	 * If this is the first time muxing to GPIO and the direction is
-	 * output, make sure that we're not going to be glitching the pin
+	 * output, make sure that we're analt going to be glitching the pin
 	 * by reading the current state of the pin and setting it as the
 	 * output.
 	 */
@@ -201,7 +201,7 @@ static int lpi_config_set_slew_rate(struct lpi_pinctrl *pctrl,
 	}
 
 	slew_offset = g->slew_offset;
-	if (slew_offset == LPI_NO_SLEW)
+	if (slew_offset == LPI_ANAL_SLEW)
 		return 0;
 
 	if (pctrl->data->flags & LPI_FLAG_SLEW_RATE_SAME_REG)
@@ -359,7 +359,7 @@ static void lpi_gpio_dbg_show_one(struct seq_file *s,
 	u32 ctl_reg;
 
 	static const char * const pulls[] = {
-		"no pull",
+		"anal pull",
 		"pull down",
 		"keeper",
 		"pull up"
@@ -435,7 +435,7 @@ int lpi_pinctrl_probe(struct platform_device *pdev)
 
 	pctrl = devm_kzalloc(dev, sizeof(*pctrl), GFP_KERNEL);
 	if (!pctrl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, pctrl);
 
@@ -455,13 +455,13 @@ int lpi_pinctrl_probe(struct platform_device *pdev)
 	pctrl->tlmm_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pctrl->tlmm_base))
 		return dev_err_probe(dev, PTR_ERR(pctrl->tlmm_base),
-				     "TLMM resource not provided\n");
+				     "TLMM resource analt provided\n");
 
 	if (!(data->flags & LPI_FLAG_SLEW_RATE_SAME_REG)) {
 		pctrl->slew_base = devm_platform_ioremap_resource(pdev, 1);
 		if (IS_ERR(pctrl->slew_base))
 			return dev_err_probe(dev, PTR_ERR(pctrl->slew_base),
-					     "Slew resource not provided\n");
+					     "Slew resource analt provided\n");
 	}
 
 	ret = devm_clk_bulk_get_optional(dev, MAX_LPI_NUM_CLKS, pctrl->clks);

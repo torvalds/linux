@@ -96,9 +96,9 @@ MODULE_PARM_DESC(f71862fg_pin,
 	"Watchdog f71862fg reset output pin configuration. Choose pin 56 or 63"
 			" (default=" __MODULE_STRING(WATCHDOG_F71862FG_PIN)")");
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0444);
-MODULE_PARM_DESC(nowayout, "Disable watchdog shutdown on close");
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, 0444);
+MODULE_PARM_DESC(analwayout, "Disable watchdog shutdown on close");
 
 static unsigned int start_withtimeout;
 module_param(start_withtimeout, uint, 0);
@@ -369,7 +369,7 @@ static int fintek_wdt_start(struct watchdog_device *wdd)
 		 * 'default' label to shut up the compiler and catch
 		 * programmer errors
 		 */
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto exit_superio;
 	}
 
@@ -460,7 +460,7 @@ static int fintek_wdt_probe(struct platform_device *pdev)
 
 	wd = devm_kzalloc(dev, sizeof(*wd), GFP_KERNEL);
 	if (!wd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pdata = dev->platform_data;
 
@@ -503,7 +503,7 @@ static int fintek_wdt_probe(struct platform_device *pdev)
 	wdd->max_timeout        = WATCHDOG_MAX_TIMEOUT;
 
 	watchdog_set_drvdata(wdd, wd);
-	watchdog_set_nowayout(wdd, nowayout);
+	watchdog_set_analwayout(wdd, analwayout);
 	watchdog_stop_on_unregister(wdd);
 	watchdog_stop_on_reboot(wdd);
 	watchdog_init_timeout(wdd, start_withtimeout ?: timeout, NULL);
@@ -522,7 +522,7 @@ static int fintek_wdt_probe(struct platform_device *pdev)
 	if (start_withtimeout) {
 		err = fintek_wdt_start(wdd);
 		if (err) {
-			dev_err(dev, "cannot start watchdog timer\n");
+			dev_err(dev, "cananalt start watchdog timer\n");
 			return err;
 		}
 
@@ -544,8 +544,8 @@ static int __init fintek_wdt_find(int sioaddr)
 
 	devid = superio_inw(sioaddr, SIO_REG_MANID);
 	if (devid != SIO_FINTEK_ID) {
-		pr_debug("Not a Fintek device\n");
-		err = -ENODEV;
+		pr_debug("Analt a Fintek device\n");
+		err = -EANALDEV;
 		goto exit;
 	}
 
@@ -571,8 +571,8 @@ static int __init fintek_wdt_find(int sioaddr)
 		type = f71889fg;
 		break;
 	case SIO_F71858_ID:
-		/* Confirmed (by datasheet) not to have a watchdog. */
-		err = -ENODEV;
+		/* Confirmed (by datasheet) analt to have a watchdog. */
+		err = -EANALDEV;
 		goto exit;
 	case SIO_F81803_ID:
 		type = f81803;
@@ -589,7 +589,7 @@ static int __init fintek_wdt_find(int sioaddr)
 	default:
 		pr_info("Unrecognized Fintek device: %04x\n",
 			(unsigned int)devid);
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto exit;
 	}
 

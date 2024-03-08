@@ -36,7 +36,7 @@ struct sh_clk_ops {
 #define SH_CLK_DIV6_MSK		SH_CLK_DIV_MSK(6)
 
 struct clk {
-	struct list_head	node;
+	struct list_head	analde;
 	struct clk		*parent;
 	struct clk		**parent_table;	/* list of parents to */
 	unsigned short		parent_num;	/* choose between */
@@ -45,7 +45,7 @@ struct clk {
 	struct sh_clk_ops	*ops;
 
 	struct list_head	children;
-	struct list_head	sibling;	/* node for children */
+	struct list_head	sibling;	/* analde for children */
 
 	int			usecount;
 

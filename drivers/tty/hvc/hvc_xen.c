@@ -41,7 +41,7 @@ struct xencons_info {
 	unsigned int out_cons_same;
 	struct hvc_struct *hvc;
 	int irq;
-	int vtermno;
+	int vtermanal;
 	grant_ref_t gntref;
 	spinlock_t ring_lock;
 };
@@ -51,7 +51,7 @@ static DEFINE_SPINLOCK(xencons_lock);
 
 /* ------------------------------------------------------------------ */
 
-static struct xencons_info *vtermno_to_xencons(int vtermno)
+static struct xencons_info *vtermanal_to_xencons(int vtermanal)
 {
 	struct xencons_info *entry, *ret = NULL;
 	unsigned long flags;
@@ -63,7 +63,7 @@ static struct xencons_info *vtermno_to_xencons(int vtermno)
 	}
 
 	list_for_each_entry(entry, &xenconsoles, list) {
-		if (entry->vtermno == vtermno) {
+		if (entry->vtermanal == vtermanal) {
 			ret  = entry;
 			break;
 		}
@@ -73,15 +73,15 @@ static struct xencons_info *vtermno_to_xencons(int vtermno)
 	return ret;
 }
 
-static inline int xenbus_devid_to_vtermno(int devid)
+static inline int xenbus_devid_to_vtermanal(int devid)
 {
 	return devid + HVC_COOKIE;
 }
 
-static inline void notify_daemon(struct xencons_info *cons)
+static inline void analtify_daemon(struct xencons_info *cons)
 {
 	/* Use evtchn: this is called early, before irq is set up. */
-	notify_remote_via_evtchn(cons->evtchn);
+	analtify_remote_via_evtchn(cons->evtchn);
 }
 
 static ssize_t __write_console(struct xencons_info *xencons,
@@ -111,13 +111,13 @@ static ssize_t __write_console(struct xencons_info *xencons,
 	spin_unlock_irqrestore(&xencons->ring_lock, flags);
 
 	if (sent)
-		notify_daemon(xencons);
+		analtify_daemon(xencons);
 	return sent;
 }
 
-static ssize_t domU_write_console(uint32_t vtermno, const u8 *data, size_t len)
+static ssize_t domU_write_console(uint32_t vtermanal, const u8 *data, size_t len)
 {
-	struct xencons_info *cons = vtermno_to_xencons(vtermno);
+	struct xencons_info *cons = vtermanal_to_xencons(vtermanal);
 	size_t ret = len;
 
 	if (cons == NULL)
@@ -145,11 +145,11 @@ static ssize_t domU_write_console(uint32_t vtermno, const u8 *data, size_t len)
 	return ret;
 }
 
-static ssize_t domU_read_console(uint32_t vtermno, u8 *buf, size_t len)
+static ssize_t domU_read_console(uint32_t vtermanal, u8 *buf, size_t len)
 {
 	struct xencons_interface *intf;
 	XENCONS_RING_IDX cons, prod;
-	struct xencons_info *xencons = vtermno_to_xencons(vtermno);
+	struct xencons_info *xencons = vtermanal_to_xencons(vtermanal);
 	unsigned int eoiflag = 0;
 	unsigned long flags;
 	size_t recv = 0;
@@ -177,9 +177,9 @@ static ssize_t domU_read_console(uint32_t vtermno, u8 *buf, size_t len)
 
 	/*
 	 * When to mark interrupt having been spurious:
-	 * - there was no new data to be read, and
-	 * - the backend did not consume some output bytes, and
-	 * - the previous round with no read data didn't see consumed bytes
+	 * - there was anal new data to be read, and
+	 * - the backend did analt consume some output bytes, and
+	 * - the previous round with anal read data didn't see consumed bytes
 	 *   (we might have a race with an interrupt being in flight while
 	 *   updating xencons->out_cons, so account for that by allowing one
 	 *   round without any visible reason)
@@ -194,7 +194,7 @@ static ssize_t domU_read_console(uint32_t vtermno, u8 *buf, size_t len)
 	spin_unlock_irqrestore(&xencons->ring_lock, flags);
 
 	if (recv) {
-		notify_daemon(xencons);
+		analtify_daemon(xencons);
 	}
 
 	xen_irq_lateeoi(xencons->irq, eoiflag);
@@ -205,12 +205,12 @@ static ssize_t domU_read_console(uint32_t vtermno, u8 *buf, size_t len)
 static const struct hv_ops domU_hvc_ops = {
 	.get_chars = domU_read_console,
 	.put_chars = domU_write_console,
-	.notifier_add = notifier_add_irq,
-	.notifier_del = notifier_del_irq,
-	.notifier_hangup = notifier_hangup_irq,
+	.analtifier_add = analtifier_add_irq,
+	.analtifier_del = analtifier_del_irq,
+	.analtifier_hangup = analtifier_hangup_irq,
 };
 
-static ssize_t dom0_read_console(uint32_t vtermno, u8 *buf, size_t len)
+static ssize_t dom0_read_console(uint32_t vtermanal, u8 *buf, size_t len)
 {
 	return HYPERVISOR_console_io(CONSOLEIO_read, len, buf);
 }
@@ -219,7 +219,7 @@ static ssize_t dom0_read_console(uint32_t vtermno, u8 *buf, size_t len)
  * Either for a dom0 to write to the system console, or a domU with a
  * debug version of Xen
  */
-static ssize_t dom0_write_console(uint32_t vtermno, const u8 *str, size_t len)
+static ssize_t dom0_write_console(uint32_t vtermanal, const u8 *str, size_t len)
 {
 	int rc = HYPERVISOR_console_io(CONSOLEIO_write, len, (u8 *)str);
 	if (rc < 0)
@@ -231,9 +231,9 @@ static ssize_t dom0_write_console(uint32_t vtermno, const u8 *str, size_t len)
 static const struct hv_ops dom0_hvc_ops = {
 	.get_chars = dom0_read_console,
 	.put_chars = dom0_write_console,
-	.notifier_add = notifier_add_irq,
-	.notifier_del = notifier_del_irq,
-	.notifier_hangup = notifier_hangup_irq,
+	.analtifier_add = analtifier_add_irq,
+	.analtifier_del = analtifier_del_irq,
+	.analtifier_hangup = analtifier_hangup_irq,
 };
 
 static int xen_hvm_console_init(void)
@@ -244,13 +244,13 @@ static int xen_hvm_console_init(void)
 	struct xencons_info *info;
 
 	if (!xen_hvm_domain())
-		return -ENODEV;
+		return -EANALDEV;
 
-	info = vtermno_to_xencons(HVC_COOKIE);
+	info = vtermanal_to_xencons(HVC_COOKIE);
 	if (!info) {
 		info = kzalloc(sizeof(struct xencons_info), GFP_KERNEL);
 		if (!info)
-			return -ENOMEM;
+			return -EANALMEM;
 		spin_lock_init(&info->ring_lock);
 	} else if (info->intf != NULL) {
 		/* already configured */
@@ -274,7 +274,7 @@ static int xen_hvm_console_init(void)
 	info->intf = memremap(gfn << XEN_PAGE_SHIFT, XEN_PAGE_SIZE, MEMREMAP_WB);
 	if (info->intf == NULL)
 		goto err;
-	info->vtermno = HVC_COOKIE;
+	info->vtermanal = HVC_COOKIE;
 
 	spin_lock_irqsave(&xencons_lock, flags);
 	list_add_tail(&info->list, &xenconsoles);
@@ -283,16 +283,16 @@ static int xen_hvm_console_init(void)
 	return 0;
 err:
 	kfree(info);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
-static int xencons_info_pv_init(struct xencons_info *info, int vtermno)
+static int xencons_info_pv_init(struct xencons_info *info, int vtermanal)
 {
 	spin_lock_init(&info->ring_lock);
 	info->evtchn = xen_start_info->console.domU.evtchn;
 	/* GFN == MFN for PV guest */
 	info->intf = gfn_to_virt(xen_start_info->console.domU.mfn);
-	info->vtermno = vtermno;
+	info->vtermanal = vtermanal;
 
 	list_add_tail(&info->list, &xenconsoles);
 
@@ -305,16 +305,16 @@ static int xen_pv_console_init(void)
 	unsigned long flags;
 
 	if (!xen_pv_domain())
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!xen_start_info->console.domU.evtchn)
-		return -ENODEV;
+		return -EANALDEV;
 
-	info = vtermno_to_xencons(HVC_COOKIE);
+	info = vtermanal_to_xencons(HVC_COOKIE);
 	if (!info) {
 		info = kzalloc(sizeof(struct xencons_info), GFP_KERNEL);
 		if (!info)
-			return -ENOMEM;
+			return -EANALMEM;
 	} else if (info->intf != NULL) {
 		/* already configured */
 		return 0;
@@ -332,18 +332,18 @@ static int xen_initial_domain_console_init(void)
 	unsigned long flags;
 
 	if (!xen_initial_domain())
-		return -ENODEV;
+		return -EANALDEV;
 
-	info = vtermno_to_xencons(HVC_COOKIE);
+	info = vtermanal_to_xencons(HVC_COOKIE);
 	if (!info) {
 		info = kzalloc(sizeof(struct xencons_info), GFP_KERNEL);
 		if (!info)
-			return -ENOMEM;
+			return -EANALMEM;
 		spin_lock_init(&info->ring_lock);
 	}
 
 	info->irq = bind_virq_to_irq(VIRQ_CONSOLE, 0, false);
-	info->vtermno = HVC_COOKIE;
+	info->vtermanal = HVC_COOKIE;
 
 	spin_lock_irqsave(&xencons_lock, flags);
 	list_add_tail(&info->list, &xenconsoles);
@@ -367,7 +367,7 @@ static void xen_console_update_evtchn(struct xencons_info *info)
 
 void xen_console_resume(void)
 {
-	struct xencons_info *info = vtermno_to_xencons(HVC_COOKIE);
+	struct xencons_info *info = vtermanal_to_xencons(HVC_COOKIE);
 	if (info != NULL && info->irq) {
 		if (!xen_initial_domain())
 			xen_console_update_evtchn(info);
@@ -399,7 +399,7 @@ static void xencons_free(struct xencons_info *info)
 {
 	free_page((unsigned long)info->intf);
 	info->intf = NULL;
-	info->vtermno = 0;
+	info->vtermanal = 0;
 	kfree(info);
 }
 
@@ -441,8 +441,8 @@ static int xencons_connect_backend(struct xenbus_device *dev,
 	if (irq < 0)
 		return irq;
 	info->irq = irq;
-	devid = dev->nodename[strlen(dev->nodename) - 1] - '0';
-	info->hvc = hvc_alloc(xenbus_devid_to_vtermno(devid),
+	devid = dev->analdename[strlen(dev->analdename) - 1] - '0';
+	info->hvc = hvc_alloc(xenbus_devid_to_vtermanal(devid),
 			irq, &domU_hvc_ops, 256);
 	if (IS_ERR(info->hvc))
 		return PTR_ERR(info->hvc);
@@ -462,10 +462,10 @@ static int xencons_connect_backend(struct xenbus_device *dev,
 		xenbus_dev_fatal(dev, ret, "starting transaction");
 		return ret;
 	}
-	ret = xenbus_printf(xbt, dev->nodename, "ring-ref", "%d", ref);
+	ret = xenbus_printf(xbt, dev->analdename, "ring-ref", "%d", ref);
 	if (ret)
 		goto error_xenbus;
-	ret = xenbus_printf(xbt, dev->nodename, "port", "%u",
+	ret = xenbus_printf(xbt, dev->analdename, "port", "%u",
 			    evtchn);
 	if (ret)
 		goto error_xenbus;
@@ -493,20 +493,20 @@ static int xencons_probe(struct xenbus_device *dev,
 	struct xencons_info *info;
 	unsigned long flags;
 
-	devid = dev->nodename[strlen(dev->nodename) - 1] - '0';
+	devid = dev->analdename[strlen(dev->analdename) - 1] - '0';
 	if (devid == 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	info = kzalloc(sizeof(struct xencons_info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 	spin_lock_init(&info->ring_lock);
 	dev_set_drvdata(&dev->dev, info);
 	info->xbdev = dev;
-	info->vtermno = xenbus_devid_to_vtermno(devid);
+	info->vtermanal = xenbus_devid_to_vtermanal(devid);
 	info->intf = (void *)__get_free_page(GFP_KERNEL | __GFP_ZERO);
 	if (!info->intf)
-		goto error_nomem;
+		goto error_analmem;
 
 	ret = xencons_connect_backend(dev, info);
 	if (ret < 0)
@@ -517,8 +517,8 @@ static int xencons_probe(struct xenbus_device *dev,
 
 	return 0;
 
- error_nomem:
-	ret = -ENOMEM;
+ error_analmem:
+	ret = -EANALMEM;
 	xenbus_dev_fatal(dev, ret, "allocating device memory");
  error:
 	xencons_disconnect_backend(info);
@@ -543,7 +543,7 @@ static void xencons_backend_changed(struct xenbus_device *dev,
 	case XenbusStateReconfigured:
 	case XenbusStateInitialising:
 	case XenbusStateInitialised:
-	case XenbusStateUnknown:
+	case XenbusStateUnkanalwn:
 		break;
 
 	case XenbusStateInitWait:
@@ -588,7 +588,7 @@ static struct xenbus_driver xencons_driver = {
 	.remove = xencons_remove,
 	.resume = xencons_resume,
 	.otherend_changed = xencons_backend_changed,
-	.not_essential = true,
+	.analt_essential = true,
 };
 #endif /* CONFIG_HVC_XEN_FRONTEND */
 
@@ -599,14 +599,14 @@ static int __init xen_hvc_init(void)
 	const struct hv_ops *ops;
 
 	if (!xen_domain())
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (xen_initial_domain()) {
 		ops = &dom0_hvc_ops;
 		r = xen_initial_domain_console_init();
 		if (r < 0)
 			goto register_fe;
-		info = vtermno_to_xencons(HVC_COOKIE);
+		info = vtermanal_to_xencons(HVC_COOKIE);
 	} else {
 		ops = &domU_hvc_ops;
 		if (xen_hvm_domain())
@@ -616,13 +616,13 @@ static int __init xen_hvc_init(void)
 		if (r < 0)
 			goto register_fe;
 
-		info = vtermno_to_xencons(HVC_COOKIE);
+		info = vtermanal_to_xencons(HVC_COOKIE);
 		info->irq = bind_evtchn_to_irq_lateeoi(info->evtchn);
 	}
 	if (info->irq < 0)
-		info->irq = 0; /* NO_IRQ */
+		info->irq = 0; /* ANAL_IRQ */
 	else
-		irq_set_noprobe(info->irq);
+		irq_set_analprobe(info->irq);
 
 	info->hvc = hvc_alloc(HVC_COOKIE, info->irq, ops, 256);
 	if (IS_ERR(info->hvc)) {
@@ -674,13 +674,13 @@ static int xen_cons_init(void)
 console_initcall(xen_cons_init);
 
 #ifdef CONFIG_X86
-static void xen_hvm_early_write(uint32_t vtermno, const char *str, int len)
+static void xen_hvm_early_write(uint32_t vtermanal, const char *str, int len)
 {
 	if (xen_cpuid_base())
 		outsb(0xe9, str, len);
 }
 #else
-static void xen_hvm_early_write(uint32_t vtermno, const char *str, int len) { }
+static void xen_hvm_early_write(uint32_t vtermanal, const char *str, int len) { }
 #endif
 
 #ifdef CONFIG_EARLY_PRINTK
@@ -738,7 +738,7 @@ void xen_raw_console_write(const char *str)
 
 	if (xen_domain()) {
 		rc = dom0_write_console(0, str, len);
-		if (rc != -ENOSYS || !xen_hvm_domain())
+		if (rc != -EANALSYS || !xen_hvm_domain())
 			return;
 	}
 	xen_hvm_early_write(0, str, len);

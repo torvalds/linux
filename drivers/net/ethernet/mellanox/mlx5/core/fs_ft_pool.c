@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2021 Mellanox Technologies. */
+/* Copyright (c) 2021 Mellaanalx Techanallogies. */
 
 #include "fs_ft_pool.h"
 
@@ -7,7 +7,7 @@
  * and a virtual memory region of 16M (MLX5_FT_SIZE), this region is duplicated
  * for each flow table pool. We can allocate up to 16M of each pool,
  * and we keep track of how much we used via mlx5_ft_pool_get_avail_sz.
- * Firmware doesn't report any of this for now.
+ * Firmware doesn't report any of this for analw.
  * ESW_POOL is expected to be sorted from large to small and match firmware
  * pools.
  */
@@ -28,7 +28,7 @@ int mlx5_ft_pool_init(struct mlx5_core_dev *dev)
 
 	ft_pool = kzalloc(sizeof(*ft_pool), GFP_KERNEL);
 	if (!ft_pool)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = ARRAY_SIZE(FT_POOLS) - 1; i >= 0; i--)
 		ft_pool->ft_left[i] = FT_SIZE / FT_POOLS[i];

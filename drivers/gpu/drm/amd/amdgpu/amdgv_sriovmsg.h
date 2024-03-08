@@ -8,12 +8,12 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL THE
  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
@@ -228,7 +228,7 @@ struct amd_sriov_msg_vf2pf_info {
 	uint32_t checksum;
 	/* driver version */
 	uint8_t driver_version[64];
-	/* driver certification, 1=WHQL, 0=None */
+	/* driver certification, 1=WHQL, 0=Analne */
 	uint32_t driver_cert;
 	/* guest OS type and version */
 	union amd_sriov_msg_os_info os_info;
@@ -286,8 +286,8 @@ enum amd_sriov_mailbox_request_message {
 enum amd_sriov_mailbox_response_message {
 	MB_RES_MSG_CLR_MSG_BUF = 0,
 	MB_RES_MSG_READY_TO_ACCESS_GPU = 1,
-	MB_RES_MSG_FLR_NOTIFICATION,
-	MB_RES_MSG_FLR_NOTIFICATION_COMPLETION,
+	MB_RES_MSG_FLR_ANALTIFICATION,
+	MB_RES_MSG_FLR_ANALTIFICATION_COMPLETION,
 	MB_RES_MSG_SUCCESS,
 	MB_RES_MSG_FAIL,
 	MB_RES_MSG_QUERY_ALIVE,

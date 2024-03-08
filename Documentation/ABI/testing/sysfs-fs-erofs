@@ -1,5 +1,5 @@
 What:		/sys/fs/erofs/features/
-Date:		November 2021
+Date:		Analvember 2021
 Contact:	"Huang Jianan" <huangjianan@oppo.com>
 Description:	Shows all enabled kernel features.
 		Supported features:
@@ -8,7 +8,7 @@ Description:	Shows all enabled kernel features.
 		dedupe, fragments.
 
 What:		/sys/fs/erofs/<disk>/sync_decompress
-Date:		November 2021
+Date:		Analvember 2021
 Contact:	"Huang Jianan" <huangjianan@oppo.com>
 Description:	Control strategy of sync decompression:
 

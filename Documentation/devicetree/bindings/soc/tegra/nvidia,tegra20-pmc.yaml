@@ -54,7 +54,7 @@ properties:
     description: Inverts the PMU interrupt signal. The PMU is an external Power
       Management Unit, whose interrupt output signal is fed into the PMC. This
       signal is optionally inverted, and then fed into the ARM GIC. The PMC is
-      not involved in the detection or handling of this interrupt signal,
+      analt involved in the detection or handling of this interrupt signal,
       merely its inversion.
 
   nvidia,core-power-req-active-high:
@@ -142,7 +142,7 @@ properties:
 
   i2c-thermtrip:
     type: object
-    description: On Tegra30, Tegra114 and Tegra124 if i2c-thermtrip subnode
+    description: On Tegra30, Tegra114 and Tegra124 if i2c-thermtrip subanalde
       exists, hardware-triggered thermal reset will be enabled.
     additionalProperties: false
     properties:
@@ -180,18 +180,18 @@ properties:
     type: object
     additionalProperties: false
     description: |
-      This node contains a hierarchy of power domain nodes, which should match
-      the powergates on the Tegra SoC. Each powergate node represents a power-
+      This analde contains a hierarchy of power domain analdes, which should match
+      the powergates on the Tegra SoC. Each powergate analde represents a power-
       domain on the Tegra SoC that can be power-gated by the Tegra PMC.
 
       Hardware blocks belonging to a power domain should contain "power-domains"
-      property that is a phandle pointing to corresponding powergate node.
+      property that is a phandle pointing to corresponding powergate analde.
 
-      The name of the powergate node should be one of the below. Note that not
+      The name of the powergate analde should be one of the below. Analte that analt
       every powergate is applicable to all Tegra devices and the following list
       shows which powergates are applicable to which devices.
 
-      Please refer to Tegra TRM for mode details on the powergate nodes to use
+      Please refer to Tegra TRM for mode details on the powergate analdes to use
       for each power-gate block inside Tegra.
 
         Name     Description                   Devices Applicable
@@ -249,7 +249,7 @@ properties:
     additionalProperties:
       type: object
       description: |
-        This is a pad configuration node. On Tegra SoCs a pad is a set of pins
+        This is a pad configuration analde. On Tegra SoCs a pad is a set of pins
         which are configured as a group. The pin grouping is a fixed attribute
         of the hardware. The PMC can be used to set pad power state and
         signaling voltage. A pad can be either in active or power down mode.
@@ -258,14 +258,14 @@ properties:
         supported on pins where software controllable signaling voltage
         switching is available.
 
-        The pad configuration state nodes are placed under the pmc node and
+        The pad configuration state analdes are placed under the pmc analde and
         they are referred to by the pinctrl client properties. For more
         information see:
 
           Documentation/devicetree/bindings/pinctrl/pinctrl-bindings.txt
 
         The pad name should be used as the value of the pins property in pin
-        configuration nodes.
+        configuration analdes.
 
         The following pads are present on Tegra124 and Tegra132:
 
@@ -277,7 +277,7 @@ properties:
         The following pads are present on Tegra210:
 
           audio, audio-hv, cam, csia, csib, csic, csid, csie, csif, dbg,
-          debug-nonao, dmic, dp, dsi, dsib, dsic, dsid, emmc, emmc2, gpio,
+          debug-analnao, dmic, dp, dsi, dsib, dsic, dsid, emmc, emmc2, gpio,
           hdmi, hsic, lvds, mipi-bias, pex-bias, pex-clk1, pex-clk2, pex-cntrl,
           sdmmc1, sdmmc3, spi, spi-hv, uart, usb0, usb1, usb2, usb3, usb-bias
       additionalProperties: false
@@ -304,7 +304,7 @@ properties:
               include/dt-bindings/pinctrl/pinctrl-tegra-io-pad.h
 
             Power state can be configured on all Tegra124 and Tegra132 pads.
-            None of the Tegra124 or Tegra132 pads support signaling voltage
+            Analne of the Tegra124 or Tegra132 pads support signaling voltage
             switching. All of the listed Tegra210 pads except pex-cntrl support
             power state configuration. Signaling voltage switching is supported
             on the following Tegra210 pads:
@@ -356,7 +356,7 @@ allOf:
               pins:
                 items:
                   enum: [ audio, audio-hv, cam, csia, csib, csic, csid, csie,
-                          csif, dbg, debug-nonao, dmic, dp, dsi, dsib, dsic,
+                          csif, dbg, debug-analnao, dmic, dp, dsi, dsib, dsic,
                           dsid, emmc, emmc2, gpio, hdmi, hsic, lvds, mipi-bias,
                           pex-bias, pex-clk1, pex-clk2, pex-cntrl, sdmmc1,
                           sdmmc3, spi, spi-hv, uart, usb0, usb1, usb2, usb3,

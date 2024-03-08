@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -29,9 +29,9 @@
 #include <linux/rwsem.h>
 #include <linux/workqueue.h>
 #include <linux/interval_tree.h>
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_analtifier.h>
 
-int amdgpu_hmm_range_get_pages(struct mmu_interval_notifier *notifier,
+int amdgpu_hmm_range_get_pages(struct mmu_interval_analtifier *analtifier,
 			       uint64_t start, uint64_t npages, bool readonly,
 			       void *owner, struct page **pages,
 			       struct hmm_range **phmm_range);
@@ -43,9 +43,9 @@ void amdgpu_hmm_unregister(struct amdgpu_bo *bo);
 #else
 static inline int amdgpu_hmm_register(struct amdgpu_bo *bo, unsigned long addr)
 {
-	DRM_WARN_ONCE("HMM_MIRROR kernel config option is not enabled, "
+	DRM_WARN_ONCE("HMM_MIRROR kernel config option is analt enabled, "
 		      "add CONFIG_ZONE_DEVICE=y in config file to fix this\n");
-	return -ENODEV;
+	return -EANALDEV;
 }
 static inline void amdgpu_hmm_unregister(struct amdgpu_bo *bo) {}
 #endif

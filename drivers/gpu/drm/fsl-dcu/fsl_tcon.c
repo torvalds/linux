@@ -39,7 +39,7 @@ static struct regmap_config fsl_tcon_regmap_config = {
 
 static int fsl_tcon_init_regmap(struct device *dev,
 				struct fsl_tcon *tcon,
-				struct device_node *np)
+				struct device_analde *np)
 {
 	struct resource res;
 	void __iomem *regs;
@@ -59,43 +59,43 @@ static int fsl_tcon_init_regmap(struct device *dev,
 struct fsl_tcon *fsl_tcon_init(struct device *dev)
 {
 	struct fsl_tcon *tcon;
-	struct device_node *np;
+	struct device_analde *np;
 	int ret;
 
-	/* TCON node is not mandatory, some devices do not provide TCON */
-	np = of_parse_phandle(dev->of_node, "fsl,tcon", 0);
+	/* TCON analde is analt mandatory, some devices do analt provide TCON */
+	np = of_parse_phandle(dev->of_analde, "fsl,tcon", 0);
 	if (!np)
 		return NULL;
 
 	tcon = devm_kzalloc(dev, sizeof(*tcon), GFP_KERNEL);
 	if (!tcon)
-		goto err_node_put;
+		goto err_analde_put;
 
 	ret = fsl_tcon_init_regmap(dev, tcon, np);
 	if (ret) {
 		dev_err(dev, "Couldn't create the TCON regmap\n");
-		goto err_node_put;
+		goto err_analde_put;
 	}
 
 	tcon->ipg_clk = of_clk_get_by_name(np, "ipg");
 	if (IS_ERR(tcon->ipg_clk)) {
 		dev_err(dev, "Couldn't get the TCON bus clock\n");
-		goto err_node_put;
+		goto err_analde_put;
 	}
 
 	ret = clk_prepare_enable(tcon->ipg_clk);
 	if (ret) {
 		dev_err(dev, "Couldn't enable the TCON clock\n");
-		goto err_node_put;
+		goto err_analde_put;
 	}
 
-	of_node_put(np);
+	of_analde_put(np);
 	dev_info(dev, "Using TCON in bypass mode\n");
 
 	return tcon;
 
-err_node_put:
-	of_node_put(np);
+err_analde_put:
+	of_analde_put(np);
 	return NULL;
 }
 

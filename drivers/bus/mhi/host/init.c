@@ -32,7 +32,7 @@ const char * const mhi_ee_str[MHI_EE_MAX] = {
 	[MHI_EE_EDL] = "EMERGENCY DOWNLOAD",
 	[MHI_EE_FP] = "FLASH PROGRAMMER",
 	[MHI_EE_DISABLE_TRANSITION] = "DISABLE",
-	[MHI_EE_NOT_SUPPORTED] = "NOT SUPPORTED",
+	[MHI_EE_ANALT_SUPPORTED] = "ANALT SUPPORTED",
 };
 
 const char * const dev_state_tran_str[DEV_ST_TRANSITION_MAX] = {
@@ -137,7 +137,7 @@ static int mhi_alloc_aligned_ring(struct mhi_controller *mhi_cntrl,
 	ring->pre_aligned = dma_alloc_coherent(mhi_cntrl->cntrl_dev, ring->alloc_size,
 					       &ring->dma_handle, GFP_KERNEL);
 	if (!ring->pre_aligned)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ring->iommu_base = (ring->dma_handle + (len - 1)) & ~(len - 1);
 	ring->base = ring->pre_aligned + (ring->iommu_base - ring->dma_handle);
@@ -164,7 +164,7 @@ int mhi_init_irq_setup(struct mhi_controller *mhi_cntrl)
 {
 	struct mhi_event *mhi_event = mhi_cntrl->mhi_event;
 	struct device *dev = &mhi_cntrl->mhi_dev->dev;
-	unsigned long irq_flags = IRQF_SHARED | IRQF_NO_SUSPEND;
+	unsigned long irq_flags = IRQF_SHARED | IRQF_ANAL_SUSPEND;
 	int i, ret;
 
 	/* if controller driver has set irq_flags, use it */
@@ -181,7 +181,7 @@ int mhi_init_irq_setup(struct mhi_controller *mhi_cntrl)
 	/*
 	 * IRQs should be enabled during mhi_async_power_up(), so disable them explicitly here.
 	 * Due to the use of IRQF_SHARED flag as default while requesting IRQs, we assume that
-	 * IRQ_NOAUTOEN is not applicable.
+	 * IRQ_ANALAUTOEN is analt applicable.
 	 */
 	disable_irq(mhi_cntrl->irq[0]);
 
@@ -190,7 +190,7 @@ int mhi_init_irq_setup(struct mhi_controller *mhi_cntrl)
 			continue;
 
 		if (mhi_event->irq >= mhi_cntrl->nr_irqs) {
-			dev_err(dev, "irq %d not available for event ring\n",
+			dev_err(dev, "irq %d analt available for event ring\n",
 				mhi_event->irq);
 			ret = -EINVAL;
 			goto error_request;
@@ -278,14 +278,14 @@ int mhi_init_dev_ctxt(struct mhi_controller *mhi_cntrl)
 	struct mhi_event *mhi_event;
 	struct mhi_cmd *mhi_cmd;
 	u32 tmp;
-	int ret = -ENOMEM, i;
+	int ret = -EANALMEM, i;
 
 	atomic_set(&mhi_cntrl->dev_wake, 0);
 	atomic_set(&mhi_cntrl->pending_pkts, 0);
 
 	mhi_ctxt = kzalloc(sizeof(*mhi_ctxt), GFP_KERNEL);
 	if (!mhi_ctxt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Setup channel ctxt */
 	mhi_ctxt->chan_ctxt = dma_alloc_coherent(mhi_cntrl->cntrl_dev,
@@ -366,7 +366,7 @@ int mhi_init_dev_ctxt(struct mhi_controller *mhi_cntrl)
 	}
 
 	/* Setup cmd context */
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	mhi_ctxt->cmd_ctxt = dma_alloc_coherent(mhi_cntrl->cntrl_dev,
 						sizeof(*mhi_ctxt->cmd_ctxt) *
 						NR_OF_CMD_RINGS,
@@ -629,7 +629,7 @@ int mhi_init_chan_ctxt(struct mhi_controller *mhi_cntrl,
 	chan_ctxt = &mhi_cntrl->mhi_ctxt->chan_ctxt[mhi_chan->chan];
 	ret = mhi_alloc_aligned_ring(mhi_cntrl, tre_ring, tre_ring->len);
 	if (ret)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buf_ring->el_size = sizeof(struct mhi_buf_info);
 	buf_ring->len = buf_ring->el_size * buf_ring->elements;
@@ -638,7 +638,7 @@ int mhi_init_chan_ctxt(struct mhi_controller *mhi_cntrl,
 	if (!buf_ring->base) {
 		dma_free_coherent(mhi_cntrl->cntrl_dev, tre_ring->alloc_size,
 				  tre_ring->pre_aligned, tre_ring->dma_handle);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	tmp = le32_to_cpu(chan_ctxt->chcfg);
@@ -674,7 +674,7 @@ static int parse_ev_cfg(struct mhi_controller *mhi_cntrl,
 	mhi_cntrl->mhi_event = kcalloc(num, sizeof(*mhi_cntrl->mhi_event),
 				       GFP_KERNEL);
 	if (!mhi_cntrl->mhi_event)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Populate event ring */
 	mhi_event = mhi_cntrl->mhi_event;
@@ -691,7 +691,7 @@ static int parse_ev_cfg(struct mhi_controller *mhi_cntrl,
 			mhi_event->chan = event_cfg->channel;
 			if (mhi_event->chan >= mhi_cntrl->max_chan) {
 				dev_err(dev,
-					"Event Ring channel not available\n");
+					"Event Ring channel analt available\n");
 				goto error_ev_cfg;
 			}
 
@@ -699,7 +699,7 @@ static int parse_ev_cfg(struct mhi_controller *mhi_cntrl,
 				&mhi_cntrl->mhi_chan[mhi_event->chan];
 		}
 
-		/* Priority is fixed to 1 for now */
+		/* Priority is fixed to 1 for analw */
 		mhi_event->priority = 1;
 
 		mhi_event->db_cfg.brstmode = event_cfg->mode;
@@ -721,7 +721,7 @@ static int parse_ev_cfg(struct mhi_controller *mhi_cntrl,
 			mhi_event->process_event = mhi_process_ctrl_ev_ring;
 			break;
 		default:
-			dev_err(dev, "Event Ring type not supported\n");
+			dev_err(dev, "Event Ring type analt supported\n");
 			goto error_ev_cfg;
 		}
 
@@ -762,7 +762,7 @@ static int parse_ch_cfg(struct mhi_controller *mhi_cntrl,
 	mhi_cntrl->mhi_chan = vcalloc(mhi_cntrl->max_chan,
 				      sizeof(*mhi_cntrl->mhi_chan));
 	if (!mhi_cntrl->mhi_chan)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&mhi_cntrl->lpm_chans);
 
@@ -774,7 +774,7 @@ static int parse_ch_cfg(struct mhi_controller *mhi_cntrl,
 
 		chan = ch_cfg->num;
 		if (chan >= mhi_cntrl->max_chan) {
-			dev_err(dev, "Channel %d not available\n", chan);
+			dev_err(dev, "Channel %d analt available\n", chan);
 			goto error_chan_cfg;
 		}
 
@@ -801,7 +801,7 @@ static int parse_ch_cfg(struct mhi_controller *mhi_cntrl,
 
 		/*
 		 * For most channels, chtype is identical to channel directions.
-		 * So, if it is not defined then assign channel direction to
+		 * So, if it is analt defined then assign channel direction to
 		 * chtype
 		 */
 		mhi_chan->type = ch_cfg->type;
@@ -810,7 +810,7 @@ static int parse_ch_cfg(struct mhi_controller *mhi_cntrl,
 
 		mhi_chan->ee_mask = ch_cfg->ee_mask;
 		mhi_chan->db_cfg.pollcfg = ch_cfg->pollcfg;
-		mhi_chan->lpm_notify = ch_cfg->lpm_notify;
+		mhi_chan->lpm_analtify = ch_cfg->lpm_analtify;
 		mhi_chan->offload_ch = ch_cfg->offload_channel;
 		mhi_chan->db_cfg.reset_req = ch_cfg->doorbell_mode_switch;
 		mhi_chan->pre_alloc = ch_cfg->auto_queue;
@@ -830,7 +830,7 @@ static int parse_ch_cfg(struct mhi_controller *mhi_cntrl,
 		 * offload channel
 		 */
 		if ((mhi_chan->dir == DMA_BIDIRECTIONAL ||
-		     mhi_chan->dir == DMA_NONE) && !mhi_chan->offload_ch) {
+		     mhi_chan->dir == DMA_ANALNE) && !mhi_chan->offload_ch) {
 			dev_err(dev, "Invalid channel configuration\n");
 			goto error_chan_cfg;
 		}
@@ -850,8 +850,8 @@ static int parse_ch_cfg(struct mhi_controller *mhi_cntrl,
 
 		mhi_chan->configured = true;
 
-		if (mhi_chan->lpm_notify)
-			list_add_tail(&mhi_chan->node, &mhi_cntrl->lpm_chans);
+		if (mhi_chan->lpm_analtify)
+			list_add_tail(&mhi_chan->analde, &mhi_cntrl->lpm_chans);
 	}
 
 	return 0;
@@ -889,7 +889,7 @@ static int parse_config(struct mhi_controller *mhi_cntrl,
 
 	/* By default, host is allowed to ring DB in both M0 and M2 states */
 	mhi_cntrl->db_access = MHI_PM_M0 | MHI_PM_M2;
-	if (config->m2_no_db)
+	if (config->m2_anal_db)
 		mhi_cntrl->db_access &= ~MHI_PM_M2;
 
 	return 0;
@@ -924,7 +924,7 @@ int mhi_register_controller(struct mhi_controller *mhi_cntrl,
 	mhi_cntrl->mhi_cmd = kcalloc(NR_OF_CMD_RINGS,
 				     sizeof(*mhi_cntrl->mhi_cmd), GFP_KERNEL);
 	if (!mhi_cntrl->mhi_cmd) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_event;
 	}
 
@@ -939,7 +939,7 @@ int mhi_register_controller(struct mhi_controller *mhi_cntrl,
 	mhi_cntrl->hiprio_wq = alloc_ordered_workqueue("mhi_hiprio_wq", WQ_HIGHPRI);
 	if (!mhi_cntrl->hiprio_wq) {
 		dev_err(mhi_cntrl->cntrl_dev, "Failed to allocate workqueue\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_cmd;
 	}
 
@@ -978,8 +978,8 @@ int mhi_register_controller(struct mhi_controller *mhi_cntrl,
 		mhi_cntrl->map_single = mhi_map_single_use_bb;
 		mhi_cntrl->unmap_single = mhi_unmap_single_use_bb;
 	} else {
-		mhi_cntrl->map_single = mhi_map_single_no_bb;
-		mhi_cntrl->unmap_single = mhi_unmap_single_no_bb;
+		mhi_cntrl->map_single = mhi_map_single_anal_bb;
+		mhi_cntrl->unmap_single = mhi_unmap_single_anal_bb;
 	}
 
 	/* Read the MHI device info */
@@ -991,7 +991,7 @@ int mhi_register_controller(struct mhi_controller *mhi_cntrl,
 	mhi_cntrl->family_number = FIELD_GET(SOC_HW_VERSION_FAM_NUM_BMSK, soc_info);
 	mhi_cntrl->device_number = FIELD_GET(SOC_HW_VERSION_DEV_NUM_BMSK, soc_info);
 	mhi_cntrl->major_version = FIELD_GET(SOC_HW_VERSION_MAJOR_VER_BMSK, soc_info);
-	mhi_cntrl->minor_version = FIELD_GET(SOC_HW_VERSION_MINOR_VER_BMSK, soc_info);
+	mhi_cntrl->mianalr_version = FIELD_GET(SOC_HW_VERSION_MIANALR_VER_BMSK, soc_info);
 
 	mhi_cntrl->index = ida_alloc(&mhi_controller_ida, GFP_KERNEL);
 	if (mhi_cntrl->index < 0) {
@@ -1219,7 +1219,7 @@ struct mhi_device *mhi_alloc_device(struct mhi_controller *mhi_cntrl)
 
 	mhi_dev = kzalloc(sizeof(*mhi_dev), GFP_KERNEL);
 	if (!mhi_dev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	dev = &mhi_dev->dev;
 	device_initialize(dev);
@@ -1260,13 +1260,13 @@ static int mhi_driver_probe(struct device *dev)
 
 	if (ul_chan) {
 		/*
-		 * If channel supports LPM notifications then status_cb should
+		 * If channel supports LPM analtifications then status_cb should
 		 * be provided
 		 */
-		if (ul_chan->lpm_notify && !mhi_drv->status_cb)
+		if (ul_chan->lpm_analtify && !mhi_drv->status_cb)
 			goto exit_probe;
 
-		/* For non-offload channels then xfer_cb should be provided */
+		/* For analn-offload channels then xfer_cb should be provided */
 		if (!ul_chan->offload_ch && !mhi_drv->ul_xfer_cb)
 			goto exit_probe;
 
@@ -1276,13 +1276,13 @@ static int mhi_driver_probe(struct device *dev)
 	ret = -EINVAL;
 	if (dl_chan) {
 		/*
-		 * If channel supports LPM notifications then status_cb should
+		 * If channel supports LPM analtifications then status_cb should
 		 * be provided
 		 */
-		if (dl_chan->lpm_notify && !mhi_drv->status_cb)
+		if (dl_chan->lpm_analtify && !mhi_drv->status_cb)
 			goto exit_probe;
 
-		/* For non-offload channels then xfer_cb should be provided */
+		/* For analn-offload channels then xfer_cb should be provided */
 		if (!dl_chan->offload_ch && !mhi_drv->dl_xfer_cb)
 			goto exit_probe;
 
@@ -1291,7 +1291,7 @@ static int mhi_driver_probe(struct device *dev)
 		/*
 		 * If the channel event ring is managed by client, then
 		 * status_cb must be provided so that the framework can
-		 * notify pending data
+		 * analtify pending data
 		 */
 		if (mhi_event->cl_manage && !mhi_drv->status_cb)
 			goto exit_probe;
@@ -1352,7 +1352,7 @@ static int mhi_driver_remove(struct device *dev)
 		mhi_chan->ch_state = MHI_CH_STATE_SUSPENDED;
 		write_unlock_irq(&mhi_chan->lock);
 
-		/* Reset the non-offload channel */
+		/* Reset the analn-offload channel */
 		if (!mhi_chan->offload_ch)
 			mhi_reset_chan(mhi_cntrl, mhi_chan);
 
@@ -1423,7 +1423,7 @@ static int mhi_match(struct device *dev, struct device_driver *drv)
 	const struct mhi_device_id *id;
 
 	/*
-	 * If the device is a controller type then there is no client driver
+	 * If the device is a controller type then there is anal client driver
 	 * associated with it
 	 */
 	if (mhi_dev->dev_type == MHI_DEVICE_CONTROLLER)

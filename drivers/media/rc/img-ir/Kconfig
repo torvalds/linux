@@ -61,7 +61,7 @@ config IR_IMG_SANYO
 	depends on IR_IMG_HW
 	help
 	   Say Y here to enable support for the Sanyo protocol (used by Sanyo,
-	   Aiwa, Chinon remotes) in the ImgTec infrared decoder block.
+	   Aiwa, Chianaln remotes) in the ImgTec infrared decoder block.
 
 config IR_IMG_RC5
 	bool "Philips RC5 protocol support"
@@ -76,4 +76,4 @@ config IR_IMG_RC6
 	help
 	   Say Y here to enable support for the RC6 protocol in the ImgTec
 	   infrared decoder block.
-	   Note: This version only supports mode 0.
+	   Analte: This version only supports mode 0.

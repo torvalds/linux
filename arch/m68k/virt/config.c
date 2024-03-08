@@ -19,7 +19,7 @@ struct virt_booter_data virt_bi_data;
 static struct resource ctrlres;
 
 enum {
-	CMD_NOOP,
+	CMD_ANALOP,
 	CMD_RESET,
 	CMD_HALT,
 	CMD_PANIC,
@@ -60,7 +60,7 @@ static void virt_reset(void)
 
 int __init virt_parse_bootinfo(const struct bi_record *record)
 {
-	int unknown = 0;
+	int unkanalwn = 0;
 	const void *data = record->data;
 
 	switch (be16_to_cpu(record->tag)) {
@@ -93,10 +93,10 @@ int __init virt_parse_bootinfo(const struct bi_record *record)
 		virt_bi_data.virtio.irq = be32_to_cpup(data);
 		break;
 	default:
-		unknown = 1;
+		unkanalwn = 1;
 		break;
 	}
-	return unknown;
+	return unkanalwn;
 }
 
 static void __init virt_sched_init(void)
@@ -118,7 +118,7 @@ void __init config_virt(void)
 					"virtctrl");
 
 	if (request_resource(&iomem_resource, &ctrlres)) {
-		pr_err("Cannot allocate virt controller resource\n");
+		pr_err("Cananalt allocate virt controller resource\n");
 		return;
 	}
 

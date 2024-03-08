@@ -32,7 +32,7 @@ void intel_plane_copy_uapi_to_hw_state(struct intel_plane_state *plane_state,
 				       struct intel_crtc *crtc);
 void intel_plane_copy_hw_state(struct intel_plane_state *plane_state,
 			       const struct intel_plane_state *from_plane_state);
-void intel_plane_update_noarm(struct intel_plane *plane,
+void intel_plane_update_analarm(struct intel_plane *plane,
 			      const struct intel_crtc_state *crtc_state,
 			      const struct intel_plane_state *plane_state);
 void intel_plane_update_arm(struct intel_plane *plane,
@@ -45,7 +45,7 @@ void intel_plane_free(struct intel_plane *plane);
 struct drm_plane_state *intel_plane_duplicate_state(struct drm_plane *plane);
 void intel_plane_destroy_state(struct drm_plane *plane,
 			       struct drm_plane_state *state);
-void intel_crtc_planes_update_noarm(struct intel_atomic_state *state,
+void intel_crtc_planes_update_analarm(struct intel_atomic_state *state,
 				    struct intel_crtc *crtc);
 void intel_crtc_planes_update_arm(struct intel_atomic_state *state,
 				  struct intel_crtc *crtc);

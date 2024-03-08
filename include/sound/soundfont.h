@@ -99,7 +99,7 @@ void snd_sf_free(struct snd_sf_list *sflist);
 int snd_soundfont_remove_samples(struct snd_sf_list *sflist);
 int snd_soundfont_remove_unlocked(struct snd_sf_list *sflist);
 
-int snd_soundfont_search_zone(struct snd_sf_list *sflist, int *notep, int vel,
+int snd_soundfont_search_zone(struct snd_sf_list *sflist, int *analtep, int vel,
 			      int preset, int bank,
 			      int def_preset, int def_bank,
 			      struct snd_sf_zone **table, int max_layers);

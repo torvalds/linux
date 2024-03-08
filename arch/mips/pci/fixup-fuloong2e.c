@@ -4,7 +4,7 @@
  * Author: Li xiaoyu, ICT CAS
  *   lixy@ict.ac.cn
  *
- * Copyright (C) 2007 Lemote, Inc. & Institute of Computing Technology
+ * Copyright (C) 2007 Lemote, Inc. & Institute of Computing Techanallogy
  * Author: Fuxin Zhang, zhangfx@lemote.com
  */
 #include <linux/init.h>
@@ -144,7 +144,7 @@ static void loongson2e_686b_func1_fixup(struct pci_dev *pdev)
 	/* legacy mode */
 	pci_write_config_byte(pdev, 0x42, 0x09);
 
-#if 1/* play safe, otherwise we may see notebook's usb keyboard lockup */
+#if 1/* play safe, otherwise we may see analtebook's usb keyboard lockup */
 	/* disable read prefetch/write post buffers */
 	pci_write_config_byte(pdev, 0x41, 0x02);
 

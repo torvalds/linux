@@ -23,7 +23,7 @@
 #include "test_cls_redirect.h"
 
 #ifdef SUBPROGS
-#define INLINING __noinline
+#define INLINING __analinline
 #else
 #define INLINING __always_inline
 #endif
@@ -56,8 +56,8 @@ typedef struct {
 	uint64_t forwarded_packets_total_gue;
 	uint64_t forwarded_packets_total_gre;
 
-	uint64_t errors_total_unknown_l3_proto;
-	uint64_t errors_total_unknown_l4_proto;
+	uint64_t errors_total_unkanalwn_l3_proto;
+	uint64_t errors_total_unkanalwn_l4_proto;
 	uint64_t errors_total_malformed_ip;
 	uint64_t errors_total_fragmented_ip;
 	uint64_t errors_total_malformed_icmp;
@@ -75,7 +75,7 @@ typedef struct {
 
 typedef enum {
 	INVALID = 0,
-	UNKNOWN,
+	UNKANALWN,
 	ECHO_REQUEST,
 	SYN,
 	SYN_COOKIE,
@@ -115,11 +115,11 @@ static const ret_t CONTINUE_PROCESSING = -1;
 	} while (0)
 
 /* Linux packet pointers are either aligned to NET_IP_ALIGN (aka 2 bytes),
- * or not aligned if the arch supports efficient unaligned access.
+ * or analt aligned if the arch supports efficient unaligned access.
  *
  * Since the verifier ensures that eBPF packet accesses follow these rules,
  * we can tell LLVM to emit code as if we always had a larger alignment.
- * It will yell at us if we end up on a platform where this is not valid.
+ * It will yell at us if we end up on a platform where this is analt valid.
  */
 typedef uint8_t *net_ptr __attribute__((align_value(8)));
 
@@ -136,14 +136,14 @@ static __always_inline size_t buf_off(const buf_t *buf)
 {
 	/* Clang seems to optimize constructs like
 	 *    a - b + c
-	 * if c is known:
+	 * if c is kanalwn:
 	 *    r? = c
 	 *    r? -= b
 	 *    r? += a
 	 *
 	 * This is a problem if a and b are packet pointers,
 	 * since the verifier allows subtracting two pointers to
-	 * get a scalar, but not a scalar and a pointer.
+	 * get a scalar, but analt a scalar and a pointer.
 	 *
 	 * Use inline asm to break this optimization.
 	 */
@@ -164,7 +164,7 @@ static __always_inline bool buf_copy(buf_t *buf, void *dst, size_t len)
 
 static __always_inline bool buf_skip(buf_t *buf, const size_t len)
 {
-	/* Check whether off + len is valid in the non-linear part. */
+	/* Check whether off + len is valid in the analn-linear part. */
 	if (buf_off(buf) + len > buf->skb->len) {
 		return false;
 	}
@@ -177,7 +177,7 @@ static __always_inline bool buf_skip(buf_t *buf, const size_t len)
  * larger than the remaining data. Consumes len bytes on a successful
  * call.
  *
- * If scratch is not NULL, the function will attempt to load non-linear
+ * If scratch is analt NULL, the function will attempt to load analn-linear
  * data via bpf_skb_load_bytes. On success, scratch is returned.
  */
 static __always_inline void *buf_assign(buf_t *buf, const size_t len, void *scratch)
@@ -320,14 +320,14 @@ bool pkt_skip_ipv6_extension_headers(buf_t *pkt,
 			break;
 
 		default:
-			/* The next header is not one of the known extension
+			/* The next header is analt one of the kanalwn extension
 			 * headers, treat it as the upper layer header.
 			 *
-			 * This handles IPPROTO_NONE.
+			 * This handles IPPROTO_ANALNE.
 			 *
 			 * Encapsulating Security Payload (50) and Authentication
 			 * Header (51) also end up here (and will trigger an
-			 * unknown proto error later). They have a custom header
+			 * unkanalwn proto error later). They have a custom header
 			 * format and seem too esoteric to care about.
 			 */
 			*upper_proto = exthdr.next;
@@ -389,7 +389,7 @@ static INLINING ret_t accept_locally(struct __sk_buff *skb, encap_headers_t *enc
 
 	if (bpf_skb_adjust_room(skb, -encap_overhead, BPF_ADJ_ROOM_MAC,
 				BPF_F_ADJ_ROOM_FIXED_GSO |
-				BPF_F_ADJ_ROOM_NO_CSUM_RESET) ||
+				BPF_F_ADJ_ROOM_ANAL_CSUM_RESET) ||
 	    bpf_csum_level(skb, BPF_CSUM_LEVEL_DEC))
 		return TC_ACT_SHOT;
 
@@ -413,7 +413,7 @@ static INLINING ret_t forward_with_gre(struct __sk_buff *skb, encap_headers_t *e
 	/* Loop protection: the inner packet's TTL is decremented as a safeguard
 	 * against any forwarding loop. As the only interesting field is the TTL
 	 * hop limit for IPv6, it is easier to use bpf_skb_load_bytes/bpf_skb_store_bytes
-	 * as they handle the split packets if needed (no need for the data to be
+	 * as they handle the split packets if needed (anal need for the data to be
 	 * in the linear section).
 	 */
 	if (encap->gue.proto_ctype == IPPROTO_IPV6) {
@@ -488,7 +488,7 @@ static INLINING ret_t forward_with_gre(struct __sk_buff *skb, encap_headers_t *e
 
 	if (bpf_skb_adjust_room(skb, delta, BPF_ADJ_ROOM_NET,
 				BPF_F_ADJ_ROOM_FIXED_GSO |
-				BPF_F_ADJ_ROOM_NO_CSUM_RESET) ||
+				BPF_F_ADJ_ROOM_ANAL_CSUM_RESET) ||
 	    bpf_csum_level(skb, BPF_CSUM_LEVEL_INC)) {
 		metrics->errors_total_encap_adjust_failed++;
 		return TC_ACT_SHOT;
@@ -576,7 +576,7 @@ static INLINING ret_t skip_next_hops(buf_t *pkt, int n)
 
 /* Get the next hop from the GLB header.
  *
- * Sets next_hop->s_addr to 0 if there are no more hops left.
+ * Sets next_hop->s_addr to 0 if there are anal more hops left.
  * pkt is positioned just after the variable length GLB header
  * iff the call is successful.
  */
@@ -591,7 +591,7 @@ static INLINING ret_t get_next_hop(buf_t *pkt, encap_headers_t *encap,
 	MAYBE_RETURN(skip_next_hops(pkt, encap->unigue.next_hop));
 
 	if (encap->unigue.next_hop == encap->unigue.hop_count) {
-		/* No more next hops, we are at the end of the GLB header. */
+		/* Anal more next hops, we are at the end of the GLB header. */
 		next_hop->s_addr = 0;
 		return CONTINUE_PROCESSING;
 	}
@@ -651,7 +651,7 @@ static INLINING verdict_t classify_tcp(struct __sk_buff *skb,
 	struct bpf_sock *sk =
 		bpf_skc_lookup_tcp(skb, tuple, tuplen, BPF_F_CURRENT_NETNS, 0);
 	if (sk == NULL) {
-		return UNKNOWN;
+		return UNKANALWN;
 	}
 
 	if (sk->state != BPF_TCP_LISTEN) {
@@ -674,7 +674,7 @@ static INLINING verdict_t classify_tcp(struct __sk_buff *skb,
 	}
 
 	bpf_sk_release(sk);
-	return UNKNOWN;
+	return UNKANALWN;
 }
 
 static INLINING verdict_t classify_udp(struct __sk_buff *skb,
@@ -683,7 +683,7 @@ static INLINING verdict_t classify_udp(struct __sk_buff *skb,
 	struct bpf_sock *sk =
 		bpf_sk_lookup_udp(skb, tuple, tuplen, BPF_F_CURRENT_NETNS, 0);
 	if (sk == NULL) {
-		return UNKNOWN;
+		return UNKANALWN;
 	}
 
 	if (sk->state == BPF_TCP_ESTABLISHED) {
@@ -692,7 +692,7 @@ static INLINING verdict_t classify_udp(struct __sk_buff *skb,
 	}
 
 	bpf_sk_release(sk);
-	return UNKNOWN;
+	return UNKANALWN;
 }
 
 static INLINING verdict_t classify_icmp(struct __sk_buff *skb, uint8_t proto,
@@ -883,7 +883,7 @@ static INLINING verdict_t process_ipv4(buf_t *pkt, metrics_t *metrics)
 		return process_udp(pkt, ipv4, sizeof(*ipv4), metrics);
 
 	default:
-		metrics->errors_total_unknown_l4_proto++;
+		metrics->errors_total_unkanalwn_l4_proto++;
 		return INVALID;
 	}
 }
@@ -923,7 +923,7 @@ static INLINING verdict_t process_ipv6(buf_t *pkt, metrics_t *metrics)
 		return process_udp(pkt, ipv6, sizeof(*ipv6), metrics);
 
 	default:
-		metrics->errors_total_unknown_l4_proto++;
+		metrics->errors_total_unkanalwn_l4_proto++;
 		return INVALID;
 	}
 }
@@ -938,7 +938,7 @@ int cls_redirect(struct __sk_buff *skb)
 
 	metrics->processed_packets_total++;
 
-	/* Pass bogus packets as long as we're not sure they're
+	/* Pass bogus packets as long as we're analt sure they're
 	 * destined for us.
 	 */
 	if (skb->protocol != bpf_htons(ETH_P_IP)) {
@@ -980,7 +980,7 @@ int cls_redirect(struct __sk_buff *skb)
 		return TC_ACT_OK;
 	}
 
-	/* We now know that the packet is destined to us, we can
+	/* We analw kanalw that the packet is destined to us, we can
 	 * drop bogus ones.
 	 */
 	if (ipv4_is_fragment((void *)&encap->ip)) {
@@ -1037,7 +1037,7 @@ int cls_redirect(struct __sk_buff *skb)
 		break;
 
 	default:
-		metrics->errors_total_unknown_l3_proto++;
+		metrics->errors_total_unkanalwn_l3_proto++;
 		return TC_ACT_SHOT;
 	}
 
@@ -1046,7 +1046,7 @@ int cls_redirect(struct __sk_buff *skb)
 		/* metrics have already been bumped */
 		return TC_ACT_SHOT;
 
-	case UNKNOWN:
+	case UNKANALWN:
 		return forward_to_next_hop(skb, encap, &next_hop, metrics);
 
 	case ECHO_REQUEST:

@@ -25,7 +25,7 @@
  *   wlan - WLAN subsystem enabled: contains either 0 or 1. (ro)
  *
  *   bluetooth - Bluetooth subsystem enabled: contains either 0 or 1
- *   Please note that this file is constantly 0 if no Bluetooth
+ *   Please analte that this file is constantly 0 if anal Bluetooth
  *   hardware is available. (ro)
  *
  * In addition to these platform device attributes the driver
@@ -91,7 +91,7 @@ static SIMPLE_DEV_PM_OPS(msi_laptop_pm, NULL, msi_laptop_resume);
 
 static bool force;
 module_param(force, bool, 0);
-MODULE_PARM_DESC(force, "Force driver load, ignore DMI data");
+MODULE_PARM_DESC(force, "Force driver load, iganalre DMI data");
 
 static int auto_brightness;
 module_param(auto_brightness, int, 0);
@@ -129,7 +129,7 @@ struct quirk_entry {
 	bool ec_delay;
 
 	/* Some MSI Wind netbooks (e.g. MSI Wind U100) need loading SCM to get
-	 * some features working (e.g. ECO mode), but we cannot change
+	 * some features working (e.g. ECO mode), but we cananalt change
 	 * Wlan/Bluetooth state in software and we can only read its state.
 	 */
 	bool ec_read_only;
@@ -356,9 +356,9 @@ static ssize_t show_threeg(struct device *dev,
 
 	int ret;
 
-	/* old msi ec not support 3G */
+	/* old msi ec analt support 3G */
 	if (quirks->old_ec_model)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = get_wireless_state_ec_standard();
 	if (ret < 0)
@@ -635,7 +635,7 @@ static const struct dmi_system_id msi_dmi_table[] __initconst = {
 	{
 		.ident = "Medion MD96100",
 		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "NOTEBOOK"),
+			DMI_MATCH(DMI_SYS_VENDOR, "ANALTEBOOK"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "SAM2000"),
 			DMI_MATCH(DMI_PRODUCT_VERSION, "0131"),
 			DMI_MATCH(DMI_CHASSIS_VENDOR, "MICRO-STAR INT")
@@ -778,7 +778,7 @@ static bool msi_rfkill_set_state(struct rfkill *rfkill, bool blocked)
 		return rfkill_set_sw_state(rfkill, blocked);
 }
 
-static void msi_update_rfkill(struct work_struct *ignored)
+static void msi_update_rfkill(struct work_struct *iganalred)
 {
 	get_wireless_state_ec_standard();
 
@@ -791,7 +791,7 @@ static void msi_update_rfkill(struct work_struct *ignored)
 }
 static DECLARE_DELAYED_WORK(msi_rfkill_dwork, msi_update_rfkill);
 
-static void msi_send_touchpad_key(struct work_struct *ignored)
+static void msi_send_touchpad_key(struct work_struct *iganalred)
 {
 	u8 rdata;
 	int result;
@@ -835,7 +835,7 @@ static bool msi_laptop_i8042_filter(unsigned char data, unsigned char str,
 	return false;
 }
 
-static void msi_init_rfkill(struct work_struct *ignored)
+static void msi_init_rfkill(struct work_struct *iganalred)
 {
 	if (rfk_wlan) {
 		msi_rfkill_set_state(rfk_wlan, !wlan_s);
@@ -864,7 +864,7 @@ static int rfkill_init(struct platform_device *sdev)
 				RFKILL_TYPE_BLUETOOTH,
 				&rfkill_bluetooth_ops, NULL);
 	if (!rfk_bluetooth) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto err_bluetooth;
 	}
 	retval = rfkill_register(rfk_bluetooth);
@@ -874,7 +874,7 @@ static int rfkill_init(struct platform_device *sdev)
 	rfk_wlan = rfkill_alloc("msi-wlan", &sdev->dev, RFKILL_TYPE_WLAN,
 				&rfkill_wlan_ops, NULL);
 	if (!rfk_wlan) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto err_wlan;
 	}
 	retval = rfkill_register(rfk_wlan);
@@ -885,7 +885,7 @@ static int rfkill_init(struct platform_device *sdev)
 		rfk_threeg = rfkill_alloc("msi-threeg", &sdev->dev,
 				RFKILL_TYPE_WWAN, &rfkill_threeg_ops, NULL);
 		if (!rfk_threeg) {
-			retval = -ENOMEM;
+			retval = -EANALMEM;
 			goto err_threeg;
 		}
 		retval = rfkill_register(rfk_threeg);
@@ -945,7 +945,7 @@ static int __init msi_laptop_input_setup(void)
 
 	msi_laptop_input_dev = input_allocate_device();
 	if (!msi_laptop_input_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	msi_laptop_input_dev->name = "MSI Laptop hotkeys";
 	msi_laptop_input_dev->phys = "msi-laptop/input0";
@@ -1031,11 +1031,11 @@ static int __init msi_init(void)
 	int ret;
 
 	if (acpi_disabled)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dmi_check_system(msi_dmi_table);
 	if (!quirks)
-		/* quirks may be NULL if no match in DMI table */
+		/* quirks may be NULL if anal match in DMI table */
 		quirks = &quirk_load_scm_model;
 	if (force)
 		quirks = &quirk_old_ec_model;
@@ -1066,9 +1066,9 @@ static int __init msi_init(void)
 
 	/* Register platform stuff */
 
-	msipf_device = platform_device_alloc("msi-laptop-pf", PLATFORM_DEVID_NONE);
+	msipf_device = platform_device_alloc("msi-laptop-pf", PLATFORM_DEVID_ANALNE);
 	if (!msipf_device) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail_platform_driver;
 	}
 

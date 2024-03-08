@@ -11,7 +11,7 @@ regs is accessed by cpu co-processor 4 registers with mtcr/mfcr.
  - PTIM_LVR  "cr<6, 14>" Window value reg to trigger next event.
 
 ==============================
-timer node bindings definition
+timer analde bindings definition
 ==============================
 
 	Description: Describes SMP timer
@@ -24,8 +24,8 @@ timer node bindings definition
 		Definition: must be "csky,mptimer"
 	- clocks
 		Usage: required
-		Value type: <node>
-		Definition: must be input clk node
+		Value type: <analde>
+		Definition: must be input clk analde
 	- interrupts
 		Usage: required
 		Value type: <u32>

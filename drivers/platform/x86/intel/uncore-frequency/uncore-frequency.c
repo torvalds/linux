@@ -167,7 +167,7 @@ static int uncore_event_cpu_offline(unsigned int cpu)
 	return 0;
 }
 
-static int uncore_pm_notify(struct notifier_block *nb, unsigned long mode,
+static int uncore_pm_analtify(struct analtifier_block *nb, unsigned long mode,
 			    void *_unused)
 {
 	int i;
@@ -192,8 +192,8 @@ static int uncore_pm_notify(struct notifier_block *nb, unsigned long mode,
 	return 0;
 }
 
-static struct notifier_block uncore_pm_nb = {
-	.notifier_call = uncore_pm_notify,
+static struct analtifier_block uncore_pm_nb = {
+	.analtifier_call = uncore_pm_analtify,
 };
 
 static const struct x86_cpu_id intel_uncore_cpu_ids[] = {
@@ -209,7 +209,7 @@ static const struct x86_cpu_id intel_uncore_cpu_ids[] = {
 	X86_MATCH_INTEL_FAM6_MODEL(KABYLAKE_L, NULL),
 	X86_MATCH_INTEL_FAM6_MODEL(COMETLAKE, NULL),
 	X86_MATCH_INTEL_FAM6_MODEL(COMETLAKE_L, NULL),
-	X86_MATCH_INTEL_FAM6_MODEL(CANNONLAKE_L, NULL),
+	X86_MATCH_INTEL_FAM6_MODEL(CANANALNLAKE_L, NULL),
 	X86_MATCH_INTEL_FAM6_MODEL(ICELAKE, NULL),
 	X86_MATCH_INTEL_FAM6_MODEL(ICELAKE_L, NULL),
 	X86_MATCH_INTEL_FAM6_MODEL(ROCKETLAKE, NULL),
@@ -235,18 +235,18 @@ static int __init intel_uncore_init(void)
 	int ret;
 
 	if (cpu_feature_enabled(X86_FEATURE_HYPERVISOR))
-		return -ENODEV;
+		return -EANALDEV;
 
 	id = x86_match_cpu(intel_uncore_cpu_ids);
 	if (!id)
-		return -ENODEV;
+		return -EANALDEV;
 
 	uncore_max_entries = topology_max_packages() *
 					topology_max_die_per_package();
 	uncore_instances = kcalloc(uncore_max_entries,
 				   sizeof(*uncore_instances), GFP_KERNEL);
 	if (!uncore_instances)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = uncore_freq_common_init(uncore_read_control_freq, uncore_write_control_freq,
 				      uncore_read_freq);
@@ -262,7 +262,7 @@ static int __init intel_uncore_init(void)
 
 	uncore_hp_state = ret;
 
-	ret = register_pm_notifier(&uncore_pm_nb);
+	ret = register_pm_analtifier(&uncore_pm_nb);
 	if (ret)
 		goto err_rem_state;
 
@@ -283,7 +283,7 @@ static void __exit intel_uncore_exit(void)
 {
 	int i;
 
-	unregister_pm_notifier(&uncore_pm_nb);
+	unregister_pm_analtifier(&uncore_pm_nb);
 	cpuhp_remove_state(uncore_hp_state);
 	for (i = 0; i < uncore_max_entries; ++i)
 		uncore_freq_remove_die_entry(&uncore_instances[i]);

@@ -19,14 +19,14 @@ int uretprobe_byname3_sleepable_res = 0;
 int uretprobe_byname3_res = 0;
 void *user_ptr = 0;
 
-SEC("ksyscall/nanosleep")
+SEC("ksyscall/naanalsleep")
 int BPF_KSYSCALL(handle_kprobe_auto, struct __kernel_timespec *req, struct __kernel_timespec *rem)
 {
 	kprobe2_res = 11;
 	return 0;
 }
 
-SEC("kretsyscall/nanosleep")
+SEC("kretsyscall/naanalsleep")
 int BPF_KRETPROBE(handle_kretprobe_auto, int ret)
 {
 	kretprobe2_res = 22;
@@ -96,7 +96,7 @@ int handle_uprobe_byname3_sleepable(struct pt_regs *ctx)
 }
 
 /**
- * same target as the uprobe.s above to force sleepable and non-sleepable
+ * same target as the uprobe.s above to force sleepable and analn-sleepable
  * programs in the same bpf_prog_array
  */
 SEC("uprobe//proc/self/exe:trigger_func3")

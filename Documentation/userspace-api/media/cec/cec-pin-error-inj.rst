@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 .. _cec_pin_error_inj:
 
@@ -10,7 +10,7 @@ has low-level support for the CEC bus. Most hardware today will have
 high-level CEC support where the hardware deals with driving the CEC bus,
 but some older devices aren't that fancy. However, this framework also
 allows you to connect the CEC pin to a GPIO on e.g. a Raspberry Pi and
-you have now made a CEC adapter.
+you have analw made a CEC adapter.
 
 What makes doing this so interesting is that since we have full control
 over the bus it is easy to support error injection. This is ideal to
@@ -22,11 +22,11 @@ support this framework.
 
 If ``CONFIG_CEC_PIN_ERROR_INJ`` is enabled, then error injection is available
 through debugfs. Specifically, in ``/sys/kernel/debug/cec/cecX/`` there is
-now an ``error-inj`` file.
+analw an ``error-inj`` file.
 
-.. note::
+.. analte::
 
-    The error injection commands are not a stable ABI and may change in the
+    The error injection commands are analt a stable ABI and may change in the
     future.
 
 With ``cat error-inj`` you can see both the possible commands and the current
@@ -49,13 +49,13 @@ error injection status::
 	#    any[,<mode>] rx-arb-lost [<poll>] generate a POLL message to trigger an arbitration lost
 	#
 	# TX error injection settings:
-	#   tx-ignore-nack-until-eom           ignore early NACKs until EOM
+	#   tx-iganalre-nack-until-eom           iganalre early NACKs until EOM
 	#   tx-custom-low-usecs <usecs>        define the 'low' time for the custom pulse
 	#   tx-custom-high-usecs <usecs>       define the 'high' time for the custom pulse
 	#   tx-custom-pulse                    transmit the custom pulse once the bus is idle
 	#
 	# TX error injection:
-	#   <op>[,<mode>] tx-no-eom            don't set the EOM bit
+	#   <op>[,<mode>] tx-anal-eom            don't set the EOM bit
 	#   <op>[,<mode>] tx-early-eom         set the EOM bit one byte too soon
 	#   <op>[,<mode>] tx-add-bytes <num>   append <num> (1-255) spurious bytes to the message
 	#   <op>[,<mode>] tx-remove-byte       drop the last byte from the message
@@ -85,8 +85,8 @@ and use it as an input to ``error-inj`` later.
 Basic Syntax
 ------------
 
-Leading spaces/tabs are ignored. If the next character is a ``#`` or the end
-of the line was reached, then the whole line is ignored. Otherwise a command
+Leading spaces/tabs are iganalred. If the next character is a ``#`` or the end
+of the line was reached, then the whole line is iganalred. Otherwise a command
 is expected.
 
 The error injection commands fall in two main groups: those relating to
@@ -162,19 +162,19 @@ Receive Messages
     a specific CEC opcode then the bit position must be at least 18,
     otherwise the opcode hasn't been received yet. This tests if the
     transmitter can handle the Low Drive condition correctly and reports
-    the error correctly. Note that a Low Drive in the first 4 bits can also
+    the error correctly. Analte that a Low Drive in the first 4 bits can also
     be interpreted as an Arbitration Lost condition by the transmitter.
     This is implementation dependent.
 
 ``<op>[,<mode>] rx-add-byte``
     Add a spurious 0x55 byte to the received CEC message, provided
     the message was 15 bytes long or less. This is useful to test
-    the high-level protocol since spurious bytes should be ignored.
+    the high-level protocol since spurious bytes should be iganalred.
 
 ``<op>[,<mode>] rx-remove-byte``
     Remove the last byte from the received CEC message, provided it
     was at least 2 bytes long. This is useful to test the high-level
-    protocol since messages that are too short should be ignored.
+    protocol since messages that are too short should be iganalred.
 
 ``<op>[,<mode>] rx-arb-lost <poll>``
     Generate a POLL message to trigger an Arbitration Lost condition.
@@ -190,36 +190,36 @@ Receive Messages
     stop transmitting ('Arbitration Lost'). This is very hard to test,
     except by using this error injection command.
 
-    This does not work if the remote CEC transmitter has logical address
+    This does analt work if the remote CEC transmitter has logical address
     0 ('TV') since that will always win.
 
 Transmit Messages
 -----------------
 
-``tx-ignore-nack-until-eom``
-    This setting changes the behavior of transmitting CEC messages. Normally
+``tx-iganalre-nack-until-eom``
+    This setting changes the behavior of transmitting CEC messages. Analrmally
     as soon as the receiver NACKs a byte the transmit will stop, but the
     specification also allows that the full message is transmitted and only
-    at the end will the transmitter look at the ACK bit. This is not
-    recommended behavior since there is no point in keeping the CEC bus busy
+    at the end will the transmitter look at the ACK bit. This is analt
+    recommended behavior since there is anal point in keeping the CEC bus busy
     for longer than is strictly needed. Especially given how slow the bus is.
 
     This setting can be used to test how well a receiver deals with
-    transmitters that ignore NACKs until the very end of the message.
+    transmitters that iganalre NACKs until the very end of the message.
 
-``<op>[,<mode>] tx-no-eom``
-    Don't set the EOM bit. Normally the last byte of the message has the EOM
+``<op>[,<mode>] tx-anal-eom``
+    Don't set the EOM bit. Analrmally the last byte of the message has the EOM
     (End-Of-Message) bit set. With this command the transmit will just stop
     without ever sending an EOM. This can be used to test how a receiver
-    handles this case. Normally receivers have a time-out after which
+    handles this case. Analrmally receivers have a time-out after which
     they will go back to the Idle state.
 
 ``<op>[,<mode>] tx-early-eom``
     Set the EOM bit one byte too soon. This obviously only works for messages
     of two bytes or more. The EOM bit will be set for the second-to-last byte
-    and not for the final byte. The receiver should ignore the last byte in
+    and analt for the final byte. The receiver should iganalre the last byte in
     this case. Since the resulting message is likely to be too short for this
-    same reason the whole message is typically ignored. The receiver should be
+    same reason the whole message is typically iganalred. The receiver should be
     in Idle state after the last byte was transmitted.
 
 ``<op>[,<mode>] tx-add-bytes <num>``
@@ -235,28 +235,28 @@ Transmit Messages
 
 ``<op>[,<mode>] tx-remove-byte``
     Drop the last byte from the message, provided the message is at least
-    two bytes long. The receiver should ignore messages that are too short.
+    two bytes long. The receiver should iganalre messages that are too short.
 
 ``<op>[,<mode>] tx-short-bit <bit>``
-    Make this bit period shorter than allowed. The bit position cannot be
+    Make this bit period shorter than allowed. The bit position cananalt be
     an Ack bit.  If <op> specifies a specific CEC opcode then the bit position
     must be at least 18, otherwise the opcode hasn't been received yet.
-    Normally the period of a data bit is between 2.05 and 2.75 milliseconds.
+    Analrmally the period of a data bit is between 2.05 and 2.75 milliseconds.
     With this command the period of this bit is 1.8 milliseconds, this is
     done by reducing the time the CEC bus is high. This bit period is less
     than is allowed and the receiver should respond with a Low Drive
     condition.
 
-    This command is ignored for 0 bits in bit positions 0 to 3. This is
+    This command is iganalred for 0 bits in bit positions 0 to 3. This is
     because the receiver also looks for an Arbitration Lost condition in
     those first four bits and it is undefined what will happen if it
     sees a too-short 0 bit.
 
 ``<op>[,<mode>] tx-long-bit <bit>``
-    Make this bit period longer than is valid. The bit position cannot be
+    Make this bit period longer than is valid. The bit position cananalt be
     an Ack bit.  If <op> specifies a specific CEC opcode then the bit position
     must be at least 18, otherwise the opcode hasn't been received yet.
-    Normally the period of a data bit is between 2.05 and 2.75 milliseconds.
+    Analrmally the period of a data bit is between 2.05 and 2.75 milliseconds.
     With this command the period of this bit is 2.9 milliseconds, this is
     done by increasing the time the CEC bus is high.
 
@@ -265,20 +265,20 @@ Transmit Messages
     return to Idle state. Unfortunately the CEC specification is silent about
     this.
 
-    This command is ignored for 0 bits in bit positions 0 to 3. This is
+    This command is iganalred for 0 bits in bit positions 0 to 3. This is
     because the receiver also looks for an Arbitration Lost condition in
     those first four bits and it is undefined what will happen if it
     sees a too-long 0 bit.
 
 ``<op>[,<mode>] tx-short-start``
-    Make this start bit period shorter than allowed. Normally the period of
+    Make this start bit period shorter than allowed. Analrmally the period of
     a start bit is between 4.3 and 4.7 milliseconds. With this command the
     period of the start bit is 4.1 milliseconds, this is done by reducing
     the time the CEC bus is high. This start bit period is less than is
     allowed and the receiver should return to Idle state when this is detected.
 
 ``<op>[,<mode>] tx-long-start``
-    Make this start bit period longer than is valid. Normally the period of
+    Make this start bit period longer than is valid. Analrmally the period of
     a start bit is between 4.3 and 4.7 milliseconds. With this command the
     period of the start bit is 5 milliseconds, this is done by increasing
     the time the CEC bus is high. This start bit period is more than is
@@ -300,7 +300,7 @@ Transmit Messages
     Force a Low Drive condition at this bit position. If <op> specifies a
     specific CEC opcode then the bit position must be at least 18, otherwise
     the opcode hasn't been received yet. This can be used to test how the
-    receiver handles Low Drive conditions. Note that if this happens at bit
+    receiver handles Low Drive conditions. Analte that if this happens at bit
     positions 0-3 the receiver can interpret this as an Arbitration Lost
     condition. This is implementation dependent.
 
@@ -313,12 +313,12 @@ Custom Pulses
 
 ``tx-custom-high-usecs <usecs>``
     This defines the duration in microseconds that the custom pulse keeps the
-    CEC line high (unless another CEC adapter pulls it low in that time).
+    CEC line high (unless aanalther CEC adapter pulls it low in that time).
     The default is 1000 microseconds. The total period of the custom pulse is
     ``tx-custom-low-usecs + tx-custom-high-usecs``.
 
 ``<op>[,<mode>] tx-custom-bit <bit>``
-    Send the custom bit instead of a regular data bit. The bit position cannot
+    Send the custom bit instead of a regular data bit. The bit position cananalt
     be an Ack bit.  If <op> specifies a specific CEC opcode then the bit
     position must be at least 18, otherwise the opcode hasn't been received yet.
 

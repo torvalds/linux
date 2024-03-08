@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -136,14 +136,14 @@ int smu_v14_0_set_driver_table_location(struct smu_context *smu);
 
 int smu_v14_0_set_tool_table_location(struct smu_context *smu);
 
-int smu_v14_0_notify_memory_pool_location(struct smu_context *smu);
+int smu_v14_0_analtify_memory_pool_location(struct smu_context *smu);
 
 int smu_v14_0_system_features_control(struct smu_context *smu,
 				      bool en);
 
 int smu_v14_0_set_allowed_mask(struct smu_context *smu);
 
-int smu_v14_0_notify_display_change(struct smu_context *smu);
+int smu_v14_0_analtify_display_change(struct smu_context *smu);
 
 int smu_v14_0_get_current_power_limit(struct smu_context *smu,
 				      uint32_t *power_limit);

@@ -45,7 +45,7 @@
 	(((quirk) << SOF_CS42L42_SSP_BT_SHIFT) & SOF_CS42L42_SSP_BT_MASK)
 
 enum {
-	LINK_NONE = 0,
+	LINK_ANALNE = 0,
 	LINK_HP = 1,
 	LINK_SPK = 2,
 	LINK_DMIC = 3,
@@ -154,7 +154,7 @@ static const struct snd_soc_dapm_widget sof_widgets[] = {
 };
 
 static const struct snd_soc_dapm_route sof_map[] = {
-	/* HP jack connectors - unknown if we have jack detection */
+	/* HP jack connectors - unkanalwn if we have jack detection */
 	{"Headphone Jack", NULL, "HP"},
 
 	/* other jacks */
@@ -224,7 +224,7 @@ sof_card_dai_links_create(struct device *dev, enum sof_ssp_codec amp_type,
 			id++;
 			break;
 		case LINK_SPK:
-			if (amp_type != CODEC_NONE) {
+			if (amp_type != CODEC_ANALNE) {
 				ret = sof_intel_board_set_ssp_amp_link(dev,
 								       &links[id],
 								       id,
@@ -313,8 +313,8 @@ sof_card_dai_links_create(struct device *dev, enum sof_ssp_codec amp_type,
 				id++;
 			}
 			break;
-		case LINK_NONE:
-			/* caught here if it's not used as terminator in macro */
+		case LINK_ANALNE:
+			/* caught here if it's analt used as terminator in macro */
 		default:
 			dev_err(dev, "invalid link type %d\n", link_type);
 			goto devm_err;
@@ -337,7 +337,7 @@ static int sof_audio_probe(struct platform_device *pdev)
 
 	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (pdev->id_entry && pdev->id_entry->driver_data)
 		sof_cs42l42_quirk = (unsigned long)pdev->id_entry->driver_data;
@@ -374,7 +374,7 @@ static int sof_audio_probe(struct platform_device *pdev)
 	/* compute number of dai links */
 	sof_audio_card_cs42l42.num_links = 1 + ctx->dmic_be_num + ctx->hdmi_num;
 
-	if (ctx->amp_type != CODEC_NONE)
+	if (ctx->amp_type != CODEC_ANALNE)
 		sof_audio_card_cs42l42.num_links++;
 	if (sof_cs42l42_quirk & SOF_BT_OFFLOAD_PRESENT) {
 		ctx->bt_offload_present = true;
@@ -387,7 +387,7 @@ static int sof_audio_probe(struct platform_device *pdev)
 					      ctx->hdmi_num,
 					      ctx->hdmi.idisp_codec);
 	if (!dai_links)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sof_audio_card_cs42l42.dai_link = dai_links;
 
@@ -410,13 +410,13 @@ static const struct platform_device_id board_ids[] = {
 		.name = "glk_cs4242_mx98357a",
 		.driver_data = (kernel_ulong_t)(SOF_CS42L42_SSP_CODEC(2) |
 					SOF_CS42L42_SSP_AMP(1)) |
-					SOF_CS42L42_DAILINK(LINK_SPK, LINK_HP, LINK_DMIC, LINK_HDMI, LINK_NONE),
+					SOF_CS42L42_DAILINK(LINK_SPK, LINK_HP, LINK_DMIC, LINK_HDMI, LINK_ANALNE),
 	},
 	{
 		.name = "jsl_cs4242_mx98360a",
 		.driver_data = (kernel_ulong_t)(SOF_CS42L42_SSP_CODEC(0) |
 					SOF_CS42L42_SSP_AMP(1)) |
-					SOF_CS42L42_DAILINK(LINK_HP, LINK_DMIC, LINK_HDMI, LINK_SPK, LINK_NONE),
+					SOF_CS42L42_DAILINK(LINK_HP, LINK_DMIC, LINK_HDMI, LINK_SPK, LINK_ANALNE),
 	},
 	{
 		.name = "adl_mx98360a_cs4242",

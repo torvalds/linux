@@ -73,7 +73,7 @@ static void damon_dbgfs_test_set_targets(struct kunit *test)
 	struct damon_ctx *ctx = dbgfs_new_ctx();
 	char buf[64];
 
-	/* Make DAMON consider target has no pid */
+	/* Make DAMON consider target has anal pid */
 	damon_select_ops(ctx, DAMON_OPS_PADDR);
 
 	dbgfs_set_targets(ctx, 0, NULL);
@@ -104,9 +104,9 @@ static void damon_dbgfs_test_set_init_regions(struct kunit *test)
 		"1 10 20\n",
 		"0 39 59\n0 70 134\n1 10 20\n1 20 25\n",
 		""};
-	char * const invalid_inputs[] = {"3 10 20\n",	/* target not exists */
+	char * const invalid_inputs[] = {"3 10 20\n",	/* target analt exists */
 		"1 10 20\n 1 14 26\n",		/* regions overlap */
-		"0 10 20\n1 30 40\n 0 5 8"};	/* not sorted by address */
+		"0 10 20\n1 30 40\n 0 5 8"};	/* analt sorted by address */
 	char *input, *expect;
 	int i, rc;
 	char buf[256];

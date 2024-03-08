@@ -14,7 +14,7 @@
 #include <linux/xarray.h>
 #include <linux/list.h>
 #include <linux/slab.h>
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 #include <linux/uaccess.h>
 #include <linux/syscalls.h>
 #include <linux/dma-heap.h>
@@ -22,13 +22,13 @@
 
 #define DEVNAME "dma_heap"
 
-#define NUM_HEAP_MINORS 128
+#define NUM_HEAP_MIANALRS 128
 
 /**
  * struct dma_heap - represents a dmabuf heap in the system
- * @name:		used for debugging/device-node name
+ * @name:		used for debugging/device-analde name
  * @ops:		ops struct for this heap
- * @heap_devt		heap device node
+ * @heap_devt		heap device analde
  * @list		list head connecting to list of heaps
  * @heap_cdev		heap char device
  *
@@ -47,7 +47,7 @@ static LIST_HEAD(heap_list);
 static DEFINE_MUTEX(heap_list_lock);
 static dev_t dma_heap_devt;
 static struct class *dma_heap_class;
-static DEFINE_XARRAY_ALLOC(dma_heap_minors);
+static DEFINE_XARRAY_ALLOC(dma_heap_mianalrs);
 
 static int dma_heap_buffer_alloc(struct dma_heap *heap, size_t len,
 				 unsigned int fd_flags,
@@ -76,19 +76,19 @@ static int dma_heap_buffer_alloc(struct dma_heap *heap, size_t len,
 	return fd;
 }
 
-static int dma_heap_open(struct inode *inode, struct file *file)
+static int dma_heap_open(struct ianalde *ianalde, struct file *file)
 {
 	struct dma_heap *heap;
 
-	heap = xa_load(&dma_heap_minors, iminor(inode));
+	heap = xa_load(&dma_heap_mianalrs, imianalr(ianalde));
 	if (!heap) {
-		pr_err("dma_heap: minor %d unknown.\n", iminor(inode));
-		return -ENODEV;
+		pr_err("dma_heap: mianalr %d unkanalwn.\n", imianalr(ianalde));
+		return -EANALDEV;
 	}
 
 	/* instance data as context */
 	file->private_data = heap;
-	nonseekable_open(inode, file);
+	analnseekable_open(ianalde, file);
 
 	return 0;
 }
@@ -136,7 +136,7 @@ static long dma_heap_ioctl(struct file *file, unsigned int ucmd,
 	if (nr >= ARRAY_SIZE(dma_heap_ioctl_cmds))
 		return -EINVAL;
 
-	nr = array_index_nospec(nr, ARRAY_SIZE(dma_heap_ioctl_cmds));
+	nr = array_index_analspec(nr, ARRAY_SIZE(dma_heap_ioctl_cmds));
 	/* Get the kernel ioctl cmd that matches */
 	kcmd = dma_heap_ioctl_cmds[nr];
 
@@ -154,7 +154,7 @@ static long dma_heap_ioctl(struct file *file, unsigned int ucmd,
 	if (ksize > sizeof(stack_kdata)) {
 		kdata = kmalloc(ksize, GFP_KERNEL);
 		if (!kdata)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	if (copy_from_user(kdata, (void __user *)arg, in_size) != 0) {
@@ -171,7 +171,7 @@ static long dma_heap_ioctl(struct file *file, unsigned int ucmd,
 		ret = dma_heap_ioctl_allocate(file, kdata);
 		break;
 	default:
-		ret = -ENOTTY;
+		ret = -EANALTTY;
 		goto err;
 	}
 
@@ -220,38 +220,38 @@ struct dma_heap *dma_heap_add(const struct dma_heap_export_info *exp_info)
 {
 	struct dma_heap *heap, *h, *err_ret;
 	struct device *dev_ret;
-	unsigned int minor;
+	unsigned int mianalr;
 	int ret;
 
 	if (!exp_info->name || !strcmp(exp_info->name, "")) {
-		pr_err("dma_heap: Cannot add heap without a name\n");
+		pr_err("dma_heap: Cananalt add heap without a name\n");
 		return ERR_PTR(-EINVAL);
 	}
 
 	if (!exp_info->ops || !exp_info->ops->allocate) {
-		pr_err("dma_heap: Cannot add heap with invalid ops struct\n");
+		pr_err("dma_heap: Cananalt add heap with invalid ops struct\n");
 		return ERR_PTR(-EINVAL);
 	}
 
 	heap = kzalloc(sizeof(*heap), GFP_KERNEL);
 	if (!heap)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	heap->name = exp_info->name;
 	heap->ops = exp_info->ops;
 	heap->priv = exp_info->priv;
 
-	/* Find unused minor number */
-	ret = xa_alloc(&dma_heap_minors, &minor, heap,
-		       XA_LIMIT(0, NUM_HEAP_MINORS - 1), GFP_KERNEL);
+	/* Find unused mianalr number */
+	ret = xa_alloc(&dma_heap_mianalrs, &mianalr, heap,
+		       XA_LIMIT(0, NUM_HEAP_MIANALRS - 1), GFP_KERNEL);
 	if (ret < 0) {
-		pr_err("dma_heap: Unable to get minor number for heap\n");
+		pr_err("dma_heap: Unable to get mianalr number for heap\n");
 		err_ret = ERR_PTR(ret);
 		goto err0;
 	}
 
 	/* Create device */
-	heap->heap_devt = MKDEV(MAJOR(dma_heap_devt), minor);
+	heap->heap_devt = MKDEV(MAJOR(dma_heap_devt), mianalr);
 
 	cdev_init(&heap->heap_cdev, &dma_heap_fops);
 	ret = cdev_add(&heap->heap_cdev, heap->heap_devt, 1);
@@ -295,13 +295,13 @@ err3:
 err2:
 	cdev_del(&heap->heap_cdev);
 err1:
-	xa_erase(&dma_heap_minors, minor);
+	xa_erase(&dma_heap_mianalrs, mianalr);
 err0:
 	kfree(heap);
 	return err_ret;
 }
 
-static char *dma_heap_devnode(const struct device *dev, umode_t *mode)
+static char *dma_heap_devanalde(const struct device *dev, umode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "dma_heap/%s", dev_name(dev));
 }
@@ -310,16 +310,16 @@ static int dma_heap_init(void)
 {
 	int ret;
 
-	ret = alloc_chrdev_region(&dma_heap_devt, 0, NUM_HEAP_MINORS, DEVNAME);
+	ret = alloc_chrdev_region(&dma_heap_devt, 0, NUM_HEAP_MIANALRS, DEVNAME);
 	if (ret)
 		return ret;
 
 	dma_heap_class = class_create(DEVNAME);
 	if (IS_ERR(dma_heap_class)) {
-		unregister_chrdev_region(dma_heap_devt, NUM_HEAP_MINORS);
+		unregister_chrdev_region(dma_heap_devt, NUM_HEAP_MIANALRS);
 		return PTR_ERR(dma_heap_class);
 	}
-	dma_heap_class->devnode = dma_heap_devnode;
+	dma_heap_class->devanalde = dma_heap_devanalde;
 
 	return 0;
 }

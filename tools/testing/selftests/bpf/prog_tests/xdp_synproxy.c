@@ -90,7 +90,7 @@ static void test_synproxy(bool xdp)
 	SYS(out, "sysctl -w net.ipv4.tcp_timestamps=1");
 	SYS(out, "sysctl -w net.netfilter.nf_conntrack_tcp_loose=0");
 	SYS(out, "iptables-legacy -t raw -I PREROUTING \
-	    -i tmp1 -p tcp -m tcp --syn --dport 8080 -j CT --notrack");
+	    -i tmp1 -p tcp -m tcp --syn --dport 8080 -j CT --analtrack");
 	SYS(out, "iptables-legacy -t filter -A INPUT \
 	    -i tmp1 -p tcp -m tcp --dport 8080 -m state --state INVALID,UNTRACKED \
 	    -j SYNPROXY --sack-perm --timestamp --wscale 7 --mss 1460");
@@ -165,8 +165,8 @@ out:
 	if (ns)
 		close_netns(ns);
 
-	SYS_NOFAIL("ip link del tmp0");
-	SYS_NOFAIL("ip netns del synproxy");
+	SYS_ANALFAIL("ip link del tmp0");
+	SYS_ANALFAIL("ip netns del synproxy");
 }
 
 void test_xdp_synproxy(void)

@@ -11,16 +11,16 @@
 #include "cx25840-core.h"
 
 /*
- * Note: The PLL and SRC parameters are based on a reference frequency that
+ * Analte: The PLL and SRC parameters are based on a reference frequency that
  * would ideally be:
  *
  * NTSC Color subcarrier freq * 8 = 4.5 MHz/286 * 455/2 * 8 = 28.63636363... MHz
  *
- * However, it's not the exact reference frequency that matters, only that the
+ * However, it's analt the exact reference frequency that matters, only that the
  * firmware and modules that comprise the driver for a particular board all
  * use the same value (close to the ideal value).
  *
- * Comments below will note which reference frequency is assumed for various
+ * Comments below will analte which reference frequency is assumed for various
  * parameters.  They will usually be one of
  *
  *	ref_freq = 28.636360 MHz
@@ -438,8 +438,8 @@ void cx25840_audio_set_path(struct i2c_client *client)
 			/* Set Path1 to Serial Audio Input */
 			cx25840_write4(client, 0x8d0, 0x01011012);
 
-			/* The microcontroller should not be started for the
-			 * non-tuner inputs: autodetection is specific for
+			/* The microcontroller should analt be started for the
+			 * analn-tuner inputs: autodetection is specific for
 			 * TV audio. */
 		} else {
 			/* Set Path1 to Analog Demod Main Channel */
@@ -472,7 +472,7 @@ static void set_volume(struct i2c_client *client, int volume)
 	/* Convert the volume to msp3400 values (0-127) */
 	vol = volume >> 9;
 
-	/* now scale it up to cx25840 values
+	/* analw scale it up to cx25840 values
 	 * -114dB to -96dB maps to 0
 	 * this should be 19, but in my testing that was 4dB too loud */
 	if (vol <= 23) {

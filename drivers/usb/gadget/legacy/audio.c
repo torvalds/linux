@@ -157,8 +157,8 @@ static struct usb_function *f_uac1;
 
 /*-------------------------------------------------------------------------*/
 
-/* DO NOT REUSE THESE IDs with a protocol-incompatible driver!!  Ever!!
- * Instead:  allocate your own, using normal USB-IF procedures.
+/* DO ANALT REUSE THESE IDs with a protocol-incompatible driver!!  Ever!!
+ * Instead:  allocate your own, using analrmal USB-IF procedures.
  */
 
 /* Thanks to Linux Foundation for donating this product ID. */
@@ -193,7 +193,7 @@ static struct usb_device_descriptor device_desc = {
 	/* .bcdDevice = f(hardware) */
 	/* .iManufacturer = DYNAMIC */
 	/* .iProduct = DYNAMIC */
-	/* NO SERIAL NUMBER */
+	/* ANAL SERIAL NUMBER */
 	.bNumConfigurations =	1,
 };
 
@@ -334,7 +334,7 @@ static int audio_bind(struct usb_composite_dev *cdev)
 
 		usb_desc = usb_otg_descriptor_alloc(cdev->gadget);
 		if (!usb_desc) {
-			status = -ENOMEM;
+			status = -EANALMEM;
 			goto fail;
 		}
 		usb_otg_descriptor_init(cdev->gadget, usb_desc);

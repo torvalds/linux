@@ -31,8 +31,8 @@ inline void iowait_clear_flag(struct iowait *wait, u32 flag)
  * @wait: wait struct to initialize
  * @tx_limit: limit for overflow queuing
  * @func: restart function for workqueue
- * @sleep: sleep function for no space
- * @resume: wakeup function for no space
+ * @sleep: sleep function for anal space
+ * @resume: wakeup function for anal space
  *
  * This function initializes the iowait
  * structure embedded in the QP or PQ.

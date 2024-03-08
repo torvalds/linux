@@ -76,7 +76,7 @@ static const struct thermal_zone_device_ops gadc_thermal_ops = {
 static int gadc_thermal_read_linear_lookup_table(struct device *dev,
 						 struct gadc_thermal_info *gti)
 {
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	enum iio_chan_type chan_type;
 	int ntable;
 	int ret;
@@ -86,8 +86,8 @@ static int gadc_thermal_read_linear_lookup_table(struct device *dev,
 	if (ntable <= 0) {
 		ret = iio_get_channel_type(gti->channel, &chan_type);
 		if (ret || chan_type != IIO_TEMP)
-			dev_notice(dev,
-				   "no lookup table, assuming DAC channel returns milliCelcius\n");
+			dev_analtice(dev,
+				   "anal lookup table, assuming DAC channel returns milliCelcius\n");
 		return 0;
 	}
 
@@ -100,7 +100,7 @@ static int gadc_thermal_read_linear_lookup_table(struct device *dev,
 					 ntable, sizeof(*gti->lookup_table),
 					 GFP_KERNEL);
 	if (!gti->lookup_table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = of_property_read_u32_array(np, "temperature-lookup-table",
 					 (u32 *)gti->lookup_table, ntable);
@@ -120,20 +120,20 @@ static int gadc_thermal_probe(struct platform_device *pdev)
 	struct gadc_thermal_info *gti;
 	int ret;
 
-	if (!pdev->dev.of_node) {
+	if (!pdev->dev.of_analde) {
 		dev_err(&pdev->dev, "Only DT based supported\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	gti = devm_kzalloc(&pdev->dev, sizeof(*gti), GFP_KERNEL);
 	if (!gti)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gti->channel = devm_iio_channel_get(&pdev->dev, "sensor-channel");
 	if (IS_ERR(gti->channel)) {
 		ret = PTR_ERR(gti->channel);
 		if (ret != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "IIO channel not found: %d\n", ret);
+			dev_err(&pdev->dev, "IIO channel analt found: %d\n", ret);
 		return ret;
 	}
 

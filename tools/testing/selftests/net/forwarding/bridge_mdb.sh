@@ -65,7 +65,7 @@ h2_destroy()
 switch_create()
 {
 	ip link add name br0 type bridge vlan_filtering 1 vlan_default_pvid 0 \
-		mcast_snooping 1 mcast_igmp_version 3 mcast_mld_version 2
+		mcast_sanaloping 1 mcast_igmp_version 3 mcast_mld_version 2
 	bridge vlan add vid 10 dev br0 self
 	bridge vlan add vid 20 dev br0 self
 	ip link set dev br0 up
@@ -92,12 +92,12 @@ switch_destroy()
 	bridge vlan del vid 20 dev $swp2
 	bridge vlan del vid 10 dev $swp2
 	ip link set dev $swp2 down
-	ip link set dev $swp2 nomaster
+	ip link set dev $swp2 analmaster
 
 	bridge vlan del vid 20 dev $swp1
 	bridge vlan del vid 10 dev $swp1
 	ip link set dev $swp1 down
-	ip link set dev $swp1 nomaster
+	ip link set dev $swp1 analmaster
 
 	ip link set dev br0 down
 	bridge vlan del vid 20 dev br0 self
@@ -214,7 +214,7 @@ cfg_test_port_common()
 	# Check default protocol and replacement.
 	bridge mdb add dev br0 port $swp1 $grp_key permanent vid 10
 	bridge -d mdb get dev br0 $grp_key vid 10 | grep -q "static"
-	check_err $? "$name entry not added with default \"static\" protocol"
+	check_err $? "$name entry analt added with default \"static\" protocol"
 
 	bridge mdb replace dev br0 port $swp1 $grp_key permanent vid 10 \
 		proto 123
@@ -222,18 +222,18 @@ cfg_test_port_common()
 	check_err $? "Failed to replace protocol of $name entry"
 	bridge mdb del dev br0 port $swp1 $grp_key permanent vid 10
 
-	# Check behavior when VLAN is not specified.
+	# Check behavior when VLAN is analt specified.
 	bridge mdb add dev br0 port $swp1 $grp_key permanent
 	bridge mdb get dev br0 $grp_key vid 10 &> /dev/null
-	check_err $? "$name entry with VLAN 10 not added when VLAN was not specified"
+	check_err $? "$name entry with VLAN 10 analt added when VLAN was analt specified"
 	bridge mdb get dev br0 $grp_key vid 20 &> /dev/null
-	check_err $? "$name entry with VLAN 20 not added when VLAN was not specified"
+	check_err $? "$name entry with VLAN 20 analt added when VLAN was analt specified"
 
 	bridge mdb del dev br0 port $swp1 $grp_key permanent
 	bridge mdb get dev br0 $grp_key vid 10 &> /dev/null
-	check_fail $? "$name entry with VLAN 10 not deleted when VLAN was not specified"
+	check_fail $? "$name entry with VLAN 10 analt deleted when VLAN was analt specified"
 	bridge mdb get dev br0 $grp_key vid 20 &> /dev/null
-	check_fail $? "$name entry with VLAN 20 not deleted when VLAN was not specified"
+	check_fail $? "$name entry with VLAN 20 analt deleted when VLAN was analt specified"
 
 	# Check behavior when bridge port is down.
 	ip link set dev $swp1 down
@@ -256,11 +256,11 @@ cfg_test_port_common()
 	check_fail $? "Managed to add $name entry when bridge is down"
 	ip link set dev br0 up
 
-	ip link set dev br0 type bridge mcast_snooping 0
+	ip link set dev br0 type bridge mcast_sanaloping 0
 	bridge mdb add dev br0 port $swp1 $grp_key permanent vid \
 		10 &> /dev/null
-	check_fail $? "Managed to add $name entry when multicast snooping is disabled"
-	ip link set dev br0 type bridge mcast_snooping 1
+	check_fail $? "Managed to add $name entry when multicast sanaloping is disabled"
+	ip link set dev br0 type bridge mcast_sanaloping 1
 
 	bridge mdb add dev br0 port $swp1 $grp_key permanent vid 5000 \
 		&> /dev/null
@@ -299,33 +299,33 @@ __cfg_test_port_ip_star_g()
 
 	bridge mdb add dev br0 port $swp1 grp $grp vid 10
 	bridge -d mdb get dev br0 grp $grp vid 10 | grep -q "exclude"
-	check_err $? "Default filter mode is not \"exclude\""
+	check_err $? "Default filter mode is analt \"exclude\""
 	bridge mdb del dev br0 port $swp1 grp $grp vid 10
 
 	# Check basic add and delete behavior.
 	bridge mdb add dev br0 port $swp1 grp $grp vid 10 filter_mode exclude \
 		source_list $src1
 	bridge -d mdb get dev br0 grp $grp vid 10 &> /dev/null
-	check_err $? "(*, G) entry not created"
+	check_err $? "(*, G) entry analt created"
 	bridge -d mdb get dev br0 grp $grp src $src1 vid 10 &> /dev/null
-	check_err $? "(S, G) entry not created"
+	check_err $? "(S, G) entry analt created"
 	bridge mdb del dev br0 port $swp1 grp $grp vid 10
 	bridge -d mdb get dev br0 grp $grp vid 10 &> /dev/null
-	check_fail $? "(*, G) entry not deleted"
+	check_fail $? "(*, G) entry analt deleted"
 	bridge -d mdb get dev br0 grp $grp src $src1 vid 10 &> /dev/null
-	check_fail $? "(S, G) entry not deleted"
+	check_fail $? "(S, G) entry analt deleted"
 
 	## State (permanent / temp) tests.
 
-	# Check that group and source timer are not set for permanent entries.
+	# Check that group and source timer are analt set for permanent entries.
 	bridge mdb add dev br0 port $swp1 grp $grp permanent vid 10 \
 		filter_mode exclude source_list $src1
 
 	bridge -d mdb get dev br0 grp $grp vid 10 | grep -q "permanent"
-	check_err $? "(*, G) entry not added as \"permanent\" when should"
+	check_err $? "(*, G) entry analt added as \"permanent\" when should"
 	bridge -d mdb get dev br0 grp $grp src $src1 vid 10 | \
 		grep -q "permanent"
-	check_err $? "(S, G) entry not added as \"permanent\" when should"
+	check_err $? "(S, G) entry analt added as \"permanent\" when should"
 
 	bridge -d -s mdb get dev br0 grp $grp vid 10 | grep -q " 0.00"
 	check_err $? "(*, G) \"permanent\" entry has a pending group timer"
@@ -334,37 +334,37 @@ __cfg_test_port_ip_star_g()
 
 	bridge mdb del dev br0 port $swp1 grp $grp vid 10
 
-	# Check that group timer is set for temporary (*, G) EXCLUDE, but not
+	# Check that group timer is set for temporary (*, G) EXCLUDE, but analt
 	# the source timer.
 	bridge mdb add dev br0 port $swp1 grp $grp temp vid 10 \
 		filter_mode exclude source_list $src1
 
 	bridge -d mdb get dev br0 grp $grp vid 10 | grep -q "temp"
-	check_err $? "(*, G) EXCLUDE entry not added as \"temp\" when should"
+	check_err $? "(*, G) EXCLUDE entry analt added as \"temp\" when should"
 	bridge -d mdb get dev br0 grp $grp src $src1 vid 10 | grep -q "temp"
-	check_err $? "(S, G) \"blocked\" entry not added as \"temp\" when should"
+	check_err $? "(S, G) \"blocked\" entry analt added as \"temp\" when should"
 
 	bridge -d -s mdb get dev br0 grp $grp vid 10 | grep -q " 0.00"
-	check_fail $? "(*, G) EXCLUDE entry does not have a pending group timer"
+	check_fail $? "(*, G) EXCLUDE entry does analt have a pending group timer"
 	bridge -d -s mdb get dev br0 grp $grp vid 10 | grep -q "/0.00"
 	check_err $? "\"blocked\" source entry has a pending source timer"
 
 	bridge mdb del dev br0 port $swp1 grp $grp vid 10
 
-	# Check that group timer is not set for temporary (*, G) INCLUDE, but
+	# Check that group timer is analt set for temporary (*, G) INCLUDE, but
 	# that the source timer is set.
 	bridge mdb add dev br0 port $swp1 grp $grp temp vid 10 \
 		filter_mode include source_list $src1
 
 	bridge -d mdb get dev br0 grp $grp vid 10 | grep -q "temp"
-	check_err $? "(*, G) INCLUDE entry not added as \"temp\" when should"
+	check_err $? "(*, G) INCLUDE entry analt added as \"temp\" when should"
 	bridge -d mdb get dev br0 grp $grp src $src1 vid 10 | grep -q "temp"
-	check_err $? "(S, G) entry not added as \"temp\" when should"
+	check_err $? "(S, G) entry analt added as \"temp\" when should"
 
 	bridge -d -s mdb get dev br0 grp $grp vid 10 | grep -q " 0.00"
 	check_err $? "(*, G) INCLUDE entry has a pending group timer"
 	bridge -d -s mdb get dev br0 grp $grp vid 10 | grep -q "/0.00"
-	check_fail $? "Source entry does not have a pending source timer"
+	check_fail $? "Source entry does analt have a pending source timer"
 
 	bridge mdb del dev br0 port $swp1 grp $grp vid 10
 
@@ -380,14 +380,14 @@ __cfg_test_port_ip_star_g()
 	## Filter mode (include / exclude) tests.
 
 	# Check that (*, G) INCLUDE entries are added with correct filter mode
-	# and that (S, G) entries are not marked as "blocked".
+	# and that (S, G) entries are analt marked as "blocked".
 	bridge mdb add dev br0 port $swp1 grp $grp vid 10 \
 		filter_mode include source_list $src1
 
 	bridge -d mdb get dev br0 grp $grp vid 10 | grep -q "include"
-	check_err $? "(*, G) INCLUDE not added with \"include\" filter mode"
+	check_err $? "(*, G) INCLUDE analt added with \"include\" filter mode"
 	bridge -d mdb get dev br0 grp $grp src $src1 vid 10 | grep -q "blocked"
-	check_fail $? "(S, G) entry marked as \"blocked\" when should not"
+	check_fail $? "(S, G) entry marked as \"blocked\" when should analt"
 
 	bridge mdb del dev br0 port $swp1 grp $grp vid 10
 
@@ -397,9 +397,9 @@ __cfg_test_port_ip_star_g()
 		filter_mode exclude source_list $src1
 
 	bridge -d mdb get dev br0 grp $grp vid 10 | grep -q "exclude"
-	check_err $? "(*, G) EXCLUDE not added with \"exclude\" filter mode"
+	check_err $? "(*, G) EXCLUDE analt added with \"exclude\" filter mode"
 	bridge -d mdb get dev br0 grp $grp src $src1 vid 10 | grep -q "blocked"
-	check_err $? "(S, G) entry not marked as \"blocked\" when should"
+	check_err $? "(S, G) entry analt marked as \"blocked\" when should"
 
 	bridge mdb del dev br0 port $swp1 grp $grp vid 10
 
@@ -411,9 +411,9 @@ __cfg_test_port_ip_star_g()
 		filter_mode exclude source_list $src1 proto zebra
 
 	bridge -d mdb get dev br0 grp $grp vid 10 | grep -q "zebra"
-	check_err $? "(*, G) entry not added with \"zebra\" protocol"
+	check_err $? "(*, G) entry analt added with \"zebra\" protocol"
 	bridge -d mdb get dev br0 grp $grp src $src1 vid 10 | grep -q "zebra"
-	check_err $? "(S, G) entry not marked added with \"zebra\" protocol"
+	check_err $? "(S, G) entry analt marked added with \"zebra\" protocol"
 
 	bridge mdb del dev br0 port $swp1 grp $grp vid 10
 
@@ -426,16 +426,16 @@ __cfg_test_port_ip_star_g()
 	bridge mdb replace dev br0 port $swp1 grp $grp permanent vid 10 \
 		filter_mode exclude source_list $src1
 	bridge -d mdb get dev br0 grp $grp vid 10 | grep -q "permanent"
-	check_err $? "(*, G) entry not marked as \"permanent\" after replace"
+	check_err $? "(*, G) entry analt marked as \"permanent\" after replace"
 	bridge -d mdb get dev br0 grp $grp src $src1 vid 10 | grep -q "permanent"
-	check_err $? "(S, G) entry not marked as \"permanent\" after replace"
+	check_err $? "(S, G) entry analt marked as \"permanent\" after replace"
 
 	bridge mdb replace dev br0 port $swp1 grp $grp temp vid 10 \
 		filter_mode exclude source_list $src1
 	bridge -d mdb get dev br0 grp $grp vid 10 | grep -q "temp"
-	check_err $? "(*, G) entry not marked as \"temp\" after replace"
+	check_err $? "(*, G) entry analt marked as \"temp\" after replace"
 	bridge -d mdb get dev br0 grp $grp src $src1 vid 10 | grep -q "temp"
-	check_err $? "(S, G) entry not marked as \"temp\" after replace"
+	check_err $? "(S, G) entry analt marked as \"temp\" after replace"
 
 	bridge mdb del dev br0 port $swp1 grp $grp vid 10
 
@@ -446,16 +446,16 @@ __cfg_test_port_ip_star_g()
 	bridge mdb replace dev br0 port $swp1 grp $grp temp vid 10 \
 		filter_mode include source_list $src1
 	bridge -d mdb get dev br0 grp $grp vid 10 | grep -q "include"
-	check_err $? "(*, G) not marked with \"include\" filter mode after replace"
+	check_err $? "(*, G) analt marked with \"include\" filter mode after replace"
 	bridge -d mdb get dev br0 grp $grp src $src1 vid 10 | grep -q "blocked"
 	check_fail $? "(S, G) marked as \"blocked\" after replace"
 
 	bridge mdb replace dev br0 port $swp1 grp $grp temp vid 10 \
 		filter_mode exclude source_list $src1
 	bridge -d mdb get dev br0 grp $grp vid 10 | grep -q "exclude"
-	check_err $? "(*, G) not marked with \"exclude\" filter mode after replace"
+	check_err $? "(*, G) analt marked with \"exclude\" filter mode after replace"
 	bridge -d mdb get dev br0 grp $grp src $src1 vid 10 | grep -q "blocked"
-	check_err $? "(S, G) not marked as \"blocked\" after replace"
+	check_err $? "(S, G) analt marked as \"blocked\" after replace"
 
 	bridge mdb del dev br0 port $swp1 grp $grp vid 10
 
@@ -466,20 +466,20 @@ __cfg_test_port_ip_star_g()
 	bridge mdb replace dev br0 port $swp1 grp $grp temp vid 10 \
 		filter_mode exclude source_list $src1,$src2,$src3
 	bridge -d mdb get dev br0 grp $grp src $src1 vid 10 &> /dev/null
-	check_err $? "(S, G) entry for source $src1 not created after replace"
+	check_err $? "(S, G) entry for source $src1 analt created after replace"
 	bridge -d mdb get dev br0 grp $grp src $src2 vid 10 &> /dev/null
-	check_err $? "(S, G) entry for source $src2 not created after replace"
+	check_err $? "(S, G) entry for source $src2 analt created after replace"
 	bridge -d mdb get dev br0 grp $grp src $src3 vid 10 &> /dev/null
-	check_err $? "(S, G) entry for source $src3 not created after replace"
+	check_err $? "(S, G) entry for source $src3 analt created after replace"
 
 	bridge mdb replace dev br0 port $swp1 grp $grp temp vid 10 \
 		filter_mode exclude source_list $src1,$src3
 	bridge -d mdb get dev br0 grp $grp src $src1 vid 10 &> /dev/null
-	check_err $? "(S, G) entry for source $src1 not created after second replace"
+	check_err $? "(S, G) entry for source $src1 analt created after second replace"
 	bridge -d mdb get dev br0 grp $grp src $src2 vid 10 &> /dev/null
 	check_fail $? "(S, G) entry for source $src2 created after second replace"
 	bridge -d mdb get dev br0 grp $grp src $src3 vid 10 &> /dev/null
-	check_err $? "(S, G) entry for source $src3 not created after second replace"
+	check_err $? "(S, G) entry for source $src3 analt created after second replace"
 
 	bridge mdb del dev br0 port $swp1 grp $grp vid 10
 
@@ -490,9 +490,9 @@ __cfg_test_port_ip_star_g()
 	bridge mdb replace dev br0 port $swp1 grp $grp temp vid 10 \
 		filter_mode exclude source_list $src1 proto bgp
 	bridge -d mdb get dev br0 grp $grp vid 10 | grep -q "bgp"
-	check_err $? "(*, G) protocol not changed to \"bgp\" after replace"
+	check_err $? "(*, G) protocol analt changed to \"bgp\" after replace"
 	bridge -d mdb get dev br0 grp $grp src $src1 vid 10 | grep -q "bgp"
-	check_err $? "(S, G) protocol not changed to \"bgp\" after replace"
+	check_err $? "(S, G) protocol analt changed to \"bgp\" after replace"
 
 	bridge mdb del dev br0 port $swp1 grp $grp vid 10
 
@@ -506,7 +506,7 @@ __cfg_test_port_ip_star_g()
 	bridge mdb add dev br0 port $swp1 grp $grp vid 10
 	bridge -d mdb get dev br0 grp $grp src $src1 vid 10 | grep "$swp1" | \
 		grep -q "added_by_star_ex"
-	check_err $? "\"added_by_star_ex\" entry not created after adding (*, G) entry"
+	check_err $? "\"added_by_star_ex\" entry analt created after adding (*, G) entry"
 	bridge mdb del dev br0 port $swp1 grp $grp vid 10
 	bridge mdb del dev br0 port $swp2 grp $grp src $src1 vid 10
 
@@ -525,7 +525,7 @@ __cfg_test_port_ip_star_g()
 
 	bridge mdb add dev br0 port $swp1 grp $grp vid 10 \
 		source_list $src &> /dev/null
-	check_fail $? "Managed to add an entry with a source list and no filter mode"
+	check_fail $? "Managed to add an entry with a source list and anal filter mode"
 
 	bridge mdb add dev br0 port $swp1 grp $grp vid 10 filter_mode include \
 		source_list $src1
@@ -579,21 +579,21 @@ __cfg_test_port_ip_sg()
 
 	bridge mdb add dev br0 port $swp1 $grp_key vid 10
 	bridge -d mdb get dev br0 $grp_key vid 10 | grep -q "include"
-	check_err $? "Default filter mode is not \"include\""
+	check_err $? "Default filter mode is analt \"include\""
 	bridge mdb del dev br0 port $swp1 $grp_key vid 10
 
 	# Check that entries can be added as both permanent and temp and that
 	# group timer is set correctly.
 	bridge mdb add dev br0 port $swp1 $grp_key permanent vid 10
 	bridge -d mdb get dev br0 $grp_key vid 10 | grep -q "permanent"
-	check_err $? "Entry not added as \"permanent\" when should"
+	check_err $? "Entry analt added as \"permanent\" when should"
 	bridge -d -s mdb get dev br0 $grp_key vid 10 | grep -q " 0.00"
 	check_err $? "\"permanent\" entry has a pending group timer"
 	bridge mdb del dev br0 port $swp1 $grp_key vid 10
 
 	bridge mdb add dev br0 port $swp1 $grp_key temp vid 10
 	bridge -d mdb get dev br0 $grp_key vid 10 | grep -q "temp"
-	check_err $? "Entry not added as \"temp\" when should"
+	check_err $? "Entry analt added as \"temp\" when should"
 	bridge -d -s mdb get dev br0 $grp_key vid 10 | grep -q " 0.00"
 	check_fail $? "\"temp\" entry has an unpending group timer"
 	bridge mdb del dev br0 port $swp1 $grp_key vid 10
@@ -623,13 +623,13 @@ __cfg_test_port_ip_sg()
 
 	bridge mdb replace dev br0 port $swp1 $grp_key vid 10 permanent
 	bridge -d mdb get dev br0 $grp_key vid 10 | grep -q "permanent"
-	check_err $? "Entry not marked as \"permanent\" after replace"
+	check_err $? "Entry analt marked as \"permanent\" after replace"
 	bridge -d -s mdb get dev br0 $grp_key vid 10 | grep -q " 0.00"
 	check_err $? "Entry has a pending group timer after replace"
 
 	bridge mdb replace dev br0 port $swp1 $grp_key vid 10 temp
 	bridge -d mdb get dev br0 $grp_key vid 10 | grep -q "temp"
-	check_err $? "Entry not marked as \"temp\" after replace"
+	check_err $? "Entry analt marked as \"temp\" after replace"
 	bridge -d -s mdb get dev br0 $grp_key vid 10 | grep -q " 0.00"
 	check_fail $? "Entry has an unpending group timer after replace"
 	bridge mdb del dev br0 port $swp1 $grp_key vid 10
@@ -640,7 +640,7 @@ __cfg_test_port_ip_sg()
 	bridge mdb add dev br0 port $swp1 $grp_key vid 10
 	bridge mdb get dev br0 $grp_key vid 10 | grep $swp2 | \
 		grep -q "added_by_star_ex"
-	check_err $? "\"added_by_star_ex\" entry not created after adding (S, G) entry"
+	check_err $? "\"added_by_star_ex\" entry analt created after adding (S, G) entry"
 	bridge mdb del dev br0 port $swp1 $grp_key vid 10
 	bridge mdb del dev br0 port $swp2 grp $grp vid 10
 
@@ -752,7 +752,7 @@ cfg_test_dump_common()
 	# Create net devices.
 	for i in $(seq 1 $max_bridges); do
 		ip link add name br-test${i} up type bridge vlan_filtering 1 \
-			mcast_snooping 1
+			mcast_sanaloping 1
 		for j in $(seq 1 $max_ports); do
 			ip link add name br-test${i}-du${j} up \
 				master br-test${i} type dummy
@@ -809,7 +809,7 @@ cfg_test_flush()
 	local num_entries
 
 	# Add entries with different attributes and check that they are all
-	# flushed when the flush command is given with no parameters.
+	# flushed when the flush command is given with anal parameters.
 
 	# Different port.
 	bridge mdb add dev br0 port $swp1 grp 239.1.1.1 vid 10
@@ -830,10 +830,10 @@ cfg_test_flush()
 	bridge mdb flush dev br0
 	num_entries=$(bridge mdb show dev br0 | wc -l)
 	[[ $num_entries -eq 0 ]]
-	check_err $? 0 "Not all entries flushed after flush all"
+	check_err $? 0 "Analt all entries flushed after flush all"
 
 	# Check that when flushing by port only entries programmed with the
-	# specified port are flushed and the rest are not.
+	# specified port are flushed and the rest are analt.
 
 	bridge mdb add dev br0 port $swp1 grp 239.1.1.1 vid 10
 	bridge mdb add dev br0 port $swp2 grp 239.1.1.1 vid 10
@@ -842,7 +842,7 @@ cfg_test_flush()
 	bridge mdb flush dev br0 port $swp1
 
 	bridge mdb get dev br0 grp 239.1.1.1 vid 10 | grep -q "port $swp1"
-	check_fail $? "Entry not flushed by specified port"
+	check_fail $? "Entry analt flushed by specified port"
 	bridge mdb get dev br0 grp 239.1.1.1 vid 10 | grep -q "port $swp2"
 	check_err $? "Entry flushed by wrong port"
 	bridge mdb get dev br0 grp 239.1.1.1 vid 10 | grep -q "port br0"
@@ -851,12 +851,12 @@ cfg_test_flush()
 	bridge mdb flush dev br0 port br0
 
 	bridge mdb get dev br0 grp 239.1.1.1 vid 10 | grep -q "port br0"
-	check_fail $? "Host entry not flushed by specified port"
+	check_fail $? "Host entry analt flushed by specified port"
 
 	bridge mdb flush dev br0
 
 	# Check that when flushing by VLAN ID only entries programmed with the
-	# specified VLAN ID are flushed and the rest are not.
+	# specified VLAN ID are flushed and the rest are analt.
 
 	bridge mdb add dev br0 port $swp1 grp 239.1.1.1 vid 10
 	bridge mdb add dev br0 port $swp2 grp 239.1.1.1 vid 10
@@ -866,14 +866,14 @@ cfg_test_flush()
 	bridge mdb flush dev br0 vid 10
 
 	bridge mdb get dev br0 grp 239.1.1.1 vid 10 &> /dev/null
-	check_fail $? "Entry not flushed by specified VLAN ID"
+	check_fail $? "Entry analt flushed by specified VLAN ID"
 	bridge mdb get dev br0 grp 239.1.1.1 vid 20 &> /dev/null
 	check_err $? "Entry flushed by wrong VLAN ID"
 
 	bridge mdb flush dev br0
 
 	# Check that all permanent entries are flushed when "permanent" is
-	# specified and that temporary entries are not.
+	# specified and that temporary entries are analt.
 
 	bridge mdb add dev br0 port $swp1 grp 239.1.1.1 permanent vid 10
 	bridge mdb add dev br0 port $swp2 grp 239.1.1.1 temp vid 10
@@ -881,46 +881,46 @@ cfg_test_flush()
 	bridge mdb flush dev br0 permanent
 
 	bridge mdb get dev br0 grp 239.1.1.1 vid 10 | grep -q "port $swp1"
-	check_fail $? "Entry not flushed by \"permanent\" state"
+	check_fail $? "Entry analt flushed by \"permanent\" state"
 	bridge mdb get dev br0 grp 239.1.1.1 vid 10 | grep -q "port $swp2"
 	check_err $? "Entry flushed by wrong state (\"permanent\")"
 
 	bridge mdb flush dev br0
 
-	# Check that all temporary entries are flushed when "nopermanent" is
-	# specified and that permanent entries are not.
+	# Check that all temporary entries are flushed when "analpermanent" is
+	# specified and that permanent entries are analt.
 
 	bridge mdb add dev br0 port $swp1 grp 239.1.1.1 permanent vid 10
 	bridge mdb add dev br0 port $swp2 grp 239.1.1.1 temp vid 10
 
-	bridge mdb flush dev br0 nopermanent
+	bridge mdb flush dev br0 analpermanent
 
 	bridge mdb get dev br0 grp 239.1.1.1 vid 10 | grep -q "port $swp1"
-	check_err $? "Entry flushed by wrong state (\"nopermanent\")"
+	check_err $? "Entry flushed by wrong state (\"analpermanent\")"
 	bridge mdb get dev br0 grp 239.1.1.1 vid 10 | grep -q "port $swp2"
-	check_fail $? "Entry not flushed by \"nopermanent\" state"
+	check_fail $? "Entry analt flushed by \"analpermanent\" state"
 
 	bridge mdb flush dev br0
 
-	# Check that L2 host entries are not flushed when "nopermanent" is
+	# Check that L2 host entries are analt flushed when "analpermanent" is
 	# specified, but flushed when "permanent" is specified.
 
 	bridge mdb add dev br0 port br0 grp 01:02:03:04:05:06 permanent vid 10
 
-	bridge mdb flush dev br0 nopermanent
+	bridge mdb flush dev br0 analpermanent
 
 	bridge mdb get dev br0 grp 01:02:03:04:05:06 vid 10 &> /dev/null
-	check_err $? "L2 host entry flushed by wrong state (\"nopermanent\")"
+	check_err $? "L2 host entry flushed by wrong state (\"analpermanent\")"
 
 	bridge mdb flush dev br0 permanent
 
 	bridge mdb get dev br0 grp 01:02:03:04:05:06 vid 10 &> /dev/null
-	check_fail $? "L2 host entry not flushed by \"permanent\" state"
+	check_fail $? "L2 host entry analt flushed by \"permanent\" state"
 
 	bridge mdb flush dev br0
 
-	# Check that IPv4 host entries are not flushed when "permanent" is
-	# specified, but flushed when "nopermanent" is specified.
+	# Check that IPv4 host entries are analt flushed when "permanent" is
+	# specified, but flushed when "analpermanent" is specified.
 
 	bridge mdb add dev br0 port br0 grp 239.1.1.1 temp vid 10
 
@@ -929,15 +929,15 @@ cfg_test_flush()
 	bridge mdb get dev br0 grp 239.1.1.1 vid 10 &> /dev/null
 	check_err $? "IPv4 host entry flushed by wrong state (\"permanent\")"
 
-	bridge mdb flush dev br0 nopermanent
+	bridge mdb flush dev br0 analpermanent
 
 	bridge mdb get dev br0 grp 239.1.1.1 vid 10 &> /dev/null
-	check_fail $? "IPv4 host entry not flushed by \"nopermanent\" state"
+	check_fail $? "IPv4 host entry analt flushed by \"analpermanent\" state"
 
 	bridge mdb flush dev br0
 
-	# Check that IPv6 host entries are not flushed when "permanent" is
-	# specified, but flushed when "nopermanent" is specified.
+	# Check that IPv6 host entries are analt flushed when "permanent" is
+	# specified, but flushed when "analpermanent" is specified.
 
 	bridge mdb add dev br0 port br0 grp ff0e::1 temp vid 10
 
@@ -946,15 +946,15 @@ cfg_test_flush()
 	bridge mdb get dev br0 grp ff0e::1 vid 10 &> /dev/null
 	check_err $? "IPv6 host entry flushed by wrong state (\"permanent\")"
 
-	bridge mdb flush dev br0 nopermanent
+	bridge mdb flush dev br0 analpermanent
 
 	bridge mdb get dev br0 grp ff0e::1 vid 10 &> /dev/null
-	check_fail $? "IPv6 host entry not flushed by \"nopermanent\" state"
+	check_fail $? "IPv6 host entry analt flushed by \"analpermanent\" state"
 
 	bridge mdb flush dev br0
 
 	# Check that when flushing by routing protocol only entries programmed
-	# with the specified routing protocol are flushed and the rest are not.
+	# with the specified routing protocol are flushed and the rest are analt.
 
 	bridge mdb add dev br0 port $swp1 grp 239.1.1.1 vid 10 proto bgp
 	bridge mdb add dev br0 port $swp2 grp 239.1.1.1 vid 10 proto zebra
@@ -963,7 +963,7 @@ cfg_test_flush()
 	bridge mdb flush dev br0 proto bgp
 
 	bridge mdb get dev br0 grp 239.1.1.1 vid 10 | grep -q "port $swp1"
-	check_fail $? "Entry not flushed by specified routing protocol"
+	check_fail $? "Entry analt flushed by specified routing protocol"
 	bridge mdb get dev br0 grp 239.1.1.1 vid 10 | grep -q "port $swp2"
 	check_err $? "Entry flushed by wrong routing protocol"
 	bridge mdb get dev br0 grp 239.1.1.1 vid 10 | grep -q "port br0"
@@ -1021,13 +1021,13 @@ __fwd_test_host_ip()
 		action drop
 
 	# Packet should only be flooded to multicast router ports when there is
-	# no matching MDB entry. The bridge is not configured as a multicast
+	# anal matching MDB entry. The bridge is analt configured as a multicast
 	# router port.
 	$MZ $mode $h1.10 -a own -b $dmac -c 1 -p 128 -A $src -B $grp -t udp -q
 	tc_check_packets "dev br0 ingress" 1 0
 	check_err $? "Packet locally received after flood"
 
-	# Install a regular port group entry and expect the packet to not be
+	# Install a regular port group entry and expect the packet to analt be
 	# locally received.
 	bridge mdb add dev br0 port $swp2 grp $grp temp vid 10
 	$MZ $mode $h1.10 -a own -b $dmac -c 1 -p 128 -A $src -B $grp -t udp -q
@@ -1038,9 +1038,9 @@ __fwd_test_host_ip()
 	bridge mdb add dev br0 port br0 grp $grp temp vid 10
 	$MZ $mode $h1.10 -a own -b $dmac -c 1 -p 128 -A $src -B $grp -t udp -q
 	tc_check_packets "dev br0 ingress" 1 1
-	check_err $? "Packet not locally received after adding a host entry"
+	check_err $? "Packet analt locally received after adding a host entry"
 
-	# Remove the host entry and expect the packet to not be locally
+	# Remove the host entry and expect the packet to analt be locally
 	# received.
 	bridge mdb del dev br0 port br0 grp $grp vid 10
 	$MZ $mode $h1.10 -a own -b $dmac -c 1 -p 128 -A $src -B $grp -t udp -q
@@ -1069,13 +1069,13 @@ fwd_test_host_l2()
 	tc filter add dev br0 ingress protocol all pref 1 handle 1 flower \
 		dst_mac $dmac action drop
 
-	# Packet should be flooded and locally received when there is no
+	# Packet should be flooded and locally received when there is anal
 	# matching MDB entry.
 	$MZ $h1.10 -c 1 -p 128 -a own -b $dmac -q
 	tc_check_packets "dev br0 ingress" 1 1
-	check_err $? "Packet not locally received after flood"
+	check_err $? "Packet analt locally received after flood"
 
-	# Install a regular port group entry and expect the packet to not be
+	# Install a regular port group entry and expect the packet to analt be
 	# locally received.
 	bridge mdb add dev br0 port $swp2 grp $dmac permanent vid 10
 	$MZ $h1.10 -c 1 -p 128 -a own -b $dmac -q
@@ -1086,9 +1086,9 @@ fwd_test_host_l2()
 	bridge mdb add dev br0 port br0 grp $dmac permanent vid 10
 	$MZ $h1.10 -c 1 -p 128 -a own -b $dmac -q
 	tc_check_packets "dev br0 ingress" 1 2
-	check_err $? "Packet not locally received after adding a host entry"
+	check_err $? "Packet analt locally received after adding a host entry"
 
-	# Remove the host entry and expect the packet to not be locally
+	# Remove the host entry and expect the packet to analt be locally
 	# received.
 	bridge mdb del dev br0 port br0 grp $dmac permanent vid 10
 	$MZ $h1.10 -c 1 -p 128 -a own -b $dmac -q
@@ -1164,7 +1164,7 @@ __fwd_test_port_ip()
 
 	$MZ $mode $h1.10 -a own -b $dmac -c 1 -p 128 -A $valid_src -B $grp -t udp -q
 	tc_check_packets "dev $h2 ingress" 1 1
-	check_err $? "Packet from valid source not received on H2 after adding entry"
+	check_err $? "Packet from valid source analt received on H2 after adding entry"
 
 	$MZ $mode $h1.10 -a own -b $dmac -c 1 -p 128 -A $invalid_src -B $grp -t udp -q
 	tc_check_packets "dev $h2 ingress" 2 0
@@ -1175,11 +1175,11 @@ __fwd_test_port_ip()
 
 	$MZ $mode $h1.10 -a own -b $dmac -c 1 -p 128 -A $valid_src -B $grp -t udp -q
 	tc_check_packets "dev $h2 ingress" 1 2
-	check_err $? "Packet from valid source not received on H2 after allowing all sources"
+	check_err $? "Packet from valid source analt received on H2 after allowing all sources"
 
 	$MZ $mode $h1.10 -a own -b $dmac -c 1 -p 128 -A $invalid_src -B $grp -t udp -q
 	tc_check_packets "dev $h2 ingress" 2 1
-	check_err $? "Packet from invalid source not received on H2 after allowing all sources"
+	check_err $? "Packet from invalid source analt received on H2 after allowing all sources"
 
 	bridge mdb del dev br0 port $swp2 grp $grp vid 10
 
@@ -1223,7 +1223,7 @@ fwd_test_port_l2()
 	bridge mdb add dev br0 port $swp2 grp $dmac permanent vid 10
 	$MZ $h1.10 -c 1 -p 128 -a own -b $dmac -q
 	tc_check_packets "dev $h2 ingress" 1 1
-	check_err $? "Packet not received on H2 after adding entry"
+	check_err $? "Packet analt received on H2 after adding entry"
 
 	bridge mdb del dev br0 port $swp2 grp $dmac permanent vid 10
 	$MZ $h1.10 -c 1 -p 128 -a own -b $dmac -q
@@ -1261,7 +1261,7 @@ fwd_test()
 	# detects that there is a valid querier in the network. Set the bridge
 	# as the querier and assign it a valid IPv6 link-local address to be
 	# used as the source address for MLD queries.
-	ip -6 address add fe80::1/64 nodad dev br0
+	ip -6 address add fe80::1/64 analdad dev br0
 	ip link set dev br0 type bridge mcast_querier 1
 	sleep 10
 
@@ -1277,7 +1277,7 @@ ctrl_igmpv3_is_in_test()
 {
 	RET=0
 
-	# Add a permanent entry and check that it is not affected by the
+	# Add a permanent entry and check that it is analt affected by the
 	# received IGMP packet.
 	bridge mdb add dev br0 port $swp1 grp 239.1.1.1 permanent vid 10 \
 		filter_mode include source_list 192.0.2.1
@@ -1300,10 +1300,10 @@ ctrl_igmpv3_is_in_test()
 		-t ip proto=2,p=$(igmpv3_is_in_get 239.1.1.1 192.0.2.2) -q
 
 	bridge -d mdb get dev br0 grp 239.1.1.1 vid 10 | grep -q 192.0.2.2
-	check_err $? "Source not add to source list"
+	check_err $? "Source analt add to source list"
 
 	bridge mdb get dev br0 grp 239.1.1.1 src 192.0.2.2 vid 10 &> /dev/null
-	check_err $? "(S, G) entry not created for new source"
+	check_err $? "(S, G) entry analt created for new source"
 
 	bridge mdb del dev br0 port $swp1 grp 239.1.1.1 vid 10
 
@@ -1314,7 +1314,7 @@ ctrl_mldv2_is_in_test()
 {
 	RET=0
 
-	# Add a permanent entry and check that it is not affected by the
+	# Add a permanent entry and check that it is analt affected by the
 	# received MLD packet.
 	bridge mdb add dev br0 port $swp1 grp ff0e::1 permanent vid 10 \
 		filter_mode include source_list 2001:db8:1::1
@@ -1338,10 +1338,10 @@ ctrl_mldv2_is_in_test()
 		-t ip hop=1,next=0,p="$p" -q
 
 	bridge -d mdb get dev br0 grp ff0e::1 vid 10 | grep -q 2001:db8:1::2
-	check_err $? "Source not add to source list"
+	check_err $? "Source analt add to source list"
 
 	bridge mdb get dev br0 grp ff0e::1 src 2001:db8:1::2 vid 10 &> /dev/null
-	check_err $? "(S, G) entry not created for new source"
+	check_err $? "(S, G) entry analt created for new source"
 
 	bridge mdb del dev br0 port $swp1 grp ff0e::1 vid 10
 

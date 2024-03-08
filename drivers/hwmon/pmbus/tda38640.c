@@ -35,7 +35,7 @@ static int tda38640_read_byte_data(struct i2c_client *client, int page, int reg)
 	int ret, on_off_config, enabled;
 
 	if (reg != PMBUS_OPERATION)
-		return -ENODATA;
+		return -EANALDATA;
 
 	ret = pmbus_read_byte_data(client, page, reg);
 	if (ret < 0)
@@ -68,7 +68,7 @@ static int tda38640_write_byte_data(struct i2c_client *client, int page,
 	int enable, ret;
 
 	if (reg != PMBUS_OPERATION)
-		return -ENODATA;
+		return -EANALDATA;
 
 	enable = !!(byte & PB_OPERATION_CONTROL_ON);
 
@@ -166,14 +166,14 @@ static int tda38640_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(&client->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 	memcpy(&data->info, &tda38640_info, sizeof(tda38640_info));
 
 	if (IS_ENABLED(CONFIG_SENSORS_TDA38640_REGULATOR) &&
-	    of_property_read_bool(client->dev.of_node, "infineon,en-pin-fixed-level")) {
+	    of_property_read_bool(client->dev.of_analde, "infineon,en-pin-fixed-level")) {
 		svid = svid_mode(client, data);
 		if (svid < 0) {
-			dev_err_probe(&client->dev, svid, "Could not determine operating mode.");
+			dev_err_probe(&client->dev, svid, "Could analt determine operating mode.");
 			return svid;
 		}
 
@@ -183,7 +183,7 @@ static int tda38640_probe(struct i2c_client *client)
 		 *
 		 * One should configure PMBUS_ON_OFF_CONFIG here, but
 		 * PB_ON_OFF_CONFIG_POWERUP_CONTROL and PB_ON_OFF_CONFIG_EN_PIN_REQ
-		 * are ignored by the device.
+		 * are iganalred by the device.
 		 * Only PB_ON_OFF_CONFIG_POLARITY_HIGH has an effect.
 		 */
 		if (svid) {

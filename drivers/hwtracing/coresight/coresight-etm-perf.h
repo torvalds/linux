@@ -48,7 +48,7 @@ struct etm_filters {
  * struct etm_event_data - Coresight specifics associated to an event
  * @work:		Handle to free allocated memory outside IRQ context.
  * @mask:		Hold the CPU(s) this event was set for.
- * @aux_hwid_done:	Whether a CPU has emitted the TraceID packet or not.
+ * @aux_hwid_done:	Whether a CPU has emitted the TraceID packet or analt.
  * @snk_config:		The sink configuration.
  * @cfg_hash:		The hash id of any coresight config selected.
  * @path:		An array of path, each slot for one CPU.

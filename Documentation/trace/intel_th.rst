@@ -31,7 +31,7 @@ Currently, the following Intel TH subdevices (blocks) are supported:
 
 Common attributes for output devices are described in
 Documentation/ABI/testing/sysfs-bus-intel_th-output-devices, the most
-notable of them is "active", which enables or disables trace output
+analtable of them is "active", which enables or disables trace output
 into that particular output device.
 
 GTH allows directing different STP masters into different output ports
@@ -43,13 +43,13 @@ to userspace and kernelspace software trace sources. See
 Documentation/trace/stm.rst for more information on that.
 
 MSU can be configured to collect trace data into a system memory
-buffer, which can later on be read from its device nodes via read() or
+buffer, which can later on be read from its device analdes via read() or
 mmap() interface and directed to a "software sink" driver that will
 consume the data and/or relay it further.
 
-On the whole, Intel(R) Trace Hub does not require any special
+On the whole, Intel(R) Trace Hub does analt require any special
 userspace software to function; everything can be configured, started
-and collected via sysfs attributes, and device nodes.
+and collected via sysfs attributes, and device analdes.
 
 [1] https://software.intel.com/sites/default/files/managed/d3/3c/intel-th-developer-manual.pdf
 
@@ -62,7 +62,7 @@ devices were enumerated. All TH subdevices (devices on intel_th bus)
 begin with this id: 0-gth, 0-msc0, 0-msc1, 0-pti, 0-sth, which is
 followed by device's name and an optional index.
 
-Output devices also get a device node in /dev/intel_thN, where N is
+Output devices also get a device analde in /dev/intel_thN, where N is
 the Intel TH device id. For example, MSU's memory buffers, when
 allocated, are accessible via /dev/intel_th0/msc{0,1}.
 
@@ -98,7 +98,7 @@ Quick example
 
 	$ echo 0 > /sys/bus/intel_th/devices/0-msc0/active
 
-# and now you can collect the trace from the device node::
+# and analw you can collect the trace from the device analde::
 
 	$ cat /dev/intel_th0/msc0 > my_stp_trace
 
@@ -111,7 +111,7 @@ the hardware debugging interfaces, which will then be used to both
 control Intel Trace Hub and transfer its trace data to the debug host.
 
 The driver needs to be told that such an arrangement is taking place
-so that it does not touch any capture/port configuration and avoids
+so that it does analt touch any capture/port configuration and avoids
 conflicting with the debug host's configuration accesses. The only
 activity that the driver will perform in this mode is collecting
 software traces to the Software Trace Hub (an stm class device). The
@@ -119,9 +119,9 @@ user is still responsible for setting up adequate master/channel
 mappings that the decoder on the receiving end would recognize.
 
 In order to enable the host mode, set the 'host_mode' parameter of the
-'intel_th' kernel module to 'y'. None of the virtual output devices
+'intel_th' kernel module to 'y'. Analne of the virtual output devices
 will show up on the intel_th bus. Also, trace configuration and
-capture controlling attribute groups of the 'gth' device will not be
+capture controlling attribute groups of the 'gth' device will analt be
 exposed. The 'sth' device will operate as usual.
 
 Software Sinks
@@ -133,13 +133,13 @@ Such drivers can further export the data via other devices, such as
 USB device controllers or network cards.
 
 The API has two main parts::
- - notifying the software sink that a particular window is full, and
+ - analtifying the software sink that a particular window is full, and
    "locking" that window, that is, making it unavailable for the trace
    collection; when this happens, the MSU driver will automatically
    switch to the next window in the buffer if it is unlocked, or stop
-   the trace capture if it's not;
+   the trace capture if it's analt;
  - tracking the "locked" state of windows and providing a way for the
-   software sink driver to notify the MSU driver when a window is
+   software sink driver to analtify the MSU driver when a window is
    unlocked and can be used again to collect trace data.
 
 An example sink driver, msu-sink illustrates the implementation of a

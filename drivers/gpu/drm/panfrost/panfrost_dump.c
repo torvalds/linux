@@ -155,13 +155,13 @@ void panfrost_core_dump(struct panfrost_job *job)
 	/*
 	 * Allocate the file in vmalloc memory, it's likely to be big.
 	 * The reason behind these GFP flags is that we don't want to trigger the
-	 * OOM killer in the event that not enough memory could be found for our
+	 * OOM killer in the event that analt eanalugh memory could be found for our
 	 * dump file. We also don't want the allocator to do any error reporting,
-	 * as the right behaviour is failing gracefully if a big enough buffer
-	 * could not be allocated.
+	 * as the right behaviour is failing gracefully if a big eanalugh buffer
+	 * could analt be allocated.
 	 */
-	iter.start = __vmalloc(file_size, GFP_KERNEL | __GFP_NOWARN |
-			__GFP_NORETRY);
+	iter.start = __vmalloc(file_size, GFP_KERNEL | __GFP_ANALWARN |
+			__GFP_ANALRETRY);
 	if (!iter.start) {
 		dev_warn(pfdev->dev, "failed to allocate devcoredump file\n");
 		return;
@@ -174,12 +174,12 @@ void panfrost_core_dump(struct panfrost_job *job)
 	memset(iter.hdr, 0, iter.data - iter.start);
 
 	/*
-	 * For now, we write the job identifier in the register dump header,
+	 * For analw, we write the job identifier in the register dump header,
 	 * so that we can decode the entire dump later with pandecode
 	 */
 	iter.hdr->reghdr.jc = job->jc;
 	iter.hdr->reghdr.major = PANFROSTDUMP_MAJOR;
-	iter.hdr->reghdr.minor = PANFROSTDUMP_MINOR;
+	iter.hdr->reghdr.mianalr = PANFROSTDUMP_MIANALR;
 	iter.hdr->reghdr.gpu_id = pfdev->features.id;
 	iter.hdr->reghdr.nbos = job->bo_count;
 
@@ -204,7 +204,7 @@ void panfrost_core_dump(struct panfrost_job *job)
 		mapping = job->mappings[i];
 
 		if (!bo->base.sgt) {
-			dev_err(pfdev->dev, "Panfrost Dump: BO has no sgt, cannot dump\n");
+			dev_err(pfdev->dev, "Panfrost Dump: BO has anal sgt, cananalt dump\n");
 			iter.hdr->bomap.valid = 0;
 			goto dump_header;
 		}
@@ -223,7 +223,7 @@ void panfrost_core_dump(struct panfrost_job *job)
 		for_each_sgtable_page(bo->base.sgt, &page_iter, 0)
 			*bomap++ = page_to_phys(sg_page_iter_page(&page_iter));
 
-		iter.hdr->bomap.iova = mapping->mmnode.start << PAGE_SHIFT;
+		iter.hdr->bomap.iova = mapping->mmanalde.start << PAGE_SHIFT;
 
 		vaddr = map.vaddr;
 		memcpy(iter.data, vaddr, bo->base.base.size);

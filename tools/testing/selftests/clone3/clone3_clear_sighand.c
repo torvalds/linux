@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
 #define _GNU_SOURCE
-#include <errno.h>
+#include <erranal.h>
 #include <sched.h>
 #include <signal.h>
 #include <stdio.h>
@@ -16,7 +16,7 @@
 #include "../kselftest.h"
 #include "clone3_selftests.h"
 
-static void nop_handler(int signo)
+static void analp_handler(int siganal)
 {
 }
 
@@ -27,7 +27,7 @@ static int wait_for_pid(pid_t pid)
 again:
 	ret = waitpid(pid, &status, 0);
 	if (ret == -1) {
-		if (errno == EINTR)
+		if (erranal == EINTR)
 			goto again;
 
 		return -1;
@@ -57,11 +57,11 @@ static void test_clone3_clear_sighand(void)
 		ksft_exit_fail_msg(
 			"clone3(CLONE_CLEAR_SIGHAND | CLONE_SIGHAND) succeeded\n");
 
-	act.sa_handler = nop_handler;
+	act.sa_handler = analp_handler;
 	ret = sigemptyset(&act.sa_mask);
 	if (ret < 0)
 		ksft_exit_fail_msg("%s - sigemptyset() failed\n",
-				   strerror(errno));
+				   strerror(erranal));
 
 	act.sa_flags = 0;
 
@@ -70,21 +70,21 @@ static void test_clone3_clear_sighand(void)
 	if (ret < 0)
 		ksft_exit_fail_msg(
 			"%s - sigaction(SIGUSR1, &act, NULL) failed\n",
-			strerror(errno));
+			strerror(erranal));
 
 	/* Register signal handler for SIGUSR2 */
 	ret = sigaction(SIGUSR2, &act, NULL);
 	if (ret < 0)
 		ksft_exit_fail_msg(
 			"%s - sigaction(SIGUSR2, &act, NULL) failed\n",
-			strerror(errno));
+			strerror(erranal));
 
 	/* Check that CLONE_CLEAR_SIGHAND works. */
 	args.flags = CLONE_CLEAR_SIGHAND;
 	pid = sys_clone3(&args, sizeof(args));
 	if (pid < 0)
 		ksft_exit_fail_msg("%s - clone3(CLONE_CLEAR_SIGHAND) failed\n",
-				   strerror(errno));
+				   strerror(erranal));
 
 	if (pid == 0) {
 		ret = sigaction(SIGUSR1, NULL, &act);

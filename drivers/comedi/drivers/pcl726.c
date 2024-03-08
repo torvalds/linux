@@ -36,7 +36,7 @@
  *   [13] - D/A output range for channel 11
  *
  * For PCL-726 the D/A output ranges are:
- *   0: 0-5V, 1: 0-10V, 2: +/-5V, 3: +/-10V, 4: 4-20mA, 5: unknown
+ *   0: 0-5V, 1: 0-10V, 2: +/-5V, 3: +/-10V, 4: 4-20mA, 5: unkanalwn
  *
  * For PCL-727:
  *   0: 0-5V, 1: 0-10V, 2: +/-5V, 3: 4-20mA
@@ -70,7 +70,7 @@ static const struct comedi_lrange *const rangelist_726[] = {
 	&range_bipolar5,
 	&range_bipolar10,
 	&range_4_20mA,
-	&range_unknown
+	&range_unkanalwn
 };
 
 static const struct comedi_lrange *const rangelist_727[] = {
@@ -161,11 +161,11 @@ static int pcl726_intr_cmdtest(struct comedi_device *dev,
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW);
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_ANALW);
 	err |= comedi_check_trigger_src(&cmd->scan_begin_src, TRIG_EXT);
 	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_FOLLOW);
 	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_ANALNE);
 
 	if (err)
 		return 1;
@@ -322,7 +322,7 @@ static int pcl726_attach(struct comedi_device *dev,
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * Hook up the external trigger source interrupt only if the
@@ -344,7 +344,7 @@ static int pcl726_attach(struct comedi_device *dev,
 		if (opt < board->ao_num_ranges && i < board->ao_nchan)
 			devpriv->rangelist[i] = board->ao_ranges[opt];
 		else
-			devpriv->rangelist[i] = &range_unknown;
+			devpriv->rangelist[i] = &range_unkanalwn;
 	}
 
 	subdev = board->have_dio ? 3 : 1;

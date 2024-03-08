@@ -89,15 +89,15 @@ static DEFINE_IDA(pci_endpoint_test_ida);
 #define to_endpoint_test(priv) container_of((priv), struct pci_endpoint_test, \
 					    miscdev)
 
-static bool no_msi;
-module_param(no_msi, bool, 0444);
-MODULE_PARM_DESC(no_msi, "Disable MSI interrupt in pci_endpoint_test");
+static bool anal_msi;
+module_param(anal_msi, bool, 0444);
+MODULE_PARM_DESC(anal_msi, "Disable MSI interrupt in pci_endpoint_test");
 
 static int irq_type = IRQ_TYPE_MSI;
 module_param(irq_type, int, 0444);
 MODULE_PARM_DESC(irq_type, "IRQ mode selection in pci_endpoint_test (0 - Legacy, 1 - MSI, 2 - MSI-X)");
 
-enum pci_barno {
+enum pci_baranal {
 	BAR_0,
 	BAR_1,
 	BAR_2,
@@ -117,13 +117,13 @@ struct pci_endpoint_test {
 	/* mutex to protect the ioctls */
 	struct mutex	mutex;
 	struct miscdevice miscdev;
-	enum pci_barno test_reg_bar;
+	enum pci_baranal test_reg_bar;
 	size_t alignment;
 	const char *name;
 };
 
 struct pci_endpoint_test_data {
-	enum pci_barno test_reg_bar;
+	enum pci_baranal test_reg_bar;
 	size_t alignment;
 	int irq_type;
 };
@@ -273,28 +273,28 @@ static const u32 bar_test_pattern[] = {
 };
 
 static bool pci_endpoint_test_bar(struct pci_endpoint_test *test,
-				  enum pci_barno barno)
+				  enum pci_baranal baranal)
 {
 	int j;
 	u32 val;
 	int size;
 	struct pci_dev *pdev = test->pdev;
 
-	if (!test->bar[barno])
+	if (!test->bar[baranal])
 		return false;
 
-	size = pci_resource_len(pdev, barno);
+	size = pci_resource_len(pdev, baranal);
 
-	if (barno == test->test_reg_bar)
+	if (baranal == test->test_reg_bar)
 		size = 0x4;
 
 	for (j = 0; j < size; j += 4)
-		pci_endpoint_test_bar_writel(test, barno, j,
-					     bar_test_pattern[barno]);
+		pci_endpoint_test_bar_writel(test, baranal, j,
+					     bar_test_pattern[baranal]);
 
 	for (j = 0; j < size; j += 4) {
-		val = pci_endpoint_test_bar_readl(test, barno, j);
-		if (val != bar_test_pattern[barno])
+		val = pci_endpoint_test_bar_readl(test, baranal, j);
+		if (val != bar_test_pattern[baranal])
 			return false;
 	}
 
@@ -729,14 +729,14 @@ static long pci_endpoint_test_ioctl(struct file *file, unsigned int cmd,
 				    unsigned long arg)
 {
 	int ret = -EINVAL;
-	enum pci_barno bar;
+	enum pci_baranal bar;
 	struct pci_endpoint_test *test = to_endpoint_test(file->private_data);
 	struct pci_dev *pdev = test->pdev;
 
 	mutex_lock(&test->mutex);
 
 	reinit_completion(&test->irq_raised);
-	test->last_irq = -ENODATA;
+	test->last_irq = -EANALDATA;
 
 	switch (cmd) {
 	case PCITEST_BAR:
@@ -790,27 +790,27 @@ static int pci_endpoint_test_probe(struct pci_dev *pdev,
 	int err;
 	int id;
 	char name[24];
-	enum pci_barno bar;
+	enum pci_baranal bar;
 	void __iomem *base;
 	struct device *dev = &pdev->dev;
 	struct pci_endpoint_test *test;
 	struct pci_endpoint_test_data *data;
-	enum pci_barno test_reg_bar = BAR_0;
+	enum pci_baranal test_reg_bar = BAR_0;
 	struct miscdevice *misc_device;
 
 	if (pci_is_bridge(pdev))
-		return -ENODEV;
+		return -EANALDEV;
 
 	test = devm_kzalloc(dev, sizeof(*test), GFP_KERNEL);
 	if (!test)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	test->test_reg_bar = 0;
 	test->alignment = 0;
 	test->pdev = pdev;
 	test->irq_type = IRQ_TYPE_UNDEFINED;
 
-	if (no_msi)
+	if (anal_msi)
 		irq_type = IRQ_TYPE_INTX;
 
 	data = (struct pci_endpoint_test_data *)ent->driver_data;
@@ -826,19 +826,19 @@ static int pci_endpoint_test_probe(struct pci_dev *pdev,
 
 	if ((dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(48)) != 0) &&
 	    dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32)) != 0) {
-		dev_err(dev, "Cannot set DMA mask\n");
+		dev_err(dev, "Cananalt set DMA mask\n");
 		return -EINVAL;
 	}
 
 	err = pci_enable_device(pdev);
 	if (err) {
-		dev_err(dev, "Cannot enable PCI device\n");
+		dev_err(dev, "Cananalt enable PCI device\n");
 		return err;
 	}
 
 	err = pci_request_regions(pdev, DRV_MODULE_NAME);
 	if (err) {
-		dev_err(dev, "Cannot obtain PCI resources\n");
+		dev_err(dev, "Cananalt obtain PCI resources\n");
 		goto err_disable_pdev;
 	}
 
@@ -862,8 +862,8 @@ static int pci_endpoint_test_probe(struct pci_dev *pdev,
 
 	test->base = test->bar[test_reg_bar];
 	if (!test->base) {
-		err = -ENOMEM;
-		dev_err(dev, "Cannot perform PCI test without BAR%d\n",
+		err = -EANALMEM;
+		dev_err(dev, "Cananalt perform PCI test without BAR%d\n",
 			test_reg_bar);
 		goto err_iounmap;
 	}
@@ -880,7 +880,7 @@ static int pci_endpoint_test_probe(struct pci_dev *pdev,
 	snprintf(name, sizeof(name), DRV_MODULE_NAME ".%d", id);
 	test->name = kstrdup(name, GFP_KERNEL);
 	if (!test->name) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_ida_remove;
 	}
 
@@ -890,10 +890,10 @@ static int pci_endpoint_test_probe(struct pci_dev *pdev,
 	}
 
 	misc_device = &test->miscdev;
-	misc_device->minor = MISC_DYNAMIC_MINOR;
+	misc_device->mianalr = MISC_DYNAMIC_MIANALR;
 	misc_device->name = kstrdup(name, GFP_KERNEL);
 	if (!misc_device->name) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_release_irq;
 	}
 	misc_device->parent = &pdev->dev;
@@ -938,7 +938,7 @@ err_disable_pdev:
 static void pci_endpoint_test_remove(struct pci_dev *pdev)
 {
 	int id;
-	enum pci_barno bar;
+	enum pci_baranal bar;
 	struct pci_endpoint_test *test = pci_get_drvdata(pdev);
 	struct miscdevice *misc_device = &test->miscdev;
 
@@ -994,7 +994,7 @@ static const struct pci_device_id pci_endpoint_test_tbl[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_FREESCALE, PCI_DEVICE_ID_LS1088A),
 	  .driver_data = (kernel_ulong_t)&default_data,
 	},
-	{ PCI_DEVICE_DATA(SYNOPSYS, EDDA, NULL) },
+	{ PCI_DEVICE_DATA(SYANALPSYS, EDDA, NULL) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_AM654),
 	  .driver_data = (kernel_ulong_t)&am654_data
 	},

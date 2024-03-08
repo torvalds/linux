@@ -28,7 +28,7 @@
  * @s:		the struct pcmcia_socket where the card is inserted
  * @function:	the device function we loop for
  * @code:	which CIS code shall we look for?
- * @parse:	buffer where the tuple shall be parsed (or NULL, if no parse)
+ * @parse:	buffer where the tuple shall be parsed (or NULL, if anal parse)
  *
  * pccard_read_tuple() reads out one tuple and attempts to parse it
  */
@@ -41,8 +41,8 @@ int pccard_read_tuple(struct pcmcia_socket *s, unsigned int function,
 
 	buf = kmalloc(256, GFP_KERNEL);
 	if (buf == NULL) {
-		dev_warn(&s->dev, "no memory to read tuple\n");
-		return -ENOMEM;
+		dev_warn(&s->dev, "anal memory to read tuple\n");
+		return -EANALMEM;
 	}
 	tuple.DesiredTuple = code;
 	tuple.Attributes = 0;
@@ -69,7 +69,7 @@ done:
  * @s:		the struct pcmcia_socket where the card is inserted
  * @function:	the device function we loop for
  * @code:	which CIS code shall we look for?
- * @parse:	buffer where the tuple shall be parsed (or NULL, if no parse)
+ * @parse:	buffer where the tuple shall be parsed (or NULL, if anal parse)
  * @priv_data:	private data to be passed to the loop_tuple function.
  * @loop_tuple:	function to call for each CIS entry of type @function. IT
  *		gets passed the raw tuple, the paresed tuple (if @parse is
@@ -91,8 +91,8 @@ static int pccard_loop_tuple(struct pcmcia_socket *s, unsigned int function,
 
 	buf = kzalloc(256, GFP_KERNEL);
 	if (buf == NULL) {
-		dev_warn(&s->dev, "no memory to read tuple\n");
-		return -ENOMEM;
+		dev_warn(&s->dev, "anal memory to read tuple\n");
+		return -EANALMEM;
 	}
 
 	tuple.TupleData = buf;
@@ -170,22 +170,22 @@ static int pcmcia_do_loop_config(tuple_t *tuple, cisparse_t *parse, void *priv)
 
 	/* check for matching Vcc? */
 	if (flags & CONF_AUTO_CHECK_VCC) {
-		if (cfg->vcc.present & (1 << CISTPL_POWER_VNOM)) {
-			if (vcc != cfg->vcc.param[CISTPL_POWER_VNOM] / 10000)
-				return -ENODEV;
-		} else if (dflt->vcc.present & (1 << CISTPL_POWER_VNOM)) {
-			if (vcc != dflt->vcc.param[CISTPL_POWER_VNOM] / 10000)
-				return -ENODEV;
+		if (cfg->vcc.present & (1 << CISTPL_POWER_VANALM)) {
+			if (vcc != cfg->vcc.param[CISTPL_POWER_VANALM] / 10000)
+				return -EANALDEV;
+		} else if (dflt->vcc.present & (1 << CISTPL_POWER_VANALM)) {
+			if (vcc != dflt->vcc.param[CISTPL_POWER_VANALM] / 10000)
+				return -EANALDEV;
 		}
 	}
 
 	/* set Vpp? */
 	if (flags & CONF_AUTO_SET_VPP) {
-		if (cfg->vpp1.present & (1 << CISTPL_POWER_VNOM))
-			p_dev->vpp = cfg->vpp1.param[CISTPL_POWER_VNOM] / 10000;
-		else if (dflt->vpp1.present & (1 << CISTPL_POWER_VNOM))
+		if (cfg->vpp1.present & (1 << CISTPL_POWER_VANALM))
+			p_dev->vpp = cfg->vpp1.param[CISTPL_POWER_VANALM] / 10000;
+		else if (dflt->vpp1.present & (1 << CISTPL_POWER_VANALM))
 			p_dev->vpp =
-				dflt->vpp1.param[CISTPL_POWER_VNOM] / 10000;
+				dflt->vpp1.param[CISTPL_POWER_VANALM] / 10000;
 	}
 
 	/* enable audio? */
@@ -201,7 +201,7 @@ static int pcmcia_do_loop_config(tuple_t *tuple, cisparse_t *parse, void *priv)
 		p_dev->resource[0]->start = p_dev->resource[0]->end = 0;
 		p_dev->resource[1]->start = p_dev->resource[1]->end = 0;
 		if (io->nwin == 0)
-			return -ENODEV;
+			return -EANALDEV;
 
 		p_dev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
 		p_dev->resource[0]->flags |=
@@ -227,7 +227,7 @@ static int pcmcia_do_loop_config(tuple_t *tuple, cisparse_t *parse, void *priv)
 
 		p_dev->resource[2]->start = p_dev->resource[2]->end = 0;
 		if (mem->nwin == 0)
-			return -ENODEV;
+			return -EANALDEV;
 
 		p_dev->resource[2]->start = mem->win[0].host_addr;
 		p_dev->resource[2]->end = mem->win[0].len;
@@ -266,7 +266,7 @@ int pcmcia_loop_config(struct pcmcia_device *p_dev,
 
 	cfg_mem = kzalloc(sizeof(struct pcmcia_cfg_mem), GFP_KERNEL);
 	if (cfg_mem == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cfg_mem->p_dev = p_dev;
 	cfg_mem->conf_check = conf_check;
@@ -344,7 +344,7 @@ struct pcmcia_loop_get {
  * pcmcia_do_get_tuple() is the internal callback for the call from
  * pcmcia_get_tuple() to pcmcia_loop_tuple(). As we're only interested in
  * the first tuple, return 0 unconditionally. Create a memory buffer large
- * enough to hold the content of the tuple, and fill it with the tuple data.
+ * eanalugh to hold the content of the tuple, and fill it with the tuple data.
  * The caller is responsible to free the buffer.
  */
 static int pcmcia_do_get_tuple(struct pcmcia_device *p_dev, tuple_t *tuple,
@@ -392,7 +392,7 @@ EXPORT_SYMBOL(pcmcia_get_tuple);
  *
  * pcmcia_do_get_mac() is the internal callback for the call from
  * pcmcia_get_mac_from_cis() to pcmcia_loop_tuple(). We check whether the
- * tuple contains a proper LAN_NODE_ID of length 6, and copy the data
+ * tuple contains a proper LAN_ANALDE_ID of length 6, and copy the data
  * to struct net_device->dev_addr[i].
  */
 static int pcmcia_do_get_mac(struct pcmcia_device *p_dev, tuple_t *tuple,
@@ -400,16 +400,16 @@ static int pcmcia_do_get_mac(struct pcmcia_device *p_dev, tuple_t *tuple,
 {
 	struct net_device *dev = priv;
 
-	if (tuple->TupleData[0] != CISTPL_FUNCE_LAN_NODE_ID)
+	if (tuple->TupleData[0] != CISTPL_FUNCE_LAN_ANALDE_ID)
 		return -EINVAL;
 	if (tuple->TupleDataLen < ETH_ALEN + 2) {
 		dev_warn(&p_dev->dev, "Invalid CIS tuple length for "
-			"LAN_NODE_ID\n");
+			"LAN_ANALDE_ID\n");
 		return -EINVAL;
 	}
 
 	if (tuple->TupleData[1] != ETH_ALEN) {
-		dev_warn(&p_dev->dev, "Invalid header for LAN_NODE_ID\n");
+		dev_warn(&p_dev->dev, "Invalid header for LAN_ANALDE_ID\n");
 		return -EINVAL;
 	}
 	eth_hw_addr_set(dev, &tuple->TupleData[2]);

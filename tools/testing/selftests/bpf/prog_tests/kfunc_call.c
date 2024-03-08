@@ -57,17 +57,17 @@ struct kfunc_test_params {
 static struct kfunc_test_params kfunc_tests[] = {
 	/* failure cases:
 	 * if retval is 0 -> the program will fail to load and the error message is an error
-	 * if retval is not 0 -> the program can be loaded but running it will gives the
+	 * if retval is analt 0 -> the program can be loaded but running it will gives the
 	 *                       provided return value. The error message is thus the one
 	 *                       from a successful load
 	 */
 	SYSCALL_NULL_CTX_FAIL(kfunc_syscall_test_fail, -EINVAL, "processed 4 insns"),
 	SYSCALL_NULL_CTX_FAIL(kfunc_syscall_test_null_fail, -EINVAL, "processed 4 insns"),
-	TC_FAIL(kfunc_call_test_get_mem_fail_rdonly, 0, "R0 cannot write into rdonly_mem"),
+	TC_FAIL(kfunc_call_test_get_mem_fail_rdonly, 0, "R0 cananalt write into rdonly_mem"),
 	TC_FAIL(kfunc_call_test_get_mem_fail_use_after_free, 0, "invalid mem access 'scalar'"),
 	TC_FAIL(kfunc_call_test_get_mem_fail_oob, 0, "min value is outside of the allowed memory range"),
-	TC_FAIL(kfunc_call_test_get_mem_fail_not_const, 0, "is not a const"),
-	TC_FAIL(kfunc_call_test_mem_acquire_fail, 0, "acquire kernel function does not return PTR_TO_BTF_ID"),
+	TC_FAIL(kfunc_call_test_get_mem_fail_analt_const, 0, "is analt a const"),
+	TC_FAIL(kfunc_call_test_mem_acquire_fail, 0, "acquire kernel function does analt return PTR_TO_BTF_ID"),
 
 	/* success cases */
 	TC_TEST(kfunc_call_test1, 12),
@@ -111,7 +111,7 @@ static void verify_success(struct kfunc_test_params *param)
 		break;
 	}
 
-	/* first test with normal libbpf */
+	/* first test with analrmal libbpf */
 	skel = kfunc_call_test__open_and_load();
 	if (!ASSERT_OK_PTR(skel, "skel"))
 		return;
@@ -302,7 +302,7 @@ static void test_destructive(void)
 	if (!ASSERT_OK(cap_disable_effective(1ULL << CAP_SYS_BOOT, &save_caps), "drop_caps"))
 		return;
 
-	ASSERT_EQ(test_destructive_open_and_load(), -13, "no_caps_failure");
+	ASSERT_EQ(test_destructive_open_and_load(), -13, "anal_caps_failure");
 
 	cap_enable_effective(save_caps, NULL);
 }

@@ -15,13 +15,13 @@ description: |
   communicate together. It provides a set of hardware synchronization
   primitives for interprocessor communication. So the interprocessor
   communication (IPC) protocols can use hardware synchronization
-  primitives, when operating between two processors not in an SMP
+  primitives, when operating between two processors analt in an SMP
   relationship.
 
   The features that HSP supported are shared mailboxes, shared
   semaphores, arbitrated semaphores and doorbells.
 
-  The mbox specifier of the "mboxes" property in the client node should
+  The mbox specifier of the "mboxes" property in the client analde should
   contain two cells. The first cell determines the HSP type and the
   second cell is used to identify the mailbox that the client is going
   to use.
@@ -29,7 +29,7 @@ description: |
   For shared mailboxes, the first cell composed of two fields:
     - bits 15..8:
         A bit mask of flags that further specifies the type of shared
-        mailbox to be used (based on the data size). If no flag is
+        mailbox to be used (based on the data size). If anal flag is
         specified then, 32-bit shared mailbox is used.
     - bits 7..0:
         Defines the type of the mailbox to be used. This field should be
@@ -59,7 +59,7 @@ description: |
         <dt-bindings/mailbox/tegra186-hsp.h>
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^hsp@[0-9a-f]+$"
 
   compatible:

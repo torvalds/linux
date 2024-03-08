@@ -64,7 +64,7 @@ static ssize_t panel_show(struct device *dev, struct device_attribute *attr,
 		panel = "back";
 		break;
 	default:
-		panel = "unknown";
+		panel = "unkanalwn";
 	}
 	return sysfs_emit(buf, "%s\n", panel);
 }
@@ -86,7 +86,7 @@ static ssize_t vertical_position_show(struct device *dev,
 		vertical_position = "lower";
 		break;
 	default:
-		vertical_position = "unknown";
+		vertical_position = "unkanalwn";
 	}
 	return sysfs_emit(buf, "%s\n", vertical_position);
 }
@@ -108,7 +108,7 @@ static ssize_t horizontal_position_show(struct device *dev,
 		horizontal_position = "right";
 		break;
 	default:
-		horizontal_position = "unknown";
+		horizontal_position = "unkanalwn";
 	}
 	return sysfs_emit(buf, "%s\n", horizontal_position);
 }
@@ -118,7 +118,7 @@ static ssize_t dock_show(struct device *dev, struct device_attribute *attr,
 	char *buf)
 {
 	return sysfs_emit(buf, "%s\n",
-		dev->physical_location->dock ? "yes" : "no");
+		dev->physical_location->dock ? "anal" : "anal");
 }
 static DEVICE_ATTR_RO(dock);
 
@@ -126,7 +126,7 @@ static ssize_t lid_show(struct device *dev, struct device_attribute *attr,
 	char *buf)
 {
 	return sysfs_emit(buf, "%s\n",
-		dev->physical_location->lid ? "yes" : "no");
+		dev->physical_location->lid ? "anal" : "anal");
 }
 static DEVICE_ATTR_RO(lid);
 

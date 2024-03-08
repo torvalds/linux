@@ -167,7 +167,7 @@ static unsigned int pistachio_critical_clks_sys[] __initdata = {
 	PERIPH_CLK_ROM,
 };
 
-static void __init pistachio_clk_init(struct device_node *np)
+static void __init pistachio_clk_init(struct device_analde *np)
 {
 	struct pistachio_clk_provider *p;
 	struct clk *debug_clk;
@@ -189,7 +189,7 @@ static void __init pistachio_clk_init(struct device_node *np)
 
 	debug_clk = clk_register_mux_table(NULL, "debug_mux", mux_debug,
 					   ARRAY_SIZE(mux_debug),
-					   CLK_SET_RATE_NO_REPARENT,
+					   CLK_SET_RATE_ANAL_REPARENT,
 					   p->base + 0x200, 18, 0x1f, 0,
 					   mux_debug_idx, NULL);
 	p->clk_data.clks[CLK_DEBUG_MUX] = debug_clk;
@@ -250,7 +250,7 @@ static struct pistachio_div pistachio_periph_divs[] __initdata = {
 	DIV(PERIPH_CLK_I2C3_DIV, "i2c3_div", "i2c3_pre_div", 0x158, 7),
 };
 
-static void __init pistachio_clk_periph_init(struct device_node *np)
+static void __init pistachio_clk_periph_init(struct device_analde *np)
 {
 	struct pistachio_clk_provider *p;
 
@@ -297,7 +297,7 @@ static struct pistachio_gate pistachio_sys_gates[] __initdata = {
 	GATE(SYS_CLK_HASH, "hash_sys", "sys", 0x8, 27),
 };
 
-static void __init pistachio_cr_periph_init(struct device_node *np)
+static void __init pistachio_cr_periph_init(struct device_analde *np)
 {
 	struct pistachio_clk_provider *p;
 
@@ -318,7 +318,7 @@ static struct pistachio_gate pistachio_ext_gates[] __initdata = {
 	GATE(EXT_CLK_AUDIO_IN, "audio_clk_in_gate", "audio_clk_in", 0x58, 8)
 };
 
-static void __init pistachio_cr_top_init(struct device_node *np)
+static void __init pistachio_cr_top_init(struct device_analde *np)
 {
 	struct pistachio_clk_provider *p;
 

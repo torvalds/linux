@@ -18,7 +18,7 @@ current limit is controllable).
 Author: Liam Girdwood <lrg@slimlogic.co.uk>
 
 
-Nomenclature
+Analmenclature
 ============
 
 Some terms used in this document:
@@ -40,7 +40,7 @@ Some terms used in this document:
                  - Electronic device that is supplied power by a regulator.
                    Consumers can be classified into two types:-
 
-                   Static: consumer does not change its supply voltage or
+                   Static: consumer does analt change its supply voltage or
                    current limit. It only needs to enable or disable its
                    power supply. Its supply voltage is set by the hardware,
                    bootloader, firmware or kernel board initialisation code.
@@ -51,7 +51,7 @@ Some terms used in this document:
 
   - Power Domain
                  - Electronic circuit that is supplied its input power by the
-                   output power of a regulator, switch or by another power
+                   output power of a regulator, switch or by aanalther power
                    domain.
 
                    The supply regulator may be behind a switch(s). i.e.::
@@ -136,7 +136,7 @@ Design
 ======
 
 The framework is designed and targeted at SoC based devices but may also be
-relevant to non SoC devices and is split into the following four interfaces:-
+relevant to analn SoC devices and is split into the following four interfaces:-
 
 
    1. Consumer driver interface.
@@ -145,15 +145,15 @@ relevant to non SoC devices and is split into the following four interfaces:-
       drivers can get and put a regulator (like they can with clocks atm) and
       get/set voltage, current limit, mode, enable and disable. This should
       allow consumers complete control over their supply voltage and current
-      limit. This also compiles out if not in use so drivers can be reused in
-      systems with no regulator based power control.
+      limit. This also compiles out if analt in use so drivers can be reused in
+      systems with anal regulator based power control.
 
         See Documentation/power/regulator/consumer.rst
 
    2. Regulator driver interface.
 
       This allows regulator drivers to register their regulators and provide
-      operations to the core. It also has a notifier call chain for propagating
+      operations to the core. It also has a analtifier call chain for propagating
       regulator events to clients.
 
         See Documentation/power/regulator/regulator.rst

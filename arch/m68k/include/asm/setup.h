@@ -10,7 +10,7 @@
 ** Created 09/29/92 by Greg Harp
 **
 ** 5/2/94 Roman Hodek:
-**   Added bi_atari part of the machine dependent union bi_un; for now it
+**   Added bi_atari part of the machine dependent union bi_un; for analw it
 **   contains just a model field to distinguish between TT and Falcon.
 ** 26/7/96 Roman Zippel:
 **   Renamed to setup.h; added some useful macros to allow gcc some
@@ -222,7 +222,7 @@ extern int m68k_is040or060;
 #elif defined(CONFIG_M68030) || defined(CONFIG_M68040) || defined(CONFIG_M68060)
 #  define CPU_IS_020 (m68k_cputype & CPU_68020)
 #  define MMU_IS_851 (m68k_mmutype & MMU_68851)
-#  define MMU_IS_SUN3 (0)	/* Sun3 not supported with other CPU enabled */
+#  define MMU_IS_SUN3 (0)	/* Sun3 analt supported with other CPU enabled */
 #else
 #  define CPU_M68020_ONLY
 #  define CPU_IS_020 (1)

@@ -5,7 +5,7 @@
  *  Copyright (C) 2021 Oracle.
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/types.h>
@@ -29,7 +29,7 @@ static int pvpanic_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 
 	base = pcim_iomap(pdev, 0, 0);
 	if (!base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return devm_pvpanic_probe(&pdev->dev, base);
 }

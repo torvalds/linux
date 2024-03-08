@@ -27,7 +27,7 @@
 	vdd-supply = <&pp1800_prox>;
 };
 
-/delete-node/&trackpad;
+/delete-analde/&trackpad;
 &ap_tp_i2c {
 	status = "okay";
 	trackpad: trackpad@15 {

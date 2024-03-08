@@ -23,11 +23,11 @@
 
    CHOKe (CHOose and Keep for responsive flows, CHOose and Kill for
    unresponsive flows) is a variant of RED that penalizes misbehaving flows but
-   maintains no flow state. The difference from RED is an additional step
+   maintains anal flow state. The difference from RED is an additional step
    during the enqueuing process. If average queue size is over the
    low threshold (qmin), a packet is chosen at random from the queue.
    If both the new and chosen packet are from the same flow, both
-   are dropped. Unlike RED, CHOKe is not really a "classful" qdisc because it
+   are dropped. Unlike RED, CHOKe is analt really a "classful" qdisc because it
    needs to access packets in queue randomly. It has a minimal class
    interface to allow overriding the builtin flow classifier with
    filters.
@@ -372,7 +372,7 @@ static int choke_change(struct Qdisc *sch, struct nlattr *opt,
 
 		ntab = kvcalloc(mask + 1, sizeof(struct sk_buff *), GFP_KERNEL);
 		if (!ntab)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		sch_tree_lock(sch);
 		old = q->tab;
@@ -442,7 +442,7 @@ static int choke_dump(struct Qdisc *sch, struct sk_buff *skb)
 		.Scell_log	= q->parms.Scell_log,
 	};
 
-	opts = nla_nest_start_noflag(skb, TCA_OPTIONS);
+	opts = nla_nest_start_analflag(skb, TCA_OPTIONS);
 	if (opts == NULL)
 		goto nla_put_failure;
 

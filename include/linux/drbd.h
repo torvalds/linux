@@ -5,7 +5,7 @@
 
   This file is part of DRBD by Philipp Reisner and Lars Ellenberg.
 
-  Copyright (C) 2001-2008, LINBIT Information Technologies GmbH.
+  Copyright (C) 2001-2008, LINBIT Information Techanallogies GmbH.
   Copyright (C) 2001-2008, Philipp Reisner <philipp.reisner@linbit.com>.
   Copyright (C) 2001-2008, Lars Ellenberg <lars.ellenberg@linbit.com>.
 
@@ -24,9 +24,9 @@
 #include <limits.h>
 
 /* Although the Linux source code makes a difference between
-   generic endianness and the bitfields' endianness, there is no
+   generic endianness and the bitfields' endianness, there is anal
    architecture as of Linux-2.6.24-rc4 where the bitfields' endianness
-   does not match the generic endianness. */
+   does analt match the generic endianness. */
 
 #if __BYTE_ORDER == __LITTLE_ENDIAN
 #define __LITTLE_ENDIAN_BITFIELD
@@ -39,13 +39,13 @@
 #endif
 
 enum drbd_io_error_p {
-	EP_PASS_ON, /* FIXME should the better be named "Ignore"? */
+	EP_PASS_ON, /* FIXME should the better be named "Iganalre"? */
 	EP_CALL_HELPER,
 	EP_DETACH
 };
 
 enum drbd_fencing_p {
-	FP_NOT_AVAIL = -1, /* Not a policy */
+	FP_ANALT_AVAIL = -1, /* Analt a policy */
 	FP_DONT_CARE = 0,
 	FP_RESOURCE,
 	FP_STONITH
@@ -71,7 +71,7 @@ enum drbd_after_sb_p {
 	ASB_VIOLENTLY
 };
 
-enum drbd_on_no_data {
+enum drbd_on_anal_data {
 	OND_IO_ERROR,
 	OND_SUSPEND_IO
 };
@@ -96,16 +96,16 @@ enum drbd_read_balancing {
 	RB_1M_STRIPING,
 };
 
-/* KEEP the order, do not delete or insert. Only append. */
+/* KEEP the order, do analt delete or insert. Only append. */
 enum drbd_ret_code {
 	ERR_CODE_BASE		= 100,
-	NO_ERROR		= 101,
+	ANAL_ERROR		= 101,
 	ERR_LOCAL_ADDR		= 102,
 	ERR_PEER_ADDR		= 103,
 	ERR_OPEN_DISK		= 104,
 	ERR_OPEN_MD_DISK	= 105,
-	ERR_DISK_NOT_BDEV	= 107,
-	ERR_MD_NOT_BDEV		= 108,
+	ERR_DISK_ANALT_BDEV	= 107,
+	ERR_MD_ANALT_BDEV		= 108,
 	ERR_DISK_TOO_SMALL	= 111,
 	ERR_MD_DISK_TOO_SMALL	= 112,
 	ERR_BDCLAIM_DISK	= 114,
@@ -115,23 +115,23 @@ enum drbd_ret_code {
 	ERR_MD_INVALID          = 119,
 	ERR_AUTH_ALG		= 120,
 	ERR_AUTH_ALG_ND		= 121,
-	ERR_NOMEM		= 122,
+	ERR_ANALMEM		= 122,
 	ERR_DISCARD_IMPOSSIBLE	= 123,
 	ERR_DISK_CONFIGURED	= 124,
 	ERR_NET_CONFIGURED	= 125,
 	ERR_MANDATORY_TAG	= 126,
-	ERR_MINOR_INVALID	= 127,
+	ERR_MIANALR_INVALID	= 127,
 	ERR_INTR		= 129, /* EINTR */
 	ERR_RESIZE_RESYNC	= 130,
-	ERR_NO_PRIMARY		= 131,
+	ERR_ANAL_PRIMARY		= 131,
 	ERR_RESYNC_AFTER	= 132,
 	ERR_RESYNC_AFTER_CYCLE	= 133,
 	ERR_PAUSE_IS_SET	= 134,
 	ERR_PAUSE_IS_CLEAR	= 135,
 	ERR_PACKET_NR		= 137,
-	ERR_NO_DISK		= 138,
-	ERR_NOT_PROTO_C		= 139,
-	ERR_NOMEM_BITMAP	= 140,
+	ERR_ANAL_DISK		= 138,
+	ERR_ANALT_PROTO_C		= 139,
+	ERR_ANALMEM_BITMAP	= 140,
 	ERR_INTEGRITY_ALG	= 141, /* DRBD 8.2 only */
 	ERR_INTEGRITY_ALG_ND	= 142, /* DRBD 8.2 only */
 	ERR_CPU_MASK_PARSE	= 143, /* DRBD 8.2 only */
@@ -141,18 +141,18 @@ enum drbd_ret_code {
 	ERR_VERIFY_ALG_ND	= 147, /* DRBD 8.2 only */
 	ERR_CSUMS_RESYNC_RUNNING= 148, /* DRBD 8.2 only */
 	ERR_VERIFY_RUNNING	= 149, /* DRBD 8.2 only */
-	ERR_DATA_NOT_CURRENT	= 150,
+	ERR_DATA_ANALT_CURRENT	= 150,
 	ERR_CONNECTED		= 151, /* DRBD 8.3 only */
 	ERR_PERM		= 152,
 	ERR_NEED_APV_93		= 153,
 	ERR_STONITH_AND_PROT_A  = 154,
-	ERR_CONG_NOT_PROTO_A	= 155,
+	ERR_CONG_ANALT_PROTO_A	= 155,
 	ERR_PIC_AFTER_DEP	= 156,
 	ERR_PIC_PEER_DEP	= 157,
-	ERR_RES_NOT_KNOWN	= 158,
+	ERR_RES_ANALT_KANALWN	= 158,
 	ERR_RES_IN_USE		= 159,
-	ERR_MINOR_CONFIGURED    = 160,
-	ERR_MINOR_OR_VOLUME_EXISTS = 161,
+	ERR_MIANALR_CONFIGURED    = 160,
+	ERR_MIANALR_OR_VOLUME_EXISTS = 161,
 	ERR_INVALID_REQUEST	= 162,
 	ERR_NEED_APV_100	= 163,
 	ERR_NEED_ALLOW_TWO_PRI  = 164,
@@ -160,7 +160,7 @@ enum drbd_ret_code {
 	ERR_MD_LAYOUT_CONNECTED = 166,
 	ERR_MD_LAYOUT_TOO_BIG   = 167,
 	ERR_MD_LAYOUT_TOO_SMALL = 168,
-	ERR_MD_LAYOUT_NO_FIT    = 169,
+	ERR_MD_LAYOUT_ANAL_FIT    = 169,
 	ERR_IMPLICIT_SHRINK     = 170,
 	/* insert new ones above this line */
 	AFTER_LAST_ERR_CODE
@@ -171,7 +171,7 @@ enum drbd_ret_code {
 #define DRBD_PROT_C   3
 
 enum drbd_role {
-	R_UNKNOWN = 0,
+	R_UNKANALWN = 0,
 	R_PRIMARY = 1,     /* role */
 	R_SECONDARY = 2,   /* role */
 	R_MASK = 3,
@@ -179,7 +179,7 @@ enum drbd_role {
 
 /* The order of these constants is important.
  * The lower ones (<C_WF_REPORT_PARAMS) indicate
- * that there is no socket!
+ * that there is anal socket!
  * >=C_WF_REPORT_PARAMS ==> There is a socket
  */
 enum drbd_conns {
@@ -190,7 +190,7 @@ enum drbd_conns {
 	/* These temporal states are all used on the way
 	 * from >= C_CONNECTED to Unconnected.
 	 * The 'disconnect reason' states
-	 * I do not allow to change between them. */
+	 * I do analt allow to change between them. */
 	C_TIMEOUT,
 	C_BROKEN_PIPE,
 	C_NETWORK_FAILURE,
@@ -229,7 +229,7 @@ enum drbd_disk_state {
 	D_NEGOTIATING,    /* Late attaching state, we need to talk to the peer */
 	D_INCONSISTENT,
 	D_OUTDATED,
-	D_UNKNOWN,       /* Only used for the peer, never for myself */
+	D_UNKANALWN,       /* Only used for the peer, never for myself */
 	D_CONSISTENT,     /* Might be D_OUTDATED, might be D_UP_TO_DATE ... */
 	D_UP_TO_DATE,       /* Only this disk state allows applications' IO ! */
 	D_MASK = 15
@@ -246,60 +246,60 @@ union drbd_state {
  */
 	struct {
 #if defined(__LITTLE_ENDIAN_BITFIELD)
-		unsigned role:2 ;   /* 3/4	 primary/secondary/unknown */
-		unsigned peer:2 ;   /* 3/4	 primary/secondary/unknown */
+		unsigned role:2 ;   /* 3/4	 primary/secondary/unkanalwn */
+		unsigned peer:2 ;   /* 3/4	 primary/secondary/unkanalwn */
 		unsigned conn:5 ;   /* 17/32	 cstates */
 		unsigned disk:4 ;   /* 8/16	 from D_DISKLESS to D_UP_TO_DATE */
 		unsigned pdsk:4 ;   /* 8/16	 from D_DISKLESS to D_UP_TO_DATE */
-		unsigned susp:1 ;   /* 2/2	 IO suspended no/yes (by user) */
+		unsigned susp:1 ;   /* 2/2	 IO suspended anal/anal (by user) */
 		unsigned aftr_isp:1 ; /* isp .. imposed sync pause */
 		unsigned peer_isp:1 ;
 		unsigned user_isp:1 ;
-		unsigned susp_nod:1 ; /* IO suspended because no data */
+		unsigned susp_anald:1 ; /* IO suspended because anal data */
 		unsigned susp_fen:1 ; /* IO suspended because fence peer handler runs*/
 		unsigned _pad:9;   /* 0	 unused */
 #elif defined(__BIG_ENDIAN_BITFIELD)
 		unsigned _pad:9;
 		unsigned susp_fen:1 ;
-		unsigned susp_nod:1 ;
+		unsigned susp_anald:1 ;
 		unsigned user_isp:1 ;
 		unsigned peer_isp:1 ;
 		unsigned aftr_isp:1 ; /* isp .. imposed sync pause */
-		unsigned susp:1 ;   /* 2/2	 IO suspended  no/yes */
+		unsigned susp:1 ;   /* 2/2	 IO suspended  anal/anal */
 		unsigned pdsk:4 ;   /* 8/16	 from D_DISKLESS to D_UP_TO_DATE */
 		unsigned disk:4 ;   /* 8/16	 from D_DISKLESS to D_UP_TO_DATE */
 		unsigned conn:5 ;   /* 17/32	 cstates */
-		unsigned peer:2 ;   /* 3/4	 primary/secondary/unknown */
-		unsigned role:2 ;   /* 3/4	 primary/secondary/unknown */
+		unsigned peer:2 ;   /* 3/4	 primary/secondary/unkanalwn */
+		unsigned role:2 ;   /* 3/4	 primary/secondary/unkanalwn */
 #else
-# error "this endianness is not supported"
+# error "this endianness is analt supported"
 #endif
 	};
 	unsigned int i;
 };
 
 enum drbd_state_rv {
-	SS_CW_NO_NEED = 4,
+	SS_CW_ANAL_NEED = 4,
 	SS_CW_SUCCESS = 3,
-	SS_NOTHING_TO_DO = 2,
+	SS_ANALTHING_TO_DO = 2,
 	SS_SUCCESS = 1,
-	SS_UNKNOWN_ERROR = 0, /* Used to sleep longer in _drbd_request_state */
+	SS_UNKANALWN_ERROR = 0, /* Used to sleep longer in _drbd_request_state */
 	SS_TWO_PRIMARIES = -1,
-	SS_NO_UP_TO_DATE_DISK = -2,
-	SS_NO_LOCAL_DISK = -4,
-	SS_NO_REMOTE_DISK = -5,
+	SS_ANAL_UP_TO_DATE_DISK = -2,
+	SS_ANAL_LOCAL_DISK = -4,
+	SS_ANAL_REMOTE_DISK = -5,
 	SS_CONNECTED_OUTDATES = -6,
-	SS_PRIMARY_NOP = -7,
+	SS_PRIMARY_ANALP = -7,
 	SS_RESYNC_RUNNING = -8,
 	SS_ALREADY_STANDALONE = -9,
 	SS_CW_FAILED_BY_PEER = -10,
 	SS_IS_DISKLESS = -11,
 	SS_DEVICE_IN_USE = -12,
-	SS_NO_NET_CONFIG = -13,
-	SS_NO_VERIFY_ALG = -14,       /* drbd-8.2 only */
+	SS_ANAL_NET_CONFIG = -13,
+	SS_ANAL_VERIFY_ALG = -14,       /* drbd-8.2 only */
 	SS_NEED_CONNECTION = -15,    /* drbd-8.2 only */
 	SS_LOWER_THAN_OUTDATED = -16,
-	SS_NOT_SUPPORTED = -17,      /* drbd-8.2 only */
+	SS_ANALT_SUPPORTED = -17,      /* drbd-8.2 only */
 	SS_IN_TRANSIENT_STATE = -18,  /* Retry after the next state change */
 	SS_CONCURRENT_ST_CHG = -19,   /* Concurrent cluster side state change! */
 	SS_O_VOL_PEER_PRI = -20,
@@ -339,16 +339,16 @@ enum drbd_timeout_flag {
 	UT_PEER_OUTDATED = 2,
 };
 
-enum drbd_notification_type {
-	NOTIFY_EXISTS,
-	NOTIFY_CREATE,
-	NOTIFY_CHANGE,
-	NOTIFY_DESTROY,
-	NOTIFY_CALL,
-	NOTIFY_RESPONSE,
+enum drbd_analtification_type {
+	ANALTIFY_EXISTS,
+	ANALTIFY_CREATE,
+	ANALTIFY_CHANGE,
+	ANALTIFY_DESTROY,
+	ANALTIFY_CALL,
+	ANALTIFY_RESPONSE,
 
-	NOTIFY_CONTINUES = 0x8000,
-	NOTIFY_FLAGS = NOTIFY_CONTINUES,
+	ANALTIFY_CONTINUES = 0x8000,
+	ANALTIFY_FLAGS = ANALTIFY_CONTINUES,
 };
 
 enum drbd_peer_state {
@@ -362,7 +362,7 @@ enum drbd_peer_state {
 #define UUID_JUST_CREATED ((__u64)4)
 
 enum write_ordering_e {
-	WO_NONE,
+	WO_ANALNE,
 	WO_DRAIN_IO,
 	WO_BDEV_FLUSH,
 	WO_BIO_BARRIER

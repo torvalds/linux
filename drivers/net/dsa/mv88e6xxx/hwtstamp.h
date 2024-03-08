@@ -103,7 +103,7 @@
 
 /* Status fields for arrival and depature timestamp status registers */
 #define MV88E6XXX_PTP_TS_STATUS_MASK		0x0006
-#define MV88E6XXX_PTP_TS_STATUS_NORMAL		0x0000
+#define MV88E6XXX_PTP_TS_STATUS_ANALRMAL		0x0000
 #define MV88E6XXX_PTP_TS_STATUS_OVERWITTEN	0x0002
 #define MV88E6XXX_PTP_TS_STATUS_DISCARDED	0x0004
 #define MV88E6XXX_PTP_TS_VALID			0x0001
@@ -135,13 +135,13 @@ int mv88e6165_global_disable(struct mv88e6xxx_chip *chip);
 static inline int mv88e6xxx_port_hwtstamp_set(struct dsa_switch *ds,
 					      int port, struct ifreq *ifr)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int mv88e6xxx_port_hwtstamp_get(struct dsa_switch *ds,
 					      int port, struct ifreq *ifr)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline bool mv88e6xxx_port_rxtstamp(struct dsa_switch *ds, int port,
@@ -159,7 +159,7 @@ static inline void mv88e6xxx_port_txtstamp(struct dsa_switch *ds, int port,
 static inline int mv88e6xxx_get_ts_info(struct dsa_switch *ds, int port,
 					struct ethtool_ts_info *info)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int mv88e6xxx_hwtstamp_setup(struct mv88e6xxx_chip *chip)

@@ -39,7 +39,7 @@ Parsing the PLDM file
 The PLDM file format uses packed binary data, with most multi-byte fields
 stored in the Little Endian format. Several pieces of data are variable
 length, including version strings and the number of records and components.
-Due to this, it is not straight forward to index the record, record
+Due to this, it is analt straight forward to index the record, record
 descriptors, or components.
 
 To avoid proliferating access to the packed binary data, the ``pldmfw``
@@ -64,8 +64,8 @@ steps
    the device.
 4. For each component that the record indicates, send the component data to
    the device. For each component, the firmware may respond with an
-   indication of whether the update is suitable or not. If any component is
-   not suitable, the update is canceled.
+   indication of whether the update is suitable or analt. If any component is
+   analt suitable, the update is canceled.
 5. For each component, send the binary data to the device firmware for
    updating.
 6. After all components are programmed, perform any final device-specific

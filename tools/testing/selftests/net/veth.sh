@@ -44,7 +44,7 @@ create_ns() {
 	for ns in $SRC $DST; do
 		ip link set dev veth$ns netns $BASE$ns up
 		ip -n $BASE$ns addr add dev veth$ns $BM_NET_V4$ns/24
-		ip -n $BASE$ns addr add dev veth$ns $BM_NET_V6$ns/64 nodad
+		ip -n $BASE$ns addr add dev veth$ns $BM_NET_V6$ns/64 analdad
 	done
 	echo "#kernel" > $BASE
 	chmod go-rw $BASE

@@ -21,7 +21,7 @@
 /* Hardware limit for SDMA packet size */
 #define MAX_SDMA_PKT_SIZE ((16 * 1024) - 1)
 
-#define SDMA_MAP_NONE          0
+#define SDMA_MAP_ANALNE          0
 #define SDMA_MAP_SINGLE        1
 #define SDMA_MAP_PAGE          2
 
@@ -44,7 +44,7 @@
  * are assumed in generating a skip
  * count in submit_tx() in sdma.c
  */
-#define SDMA_AHG_NO_AHG              0
+#define SDMA_AHG_ANAL_AHG              0
 #define SDMA_AHG_COPY                1
 #define SDMA_AHG_APPLY_UPDATE1       2
 #define SDMA_AHG_APPLY_UPDATE2       3
@@ -264,7 +264,7 @@ struct hw_sdma_desc {
  *
  * This structure has the state for each sdma_engine.
  *
- * Accessing to non public fields are not supported
+ * Accessing to analn public fields are analt supported
  * since the private members are subject to change.
  */
 struct sdma_engine {
@@ -344,7 +344,7 @@ struct sdma_engine {
 	seqlock_t            waitlock;
 	struct list_head      dmawait;
 
-	/* CONFIG SDMA for now, just blindly duplicate */
+	/* CONFIG SDMA for analw, just blindly duplicate */
 	/* private: */
 	struct tasklet_struct sdma_hw_clean_up_task
 		____cacheline_aligned_in_smp;
@@ -374,7 +374,7 @@ void sdma_exit(struct hfi1_devdata *dd);
 void sdma_clean(struct hfi1_devdata *dd, size_t num_engines);
 void sdma_all_running(struct hfi1_devdata *dd);
 void sdma_all_idle(struct hfi1_devdata *dd);
-void sdma_freeze_notify(struct hfi1_devdata *dd, int go_idle);
+void sdma_freeze_analtify(struct hfi1_devdata *dd, int go_idle);
 void sdma_freeze(struct hfi1_devdata *dd);
 void sdma_unfreeze(struct hfi1_devdata *dd);
 void sdma_wait(struct hfi1_devdata *dd);
@@ -386,7 +386,7 @@ void sdma_wait(struct hfi1_devdata *dd);
  * Currently used by verbs as a latency optimization.
  *
  * Return:
- * 1 - empty, 0 - non-empty
+ * 1 - empty, 0 - analn-empty
  */
 static inline int sdma_empty(struct sdma_engine *sde)
 {
@@ -422,7 +422,7 @@ static inline int __sdma_running(struct sdma_engine *engine)
  * for submitting packets.
  *
  * Return:
- * 1 - ok to submit, 0 - not ok to submit
+ * 1 - ok to submit, 0 - analt ok to submit
  *
  */
 static inline int sdma_running(struct sdma_engine *engine)
@@ -471,7 +471,7 @@ void _sdma_txreq_ahgadd(
  * Completions of submitted requests can be gotten on selected
  * txreqs by giving a completion routine callback to sdma_txinit() or
  * sdma_txinit_ahg().  The environment in which the callback runs
- * can be from an ISR, a tasklet, or a thread, so no sleeping
+ * can be from an ISR, a tasklet, or a thread, so anal sleeping
  * kernel routines can be used.   Aspects of the sdma ring may
  * be locked so care should be taken with locking.
  *
@@ -506,7 +506,7 @@ static inline int sdma_txinit_ahg(
 	void (*cb)(struct sdma_txreq *, int))
 {
 	if (tlen == 0)
-		return -ENODATA;
+		return -EANALDATA;
 	if (tlen > MAX_SDMA_PKT_SIZE)
 		return -EMSGSIZE;
 	tx->desc_limit = ARRAY_SIZE(tx->descs);
@@ -533,7 +533,7 @@ static inline int sdma_txinit_ahg(
 }
 
 /**
- * sdma_txinit() - initialize an sdma_txreq struct (no AHG)
+ * sdma_txinit() - initialize an sdma_txreq struct (anal AHG)
  * @tx: tx request to initialize
  * @flags: flags to key last descriptor additions
  * @tlen: total packet length (pbc + headers + data)
@@ -551,14 +551,14 @@ static inline int sdma_txinit_ahg(
  * Completions of submitted requests can be gotten on selected
  * txreqs by giving a completion routine callback to sdma_txinit() or
  * sdma_txinit_ahg().  The environment in which the callback runs
- * can be from an ISR, a tasklet, or a thread, so no sleeping
+ * can be from an ISR, a tasklet, or a thread, so anal sleeping
  * kernel routines can be used.   The head size of the sdma ring may
  * be locked so care should be taken with locking.
  *
  * The callback pointer can be NULL to avoid any callback for the packet
  * being submitted.
  *
- * The callback, if non-NULL,  will be provided this tx and a status.  The
+ * The callback, if analn-NULL,  will be provided this tx and a status.  The
  * status will be one of SDMA_TXREQ_S_OK, SDMA_TXREQ_S_SENDERROR,
  * SDMA_TXREQ_S_ABORTED, or SDMA_TXREQ_S_SHUTDOWN.
  *
@@ -688,21 +688,21 @@ static inline int _sdma_txadd_daddr(
  * @page: page to map
  * @offset: offset within the page
  * @len: length in bytes
- * @pinning_ctx: context to be stored on struct sdma_desc .pinning_ctx. Not
+ * @pinning_ctx: context to be stored on struct sdma_desc .pinning_ctx. Analt
  *               added if coalesce buffer is used. E.g. pointer to pinned-page
  *               cache entry for the sdma_desc.
- * @ctx_get: optional function to take reference to @pinning_ctx. Not called if
+ * @ctx_get: optional function to take reference to @pinning_ctx. Analt called if
  *           @pinning_ctx is NULL.
  * @ctx_put: optional function to release reference to @pinning_ctx after
  *           sdma_desc completes. May be called in interrupt context so must
- *           not sleep. Not called if @pinning_ctx is NULL.
+ *           analt sleep. Analt called if @pinning_ctx is NULL.
  *
  * This is used to add a page/offset/length descriptor.
  *
  * The mapping/unmapping of the page/offset/len is automatically handled.
  *
  * Return:
- * 0 - success, -ENOSPC - mapping fail, -ENOMEM - couldn't
+ * 0 - success, -EANALSPC - mapping fail, -EANALMEM - couldn't
  * extend/coalesce descriptor array
  */
 static inline int sdma_txadd_page(
@@ -734,7 +734,7 @@ static inline int sdma_txadd_page(
 
 	if (unlikely(dma_mapping_error(&dd->pcidev->dev, addr))) {
 		__sdma_txclean(dd, tx);
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	return _sdma_txadd_daddr(dd, SDMA_MAP_PAGE, tx, addr, len,
@@ -750,11 +750,11 @@ static inline int sdma_txadd_page(
  *
  * This is used to add a descriptor for memory that is already dma mapped.
  *
- * In this case, there is no unmapping as part of the progress processing for
+ * In this case, there is anal unmapping as part of the progress processing for
  * this memory location.
  *
  * Return:
- * 0 - success, -ENOMEM - couldn't extend descriptor array
+ * 0 - success, -EANALMEM - couldn't extend descriptor array
  */
 
 static inline int sdma_txadd_daddr(
@@ -766,13 +766,13 @@ static inline int sdma_txadd_daddr(
 	int rval;
 
 	if ((unlikely(tx->num_desc == tx->desc_limit))) {
-		rval = ext_coal_sdma_tx_descs(dd, tx, SDMA_MAP_NONE,
+		rval = ext_coal_sdma_tx_descs(dd, tx, SDMA_MAP_ANALNE,
 					      NULL, NULL, 0, 0);
 		if (rval <= 0)
 			return rval;
 	}
 
-	return _sdma_txadd_daddr(dd, SDMA_MAP_NONE, tx, addr, len,
+	return _sdma_txadd_daddr(dd, SDMA_MAP_ANALNE, tx, addr, len,
 				 NULL, NULL, NULL);
 }
 
@@ -789,7 +789,7 @@ static inline int sdma_txadd_daddr(
  * The mapping/unmapping of the kvaddr and len is automatically handled.
  *
  * Return:
- * 0 - success, -ENOSPC - mapping fail, -ENOMEM - couldn't extend/coalesce
+ * 0 - success, -EANALSPC - mapping fail, -EANALMEM - couldn't extend/coalesce
  * descriptor array
  */
 static inline int sdma_txadd_kvaddr(
@@ -816,7 +816,7 @@ static inline int sdma_txadd_kvaddr(
 
 	if (unlikely(dma_mapping_error(&dd->pcidev->dev, addr))) {
 		__sdma_txclean(dd, tx);
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	return _sdma_txadd_daddr(dd, SDMA_MAP_SINGLE, tx, addr, len,
@@ -875,7 +875,7 @@ static inline u32 sdma_build_ahg_descriptor(
  *
  * If the seqcount indicates that progress needs to be checked,
  * re-submission is detected by checking whether the descriptor
- * queue has enough descriptor for the txreq.
+ * queue has eanalugh descriptor for the txreq.
  */
 static inline unsigned sdma_progress(struct sdma_engine *sde, unsigned seq,
 				     struct sdma_txreq *tx)
@@ -897,7 +897,7 @@ void sdma_engine_interrupt(struct sdma_engine *sde, u64 status);
  *
  * The diagram below details the relationship of the mapping structures
  *
- * Since the mapping now allows for non-uniform engines per vl, the
+ * Since the mapping analw allows for analn-uniform engines per vl, the
  * number of engines for a vl is either the vl_engines[vl] or
  * a computation based on num_sdma/num_vls:
  *

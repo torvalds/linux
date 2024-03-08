@@ -8,7 +8,7 @@
  * and above.  Registers %o0 to %o5 serve as argument, status, and
  * return value registers.
  *
- * There are two kinds of these traps.  First there are the normal
+ * There are two kinds of these traps.  First there are the analrmal
  * "fast traps" which use software trap 0x80 and encode the function
  * to invoke by number in register %o5.  Argument and return value
  * handling is as follows:
@@ -59,24 +59,24 @@
 
 /* Error codes.  */
 #define HV_EOK				0  /* Successful return            */
-#define HV_ENOCPU			1  /* Invalid CPU id               */
-#define HV_ENORADDR			2  /* Invalid real address         */
-#define HV_ENOINTR			3  /* Invalid interrupt id         */
+#define HV_EANALCPU			1  /* Invalid CPU id               */
+#define HV_EANALRADDR			2  /* Invalid real address         */
+#define HV_EANALINTR			3  /* Invalid interrupt id         */
 #define HV_EBADPGSZ			4  /* Invalid pagesize encoding    */
 #define HV_EBADTSB			5  /* Invalid TSB description      */
 #define HV_EINVAL			6  /* Invalid argument             */
 #define HV_EBADTRAP			7  /* Invalid function number      */
 #define HV_EBADALIGN			8  /* Invalid address alignment    */
-#define HV_EWOULDBLOCK			9  /* Cannot complete w/o blocking */
-#define HV_ENOACCESS			10 /* No access to resource        */
+#define HV_EWOULDBLOCK			9  /* Cananalt complete w/o blocking */
+#define HV_EANALACCESS			10 /* Anal access to resource        */
 #define HV_EIO				11 /* I/O error                    */
 #define HV_ECPUERROR			12 /* CPU in error state           */
-#define HV_ENOTSUPPORTED		13 /* Function not supported       */
-#define HV_ENOMAP			14 /* No mapping found             */
+#define HV_EANALTSUPPORTED		13 /* Function analt supported       */
+#define HV_EANALMAP			14 /* Anal mapping found             */
 #define HV_ETOOMANY			15 /* Too many items specified     */
 #define HV_ECHANNEL			16 /* Invalid LDC channel          */
 #define HV_EBUSY			17 /* Resource busy                */
-#define HV_EUNAVAILABLE			23 /* Resource or operation not
+#define HV_EUNAVAILABLE			23 /* Resource or operation analt
 					    * currently available, but may
 					    * become available in the future
 					    */
@@ -85,7 +85,7 @@
  * TRAP:	HV_FAST_TRAP
  * FUNCTION:	HV_FAST_MACH_EXIT
  * ARG0:	exit code
- * ERRORS:	This service does not return.
+ * ERRORS:	This service does analt return.
  *
  * Stop all CPUs in the virtual domain and place them into the stopped
  * state.  The 64-bit exit code may be passed to a service entity as
@@ -95,8 +95,8 @@
  *
  * This function will never return to the guest that invokes it.
  *
- * Note: By convention an exit code of zero denotes a successful exit by
- *       the guest code.  A non-zero exit code denotes a guest specific
+ * Analte: By convention an exit code of zero deanaltes a successful exit by
+ *       the guest code.  A analn-zero exit code deanaltes a guest specific
  *       error indication.
  *
  */
@@ -116,7 +116,7 @@ void sun4v_mach_exit(unsigned long exit_code);
  * RET0:	status
  * RET1:	length
  * ERRORS:	HV_EBADALIGN	Buffer is badly aligned
- *		HV_ENORADDR	Buffer is to an illegal real address.
+ *		HV_EANALRADDR	Buffer is to an illegal real address.
  *		HV_EINVAL	Buffer length is too small for complete
  *				machine description.
  *
@@ -125,7 +125,7 @@ void sun4v_mach_exit(unsigned long exit_code);
  * aligned.  Upon success or HV_EINVAL, this service returns the
  * actual size of the machine description in the RET1 return value.
  *
- * Note: A method of determining the appropriate buffer size for the
+ * Analte: A method of determining the appropriate buffer size for the
  *       machine description is to first call this service with a buffer
  *       length of 0 bytes.
  */
@@ -140,7 +140,7 @@ unsigned long sun4v_mach_desc(unsigned long buffer_pa,
 /* mach_sir()
  * TRAP:	HV_FAST_TRAP
  * FUNCTION:	HV_FAST_MACH_SIR
- * ERRORS:	This service does not return.
+ * ERRORS:	This service does analt return.
  *
  * Perform a software initiated reset of the virtual machine domain.
  * All CPUs are captured as soon as possible, all hardware devices are
@@ -173,11 +173,11 @@ void sun4v_mach_sir(void);
  *
  * The 'timeout' parameter is specified in milliseconds, however the
  * implementated granularity is given by the 'watchdog-resolution'
- * property in the 'platform' node of the guest's machine description.
+ * property in the 'platform' analde of the guest's machine description.
  * The largest allowed timeout value is specified by the
- * 'watchdog-max-timeout' property of the 'platform' node.
+ * 'watchdog-max-timeout' property of the 'platform' analde.
  *
- * If the 'timeout' argument is not zero, the watchdog timer is set to
+ * If the 'timeout' argument is analt zero, the watchdog timer is set to
  * expire after a minimum of 'timeout' milliseconds.
  *
  * If the 'timeout' argument is zero, the watchdog timer is disabled.
@@ -187,13 +187,13 @@ void sun4v_mach_sir(void);
  * and returns a status of EINVAL.
  *
  * The 'time remaining' return value is valid regardless of whether the
- * return status is EOK or EINVAL.  A non-zero return value indicates the
+ * return status is EOK or EINVAL.  A analn-zero return value indicates the
  * number of milliseconds that were remaining until the timer was to expire.
  * If less than one millisecond remains, the return value is '1'.  If the
  * watchdog timer was disabled at the time of the call, the return value is
  * zero.
  *
- * If the hypervisor cannot support the exact timeout value requested, but
+ * If the hypervisor cananalt support the exact timeout value requested, but
  * can support a larger timeout value, the hypervisor may round the actual
  * timeout to a value larger than the requested timeout, consequently the
  * 'time remaining' return value may be larger than the previously requested
@@ -202,7 +202,7 @@ void sun4v_mach_sir(void);
  * Any guest OS debugger should be aware that the watchdog service may be in
  * use.  Consequently, it is recommended that the watchdog service is
  * disabled upon debugger entry (e.g. reaching a breakpoint), and then
- * re-enabled upon returning to normal execution.  The API has been designed
+ * re-enabled upon returning to analrmal execution.  The API has been designed
  * with this in mind, and the 'time remaining' result of the disable call may
  * be used directly as the timeout argument of the re-enable call.
  */
@@ -239,11 +239,11 @@ unsigned long sun4v_mach_set_watchdog(unsigned long timeout,
  * ARG2:	RTBA
  * ARG3:	target ARG0
  * RET0:	status
- * ERRORS:	ENOCPU		Invalid CPU ID
- *		EINVAL		Target CPU ID is not in the stopped state
- *		ENORADDR	Invalid PC or RTBA real address
+ * ERRORS:	EANALCPU		Invalid CPU ID
+ *		EINVAL		Target CPU ID is analt in the stopped state
+ *		EANALRADDR	Invalid PC or RTBA real address
  *		EBADALIGN	Unaligned PC or unaligned RTBA
- *		EWOULDBLOCK	Starting resources are not available
+ *		EWOULDBLOCK	Starting resources are analt available
  *
  * Start CPU with given CPU ID with PC in %pc and with a real trap
  * base address value of RTBA.  The indicated CPU must be in the
@@ -266,18 +266,18 @@ unsigned long sun4v_cpu_start(unsigned long cpuid,
  * FUNCTION:	HV_FAST_CPU_STOP
  * ARG0:	CPU ID
  * RET0:	status
- * ERRORS:	ENOCPU		Invalid CPU ID
+ * ERRORS:	EANALCPU		Invalid CPU ID
  *		EINVAL		Target CPU ID is the current cpu
- *		EINVAL		Target CPU ID is not in the running state
- *		EWOULDBLOCK	Stopping resources are not available
- *		ENOTSUPPORTED	Not supported on this platform
+ *		EINVAL		Target CPU ID is analt in the running state
+ *		EWOULDBLOCK	Stopping resources are analt available
+ *		EANALTSUPPORTED	Analt supported on this platform
  *
  * The specified CPU is stopped.  The indicated CPU must be in the
  * running state.  On completion, it will be in the stopped state.  It
- * is not legal to stop the current CPU.
+ * is analt legal to stop the current CPU.
  *
- * Note: As this service cannot be used to stop the current cpu, this service
- *       may not be used to stop the last running CPU in a domain.  To stop
+ * Analte: As this service cananalt be used to stop the current cpu, this service
+ *       may analt be used to stop the last running CPU in a domain.  To stop
  *       and exit a running domain, a guest must use the mach_exit() service.
  */
 #define HV_FAST_CPU_STOP		0x11
@@ -290,7 +290,7 @@ unsigned long sun4v_cpu_stop(unsigned long cpuid);
  * TRAP:	HV_FAST_TRAP
  * FUNCTION:	HV_FAST_CPU_YIELD
  * RET0:	status
- * ERRORS:	No possible error.
+ * ERRORS:	Anal possible error.
  *
  * Suspend execution on the current CPU.  Execution will resume when
  * an interrupt (device, %stick_compare, or cross-call) is targeted to
@@ -307,13 +307,13 @@ unsigned long sun4v_cpu_yield(void);
  * TRAP:	HV_FAST_TRAP
  * FUNCTION:	HV_FAST_CPU_POKE
  * RET0:	status
- * ERRORS:	ENOCPU		cpuid refers to a CPU that does not exist
+ * ERRORS:	EANALCPU		cpuid refers to a CPU that does analt exist
  *		EINVAL		cpuid is current CPU
  *
  * Poke CPU cpuid. If the target CPU is currently suspended having
  * invoked the cpu-yield service, that vCPU will be resumed.
- * Poke interrupts may only be sent to valid, non-local CPUs.
- * It is not legal to poke the current vCPU.
+ * Poke interrupts may only be sent to valid, analn-local CPUs.
+ * It is analt legal to poke the current vCPU.
  */
 #define HV_FAST_CPU_POKE                0x13
 
@@ -328,10 +328,10 @@ unsigned long sun4v_cpu_poke(unsigned long cpuid);
  * ARG1:	base real address
  * ARG2:	number of entries
  * RET0:	status
- * ERRORS:	ENORADDR	Invalid base real address
+ * ERRORS:	EANALRADDR	Invalid base real address
  *		EINVAL		Invalid queue or number of entries is less
  *				than 2 or too large.
- *		EBADALIGN	Base real address is not correctly aligned
+ *		EBADALIGN	Base real address is analt correctly aligned
  *				for size.
  *
  * Configure the given queue to be placed at the given base real
@@ -352,16 +352,16 @@ unsigned long sun4v_cpu_poke(unsigned long cpuid);
  *	0x3c		cpu mondo queue
  *	0x3d		device mondo queue
  *	0x3e		resumable error queue
- *	0x3f		non-resumable error queue
+ *	0x3f		analn-resumable error queue
  *
- * Note: The maximum number of entries for each queue for a specific cpu may
+ * Analte: The maximum number of entries for each queue for a specific cpu may
  *       be determined from the machine description.
  */
 #define HV_FAST_CPU_QCONF		0x14
 #define  HV_CPU_QUEUE_CPU_MONDO		 0x3c
 #define  HV_CPU_QUEUE_DEVICE_MONDO	 0x3d
 #define  HV_CPU_QUEUE_RES_ERROR		 0x3e
-#define  HV_CPU_QUEUE_NONRES_ERROR	 0x3f
+#define  HV_CPU_QUEUE_ANALNRES_ERROR	 0x3f
 
 #ifndef __ASSEMBLY__
 unsigned long sun4v_cpu_qconf(unsigned long type,
@@ -382,7 +382,7 @@ unsigned long sun4v_cpu_qconf(unsigned long type,
  * address and number of entries of the defined queue are returned.
  * The queue argument values are the same as for cpu_qconf() above.
  *
- * If the specified queue is a valid queue number, but no queue has
+ * If the specified queue is a valid queue number, but anal queue has
  * been defined, the number of entries will be set to zero and the
  * base real address returned is undefined.
  */
@@ -394,12 +394,12 @@ unsigned long sun4v_cpu_qconf(unsigned long type,
  * ARG0-1:	CPU list
  * ARG2:	data real address
  * RET0:	status
- * ERRORS:	EBADALIGN	Mondo data is not 64-byte aligned or CPU list
- *				is not 2-byte aligned.
- *		ENORADDR	Invalid data mondo address, or invalid cpu list
+ * ERRORS:	EBADALIGN	Mondo data is analt 64-byte aligned or CPU list
+ *				is analt 2-byte aligned.
+ *		EANALRADDR	Invalid data mondo address, or invalid cpu list
  *				address.
- *		ENOCPU		Invalid cpu in CPU list
- *		EWOULDBLOCK	Some or all of the listed CPUs did not receive
+ *		EANALCPU		Invalid cpu in CPU list
+ *		EWOULDBLOCK	Some or all of the listed CPUs did analt receive
  *				the mondo
  *		ECPUERROR	One or more of the listed CPUs are in error
  *				state, use HV_FAST_CPU_STATE to see which ones
@@ -410,7 +410,7 @@ unsigned long sun4v_cpu_qconf(unsigned long type,
  * aligned.  The mondo data will be delivered to the cpu_mondo queues
  * of the recipient CPUs.
  *
- * In all cases, error or not, the CPUs in the CPU list to which the
+ * In all cases, error or analt, the CPUs in the CPU list to which the
  * mondo has been successfully delivered will be indicated by having
  * their entry in CPU list updated with the value 0xffff.
  */
@@ -427,7 +427,7 @@ unsigned long sun4v_cpu_mondo_send(unsigned long cpu_count,
  * FUNCTION:	HV_FAST_CPU_MYID
  * RET0:	status
  * RET1:	CPU ID
- * ERRORS:	No errors defined.
+ * ERRORS:	Anal errors defined.
  *
  * Return the hypervisor ID handle for the current CPU.  Use by a
  * virtual CPU to discover it's own identity.
@@ -440,7 +440,7 @@ unsigned long sun4v_cpu_mondo_send(unsigned long cpu_count,
  * ARG0:	CPU ID
  * RET0:	status
  * RET1:	state
- * ERRORS:	ENOCPU		Invalid CPU ID
+ * ERRORS:	EANALCPU		Invalid CPU ID
  *
  * Retrieve the current state of the CPU with the given CPU ID.
  */
@@ -459,14 +459,14 @@ long sun4v_cpu_state(unsigned long cpuid);
  * ARG0:	RTBA
  * RET0:	status
  * RET1:	previous RTBA
- * ERRORS:	ENORADDR	Invalid RTBA real address
+ * ERRORS:	EANALRADDR	Invalid RTBA real address
  *		EBADALIGN	RTBA is incorrectly aligned for a trap table
  *
  * Set the real trap base address of the local cpu to the given RTBA.
  * The supplied RTBA must be aligned on a 256 byte boundary.  Upon
  * success the previous value of the RTBA is returned in RET1.
  *
- * Note: This service does not affect %tba
+ * Analte: This service does analt affect %tba
  */
 #define HV_FAST_CPU_SET_RTBA		0x18
 
@@ -475,7 +475,7 @@ long sun4v_cpu_state(unsigned long cpuid);
  * FUNCTION:	HV_FAST_CPU_GET_RTBA
  * RET0:	status
  * RET1:	previous RTBA
- * ERRORS:	No possible error.
+ * ERRORS:	Anal possible error.
  *
  * Returns the current value of RTBA in RET1.
  */
@@ -483,7 +483,7 @@ long sun4v_cpu_state(unsigned long cpuid);
 
 /* MMU services.
  *
- * Layout of a TSB description for mmu_tsb_ctx{,non}0() calls.
+ * Layout of a TSB description for mmu_tsb_ctx{,analn}0() calls.
  */
 #ifndef __ASSEMBLY__
 struct hv_tsb_descr {
@@ -590,15 +590,15 @@ struct hv_fault_status {
  * ARG3:	flags (HV_MMU_{IMMU,DMMU})
  * ERRORS:	EINVAL		Invalid virtual address, mmu context, or flags
  *		EBADPGSZ	Invalid page size value
- *		ENORADDR	Invalid real address in TTE
+ *		EANALRADDR	Invalid real address in TTE
  *
- * Create a non-permanent mapping using the given TTE, virtual
+ * Create a analn-permanent mapping using the given TTE, virtual
  * address, and mmu context.  The flags argument determines which
  * (data, or instruction, or both) TLB the mapping gets loaded into.
  *
  * The behavior is undefined if the valid bit is clear in the TTE.
  *
- * Note: This API call is for privileged code to specify temporary translation
+ * Analte: This API call is for privileged code to specify temporary translation
  *       mappings without the need to create and manage a TSB.
  */
 
@@ -626,18 +626,18 @@ struct hv_fault_status {
  * ARG0:	number of TSB descriptions
  * ARG1:	TSB descriptions pointer
  * RET0:	status
- * ERRORS:	ENORADDR		Invalid TSB descriptions pointer or
+ * ERRORS:	EANALRADDR		Invalid TSB descriptions pointer or
  *					TSB base within a descriptor
- *		EBADALIGN		TSB descriptions pointer is not aligned
+ *		EBADALIGN		TSB descriptions pointer is analt aligned
  *					to an 8-byte boundary, or TSB base
- *					within a descriptor is not aligned for
+ *					within a descriptor is analt aligned for
  *					the given TSB size
  *		EBADPGSZ		Invalid page size in a TSB descriptor
  *		EBADTSB			Invalid associativity or size in a TSB
  *					descriptor
  *		EINVAL			Invalid number of TSB descriptions, or
  *					invalid context index in a TSB
- *					descriptor, or index page size not
+ *					descriptor, or index page size analt
  *					equal to smallest page size in page
  *					size bitmask field.
  *
@@ -645,8 +645,8 @@ struct hv_fault_status {
  * context zero.  The TSB descriptions pointer is a pointer to an
  * array of the given number of TSB descriptions.
  *
- * Note: The maximum number of TSBs available to a virtual CPU is given by the
- *       mmu-max-#tsbs property of the cpu's corresponding "cpu" node in the
+ * Analte: The maximum number of TSBs available to a virtual CPU is given by the
+ *       mmu-max-#tsbs property of the cpu's corresponding "cpu" analde in the
  *       machine description.
  */
 #define HV_FAST_MMU_TSB_CTX0		0x20
@@ -656,21 +656,21 @@ unsigned long sun4v_mmu_tsb_ctx0(unsigned long num_descriptions,
 				 unsigned long tsb_desc_ra);
 #endif
 
-/* mmu_tsb_ctxnon0()
+/* mmu_tsb_ctxanaln0()
  * TRAP:	HV_FAST_TRAP
- * FUNCTION:	HV_FAST_MMU_TSB_CTXNON0
+ * FUNCTION:	HV_FAST_MMU_TSB_CTXANALN0
  * ARG0:	number of TSB descriptions
  * ARG1:	TSB descriptions pointer
  * RET0:	status
  * ERRORS:	Same as for mmu_tsb_ctx0() above.
  *
  * Configures the TSBs for the current CPU for virtual addresses with
- * non-zero contexts.  The TSB descriptions pointer is a pointer to an
+ * analn-zero contexts.  The TSB descriptions pointer is a pointer to an
  * array of the given number of TSB descriptions.
  *
- * Note: A maximum of 16 TSBs may be specified in the TSB description list.
+ * Analte: A maximum of 16 TSBs may be specified in the TSB description list.
  */
-#define HV_FAST_MMU_TSB_CTXNON0		0x21
+#define HV_FAST_MMU_TSB_CTXANALN0		0x21
 
 /* mmu_demap_page()
  * TRAP:	HV_FAST_TRAP
@@ -683,7 +683,7 @@ unsigned long sun4v_mmu_tsb_ctx0(unsigned long num_descriptions,
  * RET0:	status
  * ERRORS:	EINVAL			Invalid virtual address, context, or
  *					flags value
- *		ENOTSUPPORTED		ARG0 or ARG1 is non-zero
+ *		EANALTSUPPORTED		ARG0 or ARG1 is analn-zero
  *
  * Demaps any page mapping of the given virtual address in the given
  * mmu context for the current virtual CPU.  Any virtually tagged
@@ -704,9 +704,9 @@ unsigned long sun4v_mmu_tsb_ctx0(unsigned long num_descriptions,
  * ARG3:	flags (HV_MMU_{IMMU,DMMU})
  * RET0:	status
  * ERRORS:	EINVAL			Invalid context or flags value
- *		ENOTSUPPORTED		ARG0 or ARG1 is non-zero
+ *		EANALTSUPPORTED		ARG0 or ARG1 is analn-zero
  *
- * Demaps all non-permanent virtual page mappings previously specified
+ * Demaps all analn-permanent virtual page mappings previously specified
  * for the given context for the current virtual CPU.  Any virtual
  * tagged caches are guaranteed to be kept consistent.  The flags
  * argument determines which TLB (instruction, or data, or both)
@@ -724,9 +724,9 @@ unsigned long sun4v_mmu_tsb_ctx0(unsigned long num_descriptions,
  * ARG2:	flags (HV_MMU_{IMMU,DMMU})
  * RET0:	status
  * ERRORS:	EINVAL			Invalid flags value
- *		ENOTSUPPORTED		ARG0 or ARG1 is non-zero
+ *		EANALTSUPPORTED		ARG0 or ARG1 is analn-zero
  *
- * Demaps all non-permanent virtual page mappings previously specified
+ * Demaps all analn-permanent virtual page mappings previously specified
  * for the current virtual CPU.  Any virtual tagged caches are
  * guaranteed to be kept consistent.  The flags argument determines
  * which TLB (instruction, or data, or both) participate in the
@@ -750,7 +750,7 @@ void sun4v_mmu_demap_all(void);
  * RET0:	status
  * ERRORS:	EINVAL			Invalid virtual address or flags value
  *		EBADPGSZ		Invalid page size value
- *		ENORADDR		Invalid real address in TTE
+ *		EANALRADDR		Invalid real address in TTE
  *		ETOOMANY		Too many mappings (max of 8 reached)
  *
  * Create a permanent mapping using the given TTE and virtual address
@@ -760,8 +760,8 @@ void sun4v_mmu_demap_all(void);
  *
  * The behavior is undefined if a TTE with the valid bit clear is given.
  *
- * Note: This call is used to specify address space mappings for which
- *       privileged code does not expect to receive misses.  For example,
+ * Analte: This call is used to specify address space mappings for which
+ *       privileged code does analt expect to receive misses.  For example,
  *       this mechanism can be used to map kernel nucleus code and data.
  */
 #define HV_FAST_MMU_MAP_PERM_ADDR	0x25
@@ -779,14 +779,14 @@ unsigned long sun4v_mmu_map_perm_addr(unsigned long vaddr,
  * ARG0:	real address
  * RET0:	status
  * RET1:	previous mmu fault area real address
- * ERRORS:	ENORADDR		Invalid real address
+ * ERRORS:	EANALRADDR		Invalid real address
  *		EBADALIGN		Invalid alignment for fault area
  *
  * Configure the MMU fault status area for the calling CPU.  A 64-byte
  * aligned real address specifies where MMU fault status information
  * is placed.  The return value is the previously specified area, or 0
  * for the first invocation.  Specifying a fault area at real address
- * 0 is not allowed.
+ * 0 is analt allowed.
  */
 #define HV_FAST_MMU_FAULT_AREA_CONF	0x26
 
@@ -796,9 +796,9 @@ unsigned long sun4v_mmu_map_perm_addr(unsigned long vaddr,
  * ARG0:	enable flag
  * ARG1:	return target address
  * RET0:	status
- * ERRORS:	ENORADDR		Invalid real address when disabling
+ * ERRORS:	EANALRADDR		Invalid real address when disabling
  *					translation.
- *		EBADALIGN		The return target address is not
+ *		EBADALIGN		The return target address is analt
  *					aligned to an instruction.
  *		EINVAL			The enable flag request the current
  *					operating mode (e.g. disable if already
@@ -806,7 +806,7 @@ unsigned long sun4v_mmu_map_perm_addr(unsigned long vaddr,
  *
  * Enable or disable virtual address translation for the calling CPU
  * within the virtual machine domain.  If the enable flag is zero,
- * translation is disabled, any non-zero value will enable
+ * translation is disabled, any analn-zero value will enable
  * translation.
  *
  * When this function returns, the newly selected translation mode
@@ -816,7 +816,7 @@ unsigned long sun4v_mmu_map_perm_addr(unsigned long vaddr,
  * Upon successful completion, control will be returned to the given
  * return target address (ie. the cpu will jump to that address).  On
  * failure, the previous mmu mode remains and the trap simply returns
- * as normal with the appropriate error code in RET0.
+ * as analrmal with the appropriate error code in RET0.
  */
 #define HV_FAST_MMU_ENABLE		0x27
 
@@ -828,7 +828,7 @@ unsigned long sun4v_mmu_map_perm_addr(unsigned long vaddr,
  * ARG2:	flags (HV_MMU_{IMMU,DMMU})
  * RET0:	status
  * ERRORS:	EINVAL			Invalid virtual address or flags value
- *		ENOMAP			Specified mapping was not found
+ *		EANALMAP			Specified mapping was analt found
  *
  * Demaps any permanent page mapping (established via
  * mmu_map_perm_addr()) at the given virtual address for context 0 on
@@ -846,7 +846,7 @@ unsigned long sun4v_mmu_map_perm_addr(unsigned long vaddr,
  * RET1:	number of TSBs
  * ERRORS:	EINVAL			Supplied buffer is too small
  *		EBADALIGN		The buffer pointer is badly aligned
- *		ENORADDR		Invalid real address for buffer pointer
+ *		EANALRADDR		Invalid real address for buffer pointer
  *
  * Return the TSB configuration as previous defined by mmu_tsb_ctx0()
  * into the provided buffer.  The size of the buffer is given in ARG1
@@ -858,39 +858,39 @@ unsigned long sun4v_mmu_map_perm_addr(unsigned long vaddr,
  */
 #define HV_FAST_MMU_TSB_CTX0_INFO	0x29
 
-/* mmu_tsb_ctxnon0_info()
+/* mmu_tsb_ctxanaln0_info()
  * TRAP:	HV_FAST_TRAP
- * FUNCTION:	HV_FAST_MMU_TSB_CTXNON0_INFO
+ * FUNCTION:	HV_FAST_MMU_TSB_CTXANALN0_INFO
  * ARG0:	max TSBs
  * ARG1:	buffer pointer
  * RET0:	status
  * RET1:	number of TSBs
  * ERRORS:	EINVAL			Supplied buffer is too small
  *		EBADALIGN		The buffer pointer is badly aligned
- *		ENORADDR		Invalid real address for buffer pointer
+ *		EANALRADDR		Invalid real address for buffer pointer
  *
  * Return the TSB configuration as previous defined by
- * mmu_tsb_ctxnon0() into the provided buffer.  The size of the buffer
+ * mmu_tsb_ctxanaln0() into the provided buffer.  The size of the buffer
  * is given in ARG1 in terms of the number of TSB description entries.
  *
  * Upon return, RET1 always contains the number of TSB descriptions
  * previously configured.  If zero TSBs were configured, EOK is
  * returned with RET1 containing 0.
  */
-#define HV_FAST_MMU_TSB_CTXNON0_INFO	0x2a
+#define HV_FAST_MMU_TSB_CTXANALN0_INFO	0x2a
 
 /* mmu_fault_area_info()
  * TRAP:	HV_FAST_TRAP
  * FUNCTION:	HV_FAST_MMU_FAULT_AREA_INFO
  * RET0:	status
  * RET1:	fault area real address
- * ERRORS:	No errors defined.
+ * ERRORS:	Anal errors defined.
  *
  * Return the currently defined MMU fault status area for the current
  * CPU.  The real address of the fault status area is returned in
- * RET1, or 0 is returned in RET1 if no fault status area is defined.
+ * RET1, or 0 is returned in RET1 if anal fault status area is defined.
  *
- * Note: mmu_fault_area_conf() may be called with the return value (RET1)
+ * Analte: mmu_fault_area_conf() may be called with the return value (RET1)
  *       from this service if there is a need to save and restore the fault
  *	 area for a cpu.
  */
@@ -905,23 +905,23 @@ unsigned long sun4v_mmu_map_perm_addr(unsigned long vaddr,
  * ARG1:	length
  * RET0:	status
  * RET1:	length scrubbed
- * ERRORS:	ENORADDR	Invalid real address
- *		EBADALIGN	Start address or length are not correctly
+ * ERRORS:	EANALRADDR	Invalid real address
+ *		EBADALIGN	Start address or length are analt correctly
  *				aligned
  *		EINVAL		Length is zero
  *
  * Zero the memory contents in the range real address to real address
  * plus length minus 1.  Also, valid ECC will be generated for that
  * memory address range.  Scrubbing is started at the given real
- * address, but may not scrub the entire given length.  The actual
+ * address, but may analt scrub the entire given length.  The actual
  * length scrubbed will be returned in RET1.
  *
  * The real address and length must be aligned on an 8K boundary, or
  * contain the start address and length from a sun4v error report.
  *
- * Note: There are two uses for this function.  The first use is to block clear
+ * Analte: There are two uses for this function.  The first use is to block clear
  *       and initialize memory and the second is to scrub an u ncorrectable
- *       error reported via a resumable or non-resumable trap.  The second
+ *       error reported via a resumable or analn-resumable trap.  The second
  *       use requires the arguments to be equal to the real address and length
  *       provided in a sun4v memory error report.
  */
@@ -934,8 +934,8 @@ unsigned long sun4v_mmu_map_perm_addr(unsigned long vaddr,
  * ARG1:	length
  * RET0:	status
  * RET1:	length synced
- * ERRORS:	ENORADDR	Invalid real address
- *		EBADALIGN	Start address or length are not correctly
+ * ERRORS:	EANALRADDR	Invalid real address
+ *		EBADALIGN	Start address or length are analt correctly
  *				aligned
  *		EINVAL		Length is zero
  *
@@ -950,7 +950,7 @@ unsigned long sun4v_mmu_map_perm_addr(unsigned long vaddr,
 /* Coprocessor services
  *
  * M7 and later processors provide an on-chip coprocessor which
- * accelerates database operations, and is known internally as
+ * accelerates database operations, and is kanalwn internally as
  * DAX.
  */
 
@@ -965,28 +965,28 @@ unsigned long sun4v_mmu_map_perm_addr(unsigned long vaddr,
  * RET1:	size (in bytes) of CCB array that was accepted (might be less
  *		than arg1)
  * RET2:	status data
- *		if status == ENOMAP or ENOACCESS, identifies the VA in question
+ *		if status == EANALMAP or EANALACCESS, identifies the VA in question
  *		if status == EUNAVAILBLE, unavailable code
  * RET3:	reserved
  *
  * ERRORS:	EOK		successful submission (check size)
- *		EWOULDBLOCK	could not finish submissions, try again
- *		EBADALIGN	array not 64B aligned or size not 64B multiple
- *		ENORADDR	invalid RA for array or in CCB
- *		ENOMAP		could not translate address (see status data)
+ *		EWOULDBLOCK	could analt finish submissions, try again
+ *		EBADALIGN	array analt 64B aligned or size analt 64B multiple
+ *		EANALRADDR	invalid RA for array or in CCB
+ *		EANALMAP		could analt translate address (see status data)
  *		EINVAL		invalid ccb or arguments
- *		ETOOMANY	too many ccbs with all-or-nothing flag
- *		ENOACCESS	guest has no access to submit ccbs or address
- *				in CCB does not have correct permissions (check
+ *		ETOOMANY	too many ccbs with all-or-analthing flag
+ *		EANALACCESS	guest has anal access to submit ccbs or address
+ *				in CCB does analt have correct permissions (check
  *				status data)
- *		EUNAVAILABLE	ccb operation could not be performed at this
+ *		EUNAVAILABLE	ccb operation could analt be performed at this
  *				time (check status data)
  *				Status data codes:
- *					0 - exact CCB could not be executed
- *					1 - CCB opcode cannot be executed
- *					2 - CCB version cannot be executed
- *					3 - vcpu cannot execute CCBs
- *					4 - no CCBs can be executed
+ *					0 - exact CCB could analt be executed
+ *					1 - CCB opcode cananalt be executed
+ *					2 - CCB version cananalt be executed
+ *					3 - vcpu cananalt execute CCBs
+ *					4 - anal CCBs can be executed
  */
 
 #define HV_CCB_SUBMIT               0x34
@@ -1006,7 +1006,7 @@ unsigned long sun4v_ccb_submit(unsigned long ccb_buf,
 #define HV_CCB_ARG0_TYPE_SECONDARY	BIT(5)
 #define HV_CCB_ARG0_TYPE_NUCLEUS	GENMASK(5, 4)
 #define HV_CCB_ARG0_PRIVILEGED		BIT(6)
-#define HV_CCB_ALL_OR_NOTHING		BIT(7)
+#define HV_CCB_ALL_OR_ANALTHING		BIT(7)
 #define HV_CCB_QUEUE_INFO		BIT(8)
 #define HV_CCB_VA_REJECT		0UL
 #define HV_CCB_VA_SECONDARY		BIT(13)
@@ -1026,12 +1026,12 @@ unsigned long sun4v_ccb_submit(unsigned long ccb_buf,
  *			- RET1[3]: queue position
  *
  * ERRORS:	EOK		operation successful
- *		EBADALIGN	address not 64B aligned
- *		ENORADDR	RA in address not valid
- *		EINVAL		CA not valid
- *		EWOULDBLOCK	info not available for this CCB currently, try
+ *		EBADALIGN	address analt 64B aligned
+ *		EANALRADDR	RA in address analt valid
+ *		EINVAL		CA analt valid
+ *		EWOULDBLOCK	info analt available for this CCB currently, try
  *				again
- *		ENOACCESS	guest cannot use dax
+ *		EANALACCESS	guest cananalt use dax
  */
 
 #define HV_CCB_INFO                 0x35
@@ -1050,7 +1050,7 @@ unsigned long sun4v_ccb_info(unsigned long ca,
 #define HV_CCB_STATE_COMPLETED      0
 #define HV_CCB_STATE_ENQUEUED       1
 #define HV_CCB_STATE_INPROGRESS     2
-#define HV_CCB_STATE_NOTFOUND       3
+#define HV_CCB_STATE_ANALTFOUND       3
 
 /* ccb_kill()
  * TRAP:	HV_FAST_TRAP
@@ -1060,12 +1060,12 @@ unsigned long sun4v_ccb_info(unsigned long ca,
  * RET1:	CCB kill status
  *
  * ERRORS:	EOK		operation successful
- *		EBADALIGN	address not 64B aligned
- *		ENORADDR	RA in address not valid
- *		EINVAL		CA not valid
- *		EWOULDBLOCK	kill not available for this CCB currently, try
+ *		EBADALIGN	address analt 64B aligned
+ *		EANALRADDR	RA in address analt valid
+ *		EINVAL		CA analt valid
+ *		EWOULDBLOCK	kill analt available for this CCB currently, try
  *				again
- *		ENOACCESS	guest cannot use dax
+ *		EANALACCESS	guest cananalt use dax
  */
 
 #define HV_CCB_KILL                 0x36
@@ -1078,12 +1078,12 @@ unsigned long sun4v_ccb_kill(unsigned long ca,
 #define HV_CCB_KILL_COMPLETED       0
 #define HV_CCB_KILL_DEQUEUED        1
 #define HV_CCB_KILL_KILLED          2
-#define HV_CCB_KILL_NOTFOUND        3
+#define HV_CCB_KILL_ANALTFOUND        3
 
 /* Time of day services.
  *
  * The hypervisor maintains the time of day on a per-domain basis.
- * Changing the time of day in one domain does not affect the time of
+ * Changing the time of day in one domain does analt affect the time of
  * day on any other domain.
  *
  * Time is described by a single unsigned 64-bit word which is the
@@ -1097,10 +1097,10 @@ unsigned long sun4v_ccb_kill(unsigned long ca,
  * RET0:	status
  * RET1:	TOD
  * ERRORS:	EWOULDBLOCK	TOD resource is temporarily unavailable
- *		ENOTSUPPORTED	If TOD not supported on this platform
+ *		EANALTSUPPORTED	If TOD analt supported on this platform
  *
  * Return the current time of day.  May block if TOD access is
- * temporarily not possible.
+ * temporarily analt possible.
  */
 #define HV_FAST_TOD_GET			0x50
 
@@ -1114,10 +1114,10 @@ unsigned long sun4v_tod_get(unsigned long *time);
  * ARG0:	TOD
  * RET0:	status
  * ERRORS:	EWOULDBLOCK	TOD resource is temporarily unavailable
- *		ENOTSUPPORTED	If TOD not supported on this platform
+ *		EANALTSUPPORTED	If TOD analt supported on this platform
  *
  * The current time of day is set to the value specified in ARG0.  May
- * block if TOD access is temporarily not possible.
+ * block if TOD access is temporarily analt possible.
  */
 #define HV_FAST_TOD_SET			0x51
 
@@ -1132,9 +1132,9 @@ unsigned long sun4v_tod_set(unsigned long time);
  * FUNCTION:	HV_FAST_CONS_GETCHAR
  * RET0:	status
  * RET1:	character
- * ERRORS:	EWOULDBLOCK	No character available.
+ * ERRORS:	EWOULDBLOCK	Anal character available.
  *
- * Returns a character from the console device.  If no character is
+ * Returns a character from the console device.  If anal character is
  * available then an EWOULDBLOCK error is returned.  If a character is
  * available, then the returned status is EOK and the character value
  * is in RET1.
@@ -1167,9 +1167,9 @@ unsigned long sun4v_tod_set(unsigned long time);
  * ARG1:	buffer size in bytes
  * RET0:	status
  * RET1:	bytes read or BREAK or HUP
- * ERRORS:	EWOULDBLOCK	No character available.
+ * ERRORS:	EWOULDBLOCK	Anal character available.
  *
- * Reads characters into a buffer from the console device.  If no
+ * Reads characters into a buffer from the console device.  If anal
  * character is available then an EWOULDBLOCK error is returned.
  * If a character is available, then the returned status is EOK
  * and the number of bytes read into the given buffer is provided
@@ -1179,7 +1179,7 @@ unsigned long sun4v_tod_set(unsigned long time);
  *
  * A virtual HUP signal is represented by the 64-bit RET1 value -2.
  *
- * If BREAK or HUP are indicated, no bytes were read into buffer.
+ * If BREAK or HUP are indicated, anal bytes were read into buffer.
  */
 #define HV_FAST_CONS_READ		0x62
 
@@ -1214,29 +1214,29 @@ unsigned long sun4v_con_write(unsigned long buffer,
  * ARG0:	software state
  * ARG1:	software state description pointer
  * RET0:	status
- * ERRORS:	EINVAL		software state not valid or software state
- *				description is not NULL terminated
- *		ENORADDR	software state description pointer is not a
+ * ERRORS:	EINVAL		software state analt valid or software state
+ *				description is analt NULL terminated
+ *		EANALRADDR	software state description pointer is analt a
  *				valid real address
- *		EBADALIGNED	software state description is not correctly
+ *		EBADALIGNED	software state description is analt correctly
  *				aligned
  *
  * This allows the guest to report it's soft state to the hypervisor.  There
  * are two primary components to this state.  The first part states whether
- * the guest software is running or not.  The second containts optional
+ * the guest software is running or analt.  The second containts optional
  * details specific to the software.
  *
  * The software state argument is defined below in HV_SOFT_STATE_*, and
- * indicates whether the guest is operating normally or in a transitional
+ * indicates whether the guest is operating analrmally or in a transitional
  * state.
  *
  * The software state description argument is a real address of a data buffer
  * of size 32-bytes aligned on a 32-byte boundary.  It is treated as a NULL
- * terminated 7-bit ASCII string of up to 31 characters not including the
+ * terminated 7-bit ASCII string of up to 31 characters analt including the
  * NULL termination.
  */
 #define HV_FAST_MACH_SET_SOFT_STATE	0x70
-#define  HV_SOFT_STATE_NORMAL		 0x01
+#define  HV_SOFT_STATE_ANALRMAL		 0x01
 #define  HV_SOFT_STATE_TRANSITION	 0x02
 
 #ifndef __ASSEMBLY__
@@ -1250,9 +1250,9 @@ unsigned long sun4v_mach_set_soft_state(unsigned long soft_state,
  * ARG0:	software state description pointer
  * RET0:	status
  * RET1:	software state
- * ERRORS:	ENORADDR	software state description pointer is not a
+ * ERRORS:	EANALRADDR	software state description pointer is analt a
  *				valid real address
- *		EBADALIGNED	software state description is not correctly
+ *		EBADALIGNED	software state description is analt correctly
  *				aligned
  *
  * Retrieve the current value of the guest's software state.  The rules
@@ -1271,7 +1271,7 @@ unsigned long sun4v_mach_set_soft_state(unsigned long soft_state,
  * RET1:	sent_bytes
  *
  * Be careful, all output registers are clobbered by this operation,
- * so for example it is not possible to save away a value in %o4
+ * so for example it is analt possible to save away a value in %o4
  * across the trap.
  */
 #define HV_FAST_SVC_SEND		0x80
@@ -1286,7 +1286,7 @@ unsigned long sun4v_mach_set_soft_state(unsigned long soft_state,
  * RET1:	recv_bytes
  *
  * Be careful, all output registers are clobbered by this operation,
- * so for example it is not possible to save away a value in %o4
+ * so for example it is analt possible to save away a value in %o4
  * across the trap.
  */
 #define HV_FAST_SVC_RECV		0x81
@@ -1361,7 +1361,7 @@ struct hv_trap_trace_control {
 /* The head offset is the offset of the most recently completed entry
  * in the trap-trace buffer.  The tail offset is the offset of the
  * next entry to be written.  The control structure is owned and
- * modified by the hypervisor.  A guest may not modify the control
+ * modified by the hypervisor.  A guest may analt modify the control
  * structure contents.  Attempts to do so will result in undefined
  * behavior for the guest.
  *
@@ -1410,9 +1410,9 @@ struct hv_trap_trace_entry {
  * ARG1:	number of entries
  * RET0:	status
  * RET1:	number of entries
- * ERRORS:	ENORADDR	Invalid real address
+ * ERRORS:	EANALRADDR	Invalid real address
  *		EINVAL		Size is too small
- *		EBADALIGN	Real address not aligned on 64-byte boundary
+ *		EBADALIGN	Real address analt aligned on 64-byte boundary
  *
  * Requests hypervisor trap tracing and declares a virtual CPU's trap
  * trace buffer to the hypervisor.  The real address supplies the real
@@ -1440,10 +1440,10 @@ struct hv_trap_trace_entry {
  * RET0:	status
  * RET1:	real address
  * RET2:	size
- * ERRORS:	None defined.
+ * ERRORS:	Analne defined.
  *
  * Returns the size and location of the previously declared trap-trace
- * buffer.  In the event that no buffer was previously defined, or the
+ * buffer.  In the event that anal buffer was previously defined, or the
  * buffer is disabled, this call will return a size of zero bytes.
  */
 #define HV_FAST_TTRACE_BUF_INFO		0x91
@@ -1454,7 +1454,7 @@ struct hv_trap_trace_entry {
  * ARG0:	enable
  * RET0:	status
  * RET1:	previous enable state
- * ERRORS:	EINVAL		No trap trace buffer currently defined
+ * ERRORS:	EINVAL		Anal trap trace buffer currently defined
  *
  * Enable or disable trap tracing, and return the previous enabled
  * state in RET1.  Future systems may define various flags for the
@@ -1470,12 +1470,12 @@ struct hv_trap_trace_entry {
  * ARG0:	freeze
  * RET0:	status
  * RET1:	previous freeze state
- * ERRORS:	EINVAL		No trap trace buffer currently defined
+ * ERRORS:	EINVAL		Anal trap trace buffer currently defined
  *
  * Freeze or unfreeze trap tracing, returning the previous freeze
- * state in RET1.  A guest should pass a non-zero value to freeze and
+ * state in RET1.  A guest should pass a analn-zero value to freeze and
  * a zero value to unfreeze all tracing.  The returned previous state
- * is 0 for not frozen and 1 for frozen.
+ * is 0 for analt frozen and 1 for frozen.
  */
 #define HV_FAST_TTRACE_FREEZE		0x93
 
@@ -1487,10 +1487,10 @@ struct hv_trap_trace_entry {
  * ARG3:	data word 2
  * ARG4:	data word 3
  * RET0:	status
- * ERRORS:	EINVAL		No trap trace buffer currently defined
+ * ERRORS:	EINVAL		Anal trap trace buffer currently defined
  *
  * Add an entry to the trap trace buffer.  Upon return only ARG0/RET0
- * is modified - none of the other registers holding arguments are
+ * is modified - analne of the other registers holding arguments are
  * volatile across this hypervisor service.
  */
 
@@ -1498,7 +1498,7 @@ struct hv_trap_trace_entry {
  *
  * Since the hypervisor viraulizes and thus obscures a lot of the
  * physical machine layout and state, traditional OS crash dumps can
- * be difficult to diagnose especially when the problem is a
+ * be difficult to diaganalse especially when the problem is a
  * configuration error of some sort.
  *
  * The dump services provide an opaque buffer into which the
@@ -1517,12 +1517,12 @@ struct hv_trap_trace_entry {
  * ARG1:	size
  * RET0:	status
  * RET1:	required size of dump buffer
- * ERRORS:	ENORADDR	Invalid real address
- *		EBADALIGN	Real address is not aligned on a 64-byte
+ * ERRORS:	EANALRADDR	Invalid real address
+ *		EBADALIGN	Real address is analt aligned on a 64-byte
  *				boundary
- *		EINVAL		Size is non-zero but less than minimum size
+ *		EINVAL		Size is analn-zero but less than minimum size
  *				required
- *		ENOTSUPPORTED	Operation not supported on current logical
+ *		EANALTSUPPORTED	Operation analt supported on current logical
  *				domain
  *
  * Declare a domain dump buffer to the hypervisor.  The real address
@@ -1531,7 +1531,7 @@ struct hv_trap_trace_entry {
  * the minimum size specified in the machine description.  The
  * hypervisor will fill the dump buffer with opaque data.
  *
- * Note: A guest may elect to include dump buffer contents as part of a crash
+ * Analte: A guest may elect to include dump buffer contents as part of a crash
  *       dump to assist with debugging.  This function may be called any number
  *       of times so that a guest may relocate a dump buffer, or create
  *       "snapshots" of any dump-buffer information.  Each call to
@@ -1553,7 +1553,7 @@ struct hv_trap_trace_entry {
  * RET0:	status
  * RET1:	real address of current dump buffer
  * RET2:	size of current dump buffer
- * ERRORS:	No errors defined.
+ * ERRORS:	Anal errors defined.
  *
  * Return the currently configures dump buffer description.  A
  * returned size of 0 bytes indicates an undefined dump buffer.  In
@@ -1567,7 +1567,7 @@ struct hv_trap_trace_entry {
  * and described to OBP in the machine description.  OBP then describes
  * these interrupts to the OS via properties in the device tree.
  *
- * Terminology:
+ * Termianallogy:
  *
  *	cpuid		Unique opaque value which represents a target cpu.
  *
@@ -1576,162 +1576,162 @@ struct hv_trap_trace_entry {
  *			first entry of the device's "reg" property in the
  *			OBP device tree.
  *
- *	devino		Device interrupt number.  Specifies the relative
+ *	devianal		Device interrupt number.  Specifies the relative
  *			interrupt number within the device.  The unique
- *			combination of devhandle and devino are used to
+ *			combination of devhandle and devianal are used to
  *			identify a specific device interrupt.
  *
- *			Note: The devino value is the same as the values in the
+ *			Analte: The devianal value is the same as the values in the
  *			      "interrupts" property or "interrupt-map" property
  *			      in the OBP device tree for that device.
  *
- *	sysino		System interrupt number.  A 64-bit unsigned interger
+ *	sysianal		System interrupt number.  A 64-bit unsigned interger
  *			representing a unique interrupt within a virtual
  *			machine.
  *
  *	intr_state	A flag representing the interrupt state for a given
- *			sysino.  The state values are defined below.
+ *			sysianal.  The state values are defined below.
  *
  *	intr_enabled	A flag representing the 'enabled' state for a given
- *			sysino.  The enable values are defined below.
+ *			sysianal.  The enable values are defined below.
  */
 
-#define HV_INTR_STATE_IDLE		0 /* Nothing pending */
+#define HV_INTR_STATE_IDLE		0 /* Analthing pending */
 #define HV_INTR_STATE_RECEIVED		1 /* Interrupt received by hardware */
 #define HV_INTR_STATE_DELIVERED		2 /* Interrupt delivered to queue */
 
-#define HV_INTR_DISABLED		0 /* sysino not enabled */
-#define HV_INTR_ENABLED			1 /* sysino enabled */
+#define HV_INTR_DISABLED		0 /* sysianal analt enabled */
+#define HV_INTR_ENABLED			1 /* sysianal enabled */
 
-/* intr_devino_to_sysino()
+/* intr_devianal_to_sysianal()
  * TRAP:	HV_FAST_TRAP
- * FUNCTION:	HV_FAST_INTR_DEVINO2SYSINO
+ * FUNCTION:	HV_FAST_INTR_DEVIANAL2SYSIANAL
  * ARG0:	devhandle
- * ARG1:	devino
+ * ARG1:	devianal
  * RET0:	status
- * RET1:	sysino
- * ERRORS:	EINVAL		Invalid devhandle/devino
+ * RET1:	sysianal
+ * ERRORS:	EINVAL		Invalid devhandle/devianal
  *
  * Converts a device specific interrupt number of the given
- * devhandle/devino into a system specific ino (sysino).
+ * devhandle/devianal into a system specific ianal (sysianal).
  */
-#define HV_FAST_INTR_DEVINO2SYSINO	0xa0
+#define HV_FAST_INTR_DEVIANAL2SYSIANAL	0xa0
 
 #ifndef __ASSEMBLY__
-unsigned long sun4v_devino_to_sysino(unsigned long devhandle,
-				     unsigned long devino);
+unsigned long sun4v_devianal_to_sysianal(unsigned long devhandle,
+				     unsigned long devianal);
 #endif
 
 /* intr_getenabled()
  * TRAP:	HV_FAST_TRAP
  * FUNCTION:	HV_FAST_INTR_GETENABLED
- * ARG0:	sysino
+ * ARG0:	sysianal
  * RET0:	status
  * RET1:	intr_enabled (HV_INTR_{DISABLED,ENABLED})
- * ERRORS:	EINVAL		Invalid sysino
+ * ERRORS:	EINVAL		Invalid sysianal
  *
  * Returns interrupt enabled state in RET1 for the interrupt defined
- * by the given sysino.
+ * by the given sysianal.
  */
 #define HV_FAST_INTR_GETENABLED		0xa1
 
 #ifndef __ASSEMBLY__
-unsigned long sun4v_intr_getenabled(unsigned long sysino);
+unsigned long sun4v_intr_getenabled(unsigned long sysianal);
 #endif
 
 /* intr_setenabled()
  * TRAP:	HV_FAST_TRAP
  * FUNCTION:	HV_FAST_INTR_SETENABLED
- * ARG0:	sysino
+ * ARG0:	sysianal
  * ARG1:	intr_enabled (HV_INTR_{DISABLED,ENABLED})
  * RET0:	status
- * ERRORS:	EINVAL		Invalid sysino or intr_enabled value
+ * ERRORS:	EINVAL		Invalid sysianal or intr_enabled value
  *
- * Set the 'enabled' state of the interrupt sysino.
+ * Set the 'enabled' state of the interrupt sysianal.
  */
 #define HV_FAST_INTR_SETENABLED		0xa2
 
 #ifndef __ASSEMBLY__
-unsigned long sun4v_intr_setenabled(unsigned long sysino,
+unsigned long sun4v_intr_setenabled(unsigned long sysianal,
 				    unsigned long intr_enabled);
 #endif
 
 /* intr_getstate()
  * TRAP:	HV_FAST_TRAP
  * FUNCTION:	HV_FAST_INTR_GETSTATE
- * ARG0:	sysino
+ * ARG0:	sysianal
  * RET0:	status
  * RET1:	intr_state (HV_INTR_STATE_*)
- * ERRORS:	EINVAL		Invalid sysino
+ * ERRORS:	EINVAL		Invalid sysianal
  *
- * Returns current state of the interrupt defined by the given sysino.
+ * Returns current state of the interrupt defined by the given sysianal.
  */
 #define HV_FAST_INTR_GETSTATE		0xa3
 
 #ifndef __ASSEMBLY__
-unsigned long sun4v_intr_getstate(unsigned long sysino);
+unsigned long sun4v_intr_getstate(unsigned long sysianal);
 #endif
 
 /* intr_setstate()
  * TRAP:	HV_FAST_TRAP
  * FUNCTION:	HV_FAST_INTR_SETSTATE
- * ARG0:	sysino
+ * ARG0:	sysianal
  * ARG1:	intr_state (HV_INTR_STATE_*)
  * RET0:	status
- * ERRORS:	EINVAL		Invalid sysino or intr_state value
+ * ERRORS:	EINVAL		Invalid sysianal or intr_state value
  *
- * Sets the current state of the interrupt described by the given sysino
+ * Sets the current state of the interrupt described by the given sysianal
  * value.
  *
- * Note: Setting the state to HV_INTR_STATE_IDLE clears any pending
- *       interrupt for sysino.
+ * Analte: Setting the state to HV_INTR_STATE_IDLE clears any pending
+ *       interrupt for sysianal.
  */
 #define HV_FAST_INTR_SETSTATE		0xa4
 
 #ifndef __ASSEMBLY__
-unsigned long sun4v_intr_setstate(unsigned long sysino, unsigned long intr_state);
+unsigned long sun4v_intr_setstate(unsigned long sysianal, unsigned long intr_state);
 #endif
 
 /* intr_gettarget()
  * TRAP:	HV_FAST_TRAP
  * FUNCTION:	HV_FAST_INTR_GETTARGET
- * ARG0:	sysino
+ * ARG0:	sysianal
  * RET0:	status
  * RET1:	cpuid
- * ERRORS:	EINVAL		Invalid sysino
+ * ERRORS:	EINVAL		Invalid sysianal
  *
  * Returns CPU that is the current target of the interrupt defined by
- * the given sysino.  The CPU value returned is undefined if the target
- * has not been set via intr_settarget().
+ * the given sysianal.  The CPU value returned is undefined if the target
+ * has analt been set via intr_settarget().
  */
 #define HV_FAST_INTR_GETTARGET		0xa5
 
 #ifndef __ASSEMBLY__
-unsigned long sun4v_intr_gettarget(unsigned long sysino);
+unsigned long sun4v_intr_gettarget(unsigned long sysianal);
 #endif
 
 /* intr_settarget()
  * TRAP:	HV_FAST_TRAP
  * FUNCTION:	HV_FAST_INTR_SETTARGET
- * ARG0:	sysino
+ * ARG0:	sysianal
  * ARG1:	cpuid
  * RET0:	status
- * ERRORS:	EINVAL		Invalid sysino
- *		ENOCPU		Invalid cpuid
+ * ERRORS:	EINVAL		Invalid sysianal
+ *		EANALCPU		Invalid cpuid
  *
- * Set the target CPU for the interrupt defined by the given sysino.
+ * Set the target CPU for the interrupt defined by the given sysianal.
  */
 #define HV_FAST_INTR_SETTARGET		0xa6
 
 #ifndef __ASSEMBLY__
-unsigned long sun4v_intr_settarget(unsigned long sysino, unsigned long cpuid);
+unsigned long sun4v_intr_settarget(unsigned long sysianal, unsigned long cpuid);
 #endif
 
 /* vintr_get_cookie()
  * TRAP:	HV_FAST_TRAP
  * FUNCTION:	HV_FAST_VINTR_GET_COOKIE
  * ARG0:	device handle
- * ARG1:	device ino
+ * ARG1:	device ianal
  * RET0:	status
  * RET1:	cookie
  */
@@ -1741,7 +1741,7 @@ unsigned long sun4v_intr_settarget(unsigned long sysino, unsigned long cpuid);
  * TRAP:	HV_FAST_TRAP
  * FUNCTION:	HV_FAST_VINTR_SET_COOKIE
  * ARG0:	device handle
- * ARG1:	device ino
+ * ARG1:	device ianal
  * ARG2:	cookie
  * RET0:	status
  */
@@ -1751,7 +1751,7 @@ unsigned long sun4v_intr_settarget(unsigned long sysino, unsigned long cpuid);
  * TRAP:	HV_FAST_TRAP
  * FUNCTION:	HV_FAST_VINTR_GET_VALID
  * ARG0:	device handle
- * ARG1:	device ino
+ * ARG1:	device ianal
  * RET0:	status
  * RET1:	valid state
  */
@@ -1761,7 +1761,7 @@ unsigned long sun4v_intr_settarget(unsigned long sysino, unsigned long cpuid);
  * TRAP:	HV_FAST_TRAP
  * FUNCTION:	HV_FAST_VINTR_SET_VALID
  * ARG0:	device handle
- * ARG1:	device ino
+ * ARG1:	device ianal
  * ARG2:	valid state
  * RET0:	status
  */
@@ -1771,7 +1771,7 @@ unsigned long sun4v_intr_settarget(unsigned long sysino, unsigned long cpuid);
  * TRAP:	HV_FAST_TRAP
  * FUNCTION:	HV_FAST_VINTR_GET_STATE
  * ARG0:	device handle
- * ARG1:	device ino
+ * ARG1:	device ianal
  * RET0:	status
  * RET1:	state
  */
@@ -1781,7 +1781,7 @@ unsigned long sun4v_intr_settarget(unsigned long sysino, unsigned long cpuid);
  * TRAP:	HV_FAST_TRAP
  * FUNCTION:	HV_FAST_VINTR_SET_STATE
  * ARG0:	device handle
- * ARG1:	device ino
+ * ARG1:	device ianal
  * ARG2:	state
  * RET0:	status
  */
@@ -1791,7 +1791,7 @@ unsigned long sun4v_intr_settarget(unsigned long sysino, unsigned long cpuid);
  * TRAP:	HV_FAST_TRAP
  * FUNCTION:	HV_FAST_VINTR_GET_TARGET
  * ARG0:	device handle
- * ARG1:	device ino
+ * ARG1:	device ianal
  * RET0:	status
  * RET1:	cpuid
  */
@@ -1801,7 +1801,7 @@ unsigned long sun4v_intr_settarget(unsigned long sysino, unsigned long cpuid);
  * TRAP:	HV_FAST_TRAP
  * FUNCTION:	HV_FAST_VINTR_SET_TARGET
  * ARG0:	device handle
- * ARG1:	device ino
+ * ARG1:	device ianal
  * ARG2:	cpuid
  * RET0:	status
  */
@@ -1809,35 +1809,35 @@ unsigned long sun4v_intr_settarget(unsigned long sysino, unsigned long cpuid);
 
 #ifndef __ASSEMBLY__
 unsigned long sun4v_vintr_get_cookie(unsigned long dev_handle,
-				     unsigned long dev_ino,
+				     unsigned long dev_ianal,
 				     unsigned long *cookie);
 unsigned long sun4v_vintr_set_cookie(unsigned long dev_handle,
-				     unsigned long dev_ino,
+				     unsigned long dev_ianal,
 				     unsigned long cookie);
 unsigned long sun4v_vintr_get_valid(unsigned long dev_handle,
-				    unsigned long dev_ino,
+				    unsigned long dev_ianal,
 				    unsigned long *valid);
 unsigned long sun4v_vintr_set_valid(unsigned long dev_handle,
-				    unsigned long dev_ino,
+				    unsigned long dev_ianal,
 				    unsigned long valid);
 unsigned long sun4v_vintr_get_state(unsigned long dev_handle,
-				    unsigned long dev_ino,
+				    unsigned long dev_ianal,
 				    unsigned long *state);
 unsigned long sun4v_vintr_set_state(unsigned long dev_handle,
-				    unsigned long dev_ino,
+				    unsigned long dev_ianal,
 				    unsigned long state);
 unsigned long sun4v_vintr_get_target(unsigned long dev_handle,
-				     unsigned long dev_ino,
+				     unsigned long dev_ianal,
 				     unsigned long *cpuid);
 unsigned long sun4v_vintr_set_target(unsigned long dev_handle,
-				     unsigned long dev_ino,
+				     unsigned long dev_ianal,
 				     unsigned long cpuid);
 #endif
 
 /* PCI IO services.
  *
- * See the terminology descriptions in the device interrupt services
- * section above as those apply here too.  Here are terminology
+ * See the termianallogy descriptions in the device interrupt services
+ * section above as those apply here too.  Here are termianallogy
  * definitions specific to these PCI IO services:
  *
  *	tsbnum		TSB number.  Indentifies which io-tsb is used.
@@ -1875,11 +1875,11 @@ unsigned long sun4v_vintr_set_target(unsigned long dev_handle,
  *			PCI a value between 0 and 255.  For extended
  *			configuration space, a value between 0 and 4095.
  *
- *			Note: For PCI configuration space accesses, the offset
+ *			Analte: For PCI configuration space accesses, the offset
  *			      must be aligned to the access size.
  *
  *	error_flag	A return value which specifies if the action succeeded
- *			or failed.  0 means no error, non-0 means some error
+ *			or failed.  0 means anal error, analn-0 means some error
  *			occurred while performing the service.
  *
  *	io_sync_direction
@@ -1927,7 +1927,7 @@ unsigned long sun4v_vintr_set_target(unsigned long dev_handle,
  * RET1:	#ttes mapped
  * ERRORS:	EINVAL		Invalid devhandle/tsbnum/tsbindex/io_attributes
  *		EBADALIGN	Improperly aligned real address
- *		ENORADDR	Invalid real address
+ *		EANALRADDR	Invalid real address
  *
  * Create IOMMU mappings in the sun4v device defined by the given
  * devhandle.  The mappings are created in the TSB defined by the
@@ -1952,7 +1952,7 @@ unsigned long sun4v_vintr_set_target(unsigned long dev_handle,
  * an updated tsbid, #ttes, io_page_list_p arguments until all pages are
  * mapped.
  *
- * Note: This function does not imply an iotte cache flush.  The guest must
+ * Analte: This function does analt imply an iotte cache flush.  The guest must
  *       demap an entry before re-mapping it.
  */
 #define HV_FAST_PCI_IOMMU_MAP		0xb0
@@ -1980,7 +1980,7 @@ unsigned long sun4v_vintr_set_target(unsigned long dev_handle,
  * may continue to call this function with updated tsbid and #ttes arguments
  * until all pages are demapped.
  *
- * Note: Entries do not have to be mapped to be demapped.  A demap of an
+ * Analte: Entries do analt have to be mapped to be demapped.  A demap of an
  *       unmapped page will flush the entry from the tte cache.
  */
 #define HV_FAST_PCI_IOMMU_DEMAP		0xb1
@@ -1994,7 +1994,7 @@ unsigned long sun4v_vintr_set_target(unsigned long dev_handle,
  * RET1:	io_attributes
  * RET2:	real address
  * ERRORS:	EINVAL		Invalid devhandle/tsbnum/tsbindex
- *		ENOMAP		Mapping is not valid, no translation exists
+ *		EANALMAP		Mapping is analt valid, anal translation exists
  *
  * Read and return the mapping in the device described by the given devhandle
  * and tsbid.  If successful, the io_attributes shall be returned in RET1
@@ -2014,8 +2014,8 @@ unsigned long sun4v_vintr_set_target(unsigned long dev_handle,
  * RET0:	status
  * RET1:	io_addr
  * ERRORS:	EINVAL		Invalid devhandle/io_attributes
- *		ENORADDR	Invalid real address
- *		ENOTSUPPORTED	Function not supported in this implementation.
+ *		EANALRADDR	Invalid real address
+ *		EANALTSUPPORTED	Function analt supported in this implementation.
  *
  * Create a "special" mapping in the device described by the given devhandle,
  * for the given real address and attributes.  Return the IO address in RET1
@@ -2034,19 +2034,19 @@ unsigned long sun4v_vintr_set_target(unsigned long dev_handle,
  * RET1:	error_flag
  * RET2:	data
  * ERRORS:	EINVAL		Invalid devhandle/pci_device/offset/size
- *		EBADALIGN	pci_config_offset not size aligned
- *		ENOACCESS	Access to this offset is not permitted
+ *		EBADALIGN	pci_config_offset analt size aligned
+ *		EANALACCESS	Access to this offset is analt permitted
  *
  * Read PCI configuration space for the adapter described by the given
  * devhandle.  Read size (1, 2, or 4) bytes of data from the given
  * pci_device, at pci_config_offset from the beginning of the device's
- * configuration space.  If there was no error, RET1 is set to zero and
- * RET2 is set to the data read.  Insignificant bits in RET2 are not
- * guaranteed to have any specific value and therefore must be ignored.
+ * configuration space.  If there was anal error, RET1 is set to zero and
+ * RET2 is set to the data read.  Insignificant bits in RET2 are analt
+ * guaranteed to have any specific value and therefore must be iganalred.
  *
  * The data returned in RET2 is size based byte swapped.
  *
- * If an error occurs during the read, set RET1 to a non-zero value.  The
+ * If an error occurs during the read, set RET1 to a analn-zero value.  The
  * given pci_config_offset must be 'size' aligned.
  */
 #define HV_FAST_PCI_CONFIG_GET		0xb4
@@ -2062,8 +2062,8 @@ unsigned long sun4v_vintr_set_target(unsigned long dev_handle,
  * RET0:	status
  * RET1:	error_flag
  * ERRORS:	EINVAL		Invalid devhandle/pci_device/offset/size
- *		EBADALIGN	pci_config_offset not size aligned
- *		ENOACCESS	Access to this offset is not permitted
+ *		EBADALIGN	pci_config_offset analt size aligned
+ *		EANALACCESS	Access to this offset is analt permitted
  *
  * Write PCI configuration space for the adapter described by the given
  * devhandle.  Write size (1, 2, or 4) bytes of data in a single operation,
@@ -2071,8 +2071,8 @@ unsigned long sun4v_vintr_set_target(unsigned long dev_handle,
  * space.  The data argument contains the data to be written to configuration
  * space.  Prior to writing, the data is size based byte swapped.
  *
- * If an error occurs during the write access, do not generate an error
- * report, do set RET1 to a non-zero value.  Otherwise RET1 is zero.
+ * If an error occurs during the write access, do analt generate an error
+ * report, do set RET1 to a analn-zero value.  Otherwise RET1 is zero.
  * The given pci_config_offset must be 'size' aligned.
  *
  * This function is permitted to read from offset zero in the configuration
@@ -2092,27 +2092,27 @@ unsigned long sun4v_vintr_set_target(unsigned long dev_handle,
  * RET2:	data
  * ERRORS:	EINVAL		Invalid devhandle or size
  *		EBADALIGN	Improperly aligned real address
- *		ENORADDR	Bad real address
- *		ENOACCESS	Guest access prohibited
+ *		EANALRADDR	Bad real address
+ *		EANALACCESS	Guest access prohibited
  *
  * Attempt to read the IO address given by the given devhandle, real address,
  * and size.  Size must be 1, 2, 4, or 8.  The read is performed as a single
  * access operation using the given size.  If an error occurs when reading
- * from the given location, do not generate an error report, but return a
- * non-zero value in RET1.  If the read was successful, return zero in RET1
+ * from the given location, do analt generate an error report, but return a
+ * analn-zero value in RET1.  If the read was successful, return zero in RET1
  * and return the actual data read in RET2.  The data returned is size based
  * byte swapped.
  *
- * Non-significant bits in RET2 are not guaranteed to have any specific value
- * and therefore must be ignored.  If RET1 is returned as non-zero, the data
- * value is not guaranteed to have any specific value and should be ignored.
+ * Analn-significant bits in RET2 are analt guaranteed to have any specific value
+ * and therefore must be iganalred.  If RET1 is returned as analn-zero, the data
+ * value is analt guaranteed to have any specific value and should be iganalred.
  *
  * The caller must have permission to read from the given devhandle, real
  * address, which must be an IO address.  The argument real address must be a
  * size aligned address.
  *
  * The hypervisor implementation of this function must block access to any
- * IO address that the guest does not have explicit permission to access.
+ * IO address that the guest does analt have explicit permission to access.
  */
 #define HV_FAST_PCI_PEEK		0xb6
 
@@ -2128,17 +2128,17 @@ unsigned long sun4v_vintr_set_target(unsigned long dev_handle,
  * RET1:	error_flag
  * ERRORS:	EINVAL		Invalid devhandle, size, or pci_device
  *		EBADALIGN	Improperly aligned real address
- *		ENORADDR	Bad real address
- *		ENOACCESS	Guest access prohibited
- *		ENOTSUPPORTED	Function is not supported by implementation
+ *		EANALRADDR	Bad real address
+ *		EANALACCESS	Guest access prohibited
+ *		EANALTSUPPORTED	Function is analt supported by implementation
  *
  * Attempt to write data to the IO address given by the given devhandle,
  * real address, and size.  Size must be 1, 2, 4, or 8.  The write is
  * performed as a single access operation using the given size. Prior to
  * writing the data is size based swapped.
  *
- * If an error occurs when writing to the given location, do not generate an
- * error report, but return a non-zero value in RET1.  If the write was
+ * If an error occurs when writing to the given location, do analt generate an
+ * error report, but return a analn-zero value in RET1.  If the write was
  * successful, return zero in RET1.
  *
  * pci_device describes the configuration address of the device being
@@ -2147,8 +2147,8 @@ unsigned long sun4v_vintr_set_target(unsigned long dev_handle,
  * pci_device in order to guarantee that the write portion of the operation
  * completes
  *
- * Any error that occurs due to the read shall be reported using the normal
- * error reporting mechanisms .. the read error is not suppressed.
+ * Any error that occurs due to the read shall be reported using the analrmal
+ * error reporting mechanisms .. the read error is analt suppressed.
  *
  * The caller must have permission to write to the given devhandle, real
  * address, which must be an IO address.  The argument real address must be a
@@ -2156,7 +2156,7 @@ unsigned long sun4v_vintr_set_target(unsigned long dev_handle,
  * the given devhandle, pci_device cofiguration space offset 0.
  *
  * The hypervisor implementation of this function must block access to any
- * IO address that the guest does not have explicit permission to access.
+ * IO address that the guest does analt have explicit permission to access.
  */
 #define HV_FAST_PCI_POKE		0xb7
 
@@ -2170,7 +2170,7 @@ unsigned long sun4v_vintr_set_target(unsigned long dev_handle,
  * RET0:	status
  * RET1:	#synced
  * ERRORS:	EINVAL		Invalid devhandle or io_sync_direction
- *		ENORADDR	Bad real address
+ *		EANALRADDR	Bad real address
  *
  * Synchronize a memory region described by the given real address and size,
  * for the device defined by the given devhandle using the direction(s)
@@ -2205,7 +2205,7 @@ unsigned long sun4v_vintr_set_target(unsigned long dev_handle,
 #define HV_PCIE_MSGTYPE_PME_MSG		0x18
 #define HV_PCIE_MSGTYPE_PME_ACK_MSG	0x1b
 #define HV_PCIE_MSGTYPE_CORR_MSG	0x30
-#define HV_PCIE_MSGTYPE_NONFATAL_MSG	0x31
+#define HV_PCIE_MSGTYPE_ANALNFATAL_MSG	0x31
 #define HV_PCIE_MSGTYPE_FATAL_MSG	0x33
 
 #define HV_MSG_INVALID			0x00
@@ -2221,7 +2221,7 @@ unsigned long sun4v_vintr_set_target(unsigned long dev_handle,
  * RET0:	status
  * ERRORS:	EINVAL		Invalid devhandle, msiqid or nentries
  *		EBADALIGN	Improperly aligned real address
- *		ENORADDR	Bad real address
+ *		EANALRADDR	Bad real address
  *
  * Configure the MSI queue given by the devhandle and msiqid arguments,
  * and to be placed at the given real address and be of the given
@@ -2230,7 +2230,7 @@ unsigned long sun4v_vintr_set_target(unsigned long dev_handle,
  * queue must be aligned on a 2048 byte real address boundary.  The MSI-EQ
  * Head and Tail are initialized so that the MSI-EQ is 'empty'.
  *
- * Implementation Note: Certain implementations have fixed sized queues.  In
+ * Implementation Analte: Certain implementations have fixed sized queues.  In
  *                      that case, number of entries must contain the correct
  *                      value.
  */
@@ -2422,7 +2422,7 @@ unsigned long sun4v_vintr_set_target(unsigned long dev_handle,
  * ERRORS:	EINVAL		Invalid devhandle or msinum
  *
  * Get the state of the MSI defined by the given devhandle and msinum.
- * If not initialized, return HV_MSISTATE_IDLE.
+ * If analt initialized, return HV_MSISTATE_IDLE.
  */
 #define HV_FAST_PCI_MSI_GETSTATE	0xcd
 
@@ -2552,9 +2552,9 @@ unsigned long sun4v_vintr_set_target(unsigned long dev_handle,
  * RET0:	status
  * RET1:	iotsb_handle
  * ERRORS:	EINVAL		Invalid devhandle, size, iova, or pagesize
- *		EBADALIGN	r_addr is not properly aligned
- *		ENORADDR	r_addr is not a valid real address
- *		ETOOMANY	No further IOTSBs may be configured
+ *		EBADALIGN	r_addr is analt properly aligned
+ *		EANALRADDR	r_addr is analt a valid real address
+ *		ETOOMANY	Anal further IOTSBs may be configured
  *		EBUSY		Duplicate devhandle, raddir, iova combination
  *
  * Create an IOTSB suitable for the PCI root complex identified by devhandle,
@@ -2565,7 +2565,7 @@ unsigned long sun4v_vintr_set_target(unsigned long dev_handle,
  * being configured. If it contains any values other than zeros then the
  * behavior is undefined.
  *
- * pagesize is the size of each page in the IOTSB. Note that the combination of
+ * pagesize is the size of each page in the IOTSB. Analte that the combination of
  * size (table size) and pagesize must be valid.
  *
  * virt is the DMA virtual address this IOTSB will map.
@@ -2594,10 +2594,10 @@ unsigned long sun4v_vintr_set_target(unsigned long dev_handle,
  * created with pci_iotsb_conf.
  *
  * iotsb_handle value 0 may be used with this service to inquire about the
- * legacy IOTSB that may or may not exist. If the service succeeds, the return
+ * legacy IOTSB that may or may analt exist. If the service succeeds, the return
  * values describe the legacy IOTSB and I/O virtual addresses mapped by that
  * table. However, the table base address r_addr may contain the value -1 which
- * indicates a memory range that cannot be accessed or be reclaimed.
+ * indicates a memory range that cananalt be accessed or be reclaimed.
  *
  * The return value #bound contains the number of PCI devices that iotsb_handle
  * is currently bound to.
@@ -2611,13 +2611,13 @@ unsigned long sun4v_vintr_set_target(unsigned long dev_handle,
  * ARG1:	iotsb_handle
  * RET0:	status
  * ERRORS:	EINVAL	Invalid devhandle or iotsb_handle
- *		EBUSY	The IOTSB is bound and may not be unconfigured
+ *		EBUSY	The IOTSB is bound and may analt be unconfigured
  *
  * This service unconfigures the IOTSB identified by the devhandle and
  * iotsb_handle arguments, previously created with pci_iotsb_conf.
- * The IOTSB must not be currently bound to any device or the service will fail
+ * The IOTSB must analt be currently bound to any device or the service will fail
  *
- * If the call succeeds, iotsb_handle is no longer valid.
+ * If the call succeeds, iotsb_handle is anal longer valid.
  */
 #define HV_FAST_PCI_IOTSB_UNCONF	0x192
 
@@ -2649,13 +2649,13 @@ unsigned long sun4v_vintr_set_target(unsigned long dev_handle,
  * ARG2:	pci_device
  * RET0:	status
  * ERRORS:	EINVAL	Invalid devhandle, iotsb_handle, or pci_device
- *		ENOMAP	The PCI function was not bound to the specified IOTSB
+ *		EANALMAP	The PCI function was analt bound to the specified IOTSB
  *
  * This service unbinds the PCI device specified by the argument pci_device
  * from the IOTSB identified  * by the arguments devhandle and iotsb_handle.
  *
- * If the PCI device is not bound to the specified IOTSB then this service will
- * fail with status ENOMAP
+ * If the PCI device is analt bound to the specified IOTSB then this service will
+ * fail with status EANALMAP
  */
 #define HV_FAST_PCI_IOTSB_UNBIND	0x194
 
@@ -2668,13 +2668,13 @@ unsigned long sun4v_vintr_set_target(unsigned long dev_handle,
  * RET0:	status
  * RET1:	iotsb_handle
  * ERRORS:	EINVAL	Invalid devhandle, pci_device, or iova
- *		ENOMAP	The PCI function is not bound to an IOTSB at iova
+ *		EANALMAP	The PCI function is analt bound to an IOTSB at iova
  *
  * This service returns the IOTSB binding, iotsb_handle, for a given pci_device
  * and DMA virtual address, iova.
  *
  * iova must be the base address of a DMA virtual address range as defined by
- * the iommu-address-ranges property in the root complex device node defined
+ * the iommu-address-ranges property in the root complex device analde defined
  * by the argument devhandle.
  */
 #define HV_FAST_PCI_IOTSB_GET_BINDING	0x195
@@ -2693,7 +2693,7 @@ unsigned long sun4v_vintr_set_target(unsigned long dev_handle,
  *				iotsb_index or iotte_attributes
  *		EBADALIGN	Improperly aligned io_page_list_p or I/O page
  *				address in the I/O page list.
- *		ENORADDR	Invalid io_page_list_p or I/O page address in
+ *		EANALRADDR	Invalid io_page_list_p or I/O page address in
  *				the I/O page list.
  *
  * This service creates and flushes mappings in the IOTSB defined by the
@@ -2721,10 +2721,10 @@ unsigned long sun4v_vintr_set_target(unsigned long dev_handle,
  * caller should continue to invoke the service with updated iotsb_index,
  * #iottes, and io_page_list_p arguments until all pages are mapped.
  *
- * This service must not be used to demap a mapping. In other words, all
+ * This service must analt be used to demap a mapping. In other words, all
  * mappings must be valid and have  one or both of the RW attribute bits set.
  *
- * Note:
+ * Analte:
  * It is implementation-defined whether I/O page real address validity checking
  * is done at time mappings are established or deferred until they are
  * accessed.
@@ -2743,7 +2743,7 @@ unsigned long sun4v_vintr_set_target(unsigned long dev_handle,
  * ERRORS:	EINVAL		Invalid devhandle,iotsb_handle, iotsb_index
  *				or iotte_attributes
  *		EBADALIGN	Improperly aligned r_addr
- *		ENORADDR	Invalid r_addr
+ *		EANALRADDR	Invalid r_addr
  *
  * This service creates and flushes a single mapping in the IOTSB defined by the
  * arguments devhandle, iotsb.
@@ -2751,10 +2751,10 @@ unsigned long sun4v_vintr_set_target(unsigned long dev_handle,
  * The mapping for the page at r_addr is created at the IOTSB index specified by
  * iotsb_index with  the attributes iotte_attributes.
  *
- * This service must not be used to demap a mapping. In other words, the mapping
+ * This service must analt be used to demap a mapping. In other words, the mapping
  * must be valid and have one or both of the RW attribute bits set.
  *
- * Note:
+ * Analte:
  * It is implementation-defined whether I/O page real address validity checking
  * is done at time mappings are established or deferred until they are
  * accessed.
@@ -2796,7 +2796,7 @@ unsigned long sun4v_vintr_set_target(unsigned long dev_handle,
  * RET1:	r_addr
  * RET2:	iotte_attributes
  * ERRORS:	EINVAL	Invalid devhandle, iotsb_handle, or iotsb_index
- *		ENOMAP	No mapping was found
+ *		EANALMAP	Anal mapping was found
  *
  * This service returns the mapping specified by index iotsb_index from the
  * IOTSB defined by the arguments devhandle, iotsb.
@@ -2805,7 +2805,7 @@ unsigned long sun4v_vintr_set_target(unsigned long dev_handle,
  * r_addr and thethe IOTTE mapping attributes shall be returned in
  * iotte_attributes.
  *
- * The return value iotte_attributes may not include optional features used in
+ * The return value iotte_attributes may analt include optional features used in
  * the call to create the  mapping.
  */
 #define HV_FAST_PCI_IOTSB_GETMAP	0x199
@@ -2864,17 +2864,17 @@ unsigned long sun4v_vintr_set_target(unsigned long dev_handle,
  *
  * The maximum number of entries for each queue for a specific cpu may be
  * determined from the machine description.  A transmit queue may be
- * specified even in the event that the LDC is down (peer endpoint has no
+ * specified even in the event that the LDC is down (peer endpoint has anal
  * receive queue specified).  Transmission will begin as soon as the peer
  * endpoint defines a receive queue.
  *
  * It is recommended that a guest wait for a transmit queue to empty prior
  * to reconfiguring it, or un-configuring it.  Re or un-configuring of a
- * non-empty transmit queue behaves exactly as defined above, however it
+ * analn-empty transmit queue behaves exactly as defined above, however it
  * is undefined as to how many of the pending entries in the original queue
  * will be delivered prior to the re-configuration taking effect.
  * Furthermore, as the queue configuration causes a reset of the head and
- * tail pointers there is no way for a guest to determine how many entries
+ * tail pointers there is anal way for a guest to determine how many entries
  * have been sent after the configuration operation.
  */
 #define HV_FAST_LDC_TX_QCONF		0xe0
@@ -2892,7 +2892,7 @@ unsigned long sun4v_vintr_set_target(unsigned long dev_handle,
  * defined real address base of the defined queue, and num entries is the
  * size of the queue in terms of number of entries.
  *
- * If the specified channel ID is a valid endpoint number, but no transmit
+ * If the specified channel ID is a valid endpoint number, but anal transmit
  * queue has been defined this service will return success, but with num
  * entries set to zero and the real address will have an undefined value.
  */
@@ -2928,7 +2928,7 @@ unsigned long sun4v_vintr_set_target(unsigned long dev_handle,
  * decrease the number of pending transmit queue entires is considered
  * an invalid tail offset and will result in an EINVAL error.
  *
- * Since the tail of the transmit queue may not be moved backwards, the
+ * Since the tail of the transmit queue may analt be moved backwards, the
  * transmit queue may be flushed by configuring a new transmit queue,
  * whereupon the hypervisor will configure the initial transmit head and
  * tail pointers to be equal.
@@ -2959,14 +2959,14 @@ unsigned long sun4v_vintr_set_target(unsigned long dev_handle,
  * determined from the machine description.
  *
  * As receive queue configuration causes a reset of the queue's head and
- * tail pointers there is no way for a gues to determine how many entries
+ * tail pointers there is anal way for a gues to determine how many entries
  * have been received between a preceding ldc_get_rx_state() API call
- * and the completion of the configuration operation.  It should be noted
- * that datagram delivery is not guaranteed via domain channels anyway,
+ * and the completion of the configuration operation.  It should be analted
+ * that datagram delivery is analt guaranteed via domain channels anyway,
  * and therefore any higher protocol should be resilient to datagram
  * loss if necessary.  However, to overcome this specific race potential
  * it is recommended, for example, that a higher level protocol be employed
- * to ensure either retransmission, or ensure that no datagrams are pending
+ * to ensure either retransmission, or ensure that anal datagrams are pending
  * on the peer endpoint's transmit queue prior to the configuration process.
  */
 #define HV_FAST_LDC_RX_QCONF		0xe4
@@ -2984,7 +2984,7 @@ unsigned long sun4v_vintr_set_target(unsigned long dev_handle,
  * defined real address base of the defined queue, and num entries is the
  * size of the queue in terms of number of entries.
  *
- * If the specified channel ID is a valid endpoint number, but no receive
+ * If the specified channel ID is a valid endpoint number, but anal receive
  * queue has been defined this service will return success, but with num
  * entries set to zero and the real address will have an undefined value.
  */
@@ -3197,7 +3197,7 @@ unsigned long sun4v_ldc_revoke(unsigned long channel,
  * RET0:	status
  * RET1:	performance reg value
  * ERRORS:	EINVAL		Invalid performance register number
- *		ENOACCESS	No access allowed to performance counters
+ *		EANALACCESS	Anal access allowed to performance counters
  *
  * Read the value of the given DRAM/JBUS performance counter/control register.
  */
@@ -3210,7 +3210,7 @@ unsigned long sun4v_ldc_revoke(unsigned long channel,
  * ARG1:	performance reg value
  * RET0:	status
  * ERRORS:	EINVAL		Invalid performance register number
- *		ENOACCESS	No access allowed to performance counters
+ *		EANALACCESS	Anal access allowed to performance counters
  *
  * Write the given performance reg value to the given DRAM/JBUS
  * performance counter/control register.
@@ -3260,16 +3260,16 @@ struct hv_mmu_statistics {
 	unsigned long immu_tsb_hits_ctx0_256mb_tte;
 	unsigned long immu_tsb_ticks_ctx0_256mb_tte;
 	unsigned long __reserved3[4];
-	unsigned long immu_tsb_hits_ctxnon0_8k_tte;
-	unsigned long immu_tsb_ticks_ctxnon0_8k_tte;
-	unsigned long immu_tsb_hits_ctxnon0_64k_tte;
-	unsigned long immu_tsb_ticks_ctxnon0_64k_tte;
+	unsigned long immu_tsb_hits_ctxanaln0_8k_tte;
+	unsigned long immu_tsb_ticks_ctxanaln0_8k_tte;
+	unsigned long immu_tsb_hits_ctxanaln0_64k_tte;
+	unsigned long immu_tsb_ticks_ctxanaln0_64k_tte;
 	unsigned long __reserved4[2];
-	unsigned long immu_tsb_hits_ctxnon0_4mb_tte;
-	unsigned long immu_tsb_ticks_ctxnon0_4mb_tte;
+	unsigned long immu_tsb_hits_ctxanaln0_4mb_tte;
+	unsigned long immu_tsb_ticks_ctxanaln0_4mb_tte;
 	unsigned long __reserved5[2];
-	unsigned long immu_tsb_hits_ctxnon0_256mb_tte;
-	unsigned long immu_tsb_ticks_ctxnon0_256mb_tte;
+	unsigned long immu_tsb_hits_ctxanaln0_256mb_tte;
+	unsigned long immu_tsb_ticks_ctxanaln0_256mb_tte;
 	unsigned long __reserved6[4];
 	unsigned long dmmu_tsb_hits_ctx0_8k_tte;
 	unsigned long dmmu_tsb_ticks_ctx0_8k_tte;
@@ -3282,16 +3282,16 @@ struct hv_mmu_statistics {
 	unsigned long dmmu_tsb_hits_ctx0_256mb_tte;
 	unsigned long dmmu_tsb_ticks_ctx0_256mb_tte;
 	unsigned long __reserved9[4];
-	unsigned long dmmu_tsb_hits_ctxnon0_8k_tte;
-	unsigned long dmmu_tsb_ticks_ctxnon0_8k_tte;
-	unsigned long dmmu_tsb_hits_ctxnon0_64k_tte;
-	unsigned long dmmu_tsb_ticks_ctxnon0_64k_tte;
+	unsigned long dmmu_tsb_hits_ctxanaln0_8k_tte;
+	unsigned long dmmu_tsb_ticks_ctxanaln0_8k_tte;
+	unsigned long dmmu_tsb_hits_ctxanaln0_64k_tte;
+	unsigned long dmmu_tsb_ticks_ctxanaln0_64k_tte;
 	unsigned long __reserved10[2];
-	unsigned long dmmu_tsb_hits_ctxnon0_4mb_tte;
-	unsigned long dmmu_tsb_ticks_ctxnon0_4mb_tte;
+	unsigned long dmmu_tsb_hits_ctxanaln0_4mb_tte;
+	unsigned long dmmu_tsb_ticks_ctxanaln0_4mb_tte;
 	unsigned long __reserved11[2];
-	unsigned long dmmu_tsb_hits_ctxnon0_256mb_tte;
-	unsigned long dmmu_tsb_ticks_ctxnon0_256mb_tte;
+	unsigned long dmmu_tsb_hits_ctxanaln0_256mb_tte;
+	unsigned long dmmu_tsb_ticks_ctxanaln0_256mb_tte;
 	unsigned long __reserved12[4];
 };
 #endif
@@ -3302,9 +3302,9 @@ struct hv_mmu_statistics {
  * ARG0:	real address
  * RET0:	status
  * RET1:	real address
- * ERRORS:	ENORADDR	Invalid real address
- *		EBADALIGN	Real address not aligned on 64-byte boundary
- *		EBADTRAP	API not supported on this processor
+ * ERRORS:	EANALRADDR	Invalid real address
+ *		EBADALIGN	Real address analt aligned on 64-byte boundary
+ *		EBADTRAP	API analt supported on this processor
  *
  * Enable MMU statistic gathering using the buffer at the given real
  * address on the current virtual CPU.  The new buffer real address
@@ -3313,7 +3313,7 @@ struct hv_mmu_statistics {
  *
  * If the passed in real address argument is zero, this will disable
  * MMU statistic collection on the current virtual CPU.  If an error is
- * returned then no statistics are collected.
+ * returned then anal statistics are collected.
  *
  * The buffer contents should be initialized to all zeros before being
  * given to the hypervisor or else the statistics will be meaningless.
@@ -3325,7 +3325,7 @@ struct hv_mmu_statistics {
  * FUNCTION:	HV_FAST_MMUSTAT_INFO
  * RET0:	status
  * RET1:	real address
- * ERRORS:	EBADTRAP	API not supported on this processor
+ * ERRORS:	EBADTRAP	API analt supported on this processor
  *
  * Return the current state and real address of the currently configured
  * MMU statistics buffer on the current virtual CPU.
@@ -3397,7 +3397,7 @@ struct hv_ncs_qtail_update_arg {
  * ARG2:	size in bytes of sub-function argument
  * RET0:	status
  *
- * The MAU chip of the Niagara processor is not directly accessible
+ * The MAU chip of the Niagara processor is analt directly accessible
  * to privileged code, instead it is programmed indirectly via this
  * hypervisor API.
  *
@@ -3409,14 +3409,14 @@ struct hv_ncs_qtail_update_arg {
  *
  * The privileged code then proceeds to add entries to the queue and
  * then invoke the HV_NCS_QTAIL_UPDATE sub-function.  Since only
- * synchronous operations are supported by the current hypervisor,
+ * synchroanalus operations are supported by the current hypervisor,
  * HV_NCS_QTAIL_UPDATE will run all the pending queue entries to
  * completion and return HV_EOK, or return an error code.
  *
  * The real address of the sub-function argument must be aligned on at
  * least an 8-byte boundary.
  *
- * The tail argument of HV_NCS_QTAIL_UPDATE is an index, not a byte
+ * The tail argument of HV_NCS_QTAIL_UPDATE is an index, analt a byte
  * offset, into the queue and must be less than or equal the 'num_ents'
  * argument given in the HV_NCS_QCONF call.
  */
@@ -3509,18 +3509,18 @@ unsigned long sun4v_m7_set_perfreg(unsigned long reg_num,
 #ifndef __ASSEMBLY__
 unsigned long sun4v_get_version(unsigned long group,
 			        unsigned long *major,
-			        unsigned long *minor);
+			        unsigned long *mianalr);
 unsigned long sun4v_set_version(unsigned long group,
 			        unsigned long major,
-			        unsigned long minor,
-			        unsigned long *actual_minor);
+			        unsigned long mianalr,
+			        unsigned long *actual_mianalr);
 
 int sun4v_hvapi_register(unsigned long group, unsigned long major,
-			 unsigned long *minor);
+			 unsigned long *mianalr);
 void sun4v_hvapi_unregister(unsigned long group);
 int sun4v_hvapi_get(unsigned long group,
 		    unsigned long *major,
-		    unsigned long *minor);
+		    unsigned long *mianalr);
 void sun4v_hvapi_init(void);
 #endif
 

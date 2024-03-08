@@ -6,7 +6,7 @@
  * Copyright (c) 2017 SKIDATA AG
  *
  * This work is based on the USB3503 driver by Dongjin Kim and
- * a not-accepted patch by Fabien Lahoudere, see:
+ * a analt-accepted patch by Fabien Lahoudere, see:
  * https://patchwork.kernel.org/patch/9257715/
  */
 
@@ -39,8 +39,8 @@
 #define USB251XB_ADDR_CONFIG_DATA_3	0x08
 #define USB251XB_DEF_CONFIG_DATA_3	0x02
 
-#define USB251XB_ADDR_NON_REMOVABLE_DEVICES	0x09
-#define USB251XB_DEF_NON_REMOVABLE_DEVICES	0x00
+#define USB251XB_ADDR_ANALN_REMOVABLE_DEVICES	0x09
+#define USB251XB_DEF_ANALN_REMOVABLE_DEVICES	0x00
 
 #define USB251XB_ADDR_PORT_DISABLE_SELF	0x0A
 #define USB251XB_DEF_PORT_DISABLE_SELF	0x00
@@ -121,7 +121,7 @@ struct usb251xb {
 	u8  conf_data1;
 	u8  conf_data2;
 	u8  conf_data3;
-	u8  non_rem_dev;
+	u8  analn_rem_dev;
 	u8  port_disable_sp;
 	u8  port_disable_bp;
 	u8  max_power_sp;
@@ -316,7 +316,7 @@ static int usb251xb_connect(struct usb251xb *hub)
 	i2c_wb[USB251XB_ADDR_CONFIG_DATA_1]     = hub->conf_data1;
 	i2c_wb[USB251XB_ADDR_CONFIG_DATA_2]     = hub->conf_data2;
 	i2c_wb[USB251XB_ADDR_CONFIG_DATA_3]     = hub->conf_data3;
-	i2c_wb[USB251XB_ADDR_NON_REMOVABLE_DEVICES] = hub->non_rem_dev;
+	i2c_wb[USB251XB_ADDR_ANALN_REMOVABLE_DEVICES] = hub->analn_rem_dev;
 	i2c_wb[USB251XB_ADDR_PORT_DISABLE_SELF] = hub->port_disable_sp;
 	i2c_wb[USB251XB_ADDR_PORT_DISABLE_BUS]  = hub->port_disable_bp;
 	i2c_wb[USB251XB_ADDR_MAX_POWER_SELF]    = hub->max_power_sp;
@@ -386,7 +386,7 @@ static void usb251xb_get_ports_field(struct usb251xb *hub,
 	const __be32 *p;
 	u32 port;
 
-	of_property_for_each_u32(dev->of_node, prop_name, prop, p, port) {
+	of_property_for_each_u32(dev->of_analde, prop_name, prop, p, port) {
 		if ((port >= ds_only ? 1 : 0) && (port <= port_cnt))
 			*fld |= BIT(port);
 		else
@@ -398,7 +398,7 @@ static int usb251xb_get_ofdata(struct usb251xb *hub,
 			       const struct usb251xb_data *data)
 {
 	struct device *dev = hub->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	int len;
 	u32 property_u32 = 0;
 	const char *cproperty_char;
@@ -406,7 +406,7 @@ static int usb251xb_get_ofdata(struct usb251xb *hub,
 
 	if (!np) {
 		dev_err(dev, "failed to get ofdata\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	hub->skip_config = of_property_read_bool(np, "skip-config");
@@ -495,9 +495,9 @@ static int usb251xb_get_ofdata(struct usb251xb *hub,
 	if (of_property_read_bool(np, "string-support"))
 		hub->conf_data3 |= BIT(0);
 
-	hub->non_rem_dev = USB251XB_DEF_NON_REMOVABLE_DEVICES;
-	usb251xb_get_ports_field(hub, "non-removable-ports", data->port_cnt,
-				 true, &hub->non_rem_dev);
+	hub->analn_rem_dev = USB251XB_DEF_ANALN_REMOVABLE_DEVICES;
+	usb251xb_get_ports_field(hub, "analn-removable-ports", data->port_cnt,
+				 true, &hub->analn_rem_dev);
 
 	hub->port_disable_sp = USB251XB_DEF_PORT_DISABLE_SELF;
 	usb251xb_get_ports_field(hub, "sp-disabled-ports", data->port_cnt,
@@ -574,7 +574,7 @@ static int usb251xb_get_ofdata(struct usb251xb *hub,
 	usb251xb_get_ports_field(hub, "swap-dx-lanes", data->port_cnt,
 				 false, &hub->port_swap);
 
-	/* The following parameters are currently not exposed to devicetree, but
+	/* The following parameters are currently analt exposed to devicetree, but
 	 * may be as soon as needed.
 	 */
 	hub->bat_charge_en = USB251XB_DEF_BATTERY_CHARGING_ENABLE;
@@ -632,7 +632,7 @@ static void usb251xb_regulator_disable_action(void *data)
 static int usb251xb_probe(struct usb251xb *hub)
 {
 	struct device *dev = hub->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	const struct usb251xb_data *usb_data = of_device_get_match_data(dev);
 	int err;
 
@@ -651,7 +651,7 @@ static int usb251xb_probe(struct usb251xb *hub)
 	 * one of the config modes makes the hub loading a default registers
 	 * value without SMBus-slave interface activation. If the hub
 	 * accidentally gets this mode, this will cause the driver SMBus-
-	 * functions failure. Normally we could just lock the SMBus-segment the
+	 * functions failure. Analrmally we could just lock the SMBus-segment the
 	 * hub i2c-interface resides for the device-specific reset timing. But
 	 * the GPIO controller, which is used to handle the hub reset, might be
 	 * placed at the same i2c-bus segment. In this case an error should be
@@ -693,7 +693,7 @@ static int usb251xb_i2c_probe(struct i2c_client *i2c)
 
 	hub = devm_kzalloc(&i2c->dev, sizeof(struct usb251xb), GFP_KERNEL);
 	if (!hub)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(i2c, hub);
 	hub->dev = &i2c->dev;

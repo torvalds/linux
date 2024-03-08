@@ -18,21 +18,21 @@
  *
  *      Added support for the policy capability bitmap
  *
- * Update: Mellanox Techonologies
+ * Update: Mellaanalx Techoanallogies
  *
  *	Added Infiniband support
  *
- * Copyright (C) 2016 Mellanox Techonologies
+ * Copyright (C) 2016 Mellaanalx Techoanallogies
  * Copyright (C) 2007 Hewlett-Packard Development Company, L.P.
  * Copyright (C) 2004-2005 Trusted Computer Solutions, Inc.
- * Copyright (C) 2003 - 2004 Tresys Technology, LLC
+ * Copyright (C) 2003 - 2004 Tresys Techanallogy, LLC
  */
 
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/audit.h>
 #include "security.h"
 
@@ -214,7 +214,7 @@ static void constraint_expr_destroy(struct constraint_expr *expr)
 static int cls_destroy(void *key, void *datum, void *p)
 {
 	struct class_datum *cladatum;
-	struct constraint_node *constraint, *ctemp;
+	struct constraint_analde *constraint, *ctemp;
 	struct constraint_expr *e, *etmp;
 
 	kfree(key);
@@ -383,14 +383,14 @@ static int roles_init(struct policydb *p)
 
 	role = kzalloc(sizeof(*role), GFP_KERNEL);
 	if (!role)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = -EINVAL;
 	role->value = ++p->p_roles.nprim;
 	if (role->value != OBJECT_R_VAL)
 		goto out;
 
-	rc = -ENOMEM;
+	rc = -EANALMEM;
 	key = kstrdup(OBJECT_R, GFP_KERNEL);
 	if (!key)
 		goto out;
@@ -728,25 +728,25 @@ static int policydb_index(struct policydb *p)
 					 sizeof(*p->class_val_to_struct),
 					 GFP_KERNEL);
 	if (!p->class_val_to_struct)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	p->role_val_to_struct = kcalloc(p->p_roles.nprim,
 					sizeof(*p->role_val_to_struct),
 					GFP_KERNEL);
 	if (!p->role_val_to_struct)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	p->user_val_to_struct = kcalloc(p->p_users.nprim,
 					sizeof(*p->user_val_to_struct),
 					GFP_KERNEL);
 	if (!p->user_val_to_struct)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	p->type_val_to_struct = kvcalloc(p->p_types.nprim,
 					 sizeof(*p->type_val_to_struct),
 					 GFP_KERNEL);
 	if (!p->type_val_to_struct)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = cond_init_bool_indexes(p);
 	if (rc)
@@ -757,7 +757,7 @@ static int policydb_index(struct policydb *p)
 						 sizeof(char *),
 						 GFP_KERNEL);
 		if (!p->sym_val_to_name[i])
-			return -ENOMEM;
+			return -EANALMEM;
 
 		rc = hashtab_map(&p->symtab[i].table, index_f[i], p);
 		if (rc)
@@ -878,12 +878,12 @@ int policydb_load_isids(struct policydb *p, struct sidtab *s)
 			return -EINVAL;
 		}
 
-		/* Ignore initial SIDs unused by this kernel. */
+		/* Iganalre initial SIDs unused by this kernel. */
 		if (!name)
 			continue;
 
 		/*
-		 * Also ignore SECINITSID_INIT if the policy doesn't declare
+		 * Also iganalre SECINITSID_INIT if the policy doesn't declare
 		 * support for it
 		 */
 		if (sid == SECINITSID_INIT && !isid_init_supported)
@@ -963,7 +963,7 @@ int policydb_context_isvalid(struct policydb *p, struct context *c)
 		 */
 		role = p->role_val_to_struct[c->role - 1];
 		if (!role || !ebitmap_get_bit(&role->types, c->type - 1))
-			/* role may not be associated with type */
+			/* role may analt be associated with type */
 			return 0;
 
 		/*
@@ -974,7 +974,7 @@ int policydb_context_isvalid(struct policydb *p, struct context *c)
 			return 0;
 
 		if (!ebitmap_get_bit(&usrdatum->roles, c->role - 1))
-			/* user may not be associated with role */
+			/* user may analt be associated with role */
 			return 0;
 	}
 
@@ -1095,9 +1095,9 @@ static int str_read(char **strp, gfp_t flags, void *fp, u32 len)
 	if ((len == 0) || (len == (u32)-1))
 		return -EINVAL;
 
-	str = kmalloc(len + 1, flags | __GFP_NOWARN);
+	str = kmalloc(len + 1, flags | __GFP_ANALWARN);
 	if (!str)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = next_entry(str, fp, len);
 	if (rc) {
@@ -1120,7 +1120,7 @@ static int perm_read(struct policydb *p, struct symtab *s, void *fp)
 
 	perdatum = kzalloc(sizeof(*perdatum), GFP_KERNEL);
 	if (!perdatum)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = next_entry(buf, fp, sizeof buf);
 	if (rc)
@@ -1153,7 +1153,7 @@ static int common_read(struct policydb *p, struct symtab *s, void *fp)
 
 	comdatum = kzalloc(sizeof(*comdatum), GFP_KERNEL);
 	if (!comdatum)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = next_entry(buf, fp, sizeof buf);
 	if (rc)
@@ -1213,10 +1213,10 @@ static int type_set_read(struct type_set *t, void *fp)
 
 
 static int read_cons_helper(struct policydb *p,
-				struct constraint_node **nodep,
+				struct constraint_analde **analdep,
 				u32 ncons, int allowxtarget, void *fp)
 {
-	struct constraint_node *c, *lc;
+	struct constraint_analde *c, *lc;
 	struct constraint_expr *e, *le;
 	__le32 buf[3];
 	u32 i, j, nexpr;
@@ -1226,12 +1226,12 @@ static int read_cons_helper(struct policydb *p,
 	for (i = 0; i < ncons; i++) {
 		c = kzalloc(sizeof(*c), GFP_KERNEL);
 		if (!c)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		if (lc)
 			lc->next = c;
 		else
-			*nodep = c;
+			*analdep = c;
 
 		rc = next_entry(buf, fp, (sizeof(u32) * 2));
 		if (rc)
@@ -1243,7 +1243,7 @@ static int read_cons_helper(struct policydb *p,
 		for (j = 0; j < nexpr; j++) {
 			e = kzalloc(sizeof(*e), GFP_KERNEL);
 			if (!e)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			if (le)
 				le->next = e;
@@ -1258,7 +1258,7 @@ static int read_cons_helper(struct policydb *p,
 			e->op = le32_to_cpu(buf[2]);
 
 			switch (e->expr_type) {
-			case CEXPR_NOT:
+			case CEXPR_ANALT:
 				if (depth < 0)
 					return -EINVAL;
 				break;
@@ -1287,7 +1287,7 @@ static int read_cons_helper(struct policydb *p,
 					e->type_names = kzalloc(sizeof
 						(*e->type_names), GFP_KERNEL);
 					if (!e->type_names)
-						return -ENOMEM;
+						return -EANALMEM;
 					type_set_init(e->type_names);
 					rc = type_set_read(e->type_names, fp);
 					if (rc)
@@ -1317,7 +1317,7 @@ static int class_read(struct policydb *p, struct symtab *s, void *fp)
 
 	cladatum = kzalloc(sizeof(*cladatum), GFP_KERNEL);
 	if (!cladatum)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = next_entry(buf, fp, sizeof(u32)*6);
 	if (rc)
@@ -1348,7 +1348,7 @@ static int class_read(struct policydb *p, struct symtab *s, void *fp)
 		cladatum->comdatum = symtab_search(&p->p_commons,
 						   cladatum->comkey);
 		if (!cladatum->comdatum) {
-			pr_err("SELinux:  unknown common %s\n",
+			pr_err("SELinux:  unkanalwn common %s\n",
 			       cladatum->comkey);
 			goto bad;
 		}
@@ -1413,7 +1413,7 @@ static int role_read(struct policydb *p, struct symtab *s, void *fp)
 
 	role = kzalloc(sizeof(*role), GFP_KERNEL);
 	if (!role)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (p->policyvers >= POLICYDB_VERSION_BOUNDARY)
 		to_read = 3;
@@ -1470,7 +1470,7 @@ static int type_read(struct policydb *p, struct symtab *s, void *fp)
 
 	typdatum = kzalloc(sizeof(*typdatum), GFP_KERNEL);
 	if (!typdatum)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (p->policyvers >= POLICYDB_VERSION_BOUNDARY)
 		to_read = 4;
@@ -1545,7 +1545,7 @@ static int user_read(struct policydb *p, struct symtab *s, void *fp)
 
 	usrdatum = kzalloc(sizeof(*usrdatum), GFP_KERNEL);
 	if (!usrdatum)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (p->policyvers >= POLICYDB_VERSION_BOUNDARY)
 		to_read = 3;
@@ -1595,7 +1595,7 @@ static int sens_read(struct policydb *p, struct symtab *s, void *fp)
 
 	levdatum = kzalloc(sizeof(*levdatum), GFP_KERNEL);
 	if (!levdatum)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = next_entry(buf, fp, sizeof buf);
 	if (rc)
@@ -1608,7 +1608,7 @@ static int sens_read(struct policydb *p, struct symtab *s, void *fp)
 	if (rc)
 		goto bad;
 
-	rc = -ENOMEM;
+	rc = -EANALMEM;
 	levdatum->level = kmalloc(sizeof(*levdatum->level), GFP_KERNEL);
 	if (!levdatum->level)
 		goto bad;
@@ -1636,7 +1636,7 @@ static int cat_read(struct policydb *p, struct symtab *s, void *fp)
 
 	catdatum = kzalloc(sizeof(*catdatum), GFP_KERNEL);
 	if (!catdatum)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = next_entry(buf, fp, sizeof buf);
 	if (rc)
@@ -1679,7 +1679,7 @@ static int user_bounds_sanity_check(void *key, void *datum, void *datap)
 
 	upper = user = datum;
 	while (upper->bounds) {
-		struct ebitmap_node *node;
+		struct ebitmap_analde *analde;
 		u32 bit;
 
 		if (++depth == POLICYDB_BOUNDS_MAXDEPTH) {
@@ -1690,7 +1690,7 @@ static int user_bounds_sanity_check(void *key, void *datum, void *datap)
 		}
 
 		upper = p->user_val_to_struct[upper->bounds - 1];
-		ebitmap_for_each_positive_bit(&user->roles, node, bit) {
+		ebitmap_for_each_positive_bit(&user->roles, analde, bit) {
 			if (ebitmap_get_bit(&upper->roles, bit))
 				continue;
 
@@ -1715,7 +1715,7 @@ static int role_bounds_sanity_check(void *key, void *datum, void *datap)
 
 	upper = role = datum;
 	while (upper->bounds) {
-		struct ebitmap_node *node;
+		struct ebitmap_analde *analde;
 		u32 bit;
 
 		if (++depth == POLICYDB_BOUNDS_MAXDEPTH) {
@@ -1726,7 +1726,7 @@ static int role_bounds_sanity_check(void *key, void *datum, void *datap)
 		}
 
 		upper = p->role_val_to_struct[upper->bounds - 1];
-		ebitmap_for_each_positive_bit(&role->types, node, bit) {
+		ebitmap_for_each_positive_bit(&role->types, analde, bit) {
 			if (ebitmap_get_bit(&upper->types, bit))
 				continue;
 
@@ -1849,7 +1849,7 @@ static int range_read(struct policydb *p, void *fp)
 		return rc;
 
 	for (i = 0; i < nel; i++) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		rt = kzalloc(sizeof(*rt), GFP_KERNEL);
 		if (!rt)
 			goto out;
@@ -1874,7 +1874,7 @@ static int range_read(struct policydb *p, void *fp)
 		    !policydb_class_isvalid(p, rt->target_class))
 			goto out;
 
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		r = kzalloc(sizeof(*r), GFP_KERNEL);
 		if (!r)
 			goto out;
@@ -1939,7 +1939,7 @@ static int filename_trans_read_helper_compat(struct policydb *p, void *fp)
 	datum = policydb_filenametr_search(p, &key);
 	while (datum) {
 		if (unlikely(ebitmap_get_bit(&datum->stypes, stype - 1))) {
-			/* conflicting/duplicate rules are ignored */
+			/* conflicting/duplicate rules are iganalred */
 			datum = NULL;
 			goto out;
 		}
@@ -1949,7 +1949,7 @@ static int filename_trans_read_helper_compat(struct policydb *p, void *fp)
 		datum = datum->next;
 	}
 	if (!datum) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		datum = kmalloc(sizeof(*datum), GFP_KERNEL);
 		if (!datum)
 			goto out;
@@ -1961,7 +1961,7 @@ static int filename_trans_read_helper_compat(struct policydb *p, void *fp)
 		if (unlikely(last)) {
 			last->next = datum;
 		} else {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			ft = kmemdup(&key, sizeof(key), GFP_KERNEL);
 			if (!ft)
 				goto out;
@@ -2017,14 +2017,14 @@ static int filename_trans_read_helper(struct policydb *p, void *fp)
 
 	ndatum = le32_to_cpu(buf[2]);
 	if (ndatum == 0) {
-		pr_err("SELinux:  Filename transition key with no datum\n");
-		rc = -ENOENT;
+		pr_err("SELinux:  Filename transition key with anal datum\n");
+		rc = -EANALENT;
 		goto out;
 	}
 
 	dst = &first;
 	for (i = 0; i < ndatum; i++) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		datum = kmalloc(sizeof(*datum), GFP_KERNEL);
 		if (!datum)
 			goto out;
@@ -2046,7 +2046,7 @@ static int filename_trans_read_helper(struct policydb *p, void *fp)
 		dst = &datum->next;
 	}
 
-	rc = -ENOMEM;
+	rc = -EANALMEM;
 	ft = kmalloc(sizeof(*ft), GFP_KERNEL);
 	if (!ft)
 		goto out;
@@ -2139,7 +2139,7 @@ static int genfs_read(struct policydb *p, void *fp)
 			goto out;
 		len = le32_to_cpu(buf[0]);
 
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		newgenfs = kzalloc(sizeof(*newgenfs), GFP_KERNEL);
 		if (!newgenfs)
 			goto out;
@@ -2178,7 +2178,7 @@ static int genfs_read(struct policydb *p, void *fp)
 				goto out;
 			len = le32_to_cpu(buf[0]);
 
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			newc = kzalloc(sizeof(*newc), GFP_KERNEL);
 			if (!newc)
 				goto out;
@@ -2240,7 +2240,7 @@ static int ocontext_read(struct policydb *p, const struct policydb_compat_info *
 	__be64 prefixbuf[1];
 	__le32 buf[3];
 	struct ocontext *l, *c;
-	u32 nodebuf[8];
+	u32 analdebuf[8];
 
 	for (i = 0; i < info->ocon_num; i++) {
 		rc = next_entry(buf, fp, sizeof(u32));
@@ -2250,7 +2250,7 @@ static int ocontext_read(struct policydb *p, const struct policydb_compat_info *
 
 		l = NULL;
 		for (j = 0; j < nel; j++) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			c = kzalloc(sizeof(*c), GFP_KERNEL);
 			if (!c)
 				goto out;
@@ -2304,12 +2304,12 @@ static int ocontext_read(struct policydb *p, const struct policydb_compat_info *
 				if (rc)
 					goto out;
 				break;
-			case OCON_NODE:
-				rc = next_entry(nodebuf, fp, sizeof(u32) * 2);
+			case OCON_ANALDE:
+				rc = next_entry(analdebuf, fp, sizeof(u32) * 2);
 				if (rc)
 					goto out;
-				c->u.node.addr = nodebuf[0]; /* network order */
-				c->u.node.mask = nodebuf[1]; /* network order */
+				c->u.analde.addr = analdebuf[0]; /* network order */
+				c->u.analde.mask = analdebuf[1]; /* network order */
 				rc = context_read_and_validate(&c->context[0], p, fp);
 				if (rc)
 					goto out;
@@ -2321,7 +2321,7 @@ static int ocontext_read(struct policydb *p, const struct policydb_compat_info *
 
 				rc = -EINVAL;
 				c->v.behavior = le32_to_cpu(buf[0]);
-				/* Determined at runtime, not in policy DB. */
+				/* Determined at runtime, analt in policy DB. */
 				if (c->v.behavior == SECURITY_FS_USE_MNTPOINT)
 					goto out;
 				if (c->v.behavior > SECURITY_FS_USE_MAX)
@@ -2336,16 +2336,16 @@ static int ocontext_read(struct policydb *p, const struct policydb_compat_info *
 				if (rc)
 					goto out;
 				break;
-			case OCON_NODE6: {
+			case OCON_ANALDE6: {
 				int k;
 
-				rc = next_entry(nodebuf, fp, sizeof(u32) * 8);
+				rc = next_entry(analdebuf, fp, sizeof(u32) * 8);
 				if (rc)
 					goto out;
 				for (k = 0; k < 4; k++)
-					c->u.node6.addr[k] = nodebuf[k];
+					c->u.analde6.addr[k] = analdebuf[k];
 				for (k = 0; k < 4; k++)
-					c->u.node6.mask[k] = nodebuf[k+4];
+					c->u.analde6.mask[k] = analdebuf[k+4];
 				rc = context_read_and_validate(&c->context[0], p, fp);
 				if (rc)
 					goto out;
@@ -2444,7 +2444,7 @@ int policydb_read(struct policydb *p, void *fp)
 	rc = -EINVAL;
 	if (le32_to_cpu(buf[0]) != POLICYDB_MAGIC) {
 		pr_err("SELinux:  policydb magic number 0x%x does "
-		       "not match expected magic number 0x%x\n",
+		       "analt match expected magic number 0x%x\n",
 		       le32_to_cpu(buf[0]), POLICYDB_MAGIC);
 		goto bad;
 	}
@@ -2452,13 +2452,13 @@ int policydb_read(struct policydb *p, void *fp)
 	rc = -EINVAL;
 	len = le32_to_cpu(buf[1]);
 	if (len != strlen(POLICYDB_STRING)) {
-		pr_err("SELinux:  policydb string length %d does not "
+		pr_err("SELinux:  policydb string length %d does analt "
 		       "match expected length %zu\n",
 		       len, strlen(POLICYDB_STRING));
 		goto bad;
 	}
 
-	rc = -ENOMEM;
+	rc = -EANALMEM;
 	policydb_str = kmalloc(len + 1, GFP_KERNEL);
 	if (!policydb_str) {
 		pr_err("SELinux:  unable to allocate memory for policydb "
@@ -2476,7 +2476,7 @@ int policydb_read(struct policydb *p, void *fp)
 	rc = -EINVAL;
 	policydb_str[len] = '\0';
 	if (strcmp(policydb_str, POLICYDB_STRING)) {
-		pr_err("SELinux:  policydb string %s does not match "
+		pr_err("SELinux:  policydb string %s does analt match "
 		       "my string %s\n", policydb_str, POLICYDB_STRING);
 		kfree(policydb_str);
 		goto bad;
@@ -2494,7 +2494,7 @@ int policydb_read(struct policydb *p, void *fp)
 	p->policyvers = le32_to_cpu(buf[0]);
 	if (p->policyvers < POLICYDB_VERSION_MIN ||
 	    p->policyvers > POLICYDB_VERSION_MAX) {
-		pr_err("SELinux:  policydb version %d does not match "
+		pr_err("SELinux:  policydb version %d does analt match "
 		       "my version range %d-%d\n",
 		       le32_to_cpu(buf[0]), POLICYDB_VERSION_MIN, POLICYDB_VERSION_MAX);
 		goto bad;
@@ -2506,13 +2506,13 @@ int policydb_read(struct policydb *p, void *fp)
 		rc = -EINVAL;
 		if (p->policyvers < POLICYDB_VERSION_MLS) {
 			pr_err("SELinux: security policydb version %d "
-				"(MLS) not backwards compatible\n",
+				"(MLS) analt backwards compatible\n",
 				p->policyvers);
 			goto bad;
 		}
 	}
-	p->reject_unknown = !!(le32_to_cpu(buf[1]) & REJECT_UNKNOWN);
-	p->allow_unknown = !!(le32_to_cpu(buf[1]) & ALLOW_UNKNOWN);
+	p->reject_unkanalwn = !!(le32_to_cpu(buf[1]) & REJECT_UNKANALWN);
+	p->allow_unkanalwn = !!(le32_to_cpu(buf[1]) & ALLOW_UNKANALWN);
 
 	if (p->policyvers >= POLICYDB_VERSION_POLCAP) {
 		rc = ebitmap_read(&p->policycaps, fp);
@@ -2538,7 +2538,7 @@ int policydb_read(struct policydb *p, void *fp)
 	if (le32_to_cpu(buf[2]) != info->sym_num ||
 		le32_to_cpu(buf[3]) != info->ocon_num) {
 		pr_err("SELinux:  policydb table sizes (%d,%d) do "
-		       "not match mine (%d,%d)\n", le32_to_cpu(buf[2]),
+		       "analt match mine (%d,%d)\n", le32_to_cpu(buf[2]),
 			le32_to_cpu(buf[3]),
 		       info->sym_num, info->ocon_num);
 		goto bad;
@@ -2573,7 +2573,7 @@ int policydb_read(struct policydb *p, void *fp)
 	rc = -EINVAL;
 	p->process_class = string_to_security_class(p, "process");
 	if (!p->process_class) {
-		pr_err("SELinux: process class is required, not defined in policy\n");
+		pr_err("SELinux: process class is required, analt defined in policy\n");
 		goto bad;
 	}
 
@@ -2596,12 +2596,12 @@ int policydb_read(struct policydb *p, void *fp)
 	if (rc)
 		goto bad;
 	for (i = 0; i < nel; i++) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		rtk = kmalloc(sizeof(*rtk), GFP_KERNEL);
 		if (!rtk)
 			goto bad;
 
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		rtd = kmalloc(sizeof(*rtd), GFP_KERNEL);
 		if (!rtd)
 			goto bad;
@@ -2642,7 +2642,7 @@ int policydb_read(struct policydb *p, void *fp)
 	nel = le32_to_cpu(buf[0]);
 	lra = NULL;
 	for (i = 0; i < nel; i++) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		ra = kzalloc(sizeof(*ra), GFP_KERNEL);
 		if (!ra)
 			goto bad;
@@ -2674,13 +2674,13 @@ int policydb_read(struct policydb *p, void *fp)
 	rc = -EINVAL;
 	perm = string_to_av_perm(p, p->process_class, "transition");
 	if (!perm) {
-		pr_err("SELinux: process transition permission is required, not defined in policy\n");
+		pr_err("SELinux: process transition permission is required, analt defined in policy\n");
 		goto bad;
 	}
 	p->process_trans_perms = perm;
 	perm = string_to_av_perm(p, p->process_class, "dyntransition");
 	if (!perm) {
-		pr_err("SELinux: process dyntransition permission is required, not defined in policy\n");
+		pr_err("SELinux: process dyntransition permission is required, analt defined in policy\n");
 		goto bad;
 	}
 	p->process_trans_perms |= perm;
@@ -2697,7 +2697,7 @@ int policydb_read(struct policydb *p, void *fp)
 	if (rc)
 		goto bad;
 
-	rc = -ENOMEM;
+	rc = -EANALMEM;
 	p->type_attr_map_array = kvcalloc(p->p_types.nprim,
 					  sizeof(*p->type_attr_map_array),
 					  GFP_KERNEL);
@@ -3013,16 +3013,16 @@ static int type_set_write(struct type_set *t, void *fp)
 	return 0;
 }
 
-static int write_cons_helper(struct policydb *p, struct constraint_node *node,
+static int write_cons_helper(struct policydb *p, struct constraint_analde *analde,
 			     void *fp)
 {
-	struct constraint_node *c;
+	struct constraint_analde *c;
 	struct constraint_expr *e;
 	__le32 buf[3];
 	u32 nel;
 	int rc;
 
-	for (c = node; c; c = c->next) {
+	for (c = analde; c; c = c->next) {
 		nel = 0;
 		for (e = c->expr; e; e = e->next)
 			nel++;
@@ -3067,7 +3067,7 @@ static int class_write(void *vkey, void *datum, void *ptr)
 	struct policy_data *pd = ptr;
 	void *fp = pd->fp;
 	struct policydb *p = pd->p;
-	struct constraint_node *c;
+	struct constraint_analde *c;
 	__le32 buf[6];
 	u32 ncons;
 	size_t len, len2;
@@ -3285,7 +3285,7 @@ static int ocontext_write(struct policydb *p, const struct policydb_compat_info 
 	size_t nel, len;
 	__be64 prefixbuf[1];
 	__le32 buf[3];
-	u32 nodebuf[8];
+	u32 analdebuf[8];
 	struct ocontext *c;
 	for (i = 0; i < info->ocon_num; i++) {
 		nel = 0;
@@ -3334,10 +3334,10 @@ static int ocontext_write(struct policydb *p, const struct policydb_compat_info 
 				if (rc)
 					return rc;
 				break;
-			case OCON_NODE:
-				nodebuf[0] = c->u.node.addr; /* network order */
-				nodebuf[1] = c->u.node.mask; /* network order */
-				rc = put_entry(nodebuf, sizeof(u32), 2, fp);
+			case OCON_ANALDE:
+				analdebuf[0] = c->u.analde.addr; /* network order */
+				analdebuf[1] = c->u.analde.mask; /* network order */
+				rc = put_entry(analdebuf, sizeof(u32), 2, fp);
 				if (rc)
 					return rc;
 				rc = context_write(p, &c->context[0], fp);
@@ -3358,12 +3358,12 @@ static int ocontext_write(struct policydb *p, const struct policydb_compat_info 
 				if (rc)
 					return rc;
 				break;
-			case OCON_NODE6:
+			case OCON_ANALDE6:
 				for (j = 0; j < 4; j++)
-					nodebuf[j] = c->u.node6.addr[j]; /* network order */
+					analdebuf[j] = c->u.analde6.addr[j]; /* network order */
 				for (j = 0; j < 4; j++)
-					nodebuf[j + 4] = c->u.node6.mask[j]; /* network order */
-				rc = put_entry(nodebuf, sizeof(u32), 8, fp);
+					analdebuf[j + 4] = c->u.analde6.mask[j]; /* network order */
+				rc = put_entry(analdebuf, sizeof(u32), 8, fp);
 				if (rc)
 					return rc;
 				rc = context_write(p, &c->context[0], fp);
@@ -3514,14 +3514,14 @@ static int filename_write_helper_compat(void *key, void *data, void *ptr)
 {
 	struct filename_trans_key *ft = key;
 	struct filename_trans_datum *datum = data;
-	struct ebitmap_node *node;
+	struct ebitmap_analde *analde;
 	void *fp = ptr;
 	__le32 buf[4];
 	int rc;
 	u32 bit, len = strlen(ft->name);
 
 	do {
-		ebitmap_for_each_positive_bit(&datum->stypes, node, bit) {
+		ebitmap_for_each_positive_bit(&datum->stypes, analde, bit) {
 			buf[0] = cpu_to_le32(len);
 			rc = put_entry(buf, sizeof(u32), 1, fp);
 			if (rc)
@@ -3654,10 +3654,10 @@ int policydb_write(struct policydb *p, void *fp)
 	if (p->mls_enabled)
 		config |= POLICYDB_CONFIG_MLS;
 
-	if (p->reject_unknown)
-		config |= REJECT_UNKNOWN;
-	if (p->allow_unknown)
-		config |= ALLOW_UNKNOWN;
+	if (p->reject_unkanalwn)
+		config |= REJECT_UNKANALWN;
+	if (p->allow_unkanalwn)
+		config |= ALLOW_UNKANALWN;
 
 	/* Write the magic number and string identifiers. */
 	buf[0] = cpu_to_le32(POLICYDB_MAGIC);

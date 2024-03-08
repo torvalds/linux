@@ -16,7 +16,7 @@ enum bug_trap_type handle_cfi_failure(struct pt_regs *regs);
 #else
 static inline enum bug_trap_type handle_cfi_failure(struct pt_regs *regs)
 {
-	return BUG_TRAP_TYPE_NONE;
+	return BUG_TRAP_TYPE_ANALNE;
 }
 #endif /* CONFIG_CFI_CLANG */
 

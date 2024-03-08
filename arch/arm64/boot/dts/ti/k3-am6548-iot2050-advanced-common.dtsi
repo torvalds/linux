@@ -48,7 +48,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_mmc0_pins_default>;
 	bus-width = <8>;
-	non-removable;
+	analn-removable;
 	ti,driver-strength-ohm = <50>;
 	disable-wp;
 };

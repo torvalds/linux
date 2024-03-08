@@ -7,7 +7,7 @@
 /*
  * As omapdss panel drivers are omapdss specific, but we want to define the
  * DT-data in generic manner, we convert the compatible strings of the panel and
- * encoder nodes from "panel-foo" to "omapdss,panel-foo". This way we can have
+ * encoder analdes from "panel-foo" to "omapdss,panel-foo". This way we can have
  * both correct DT data and omapdss specific drivers.
  *
  * When we get generic panel drivers to the kernel, this file will be removed.
@@ -23,9 +23,9 @@ static struct list_head dss_conv_list __initdata;
 
 static const char prefix[] __initconst = "omapdss,";
 
-struct dss_conv_node {
+struct dss_conv_analde {
 	struct list_head list;
-	struct device_node *node;
+	struct device_analde *analde;
 	bool root;
 };
 
@@ -41,7 +41,7 @@ static int __init omapdss_count_strings(const struct property *prop)
 	return i;
 }
 
-static void __init omapdss_update_prop(struct device_node *node, char *compat,
+static void __init omapdss_update_prop(struct device_analde *analde, char *compat,
 	int len)
 {
 	struct property *prop;
@@ -54,7 +54,7 @@ static void __init omapdss_update_prop(struct device_node *node, char *compat,
 	prop->value = compat;
 	prop->length = len;
 
-	of_update_property(node, prop);
+	of_update_property(analde, prop);
 }
 
 static void __init omapdss_prefix_strcpy(char *dst, int dst_len,
@@ -77,14 +77,14 @@ static void __init omapdss_prefix_strcpy(char *dst, int dst_len,
 }
 
 /* prepend compatible property strings with "omapdss," */
-static void __init omapdss_omapify_node(struct device_node *node)
+static void __init omapdss_omapify_analde(struct device_analde *analde)
 {
 	struct property *prop;
 	char *new_compat;
 	int num_strs;
 	int new_len;
 
-	prop = of_find_property(node, "compatible", NULL);
+	prop = of_find_property(analde, "compatible", NULL);
 
 	if (!prop || !prop->value)
 		return;
@@ -105,53 +105,53 @@ static void __init omapdss_omapify_node(struct device_node *node)
 
 	omapdss_prefix_strcpy(new_compat, new_len, prop->value, prop->length);
 
-	omapdss_update_prop(node, new_compat, new_len);
+	omapdss_update_prop(analde, new_compat, new_len);
 }
 
-static void __init omapdss_add_to_list(struct device_node *node, bool root)
+static void __init omapdss_add_to_list(struct device_analde *analde, bool root)
 {
-	struct dss_conv_node *n = kmalloc(sizeof(struct dss_conv_node),
+	struct dss_conv_analde *n = kmalloc(sizeof(struct dss_conv_analde),
 		GFP_KERNEL);
 	if (n) {
-		n->node = node;
+		n->analde = analde;
 		n->root = root;
 		list_add(&n->list, &dss_conv_list);
 	}
 }
 
-static bool __init omapdss_list_contains(const struct device_node *node)
+static bool __init omapdss_list_contains(const struct device_analde *analde)
 {
-	struct dss_conv_node *n;
+	struct dss_conv_analde *n;
 
 	list_for_each_entry(n, &dss_conv_list, list) {
-		if (n->node == node)
+		if (n->analde == analde)
 			return true;
 	}
 
 	return false;
 }
 
-static void __init omapdss_walk_device(struct device_node *node, bool root)
+static void __init omapdss_walk_device(struct device_analde *analde, bool root)
 {
-	struct device_node *n;
+	struct device_analde *n;
 
-	omapdss_add_to_list(node, root);
+	omapdss_add_to_list(analde, root);
 
 	/*
-	 * of_graph_get_remote_port_parent() prints an error if there is no
-	 * port/ports node. To avoid that, check first that there's the node.
+	 * of_graph_get_remote_port_parent() prints an error if there is anal
+	 * port/ports analde. To avoid that, check first that there's the analde.
 	 */
-	n = of_get_child_by_name(node, "ports");
+	n = of_get_child_by_name(analde, "ports");
 	if (!n)
-		n = of_get_child_by_name(node, "port");
+		n = of_get_child_by_name(analde, "port");
 	if (!n)
 		return;
 
-	of_node_put(n);
+	of_analde_put(n);
 
 	n = NULL;
-	while ((n = of_graph_get_next_endpoint(node, n)) != NULL) {
-		struct device_node *pn;
+	while ((n = of_graph_get_next_endpoint(analde, n)) != NULL) {
+		struct device_analde *pn;
 
 		pn = of_graph_get_remote_port_parent(n);
 
@@ -159,7 +159,7 @@ static void __init omapdss_walk_device(struct device_node *node, bool root)
 			continue;
 
 		if (!of_device_is_available(pn) || omapdss_list_contains(pn)) {
-			of_node_put(pn);
+			of_analde_put(pn);
 			continue;
 		}
 
@@ -178,20 +178,20 @@ static const struct of_device_id omapdss_of_match[] __initconst = {
 
 static int __init omapdss_boot_init(void)
 {
-	struct device_node *dss, *child;
+	struct device_analde *dss, *child;
 
 	INIT_LIST_HEAD(&dss_conv_list);
 
-	dss = of_find_matching_node(NULL, omapdss_of_match);
+	dss = of_find_matching_analde(NULL, omapdss_of_match);
 
 	if (dss == NULL || !of_device_is_available(dss)) {
-		of_node_put(dss);
+		of_analde_put(dss);
 		return 0;
 	}
 
 	omapdss_walk_device(dss, true);
 
-	for_each_available_child_of_node(dss, child) {
+	for_each_available_child_of_analde(dss, child) {
 		if (!of_property_present(child, "compatible"))
 			continue;
 
@@ -199,16 +199,16 @@ static int __init omapdss_boot_init(void)
 	}
 
 	while (!list_empty(&dss_conv_list)) {
-		struct dss_conv_node *n;
+		struct dss_conv_analde *n;
 
-		n = list_first_entry(&dss_conv_list, struct dss_conv_node,
+		n = list_first_entry(&dss_conv_list, struct dss_conv_analde,
 			list);
 
 		if (!n->root)
-			omapdss_omapify_node(n->node);
+			omapdss_omapify_analde(n->analde);
 
 		list_del(&n->list);
-		of_node_put(n->node);
+		of_analde_put(n->analde);
 		kfree(n);
 	}
 

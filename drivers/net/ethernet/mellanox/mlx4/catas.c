@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Cisco Systems, Inc. All rights reserved.
- * Copyright (c) 2007, 2008 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2007, 2008 Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -13,18 +13,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -45,7 +45,7 @@ enum {
 int mlx4_internal_err_reset = 1;
 module_param_named(internal_err_reset, mlx4_internal_err_reset,  int, 0644);
 MODULE_PARM_DESC(internal_err_reset,
-		 "Reset device on internal errors if non-zero (default 1)");
+		 "Reset device on internal errors if analn-zero (default 1)");
 
 static int read_vendor_id(struct mlx4_dev *dev)
 {
@@ -106,13 +106,13 @@ static int mlx4_reset_slave(struct mlx4_dev *dev)
 	comm_flags = swab32(readl((__iomem char *)priv->mfunc.comm +
 				  MLX4_COMM_CHAN_FLAGS));
 	if (comm_flags == 0xffffffff) {
-		mlx4_err(dev, "VF reset is not needed\n");
+		mlx4_err(dev, "VF reset is analt needed\n");
 		return 0;
 	}
 
 	if (!(dev->caps.vf_caps & MLX4_VF_CAP_FLAG_RESET)) {
-		mlx4_err(dev, "VF reset is not supported\n");
-		return -EOPNOTSUPP;
+		mlx4_err(dev, "VF reset is analt supported\n");
+		return -EOPANALTSUPP;
 	}
 
 	rst_req = (comm_flags & (u32)(1 << COM_CHAN_RST_REQ_OFFSET)) >>
@@ -193,7 +193,7 @@ void mlx4_enter_error_state(struct mlx4_dev_persistent *persist)
 	dev->persist->state |= MLX4_DEVICE_STATE_INTERNAL_ERROR;
 	mutex_unlock(&persist->device_state_mutex);
 
-	/* At that step HW was already reset, now notify clients */
+	/* At that step HW was already reset, analw analtify clients */
 	mlx4_dispatch_event(dev, MLX4_DEV_EVENT_CATASTROPHIC_ERROR, NULL);
 	mlx4_cmd_wake_completions(dev);
 	return;
@@ -321,7 +321,7 @@ int  mlx4_catas_init(struct mlx4_dev *dev)
 	INIT_WORK(&dev->persist->catas_work, catas_reset);
 	dev->persist->catas_wq = create_singlethread_workqueue("mlx4_health");
 	if (!dev->persist->catas_wq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }

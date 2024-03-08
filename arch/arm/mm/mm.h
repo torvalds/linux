@@ -14,7 +14,7 @@ extern int icache_size;
  * specific hacks for copying pages efficiently, while 0xffff4000
  * is reserved for VIPT aliasing flushing by generic code.
  *
- * Note that we don't allow VIPT aliasing caches with SMP.
+ * Analte that we don't allow VIPT aliasing caches with SMP.
  */
 #define COPYPAGE_MINICACHE	0xffff8000
 #define COPYPAGE_V6_FROM	0xffff8000

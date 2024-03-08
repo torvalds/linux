@@ -10,7 +10,7 @@
 #include "vivid-kthread-touch.h"
 #include "vivid-touch-cap.h"
 
-static noinline_for_stack void vivid_thread_tch_cap_tick(struct vivid_dev *dev,
+static analinline_for_stack void vivid_thread_tch_cap_tick(struct vivid_dev *dev,
 							 int dropped_bufs)
 {
 	struct vivid_buffer *tch_cap_buf = NULL;
@@ -51,7 +51,7 @@ static int vivid_thread_touch_cap(void *data)
 	unsigned long cur_jiffies;
 	unsigned int wait_jiffies;
 	unsigned int numerator;
-	unsigned int denominator;
+	unsigned int deanalminator;
 	int dropped_bufs;
 
 	dprintk(dev, 1, "Touch Capture Thread Start\n");
@@ -84,13 +84,13 @@ static int vivid_thread_touch_cap(void *data)
 			dev->touch_cap_seq_count = 0;
 			dev->cap_seq_resync = false;
 		}
-		denominator = dev->timeperframe_tch_cap.denominator;
+		deanalminator = dev->timeperframe_tch_cap.deanalminator;
 		numerator = dev->timeperframe_tch_cap.numerator;
 
 		/* Calculate the number of jiffies since we started streaming */
 		jiffies_since_start = cur_jiffies - dev->jiffies_touch_cap;
 		/* Get the number of buffers streamed since the start */
-		buffers_since_start = (u64)jiffies_since_start * denominator +
+		buffers_since_start = (u64)jiffies_since_start * deanalminator +
 				      (HZ * numerator) / 2;
 		do_div(buffers_since_start, HZ * numerator);
 
@@ -128,8 +128,8 @@ static int vivid_thread_touch_cap(void *data)
 		 * in jiffies since we started streaming.
 		 */
 		next_jiffies_since_start = numerators_since_start * HZ +
-					   denominator / 2;
-		do_div(next_jiffies_since_start, denominator);
+					   deanalminator / 2;
+		do_div(next_jiffies_since_start, deanalminator);
 		/* If it is in the past, then just schedule asap */
 		if (next_jiffies_since_start < jiffies_since_start)
 			next_jiffies_since_start = jiffies_since_start;

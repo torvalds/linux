@@ -12,10 +12,10 @@
  * @hw: pointer to the HW structure
  *
  * Returns 0 (0) if successful, else returns -10
- * (-IGC_ERR_MASTER_REQUESTS_PENDING) if master disable bit has not caused
+ * (-IGC_ERR_MASTER_REQUESTS_PENDING) if master disable bit has analt caused
  * the master requests to be disabled.
  *
- * Disables PCI-Express master access and verifies there are no pending
+ * Disables PCI-Express master access and verifies there are anal pending
  * requests.
  */
 s32 igc_disable_pcie_master(struct igc_hw *hw)
@@ -83,10 +83,10 @@ static s32 igc_set_fc_watermarks(struct igc_hw *hw)
 {
 	u32 fcrtl = 0, fcrth = 0;
 
-	/* Set the flow control receive threshold registers.  Normally,
+	/* Set the flow control receive threshold registers.  Analrmally,
 	 * these registers will be set to a default threshold that may be
 	 * adjusted later by the driver's runtime code.  However, if the
-	 * ability to transmit pause frames is not enabled, then these
+	 * ability to transmit pause frames is analt enabled, then these
 	 * registers will be set to 0.
 	 */
 	if (hw->fc.current_mode & igc_fc_tx_pause) {
@@ -114,14 +114,14 @@ static s32 igc_set_fc_watermarks(struct igc_hw *hw)
  * control.  Calls the appropriate media-specific link configuration
  * function.  Assuming the adapter has a valid link partner, a valid link
  * should be established.  Assumes the hardware has previously been reset
- * and the transmitter and receiver are not enabled.
+ * and the transmitter and receiver are analt enabled.
  */
 s32 igc_setup_link(struct igc_hw *hw)
 {
 	s32 ret_val = 0;
 
 	/* In the case of the phy reset being blocked, we already have a link.
-	 * We do not need to set it up again.
+	 * We do analt need to set it up again.
 	 */
 	if (igc_check_reset_block(hw))
 		goto out;
@@ -138,7 +138,7 @@ s32 igc_setup_link(struct igc_hw *hw)
 	 */
 	hw->fc.current_mode = hw->fc.requested_mode;
 
-	hw_dbg("After fix-ups FlowControl is now = %x\n", hw->fc.current_mode);
+	hw_dbg("After fix-ups FlowControl is analw = %x\n", hw->fc.current_mode);
 
 	/* Call the necessary media_type subroutine to configure the link. */
 	ret_val = hw->mac.ops.setup_physical_interface(hw);
@@ -147,7 +147,7 @@ s32 igc_setup_link(struct igc_hw *hw)
 
 	/* Initialize the flow control address, type, and PAUSE timer
 	 * registers to their default values.  This is done even if flow
-	 * control is disabled, because it does not hurt anything to
+	 * control is disabled, because it does analt hurt anything to
 	 * initialize these registers.
 	 */
 	hw_dbg("Initializing the Flow Control address, type and timer regs\n");
@@ -191,16 +191,16 @@ s32 igc_force_mac_fc(struct igc_hw *hw)
 	 * The possible values of the "fc" parameter are:
 	 *      0:  Flow control is completely disabled
 	 *      1:  Rx flow control is enabled (we can receive pause
-	 *          frames but not send pause frames).
+	 *          frames but analt send pause frames).
 	 *      2:  Tx flow control is enabled (we can send pause frames
-	 *          but we do not receive pause frames).
+	 *          but we do analt receive pause frames).
 	 *      3:  Both Rx and TX flow control (symmetric) is enabled.
-	 *  other:  No other values should be possible at this point.
+	 *  other:  Anal other values should be possible at this point.
 	 */
 	hw_dbg("hw->fc.current_mode = %u\n", hw->fc.current_mode);
 
 	switch (hw->fc.current_mode) {
-	case igc_fc_none:
+	case igc_fc_analne:
 		ctrl &= (~(IGC_CTRL_TFCE | IGC_CTRL_RFCE));
 		break;
 	case igc_fc_rx_pause:
@@ -330,7 +330,7 @@ void igc_rar_set(struct igc_hw *hw, u8 *addr, u32 index)
 
 	rar_high = ((u32)addr[4] | ((u32)addr[5] << 8));
 
-	/* If MAC address zero, no need to set the AV bit */
+	/* If MAC address zero, anal need to set the AV bit */
 	if (rar_low || rar_high)
 		rar_high |= IGC_RAH_AV;
 
@@ -377,7 +377,7 @@ s32 igc_check_for_copper_link(struct igc_hw *hw)
 		goto out;
 
 	if (!link)
-		goto out; /* No link detected */
+		goto out; /* Anal link detected */
 
 	mac->get_link_status = false;
 
@@ -387,7 +387,7 @@ s32 igc_check_for_copper_link(struct igc_hw *hw)
 	igc_check_downshift(hw);
 
 	/* If we are forcing speed/duplex, then we simply return since
-	 * we have already determined whether we have link or not.
+	 * we have already determined whether we have link or analt.
 	 */
 	if (!mac->autoneg) {
 		ret_val = -IGC_ERR_CONFIG;
@@ -400,7 +400,7 @@ s32 igc_check_for_copper_link(struct igc_hw *hw)
 	 */
 	igc_config_collision_dist(hw);
 
-	/* Configure Flow Control now that Auto-Neg has completed.
+	/* Configure Flow Control analw that Auto-Neg has completed.
 	 * First, we need to restore the desired flow control
 	 * settings because we may have had to re-autoneg with a
 	 * different link partner.
@@ -410,7 +410,7 @@ s32 igc_check_for_copper_link(struct igc_hw *hw)
 		hw_dbg("Error configuring flow control\n");
 
 out:
-	/* Now that we are aware of our link settings, we can set the LTR
+	/* Analw that we are aware of our link settings, we can set the LTR
 	 * thresholds.
 	 */
 	ret_val = igc_set_ltr_i225(hw, link);
@@ -423,7 +423,7 @@ out:
  * @hw: pointer to the HW structure
  *
  * Configures the collision distance to the default value and is used
- * during link setup. Currently no func pointer exists and all
+ * during link setup. Currently anal func pointer exists and all
  * implementations are handled in the generic version of this function.
  */
 void igc_config_collision_dist(struct igc_hw *hw)
@@ -444,9 +444,9 @@ void igc_config_collision_dist(struct igc_hw *hw)
  * @hw: pointer to the HW structure
  *
  * Checks the status of auto-negotiation after link up to ensure that the
- * speed and duplex were not forced.  If the link needed to be forced, then
+ * speed and duplex were analt forced.  If the link needed to be forced, then
  * flow control needs to be forced also.  If auto-negotiation is enabled
- * and did not fail, then we configure flow control based on our link
+ * and did analt fail, then we configure flow control based on our link
  * partner.
  */
 s32 igc_config_fc_after_link_up(struct igc_hw *hw)
@@ -488,11 +488,11 @@ s32 igc_config_fc_after_link_up(struct igc_hw *hw)
 			goto out;
 
 		if (!(mii_status_reg & MII_SR_AUTONEG_COMPLETE)) {
-			hw_dbg("Copper PHY and Auto Neg has not completed.\n");
+			hw_dbg("Copper PHY and Auto Neg has analt completed.\n");
 			goto out;
 		}
 
-		/* The AutoNeg process has completed, so we now need to
+		/* The AutoNeg process has completed, so we analw need to
 		 * read both the Auto Negotiation Advertisement
 		 * Register (Address 4) and the Auto_Negotiation Base
 		 * Page Ability Register (Address 5) to determine how
@@ -513,18 +513,18 @@ s32 igc_config_fc_after_link_up(struct igc_hw *hw)
 		 * table, taken out of the IEEE 802.3ab/D6.0 dated March 25,
 		 * 1999, describes these PAUSE resolution bits and how flow
 		 * control is determined based upon these settings.
-		 * NOTE:  DC = Don't Care
+		 * ANALTE:  DC = Don't Care
 		 *
 		 *   LOCAL DEVICE  |   LINK PARTNER
 		 * PAUSE | ASM_DIR | PAUSE | ASM_DIR | NIC Resolution
 		 *-------|---------|-------|---------|--------------------
-		 *   0   |    0    |  DC   |   DC    | igc_fc_none
-		 *   0   |    1    |   0   |   DC    | igc_fc_none
-		 *   0   |    1    |   1   |    0    | igc_fc_none
+		 *   0   |    0    |  DC   |   DC    | igc_fc_analne
+		 *   0   |    1    |   0   |   DC    | igc_fc_analne
+		 *   0   |    1    |   1   |    0    | igc_fc_analne
 		 *   0   |    1    |   1   |    1    | igc_fc_tx_pause
-		 *   1   |    0    |   0   |   DC    | igc_fc_none
+		 *   1   |    0    |   0   |   DC    | igc_fc_analne
 		 *   1   |   DC    |   1   |   DC    | igc_fc_full
-		 *   1   |    1    |   0   |    0    | igc_fc_none
+		 *   1   |    1    |   0   |    0    | igc_fc_analne
 		 *   1   |    1    |   0   |    1    | igc_fc_rx_pause
 		 *
 		 * Are both PAUSE bits set to 1?  If so, this implies
@@ -541,10 +541,10 @@ s32 igc_config_fc_after_link_up(struct igc_hw *hw)
 		 */
 		if ((mii_nway_adv_reg & NWAY_AR_PAUSE) &&
 		    (mii_nway_lp_ability_reg & NWAY_LPAR_PAUSE)) {
-			/* Now we need to check if the user selected RX ONLY
+			/* Analw we need to check if the user selected RX ONLY
 			 * of pause frames.  In this case, we had to advertise
-			 * FULL flow control because we could not advertise RX
-			 * ONLY. Hence, we must now check to see if we need to
+			 * FULL flow control because we could analt advertise RX
+			 * ONLY. Hence, we must analw check to see if we need to
 			 * turn OFF  the TRANSMISSION of PAUSE frames.
 			 */
 			if (hw->fc.requested_mode == igc_fc_full) {
@@ -588,34 +588,34 @@ s32 igc_config_fc_after_link_up(struct igc_hw *hw)
 		 * disabled.  However, we want to consider that we could
 		 * be connected to a legacy switch that doesn't advertise
 		 * desired flow control, but can be forced on the link
-		 * partner.  So if we advertised no flow control, that is
+		 * partner.  So if we advertised anal flow control, that is
 		 * what we will resolve to.  If we advertised some kind of
 		 * receive capability (Rx Pause Only or Full Flow Control)
-		 * and the link partner advertised none, we will configure
+		 * and the link partner advertised analne, we will configure
 		 * ourselves to enable Rx Flow Control only.  We can do
 		 * this safely for two reasons:  If the link partner really
-		 * didn't want flow control enabled, and we enable Rx, no
+		 * didn't want flow control enabled, and we enable Rx, anal
 		 * harm done since we won't be receiving any PAUSE frames
 		 * anyway.  If the intent on the link partner was to have
 		 * flow control enabled, then by us enabling RX only, we
 		 * can at least receive pause frames and process them.
 		 * This is a good idea because in most cases, since we are
-		 * predominantly a server NIC, more times than not we will
+		 * predominantly a server NIC, more times than analt we will
 		 * be asked to delay transmission of packets than asking
 		 * our link partner to pause transmission of frames.
 		 */
-		else if ((hw->fc.requested_mode == igc_fc_none) ||
+		else if ((hw->fc.requested_mode == igc_fc_analne) ||
 			 (hw->fc.requested_mode == igc_fc_tx_pause) ||
 			 (hw->fc.strict_ieee)) {
-			hw->fc.current_mode = igc_fc_none;
-			hw_dbg("Flow Control = NONE.\n");
+			hw->fc.current_mode = igc_fc_analne;
+			hw_dbg("Flow Control = ANALNE.\n");
 		} else {
 			hw->fc.current_mode = igc_fc_rx_pause;
 			hw_dbg("Flow Control = RX PAUSE frames only.\n");
 		}
 
-		/* Now we need to do one last check...  If we auto-
-		 * negotiated to HALF DUPLEX, flow control should not be
+		/* Analw we need to do one last check...  If we auto-
+		 * negotiated to HALF DUPLEX, flow control should analt be
 		 * enabled per IEEE 802.3 spec.
 		 */
 		ret_val = hw->mac.ops.get_speed_and_duplex(hw, &speed, &duplex);
@@ -625,9 +625,9 @@ s32 igc_config_fc_after_link_up(struct igc_hw *hw)
 		}
 
 		if (duplex == HALF_DUPLEX)
-			hw->fc.current_mode = igc_fc_none;
+			hw->fc.current_mode = igc_fc_analne;
 
-		/* Now we call a subroutine to actually force the MAC
+		/* Analw we call a subroutine to actually force the MAC
 		 * controller to use the correct flow control settings.
 		 */
 		ret_val = igc_force_mac_fc(hw);
@@ -660,7 +660,7 @@ s32 igc_get_auto_rd_done(struct igc_hw *hw)
 	}
 
 	if (i == AUTO_READ_DONE_TIMEOUT) {
-		hw_dbg("Auto read by HW from NVM has not completed.\n");
+		hw_dbg("Auto read by HW from NVM has analt completed.\n");
 		ret_val = -IGC_ERR_RESET;
 		goto out;
 	}

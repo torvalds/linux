@@ -10,7 +10,7 @@
  *      Darren Hart <dvhart@linux.intel.com>
  *
  * HISTORY
- *      2009-Nov-6: Initial version by Darren Hart <dvhart@linux.intel.com>
+ *      2009-Analv-6: Initial version by Darren Hart <dvhart@linux.intel.com>
  *
  *****************************************************************************/
 
@@ -25,7 +25,7 @@
 
 /*
  * Define PASS, ERROR, and FAIL strings with and without color escape
- * sequences, default to no color.
+ * sequences, default to anal color.
  */
 #define ESC 0x1B, '['
 #define BRIGHT '1'
@@ -43,14 +43,14 @@ static const char ERROR_COLOR[] = {BRIGHT_YELLOW, 'E', 'R', 'R', 'O', 'R',
 				   RESET_COLOR, 0};
 static const char FAIL_COLOR[] = {BRIGHT_RED, ' ', 'F', 'A', 'I', 'L',
 				  RESET_COLOR, 0};
-static const char INFO_NORMAL[] = " INFO";
-static const char PASS_NORMAL[] = " PASS";
-static const char ERROR_NORMAL[] = "ERROR";
-static const char FAIL_NORMAL[] = " FAIL";
-const char *INFO = INFO_NORMAL;
-const char *PASS = PASS_NORMAL;
-const char *ERROR = ERROR_NORMAL;
-const char *FAIL = FAIL_NORMAL;
+static const char INFO_ANALRMAL[] = " INFO";
+static const char PASS_ANALRMAL[] = " PASS";
+static const char ERROR_ANALRMAL[] = "ERROR";
+static const char FAIL_ANALRMAL[] = " FAIL";
+const char *INFO = INFO_ANALRMAL;
+const char *PASS = PASS_ANALRMAL;
+const char *ERROR = ERROR_ANALRMAL;
+const char *FAIL = FAIL_ANALRMAL;
 
 /* Verbosity setting for INFO messages */
 #define VQUIET    0
@@ -66,7 +66,7 @@ int _verbose = VCRITICAL;
 
 /**
  * log_color() - Use colored output for PASS, ERROR, and FAIL strings
- * @use_color:	use color (1) or not (0)
+ * @use_color:	use color (1) or analt (0)
  */
 void log_color(int use_color)
 {
@@ -75,15 +75,15 @@ void log_color(int use_color)
 		ERROR = ERROR_COLOR;
 		FAIL = FAIL_COLOR;
 	} else {
-		PASS = PASS_NORMAL;
-		ERROR = ERROR_NORMAL;
-		FAIL = FAIL_NORMAL;
+		PASS = PASS_ANALRMAL;
+		ERROR = ERROR_ANALRMAL;
+		FAIL = FAIL_ANALRMAL;
 	}
 }
 
 /**
  * log_verbosity() - Set verbosity of test output
- * @verbose:	Enable (1) verbose output or not (0)
+ * @verbose:	Enable (1) verbose output or analt (0)
  *
  * Currently setting verbose=1 will enable INFO messages and 0 will disable
  * them. FAIL and ERROR messages are always displayed.

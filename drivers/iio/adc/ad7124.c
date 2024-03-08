@@ -490,7 +490,7 @@ static int ad7124_prepare_read(struct ad7124_state *st, int address)
 	 * Check if channel's config is on the device
 	 */
 	if (!cfg->live) {
-		/* check if config matches another one */
+		/* check if config matches aanalther one */
 		live_cfg = ad7124_find_similar_live_cfg(st, cfg);
 		if (!live_cfg)
 			ad7124_push_config(st, cfg);
@@ -795,50 +795,50 @@ static int ad7124_check_chip_id(struct ad7124_state *st)
 		dev_err(&st->sd.spi->dev,
 			"Chip ID mismatch: expected %u, got %u\n",
 			st->chip_info->chip_id, chip_id);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (silicon_rev == 0) {
 		dev_err(&st->sd.spi->dev,
-			"Silicon revision empty. Chip may not be present\n");
-		return -ENODEV;
+			"Silicon revision empty. Chip may analt be present\n");
+		return -EANALDEV;
 	}
 
 	return 0;
 }
 
 static int ad7124_of_parse_channel_config(struct iio_dev *indio_dev,
-					  struct device_node *np)
+					  struct device_analde *np)
 {
 	struct ad7124_state *st = iio_priv(indio_dev);
 	struct ad7124_channel_config *cfg;
 	struct ad7124_channel *channels;
-	struct device_node *child;
+	struct device_analde *child;
 	struct iio_chan_spec *chan;
 	unsigned int ain[2], channel = 0, tmp;
 	int ret;
 
 	st->num_channels = of_get_available_child_count(np);
 	if (!st->num_channels) {
-		dev_err(indio_dev->dev.parent, "no channel children\n");
-		return -ENODEV;
+		dev_err(indio_dev->dev.parent, "anal channel children\n");
+		return -EANALDEV;
 	}
 
 	chan = devm_kcalloc(indio_dev->dev.parent, st->num_channels,
 			    sizeof(*chan), GFP_KERNEL);
 	if (!chan)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	channels = devm_kcalloc(indio_dev->dev.parent, st->num_channels, sizeof(*channels),
 				GFP_KERNEL);
 	if (!channels)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	indio_dev->channels = chan;
 	indio_dev->num_channels = st->num_channels;
 	st->channels = channels;
 
-	for_each_available_child_of_node(np, child) {
+	for_each_available_child_of_analde(np, child) {
 		cfg = &st->channels[channel].cfg;
 
 		ret = of_property_read_u32(child, "reg", &channel);
@@ -881,7 +881,7 @@ static int ad7124_of_parse_channel_config(struct iio_dev *indio_dev,
 
 	return 0;
 err:
-	of_node_put(child);
+	of_analde_put(child);
 
 	return ret;
 }
@@ -947,11 +947,11 @@ static int ad7124_probe(struct spi_device *spi)
 	if (!info)
 		info = (void *)spi_get_device_id(spi)->driver_data;
 	if (!info)
-		return -ENODEV;
+		return -EANALDEV;
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st = iio_priv(indio_dev);
 
@@ -965,7 +965,7 @@ static int ad7124_probe(struct spi_device *spi)
 	if (ret < 0)
 		return ret;
 
-	ret = ad7124_of_parse_channel_config(indio_dev, spi->dev.of_node);
+	ret = ad7124_of_parse_channel_config(indio_dev, spi->dev.of_analde);
 	if (ret < 0)
 		return ret;
 
@@ -975,7 +975,7 @@ static int ad7124_probe(struct spi_device *spi)
 
 		st->vref[i] = devm_regulator_get_optional(&spi->dev,
 						ad7124_ref_names[i]);
-		if (PTR_ERR(st->vref[i]) == -ENODEV)
+		if (PTR_ERR(st->vref[i]) == -EANALDEV)
 			continue;
 		else if (IS_ERR(st->vref[i]))
 			return PTR_ERR(st->vref[i]);

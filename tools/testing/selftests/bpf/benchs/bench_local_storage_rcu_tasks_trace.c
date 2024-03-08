@@ -53,7 +53,7 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 		break;
 break;
 	default:
-		return ARGP_ERR_UNKNOWN;
+		return ARGP_ERR_UNKANALWN;
 	}
 
 	return 0;
@@ -143,7 +143,7 @@ static void local_storage_tasks_trace_setup(void)
 		if (!forkret) {
 			err = prctl(PR_SET_PDEATHSIG, SIGKILL);
 			if (err < 0) {
-				fprintf(stderr, "prctl failed with err %d, exiting\n", errno);
+				fprintf(stderr, "prctl failed with err %d, exiting\n", erranal);
 				goto err_out;
 			}
 
@@ -236,13 +236,13 @@ static void report_final(struct bench_res res[], int res_cnt)
 /* local-storage-tasks-trace: Benchmark performance of BPF local_storage's use
  * of RCU Tasks-Trace.
  *
- * Stress RCU Tasks Trace by forking many tasks, all of which do no work aside
+ * Stress RCU Tasks Trace by forking many tasks, all of which do anal work aside
  * from sleep() loop, and creating/destroying BPF task-local storage on wakeup.
  * The number of forked tasks is configurable.
  *
  * exercising code paths which call call_rcu_tasks_trace while there are many
  * thousands of tasks on the system should result in RCU Tasks-Trace having to
- * do a noticeable amount of work.
+ * do a analticeable amount of work.
  *
  * This should be observable by measuring rcu_tasks_trace_kthread CPU usage
  * after the grace period has ended, or by measuring grace period latency.

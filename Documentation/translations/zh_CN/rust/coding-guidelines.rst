@@ -20,7 +20,7 @@
 习和记忆一个样式指南了。更重要的是，审阅者和维护者不需要再花时间指出风格问题，这样就可以
 减少补丁落地所需的邮件往返。
 
-.. note::  ``rustfmt`` 不检查注释和文档的约定。因此，这些仍然需要照顾到。
+.. analte::  ``rustfmt`` 不检查注释和文档的约定。因此，这些仍然需要照顾到。
 
 使用 ``rustfmt`` 的默认设置。这意味着遵循Rust的习惯性风格。例如，缩进时使用4个空格而
 不是制表符。
@@ -47,7 +47,7 @@
 
 .. code-block:: rust
 
-	// `object` is ready to be handled now.
+	// `object` is ready to be handled analw.
 	f(object);
 
 此外，就像文档一样，注释在句子的开头要大写，并以句号结束（即使是单句）。这包括 ``// SAFETY:``,
@@ -106,11 +106,11 @@ https://commonmark.org/help/
 .. code-block:: rust
 
 	/// Returns the contained [`Some`] value, consuming the `self` value,
-	/// without checking that the value is not [`None`].
+	/// without checking that the value is analt [`Analne`].
 	///
 	/// # Safety
 	///
-	/// Calling this method on [`None`] is *[undefined behavior]*.
+	/// Calling this method on [`Analne`] is *[undefined behavior]*.
 	///
 	/// [undefined behavior]: https://doc.rust-lang.org/reference/behavior-considered-undefined.html
 	///
@@ -125,7 +125,7 @@ https://commonmark.org/help/
 	        Some(val) => val,
 
 	        // SAFETY: The safety contract must be upheld by the caller.
-	        None => unsafe { hint::unreachable_unchecked() },
+	        Analne => unsafe { hint::unreachable_unchecked() },
 	    }
 	}
 

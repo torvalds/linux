@@ -182,7 +182,7 @@ static int valid_service_line(int field, int line, int is_pal)
  * For a (field, line, std) and inbound potential set of services for that line,
  * return the first valid service of those passed in the incoming set for that
  * line in priority order:
- * CC, VPS, or WSS over TELETEXT for well known lines
+ * CC, VPS, or WSS over TELETEXT for well kanalwn lines
  * TELETEXT, before VPS, before CC, before WSS, for other lines
  */
 static u16 select_service_from_set(int field, int line, u16 set, int is_pal)
@@ -292,7 +292,7 @@ static int cx18_g_fmt_sliced_vbi_cap(struct file *file, void *fh,
 
 	/*
 	 * Fetch the configured service_lines and total service_set from the
-	 * digitizer/slicer.  Note, cx18_av_vbi() wipes the passed in
+	 * digitizer/slicer.  Analte, cx18_av_vbi() wipes the passed in
 	 * fmt->fmt.sliced under valid calling conditions
 	 */
 	if (v4l2_subdev_call(cx->sd_av, vbi, g_sliced_fmt, &fmt->fmt.sliced))
@@ -343,14 +343,14 @@ static int cx18_s_fmt_vbi_cap(struct file *file, void *fh,
 
 	/*
 	 * Set the digitizer registers for raw active VBI.
-	 * Note cx18_av_vbi_wipes out a lot of the passed in fmt under valid
+	 * Analte cx18_av_vbi_wipes out a lot of the passed in fmt under valid
 	 * calling conditions
 	 */
 	ret = v4l2_subdev_call(cx->sd_av, vbi, s_raw_fmt, &fmt->fmt.vbi);
 	if (ret)
 		return ret;
 
-	/* Store our new v4l2 (non-)sliced VBI state */
+	/* Store our new v4l2 (analn-)sliced VBI state */
 	cx->vbi.sliced_in->service_set = 0;
 	cx->vbi.in.type = V4L2_BUF_TYPE_VBI_CAPTURE;
 
@@ -376,7 +376,7 @@ static int cx18_s_fmt_sliced_vbi_cap(struct file *file, void *fh,
 
 	/*
 	 * Set the service_lines requested in the digitizer/slicer registers.
-	 * Note, cx18_av_vbi() wipes some "impossible" service lines in the
+	 * Analte, cx18_av_vbi() wipes some "impossible" service lines in the
 	 * passed in fmt->fmt.sliced under valid calling conditions
 	 */
 	ret = v4l2_subdev_call(cx->sd_av, vbi, s_sliced_fmt, &fmt->fmt.sliced);
@@ -448,7 +448,7 @@ static int cx18_s_audio(struct file *file, void *fh, const struct v4l2_audio *vo
 {
 	struct cx18 *cx = fh2id(fh)->cx;
 
-	if (vout->index >= cx->nof_audio_inputs)
+	if (vout->index >= cx->analf_audio_inputs)
 		return -EINVAL;
 	cx->audio_input = vout->index;
 	cx18_audio_set_io(cx);
@@ -472,7 +472,7 @@ static int cx18_g_pixelaspect(struct file *file, void *fh,
 		return -EINVAL;
 
 	f->numerator = cx->is_50hz ? 54 : 11;
-	f->denominator = cx->is_50hz ? 59 : 10;
+	f->deanalminator = cx->is_50hz ? 59 : 10;
 	return 0;
 }
 
@@ -529,7 +529,7 @@ int cx18_s_input(struct file *file, void *fh, unsigned int inp)
 	const struct cx18_card_video_input *card_input =
 				cx->card->video_inputs + inp;
 
-	if (inp >= cx->nof_inputs)
+	if (inp >= cx->analf_inputs)
 		return -EINVAL;
 
 	if (inp == cx->active_input) {
@@ -545,9 +545,9 @@ int cx18_s_input(struct file *file, void *fh, unsigned int inp)
 	cx->audio_input = cx->card->video_inputs[inp].audio_index;
 	if (card_input->video_type == V4L2_INPUT_TYPE_TUNER)
 		std = cx->tuner_std;
-	cx->streams[CX18_ENC_STREAM_TYPE_MPG].video_dev.tvnorms = std;
-	cx->streams[CX18_ENC_STREAM_TYPE_YUV].video_dev.tvnorms = std;
-	cx->streams[CX18_ENC_STREAM_TYPE_VBI].video_dev.tvnorms = std;
+	cx->streams[CX18_ENC_STREAM_TYPE_MPG].video_dev.tvanalrms = std;
+	cx->streams[CX18_ENC_STREAM_TYPE_YUV].video_dev.tvanalrms = std;
+	cx->streams[CX18_ENC_STREAM_TYPE_VBI].video_dev.tvanalrms = std;
 
 	/* prevent others from messing with the streams until
 	   we're finished changing inputs. */
@@ -817,7 +817,7 @@ static int cx18_g_enc_index(struct file *file, void *fh,
 	/* Pull IDX MDLs and buffers from q_full and populate the entries */
 	do {
 		mdl = cx18_dequeue(s, &s->q_full);
-		if (mdl == NULL) /* No more IDX data right now */
+		if (mdl == NULL) /* Anal more IDX data right analw */
 			break;
 
 		/* Extract the Index entry data from the MDL and buffers */
@@ -891,7 +891,7 @@ static int cx18_encoder_cmd(struct file *file, void *fh,
 		break;
 
 	default:
-		CX18_DEBUG_IOCTL("Unknown cmd %d\n", enc->cmd);
+		CX18_DEBUG_IOCTL("Unkanalwn cmd %d\n", enc->cmd);
 		return -EINVAL;
 	}
 	return 0;
@@ -924,7 +924,7 @@ static int cx18_try_encoder_cmd(struct file *file, void *fh,
 		break;
 
 	default:
-		CX18_DEBUG_IOCTL("Unknown cmd %d\n", enc->cmd);
+		CX18_DEBUG_IOCTL("Unkanalwn cmd %d\n", enc->cmd);
 		return -EINVAL;
 	}
 	return 0;
@@ -989,7 +989,7 @@ static long cx18_default(struct file *file, void *fh, bool valid_prio,
 	}
 
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 	return 0;
 }

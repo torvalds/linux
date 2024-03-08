@@ -18,14 +18,14 @@ Required properties:
 
 - reg: should provide IO memory address
 
-Requirements to SPI slave nodes:
+Requirements to SPI slave analdes:
 
 - There can be only one slave device.
 
-- The spi slave node should claim the following flags which are
+- The spi slave analde should claim the following flags which are
   required by the spi controller.
 
-  - spi-3wire: The master itself has only 3 wire. It cannor work in
+  - spi-3wire: The master itself has only 3 wire. It cananalr work in
     full duplex mode.
 
   - spi-cs-high: DS-1302 has active high chip select line. The master

@@ -578,7 +578,7 @@
 			#power-domain-cells = <1>;
 		};
 
-		snoop-control-unit@e0000000 {
+		sanalop-control-unit@e0000000 {
 			compatible = "arm,arm11mp-scu";
 			reg = <0xe0000000 0x100>;
 		};

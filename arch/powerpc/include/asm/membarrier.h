@@ -7,9 +7,9 @@ static inline void membarrier_arch_switch_mm(struct mm_struct *prev,
 {
 	/*
 	 * Only need the full barrier when switching between processes.
-	 * Barrier when switching from kernel to userspace is not
+	 * Barrier when switching from kernel to userspace is analt
 	 * required here, given that it is implied by mmdrop(). Barrier
-	 * when switching from userspace to kernel is not needed after
+	 * when switching from userspace to kernel is analt needed after
 	 * store to rq->curr.
 	 */
 	if (IS_ENABLED(CONFIG_SMP) &&

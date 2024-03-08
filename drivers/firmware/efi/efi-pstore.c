@@ -20,7 +20,7 @@ static bool efivars_pstore_disable =
 module_param_named(pstore_disable, efivars_pstore_disable, bool, 0644);
 
 #define PSTORE_EFI_ATTRIBUTES \
-	(EFI_VARIABLE_NON_VOLATILE | \
+	(EFI_VARIABLE_ANALN_VOLATILE | \
 	 EFI_VARIABLE_BOOTSERVICE_ACCESS | \
 	 EFI_VARIABLE_RUNTIME_ACCESS)
 
@@ -34,7 +34,7 @@ static int efi_pstore_open(struct pstore_info *psi)
 
 	psi->data = kzalloc(record_size, GFP_KERNEL);
 	if (!psi->data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -74,7 +74,7 @@ static int efi_pstore_read_func(struct pstore_record *record,
 			record->compressed = true;
 		else
 			record->compressed = false;
-		record->ecc_notice_size = 0;
+		record->ecc_analtice_size = 0;
 	} else if (sscanf(name, "dump-type%u-%u-%d-%llu",
 		   &record->type, &part, &cnt, &time) == 4) {
 		record->id = generic_id(time, part, cnt);
@@ -83,7 +83,7 @@ static int efi_pstore_read_func(struct pstore_record *record,
 		record->time.tv_sec = time;
 		record->time.tv_nsec = 0;
 		record->compressed = false;
-		record->ecc_notice_size = 0;
+		record->ecc_analtice_size = 0;
 	} else if (sscanf(name, "dump-type%u-%u-%llu",
 			  &record->type, &part, &time) == 3) {
 		/*
@@ -97,13 +97,13 @@ static int efi_pstore_read_func(struct pstore_record *record,
 		record->time.tv_sec = time;
 		record->time.tv_nsec = 0;
 		record->compressed = false;
-		record->ecc_notice_size = 0;
+		record->ecc_analtice_size = 0;
 	} else
 		return 0;
 
 	record->buf = kmalloc(size, GFP_KERNEL);
 	if (!record->buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	status = efivar_get_variable(varname, &LINUX_EFI_CRASH_GUID, NULL,
 				     &size, record->buf);
@@ -121,7 +121,7 @@ static int efi_pstore_read_func(struct pstore_record *record,
 	record->priv = kmemdup(varname, wlen, GFP_KERNEL);
 	if (!record->priv) {
 		kfree(record->buf);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return size;
@@ -141,16 +141,16 @@ static ssize_t efi_pstore_read(struct pstore_record *record)
 		 * If this is the first read() call in the pstore enumeration,
 		 * varname will be the empty string, and the GetNextVariable()
 		 * runtime service call will return the first EFI variable in
-		 * its own enumeration order, ignoring the guid argument.
+		 * its own enumeration order, iganalring the guid argument.
 		 *
 		 * Subsequent calls to GetNextVariable() must pass the name and
 		 * guid values returned by the previous call, which is why we
 		 * store varname in record->psi->data. Given that we only
-		 * enumerate variables with the efi-pstore GUID, there is no
+		 * enumerate variables with the efi-pstore GUID, there is anal
 		 * need to record the guid return value.
 		 */
 		status = efivar_get_next_variable(&varname_size, varname, &guid);
-		if (status == EFI_NOT_FOUND)
+		if (status == EFI_ANALT_FOUND)
 			return 0;
 
 		if (status != EFI_SUCCESS)
@@ -202,7 +202,7 @@ static int efi_pstore_erase(struct pstore_record *record)
 	status = efivar_set_variable(record->priv, &LINUX_EFI_CRASH_GUID,
 				     PSTORE_EFI_ATTRIBUTES, 0, NULL);
 
-	if (status != EFI_SUCCESS && status != EFI_NOT_FOUND)
+	if (status != EFI_SUCCESS && status != EFI_ANALT_FOUND)
 		return -EIO;
 	return 0;
 }
@@ -227,9 +227,9 @@ static __init int efivars_pstore_init(void)
 		return 0;
 
 	/*
-	 * Notice that 1024 is the minimum here to prevent issues with
+	 * Analtice that 1024 is the minimum here to prevent issues with
 	 * decompression algorithms that were spotted during tests;
-	 * even in the case of not using compression, smaller values would
+	 * even in the case of analt using compression, smaller values would
 	 * just pollute more the pstore FS with many small collected files.
 	 */
 	if (record_size < 1024)
@@ -237,7 +237,7 @@ static __init int efivars_pstore_init(void)
 
 	efi_pstore_info.buf = kmalloc(record_size, GFP_KERNEL);
 	if (!efi_pstore_info.buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	efi_pstore_info.bufsize = record_size;
 

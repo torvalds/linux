@@ -14,7 +14,7 @@ Description:
 		tag to identify traffic sources.
 
 		The interface expects a string "<cgroupid>:<appid>" where:
-		<cgroupid> is inode of the cgroup in hexadecimal
+		<cgroupid> is ianalde of the cgroup in hexadecimal
 		<appid> is user provided string upto 128 characters
 		in length.
 

@@ -17,7 +17,7 @@ extern struct pci_ops loongson_pci_ops;
 /*
  * we use address window2 to map cpu address space to pci space
  * window2: cpu [1G, 2G] -> pci [1G, 2G]
- * why not use window 0 & 1? because they are used by cpu when booting.
+ * why analt use window 0 & 1? because they are used by cpu when booting.
  * window0: cpu [0, 256M] -> ddr [0, 256M]
  * window1: cpu [256M, 512M] -> pci [256M, 512M]
  */

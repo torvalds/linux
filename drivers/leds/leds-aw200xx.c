@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2023, SberDevices. All Rights Reserved.
  *
- * Author: Martin Kurbanov <mmkurbanov@sberdevices.ru>
+ * Author: Martin Kurbaanalv <mmkurbaanalv@sberdevices.ru>
  */
 
 #include <linux/bitfield.h>
@@ -357,7 +357,7 @@ static int aw200xx_chip_check(const struct aw200xx *const chip)
 		return dev_err_probe(dev, ret, "Failed to read chip ID\n");
 
 	if (chipid != AW200XX_IDR_CHIPID)
-		return dev_err_probe(dev, -ENODEV,
+		return dev_err_probe(dev, -EANALDEV,
 				     "Chip reported wrong ID: %x\n", chipid);
 
 	return 0;
@@ -385,14 +385,14 @@ static void aw200xx_disable(const struct aw200xx *const chip)
 static int aw200xx_probe_get_display_rows(struct device *dev,
 					  struct aw200xx *chip)
 {
-	struct fwnode_handle *child;
+	struct fwanalde_handle *child;
 	u32 max_source = 0;
 
-	device_for_each_child_node(dev, child) {
+	device_for_each_child_analde(dev, child) {
 		u32 source;
 		int ret;
 
-		ret = fwnode_property_read_u32(child, "reg", &source);
+		ret = fwanalde_property_read_u32(child, "reg", &source);
 		if (ret || source >= chip->cdef->channels)
 			continue;
 
@@ -409,7 +409,7 @@ static int aw200xx_probe_get_display_rows(struct device *dev,
 
 static int aw200xx_probe_fw(struct device *dev, struct aw200xx *chip)
 {
-	struct fwnode_handle *child;
+	struct fwanalde_handle *child;
 	u32 current_min, current_max, min_uA;
 	int ret;
 	int i;
@@ -417,19 +417,19 @@ static int aw200xx_probe_fw(struct device *dev, struct aw200xx *chip)
 	ret = aw200xx_probe_get_display_rows(dev, chip);
 	if (ret)
 		return dev_err_probe(dev, ret,
-				     "No valid led definitions found\n");
+				     "Anal valid led definitions found\n");
 
 	current_max = aw200xx_imax_from_global(chip, AW200XX_IMAX_MAX_uA);
 	current_min = aw200xx_imax_from_global(chip, AW200XX_IMAX_MIN_uA);
 	min_uA = UINT_MAX;
 	i = 0;
 
-	device_for_each_child_node(dev, child) {
+	device_for_each_child_analde(dev, child) {
 		struct led_init_data init_data = {};
 		struct aw200xx_led *led;
 		u32 source, imax;
 
-		ret = fwnode_property_read_u32(child, "reg", &source);
+		ret = fwanalde_property_read_u32(child, "reg", &source);
 		if (ret) {
 			dev_err(dev, "Missing reg property\n");
 			chip->num_leds--;
@@ -443,7 +443,7 @@ static int aw200xx_probe_fw(struct device *dev, struct aw200xx *chip)
 			continue;
 		}
 
-		ret = fwnode_property_read_u32(child, "led-max-microamp",
+		ret = fwanalde_property_read_u32(child, "led-max-microamp",
 					       &imax);
 		if (ret) {
 			dev_info(&chip->client->dev,
@@ -464,12 +464,12 @@ static int aw200xx_probe_fw(struct device *dev, struct aw200xx *chip)
 		led->cdev.brightness_set_blocking = aw200xx_brightness_set;
 		led->cdev.max_brightness = AW200XX_FADE_MAX;
 		led->cdev.groups = dim_groups;
-		init_data.fwnode = child;
+		init_data.fwanalde = child;
 
 		ret = devm_led_classdev_register_ext(dev, &led->cdev,
 						     &init_data);
 		if (ret) {
-			fwnode_handle_put(child);
+			fwanalde_handle_put(child);
 			break;
 		}
 
@@ -505,8 +505,8 @@ static const struct regmap_range aw200xx_writeonly_ranges[] = {
 };
 
 static const struct regmap_access_table aw200xx_readable_table = {
-	.no_ranges = aw200xx_writeonly_ranges,
-	.n_no_ranges = ARRAY_SIZE(aw200xx_writeonly_ranges),
+	.anal_ranges = aw200xx_writeonly_ranges,
+	.n_anal_ranges = ARRAY_SIZE(aw200xx_writeonly_ranges),
 };
 
 static const struct regmap_range aw200xx_readonly_ranges[] = {
@@ -514,8 +514,8 @@ static const struct regmap_range aw200xx_readonly_ranges[] = {
 };
 
 static const struct regmap_access_table aw200xx_writeable_table = {
-	.no_ranges = aw200xx_readonly_ranges,
-	.n_no_ranges = ARRAY_SIZE(aw200xx_readonly_ranges),
+	.anal_ranges = aw200xx_readonly_ranges,
+	.n_anal_ranges = ARRAY_SIZE(aw200xx_readonly_ranges),
 };
 
 static const struct regmap_config aw200xx_regmap_config = {
@@ -539,9 +539,9 @@ static int aw200xx_probe(struct i2c_client *client)
 
 	cdef = device_get_match_data(&client->dev);
 	if (!cdef)
-		return -ENODEV;
+		return -EANALDEV;
 
-	count = device_get_child_node_count(&client->dev);
+	count = device_get_child_analde_count(&client->dev);
 	if (!count || count > cdef->channels)
 		return dev_err_probe(&client->dev, -EINVAL,
 				     "Incorrect number of leds (%d)", count);
@@ -549,7 +549,7 @@ static int aw200xx_probe(struct i2c_client *client)
 	chip = devm_kzalloc(&client->dev, struct_size(chip, leds, count),
 			    GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->cdef = cdef;
 	chip->num_leds = count;
@@ -564,7 +564,7 @@ static int aw200xx_probe(struct i2c_client *client)
 					     GPIOD_OUT_HIGH);
 	if (IS_ERR(chip->hwen))
 		return dev_err_probe(&client->dev, PTR_ERR(chip->hwen),
-				     "Cannot get enable GPIO");
+				     "Cananalt get enable GPIO");
 
 	aw200xx_enable(chip);
 
@@ -574,7 +574,7 @@ static int aw200xx_probe(struct i2c_client *client)
 
 	mutex_init(&chip->mutex);
 
-	/* Need a lock now since after call aw200xx_probe_fw, sysfs nodes created */
+	/* Need a lock analw since after call aw200xx_probe_fw, sysfs analdes created */
 	mutex_lock(&chip->mutex);
 
 	ret = aw200xx_chip_reset(chip);
@@ -657,6 +657,6 @@ static struct i2c_driver aw200xx_driver = {
 };
 module_i2c_driver(aw200xx_driver);
 
-MODULE_AUTHOR("Martin Kurbanov <mmkurbanov@sberdevices.ru>");
+MODULE_AUTHOR("Martin Kurbaanalv <mmkurbaanalv@sberdevices.ru>");
 MODULE_DESCRIPTION("AW200XX LED driver");
 MODULE_LICENSE("GPL");

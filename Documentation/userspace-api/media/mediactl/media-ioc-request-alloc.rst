@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GPL-2.0 OR GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GPL-2.0 OR GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: MC
 
 .. _media_ioc_request_alloc:
@@ -12,7 +12,7 @@ Name
 
 MEDIA_IOC_REQUEST_ALLOC - Allocate a request
 
-Synopsis
+Syanalpsis
 ========
 
 .. c:macro:: MEDIA_IOC_REQUEST_ALLOC
@@ -32,8 +32,8 @@ Description
 ===========
 
 If the media device supports :ref:`requests <media-request-api>`, then
-this ioctl can be used to allocate a request. If it is not supported, then
-``errno`` is set to ``ENOTTY``. A request is accessed through a file descriptor
+this ioctl can be used to allocate a request. If it is analt supported, then
+``erranal`` is set to ``EANALTTY``. A request is accessed through a file descriptor
 that is returned in ``*argp``.
 
 If the request was successfully allocated, then the request file descriptor
@@ -50,16 +50,16 @@ Finally, the file descriptor can be :ref:`polled <request-func-poll>` to wait
 for the request to complete.
 
 The request will remain allocated until all the file descriptors associated
-with it are closed by :c:func:`close()` and the driver no
+with it are closed by :c:func:`close()` and the driver anal
 longer uses the request internally. See also
 :ref:`here <media-request-life-time>` for more information.
 
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
-ENOTTY
-    The driver has no support for requests.
+EANALTTY
+    The driver has anal support for requests.

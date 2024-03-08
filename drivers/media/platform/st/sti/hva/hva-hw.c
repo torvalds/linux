@@ -67,7 +67,7 @@
 
 /*
  * hw encode error values
- * NO_ERROR: Success, Task OK
+ * ANAL_ERROR: Success, Task OK
  * H264_BITSTREAM_OVERSIZE: VECH264 Bitstream size > bitstream buffer
  * H264_FRAME_SKIPPED: VECH264 Frame skipped (refers to CPB Buffer Size)
  * H264_SLICE_LIMIT_SIZE: VECH264 MB > slice limit size
@@ -75,24 +75,24 @@
  * H264_SLICE_READY: VECH264 Slice ready
  * TASK_LIST_FULL: HVA/FPC task list full
 		   (discard latest transform command)
- * UNKNOWN_COMMAND: Transform command not known by HVA/FPC
+ * UNKANALWN_COMMAND: Transform command analt kanalwn by HVA/FPC
  * WRONG_CODEC_OR_RESOLUTION: Wrong Codec or Resolution Selection
- * NO_INT_COMPLETION: Time-out on interrupt completion
+ * ANAL_INT_COMPLETION: Time-out on interrupt completion
  * LMI_ERR: Local Memory Interface Error
  * EMI_ERR: External Memory Interface Error
  * HECMI_ERR: HEC Memory Interface Error
  */
 enum hva_hw_error {
-	NO_ERROR = 0x0,
+	ANAL_ERROR = 0x0,
 	H264_BITSTREAM_OVERSIZE = 0x2,
 	H264_FRAME_SKIPPED = 0x4,
 	H264_SLICE_LIMIT_SIZE = 0x5,
 	H264_MAX_SLICE_NUMBER = 0x7,
 	H264_SLICE_READY = 0x8,
 	TASK_LIST_FULL = 0xF0,
-	UNKNOWN_COMMAND = 0xF1,
+	UNKANALWN_COMMAND = 0xF1,
 	WRONG_CODEC_OR_RESOLUTION = 0xF4,
-	NO_INT_COMPLETION = 0x100,
+	ANAL_INT_COMPLETION = 0x100,
 	LMI_ERR = 0x101,
 	EMI_ERR = 0x102,
 	HECMI_ERR = 0x103,
@@ -106,7 +106,7 @@ static irqreturn_t hva_hw_its_interrupt(int irq, void *data)
 	hva->sts_reg = readl_relaxed(hva->regs + HVA_HIF_FIFO_STS);
 	hva->sfl_reg = readl_relaxed(hva->regs + HVA_HIF_REG_SFL);
 
-	/* acknowledge interruption */
+	/* ackanalwledge interruption */
 	writel_relaxed(0x1, hva->regs + HVA_HIF_REG_IT_ACK);
 
 	return IRQ_WAKE_THREAD;
@@ -139,8 +139,8 @@ static irqreturn_t hva_hw_its_irq_thread(int irq, void *arg)
 		goto out;
 
 	switch (status) {
-	case NO_ERROR:
-		dev_dbg(dev, "%s     %s: no error\n",
+	case ANAL_ERROR:
+		dev_dbg(dev, "%s     %s: anal error\n",
 			ctx->name, __func__);
 		ctx->hw_err = false;
 		break;
@@ -174,8 +174,8 @@ static irqreturn_t hva_hw_its_irq_thread(int irq, void *arg)
 			ctx->name, __func__);
 		ctx->hw_err = true;
 		break;
-	case UNKNOWN_COMMAND:
-		dev_err(dev, "%s     %s: command not known\n",
+	case UNKANALWN_COMMAND:
+		dev_err(dev, "%s     %s: command analt kanalwn\n",
 			ctx->name, __func__);
 		ctx->hw_err = true;
 		break;
@@ -185,7 +185,7 @@ static irqreturn_t hva_hw_its_irq_thread(int irq, void *arg)
 		ctx->hw_err = true;
 		break;
 	default:
-		dev_err(dev, "%s     %s: status not recognized\n",
+		dev_err(dev, "%s     %s: status analt recognized\n",
 			ctx->name, __func__);
 		ctx->hw_err = true;
 		break;
@@ -210,7 +210,7 @@ static irqreturn_t hva_hw_err_interrupt(int irq, void *data)
 	hva->hec_mif_err_reg = readl_relaxed(hva->regs +
 					     HVA_HIF_REG_HEC_MIF_ERR);
 
-	/* acknowledge interruption */
+	/* ackanalwledge interruption */
 	writel_relaxed(0x1, hva->regs + HVA_HIF_REG_IT_ACK);
 
 	return IRQ_WAKE_THREAD;
@@ -286,9 +286,9 @@ static unsigned long int hva_hw_get_ip_version(struct hva_dev *hva)
 			HVA_PREFIX, version);
 		break;
 	default:
-		dev_err(dev, "%s     unknown IP hardware version 0x%lx\n",
+		dev_err(dev, "%s     unkanalwn IP hardware version 0x%lx\n",
 			HVA_PREFIX, version);
-		version = HVA_VERSION_UNKNOWN;
+		version = HVA_VERSION_UNKANALWN;
 		break;
 	}
 
@@ -314,7 +314,7 @@ int hva_hw_probe(struct platform_device *pdev, struct hva_dev *hva)
 	esram = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	if (!esram) {
 		dev_err(dev, "%s     failed to get esram\n", HVA_PREFIX);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	hva->esram_addr = esram->start;
 	hva->esram_size = resource_size(esram);
@@ -391,7 +391,7 @@ int hva_hw_probe(struct platform_device *pdev, struct hva_dev *hva)
 	/* check IP hardware version */
 	hva->ip_version = hva_hw_get_ip_version(hva);
 
-	if (hva->ip_version == HVA_VERSION_UNKNOWN) {
+	if (hva->ip_version == HVA_VERSION_UNKANALWN) {
 		ret = -EINVAL;
 		goto err_pm;
 	}
@@ -482,7 +482,7 @@ int hva_hw_execute_task(struct hva_ctx *ctx, enum hva_hw_cmd_type cmd,
 		reg |= CLK_GATING_HVC;
 		break;
 	default:
-		dev_dbg(dev, "%s     unknown command 0x%x\n", ctx->name, cmd);
+		dev_dbg(dev, "%s     unkanalwn command 0x%x\n", ctx->name, cmd);
 		ctx->encode_errors++;
 		ret = -EFAULT;
 		goto out;
@@ -534,7 +534,7 @@ out:
 		writel_relaxed(reg, hva->regs + HVA_HIF_REG_CLK_GATING);
 		break;
 	default:
-		dev_dbg(dev, "%s     unknown command 0x%x\n", ctx->name, cmd);
+		dev_dbg(dev, "%s     unkanalwn command 0x%x\n", ctx->name, cmd);
 	}
 
 	if (got_pm)
@@ -555,7 +555,7 @@ void hva_hw_dump_regs(struct hva_dev *hva, struct seq_file *s)
 	mutex_lock(&hva->protect_mutex);
 
 	if (pm_runtime_resume_and_get(dev) < 0) {
-		seq_puts(s, "Cannot wake up IP\n");
+		seq_puts(s, "Cananalt wake up IP\n");
 		mutex_unlock(&hva->protect_mutex);
 		return;
 	}

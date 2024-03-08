@@ -598,10 +598,10 @@ static void tegra210_emc_r21021_set_clock(struct tegra210_emc *emc, u32 clksrc)
 	const bool opt_do_sw_qrst = true;
 	const u32 opt_dvfs_mode = MAN_SR;
 	/*
-	 * This is the timing table for the source frequency. It does _not_
+	 * This is the timing table for the source frequency. It does _analt_
 	 * necessarily correspond to the actual timing values in the EMC at the
 	 * moment. If the boot BCT differs from the table then this can happen.
-	 * However, we need it for accessing the dram_timings (which are not
+	 * However, we need it for accessing the dram_timings (which are analt
 	 * really registers) array for the current frequency.
 	 */
 	struct tegra210_emc_timing *fake, *last = emc->last, *next = emc->next;
@@ -753,9 +753,9 @@ static void tegra210_emc_r21021_set_clock(struct tegra210_emc *emc, u32 clksrc)
 	emc_writel(emc, emc_sel_dpd_ctrl, EMC_SEL_DPD_CTRL);
 	emc_writel(emc, emc_cfg_pipe_clk | EMC_CFG_PIPE_CLK_CLK_ALWAYS_ON,
 		   EMC_CFG_PIPE_CLK);
-	emc_writel(emc, next->emc_fdpd_ctrl_cmd_no_ramp &
-			~EMC_FDPD_CTRL_CMD_NO_RAMP_CMD_DPD_NO_RAMP_ENABLE,
-		   EMC_FDPD_CTRL_CMD_NO_RAMP);
+	emc_writel(emc, next->emc_fdpd_ctrl_cmd_anal_ramp &
+			~EMC_FDPD_CTRL_CMD_ANAL_RAMP_CMD_DPD_ANAL_RAMP_ENABLE,
+		   EMC_FDPD_CTRL_CMD_ANAL_RAMP);
 
 	bg_reg_mode_change =
 		((next->burst_regs[EMC_PMACRO_BG_BIAS_CTRL_0_INDEX] &
@@ -917,7 +917,7 @@ static void tegra210_emc_r21021_set_clock(struct tegra210_emc *emc, u32 clksrc)
 		 * Originally there was a + .5 in the tRPST calculation.
 		 * However since we can't do FP in the kernel and the tRTM
 		 * computation was in a floating point ceiling function, adding
-		 * one to tRTP should be ok. There is no other source of non
+		 * one to tRTP should be ok. There is anal other source of analn
 		 * integer values, so the result was always going to be
 		 * something for the form: f_ceil(N + .5) = N + 1;
 		 */
@@ -1101,7 +1101,7 @@ static void tegra210_emc_r21021_set_clock(struct tegra210_emc *emc, u32 clksrc)
 		     burst[i].offset == EMC_MRW15))
 			continue;
 
-		/* Filter out second channel if not in DUAL_CHANNEL mode. */
+		/* Filter out second channel if analt in DUAL_CHANNEL mode. */
 		if (emc->num_channels < 2 && burst[i].bank >= 1)
 			continue;
 
@@ -1707,8 +1707,8 @@ static void tegra210_emc_r21021_set_clock(struct tegra210_emc *emc, u32 clksrc)
 	tegra210_emc_set_shadow_bypass(emc, ACTIVE);
 	emc_writel(emc, next->burst_regs[EMC_CFG_INDEX], EMC_CFG);
 	tegra210_emc_set_shadow_bypass(emc, ASSEMBLY);
-	emc_writel(emc, next->emc_fdpd_ctrl_cmd_no_ramp,
-		   EMC_FDPD_CTRL_CMD_NO_RAMP);
+	emc_writel(emc, next->emc_fdpd_ctrl_cmd_anal_ramp,
+		   EMC_FDPD_CTRL_CMD_ANAL_RAMP);
 	emc_writel(emc, next->emc_sel_dpd_ctrl, EMC_SEL_DPD_CTRL);
 
 	/*

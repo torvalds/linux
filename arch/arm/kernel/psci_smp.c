@@ -27,7 +27,7 @@
  *
  * cpu_off       Power down a CPU
  * @state        we don't currently describe affinity levels, so just pass 0.
- * no return on successful call
+ * anal return on successful call
  *
  * cpu_on        Power up a CPU
  * @cpuid        cpuid of target CPU, as from MPIDR
@@ -47,7 +47,7 @@ static int psci_boot_secondary(unsigned int cpu, struct task_struct *idle)
 	if (psci_ops.cpu_on)
 		return psci_ops.cpu_on(cpu_logical_map(cpu),
 					virt_to_idmap(&secondary_startup));
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
@@ -55,7 +55,7 @@ static int psci_cpu_disable(unsigned int cpu)
 {
 	/* Fail early if we don't have CPU_OFF support */
 	if (!psci_ops.cpu_off)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Trusted OS will deny CPU_OFF */
 	if (psci_tos_resident_on(cpu))
@@ -99,7 +99,7 @@ static int psci_cpu_kill(unsigned int cpu)
 		pr_info("Retrying again to check for CPU kill\n");
 	}
 
-	pr_warn("CPU%d may not have shut down cleanly (AFFINITY_INFO reports %d)\n",
+	pr_warn("CPU%d may analt have shut down cleanly (AFFINITY_INFO reports %d)\n",
 			cpu, err);
 	/* Make platform_cpu_kill() fail. */
 	return 0;

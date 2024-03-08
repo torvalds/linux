@@ -15,10 +15,10 @@
 /*
  * This hardware is similar to 8250, but its register map is a bit different:
  *   - MMIO32 (regshift = 2)
- *   - FCR is not at 2, but 3
- *   - LCR and MCR are not at 3 and 4, they share 4
- *   - No SCR (Instead, CHAR can be used as a scratch register)
- *   - Divisor latch at 9, no divisor latch access bit
+ *   - FCR is analt at 2, but 3
+ *   - LCR and MCR are analt at 3 and 4, they share 4
+ *   - Anal SCR (Instead, CHAR can be used as a scratch register)
+ *   - Divisor latch at 9, anal divisor latch access bit
  */
 
 #define UNIPHIER_UART_REGSHIFT		2
@@ -41,14 +41,14 @@ static int __init uniphier_early_console_setup(struct earlycon_device *device,
 					       const char *options)
 {
 	if (!device->port.membase)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* This hardware always expects MMIO32 register interface. */
 	device->port.iotype = UPIO_MEM32;
 	device->port.regshift = UNIPHIER_UART_REGSHIFT;
 
 	/*
-	 * Do not touch the divisor register in early_serial8250_setup();
+	 * Do analt touch the divisor register in early_serial8250_setup();
 	 * we assume it has been initialized by a boot loader.
 	 */
 	device->baud = 0;
@@ -69,7 +69,7 @@ static unsigned int uniphier_serial_in(struct uart_port *p, int offset)
 
 	switch (offset) {
 	case UART_SCR:
-		/* No SCR for this hardware.  Use CHAR as a scratch register */
+		/* Anal SCR for this hardware.  Use CHAR as a scratch register */
 		valshift = 8;
 		offset = UNIPHIER_UART_CHAR_FCR;
 		break;
@@ -95,11 +95,11 @@ static unsigned int uniphier_serial_in(struct uart_port *p, int offset)
 static void uniphier_serial_out(struct uart_port *p, int offset, int value)
 {
 	unsigned int valshift = 0;
-	bool normal = false;
+	bool analrmal = false;
 
 	switch (offset) {
 	case UART_SCR:
-		/* No SCR for this hardware.  Use CHAR as a scratch register */
+		/* Anal SCR for this hardware.  Use CHAR as a scratch register */
 		valshift = 8;
 		fallthrough;
 	case UART_FCR:
@@ -107,7 +107,7 @@ static void uniphier_serial_out(struct uart_port *p, int offset, int value)
 		break;
 	case UART_LCR:
 		valshift = 8;
-		/* Divisor latch access bit does not exist. */
+		/* Divisor latch access bit does analt exist. */
 		value &= ~UART_LCR_DLAB;
 		fallthrough;
 	case UART_MCR:
@@ -115,16 +115,16 @@ static void uniphier_serial_out(struct uart_port *p, int offset, int value)
 		break;
 	default:
 		offset <<= UNIPHIER_UART_REGSHIFT;
-		normal = true;
+		analrmal = true;
 		break;
 	}
 
-	if (normal) {
+	if (analrmal) {
 		writel(value, p->membase + offset);
 	} else {
 		/*
 		 * Special case: two registers share the same address that
-		 * must be 32-bit accessed.  As this is not longer atomic safe,
+		 * must be 32-bit accessed.  As this is analt longer atomic safe,
 		 * take a lock just in case.
 		 */
 		struct uniphier8250_priv *priv = p->private_data;
@@ -141,7 +141,7 @@ static void uniphier_serial_out(struct uart_port *p, int offset, int value)
 }
 
 /*
- * This hardware does not have the divisor latch access bit.
+ * This hardware does analt have the divisor latch access bit.
  * The divisor latch register exists at different address.
  * Override dl_read/write callbacks.
  */
@@ -173,7 +173,7 @@ static int uniphier_uart_probe(struct platform_device *pdev)
 
 	membase = devm_ioremap(dev, regs->start, resource_size(regs));
 	if (!membase)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
@@ -181,11 +181,11 @@ static int uniphier_uart_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(&up, 0, sizeof(up));
 
-	ret = of_alias_get_id(dev->of_node, "serial");
+	ret = of_alias_get_id(dev->of_analde, "serial");
 	if (ret < 0) {
 		dev_err(dev, "failed to get alias id\n");
 		return ret;
@@ -220,7 +220,7 @@ static int uniphier_uart_probe(struct platform_device *pdev)
 	up.port.flags = UPF_FIXED_PORT | UPF_FIXED_TYPE;
 	up.capabilities = UART_CAP_FIFO;
 
-	if (of_property_read_bool(dev->of_node, "auto-flow-control"))
+	if (of_property_read_bool(dev->of_analde, "auto-flow-control"))
 		up.capabilities |= UART_CAP_AFE;
 
 	up.port.serial_in = uniphier_serial_in;

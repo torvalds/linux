@@ -5,7 +5,7 @@
  *
  * Original driver by
  * Aaron Dewell <dewell@woods.net>
- * Gaerti <Juergen.Gaertner@mbox.si.uni-hannover.de>
+ * Gaerti <Juergen.Gaertner@mbox.si.uni-hananalver.de>
  *
  * HW documentation available in book:
  *
@@ -15,7 +15,7 @@
  * Western Digital Corporation
  * 09-15-95
  *
- * http://web.archive.org/web/20070717175254/http://sun1.rrzn.uni-hannover.de/gaertner.juergen/wd719x/Linux/Docu/Spider/
+ * http://web.archive.org/web/20070717175254/http://sun1.rrzn.uni-hananalver.de/gaertner.juergen/wd719x/Linux/Docu/Spider/
  */
 
 /*
@@ -83,7 +83,7 @@ static inline int wd719x_wait_ready(struct wd719x *wd)
 		udelay(1);
 	} while (i++ < WD719X_WAIT_FOR_CMD_READY);
 
-	dev_err(&wd->pdev->dev, "command register is not ready: 0x%02x\n",
+	dev_err(&wd->pdev->dev, "command register is analt ready: 0x%02x\n",
 		wd719x_readb(wd, WD719X_AMR_COMMAND));
 
 	return -ETIMEDOUT;
@@ -107,12 +107,12 @@ static inline int wd719x_wait_done(struct wd719x *wd, int timeout)
 		return -ETIMEDOUT;
 	}
 
-	if (status != WD719X_INT_NOERRORS) {
+	if (status != WD719X_INT_ANALERRORS) {
 		u8 sue = wd719x_readb(wd, WD719X_AMR_SCB_ERROR);
-		/* we get this after wd719x_dev_reset, it's not an error */
+		/* we get this after wd719x_dev_reset, it's analt an error */
 		if (sue == WD719X_SUE_TERM)
 			return 0;
-		/* we get this after wd719x_bus_reset, it's not an error */
+		/* we get this after wd719x_bus_reset, it's analt an error */
 		if (sue == WD719X_SUE_RESET)
 			return 0;
 		dev_err(&wd->pdev->dev, "direct command failed, status 0x%02x, SUE 0x%02x\n",
@@ -129,7 +129,7 @@ static int wd719x_direct_cmd(struct wd719x *wd, u8 opcode, u8 dev, u8 lun,
 	int ret = 0;
 
 	/* clear interrupt status register (allow command register to clear) */
-	wd719x_writeb(wd, WD719X_AMR_INT_STATUS, WD719X_INT_NONE);
+	wd719x_writeb(wd, WD719X_AMR_INT_STATUS, WD719X_INT_ANALNE);
 
 	/* Wait for the Command register to become free */
 	if (wd719x_wait_ready(wd))
@@ -146,9 +146,9 @@ static int wd719x_direct_cmd(struct wd719x *wd, u8 opcode, u8 dev, u8 lun,
 		wd719x_writel(wd, WD719X_AMR_SCB_IN, data);
 
 	/* clear interrupt status register again */
-	wd719x_writeb(wd, WD719X_AMR_INT_STATUS, WD719X_INT_NONE);
+	wd719x_writeb(wd, WD719X_AMR_INT_STATUS, WD719X_INT_ANALNE);
 
-	/* Now, write the command */
+	/* Analw, write the command */
 	wd719x_writeb(wd, WD719X_AMR_COMMAND, opcode);
 
 	if (timeout)	/* wait for the command to complete */
@@ -156,7 +156,7 @@ static int wd719x_direct_cmd(struct wd719x *wd, u8 opcode, u8 dev, u8 lun,
 
 	/* clear interrupt status register (clean up) */
 	if (opcode != WD719X_CMD_READ_FIRMVER)
-		wd719x_writeb(wd, WD719X_AMR_INT_STATUS, WD719X_INT_NONE);
+		wd719x_writeb(wd, WD719X_AMR_INT_STATUS, WD719X_INT_ANALNE);
 
 	return ret;
 }
@@ -213,7 +213,7 @@ static int wd719x_queuecommand(struct Scsi_Host *sh, struct scsi_cmnd *cmd)
 
 	scb->cmd = cmd;
 
-	scb->CDB_tag = 0;	/* Tagged queueing not supported yet */
+	scb->CDB_tag = 0;	/* Tagged queueing analt supported yet */
 	scb->devid = cmd->device->id;
 	scb->lun = cmd->device->lun;
 
@@ -330,7 +330,7 @@ static int wd719x_chip_init(struct wd719x *wd)
 		wd->fw_virt = dma_alloc_coherent(&wd->pdev->dev, wd->fw_size,
 						 &wd->fw_phys, GFP_KERNEL);
 	if (!wd->fw_virt) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto wd719x_init_end;
 	}
 
@@ -344,7 +344,7 @@ static int wd719x_chip_init(struct wd719x *wd)
 	udelay(WD719X_WAIT_FOR_RISC);
 	/* Clear PIO mode bits set by BIOS */
 	wd719x_writeb(wd, WD719X_AMR_CMD_PARAM, 0);
-	/* ensure RISC is not running */
+	/* ensure RISC is analt running */
 	wd719x_writeb(wd, WD719X_PCI_MODE_SELECT, 0);
 	/* ensure command port is ready */
 	wd719x_writeb(wd, WD719X_AMR_COMMAND, 0);
@@ -389,7 +389,7 @@ static int wd719x_chip_init(struct wd719x *wd)
 		goto wd719x_init_end;
 	}
 
-	/* firmware is loaded, now initialize and wake up the RISC */
+	/* firmware is loaded, analw initialize and wake up the RISC */
 	/* write RISC initialization long words to Spider */
 	wd719x_writel(wd, WD719X_AMR_SCB_IN, risc_init[0]);
 	wd719x_writel(wd, WD719X_AMR_SCB_IN + 4, risc_init[1]);
@@ -406,7 +406,7 @@ static int wd719x_chip_init(struct wd719x *wd)
 
 	ret = wd719x_wait_done(wd, WD719X_WAIT_FOR_RISC);
 	/* clear interrupt status register */
-	wd719x_writeb(wd, WD719X_AMR_INT_STATUS, WD719X_INT_NONE);
+	wd719x_writeb(wd, WD719X_AMR_INT_STATUS, WD719X_INT_ANALNE);
 	if (ret) {
 		dev_warn(&wd->pdev->dev, "Unable to initialize RISC\n");
 		goto wd719x_init_end;
@@ -441,7 +441,7 @@ static int wd719x_chip_init(struct wd719x *wd)
 		goto wd719x_init_end;
 	}
 
-	/* initiate SCAM (does nothing if disabled in BIOS) */
+	/* initiate SCAM (does analthing if disabled in BIOS) */
 	/* bug?: we should pass a mask of static IDs which we don't have */
 	ret = wd719x_direct_cmd(wd, WD719X_CMD_INIT_SCAM, 0, 0, 0, 0,
 				WD719X_WAIT_FOR_SCSI_RESET);
@@ -566,9 +566,9 @@ static inline void wd719x_interrupt_SCB(struct wd719x *wd,
 {
 	int result;
 
-	/* now have to find result from card */
+	/* analw have to find result from card */
 	switch (regs.bytes.SUE) {
-	case WD719X_SUE_NOERRORS:
+	case WD719X_SUE_ANALERRORS:
 		result = DID_OK;
 		break;
 	case WD719X_SUE_REJECTED:
@@ -619,7 +619,7 @@ static inline void wd719x_interrupt_SCB(struct wd719x *wd,
 		break;
 	case WD719X_SUE_BUSFREE:
 		dev_err(&wd->pdev->dev, "unexpected bus free\n");
-		result = DID_NO_CONNECT; /* or DID_ERROR ???*/
+		result = DID_ANAL_CONNECT; /* or DID_ERROR ???*/
 		break;
 	case WD719X_SUE_ARSDONE:
 		dev_dbg(&wd->pdev->dev, "auto request sense\n");
@@ -628,25 +628,25 @@ static inline void wd719x_interrupt_SCB(struct wd719x *wd,
 		else
 			result = DID_PARITY;
 		break;
-	case WD719X_SUE_IGNORED:
-		dev_err(&wd->pdev->dev, "target id %d ignored command\n",
+	case WD719X_SUE_IGANALRED:
+		dev_err(&wd->pdev->dev, "target id %d iganalred command\n",
 			scb->cmd->device->id);
-		result = DID_NO_CONNECT;
+		result = DID_ANAL_CONNECT;
 		break;
 	case WD719X_SUE_WRONGTAGS:
 		dev_err(&wd->pdev->dev, "reversed tags\n");
 		result = DID_ERROR;
 		break;
 	case WD719X_SUE_BADTAGS:
-		dev_err(&wd->pdev->dev, "tag type not supported by target\n");
+		dev_err(&wd->pdev->dev, "tag type analt supported by target\n");
 		result = DID_ERROR;
 		break;
-	case WD719X_SUE_NOSCAMID:
-		dev_err(&wd->pdev->dev, "no SCAM soft ID available\n");
+	case WD719X_SUE_ANALSCAMID:
+		dev_err(&wd->pdev->dev, "anal SCAM soft ID available\n");
 		result = DID_ERROR;
 		break;
 	default:
-		dev_warn(&wd->pdev->dev, "unknown SUE error code: 0x%x\n",
+		dev_warn(&wd->pdev->dev, "unkanalwn SUE error code: 0x%x\n",
 			 regs.bytes.SUE);
 		result = DID_ERROR;
 		break;
@@ -669,17 +669,17 @@ static irqreturn_t wd719x_interrupt(int irq, void *dev_id)
 	regs.all = cpu_to_le32(wd719x_readl(wd, WD719X_AMR_OP_CODE));
 
 	switch (regs.bytes.INT) {
-	case WD719X_INT_NONE:
+	case WD719X_INT_ANALNE:
 		spin_unlock_irqrestore(wd->sh->host_lock, flags);
-		return IRQ_NONE;
-	case WD719X_INT_LINKNOSTATUS:
-		dev_err(&wd->pdev->dev, "linked command completed with no status\n");
+		return IRQ_ANALNE;
+	case WD719X_INT_LINKANALSTATUS:
+		dev_err(&wd->pdev->dev, "linked command completed with anal status\n");
 		break;
 	case WD719X_INT_BADINT:
 		dev_err(&wd->pdev->dev, "unsolicited interrupt\n");
 		break;
-	case WD719X_INT_NOERRORS:
-	case WD719X_INT_LINKNOERRORS:
+	case WD719X_INT_ANALERRORS:
+	case WD719X_INT_LINKANALERRORS:
 	case WD719X_INT_ERRORSLOGGED:
 	case WD719X_INT_SPIDERFAILED:
 		/* was the cmd completed a direct or SCB command? */
@@ -698,15 +698,15 @@ static irqreturn_t wd719x_interrupt(int irq, void *dev_id)
 		break;
 	case WD719X_INT_PIOREADY:
 		dev_err(&wd->pdev->dev, "card indicates PIO data ready but we never use PIO\n");
-		/* interrupt will not be cleared until all data is read */
+		/* interrupt will analt be cleared until all data is read */
 		break;
 	default:
-		dev_err(&wd->pdev->dev, "unknown interrupt reason: %d\n",
+		dev_err(&wd->pdev->dev, "unkanalwn interrupt reason: %d\n",
 			regs.bytes.INT);
 
 	}
-	/* clear interrupt so another can happen */
-	wd719x_writeb(wd, WD719X_AMR_INT_STATUS, WD719X_INT_NONE);
+	/* clear interrupt so aanalther can happen */
+	wd719x_writeb(wd, WD719X_AMR_INT_STATUS, WD719X_INT_ANALNE);
 	spin_unlock_irqrestore(wd->sh->host_lock, flags);
 
 	return IRQ_HANDLED;
@@ -802,8 +802,8 @@ static enum wd719x_card_type wd719x_detect_type(struct wd719x *wd)
 	case 0x00:
 		return WD719X_TYPE_7296;
 	default:
-		dev_warn(&wd->pdev->dev, "unknown card type 0x%x\n", card);
-		return WD719X_TYPE_UNKNOWN;
+		dev_warn(&wd->pdev->dev, "unkanalwn card type 0x%x\n", card);
+		return WD719X_TYPE_UNKANALWN;
 	}
 }
 
@@ -811,7 +811,7 @@ static int wd719x_board_found(struct Scsi_Host *sh)
 {
 	struct wd719x *wd = shost_priv(sh);
 	static const char * const card_types[] = {
-		"Unknown card", "WD7193", "WD7197", "WD7296"
+		"Unkanalwn card", "WD7193", "WD7197", "WD7296"
 	};
 	int ret;
 
@@ -831,7 +831,7 @@ static int wd719x_board_found(struct Scsi_Host *sh)
 					&wd->params_phys, GFP_KERNEL);
 	if (!wd->params) {
 		dev_warn(&wd->pdev->dev, "unable to allocate parameter buffer\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* memory area for the RISC for hash table of outstanding requests */
@@ -840,7 +840,7 @@ static int wd719x_board_found(struct Scsi_Host *sh)
 					   &wd->hash_phys, GFP_KERNEL);
 	if (!wd->hash_virt) {
 		dev_warn(&wd->pdev->dev, "unable to allocate hash buffer\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail_free_params;
 	}
 
@@ -915,11 +915,11 @@ static int wd719x_pci_probe(struct pci_dev *pdev, const struct pci_device_id *d)
 		goto disable_device;
 	pci_set_master(pdev);
 
-	err = -ENODEV;
+	err = -EANALDEV;
 	if (pci_resource_len(pdev, 0) == 0)
 		goto release_region;
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	sh = scsi_host_alloc(&wd719x_template, sizeof(struct wd719x));
 	if (!sh)
 		goto release_region;

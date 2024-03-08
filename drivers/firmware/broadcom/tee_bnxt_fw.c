@@ -27,14 +27,14 @@ enum ta_cmd {
 	 *
 	 * Result:
 	 *	TEE_SUCCESS - Invoke command success
-	 *	TEE_ERROR_ITEM_NOT_FOUND - Corrupt f/w image found on memory
+	 *	TEE_ERROR_ITEM_ANALT_FOUND - Corrupt f/w image found on memory
 	 */
 	TA_CMD_BNXT_FASTBOOT = 0,
 
 	/*
 	 * TA_CMD_BNXT_COPY_COREDUMP - copy the core dump into shm
 	 *
-	 *	param[0] (inout memref) - Coredump buffer memory reference
+	 *	param[0] (ianalut memref) - Coredump buffer memory reference
 	 *	param[1] (in value) - value.a: offset, data to be copied from
 	 *			      value.b: size of data to be copied
 	 *	param[2] unused
@@ -43,7 +43,7 @@ enum ta_cmd {
 	 * Result:
 	 *	TEE_SUCCESS - Invoke command success
 	 *	TEE_ERROR_BAD_PARAMETERS - Incorrect input param
-	 *	TEE_ERROR_ITEM_NOT_FOUND - Corrupt core dump
+	 *	TEE_ERROR_ITEM_ANALT_FOUND - Corrupt core dump
 	 */
 	TA_CMD_BNXT_COPY_COREDUMP = 3,
 };
@@ -77,7 +77,7 @@ static void prepare_args(int cmd,
 	/* Fill invoke cmd params */
 	switch (cmd) {
 	case TA_CMD_BNXT_COPY_COREDUMP:
-		param[0].attr = TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_INOUT;
+		param[0].attr = TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_IANALUT;
 		param[0].u.memref.shm = pvt_data.fw_shm_pool;
 		param[0].u.memref.size = MAX_SHM_MEM_SZ;
 		param[0].u.memref.shm_offs = 0;
@@ -85,7 +85,7 @@ static void prepare_args(int cmd,
 		break;
 	case TA_CMD_BNXT_FASTBOOT:
 	default:
-		/* Nothing to do */
+		/* Analthing to do */
 		break;
 	}
 }
@@ -94,7 +94,7 @@ static void prepare_args(int cmd,
  * tee_bnxt_fw_load() - Load the bnxt firmware
  *		    Uses an OP-TEE call to start a secure
  *		    boot process.
- * Returns 0 on success, negative errno otherwise.
+ * Returns 0 on success, negative erranal otherwise.
  */
 int tee_bnxt_fw_load(void)
 {
@@ -103,7 +103,7 @@ int tee_bnxt_fw_load(void)
 	struct tee_param param[MAX_TEE_PARAM_ARRY_MEMB];
 
 	if (!pvt_data.ctx)
-		return -ENODEV;
+		return -EANALDEV;
 
 	prepare_args(TA_CMD_BNXT_FASTBOOT, &arg, param);
 
@@ -126,7 +126,7 @@ EXPORT_SYMBOL(tee_bnxt_fw_load);
  * @offset:	offset from the base address of core dump area
  * @size:	size of the dump
  *
- * Returns 0 on success, negative errno otherwise.
+ * Returns 0 on success, negative erranal otherwise.
  */
 int tee_bnxt_copy_coredump(void *buf, u32 offset, u32 size)
 {
@@ -138,7 +138,7 @@ int tee_bnxt_copy_coredump(void *buf, u32 offset, u32 size)
 	int ret = 0;
 
 	if (!pvt_data.ctx)
-		return -ENODEV;
+		return -EANALDEV;
 
 	prepare_args(TA_CMD_BNXT_COPY_COREDUMP, &arg, param);
 
@@ -184,7 +184,7 @@ static int optee_ctx_match(struct tee_ioctl_version_data *ver, const void *data)
 static int tee_bnxt_fw_probe(struct device *dev)
 {
 	struct tee_client_device *bnxt_device = to_tee_client_device(dev);
-	int ret, err = -ENODEV;
+	int ret, err = -EANALDEV;
 	struct tee_ioctl_open_session_arg sess_arg;
 	struct tee_shm *fw_shm_pool;
 
@@ -194,7 +194,7 @@ static int tee_bnxt_fw_probe(struct device *dev)
 	pvt_data.ctx = tee_client_open_context(NULL, optee_ctx_match, NULL,
 					       NULL);
 	if (IS_ERR(pvt_data.ctx))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Open session with Bnxt load Trusted App */
 	export_uuid(sess_arg.uuid, &bnxt_device->id.uuid);

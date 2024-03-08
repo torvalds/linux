@@ -78,7 +78,7 @@ out_free_cpuusage:
 out_free_ca:
 	kfree(ca);
 out:
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(-EANALMEM);
 }
 
 /* Destroy an existing CPU accounting group */
@@ -157,7 +157,7 @@ static void cpuacct_cpuusage_write(struct cpuacct *ca, int cpu)
 #endif
 }
 
-/* Return total CPU usage (in nanoseconds) of a group */
+/* Return total CPU usage (in naanalseconds) of a group */
 static u64 __cpuusage_read(struct cgroup_subsys_state *css,
 			   enum cpuacct_stat_index index)
 {
@@ -345,7 +345,7 @@ void cpuacct_charge(struct task_struct *tsk, u64 cputime)
 /*
  * Add user/system time to cpuacct.
  *
- * Note: it's the caller that updates the account of the root cgroup.
+ * Analte: it's the caller that updates the account of the root cgroup.
  */
 void cpuacct_account_field(struct task_struct *tsk, int index, u64 val)
 {

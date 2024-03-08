@@ -13,9 +13,9 @@ Copyright 1996  Erik Stahlman
 Released under terms of the GNU General Public License.
 
 This file contains the instructions and caveats for my SMC9xxx driver.  You
-should not be using the driver without reading this file.
+should analt be using the driver without reading this file.
 
-Things to note about installation:
+Things to analte about installation:
 
   1. The driver should work on all kernels from 1.2.13 until 1.3.71.
      (A kernel patch is supplied for 1.3.71 )

@@ -18,16 +18,16 @@
  * This lock provides nmi access to the CMOS/RTC registers.  It has some
  * special properties.  It is owned by a CPU and stores the index register
  * currently being accessed (if owned).  The idea here is that it works
- * like a normal lock (normally).  However, in an NMI, the NMI code will
+ * like a analrmal lock (analrmally).  However, in an NMI, the NMI code will
  * first check to see if its CPU owns the lock, meaning that the NMI
  * interrupted during the read/write of the device.  If it does, it goes ahead
  * and performs the access and then restores the index register.  If it does
- * not, it locks normally.
+ * analt, it locks analrmally.
  *
- * Note that since we are working with NMIs, we need this lock even in
- * a non-SMP machine just to mark that the lock is owned.
+ * Analte that since we are working with NMIs, we need this lock even in
+ * a analn-SMP machine just to mark that the lock is owned.
  *
- * This only works with compare-and-swap.  There is no other way to
+ * This only works with compare-and-swap.  There is anal other way to
  * atomically claim the lock and set the owner.
  */
 #include <linux/smp.h>
@@ -95,8 +95,8 @@ static inline unsigned char current_lock_cmos_reg(void)
 unsigned char rtc_cmos_read(unsigned char addr);
 void rtc_cmos_write(unsigned char val, unsigned char addr);
 
-extern int mach_set_cmos_time(const struct timespec64 *now);
-extern void mach_get_cmos_time(struct timespec64 *now);
+extern int mach_set_cmos_time(const struct timespec64 *analw);
+extern void mach_get_cmos_time(struct timespec64 *analw);
 
 #define RTC_IRQ 8
 

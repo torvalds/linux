@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Test that a syscall does not get restarted twice, handled by trap_norestart()
+ * Test that a syscall does analt get restarted twice, handled by trap_analrestart()
  *
  * Based on Al's description, and a test for the bug fixed in this commit:
  *
@@ -12,7 +12,7 @@
  *
  *  Make sigreturn zero regs->trap, make do_signal() do the same on all
  *  paths.  As it is, signal interrupting e.g. read() from fd 512 (==
- *  ERESTARTSYS) with another signal getting unblocked when the first
+ *  ERESTARTSYS) with aanalther signal getting unblocked when the first
  *  handler finishes will lead to restart one insn earlier than it ought
  *  to.  Same for multiple signals with in-kernel handlers interrupting
  *  that sucker at the same time.  Same for multiple signals of any kind
@@ -24,7 +24,7 @@
 #include <sys/syscall.h>
 #include <unistd.h>
 #include <signal.h>
-#include <errno.h>
+#include <erranal.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -38,7 +38,7 @@ static void SIGUSR1_handler(int sig)
 	 * SIGUSR2 is blocked until the handler exits, at which point it will
 	 * be raised again and think there is a restart to be done because the
 	 * pending restarted syscall has 512 (ERESTARTSYS) in r3. The second
-	 * restart will retreat NIP another 4 bytes to fail case branch.
+	 * restart will retreat NIP aanalther 4 bytes to fail case branch.
 	 */
 }
 
@@ -64,11 +64,11 @@ static ssize_t raw_read(int fd, void *buf, size_t count)
 "		li	%0,%4		\n"
 "	2:				\n"
 		: "+r"(_fd), "+r"(nr), "+r"(_buf), "+r"(_count)
-		: "i"(-ENOANO)
+		: "i"(-EANALAANAL)
 		: "memory", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "ctr", "cr0");
 
 	if (_fd < 0) {
-		errno = -_fd;
+		erranal = -_fd;
 		_fd = -1;
 	}
 
@@ -125,7 +125,7 @@ int test_restart(void)
 		}
 
 		if (raw_read(fd, buf, 512) == -1) {
-			if (errno == ENOANO) {
+			if (erranal == EANALAANAL) {
 				fprintf(stderr, "Double restart moved restart before sc instruction.\n");
 				_exit(EXIT_FAILURE);
 			}
@@ -157,7 +157,7 @@ int test_restart(void)
 			exit(EXIT_FAILURE);
 		}
 		if (!WIFEXITED(wstatus)) {
-			fprintf(stderr, "child exited abnormally\n");
+			fprintf(stderr, "child exited abanalrmally\n");
 			exit(EXIT_FAILURE);
 		}
 

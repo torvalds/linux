@@ -9,7 +9,7 @@
 
 
 # KBUILD_CFLAGS used when building rest of boot (takes effect recursively)
-KBUILD_CFLAGS	+= -fno-builtin
+KBUILD_CFLAGS	+= -fanal-builtin
 
 subdir-y	:= lib
 targets		+= vmlinux.bin vmlinux.bin.gz
@@ -30,7 +30,7 @@ xipImage: $(obj)/xipImage
 boot-elf boot-redboot: $(addprefix $(obj)/,$(subdir-y))
 	$(Q)$(MAKE) $(build)=$(obj)/$@ $(MAKECMDGOALS)
 
-OBJCOPYFLAGS = --strip-all -R .comment -R .notes -O binary
+OBJCOPYFLAGS = --strip-all -R .comment -R .analtes -O binary
 
 $(obj)/vmlinux.bin: vmlinux FORCE
 	$(call if_changed,objcopy)

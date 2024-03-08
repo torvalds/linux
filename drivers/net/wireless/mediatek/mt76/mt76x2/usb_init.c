@@ -112,7 +112,7 @@ static int mt76x2u_init_eeprom(struct mt76x02_dev *dev)
 					     GFP_KERNEL);
 	dev->mt76.eeprom.size = MT7612U_EEPROM_SIZE;
 	if (!dev->mt76.eeprom.data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i + 4 <= MT7612U_EEPROM_SIZE; i += 4) {
 		val = mt76_rr(dev, MT_VEND_ADDR(EEPROM, i));
@@ -205,7 +205,7 @@ int mt76x2u_register_device(struct mt76x02_dev *dev)
 	usb->mcu.data = devm_kmalloc(dev->mt76.dev, MCU_RESP_URB_SIZE,
 				     GFP_KERNEL);
 	if (!usb->mcu.data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = mt76u_alloc_queues(&dev->mt76);
 	if (err < 0)

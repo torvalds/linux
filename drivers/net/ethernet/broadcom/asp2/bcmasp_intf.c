@@ -146,7 +146,7 @@ static int tx_spb_ring_full(struct bcmasp_intf *intf, int cnt)
 {
 	int next_index, i;
 
-	/* Check if we have enough room for cnt descriptors */
+	/* Check if we have eanalugh room for cnt descriptors */
 	for (i = 0; i < cnt; i++) {
 		next_index = incr_ring(intf->tx_spb_index, DESC_RING_COUNT);
 		if (next_index == intf->tx_spb_clean_index)
@@ -216,7 +216,7 @@ static struct sk_buff *bcmasp_csum_offload(struct net_device *dev,
 		  PKT_OFFLOAD_HDR_SIZE_1(ETH_HLEN);
 	epkt |= PKT_OFFLOAD_EPKT_OP;
 
-	offload->nop = htonl(PKT_OFFLOAD_NOP);
+	offload->analp = htonl(PKT_OFFLOAD_ANALP);
 	offload->header = htonl(header);
 	offload->header2 = htonl(header2);
 	offload->epkt = htonl(epkt);
@@ -320,7 +320,7 @@ static netdev_tx_t bcmasp_xmit(struct sk_buff *skb, struct net_device *dev)
 				spb_index = incr_ring(spb_index,
 						      DESC_RING_COUNT);
 			}
-			/* Rewind so we do not have a hole */
+			/* Rewind so we do analt have a hole */
 			spb_index = intf->tx_spb_index;
 			return NETDEV_TX_OK;
 		}
@@ -645,7 +645,7 @@ static void bcmasp_adj_link(struct net_device *dev)
 	}
 
 	if (!phydev->pause)
-		cmd_bits |= UMC_CMD_RX_PAUSE_IGNORE | UMC_CMD_TX_PAUSE_IGNORE;
+		cmd_bits |= UMC_CMD_RX_PAUSE_IGANALRE | UMC_CMD_TX_PAUSE_IGANALRE;
 
 	if (!changed)
 		return;
@@ -653,8 +653,8 @@ static void bcmasp_adj_link(struct net_device *dev)
 	if (phydev->link) {
 		reg = umac_rl(intf, UMC_CMD);
 		reg &= ~((UMC_CMD_SPEED_MASK << UMC_CMD_SPEED_SHIFT) |
-			UMC_CMD_HD_EN | UMC_CMD_RX_PAUSE_IGNORE |
-			UMC_CMD_TX_PAUSE_IGNORE);
+			UMC_CMD_HD_EN | UMC_CMD_RX_PAUSE_IGANALRE |
+			UMC_CMD_TX_PAUSE_IGANALRE);
 		reg |= cmd_bits;
 		umac_wl(intf, reg, UMC_CMD);
 
@@ -685,13 +685,13 @@ static int bcmasp_init_rx(struct bcmasp_intf *intf)
 	intf->rx_buf_order = get_order(RING_BUFFER_SIZE);
 	buffer_pg = alloc_pages(GFP_KERNEL, intf->rx_buf_order);
 	if (!buffer_pg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dma = dma_map_page(kdev, buffer_pg, 0, RING_BUFFER_SIZE,
 			   DMA_FROM_DEVICE);
 	if (dma_mapping_error(kdev, dma)) {
 		__free_pages(buffer_pg, intf->rx_buf_order);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	intf->rx_ring_cpu = page_to_virt(buffer_pg);
 	intf->rx_ring_dma = dma;
@@ -700,7 +700,7 @@ static int bcmasp_init_rx(struct bcmasp_intf *intf)
 	p = dma_alloc_coherent(kdev, DESC_RING_SIZE, &intf->rx_edpkt_dma_addr,
 			       GFP_KERNEL);
 	if (!p) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_rx_ring;
 	}
 	intf->rx_edpkt_cpu = p;
@@ -772,7 +772,7 @@ static int bcmasp_init_tx(struct bcmasp_intf *intf)
 	p = dma_alloc_coherent(kdev, DESC_RING_SIZE, &intf->tx_spb_dma_addr,
 			       GFP_KERNEL);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	intf->tx_spb_cpu = p;
 	intf->tx_spb_dma_valid = intf->tx_spb_dma_addr + DESC_RING_SIZE - 1;
@@ -781,7 +781,7 @@ static int bcmasp_init_tx(struct bcmasp_intf *intf)
 	intf->tx_cbs = kcalloc(DESC_RING_COUNT, sizeof(struct bcmasp_tx_cb),
 			       GFP_KERNEL);
 	if (!intf->tx_cbs) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_tx_spb;
 	}
 
@@ -956,7 +956,7 @@ static void bcmasp_configure_port(struct bcmasp_intf *intf)
 
 	switch (intf->phy_interface) {
 	case PHY_INTERFACE_MODE_RGMII:
-		/* RGMII_NO_ID: TXC transitions at the same time as TXD
+		/* RGMII_ANAL_ID: TXC transitions at the same time as TXD
 		 *		(requires PCB or receiver-side delay)
 		 * RGMII:	Add 2ns delay on TXC (90 degree shift)
 		 *
@@ -990,7 +990,7 @@ static int bcmasp_netif_init(struct net_device *dev, bool phy_connect)
 	struct bcmasp_intf *intf = netdev_priv(dev);
 	phy_interface_t phy_iface = intf->phy_interface;
 	u32 phy_flags = PHY_BRCM_AUTO_PWRDWN_ENABLE |
-			PHY_BRCM_DIS_TXCRXC_NOENRGY |
+			PHY_BRCM_DIS_TXCRXC_ANALENRGY |
 			PHY_BRCM_IDDQ_SUSPEND;
 	struct phy_device *phydev = NULL;
 	int ret;
@@ -1005,7 +1005,7 @@ static int bcmasp_netif_init(struct net_device *dev, bool phy_connect)
 		bcmasp_rgmii_mode_en_set(intf, true);
 	bcmasp_configure_port(intf);
 
-	/* This is an ugly quirk but we have not been correctly
+	/* This is an ugly quirk but we have analt been correctly
 	 * interpreting the phy_interface values and we have done that
 	 * across different drivers, so at least we are consistent in
 	 * our mistakes.
@@ -1015,18 +1015,18 @@ static int bcmasp_netif_init(struct net_device *dev, bool phy_connect)
 	 * we should stick to our incorrect interpretation since we
 	 * have validated it.
 	 *
-	 * Now when a dedicated PHY driver is in use, we need to
+	 * Analw when a dedicated PHY driver is in use, we need to
 	 * reverse the meaning of the phy_interface_mode values to
 	 * something that the PHY driver will interpret and act on such
 	 * that we have two mistakes canceling themselves so to speak.
 	 * We only do this for the two modes that GENET driver
 	 * officially supports on Broadcom STB chips:
 	 * PHY_INTERFACE_MODE_RGMII and PHY_INTERFACE_MODE_RGMII_TXID.
-	 * Other modes are not *officially* supported with the boot
+	 * Other modes are analt *officially* supported with the boot
 	 * loader and the scripted environment generating Device Tree
 	 * blobs for those platforms.
 	 *
-	 * Note that internal PHY and fixed-link configurations are not
+	 * Analte that internal PHY and fixed-link configurations are analt
 	 * affected because they use different phy_interface_t values
 	 * or the Generic PHY driver.
 	 */
@@ -1046,8 +1046,8 @@ static int bcmasp_netif_init(struct net_device *dev, bool phy_connect)
 					bcmasp_adj_link, phy_flags,
 					phy_iface);
 		if (!phydev) {
-			ret = -ENODEV;
-			netdev_err(dev, "could not attach to PHY\n");
+			ret = -EANALDEV;
+			netdev_err(dev, "could analt attach to PHY\n");
 			goto err_phy_disable;
 		}
 
@@ -1203,7 +1203,7 @@ static void bcmasp_map_res(struct bcmasp_priv *priv, struct bcmasp_intf *intf)
 
 #define MAX_IRQ_STR_LEN		64
 struct bcmasp_intf *bcmasp_interface_create(struct bcmasp_priv *priv,
-					    struct device_node *ndev_dn, int i)
+					    struct device_analde *ndev_dn, int i)
 {
 	struct device *dev = &priv->pdev->dev;
 	struct bcmasp_intf *intf;

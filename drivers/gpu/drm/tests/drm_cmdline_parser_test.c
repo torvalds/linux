@@ -9,7 +9,7 @@
 #include <drm/drm_connector.h>
 #include <drm/drm_modes.h>
 
-static const struct drm_connector no_connector = {};
+static const struct drm_connector anal_connector = {};
 
 static void drm_test_cmdline_force_e_only(struct kunit *test)
 {
@@ -17,7 +17,7 @@ static void drm_test_cmdline_force_e_only(struct kunit *test)
 	const char *cmdline = "e";
 
 	KUNIT_ASSERT_TRUE(test, drm_mode_parse_command_line_for_connector(cmdline,
-									  &no_connector, &mode));
+									  &anal_connector, &mode));
 	KUNIT_EXPECT_FALSE(test, mode.specified);
 	KUNIT_EXPECT_FALSE(test, mode.refresh_specified);
 	KUNIT_EXPECT_FALSE(test, mode.bpp_specified);
@@ -29,13 +29,13 @@ static void drm_test_cmdline_force_e_only(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, mode.force, DRM_FORCE_ON);
 }
 
-static void drm_test_cmdline_force_D_only_not_digital(struct kunit *test)
+static void drm_test_cmdline_force_D_only_analt_digital(struct kunit *test)
 {
 	struct drm_cmdline_mode mode = { };
 	const char *cmdline = "D";
 
 	KUNIT_ASSERT_TRUE(test, drm_mode_parse_command_line_for_connector(cmdline,
-									  &no_connector, &mode));
+									  &anal_connector, &mode));
 	KUNIT_EXPECT_FALSE(test, mode.specified);
 	KUNIT_EXPECT_FALSE(test, mode.refresh_specified);
 	KUNIT_EXPECT_FALSE(test, mode.bpp_specified);
@@ -97,7 +97,7 @@ static void drm_test_cmdline_force_d_only(struct kunit *test)
 	const char *cmdline = "d";
 
 	KUNIT_ASSERT_TRUE(test, drm_mode_parse_command_line_for_connector(cmdline,
-									  &no_connector, &mode));
+									  &anal_connector, &mode));
 	KUNIT_EXPECT_FALSE(test, mode.specified);
 	KUNIT_EXPECT_FALSE(test, mode.refresh_specified);
 	KUNIT_EXPECT_FALSE(test, mode.bpp_specified);
@@ -115,7 +115,7 @@ static void drm_test_cmdline_res(struct kunit *test)
 	const char *cmdline = "720x480";
 
 	KUNIT_ASSERT_TRUE(test, drm_mode_parse_command_line_for_connector(cmdline,
-									  &no_connector, &mode));
+									  &anal_connector, &mode));
 	KUNIT_EXPECT_TRUE(test, mode.specified);
 	KUNIT_EXPECT_EQ(test, mode.xres, 720);
 	KUNIT_EXPECT_EQ(test, mode.yres, 480);
@@ -137,7 +137,7 @@ static void drm_test_cmdline_res_vesa(struct kunit *test)
 	const char *cmdline = "720x480M";
 
 	KUNIT_ASSERT_TRUE(test, drm_mode_parse_command_line_for_connector(cmdline,
-									  &no_connector, &mode));
+									  &anal_connector, &mode));
 	KUNIT_EXPECT_TRUE(test, mode.specified);
 	KUNIT_EXPECT_EQ(test, mode.xres, 720);
 	KUNIT_EXPECT_EQ(test, mode.yres, 480);
@@ -159,7 +159,7 @@ static void drm_test_cmdline_res_vesa_rblank(struct kunit *test)
 	const char *cmdline = "720x480MR";
 
 	KUNIT_ASSERT_TRUE(test, drm_mode_parse_command_line_for_connector(cmdline,
-									  &no_connector, &mode));
+									  &anal_connector, &mode));
 	KUNIT_EXPECT_TRUE(test, mode.specified);
 	KUNIT_EXPECT_EQ(test, mode.xres, 720);
 	KUNIT_EXPECT_EQ(test, mode.yres, 480);
@@ -181,7 +181,7 @@ static void drm_test_cmdline_res_rblank(struct kunit *test)
 	const char *cmdline = "720x480R";
 
 	KUNIT_ASSERT_TRUE(test, drm_mode_parse_command_line_for_connector(cmdline,
-									  &no_connector, &mode));
+									  &anal_connector, &mode));
 	KUNIT_EXPECT_TRUE(test, mode.specified);
 	KUNIT_EXPECT_EQ(test, mode.xres, 720);
 	KUNIT_EXPECT_EQ(test, mode.yres, 480);
@@ -203,7 +203,7 @@ static void drm_test_cmdline_res_bpp(struct kunit *test)
 	const char *cmdline = "720x480-24";
 
 	KUNIT_ASSERT_TRUE(test, drm_mode_parse_command_line_for_connector(cmdline,
-									  &no_connector, &mode));
+									  &anal_connector, &mode));
 	KUNIT_EXPECT_TRUE(test, mode.specified);
 	KUNIT_EXPECT_EQ(test, mode.xres, 720);
 	KUNIT_EXPECT_EQ(test, mode.yres, 480);
@@ -226,7 +226,7 @@ static void drm_test_cmdline_res_refresh(struct kunit *test)
 	const char *cmdline = "720x480@60";
 
 	KUNIT_ASSERT_TRUE(test, drm_mode_parse_command_line_for_connector(cmdline,
-									  &no_connector, &mode));
+									  &anal_connector, &mode));
 	KUNIT_EXPECT_TRUE(test, mode.specified);
 	KUNIT_EXPECT_EQ(test, mode.xres, 720);
 	KUNIT_EXPECT_EQ(test, mode.yres, 480);
@@ -249,7 +249,7 @@ static void drm_test_cmdline_res_bpp_refresh(struct kunit *test)
 	const char *cmdline = "720x480-24@60";
 
 	KUNIT_ASSERT_TRUE(test, drm_mode_parse_command_line_for_connector(cmdline,
-									  &no_connector, &mode));
+									  &anal_connector, &mode));
 	KUNIT_EXPECT_TRUE(test, mode.specified);
 	KUNIT_EXPECT_EQ(test, mode.xres, 720);
 	KUNIT_EXPECT_EQ(test, mode.yres, 480);
@@ -273,7 +273,7 @@ static void drm_test_cmdline_res_bpp_refresh_interlaced(struct kunit *test)
 	const char *cmdline = "720x480-24@60i";
 
 	KUNIT_ASSERT_TRUE(test, drm_mode_parse_command_line_for_connector(cmdline,
-									  &no_connector, &mode));
+									  &anal_connector, &mode));
 	KUNIT_EXPECT_TRUE(test, mode.specified);
 	KUNIT_EXPECT_EQ(test, mode.xres, 720);
 	KUNIT_EXPECT_EQ(test, mode.yres, 480);
@@ -297,7 +297,7 @@ static void drm_test_cmdline_res_bpp_refresh_margins(struct kunit *test)
 	const char *cmdline = "720x480-24@60m";
 
 	KUNIT_ASSERT_TRUE(test, drm_mode_parse_command_line_for_connector(cmdline,
-									  &no_connector, &mode));
+									  &anal_connector, &mode));
 	KUNIT_EXPECT_TRUE(test, mode.specified);
 	KUNIT_EXPECT_EQ(test, mode.xres, 720);
 	KUNIT_EXPECT_EQ(test, mode.yres, 480);
@@ -321,7 +321,7 @@ static void drm_test_cmdline_res_bpp_refresh_force_off(struct kunit *test)
 	const char *cmdline = "720x480-24@60d";
 
 	KUNIT_ASSERT_TRUE(test, drm_mode_parse_command_line_for_connector(cmdline,
-									  &no_connector, &mode));
+									  &anal_connector, &mode));
 	KUNIT_EXPECT_TRUE(test, mode.specified);
 	KUNIT_EXPECT_EQ(test, mode.xres, 720);
 	KUNIT_EXPECT_EQ(test, mode.yres, 480);
@@ -345,7 +345,7 @@ static void drm_test_cmdline_res_bpp_refresh_force_on(struct kunit *test)
 	const char *cmdline = "720x480-24@60e";
 
 	KUNIT_ASSERT_TRUE(test, drm_mode_parse_command_line_for_connector(cmdline,
-									  &no_connector, &mode));
+									  &anal_connector, &mode));
 	KUNIT_EXPECT_TRUE(test, mode.specified);
 	KUNIT_EXPECT_EQ(test, mode.xres, 720);
 	KUNIT_EXPECT_EQ(test, mode.yres, 480);
@@ -369,7 +369,7 @@ static void drm_test_cmdline_res_bpp_refresh_force_on_analog(struct kunit *test)
 	const char *cmdline = "720x480-24@60D";
 
 	KUNIT_ASSERT_TRUE(test, drm_mode_parse_command_line_for_connector(cmdline,
-									  &no_connector, &mode));
+									  &anal_connector, &mode));
 	KUNIT_EXPECT_TRUE(test, mode.specified);
 	KUNIT_EXPECT_EQ(test, mode.xres, 720);
 	KUNIT_EXPECT_EQ(test, mode.yres, 480);
@@ -420,7 +420,7 @@ static void drm_test_cmdline_res_bpp_refresh_interlaced_margins_force_on(struct 
 	const char *cmdline = "720x480-24@60ime";
 
 	KUNIT_EXPECT_TRUE(test, drm_mode_parse_command_line_for_connector(cmdline,
-									  &no_connector, &mode));
+									  &anal_connector, &mode));
 	KUNIT_EXPECT_TRUE(test, mode.specified);
 	KUNIT_EXPECT_EQ(test, mode.xres, 720);
 	KUNIT_EXPECT_EQ(test, mode.yres, 480);
@@ -444,7 +444,7 @@ static void drm_test_cmdline_res_margins_force_on(struct kunit *test)
 	const char *cmdline = "720x480me";
 
 	KUNIT_ASSERT_TRUE(test, drm_mode_parse_command_line_for_connector(cmdline,
-									  &no_connector, &mode));
+									  &anal_connector, &mode));
 	KUNIT_EXPECT_TRUE(test, mode.specified);
 	KUNIT_EXPECT_EQ(test, mode.xres, 720);
 	KUNIT_EXPECT_EQ(test, mode.yres, 480);
@@ -466,7 +466,7 @@ static void drm_test_cmdline_res_vesa_margins(struct kunit *test)
 	const char *cmdline = "720x480Mm";
 
 	KUNIT_ASSERT_TRUE(test, drm_mode_parse_command_line_for_connector(cmdline,
-									  &no_connector, &mode));
+									  &anal_connector, &mode));
 	KUNIT_EXPECT_TRUE(test, mode.specified);
 	KUNIT_EXPECT_EQ(test, mode.xres, 720);
 	KUNIT_EXPECT_EQ(test, mode.yres, 480);
@@ -488,7 +488,7 @@ static void drm_test_cmdline_name(struct kunit *test)
 	const char *cmdline = "NTSC";
 
 	KUNIT_ASSERT_TRUE(test, drm_mode_parse_command_line_for_connector(cmdline,
-									  &no_connector, &mode));
+									  &anal_connector, &mode));
 	KUNIT_EXPECT_STREQ(test, mode.name, "NTSC");
 	KUNIT_EXPECT_FALSE(test, mode.refresh_specified);
 	KUNIT_EXPECT_FALSE(test, mode.bpp_specified);
@@ -500,7 +500,7 @@ static void drm_test_cmdline_name_bpp(struct kunit *test)
 	const char *cmdline = "NTSC-24";
 
 	KUNIT_ASSERT_TRUE(test, drm_mode_parse_command_line_for_connector(cmdline,
-									  &no_connector, &mode));
+									  &anal_connector, &mode));
 	KUNIT_EXPECT_STREQ(test, mode.name, "NTSC");
 
 	KUNIT_EXPECT_FALSE(test, mode.refresh_specified);
@@ -515,7 +515,7 @@ static void drm_test_cmdline_name_option(struct kunit *test)
 	const char *cmdline = "NTSC,rotate=180";
 
 	KUNIT_ASSERT_TRUE(test, drm_mode_parse_command_line_for_connector(cmdline,
-									  &no_connector, &mode));
+									  &anal_connector, &mode));
 	KUNIT_EXPECT_TRUE(test, mode.specified);
 	KUNIT_EXPECT_STREQ(test, mode.name, "NTSC");
 	KUNIT_EXPECT_EQ(test, mode.rotation_reflection, DRM_MODE_ROTATE_180);
@@ -527,7 +527,7 @@ static void drm_test_cmdline_name_bpp_option(struct kunit *test)
 	const char *cmdline = "NTSC-24,rotate=180";
 
 	KUNIT_ASSERT_TRUE(test, drm_mode_parse_command_line_for_connector(cmdline,
-									  &no_connector, &mode));
+									  &anal_connector, &mode));
 	KUNIT_EXPECT_TRUE(test, mode.specified);
 	KUNIT_EXPECT_STREQ(test, mode.name, "NTSC");
 	KUNIT_EXPECT_EQ(test, mode.rotation_reflection, DRM_MODE_ROTATE_180);
@@ -541,7 +541,7 @@ static void drm_test_cmdline_rotate_0(struct kunit *test)
 	const char *cmdline = "720x480,rotate=0";
 
 	KUNIT_ASSERT_TRUE(test, drm_mode_parse_command_line_for_connector(cmdline,
-									  &no_connector, &mode));
+									  &anal_connector, &mode));
 	KUNIT_EXPECT_TRUE(test, mode.specified);
 	KUNIT_EXPECT_EQ(test, mode.xres, 720);
 	KUNIT_EXPECT_EQ(test, mode.yres, 480);
@@ -564,7 +564,7 @@ static void drm_test_cmdline_rotate_90(struct kunit *test)
 	const char *cmdline = "720x480,rotate=90";
 
 	KUNIT_ASSERT_TRUE(test, drm_mode_parse_command_line_for_connector(cmdline,
-									  &no_connector, &mode));
+									  &anal_connector, &mode));
 	KUNIT_EXPECT_TRUE(test, mode.specified);
 	KUNIT_EXPECT_EQ(test, mode.xres, 720);
 	KUNIT_EXPECT_EQ(test, mode.yres, 480);
@@ -587,7 +587,7 @@ static void drm_test_cmdline_rotate_180(struct kunit *test)
 	const char *cmdline = "720x480,rotate=180";
 
 	KUNIT_ASSERT_TRUE(test, drm_mode_parse_command_line_for_connector(cmdline,
-									  &no_connector, &mode));
+									  &anal_connector, &mode));
 	KUNIT_EXPECT_TRUE(test, mode.specified);
 	KUNIT_EXPECT_EQ(test, mode.xres, 720);
 	KUNIT_EXPECT_EQ(test, mode.yres, 480);
@@ -610,7 +610,7 @@ static void drm_test_cmdline_rotate_270(struct kunit *test)
 	const char *cmdline = "720x480,rotate=270";
 
 	KUNIT_ASSERT_TRUE(test, drm_mode_parse_command_line_for_connector(cmdline,
-									  &no_connector, &mode));
+									  &anal_connector, &mode));
 	KUNIT_EXPECT_TRUE(test, mode.specified);
 	KUNIT_EXPECT_EQ(test, mode.xres, 720);
 	KUNIT_EXPECT_EQ(test, mode.yres, 480);
@@ -633,7 +633,7 @@ static void drm_test_cmdline_hmirror(struct kunit *test)
 	const char *cmdline = "720x480,reflect_x";
 
 	KUNIT_ASSERT_TRUE(test, drm_mode_parse_command_line_for_connector(cmdline,
-									  &no_connector, &mode));
+									  &anal_connector, &mode));
 	KUNIT_EXPECT_TRUE(test, mode.specified);
 	KUNIT_EXPECT_EQ(test, mode.xres, 720);
 	KUNIT_EXPECT_EQ(test, mode.yres, 480);
@@ -656,7 +656,7 @@ static void drm_test_cmdline_vmirror(struct kunit *test)
 	const char *cmdline = "720x480,reflect_y";
 
 	KUNIT_ASSERT_TRUE(test, drm_mode_parse_command_line_for_connector(cmdline,
-									  &no_connector, &mode));
+									  &anal_connector, &mode));
 	KUNIT_EXPECT_TRUE(test, mode.specified);
 	KUNIT_EXPECT_EQ(test, mode.xres, 720);
 	KUNIT_EXPECT_EQ(test, mode.yres, 480);
@@ -680,7 +680,7 @@ static void drm_test_cmdline_margin_options(struct kunit *test)
 		"720x480,margin_right=14,margin_left=24,margin_bottom=36,margin_top=42";
 
 	KUNIT_ASSERT_TRUE(test, drm_mode_parse_command_line_for_connector(cmdline,
-									  &no_connector, &mode));
+									  &anal_connector, &mode));
 	KUNIT_EXPECT_TRUE(test, mode.specified);
 	KUNIT_EXPECT_EQ(test, mode.xres, 720);
 	KUNIT_EXPECT_EQ(test, mode.yres, 480);
@@ -706,7 +706,7 @@ static void drm_test_cmdline_multiple_options(struct kunit *test)
 	const char *cmdline = "720x480,rotate=270,reflect_x";
 
 	KUNIT_ASSERT_TRUE(test, drm_mode_parse_command_line_for_connector(cmdline,
-									  &no_connector, &mode));
+									  &anal_connector, &mode));
 	KUNIT_EXPECT_TRUE(test, mode.specified);
 	KUNIT_EXPECT_EQ(test, mode.xres, 720);
 	KUNIT_EXPECT_EQ(test, mode.yres, 480);
@@ -729,7 +729,7 @@ static void drm_test_cmdline_bpp_extra_and_option(struct kunit *test)
 	const char *cmdline = "720x480-24e,rotate=180";
 
 	KUNIT_ASSERT_TRUE(test, drm_mode_parse_command_line_for_connector(cmdline,
-									  &no_connector, &mode));
+									  &anal_connector, &mode));
 	KUNIT_EXPECT_TRUE(test, mode.specified);
 	KUNIT_EXPECT_EQ(test, mode.xres, 720);
 	KUNIT_EXPECT_EQ(test, mode.yres, 480);
@@ -753,7 +753,7 @@ static void drm_test_cmdline_extra_and_option(struct kunit *test)
 	const char *cmdline = "720x480e,rotate=180";
 
 	KUNIT_ASSERT_TRUE(test, drm_mode_parse_command_line_for_connector(cmdline,
-									  &no_connector, &mode));
+									  &anal_connector, &mode));
 	KUNIT_EXPECT_TRUE(test, mode.specified);
 	KUNIT_EXPECT_EQ(test, mode.xres, 720);
 	KUNIT_EXPECT_EQ(test, mode.yres, 480);
@@ -775,7 +775,7 @@ static void drm_test_cmdline_freestanding_options(struct kunit *test)
 	const char *cmdline = "margin_right=14,margin_left=24,margin_bottom=36,margin_top=42";
 
 	KUNIT_ASSERT_TRUE(test, drm_mode_parse_command_line_for_connector(cmdline,
-									  &no_connector, &mode));
+									  &anal_connector, &mode));
 	KUNIT_EXPECT_FALSE(test, mode.specified);
 	KUNIT_EXPECT_FALSE(test, mode.refresh_specified);
 	KUNIT_EXPECT_FALSE(test, mode.bpp_specified);
@@ -798,7 +798,7 @@ static void drm_test_cmdline_freestanding_force_e_and_options(struct kunit *test
 	const char *cmdline = "e,margin_right=14,margin_left=24,margin_bottom=36,margin_top=42";
 
 	KUNIT_ASSERT_TRUE(test, drm_mode_parse_command_line_for_connector(cmdline,
-									  &no_connector, &mode));
+									  &anal_connector, &mode));
 	KUNIT_EXPECT_FALSE(test, mode.specified);
 	KUNIT_EXPECT_FALSE(test, mode.refresh_specified);
 	KUNIT_EXPECT_FALSE(test, mode.bpp_specified);
@@ -821,7 +821,7 @@ static void drm_test_cmdline_panel_orientation(struct kunit *test)
 	const char *cmdline = "panel_orientation=upside_down";
 
 	KUNIT_ASSERT_TRUE(test, drm_mode_parse_command_line_for_connector(cmdline,
-									  &no_connector, &mode));
+									  &anal_connector, &mode));
 	KUNIT_EXPECT_FALSE(test, mode.specified);
 	KUNIT_EXPECT_FALSE(test, mode.refresh_specified);
 	KUNIT_EXPECT_FALSE(test, mode.bpp_specified);
@@ -846,7 +846,7 @@ static void drm_test_cmdline_invalid(struct kunit *test)
 	struct drm_cmdline_mode mode = { };
 
 	KUNIT_EXPECT_FALSE(test, drm_mode_parse_command_line_for_connector(params->cmdline,
-									   &no_connector,
+									   &anal_connector,
 									   &mode));
 }
 
@@ -959,7 +959,7 @@ static void drm_test_cmdline_tv_options(struct kunit *test)
 	struct drm_cmdline_mode mode = { };
 
 	KUNIT_EXPECT_TRUE(test, drm_mode_parse_command_line_for_connector(params->cmdline,
-									  &no_connector, &mode));
+									  &anal_connector, &mode));
 	KUNIT_EXPECT_TRUE(test, mode.specified);
 	KUNIT_EXPECT_EQ(test, mode.xres, expected_mode->hdisplay);
 	KUNIT_EXPECT_EQ(test, mode.yres, expected_mode->vdisplay);
@@ -1008,7 +1008,7 @@ static struct kunit_case drm_cmdline_parser_tests[] = {
 	KUNIT_CASE(drm_test_cmdline_force_d_only),
 	KUNIT_CASE(drm_test_cmdline_force_D_only_dvi),
 	KUNIT_CASE(drm_test_cmdline_force_D_only_hdmi),
-	KUNIT_CASE(drm_test_cmdline_force_D_only_not_digital),
+	KUNIT_CASE(drm_test_cmdline_force_D_only_analt_digital),
 	KUNIT_CASE(drm_test_cmdline_force_e_only),
 	KUNIT_CASE(drm_test_cmdline_res),
 	KUNIT_CASE(drm_test_cmdline_res_vesa),

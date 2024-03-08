@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Moxa C101 synchronous serial card driver for Linux
+ * Moxa C101 synchroanalus serial card driver for Linux
  *
  * Copyright (C) 2000-2003 Krzysztof Halasa <khc@pm.waw.pl>
  *
@@ -19,7 +19,7 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/netdevice.h>
 #include <linux/hdlc.h>
@@ -88,8 +88,8 @@ static card_t **new_card = &first_card;
 } while (0)
 
 #define port_to_card(port)	   (port)
-#define log_node(port)		   (0)
-#define phy_node(port)		   (0)
+#define log_analde(port)		   (0)
+#define phy_analde(port)		   (0)
 #define winsize(card)		   (C101_WINDOW_SIZE)
 #define win0base(card)		   ((card)->win0base)
 #define winbase(card)		   ((card)->win0base + 0x2000)
@@ -121,7 +121,7 @@ static void sca_msci_intr(port_t *port)
 {
 	u8 stat = sca_in(MSCI0_OFFSET + ST1, port); /* read MSCI ST1 status */
 
-	/* Reset MSCI TX underrun and CDCD (ignored) status bit */
+	/* Reset MSCI TX underrun and CDCD (iganalred) status bit */
 	sca_out(stat & (ST1_UDRN | ST1_CDCD), MSCI0_OFFSET + ST1, port);
 
 	if (stat & ST1_UDRN) {
@@ -203,7 +203,7 @@ static int c101_close(struct net_device *dev)
 
 	sca_close(dev);
 	writeb(0, port->win0base + C101_DTR);
-	sca_out(CTL_NORTS, MSCI1_OFFSET + CTL, port);
+	sca_out(CTL_ANALRTS, MSCI1_OFFSET + CTL, port);
 	hdlc_close(dev);
 	return 0;
 }
@@ -225,7 +225,7 @@ static int c101_siocdevprivate(struct net_device *dev, struct ifreq *ifr,
 	}
 #endif
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int c101_ioctl(struct net_device *dev, struct if_settings *ifs)
@@ -240,7 +240,7 @@ static int c101_ioctl(struct net_device *dev, struct if_settings *ifs)
 		ifs->type = IF_IFACE_SYNC_SERIAL;
 		if (ifs->size < size) {
 			ifs->size = size; /* data size wanted */
-			return -ENOBUFS;
+			return -EANALBUFS;
 		}
 		if (copy_to_user(line, &port->settings, size))
 			return -EFAULT;
@@ -257,7 +257,7 @@ static int c101_ioctl(struct net_device *dev, struct if_settings *ifs)
 		    new_line.clock_type != CLOCK_TXFROMRX &&
 		    new_line.clock_type != CLOCK_INT &&
 		    new_line.clock_type != CLOCK_TXINT)
-			return -EINVAL;	/* No such clock setting */
+			return -EINVAL;	/* Anal such clock setting */
 
 		if (new_line.loopback != 0 && new_line.loopback != 1)
 			return -EINVAL;
@@ -305,41 +305,41 @@ static int __init c101_run(unsigned long irq, unsigned long winbase)
 
 	if (irq < 3 || irq > 15 || irq == 6) /* FIXME */ {
 		pr_err("invalid IRQ value\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (winbase < 0xC0000 || winbase > 0xDFFFF || (winbase & 0x3FFF) != 0) {
 		pr_err("invalid RAM value\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	card = kzalloc(sizeof(card_t), GFP_KERNEL);
 	if (!card)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	card->dev = alloc_hdlcdev(card);
 	if (!card->dev) {
 		pr_err("unable to allocate memory\n");
 		kfree(card);
-		return -ENOBUFS;
+		return -EANALBUFS;
 	}
 
 	if (request_irq(irq, sca_intr, 0, devname, card)) {
-		pr_err("could not allocate IRQ\n");
+		pr_err("could analt allocate IRQ\n");
 		c101_destroy_card(card);
 		return -EBUSY;
 	}
 	card->irq = irq;
 
 	if (!request_mem_region(winbase, C101_MAPPED_RAM_SIZE, devname)) {
-		pr_err("could not request RAM window\n");
+		pr_err("could analt request RAM window\n");
 		c101_destroy_card(card);
 		return -EBUSY;
 	}
 	card->phy_winbase = winbase;
 	card->win0base = ioremap(winbase, C101_MAPPED_RAM_SIZE);
 	if (!card->win0base) {
-		pr_err("could not map I/O address\n");
+		pr_err("could analt map I/O address\n");
 		c101_destroy_card(card);
 		return -EFAULT;
 	}
@@ -390,9 +390,9 @@ static int __init c101_init(void)
 {
 	if (!hw) {
 #ifdef MODULE
-		pr_info("no card initialized\n");
+		pr_info("anal card initialized\n");
 #endif
-		return -EINVAL;	/* no parameters specified, abort */
+		return -EINVAL;	/* anal parameters specified, abort */
 	}
 
 	pr_info("%s\n", version);

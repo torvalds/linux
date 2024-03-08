@@ -161,7 +161,7 @@
 #define TEGRA210_MBDRC_RAM_CTRL_RAM_ADDR_MASK		0x1ff
 
 /*
- * Order and size of each structure element for following structures should not
+ * Order and size of each structure element for following structures should analt
  * be altered size order of elements and their size are based on PEQ co-eff ram
  * and shift ram layout.
  */

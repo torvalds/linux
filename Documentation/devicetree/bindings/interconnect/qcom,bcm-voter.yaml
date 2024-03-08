@@ -24,7 +24,7 @@ properties:
   qcom,tcs-wait:
     description: |
       Optional mask of which TCSs (Triggered Command Sets) wait for completion
-      upon triggering. If not specified, then the AMC and WAKE sets wait for
+      upon triggering. If analt specified, then the AMC and WAKE sets wait for
       completion. The mask bits are available in the QCOM_ICC_TAG_* defines.
 
       The AMC TCS is triggered immediately when icc_set_bw() is called. The
@@ -44,7 +44,7 @@ required:
 additionalProperties: false
 
 examples:
-  # Example 1: apps bcm_voter on SDM845 SoC should be defined inside &apps_rsc node
+  # Example 1: apps bcm_voter on SDM845 SoC should be defined inside &apps_rsc analde
   # as defined in Documentation/devicetree/bindings/soc/qcom/qcom,rpmh-rsc.yaml
   - |
 
@@ -52,7 +52,7 @@ examples:
         compatible = "qcom,bcm-voter";
     };
 
-  # Example 2: disp bcm_voter on SDM845 should be defined inside &disp_rsc node
+  # Example 2: disp bcm_voter on SDM845 should be defined inside &disp_rsc analde
   # as defined in Documentation/devicetree/bindings/soc/qcom/qcom,rpmh-rsc.yaml
   - |
 

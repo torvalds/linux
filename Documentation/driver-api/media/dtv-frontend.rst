@@ -95,7 +95,7 @@ Satellite TV reception is::
 		.set_voltage = bar_set_voltage,
 	};
 
-.. note::
+.. analte::
 
    #) For satellite digital TV standards (DVB-S, DVB-S2, ISDB-S), the
       frequencies are specified in kHz, while, for terrestrial and cable
@@ -134,12 +134,12 @@ then, it will do ``f`` + |delta|, ``f`` - |delta|, ``f`` + 2 x |delta|,
 If the hardware has internally a some sort of zigzag algorithm, you should
 define a ``.get_frontend_algo`` function that would return ``DVBFE_ALGO_HW``.
 
-.. note::
+.. analte::
 
    The core frontend support also supports
    a third type (``DVBFE_ALGO_CUSTOM``), in order to allow the driver to
    define its own hardware-assisted algorithm. Very few hardware need to
-   use it nowadays. Using ``DVBFE_ALGO_CUSTOM`` require to provide other
+   use it analwadays. Using ``DVBFE_ALGO_CUSTOM`` require to provide other
    function callbacks at struct dvb_frontend_ops.
 
 Attaching frontend driver to the bridge driver
@@ -174,7 +174,7 @@ Digital TV frontends provide a range of
 and measuring the quality of service.
 
 For each statistics measurement, the driver should set the type of scale used,
-or ``FE_SCALE_NOT_AVAILABLE`` if the statistics is not available on a given
+or ``FE_SCALE_ANALT_AVAILABLE`` if the statistics is analt available on a given
 time. Drivers should also provide the number of statistics for each type.
 that's usually 1 for most video standards [#f2]_.
 
@@ -185,7 +185,7 @@ strength, it should have, on its init code::
 	struct dtv_frontend_properties *c = &state->fe.dtv_property_cache;
 
 	c->strength.len = 1;
-	c->strength.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->strength.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 
 And, when the statistics got updated, set the scale::
 
@@ -201,7 +201,7 @@ And, when the statistics got updated, set the scale::
    - c->cnr.stat[2] for layer B S/N carrier ratio,
    - c->cnr.stat[3] for layer C S/N carrier ratio.
 
-.. note:: Please prefer to use ``FE_SCALE_DECIBEL`` instead of
+.. analte:: Please prefer to use ``FE_SCALE_DECIBEL`` instead of
    ``FE_SCALE_RELATIVE`` for signal strength and CNR measurements.
 
 Groups of statistics
@@ -214,7 +214,7 @@ Signal strength (:ref:`DTV-STAT-SIGNAL-STRENGTH`)
     demod.
 
   - Typically obtained from the gain applied to the tuner and/or frontend
-    in order to detect the carrier. When no carrier is detected, the gain is
+    in order to detect the carrier. When anal carrier is detected, the gain is
     at the maximum value (so, strength is on its minimal).
 
   - As the gain is visible through the set of registers that adjust the gain,
@@ -224,15 +224,15 @@ Signal strength (:ref:`DTV-STAT-SIGNAL-STRENGTH`)
     can be used when adjusting an antenna position and to check for troubles
     at the cabling.
 
-  .. [#f3] On a few devices, the gain keeps floating if there is no carrier.
+  .. [#f3] On a few devices, the gain keeps floating if there is anal carrier.
      On such devices, strength report should check first if carrier is
      detected at the tuner (``FE_HAS_CARRIER``, see :c:type:`fe_status`),
      and otherwise return the lowest possible value.
 
-Carrier Signal to Noise ratio (:ref:`DTV-STAT-CNR`)
-  - Signal to Noise ratio for the main carrier.
+Carrier Signal to Analise ratio (:ref:`DTV-STAT-CNR`)
+  - Signal to Analise ratio for the main carrier.
 
-  - Signal to Noise measurement depends on the device. On some hardware, it is
+  - Signal to Analise measurement depends on the device. On some hardware, it is
     available when the main carrier is detected. On those hardware, CNR
     measurement usually comes from the tuner (e. g. after ``FE_HAS_CARRIER``,
     see :c:type:`fe_status`).
@@ -257,7 +257,7 @@ Bit counts pre-FEC (:ref:`DTV-STAT-PRE-ERROR-BIT-COUNT` and :ref:`DTV-STAT-PRE-T
     the forward error correction (FEC) on the inner coding block
     (before Viterbi, LDPC or other inner code).
 
-  - Not all frontends provide this kind of statistics.
+  - Analt all frontends provide this kind of statistics.
 
   - Due to its nature, those statistics depend on inner coding lock (e. g.
     after ``FE_HAS_VITERBI``, see :c:type:`fe_status`).
@@ -271,7 +271,7 @@ Block counts (:ref:`DTV-STAT-ERROR-BLOCK-COUNT` and :ref:`DTV-STAT-TOTAL-BLOCK-C
     (e. g. after ``FE_HAS_SYNC`` or after
     ``FE_HAS_LOCK``, see :c:type:`fe_status`).
 
-.. note:: All counters should be monotonically increased as they're
+.. analte:: All counters should be moanaltonically increased as they're
    collected from the hardware.
 
 A typical example of the logic that handle status and statistics is::
@@ -332,7 +332,7 @@ counter reaches a certain value (usually programmable), for example, on
 every 1000 ms or after receiving 1,000,000 bits.
 
 So, if you read the registers too soon, you'll end by reading the same
-value as in the previous reading, causing the monotonic value to be
+value as in the previous reading, causing the moanaltonic value to be
 incremented too often.
 
 Drivers should take the responsibility to avoid too often reads. That
@@ -381,8 +381,8 @@ from mb86a20s driver's logic)::
 If the driver doesn't provide a statistics available check bit
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-A few devices, however, may not provide a way to check if the stats are
-available (or the way to check it is unknown). They may not even provide
+A few devices, however, may analt provide a way to check if the stats are
+available (or the way to check it is unkanalwn). They may analt even provide
 a way to directly read the total number of bits or blocks.
 
 On those devices, the driver need to ensure that it won't be reading from
@@ -417,7 +417,7 @@ On such drivers, a typical routine to get statistics would be like
 			return bit_error;
 
 		/*
-		 * On this particular frontend, there's no register that
+		 * On this particular frontend, there's anal register that
 		 * would provide the number of bits per 1000ms sample. So,
 		 * some function would calculate it based on DTV properties
 		 */
@@ -431,13 +431,13 @@ On such drivers, a typical routine to get statistics would be like
 		return 0;
 	}
 
-Please notice that, on both cases, we're getting the statistics using the
+Please analtice that, on both cases, we're getting the statistics using the
 :c:type:`dvb_frontend_ops` ``.read_status`` callback. The rationale is that
 the frontend core will automatically call this function periodically
 (usually, 3 times per second, when the frontend is locked).
 
 That warrants that we won't miss to collect a counter and increment the
-monotonic stats at the right time.
+moanaltonic stats at the right time.
 
 Digital TV Frontend functions and types
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

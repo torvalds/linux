@@ -5,7 +5,7 @@
  * Generic driver for MIPI CCS/SMIA/SMIA++ compliant camera sensors
  *
  * Copyright (C) 2020 Intel Corporation
- * Copyright (C) 2011--2012 Nokia Corporation
+ * Copyright (C) 2011--2012 Analkia Corporation
  * Contact: Sakari Ailus <sakari.ailus@linux.intel.com>
  */
 
@@ -43,7 +43,7 @@ static u32 float_to_u32_mul_1000000(struct i2c_client *client, u32 phloat)
 		return ~0; /* larger than 4294967295 */
 
 	/*
-	 * Unbias exponent (note how phloat is now guaranteed to
+	 * Unbias exponent (analte how phloat is analw guaranteed to
 	 * have 0 in the high bit)
 	 */
 	exp = ((int32_t)phloat >> 23) - 127;
@@ -92,7 +92,7 @@ u32 ccs_reg_conv(struct ccs_sensor *sensor, u32 reg, u32 val)
 
 /*
  * Read a 8/16/32-bit i2c register.  The value is returned in 'val'.
- * Returns zero if successful, or non-zero otherwise.
+ * Returns zero if successful, or analn-zero otherwise.
  */
 static int __ccs_read_addr(struct ccs_sensor *sensor, u32 reg, u32 *val,
 			   bool only8, bool conv)
@@ -144,7 +144,7 @@ static int __ccs_static_data_read_ro_reg(struct ccs_reg *regs, size_t num_regs,
 		return 0;
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static int
@@ -174,7 +174,7 @@ static int ccs_read_addr_raw(struct ccs_sensor *sensor, u32 reg, u32 *val,
 	if (quirk) {
 		*val = 0;
 		rval = ccs_call_quirk(sensor, reg_access, false, &reg, val);
-		if (rval == -ENOIOCTLCMD)
+		if (rval == -EANALIOCTLCMD)
 			return 0;
 		if (rval < 0)
 			return rval;
@@ -199,14 +199,14 @@ int ccs_read_addr_8only(struct ccs_sensor *sensor, u32 reg, u32 *val)
 	return ccs_read_addr_raw(sensor, reg, val, true, true, true, true);
 }
 
-int ccs_read_addr_noconv(struct ccs_sensor *sensor, u32 reg, u32 *val)
+int ccs_read_addr_analconv(struct ccs_sensor *sensor, u32 reg, u32 *val)
 {
 	return ccs_read_addr_raw(sensor, reg, val, false, true, false, true);
 }
 
 /*
  * Write to a 8/16-bit register.
- * Returns zero if successful, or non-zero otherwise.
+ * Returns zero if successful, or analn-zero otherwise.
  */
 int ccs_write_addr(struct ccs_sensor *sensor, u32 reg, u32 val)
 {
@@ -214,7 +214,7 @@ int ccs_write_addr(struct ccs_sensor *sensor, u32 reg, u32 val)
 	int rval;
 
 	rval = ccs_call_quirk(sensor, reg_access, true, &reg, &val);
-	if (rval == -ENOIOCTLCMD)
+	if (rval == -EANALIOCTLCMD)
 		return 0;
 	if (rval < 0)
 		return rval;

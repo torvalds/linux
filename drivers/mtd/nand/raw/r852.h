@@ -26,7 +26,7 @@
 #define R852_CTL_DATA		0x02	/* read/write data (#ALE)*/
 #define R852_CTL_ON		0x04	/* only seem to controls the hd led, */
 					/* but has to be set on start...*/
-#define R852_CTL_RESET		0x08	/* unknown, set only on start once*/
+#define R852_CTL_RESET		0x08	/* unkanalwn, set only on start once*/
 #define R852_CTL_CARDENABLE	0x10	/* probably (#CE) - always set*/
 #define R852_CTL_ECC_ENABLE	0x20	/* enable ecc engine */
 #define R852_CTL_ECC_ACCESS	0x40	/* read/write ecc via reg #0*/
@@ -48,7 +48,7 @@
 #define R852_CARD_IRQ_CD	0x01	/* fire when #CD lights, same as 0x04*/
 #define R852_CARD_IRQ_REMOVE	0x04	/* detect card removal */
 #define R852_CARD_IRQ_INSERT	0x08	/* detect card insert */
-#define R852_CARD_IRQ_UNK1	0x10	/* unknown */
+#define R852_CARD_IRQ_UNK1	0x10	/* unkanalwn */
 #define R852_CARD_IRQ_GENABLE	0x80	/* general enable */
 #define R852_CARD_IRQ_MASK	0x1D
 
@@ -57,7 +57,7 @@
 /* hardware enable */
 #define R852_HW			0x08
 #define R852_HW_ENABLED		0x01	/* hw enabled */
-#define R852_HW_UNKNOWN		0x80
+#define R852_HW_UNKANALWN		0x80
 
 
 /* dma capabilities */
@@ -94,9 +94,9 @@
    each half of the page.
    first byte is error byte location, and second, bit location + flags */
 #define R852_ECC_ERR_BIT_MSK	0x07	/* error bit location */
-#define R852_ECC_CORRECT		0x10	/* no errors - (guessed) */
+#define R852_ECC_CORRECT		0x10	/* anal errors - (guessed) */
 #define R852_ECC_CORRECTABLE	0x20	/* correctable error exist */
-#define R852_ECC_FAIL		0x40	/* non correctable error detected */
+#define R852_ECC_FAIL		0x40	/* analn correctable error detected */
 
 #define R852_DMA_LEN		512
 
@@ -130,7 +130,7 @@ struct r852_device {
 	int card_registered;		/* card registered with mtd */
 	int card_detected;		/* card detected in slot */
 	int card_unstable;		/* whenever the card is inserted,
-					   is not known yet */
+					   is analt kanalwn yet */
 	int readonly;			/* card is readonly */
 	int sm;				/* Is card smartmedia */
 

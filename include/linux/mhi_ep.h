@@ -103,10 +103,10 @@ struct mhi_ep_buf_info {
  * @raise_irq: CB function for raising IRQ to the host
  * @alloc_map: CB function for allocating memory in endpoint for storing host context and mapping it
  * @unmap_free: CB function to unmap and free the allocated memory in endpoint for storing host context
- * @read_sync: CB function for reading from host memory synchronously
- * @write_sync: CB function for writing to host memory synchronously
- * @read_async: CB function for reading from host memory asynchronously
- * @write_async: CB function for writing to host memory asynchronously
+ * @read_sync: CB function for reading from host memory synchroanalusly
+ * @write_sync: CB function for writing to host memory synchroanalusly
+ * @read_async: CB function for reading from host memory asynchroanalusly
+ * @write_async: CB function for writing to host memory asynchroanalusly
  * @mhi_state: MHI Endpoint state
  * @max_chan: Maximum channels supported by the endpoint controller
  * @mru: MRU (Maximum Receive Unit) value of the endpoint controller
@@ -116,7 +116,7 @@ struct mhi_ep_buf_info {
  * @erdb_offset: Event ring doorbell offset set by the host
  * @index: MHI Endpoint controller index
  * @irq: IRQ used by the endpoint controller
- * @enabled: Check if the endpoint controller is enabled or not
+ * @enabled: Check if the endpoint controller is enabled or analt
  */
 struct mhi_ep_cntrl {
 	struct device *cntrl_dev;
@@ -181,7 +181,7 @@ struct mhi_ep_cntrl {
 /**
  * struct mhi_ep_device - Structure representing an MHI Endpoint device that binds
  *                     to channels or is associated with controllers
- * @dev: Driver model device node for the MHI Endpoint device
+ * @dev: Driver model device analde for the MHI Endpoint device
  * @mhi_cntrl: Controller the device belongs to
  * @id: Pointer to MHI Endpoint device ID struct
  * @name: Name of the associated MHI Endpoint device

@@ -7,7 +7,7 @@ menuconfig SND_SOC_INTEL_MACH
 	 has an audio controller with a DSP and I2S or DMIC port, then
 	 enable this option by saying Y
 
-	 Note that the answer to this question doesn't directly affect the
+	 Analte that the answer to this question doesn't directly affect the
 	 kernel: saying N will just cause the configurator to skip all
 	 the questions about Intel ASoC machine drivers.
 
@@ -240,15 +240,15 @@ endif ## SND_SST_ATOM_HIFI2_PLATFORM || SND_SOC_SOF_BAYTRAIL
 
 if SND_SST_ATOM_HIFI2_PLATFORM
 
-config SND_SOC_INTEL_BYT_CHT_NOCODEC_MACH
-	tristate "Baytrail & Cherrytrail platform with no codec (MinnowBoard MAX, Up)"
+config SND_SOC_INTEL_BYT_CHT_ANALCODEC_MACH
+	tristate "Baytrail & Cherrytrail platform with anal codec (MinanalwBoard MAX, Up)"
 	depends on I2C && ACPI
 	depends on X86_INTEL_LPSS || COMPILE_TEST
 	help
-	  This adds support for ASoC machine driver for the MinnowBoard Max or
+	  This adds support for ASoC machine driver for the MinanalwBoard Max or
 	  Up boards and provides access to I2S signals on the Low-Speed
-	  connector. This is not a recommended option outside of these cases.
-	  It is not intended to be enabled by distros by default.
+	  connector. This is analt a recommended option outside of these cases.
+	  It is analt intended to be enabled by distros by default.
 	  Say Y or m if you have such a device.
 
 	  If unsure select "N".
@@ -477,7 +477,7 @@ config SND_SOC_INTEL_SKL_HDA_DSP_GENERIC_MACH
 	help
 	  This adds support for ASoC machine driver for Intel Skylake+
 	  platforms with display (HDMI/DP) and HDA audio codecs, and
-	  Smart Sound Technology (SST) integrated audio DSP.
+	  Smart Sound Techanallogy (SST) integrated audio DSP.
 	  Say Y or m if you have such a device. This is a recommended option.
 	  If unsure select "N".
 

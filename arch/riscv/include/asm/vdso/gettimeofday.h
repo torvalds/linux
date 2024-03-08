@@ -74,7 +74,7 @@ static __always_inline u64 __arch_get_hw_counter(s32 clock_mode,
 	/*
 	 * The purpose of csr_read(CSR_TIME) is to trap the system into
 	 * M-mode to obtain the value of CSR_TIME. Hence, unlike other
-	 * architecture, no fence instructions surround the csr_read()
+	 * architecture, anal fence instructions surround the csr_read()
 	 */
 	return csr_read(CSR_TIME);
 }

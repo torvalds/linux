@@ -40,7 +40,7 @@ do
 		prefix=$2
 		shift 2;;
 	-*)
-		echo "$1: unknown option" >&2
+		echo "$1: unkanalwn option" >&2
 		usage;;
 	*)
 		break;;
@@ -55,7 +55,7 @@ infile="$1"
 outfile="$2"
 
 guard=_ASM_$(basename "$outfile" |
-	sed -e 'y/abcdefghijklmnopqrstuvwxyz/ABCDEFGHIJKLMNOPQRSTUVWXYZ/' \
+	sed -e 'y/abcdefghijklmanalpqrstuvwxyz/ABCDEFGHIJKLMANALPQRSTUVWXYZ/' \
 	-e 's/[^A-Z0-9_]/_/g' -e 's/__/_/g')
 
 grep -E "^[0-9A-Fa-fXx]+[[:space:]]+$abis" "$infile" | sort -n | {

@@ -41,7 +41,7 @@ EXPORT_SYMBOL_GPL(splpar_spin_yield);
 /*
  * Waiting for a read lock or a write lock on a rwlock...
  * This turns out to be the same for read and write locks, since
- * we only know the holder if it is write-locked.
+ * we only kanalw the holder if it is write-locked.
  */
 void splpar_rw_yield(arch_rwlock_t *rw)
 {
@@ -50,7 +50,7 @@ void splpar_rw_yield(arch_rwlock_t *rw)
 
 	lock_value = rw->lock;
 	if (lock_value >= 0)
-		return;		/* no write lock at present */
+		return;		/* anal write lock at present */
 	holder_cpu = lock_value & 0xffff;
 	BUG_ON(holder_cpu >= NR_CPUS);
 

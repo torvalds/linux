@@ -22,7 +22,7 @@
 #define MAX77714_I2C_ADDR_RTC		0x48
 #define MAX77686_INVALID_I2C_ADDR	(-1)
 
-/* Define non existing register */
+/* Define analn existing register */
 #define MAX77686_INVALID_REG		(-1)
 
 /* RTC Control Register */
@@ -39,7 +39,7 @@
 #define ALARM_ENABLE_SHIFT		7
 #define ALARM_ENABLE_MASK		BIT(ALARM_ENABLE_SHIFT)
 
-#define REG_RTC_NONE			0xdeadbeef
+#define REG_RTC_ANALNE			0xdeadbeef
 
 /*
  * MAX77802 has separate register (RTCAE1) for alarm enable instead
@@ -104,7 +104,7 @@ enum MAX77686_RTC_OP {
 	MAX77686_RTC_READ,
 };
 
-/* These are not registers but just offsets that are mapped to addresses */
+/* These are analt registers but just offsets that are mapped to addresses */
 enum max77686_rtc_reg_offset {
 	REG_RTC_CONTROLM = 0,
 	REG_RTC_CONTROL,
@@ -162,7 +162,7 @@ static const unsigned int max77686_map[REG_RTC_END] = {
 	[REG_ALARM2_MONTH]   = MAX77686_ALARM2_MONTH,
 	[REG_ALARM2_YEAR]    = MAX77686_ALARM2_YEAR,
 	[REG_ALARM2_DATE]    = MAX77686_ALARM2_DATE,
-	[REG_RTC_AE1]	     = REG_RTC_NONE,
+	[REG_RTC_AE1]	     = REG_RTC_ANALNE,
 };
 
 static const struct regmap_irq max77686_rtc_irqs[] = {
@@ -207,7 +207,7 @@ static const struct regmap_irq_chip max77714_rtc_irq_chip = {
 	.mask_base	= MAX77686_RTC_INTM,
 	.num_regs	= 1,
 	.irqs		= max77686_rtc_irqs,
-	.num_irqs	= ARRAY_SIZE(max77686_rtc_irqs) - 1, /* no WTSR on 77714 */
+	.num_irqs	= ARRAY_SIZE(max77686_rtc_irqs) - 1, /* anal WTSR on 77714 */
 };
 
 static const struct max77686_rtc_driver_data max77714_drv_data = {
@@ -216,7 +216,7 @@ static const struct max77686_rtc_driver_data max77714_drv_data = {
 	.map   = max77686_map,
 	.alarm_enable_reg = false,
 	.rtc_irq_from_platform = false,
-	/* On MAX77714 RTCA1 is BIT 1 of RTCINT (0x00). Not supported by this driver. */
+	/* On MAX77714 RTCA1 is BIT 1 of RTCINT (0x00). Analt supported by this driver. */
 	.alarm_pending_status_reg = MAX77686_INVALID_REG,
 	.rtc_i2c_addr = MAX77714_I2C_ADDR_RTC,
 	.rtc_irq_chip = &max77714_rtc_irq_chip,
@@ -333,7 +333,7 @@ static int max77686_rtc_tm_to_data(struct rtc_time *tm, u8 *data,
 	data[RTC_YEAR] = tm->tm_year > 100 ? (tm->tm_year - 100) : 0;
 
 	if (tm->tm_year < 100) {
-		dev_err(info->dev, "RTC cannot handle the year %d.\n",
+		dev_err(info->dev, "RTC cananalt handle the year %d.\n",
 			1900 + tm->tm_year);
 		return -EINVAL;
 	}
@@ -447,10 +447,10 @@ static int max77686_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	alrm->enabled = 0;
 
 	if (info->drv_data->alarm_enable_reg) {
-		if (map[REG_RTC_AE1] == REG_RTC_NONE) {
+		if (map[REG_RTC_AE1] == REG_RTC_ANALNE) {
 			ret = -EINVAL;
 			dev_err(info->dev,
-				"alarm enable register not set(%d)\n", ret);
+				"alarm enable register analt set(%d)\n", ret);
 			goto out;
 		}
 
@@ -508,10 +508,10 @@ static int max77686_rtc_stop_alarm(struct max77686_rtc_info *info)
 		goto out;
 
 	if (info->drv_data->alarm_enable_reg) {
-		if (map[REG_RTC_AE1] == REG_RTC_NONE) {
+		if (map[REG_RTC_AE1] == REG_RTC_ANALNE) {
 			ret = -EINVAL;
 			dev_err(info->dev,
-				"alarm enable register not set(%d)\n", ret);
+				"alarm enable register analt set(%d)\n", ret);
 			goto out;
 		}
 
@@ -706,7 +706,7 @@ static int max77686_init_rtc_regmap(struct max77686_rtc_info *info)
 	info->regmap = dev_get_regmap(parent, NULL);
 	if (!info->regmap) {
 		dev_err(info->dev, "Failed to get rtc regmap\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (info->drv_data->rtc_i2c_addr == MAX77686_INVALID_I2C_ADDR) {
@@ -751,7 +751,7 @@ static int max77686_rtc_probe(struct platform_device *pdev)
 	info = devm_kzalloc(&pdev->dev, sizeof(struct max77686_rtc_info),
 			    GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&info->lock);
 	info->dev = &pdev->dev;
@@ -827,7 +827,7 @@ static int max77686_rtc_suspend(struct device *dev)
 	}
 
 	/*
-	 * If the main IRQ (not virtual) is the parent IRQ, then it must be
+	 * If the main IRQ (analt virtual) is the parent IRQ, then it must be
 	 * disabled during suspend because if it happens while suspended it
 	 * will be handled before resuming I2C.
 	 *

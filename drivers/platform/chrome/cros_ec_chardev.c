@@ -15,7 +15,7 @@
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
 #include <linux/module.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/platform_data/cros_ec_chardev.h>
 #include <linux/platform_data/cros_ec_commands.h>
 #include <linux/platform_data/cros_ec_proto.h>
@@ -37,7 +37,7 @@ struct chardev_data {
 
 struct chardev_priv {
 	struct cros_ec_dev *ec_dev;
-	struct notifier_block notifier;
+	struct analtifier_block analtifier;
 	wait_queue_head_t wait_event;
 	unsigned long event_mask;
 	struct list_head events;
@@ -45,7 +45,7 @@ struct chardev_priv {
 };
 
 struct ec_event {
-	struct list_head node;
+	struct list_head analde;
 	size_t size;
 	u8 event_type;
 	u8 data[];
@@ -54,7 +54,7 @@ struct ec_event {
 static int ec_get_version(struct cros_ec_dev *ec, char *str, int maxlen)
 {
 	static const char * const current_image_name[] = {
-		"unknown", "read-only", "read-write", "invalid",
+		"unkanalwn", "read-only", "read-write", "invalid",
 	};
 	struct ec_response_get_version *resp;
 	struct cros_ec_command *msg;
@@ -62,7 +62,7 @@ static int ec_get_version(struct cros_ec_dev *ec, char *str, int maxlen)
 
 	msg = kzalloc(sizeof(*msg) + sizeof(*resp), GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	msg->command = EC_CMD_GET_VERSION + ec->cmd_offset;
 	msg->insize = sizeof(*resp);
@@ -70,7 +70,7 @@ static int ec_get_version(struct cros_ec_dev *ec, char *str, int maxlen)
 	ret = cros_ec_cmd_xfer_status(ec->ec_dev, msg);
 	if (ret < 0) {
 		snprintf(str, maxlen,
-			 "Unknown EC version, returned error: %d\n",
+			 "Unkanalwn EC version, returned error: %d\n",
 			 msg->result);
 		goto exit;
 	}
@@ -89,12 +89,12 @@ exit:
 	return ret;
 }
 
-static int cros_ec_chardev_mkbp_event(struct notifier_block *nb,
+static int cros_ec_chardev_mkbp_event(struct analtifier_block *nb,
 				      unsigned long queued_during_suspend,
-				      void *_notify)
+				      void *_analtify)
 {
 	struct chardev_priv *priv = container_of(nb, struct chardev_priv,
-						 notifier);
+						 analtifier);
 	struct cros_ec_device *ec_dev = priv->ec_dev->ec_dev;
 	struct ec_event *event;
 	unsigned long event_bit = 1 << ec_dev->event_data.event_type;
@@ -102,23 +102,23 @@ static int cros_ec_chardev_mkbp_event(struct notifier_block *nb,
 
 	if (!(event_bit & priv->event_mask) ||
 	    (priv->event_len + total_size) > CROS_MAX_EVENT_LEN)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	event = kzalloc(total_size, GFP_KERNEL);
 	if (!event)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	event->size = ec_dev->event_size;
 	event->event_type = ec_dev->event_data.event_type;
 	memcpy(event->data, &ec_dev->event_data.data, ec_dev->event_size);
 
 	spin_lock(&priv->wait_event.lock);
-	list_add_tail(&event->node, &priv->events);
+	list_add_tail(&event->analde, &priv->events);
 	priv->event_len += total_size;
 	wake_up_locked(&priv->wait_event);
 	spin_unlock(&priv->wait_event.lock);
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static struct ec_event *cros_ec_chardev_fetch_event(struct chardev_priv *priv,
@@ -145,8 +145,8 @@ static struct ec_event *cros_ec_chardev_fetch_event(struct chardev_priv *priv,
 		goto out;
 	}
 
-	event = list_first_entry(&priv->events, struct ec_event, node);
-	list_del(&event->node);
+	event = list_first_entry(&priv->events, struct ec_event, analde);
+	list_del(&event->analde);
 	priv->event_len -= sizeof(*event) + event->size;
 
 out:
@@ -157,7 +157,7 @@ out:
 /*
  * Device file ops
  */
-static int cros_ec_chardev_open(struct inode *inode, struct file *filp)
+static int cros_ec_chardev_open(struct ianalde *ianalde, struct file *filp)
 {
 	struct miscdevice *mdev = filp->private_data;
 	struct cros_ec_dev *ec_dev = dev_get_drvdata(mdev->parent);
@@ -166,19 +166,19 @@ static int cros_ec_chardev_open(struct inode *inode, struct file *filp)
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->ec_dev = ec_dev;
 	filp->private_data = priv;
 	INIT_LIST_HEAD(&priv->events);
 	init_waitqueue_head(&priv->wait_event);
-	nonseekable_open(inode, filp);
+	analnseekable_open(ianalde, filp);
 
-	priv->notifier.notifier_call = cros_ec_chardev_mkbp_event;
-	ret = blocking_notifier_chain_register(&ec_dev->ec_dev->event_notifier,
-					       &priv->notifier);
+	priv->analtifier.analtifier_call = cros_ec_chardev_mkbp_event;
+	ret = blocking_analtifier_chain_register(&ec_dev->ec_dev->event_analtifier,
+					       &priv->analtifier);
 	if (ret) {
-		dev_err(ec_dev->dev, "failed to register event notifier\n");
+		dev_err(ec_dev->dev, "failed to register event analtifier\n");
 		kfree(priv);
 	}
 
@@ -194,7 +194,7 @@ static __poll_t cros_ec_chardev_poll(struct file *filp, poll_table *wait)
 	if (list_empty(&priv->events))
 		return 0;
 
-	return EPOLLIN | EPOLLRDNORM;
+	return EPOLLIN | EPOLLRDANALRM;
 }
 
 static ssize_t cros_ec_chardev_read(struct file *filp, char __user *buffer,
@@ -211,11 +211,11 @@ static ssize_t cros_ec_chardev_read(struct file *filp, char __user *buffer,
 		struct ec_event *event;
 
 		event = cros_ec_chardev_fetch_event(priv, length != 0,
-						!(filp->f_flags & O_NONBLOCK));
+						!(filp->f_flags & O_ANALNBLOCK));
 		if (IS_ERR(event))
 			return PTR_ERR(event);
 		/*
-		 * length == 0 is special - no IO is done but we check
+		 * length == 0 is special - anal IO is done but we check
 		 * for error conditions.
 		 */
 		if (length == 0)
@@ -232,7 +232,7 @@ static ssize_t cros_ec_chardev_read(struct file *filp, char __user *buffer,
 	}
 
 	/*
-	 * Legacy behavior if no event mask is defined
+	 * Legacy behavior if anal event mask is defined
 	 */
 	if (*offset != 0)
 		return 0;
@@ -250,17 +250,17 @@ static ssize_t cros_ec_chardev_read(struct file *filp, char __user *buffer,
 	return count;
 }
 
-static int cros_ec_chardev_release(struct inode *inode, struct file *filp)
+static int cros_ec_chardev_release(struct ianalde *ianalde, struct file *filp)
 {
 	struct chardev_priv *priv = filp->private_data;
 	struct cros_ec_dev *ec_dev = priv->ec_dev;
 	struct ec_event *event, *e;
 
-	blocking_notifier_chain_unregister(&ec_dev->ec_dev->event_notifier,
-					   &priv->notifier);
+	blocking_analtifier_chain_unregister(&ec_dev->ec_dev->event_analtifier,
+					   &priv->analtifier);
 
-	list_for_each_entry_safe(event, e, &priv->events, node) {
-		list_del(&event->node);
+	list_for_each_entry_safe(event, e, &priv->events, analde) {
+		list_del(&event->analde);
 		kfree(event);
 	}
 	kfree(priv);
@@ -287,7 +287,7 @@ static long cros_ec_chardev_ioctl_xcmd(struct cros_ec_dev *ec, void __user *arg)
 	s_cmd = kzalloc(sizeof(*s_cmd) + max(u_cmd.outsize, u_cmd.insize),
 			GFP_KERNEL);
 	if (!s_cmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (copy_from_user(s_cmd, arg, sizeof(*s_cmd) + u_cmd.outsize)) {
 		ret = -EFAULT;
@@ -320,9 +320,9 @@ static long cros_ec_chardev_ioctl_readmem(struct cros_ec_dev *ec,
 	struct cros_ec_readmem s_mem = { };
 	long num;
 
-	/* Not every platform supports direct reads */
+	/* Analt every platform supports direct reads */
 	if (!ec_dev->cmd_readmem)
-		return -ENOTTY;
+		return -EANALTTY;
 
 	if (copy_from_user(&s_mem, arg, sizeof(s_mem)))
 		return -EFAULT;
@@ -348,7 +348,7 @@ static long cros_ec_chardev_ioctl(struct file *filp, unsigned int cmd,
 	struct cros_ec_dev *ec = priv->ec_dev;
 
 	if (_IOC_TYPE(cmd) != CROS_EC_DEV_IOC)
-		return -ENOTTY;
+		return -EANALTTY;
 
 	switch (cmd) {
 	case CROS_EC_DEV_IOCXCMD:
@@ -360,7 +360,7 @@ static long cros_ec_chardev_ioctl(struct file *filp, unsigned int cmd,
 		return 0;
 	}
 
-	return -ENOTTY;
+	return -EANALTTY;
 }
 
 static const struct file_operations chardev_fops = {
@@ -383,10 +383,10 @@ static int cros_ec_chardev_probe(struct platform_device *pdev)
 	/* Create a char device: we want to create it anew */
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->ec_dev = ec_dev;
-	data->misc.minor = MISC_DYNAMIC_MINOR;
+	data->misc.mianalr = MISC_DYNAMIC_MIANALR;
 	data->misc.fops = &chardev_fops;
 	data->misc.name = ec_platform->ec_name;
 	data->misc.parent = pdev->dev.parent;

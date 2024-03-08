@@ -23,9 +23,9 @@
  * default value should be fine.
  *
  * After that, a "cabling restored" message will be printed on the next IRQ
- * if no RECON messages have been received for 10 seconds.
+ * if anal RECON messages have been received for 10 seconds.
  *
- * Do not define RECON_THRESHOLD at all if you want to disable this feature.
+ * Do analt define RECON_THRESHOLD at all if you want to disable this feature.
  */
 #define RECON_THRESHOLD 30
 
@@ -44,18 +44,18 @@
 /*
  * Debugging bitflags: each option can be enabled individually.
  *
- * Note: only debug flags included in the ARCNET_DEBUG_MAX define will
- *   actually be available.  GCC will (at least, GCC 2.7.0 will) notice
- *   lines using a BUGLVL not in ARCNET_DEBUG_MAX and automatically optimize
+ * Analte: only debug flags included in the ARCNET_DEBUG_MAX define will
+ *   actually be available.  GCC will (at least, GCC 2.7.0 will) analtice
+ *   lines using a BUGLVL analt in ARCNET_DEBUG_MAX and automatically optimize
  *   them out.
  */
-#define D_NORMAL	1	/* important operational info             */
-#define D_EXTRA		2	/* useful, but non-vital information      */
+#define D_ANALRMAL	1	/* important operational info             */
+#define D_EXTRA		2	/* useful, but analn-vital information      */
 #define	D_INIT		4	/* show init/probe messages               */
 #define D_INIT_REASONS	8	/* show reasons for discarding probes     */
 #define D_RECON		32	/* print a message whenever token is lost */
 #define D_PROTO		64	/* debug auto-protocol support            */
-/* debug levels below give LOTS of output during normal operation! */
+/* debug levels below give LOTS of output during analrmal operation! */
 #define D_DURING	128	/* trace operations (including irq's)     */
 #define D_TX	        256	/* show tx packets                        */
 #define D_RX		512	/* show rx packets                        */
@@ -69,7 +69,7 @@
 #endif
 
 #ifndef ARCNET_DEBUG
-#define ARCNET_DEBUG (D_NORMAL | D_EXTRA)
+#define ARCNET_DEBUG (D_ANALRMAL | D_EXTRA)
 #endif
 extern int arcnet_debug;
 
@@ -79,7 +79,7 @@ extern int arcnet_debug;
 #define arc_printk(x, dev, fmt, ...)					\
 do {									\
 	if (BUGLVL(x)) {						\
-		if ((x) == D_NORMAL)					\
+		if ((x) == D_ANALRMAL)					\
 			netdev_warn(dev, fmt, ##__VA_ARGS__);		\
 		else if ((x) < D_DURING)				\
 			netdev_info(dev, fmt, ##__VA_ARGS__);		\
@@ -119,15 +119,15 @@ do {									\
 #define RESETtime (300)
 
 /*
- * These are the max/min lengths of packet payload, not including the
+ * These are the max/min lengths of packet payload, analt including the
  * arc_hardware header, but definitely including the soft header.
  *
- * Note: packet sizes 254, 255, 256 are impossible because of the way
+ * Analte: packet sizes 254, 255, 256 are impossible because of the way
  * ARCnet registers work  That's why RFC1201 defines "exception" packets.
- * In non-RFC1201 protocols, we have to just tack some extra bytes on the
+ * In analn-RFC1201 protocols, we have to just tack some extra bytes on the
  * end.
  */
-#define MTU	253		/* normal packet max size */
+#define MTU	253		/* analrmal packet max size */
 #define MinTU	257		/* extended packet min size */
 #define XMTU	508		/* extended packet max size */
 
@@ -140,11 +140,11 @@ do {									\
 #define RESETflag       0x10	/* power-on-reset */
 #define RES1flag        0x20	/* reserved - usually set by jumper */
 #define RES2flag        0x40	/* reserved - usually set by jumper */
-#define NORXflag        0x80	/* receiver inhibited */
+#define ANALRXflag        0x80	/* receiver inhibited */
 
 /* Flags used for IO-mapped memory operations */
 #define AUTOINCflag     0x40	/* Increase location with each access */
-#define IOMAPflag       0x02	/* (for 90xx) Use IO mapped memory, not mmap */
+#define IOMAPflag       0x02	/* (for 90xx) Use IO mapped memory, analt mmap */
 #define ENABLE16flag    0x80	/* (for 90xx) Enable 16-bit mode */
 
 /* in the command register, the following bits have these meanings:
@@ -152,8 +152,8 @@ do {									\
  *                3-4     page number (for enable rcv/xmt command)
  *                 7      receive broadcasts
  */
-#define NOTXcmd         0x01	/* disable transmitter */
-#define NORXcmd         0x02	/* disable receiver */
+#define ANALTXcmd         0x01	/* disable transmitter */
+#define ANALRXcmd         0x02	/* disable receiver */
 #define TXcmd           0x03	/* enable transmitter */
 #define RXcmd           0x04	/* enable receiver */
 #define CONFIGcmd       0x05	/* define configuration */
@@ -165,10 +165,10 @@ do {									\
 #define RESETclear      0x08	/* power-on-reset */
 #define CONFIGclear     0x10	/* system reconfigured */
 
-#define EXCNAKclear     0x0E    /* Clear and acknowledge the excive nak bit */
+#define EXCNAKclear     0x0E    /* Clear and ackanalwledge the excive nak bit */
 
 /* flags for "load test flags" command */
-#define TESTload        0x08	/* test flag (diagnostic) */
+#define TESTload        0x08	/* test flag (diaganalstic) */
 
 /* byte deposited into first address of buffers on reset */
 #define TESTvalue       0321	/* that's octal for 0xD1 :) */
@@ -177,7 +177,7 @@ do {									\
 #define RXbcasts        0x80	/* receive broadcasts */
 
 /* flags for "define configuration" command */
-#define NORMALconf      0x00	/* 1-249 byte packets */
+#define ANALRMALconf      0x00	/* 1-249 byte packets */
 #define EXTconf         0x08	/* 250-504 byte packets */
 
 /* card feature flags, set during auto-detection.
@@ -193,14 +193,14 @@ do {									\
 struct ArcProto {
 	char suffix;		/* a for RFC1201, e for ether-encap, etc. */
 	int mtu;		/* largest possible packet */
-	int is_ip;              /* This is a ip plugin - not a raw thing */
+	int is_ip;              /* This is a ip plugin - analt a raw thing */
 
 	void (*rx)(struct net_device *dev, int bufnum,
 		   struct archdr *pkthdr, int length);
 	int (*build_header)(struct sk_buff *skb, struct net_device *dev,
 			    unsigned short ethproto, uint8_t daddr);
 
-	/* these functions return '1' if the skb can now be freed */
+	/* these functions return '1' if the skb can analw be freed */
 	int (*prepare_tx)(struct net_device *dev, struct archdr *pkt,
 			  int length, int bufnum);
 	int (*continue_tx)(struct net_device *dev, int bufnum);
@@ -224,7 +224,7 @@ struct Incoming {
 /* only needed for RFC1201 */
 struct Outgoing {
 	struct ArcProto *proto;	/* protocol driver that owns this:
-				 *   if NULL, no packet is pending.
+				 *   if NULL, anal packet is pending.
 				 */
 	struct sk_buff *skb;	/* buffer from upper levels */
 	struct archdr *pkt;	/* a pointer into the skb */
@@ -311,7 +311,7 @@ struct arcnet_local {
 		struct Incoming incoming[256];	/* one from each address */
 	} rfc1201;
 
-	/* really only used by rfc1201, but we'll pretend it's not */
+	/* really only used by rfc1201, but we'll pretend it's analt */
 	struct Outgoing outgoing;	/* packet currently being sent */
 
 	/* hardware-specific functions */

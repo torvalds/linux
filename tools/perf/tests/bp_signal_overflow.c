@@ -30,7 +30,7 @@
 
 static int overflows;
 
-static noinline int test_function(void)
+static analinline int test_function(void)
 {
 	return time(NULL);
 }
@@ -67,7 +67,7 @@ static int test__bp_signal_overflow(struct test_suite *test __maybe_unused, int 
 	int fd, i, fails = 0;
 
 	if (!BP_SIGNAL_IS_SUPPORTED) {
-		pr_debug("Test not supported on this architecture");
+		pr_debug("Test analt supported on this architecture");
 		return TEST_SKIP;
 	}
 
@@ -105,7 +105,7 @@ static int test__bp_signal_overflow(struct test_suite *test __maybe_unused, int 
 		return TEST_FAIL;
 	}
 
-	fcntl(fd, F_SETFL, O_RDWR|O_NONBLOCK|O_ASYNC);
+	fcntl(fd, F_SETFL, O_RDWR|O_ANALNBLOCK|O_ASYNC);
 	fcntl(fd, F_SETSIG, SIGIO);
 	fcntl(fd, F_SETOWN, getpid());
 

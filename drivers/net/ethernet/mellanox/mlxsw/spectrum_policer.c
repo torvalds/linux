@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2020 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2020 Mellaanalx Techanallogies. All rights reserved */
 
 #include <linux/idr.h>
 #include <linux/log2.h>
@@ -180,7 +180,7 @@ mlxsw_sp_policer_single_rate_params_check(const struct mlxsw_sp_policer_family *
 	}
 
 	if (!is_power_of_2(params->burst)) {
-		NL_SET_ERR_MSG_MOD(extack, "Policer burst size is not power of two");
+		NL_SET_ERR_MSG_MOD(extack, "Policer burst size is analt power of two");
 		return -EINVAL;
 	}
 
@@ -245,7 +245,7 @@ int mlxsw_sp_policer_add(struct mlxsw_sp *mlxsw_sp,
 
 	policer = kmalloc(sizeof(*policer), GFP_KERNEL);
 	if (!policer)
-		return -ENOMEM;
+		return -EANALMEM;
 	policer->params = *params;
 
 	err = family->ops->policer_index_alloc(family, policer);
@@ -313,7 +313,7 @@ mlxsw_sp_policer_family_register(struct mlxsw_sp *mlxsw_sp,
 
 	family = kmemdup(tmpl, sizeof(*family), GFP_KERNEL);
 	if (!family)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	family->mlxsw_sp = mlxsw_sp;
 	idr_init(&family->policer_idr);
@@ -359,7 +359,7 @@ int mlxsw_sp_policers_init(struct mlxsw_sp *mlxsw_sp)
 
 	policer_core = kzalloc(sizeof(*policer_core), GFP_KERNEL);
 	if (!policer_core)
-		return -ENOMEM;
+		return -EANALMEM;
 	mlxsw_sp->policer_core = policer_core;
 	policer_core->ops = mlxsw_sp->policer_core_ops;
 

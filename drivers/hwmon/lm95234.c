@@ -23,7 +23,7 @@
 
 enum chips { lm95233, lm95234 };
 
-static const unsigned short normal_i2c[] = {
+static const unsigned short analrmal_i2c[] = {
 	0x18, 0x2a, 0x2b, 0x4d, 0x4e, I2C_CLIENT_END };
 
 /* LM95234 registers */
@@ -598,51 +598,51 @@ static int lm95234_detect(struct i2c_client *client,
 	const char *name;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	mfg_id = i2c_smbus_read_byte_data(client, LM95234_REG_MAN_ID);
 	if (mfg_id != NATSEMI_MAN_ID)
-		return -ENODEV;
+		return -EANALDEV;
 
 	chip_id = i2c_smbus_read_byte_data(client, LM95234_REG_CHIP_ID);
 	switch (chip_id) {
 	case LM95233_CHIP_ID:
 		if (address != 0x18 && address != 0x2a && address != 0x2b)
-			return -ENODEV;
+			return -EANALDEV;
 		config_mask = 0xbf;
 		model_mask = 0xf9;
 		name = "lm95233";
 		break;
 	case LM95234_CHIP_ID:
 		if (address != 0x18 && address != 0x4d && address != 0x4e)
-			return -ENODEV;
+			return -EANALDEV;
 		config_mask = 0xbc;
 		model_mask = 0xe1;
 		name = "lm95234";
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	val = i2c_smbus_read_byte_data(client, LM95234_REG_STATUS);
 	if (val & 0x30)
-		return -ENODEV;
+		return -EANALDEV;
 
 	val = i2c_smbus_read_byte_data(client, LM95234_REG_CONFIG);
 	if (val & config_mask)
-		return -ENODEV;
+		return -EANALDEV;
 
 	val = i2c_smbus_read_byte_data(client, LM95234_REG_CONVRATE);
 	if (val & 0xfc)
-		return -ENODEV;
+		return -EANALDEV;
 
 	val = i2c_smbus_read_byte_data(client, LM95234_REG_REM_MODEL);
 	if (val & model_mask)
-		return -ENODEV;
+		return -EANALDEV;
 
 	val = i2c_smbus_read_byte_data(client, LM95234_REG_REM_MODEL_STS);
 	if (val & model_mask)
-		return -ENODEV;
+		return -EANALDEV;
 
 	strscpy(info->type, name, I2C_NAME_SIZE);
 	return 0;
@@ -668,7 +668,7 @@ static int lm95234_init_client(struct i2c_client *client)
 	if (model < 0)
 		return model;
 	if (model & val) {
-		dev_notice(&client->dev,
+		dev_analtice(&client->dev,
 			   "Fixing remote diode type misconfiguration (0x%x)\n",
 			   val);
 		i2c_smbus_write_byte_data(client, LM95234_REG_REM_MODEL,
@@ -688,7 +688,7 @@ static int lm95234_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(dev, sizeof(struct lm95234_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->client = client;
 	mutex_init(&data->update_lock);
@@ -723,7 +723,7 @@ static struct i2c_driver lm95234_driver = {
 	.probe		= lm95234_probe,
 	.id_table	= lm95234_id,
 	.detect		= lm95234_detect,
-	.address_list	= normal_i2c,
+	.address_list	= analrmal_i2c,
 };
 
 module_i2c_driver(lm95234_driver);

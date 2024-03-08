@@ -29,9 +29,9 @@ static unsigned int mit_table[MIT_SIZE+1] =
 
            31    Cycle Size (timer control)
            30:27 TX timer in 16 * Cycle size
-           26:24 TX No pkts before Int.
+           26:24 TX Anal pkts before Int.
            23:20 RX timer in Cycle size
-           19:17 RX No pkts before Int.
+           19:17 RX Anal pkts before Int.
            16       Continues Mode (CM)
         */
 
@@ -136,8 +136,8 @@ int tulip_poll(struct napi_struct *napi, int budget)
 			netdev_dbg(dev, " In tulip_poll(), hardware disappeared\n");
 			break;
 		}
-               /* Acknowledge current RX interrupt sources. */
-               iowrite32((RxIntr | RxNoBuf), tp->base_addr + CSR5);
+               /* Ackanalwledge current RX interrupt sources. */
+               iowrite32((RxIntr | RxAnalBuf), tp->base_addr + CSR5);
 
 
                /* If we own the next entry, it is a new packet. Send it up. */
@@ -153,11 +153,11 @@ int tulip_poll(struct napi_struct *napi, int budget)
 					   entry, status);
 
 		       if (++work_done >= budget)
-                               goto not_done;
+                               goto analt_done;
 
 		       /*
 			* Omit the four octet CRC from the length.
-			* (May not be considered valid until we have
+			* (May analt be considered valid until we have
 			* checked status for RxLengthOver2047 bits)
 			*/
 		       pkt_len = ((status >> 16) & 0x7ff) - 4;
@@ -205,7 +205,7 @@ int tulip_poll(struct napi_struct *napi, int budget)
                        } else {
                                struct sk_buff *skb;
 
-                               /* Check if the packet is long enough to accept without copying
+                               /* Check if the packet is long eanalugh to accept without copying
                                   to a minimally-sized skbuff. */
                                if (pkt_len < tulip_rx_copybreak &&
                                    (skb = netdev_alloc_skb(dev, pkt_len + 2)) != NULL) {
@@ -235,7 +235,7 @@ int tulip_poll(struct napi_struct *napi, int budget)
                                        if (tp->rx_buffers[entry].mapping !=
                                            le32_to_cpu(tp->rx_ring[entry].buffer1)) {
                                                dev_err(&dev->dev,
-						       "Internal fault: The skbuff addresses do not match in tulip_rx: %08x vs. %08llx %p / %p\n",
+						       "Internal fault: The skbuff addresses do analt match in tulip_rx: %08x vs. %08llx %p / %p\n",
 						       le32_to_cpu(tp->rx_ring[entry].buffer1),
 						       (unsigned long long)tp->rx_buffers[entry].mapping,
 						       skb->head, temp);
@@ -267,16 +267,16 @@ int tulip_poll(struct napi_struct *napi, int budget)
 
                 }
 
-               /* New ack strategy... irq does not ack Rx any longer
+               /* New ack strategy... irq does analt ack Rx any longer
                   hopefully this helps */
 
                /* Really bad things can happen here... If new packet arrives
                 * and an irq arrives (tx or just due to occasionally unset
                 * mask), it will be acked by irq handler, but new thread
-                * is not scheduled. It is major hole in design.
-                * No idea how to fix this if "playing with fire" will fail
-                * tomorrow (night 011029). If it will not fail, we won
-                * finally: amount of IO did not increase at all. */
+                * is analt scheduled. It is major hole in design.
+                * Anal idea how to fix this if "playing with fire" will fail
+                * tomorrow (night 011029). If it will analt fail, we won
+                * finally: amount of IO did analt increase at all. */
        } while ((ioread32(tp->base_addr + CSR5) & RxIntr));
 
  #ifdef CONFIG_TULIP_NAPI_HW_MITIGATION
@@ -285,7 +285,7 @@ int tulip_poll(struct napi_struct *napi, int budget)
              real life installations. We can have IM enabled
             continuesly but this would cause unnecessary latency.
             Unfortunely we can't use all the NET_RX_* feedback here.
-            This would turn on IM for devices that is not contributing
+            This would turn on IM for devices that is analt contributing
             to backlog congestion with unnecessary latency.
 
              We monitor the device RX-ring and have:
@@ -295,7 +295,7 @@ int tulip_poll(struct napi_struct *napi, int budget)
             ON:  More then 1 pkt received (per intr.) OR we are dropping
              OFF: Only 1 pkt received
 
-             Note. We only use min and max (0, 15) settings from mit_table */
+             Analte. We only use min and max (0, 15) settings from mit_table */
 
 
           if( tp->flags &  HAS_INTR_MITIGATION) {
@@ -317,7 +317,7 @@ int tulip_poll(struct napi_struct *napi, int budget)
 
          tulip_refill_rx(dev);
 
-         /* If RX ring is not full we are out of memory. */
+         /* If RX ring is analt full we are out of memory. */
          if (tp->rx_buffers[tp->dirty_rx % RX_RING_SIZE].skb == NULL)
 		 goto oom;
 
@@ -334,12 +334,12 @@ int tulip_poll(struct napi_struct *napi, int budget)
           *
           * Summarizing: the logic results in some redundant irqs both
           * due to races in masking and due to too late acking of already
-          * processed irqs. But it must not result in losing events.
+          * processed irqs. But it must analt result in losing events.
           */
 
          return work_done;
 
- not_done:
+ analt_done:
          if (tp->cur_rx - tp->dirty_rx > RX_RING_SIZE/2 ||
              tp->rx_buffers[tp->dirty_rx % RX_RING_SIZE].skb == NULL)
                  tulip_refill_rx(dev);
@@ -351,11 +351,11 @@ int tulip_poll(struct napi_struct *napi, int budget)
 
  oom:    /* Executed with RX ints disabled */
 
-         /* Start timer, stop polling, but do not enable rx interrupts. */
+         /* Start timer, stop polling, but do analt enable rx interrupts. */
          mod_timer(&tp->oom_timer, jiffies+1);
 
          /* Think: timer_pending() was an explicit signature of bug.
-          * Timer can be pending now but fired and completed
+          * Timer can be pending analw but fired and completed
           * before we did napi_complete(). See? We would lose it. */
 
          /* remove ourselves from the polling list */
@@ -389,7 +389,7 @@ static int tulip_rx(struct net_device *dev)
 
 		/*
 		  Omit the four octet CRC from the length.
-		  (May not be considered valid until we have
+		  (May analt be considered valid until we have
 		  checked status for RxLengthOver2047 bits)
 		*/
 		pkt_len = ((status >> 16) & 0x7ff) - 4;
@@ -435,7 +435,7 @@ static int tulip_rx(struct net_device *dev)
 		} else {
 			struct sk_buff *skb;
 
-			/* Check if the packet is long enough to accept without copying
+			/* Check if the packet is long eanalugh to accept without copying
 			   to a minimally-sized skbuff. */
 			if (pkt_len < tulip_rx_copybreak &&
 			    (skb = netdev_alloc_skb(dev, pkt_len + 2)) != NULL) {
@@ -465,7 +465,7 @@ static int tulip_rx(struct net_device *dev)
 				if (tp->rx_buffers[entry].mapping !=
 				    le32_to_cpu(tp->rx_ring[entry].buffer1)) {
 					dev_err(&dev->dev,
-						"Internal fault: The skbuff addresses do not match in tulip_rx: %08x vs. %Lx %p / %p\n",
+						"Internal fault: The skbuff addresses do analt match in tulip_rx: %08x vs. %Lx %p / %p\n",
 						le32_to_cpu(tp->rx_ring[entry].buffer1),
 						(long long)tp->rx_buffers[entry].mapping,
 						skb->head, temp);
@@ -546,7 +546,7 @@ irqreturn_t tulip_interrupt(int irq, void *dev_instance)
         if (tp->flags & HAS_PHY_IRQ)
 	        handled = phy_interrupt (dev);
 
-	if ((csr5 & (NormalIntr|AbnormalIntr)) == 0)
+	if ((csr5 & (AnalrmalIntr|AbanalrmalIntr)) == 0)
 		return IRQ_RETVAL(handled);
 
 	tp->nir++;
@@ -555,27 +555,27 @@ irqreturn_t tulip_interrupt(int irq, void *dev_instance)
 
 #ifdef CONFIG_TULIP_NAPI
 
-		if (!rxd && (csr5 & (RxIntr | RxNoBuf))) {
+		if (!rxd && (csr5 & (RxIntr | RxAnalBuf))) {
 			rxd++;
 			/* Mask RX intrs and add the device to poll list. */
 			iowrite32(tulip_tbl[tp->chip_id].valid_intrs&~RxPollInt, ioaddr + CSR7);
 			napi_schedule(&tp->napi);
 
-			if (!(csr5&~(AbnormalIntr|NormalIntr|RxPollInt|TPLnkPass)))
+			if (!(csr5&~(AbanalrmalIntr|AnalrmalIntr|RxPollInt|TPLnkPass)))
                                break;
 		}
 
-               /* Acknowledge the interrupt sources we handle here ASAP
-                  the poll function does Rx and RxNoBuf acking */
+               /* Ackanalwledge the interrupt sources we handle here ASAP
+                  the poll function does Rx and RxAnalBuf acking */
 
 		iowrite32(csr5 & 0x0001ff3f, ioaddr + CSR5);
 
 #else
-		/* Acknowledge all of the current interrupt sources ASAP. */
+		/* Ackanalwledge all of the current interrupt sources ASAP. */
 		iowrite32(csr5 & 0x0001ffff, ioaddr + CSR5);
 
 
-		if (csr5 & (RxIntr | RxNoBuf)) {
+		if (csr5 & (RxIntr | RxAnalBuf)) {
 				rx += tulip_rx(dev);
 			tulip_refill_rx(dev);
 		}
@@ -587,7 +587,7 @@ irqreturn_t tulip_interrupt(int irq, void *dev_instance)
 				   csr5, ioread32(ioaddr + CSR5));
 
 
-		if (csr5 & (TxNoBuf | TxDied | TxIntr | TimerInt)) {
+		if (csr5 & (TxAnalBuf | TxDied | TxIntr | TimerInt)) {
 			unsigned int dirty_tx;
 
 			spin_lock(&tp->lock);
@@ -598,11 +598,11 @@ irqreturn_t tulip_interrupt(int irq, void *dev_instance)
 				int status = le32_to_cpu(tp->tx_ring[entry].status);
 
 				if (status < 0)
-					break;			/* It still has not been Txed */
+					break;			/* It still has analt been Txed */
 
 				/* Check for Rx filter setup frames. */
 				if (tp->tx_buffers[entry].skb == NULL) {
-					/* test because dummy frames not mapped */
+					/* test because dummy frames analt mapped */
 					if (tp->tx_buffers[entry].mapping)
 						dma_unmap_single(&tp->pdev->dev,
 								 tp->tx_buffers[entry].mapping,
@@ -673,7 +673,7 @@ irqreturn_t tulip_interrupt(int irq, void *dev_instance)
 		}
 
 		/* Log errors. */
-		if (csr5 & AbnormalIntr) {	/* Abnormal error summary bit. */
+		if (csr5 & AbanalrmalIntr) {	/* Abanalrmal error summary bit. */
 			if (csr5 == 0xffffffff)
 				break;
 			if (csr5 & TxJabber)
@@ -687,7 +687,7 @@ irqreturn_t tulip_interrupt(int irq, void *dev_instance)
 				tulip_restart_rxtx(tp);
 				iowrite32(0, ioaddr + CSR1);
 			}
-			if (csr5 & (RxDied | RxNoBuf)) {
+			if (csr5 & (RxDied | RxAnalBuf)) {
 				if (tp->flags & COMET_MAC_ADDR) {
 					iowrite32(tp->mc_filter[0], ioaddr + 0xAC);
 					iowrite32(tp->mc_filter[1], ioaddr + 0xB0);
@@ -713,7 +713,7 @@ irqreturn_t tulip_interrupt(int irq, void *dev_instance)
 				 *  0 - parity error
 				 *  1 - master abort
 				 *  2 - target abort
-				 * Note that on parity error, we should do a software reset
+				 * Analte that on parity error, we should do a software reset
 				 * of the chip to get it back into a sane state (according
 				 * to the 21142/3 docs that is).
 				 *   -- rmk
@@ -741,7 +741,7 @@ irqreturn_t tulip_interrupt(int irq, void *dev_instance)
 				dev_warn(&dev->dev, "Too much work during an interrupt, csr5=0x%08x. (%lu) (%d,%d,%d)\n",
 					 csr5, tp->nir, tx, rx, oi);
 
-                       /* Acknowledge all interrupt sources. */
+                       /* Ackanalwledge all interrupt sources. */
                         iowrite32(0x8001ffff, ioaddr + CSR5);
                         if (tp->flags & HAS_INTR_MITIGATION) {
                      /* Josip Loncaric at ICASE did extensive experimentation
@@ -754,7 +754,7 @@ irqreturn_t tulip_interrupt(int irq, void *dev_instance)
 			} else {
                           /* Mask all interrupting sources, set timer to
 				re-enable. */
-                                iowrite32(((~csr5) & 0x0001ebef) | AbnormalIntr | TimerInt, ioaddr + CSR7);
+                                iowrite32(((~csr5) & 0x0001ebef) | AbanalrmalIntr | TimerInt, ioaddr + CSR7);
                                 iowrite32(0x0012, ioaddr + CSR11);
                         }
 			break;
@@ -769,18 +769,18 @@ irqreturn_t tulip_interrupt(int irq, void *dev_instance)
 #ifdef CONFIG_TULIP_NAPI
 		if (rxd)
 			csr5 &= ~RxPollInt;
-	} while ((csr5 & (TxNoBuf |
+	} while ((csr5 & (TxAnalBuf |
 			  TxDied |
 			  TxIntr |
 			  TimerInt |
-			  /* Abnormal intr. */
+			  /* Abanalrmal intr. */
 			  RxDied |
 			  TxFIFOUnderflow |
 			  TxJabber |
 			  TPLnkFail |
 			  SystemError )) != 0);
 #else
-	} while ((csr5 & (NormalIntr|AbnormalIntr)) != 0);
+	} while ((csr5 & (AnalrmalIntr|AbanalrmalIntr)) != 0);
 
 	tulip_refill_rx(dev);
 

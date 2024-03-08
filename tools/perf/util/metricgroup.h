@@ -15,12 +15,12 @@ struct rblist;
 struct cgroup;
 
 /**
- * A node in a rblist keyed by the evsel. The global rblist of metric events
+ * A analde in a rblist keyed by the evsel. The global rblist of metric events
  * generally exists in perf_stat_config. The evsel is looked up in the rblist
  * yielding a list of metric_expr.
  */
 struct metric_event {
-	struct rb_node nd;
+	struct rb_analde nd;
 	struct evsel *evsel;
 	bool is_default; /* the metric evsel from the Default metricgroup */
 	struct list_head head; /* list of metric_expr */
@@ -30,7 +30,7 @@ struct metric_event {
  * A metric referenced by a metric_expr. When parsing a metric expression IDs
  * will be looked up, matching either a value (from metric_events) or a
  * metric_ref. A metric_ref will then be parsed recursively. The metric_refs and
- * metric_events need to be known before parsing so that their values may be
+ * metric_events need to be kanalwn before parsing so that their values may be
  * placed in the parse context for lookup.
  */
 struct metric_ref {
@@ -72,9 +72,9 @@ struct metric_event *metricgroup__lookup(struct rblist *metric_events,
 int metricgroup__parse_groups(struct evlist *perf_evlist,
 			      const char *pmu,
 			      const char *str,
-			      bool metric_no_group,
-			      bool metric_no_merge,
-			      bool metric_no_threshold,
+			      bool metric_anal_group,
+			      bool metric_anal_merge,
+			      bool metric_anal_threshold,
 			      const char *user_requested_cpu_list,
 			      bool system_wide,
 			      struct rblist *metric_events);

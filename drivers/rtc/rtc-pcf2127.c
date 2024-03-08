@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * An I2C and SPI driver for the NXP PCF2127/29/31 RTC
- * Copyright 2013 Til-Technologies
+ * Copyright 2013 Til-Techanallogies
  *
- * Author: Renaud Cerrato <r.cerrato@til-technologies.fr>
+ * Author: Renaud Cerrato <r.cerrato@til-techanallogies.fr>
  *
  * Watchdog and tamper functions
- * Author: Bruno Thomsen <bruno.thomsen@gmail.com>
+ * Author: Bruanal Thomsen <bruanal.thomsen@gmail.com>
  *
  * PCF2131 support
- * Author: Hugo Villeneuve <hvilleneuve@dimonoff.com>
+ * Author: Hugo Villeneuve <hvilleneuve@dimoanalff.com>
  *
  * based on the other drivers in this same directory.
  *
@@ -230,14 +230,14 @@ static int pcf2127_rtc_read_time(struct device *dev, struct rtc_time *tm)
 		return ret;
 	}
 
-	/* Clock integrity is not guaranteed when OSF flag is set. */
+	/* Clock integrity is analt guaranteed when OSF flag is set. */
 	if (buf[0] & PCF2127_BIT_SC_OSF) {
 		/*
-		 * no need clear the flag here,
+		 * anal need clear the flag here,
 		 * it will be cleared once the new date is saved
 		 */
 		dev_warn(dev,
-			 "oscillator stop detected, date/time is not reliable\n");
+			 "oscillator stop detected, date/time is analt reliable\n");
 		return -EINVAL;
 	}
 
@@ -290,7 +290,7 @@ static int pcf2127_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	buf[i++] = bin2bcd(tm->tm_year - 100);
 
 	/* Write access to time registers:
-	 * PCF2127/29: no special action required.
+	 * PCF2127/29: anal special action required.
 	 * PCF2131:    requires setting the STOP and CPR bits. STOP bit needs to
 	 *             be cleared after time registers are updated.
 	 */
@@ -357,7 +357,7 @@ static int pcf2127_rtc_ioctl(struct device *dev,
 					  PCF2127_BIT_CTRL3_BF, 0);
 
 	default:
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 	}
 }
 
@@ -412,7 +412,7 @@ static int pcf2127_wdt_ping(struct watchdog_device *wdd)
 /*
  * Restart watchdog timer if feature is active.
  *
- * Note: Reading CTRL2 register causes watchdog to stop which is unfortunate,
+ * Analte: Reading CTRL2 register causes watchdog to stop which is unfortunate,
  * since register also contain control/status flags for other features.
  * Always call this function after reading CTRL2 register.
  */
@@ -477,7 +477,7 @@ static const struct watchdog_ops pcf2127_watchdog_ops = {
  * The PCF2131 datasheet gives t as:
  *   t = (n - 1) / f
  * For both variants, the watchdog is triggered when the WATCHDG_TIM_VAL reaches
- * the value 1, and not zero. Consequently, the equation from the PCF2131
+ * the value 1, and analt zero. Consequently, the equation from the PCF2131
  * datasheet seems to be the correct one for both variants.
  */
 static int pcf2127_watchdog_get_period(int n, int f1000)
@@ -509,7 +509,7 @@ static int pcf2127_watchdog_init(struct device *dev, struct pcf2127 *pcf2127)
 		pcf2127->cfg->wdd_clock_hz_x1000);
 
 	pcf2127->wdd.min_hw_heartbeat_ms = pcf2127->cfg->wdd_min_hw_heartbeat_ms;
-	pcf2127->wdd.status = WATCHDOG_NOWAYOUT_INIT_STATUS;
+	pcf2127->wdd.status = WATCHDOG_ANALWAYOUT_INIT_STATUS;
 
 	watchdog_set_drvdata(&pcf2127->wdd, pcf2127);
 
@@ -594,7 +594,7 @@ static int pcf2127_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	buf[1] = bin2bcd(alrm->time.tm_min);
 	buf[2] = bin2bcd(alrm->time.tm_hour);
 	buf[3] = bin2bcd(alrm->time.tm_mday);
-	buf[4] = PCF2127_BIT_ALARM_AE; /* Do not match on week day */
+	buf[4] = PCF2127_BIT_ALARM_AE; /* Do analt match on week day */
 
 	ret = regmap_bulk_write(pcf2127->regmap, pcf2127->cfg->regs_alarm_base,
 				buf, sizeof(buf));
@@ -672,7 +672,7 @@ static irqreturn_t pcf2127_rtc_irq(int irq, void *dev)
 
 	ret = regmap_read(pcf2127->regmap, PCF2127_REG_CTRL2, &ctrl2);
 	if (ret)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (pcf2127->cfg->ts_count == 1) {
 		/* PCF2127/29 */
@@ -680,10 +680,10 @@ static irqreturn_t pcf2127_rtc_irq(int irq, void *dev)
 
 		ret = regmap_read(pcf2127->regmap, PCF2127_REG_CTRL1, &ctrl1);
 		if (ret)
-			return IRQ_NONE;
+			return IRQ_ANALNE;
 
 		if (!(ctrl1 & PCF2127_CTRL1_IRQ_MASK || ctrl2 & PCF2127_CTRL2_IRQ_MASK))
-			return IRQ_NONE;
+			return IRQ_ANALNE;
 
 		if (ctrl1 & PCF2127_BIT_CTRL1_TSF1 || ctrl2 & PCF2127_BIT_CTRL2_TSF2)
 			pcf2127_rtc_ts_snapshot(dev, 0);
@@ -701,10 +701,10 @@ static irqreturn_t pcf2127_rtc_irq(int irq, void *dev)
 
 		ret = regmap_read(pcf2127->regmap, PCF2131_REG_CTRL4, &ctrl4);
 		if (ret)
-			return IRQ_NONE;
+			return IRQ_ANALNE;
 
 		if (!(ctrl4 & PCF2131_CTRL4_IRQ_MASK || ctrl2 & PCF2131_CTRL2_IRQ_MASK))
-			return IRQ_NONE;
+			return IRQ_ANALNE;
 
 		if (ctrl4 & PCF2131_CTRL4_IRQ_MASK) {
 			int i;
@@ -1104,7 +1104,7 @@ static int pcf2127_probe(struct device *dev, struct regmap *regmap,
 
 	pcf2127 = devm_kzalloc(dev, sizeof(*pcf2127), GFP_KERNEL);
 	if (!pcf2127)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pcf2127->regmap = regmap;
 	pcf2127->cfg = config;
@@ -1121,7 +1121,7 @@ static int pcf2127_probe(struct device *dev, struct regmap *regmap,
 	pcf2127->rtc->set_start_time = true; /* Sets actual start to 1970 */
 
 	/*
-	 * PCF2127/29 do not work correctly when setting alarms at 1s intervals.
+	 * PCF2127/29 do analt work correctly when setting alarms at 1s intervals.
 	 * PCF2131 is ok.
 	 */
 	if (pcf2127->cfg->type == PCF2127 || pcf2127->cfg->type == PCF2129) {
@@ -1138,7 +1138,7 @@ static int pcf2127_probe(struct device *dev, struct regmap *regmap,
 		 * If flags = 0, devm_request_threaded_irq() will use IRQ flags
 		 * obtained from device tree.
 		 */
-		if (dev_fwnode(dev))
+		if (dev_fwanalde(dev))
 			flags = 0;
 		else
 			flags = IRQF_TRIGGER_LOW;
@@ -1181,7 +1181,7 @@ static int pcf2127_probe(struct device *dev, struct regmap *regmap,
 
 	/*
 	 * The "Power-On Reset Override" facility prevents the RTC to do a reset
-	 * after power on. For normal operation the PORO must be disabled.
+	 * after power on. For analrmal operation the PORO must be disabled.
 	 */
 	ret = regmap_clear_bits(pcf2127->regmap, PCF2127_REG_CTRL1,
 				PCF2127_BIT_CTRL1_POR_OVRD);
@@ -1204,7 +1204,7 @@ static int pcf2127_probe(struct device *dev, struct regmap *regmap,
 	/*
 	 * Watchdog timer enabled and reset pin /RST activated when timed out.
 	 * Select 1Hz clock source for watchdog timer (1/4Hz for PCF2131).
-	 * Note: Countdown timer disabled and not available.
+	 * Analte: Countdown timer disabled and analt available.
 	 * For pca2129, pcf2129 and pcf2131, only bit[7] is for Symbol WD_CD
 	 * of register watchdg_tim_ctl. The bit[6] is labeled
 	 * as T. Bits labeled as T must always be written with
@@ -1228,7 +1228,7 @@ static int pcf2127_probe(struct device *dev, struct regmap *regmap,
 	/*
 	 * Disable battery low/switch-over timestamp and interrupts.
 	 * Clear battery interrupt flags which can block new trigger events.
-	 * Note: This is the default chip behaviour but added to ensure
+	 * Analte: This is the default chip behaviour but added to ensure
 	 * correct tamper timestamp and interrupt function.
 	 */
 	ret = regmap_update_bits(pcf2127->regmap, PCF2127_REG_CTRL3,
@@ -1300,7 +1300,7 @@ static int pcf2127_i2c_gather_write(void *context,
 
 	buf = kmalloc(val_size + 1, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(buf, reg, 1);
 	memcpy(buf + 1, val, val_size);
@@ -1368,18 +1368,18 @@ static int pcf2127_i2c_probe(struct i2c_client *client)
 	const struct pcf21xx_config *variant;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
-		return -ENODEV;
+		return -EANALDEV;
 
-	if (client->dev.of_node) {
+	if (client->dev.of_analde) {
 		variant = of_device_get_match_data(&client->dev);
 		if (!variant)
-			return -ENODEV;
+			return -EANALDEV;
 	} else {
 		enum pcf21xx_type type =
 			i2c_match_id(pcf2127_i2c_id, client)->driver_data;
 
 		if (type >= PCF21XX_LAST_ID)
-			return -ENODEV;
+			return -EANALDEV;
 		variant = &pcf21xx_cfg[type];
 	}
 
@@ -1444,15 +1444,15 @@ static int pcf2127_spi_probe(struct spi_device *spi)
 	struct regmap *regmap;
 	const struct pcf21xx_config *variant;
 
-	if (spi->dev.of_node) {
+	if (spi->dev.of_analde) {
 		variant = of_device_get_match_data(&spi->dev);
 		if (!variant)
-			return -ENODEV;
+			return -EANALDEV;
 	} else {
 		enum pcf21xx_type type = spi_get_device_id(spi)->driver_data;
 
 		if (type >= PCF21XX_LAST_ID)
-			return -ENODEV;
+			return -EANALDEV;
 		variant = &pcf21xx_cfg[type];
 	}
 
@@ -1536,6 +1536,6 @@ static void __exit pcf2127_exit(void)
 }
 module_exit(pcf2127_exit)
 
-MODULE_AUTHOR("Renaud Cerrato <r.cerrato@til-technologies.fr>");
+MODULE_AUTHOR("Renaud Cerrato <r.cerrato@til-techanallogies.fr>");
 MODULE_DESCRIPTION("NXP PCF2127/29/31 RTC driver");
 MODULE_LICENSE("GPL v2");

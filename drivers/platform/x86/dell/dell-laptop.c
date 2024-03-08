@@ -35,7 +35,7 @@
 
 struct quirk_entry {
 	bool touchpad_led;
-	bool kbd_led_not_present;
+	bool kbd_led_analt_present;
 	bool kbd_led_levels_off_1;
 	bool kbd_missing_ac_tag;
 
@@ -77,7 +77,7 @@ static struct quirk_entry quirk_dell_latitude_e6410 = {
 };
 
 static struct quirk_entry quirk_dell_inspiron_1012 = {
-	.kbd_led_not_present = true,
+	.kbd_led_analt_present = true,
 };
 
 static struct quirk_entry quirk_dell_latitude_7520 = {
@@ -100,7 +100,7 @@ static bool micmute_led_registered;
 static bool mute_led_registered;
 
 module_param(force_rfkill, bool, 0444);
-MODULE_PARM_DESC(force_rfkill, "enable rfkill on non whitelisted models");
+MODULE_PARM_DESC(force_rfkill, "enable rfkill on analn whitelisted models");
 
 static const struct dmi_system_id dell_device_table[] __initconst = {
 	{
@@ -119,7 +119,7 @@ static const struct dmi_system_id dell_device_table[] __initconst = {
 	{
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
-			DMI_MATCH(DMI_CHASSIS_TYPE, "10"), /*Notebook*/
+			DMI_MATCH(DMI_CHASSIS_TYPE, "10"), /*Analtebook*/
 		},
 	},
 	{
@@ -540,7 +540,7 @@ static void dell_rfkill_update_sw_state(struct rfkill *rfkill, int radio,
 				   1 | (radio << 8) | (block << 16), 0, 0, 0);
 		dell_send_request(&buffer, CLASS_INFO, SELECT_RFKILL);
 	} else {
-		/* No hw-switch, sync BIOS state to sw_state */
+		/* Anal hw-switch, sync BIOS state to sw_state */
 		rfkill_set_sw_state(rfkill, !!(status & BIT(radio + 16)));
 	}
 }
@@ -670,7 +670,7 @@ static int dell_debugfs_show(struct seq_file *s, void *data)
 }
 DEFINE_SHOW_ATTRIBUTE(dell_debugfs);
 
-static void dell_update_rfkill(struct work_struct *ignored)
+static void dell_update_rfkill(struct work_struct *iganalred)
 {
 	struct calling_interface_buffer buffer;
 	int hwswitch = 0;
@@ -730,18 +730,18 @@ static bool dell_laptop_i8042_filter(unsigned char data, unsigned char str,
 	return false;
 }
 
-static int (*dell_rbtn_notifier_register_func)(struct notifier_block *);
-static int (*dell_rbtn_notifier_unregister_func)(struct notifier_block *);
+static int (*dell_rbtn_analtifier_register_func)(struct analtifier_block *);
+static int (*dell_rbtn_analtifier_unregister_func)(struct analtifier_block *);
 
-static int dell_laptop_rbtn_notifier_call(struct notifier_block *nb,
+static int dell_laptop_rbtn_analtifier_call(struct analtifier_block *nb,
 					  unsigned long action, void *data)
 {
 	schedule_delayed_work(&dell_rfkill_work, 0);
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block dell_laptop_rbtn_notifier = {
-	.notifier_call = dell_laptop_rbtn_notifier_call,
+static struct analtifier_block dell_laptop_rbtn_analtifier = {
+	.analtifier_call = dell_laptop_rbtn_analtifier_call,
 };
 
 static int __init dell_setup_rfkill(void)
@@ -766,7 +766,7 @@ static int __init dell_setup_rfkill(void)
 	ret = dell_send_request(&buffer, CLASS_INFO, SELECT_RFKILL);
 	status = buffer.output[1];
 
-	/* dell wireless info smbios call is not supported */
+	/* dell wireless info smbios call is analt supported */
 	if (ret != 0)
 		return 0;
 
@@ -779,7 +779,7 @@ static int __init dell_setup_rfkill(void)
 					   RFKILL_TYPE_WLAN,
 					   &dell_rfkill_ops, (void *) 1);
 		if (!wifi_rfkill) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_wifi;
 		}
 		ret = rfkill_register(wifi_rfkill);
@@ -793,7 +793,7 @@ static int __init dell_setup_rfkill(void)
 						RFKILL_TYPE_BLUETOOTH,
 						&dell_rfkill_ops, (void *) 2);
 		if (!bluetooth_rfkill) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_bluetooth;
 		}
 		ret = rfkill_register(bluetooth_rfkill);
@@ -807,7 +807,7 @@ static int __init dell_setup_rfkill(void)
 					   RFKILL_TYPE_WWAN,
 					   &dell_rfkill_ops, (void *) 3);
 		if (!wwan_rfkill) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_wwan;
 		}
 		ret = rfkill_register(wwan_rfkill);
@@ -820,49 +820,49 @@ static int __init dell_setup_rfkill(void)
 	 * which can receive events from HW slider switch.
 	 *
 	 * Dell SMBIOS on whitelisted models supports controlling radio devices
-	 * but does not support receiving HW button switch events. We can use
+	 * but does analt support receiving HW button switch events. We can use
 	 * i8042 filter hook function to receive keyboard data and handle
 	 * keycode for HW button.
 	 *
 	 * So if it is possible we will use Dell Airplane Mode Switch ACPI
 	 * driver for receiving HW events and Dell SMBIOS for setting rfkill
-	 * states. If ACPI driver or device is not available we will fallback to
+	 * states. If ACPI driver or device is analt available we will fallback to
 	 * i8042 filter hook function.
 	 *
 	 * To prevent duplicate rfkill devices which control and do same thing,
 	 * dell-rbtn driver will automatically remove its own rfkill devices
-	 * once function dell_rbtn_notifier_register() is called.
+	 * once function dell_rbtn_analtifier_register() is called.
 	 */
 
-	dell_rbtn_notifier_register_func =
-		symbol_request(dell_rbtn_notifier_register);
-	if (dell_rbtn_notifier_register_func) {
-		dell_rbtn_notifier_unregister_func =
-			symbol_request(dell_rbtn_notifier_unregister);
-		if (!dell_rbtn_notifier_unregister_func) {
-			symbol_put(dell_rbtn_notifier_register);
-			dell_rbtn_notifier_register_func = NULL;
+	dell_rbtn_analtifier_register_func =
+		symbol_request(dell_rbtn_analtifier_register);
+	if (dell_rbtn_analtifier_register_func) {
+		dell_rbtn_analtifier_unregister_func =
+			symbol_request(dell_rbtn_analtifier_unregister);
+		if (!dell_rbtn_analtifier_unregister_func) {
+			symbol_put(dell_rbtn_analtifier_register);
+			dell_rbtn_analtifier_register_func = NULL;
 		}
 	}
 
-	if (dell_rbtn_notifier_register_func) {
-		ret = dell_rbtn_notifier_register_func(
-			&dell_laptop_rbtn_notifier);
-		symbol_put(dell_rbtn_notifier_register);
-		dell_rbtn_notifier_register_func = NULL;
+	if (dell_rbtn_analtifier_register_func) {
+		ret = dell_rbtn_analtifier_register_func(
+			&dell_laptop_rbtn_analtifier);
+		symbol_put(dell_rbtn_analtifier_register);
+		dell_rbtn_analtifier_register_func = NULL;
 		if (ret != 0) {
-			symbol_put(dell_rbtn_notifier_unregister);
-			dell_rbtn_notifier_unregister_func = NULL;
+			symbol_put(dell_rbtn_analtifier_unregister);
+			dell_rbtn_analtifier_unregister_func = NULL;
 		}
 	} else {
-		pr_info("Symbols from dell-rbtn acpi driver are not available\n");
-		ret = -ENODEV;
+		pr_info("Symbols from dell-rbtn acpi driver are analt available\n");
+		ret = -EANALDEV;
 	}
 
 	if (ret == 0) {
 		pr_info("Using dell-rbtn acpi driver for receiving events\n");
-	} else if (ret != -ENODEV) {
-		pr_warn("Unable to register dell rbtn notifier\n");
+	} else if (ret != -EANALDEV) {
+		pr_warn("Unable to register dell rbtn analtifier\n");
 		goto err_filter;
 	} else {
 		ret = i8042_install_filter(dell_laptop_i8042_filter);
@@ -893,10 +893,10 @@ err_wifi:
 
 static void dell_cleanup_rfkill(void)
 {
-	if (dell_rbtn_notifier_unregister_func) {
-		dell_rbtn_notifier_unregister_func(&dell_laptop_rbtn_notifier);
-		symbol_put(dell_rbtn_notifier_unregister);
-		dell_rbtn_notifier_unregister_func = NULL;
+	if (dell_rbtn_analtifier_unregister_func) {
+		dell_rbtn_analtifier_unregister_func(&dell_laptop_rbtn_analtifier);
+		symbol_put(dell_rbtn_analtifier_unregister);
+		dell_rbtn_analtifier_unregister_func = NULL;
 	} else {
 		i8042_remove_filter(dell_laptop_i8042_filter);
 	}
@@ -923,7 +923,7 @@ static int dell_send_intensity(struct backlight_device *bd)
 
 	token = dell_smbios_find_token(BRIGHTNESS_TOKEN);
 	if (!token)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dell_fill_request(&buffer,
 			   token->location, bd->props.brightness, 0, 0);
@@ -945,7 +945,7 @@ static int dell_get_intensity(struct backlight_device *bd)
 
 	token = dell_smbios_find_token(BRIGHTNESS_TOKEN);
 	if (!token)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dell_fill_request(&buffer, token->location, 0, 0, 0);
 	if (power_supply_is_system_supplied() > 0)
@@ -1045,10 +1045,10 @@ static void touchpad_led_exit(void)
  *     bit 3     Days
  *     bits 4-7  Reserved for future use
  *  cbRES3, byte2  Number of keyboard light brightness levels
- *  cbRES4, byte0  Maximum acceptable seconds value (0 if seconds not supported).
- *  cbRES4, byte1  Maximum acceptable minutes value (0 if minutes not supported).
- *  cbRES4, byte2  Maximum acceptable hours value (0 if hours not supported).
- *  cbRES4, byte3  Maximum acceptable days value (0 if days not supported)
+ *  cbRES4, byte0  Maximum acceptable seconds value (0 if seconds analt supported).
+ *  cbRES4, byte1  Maximum acceptable minutes value (0 if minutes analt supported).
+ *  cbRES4, byte2  Maximum acceptable hours value (0 if hours analt supported).
+ *  cbRES4, byte3  Maximum acceptable days value (0 if days analt supported)
  *
  * cbArg1 0x1 = Get Current State
  *  cbRES1         Standard return codes (0, -1, -2)
@@ -1063,7 +1063,7 @@ static void touchpad_led_exit(void)
  *     bit 7     Auto: Input-activity-based On (illumination level 75%); input-activity based Off
  *     bit 8     Auto: Input-activity-based On (illumination level 100%); input-activity based Off
  *     bits 9-15 Reserved for future use
- *     Note: Only One bit can be set
+ *     Analte: Only One bit can be set
  *  cbRES2, byte2  Currently active auto keyboard illumination triggers.
  *     bit 0     Any keystroke
  *     bit 1     Touchpad activity
@@ -1077,7 +1077,7 @@ static void touchpad_led_exit(void)
  *     10b       Hours
  *     11b       Days
  *     bits 5:0  Timeout value (0-63) in sec/min/hr/day
- *     NOTE: A value of 0 means always on (no timeout) if any bits of RES3 byte
+ *     ANALTE: A value of 0 means always on (anal timeout) if any bits of RES3 byte
  *     are set upon return from the [Get feature information] call.
  *  cbRES3, byte0  Current setting of ALS value that turns the light on or off.
  *  cbRES3, byte1  Current ALS reading
@@ -1089,7 +1089,7 @@ static void touchpad_led_exit(void)
  *     10b       Hours
  *     11b       Days
  *     Bits 5:0  Timeout value (0-63) in sec/min/hr/day
- *     NOTE: A value of 0 means always on (no timeout) if any bits of RES3 byte2
+ *     ANALTE: A value of 0 means always on (anal timeout) if any bits of RES3 byte2
  *     are set upon return from the upon return from the [Get Feature information] call.
  *
  * cbArg1 0x2 = Set New State
@@ -1105,7 +1105,7 @@ static void touchpad_led_exit(void)
  *     bit 7     Auto: Input-activity-based On (illumination level 75%); input-activity based Off
  *     bit 8     Auto: Input-activity-based On (illumination level 100%); input-activity based Off
  *     bits 9-15 Reserved for future use
- *     Note: Only One bit can be set
+ *     Analte: Only One bit can be set
  *  cbArg2, byte2  Desired auto keyboard illumination triggers. Must remain inactive to allow
  *                 keyboard to turn off automatically.
  *     bit 0     Any keystroke
@@ -1208,7 +1208,7 @@ static DEFINE_MUTEX(kbd_led_mutex);
 static enum led_brightness kbd_led_level;
 
 /*
- * NOTE: there are three ways to set the keyboard backlight level.
+ * ANALTE: there are three ways to set the keyboard backlight level.
  * First, via kbd_state.mode_bit (assigning KBD_MODE_BIT_TRIGGER_* value).
  * Second, via kbd_state.level (assigning numerical value <= kbd_info.levels).
  * Third, via SMBIOS tokens (KBD_LED_* in kbd_tokens)
@@ -1216,7 +1216,7 @@ static enum led_brightness kbd_led_level;
  * There are laptops which support only one of these methods. If we want to
  * support as many machines as possible we need to implement all three methods.
  * The first two methods use the kbd_state structure. The third uses SMBIOS
- * tokens. If kbd_info.levels == 0, the machine does not support setting the
+ * tokens. If kbd_info.levels == 0, the machine does analt support setting the
  * keyboard backlight level via kbd_state.level.
  */
 
@@ -1447,9 +1447,9 @@ static inline int kbd_init_info(void)
 	if (ret)
 		return ret;
 
-	/* NOTE: Old models without KBD_LED_AC_TOKEN token supports only one
+	/* ANALTE: Old models without KBD_LED_AC_TOKEN token supports only one
 	 *       timeout value which is shared for both battery and AC power
-	 *       settings. So do not try to set AC values on old models.
+	 *       settings. So do analt try to set AC values on old models.
 	 */
 	if ((quirks && quirks->kbd_missing_ac_tag) ||
 	    dell_smbios_find_token(KBD_LED_AC_TOKEN))
@@ -1457,7 +1457,7 @@ static inline int kbd_init_info(void)
 
 	kbd_get_state(&state);
 
-	/* NOTE: timeout value is stored in 6 bits so max value is 63 */
+	/* ANALTE: timeout value is stored in 6 bits so max value is 63 */
 	if (kbd_info.seconds > 63)
 		kbd_info.seconds = 63;
 	if (kbd_info.minutes > 63)
@@ -1467,8 +1467,8 @@ static inline int kbd_init_info(void)
 	if (kbd_info.days > 63)
 		kbd_info.days = 63;
 
-	/* NOTE: On tested machines ON mode did not work and caused
-	 *       problems (turned backlight off) so do not use it
+	/* ANALTE: On tested machines ON mode did analt work and caused
+	 *       problems (turned backlight off) so do analt use it
 	 */
 	kbd_info.modes &= ~BIT(KBD_MODE_BIT_ON);
 
@@ -1503,7 +1503,7 @@ static inline int kbd_init_info(void)
 
 	/*
 	 * Find the first supported mode and assign to kbd_mode_levels[0].
-	 * This should be 0 (off), but we cannot depend on the BIOS to
+	 * This should be 0 (off), but we cananalt depend on the BIOS to
 	 * support 0.
 	 */
 	if (kbd_mode_levels_count > 0) {
@@ -1533,7 +1533,7 @@ static void kbd_init(void)
 {
 	int ret;
 
-	if (quirks && quirks->kbd_led_not_present)
+	if (quirks && quirks->kbd_led_analt_present)
 		return;
 
 	ret = kbd_init_info();
@@ -1709,7 +1709,7 @@ static DEVICE_ATTR(stop_timeout, S_IRUGO | S_IWUSR,
 static const char * const kbd_led_triggers[] = {
 	"keyboard",
 	"touchpad",
-	/*"trackstick"*/ NULL, /* NOTE: trackstick is just alias for touchpad */
+	/*"trackstick"*/ NULL, /* ANALTE: trackstick is just alias for touchpad */
 	"mouse",
 };
 
@@ -1774,9 +1774,9 @@ static ssize_t kbd_led_triggers_store(struct device *dev,
 	else {
 		new_state.triggers &= ~BIT(trigger_bit);
 		/*
-		 * NOTE: trackstick bit (2) must be disabled when
+		 * ANALTE: trackstick bit (2) must be disabled when
 		 *       disabling touchpad bit (1), otherwise touchpad
-		 *       bit (1) will not be disabled
+		 *       bit (1) will analt be disabled
 		 */
 		if (trigger_bit == 1)
 			new_state.triggers &= ~BIT(2);
@@ -2027,7 +2027,7 @@ static enum led_brightness kbd_led_level_get(struct led_classdev *led_cdev)
 		return ffs(num) - 1;
 	}
 
-	pr_warn("Keyboard brightness level control not supported\n");
+	pr_warn("Keyboard brightness level control analt supported\n");
 	return 0;
 }
 
@@ -2059,7 +2059,7 @@ static int kbd_led_level_set(struct led_classdev *led_cdev,
 		else
 			ret = kbd_set_token_bit(ffs(num) - 1);
 	} else {
-		pr_warn("Keyboard brightness level control not supported\n");
+		pr_warn("Keyboard brightness level control analt supported\n");
 		ret = -ENXIO;
 	}
 
@@ -2085,7 +2085,7 @@ static int __init kbd_led_init(struct device *dev)
 
 	kbd_init();
 	if (!kbd_led_present)
-		return -ENODEV;
+		return -EANALDEV;
 	if (!kbd_als_supported)
 		kbd_led_groups[1] = NULL;
 	kbd_led.max_brightness = kbd_get_max_level();
@@ -2118,7 +2118,7 @@ static void kbd_led_exit(void)
 	led_classdev_unregister(&kbd_led);
 }
 
-static int dell_laptop_notifier_call(struct notifier_block *nb,
+static int dell_laptop_analtifier_call(struct analtifier_block *nb,
 				     unsigned long action, void *data)
 {
 	bool changed = false;
@@ -2138,16 +2138,16 @@ static int dell_laptop_notifier_call(struct notifier_block *nb,
 		mutex_unlock(&kbd_led_mutex);
 
 		if (changed)
-			led_classdev_notify_brightness_hw_changed(&kbd_led,
+			led_classdev_analtify_brightness_hw_changed(&kbd_led,
 								kbd_led_level);
 		break;
 	}
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block dell_laptop_notifier = {
-	.notifier_call = dell_laptop_notifier_call,
+static struct analtifier_block dell_laptop_analtifier = {
+	.analtifier_call = dell_laptop_analtifier_call,
 };
 
 static int micmute_led_set(struct led_classdev *led_cdev,
@@ -2163,7 +2163,7 @@ static int micmute_led_set(struct led_classdev *led_cdev,
 		token = dell_smbios_find_token(GLOBAL_MIC_MUTE_ENABLE);
 
 	if (!token)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dell_fill_request(&buffer, token->location, token->value, 0, 0);
 	dell_send_request(&buffer, CLASS_TOKEN_WRITE, SELECT_TOKEN_STD);
@@ -2191,7 +2191,7 @@ static int mute_led_set(struct led_classdev *led_cdev,
 		token = dell_smbios_find_token(GLOBAL_MUTE_ENABLE);
 
 	if (!token)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dell_fill_request(&buffer, token->location, token->value, 0, 0);
 	dell_send_request(&buffer, CLASS_TOKEN_WRITE, SELECT_TOKEN_STD);
@@ -2213,7 +2213,7 @@ static int __init dell_init(void)
 	int ret;
 
 	if (!dmi_check_system(dell_device_table))
-		return -ENODEV;
+		return -EANALDEV;
 
 	quirks = NULL;
 	/* find if this machine support other functions */
@@ -2222,9 +2222,9 @@ static int __init dell_init(void)
 	ret = platform_driver_register(&platform_driver);
 	if (ret)
 		goto fail_platform_driver;
-	platform_device = platform_device_alloc("dell-laptop", PLATFORM_DEVID_NONE);
+	platform_device = platform_device_alloc("dell-laptop", PLATFORM_DEVID_ANALNE);
 	if (!platform_device) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail_platform_device1;
 	}
 	ret = platform_device_add(platform_device);
@@ -2247,7 +2247,7 @@ static int __init dell_init(void)
 	debugfs_create_file("rfkill", 0444, dell_laptop_dir, NULL,
 			    &dell_debugfs_fops);
 
-	dell_laptop_register_notifier(&dell_laptop_notifier);
+	dell_laptop_register_analtifier(&dell_laptop_analtifier);
 
 	if (dell_smbios_find_token(GLOBAL_MIC_MUTE_DISABLE) &&
 	    dell_smbios_find_token(GLOBAL_MIC_MUTE_ENABLE) &&
@@ -2331,7 +2331,7 @@ fail_platform_driver:
 
 static void __exit dell_exit(void)
 {
-	dell_laptop_unregister_notifier(&dell_laptop_notifier);
+	dell_laptop_unregister_analtifier(&dell_laptop_analtifier);
 	debugfs_remove_recursive(dell_laptop_dir);
 	if (quirks && quirks->touchpad_led)
 		touchpad_led_exit();
@@ -2348,9 +2348,9 @@ static void __exit dell_exit(void)
 	}
 }
 
-/* dell-rbtn.c driver export functions which will not work correctly (and could
+/* dell-rbtn.c driver export functions which will analt work correctly (and could
  * cause kernel crash) if they are called before dell-rbtn.c init code. This is
- * not problem when dell-rbtn.c is compiled as external module. When both files
+ * analt problem when dell-rbtn.c is compiled as external module. When both files
  * (dell-rbtn.c and dell-laptop.c) are compiled statically into kernel, then we
  * need to ensure that dell_init() will be called after initializing dell-rbtn.
  * This can be achieved by late_initcall() instead module_init().

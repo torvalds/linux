@@ -26,8 +26,8 @@ char *srcline__tree_find(struct rb_root_cached *tree, u64 addr);
 /* delete all srclines within the tree */
 void srcline__tree_delete(struct rb_root_cached *tree);
 
-extern char *srcline__unknown;
-#define SRCLINE_UNKNOWN srcline__unknown
+extern char *srcline__unkanalwn;
+#define SRCLINE_UNKANALWN srcline__unkanalwn
 
 struct inline_list {
 	struct symbol		*symbol;
@@ -35,24 +35,24 @@ struct inline_list {
 	struct list_head	list;
 };
 
-struct inline_node {
+struct inline_analde {
 	u64			addr;
 	struct list_head	val;
-	struct rb_node		rb_node;
+	struct rb_analde		rb_analde;
 };
 
 /* parse inlined frames for the given address */
-struct inline_node *dso__parse_addr_inlines(struct dso *dso, u64 addr,
+struct inline_analde *dso__parse_addr_inlines(struct dso *dso, u64 addr,
 					    struct symbol *sym);
-/* free resources associated to the inline node list */
-void inline_node__delete(struct inline_node *node);
+/* free resources associated to the inline analde list */
+void inline_analde__delete(struct inline_analde *analde);
 
-/* insert the inline node list into the DSO, which will take ownership */
+/* insert the inline analde list into the DSO, which will take ownership */
 void inlines__tree_insert(struct rb_root_cached *tree,
-			  struct inline_node *inlines);
-/* find previously inserted inline node list */
-struct inline_node *inlines__tree_find(struct rb_root_cached *tree, u64 addr);
-/* delete all nodes within the tree of inline_node s */
+			  struct inline_analde *inlines);
+/* find previously inserted inline analde list */
+struct inline_analde *inlines__tree_find(struct rb_root_cached *tree, u64 addr);
+/* delete all analdes within the tree of inline_analde s */
 void inlines__tree_delete(struct rb_root_cached *tree);
 
 #endif /* PERF_SRCLINE_H */

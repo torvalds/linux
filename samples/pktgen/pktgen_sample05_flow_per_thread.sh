@@ -7,7 +7,7 @@
 #
 # Useful for scale testing on receiver, to see whether silo'ing flows
 # works and scales.  For optimal scalability (on receiver) each
-# separate-flow should not access shared variables/data. This script
+# separate-flow should analt access shared variables/data. This script
 # helps magnify any of these scaling issues by overloading the receiver.
 #
 basedir=`dirname $0`
@@ -54,7 +54,7 @@ for ((thread = $F_THREAD; thread <= $L_THREAD; thread++)); do
     pg_set $dev "clone_skb $CLONE_SKB"
     pg_set $dev "pkt_size $PKT_SIZE"
     pg_set $dev "delay $DELAY"
-    pg_set $dev "flag NO_TIMESTAMP"
+    pg_set $dev "flag ANAL_TIMESTAMP"
 
     # Single destination
     pg_set $dev "dst_mac $DST_MAC"
@@ -79,7 +79,7 @@ for ((thread = $F_THREAD; thread <= $L_THREAD; thread++)); do
     if [[ ${BURST} -ne 0 ]]; then
 	pg_set $dev "burst $BURST"
     else
-	info "$dev: Not using burst"
+	info "$dev: Analt using burst"
     fi
 
 done

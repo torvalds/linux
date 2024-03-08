@@ -21,7 +21,7 @@ void test_xdp_context_error(int prog_fd, struct bpf_test_run_opts opts,
 	opts.ctx_in = &ctx;
 	opts.ctx_size_in = sizeof(ctx);
 	err = bpf_prog_test_run_opts(prog_fd, &opts);
-	ASSERT_EQ(errno, EINVAL, "errno-EINVAL");
+	ASSERT_EQ(erranal, EINVAL, "erranal-EINVAL");
 	ASSERT_ERR(err, "bpf_prog_test_run");
 }
 
@@ -50,7 +50,7 @@ void test_xdp_context_test_run(void)
 	opts.ctx_in = bad_ctx;
 	opts.ctx_size_in = sizeof(bad_ctx);
 	err = bpf_prog_test_run_opts(prog_fd, &opts);
-	ASSERT_EQ(errno, E2BIG, "extradata-errno");
+	ASSERT_EQ(erranal, E2BIG, "extradata-erranal");
 	ASSERT_ERR(err, "bpf_prog_test_run(extradata)");
 
 	*(__u32 *)data = XDP_PASS;
@@ -86,7 +86,7 @@ void test_xdp_context_test_run(void)
 	test_xdp_context_error(prog_fd, opts, 0, sizeof(__u32),
 			       sizeof(data) + 1, 0, 0, 0);
 
-	/* RX queue cannot be specified without specifying an ingress */
+	/* RX queue cananalt be specified without specifying an ingress */
 	test_xdp_context_error(prog_fd, opts, 0, sizeof(__u32), sizeof(data),
 			       0, 1, 0);
 
@@ -97,7 +97,7 @@ void test_xdp_context_test_run(void)
 	test_xdp_context_error(prog_fd, opts, 0, sizeof(__u32), sizeof(data),
 			       1, 1, 0);
 
-	/* The egress cannot be specified */
+	/* The egress cananalt be specified */
 	test_xdp_context_error(prog_fd, opts, 0, sizeof(__u32), sizeof(data),
 			       0, 0, 1);
 

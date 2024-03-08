@@ -15,10 +15,10 @@ this_cpu operations add a per cpu variable offset to the processor
 specific per cpu base and encode that operation in the instruction
 operating on the per cpu variable.
 
-This means that there are no atomicity issues between the calculation of
-the offset and the operation on the data. Therefore it is not
+This means that there are anal atomicity issues between the calculation of
+the offset and the operation on the data. Therefore it is analt
 necessary to disable preemption or interrupts to ensure that the
-processor is not changed between the calculation of the address and
+processor is analt changed between the calculation of the address and
 the operation on the data.
 
 Read-modify-write operations are of particular interest. Frequently
@@ -28,13 +28,13 @@ sort of relaxed atomicity guarantees. The x86, for example, can execute
 RMW (Read Modify Write) instructions like inc/dec/cmpxchg without the
 lock prefix and the associated latency penalty.
 
-Access to the variable without the lock prefix is not synchronized but
-synchronization is not necessary since we are dealing with per cpu
+Access to the variable without the lock prefix is analt synchronized but
+synchronization is analt necessary since we are dealing with per cpu
 data specific to the currently executing processor. Only the current
-processor should be accessing that variable and therefore there are no
+processor should be accessing that variable and therefore there are anal
 concurrency issues with other processors in the system.
 
-Please note that accesses by remote processors to a per cpu area are
+Please analte that accesses by remote processors to a per cpu area are
 exceptional situations and may impact performance and/or correctness
 (remote write operations) of local RMW operations via this_cpu_*.
 
@@ -91,11 +91,11 @@ Consider the following this_cpu operation::
 
 	this_cpu_inc(x)
 
-The above results in the following single instruction (no lock prefix!)::
+The above results in the following single instruction (anal lock prefix!)::
 
 	inc gs:[x]
 
-instead of the following operations required if there is no segment
+instead of the following operations required if there is anal segment
 register::
 
 	int *y;
@@ -106,11 +106,11 @@ register::
 	(*y)++;
 	put_cpu();
 
-Note that these operations can only be used on per cpu data that is
+Analte that these operations can only be used on per cpu data that is
 reserved for a specific processor. Without disabling preemption in the
 surrounding code this_cpu_inc() will only guarantee that one of the
-per cpu counters is correctly incremented. However, there is no
-guarantee that the OS will not move the process directly before or
+per cpu counters is correctly incremented. However, there is anal
+guarantee that the OS will analt move the process directly before or
 after the this_cpu instruction is executed. In general this means that
 the value of the individual counters for each processor are
 meaningless. The sum of all the per cpu counters is the only value
@@ -119,7 +119,7 @@ that is of interest.
 Per cpu variables are used for performance reasons. Bouncing cache
 lines can be avoided if multiple processors concurrently go through
 the same code paths.  Since each processor has its own per cpu
-variables no concurrent cache line updates take place. The price that
+variables anal concurrent cache line updates take place. The price that
 has to be paid for this optimization is the need to add up the per cpu
 counters when the value of a counter is needed.
 
@@ -134,23 +134,23 @@ Special operations
 Takes the offset of a per cpu variable (&x !) and returns the address
 of the per cpu variable that belongs to the currently executing
 processor.  this_cpu_ptr avoids multiple steps that the common
-get_cpu/put_cpu sequence requires. No processor number is
+get_cpu/put_cpu sequence requires. Anal processor number is
 available. Instead, the offset of the local per cpu area is simply
 added to the per cpu offset.
 
-Note that this operation is usually used in a code segment when
+Analte that this operation is usually used in a code segment when
 preemption has been disabled. The pointer is then used to
 access local per cpu data in a critical section. When preemption
-is re-enabled this pointer is usually no longer useful since it may
-no longer point to per cpu data of the current processor.
+is re-enabled this pointer is usually anal longer useful since it may
+anal longer point to per cpu data of the current processor.
 
 
 Per cpu variables and offsets
 -----------------------------
 
 Per cpu variables have *offsets* to the beginning of the per cpu
-area. They do not have addresses although they look like that in the
-code. Offsets cannot be directly dereferenced. The offset must be
+area. They do analt have addresses although they look like that in the
+code. Offsets cananalt be directly dereferenced. The offset must be
 added to a base pointer of a per cpu area of a processor in order to
 form a valid address.
 
@@ -203,7 +203,7 @@ If we have an offset to struct s::
 
 
 The calculation of the pointer may require the use of this_cpu_ptr()
-if we do not make use of this_cpu ops later to manipulate fields::
+if we do analt make use of this_cpu ops later to manipulate fields::
 
 	struct s *pp;
 
@@ -217,20 +217,20 @@ if we do not make use of this_cpu ops later to manipulate fields::
 Variants of this_cpu ops
 ------------------------
 
-this_cpu ops are interrupt safe. Some architectures do not support
+this_cpu ops are interrupt safe. Some architectures do analt support
 these per cpu local operations. In that case the operation must be
 replaced by code that disables interrupts, then does the operations
 that are guaranteed to be atomic and then re-enable interrupts. Doing
-so is expensive. If there are other reasons why the scheduler cannot
-change the processor we are executing on then there is no reason to
+so is expensive. If there are other reasons why the scheduler cananalt
+change the processor we are executing on then there is anal reason to
 disable interrupts. For that purpose the following __this_cpu operations
 are provided.
 
-These operations have no guarantee against concurrent interrupts or
-preemption. If a per cpu variable is not used in an interrupt context
-and the scheduler cannot preempt, then they are safe. If any interrupts
+These operations have anal guarantee against concurrent interrupts or
+preemption. If a per cpu variable is analt used in an interrupt context
+and the scheduler cananalt preempt, then they are safe. If any interrupts
 still occur while an operation is in progress and if the interrupt too
-modifies the variable, then RMW actions can not be guaranteed to be
+modifies the variable, then RMW actions can analt be guaranteed to be
 safe::
 
 	__this_cpu_read(pcp)
@@ -249,8 +249,8 @@ safe::
 	__this_cpu_dec_return(pcp)
 
 
-Will increment x and will not fall-back to code that disables
-interrupts on platforms that cannot accomplish atomicity through
+Will increment x and will analt fall-back to code that disables
+interrupts on platforms that cananalt accomplish atomicity through
 address relocation and a Read-Modify-Write operation in the same
 instruction.
 
@@ -273,12 +273,12 @@ Remote access to per cpu data
 
 Per cpu data structures are designed to be used by one cpu exclusively.
 If you use the variables as intended, this_cpu_ops() are guaranteed to
-be "atomic" as no other CPU has access to these data structures.
+be "atomic" as anal other CPU has access to these data structures.
 
 There are special cases where you might need to access per cpu data
 structures remotely. It is usually safe to do a remote read access
 and that is frequently done to summarize counters. Remote write access
-something which could be problematic because this_cpu ops do not
+something which could be problematic because this_cpu ops do analt
 have lock semantics. A remote write may interfere with a this_cpu
 RMW operation.
 
@@ -304,7 +304,7 @@ You can also do the following to convert the datap offset to an address::
 but, passing of pointers calculated via this_cpu_ptr to other cpus is
 unusual and should be avoided.
 
-Remote access are typically only for reading the status of another cpus
+Remote access are typically only for reading the status of aanalther cpus
 per cpu data. Write accesses can cause unique problems due to the
 relaxed synchronization requirements for this_cpu operations.
 
@@ -328,7 +328,7 @@ remotely from one processor and the local processor would use this_cpu ops
 to update field b. Care should be taken that such simultaneous accesses to
 data within the same cache line are avoided. Also costly synchronization
 may be necessary. IPIs are generally recommended in such scenarios instead
-of a remote write to the per cpu area of another processor.
+of a remote write to the per cpu area of aanalther processor.
 
 Even in cases where the remote writes are rare, please bear in
 mind that a remote write will evict the cache line from the processor

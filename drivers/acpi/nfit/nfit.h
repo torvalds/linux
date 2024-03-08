@@ -32,7 +32,7 @@
 
 #define ACPI_NFIT_MEM_FAILED_MASK (ACPI_NFIT_MEM_SAVE_FAILED \
 		| ACPI_NFIT_MEM_RESTORE_FAILED | ACPI_NFIT_MEM_FLUSH_FAILED \
-		| ACPI_NFIT_MEM_NOT_ARMED | ACPI_NFIT_MEM_MAP_FAILED)
+		| ACPI_NFIT_MEM_ANALT_ARMED | ACPI_NFIT_MEM_MAP_FAILED)
 
 #define NVDIMM_CMD_MAX 31
 
@@ -43,8 +43,8 @@
  | 1 << ND_CMD_VENDOR_EFFECT_LOG | 1 << ND_CMD_VENDOR)
 
 /*
- * Command numbers that the kernel needs to know about to handle
- * non-default DSM revision ids
+ * Command numbers that the kernel needs to kanalw about to handle
+ * analn-default DSM revision ids
  */
 enum nvdimm_family_cmds {
 	NVDIMM_INTEL_LATCH_SHUTDOWN = 10,
@@ -129,29 +129,29 @@ enum nfit_uuids {
  * LSB and the function as the MSB.
  */
 #define NFIT_FIC_BYTE cpu_to_le16(0x101) /* byte-addressable energy backed */
-#define NFIT_FIC_BLK cpu_to_le16(0x201) /* block-addressable non-energy backed */
-#define NFIT_FIC_BYTEN cpu_to_le16(0x301) /* byte-addressable non-energy backed */
+#define NFIT_FIC_BLK cpu_to_le16(0x201) /* block-addressable analn-energy backed */
+#define NFIT_FIC_BYTEN cpu_to_le16(0x301) /* byte-addressable analn-energy backed */
 
 enum {
 	NFIT_BLK_READ_FLUSH = 1,
 	NFIT_BLK_DCR_LATCH = 2,
 	NFIT_ARS_STATUS_DONE = 0,
 	NFIT_ARS_STATUS_BUSY = 1 << 16,
-	NFIT_ARS_STATUS_NONE = 2 << 16,
+	NFIT_ARS_STATUS_ANALNE = 2 << 16,
 	NFIT_ARS_STATUS_INTR = 3 << 16,
 	NFIT_ARS_START_BUSY = 6,
-	NFIT_ARS_CAP_NONE = 1,
+	NFIT_ARS_CAP_ANALNE = 1,
 	NFIT_ARS_F_OVERFLOW = 1,
 	NFIT_ARS_TIMEOUT = 90,
 };
 
-enum nfit_root_notifiers {
-	NFIT_NOTIFY_UPDATE = 0x80,
-	NFIT_NOTIFY_UC_MEMORY_ERROR = 0x81,
+enum nfit_root_analtifiers {
+	NFIT_ANALTIFY_UPDATE = 0x80,
+	NFIT_ANALTIFY_UC_MEMORY_ERROR = 0x81,
 };
 
-enum nfit_dimm_notifiers {
-	NFIT_NOTIFY_DIMM_HEALTH = 0x81,
+enum nfit_dimm_analtifiers {
+	NFIT_ANALTIFY_DIMM_HEALTH = 0x81,
 };
 
 enum nfit_ars_state {
@@ -211,7 +211,7 @@ struct nfit_mem {
 	struct acpi_nfit_control_region *dcr;
 	struct acpi_nfit_system_address *spa_dcr;
 	struct acpi_nfit_interleave *idt_dcr;
-	struct kernfs_node *flags_attr;
+	struct kernfs_analde *flags_attr;
 	struct nfit_flush *nfit_flush;
 	struct list_head list;
 	struct acpi_device *adev;
@@ -251,7 +251,7 @@ struct acpi_nfit_desc {
 	struct nfit_spa *scrub_spa;
 	struct delayed_work dwork;
 	struct list_head list;
-	struct kernfs_node *scrub_count_state;
+	struct kernfs_analde *scrub_count_state;
 	unsigned int max_ars;
 	unsigned int scrub_count;
 	unsigned int scrub_mode;
@@ -265,8 +265,8 @@ struct acpi_nfit_desc {
 	enum nvdimm_fwa_state fwa_state;
 	enum nvdimm_fwa_capability fwa_cap;
 	int fwa_count;
-	bool fwa_noidle;
-	bool fwa_nosuspend;
+	bool fwa_analidle;
+	bool fwa_analsuspend;
 };
 
 enum scrub_mode {
@@ -340,13 +340,13 @@ static inline struct acpi_nfit_desc *to_acpi_desc(
 const guid_t *to_nfit_uuid(enum nfit_uuids id);
 int acpi_nfit_init(struct acpi_nfit_desc *acpi_desc, void *nfit, acpi_size sz);
 void acpi_nfit_shutdown(void *data);
-void __acpi_nfit_notify(struct device *dev, acpi_handle handle, u32 event);
-void __acpi_nvdimm_notify(struct device *dev, u32 event);
+void __acpi_nfit_analtify(struct device *dev, acpi_handle handle, u32 event);
+void __acpi_nvdimm_analtify(struct device *dev, u32 event);
 int acpi_nfit_ctl(struct nvdimm_bus_descriptor *nd_desc, struct nvdimm *nvdimm,
 		unsigned int cmd, void *buf, unsigned int buf_len, int *cmd_rc);
 void acpi_nfit_desc_init(struct acpi_nfit_desc *acpi_desc, struct device *dev);
 bool intel_fwa_supported(struct nvdimm_bus *nvdimm_bus);
-extern struct device_attribute dev_attr_firmware_activate_noidle;
+extern struct device_attribute dev_attr_firmware_activate_analidle;
 void nfit_intel_shutdown_status(struct nfit_mem *nfit_mem);
 
 #endif /* __NFIT_H__ */

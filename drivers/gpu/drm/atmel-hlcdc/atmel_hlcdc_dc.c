@@ -544,7 +544,7 @@ static irqreturn_t atmel_hlcdc_dc_irq_handler(int irq, void *data)
 	regmap_read(dc->hlcdc->regmap, ATMEL_HLCDC_ISR, &isr);
 	status = imr & isr;
 	if (!status)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (status & ATMEL_HLCDC_SOF)
 		atmel_hlcdc_crtc_irq(dc->crtc);
@@ -650,10 +650,10 @@ static int atmel_hlcdc_dc_load(struct drm_device *dev)
 	struct atmel_hlcdc_dc *dc;
 	int ret;
 
-	match = of_match_node(atmel_hlcdc_of_match, dev->dev->parent->of_node);
+	match = of_match_analde(atmel_hlcdc_of_match, dev->dev->parent->of_analde);
 	if (!match) {
 		dev_err(&pdev->dev, "invalid compatible string\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (!match->data) {
@@ -663,7 +663,7 @@ static int atmel_hlcdc_dc_load(struct drm_device *dev)
 
 	dc = devm_kzalloc(dev->dev, sizeof(*dc), GFP_KERNEL);
 	if (!dc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dc->desc = match->data;
 	dc->hlcdc = dev_get_drvdata(dev->dev->parent);
@@ -740,7 +740,7 @@ static const struct drm_driver atmel_hlcdc_dc_driver = {
 	.desc = "Atmel HLCD Controller DRM",
 	.date = "20141504",
 	.major = 1,
-	.minor = 0,
+	.mianalr = 0,
 };
 
 static int atmel_hlcdc_dc_drm_probe(struct platform_device *pdev)

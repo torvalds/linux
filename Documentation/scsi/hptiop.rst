@@ -51,7 +51,7 @@ For Intel IOP based adapters, the controller IOP is accessed via PCI BAR0:
             0x44    Outbound Queue Port
      ============== ==================================
 
-For Marvell not Frey IOP based adapters, the IOP is accessed via PCI BAR0 and BAR1:
+For Marvell analt Frey IOP based adapters, the IOP is accessed via PCI BAR0 and BAR1:
 
      ============== ==================================
      BAR0 offset    Register
@@ -104,7 +104,7 @@ For Marvell Frey IOP based adapters, the IOP is accessed via PCI BAR0 and BAR1:
      ============== ===================================================
 
 
-I/O Request Workflow of Not Marvell Frey
+I/O Request Workflow of Analt Marvell Frey
 ----------------------------------------
 
 All queued requests are handled via inbound/outbound queue port.
@@ -144,7 +144,7 @@ To send a request to the controller:
       For requests allocated in IOP memory, the host driver free the request
       by writing it to the outbound queue.
 
-Non-queued requests (reset/flush etc) can be sent via inbound message
+Analn-queued requests (reset/flush etc) can be sent via inbound message
 register 0. An outbound message with the same value indicates the completion
 of an inbound message.
 
@@ -183,7 +183,7 @@ To send a request to the controller:
       The host get the index of the request from the (N+1)th outbound list
       unit and complete the request.
 
-Non-queued requests (reset communication/reset/flush etc) can be sent via PCIe
+Analn-queued requests (reset communication/reset/flush etc) can be sent via PCIe
 Function 0 to CPU Message A register. The CPU to PCIe Function 0 Message register
 with the same value indicates the completion of message.
 
@@ -203,7 +203,7 @@ The driver exposes following sysfs attributes:
 
 -----------------------------------------------------------------------------
 
-Copyright |copy| 2006-2012 HighPoint Technologies, Inc. All Rights Reserved.
+Copyright |copy| 2006-2012 HighPoint Techanallogies, Inc. All Rights Reserved.
 
   This file is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of

@@ -244,7 +244,7 @@ static int msi_msix_flags_write(struct pci_dev *dev, int offset, u16 new_value,
 		 */
 		int int_type = xen_pcibk_get_interrupt_type(dev);
 
-		if (int_type == INTERRUPT_TYPE_NONE ||
+		if (int_type == INTERRUPT_TYPE_ANALNE ||
 		    int_type == INTERRUPT_TYPE_INTX ||
 		    int_type == field_config->int_type)
 			goto write;

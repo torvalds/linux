@@ -16,13 +16,13 @@
 
 /*  slot time for 11g */
 #define SHORT_SLOT_TIME		9
-#define NON_SHORT_SLOT_TIME	20
+#define ANALN_SHORT_SLOT_TIME	20
 
 #define RTL8711_RF_MAX_SENS	 6
 #define RTL8711_RF_DEF_SENS	 4
 
 /*
- * We now define the following channels as the max channels in each channel plan.
+ * We analw define the following channels as the max channels in each channel plan.
  * 2G, total 14 chnls
  * {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}
  */
@@ -85,14 +85,14 @@ enum channel_width {
 /*  Represent Extension Channel Offset in HT Capabilities */
 /*  This is available only in 40Mhz mode. */
 enum extchnl_offset {
-	EXTCHNL_OFFSET_NO_EXT = 0,
+	EXTCHNL_OFFSET_ANAL_EXT = 0,
 	EXTCHNL_OFFSET_UPPER = 1,
-	EXTCHNL_OFFSET_NO_DEF = 2,
+	EXTCHNL_OFFSET_ANAL_DEF = 2,
 	EXTCHNL_OFFSET_LOWER = 3,
 };
 
 enum {
-	HT_DATA_SC_DONOT_CARE = 0,
+	HT_DATA_SC_DOANALT_CARE = 0,
 	HT_DATA_SC_20_UPPER_OF_40MHZ = 1,
 	HT_DATA_SC_20_LOWER_OF_40MHZ = 2,
 };

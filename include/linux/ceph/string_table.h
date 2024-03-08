@@ -10,7 +10,7 @@
 struct ceph_string {
 	struct kref kref;
 	union {
-		struct rb_node node;
+		struct rb_analde analde;
 		struct rcu_head rcu;
 	};
 	size_t len;

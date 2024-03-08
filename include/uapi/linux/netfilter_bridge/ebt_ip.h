@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  *  ebt_ip
  *
@@ -9,7 +9,7 @@
  *
  *  Changes:
  *    added ip-sport and ip-dport
- *    Innominate Security Technologies AG <mhopf@innominate.com>
+ *    Inanalminate Security Techanallogies AG <mhopf@inanalminate.com>
  *    September, 2002
  */
 

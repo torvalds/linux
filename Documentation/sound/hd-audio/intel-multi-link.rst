@@ -85,7 +85,7 @@ LEPTR.ID=0.
 
 DMA control uses the existing LOSIDV register.
 
-Changes include additional descriptions for enumeration that were not
+Changes include additional descriptions for enumeration that were analt
 present in earlier generations.
 
 - multi-link synchronization: capabilities in LCAP.LSS and control in LSYNC
@@ -93,7 +93,7 @@ present in earlier generations.
 - power management moved from SHIM to LCTL.SPA bits
 - hand-over to the DSP for access to multi-link registers, SHIM/IP with LCTL.OFLEN
 - mapping of SoundWire codecs to SDI ID bits
-- move of SHIM and Cadence registers to different offsets, with no
+- move of SHIM and Cadence registers to different offsets, with anal
   change in functionality. The LEPTR.PTR value is an offset from the
   ML address, with a default value of 0x30000.
 
@@ -177,14 +177,14 @@ LEPTR.ID=0xC1 are set.
 
 DMA control uses the existing LOSIDV register
 
-Changes include additional descriptions for enumeration that were not
+Changes include additional descriptions for enumeration that were analt
 present in earlier generations.
 
 - multi-link synchronization: capabilities in LCAP.LSS and control in LSYNC
 - power management with LCTL.SPA bits
 - hand-over to the DSP for access to multi-link registers, SHIM/IP with LCTL.OFLEN
 
-- move of DMIC registers to different offsets, with no change in
+- move of DMIC registers to different offsets, with anal change in
   functionality. The LEPTR.PTR value is an offset from the ML
   address, with a default value of 0x10000.
 
@@ -248,13 +248,13 @@ LEPTR.ID=0xC0 are set.
 
 DMA control uses the existing LOSIDV register
 
-Changes include additional descriptions for enumeration and control that were not
+Changes include additional descriptions for enumeration and control that were analt
 present in earlier generations:
 - number of sublinks (SSP IP instances) in LCAP.LSCOUNT
 - power management moved from SHIM to LCTL.SPA bits
 - hand-over to the DSP for access to multi-link registers, SHIM/IP
 with LCTL.OFLEN
-- move of SHIM and SSP IP registers to different offsets, with no
+- move of SHIM and SSP IP registers to different offsets, with anal
 change in functionality.  The LEPTR.PTR value is an offset from the ML
 address, with a default value of 0x28000.
 

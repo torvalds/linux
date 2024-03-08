@@ -6,7 +6,7 @@
  *      Copyright (C) 2003 Dave Engebretsen <engebret@us.ibm.com>
  */
 
-/* NOTE:
+/* ANALTE:
  * Unlike ppc32, ppc64 will only call cpu_setup() for the boot CPU, it's
  * the responsibility of the appropriate CPU save/restore functions to
  * eventually copy these settings over. Those save/restore aren't yet
@@ -17,25 +17,25 @@
 				 PPC_FEATURE_HAS_MMU | PPC_FEATURE_64)
 #define COMMON_USER_POWER4	(COMMON_USER_PPC64 | PPC_FEATURE_POWER4)
 #define COMMON_USER_POWER5	(COMMON_USER_PPC64 | PPC_FEATURE_POWER5 |\
-				 PPC_FEATURE_SMT | PPC_FEATURE_ICACHE_SNOOP)
+				 PPC_FEATURE_SMT | PPC_FEATURE_ICACHE_SANALOP)
 #define COMMON_USER_POWER5_PLUS	(COMMON_USER_PPC64 | PPC_FEATURE_POWER5_PLUS|\
-				 PPC_FEATURE_SMT | PPC_FEATURE_ICACHE_SNOOP)
+				 PPC_FEATURE_SMT | PPC_FEATURE_ICACHE_SANALOP)
 #define COMMON_USER_POWER6	(COMMON_USER_PPC64 | PPC_FEATURE_ARCH_2_05 |\
-				 PPC_FEATURE_SMT | PPC_FEATURE_ICACHE_SNOOP | \
+				 PPC_FEATURE_SMT | PPC_FEATURE_ICACHE_SANALOP | \
 				 PPC_FEATURE_TRUE_LE | \
 				 PPC_FEATURE_PSERIES_PERFMON_COMPAT)
 #define COMMON_USER_POWER7	(COMMON_USER_PPC64 | PPC_FEATURE_ARCH_2_06 |\
-				 PPC_FEATURE_SMT | PPC_FEATURE_ICACHE_SNOOP | \
+				 PPC_FEATURE_SMT | PPC_FEATURE_ICACHE_SANALOP | \
 				 PPC_FEATURE_TRUE_LE | \
 				 PPC_FEATURE_PSERIES_PERFMON_COMPAT)
 #define COMMON_USER2_POWER7	(PPC_FEATURE2_DSCR)
 #define COMMON_USER_POWER8	(COMMON_USER_PPC64 | PPC_FEATURE_ARCH_2_06 |\
-				 PPC_FEATURE_SMT | PPC_FEATURE_ICACHE_SNOOP | \
+				 PPC_FEATURE_SMT | PPC_FEATURE_ICACHE_SANALOP | \
 				 PPC_FEATURE_TRUE_LE | \
 				 PPC_FEATURE_PSERIES_PERFMON_COMPAT)
 #define COMMON_USER2_POWER8	(PPC_FEATURE2_ARCH_2_07 | \
 				 PPC_FEATURE2_HTM_COMP | \
-				 PPC_FEATURE2_HTM_NOSC_COMP | \
+				 PPC_FEATURE2_HTM_ANALSC_COMP | \
 				 PPC_FEATURE2_DSCR | \
 				 PPC_FEATURE2_ISEL | PPC_FEATURE2_TAR | \
 				 PPC_FEATURE2_VEC_CRYPTO)
@@ -91,7 +91,7 @@ static struct cpu_spec cpu_specs[] __initdata = {
 		.cpu_restore		= __restore_cpu_ppc970,
 		.platform		= "ppc970",
 	},
-	{	/* PPC970MP DD1.0 - no DEEPNAP, use regular 970 init */
+	{	/* PPC970MP DD1.0 - anal DEEPNAP, use regular 970 init */
 		.pvr_mask		= 0xffffffff,
 		.pvr_value		= 0x00440100,
 		.cpu_name		= "PPC970MP",

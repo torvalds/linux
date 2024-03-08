@@ -11,13 +11,13 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
@@ -138,8 +138,8 @@ int vmw_get_cap_3d_ioctl(struct drm_device *dev, void *data,
 
 	size = vmw_devcaps_size(dev_priv, vmw_fp->gb_aware);
 	if (unlikely(size == 0)) {
-		DRM_ERROR("Failed to figure out the devcaps size (no 3D).\n");
-		return -ENOMEM;
+		DRM_ERROR("Failed to figure out the devcaps size (anal 3D).\n");
+		return -EANALMEM;
 	}
 
 	if (arg->max_size < size)
@@ -148,7 +148,7 @@ int vmw_get_cap_3d_ioctl(struct drm_device *dev, void *data,
 	bounce = vzalloc(size);
 	if (unlikely(bounce == NULL)) {
 		DRM_ERROR("Failed to allocate bounce buffer for 3D caps.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = vmw_devcaps_copy(dev_priv, vmw_fp->gb_aware, bounce, size);
@@ -198,7 +198,7 @@ int vmw_present_ioctl(struct drm_device *dev, void *data,
 	clips = kcalloc(num_clips, sizeof(*clips), GFP_KERNEL);
 	if (clips == NULL) {
 		DRM_ERROR("Failed to allocate clip rect list.\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_clips;
 	}
 
@@ -206,7 +206,7 @@ int vmw_present_ioctl(struct drm_device *dev, void *data,
 	if (ret) {
 		DRM_ERROR("Failed to copy clip rects from userspace.\n");
 		ret = -EFAULT;
-		goto out_no_copy;
+		goto out_anal_copy;
 	}
 
 	drm_modeset_lock_all(dev);
@@ -214,8 +214,8 @@ int vmw_present_ioctl(struct drm_device *dev, void *data,
 	fb = drm_framebuffer_lookup(dev, file_priv, arg->fb_id);
 	if (!fb) {
 		VMW_DEBUG_USER("Invalid framebuffer id.\n");
-		ret = -ENOENT;
-		goto out_no_fb;
+		ret = -EANALENT;
+		goto out_anal_fb;
 	}
 	vfb = vmw_framebuffer_to_vfb(fb);
 
@@ -223,7 +223,7 @@ int vmw_present_ioctl(struct drm_device *dev, void *data,
 					      user_surface_converter,
 					      &res);
 	if (ret)
-		goto out_no_surface;
+		goto out_anal_surface;
 
 	surface = vmw_res_to_srf(res);
 	ret = vmw_kms_present(dev_priv, file_priv,
@@ -234,11 +234,11 @@ int vmw_present_ioctl(struct drm_device *dev, void *data,
 	/* vmw_user_surface_lookup takes one ref so does new_fb */
 	vmw_surface_unreference(&surface);
 
-out_no_surface:
+out_anal_surface:
 	drm_framebuffer_put(fb);
-out_no_fb:
+out_anal_fb:
 	drm_modeset_unlock_all(dev);
-out_no_copy:
+out_anal_copy:
 	kfree(clips);
 out_clips:
 	return ret;
@@ -275,7 +275,7 @@ int vmw_present_readback_ioctl(struct drm_device *dev, void *data,
 	clips = kcalloc(num_clips, sizeof(*clips), GFP_KERNEL);
 	if (clips == NULL) {
 		DRM_ERROR("Failed to allocate clip rect list.\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_clips;
 	}
 
@@ -283,7 +283,7 @@ int vmw_present_readback_ioctl(struct drm_device *dev, void *data,
 	if (ret) {
 		DRM_ERROR("Failed to copy clip rects from userspace.\n");
 		ret = -EFAULT;
-		goto out_no_copy;
+		goto out_anal_copy;
 	}
 
 	drm_modeset_lock_all(dev);
@@ -291,26 +291,26 @@ int vmw_present_readback_ioctl(struct drm_device *dev, void *data,
 	fb = drm_framebuffer_lookup(dev, file_priv, arg->fb_id);
 	if (!fb) {
 		VMW_DEBUG_USER("Invalid framebuffer id.\n");
-		ret = -ENOENT;
-		goto out_no_fb;
+		ret = -EANALENT;
+		goto out_anal_fb;
 	}
 
 	vfb = vmw_framebuffer_to_vfb(fb);
 	if (!vfb->bo) {
-		VMW_DEBUG_USER("Framebuffer not buffer backed.\n");
+		VMW_DEBUG_USER("Framebuffer analt buffer backed.\n");
 		ret = -EINVAL;
-		goto out_no_ttm_lock;
+		goto out_anal_ttm_lock;
 	}
 
 	ret = vmw_kms_readback(dev_priv, file_priv,
 			       vfb, user_fence_rep,
 			       clips, num_clips);
 
-out_no_ttm_lock:
+out_anal_ttm_lock:
 	drm_framebuffer_put(fb);
-out_no_fb:
+out_anal_fb:
 	drm_modeset_unlock_all(dev);
-out_no_copy:
+out_anal_copy:
 	kfree(clips);
 out_clips:
 	return ret;

@@ -33,7 +33,7 @@ struct da9211_pdata {
 	 */
 	int num_buck;
 	struct gpio_desc *gpiod_ren[DA9211_MAX_REGULATORS];
-	struct device_node *reg_node[DA9211_MAX_REGULATORS];
+	struct device_analde *reg_analde[DA9211_MAX_REGULATORS];
 	struct regulator_init_data *init_data[DA9211_MAX_REGULATORS];
 };
 #endif

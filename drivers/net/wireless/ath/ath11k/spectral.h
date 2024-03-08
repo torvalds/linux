@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2019-2020 The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #ifndef ATH11K_SPECTRAL_H
@@ -13,7 +13,7 @@
 /* enum ath11k_spectral_mode:
  *
  * @SPECTRAL_DISABLED: spectral mode is disabled
- * @SPECTRAL_BACKGROUND: hardware sends samples when it is not busy with
+ * @SPECTRAL_BACKGROUND: hardware sends samples when it is analt busy with
  *	something else.
  * @SPECTRAL_MANUAL: spectral scan is enabled, triggering for samples
  *	is performed manually.

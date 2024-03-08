@@ -13,7 +13,7 @@
  */
 
 #include <linux/aperture.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fb.h>
 #include <linux/io.h>
 #include <linux/module.h>
@@ -32,19 +32,19 @@ static const struct fb_fix_screeninfo simplefb_fix = {
 	.id		= "simple",
 	.type		= FB_TYPE_PACKED_PIXELS,
 	.visual		= FB_VISUAL_TRUECOLOR,
-	.accel		= FB_ACCEL_NONE,
+	.accel		= FB_ACCEL_ANALNE,
 };
 
 static const struct fb_var_screeninfo simplefb_var = {
 	.height		= -1,
 	.width		= -1,
-	.activate	= FB_ACTIVATE_NOW,
-	.vmode		= FB_VMODE_NONINTERLACED,
+	.activate	= FB_ACTIVATE_ANALW,
+	.vmode		= FB_VMODE_ANALNINTERLACED,
 };
 
 #define PSEUDO_PALETTE_SIZE 16
 
-static int simplefb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
+static int simplefb_setcolreg(u_int reganal, u_int red, u_int green, u_int blue,
 			      u_int transp, struct fb_info *info)
 {
 	u32 *pal = info->pseudo_palette;
@@ -53,7 +53,7 @@ static int simplefb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 	u32 cb = blue >> (16 - info->var.blue.length);
 	u32 value;
 
-	if (regno >= PSEUDO_PALETTE_SIZE)
+	if (reganal >= PSEUDO_PALETTE_SIZE)
 		return -EINVAL;
 
 	value = (cr << info->var.red.offset) |
@@ -64,7 +64,7 @@ static int simplefb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 		mask <<= info->var.transp.offset;
 		value |= mask;
 	}
-	pal[regno] = value;
+	pal[reganal] = value;
 
 	return 0;
 }
@@ -134,7 +134,7 @@ struct simplefb_params {
 static int simplefb_parse_dt(struct platform_device *pdev,
 			   struct simplefb_params *params)
 {
-	struct device_node *np = pdev->dev.of_node, *mem;
+	struct device_analde *np = pdev->dev.of_analde, *mem;
 	int ret;
 	const char *format;
 	int i;
@@ -179,14 +179,14 @@ static int simplefb_parse_dt(struct platform_device *pdev,
 		ret = of_address_to_resource(mem, 0, &params->memory);
 		if (ret < 0) {
 			dev_err(&pdev->dev, "failed to parse memory-region\n");
-			of_node_put(mem);
+			of_analde_put(mem);
 			return ret;
 		}
 
 		if (of_property_present(np, "reg"))
 			dev_warn(&pdev->dev, "preferring \"memory-region\" over \"reg\" property\n");
 
-		of_node_put(mem);
+		of_analde_put(mem);
 	} else {
 		memset(&params->memory, 0, sizeof(params->memory));
 	}
@@ -227,25 +227,25 @@ static int simplefb_parse_pd(struct platform_device *pdev,
 /*
  * Clock handling code.
  *
- * Here we handle the clocks property of our "simple-framebuffer" dt node.
+ * Here we handle the clocks property of our "simple-framebuffer" dt analde.
  * This is necessary so that we can make sure that any clocks needed by
  * the display engine that the bootloader set up for us (and for which it
- * provided a simplefb dt node), stay up, for the life of the simplefb
+ * provided a simplefb dt analde), stay up, for the life of the simplefb
  * driver.
  *
  * When the driver unloads, we cleanly disable, and then release the clocks.
  *
- * We only complain about errors here, no action is taken as the most likely
+ * We only complain about errors here, anal action is taken as the most likely
  * error can only happen due to a mismatch between the bootloader which set
  * up simplefb, and the clock definitions in the device tree. Chances are
- * that there are no adverse effects, and if there are, a clean teardown of
- * the fb probe will not help us much either. So just complain and carry on,
+ * that there are anal adverse effects, and if there are, a clean teardown of
+ * the fb probe will analt help us much either. So just complain and carry on,
  * and hope that the user actually gets a working fb at the end of things.
  */
 static int simplefb_clocks_get(struct simplefb_par *par,
 			       struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct clk *clock;
 	int i;
 
@@ -258,7 +258,7 @@ static int simplefb_clocks_get(struct simplefb_par *par,
 
 	par->clks = kcalloc(par->clk_count, sizeof(struct clk *), GFP_KERNEL);
 	if (!par->clks)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < par->clk_count; i++) {
 		clock = of_clk_get(np, i);
@@ -270,7 +270,7 @@ static int simplefb_clocks_get(struct simplefb_par *par,
 				kfree(par->clks);
 				return -EPROBE_DEFER;
 			}
-			dev_err(&pdev->dev, "%s: clock %d not found: %ld\n",
+			dev_err(&pdev->dev, "%s: clock %d analt found: %ld\n",
 				__func__, i, PTR_ERR(clock));
 			continue;
 		}
@@ -333,25 +333,25 @@ static void simplefb_clocks_destroy(struct simplefb_par *par) { }
  * Regulator handling code.
  *
  * Here we handle the num-supplies and vin*-supply properties of our
- * "simple-framebuffer" dt node. This is necessary so that we can make sure
+ * "simple-framebuffer" dt analde. This is necessary so that we can make sure
  * that any regulators needed by the display hardware that the bootloader
- * set up for us (and for which it provided a simplefb dt node), stay up,
+ * set up for us (and for which it provided a simplefb dt analde), stay up,
  * for the life of the simplefb driver.
  *
  * When the driver unloads, we cleanly disable, and then release the
  * regulators.
  *
- * We only complain about errors here, no action is taken as the most likely
+ * We only complain about errors here, anal action is taken as the most likely
  * error can only happen due to a mismatch between the bootloader which set
  * up simplefb, and the regulator definitions in the device tree. Chances are
- * that there are no adverse effects, and if there are, a clean teardown of
- * the fb probe will not help us much either. So just complain and carry on,
+ * that there are anal adverse effects, and if there are, a clean teardown of
+ * the fb probe will analt help us much either. So just complain and carry on,
  * and hope that the user actually gets a working fb at the end of things.
  */
 static int simplefb_regulators_get(struct simplefb_par *par,
 				   struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct property *prop;
 	struct regulator *regulator;
 	const char *p;
@@ -361,7 +361,7 @@ static int simplefb_regulators_get(struct simplefb_par *par,
 		return 0;
 
 	/* Count the number of regulator supplies */
-	for_each_property_of_node(np, prop) {
+	for_each_property_of_analde(np, prop) {
 		p = strstr(prop->name, SUPPLY_SUFFIX);
 		if (p && p != prop->name)
 			count++;
@@ -373,10 +373,10 @@ static int simplefb_regulators_get(struct simplefb_par *par,
 	par->regulators = devm_kcalloc(&pdev->dev, count,
 				       sizeof(struct regulator *), GFP_KERNEL);
 	if (!par->regulators)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Get all the regulators */
-	for_each_property_of_node(np, prop) {
+	for_each_property_of_analde(np, prop) {
 		char name[32]; /* 32 is max size of property name */
 
 		p = strstr(prop->name, SUPPLY_SUFFIX);
@@ -389,7 +389,7 @@ static int simplefb_regulators_get(struct simplefb_par *par,
 		if (IS_ERR(regulator)) {
 			if (PTR_ERR(regulator) == -EPROBE_DEFER)
 				return -EPROBE_DEFER;
-			dev_err(&pdev->dev, "regulator %s not found: %ld\n",
+			dev_err(&pdev->dev, "regulator %s analt found: %ld\n",
 				name, PTR_ERR(regulator));
 			continue;
 		}
@@ -463,11 +463,11 @@ static int simplefb_attach_genpds(struct simplefb_par *par,
 	unsigned int i;
 	int err;
 
-	err = of_count_phandle_with_args(dev->of_node, "power-domains",
+	err = of_count_phandle_with_args(dev->of_analde, "power-domains",
 					 "#power-domain-cells");
 	if (err < 0) {
-		/* Nothing wrong if optional PDs are missing */
-		if (err == -ENOENT)
+		/* Analthing wrong if optional PDs are missing */
+		if (err == -EANALENT)
 			return 0;
 
 		dev_info(dev, "failed to parse power-domains: %d\n", err);
@@ -478,7 +478,7 @@ static int simplefb_attach_genpds(struct simplefb_par *par,
 
 	/*
 	 * Single power-domain devices are handled by the driver core, so
-	 * nothing to do here.
+	 * analthing to do here.
 	 */
 	if (par->num_genpds <= 1)
 		return 0;
@@ -486,13 +486,13 @@ static int simplefb_attach_genpds(struct simplefb_par *par,
 	par->genpds = devm_kcalloc(dev, par->num_genpds, sizeof(*par->genpds),
 				   GFP_KERNEL);
 	if (!par->genpds)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	par->genpd_links = devm_kcalloc(dev, par->num_genpds,
 					sizeof(*par->genpd_links),
 					GFP_KERNEL);
 	if (!par->genpd_links)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < par->num_genpds; i++) {
 		par->genpds[i] = dev_pm_domain_attach_by_id(dev, i);
@@ -534,12 +534,12 @@ static int simplefb_probe(struct platform_device *pdev)
 	struct resource *res, *mem;
 
 	if (fb_get_options("simplefb", NULL))
-		return -ENODEV;
+		return -EANALDEV;
 
-	ret = -ENODEV;
+	ret = -EANALDEV;
 	if (dev_get_platdata(&pdev->dev))
 		ret = simplefb_parse_pd(pdev, &params);
-	else if (pdev->dev.of_node)
+	else if (pdev->dev.of_analde)
 		ret = simplefb_parse_dt(pdev, &params);
 
 	if (ret)
@@ -548,7 +548,7 @@ static int simplefb_probe(struct platform_device *pdev)
 	if (params.memory.start == 0 && params.memory.end == 0) {
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 		if (!res) {
-			dev_err(&pdev->dev, "No memory resource\n");
+			dev_err(&pdev->dev, "Anal memory resource\n");
 			return -EINVAL;
 		}
 	} else {
@@ -558,17 +558,17 @@ static int simplefb_probe(struct platform_device *pdev)
 	mem = request_mem_region(res->start, resource_size(res), "simplefb");
 	if (!mem) {
 		/*
-		 * We cannot make this fatal. Sometimes this comes from magic
-		 * spaces our resource handlers simply don't know about. Use
+		 * We cananalt make this fatal. Sometimes this comes from magic
+		 * spaces our resource handlers simply don't kanalw about. Use
 		 * the I/O-memory resource as-is and try to map that instead.
 		 */
-		dev_warn(&pdev->dev, "simplefb: cannot reserve video memory at %pR\n", res);
+		dev_warn(&pdev->dev, "simplefb: cananalt reserve video memory at %pR\n", res);
 		mem = res;
 	}
 
 	info = framebuffer_alloc(sizeof(struct simplefb_par), &pdev->dev);
 	if (!info) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error_release_mem_region;
 	}
 	platform_set_drvdata(pdev, info);
@@ -598,7 +598,7 @@ static int simplefb_probe(struct platform_device *pdev)
 	info->screen_base = ioremap_wc(info->fix.smem_start,
 				       info->fix.smem_len);
 	if (!info->screen_base) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error_fb_release;
 	}
 	info->pseudo_palette = par->palette;
@@ -639,7 +639,7 @@ static int simplefb_probe(struct platform_device *pdev)
 		goto error_regulators;
 	}
 
-	dev_info(&pdev->dev, "fb%d: simplefb registered!\n", info->node);
+	dev_info(&pdev->dev, "fb%d: simplefb registered!\n", info->analde);
 
 	return 0;
 

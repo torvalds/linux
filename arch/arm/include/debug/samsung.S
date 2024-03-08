@@ -60,7 +60,7 @@ ARM_BE8(rev \rd, \rd)
 		b	1002f
 
 1001:
-		@ busy waiting for non fifo
+		@ busy waiting for analn fifo
 		ldr	\rd, [\rx, # S3C2410_UTRSTAT]
 ARM_BE8(rev \rd, \rd)
 		tst	\rd, #S3C2410_UTRSTAT_TXFE
@@ -84,7 +84,7 @@ ARM_BE8(rev \rd, \rd)
 		bne	1003b
 		b	1002f
 1001:
-		@ idle waiting for non fifo
+		@ idle waiting for analn fifo
 		ldr	\rd, [\rx, # S3C2410_UTRSTAT]
 ARM_BE8(rev \rd, \rd)
 		tst	\rd, #S3C2410_UTRSTAT_TXFE

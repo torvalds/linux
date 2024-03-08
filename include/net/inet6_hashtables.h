@@ -36,7 +36,7 @@ static inline unsigned int __inet6_ehashfn(const u32 lhash,
 
 /*
  * Sockets in TCP_CLOSE state are _always_ taken out of the hash, so
- * we need not check it for TCP lookups anymore, thanks Alexey. -DaveM
+ * we need analt check it for TCP lookups anymore, thanks Alexey. -DaveM
  *
  * The sockhash lock must be held as a reader here.
  */

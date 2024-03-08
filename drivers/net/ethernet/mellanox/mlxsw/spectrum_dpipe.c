@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2017-2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2017-2018 Mellaanalx Techanallogies. All rights reserved */
 
 #include <linux/kernel.h>
 #include <linux/mutex.h>
@@ -137,7 +137,7 @@ static int mlxsw_sp_erif_entry_prepare(struct devlink_dpipe_entry *entry,
 	match_value->value_size = sizeof(u32);
 	match_value->value = kmalloc(match_value->value_size, GFP_KERNEL);
 	if (!match_value->value)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	action_value->action = action;
 	action_value->value_size = sizeof(u32);
@@ -148,7 +148,7 @@ static int mlxsw_sp_erif_entry_prepare(struct devlink_dpipe_entry *entry,
 
 err_action_alloc:
 	kfree(match_value->value);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int mlxsw_sp_erif_entry_get(struct mlxsw_sp *mlxsw_sp,
@@ -421,7 +421,7 @@ mlxsw_sp_dpipe_table_host_entry_prepare(struct devlink_dpipe_entry *entry,
 	match_value->value_size = sizeof(u32);
 	match_value->value = kmalloc(match_value->value_size, GFP_KERNEL);
 	if (!match_value->value)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	match = &matches[MLXSW_SP_DPIPE_TABLE_HOST_MATCH_DIP];
 	match_value = &match_values[MLXSW_SP_DPIPE_TABLE_HOST_MATCH_DIP];
@@ -441,13 +441,13 @@ mlxsw_sp_dpipe_table_host_entry_prepare(struct devlink_dpipe_entry *entry,
 
 	match_value->value = kmalloc(match_value->value_size, GFP_KERNEL);
 	if (!match_value->value)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	action_value->action = action;
 	action_value->value_size = sizeof(u64);
 	action_value->value = kmalloc(action_value->value_size, GFP_KERNEL);
 	if (!action_value->value)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -571,7 +571,7 @@ start_again:
 				continue;
 
 			if (neigh_type == AF_INET6 &&
-			    mlxsw_sp_neigh_ipv6_ignore(neigh_entry))
+			    mlxsw_sp_neigh_ipv6_iganalre(neigh_entry))
 				continue;
 
 			if (rif_neigh_count < rif_neigh_skip)
@@ -677,7 +677,7 @@ mlxsw_sp_dpipe_table_host_counters_update(struct mlxsw_sp *mlxsw_sp,
 				continue;
 
 			if (neigh_type == AF_INET6 &&
-			    mlxsw_sp_neigh_ipv6_ignore(neigh_entry))
+			    mlxsw_sp_neigh_ipv6_iganalre(neigh_entry))
 				continue;
 
 			mlxsw_sp_neigh_entry_counter_update(mlxsw_sp,
@@ -716,7 +716,7 @@ mlxsw_sp_dpipe_table_host_size_get(struct mlxsw_sp *mlxsw_sp, int type)
 				continue;
 
 			if (neigh_type == AF_INET6 &&
-			    mlxsw_sp_neigh_ipv6_ignore(neigh_entry))
+			    mlxsw_sp_neigh_ipv6_iganalre(neigh_entry))
 				continue;
 
 			size++;
@@ -988,7 +988,7 @@ mlxsw_sp_dpipe_table_adj_entry_prepare(struct devlink_dpipe_entry *entry,
 	match_value->value_size = sizeof(u32);
 	match_value->value = kmalloc(match_value->value_size, GFP_KERNEL);
 	if (!match_value->value)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	match = &matches[MLXSW_SP_DPIPE_TABLE_ADJ_MATCH_SIZE];
 	match_value = &match_values[MLXSW_SP_DPIPE_TABLE_ADJ_MATCH_SIZE];
@@ -997,7 +997,7 @@ mlxsw_sp_dpipe_table_adj_entry_prepare(struct devlink_dpipe_entry *entry,
 	match_value->value_size = sizeof(u32);
 	match_value->value = kmalloc(match_value->value_size, GFP_KERNEL);
 	if (!match_value->value)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	match = &matches[MLXSW_SP_DPIPE_TABLE_ADJ_MATCH_HASH_INDEX];
 	match_value = &match_values[MLXSW_SP_DPIPE_TABLE_ADJ_MATCH_HASH_INDEX];
@@ -1006,7 +1006,7 @@ mlxsw_sp_dpipe_table_adj_entry_prepare(struct devlink_dpipe_entry *entry,
 	match_value->value_size = sizeof(u32);
 	match_value->value = kmalloc(match_value->value_size, GFP_KERNEL);
 	if (!match_value->value)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	action = &actions[MLXSW_SP_DPIPE_TABLE_ADJ_ACTION_DST_MAC];
 	action_value = &action_values[MLXSW_SP_DPIPE_TABLE_ADJ_ACTION_DST_MAC];
@@ -1015,7 +1015,7 @@ mlxsw_sp_dpipe_table_adj_entry_prepare(struct devlink_dpipe_entry *entry,
 	action_value->value_size = sizeof(u64);
 	action_value->value = kmalloc(action_value->value_size, GFP_KERNEL);
 	if (!action_value->value)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	action = &actions[MLXSW_SP_DPIPE_TABLE_ADJ_ACTION_ERIF_PORT];
 	action_value = &action_values[MLXSW_SP_DPIPE_TABLE_ADJ_ACTION_ERIF_PORT];
@@ -1024,7 +1024,7 @@ mlxsw_sp_dpipe_table_adj_entry_prepare(struct devlink_dpipe_entry *entry,
 	action_value->value_size = sizeof(u32);
 	action_value->value = kmalloc(action_value->value_size, GFP_KERNEL);
 	if (!action_value->value)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }

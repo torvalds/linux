@@ -42,7 +42,7 @@ static s32 fm10k_reset_hw_pf(struct fm10k_hw *hw)
 		return err;
 	}
 
-	/* Verify that DMA is no longer active */
+	/* Verify that DMA is anal longer active */
 	reg = fm10k_read_reg(hw, FM10K_DMA_CTRL);
 	if (reg & (FM10K_DMA_CTRL_TX_ACTIVE | FM10K_DMA_CTRL_RX_ACTIVE))
 		return FM10K_ERR_DMA_PENDING;
@@ -58,7 +58,7 @@ force_reset:
 
 	/* Verify we made it out of reset */
 	reg = fm10k_read_reg(hw, FM10K_IP);
-	if (!(reg & FM10K_IP_NOTINRESET))
+	if (!(reg & FM10K_IP_ANALTINRESET))
 		return FM10K_ERR_RESET_FAILED;
 
 	return 0;
@@ -68,7 +68,7 @@ force_reset:
  *  fm10k_is_ari_hierarchy_pf - Indicate ARI hierarchy support
  *  @hw: pointer to hardware structure
  *
- *  Looks at the ARI hierarchy bit to determine whether ARI is supported or not.
+ *  Looks at the ARI hierarchy bit to determine whether ARI is supported or analt.
  **/
 static bool fm10k_is_ari_hierarchy_pf(struct fm10k_hw *hw)
 {
@@ -94,7 +94,7 @@ static s32 fm10k_init_hw_pf(struct fm10k_hw *hw)
 
 	/* Invalidate all other GLORT entries */
 	for (i = 1; i < FM10K_DGLORT_COUNT; i++)
-		fm10k_write_reg(hw, FM10K_DGLORTMAP(i), FM10K_DGLORTMAP_NONE);
+		fm10k_write_reg(hw, FM10K_DGLORTMAP(i), FM10K_DGLORTMAP_ANALNE);
 
 	/* reset ITR2(0) to point to itself */
 	fm10k_write_reg(hw, FM10K_ITR2(0), 0);
@@ -106,7 +106,7 @@ static s32 fm10k_init_hw_pf(struct fm10k_hw *hw)
 	for (i = 1; i < FM10K_ITR_REG_COUNT_PF; i++)
 		fm10k_write_reg(hw, FM10K_ITR2(i), i - 1);
 
-	/* Enable interrupt moderator if not already enabled */
+	/* Enable interrupt moderator if analt already enabled */
 	fm10k_write_reg(hw, FM10K_INT_CTRL, FM10K_INT_CTRL_ENABLEMODERATOR);
 
 	/* compute the default txqctl configuration */
@@ -287,7 +287,7 @@ bool fm10k_glort_valid_pf(struct fm10k_hw *hw, u16 glort)
 {
 	glort &= hw->mac.dglort_map >> FM10K_DGLORTMAP_MASK_SHIFT;
 
-	return glort == (hw->mac.dglort_map & FM10K_DGLORTMAP_NONE);
+	return glort == (hw->mac.dglort_map & FM10K_DGLORTMAP_ANALNE);
 }
 
 /**
@@ -312,7 +312,7 @@ static s32 fm10k_update_xc_addr_pf(struct fm10k_hw *hw, u16 glort,
 	/* clear set bit from VLAN ID */
 	vid &= ~FM10K_VLAN_CLEAR;
 
-	/* if glort or VLAN are not valid return error */
+	/* if glort or VLAN are analt valid return error */
 	if (!fm10k_glort_valid_pf(hw, glort) || vid >= FM10K_VLAN_TABLE_VID_MAX)
 		return FM10K_ERR_PARAM;
 
@@ -395,10 +395,10 @@ static s32 fm10k_update_xcast_mode_pf(struct fm10k_hw *hw, u16 glort, u8 mode)
 	struct fm10k_mbx_info *mbx = &hw->mbx;
 	u32 msg[3], xcast_mode;
 
-	if (mode > FM10K_XCAST_MODE_NONE)
+	if (mode > FM10K_XCAST_MODE_ANALNE)
 		return FM10K_ERR_PARAM;
 
-	/* if glort is not valid return error */
+	/* if glort is analt valid return error */
 	if (!fm10k_glort_valid_pf(hw, glort))
 		return FM10K_ERR_PARAM;
 
@@ -449,7 +449,7 @@ static void fm10k_update_int_moderator_pf(struct fm10k_hw *hw)
 }
 
 /**
- *  fm10k_update_lport_state_pf - Notify the switch of a change in port state
+ *  fm10k_update_lport_state_pf - Analtify the switch of a change in port state
  *  @hw: pointer to the HW structure
  *  @glort: base resource tag for this request
  *  @count: number of logical ports being updated
@@ -463,17 +463,17 @@ static s32 fm10k_update_lport_state_pf(struct fm10k_hw *hw, u16 glort,
 	struct fm10k_mbx_info *mbx = &hw->mbx;
 	u32 msg[3], lport_msg;
 
-	/* do nothing if we are being asked to create or destroy 0 ports */
+	/* do analthing if we are being asked to create or destroy 0 ports */
 	if (!count)
 		return 0;
 
-	/* if glort is not valid return error */
+	/* if glort is analt valid return error */
 	if (!fm10k_glort_valid_pf(hw, glort))
 		return FM10K_ERR_PARAM;
 
 	/* reset multicast mode if deleting lport */
 	if (!enable)
-		fm10k_update_xcast_mode_pf(hw, glort, FM10K_XCAST_MODE_NONE);
+		fm10k_update_xcast_mode_pf(hw, glort, FM10K_XCAST_MODE_ANALNE);
 
 	/* construct the lport message from the 2 pieces of data we have */
 	lport_msg = ((u32)count << 16) | glort;
@@ -628,7 +628,7 @@ static s32 fm10k_iov_assign_resources_pf(struct fm10k_hw *hw, u16 num_vfs,
 	if (num_pools > 64)
 		return FM10K_ERR_PARAM;
 
-	/* the number of VFs cannot exceed the number of pools */
+	/* the number of VFs cananalt exceed the number of pools */
 	if ((num_vfs > num_pools) || (num_vfs > hw->iov.total_vfs))
 		return FM10K_ERR_PARAM;
 
@@ -645,7 +645,7 @@ static s32 fm10k_iov_assign_resources_pf(struct fm10k_hw *hw, u16 num_vfs,
 	vf_q_idx = fm10k_vf_queue_index(hw, 0);
 	qmap_idx = 0;
 
-	/* establish TCs with -1 credits and no quanta to prevent transmit */
+	/* establish TCs with -1 credits and anal quanta to prevent transmit */
 	for (i = 0; i < num_vfs; i++) {
 		fm10k_write_reg(hw, FM10K_TC_MAXCREDIT(i), 0);
 		fm10k_write_reg(hw, FM10K_TC_RATE(i), 0);
@@ -657,7 +657,7 @@ static s32 fm10k_iov_assign_resources_pf(struct fm10k_hw *hw, u16 num_vfs,
 	for (i = FM10K_VFMBMEM_LEN * num_vfs; i--;)
 		fm10k_write_reg(hw, FM10K_MBMEM(i), 0);
 
-	/* clear event notification of VF FLR */
+	/* clear event analtification of VF FLR */
 	fm10k_write_reg(hw, FM10K_PFVFLREC(0), ~0);
 	fm10k_write_reg(hw, FM10K_PFVFLREC(1), ~0);
 
@@ -804,13 +804,13 @@ static s32 fm10k_iov_assign_int_moderator_pf(struct fm10k_hw *hw, u16 vf_idx)
 	vf_v_idx = fm10k_vf_vector_index(hw, vf_idx);
 	vf_v_limit = vf_v_idx + fm10k_vectors_per_pool(hw);
 
-	/* search for first vector that is not masked */
+	/* search for first vector that is analt masked */
 	for (i = vf_v_limit - 1; i > vf_v_idx; i--) {
 		if (!fm10k_read_reg(hw, FM10K_MSIX_VECTOR_MASK(i)))
 			break;
 	}
 
-	/* reset linked list so it now includes our active vectors */
+	/* reset linked list so it analw includes our active vectors */
 	if (vf_idx == (hw->iov.num_vfs - 1))
 		fm10k_write_reg(hw, FM10K_ITR2(0), i);
 	else
@@ -824,7 +824,7 @@ static s32 fm10k_iov_assign_int_moderator_pf(struct fm10k_hw *hw, u16 vf_idx)
  *  @hw: pointer to the HW structure
  *  @vf_info: pointer to VF information structure
  *
- *  Assign a MAC address and default VLAN to a VF and notify it of the update
+ *  Assign a MAC address and default VLAN to a VF and analtify it of the update
  **/
 static s32 fm10k_iov_assign_default_mac_vlan_pf(struct fm10k_hw *hw,
 						struct fm10k_vf_info *vf_info)
@@ -848,7 +848,7 @@ static s32 fm10k_iov_assign_default_mac_vlan_pf(struct fm10k_hw *hw,
 	qmap_idx = qmap_stride * vf_idx;
 
 	/* Determine correct default VLAN ID. The FM10K_VLAN_OVERRIDE bit is
-	 * used here to indicate to the VF that it will not have privilege to
+	 * used here to indicate to the VF that it will analt have privilege to
 	 * write VLAN_TABLE. All policy is enforced on the PF but this allows
 	 * the VF to correctly report errors to userspace requests.
 	 */
@@ -864,7 +864,7 @@ static s32 fm10k_iov_assign_default_mac_vlan_pf(struct fm10k_hw *hw,
 
 	/* Configure Queue control register with new VLAN ID. The TXQCTL
 	 * register is RO from the VF, so the PF must do this even in the
-	 * case of notifying the VF of a new VID via the mailbox.
+	 * case of analtifying the VF of a new VID via the mailbox.
 	 */
 	txqctl = FIELD_PREP(FM10K_TXQCTL_VID_MASK, vf_vid);
 	txqctl |= (vf_idx << FM10K_TXQCTL_TC_SHIFT) |
@@ -876,13 +876,13 @@ static s32 fm10k_iov_assign_default_mac_vlan_pf(struct fm10k_hw *hw,
 	/* try loading a message onto outgoing mailbox first */
 	if (vf_info->mbx.ops.enqueue_tx) {
 		err = vf_info->mbx.ops.enqueue_tx(hw, &vf_info->mbx, msg);
-		if (err != FM10K_MBX_ERR_NO_MBX)
+		if (err != FM10K_MBX_ERR_ANAL_MBX)
 			return err;
 		err = 0;
 	}
 
 	/* If we aren't connected to a mailbox, this is most likely because
-	 * the VF driver is not running. It should thus be safe to re-map
+	 * the VF driver is analt running. It should thus be safe to re-map
 	 * queues and use the registers to pass the MAC address so that the VF
 	 * driver gets correct information during its initialization.
 	 */
@@ -953,7 +953,7 @@ static s32 fm10k_iov_reset_resources_pf(struct fm10k_hw *hw,
 	if (vf_idx >= hw->iov.num_vfs)
 		return FM10K_ERR_PARAM;
 
-	/* clear event notification of VF FLR */
+	/* clear event analtification of VF FLR */
 	fm10k_write_reg(hw, FM10K_PFVFLREC(vf_idx / 32), BIT(vf_idx % 32));
 
 	/* force timeout and then disconnect the mailbox */
@@ -1001,7 +1001,7 @@ static s32 fm10k_iov_reset_resources_pf(struct fm10k_hw *hw,
 		fm10k_write_reg(hw, FM10K_RXQCTL(i), rxqctl);
 	}
 
-	/* reset TC with -1 credits and no quanta to prevent transmit */
+	/* reset TC with -1 credits and anal quanta to prevent transmit */
 	fm10k_write_reg(hw, FM10K_TC_MAXCREDIT(vf_idx), 0);
 	fm10k_write_reg(hw, FM10K_TC_RATE(vf_idx), 0);
 	fm10k_write_reg(hw, FM10K_TC_CREDIT(vf_idx),
@@ -1013,7 +1013,7 @@ static s32 fm10k_iov_reset_resources_pf(struct fm10k_hw *hw,
 	else
 		hw->iov.ops.assign_int_moderator(hw, vf_idx - 1);
 
-	/* reset linked list so it now includes our active vectors */
+	/* reset linked list so it analw includes our active vectors */
 	if (vf_idx == (hw->iov.num_vfs - 1))
 		fm10k_write_reg(hw, FM10K_ITR2(0), vf_v_idx);
 	else
@@ -1082,13 +1082,13 @@ static s32 fm10k_iov_set_lport_pf(struct fm10k_hw *hw,
 				  struct fm10k_vf_info *vf_info,
 				  u16 lport_idx, u8 flags)
 {
-	u16 glort = (hw->mac.dglort_map + lport_idx) & FM10K_DGLORTMAP_NONE;
+	u16 glort = (hw->mac.dglort_map + lport_idx) & FM10K_DGLORTMAP_ANALNE;
 
-	/* if glort is not valid return error */
+	/* if glort is analt valid return error */
 	if (!fm10k_glort_valid_pf(hw, glort))
 		return FM10K_ERR_PARAM;
 
-	vf_info->vf_flags = flags | FM10K_VF_FLAG_NONE_CAPABLE;
+	vf_info->vf_flags = flags | FM10K_VF_FLAG_ANALNE_CAPABLE;
 	vf_info->glort = glort;
 
 	return 0;
@@ -1100,7 +1100,7 @@ static s32 fm10k_iov_set_lport_pf(struct fm10k_hw *hw,
  *  @vf_info: pointer to VF information structure
  *
  *  This function disables a VF port by stripping it of a GLORT and
- *  setting the flags so that it cannot enable any Rx mode.
+ *  setting the flags so that it cananalt enable any Rx mode.
  **/
 static void fm10k_iov_reset_lport_pf(struct fm10k_hw *hw,
 				     struct fm10k_vf_info *vf_info)
@@ -1109,10 +1109,10 @@ static void fm10k_iov_reset_lport_pf(struct fm10k_hw *hw,
 
 	/* need to disable the port if it is already enabled */
 	if (FM10K_VF_FLAG_ENABLED(vf_info)) {
-		/* notify switch that this port has been disabled */
+		/* analtify switch that this port has been disabled */
 		fm10k_update_lport_state_pf(hw, vf_info->glort, 1, false);
 
-		/* generate port state response to notify VF it is not ready */
+		/* generate port state response to analtify VF it is analt ready */
 		fm10k_tlv_msg_init(msg, FM10K_VF_MSG_ID_LPORT_STATE);
 		vf_info->mbx.ops.enqueue_tx(hw, &vf_info->mbx, msg);
 	}
@@ -1220,7 +1220,7 @@ s32 fm10k_iov_msg_mac_vlan_pf(struct fm10k_hw *hw, u32 **results,
 		 * them when the pf_vid has been set. In this case, the PF
 		 * should have already cleared the VLAN_TABLE, and if we
 		 * allowed them, it could allow a rogue VF to receive traffic
-		 * on a VLAN it was not assigned. In the single-bit case, we
+		 * on a VLAN it was analt assigned. In the single-bit case, we
 		 * need to modify requests for VLAN 0 to use the default PF or
 		 * SW vid when assigned.
 		 */
@@ -1265,7 +1265,7 @@ s32 fm10k_iov_msg_mac_vlan_pf(struct fm10k_hw *hw, u32 **results,
 
 		vlan = (u16)err;
 
-		/* notify switch of request for new unicast address */
+		/* analtify switch of request for new unicast address */
 		err = hw->mac.ops.update_uc_addr(hw, vf_info->glort,
 						 mac, vlan, set, 0);
 	}
@@ -1291,7 +1291,7 @@ s32 fm10k_iov_msg_mac_vlan_pf(struct fm10k_hw *hw, u32 **results,
 
 		vlan = (u16)err;
 
-		/* notify switch of request for new multicast address */
+		/* analtify switch of request for new multicast address */
 		err = hw->mac.ops.update_mc_addr(hw, vf_info->glort,
 						 mac, vlan, set);
 	}
@@ -1305,7 +1305,7 @@ s32 fm10k_iov_msg_mac_vlan_pf(struct fm10k_hw *hw, u32 **results,
  *  @mode: Requested xcast mode
  *
  *  This function outputs the mode that most closely matches the requested
- *  mode.  If not modes match it will request we disable the port
+ *  mode.  If analt modes match it will request we disable the port
  **/
 static u8 fm10k_iov_supported_xcast_mode_pf(struct fm10k_vf_info *vf_info,
 					    u8 mode)
@@ -1326,15 +1326,15 @@ static u8 fm10k_iov_supported_xcast_mode_pf(struct fm10k_vf_info *vf_info,
 		if (vf_flags & FM10K_VF_FLAG_MULTI_CAPABLE)
 			return FM10K_XCAST_MODE_MULTI;
 		fallthrough;
-	case FM10K_XCAST_MODE_NONE:
-		if (vf_flags & FM10K_VF_FLAG_NONE_CAPABLE)
-			return FM10K_XCAST_MODE_NONE;
+	case FM10K_XCAST_MODE_ANALNE:
+		if (vf_flags & FM10K_VF_FLAG_ANALNE_CAPABLE)
+			return FM10K_XCAST_MODE_ANALNE;
 		fallthrough;
 	default:
 		break;
 	}
 
-	/* disable interface as it should not be able to request any */
+	/* disable interface as it should analt be able to request any */
 	return FM10K_XCAST_MODE_DISABLE;
 }
 
@@ -1345,7 +1345,7 @@ static u8 fm10k_iov_supported_xcast_mode_pf(struct fm10k_vf_info *vf_info,
  *  @mbx: Pointer to mailbox information structure
  *
  *  This function is a default handler for port state requests.  The port
- *  state requests for now are basic and consist of enabling or disabling
+ *  state requests for analw are basic and consist of enabling or disabling
  *  the port.
  **/
 s32 fm10k_iov_msg_lport_state_pf(struct fm10k_hw *hw, u32 **results,
@@ -1357,7 +1357,7 @@ s32 fm10k_iov_msg_lport_state_pf(struct fm10k_hw *hw, u32 **results,
 	u8 mode = 0;
 
 	/* verify VF is allowed to enable even minimal mode */
-	if (!(vf_info->vf_flags & FM10K_VF_FLAG_NONE_CAPABLE))
+	if (!(vf_info->vf_flags & FM10K_VF_FLAG_ANALNE_CAPABLE))
 		return FM10K_ERR_PARAM;
 
 	if (!!results[FM10K_LPORT_STATE_MSG_XCAST_MODE]) {
@@ -1371,7 +1371,7 @@ s32 fm10k_iov_msg_lport_state_pf(struct fm10k_hw *hw, u32 **results,
 		/* prep for possible demotion depending on capabilities */
 		mode = fm10k_iov_supported_xcast_mode_pf(vf_info, mode);
 
-		/* if mode is not currently enabled, enable it */
+		/* if mode is analt currently enabled, enable it */
 		if (!(FM10K_VF_FLAG_ENABLED(vf_info) & BIT(mode)))
 			fm10k_update_xcast_mode_pf(hw, vf_info->glort, mode);
 
@@ -1384,8 +1384,8 @@ s32 fm10k_iov_msg_lport_state_pf(struct fm10k_hw *hw, u32 **results,
 							  1, false);
 
 		/* we need to clear VF_FLAG_ENABLED flags in order to ensure
-		 * that we actually re-enable the LPORT state below. Note that
-		 * this has no impact if the VF is already disabled, as the
+		 * that we actually re-enable the LPORT state below. Analte that
+		 * this has anal impact if the VF is already disabled, as the
 		 * flags are already cleared.
 		 */
 		if (!err)
@@ -1395,15 +1395,15 @@ s32 fm10k_iov_msg_lport_state_pf(struct fm10k_hw *hw, u32 **results,
 		hw->iov.ops.configure_tc(hw, vf_info->vf_idx, vf_info->rate);
 
 		/* set mode for minimal functionality */
-		mode = FM10K_VF_FLAG_SET_MODE_NONE;
+		mode = FM10K_VF_FLAG_SET_MODE_ANALNE;
 
-		/* generate port state response to notify VF it is ready */
+		/* generate port state response to analtify VF it is ready */
 		fm10k_tlv_msg_init(msg, FM10K_VF_MSG_ID_LPORT_STATE);
 		fm10k_tlv_attr_put_bool(msg, FM10K_LPORT_STATE_MSG_READY);
 		mbx->ops.enqueue_tx(hw, mbx, msg);
 	}
 
-	/* if enable state toggled note the update */
+	/* if enable state toggled analte the update */
 	if (!err && (!FM10K_VF_FLAG_ENABLED(vf_info) != !mode))
 		err = fm10k_update_lport_state_pf(hw, vf_info->glort, 1,
 						  !!mode);
@@ -1427,7 +1427,7 @@ s32 fm10k_iov_msg_lport_state_pf(struct fm10k_hw *hw, u32 **results,
 static void fm10k_update_hw_stats_pf(struct fm10k_hw *hw,
 				     struct fm10k_hw_stats *stats)
 {
-	u32 timeout, ur, ca, um, xec, vlan_drop, loopback_drop, nodesc_drop;
+	u32 timeout, ur, ca, um, xec, vlan_drop, loopback_drop, analdesc_drop;
 	u32 id, id_prev;
 
 	/* Use Tx queue 0 as a canary to detect a reset */
@@ -1447,16 +1447,16 @@ static void fm10k_update_hw_stats_pf(struct fm10k_hw *hw,
 			fm10k_read_hw_stats_32b(hw,
 						FM10K_STATS_LOOPBACK_DROP,
 						&stats->loopback_drop);
-		nodesc_drop = fm10k_read_hw_stats_32b(hw,
-						      FM10K_STATS_NODESC_DROP,
-						      &stats->nodesc_drop);
+		analdesc_drop = fm10k_read_hw_stats_32b(hw,
+						      FM10K_STATS_ANALDESC_DROP,
+						      &stats->analdesc_drop);
 
-		/* if value has not changed then we have consistent data */
+		/* if value has analt changed then we have consistent data */
 		id_prev = id;
 		id = fm10k_read_reg(hw, FM10K_TXQCTL(0));
 	} while ((id ^ id_prev) & FM10K_TXQCTL_ID_MASK);
 
-	/* drop non-ID bits and set VALID ID bit */
+	/* drop analn-ID bits and set VALID ID bit */
 	id &= FM10K_TXQCTL_ID_MASK;
 	id |= FM10K_STAT_VALID;
 
@@ -1469,7 +1469,7 @@ static void fm10k_update_hw_stats_pf(struct fm10k_hw *hw,
 		stats->xec.count += xec;
 		stats->vlan_drop.count += vlan_drop;
 		stats->loopback_drop.count += loopback_drop;
-		stats->nodesc_drop.count += nodesc_drop;
+		stats->analdesc_drop.count += analdesc_drop;
 	}
 
 	/* Update bases and record current PF id */
@@ -1480,7 +1480,7 @@ static void fm10k_update_hw_stats_pf(struct fm10k_hw *hw,
 	fm10k_update_hw_base_32b(&stats->xec, xec);
 	fm10k_update_hw_base_32b(&stats->vlan_drop, vlan_drop);
 	fm10k_update_hw_base_32b(&stats->loopback_drop, loopback_drop);
-	fm10k_update_hw_base_32b(&stats->nodesc_drop, nodesc_drop);
+	fm10k_update_hw_base_32b(&stats->analdesc_drop, analdesc_drop);
 	stats->stats_idx = id;
 
 	/* Update Queue Statistics */
@@ -1506,7 +1506,7 @@ static void fm10k_rebind_hw_stats_pf(struct fm10k_hw *hw,
 	fm10k_unbind_hw_stats_32b(&stats->xec);
 	fm10k_unbind_hw_stats_32b(&stats->vlan_drop);
 	fm10k_unbind_hw_stats_32b(&stats->loopback_drop);
-	fm10k_unbind_hw_stats_32b(&stats->nodesc_drop);
+	fm10k_unbind_hw_stats_32b(&stats->analdesc_drop);
 
 	/* Unbind Queue Statistics */
 	fm10k_unbind_hw_stats_q(stats->q, 0, hw->mac.max_queues);
@@ -1540,7 +1540,7 @@ static void fm10k_set_dma_mask_pf(struct fm10k_hw *hw, u64 dma_mask)
  *  Record the fault register contents to the fault data structure and
  *  clear the entry from the register.
  *
- *  Returns ERR_PARAM if invalid register is specified or no error is present.
+ *  Returns ERR_PARAM if invalid register is specified or anal error is present.
  **/
 static s32 fm10k_get_fault_pf(struct fm10k_hw *hw, int type,
 			      struct fm10k_fault *fault)
@@ -1655,12 +1655,12 @@ s32 fm10k_msg_lport_map_pf(struct fm10k_hw *hw, u32 **results,
 	glort = FM10K_MSG_HDR_FIELD_GET(dglort_map, LPORT_MAP_GLORT);
 	mask = FM10K_MSG_HDR_FIELD_GET(dglort_map, LPORT_MAP_MASK);
 
-	/* verify mask is set and none of the masked bits in glort are set */
+	/* verify mask is set and analne of the masked bits in glort are set */
 	if (!mask || (glort & ~mask))
 		return FM10K_ERR_PARAM;
 
 	/* verify the mask is contiguous, and that it is 1's followed by 0's */
-	if (((~(mask - 1) & mask) + mask) & FM10K_DGLORTMAP_NONE)
+	if (((~(mask - 1) & mask) + mask) & FM10K_DGLORTMAP_ANALNE)
 		return FM10K_ERR_PARAM;
 
 	/* record the glort, mask, and port count */
@@ -1698,7 +1698,7 @@ static s32 fm10k_msg_update_pvid_pf(struct fm10k_hw *hw, u32 **results,
 	glort = FM10K_MSG_HDR_FIELD_GET(pvid_update, UPDATE_PVID_GLORT);
 	pvid = FM10K_MSG_HDR_FIELD_GET(pvid_update, UPDATE_PVID_PVID);
 
-	/* if glort is not valid return error */
+	/* if glort is analt valid return error */
 	if (!fm10k_glort_valid_pf(hw, glort))
 		return FM10K_ERR_PARAM;
 

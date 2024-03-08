@@ -14,18 +14,18 @@
  *  option) any later version.
  *
  *  THIS  SOFTWARE  IS PROVIDED   ``AS  IS'' AND   ANY  EXPRESS OR IMPLIED
- *  WARRANTIES,   INCLUDING, BUT NOT  LIMITED  TO, THE IMPLIED WARRANTIES OF
+ *  WARRANTIES,   INCLUDING, BUT ANALT  LIMITED  TO, THE IMPLIED WARRANTIES OF
  *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN
- *  NO  EVENT  SHALL   THE AUTHOR  BE    LIABLE FOR ANY   DIRECT, INDIRECT,
+ *  ANAL  EVENT  SHALL   THE AUTHOR  BE    LIABLE FOR ANY   DIRECT, INDIRECT,
  *  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- *  NOT LIMITED   TO, PROCUREMENT OF  SUBSTITUTE GOODS  OR SERVICES; LOSS OF
+ *  ANALT LIMITED   TO, PROCUREMENT OF  SUBSTITUTE GOODS  OR SERVICES; LOSS OF
  *  USE, DATA,  OR PROFITS; OR  BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
  *  ANY THEORY OF LIABILITY, WHETHER IN  CONTRACT, STRICT LIABILITY, OR TORT
  *  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  *  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *  You should have received a copy of the  GNU General Public License along
- *  with this program; if not, write  to the Free Software Foundation, Inc.,
+ *  with this program; if analt, write  to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
@@ -33,7 +33,7 @@
 #include <linux/init.h>
 #include <linux/export.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
 
@@ -41,7 +41,7 @@
 #include <asm/mach-au1x00/au1000_dma.h>
 
 /*
- * A note on resource allocation:
+ * A analte on resource allocation:
  *
  * All drivers needing DMA channels, should allocate and release them
  * through the public routines `request_dma()' and `free_dma()'.
@@ -52,7 +52,7 @@
  * So, when allocating DMAs and IRQs, first allocate the DMA, then the IRQ.
  * When releasing them, first release the IRQ, then release the DMA. The
  * main reason for this order is that, if you are requesting the DMA buffer
- * done interrupt, you won't know the irq number until the DMA channel is
+ * done interrupt, you won't kanalw the irq number until the DMA channel is
  * returned from request_dma.
  */
 
@@ -181,7 +181,7 @@ int request_au1000_dma(int dev_id, const char *dev_str,
 			break;
 
 	if (i == NUM_AU1000_DMA_CHANNELS)
-		return -ENODEV;
+		return -EANALDEV;
 
 	chan = &au1000_dma_table[i];
 

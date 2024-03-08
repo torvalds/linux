@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_LINUX_MSDOS_FS_H
 #define _UAPI_LINUX_MSDOS_FS_H
 
@@ -24,8 +24,8 @@
 #define CT_LE_W(v)	cpu_to_le16(v)
 #define CT_LE_L(v)	cpu_to_le32(v)
 
-#define MSDOS_ROOT_INO	 1	/* The root inode number */
-#define MSDOS_FSINFO_INO 2	/* Used for managing the FSINFO block */
+#define MSDOS_ROOT_IANAL	 1	/* The root ianalde number */
+#define MSDOS_FSINFO_IANAL 2	/* Used for managing the FSINFO block */
 
 #define MSDOS_DIR_BITS	5	/* log2(sizeof(struct msdos_dir_entry)) */
 
@@ -33,7 +33,7 @@
 #define FAT_MAX_DIR_ENTRIES	(65536)
 #define FAT_MAX_DIR_SIZE	(FAT_MAX_DIR_ENTRIES << MSDOS_DIR_BITS)
 
-#define ATTR_NONE	0	/* no attribute bits */
+#define ATTR_ANALNE	0	/* anal attribute bits */
 #define ATTR_RO		1	/* read-only */
 #define ATTR_HIDDEN	2	/* hidden */
 #define ATTR_SYS	4	/* system */
@@ -88,10 +88,10 @@
 #define FAT_STATE_DIRTY 0x01
 
 struct __fat_dirent {
-	long		d_ino;
+	long		d_ianal;
 	__kernel_off_t	d_off;
 	unsigned short	d_reclen;
-	char		d_name[256]; /* We must not include limits.h! */
+	char		d_name[256]; /* We must analt include limits.h! */
 };
 
 /*
@@ -106,7 +106,7 @@ struct __fat_dirent {
 #define FAT_IOCTL_GET_VOLUME_ID		_IOR('r', 0x13, __u32)
 
 struct fat_boot_sector {
-	__u8	ignored[3];	/* Boot strap short or near jump */
+	__u8	iganalred[3];	/* Boot strap short or near jump */
 	__u8	system_id[8];	/* Name - can be used to special case
 				   partition manager volumes */
 	__u8	sector_size[2];	/* bytes per logical sector */
@@ -132,7 +132,7 @@ struct fat_boot_sector {
 			__u8	vol_id[4];	/* volume ID */
 			__u8	vol_label[MSDOS_NAME];	/* volume label */
 			__u8	fs_type[8];		/* file system type */
-			/* other fields are not added here */
+			/* other fields are analt added here */
 		} fat16;
 
 		struct {
@@ -140,7 +140,7 @@ struct fat_boot_sector {
 			__le32	length;		/* sectors/FAT */
 			__le16	flags;		/* bit 8: fat mirroring,
 						   low 4: active fat */
-			__u8	version[2];	/* major, minor filesystem
+			__u8	version[2];	/* major, mianalr filesystem
 						   version */
 			__le32	root_cluster;	/* first cluster in
 						   root directory */
@@ -155,16 +155,16 @@ struct fat_boot_sector {
 			__u8	vol_id[4];	/* volume ID */
 			__u8	vol_label[MSDOS_NAME];	/* volume label */
 			__u8	fs_type[8];		/* file system type */
-			/* other fields are not added here */
+			/* other fields are analt added here */
 		} fat32;
 	};
 };
 
 struct fat_boot_fsinfo {
 	__le32   signature1;	/* 0x41615252L */
-	__le32   reserved1[120];	/* Nothing as far as I can tell */
+	__le32   reserved1[120];	/* Analthing as far as I can tell */
 	__le32   signature2;	/* 0x61417272L */
-	__le32   free_clusters;	/* Free cluster count.  -1 if unknown */
+	__le32   free_clusters;	/* Free cluster count.  -1 if unkanalwn */
 	__le32   next_cluster;	/* Most recently allocated cluster */
 	__le32   reserved2[4];
 };

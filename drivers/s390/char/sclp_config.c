@@ -7,7 +7,7 @@
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/cpu.h>
 #include <linux/device.h>
 #include <linux/workqueue.h>
@@ -42,7 +42,7 @@ struct sclp_ofb_sccb {
 static struct work_struct sclp_cpu_capability_work;
 static struct work_struct sclp_cpu_change_work;
 
-static void sclp_cpu_capability_notify(struct work_struct *work)
+static void sclp_cpu_capability_analtify(struct work_struct *work)
 {
 	int cpu;
 	struct device *dev;
@@ -57,7 +57,7 @@ static void sclp_cpu_capability_notify(struct work_struct *work)
 	cpus_read_unlock();
 }
 
-static void __ref sclp_cpu_change_notify(struct work_struct *work)
+static void __ref sclp_cpu_change_analtify(struct work_struct *work)
 {
 	lock_device_hotplug();
 	smp_rescan_cpus();
@@ -99,7 +99,7 @@ static int sclp_ofb_send_req(char *ev_data, size_t len)
 		return -EINVAL;
 	sccb = (struct sclp_ofb_sccb *) get_zeroed_page(GFP_KERNEL | GFP_DMA);
 	if (!sccb)
-		return -ENOMEM;
+		return -EANALMEM;
 	/* Setup SCCB for Control-Program Identification */
 	sccb->header.length = sizeof(struct sclp_ofb_sccb);
 	sccb->ofb_evbuf.header.length = sizeof(struct sclp_ofb_evbuf);
@@ -108,7 +108,7 @@ static int sclp_ofb_send_req(char *ev_data, size_t len)
 	memcpy(sccb->ofb_evbuf.ev_data, ev_data, len);
 
 	if (!(sclp_conf_register.sclp_receive_mask & EVTYP_CONFMGMDATA_MASK))
-		pr_warn("SCLP receiver did not register to receive "
+		pr_warn("SCLP receiver did analt register to receive "
 			"Configuration Management Data Events.\n");
 
 	mutex_lock(&send_mutex);
@@ -154,7 +154,7 @@ static int __init sclp_ofb_setup(void)
 
 	ofb_kset = kset_create_and_add("ofb", NULL, firmware_kobj);
 	if (!ofb_kset)
-		return -ENOMEM;
+		return -EANALMEM;
 	rc = sysfs_create_bin_file(&ofb_kset->kobj, &ofb_bin_attr);
 	if (rc) {
 		kset_unregister(ofb_kset);
@@ -168,8 +168,8 @@ static int __init sclp_conf_init(void)
 {
 	int rc;
 
-	INIT_WORK(&sclp_cpu_capability_work, sclp_cpu_capability_notify);
-	INIT_WORK(&sclp_cpu_change_work, sclp_cpu_change_notify);
+	INIT_WORK(&sclp_cpu_capability_work, sclp_cpu_capability_analtify);
+	INIT_WORK(&sclp_cpu_change_work, sclp_cpu_change_analtify);
 	rc = sclp_register(&sclp_conf_register);
 	if (rc)
 		return rc;

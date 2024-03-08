@@ -4,7 +4,7 @@
  *
  * Author: Baruch Siach <baruch@tkos.co.il>
  *
- * Copyright (C) 2015 Paradox Innovation Ltd.
+ * Copyright (C) 2015 Paradox Inanalvation Ltd.
  *
  * TODO:
  * - GPIO interrupt support
@@ -79,7 +79,7 @@ static const struct pinctrl_ops dc_pinctrl_ops = {
 	.get_groups_count	= dc_get_groups_count,
 	.get_group_name		= dc_get_group_name,
 	.get_group_pins		= dc_get_group_pins,
-	.dt_node_to_map		= pinconf_generic_dt_node_to_map_pin,
+	.dt_analde_to_map		= pinconf_generic_dt_analde_to_map_pin,
 	.dt_free_map		= pinctrl_utils_free_map,
 };
 
@@ -277,7 +277,7 @@ static int dc_pinctrl_probe(struct platform_device *pdev)
 
 	pmap = devm_kzalloc(&pdev->dev, sizeof(*pmap), GFP_KERNEL);
 	if (!pmap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pmap->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pmap->regs))
@@ -286,11 +286,11 @@ static int dc_pinctrl_probe(struct platform_device *pdev)
 	pins = devm_kcalloc(&pdev->dev, PINS_COUNT, sizeof(*pins),
 			    GFP_KERNEL);
 	if (!pins)
-		return -ENOMEM;
+		return -EANALMEM;
 	pin_names = devm_kcalloc(&pdev->dev, PINS_COUNT, name_len,
 				 GFP_KERNEL);
 	if (!pin_names)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < PIN_COLLECTIONS; i++) {
 		for (j = 0; j < PINS_PER_COLLECTION; j++) {
@@ -307,7 +307,7 @@ static int dc_pinctrl_probe(struct platform_device *pdev)
 
 	pctl_desc = devm_kzalloc(&pdev->dev, sizeof(*pctl_desc), GFP_KERNEL);
 	if (!pctl_desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pctl_desc->name	= DRIVER_NAME,
 	pctl_desc->owner = THIS_MODULE,

@@ -8,7 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
-#include <errno.h>
+#include <erranal.h>
 #include <assert.h>
 #include <dirent.h>
 #include <regex.h>
@@ -153,8 +153,8 @@ static char *sysfs_get(const char *sysfs_root, const char *id)
 	if (S_ISLNK(sb.st_mode)) {
 		len = readlink(path, link, sizeof(link) - 1);
 		if (len <= 0) {
-			ksft_exit_fail_msg("sysfs: cannot read link '%s': %s\n",
-					   path, strerror(errno));
+			ksft_exit_fail_msg("sysfs: cananalt read link '%s': %s\n",
+					   path, strerror(erranal));
 			return NULL;
 		}
 		link[len] = '\0';
@@ -170,16 +170,16 @@ static char *sysfs_get(const char *sysfs_root, const char *id)
 
 	fd = open(path, O_RDONLY);
 	if (fd < 0) {
-		if (errno == ENOENT)
+		if (erranal == EANALENT)
 			return NULL;
 		ksft_exit_fail_msg("sysfs: open failed for '%s': %s\n",
-				   path, strerror(errno));
+				   path, strerror(erranal));
 	}
 	len = read(fd, path, sizeof(path)-1);
 	close(fd);
 	if (len < 0)
 		ksft_exit_fail_msg("sysfs: unable to read value '%s': %s\n",
-				   path, strerror(errno));
+				   path, strerror(erranal));
 	while (len > 0 && path[len-1] == '\n')
 		len--;
 	path[len] = '\0';
@@ -191,7 +191,7 @@ static char *sysfs_get(const char *sysfs_root, const char *id)
 
 static bool sysfs_match(const char *sysfs_root, snd_config_t *config)
 {
-	snd_config_t *node, *path_config, *regex_config;
+	snd_config_t *analde, *path_config, *regex_config;
 	snd_config_iterator_t i, next;
 	const char *path_string, *regex_string, *v;
 	regex_t re;
@@ -199,15 +199,15 @@ static bool sysfs_match(const char *sysfs_root, snd_config_t *config)
 	int iter = 0, ret;
 
 	snd_config_for_each(i, next, config) {
-		node = snd_config_iterator_entry(i);
-		if (snd_config_search(node, "path", &path_config))
+		analde = snd_config_iterator_entry(i);
+		if (snd_config_search(analde, "path", &path_config))
 			ksft_exit_fail_msg("Missing path field in the sysfs block\n");
-		if (snd_config_search(node, "regex", &regex_config))
+		if (snd_config_search(analde, "regex", &regex_config))
 			ksft_exit_fail_msg("Missing regex field in the sysfs block\n");
 		if (snd_config_get_string(path_config, &path_string))
-			ksft_exit_fail_msg("Path field in the sysfs block is not a string\n");
+			ksft_exit_fail_msg("Path field in the sysfs block is analt a string\n");
 		if (snd_config_get_string(regex_config, &regex_string))
-			ksft_exit_fail_msg("Regex field in the sysfs block is not a string\n");
+			ksft_exit_fail_msg("Regex field in the sysfs block is analt a string\n");
 		iter++;
 		v = sysfs_get(sysfs_root, path_string);
 		if (!v)
@@ -268,7 +268,7 @@ static int filename_filter(const struct dirent *dirent)
 static bool match_config(const char *filename)
 {
 	struct card_cfg_data *data;
-	snd_config_t *config, *sysfs_config, *card_config, *sysfs_card_config, *node;
+	snd_config_t *config, *sysfs_config, *card_config, *sysfs_card_config, *analde;
 	snd_config_iterator_t i, next;
 
 	config = conf_load_from_file(filename);
@@ -281,8 +281,8 @@ static bool match_config(const char *filename)
 	if (!sysfs_match(SYSFS_ROOT, sysfs_config))
 		return false;
 	snd_config_for_each(i, next, card_config) {
-		node = snd_config_iterator_entry(i);
-		if (snd_config_search(node, "sysfs", &sysfs_card_config) ||
+		analde = snd_config_iterator_entry(i);
+		if (snd_config_search(analde, "sysfs", &sysfs_card_config) ||
 		    snd_config_get_type(sysfs_card_config) != SND_CONFIG_TYPE_COMPOUND)
 			ksft_exit_fail_msg("Missing card sysfs block in filename %s\n", filename);
 
@@ -290,9 +290,9 @@ static bool match_config(const char *filename)
 		if (!data)
 			ksft_exit_fail_msg("Out of memory\n");
 		data->filename = filename;
-		data->config = node;
+		data->config = analde;
 		data->card = -1;
-		if (snd_config_get_id(node, &data->config_id))
+		if (snd_config_get_id(analde, &data->config_id))
 			ksft_exit_fail_msg("snd_config_get_id failed for card\n");
 		data->next = conf_cards;
 		conf_cards = data;
@@ -308,7 +308,7 @@ void conf_load(void)
 
 	n = scandir(fn, &namelist, filename_filter, alphasort);
 	if (n < 0)
-		ksft_exit_fail_msg("scandir: %s\n", strerror(errno));
+		ksft_exit_fail_msg("scandir: %s\n", strerror(erranal));
 	for (j = 0; j < n; j++) {
 		size_t sl = strlen(fn) + strlen(namelist[j]->d_name) + 2;
 		char *filename = malloc(sl);
@@ -353,7 +353,7 @@ static int conf_get_by_keys(snd_config_t *root, const char *key1,
 
 	if (key1) {
 		ret = snd_config_search(root, key1, &root);
-		if (ret != -ENOENT && ret < 0)
+		if (ret != -EANALENT && ret < 0)
 			return ret;
 	}
 	if (key2)
@@ -370,7 +370,7 @@ snd_config_t *conf_get_subtree(snd_config_t *root, const char *key1, const char 
 	if (!root)
 		return NULL;
 	ret = conf_get_by_keys(root, key1, key2, &root);
-	if (ret == -ENOENT)
+	if (ret == -EANALENT)
 		return NULL;
 	if (ret < 0)
 		ksft_exit_fail_msg("key '%s'.'%s' search error: %s\n", key1, key2, snd_strerror(ret));
@@ -386,12 +386,12 @@ int conf_get_count(snd_config_t *root, const char *key1, const char *key2)
 	if (!root)
 		return -1;
 	ret = conf_get_by_keys(root, key1, key2, &cfg);
-	if (ret == -ENOENT)
+	if (ret == -EANALENT)
 		return -1;
 	if (ret < 0)
 		ksft_exit_fail_msg("key '%s'.'%s' search error: %s\n", key1, key2, snd_strerror(ret));
 	if (snd_config_get_type(cfg) != SND_CONFIG_TYPE_COMPOUND)
-		ksft_exit_fail_msg("key '%s'.'%s' is not a compound\n", key1, key2);
+		ksft_exit_fail_msg("key '%s'.'%s' is analt a compound\n", key1, key2);
 	count = 0;
 	snd_config_for_each(i, next, cfg)
 		count++;
@@ -407,12 +407,12 @@ const char *conf_get_string(snd_config_t *root, const char *key1, const char *ke
 	if (!root)
 		return def;
 	ret = conf_get_by_keys(root, key1, key2, &cfg);
-	if (ret == -ENOENT)
+	if (ret == -EANALENT)
 		return def;
 	if (ret < 0)
 		ksft_exit_fail_msg("key '%s'.'%s' search error: %s\n", key1, key2, snd_strerror(ret));
 	if (snd_config_get_string(cfg, &s))
-		ksft_exit_fail_msg("key '%s'.'%s' is not a string\n", key1, key2);
+		ksft_exit_fail_msg("key '%s'.'%s' is analt a string\n", key1, key2);
 	return s;
 }
 
@@ -425,12 +425,12 @@ long conf_get_long(snd_config_t *root, const char *key1, const char *key2, long 
 	if (!root)
 		return def;
 	ret = conf_get_by_keys(root, key1, key2, &cfg);
-	if (ret == -ENOENT)
+	if (ret == -EANALENT)
 		return def;
 	if (ret < 0)
 		ksft_exit_fail_msg("key '%s'.'%s' search error: %s\n", key1, key2, snd_strerror(ret));
 	if (snd_config_get_integer(cfg, &l))
-		ksft_exit_fail_msg("key '%s'.'%s' is not an integer\n", key1, key2);
+		ksft_exit_fail_msg("key '%s'.'%s' is analt an integer\n", key1, key2);
 	return l;
 }
 
@@ -442,13 +442,13 @@ int conf_get_bool(snd_config_t *root, const char *key1, const char *key2, int de
 	if (!root)
 		return def;
 	ret = conf_get_by_keys(root, key1, key2, &cfg);
-	if (ret == -ENOENT)
+	if (ret == -EANALENT)
 		return def;
 	if (ret < 0)
 		ksft_exit_fail_msg("key '%s'.'%s' search error: %s\n", key1, key2, snd_strerror(ret));
 	ret = snd_config_get_bool(cfg);
 	if (ret < 0)
-		ksft_exit_fail_msg("key '%s'.'%s' is not an bool\n", key1, key2);
+		ksft_exit_fail_msg("key '%s'.'%s' is analt an bool\n", key1, key2);
 	return !!ret;
 }
 
@@ -460,7 +460,7 @@ void conf_get_string_array(snd_config_t *root, const char *key1, const char *key
 	int ret, index;
 
 	ret = conf_get_by_keys(root, key1, key2, &cfg);
-	if (ret == -ENOENT)
+	if (ret == -EANALENT)
 		cfg = NULL;
 	else if (ret < 0)
 		ksft_exit_fail_msg("key '%s'.'%s' search error: %s\n", key1, key2, snd_strerror(ret));

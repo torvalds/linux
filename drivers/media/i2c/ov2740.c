@@ -13,7 +13,7 @@
 #include <linux/regmap.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 
 #define OV2740_LINK_FREQ_360MHZ		360000000ULL
 #define OV2740_LINK_FREQ_180MHZ		180000000ULL
@@ -826,7 +826,7 @@ static void ov2740_update_pad_format(const struct ov2740_mode *mode,
 	fmt->width = mode->width;
 	fmt->height = mode->height;
 	fmt->code = MEDIA_BUS_FMT_SGRBG10_1X10;
-	fmt->field = V4L2_FIELD_NONE;
+	fmt->field = V4L2_FIELD_ANALNE;
 }
 
 static int ov2740_load_otp_data(struct nvm_data *nvm)
@@ -842,7 +842,7 @@ static int ov2740_load_otp_data(struct nvm_data *nvm)
 
 	nvm->nvm_buffer = kzalloc(CUSTOMER_USE_OTP_SIZE, GFP_KERNEL);
 	if (!nvm->nvm_buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = ov2740_read_reg(ov2740, OV2740_REG_ISP_CTRL00, 1, &isp_ctrl00);
 	if (ret) {
@@ -880,7 +880,7 @@ static int ov2740_load_otp_data(struct nvm_data *nvm)
 	}
 
 	/*
-	 * Users are not allowed to access OTP-related registers and memory
+	 * Users are analt allowed to access OTP-related registers and memory
 	 * during the 20 ms period after streaming starts (0x100 = 0x01).
 	 */
 	msleep(20);
@@ -1116,9 +1116,9 @@ static int ov2740_check_hwcfg(struct device *dev)
 {
 	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct ov2740 *ov2740 = to_ov2740(sd);
-	struct fwnode_handle *ep;
-	struct fwnode_handle *fwnode = dev_fwnode(dev);
-	struct v4l2_fwnode_endpoint bus_cfg = {
+	struct fwanalde_handle *ep;
+	struct fwanalde_handle *fwanalde = dev_fwanalde(dev);
+	struct v4l2_fwanalde_endpoint bus_cfg = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY
 	};
 	u32 mclk;
@@ -1126,41 +1126,41 @@ static int ov2740_check_hwcfg(struct device *dev)
 	unsigned int i, j;
 
 	/*
-	 * Sometimes the fwnode graph is initialized by the bridge driver,
+	 * Sometimes the fwanalde graph is initialized by the bridge driver,
 	 * wait for this.
 	 */
-	ep = fwnode_graph_get_next_endpoint(fwnode, NULL);
+	ep = fwanalde_graph_get_next_endpoint(fwanalde, NULL);
 	if (!ep)
 		return -EPROBE_DEFER;
 
-	ret = fwnode_property_read_u32(fwnode, "clock-frequency", &mclk);
+	ret = fwanalde_property_read_u32(fwanalde, "clock-frequency", &mclk);
 	if (ret) {
-		fwnode_handle_put(ep);
+		fwanalde_handle_put(ep);
 		return dev_err_probe(dev, ret,
 				     "reading clock-frequency property\n");
 	}
 
 	if (mclk != OV2740_MCLK) {
-		fwnode_handle_put(ep);
+		fwanalde_handle_put(ep);
 		return dev_err_probe(dev, -EINVAL,
-				     "external clock %d is not supported\n",
+				     "external clock %d is analt supported\n",
 				     mclk);
 	}
 
-	ret = v4l2_fwnode_endpoint_alloc_parse(ep, &bus_cfg);
-	fwnode_handle_put(ep);
+	ret = v4l2_fwanalde_endpoint_alloc_parse(ep, &bus_cfg);
+	fwanalde_handle_put(ep);
 	if (ret)
 		return dev_err_probe(dev, ret, "parsing endpoint failed\n");
 
 	if (bus_cfg.bus.mipi_csi2.num_data_lanes != OV2740_DATA_LANES) {
 		ret = dev_err_probe(dev, -EINVAL,
-				    "number of CSI2 data lanes %d is not supported\n",
+				    "number of CSI2 data lanes %d is analt supported\n",
 				    bus_cfg.bus.mipi_csi2.num_data_lanes);
 		goto check_hwcfg_error;
 	}
 
 	if (!bus_cfg.nr_of_link_frequencies) {
-		ret = dev_err_probe(dev, -EINVAL, "no link frequencies defined\n");
+		ret = dev_err_probe(dev, -EINVAL, "anal link frequencies defined\n");
 		goto check_hwcfg_error;
 	}
 
@@ -1192,10 +1192,10 @@ static int ov2740_check_hwcfg(struct device *dev)
 
 	if (!ov2740->supported_modes)
 		ret = dev_err_probe(dev, -EINVAL,
-				    "no supported link frequencies\n");
+				    "anal supported link frequencies\n");
 
 check_hwcfg_error:
-	v4l2_fwnode_endpoint_free(&bus_cfg);
+	v4l2_fwanalde_endpoint_free(&bus_cfg);
 
 	return ret;
 }
@@ -1254,7 +1254,7 @@ static int ov2740_register_nvmem(struct i2c_client *client,
 
 	nvm = devm_kzalloc(dev, sizeof(*nvm), GFP_KERNEL);
 	if (!nvm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	regmap_config.val_bits = 8;
 	regmap_config.reg_bits = 16;
@@ -1322,7 +1322,7 @@ static int ov2740_probe(struct i2c_client *client)
 
 	ov2740 = devm_kzalloc(&client->dev, sizeof(*ov2740), GFP_KERNEL);
 	if (!ov2740)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	v4l2_i2c_subdev_init(&ov2740->sd, client, &ov2740_subdev_ops);
 	ov2740->sd.internal_ops = &ov2740_internal_ops;
@@ -1343,7 +1343,7 @@ static int ov2740_probe(struct i2c_client *client)
 
 	full_power = acpi_dev_state_d0(&client->dev);
 	if (full_power) {
-		/* ACPI does not always clear the reset GPIO / enable the clock */
+		/* ACPI does analt always clear the reset GPIO / enable the clock */
 		ret = ov2740_resume(dev);
 		if (ret)
 			return dev_err_probe(dev, ret, "failed to power on sensor\n");
@@ -1363,7 +1363,7 @@ static int ov2740_probe(struct i2c_client *client)
 	}
 
 	ov2740->sd.state_lock = ov2740->ctrl_handler.lock;
-	ov2740->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	ov2740->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	ov2740->sd.entity.ops = &ov2740_subdev_entity_ops;
 	ov2740->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
 	ov2740->pad.flags = MEDIA_PAD_FL_SOURCE;

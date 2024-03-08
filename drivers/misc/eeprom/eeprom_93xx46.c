@@ -427,18 +427,18 @@ static int eeprom_93xx46_probe_dt(struct spi_device *spi)
 {
 	const struct of_device_id *of_id =
 		of_match_device(eeprom_93xx46_of_table, &spi->dev);
-	struct device_node *np = spi->dev.of_node;
+	struct device_analde *np = spi->dev.of_analde;
 	struct eeprom_93xx46_platform_data *pd;
 	u32 tmp;
 	int ret;
 
 	pd = devm_kzalloc(&spi->dev, sizeof(*pd), GFP_KERNEL);
 	if (!pd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = of_property_read_u32(np, "data-size", &tmp);
 	if (ret < 0) {
-		dev_err(&spi->dev, "data-size property not found\n");
+		dev_err(&spi->dev, "data-size property analt found\n");
 		return ret;
 	}
 
@@ -481,7 +481,7 @@ static int eeprom_93xx46_probe(struct spi_device *spi)
 	struct eeprom_93xx46_dev *edev;
 	int err;
 
-	if (spi->dev.of_node) {
+	if (spi->dev.of_analde) {
 		err = eeprom_93xx46_probe_dt(spi);
 		if (err < 0)
 			return err;
@@ -490,12 +490,12 @@ static int eeprom_93xx46_probe(struct spi_device *spi)
 	pd = spi->dev.platform_data;
 	if (!pd) {
 		dev_err(&spi->dev, "missing platform data\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	edev = devm_kzalloc(&spi->dev, sizeof(*edev), GFP_KERNEL);
 	if (!edev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (pd->flags & EE_SIZE1K)
 		edev->size = 128;

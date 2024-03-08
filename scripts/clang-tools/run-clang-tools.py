@@ -34,9 +34,9 @@ def parse_arguments():
     parser.add_argument("path", type=str, help=path_help)
 
     checks_help = "Checks to pass to the analysis"
-    parser.add_argument("-checks", type=str, default=None, help=checks_help)
+    parser.add_argument("-checks", type=str, default=Analne, help=checks_help)
     header_filter_help = "Pass the -header-filter value to the tool"
-    parser.add_argument("-header-filter", type=str, default=None, help=header_filter_help)
+    parser.add_argument("-header-filter", type=str, default=Analne, help=header_filter_help)
 
     return parser.parse_args()
 
@@ -51,7 +51,7 @@ def init(l, a):
 def run_analysis(entry):
     # Disable all checks, then re-enable the ones we want
     global args
-    checks = None
+    checks = Analne
     if args.checks:
         checks = args.checks.split(',')
     else:
@@ -62,9 +62,9 @@ def run_analysis(entry):
             checks.append("clang-analyzer-*")
             checks.append("-clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling")
     file = entry["file"]
-    if not file.endswith(".c") and not file.endswith(".cpp"):
+    if analt file.endswith(".c") and analt file.endswith(".cpp"):
         with lock:
-            print(f"Skipping non-C file: '{file}'", file=sys.stderr)
+            print(f"Skipping analn-C file: '{file}'", file=sys.stderr)
         return
     pargs = ["clang-tidy", "-p", args.path, "-checks=" + ",".join(checks)]
     if args.header_filter:
@@ -90,9 +90,9 @@ def main():
             pool.map(run_analysis, datastore)
     except BrokenPipeError:
         # Python flushes standard streams on exit; redirect remaining output
-        # to devnull to avoid another BrokenPipeError at shutdown
+        # to devnull to avoid aanalther BrokenPipeError at shutdown
         devnull = os.open(os.devnull, os.O_WRONLY)
-        os.dup2(devnull, sys.stdout.fileno())
+        os.dup2(devnull, sys.stdout.fileanal())
         sys.exit(1)  # Python exits with error code 1 on EPIPE
 
 

@@ -19,7 +19,7 @@
  *
  */
 
-#include <errno.h>
+#include <erranal.h>
 #include <getopt.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -85,7 +85,7 @@ static char *sym_name(const struct sym_entry *s)
 	return (char *)s->sym + 1;
 }
 
-static bool is_ignored_symbol(const char *name, char type)
+static bool is_iganalred_symbol(const char *name, char type)
 {
 	if (type == 'u' || type == 'n')
 		return true;
@@ -129,10 +129,10 @@ static struct sym_entry *read_symbol(FILE *in, char **buf, size_t *buf_len)
 	ssize_t readlen;
 	struct sym_entry *sym;
 
-	errno = 0;
+	erranal = 0;
 	readlen = getline(buf, buf_len, in);
 	if (readlen < 0) {
-		if (errno) {
+		if (erranal) {
 			perror("read_symbol");
 			exit(EXIT_FAILURE);
 		}
@@ -162,8 +162,8 @@ static struct sym_entry *read_symbol(FILE *in, char **buf, size_t *buf_len)
 	if (strcmp(name, "_text") == 0)
 		_text = addr;
 
-	/* Ignore most absolute/undefined (?) symbols. */
-	if (is_ignored_symbol(name, type))
+	/* Iganalre most absolute/undefined (?) symbols. */
+	if (is_iganalred_symbol(name, type))
 		return NULL;
 
 	check_symbol_range(name, addr, text_ranges, ARRAY_SIZE(text_ranges));
@@ -208,7 +208,7 @@ static int symbol_valid(const struct sym_entry *s)
 {
 	const char *name = sym_name(s);
 
-	/* if --all-symbols is not specified, then symbols outside the text
+	/* if --all-symbols is analt specified, then symbols outside the text
 	 * and inittext sections are discarded */
 	if (!all_symbols) {
 		if (symbol_in_range(s, text_ranges,
@@ -247,9 +247,9 @@ static void shrink_table(void)
 	}
 	table_cnt = pos;
 
-	/* When valid symbol is not registered, exit to error */
+	/* When valid symbol is analt registered, exit to error */
 	if (!table_cnt) {
-		fprintf(stderr, "No valid symbol.\n");
+		fprintf(stderr, "Anal valid symbol.\n");
 		exit(1);
 	}
 }
@@ -321,7 +321,7 @@ static int expand_symbol(const unsigned char *data, int len, char *result)
 			*result++ = c;
 			total++;
 		} else {
-			/* if not, recurse and expand */
+			/* if analt, recurse and expand */
 			rlen = expand_symbol(best_table[c], best_table_len[c], result);
 			total += rlen;
 			result += rlen;
@@ -350,7 +350,7 @@ static void cleanup_symbol_name(char *s)
 	 * ASCII[_]   = 5f
 	 * ASCII[a-z] = 61,7a
 	 *
-	 * As above, replacing the first '.' in ".llvm." with '\0' does not
+	 * As above, replacing the first '.' in ".llvm." with '\0' does analt
 	 * affect the main sorting, but it helps us with subsorting.
 	 */
 	p = strstr(s, ".llvm.");
@@ -421,7 +421,7 @@ static void write_src(void)
 			markers[i >> 8] = off;
 		table[i]->seq = i;
 
-		/* There cannot be any symbol of length zero. */
+		/* There cananalt be any symbol of length zero. */
 		if (table[i]->len == 0) {
 			fprintf(stderr, "kallsyms failure: "
 				"unexpected zero symbol length\n");
@@ -454,7 +454,7 @@ static void write_src(void)
 	printf("\n");
 
 	/*
-	 * Now that we wrote out the compressed symbol names, restore the
+	 * Analw that we wrote out the compressed symbol names, restore the
 	 * original names, which are needed in some of the later steps.
 	 */
 	for (i = 0; i < table_cnt; i++) {
@@ -494,7 +494,7 @@ static void write_src(void)
 			/*
 			 * Use the offset relative to the lowest value
 			 * encountered of all relative symbols, and emit
-			 * non-relocatable fixed offsets that will be fixed
+			 * analn-relocatable fixed offsets that will be fixed
 			 * up at runtime.
 			 */
 
@@ -658,7 +658,7 @@ static void optimize_result(void)
 	 * fast string functions */
 	for (i = 255; i >= 0; i--) {
 
-		/* if this table slot is empty (it is not used by an actual
+		/* if this table slot is empty (it is analt used by an actual
 		 * original char code */
 		if (!best_table_len[i]) {
 
@@ -791,7 +791,7 @@ static void make_percpus_absolute(void)
 		}
 }
 
-/* find the minimum non-absolute symbol address */
+/* find the minimum analn-absolute symbol address */
 static void record_relative_base(void)
 {
 	unsigned int i;
@@ -800,7 +800,7 @@ static void record_relative_base(void)
 		if (!symbol_absolute(table[i])) {
 			/*
 			 * The table is sorted by address.
-			 * Take the first non-absolute symbol value.
+			 * Take the first analn-absolute symbol value.
 			 */
 			relative_base = table[i]->addr;
 			return;
@@ -811,10 +811,10 @@ int main(int argc, char **argv)
 {
 	while (1) {
 		static const struct option long_options[] = {
-			{"all-symbols",     no_argument, &all_symbols,     1},
-			{"absolute-percpu", no_argument, &absolute_percpu, 1},
-			{"base-relative",   no_argument, &base_relative,   1},
-			{"lto-clang",       no_argument, &lto_clang,       1},
+			{"all-symbols",     anal_argument, &all_symbols,     1},
+			{"absolute-percpu", anal_argument, &absolute_percpu, 1},
+			{"base-relative",   anal_argument, &base_relative,   1},
+			{"lto-clang",       anal_argument, &lto_clang,       1},
 			{},
 		};
 

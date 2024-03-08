@@ -47,7 +47,7 @@ enum gdma_queue_type {
 };
 
 enum gdma_work_request_flags {
-	GDMA_WR_NONE			= 0,
+	GDMA_WR_ANALNE			= 0,
 	GDMA_WR_OOB_IN_SGL		= BIT(0),
 	GDMA_WR_PAD_BY_SGE0		= BIT(1),
 };
@@ -63,7 +63,7 @@ enum gdma_eqe_type {
 };
 
 enum {
-	GDMA_DEVICE_NONE	= 0,
+	GDMA_DEVICE_ANALNE	= 0,
 	GDMA_DEVICE_HWC		= 1,
 	GDMA_DEVICE_MANA	= 2,
 	GDMA_DEVICE_MANA_IB	= 3,
@@ -267,8 +267,8 @@ typedef void gdma_eq_callback(void *context, struct gdma_queue *q,
 typedef void gdma_cq_callback(void *context, struct gdma_queue *q);
 
 /* The 'head' is the producer index. For SQ/RQ, when the driver posts a WQE
- * (Note: the WQE size must be a multiple of the 32-byte Basic Unit), the
- * driver increases the 'head' in BUs rather than in bytes, and notifies
+ * (Analte: the WQE size must be a multiple of the 32-byte Basic Unit), the
+ * driver increases the 'head' in BUs rather than in bytes, and analtifies
  * the HW of the updated head. For EQ/CQ, the driver uses the 'head' to track
  * the HW head, and increases the 'head' by 1 for every processed EQE/CQE.
  *
@@ -277,7 +277,7 @@ typedef void gdma_cq_callback(void *context, struct gdma_queue *q);
  * been consumed by the HW, so the driver can post new WQEs into the SQ/RQ.
  *
  * The driver doesn't use the 'tail' for EQ/CQ, because the driver ensures
- * that the EQ/CQ is big enough so they can't overflow, and the driver uses
+ * that the EQ/CQ is big eanalugh so they can't overflow, and the driver uses
  * the owner bits mechanism to detect if the queue has become empty.
  */
 struct gdma_queue {
@@ -382,7 +382,7 @@ struct gdma_context {
 	void __iomem		*db_page_base;
 	phys_addr_t		phys_db_page_base;
 	u32 db_page_size;
-	int                     numa_node;
+	int                     numa_analde;
 
 	/* Shared memory chanenl (used to bootstrap HWC) */
 	struct shm_channel	shm_channel;
@@ -573,7 +573,7 @@ struct gdma_verify_ver_req {
 	u32 os_type; /* Linux = 0x10; Windows = 0x20; Other = 0x30 */
 	u32 reserved;
 	u32 os_ver_major;
-	u32 os_ver_minor;
+	u32 os_ver_mianalr;
 	u32 os_ver_build;
 	u32 os_ver_platform;
 	u64 reserved_2;

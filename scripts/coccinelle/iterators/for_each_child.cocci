@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-only
-// Adds missing of_node_put() before return/break/goto statement within a for_each iterator for child nodes.
+// Adds missing of_analde_put() before return/break/goto statement within a for_each iterator for child analdes.
 //# False positives can be due to function calls within the for_each
-//# loop that may encapsulate an of_node_put.
+//# loop that may encapsulate an of_analde_put.
 ///
 // Confidence: High
 // Copyright: (C) 2020 Sumera Priyadarsini
 // URL: https://coccinelle.gitlabpages.inria.fr/website
-// Options: --no-includes --include-headers
+// Options: --anal-includes --include-headers
 
 virtual patch
 virtual context
@@ -16,10 +16,10 @@ virtual report
 @r@
 local idexpression n;
 expression e1,e2;
-iterator name for_each_node_by_name, for_each_node_by_type,
-for_each_compatible_node, for_each_matching_node,
-for_each_matching_node_and_match, for_each_child_of_node,
-for_each_available_child_of_node, for_each_node_with_property;
+iterator name for_each_analde_by_name, for_each_analde_by_type,
+for_each_compatible_analde, for_each_matching_analde,
+for_each_matching_analde_and_match, for_each_child_of_analde,
+for_each_available_child_of_analde, for_each_analde_with_property;
 iterator i;
 statement S;
 expression list [n1] es;
@@ -27,21 +27,21 @@ expression list [n1] es;
 
 (
 (
-for_each_node_by_name(n,e1) S
+for_each_analde_by_name(n,e1) S
 |
-for_each_node_by_type(n,e1) S
+for_each_analde_by_type(n,e1) S
 |
-for_each_compatible_node(n,e1,e2) S
+for_each_compatible_analde(n,e1,e2) S
 |
-for_each_matching_node(n,e1) S
+for_each_matching_analde(n,e1) S
 |
-for_each_matching_node_and_match(n,e1,e2) S
+for_each_matching_analde_and_match(n,e1,e2) S
 |
-for_each_child_of_node(e1,n) S
+for_each_child_of_analde(e1,n) S
 |
-for_each_available_child_of_node(e1,n) S
+for_each_available_child_of_analde(e1,n) S
 |
-for_each_node_with_property(n,e1) S
+for_each_analde_with_property(n,e1) S
 )
 &
 i(es,n,...) S
@@ -59,7 +59,7 @@ statement S;
  i(es,n,...) {
    ...
 (
-   of_node_put(n);
+   of_analde_put(n);
 |
    e = n
 |
@@ -67,10 +67,10 @@ statement S;
 |
    i1(...,n,...) S
 |
-- return of_node_get(n);
+- return of_analde_get(n);
 + return n;
 |
-+  of_node_put(n);
++  of_analde_put(n);
 ?  return ...;
 )
    ... when any
@@ -88,13 +88,13 @@ statement S,S2;
  i(es,n,...) {
    ...
 (
-   of_node_put(n);
+   of_analde_put(n);
 |
    e = n
 |
    i1(...,n,...) S
 |
-+  of_node_put(n);
++  of_analde_put(n);
 ?  break;
 )
    ... when any
@@ -121,13 +121,13 @@ statement S,S2;
  i(es,n,...) {
    ...
 (
-   of_node_put(n);
+   of_analde_put(n);
 |
    e = n
 |
    i1(...,n,...) S
 |
-+  of_node_put(n);
++  of_analde_put(n);
 ?  goto l;
 )
    ... when any
@@ -156,7 +156,7 @@ position j0, j1;
  i@j0(es,n,...) {
    ...
 (
-   of_node_put(n);
+   of_analde_put(n);
 |
    e = n
 |
@@ -194,7 +194,7 @@ position j0, j2;
  i@j0(es,n,...) {
    ...
 (
-   of_node_put(n);
+   of_analde_put(n);
 |
    e = n
 |
@@ -249,7 +249,7 @@ position j0, j3;
  i@j0(es,n,...) {
    ...
 (
-   of_node_put(n);
+   of_analde_put(n);
 |
    e = n
 |
@@ -304,7 +304,7 @@ j0 << ruleone_context.j0;
 j1 << ruleone_context. j1;
 @@
 
-msg = "WARNING: Function \"%s\" should have of_node_put() before return " % (i)
+msg = "WARNING: Function \"%s\" should have of_analde_put() before return " % (i)
 coccilib.org.print_safe_todo(j0[0], msg)
 coccilib.org.print_link(j1[0], "")
 
@@ -314,7 +314,7 @@ j0 << ruletwo_context.j0;
 j2 << ruletwo_context.j2;
 @@
 
-msg = "WARNING: Function \"%s\" should have of_node_put() before break " % (i)
+msg = "WARNING: Function \"%s\" should have of_analde_put() before break " % (i)
 coccilib.org.print_safe_todo(j0[0], msg)
 coccilib.org.print_link(j2[0], "")
 
@@ -324,7 +324,7 @@ j0 << rulethree_context.j0;
 j3 << rulethree_context.j3;
 @@
 
-msg = "WARNING: Function \"%s\" should have of_node_put() before goto " % (i)
+msg = "WARNING: Function \"%s\" should have of_analde_put() before goto " % (i)
 coccilib.org.print_safe_todo(j0[0], msg)
 coccilib.org.print_link(j3[0], "")
 
@@ -336,7 +336,7 @@ j0 << ruleone_context.j0;
 j1 << ruleone_context.j1;
 @@
 
-msg = "WARNING: Function \"%s\" should have of_node_put() before return around line %s." % (i, j1[0].line)
+msg = "WARNING: Function \"%s\" should have of_analde_put() before return around line %s." % (i, j1[0].line)
 coccilib.report.print_report(j0[0], msg)
 
 @script:python ruletwo_report depends on report@
@@ -345,7 +345,7 @@ j0 << ruletwo_context.j0;
 j2 << ruletwo_context.j2;
 @@
 
-msg = "WARNING: Function \"%s\" should have of_node_put() before break around line %s." % (i,j2[0].line)
+msg = "WARNING: Function \"%s\" should have of_analde_put() before break around line %s." % (i,j2[0].line)
 coccilib.report.print_report(j0[0], msg)
 
 @script:python rulethree_report depends on report@
@@ -354,5 +354,5 @@ j0 << rulethree_context.j0;
 j3 << rulethree_context.j3;
 @@
 
-msg = "WARNING: Function \"%s\" should have of_node_put() before goto around lines %s." % (i,j3[0].line)
+msg = "WARNING: Function \"%s\" should have of_analde_put() before goto around lines %s." % (i,j3[0].line)
 coccilib.report.print_report(j0[0], msg)

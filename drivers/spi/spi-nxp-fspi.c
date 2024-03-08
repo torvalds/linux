@@ -38,7 +38,7 @@
 #include <linux/completion.h>
 #include <linux/delay.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
@@ -445,7 +445,7 @@ static int nxp_fspi_check_buswidth(struct nxp_fspi *f, u8 width)
 		return 0;
 	}
 
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static bool nxp_fspi_supports_op(struct spi_mem *mem,
@@ -603,7 +603,7 @@ static int nxp_fspi_clk_prep_enable(struct nxp_fspi *f)
 {
 	int ret;
 
-	if (is_acpi_node(dev_fwnode(f->dev)))
+	if (is_acpi_analde(dev_fwanalde(f->dev)))
 		return 0;
 
 	ret = clk_prepare_enable(f->clk_en);
@@ -621,7 +621,7 @@ static int nxp_fspi_clk_prep_enable(struct nxp_fspi *f)
 
 static int nxp_fspi_clk_disable_unprep(struct nxp_fspi *f)
 {
-	if (is_acpi_node(dev_fwnode(f->dev)))
+	if (is_acpi_analde(dev_fwanalde(f->dev)))
 		return 0;
 
 	clk_disable_unprepare(f->clk);
@@ -764,7 +764,7 @@ static int nxp_fspi_read_ahb(struct nxp_fspi *f, const struct spi_mem_op *op)
 
 		if (!f->ahb_addr) {
 			dev_err(f->dev, "failed to alloc memory\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -889,14 +889,14 @@ static int nxp_fspi_do_op(struct nxp_fspi *f, const struct spi_mem_op *op)
 	/*
 	 * Always start the sequence at the same index since we update
 	 * the LUT at each exec_op() call. And also specify the DATA
-	 * length, since it's has not been specified in the LUT.
+	 * length, since it's has analt been specified in the LUT.
 	 */
 	fspi_writel(f, op->data.nbytes |
 		 (SEQID_LUT << FSPI_IPCR1_SEQID_SHIFT) |
 		 (seqnum << FSPI_IPCR1_SEQNUM_SHIFT),
 		 base + FSPI_IPCR1);
 
-	/* Trigger the LUT now. */
+	/* Trigger the LUT analw. */
 	fspi_writel(f, FSPI_IPCMD_TRG, base + FSPI_IPCMD);
 
 	/* Wait for the interrupt. */
@@ -991,7 +991,7 @@ static void erratum_err050568(struct nxp_fspi *f)
 
 	map = syscon_regmap_lookup_by_compatible("fsl,ls1028a-dcfg");
 	if (IS_ERR(map)) {
-		dev_err(f->dev, "No syscon regmap\n");
+		dev_err(f->dev, "Anal syscon regmap\n");
 		goto err;
 	}
 
@@ -1009,7 +1009,7 @@ static void erratum_err050568(struct nxp_fspi *f)
 	return;
 
 err:
-	dev_err(f->dev, "Errata cannot be executed. Read via IP bus may not work\n");
+	dev_err(f->dev, "Errata cananalt be executed. Read via IP bus may analt work\n");
 }
 
 static int nxp_fspi_default_setup(struct nxp_fspi *f)
@@ -1031,12 +1031,12 @@ static int nxp_fspi_default_setup(struct nxp_fspi *f)
 		return ret;
 
 	/*
-	 * ERR050568: Flash access by FlexSPI AHB command may not work with
+	 * ERR050568: Flash access by FlexSPI AHB command may analt work with
 	 * platform frequency equal to 300 MHz on LS1028A.
 	 * LS1028A reuses LX2160A compatible entry. Make errata applicable for
 	 * Layerscape LS1028A platform.
 	 */
-	if (of_device_is_compatible(f->dev->of_node, "nxp,lx2160a-fspi"))
+	if (of_device_is_compatible(f->dev->of_analde, "nxp,lx2160a-fspi"))
 		erratum_err050568(f);
 
 	/* Reset the module */
@@ -1080,7 +1080,7 @@ static int nxp_fspi_default_setup(struct nxp_fspi *f)
 	fspi_writel(f, (f->devtype_data->ahb_buf_size / 8 |
 		  FSPI_AHBRXBUF0CR7_PREF), base + FSPI_AHBRX_BUF7CR0);
 
-	/* prefetch and no start address alignment limitation */
+	/* prefetch and anal start address alignment limitation */
 	fspi_writel(f, FSPI_AHBCR_PREF_EN | FSPI_AHBCR_RDADDROPT,
 		 base + FSPI_AHBCR);
 
@@ -1112,7 +1112,7 @@ static const char *nxp_fspi_get_name(struct spi_mem *mem)
 	const char *name;
 
 	// Set custom name derived from the platform_device of the controller.
-	if (of_get_available_child_count(f->dev->of_node) == 1)
+	if (of_get_available_child_count(f->dev->of_analde) == 1)
 		return dev_name(f->dev);
 
 	name = devm_kasprintf(dev, GFP_KERNEL,
@@ -1121,7 +1121,7 @@ static const char *nxp_fspi_get_name(struct spi_mem *mem)
 
 	if (!name) {
 		dev_err(dev, "failed to get memory for custom flash name\n");
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	return name;
@@ -1138,7 +1138,7 @@ static int nxp_fspi_probe(struct platform_device *pdev)
 {
 	struct spi_controller *ctlr;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct resource *res;
 	struct nxp_fspi *f;
 	int ret;
@@ -1146,7 +1146,7 @@ static int nxp_fspi_probe(struct platform_device *pdev)
 
 	ctlr = spi_alloc_host(&pdev->dev, sizeof(*f));
 	if (!ctlr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctlr->mode_bits = SPI_RX_DUAL | SPI_RX_QUAD | SPI_RX_OCTAL |
 			  SPI_TX_DUAL | SPI_TX_QUAD | SPI_TX_OCTAL;
@@ -1155,14 +1155,14 @@ static int nxp_fspi_probe(struct platform_device *pdev)
 	f->dev = dev;
 	f->devtype_data = (struct nxp_fspi_devtype_data *)device_get_match_data(dev);
 	if (!f->devtype_data) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_put_ctrl;
 	}
 
 	platform_set_drvdata(pdev, f);
 
 	/* find the resources - configuration register address space */
-	if (is_acpi_node(dev_fwnode(f->dev)))
+	if (is_acpi_analde(dev_fwanalde(f->dev)))
 		f->iobase = devm_platform_ioremap_resource(pdev, 0);
 	else
 		f->iobase = devm_platform_ioremap_resource_byname(pdev, "fspi_base");
@@ -1173,14 +1173,14 @@ static int nxp_fspi_probe(struct platform_device *pdev)
 	}
 
 	/* find the resources - controller memory mapped space */
-	if (is_acpi_node(dev_fwnode(f->dev)))
+	if (is_acpi_analde(dev_fwanalde(f->dev)))
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	else
 		res = platform_get_resource_byname(pdev,
 				IORESOURCE_MEM, "fspi_mmap");
 
 	if (!res) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_put_ctrl;
 	}
 
@@ -1189,7 +1189,7 @@ static int nxp_fspi_probe(struct platform_device *pdev)
 	f->memmap_phy_size = resource_size(res);
 
 	/* find the clocks */
-	if (dev_of_node(&pdev->dev)) {
+	if (dev_of_analde(&pdev->dev)) {
 		f->clk_en = devm_clk_get(dev, "fspi_en");
 		if (IS_ERR(f->clk_en)) {
 			ret = PTR_ERR(f->clk_en);
@@ -1204,7 +1204,7 @@ static int nxp_fspi_probe(struct platform_device *pdev)
 
 		ret = nxp_fspi_clk_prep_enable(f);
 		if (ret) {
-			dev_err(dev, "can not enable the clock\n");
+			dev_err(dev, "can analt enable the clock\n");
 			goto err_put_ctrl;
 		}
 	}
@@ -1234,7 +1234,7 @@ static int nxp_fspi_probe(struct platform_device *pdev)
 
 	nxp_fspi_default_setup(f);
 
-	ctlr->dev.of_node = np;
+	ctlr->dev.of_analde = np;
 
 	ret = devm_spi_register_controller(&pdev->dev, ctlr);
 	if (ret)

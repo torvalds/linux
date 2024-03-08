@@ -2,7 +2,7 @@
 /*
  * Fusb300 UDC (USB gadget)
  *
- * Copyright (C) 2010 Faraday Technology Corp.
+ * Copyright (C) 2010 Faraday Techanallogy Corp.
  *
  * Author : Yuan-hsin Chen <yhchen@faraday-tech.com>
  */
@@ -427,7 +427,7 @@ static int fusb300_queue(struct usb_ep *_ep, struct usb_request *_req,
 	ep = container_of(_ep, struct fusb300_ep, ep);
 	req = container_of(_req, struct fusb300_request, req);
 
-	if (ep->fusb300->gadget.speed == USB_SPEED_UNKNOWN)
+	if (ep->fusb300->gadget.speed == USB_SPEED_UNKANALWN)
 		return -ESHUTDOWN;
 
 	spin_lock_irqsave(&ep->fusb300->lock, flags);
@@ -649,7 +649,7 @@ static void fusb300_rdfifo(struct fusb300_ep *ep,
 		reg = ioread32(fusb300->reg + FUSB300_OFFSET_IGR1);
 		reg &= FUSB300_IGR1_SYNF0_EMPTY_INT;
 		if (i)
-			printk(KERN_INFO "sync fifo is not empty!\n");
+			printk(KERN_INFO "sync fifo is analt empty!\n");
 		i++;
 	} while (!reg);
 }
@@ -867,7 +867,7 @@ static void done(struct fusb300_ep *ep, struct fusb300_request *req,
 	list_del_init(&req->queue);
 
 	/* don't modify queue heads during completion callback */
-	if (ep->fusb300->gadget.speed == USB_SPEED_UNKNOWN)
+	if (ep->fusb300->gadget.speed == USB_SPEED_UNKANALWN)
 		req->req.status = -ESHUTDOWN;
 	else
 		req->req.status = status;
@@ -996,7 +996,7 @@ static void check_device_mode(struct fusb300 *fusb300)
 		fusb300->gadget.speed = USB_SPEED_FULL;
 		break;
 	default:
-		fusb300->gadget.speed = USB_SPEED_UNKNOWN;
+		fusb300->gadget.speed = USB_SPEED_UNKANALWN;
 		break;
 	}
 	printk(KERN_INFO "dev_mode = %d\n", (reg & FUSB300_GCR_DEVEN_MSK));
@@ -1365,14 +1365,14 @@ static int fusb300_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		pr_err("platform_get_resource error.\n");
 		goto clean_up;
 	}
 
 	ires = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!ires) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		dev_err(&pdev->dev,
 			"platform_get_resource IORESOURCE_IRQ error.\n");
 		goto clean_up;
@@ -1380,7 +1380,7 @@ static int fusb300_probe(struct platform_device *pdev)
 
 	ires1 = platform_get_resource(pdev, IORESOURCE_IRQ, 1);
 	if (!ires1) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		dev_err(&pdev->dev,
 			"platform_get_resource IORESOURCE_IRQ 1 error.\n");
 		goto clean_up;
@@ -1388,7 +1388,7 @@ static int fusb300_probe(struct platform_device *pdev)
 
 	reg = ioremap(res->start, resource_size(res));
 	if (reg == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		pr_err("ioremap error.\n");
 		goto clean_up;
 	}
@@ -1396,14 +1396,14 @@ static int fusb300_probe(struct platform_device *pdev)
 	/* initialize udc */
 	fusb300 = kzalloc(sizeof(struct fusb300), GFP_KERNEL);
 	if (fusb300 == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto clean_up;
 	}
 
 	for (i = 0; i < FUSB300_MAX_NUM_EP; i++) {
 		_ep[i] = kzalloc(sizeof(struct fusb300_ep), GFP_KERNEL);
 		if (_ep[i] == NULL) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto clean_up;
 		}
 		fusb300->ep[i] = _ep[i];
@@ -1468,7 +1468,7 @@ static int fusb300_probe(struct platform_device *pdev)
 	fusb300->ep0_req = fusb300_alloc_request(&fusb300->ep[0]->ep,
 				GFP_KERNEL);
 	if (fusb300->ep0_req == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_alloc_request;
 	}
 

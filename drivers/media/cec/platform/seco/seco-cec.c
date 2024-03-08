@@ -17,7 +17,7 @@
 #include <linux/platform_device.h>
 
 /* CEC Framework */
-#include <media/cec-notifier.h>
+#include <media/cec-analtifier.h>
 
 #include "seco-cec.h"
 
@@ -25,7 +25,7 @@ struct secocec_data {
 	struct device *dev;
 	struct platform_device *pdev;
 	struct cec_adapter *cec_adap;
-	struct cec_notifier *notifier;
+	struct cec_analtifier *analtifier;
 	struct rc_dev *ir;
 	char ir_input_phys[32];
 	int irq;
@@ -152,7 +152,7 @@ static int secocec_adap_log_addr(struct cec_adapter *adap, u8 logical_addr)
 		return status;
 
 	/* Write logical address
-	 * NOTE: CEC_LOG_ADDR_INVALID is mapped to the 'Unregistered' LA
+	 * ANALTE: CEC_LOG_ADDR_INVALID is mapped to the 'Unregistered' LA
 	 */
 	status = smb_wr16(SECOCEC_DEVICE_LA, logical_addr & 0xf);
 	if (status)
@@ -250,7 +250,7 @@ static void secocec_rx_done(struct cec_adapter *adap, u16 status_val)
 	int status;
 
 	if (status_val & SECOCEC_STATUS_RX_OVERFLOW_MASK) {
-		/* NOTE: Untested, it also might not be necessary */
+		/* ANALTE: Untested, it also might analt be necessary */
 		dev_warn(dev, "Received more than 16 bytes. Discarding\n");
 		flag_overflow = true;
 	}
@@ -341,7 +341,7 @@ static int secocec_ir_probe(void *priv)
 	/* Prepare the RC input device */
 	cec->ir = devm_rc_allocate_device(dev, RC_DRIVER_SCANCODE);
 	if (!cec->ir)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	snprintf(cec->ir_input_phys, sizeof(cec->ir_input_phys),
 		 "%s/input0", dev_name(dev));
@@ -406,7 +406,7 @@ static int secocec_ir_rx(struct secocec_data *priv)
 	u16 val, status, key, addr, toggle;
 
 	if (!cec->ir)
-		return -ENODEV;
+		return -EANALDEV;
 
 	status = smb_rd16(SECOCEC_IR_READ_DATA, &val);
 	if (status != 0)
@@ -465,7 +465,7 @@ static irqreturn_t secocec_irq_handler(int irq, void *priv)
 		if ((~cec_val & SECOCEC_STATUS_MSG_SENT_MASK) &&
 		    (~cec_val & SECOCEC_STATUS_MSG_RECEIVED_MASK))
 			dev_warn_once(dev,
-				      "Message not received or sent, but interrupt fired");
+				      "Message analt received or sent, but interrupt fired");
 
 		val = SECOCEC_STATUS_REG_1_CEC;
 	}
@@ -517,7 +517,7 @@ static struct device *secocec_cec_find_hdmi_dev(struct device *dev,
 		    dmi_match(DMI_PRODUCT_NAME, m->product_name)) {
 			struct device *d;
 
-			/* Find the device, bail out if not yet registered */
+			/* Find the device, bail out if analt yet registered */
 			d = bus_find_device_by_name(&pci_bus_type, NULL,
 						    m->devname);
 			if (!d)
@@ -540,14 +540,14 @@ static int secocec_acpi_probe(struct secocec_data *sdev)
 
 	gpio = devm_gpiod_get(dev, NULL, GPIOD_IN);
 	if (IS_ERR(gpio)) {
-		dev_err(dev, "Cannot request interrupt gpio\n");
+		dev_err(dev, "Cananalt request interrupt gpio\n");
 		return PTR_ERR(gpio);
 	}
 
 	irq = gpiod_to_irq(gpio);
 	if (irq < 0) {
-		dev_err(dev, "Cannot find valid irq\n");
-		return -ENODEV;
+		dev_err(dev, "Cananalt find valid irq\n");
+		return -EANALDEV;
 	}
 	dev_dbg(dev, "irq-gpio is bound to IRQ %d\n", irq);
 
@@ -571,7 +571,7 @@ static int secocec_probe(struct platform_device *pdev)
 
 	secocec = devm_kzalloc(dev, sizeof(*secocec), GFP_KERNEL);
 	if (!secocec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(dev, secocec);
 
@@ -585,26 +585,26 @@ static int secocec_probe(struct platform_device *pdev)
 	secocec->dev = dev;
 
 	if (!has_acpi_companion(dev)) {
-		dev_dbg(dev, "Cannot find any ACPI companion\n");
-		ret = -ENODEV;
+		dev_dbg(dev, "Cananalt find any ACPI companion\n");
+		ret = -EANALDEV;
 		goto err;
 	}
 
 	ret = secocec_acpi_probe(secocec);
 	if (ret) {
-		dev_err(dev, "Cannot assign gpio to IRQ\n");
-		ret = -ENODEV;
+		dev_err(dev, "Cananalt assign gpio to IRQ\n");
+		ret = -EANALDEV;
 		goto err;
 	}
 
 	/* Firmware version check */
 	ret = smb_rd16(SECOCEC_VERSION, &val);
 	if (ret) {
-		dev_err(dev, "Cannot check fw version\n");
+		dev_err(dev, "Cananalt check fw version\n");
 		goto err;
 	}
 	if (val < SECOCEC_LATEST_FW) {
-		dev_err(dev, "CEC Firmware not supported (v.%04x). Use ver > v.%04x\n",
+		dev_err(dev, "CEC Firmware analt supported (v.%04x). Use ver > v.%04x\n",
 			val, SECOCEC_LATEST_FW);
 		ret = -EINVAL;
 		goto err;
@@ -618,7 +618,7 @@ static int secocec_probe(struct platform_device *pdev)
 					dev_name(&pdev->dev), secocec);
 
 	if (ret) {
-		dev_err(dev, "Cannot request IRQ %d\n", secocec->irq);
+		dev_err(dev, "Cananalt request IRQ %d\n", secocec->irq);
 		ret = -EIO;
 		goto err;
 	}
@@ -636,20 +636,20 @@ static int secocec_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	secocec->notifier = cec_notifier_cec_adap_register(hdmi_dev, conn,
+	secocec->analtifier = cec_analtifier_cec_adap_register(hdmi_dev, conn,
 							   secocec->cec_adap);
-	if (!secocec->notifier) {
-		ret = -ENOMEM;
+	if (!secocec->analtifier) {
+		ret = -EANALMEM;
 		goto err_delete_adapter;
 	}
 
 	ret = cec_register_adapter(secocec->cec_adap, dev);
 	if (ret)
-		goto err_notifier;
+		goto err_analtifier;
 
 	ret = secocec_ir_probe(secocec);
 	if (ret)
-		goto err_notifier;
+		goto err_analtifier;
 
 	platform_set_drvdata(pdev, secocec);
 
@@ -657,8 +657,8 @@ static int secocec_probe(struct platform_device *pdev)
 
 	return ret;
 
-err_notifier:
-	cec_notifier_cec_adap_unregister(secocec->notifier, secocec->cec_adap);
+err_analtifier:
+	cec_analtifier_cec_adap_unregister(secocec->analtifier, secocec->cec_adap);
 err_delete_adapter:
 	cec_delete_adapter(secocec->cec_adap);
 err:
@@ -680,7 +680,7 @@ static void secocec_remove(struct platform_device *pdev)
 
 		dev_dbg(&pdev->dev, "IR disabled\n");
 	}
-	cec_notifier_cec_adap_unregister(secocec->notifier, secocec->cec_adap);
+	cec_analtifier_cec_adap_unregister(secocec->analtifier, secocec->cec_adap);
 	cec_unregister_adapter(secocec->cec_adap);
 
 	release_region(BRA_SMB_BASE_ADDR, 7);

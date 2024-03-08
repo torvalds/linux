@@ -14,7 +14,7 @@ struct device;
 
 /*
  * These are used to avoid issues when <asm/dma.h> and the DMA_MODE_
- * defines are not available.
+ * defines are analt available.
  */
 #define COMEDI_ISADMA_READ	0
 #define COMEDI_ISADMA_WRITE	1
@@ -39,7 +39,7 @@ struct comedi_isadma_desc {
 
 /**
  * struct comedi_isadma - ISA DMA data
- * @dev:	device to allocate non-coherent memory for
+ * @dev:	device to allocate analn-coherent memory for
  * @desc:	cookie for each DMA buffer
  * @n_desc:	the number of cookies
  * @cur_dma:	the current cookie in use

@@ -35,7 +35,7 @@
 #define eeprom_cis1_sz	50
 
 /*  */
-/*  Customer ID, note that: */
+/*  Customer ID, analte that: */
 /*  This variable is initiailzed through EEPROM or registry, */
 /*  however, its definition may be different with that in EEPROM for */
 /*  EEPROM size consideration. So, we have to perform proper translation between them. */
@@ -62,7 +62,7 @@ enum {
 	RT_CID_819x_ALPHA = 16,
 	RT_CID_819x_Sitecom = 17,
 	RT_CID_CCX = 18, /*  It's set under CCX logo test and isn't demanded for CCX functions, but for test behavior like retry limit and tx report. By Bruce, 2009-02-17. */
-	RT_CID_819x_Lenovo = 19,
+	RT_CID_819x_Leanalvo = 19,
 	RT_CID_819x_QMI = 20,
 	RT_CID_819x_Edimax_Belkin = 21,
 	RT_CID_819x_Sercomm_Belkin = 22,
@@ -70,7 +70,7 @@ enum {
 	RT_CID_819x_MSI = 24,
 	RT_CID_819x_Acer = 25,
 	RT_CID_819x_AzWave_ASUS = 26,
-	RT_CID_819x_AzWave = 27, /*  For AzWave in PCIe, The ID is AzWave use and not only Asus */
+	RT_CID_819x_AzWave = 27, /*  For AzWave in PCIe, The ID is AzWave use and analt only Asus */
 	RT_CID_819x_HP = 28,
 	RT_CID_819x_WNC_COREGA = 29,
 	RT_CID_819x_Arcadyan_Belkin = 30,
@@ -83,7 +83,7 @@ enum {
 	RT_CID_PLANEX = 37,
 	RT_CID_CC_C = 38,
 	RT_CID_819x_Xavi = 39,
-	RT_CID_LENOVO_CHINA = 40,
+	RT_CID_LEANALVO_CHINA = 40,
 	RT_CID_INTEL_CHINA = 41,
 	RT_CID_TPLINK_HPWR = 42,
 	RT_CID_819x_Sercomm_Netgear = 43,

@@ -107,8 +107,8 @@ static irqreturn_t max7359_interrupt(int irq, void *dev_id)
 
 /*
  * Let MAX7359 fall into a deep sleep:
- * If no keys are pressed, enter sleep mode for 8192 ms. And if any
- * key is pressed, the MAX7359 returns to normal operating mode.
+ * If anal keys are pressed, enter sleep mode for 8192 ms. And if any
+ * key is pressed, the MAX7359 returns to analrmal operating mode.
  */
 static inline void max7359_fall_deepsleep(struct i2c_client *client)
 {
@@ -165,7 +165,7 @@ static int max7359_probe(struct i2c_client *client)
 	int error;
 
 	if (!client->irq) {
-		dev_err(&client->dev, "The irq number should not be zero\n");
+		dev_err(&client->dev, "The irq number should analt be zero\n");
 		return -EINVAL;
 	}
 
@@ -173,7 +173,7 @@ static int max7359_probe(struct i2c_client *client)
 	ret = max7359_read_reg(client, MAX7359_REG_KEYFIFO);
 	if (ret < 0) {
 		dev_err(&client->dev, "failed to detect device\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	dev_dbg(&client->dev, "keys FIFO is 0x%02x\n", ret);
@@ -182,13 +182,13 @@ static int max7359_probe(struct i2c_client *client)
 			      GFP_KERNEL);
 	if (!keypad) {
 		dev_err(&client->dev, "failed to allocate memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	input_dev = devm_input_allocate_device(&client->dev);
 	if (!input_dev) {
 		dev_err(&client->dev, "failed to allocate input device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	keypad->client = client;

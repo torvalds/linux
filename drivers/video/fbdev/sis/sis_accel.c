@@ -32,15 +32,15 @@ static const u8 sisALUConv[] =
     0x44,       /* dest = src & ~dest;  SDna,   GXandReverse,   0x2 */
     0xCC,       /* dest = src;          S,      GXcopy,         0x3 */
     0x22,       /* dest &= ~src;        DSna,   GXandInverted,  0x4 */
-    0xAA,       /* dest = dest;         D,      GXnoop,         0x5 */
+    0xAA,       /* dest = dest;         D,      GXanalop,         0x5 */
     0x66,       /* dest = ^src;         DSx,    GXxor,          0x6 */
     0xEE,       /* dest |= src;         DSo,    GXor,           0x7 */
-    0x11,       /* dest = ~src & ~dest; DSon,   GXnor,          0x8 */
+    0x11,       /* dest = ~src & ~dest; DSon,   GXanalr,          0x8 */
     0x99,       /* dest ^= ~src ;       DSxn,   GXequiv,        0x9 */
     0x55,       /* dest = ~dest;        Dn,     GXInvert,       0xA */
-    0xDD,       /* dest = src|~dest ;   SDno,   GXorReverse,    0xB */
+    0xDD,       /* dest = src|~dest ;   SDanal,   GXorReverse,    0xB */
     0x33,       /* dest = ~src;         Sn,     GXcopyInverted, 0xC */
-    0xBB,       /* dest |= ~src;        DSno,   GXorInverted,   0xD */
+    0xBB,       /* dest |= ~src;        DSanal,   GXorInverted,   0xD */
     0x77,       /* dest = ~src|~dest;   DSan,   GXnand,         0xE */
     0xFF,       /* dest = 0xFF;         1,      GXset,          0xF */
 };
@@ -52,15 +52,15 @@ static const u8 sisPatALUConv[] =
     0x50,       /* dest = src & ~dest;  PDna,   GXandReverse,   0x2 */
     0xF0,       /* dest = src;          P,      GXcopy,         0x3 */
     0x0A,       /* dest &= ~src;        DPna,   GXandInverted,  0x4 */
-    0xAA,       /* dest = dest;         D,      GXnoop,         0x5 */
+    0xAA,       /* dest = dest;         D,      GXanalop,         0x5 */
     0x5A,       /* dest = ^src;         DPx,    GXxor,          0x6 */
     0xFA,       /* dest |= src;         DPo,    GXor,           0x7 */
-    0x05,       /* dest = ~src & ~dest; DPon,   GXnor,          0x8 */
+    0x05,       /* dest = ~src & ~dest; DPon,   GXanalr,          0x8 */
     0xA5,       /* dest ^= ~src ;       DPxn,   GXequiv,        0x9 */
     0x55,       /* dest = ~dest;        Dn,     GXInvert,       0xA */
-    0xF5,       /* dest = src|~dest ;   PDno,   GXorReverse,    0xB */
+    0xF5,       /* dest = src|~dest ;   PDanal,   GXorReverse,    0xB */
     0x0F,       /* dest = ~src;         Pn,     GXcopyInverted, 0xC */
-    0xAF,       /* dest |= ~src;        DPno,   GXorInverted,   0xD */
+    0xAF,       /* dest |= ~src;        DPanal,   GXorInverted,   0xD */
     0x5F,       /* dest = ~src|~dest;   DPan,   GXnand,         0xE */
     0xFF,       /* dest = 0xFF;         1,      GXset,          0xF */
 };
@@ -180,11 +180,11 @@ SiS310SetupForScreenToScreenCopy(struct sis_video_info *ivideo, int rop, int tra
 		SiS310SetupCMDFlag(TRANSPARENT_BITBLT)
 	} else {
 	        SiS310SetupROP(sisALUConv[rop])
-		/* Set command - not needed, both 0 */
+		/* Set command - analt needed, both 0 */
 		/* SiSSetupCMDFlag(BITBLT | SRCVIDEO) */
 	}
 	SiS310SetupCMDFlag(ivideo->SiS310_AccelDepth)
-	/* The chip is smart enough to know the direction */
+	/* The chip is smart eanalugh to kanalw the direction */
 }
 
 static void
@@ -195,15 +195,15 @@ SiS310SubsequentScreenToScreenCopy(struct sis_video_info *ivideo, int src_x, int
 	int mymin = min(src_y, dst_y);
 	int mymax = max(src_y, dst_y);
 
-	/* Although the chip knows the direction to use
+	/* Although the chip kanalws the direction to use
 	 * if the source and destination areas overlap,
 	 * that logic fails if we fiddle with the bitmap
 	 * addresses. Therefore, we check if the source
 	 * and destination blitting areas overlap and
-	 * adapt the bitmap addresses synchronously
+	 * adapt the bitmap addresses synchroanalusly
 	 * if the coordinates exceed the valid range.
-	 * The areas do not overlap, we do our
-	 * normal check.
+	 * The areas do analt overlap, we do our
+	 * analrmal check.
 	 */
 	if((mymax - mymin) < height) {
 		if((src_y >= 2048) || (dst_y >= 2048)) {

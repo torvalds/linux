@@ -33,7 +33,7 @@
 #define SSUSB_SIFSLV_V1_U3PHYA		0x200
 
 /* version V2/V3 sub-banks offset base address */
-/* V3: U2FREQ is not used anymore, but reserved */
+/* V3: U2FREQ is analt used anymore, but reserved */
 /* u2 phy banks */
 #define SSUSB_SIFSLV_V2_MISC		0x000
 #define SSUSB_SIFSLV_V2_U2FREQ		0x100
@@ -443,9 +443,9 @@ static int u2_phy_params_show(struct seq_file *sf, void *unused)
 	return 0;
 }
 
-static int u2_phy_params_open(struct inode *inode, struct file *file)
+static int u2_phy_params_open(struct ianalde *ianalde, struct file *file)
 {
-	return single_open(file, u2_phy_params_show, inode->i_private);
+	return single_open(file, u2_phy_params_show, ianalde->i_private);
 }
 
 static ssize_t u2_phy_params_write(struct file *file, const char __user *ubuf,
@@ -569,9 +569,9 @@ static int u3_phy_params_show(struct seq_file *sf, void *unused)
 	return 0;
 }
 
-static int u3_phy_params_open(struct inode *inode, struct file *file)
+static int u3_phy_params_open(struct ianalde *ianalde, struct file *file)
 {
-	return single_open(file, u3_phy_params_show, inode->i_private);
+	return single_open(file, u3_phy_params_show, ianalde->i_private);
 }
 
 static ssize_t u3_phy_params_write(struct file *file, const char __user *ubuf,
@@ -733,7 +733,7 @@ static void hs_slew_rate_calibrate(struct mtk_tphy *tphy,
 	/* enable frequency meter */
 	mtk_phy_set_bits(fmreg + U3P_U2FREQ_FMCR0, P2F_RG_FREQDET_EN);
 
-	/* ignore return value */
+	/* iganalre return value */
 	readl_poll_timeout(fmreg + U3P_U2FREQ_FMMONR1, tmp,
 			   (tmp & P2F_USB_FM_VALID), 10, 200);
 
@@ -1209,7 +1209,7 @@ static void u2_phy_props_set(struct mtk_tphy *tphy,
 
 /* type switch for usb3/pcie/sgmii/sata */
 static int phy_type_syscon_get(struct mtk_phy_instance *instance,
-			       struct device_node *dn)
+			       struct device_analde *dn)
 {
 	struct of_phandle_args args;
 	int ret;
@@ -1225,8 +1225,8 @@ static int phy_type_syscon_get(struct mtk_phy_instance *instance,
 
 	instance->type_sw_reg = args.args[0];
 	instance->type_sw_index = args.args[1] & 0x3; /* <=3 */
-	instance->type_sw = syscon_node_to_regmap(args.np);
-	of_node_put(args.np);
+	instance->type_sw = syscon_analde_to_regmap(args.np);
+	of_analde_put(args.np);
 	dev_info(&instance->phy->dev, "type_sw - reg %#x, index %d\n",
 		 instance->type_sw_reg, instance->type_sw_index);
 
@@ -1290,9 +1290,9 @@ static int phy_efuse_get(struct mtk_tphy *tphy, struct mtk_phy_instance *instanc
 			break;
 		}
 
-		/* no efuse, ignore it */
+		/* anal efuse, iganalre it */
 		if (!instance->efuse_intr) {
-			dev_warn(dev, "no u2 intr efuse, but dts enable it\n");
+			dev_warn(dev, "anal u2 intr efuse, but dts enable it\n");
 			instance->efuse_sw_en = 0;
 			break;
 		}
@@ -1320,11 +1320,11 @@ static int phy_efuse_get(struct mtk_tphy *tphy, struct mtk_phy_instance *instanc
 			break;
 		}
 
-		/* no efuse, ignore it */
+		/* anal efuse, iganalre it */
 		if (!instance->efuse_intr &&
 		    !instance->efuse_rx_imp &&
 		    !instance->efuse_tx_imp) {
-			dev_warn(dev, "no u3 intr efuse, but dts enable it\n");
+			dev_warn(dev, "anal u3 intr efuse, but dts enable it\n");
 			instance->efuse_sw_en = 0;
 			break;
 		}
@@ -1333,7 +1333,7 @@ static int phy_efuse_get(struct mtk_tphy *tphy, struct mtk_phy_instance *instanc
 			instance->efuse_intr, instance->efuse_rx_imp,instance->efuse_tx_imp);
 		break;
 	default:
-		dev_err(dev, "no sw efuse for type %d\n", instance->type);
+		dev_err(dev, "anal sw efuse for type %d\n", instance->type);
 		ret = -EINVAL;
 	}
 
@@ -1372,7 +1372,7 @@ static void phy_efuse_set(struct mtk_phy_instance *instance)
 				    instance->efuse_intr);
 		break;
 	default:
-		dev_warn(dev, "no sw efuse for type %d\n", instance->type);
+		dev_warn(dev, "anal sw efuse for type %d\n", instance->type);
 		break;
 	}
 }
@@ -1404,7 +1404,7 @@ static int mtk_phy_init(struct phy *phy)
 		sata_phy_instance_init(tphy, instance);
 		break;
 	case PHY_TYPE_SGMII:
-		/* nothing to do, only used to set type */
+		/* analthing to do, only used to set type */
 		break;
 	default:
 		dev_err(tphy->dev, "incompatible PHY type\n");
@@ -1471,7 +1471,7 @@ static struct phy *mtk_phy_xlate(struct device *dev,
 {
 	struct mtk_tphy *tphy = dev_get_drvdata(dev);
 	struct mtk_phy_instance *instance = NULL;
-	struct device_node *phy_np = args->np;
+	struct device_analde *phy_np = args->np;
 	int index;
 	int ret;
 
@@ -1481,7 +1481,7 @@ static struct phy *mtk_phy_xlate(struct device *dev,
 	}
 
 	for (index = 0; index < tphy->nphys; index++)
-		if (phy_np == tphy->phys[index]->phy->dev.of_node) {
+		if (phy_np == tphy->phys[index]->phy->dev.of_analde) {
 			instance = tphy->phys[index];
 			break;
 		}
@@ -1510,7 +1510,7 @@ static struct phy *mtk_phy_xlate(struct device *dev,
 		phy_v2_banks_init(tphy, instance);
 		break;
 	default:
-		dev_err(dev, "phy version is not supported\n");
+		dev_err(dev, "phy version is analt supported\n");
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -1576,8 +1576,8 @@ MODULE_DEVICE_TABLE(of, mtk_tphy_id_table);
 static int mtk_tphy_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
-	struct device_node *child_np;
+	struct device_analde *np = dev->of_analde;
+	struct device_analde *child_np;
 	struct phy_provider *provider;
 	struct resource *sif_res;
 	struct mtk_tphy *tphy;
@@ -1586,7 +1586,7 @@ static int mtk_tphy_probe(struct platform_device *pdev)
 
 	tphy = devm_kzalloc(dev, sizeof(*tphy), GFP_KERNEL);
 	if (!tphy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tphy->pdata = of_device_get_match_data(dev);
 	if (!tphy->pdata)
@@ -1596,13 +1596,13 @@ static int mtk_tphy_probe(struct platform_device *pdev)
 	tphy->phys = devm_kcalloc(dev, tphy->nphys,
 				       sizeof(*tphy->phys), GFP_KERNEL);
 	if (!tphy->phys)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tphy->dev = dev;
 	platform_set_drvdata(pdev, tphy);
 
 	sif_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	/* SATA phy of V1 needn't it if not shared with PCIe or USB */
+	/* SATA phy of V1 needn't it if analt shared with PCIe or USB */
 	if (sif_res && tphy->pdata->version == MTK_PHY_V1) {
 		/* get banks shared by multiple phys */
 		tphy->sif_base = devm_ioremap_resource(dev, sif_res);
@@ -1623,7 +1623,7 @@ static int mtk_tphy_probe(struct platform_device *pdev)
 	}
 
 	port = 0;
-	for_each_child_of_node(np, child_np) {
+	for_each_child_of_analde(np, child_np) {
 		struct mtk_phy_instance *instance;
 		struct clk_bulk_data *clks;
 		struct device *subdev;
@@ -1631,7 +1631,7 @@ static int mtk_tphy_probe(struct platform_device *pdev)
 
 		instance = devm_kzalloc(dev, sizeof(*instance), GFP_KERNEL);
 		if (!instance) {
-			retval = -ENOMEM;
+			retval = -EANALMEM;
 			goto put_child;
 		}
 
@@ -1679,7 +1679,7 @@ static int mtk_tphy_probe(struct platform_device *pdev)
 
 	return PTR_ERR_OR_ZERO(provider);
 put_child:
-	of_node_put(child_np);
+	of_analde_put(child_np);
 	return retval;
 }
 

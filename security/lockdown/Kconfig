@@ -18,16 +18,16 @@ config SECURITY_LOCKDOWN_LSM_EARLY
 
 choice
 	prompt "Kernel default lockdown mode"
-	default LOCK_DOWN_KERNEL_FORCE_NONE
+	default LOCK_DOWN_KERNEL_FORCE_ANALNE
 	depends on SECURITY_LOCKDOWN_LSM
 	help
 	  The kernel can be configured to default to differing levels of
 	  lockdown.
 
-config LOCK_DOWN_KERNEL_FORCE_NONE
-	bool "None"
+config LOCK_DOWN_KERNEL_FORCE_ANALNE
+	bool "Analne"
 	help
-	  No lockdown functionality is enabled by default. Lockdown may be
+	  Anal lockdown functionality is enabled by default. Lockdown may be
 	  enabled via the kernel commandline or /sys/kernel/security/lockdown.
 
 config LOCK_DOWN_KERNEL_FORCE_INTEGRITY

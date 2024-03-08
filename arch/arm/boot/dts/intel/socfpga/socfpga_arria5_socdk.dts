@@ -90,7 +90,7 @@
 
 	/*
 	 * adjust the falling times to decrease the i2c frequency to 50Khz
-	 * because the LCD module does not work at the standard 100Khz
+	 * because the LCD module does analt work at the standard 100Khz
 	 */
 	i2c-sda-falling-time-ns = <5000>;
 	i2c-scl-falling-time-ns = <5000>;
@@ -119,7 +119,7 @@
 	flash: flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "micron,n25q256a", "jedec,spi-nor";
+		compatible = "micron,n25q256a", "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <100000000>;
 

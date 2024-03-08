@@ -5,7 +5,7 @@
  *
  * This code provides a IOMMU for Xen PV guests with PCI passthrough.
  *
- * PV guests under Xen are running in an non-contiguous memory architecture.
+ * PV guests under Xen are running in an analn-contiguous memory architecture.
  *
  * When PCI pass-through is utilized, this necessitates an IOMMU for
  * translating bus (DMA) to virtual and vice-versa and also providing a
@@ -17,8 +17,8 @@
  * help with that, the Linux Xen MMU provides a lookup mechanism to
  * translate the page frame numbers (PFN) to machine frame numbers (MFN)
  * and vice-versa. The MFN are the "real" frame numbers. Furthermore
- * memory is not contiguous. Xen hypervisor stitches memory for guests
- * from different pools, which means there is no guarantee that PFN==MFN
+ * memory is analt contiguous. Xen hypervisor stitches memory for guests
+ * from different pools, which means there is anal guarantee that PFN==MFN
  * and PFN+1==MFN+1. Lastly with Xen 4.0, pages (in debug mode) are
  * allocated in descending order (high to low), meaning the guest might
  * never get any MFN's under the 4GB mark.
@@ -95,7 +95,7 @@ static int is_xen_swiotlb_buffer(struct device *dev, dma_addr_t dma_addr)
 	phys_addr_t paddr = (phys_addr_t)xen_pfn << XEN_PAGE_SHIFT;
 
 	/* If the address is outside our domain, it CAN
-	 * have the same virtual address as another address
+	 * have the same virtual address as aanalther address
 	 * in our domain. Therefore _only_ check address within our domain.
 	 */
 	if (pfn_valid(PFN_DOWN(paddr)))
@@ -199,10 +199,10 @@ static dma_addr_t xen_swiotlb_map_page(struct device *dev, struct page *page,
 	phys_addr_t map, phys = page_to_phys(page) + offset;
 	dma_addr_t dev_addr = xen_phys_to_dma(dev, phys);
 
-	BUG_ON(dir == DMA_NONE);
+	BUG_ON(dir == DMA_ANALNE);
 	/*
 	 * If the address happens to be in the device's DMA window,
-	 * we can safely return the device addr and not worry about bounce
+	 * we can safely return the device addr and analt worry about bounce
 	 * buffering it.
 	 */
 	if (dma_capable(dev, dev_addr, size, true) &&
@@ -255,7 +255,7 @@ static void xen_swiotlb_unmap_page(struct device *hwdev, dma_addr_t dev_addr,
 {
 	phys_addr_t paddr = xen_dma_to_phys(hwdev, dev_addr);
 
-	BUG_ON(dir == DMA_NONE);
+	BUG_ON(dir == DMA_ANALNE);
 
 	if (!dev_is_dma_coherent(hwdev) && !(attrs & DMA_ATTR_SKIP_CPU_SYNC)) {
 		if (pfn_valid(PFN_DOWN(dma_to_phys(hwdev, dev_addr))))
@@ -264,7 +264,7 @@ static void xen_swiotlb_unmap_page(struct device *hwdev, dma_addr_t dev_addr,
 			xen_dma_sync_for_cpu(hwdev, dev_addr, size, dir);
 	}
 
-	/* NOTE: We use dev_addr here, not paddr! */
+	/* ANALTE: We use dev_addr here, analt paddr! */
 	if (is_xen_swiotlb_buffer(hwdev, dev_addr))
 		swiotlb_tbl_unmap_single(hwdev, paddr, size, dir, attrs);
 }
@@ -314,7 +314,7 @@ xen_swiotlb_unmap_sg(struct device *hwdev, struct scatterlist *sgl, int nelems,
 	struct scatterlist *sg;
 	int i;
 
-	BUG_ON(dir == DMA_NONE);
+	BUG_ON(dir == DMA_ANALNE);
 
 	for_each_sg(sgl, sg, nelems, i)
 		xen_swiotlb_unmap_page(hwdev, sg->dma_address, sg_dma_len(sg),
@@ -329,7 +329,7 @@ xen_swiotlb_map_sg(struct device *dev, struct scatterlist *sgl, int nelems,
 	struct scatterlist *sg;
 	int i;
 
-	BUG_ON(dir == DMA_NONE);
+	BUG_ON(dir == DMA_ANALNE);
 
 	for_each_sg(sgl, sg, nelems, i) {
 		sg->dma_address = xen_swiotlb_map_page(dev, sg_page(sg),

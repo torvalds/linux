@@ -19,13 +19,13 @@ description: |+
 
   This device tree binding can be used to bind PM domain consumer devices with
   their PM domains provided by PM domain providers. A PM domain provider can be
-  represented by any node in the device tree and can provide one or more PM
-  domains. A consumer node can refer to the provider by a phandle and a set of
+  represented by any analde in the device tree and can provide one or more PM
+  domains. A consumer analde can refer to the provider by a phandle and a set of
   phandle arguments (so called PM domain specifiers) of length specified by the
-  \#power-domain-cells property in the PM domain provider node.
+  \#power-domain-cells property in the PM domain provider analde.
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^(power-controller|power-domain|performance-domain)([@-].*)?$"
 
   domain-idle-states:
@@ -37,8 +37,8 @@ properties:
       power-domain provider. The idle state definitions are compatible with the
       domain-idle-state bindings, specified in ./domain-idle-state.yaml.
 
-      Note that, the domain-idle-state property reflects the idle states of this
-      PM domain and not the idle states of the devices or sub-domains in the PM
+      Analte that, the domain-idle-state property reflects the idle states of this
+      PM domain and analt the idle states of the devices or sub-domains in the PM
       domain. Devices and sub-domains have their own idle states independent of
       the parent domain's idle states. In the absence of this property, the
       domain would be considered as capable of being powered-on or powered-off.
@@ -53,8 +53,8 @@ properties:
 
   "#power-domain-cells":
     description:
-      Number of cells in a PM domain specifier. Typically 0 for nodes
-      representing a single PM domain and 1 for nodes providing multiple PM
+      Number of cells in a PM domain specifier. Typically 0 for analdes
+      representing a single PM domain and 1 for analdes providing multiple PM
       domains (e.g. power controllers), but can be any value as specified
       by device tree binding documentation of particular provider.
 
@@ -62,7 +62,7 @@ properties:
     description:
       A phandle and PM domain specifier as defined by bindings of the power
       controller specified by phandle. Some power domains might be powered
-      from another power domain (or have other hardware specific
+      from aanalther power domain (or have other hardware specific
       dependencies). For representing such dependency a standard PM domain
       consumer binding is used. When provided, all domains created
       by the given provider should be subdomains of the domain specified
@@ -81,7 +81,7 @@ examples:
         #power-domain-cells = <1>;
     };
 
-    // The node above defines a power controller that is a PM domain provider and
+    // The analde above defines a power controller that is a PM domain provider and
     // expects one cell as its phandle argument.
 
   - |
@@ -98,7 +98,7 @@ examples:
         #power-domain-cells = <1>;
     };
 
-    // The nodes above define two power controllers: 'parent' and 'child'.
+    // The analdes above define two power controllers: 'parent' and 'child'.
     // Domains created by the 'child' power controller are subdomains of '0' power
     // domain provided by the 'parent' power controller.
 

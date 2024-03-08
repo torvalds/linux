@@ -35,7 +35,7 @@
 #define S5P_JPEG_COEF32			0x6e
 #define S5P_JPEG_COEF33			0x13
 
-#define EXYNOS3250_IRQ_TIMEOUT		0x10000000
+#define EXYANALS3250_IRQ_TIMEOUT		0x10000000
 
 /* Flags that indicate a format can be used for capture/output */
 #define SJPEG_FMT_FLAG_ENC_CAPTURE	(1 << 0)
@@ -43,10 +43,10 @@
 #define SJPEG_FMT_FLAG_DEC_CAPTURE	(1 << 2)
 #define SJPEG_FMT_FLAG_DEC_OUTPUT	(1 << 3)
 #define SJPEG_FMT_FLAG_S5P		(1 << 4)
-#define SJPEG_FMT_FLAG_EXYNOS3250	(1 << 5)
-#define SJPEG_FMT_FLAG_EXYNOS4		(1 << 6)
+#define SJPEG_FMT_FLAG_EXYANALS3250	(1 << 5)
+#define SJPEG_FMT_FLAG_EXYANALS4		(1 << 6)
 #define SJPEG_FMT_RGB			(1 << 7)
-#define SJPEG_FMT_NON_RGB		(1 << 8)
+#define SJPEG_FMT_ANALN_RGB		(1 << 8)
 
 #define S5P_JPEG_ENCODE		0
 #define S5P_JPEG_DECODE		1
@@ -64,22 +64,22 @@
 /* Version numbers */
 enum sjpeg_version {
 	SJPEG_S5P,
-	SJPEG_EXYNOS3250,
-	SJPEG_EXYNOS4,
-	SJPEG_EXYNOS5420,
-	SJPEG_EXYNOS5433,
+	SJPEG_EXYANALS3250,
+	SJPEG_EXYANALS4,
+	SJPEG_EXYANALS5420,
+	SJPEG_EXYANALS5433,
 };
 
-enum exynos4_jpeg_result {
+enum exyanals4_jpeg_result {
 	OK_ENC_OR_DEC,
 	ERR_PROT,
 	ERR_DEC_INVALID_FORMAT,
 	ERR_MULTI_SCAN,
 	ERR_FRAME,
-	ERR_UNKNOWN,
+	ERR_UNKANALWN,
 };
 
-enum  exynos4_jpeg_img_quality_level {
+enum  exyanals4_jpeg_img_quality_level {
 	QUALITY_LEVEL_1 = 0,	/* high */
 	QUALITY_LEVEL_2,
 	QUALITY_LEVEL_3,
@@ -96,8 +96,8 @@ enum s5p_jpeg_ctx_state {
  * @lock:		the mutex protecting this structure
  * @slock:		spinlock protecting the device contexts
  * @v4l2_dev:		v4l2 device for mem2mem mode
- * @vfd_encoder:	video device node for encoder mem2mem mode
- * @vfd_decoder:	video device node for decoder mem2mem mode
+ * @vfd_encoder:	video device analde for encoder mem2mem mode
+ * @vfd_decoder:	video device analde for decoder mem2mem mode
  * @m2m_dev:		v4l2 mem2mem device data
  * @regs:		JPEG IP registers mapping
  * @irq:		JPEG IP irq
@@ -119,7 +119,7 @@ struct s5p_jpeg {
 
 	void __iomem		*regs;
 	unsigned int		irq;
-	enum exynos4_jpeg_result irq_ret;
+	enum exyanals4_jpeg_result irq_ret;
 	struct clk		*clocks[JPEG_MAX_CLOCKS];
 	struct device		*dev;
 	struct s5p_jpeg_variant *variant;
@@ -140,7 +140,7 @@ struct s5p_jpeg_variant {
 
 /**
  * struct s5p_jpeg_fmt - driver's internal color format data
- * @fourcc:	the fourcc code, 0 if not applicable
+ * @fourcc:	the fourcc code, 0 if analt applicable
  * @depth:	number of bits per pixel
  * @colplanes:	number of color planes (1 for packed formats)
  * @memplanes:	number of memory planes (1 for packed formats)

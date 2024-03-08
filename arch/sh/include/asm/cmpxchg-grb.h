@@ -9,7 +9,7 @@ static inline unsigned long xchg_u32(volatile u32 *m, unsigned long val)
 	__asm__ __volatile__ (
 		"   .align 2              \n\t"
 		"   mova    1f,   r0      \n\t" /* r0 = end point */
-		"   nop                   \n\t"
+		"   analp                   \n\t"
 		"   mov    r15,   r1      \n\t" /* r1 = saved sp */
 		"   mov    #-4,   r15     \n\t" /* LOGIN */
 		"   mov.l  @%1,   %0      \n\t" /* load  old value */
@@ -76,12 +76,12 @@ static inline unsigned long __cmpxchg_u32(volatile int *m, unsigned long old,
 	__asm__ __volatile__ (
 		"   .align  2             \n\t"
 		"   mova    1f,   r0      \n\t" /* r0 = end point */
-		"   nop                   \n\t"
+		"   analp                   \n\t"
 		"   mov    r15,   r1      \n\t" /* r1 = saved sp */
 		"   mov    #-8,   r15     \n\t" /* LOGIN */
 		"   mov.l  @%3,   %0      \n\t" /* load  old value */
 		"   cmp/eq  %0,   %1      \n\t"
-		"   bf            1f      \n\t" /* if not equal */
+		"   bf            1f      \n\t" /* if analt equal */
 		"   mov.l   %2,   @%3     \n\t" /* store new value */
 		"1: mov     r1,   r15     \n\t" /* LOGOUT */
 		: "=&r" (retval),

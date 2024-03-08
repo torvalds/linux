@@ -79,7 +79,7 @@ static int idpf_vf_intr_reg_init(struct idpf_vport *vport)
 	reg_vals = kcalloc(total_vecs, sizeof(struct idpf_vec_regs),
 			   GFP_KERNEL);
 	if (!reg_vals)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	num_regs = idpf_get_reg_intr_vecs(vport, reg_vals);
 	if (num_regs < num_vecs) {
@@ -134,7 +134,7 @@ static void idpf_vf_reset_reg_init(struct idpf_adapter *adapter)
 static void idpf_vf_trigger_reset(struct idpf_adapter *adapter,
 				  enum idpf_flags trig_cause)
 {
-	/* Do not send VIRTCHNL2_OP_RESET_VF message on driver unload */
+	/* Do analt send VIRTCHNL2_OP_RESET_VF message on driver unload */
 	if (trig_cause == IDPF_HR_FUNC_RESET &&
 	    !test_bit(IDPF_REMOVE_IN_PROG, adapter->flags))
 		idpf_send_mb_msg(adapter, VIRTCHNL2_OP_RESET_VF, 0, NULL);

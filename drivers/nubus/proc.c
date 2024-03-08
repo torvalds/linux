@@ -107,10 +107,10 @@ nubus_proc_alloc_pde_data(unsigned char *ptr, unsigned int size)
 
 static int nubus_proc_rsrc_show(struct seq_file *m, void *v)
 {
-	struct inode *inode = m->private;
+	struct ianalde *ianalde = m->private;
 	struct nubus_proc_pde_data *pded;
 
-	pded = pde_data(inode);
+	pded = pde_data(ianalde);
 	if (!pded)
 		return 0;
 
@@ -118,7 +118,7 @@ static int nubus_proc_rsrc_show(struct seq_file *m, void *v)
 		return -EFBIG;
 
 	if (pded->res_size) {
-		int lanes = (int)proc_get_parent_data(inode);
+		int lanes = (int)proc_get_parent_data(ianalde);
 		struct nubus_dirent ent;
 
 		if (!lanes)
@@ -138,9 +138,9 @@ static int nubus_proc_rsrc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int nubus_rsrc_proc_open(struct inode *inode, struct file *file)
+static int nubus_rsrc_proc_open(struct ianalde *ianalde, struct file *file)
 {
-	return single_open(file, nubus_proc_rsrc_show, inode);
+	return single_open(file, nubus_proc_rsrc_show, ianalde);
 }
 
 static const struct proc_ops nubus_rsrc_proc_ops = {

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright(c) 2020 Intel Corporation. */
 
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 #include <linux/firmware.h>
 #include <linux/device.h>
 #include <linux/slab.h>
@@ -14,7 +14,7 @@
 static DECLARE_RWSEM(cxl_memdev_rwsem);
 
 /*
- * An entire PCI topology full of devices should be enough for any
+ * An entire PCI topology full of devices should be eanalugh for any
  * config
  */
 #define CXL_MEM_MAX_DEVS 65536
@@ -30,7 +30,7 @@ static void cxl_memdev_release(struct device *dev)
 	kfree(cxlmd);
 }
 
-static char *cxl_memdev_devnode(const struct device *dev, umode_t *mode, kuid_t *uid,
+static char *cxl_memdev_devanalde(const struct device *dev, umode_t *mode, kuid_t *uid,
 				kgid_t *gid)
 {
 	return kasprintf(GFP_KERNEL, "cxl/%s", dev_name(dev));
@@ -111,12 +111,12 @@ static ssize_t serial_show(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR_RO(serial);
 
-static ssize_t numa_node_show(struct device *dev, struct device_attribute *attr,
+static ssize_t numa_analde_show(struct device *dev, struct device_attribute *attr,
 			      char *buf)
 {
-	return sysfs_emit(buf, "%d\n", dev_to_node(dev));
+	return sysfs_emit(buf, "%d\n", dev_to_analde(dev));
 }
-static DEVICE_ATTR_RO(numa_node);
+static DEVICE_ATTR_RO(numa_analde);
 
 static ssize_t security_state_show(struct device *dev,
 				   struct device_attribute *attr,
@@ -209,7 +209,7 @@ static int cxl_get_poison_by_memdev(struct cxl_memdev *cxlmd)
 		length = resource_size(&cxlds->ram_res);
 		rc = cxl_mem_get_poison(cxlmd, offset, length, NULL);
 		/*
-		 * Invalid Physical Address is not an error for
+		 * Invalid Physical Address is analt an error for
 		 * volatile addresses. Device support is optional.
 		 */
 		if (rc == -EFAULT)
@@ -238,7 +238,7 @@ int cxl_trigger_poison_list(struct cxl_memdev *cxlmd)
 	}
 
 	if (cxl_num_decoders_committed(port) == 0) {
-		/* No regions mapped to this memdev */
+		/* Anal regions mapped to this memdev */
 		rc = cxl_get_poison_by_memdev(cxlmd);
 	} else {
 		/* Regions mapped, collect poison by endpoint */
@@ -303,16 +303,16 @@ static int cxl_validate_poison_dpa(struct cxl_memdev *cxlmd, u64 dpa)
 		return 0;
 
 	if (!resource_size(&cxlds->dpa_res)) {
-		dev_dbg(cxlds->dev, "device has no dpa resource\n");
+		dev_dbg(cxlds->dev, "device has anal dpa resource\n");
 		return -EINVAL;
 	}
 	if (dpa < cxlds->dpa_res.start || dpa > cxlds->dpa_res.end) {
-		dev_dbg(cxlds->dev, "dpa:0x%llx not in resource:%pR\n",
+		dev_dbg(cxlds->dev, "dpa:0x%llx analt in resource:%pR\n",
 			dpa, &cxlds->dpa_res);
 		return -EINVAL;
 	}
 	if (!IS_ALIGNED(dpa, 64)) {
-		dev_dbg(cxlds->dev, "dpa:0x%llx is not 64-byte aligned\n", dpa);
+		dev_dbg(cxlds->dev, "dpa:0x%llx is analt 64-byte aligned\n", dpa);
 		return -EINVAL;
 	}
 
@@ -443,7 +443,7 @@ static struct attribute *cxl_memdev_attributes[] = {
 	&dev_attr_firmware_version.attr,
 	&dev_attr_payload_max.attr,
 	&dev_attr_label_storage_size.attr,
-	&dev_attr_numa_node.attr,
+	&dev_attr_numa_analde.attr,
 	NULL,
 };
 
@@ -495,7 +495,7 @@ static struct attribute *cxl_memdev_security_attributes[] = {
 static umode_t cxl_memdev_visible(struct kobject *kobj, struct attribute *a,
 				  int n)
 {
-	if (!IS_ENABLED(CONFIG_NUMA) && a == &dev_attr_numa_node.attr)
+	if (!IS_ENABLED(CONFIG_NUMA) && a == &dev_attr_numa_analde.attr)
 		return 0;
 	return a->mode;
 }
@@ -585,7 +585,7 @@ EXPORT_SYMBOL_NS_GPL(cxl_memdev_update_perf, CXL);
 static const struct device_type cxl_memdev_type = {
 	.name = "cxl_memdev",
 	.release = cxl_memdev_release,
-	.devnode = cxl_memdev_devnode,
+	.devanalde = cxl_memdev_devanalde,
 	.groups = cxl_memdev_attribute_groups,
 };
 
@@ -623,7 +623,7 @@ void clear_exclusive_cxl_commands(struct cxl_memdev_state *mds,
 				  unsigned long *cmds)
 {
 	down_write(&cxl_memdev_rwsem);
-	bitmap_andnot(mds->exclusive_cmds, mds->exclusive_cmds, cmds,
+	bitmap_andanalt(mds->exclusive_cmds, mds->exclusive_cmds, cmds,
 		      CXL_MEM_COMMAND_ID_MAX);
 	up_write(&cxl_memdev_rwsem);
 }
@@ -669,7 +669,7 @@ static struct cxl_memdev *cxl_memdev_alloc(struct cxl_dev_state *cxlds,
 
 	cxlmd = kzalloc(sizeof(*cxlmd), GFP_KERNEL);
 	if (!cxlmd)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	rc = ida_alloc_max(&cxl_memdev_ida, CXL_MEM_MAX_DEVS - 1, GFP_KERNEL);
 	if (rc < 0)
@@ -684,7 +684,7 @@ static struct cxl_memdev *cxl_memdev_alloc(struct cxl_dev_state *cxlds,
 	dev->bus = &cxl_bus_type;
 	dev->devt = MKDEV(cxl_mem_major, cxlmd->id);
 	dev->type = &cxl_memdev_type;
-	device_set_pm_not_required(dev);
+	device_set_pm_analt_required(dev);
 	INIT_WORK(&cxlmd->detach_work, detach_memdev);
 
 	cdev = &cxlmd->cdev;
@@ -705,7 +705,7 @@ static long __cxl_memdev_ioctl(struct cxl_memdev *cxlmd, unsigned int cmd,
 	case CXL_MEM_SEND_COMMAND:
 		return cxl_send_cmd(cxlmd, (void __user *)arg);
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 }
 
@@ -725,10 +725,10 @@ static long cxl_memdev_ioctl(struct file *file, unsigned int cmd,
 	return rc;
 }
 
-static int cxl_memdev_open(struct inode *inode, struct file *file)
+static int cxl_memdev_open(struct ianalde *ianalde, struct file *file)
 {
 	struct cxl_memdev *cxlmd =
-		container_of(inode->i_cdev, typeof(*cxlmd), cdev);
+		container_of(ianalde->i_cdev, typeof(*cxlmd), cdev);
 
 	get_device(&cxlmd->dev);
 	file->private_data = cxlmd;
@@ -736,10 +736,10 @@ static int cxl_memdev_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int cxl_memdev_release_file(struct inode *inode, struct file *file)
+static int cxl_memdev_release_file(struct ianalde *ianalde, struct file *file)
 {
 	struct cxl_memdev *cxlmd =
-		container_of(inode->i_cdev, typeof(*cxlmd), cdev);
+		container_of(ianalde->i_cdev, typeof(*cxlmd), cdev);
 
 	put_device(&cxlmd->dev);
 
@@ -752,7 +752,7 @@ static int cxl_memdev_release_file(struct inode *inode, struct file *file)
  *
  * Retrieve firmware info for the device specified.
  *
- * Return: 0 if no error: or the result of the mailbox command.
+ * Return: 0 if anal error: or the result of the mailbox command.
  *
  * See CXL-3.0 8.2.9.3.1 Get FW Info
  */
@@ -786,7 +786,7 @@ static int cxl_mem_get_fw_info(struct cxl_memdev_state *mds)
  *
  * Activate firmware in a given slot for the device specified.
  *
- * Return: 0 if no error: or the result of the mailbox command.
+ * Return: 0 if anal error: or the result of the mailbox command.
  *
  * See CXL-3.0 8.2.9.3.3 Activate FW
  */
@@ -804,7 +804,7 @@ static int cxl_mem_activate_fw(struct cxl_memdev_state *mds, int slot)
 		.payload_in = &activate,
 	};
 
-	/* Only offline activation supported for now */
+	/* Only offline activation supported for analw */
 	activate.action = CXL_FW_ACTIVATE_OFFLINE;
 	activate.slot = slot;
 
@@ -817,7 +817,7 @@ static int cxl_mem_activate_fw(struct cxl_memdev_state *mds, int slot)
  *
  * Abort an in-progress firmware transfer for the device specified.
  *
- * Return: 0 if no error: or the result of the mailbox command.
+ * Return: 0 if anal error: or the result of the mailbox command.
  *
  * See CXL-3.0 8.2.9.3.2 Transfer FW
  */
@@ -829,7 +829,7 @@ static int cxl_mem_abort_fw_xfer(struct cxl_memdev_state *mds)
 
 	transfer = kzalloc(struct_size(transfer, data, 0), GFP_KERNEL);
 	if (!transfer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Set a 1s poll interval and a total wait time of 30s */
 	mbox_cmd = (struct cxl_mbox_cmd) {
@@ -884,13 +884,13 @@ static enum fw_upload_err cxl_fw_prepare(struct fw_upload *fwl, const u8 *data,
 		return FW_UPLOAD_ERR_HW_ERROR;
 
 	/*
-	 * So far no state has been changed, hence no other cleanup is
+	 * So far anal state has been changed, hence anal other cleanup is
 	 * necessary. Simply return the cancelled status.
 	 */
 	if (test_and_clear_bit(CXL_FW_CANCEL, mds->fw.state))
 		return FW_UPLOAD_ERR_CANCELED;
 
-	return FW_UPLOAD_ERR_NONE;
+	return FW_UPLOAD_ERR_ANALNE;
 }
 
 static enum fw_upload_err cxl_fw_write(struct fw_upload *fwl, const u8 *data,
@@ -986,7 +986,7 @@ static enum fw_upload_err cxl_fw_write(struct fw_upload *fwl, const u8 *data,
 		}
 	}
 
-	rc = FW_UPLOAD_ERR_NONE;
+	rc = FW_UPLOAD_ERR_ANALNE;
 
 out_free:
 	kfree(transfer);
@@ -998,15 +998,15 @@ static enum fw_upload_err cxl_fw_poll_complete(struct fw_upload *fwl)
 	struct cxl_memdev_state *mds = fwl->dd_handle;
 
 	/*
-	 * cxl_internal_send_cmd() handles background operations synchronously.
-	 * No need to wait for completions here - any errors would've been
+	 * cxl_internal_send_cmd() handles background operations synchroanalusly.
+	 * Anal need to wait for completions here - any errors would've been
 	 * reported and handled during the ->write() call(s).
 	 * Just check if a cancel request was received, and return success.
 	 */
 	if (test_and_clear_bit(CXL_FW_CANCEL, mds->fw.state))
 		return cxl_fw_do_cancel(fwl);
 
-	return FW_UPLOAD_ERR_NONE;
+	return FW_UPLOAD_ERR_ANALNE;
 }
 
 static void cxl_fw_cancel(struct fw_upload *fwl)
@@ -1052,7 +1052,7 @@ static const struct file_operations cxl_memdev_fops = {
 	.open = cxl_memdev_open,
 	.release = cxl_memdev_release_file,
 	.compat_ioctl = compat_ptr_ioctl,
-	.llseek = noop_llseek,
+	.llseek = analop_llseek,
 };
 
 struct cxl_memdev *devm_cxl_add_memdev(struct device *host,
@@ -1073,7 +1073,7 @@ struct cxl_memdev *devm_cxl_add_memdev(struct device *host,
 		goto err;
 
 	/*
-	 * Activate ioctl operations, no cxl_memdev_rwsem manipulation
+	 * Activate ioctl operations, anal cxl_memdev_rwsem manipulation
 	 * needed as this is ordered with cdev_add() publishing the device.
 	 */
 	cxlmd->cxlds = cxlds;
@@ -1100,49 +1100,49 @@ err:
 }
 EXPORT_SYMBOL_NS_GPL(devm_cxl_add_memdev, CXL);
 
-static void sanitize_teardown_notifier(void *data)
+static void sanitize_teardown_analtifier(void *data)
 {
 	struct cxl_memdev_state *mds = data;
-	struct kernfs_node *state;
+	struct kernfs_analde *state;
 
 	/*
 	 * Prevent new irq triggered invocations of the workqueue and
 	 * flush inflight invocations.
 	 */
 	mutex_lock(&mds->mbox_mutex);
-	state = mds->security.sanitize_node;
-	mds->security.sanitize_node = NULL;
+	state = mds->security.sanitize_analde;
+	mds->security.sanitize_analde = NULL;
 	mutex_unlock(&mds->mbox_mutex);
 
 	cancel_delayed_work_sync(&mds->security.poll_dwork);
 	sysfs_put(state);
 }
 
-int devm_cxl_sanitize_setup_notifier(struct device *host,
+int devm_cxl_sanitize_setup_analtifier(struct device *host,
 				     struct cxl_memdev *cxlmd)
 {
 	struct cxl_dev_state *cxlds = cxlmd->cxlds;
 	struct cxl_memdev_state *mds = to_cxl_memdev_state(cxlds);
-	struct kernfs_node *sec;
+	struct kernfs_analde *sec;
 
 	if (!test_bit(CXL_SEC_ENABLED_SANITIZE, mds->security.enabled_cmds))
 		return 0;
 
 	/*
-	 * Note, the expectation is that @cxlmd would have failed to be
+	 * Analte, the expectation is that @cxlmd would have failed to be
 	 * created if these sysfs_get_dirent calls fail.
 	 */
 	sec = sysfs_get_dirent(cxlmd->dev.kobj.sd, "security");
 	if (!sec)
-		return -ENOENT;
-	mds->security.sanitize_node = sysfs_get_dirent(sec, "state");
+		return -EANALENT;
+	mds->security.sanitize_analde = sysfs_get_dirent(sec, "state");
 	sysfs_put(sec);
-	if (!mds->security.sanitize_node)
-		return -ENOENT;
+	if (!mds->security.sanitize_analde)
+		return -EANALENT;
 
-	return devm_add_action_or_reset(host, sanitize_teardown_notifier, mds);
+	return devm_add_action_or_reset(host, sanitize_teardown_analtifier, mds);
 }
-EXPORT_SYMBOL_NS_GPL(devm_cxl_sanitize_setup_notifier, CXL);
+EXPORT_SYMBOL_NS_GPL(devm_cxl_sanitize_setup_analtifier, CXL);
 
 __init int cxl_memdev_init(void)
 {

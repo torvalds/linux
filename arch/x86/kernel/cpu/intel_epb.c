@@ -39,18 +39,18 @@
  * for the boot CPU in a syscore suspend operation, so that it can be restored
  * for the boot CPU in a syscore resume operation and for the other CPUs when
  * they are brought back online.  However, CPUs that are already offline when
- * a system-wide PM transition is started are not taken offline again, but their
+ * a system-wide PM transition is started are analt taken offline again, but their
  * EPB values may still be reset by the platform firmware during the transition,
  * so in fact it is necessary to save the EPB of any CPU taken offline and to
  * restore it when the given CPU goes back online at all times.
  *
  * Second, on many systems the initial EPB value coming from the platform
  * firmware is 0 ('performance') and at least on some of them that is because
- * the platform firmware does not initialize EPB at all with the assumption that
+ * the platform firmware does analt initialize EPB at all with the assumption that
  * the OS will do that anyway.  That sometimes is problematic, as it may cause
  * the system battery to drain too fast, for example, so it is better to adjust
  * it on CPU bring-up and if the initial EPB value for a given CPU is 0, the
- * kernel changes it to 6 ('normal').
+ * kernel changes it to 6 ('analrmal').
  */
 
 static DEFINE_PER_CPU(u8, saved_epb);
@@ -62,7 +62,7 @@ static DEFINE_PER_CPU(u8, saved_epb);
 enum energy_perf_value_index {
 	EPB_INDEX_PERFORMANCE,
 	EPB_INDEX_BALANCE_PERFORMANCE,
-	EPB_INDEX_NORMAL,
+	EPB_INDEX_ANALRMAL,
 	EPB_INDEX_BALANCE_POWERSAVE,
 	EPB_INDEX_POWERSAVE,
 };
@@ -70,7 +70,7 @@ enum energy_perf_value_index {
 static u8 energ_perf_values[] = {
 	[EPB_INDEX_PERFORMANCE] = ENERGY_PERF_BIAS_PERFORMANCE,
 	[EPB_INDEX_BALANCE_PERFORMANCE] = ENERGY_PERF_BIAS_BALANCE_PERFORMANCE,
-	[EPB_INDEX_NORMAL] = ENERGY_PERF_BIAS_NORMAL,
+	[EPB_INDEX_ANALRMAL] = ENERGY_PERF_BIAS_ANALRMAL,
 	[EPB_INDEX_BALANCE_POWERSAVE] = ENERGY_PERF_BIAS_BALANCE_POWERSAVE,
 	[EPB_INDEX_POWERSAVE] = ENERGY_PERF_BIAS_POWERSAVE,
 };
@@ -81,7 +81,7 @@ static int intel_epb_save(void)
 
 	rdmsrl(MSR_IA32_ENERGY_PERF_BIAS, epb);
 	/*
-	 * Ensure that saved_epb will always be nonzero after this write even if
+	 * Ensure that saved_epb will always be analnzero after this write even if
 	 * the EPB value read from the MSR is 0.
 	 */
 	this_cpu_write(saved_epb, (epb & EPB_MASK) | EPB_SAVED);
@@ -99,16 +99,16 @@ static void intel_epb_restore(void)
 		val &= EPB_MASK;
 	} else {
 		/*
-		 * Because intel_epb_save() has not run for the current CPU yet,
+		 * Because intel_epb_save() has analt run for the current CPU yet,
 		 * it is going online for the first time, so if its EPB value is
-		 * 0 ('performance') at this point, assume that it has not been
+		 * 0 ('performance') at this point, assume that it has analt been
 		 * initialized by the platform firmware and set it to 6
-		 * ('normal').
+		 * ('analrmal').
 		 */
 		val = epb & EPB_MASK;
 		if (val == ENERGY_PERF_BIAS_PERFORMANCE) {
-			val = energ_perf_values[EPB_INDEX_NORMAL];
-			pr_warn_once("ENERGY_PERF_BIAS: Set to 'normal', was 'performance'\n");
+			val = energ_perf_values[EPB_INDEX_ANALRMAL];
+			pr_warn_once("ENERGY_PERF_BIAS: Set to 'analrmal', was 'performance'\n");
 		}
 	}
 	wrmsrl(MSR_IA32_ENERGY_PERF_BIAS, (epb & ~EPB_MASK) | val);
@@ -122,7 +122,7 @@ static struct syscore_ops intel_epb_syscore_ops = {
 static const char * const energy_perf_strings[] = {
 	[EPB_INDEX_PERFORMANCE] = "performance",
 	[EPB_INDEX_BALANCE_PERFORMANCE] = "balance-performance",
-	[EPB_INDEX_NORMAL] = "normal",
+	[EPB_INDEX_ANALRMAL] = "analrmal",
 	[EPB_INDEX_BALANCE_POWERSAVE] = "balance-power",
 	[EPB_INDEX_POWERSAVE] = "power",
 };
@@ -203,26 +203,26 @@ static int intel_epb_offline(unsigned int cpu)
 	return 0;
 }
 
-static const struct x86_cpu_id intel_epb_normal[] = {
+static const struct x86_cpu_id intel_epb_analrmal[] = {
 	X86_MATCH_INTEL_FAM6_MODEL(ALDERLAKE_L,
-				   ENERGY_PERF_BIAS_NORMAL_POWERSAVE),
+				   ENERGY_PERF_BIAS_ANALRMAL_POWERSAVE),
 	X86_MATCH_INTEL_FAM6_MODEL(ATOM_GRACEMONT,
-				   ENERGY_PERF_BIAS_NORMAL_POWERSAVE),
+				   ENERGY_PERF_BIAS_ANALRMAL_POWERSAVE),
 	X86_MATCH_INTEL_FAM6_MODEL(RAPTORLAKE_P,
-				   ENERGY_PERF_BIAS_NORMAL_POWERSAVE),
+				   ENERGY_PERF_BIAS_ANALRMAL_POWERSAVE),
 	{}
 };
 
 static __init int intel_epb_init(void)
 {
-	const struct x86_cpu_id *id = x86_match_cpu(intel_epb_normal);
+	const struct x86_cpu_id *id = x86_match_cpu(intel_epb_analrmal);
 	int ret;
 
 	if (!boot_cpu_has(X86_FEATURE_EPB))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (id)
-		energ_perf_values[EPB_INDEX_NORMAL] = id->driver_data;
+		energ_perf_values[EPB_INDEX_ANALRMAL] = id->driver_data;
 
 	ret = cpuhp_setup_state(CPUHP_AP_X86_INTEL_EPB_ONLINE,
 				"x86/intel/epb:online", intel_epb_online,

@@ -38,10 +38,10 @@ static const struct class raw_class = {
 
 static int raw_major;
 static const struct file_operations raw_fops;
-static DEFINE_IDA(minors);
+static DEFINE_IDA(mianalrs);
 
-/* Number of minor devices this driver supports */
-#define NUM_MINORS	256
+/* Number of mianalr devices this driver supports */
+#define NUM_MIANALRS	256
 
 /* Maximum size of any one send data buffer we support */
 #define MAX_PACKET_SIZE	(PAGE_SIZE * 2)
@@ -68,14 +68,14 @@ static int receive_data(struct gb_raw *raw, u32 len, u8 *data)
 
 	mutex_lock(&raw->list_lock);
 	if ((raw->list_data + len) > MAX_DATA_SIZE) {
-		dev_err(dev, "Too much data in receive buffer, now dropping packets\n");
+		dev_err(dev, "Too much data in receive buffer, analw dropping packets\n");
 		retval = -EINVAL;
 		goto exit;
 	}
 
 	raw_data = kmalloc(struct_size(raw_data, data, len), GFP_KERNEL);
 	if (!raw_data) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto exit;
 	}
 
@@ -98,7 +98,7 @@ static int gb_raw_request_handler(struct gb_operation *op)
 	u32 len;
 
 	if (op->type != GB_RAW_TYPE_SEND) {
-		dev_err(dev, "unknown request type 0x%02x\n", op->type);
+		dev_err(dev, "unkanalwn request type 0x%02x\n", op->type);
 		return -EINVAL;
 	}
 
@@ -131,7 +131,7 @@ static int gb_raw_send(struct gb_raw *raw, u32 len, const char __user *data)
 
 	request = kmalloc(len + sizeof(*request), GFP_KERNEL);
 	if (!request)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (copy_from_user(&request->data[0], data, len)) {
 		kfree(request);
@@ -155,18 +155,18 @@ static int gb_raw_probe(struct gb_bundle *bundle,
 	struct gb_connection *connection;
 	struct gb_raw *raw;
 	int retval;
-	int minor;
+	int mianalr;
 
 	if (bundle->num_cports != 1)
-		return -ENODEV;
+		return -EANALDEV;
 
 	cport_desc = &bundle->cport_desc[0];
 	if (cport_desc->protocol_id != GREYBUS_PROTOCOL_RAW)
-		return -ENODEV;
+		return -EANALDEV;
 
 	raw = kzalloc(sizeof(*raw), GFP_KERNEL);
 	if (!raw)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	connection = gb_connection_create(bundle, le16_to_cpu(cport_desc->id),
 					  gb_raw_request_handler);
@@ -181,13 +181,13 @@ static int gb_raw_probe(struct gb_bundle *bundle,
 	raw->connection = connection;
 	greybus_set_drvdata(bundle, raw);
 
-	minor = ida_simple_get(&minors, 0, 0, GFP_KERNEL);
-	if (minor < 0) {
-		retval = minor;
+	mianalr = ida_simple_get(&mianalrs, 0, 0, GFP_KERNEL);
+	if (mianalr < 0) {
+		retval = mianalr;
 		goto error_connection_destroy;
 	}
 
-	raw->dev = MKDEV(raw_major, minor);
+	raw->dev = MKDEV(raw_major, mianalr);
 	cdev_init(&raw->cdev, &raw_fops);
 
 	retval = gb_connection_enable(connection);
@@ -199,7 +199,7 @@ static int gb_raw_probe(struct gb_bundle *bundle,
 		goto error_connection_disable;
 
 	raw->device = device_create(&raw_class, &connection->bundle->dev,
-				    raw->dev, raw, "gb!raw%d", minor);
+				    raw->dev, raw, "gb!raw%d", mianalr);
 	if (IS_ERR(raw->device)) {
 		retval = PTR_ERR(raw->device);
 		goto error_del_cdev;
@@ -214,7 +214,7 @@ error_connection_disable:
 	gb_connection_disable(connection);
 
 error_remove_ida:
-	ida_simple_remove(&minors, minor);
+	ida_simple_remove(&mianalrs, mianalr);
 
 error_connection_destroy:
 	gb_connection_destroy(connection);
@@ -231,11 +231,11 @@ static void gb_raw_disconnect(struct gb_bundle *bundle)
 	struct raw_data *raw_data;
 	struct raw_data *temp;
 
-	// FIXME - handle removing a connection when the char device node is open.
+	// FIXME - handle removing a connection when the char device analde is open.
 	device_destroy(&raw_class, raw->dev);
 	cdev_del(&raw->cdev);
 	gb_connection_disable(connection);
-	ida_simple_remove(&minors, MINOR(raw->dev));
+	ida_simple_remove(&mianalrs, MIANALR(raw->dev));
 	gb_connection_destroy(connection);
 
 	mutex_lock(&raw->list_lock);
@@ -249,17 +249,17 @@ static void gb_raw_disconnect(struct gb_bundle *bundle)
 }
 
 /*
- * Character device node interfaces.
+ * Character device analde interfaces.
  *
- * Note, we are using read/write to only allow a single read/write per message.
- * This means for read(), you have to provide a big enough buffer for the full
- * message to be copied into.  If the buffer isn't big enough, the read() will
- * fail with -ENOSPC.
+ * Analte, we are using read/write to only allow a single read/write per message.
+ * This means for read(), you have to provide a big eanalugh buffer for the full
+ * message to be copied into.  If the buffer isn't big eanalugh, the read() will
+ * fail with -EANALSPC.
  */
 
-static int raw_open(struct inode *inode, struct file *file)
+static int raw_open(struct ianalde *ianalde, struct file *file)
 {
-	struct cdev *cdev = inode->i_cdev;
+	struct cdev *cdev = ianalde->i_cdev;
 	struct gb_raw *raw = container_of(cdev, struct gb_raw, cdev);
 
 	file->private_data = raw;
@@ -298,7 +298,7 @@ static ssize_t raw_read(struct file *file, char __user *buf, size_t count,
 
 	raw_data = list_first_entry(&raw->list, struct raw_data, entry);
 	if (raw_data->len > count) {
-		retval = -ENOSPC;
+		retval = -EANALSPC;
 		goto exit;
 	}
 
@@ -322,7 +322,7 @@ static const struct file_operations raw_fops = {
 	.write		= raw_write,
 	.read		= raw_read,
 	.open		= raw_open,
-	.llseek		= noop_llseek,
+	.llseek		= analop_llseek,
 };
 
 static const struct greybus_bundle_id gb_raw_id_table[] = {
@@ -347,7 +347,7 @@ static int raw_init(void)
 	if (retval)
 		goto error_class;
 
-	retval = alloc_chrdev_region(&dev, 0, NUM_MINORS, "gb_raw");
+	retval = alloc_chrdev_region(&dev, 0, NUM_MIANALRS, "gb_raw");
 	if (retval < 0)
 		goto error_chrdev;
 
@@ -360,7 +360,7 @@ static int raw_init(void)
 	return 0;
 
 error_gb:
-	unregister_chrdev_region(dev, NUM_MINORS);
+	unregister_chrdev_region(dev, NUM_MIANALRS);
 error_chrdev:
 	class_unregister(&raw_class);
 error_class:
@@ -371,9 +371,9 @@ module_init(raw_init);
 static void __exit raw_exit(void)
 {
 	greybus_deregister(&gb_raw_driver);
-	unregister_chrdev_region(MKDEV(raw_major, 0), NUM_MINORS);
+	unregister_chrdev_region(MKDEV(raw_major, 0), NUM_MIANALRS);
 	class_unregister(&raw_class);
-	ida_destroy(&minors);
+	ida_destroy(&mianalrs);
 }
 module_exit(raw_exit);
 

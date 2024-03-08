@@ -138,7 +138,7 @@
 			compatible = "qcom,pm8941-rtc";
 			reg = <0x6000>;
 			reg-names = "rtc", "alarm";
-			interrupts = <0x0 0x61 0x1 IRQ_TYPE_NONE>;
+			interrupts = <0x0 0x61 0x1 IRQ_TYPE_ANALNE>;
 		};
 
 		pmc8180_gpios: gpio@c000 {

@@ -7,13 +7,13 @@
 #include <linux/libnvdimm.h>
 
 #include <asm/cacheflush.h>
-#include <asm/dma-noncoherent.h>
+#include <asm/dma-analncoherent.h>
 
 void arch_wb_cache_pmem(void *addr, size_t size)
 {
-#ifdef CONFIG_RISCV_NONSTANDARD_CACHE_OPS
-	if (unlikely(noncoherent_cache_ops.wback)) {
-		noncoherent_cache_ops.wback(virt_to_phys(addr), size);
+#ifdef CONFIG_RISCV_ANALNSTANDARD_CACHE_OPS
+	if (unlikely(analncoherent_cache_ops.wback)) {
+		analncoherent_cache_ops.wback(virt_to_phys(addr), size);
 		return;
 	}
 #endif
@@ -23,9 +23,9 @@ EXPORT_SYMBOL_GPL(arch_wb_cache_pmem);
 
 void arch_invalidate_pmem(void *addr, size_t size)
 {
-#ifdef CONFIG_RISCV_NONSTANDARD_CACHE_OPS
-	if (unlikely(noncoherent_cache_ops.inv)) {
-		noncoherent_cache_ops.inv(virt_to_phys(addr), size);
+#ifdef CONFIG_RISCV_ANALNSTANDARD_CACHE_OPS
+	if (unlikely(analncoherent_cache_ops.inv)) {
+		analncoherent_cache_ops.inv(virt_to_phys(addr), size);
 		return;
 	}
 #endif

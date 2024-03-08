@@ -111,33 +111,33 @@ int iwl_poll_direct_bit(struct iwl_trans *trans, u32 addr, u32 mask,
 }
 IWL_EXPORT_SYMBOL(iwl_poll_direct_bit);
 
-u32 iwl_read_prph_no_grab(struct iwl_trans *trans, u32 ofs)
+u32 iwl_read_prph_anal_grab(struct iwl_trans *trans, u32 ofs)
 {
 	u32 val = iwl_trans_read_prph(trans, ofs);
 	trace_iwlwifi_dev_ioread_prph32(trans->dev, ofs, val);
 	return val;
 }
-IWL_EXPORT_SYMBOL(iwl_read_prph_no_grab);
+IWL_EXPORT_SYMBOL(iwl_read_prph_anal_grab);
 
-void iwl_write_prph_no_grab(struct iwl_trans *trans, u32 ofs, u32 val)
+void iwl_write_prph_anal_grab(struct iwl_trans *trans, u32 ofs, u32 val)
 {
 	trace_iwlwifi_dev_iowrite_prph32(trans->dev, ofs, val);
 	iwl_trans_write_prph(trans, ofs, val);
 }
-IWL_EXPORT_SYMBOL(iwl_write_prph_no_grab);
+IWL_EXPORT_SYMBOL(iwl_write_prph_anal_grab);
 
-void iwl_write_prph64_no_grab(struct iwl_trans *trans, u64 ofs, u64 val)
+void iwl_write_prph64_anal_grab(struct iwl_trans *trans, u64 ofs, u64 val)
 {
 	trace_iwlwifi_dev_iowrite_prph64(trans->dev, ofs, val);
-	iwl_write_prph_no_grab(trans, ofs, val & 0xffffffff);
-	iwl_write_prph_no_grab(trans, ofs + 4, val >> 32);
+	iwl_write_prph_anal_grab(trans, ofs, val & 0xffffffff);
+	iwl_write_prph_anal_grab(trans, ofs + 4, val >> 32);
 }
-IWL_EXPORT_SYMBOL(iwl_write_prph64_no_grab);
+IWL_EXPORT_SYMBOL(iwl_write_prph64_anal_grab);
 
 u32 iwl_read_prph(struct iwl_trans *trans, u32 ofs)
 {
 	if (iwl_trans_grab_nic_access(trans)) {
-		u32 val = iwl_read_prph_no_grab(trans, ofs);
+		u32 val = iwl_read_prph_anal_grab(trans, ofs);
 
 		iwl_trans_release_nic_access(trans);
 
@@ -153,7 +153,7 @@ void iwl_write_prph_delay(struct iwl_trans *trans, u32 ofs, u32 val, u32 delay_m
 {
 	if (iwl_trans_grab_nic_access(trans)) {
 		mdelay(delay_ms);
-		iwl_write_prph_no_grab(trans, ofs, val);
+		iwl_write_prph_anal_grab(trans, ofs, val);
 		iwl_trans_release_nic_access(trans);
 	}
 }
@@ -177,8 +177,8 @@ int iwl_poll_prph_bit(struct iwl_trans *trans, u32 addr,
 void iwl_set_bits_prph(struct iwl_trans *trans, u32 ofs, u32 mask)
 {
 	if (iwl_trans_grab_nic_access(trans)) {
-		iwl_write_prph_no_grab(trans, ofs,
-				       iwl_read_prph_no_grab(trans, ofs) |
+		iwl_write_prph_anal_grab(trans, ofs,
+				       iwl_read_prph_anal_grab(trans, ofs) |
 				       mask);
 		iwl_trans_release_nic_access(trans);
 	}
@@ -189,8 +189,8 @@ void iwl_set_bits_mask_prph(struct iwl_trans *trans, u32 ofs,
 			    u32 bits, u32 mask)
 {
 	if (iwl_trans_grab_nic_access(trans)) {
-		iwl_write_prph_no_grab(trans, ofs,
-				       (iwl_read_prph_no_grab(trans, ofs) &
+		iwl_write_prph_anal_grab(trans, ofs,
+				       (iwl_read_prph_anal_grab(trans, ofs) &
 					mask) | bits);
 		iwl_trans_release_nic_access(trans);
 	}
@@ -202,8 +202,8 @@ void iwl_clear_bits_prph(struct iwl_trans *trans, u32 ofs, u32 mask)
 	u32 val;
 
 	if (iwl_trans_grab_nic_access(trans)) {
-		val = iwl_read_prph_no_grab(trans, ofs);
-		iwl_write_prph_no_grab(trans, ofs, (val & ~mask));
+		val = iwl_read_prph_anal_grab(trans, ofs);
+		iwl_write_prph_anal_grab(trans, ofs, (val & ~mask));
 		iwl_trans_release_nic_access(trans);
 	}
 }
@@ -247,7 +247,7 @@ static const char *get_rfh_string(int cmd)
 	IWL_CMD(FH_TSSR_TX_STATUS_REG);
 	IWL_CMD(FH_TSSR_TX_ERROR_REG);
 	default:
-		return "UNKNOWN";
+		return "UNKANALWN";
 	}
 #undef IWL_CMD_MQ
 }
@@ -290,7 +290,7 @@ static int iwl_dump_rfh(struct iwl_trans *trans, char **buf)
 
 		*buf = kmalloc(bufsz, GFP_KERNEL);
 		if (!*buf)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		pos += scnprintf(*buf + pos, bufsz - pos,
 				"RFH register values:\n");
@@ -348,7 +348,7 @@ static const char *get_fh_string(int cmd)
 	IWL_CMD(FH_TSSR_TX_STATUS_REG);
 	IWL_CMD(FH_TSSR_TX_ERROR_REG);
 	default:
-		return "UNKNOWN";
+		return "UNKANALWN";
 	}
 #undef IWL_CMD
 }
@@ -378,7 +378,7 @@ int iwl_dump_fh(struct iwl_trans *trans, char **buf)
 
 		*buf = kmalloc(bufsz, GFP_KERNEL);
 		if (!*buf)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		pos += scnprintf(*buf + pos, bufsz - pos,
 				"FH register values:\n");
@@ -438,7 +438,7 @@ static void iwl_dump_host_monitor(struct iwl_trans *trans)
 					    IWL_HOST_MON_BLOCK_PEMON_VEC0, 1);
 		break;
 	default:
-		/* not supported yet */
+		/* analt supported yet */
 		return;
 	}
 }
@@ -499,7 +499,7 @@ void iwl_trans_sync_nmi_with_addr(struct iwl_trans *trans, u32 inta_addr,
 	unsigned long timeout = jiffies + IWL_TRANS_NMI_TIMEOUT;
 	bool interrupts_enabled = test_bit(STATUS_INT_ENABLED, &trans->status);
 
-	/* if the interrupts were already disabled, there is no point in
+	/* if the interrupts were already disabled, there is anal point in
 	 * calling iwl_disable_interrupts
 	 */
 	if (interrupts_enabled)

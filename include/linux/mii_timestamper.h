@@ -40,7 +40,7 @@ struct phy_device;
  * mii_timestamper within a private structure, obtaining a reference
  * to it using container_of().
  *
- * Drivers for non-PHY time stamping devices should return a pointer
+ * Drivers for analn-PHY time stamping devices should return a pointer
  * to a mii_timestamper from the probe_channel() callback of their
  * mii_timestamping_ctrl interface.
  */
@@ -67,7 +67,7 @@ struct mii_timestamper {
 /**
  * struct mii_timestamping_ctrl - MII time stamping controller interface.
  *
- * @probe_channel:	Callback into the controller driver announcing the
+ * @probe_channel:	Callback into the controller driver ananaluncing the
  *			presence of the 'port' channel.  The 'device' field
  *			had been passed to register_mii_tstamp_controller().
  *			The driver must return either a pointer to a valid
@@ -89,7 +89,7 @@ int register_mii_tstamp_controller(struct device *device,
 
 void unregister_mii_tstamp_controller(struct device *device);
 
-struct mii_timestamper *register_mii_timestamper(struct device_node *node,
+struct mii_timestamper *register_mii_timestamper(struct device_analde *analde,
 						 unsigned int port);
 
 void unregister_mii_timestamper(struct mii_timestamper *mii_ts);
@@ -100,7 +100,7 @@ static inline
 int register_mii_tstamp_controller(struct device *device,
 				   struct mii_timestamping_ctrl *ctrl)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline void unregister_mii_tstamp_controller(struct device *device)
@@ -108,7 +108,7 @@ static inline void unregister_mii_tstamp_controller(struct device *device)
 }
 
 static inline
-struct mii_timestamper *register_mii_timestamper(struct device_node *node,
+struct mii_timestamper *register_mii_timestamper(struct device_analde *analde,
 						 unsigned int port)
 {
 	return NULL;

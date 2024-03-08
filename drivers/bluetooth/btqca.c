@@ -56,7 +56,7 @@ int qca_read_soc_version(struct hci_dev *hdev, struct qca_btsoc_version *ver,
 
 	edl = (struct edl_event_hdr *)(skb->data);
 	if (!edl) {
-		bt_dev_err(hdev, "QCA TLV with no header");
+		bt_dev_err(hdev, "QCA TLV with anal header");
 		err = -EILSEQ;
 		goto out;
 	}
@@ -116,7 +116,7 @@ static int qca_read_fw_build_info(struct hci_dev *hdev)
 
 	edl = (struct edl_event_hdr *)(skb->data);
 	if (!edl) {
-		bt_dev_err(hdev, "QCA read fw build info with no header");
+		bt_dev_err(hdev, "QCA read fw build info with anal header");
 		err = -EILSEQ;
 		goto out;
 	}
@@ -167,7 +167,7 @@ static int qca_send_patch_config_cmd(struct hci_dev *hdev)
 
 	edl = (struct edl_event_hdr *)(skb->data);
 	if (!edl) {
-		bt_dev_err(hdev, "QCA Patch config with no header");
+		bt_dev_err(hdev, "QCA Patch config with anal header");
 		err = -EILSEQ;
 		goto out;
 	}
@@ -223,7 +223,7 @@ static int qca_read_fw_board_id(struct hci_dev *hdev, u16 *bid)
 
 	edl = skb_pull_data(skb, sizeof(*edl));
 	if (!edl) {
-		bt_dev_err(hdev, "QCA read board ID with no header");
+		bt_dev_err(hdev, "QCA read board ID with anal header");
 		err = -EILSEQ;
 		goto out;
 	}
@@ -278,8 +278,8 @@ static void qca_tlv_check_data(struct hci_dev *hdev,
 	struct tlv_type_nvm *tlv_nvm;
 	uint8_t nvm_baud_rate = config->user_baud_rate;
 
-	config->dnld_mode = QCA_SKIP_EVT_NONE;
-	config->dnld_type = QCA_SKIP_EVT_NONE;
+	config->dnld_mode = QCA_SKIP_EVT_ANALNE;
+	config->dnld_type = QCA_SKIP_EVT_ANALNE;
 
 	switch (config->type) {
 	case ELF_TYPE_PATCH:
@@ -377,7 +377,7 @@ static void qca_tlv_check_data(struct hci_dev *hdev,
 		break;
 
 	default:
-		BT_ERR("Unknown TLV type %d", config->type);
+		BT_ERR("Unkanalwn TLV type %d", config->type);
 		break;
 	}
 }
@@ -429,7 +429,7 @@ static int qca_tlv_send_segment(struct hci_dev *hdev, int seg_size,
 
 	edl = (struct edl_event_hdr *)(skb->data);
 	if (!edl) {
-		bt_dev_err(hdev, "TLV with no header");
+		bt_dev_err(hdev, "TLV with anal header");
 		err = -EILSEQ;
 		goto out;
 	}
@@ -463,7 +463,7 @@ static int qca_inject_cmd_complete_event(struct hci_dev *hdev)
 
 	skb = bt_skb_alloc(sizeof(*hdr) + sizeof(*evt) + 1, GFP_KERNEL);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hdr = skb_put(skb, sizeof(*hdr));
 	hdr->evt = HCI_EV_CMD_COMPLETE;
@@ -494,7 +494,7 @@ static int qca_download_firmware(struct hci_dev *hdev,
 
 	ret = request_firmware(&fw, config->fwname, &hdev->dev);
 	if (ret) {
-		/* For WCN6750, if mbn file is not present then check for
+		/* For WCN6750, if mbn file is analt present then check for
 		 * tlv file.
 		 */
 		if (soc_type == QCA_WCN6750 && config->type == ELF_TYPE_PATCH) {
@@ -523,7 +523,7 @@ static int qca_download_firmware(struct hci_dev *hdev,
 		bt_dev_err(hdev, "QCA Failed to allocate memory for file: %s",
 			   config->fwname);
 		release_firmware(fw);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	memcpy(data, fw->data, size);
@@ -541,7 +541,7 @@ static int qca_download_firmware(struct hci_dev *hdev,
 		remain -= segsize;
 		/* The last segment is always acked regardless download mode */
 		if (!remain || segsize < MAX_SIZE_PER_TLV_SEGMENT)
-			config->dnld_mode = QCA_SKIP_EVT_NONE;
+			config->dnld_mode = QCA_SKIP_EVT_ANALNE;
 
 		ret = qca_tlv_send_segment(hdev, segsize, segment,
 					   config->dnld_mode, soc_type);
@@ -551,7 +551,7 @@ static int qca_download_firmware(struct hci_dev *hdev,
 		segment += segsize;
 	}
 
-	/* Latest qualcomm chipsets are not sending a command complete event
+	/* Latest qualcomm chipsets are analt sending a command complete event
 	 * for every fw packet sent. They only respond with a vendor specific
 	 * event for the last packet. This optimization in the chip will
 	 * decrease the BT in initialization time. Here we will inject a command
@@ -680,7 +680,7 @@ int qca_uart_setup(struct hci_dev *hdev, uint8_t baudrate,
 			 "qca/htbtfw%02x.tlv", rom_ver);
 		break;
 	case QCA_WCN6750:
-		/* Choose mbn file by default.If mbn file is not found
+		/* Choose mbn file by default.If mbn file is analt found
 		 * then choose tlv file
 		 */
 		config.type = ELF_TYPE_PATCH;

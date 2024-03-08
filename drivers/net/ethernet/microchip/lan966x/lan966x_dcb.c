@@ -33,9 +33,9 @@ static const struct lan966x_dcb_apptrust
 					      DCB_APP_SEL_PCP }, 2 },
 };
 
-static bool lan966x_dcb_apptrust_contains(int portno, u8 selector)
+static bool lan966x_dcb_apptrust_contains(int portanal, u8 selector)
 {
-	const struct lan966x_dcb_apptrust *conf = lan966x_port_apptrust[portno];
+	const struct lan966x_dcb_apptrust *conf = lan966x_port_apptrust[portanal];
 
 	for (int i = 0; i < conf->nselectors; i++)
 		if (conf->selectors[i] == selector)
@@ -250,7 +250,7 @@ static int lan966x_dcb_apptrust_validate(struct net_device *dev,
 	for (int i = 0; i < ARRAY_SIZE(lan966x_dcb_apptrust_names); i++)
 		pr_info("order: %s\n", lan966x_dcb_apptrust_names[i]);
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int lan966x_dcb_setapptrust(struct net_device *dev,

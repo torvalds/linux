@@ -19,8 +19,8 @@ config INTEL_PMC_CORE
 	  Supported features:
 		- SLP_S0_RESIDENCY counter
 		- PCH IP Power Gating status
-		- LTR Ignore / LTR Show
+		- LTR Iganalre / LTR Show
 		- MPHY/PLL gating status (Sunrisepoint PCH only)
-		- SLPS0 Debug registers (Cannonlake/Icelake PCH)
+		- SLPS0 Debug registers (Cananalnlake/Icelake PCH)
 		- Low Power Mode registers (Tigerlake and beyond)
 		- PMC quirks as needed to enable SLPS0/S0ix

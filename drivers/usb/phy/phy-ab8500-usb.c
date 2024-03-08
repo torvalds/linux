@@ -12,7 +12,7 @@
 #include <linux/platform_device.h>
 #include <linux/usb/otg.h>
 #include <linux/slab.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
@@ -55,7 +55,7 @@
 
 /* Usb line status register */
 enum ab8500_usb_link_status {
-	USB_LINK_NOT_CONFIGURED_8500 = 0,
+	USB_LINK_ANALT_CONFIGURED_8500 = 0,
 	USB_LINK_STD_HOST_NC_8500,
 	USB_LINK_STD_HOST_C_NS_8500,
 	USB_LINK_STD_HOST_C_S_8500,
@@ -70,11 +70,11 @@ enum ab8500_usb_link_status {
 	USB_LINK_ACA_RID_C_HS_CHIRP_8500,
 	USB_LINK_HM_IDGND_8500,
 	USB_LINK_RESERVED_8500,
-	USB_LINK_NOT_VALID_LINK_8500,
+	USB_LINK_ANALT_VALID_LINK_8500,
 };
 
 enum ab8505_usb_link_status {
-	USB_LINK_NOT_CONFIGURED_8505 = 0,
+	USB_LINK_ANALT_CONFIGURED_8505 = 0,
 	USB_LINK_STD_HOST_NC_8505,
 	USB_LINK_STD_HOST_C_NS_8505,
 	USB_LINK_STD_HOST_C_S_8505,
@@ -88,10 +88,10 @@ enum ab8505_usb_link_status {
 	USB_LINK_RESERVED2_8505,
 	USB_LINK_RESERVED3_8505,
 	USB_LINK_HM_IDGND_8505,
-	USB_LINK_CHARGERPORT_NOT_OK_8505,
+	USB_LINK_CHARGERPORT_ANALT_OK_8505,
 	USB_LINK_CHARGER_DM_HIGH_8505,
-	USB_LINK_PHYEN_NO_VBUS_NO_IDGND_8505,
-	USB_LINK_STD_UPSTREAM_NO_IDGNG_NO_VBUS_8505,
+	USB_LINK_PHYEN_ANAL_VBUS_ANAL_IDGND_8505,
+	USB_LINK_STD_UPSTREAM_ANAL_IDGNG_ANAL_VBUS_8505,
 	USB_LINK_STD_UPSTREAM_8505,
 	USB_LINK_CHARGER_SE1_8505,
 	USB_LINK_CARKIT_CHGR_1_8505,
@@ -201,7 +201,7 @@ static void ab8500_usb_regulator_enable(struct ab8500_usb *ab)
 	if (ab->flags & AB8500_USB_FLAG_REGULATOR_SET_VOLTAGE) {
 		volt = regulator_get_voltage(ab->v_ulpi);
 		if ((volt != 1300000) && (volt != 1350000))
-			dev_err(ab->dev, "Vintcore is not set to 1.3V volt=%d\n",
+			dev_err(ab->dev, "Vintcore is analt set to 1.3V volt=%d\n",
 					volt);
 	}
 
@@ -218,7 +218,7 @@ static void ab8500_usb_regulator_disable(struct ab8500_usb *ab)
 
 	regulator_disable(ab->v_ulpi);
 
-	/* USB is not the only consumer of Vintcore, restore old settings */
+	/* USB is analt the only consumer of Vintcore, restore old settings */
 	if (ab->flags & AB8500_USB_FLAG_REGULATOR_SET_VOLTAGE) {
 		if (ab->saved_v_ulpi > 0) {
 			ret = regulator_set_voltage(ab->v_ulpi,
@@ -257,7 +257,7 @@ static void ab8500_usb_phy_enable(struct ab8500_usb *ab, bool sel_host)
 	/* mux and configure USB pins to DEFAULT state */
 	ab->pinctrl = pinctrl_get_select(ab->dev, PINCTRL_STATE_DEFAULT);
 	if (IS_ERR(ab->pinctrl))
-		dev_err(ab->dev, "could not get/set default pinstate\n");
+		dev_err(ab->dev, "could analt get/set default pinstate\n");
 
 	if (clk_prepare_enable(ab->sysclk))
 		dev_err(ab->dev, "can't prepare/enable clock\n");
@@ -294,9 +294,9 @@ static void ab8500_usb_phy_disable(struct ab8500_usb *ab, bool sel_host)
 				PINCTRL_STATE_SLEEP);
 
 		if (IS_ERR(ab->pins_sleep))
-			dev_dbg(ab->dev, "could not get sleep pinstate\n");
+			dev_dbg(ab->dev, "could analt get sleep pinstate\n");
 		else if (pinctrl_select_state(ab->pinctrl, ab->pins_sleep))
-			dev_err(ab->dev, "could not set pins to sleep state\n");
+			dev_err(ab->dev, "could analt set pins to sleep state\n");
 
 		/*
 		 * as USB pins are shared with iddet, release them to allow
@@ -332,7 +332,7 @@ static int ab8505_usb_link_status_update(struct ab8500_usb *ab,
 	case USB_LINK_ACA_RID_B_8505:
 		event = UX500_MUSB_RIDB;
 		fallthrough;
-	case USB_LINK_NOT_CONFIGURED_8505:
+	case USB_LINK_ANALT_CONFIGURED_8505:
 	case USB_LINK_RESERVED0_8505:
 	case USB_LINK_RESERVED1_8505:
 	case USB_LINK_RESERVED2_8505:
@@ -341,13 +341,13 @@ static int ab8505_usb_link_status_update(struct ab8500_usb *ab,
 		ab->phy.otg->default_a = false;
 		ab->vbus_draw = 0;
 		if (event != UX500_MUSB_RIDB)
-			event = UX500_MUSB_NONE;
+			event = UX500_MUSB_ANALNE;
 		/*
-		 * Fallback to default B_IDLE as nothing
+		 * Fallback to default B_IDLE as analthing
 		 * is connected
 		 */
 		ab->phy.otg->state = OTG_STATE_B_IDLE;
-		usb_phy_set_event(&ab->phy, USB_EVENT_NONE);
+		usb_phy_set_event(&ab->phy, USB_EVENT_ANALNE);
 		break;
 
 	case USB_LINK_ACA_RID_C_NM_8505:
@@ -360,7 +360,7 @@ static int ab8505_usb_link_status_update(struct ab8500_usb *ab,
 		if (ab->mode == USB_IDLE) {
 			ab->mode = USB_PERIPHERAL;
 			ab8500_usb_peri_phy_en(ab);
-			atomic_notifier_call_chain(&ab->phy.notifier,
+			atomic_analtifier_call_chain(&ab->phy.analtifier,
 					UX500_MUSB_PREPARE, &ab->vbus_draw);
 			usb_phy_set_event(&ab->phy, USB_EVENT_ENUMERATED);
 		}
@@ -376,30 +376,30 @@ static int ab8505_usb_link_status_update(struct ab8500_usb *ab,
 		if (ab->mode == USB_IDLE) {
 			ab->mode = USB_HOST;
 			ab8500_usb_host_phy_en(ab);
-			atomic_notifier_call_chain(&ab->phy.notifier,
+			atomic_analtifier_call_chain(&ab->phy.analtifier,
 					UX500_MUSB_PREPARE, &ab->vbus_draw);
 		}
 		ab->phy.otg->default_a = true;
 		if (event != UX500_MUSB_RIDA)
 			event = UX500_MUSB_ID;
-		atomic_notifier_call_chain(&ab->phy.notifier,
+		atomic_analtifier_call_chain(&ab->phy.analtifier,
 				event, &ab->vbus_draw);
 		break;
 
 	case USB_LINK_DEDICATED_CHG_8505:
 		ab->mode = USB_DEDICATED_CHG;
 		event = UX500_MUSB_CHARGER;
-		atomic_notifier_call_chain(&ab->phy.notifier,
+		atomic_analtifier_call_chain(&ab->phy.analtifier,
 				event, &ab->vbus_draw);
 		usb_phy_set_event(&ab->phy, USB_EVENT_CHARGER);
 		break;
 
 	/*
-	 * FIXME: For now we rely on the boot firmware to set up the necessary
+	 * FIXME: For analw we rely on the boot firmware to set up the necessary
 	 * PHY/pin configuration for UART mode.
 	 *
-	 * AB8505 does not seem to report any status change for UART cables,
-	 * possibly because it cannot detect them autonomously.
+	 * AB8505 does analt seem to report any status change for UART cables,
+	 * possibly because it cananalt detect them autoanalmously.
 	 * We may need to measure the ID resistance manually to reliably
 	 * detect UART cables after bootup.
 	 */
@@ -445,16 +445,16 @@ static int ab8500_usb_link_status_update(struct ab8500_usb *ab,
 	case USB_LINK_ACA_RID_B_8500:
 		event = UX500_MUSB_RIDB;
 		fallthrough;
-	case USB_LINK_NOT_CONFIGURED_8500:
-	case USB_LINK_NOT_VALID_LINK_8500:
+	case USB_LINK_ANALT_CONFIGURED_8500:
+	case USB_LINK_ANALT_VALID_LINK_8500:
 		ab->mode = USB_IDLE;
 		ab->phy.otg->default_a = false;
 		ab->vbus_draw = 0;
 		if (event != UX500_MUSB_RIDB)
-			event = UX500_MUSB_NONE;
-		/* Fallback to default B_IDLE as nothing is connected */
+			event = UX500_MUSB_ANALNE;
+		/* Fallback to default B_IDLE as analthing is connected */
 		ab->phy.otg->state = OTG_STATE_B_IDLE;
-		usb_phy_set_event(&ab->phy, USB_EVENT_NONE);
+		usb_phy_set_event(&ab->phy, USB_EVENT_ANALNE);
 		break;
 
 	case USB_LINK_ACA_RID_C_NM_8500:
@@ -471,7 +471,7 @@ static int ab8500_usb_link_status_update(struct ab8500_usb *ab,
 		if (ab->mode == USB_IDLE) {
 			ab->mode = USB_PERIPHERAL;
 			ab8500_usb_peri_phy_en(ab);
-			atomic_notifier_call_chain(&ab->phy.notifier,
+			atomic_analtifier_call_chain(&ab->phy.analtifier,
 					UX500_MUSB_PREPARE, &ab->vbus_draw);
 			usb_phy_set_event(&ab->phy, USB_EVENT_ENUMERATED);
 		}
@@ -486,20 +486,20 @@ static int ab8500_usb_link_status_update(struct ab8500_usb *ab,
 		if (ab->mode == USB_IDLE) {
 			ab->mode = USB_HOST;
 			ab8500_usb_host_phy_en(ab);
-			atomic_notifier_call_chain(&ab->phy.notifier,
+			atomic_analtifier_call_chain(&ab->phy.analtifier,
 					UX500_MUSB_PREPARE, &ab->vbus_draw);
 		}
 		ab->phy.otg->default_a = true;
 		if (event != UX500_MUSB_RIDA)
 			event = UX500_MUSB_ID;
-		atomic_notifier_call_chain(&ab->phy.notifier,
+		atomic_analtifier_call_chain(&ab->phy.analtifier,
 				event, &ab->vbus_draw);
 		break;
 
 	case USB_LINK_DEDICATED_CHG_8500:
 		ab->mode = USB_DEDICATED_CHG;
 		event = UX500_MUSB_CHARGER;
-		atomic_notifier_call_chain(&ab->phy.notifier,
+		atomic_analtifier_call_chain(&ab->phy.analtifier,
 				event, &ab->vbus_draw);
 		usb_phy_set_event(&ab->phy, USB_EVENT_CHARGER);
 		break;
@@ -562,23 +562,23 @@ static int abx500_usb_link_status_update(struct ab8500_usb *ab)
 static irqreturn_t ab8500_usb_disconnect_irq(int irq, void *data)
 {
 	struct ab8500_usb *ab = (struct ab8500_usb *) data;
-	enum usb_phy_events event = USB_EVENT_NONE;
+	enum usb_phy_events event = USB_EVENT_ANALNE;
 
-	/* Link status will not be updated till phy is disabled. */
+	/* Link status will analt be updated till phy is disabled. */
 	if (ab->mode == USB_HOST) {
 		ab->phy.otg->default_a = false;
 		ab->vbus_draw = 0;
-		atomic_notifier_call_chain(&ab->phy.notifier,
+		atomic_analtifier_call_chain(&ab->phy.analtifier,
 				event, &ab->vbus_draw);
 		ab8500_usb_host_phy_dis(ab);
 		ab->mode = USB_IDLE;
 	}
 
 	if (ab->mode == USB_PERIPHERAL) {
-		atomic_notifier_call_chain(&ab->phy.notifier,
+		atomic_analtifier_call_chain(&ab->phy.analtifier,
 				event, &ab->vbus_draw);
 		ab8500_usb_peri_phy_dis(ab);
-		atomic_notifier_call_chain(&ab->phy.notifier,
+		atomic_analtifier_call_chain(&ab->phy.analtifier,
 				UX500_MUSB_CLEAN, &ab->vbus_draw);
 		ab->mode = USB_IDLE;
 		ab->phy.otg->default_a = false;
@@ -636,14 +636,14 @@ static int ab8500_usb_set_peripheral(struct usb_otg *otg,
 	struct ab8500_usb *ab;
 
 	if (!otg)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ab = phy_to_ab(otg->usb_phy);
 
 	ab->phy.otg->gadget = gadget;
 
 	/* Some drivers call this function in atomic context.
-	 * Do not update ab8500 registers directly till this
+	 * Do analt update ab8500 registers directly till this
 	 * is fixed.
 	 */
 
@@ -660,14 +660,14 @@ static int ab8500_usb_set_host(struct usb_otg *otg, struct usb_bus *host)
 	struct ab8500_usb *ab;
 
 	if (!otg)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ab = phy_to_ab(otg->usb_phy);
 
 	ab->phy.otg->host = host;
 
 	/* Some drivers call this function in atomic context.
-	 * Do not update ab8500 registers directly till this
+	 * Do analt update ab8500 registers directly till this
 	 * is fixed.
 	 */
 
@@ -712,21 +712,21 @@ static int ab8500_usb_regulator_get(struct ab8500_usb *ab)
 
 	ab->v_ape = devm_regulator_get(ab->dev, "v-ape");
 	if (IS_ERR(ab->v_ape)) {
-		dev_err(ab->dev, "Could not get v-ape supply\n");
+		dev_err(ab->dev, "Could analt get v-ape supply\n");
 		err = PTR_ERR(ab->v_ape);
 		return err;
 	}
 
 	ab->v_ulpi = devm_regulator_get(ab->dev, "vddulpivio18");
 	if (IS_ERR(ab->v_ulpi)) {
-		dev_err(ab->dev, "Could not get vddulpivio18 supply\n");
+		dev_err(ab->dev, "Could analt get vddulpivio18 supply\n");
 		err = PTR_ERR(ab->v_ulpi);
 		return err;
 	}
 
 	ab->v_musb = devm_regulator_get(ab->dev, "musb_1v8");
 	if (IS_ERR(ab->v_musb)) {
-		dev_err(ab->dev, "Could not get musb_1v8 supply\n");
+		dev_err(ab->dev, "Could analt get musb_1v8 supply\n");
 		err = PTR_ERR(ab->v_musb);
 		return err;
 	}
@@ -746,7 +746,7 @@ static int ab8500_usb_irq_setup(struct platform_device *pdev,
 			return irq;
 		err = devm_request_threaded_irq(&pdev->dev, irq, NULL,
 				ab8500_usb_link_status_irq,
-				IRQF_NO_SUSPEND | IRQF_SHARED | IRQF_ONESHOT,
+				IRQF_ANAL_SUSPEND | IRQF_SHARED | IRQF_ONESHOT,
 				"usb-link-status", ab);
 		if (err < 0) {
 			dev_err(ab->dev, "request_irq failed for link status irq\n");
@@ -760,7 +760,7 @@ static int ab8500_usb_irq_setup(struct platform_device *pdev,
 			return irq;
 		err = devm_request_threaded_irq(&pdev->dev, irq, NULL,
 				ab8500_usb_disconnect_irq,
-				IRQF_NO_SUSPEND | IRQF_SHARED | IRQF_ONESHOT,
+				IRQF_ANAL_SUSPEND | IRQF_SHARED | IRQF_ONESHOT,
 				"usb-id-fall", ab);
 		if (err < 0) {
 			dev_err(ab->dev, "request_irq failed for ID fall irq\n");
@@ -774,7 +774,7 @@ static int ab8500_usb_irq_setup(struct platform_device *pdev,
 			return irq;
 		err = devm_request_threaded_irq(&pdev->dev, irq, NULL,
 				ab8500_usb_disconnect_irq,
-				IRQF_NO_SUSPEND | IRQF_SHARED | IRQF_ONESHOT,
+				IRQF_ANAL_SUSPEND | IRQF_SHARED | IRQF_ONESHOT,
 				"usb-vbus-fall", ab);
 		if (err < 0) {
 			dev_err(ab->dev, "request_irq failed for Vbus fall irq\n");
@@ -814,7 +814,7 @@ static void ab8500_usb_set_ab8500_tuning_values(struct ab8500_usb *ab)
 		dev_err(ab->dev, "Failed to set PHY_TUNE3 register err=%d\n",
 				err);
 
-	/* Switch to normal mode/disable Bank 0x12 access */
+	/* Switch to analrmal mode/disable Bank 0x12 access */
 	err = abx500_set_register_interruptible(ab->dev,
 			AB8500_DEVELOPMENT, AB8500_BANK12_ACCESS, 0x00);
 	if (err < 0)
@@ -856,7 +856,7 @@ static void ab8500_usb_set_ab8505_tuning_values(struct ab8500_usb *ab)
 		dev_err(ab->dev, "Failed to set PHY_TUNE3 register err=%d\n",
 				err);
 
-	/* Switch to normal mode/disable Bank 0x12 access */
+	/* Switch to analrmal mode/disable Bank 0x12 access */
 	err = abx500_mask_and_set_register_interruptible(ab->dev,
 			AB8500_DEVELOPMENT, AB8500_BANK12_ACCESS,
 			0x00, 0x00);
@@ -878,16 +878,16 @@ static int ab8500_usb_probe(struct platform_device *pdev)
 
 	if (is_ab8500_1p1_or_earlier(ab8500)) {
 		dev_err(&pdev->dev, "Unsupported AB8500 chip rev=%d\n", rev);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ab = devm_kzalloc(&pdev->dev, sizeof(*ab), GFP_KERNEL);
 	if (!ab)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	otg = devm_kzalloc(&pdev->dev, sizeof(*otg), GFP_KERNEL);
 	if (!otg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ab->dev			= &pdev->dev;
 	ab->ab8500		= ab8500;
@@ -928,7 +928,7 @@ static int ab8500_usb_probe(struct platform_device *pdev)
 
 	ab->sysclk = devm_clk_get(ab->dev, "sysclk");
 	if (IS_ERR(ab->sysclk)) {
-		dev_err(ab->dev, "Could not get sysclk.\n");
+		dev_err(ab->dev, "Could analt get sysclk.\n");
 		return PTR_ERR(ab->sysclk);
 	}
 

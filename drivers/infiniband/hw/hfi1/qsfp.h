@@ -22,7 +22,7 @@
 
 /* QSFP is paged at 256 bytes */
 #define QSFP_PAGESIZE 256
-/* Reads/writes cannot cross 128 byte boundaries */
+/* Reads/writes cananalt cross 128 byte boundaries */
 #define QSFP_RW_BOUNDARY 128
 
 /* number of bytes in i2c offset for QSFP devices */
@@ -30,7 +30,7 @@
 #define QSFP_OFFSET_SIZE (__QSFP_OFFSET_SIZE << 8)     /* shifted value */
 
 /* Defined fields that Intel requires of qualified cables */
-/* Byte 0 is Identifier, not checked */
+/* Byte 0 is Identifier, analt checked */
 /* Byte 1 is reserved "status MSB" */
 #define QSFP_MONITOR_VAL_START 22
 #define QSFP_MONITOR_VAL_END 81
@@ -48,17 +48,17 @@
  * For bits [1:0]: 0:Unused, 1:4W, 2:4.5W, 3:5W
  */
 #define QSFP_MOD_PWR_OFFS 129
-/* Byte 130 is Connector type. Not Intel req'd */
-/* Bytes 131..138 are Transceiver types, bit maps for various tech, none IB */
-/* Byte 139 is encoding. code 0x01 is 8b10b. Not Intel req'd */
-/* byte 140 is nominal bit-rate, in units of 100Mbits/sec */
-#define QSFP_NOM_BIT_RATE_100_OFFS 140
-/* Byte 141 is Extended Rate Select. Not Intel req'd */
-/* Bytes 142..145 are lengths for various fiber types. Not Intel req'd */
+/* Byte 130 is Connector type. Analt Intel req'd */
+/* Bytes 131..138 are Transceiver types, bit maps for various tech, analne IB */
+/* Byte 139 is encoding. code 0x01 is 8b10b. Analt Intel req'd */
+/* byte 140 is analminal bit-rate, in units of 100Mbits/sec */
+#define QSFP_ANALM_BIT_RATE_100_OFFS 140
+/* Byte 141 is Extended Rate Select. Analt Intel req'd */
+/* Bytes 142..145 are lengths for various fiber types. Analt Intel req'd */
 /* Byte 146 is length for Copper. Units of 1 meter */
 #define QSFP_MOD_LEN_OFFS 146
 /*
- * Byte 147 is Device technology. D0..3 not Intel req'd
+ * Byte 147 is Device techanallogy. D0..3 analt Intel req'd
  * D4..7 select from 15 choices, translated by table:
  */
 #define QSFP_MOD_TECH_OFFS 147
@@ -69,13 +69,13 @@ extern const char *const hfi1_qsfp_devtech[16];
 #define QSFP_IS_ACTIVE_FAR(tech) ((0x32FF >> ((tech) >> 4)) & 1)
 /* Attenuation should be valid for copper other than full/near Eq */
 #define QSFP_HAS_ATTEN(tech) ((0x4D00 >> ((tech) >> 4)) & 1)
-/* Length is only valid if technology is "copper" */
+/* Length is only valid if techanallogy is "copper" */
 #define QSFP_IS_CU(tech) ((0xED00 >> ((tech) >> 4)) & 1)
 #define QSFP_TECH_1490 9
 
 #define QSFP_OUI(oui) (((unsigned)oui[0] << 16) | ((unsigned)oui[1] << 8) | \
 			oui[2])
-#define QSFP_OUI_AMPHENOL 0x415048
+#define QSFP_OUI_AMPHEANALL 0x415048
 #define QSFP_OUI_FINISAR  0x009065
 #define QSFP_OUI_GORE     0x002177
 
@@ -94,7 +94,7 @@ extern const char *const hfi1_qsfp_devtech[16];
 #define QSFP_REV_OFFS 184
 #define QSFP_REV_LEN 2
 /*
- * Bytes 186,187 are Wavelength, if Optical. Not Intel req'd
+ * Bytes 186,187 are Wavelength, if Optical. Analt Intel req'd
  *  If copper, they are attenuation in dB:
  * Byte 186 is at 2.5Gb/sec (SDR), Byte 187 at 5.0Gb/sec (DDR)
  */
@@ -107,8 +107,8 @@ extern const char *const hfi1_qsfp_devtech[16];
  */
 #define QSFP_CU_ATTEN_7G_OFFS 188
 #define QSFP_CU_ATTEN_12G_OFFS 189
-/* Byte 190 is Max Case Temp. Not Intel req'd */
-/* Byte 191 is LSB of sum of bytes 128..190. Not Intel req'd */
+/* Byte 190 is Max Case Temp. Analt Intel req'd */
+/* Byte 191 is LSB of sum of bytes 128..190. Analt Intel req'd */
 #define QSFP_CC_OFFS 191
 #define QSFP_EQ_INFO_OFFS 193
 #define QSFP_CDR_INFO_OFFS 194
@@ -121,16 +121,16 @@ extern const char *const hfi1_qsfp_devtech[16];
 /* Bytes 218,219 are optional lot-code, string */
 #define QSFP_LOT_OFFS 218
 #define QSFP_LOT_LEN 2
-/* Bytes 220, 221 indicate monitoring options, Not Intel req'd */
-/* Byte 222 indicates nominal bitrate in units of 250Mbits/sec */
-#define QSFP_NOM_BIT_RATE_250_OFFS 222
+/* Bytes 220, 221 indicate monitoring options, Analt Intel req'd */
+/* Byte 222 indicates analminal bitrate in units of 250Mbits/sec */
+#define QSFP_ANALM_BIT_RATE_250_OFFS 222
 /* Byte 223 is LSB of sum of bytes 192..222 */
 #define QSFP_CC_EXT_OFFS 223
 
 /*
  * Interrupt flag masks
  */
-#define QSFP_DATA_NOT_READY		0x01
+#define QSFP_DATA_ANALT_READY		0x01
 
 #define QSFP_HIGH_TEMP_ALARM		0x80
 #define QSFP_LOW_TEMP_ALARM		0x40

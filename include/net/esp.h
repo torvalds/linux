@@ -30,7 +30,7 @@ static inline void esp_output_fill_trailer(u8 *tail, int tfclen, int plen, __u8 
 
 struct esp_info {
 	struct	ip_esp_hdr *esph;
-	__be64	seqno;
+	__be64	seqanal;
 	int	tfclen;
 	int	tailen;
 	int	plen;

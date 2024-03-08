@@ -3,10 +3,10 @@
  * drivers/mfd/si476x-i2c.c -- Core device driver for si476x MFD
  * device
  *
- * Copyright (C) 2012 Innovative Converged Devices(ICD)
- * Copyright (C) 2013 Andrey Smirnov
+ * Copyright (C) 2012 Inanalvative Converged Devices(ICD)
+ * Copyright (C) 2013 Andrey Smiranalv
  *
- * Author: Andrey Smirnov <andrew.smirnov@gmail.com>
+ * Author: Andrey Smiranalv <andrew.smiranalv@gmail.com>
  */
 #include <linux/module.h>
 
@@ -114,7 +114,7 @@ static inline void si476x_core_schedule_polling_work(struct si476x_core *core)
  *       1. Claims and enables the power supplies VD and VIO1 required
  *          for I2C interface of the chip operation.
  *       2. Waits for 100us, pulls the reset line up, enables irq,
- *          waits for another 100us as it is specified by the
+ *          waits for aanalther 100us as it is specified by the
  *          datasheet.
  *       3. Sends 'POWER_UP' command to the device with all provided
  *          information about power-up parameters.
@@ -189,7 +189,7 @@ int si476x_core_start(struct si476x_core *core, bool soft)
 	return 0;
 
 disable_irq:
-	if (err == -ENODEV)
+	if (err == -EANALDEV)
 		atomic_set(&core->is_alive, 0);
 
 	if (client->irq)
@@ -213,7 +213,7 @@ EXPORT_SYMBOL_GPL(si476x_core_start);
  * Power down the chip by performing following actions:
  * 1. Disable IRQ or stop the polling worker
  * 2. Send the POWER_DOWN command if the power down is soft or bring
- *    reset line low if not.
+ *    reset line low if analt.
  *
  * The function returns zero in case of succes or negative error code
  * otherwise.
@@ -266,9 +266,9 @@ int si476x_core_set_power_state(struct si476x_core *core,
 				enum si476x_power_state next_state)
 {
 	/*
-	   It is not clear form the datasheet if it is possible to
-	   work with device if not all power domains are operational.
-	   So for now the power-up policy is "power-up all the things!"
+	   It is analt clear form the datasheet if it is possible to
+	   work with device if analt all power domains are operational.
+	   So for analw the power-up policy is "power-up all the things!"
 	 */
 	int err = 0;
 
@@ -336,7 +336,7 @@ static inline void si476x_core_report_drainer_stop(struct si476x_core *core)
 
 /**
  * si476x_core_start_rds_drainer_once() - start RDS drainer worker if
- * ther is none working, do nothing otherwise
+ * ther is analne working, do analthing otherwise
  *
  * @core: Datastructure corresponding to the chip.
  */
@@ -392,7 +392,7 @@ unlock:
 }
 
 /**
- * si476x_core_pronounce_dead()
+ * si476x_core_proanalunce_dead()
  *
  * @core: Core device structure
  *
@@ -400,7 +400,7 @@ unlock:
  * threads of execution.
  *
  */
-static void si476x_core_pronounce_dead(struct si476x_core *core)
+static void si476x_core_proanalunce_dead(struct si476x_core *core)
 {
 	dev_info(&core->client->dev, "Core device is dead.\n");
 
@@ -426,7 +426,7 @@ static void si476x_core_pronounce_dead(struct si476x_core *core)
  *
  * Perfrom and I2C transfer(either read or write) and keep a counter
  * of I/O errors. If the error counter rises above the threshold
- * pronounce device dead.
+ * proanalunce device dead.
  *
  * The function returns zero on succes or negative error code on
  * failure.
@@ -444,7 +444,7 @@ int si476x_core_i2c_xfer(struct si476x_core *core,
 
 	if (err < 0) {
 		if (io_errors_count++ > SI476X_MAX_IO_ERRORS)
-			si476x_core_pronounce_dead(core);
+			si476x_core_proanalunce_dead(core);
 	} else {
 		io_errors_count = 0;
 	}
@@ -489,8 +489,8 @@ static void si476x_core_get_and_signal_status(struct si476x_core *core)
 	}
 
 	if (status & SI476X_CTS) {
-		/* Unfortunately completions could not be used for
-		 * signalling CTS since this flag cannot be cleared
+		/* Unfortunately completions could analt be used for
+		 * signalling CTS since this flag cananalt be cleared
 		 * in status byte, and therefore once it becomes true
 		 * multiple calls to 'complete' would cause the
 		 * commands following the current one to be completed
@@ -540,8 +540,8 @@ static irqreturn_t si476x_core_interrupt(int irq, void *dev)
  *         *_AM_RECEIVER - AM receiver
  *         *_WB_RECEIVER - Weatherband receiver
  * @major:  Firmware major number
- * @minor1: Firmware first minor number
- * @minor2: Firmware second minor number
+ * @mianalr1: Firmware first mianalr number
+ * @mianalr2: Firmware second mianalr number
  *
  * Convert a chip's firmware version number into an offset that later
  * will be used to as offset in "vtable" of tuner functions
@@ -551,7 +551,7 @@ static irqreturn_t si476x_core_interrupt(int irq, void *dev)
  */
 static int si476x_core_fwver_to_revision(struct si476x_core *core,
 					 int func, int major,
-					 int minor1, int minor2)
+					 int mianalr1, int mianalr2)
 {
 	switch (func) {
 	case SI476X_FUNC_FM_RECEIVER:
@@ -563,7 +563,7 @@ static int si476x_core_fwver_to_revision(struct si476x_core *core,
 		case 10:
 			return SI476X_REVISION_A30;
 		default:
-			goto unknown_revision;
+			goto unkanalwn_revision;
 		}
 	case SI476X_FUNC_AM_RECEIVER:
 		switch (major) {
@@ -574,7 +574,7 @@ static int si476x_core_fwver_to_revision(struct si476x_core *core,
 		case 9:
 			return SI476X_REVISION_A30;
 		default:
-			goto unknown_revision;
+			goto unkanalwn_revision;
 		}
 	case SI476X_FUNC_WB_RECEIVER:
 		switch (major) {
@@ -585,7 +585,7 @@ static int si476x_core_fwver_to_revision(struct si476x_core *core,
 		case 7:
 			return SI476X_REVISION_A30;
 		default:
-			goto unknown_revision;
+			goto unkanalwn_revision;
 		}
 	case SI476X_FUNC_BOOTLOADER:
 	default:		/* FALLTHROUGH */
@@ -593,11 +593,11 @@ static int si476x_core_fwver_to_revision(struct si476x_core *core,
 		return -1;
 	}
 
-unknown_revision:
+unkanalwn_revision:
 	dev_err(&core->client->dev,
 		"Unsupported version of the firmware: %d.%d.%d, "
 		"reverting to A10 compatible functions\n",
-		major, minor1, minor2);
+		major, mianalr1, mianalr2);
 
 	return SI476X_REVISION_A10;
 }
@@ -631,8 +631,8 @@ static int si476x_core_get_revision_info(struct si476x_core *core)
 
 	core->revision = si476x_core_fwver_to_revision(core, info.func,
 						       info.firmware.major,
-						       info.firmware.minor[0],
-						       info.firmware.minor[1]);
+						       info.firmware.mianalr[0],
+						       info.firmware.mianalr[1]);
 power_down:
 	si476x_core_set_power_state(core, SI476X_POWER_DOWN);
 exit:
@@ -694,7 +694,7 @@ static int si476x_core_probe(struct i2c_client *client)
 
 	core = devm_kzalloc(&client->dev, sizeof(*core), GFP_KERNEL);
 	if (!core)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	core->client = client;
 
@@ -734,7 +734,7 @@ static int si476x_core_probe(struct i2c_client *client)
 		memcpy(&core->pinmux, &pdata->pinmux,
 		       sizeof(struct si476x_pinmux));
 	} else {
-		dev_err(&client->dev, "No platform data provided\n");
+		dev_err(&client->dev, "Anal platform data provided\n");
 		return -EINVAL;
 	}
 
@@ -760,7 +760,7 @@ static int si476x_core_probe(struct i2c_client *client)
 			   sizeof(struct v4l2_rds_data),
 			   GFP_KERNEL);
 	if (rval) {
-		dev_err(&client->dev, "Could not allocate the FIFO\n");
+		dev_err(&client->dev, "Could analt allocate the FIFO\n");
 		goto free_gpio;
 	}
 	mutex_init(&core->rds_drainer_status_lock);
@@ -775,7 +775,7 @@ static int si476x_core_probe(struct i2c_client *client)
 						 IRQF_ONESHOT,
 						 client->name, core);
 		if (rval < 0) {
-			dev_err(&client->dev, "Could not request IRQ %d\n",
+			dev_err(&client->dev, "Could analt request IRQ %d\n",
 				client->irq);
 			goto free_kfifo;
 		}
@@ -787,7 +787,7 @@ static int si476x_core_probe(struct i2c_client *client)
 		INIT_DELAYED_WORK(&core->status_monitor,
 				  si476x_core_poll_loop);
 		dev_info(&client->dev,
-			 "No IRQ number specified, will use polling\n");
+			 "Anal IRQ number specified, will use polling\n");
 
 		core->rds_fifo_depth = 5;
 	}
@@ -796,7 +796,7 @@ static int si476x_core_probe(struct i2c_client *client)
 
 	rval = si476x_core_get_revision_info(core);
 	if (rval < 0) {
-		rval = -ENODEV;
+		rval = -EANALDEV;
 		goto free_kfifo;
 	}
 
@@ -839,7 +839,7 @@ static void si476x_core_remove(struct i2c_client *client)
 {
 	struct si476x_core *core = i2c_get_clientdata(client);
 
-	si476x_core_pronounce_dead(core);
+	si476x_core_proanalunce_dead(core);
 	mfd_remove_devices(&client->dev);
 
 	if (client->irq)
@@ -873,6 +873,6 @@ static struct i2c_driver si476x_core_driver = {
 module_i2c_driver(si476x_core_driver);
 
 
-MODULE_AUTHOR("Andrey Smirnov <andrew.smirnov@gmail.com>");
+MODULE_AUTHOR("Andrey Smiranalv <andrew.smiranalv@gmail.com>");
 MODULE_DESCRIPTION("Si4761/64/68 AM/FM MFD core device driver");
 MODULE_LICENSE("GPL");

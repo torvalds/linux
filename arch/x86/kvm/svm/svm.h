@@ -99,7 +99,7 @@ struct kvm_svm {
 	u32 avic_vm_id;
 	struct page *avic_logical_id_table_page;
 	struct page *avic_physical_id_table_page;
-	struct hlist_node hnode;
+	struct hlist_analde hanalde;
 
 	struct kvm_sev_info sev_info;
 };
@@ -165,15 +165,15 @@ struct svm_nested_state {
 	/* These are the merged vectors */
 	u32 *msrpm;
 
-	/* A VMRUN has started but has not yet been performed, so
-	 * we cannot inject a nested vmexit yet.  */
+	/* A VMRUN has started but has analt yet been performed, so
+	 * we cananalt inject a nested vmexit yet.  */
 	bool nested_run_pending;
 
 	/* cache for control fields of the guest */
 	struct vmcb_ctrl_area_cached ctl;
 
 	/*
-	 * Note: this struct is not kept up-to-date while L2 runs; it is only
+	 * Analte: this struct is analt kept up-to-date while L2 runs; it is only
 	 * valid within nested_svm_vmrun.
 	 */
 	struct vmcb_save_area_cached save;
@@ -182,7 +182,7 @@ struct svm_nested_state {
 
 	/*
 	 * Indicates whether MSR bitmap for L2 needs to be rebuilt due to
-	 * changes in MSR bitmap for L1 or switching to a different L2. Note,
+	 * changes in MSR bitmap for L1 or switching to a different L2. Analte,
 	 * this flag can only be used reliably in conjunction with a paravirt L1
 	 * which informs L0 whether any changes to MSR bitmap for L2 were done
 	 * on its side.
@@ -237,7 +237,7 @@ struct vcpu_svm {
 
 	struct svm_nested_state nested;
 
-	/* NMI mask value, used when vNMI is not enabled */
+	/* NMI mask value, used when vNMI is analt enabled */
 	bool nmi_masked;
 
 	/*
@@ -290,7 +290,7 @@ struct vcpu_svm {
 
 	bool x2avic_msrs_intercepted;
 
-	/* Guest GIF value, used when vGIF is not enabled */
+	/* Guest GIF value, used when vGIF is analt enabled */
 	bool guest_gif;
 };
 
@@ -370,7 +370,7 @@ static __always_inline struct vcpu_svm *to_svm(struct kvm_vcpu *vcpu)
  * Only the PDPTRs are loaded on demand into the shadow MMU.  All other
  * fields are synchronized on VM-Exit, because accessing the VMCB is cheap.
  *
- * CR3 might be out of date in the VMCB but it is not marked dirty; instead,
+ * CR3 might be out of date in the VMCB but it is analt marked dirty; instead,
  * KVM_REQ_LOAD_MMU_PGD is always requested when the cached vcpu->arch.cr3
  * is changed.  svm_load_mmu_pgd() then syncs the new CR3 value into the VMCB.
  */
@@ -642,7 +642,7 @@ extern struct kvm_x86_nested_ops svm_nested_ops;
 )
 
 bool avic_hardware_setup(void);
-int avic_ga_log_notifier(u32 ga_tag);
+int avic_ga_log_analtifier(u32 ga_tag);
 void avic_vm_destroy(struct kvm *kvm);
 int avic_vm_init(struct kvm *kvm);
 void avic_init_vmcb(struct vcpu_svm *svm, struct vmcb *vmcb);

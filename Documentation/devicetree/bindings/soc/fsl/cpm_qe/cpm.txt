@@ -1,10 +1,10 @@
 * Freescale Communications Processor Module
 
-NOTE: This is an interim binding, and will likely change slightly,
+ANALTE: This is an interim binding, and will likely change slightly,
 as more devices are supported.  The QE bindings especially are
 incomplete.
 
-* Root CPM node
+* Root CPM analde
 
 Properties:
 - compatible : "fsl,cpm1", "fsl,cpm2", or "fsl,qe".
@@ -35,23 +35,23 @@ Example:
 
 * Multi-User RAM (MURAM)
 
-The multi-user/dual-ported RAM is expressed as a bus under the CPM node.
+The multi-user/dual-ported RAM is expressed as a bus under the CPM analde.
 
 Ranges must be set up subject to the following restrictions:
 
-- Children's reg nodes must be offsets from the start of all muram, even
-  if the user-data area does not begin at zero.
+- Children's reg analdes must be offsets from the start of all muram, even
+  if the user-data area does analt begin at zero.
 - If multiple range entries are used, the difference between the parent
   address and the child address must be the same in all, so that a single
   mapping can cover them all while maintaining the ability to determine
   CPM-side offsets with pointer subtraction.  It is recommended that
-  multiple range entries not be used.
-- A child address of zero must be translatable, even if no reg resources
+  multiple range entries analt be used.
+- A child address of zero must be translatable, even if anal reg resources
   contain it.
 
-A child "data" node must exist, compatible with "fsl,cpm-muram-data", to
+A child "data" analde must exist, compatible with "fsl,cpm-muram-data", to
 indicate the portion of muram that is usable by the OS for arbitrary
-purposes.  The data node may have an arbitrary number of reg resources,
+purposes.  The data analde may have an arbitrary number of reg resources,
 all of which contribute to the allocatable muram pool.
 
 Example, based on mpc8272:

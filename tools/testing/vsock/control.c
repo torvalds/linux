@@ -3,11 +3,11 @@
  *
  * Copyright (C) 2017 Red Hat, Inc.
  *
- * Author: Stefan Hajnoczi <stefanha@redhat.com>
+ * Author: Stefan Hajanalczi <stefanha@redhat.com>
  */
 
 /* The client and server may need to coordinate to avoid race conditions like
- * the client attempting to connect to a socket that the server is not
+ * the client attempting to connect to a socket that the server is analt
  * listening on yet.  The control socket offers a communications channel for
  * such coordination tasks.
  *
@@ -16,7 +16,7 @@
  * mechanism for coordinating between the client and the server.
  */
 
-#include <errno.h>
+#include <erranal.h>
 #include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -121,7 +121,7 @@ void control_writeln(const char *str)
 	do {
 		ret = send(control_fd, str, len, MSG_MORE);
 		timeout_check("send");
-	} while (ret < 0 && errno == EINTR);
+	} while (ret < 0 && erranal == EINTR);
 
 	if (ret != len) {
 		perror("send");
@@ -131,7 +131,7 @@ void control_writeln(const char *str)
 	do {
 		ret = send(control_fd, "\n", 1, 0);
 		timeout_check("send");
-	} while (ret < 0 && errno == EINTR);
+	} while (ret < 0 && erranal == EINTR);
 
 	if (ret != 1) {
 		perror("send");
@@ -202,7 +202,7 @@ char *control_readln(void)
 		do {
 			ret = recv(control_fd, &buf[idx], 1, 0);
 			timeout_check("recv");
-		} while (ret < 0 && errno == EINTR);
+		} while (ret < 0 && erranal == EINTR);
 
 		if (ret == 0) {
 			fprintf(stderr, "unexpected EOF on control socket\n");

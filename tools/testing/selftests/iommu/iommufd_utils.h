@@ -16,7 +16,7 @@
 /* Hack to make assertions more readable */
 #define _IOMMU_TEST_CMD(x) IOMMU_TEST_CMD
 
-/* Imported from include/asm-generic/bitops/generic-non-atomic.h */
+/* Imported from include/asm-generic/bitops/generic-analn-atomic.h */
 #define BITS_PER_BYTE 8
 #define BITS_PER_LONG __BITS_PER_LONG
 #define BIT_MASK(nr) (1UL << ((nr) % __BITS_PER_LONG))
@@ -45,8 +45,8 @@ static unsigned long PAGE_SIZE;
 	(offsetof(TYPE, MEMBER) + sizeof_field(TYPE, MEMBER))
 
 /*
- * Have the kernel check the refcount on pages. I don't know why a freshly
- * mmap'd anon non-compound page starts out with a ref of 3
+ * Have the kernel check the refcount on pages. I don't kanalw why a freshly
+ * mmap'd aanaln analn-compound page starts out with a ref of 3
  */
 #define check_refs(_ptr, _length, _refs)                                      \
 	({                                                                    \
@@ -89,8 +89,8 @@ static int _test_cmd_mock_domain(int fd, unsigned int ioas_id, __u32 *stdev_id,
 #define test_cmd_mock_domain(ioas_id, stdev_id, hwpt_id, idev_id)       \
 	ASSERT_EQ(0, _test_cmd_mock_domain(self->fd, ioas_id, stdev_id, \
 					   hwpt_id, idev_id))
-#define test_err_mock_domain(_errno, ioas_id, stdev_id, hwpt_id)      \
-	EXPECT_ERRNO(_errno, _test_cmd_mock_domain(self->fd, ioas_id, \
+#define test_err_mock_domain(_erranal, ioas_id, stdev_id, hwpt_id)      \
+	EXPECT_ERRANAL(_erranal, _test_cmd_mock_domain(self->fd, ioas_id, \
 						   stdev_id, hwpt_id, NULL))
 
 static int _test_cmd_mock_domain_flags(int fd, unsigned int ioas_id,
@@ -120,8 +120,8 @@ static int _test_cmd_mock_domain_flags(int fd, unsigned int ioas_id,
 #define test_cmd_mock_domain_flags(ioas_id, flags, stdev_id, hwpt_id, idev_id) \
 	ASSERT_EQ(0, _test_cmd_mock_domain_flags(self->fd, ioas_id, flags,     \
 						 stdev_id, hwpt_id, idev_id))
-#define test_err_mock_domain_flags(_errno, ioas_id, flags, stdev_id, hwpt_id) \
-	EXPECT_ERRNO(_errno,                                                  \
+#define test_err_mock_domain_flags(_erranal, ioas_id, flags, stdev_id, hwpt_id) \
+	EXPECT_ERRANAL(_erranal,                                                  \
 		     _test_cmd_mock_domain_flags(self->fd, ioas_id, flags,    \
 						 stdev_id, hwpt_id, NULL))
 
@@ -149,8 +149,8 @@ static int _test_cmd_mock_domain_replace(int fd, __u32 stdev_id, __u32 pt_id,
 #define test_cmd_mock_domain_replace(stdev_id, pt_id)                         \
 	ASSERT_EQ(0, _test_cmd_mock_domain_replace(self->fd, stdev_id, pt_id, \
 						   NULL))
-#define test_err_mock_domain_replace(_errno, stdev_id, pt_id)                  \
-	EXPECT_ERRNO(_errno, _test_cmd_mock_domain_replace(self->fd, stdev_id, \
+#define test_err_mock_domain_replace(_erranal, stdev_id, pt_id)                  \
+	EXPECT_ERRANAL(_erranal, _test_cmd_mock_domain_replace(self->fd, stdev_id, \
 							   pt_id, NULL))
 
 static int _test_cmd_hwpt_alloc(int fd, __u32 device_id, __u32 pt_id,
@@ -178,20 +178,20 @@ static int _test_cmd_hwpt_alloc(int fd, __u32 device_id, __u32 pt_id,
 
 #define test_cmd_hwpt_alloc(device_id, pt_id, flags, hwpt_id)                  \
 	ASSERT_EQ(0, _test_cmd_hwpt_alloc(self->fd, device_id, pt_id, flags,   \
-					  hwpt_id, IOMMU_HWPT_DATA_NONE, NULL, \
+					  hwpt_id, IOMMU_HWPT_DATA_ANALNE, NULL, \
 					  0))
-#define test_err_hwpt_alloc(_errno, device_id, pt_id, flags, hwpt_id)   \
-	EXPECT_ERRNO(_errno, _test_cmd_hwpt_alloc(                      \
+#define test_err_hwpt_alloc(_erranal, device_id, pt_id, flags, hwpt_id)   \
+	EXPECT_ERRANAL(_erranal, _test_cmd_hwpt_alloc(                      \
 				     self->fd, device_id, pt_id, flags, \
-				     hwpt_id, IOMMU_HWPT_DATA_NONE, NULL, 0))
+				     hwpt_id, IOMMU_HWPT_DATA_ANALNE, NULL, 0))
 
 #define test_cmd_hwpt_alloc_nested(device_id, pt_id, flags, hwpt_id,         \
 				   data_type, data, data_len)                \
 	ASSERT_EQ(0, _test_cmd_hwpt_alloc(self->fd, device_id, pt_id, flags, \
 					  hwpt_id, data_type, data, data_len))
-#define test_err_hwpt_alloc_nested(_errno, device_id, pt_id, flags, hwpt_id, \
+#define test_err_hwpt_alloc_nested(_erranal, device_id, pt_id, flags, hwpt_id, \
 				   data_type, data, data_len)                \
-	EXPECT_ERRNO(_errno,                                                 \
+	EXPECT_ERRANAL(_erranal,                                                 \
 		     _test_cmd_hwpt_alloc(self->fd, device_id, pt_id, flags, \
 					  hwpt_id, data_type, data, data_len))
 
@@ -242,10 +242,10 @@ static int _test_cmd_hwpt_invalidate(int fd, __u32 hwpt_id, void *reqs,
 			  _test_cmd_hwpt_invalidate(self->fd, hwpt_id, reqs,  \
 						    data_type, lreq, nreqs)); \
 	})
-#define test_err_hwpt_invalidate(_errno, hwpt_id, reqs, data_type, lreq, \
+#define test_err_hwpt_invalidate(_erranal, hwpt_id, reqs, data_type, lreq, \
 				 nreqs)                                  \
 	({                                                               \
-		EXPECT_ERRNO(_errno, _test_cmd_hwpt_invalidate(          \
+		EXPECT_ERRANAL(_erranal, _test_cmd_hwpt_invalidate(          \
 					     self->fd, hwpt_id, reqs,    \
 					     data_type, lreq, nreqs));   \
 	})
@@ -280,7 +280,7 @@ static int _test_cmd_set_dirty_tracking(int fd, __u32 hwpt_id, bool enabled)
 
 	ret = ioctl(fd, IOMMU_HWPT_SET_DIRTY_TRACKING, &cmd);
 	if (ret)
-		return -errno;
+		return -erranal;
 	return 0;
 }
 #define test_cmd_set_dirty_tracking(hwpt_id, enabled) \
@@ -367,7 +367,7 @@ static int _test_mock_dirty_bitmaps(int fd, __u32 hwpt_id, size_t length,
 	memset(bitmap, 0, bitmap_size);
 	test_cmd_get_dirty_bitmap(fd, hwpt_id, length, iova, page_size, bitmap,
 				  flags);
-	/* Beware ASSERT_EQ() is two statements -- braces are not redundant! */
+	/* Beware ASSERT_EQ() is two statements -- braces are analt redundant! */
 	for (i = 0; i < nbits; i += pteset) {
 		for (j = 0; j < pteset; j++) {
 			ASSERT_EQ(j < npte,
@@ -386,7 +386,7 @@ static int _test_mock_dirty_bitmaps(int fd, __u32 hwpt_id, size_t length,
 			ASSERT_EQ(
 				(j < npte) &&
 					(flags &
-					 IOMMU_HWPT_GET_DIRTY_BITMAP_NO_CLEAR),
+					 IOMMU_HWPT_GET_DIRTY_BITMAP_ANAL_CLEAR),
 				test_bit(i + j, (unsigned long *)bitmap));
 		}
 	}
@@ -441,8 +441,8 @@ static int _test_cmd_destroy_access_pages(int fd, unsigned int access_id,
 #define test_cmd_destroy_access_pages(access_id, access_pages_id)        \
 	ASSERT_EQ(0, _test_cmd_destroy_access_pages(self->fd, access_id, \
 						    access_pages_id))
-#define test_err_destroy_access_pages(_errno, access_id, access_pages_id) \
-	EXPECT_ERRNO(_errno, _test_cmd_destroy_access_pages(              \
+#define test_err_destroy_access_pages(_erranal, access_id, access_pages_id) \
+	EXPECT_ERRANAL(_erranal, _test_cmd_destroy_access_pages(              \
 				     self->fd, access_id, access_pages_id))
 
 static int _test_ioctl_destroy(int fd, unsigned int id)
@@ -499,8 +499,8 @@ static int _test_ioctl_ioas_map(int fd, unsigned int ioas_id, void *buffer,
 					  IOMMU_IOAS_MAP_WRITEABLE |       \
 						  IOMMU_IOAS_MAP_READABLE))
 
-#define test_err_ioctl_ioas_map(_errno, buffer, length, iova_p)            \
-	EXPECT_ERRNO(_errno,                                               \
+#define test_err_ioctl_ioas_map(_erranal, buffer, length, iova_p)            \
+	EXPECT_ERRANAL(_erranal,                                               \
 		     _test_ioctl_ioas_map(self->fd, self->ioas_id, buffer, \
 					  length, iova_p,                  \
 					  IOMMU_IOAS_MAP_WRITEABLE |       \
@@ -534,10 +534,10 @@ static int _test_ioctl_ioas_map(int fd, unsigned int ioas_id, void *buffer,
 					  IOMMU_IOAS_MAP_READABLE));          \
 	})
 
-#define test_err_ioctl_ioas_map_fixed(_errno, buffer, length, iova)           \
+#define test_err_ioctl_ioas_map_fixed(_erranal, buffer, length, iova)           \
 	({                                                                    \
 		__u64 __iova = iova;                                          \
-		EXPECT_ERRNO(_errno,                                          \
+		EXPECT_ERRANAL(_erranal,                                          \
 			     _test_ioctl_ioas_map(                            \
 				     self->fd, self->ioas_id, buffer, length, \
 				     &__iova,                                 \
@@ -570,8 +570,8 @@ static int _test_ioctl_ioas_unmap(int fd, unsigned int ioas_id, uint64_t iova,
 	ASSERT_EQ(0, _test_ioctl_ioas_unmap(self->fd, ioas_id, iova, length, \
 					    NULL))
 
-#define test_err_ioctl_ioas_unmap(_errno, iova, length)                      \
-	EXPECT_ERRNO(_errno, _test_ioctl_ioas_unmap(self->fd, self->ioas_id, \
+#define test_err_ioctl_ioas_unmap(_erranal, iova, length)                      \
+	EXPECT_ERRANAL(_erranal, _test_ioctl_ioas_unmap(self->fd, self->ioas_id, \
 						    iova, length, NULL))
 
 static int _test_ioctl_set_temp_memory_limit(int fd, unsigned int limit)
@@ -613,10 +613,10 @@ static void teardown_iommufd(int fd, struct __test_metadata *_metadata)
 	EXPECT_EQ(0, close(fd));
 }
 
-#define EXPECT_ERRNO(expected_errno, cmd)         \
+#define EXPECT_ERRANAL(expected_erranal, cmd)         \
 	({                                        \
 		ASSERT_EQ(-1, cmd);               \
-		EXPECT_EQ(expected_errno, errno); \
+		EXPECT_EQ(expected_erranal, erranal); \
 	})
 
 #endif
@@ -678,8 +678,8 @@ static int _test_cmd_get_hw_info(int fd, __u32 device_id, void *data,
 	ASSERT_EQ(0, _test_cmd_get_hw_info(self->fd, device_id, data, \
 					   data_len, NULL))
 
-#define test_err_get_hw_info(_errno, device_id, data, data_len)               \
-	EXPECT_ERRNO(_errno, _test_cmd_get_hw_info(self->fd, device_id, data, \
+#define test_err_get_hw_info(_erranal, device_id, data, data_len)               \
+	EXPECT_ERRANAL(_erranal, _test_cmd_get_hw_info(self->fd, device_id, data, \
 						   data_len, NULL))
 
 #define test_cmd_get_hw_capabilities(device_id, caps, mask) \

@@ -26,7 +26,7 @@ static struct {
 	{DPSW_CNT_EGR_FRAME,		"[hw] tx frames"},
 	{DPSW_CNT_EGR_BYTE,		"[hw] tx bytes"},
 	{DPSW_CNT_EGR_FRAME_DISCARD,	"[hw] tx discarded frames"},
-	{DPSW_CNT_ING_NO_BUFF_DISCARD,	"[hw] rx nobuffer discards"},
+	{DPSW_CNT_ING_ANAL_BUFF_DISCARD,	"[hw] rx analbuffer discards"},
 };
 
 #define DPAA2_SWITCH_NUM_COUNTERS	ARRAY_SIZE(dpaa2_switch_ethtool_counters)
@@ -35,20 +35,20 @@ static void dpaa2_switch_get_drvinfo(struct net_device *netdev,
 				     struct ethtool_drvinfo *drvinfo)
 {
 	struct ethsw_port_priv *port_priv = netdev_priv(netdev);
-	u16 version_major, version_minor;
+	u16 version_major, version_mianalr;
 	int err;
 
 	strscpy(drvinfo->driver, KBUILD_MODNAME, sizeof(drvinfo->driver));
 
 	err = dpsw_get_api_version(port_priv->ethsw_data->mc_io, 0,
 				   &version_major,
-				   &version_minor);
+				   &version_mianalr);
 	if (err)
 		strscpy(drvinfo->fw_version, "N/A",
 			sizeof(drvinfo->fw_version));
 	else
 		snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
-			 "%u.%u", version_major, version_minor);
+			 "%u.%u", version_major, version_mianalr);
 
 	strscpy(drvinfo->bus_info, dev_name(netdev->dev.parent->parent),
 		sizeof(drvinfo->bus_info));
@@ -82,8 +82,8 @@ dpaa2_switch_get_link_ksettings(struct net_device *netdev,
 		goto out;
 	}
 
-	/* At the moment, we have no way of interrogating the DPMAC
-	 * from the DPSW side or there may not exist a DPMAC at all.
+	/* At the moment, we have anal way of interrogating the DPMAC
+	 * from the DPSW side or there may analt exist a DPMAC at all.
 	 * Report only autoneg state, duplexity and speed.
 	 */
 	if (state.options & DPSW_LINK_OPT_AUTONEG)
@@ -163,7 +163,7 @@ dpaa2_switch_ethtool_get_sset_count(struct net_device *netdev, int sset)
 	case ETH_SS_STATS:
 		return DPAA2_SWITCH_NUM_COUNTERS + dpaa2_mac_get_sset_count();
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 

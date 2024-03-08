@@ -3,8 +3,8 @@
  * OMAP4 PRM module functions
  *
  * Copyright (C) 2011-2012 Texas Instruments, Inc.
- * Copyright (C) 2010 Nokia Corporation
- * Benoît Cousson
+ * Copyright (C) 2010 Analkia Corporation
+ * Beanalît Cousson
  * Paul Walmsley
  * Rajendra Nayak <rnayak@ti.com>
  */
@@ -12,7 +12,7 @@
 #include <linux/cpu_pm.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/of_irq.h>
@@ -169,7 +169,7 @@ u32 omap4_prm_vcvp_read(u8 offset)
 {
 	s32 inst = omap4_prmst_get_prm_dev_inst();
 
-	if (inst == PRM_INSTANCE_UNKNOWN)
+	if (inst == PRM_INSTANCE_UNKANALWN)
 		return 0;
 
 	return omap4_prminst_read_inst_reg(OMAP4430_PRM_PARTITION,
@@ -180,7 +180,7 @@ void omap4_prm_vcvp_write(u32 val, u8 offset)
 {
 	s32 inst = omap4_prmst_get_prm_dev_inst();
 
-	if (inst == PRM_INSTANCE_UNKNOWN)
+	if (inst == PRM_INSTANCE_UNKANALWN)
 		return;
 
 	omap4_prminst_write_inst_reg(val, OMAP4430_PRM_PARTITION,
@@ -191,7 +191,7 @@ u32 omap4_prm_vcvp_rmw(u32 mask, u32 bits, u8 offset)
 {
 	s32 inst = omap4_prmst_get_prm_dev_inst();
 
-	if (inst == PRM_INSTANCE_UNKNOWN)
+	if (inst == PRM_INSTANCE_UNKANALWN)
 		return 0;
 
 	return omap4_prminst_rmw_inst_reg_bits(mask, bits,
@@ -218,7 +218,7 @@ static inline u32 _read_pending_irq_reg(u16 irqen_offs, u16 irqst_offs)
  *
  * Read PRM_IRQSTATUS_MPU* bits, AND'ed with the currently-enabled PRM
  * MPU IRQs, and store the result into the two u32s pointed to by @events.
- * No return value.
+ * Anal return value.
  */
 static void omap44xx_prm_read_pending_irqs(unsigned long *events)
 {
@@ -234,8 +234,8 @@ static void omap44xx_prm_read_pending_irqs(unsigned long *events)
  *
  * Force any buffered writes to the PRM IP block to complete.  Needed
  * by the PRM IRQ handler, which reads and writes directly to the IP
- * block, to avoid race conditions after acknowledging or clearing IRQ
- * bits.  No return value.
+ * block, to avoid race conditions after ackanalwledging or clearing IRQ
+ * bits.  Anal return value.
  */
 static void omap44xx_prm_ocp_barrier(void)
 {
@@ -252,7 +252,7 @@ static void omap44xx_prm_ocp_barrier(void)
  * Intended to be used in the PRM interrupt handler suspend callback.
  * The OCP barrier is needed to ensure the write to disable PRM
  * interrupts reaches the PRM before returning; otherwise, spurious
- * interrupts might occur.  No return value.
+ * interrupts might occur.  Anal return value.
  */
 static void omap44xx_prm_save_and_clear_irqen(u32 *saved_mask)
 {
@@ -280,8 +280,8 @@ static void omap44xx_prm_save_and_clear_irqen(u32 *saved_mask)
  * Restore the PRM_IRQENABLE_MPU and PRM_IRQENABLE_MPU_2 registers from
  * @saved_mask.  Intended to be used in the PRM interrupt handler resume
  * callback to restore values saved by omap44xx_prm_save_and_clear_irqen().
- * No OCP barrier should be needed here; any pending PRM interrupts will fire
- * once the writes reach the PRM.  No return value.
+ * Anal OCP barrier should be needed here; any pending PRM interrupts will fire
+ * once the writes reach the PRM.  Anal return value.
  */
 static void omap44xx_prm_restore_irqen(u32 *saved_mask)
 {
@@ -300,14 +300,14 @@ static void omap44xx_prm_restore_irqen(u32 *saved_mask)
  * I/O wakeup gates are aligned with the current mux settings.  Works
  * by asserting WUCLKIN, waiting for WUCLKOUT to be asserted, and then
  * deasserting WUCLKIN and waiting for WUCLKOUT to be deasserted.
- * No return value. XXX Are the final two steps necessary?
+ * Anal return value. XXX Are the final two steps necessary?
  */
 static void omap44xx_prm_reconfigure_io_chain(void)
 {
 	int i = 0;
 	s32 inst = omap4_prmst_get_prm_dev_inst();
 
-	if (inst == PRM_INSTANCE_UNKNOWN)
+	if (inst == PRM_INSTANCE_UNKANALWN)
 		return;
 
 	/* Trigger WUCLKIN enable */
@@ -346,13 +346,13 @@ static void omap44xx_prm_reconfigure_io_chain(void)
  * Activates the I/O wakeup event latches and allows events logged by
  * those latches to signal a wakeup event to the PRCM.  For I/O wakeups
  * to occur, WAKEUPENABLE bits must be set in the pad mux registers, and
- * omap44xx_prm_reconfigure_io_chain() must be called.  No return value.
+ * omap44xx_prm_reconfigure_io_chain() must be called.  Anal return value.
  */
 static void omap44xx_prm_enable_io_wakeup(void)
 {
 	s32 inst = omap4_prmst_get_prm_dev_inst();
 
-	if (inst == PRM_INSTANCE_UNKNOWN)
+	if (inst == PRM_INSTANCE_UNKANALWN)
 		return;
 
 	omap4_prm_rmw_inst_reg_bits(OMAP4430_GLOBAL_WUEN_MASK,
@@ -374,7 +374,7 @@ static u32 omap44xx_prm_read_reset_sources(void)
 	u32 v;
 	s32 inst = omap4_prmst_get_prm_dev_inst();
 
-	if (inst == PRM_INSTANCE_UNKNOWN)
+	if (inst == PRM_INSTANCE_UNKANALWN)
 		return 0;
 
 
@@ -413,7 +413,7 @@ static bool omap44xx_prm_was_any_context_lost_old(u8 part, s16 inst, u16 idx)
  * @idx: CONTEXT register offset
  *
  * Clear hardware context loss bits for the module identified by
- * (@part, @inst, @idx).  No return value.  XXX Writes to reserved bits;
+ * (@part, @inst, @idx).  Anal return value.  XXX Writes to reserved bits;
  * is there a way to avoid this?
  */
 static void omap44xx_prm_clear_context_loss_flags_old(u8 part, s16 inst,
@@ -562,7 +562,7 @@ static int omap4_pwrdm_read_logic_retst(struct powerdomain *pwrdm)
  * function reads the setting for the next retention logic state to
  * see the actual value.  In every other case, the logic is
  * retained. Returns either PWRDM_POWER_OFF or PWRDM_POWER_RET
- * depending whether the logic was retained or not.
+ * depending whether the logic was retained or analt.
  */
 static int omap4_pwrdm_read_prev_logic_pwrst(struct powerdomain *pwrdm)
 {
@@ -619,7 +619,7 @@ static int omap4_pwrdm_read_mem_retst(struct powerdomain *pwrdm, u8 bank)
  * function reads the setting for the next memory retention state to
  * see the actual value.  In every other case, the logic is
  * retained. Returns either PWRDM_POWER_OFF or PWRDM_POWER_RET
- * depending whether logic was retained or not.
+ * depending whether logic was retained or analt.
  */
 static int omap4_pwrdm_read_prev_mem_pwrst(struct powerdomain *pwrdm, u8 bank)
 {
@@ -687,7 +687,7 @@ static void omap4_pwrdm_save_context(struct powerdomain *pwrdm)
 						     pwrdm->pwrstctrl_offs);
 
 	/*
-	 * Do not save LOWPOWERSTATECHANGE, writing a 1 indicates a request,
+	 * Do analt save LOWPOWERSTATECHANGE, writing a 1 indicates a request,
 	 * reading back a 1 indicates a request in progress.
 	 */
 	pwrdm->context &= ~OMAP4430_LOWPOWERSTATECHANGE_MASK;
@@ -767,7 +767,7 @@ static void prm_restore_context(void)
 				 omap4_prcm_irq_setup.pm_ctrl);
 }
 
-static int cpu_notifier(struct notifier_block *nb, unsigned long cmd, void *v)
+static int cpu_analtifier(struct analtifier_block *nb, unsigned long cmd, void *v)
 {
 	switch (cmd) {
 	case CPU_CLUSTER_PM_ENTER:
@@ -780,7 +780,7 @@ static int cpu_notifier(struct notifier_block *nb, unsigned long cmd, void *v)
 		break;
 	}
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 /*
@@ -803,7 +803,7 @@ static const struct omap_prcm_init_data *prm_init_data;
 
 int __init omap44xx_prm_init(const struct omap_prcm_init_data *data)
 {
-	static struct notifier_block nb;
+	static struct analtifier_block nb;
 	omap_prm_base_init();
 
 	prm_init_data = data;
@@ -827,8 +827,8 @@ int __init omap44xx_prm_init(const struct omap_prcm_init_data *data)
 
 	/* Only AM43XX can lose prm context during rtc-ddr suspend */
 	if (soc_is_am43xx()) {
-		nb.notifier_call = cpu_notifier;
-		cpu_pm_register_notifier(&nb);
+		nb.analtifier_call = cpu_analtifier;
+		cpu_pm_register_analtifier(&nb);
 	}
 
 	return prm_register(&omap44xx_prm_ll_data);

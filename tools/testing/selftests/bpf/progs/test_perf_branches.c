@@ -26,7 +26,7 @@ int perf_branches(void *ctx)
 
 	/* write to stack */
 	written_stack = bpf_read_branch_records(ctx, entries, sizeof(entries), 0);
-	/* ignore spurious events */
+	/* iganalre spurious events */
 	if (!written_stack)
 		return 1;
 
@@ -35,7 +35,7 @@ int perf_branches(void *ctx)
 						BPF_F_GET_BRANCH_RECORDS_SIZE);
 
 	written_global = bpf_read_branch_records(ctx, fpbe, sizeof(fpbe), 0);
-	/* ignore spurious events */
+	/* iganalre spurious events */
 	if (!written_global)
 		return 1;
 

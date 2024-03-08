@@ -387,7 +387,7 @@
 #define SC_BOTTOM_RIGHT                        0x16F0
 #define SRC_SC_BOTTOM_RIGHT                    0x16F4
 #define RB2D_DSTCACHE_MODE		       0x3428
-#define RB2D_DSTCACHE_CTLSTAT_broken	       0x342C /* do not use */
+#define RB2D_DSTCACHE_CTLSTAT_broken	       0x342C /* do analt use */
 #define LVDS_GEN_CNTL			       0x02d0
 #define LVDS_PLL_CNTL			       0x02d4
 #define FP2_GEN_CNTL                           0x0288
@@ -535,7 +535,7 @@
 
 /* DSTCACHE_MODE bits constants */
 #define RB2D_DC_AUTOFLUSH_ENABLE                   (1 << 8)
-#define RB2D_DC_DC_DISABLE_IGNORE_PE               (1 << 17)
+#define RB2D_DC_DC_DISABLE_IGANALRE_PE               (1 << 17)
 
 /* CRTC_GEN_CNTL bit constants */
 #define CRTC_DBL_SCAN_EN                           0x00000001
@@ -752,10 +752,10 @@
 
 /* SURFACE_CNTL bit constants */
 #define SURF_TRANSLATION_DIS			   (1 << 8)
-#define NONSURF_AP0_SWP_16BPP			   (1 << 20)
-#define NONSURF_AP0_SWP_32BPP			   (1 << 21)
-#define NONSURF_AP1_SWP_16BPP			   (1 << 22)
-#define NONSURF_AP1_SWP_32BPP			   (1 << 23)
+#define ANALNSURF_AP0_SWP_16BPP			   (1 << 20)
+#define ANALNSURF_AP0_SWP_32BPP			   (1 << 21)
+#define ANALNSURF_AP1_SWP_16BPP			   (1 << 22)
+#define ANALNSURF_AP1_SWP_32BPP			   (1 << 23)
 
 /* DEFAULT_SC_BOTTOM_RIGHT bit constants */
 #define DEFAULT_SC_RIGHT_MAX			   (0x1fff << 0)
@@ -767,12 +767,12 @@
 /* CLR_CMP_CNTL bit constants */
 #define COMPARE_SRC_FALSE                          0x00000000
 #define COMPARE_SRC_TRUE                           0x00000001
-#define COMPARE_SRC_NOT_EQUAL                      0x00000004
+#define COMPARE_SRC_ANALT_EQUAL                      0x00000004
 #define COMPARE_SRC_EQUAL                          0x00000005
 #define COMPARE_SRC_EQUAL_FLIP                     0x00000007
 #define COMPARE_DST_FALSE                          0x00000000
 #define COMPARE_DST_TRUE                           0x00000100
-#define COMPARE_DST_NOT_EQUAL                      0x00000400
+#define COMPARE_DST_ANALT_EQUAL                      0x00000400
 #define COMPARE_DST_EQUAL                          0x00000500
 #define COMPARE_DESTINATION                        0x00000000
 #define COMPARE_SOURCE                             0x01000000
@@ -795,7 +795,7 @@
 #define DST_TRAP_FILL_LEFT_TO_RIGHT                0x00000080
 #define DST_BRES_SIGN                              0x00000100
 #define DST_HOST_BIG_ENDIAN_EN                     0x00000200
-#define DST_POLYLINE_NONLAST                       0x00008000
+#define DST_POLYLINE_ANALNLAST                       0x00008000
 #define DST_RASTER_STALL                           0x00010000
 #define DST_POLY_EDGE                              0x00040000
 
@@ -823,8 +823,8 @@
 #define DST_32BPP_AYUV444                          0x0000000e
 #define DST_16BPP_ARGB4444                         0x0000000f
 #define BRUSH_SOLIDCOLOR                           0x00000d00
-#define SRC_MONO                                   0x00000000
-#define SRC_MONO_LBKGD                             0x00010000
+#define SRC_MOANAL                                   0x00000000
+#define SRC_MOANAL_LBKGD                             0x00010000
 #define SRC_DSTCOLOR                               0x00030000
 #define BYTE_ORDER_MSB_TO_LSB                      0x00000000
 #define BYTE_ORDER_LSB_TO_MSB                      0x40000000
@@ -841,16 +841,16 @@
 #define GMC_SRC_CLIP_LEAVE                         0x00000004
 #define GMC_DST_CLIP_DEFAULT                       0x00000000
 #define GMC_DST_CLIP_LEAVE                         0x00000008
-#define GMC_BRUSH_8x8MONO                          0x00000000
-#define GMC_BRUSH_8x8MONO_LBKGD                    0x00000010
-#define GMC_BRUSH_8x1MONO                          0x00000020
-#define GMC_BRUSH_8x1MONO_LBKGD                    0x00000030
-#define GMC_BRUSH_1x8MONO                          0x00000040
-#define GMC_BRUSH_1x8MONO_LBKGD                    0x00000050
-#define GMC_BRUSH_32x1MONO                         0x00000060
-#define GMC_BRUSH_32x1MONO_LBKGD                   0x00000070
-#define GMC_BRUSH_32x32MONO                        0x00000080
-#define GMC_BRUSH_32x32MONO_LBKGD                  0x00000090
+#define GMC_BRUSH_8x8MOANAL                          0x00000000
+#define GMC_BRUSH_8x8MOANAL_LBKGD                    0x00000010
+#define GMC_BRUSH_8x1MOANAL                          0x00000020
+#define GMC_BRUSH_8x1MOANAL_LBKGD                    0x00000030
+#define GMC_BRUSH_1x8MOANAL                          0x00000040
+#define GMC_BRUSH_1x8MOANAL_LBKGD                    0x00000050
+#define GMC_BRUSH_32x1MOANAL                         0x00000060
+#define GMC_BRUSH_32x1MOANAL_LBKGD                   0x00000070
+#define GMC_BRUSH_32x32MOANAL                        0x00000080
+#define GMC_BRUSH_32x32MOANAL_LBKGD                  0x00000090
 #define GMC_BRUSH_8x8COLOR                         0x000000a0
 #define GMC_BRUSH_8x1COLOR                         0x000000b0
 #define GMC_BRUSH_1x8COLOR                         0x000000c0
@@ -867,8 +867,8 @@
 #define GMC_DST_16BPP_YVYU422                      0x00000c00
 #define GMC_DST_32BPP_AYUV444                      0x00000e00
 #define GMC_DST_16BPP_ARGB4444                     0x00000f00
-#define GMC_SRC_MONO                               0x00000000
-#define GMC_SRC_MONO_LBKGD                         0x00001000
+#define GMC_SRC_MOANAL                               0x00000000
+#define GMC_SRC_MOANAL_LBKGD                         0x00001000
 #define GMC_SRC_DSTCOLOR                           0x00003000
 #define GMC_BYTE_ORDER_MSB_TO_LSB                  0x00000000
 #define GMC_BYTE_ORDER_LSB_TO_MSB                  0x00004000
@@ -892,7 +892,7 @@
 #define ROP3_P                			   0x00f00000
 #define ROP3_PATCOPY				   0x00f00000
 #define DP_SRC_SOURCE_MASK        		   (7    << 24)
-#define GMC_BRUSH_NONE            		   (15   <<  4)
+#define GMC_BRUSH_ANALNE            		   (15   <<  4)
 #define DP_SRC_SOURCE_MEMORY			   (2    << 24)
 #define GMC_BRUSH_SOLIDCOLOR			   0x000000d0
 
@@ -931,10 +931,10 @@
 #define BUS_CNTL1_AGPCLK_VALID                     0x80000000
 
 /* PLL_PWRMGT_CNTL constants */
-#define PLL_PWRMGT_CNTL_SPLL_TURNOFF               0x00000002
-#define PLL_PWRMGT_CNTL_PPLL_TURNOFF               0x00000004
-#define PLL_PWRMGT_CNTL_P2PLL_TURNOFF              0x00000008
-#define PLL_PWRMGT_CNTL_TVPLL_TURNOFF              0x00000010
+#define PLL_PWRMGT_CNTL_SPLL_TURANALFF               0x00000002
+#define PLL_PWRMGT_CNTL_PPLL_TURANALFF               0x00000004
+#define PLL_PWRMGT_CNTL_P2PLL_TURANALFF              0x00000008
+#define PLL_PWRMGT_CNTL_TVPLL_TURANALFF              0x00000010
 #define PLL_PWRMGT_CNTL_MOBILE_SU                  0x00010000
 #define PLL_PWRMGT_CNTL_SU_SCLK_USE_BCLK           0x00020000
 #define PLL_PWRMGT_CNTL_SU_MCLK_USE_BCLK           0x00040000
@@ -1039,10 +1039,10 @@
 #define	CLK_PWRMGT_CNTL__SPLL_PWRMGT_OFF__SHIFT         0x00000001
 #define	CLK_PWRMGT_CNTL__PPLL_PWRMGT_OFF__SHIFT         0x00000002
 #define	CLK_PWRMGT_CNTL__P2PLL_PWRMGT_OFF__SHIFT        0x00000003
-#define	CLK_PWRMGT_CNTL__MCLK_TURNOFF__SHIFT            0x00000004
-#define	CLK_PWRMGT_CNTL__SCLK_TURNOFF__SHIFT            0x00000005
-#define	CLK_PWRMGT_CNTL__PCLK_TURNOFF__SHIFT            0x00000006
-#define	CLK_PWRMGT_CNTL__P2CLK_TURNOFF__SHIFT           0x00000007
+#define	CLK_PWRMGT_CNTL__MCLK_TURANALFF__SHIFT            0x00000004
+#define	CLK_PWRMGT_CNTL__SCLK_TURANALFF__SHIFT            0x00000005
+#define	CLK_PWRMGT_CNTL__PCLK_TURANALFF__SHIFT            0x00000006
+#define	CLK_PWRMGT_CNTL__P2CLK_TURANALFF__SHIFT           0x00000007
 #define	CLK_PWRMGT_CNTL__MC_CH_MODE__SHIFT              0x00000008
 #define	CLK_PWRMGT_CNTL__TEST_MODE__SHIFT               0x00000009
 #define	CLK_PWRMGT_CNTL__GLOBAL_PMAN_EN__SHIFT          0x0000000a
@@ -1055,9 +1055,9 @@
 #define	CLK_PWRMGT_CNTL__DLL_READY__SHIFT               0x00000013
 #define	CLK_PWRMGT_CNTL__DISP_PM__SHIFT                 0x00000014
 #define	CLK_PWRMGT_CNTL__DYN_STOP_MODE__SHIFT           0x00000015
-#define	CLK_PWRMGT_CNTL__CG_NO1_DEBUG__SHIFT            0x00000018
+#define	CLK_PWRMGT_CNTL__CG_ANAL1_DEBUG__SHIFT            0x00000018
 #define	CLK_PWRMGT_CNTL__TVPLL_PWRMGT_OFF__SHIFT        0x0000001e
-#define	CLK_PWRMGT_CNTL__TVCLK_TURNOFF__SHIFT           0x0000001f
+#define	CLK_PWRMGT_CNTL__TVCLK_TURANALFF__SHIFT           0x0000001f
 
 // pllP2PLL_CNTL
 #define P2PLL_CNTL__P2PLL_RESET_MASK                       0x00000001L
@@ -1262,16 +1262,16 @@
 #define VCLK_ECP_CNTL__R300_DISP_DAC_PIXCLK_DAC_BLANK_OFF  (1<<23)
 
 // PLL_PWRMGT_CNTL
-#define PLL_PWRMGT_CNTL__MPLL_TURNOFF_MASK                 0x00000001L
-#define PLL_PWRMGT_CNTL__MPLL_TURNOFF                      0x00000001L
-#define PLL_PWRMGT_CNTL__SPLL_TURNOFF_MASK                 0x00000002L
-#define PLL_PWRMGT_CNTL__SPLL_TURNOFF                      0x00000002L
-#define PLL_PWRMGT_CNTL__PPLL_TURNOFF_MASK                 0x00000004L
-#define PLL_PWRMGT_CNTL__PPLL_TURNOFF                      0x00000004L
-#define PLL_PWRMGT_CNTL__P2PLL_TURNOFF_MASK                0x00000008L
-#define PLL_PWRMGT_CNTL__P2PLL_TURNOFF                     0x00000008L
-#define PLL_PWRMGT_CNTL__TVPLL_TURNOFF_MASK                0x00000010L
-#define PLL_PWRMGT_CNTL__TVPLL_TURNOFF                     0x00000010L
+#define PLL_PWRMGT_CNTL__MPLL_TURANALFF_MASK                 0x00000001L
+#define PLL_PWRMGT_CNTL__MPLL_TURANALFF                      0x00000001L
+#define PLL_PWRMGT_CNTL__SPLL_TURANALFF_MASK                 0x00000002L
+#define PLL_PWRMGT_CNTL__SPLL_TURANALFF                      0x00000002L
+#define PLL_PWRMGT_CNTL__PPLL_TURANALFF_MASK                 0x00000004L
+#define PLL_PWRMGT_CNTL__PPLL_TURANALFF                      0x00000004L
+#define PLL_PWRMGT_CNTL__P2PLL_TURANALFF_MASK                0x00000008L
+#define PLL_PWRMGT_CNTL__P2PLL_TURANALFF                     0x00000008L
+#define PLL_PWRMGT_CNTL__TVPLL_TURANALFF_MASK                0x00000010L
+#define PLL_PWRMGT_CNTL__TVPLL_TURANALFF                     0x00000010L
 #define PLL_PWRMGT_CNTL__AGPCLK_DYN_STOP_LAT_MASK          0x000001e0L
 #define PLL_PWRMGT_CNTL__APM_POWER_STATE_MASK              0x00000600L
 #define PLL_PWRMGT_CNTL__APM_PWRSTATE_RD_MASK              0x00001800L
@@ -1293,7 +1293,7 @@
 #define PLL_PWRMGT_CNTL__TCL_BYPASS_DISABLE                0x00100000L
 #define PLL_PWRMGT_CNTL__TCL_CLOCK_CTIVE_RD_MASK          0x00200000L
 #define PLL_PWRMGT_CNTL__TCL_CLOCK_ACTIVE_RD               0x00200000L
-#define PLL_PWRMGT_CNTL__CG_NO2_DEBUG_MASK                 0xff000000L
+#define PLL_PWRMGT_CNTL__CG_ANAL2_DEBUG_MASK                 0xff000000L
 
 // CLK_PWRMGT_CNTL
 #define CLK_PWRMGT_CNTL__MPLL_PWRMGT_OFF_MASK           0x00000001L
@@ -1304,14 +1304,14 @@
 #define CLK_PWRMGT_CNTL__PPLL_PWRMGT_OFF                0x00000004L
 #define CLK_PWRMGT_CNTL__P2PLL_PWRMGT_OFF_MASK          0x00000008L
 #define CLK_PWRMGT_CNTL__P2PLL_PWRMGT_OFF               0x00000008L
-#define CLK_PWRMGT_CNTL__MCLK_TURNOFF_MASK              0x00000010L
-#define CLK_PWRMGT_CNTL__MCLK_TURNOFF                   0x00000010L
-#define CLK_PWRMGT_CNTL__SCLK_TURNOFF_MASK              0x00000020L
-#define CLK_PWRMGT_CNTL__SCLK_TURNOFF                   0x00000020L
-#define CLK_PWRMGT_CNTL__PCLK_TURNOFF_MASK              0x00000040L
-#define CLK_PWRMGT_CNTL__PCLK_TURNOFF                   0x00000040L
-#define CLK_PWRMGT_CNTL__P2CLK_TURNOFF_MASK             0x00000080L
-#define CLK_PWRMGT_CNTL__P2CLK_TURNOFF                  0x00000080L
+#define CLK_PWRMGT_CNTL__MCLK_TURANALFF_MASK              0x00000010L
+#define CLK_PWRMGT_CNTL__MCLK_TURANALFF                   0x00000010L
+#define CLK_PWRMGT_CNTL__SCLK_TURANALFF_MASK              0x00000020L
+#define CLK_PWRMGT_CNTL__SCLK_TURANALFF                   0x00000020L
+#define CLK_PWRMGT_CNTL__PCLK_TURANALFF_MASK              0x00000040L
+#define CLK_PWRMGT_CNTL__PCLK_TURANALFF                   0x00000040L
+#define CLK_PWRMGT_CNTL__P2CLK_TURANALFF_MASK             0x00000080L
+#define CLK_PWRMGT_CNTL__P2CLK_TURANALFF                  0x00000080L
 #define CLK_PWRMGT_CNTL__MC_CH_MODE_MASK                0x00000100L
 #define CLK_PWRMGT_CNTL__MC_CH_MODE                     0x00000100L
 #define CLK_PWRMGT_CNTL__TEST_MODE_MASK                 0x00000200L
@@ -1334,11 +1334,11 @@
 #define CLK_PWRMGT_CNTL__DISP_PM_MASK                   0x00100000L
 #define CLK_PWRMGT_CNTL__DISP_PM                        0x00100000L
 #define CLK_PWRMGT_CNTL__DYN_STOP_MODE_MASK             0x00e00000L
-#define CLK_PWRMGT_CNTL__CG_NO1_DEBUG_MASK              0x3f000000L
+#define CLK_PWRMGT_CNTL__CG_ANAL1_DEBUG_MASK              0x3f000000L
 #define CLK_PWRMGT_CNTL__TVPLL_PWRMGT_OFF_MASK          0x40000000L
 #define CLK_PWRMGT_CNTL__TVPLL_PWRMGT_OFF               0x40000000L
-#define CLK_PWRMGT_CNTL__TVCLK_TURNOFF_MASK             0x80000000L
-#define CLK_PWRMGT_CNTL__TVCLK_TURNOFF                  0x80000000L
+#define CLK_PWRMGT_CNTL__TVCLK_TURANALFF_MASK             0x80000000L
+#define CLK_PWRMGT_CNTL__TVCLK_TURANALFF                  0x80000000L
 
 // BUS_CNTL1
 #define BUS_CNTL1__PMI_IO_DISABLE_MASK                     0x00000001L

@@ -61,7 +61,7 @@ static const struct drm_driver drv_driver = {
 	.desc = "STMicroelectronics SoC DRM",
 	.date = "20170330",
 	.major = 1,
-	.minor = 0,
+	.mianalr = 0,
 	.patchlevel = 0,
 	.fops = &drv_driver_fops,
 	DRM_GEM_DMA_DRIVER_OPS_WITH_DUMB_CREATE(stm_gem_dma_dumb_create),
@@ -77,7 +77,7 @@ static int drv_load(struct drm_device *ddev)
 
 	ldev = devm_kzalloc(ddev->dev, sizeof(*ldev), GFP_KERNEL);
 	if (!ldev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ddev->dev_private = (void *)ldev;
 
@@ -95,7 +95,7 @@ static int drv_load(struct drm_device *ddev)
 	ddev->mode_config.max_width = STM_MAX_FB_WIDTH;
 	ddev->mode_config.max_height = STM_MAX_FB_HEIGHT;
 	ddev->mode_config.funcs = &drv_mode_config_funcs;
-	ddev->mode_config.normalize_zpos = true;
+	ddev->mode_config.analrmalize_zpos = true;
 
 	ret = ltdc_load(ddev);
 	if (ret)
@@ -143,7 +143,7 @@ static __maybe_unused int drv_resume(struct device *dev)
 	int ret;
 
 	if (WARN_ON(!ldev->suspend_state))
-		return -ENOENT;
+		return -EANALENT;
 
 	pm_runtime_force_resume(dev);
 	ret = drm_atomic_helper_resume(ddev, ldev->suspend_state);
@@ -233,7 +233,7 @@ static void stm_drm_platform_shutdown(struct platform_device *pdev)
 
 static const struct of_device_id drv_dt_ids[] = {
 	{ .compatible = "st,stm32-ltdc"},
-	{ /* end node */ },
+	{ /* end analde */ },
 };
 MODULE_DEVICE_TABLE(of, drv_dt_ids);
 

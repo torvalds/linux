@@ -58,7 +58,7 @@
 #define DIGITAL_SENSF_RES_RD_AP_B1   0x00
 #define DIGITAL_SENSF_RES_RD_AP_B2   0x8F
 
-#define DIGITAL_SENSF_REQ_RC_NONE 0
+#define DIGITAL_SENSF_REQ_RC_ANALNE 0
 #define DIGITAL_SENSF_REQ_RC_SC   1
 #define DIGITAL_SENSF_REQ_RC_AP   2
 
@@ -176,14 +176,14 @@ int digital_in_iso_dep_pull_sod(struct nfc_digital_dev *ddev,
 	pcb = *skb->data;
 	block_type = DIGITAL_ISO_DEP_PCB_TYPE(pcb);
 
-	/* No support fo R-block nor S-block */
+	/* Anal support fo R-block analr S-block */
 	if (block_type != DIGITAL_ISO_DEP_I_BLOCK) {
-		pr_err("ISO_DEP R-block and S-block not supported\n");
+		pr_err("ISO_DEP R-block and S-block analt supported\n");
 		return -EIO;
 	}
 
 	if (DIGITAL_ISO_DEP_BLOCK_HAS_DID(pcb)) {
-		pr_err("DID field in ISO_DEP PCB not supported\n");
+		pr_err("DID field in ISO_DEP PCB analt supported\n");
 		return -EIO;
 	}
 
@@ -196,8 +196,8 @@ int digital_in_iso_dep_push_sod(struct nfc_digital_dev *ddev,
 				struct sk_buff *skb)
 {
 	/*
-	 * Chaining not supported so skb->len + 1 PCB byte + 2 CRC bytes must
-	 * not be greater than remote FSC
+	 * Chaining analt supported so skb->len + 1 PCB byte + 2 CRC bytes must
+	 * analt be greater than remote FSC
 	 */
 	if (skb->len + 3 > ddev->target_fsc)
 		return -EIO;
@@ -256,7 +256,7 @@ static int digital_in_send_rats(struct nfc_digital_dev *ddev,
 
 	skb = digital_skb_alloc(ddev, 2);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_put_u8(skb, DIGITAL_RATS_BYTE1);
 	skb_put_u8(skb, DIGITAL_RATS_PARAM);
@@ -317,12 +317,12 @@ static void digital_in_recv_sel_res(struct nfc_digital_dev *ddev, void *arg,
 		if (rc)
 			goto exit;
 		/*
-		 * Skip target_found and don't free it for now. This will be
+		 * Skip target_found and don't free it for analw. This will be
 		 * done when receiving the ATS
 		 */
 		goto exit_free_skb;
 	} else {
-		rc = -EOPNOTSUPP;
+		rc = -EOPANALTSUPP;
 		goto exit;
 	}
 
@@ -349,7 +349,7 @@ static int digital_in_send_sel_req(struct nfc_digital_dev *ddev,
 
 	skb = digital_skb_alloc(ddev, sizeof(struct digital_sel_req));
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_put(skb, sizeof(struct digital_sel_req));
 	sel_req = (struct digital_sel_req *)skb->data;
@@ -453,7 +453,7 @@ static int digital_in_send_sdd_req(struct nfc_digital_dev *ddev,
 
 	skb = digital_skb_alloc(ddev, 2);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (target->nfcid1_len == 0)
 		sel_cmd = DIGITAL_CMD_SEL_REQ_CL1;
@@ -492,7 +492,7 @@ static void digital_in_recv_sens_res(struct nfc_digital_dev *ddev, void *arg,
 
 	target = kzalloc(sizeof(struct nfc_target), GFP_KERNEL);
 	if (!target) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto exit;
 	}
 
@@ -535,7 +535,7 @@ int digital_in_send_sens_req(struct nfc_digital_dev *ddev, u8 rf_tech)
 
 	skb = digital_skb_alloc(ddev, 1);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_put_u8(skb, DIGITAL_CMD_SENS_REQ);
 
@@ -551,7 +551,7 @@ int digital_in_recv_mifare_res(struct sk_buff *resp)
 	/* Successful READ command response is 16 data bytes + 2 CRC bytes long.
 	 * Since the driver can't differentiate a ACK/NACK response from a valid
 	 * READ response, the CRC calculation must be handled at digital level
-	 * even if the driver supports it for this technology.
+	 * even if the driver supports it for this techanallogy.
 	 */
 	if (resp->len == DIGITAL_MIFARE_READ_RES_LEN + DIGITAL_CRC_LEN) {
 		if (digital_skb_check_crc_a(resp)) {
@@ -619,7 +619,7 @@ static int digital_in_send_attrib_req(struct nfc_digital_dev *ddev,
 
 	skb = digital_skb_alloc(ddev, sizeof(*attrib_req));
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	attrib_req = skb_put(skb, sizeof(*attrib_req));
 
@@ -690,7 +690,7 @@ static void digital_in_recv_sensb_res(struct nfc_digital_dev *ddev, void *arg,
 
 	target = kzalloc(sizeof(struct nfc_target), GFP_KERNEL);
 	if (!target) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto exit;
 	}
 
@@ -723,7 +723,7 @@ int digital_in_send_sensb_req(struct nfc_digital_dev *ddev, u8 rf_tech)
 
 	skb = digital_skb_alloc(ddev, sizeof(*sensb_req));
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sensb_req = skb_put(skb, sizeof(*sensb_req));
 
@@ -813,7 +813,7 @@ int digital_in_send_sensf_req(struct nfc_digital_dev *ddev, u8 rf_tech)
 
 	skb = digital_skb_alloc(ddev, size);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_put(skb, size);
 
@@ -865,7 +865,7 @@ static void digital_in_recv_iso15693_inv_res(struct nfc_digital_dev *ddev,
 
 	target = kzalloc(sizeof(*target), GFP_KERNEL);
 	if (!target) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out_free_skb;
 	}
 
@@ -902,12 +902,12 @@ int digital_in_send_iso15693_inv_req(struct nfc_digital_dev *ddev, u8 rf_tech)
 
 	skb = digital_skb_alloc(ddev, sizeof(*req));
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	skb_put(skb, sizeof(*req) - sizeof(req->mask)); /* No mask */
+	skb_put(skb, sizeof(*req) - sizeof(req->mask)); /* Anal mask */
 	req = (struct digital_iso15693_inv_req *)skb->data;
 
-	/* Single sub-carrier, high data rate, no AFI, single slot
+	/* Single sub-carrier, high data rate, anal AFI, single slot
 	 * Inventory command
 	 */
 	req->flags = DIGITAL_ISO15693_REQ_FLAG_DATA_RATE |
@@ -931,7 +931,7 @@ static int digital_tg_send_sel_res(struct nfc_digital_dev *ddev)
 
 	skb = digital_skb_alloc(ddev, 1);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_put_u8(skb, DIGITAL_SEL_RES_NFC_DEP);
 
@@ -972,7 +972,7 @@ static void digital_tg_recv_sel_req(struct nfc_digital_dev *ddev, void *arg,
 		}
 	}
 
-	/* Silently ignore SEL_REQ content and send a SEL_RES for NFC-DEP */
+	/* Silently iganalre SEL_REQ content and send a SEL_RES for NFC-DEP */
 
 	rc = digital_tg_send_sel_res(ddev);
 
@@ -991,7 +991,7 @@ static int digital_tg_send_sdd_res(struct nfc_digital_dev *ddev)
 
 	skb = digital_skb_alloc(ddev, sizeof(struct digital_sdd_res));
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_put(skb, sizeof(struct digital_sdd_res));
 	sdd_res = (struct digital_sdd_res *)skb->data;
@@ -1055,7 +1055,7 @@ static int digital_tg_send_sens_res(struct nfc_digital_dev *ddev)
 
 	skb = digital_skb_alloc(ddev, 2);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sens_res = skb_put(skb, 2);
 
@@ -1128,12 +1128,12 @@ static int digital_tg_send_sensf_res(struct nfc_digital_dev *ddev,
 
 	size = sizeof(struct digital_sensf_res);
 
-	if (sensf_req->rc == DIGITAL_SENSF_REQ_RC_NONE)
+	if (sensf_req->rc == DIGITAL_SENSF_REQ_RC_ANALNE)
 		size -= sizeof(sensf_res->rd);
 
 	skb = digital_skb_alloc(ddev, size);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_put(skb, size);
 

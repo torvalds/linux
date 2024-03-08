@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-// Copyright (c) 2020 Mellanox Technologies
+// Copyright (c) 2020 Mellaanalx Techanallogies
 
 #include <linux/jhash.h>
 #include "mod_hdr.h"
@@ -12,8 +12,8 @@ struct mod_hdr_key {
 };
 
 struct mlx5e_mod_hdr_handle {
-	/* a node of a hash table which keeps all the mod_hdr entries */
-	struct hlist_node mod_hdr_hlist;
+	/* a analde of a hash table which keeps all the mod_hdr entries */
+	struct hlist_analde mod_hdr_hlist;
 
 	struct mod_hdr_key key;
 
@@ -103,7 +103,7 @@ mlx5e_mod_hdr_attach(struct mlx5_core_dev *mdev,
 	mh = kzalloc(sizeof(*mh) + actions_size, GFP_KERNEL);
 	if (!mh) {
 		mutex_unlock(&tbl->lock);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	mh->key.actions = (void *)mh + sizeof(*mh);
@@ -172,7 +172,7 @@ mlx5e_mod_hdr_alloc(struct mlx5_core_dev *mdev, int namespace,
 			      mod_hdr_acts->actions ?
 			      mod_hdr_acts->max_actions * 2 : 1);
 	if (mod_hdr_acts->max_actions == new_num_actions)
-		return ERR_PTR(-ENOSPC);
+		return ERR_PTR(-EANALSPC);
 
 	new_sz = MLX5_MH_ACT_SZ * new_num_actions;
 	old_sz = mod_hdr_acts->max_actions * MLX5_MH_ACT_SZ;
@@ -189,7 +189,7 @@ mlx5e_mod_hdr_alloc(struct mlx5_core_dev *mdev, int namespace,
 			memset(ret + old_sz, 0, new_sz - old_sz);
 	}
 	if (!ret)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mod_hdr_acts->actions = ret;
 	mod_hdr_acts->max_actions = new_num_actions;

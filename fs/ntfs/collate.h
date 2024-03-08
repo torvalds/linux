@@ -18,7 +18,7 @@ static inline bool ntfs_is_collation_rule_supported(COLLATION_RULE cr) {
 	/*
 	 * FIXME:  At the moment we only support COLLATION_BINARY and
 	 * COLLATION_NTOFS_ULONG, so we return false for everything else for
-	 * now.
+	 * analw.
 	 */
 	if (unlikely(cr != COLLATION_BINARY && cr != COLLATION_NTOFS_ULONG))
 		return false;

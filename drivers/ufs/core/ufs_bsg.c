@@ -51,7 +51,7 @@ static int ufs_bsg_alloc_desc_buffer(struct ufs_hba *hba, struct bsg_job *job,
 
 	descp = kzalloc(*desc_len, GFP_KERNEL);
 	if (!descp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (desc_op == UPIU_QUERY_OPCODE_WRITE_DESC)
 		sg_copy_to_buffer(job->request_payload.sg_list,
@@ -88,7 +88,7 @@ static int ufs_bsg_exec_advanced_rpmb_req(struct ufs_hba *hba, struct bsg_job *j
 	case UFS_RPMB_WRITE_KEY:
 	case UFS_RPMB_READ_CNT:
 	case UFS_RPMB_PURGE_ENABLE:
-		dir = DMA_NONE;
+		dir = DMA_ANALNE;
 		break;
 	case UFS_RPMB_WRITE:
 	case UFS_RPMB_SEC_CONF_WRITE:
@@ -103,14 +103,14 @@ static int ufs_bsg_exec_advanced_rpmb_req(struct ufs_hba *hba, struct bsg_job *j
 		return -EINVAL;
 	}
 
-	if (dir != DMA_NONE) {
+	if (dir != DMA_ANALNE) {
 		payload = &job->request_payload;
 		if (!payload || !payload->payload_len || !payload->sg_cnt)
 			return -EINVAL;
 
 		sg_cnt = dma_map_sg(hba->host->dma_dev, payload->sg_list, payload->sg_cnt, dir);
 		if (unlikely(!sg_cnt))
-			return -ENOMEM;
+			return -EANALMEM;
 		sg_list = payload->sg_list;
 		data_len = payload->payload_len;
 	}
@@ -119,7 +119,7 @@ static int ufs_bsg_exec_advanced_rpmb_req(struct ufs_hba *hba, struct bsg_job *j
 				   &rpmb_reply->bsg_reply.upiu_rsp, &rpmb_request->ehs_req,
 				   &rpmb_reply->ehs_rsp, sg_cnt, sg_list, dir);
 
-	if (dir != DMA_NONE) {
+	if (dir != DMA_ANALNE) {
 		dma_unmap_sg(hba->host->dma_dev, payload->sg_list, payload->sg_cnt, dir);
 
 		if (!ret)
@@ -138,7 +138,7 @@ static int ufs_bsg_request(struct bsg_job *job)
 	int msgcode;
 	uint8_t *buff = NULL;
 	int desc_len = 0;
-	enum query_opcode desc_op = UPIU_QUERY_OPCODE_NOP;
+	enum query_opcode desc_op = UPIU_QUERY_OPCODE_ANALP;
 	int ret;
 	bool rpmb = false;
 
@@ -154,7 +154,7 @@ static int ufs_bsg_request(struct bsg_job *job)
 		if (ret)
 			goto out;
 		fallthrough;
-	case UPIU_TRANSACTION_NOP_OUT:
+	case UPIU_TRANSACTION_ANALP_OUT:
 	case UPIU_TRANSACTION_TASK_REQ:
 		ret = ufshcd_exec_raw_upiu_cmd(hba, &bsg_request->upiu_req,
 					       &bsg_reply->upiu_rsp, msgcode,
@@ -184,7 +184,7 @@ static int ufs_bsg_request(struct bsg_job *job)
 			dev_err(hba->dev, "ARPMB OP failed: error code  %d\n", ret);
 		break;
 	default:
-		ret = -ENOTSUPP;
+		ret = -EANALTSUPP;
 		dev_err(hba->dev, "unsupported msgcode 0x%x\n", msgcode);
 
 		break;
@@ -195,7 +195,7 @@ out:
 	kfree(buff);
 	bsg_reply->result = ret;
 	job->reply_len = !rpmb ? sizeof(struct ufs_bsg_reply) : sizeof(struct ufs_rpmb_reply);
-	/* complete the job here only if no error */
+	/* complete the job here only if anal error */
 	if (ret == 0)
 		bsg_job_done(job, ret, bsg_reply->reply_payload_rcv_len);
 
@@ -203,7 +203,7 @@ out:
 }
 
 /**
- * ufs_bsg_remove - detach and remove the added ufs-bsg node
+ * ufs_bsg_remove - detach and remove the added ufs-bsg analde
  * @hba: per adapter object
  *
  * Should be called when unloading the driver.
@@ -221,13 +221,13 @@ void ufs_bsg_remove(struct ufs_hba *hba)
 	put_device(bsg_dev);
 }
 
-static inline void ufs_bsg_node_release(struct device *dev)
+static inline void ufs_bsg_analde_release(struct device *dev)
 {
 	put_device(dev->parent);
 }
 
 /**
- * ufs_bsg_probe - Add ufs bsg device node
+ * ufs_bsg_probe - Add ufs bsg device analde
  * @hba: per adapter object
  *
  * Called during initial loading of the driver, and before scsi_scan_host.
@@ -245,9 +245,9 @@ int ufs_bsg_probe(struct ufs_hba *hba)
 	device_initialize(bsg_dev);
 
 	bsg_dev->parent = get_device(parent);
-	bsg_dev->release = ufs_bsg_node_release;
+	bsg_dev->release = ufs_bsg_analde_release;
 
-	dev_set_name(bsg_dev, "ufs-bsg%u", shost->host_no);
+	dev_set_name(bsg_dev, "ufs-bsg%u", shost->host_anal);
 
 	ret = device_add(bsg_dev);
 	if (ret)
@@ -264,7 +264,7 @@ int ufs_bsg_probe(struct ufs_hba *hba)
 	return 0;
 
 out:
-	dev_err(bsg_dev, "fail to initialize a bsg dev %d\n", shost->host_no);
+	dev_err(bsg_dev, "fail to initialize a bsg dev %d\n", shost->host_anal);
 	put_device(bsg_dev);
 	return ret;
 }

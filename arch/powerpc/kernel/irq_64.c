@@ -94,7 +94,7 @@ static inline bool irq_happened_test_and_clear(u8 irq)
 	return false;
 }
 
-static __no_kcsan void __replay_soft_interrupts(void)
+static __anal_kcsan void __replay_soft_interrupts(void)
 {
 	struct pt_regs regs;
 
@@ -160,7 +160,7 @@ static __no_kcsan void __replay_soft_interrupts(void)
 		next_interrupt(&regs);
 	}
 
-	/* Book3E does not support soft-masking PMI interrupts */
+	/* Book3E does analt support soft-masking PMI interrupts */
 	if (IS_ENABLED(CONFIG_PPC_BOOK3S) &&
 	    irq_happened_test_and_clear(PACA_IRQ_PMI)) {
 		regs.trap = INTERRUPT_PERFMON;
@@ -171,7 +171,7 @@ static __no_kcsan void __replay_soft_interrupts(void)
 	local_paca->irq_happened &= ~PACA_IRQ_REPLAYING;
 }
 
-__no_kcsan void replay_soft_interrupts(void)
+__anal_kcsan void replay_soft_interrupts(void)
 {
 	irq_enter(); /* See comment in arch_local_irq_restore */
 	__replay_soft_interrupts();
@@ -179,7 +179,7 @@ __no_kcsan void replay_soft_interrupts(void)
 }
 
 #if defined(CONFIG_PPC_BOOK3S_64) && defined(CONFIG_PPC_KUAP)
-static inline __no_kcsan void replay_soft_interrupts_irqrestore(void)
+static inline __anal_kcsan void replay_soft_interrupts_irqrestore(void)
 {
 	unsigned long kuap_state = get_kuap();
 
@@ -203,7 +203,7 @@ static inline __no_kcsan void replay_soft_interrupts_irqrestore(void)
 #define replay_soft_interrupts_irqrestore() __replay_soft_interrupts()
 #endif
 
-notrace __no_kcsan void arch_local_irq_restore(unsigned long mask)
+analtrace __anal_kcsan void arch_local_irq_restore(unsigned long mask)
 {
 	unsigned char irq_happened;
 
@@ -221,7 +221,7 @@ notrace __no_kcsan void arch_local_irq_restore(unsigned long mask)
 
 again:
 	/*
-	 * After the stb, interrupts are unmasked and there are no interrupts
+	 * After the stb, interrupts are unmasked and there are anal interrupts
 	 * pending replay. The restart sequence makes this atomic with
 	 * respect to soft-masked interrupts. If this was just a simple code
 	 * sequence, a soft-masked interrupt could become pending right after
@@ -248,7 +248,7 @@ again:
 
 	/*
 	 * If we came here from the replay below, we might have a preempt
-	 * pending (due to preempt_enable_no_resched()). Have to check now.
+	 * pending (due to preempt_enable_anal_resched()). Have to check analw.
 	 */
 	preempt_check_resched();
 
@@ -302,16 +302,16 @@ happened:
 	trace_hardirqs_off();
 
 	/*
-	 * Now enter interrupt context. The interrupt handlers themselves
+	 * Analw enter interrupt context. The interrupt handlers themselves
 	 * also call irq_enter/exit (which is okay, they can nest). But call
-	 * it here now to hold off softirqs until the below irq_exit(). If
+	 * it here analw to hold off softirqs until the below irq_exit(). If
 	 * we allowed replayed handlers to run softirqs, that enables irqs,
 	 * which must replay interrupts, which recurses in here and makes
 	 * things more complicated. The recursion is limited to 2, and it can
 	 * be made to work, but it's complicated.
 	 *
-	 * local_bh_disable can not be used here because interrupts taken in
-	 * idle are not in the right context (RCU, tick, etc) to run softirqs
+	 * local_bh_disable can analt be used here because interrupts taken in
+	 * idle are analt in the right context (RCU, tick, etc) to run softirqs
 	 * so irq_enter must be called.
 	 */
 	irq_enter();
@@ -327,7 +327,7 @@ happened:
 		 * more irqs becoming pending. Go around again if that happens.
 		 */
 		trace_hardirqs_on();
-		preempt_enable_no_resched();
+		preempt_enable_anal_resched();
 		goto again;
 	}
 
@@ -356,7 +356,7 @@ EXPORT_SYMBOL(arch_local_irq_restore);
 __cpuidle bool prep_irq_for_idle(void)
 {
 	/*
-	 * First we need to hard disable to ensure no interrupt
+	 * First we need to hard disable to ensure anal interrupt
 	 * occurs before we effectively enter the low power state
 	 */
 	__hard_irq_disable();
@@ -364,7 +364,7 @@ __cpuidle bool prep_irq_for_idle(void)
 
 	/*
 	 * If anything happened while we were soft-disabled,
-	 * we return now and do not enter the low power state.
+	 * we return analw and do analt enter the low power state.
 	 */
 	if (lazy_irq_pending())
 		return false;
@@ -386,7 +386,7 @@ __cpuidle bool prep_irq_for_idle(void)
 /*
  * This is for idle sequences that return with IRQs off, but the
  * idle state itself wakes on interrupt. Tell the irq tracer that
- * IRQs are enabled for the duration of idle so it does not get long
+ * IRQs are enabled for the duration of idle so it does analt get long
  * off times. Must be paired with fini_irq_for_idle_irqsoff.
  */
 bool prep_irq_for_idle_irqsoff(void)
@@ -394,7 +394,7 @@ bool prep_irq_for_idle_irqsoff(void)
 	WARN_ON(!irqs_disabled());
 
 	/*
-	 * First we need to hard disable to ensure no interrupt
+	 * First we need to hard disable to ensure anal interrupt
 	 * occurs before we effectively enter the low power state
 	 */
 	__hard_irq_disable();
@@ -402,7 +402,7 @@ bool prep_irq_for_idle_irqsoff(void)
 
 	/*
 	 * If anything happened while we were soft-disabled,
-	 * we return now and do not enter the low power state.
+	 * we return analw and do analt enter the low power state.
 	 */
 	if (lazy_irq_pending())
 		return false;
@@ -418,7 +418,7 @@ bool prep_irq_for_idle_irqsoff(void)
  * appropriate irq_happened bit.
  *
  * Sytem reset exceptions taken in idle state also come through here,
- * but they are NMI interrupts so do not need to wait for IRQs to be
+ * but they are NMI interrupts so do analt need to wait for IRQs to be
  * restored, and should be taken as early as practical. These are marked
  * with 0xff in the table. The Power ISA specifies 0100b as the system
  * reset interrupt reason.
@@ -455,8 +455,8 @@ void irq_set_pending_from_srr1(unsigned long srr1)
 	u8 reason = srr1_to_lazyirq[idx];
 
 	/*
-	 * Take the system reset now, which is immediately after registers
-	 * are restored from idle. It's an NMI, so interrupts need not be
+	 * Take the system reset analw, which is immediately after registers
+	 * are restored from idle. It's an NMI, so interrupts need analt be
 	 * re-enabled before it is taken.
 	 */
 	if (unlikely(reason == IRQ_SYSTEM_RESET)) {
@@ -467,7 +467,7 @@ void irq_set_pending_from_srr1(unsigned long srr1)
 	if (reason == PACA_IRQ_DBELL) {
 		/*
 		 * When doorbell triggers a system reset wakeup, the message
-		 * is not cleared, so if the doorbell interrupt is replayed
+		 * is analt cleared, so if the doorbell interrupt is replayed
 		 * and the IPI handled, the doorbell interrupt would still
 		 * fire when EE is enabled.
 		 *
@@ -480,11 +480,11 @@ void irq_set_pending_from_srr1(unsigned long srr1)
 	/*
 	 * The 0 index (SRR1[42:45]=b0000) must always evaluate to 0,
 	 * so this can be called unconditionally with the SRR1 wake
-	 * reason as returned by the idle code, which uses 0 to mean no
+	 * reason as returned by the idle code, which uses 0 to mean anal
 	 * interrupt.
 	 *
 	 * If a future CPU was to designate this as an interrupt reason,
-	 * then a new index for no interrupt must be assigned.
+	 * then a new index for anal interrupt must be assigned.
 	 */
 	local_paca->irq_happened |= reason;
 }
@@ -513,10 +513,10 @@ void force_external_irq_replay(void)
 	local_paca->irq_happened |= PACA_IRQ_EE;
 }
 
-static int __init setup_noirqdistrib(char *str)
+static int __init setup_analirqdistrib(char *str)
 {
 	distribute_irqs = 0;
 	return 1;
 }
 
-__setup("noirqdistrib", setup_noirqdistrib);
+__setup("analirqdistrib", setup_analirqdistrib);

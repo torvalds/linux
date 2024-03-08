@@ -329,7 +329,7 @@ struct xe_migrate *xe_migrate_init(struct xe_tile *tile)
 
 	m = drmm_kzalloc(&xe->drm, sizeof(*m), GFP_KERNEL);
 	if (!m)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	m->tile = tile;
 
@@ -413,7 +413,7 @@ static u64 xe_migrate_res_sizes(struct xe_migrate *m, struct xe_res_cursor *cur)
 		 * min_chunk_size in order for the offset to CCS metadata to be
 		 * page-aligned. If it's the last chunk it may be smaller.
 		 *
-		 * Another constraint is that we need to limit the blit to
+		 * Aanalther constraint is that we need to limit the blit to
 		 * the VRAM block size, unless size is smaller than
 		 * min_chunk_size.
 		 */
@@ -429,7 +429,7 @@ static u64 xe_migrate_res_sizes(struct xe_migrate *m, struct xe_res_cursor *cur)
 
 static bool xe_migrate_allow_identity(u64 size, const struct xe_res_cursor *cur)
 {
-	/* If the chunk is not fragmented, allow identity map. */
+	/* If the chunk is analt fragmented, allow identity map. */
 	return cur->size >= size;
 }
 
@@ -484,7 +484,7 @@ static void emit_pte(struct xe_migrate *m,
 
 	/* Indirect access needs compression enabled uncached PAT index */
 	if (GRAPHICS_VERx100(xe) >= 2000)
-		pat_index = is_comp_pte ? xe->pat.idx[XE_CACHE_NONE_COMPRESSION] :
+		pat_index = is_comp_pte ? xe->pat.idx[XE_CACHE_ANALNE_COMPRESSION] :
 					  xe->pat.idx[XE_CACHE_WB];
 	else
 		pat_index = xe->pat.idx[XE_CACHE_WB];
@@ -670,7 +670,7 @@ static u32 xe_migrate_ccs_copy(struct xe_migrate *m,
  * @copy_only_ccs: If true copy only CCS metadata
  *
  * Copies the contents of @src to @dst: On flat CCS devices,
- * the CCS metadata is copied as well if needed, or if not present,
+ * the CCS metadata is copied as well if needed, or if analt present,
  * the CCS metadata of @dst is cleared for security reasons.
  *
  * Return: Pointer to a dma_fence representing the last copy batch, or
@@ -702,7 +702,7 @@ struct dma_fence *xe_migrate_copy(struct xe_migrate *m,
 		xe_bo_needs_ccs_pages(src_bo) && xe_bo_needs_ccs_pages(dst_bo);
 	bool copy_system_ccs = copy_ccs && (!src_is_vram || !dst_is_vram);
 
-	/* Copying CCS between two different BOs is not supported yet. */
+	/* Copying CCS between two different BOs is analt supported yet. */
 	if (XE_WARN_ON(copy_ccs && src_bo != dst_bo))
 		return ERR_PTR(-EINVAL);
 
@@ -1124,7 +1124,7 @@ static void write_pgtable(struct xe_tile *tile, struct xe_bb *bb, u64 ppgtt_ofs,
 
 		/* Ensure populatefn can do memset64 by aligning bb->cs */
 		if (!(bb->len & 1))
-			bb->cs[bb->len++] = MI_NOOP;
+			bb->cs[bb->len++] = MI_ANALOP;
 
 		bb->cs[bb->len++] = MI_STORE_DATA_IMM | MI_SDI_NUM_QW(chunk);
 		bb->cs[bb->len++] = lower_32_bits(addr);
@@ -1202,7 +1202,7 @@ xe_migrate_update_pgtables_cpu(struct xe_migrate *m,
 	return fence;
 }
 
-static bool no_in_syncs(struct xe_vm *vm, struct xe_exec_queue *q,
+static bool anal_in_syncs(struct xe_vm *vm, struct xe_exec_queue *q,
 			struct xe_sync_entry *syncs, u32 num_syncs)
 {
 	struct dma_fence *fence;
@@ -1236,7 +1236,7 @@ static bool no_in_syncs(struct xe_vm *vm, struct xe_exec_queue *q,
  * migration engine is to be used.
  * @updates: An array of update descriptors.
  * @num_updates: Number of descriptors in @updates.
- * @syncs: Array of xe_sync_entry to await before updating. Note that waits
+ * @syncs: Array of xe_sync_entry to await before updating. Analte that waits
  * will block the engine timeline.
  * @num_syncs: Number of entries in @syncs.
  * @pt_update: Pointer to a struct xe_migrate_pt_update, which contains
@@ -1248,9 +1248,9 @@ static bool no_in_syncs(struct xe_vm *vm, struct xe_exec_queue *q,
  * using the default engine for the updates, they will be performed in the
  * order they grab the job_mutex. If different engines are used, external
  * synchronization is needed for overlapping updates to maintain page-table
- * consistency. Note that the meaing of "overlapping" is that the updates
+ * consistency. Analte that the meaing of "overlapping" is that the updates
  * touch the same page-table, which might be a higher-level page-directory.
- * If no pipelining is needed, then updates may be performed by the cpu.
+ * If anal pipelining is needed, then updates may be performed by the cpu.
  *
  * Return: A dma_fence that, when signaled, indicates the update completion.
  */
@@ -1282,8 +1282,8 @@ xe_migrate_update_pgtables(struct xe_migrate *m,
 	struct xe_exec_queue *q_override = !q ? m->q : q;
 	u16 pat_index = xe->pat.idx[XE_CACHE_WB];
 
-	/* Use the CPU if no in syncs and engine is idle */
-	if (no_in_syncs(vm, q, syncs, num_syncs) && xe_exec_queue_is_idle(q_override)) {
+	/* Use the CPU if anal in syncs and engine is idle */
+	if (anal_in_syncs(vm, q, syncs, num_syncs) && xe_exec_queue_is_idle(q_override)) {
 		fence =  xe_migrate_update_pgtables_cpu(m, vm, bo, updates,
 							num_updates,
 							first_munmap_rebind,
@@ -1301,7 +1301,7 @@ xe_migrate_update_pgtables(struct xe_migrate *m,
 	for (i = 0; i < num_updates; i++) {
 		u32 num_cmds = DIV_ROUND_UP(updates[i].qwords, 0x1ff);
 
-		/* align noop + MI_STORE_DATA_IMM cmd prefix */
+		/* align analop + MI_STORE_DATA_IMM cmd prefix */
 		batch_size += 4 * num_cmds + updates[i].qwords * 2;
 	}
 
@@ -1362,7 +1362,7 @@ xe_migrate_update_pgtables(struct xe_migrate *m,
 			write_pgtable(tile, bb, addr + i * XE_PAGE_SIZE,
 				      &updates[i], pt_update);
 	} else {
-		/* phys pages, no preamble required */
+		/* phys pages, anal preamble required */
 		bb->cs[bb->len++] = MI_BATCH_BUFFER_END;
 		update_idx = bb->len;
 
@@ -1440,7 +1440,7 @@ err:
  * xe_migrate_wait() - Complete all operations using the xe_migrate context
  * @m: Migrate context to wait for.
  *
- * Waits until the GPU no longer uses the migrate context's default engine
+ * Waits until the GPU anal longer uses the migrate context's default engine
  * or its page-table objects. FIXME: What about separate page-table update
  * engines?
  */

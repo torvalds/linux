@@ -20,7 +20,7 @@ int btrfs_insert_orphan_item(struct btrfs_trans_handle *trans,
 
 	path = btrfs_alloc_path();
 	if (!path)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = btrfs_insert_empty_item(trans, root, path, &key, 0);
 
@@ -41,13 +41,13 @@ int btrfs_del_orphan_item(struct btrfs_trans_handle *trans,
 
 	path = btrfs_alloc_path();
 	if (!path)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = btrfs_search_slot(trans, root, &key, path, -1, 1);
 	if (ret < 0)
 		goto out;
 	if (ret) { /* JDM: Really? */
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto out;
 	}
 

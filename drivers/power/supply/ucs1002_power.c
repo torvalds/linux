@@ -2,7 +2,7 @@
 /*
  * Driver for UCS1002 Programmable USB Port Power Controller
  *
- * Copyright (C) 2019 Zodiac Inflight Innovations
+ * Copyright (C) 2019 Zodiac Inflight Inanalvations
  */
 #include <linux/bits.h>
 #include <linux/freezer.h>
@@ -71,7 +71,7 @@
 
 /* Switch Configuration Register */
 #define UCS1002_REG_SWITCH_CFG		0x17
-#  define F_PIN_IGNORE			BIT(7)
+#  define F_PIN_IGANALRE			BIT(7)
 #  define F_EM_EN_SET			BIT(5)
 #  define F_M2_SET			BIT(4)
 #  define F_M1_SET			BIT(3)
@@ -111,8 +111,8 @@ struct ucs1002_info {
 
 static enum power_supply_property ucs1002_props[] = {
 	POWER_SUPPLY_PROP_ONLINE,
-	POWER_SUPPLY_PROP_CHARGE_NOW,
-	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_CHARGE_ANALW,
+	POWER_SUPPLY_PROP_CURRENT_ANALW,
 	POWER_SUPPLY_PROP_CURRENT_MAX,
 	POWER_SUPPLY_PROP_PRESENT, /* the presence of PED */
 	POWER_SUPPLY_PROP_MANUFACTURER,
@@ -301,7 +301,7 @@ static enum power_supply_usb_type ucs1002_usb_types[] = {
 	POWER_SUPPLY_USB_TYPE_SDP,
 	POWER_SUPPLY_USB_TYPE_DCP,
 	POWER_SUPPLY_USB_TYPE_CDP,
-	POWER_SUPPLY_USB_TYPE_UNKNOWN,
+	POWER_SUPPLY_USB_TYPE_UNKANALWN,
 };
 
 static int ucs1002_set_usb_type(struct ucs1002_info *info, int val)
@@ -345,7 +345,7 @@ static int ucs1002_get_usb_type(struct ucs1002_info *info,
 
 	switch (reg & F_ACTIVE_MODE_MASK) {
 	default:
-		type = POWER_SUPPLY_USB_TYPE_UNKNOWN;
+		type = POWER_SUPPLY_USB_TYPE_UNKANALWN;
 		break;
 	case F_ACTIVE_MODE_DEDICATED:
 		type = POWER_SUPPLY_USB_TYPE_PD;
@@ -375,9 +375,9 @@ static int ucs1002_get_property(struct power_supply *psy,
 	switch (psp) {
 	case POWER_SUPPLY_PROP_ONLINE:
 		return ucs1002_get_online(info, val);
-	case POWER_SUPPLY_PROP_CHARGE_NOW:
+	case POWER_SUPPLY_PROP_CHARGE_ANALW:
 		return ucs1002_get_charge(info, val);
-	case POWER_SUPPLY_PROP_CURRENT_NOW:
+	case POWER_SUPPLY_PROP_CURRENT_ANALW:
 		return ucs1002_get_current(info, val);
 	case POWER_SUPPLY_PROP_CURRENT_MAX:
 		return ucs1002_get_max_current(info, val);
@@ -448,7 +448,7 @@ static void ucs1002_health_poll(struct work_struct *work)
 	if (ret)
 		return;
 
-	/* bad health and no status change, just schedule us again in a while */
+	/* bad health and anal status change, just schedule us again in a while */
 	if ((reg & F_ERR) && info->health != POWER_SUPPLY_HEALTH_GOOD) {
 		schedule_delayed_work(&info->health_poll,
 				      msecs_to_jiffies(2000));
@@ -466,7 +466,7 @@ static void ucs1002_health_poll(struct work_struct *work)
 	else
 		info->health = POWER_SUPPLY_HEALTH_GOOD;
 
-	sysfs_notify(&info->charger->dev.kobj, NULL, "health");
+	sysfs_analtify(&info->charger->dev.kobj, NULL, "health");
 }
 
 static irqreturn_t ucs1002_charger_irq(int irq, void *data)
@@ -484,7 +484,7 @@ static irqreturn_t ucs1002_charger_irq(int irq, void *data)
 	/* update attached status */
 	info->present = regval & F_ADET_PIN;
 
-	/* notify the change */
+	/* analtify the change */
 	if (present != info->present)
 		power_supply_changed(info->charger);
 
@@ -507,7 +507,7 @@ static int ucs1002_regulator_enable(struct regulator_dev *rdev)
 	/*
 	 * If the output is disabled due to 0 maximum current, just pretend the
 	 * enable did work. The regulator will be enabled as soon as we get a
-	 * a non-zero maximum current budget.
+	 * a analn-zero maximum current budget.
 	 */
 	if (info->output_disable)
 		return 0;
@@ -548,7 +548,7 @@ static int ucs1002_probe(struct i2c_client *client)
 
 	info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->regmap = devm_regmap_init_i2c(client, &regmap_config);
 	ret = PTR_ERR_OR_ZERO(info->regmap);
@@ -559,10 +559,10 @@ static int ucs1002_probe(struct i2c_client *client)
 
 	info->client = client;
 
-	irq_a_det = of_irq_get_byname(dev->of_node, "a_det");
-	irq_alert = of_irq_get_byname(dev->of_node, "alert");
+	irq_a_det = of_irq_get_byname(dev->of_analde, "a_det");
+	irq_alert = of_irq_get_byname(dev->of_analde, "alert");
 
-	charger_config.of_node = dev->of_node;
+	charger_config.of_analde = dev->of_analde;
 	charger_config.drv_data = info;
 
 	ret = regmap_read(info->regmap, UCS1002_REG_PRODUCT_ID, &regval);
@@ -573,9 +573,9 @@ static int ucs1002_probe(struct i2c_client *client)
 
 	if (regval != UCS1002_PRODUCT_ID) {
 		dev_err(dev,
-			"Product ID does not match (0x%02x != 0x%02x)\n",
+			"Product ID does analt match (0x%02x != 0x%02x)\n",
 			regval, UCS1002_PRODUCT_ID);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Enable charge rationing by default */
@@ -587,12 +587,12 @@ static int ucs1002_probe(struct i2c_client *client)
 	}
 
 	/*
-	 * Ignore the M1, M2, PWR_EN, and EM_EN pin states. Set active
+	 * Iganalre the M1, M2, PWR_EN, and EM_EN pin states. Set active
 	 * mode selection to BC1.2 CDP.
 	 */
 	ret = regmap_update_bits(info->regmap, UCS1002_REG_SWITCH_CFG,
-				 V_SET_ACTIVE_MODE_MASK | F_PIN_IGNORE,
-				 V_SET_ACTIVE_MODE_BC12_CDP | F_PIN_IGNORE);
+				 V_SET_ACTIVE_MODE_MASK | F_PIN_IGANALRE,
+				 V_SET_ACTIVE_MODE_BC12_CDP | F_PIN_IGANALRE);
 	if (ret) {
 		dev_err(dev, "Failed to configure default mode: %d\n", ret);
 		return ret;
@@ -625,12 +625,12 @@ static int ucs1002_probe(struct i2c_client *client)
 			     sizeof(ucs1002_regulator_descriptor),
 			     GFP_KERNEL);
 	if (!info->regulator_descriptor)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->regulator_descriptor->enable_is_inverted = !(regval & F_SEL_PIN);
 
 	regulator_config.dev = dev;
-	regulator_config.of_node = dev->of_node;
+	regulator_config.of_analde = dev->of_analde;
 	regulator_config.regmap = info->regmap;
 	regulator_config.driver_data = info;
 
@@ -687,5 +687,5 @@ module_i2c_driver(ucs1002_driver);
 
 MODULE_DESCRIPTION("Microchip UCS1002 Programmable USB Port Power Controller");
 MODULE_AUTHOR("Enric Balletbo Serra <enric.balletbo@collabora.com>");
-MODULE_AUTHOR("Andrey Smirnov <andrew.smirnov@gmail.com>");
+MODULE_AUTHOR("Andrey Smiranalv <andrew.smiranalv@gmail.com>");
 MODULE_LICENSE("GPL");

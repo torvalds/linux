@@ -10,7 +10,7 @@ description: |
   This binding covers the Calxeda SoC internal peripheral and bus clocks
   as used by peripherals. The clocks live inside the "system register"
   region of the SoC, so are typically presented as children of an
-  "hb-sregs" node.
+  "hb-sregs" analde.
 
 maintainers:
   - Andre Przywara <andre.przywara@arm.com>

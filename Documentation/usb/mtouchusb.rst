@@ -10,7 +10,7 @@ Changes
 - Amended for linux-2.4.18, then 2.4.19
 
 - 0.5 - Complete rewrite using Linux Input in 2.6.3
-  Unfortunately no calibration support at this time
+  Unfortunately anal calibration support at this time
 
 - 1.4 - Multiple changes to support the EXII 5000UC and house cleaning
   Changed reset from standard USB dev reset to vendor reset
@@ -31,13 +31,13 @@ Supported Hardware
 
         USB Capacitive - Pearl Case     14-205  (Discontinued)
         USB Capacitive - Black Case     14-124  (Discontinued)
-        USB Capacitive - No Case        14-206  (Discontinued)
+        USB Capacitive - Anal Case        14-206  (Discontinued)
 
         USB Capacitive - Pearl Case     EXII-5010UC
         USB Capacitive - Black Case     EXII-5030UC
-        USB Capacitive - No Case        EXII-5050UC
+        USB Capacitive - Anal Case        EXII-5050UC
 
-Driver Notes
+Driver Analtes
 ============
 
 Installation is simple, you only need to add Linux Input, Linux USB, and the
@@ -49,12 +49,12 @@ download, I persist in updating this driver since I would like to use the
 touchscreen for embedded apps using QTEmbedded, DirectFB, etc. So I feel the
 logical choice is to use Linux Input.
 
-Currently there is no way to calibrate the device via this driver.  Even if
+Currently there is anal way to calibrate the device via this driver.  Even if
 the device could be calibrated, the driver pulls to raw coordinate data from
 the controller.  This means calibration must be performed within the
 userspace.
 
-The controller screen resolution is now 0 to 16384 for both X and Y reporting
+The controller screen resolution is analw 0 to 16384 for both X and Y reporting
 the raw touch data.  This is the same for the old and new capacitive USB
 controllers.
 
@@ -72,7 +72,7 @@ such as calibration, etc once/if it becomes available.
 Disclaimer
 ==========
 
-I am not a MicroTouch/3M employee, nor have I ever been.  3M does not support
+I am analt a MicroTouch/3M employee, analr have I ever been.  3M does analt support
 this driver!  If you want touch drivers only supported within X, please go to:
 
 http://www.3m.com/3MTouchSystems/

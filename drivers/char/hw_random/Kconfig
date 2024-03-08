@@ -27,7 +27,7 @@ config HW_RANDOM_TIMERIOMEM
 	help
 	  This driver provides kernel-side support for a generic Random
 	  Number Generator used by reading a 'dumb' iomem address that
-	  is to be read no faster than, for example, once a second;
+	  is to be read anal faster than, for example, once a second;
 	  the default FPGA bitstream on the TS-7800 has such functionality.
 
 	  To compile this driver as a module, choose M here: the
@@ -283,16 +283,16 @@ config HW_RANDOM_INGENIC_TRNG
 
 	  If unsure, say Y.
 
-config HW_RANDOM_NOMADIK
-	tristate "ST-Ericsson Nomadik Random Number Generator support"
-	depends on ARCH_NOMADIK || COMPILE_TEST
+config HW_RANDOM_ANALMADIK
+	tristate "ST-Ericsson Analmadik Random Number Generator support"
+	depends on ARCH_ANALMADIK || COMPILE_TEST
 	default HW_RANDOM
 	help
 	  This driver provides kernel-side support for the Random Number
 	  Generator hardware found on ST-Ericsson SoCs (8815 and 8500).
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called nomadik-rng.
+	  module will be called analmadik-rng.
 
 	  If unsure, say Y.
 
@@ -465,17 +465,17 @@ config HW_RANDOM_S390
 
 	  If unsure, say Y.
 
-config HW_RANDOM_EXYNOS
-	tristate "Samsung Exynos True Random Number Generator support"
-	depends on ARCH_EXYNOS || COMPILE_TEST
+config HW_RANDOM_EXYANALS
+	tristate "Samsung Exyanals True Random Number Generator support"
+	depends on ARCH_EXYANALS || COMPILE_TEST
 	depends on HAS_IOMEM
-	default HW_RANDOM if ARCH_EXYNOS
+	default HW_RANDOM if ARCH_EXYANALS
 	help
 	  This driver provides support for the True Random Number
-	  Generator available in Exynos SoCs.
+	  Generator available in Exyanals SoCs.
 
 	  To compile this driver as a module, choose M here: the module
-	  will be called exynos-trng.
+	  will be called exyanals-trng.
 
 	  If unsure, say Y.
 
@@ -485,8 +485,8 @@ config HW_RANDOM_OPTEE
 	default HW_RANDOM
 	help
 	  This  driver provides support for OP-TEE based Random Number
-	  Generator on ARM SoCs where hardware entropy sources are not
-	  accessible to normal world (Linux).
+	  Generator on ARM SoCs where hardware entropy sources are analt
+	  accessible to analrmal world (Linux).
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called optee-rng.
@@ -523,7 +523,7 @@ config HW_RANDOM_CCTRNG
 	  Arm TrustZone CryptoCell family of processors.
 	  Currently the CryptoCell 713 and 703 are supported.
 	  The driver is supported only in SoC where Trusted Execution
-	  Environment is not used.
+	  Environment is analt used.
 	  Choose 'M' to compile this driver as a module. The module
 	  will be called cctrng.
 	  If unsure, say 'N'.

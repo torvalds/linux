@@ -6,7 +6,7 @@
 
 enum cpu_idle_type {
 	CPU_IDLE,
-	CPU_NOT_IDLE,
+	CPU_ANALT_IDLE,
 	CPU_NEWLY_IDLE,
 	CPU_MAX_IDLE_TYPES
 };

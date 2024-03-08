@@ -26,7 +26,7 @@
  * since software event will work even in platform
  * without PMU.
  */
-static int bhrb_no_crash_wo_pmu_test(void)
+static int bhrb_anal_crash_wo_pmu_test(void)
 {
 	struct event event;
 
@@ -42,8 +42,8 @@ static int bhrb_no_crash_wo_pmu_test(void)
 	event.attr.disabled = 1;
 
 	/*
-	 * Return code of event_open is not
-	 * considered since test just expects no crash from
+	 * Return code of event_open is analt
+	 * considered since test just expects anal crash from
 	 * using PERF_SAMPLE_BRANCH_STACK. Also for environment
 	 * like generic compat PMU, branch stack is unsupported.
 	 */
@@ -55,5 +55,5 @@ static int bhrb_no_crash_wo_pmu_test(void)
 
 int main(void)
 {
-	return test_harness(bhrb_no_crash_wo_pmu_test, "bhrb_no_crash_wo_pmu_test");
+	return test_harness(bhrb_anal_crash_wo_pmu_test, "bhrb_anal_crash_wo_pmu_test");
 }

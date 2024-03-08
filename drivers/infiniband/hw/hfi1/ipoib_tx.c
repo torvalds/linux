@@ -100,7 +100,7 @@ static void hfi1_ipoib_check_queue_stopped(struct hfi1_ipoib_txq *txq)
 	 * The size of the txreq ring is fixed at initialization.
 	 * The tx queue len can be adjusted upward while the interface is
 	 * running.
-	 * The tx queue len can be large enough to overflow the txreq_ring.
+	 * The tx queue len can be large eanalugh to overflow the txreq_ring.
 	 * Use the minimum of the current tx_queue_len or the rings max txreqs
 	 * to protect against ring overflow.
 	 */
@@ -361,7 +361,7 @@ static struct ipoib_txreq *hfi1_ipoib_send_dma_common(struct net_device *dev,
 
 		if (hfi1_ipoib_used(txq) >= hfi1_ipoib_ring_hwat(txq))
 			/* This shouldn't happen with a stopped queue */
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 		/* See hfi1_ipoib_poll_tx_ring() */
 		head = smp_load_acquire(&tx_ring->head);
 		tx_ring->avail =
@@ -414,7 +414,7 @@ static int hfi1_ipoib_submit_tx_list(struct net_device *dev,
 	if (likely(!ret) || ret == -EBUSY || ret == -ECOMM)
 		return ret;
 
-	dd_dev_warn(txq->priv->dd, "cannot send skb tx list, err %d.\n", ret);
+	dd_dev_warn(txq->priv->dd, "cananalt send skb tx list, err %d.\n", ret);
 
 	return ret;
 }
@@ -468,7 +468,7 @@ static int hfi1_ipoib_send_dma_single(struct net_device *dev,
 
 		dev_kfree_skb_any(skb);
 
-		if (ret == -ENOMEM)
+		if (ret == -EANALMEM)
 			++dev->stats.tx_errors;
 		else
 			++dev->stats.tx_carrier_errors;
@@ -531,7 +531,7 @@ static int hfi1_ipoib_send_dma_list(struct net_device *dev,
 
 		dev_kfree_skb_any(skb);
 
-		if (ret == -ENOMEM)
+		if (ret == -EANALMEM)
 			++dev->stats.tx_errors;
 		else
 			++dev->stats.tx_carrier_errors;
@@ -605,7 +605,7 @@ int hfi1_ipoib_send(struct net_device *dev,
 /*
  * hfi1_ipoib_sdma_sleep - ipoib sdma sleep function
  *
- * This function gets called from sdma_send_txreq() when there are not enough
+ * This function gets called from sdma_send_txreq() when there are analt eanalugh
  * sdma descriptors available to send the packet. It adds Tx queue's wait
  * structure to sdma engine's dmawait list to be woken up when descriptors
  * become available.
@@ -628,12 +628,12 @@ static int hfi1_ipoib_sdma_sleep(struct sdma_engine *sde,
 		}
 
 		if (list_empty(&txreq->list))
-			/* came from non-list submit */
+			/* came from analn-list submit */
 			list_add_tail(&txreq->list, &txq->tx_list);
 		if (list_empty(&txq->wait.list)) {
 			struct hfi1_ibport *ibp = &sde->ppd->ibport_data;
 
-			if (!atomic_xchg(&txq->tx_ring.no_desc, 1)) {
+			if (!atomic_xchg(&txq->tx_ring.anal_desc, 1)) {
 				trace_hfi1_txq_queued(txq);
 				hfi1_ipoib_stop_txq(txq);
 			}
@@ -676,7 +676,7 @@ static void hfi1_ipoib_flush_txq(struct work_struct *work)
 
 	if (likely(dev->reg_state == NETREG_REGISTERED) &&
 	    likely(!hfi1_ipoib_flush_tx_list(dev, txq)))
-		if (atomic_xchg(&txq->tx_ring.no_desc, 0))
+		if (atomic_xchg(&txq->tx_ring.anal_desc, 0))
 			hfi1_ipoib_wake_txq(txq);
 }
 
@@ -694,12 +694,12 @@ int hfi1_ipoib_txreq_init(struct hfi1_ipoib_dev_priv *priv)
 	tx_ring_size = roundup_pow_of_two(dev->tx_queue_len + 1);
 	tx_item_size = roundup_pow_of_two(sizeof(struct ipoib_txreq));
 
-	priv->txqs = kcalloc_node(dev->num_tx_queues,
+	priv->txqs = kcalloc_analde(dev->num_tx_queues,
 				  sizeof(struct hfi1_ipoib_txq),
 				  GFP_KERNEL,
-				  priv->dd->node);
+				  priv->dd->analde);
 	if (!priv->txqs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < dev->num_tx_queues; i++) {
 		struct hfi1_ipoib_txq *txq = &priv->txqs[i];
@@ -719,18 +719,18 @@ int hfi1_ipoib_txreq_init(struct hfi1_ipoib_dev_priv *priv)
 		INIT_LIST_HEAD(&txq->tx_list);
 		atomic_set(&txq->tx_ring.stops, 0);
 		atomic_set(&txq->tx_ring.ring_full, 0);
-		atomic_set(&txq->tx_ring.no_desc, 0);
+		atomic_set(&txq->tx_ring.anal_desc, 0);
 		txq->q_idx = i;
 		txq->flow.tx_queue = 0xff;
 		txq->flow.sc5 = 0xff;
 		txq->pkts_sent = false;
 
-		netdev_queue_numa_node_write(netdev_get_tx_queue(dev, i),
-					     priv->dd->node);
+		netdev_queue_numa_analde_write(netdev_get_tx_queue(dev, i),
+					     priv->dd->analde);
 
 		txq->tx_ring.items =
-			kvzalloc_node(array_size(tx_ring_size, tx_item_size),
-				      GFP_KERNEL, priv->dd->node);
+			kvzalloc_analde(array_size(tx_ring_size, tx_item_size),
+				      GFP_KERNEL, priv->dd->analde);
 		if (!txq->tx_ring.items)
 			goto free_txqs;
 
@@ -740,8 +740,8 @@ int hfi1_ipoib_txreq_init(struct hfi1_ipoib_dev_priv *priv)
 		tx_ring = &txq->tx_ring;
 		for (j = 0; j < tx_ring_size; j++) {
 			hfi1_txreq_from_idx(tx_ring, j)->sdma_hdr =
-				kzalloc_node(sizeof(*tx->sdma_hdr),
-					     GFP_KERNEL, priv->dd->node);
+				kzalloc_analde(sizeof(*tx->sdma_hdr),
+					     GFP_KERNEL, priv->dd->analde);
 			if (!hfi1_txreq_from_idx(tx_ring, j)->sdma_hdr)
 				goto free_txqs;
 		}
@@ -764,7 +764,7 @@ free_txqs:
 
 	kfree(priv->txqs);
 	priv->txqs = NULL;
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void hfi1_ipoib_drain_tx_list(struct hfi1_ipoib_txq *txq)
@@ -785,7 +785,7 @@ static void hfi1_ipoib_drain_tx_list(struct hfi1_ipoib_txq *txq)
 
 	if (hfi1_ipoib_used(txq))
 		dd_dev_warn(txq->priv->dd,
-			    "txq %d not empty found %u requests\n",
+			    "txq %d analt empty found %u requests\n",
 			    txq->q_idx,
 			    hfi1_ipoib_txreqs(txq->tx_ring.sent_txreqs,
 					      txq->tx_ring.complete_txreqs));
@@ -843,11 +843,11 @@ void hfi1_ipoib_tx_timeout(struct net_device *dev, unsigned int q)
 	struct hfi1_ipoib_dev_priv *priv = hfi1_ipoib_priv(dev);
 	struct hfi1_ipoib_txq *txq = &priv->txqs[q];
 
-	dd_dev_info(priv->dd, "timeout txq %p q %u stopped %u stops %d no_desc %d ring_full %d\n",
+	dd_dev_info(priv->dd, "timeout txq %p q %u stopped %u stops %d anal_desc %d ring_full %d\n",
 		    txq, q,
 		    __netif_subqueue_stopped(dev, txq->q_idx),
 		    atomic_read(&txq->tx_ring.stops),
-		    atomic_read(&txq->tx_ring.no_desc),
+		    atomic_read(&txq->tx_ring.anal_desc),
 		    atomic_read(&txq->tx_ring.ring_full));
 	dd_dev_info(priv->dd, "sde %p engine %u\n",
 		    txq->sde,

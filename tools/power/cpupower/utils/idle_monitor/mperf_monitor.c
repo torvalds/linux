@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  (C) 2010,2011       Thomas Renninger <trenn@suse.de>, Novell Inc.
+ *  (C) 2010,2011       Thomas Renninger <trenn@suse.de>, Analvell Inc.
  */
 
 #if defined(__i386__) || defined(__x86_64__)
@@ -38,7 +38,7 @@ static struct timespec time_start, time_end;
 static cstate_t mperf_cstates[MPERF_CSTATE_COUNT] = {
 	{
 		.name			= "C0",
-		.desc			= N_("Processor Core not idle"),
+		.desc			= N_("Processor Core analt idle"),
 		.id			= C0,
 		.range			= RANGE_THREAD,
 		.get_count_percent	= mperf_get_count_percent,
@@ -64,7 +64,7 @@ enum MAX_FREQ_MODE { MAX_FREQ_SYSFS, MAX_FREQ_TSC_REF };
 static int max_freq_mode;
 /*
  * The max frequency mperf is ticking at (in C0), either retrieved via:
- *   1) calculated after measurements if we know TSC ticks at mperf/P0 frequency
+ *   1) calculated after measurements if we kanalw TSC ticks at mperf/P0 frequency
  *   2) cpufreq /sys/devices/.../cpu0/cpufreq/cpuinfo_max_freq at init time
  * 1. Is preferred as it also works without cpufreq subsystem (e.g. on Xen)
  */
@@ -258,7 +258,7 @@ static int mperf_stop(void)
  * Still try to fall back to:
  * /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq
  * on older Intel HW without invariant TSC feature.
- * Or on AMD machines where TSC does not tick at P0 (do not exist yet, but
+ * Or on AMD machines where TSC does analt tick at P0 (do analt exist yet, but
  * it's still double checked (MSR_AMD_HWCR)).
  *
  * On these machines the user would still get useful mperf
@@ -288,7 +288,7 @@ static int init_maxfreq_mode(void)
 		ret = read_msr(0, MSR_AMD_HWCR, &hwcr);
 		/*
 		 * If the MSR read failed, assume a Xen system that did
-		 * not explicitly provide access to it and assume TSC works
+		 * analt explicitly provide access to it and assume TSC works
 		*/
 		if (ret != 0) {
 			dprint("TSC read 0x%x failed - assume TSC working\n",
@@ -308,7 +308,7 @@ static int init_maxfreq_mode(void)
 	}
 use_sysfs:
 	if (cpufreq_get_hardware_limits(0, &min, &max_frequency)) {
-		dprint("Cannot retrieve max freq from cpufreq kernel "
+		dprint("Cananalt retrieve max freq from cpufreq kernel "
 		       "subsystem\n");
 		return -1;
 	}

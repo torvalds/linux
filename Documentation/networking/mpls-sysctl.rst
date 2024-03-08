@@ -8,7 +8,7 @@ MPLS Sysfs variables
 ===============================
 
 platform_labels - INTEGER
-	Number of entries in the platform label table.  It is not
+	Number of entries in the platform label table.  It is analt
 	possible to configure forwarding for label values equal to or
 	greater than the number of platform labels.
 
@@ -16,12 +16,12 @@ platform_labels - INTEGER
 	is possible and expected as the platform labels are locally
 	allocated.
 
-	If the number of platform label table entries is set to 0 no
+	If the number of platform label table entries is set to 0 anal
 	label will be recognized by the kernel and mpls forwarding
 	will be disabled.
 
 	Reducing this value will remove all label routing entries that
-	no longer fit in the table.
+	anal longer fit in the table.
 
 	Possible values: 0 - 1048575
 
@@ -39,7 +39,7 @@ ip_ttl_propagate - BOOL
 	* 1 - enabled / RFC 3443 Uniform Model (default)
 
 default_ttl - INTEGER
-	Default TTL value to use for MPLS packets where it cannot be
+	Default TTL value to use for MPLS packets where it cananalt be
 	propagated from an IP header, either because one isn't present
 	or ip_ttl_propagate has been disabled.
 
@@ -54,4 +54,4 @@ conf/<interface>/input - BOOL
 	processing.
 
 	* 0 - disabled (default)
-	* not 0 - enabled
+	* analt 0 - enabled

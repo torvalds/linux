@@ -107,7 +107,7 @@ static unsigned long arch_get_unmapped_area_common(struct file *filp,
 	struct vm_unmapped_area_info info;
 
 	if (unlikely(len > TASK_SIZE))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	do_color_align = 0;
 	if (filp || (flags & MAP_SHARED))
@@ -150,7 +150,7 @@ static unsigned long arch_get_unmapped_area_common(struct file *filp,
 		addr = vm_unmapped_area(&info);
 		if (!(addr & ~PAGE_MASK))
 			return addr;
-		VM_BUG_ON(addr != -ENOMEM);
+		VM_BUG_ON(addr != -EANALMEM);
 
 		/*
 		 * A failed mmap() very likely causes application failure,
@@ -185,7 +185,7 @@ asmlinkage unsigned long sys_mmap2(unsigned long addr, unsigned long len,
 	unsigned long prot, unsigned long flags, unsigned long fd,
 	unsigned long pgoff)
 {
-	/* Make sure the shift for mmap2 is constant (12), no matter what PAGE_SIZE
+	/* Make sure the shift for mmap2 is constant (12), anal matter what PAGE_SIZE
 	   we have. */
 	return ksys_mmap_pgoff(addr, len, prot, flags, fd,
 			       pgoff >> (PAGE_SHIFT - 12));
@@ -304,40 +304,40 @@ asmlinkage long parisc_personality(unsigned long personality)
 }
 
 /*
- * Up to kernel v5.9 we defined O_NONBLOCK as 000200004,
- * since then O_NONBLOCK is defined as 000200000.
+ * Up to kernel v5.9 we defined O_ANALNBLOCK as 000200004,
+ * since then O_ANALNBLOCK is defined as 000200000.
  *
  * The following wrapper functions mask out the old
- * O_NDELAY bit from calls which use O_NONBLOCK.
+ * O_NDELAY bit from calls which use O_ANALNBLOCK.
  *
  * XXX: Remove those in year 2022 (or later)?
  */
 
-#define O_NONBLOCK_OLD		000200004
-#define O_NONBLOCK_MASK_OUT	(O_NONBLOCK_OLD & ~O_NONBLOCK)
+#define O_ANALNBLOCK_OLD		000200004
+#define O_ANALNBLOCK_MASK_OUT	(O_ANALNBLOCK_OLD & ~O_ANALNBLOCK)
 
-static int FIX_O_NONBLOCK(int flags)
+static int FIX_O_ANALNBLOCK(int flags)
 {
-	if ((flags & O_NONBLOCK_MASK_OUT) &&
-			!test_thread_flag(TIF_NONBLOCK_WARNING)) {
-		set_thread_flag(TIF_NONBLOCK_WARNING);
-		pr_warn("%s(%d) uses a deprecated O_NONBLOCK value."
+	if ((flags & O_ANALNBLOCK_MASK_OUT) &&
+			!test_thread_flag(TIF_ANALNBLOCK_WARNING)) {
+		set_thread_flag(TIF_ANALNBLOCK_WARNING);
+		pr_warn("%s(%d) uses a deprecated O_ANALNBLOCK value."
 			" Please recompile with newer glibc.\n",
 			current->comm, current->pid);
 	}
-	return flags & ~O_NONBLOCK_MASK_OUT;
+	return flags & ~O_ANALNBLOCK_MASK_OUT;
 }
 
 asmlinkage long parisc_timerfd_create(int clockid, int flags)
 {
-	flags = FIX_O_NONBLOCK(flags);
+	flags = FIX_O_ANALNBLOCK(flags);
 	return sys_timerfd_create(clockid, flags);
 }
 
 asmlinkage long parisc_signalfd4(int ufd, sigset_t __user *user_mask,
 	size_t sizemask, int flags)
 {
-	flags = FIX_O_NONBLOCK(flags);
+	flags = FIX_O_ANALNBLOCK(flags);
 	return sys_signalfd4(ufd, user_mask, sizemask, flags);
 }
 
@@ -346,33 +346,33 @@ asmlinkage long parisc_compat_signalfd4(int ufd,
 	compat_sigset_t __user *user_mask,
 	compat_size_t sizemask, int flags)
 {
-	flags = FIX_O_NONBLOCK(flags);
+	flags = FIX_O_ANALNBLOCK(flags);
 	return compat_sys_signalfd4(ufd, user_mask, sizemask, flags);
 }
 #endif
 
 asmlinkage long parisc_eventfd2(unsigned int count, int flags)
 {
-	flags = FIX_O_NONBLOCK(flags);
+	flags = FIX_O_ANALNBLOCK(flags);
 	return sys_eventfd2(count, flags);
 }
 
 asmlinkage long parisc_userfaultfd(int flags)
 {
-	flags = FIX_O_NONBLOCK(flags);
+	flags = FIX_O_ANALNBLOCK(flags);
 	return sys_userfaultfd(flags);
 }
 
 asmlinkage long parisc_pipe2(int __user *fildes, int flags)
 {
-	flags = FIX_O_NONBLOCK(flags);
+	flags = FIX_O_ANALNBLOCK(flags);
 	return sys_pipe2(fildes, flags);
 }
 
-asmlinkage long parisc_inotify_init1(int flags)
+asmlinkage long parisc_ianaltify_init1(int flags)
 {
-	flags = FIX_O_NONBLOCK(flags);
-	return sys_inotify_init1(flags);
+	flags = FIX_O_ANALNBLOCK(flags);
+	return sys_ianaltify_init1(flags);
 }
 
 /*
@@ -386,13 +386,13 @@ asmlinkage long parisc_inotify_init1(int flags)
  * XXX: Remove this wrapper in year 2025 (or later)
  */
 
-asmlinkage notrace long parisc_madvise(unsigned long start, size_t len_in, int behavior)
+asmlinkage analtrace long parisc_madvise(unsigned long start, size_t len_in, int behavior)
 {
 	switch (behavior) {
 	case 65: behavior = MADV_MERGEABLE;	break;
 	case 66: behavior = MADV_UNMERGEABLE;	break;
 	case 67: behavior = MADV_HUGEPAGE;	break;
-	case 68: behavior = MADV_NOHUGEPAGE;	break;
+	case 68: behavior = MADV_ANALHUGEPAGE;	break;
 	case 69: behavior = MADV_DONTDUMP;	break;
 	case 70: behavior = MADV_DODUMP;	break;
 	case 71: behavior = MADV_WIPEONFORK;	break;

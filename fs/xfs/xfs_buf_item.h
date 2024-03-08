@@ -16,9 +16,9 @@ struct xfs_mount;
 #define	XFS_BLI_DIRTY		(1u << 1)
 #define	XFS_BLI_STALE		(1u << 2)
 #define	XFS_BLI_LOGGED		(1u << 3)
-#define	XFS_BLI_INODE_ALLOC_BUF	(1u << 4)
-#define XFS_BLI_STALE_INODE	(1u << 5)
-#define	XFS_BLI_INODE_BUF	(1u << 6)
+#define	XFS_BLI_IANALDE_ALLOC_BUF	(1u << 4)
+#define XFS_BLI_STALE_IANALDE	(1u << 5)
+#define	XFS_BLI_IANALDE_BUF	(1u << 6)
 #define	XFS_BLI_ORDERED		(1u << 7)
 
 #define XFS_BLI_FLAGS \
@@ -26,9 +26,9 @@ struct xfs_mount;
 	{ XFS_BLI_DIRTY,	"DIRTY" }, \
 	{ XFS_BLI_STALE,	"STALE" }, \
 	{ XFS_BLI_LOGGED,	"LOGGED" }, \
-	{ XFS_BLI_INODE_ALLOC_BUF, "INODE_ALLOC" }, \
-	{ XFS_BLI_STALE_INODE,	"STALE_INODE" }, \
-	{ XFS_BLI_INODE_BUF,	"INODE_BUF" }, \
+	{ XFS_BLI_IANALDE_ALLOC_BUF, "IANALDE_ALLOC" }, \
+	{ XFS_BLI_STALE_IANALDE,	"STALE_IANALDE" }, \
+	{ XFS_BLI_IANALDE_BUF,	"IANALDE_BUF" }, \
 	{ XFS_BLI_ORDERED,	"ORDERED" }
 
 /*
@@ -53,8 +53,8 @@ void	xfs_buf_item_relse(struct xfs_buf *);
 bool	xfs_buf_item_put(struct xfs_buf_log_item *);
 void	xfs_buf_item_log(struct xfs_buf_log_item *, uint, uint);
 bool	xfs_buf_item_dirty_format(struct xfs_buf_log_item *);
-void	xfs_buf_inode_iodone(struct xfs_buf *);
-void	xfs_buf_inode_io_fail(struct xfs_buf *bp);
+void	xfs_buf_ianalde_iodone(struct xfs_buf *);
+void	xfs_buf_ianalde_io_fail(struct xfs_buf *bp);
 #ifdef CONFIG_XFS_QUOTA
 void	xfs_buf_dquot_iodone(struct xfs_buf *);
 void	xfs_buf_dquot_io_fail(struct xfs_buf *bp);

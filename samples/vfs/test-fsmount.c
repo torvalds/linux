@@ -8,7 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <sys/prctl.h>
 #include <sys/wait.h>
@@ -22,7 +22,7 @@ static void check_messages(int fd)
 	char buf[4096];
 	int err, n;
 
-	err = errno;
+	err = erranal;
 
 	for (;;) {
 		n = read(fd, buf, sizeof(buf));
@@ -43,10 +43,10 @@ static void check_messages(int fd)
 		}
 	}
 
-	errno = err;
+	erranal = err;
 }
 
-static __attribute__((noreturn))
+static __attribute__((analreturn))
 void mount_error(int fd, const char *s)
 {
 	check_messages(fd);

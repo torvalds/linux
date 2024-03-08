@@ -2,7 +2,7 @@
 #ifndef _ASM_POWERPC_BOOK3S_32_PGTABLE_H
 #define _ASM_POWERPC_BOOK3S_32_PGTABLE_H
 
-#include <asm-generic/pgtable-nopmd.h>
+#include <asm-generic/pgtable-analpmd.h>
 
 /*
  * The "classic" 32-bit implementation of the PowerPC MMU uses a hash
@@ -23,7 +23,7 @@
 #define _PAGE_READ	0x004	/* software: read access allowed */
 #define _PAGE_GUARDED	0x008	/* G: prohibit speculative access */
 #define _PAGE_COHERENT	0x010	/* M: enforce memory coherence (SMP systems) */
-#define _PAGE_NO_CACHE	0x020	/* I: cache inhibit */
+#define _PAGE_ANAL_CACHE	0x020	/* I: cache inhibit */
 #define _PAGE_WRITETHRU	0x040	/* W: cache write-through */
 #define _PAGE_DIRTY	0x080	/* C: page changed */
 #define _PAGE_ACCESSED	0x100	/* R: page referenced */
@@ -33,9 +33,9 @@
 
 #ifdef CONFIG_PTE_64BIT
 /* We never clear the high word of the pte */
-#define _PTE_NONE_MASK	(0xffffffff00000000ULL | _PAGE_HASHPTE)
+#define _PTE_ANALNE_MASK	(0xffffffff00000000ULL | _PAGE_HASHPTE)
 #else
-#define _PTE_NONE_MASK	_PAGE_HASHPTE
+#define _PTE_ANALNE_MASK	_PAGE_HASHPTE
 #endif
 
 #define _PMD_PRESENT	0
@@ -77,7 +77,7 @@
 
 /*
  * We define 2 sets of base prot bits, one for basic pages (ie,
- * cacheable kernel and user pages) and one for non cacheable
+ * cacheable kernel and user pages) and one for analn cacheable
  * pages. We always set _PAGE_COHERENT when SMP is enabled or
  * the processor might need it for DMA coherency.
  */
@@ -88,8 +88,8 @@
 
 /* Permission masks used for kernel mappings */
 #define PAGE_KERNEL	__pgprot(_PAGE_BASE | _PAGE_KERNEL_RW)
-#define PAGE_KERNEL_NC	__pgprot(_PAGE_BASE_NC | _PAGE_KERNEL_RW | _PAGE_NO_CACHE)
-#define PAGE_KERNEL_NCG	__pgprot(_PAGE_BASE_NC | _PAGE_KERNEL_RW | _PAGE_NO_CACHE | _PAGE_GUARDED)
+#define PAGE_KERNEL_NC	__pgprot(_PAGE_BASE_NC | _PAGE_KERNEL_RW | _PAGE_ANAL_CACHE)
+#define PAGE_KERNEL_NCG	__pgprot(_PAGE_BASE_NC | _PAGE_KERNEL_RW | _PAGE_ANAL_CACHE | _PAGE_GUARDED)
 #define PAGE_KERNEL_X	__pgprot(_PAGE_BASE | _PAGE_KERNEL_RWX)
 #define PAGE_KERNEL_RO	__pgprot(_PAGE_BASE | _PAGE_KERNEL_RO)
 #define PAGE_KERNEL_ROX	__pgprot(_PAGE_BASE | _PAGE_KERNEL_ROX)
@@ -116,7 +116,7 @@
 #define PTRS_PER_PGD	(1 << PGD_INDEX_SIZE)
 
 /*
- * The normal case is that PTEs are 32-bits and we have a 1-page
+ * The analrmal case is that PTEs are 32-bits and we have a 1-page
  * 1024-entry pgdir pointing to 1-page 1024-entry PTE pages.  -- paulus
  *
  * For any >32-bit physical address platform, we can use the following
@@ -141,7 +141,7 @@ void unmap_kernel_page(unsigned long va);
 
 /*
  * This is the bottom of the PKMAP area with HIGHMEM or an arbitrary
- * value (for now) on others, from where we can start layout kernel
+ * value (for analw) on others, from where we can start layout kernel
  * virtual space that goes below PKMAP and FIXMAP
  */
 
@@ -176,7 +176,7 @@ void unmap_kernel_page(unsigned long va);
  * The vmalloc() routines leaves a hole of 4kB between each vmalloced
  * area for the same reason. ;)
  *
- * We no longer map larger than phys RAM with the BATs so we don't have
+ * We anal longer map larger than phys RAM with the BATs so we don't have
  * to worry about the VMALLOC_OFFSET causing problems.  We do have to worry
  * about clashes between our early calls to ioremap() that start growing down
  * from ioremap_base being run into the VM area allocations (growing upwards
@@ -215,7 +215,7 @@ void unmap_kernel_page(unsigned long va);
 #define pte_clear(mm, addr, ptep) \
 	do { pte_update(mm, addr, ptep, ~_PAGE_HASHPTE, 0, 0); } while (0)
 
-#define pmd_none(pmd)		(!pmd_val(pmd))
+#define pmd_analne(pmd)		(!pmd_val(pmd))
 #define	pmd_bad(pmd)		(pmd_val(pmd) & _PMD_BAD)
 #define	pmd_present(pmd)	(pmd_val(pmd) & _PMD_PRESENT_MASK)
 static inline void pmd_clear(pmd_t *pmdp)
@@ -247,8 +247,8 @@ static inline void flush_hash_entry(struct mm_struct *mm, pte_t *ptep, unsigned 
 
 /*
  * PTE updates. This function is called whenever an existing
- * valid PTE is updated. This does -not- include set_pte_at()
- * which nowadays only sets a new PTE.
+ * valid PTE is updated. This does -analt- include set_pte_at()
+ * which analwadays only sets a new PTE.
  *
  * Depending on the type of MMU, we may need to use atomic updates
  * and the PTE may be either 32 or 64 bit wide. In the later case,
@@ -345,7 +345,7 @@ static inline void __ptep_set_access_flags(struct vm_area_struct *vma,
 
 /*
  * Encode/decode swap entries and swap PTEs. Swap PTEs are all PTEs that
- * are !pte_none() && !pte_present().
+ * are !pte_analne() && !pte_present().
  *
  * Format of swap PTEs (32bit PTEs):
  *
@@ -353,7 +353,7 @@ static inline void __ptep_set_access_flags(struct vm_area_struct *vma,
  *   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
  *   <----------------- offset --------------------> < type -> E H P
  *
- *   E is the exclusive marker that is not stored in swap entries.
+ *   E is the exclusive marker that is analt stored in swap entries.
  *   _PAGE_PRESENT (P) and __PAGE_HASHPTE (H) must be 0.
  *
  * For 64bit PTEs, the offset is extended by 32bit.
@@ -393,7 +393,7 @@ static inline bool pte_write(pte_t pte)
 static inline int pte_dirty(pte_t pte)		{ return !!(pte_val(pte) & _PAGE_DIRTY); }
 static inline int pte_young(pte_t pte)		{ return !!(pte_val(pte) & _PAGE_ACCESSED); }
 static inline int pte_special(pte_t pte)	{ return !!(pte_val(pte) & _PAGE_SPECIAL); }
-static inline int pte_none(pte_t pte)		{ return (pte_val(pte) & ~_PTE_NONE_MASK) == 0; }
+static inline int pte_analne(pte_t pte)		{ return (pte_val(pte) & ~_PTE_ANALNE_MASK) == 0; }
 static inline bool pte_exec(pte_t pte)		{ return pte_val(pte) & _PAGE_EXEC; }
 
 static inline int pte_present(pte_t pte)
@@ -413,12 +413,12 @@ static inline bool pte_hashpte(pte_t pte)
 
 static inline bool pte_ci(pte_t pte)
 {
-	return !!(pte_val(pte) & _PAGE_NO_CACHE);
+	return !!(pte_val(pte) & _PAGE_ANAL_CACHE);
 }
 
 /*
  * We only find page table entry in the last level
- * Hence no need for other accessors
+ * Hence anal need for other accessors
  */
 #define pte_access_permitted pte_access_permitted
 static inline bool pte_access_permitted(pte_t pte, bool write)
@@ -440,7 +440,7 @@ static inline bool pte_access_permitted(pte_t pte, bool write)
  * and a page entry and page directory to the page they refer to.
  *
  * Even if PTEs can be unsigned long long, a PFN is always an unsigned
- * long for now.
+ * long for analw.
  */
 static inline pte_t pfn_pte(unsigned long pfn, pgprot_t pgprot)
 {
@@ -479,7 +479,7 @@ static inline pte_t pte_mkpte(pte_t pte)
 	return pte;
 }
 
-static inline pte_t pte_mkwrite_novma(pte_t pte)
+static inline pte_t pte_mkwrite_analvma(pte_t pte)
 {
 	/*
 	 * write implies read, hence set both
@@ -518,7 +518,7 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
  * Setting the PTE depends on the MMU type and other factors.
  *
  * First case is 32-bit in UP mode with 32-bit PTEs, we need to preserve
- * the _PAGE_HASHPTE bit since we may not have invalidated the previous
+ * the _PAGE_HASHPTE bit since we may analt have invalidated the previous
  * translation in the hash yet (done in a subsequent flush_tlb_xxx())
  * and see we need to keep track that this PTE needs invalidating.
  *
@@ -528,7 +528,7 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
  * in the hash code, to pre-invalidate if the PTE was already hashed,
  * which synchronizes us with any concurrent invalidation.
  * In the percpu case, we fallback to the simple update preserving
- * the hash bits (ie, same as the non-SMP case).
+ * the hash bits (ie, same as the analn-SMP case).
  *
  * Third case is 32-bit in SMP mode with 32-bit PTEs. We use the
  * helper pte_update() which does an atomic update. We need to do that
@@ -558,21 +558,21 @@ static inline void __set_pte_at(struct mm_struct *mm, unsigned long addr,
  * Macro to mark a page protection value as "uncacheable".
  */
 
-#define _PAGE_CACHE_CTL	(_PAGE_COHERENT | _PAGE_GUARDED | _PAGE_NO_CACHE | \
+#define _PAGE_CACHE_CTL	(_PAGE_COHERENT | _PAGE_GUARDED | _PAGE_ANAL_CACHE | \
 			 _PAGE_WRITETHRU)
 
-#define pgprot_noncached pgprot_noncached
-static inline pgprot_t pgprot_noncached(pgprot_t prot)
+#define pgprot_analncached pgprot_analncached
+static inline pgprot_t pgprot_analncached(pgprot_t prot)
 {
 	return __pgprot((pgprot_val(prot) & ~_PAGE_CACHE_CTL) |
-			_PAGE_NO_CACHE | _PAGE_GUARDED);
+			_PAGE_ANAL_CACHE | _PAGE_GUARDED);
 }
 
-#define pgprot_noncached_wc pgprot_noncached_wc
-static inline pgprot_t pgprot_noncached_wc(pgprot_t prot)
+#define pgprot_analncached_wc pgprot_analncached_wc
+static inline pgprot_t pgprot_analncached_wc(pgprot_t prot)
 {
 	return __pgprot((pgprot_val(prot) & ~_PAGE_CACHE_CTL) |
-			_PAGE_NO_CACHE);
+			_PAGE_ANAL_CACHE);
 }
 
 #define pgprot_cached pgprot_cached
@@ -589,8 +589,8 @@ static inline pgprot_t pgprot_cached_wthru(pgprot_t prot)
 			_PAGE_COHERENT | _PAGE_WRITETHRU);
 }
 
-#define pgprot_cached_noncoherent pgprot_cached_noncoherent
-static inline pgprot_t pgprot_cached_noncoherent(pgprot_t prot)
+#define pgprot_cached_analncoherent pgprot_cached_analncoherent
+static inline pgprot_t pgprot_cached_analncoherent(pgprot_t prot)
 {
 	return __pgprot(pgprot_val(prot) & ~_PAGE_CACHE_CTL);
 }
@@ -598,7 +598,7 @@ static inline pgprot_t pgprot_cached_noncoherent(pgprot_t prot)
 #define pgprot_writecombine pgprot_writecombine
 static inline pgprot_t pgprot_writecombine(pgprot_t prot)
 {
-	return pgprot_noncached_wc(prot);
+	return pgprot_analncached_wc(prot);
 }
 
 #endif /* !__ASSEMBLY__ */

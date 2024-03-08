@@ -95,12 +95,12 @@ static int a10sr_reset_probe(struct platform_device *pdev)
 	a10r = devm_kzalloc(&pdev->dev, sizeof(struct a10sr_reset),
 			    GFP_KERNEL);
 	if (!a10r)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	a10r->rcdev.owner = THIS_MODULE;
 	a10r->rcdev.nr_resets = A10SR_RESET_NUM;
 	a10r->rcdev.ops = &a10sr_reset_ops;
-	a10r->rcdev.of_node = pdev->dev.of_node;
+	a10r->rcdev.of_analde = pdev->dev.of_analde;
 	a10r->regmap = a10sr->regmap;
 
 	platform_set_drvdata(pdev, a10r);

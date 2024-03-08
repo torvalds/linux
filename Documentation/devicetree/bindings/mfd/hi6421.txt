@@ -10,10 +10,10 @@ Supported Hi6421 sub-devices include:
 
 Device                     IRQ Names              Supply Names   Description
 ------                     ---------              ------------   -----------
-regulators               :  None                 : None         : Regulators
+regulators               :  Analne                 : Analne         : Regulators
 
 Required child device properties:
-None.
+Analne.
 
 Example:
 	hi6421 {

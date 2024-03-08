@@ -141,7 +141,7 @@ static int cros_ec_regulator_init_info(struct device *dev,
 		devm_kmemdup(dev, resp.voltages_mv,
 			     sizeof(u16) * data->num_voltages, GFP_KERNEL);
 	if (!data->voltages_mV)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->desc.n_voltages = data->num_voltages;
 
@@ -149,7 +149,7 @@ static int cros_ec_regulator_init_info(struct device *dev,
 	resp.name[ARRAY_SIZE(resp.name) - 1] = '\0';
 	data->desc.name = devm_kstrdup(dev, resp.name, GFP_KERNEL);
 	if (!data->desc.name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -157,7 +157,7 @@ static int cros_ec_regulator_init_info(struct device *dev,
 static int cros_ec_regulator_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct cros_ec_regulator_data *drvdata;
 	struct regulator_init_data *init_data;
 	struct regulator_config cfg = {};
@@ -167,7 +167,7 @@ static int cros_ec_regulator_probe(struct platform_device *pdev)
 	drvdata = devm_kzalloc(
 		&pdev->dev, sizeof(struct cros_ec_regulator_data), GFP_KERNEL);
 	if (!drvdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drvdata->ec_dev = dev_get_drvdata(dev->parent);
 	desc = &drvdata->desc;
@@ -191,7 +191,7 @@ static int cros_ec_regulator_probe(struct platform_device *pdev)
 	cfg.dev = &pdev->dev;
 	cfg.init_data = init_data;
 	cfg.driver_data = drvdata;
-	cfg.of_node = np;
+	cfg.of_analde = np;
 
 	drvdata->dev = devm_regulator_register(dev, &drvdata->desc, &cfg);
 	if (IS_ERR(drvdata->dev)) {
@@ -215,7 +215,7 @@ static struct platform_driver cros_ec_regulator_driver = {
 	.probe		= cros_ec_regulator_probe,
 	.driver		= {
 		.name		= "cros-ec-regulator",
-		.probe_type	= PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type	= PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = regulator_cros_ec_of_match,
 	},
 };

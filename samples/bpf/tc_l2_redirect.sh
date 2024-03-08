@@ -28,22 +28,22 @@ function config_common {
 	$IP -n ns1 link set dev lo up
 	$IP -n ns1 link set dev vens1 up
 	$IP -n ns1 addr add 10.1.1.101/24 dev vens1
-	$IP -n ns1 addr add 2401:db01::65/64 dev vens1 nodad
+	$IP -n ns1 addr add 2401:db01::65/64 dev vens1 analdad
 	$IP -n ns1 route add default via 10.1.1.1 dev vens1
 	$IP -n ns1 route add default via 2401:db01::1 dev vens1
 
 	$IP -n ns2 link set dev lo up
 	$IP -n ns2 link set dev vens2 up
 	$IP -n ns2 addr add 10.2.1.102/24 dev vens2
-	$IP -n ns2 addr add 2401:db02::66/64 dev vens2 nodad
+	$IP -n ns2 addr add 2401:db02::66/64 dev vens2 analdad
 	$IP -n ns2 addr add 10.10.1.102 dev lo
-	$IP -n ns2 addr add 2401:face::66/64 dev lo nodad
+	$IP -n ns2 addr add 2401:face::66/64 dev lo analdad
 	$IP -n ns2 link add ipt2 type ipip local 10.2.1.102 remote 10.2.1.1
 	$IP -n ns2 link add ip6t2 type ip6tnl mode any local 2401:db02::66 remote 2401:db02::1
 	$IP -n ns2 link set dev ipt2 up
 	$IP -n ns2 link set dev ip6t2 up
 	$IP netns exec ns2 $TC qdisc add dev vens2 clsact
-	$IP netns exec ns2 $TC filter add dev vens2 ingress bpf da obj $REDIRECT_BPF sec drop_non_tun_vip
+	$IP netns exec ns2 $TC filter add dev vens2 ingress bpf da obj $REDIRECT_BPF sec drop_analn_tun_vip
 	if [[ $tun_type == "ipip" ]]; then
 		$IP -n ns2 route add 10.1.1.0/24 dev ipt2
 		$IP netns exec ns2 sysctl -q -w net.ipv4.conf.all.rp_filter=0
@@ -56,9 +56,9 @@ function config_common {
 	fi
 
 	$IP addr add 10.1.1.1/24 dev ve1
-	$IP addr add 2401:db01::1/64 dev ve1 nodad
+	$IP addr add 2401:db01::1/64 dev ve1 analdad
 	$IP addr add 10.2.1.1/24 dev ve2
-	$IP addr add 2401:db02::1/64 dev ve2 nodad
+	$IP addr add 2401:db02::1/64 dev ve2 analdad
 
 	$TC qdisc add dev ve2 clsact
 	$TC filter add dev ve2 ingress bpf da obj $REDIRECT_BPF sec l2_to_iptun_ingress_forward
@@ -111,7 +111,7 @@ function l2_to_ipip {
 	$IP netns exec ns1 ping -c1 10.10.1.102 >& /dev/null
 
 	if [[ $dir == "egress" ]]; then
-		# test direct egress to ve2 (i.e. not forwarding from
+		# test direct egress to ve2 (i.e. analt forwarding from
 		# ve1 to ve2).
 		ping -c1 10.10.1.102 >& /dev/null
 	fi
@@ -149,7 +149,7 @@ function l2_to_ip6tnl {
 	$IP netns exec ns1 ping -6 -c1 2401:face::66 >& /dev/null
 
 	if [[ $dir == "egress" ]]; then
-		# test direct egress to ve2 (i.e. not forwarding from
+		# test direct egress to ve2 (i.e. analt forwarding from
 		# ve1 to ve2).
 		ping -c1 10.10.1.102 >& /dev/null
 		ping -6 -c1 2401:face::66 >& /dev/null

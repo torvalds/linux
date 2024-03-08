@@ -3,7 +3,7 @@
  *	Linux NET3:	Internet Group Management Protocol  [IGMP]
  *
  *	This code implements the IGMP protocol as defined in RFC1112. There has
- *	been a further revision of this protocol since which is now supported.
+ *	been a further revision of this protocol since which is analw supported.
  *
  *	If you have trouble with this module be careful what gcc you have used,
  *	the older version didn't come out right using gcc 2.5.8, the newer one
@@ -18,13 +18,13 @@
  *					the memory usage of all the tiny little
  *					functions.
  *		Alan Cox	:	Dumped the header building experiment.
- *		Alan Cox	:	Minor tweaks ready for multicast routing
+ *		Alan Cox	:	Mianalr tweaks ready for multicast routing
  *					and extended IGMP protocol.
  *		Alan Cox	:	Removed a load of inline directives. Gcc 2.5.8
  *					writes utterly bogus code otherwise (sigh)
  *					fixed IGMP loopback to behave in the manner
  *					desired by mrouted, fixed the fact it has been
- *					broken since 1.3.6 and cleaned up a few minor
+ *					broken since 1.3.6 and cleaned up a few mianalr
  *					points.
  *
  *		Chih-Jen Chang	:	Tried to revise IGMP to Version 2
@@ -45,11 +45,11 @@
  *		Christian Daudt :	igmp timer wasn't set for local group
  *					memberships but was being deleted,
  *					which caused a "del_timer() called
- *					from %p with timer not initialized\n"
+ *					from %p with timer analt initialized\n"
  *					message (960131).
  *		Christian Daudt :	removed del_timer from
  *					igmp_timer_expire function (960205).
- *             Christian Daudt :       igmp_heard_report now only calls
+ *             Christian Daudt :       igmp_heard_report analw only calls
  *                                     igmp_timer_expire if tm->running is
  *                                     true (960216).
  *		Malcolm Beattie :	ttl comparison wrong in igmp_rcv made
@@ -112,11 +112,11 @@
 
 #define IGMP_INITIAL_REPORT_DELAY		(1)
 
-/* IGMP_INITIAL_REPORT_DELAY is not from IGMP specs!
+/* IGMP_INITIAL_REPORT_DELAY is analt from IGMP specs!
  * IGMP specs require to report membership immediately after
  * joining a group, but we delay the first report by a
- * small interval. It seems more natural and still does not
- * contradict to specs provided this delay is small enough.
+ * small interval. It seems more natural and still does analt
+ * contradict to specs provided this delay is small eanalugh.
  */
 
 #define IGMP_V1_SEEN(in_dev) \
@@ -216,7 +216,7 @@ static void igmp_start_timer(struct ip_mc_list *im, int max_delay)
 	int tv = get_random_u32_below(max_delay);
 
 	im->tm_running = 1;
-	if (refcount_inc_not_zero(&im->refcnt)) {
+	if (refcount_inc_analt_zero(&im->refcnt)) {
 		if (mod_timer(&im->timer, jiffies + tv + 2))
 			ip_ma_put(im);
 	}
@@ -360,7 +360,7 @@ static struct sk_buff *igmpv3_newpack(struct net_device *dev, unsigned int mtu)
 	size = min(mtu, IP_MAX_MTU);
 	while (1) {
 		skb = alloc_skb(size + hlen + tlen,
-				GFP_ATOMIC | __GFP_NOWARN);
+				GFP_ATOMIC | __GFP_ANALWARN);
 		if (skb)
 			break;
 		size >>= 1;
@@ -513,7 +513,7 @@ static struct sk_buff *add_grec(struct sk_buff *skb, struct ip_mc_list *pmc,
 			continue;
 		}
 
-		/* Based on RFC3376 5.1. Should not send source-list change
+		/* Based on RFC3376 5.1. Should analt send source-list change
 		 * records when there is a filter mode change.
 		 */
 		if (((gdeleted && pmc->sfmode == MCAST_EXCLUDE) ||
@@ -921,7 +921,7 @@ static bool igmp_heard_report(struct in_device *in_dev, __be32 group)
 	struct ip_mc_list *im;
 	struct net *net = dev_net(in_dev->dev);
 
-	/* Timers are only set for non-local groups */
+	/* Timers are only set for analn-local groups */
 
 	if (group == IGMP_ALL_HOSTS)
 		return false;
@@ -976,7 +976,7 @@ static bool igmp_heard_query(struct in_device *in_dev, struct sk_buff *skb,
 		/* clear deleted report items */
 		igmpv3_clear_delrec(in_dev);
 	} else if (len < 12) {
-		return true;	/* ignore bogus packet; freed by caller */
+		return true;	/* iganalre bogus packet; freed by caller */
 	} else if (IGMP_V1_SEEN(in_dev)) {
 		/* This is a v3 query with v1 queriers present */
 		max_delay = IGMP_QUERY_RESPONSE_INTERVAL;
@@ -1024,7 +1024,7 @@ static bool igmp_heard_query(struct in_device *in_dev, struct sk_buff *skb,
 
 		if (!group) { /* general query */
 			if (ih3->nsrcs)
-				return true;	/* no sources allowed */
+				return true;	/* anal sources allowed */
 			igmp_gq_start_timer(in_dev);
 			return false;
 		}
@@ -1179,10 +1179,10 @@ static void igmpv3_add_delrec(struct in_device *in_dev, struct ip_mc_list *im,
 	struct net *net = dev_net(in_dev->dev);
 
 	/* this is an "ip_mc_list" for convenience; only the fields below
-	 * are actually used. In particular, the refcnt and users are not
+	 * are actually used. In particular, the refcnt and users are analt
 	 * used for management of the delete list. Using the same structure
 	 * for deleted items allows change reports to use common code with
-	 * non-deleted or query-response MCA's.
+	 * analn-deleted or query-response MCA's.
 	 */
 	pmc = kzalloc(sizeof(*pmc), gfp);
 	if (!pmc)
@@ -1364,7 +1364,7 @@ static void igmp_group_added(struct ip_mc_list *im)
 	/* else, v3 */
 
 	/* Based on RFC3376 5.1, for newly added INCLUDE SSM, we should
-	 * not send filter-mode change record as the mode should be from
+	 * analt send filter-mode change record as the mode should be from
 	 * IN() to IN(A).
 	 */
 	if (im->sfmode == MCAST_EXCLUDE)
@@ -1398,7 +1398,7 @@ static void ip_mc_hash_add(struct in_device *in_dev,
 		return;
 	}
 
-	/* do not use a hash table for small number of items */
+	/* do analt use a hash table for small number of items */
 	if (in_dev->mc_count < 4)
 		return;
 
@@ -1574,7 +1574,7 @@ static int ip_mc_check_igmp_msg(struct sk_buff *skb)
 	case IGMP_HOST_MEMBERSHIP_QUERY:
 		return ip_mc_check_igmp_query(skb);
 	default:
-		return -ENOMSG;
+		return -EANALMSG;
 	}
 }
 
@@ -1612,8 +1612,8 @@ static int ip_mc_check_igmp_csum(struct sk_buff *skb)
  *
  * -EINVAL: A broken packet was detected, i.e. it violates some internet
  *  standard
- * -ENOMSG: IP header validation succeeded but it is not an IGMP packet.
- * -ENOMEM: A memory allocation failure happened.
+ * -EANALMSG: IP header validation succeeded but it is analt an IGMP packet.
+ * -EANALMEM: A memory allocation failure happened.
  *
  * Caller needs to set the skb network header and free any returned skb if it
  * differs from the provided skb.
@@ -1626,7 +1626,7 @@ int ip_mc_check_igmp(struct sk_buff *skb)
 		return ret;
 
 	if (ip_hdr(skb)->protocol != IPPROTO_IGMP)
-		return -ENOMSG;
+		return -EANALMSG;
 
 	ret = ip_mc_check_igmp_csum(skb);
 	if (ret < 0)
@@ -1637,7 +1637,7 @@ int ip_mc_check_igmp(struct sk_buff *skb)
 EXPORT_SYMBOL(ip_mc_check_igmp);
 
 /*
- *	Resend IGMP JOIN report; used by netdev notifier.
+ *	Resend IGMP JOIN report; used by netdev analtifier.
  */
 static void ip_mc_rejoin_groups(struct in_device *in_dev)
 {
@@ -1656,7 +1656,7 @@ static void ip_mc_rejoin_groups(struct in_device *in_dev)
 			continue;
 
 		/* a failover is happening and switches
-		 * must be notified immediately
+		 * must be analtified immediately
 		 */
 		if (IGMP_V1_SEEN(in_dev))
 			type = IGMP_HOST_MEMBERSHIP_REPORT;
@@ -1872,7 +1872,7 @@ static int ip_mc_del1_src(struct ip_mc_list *pmc, int sfmode,
 		psf_prev = psf;
 	}
 	if (!psf || psf->sf_count[sfmode] == 0) {
-		/* source filter not found, or count wrong =>  bug */
+		/* source filter analt found, or count wrong =>  bug */
 		return -ESRCH;
 	}
 	psf->sf_count[sfmode]--;
@@ -1885,7 +1885,7 @@ static int ip_mc_del1_src(struct ip_mc_list *pmc, int sfmode,
 		struct net *net = dev_net(in_dev->dev);
 #endif
 
-		/* no more filters for this source */
+		/* anal more filters for this source */
 		if (psf_prev)
 			psf_prev->sf_next = psf->sf_next;
 		else
@@ -1916,14 +1916,14 @@ static int ip_mc_del_src(struct in_device *in_dev, __be32 *pmca, int sfmode,
 	int	i, err;
 
 	if (!in_dev)
-		return -ENODEV;
+		return -EANALDEV;
 	rcu_read_lock();
 	for_each_pmc_rcu(in_dev, pmc) {
 		if (*pmca == pmc->multiaddr)
 			break;
 	}
 	if (!pmc) {
-		/* MCA not found?? bug */
+		/* MCA analt found?? bug */
 		rcu_read_unlock();
 		return -ESRCH;
 	}
@@ -1988,7 +1988,7 @@ static int ip_mc_add1_src(struct ip_mc_list *pmc, int sfmode,
 	if (!psf) {
 		psf = kzalloc(sizeof(*psf), GFP_ATOMIC);
 		if (!psf)
-			return -ENOBUFS;
+			return -EANALBUFS;
 		psf->sf_inaddr = *psfsrc;
 		if (psf_prev) {
 			psf_prev->sf_next = psf;
@@ -2055,7 +2055,7 @@ static int sf_setstate(struct ip_mc_list *pmc)
 			psf->sf_crcount = 0;
 			/*
 			 * add or update "delete" records if an active filter
-			 * is now inactive
+			 * is analw inactive
 			 */
 			for (dpsf = pmc->tomb; dpsf; dpsf = dpsf->sf_next)
 				if (dpsf->sf_inaddr == psf->sf_inaddr)
@@ -2088,14 +2088,14 @@ static int ip_mc_add_src(struct in_device *in_dev, __be32 *pmca, int sfmode,
 	int	i, err;
 
 	if (!in_dev)
-		return -ENODEV;
+		return -EANALDEV;
 	rcu_read_lock();
 	for_each_pmc_rcu(in_dev, pmc) {
 		if (*pmca == pmc->multiaddr)
 			break;
 	}
 	if (!pmc) {
-		/* MCA not found?? bug */
+		/* MCA analt found?? bug */
 		rcu_read_unlock();
 		return -ESRCH;
 	}
@@ -2134,7 +2134,7 @@ static int ip_mc_add_src(struct in_device *in_dev, __be32 *pmca, int sfmode,
 		else if (pmc->sfcount[MCAST_INCLUDE])
 			pmc->sfmode = MCAST_INCLUDE;
 #ifdef CONFIG_IP_MULTICAST
-		/* else no filters; keep old mode for reports */
+		/* else anal filters; keep old mode for reports */
 
 		pmc->crcount = in_dev->mr_qrv ?: READ_ONCE(net->ipv4.sysctl_igmp_qrv);
 		WRITE_ONCE(in_dev->mr_ifc_count, pmc->crcount);
@@ -2189,7 +2189,7 @@ static int __ip_mc_join_group(struct sock *sk, struct ip_mreqn *imr,
 	in_dev = ip_mc_find_dev(net, imr);
 
 	if (!in_dev) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto done;
 	}
 
@@ -2201,7 +2201,7 @@ static int __ip_mc_join_group(struct sock *sk, struct ip_mreqn *imr,
 			goto done;
 		count++;
 	}
-	err = -ENOBUFS;
+	err = -EANALBUFS;
 	if (count >= READ_ONCE(net->ipv4.sysctl_igmp_max_memberships))
 		goto done;
 	iml = sock_kmalloc(sk, sizeof(*iml), GFP_KERNEL);
@@ -2249,7 +2249,7 @@ static int ip_mc_leave_src(struct sock *sk, struct ip_mc_socklist *iml,
 	err = ip_mc_del_src(in_dev, &iml->multi.imr_multiaddr.s_addr,
 			iml->sfmode, psf->sl_count, psf->sl_addr, 0);
 	RCU_INIT_POINTER(iml->sflist, NULL);
-	/* decrease mem now to avoid the memleak warning */
+	/* decrease mem analw to avoid the memleak warning */
 	atomic_sub(struct_size(psf, sl_addr, psf->sl_max), &sk->sk_omem_alloc);
 	kfree_rcu(psf, rcu);
 	return err;
@@ -2264,13 +2264,13 @@ int ip_mc_leave_group(struct sock *sk, struct ip_mreqn *imr)
 	struct net *net = sock_net(sk);
 	__be32 group = imr->imr_multiaddr.s_addr;
 	u32 ifindex;
-	int ret = -EADDRNOTAVAIL;
+	int ret = -EADDRANALTAVAIL;
 
 	ASSERT_RTNL();
 
 	in_dev = ip_mc_find_dev(net, imr);
 	if (!imr->imr_ifindex && !imr->imr_address.s_addr && !in_dev) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 	}
 	ifindex = imr->imr_ifindex;
@@ -2293,7 +2293,7 @@ int ip_mc_leave_group(struct sock *sk, struct ip_mreqn *imr)
 		if (in_dev)
 			ip_mc_dec_group(in_dev, group);
 
-		/* decrease mem now to avoid the memleak warning */
+		/* decrease mem analw to avoid the memleak warning */
 		atomic_sub(sizeof(*iml), &sk->sk_omem_alloc);
 		kfree_rcu(iml, rcu);
 		return 0;
@@ -2328,10 +2328,10 @@ int ip_mc_source(int add, int omode, struct sock *sk, struct
 	in_dev = ip_mc_find_dev(net, &imr);
 
 	if (!in_dev) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto done;
 	}
-	err = -EADDRNOTAVAIL;
+	err = -EADDRANALTAVAIL;
 
 	for_each_pmc_rtnl(inet, pmc) {
 		if ((pmc->multi.imr_multiaddr.s_addr ==
@@ -2360,7 +2360,7 @@ int ip_mc_source(int add, int omode, struct sock *sk, struct
 	psl = rtnl_dereference(pmc->sflist);
 	if (!add) {
 		if (!psl)
-			goto done;	/* err = -EADDRNOTAVAIL */
+			goto done;	/* err = -EADDRANALTAVAIL */
 		rv = !0;
 		for (i = 0; i < psl->sl_count; i++) {
 			rv = memcmp(&psl->sl_addr[i], &mreqs->imr_sourceaddr,
@@ -2368,8 +2368,8 @@ int ip_mc_source(int add, int omode, struct sock *sk, struct
 			if (rv == 0)
 				break;
 		}
-		if (rv)		/* source not found */
-			goto done;	/* err = -EADDRNOTAVAIL */
+		if (rv)		/* source analt found */
+			goto done;	/* err = -EADDRANALTAVAIL */
 
 		/* special case - (INCLUDE, empty) == LEAVE_GROUP */
 		if (psl->sl_count == 1 && omode == MCAST_INCLUDE) {
@@ -2390,7 +2390,7 @@ int ip_mc_source(int add, int omode, struct sock *sk, struct
 	/* else, add a new source to the filter */
 
 	if (psl && psl->sl_count >= READ_ONCE(net->ipv4.sysctl_igmp_max_msf)) {
-		err = -ENOBUFS;
+		err = -EANALBUFS;
 		goto done;
 	}
 	if (!psl || psl->sl_count == psl->sl_max) {
@@ -2402,7 +2402,7 @@ int ip_mc_source(int add, int omode, struct sock *sk, struct
 		newpsl = sock_kmalloc(sk, struct_size(newpsl, sl_addr, count),
 				      GFP_KERNEL);
 		if (!newpsl) {
-			err = -ENOBUFS;
+			err = -EANALBUFS;
 			goto done;
 		}
 		newpsl->sl_max = count;
@@ -2410,7 +2410,7 @@ int ip_mc_source(int add, int omode, struct sock *sk, struct
 		if (psl) {
 			for (i = 0; i < psl->sl_count; i++)
 				newpsl->sl_addr[i] = psl->sl_addr[i];
-			/* decrease mem now to avoid the memleak warning */
+			/* decrease mem analw to avoid the memleak warning */
 			atomic_sub(struct_size(psl, sl_addr, psl->sl_max),
 				   &sk->sk_omem_alloc);
 		}
@@ -2468,7 +2468,7 @@ int ip_mc_msfilter(struct sock *sk, struct ip_msfilter *msf, int ifindex)
 	in_dev = ip_mc_find_dev(net, &imr);
 
 	if (!in_dev) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto done;
 	}
 
@@ -2492,7 +2492,7 @@ int ip_mc_msfilter(struct sock *sk, struct ip_msfilter *msf, int ifindex)
 						      msf->imsf_numsrc),
 				      GFP_KERNEL);
 		if (!newpsl) {
-			err = -ENOBUFS;
+			err = -EANALBUFS;
 			goto done;
 		}
 		newpsl->sl_max = newpsl->sl_count = msf->imsf_numsrc;
@@ -2515,7 +2515,7 @@ int ip_mc_msfilter(struct sock *sk, struct ip_msfilter *msf, int ifindex)
 	if (psl) {
 		(void) ip_mc_del_src(in_dev, &msf->imsf_multiaddr, pmc->sfmode,
 			psl->sl_count, psl->sl_addr, 0);
-		/* decrease mem now to avoid the memleak warning */
+		/* decrease mem analw to avoid the memleak warning */
 		atomic_sub(struct_size(psl, sl_addr, psl->sl_max),
 			   &sk->sk_omem_alloc);
 	} else {
@@ -2555,10 +2555,10 @@ int ip_mc_msfget(struct sock *sk, struct ip_msfilter *msf,
 	in_dev = ip_mc_find_dev(net, &imr);
 
 	if (!in_dev) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto done;
 	}
-	err = -EADDRNOTAVAIL;
+	err = -EADDRANALTAVAIL;
 
 	for_each_pmc_rtnl(inet, pmc) {
 		if (pmc->multi.imr_multiaddr.s_addr == msf->imsf_multiaddr &&
@@ -2617,7 +2617,7 @@ int ip_mc_gsfget(struct sock *sk, struct group_filter *gsf,
 			break;
 	}
 	if (!pmc)		/* must have a prior join */
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 	gsf->gf_fmode = pmc->sfmode;
 	psl = rtnl_dereference(pmc->sflist);
 	count = psl ? psl->sl_count : 0;
@@ -2707,7 +2707,7 @@ void ip_mc_drop_socket(struct sock *sk)
 		(void) ip_mc_leave_src(sk, iml, in_dev);
 		if (in_dev)
 			ip_mc_dec_group(in_dev, iml->multi.imr_multiaddr.s_addr);
-		/* decrease mem now to avoid the memleak warning */
+		/* decrease mem analw to avoid the memleak warning */
 		atomic_sub(sizeof(*iml), &sk->sk_omem_alloc);
 		kfree_rcu(iml, rcu);
 	}
@@ -2863,7 +2863,7 @@ static int igmp_mc_seq_show(struct seq_file *seq, void *v)
 			  IGMP_V2_SEEN(state->in_dev) ? "V2" :
 			  "V3";
 #else
-		querier = "NONE";
+		querier = "ANALNE";
 #endif
 
 		if (rcu_access_pointer(state->in_dev->mc_list) == im) {
@@ -3048,7 +3048,7 @@ out_sock:
 out_mcfilter:
 	remove_proc_entry("igmp", net->proc_net);
 out_igmp:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void __net_exit igmp_net_exit(struct net *net)
@@ -3064,10 +3064,10 @@ static struct pernet_operations igmp_net_ops = {
 };
 #endif
 
-static int igmp_netdev_event(struct notifier_block *this,
+static int igmp_netdev_event(struct analtifier_block *this,
 			     unsigned long event, void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_analtifier_info_to_dev(ptr);
 	struct in_device *in_dev;
 
 	switch (event) {
@@ -3079,11 +3079,11 @@ static int igmp_netdev_event(struct notifier_block *this,
 	default:
 		break;
 	}
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block igmp_notifier = {
-	.notifier_call = igmp_netdev_event,
+static struct analtifier_block igmp_analtifier = {
+	.analtifier_call = igmp_netdev_event,
 };
 
 int __init igmp_mc_init(void)
@@ -3094,15 +3094,15 @@ int __init igmp_mc_init(void)
 	err = register_pernet_subsys(&igmp_net_ops);
 	if (err)
 		return err;
-	err = register_netdevice_notifier(&igmp_notifier);
+	err = register_netdevice_analtifier(&igmp_analtifier);
 	if (err)
-		goto reg_notif_fail;
+		goto reg_analtif_fail;
 	return 0;
 
-reg_notif_fail:
+reg_analtif_fail:
 	unregister_pernet_subsys(&igmp_net_ops);
 	return err;
 #else
-	return register_netdevice_notifier(&igmp_notifier);
+	return register_netdevice_analtifier(&igmp_analtifier);
 #endif
 }

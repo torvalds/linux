@@ -55,7 +55,7 @@
 };
 
 &lbc {
-	nor@0 {
+	analr@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "cfi-flash";

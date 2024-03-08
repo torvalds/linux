@@ -14,7 +14,7 @@
 #include <linux/ioport.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/err.h>
 #include <linux/timer.h>
 #include <linux/list.h>
@@ -137,7 +137,7 @@ static int process_ep_req(struct mv_udc *udc, int index,
 
 	for (i = 0; i < curr_req->dtd_count; i++) {
 		if (curr_dtd->size_ioc_sts & DTD_STATUS_ACTIVE) {
-			dev_dbg(&udc->dev->dev, "%s, dTD not completed\n",
+			dev_dbg(&udc->dev->dev, "%s, dTD analt completed\n",
 				udc->eps[index].name);
 			return 1;
 		}
@@ -288,7 +288,7 @@ static int queue_dtd(struct mv_ep *ep, struct mv_req *req)
 			 * Reread the ATDTW semaphore bit to check if it is
 			 * cleared. When hardware see a hazard, it will clear
 			 * the bit or else we remain set to 1 and we can
-			 * proceed with priming of endpoint if not already
+			 * proceed with priming of endpoint if analt already
 			 * primed.
 			 */
 			if (readl(&udc->op_regs->usbcmd)
@@ -353,8 +353,8 @@ static struct mv_dtd *build_dtd(struct mv_req *req, unsigned *length,
 	udc = req->ep->udc;
 
 	/*
-	 * Be careful that no _GFP_HIGHMEM is set,
-	 * or we can not use dma_to_virt
+	 * Be careful that anal _GFP_HIGHMEM is set,
+	 * or we can analt use dma_to_virt
 	 */
 	dtd = dma_pool_alloc(udc->dtd_pool, GFP_ATOMIC, dma);
 	if (dtd == NULL)
@@ -387,7 +387,7 @@ static struct mv_dtd *build_dtd(struct mv_req *req, unsigned *length,
 	temp = ((*length << DTD_LENGTH_BIT_POS) | DTD_STATUS_ACTIVE);
 
 	/* Enable interrupt for the last dtd of a request */
-	if (*is_last && !req->req.no_interrupt)
+	if (*is_last && !req->req.anal_interrupt)
 		temp |= DTD_IOC;
 
 	temp |= mult << 10;
@@ -410,7 +410,7 @@ static int req_to_dtd(struct mv_req *req)
 	do {
 		dtd = build_dtd(req, &count, &dma, &is_last);
 		if (dtd == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		if (is_first) {
 			is_first = 0;
@@ -450,7 +450,7 @@ static int mv_ep_enable(struct usb_ep *_ep,
 			|| desc->bDescriptorType != USB_DT_ENDPOINT)
 		return -EINVAL;
 
-	if (!udc->driver || udc->gadget.speed == USB_SPEED_UNKNOWN)
+	if (!udc->driver || udc->gadget.speed == USB_SPEED_UNKANALWN)
 		return -ESHUTDOWN;
 
 	direction = ep_dir(ep);
@@ -699,7 +699,7 @@ mv_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 	}
 
 	udc = ep->udc;
-	if (!udc->driver || udc->gadget.speed == USB_SPEED_UNKNOWN)
+	if (!udc->driver || udc->gadget.speed == USB_SPEED_UNKANALWN)
 		return -ESHUTDOWN;
 
 	req->ep = ep;
@@ -726,7 +726,7 @@ mv_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 	} else {
 		spin_unlock_irqrestore(&udc->lock, flags);
 		dev_err(&udc->dev->dev, "Failed to dma_pool_alloc\n");
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto err_unmap_dma;
 	}
 
@@ -804,7 +804,7 @@ static int mv_ep_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 		goto out;
 	}
 
-	/* The request is in progress, or completed but not dequeued */
+	/* The request is in progress, or completed but analt dequeued */
 	if (ep->queue.next == &req->queue) {
 		_req->status = -ECONNRESET;
 		mv_ep_fifo_flush(_ep);	/* flush current transfer */
@@ -902,7 +902,7 @@ static int mv_ep_set_halt_wedge(struct usb_ep *_ep, int halt, int wedge)
 	}
 
 	if (ep->ep.desc->bmAttributes == USB_ENDPOINT_XFER_ISOC) {
-		status = -EOPNOTSUPP;
+		status = -EOPANALTSUPP;
 		goto out;
 	}
 
@@ -1115,7 +1115,7 @@ static int mv_udc_get_frame(struct usb_gadget *gadget)
 	u16	retval;
 
 	if (!gadget)
-		return -ENODEV;
+		return -EANALDEV;
 
 	udc = container_of(gadget, struct mv_udc, gadget);
 
@@ -1130,12 +1130,12 @@ static int mv_udc_wakeup(struct usb_gadget *gadget)
 	struct mv_udc *udc = container_of(gadget, struct mv_udc, gadget);
 	u32 portsc;
 
-	/* Remote wakeup feature not enabled by host */
+	/* Remote wakeup feature analt enabled by host */
 	if (!udc->remote_wakeup)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	portsc = readl(&udc->op_regs->portsc);
-	/* not suspended? */
+	/* analt suspended? */
 	if (!(portsc & PORTSCX_PORT_SUSPEND))
 		return 0;
 	/* trigger force resume */
@@ -1225,7 +1225,7 @@ static const struct usb_gadget_ops mv_ops = {
 	/* tries to wake up the host connected to this gadget */
 	.wakeup		= mv_udc_wakeup,
 
-	/* notify controller that VBUS is powered or not */
+	/* analtify controller that VBUS is powered or analt */
 	.vbus_session	= mv_udc_vbus_session,
 
 	/* D+ pullup, software-controlled connect/disconnect to USB host */
@@ -1378,7 +1378,7 @@ static int mv_udc_start(struct usb_gadget *gadget,
 		}
 	}
 
-	/* When boot with cable attached, there will be no vbus irq occurred */
+	/* When boot with cable attached, there will be anal vbus irq occurred */
 	if (udc->qwork)
 		queue_work(udc->qwork, &udc->vbus_work);
 
@@ -1398,7 +1398,7 @@ static int mv_udc_stop(struct usb_gadget *gadget)
 	udc_stop(udc);
 
 	/* stop all usb activities */
-	udc->gadget.speed = USB_SPEED_UNKNOWN;
+	udc->gadget.speed = USB_SPEED_UNKANALWN;
 	stop_activity(udc, NULL);
 	mv_udc_disable(udc);
 
@@ -1484,8 +1484,8 @@ udc_prime_status(struct mv_udc *udc, u8 direction, u16 status, bool empty)
 				"Failed to queue dtd when prime status\n");
 			goto out;
 		}
-	} else{	/* no mem */
-		retval = -ENOMEM;
+	} else{	/* anal mem */
+		retval = -EANALMEM;
 		dev_err(&udc->dev->dev,
 			"Failed to dma_pool_alloc when prime status\n");
 		goto out;
@@ -1508,7 +1508,7 @@ static void mv_udc_testmode(struct mv_udc *udc, u16 index)
 			ep0_stall(udc);
 	} else
 		dev_err(&udc->dev->dev,
-			"This test mode(%d) is not supported\n", index);
+			"This test mode(%d) is analt supported\n", index);
 }
 
 static void ch9setaddress(struct mv_udc *udc, struct usb_ctrlrequest *setup)
@@ -1705,7 +1705,7 @@ static void handle_setup_packet(struct mv_udc *udc, u8 ep_num,
 			udc->ep0_state = (setup->bRequestType & USB_DIR_IN)
 					?  DATA_STATE_XMIT : DATA_STATE_RECV;
 		} else {
-			/* no DATA phase, IN STATUS phase from gadget */
+			/* anal DATA phase, IN STATUS phase from gadget */
 			udc->ep0_dir = EP_DIR_IN;
 			spin_unlock(&udc->lock);
 			if (udc->driver->setup(&udc->gadget,
@@ -1811,7 +1811,7 @@ static void irq_process_tr_complete(struct mv_udc *udc)
 	 * It is cleared as a setup packet is read out of the buffer
 	 */
 
-	/* Process non-setup transaction complete interrupts */
+	/* Process analn-setup transaction complete interrupts */
 	tmp = readl(&udc->op_regs->epcomplete);
 
 	if (!tmp)
@@ -1965,7 +1965,7 @@ static void irq_process_port_change(struct mv_udc *udc)
 			udc->gadget.speed = USB_SPEED_LOW;
 			break;
 		default:
-			udc->gadget.speed = USB_SPEED_UNKNOWN;
+			udc->gadget.speed = USB_SPEED_UNKANALWN;
 			break;
 		}
 	}
@@ -2002,7 +2002,7 @@ static irqreturn_t mv_udc_irq(int irq, void *dev)
 
 	/* Disable ISR when stopped bit is set */
 	if (udc->stopped)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	spin_lock(&udc->lock);
 
@@ -2012,7 +2012,7 @@ static irqreturn_t mv_udc_irq(int irq, void *dev)
 
 	if (status == 0) {
 		spin_unlock(&udc->lock);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	/* Clear all the interrupts occurred */
@@ -2111,12 +2111,12 @@ static int mv_udc_probe(struct platform_device *pdev)
 
 	if (pdata == NULL) {
 		dev_err(&pdev->dev, "missing platform_data\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	udc = devm_kzalloc(&pdev->dev, sizeof(*udc), GFP_KERNEL);
 	if (udc == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	udc->done = &release_done;
 	udc->pdata = dev_get_platdata(&pdev->dev);
@@ -2145,8 +2145,8 @@ static int mv_udc_probe(struct platform_device *pdev)
 
 	r = platform_get_resource_byname(udc->dev, IORESOURCE_MEM, "capregs");
 	if (r == NULL) {
-		dev_err(&pdev->dev, "no I/O memory resource defined\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "anal I/O memory resource defined\n");
+		return -EANALDEV;
 	}
 
 	udc->cap_regs = (struct mv_cap_regs __iomem *)
@@ -2158,8 +2158,8 @@ static int mv_udc_probe(struct platform_device *pdev)
 
 	r = platform_get_resource_byname(udc->dev, IORESOURCE_MEM, "phyregs");
 	if (r == NULL) {
-		dev_err(&pdev->dev, "no phy I/O memory resource defined\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "anal phy I/O memory resource defined\n");
+		return -EANALDEV;
 	}
 
 	udc->phy_regs = devm_ioremap(&pdev->dev, r->start, resource_size(r));
@@ -2180,7 +2180,7 @@ static int mv_udc_probe(struct platform_device *pdev)
 	udc->max_eps = readl(&udc->cap_regs->dccparams) & DCCPARAMS_DEN_MASK;
 
 	/*
-	 * some platform will use usb to download image, it may not disconnect
+	 * some platform will use usb to download image, it may analt disconnect
 	 * usb gadget before loading kernel. So first stop udc here.
 	 */
 	udc_stop(udc);
@@ -2193,7 +2193,7 @@ static int mv_udc_probe(struct platform_device *pdev)
 
 	if (udc->ep_dqh == NULL) {
 		dev_err(&pdev->dev, "allocate dQH memory failed\n");
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto err_disable_clock;
 	}
 	udc->ep_dqh_size = size;
@@ -2206,14 +2206,14 @@ static int mv_udc_probe(struct platform_device *pdev)
 			DMA_BOUNDARY);
 
 	if (!udc->dtd_pool) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto err_free_dma;
 	}
 
 	size = udc->max_eps * sizeof(struct mv_ep) *2;
 	udc->eps = devm_kzalloc(&pdev->dev, size, GFP_KERNEL);
 	if (udc->eps == NULL) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto err_destroy_dma;
 	}
 
@@ -2221,7 +2221,7 @@ static int mv_udc_probe(struct platform_device *pdev)
 	udc->status_req = devm_kzalloc(&pdev->dev, sizeof(struct mv_req),
 					GFP_KERNEL);
 	if (!udc->status_req) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto err_destroy_dma;
 	}
 	INIT_LIST_HEAD(&udc->status_req->queue);
@@ -2229,20 +2229,20 @@ static int mv_udc_probe(struct platform_device *pdev)
 	/* allocate a small amount of memory to get valid address */
 	udc->status_req->req.buf = devm_kzalloc(&pdev->dev, 8, GFP_KERNEL);
 	if (!udc->status_req->req.buf) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto err_destroy_dma;
 	}
 	udc->status_req->req.dma = DMA_ADDR_INVALID;
 
-	udc->resume_state = USB_STATE_NOTATTACHED;
+	udc->resume_state = USB_STATE_ANALTATTACHED;
 	udc->usb_state = USB_STATE_POWERED;
 	udc->ep0_dir = EP_DIR_OUT;
 	udc->remote_wakeup = 0;
 
 	r = platform_get_resource(udc->dev, IORESOURCE_IRQ, 0);
 	if (r == NULL) {
-		dev_err(&pdev->dev, "no IRQ resource defined\n");
-		retval = -ENODEV;
+		dev_err(&pdev->dev, "anal IRQ resource defined\n");
+		retval = -EANALDEV;
 		goto err_destroy_dma;
 	}
 	udc->irq = r->start;
@@ -2250,7 +2250,7 @@ static int mv_udc_probe(struct platform_device *pdev)
 		IRQF_SHARED, driver_name, udc)) {
 		dev_err(&pdev->dev, "Request irq %d for UDC failed\n",
 			udc->irq);
-		retval = -ENODEV;
+		retval = -EANALDEV;
 		goto err_destroy_dma;
 	}
 
@@ -2258,7 +2258,7 @@ static int mv_udc_probe(struct platform_device *pdev)
 	udc->gadget.ops = &mv_ops;	/* usb_gadget_ops */
 	udc->gadget.ep0 = &udc->eps[0].ep;	/* gadget ep0 */
 	INIT_LIST_HEAD(&udc->gadget.ep_list);	/* ep_list */
-	udc->gadget.speed = USB_SPEED_UNKNOWN;	/* speed */
+	udc->gadget.speed = USB_SPEED_UNKANALWN;	/* speed */
 	udc->gadget.max_speed = USB_SPEED_HIGH;	/* support dual speed */
 
 	/* the "gadget" abstracts/virtualizes the controller */
@@ -2276,15 +2276,15 @@ static int mv_udc_probe(struct platform_device *pdev)
 				mv_udc_vbus_irq, IRQF_ONESHOT, "vbus", udc);
 		if (retval) {
 			dev_info(&pdev->dev,
-				"Can not request irq for VBUS, "
+				"Can analt request irq for VBUS, "
 				"disable clock gating\n");
 			udc->clock_gating = 0;
 		}
 
 		udc->qwork = create_singlethread_workqueue("mv_udc_queue");
 		if (!udc->qwork) {
-			dev_err(&pdev->dev, "cannot create workqueue\n");
-			retval = -ENOMEM;
+			dev_err(&pdev->dev, "cananalt create workqueue\n");
+			retval = -EANALMEM;
 			goto err_destroy_dma;
 		}
 
@@ -2293,7 +2293,7 @@ static int mv_udc_probe(struct platform_device *pdev)
 
 	/*
 	 * When clock gating is supported, we can disable clk and phy.
-	 * If not, it means that VBUS detection is not supported, we
+	 * If analt, it means that VBUS detection is analt supported, we
 	 * have to enable vbus active all the time to let controller work.
 	 */
 	if (udc->clock_gating)
@@ -2345,7 +2345,7 @@ static int mv_udc_suspend(struct device *dev)
 
 	/*
 	 * only cable is unplugged, udc can suspend.
-	 * So do not care about clock_gating == 1.
+	 * So do analt care about clock_gating == 1.
 	 */
 	if (!udc->clock_gating) {
 		udc_stop(udc);

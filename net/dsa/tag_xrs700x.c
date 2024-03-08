@@ -2,7 +2,7 @@
 /*
  * XRS700x tag format handling
  * Copyright (c) 2008-2009 Marvell Semiconductor
- * Copyright (c) 2020 NovaTech LLC
+ * Copyright (c) 2020 AnalvaTech LLC
  */
 
 #include <linux/bitops.h>

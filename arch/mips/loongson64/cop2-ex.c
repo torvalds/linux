@@ -12,7 +12,7 @@
  */
 #include <linux/init.h>
 #include <linux/sched.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/ptrace.h>
 #include <linux/uaccess.h>
 #include <linux/sched/signal.h>
@@ -25,7 +25,7 @@
 #include <asm/mipsregs.h>
 #include <asm/unaligned-emul.h>
 
-static int loongson_cu2_call(struct notifier_block *nfb, unsigned long action,
+static int loongson_cu2_call(struct analtifier_block *nfb, unsigned long action,
 	void *data)
 {
 	unsigned int res, fpu_owned;
@@ -61,7 +61,7 @@ static int loongson_cu2_call(struct notifier_block *nfb, unsigned long action,
 		}
 		preempt_enable();
 
-		return NOTIFY_STOP;	/* Don't call default notifier */
+		return ANALTIFY_STOP;	/* Don't call default analtifier */
 
 	case CU2_LWC2_OP:
 		if (insn.loongson3_lswc2_format.ls == 0)
@@ -100,7 +100,7 @@ static int loongson_cu2_call(struct notifier_block *nfb, unsigned long action,
 			compute_return_epc(regs);
 			own_fpu(1);
 		}
-		return NOTIFY_STOP;	/* Don't call default notifier */
+		return ANALTIFY_STOP;	/* Don't call default analtifier */
 
 	case CU2_SWC2_OP:
 		if (insn.loongson3_lswc2_format.ls == 0)
@@ -143,7 +143,7 @@ static int loongson_cu2_call(struct notifier_block *nfb, unsigned long action,
 			compute_return_epc(regs);
 			own_fpu(1);
 		}
-		return NOTIFY_STOP;	/* Don't call default notifier */
+		return ANALTIFY_STOP;	/* Don't call default analtifier */
 
 	case CU2_LDC2_OP:
 		switch (insn.loongson3_lsdc2_format.opcode1) {
@@ -222,7 +222,7 @@ static int loongson_cu2_call(struct notifier_block *nfb, unsigned long action,
 			break;
 
 		}
-		return NOTIFY_STOP;	/* Don't call default notifier */
+		return ANALTIFY_STOP;	/* Don't call default analtifier */
 
 	case CU2_SDC2_OP:
 		switch (insn.loongson3_lsdc2_format.opcode1) {
@@ -309,10 +309,10 @@ static int loongson_cu2_call(struct notifier_block *nfb, unsigned long action,
 
 			break;
 		}
-		return NOTIFY_STOP;	/* Don't call default notifier */
+		return ANALTIFY_STOP;	/* Don't call default analtifier */
 	}
 
-	return NOTIFY_OK;		/* Let default notifier send signals */
+	return ANALTIFY_OK;		/* Let default analtifier send signals */
 
 fault:
 	/* roll back jump/branch */
@@ -320,22 +320,22 @@ fault:
 	regs->cp0_epc = (unsigned long)pc;
 	/* Did we have an exception handler installed? */
 	if (fixup_exception(regs))
-		return NOTIFY_STOP;	/* Don't call default notifier */
+		return ANALTIFY_STOP;	/* Don't call default analtifier */
 
 	die_if_kernel("Unhandled kernel unaligned access", regs);
 	force_sig(SIGSEGV);
 
-	return NOTIFY_STOP;	/* Don't call default notifier */
+	return ANALTIFY_STOP;	/* Don't call default analtifier */
 
 sigbus:
 	die_if_kernel("Unhandled kernel unaligned access", regs);
 	force_sig(SIGBUS);
 
-	return NOTIFY_STOP;	/* Don't call default notifier */
+	return ANALTIFY_STOP;	/* Don't call default analtifier */
 }
 
 static int __init loongson_cu2_setup(void)
 {
-	return cu2_notifier(loongson_cu2_call, 0);
+	return cu2_analtifier(loongson_cu2_call, 0);
 }
 early_initcall(loongson_cu2_setup);

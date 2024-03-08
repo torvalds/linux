@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 #ifndef _ASM_PROCESSOR_H
 #define _ASM_PROCESSOR_H
@@ -188,7 +188,7 @@ struct thread_struct {
 
 struct task_struct;
 
-enum idle_boot_override {IDLE_NO_OVERRIDE = 0, IDLE_HALT, IDLE_NOMWAIT, IDLE_POLL};
+enum idle_boot_override {IDLE_ANAL_OVERRIDE = 0, IDLE_HALT, IDLE_ANALMWAIT, IDLE_POLL};
 
 extern unsigned long		boot_option_idle_override;
 /*

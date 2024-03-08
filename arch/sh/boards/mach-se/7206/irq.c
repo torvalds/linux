@@ -2,7 +2,7 @@
 /*
  * linux/arch/sh/boards/se/7206/irq.c
  *
- * Copyright (C) 2005,2006 Yoshinori Sato
+ * Copyright (C) 2005,2006 Yoshianalri Sato
  *
  * Hitachi SolutionEngine Support.
  *
@@ -125,7 +125,7 @@ static struct irq_chip se7206_irq_chip __read_mostly = {
 
 static void make_se7206_irq(unsigned int irq)
 {
-	disable_irq_nosync(irq);
+	disable_irq_analsync(irq);
 	irq_set_chip_and_handler_name(irq, &se7206_irq_chip,
 				      handle_level_irq, "level");
 	disable_se7206_irq(irq_get_irq_data(irq));

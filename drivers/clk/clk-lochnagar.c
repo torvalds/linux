@@ -46,7 +46,7 @@ struct lochnagar_clk_priv {
 #define LN_PARENT(NAME) { .name = NAME, .fw_name = NAME }
 
 static const struct clk_parent_data lochnagar1_clk_parents[] = {
-	LN_PARENT("ln-none"),
+	LN_PARENT("ln-analne"),
 	LN_PARENT("ln-spdif-mclk"),
 	LN_PARENT("ln-psia1-mclk"),
 	LN_PARENT("ln-psia2-mclk"),
@@ -60,7 +60,7 @@ static const struct clk_parent_data lochnagar1_clk_parents[] = {
 };
 
 static const struct clk_parent_data lochnagar2_clk_parents[] = {
-	LN_PARENT("ln-none"),
+	LN_PARENT("ln-analne"),
 	LN_PARENT("ln-cdc-clkout"),
 	LN_PARENT("ln-dsp-clkout"),
 	LN_PARENT("ln-pmic-32k"),
@@ -209,7 +209,7 @@ static u8 lochnagar_clk_get_parent(struct clk_hw *hw)
 static const struct clk_ops lochnagar_clk_ops = {
 	.prepare = lochnagar_clk_prepare,
 	.unprepare = lochnagar_clk_unprepare,
-	.determine_rate = clk_hw_determine_rate_no_reparent,
+	.determine_rate = clk_hw_determine_rate_anal_reparent,
 	.set_parent = lochnagar_clk_set_parent,
 	.get_parent = lochnagar_clk_get_parent,
 };
@@ -248,7 +248,7 @@ static int lochnagar_clk_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->dev = dev;
 	priv->regmap = dev_get_regmap(dev->parent, NULL);

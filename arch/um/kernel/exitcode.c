@@ -31,7 +31,7 @@ static int exitcode_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int exitcode_proc_open(struct inode *inode, struct file *file)
+static int exitcode_proc_open(struct ianalde *ianalde, struct file *file)
 {
 	return single_open(file, exitcode_proc_show, NULL);
 }

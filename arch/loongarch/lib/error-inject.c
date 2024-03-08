@@ -7,4 +7,4 @@ void override_function_with_return(struct pt_regs *regs)
 {
 	instruction_pointer_set(regs, regs->regs[1]);
 }
-NOKPROBE_SYMBOL(override_function_with_return);
+ANALKPROBE_SYMBOL(override_function_with_return);

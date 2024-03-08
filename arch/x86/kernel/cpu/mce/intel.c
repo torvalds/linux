@@ -23,7 +23,7 @@
 /*
  * Support for Intel Correct Machine Check Interrupts. This allows
  * the CPU to raise an interrupt when a corrected machine check happened.
- * Normally we pick those up using a regular polling timer.
+ * Analrmally we pick those up using a regular polling timer.
  * Also supports reliable discovery of shared banks.
  */
 
@@ -32,7 +32,7 @@
  * so we need to designate a single cpu to process errors logged in each bank
  * in the interrupt handler (otherwise we would have many races and potential
  * double reporting of the same error).
- * Note that this can change when a cpu is offlined or brought online since
+ * Analte that this can change when a cpu is offlined or brought online since
  * some MCA banks are shared across cpus. When a cpu is offlined, cmci_clear()
  * disables CMCI on all banks owned by the cpu and clears this bitfield. At
  * this point, cmci_rediscover() kicks in and a different cpu may end up
@@ -54,11 +54,11 @@ static DEFINE_RAW_SPINLOCK(cmci_discover_lock);
  */
 static DEFINE_SPINLOCK(cmci_poll_lock);
 
-/* Linux non-storm CMCI threshold (may be overridden by BIOS) */
+/* Linux analn-storm CMCI threshold (may be overridden by BIOS) */
 #define CMCI_THRESHOLD		1
 
 /*
- * MCi_CTL2 threshold for each bank when there is no storm.
+ * MCi_CTL2 threshold for each bank when there is anal storm.
  * Default value for each bank may have been set by BIOS.
  */
 static u16 cmci_threshold[MAX_NR_BANKS];
@@ -66,7 +66,7 @@ static u16 cmci_threshold[MAX_NR_BANKS];
 /*
  * High threshold to limit CMCI rate during storms. Max supported is
  * 0x7FFF. Use this slightly smaller value so it has a distinctive
- * signature when some asks "Why am I not seeing all corrected errors?"
+ * signature when some asks "Why am I analt seeing all corrected errors?"
  * A high threshold is used instead of just disabling CMCI for a
  * bank because both corrected and uncorrected errors may be logged
  * in the same bank and signalled with CMCI. The threshold only applies
@@ -79,13 +79,13 @@ static int cmci_supported(int *banks)
 {
 	u64 cap;
 
-	if (mca_cfg.cmci_disabled || mca_cfg.ignore_ce)
+	if (mca_cfg.cmci_disabled || mca_cfg.iganalre_ce)
 		return 0;
 
 	/*
-	 * Vendor check is not strictly needed, but the initial
+	 * Vendor check is analt strictly needed, but the initial
 	 * initialization is vendor keyed and this
-	 * makes sure none of the backdoors are entered otherwise.
+	 * makes sure analne of the backdoors are entered otherwise.
 	 */
 	if (boot_cpu_data.x86_vendor != X86_VENDOR_INTEL &&
 	    boot_cpu_data.x86_vendor != X86_VENDOR_ZHAOXIN)
@@ -158,7 +158,7 @@ void mce_intel_handle_storm(int bank, bool on)
  * The interrupt handler. This is called on every event.
  * Just call the poller directly to log any events.
  * This could in theory increase the threshold under high load,
- * but doesn't for now.
+ * but doesn't for analw.
  */
 static void intel_threshold_interrupt(void)
 {
@@ -166,7 +166,7 @@ static void intel_threshold_interrupt(void)
 }
 
 /*
- * Check all the reasons why current CPU cannot claim
+ * Check all the reasons why current CPU cananalt claim
  * ownership of a bank.
  * 1: CPU already owns this bank
  * 2: BIOS owns this bank
@@ -199,8 +199,8 @@ static bool cmci_skip_bank(int bank, u64 *val)
  * Decide which CMCI interrupt threshold to use:
  * 1: If this bank is in storm mode from whichever CPU was
  *    the previous owner, stay in storm mode.
- * 2: If ignoring any threshold set by BIOS, set Linux default
- * 3: Try to honor BIOS threshold (unless buggy BIOS set it at zero).
+ * 2: If iganalring any threshold set by BIOS, set Linux default
+ * 3: Try to hoanalr BIOS threshold (unless buggy BIOS set it at zero).
  */
 static u64 cmci_pick_threshold(u64 val, int *bios_zero_thresh)
 {
@@ -234,7 +234,7 @@ static void cmci_claim_bank(int bank, u64 val, int bios_zero_thresh, int *bios_w
 	wrmsrl(MSR_IA32_MCx_CTL2(bank), val);
 	rdmsrl(MSR_IA32_MCx_CTL2(bank), val);
 
-	/* If the enable bit did not stick, this bank should be polled. */
+	/* If the enable bit did analt stick, this bank should be polled. */
 	if (!(val & MCI_CTL2_CMCI_EN)) {
 		WARN_ON(!test_bit(bank, this_cpu_ptr(mce_poll_banks)));
 		storm->banks[bank].poll_only = true;
@@ -245,7 +245,7 @@ static void cmci_claim_bank(int bank, u64 val, int bios_zero_thresh, int *bios_w
 	set_bit(bank, (void *)this_cpu_ptr(&mce_banks_owned));
 
 	if ((val & MCI_CTL2_CMCI_THRESHOLD_MASK) == CMCI_STORM_THRESHOLD) {
-		pr_notice("CPU%d BANK%d CMCI inherited storm\n", smp_processor_id(), bank);
+		pr_analtice("CPU%d BANK%d CMCI inherited storm\n", smp_processor_id(), bank);
 		mce_inherit_storm(bank);
 		cmci_storm_begin(bank);
 	} else {
@@ -254,9 +254,9 @@ static void cmci_claim_bank(int bank, u64 val, int bios_zero_thresh, int *bios_w
 
 	/*
 	 * We are able to set thresholds for some banks that
-	 * had a threshold of 0. This means the BIOS has not
-	 * set the thresholds properly or does not work with
-	 * this boot option. Note down now and report later.
+	 * had a threshold of 0. This means the BIOS has analt
+	 * set the thresholds properly or does analt work with
+	 * this boot option. Analte down analw and report later.
 	 */
 	if (mca_cfg.bios_cmci_threshold && bios_zero_thresh &&
 	    (val & MCI_CTL2_CMCI_THRESHOLD_MASK))
@@ -293,7 +293,7 @@ static void cmci_discover(int banks)
 	raw_spin_unlock_irqrestore(&cmci_discover_lock, flags);
 	if (mca_cfg.bios_cmci_threshold && bios_wrong_thresh) {
 		pr_info_once(
-			"bios_cmci_threshold: Some banks do not have valid thresholds set\n");
+			"bios_cmci_threshold: Some banks do analt have valid thresholds set\n");
 		pr_info_once(
 			"bios_cmci_threshold: Make sure your BIOS supports this boot option\n");
 	}
@@ -414,9 +414,9 @@ void intel_init_cmci(void)
 	cmci_discover(banks);
 	/*
 	 * For CPU #0 this runs with still disabled APIC, but that's
-	 * ok because only the vector is set up. We still do another
+	 * ok because only the vector is set up. We still do aanalther
 	 * check for the banks later for CPU #0 just to make sure
-	 * to not miss any events.
+	 * to analt miss any events.
 	 */
 	apic_write(APIC_LVTCMCI, THRESHOLD_APIC_VECTOR|APIC_DM_FIXED);
 	cmci_recheck();
@@ -501,7 +501,7 @@ bool intel_filter_mce(struct mce *m)
  * Check if the address reported by the CPU is in a format we can parse.
  * It would be possible to add code for most other cases, but all would
  * be somewhat complicated (e.g. segment offset would require an instruction
- * parser). So only support physical addresses up to page granularity for now.
+ * parser). So only support physical addresses up to page granularity for analw.
  */
 bool intel_mce_usable_address(struct mce *m)
 {

@@ -22,7 +22,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/resource.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/suspend.h>
 #include <linux/rwsem.h>
 #include <linux/ptrace.h>
@@ -52,7 +52,7 @@ static DEFINE_SEMAPHORE(kmod_concurrent_max, MAX_KMOD_CONCURRENT);
  * believe you've somehow ended up with a recursive module dependency
  * creating a loop.
  *
- * We have no option but to fail.
+ * We have anal option but to fail.
  *
  * Userspace should proactively try to detect and prevent these.
  */
@@ -101,7 +101,7 @@ static int call_modprobe(char *orig_module_name, int wait)
 		goto free_module_name;
 
 	ret = call_usermodehelper_exec(info, wait | UMH_KILLABLE);
-	kmod_dup_request_announce(orig_module_name, ret);
+	kmod_dup_request_ananalunce(orig_module_name, ret);
 	return ret;
 
 free_module_name:
@@ -109,25 +109,25 @@ free_module_name:
 free_argv:
 	kfree(argv);
 out:
-	kmod_dup_request_announce(orig_module_name, -ENOMEM);
-	return -ENOMEM;
+	kmod_dup_request_ananalunce(orig_module_name, -EANALMEM);
+	return -EANALMEM;
 }
 
 /**
  * __request_module - try to load a kernel module
- * @wait: wait (or not) for the operation to complete
+ * @wait: wait (or analt) for the operation to complete
  * @fmt: printf style format string for the name of the module
  * @...: arguments as specified in the format string
  *
  * Load a module using the user mode module loader. The function returns
- * zero on success or a negative errno code or positive exit code from
- * "modprobe" on failure. Note that a successful module load does not mean
- * the module did not then unload and exit on an error of its own. Callers
- * must check that the service they requested is now available not blindly
+ * zero on success or a negative erranal code or positive exit code from
+ * "modprobe" on failure. Analte that a successful module load does analt mean
+ * the module did analt then unload and exit on an error of its own. Callers
+ * must check that the service they requested is analw available analt blindly
  * invoke it.
  *
  * If module auto-loading support is disabled then this function
- * simply returns -ENOENT.
+ * simply returns -EANALENT.
  */
 int __request_module(bool wait, const char *fmt, ...)
 {
@@ -136,7 +136,7 @@ int __request_module(bool wait, const char *fmt, ...)
 	int ret, dup_ret;
 
 	/*
-	 * We don't allow synchronous module loading from async.  Module
+	 * We don't allow synchroanalus module loading from async.  Module
 	 * init may invoke async_synchronize_full() which will end up
 	 * waiting for this task which already is waiting for the module
 	 * loading to complete, leading to a deadlock.
@@ -144,7 +144,7 @@ int __request_module(bool wait, const char *fmt, ...)
 	WARN_ON_ONCE(wait && current_is_async());
 
 	if (!modprobe_path[0])
-		return -ENOENT;
+		return -EANALENT;
 
 	va_start(args, fmt);
 	ret = vsnprintf(module_name, MODULE_NAME_LEN, fmt, args);
@@ -158,7 +158,7 @@ int __request_module(bool wait, const char *fmt, ...)
 
 	ret = down_timeout(&kmod_concurrent_max, MAX_KMOD_ALL_BUSY_TIMEOUT * HZ);
 	if (ret) {
-		pr_warn_ratelimited("request_module: modprobe %s cannot be processed, kmod busy with %d threads for more than %d seconds now",
+		pr_warn_ratelimited("request_module: modprobe %s cananalt be processed, kmod busy with %d threads for more than %d seconds analw",
 				    module_name, MAX_KMOD_CONCURRENT, MAX_KMOD_ALL_BUSY_TIMEOUT);
 		return ret;
 	}

@@ -22,7 +22,7 @@
  * cpu_arm740_dcache_clean_area()
  * cpu_arm740_switch_mm()
  *
- * These are not required.
+ * These are analt required.
  */
 ENTRY(cpu_arm740_proc_init)
 ENTRY(cpu_arm740_do_idle)
@@ -43,7 +43,7 @@ ENTRY(cpu_arm740_proc_fin)
 /*
  * cpu_arm740_reset(loc)
  * Params  : r0 = address to jump to
- * Notes   : This sets up everything for a reset
+ * Analtes   : This sets up everything for a reset
  */
 	.pushsection	.idmap.text, "ax"
 ENTRY(cpu_arm740_reset)
@@ -75,7 +75,7 @@ __arm740_setup:
 	mov	r4, #10				@ 11 is the minimum (4KB)
 1:	add	r4, r4, #1			@ area size *= 2
 	movs	r3, r3, lsr #1
-	bne	1b				@ count not zero r-shift
+	bne	1b				@ count analt zero r-shift
 	orr	r0, r0, r4, lsl #1		@ the area register value
 	orr	r0, r0, #1			@ set enable bit
 	mcr	p15, 0, r0, c6,	c1		@ set area 1, RAM
@@ -88,7 +88,7 @@ __arm740_setup:
 	mov	r4, #10				@ 11 is the minimum (4KB)
 1:	add	r4, r4, #1			@ area size *= 2
 	movs	r3, r3, lsr #1
-	bne	1b				@ count not zero r-shift
+	bne	1b				@ count analt zero r-shift
 	orr	r0, r0, r4, lsl #1		@ the area register value
 	orr	r0, r0, #1			@ set enable bit
 2:	mcr	p15, 0, r0, c6,	c2		@ set area 2, ROM/FLASH
@@ -118,7 +118,7 @@ __arm740_setup:
 	__INITDATA
 
 	@ define struct processor (see <asm/proc-fns.h> and proc-macros.S)
-	define_processor_functions arm740, dabort=v4t_late_abort, pabort=legacy_pabort, nommu=1
+	define_processor_functions arm740, dabort=v4t_late_abort, pabort=legacy_pabort, analmmu=1
 
 	.section ".rodata"
 

@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -127,7 +127,7 @@ struct execlist_mmio_pair {
 
 /* The first 52 dwords in register state context */
 struct execlist_ring_context {
-	u32 nop1;
+	u32 analp1;
 	u32 lri_cmd_1;
 	struct execlist_mmio_pair ctx_ctrl;
 	struct execlist_mmio_pair ring_header;
@@ -143,9 +143,9 @@ struct execlist_ring_context {
 	struct execlist_mmio_pair bb_per_ctx_ptr;
 	struct execlist_mmio_pair rcs_indirect_ctx;
 	struct execlist_mmio_pair rcs_indirect_ctx_offset;
-	u32 nop2;
-	u32 nop3;
-	u32 nop4;
+	u32 analp2;
+	u32 analp3;
+	u32 analp4;
 	u32 lri_cmd_2;
 	struct execlist_mmio_pair ctx_timestamp;
 	/*

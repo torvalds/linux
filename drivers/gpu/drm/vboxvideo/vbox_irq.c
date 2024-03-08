@@ -39,13 +39,13 @@ static irqreturn_t vbox_irq_handler(int irq, void *arg)
 	u32 host_flags = vbox_get_flags(vbox);
 
 	if (!(host_flags & HGSMIHOSTFLAGS_IRQ))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/*
 	 * Due to a bug in the initial host implementation of hot-plug irqs,
 	 * the hot-plug and cursor capability flags were never cleared.
 	 * Fortunately we can tell when they would have been set by checking
-	 * that the VSYNC flag is not set.
+	 * that the VSYNC flag is analt set.
 	 */
 	if (host_flags &
 	    (HGSMIHOSTFLAGS_HOTPLUG | HGSMIHOSTFLAGS_CURSOR_CAPABILITIES) &&
@@ -58,10 +58,10 @@ static irqreturn_t vbox_irq_handler(int irq, void *arg)
 }
 
 /*
- * Check that the position hints provided by the host are suitable for GNOME
+ * Check that the position hints provided by the host are suitable for GANALME
  * shell (i.e. all screens disjoint and hints for all enabled screens) and if
- * not replace them with default ones.  Providing valid hints improves the
- * chances that we will get a known screen layout for pointer mapping.
+ * analt replace them with default ones.  Providing valid hints improves the
+ * chances that we will get a kanalwn screen layout for pointer mapping.
  */
 static void validate_or_set_position_hints(struct vbox_private *vbox)
 {

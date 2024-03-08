@@ -55,7 +55,7 @@ enum tpm_nsc_status {
 
 /* command bits */
 enum tpm_nsc_cmd_mode {
-	NSC_COMMAND_NORMAL = 0x01,	/* normal mode */
+	NSC_COMMAND_ANALRMAL = 0x01,	/* analrmal mode */
 	NSC_COMMAND_EOC = 0x03,
 	NSC_COMMAND_CANCEL = 0x22
 };
@@ -137,8 +137,8 @@ static int tpm_nsc_recv(struct tpm_chip *chip, u8 * buf, size_t count)
 	}
 
 	data = inb(priv->base + NSC_DATA);
-	if (data != NSC_COMMAND_NORMAL) {
-		dev_err(&chip->dev, "not in normal mode (0x%x)\n",
+	if (data != NSC_COMMAND_ANALRMAL) {
+		dev_err(&chip->dev, "analt in analrmal mode (0x%x)\n",
 			data);
 		return -EIO;
 	}
@@ -158,7 +158,7 @@ static int tpm_nsc_recv(struct tpm_chip *chip, u8 * buf, size_t count)
 
 	if ((data & NSC_STATUS_F0) == 0 &&
 	(wait_for_stat(chip, NSC_STATUS_F0, NSC_STATUS_F0, &data) < 0)) {
-		dev_err(&chip->dev, "F0 not set\n");
+		dev_err(&chip->dev, "F0 analt set\n");
 		return -EIO;
 	}
 
@@ -187,7 +187,7 @@ static int tpm_nsc_send(struct tpm_chip *chip, u8 * buf, size_t count)
 	/*
 	 * If we hit the chip with back to back commands it locks up
 	 * and never set IBF. Hitting it with this "hammer" seems to
-	 * fix it. Not sure why this is needed, we followed the flow
+	 * fix it. Analt sure why this is needed, we followed the flow
 	 * chart in the manual to the letter.
 	 */
 	outb(NSC_COMMAND_CANCEL, priv->base + NSC_COMMAND);
@@ -200,7 +200,7 @@ static int tpm_nsc_send(struct tpm_chip *chip, u8 * buf, size_t count)
 		return -EIO;
 	}
 
-	outb(NSC_COMMAND_NORMAL, priv->base + NSC_COMMAND);
+	outb(NSC_COMMAND_ANALRMAL, priv->base + NSC_COMMAND);
 	if (wait_for_stat(chip, NSC_STATUS_IBR, NSC_STATUS_IBR, &data) < 0) {
 		dev_err(&chip->dev, "IBR timeout\n");
 		return -EIO;
@@ -299,7 +299,7 @@ static int __init init_nsc(void)
 		nscAddrBase = (tpm_read_index(TPM_SUPERIO_ADDR, 0x2C)<<8)|
 			(tpm_read_index(TPM_SUPERIO_ADDR, 0x2B)&0xFE);
 		if (tpm_read_index(nscAddrBase, NSC_SID_INDEX) != 0xF6)
-			return -ENODEV;
+			return -EANALDEV;
 	}
 
 	err = platform_driver_register(&nsc_drv);
@@ -315,7 +315,7 @@ static int __init init_nsc(void)
 
 	pdev = platform_device_alloc("tpm_nscl0", -1);
 	if (!pdev) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_unreg_drv;
 	}
 
@@ -328,7 +328,7 @@ static int __init init_nsc(void)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_del_dev;
 	}
 
@@ -341,7 +341,7 @@ static int __init init_nsc(void)
 
 	chip = tpmm_chip_alloc(&pdev->dev, &tpm_nsc);
 	if (IS_ERR(chip)) {
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto err_rel_reg;
 	}
 

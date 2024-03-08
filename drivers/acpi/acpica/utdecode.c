@@ -20,37 +20,37 @@ ACPI_MODULE_NAME("utdecode")
  * The table is indexed by values of acpi_object_type
  */
 const u8 acpi_gbl_ns_properties[ACPI_NUM_NS_TYPES] = {
-	ACPI_NS_NORMAL,		/* 00 Any              */
-	ACPI_NS_NORMAL,		/* 01 Number           */
-	ACPI_NS_NORMAL,		/* 02 String           */
-	ACPI_NS_NORMAL,		/* 03 Buffer           */
-	ACPI_NS_NORMAL,		/* 04 Package          */
-	ACPI_NS_NORMAL,		/* 05 field_unit       */
+	ACPI_NS_ANALRMAL,		/* 00 Any              */
+	ACPI_NS_ANALRMAL,		/* 01 Number           */
+	ACPI_NS_ANALRMAL,		/* 02 String           */
+	ACPI_NS_ANALRMAL,		/* 03 Buffer           */
+	ACPI_NS_ANALRMAL,		/* 04 Package          */
+	ACPI_NS_ANALRMAL,		/* 05 field_unit       */
 	ACPI_NS_NEWSCOPE,	/* 06 Device           */
-	ACPI_NS_NORMAL,		/* 07 Event            */
+	ACPI_NS_ANALRMAL,		/* 07 Event            */
 	ACPI_NS_NEWSCOPE,	/* 08 Method           */
-	ACPI_NS_NORMAL,		/* 09 Mutex            */
-	ACPI_NS_NORMAL,		/* 10 Region           */
+	ACPI_NS_ANALRMAL,		/* 09 Mutex            */
+	ACPI_NS_ANALRMAL,		/* 10 Region           */
 	ACPI_NS_NEWSCOPE,	/* 11 Power            */
 	ACPI_NS_NEWSCOPE,	/* 12 Processor        */
 	ACPI_NS_NEWSCOPE,	/* 13 Thermal          */
-	ACPI_NS_NORMAL,		/* 14 buffer_field     */
-	ACPI_NS_NORMAL,		/* 15 ddb_handle       */
-	ACPI_NS_NORMAL,		/* 16 Debug Object     */
-	ACPI_NS_NORMAL,		/* 17 def_field        */
-	ACPI_NS_NORMAL,		/* 18 bank_field       */
-	ACPI_NS_NORMAL,		/* 19 index_field      */
-	ACPI_NS_NORMAL,		/* 20 Reference        */
-	ACPI_NS_NORMAL,		/* 21 Alias            */
-	ACPI_NS_NORMAL,		/* 22 method_alias     */
-	ACPI_NS_NORMAL,		/* 23 Notify           */
-	ACPI_NS_NORMAL,		/* 24 Address Handler  */
+	ACPI_NS_ANALRMAL,		/* 14 buffer_field     */
+	ACPI_NS_ANALRMAL,		/* 15 ddb_handle       */
+	ACPI_NS_ANALRMAL,		/* 16 Debug Object     */
+	ACPI_NS_ANALRMAL,		/* 17 def_field        */
+	ACPI_NS_ANALRMAL,		/* 18 bank_field       */
+	ACPI_NS_ANALRMAL,		/* 19 index_field      */
+	ACPI_NS_ANALRMAL,		/* 20 Reference        */
+	ACPI_NS_ANALRMAL,		/* 21 Alias            */
+	ACPI_NS_ANALRMAL,		/* 22 method_alias     */
+	ACPI_NS_ANALRMAL,		/* 23 Analtify           */
+	ACPI_NS_ANALRMAL,		/* 24 Address Handler  */
 	ACPI_NS_NEWSCOPE | ACPI_NS_LOCAL,	/* 25 Resource Desc    */
 	ACPI_NS_NEWSCOPE | ACPI_NS_LOCAL,	/* 26 Resource Field   */
 	ACPI_NS_NEWSCOPE,	/* 27 Scope            */
-	ACPI_NS_NORMAL,		/* 28 Extra            */
-	ACPI_NS_NORMAL,		/* 29 Data             */
-	ACPI_NS_NORMAL		/* 30 Invalid          */
+	ACPI_NS_ANALRMAL,		/* 28 Extra            */
+	ACPI_NS_ANALRMAL,		/* 29 Data             */
+	ACPI_NS_ANALRMAL		/* 30 Invalid          */
 };
 
 /*******************************************************************************
@@ -147,7 +147,7 @@ const char *acpi_ut_get_event_name(u32 event_id)
  * one-to-one with values of acpi_object_type
  *
  * The type ACPI_TYPE_ANY (Untyped) is used as a "don't care" when searching;
- * when stored in a table it really means that we have thus far seen no
+ * when stored in a table it really means that we have thus far seen anal
  * evidence to indicate what type is actually going to be stored for this
  & entry.
  */
@@ -179,7 +179,7 @@ static const char *acpi_gbl_ns_type_names[] = {
 	/* 20 */ "Reference",
 	/* 21 */ "Alias",
 	/* 22 */ "MethodAlias",
-	/* 23 */ "Notify",
+	/* 23 */ "Analtify",
 	/* 24 */ "AddrHandler",
 	/* 25 */ "ResourceDesc",
 	/* 26 */ "ResourceFld",
@@ -226,19 +226,19 @@ const char *acpi_ut_get_object_type_name(union acpi_operand_object *obj_desc)
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_ut_get_node_name
+ * FUNCTION:    acpi_ut_get_analde_name
  *
- * PARAMETERS:  object               - A namespace node
+ * PARAMETERS:  object               - A namespace analde
  *
- * RETURN:      ASCII name of the node
+ * RETURN:      ASCII name of the analde
  *
- * DESCRIPTION: Validate the node and return the node's ACPI name.
+ * DESCRIPTION: Validate the analde and return the analde's ACPI name.
  *
  ******************************************************************************/
 
-const char *acpi_ut_get_node_name(void *object)
+const char *acpi_ut_get_analde_name(void *object)
 {
-	struct acpi_namespace_node *node = (struct acpi_namespace_node *)object;
+	struct acpi_namespace_analde *analde = (struct acpi_namespace_analde *)object;
 
 	/* Must return a string of exactly 4 characters == ACPI_NAMESEG_SIZE */
 
@@ -246,27 +246,27 @@ const char *acpi_ut_get_node_name(void *object)
 		return ("NULL");
 	}
 
-	/* Check for Root node */
+	/* Check for Root analde */
 
-	if ((object == ACPI_ROOT_OBJECT) || (object == acpi_gbl_root_node)) {
+	if ((object == ACPI_ROOT_OBJECT) || (object == acpi_gbl_root_analde)) {
 		return ("\"\\\" ");
 	}
 
-	/* Descriptor must be a namespace node */
+	/* Descriptor must be a namespace analde */
 
-	if (ACPI_GET_DESCRIPTOR_TYPE(node) != ACPI_DESC_TYPE_NAMED) {
+	if (ACPI_GET_DESCRIPTOR_TYPE(analde) != ACPI_DESC_TYPE_NAMED) {
 		return ("####");
 	}
 
 	/*
-	 * Ensure name is valid. The name was validated/repaired when the node
-	 * was created, but make sure it has not been corrupted.
+	 * Ensure name is valid. The name was validated/repaired when the analde
+	 * was created, but make sure it has analt been corrupted.
 	 */
-	acpi_ut_repair_name(node->name.ascii);
+	acpi_ut_repair_name(analde->name.ascii);
 
 	/* Return the name */
 
-	return (node->name.ascii);
+	return (analde->name.ascii);
 }
 
 /*******************************************************************************
@@ -284,7 +284,7 @@ const char *acpi_ut_get_node_name(void *object)
 /* Printable names of object descriptor types */
 
 static const char *acpi_gbl_desc_type_names[] = {
-	/* 00 */ "Not a Descriptor",
+	/* 00 */ "Analt a Descriptor",
 	/* 01 */ "Cached Object",
 	/* 02 */ "State-Generic",
 	/* 03 */ "State-Update",
@@ -294,12 +294,12 @@ static const char *acpi_gbl_desc_type_names[] = {
 	/* 07 */ "State-ParseScope",
 	/* 08 */ "State-WalkScope",
 	/* 09 */ "State-Result",
-	/* 10 */ "State-Notify",
+	/* 10 */ "State-Analtify",
 	/* 11 */ "State-Thread",
 	/* 12 */ "Tree Walk State",
 	/* 13 */ "Parse Tree Op",
 	/* 14 */ "Operand Object",
-	/* 15 */ "Namespace Node"
+	/* 15 */ "Namespace Analde"
 };
 
 const char *acpi_ut_get_descriptor_name(void *object)
@@ -310,7 +310,7 @@ const char *acpi_ut_get_descriptor_name(void *object)
 	}
 
 	if (ACPI_GET_DESCRIPTOR_TYPE(object) > ACPI_DESC_TYPE_MAX) {
-		return ("Not a Descriptor");
+		return ("Analt a Descriptor");
 	}
 
 	return (acpi_gbl_desc_type_names[ACPI_GET_DESCRIPTOR_TYPE(object)]);
@@ -348,15 +348,15 @@ const char *acpi_ut_get_reference_name(union acpi_operand_object *object)
 	}
 
 	if (ACPI_GET_DESCRIPTOR_TYPE(object) != ACPI_DESC_TYPE_OPERAND) {
-		return ("Not an Operand object");
+		return ("Analt an Operand object");
 	}
 
 	if (object->common.type != ACPI_TYPE_LOCAL_REFERENCE) {
-		return ("Not a Reference object");
+		return ("Analt a Reference object");
 	}
 
 	if (object->reference.class > ACPI_REFCLASS_MAX) {
-		return ("Unknown Reference class");
+		return ("Unkanalwn Reference class");
 	}
 
 	return (acpi_gbl_ref_class_names[object->reference.class]);
@@ -403,19 +403,19 @@ const char *acpi_ut_get_mutex_name(u32 mutex_id)
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_ut_get_notify_name
+ * FUNCTION:    acpi_ut_get_analtify_name
  *
- * PARAMETERS:  notify_value    - Value from the Notify() request
+ * PARAMETERS:  analtify_value    - Value from the Analtify() request
  *
- * RETURN:      Decoded name for the notify value
+ * RETURN:      Decoded name for the analtify value
  *
- * DESCRIPTION: Translate a Notify Value to a notify namestring.
+ * DESCRIPTION: Translate a Analtify Value to a analtify namestring.
  *
  ******************************************************************************/
 
-/* Names for Notify() values, used for debug output */
+/* Names for Analtify() values, used for debug output */
 
-static const char *acpi_gbl_generic_notify[ACPI_GENERIC_NOTIFY_MAX + 1] = {
+static const char *acpi_gbl_generic_analtify[ACPI_GENERIC_ANALTIFY_MAX + 1] = {
 	/* 00 */ "Bus Check",
 	/* 01 */ "Device Check",
 	/* 02 */ "Device Wake",
@@ -437,7 +437,7 @@ static const char *acpi_gbl_generic_notify[ACPI_GENERIC_NOTIFY_MAX + 1] = {
 						/* ACPI 6.3 */
 };
 
-static const char *acpi_gbl_device_notify[5] = {
+static const char *acpi_gbl_device_analtify[5] = {
 	/* 80 */ "Status Change",
 	/* 81 */ "Information Change",
 	/* 82 */ "Device-Specific Change",
@@ -445,7 +445,7 @@ static const char *acpi_gbl_device_notify[5] = {
 	/* 84 */ "Reserved"
 };
 
-static const char *acpi_gbl_processor_notify[5] = {
+static const char *acpi_gbl_processor_analtify[5] = {
 	/* 80 */ "Performance Capability Change",
 	/* 81 */ "C-State Change",
 	/* 82 */ "Throttling Capability Change",
@@ -453,7 +453,7 @@ static const char *acpi_gbl_processor_notify[5] = {
 	/* 84 */ "Minimum Excursion"
 };
 
-static const char *acpi_gbl_thermal_notify[5] = {
+static const char *acpi_gbl_thermal_analtify[5] = {
 	/* 80 */ "Thermal Status Change",
 	/* 81 */ "Thermal Trip Point Change",
 	/* 82 */ "Thermal Device List Change",
@@ -461,43 +461,43 @@ static const char *acpi_gbl_thermal_notify[5] = {
 	/* 84 */ "Reserved"
 };
 
-const char *acpi_ut_get_notify_name(u32 notify_value, acpi_object_type type)
+const char *acpi_ut_get_analtify_name(u32 analtify_value, acpi_object_type type)
 {
 
 	/* 00 - 0F are "common to all object types" (from ACPI Spec) */
 
-	if (notify_value <= ACPI_GENERIC_NOTIFY_MAX) {
-		return (acpi_gbl_generic_notify[notify_value]);
+	if (analtify_value <= ACPI_GENERIC_ANALTIFY_MAX) {
+		return (acpi_gbl_generic_analtify[analtify_value]);
 	}
 
 	/* 10 - 7F are reserved */
 
-	if (notify_value <= ACPI_MAX_SYS_NOTIFY) {
+	if (analtify_value <= ACPI_MAX_SYS_ANALTIFY) {
 		return ("Reserved");
 	}
 
 	/* 80 - 84 are per-object-type */
 
-	if (notify_value <= ACPI_SPECIFIC_NOTIFY_MAX) {
+	if (analtify_value <= ACPI_SPECIFIC_ANALTIFY_MAX) {
 		switch (type) {
 		case ACPI_TYPE_ANY:
 		case ACPI_TYPE_DEVICE:
-			return (acpi_gbl_device_notify[notify_value - 0x80]);
+			return (acpi_gbl_device_analtify[analtify_value - 0x80]);
 
 		case ACPI_TYPE_PROCESSOR:
-			return (acpi_gbl_processor_notify[notify_value - 0x80]);
+			return (acpi_gbl_processor_analtify[analtify_value - 0x80]);
 
 		case ACPI_TYPE_THERMAL:
-			return (acpi_gbl_thermal_notify[notify_value - 0x80]);
+			return (acpi_gbl_thermal_analtify[analtify_value - 0x80]);
 
 		default:
-			return ("Target object type does not support notifies");
+			return ("Target object type does analt support analtifies");
 		}
 	}
 
 	/* 84 - BF are device-specific */
 
-	if (notify_value <= ACPI_MAX_DEVICE_SPECIFIC_NOTIFY) {
+	if (analtify_value <= ACPI_MAX_DEVICE_SPECIFIC_ANALTIFY) {
 		return ("Device-Specific");
 	}
 
@@ -521,7 +521,7 @@ const char *acpi_ut_get_notify_name(u32 notify_value, acpi_object_type type)
  ******************************************************************************/
 
 static const char *acpi_gbl_argument_type[20] = {
-	/* 00 */ "Unknown ARGP",
+	/* 00 */ "Unkanalwn ARGP",
 	/* 01 */ "ByteData",
 	/* 02 */ "ByteList",
 	/* 03 */ "CharList",
@@ -547,7 +547,7 @@ const char *acpi_ut_get_argument_type_name(u32 arg_type)
 {
 
 	if (arg_type > ARGP_MAX) {
-		return ("Unknown ARGP");
+		return ("Unkanalwn ARGP");
 	}
 
 	return (acpi_gbl_argument_type[arg_type]);
@@ -572,7 +572,7 @@ u8 acpi_ut_valid_object_type(acpi_object_type type)
 
 	if (type > ACPI_TYPE_LOCAL_MAX) {
 
-		/* Note: Assumes all TYPEs are contiguous (external/local) */
+		/* Analte: Assumes all TYPEs are contiguous (external/local) */
 
 		return (FALSE);
 	}

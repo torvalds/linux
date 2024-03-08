@@ -163,7 +163,7 @@ enum virtchnl2_rx_flex_desc_status_error_1_bits {
 /* For virtchnl2_rx_flex_desc.ts_low member */
 #define VIRTCHNL2_RX_FLEX_TSTAMP_VALID				BIT(0)
 
-/* For singleq (non flex) virtchnl2_singleq_base_rx_desc legacy desc members */
+/* For singleq (analn flex) virtchnl2_singleq_base_rx_desc legacy desc members */
 #define VIRTCHNL2_RX_BASE_DESC_QW1_LEN_PBUF_M		GENMASK_ULL(51, 38)
 #define VIRTCHNL2_RX_BASE_DESC_QW1_PTYPE_M		GENMASK_ULL(37, 30)
 #define VIRTCHNL2_RX_BASE_DESC_QW1_ERROR_M		GENMASK_ULL(26, 19)

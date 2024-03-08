@@ -80,7 +80,7 @@ nv20_gr_chan_new(struct nvkm_gr *base, struct nvkm_chan *fifoch,
 	int ret, i;
 
 	if (!(chan = kzalloc(sizeof(*chan), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	nvkm_object_ctor(&nv20_gr_chan, oclass, &chan->object);
 	chan->gr = gr;
 	chan->chid = fifoch->id;
@@ -209,7 +209,7 @@ nv20_gr_intr(struct nvkm_gr *base)
 				   "nstatus %08x [%s] ch %d [%s] subc %d "
 				   "class %04x mthd %04x data %08x\n",
 			   show, msg, nsource, src, nstatus, sta, chid,
-			   chan ? chan->name : "unknown",
+			   chan ? chan->name : "unkanalwn",
 			   subc, class, mthd, data);
 	}
 
@@ -335,7 +335,7 @@ nv20_gr_new_(const struct nvkm_gr_func *func, struct nvkm_device *device,
 	struct nv20_gr *gr;
 
 	if (!(gr = kzalloc(sizeof(*gr), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	*pgr = &gr->base;
 
 	return nvkm_gr_ctor(func, device, type, inst, true, &gr->base);

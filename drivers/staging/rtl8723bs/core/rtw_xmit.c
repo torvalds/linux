@@ -145,7 +145,7 @@ s32 _rtw_init_xmit_priv(struct xmit_priv *pxmitpriv, struct adapter *padapter)
 		list_add_tail(&pxmitbuf->list,
 			      &pxmitpriv->free_xmitbuf_queue.queue);
 		#ifdef DBG_XMIT_BUF
-		pxmitbuf->no = i;
+		pxmitbuf->anal = i;
 		#endif
 
 		pxmitbuf++;
@@ -223,7 +223,7 @@ s32 _rtw_init_xmit_priv(struct xmit_priv *pxmitpriv, struct adapter *padapter)
 		list_add_tail(&pxmitbuf->list,
 			      &pxmitpriv->free_xmit_extbuf_queue.queue);
 		#ifdef DBG_XMIT_BUF_EXT
-		pxmitbuf->no = i;
+		pxmitbuf->anal = i;
 		#endif
 		pxmitbuf++;
 	}
@@ -360,10 +360,10 @@ static void update_attrib_vcs_info(struct adapter *padapter, struct xmit_frame *
 
 	if (pattrib->nr_frags != 1)
 		sz = padapter->xmitpriv.frag_len;
-	else /* no frag */
+	else /* anal frag */
 		sz = pattrib->last_txcmdsz;
 
-	/*  (1) RTS_Threshold is compared to the MPDU, not MSDU. */
+	/*  (1) RTS_Threshold is compared to the MPDU, analt MSDU. */
 	/*  (2) If there are more than one frag in  this MSDU, only the first frag uses protection frame. */
 	/* Other fragments are protected by previous fragment. */
 	/* So we only need to check the length of first fragment. */
@@ -376,7 +376,7 @@ static void update_attrib_vcs_info(struct adapter *padapter, struct xmit_frame *
 			else if (pattrib->cts2self)
 				pattrib->vcs_mode = CTS_TO_SELF;
 			else
-				pattrib->vcs_mode = NONE_VCS;
+				pattrib->vcs_mode = ANALNE_VCS;
 		}
 	} else {
 		while (true) {
@@ -422,7 +422,7 @@ static void update_attrib_vcs_info(struct adapter *padapter, struct xmit_frame *
 				break;
 			}
 
-			pattrib->vcs_mode = NONE_VCS;
+			pattrib->vcs_mode = ANALNE_VCS;
 			break;
 		}
 	}
@@ -506,9 +506,9 @@ static s32 update_attrib_sec_info(struct adapter *padapter, struct pkt_attrib *p
 			break;
 		}
 
-		/* For WPS 1.0 WEP, driver should not encrypt EAPOL Packet for WPS handshake. */
+		/* For WPS 1.0 WEP, driver should analt encrypt EAPOL Packet for WPS handshake. */
 		if (((pattrib->encrypt == _WEP40_) || (pattrib->encrypt == _WEP104_)) && (pattrib->ether_type == 0x888e))
-			pattrib->encrypt = _NO_PRIVACY_;
+			pattrib->encrypt = _ANAL_PRIVACY_;
 	}
 
 	switch (pattrib->encrypt) {
@@ -698,7 +698,7 @@ static s32 update_attrib(struct adapter *padapter, struct sk_buff *pkt, struct p
 		psta = rtw_get_bcmc_stainfo(padapter);
 	} else {
 		psta = rtw_get_stainfo(pstapriv, pattrib->ra);
-		if (!psta)	{ /*  if we cannot get psta => drop the pkt */
+		if (!psta)	{ /*  if we cananalt get psta => drop the pkt */
 			res = _FAIL;
 			goto exit;
 		} else if ((check_fwstate(pmlmepriv, WIFI_AP_STATE) == true) && (!(psta->state & _FW_LINKED))) {
@@ -708,7 +708,7 @@ static s32 update_attrib(struct adapter *padapter, struct sk_buff *pkt, struct p
 	}
 
 	if (!psta) {
-		/*  if we cannot get psta => drop the pkt */
+		/*  if we cananalt get psta => drop the pkt */
 		res = _FAIL;
 		goto exit;
 	}
@@ -1130,7 +1130,7 @@ s32 rtw_xmitframe_coalesce(struct adapter *padapter, struct sk_buff *pkt, struct
 	if (bmcst == false)
 		update_attrib_vcs_info(padapter, pxmitframe);
 	else
-		pattrib->vcs_mode = NONE_VCS;
+		pattrib->vcs_mode = ANALNE_VCS;
 
 exit:
 	return res;
@@ -1169,7 +1169,7 @@ s32 rtw_mgmt_xmitframe_coalesce(struct adapter *padapter, struct sk_buff *pkt, s
 	if (!check_fwstate(pmlmepriv, WIFI_STATION_STATE) || !check_fwstate(pmlmepriv, _FW_LINKED))
 		goto xmitframe_coalesce_success;
 
-	/* IGTK key is not install, it may not support 802.11w */
+	/* IGTK key is analt install, it may analt support 802.11w */
 	if (!padapter->securitypriv.binstallBIPkey)
 		goto xmitframe_coalesce_success;
 
@@ -1232,7 +1232,7 @@ s32 rtw_mgmt_xmitframe_coalesce(struct adapter *padapter, struct sk_buff *pkt, s
 			if (!(psta->state & _FW_LINKED) || !pxmitframe->buf_addr)
 				goto xmitframe_coalesce_fail;
 
-			/* according 802.11-2012 standard, these five types are not robust types */
+			/* according 802.11-2012 standard, these five types are analt robust types */
 			if (subtype == WIFI_ACTION &&
 			(pframe[WLAN_HDR_A3_LEN] == RTW_WLAN_CATEGORY_PUBLIC ||
 			pframe[WLAN_HDR_A3_LEN] == RTW_WLAN_CATEGORY_HT ||
@@ -1338,7 +1338,7 @@ void rtw_update_protection(struct adapter *padapter, u8 *ie, uint ie_len)
 
 	switch (pxmitpriv->vcs_setting) {
 	case DISABLE_VCS:
-		pxmitpriv->vcs = NONE_VCS;
+		pxmitpriv->vcs = ANALNE_VCS;
 		break;
 
 	case ENABLE_VCS:
@@ -1348,7 +1348,7 @@ void rtw_update_protection(struct adapter *padapter, u8 *ie, uint ie_len)
 	default:
 		perp = rtw_get_ie(ie, WLAN_EID_ERP_INFO, &erp_len, ie_len);
 		if (!perp) {
-			pxmitpriv->vcs = NONE_VCS;
+			pxmitpriv->vcs = ANALNE_VCS;
 		} else {
 			protection = (*(perp + 2)) & BIT(1);
 			if (protection) {
@@ -1357,7 +1357,7 @@ void rtw_update_protection(struct adapter *padapter, u8 *ie, uint ie_len)
 				else
 					pxmitpriv->vcs = CTS_TO_SELF;
 			} else {
-				pxmitpriv->vcs = NONE_VCS;
+				pxmitpriv->vcs = ANALNE_VCS;
 			}
 		}
 
@@ -1589,7 +1589,7 @@ static void rtw_init_xmitframe(struct xmit_frame *pxframe)
  * 1. OS_TXENTRY
  * 2. RXENTRY (rx_thread or RX_ISR/RX_CallBack)
  *
- * If we turn on USE_RXTHREAD, then, no need for critical section.
+ * If we turn on USE_RXTHREAD, then, anal need for critical section.
  * Otherwise, we must use _enter/_exit critical to protect free_xmit_queue...
  *
  * Must be very, very cautious...
@@ -2275,7 +2275,7 @@ void wakeup_sta_to_xmit(struct adapter *padapter, struct sta_info *psta)
 	if (!psta_bmc)
 		goto _exit;
 
-	if ((pstapriv->sta_dz_bitmap&0xfffe) == 0x0) { /* no any sta in ps mode */
+	if ((pstapriv->sta_dz_bitmap&0xfffe) == 0x0) { /* anal any sta in ps mode */
 		xmitframe_phead = get_list_head(&psta_bmc->sleep_q);
 		list_for_each_safe(xmitframe_plist, tmp, xmitframe_phead) {
 			pxmitframe = list_entry(xmitframe_plist,

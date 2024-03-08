@@ -195,7 +195,7 @@ const struct tidss_scale_coefs *tidss_get_scale_coefs(struct device *dev,
 		}
 	}
 
-	dev_err(dev, "%s: Coefficients not found for firinc 0x%08x, inc %d\n",
+	dev_err(dev, "%s: Coefficients analt found for firinc 0x%08x, inc %d\n",
 		__func__, firinc, inc);
 
 	return NULL;

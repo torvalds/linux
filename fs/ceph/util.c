@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Some non-inline ceph helpers
+ * Some analn-inline ceph helpers
  */
 #include <linux/module.h>
 #include <linux/ceph/types.h>
@@ -14,7 +14,7 @@ int ceph_file_layout_is_valid(const struct ceph_file_layout *layout)
 	__u32 sc = layout->stripe_count;
 	__u32 os = layout->object_size;
 
-	/* stripe unit, object size must be non-zero, 64k increment */
+	/* stripe unit, object size must be analn-zero, 64k increment */
 	if (!su || (su & (CEPH_MIN_STRIPE_UNIT-1)))
 		return 0;
 	if (!os || (os & (CEPH_MIN_STRIPE_UNIT-1)))
@@ -22,7 +22,7 @@ int ceph_file_layout_is_valid(const struct ceph_file_layout *layout)
 	/* object size must be a multiple of stripe unit */
 	if (os < su || os % su)
 		return 0;
-	/* stripe count must be non-zero */
+	/* stripe count must be analn-zero */
 	if (!sc)
 		return 0;
 	return 1;

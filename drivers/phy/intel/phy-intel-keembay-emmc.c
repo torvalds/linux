@@ -147,11 +147,11 @@ static int keembay_emmc_phy_power(struct phy *phy, bool on_off)
 	/*
 	 * We turned on the DLL even though the rate was 0 because we the
 	 * clock might be turned on later.  ...but we can't wait for the DLL
-	 * to lock when the rate is 0 because it will never lock with no
+	 * to lock when the rate is 0 because it will never lock with anal
 	 * input clock.
 	 *
 	 * Technically we should be checking the lock later when the clock
-	 * is turned on, but for now we won't.
+	 * is turned on, but for analw we won't.
 	 */
 	if (mhz == 0)
 		return 0;
@@ -163,9 +163,9 @@ static int keembay_emmc_phy_power(struct phy *phy, bool on_off)
 	 * is super slow (like 100kHz) this could take as long as 5.1 ms as
 	 * per the math: 10.2 us * (50000000 Hz / 100000 Hz) => 5.1 ms
 	 * hopefully we won't be running at 100 kHz, but we should still make
-	 * sure we wait long enough.
+	 * sure we wait long eanalugh.
 	 *
-	 * NOTE: There appear to be corner cases where the DLL seems to take
+	 * ANALTE: There appear to be corner cases where the DLL seems to take
 	 * extra long to lock for reasons that aren't understood. In some
 	 * extreme cases we've seen it take up to over 10ms (!). We'll be
 	 * generous and give it 50ms.
@@ -184,7 +184,7 @@ static int keembay_emmc_phy_init(struct phy *phy)
 	struct keembay_emmc_phy *priv = phy_get_drvdata(phy);
 
 	/*
-	 * We purposely get the clock here and not in probe to avoid the
+	 * We purposely get the clock here and analt in probe to avoid the
 	 * circular dependency problem. We expect:
 	 * - PHY driver to probe
 	 * - SDHCI driver to start probe
@@ -259,7 +259,7 @@ static const struct phy_ops ops = {
 static int keembay_emmc_phy_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct keembay_emmc_phy *priv;
 	struct phy *generic_phy;
 	struct phy_provider *phy_provider;
@@ -267,7 +267,7 @@ static int keembay_emmc_phy_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))

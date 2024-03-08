@@ -10,7 +10,7 @@
 #define RF_PATH_NUM_8852A 2
 
 enum rtw8852a_pmac_mode {
-	NONE_TEST,
+	ANALNE_TEST,
 	PKTS_TX,
 	PKTS_RX,
 	CONT_TX

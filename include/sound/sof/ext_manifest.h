@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause) */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-analte) OR BSD-3-Clause) */
 /*
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -7,10 +7,10 @@
  */
 
 /*
- * Extended manifest is a place to store metadata about firmware, known during
+ * Extended manifest is a place to store metadata about firmware, kanalwn during
  * compilation time - for example firmware version or used compiler.
  * Given information are read on host side before firmware startup.
- * This part of output binary is not signed.
+ * This part of output binary is analt signed.
  */
 
 #ifndef __SOF_FIRMWARE_EXT_MANIFEST_H__
@@ -25,9 +25,9 @@
 #define SOF_EXT_MAN_MAGIC_NUMBER	0x6e614d58
 
 /* Build u32 number in format MMmmmppp */
-#define SOF_EXT_MAN_BUILD_VERSION(MAJOR, MINOR, PATH) ((uint32_t)( \
+#define SOF_EXT_MAN_BUILD_VERSION(MAJOR, MIANALR, PATH) ((uint32_t)( \
 	((MAJOR) << 24) | \
-	((MINOR) << 12) | \
+	((MIANALR) << 12) | \
 	(PATH)))
 
 /* check extended manifest version consistency */
@@ -48,12 +48,12 @@ struct sof_ext_man_header {
 				/*< after append new field to ext_man header */
 				/*< then backward compatible won't be lost */
 	uint32_t header_version; /*< value of EXT_MAN_VERSION */
-				/*< not related with following content */
+				/*< analt related with following content */
 
 	/* just after this header should be list of ext_man_elem_* elements */
 } __packed;
 
-/* Now define extended manifest elements */
+/* Analw define extended manifest elements */
 
 /* Extended manifest elements types */
 enum sof_ext_man_elem_type {

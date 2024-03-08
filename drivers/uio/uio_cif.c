@@ -31,7 +31,7 @@ static irqreturn_t hilscher_handler(int irq, struct uio_info *dev_info)
 
 	if ((ioread8(plx_intscr) & INT1_ENABLED_AND_ACTIVE)
 	    != INT1_ENABLED_AND_ACTIVE)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* Disable interrupt */
 	iowrite8(ioread8(plx_intscr) & ~INTSCR_INT1_ENABLE, plx_intscr);
@@ -45,10 +45,10 @@ static int hilscher_pci_probe(struct pci_dev *dev,
 
 	info = devm_kzalloc(&dev->dev, sizeof(struct uio_info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (pci_enable_device(dev))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (pci_request_regions(dev, "hilscher"))
 		goto out_disable;
@@ -92,7 +92,7 @@ out_release:
 	pci_release_regions(dev);
 out_disable:
 	pci_disable_device(dev);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static void hilscher_pci_remove(struct pci_dev *dev)

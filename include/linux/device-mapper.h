@@ -27,7 +27,7 @@ enum dax_access_mode;
  * Type of table, mapped_device's mempool and request_queue
  */
 enum dm_queue_mode {
-	DM_TYPE_NONE		 = 0,
+	DM_TYPE_ANALNE		 = 0,
 	DM_TYPE_BIO_BASED	 = 1,
 	DM_TYPE_REQUEST_BASED	 = 2,
 	DM_TYPE_DAX_BIO_BASED	 = 3,
@@ -69,9 +69,9 @@ typedef void (*dm_release_clone_request_fn) (struct request *clone,
 
 /*
  * Returns:
- * < 0 : error (currently ignored)
+ * < 0 : error (currently iganalred)
  * 0   : ended successfully
- * 1   : for some reason the io has still not completed (eg,
+ * 1   : for some reason the io has still analt completed (eg,
  *       multipath target might want to requeue a failed io).
  * 2   : The target wants to push back the io
  */
@@ -112,11 +112,11 @@ typedef int (*dm_report_zones_fn) (struct dm_target *dummy);
  * These iteration functions are typically used to check (and combine)
  * properties of underlying devices.
  * E.g. Does at least one underlying device support flush?
- *      Does any underlying device not support WRITE_SAME?
+ *      Does any underlying device analt support WRITE_SAME?
  *
  * The callout function is called once for each contiguous section of
  * an underlying device.  State can be maintained in *data.
- * Return non-zero to stop iterating through any further devices.
+ * Return analn-zero to stop iterating through any further devices.
  */
 typedef int (*iterate_devices_callout_fn) (struct dm_target *ti,
 					   struct dm_dev *dev,
@@ -125,8 +125,8 @@ typedef int (*iterate_devices_callout_fn) (struct dm_target *ti,
 
 /*
  * This function must iterate through each section of device used by the
- * target until it encounters a non-zero return code, which it then returns.
- * Returns zero if no callout returned non-zero.
+ * target until it encounters a analn-zero return code, which it then returns.
+ * Returns zero if anal callout returned analn-zero.
  */
 typedef int (*dm_iterate_devices_fn) (struct dm_target *ti,
 				      iterate_devices_callout_fn fn,
@@ -148,7 +148,7 @@ typedef int (*dm_busy_fn) (struct dm_target *ti);
  * >= 0 : the number of bytes accessible at the address
  */
 typedef long (*dm_dax_direct_access_fn) (struct dm_target *ti, pgoff_t pgoff,
-		long nr_pages, enum dax_access_mode node, void **kaddr,
+		long nr_pages, enum dax_access_mode analde, void **kaddr,
 		pfn_t *pfn);
 typedef int (*dm_dax_zero_page_range_fn)(struct dm_target *ti, pgoff_t pgoff,
 		size_t nr_pages);
@@ -226,7 +226,7 @@ struct target_type {
 #define dm_target_needs_singleton(type)	((type)->features & DM_TARGET_SINGLETON)
 
 /*
- * Indicates that a target does not support read-only devices.
+ * Indicates that a target does analt support read-only devices.
  */
 #define DM_TARGET_ALWAYS_WRITEABLE	0x00000002
 #define dm_target_always_writeable(type) \
@@ -261,7 +261,7 @@ struct target_type {
 /*
  * Indicates support for zoned block devices:
  * - DM_TARGET_ZONED_HM: the target also supports host-managed zoned
- *   block devices but does not support combining different zoned models.
+ *   block devices but does analt support combining different zoned models.
  * - DM_TARGET_MIXED_ZONED_MODEL: the target supports combining multiple
  *   devices with different zoned models.
  */
@@ -274,10 +274,10 @@ struct target_type {
 #endif
 
 /*
- * A target handles REQ_NOWAIT
+ * A target handles REQ_ANALWAIT
  */
-#define DM_TARGET_NOWAIT		0x00000080
-#define dm_target_supports_nowait(type) ((type)->features & DM_TARGET_NOWAIT)
+#define DM_TARGET_ANALWAIT		0x00000080
+#define dm_target_supports_analwait(type) ((type)->features & DM_TARGET_ANALWAIT)
 
 /*
  * A target supports passing through inline crypto support.
@@ -302,7 +302,7 @@ struct dm_target {
 	sector_t begin;
 	sector_t len;
 
-	/* If non-zero, maximum size of I/O submitted to a target. */
+	/* If analn-zero, maximum size of I/O submitted to a target. */
 	uint32_t max_io_len;
 
 	/*
@@ -347,13 +347,13 @@ struct dm_target {
 
 	/*
 	 * Set if this target needs to receive flushes regardless of
-	 * whether or not its underlying devices have support.
+	 * whether or analt its underlying devices have support.
 	 */
 	bool flush_supported:1;
 
 	/*
 	 * Set if this target needs to receive discards regardless of
-	 * whether or not its underlying devices have support.
+	 * whether or analt its underlying devices have support.
 	 */
 	bool discards_supported:1;
 
@@ -394,7 +394,7 @@ struct dm_target {
 
 	/*
 	 * Set if the target will submit the DM bio without first calling
-	 * bio_set_dev(). NOTE: ideally a target should _not_ need this.
+	 * bio_set_dev(). ANALTE: ideally a target should _analt_ need this.
 	 */
 	bool needs_bio_set_dev:1;
 };
@@ -459,10 +459,10 @@ void dm_consume_args(struct dm_arg_set *as, unsigned int num_args);
  */
 
 /*
- * DM_ANY_MINOR chooses the next available minor number.
+ * DM_ANY_MIANALR chooses the next available mianalr number.
  */
-#define DM_ANY_MINOR (-1)
-int dm_create(int minor, struct mapped_device **md);
+#define DM_ANY_MIANALR (-1)
+int dm_create(int mianalr, struct mapped_device **md);
 
 /*
  * Reference counting for md.
@@ -500,7 +500,7 @@ int dm_copy_name_and_uuid(struct mapped_device *md, char *name, char *uuid);
 struct gendisk *dm_disk(struct mapped_device *md);
 int dm_suspended(struct dm_target *ti);
 int dm_post_suspending(struct dm_target *ti);
-int dm_noflush_suspending(struct dm_target *ti);
+int dm_analflush_suspending(struct dm_target *ti);
 void dm_accept_partial_bio(struct bio *bio, unsigned int n_sectors);
 void dm_submit_bio_remap(struct bio *clone, struct bio *tgt_clone);
 union map_info *dm_get_rq_mapinfo(struct request *rq);

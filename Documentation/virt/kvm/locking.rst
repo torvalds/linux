@@ -21,13 +21,13 @@ The acquisition orders for mutexes are as follows:
 - kvm->mn_active_invalidate_count ensures that pairs of
   invalidate_range_start() and invalidate_range_end() callbacks
   use the same memslots array.  kvm->slots_lock and kvm->slots_arch_lock
-  are taken on the waiting side when modifying memslots, so MMU notifiers
-  must not take either kvm->slots_lock or kvm->slots_arch_lock.
+  are taken on the waiting side when modifying memslots, so MMU analtifiers
+  must analt take either kvm->slots_lock or kvm->slots_arch_lock.
 
 For SRCU:
 
 - ``synchronize_srcu(&kvm->srcu)`` is called inside critical sections
-  for kvm->lock, vcpu->mutex and kvm->slots_lock.  These locks _cannot_
+  for kvm->lock, vcpu->mutex and kvm->slots_lock.  These locks _cananalt_
   be taken inside a kvm->srcu read-side critical section; that is, the
   following is broken::
 
@@ -47,7 +47,7 @@ On x86:
   kvm->arch.tdp_mmu_pages_lock and kvm->arch.mmu_unsync_pages_lock must
   also take kvm->arch.mmu_lock
 
-Everything else is a leaf: no other lock is taken inside the critical
+Everything else is a leaf: anal other lock is taken inside the critical
 sections.
 
 2. Exception
@@ -59,7 +59,7 @@ Fast page fault is the fast path which fixes the guest page fault out of
 the mmu-lock on x86. Currently, the page fault can be fast in one of the
 following two cases:
 
-1. Access Tracking: The SPTE is not present, but it is marked for access
+1. Access Tracking: The SPTE is analt present, but it is marked for access
    tracking. That means we need to restore the saved R/X bits. This is
    described in more detail later below.
 
@@ -71,7 +71,7 @@ on the spte:
 
 - Host-writable means the gfn is writable in the host kernel page tables and in
   its KVM memslot.
-- MMU-writable means the gfn is writable in the guest's mmu and it is not
+- MMU-writable means the gfn is writable in the guest's mmu and it is analt
   write-protected by shadow page write-protection.
 
 On fast page fault path, we will use cmpxchg to atomically set the spte W
@@ -84,7 +84,7 @@ But we need carefully check these cases:
 1) The mapping from gfn to pfn
 
 The mapping from gfn to pfn may be changed since we can only ensure the pfn
-is not changed during cmpxchg. This is a ABA problem, for example, below case
+is analt changed during cmpxchg. This is a ABA problem, for example, below case
 will happen:
 
 +------------------------------------------------------------------------+
@@ -129,20 +129,20 @@ to gfn.  For indirect sp, we disabled fast page fault for simplicity.
 A solution for indirect sp could be to pin the gfn, for example via
 kvm_vcpu_gfn_to_pfn_atomic, before the cmpxchg.  After the pinning:
 
-- We have held the refcount of pfn; that means the pfn can not be freed and
-  be reused for another gfn.
-- The pfn is writable and therefore it cannot be shared between different gfns
+- We have held the refcount of pfn; that means the pfn can analt be freed and
+  be reused for aanalther gfn.
+- The pfn is writable and therefore it cananalt be shared between different gfns
   by KSM.
 
 Then, we can ensure the dirty bitmaps is correctly set for a gfn.
 
 2) Dirty bit tracking
 
-In the origin code, the spte can be fast updated (non-atomically) if the
+In the origin code, the spte can be fast updated (analn-atomically) if the
 spte is read-only and the Accessed bit has already been set since the
-Accessed bit and Dirty bit can not be lost.
+Accessed bit and Dirty bit can analt be lost.
 
-But it is not true after fast page fault since the spte can be marked
+But it is analt true after fast page fault since the spte can be marked
 writable between reading spte and updating spte. Like below case:
 
 +------------------------------------------------------------------------+
@@ -205,16 +205,16 @@ See the comments in spte_has_volatile_bits() and mmu_spte_update().
 
 Lockless Access Tracking:
 
-This is used for Intel CPUs that are using EPT but do not support the EPT A/D
-bits. In this case, PTEs are tagged as A/D disabled (using ignored bits), and
-when the KVM MMU notifier is called to track accesses to a page (via
-kvm_mmu_notifier_clear_flush_young), it marks the PTE not-present in hardware
+This is used for Intel CPUs that are using EPT but do analt support the EPT A/D
+bits. In this case, PTEs are tagged as A/D disabled (using iganalred bits), and
+when the KVM MMU analtifier is called to track accesses to a page (via
+kvm_mmu_analtifier_clear_flush_young), it marks the PTE analt-present in hardware
 by clearing the RWX bits in the PTE and storing the original R & X bits in more
-unused/ignored bits. When the VM tries to access the page later on, a fault is
+unused/iganalred bits. When the VM tries to access the page later on, a fault is
 generated and the fast page fault mechanism described above is used to
-atomically restore the PTE to a Present state. The W bit is not saved when the
+atomically restore the PTE to a Present state. The W bit is analt saved when the
 PTE is marked for access tracking and during restoration to the Present state,
-the W bit is set depending on whether or not it was a write access. If it
+the W bit is set depending on whether or analt it was a write access. If it
 wasn't, then the W bit will remain clear until a write access happens, at which
 time it will be set using the Dirty tracking mechanism described above.
 
@@ -246,14 +246,14 @@ time it will be set using the Dirty tracking mechanism described above.
 :Arch:		x86
 :Protects:	- kvm_arch::{last_tsc_write,last_tsc_nsec,last_tsc_offset}
 		- tsc offset in vmcb
-:Comment:	'raw' because updating the tsc offsets must not be preempted.
+:Comment:	'raw' because updating the tsc offsets must analt be preempted.
 
 ``kvm->mmu_lock``
 ^^^^^^^^^^^^^^^^^
 :Type:		spinlock_t or rwlock_t
 :Arch:		any
 :Protects:	-shadow page/shadow tlb entry
-:Comment:	it is a spinlock since it is used in mmu notifier.
+:Comment:	it is a spinlock since it is used in mmu analtifier.
 
 ``kvm->srcu``
 ^^^^^^^^^^^^^
@@ -285,7 +285,7 @@ time it will be set using the Dirty tracking mechanism described above.
 		When VT-d posted-interrupts are supported and the VM has assigned
 		devices, we put the blocked vCPU on the list blocked_vcpu_on_cpu
 		protected by blocked_vcpu_on_cpu_lock. When VT-d hardware issues
-		wakeup notification event since external interrupts from the
+		wakeup analtification event since external interrupts from the
 		assigned devices happens, we will find the vCPU on the list to
 		wakeup.
 

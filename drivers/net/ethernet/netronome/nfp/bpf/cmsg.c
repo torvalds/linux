@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2017-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2017-2018 Netroanalme Systems, Inc. */
 
 #include <linux/bpf.h>
 #include <linux/bitops.h>
@@ -54,17 +54,17 @@ nfp_bpf_cmsg_map_reply_size(struct nfp_app_bpf *bpf, unsigned int n)
 }
 
 static int
-nfp_bpf_ctrl_rc_to_errno(struct nfp_app_bpf *bpf,
+nfp_bpf_ctrl_rc_to_erranal(struct nfp_app_bpf *bpf,
 			 struct cmsg_reply_map_simple *reply)
 {
 	static const int res_table[] = {
 		[CMSG_RC_SUCCESS]	= 0,
 		[CMSG_RC_ERR_MAP_FD]	= -EBADFD,
-		[CMSG_RC_ERR_MAP_NOENT]	= -ENOENT,
+		[CMSG_RC_ERR_MAP_ANALENT]	= -EANALENT,
 		[CMSG_RC_ERR_MAP_ERR]	= -EINVAL,
 		[CMSG_RC_ERR_MAP_PARSE]	= -EIO,
 		[CMSG_RC_ERR_MAP_EXIST]	= -EEXIST,
-		[CMSG_RC_ERR_MAP_NOMEM]	= -ENOMEM,
+		[CMSG_RC_ERR_MAP_ANALMEM]	= -EANALMEM,
 		[CMSG_RC_ERR_MAP_E2BIG]	= -E2BIG,
 	};
 	u32 rc;
@@ -89,7 +89,7 @@ nfp_bpf_ctrl_alloc_map(struct nfp_app_bpf *bpf, struct bpf_map *map)
 
 	skb = nfp_bpf_cmsg_alloc(bpf, sizeof(*req));
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	req = (void *)skb->data;
 	req->key_size = cpu_to_be32(map->key_size);
@@ -104,7 +104,7 @@ nfp_bpf_ctrl_alloc_map(struct nfp_app_bpf *bpf, struct bpf_map *map)
 		return PTR_ERR(skb);
 
 	reply = (void *)skb->data;
-	err = nfp_bpf_ctrl_rc_to_errno(bpf, &reply->reply_hdr);
+	err = nfp_bpf_ctrl_rc_to_erranal(bpf, &reply->reply_hdr);
 	if (err)
 		goto err_free;
 
@@ -141,7 +141,7 @@ void nfp_bpf_ctrl_free_map(struct nfp_app_bpf *bpf, struct nfp_bpf_map *nfp_map)
 	}
 
 	reply = (void *)skb->data;
-	err = nfp_bpf_ctrl_rc_to_errno(bpf, &reply->reply_hdr);
+	err = nfp_bpf_ctrl_rc_to_erranal(bpf, &reply->reply_hdr);
 	if (err)
 		cmsg_warn(bpf, "leaking map - FW responded with: %d\n", err);
 
@@ -302,9 +302,9 @@ nfp_bpf_ctrl_entry_op(struct bpf_offloaded_map *offmap, enum nfp_ccm_type op,
 	u32 cache_gen;
 	int err;
 
-	/* FW messages have no space for more than 32 bits of flags */
+	/* FW messages have anal space for more than 32 bits of flags */
 	if (flags >> 32)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Handle op cache */
 	n_entries = nfp_bpf_ctrl_op_cache_get(nfp_map, op, key, out_key,
@@ -314,7 +314,7 @@ nfp_bpf_ctrl_entry_op(struct bpf_offloaded_map *offmap, enum nfp_ccm_type op,
 
 	skb = nfp_bpf_cmsg_map_req_alloc(bpf, 1);
 	if (!skb) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_cache_put;
 	}
 
@@ -345,7 +345,7 @@ nfp_bpf_ctrl_entry_op(struct bpf_offloaded_map *offmap, enum nfp_ccm_type op,
 
 	reply = (void *)skb->data;
 	count = be32_to_cpu(reply->count);
-	err = nfp_bpf_ctrl_rc_to_errno(bpf, &reply->reply_hdr);
+	err = nfp_bpf_ctrl_rc_to_erranal(bpf, &reply->reply_hdr);
 	/* FW responds with message sized to hold the good entries,
 	 * plus one extra entry if there was an error.
 	 */

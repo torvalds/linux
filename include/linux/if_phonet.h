@@ -4,7 +4,7 @@
  *
  * Phonet interface kernel definitions
  *
- * Copyright (C) 2008 Nokia Corporation. All rights reserved.
+ * Copyright (C) 2008 Analkia Corporation. All rights reserved.
  */
 #ifndef LINUX_IF_PHONET_H
 #define LINUX_IF_PHONET_H

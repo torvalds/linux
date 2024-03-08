@@ -6,7 +6,7 @@
  *  Justin Iurman <justin.iurman@uliege.be>
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/net.h>
@@ -101,7 +101,7 @@ static const struct nla_policy ioam6_genl_policy_delsc[] = {
 static const struct nla_policy ioam6_genl_policy_ns_sc[] = {
 	[IOAM6_ATTR_NS_ID]	= { .type = NLA_U16 },
 	[IOAM6_ATTR_SC_ID]	= { .type = NLA_U32 },
-	[IOAM6_ATTR_SC_NONE]	= { .type = NLA_FLAG },
+	[IOAM6_ATTR_SC_ANALNE]	= { .type = NLA_FLAG },
 };
 
 static int ioam6_genl_addns(struct sk_buff *skb, struct genl_info *info)
@@ -129,7 +129,7 @@ static int ioam6_genl_addns(struct sk_buff *skb, struct genl_info *info)
 
 	ns = kzalloc(sizeof(*ns), GFP_KERNEL);
 	if (!ns) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_unlock;
 	}
 
@@ -176,7 +176,7 @@ static int ioam6_genl_delns(struct sk_buff *skb, struct genl_info *info)
 
 	ns = rhashtable_lookup_fast(&nsdata->namespaces, &id, rht_ns_params);
 	if (!ns) {
-		err = -ENOENT;
+		err = -EANALENT;
 		goto out_unlock;
 	}
 
@@ -212,7 +212,7 @@ static int __ioam6_genl_dumpns_element(struct ioam6_namespace *ns,
 
 	hdr = genlmsg_put(skb, portid, seq, &ioam6_genl_family, flags, cmd);
 	if (!hdr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data32 = be32_to_cpu(ns->data);
 	data64 = be64_to_cpu(ns->data_wide);
@@ -251,7 +251,7 @@ static int ioam6_genl_dumpns_start(struct netlink_callback *cb)
 	if (!iter) {
 		iter = kmalloc(sizeof(*iter), GFP_KERNEL);
 		if (!iter)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		cb->args[0] = (long)iter;
 	}
@@ -335,7 +335,7 @@ static int ioam6_genl_addsc(struct sk_buff *skb, struct genl_info *info)
 
 	sc = kzalloc(sizeof(*sc) + len_aligned, GFP_KERNEL);
 	if (!sc) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_unlock;
 	}
 
@@ -375,7 +375,7 @@ static int ioam6_genl_delsc(struct sk_buff *skb, struct genl_info *info)
 
 	sc = rhashtable_lookup_fast(&nsdata->schemas, &id, rht_sc_params);
 	if (!sc) {
-		err = -ENOENT;
+		err = -EANALENT;
 		goto out_unlock;
 	}
 
@@ -405,7 +405,7 @@ static int __ioam6_genl_dumpsc_element(struct ioam6_schema *sc,
 
 	hdr = genlmsg_put(skb, portid, seq, &ioam6_genl_family, flags, cmd);
 	if (!hdr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (nla_put_u32(skb, IOAM6_ATTR_SC_ID, sc->id) ||
 	    nla_put(skb, IOAM6_ATTR_SC_DATA, sc->len, sc->data))
@@ -437,7 +437,7 @@ static int ioam6_genl_dumpsc_start(struct netlink_callback *cb)
 	if (!iter) {
 		iter = kmalloc(sizeof(*iter), GFP_KERNEL);
 		if (!iter)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		cb->args[0] = (long)iter;
 	}
@@ -506,7 +506,7 @@ static int ioam6_genl_ns_set_schema(struct sk_buff *skb, struct genl_info *info)
 
 	if (!info->attrs[IOAM6_ATTR_NS_ID] ||
 	    (!info->attrs[IOAM6_ATTR_SC_ID] &&
-	     !info->attrs[IOAM6_ATTR_SC_NONE]))
+	     !info->attrs[IOAM6_ATTR_SC_ANALNE]))
 		return -EINVAL;
 
 	ns_id = cpu_to_be16(nla_get_u16(info->attrs[IOAM6_ATTR_NS_ID]));
@@ -516,18 +516,18 @@ static int ioam6_genl_ns_set_schema(struct sk_buff *skb, struct genl_info *info)
 
 	ns = rhashtable_lookup_fast(&nsdata->namespaces, &ns_id, rht_ns_params);
 	if (!ns) {
-		err = -ENOENT;
+		err = -EANALENT;
 		goto out_unlock;
 	}
 
-	if (info->attrs[IOAM6_ATTR_SC_NONE]) {
+	if (info->attrs[IOAM6_ATTR_SC_ANALNE]) {
 		sc = NULL;
 	} else {
 		sc_id = nla_get_u32(info->attrs[IOAM6_ATTR_SC_ID]);
 		sc = rhashtable_lookup_fast(&nsdata->schemas, &sc_id,
 					    rht_sc_params);
 		if (!sc) {
-			err = -ENOENT;
+			err = -EANALENT;
 			goto out_unlock;
 		}
 	}
@@ -644,9 +644,9 @@ static void __ioam6_fill_trace_data(struct sk_buff *skb,
 	u8 *data;
 	u8 byte;
 
-	data = trace->data + trace->remlen * 4 - trace->nodelen * 4 - sclen * 4;
+	data = trace->data + trace->remlen * 4 - trace->analdelen * 4 - sclen * 4;
 
-	/* hop_lim and node_id */
+	/* hop_lim and analde_id */
 	if (trace->type.bit0) {
 		byte = ipv6_hdr(skb)->hop_limit;
 		if (is_input)
@@ -741,7 +741,7 @@ static void __ioam6_fill_trace_data(struct sk_buff *skb,
 		data += sizeof(__be32);
 	}
 
-	/* hop_lim and node_id (wide) */
+	/* hop_lim and analde_id (wide) */
 	if (trace->type.bit8) {
 		byte = ipv6_hdr(skb)->hop_limit;
 		if (is_input)
@@ -871,7 +871,7 @@ void ioam6_fill_trace_data(struct sk_buff *skb,
 	if (trace->overflow)
 		return;
 
-	/* NodeLen does not include Opaque State Snapshot length. We need to
+	/* AnaldeLen does analt include Opaque State Snapshot length. We need to
 	 * take it into account if the corresponding bit is set (bit 22) and
 	 * if the current IOAM namespace has an active schema attached to it
 	 */
@@ -883,22 +883,22 @@ void ioam6_fill_trace_data(struct sk_buff *skb,
 			sclen += sc->len / 4;
 	}
 
-	/* If there is no space remaining, we set the Overflow flag and we
+	/* If there is anal space remaining, we set the Overflow flag and we
 	 * skip without filling the trace
 	 */
-	if (!trace->remlen || trace->remlen < trace->nodelen + sclen) {
+	if (!trace->remlen || trace->remlen < trace->analdelen + sclen) {
 		trace->overflow = 1;
 		return;
 	}
 
 	__ioam6_fill_trace_data(skb, ns, trace, sc, sclen, is_input);
-	trace->remlen -= trace->nodelen + sclen;
+	trace->remlen -= trace->analdelen + sclen;
 }
 
 static int __net_init ioam6_net_init(struct net *net)
 {
 	struct ioam6_pernet_data *nsdata;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	nsdata = kzalloc(sizeof(*nsdata), GFP_KERNEL);
 	if (!nsdata)

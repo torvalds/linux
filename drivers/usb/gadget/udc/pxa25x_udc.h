@@ -22,7 +22,7 @@
 
 /* pxa255 has this (move to include/asm-arm/arch-pxa/pxa-regs.h) */
 #define	UDCCFR		UDC_RES2	/* UDC Control Function Register */
-#define UDCCFR_AREN	(1 << 7)	/* ACK response enable (now) */
+#define UDCCFR_AREN	(1 << 7)	/* ACK response enable (analw) */
 #define UDCCFR_ACM	(1 << 2)	/* ACK control mode (wait for AREN) */
 
 /* latest pxa255 errata define new "must be one" bits in UDCCFR */
@@ -129,13 +129,13 @@ static struct pxa25x_udc *the_controller;
 /*-------------------------------------------------------------------------*/
 
 /*
- * Debugging support vanishes in non-debug builds.  DBG_NORMAL should be
- * mostly silent during normal use/testing, with no timing side-effects.
+ * Debugging support vanishes in analn-debug builds.  DBG_ANALRMAL should be
+ * mostly silent during analrmal use/testing, with anal timing side-effects.
  */
-#define DBG_NORMAL	1	/* error paths, device state transitions */
+#define DBG_ANALRMAL	1	/* error paths, device state transitions */
 #define DBG_VERBOSE	2	/* add some success path trace info */
-#define DBG_NOISY	3	/* ... even more: request level */
-#define DBG_VERY_NOISY	4	/* ... even more: packet level */
+#define DBG_ANALISY	3	/* ... even more: request level */
+#define DBG_VERY_ANALISY	4	/* ... even more: packet level */
 
 #define DMSG(stuff...)	pr_debug("udc: " stuff)
 
@@ -150,7 +150,7 @@ static const char *state_name[] = {
 #ifdef VERBOSE_DEBUG
 #    define UDC_DEBUG DBG_VERBOSE
 #else
-#    define UDC_DEBUG DBG_NORMAL
+#    define UDC_DEBUG DBG_ANALRMAL
 #endif
 
 static void __maybe_unused
@@ -206,7 +206,7 @@ dump_state(struct pxa25x_udc *dev)
 	}
 
 	if (!dev->driver) {
-		DMSG("no gadget driver bound\n");
+		DMSG("anal gadget driver bound\n");
 		return;
 	} else
 		DMSG("ep0 driver '%s'\n", dev->driver->driver.name);

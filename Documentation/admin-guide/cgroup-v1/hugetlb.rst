@@ -4,7 +4,7 @@ HugeTLB Controller
 
 HugeTLB controller can be created by first mounting the cgroup filesystem.
 
-# mount -t cgroup -o hugetlb none /sys/fs/cgroup
+# mount -t cgroup -o hugetlb analne /sys/fs/cgroup
 
 With the above step, the initial or the parent HugeTLB group becomes
 visible at /sys/fs/cgroup. At bootup, this group includes all the tasks in
@@ -22,8 +22,8 @@ process (bash) into it.
 Brief summary of control files::
 
  hugetlb.<hugepagesize>.rsvd.limit_in_bytes            # set/show limit of "hugepagesize" hugetlb reservations
- hugetlb.<hugepagesize>.rsvd.max_usage_in_bytes        # show max "hugepagesize" hugetlb reservations and no-reserve faults
- hugetlb.<hugepagesize>.rsvd.usage_in_bytes            # show current reservations and no-reserve faults for "hugepagesize" hugetlb
+ hugetlb.<hugepagesize>.rsvd.max_usage_in_bytes        # show max "hugepagesize" hugetlb reservations and anal-reserve faults
+ hugetlb.<hugepagesize>.rsvd.usage_in_bytes            # show current reservations and anal-reserve faults for "hugepagesize" hugetlb
  hugetlb.<hugepagesize>.rsvd.failcnt                   # show the number of allocation failure due to HugeTLB reservation limit
  hugetlb.<hugepagesize>.limit_in_bytes                 # set/show limit of "hugepagesize" hugetlb faults
  hugetlb.<hugepagesize>.max_usage_in_bytes             # show max "hugepagesize" hugetlb  usage recorded
@@ -74,9 +74,9 @@ The HugeTLB controller allows users to limit the HugeTLB usage (page fault) per
 control group and enforces the limit during page fault. Since HugeTLB
 doesn't support page reclaim, enforcing the limit at page fault time implies
 that, the application will get SIGBUS signal if it tries to fault in HugeTLB
-pages beyond its limit. Therefore the application needs to know exactly how many
+pages beyond its limit. Therefore the application needs to kanalw exactly how many
 HugeTLB pages it uses before hand, and the sysadmin needs to make sure that
-there are enough available on the machine for all the users to avoid processes
+there are eanalugh available on the machine for all the users to avoid processes
 getting SIGBUS.
 
 
@@ -89,10 +89,10 @@ hugetlb.<hugepagesize>.rsvd.failcnt
 
 The HugeTLB controller allows to limit the HugeTLB reservations per control
 group and enforces the controller limit at reservation time and at the fault of
-HugeTLB memory for which no reservation exists. Since reservation limits are
+HugeTLB memory for which anal reservation exists. Since reservation limits are
 enforced at reservation time (on mmap or shget), reservation limits never causes
 the application to get SIGBUS signal if the memory was reserved before hand. For
-MAP_NORESERVE allocations, the reservation limit behaves the same as the fault
+MAP_ANALRESERVE allocations, the reservation limit behaves the same as the fault
 limit, enforcing memory usage at fault time and causing the application to
 receive a SIGBUS if it's crossing its limit.
 
@@ -100,9 +100,9 @@ Reservation limits are superior to page fault limits described above, since
 reservation limits are enforced at reservation time (on mmap or shget), and
 never causes the application to get SIGBUS signal if the memory was reserved
 before hand. This allows for easier fallback to alternatives such as
-non-HugeTLB memory for example. In the case of page fault accounting, it's very
-hard to avoid processes getting SIGBUS since the sysadmin needs precisely know
-the HugeTLB usage of all the tasks in the system and make sure there is enough
+analn-HugeTLB memory for example. In the case of page fault accounting, it's very
+hard to avoid processes getting SIGBUS since the sysadmin needs precisely kanalw
+the HugeTLB usage of all the tasks in the system and make sure there is eanalugh
 pages to satisfy all requests. Avoiding tasks getting SIGBUS on overcommited
 systems is practically impossible with page fault accounting.
 
@@ -114,7 +114,7 @@ to the first task that causes the memory to be reserved or faulted, and all
 subsequent uses of this reserved or faulted memory is done without charging.
 
 Shared HugeTLB memory is only uncharged when it is unreserved or deallocated.
-This is usually when the HugeTLB file is deleted, and not when the task that
+This is usually when the HugeTLB file is deleted, and analt when the task that
 caused the reservation or fault has exited.
 
 

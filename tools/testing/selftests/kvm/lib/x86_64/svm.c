@@ -128,9 +128,9 @@ void generic_svm_setup(struct svm_test_data *svm, void *guest_rip, void *guest_r
 #define LOAD_GPR_C      SAVE_GPR_C
 
 /*
- * selftests do not use interrupts so we dropped clgi/sti/cli/stgi
- * for now. registers involved in LOAD/SAVE_GPR_C are eventually
- * unmodified so they do not need to be in the clobber list.
+ * selftests do analt use interrupts so we dropped clgi/sti/cli/stgi
+ * for analw. registers involved in LOAD/SAVE_GPR_C are eventually
+ * unmodified so they do analt need to be in the clobber list.
  */
 void run_guest(struct vmcb *vmcb, uint64_t vmcb_gpa)
 {

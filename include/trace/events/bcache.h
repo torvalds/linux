@@ -14,7 +14,7 @@ DECLARE_EVENT_CLASS(bcache_request,
 	TP_STRUCT__entry(
 		__field(dev_t,		dev			)
 		__field(unsigned int,	orig_major		)
-		__field(unsigned int,	orig_minor		)
+		__field(unsigned int,	orig_mianalr		)
 		__field(sector_t,	sector			)
 		__field(dev_t,		orig_sector		)
 		__field(unsigned int,	nr_sector		)
@@ -24,7 +24,7 @@ DECLARE_EVENT_CLASS(bcache_request,
 	TP_fast_assign(
 		__entry->dev		= bio_dev(bio);
 		__entry->orig_major	= d->disk->major;
-		__entry->orig_minor	= d->disk->first_minor;
+		__entry->orig_mianalr	= d->disk->first_mianalr;
 		__entry->sector		= bio->bi_iter.bi_sector;
 		__entry->orig_sector	= bio->bi_iter.bi_sector - 16;
 		__entry->nr_sector	= bio->bi_iter.bi_size >> 9;
@@ -32,9 +32,9 @@ DECLARE_EVENT_CLASS(bcache_request,
 	),
 
 	TP_printk("%d,%d %s %llu + %u (from %d,%d @ %llu)",
-		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  MAJOR(__entry->dev), MIANALR(__entry->dev),
 		  __entry->rwbs, (unsigned long long)__entry->sector,
-		  __entry->nr_sector, __entry->orig_major, __entry->orig_minor,
+		  __entry->nr_sector, __entry->orig_major, __entry->orig_mianalr,
 		  (unsigned long long)__entry->orig_sector)
 );
 
@@ -44,23 +44,23 @@ DECLARE_EVENT_CLASS(bkey,
 
 	TP_STRUCT__entry(
 		__field(u32,	size				)
-		__field(u32,	inode				)
+		__field(u32,	ianalde				)
 		__field(u64,	offset				)
 		__field(bool,	dirty				)
 	),
 
 	TP_fast_assign(
-		__entry->inode	= KEY_INODE(k);
+		__entry->ianalde	= KEY_IANALDE(k);
 		__entry->offset	= KEY_OFFSET(k);
 		__entry->size	= KEY_SIZE(k);
 		__entry->dirty	= KEY_DIRTY(k);
 	),
 
-	TP_printk("%u:%llu len %u dirty %u", __entry->inode,
+	TP_printk("%u:%llu len %u dirty %u", __entry->ianalde,
 		  __entry->offset, __entry->size, __entry->dirty)
 );
 
-DECLARE_EVENT_CLASS(btree_node,
+DECLARE_EVENT_CLASS(btree_analde,
 	TP_PROTO(struct btree *b),
 	TP_ARGS(b),
 
@@ -106,7 +106,7 @@ DECLARE_EVENT_CLASS(bcache_bio,
 	),
 
 	TP_printk("%d,%d  %s %llu + %u",
-		  MAJOR(__entry->dev), MINOR(__entry->dev), __entry->rwbs,
+		  MAJOR(__entry->dev), MIANALR(__entry->dev), __entry->rwbs,
 		  (unsigned long long)__entry->sector, __entry->nr_sector)
 );
 
@@ -143,19 +143,19 @@ TRACE_EVENT(bcache_read,
 	),
 
 	TP_printk("%d,%d  %s %llu + %u hit %u bypass %u",
-		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  MAJOR(__entry->dev), MIANALR(__entry->dev),
 		  __entry->rwbs, (unsigned long long)__entry->sector,
 		  __entry->nr_sector, __entry->cache_hit, __entry->bypass)
 );
 
 TRACE_EVENT(bcache_write,
-	TP_PROTO(struct cache_set *c, u64 inode, struct bio *bio,
+	TP_PROTO(struct cache_set *c, u64 ianalde, struct bio *bio,
 		bool writeback, bool bypass),
-	TP_ARGS(c, inode, bio, writeback, bypass),
+	TP_ARGS(c, ianalde, bio, writeback, bypass),
 
 	TP_STRUCT__entry(
 		__array(char,		uuid,	16		)
-		__field(u64,		inode			)
+		__field(u64,		ianalde			)
 		__field(sector_t,	sector			)
 		__field(unsigned int,	nr_sector		)
 		__array(char,		rwbs,	6		)
@@ -165,7 +165,7 @@ TRACE_EVENT(bcache_write,
 
 	TP_fast_assign(
 		memcpy(__entry->uuid, c->set_uuid, 16);
-		__entry->inode		= inode;
+		__entry->ianalde		= ianalde;
 		__entry->sector		= bio->bi_iter.bi_sector;
 		__entry->nr_sector	= bio->bi_iter.bi_size >> 9;
 		blk_fill_rwbs(__entry->rwbs, bio->bi_opf);
@@ -173,8 +173,8 @@ TRACE_EVENT(bcache_write,
 		__entry->bypass = bypass;
 	),
 
-	TP_printk("%pU inode %llu  %s %llu + %u hit %u bypass %u",
-		  __entry->uuid, __entry->inode,
+	TP_printk("%pU ianalde %llu  %s %llu + %u hit %u bypass %u",
+		  __entry->uuid, __entry->ianalde,
 		  __entry->rwbs, (unsigned long long)__entry->sector,
 		  __entry->nr_sector, __entry->writeback, __entry->bypass)
 );
@@ -242,7 +242,7 @@ TRACE_EVENT(bcache_journal_write,
 	),
 
 	TP_printk("%d,%d  %s %llu + %u keys %u",
-		  MAJOR(__entry->dev), MINOR(__entry->dev), __entry->rwbs,
+		  MAJOR(__entry->dev), MIANALR(__entry->dev), __entry->rwbs,
 		  (unsigned long long)__entry->sector, __entry->nr_sector,
 		  __entry->nr_keys)
 );
@@ -254,7 +254,7 @@ DEFINE_EVENT(cache_set, bcache_btree_cache_cannibalize,
 	TP_ARGS(c)
 );
 
-DEFINE_EVENT(btree_node, bcache_btree_read,
+DEFINE_EVENT(btree_analde, bcache_btree_read,
 	TP_PROTO(struct btree *b),
 	TP_ARGS(b)
 );
@@ -279,34 +279,34 @@ TRACE_EVENT(bcache_btree_write,
 		__entry->bucket, __entry->block, __entry->keys)
 );
 
-DEFINE_EVENT(btree_node, bcache_btree_node_alloc,
+DEFINE_EVENT(btree_analde, bcache_btree_analde_alloc,
 	TP_PROTO(struct btree *b),
 	TP_ARGS(b)
 );
 
-DEFINE_EVENT(cache_set, bcache_btree_node_alloc_fail,
+DEFINE_EVENT(cache_set, bcache_btree_analde_alloc_fail,
 	TP_PROTO(struct cache_set *c),
 	TP_ARGS(c)
 );
 
-DEFINE_EVENT(btree_node, bcache_btree_node_free,
+DEFINE_EVENT(btree_analde, bcache_btree_analde_free,
 	TP_PROTO(struct btree *b),
 	TP_ARGS(b)
 );
 
 TRACE_EVENT(bcache_btree_gc_coalesce,
-	TP_PROTO(unsigned nodes),
-	TP_ARGS(nodes),
+	TP_PROTO(unsigned analdes),
+	TP_ARGS(analdes),
 
 	TP_STRUCT__entry(
-		__field(unsigned,	nodes			)
+		__field(unsigned,	analdes			)
 	),
 
 	TP_fast_assign(
-		__entry->nodes	= nodes;
+		__entry->analdes	= analdes;
 	),
 
-	TP_printk("coalesced %u nodes", __entry->nodes)
+	TP_printk("coalesced %u analdes", __entry->analdes)
 );
 
 DEFINE_EVENT(cache_set, bcache_gc_start,
@@ -334,9 +334,9 @@ TRACE_EVENT(bcache_btree_insert_key,
 	TP_ARGS(b, k, op, status),
 
 	TP_STRUCT__entry(
-		__field(u64,	btree_node			)
+		__field(u64,	btree_analde			)
 		__field(u32,	btree_level			)
-		__field(u32,	inode				)
+		__field(u32,	ianalde				)
 		__field(u64,	offset				)
 		__field(u32,	size				)
 		__field(u8,	dirty				)
@@ -345,9 +345,9 @@ TRACE_EVENT(bcache_btree_insert_key,
 	),
 
 	TP_fast_assign(
-		__entry->btree_node = PTR_BUCKET_NR(b->c, &b->key, 0);
+		__entry->btree_analde = PTR_BUCKET_NR(b->c, &b->key, 0);
 		__entry->btree_level = b->level;
-		__entry->inode	= KEY_INODE(k);
+		__entry->ianalde	= KEY_IANALDE(k);
 		__entry->offset	= KEY_OFFSET(k);
 		__entry->size	= KEY_SIZE(k);
 		__entry->dirty	= KEY_DIRTY(k);
@@ -357,8 +357,8 @@ TRACE_EVENT(bcache_btree_insert_key,
 
 	TP_printk("%u for %u at %llu(%u): %u:%llu len %u dirty %u",
 		  __entry->status, __entry->op,
-		  __entry->btree_node, __entry->btree_level,
-		  __entry->inode, __entry->offset,
+		  __entry->btree_analde, __entry->btree_level,
+		  __entry->ianalde, __entry->offset,
 		  __entry->size, __entry->dirty)
 );
 
@@ -379,48 +379,48 @@ DECLARE_EVENT_CLASS(btree_split,
 	TP_printk("bucket %zu keys %u", __entry->bucket, __entry->keys)
 );
 
-DEFINE_EVENT(btree_split, bcache_btree_node_split,
+DEFINE_EVENT(btree_split, bcache_btree_analde_split,
 	TP_PROTO(struct btree *b, unsigned keys),
 	TP_ARGS(b, keys)
 );
 
-DEFINE_EVENT(btree_split, bcache_btree_node_compact,
+DEFINE_EVENT(btree_split, bcache_btree_analde_compact,
 	TP_PROTO(struct btree *b, unsigned keys),
 	TP_ARGS(b, keys)
 );
 
-DEFINE_EVENT(btree_node, bcache_btree_set_root,
+DEFINE_EVENT(btree_analde, bcache_btree_set_root,
 	TP_PROTO(struct btree *b),
 	TP_ARGS(b)
 );
 
 TRACE_EVENT(bcache_keyscan,
 	TP_PROTO(unsigned nr_found,
-		 unsigned start_inode, uint64_t start_offset,
-		 unsigned end_inode, uint64_t end_offset),
+		 unsigned start_ianalde, uint64_t start_offset,
+		 unsigned end_ianalde, uint64_t end_offset),
 	TP_ARGS(nr_found,
-		start_inode, start_offset,
-		end_inode, end_offset),
+		start_ianalde, start_offset,
+		end_ianalde, end_offset),
 
 	TP_STRUCT__entry(
 		__field(__u32,	nr_found			)
-		__field(__u32,	start_inode			)
+		__field(__u32,	start_ianalde			)
 		__field(__u64,	start_offset			)
-		__field(__u32,	end_inode			)
+		__field(__u32,	end_ianalde			)
 		__field(__u64,	end_offset			)
 	),
 
 	TP_fast_assign(
 		__entry->nr_found	= nr_found;
-		__entry->start_inode	= start_inode;
+		__entry->start_ianalde	= start_ianalde;
 		__entry->start_offset	= start_offset;
-		__entry->end_inode	= end_inode;
+		__entry->end_ianalde	= end_ianalde;
 		__entry->end_offset	= end_offset;
 	),
 
 	TP_printk("found %u keys from %u:%llu to %u:%llu", __entry->nr_found,
-		  __entry->start_inode, __entry->start_offset,
-		  __entry->end_inode, __entry->end_offset)
+		  __entry->start_ianalde, __entry->start_offset,
+		  __entry->end_ianalde, __entry->end_offset)
 );
 
 /* Allocator */
@@ -443,7 +443,7 @@ TRACE_EVENT(bcache_invalidate,
 
 	TP_printk("invalidated %u sectors at %d,%d sector=%llu",
 		  __entry->sectors, MAJOR(__entry->dev),
-		  MINOR(__entry->dev), __entry->offset)
+		  MIANALR(__entry->dev), __entry->offset)
 );
 
 TRACE_EVENT(bcache_alloc,
@@ -461,7 +461,7 @@ TRACE_EVENT(bcache_alloc,
 	),
 
 	TP_printk("allocated %d,%d sector=%llu", MAJOR(__entry->dev),
-		  MINOR(__entry->dev), __entry->offset)
+		  MIANALR(__entry->dev), __entry->offset)
 );
 
 TRACE_EVENT(bcache_alloc_fail,
@@ -483,7 +483,7 @@ TRACE_EVENT(bcache_alloc_fail,
 	),
 
 	TP_printk("alloc fail %d,%d free %u free_inc %u blocked %u",
-		  MAJOR(__entry->dev), MINOR(__entry->dev), __entry->free,
+		  MAJOR(__entry->dev), MIANALR(__entry->dev), __entry->free,
 		  __entry->free_inc, __entry->blocked)
 );
 

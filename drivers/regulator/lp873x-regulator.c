@@ -19,7 +19,7 @@
 			.supply_name		= _of "-in",		\
 			.id			= _id,			\
 			.of_match		= of_match_ptr(_of),	\
-			.regulators_node	= of_match_ptr("regulators"),\
+			.regulators_analde	= of_match_ptr("regulators"),\
 			.ops			= &_ops,		\
 			.n_voltages		= _n,			\
 			.type			= REGULATOR_VOLTAGE,	\
@@ -161,7 +161,7 @@ static int lp873x_regulator_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, lp873);
 
 	config.dev = &pdev->dev;
-	config.dev->of_node = lp873->dev->of_node;
+	config.dev->of_analde = lp873->dev->of_analde;
 	config.driver_data = lp873;
 	config.regmap = lp873->regmap;
 
@@ -187,7 +187,7 @@ MODULE_DEVICE_TABLE(platform, lp873x_regulator_id_table);
 static struct platform_driver lp873x_regulator_driver = {
 	.driver = {
 		.name = "lp873x-pmic",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.probe = lp873x_regulator_probe,
 	.id_table = lp873x_regulator_id_table,

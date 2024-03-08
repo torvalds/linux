@@ -29,7 +29,7 @@ struct svc_rqst;
 
 #define	nlm_granted		cpu_to_be32(NLM_LCK_GRANTED)
 #define	nlm_lck_denied		cpu_to_be32(NLM_LCK_DENIED)
-#define	nlm_lck_denied_nolocks	cpu_to_be32(NLM_LCK_DENIED_NOLOCKS)
+#define	nlm_lck_denied_anallocks	cpu_to_be32(NLM_LCK_DENIED_ANALLOCKS)
 #define	nlm_lck_blocked		cpu_to_be32(NLM_LCK_BLOCKED)
 #define	nlm_lck_denied_grace_period	cpu_to_be32(NLM_LCK_DENIED_GRACE_PERIOD)
 
@@ -60,7 +60,7 @@ struct nlm_cookie
 };
 
 /*
- * Generic lockd arguments for all but sm_notify
+ * Generic lockd arguments for all but sm_analtify
  */
 struct nlm_args {
 	struct nlm_cookie	cookie;
@@ -107,7 +107,7 @@ bool	nlmsvc_decode_unlockargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 bool	nlmsvc_decode_res(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 bool	nlmsvc_decode_reboot(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 bool	nlmsvc_decode_shareargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
-bool	nlmsvc_decode_notify(struct svc_rqst *rqstp, struct xdr_stream *xdr);
+bool	nlmsvc_decode_analtify(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 
 bool	nlmsvc_encode_testres(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 bool	nlmsvc_encode_res(struct svc_rqst *rqstp, struct xdr_stream *xdr);

@@ -3,9 +3,9 @@
  *
  * http://simula.stanford.edu/~alizade/Site/DCTCP.html
  *
- * This is an implementation of DCTCP over Reno, an enhancement to the
+ * This is an implementation of DCTCP over Reanal, an enhancement to the
  * TCP congestion control algorithm designed for data centers. DCTCP
- * leverages Explicit Congestion Notification (ECN) in the network to
+ * leverages Explicit Congestion Analtification (ECN) in the network to
  * provide multi-bit feedback to the end hosts. DCTCP's goal is to meet
  * the following three data center transport requirements:
  *
@@ -65,7 +65,7 @@ static unsigned int dctcp_alpha_on_init __read_mostly = DCTCP_MAX_ALPHA;
 module_param(dctcp_alpha_on_init, uint, 0644);
 MODULE_PARM_DESC(dctcp_alpha_on_init, "parameter for initial alpha value");
 
-static struct tcp_congestion_ops dctcp_reno;
+static struct tcp_congestion_ops dctcp_reanal;
 
 static void dctcp_reset(const struct tcp_sock *tp, struct dctcp *ca)
 {
@@ -97,10 +97,10 @@ __bpf_kfunc static void dctcp_init(struct sock *sk)
 		return;
 	}
 
-	/* No ECN support? Fall back to Reno. Also need to clear
+	/* Anal ECN support? Fall back to Reanal. Also need to clear
 	 * ECT from sk since it is set during 3WHS for DCTCP.
 	 */
-	inet_csk(sk)->icsk_ca_ops = &dctcp_reno;
+	inet_csk(sk)->icsk_ca_ops = &dctcp_reanal;
 	INET_ECN_dontxmit(sk);
 }
 
@@ -140,7 +140,7 @@ __bpf_kfunc static void dctcp_update_alpha(struct sock *sk, u32 flags)
 
 		/* alpha = (1 - g) * alpha + g * F */
 
-		alpha -= min_not_zero(alpha, alpha >> dctcp_shift_g);
+		alpha -= min_analt_zero(alpha, alpha >> dctcp_shift_g);
 		if (delivered_ce) {
 
 			/* If dctcp_shift_g == 1, a 32bit value would overflow
@@ -152,7 +152,7 @@ __bpf_kfunc static void dctcp_update_alpha(struct sock *sk, u32 flags)
 			alpha = min(alpha + delivered_ce, DCTCP_MAX_ALPHA);
 		}
 		/* dctcp_alpha can be read from dctcp_get_info() without
-		 * synchro, so we ask compiler to not use dctcp_alpha
+		 * synchro, so we ask compiler to analt use dctcp_alpha
 		 * as a temporary variable in prior operations.
 		 */
 		WRITE_ONCE(ca->dctcp_alpha, alpha);
@@ -185,7 +185,7 @@ __bpf_kfunc static void dctcp_cwnd_event(struct sock *sk, enum tcp_ca_event ev)
 
 	switch (ev) {
 	case CA_EVENT_ECN_IS_CE:
-	case CA_EVENT_ECN_NO_CE:
+	case CA_EVENT_ECN_ANAL_CE:
 		dctcp_ece_ack_update(sk, ev, &ca->prior_rcv_nxt, &ca->ce_state);
 		break;
 	case CA_EVENT_LOSS:
@@ -213,7 +213,7 @@ static size_t dctcp_get_info(struct sock *sk, u32 ext, int *attr,
 	if (ext & (1 << (INET_DIAG_DCTCPINFO - 1)) ||
 	    ext & (1 << (INET_DIAG_VEGASINFO - 1))) {
 		memset(&info->dctcp, 0, sizeof(info->dctcp));
-		if (inet_csk(sk)->icsk_ca_ops != &dctcp_reno) {
+		if (inet_csk(sk)->icsk_ca_ops != &dctcp_reanal) {
 			info->dctcp.dctcp_enabled = 1;
 			info->dctcp.dctcp_ce_state = (u16) ca->ce_state;
 			info->dctcp.dctcp_alpha = ca->dctcp_alpha;
@@ -242,7 +242,7 @@ static struct tcp_congestion_ops dctcp __read_mostly = {
 	.in_ack_event   = dctcp_update_alpha,
 	.cwnd_event	= dctcp_cwnd_event,
 	.ssthresh	= dctcp_ssthresh,
-	.cong_avoid	= tcp_reno_cong_avoid,
+	.cong_avoid	= tcp_reanal_cong_avoid,
 	.undo_cwnd	= dctcp_cwnd_undo,
 	.set_state	= dctcp_state,
 	.get_info	= dctcp_get_info,
@@ -251,13 +251,13 @@ static struct tcp_congestion_ops dctcp __read_mostly = {
 	.name		= "dctcp",
 };
 
-static struct tcp_congestion_ops dctcp_reno __read_mostly = {
-	.ssthresh	= tcp_reno_ssthresh,
-	.cong_avoid	= tcp_reno_cong_avoid,
-	.undo_cwnd	= tcp_reno_undo_cwnd,
+static struct tcp_congestion_ops dctcp_reanal __read_mostly = {
+	.ssthresh	= tcp_reanal_ssthresh,
+	.cong_avoid	= tcp_reanal_cong_avoid,
+	.undo_cwnd	= tcp_reanal_undo_cwnd,
 	.get_info	= dctcp_get_info,
 	.owner		= THIS_MODULE,
-	.name		= "dctcp-reno",
+	.name		= "dctcp-reanal",
 };
 
 BTF_SET8_START(tcp_dctcp_check_kfunc_ids)

@@ -37,7 +37,7 @@ static __u8 pxrc_rdesc_fixed[] = {
 	0x46, 0xFF, 0x00,  //     Physical Maximum (255)
 	0x75, 0x08,        //     Report Size (8)
 	0x95, 0x08,        //     Report Count (8)
-	0x81, 0x02,        //     Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
+	0x81, 0x02,        //     Input (Data,Var,Abs,Anal Wrap,Linear,Preferred State,Anal Null Position)
 	0xC0,              //   End Collection
 	0xC0,              // End Collection
 };
@@ -74,7 +74,7 @@ static int pxrc_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	priv = devm_kzalloc(&hdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 	hid_set_drvdata(hdev, priv);
 
 	ret = hid_parse(hdev);

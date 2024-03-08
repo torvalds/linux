@@ -8,7 +8,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/skbuff.h>
 #include <linux/rtnetlink.h>
 #include <linux/module.h>
@@ -53,7 +53,7 @@ static struct tcf_pedit_key_ex *tcf_pedit_keys_ex_parse(struct nlattr *nla,
 
 	keys_ex = kcalloc(n, sizeof(*k), GFP_KERNEL);
 	if (!keys_ex)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	k = keys_ex;
 
@@ -68,7 +68,7 @@ static struct tcf_pedit_key_ex *tcf_pedit_keys_ex_parse(struct nlattr *nla,
 		n--;
 
 		if (nla_type(ka) != TCA_PEDIT_KEY_EX) {
-			NL_SET_ERR_MSG_ATTR(extack, ka, "Unknown attribute, expected extended key");
+			NL_SET_ERR_MSG_ATTR(extack, ka, "Unkanalwn attribute, expected extended key");
 			err = -EINVAL;
 			goto err_out;
 		}
@@ -98,7 +98,7 @@ static struct tcf_pedit_key_ex *tcf_pedit_keys_ex_parse(struct nlattr *nla,
 	}
 
 	if (n) {
-		NL_SET_ERR_MSG_MOD(extack, "Not enough extended keys to parse");
+		NL_SET_ERR_MSG_MOD(extack, "Analt eanalugh extended keys to parse");
 		err = -EINVAL;
 		goto err_out;
 	}
@@ -113,7 +113,7 @@ err_out:
 static int tcf_pedit_key_ex_dump(struct sk_buff *skb,
 				 struct tcf_pedit_key_ex *keys_ex, int n)
 {
-	struct nlattr *keys_start = nla_nest_start_noflag(skb,
+	struct nlattr *keys_start = nla_nest_start_analflag(skb,
 							  TCA_PEDIT_KEYS_EX);
 
 	if (!keys_start)
@@ -121,7 +121,7 @@ static int tcf_pedit_key_ex_dump(struct sk_buff *skb,
 	for (; n > 0; n--) {
 		struct nlattr *key_start;
 
-		key_start = nla_nest_start_noflag(skb, TCA_PEDIT_KEY_EX);
+		key_start = nla_nest_start_analflag(skb, TCA_PEDIT_KEY_EX);
 		if (!key_start)
 			goto nla_failure;
 
@@ -225,7 +225,7 @@ static int tcf_pedit_init(struct net *net, struct nlattr *nla,
 
 	nparms = kzalloc(sizeof(*nparms), GFP_KERNEL);
 	if (!nparms) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_release;
 	}
 
@@ -248,7 +248,7 @@ static int tcf_pedit_init(struct net *net, struct nlattr *nla,
 
 	nparms->tcfp_keys = kmemdup(parm->keys, ksize, GFP_KERNEL);
 	if (!nparms->tcfp_keys) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto put_chain;
 	}
 
@@ -331,17 +331,17 @@ static bool offset_valid(struct sk_buff *skb, int offset)
 
 static int pedit_l4_skb_offset(struct sk_buff *skb, int *hoffset, const int header_type)
 {
-	const int noff = skb_network_offset(skb);
+	const int analff = skb_network_offset(skb);
 	int ret = -EINVAL;
 	struct iphdr _iph;
 
 	switch (skb->protocol) {
 	case htons(ETH_P_IP): {
-		const struct iphdr *iph = skb_header_pointer(skb, noff, sizeof(_iph), &_iph);
+		const struct iphdr *iph = skb_header_pointer(skb, analff, sizeof(_iph), &_iph);
 
 		if (!iph)
 			goto out;
-		*hoffset = noff + iph->ihl * 4;
+		*hoffset = analff + iph->ihl * 4;
 		ret = 0;
 		break;
 	}
@@ -513,7 +513,7 @@ static int tcf_pedit_dump(struct sk_buff *skb, struct tc_action *a,
 	opt = kzalloc(s, GFP_ATOMIC);
 	if (unlikely(!opt)) {
 		spin_unlock_bh(&p->tcf_lock);
-		return -ENOBUFS;
+		return -EANALBUFS;
 	}
 
 	memcpy(opt->keys, parms->tcfp_keys,
@@ -570,7 +570,7 @@ static int tcf_pedit_offload_act_setup(struct tc_action *act, void *entry_data,
 				break;
 			default:
 				NL_SET_ERR_MSG_MOD(extack, "Unsupported pedit command offload");
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			}
 			entry->mangle.htype = tcf_pedit_htype(act, k);
 			entry->mangle.mask = tcf_pedit_mask(act, k);
@@ -594,13 +594,13 @@ static int tcf_pedit_offload_act_setup(struct tc_action *act, void *entry_data,
 			break;
 		default:
 			NL_SET_ERR_MSG_MOD(extack, "Unsupported pedit command offload");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 
 		for (k = 1; k < tcf_pedit_nkeys(act); k++) {
 			if (cmd != tcf_pedit_cmd(act, k)) {
 				NL_SET_ERR_MSG_MOD(extack, "Unsupported pedit command offload");
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			}
 		}
 	}

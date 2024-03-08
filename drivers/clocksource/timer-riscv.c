@@ -19,7 +19,7 @@
 #include <linux/irqdomain.h>
 #include <linux/module.h>
 #include <linux/sched_clock.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 #include <linux/interrupt.h>
 #include <linux/of_irq.h>
 #include <linux/limits.h>
@@ -30,7 +30,7 @@
 #include <asm/timex.h>
 
 static DEFINE_STATIC_KEY_FALSE(riscv_sstc_available);
-static bool riscv_timer_cannot_wake_cpu;
+static bool riscv_timer_cananalt_wake_cpu;
 
 static void riscv_clock_event_stop(void)
 {
@@ -86,7 +86,7 @@ static unsigned long long riscv_clocksource_rdtime(struct clocksource *cs)
 	return get_cycles64();
 }
 
-static u64 notrace riscv_sched_clock(void)
+static u64 analtrace riscv_sched_clock(void)
 {
 	return get_cycles64();
 }
@@ -100,7 +100,7 @@ static struct clocksource riscv_clocksource = {
 #if IS_ENABLED(CONFIG_GENERIC_GETTIMEOFDAY)
 	.vdso_clock_mode = VDSO_CLOCKMODE_ARCHTIMER,
 #else
-	.vdso_clock_mode = VDSO_CLOCKMODE_NONE,
+	.vdso_clock_mode = VDSO_CLOCKMODE_ANALNE,
 #endif
 };
 
@@ -110,7 +110,7 @@ static int riscv_timer_starting_cpu(unsigned int cpu)
 
 	ce->cpumask = cpumask_of(cpu);
 	ce->irq = riscv_clock_event_irq;
-	if (riscv_timer_cannot_wake_cpu)
+	if (riscv_timer_cananalt_wake_cpu)
 		ce->features |= CLOCK_EVT_FEAT_C3STOP;
 	if (static_branch_likely(&riscv_sstc_available))
 		ce->rating = 450;
@@ -149,19 +149,19 @@ static int __init riscv_timer_init_common(void)
 {
 	int error;
 	struct irq_domain *domain;
-	struct fwnode_handle *intc_fwnode = riscv_get_intc_hwnode();
+	struct fwanalde_handle *intc_fwanalde = riscv_get_intc_hwanalde();
 
-	domain = irq_find_matching_fwnode(intc_fwnode, DOMAIN_BUS_ANY);
+	domain = irq_find_matching_fwanalde(intc_fwanalde, DOMAIN_BUS_ANY);
 	if (!domain) {
-		pr_err("Failed to find irq_domain for INTC node [%pfwP]\n",
-		       intc_fwnode);
-		return -ENODEV;
+		pr_err("Failed to find irq_domain for INTC analde [%pfwP]\n",
+		       intc_fwanalde);
+		return -EANALDEV;
 	}
 
 	riscv_clock_event_irq = irq_create_mapping(domain, RV_IRQ_TIMER);
 	if (!riscv_clock_event_irq) {
-		pr_err("Failed to map timer interrupt for node [%pfwP]\n", intc_fwnode);
-		return -ENODEV;
+		pr_err("Failed to map timer interrupt for analde [%pfwP]\n", intc_fwanalde);
+		return -EANALDEV;
 	}
 
 	error = clocksource_register_hz(&riscv_clocksource, riscv_timebase);
@@ -195,15 +195,15 @@ static int __init riscv_timer_init_common(void)
 	return error;
 }
 
-static int __init riscv_timer_init_dt(struct device_node *n)
+static int __init riscv_timer_init_dt(struct device_analde *n)
 {
 	int cpuid, error;
 	unsigned long hartid;
-	struct device_node *child;
+	struct device_analde *child;
 
 	error = riscv_of_processor_hartid(n, &hartid);
 	if (error < 0) {
-		pr_warn("Invalid hartid for node [%pOF] error = [%lu]\n",
+		pr_warn("Invalid hartid for analde [%pOF] error = [%lu]\n",
 			n, hartid);
 		return error;
 	}
@@ -217,11 +217,11 @@ static int __init riscv_timer_init_dt(struct device_node *n)
 	if (cpuid != smp_processor_id())
 		return 0;
 
-	child = of_find_compatible_node(NULL, NULL, "riscv,timer");
+	child = of_find_compatible_analde(NULL, NULL, "riscv,timer");
 	if (child) {
-		riscv_timer_cannot_wake_cpu = of_property_read_bool(child,
-					"riscv,timer-cannot-wake-cpu");
-		of_node_put(child);
+		riscv_timer_cananalt_wake_cpu = of_property_read_bool(child,
+					"riscv,timer-cananalt-wake-cpu");
+		of_analde_put(child);
 	}
 
 	return riscv_timer_init_common();
@@ -234,7 +234,7 @@ static int __init riscv_timer_acpi_init(struct acpi_table_header *table)
 {
 	struct acpi_table_rhct *rhct = (struct acpi_table_rhct *)table;
 
-	riscv_timer_cannot_wake_cpu = rhct->flags & ACPI_RHCT_TIMER_CANNOT_WAKEUP_CPU;
+	riscv_timer_cananalt_wake_cpu = rhct->flags & ACPI_RHCT_TIMER_CANANALT_WAKEUP_CPU;
 
 	return riscv_timer_init_common();
 }

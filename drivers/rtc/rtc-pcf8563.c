@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * An I2C driver for the Philips PCF8563 RTC
- * Copyright 2005-06 Tower Technologies
+ * Copyright 2005-06 Tower Techanallogies
  *
  * Author: Alessandro Zummo <a.zummo@towertech.it>
  * Maintainers: http://www.nslu2-linux.org/
@@ -71,7 +71,7 @@ struct pcf8563 {
 	 * century. When the year digit data overflows from 99 to 00,
 	 * this bit is set. By presetting it to 0 while still in the
 	 * 20th century, it will be set in year 2000, ...
-	 * There seems no reliable way to know how the system use this
+	 * There seems anal reliable way to kanalw how the system use this
 	 * bit.  So let's do it heuristically, assuming we are live in
 	 * 1970...2069.
 	 */
@@ -180,7 +180,7 @@ static irqreturn_t pcf8563_irq(int irq, void *dev_id)
 
 	err = pcf8563_get_alarm_mode(pcf8563->client, NULL, &pending);
 	if (err)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (pending) {
 		rtc_update_irq(pcf8563->rtc, 1, RTC_IRQF | RTC_AF);
@@ -188,7 +188,7 @@ static irqreturn_t pcf8563_irq(int irq, void *dev_id)
 		return IRQ_HANDLED;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 /*
@@ -208,7 +208,7 @@ static int pcf8563_rtc_read_time(struct device *dev, struct rtc_time *tm)
 
 	if (buf[PCF8563_REG_SC] & PCF8563_SC_LV) {
 		dev_err(&client->dev,
-			"low voltage detected, date/time is not reliable.\n");
+			"low voltage detected, date/time is analt reliable.\n");
 		return -EINVAL;
 	}
 
@@ -228,7 +228,7 @@ static int pcf8563_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	tm->tm_wday = buf[PCF8563_REG_DW] & 0x07;
 	tm->tm_mon = bcd2bin(buf[PCF8563_REG_MO] & 0x1F) - 1; /* rtc mn 1-12 */
 	tm->tm_year = bcd2bin(buf[PCF8563_REG_YR]) + 100;
-	/* detect the polarity heuristically. see note above. */
+	/* detect the polarity heuristically. see analte above. */
 	pcf8563->c_polarity = (buf[PCF8563_REG_MO] & PCF8563_MO_C) ?
 		(tm->tm_year >= 100) : (tm->tm_year < 100);
 
@@ -288,7 +288,7 @@ static int pcf8563_rtc_ioctl(struct device *dev, unsigned int cmd, unsigned long
 		return put_user(ret & PCF8563_SC_LV ? RTC_VL_DATA_INVALID : 0,
 				(unsigned int __user *)arg);
 	default:
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 	}
 }
 
@@ -468,7 +468,7 @@ static const struct clk_ops pcf8563_clkout_ops = {
 static struct clk *pcf8563_clkout_register_clk(struct pcf8563 *pcf8563)
 {
 	struct i2c_client *client = pcf8563->client;
-	struct device_node *node = client->dev.of_node;
+	struct device_analde *analde = client->dev.of_analde;
 	struct clk *clk;
 	struct clk_init_data init;
 	int ret;
@@ -488,13 +488,13 @@ static struct clk *pcf8563_clkout_register_clk(struct pcf8563 *pcf8563)
 	pcf8563->clkout_hw.init = &init;
 
 	/* optional override of the clockname */
-	of_property_read_string(node, "clock-output-names", &init.name);
+	of_property_read_string(analde, "clock-output-names", &init.name);
 
 	/* register the clock */
 	clk = devm_clk_register(&client->dev, &pcf8563->clkout_hw);
 
 	if (!IS_ERR(clk))
-		of_clk_add_provider(node, of_clk_src_simple_get, clk);
+		of_clk_add_provider(analde, of_clk_src_simple_get, clk);
 
 	return clk;
 }
@@ -518,12 +518,12 @@ static int pcf8563_probe(struct i2c_client *client)
 	dev_dbg(&client->dev, "%s\n", __func__);
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
-		return -ENODEV;
+		return -EANALDEV;
 
 	pcf8563 = devm_kzalloc(&client->dev, sizeof(struct pcf8563),
 				GFP_KERNEL);
 	if (!pcf8563)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, pcf8563);
 	pcf8563->client = client;
@@ -560,7 +560,7 @@ static int pcf8563_probe(struct i2c_client *client)
 	if (client->irq > 0) {
 		unsigned long irqflags = IRQF_TRIGGER_LOW;
 
-		if (dev_fwnode(&client->dev))
+		if (dev_fwanalde(&client->dev))
 			irqflags = 0;
 
 		err = devm_request_threaded_irq(&client->dev, client->irq,

@@ -80,7 +80,7 @@ static void intel_pt_print_data(const unsigned char *buf, int len, uint64_t pos,
 	fprintf(f, " ");
 }
 
-static void intel_pt_print_no_data(uint64_t pos, int indent)
+static void intel_pt_print_anal_data(uint64_t pos, int indent)
 {
 	int i;
 
@@ -239,7 +239,7 @@ void __intel_pt_log_insn(struct intel_pt_insn *intel_pt_insn, uint64_t ip)
 		fprintf(f, "Bad instruction!\n");
 }
 
-void __intel_pt_log_insn_no_data(struct intel_pt_insn *intel_pt_insn,
+void __intel_pt_log_insn_anal_data(struct intel_pt_insn *intel_pt_insn,
 				 uint64_t ip)
 {
 	char desc[INTEL_PT_INSN_DESC_MAX];
@@ -247,7 +247,7 @@ void __intel_pt_log_insn_no_data(struct intel_pt_insn *intel_pt_insn,
 	if (intel_pt_log_open())
 		return;
 
-	intel_pt_print_no_data(ip, 8);
+	intel_pt_print_anal_data(ip, 8);
 	if (intel_pt_insn_desc(intel_pt_insn, desc, INTEL_PT_INSN_DESC_MAX) > 0)
 		fprintf(f, "%s\n", desc);
 	else

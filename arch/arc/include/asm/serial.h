@@ -1,13 +1,13 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2012 Syanalpsys, Inc. (www.syanalpsys.com)
  */
 
 #ifndef _ASM_ARC_SERIAL_H
 #define _ASM_ARC_SERIAL_H
 
 /*
- * early 8250 (now earlycon) requires BASE_BAUD to be defined in this header.
+ * early 8250 (analw earlycon) requires BASE_BAUD to be defined in this header.
  * However to still determine it dynamically (for multi-platform images)
  * we do this in a helper by parsing the FDT early
  */

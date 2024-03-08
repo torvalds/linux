@@ -2,7 +2,7 @@
 /*
  * PLL clock descriptions for TI DA850/OMAP-L138/AM18XX
  *
- * Copyright (C) 2018 David Lechner <david@lechnology.com>
+ * Copyright (C) 2018 David Lechner <david@lechanallogy.com>
  */
 
 #include <linux/bitops.h>
@@ -43,7 +43,7 @@ static const struct davinci_pll_clk_info da850_pll0_info = {
  * NB: Technically, the clocks flagged as SYSCLK_FIXED_DIV are "fixed ratio",
  * meaning that we could change the divider as long as we keep the correct
  * ratio between all of the clocks, but we don't support that because there is
- * currently not a need for it.
+ * currently analt a need for it.
  */
 
 SYSCLK(1, pll0_sysclk1, pll0_pllen, 5, SYSCLK_FIXED_DIV);
@@ -139,12 +139,12 @@ static const struct davinci_pll_sysclk_info *da850_pll0_sysclk_info[] = {
 	NULL
 };
 
-void of_da850_pll0_init(struct device_node *node)
+void of_da850_pll0_init(struct device_analde *analde)
 {
 	void __iomem *base;
 	struct regmap *cfgchip;
 
-	base = of_iomap(node, 0);
+	base = of_iomap(analde, 0);
 	if (!base) {
 		pr_err("%s: ioremap failed\n", __func__);
 		return;
@@ -152,7 +152,7 @@ void of_da850_pll0_init(struct device_node *node)
 
 	cfgchip = syscon_regmap_lookup_by_compatible("ti,da830-cfgchip");
 
-	of_davinci_pll_init(NULL, node, &da850_pll0_info,
+	of_davinci_pll_init(NULL, analde, &da850_pll0_info,
 			    &da850_pll0_obsclk_info,
 			    da850_pll0_sysclk_info, 7, base, cfgchip);
 }
@@ -222,7 +222,7 @@ static const struct davinci_pll_sysclk_info *da850_pll1_sysclk_info[] = {
 
 int of_da850_pll1_init(struct device *dev, void __iomem *base, struct regmap *cfgchip)
 {
-	return of_davinci_pll_init(dev, dev->of_node, &da850_pll1_info,
+	return of_davinci_pll_init(dev, dev->of_analde, &da850_pll1_info,
 				   &da850_pll1_obsclk_info,
 				   da850_pll1_sysclk_info, 3, base, cfgchip);
 }

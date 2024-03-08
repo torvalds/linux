@@ -17,7 +17,7 @@
 #include "rvu_npc_hash.h"
 
 struct cgx_evq_entry {
-	struct list_head evq_node;
+	struct list_head evq_analde;
 	struct cgx_link_event link_event;
 };
 
@@ -70,7 +70,7 @@ int cgxlmac_to_pf(struct rvu *rvu, int cgx_id, int lmac_id)
 
 	/* Assumes only one pf mapped to a cgx lmac port */
 	if (!pfmap)
-		return -ENODEV;
+		return -EANALDEV;
 	else
 		return find_first_bit(&pfmap,
 				      rvu->cgx_cnt_max * rvu->hw->lmac_per_cgx);
@@ -89,7 +89,7 @@ void *rvu_cgx_pdata(u8 cgx_id, struct rvu *rvu)
 	return rvu->cgx_idmap[cgx_id];
 }
 
-/* Return first enabled CGX instance if none are enabled then return NULL */
+/* Return first enabled CGX instance if analne are enabled then return NULL */
 void *rvu_first_cgx_pdata(struct rvu *rvu)
 {
 	int first_enabled_cgx = 0;
@@ -141,7 +141,7 @@ static int rvu_map_cgx_lmac_pf(struct rvu *rvu)
 	size = (cgx_cnt_max * rvu->hw->lmac_per_cgx + 1) * sizeof(u8);
 	rvu->pf2cgxlmac_map = devm_kmalloc(rvu->dev, size, GFP_KERNEL);
 	if (!rvu->pf2cgxlmac_map)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Initialize all entries with an invalid cgx and lmac id */
 	memset(rvu->pf2cgxlmac_map, 0xFF, size);
@@ -152,7 +152,7 @@ static int rvu_map_cgx_lmac_pf(struct rvu *rvu)
 			     cgx_cnt_max * rvu->hw->lmac_per_cgx * sizeof(u64),
 			     GFP_KERNEL);
 	if (!rvu->cgxlmac2pf_map)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rvu->cgx_mapped_pfs = 0;
 	for (cgx = 0; cgx < cgx_cnt_max; cgx++) {
@@ -184,7 +184,7 @@ static int rvu_cgx_send_link_info(int cgx_id, int lmac_id, struct rvu *rvu)
 
 	qentry = kmalloc(sizeof(*qentry), GFP_KERNEL);
 	if (!qentry)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Lock the event queue before we read the local link status */
 	spin_lock_irqsave(&rvu->cgx_evq_lock, flags);
@@ -196,7 +196,7 @@ static int rvu_cgx_send_link_info(int cgx_id, int lmac_id, struct rvu *rvu)
 		kfree(qentry);
 		goto skip_add;
 	}
-	list_add_tail(&qentry->evq_node, &rvu->cgx_evq_head);
+	list_add_tail(&qentry->evq_analde, &rvu->cgx_evq_head);
 skip_add:
 	spin_unlock_irqrestore(&rvu->cgx_evq_lock, flags);
 
@@ -215,10 +215,10 @@ static int cgx_lmac_postevent(struct cgx_link_event *event, void *data)
 	/* post event to the event queue */
 	qentry = kmalloc(sizeof(*qentry), GFP_ATOMIC);
 	if (!qentry)
-		return -ENOMEM;
+		return -EANALMEM;
 	qentry->link_event = *event;
 	spin_lock(&rvu->cgx_evq_lock);
-	list_add_tail(&qentry->evq_node, &rvu->cgx_evq_head);
+	list_add_tail(&qentry->evq_analde, &rvu->cgx_evq_head);
 	spin_unlock(&rvu->cgx_evq_lock);
 
 	/* start worker to process the events */
@@ -227,7 +227,7 @@ static int cgx_lmac_postevent(struct cgx_link_event *event, void *data)
 	return 0;
 }
 
-static void cgx_notify_pfs(struct cgx_link_event *event, struct rvu *rvu)
+static void cgx_analtify_pfs(struct cgx_link_event *event, struct rvu *rvu)
 {
 	struct cgx_link_user_info *linfo;
 	struct cgx_link_info_msg *msg;
@@ -237,7 +237,7 @@ static void cgx_notify_pfs(struct cgx_link_event *event, struct rvu *rvu)
 	linfo = &event->link_uinfo;
 	pfmap = cgxlmac_to_pfmap(rvu, event->cgx_id, event->lmac_id);
 	if (!pfmap) {
-		dev_err(rvu->dev, "CGX port%d:%d not mapped with PF\n",
+		dev_err(rvu->dev, "CGX port%d:%d analt mapped with PF\n",
 			event->cgx_id, event->lmac_id);
 		return;
 	}
@@ -247,8 +247,8 @@ static void cgx_notify_pfs(struct cgx_link_event *event, struct rvu *rvu)
 				      rvu->cgx_cnt_max * rvu->hw->lmac_per_cgx);
 		clear_bit(pfid, &pfmap);
 
-		/* check if notification is enabled */
-		if (!test_bit(pfid, &rvu->pf_notify_bmap)) {
+		/* check if analtification is enabled */
+		if (!test_bit(pfid, &rvu->pf_analtify_bmap)) {
 			dev_info(rvu->dev, "cgx %d: lmac %d Link status %s\n",
 				 event->cgx_id, event->lmac_id,
 				 linfo->link_up ? "UP" : "DOWN");
@@ -263,7 +263,7 @@ static void cgx_notify_pfs(struct cgx_link_event *event, struct rvu *rvu)
 		otx2_mbox_msg_send(&rvu->afpf_wq_info.mbox_up, pfid);
 		err = otx2_mbox_wait_for_rsp(&rvu->afpf_wq_info.mbox_up, pfid);
 		if (err)
-			dev_warn(rvu->dev, "notification to pf %d failed\n",
+			dev_warn(rvu->dev, "analtification to pf %d failed\n",
 				 pfid);
 	} while (pfmap);
 }
@@ -280,17 +280,17 @@ static void cgx_evhandler_task(struct work_struct *work)
 		spin_lock_irqsave(&rvu->cgx_evq_lock, flags);
 		qentry = list_first_entry_or_null(&rvu->cgx_evq_head,
 						  struct cgx_evq_entry,
-						  evq_node);
+						  evq_analde);
 		if (qentry)
-			list_del(&qentry->evq_node);
+			list_del(&qentry->evq_analde);
 		spin_unlock_irqrestore(&rvu->cgx_evq_lock, flags);
 		if (!qentry)
-			break; /* nothing more to process */
+			break; /* analthing more to process */
 
 		event = &qentry->link_event;
 
 		/* process event */
-		cgx_notify_pfs(event, rvu);
+		cgx_analtify_pfs(event, rvu);
 		kfree(qentry);
 	} while (1);
 }
@@ -308,10 +308,10 @@ static int cgx_lmac_event_handler_init(struct rvu *rvu)
 	rvu->cgx_evh_wq = alloc_workqueue("rvu_evh_wq", 0, 0);
 	if (!rvu->cgx_evh_wq) {
 		dev_err(rvu->dev, "alloc workqueue failed");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
-	cb.notify_link_chg = cgx_lmac_postevent; /* link change call back */
+	cb.analtify_link_chg = cgx_lmac_postevent; /* link change call back */
 	cb.data = rvu;
 
 	for (cgx = 0; cgx <= rvu->cgx_cnt_max; cgx++) {
@@ -344,19 +344,19 @@ int rvu_cgx_init(struct rvu *rvu)
 	int cgx, err;
 	void *cgxd;
 
-	/* CGX port id starts from 0 and are not necessarily contiguous
+	/* CGX port id starts from 0 and are analt necessarily contiguous
 	 * Hence we allocate resources based on the maximum port id value.
 	 */
 	rvu->cgx_cnt_max = cgx_get_cgxcnt_max();
 	if (!rvu->cgx_cnt_max) {
-		dev_info(rvu->dev, "No CGX devices found!\n");
+		dev_info(rvu->dev, "Anal CGX devices found!\n");
 		return 0;
 	}
 
 	rvu->cgx_idmap = devm_kzalloc(rvu->dev, rvu->cgx_cnt_max *
 				      sizeof(void *), GFP_KERNEL);
 	if (!rvu->cgx_idmap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Initialize the cgxdata table */
 	for (cgx = 0; cgx < rvu->cgx_cnt_max; cgx++)
@@ -417,8 +417,8 @@ int rvu_cgx_exit(struct rvu *rvu)
 }
 
 /* Most of the CGX configuration is restricted to the mapped PF only,
- * VF's of mapped PF and other PFs are not allowed. This fn() checks
- * whether a PFFUNC is permitted to do the config or not.
+ * VF's of mapped PF and other PFs are analt allowed. This fn() checks
+ * whether a PFFUNC is permitted to do the config or analt.
  */
 inline bool is_cgx_config_permitted(struct rvu *rvu, u16 pcifunc)
 {
@@ -520,7 +520,7 @@ void rvu_cgx_disable_dmac_entries(struct rvu *rvu, u16 pcifunc)
 	for (i = 0; i < max_dmac_filters; i++)
 		cgx_lmac_addr_del(cgx_id, lmac_id, i);
 
-	/* As cgx_lmac_addr_del does not clear entry for index 0
+	/* As cgx_lmac_addr_del does analt clear entry for index 0
 	 * so it needs to be done explicitly
 	 */
 	cgx_lmac_addr_reset(cgx_id, lmac_id);
@@ -683,8 +683,8 @@ int rvu_mbox_handler_cgx_mac_max_entries_get(struct rvu *rvu,
 	int pf = rvu_get_pf(req->hdr.pcifunc);
 	u8 cgx_id, lmac_id;
 
-	/* If msg is received from PFs(which are not mapped to CGX LMACs)
-	 * or VF then no entries are allocated for DMAC filters at CGX level.
+	/* If msg is received from PFs(which are analt mapped to CGX LMACs)
+	 * or VF then anal entries are allocated for DMAC filters at CGX level.
 	 * So returning zero.
 	 */
 	if (!is_cgx_config_permitted(rvu, req->hdr.pcifunc)) {
@@ -733,7 +733,7 @@ int rvu_mbox_handler_cgx_promisc_enable(struct rvu *rvu, struct msg_req *req,
 	if (!is_cgx_config_permitted(rvu, req->hdr.pcifunc))
 		return -EPERM;
 
-	/* Disable drop on non hit rule */
+	/* Disable drop on analn hit rule */
 	if (rvu_npc_exact_has_match_table(rvu))
 		return rvu_npc_exact_promisc_enable(rvu, req->hdr.pcifunc);
 
@@ -752,7 +752,7 @@ int rvu_mbox_handler_cgx_promisc_disable(struct rvu *rvu, struct msg_req *req,
 	if (!is_cgx_config_permitted(rvu, req->hdr.pcifunc))
 		return -EPERM;
 
-	/* Disable drop on non hit rule */
+	/* Disable drop on analn hit rule */
 	if (rvu_npc_exact_has_match_table(rvu))
 		return rvu_npc_exact_promisc_disable(rvu, req->hdr.pcifunc);
 
@@ -774,7 +774,7 @@ static int rvu_cgx_ptp_rx_cfg(struct rvu *rvu, u16 pcifunc, bool enable)
 		return 0;
 
 	/* This msg is expected only from PF/VFs that are mapped to CGX/RPM LMACs,
-	 * if received from other PF/VF simply ACK, nothing to do.
+	 * if received from other PF/VF simply ACK, analthing to do.
 	 */
 	if (!is_pf_cgxmapped(rvu, pf))
 		return -EPERM;
@@ -786,7 +786,7 @@ static int rvu_cgx_ptp_rx_cfg(struct rvu *rvu, u16 pcifunc, bool enable)
 	mac_ops->mac_enadis_ptp_config(cgxd, lmac_id, enable);
 	/* If PTP is enabled then inform NPC that packets to be
 	 * parsed by this PF will have their data shifted by 8 bytes
-	 * and if PTP is disabled then no shift is required
+	 * and if PTP is disabled then anal shift is required
 	 */
 	if (npc_config_ts_kpuaction(rvu, pf, pcifunc, enable))
 		return -EINVAL;
@@ -824,11 +824,11 @@ static int rvu_cgx_config_linkevents(struct rvu *rvu, u16 pcifunc, bool en)
 	rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_id, &lmac_id);
 
 	if (en) {
-		set_bit(pf, &rvu->pf_notify_bmap);
+		set_bit(pf, &rvu->pf_analtify_bmap);
 		/* Send the current link status to PF */
 		rvu_cgx_send_link_info(cgx_id, lmac_id, rvu);
 	} else {
-		clear_bit(pf, &rvu->pf_notify_bmap);
+		clear_bit(pf, &rvu->pf_analtify_bmap);
 	}
 
 	return 0;
@@ -857,7 +857,7 @@ int rvu_mbox_handler_cgx_get_linkinfo(struct rvu *rvu, struct msg_req *req,
 	pf = rvu_get_pf(req->hdr.pcifunc);
 
 	if (!is_pf_cgxmapped(rvu, pf))
-		return -ENODEV;
+		return -EANALDEV;
 
 	rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_id, &lmac_id);
 
@@ -953,10 +953,10 @@ int rvu_cgx_cfg_pause_frm(struct rvu *rvu, u16 pcifunc, u8 tx_pause, u8 rx_pause
 		return 0;
 
 	/* This msg is expected only from PF/VFs that are mapped to CGX LMACs,
-	 * if received from other PF/VF simply ACK, nothing to do.
+	 * if received from other PF/VF simply ACK, analthing to do.
 	 */
 	if (!is_pf_cgxmapped(rvu, pf))
-		return LMAC_AF_ERR_PF_NOT_MAPPED;
+		return LMAC_AF_ERR_PF_ANALT_MAPPED;
 
 	rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_id, &lmac_id);
 	cgxd = rvu_cgx_pdata(cgx_id, rvu);
@@ -965,7 +965,7 @@ int rvu_cgx_cfg_pause_frm(struct rvu *rvu, u16 pcifunc, u8 tx_pause, u8 rx_pause
 	mac_ops->mac_get_pfc_frm_cfg(cgxd, lmac_id, &tx_pfc, &rx_pfc);
 	if (tx_pfc || rx_pfc) {
 		dev_warn(rvu->dev,
-			 "Can not configure 802.3X flow control as PFC frames are enabled");
+			 "Can analt configure 802.3X flow control as PFC frames are enabled");
 		return LMAC_AF_ERR_8023PAUSE_ENADIS_PERM_DENIED;
 	}
 
@@ -991,10 +991,10 @@ int rvu_mbox_handler_cgx_cfg_pause_frm(struct rvu *rvu,
 	void *cgxd;
 
 	/* This msg is expected only from PF/VFs that are mapped to CGX LMACs,
-	 * if received from other PF/VF simply ACK, nothing to do.
+	 * if received from other PF/VF simply ACK, analthing to do.
 	 */
 	if (!is_pf_cgxmapped(rvu, pf))
-		return -ENODEV;
+		return -EANALDEV;
 
 	rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_id, &lmac_id);
 	cgxd = rvu_cgx_pdata(cgx_id, rvu);
@@ -1015,7 +1015,7 @@ int rvu_mbox_handler_cgx_get_phy_fec_stats(struct rvu *rvu, struct msg_req *req,
 	u8 cgx_id, lmac_id;
 
 	if (!is_pf_cgxmapped(rvu, pf))
-		return LMAC_AF_ERR_PF_NOT_MAPPED;
+		return LMAC_AF_ERR_PF_ANALT_MAPPED;
 
 	rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_id, &lmac_id);
 	return cgx_get_phy_fec_stats(rvu_cgx_pdata(cgx_id, rvu), lmac_id);
@@ -1080,9 +1080,9 @@ int rvu_cgx_start_stop_io(struct rvu *rvu, u16 pcifunc, bool start)
 	mutex_lock(&rvu->cgx_cfg_lock);
 
 	if (start && pfvf->cgx_in_use)
-		goto exit;  /* CGX is already started hence nothing to do */
+		goto exit;  /* CGX is already started hence analthing to do */
 	if (!start && !pfvf->cgx_in_use)
-		goto exit; /* CGX is already stopped hence nothing to do */
+		goto exit; /* CGX is already stopped hence analthing to do */
 
 	if (start) {
 		cgx_users = parent_pf->cgx_users;
@@ -1124,7 +1124,7 @@ int rvu_mbox_handler_cgx_set_fec_param(struct rvu *rvu,
 		return -EPERM;
 
 	if (req->fec == OTX2_FEC_OFF)
-		req->fec = OTX2_FEC_NONE;
+		req->fec = OTX2_FEC_ANALNE;
 	rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_id, &lmac_id);
 	rsp->fec = cgx_set_fec(req->fec, cgx_id, lmac_id);
 	return 0;
@@ -1137,7 +1137,7 @@ int rvu_mbox_handler_cgx_get_aux_link_info(struct rvu *rvu, struct msg_req *req,
 	u8 cgx_id, lmac_id;
 
 	if (!rvu->fwdata)
-		return LMAC_AF_ERR_FIRMWARE_DATA_NOT_MAPPED;
+		return LMAC_AF_ERR_FIRMWARE_DATA_ANALT_MAPPED;
 
 	if (!is_pf_cgxmapped(rvu, pf))
 		return -EPERM;
@@ -1217,10 +1217,10 @@ int rvu_cgx_prio_flow_ctrl_cfg(struct rvu *rvu, u16 pcifunc, u8 tx_pause,
 	void *cgxd;
 
 	/* This msg is expected only from PF/VFs that are mapped to CGX LMACs,
-	 * if received from other PF/VF simply ACK, nothing to do.
+	 * if received from other PF/VF simply ACK, analthing to do.
 	 */
 	if (!is_pf_cgxmapped(rvu, pf))
-		return -ENODEV;
+		return -EANALDEV;
 
 	rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_id, &lmac_id);
 	cgxd = rvu_cgx_pdata(cgx_id, rvu);
@@ -1229,7 +1229,7 @@ int rvu_cgx_prio_flow_ctrl_cfg(struct rvu *rvu, u16 pcifunc, u8 tx_pause,
 	mac_ops->mac_get_pause_frm_status(cgxd, lmac_id, &tx_8023, &rx_8023);
 	if (tx_8023 || rx_8023) {
 		dev_warn(rvu->dev,
-			 "Can not configure PFC as 802.3X pause frames are enabled");
+			 "Can analt configure PFC as 802.3X pause frames are enabled");
 		return LMAC_AF_ERR_PFC_ENADIS_PERM_DENIED;
 	}
 
@@ -1255,10 +1255,10 @@ int rvu_mbox_handler_cgx_prio_flow_ctrl_cfg(struct rvu *rvu,
 	int err;
 
 	/* This msg is expected only from PF/VFs that are mapped to CGX LMACs,
-	 * if received from other PF/VF simply ACK, nothing to do.
+	 * if received from other PF/VF simply ACK, analthing to do.
 	 */
 	if (!is_pf_cgxmapped(rvu, pf))
-		return -ENODEV;
+		return -EANALDEV;
 
 	rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_id, &lmac_id);
 	cgxd = rvu_cgx_pdata(cgx_id, rvu);

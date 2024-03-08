@@ -35,21 +35,21 @@
 #include "qlcnic_dcb.h"
 
 #define _QLCNIC_LINUX_MAJOR 5
-#define _QLCNIC_LINUX_MINOR 3
+#define _QLCNIC_LINUX_MIANALR 3
 #define _QLCNIC_LINUX_SUBVERSION 66
 #define QLCNIC_LINUX_VERSIONID  "5.3.66"
 #define QLCNIC_DRV_IDC_VER  0x01
 #define QLCNIC_DRIVER_VERSION  ((_QLCNIC_LINUX_MAJOR << 16) |\
-		 (_QLCNIC_LINUX_MINOR << 8) | (_QLCNIC_LINUX_SUBVERSION))
+		 (_QLCNIC_LINUX_MIANALR << 8) | (_QLCNIC_LINUX_SUBVERSION))
 
 #define QLCNIC_VERSION_CODE(a, b, c)	(((a) << 24) + ((b) << 16) + (c))
 #define _major(v)	(((v) >> 24) & 0xff)
-#define _minor(v)	(((v) >> 16) & 0xff)
+#define _mianalr(v)	(((v) >> 16) & 0xff)
 #define _build(v)	((v) & 0xffff)
 
 /* version in image has weird encoding:
  *  7:0  - major
- * 15:8  - minor
+ * 15:8  - mianalr
  * 31:16 - build (little endian)
  */
 #define QLCNIC_DECODE_VERSION(v) \
@@ -126,13 +126,13 @@ enum qlcnic_queue_type {
 #define PHAN_INITIALIZE_FAILED		0xffff
 #define PHAN_INITIALIZE_COMPLETE	0xff01
 
-/* Host writes the following to notify that it has done the init-handshake */
+/* Host writes the following to analtify that it has done the init-handshake */
 #define PHAN_INITIALIZE_ACK		0xf00f
 #define PHAN_PEG_RCV_INITIALIZED	0xff01
 
 #define NUM_RCV_DESC_RINGS	3
 
-#define RCV_RING_NORMAL 0
+#define RCV_RING_ANALRMAL 0
 #define RCV_RING_JUMBO	1
 
 #define MIN_CMD_DESCRIPTORS		64
@@ -196,7 +196,7 @@ struct cmd_desc_type0 {
 
 } __attribute__ ((aligned(64)));
 
-/* Note: sizeof(rcv_desc) should always be a mutliple of 2 */
+/* Analte: sizeof(rcv_desc) should always be a mutliple of 2 */
 struct rcv_desc {
 	__le16 reference_handle;
 	__le16 reserved;
@@ -287,7 +287,7 @@ struct qlcnic_fdt {
 	u8	protected_sec_cmd;
 	u8	resvd[65];
 };
-/* Magic number to let user know flash is programmed */
+/* Magic number to let user kanalw flash is programmed */
 #define	QLCNIC_BDINFO_MAGIC 0x12345678
 
 #define QLCNIC_BRDTYPE_P3P_REF_QG	0x0021
@@ -324,7 +324,7 @@ struct qlcnic_fdt {
 #define QLCNIC_FW_MIN_SIZE		(0x3fffff)
 #define QLCNIC_UNIFIED_ROMIMAGE  	0
 #define QLCNIC_FLASH_ROMIMAGE		1
-#define QLCNIC_UNKNOWN_ROMIMAGE		0xff
+#define QLCNIC_UNKANALWN_ROMIMAGE		0xff
 
 #define QLCNIC_UNIFIED_ROMIMAGE_NAME	"phanfw.bin"
 #define QLCNIC_FLASH_ROMIMAGE_NAME	"flash"
@@ -362,7 +362,7 @@ struct qlcnic_cmd_buffer {
 	u32 frag_count;
 };
 
-/* In rx_buffer, we do not need multiple fragments as is a single buffer */
+/* In rx_buffer, we do analt need multiple fragments as is a single buffer */
 struct qlcnic_rx_buffer {
 	u16 ref_handle;
 	struct sk_buff *skb;
@@ -568,7 +568,7 @@ struct qlcnic_adapter_stats {
 
 /*
  * Rcv Descriptor Context. One such per Rcv Descriptor. There may
- * be one Rcv Descriptor for normal packets, one for jumbo and may be others.
+ * be one Rcv Descriptor for analrmal packets, one for jumbo and may be others.
  */
 struct qlcnic_host_rds_ring {
 	void __iomem *crb_rcv_producer;
@@ -582,7 +582,7 @@ struct qlcnic_host_rds_ring {
 	struct list_head free_list;
 	spinlock_t lock;
 	dma_addr_t phys_addr;
-} ____cacheline_internodealigned_in_smp;
+} ____cacheline_interanaldealigned_in_smp;
 
 struct qlcnic_host_sds_ring {
 	u32 consumer;
@@ -600,7 +600,7 @@ struct qlcnic_host_sds_ring {
 
 	dma_addr_t phys_addr;
 	char name[IFNAMSIZ + 12];
-} ____cacheline_internodealigned_in_smp;
+} ____cacheline_interanaldealigned_in_smp;
 
 struct qlcnic_tx_queue_stats {
 	u64 xmit_on;
@@ -635,7 +635,7 @@ struct qlcnic_host_tx_ring {
 	struct netdev_queue *txq;
 	/* Lock to protect Tx descriptors cleanup */
 	spinlock_t tx_clean_lock;
-} ____cacheline_internodealigned_in_smp;
+} ____cacheline_interanaldealigned_in_smp;
 
 /*
  * Receive context. There is one such structure per instance of the
@@ -676,15 +676,15 @@ struct qlcnic_recv_context {
 
 #define QLCNIC_RCODE_SUCCESS		0
 #define QLCNIC_RCODE_INVALID_ARGS	6
-#define QLCNIC_RCODE_NOT_SUPPORTED	9
-#define QLCNIC_RCODE_NOT_PERMITTED	10
-#define QLCNIC_RCODE_NOT_IMPL		15
+#define QLCNIC_RCODE_ANALT_SUPPORTED	9
+#define QLCNIC_RCODE_ANALT_PERMITTED	10
+#define QLCNIC_RCODE_ANALT_IMPL		15
 #define QLCNIC_RCODE_INVALID		16
 #define QLCNIC_RCODE_TIMEOUT		17
 #define QLCNIC_DESTROY_CTX_RESET	0
 
 /*
- * Capabilities Announced
+ * Capabilities Ananalunced
  */
 #define QLCNIC_CAP0_LEGACY_CONTEXT	(1)
 #define QLCNIC_CAP0_LEGACY_MN		(1 << 2)
@@ -830,16 +830,16 @@ struct qlcnic_cardrsp_tx_ctx {
 
 #define QLCNIC_HOST_INT_CRB_MODE_UNIQUE	0
 #define QLCNIC_HOST_INT_CRB_MODE_SHARED	1
-#define QLCNIC_HOST_INT_CRB_MODE_NORX	2
-#define QLCNIC_HOST_INT_CRB_MODE_NOTX	3
-#define QLCNIC_HOST_INT_CRB_MODE_NORXTX	4
+#define QLCNIC_HOST_INT_CRB_MODE_ANALRX	2
+#define QLCNIC_HOST_INT_CRB_MODE_ANALTX	3
+#define QLCNIC_HOST_INT_CRB_MODE_ANALRXTX	4
 
 
 /* MAC */
 
 #define MC_COUNT_P3P	38
 
-#define QLCNIC_MAC_NOOP	0
+#define QLCNIC_MAC_ANALOP	0
 #define QLCNIC_MAC_ADD	1
 #define QLCNIC_MAC_DEL	2
 #define QLCNIC_MAC_VLAN_ADD	3
@@ -859,7 +859,7 @@ struct qlcnic_mac_vlan_list {
 };
 
 /* MAC Learn */
-#define NO_MAC_LEARN		0
+#define ANAL_MAC_LEARN		0
 #define DRV_MAC_LEARN		1
 #define FDB_MAC_LEARN		2
 
@@ -930,8 +930,8 @@ struct qlcnic_mac_vlan_list {
 #define QLCNIC_83XX_FW_CAPAB_ENCAP_CKO_OFFLOAD	BIT_4
 
 /* module types */
-#define LINKEVENT_MODULE_NOT_PRESENT			1
-#define LINKEVENT_MODULE_OPTICAL_UNKNOWN		2
+#define LINKEVENT_MODULE_ANALT_PRESENT			1
+#define LINKEVENT_MODULE_OPTICAL_UNKANALWN		2
 #define LINKEVENT_MODULE_OPTICAL_SRLR			3
 #define LINKEVENT_MODULE_OPTICAL_LRM			4
 #define LINKEVENT_MODULE_OPTICAL_SFP_1G 		5
@@ -1068,7 +1068,7 @@ struct qlcnic_ipaddr {
 #define QLCNIC_ILB_MAX_RCV_LOOP	10
 
 struct qlcnic_filter {
-	struct hlist_node fnode;
+	struct hlist_analde fanalde;
 	u8 faddr[ETH_ALEN];
 	u16 vlan_id;
 	unsigned long ftime;
@@ -1375,19 +1375,19 @@ struct qlcnic_esw_func_cfg {
 #define QLCNIC_STATS_ESWITCH		2
 #define QLCNIC_QUERY_RX_COUNTER		0
 #define QLCNIC_QUERY_TX_COUNTER		1
-#define QLCNIC_STATS_NOT_AVAIL	0xffffffffffffffffULL
+#define QLCNIC_STATS_ANALT_AVAIL	0xffffffffffffffffULL
 #define QLCNIC_FILL_STATS(VAL1) \
-	(((VAL1) == QLCNIC_STATS_NOT_AVAIL) ? 0 : VAL1)
+	(((VAL1) == QLCNIC_STATS_ANALT_AVAIL) ? 0 : VAL1)
 #define QLCNIC_MAC_STATS 1
 #define QLCNIC_ESW_STATS 2
 
 #define QLCNIC_ADD_ESW_STATS(VAL1, VAL2)\
 do {	\
-	if (((VAL1) == QLCNIC_STATS_NOT_AVAIL) && \
-	    ((VAL2) != QLCNIC_STATS_NOT_AVAIL)) \
+	if (((VAL1) == QLCNIC_STATS_ANALT_AVAIL) && \
+	    ((VAL2) != QLCNIC_STATS_ANALT_AVAIL)) \
 		(VAL1) = (VAL2); \
-	else if (((VAL1) != QLCNIC_STATS_NOT_AVAIL) && \
-		 ((VAL2) != QLCNIC_STATS_NOT_AVAIL)) \
+	else if (((VAL1) != QLCNIC_STATS_ANALT_AVAIL) && \
+		 ((VAL2) != QLCNIC_STATS_ANALT_AVAIL)) \
 			(VAL1) += (VAL2); \
 } while (0)
 
@@ -1749,7 +1749,7 @@ struct qlcnic_mbx_ops {
 	void (*dequeue_cmd) (struct qlcnic_adapter *, struct qlcnic_cmd_args *);
 	void (*decode_resp) (struct qlcnic_adapter *, struct qlcnic_cmd_args *);
 	void (*encode_cmd) (struct qlcnic_adapter *, struct qlcnic_cmd_args *);
-	void (*nofity_fw) (struct qlcnic_adapter *, u8);
+	void (*analfity_fw) (struct qlcnic_adapter *, u8);
 };
 
 int qlcnic_83xx_init_mailbox_work(struct qlcnic_adapter *);
@@ -1770,7 +1770,7 @@ struct qlcnic_hardware_ops {
 	int (*alloc_mbx_args)(struct qlcnic_cmd_args *,
 			      struct qlcnic_adapter *, u32);
 	int (*mbx_cmd) (struct qlcnic_adapter *, struct qlcnic_cmd_args *);
-	void (*get_func_no) (struct qlcnic_adapter *);
+	void (*get_func_anal) (struct qlcnic_adapter *);
 	int (*api_lock) (struct qlcnic_adapter *);
 	void (*api_unlock) (struct qlcnic_adapter *);
 	void (*add_sysfs) (struct qlcnic_adapter *);
@@ -1902,9 +1902,9 @@ static inline int qlcnic_issue_cmd(struct qlcnic_adapter *adapter,
 	return -EIO;
 }
 
-static inline void qlcnic_get_func_no(struct qlcnic_adapter *adapter)
+static inline void qlcnic_get_func_anal(struct qlcnic_adapter *adapter)
 {
-	adapter->ahw->hw_ops->get_func_no(adapter);
+	adapter->ahw->hw_ops->get_func_anal(adapter);
 }
 
 static inline int qlcnic_api_lock(struct qlcnic_adapter *adapter)

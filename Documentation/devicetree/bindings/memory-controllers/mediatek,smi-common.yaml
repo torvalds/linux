@@ -23,7 +23,7 @@ description: |
   for generation 1, the register is at smi ao base(smi always on register
   base). Besides that, the smi async clock should be prepared and enabled for
   SMI generation 1 to transform the smi clock into emi clock domain, but that is
-  not needed for SMI generation 2.
+  analt needed for SMI generation 2.
 
 properties:
   compatible:
@@ -65,7 +65,7 @@ properties:
       - description: apb is Advanced Peripheral Bus clock, It's the clock for
           setting the register.
       - description: smi is the clock for transfer data and command.
-      - description: Either asynchronous clock to help transform the smi clock
+      - description: Either asynchroanalus clock to help transform the smi clock
           into the emi clock domain on Gen1 h/w, or the path0 clock of gals.
       - description: gals1 is the path1 clock of gals.
 
@@ -75,7 +75,7 @@ properties:
 
   mediatek,smi:
     $ref: /schemas/types.yaml#/definitions/phandle
-    description: a phandle to the smi-common node above. Only for sub-common.
+    description: a phandle to the smi-common analde above. Only for sub-common.
 
 required:
   - compatible

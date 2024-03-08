@@ -15,14 +15,14 @@ struct device;
 /**
  * struct ccs_data_block_version - CCS static data version
  * @version_major: Major version number
- * @version_minor: Minor version number
+ * @version_mianalr: Mianalr version number
  * @date_year: Year
  * @date_month: Month
  * @date_day: Day
  */
 struct ccs_data_block_version {
 	u16 version_major;
-	u16 version_minor;
+	u16 version_mianalr;
 	u16 date_year;
 	u8 date_month;
 	u8 date_day;
@@ -199,7 +199,7 @@ struct ccs_pdaf_pix_loc {
  * @module_pdaf: PDAF data for the module
  * @license_length: Lenght of the license data
  * @license: License data
- * @end: Whether or not there's an end block
+ * @end: Whether or analt there's an end block
  * @backing: Raw data, pointed to from elsewhere so keep it around
  */
 struct ccs_data_container {

@@ -1,5 +1,5 @@
 What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/enable_source
-Date:		November 2014
+Date:		Analvember 2014
 KernelVersion:	3.19
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
 Description:	(RW) Enable/disable tracing on this specific trace entiry.
@@ -9,14 +9,14 @@ Description:	(RW) Enable/disable tracing on this specific trace entiry.
 		configured and managed automatically by the coresight framework.
 
 What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/addr_idx
-Date:		November 2014
+Date:		Analvember 2014
 KernelVersion:	3.19
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
 Description:	Select which address comparator or pair (of comparators) to
 		work with.
 
 What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/addr_acctype
-Date:		November 2014
+Date:		Analvember 2014
 KernelVersion:	3.19
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
 Description:	(RW) Used in conjunction with @addr_idx.  Specifies
@@ -27,7 +27,7 @@ Description:	(RW) Used in conjunction with @addr_idx.  Specifies
 		entity.
 
 What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/addr_range
-Date:		November 2014
+Date:		Analvember 2014
 KernelVersion:	3.19
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
 Description:	(RW) Used in conjunction with @addr_idx.  Specifies the range of
@@ -35,7 +35,7 @@ Description:	(RW) Used in conjunction with @addr_idx.  Specifies the range of
 		in the corresponding access type register.
 
 What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/addr_single
-Date:		November 2014
+Date:		Analvember 2014
 KernelVersion:	3.19
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
 Description:	(RW) Used in conjunction with @addr_idx.  Specifies the single
@@ -43,7 +43,7 @@ Description:	(RW) Used in conjunction with @addr_idx.  Specifies the single
 		options of the corresponding access type register.
 
 What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/addr_start
-Date:		November 2014
+Date:		Analvember 2014
 KernelVersion:	3.19
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
 Description:	(RW) Used in conjunction with @addr_idx.  Specifies the single
@@ -51,7 +51,7 @@ Description:	(RW) Used in conjunction with @addr_idx.  Specifies the single
 		configuration options of the corresponding access type register.
 
 What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/addr_stop
-Date:		November 2014
+Date:		Analvember 2014
 KernelVersion:	3.19
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
 Description:	(RW) Used in conjunction with @addr_idx.  Specifies the single
@@ -59,74 +59,74 @@ Description:	(RW) Used in conjunction with @addr_idx.  Specifies the single
 		configuration options of the corresponding access type register.
 
 What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/cntr_idx
-Date:		November 2014
+Date:		Analvember 2014
 KernelVersion:	3.19
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
 Description:	(RW) Specifies the counter to work on.
 
 What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/cntr_event
-Date:		November 2014
+Date:		Analvember 2014
 KernelVersion:	3.19
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
 Description: 	(RW) Used in conjunction with cntr_idx, give access to the
 		counter event register.
 
 What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/cntr_val
-Date:		November 2014
+Date:		Analvember 2014
 KernelVersion:	3.19
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
 Description: 	(RW) Used in conjunction with cntr_idx, give access to the
 		counter value register.
 
 What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/cntr_rld_val
-Date:		November 2014
+Date:		Analvember 2014
 KernelVersion:	3.19
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
 Description: 	(RW) Used in conjunction with cntr_idx, give access to the
 		counter reload value register.
 
 What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/cntr_rld_event
-Date:		November 2014
+Date:		Analvember 2014
 KernelVersion:	3.19
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
 Description: 	(RW) Used in conjunction with cntr_idx, give access to the
 		counter reload event register.
 
 What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/ctxid_idx
-Date:		November 2014
+Date:		Analvember 2014
 KernelVersion:	3.19
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
 Description: 	(RW) Specifies the index of the context ID register to be
 		selected.
 
 What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/ctxid_mask
-Date:		November 2014
+Date:		Analvember 2014
 KernelVersion:	3.19
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
 Description: 	(RW) Mask to apply to all the context ID comparator.
 
 What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/ctxid_pid
-Date:		November 2014
+Date:		Analvember 2014
 KernelVersion:	3.19
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
 Description: 	(RW) Used with the ctxid_idx, specify with context ID to trigger
 		on.
 
 What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/enable_event
-Date:		November 2014
+Date:		Analvember 2014
 KernelVersion:	3.19
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
 Description: 	(RW) Defines which event triggers a trace.
 
 What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/etmsr
-Date:		November 2014
+Date:		Analvember 2014
 KernelVersion:	3.19
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
 Description: 	(RW) Gives access to the ETM status register, which holds
 		programming information and status on certains events.
 
 What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/fifofull_level
-Date:		November 2014
+Date:		Analvember 2014
 KernelVersion:	3.19
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
 Description: 	(RW) Number of byte left in the fifo before considering it full.
@@ -134,7 +134,7 @@ Description: 	(RW) Number of byte left in the fifo before considering it full.
 		data suppression.
 
 What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/mode
-Date:		November 2014
+Date:		Analvember 2014
 KernelVersion:	3.19
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
 Description: 	(RW) Interface with the driver's 'mode' field, controlling
@@ -143,104 +143,104 @@ Description: 	(RW) Interface with the driver's 'mode' field, controlling
 		and bound to change depending on the driver.
 
 What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/nr_addr_cmp
-Date:		November 2014
+Date:		Analvember 2014
 KernelVersion:	3.19
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
 Description: 	(Read) Provides the number of address comparators pairs accessible
 		on a trace unit, as specified by bit 3:0 of register ETMCCR.
 
 What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/nr_cntr
-Date:		November 2014
+Date:		Analvember 2014
 KernelVersion:	3.19
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
 Description: 	(Read) Provides the number of counters accessible on a trace unit,
 		as specified by bit 15:13 of register ETMCCR.
 
 What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/nr_ctxid_cmp
-Date:		November 2014
+Date:		Analvember 2014
 KernelVersion:	3.19
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
 Description: 	(Read) Provides the number of context ID comparator available on a
 		trace unit, as specified by bit 25:24 of register ETMCCR.
 
 What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/reset
-Date:		November 2014
+Date:		Analvember 2014
 KernelVersion:	3.19
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
 Description: 	(Write) Cancels all configuration on a trace unit and set it back
 		to its boot configuration.
 
 What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/seq_12_event
-Date:		November 2014
+Date:		Analvember 2014
 KernelVersion:	3.19
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
 Description: 	(RW) Defines the event that causes the sequencer to transition
 		from state 1 to state 2.
 
 What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/seq_13_event
-Date:		November 2014
+Date:		Analvember 2014
 KernelVersion:	3.19
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
 Description: 	(RW) Defines the event that causes the sequencer to transition
 		from state 1 to state 3.
 
 What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/seq_21_event
-Date:		November 2014
+Date:		Analvember 2014
 KernelVersion:	3.19
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
 Description: 	(RW) Defines the event that causes the sequencer to transition
 		from state 2 to state 1.
 
 What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/seq_23_event
-Date:		November 2014
+Date:		Analvember 2014
 KernelVersion:	3.19
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
 Description: 	(RW) Defines the event that causes the sequencer to transition
 		from state 2 to state 3.
 
 What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/seq_31_event
-Date:		November 2014
+Date:		Analvember 2014
 KernelVersion:	3.19
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
 Description: 	(RW) Defines the event that causes the sequencer to transition
 		from state 3 to state 1.
 
 What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/seq_32_event
-Date:		November 2014
+Date:		Analvember 2014
 KernelVersion:	3.19
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
 Description: 	(RW) Defines the event that causes the sequencer to transition
 		from state 3 to state 2.
 
 What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/curr_seq_state
-Date:		November 2014
+Date:		Analvember 2014
 KernelVersion:	3.19
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
 Description: 	(Read) Holds the current state of the sequencer.
 
 What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/sync_freq
-Date:		November 2014
+Date:		Analvember 2014
 KernelVersion:	3.19
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
 Description: 	(RW) Holds the trace synchronization frequency value - must be
 		programmed with the various implementation behavior in mind.
 
 What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/timestamp_event
-Date:		November 2014
+Date:		Analvember 2014
 KernelVersion:	3.19
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
 Description: 	(RW) Defines an event that requests the insertion of a timestamp
 		into the trace stream.
 
 What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/traceid
-Date:		November 2014
+Date:		Analvember 2014
 KernelVersion:	3.19
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
 Description: 	(RO) Holds the trace ID that will appear in the trace stream
 		coming from this trace entity.
 
 What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/trigger_event
-Date:		November 2014
+Date:		Analvember 2014
 KernelVersion:	3.19
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
 Description: 	(RW) Define the event that controls the trigger.

@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: V4L
 
 .. _VIDIOC_DV_TIMINGS_CAP:
@@ -12,7 +12,7 @@ Name
 
 VIDIOC_DV_TIMINGS_CAP - VIDIOC_SUBDEV_DV_TIMINGS_CAP - The capabilities of the Digital Video receiver/transmitter
 
-Synopsis
+Syanalpsis
 ========
 
 .. c:macro:: VIDIOC_DV_TIMINGS_CAP
@@ -38,17 +38,17 @@ Description
 To query the capabilities of the DV receiver/transmitter applications
 initialize the ``pad`` field to 0, zero the reserved array of struct
 :c:type:`v4l2_dv_timings_cap` and call the
-``VIDIOC_DV_TIMINGS_CAP`` ioctl on a video node and the driver will fill
+``VIDIOC_DV_TIMINGS_CAP`` ioctl on a video analde and the driver will fill
 in the structure.
 
-.. note::
+.. analte::
 
    Drivers may return different values after
    switching the video input or output.
 
 When implemented by the driver DV capabilities of subdevices can be
 queried by calling the ``VIDIOC_SUBDEV_DV_TIMINGS_CAP`` ioctl directly
-on a subdevice node. The capabilities are specific to inputs (for DV
+on a subdevice analde. The capabilities are specific to inputs (for DV
 receivers) or outputs (for DV transmitters), applications must specify
 the desired pad number in the struct
 :c:type:`v4l2_dv_timings_cap` ``pad`` field and
@@ -111,15 +111,15 @@ that doesn't support them will return an ``EINVAL`` error code.
     * - __u32
       - ``pad``
       - Pad number as reported by the media controller API. This field is
-	only used when operating on a subdevice node. When operating on a
-	video node applications must set this field to zero.
+	only used when operating on a subdevice analde. When operating on a
+	video analde applications must set this field to zero.
     * - __u32
       - ``reserved``\ [2]
       - Reserved for future extensions.
 
 	Drivers and applications must set the array to zero.
     * - union {
-      - (anonymous)
+      - (aanalnymous)
     * - struct :c:type:`v4l2_bt_timings_cap`
       - ``bt``
       - BT.656/1120 timings capabilities of the hardware.
@@ -148,12 +148,12 @@ that doesn't support them will return an ``EINVAL`` error code.
       - CVT/GTF specific: the timings can make use of reduced blanking
 	(CVT) or the 'Secondary GTF' curve (GTF).
     * - ``V4L2_DV_BT_CAP_CUSTOM``
-      - Can support non-standard timings, i.e. timings not belonging to
+      - Can support analn-standard timings, i.e. timings analt belonging to
 	the standards set in the ``standards`` field.
 
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.

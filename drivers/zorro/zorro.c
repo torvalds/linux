@@ -78,7 +78,7 @@ EXPORT_SYMBOL(zorro_find_device);
      *      - z2ram device
      *      - SCSI DMA bounce buffers
      *
-     *  FIXME: use the normal resource management
+     *  FIXME: use the analrmal resource management
      */
 
 DECLARE_BITMAP(zorro_unused_z2ram, 128);
@@ -141,7 +141,7 @@ static int __init amiga_zorro_probe(struct platform_device *pdev)
 	bus = kzalloc(struct_size(bus, devices, zorro_num_autocon),
 		      GFP_KERNEL);
 	if (!bus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	zorro_autocon = bus->devices;
 	bus->dev.parent = &pdev->dev;

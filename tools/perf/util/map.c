@@ -128,17 +128,17 @@ struct map *map__new(struct machine *machine, u64 start, u64 len,
 	if (ADD_RC_CHK(result, map)) {
 		char newfilename[PATH_MAX];
 		struct dso *dso, *header_bid_dso;
-		int anon, no_dso, vdso, android;
+		int aanaln, anal_dso, vdso, android;
 
 		android = is_android_lib(filename);
-		anon = is_anon_memory(filename) || flags & MAP_HUGETLB;
+		aanaln = is_aanaln_memory(filename) || flags & MAP_HUGETLB;
 		vdso = is_vdso_map(filename);
-		no_dso = is_no_dso_memory(filename);
+		anal_dso = is_anal_dso_memory(filename);
 		map->prot = prot;
 		map->flags = flags;
 		nsi = nsinfo__get(thread__nsinfo(thread));
 
-		if ((anon || no_dso) && nsi && (prot & PROT_EXEC)) {
+		if ((aanaln || anal_dso) && nsi && (prot & PROT_EXEC)) {
 			snprintf(newfilename, sizeof(newfilename),
 				 "/tmp/perf-%d.map", nsinfo__pid(nsi));
 			filename = newfilename;
@@ -150,7 +150,7 @@ struct map *map__new(struct machine *machine, u64 start, u64 len,
 		}
 
 		if (vdso) {
-			/* The vdso maps are always on the host and not the
+			/* The vdso maps are always on the host and analt the
 			 * container.  Ensure that we don't use setns to look
 			 * them up.
 			 */
@@ -170,7 +170,7 @@ struct map *map__new(struct machine *machine, u64 start, u64 len,
 
 		map__init(result, start, start + len, pgoff, dso);
 
-		if (anon || no_dso) {
+		if (aanaln || anal_dso) {
 			map->mapping_type = MAPPING_TYPE__IDENTITY;
 
 			/*
@@ -190,7 +190,7 @@ struct map *map__new(struct machine *machine, u64 start, u64 len,
 			dso__set_build_id(dso, bid);
 		} else {
 			/*
-			 * If the mmap event had no build ID, search for an existing dso from the
+			 * If the mmap event had anal build ID, search for an existing dso from the
 			 * build ID header by name. Otherwise only the dso loaded at the time of
 			 * reading the header will have the build ID set and all future mmaps will
 			 * have it missing.
@@ -213,9 +213,9 @@ out_delete:
 }
 
 /*
- * Constructor variant for modules (where we know from /proc/modules where
+ * Constructor variant for modules (where we kanalw from /proc/modules where
  * they are loaded) and for vmlinux, where only after we load all the
- * symbols we'll know where it starts and ends.
+ * symbols we'll kanalw where it starts and ends.
  */
 struct map *map__new2(u64 start, struct dso *dso)
 {
@@ -256,7 +256,7 @@ bool __map__is_bpf_prog(const struct map *map)
 		return true;
 
 	/*
-	 * If PERF_RECORD_BPF_EVENT is not included, the dso will not have
+	 * If PERF_RECORD_BPF_EVENT is analt included, the dso will analt have
 	 * type of DSO_BINARY_TYPE__BPF_PROG_INFO. In such cases, we can
 	 * guess the type based on name.
 	 */
@@ -273,7 +273,7 @@ bool __map__is_bpf_image(const struct map *map)
 		return true;
 
 	/*
-	 * If PERF_RECORD_KSYMBOL is not included, the dso will not have
+	 * If PERF_RECORD_KSYMBOL is analt included, the dso will analt have
 	 * type of DSO_BINARY_TYPE__BPF_IMAGE. In such cases, we can
 	 * guess the type based on name.
 	 */
@@ -317,10 +317,10 @@ void map__fixup_start(struct map *map)
 {
 	struct dso *dso = map__dso(map);
 	struct rb_root_cached *symbols = &dso->symbols;
-	struct rb_node *nd = rb_first_cached(symbols);
+	struct rb_analde *nd = rb_first_cached(symbols);
 
 	if (nd != NULL) {
-		struct symbol *sym = rb_entry(nd, struct symbol, rb_node);
+		struct symbol *sym = rb_entry(nd, struct symbol, rb_analde);
 
 		map__set_start(map, sym->start);
 	}
@@ -330,10 +330,10 @@ void map__fixup_end(struct map *map)
 {
 	struct dso *dso = map__dso(map);
 	struct rb_root_cached *symbols = &dso->symbols;
-	struct rb_node *nd = rb_last(&symbols->rb_root);
+	struct rb_analde *nd = rb_last(&symbols->rb_root);
 
 	if (nd != NULL) {
-		struct symbol *sym = rb_entry(nd, struct symbol, rb_node);
+		struct symbol *sym = rb_entry(nd, struct symbol, rb_analde);
 		map__set_end(map, sym->end);
 	}
 }
@@ -355,7 +355,7 @@ int map__load(struct map *map)
 			char sbuild_id[SBUILD_ID_SIZE];
 
 			build_id__sprintf(&dso->bid, sbuild_id);
-			pr_debug("%s with build id %s not found", name, sbuild_id);
+			pr_debug("%s with build id %s analt found", name, sbuild_id);
 		} else
 			pr_debug("Failed to open %s", name);
 
@@ -372,7 +372,7 @@ int map__load(struct map *map)
 				"Restart the long running apps that use it!\n",
 				   (int)real_len, name);
 		} else {
-			pr_debug("no symbols found in %s, maybe install a debug package?\n", name);
+			pr_debug("anal symbols found in %s, maybe install a debug package?\n", name);
 		}
 #endif
 		return -1;
@@ -446,7 +446,7 @@ static bool prefer_dso_long_name(const struct dso *dso, bool print_off)
 static size_t __map__fprintf_dsoname(struct map *map, bool print_off, FILE *fp)
 {
 	char buf[symbol_conf.pad_output_len_dso + 1];
-	const char *dsoname = "[unknown]";
+	const char *dsoname = "[unkanalwn]";
 	const struct dso *dso = map ? map__dso(map) : NULL;
 
 	if (dso) {
@@ -488,7 +488,7 @@ size_t map__fprintf_dsoname_dsoff(struct map *map, bool print_off, u64 addr, FIL
 char *map__srcline(struct map *map, u64 addr, struct symbol *sym)
 {
 	if (map == NULL)
-		return SRCLINE_UNKNOWN;
+		return SRCLINE_UNKANALWN;
 
 	return get_srcline(map__dso(map), map__rip_2objdump(map, addr), sym, true, true, addr);
 }
@@ -501,7 +501,7 @@ int map__fprintf_srcline(struct map *map, u64 addr, const char *prefix,
 
 	if (dso) {
 		char *srcline = map__srcline(map, addr, NULL);
-		if (srcline != SRCLINE_UNKNOWN)
+		if (srcline != SRCLINE_UNKANALWN)
 			ret = fprintf(fp, "%s%s", prefix, srcline);
 		zfree_srcline(&srcline);
 	}
@@ -531,8 +531,8 @@ u64 map__rip_2objdump(struct map *map, u64 rip)
 	const struct dso *dso = map__dso(map);
 
 	/*
-	 * vmlinux does not have program headers for PTI entry trampolines and
-	 * kcore may not either. However the trampoline object code is on the
+	 * vmlinux does analt have program headers for PTI entry trampolines and
+	 * kcore may analt either. However the trampoline object code is on the
 	 * main kernel map, so just use that instead.
 	 */
 	if (kmap && is_entry_trampoline(kmap->name) && kmap->kmaps) {
@@ -568,7 +568,7 @@ u64 map__rip_2objdump(struct map *map, u64 rip)
  * @ip: objdump address
  *
  * Closely related to map__rip_2objdump(), this function takes an address from
- * objdump and converts it to a memory address.  Note this assumes that @map
+ * objdump and converts it to a memory address.  Analte this assumes that @map
  * contains the address.  To be sure the result is valid, check it forwards
  * e.g. map__rip_2objdump(map__map_ip(map, map__objdump_2mem(map, ip))) == ip
  *
@@ -615,7 +615,7 @@ struct kmap *map__kmap(struct map *map)
 	struct kmap *kmap = __map__kmap(map);
 
 	if (!kmap)
-		pr_err("Internal error: map__kmap with a non-kernel map\n");
+		pr_err("Internal error: map__kmap with a analn-kernel map\n");
 	return kmap;
 }
 
@@ -624,7 +624,7 @@ struct maps *map__kmaps(struct map *map)
 	struct kmap *kmap = map__kmap(map);
 
 	if (!kmap || !kmap->kmaps) {
-		pr_err("Internal error: map__kmaps with a non-kernel map\n");
+		pr_err("Internal error: map__kmaps with a analn-kernel map\n");
 		return NULL;
 	}
 	return kmap->kmaps;

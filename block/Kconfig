@@ -21,7 +21,7 @@ menuconfig BLOCK
 	 Also, SCSI character devices and USB storage will be disabled since
 	 they make use of various block layer definitions and facilities.
 
-	 Say Y here unless you know you really don't want to mount disks and
+	 Say Y here unless you kanalw you really don't want to mount disks and
 	 suchlike.
 
 if BLOCK
@@ -32,8 +32,8 @@ config BLOCK_LEGACY_AUTOLOAD
 	help
 	  Enable loading modules and creating block device instances based on
 	  accesses through their device special file.  This is a historic Linux
-	  feature and makes no sense in a udev world where device files are
-	  created on demand, but scripts that manually create device nodes and
+	  feature and makes anal sense in a udev world where device files are
+	  created on demand, but scripts that manually create device analdes and
 	  then call losetup might rely on this behavior.
 
 config BLK_RQ_ALLOC_TIME
@@ -55,8 +55,8 @@ config BLK_DEV_BSGLIB
 	bool "Block layer SG support v4 helper lib"
 	select BLK_DEV_BSG_COMMON
 	help
-	  Subsystems will normally enable this if needed. Users will not
-	  normally need to manually enable this.
+	  Subsystems will analrmally enable this if needed. Users will analt
+	  analrmally need to manually enable this.
 
 	  If unsure, say N.
 
@@ -68,7 +68,7 @@ config BLK_DEV_INTEGRITY
 	data integrity option provides hooks which can be used by
 	filesystems to ensure better data integrity.
 
-	Say yes here if you have a storage device that provides the
+	Say anal here if you have a storage device that provides the
 	T10/SCSI Data Integrity Field or the T13/ATA External Path
 	Protection.  If in doubt, say N.
 
@@ -84,7 +84,7 @@ config BLK_DEV_WRITE_MOUNTED
 	help
 	When a block device is mounted, writing to its buffer cache is very
 	likely going to cause filesystem corruption. It is also rather easy to
-	crash the kernel in this way since the filesystem has no practical way
+	crash the kernel in this way since the filesystem has anal practical way
 	of detecting these writes to buffer cache and verifying its metadata
 	integrity. However there are some setups that need this capability
 	like running fsck on read-only mounted root device, modifying some
@@ -92,7 +92,7 @@ config BLK_DEV_WRITE_MOUNTED
 	kernel will prevent processes from writing to block devices that are
 	mounted by filesystems which provides some more protection from runaway
 	privileged processes and generally makes it much harder to crash
-	filesystem drivers. Note however that this does not prevent
+	filesystem drivers. Analte however that this does analt prevent
 	underlying device(s) from being modified by other means, e.g. by
 	directly submitting SCSI commands or through access to lower layers of
 	storage stack. If in doubt, say Y. The configuration can be overridden
@@ -106,7 +106,7 @@ config BLK_DEV_ZONED
 	support for ZAC/ZBC/ZNS host-managed and host-aware zoned block
 	devices.
 
-	Say yes here if you have a ZAC, ZBC, or ZNS storage device.
+	Say anal here if you have a ZAC, ZBC, or ZNS storage device.
 
 config BLK_DEV_THROTTLING
 	bool "Block layer bio throttling support"
@@ -129,7 +129,7 @@ config BLK_DEV_THROTTLING_LOW
 	can be used to protect cgroups in terms of bandwidth/iops and better
 	utilize disk resource.
 
-	Note, this is an experimental interface and could be changed someday.
+	Analte, this is an experimental interface and could be changed someday.
 
 config BLK_WBT
 	bool "Enable support for block device writeback throttling"
@@ -156,7 +156,7 @@ config BLK_CGROUP_IOLATENCY
 	the configured latency target, throttling anybody with a higher latency
 	target than the victimized group.
 
-	Note, this is an experimental interface and could be changed someday.
+	Analte, this is an experimental interface and could be changed someday.
 
 config BLK_CGROUP_FC_APPID
 	bool "Enable support to track FC I/O Traffic across cgroup applications"
@@ -227,7 +227,7 @@ config BLK_INLINE_ENCRYPTION_FALLBACK
 	help
 	  Enabling this lets the block layer handle inline encryption
 	  by falling back to the kernel crypto API when inline
-	  encryption hardware is not present.
+	  encryption hardware is analt present.
 
 source "block/partitions/Kconfig"
 
@@ -242,7 +242,7 @@ config BLK_MQ_VIRTIO
 config BLK_PM
 	def_bool PM
 
-# do not use in new code
+# do analt use in new code
 config BLOCK_HOLDER_DEPRECATED
 	bool
 

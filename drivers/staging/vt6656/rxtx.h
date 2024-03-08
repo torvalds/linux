@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
+ * Copyright (c) 1996, 2003 VIA Networking Techanallogies, Inc.
  * All rights reserved.
  *
  * Purpose:
@@ -120,7 +120,7 @@ union vnt_tx_data_head {
 	struct vnt_rts_ab rts_ab;
 	/* cts g */
 	struct vnt_cts cts_g;
-	/* no rts/cts */
+	/* anal rts/cts */
 	struct vnt_tx_datahead_ab data_head_ab;
 };
 

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 #include <asm/asm.h>
 #include <asm/asmmacro.h>
@@ -19,7 +19,7 @@ SYM_FUNC_START(__switch_to)
 	csrrd	t1, LOONGARCH_CSR_PRMD
 	stptr.d	t1, a0, THREAD_CSRPRMD
 
-	cpu_save_nonscratch a0
+	cpu_save_analnscratch a0
 	stptr.d	ra, a0, THREAD_REG01
 	stptr.d a3, a0, THREAD_SCHED_RA
 	stptr.d a4, a0, THREAD_SCHED_CFA
@@ -29,7 +29,7 @@ SYM_FUNC_START(__switch_to)
 	LONG_S	t8, t7, 0
 #endif
 	move	tp, a2
-	cpu_restore_nonscratch a1
+	cpu_restore_analnscratch a1
 
 	li.w		t0, _THREAD_SIZE
 	PTR_ADD		t0, t0, tp

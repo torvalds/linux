@@ -7,7 +7,7 @@
  * Various evolutions by Benjamin Herrenschmidt & Henry Worth
  */
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
@@ -73,7 +73,7 @@ static struct media_bay_info media_bays[MAX_BAYS];
 static int media_bay_count = 0;
 
 /*
- * Wait that number of ms between each step in normal polling mode
+ * Wait that number of ms between each step in analrmal polling mode
  */
 #define MB_POLL_DELAY	25
 
@@ -150,7 +150,7 @@ keylargo_mb_content(struct media_bay_info *bay)
 	new_gpio = MB_IN8(bay, KL_GPIO_MEDIABAY_IRQ) & KEYLARGO_GPIO_INPUT_DATA;
 	if (new_gpio) {
 		bay->cached_gpio = new_gpio;
-		return MB_NO;
+		return MB_ANAL;
 	} else if (bay->cached_gpio != new_gpio) {
 		MB_BIS(bay, KEYLARGO_MBCR, KL_MBCR_MB0_ENABLE);
 		(void)MB_IN32(bay, KEYLARGO_MBCR);
@@ -247,7 +247,7 @@ ohare_mb_setup_bus(struct media_bay_info* bay, u8 device_id)
 			MB_BIS(bay, OHARE_FCR, OH_BAY_PCI_ENABLE);
 			return 0;
 	}
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int
@@ -267,7 +267,7 @@ heathrow_mb_setup_bus(struct media_bay_info* bay, u8 device_id)
 			MB_BIS(bay, HEATHROW_FCR, HRW_BAY_PCI_ENABLE);
 			return 0;
 	}
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int
@@ -286,7 +286,7 @@ keylargo_mb_setup_bus(struct media_bay_info* bay, u8 device_id)
 			MB_BIS(bay, KEYLARGO_MBCR, KL_MBCR_MB0_SOUND_ENABLE);
 			return 0;
 	}
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 /*
@@ -329,10 +329,10 @@ static void keylargo_mb_un_reset_ide(struct media_bay_info* bay)
 	MB_BIS(bay, KEYLARGO_FCR1, KL1_EIDE0_RESET_N);
 }
 
-static inline void set_mb_power(struct media_bay_info* bay, int onoff)
+static inline void set_mb_power(struct media_bay_info* bay, int oanalff)
 {
 	/* Power up up and assert the bay reset line */
-	if (onoff) {
+	if (oanalff) {
 		bay->ops->power(bay, 1);
 		bay->state = mb_powering_up;
 		pr_debug("mediabay%d: powering up\n", bay->index);
@@ -355,7 +355,7 @@ static void poll_media_bay(struct media_bay_info* bay)
 		"an unsupported audio device",
 		"an ATA device",
 		"an unsupported PCI device",
-		"an unknown device",
+		"an unkanalwn device",
 	};
 
 	if (id != bay->last_value) {
@@ -369,18 +369,18 @@ static void poll_media_bay(struct media_bay_info* bay)
 	bay->value_count += msecs_to_jiffies(MB_POLL_DELAY);
 	if (bay->value_count >= msecs_to_jiffies(MB_STABLE_DELAY)) {
 		/* If the device type changes without going thru
-		 * "MB_NO", we force a pass by "MB_NO" to make sure
+		 * "MB_ANAL", we force a pass by "MB_ANAL" to make sure
 		 * things are properly reset
 		 */
-		if ((id != MB_NO) && (bay->content_id != MB_NO)) {
-			id = MB_NO;
-			pr_debug("mediabay%d: forcing MB_NO\n", bay->index);
+		if ((id != MB_ANAL) && (bay->content_id != MB_ANAL)) {
+			id = MB_ANAL;
+			pr_debug("mediabay%d: forcing MB_ANAL\n", bay->index);
 		}
 		pr_debug("mediabay%d: switching to %d\n", bay->index, id);
-		set_mb_power(bay, id != MB_NO);
+		set_mb_power(bay, id != MB_ANAL);
 		bay->content_id = id;
-		if (id >= MB_NO || id < 0)
-			printk(KERN_INFO "mediabay%d: Bay is now empty\n", bay->index);
+		if (id >= MB_ANAL || id < 0)
+			printk(KERN_INFO "mediabay%d: Bay is analw empty\n", bay->index);
 		else
 			printk(KERN_INFO "mediabay%d: Bay contains %s\n",
 			       bay->index, mb_content_types[id]);
@@ -393,19 +393,19 @@ int check_media_bay(struct macio_dev *baydev)
 	int id;
 
 	if (baydev == NULL)
-		return MB_NO;
+		return MB_ANAL;
 
-	/* This returns an instant snapshot, not locking, sine
+	/* This returns an instant snapshot, analt locking, sine
 	 * we may be called with the bay lock held. The resulting
 	 * fuzzyness of the result if called at the wrong time is
-	 * not actually a huge deal
+	 * analt actually a huge deal
 	 */
 	bay = macio_get_drvdata(baydev);
 	if (bay == NULL)
-		return MB_NO;
+		return MB_ANAL;
 	id = bay->content_id;
 	if (bay->state != mb_up)
-		return MB_NO;
+		return MB_ANAL;
 	if (id == MB_FD1)
 		return MB_FD;
 	return id;
@@ -452,7 +452,7 @@ static int mb_broadcast_hotplug(struct device *dev, void *data)
 	if (dev->bus != &macio_bus_type)
 		return 0;
 
-	state = bay->state == mb_up ? bay->content_id : MB_NO;
+	state = bay->state == mb_up ? bay->content_id : MB_ANAL;
 	if (state == MB_FD1)
 		state = MB_FD;
 	mdev = to_macio_device(dev);
@@ -481,7 +481,7 @@ static void media_bay_step(int i)
 	switch(bay->state) {
 	case mb_powering_up:
 	    	if (bay->ops->setup_bus(bay, bay->last_value) < 0) {
-			pr_debug("mediabay%d: device not supported (kind:%d)\n",
+			pr_debug("mediabay%d: device analt supported (kind:%d)\n",
 				 i, bay->content_id);
 	    		set_mb_power(bay, 0);
 	    		break;
@@ -557,25 +557,25 @@ static int media_bay_attach(struct macio_dev *mdev,
 {
 	struct media_bay_info* bay;
 	u32 __iomem *regbase;
-	struct device_node *ofnode;
+	struct device_analde *ofanalde;
 	unsigned long base;
 	int i;
 
-	ofnode = mdev->ofdev.dev.of_node;
+	ofanalde = mdev->ofdev.dev.of_analde;
 
 	if (macio_resource_count(mdev) < 1)
-		return -ENODEV;
+		return -EANALDEV;
 	if (macio_request_resources(mdev, "media-bay"))
 		return -EBUSY;
 	/* Media bay registers are located at the beginning of the
-         * mac-io chip, for now, we trick and align down the first
+         * mac-io chip, for analw, we trick and align down the first
 	 * resource passed in
          */
 	base = macio_resource_start(mdev, 0) & 0xffff0000u;
 	regbase = (u32 __iomem *)ioremap(base, 0x100);
 	if (regbase == NULL) {
 		macio_release_resources(mdev);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	
 	i = media_bay_count++;
@@ -596,7 +596,7 @@ static int media_bay_attach(struct macio_dev *mdev,
 	/* Force an immediate detect */
 	set_mb_power(bay, 0);
 	msleep(MB_POWER_DELAY);
-	bay->content_id = MB_NO;
+	bay->content_id = MB_ANAL;
 	bay->last_value = bay->ops->content(bay);
 	bay->value_count = msecs_to_jiffies(MB_STABLE_DELAY);
 	bay->state = mb_empty;
@@ -636,7 +636,7 @@ static int media_bay_resume(struct macio_dev *mdev)
 		mdev->ofdev.dev.power.power_state = PMSG_ON;
 
 	       	/* We re-enable the bay using it's previous content
-	       	   only if it did not change. Note those bozo timings,
+	       	   only if it did analt change. Analte those bozo timings,
 	       	   they seem to help the 3400 get it right.
 	       	 */
 	       	/* Force MB power to 0 */

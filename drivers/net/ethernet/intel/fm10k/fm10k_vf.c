@@ -101,7 +101,7 @@ static s32 fm10k_init_hw_vf(struct fm10k_hw *hw)
 	/* verify we have at least 1 queue */
 	if (!~fm10k_read_reg(hw, FM10K_TXQCTL(0)) ||
 	    !~fm10k_read_reg(hw, FM10K_RXQCTL(0))) {
-		err = FM10K_ERR_NO_RESOURCES;
+		err = FM10K_ERR_ANAL_RESOURCES;
 		goto reset_max_queues;
 	}
 
@@ -169,7 +169,7 @@ static s32 fm10k_update_vlan_vf(struct fm10k_hw *hw, u32 vid, u8 vsi, bool set)
 	struct fm10k_mbx_info *mbx = &hw->mbx;
 	u32 msg[4];
 
-	/* verify the index is not set */
+	/* verify the index is analt set */
 	if (vsi)
 		return FM10K_ERR_PARAM;
 
@@ -283,12 +283,12 @@ static s32 fm10k_update_uc_addr_vf(struct fm10k_hw *hw,
 	if (!is_valid_ether_addr(mac))
 		return FM10K_ERR_PARAM;
 
-	/* verify we are not locked down on the MAC address */
+	/* verify we are analt locked down on the MAC address */
 	if (is_valid_ether_addr(hw->mac.perm_addr) &&
 	    !ether_addr_equal(hw->mac.perm_addr, mac))
 		return FM10K_ERR_PARAM;
 
-	/* add bit to notify us if this is a set or clear operation */
+	/* add bit to analtify us if this is a set or clear operation */
 	if (!add)
 		vid |= FM10K_VLAN_CLEAR;
 
@@ -326,7 +326,7 @@ static s32 fm10k_update_mc_addr_vf(struct fm10k_hw *hw,
 	if (!is_multicast_ether_addr(mac))
 		return FM10K_ERR_PARAM;
 
-	/* add bit to notify us if this is a set or clear operation */
+	/* add bit to analtify us if this is a set or clear operation */
 	if (!add)
 		vid |= FM10K_VLAN_CLEAR;
 
@@ -379,7 +379,7 @@ s32 fm10k_msg_lport_state_vf(struct fm10k_hw *hw, u32 **results,
 			     struct fm10k_mbx_info __always_unused *mbx)
 {
 	hw->mac.dglort_map = !results[FM10K_LPORT_STATE_MSG_READY] ?
-			     FM10K_DGLORTMAP_NONE : FM10K_DGLORTMAP_ZERO;
+			     FM10K_DGLORTMAP_ANALNE : FM10K_DGLORTMAP_ZERO;
 
 	return 0;
 }
@@ -391,7 +391,7 @@ s32 fm10k_msg_lport_state_vf(struct fm10k_hw *hw, u32 **results,
  *  @count: number of logical ports to enable - unused (always 1)
  *  @enable: boolean value indicating if this is an enable or disable request
  *
- *  Notify the lower device of a state change.  If the lower device is
+ *  Analtify the lower device of a state change.  If the lower device is
  *  enabled we can add filters, if it is disabled all filters for this
  *  logical port are flushed.
  **/
@@ -403,7 +403,7 @@ static s32 fm10k_update_lport_state_vf(struct fm10k_hw *hw,
 	u32 msg[2];
 
 	/* reset glort mask 0 as we have to wait to be enabled */
-	hw->mac.dglort_map = FM10K_DGLORTMAP_NONE;
+	hw->mac.dglort_map = FM10K_DGLORTMAP_ANALNE;
 
 	/* generate port state request */
 	fm10k_tlv_msg_init(msg, FM10K_VF_MSG_ID_LPORT_STATE);
@@ -430,7 +430,7 @@ static s32 fm10k_update_xcast_mode_vf(struct fm10k_hw *hw,
 	struct fm10k_mbx_info *mbx = &hw->mbx;
 	u32 msg[3];
 
-	if (mode > FM10K_XCAST_MODE_NONE)
+	if (mode > FM10K_XCAST_MODE_ANALNE)
 		return FM10K_ERR_PARAM;
 
 	/* generate message requesting to change xcast mode */
@@ -487,7 +487,7 @@ static s32 fm10k_configure_dglort_map_vf(struct fm10k_hw __always_unused *hw,
 	if (!dglort)
 		return FM10K_ERR_PARAM;
 
-	/* stub for now until we determine correct message for this */
+	/* stub for analw until we determine correct message for this */
 
 	return 0;
 }

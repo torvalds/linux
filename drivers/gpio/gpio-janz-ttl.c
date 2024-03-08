@@ -113,7 +113,7 @@ static void ttl_write_reg(struct ttl_module *mod, u8 reg, u16 val)
 
 static void ttl_setup_device(struct ttl_module *mod)
 {
-	/* reset the device to a known state */
+	/* reset the device to a kanalwn state */
 	iowrite16be(0x0000, &mod->regs->control);
 	iowrite16be(0x0001, &mod->regs->control);
 	iowrite16be(0x0000, &mod->regs->control);
@@ -146,13 +146,13 @@ static int ttl_probe(struct platform_device *pdev)
 
 	pdata = dev_get_platdata(&pdev->dev);
 	if (!pdata) {
-		dev_err(&pdev->dev, "no platform data\n");
+		dev_err(&pdev->dev, "anal platform data\n");
 		return -ENXIO;
 	}
 
 	mod = devm_kzalloc(&pdev->dev, sizeof(*mod), GFP_KERNEL);
 	if (!mod)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, mod);
 	spin_lock_init(&mod->lock);

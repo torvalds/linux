@@ -67,8 +67,8 @@
 /* SDRAM Controller registers */
 #define AT91_MC_SDRAMC_MR		0x90
 #define AT91_MC_SDRAMC_MODE		GENMASK(3, 0)
-#define AT91_MC_SDRAMC_MODE_NORMAL	(0 << 0)
-#define AT91_MC_SDRAMC_MODE_NOP		(1 << 0)
+#define AT91_MC_SDRAMC_MODE_ANALRMAL	(0 << 0)
+#define AT91_MC_SDRAMC_MODE_ANALP		(1 << 0)
 #define AT91_MC_SDRAMC_MODE_PRECHARGE	(2 << 0)
 #define AT91_MC_SDRAMC_MODE_LMR		(3 << 0)
 #define AT91_MC_SDRAMC_MODE_REFRESH	(4 << 0)
@@ -123,7 +123,7 @@
 #define AT91_MC_BFC_BFCC_DIV4		(3 << 2)
 #define AT91_MC_BFC_AVL			GENMASK(7,  4)
 #define AT91_MC_BFC_PAGES		GENMASK(10, 8)
-#define AT91_MC_BFC_PAGES_NO_PAGE	(0 << 8)
+#define AT91_MC_BFC_PAGES_ANAL_PAGE	(0 << 8)
 #define AT91_MC_BFC_PAGES_16		(1 << 8)
 #define AT91_MC_BFC_PAGES_32		(2 << 8)
 #define AT91_MC_BFC_PAGES_64		(3 << 8)

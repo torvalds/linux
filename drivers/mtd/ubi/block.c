@@ -5,7 +5,7 @@
  *
  * Driver parameter handling strongly based on drivers/mtd/ubi/build.c
  *   Copyright (c) International Business Machines Corp., 2006
- *   Copyright (c) Nokia Corporation, 2007
+ *   Copyright (c) Analkia Corporation, 2007
  *   Authors: Artem Bityutskiy, Frank Haverkamp
  */
 
@@ -87,8 +87,8 @@ struct ubiblock {
 
 /* Linked list of all ubiblock instances */
 static LIST_HEAD(ubiblock_devices);
-static DEFINE_IDR(ubiblock_minor_idr);
-/* Protects ubiblock_devices and ubiblock_minor_idr */
+static DEFINE_IDR(ubiblock_mianalr_idr);
+/* Protects ubiblock_devices and ubiblock_mianalr_idr */
 static DEFINE_MUTEX(devices_mutex);
 static int ubiblock_major;
 
@@ -107,7 +107,7 @@ static int __init ubiblock_set_param(const char *val,
 
 	len = strnlen(val, UBIBLOCK_PARAM_LEN);
 	if (len == 0) {
-		pr_warn("UBI: block: empty 'block=' parameter - ignored\n");
+		pr_warn("UBI: block: empty 'block=' parameter - iganalred\n");
 		return 0;
 	}
 
@@ -158,7 +158,7 @@ static const struct kernel_param_ops ubiblock_param_ops = {
 module_param_cb(block, &ubiblock_param_ops, NULL, 0);
 MODULE_PARM_DESC(block, "Attach block devices to UBI volumes. Parameter format: block=<path|dev,num|dev,name>.\n"
 			"Multiple \"block\" parameters may be specified.\n"
-			"UBI volumes may be specified by their number, name, or path to the device node.\n"
+			"UBI volumes may be specified by their number, name, or path to the device analde.\n"
 			"Examples\n"
 			"Using the UBI volume path:\n"
 			"ubi.block=/dev/ubi0_0\n"
@@ -167,7 +167,7 @@ MODULE_PARM_DESC(block, "Attach block devices to UBI volumes. Parameter format: 
 			"Using both UBI device number and UBI volume number:\n"
 			"ubi.block=0,0\n");
 
-static struct ubiblock *find_dev_nolock(int ubi_num, int vol_id)
+static struct ubiblock *find_dev_anallock(int ubi_num, int vol_id)
 {
 	struct ubiblock *dev;
 
@@ -194,7 +194,7 @@ static blk_status_t ubiblock_read(struct request *req)
 	blk_mq_start_request(req);
 
 	/*
-	 * It is safe to ignore the return value of blk_rq_map_sg() because
+	 * It is safe to iganalre the return value of blk_rq_map_sg() because
 	 * the number of sg entries is limited to UBI_MAX_SG_COUNT
 	 * and ubi_read_sg() will check that limit.
 	 */
@@ -222,7 +222,7 @@ static blk_status_t ubiblock_read(struct request *req)
 	rq_for_each_segment(bvec, req, iter)
 		flush_dcache_page(bvec.bv_page);
 
-	blk_mq_end_request(req, errno_to_blk_status(ret));
+	blk_mq_end_request(req, erranal_to_blk_status(ret));
 
 	return BLK_STS_OK;
 }
@@ -243,7 +243,7 @@ static int ubiblock_open(struct gendisk *disk, blk_mode_t mode)
 
 	/*
 	 * We want users to be aware they should only mount us as read-only.
-	 * It's just a paranoid check, as write requests will get rejected
+	 * It's just a paraanalid check, as write requests will get rejected
 	 * in any case.
 	 */
 	if (mode & BLK_OPEN_WRITE) {
@@ -312,7 +312,7 @@ static blk_status_t ubiblock_queue_rq(struct blk_mq_hw_ctx *hctx,
 
 static int ubiblock_init_request(struct blk_mq_tag_set *set,
 		struct request *req, unsigned int hctx_idx,
-		unsigned int numa_node)
+		unsigned int numa_analde)
 {
 	struct ubiblock_pdu *pdu = blk_mq_rq_to_pdu(req);
 
@@ -331,10 +331,10 @@ static int calc_disk_capacity(struct ubi_volume_info *vi, u64 *disk_capacity)
 
 	if (vi->used_bytes % 512) {
 		if (vi->vol_type == UBI_DYNAMIC_VOLUME)
-			pr_warn("UBI: block: volume size is not a multiple of 512, last %llu bytes are ignored!\n",
+			pr_warn("UBI: block: volume size is analt a multiple of 512, last %llu bytes are iganalred!\n",
 				vi->used_bytes - (size << 9));
 		else
-			pr_info("UBI: block: volume size is not a multiple of 512, last %llu bytes are ignored!\n",
+			pr_info("UBI: block: volume size is analt a multiple of 512, last %llu bytes are iganalred!\n",
 				vi->used_bytes - (size << 9));
 	}
 
@@ -360,14 +360,14 @@ int ubiblock_create(struct ubi_volume_info *vi)
 
 	/* Check that the volume isn't already handled */
 	mutex_lock(&devices_mutex);
-	if (find_dev_nolock(vi->ubi_num, vi->vol_id)) {
+	if (find_dev_anallock(vi->ubi_num, vi->vol_id)) {
 		ret = -EEXIST;
 		goto out_unlock;
 	}
 
 	dev = kzalloc(sizeof(struct ubiblock), GFP_KERNEL);
 	if (!dev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_unlock;
 	}
 
@@ -379,7 +379,7 @@ int ubiblock_create(struct ubi_volume_info *vi)
 
 	dev->tag_set.ops = &ubiblock_mq_ops;
 	dev->tag_set.queue_depth = 64;
-	dev->tag_set.numa_node = NUMA_NO_NODE;
+	dev->tag_set.numa_analde = NUMA_ANAL_ANALDE;
 	dev->tag_set.flags = BLK_MQ_F_SHOULD_MERGE | BLK_MQ_F_BLOCKING;
 	dev->tag_set.cmd_size = sizeof(struct ubiblock_pdu);
 	dev->tag_set.driver_data = dev;
@@ -401,15 +401,15 @@ int ubiblock_create(struct ubi_volume_info *vi)
 
 	gd->fops = &ubiblock_ops;
 	gd->major = ubiblock_major;
-	gd->minors = 1;
-	gd->first_minor = idr_alloc(&ubiblock_minor_idr, dev, 0, 0, GFP_KERNEL);
-	if (gd->first_minor < 0) {
+	gd->mianalrs = 1;
+	gd->first_mianalr = idr_alloc(&ubiblock_mianalr_idr, dev, 0, 0, GFP_KERNEL);
+	if (gd->first_mianalr < 0) {
 		dev_err(disk_to_dev(gd),
-			"block: dynamic minor allocation failed");
-		ret = -ENODEV;
+			"block: dynamic mianalr allocation failed");
+		ret = -EANALDEV;
 		goto out_cleanup_disk;
 	}
-	gd->flags |= GENHD_FL_NO_PART;
+	gd->flags |= GENHD_FL_ANAL_PART;
 	gd->private_data = dev;
 	sprintf(gd->disk_name, "ubiblock%d_%d", dev->ubi_num, dev->vol_id);
 	set_capacity(gd, disk_capacity);
@@ -420,19 +420,19 @@ int ubiblock_create(struct ubi_volume_info *vi)
 
 	list_add_tail(&dev->list, &ubiblock_devices);
 
-	/* Must be the last step: anyone can call file ops from now on */
+	/* Must be the last step: anyone can call file ops from analw on */
 	ret = device_add_disk(vi->dev, dev->gd, NULL);
 	if (ret)
-		goto out_remove_minor;
+		goto out_remove_mianalr;
 
 	dev_info(disk_to_dev(dev->gd), "created from ubi%d:%d(%s)",
 		 dev->ubi_num, dev->vol_id, vi->name);
 	mutex_unlock(&devices_mutex);
 	return 0;
 
-out_remove_minor:
+out_remove_mianalr:
 	list_del(&dev->list);
-	idr_remove(&ubiblock_minor_idr, gd->first_minor);
+	idr_remove(&ubiblock_mianalr_idr, gd->first_mianalr);
 out_cleanup_disk:
 	put_disk(gd);
 out_free_tags:
@@ -447,7 +447,7 @@ out_unlock:
 
 static void ubiblock_cleanup(struct ubiblock *dev)
 {
-	int id = dev->gd->first_minor;
+	int id = dev->gd->first_mianalr;
 
 	/* Stop new requests to arrive */
 	del_gendisk(dev->gd);
@@ -455,7 +455,7 @@ static void ubiblock_cleanup(struct ubiblock *dev)
 	dev_info(disk_to_dev(dev->gd), "released");
 	put_disk(dev->gd);
 	blk_mq_free_tag_set(&dev->tag_set);
-	idr_remove(&ubiblock_minor_idr, id);
+	idr_remove(&ubiblock_mianalr_idr, id);
 }
 
 int ubiblock_remove(struct ubi_volume_info *vi)
@@ -464,9 +464,9 @@ int ubiblock_remove(struct ubi_volume_info *vi)
 	int ret;
 
 	mutex_lock(&devices_mutex);
-	dev = find_dev_nolock(vi->ubi_num, vi->vol_id);
+	dev = find_dev_anallock(vi->ubi_num, vi->vol_id);
 	if (!dev) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out_unlock;
 	}
 
@@ -505,10 +505,10 @@ static int ubiblock_resize(struct ubi_volume_info *vi)
 	 * 'ubiblock_remove()'.
 	 */
 	mutex_lock(&devices_mutex);
-	dev = find_dev_nolock(vi->ubi_num, vi->vol_id);
+	dev = find_dev_anallock(vi->ubi_num, vi->vol_id);
 	if (!dev) {
 		mutex_unlock(&devices_mutex);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = calc_disk_capacity(vi, &disk_capacity);
@@ -516,7 +516,7 @@ static int ubiblock_resize(struct ubi_volume_info *vi)
 		mutex_unlock(&devices_mutex);
 		if (ret == -EFBIG) {
 			dev_warn(disk_to_dev(dev->gd),
-				 "the volume is too big (%d LEBs), cannot resize",
+				 "the volume is too big (%d LEBs), cananalt resize",
 				 vi->size);
 		}
 		return ret;
@@ -534,16 +534,16 @@ static int ubiblock_resize(struct ubi_volume_info *vi)
 	return 0;
 }
 
-static int ubiblock_notify(struct notifier_block *nb,
-			 unsigned long notification_type, void *ns_ptr)
+static int ubiblock_analtify(struct analtifier_block *nb,
+			 unsigned long analtification_type, void *ns_ptr)
 {
-	struct ubi_notification *nt = ns_ptr;
+	struct ubi_analtification *nt = ns_ptr;
 
-	switch (notification_type) {
+	switch (analtification_type) {
 	case UBI_VOLUME_ADDED:
 		/*
 		 * We want to enforce explicit block device creation for
-		 * volumes, so when a volume is added we do nothing.
+		 * volumes, so when a volume is added we do analthing.
 		 */
 		break;
 	case UBI_VOLUME_REMOVED:
@@ -563,21 +563,21 @@ static int ubiblock_notify(struct notifier_block *nb,
 	default:
 		break;
 	}
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block ubiblock_notifier = {
-	.notifier_call = ubiblock_notify,
+static struct analtifier_block ubiblock_analtifier = {
+	.analtifier_call = ubiblock_analtify,
 };
 
 static struct ubi_volume_desc * __init
 open_volume_desc(const char *name, int ubi_num, int vol_id)
 {
 	if (ubi_num == -1)
-		/* No ubi num, name must be a vol device path */
+		/* Anal ubi num, name must be a vol device path */
 		return ubi_open_volume_path(name, UBI_READONLY);
 	else if (vol_id == -1)
-		/* No vol_id, must be vol_name */
+		/* Anal vol_id, must be vol_name */
 		return ubi_open_volume_nm(ubi_num, name, UBI_READONLY);
 	else
 		return ubi_open_volume(ubi_num, vol_id, UBI_READONLY);
@@ -653,10 +653,10 @@ int __init ubiblock_init(void)
 	ubiblock_create_from_param();
 
 	/*
-	 * Block devices are only created upon user requests, so we ignore
+	 * Block devices are only created upon user requests, so we iganalre
 	 * existing volumes.
 	 */
-	ret = ubi_register_volume_notifier(&ubiblock_notifier, 1);
+	ret = ubi_register_volume_analtifier(&ubiblock_analtifier, 1);
 	if (ret)
 		goto err_unreg;
 	return 0;
@@ -669,7 +669,7 @@ err_unreg:
 
 void __exit ubiblock_exit(void)
 {
-	ubi_unregister_volume_notifier(&ubiblock_notifier);
+	ubi_unregister_volume_analtifier(&ubiblock_analtifier);
 	ubiblock_remove_all();
 	unregister_blkdev(ubiblock_major, "ubiblock");
 }

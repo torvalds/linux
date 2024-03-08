@@ -22,7 +22,7 @@
 #define OHCI1394_HCControlSet                 0x050
 #define OHCI1394_HCControlClear               0x054
 #define  OHCI1394_HCControl_BIBimageValid	0x80000000
-#define  OHCI1394_HCControl_noByteSwapData	0x40000000
+#define  OHCI1394_HCControl_analByteSwapData	0x40000000
 #define  OHCI1394_HCControl_programPhyEnable	0x00800000
 #define  OHCI1394_HCControl_aPhyEnhanceEnable	0x00400000
 #define  OHCI1394_HCControl_LPS			0x00080000
@@ -59,18 +59,18 @@
 #define   OHCI1394_LinkControl_cycleTimerEnable	(1 << 20)
 #define   OHCI1394_LinkControl_cycleMaster	(1 << 21)
 #define   OHCI1394_LinkControl_cycleSource	(1 << 22)
-#define OHCI1394_NodeID                       0x0E8
-#define   OHCI1394_NodeID_idValid             0x80000000
-#define   OHCI1394_NodeID_root                0x40000000
-#define   OHCI1394_NodeID_nodeNumber          0x0000003f
-#define   OHCI1394_NodeID_busNumber           0x0000ffc0
+#define OHCI1394_AnaldeID                       0x0E8
+#define   OHCI1394_AnaldeID_idValid             0x80000000
+#define   OHCI1394_AnaldeID_root                0x40000000
+#define   OHCI1394_AnaldeID_analdeNumber          0x0000003f
+#define   OHCI1394_AnaldeID_busNumber           0x0000ffc0
 #define OHCI1394_PhyControl                   0x0EC
 #define   OHCI1394_PhyControl_Read(addr)	(((addr) << 8) | 0x00008000)
 #define   OHCI1394_PhyControl_ReadDone		0x80000000
 #define   OHCI1394_PhyControl_ReadData(r)	(((r) & 0x00ff0000) >> 16)
 #define   OHCI1394_PhyControl_Write(addr, data)	(((addr) << 8) | (data) | 0x00004000)
 #define   OHCI1394_PhyControl_WritePending	0x00004000
-#define OHCI1394_IsochronousCycleTimer        0x0F0
+#define OHCI1394_IsochroanalusCycleTimer        0x0F0
 #define OHCI1394_AsReqFilterHiSet             0x100
 #define OHCI1394_AsReqFilterHiClear           0x104
 #define OHCI1394_AsReqFilterLoSet             0x108
@@ -101,13 +101,13 @@
 #define OHCI1394_AsRspRcvContextControlClear  0x1E4
 #define OHCI1394_AsRspRcvCommandPtr           0x1EC
 
-/* Isochronous transmit registers */
+/* Isochroanalus transmit registers */
 #define OHCI1394_IsoXmitContextBase(n)           (0x200 + 16 * (n))
 #define OHCI1394_IsoXmitContextControlSet(n)     (0x200 + 16 * (n))
 #define OHCI1394_IsoXmitContextControlClear(n)   (0x204 + 16 * (n))
 #define OHCI1394_IsoXmitCommandPtr(n)            (0x20C + 16 * (n))
 
-/* Isochronous receive registers */
+/* Isochroanalus receive registers */
 #define OHCI1394_IsoRcvContextBase(n)         (0x400 + 32 * (n))
 #define OHCI1394_IsoRcvContextControlSet(n)   (0x400 + 32 * (n))
 #define OHCI1394_IsoRcvContextControlClear(n) (0x404 + 32 * (n))
@@ -138,7 +138,7 @@
 #define OHCI1394_phyRegRcvd		0x04000000
 #define OHCI1394_masterIntEnable	0x80000000
 
-#define OHCI1394_evt_no_status		0x0
+#define OHCI1394_evt_anal_status		0x0
 #define OHCI1394_evt_long_packet	0x2
 #define OHCI1394_evt_missing_ack	0x3
 #define OHCI1394_evt_underrun		0x4
@@ -151,7 +151,7 @@
 #define OHCI1394_evt_tcode_err		0xb
 #define OHCI1394_evt_reserved_b		0xc
 #define OHCI1394_evt_reserved_c		0xd
-#define OHCI1394_evt_unknown		0xe
+#define OHCI1394_evt_unkanalwn		0xe
 #define OHCI1394_evt_flushed		0xf
 
 #define OHCI1394_phy_tcode		0xe

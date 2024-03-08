@@ -6,7 +6,7 @@ Required properties:
 - power-gpios		GPIO to power on the device
 - reset-gpios		GPIO to reset the device
 - motorola,mode-gpios	Two GPIOs to configure MDM6600 USB start-up mode for
-			normal mode versus USB flashing mode
+			analrmal mode versus USB flashing mode
 - motorola,cmd-gpios	Three GPIOs to control the power state of the MDM6600
 - motorola,status-gpios	Three GPIOs to read the power state of the MDM6600
 

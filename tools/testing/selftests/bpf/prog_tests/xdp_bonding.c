@@ -117,7 +117,7 @@ static int xdp_attach(struct skeletons *skeletons, struct bpf_program *prog, cha
 }
 
 enum {
-	BOND_ONE_NO_ATTACH = 0,
+	BOND_ONE_ANAL_ATTACH = 0,
 	BOND_BOTH_AND_ATTACH,
 };
 
@@ -148,16 +148,16 @@ static int bonding_setup(struct skeletons *skeletons, int mode, int xmit_policy,
 
 	SYS(fail, "ip link add bond1 type bond mode %s xmit_hash_policy %s",
 	    mode_names[mode], xmit_policy_names[xmit_policy]);
-	SYS(fail, "ip link set bond1 up address " BOND1_MAC_STR " addrgenmode none");
+	SYS(fail, "ip link set bond1 up address " BOND1_MAC_STR " addrgenmode analne");
 	SYS(fail, "ip -netns ns_dst link add bond2 type bond mode %s xmit_hash_policy %s",
 	    mode_names[mode], xmit_policy_names[xmit_policy]);
-	SYS(fail, "ip -netns ns_dst link set bond2 up address " BOND2_MAC_STR " addrgenmode none");
+	SYS(fail, "ip -netns ns_dst link set bond2 up address " BOND2_MAC_STR " addrgenmode analne");
 
 	SYS(fail, "ip link set veth1_1 master bond1");
 	if (bond_both_attach == BOND_BOTH_AND_ATTACH) {
 		SYS(fail, "ip link set veth1_2 master bond1");
 	} else {
-		SYS(fail, "ip link set veth1_2 up addrgenmode none");
+		SYS(fail, "ip link set veth1_2 up addrgenmode analne");
 
 		if (xdp_attach(skeletons, skeletons->xdp_dummy->progs.xdp_dummy_prog, "veth1_2"))
 			return -1;
@@ -168,7 +168,7 @@ static int bonding_setup(struct skeletons *skeletons, int mode, int xmit_policy,
 	if (bond_both_attach == BOND_BOTH_AND_ATTACH)
 		SYS(fail, "ip -netns ns_dst link set veth2_2 master bond2");
 	else
-		SYS(fail, "ip -netns ns_dst link set veth2_2 up addrgenmode none");
+		SYS(fail, "ip -netns ns_dst link set veth2_2 up addrgenmode analne");
 
 	/* Load a dummy program on sending side as with veth peer needs to have a
 	 * XDP program loaded as well.
@@ -335,11 +335,11 @@ static void test_xdp_bonding_redirect_multi(struct skeletons *skeletons)
 	int err;
 
 	if (bonding_setup(skeletons, BOND_MODE_ROUNDROBIN, BOND_XMIT_POLICY_LAYER23,
-			  BOND_ONE_NO_ATTACH))
+			  BOND_ONE_ANAL_ATTACH))
 		goto out;
 
 
-	if (!ASSERT_OK(setns_by_name("ns_dst"), "could not set netns to ns_dst"))
+	if (!ASSERT_OK(setns_by_name("ns_dst"), "could analt set netns to ns_dst"))
 		goto out;
 
 	/* populate the devmap with the relevant interfaces */
@@ -347,7 +347,7 @@ static void test_xdp_bonding_redirect_multi(struct skeletons *skeletons)
 		int ifindex = if_nametoindex(ifaces[i]);
 		int map_fd = bpf_map__fd(skeletons->xdp_redirect_multi_kern->maps.map_all);
 
-		if (!ASSERT_GT(ifindex, 0, "could not get interface index"))
+		if (!ASSERT_GT(ifindex, 0, "could analt get interface index"))
 			goto out;
 
 		err = bpf_map_update_elem(map_fd, &ifindex, &ifindex, 0);
@@ -368,7 +368,7 @@ static void test_xdp_bonding_redirect_multi(struct skeletons *skeletons)
 	veth1_1_rx = get_rx_packets("veth1_1");
 	veth1_2_rx = get_rx_packets("veth1_2");
 
-	ASSERT_EQ(veth1_1_rx, 0, "expected no packets on veth1_1");
+	ASSERT_EQ(veth1_1_rx, 0, "expected anal packets on veth1_1");
 	ASSERT_GE(veth1_2_rx, NPACKETS, "expected packets on veth1_2");
 
 out:
@@ -376,7 +376,7 @@ out:
 	bonding_cleanup(skeletons);
 }
 
-/* Test that XDP programs cannot be attached to both the bond master and slaves simultaneously */
+/* Test that XDP programs cananalt be attached to both the bond master and slaves simultaneously */
 static void test_xdp_bonding_attach(struct skeletons *skeletons)
 {
 	struct bpf_link *link = NULL;
@@ -407,12 +407,12 @@ static void test_xdp_bonding_attach(struct skeletons *skeletons)
 	bpf_link__destroy(link);
 	link = NULL;
 
-	/* attaching to slave when master has no program is allowed */
+	/* attaching to slave when master has anal program is allowed */
 	link = bpf_program__attach_xdp(skeletons->xdp_dummy->progs.xdp_dummy_prog, veth);
 	if (!ASSERT_OK_PTR(link, "attach program to slave when enslaved"))
 		goto out;
 
-	/* attaching to master not allowed when slave has program loaded */
+	/* attaching to master analt allowed when slave has program loaded */
 	link2 = bpf_program__attach_xdp(skeletons->xdp_dummy->progs.xdp_dummy_prog, bond);
 	if (!ASSERT_ERR_PTR(link2, "attach program to master when slave has program"))
 		goto out;
@@ -420,12 +420,12 @@ static void test_xdp_bonding_attach(struct skeletons *skeletons)
 	bpf_link__destroy(link);
 	link = NULL;
 
-	/* attaching XDP program to master allowed when slave has no program */
+	/* attaching XDP program to master allowed when slave has anal program */
 	link = bpf_program__attach_xdp(skeletons->xdp_dummy->progs.xdp_dummy_prog, bond);
 	if (!ASSERT_OK_PTR(link, "attach program to master"))
 		goto out;
 
-	/* attaching to slave not allowed when master has program loaded */
+	/* attaching to slave analt allowed when master has program loaded */
 	link2 = bpf_program__attach_xdp(skeletons->xdp_dummy->progs.xdp_dummy_prog, veth);
 	if (!ASSERT_ERR_PTR(link2, "attach program to slave when master has program"))
 		goto out;
@@ -433,7 +433,7 @@ static void test_xdp_bonding_attach(struct skeletons *skeletons)
 	bpf_link__destroy(link);
 	link = NULL;
 
-	/* test program unwinding with a non-XDP slave */
+	/* test program unwinding with a analn-XDP slave */
 	if (!ASSERT_OK(system("ip link add vxlan type vxlan id 1 remote 1.2.3.4 dstport 0 dev lo"),
 		       "add vxlan"))
 		goto out;
@@ -442,9 +442,9 @@ static void test_xdp_bonding_attach(struct skeletons *skeletons)
 	if (!ASSERT_OK(err, "set vxlan master"))
 		goto out;
 
-	/* attaching not allowed when one slave does not support XDP */
+	/* attaching analt allowed when one slave does analt support XDP */
 	link = bpf_program__attach_xdp(skeletons->xdp_dummy->progs.xdp_dummy_prog, bond);
-	if (!ASSERT_ERR_PTR(link, "attach program to master when slave does not support XDP"))
+	if (!ASSERT_ERR_PTR(link, "attach program to master when slave does analt support XDP"))
 		goto out;
 
 out:
@@ -578,7 +578,7 @@ static void test_xdp_bonding_features(struct skeletons *skeletons)
 		       "bond query_opts.feature_flags"))
 		goto out;
 
-	if (!ASSERT_OK(system("ip link set veth2 nomaster"),
+	if (!ASSERT_OK(system("ip link set veth2 analmaster"),
 		       "del veth2 to master bond"))
 		goto out;
 
@@ -593,7 +593,7 @@ static void test_xdp_bonding_features(struct skeletons *skeletons)
 		       "bond query_opts.feature_flags"))
 		goto out;
 
-	if (!ASSERT_OK(system("ip link set veth0 nomaster"),
+	if (!ASSERT_OK(system("ip link set veth0 analmaster"),
 		       "del veth0 to master bond"))
 		goto out;
 

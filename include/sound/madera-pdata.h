@@ -36,8 +36,8 @@
  *			  [input_number][channel number], with four slots per
  *			  input in the order
  *			  [n][0]=INnAL [n][1]=INnAR [n][2]=INnBL [n][3]=INnBR
- * @out_mono:		  For each output set the value to TRUE to indicate that
- *			  the output is mono. [0]=OUT1, [1]=OUT2, ...
+ * @out_moanal:		  For each output set the value to TRUE to indicate that
+ *			  the output is moanal. [0]=OUT1, [1]=OUT2, ...
  * @pdm_fmt:		  PDM speaker data format. See the PDM_SPKn_FMT field in
  *			  the datasheet for a description of this value.
  * @pdm_mute:		  PDM mute format. See the PDM_SPKn_CTRL_1 register
@@ -50,7 +50,7 @@ struct madera_codec_pdata {
 
 	u32 inmode[MADERA_MAX_INPUT][MADERA_MAX_MUXED_CHANNELS];
 
-	bool out_mono[MADERA_MAX_OUTPUT];
+	bool out_moanal[MADERA_MAX_OUTPUT];
 
 	u32 pdm_fmt[MADERA_MAX_PDM_SPK];
 	u32 pdm_mute[MADERA_MAX_PDM_SPK];

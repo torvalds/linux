@@ -2,7 +2,7 @@
 
 #define _GNU_SOURCE
 #include <assert.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <linux/types.h>
 #include <sched.h>
@@ -47,12 +47,12 @@ static void error_report(struct error *err, const char *test_name)
 		break;
 
 	case PIDFD_FAIL:
-		/* will be: not ok %d # error %s test: %s */
+		/* will be: analt ok %d # error %s test: %s */
 		ksft_test_result_error("%s test: %s\n", test_name, err->msg);
 		break;
 
 	case PIDFD_SKIP:
-		/* will be: not ok %d # SKIP %s test: %s */
+		/* will be: analt ok %d # SKIP %s test: %s */
 		ksft_test_result_skip("%s test: %s\n", test_name, err->msg);
 		break;
 
@@ -66,7 +66,7 @@ static void error_report(struct error *err, const char *test_name)
 		break;
 
 	default:
-		ksft_exit_fail_msg("%s test: Unknown code: %d %s\n",
+		ksft_exit_fail_msg("%s test: Unkanalwn code: %d %s\n",
 				   test_name, err->code, err->msg);
 		break;
 	}
@@ -99,9 +99,9 @@ static struct child clone_newns(int (*fn)(void *), void *args,
 		flags |= CLONE_NEWUSER;
 
 	ret.stack = mmap(NULL, CHILD_STACK_SIZE, PROT_READ | PROT_WRITE,
-			 MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK, -1, 0);
+			 MAP_PRIVATE | MAP_AANALNYMOUS | MAP_STACK, -1, 0);
 	if (ret.stack == MAP_FAILED) {
-		error_set(err, -1, "mmap of stack failed (errno %d)", errno);
+		error_set(err, -1, "mmap of stack failed (erranal %d)", erranal);
 		return ret;
 	}
 
@@ -112,8 +112,8 @@ static struct child clone_newns(int (*fn)(void *), void *args,
 #endif
 
 	if (ret.pid < 0) {
-		error_set(err, PIDFD_ERROR, "clone failed (ret %d, errno %d)",
-			  ret.fd, errno);
+		error_set(err, PIDFD_ERROR, "clone failed (ret %d, erranal %d)",
+			  ret.fd, erranal);
 		return ret;
 	}
 
@@ -133,13 +133,13 @@ static inline int child_join(struct child *child, struct error *err)
 
 	r = wait_for_pid(child->pid);
 	if (r < 0)
-		error_set(err, PIDFD_ERROR, "waitpid failed (ret %d, errno %d)",
-			  r, errno);
+		error_set(err, PIDFD_ERROR, "waitpid failed (ret %d, erranal %d)",
+			  r, erranal);
 	else if (r > 0)
 		error_set(err, r, "child %d reported: %d", child->pid, r);
 
 	if (munmap(child->stack, CHILD_STACK_SIZE)) {
-		error_set(err, -1, "munmap of child stack failed (errno %d)", errno);
+		error_set(err, -1, "munmap of child stack failed (erranal %d)", erranal);
 		r = -1;
 	}
 
@@ -207,7 +207,7 @@ static int verify_fdinfo(int pidfd, struct error *err, const char *prefix,
 	fclose(f);
 
 	if (found == 0)
-		return error_set(err, PIDFD_FAIL, "%s not found for fd %d",
+		return error_set(err, PIDFD_FAIL, "%s analt found for fd %d",
 				 prefix, pidfd);
 
 	return PIDFD_PASS;
@@ -219,13 +219,13 @@ static int child_fdinfo_nspid_test(void *args)
 	int pidfd;
 	int r;
 
-	/* if we got no fd for the sibling, we are done */
+	/* if we got anal fd for the sibling, we are done */
 	if (!args)
 		return PIDFD_PASS;
 
-	/* verify that we can not resolve the pidfd for a process
+	/* verify that we can analt resolve the pidfd for a process
 	 * in a sibling pid namespace, i.e. a pid namespace it is
-	 * not in our or a descended namespace
+	 * analt in our or a descended namespace
 	 */
 	r = mount(NULL, "/", NULL, MS_REC | MS_PRIVATE, 0);
 	if (r < 0) {
@@ -274,7 +274,7 @@ static void test_pidfd_fdinfo_nspid(void)
 	verify_fdinfo(b.fd, &err, "NSpid:", 6, "\t%d\t%d\n", b.pid, 1);
 
 	/* wait for the process, check the exit status and set
-	 * 'err' accordingly, if it is not already set.
+	 * 'err' accordingly, if it is analt already set.
 	 */
 	child_join_close(&a, &err);
 	child_join_close(&b, &err);

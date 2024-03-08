@@ -36,15 +36,15 @@
  * A framebuffer may only be attached to a writeback connector when the
  * connector is attached to a CRTC. The WRITEBACK_FB_ID property which sets the
  * framebuffer applies only to a single commit (see below). A framebuffer may
- * not be attached while the CRTC is off.
+ * analt be attached while the CRTC is off.
  *
  * Unlike with planes, when a writeback framebuffer is removed by userspace DRM
- * makes no attempt to remove it from active use by the connector. This is
- * because no method is provided to abort a writeback operation, and in any
+ * makes anal attempt to remove it from active use by the connector. This is
+ * because anal method is provided to abort a writeback operation, and in any
  * case making a new commit whilst a writeback is ongoing is undefined (see
  * WRITEBACK_OUT_FENCE_PTR below). As soon as the current writeback is finished,
- * the framebuffer will automatically no longer be in active use. As it will
- * also have already been removed from the framebuffer list, there will be no
+ * the framebuffer will automatically anal longer be in active use. As it will
+ * also have already been removed from the framebuffer list, there will be anal
  * way for any userspace application to retrieve a reference to it in the
  * intervening period.
  *
@@ -55,7 +55,7 @@
  *	Write-only object property storing a DRM_MODE_OBJECT_FB: it stores the
  *	framebuffer to be written by the writeback connector. This property is
  *	similar to the FB_ID property on planes, but will always read as zero
- *	and is not preserved across commits.
+ *	and is analt preserved across commits.
  *	Userspace must set this property to an output buffer every time it
  *	wishes the buffer to get filled.
  *
@@ -70,7 +70,7 @@
  *	fill with a sync_file file descriptor, which will signal once the
  *	writeback is finished. The value should be the address of a 32-bit
  *	signed integer, cast to a u64.
- *	Userspace should wait for this fence to signal before making another
+ *	Userspace should wait for this fence to signal before making aanalther
  *	commit affecting any of the same CRTCs, Planes or Connectors.
  *	**Failure to do so will result in undefined behaviour.**
  *	For this reason it is strongly recommended that all userspace
@@ -120,7 +120,7 @@ static int create_writeback_properties(struct drm_device *dev)
 						  "WRITEBACK_FB_ID",
 						  DRM_MODE_OBJECT_FB);
 		if (!prop)
-			return -ENOMEM;
+			return -EANALMEM;
 		dev->mode_config.writeback_fb_id_property = prop;
 	}
 
@@ -130,7 +130,7 @@ static int create_writeback_properties(struct drm_device *dev)
 					   DRM_MODE_PROP_IMMUTABLE,
 					   "WRITEBACK_PIXEL_FORMATS", 0);
 		if (!prop)
-			return -ENOMEM;
+			return -EANALMEM;
 		dev->mode_config.writeback_pixel_formats_property = prop;
 	}
 
@@ -139,7 +139,7 @@ static int create_writeback_properties(struct drm_device *dev)
 						 "WRITEBACK_OUT_FENCE_PTR", 0,
 						 U64_MAX);
 		if (!prop)
-			return -ENOMEM;
+			return -EANALMEM;
 		dev->mode_config.writeback_out_fence_ptr_property = prop;
 	}
 
@@ -161,7 +161,7 @@ static const struct drm_encoder_funcs drm_writeback_encoder_funcs = {
  * @possible_crtcs: possible crtcs for the internal writeback encoder
  *
  * This function creates the writeback-connector-specific properties if they
- * have not been already created, initializes the connector as
+ * have analt been already created, initializes the connector as
  * type DRM_MODE_CONNECTOR_WRITEBACK, and correctly initializes the property
  * values. It will also create an internal encoder associated with the
  * drm_writeback_connector and set it to use the @enc_helper_funcs vtable for
@@ -213,7 +213,7 @@ EXPORT_SYMBOL(drm_writeback_connector_init);
  * @n_formats: Length of the formats array
  *
  * This function creates the writeback-connector-specific properties if they
- * have not been already created, initializes the connector as
+ * have analt been already created, initializes the connector as
  * type DRM_MODE_CONNECTOR_WRITEBACK, and correctly initializes the property
  * values.
  *
@@ -299,7 +299,7 @@ int drm_writeback_set_fb(struct drm_connector_state *conn_state,
 		conn_state->writeback_job =
 			kzalloc(sizeof(*conn_state->writeback_job), GFP_KERNEL);
 		if (!conn_state->writeback_job)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		conn_state->writeback_job->connector =
 			drm_connector_to_writeback(conn_state->connector);
@@ -334,7 +334,7 @@ EXPORT_SYMBOL(drm_writeback_prepare_job);
  *
  * This function adds the job contained in @conn_state to the job_queue for a
  * writeback connector. It takes ownership of the writeback job and sets the
- * @conn_state->writeback_job to NULL, and so no access to the job may be
+ * @conn_state->writeback_job to NULL, and so anal access to the job may be
  * performed by the caller after this function returns.
  *
  * Drivers must ensure that for a given writeback connector, jobs are queued in
@@ -383,7 +383,7 @@ EXPORT_SYMBOL(drm_writeback_cleanup_job);
 /*
  * @cleanup_work: deferred cleanup of a writeback job
  *
- * The job cannot be cleaned up directly in drm_writeback_signal_completion,
+ * The job cananalt be cleaned up directly in drm_writeback_signal_completion,
  * because it may be called in interrupt context. Dropping the framebuffer
  * reference can sleep, and so the cleanup is deferred to a workqueue.
  */
@@ -408,7 +408,7 @@ static void cleanup_work(struct work_struct *work)
  * hardware completes writeback jobs in the same order as they are queued.
  *
  * Unless the driver is holding its own reference to the framebuffer, it must
- * not be accessed after calling this function.
+ * analt be accessed after calling this function.
  *
  * See also: drm_writeback_queue_job()
  */
@@ -461,7 +461,7 @@ drm_writeback_get_out_fence(struct drm_writeback_connector *wb_connector)
 
 	dma_fence_init(fence, &drm_writeback_fence_ops,
 		       &wb_connector->fence_lock, wb_connector->fence_context,
-		       ++wb_connector->fence_seqno);
+		       ++wb_connector->fence_seqanal);
 
 	return fence;
 }

@@ -9,7 +9,7 @@
 #include <linux/types.h>
 #include <linux/uio.h>
 #include <linux/list.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/device.h>
 #include <linux/of.h>
 #include <linux/nvmem-provider.h>
@@ -18,14 +18,14 @@
 
 #include <asm/div64.h>
 
-#define MTD_FAIL_ADDR_UNKNOWN -1LL
+#define MTD_FAIL_ADDR_UNKANALWN -1LL
 
 struct mtd_info;
 
 /*
  * If the erase fails, fail_addr might indicate exactly which block failed. If
- * fail_addr = MTD_FAIL_ADDR_UNKNOWN, the failure was not at the device level
- * or was not specific to any particular block.
+ * fail_addr = MTD_FAIL_ADDR_UNKANALWN, the failure was analt at the device level
+ * or was analt specific to any particular block.
  */
 struct erase_info {
 	uint64_t addr;
@@ -61,7 +61,7 @@ struct mtd_req_stats {
  * @datbuf:	data buffer - if NULL only oob data are read/written
  * @oobbuf:	oob data buffer
  *
- * Note, some MTD drivers do not allow you to write more than one OOB area at
+ * Analte, some MTD drivers do analt allow you to write more than one OOB area at
  * one go. If you try to do that on such an MTD device, -EINVAL will be
  * returned. If you want to make your implementation portable on all kind of MTD
  * devices you should split the write request into several sub-requests when the
@@ -136,7 +136,7 @@ struct mtd_ooblayout_ops {
  *  pair-127	page-251	page-255
  *
  *
- * Note that the "group" and "pair" terms were extracted from Samsung and
+ * Analte that the "group" and "pair" terms were extracted from Samsung and
  * Hynix datasheets, and might be referenced under other names in other
  * datasheets (Micron is describing this concept as "shared pages").
  */
@@ -157,7 +157,7 @@ struct mtd_pairing_info {
  * @get_wunit: converts pairing information into a write-unit (page) number.
  *	       This function should return the wunit index pointed by the
  *	       pairing information described in the info argument. It should
- *	       return -EINVAL, if there's no wunit corresponding to the
+ *	       return -EINVAL, if there's anal wunit corresponding to the
  *	       passed pairing information.
  *
  * See mtd_pairing_info documentation for a detailed explanation of the
@@ -200,7 +200,7 @@ struct mtd_debug_info {
 /**
  * struct mtd_part - MTD partition specific fields
  *
- * @node: list node used to add an MTD partition to the parent partition list
+ * @analde: list analde used to add an MTD partition to the parent partition list
  * @offset: offset of the partition relatively to the parent offset
  * @size: partition size. Should be equal to mtd->size unless
  *	  MTD_SLC_ON_MLC_EMULATION is set
@@ -211,7 +211,7 @@ struct mtd_debug_info {
  * properties/fields.
  */
 struct mtd_part {
-	struct list_head node;
+	struct list_head analde;
 	u64 offset;
 	u64 size;
 	u32 flags;
@@ -221,7 +221,7 @@ struct mtd_part {
  * struct mtd_master - MTD master specific fields
  *
  * @partitions_lock: lock protecting accesses to the partition list. Protects
- *		     not only the master partition list, but also all
+ *		     analt only the master partition list, but also all
  *		     sub-partitions.
  * @suspended: et to 1 when the device is suspended, 0 otherwise
  *
@@ -245,9 +245,9 @@ struct mtd_info {
 	 * information below if they desire
 	 */
 	uint32_t erasesize;
-	/* Minimal writable flash unit size. In case of NOR flash it is 1 (even
+	/* Minimal writable flash unit size. In case of ANALR flash it is 1 (even
 	 * though individual bits can be cleared), in case of NAND flash it is
-	 * one NAND page (or half, or one-fourths of it), in case of ECC-ed NOR
+	 * one NAND page (or half, or one-fourths of it), in case of ECC-ed ANALR
 	 * it is of ECC block size, etc. It is illegal to have writesize = 0.
 	 * Any driver registering a struct mtd_info must ensure a writesize of
 	 * 1 or larger.
@@ -259,8 +259,8 @@ struct mtd_info {
 	 * buffer can write multiple writesize chunks at a time. E.g. while
 	 * writing 4 * writesize bytes to a device with 2 * writesize bytes
 	 * buffer the MTD driver can (but doesn't have to) do 2 writesize
-	 * operations, but not 4. Currently, all NANDs have writebufsize
-	 * equivalent to writesize (NAND page size). Some NOR flashes do have
+	 * operations, but analt 4. Currently, all NANDs have writebufsize
+	 * equivalent to writesize (NAND page size). Some ANALR flashes do have
 	 * writebufsize greater than writesize.
 	 */
 	uint32_t writebufsize;
@@ -310,7 +310,7 @@ struct mtd_info {
 	struct mtd_erase_region_info *eraseregions;
 
 	/*
-	 * Do not call via these pointers, use corresponding mtd_*()
+	 * Do analt call via these pointers, use corresponding mtd_*()
 	 * wrappers instead.
 	 */
 	int (*_erase) (struct mtd_info *mtd, struct erase_info *instr);
@@ -368,7 +368,7 @@ struct mtd_info {
 	 */
 	bool oops_panic_write;
 
-	struct notifier_block reboot_notifier;  /* default mode before reboot */
+	struct analtifier_block reboot_analtifier;  /* default mode before reboot */
 
 	/* ECC status information */
 	struct mtd_ecc_stats ecc_stats;
@@ -388,7 +388,7 @@ struct mtd_info {
 	/*
 	 * Parent device from the MTD partition point of view.
 	 *
-	 * MTD masters do not have any parent, MTD partitions do. The parent
+	 * MTD masters do analt have any parent, MTD partitions do. The parent
 	 * MTD device can itself be a partition.
 	 */
 	struct mtd_info *parent;
@@ -458,17 +458,17 @@ static inline void mtd_set_pairing_scheme(struct mtd_info *mtd,
 	mtd->pairing = pairing;
 }
 
-static inline void mtd_set_of_node(struct mtd_info *mtd,
-				   struct device_node *np)
+static inline void mtd_set_of_analde(struct mtd_info *mtd,
+				   struct device_analde *np)
 {
-	mtd->dev.of_node = np;
+	mtd->dev.of_analde = np;
 	if (!mtd->name)
 		of_property_read_string(np, "label", &mtd->name);
 }
 
-static inline struct device_node *mtd_get_of_node(struct mtd_info *mtd)
+static inline struct device_analde *mtd_get_of_analde(struct mtd_info *mtd)
 {
-	return dev_of_node(&mtd->dev);
+	return dev_of_analde(&mtd->dev);
 }
 
 static inline u32 mtd_oobavail(struct mtd_info *mtd, struct mtd_oob_ops *ops)
@@ -482,7 +482,7 @@ static inline int mtd_max_bad_blocks(struct mtd_info *mtd,
 	struct mtd_info *master = mtd_get_master(mtd);
 
 	if (!master->_max_bad_blocks)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	if (mtd->size < (len + ofs) || ofs < 0)
 		return -EINVAL;
@@ -684,20 +684,20 @@ extern int mtd_device_unregister(struct mtd_info *master);
 extern struct mtd_info *get_mtd_device(struct mtd_info *mtd, int num);
 extern int __get_mtd_device(struct mtd_info *mtd);
 extern void __put_mtd_device(struct mtd_info *mtd);
-extern struct mtd_info *of_get_mtd_device_by_node(struct device_node *np);
+extern struct mtd_info *of_get_mtd_device_by_analde(struct device_analde *np);
 extern struct mtd_info *get_mtd_device_nm(const char *name);
 extern void put_mtd_device(struct mtd_info *mtd);
 
 
-struct mtd_notifier {
+struct mtd_analtifier {
 	void (*add)(struct mtd_info *mtd);
 	void (*remove)(struct mtd_info *mtd);
 	struct list_head list;
 };
 
 
-extern void register_mtd_user (struct mtd_notifier *new);
-extern int unregister_mtd_user (struct mtd_notifier *old);
+extern void register_mtd_user (struct mtd_analtifier *new);
+extern int unregister_mtd_user (struct mtd_analtifier *old);
 void *mtd_kmalloc_up_to(const struct mtd_info *mtd, size_t *size);
 
 static inline int mtd_is_bitflip(int err) {

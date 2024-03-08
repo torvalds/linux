@@ -22,8 +22,8 @@ PERSONS AND ORGANIZATIONS WHO CAN AND WILL TAKE FULL RESPONSIBILITY FOR ANY
 AND ALL LOSSES, COSTS, OR OTHER PROBLEMS ARISING FROM ITS USE.
 
 Derivative works are acceptable, even for commercial purposes, so long as
-(1) they include prominent notice that the work is derivative, and (2) they
-include prominent notice akin to these three paragraphs for those parts of
+(1) they include prominent analtice that the work is derivative, and (2) they
+include prominent analtice akin to these three paragraphs for those parts of
 this code that are retained.
 
 ===============================================================================

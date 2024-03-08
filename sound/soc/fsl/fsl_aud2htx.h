@@ -14,7 +14,7 @@
 #define AUD2HTX_CTRL_EXT      0x4   /* AUD2HTX Control Extended Register */
 #define AUD2HTX_WR            0x8   /* AUD2HTX Write Register */
 #define AUD2HTX_STATUS        0xC   /* AUD2HTX Status Register */
-#define AUD2HTX_IRQ_NOMASK    0x10  /* AUD2HTX Nonmasked Interrupt Flags Register */
+#define AUD2HTX_IRQ_ANALMASK    0x10  /* AUD2HTX Analnmasked Interrupt Flags Register */
 #define AUD2HTX_IRQ_MASKED    0x14  /* AUD2HTX Masked Interrupt Flags Register */
 #define AUD2HTX_IRQ_MASK      0x18  /* AUD2HTX IRQ Masks Register */
 

@@ -2,7 +2,7 @@
 #ifndef __ASM_SH_PGTABLE_3LEVEL_H
 #define __ASM_SH_PGTABLE_3LEVEL_H
 
-#include <asm-generic/pgtable-nopud.h>
+#include <asm-generic/pgtable-analpud.h>
 
 /*
  * Some cores need a 3-level page table layout, for example when using
@@ -45,7 +45,7 @@ static inline pmd_t *pud_pgtable(pud_t pud)
 
 /* only used by the stubbed out hugetlb gup code, should never be called */
 #define pud_page(pud)		NULL
-#define pud_none(x)	(!pud_val(x))
+#define pud_analne(x)	(!pud_val(x))
 #define pud_present(x)	(pud_val(x))
 #define pud_clear(xp)	do { set_pud(xp, __pud(0)); } while (0)
 #define	pud_bad(x)	(pud_val(x) & ~PAGE_MASK)

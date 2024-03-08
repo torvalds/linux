@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #include <linux/compiler_types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fs.h>
-#include <linux/fsnotify.h>
+#include <linux/fsanaltify.h>
 #include <linux/gfp.h>
 #include <linux/idr.h>
 #include <linux/init.h>
@@ -34,16 +34,16 @@
 
 #include "binder_internal.h"
 
-#define FIRST_INODE 1
-#define SECOND_INODE 2
-#define INODE_OFFSET 3
-#define BINDERFS_MAX_MINOR (1U << MINORBITS)
+#define FIRST_IANALDE 1
+#define SECOND_IANALDE 2
+#define IANALDE_OFFSET 3
+#define BINDERFS_MAX_MIANALR (1U << MIANALRBITS)
 /* Ensure that the initial ipc namespace always has devices available. */
-#define BINDERFS_MAX_MINOR_CAPPED (BINDERFS_MAX_MINOR - 4)
+#define BINDERFS_MAX_MIANALR_CAPPED (BINDERFS_MAX_MIANALR - 4)
 
 static dev_t binderfs_dev;
-static DEFINE_MUTEX(binderfs_minors_mutex);
-static DEFINE_IDA(binderfs_minors);
+static DEFINE_MUTEX(binderfs_mianalrs_mutex);
+static DEFINE_IDA(binderfs_mianalrs);
 
 enum binderfs_param {
 	Opt_max,
@@ -81,43 +81,43 @@ static inline struct binderfs_info *BINDERFS_SB(const struct super_block *sb)
 	return sb->s_fs_info;
 }
 
-bool is_binderfs_device(const struct inode *inode)
+bool is_binderfs_device(const struct ianalde *ianalde)
 {
-	if (inode->i_sb->s_magic == BINDERFS_SUPER_MAGIC)
+	if (ianalde->i_sb->s_magic == BINDERFS_SUPER_MAGIC)
 		return true;
 
 	return false;
 }
 
 /**
- * binderfs_binder_device_create - allocate inode from super block of a
+ * binderfs_binder_device_create - allocate ianalde from super block of a
  *                                 binderfs mount
- * @ref_inode: inode from which the super block will be taken
+ * @ref_ianalde: ianalde from which the super block will be taken
  * @userp:     buffer to copy information about new device for userspace to
  * @req:       struct binderfs_device as copied from userspace
  *
- * This function allocates a new binder_device and reserves a new minor
+ * This function allocates a new binder_device and reserves a new mianalr
  * number for it.
- * Minor numbers are limited and tracked globally in binderfs_minors. The
+ * Mianalr numbers are limited and tracked globally in binderfs_mianalrs. The
  * function will stash a struct binder_device for the specific binder
- * device in i_private of the inode.
- * It will go on to allocate a new inode from the super block of the
+ * device in i_private of the ianalde.
+ * It will go on to allocate a new ianalde from the super block of the
  * filesystem mount, stash a struct binder_device in its i_private field
- * and attach a dentry to that inode.
+ * and attach a dentry to that ianalde.
  *
- * Return: 0 on success, negative errno on failure
+ * Return: 0 on success, negative erranal on failure
  */
-static int binderfs_binder_device_create(struct inode *ref_inode,
+static int binderfs_binder_device_create(struct ianalde *ref_ianalde,
 					 struct binderfs_device __user *userp,
 					 struct binderfs_device *req)
 {
-	int minor, ret;
+	int mianalr, ret;
 	struct dentry *dentry, *root;
 	struct binder_device *device;
 	char *name = NULL;
 	size_t name_len;
-	struct inode *inode = NULL;
-	struct super_block *sb = ref_inode->i_sb;
+	struct ianalde *ianalde = NULL;
+	struct super_block *sb = ref_ianalde->i_sb;
 	struct binderfs_info *info = sb->s_fs_info;
 #if defined(CONFIG_IPC_NS)
 	bool use_reserve = (info->ipc_ns == &init_ipc_ns);
@@ -125,38 +125,38 @@ static int binderfs_binder_device_create(struct inode *ref_inode,
 	bool use_reserve = true;
 #endif
 
-	/* Reserve new minor number for the new device. */
-	mutex_lock(&binderfs_minors_mutex);
+	/* Reserve new mianalr number for the new device. */
+	mutex_lock(&binderfs_mianalrs_mutex);
 	if (++info->device_count <= info->mount_opts.max)
-		minor = ida_alloc_max(&binderfs_minors,
-				      use_reserve ? BINDERFS_MAX_MINOR :
-						    BINDERFS_MAX_MINOR_CAPPED,
+		mianalr = ida_alloc_max(&binderfs_mianalrs,
+				      use_reserve ? BINDERFS_MAX_MIANALR :
+						    BINDERFS_MAX_MIANALR_CAPPED,
 				      GFP_KERNEL);
 	else
-		minor = -ENOSPC;
-	if (minor < 0) {
+		mianalr = -EANALSPC;
+	if (mianalr < 0) {
 		--info->device_count;
-		mutex_unlock(&binderfs_minors_mutex);
-		return minor;
+		mutex_unlock(&binderfs_mianalrs_mutex);
+		return mianalr;
 	}
-	mutex_unlock(&binderfs_minors_mutex);
+	mutex_unlock(&binderfs_mianalrs_mutex);
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	device = kzalloc(sizeof(*device), GFP_KERNEL);
 	if (!device)
 		goto err;
 
-	inode = new_inode(sb);
-	if (!inode)
+	ianalde = new_ianalde(sb);
+	if (!ianalde)
 		goto err;
 
-	inode->i_ino = minor + INODE_OFFSET;
-	simple_inode_init_ts(inode);
-	init_special_inode(inode, S_IFCHR | 0600,
-			   MKDEV(MAJOR(binderfs_dev), minor));
-	inode->i_fop = &binder_fops;
-	inode->i_uid = info->root_uid;
-	inode->i_gid = info->root_gid;
+	ianalde->i_ianal = mianalr + IANALDE_OFFSET;
+	simple_ianalde_init_ts(ianalde);
+	init_special_ianalde(ianalde, S_IFCHR | 0600,
+			   MKDEV(MAJOR(binderfs_dev), mianalr));
+	ianalde->i_fop = &binder_fops;
+	ianalde->i_uid = info->root_uid;
+	ianalde->i_gid = info->root_gid;
 
 	req->name[BINDERFS_MAX_NAME] = '\0'; /* NUL-terminate */
 	name_len = strlen(req->name);
@@ -166,15 +166,15 @@ static int binderfs_binder_device_create(struct inode *ref_inode,
 		goto err;
 
 	refcount_set(&device->ref, 1);
-	device->binderfs_inode = inode;
+	device->binderfs_ianalde = ianalde;
 	device->context.binder_context_mgr_uid = INVALID_UID;
 	device->context.name = name;
 	device->miscdev.name = name;
-	device->miscdev.minor = minor;
-	mutex_init(&device->context.context_mgr_node_lock);
+	device->miscdev.mianalr = mianalr;
+	mutex_init(&device->context.context_mgr_analde_lock);
 
 	req->major = MAJOR(binderfs_dev);
-	req->minor = minor;
+	req->mianalr = mianalr;
 
 	if (userp && copy_to_user(userp, req, sizeof(*req))) {
 		ret = -EFAULT;
@@ -182,12 +182,12 @@ static int binderfs_binder_device_create(struct inode *ref_inode,
 	}
 
 	root = sb->s_root;
-	inode_lock(d_inode(root));
+	ianalde_lock(d_ianalde(root));
 
 	/* look it up */
 	dentry = lookup_one_len(name, root, name_len);
 	if (IS_ERR(dentry)) {
-		inode_unlock(d_inode(root));
+		ianalde_unlock(d_ianalde(root));
 		ret = PTR_ERR(dentry);
 		goto err;
 	}
@@ -195,45 +195,45 @@ static int binderfs_binder_device_create(struct inode *ref_inode,
 	if (d_really_is_positive(dentry)) {
 		/* already exists */
 		dput(dentry);
-		inode_unlock(d_inode(root));
+		ianalde_unlock(d_ianalde(root));
 		ret = -EEXIST;
 		goto err;
 	}
 
-	inode->i_private = device;
-	d_instantiate(dentry, inode);
-	fsnotify_create(root->d_inode, dentry);
-	inode_unlock(d_inode(root));
+	ianalde->i_private = device;
+	d_instantiate(dentry, ianalde);
+	fsanaltify_create(root->d_ianalde, dentry);
+	ianalde_unlock(d_ianalde(root));
 
 	return 0;
 
 err:
 	kfree(name);
 	kfree(device);
-	mutex_lock(&binderfs_minors_mutex);
+	mutex_lock(&binderfs_mianalrs_mutex);
 	--info->device_count;
-	ida_free(&binderfs_minors, minor);
-	mutex_unlock(&binderfs_minors_mutex);
-	iput(inode);
+	ida_free(&binderfs_mianalrs, mianalr);
+	mutex_unlock(&binderfs_mianalrs_mutex);
+	iput(ianalde);
 
 	return ret;
 }
 
 /**
- * binder_ctl_ioctl - handle binder device node allocation requests
+ * binder_ctl_ioctl - handle binder device analde allocation requests
  *
  * The request handler for the binder-control device. All requests operate on
  * the binderfs mount the binder-control device resides in:
  * - BINDER_CTL_ADD
  *   Allocate a new binder device.
  *
- * Return: %0 on success, negative errno on failure.
+ * Return: %0 on success, negative erranal on failure.
  */
 static long binder_ctl_ioctl(struct file *file, unsigned int cmd,
 			     unsigned long arg)
 {
 	int ret = -EINVAL;
-	struct inode *inode = file_inode(file);
+	struct ianalde *ianalde = file_ianalde(file);
 	struct binderfs_device __user *device = (struct binderfs_device __user *)arg;
 	struct binderfs_device device_req;
 
@@ -245,7 +245,7 @@ static long binder_ctl_ioctl(struct file *file, unsigned int cmd,
 			break;
 		}
 
-		ret = binderfs_binder_device_create(inode, device, &device_req);
+		ret = binderfs_binder_device_create(ianalde, device, &device_req);
 		break;
 	default:
 		break;
@@ -254,20 +254,20 @@ static long binder_ctl_ioctl(struct file *file, unsigned int cmd,
 	return ret;
 }
 
-static void binderfs_evict_inode(struct inode *inode)
+static void binderfs_evict_ianalde(struct ianalde *ianalde)
 {
-	struct binder_device *device = inode->i_private;
-	struct binderfs_info *info = BINDERFS_SB(inode->i_sb);
+	struct binder_device *device = ianalde->i_private;
+	struct binderfs_info *info = BINDERFS_SB(ianalde->i_sb);
 
-	clear_inode(inode);
+	clear_ianalde(ianalde);
 
-	if (!S_ISCHR(inode->i_mode) || !device)
+	if (!S_ISCHR(ianalde->i_mode) || !device)
 		return;
 
-	mutex_lock(&binderfs_minors_mutex);
+	mutex_lock(&binderfs_mianalrs_mutex);
 	--info->device_count;
-	ida_free(&binderfs_minors, device->miscdev.minor);
-	mutex_unlock(&binderfs_minors_mutex);
+	ida_free(&binderfs_mianalrs, device->miscdev.mianalr);
+	mutex_unlock(&binderfs_mianalrs_mutex);
 
 	if (refcount_dec_and_test(&device->ref)) {
 		kfree(device->context.name);
@@ -288,7 +288,7 @@ static int binderfs_fs_context_parse_param(struct fs_context *fc,
 
 	switch (opt) {
 	case Opt_max:
-		if (result.uint_32 > BINDERFS_MAX_MINOR)
+		if (result.uint_32 > BINDERFS_MAX_MIANALR)
 			return invalfc(fc, "Bad value for '%s'", param->key);
 
 		ctx->max = result.uint_32;
@@ -312,7 +312,7 @@ static int binderfs_fs_context_reconfigure(struct fs_context *fc)
 	struct binderfs_info *info = BINDERFS_SB(fc->root->d_sb);
 
 	if (info->mount_opts.stats_mode != ctx->stats_mode)
-		return invalfc(fc, "Binderfs stats mode cannot be changed during a remount");
+		return invalfc(fc, "Binderfs stats mode cananalt be changed during a remount");
 
 	info->mount_opts.stats_mode = ctx->stats_mode;
 	info->mount_opts.max = ctx->max;
@@ -323,7 +323,7 @@ static int binderfs_show_options(struct seq_file *seq, struct dentry *root)
 {
 	struct binderfs_info *info = BINDERFS_SB(root->d_sb);
 
-	if (info->mount_opts.max <= BINDERFS_MAX_MINOR)
+	if (info->mount_opts.max <= BINDERFS_MAX_MIANALR)
 		seq_printf(seq, ",max=%d", info->mount_opts.max);
 
 	switch (info->mount_opts.stats_mode) {
@@ -338,7 +338,7 @@ static int binderfs_show_options(struct seq_file *seq, struct dentry *root)
 }
 
 static const struct super_operations binderfs_super_ops = {
-	.evict_inode    = binderfs_evict_inode,
+	.evict_ianalde    = binderfs_evict_ianalde,
 	.show_options	= binderfs_show_options,
 	.statfs         = simple_statfs,
 };
@@ -351,8 +351,8 @@ static inline bool is_binderfs_control_device(const struct dentry *dentry)
 }
 
 static int binderfs_rename(struct mnt_idmap *idmap,
-			   struct inode *old_dir, struct dentry *old_dentry,
-			   struct inode *new_dir, struct dentry *new_dentry,
+			   struct ianalde *old_dir, struct dentry *old_dentry,
+			   struct ianalde *new_dir, struct dentry *new_dentry,
 			   unsigned int flags)
 {
 	if (is_binderfs_control_device(old_dentry) ||
@@ -363,7 +363,7 @@ static int binderfs_rename(struct mnt_idmap *idmap,
 			     new_dentry, flags);
 }
 
-static int binderfs_unlink(struct inode *dir, struct dentry *dentry)
+static int binderfs_unlink(struct ianalde *dir, struct dentry *dentry)
 {
 	if (is_binderfs_control_device(dentry))
 		return -EPERM;
@@ -373,27 +373,27 @@ static int binderfs_unlink(struct inode *dir, struct dentry *dentry)
 
 static const struct file_operations binder_ctl_fops = {
 	.owner		= THIS_MODULE,
-	.open		= nonseekable_open,
+	.open		= analnseekable_open,
 	.unlocked_ioctl	= binder_ctl_ioctl,
 	.compat_ioctl	= binder_ctl_ioctl,
-	.llseek		= noop_llseek,
+	.llseek		= analop_llseek,
 };
 
 /**
  * binderfs_binder_ctl_create - create a new binder-control device
  * @sb: super block of the binderfs mount
  *
- * This function creates a new binder-control device node in the binderfs mount
+ * This function creates a new binder-control device analde in the binderfs mount
  * referred to by @sb.
  *
- * Return: 0 on success, negative errno on failure
+ * Return: 0 on success, negative erranal on failure
  */
 static int binderfs_binder_ctl_create(struct super_block *sb)
 {
-	int minor, ret;
+	int mianalr, ret;
 	struct dentry *dentry;
 	struct binder_device *device;
-	struct inode *inode = NULL;
+	struct ianalde *ianalde = NULL;
 	struct dentry *root = sb->s_root;
 	struct binderfs_info *info = sb->s_fs_info;
 #if defined(CONFIG_IPC_NS)
@@ -404,75 +404,75 @@ static int binderfs_binder_ctl_create(struct super_block *sb)
 
 	device = kzalloc(sizeof(*device), GFP_KERNEL);
 	if (!device)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* If we have already created a binder-control node, return. */
+	/* If we have already created a binder-control analde, return. */
 	if (info->control_dentry) {
 		ret = 0;
 		goto out;
 	}
 
-	ret = -ENOMEM;
-	inode = new_inode(sb);
-	if (!inode)
+	ret = -EANALMEM;
+	ianalde = new_ianalde(sb);
+	if (!ianalde)
 		goto out;
 
-	/* Reserve a new minor number for the new device. */
-	mutex_lock(&binderfs_minors_mutex);
-	minor = ida_alloc_max(&binderfs_minors,
-			      use_reserve ? BINDERFS_MAX_MINOR :
-					    BINDERFS_MAX_MINOR_CAPPED,
+	/* Reserve a new mianalr number for the new device. */
+	mutex_lock(&binderfs_mianalrs_mutex);
+	mianalr = ida_alloc_max(&binderfs_mianalrs,
+			      use_reserve ? BINDERFS_MAX_MIANALR :
+					    BINDERFS_MAX_MIANALR_CAPPED,
 			      GFP_KERNEL);
-	mutex_unlock(&binderfs_minors_mutex);
-	if (minor < 0) {
-		ret = minor;
+	mutex_unlock(&binderfs_mianalrs_mutex);
+	if (mianalr < 0) {
+		ret = mianalr;
 		goto out;
 	}
 
-	inode->i_ino = SECOND_INODE;
-	simple_inode_init_ts(inode);
-	init_special_inode(inode, S_IFCHR | 0600,
-			   MKDEV(MAJOR(binderfs_dev), minor));
-	inode->i_fop = &binder_ctl_fops;
-	inode->i_uid = info->root_uid;
-	inode->i_gid = info->root_gid;
+	ianalde->i_ianal = SECOND_IANALDE;
+	simple_ianalde_init_ts(ianalde);
+	init_special_ianalde(ianalde, S_IFCHR | 0600,
+			   MKDEV(MAJOR(binderfs_dev), mianalr));
+	ianalde->i_fop = &binder_ctl_fops;
+	ianalde->i_uid = info->root_uid;
+	ianalde->i_gid = info->root_gid;
 
 	refcount_set(&device->ref, 1);
-	device->binderfs_inode = inode;
-	device->miscdev.minor = minor;
+	device->binderfs_ianalde = ianalde;
+	device->miscdev.mianalr = mianalr;
 
 	dentry = d_alloc_name(root, "binder-control");
 	if (!dentry)
 		goto out;
 
-	inode->i_private = device;
+	ianalde->i_private = device;
 	info->control_dentry = dentry;
-	d_add(dentry, inode);
+	d_add(dentry, ianalde);
 
 	return 0;
 
 out:
 	kfree(device);
-	iput(inode);
+	iput(ianalde);
 
 	return ret;
 }
 
-static const struct inode_operations binderfs_dir_inode_operations = {
+static const struct ianalde_operations binderfs_dir_ianalde_operations = {
 	.lookup = simple_lookup,
 	.rename = binderfs_rename,
 	.unlink = binderfs_unlink,
 };
 
-static struct inode *binderfs_make_inode(struct super_block *sb, int mode)
+static struct ianalde *binderfs_make_ianalde(struct super_block *sb, int mode)
 {
-	struct inode *ret;
+	struct ianalde *ret;
 
-	ret = new_inode(sb);
+	ret = new_ianalde(sb);
 	if (ret) {
-		ret->i_ino = iunique(sb, BINDERFS_MAX_MINOR + INODE_OFFSET);
+		ret->i_ianal = iunique(sb, BINDERFS_MAX_MIANALR + IANALDE_OFFSET);
 		ret->i_mode = mode;
-		simple_inode_init_ts(ret);
+		simple_ianalde_init_ts(ret);
 	}
 	return ret;
 }
@@ -497,17 +497,17 @@ static struct dentry *binderfs_create_dentry(struct dentry *parent,
 
 void binderfs_remove_file(struct dentry *dentry)
 {
-	struct inode *parent_inode;
+	struct ianalde *parent_ianalde;
 
-	parent_inode = d_inode(dentry->d_parent);
-	inode_lock(parent_inode);
+	parent_ianalde = d_ianalde(dentry->d_parent);
+	ianalde_lock(parent_ianalde);
 	if (simple_positive(dentry)) {
 		dget(dentry);
-		simple_unlink(parent_inode, dentry);
+		simple_unlink(parent_ianalde, dentry);
 		d_delete(dentry);
 		dput(dentry);
 	}
-	inode_unlock(parent_inode);
+	ianalde_unlock(parent_ianalde);
 }
 
 struct dentry *binderfs_create_file(struct dentry *parent, const char *name,
@@ -515,31 +515,31 @@ struct dentry *binderfs_create_file(struct dentry *parent, const char *name,
 				    void *data)
 {
 	struct dentry *dentry;
-	struct inode *new_inode, *parent_inode;
+	struct ianalde *new_ianalde, *parent_ianalde;
 	struct super_block *sb;
 
-	parent_inode = d_inode(parent);
-	inode_lock(parent_inode);
+	parent_ianalde = d_ianalde(parent);
+	ianalde_lock(parent_ianalde);
 
 	dentry = binderfs_create_dentry(parent, name);
 	if (IS_ERR(dentry))
 		goto out;
 
-	sb = parent_inode->i_sb;
-	new_inode = binderfs_make_inode(sb, S_IFREG | 0444);
-	if (!new_inode) {
+	sb = parent_ianalde->i_sb;
+	new_ianalde = binderfs_make_ianalde(sb, S_IFREG | 0444);
+	if (!new_ianalde) {
 		dput(dentry);
-		dentry = ERR_PTR(-ENOMEM);
+		dentry = ERR_PTR(-EANALMEM);
 		goto out;
 	}
 
-	new_inode->i_fop = fops;
-	new_inode->i_private = data;
-	d_instantiate(dentry, new_inode);
-	fsnotify_create(parent_inode, dentry);
+	new_ianalde->i_fop = fops;
+	new_ianalde->i_private = data;
+	d_instantiate(dentry, new_ianalde);
+	fsanaltify_create(parent_ianalde, dentry);
 
 out:
-	inode_unlock(parent_inode);
+	ianalde_unlock(parent_ianalde);
 	return dentry;
 }
 
@@ -547,34 +547,34 @@ static struct dentry *binderfs_create_dir(struct dentry *parent,
 					  const char *name)
 {
 	struct dentry *dentry;
-	struct inode *new_inode, *parent_inode;
+	struct ianalde *new_ianalde, *parent_ianalde;
 	struct super_block *sb;
 
-	parent_inode = d_inode(parent);
-	inode_lock(parent_inode);
+	parent_ianalde = d_ianalde(parent);
+	ianalde_lock(parent_ianalde);
 
 	dentry = binderfs_create_dentry(parent, name);
 	if (IS_ERR(dentry))
 		goto out;
 
-	sb = parent_inode->i_sb;
-	new_inode = binderfs_make_inode(sb, S_IFDIR | 0755);
-	if (!new_inode) {
+	sb = parent_ianalde->i_sb;
+	new_ianalde = binderfs_make_ianalde(sb, S_IFDIR | 0755);
+	if (!new_ianalde) {
 		dput(dentry);
-		dentry = ERR_PTR(-ENOMEM);
+		dentry = ERR_PTR(-EANALMEM);
 		goto out;
 	}
 
-	new_inode->i_fop = &simple_dir_operations;
-	new_inode->i_op = &simple_dir_inode_operations;
+	new_ianalde->i_fop = &simple_dir_operations;
+	new_ianalde->i_op = &simple_dir_ianalde_operations;
 
-	set_nlink(new_inode, 2);
-	d_instantiate(dentry, new_inode);
-	inc_nlink(parent_inode);
-	fsnotify_mkdir(parent_inode, dentry);
+	set_nlink(new_ianalde, 2);
+	d_instantiate(dentry, new_ianalde);
+	inc_nlink(parent_ianalde);
+	fsanaltify_mkdir(parent_ianalde, dentry);
 
 out:
-	inode_unlock(parent_inode);
+	ianalde_unlock(parent_ianalde);
 	return dentry;
 }
 
@@ -653,7 +653,7 @@ static int binderfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	int ret;
 	struct binderfs_info *info;
 	struct binderfs_mount_opts *ctx = fc->fs_private;
-	struct inode *inode = NULL;
+	struct ianalde *ianalde = NULL;
 	struct binderfs_device device_info = {};
 	const char *name;
 	size_t len;
@@ -663,24 +663,24 @@ static int binderfs_fill_super(struct super_block *sb, struct fs_context *fc)
 
 	/*
 	 * The binderfs filesystem can be mounted by userns root in a
-	 * non-initial userns. By default such mounts have the SB_I_NODEV flag
+	 * analn-initial userns. By default such mounts have the SB_I_ANALDEV flag
 	 * set in s_iflags to prevent security issues where userns root can
-	 * just create random device nodes via mknod() since it owns the
-	 * filesystem mount. But binderfs does not allow to create any files
-	 * including devices nodes. The only way to create binder devices nodes
+	 * just create random device analdes via mkanald() since it owns the
+	 * filesystem mount. But binderfs does analt allow to create any files
+	 * including devices analdes. The only way to create binder devices analdes
 	 * is through the binder-control device which userns root is explicitly
-	 * allowed to do. So removing the SB_I_NODEV flag from s_iflags is both
+	 * allowed to do. So removing the SB_I_ANALDEV flag from s_iflags is both
 	 * necessary and safe.
 	 */
-	sb->s_iflags &= ~SB_I_NODEV;
-	sb->s_iflags |= SB_I_NOEXEC;
+	sb->s_iflags &= ~SB_I_ANALDEV;
+	sb->s_iflags |= SB_I_ANALEXEC;
 	sb->s_magic = BINDERFS_SUPER_MAGIC;
 	sb->s_op = &binderfs_super_ops;
 	sb->s_time_gran = 1;
 
 	sb->s_fs_info = kzalloc(sizeof(struct binderfs_info), GFP_KERNEL);
 	if (!sb->s_fs_info)
-		return -ENOMEM;
+		return -EANALMEM;
 	info = sb->s_fs_info;
 
 	info->ipc_ns = get_ipc_ns(current->nsproxy->ipc_ns);
@@ -694,20 +694,20 @@ static int binderfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	info->mount_opts.max = ctx->max;
 	info->mount_opts.stats_mode = ctx->stats_mode;
 
-	inode = new_inode(sb);
-	if (!inode)
-		return -ENOMEM;
+	ianalde = new_ianalde(sb);
+	if (!ianalde)
+		return -EANALMEM;
 
-	inode->i_ino = FIRST_INODE;
-	inode->i_fop = &simple_dir_operations;
-	inode->i_mode = S_IFDIR | 0755;
-	simple_inode_init_ts(inode);
-	inode->i_op = &binderfs_dir_inode_operations;
-	set_nlink(inode, 2);
+	ianalde->i_ianal = FIRST_IANALDE;
+	ianalde->i_fop = &simple_dir_operations;
+	ianalde->i_mode = S_IFDIR | 0755;
+	simple_ianalde_init_ts(ianalde);
+	ianalde->i_op = &binderfs_dir_ianalde_operations;
+	set_nlink(ianalde, 2);
 
-	sb->s_root = d_make_root(inode);
+	sb->s_root = d_make_root(ianalde);
 	if (!sb->s_root)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = binderfs_binder_ctl_create(sb);
 	if (ret)
@@ -716,7 +716,7 @@ static int binderfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	name = binder_devices_param;
 	for (len = strcspn(name, ","); len > 0; len = strcspn(name, ",")) {
 		strscpy(device_info.name, name, len + 1);
-		ret = binderfs_binder_device_create(inode, NULL, &device_info);
+		ret = binderfs_binder_device_create(ianalde, NULL, &device_info);
 		if (ret)
 			return ret;
 		name += len;
@@ -736,7 +736,7 @@ static int binderfs_fill_super(struct super_block *sb, struct fs_context *fc)
 
 static int binderfs_fs_context_get_tree(struct fs_context *fc)
 {
-	return get_tree_nodev(fc, binderfs_fill_super);
+	return get_tree_analdev(fc, binderfs_fill_super);
 }
 
 static void binderfs_fs_context_free(struct fs_context *fc)
@@ -759,9 +759,9 @@ static int binderfs_init_fs_context(struct fs_context *fc)
 
 	ctx = kzalloc(sizeof(struct binderfs_mount_opts), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	ctx->max = BINDERFS_MAX_MINOR;
+	ctx->max = BINDERFS_MAX_MIANALR;
 	ctx->stats_mode = binderfs_stats_mode_unset;
 
 	fc->fs_private = ctx;
@@ -775,7 +775,7 @@ static void binderfs_kill_super(struct super_block *sb)
 	struct binderfs_info *info = sb->s_fs_info;
 
 	/*
-	 * During inode eviction struct binderfs_info is needed.
+	 * During ianalde eviction struct binderfs_info is needed.
 	 * So first wipe the super_block then free struct binderfs_info.
 	 */
 	kill_litter_super(sb);
@@ -811,14 +811,14 @@ int __init init_binderfs(void)
 	}
 
 	/* Allocate new major number for binderfs. */
-	ret = alloc_chrdev_region(&binderfs_dev, 0, BINDERFS_MAX_MINOR,
+	ret = alloc_chrdev_region(&binderfs_dev, 0, BINDERFS_MAX_MIANALR,
 				  "binder");
 	if (ret)
 		return ret;
 
 	ret = register_filesystem(&binder_fs_type);
 	if (ret) {
-		unregister_chrdev_region(binderfs_dev, BINDERFS_MAX_MINOR);
+		unregister_chrdev_region(binderfs_dev, BINDERFS_MAX_MIANALR);
 		return ret;
 	}
 

@@ -37,9 +37,9 @@ static inline void contextidr_thread_switch(struct task_struct *next)
 }
 
 /*
- * Set TTBR0 to reserved_pg_dir. No translations will be possible via TTBR0.
+ * Set TTBR0 to reserved_pg_dir. Anal translations will be possible via TTBR0.
  */
-static inline void cpu_set_reserved_ttbr0_nosync(void)
+static inline void cpu_set_reserved_ttbr0_analsync(void)
 {
 	unsigned long ttbr = phys_to_ttbr(__pa_symbol(reserved_pg_dir));
 
@@ -48,7 +48,7 @@ static inline void cpu_set_reserved_ttbr0_nosync(void)
 
 static inline void cpu_set_reserved_ttbr0(void)
 {
-	cpu_set_reserved_ttbr0_nosync();
+	cpu_set_reserved_ttbr0_analsync();
 	isb();
 }
 
@@ -94,8 +94,8 @@ static inline void __cpu_set_tcr_t0sz(unsigned long t0sz)
  * speculative TLB fetches, we must temporarily install the reserved page
  * tables while we invalidate the TLBs and set up the correct TCR_EL1.T0SZ.
  *
- * If current is a not a user task, the mm covers the TTBR1_EL1 page tables,
- * which should not be installed in TTBR0_EL1. In this case we can leave the
+ * If current is a analt a user task, the mm covers the TTBR1_EL1 page tables,
+ * which should analt be installed in TTBR0_EL1. In this case we can leave the
  * reserved page tables in place.
  */
 static inline void cpu_uninstall_idmap(void)
@@ -252,7 +252,7 @@ enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
 static inline void __switch_mm(struct mm_struct *next)
 {
 	/*
-	 * init_mm.pgd does not contain any user mappings and it is always
+	 * init_mm.pgd does analt contain any user mappings and it is always
 	 * active for kernel addresses in TTBR1. Just set the reserved TTBR0.
 	 */
 	if (next == &init_mm) {
@@ -272,9 +272,9 @@ switch_mm(struct mm_struct *prev, struct mm_struct *next,
 
 	/*
 	 * Update the saved TTBR0_EL1 of the scheduled-in task as the previous
-	 * value may have not been initialised yet (activate_mm caller) or the
+	 * value may have analt been initialised yet (activate_mm caller) or the
 	 * ASID has changed since the last run (following the context switch
-	 * of another thread of the same process).
+	 * of aanalther thread of the same process).
 	 */
 	update_saved_ttbr0(tsk, next);
 }

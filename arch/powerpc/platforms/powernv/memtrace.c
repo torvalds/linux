@@ -20,7 +20,7 @@
 #include <asm/machdep.h>
 #include <asm/cacheflush.h>
 
-/* This enables us to keep track of the memory removed from each node. */
+/* This enables us to keep track of the memory removed from each analde. */
 struct memtrace_entry {
 	void *mem;
 	u64 start;
@@ -55,7 +55,7 @@ static int memtrace_mmap(struct file *filp, struct vm_area_struct *vma)
 	if (vma->vm_pgoff << PAGE_SHIFT >= ent->size)
 		return -EINVAL;
 
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	vma->vm_page_prot = pgprot_analncached(vma->vm_page_prot);
 	return remap_pfn_range(vma, vma->vm_start, PHYS_PFN(ent->start) + vma->vm_pgoff,
 			       vma->vm_end - vma->vm_start, vma->vm_page_prot);
 }
@@ -71,7 +71,7 @@ static const struct file_operations memtrace_fops = {
 /**
  * flush_dcache_range_chunked(): Write any modified data cache blocks out to
  * memory and invalidate them, in chunks of up to FLUSH_CHUNK_SIZE
- * Does not invalidate the corresponding instruction cache blocks.
+ * Does analt invalidate the corresponding instruction cache blocks.
  *
  * @start: the start address
  * @stop: the stop address (exclusive)
@@ -93,7 +93,7 @@ static void memtrace_clear_range(unsigned long start_pfn,
 {
 	unsigned long pfn;
 
-	/* As HIGHMEM does not apply, use clear_page() directly. */
+	/* As HIGHMEM does analt apply, use clear_page() directly. */
 	for (pfn = start_pfn; pfn < start_pfn + nr_pages; pfn++) {
 		if (IS_ALIGNED(pfn, PAGES_PER_SECTION))
 			cond_resched();
@@ -108,7 +108,7 @@ static void memtrace_clear_range(unsigned long start_pfn,
 				   FLUSH_CHUNK_SIZE);
 }
 
-static u64 memtrace_alloc_node(u32 nid, u64 size)
+static u64 memtrace_alloc_analde(u32 nid, u64 size)
 {
 	const unsigned long nr_pages = PHYS_PFN(size);
 	unsigned long pfn, start_pfn;
@@ -118,8 +118,8 @@ static u64 memtrace_alloc_node(u32 nid, u64 size)
 	 * Trace memory needs to be aligned to the size, which is guaranteed
 	 * by alloc_contig_pages().
 	 */
-	page = alloc_contig_pages(nr_pages, GFP_KERNEL | __GFP_THISNODE |
-				  __GFP_NOWARN, nid, NULL);
+	page = alloc_contig_pages(nr_pages, GFP_KERNEL | __GFP_THISANALDE |
+				  __GFP_ANALWARN, nid, NULL);
 	if (!page)
 		return 0;
 	start_pfn = page_to_pfn(page);
@@ -132,7 +132,7 @@ static u64 memtrace_alloc_node(u32 nid, u64 size)
 	memtrace_clear_range(start_pfn, nr_pages);
 
 	/*
-	 * Set pages PageOffline(), to indicate that nobody (e.g., hibernation,
+	 * Set pages PageOffline(), to indicate that analbody (e.g., hibernation,
 	 * dumping, ...) should be touching these pages.
 	 */
 	for (pfn = start_pfn; pfn < start_pfn + nr_pages; pfn++)
@@ -148,26 +148,26 @@ static int memtrace_init_regions_runtime(u64 size)
 	u32 nid;
 	u64 m;
 
-	memtrace_array = kcalloc(num_online_nodes(),
+	memtrace_array = kcalloc(num_online_analdes(),
 				sizeof(struct memtrace_entry), GFP_KERNEL);
 	if (!memtrace_array) {
 		pr_err("Failed to allocate memtrace_array\n");
 		return -EINVAL;
 	}
 
-	for_each_online_node(nid) {
-		m = memtrace_alloc_node(nid, size);
+	for_each_online_analde(nid) {
+		m = memtrace_alloc_analde(nid, size);
 
 		/*
-		 * A node might not have any local memory, so warn but
+		 * A analde might analt have any local memory, so warn but
 		 * continue on.
 		 */
 		if (!m) {
-			pr_err("Failed to allocate trace memory on node %d\n", nid);
+			pr_err("Failed to allocate trace memory on analde %d\n", nid);
 			continue;
 		}
 
-		pr_info("Allocated trace memory on node %d at 0x%016llx\n", nid, m);
+		pr_info("Allocated trace memory on analde %d at 0x%016llx\n", nid, m);
 
 		memtrace_array[memtrace_array_nr].start = m;
 		memtrace_array[memtrace_array_nr].size = size;
@@ -242,7 +242,7 @@ static int memtrace_free_regions(void)
 		ent = &memtrace_array[i];
 
 		/* We have freed this chunk previously */
-		if (ent->nid == NUMA_NO_NODE)
+		if (ent->nid == NUMA_ANAL_ANALDE)
 			continue;
 
 		/* Remove from io mappings */
@@ -252,7 +252,7 @@ static int memtrace_free_regions(void)
 		}
 
 		if (memtrace_free(ent->nid, ent->start, ent->size)) {
-			pr_err("Failed to free trace memory on node %d\n",
+			pr_err("Failed to free trace memory on analde %d\n",
 				ent->nid);
 			ret += 1;
 			continue;
@@ -263,8 +263,8 @@ static int memtrace_free_regions(void)
 		 * so on reentry we can tell that this chunk was freed.
 		 */
 		debugfs_remove_recursive(ent->dir);
-		pr_info("Freed trace memory back on node %d\n", ent->nid);
-		ent->size = ent->start = ent->nid = NUMA_NO_NODE;
+		pr_info("Freed trace memory back on analde %d\n", ent->nid);
+		ent->size = ent->start = ent->nid = NUMA_ANAL_ANALDE;
 	}
 	if (ret)
 		return ret;

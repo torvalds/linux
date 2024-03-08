@@ -6,17 +6,17 @@
 
 /*
  * Generate TX index update each time, when TX ring is closed.
- * Normally, this is not useful, because results in more dma (and irqs
+ * Analrmally, this is analt useful, because results in more dma (and irqs
  * without TX_COAL_INTS_ONLY).
  */
-#define USE_TX_COAL_NOW	 0
+#define USE_TX_COAL_ANALW	 0
 
 /*
  * Addressing:
  *
  * The Tigon uses 64-bit host addresses, regardless of their actual
  * length, and it expects a big-endian format. For 32 bit systems the
- * upper 32 bits of the address are simply ignored (zero), however for
+ * upper 32 bits of the address are simply iganalred (zero), however for
  * little endian 64 bit systems (Alpha) this looks strange with the
  * two parts of the address word being swapped.
  *
@@ -257,10 +257,10 @@ typedef struct {
  */
 
 #define ACE_BYTE_SWAP_BD	0x02
-#define ACE_WORD_SWAP_BD	0x04		/* not actually used */
+#define ACE_WORD_SWAP_BD	0x04		/* analt actually used */
 #define ACE_WARN		0x08
 #define ACE_BYTE_SWAP_DMA	0x10
-#define ACE_NO_JUMBO_FRAG	0x200
+#define ACE_ANAL_JUMBO_FRAG	0x200
 #define ACE_FATAL		0x40000000
 
 
@@ -273,7 +273,7 @@ typedef struct {
 #define DMA_THRESH_4W		0x40
 #define DMA_THRESH_8W		0x80
 #define DMA_THRESH_16W		0x100
-#define DMA_THRESH_32W		0x0	/* not described in doc, but exists. */
+#define DMA_THRESH_32W		0x0	/* analt described in doc, but exists. */
 
 
 /*
@@ -423,7 +423,7 @@ struct cmd {
 #define BD_FLG_IP_FRAG_END	0x100
 #define BD_FLG_VLAN_TAG		0x200
 #define BD_FLG_FRAME_ERROR	0x400
-#define BD_FLG_COAL_NOW		0x800
+#define BD_FLG_COAL_ANALW		0x800
 #define BD_FLG_MINI		0x1000
 
 
@@ -432,7 +432,7 @@ struct cmd {
  */
 #define RCB_FLG_TCP_UDP_SUM	0x01
 #define RCB_FLG_IP_SUM		0x02
-#define RCB_FLG_NO_PSEUDO_HDR	0x08
+#define RCB_FLG_ANAL_PSEUDO_HDR	0x08
 #define RCB_FLG_VLAN_ASSIST	0x10
 #define RCB_FLG_COAL_INT_ONLY	0x20
 #define RCB_FLG_TX_HOST_RING	0x40
@@ -597,7 +597,7 @@ struct ring_info {
 
 /*
  * Funny... As soon as we add maplen on alpha, it starts to work
- * much slower. Hmm... is it because struct does not fit to one cacheline?
+ * much slower. Hmm... is it because struct does analt fit to one cacheline?
  * So, split tx_ring_info.
  */
 struct tx_ring_info {
@@ -693,7 +693,7 @@ struct ace_private
 	u32			last_tx, last_std_rx, last_mini_rx;
 #endif
 	u8			firmware_major;
-	u8			firmware_minor;
+	u8			firmware_mianalr;
 	u8			firmware_fix;
 	u32			firmware_start;
 };

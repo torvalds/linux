@@ -29,7 +29,7 @@ enum ixgbe_ipsec_tbl_sel {
 #define IXGBE_RXTXMOD_VF		0x00000020
 
 struct rx_sa {
-	struct hlist_node hlist;
+	struct hlist_analde hlist;
 	struct xfrm_state *xs;
 	__be32 ipaddr[4];
 	u32 key[4];

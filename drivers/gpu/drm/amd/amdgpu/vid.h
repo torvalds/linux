@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -23,11 +23,11 @@
 #ifndef VI_H
 #define VI_H
 
-#define SDMA0_REGISTER_OFFSET                             0x0 /* not a register */
-#define SDMA1_REGISTER_OFFSET                             0x200 /* not a register */
+#define SDMA0_REGISTER_OFFSET                             0x0 /* analt a register */
+#define SDMA1_REGISTER_OFFSET                             0x200 /* analt a register */
 #define SDMA_MAX_INSTANCE 2
 
-#define KFD_VI_SDMA_QUEUE_OFFSET                      0x80 /* not a register */
+#define KFD_VI_SDMA_QUEUE_OFFSET                      0x80 /* analt a register */
 
 /* crtc instance offsets */
 #define CRTC0_REGISTER_OFFSET                 (0x1b9c - 0x1b9c)
@@ -109,7 +109,7 @@
 #define PACKET3_COMPUTE(op, n) (PACKET3(op, n) | 1 << 1)
 
 /* Packet 3 types */
-#define	PACKET3_NOP					0x10
+#define	PACKET3_ANALP					0x10
 #define	PACKET3_SET_BASE				0x11
 #define		PACKET3_BASE_INDEX(x)                  ((x) << 0)
 #define			CE_PARTITION_BASE		3
@@ -226,7 +226,7 @@
 #define	PACKET3_EVENT_WRITE				0x46
 #define		EVENT_TYPE(x)                           ((x) << 0)
 #define		EVENT_INDEX(x)                          ((x) << 8)
-		/* 0 - any non-TS event
+		/* 0 - any analn-TS event
 		 * 1 - ZPASS_DONE, PIXEL_PIPE_STAT_*
 		 * 2 - SAMPLE_PIPELINESTAT
 		 * 3 - SAMPLE_STREAMOUTSTAT*
@@ -254,7 +254,7 @@
 		 * 4 - send 64bit sys counter value
 		 */
 #define		INT_SEL(x)                              ((x) << 24)
-		/* 0 - none
+		/* 0 - analne
 		 * 1 - interrupt only (DATA_SEL = 0)
 		 * 2 - interrupt when data write is confirmed
 		 */
@@ -308,13 +308,13 @@
 /* COMMAND */
 #              define PACKET3_DMA_DATA_DIS_WC      (1 << 21)
 #              define PACKET3_DMA_DATA_CMD_SRC_SWAP(x) ((x) << 22)
-		/* 0 - none
+		/* 0 - analne
 		 * 1 - 8 in 16
 		 * 2 - 8 in 32
 		 * 3 - 8 in 64
 		 */
 #              define PACKET3_DMA_DATA_CMD_DST_SWAP(x) ((x) << 24)
-		/* 0 - none
+		/* 0 - analne
 		 * 1 - 8 in 16
 		 * 2 - 8 in 32
 		 * 3 - 8 in 64
@@ -415,7 +415,7 @@
 		/* 0 - PREEMPT_QUEUES
 		 * 1 - RESET_QUEUES
 		 * 2 - DISABLE_PROCESS_QUEUES
-		 * 3 - PREEMPT_QUEUES_NO_UNMAP
+		 * 3 - PREEMPT_QUEUES_ANAL_UNMAP
 		 */
 #              define PACKET3_UNMAP_QUEUES_QUEUE_SEL(x)        ((x) << 4)
 #              define PACKET3_UNMAP_QUEUES_ENGINE_SEL(x)       ((x) << 26)
@@ -452,7 +452,7 @@
 #              define PACKET3_QUERY_STATUS_ENG_SEL(x)          ((x) << 25)
 
 
-#define VCE_CMD_NO_OP		0x00000000
+#define VCE_CMD_ANAL_OP		0x00000000
 #define VCE_CMD_END		0x00000001
 #define VCE_CMD_IB		0x00000002
 #define VCE_CMD_FENCE		0x00000003
@@ -466,7 +466,7 @@
 #define VCE_CMD_FLUSH_TLB       0x00000108
 
 /* HEVC ENC */
-#define HEVC_ENC_CMD_NO_OP         0x00000000
+#define HEVC_ENC_CMD_ANAL_OP         0x00000000
 #define HEVC_ENC_CMD_END           0x00000001
 #define HEVC_ENC_CMD_FENCE         0x00000003
 #define HEVC_ENC_CMD_TRAP          0x00000004

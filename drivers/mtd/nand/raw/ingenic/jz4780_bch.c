@@ -2,7 +2,7 @@
 /*
  * JZ4780 BCH controller driver
  *
- * Copyright (c) 2015 Imagination Technologies
+ * Copyright (c) 2015 Imagination Techanallogies
  * Author: Alex Smith <alex.smith@imgtec.com>
  */
 
@@ -143,7 +143,7 @@ static bool jz4780_bch_wait_complete(struct ingenic_ecc *bch, unsigned int irq,
 	 * While we could use interrupts here and sleep until the operation
 	 * completes, the controller works fairly quickly (usually a few
 	 * microseconds) and so the overhead of sleeping until we get an
-	 * interrupt quite noticeably decreases performance.
+	 * interrupt quite analticeably decreases performance.
 	 */
 	ret = readl_poll_timeout(bch->base + BCH_BHINT, reg,
 				 (reg & irq) == irq, 0, BCH_TIMEOUT_US);

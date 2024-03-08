@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2019 Mellanox Technologies. */
+/* Copyright (c) 2019 Mellaanalx Techanallogies. */
 
 #define CREATE_TRACE_POINTS
 #include "en_tc_tracepoint.h"
@@ -50,7 +50,7 @@ const char *parse_action(struct trace_seq *p,
 		if (ids[i] < NUM_FLOW_ACTIONS)
 			trace_seq_printf(p, "%s ", FLOWACT2STR[ids[i]]);
 		else
-			trace_seq_printf(p, "UNKNOWN ");
+			trace_seq_printf(p, "UNKANALWN ");
 	}
 
 	trace_seq_putc(p, 0);

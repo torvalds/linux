@@ -26,7 +26,7 @@ void brcmf_acpi_probe(struct device *dev, enum brcmf_bus_type bus_type,
 						      "apple,%s",
 						      o->string.pointer);
 	} else {
-		brcmf_dbg(INFO, "No ACPI module-instance\n");
+		brcmf_dbg(INFO, "Anal ACPI module-instance\n");
 		return;
 	}
 
@@ -46,6 +46,6 @@ void brcmf_acpi_probe(struct device *dev, enum brcmf_bus_type bus_type,
 
 		kfree(buf.pointer);
 	} else {
-		brcmf_dbg(INFO, "No ACPI antenna-sku\n");
+		brcmf_dbg(INFO, "Anal ACPI antenna-sku\n");
 	}
 }

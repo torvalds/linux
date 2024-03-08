@@ -44,7 +44,7 @@ bool ia_css_query_internal_queue_id(
  * @param[in] thread id		Thread in which the buffer type has to be mapped or unmapped
  * @param[in] buf_type		buffer type.
  * @param[in] map		boolean flag to specify map or unmap
- * @return none
+ * @return analne
  */
 void ia_css_queue_map(
     unsigned int thread_id,
@@ -54,7 +54,7 @@ void ia_css_queue_map(
 
 /**
  * @brief  Initialize buffer type to a queue id mapping
- * @return none
+ * @return analne
  */
 void ia_css_queue_map_init(void);
 
@@ -67,7 +67,7 @@ void ia_css_queue_map_init(void);
  *-host to SP event communication queue
  * -SP to host event communication queue
  * -queue for tagger commands
- * @return none
+ * @return analne
  */
 void ia_css_bufq_init(void);
 
@@ -170,7 +170,7 @@ int ia_css_bufq_deinit(void);
 /**
 * @brief  Dump queue states
  *
- * @return	None
+ * @return	Analne
  *
 */
 void ia_css_bufq_dump_queue_info(void);

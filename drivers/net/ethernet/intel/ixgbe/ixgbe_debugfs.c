@@ -25,11 +25,11 @@ static ssize_t ixgbe_dbg_common_ops_read(struct file *filp, char __user *buffer,
 	buf = kasprintf(GFP_KERNEL, "%s: %s\n",
 			adapter->netdev->name, dbg_buf);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (count < strlen(buf)) {
 		kfree(buf);
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	len = simple_read_from_buffer(buffer, count, ppos, buf, strlen(buf));
@@ -70,7 +70,7 @@ static ssize_t ixgbe_dbg_reg_ops_write(struct file *filp,
 	if (*ppos != 0)
 		return 0;
 	if (count >= sizeof(ixgbe_dbg_reg_ops_buf))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	len = simple_write_to_buffer(ixgbe_dbg_reg_ops_buf,
 				     sizeof(ixgbe_dbg_reg_ops_buf)-1,
@@ -104,7 +104,7 @@ static ssize_t ixgbe_dbg_reg_ops_write(struct file *filp,
 			e_dev_info("read <reg>\n");
 		}
 	} else {
-		e_dev_info("Unknown command %s\n", ixgbe_dbg_reg_ops_buf);
+		e_dev_info("Unkanalwn command %s\n", ixgbe_dbg_reg_ops_buf);
 		e_dev_info("Available commands:\n");
 		e_dev_info("   read <reg>\n");
 		e_dev_info("   write <reg> <value>\n");
@@ -153,7 +153,7 @@ static ssize_t ixgbe_dbg_netdev_ops_write(struct file *filp,
 	if (*ppos != 0)
 		return 0;
 	if (count >= sizeof(ixgbe_dbg_netdev_ops_buf))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	len = simple_write_to_buffer(ixgbe_dbg_netdev_ops_buf,
 				     sizeof(ixgbe_dbg_netdev_ops_buf)-1,
@@ -166,12 +166,12 @@ static ssize_t ixgbe_dbg_netdev_ops_write(struct file *filp,
 	ixgbe_dbg_netdev_ops_buf[len] = '\0';
 
 	if (strncmp(ixgbe_dbg_netdev_ops_buf, "tx_timeout", 10) == 0) {
-		/* TX Queue number below is wrong, but ixgbe does not use it */
+		/* TX Queue number below is wrong, but ixgbe does analt use it */
 		adapter->netdev->netdev_ops->ndo_tx_timeout(adapter->netdev,
 							    UINT_MAX);
 		e_dev_info("tx_timeout called\n");
 	} else {
-		e_dev_info("Unknown command: %s\n", ixgbe_dbg_netdev_ops_buf);
+		e_dev_info("Unkanalwn command: %s\n", ixgbe_dbg_netdev_ops_buf);
 		e_dev_info("Available commands:\n");
 		e_dev_info("    tx_timeout\n");
 	}

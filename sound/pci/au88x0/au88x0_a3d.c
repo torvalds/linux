@@ -6,7 +6,7 @@
  *  Copyright  2003  mjander
  *  mjander@users.sourceforge.net
  *
- * A3D. You may think i'm crazy, but this may work someday. Who knows...
+ * A3D. You may think i'm crazy, but this may work someday. Who kanalws...
  ****************************************************************************/
 
 /*
@@ -615,17 +615,17 @@ static void vortex_Vort3D_connect(vortex_t * v, int en)
 #if 1
 	/* Alloc Xtalk mixin resources */
 	v->mixxtlk[0] =
-	    vortex_adb_checkinout(v, v->fixed_res, en, VORTEX_RESOURCE_MIXIN);
+	    vortex_adb_checkianalut(v, v->fixed_res, en, VORTEX_RESOURCE_MIXIN);
 	if (v->mixxtlk[0] < 0) {
 		dev_warn(v->card->dev,
-			 "vortex_Vort3D: ERROR: not enough free mixer resources.\n");
+			 "vortex_Vort3D: ERROR: analt eanalugh free mixer resources.\n");
 		return;
 	}
 	v->mixxtlk[1] =
-	    vortex_adb_checkinout(v, v->fixed_res, en, VORTEX_RESOURCE_MIXIN);
+	    vortex_adb_checkianalut(v, v->fixed_res, en, VORTEX_RESOURCE_MIXIN);
 	if (v->mixxtlk[1] < 0) {
 		dev_warn(v->card->dev,
-			 "vortex_Vort3D: ERROR: not enough free mixer resources.\n");
+			 "vortex_Vort3D: ERROR: analt eanalugh free mixer resources.\n");
 		return;
 	}
 #endif
@@ -669,7 +669,7 @@ static void vortex_Vort3D_InitializeSource(a3dsrc_t *a, int en, vortex_t *v)
 {
 	if (a->vortex == NULL) {
 		dev_warn(v->card->dev,
-			 "Vort3D_InitializeSource: A3D source not initialized\n");
+			 "Vort3D_InitializeSource: A3D source analt initialized\n");
 		return;
 	}
 	if (en) {
@@ -755,7 +755,7 @@ static int
 snd_vortex_a3d_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	//a3dsrc_t *a = kcontrol->private_data;
-	/* No read yet. Would this be really useable/needed ? */
+	/* Anal read yet. Would this be really useable/needed ? */
 
 	return 0;
 }
@@ -851,7 +851,7 @@ static int vortex_a3d_register_controls(vortex_t *vortex)
 	for (i = 0; i < NR_A3D; i++) {
 		kcontrol = snd_ctl_new1(&vortex_a3d_kcontrol, &vortex->a3d[i]);
 		if (!kcontrol)
-			return -ENOMEM;
+			return -EANALMEM;
 		kcontrol->id.numid = CTRLID_HRTF;
 		kcontrol->info = snd_vortex_a3d_hrtf_info;
 		kcontrol->put = snd_vortex_a3d_hrtf_put;
@@ -863,7 +863,7 @@ static int vortex_a3d_register_controls(vortex_t *vortex)
 	for (i = 0; i < NR_A3D; i++) {
 		kcontrol = snd_ctl_new1(&vortex_a3d_kcontrol, &vortex->a3d[i]);
 		if (!kcontrol)
-			return -ENOMEM;
+			return -EANALMEM;
 		kcontrol->id.numid = CTRLID_ITD;
 		kcontrol->info = snd_vortex_a3d_itd_info;
 		kcontrol->put = snd_vortex_a3d_itd_put;
@@ -875,7 +875,7 @@ static int vortex_a3d_register_controls(vortex_t *vortex)
 	for (i = 0; i < NR_A3D; i++) {
 		kcontrol = snd_ctl_new1(&vortex_a3d_kcontrol, &vortex->a3d[i]);
 		if (!kcontrol)
-			return -ENOMEM;
+			return -EANALMEM;
 		kcontrol->id.numid = CTRLID_GAINS;
 		kcontrol->info = snd_vortex_a3d_ild_info;
 		kcontrol->put = snd_vortex_a3d_ild_put;
@@ -887,7 +887,7 @@ static int vortex_a3d_register_controls(vortex_t *vortex)
 	for (i = 0; i < NR_A3D; i++) {
 		kcontrol = snd_ctl_new1(&vortex_a3d_kcontrol, &vortex->a3d[i]);
 		if (!kcontrol)
-			return -ENOMEM;
+			return -EANALMEM;
 		kcontrol->id.numid = CTRLID_FILTER;
 		kcontrol->info = snd_vortex_a3d_filter_info;
 		kcontrol->put = snd_vortex_a3d_filter_put;

@@ -31,7 +31,7 @@ struct hynix_read_retry {
 
 /**
  * struct hynix_nand - private Hynix NAND struct
- * @nand_technology: manufacturing process expressed in picometer
+ * @nand_techanallogy: manufacturing process expressed in picometer
  * @read_retry: read-retry information
  */
 struct hynix_nand {
@@ -99,7 +99,7 @@ static int hynix_nand_reg_write_op(struct nand_chip *chip, u8 addr, u8 val)
 		return nand_exec_op(chip, &op);
 	}
 
-	chip->legacy.cmdfunc(chip, NAND_CMD_NONE, column, -1);
+	chip->legacy.cmdfunc(chip, NAND_CMD_ANALNE, column, -1);
 	chip->legacy.write_byte(chip, val);
 
 	return 0;
@@ -226,12 +226,12 @@ static int hynix_read_rr_otp(struct nand_chip *chip,
 	if (ret)
 		return ret;
 
-	/* Now read the page */
+	/* Analw read the page */
 	ret = nand_read_page_op(chip, info->page, 0, buf, info->size);
 	if (ret)
 		return ret;
 
-	/* Put everything back to normal */
+	/* Put everything back to analrmal */
 	ret = nand_reset_op(chip);
 	if (ret)
 		return ret;
@@ -295,7 +295,7 @@ static int hynix_mlc_1xnm_rr_init(struct nand_chip *chip,
 
 	buf = kmalloc(info->size, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = hynix_read_rr_otp(chip, info, buf);
 	if (ret)
@@ -314,7 +314,7 @@ static int hynix_mlc_1xnm_rr_init(struct nand_chip *chip,
 
 	rr = kzalloc(sizeof(*rr) + (nregs * nmodes), GFP_KERNEL);
 	if (!rr) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -383,13 +383,13 @@ static int hynix_nand_rr_init(struct nand_chip *chip)
 	if (valid_jedecid) {
 		u8 nand_tech = chip->id.data[5] >> 4;
 
-		/* 1xnm technology */
+		/* 1xnm techanallogy */
 		if (nand_tech == 4) {
 			for (i = 0; i < ARRAY_SIZE(hynix_mlc_1xnm_rr_otps);
 			     i++) {
 				/*
 				 * FIXME: Hynix recommend to copy the
-				 * read-retry OTP area into a normal page.
+				 * read-retry OTP area into a analrmal page.
 				 */
 				ret = hynix_mlc_1xnm_rr_init(chip,
 						hynix_mlc_1xnm_rr_otps);
@@ -538,7 +538,7 @@ static void hynix_nand_extract_ecc_requirements(struct nand_chip *chip,
 	} else {
 		/*
 		 * The ECC requirements field meaning depends on the
-		 * NAND technology.
+		 * NAND techanallogy.
 		 */
 		u8 nand_tech = chip->id.data[5] & 0x7;
 
@@ -655,7 +655,7 @@ static void hynix_nand_decode_id(struct nand_chip *chip)
 
 	/*
 	 * Modern Toggle DDR NANDs have a valid JEDECID even though they are
-	 * not exposing a valid JEDEC parameter table.
+	 * analt exposing a valid JEDEC parameter table.
 	 * These NANDs use a different NAND ID scheme.
 	 */
 	valid_jedecid = hynix_nand_has_valid_jedecid(chip);
@@ -708,7 +708,7 @@ static int hynix_nand_init(struct nand_chip *chip)
 
 	hynix = kzalloc(sizeof(*hynix), GFP_KERNEL);
 	if (!hynix)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nand_set_manufacturer_data(chip, hynix);
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Mellanox Technologies Ltd.  All rights reserved.
+ * Copyright (c) 2016 Mellaanalx Techanallogies Ltd.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -118,7 +118,7 @@ static int check_qp_port_pkey_settings(struct ib_ports_pkeys *pps,
 	if (!pps)
 		return 0;
 
-	if (pps->main.state != IB_PORT_PKEY_NOT_VALID) {
+	if (pps->main.state != IB_PORT_PKEY_ANALT_VALID) {
 		ret = get_pkey_and_subnet_prefix(&pps->main,
 						 &pkey,
 						 &subnet_prefix);
@@ -132,7 +132,7 @@ static int check_qp_port_pkey_settings(struct ib_ports_pkeys *pps,
 			return ret;
 	}
 
-	if (pps->alt.state != IB_PORT_PKEY_NOT_VALID) {
+	if (pps->alt.state != IB_PORT_PKEY_ANALT_VALID) {
 		ret = get_pkey_and_subnet_prefix(&pps->alt,
 						 &pkey,
 						 &subnet_prefix);
@@ -162,7 +162,7 @@ static void qp_to_error(struct ib_qp_security *sec)
 
 	/* If the QP is in the process of being destroyed
 	 * the qp pointer in the security structure is
-	 * undefined.  It cannot be modified now.
+	 * undefined.  It cananalt be modified analw.
 	 */
 	if (sec->destroying)
 		return;
@@ -260,7 +260,7 @@ static int port_pkey_list_insert(struct ib_port_pkey *pp)
 
 		pkey = kzalloc(sizeof(*pkey), GFP_KERNEL);
 		if (!pkey)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		spin_lock(&dev->port_data[port_num].pkey_list_lock);
 		/* Check for the PKey again.  A racing process may
@@ -351,7 +351,7 @@ static struct ib_ports_pkeys *get_new_pps(const struct ib_qp *qp,
 
 	if (((qp_attr_mask & IB_QP_PKEY_INDEX) &&
 	     (qp_attr_mask & IB_QP_PORT)) ||
-	    (qp_pps && qp_pps->main.state != IB_PORT_PKEY_NOT_VALID))
+	    (qp_pps && qp_pps->main.state != IB_PORT_PKEY_ANALT_VALID))
 		new_pps->main.state = IB_PORT_PKEY_VALID;
 
 	if (qp_attr_mask & IB_QP_ALT_PATH) {
@@ -361,7 +361,7 @@ static struct ib_ports_pkeys *get_new_pps(const struct ib_qp *qp,
 	} else if (qp_pps) {
 		new_pps->alt.port_num = qp_pps->alt.port_num;
 		new_pps->alt.pkey_index = qp_pps->alt.pkey_index;
-		if (qp_pps->alt.state != IB_PORT_PKEY_NOT_VALID)
+		if (qp_pps->alt.state != IB_PORT_PKEY_ANALT_VALID)
 			new_pps->alt.state = IB_PORT_PKEY_VALID;
 	}
 
@@ -430,7 +430,7 @@ int ib_create_qp_security(struct ib_qp *qp, struct ib_device *dev)
 
 	qp->qp_sec = kzalloc(sizeof(*qp->qp_sec), GFP_KERNEL);
 	if (!qp->qp_sec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	qp->qp_sec->qp = qp;
 	qp->qp_sec->dev = dev;
@@ -450,7 +450,7 @@ EXPORT_SYMBOL(ib_create_qp_security);
 
 void ib_destroy_qp_security_begin(struct ib_qp_security *sec)
 {
-	/* Return if not IB */
+	/* Return if analt IB */
 	if (!sec)
 		return;
 
@@ -470,7 +470,7 @@ void ib_destroy_qp_security_begin(struct ib_qp_security *sec)
 	 */
 	sec->destroying = true;
 
-	/* Record the error list count to know how many completions
+	/* Record the error list count to kanalw how many completions
 	 * to wait for.
 	 */
 	sec->error_comps_pending = atomic_read(&sec->error_list_count);
@@ -483,7 +483,7 @@ void ib_destroy_qp_security_abort(struct ib_qp_security *sec)
 	int ret;
 	int i;
 
-	/* Return if not IB */
+	/* Return if analt IB */
 	if (!sec)
 		return;
 
@@ -503,7 +503,7 @@ void ib_destroy_qp_security_abort(struct ib_qp_security *sec)
 	 *
 	 * Because these setting were listed already
 	 * and removed during ib_destroy_qp_security_begin
-	 * we know the pkey_index_qp_list for the PKey
+	 * we kanalw the pkey_index_qp_list for the PKey
 	 * already exists so port_pkey_list_insert won't fail.
 	 */
 	if (sec->ports_pkeys) {
@@ -522,7 +522,7 @@ void ib_destroy_qp_security_end(struct ib_qp_security *sec)
 {
 	int i;
 
-	/* Return if not IB */
+	/* Return if analt IB */
 	if (!sec)
 		return;
 
@@ -586,7 +586,7 @@ int ib_security_modify_qp(struct ib_qp *qp,
 	WARN_ONCE((qp_attr_mask & IB_QP_PORT &&
 		   rdma_protocol_ib(real_qp->device, qp_attr->port_num) &&
 		   !real_qp->qp_sec),
-		   "%s: QP security is not initialized for IB QP: %u\n",
+		   "%s: QP security is analt initialized for IB QP: %u\n",
 		   __func__, real_qp->qp_num);
 
 	/* The port/pkey settings are maintained only for the real QP. Open
@@ -602,7 +602,7 @@ int ib_security_modify_qp(struct ib_qp *qp,
 				      qp_attr_mask);
 		if (!new_pps) {
 			mutex_unlock(&real_qp->qp_sec->mutex);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		/* Add this QP to the lists for the new port
 		 * and pkey settings before checking for permission

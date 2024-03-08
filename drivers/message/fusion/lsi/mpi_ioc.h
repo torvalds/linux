@@ -102,12 +102,12 @@
  *  10-11-06  01.05.12  Added MPI_IOCFACTS_EXCEPT_METADATA_UNSUPPORTED.
  *                      Added MaxInitiators field to PortFacts reply.
  *                      Added SAS Device Status Change ReasonCode for
- *                      asynchronous notificaiton.
+ *                      asynchroanalus analtificaiton.
  *                      Added MPI_EVENT_SAS_EXPANDER_STATUS_CHANGE and event
  *                      data structure.
  *                      Added new ImageType values for FWDownload and FWUpload
  *                      requests.
- *  02-28-07  01.05.13  Added MPI_EVENT_PRIMITIVE_ASYNCHRONOUS_EVENT for SAS
+ *  02-28-07  01.05.13  Added MPI_EVENT_PRIMITIVE_ASYNCHROANALUS_EVENT for SAS
  *                      Broadcast Event Data (replacing _RESERVED2).
  *                      For Discovery Error Event Data DiscoveryStatus field,
  *                      replaced _MULTPL_PATHS with _UNSUPPORTED_DEVICE and
@@ -164,7 +164,7 @@ typedef struct _MSG_IOC_INIT
   IOCInit_t, MPI_POINTER pIOCInit_t;
 
 /* WhoInit values */
-#define MPI_WHOINIT_NO_ONE                              (0x00)
+#define MPI_WHOINIT_ANAL_ONE                              (0x00)
 #define MPI_WHOINIT_SYSTEM_BIOS                         (0x01)
 #define MPI_WHOINIT_ROM_BIOS                            (0x02)
 #define MPI_WHOINIT_PCI_PEER                            (0x03)
@@ -179,8 +179,8 @@ typedef struct _MSG_IOC_INIT
 /* MsgVersion */
 #define MPI_IOCINIT_MSGVERSION_MAJOR_MASK               (0xFF00)
 #define MPI_IOCINIT_MSGVERSION_MAJOR_SHIFT              (8)
-#define MPI_IOCINIT_MSGVERSION_MINOR_MASK               (0x00FF)
-#define MPI_IOCINIT_MSGVERSION_MINOR_SHIFT              (0)
+#define MPI_IOCINIT_MSGVERSION_MIANALR_MASK               (0x00FF)
+#define MPI_IOCINIT_MSGVERSION_MIANALR_SHIFT              (0)
 
 /* HeaderVersion */
 #define MPI_IOCINIT_HEADERVERSION_UNIT_MASK             (0xFF00)
@@ -227,7 +227,7 @@ typedef struct _MPI_FW_VERSION_STRUCT
 {
     U8                      Dev;                        /* 00h */
     U8                      Unit;                       /* 01h */
-    U8                      Minor;                      /* 02h */
+    U8                      Mianalr;                      /* 02h */
     U8                      Major;                      /* 03h */
 } MPI_FW_VERSION_STRUCT;
 
@@ -278,8 +278,8 @@ typedef struct _MSG_IOC_FACTS_REPLY
 
 #define MPI_IOCFACTS_MSGVERSION_MAJOR_MASK              (0xFF00)
 #define MPI_IOCFACTS_MSGVERSION_MAJOR_SHIFT             (8)
-#define MPI_IOCFACTS_MSGVERSION_MINOR_MASK              (0x00FF)
-#define MPI_IOCFACTS_MSGVERSION_MINOR_SHIFT             (0)
+#define MPI_IOCFACTS_MSGVERSION_MIANALR_MASK              (0x00FF)
+#define MPI_IOCFACTS_MSGVERSION_MIANALR_SHIFT             (0)
 
 #define MPI_IOCFACTS_HDRVERSION_UNIT_MASK               (0xFF00)
 #define MPI_IOCFACTS_HDRVERSION_UNIT_SHIFT              (8)
@@ -309,7 +309,7 @@ typedef struct _MSG_IOC_FACTS_REPLY
 #define MPI_IOCFACTS_CAPABILITY_BIDIRECTIONAL           (0x00000080)
 #define MPI_IOCFACTS_CAPABILITY_MULTICAST               (0x00000100)
 #define MPI_IOCFACTS_CAPABILITY_SCSIIO32                (0x00000200)
-#define MPI_IOCFACTS_CAPABILITY_NO_SCSIIO16             (0x00000400)
+#define MPI_IOCFACTS_CAPABILITY_ANAL_SCSIIO16             (0x00000400)
 #define MPI_IOCFACTS_CAPABILITY_TLR                     (0x00000800)
 
 
@@ -417,10 +417,10 @@ typedef struct _MSG_PORT_ENABLE_REPLY
 *****************************************************************************/
 
 /****************************************************************************/
-/*  Event Notification messages                                             */
+/*  Event Analtification messages                                             */
 /****************************************************************************/
 
-typedef struct _MSG_EVENT_NOTIFY
+typedef struct _MSG_EVENT_ANALTIFY
 {
     U8                      Switch;                     /* 00h */
     U8                      Reserved;                   /* 01h */
@@ -429,12 +429,12 @@ typedef struct _MSG_EVENT_NOTIFY
     U8                      Reserved1[3];               /* 04h */
     U8                      MsgFlags;                   /* 07h */
     U32                     MsgContext;                 /* 08h */
-} MSG_EVENT_NOTIFY, MPI_POINTER PTR_MSG_EVENT_NOTIFY,
-  EventNotification_t, MPI_POINTER pEventNotification_t;
+} MSG_EVENT_ANALTIFY, MPI_POINTER PTR_MSG_EVENT_ANALTIFY,
+  EventAnaltification_t, MPI_POINTER pEventAnaltification_t;
 
-/* Event Notification Reply */
+/* Event Analtification Reply */
 
-typedef struct _MSG_EVENT_NOTIFY_REPLY
+typedef struct _MSG_EVENT_ANALTIFY_REPLY
 {
      U16                    EventDataLength;            /* 00h */
      U8                     MsgLength;                  /* 02h */
@@ -449,10 +449,10 @@ typedef struct _MSG_EVENT_NOTIFY_REPLY
      U32                    Event;                      /* 14h */
      U32                    EventContext;               /* 18h */
      U32                    Data[];			/* 1Ch */
-} MSG_EVENT_NOTIFY_REPLY, MPI_POINTER PTR_MSG_EVENT_NOTIFY_REPLY,
-  EventNotificationReply_t, MPI_POINTER pEventNotificationReply_t;
+} MSG_EVENT_ANALTIFY_REPLY, MPI_POINTER PTR_MSG_EVENT_ANALTIFY_REPLY,
+  EventAnaltificationReply_t, MPI_POINTER pEventAnaltificationReply_t;
 
-/* Event Acknowledge */
+/* Event Ackanalwledge */
 
 typedef struct _MSG_EVENT_ACK
 {
@@ -483,12 +483,12 @@ typedef struct _MSG_EVENT_ACK_REPLY
 
 /* Switch */
 
-#define MPI_EVENT_NOTIFICATION_SWITCH_OFF   (0x00)
-#define MPI_EVENT_NOTIFICATION_SWITCH_ON    (0x01)
+#define MPI_EVENT_ANALTIFICATION_SWITCH_OFF   (0x00)
+#define MPI_EVENT_ANALTIFICATION_SWITCH_ON    (0x01)
 
 /* Event */
 
-#define MPI_EVENT_NONE                          (0x00000000)
+#define MPI_EVENT_ANALNE                          (0x00000000)
 #define MPI_EVENT_LOG_DATA                      (0x00000001)
 #define MPI_EVENT_STATE_CHANGE                  (0x00000002)
 #define MPI_EVENT_UNIT_ATTENTION                (0x00000003)
@@ -520,8 +520,8 @@ typedef struct _MSG_EVENT_ACK_REPLY
 
 /* AckRequired field values */
 
-#define MPI_EVENT_NOTIFICATION_ACK_NOT_REQUIRED (0x00)
-#define MPI_EVENT_NOTIFICATION_ACK_REQUIRED     (0x01)
+#define MPI_EVENT_ANALTIFICATION_ACK_ANALT_REQUIRED (0x00)
+#define MPI_EVENT_ANALTIFICATION_ACK_REQUIRED     (0x01)
 
 /* EventChange Event data */
 
@@ -584,7 +584,7 @@ typedef struct _EVENT_DATA_SCSI_DEVICE_STATUS_CHANGE
 
 /* MPI SCSI Device Status Change Event data ReasonCode values */
 #define MPI_EVENT_SCSI_DEV_STAT_RC_ADDED                (0x03)
-#define MPI_EVENT_SCSI_DEV_STAT_RC_NOT_RESPONDING       (0x04)
+#define MPI_EVENT_SCSI_DEV_STAT_RC_ANALT_RESPONDING       (0x04)
 #define MPI_EVENT_SCSI_DEV_STAT_RC_SMART_DATA           (0x05)
 
 /* SAS Device Status Change Event data */
@@ -613,16 +613,16 @@ typedef struct _EVENT_DATA_SAS_DEVICE_STATUS_CHANGE
 
 /* MPI SAS Device Status Change Event data ReasonCode values */
 #define MPI_EVENT_SAS_DEV_STAT_RC_ADDED                     (0x03)
-#define MPI_EVENT_SAS_DEV_STAT_RC_NOT_RESPONDING            (0x04)
+#define MPI_EVENT_SAS_DEV_STAT_RC_ANALT_RESPONDING            (0x04)
 #define MPI_EVENT_SAS_DEV_STAT_RC_SMART_DATA                (0x05)
-#define MPI_EVENT_SAS_DEV_STAT_RC_NO_PERSIST_ADDED          (0x06)
+#define MPI_EVENT_SAS_DEV_STAT_RC_ANAL_PERSIST_ADDED          (0x06)
 #define MPI_EVENT_SAS_DEV_STAT_RC_UNSUPPORTED               (0x07)
 #define MPI_EVENT_SAS_DEV_STAT_RC_INTERNAL_DEVICE_RESET     (0x08)
 #define MPI_EVENT_SAS_DEV_STAT_RC_TASK_ABORT_INTERNAL       (0x09)
 #define MPI_EVENT_SAS_DEV_STAT_RC_ABORT_TASK_SET_INTERNAL   (0x0A)
 #define MPI_EVENT_SAS_DEV_STAT_RC_CLEAR_TASK_SET_INTERNAL   (0x0B)
 #define MPI_EVENT_SAS_DEV_STAT_RC_QUERY_TASK_INTERNAL       (0x0C)
-#define MPI_EVENT_SAS_DEV_STAT_RC_ASYNC_NOTIFICATION        (0x0D)
+#define MPI_EVENT_SAS_DEV_STAT_RC_ASYNC_ANALTIFICATION        (0x0D)
 #define MPI_EVENT_SAS_DEV_STAT_RC_CMPL_INTERNAL_DEV_RESET   (0x0E)
 #define MPI_EVENT_SAS_DEV_STAT_RC_CMPL_TASK_ABORT_INTERNAL  (0x0F)
 
@@ -734,12 +734,12 @@ typedef struct _MPI_EVENT_DATA_IR2
 /* defines for physical disk states */
 #define MPI_PD_STATE_ONLINE                         (0x00)
 #define MPI_PD_STATE_MISSING                        (0x01)
-#define MPI_PD_STATE_NOT_COMPATIBLE                 (0x02)
+#define MPI_PD_STATE_ANALT_COMPATIBLE                 (0x02)
 #define MPI_PD_STATE_FAILED                         (0x03)
 #define MPI_PD_STATE_INITIALIZING                   (0x04)
 #define MPI_PD_STATE_OFFLINE_AT_HOST_REQUEST        (0x05)
 #define MPI_PD_STATE_FAILED_AT_HOST_REQUEST         (0x06)
-#define MPI_PD_STATE_OFFLINE_FOR_ANOTHER_REASON     (0xFF)
+#define MPI_PD_STATE_OFFLINE_FOR_AANALTHER_REASON     (0xFF)
 
 /* MPI Link Status Change Event data */
 
@@ -814,7 +814,7 @@ typedef struct _EVENT_DATA_SAS_BROADCAST_PRIMITIVE
 
 #define MPI_EVENT_PRIMITIVE_CHANGE              (0x01)
 #define MPI_EVENT_PRIMITIVE_EXPANDER            (0x03)
-#define MPI_EVENT_PRIMITIVE_ASYNCHRONOUS_EVENT  (0x04)
+#define MPI_EVENT_PRIMITIVE_ASYNCHROANALUS_EVENT  (0x04)
 #define MPI_EVENT_PRIMITIVE_RESERVED3           (0x05)
 #define MPI_EVENT_PRIMITIVE_RESERVED4           (0x06)
 #define MPI_EVENT_PRIMITIVE_CHANGE0_RESERVED    (0x07)
@@ -836,7 +836,7 @@ typedef struct _EVENT_DATA_SAS_PHY_LINK_STATUS
 #define MPI_EVENT_SAS_PLS_LR_CURRENT_SHIFT                  (4)
 #define MPI_EVENT_SAS_PLS_LR_PREVIOUS_MASK                  (0x0F)
 #define MPI_EVENT_SAS_PLS_LR_PREVIOUS_SHIFT                 (0)
-#define MPI_EVENT_SAS_PLS_LR_RATE_UNKNOWN                   (0x00)
+#define MPI_EVENT_SAS_PLS_LR_RATE_UNKANALWN                   (0x00)
 #define MPI_EVENT_SAS_PLS_LR_RATE_PHY_DISABLED              (0x01)
 #define MPI_EVENT_SAS_PLS_LR_RATE_FAILED_SPEED_NEGOTIATION  (0x02)
 #define MPI_EVENT_SAS_PLS_LR_RATE_SATA_OOB_COMPLETE         (0x03)
@@ -875,7 +875,7 @@ typedef struct _EVENT_DATA_DISCOVERY_ERROR
 #define MPI_EVENT_DSCVRY_ERR_DS_EXPANDER_ERR                (0x00000008)
 #define MPI_EVENT_DSCVRY_ERR_DS_SMP_TIMEOUT                 (0x00000010)
 #define MPI_EVENT_DSCVRY_ERR_DS_OUT_ROUTE_ENTRIES           (0x00000020)
-#define MPI_EVENT_DSCVRY_ERR_DS_INDEX_NOT_EXIST             (0x00000040)
+#define MPI_EVENT_DSCVRY_ERR_DS_INDEX_ANALT_EXIST             (0x00000040)
 #define MPI_EVENT_DSCVRY_ERR_DS_SMP_FUNCTION_FAILED         (0x00000080)
 #define MPI_EVENT_DSCVRY_ERR_DS_SMP_CRC_ERROR               (0x00000100)
 #define MPI_EVENT_DSCVRY_ERR_DS_MULTPL_SUBTRACTIVE          (0x00000200)
@@ -901,7 +901,7 @@ typedef struct _EVENT_DATA_SAS_SMP_ERROR
 #define MPI_EVENT_SAS_SMP_FUNCTION_RESULT_VALID         (0x00)
 #define MPI_EVENT_SAS_SMP_CRC_ERROR                     (0x01)
 #define MPI_EVENT_SAS_SMP_TIMEOUT                       (0x02)
-#define MPI_EVENT_SAS_SMP_NO_DESTINATION                (0x03)
+#define MPI_EVENT_SAS_SMP_ANAL_DESTINATION                (0x03)
 #define MPI_EVENT_SAS_SMP_BAD_DESTINATION               (0x04)
 
 /* SAS Initiator Device Status Change Event data */
@@ -962,7 +962,7 @@ typedef struct _EVENT_DATA_SAS_EXPANDER_STATUS_CHANGE
 
 /* values for ReasonCode field of SAS Expander Status Change Event data */
 #define MPI_EVENT_SAS_EXP_RC_ADDED                      (0x00)
-#define MPI_EVENT_SAS_EXP_RC_NOT_RESPONDING             (0x01)
+#define MPI_EVENT_SAS_EXP_RC_ANALT_RESPONDING             (0x01)
 
 /* values for DiscoveryStatus field of SAS Expander Status Change Event data */
 #define MPI_EVENT_SAS_EXP_DS_LOOP_DETECTED              (0x00000001)
@@ -971,7 +971,7 @@ typedef struct _EVENT_DATA_SAS_EXPANDER_STATUS_CHANGE
 #define MPI_EVENT_SAS_EXP_DS_EXPANDER_ERR               (0x00000008)
 #define MPI_EVENT_SAS_EXP_DS_SMP_TIMEOUT                (0x00000010)
 #define MPI_EVENT_SAS_EXP_DS_OUT_ROUTE_ENTRIES          (0x00000020)
-#define MPI_EVENT_SAS_EXP_DS_INDEX_NOT_EXIST            (0x00000040)
+#define MPI_EVENT_SAS_EXP_DS_INDEX_ANALT_EXIST            (0x00000040)
 #define MPI_EVENT_SAS_EXP_DS_SMP_FUNCTION_FAILED        (0x00000080)
 #define MPI_EVENT_SAS_EXP_DS_SMP_CRC_ERROR              (0x00000100)
 #define MPI_EVENT_SAS_EXP_DS_SUBTRACTIVE_LINK           (0x00000200)

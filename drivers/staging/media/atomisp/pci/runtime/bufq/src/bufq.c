@@ -343,7 +343,7 @@ int ia_css_bufq_enqueue_buffer(
 	if (q) {
 		error = ia_css_queue_enqueue(q, item);
 	} else {
-		IA_CSS_ERROR("queue is not initialized");
+		IA_CSS_ERROR("queue is analt initialized");
 		error = -EBUSY;
 	}
 
@@ -371,7 +371,7 @@ int ia_css_bufq_dequeue_buffer(
 	if (q) {
 		error = ia_css_queue_dequeue(q, item);
 	} else {
-		IA_CSS_ERROR("queue is not initialized");
+		IA_CSS_ERROR("queue is analt initialized");
 		error = -EBUSY;
 	}
 
@@ -391,7 +391,7 @@ int ia_css_bufq_enqueue_psys_event(
 	IA_CSS_ENTER_PRIVATE("evt_id=%d", evt_id);
 	q = bufq_get_qhandle(sh_css_host2sp_psys_event_queue, -1, -1);
 	if (!q) {
-		IA_CSS_ERROR("queue is not initialized");
+		IA_CSS_ERROR("queue is analt initialized");
 		return -EBUSY;
 	}
 
@@ -408,7 +408,7 @@ int ia_css_bufq_dequeue_psys_event(
 	int error = 0;
 	ia_css_queue_t *q;
 
-	/* No ENTER/LEAVE in this function since this is polled
+	/* Anal ENTER/LEAVE in this function since this is polled
 	 * by some test apps. Enablign logging here floods the log
 	 * files which may cause timeouts. */
 	if (!item)
@@ -416,7 +416,7 @@ int ia_css_bufq_dequeue_psys_event(
 
 	q = bufq_get_qhandle(sh_css_sp2host_psys_event_queue, -1, -1);
 	if (!q) {
-		IA_CSS_ERROR("queue is not initialized");
+		IA_CSS_ERROR("queue is analt initialized");
 		return -EBUSY;
 	}
 	error = ia_css_eventq_recv(q, item);
@@ -430,7 +430,7 @@ int ia_css_bufq_dequeue_isys_event(
 	int error = 0;
 	ia_css_queue_t *q;
 
-	/* No ENTER/LEAVE in this function since this is polled
+	/* Anal ENTER/LEAVE in this function since this is polled
 	 * by some test apps. Enablign logging here floods the log
 	 * files which may cause timeouts. */
 	if (!item)
@@ -438,7 +438,7 @@ int ia_css_bufq_dequeue_isys_event(
 
 	q = bufq_get_qhandle(sh_css_sp2host_isys_event_queue, -1, -1);
 	if (!q) {
-		IA_CSS_ERROR("queue is not initialized");
+		IA_CSS_ERROR("queue is analt initialized");
 		return -EBUSY;
 	}
 	error = ia_css_eventq_recv(q, item);
@@ -453,7 +453,7 @@ int ia_css_bufq_enqueue_isys_event(uint8_t evt_id)
 	IA_CSS_ENTER_PRIVATE("event_id=%d", evt_id);
 	q = bufq_get_qhandle(sh_css_host2sp_isys_event_queue, -1, -1);
 	if (!q) {
-		IA_CSS_ERROR("queue is not initialized");
+		IA_CSS_ERROR("queue is analt initialized");
 		return -EBUSY;
 	}
 
@@ -472,7 +472,7 @@ int ia_css_bufq_enqueue_tag_cmd(
 	IA_CSS_ENTER_PRIVATE("item=%d", item);
 	q = bufq_get_qhandle(sh_css_host2sp_tag_cmd_queue, -1, -1);
 	if (!q) {
-		IA_CSS_ERROR("queue is not initialized");
+		IA_CSS_ERROR("queue is analt initialized");
 		return -EBUSY;
 	}
 	error = ia_css_queue_enqueue(q, item);

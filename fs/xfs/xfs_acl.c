@@ -9,7 +9,7 @@
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
-#include "xfs_inode.h"
+#include "xfs_ianalde.h"
 #include "xfs_da_format.h"
 #include "xfs_da_btree.h"
 #include "xfs_attr.h"
@@ -23,7 +23,7 @@
 
 /*
  * Locking scheme:
- *  - all ACL updates are protected by inode->i_mutex, which is taken before
+ *  - all ACL updates are protected by ianalde->i_mutex, which is taken before
  *    calling into this file.
  */
 
@@ -54,7 +54,7 @@ xfs_acl_from_disk(
 
 	acl = posix_acl_alloc(count, GFP_KERNEL);
 	if (!acl)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	for (i = 0; i < count; i++) {
 		acl_e = &acl->a_entries[i];
@@ -64,7 +64,7 @@ xfs_acl_from_disk(
 		 * The tag is 32 bits on disk and 16 bits in core.
 		 *
 		 * Because every access to it goes through the core
-		 * format first this is not a problem.
+		 * format first this is analt a problem.
 		 */
 		acl_e->e_tag = be32_to_cpu(ace->ae_tag);
 		acl_e->e_perm = be16_to_cpu(ace->ae_perm);
@@ -126,9 +126,9 @@ xfs_acl_to_disk(struct xfs_acl *aclp, const struct posix_acl *acl)
 }
 
 struct posix_acl *
-xfs_get_acl(struct inode *inode, int type, bool rcu)
+xfs_get_acl(struct ianalde *ianalde, int type, bool rcu)
 {
-	struct xfs_inode	*ip = XFS_I(inode);
+	struct xfs_ianalde	*ip = XFS_I(ianalde);
 	struct xfs_mount	*mp = ip->i_mount;
 	struct posix_acl	*acl = NULL;
 	struct xfs_da_args	args = {
@@ -163,7 +163,7 @@ xfs_get_acl(struct inode *inode, int type, bool rcu)
 	if (!error) {
 		acl = xfs_acl_from_disk(mp, args.value, args.valuelen,
 					XFS_ACL_MAX_ENTRIES(mp));
-	} else if (error != -ENOATTR) {
+	} else if (error != -EANALATTR) {
 		acl = ERR_PTR(error);
 	}
 
@@ -172,9 +172,9 @@ xfs_get_acl(struct inode *inode, int type, bool rcu)
 }
 
 int
-__xfs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
+__xfs_set_acl(struct ianalde *ianalde, struct posix_acl *acl, int type)
 {
-	struct xfs_inode	*ip = XFS_I(inode);
+	struct xfs_ianalde	*ip = XFS_I(ianalde);
 	struct xfs_da_args	args = {
 		.dp		= ip,
 		.attr_filter	= XFS_ATTR_ROOT,
@@ -186,7 +186,7 @@ __xfs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 		args.name = SGI_ACL_FILE;
 		break;
 	case ACL_TYPE_DEFAULT:
-		if (!S_ISDIR(inode->i_mode))
+		if (!S_ISDIR(ianalde->i_mode))
 			return acl ? -EACCES : 0;
 		args.name = SGI_ACL_DEFAULT;
 		break;
@@ -199,7 +199,7 @@ __xfs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 		args.valuelen = XFS_ACL_SIZE(acl->a_count);
 		args.value = kvzalloc(args.valuelen, GFP_KERNEL);
 		if (!args.value)
-			return -ENOMEM;
+			return -EANALMEM;
 		xfs_acl_to_disk(args.value, acl);
 	}
 
@@ -209,19 +209,19 @@ __xfs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 	/*
 	 * If the attribute didn't exist to start with that's fine.
 	 */
-	if (!acl && error == -ENOATTR)
+	if (!acl && error == -EANALATTR)
 		error = 0;
 	if (!error)
-		set_cached_acl(inode, type, acl);
+		set_cached_acl(ianalde, type, acl);
 	return error;
 }
 
 static int
 xfs_acl_set_mode(
-	struct inode		*inode,
+	struct ianalde		*ianalde,
 	umode_t			mode)
 {
-	struct xfs_inode	*ip = XFS_I(inode);
+	struct xfs_ianalde	*ip = XFS_I(ianalde);
 	struct xfs_mount	*mp = ip->i_mount;
 	struct xfs_trans	*tp;
 	int			error;
@@ -232,9 +232,9 @@ xfs_acl_set_mode(
 
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
-	inode->i_mode = mode;
-	inode_set_ctime_current(inode);
-	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
+	ianalde->i_mode = mode;
+	ianalde_set_ctime_current(ianalde);
+	xfs_trans_log_ianalde(tp, ip, XFS_ILOG_CORE);
 
 	if (xfs_has_wsync(mp))
 		xfs_trans_set_sync(tp);
@@ -248,17 +248,17 @@ xfs_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 	umode_t mode;
 	bool set_mode = false;
 	int error = 0;
-	struct inode *inode = d_inode(dentry);
+	struct ianalde *ianalde = d_ianalde(dentry);
 
 	if (!acl)
 		goto set_acl;
 
 	error = -E2BIG;
-	if (acl->a_count > XFS_ACL_MAX_ENTRIES(XFS_M(inode->i_sb)))
+	if (acl->a_count > XFS_ACL_MAX_ENTRIES(XFS_M(ianalde->i_sb)))
 		return error;
 
 	if (type == ACL_TYPE_ACCESS) {
-		error = posix_acl_update_mode(idmap, inode, &mode, &acl);
+		error = posix_acl_update_mode(idmap, ianalde, &mode, &acl);
 		if (error)
 			return error;
 		set_mode = true;
@@ -267,12 +267,12 @@ xfs_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
  set_acl:
 	/*
 	 * We set the mode after successfully updating the ACL xattr because the
-	 * xattr update can fail at ENOSPC and we don't want to change the mode
+	 * xattr update can fail at EANALSPC and we don't want to change the mode
 	 * if the ACL update hasn't been applied.
 	 */
-	error =  __xfs_set_acl(inode, acl, type);
-	if (!error && set_mode && mode != inode->i_mode)
-		error = xfs_acl_set_mode(inode, mode);
+	error =  __xfs_set_acl(ianalde, acl, type);
+	if (!error && set_mode && mode != ianalde->i_mode)
+		error = xfs_acl_set_mode(ianalde, mode);
 	return error;
 }
 
@@ -283,11 +283,11 @@ xfs_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
  */
 void
 xfs_forget_acl(
-	struct inode		*inode,
+	struct ianalde		*ianalde,
 	const char		*name)
 {
 	if (!strcmp(name, SGI_ACL_FILE))
-		forget_cached_acl(inode, ACL_TYPE_ACCESS);
+		forget_cached_acl(ianalde, ACL_TYPE_ACCESS);
 	else if (!strcmp(name, SGI_ACL_DEFAULT))
-		forget_cached_acl(inode, ACL_TYPE_DEFAULT);
+		forget_cached_acl(ianalde, ACL_TYPE_DEFAULT);
 }

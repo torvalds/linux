@@ -100,9 +100,9 @@
 #define DL0_PBUF_SIZE_SFT               5
 #define DL0_PBUF_SIZE_MASK              0x3
 #define DL0_PBUF_SIZE_MASK_SFT          (0x3 << 5)
-#define DL0_MONO_SFT                    4
-#define DL0_MONO_MASK                   0x1
-#define DL0_MONO_MASK_SFT               BIT(4)
+#define DL0_MOANAL_SFT                    4
+#define DL0_MOANAL_MASK                   0x1
+#define DL0_MOANAL_MASK_SFT               BIT(4)
 #define DL0_HALIGN_SFT                  2
 #define DL0_HALIGN_MASK                 0x1
 #define DL0_HALIGN_MASK_SFT             BIT(2)
@@ -117,9 +117,9 @@
 #define VUL0_MODE_SFT                   8
 #define VUL0_MODE_MASK                  0x1f
 #define VUL0_MODE_MASK_SFT              (0x1f << 8)
-#define VUL0_MONO_SFT                   4
-#define VUL0_MONO_MASK                  0x1
-#define VUL0_MONO_MASK_SFT              BIT(4)
+#define VUL0_MOANAL_SFT                   4
+#define VUL0_MOANAL_MASK                  0x1
+#define VUL0_MOANAL_MASK_SFT              BIT(4)
 #define VUL0_HALIGN_SFT                 2
 #define VUL0_HALIGN_MASK                0x1
 #define VUL0_HALIGN_MASK_SFT            BIT(2)

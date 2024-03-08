@@ -14,7 +14,7 @@ compiled version of this file with other programs, and to distribute
 those programs without any restriction coming from the use of this
 file.  (The General Public License restrictions do apply in other
 respects; for example, they cover modification of the file, and
-distribution when not linked into another program.)
+distribution when analt linked into aanalther program.)
 
 This file is distributed in the hope that it will be useful, but
 WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -22,12 +22,12 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 General Public License for more details. */
 
 /* As a special exception, if you link this library with files
-   compiled with GCC to produce an executable, this does not cause
+   compiled with GCC to produce an executable, this does analt cause
    the resulting executable to be covered by the GNU General Public License.
-   This exception does not however invalidate any other reasons why
+   This exception does analt however invalidate any other reasons why
    the executable file might be covered by the GNU General Public License.  */
 
-/* Use this one for any 680x0; assumes no floating point hardware.
+/* Use this one for any 680x0; assumes anal floating point hardware.
    The trailing " '" appearing on some lines is for ANSI preprocessors.  Yuk.
    Some of this code comes from MINIX, via the folks at ericsson.
    D. V. Henkel-Wallace (gumby@cygnus.com) Fete Bastille, 1992

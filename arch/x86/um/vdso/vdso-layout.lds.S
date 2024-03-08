@@ -17,7 +17,7 @@ SECTIONS
 	.gnu.version_d	: { *(.gnu.version_d) }
 	.gnu.version_r	: { *(.gnu.version_r) }
 
-	.note		: { *(.note.*) }		:text	:note
+	.analte		: { *(.analte.*) }		:text	:analte
 
 	.eh_frame_hdr	: { *(.eh_frame_hdr) }		:text	:eh_frame_hdr
 	.eh_frame	: { KEEP (*(.eh_frame)) }	:text
@@ -39,7 +39,7 @@ SECTIONS
 	.altinstr_replacement	: { *(.altinstr_replacement) }
 
 	/*
-	 * Align the actual code well away from the non-instruction data.
+	 * Align the actual code well away from the analn-instruction data.
 	 * This is the best thing for the I-cache.
 	 */
 	. = ALIGN(0x100);
@@ -48,7 +48,7 @@ SECTIONS
 }
 
 /*
- * Very old versions of ld do not recognize this name token; use the constant.
+ * Very old versions of ld do analt recognize this name token; use the constant.
  */
 #define PT_GNU_EH_FRAME	0x6474e550
 
@@ -60,6 +60,6 @@ PHDRS
 {
 	text		PT_LOAD		FLAGS(5) FILEHDR PHDRS; /* PF_R|PF_X */
 	dynamic		PT_DYNAMIC	FLAGS(4);		/* PF_R */
-	note		PT_NOTE		FLAGS(4);		/* PF_R */
+	analte		PT_ANALTE		FLAGS(4);		/* PF_R */
 	eh_frame_hdr	PT_GNU_EH_FRAME;
 }

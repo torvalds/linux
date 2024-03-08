@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- *    SCLP Event Type (ET) 7 - Diagnostic Test FTP Services, useable on LPAR
+ *    SCLP Event Type (ET) 7 - Diaganalstic Test FTP Services, useable on LPAR
  *
- *    Notice that all functions exported here are not reentrant.
+ *    Analtice that all functions exported here are analt reentrant.
  *    So usage should be exclusive, ensured by the caller (e.g. using a
  *    mutex).
  *

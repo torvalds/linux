@@ -10,18 +10,18 @@
  *  option) any later version.
  *
  *  THIS  SOFTWARE  IS PROVIDED	  ``AS	IS'' AND   ANY	EXPRESS OR IMPLIED
- *  WARRANTIES,	  INCLUDING, BUT NOT  LIMITED  TO, THE IMPLIED WARRANTIES OF
+ *  WARRANTIES,	  INCLUDING, BUT ANALT  LIMITED  TO, THE IMPLIED WARRANTIES OF
  *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN
- *  NO	EVENT  SHALL   THE AUTHOR  BE	 LIABLE FOR ANY	  DIRECT, INDIRECT,
+ *  ANAL	EVENT  SHALL   THE AUTHOR  BE	 LIABLE FOR ANY	  DIRECT, INDIRECT,
  *  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- *  NOT LIMITED	  TO, PROCUREMENT OF  SUBSTITUTE GOODS	OR SERVICES; LOSS OF
+ *  ANALT LIMITED	  TO, PROCUREMENT OF  SUBSTITUTE GOODS	OR SERVICES; LOSS OF
  *  USE, DATA,	OR PROFITS; OR	BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
  *  ANY THEORY OF LIABILITY, WHETHER IN	 CONTRACT, STRICT LIABILITY, OR TORT
  *  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  *  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *  You should have received a copy of the  GNU General Public License along
- *  with this program; if not, write  to the Free Software Foundation, Inc.,
+ *  with this program; if analt, write  to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
@@ -70,14 +70,14 @@ struct alchemy_irqmap {
 	int irq;	/* linux IRQ number */
 	int type;	/* IRQ_TYPE_ */
 	int prio;	/* irq priority, 0 highest, 3 lowest */
-	int internal;	/* GPIC: internal source (no ext. pin)? */
+	int internal;	/* GPIC: internal source (anal ext. pin)? */
 };
 
 static int au1x_ic_settype(struct irq_data *d, unsigned int type);
 static int au1300_gpic_settype(struct irq_data *d, unsigned int type);
 
 
-/* NOTE on interrupt priorities: The original writers of this code said:
+/* ANALTE on interrupt priorities: The original writers of this code said:
  *
  * Because of the tight timing of SETUP token to reply transactions,
  * the USB devices-side packet complete interrupt (USB_DEV_REQ_INT)
@@ -483,7 +483,7 @@ static int au1x_ic_settype(struct irq_data *d, unsigned int flow_type)
 		handler = handle_level_irq;
 		name = "lowlevel";
 		break;
-	case IRQ_TYPE_NONE:		/* 0:0:0 */
+	case IRQ_TYPE_ANALNE:		/* 0:0:0 */
 		__raw_writel(1 << bit, base + IC_CFG2CLR);
 		__raw_writel(1 << bit, base + IC_CFG1CLR);
 		__raw_writel(1 << bit, base + IC_CFG0CLR);
@@ -544,7 +544,7 @@ EXPORT_SYMBOL_GPL(au1300_pinfunc_to_gpio);
  * @pin:	pin (0-based GPIO number from datasheet).
  *
  * Assigns a GPIO pin to its associated device function; the pin will be
- * driven by the device and not through GPIO functions.
+ * driven by the device and analt through GPIO functions.
  */
 void au1300_pinfunc_to_dev(enum au1300_multifunc_pins gpio)
 {
@@ -694,7 +694,7 @@ static int au1300_gpic_settype(struct irq_data *d, unsigned int type)
 		name = "bothedge";
 		hdl = handle_edge_irq;
 		break;
-	case IRQ_TYPE_NONE:
+	case IRQ_TYPE_ANALNE:
 		s = GPIC_CFG_IC_OFF;
 		name = "disabled";
 		hdl = handle_level_irq;
@@ -883,16 +883,16 @@ static void __init au1000_init_irq(struct alchemy_irqmap *map)
 	register_syscore_ops(&alchemy_ic_pmops);
 	mips_cpu_irq_init();
 
-	/* register all 64 possible IC0+IC1 irq sources as type "none".
+	/* register all 64 possible IC0+IC1 irq sources as type "analne".
 	 * Use set_irq_type() to set edge/level behaviour at runtime.
 	 */
 	for (irq_nr = AU1000_INTC0_INT_BASE;
 	     (irq_nr < AU1000_INTC0_INT_BASE + 32); irq_nr++)
-		au1x_ic_settype(irq_get_irq_data(irq_nr), IRQ_TYPE_NONE);
+		au1x_ic_settype(irq_get_irq_data(irq_nr), IRQ_TYPE_ANALNE);
 
 	for (irq_nr = AU1000_INTC1_INT_BASE;
 	     (irq_nr < AU1000_INTC1_INT_BASE + 32); irq_nr++)
-		au1x_ic_settype(irq_get_irq_data(irq_nr), IRQ_TYPE_NONE);
+		au1x_ic_settype(irq_get_irq_data(irq_nr), IRQ_TYPE_ANALNE);
 
 	/*
 	 * Initialize IC0, which is fixed per processor.
@@ -940,10 +940,10 @@ static void __init alchemy_gpic_init_irq(const struct alchemy_irqmap *dints)
 	/* register an irq_chip for them, with 2nd highest priority */
 	for (i = ALCHEMY_GPIC_INT_BASE; i <= ALCHEMY_GPIC_INT_LAST; i++) {
 		au1300_set_irq_priority(i, 1);
-		au1300_gpic_settype(irq_get_irq_data(i), IRQ_TYPE_NONE);
+		au1300_gpic_settype(irq_get_irq_data(i), IRQ_TYPE_ANALNE);
 	}
 
-	/* setup known on-chip sources */
+	/* setup kanalwn on-chip sources */
 	while ((i = dints->irq) != -1) {
 		au1300_gpic_settype(irq_get_irq_data(i), dints->type);
 		au1300_set_irq_priority(i, dints->prio);
@@ -984,7 +984,7 @@ void __init arch_init_irq(void)
 		alchemy_gpic_init_irq(au1300_irqmap);
 		break;
 	default:
-		pr_err("unknown Alchemy IRQ core\n");
+		pr_err("unkanalwn Alchemy IRQ core\n");
 		break;
 	}
 }

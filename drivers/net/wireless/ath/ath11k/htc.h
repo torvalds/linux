@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #ifndef ATH11K_HTC_H
@@ -90,10 +90,10 @@ enum ath11k_htc_conn_flags {
 
 enum ath11k_htc_conn_svc_status {
 	ATH11K_HTC_CONN_SVC_STATUS_SUCCESS      = 0,
-	ATH11K_HTC_CONN_SVC_STATUS_NOT_FOUND    = 1,
+	ATH11K_HTC_CONN_SVC_STATUS_ANALT_FOUND    = 1,
 	ATH11K_HTC_CONN_SVC_STATUS_FAILED       = 2,
-	ATH11K_HTC_CONN_SVC_STATUS_NO_RESOURCES = 3,
-	ATH11K_HTC_CONN_SVC_STATUS_NO_MORE_EP   = 4
+	ATH11K_HTC_CONN_SVC_STATUS_ANAL_RESOURCES = 3,
+	ATH11K_HTC_CONN_SVC_STATUS_ANAL_MORE_EP   = 4
 };
 
 struct ath11k_htc_ready {
@@ -171,7 +171,7 @@ enum ath11k_htc_svc_gid {
 	(int)(((int)(group) << 8) | (int)(idx))
 
 enum ath11k_htc_svc_id {
-	/* NOTE: service ID of 0x0000 is reserved and should never be used */
+	/* ANALTE: service ID of 0x0000 is reserved and should never be used */
 	ATH11K_HTC_SVC_ID_RESERVED	= 0x0000,
 	ATH11K_HTC_SVC_ID_UNUSED	= ATH11K_HTC_SVC_ID_RESERVED,
 
@@ -253,7 +253,7 @@ struct ath11k_htc_ep {
 	u8 ul_pipe_id;
 	u8 dl_pipe_id;
 
-	u8 seq_no; /* for debugging */
+	u8 seq_anal; /* for debugging */
 	int tx_credits;
 	bool tx_credit_flow_enabled;
 };

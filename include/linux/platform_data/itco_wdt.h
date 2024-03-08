@@ -16,12 +16,12 @@
  * struct itco_wdt_platform_data - iTCO_wdt platform data
  * @name: Name of the platform
  * @version: iTCO version
- * @no_reboot_use_pmc: Use PMC BXT API to set and clear NO_REBOOT bit
+ * @anal_reboot_use_pmc: Use PMC BXT API to set and clear ANAL_REBOOT bit
  */
 struct itco_wdt_platform_data {
 	char name[32];
 	unsigned int version;
-	bool no_reboot_use_pmc;
+	bool anal_reboot_use_pmc;
 };
 
 #endif /* _ITCO_WDT_H_ */

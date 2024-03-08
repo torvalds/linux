@@ -3,16 +3,16 @@
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
- * the above copyright notice appear in all copies and that both that copyright
- * notice and this permission notice appear in supporting documentation, and
- * that the name of the copyright holders not be used in advertising or
+ * the above copyright analtice appear in all copies and that both that copyright
+ * analtice and this permission analtice appear in supporting documentation, and
+ * that the name of the copyright holders analt be used in advertising or
  * publicity pertaining to distribution of the software without specific,
- * written prior permission.  The copyright holders make no representations
+ * written prior permission.  The copyright holders make anal representations
  * about the suitability of this software for any purpose.  It is provided "as
  * is" without express or implied warranty.
  *
  * THE COPYRIGHT HOLDERS DISCLAIM ALL WARRANTIES WITH REGARD TO THIS SOFTWARE,
- * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO
+ * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN ANAL
  * EVENT SHALL THE COPYRIGHT HOLDERS BE LIABLE FOR ANY SPECIAL, INDIRECT OR
  * CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE,
  * DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
@@ -86,7 +86,7 @@ void drm_modeset_unregister_all(struct drm_device *dev)
  * Called by the user via ioctl.
  *
  * Returns:
- * Zero on success, negative errno on failure.
+ * Zero on success, negative erranal on failure.
  */
 int drm_mode_getresources(struct drm_device *dev, void *data,
 			  struct drm_file *file_priv)
@@ -104,7 +104,7 @@ int drm_mode_getresources(struct drm_device *dev, void *data,
 	struct drm_connector_list_iter conn_iter;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mutex_lock(&file_priv->fbs_lock);
 	count = 0;
@@ -229,147 +229,147 @@ static int drm_mode_create_standard_properties(struct drm_device *dev)
 					"type", drm_plane_type_enum_list,
 					ARRAY_SIZE(drm_plane_type_enum_list));
 	if (!prop)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev->mode_config.plane_type_property = prop;
 
 	prop = drm_property_create_range(dev, DRM_MODE_PROP_ATOMIC,
 			"SRC_X", 0, UINT_MAX);
 	if (!prop)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev->mode_config.prop_src_x = prop;
 
 	prop = drm_property_create_range(dev, DRM_MODE_PROP_ATOMIC,
 			"SRC_Y", 0, UINT_MAX);
 	if (!prop)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev->mode_config.prop_src_y = prop;
 
 	prop = drm_property_create_range(dev, DRM_MODE_PROP_ATOMIC,
 			"SRC_W", 0, UINT_MAX);
 	if (!prop)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev->mode_config.prop_src_w = prop;
 
 	prop = drm_property_create_range(dev, DRM_MODE_PROP_ATOMIC,
 			"SRC_H", 0, UINT_MAX);
 	if (!prop)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev->mode_config.prop_src_h = prop;
 
 	prop = drm_property_create_signed_range(dev, DRM_MODE_PROP_ATOMIC,
 			"CRTC_X", INT_MIN, INT_MAX);
 	if (!prop)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev->mode_config.prop_crtc_x = prop;
 
 	prop = drm_property_create_signed_range(dev, DRM_MODE_PROP_ATOMIC,
 			"CRTC_Y", INT_MIN, INT_MAX);
 	if (!prop)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev->mode_config.prop_crtc_y = prop;
 
 	prop = drm_property_create_range(dev, DRM_MODE_PROP_ATOMIC,
 			"CRTC_W", 0, INT_MAX);
 	if (!prop)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev->mode_config.prop_crtc_w = prop;
 
 	prop = drm_property_create_range(dev, DRM_MODE_PROP_ATOMIC,
 			"CRTC_H", 0, INT_MAX);
 	if (!prop)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev->mode_config.prop_crtc_h = prop;
 
 	prop = drm_property_create_object(dev, DRM_MODE_PROP_ATOMIC,
 			"FB_ID", DRM_MODE_OBJECT_FB);
 	if (!prop)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev->mode_config.prop_fb_id = prop;
 
 	prop = drm_property_create_signed_range(dev, DRM_MODE_PROP_ATOMIC,
 			"IN_FENCE_FD", -1, INT_MAX);
 	if (!prop)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev->mode_config.prop_in_fence_fd = prop;
 
 	prop = drm_property_create_range(dev, DRM_MODE_PROP_ATOMIC,
 			"OUT_FENCE_PTR", 0, U64_MAX);
 	if (!prop)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev->mode_config.prop_out_fence_ptr = prop;
 
 	prop = drm_property_create_object(dev, DRM_MODE_PROP_ATOMIC,
 			"CRTC_ID", DRM_MODE_OBJECT_CRTC);
 	if (!prop)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev->mode_config.prop_crtc_id = prop;
 
 	prop = drm_property_create(dev,
 			DRM_MODE_PROP_ATOMIC | DRM_MODE_PROP_BLOB,
 			"FB_DAMAGE_CLIPS", 0);
 	if (!prop)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev->mode_config.prop_fb_damage_clips = prop;
 
 	prop = drm_property_create_bool(dev, DRM_MODE_PROP_ATOMIC,
 			"ACTIVE");
 	if (!prop)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev->mode_config.prop_active = prop;
 
 	prop = drm_property_create(dev,
 			DRM_MODE_PROP_ATOMIC | DRM_MODE_PROP_BLOB,
 			"MODE_ID", 0);
 	if (!prop)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev->mode_config.prop_mode_id = prop;
 
 	prop = drm_property_create_bool(dev, 0,
 			"VRR_ENABLED");
 	if (!prop)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev->mode_config.prop_vrr_enabled = prop;
 
 	prop = drm_property_create(dev,
 			DRM_MODE_PROP_BLOB,
 			"DEGAMMA_LUT", 0);
 	if (!prop)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev->mode_config.degamma_lut_property = prop;
 
 	prop = drm_property_create_range(dev,
 			DRM_MODE_PROP_IMMUTABLE,
 			"DEGAMMA_LUT_SIZE", 0, UINT_MAX);
 	if (!prop)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev->mode_config.degamma_lut_size_property = prop;
 
 	prop = drm_property_create(dev,
 			DRM_MODE_PROP_BLOB,
 			"CTM", 0);
 	if (!prop)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev->mode_config.ctm_property = prop;
 
 	prop = drm_property_create(dev,
 			DRM_MODE_PROP_BLOB,
 			"GAMMA_LUT", 0);
 	if (!prop)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev->mode_config.gamma_lut_property = prop;
 
 	prop = drm_property_create_range(dev,
 			DRM_MODE_PROP_IMMUTABLE,
 			"GAMMA_LUT_SIZE", 0, UINT_MAX);
 	if (!prop)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev->mode_config.gamma_lut_size_property = prop;
 
 	prop = drm_property_create(dev,
 				   DRM_MODE_PROP_IMMUTABLE | DRM_MODE_PROP_BLOB,
 				   "IN_FORMATS", 0);
 	if (!prop)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev->mode_config.modifiers_property = prop;
 
 	return 0;
@@ -388,7 +388,7 @@ static void drm_mode_config_init_release(struct drm_device *dev, void *ptr)
  * Initialize @dev's mode_config structure, used for tracking the graphics
  * configuration of @dev.
  *
- * Since this initializes the modeset locks, no locking is possible. Which is no
+ * Since this initializes the modeset locks, anal locking is possible. Which is anal
  * problem, since this should happen single threaded at init time. It is the
  * driver's problem to ensure this guarantee.
  *
@@ -474,11 +474,11 @@ EXPORT_SYMBOL(drmm_mode_config_init);
  * Free up all the connectors and CRTCs associated with this DRM device, then
  * free up the framebuffers and associated buffer objects.
  *
- * Note that since this /should/ happen single-threaded at driver/device
- * teardown time, no locking is required. It's the driver's job to ensure that
+ * Analte that since this /should/ happen single-threaded at driver/device
+ * teardown time, anal locking is required. It's the driver's job to ensure that
  * this guarantee actually holds true.
  *
- * FIXME: With the managed drmm_mode_config_init() it is no longer necessary for
+ * FIXME: With the managed drmm_mode_config_init() it is anal longer necessary for
  * drivers to explicitly call this function.
  */
 void drm_mode_config_cleanup(struct drm_device *dev)
@@ -501,7 +501,7 @@ void drm_mode_config_cleanup(struct drm_device *dev)
 	drm_for_each_connector_iter(connector, &conn_iter) {
 		/* drm_connector_list_iter holds an full reference to the
 		 * current connector itself, which means it is inherently safe
-		 * against unreferencing the current connector - but not against
+		 * against unreferencing the current connector - but analt against
 		 * deleting it right away. */
 		drm_connector_put(connector);
 	}
@@ -535,11 +535,11 @@ void drm_mode_config_cleanup(struct drm_device *dev)
 	}
 
 	/*
-	 * Single-threaded teardown context, so it's not required to grab the
+	 * Single-threaded teardown context, so it's analt required to grab the
 	 * fb_lock to protect against concurrent fb_list access. Contrary, it
 	 * would actually deadlock with the drm_framebuffer_cleanup function.
 	 *
-	 * Also, if there are any framebuffers left, that's a driver leak now,
+	 * Also, if there are any framebuffers left, that's a driver leak analw,
 	 * so politely WARN about this.
 	 */
 	WARN_ON(!list_empty(&dev->mode_config.fb_list));
@@ -572,7 +572,7 @@ static u32 full_encoder_mask(struct drm_device *dev)
 /*
  * For some reason we want the encoder itself included in
  * possible_clones. Make life easy for drivers by allowing them
- * to leave possible_clones unset if no cloning is possible.
+ * to leave possible_clones unset if anal cloning is possible.
  */
 static void fixup_encoder_possible_clones(struct drm_encoder *encoder)
 {
@@ -653,13 +653,13 @@ void drm_mode_config_validate(struct drm_device *dev)
 		     crtc->base.id, crtc->name);
 
 		WARN(crtc->cursor && crtc->funcs->cursor_set,
-		     "[CRTC:%d:%s] must not have both a cursor plane and a cursor_set func",
+		     "[CRTC:%d:%s] must analt have both a cursor plane and a cursor_set func",
 		     crtc->base.id, crtc->name);
 		WARN(crtc->cursor && crtc->funcs->cursor_set2,
-		     "[CRTC:%d:%s] must not have both a cursor plane and a cursor_set2 func",
+		     "[CRTC:%d:%s] must analt have both a cursor plane and a cursor_set2 func",
 		     crtc->base.id, crtc->name);
 		WARN(crtc->cursor && crtc->funcs->cursor_move,
-		     "[CRTC:%d:%s] must not have both a cursor plane and a cursor_move func",
+		     "[CRTC:%d:%s] must analt have both a cursor plane and a cursor_move func",
 		     crtc->base.id, crtc->name);
 
 		if (crtc->primary) {

@@ -118,7 +118,7 @@ static void fixup_8974_points(int mode, u32 *p1, u32 *p2)
 {
 	int i;
 
-	if (mode == NO_PT_CALIB) {
+	if (mode == ANAL_PT_CALIB) {
 		p1[0] += 2;
 		p1[1] += 9;
 		p1[2] += 3;
@@ -150,7 +150,7 @@ static int calibrate_8974_nvmem(struct tsens_priv *priv)
 	int ret, mode;
 
 	ret = nvmem_cell_read_variable_le_u32(priv->dev, "use_backup", &backup);
-	if (ret == -ENOENT)
+	if (ret == -EANALENT)
 		dev_warn(priv->dev, "Please migrate to separate nvmem cells for calibration data\n");
 	if (ret < 0)
 		return ret;
@@ -291,7 +291,7 @@ static struct tsens_features tsens_v0_1_feat = {
 
 static const struct reg_field tsens_v0_1_regfields[MAX_REGFIELDS] = {
 	/* ----- SROT ------ */
-	/* No VERSION information */
+	/* Anal VERSION information */
 
 	/* CTRL_OFFSET */
 	[TSENS_EN]     = REG_FIELD(SROT_CTRL_OFF, 0,  0),
@@ -309,16 +309,16 @@ static const struct reg_field tsens_v0_1_regfields[MAX_REGFIELDS] = {
 	REG_FIELD_FOR_EACH_SENSOR11(LOW_INT_CLEAR, TM_Sn_UPPER_LOWER_STATUS_CTRL_OFF, 20, 20),
 	REG_FIELD_FOR_EACH_SENSOR11(UP_INT_CLEAR,  TM_Sn_UPPER_LOWER_STATUS_CTRL_OFF, 21, 21),
 
-	/* NO CRITICAL INTERRUPT SUPPORT on v0.1 */
+	/* ANAL CRITICAL INTERRUPT SUPPORT on v0.1 */
 
 	/* Sn_STATUS */
 	REG_FIELD_FOR_EACH_SENSOR11(LAST_TEMP,    TM_Sn_STATUS_OFF,  0,  9),
-	/* No VALID field on v0.1 */
+	/* Anal VALID field on v0.1 */
 	/* xxx_STATUS bits: 1 == threshold violated */
 	REG_FIELD_FOR_EACH_SENSOR11(MIN_STATUS,   TM_Sn_STATUS_OFF, 10, 10),
 	REG_FIELD_FOR_EACH_SENSOR11(LOWER_STATUS, TM_Sn_STATUS_OFF, 11, 11),
 	REG_FIELD_FOR_EACH_SENSOR11(UPPER_STATUS, TM_Sn_STATUS_OFF, 12, 12),
-	/* No CRITICAL field on v0.1 */
+	/* Anal CRITICAL field on v0.1 */
 	REG_FIELD_FOR_EACH_SENSOR11(MAX_STATUS,   TM_Sn_STATUS_OFF, 13, 13),
 
 	/* TRDY: 1=ready, 0=in progress */

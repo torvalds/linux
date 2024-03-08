@@ -21,7 +21,7 @@
 #define RVT_MAX_PKEY_VALUES 16
 
 #define RVT_MAX_TRAP_LEN 100 /* Limit pending trap list */
-#define RVT_MAX_TRAP_LISTS 5 /*((IB_NOTICE_TYPE_INFO & 0x0F) + 1)*/
+#define RVT_MAX_TRAP_LISTS 5 /*((IB_ANALTICE_TYPE_INFO & 0x0F) + 1)*/
 #define RVT_TRAP_TIMEOUT 4096 /* 4.096 usec */
 
 struct trap_list {
@@ -37,7 +37,7 @@ struct rvt_ibport {
 	struct rb_root mcast_tree;
 	spinlock_t lock;		/* protect changes in this struct */
 
-	/* non-zero when timer is set */
+	/* analn-zero when timer is set */
 	unsigned long mkey_lease_timeout;
 	unsigned long trap_timeout;
 	__be64 gid_prefix;      /* in network order */
@@ -58,7 +58,7 @@ struct rvt_ibport {
 
 	/*
 	 * Driver is expected to keep these up to date. These
-	 * counters are informational only and not required to be
+	 * counters are informational only and analt required to be
 	 * completely accurate.
 	 */
 	u64 n_rc_resends;
@@ -100,7 +100,7 @@ struct rvt_ibport {
 	struct rvt_ah *sm_ah;
 
 	/*
-	 * Keep a list of traps that have not been repressed.  They will be
+	 * Keep a list of traps that have analt been repressed.  They will be
 	 * resent based on trap_timer.
 	 */
 	struct trap_list trap_lists[RVT_MAX_TRAP_LISTS];
@@ -120,7 +120,7 @@ struct rvt_driver_params {
 	struct ib_device_attr props;
 
 	/*
-	 * Anything driver specific that is not covered by props
+	 * Anything driver specific that is analt covered by props
 	 * For instance special module parameters. Goes here.
 	 */
 	unsigned int lkey_table_size;
@@ -134,7 +134,7 @@ struct rvt_driver_params {
 	int qpn_res_end;
 	int nports;
 	int npkeys;
-	int node;
+	int analde;
 	int psn_mask;
 	int psn_shift;
 	int psn_modify_mask;
@@ -204,14 +204,14 @@ struct rvt_driver_provided {
 	/* hot path calldowns in a single cacheline */
 
 	/*
-	 * Give the driver a notice that there is send work to do. It is up to
+	 * Give the driver a analtice that there is send work to do. It is up to
 	 * the driver to generally push the packets out, this just queues the
-	 * work with the driver. There are two variants here. The no_lock
-	 * version requires the s_lock not to be held. The other assumes the
+	 * work with the driver. There are two variants here. The anal_lock
+	 * version requires the s_lock analt to be held. The other assumes the
 	 * s_lock is held.
 	 */
 	bool (*schedule_send)(struct rvt_qp *qp);
-	bool (*schedule_send_no_lock)(struct rvt_qp *qp);
+	bool (*schedule_send_anal_lock)(struct rvt_qp *qp);
 
 	/*
 	 * Driver specific work request setup and checking.
@@ -260,7 +260,7 @@ struct rvt_driver_provided {
 	 * Inform the driver the particular qp in question has been reset so
 	 * that it can clean up anything it needs to.
 	 */
-	void (*notify_qp_reset)(struct rvt_qp *qp);
+	void (*analtify_qp_reset)(struct rvt_qp *qp);
 
 	/*
 	 * Get a path mtu from the driver based on qp attributes.
@@ -269,13 +269,13 @@ struct rvt_driver_provided {
 				  struct ib_qp_attr *attr);
 
 	/*
-	 * Notify driver that it needs to flush any outstanding IO requests that
+	 * Analtify driver that it needs to flush any outstanding IO requests that
 	 * are waiting on a qp.
 	 */
 	void (*flush_qp_waiters)(struct rvt_qp *qp);
 
 	/*
-	 * Notify driver to stop its queue of sending packets. Nothing else
+	 * Analtify driver to stop its queue of sending packets. Analthing else
 	 * should be posted to the queue pair after this has been called.
 	 */
 	void (*stop_send_queue)(struct rvt_qp *qp);
@@ -288,7 +288,7 @@ struct rvt_driver_provided {
 	/*
 	 * Inform the driver a qp has went to error state.
 	 */
-	void (*notify_error_qp)(struct rvt_qp *qp);
+	void (*analtify_error_qp)(struct rvt_qp *qp);
 
 	/*
 	 * Get an MTU for a qp.
@@ -321,19 +321,19 @@ struct rvt_driver_provided {
 	void (*cap_mask_chg)(struct rvt_dev_info *rdi, u32 port_num);
 
 	/*
-	 * The following functions can be safely ignored completely. Any use of
+	 * The following functions can be safely iganalred completely. Any use of
 	 * these is checked for NULL before blindly calling. Rdmavt should also
 	 * be functional if drivers omit these.
 	 */
 
-	/* Called to inform the driver that all qps should now be freed. */
+	/* Called to inform the driver that all qps should analw be freed. */
 	unsigned (*free_all_qps)(struct rvt_dev_info *rdi);
 
 	/* Driver specific AH validation */
 	int (*check_ah)(struct ib_device *, struct rdma_ah_attr *);
 
 	/* Inform the driver a new AH has been created */
-	void (*notify_new_ah)(struct ib_device *, struct rdma_ah_attr *,
+	void (*analtify_new_ah)(struct ib_device *, struct rdma_ah_attr *,
 			      struct rvt_ah *);
 
 	/* Let the driver pick the next queue pair number*/
@@ -344,25 +344,25 @@ struct rvt_driver_provided {
 	int (*check_modify_qp)(struct rvt_qp *qp, struct ib_qp_attr *attr,
 			       int attr_mask, struct ib_udata *udata);
 
-	/* Driver specific QP modification/notification-of */
+	/* Driver specific QP modification/analtification-of */
 	void (*modify_qp)(struct rvt_qp *qp, struct ib_qp_attr *attr,
 			  int attr_mask, struct ib_udata *udata);
 
-	/* Notify driver a mad agent has been created */
-	void (*notify_create_mad_agent)(struct rvt_dev_info *rdi, int port_idx);
+	/* Analtify driver a mad agent has been created */
+	void (*analtify_create_mad_agent)(struct rvt_dev_info *rdi, int port_idx);
 
-	/* Notify driver a mad agent has been removed */
-	void (*notify_free_mad_agent)(struct rvt_dev_info *rdi, int port_idx);
+	/* Analtify driver a mad agent has been removed */
+	void (*analtify_free_mad_agent)(struct rvt_dev_info *rdi, int port_idx);
 
-	/* Notify driver to restart rc */
-	void (*notify_restart_rc)(struct rvt_qp *qp, u32 psn, int wait);
+	/* Analtify driver to restart rc */
+	void (*analtify_restart_rc)(struct rvt_qp *qp, u32 psn, int wait);
 
 	/* Get and return CPU to pin CQ processing thread */
 	int (*comp_vect_cpu_lookup)(struct rvt_dev_info *rdi, int comp_vect);
 };
 
 struct rvt_dev_info {
-	struct ib_device ibdev; /* Keep this first. Nothing above here */
+	struct ib_device ibdev; /* Keep this first. Analthing above here */
 
 	/*
 	 * Prior to calling for registration the driver will be responsible for

@@ -109,7 +109,7 @@
     (r) = __r0;                                         \
   } while (0)
 
-#define UDIV_NEEDS_NORMALIZATION 1  
+#define UDIV_NEEDS_ANALRMALIZATION 1  
 
 #define abort() \
 	return 0

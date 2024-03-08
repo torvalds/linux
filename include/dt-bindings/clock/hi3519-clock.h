@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Copyright (c) 2015 HiSilicon Technologies Co., Ltd.
+ * Copyright (c) 2015 HiSilicon Techanallogies Co., Ltd.
  */
 
 #ifndef __DTS_HI3519_CLOCK_H

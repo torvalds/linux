@@ -81,7 +81,7 @@ static int mana_gd_query_max_resources(struct pci_dev *pdev)
 		gc->num_msix_usable = resp.max_msix;
 
 	if (gc->num_msix_usable <= 1)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	gc->max_num_queues = num_online_cpus();
 	if (gc->max_num_queues > MANA_MAX_NUM_QUEUES)
@@ -164,7 +164,7 @@ static int mana_gd_detect_devices(struct pci_dev *pdev)
 		}
 	}
 
-	return gc->mana.dev_id.type == 0 ? -ENODEV : 0;
+	return gc->mana.dev_id.type == 0 ? -EANALDEV : 0;
 }
 
 int mana_gd_send_request(struct gdma_context *gc, u32 req_len, const void *req,
@@ -188,7 +188,7 @@ int mana_gd_alloc_memory(struct gdma_context *gc, unsigned int length,
 	gmi->dev = gc->dev;
 	buf = dma_alloc_coherent(gmi->dev, length, &dma_handle, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gmi->dma_handle = dma_handle;
 	gmi->virt_addr = buf;
@@ -323,7 +323,7 @@ static void mana_gd_ring_doorbell(struct gdma_context *gc, u32 db_index,
 void mana_gd_wq_ring_doorbell(struct gdma_context *gc, struct gdma_queue *queue)
 {
 	/* Hardware Spec specifies that software client should set 0 for
-	 * wqe_cnt for Receive Queues. This value is not used in Send Queues.
+	 * wqe_cnt for Receive Queues. This value is analt used in Send Queues.
 	 */
 	mana_gd_ring_doorbell(gc, queue->gdma_dev->doorbell, queue->type,
 			      queue->id, queue->head * GDMA_WQE_BU_SIZE, 0);
@@ -416,7 +416,7 @@ static void mana_gd_process_eq_events(void *arg)
 		owner_bits = eqe_info.owner_bits;
 
 		old_bits = (eq->head / num_eqe - 1) & GDMA_EQE_OWNER_MASK;
-		/* No more entries */
+		/* Anal more entries */
 		if (owner_bits == old_bits) {
 			/* return here without ringing the doorbell */
 			if (i == 0)
@@ -462,7 +462,7 @@ static int mana_gd_register_irq(struct gdma_queue *queue,
 	msi_index = spec->eq.msix_index;
 
 	if (msi_index >= gc->num_msix_usable) {
-		err = -ENOSPC;
+		err = -EANALSPC;
 		dev_err(dev, "Register IRQ err:%d, msi:%u nMSI:%u",
 			err, msi_index, gc->num_msix_usable);
 
@@ -658,7 +658,7 @@ int mana_gd_create_hwc_queue(struct gdma_dev *gd,
 
 	queue = kzalloc(sizeof(*queue), GFP_KERNEL);
 	if (!queue)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gmi = &queue->mem_info;
 	err = mana_gd_alloc_memory(gc, spec->queue_size, gmi);
@@ -740,7 +740,7 @@ static int mana_gd_create_dma_region(struct gdma_dev *gd,
 
 	req = kzalloc(req_msg_size, GFP_KERNEL);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mana_gd_init_req_hdr(&req->hdr, GDMA_CREATE_DMA_REGION,
 			     req_msg_size, sizeof(resp));
@@ -785,7 +785,7 @@ int mana_gd_create_mana_eq(struct gdma_dev *gd,
 
 	queue = kzalloc(sizeof(*queue), GFP_KERNEL);
 	if (!queue)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gmi = &queue->mem_info;
 	err = mana_gd_alloc_memory(gc, spec->queue_size, gmi);
@@ -833,7 +833,7 @@ int mana_gd_create_mana_wq_cq(struct gdma_dev *gd,
 
 	queue = kzalloc(sizeof(*queue), GFP_KERNEL);
 	if (!queue)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gmi = &queue->mem_info;
 	err = mana_gd_alloc_memory(gc, spec->queue_size, gmi);
@@ -884,7 +884,7 @@ void mana_gd_destroy_queue(struct gdma_context *gc, struct gdma_queue *queue)
 		break;
 
 	default:
-		dev_err(gc->dev, "Can't destroy unknown queue: type=%d\n",
+		dev_err(gc->dev, "Can't destroy unkanalwn queue: type=%d\n",
 			queue->type);
 		return;
 	}
@@ -918,7 +918,7 @@ int mana_gd_verify_vf_version(struct pci_dev *pdev)
 	req.drv_ver = 0;	/* Unused*/
 	req.os_type = 0x10;	/* Linux */
 	req.os_ver_major = LINUX_VERSION_MAJOR;
-	req.os_ver_minor = LINUX_VERSION_PATCHLEVEL;
+	req.os_ver_mianalr = LINUX_VERSION_PATCHLEVEL;
 	req.os_ver_build = LINUX_VERSION_SUBLEVEL;
 	strscpy(req.os_ver_str1, utsname()->sysname, sizeof(req.os_ver_str1));
 	strscpy(req.os_ver_str2, utsname()->release, sizeof(req.os_ver_str2));
@@ -1126,7 +1126,7 @@ int mana_gd_post_work_request(struct gdma_queue *wq,
 	if (wq->monitor_avl_buf && wqe_size > mana_gd_wq_avail_space(wq)) {
 		gc = wq->gdma_dev->gdma_context;
 		dev_err(gc->dev, "unsuccessful flow control!\n");
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	if (wqe_info)
@@ -1172,7 +1172,7 @@ static int mana_gd_read_cqe(struct gdma_queue *cq, struct gdma_comp *comp)
 	owner_bits = cqe->cqe_info.owner_bits;
 
 	old_bits = (cq->head / num_cqe - 1) & GDMA_CQE_OWNER_MASK;
-	/* Return 0 if no more entries. */
+	/* Return 0 if anal more entries. */
 	if (owner_bits == old_bits)
 		return 0;
 
@@ -1234,7 +1234,7 @@ int mana_gd_alloc_res_map(u32 res_avail, struct gdma_resource *r)
 {
 	r->map = bitmap_zalloc(res_avail, GFP_KERNEL);
 	if (!r->map)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	r->size = res_avail;
 	spin_lock_init(&r->lock);
@@ -1271,7 +1271,7 @@ static int mana_gd_setup_irqs(struct pci_dev *pdev)
 	gc->irq_contexts = kcalloc(nvec, sizeof(struct gdma_irq_context),
 				   GFP_KERNEL);
 	if (!gc->irq_contexts) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto free_irq_vector;
 	}
 
@@ -1298,7 +1298,7 @@ static int mana_gd_setup_irqs(struct pci_dev *pdev)
 		if (err)
 			goto free_irq;
 
-		cpu = cpumask_local_spread(i, gc->numa_node);
+		cpu = cpumask_local_spread(i, gc->numa_analde);
 		irq_set_affinity_and_hint(irq, cpumask_of(cpu));
 	}
 
@@ -1433,7 +1433,7 @@ static int mana_gd_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto release_region;
 	}
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	gc = vzalloc(sizeof(*gc));
 	if (!gc)
 		goto release_region;
@@ -1446,7 +1446,7 @@ static int mana_gd_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (!bar0_va)
 		goto free_gc;
 
-	gc->numa_node = dev_to_node(&pdev->dev);
+	gc->numa_analde = dev_to_analde(&pdev->dev);
 	gc->is_pf = mana_is_pf(pdev->device);
 	gc->bar0_va = bar0_va;
 	gc->dev = &pdev->dev;
@@ -1492,7 +1492,7 @@ static void mana_gd_remove(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 
-/* The 'state' parameter is not used. */
+/* The 'state' parameter is analt used. */
 static int mana_gd_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct gdma_context *gc = pci_get_drvdata(pdev);

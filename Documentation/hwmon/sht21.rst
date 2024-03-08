@@ -7,7 +7,7 @@ Supported chips:
 
     Prefix: 'sht21'
 
-    Addresses scanned: none
+    Addresses scanned: analne
 
     Datasheet: Publicly available at the Sensirion website
 
@@ -19,7 +19,7 @@ Supported chips:
 
     Prefix: 'sht25'
 
-    Addresses scanned: none
+    Addresses scanned: analne
 
     Datasheet: Publicly available at the Sensirion website
 
@@ -55,14 +55,14 @@ humidity1_input
 eic
 	- Electronic Identification Code
 
-Notes
+Analtes
 -----
 
 The driver uses the default resolution settings of 12 bit for humidity and 14
 bit for temperature, which results in typical measurement times of 22 ms for
 humidity and 66 ms for temperature. To keep self heating below 0.1 degree
-Celsius, the device should not be active for more than 10% of the time,
+Celsius, the device should analt be active for more than 10% of the time,
 e.g. maximum two measurements per second at the given resolution.
 
 Different resolutions, the on-chip heater, and using the CRC checksum
-are not supported yet.
+are analt supported yet.

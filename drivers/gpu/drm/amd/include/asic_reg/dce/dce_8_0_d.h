@@ -10,12 +10,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included
+ * The above copyright analtice and this permission analtice shall be included
  * in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
@@ -225,13 +225,13 @@
 #define mmCRTC3_CRTC_V_TOTAL_INT_STATUS                                         0x448b
 #define mmCRTC4_CRTC_V_TOTAL_INT_STATUS                                         0x478b
 #define mmCRTC5_CRTC_V_TOTAL_INT_STATUS                                         0x4a8b
-#define mmCRTC_VSYNC_NOM_INT_STATUS                                             0x1b8c
-#define mmCRTC0_CRTC_VSYNC_NOM_INT_STATUS                                       0x1b8c
-#define mmCRTC1_CRTC_VSYNC_NOM_INT_STATUS                                       0x1e8c
-#define mmCRTC2_CRTC_VSYNC_NOM_INT_STATUS                                       0x418c
-#define mmCRTC3_CRTC_VSYNC_NOM_INT_STATUS                                       0x448c
-#define mmCRTC4_CRTC_VSYNC_NOM_INT_STATUS                                       0x478c
-#define mmCRTC5_CRTC_VSYNC_NOM_INT_STATUS                                       0x4a8c
+#define mmCRTC_VSYNC_ANALM_INT_STATUS                                             0x1b8c
+#define mmCRTC0_CRTC_VSYNC_ANALM_INT_STATUS                                       0x1b8c
+#define mmCRTC1_CRTC_VSYNC_ANALM_INT_STATUS                                       0x1e8c
+#define mmCRTC2_CRTC_VSYNC_ANALM_INT_STATUS                                       0x418c
+#define mmCRTC3_CRTC_VSYNC_ANALM_INT_STATUS                                       0x448c
+#define mmCRTC4_CRTC_VSYNC_ANALM_INT_STATUS                                       0x478c
+#define mmCRTC5_CRTC_VSYNC_ANALM_INT_STATUS                                       0x4a8c
 #define mmCRTC_V_BLANK_START_END                                                0x1b8d
 #define mmCRTC0_CRTC_V_BLANK_START_END                                          0x1b8d
 #define mmCRTC1_CRTC_V_BLANK_START_END                                          0x1e8d
@@ -309,13 +309,13 @@
 #define mmCRTC3_CRTC_TRIGB_MANUAL_TRIG                                          0x4497
 #define mmCRTC4_CRTC_TRIGB_MANUAL_TRIG                                          0x4797
 #define mmCRTC5_CRTC_TRIGB_MANUAL_TRIG                                          0x4a97
-#define mmCRTC_FORCE_COUNT_NOW_CNTL                                             0x1b98
-#define mmCRTC0_CRTC_FORCE_COUNT_NOW_CNTL                                       0x1b98
-#define mmCRTC1_CRTC_FORCE_COUNT_NOW_CNTL                                       0x1e98
-#define mmCRTC2_CRTC_FORCE_COUNT_NOW_CNTL                                       0x4198
-#define mmCRTC3_CRTC_FORCE_COUNT_NOW_CNTL                                       0x4498
-#define mmCRTC4_CRTC_FORCE_COUNT_NOW_CNTL                                       0x4798
-#define mmCRTC5_CRTC_FORCE_COUNT_NOW_CNTL                                       0x4a98
+#define mmCRTC_FORCE_COUNT_ANALW_CNTL                                             0x1b98
+#define mmCRTC0_CRTC_FORCE_COUNT_ANALW_CNTL                                       0x1b98
+#define mmCRTC1_CRTC_FORCE_COUNT_ANALW_CNTL                                       0x1e98
+#define mmCRTC2_CRTC_FORCE_COUNT_ANALW_CNTL                                       0x4198
+#define mmCRTC3_CRTC_FORCE_COUNT_ANALW_CNTL                                       0x4498
+#define mmCRTC4_CRTC_FORCE_COUNT_ANALW_CNTL                                       0x4798
+#define mmCRTC5_CRTC_FORCE_COUNT_ANALW_CNTL                                       0x4a98
 #define mmCRTC_FLOW_CONTROL                                                     0x1b99
 #define mmCRTC0_CRTC_FLOW_CONTROL                                               0x1b99
 #define mmCRTC1_CRTC_FLOW_CONTROL                                               0x1e99
@@ -393,13 +393,13 @@
 #define mmCRTC3_CRTC_STATUS_POSITION                                            0x44a4
 #define mmCRTC4_CRTC_STATUS_POSITION                                            0x47a4
 #define mmCRTC5_CRTC_STATUS_POSITION                                            0x4aa4
-#define mmCRTC_NOM_VERT_POSITION                                                0x1ba5
-#define mmCRTC0_CRTC_NOM_VERT_POSITION                                          0x1ba5
-#define mmCRTC1_CRTC_NOM_VERT_POSITION                                          0x1ea5
-#define mmCRTC2_CRTC_NOM_VERT_POSITION                                          0x41a5
-#define mmCRTC3_CRTC_NOM_VERT_POSITION                                          0x44a5
-#define mmCRTC4_CRTC_NOM_VERT_POSITION                                          0x47a5
-#define mmCRTC5_CRTC_NOM_VERT_POSITION                                          0x4aa5
+#define mmCRTC_ANALM_VERT_POSITION                                                0x1ba5
+#define mmCRTC0_CRTC_ANALM_VERT_POSITION                                          0x1ba5
+#define mmCRTC1_CRTC_ANALM_VERT_POSITION                                          0x1ea5
+#define mmCRTC2_CRTC_ANALM_VERT_POSITION                                          0x41a5
+#define mmCRTC3_CRTC_ANALM_VERT_POSITION                                          0x44a5
+#define mmCRTC4_CRTC_ANALM_VERT_POSITION                                          0x47a5
+#define mmCRTC5_CRTC_ANALM_VERT_POSITION                                          0x4aa5
 #define mmCRTC_STATUS_FRAME_COUNT                                               0x1ba6
 #define mmCRTC0_CRTC_STATUS_FRAME_COUNT                                         0x1ba6
 #define mmCRTC1_CRTC_STATUS_FRAME_COUNT                                         0x1ea6
@@ -2078,13 +2078,13 @@
 #define mmDCP3_COMM_MATRIXB_TRANS_C33_C34                                       0x434e
 #define mmDCP4_COMM_MATRIXB_TRANS_C33_C34                                       0x464e
 #define mmDCP5_COMM_MATRIXB_TRANS_C33_C34                                       0x494e
-#define mmDENORM_CONTROL                                                        0x1a50
-#define mmDCP0_DENORM_CONTROL                                                   0x1a50
-#define mmDCP1_DENORM_CONTROL                                                   0x1d50
-#define mmDCP2_DENORM_CONTROL                                                   0x4050
-#define mmDCP3_DENORM_CONTROL                                                   0x4350
-#define mmDCP4_DENORM_CONTROL                                                   0x4650
-#define mmDCP5_DENORM_CONTROL                                                   0x4950
+#define mmDEANALRM_CONTROL                                                        0x1a50
+#define mmDCP0_DEANALRM_CONTROL                                                   0x1a50
+#define mmDCP1_DEANALRM_CONTROL                                                   0x1d50
+#define mmDCP2_DEANALRM_CONTROL                                                   0x4050
+#define mmDCP3_DEANALRM_CONTROL                                                   0x4350
+#define mmDCP4_DEANALRM_CONTROL                                                   0x4650
+#define mmDCP5_DEANALRM_CONTROL                                                   0x4950
 #define mmOUT_ROUND_CONTROL                                                     0x1a51
 #define mmDCP0_OUT_ROUND_CONTROL                                                0x1a51
 #define mmDCP1_OUT_ROUND_CONTROL                                                0x1d51
@@ -4723,13 +4723,13 @@
 #define mmLB3_LB_BUFFER_STATUS                                                  0x43da
 #define mmLB4_LB_BUFFER_STATUS                                                  0x46da
 #define mmLB5_LB_BUFFER_STATUS                                                  0x49da
-#define mmLB_NO_OUTSTANDING_REQ_STATUS                                          0x1adc
-#define mmLB0_LB_NO_OUTSTANDING_REQ_STATUS                                      0x1adc
-#define mmLB1_LB_NO_OUTSTANDING_REQ_STATUS                                      0x1ddc
-#define mmLB2_LB_NO_OUTSTANDING_REQ_STATUS                                      0x40dc
-#define mmLB3_LB_NO_OUTSTANDING_REQ_STATUS                                      0x43dc
-#define mmLB4_LB_NO_OUTSTANDING_REQ_STATUS                                      0x46dc
-#define mmLB5_LB_NO_OUTSTANDING_REQ_STATUS                                      0x49dc
+#define mmLB_ANAL_OUTSTANDING_REQ_STATUS                                          0x1adc
+#define mmLB0_LB_ANAL_OUTSTANDING_REQ_STATUS                                      0x1adc
+#define mmLB1_LB_ANAL_OUTSTANDING_REQ_STATUS                                      0x1ddc
+#define mmLB2_LB_ANAL_OUTSTANDING_REQ_STATUS                                      0x40dc
+#define mmLB3_LB_ANAL_OUTSTANDING_REQ_STATUS                                      0x43dc
+#define mmLB4_LB_ANAL_OUTSTANDING_REQ_STATUS                                      0x46dc
+#define mmLB5_LB_ANAL_OUTSTANDING_REQ_STATUS                                      0x49dc
 #define mmMVP_AFR_FLIP_MODE                                                     0x1ae0
 #define mmLB0_MVP_AFR_FLIP_MODE                                                 0x1ae0
 #define mmLB1_MVP_AFR_FLIP_MODE                                                 0x1de0
@@ -5212,13 +5212,13 @@
 #define mmDMIF_PG3_DPG_PIPE_NB_PSTATE_CHANGE_CONTROL                            0x4436
 #define mmDMIF_PG4_DPG_PIPE_NB_PSTATE_CHANGE_CONTROL                            0x4736
 #define mmDMIF_PG5_DPG_PIPE_NB_PSTATE_CHANGE_CONTROL                            0x4a36
-#define mmDPG_PIPE_STUTTER_CONTROL_NONLPTCH                                     0x1b37
-#define mmDMIF_PG0_DPG_PIPE_STUTTER_CONTROL_NONLPTCH                            0x1b37
-#define mmDMIF_PG1_DPG_PIPE_STUTTER_CONTROL_NONLPTCH                            0x1e37
-#define mmDMIF_PG2_DPG_PIPE_STUTTER_CONTROL_NONLPTCH                            0x4137
-#define mmDMIF_PG3_DPG_PIPE_STUTTER_CONTROL_NONLPTCH                            0x4437
-#define mmDMIF_PG4_DPG_PIPE_STUTTER_CONTROL_NONLPTCH                            0x4737
-#define mmDMIF_PG5_DPG_PIPE_STUTTER_CONTROL_NONLPTCH                            0x4a37
+#define mmDPG_PIPE_STUTTER_CONTROL_ANALNLPTCH                                     0x1b37
+#define mmDMIF_PG0_DPG_PIPE_STUTTER_CONTROL_ANALNLPTCH                            0x1b37
+#define mmDMIF_PG1_DPG_PIPE_STUTTER_CONTROL_ANALNLPTCH                            0x1e37
+#define mmDMIF_PG2_DPG_PIPE_STUTTER_CONTROL_ANALNLPTCH                            0x4137
+#define mmDMIF_PG3_DPG_PIPE_STUTTER_CONTROL_ANALNLPTCH                            0x4437
+#define mmDMIF_PG4_DPG_PIPE_STUTTER_CONTROL_ANALNLPTCH                            0x4737
+#define mmDMIF_PG5_DPG_PIPE_STUTTER_CONTROL_ANALNLPTCH                            0x4a37
 #define mmDPG_REPEATER_PROGRAM                                                  0x1b3a
 #define mmDMIF_PG0_DPG_REPEATER_PROGRAM                                         0x1b3a
 #define mmDMIF_PG1_DPG_REPEATER_PROGRAM                                         0x1e3a
@@ -5258,8 +5258,8 @@
 #define mmAZROOT_IMMEDIATE_COMMAND_OUTPUT_INTERFACE_DATA                        0x18
 #define ixAZALIA_F2_CODEC_ROOT_PARAMETER_VENDOR_AND_DEVICE_ID                   0xf00
 #define ixAZALIA_F2_CODEC_ROOT_PARAMETER_REVISION_ID                            0xf02
-#define ixAZALIA_F2_CODEC_ROOT_PARAMETER_SUBORDINATE_NODE_COUNT                 0xf04
-#define ixAZALIA_F2_CODEC_FUNCTION_PARAMETER_SUBORDINATE_NODE_COUNT             0x1f04
+#define ixAZALIA_F2_CODEC_ROOT_PARAMETER_SUBORDINATE_ANALDE_COUNT                 0xf04
+#define ixAZALIA_F2_CODEC_FUNCTION_PARAMETER_SUBORDINATE_ANALDE_COUNT             0x1f04
 #define ixAZALIA_F2_CODEC_FUNCTION_PARAMETER_GROUP_TYPE                         0x1f05
 #define ixAZALIA_F2_CODEC_FUNCTION_PARAMETER_SUPPORTED_SIZE_RATES               0x1f0a
 #define ixAZALIA_F2_CODEC_FUNCTION_PARAMETER_STREAM_FORMATS                     0x1f0b
@@ -5293,7 +5293,7 @@
 #define mmAZALIA_F0_GTC_GROUP_OFFSET5                                           0x17e6
 #define mmAZALIA_F0_GTC_GROUP_OFFSET6                                           0x17e7
 #define mmGLOBAL_CAPABILITIES                                                   0x0
-#define mmMINOR_VERSION                                                         0x0
+#define mmMIANALR_VERSION                                                         0x0
 #define mmMAJOR_VERSION                                                         0x0
 #define mmOUTPUT_PAYLOAD_CAPABILITY                                             0x1
 #define mmINPUT_PAYLOAD_CAPABILITY                                              0x1

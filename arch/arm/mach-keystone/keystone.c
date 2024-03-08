@@ -39,7 +39,7 @@ static struct dev_pm_domain keystone_pm_domain = {
 	},
 };
 
-static struct pm_clk_notifier_block platform_domain_notifier = {
+static struct pm_clk_analtifier_block platform_domain_analtifier = {
 	.pm_domain = &keystone_pm_domain,
 	.con_ids = { NULL },
 };
@@ -53,30 +53,30 @@ static const struct of_device_id of_keystone_table[] = {
 
 static int __init keystone_pm_runtime_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
-	np = of_find_matching_node(NULL, of_keystone_table);
+	np = of_find_matching_analde(NULL, of_keystone_table);
 	if (!np)
 		return 0;
 
-	pm_clk_add_notifier(&platform_bus_type, &platform_domain_notifier);
+	pm_clk_add_analtifier(&platform_bus_type, &platform_domain_analtifier);
 
 	return 0;
 }
 
 #ifdef CONFIG_ARM_LPAE
-static int keystone_platform_notifier(struct notifier_block *nb,
+static int keystone_platform_analtifier(struct analtifier_block *nb,
 				      unsigned long event, void *data)
 {
 	struct device *dev = data;
 
-	if (event != BUS_NOTIFY_ADD_DEVICE)
-		return NOTIFY_DONE;
+	if (event != BUS_ANALTIFY_ADD_DEVICE)
+		return ANALTIFY_DONE;
 
 	if (!dev)
-		return NOTIFY_BAD;
+		return ANALTIFY_BAD;
 
-	if (!dev->of_node) {
+	if (!dev->of_analde) {
 		int ret = dma_direct_set_offset(dev, KEYSTONE_HIGH_PHYS_START,
 						KEYSTONE_LOW_PHYS_START,
 						KEYSTONE_HIGH_PHYS_SIZE);
@@ -84,11 +84,11 @@ static int keystone_platform_notifier(struct notifier_block *nb,
 			KEYSTONE_HIGH_PHYS_START - KEYSTONE_LOW_PHYS_START,
 			ret ? " failed" : "");
 	}
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block platform_nb = {
-	.notifier_call = keystone_platform_notifier,
+static struct analtifier_block platform_nb = {
+	.analtifier_call = keystone_platform_analtifier,
 };
 #endif /* CONFIG_ARM_LPAE */
 
@@ -96,7 +96,7 @@ static void __init keystone_init(void)
 {
 #ifdef CONFIG_ARM_LPAE
 	if (PHYS_OFFSET >= KEYSTONE_HIGH_PHYS_START)
-		bus_register_notifier(&platform_bus_type, &platform_nb);
+		bus_register_analtifier(&platform_bus_type, &platform_nb);
 #endif
 	keystone_pm_runtime_init();
 }
@@ -109,7 +109,7 @@ static long long __init keystone_pv_fixup(void)
 	mem_start = memblock_start_of_DRAM();
 	mem_end = memblock_end_of_DRAM();
 
-	/* nothing to do if we are running out of the <32-bit space */
+	/* analthing to do if we are running out of the <32-bit space */
 	if (mem_start >= KEYSTONE_LOW_PHYS_START &&
 	    mem_end   <= KEYSTONE_LOW_PHYS_END)
 		return 0;

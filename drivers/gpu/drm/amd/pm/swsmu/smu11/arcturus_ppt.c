@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -48,7 +48,7 @@
 #include "smu_cmn.h"
 
 /*
- * DO NOT use these for err/warn/info/debug messages.
+ * DO ANALT use these for err/warn/info/debug messages.
  * Use dev_err, dev_warn, dev_info and dev_dbg instead.
  * They are more MGPU friendly.
  */
@@ -270,14 +270,14 @@ static int arcturus_tables_init(struct smu_context *smu)
 
 	smu_table->metrics_table = kzalloc(sizeof(SmuMetrics_t), GFP_KERNEL);
 	if (!smu_table->metrics_table)
-		return -ENOMEM;
+		return -EANALMEM;
 	smu_table->metrics_time = 0;
 
 	smu_table->gpu_metrics_table_size = sizeof(struct gpu_metrics_v1_3);
 	smu_table->gpu_metrics_table = kzalloc(smu_table->gpu_metrics_table_size, GFP_KERNEL);
 	if (!smu_table->gpu_metrics_table) {
 		kfree(smu_table->metrics_table);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -290,7 +290,7 @@ static int arcturus_allocate_dpm_context(struct smu_context *smu)
 	smu_dpm->dpm_context = kzalloc(sizeof(struct smu_11_0_dpm_context),
 				       GFP_KERNEL);
 	if (!smu_dpm->dpm_context)
-		return -ENOMEM;
+		return -EANALMEM;
 	smu_dpm->dpm_context_size = sizeof(struct smu_11_0_dpm_context);
 
 	return 0;
@@ -429,10 +429,10 @@ static void arcturus_check_fan_support(struct smu_context *smu)
 	struct smu_table_context *table_context = &smu->smu_table;
 	PPTable_t *pptable = table_context->driver_pptable;
 
-	/* No sort of fan control possible if PPTable has it disabled */
-	smu->adev->pm.no_fan =
+	/* Anal sort of fan control possible if PPTable has it disabled */
+	smu->adev->pm.anal_fan =
 		!(pptable->FeaturesToRun[0] & FEATURE_FAN_CONTROL_MASK);
-	if (smu->adev->pm.no_fan)
+	if (smu->adev->pm.anal_fan)
 		dev_info_once(smu->adev->dev,
 			      "PMFW based fan control disabled");
 }
@@ -967,9 +967,9 @@ static int arcturus_force_clk_levels(struct smu_context *smu,
 
 	if ((smu->smc_fw_version >= 0x361200) &&
 	    (smu->smc_fw_version <= 0x361a00)) {
-		dev_err(smu->adev->dev, "Forcing clock level is not supported with "
+		dev_err(smu->adev->dev, "Forcing clock level is analt supported with "
 		       "54.18 - 54.26(included) SMU firmwares\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	soft_min_level = mask ? (ffs(mask) - 1) : 0;
@@ -1007,7 +1007,7 @@ static int arcturus_force_clk_levels(struct smu_context *smu,
 	case SMU_SOCCLK:
 	case SMU_FCLK:
 		/*
-		 * Should not arrive here since Arcturus does not
+		 * Should analt arrive here since Arcturus does analt
 		 * support mclk/socclk/fclk softmin/softmax settings
 		 */
 		ret = -EINVAL;
@@ -1122,7 +1122,7 @@ static int arcturus_read_sensor(struct smu_context *smu,
 		break;
 	case AMDGPU_PP_SENSOR_GPU_INPUT_POWER:
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		break;
 	}
 
@@ -1164,7 +1164,7 @@ static int arcturus_get_fan_speed_rpm(struct smu_context *smu,
 		break;
 	default:
 		/*
-		 * For pre Sienna Cichlid ASICs, the 0 RPM may be not correctly
+		 * For pre Sienna Cichlid ASICs, the 0 RPM may be analt correctly
 		 * detected via register retrieving. To workaround this, we will
 		 * report the fan speed as 0 RPM if user just requested such.
 		 */
@@ -1242,7 +1242,7 @@ static int arcturus_get_fan_speed_pwm(struct smu_context *smu,
 	uint64_t tmp64;
 
 	/*
-	 * For pre Sienna Cichlid ASICs, the 0 RPM may be not correctly
+	 * For pre Sienna Cichlid ASICs, the 0 RPM may be analt correctly
 	 * detected via register retrieving. To workaround this, we will
 	 * report the fan speed as 0 PWM if user just requested such.
 	 */
@@ -1291,7 +1291,7 @@ static int arcturus_get_power_limit(struct smu_context *smu,
 	if (smu_v11_0_get_current_power_limit(smu, &power_limit)) {
 		/* the last hope to figure out the ppt limit */
 		if (!pptable) {
-			dev_err(smu->adev->dev, "Cannot get PPT limit due to pptable missing!");
+			dev_err(smu->adev->dev, "Cananalt get PPT limit due to pptable missing!");
 			return -EINVAL;
 		}
 		power_limit =
@@ -1360,7 +1360,7 @@ static int arcturus_get_power_profile_mode(struct smu_context *smu,
 	for (i = 0; i <= PP_SMC_POWER_PROFILE_CUSTOM; i++) {
 		/*
 		 * Conv PP_SMC_POWER_PROFILE* to WORKLOAD_PPLIB_*_BIT
-		 * Not all profile modes are supported on arcturus.
+		 * Analt all profile modes are supported on arcturus.
 		 */
 		workload_type = smu_cmn_to_asic_specific_index(smu,
 							       CMN2ASIC_MAPPING_WORKLOAD,
@@ -1482,7 +1482,7 @@ static int arcturus_set_power_profile_mode(struct smu_context *smu,
 
 	/*
 	 * Conv PP_SMC_POWER_PROFILE* to WORKLOAD_PPLIB_*_BIT
-	 * Not all profile modes are supported on arcturus.
+	 * Analt all profile modes are supported on arcturus.
 	 */
 	workload_type = smu_cmn_to_asic_specific_index(smu,
 						       CMN2ASIC_MAPPING_WORKLOAD,
@@ -1518,9 +1518,9 @@ static int arcturus_set_performance_level(struct smu_context *smu,
 	case AMD_DPM_FORCED_LEVEL_PROFILE_PEAK:
 		if ((smu->smc_fw_version >= 0x361200) &&
 		    (smu->smc_fw_version <= 0x361a00)) {
-			dev_err(smu->adev->dev, "Forcing clock level is not supported with "
+			dev_err(smu->adev->dev, "Forcing clock level is analt supported with "
 			       "54.18 - 54.26(included) SMU firmwares\n");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		break;
 	default:
@@ -2015,7 +2015,7 @@ static int arcturus_i2c_xfer(struct i2c_adapter *i2c_adap,
 
 	req = kzalloc(sizeof(*req), GFP_KERNEL);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	req->I2CcontrollerPort = smu_i2c->port;
 	req->I2CSpeed = I2C_SPEED_FAST_400K;
@@ -2089,7 +2089,7 @@ static const struct i2c_algorithm arcturus_i2c_algo = {
 
 
 static const struct i2c_adapter_quirks arcturus_i2c_control_quirks = {
-	.flags = I2C_AQ_COMB | I2C_AQ_COMB_SAME_ADDR | I2C_AQ_NO_ZERO_LEN,
+	.flags = I2C_AQ_COMB | I2C_AQ_COMB_SAME_ADDR | I2C_AQ_ANAL_ZERO_LEN,
 	.max_read_len  = MAX_SW_I2C_COMMANDS,
 	.max_write_len = MAX_SW_I2C_COMMANDS,
 	.max_comb_1st_msg_len = 2,
@@ -2178,7 +2178,7 @@ static int arcturus_set_df_cstate(struct smu_context *smu,
 	struct amdgpu_device *adev = smu->adev;
 
 	/*
-	 * Arcturus does not need the cstate disablement
+	 * Arcturus does analt need the cstate disablement
 	 * prerequisite for gpu reset.
 	 */
 	if (amdgpu_in_reset(adev) || adev->in_suspend)
@@ -2380,7 +2380,7 @@ static const struct pptable_funcs arcturus_ppt_funcs = {
 	.write_pptable = smu_cmn_write_pptable,
 	.set_driver_table_location = smu_v11_0_set_driver_table_location,
 	.set_tool_table_location = smu_v11_0_set_tool_table_location,
-	.notify_memory_pool_location = smu_v11_0_notify_memory_pool_location,
+	.analtify_memory_pool_location = smu_v11_0_analtify_memory_pool_location,
 	.system_features_control = smu_v11_0_system_features_control,
 	.send_smc_msg_with_param = smu_cmn_send_smc_msg_with_param,
 	.send_smc_msg = smu_cmn_send_smc_msg,
@@ -2389,7 +2389,7 @@ static const struct pptable_funcs arcturus_ppt_funcs = {
 	.get_enabled_mask = smu_cmn_get_enabled_mask,
 	.feature_is_enabled = smu_cmn_feature_is_enabled,
 	.disable_all_features_with_exception = smu_cmn_disable_all_features_with_exception,
-	.notify_display_change = NULL,
+	.analtify_display_change = NULL,
 	.set_power_limit = smu_v11_0_set_power_limit,
 	.init_max_sustainable_clocks = smu_v11_0_init_max_sustainable_clocks,
 	.enable_thermal_alert = smu_v11_0_enable_thermal_alert,

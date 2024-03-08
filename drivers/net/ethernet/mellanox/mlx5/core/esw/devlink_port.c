@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2020 Mellanox Technologies Ltd. */
+/* Copyright (c) 2020 Mellaanalx Techanallogies Ltd. */
 
 #include <linux/mlx5/driver.h>
 #include "eswitch.h"
@@ -65,7 +65,7 @@ int mlx5_esw_offloads_pf_vf_devlink_port_init(struct mlx5_eswitch *esw,
 
 	dl_port = kzalloc(sizeof(*dl_port), GFP_KERNEL);
 	if (!dl_port)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mlx5_esw_offloads_pf_vf_devlink_port_attrs_set(esw, vport_num,
 						       &dl_port->dl_port);

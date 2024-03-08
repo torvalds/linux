@@ -20,7 +20,7 @@
 	};
 
 	chosen {
-		bootargs = "ignore_loglevel rw root=/dev/nfs ip=on";
+		bootargs = "iganalre_loglevel rw root=/dev/nfs ip=on";
 		stdout-path = "serial0:115200n8";
 	};
 
@@ -217,7 +217,7 @@
 	status = "okay";
 
 	flash@0 {
-		compatible = "spansion,s25fl512s", "jedec,spi-nor";
+		compatible = "spansion,s25fl512s", "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <30000000>;
 		spi-tx-bus-width = <4>;
@@ -256,7 +256,7 @@
 	/*
 	 * The adv75xx resets its addresses to defaults during low power mode.
 	 * Because we have two ADV7513 devices on the same bus, we must change
-	 * both of them away from the defaults so that they do not conflict.
+	 * both of them away from the defaults so that they do analt conflict.
 	 */
 	hdmi@3d {
 		compatible = "adi,adv7513";

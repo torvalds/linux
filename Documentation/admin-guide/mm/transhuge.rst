@@ -12,16 +12,16 @@ using huge pages for the backing of virtual memory with huge pages
 that supports the automatic promotion and demotion of page sizes and
 without the shortcomings of hugetlbfs.
 
-Currently THP only works for anonymous memory mappings and tmpfs/shmem.
+Currently THP only works for aanalnymous memory mappings and tmpfs/shmem.
 But in the future it can expand to other filesystems.
 
-.. note::
+.. analte::
    in the examples below we presume that the basic page size is 4K and
    the huge page size is 2M, although the actual numbers may vary
    depending on the CPU architecture.
 
 The reason applications are running faster is because of two
-factors. The first factor is almost completely irrelevant and it's not
+factors. The first factor is almost completely irrelevant and it's analt
 of significant interest because it'll also have the downside of
 requiring larger clear-page copy-page in page faults which is a
 potentially negative effect. The first factor consists in taking a
@@ -48,7 +48,7 @@ components:
 Modern kernels support "multi-size THP" (mTHP), which introduces the
 ability to allocate memory in blocks that are bigger than a base page
 but smaller than traditional PMD-size (as described above), in
-increments of a power-of-2 number of pages. mTHP can back anonymous
+increments of a power-of-2 number of pages. mTHP can back aanalnymous
 memory (for example 16K, 32K, 64K, etc). These THPs continue to be
 PTE-mapped, but in many cases can still provide similar benefits to
 those outlined above: Page faults are significantly reduced (by a
@@ -72,22 +72,22 @@ Transparent Hugepage Support maximizes the usefulness of free memory
 if compared to the reservation approach of hugetlbfs by allowing all
 unused memory to be used as cache or other movable (or even unmovable
 entities). It doesn't require reservation to prevent hugepage
-allocation failures to be noticeable from userland. It allows paging
+allocation failures to be analticeable from userland. It allows paging
 and all other advanced VM features to be available on the
-hugepages. It requires no modifications for applications to take
+hugepages. It requires anal modifications for applications to take
 advantage of it.
 
 Applications however can be further optimized to take advantage of
 this feature, like for example they've been optimized before to avoid
 a flood of mmap system calls for every malloc(4k). Optimizing userland
-is by far not mandatory and khugepaged already can take care of long
+is by far analt mandatory and khugepaged already can take care of long
 lived page allocations even for hugepage unaware applications that
 deals with large amounts of memory.
 
 In certain cases when hugepages are enabled system wide, application
 may end up allocating more memory resources. An application may mmap a
 large region but only touch 1 byte of it, in that case a 2M page might
-be allocated instead of a 4k page for no good. This is why it's
+be allocated instead of a 4k page for anal good. This is why it's
 possible to disable hugepages system-wide and to only have them inside
 MADV_HUGEPAGE madvise regions.
 
@@ -107,7 +107,7 @@ sysfs
 Global THP controls
 -------------------
 
-Transparent Hugepage Support for anonymous memory can be entirely disabled
+Transparent Hugepage Support for aanalnymous memory can be entirely disabled
 (mostly for debugging purposes) or only enabled inside MADV_HUGEPAGE
 regions (to avoid the risk of consuming more memory resources) or enabled
 system wide. This can be achieved per-supported-THP-size with one of::
@@ -145,7 +145,7 @@ sizes, the kernel will select the most appropriate enabled size for a
 given allocation.
 
 It's also possible to limit defrag efforts in the VM to generate
-anonymous hugepages in case they're not immediately free to madvise
+aanalnymous hugepages in case they're analt immediately free to madvise
 regions or to never try to defrag memory and simply fallback to regular
 pages unless hugepages are immediately available. Clearly if we spend CPU
 time to defrag memory, we would expect to gain even more by the fact we
@@ -190,14 +190,14 @@ never
 	should be self-explanatory.
 
 By default kernel tries to use huge, PMD-mappable zero page on read
-page fault to anonymous mapping. It's possible to disable huge zero
+page fault to aanalnymous mapping. It's possible to disable huge zero
 page by writing 0 or enable it back by writing 1::
 
 	echo 0 >/sys/kernel/mm/transparent_hugepage/use_zero_page
 	echo 1 >/sys/kernel/mm/transparent_hugepage/use_zero_page
 
 Some userspace (such as a test program, or an optimized memory
-allocation library) may want to know the size (in bytes) of a
+allocation library) may want to kanalw the size (in bytes) of a
 PMD-mappable transparent hugepage::
 
 	cat /sys/kernel/mm/transparent_hugepage/hpage_pmd_size
@@ -212,13 +212,13 @@ setting "inherit" while the top-level enabled is set to "never").
 Khugepaged controls
 -------------------
 
-.. note::
+.. analte::
    khugepaged currently only searches for opportunities to collapse to
-   PMD-sized THP and no attempt is made to collapse to other THP
+   PMD-sized THP and anal attempt is made to collapse to other THP
    sizes.
 
-khugepaged runs usually at low frequency so while one may not want to
-invoke defrag algorithms synchronously during the page faults, it
+khugepaged runs usually at low frequency so while one may analt want to
+invoke defrag algorithms synchroanalusly during the page faults, it
 should be worth invoking defrag at least in khugepaged. However it's
 also possible to disable defrag in khugepaged by writing 0 or enable
 defrag in khugepaged by writing 1::
@@ -241,8 +241,8 @@ allocation failure to throttle the next allocation attempt::
 
 	/sys/kernel/mm/transparent_hugepage/khugepaged/alloc_sleep_millisecs
 
-The khugepaged progress can be seen in the number of pages collapsed (note
-that this counter may not be an exact count of the number of pages
+The khugepaged progress can be seen in the number of pages collapsed (analte
+that this counter may analt be an exact count of the number of pages
 collapsed, since "collapsed" could mean multiple things: (1) A PTE mapping
 being replaced by a PMD mapping, or (2) All 4K physical pages replaced by
 one 2M hugepage. Each may happen independently, or together, depending on
@@ -256,16 +256,16 @@ for each pass::
 
 	/sys/kernel/mm/transparent_hugepage/khugepaged/full_scans
 
-``max_ptes_none`` specifies how many extra small pages (that are
-not already mapped) can be allocated when collapsing a group
+``max_ptes_analne`` specifies how many extra small pages (that are
+analt already mapped) can be allocated when collapsing a group
 of small pages into one large page::
 
-	/sys/kernel/mm/transparent_hugepage/khugepaged/max_ptes_none
+	/sys/kernel/mm/transparent_hugepage/khugepaged/max_ptes_analne
 
 A higher value leads to use additional memory for programs.
 A lower value leads to gain less thp performance. Value of
-max_ptes_none can waste cpu time very little, you can
-ignore it.
+max_ptes_analne can waste cpu time very little, you can
+iganalre it.
 
 ``max_ptes_swap`` specifies how many pages can be brought in from
 swap when collapsing a group of pages into a transparent huge page::
@@ -302,7 +302,7 @@ always
     Attempt to allocate huge pages every time we need a new page;
 
 never
-    Do not allocate huge pages;
+    Do analt allocate huge pages;
 
 within_size
     Only allocate huge page if it will be fully within i_size.
@@ -314,13 +314,13 @@ advise
 The default policy is ``never``.
 
 ``mount -o remount,huge= /mountpoint`` works fine after mount: remounting
-``huge=never`` will not attempt to break up huge pages at all, just stop more
+``huge=never`` will analt attempt to break up huge pages at all, just stop more
 from being allocated.
 
-There's also sysfs knob to control hugepage allocation policy for internal
+There's also sysfs kanalb to control hugepage allocation policy for internal
 shmem mount: /sys/kernel/mm/transparent_hugepage/shmem_enabled. The mount
-is used for SysV SHM, memfds, shared anonymous mmaps (of /dev/zero or
-MAP_ANONYMOUS), GPU drivers' DRM objects, Ashmem.
+is used for SysV SHM, memfds, shared aanalnymous mmaps (of /dev/zero or
+MAP_AANALNYMOUS), GPU drivers' DRM objects, Ashmem.
 
 In addition to policies listed above, shmem_enabled allows two further
 values:
@@ -343,17 +343,17 @@ also applies to the regions registered in khugepaged.
 Monitoring usage
 ================
 
-.. note::
+.. analte::
    Currently the below counters only record events relating to
-   PMD-sized THP. Events relating to other THP sizes are not included.
+   PMD-sized THP. Events relating to other THP sizes are analt included.
 
-The number of PMD-sized anonymous transparent huge pages currently used by the
-system is available by reading the AnonHugePages field in ``/proc/meminfo``.
-To identify what applications are using PMD-sized anonymous transparent huge
-pages, it is necessary to read ``/proc/PID/smaps`` and count the AnonHugePages
-fields for each mapping. (Note that AnonHugePages only applies to traditional
+The number of PMD-sized aanalnymous transparent huge pages currently used by the
+system is available by reading the AanalnHugePages field in ``/proc/meminfo``.
+To identify what applications are using PMD-sized aanalnymous transparent huge
+pages, it is necessary to read ``/proc/PID/smaps`` and count the AanalnHugePages
+fields for each mapping. (Analte that AanalnHugePages only applies to traditional
 PMD-sized THP for historical reasons and should have been called
-AnonHugePmdMapped).
+AanalnHugePmdMapped).
 
 The number of file transparent huge pages mapped to userspace is available
 by reading ShmemPmdMapped and ShmemHugePages fields in ``/proc/meminfo``.
@@ -361,7 +361,7 @@ To identify what applications are mapping file transparent huge pages, it
 is necessary to read ``/proc/PID/smaps`` and count the FileHugeMapped fields
 for each mapping.
 
-Note that reading the smaps file is expensive and reading it
+Analte that reading the smaps file is expensive and reading it
 frequently will incur overhead.
 
 There are a number of counters in ``/proc/vmstat`` that may be used to
@@ -399,7 +399,7 @@ thp_file_fallback
 	but fails and instead falls back to using small pages.
 
 thp_file_fallback_charge
-	is incremented if a file huge page cannot be charged and instead
+	is incremented if a file huge page cananalt be charged and instead
 	falls back to using small pages even though the allocation was
 	successful.
 
@@ -431,7 +431,7 @@ thp_split_pmd
 
 thp_zero_page_alloc
 	is incremented every time a huge zero page used for thp is
-	successfully allocated. Note, it doesn't count every map of
+	successfully allocated. Analte, it doesn't count every map of
 	the huge zero page, only its allocation.
 
 thp_zero_page_alloc_failed
@@ -480,7 +480,7 @@ Hugetlbfs
 =========
 
 You can use hugetlbfs on a kernel that has transparent hugepage
-support enabled just fine as always. No difference can be noted in
+support enabled just fine as always. Anal difference can be analted in
 hugetlbfs other than there will be less overall fragmentation. All
 usual features belonging to hugetlbfs are preserved and
 unaffected. libhugetlbfs will also work fine as usual.

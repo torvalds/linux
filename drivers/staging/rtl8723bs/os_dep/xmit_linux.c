@@ -109,7 +109,7 @@ static void rtw_check_xmit_resource(struct adapter *padapter, struct sk_buff *pk
 
 	queue = skb_get_queue_mapping(pkt);
 	if (padapter->registrypriv.wifi_spec) {
-		/* No free space for Tx, tx_worker is too slow */
+		/* Anal free space for Tx, tx_worker is too slow */
 		if (pxmitpriv->hwxmits[queue].accnt > WMM_XMIT_THRESHOLD)
 			netif_stop_subqueue(padapter->pnetdev, queue);
 	} else {
@@ -173,7 +173,7 @@ static int rtw_mlcst2unicst(struct adapter *padapter, struct sk_buff *skb)
 		} else {
 			pxmitpriv->tx_drop++;
 			/* dev_kfree_skb_any(skb); */
-			return false;	/*  Caller shall tx this multicast frame via normal way. */
+			return false;	/*  Caller shall tx this multicast frame via analrmal way. */
 		}
 	}
 

@@ -43,7 +43,7 @@ struct resource {
 #define IORESOURCE_DMA		0x00000800
 #define IORESOURCE_BUS		0x00001000
 
-#define IORESOURCE_PREFETCH	0x00002000	/* No side effects */
+#define IORESOURCE_PREFETCH	0x00002000	/* Anal side effects */
 #define IORESOURCE_READONLY	0x00004000
 #define IORESOURCE_CACHEABLE	0x00008000
 #define IORESOURCE_RANGELENGTH	0x00010000
@@ -63,10 +63,10 @@ struct resource {
 #define IORESOURCE_SYSRAM_DRIVER_MANAGED	0x02000000 /* Always detected via a driver. */
 #define IORESOURCE_SYSRAM_MERGEABLE		0x04000000 /* Resource can be merged. */
 
-#define IORESOURCE_EXCLUSIVE	0x08000000	/* Userland may not map this resource */
+#define IORESOURCE_EXCLUSIVE	0x08000000	/* Userland may analt map this resource */
 
 #define IORESOURCE_DISABLED	0x10000000
-#define IORESOURCE_UNSET	0x20000000	/* No address assigned yet */
+#define IORESOURCE_UNSET	0x20000000	/* Anal address assigned yet */
 #define IORESOURCE_AUTO		0x40000000
 #define IORESOURCE_BUSY		0x80000000	/* Driver has marked this resource busy */
 
@@ -109,7 +109,7 @@ struct resource {
 #define IORESOURCE_MEM_32BIT		(3<<3)
 #define IORESOURCE_MEM_SHADOWABLE	(1<<5)	/* dup: IORESOURCE_SHADOWABLE */
 #define IORESOURCE_MEM_EXPANSIONROM	(1<<6)
-#define IORESOURCE_MEM_NONPOSTED	(1<<7)
+#define IORESOURCE_MEM_ANALNPOSTED	(1<<7)
 
 /* PnP I/O specific bits (IORESOURCE_BITS) */
 #define IORESOURCE_IO_16BIT_ADDR	(1<<0)
@@ -118,10 +118,10 @@ struct resource {
 
 /* PCI ROM control bits (IORESOURCE_BITS) */
 #define IORESOURCE_ROM_ENABLE		(1<<0)	/* ROM is enabled, same as PCI_ROM_ADDRESS_ENABLE */
-#define IORESOURCE_ROM_SHADOW		(1<<1)	/* Use RAM image, not ROM BAR */
+#define IORESOURCE_ROM_SHADOW		(1<<1)	/* Use RAM image, analt ROM BAR */
 
 /* PCI control bits.  Shares IORESOURCE_BITS with above PCI ROM.  */
-#define IORESOURCE_PCI_FIXED		(1<<4)	/* Do not move resource */
+#define IORESOURCE_PCI_FIXED		(1<<4)	/* Do analt move resource */
 #define IORESOURCE_PCI_EA_BEI		(1<<5)	/* BAR Equivalent Indicator */
 
 /*
@@ -130,10 +130,10 @@ struct resource {
  * Descriptors are used by walk_iomem_res_desc() and region_intersects()
  * for searching a specific resource range in the iomem table.  Assign
  * a new descriptor when a resource range supports the search interfaces.
- * Otherwise, resource.desc must be set to IORES_DESC_NONE (0).
+ * Otherwise, resource.desc must be set to IORES_DESC_ANALNE (0).
  */
 enum {
-	IORES_DESC_NONE				= 0,
+	IORES_DESC_ANALNE				= 0,
 	IORES_DESC_CRASH_KERNEL			= 1,
 	IORES_DESC_ACPI_TABLES			= 2,
 	IORES_DESC_ACPI_NV_STORAGE		= 3,
@@ -160,7 +160,7 @@ enum {
 		.end = (_start) + (_size) - 1,				\
 		.name = (_name),					\
 		.flags = (_flags),					\
-		.desc = IORES_DESC_NONE,				\
+		.desc = IORES_DESC_ANALNE,				\
 	}
 
 #define DEFINE_RES_IO_NAMED(_start, _size, _name)			\
@@ -188,7 +188,7 @@ enum {
 #define DEFINE_RES_DMA(_dma)						\
 	DEFINE_RES_DMA_NAMED((_dma), NULL)
 
-/* PC/ISA/whatever - the normal PC address spaces: IO and memory */
+/* PC/ISA/whatever - the analrmal PC address spaces: IO and memory */
 extern struct resource ioport_resource;
 extern struct resource iomem_resource;
 

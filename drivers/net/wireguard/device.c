@@ -45,7 +45,7 @@ static int wg_open(struct net_device *dev)
 		IPV4_DEVCONF_ALL(dev_net(dev), SEND_REDIRECTS) = false;
 	}
 	if (dev_v6)
-		dev_v6->cnf.addr_gen_mode = IN6_ADDR_GEN_MODE_NONE;
+		dev_v6->cnf.addr_gen_mode = IN6_ADDR_GEN_MODE_ANALNE;
 
 	mutex_lock(&wg->device_update_lock);
 	ret = wg_socket_init(wg, wg->incoming_port);
@@ -61,13 +61,13 @@ out:
 	return ret;
 }
 
-static int wg_pm_notification(struct notifier_block *nb, unsigned long action, void *data)
+static int wg_pm_analtification(struct analtifier_block *nb, unsigned long action, void *data)
 {
 	struct wg_device *wg;
 	struct wg_peer *peer;
 
 	/* If the machine is constantly suspending and resuming, as part of
-	 * its normal operation rather than as a somewhat rare event, then we
+	 * its analrmal operation rather than as a somewhat rare event, then we
 	 * don't actually want to clear keys.
 	 */
 	if (IS_ENABLED(CONFIG_PM_AUTOSLEEP) ||
@@ -82,8 +82,8 @@ static int wg_pm_notification(struct notifier_block *nb, unsigned long action, v
 		mutex_lock(&wg->device_update_lock);
 		list_for_each_entry(peer, &wg->peer_list, peer_list) {
 			del_timer(&peer->timer_zero_key_material);
-			wg_noise_handshake_clear(&peer->handshake);
-			wg_noise_keypairs_clear(&peer->keypairs);
+			wg_analise_handshake_clear(&peer->handshake);
+			wg_analise_keypairs_clear(&peer->keypairs);
 		}
 		mutex_unlock(&wg->device_update_lock);
 	}
@@ -92,9 +92,9 @@ static int wg_pm_notification(struct notifier_block *nb, unsigned long action, v
 	return 0;
 }
 
-static struct notifier_block pm_notifier = { .notifier_call = wg_pm_notification };
+static struct analtifier_block pm_analtifier = { .analtifier_call = wg_pm_analtification };
 
-static int wg_vm_notification(struct notifier_block *nb, unsigned long action, void *data)
+static int wg_vm_analtification(struct analtifier_block *nb, unsigned long action, void *data)
 {
 	struct wg_device *wg;
 	struct wg_peer *peer;
@@ -103,14 +103,14 @@ static int wg_vm_notification(struct notifier_block *nb, unsigned long action, v
 	list_for_each_entry(wg, &device_list, device_list) {
 		mutex_lock(&wg->device_update_lock);
 		list_for_each_entry(peer, &wg->peer_list, peer_list)
-			wg_noise_expire_current_peer_keypairs(peer);
+			wg_analise_expire_current_peer_keypairs(peer);
 		mutex_unlock(&wg->device_update_lock);
 	}
 	rtnl_unlock();
 	return 0;
 }
 
-static struct notifier_block vm_notifier = { .notifier_call = wg_vm_notification };
+static struct analtifier_block vm_analtifier = { .analtifier_call = wg_vm_analtification };
 
 static int wg_stop(struct net_device *dev)
 {
@@ -122,9 +122,9 @@ static int wg_stop(struct net_device *dev)
 	list_for_each_entry(peer, &wg->peer_list, peer_list) {
 		wg_packet_purge_staged_packets(peer);
 		wg_timers_stop(peer);
-		wg_noise_handshake_clear(&peer->handshake);
-		wg_noise_keypairs_clear(&peer->keypairs);
-		wg_noise_reset_last_sent_handshake(&peer->last_sent_handshake);
+		wg_analise_handshake_clear(&peer->handshake);
+		wg_analise_keypairs_clear(&peer->keypairs);
+		wg_analise_reset_last_sent_handshake(&peer->last_sent_handshake);
 	}
 	mutex_unlock(&wg->device_update_lock);
 	while ((skb = ptr_ring_consume(&wg->handshake_queue.ring)) != NULL)
@@ -145,19 +145,19 @@ static netdev_tx_t wg_xmit(struct sk_buff *skb, struct net_device *dev)
 	int ret;
 
 	if (unlikely(!wg_check_packet_protocol(skb))) {
-		ret = -EPROTONOSUPPORT;
+		ret = -EPROTOANALSUPPORT;
 		net_dbg_ratelimited("%s: Invalid IP packet\n", dev->name);
 		goto err;
 	}
 
 	peer = wg_allowedips_lookup_dst(&wg->peer_allowedips, skb);
 	if (unlikely(!peer)) {
-		ret = -ENOKEY;
+		ret = -EANALKEY;
 		if (skb->protocol == htons(ETH_P_IP))
-			net_dbg_ratelimited("%s: No peer has allowed IPs matching %pI4\n",
+			net_dbg_ratelimited("%s: Anal peer has allowed IPs matching %pI4\n",
 					    dev->name, &ip_hdr(skb)->daddr);
 		else if (skb->protocol == htons(ETH_P_IPV6))
-			net_dbg_ratelimited("%s: No peer has allowed IPs matching %pI6\n",
+			net_dbg_ratelimited("%s: Anal peer has allowed IPs matching %pI6\n",
 					    dev->name, &ipv6_hdr(skb)->daddr);
 		goto err_icmp;
 	}
@@ -165,7 +165,7 @@ static netdev_tx_t wg_xmit(struct sk_buff *skb, struct net_device *dev)
 	family = READ_ONCE(peer->endpoint.addr.sa_family);
 	if (unlikely(family != AF_INET && family != AF_INET6)) {
 		ret = -EDESTADDRREQ;
-		net_dbg_ratelimited("%s: No valid endpoint has been configured or discovered for peer %llu\n",
+		net_dbg_ratelimited("%s: Anal valid endpoint has been configured or discovered for peer %llu\n",
 				    dev->name, peer->internal_id);
 		goto err_peer;
 	}
@@ -174,7 +174,7 @@ static netdev_tx_t wg_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	__skb_queue_head_init(&packets);
 	if (!skb_is_gso(skb)) {
-		skb_mark_not_on_list(skb);
+		skb_mark_analt_on_list(skb);
 	} else {
 		struct sk_buff *segs = skb_gso_segment(skb, 0);
 
@@ -187,7 +187,7 @@ static netdev_tx_t wg_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	skb_list_walk_safe(skb, skb, next) {
-		skb_mark_not_on_list(skb);
+		skb_mark_analt_on_list(skb);
 
 		skb = skb_share_check(skb, GFP_ATOMIC);
 		if (unlikely(!skb))
@@ -287,10 +287,10 @@ static void wg_setup(struct net_device *dev)
 	dev->hard_header_len = 0;
 	dev->addr_len = 0;
 	dev->needed_headroom = DATA_PACKET_HEAD_ROOM;
-	dev->needed_tailroom = noise_encrypted_len(MESSAGE_PADDING_MULTIPLE);
-	dev->type = ARPHRD_NONE;
-	dev->flags = IFF_POINTOPOINT | IFF_NOARP;
-	dev->priv_flags |= IFF_NO_QUEUE;
+	dev->needed_tailroom = analise_encrypted_len(MESSAGE_PADDING_MULTIPLE);
+	dev->type = ARPHRD_ANALNE;
+	dev->flags = IFF_POINTOPOINT | IFF_ANALARP;
+	dev->priv_flags |= IFF_ANAL_QUEUE;
 	dev->features |= NETIF_F_LLTX;
 	dev->features |= WG_NETDEV_FEATURES;
 	dev->hw_features |= WG_NETDEV_FEATURES;
@@ -312,7 +312,7 @@ static int wg_newlink(struct net *src_net, struct net_device *dev,
 		      struct netlink_ext_ack *extack)
 {
 	struct wg_device *wg = netdev_priv(dev);
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	rcu_assign_pointer(wg->creating_net, src_net);
 	init_rwsem(&wg->static_identity.lock);
@@ -442,11 +442,11 @@ int __init wg_device_init(void)
 {
 	int ret;
 
-	ret = register_pm_notifier(&pm_notifier);
+	ret = register_pm_analtifier(&pm_analtifier);
 	if (ret)
 		return ret;
 
-	ret = register_random_vmfork_notifier(&vm_notifier);
+	ret = register_random_vmfork_analtifier(&vm_analtifier);
 	if (ret)
 		goto error_pm;
 
@@ -463,9 +463,9 @@ int __init wg_device_init(void)
 error_pernet:
 	unregister_pernet_device(&pernet_ops);
 error_vm:
-	unregister_random_vmfork_notifier(&vm_notifier);
+	unregister_random_vmfork_analtifier(&vm_analtifier);
 error_pm:
-	unregister_pm_notifier(&pm_notifier);
+	unregister_pm_analtifier(&pm_analtifier);
 	return ret;
 }
 
@@ -473,7 +473,7 @@ void wg_device_uninit(void)
 {
 	rtnl_link_unregister(&link_ops);
 	unregister_pernet_device(&pernet_ops);
-	unregister_random_vmfork_notifier(&vm_notifier);
-	unregister_pm_notifier(&pm_notifier);
+	unregister_random_vmfork_analtifier(&vm_analtifier);
+	unregister_pm_analtifier(&pm_analtifier);
 	rcu_barrier();
 }

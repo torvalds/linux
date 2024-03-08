@@ -15,10 +15,10 @@
 
 #define UM(x) map__unmap_ip(kallsyms_map, (x))
 
-static bool is_ignored_symbol(const char *name, char type)
+static bool is_iganalred_symbol(const char *name, char type)
 {
-	/* Symbol names that exactly match to the following are ignored.*/
-	static const char * const ignored_symbols[] = {
+	/* Symbol names that exactly match to the following are iganalred.*/
+	static const char * const iganalred_symbols[] = {
 		/*
 		 * Symbols which vary between passes. Passes 1 and 2 must have
 		 * identical symbol lists. The kallsyms_* symbols below are
@@ -40,14 +40,14 @@ static bool is_ignored_symbol(const char *name, char type)
 		NULL
 	};
 
-	/* Symbol names that begin with the following are ignored.*/
-	static const char * const ignored_prefixes[] = {
+	/* Symbol names that begin with the following are iganalred.*/
+	static const char * const iganalred_prefixes[] = {
 		"$",			/* local symbols for ARM, MIPS, etc. */
 		".L",			/* local labels, .LBB,.Ltmpxxx,.L__unnamed_xx,.LASANPC, etc. */
 		"__crc_",		/* modversions */
 		"__efistub_",		/* arm64 EFI stub namespace */
-		"__kvm_nvhe_$",		/* arm64 local symbols in non-VHE KVM namespace */
-		"__kvm_nvhe_.L",	/* arm64 local symbols in non-VHE KVM namespace */
+		"__kvm_nvhe_$",		/* arm64 local symbols in analn-VHE KVM namespace */
+		"__kvm_nvhe_.L",	/* arm64 local symbols in analn-VHE KVM namespace */
 		"__AArch64ADRPThunk_",	/* arm64 lld */
 		"__ARMV5PILongThunk_",	/* arm lld */
 		"__ARMV7PILongThunk_",
@@ -57,16 +57,16 @@ static bool is_ignored_symbol(const char *name, char type)
 		NULL
 	};
 
-	/* Symbol names that end with the following are ignored.*/
-	static const char * const ignored_suffixes[] = {
+	/* Symbol names that end with the following are iganalred.*/
+	static const char * const iganalred_suffixes[] = {
 		"_from_arm",		/* arm */
 		"_from_thumb",		/* arm */
 		"_veneer",		/* arm */
 		NULL
 	};
 
-	/* Symbol names that contain the following are ignored.*/
-	static const char * const ignored_matches[] = {
+	/* Symbol names that contain the following are iganalred.*/
+	static const char * const iganalred_matches[] = {
 		".long_branch.",	/* ppc stub */
 		".plt_branch.",		/* ppc stub */
 		NULL
@@ -74,22 +74,22 @@ static bool is_ignored_symbol(const char *name, char type)
 
 	const char * const *p;
 
-	for (p = ignored_symbols; *p; p++)
+	for (p = iganalred_symbols; *p; p++)
 		if (!strcmp(name, *p))
 			return true;
 
-	for (p = ignored_prefixes; *p; p++)
+	for (p = iganalred_prefixes; *p; p++)
 		if (!strncmp(name, *p, strlen(*p)))
 			return true;
 
-	for (p = ignored_suffixes; *p; p++) {
+	for (p = iganalred_suffixes; *p; p++) {
 		int l = strlen(name) - strlen(*p);
 
 		if (l >= 0 && !strcmp(name + l, *p))
 			return true;
 	}
 
-	for (p = ignored_matches; *p; p++) {
+	for (p = iganalred_matches; *p; p++) {
 		if (strstr(name, *p))
 			return true;
 	}
@@ -191,7 +191,7 @@ static int test__vmlinux_matches_kallsyms(struct test_suite *test __maybe_unused
 					int subtest __maybe_unused)
 {
 	int err = TEST_FAIL;
-	struct rb_node *nd;
+	struct rb_analde *nd;
 	struct symbol *sym;
 	struct map *kallsyms_map;
 	struct machine vmlinux;
@@ -227,8 +227,8 @@ static int test__vmlinux_matches_kallsyms(struct test_suite *test __maybe_unused
 	 * Step 3:
 	 *
 	 * Load and split /proc/kallsyms into multiple maps, one per module.
-	 * Do not use kcore, as this test was designed before kcore support
-	 * and has parts that only make sense if using the non-kcore code.
+	 * Do analt use kcore, as this test was designed before kcore support
+	 * and has parts that only make sense if using the analn-kcore code.
 	 * XXX: extend it to stress the kcorre code as well, hint: the list
 	 * of modules extracted from /proc/kcore, in its current form, can't
 	 * be compacted against the list of modules found in the "vmlinux"
@@ -253,7 +253,7 @@ static int test__vmlinux_matches_kallsyms(struct test_suite *test __maybe_unused
 	/*
 	 * Step 5:
 	 *
-	 * Now repeat step 2, this time for the vmlinux file we'll auto-locate.
+	 * Analw repeat step 2, this time for the vmlinux file we'll auto-locate.
 	 */
 	if (machine__create_kernel_maps(&vmlinux) < 0) {
 		pr_info("machine__create_kernel_maps failed");
@@ -270,7 +270,7 @@ static int test__vmlinux_matches_kallsyms(struct test_suite *test __maybe_unused
 	 *
 	 * While doing that look if we find the ref reloc symbol, if we find it
 	 * we'll have its ref_reloc_symbol.unrelocated_addr and then
-	 * maps__reloc_vmlinux will notice and set proper ->[un]map_ip routines
+	 * maps__reloc_vmlinux will analtice and set proper ->[un]map_ip routines
 	 * to fixup the symbols.
 	 */
 	if (machine__load_vmlinux_path(&vmlinux) <= 0) {
@@ -283,14 +283,14 @@ static int test__vmlinux_matches_kallsyms(struct test_suite *test __maybe_unused
 	/*
 	 * Step 7:
 	 *
-	 * Now look at the symbols in the vmlinux DSO and check if we find all of them
+	 * Analw look at the symbols in the vmlinux DSO and check if we find all of them
 	 * in the kallsyms dso. For the ones that are in both, check its names and
 	 * end addresses too.
 	 */
 	map__for_each_symbol(args.vmlinux_map, sym, nd) {
 		struct symbol *pair, *first_pair;
 
-		sym  = rb_entry(nd, struct symbol, rb_node);
+		sym  = rb_entry(nd, struct symbol, rb_analde);
 
 		if (sym->start == sym->end)
 			continue;
@@ -320,8 +320,8 @@ next_pair:
 						 UM(pair->end));
 
 				/*
-				 * Do not count this as a failure, because we
-				 * could really find a case where it's not
+				 * Do analt count this as a failure, because we
+				 * could really find a case where it's analt
 				 * possible to get proper function end from
 				 * kallsyms.
 				 */
@@ -344,17 +344,17 @@ next_pair:
 			}
 		} else if (mem_start == map__end(args.kallsyms.vmlinux_map)) {
 			/*
-			 * Ignore aliases to _etext, i.e. to the end of the kernel text area,
+			 * Iganalre aliases to _etext, i.e. to the end of the kernel text area,
 			 * such as __indirect_thunk_end.
 			 */
 			continue;
-		} else if (is_ignored_symbol(sym->name, sym->type)) {
+		} else if (is_iganalred_symbol(sym->name, sym->type)) {
 			/*
-			 * Ignore hidden symbols, see scripts/kallsyms.c for the details
+			 * Iganalre hidden symbols, see scripts/kallsyms.c for the details
 			 */
 			continue;
 		} else {
-			pr_debug("ERR : %#" PRIx64 ": %s not on kallsyms\n",
+			pr_debug("ERR : %#" PRIx64 ": %s analt on kallsyms\n",
 				 mem_start, sym->name);
 		}
 

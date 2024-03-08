@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause) */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-analte) OR BSD-3-Clause) */
 /*
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
@@ -26,21 +26,21 @@
  * are met:
  *
  *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    analtice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
+ *  - Neither the name of Intel Corporation analr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -70,7 +70,7 @@ struct hfi1_user_info {
 	 * If two or more processes wish to share a context, each process
 	 * must set the subcontext_cnt and subcontext_id to the same
 	 * values.  The only restriction on the subcontext_id is that
-	 * it be unique for a given node.
+	 * it be unique for a given analde.
 	 */
 	__u16 subctxt_cnt;
 	__u16 subctxt_id;
@@ -87,8 +87,8 @@ struct hfi1_ctxt_info {
 	__u16 subctxt;          /* subctxt on unit assigned to caller */
 	__u16 rcvtids;          /* number of Rcv TIDs for this context */
 	__u16 credits;          /* number of PIO credits for this context */
-	__u16 numa_node;        /* NUMA node of the assigned device */
-	__u16 rec_cpu;          /* cpu # for affinity (0xffff if none) */
+	__u16 numa_analde;        /* NUMA analde of the assigned device */
+	__u16 rec_cpu;          /* cpu # for affinity (0xffff if analne) */
 	__u16 send_ctxt;        /* send context in use by this user context */
 	__u16 egrtids;          /* number of RcvArray entries for Eager Rcvs */
 	__u16 rcvhdrq_cnt;      /* number of RcvHdrQ entries */
@@ -99,7 +99,7 @@ struct hfi1_ctxt_info {
 struct hfi1_tid_info {
 	/* virtual address of first page in transfer */
 	__aligned_u64 vaddr;
-	/* pointer to tid array. this array is big enough */
+	/* pointer to tid array. this array is big eanalugh */
 	__aligned_u64 tidlist;
 	/* number of tids programmed by this request */
 	__u32 tidcnt;
@@ -149,14 +149,14 @@ struct hfi1_base_info {
 	/* base address of SDMA completion ring */
 	__aligned_u64 sdma_comp_bufbase;
 	/*
-	 * User register base for init code, not to be used directly by
+	 * User register base for init code, analt to be used directly by
 	 * protocol or applications.  Always maps real chip register space.
 	 * the register addresses are:
 	 * ur_rcvhdrhead, ur_rcvhdrtail, ur_rcvegrhead, ur_rcvegrtail,
 	 * ur_rcvtidflow
 	 */
 	__aligned_u64 user_regbase;
-	/* notification events */
+	/* analtification events */
 	__aligned_u64 events_bufbase;
 	/* status page */
 	__aligned_u64 status_bufbase;
@@ -165,7 +165,7 @@ struct hfi1_base_info {
 	/*
 	 * shared memory pages for subctxts if ctxt is shared; these cover
 	 * all the processes in the group sharing a single context.
-	 * all have enough space for the num_subcontexts value on this job.
+	 * all have eanalugh space for the num_subcontexts value on this job.
 	 */
 	__aligned_u64 subctxt_uregbase;
 	__aligned_u64 subctxt_rcvegrbuf;

@@ -40,7 +40,7 @@ static __init bool ocelot_detect(void)
 		const char **prom_argv = (const char **)fw_arg1;
 
 		if (prom_argc > 1 && strlen(prom_argv[1]) > 0)
-			/* ignore all built-in args if any f/w args given */
+			/* iganalre all built-in args if any f/w args given */
 			strcpy(arcs_cmdline, prom_argv[1]);
 	}
 

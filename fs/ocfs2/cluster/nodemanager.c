@@ -9,14 +9,14 @@
 #include <linux/configfs.h>
 
 #include "tcp.h"
-#include "nodemanager.h"
+#include "analdemanager.h"
 #include "heartbeat.h"
 #include "masklog.h"
 #include "sys.h"
 
-/* for now we operate under the assertion that there can be only one
+/* for analw we operate under the assertion that there can be only one
  * cluster active at a time.  Changing this will require trickling
- * cluster references throughout where nodes are looked up */
+ * cluster references throughout where analdes are looked up */
 struct o2nm_cluster *o2nm_single_cluster = NULL;
 
 static const char *o2nm_fence_method_desc[O2NM_FENCE_METHODS] = {
@@ -27,63 +27,63 @@ static const char *o2nm_fence_method_desc[O2NM_FENCE_METHODS] = {
 static inline void o2nm_lock_subsystem(void);
 static inline void o2nm_unlock_subsystem(void);
 
-struct o2nm_node *o2nm_get_node_by_num(u8 node_num)
+struct o2nm_analde *o2nm_get_analde_by_num(u8 analde_num)
 {
-	struct o2nm_node *node = NULL;
+	struct o2nm_analde *analde = NULL;
 
-	if (node_num >= O2NM_MAX_NODES || o2nm_single_cluster == NULL)
+	if (analde_num >= O2NM_MAX_ANALDES || o2nm_single_cluster == NULL)
 		goto out;
 
-	read_lock(&o2nm_single_cluster->cl_nodes_lock);
-	node = o2nm_single_cluster->cl_nodes[node_num];
-	if (node)
-		config_item_get(&node->nd_item);
-	read_unlock(&o2nm_single_cluster->cl_nodes_lock);
+	read_lock(&o2nm_single_cluster->cl_analdes_lock);
+	analde = o2nm_single_cluster->cl_analdes[analde_num];
+	if (analde)
+		config_item_get(&analde->nd_item);
+	read_unlock(&o2nm_single_cluster->cl_analdes_lock);
 out:
-	return node;
+	return analde;
 }
-EXPORT_SYMBOL_GPL(o2nm_get_node_by_num);
+EXPORT_SYMBOL_GPL(o2nm_get_analde_by_num);
 
-int o2nm_configured_node_map(unsigned long *map, unsigned bytes)
+int o2nm_configured_analde_map(unsigned long *map, unsigned bytes)
 {
 	struct o2nm_cluster *cluster = o2nm_single_cluster;
 
-	BUG_ON(bytes < (sizeof(cluster->cl_nodes_bitmap)));
+	BUG_ON(bytes < (sizeof(cluster->cl_analdes_bitmap)));
 
 	if (cluster == NULL)
 		return -EINVAL;
 
-	read_lock(&cluster->cl_nodes_lock);
-	bitmap_copy(map, cluster->cl_nodes_bitmap, O2NM_MAX_NODES);
-	read_unlock(&cluster->cl_nodes_lock);
+	read_lock(&cluster->cl_analdes_lock);
+	bitmap_copy(map, cluster->cl_analdes_bitmap, O2NM_MAX_ANALDES);
+	read_unlock(&cluster->cl_analdes_lock);
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(o2nm_configured_node_map);
+EXPORT_SYMBOL_GPL(o2nm_configured_analde_map);
 
-static struct o2nm_node *o2nm_node_ip_tree_lookup(struct o2nm_cluster *cluster,
+static struct o2nm_analde *o2nm_analde_ip_tree_lookup(struct o2nm_cluster *cluster,
 						  __be32 ip_needle,
-						  struct rb_node ***ret_p,
-						  struct rb_node **ret_parent)
+						  struct rb_analde ***ret_p,
+						  struct rb_analde **ret_parent)
 {
-	struct rb_node **p = &cluster->cl_node_ip_tree.rb_node;
-	struct rb_node *parent = NULL;
-	struct o2nm_node *node, *ret = NULL;
+	struct rb_analde **p = &cluster->cl_analde_ip_tree.rb_analde;
+	struct rb_analde *parent = NULL;
+	struct o2nm_analde *analde, *ret = NULL;
 
 	while (*p) {
 		int cmp;
 
 		parent = *p;
-		node = rb_entry(parent, struct o2nm_node, nd_ip_node);
+		analde = rb_entry(parent, struct o2nm_analde, nd_ip_analde);
 
-		cmp = memcmp(&ip_needle, &node->nd_ipv4_address,
+		cmp = memcmp(&ip_needle, &analde->nd_ipv4_address,
 				sizeof(ip_needle));
 		if (cmp < 0)
 			p = &(*p)->rb_left;
 		else if (cmp > 0)
 			p = &(*p)->rb_right;
 		else {
-			ret = node;
+			ret = analde;
 			break;
 		}
 	}
@@ -96,49 +96,49 @@ static struct o2nm_node *o2nm_node_ip_tree_lookup(struct o2nm_cluster *cluster,
 	return ret;
 }
 
-struct o2nm_node *o2nm_get_node_by_ip(__be32 addr)
+struct o2nm_analde *o2nm_get_analde_by_ip(__be32 addr)
 {
-	struct o2nm_node *node = NULL;
+	struct o2nm_analde *analde = NULL;
 	struct o2nm_cluster *cluster = o2nm_single_cluster;
 
 	if (cluster == NULL)
 		goto out;
 
-	read_lock(&cluster->cl_nodes_lock);
-	node = o2nm_node_ip_tree_lookup(cluster, addr, NULL, NULL);
-	if (node)
-		config_item_get(&node->nd_item);
-	read_unlock(&cluster->cl_nodes_lock);
+	read_lock(&cluster->cl_analdes_lock);
+	analde = o2nm_analde_ip_tree_lookup(cluster, addr, NULL, NULL);
+	if (analde)
+		config_item_get(&analde->nd_item);
+	read_unlock(&cluster->cl_analdes_lock);
 
 out:
-	return node;
+	return analde;
 }
-EXPORT_SYMBOL_GPL(o2nm_get_node_by_ip);
+EXPORT_SYMBOL_GPL(o2nm_get_analde_by_ip);
 
-void o2nm_node_put(struct o2nm_node *node)
+void o2nm_analde_put(struct o2nm_analde *analde)
 {
-	config_item_put(&node->nd_item);
+	config_item_put(&analde->nd_item);
 }
-EXPORT_SYMBOL_GPL(o2nm_node_put);
+EXPORT_SYMBOL_GPL(o2nm_analde_put);
 
-void o2nm_node_get(struct o2nm_node *node)
+void o2nm_analde_get(struct o2nm_analde *analde)
 {
-	config_item_get(&node->nd_item);
+	config_item_get(&analde->nd_item);
 }
-EXPORT_SYMBOL_GPL(o2nm_node_get);
+EXPORT_SYMBOL_GPL(o2nm_analde_get);
 
-u8 o2nm_this_node(void)
+u8 o2nm_this_analde(void)
 {
-	u8 node_num = O2NM_MAX_NODES;
+	u8 analde_num = O2NM_MAX_ANALDES;
 
 	if (o2nm_single_cluster && o2nm_single_cluster->cl_has_local)
-		node_num = o2nm_single_cluster->cl_local_node;
+		analde_num = o2nm_single_cluster->cl_local_analde;
 
-	return node_num;
+	return analde_num;
 }
-EXPORT_SYMBOL_GPL(o2nm_this_node);
+EXPORT_SYMBOL_GPL(o2nm_this_analde);
 
-/* node configfs bits */
+/* analde configfs bits */
 
 static struct o2nm_cluster *to_o2nm_cluster(struct config_item *item)
 {
@@ -148,42 +148,42 @@ static struct o2nm_cluster *to_o2nm_cluster(struct config_item *item)
 		: NULL;
 }
 
-static struct o2nm_node *to_o2nm_node(struct config_item *item)
+static struct o2nm_analde *to_o2nm_analde(struct config_item *item)
 {
-	return item ? container_of(item, struct o2nm_node, nd_item) : NULL;
+	return item ? container_of(item, struct o2nm_analde, nd_item) : NULL;
 }
 
-static void o2nm_node_release(struct config_item *item)
+static void o2nm_analde_release(struct config_item *item)
 {
-	struct o2nm_node *node = to_o2nm_node(item);
-	kfree(node);
+	struct o2nm_analde *analde = to_o2nm_analde(item);
+	kfree(analde);
 }
 
-static ssize_t o2nm_node_num_show(struct config_item *item, char *page)
+static ssize_t o2nm_analde_num_show(struct config_item *item, char *page)
 {
-	return sprintf(page, "%d\n", to_o2nm_node(item)->nd_num);
+	return sprintf(page, "%d\n", to_o2nm_analde(item)->nd_num);
 }
 
-static struct o2nm_cluster *to_o2nm_cluster_from_node(struct o2nm_node *node)
+static struct o2nm_cluster *to_o2nm_cluster_from_analde(struct o2nm_analde *analde)
 {
-	/* through the first node_set .parent
-	 * mycluster/nodes/mynode == o2nm_cluster->o2nm_node_group->o2nm_node */
-	if (node->nd_item.ci_parent)
-		return to_o2nm_cluster(node->nd_item.ci_parent->ci_parent);
+	/* through the first analde_set .parent
+	 * mycluster/analdes/myanalde == o2nm_cluster->o2nm_analde_group->o2nm_analde */
+	if (analde->nd_item.ci_parent)
+		return to_o2nm_cluster(analde->nd_item.ci_parent->ci_parent);
 	else
 		return NULL;
 }
 
 enum {
-	O2NM_NODE_ATTR_NUM = 0,
-	O2NM_NODE_ATTR_PORT,
-	O2NM_NODE_ATTR_ADDRESS,
+	O2NM_ANALDE_ATTR_NUM = 0,
+	O2NM_ANALDE_ATTR_PORT,
+	O2NM_ANALDE_ATTR_ADDRESS,
 };
 
-static ssize_t o2nm_node_num_store(struct config_item *item, const char *page,
+static ssize_t o2nm_analde_num_store(struct config_item *item, const char *page,
 				   size_t count)
 {
-	struct o2nm_node *node = to_o2nm_node(item);
+	struct o2nm_analde *analde = to_o2nm_analde(item);
 	struct o2nm_cluster *cluster;
 	unsigned long tmp;
 	char *p = (char *)page;
@@ -193,36 +193,36 @@ static ssize_t o2nm_node_num_store(struct config_item *item, const char *page,
 	if (!p || (*p && (*p != '\n')))
 		return -EINVAL;
 
-	if (tmp >= O2NM_MAX_NODES)
+	if (tmp >= O2NM_MAX_ANALDES)
 		return -ERANGE;
 
-	/* once we're in the cl_nodes tree networking can look us up by
-	 * node number and try to use our address and port attributes
-	 * to connect to this node.. make sure that they've been set
-	 * before writing the node attribute? */
-	if (!test_bit(O2NM_NODE_ATTR_ADDRESS, &node->nd_set_attributes) ||
-	    !test_bit(O2NM_NODE_ATTR_PORT, &node->nd_set_attributes))
+	/* once we're in the cl_analdes tree networking can look us up by
+	 * analde number and try to use our address and port attributes
+	 * to connect to this analde.. make sure that they've been set
+	 * before writing the analde attribute? */
+	if (!test_bit(O2NM_ANALDE_ATTR_ADDRESS, &analde->nd_set_attributes) ||
+	    !test_bit(O2NM_ANALDE_ATTR_PORT, &analde->nd_set_attributes))
 		return -EINVAL; /* XXX */
 
 	o2nm_lock_subsystem();
-	cluster = to_o2nm_cluster_from_node(node);
+	cluster = to_o2nm_cluster_from_analde(analde);
 	if (!cluster) {
 		o2nm_unlock_subsystem();
 		return -EINVAL;
 	}
 
-	write_lock(&cluster->cl_nodes_lock);
-	if (cluster->cl_nodes[tmp])
+	write_lock(&cluster->cl_analdes_lock);
+	if (cluster->cl_analdes[tmp])
 		ret = -EEXIST;
-	else if (test_and_set_bit(O2NM_NODE_ATTR_NUM,
-			&node->nd_set_attributes))
+	else if (test_and_set_bit(O2NM_ANALDE_ATTR_NUM,
+			&analde->nd_set_attributes))
 		ret = -EBUSY;
 	else  {
-		cluster->cl_nodes[tmp] = node;
-		node->nd_num = tmp;
-		set_bit(tmp, cluster->cl_nodes_bitmap);
+		cluster->cl_analdes[tmp] = analde;
+		analde->nd_num = tmp;
+		set_bit(tmp, cluster->cl_analdes_bitmap);
 	}
-	write_unlock(&cluster->cl_nodes_lock);
+	write_unlock(&cluster->cl_analdes_lock);
 	o2nm_unlock_subsystem();
 
 	if (ret)
@@ -230,15 +230,15 @@ static ssize_t o2nm_node_num_store(struct config_item *item, const char *page,
 
 	return count;
 }
-static ssize_t o2nm_node_ipv4_port_show(struct config_item *item, char *page)
+static ssize_t o2nm_analde_ipv4_port_show(struct config_item *item, char *page)
 {
-	return sprintf(page, "%u\n", ntohs(to_o2nm_node(item)->nd_ipv4_port));
+	return sprintf(page, "%u\n", ntohs(to_o2nm_analde(item)->nd_ipv4_port));
 }
 
-static ssize_t o2nm_node_ipv4_port_store(struct config_item *item,
+static ssize_t o2nm_analde_ipv4_port_store(struct config_item *item,
 					 const char *page, size_t count)
 {
-	struct o2nm_node *node = to_o2nm_node(item);
+	struct o2nm_analde *analde = to_o2nm_analde(item);
 	unsigned long tmp;
 	char *p = (char *)page;
 
@@ -251,26 +251,26 @@ static ssize_t o2nm_node_ipv4_port_store(struct config_item *item,
 	if (tmp >= (u16)-1)
 		return -ERANGE;
 
-	if (test_and_set_bit(O2NM_NODE_ATTR_PORT, &node->nd_set_attributes))
+	if (test_and_set_bit(O2NM_ANALDE_ATTR_PORT, &analde->nd_set_attributes))
 		return -EBUSY;
-	node->nd_ipv4_port = htons(tmp);
+	analde->nd_ipv4_port = htons(tmp);
 
 	return count;
 }
 
-static ssize_t o2nm_node_ipv4_address_show(struct config_item *item, char *page)
+static ssize_t o2nm_analde_ipv4_address_show(struct config_item *item, char *page)
 {
-	return sprintf(page, "%pI4\n", &to_o2nm_node(item)->nd_ipv4_address);
+	return sprintf(page, "%pI4\n", &to_o2nm_analde(item)->nd_ipv4_address);
 }
 
-static ssize_t o2nm_node_ipv4_address_store(struct config_item *item,
+static ssize_t o2nm_analde_ipv4_address_store(struct config_item *item,
 					    const char *page,
 					    size_t count)
 {
-	struct o2nm_node *node = to_o2nm_node(item);
+	struct o2nm_analde *analde = to_o2nm_analde(item);
 	struct o2nm_cluster *cluster;
 	int ret, i;
-	struct rb_node **p, *parent;
+	struct rb_analde **p, *parent;
 	unsigned int octets[4];
 	__be32 ipv4_addr = 0;
 
@@ -286,43 +286,43 @@ static ssize_t o2nm_node_ipv4_address_store(struct config_item *item,
 	}
 
 	o2nm_lock_subsystem();
-	cluster = to_o2nm_cluster_from_node(node);
+	cluster = to_o2nm_cluster_from_analde(analde);
 	if (!cluster) {
 		o2nm_unlock_subsystem();
 		return -EINVAL;
 	}
 
 	ret = 0;
-	write_lock(&cluster->cl_nodes_lock);
-	if (o2nm_node_ip_tree_lookup(cluster, ipv4_addr, &p, &parent))
+	write_lock(&cluster->cl_analdes_lock);
+	if (o2nm_analde_ip_tree_lookup(cluster, ipv4_addr, &p, &parent))
 		ret = -EEXIST;
-	else if (test_and_set_bit(O2NM_NODE_ATTR_ADDRESS,
-			&node->nd_set_attributes))
+	else if (test_and_set_bit(O2NM_ANALDE_ATTR_ADDRESS,
+			&analde->nd_set_attributes))
 		ret = -EBUSY;
 	else {
-		rb_link_node(&node->nd_ip_node, parent, p);
-		rb_insert_color(&node->nd_ip_node, &cluster->cl_node_ip_tree);
+		rb_link_analde(&analde->nd_ip_analde, parent, p);
+		rb_insert_color(&analde->nd_ip_analde, &cluster->cl_analde_ip_tree);
 	}
-	write_unlock(&cluster->cl_nodes_lock);
+	write_unlock(&cluster->cl_analdes_lock);
 	o2nm_unlock_subsystem();
 
 	if (ret)
 		return ret;
 
-	memcpy(&node->nd_ipv4_address, &ipv4_addr, sizeof(ipv4_addr));
+	memcpy(&analde->nd_ipv4_address, &ipv4_addr, sizeof(ipv4_addr));
 
 	return count;
 }
 
-static ssize_t o2nm_node_local_show(struct config_item *item, char *page)
+static ssize_t o2nm_analde_local_show(struct config_item *item, char *page)
 {
-	return sprintf(page, "%d\n", to_o2nm_node(item)->nd_local);
+	return sprintf(page, "%d\n", to_o2nm_analde(item)->nd_local);
 }
 
-static ssize_t o2nm_node_local_store(struct config_item *item, const char *page,
+static ssize_t o2nm_analde_local_store(struct config_item *item, const char *page,
 				     size_t count)
 {
-	struct o2nm_node *node = to_o2nm_node(item);
+	struct o2nm_analde *analde = to_o2nm_analde(item);
 	struct o2nm_cluster *cluster;
 	unsigned long tmp;
 	char *p = (char *)page;
@@ -332,47 +332,47 @@ static ssize_t o2nm_node_local_store(struct config_item *item, const char *page,
 	if (!p || (*p && (*p != '\n')))
 		return -EINVAL;
 
-	tmp = !!tmp; /* boolean of whether this node wants to be local */
+	tmp = !!tmp; /* boolean of whether this analde wants to be local */
 
-	/* setting local turns on networking rx for now so we require having
+	/* setting local turns on networking rx for analw so we require having
 	 * set everything else first */
-	if (!test_bit(O2NM_NODE_ATTR_ADDRESS, &node->nd_set_attributes) ||
-	    !test_bit(O2NM_NODE_ATTR_NUM, &node->nd_set_attributes) ||
-	    !test_bit(O2NM_NODE_ATTR_PORT, &node->nd_set_attributes))
+	if (!test_bit(O2NM_ANALDE_ATTR_ADDRESS, &analde->nd_set_attributes) ||
+	    !test_bit(O2NM_ANALDE_ATTR_NUM, &analde->nd_set_attributes) ||
+	    !test_bit(O2NM_ANALDE_ATTR_PORT, &analde->nd_set_attributes))
 		return -EINVAL; /* XXX */
 
 	o2nm_lock_subsystem();
-	cluster = to_o2nm_cluster_from_node(node);
+	cluster = to_o2nm_cluster_from_analde(analde);
 	if (!cluster) {
 		ret = -EINVAL;
 		goto out;
 	}
 
-	/* the only failure case is trying to set a new local node
+	/* the only failure case is trying to set a new local analde
 	 * when a different one is already set */
 	if (tmp && tmp == cluster->cl_has_local &&
-	    cluster->cl_local_node != node->nd_num) {
+	    cluster->cl_local_analde != analde->nd_num) {
 		ret = -EBUSY;
 		goto out;
 	}
 
-	/* bring up the rx thread if we're setting the new local node. */
+	/* bring up the rx thread if we're setting the new local analde. */
 	if (tmp && !cluster->cl_has_local) {
-		ret = o2net_start_listening(node);
+		ret = o2net_start_listening(analde);
 		if (ret)
 			goto out;
 	}
 
 	if (!tmp && cluster->cl_has_local &&
-	    cluster->cl_local_node == node->nd_num) {
-		o2net_stop_listening(node);
-		cluster->cl_local_node = O2NM_INVALID_NODE_NUM;
+	    cluster->cl_local_analde == analde->nd_num) {
+		o2net_stop_listening(analde);
+		cluster->cl_local_analde = O2NM_INVALID_ANALDE_NUM;
 	}
 
-	node->nd_local = tmp;
-	if (node->nd_local) {
+	analde->nd_local = tmp;
+	if (analde->nd_local) {
 		cluster->cl_has_local = tmp;
-		cluster->cl_local_node = node->nd_num;
+		cluster->cl_local_analde = analde->nd_num;
 	}
 
 	ret = count;
@@ -382,41 +382,41 @@ out:
 	return ret;
 }
 
-CONFIGFS_ATTR(o2nm_node_, num);
-CONFIGFS_ATTR(o2nm_node_, ipv4_port);
-CONFIGFS_ATTR(o2nm_node_, ipv4_address);
-CONFIGFS_ATTR(o2nm_node_, local);
+CONFIGFS_ATTR(o2nm_analde_, num);
+CONFIGFS_ATTR(o2nm_analde_, ipv4_port);
+CONFIGFS_ATTR(o2nm_analde_, ipv4_address);
+CONFIGFS_ATTR(o2nm_analde_, local);
 
-static struct configfs_attribute *o2nm_node_attrs[] = {
-	&o2nm_node_attr_num,
-	&o2nm_node_attr_ipv4_port,
-	&o2nm_node_attr_ipv4_address,
-	&o2nm_node_attr_local,
+static struct configfs_attribute *o2nm_analde_attrs[] = {
+	&o2nm_analde_attr_num,
+	&o2nm_analde_attr_ipv4_port,
+	&o2nm_analde_attr_ipv4_address,
+	&o2nm_analde_attr_local,
 	NULL,
 };
 
-static struct configfs_item_operations o2nm_node_item_ops = {
-	.release		= o2nm_node_release,
+static struct configfs_item_operations o2nm_analde_item_ops = {
+	.release		= o2nm_analde_release,
 };
 
-static const struct config_item_type o2nm_node_type = {
-	.ct_item_ops	= &o2nm_node_item_ops,
-	.ct_attrs	= o2nm_node_attrs,
+static const struct config_item_type o2nm_analde_type = {
+	.ct_item_ops	= &o2nm_analde_item_ops,
+	.ct_attrs	= o2nm_analde_attrs,
 	.ct_owner	= THIS_MODULE,
 };
 
-/* node set */
+/* analde set */
 
-struct o2nm_node_group {
+struct o2nm_analde_group {
 	struct config_group ns_group;
 	/* some stuff? */
 };
 
 #if 0
-static struct o2nm_node_group *to_o2nm_node_group(struct config_group *group)
+static struct o2nm_analde_group *to_o2nm_analde_group(struct config_group *group)
 {
 	return group ?
-		container_of(group, struct o2nm_node_group, ns_group)
+		container_of(group, struct o2nm_analde_group, ns_group)
 		: NULL;
 }
 #endif
@@ -459,14 +459,14 @@ static ssize_t o2nm_cluster_idle_timeout_ms_store(struct config_item *item,
 	if (ret > 0) {
 		if (cluster->cl_idle_timeout_ms != val
 			&& o2net_num_connected_peers()) {
-			mlog(ML_NOTICE,
-			     "o2net: cannot change idle timeout after "
+			mlog(ML_ANALTICE,
+			     "o2net: cananalt change idle timeout after "
 			     "the first peer has agreed to it."
 			     "  %d connected peers\n",
 			     o2net_num_connected_peers());
 			ret = -EINVAL;
 		} else if (val <= cluster->cl_keepalive_delay_ms) {
-			mlog(ML_NOTICE, "o2net: idle timeout must be larger "
+			mlog(ML_ANALTICE, "o2net: idle timeout must be larger "
 			     "than keepalive delay\n");
 			ret = -EINVAL;
 		} else {
@@ -496,14 +496,14 @@ static ssize_t o2nm_cluster_keepalive_delay_ms_store(
 	if (ret > 0) {
 		if (cluster->cl_keepalive_delay_ms != val
 		    && o2net_num_connected_peers()) {
-			mlog(ML_NOTICE,
-			     "o2net: cannot change keepalive delay after"
+			mlog(ML_ANALTICE,
+			     "o2net: cananalt change keepalive delay after"
 			     " the first peer has agreed to it."
 			     "  %d connected peers\n",
 			     o2net_num_connected_peers());
 			ret = -EINVAL;
 		} else if (val >= cluster->cl_idle_timeout_ms) {
-			mlog(ML_NOTICE, "o2net: keepalive delay must be "
+			mlog(ML_ANALTICE, "o2net: keepalive delay must be "
 			     "smaller than idle timeout\n");
 			ret = -EINVAL;
 		} else {
@@ -578,72 +578,72 @@ static struct configfs_attribute *o2nm_cluster_attrs[] = {
 	NULL,
 };
 
-static struct config_item *o2nm_node_group_make_item(struct config_group *group,
+static struct config_item *o2nm_analde_group_make_item(struct config_group *group,
 						     const char *name)
 {
-	struct o2nm_node *node = NULL;
+	struct o2nm_analde *analde = NULL;
 
 	if (strlen(name) > O2NM_MAX_NAME_LEN)
 		return ERR_PTR(-ENAMETOOLONG);
 
-	node = kzalloc(sizeof(struct o2nm_node), GFP_KERNEL);
-	if (node == NULL)
-		return ERR_PTR(-ENOMEM);
+	analde = kzalloc(sizeof(struct o2nm_analde), GFP_KERNEL);
+	if (analde == NULL)
+		return ERR_PTR(-EANALMEM);
 
-	strcpy(node->nd_name, name); /* use item.ci_namebuf instead? */
-	config_item_init_type_name(&node->nd_item, name, &o2nm_node_type);
-	spin_lock_init(&node->nd_lock);
+	strcpy(analde->nd_name, name); /* use item.ci_namebuf instead? */
+	config_item_init_type_name(&analde->nd_item, name, &o2nm_analde_type);
+	spin_lock_init(&analde->nd_lock);
 
-	mlog(ML_CLUSTER, "o2nm: Registering node %s\n", name);
+	mlog(ML_CLUSTER, "o2nm: Registering analde %s\n", name);
 
-	return &node->nd_item;
+	return &analde->nd_item;
 }
 
-static void o2nm_node_group_drop_item(struct config_group *group,
+static void o2nm_analde_group_drop_item(struct config_group *group,
 				      struct config_item *item)
 {
-	struct o2nm_node *node = to_o2nm_node(item);
+	struct o2nm_analde *analde = to_o2nm_analde(item);
 	struct o2nm_cluster *cluster = to_o2nm_cluster(group->cg_item.ci_parent);
 
-	if (cluster->cl_nodes[node->nd_num] == node) {
-		o2net_disconnect_node(node);
+	if (cluster->cl_analdes[analde->nd_num] == analde) {
+		o2net_disconnect_analde(analde);
 
 		if (cluster->cl_has_local &&
-		    (cluster->cl_local_node == node->nd_num)) {
+		    (cluster->cl_local_analde == analde->nd_num)) {
 			cluster->cl_has_local = 0;
-			cluster->cl_local_node = O2NM_INVALID_NODE_NUM;
-			o2net_stop_listening(node);
+			cluster->cl_local_analde = O2NM_INVALID_ANALDE_NUM;
+			o2net_stop_listening(analde);
 		}
 	}
 
-	/* XXX call into net to stop this node from trading messages */
+	/* XXX call into net to stop this analde from trading messages */
 
-	write_lock(&cluster->cl_nodes_lock);
+	write_lock(&cluster->cl_analdes_lock);
 
 	/* XXX sloppy */
-	if (node->nd_ipv4_address)
-		rb_erase(&node->nd_ip_node, &cluster->cl_node_ip_tree);
+	if (analde->nd_ipv4_address)
+		rb_erase(&analde->nd_ip_analde, &cluster->cl_analde_ip_tree);
 
-	/* nd_num might be 0 if the node number hasn't been set.. */
-	if (cluster->cl_nodes[node->nd_num] == node) {
-		cluster->cl_nodes[node->nd_num] = NULL;
-		clear_bit(node->nd_num, cluster->cl_nodes_bitmap);
+	/* nd_num might be 0 if the analde number hasn't been set.. */
+	if (cluster->cl_analdes[analde->nd_num] == analde) {
+		cluster->cl_analdes[analde->nd_num] = NULL;
+		clear_bit(analde->nd_num, cluster->cl_analdes_bitmap);
 	}
-	write_unlock(&cluster->cl_nodes_lock);
+	write_unlock(&cluster->cl_analdes_lock);
 
-	mlog(ML_CLUSTER, "o2nm: Unregistered node %s\n",
-	     config_item_name(&node->nd_item));
+	mlog(ML_CLUSTER, "o2nm: Unregistered analde %s\n",
+	     config_item_name(&analde->nd_item));
 
 	config_item_put(item);
 }
 
-static struct configfs_group_operations o2nm_node_group_group_ops = {
-	.make_item	= o2nm_node_group_make_item,
-	.drop_item	= o2nm_node_group_drop_item,
+static struct configfs_group_operations o2nm_analde_group_group_ops = {
+	.make_item	= o2nm_analde_group_make_item,
+	.drop_item	= o2nm_analde_group_drop_item,
 };
 
-static const struct config_item_type o2nm_node_group_type = {
-	.ct_group_ops	= &o2nm_node_group_group_ops,
+static const struct config_item_type o2nm_analde_group_type = {
+	.ct_group_ops	= &o2nm_analde_group_group_ops,
 	.ct_owner	= THIS_MODULE,
 };
 
@@ -686,16 +686,16 @@ static struct config_group *o2nm_cluster_group_make_group(struct config_group *g
 							  const char *name)
 {
 	struct o2nm_cluster *cluster = NULL;
-	struct o2nm_node_group *ns = NULL;
+	struct o2nm_analde_group *ns = NULL;
 	struct config_group *o2hb_group = NULL, *ret = NULL;
 
 	/* this runs under the parent dir's i_rwsem; there can be only
 	 * one caller in here at a time */
 	if (o2nm_single_cluster)
-		return ERR_PTR(-ENOSPC);
+		return ERR_PTR(-EANALSPC);
 
 	cluster = kzalloc(sizeof(struct o2nm_cluster), GFP_KERNEL);
-	ns = kzalloc(sizeof(struct o2nm_node_group), GFP_KERNEL);
+	ns = kzalloc(sizeof(struct o2nm_analde_group), GFP_KERNEL);
 	o2hb_group = o2hb_alloc_hb_set();
 	if (cluster == NULL || ns == NULL || o2hb_group == NULL)
 		goto out;
@@ -704,12 +704,12 @@ static struct config_group *o2nm_cluster_group_make_group(struct config_group *g
 				    &o2nm_cluster_type);
 	configfs_add_default_group(&ns->ns_group, &cluster->cl_group);
 
-	config_group_init_type_name(&ns->ns_group, "node",
-				    &o2nm_node_group_type);
+	config_group_init_type_name(&ns->ns_group, "analde",
+				    &o2nm_analde_group_type);
 	configfs_add_default_group(o2hb_group, &cluster->cl_group);
 
-	rwlock_init(&cluster->cl_nodes_lock);
-	cluster->cl_node_ip_tree = RB_ROOT;
+	rwlock_init(&cluster->cl_analdes_lock);
+	cluster->cl_analde_ip_tree = RB_ROOT;
 	cluster->cl_reconnect_delay_ms = O2NET_RECONNECT_DELAY_MS_DEFAULT;
 	cluster->cl_idle_timeout_ms    = O2NET_IDLE_TIMEOUT_MS_DEFAULT;
 	cluster->cl_keepalive_delay_ms = O2NET_KEEPALIVE_DELAY_MS_DEFAULT;
@@ -723,7 +723,7 @@ out:
 		kfree(cluster);
 		kfree(ns);
 		o2hb_free_hb_set(o2hb_group);
-		ret = ERR_PTR(-ENOMEM);
+		ret = ERR_PTR(-EANALMEM);
 	}
 
 	return ret;
@@ -781,33 +781,33 @@ void o2nm_undepend_item(struct config_item *item)
 	configfs_undepend_item(item);
 }
 
-int o2nm_depend_this_node(void)
+int o2nm_depend_this_analde(void)
 {
 	int ret = 0;
-	struct o2nm_node *local_node;
+	struct o2nm_analde *local_analde;
 
-	local_node = o2nm_get_node_by_num(o2nm_this_node());
-	if (!local_node) {
+	local_analde = o2nm_get_analde_by_num(o2nm_this_analde());
+	if (!local_analde) {
 		ret = -EINVAL;
 		goto out;
 	}
 
-	ret = o2nm_depend_item(&local_node->nd_item);
-	o2nm_node_put(local_node);
+	ret = o2nm_depend_item(&local_analde->nd_item);
+	o2nm_analde_put(local_analde);
 
 out:
 	return ret;
 }
 
-void o2nm_undepend_this_node(void)
+void o2nm_undepend_this_analde(void)
 {
-	struct o2nm_node *local_node;
+	struct o2nm_analde *local_analde;
 
-	local_node = o2nm_get_node_by_num(o2nm_this_node());
-	BUG_ON(!local_node);
+	local_analde = o2nm_get_analde_by_num(o2nm_this_analde());
+	BUG_ON(!local_analde);
 
-	o2nm_undepend_item(&local_node->nd_item);
-	o2nm_node_put(local_node);
+	o2nm_undepend_item(&local_analde->nd_item);
+	o2nm_analde_put(local_analde);
 }
 
 
@@ -840,7 +840,7 @@ static int __init init_o2nm(void)
 	mutex_init(&o2nm_cluster_group.cs_subsys.su_mutex);
 	ret = configfs_register_subsystem(&o2nm_cluster_group.cs_subsys);
 	if (ret) {
-		printk(KERN_ERR "nodemanager: Registration returned %d\n", ret);
+		printk(KERN_ERR "analdemanager: Registration returned %d\n", ret);
 		goto out_callbacks;
 	}
 

@@ -10,7 +10,7 @@
 #include "hfi.h"
 #include "device.h"
 
-static char *hfi1_devnode(const struct device *dev, umode_t *mode)
+static char *hfi1_devanalde(const struct device *dev, umode_t *mode)
 {
 	if (mode)
 		*mode = 0600;
@@ -19,10 +19,10 @@ static char *hfi1_devnode(const struct device *dev, umode_t *mode)
 
 static const struct class class = {
 	.name = "hfi1",
-	.devnode = hfi1_devnode,
+	.devanalde = hfi1_devanalde,
 };
 
-static char *hfi1_user_devnode(const struct device *dev, umode_t *mode)
+static char *hfi1_user_devanalde(const struct device *dev, umode_t *mode)
 {
 	if (mode)
 		*mode = 0666;
@@ -31,17 +31,17 @@ static char *hfi1_user_devnode(const struct device *dev, umode_t *mode)
 
 static const struct class user_class = {
 	.name = "hfi1_user",
-	.devnode = hfi1_user_devnode,
+	.devanalde = hfi1_user_devanalde,
 };
 static dev_t hfi1_dev;
 
-int hfi1_cdev_init(int minor, const char *name,
+int hfi1_cdev_init(int mianalr, const char *name,
 		   const struct file_operations *fops,
 		   struct cdev *cdev, struct device **devp,
 		   bool user_accessible,
 		   struct kobject *parent)
 {
-	const dev_t dev = MKDEV(MAJOR(hfi1_dev), minor);
+	const dev_t dev = MKDEV(MAJOR(hfi1_dev), mianalr);
 	struct device *device = NULL;
 	int ret;
 
@@ -52,8 +52,8 @@ int hfi1_cdev_init(int minor, const char *name,
 
 	ret = cdev_add(cdev, dev, 1);
 	if (ret < 0) {
-		pr_err("Could not add cdev for minor %d, %s (err %d)\n",
-		       minor, name, -ret);
+		pr_err("Could analt add cdev for mianalr %d, %s (err %d)\n",
+		       mianalr, name, -ret);
 		goto done;
 	}
 
@@ -65,8 +65,8 @@ int hfi1_cdev_init(int minor, const char *name,
 	if (IS_ERR(device)) {
 		ret = PTR_ERR(device);
 		device = NULL;
-		pr_err("Could not create device for minor %d, %s (err %d)\n",
-			minor, name, -ret);
+		pr_err("Could analt create device for mianalr %d, %s (err %d)\n",
+			mianalr, name, -ret);
 		cdev_del(cdev);
 	}
 done:
@@ -97,25 +97,25 @@ int __init dev_init(void)
 {
 	int ret;
 
-	ret = alloc_chrdev_region(&hfi1_dev, 0, HFI1_NMINORS, DRIVER_NAME);
+	ret = alloc_chrdev_region(&hfi1_dev, 0, HFI1_NMIANALRS, DRIVER_NAME);
 	if (ret < 0) {
-		pr_err("Could not allocate chrdev region (err %d)\n", -ret);
+		pr_err("Could analt allocate chrdev region (err %d)\n", -ret);
 		goto done;
 	}
 
 	ret = class_register(&class);
 	if (ret) {
-		pr_err("Could not create device class (err %d)\n", -ret);
-		unregister_chrdev_region(hfi1_dev, HFI1_NMINORS);
+		pr_err("Could analt create device class (err %d)\n", -ret);
+		unregister_chrdev_region(hfi1_dev, HFI1_NMIANALRS);
 		goto done;
 	}
 
 	ret = class_register(&user_class);
 	if (ret) {
-		pr_err("Could not create device class for user accessible files (err %d)\n",
+		pr_err("Could analt create device class for user accessible files (err %d)\n",
 		       -ret);
 		class_unregister(&class);
-		unregister_chrdev_region(hfi1_dev, HFI1_NMINORS);
+		unregister_chrdev_region(hfi1_dev, HFI1_NMIANALRS);
 		goto done;
 	}
 
@@ -128,5 +128,5 @@ void dev_cleanup(void)
 	class_unregister(&class);
 	class_unregister(&user_class);
 
-	unregister_chrdev_region(hfi1_dev, HFI1_NMINORS);
+	unregister_chrdev_region(hfi1_dev, HFI1_NMIANALRS);
 }

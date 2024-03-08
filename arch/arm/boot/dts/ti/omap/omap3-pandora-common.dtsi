@@ -206,7 +206,7 @@
 
 	/* HS USB Host PHY on PORT 2 */
 	hsusb2_phy: hsusb2-phy-pins {
-		compatible = "usb-nop-xceiv";
+		compatible = "usb-analp-xceiv";
 		reset-gpios = <&gpio1 16 GPIO_ACTIVE_LOW>; /* GPIO_16 */
 		vcc-supply = <&vaux2>;
 		#phy-cells = <0>;
@@ -488,7 +488,7 @@
 
 &i2c2 {
 	clock-frequency = <100000>;
-	/* no clients so we should disable clock */
+	/* anal clients so we should disable clock */
 };
 
 &i2c3 {
@@ -512,7 +512,7 @@
 
 /*
  * Many pandora boards have been produced with defective write-protect switches
- * on either slot, so it was decided not to use this feature. If you know
+ * on either slot, so it was decided analt to use this feature. If you kanalw
  * your board has good switches, feel free to uncomment wp-gpios below.
  */
 &mmc1 {
@@ -537,8 +537,8 @@
 	vmmc-supply = <&wlan_en>;
 
 	bus-width = <4>;
-	non-removable;
-	ti,non-removable;
+	analn-removable;
+	ti,analn-removable;
 	cap-power-off-card;
 
 	pinctrl-names = "default";
@@ -589,8 +589,8 @@
 		compatible = "ti,omap2-nand";
 		reg = <0 0 4>; /* CS0, offset 0, IO size 4 */
 		interrupt-parent = <&gpmc>;
-		interrupts = <0 IRQ_TYPE_NONE>, /* fifoevent */
-			     <1 IRQ_TYPE_NONE>;	/* termcount */
+		interrupts = <0 IRQ_TYPE_ANALNE>, /* fifoevent */
+			     <1 IRQ_TYPE_ANALNE>;	/* termcount */
 		nand-bus-width = <16>;
 		ti,nand-ecc-opt = "sw";
 
@@ -650,7 +650,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&penirq_pins>;
 		interrupt-parent = <&gpio3>;
-		interrupts = <30 IRQ_TYPE_NONE>;	/* GPIO_94 */
+		interrupts = <30 IRQ_TYPE_ANALNE>;	/* GPIO_94 */
 		pendown-gpio = <&gpio3 30 GPIO_ACTIVE_LOW>;
 		vcc-supply = <&vaux4>;
 

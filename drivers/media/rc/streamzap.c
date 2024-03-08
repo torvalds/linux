@@ -7,7 +7,7 @@
  *
  * This driver was based on the work of Greg Wickham and Adrian
  * Dewhurst. It was substantially rewritten to support correct signal
- * gaps and now maintains a delay buffer, which is used to present
+ * gaps and analw maintains a delay buffer, which is used to present
  * consistent timing behaviour to user space applications. Without the
  * delay buffer an ugly hack would be required in lircd, which can
  * cause sluggish signal decoding in certain situations.
@@ -53,7 +53,7 @@ enum StreamzapDecoderState {
 	PulseSpace,
 	FullPulse,
 	FullSpace,
-	IgnorePulse
+	IganalrePulse
 };
 
 /* structure to hold our device specific stuff */
@@ -158,7 +158,7 @@ static void streamzap_callback(struct urb *urb)
 
 	switch (urb->status) {
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		/*
 		 * this urb is terminated, clean up.
@@ -192,7 +192,7 @@ static void streamzap_callback(struct urb *urb)
 			break;
 		case FullPulse:
 			sz_push_full_pulse(sz, sz->buf_in[i]);
-			sz->decoder_state = IgnorePulse;
+			sz->decoder_state = IganalrePulse;
 			break;
 		case FullSpace:
 			if (sz->buf_in[i] == SZ_TIMEOUT) {
@@ -206,7 +206,7 @@ static void streamzap_callback(struct urb *urb)
 			}
 			sz->decoder_state = PulseSpace;
 			break;
-		case IgnorePulse:
+		case IganalrePulse:
 			if ((sz->buf_in[i] & SZ_SPACE_MASK) ==
 				SZ_SPACE_MASK) {
 				sz->decoder_state = FullSpace;
@@ -273,13 +273,13 @@ static int streamzap_probe(struct usb_interface *intf,
 	struct usb_endpoint_descriptor *endpoint;
 	struct usb_host_interface *iface_host;
 	struct streamzap_ir *sz = NULL;
-	int retval = -ENOMEM;
+	int retval = -EANALMEM;
 	int pipe, maxp;
 
 	/* Allocate space for device driver specific data */
 	sz = kzalloc(sizeof(struct streamzap_ir), GFP_KERNEL);
 	if (!sz)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Check to ensure endpoint information matches requirements */
 	iface_host = intf->cur_altsetting;
@@ -287,7 +287,7 @@ static int streamzap_probe(struct usb_interface *intf,
 	if (iface_host->desc.bNumEndpoints != 1) {
 		dev_err(&intf->dev, "%s: Unexpected desc.bNumEndpoints (%d)\n",
 			__func__, iface_host->desc.bNumEndpoints);
-		retval = -ENODEV;
+		retval = -EANALDEV;
 		goto free_sz;
 	}
 
@@ -295,14 +295,14 @@ static int streamzap_probe(struct usb_interface *intf,
 	if (!usb_endpoint_dir_in(endpoint)) {
 		dev_err(&intf->dev, "%s: endpoint doesn't match input device 02%02x\n",
 			__func__, endpoint->bEndpointAddress);
-		retval = -ENODEV;
+		retval = -EANALDEV;
 		goto free_sz;
 	}
 
 	if (!usb_endpoint_xfer_int(endpoint)) {
 		dev_err(&intf->dev, "%s: endpoint attributes don't match xfer 02%02x\n",
 			__func__, endpoint->bmAttributes);
-		retval = -ENODEV;
+		retval = -EANALDEV;
 		goto free_sz;
 	}
 
@@ -312,7 +312,7 @@ static int streamzap_probe(struct usb_interface *intf,
 	if (maxp == 0) {
 		dev_err(&intf->dev, "%s: endpoint Max Packet Size is 0!?!\n",
 			__func__);
-		retval = -ENODEV;
+		retval = -EANALDEV;
 		goto free_sz;
 	}
 
@@ -336,7 +336,7 @@ static int streamzap_probe(struct usb_interface *intf,
 	/* FIXME: don't yet have a way to set this */
 	sz->rdev->timeout = SZ_TIMEOUT * SZ_RESOLUTION;
 	#if 0
-	/* not yet supported, depends on patches from maxim */
+	/* analt yet supported, depends on patches from maxim */
 	/* see also: LIRC_GET_REC_RESOLUTION and LIRC_SET_REC_TIMEOUT */
 	sz->min_timeout = SZ_TIMEOUT * SZ_RESOLUTION;
 	sz->max_timeout = SZ_TIMEOUT * SZ_RESOLUTION;
@@ -346,7 +346,7 @@ static int streamzap_probe(struct usb_interface *intf,
 	usb_fill_int_urb(sz->urb_in, usbdev, pipe, sz->buf_in,
 			 maxp, streamzap_callback, sz, endpoint->bInterval);
 	sz->urb_in->transfer_dma = sz->dma_in;
-	sz->urb_in->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+	sz->urb_in->transfer_flags |= URB_ANAL_TRANSFER_DMA_MAP;
 
 	usb_set_intfdata(intf, sz);
 
@@ -370,10 +370,10 @@ free_sz:
  *
  * Called by the usb core when the device is removed from the system.
  *
- * This routine guarantees that the driver will not submit any more urbs
+ * This routine guarantees that the driver will analt submit any more urbs
  * by clearing dev->usbdev.  It is also supposed to terminate any currently
  * active urbs.  Unfortunately, usb_bulk_msg(), used in streamzap_read(),
- * does not provide any way to do this.
+ * does analt provide any way to do this.
  */
 static void streamzap_disconnect(struct usb_interface *interface)
 {
@@ -406,7 +406,7 @@ static int streamzap_resume(struct usb_interface *intf)
 {
 	struct streamzap_ir *sz = usb_get_intfdata(intf);
 
-	if (usb_submit_urb(sz->urb_in, GFP_NOIO)) {
+	if (usb_submit_urb(sz->urb_in, GFP_ANALIO)) {
 		dev_err(sz->dev, "Error submitting urb\n");
 		return -EIO;
 	}

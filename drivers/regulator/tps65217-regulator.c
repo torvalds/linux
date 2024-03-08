@@ -25,7 +25,7 @@
 		.name		= _name,		\
 		.id		= _id,			\
 		.of_match       = of_match_ptr(_of_match),    \
-		.regulators_node= of_match_ptr("regulators"), \
+		.regulators_analde= of_match_ptr("regulators"), \
 		.ops		= &_ops,		\
 		.n_voltages	= _n,			\
 		.type		= REGULATOR_VOLTAGE,	\
@@ -224,7 +224,7 @@ static int tps65217_regulator_probe(struct platform_device *pdev)
 				    TPS65217_NUM_REGULATOR, sizeof(u8),
 				    GFP_KERNEL);
 	if (!tps->strobes)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, tps);
 
@@ -258,7 +258,7 @@ static int tps65217_regulator_probe(struct platform_device *pdev)
 static struct platform_driver tps65217_regulator_driver = {
 	.driver = {
 		.name = "tps65217-pmic",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.probe = tps65217_regulator_probe,
 };

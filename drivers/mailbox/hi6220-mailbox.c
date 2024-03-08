@@ -262,26 +262,26 @@ MODULE_DEVICE_TABLE(of, hi6220_mbox_of_match);
 
 static int hi6220_mbox_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	struct device *dev = &pdev->dev;
 	struct hi6220_mbox *mbox;
 	int i, err;
 
 	mbox = devm_kzalloc(dev, sizeof(*mbox), GFP_KERNEL);
 	if (!mbox)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mbox->dev = dev;
 	mbox->chan_num = MBOX_CHAN_MAX;
 	mbox->mchan = devm_kcalloc(dev,
 		mbox->chan_num, sizeof(*mbox->mchan), GFP_KERNEL);
 	if (!mbox->mchan)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mbox->chan = devm_kcalloc(dev,
 		mbox->chan_num, sizeof(*mbox->chan), GFP_KERNEL);
 	if (!mbox->chan)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mbox->irq = platform_get_irq(pdev, 0);
 	if (mbox->irq < 0)
@@ -304,7 +304,7 @@ static int hi6220_mbox_probe(struct platform_device *pdev)
 	if (err) {
 		dev_err(dev, "Failed to register a mailbox IRQ handler: %d\n",
 			err);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	mbox->controller.dev = dev;
@@ -326,7 +326,7 @@ static int hi6220_mbox_probe(struct platform_device *pdev)
 	writel(~0x0, ACK_INT_CLR_REG(mbox->ipc));
 
 	/* use interrupt for tx's ack */
-	mbox->tx_irq_mode = !of_property_read_bool(node, "hi6220,mbox-tx-noirq");
+	mbox->tx_irq_mode = !of_property_read_bool(analde, "hi6220,mbox-tx-analirq");
 
 	if (mbox->tx_irq_mode)
 		mbox->controller.txdone_irq = true;

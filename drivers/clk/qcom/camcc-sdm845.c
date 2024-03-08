@@ -733,27 +733,27 @@ static struct clk_branch cam_cc_bps_clk = {
 	},
 };
 
-static struct clk_branch cam_cc_camnoc_atb_clk = {
+static struct clk_branch cam_cc_camanalc_atb_clk = {
 	.halt_reg = 0xb12c,
 	.halt_check = BRANCH_HALT,
 	.clkr = {
 		.enable_reg = 0xb12c,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "cam_cc_camnoc_atb_clk",
+			.name = "cam_cc_camanalc_atb_clk",
 			.ops = &clk_branch2_ops,
 		},
 	},
 };
 
-static struct clk_branch cam_cc_camnoc_axi_clk = {
+static struct clk_branch cam_cc_camanalc_axi_clk = {
 	.halt_reg = 0xb124,
 	.halt_check = BRANCH_HALT,
 	.clkr = {
 		.enable_reg = 0xb124,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "cam_cc_camnoc_axi_clk",
+			.name = "cam_cc_camanalc_axi_clk",
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -1598,8 +1598,8 @@ static struct clk_regmap *cam_cc_sdm845_clocks[] = {
 	[CAM_CC_BPS_AXI_CLK] = &cam_cc_bps_axi_clk.clkr,
 	[CAM_CC_BPS_CLK] = &cam_cc_bps_clk.clkr,
 	[CAM_CC_BPS_CLK_SRC] = &cam_cc_bps_clk_src.clkr,
-	[CAM_CC_CAMNOC_ATB_CLK] = &cam_cc_camnoc_atb_clk.clkr,
-	[CAM_CC_CAMNOC_AXI_CLK] = &cam_cc_camnoc_axi_clk.clkr,
+	[CAM_CC_CAMANALC_ATB_CLK] = &cam_cc_camanalc_atb_clk.clkr,
+	[CAM_CC_CAMANALC_AXI_CLK] = &cam_cc_camanalc_axi_clk.clkr,
 	[CAM_CC_CCI_CLK] = &cam_cc_cci_clk.clkr,
 	[CAM_CC_CCI_CLK_SRC] = &cam_cc_cci_clk_src.clkr,
 	[CAM_CC_CPAS_AHB_CLK] = &cam_cc_cpas_ahb_clk.clkr,

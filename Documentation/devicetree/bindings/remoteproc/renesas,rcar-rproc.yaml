@@ -50,7 +50,7 @@ examples:
         #size-cells = <2>;
 
         cr7_ram: cr7_ram@40040000 {
-            no-map;
+            anal-map;
             reg = <0x0 0x40040000 0x0 0x1fc0000>;
         };
     };

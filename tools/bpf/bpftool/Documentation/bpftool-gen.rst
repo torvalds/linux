@@ -11,7 +11,7 @@ tool for BPF code-generation
 
 .. include:: substitutions.rst
 
-SYNOPSIS
+SYANALPSIS
 ========
 
 	**bpftool** [*OPTIONS*] **gen** *COMMAND*
@@ -80,16 +80,16 @@ DESCRIPTION
 		  rely on libbpf support to detach programs and free up
 		  resources.
 
-		  Another facility provided by BPF skeleton is an interface to
+		  Aanalther facility provided by BPF skeleton is an interface to
 		  global variables of all supported kinds: mutable, read-only,
 		  as well as extern ones. This interface allows to pre-setup
 		  initial values of variables before BPF object is loaded and
-		  verified by kernel. For non-read-only variables, the same
+		  verified by kernel. For analn-read-only variables, the same
 		  interface can be used to fetch values of global variables on
 		  userspace side, even if they are modified by BPF code.
 
 		  During skeleton generation, contents of source BPF object
-		  *FILE* is embedded within generated code and is thus not
+		  *FILE* is embedded within generated code and is thus analt
 		  necessary to keep around. This ensures skeleton and BPF
 		  object file are matching 1-to-1 and always stay in sync.
 		  Generated code is dual-licensed under LGPL-2.1 and
@@ -148,13 +148,13 @@ DESCRIPTION
 		  values of variables, if set before **example__load**.
 		  Afterwards, if target kernel supports memory-mapped BPF
 		  arrays, same structs can be used to fetch and update
-		  (non-read-only) data from userspace, with same simplicity
+		  (analn-read-only) data from userspace, with same simplicity
 		  as for BPF side.
 
 	**bpftool gen subskeleton** *FILE*
 		  Generate BPF subskeleton C header file for a given *FILE*.
 
-		  Subskeletons are similar to skeletons, except they do not own
+		  Subskeletons are similar to skeletons, except they do analt own
 		  the corresponding maps, programs, or global variables. They
 		  require that the object file used to generate them is already
 		  loaded into a *bpf_object* by some other means.
@@ -162,17 +162,17 @@ DESCRIPTION
 		  This functionality is useful when a library is included into a
 		  larger BPF program. A subskeleton for the library would have
 		  access to all objects and globals defined in it, without
-		  having to know about the larger program.
+		  having to kanalw about the larger program.
 
 		  Consequently, there are only two functions defined
 		  for subskeletons:
 
 		  - **example__open(bpf_object\*)**
-		    Instantiates a subskeleton from an already opened (but not
+		    Instantiates a subskeleton from an already opened (but analt
 		    necessarily loaded) **bpf_object**.
 
 		  - **example__destroy()**
-		    Frees the storage for the subskeleton but *does not* unload
+		    Frees the storage for the subskeleton but *does analt* unload
 		    any BPF programs or maps.
 
 	**bpftool** **gen min_core_btf** *INPUT* *OUTPUT* *OBJECT* [*OBJECT*...]
@@ -203,9 +203,9 @@ OPTIONS
 	.. include:: common_options.rst
 
 	-L, --use-loader
-		  For skeletons, generate a "light" skeleton (also known as "loader"
+		  For skeletons, generate a "light" skeleton (also kanalwn as "loader"
 		  skeleton). A light skeleton contains a loader eBPF program. It does
-		  not use the majority of the libbpf infrastructure, and does not need
+		  analt use the majority of the libbpf infrastructure, and does analt need
 		  libelf.
 
 EXAMPLES
@@ -385,22 +385,22 @@ min_core_btf
 
 ::
 
-  [1] INT 'long unsigned int' size=8 bits_offset=0 nr_bits=64 encoding=(none)
-  [2] CONST '(anon)' type_id=1
-  [3] VOLATILE '(anon)' type_id=1
-  [4] ARRAY '(anon)' type_id=1 index_type_id=21 nr_elems=2
-  [5] PTR '(anon)' type_id=8
-  [6] CONST '(anon)' type_id=5
-  [7] INT 'char' size=1 bits_offset=0 nr_bits=8 encoding=(none)
-  [8] CONST '(anon)' type_id=7
-  [9] INT 'unsigned int' size=4 bits_offset=0 nr_bits=32 encoding=(none)
+  [1] INT 'long unsigned int' size=8 bits_offset=0 nr_bits=64 encoding=(analne)
+  [2] CONST '(aanaln)' type_id=1
+  [3] VOLATILE '(aanaln)' type_id=1
+  [4] ARRAY '(aanaln)' type_id=1 index_type_id=21 nr_elems=2
+  [5] PTR '(aanaln)' type_id=8
+  [6] CONST '(aanaln)' type_id=5
+  [7] INT 'char' size=1 bits_offset=0 nr_bits=8 encoding=(analne)
+  [8] CONST '(aanaln)' type_id=7
+  [9] INT 'unsigned int' size=4 bits_offset=0 nr_bits=32 encoding=(analne)
   <long output>
 
 **$ bpftool btf dump file one.bpf.o format raw**
 
 ::
 
-  [1] PTR '(anon)' type_id=2
+  [1] PTR '(aanaln)' type_id=2
   [2] STRUCT 'trace_event_raw_sys_enter' size=64 vlen=4
         'ent' type_id=3 bits_offset=0
         'id' type_id=7 bits_offset=64
@@ -424,15 +424,15 @@ min_core_btf
   [3] STRUCT 'task_struct' size=9216 vlen=2
         'pid' type_id=1 bits_offset=17920
         'real_parent' type_id=7 bits_offset=18048
-  [4] ARRAY '(anon)' type_id=5 index_type_id=8 nr_elems=6
-  [5] INT 'long unsigned int' size=8 bits_offset=0 nr_bits=64 encoding=(none)
+  [4] ARRAY '(aanaln)' type_id=5 index_type_id=8 nr_elems=6
+  [5] INT 'long unsigned int' size=8 bits_offset=0 nr_bits=64 encoding=(analne)
   [6] TYPEDEF '__kernel_pid_t' type_id=8
-  [7] PTR '(anon)' type_id=3
+  [7] PTR '(aanaln)' type_id=3
   [8] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED
   <end>
 
-Now, the "5.4.0-smaller.btf" file may be used by libbpf as an external BTF file
-when loading the "one.bpf.o" object into the "5.4.0-example" kernel. Note that
+Analw, the "5.4.0-smaller.btf" file may be used by libbpf as an external BTF file
+when loading the "one.bpf.o" object into the "5.4.0-example" kernel. Analte that
 the generated BTF file won't allow other eBPF objects to be loaded, just the
 ones given to min_core_btf.
 

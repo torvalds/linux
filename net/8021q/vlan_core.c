@@ -31,7 +31,7 @@ bool vlan_do_receive(struct sk_buff **skbp)
 
 	skb->dev = vlan_dev;
 	if (unlikely(skb->pkt_type == PACKET_OTHERHOST)) {
-		/* Our lower layer thinks this is not local, let's make sure.
+		/* Our lower layer thinks this is analt local, let's make sure.
 		 * This allows the VLAN to have a different MAC than the
 		 * underlying device, and still route correctly. */
 		if (ether_addr_equal_64bits(eth_hdr(skb)->h_dest, vlan_dev->dev_addr))
@@ -83,7 +83,7 @@ struct net_device *__vlan_find_dev_deep_rcu(struct net_device *dev,
 					     vlan_proto, vlan_id);
 	} else {
 		/*
-		 * Lower devices of master uppers (bonding, team) do not have
+		 * Lower devices of master uppers (bonding, team) do analt have
 		 * grp assigned to themselves. Grp is assigned to upper device
 		 * instead.
 		 */
@@ -210,7 +210,7 @@ static int vlan_add_rx_filter_info(struct net_device *dev, __be16 proto, u16 vid
 	if (netif_device_present(dev))
 		return dev->netdev_ops->ndo_vlan_rx_add_vid(dev, proto, vid);
 	else
-		return -ENODEV;
+		return -EANALDEV;
 }
 
 static int vlan_kill_rx_filter_info(struct net_device *dev, __be16 proto, u16 vid)
@@ -221,7 +221,7 @@ static int vlan_kill_rx_filter_info(struct net_device *dev, __be16 proto, u16 vi
 	if (netif_device_present(dev))
 		return dev->netdev_ops->ndo_vlan_rx_kill_vid(dev, proto, vid);
 	else
-		return -ENODEV;
+		return -EANALDEV;
 }
 
 int vlan_for_each(struct net_device *dev,
@@ -301,7 +301,7 @@ static int __vlan_vid_add(struct vlan_info *vlan_info, __be16 proto, u16 vid,
 
 	vid_info = vlan_vid_info_alloc(proto, vid);
 	if (!vid_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = vlan_add_rx_filter_info(dev, proto, vid);
 	if (err) {
@@ -328,7 +328,7 @@ int vlan_vid_add(struct net_device *dev, __be16 proto, u16 vid)
 	if (!vlan_info) {
 		vlan_info = vlan_info_alloc(dev);
 		if (!vlan_info)
-			return -ENOMEM;
+			return -EANALMEM;
 		vlan_info_created = true;
 	}
 	vid_info = vlan_vid_info_get(vlan_info, proto, vid);
@@ -515,7 +515,7 @@ static int vlan_gro_complete(struct sk_buff *skb, int nhoff)
 	struct vlan_hdr *vhdr = (struct vlan_hdr *)(skb->data + nhoff);
 	__be16 type = vhdr->h_vlan_encapsulated_proto;
 	struct packet_offload *ptype;
-	int err = -ENOENT;
+	int err = -EANALENT;
 
 	ptype = gro_find_complete_by_type(type);
 	if (ptype)

@@ -21,7 +21,7 @@ def define_flag_value(event_name, field_name, value, field_str):
     flag_fields[event_name][field_name]['values'][value] = field_str
 
 def define_symbolic_field(event_name, field_name):
-    # nothing to do, really
+    # analthing to do, really
     pass
 
 def define_symbolic_value(event_name, field_name, value, field_str):
@@ -33,7 +33,7 @@ def flag_str(event_name, field_name, value):
     if flag_fields[event_name][field_name]:
         print_delim = 0
         for idx in sorted(flag_fields[event_name][field_name]['values']):
-            if not value and not idx:
+            if analt value and analt idx:
                 string += flag_fields[event_name][field_name]['values'][idx]
                 break
             if idx and (value & idx) == idx:
@@ -50,7 +50,7 @@ def symbol_str(event_name, field_name, value):
 
     if symbolic_fields[event_name][field_name]:
         for idx in sorted(symbolic_fields[event_name][field_name]['values']):
-            if not value and not idx:
+            if analt value and analt idx:
                 string = symbolic_fields[event_name][field_name]['values'][idx]
                 break
             if (value == idx):
@@ -59,9 +59,9 @@ def symbol_str(event_name, field_name, value):
 
     return string
 
-trace_flags = { 0x00: "NONE", \
+trace_flags = { 0x00: "ANALNE", \
                     0x01: "IRQS_OFF", \
-                    0x02: "IRQS_NOSUPPORT", \
+                    0x02: "IRQS_ANALSUPPORT", \
                     0x04: "NEED_RESCHED", \
                     0x08: "HARDIRQ", \
                     0x10: "SOFTIRQ" }
@@ -71,8 +71,8 @@ def trace_flag_str(value):
     print_delim = 0
 
     for idx in trace_flags:
-        if not value and not idx:
-            string += "NONE"
+        if analt value and analt idx:
+            string += "ANALNE"
             break
 
         if idx and (value & idx) == idx:
@@ -93,8 +93,8 @@ def taskState(state):
 		64: "DEAD"
 	}
 
-	if state not in states:
-		return "Unknown"
+	if state analt in states:
+		return "Unkanalwn"
 
 	return states[state]
 

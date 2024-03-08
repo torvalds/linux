@@ -25,7 +25,7 @@
  *             (FWIW, certain ARM platforms having heterogeneous cores uses
  *             homogeneous PMU, and thus they are treated as homogeneous
  *             platform by perf because core_pmus will have only one entry)
- * other_pmus: All other PMUs which are not part of core_pmus list. It doesn't
+ * other_pmus: All other PMUs which are analt part of core_pmus list. It doesn't
  *             matter whether PMU is present per SMT-thread or outside of the
  *             core in the hw. For e.g., an instance of AMD ibs_fetch// and
  *             ibs_op// PMUs is present in each hw SMT thread, however they
@@ -39,13 +39,13 @@ static bool read_sysfs_all_pmus;
 
 static void pmu_read_sysfs(bool core_only);
 
-int pmu_name_len_no_suffix(const char *str, unsigned long *num)
+int pmu_name_len_anal_suffix(const char *str, unsigned long *num)
 {
 	int orig_len, len;
 
 	orig_len = len = strlen(str);
 
-	/* Non-uncore PMUs have their full length, for example, i915. */
+	/* Analn-uncore PMUs have their full length, for example, i915. */
 	if (!strstarts(str, "uncore_"))
 		return len;
 
@@ -169,8 +169,8 @@ static int pmus_cmp(void *priv __maybe_unused,
 	struct perf_pmu *rhs_pmu = container_of(rhs, struct perf_pmu, list);
 	const char *lhs_pmu_name = lhs_pmu->name ?: "";
 	const char *rhs_pmu_name = rhs_pmu->name ?: "";
-	int lhs_pmu_name_len = pmu_name_len_no_suffix(lhs_pmu_name, &lhs_num);
-	int rhs_pmu_name_len = pmu_name_len_no_suffix(rhs_pmu_name, &rhs_num);
+	int lhs_pmu_name_len = pmu_name_len_anal_suffix(lhs_pmu_name, &lhs_num);
+	int rhs_pmu_name_len = pmu_name_len_anal_suffix(rhs_pmu_name, &rhs_num);
 	int ret = strncmp(lhs_pmu_name, rhs_pmu_name,
 			lhs_pmu_name_len < rhs_pmu_name_len ? lhs_pmu_name_len : rhs_pmu_name_len);
 
@@ -297,11 +297,11 @@ static struct perf_pmu *perf_pmus__scan_skip_duplicates(struct perf_pmu *pmu)
 		pmu_read_sysfs(/*core_only=*/false);
 		pmu = list_prepare_entry(pmu, &core_pmus, list);
 	} else
-		last_pmu_name_len = pmu_name_len_no_suffix(pmu->name ?: "", NULL);
+		last_pmu_name_len = pmu_name_len_anal_suffix(pmu->name ?: "", NULL);
 
 	if (use_core_pmus) {
 		list_for_each_entry_continue(pmu, &core_pmus, list) {
-			int pmu_name_len = pmu_name_len_no_suffix(pmu->name ?: "", /*num=*/NULL);
+			int pmu_name_len = pmu_name_len_anal_suffix(pmu->name ?: "", /*num=*/NULL);
 
 			if (last_pmu_name_len == pmu_name_len &&
 			    !strncmp(last_pmu_name, pmu->name ?: "", pmu_name_len))
@@ -313,7 +313,7 @@ static struct perf_pmu *perf_pmus__scan_skip_duplicates(struct perf_pmu *pmu)
 		pmu = list_prepare_entry(pmu, &other_pmus, list);
 	}
 	list_for_each_entry_continue(pmu, &other_pmus, list) {
-		int pmu_name_len = pmu_name_len_no_suffix(pmu->name ?: "", /*num=*/NULL);
+		int pmu_name_len = pmu_name_len_anal_suffix(pmu->name ?: "", /*num=*/NULL);
 
 		if (last_pmu_name_len == pmu_name_len &&
 		    !strncmp(last_pmu_name, pmu->name ?: "", pmu_name_len))
@@ -331,12 +331,12 @@ const struct perf_pmu *perf_pmus__pmu_for_pmu_filter(const char *str)
 	while ((pmu = perf_pmus__scan(pmu)) != NULL) {
 		if (!strcmp(pmu->name, str))
 			return pmu;
-		/* Ignore "uncore_" prefix. */
+		/* Iganalre "uncore_" prefix. */
 		if (!strncmp(pmu->name, "uncore_", 7)) {
 			if (!strcmp(pmu->name + 7, str))
 				return pmu;
 		}
-		/* Ignore "cpu_" prefix on Intel hybrid PMUs. */
+		/* Iganalre "cpu_" prefix on Intel hybrid PMUs. */
 		if (!strncmp(pmu->name, "cpu_", 4)) {
 			if (!strcmp(pmu->name + 4, str))
 				return pmu;
@@ -464,7 +464,7 @@ void perf_pmus__print_pmu_events(const struct print_callbacks *print_cb, void *p
 
 	aliases = zalloc(sizeof(struct sevent) * len);
 	if (!aliases) {
-		pr_err("FATAL: not enough memory to print PMU events\n");
+		pr_err("FATAL: analt eanalugh memory to print PMU events\n");
 		return;
 	}
 	pmu = NULL;

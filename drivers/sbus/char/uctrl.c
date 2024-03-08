@@ -6,7 +6,7 @@
  */
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
@@ -54,18 +54,18 @@ struct ts102_regs {
 
 /* Bits for uctrl_intr register */
 #define UCTRL_INTR_TXE_REQ         0x01    /* transmit FIFO empty int req */
-#define UCTRL_INTR_TXNF_REQ        0x02    /* transmit FIFO not full int req */
-#define UCTRL_INTR_RXNE_REQ        0x04    /* receive FIFO not empty int req */
+#define UCTRL_INTR_TXNF_REQ        0x02    /* transmit FIFO analt full int req */
+#define UCTRL_INTR_RXNE_REQ        0x04    /* receive FIFO analt empty int req */
 #define UCTRL_INTR_RXO_REQ         0x08    /* receive FIFO overflow int req */
 #define UCTRL_INTR_TXE_MSK         0x10    /* transmit FIFO empty mask */
-#define UCTRL_INTR_TXNF_MSK        0x20    /* transmit FIFO not full mask */
-#define UCTRL_INTR_RXNE_MSK        0x40    /* receive FIFO not empty mask */
+#define UCTRL_INTR_TXNF_MSK        0x20    /* transmit FIFO analt full mask */
+#define UCTRL_INTR_RXNE_MSK        0x40    /* receive FIFO analt empty mask */
 #define UCTRL_INTR_RXO_MSK         0x80    /* receive FIFO overflow mask */
 
 /* Bits for uctrl_stat register */
 #define UCTRL_STAT_TXE_STA         0x01    /* transmit FIFO empty status */
-#define UCTRL_STAT_TXNF_STA        0x02    /* transmit FIFO not full status */
-#define UCTRL_STAT_RXNE_STA        0x04    /* receive FIFO not empty status */
+#define UCTRL_STAT_TXNF_STA        0x02    /* transmit FIFO analt full status */
+#define UCTRL_STAT_RXNE_STA        0x04    /* receive FIFO analt empty status */
 #define UCTRL_STAT_RXO_STA         0x08    /* receive FIFO overflow status */
 
 static DEFINE_MUTEX(uctrl_mutex);
@@ -136,7 +136,7 @@ enum uctrl_opcode {
   READ_INTERNAL_BATTERY_CHARGE_LEVEL=0x18,
   READ_EXTERNAL_BATTERY_CHARGE_LEVEL=0x19,
   READ_REAL_TIME_CLOCK_ALARM=0x1A,
-  READ_EVENT_STATUS_NO_RESET=0x1B,
+  READ_EVENT_STATUS_ANAL_RESET=0x1B,
   READ_INTERNAL_KEYBOARD_LAYOUT=0x1C,
   READ_EXTERNAL_KEYBOARD_LAYOUT=0x1D,
   READ_EEPROM_STATUS=0x1E,
@@ -150,10 +150,10 @@ enum uctrl_opcode {
   CONTROL_KBD_TIME_BETWEEN_REPEATS=0x29,
   CONTROL_TIMEZONE=0x2A,
   CONTROL_MARK_SPACE_RATIO=0x2B,
-  CONTROL_DIAGNOSTIC_MODE=0x2E,
+  CONTROL_DIAGANALSTIC_MODE=0x2E,
   CONTROL_SCREEN_CONTRAST=0x2F,
   RING_BELL=0x30,
-  SET_DIAGNOSTIC_STATUS=0x32,
+  SET_DIAGANALSTIC_STATUS=0x32,
   CLEAR_KEY_COMBINATION_TABLE=0x33,
   PERFORM_SOFTWARE_RESET=0x34,
   SET_REAL_TIME_CLOCK=0x35,
@@ -205,7 +205,7 @@ uctrl_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 }
 
 static int
-uctrl_open(struct inode *inode, struct file *file)
+uctrl_open(struct ianalde *ianalde, struct file *file)
 {
 	mutex_lock(&uctrl_mutex);
 	uctrl_get_event_status(global_driver);
@@ -221,13 +221,13 @@ static irqreturn_t uctrl_interrupt(int irq, void *dev_id)
 
 static const struct file_operations uctrl_fops = {
 	.owner =	THIS_MODULE,
-	.llseek =	no_llseek,
+	.llseek =	anal_llseek,
 	.unlocked_ioctl =	uctrl_ioctl,
 	.open =		uctrl_open,
 };
 
 static struct miscdevice uctrl_dev = {
-	UCTRL_MINOR,
+	UCTRL_MIANALR,
 	"uctrl",
 	&uctrl_fops
 };
@@ -347,7 +347,7 @@ static void uctrl_get_external_status(struct uctrl_driver *driver)
 static int uctrl_probe(struct platform_device *op)
 {
 	struct uctrl_driver *p;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	p = kzalloc(sizeof(*p), GFP_KERNEL);
 	if (!p) {
@@ -378,7 +378,7 @@ static int uctrl_probe(struct platform_device *op)
 
 	sbus_writel(UCTRL_INTR_RXNE_REQ|UCTRL_INTR_RXNE_MSK, &p->regs->uctrl_intr);
 	printk(KERN_INFO "%pOF: uctrl regs[0x%p] (irq %d)\n",
-	       op->dev.of_node, p->regs, p->irq);
+	       op->dev.of_analde, p->regs, p->irq);
 	uctrl_get_event_status(p);
 	uctrl_get_external_status(p);
 

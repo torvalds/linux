@@ -10,7 +10,7 @@ menuconfig VIRTUALIZATION
 	help
 	  Say Y here to get to see options for using your Linux host to run other
 	  operating systems inside virtual machines (guests).
-	  This option alone does not add any kernel code.
+	  This option alone does analt add any kernel code.
 
 	  If you say N, all options in this submenu will be skipped and disabled.
 
@@ -28,16 +28,16 @@ config KVM
 	select HAVE_KVM_IRQCHIP
 	select HAVE_KVM_IRQ_ROUTING
 	select HAVE_KVM_INVALID_WAKEUPS
-	select HAVE_KVM_NO_POLL
+	select HAVE_KVM_ANAL_POLL
 	select KVM_VFIO
-	select MMU_NOTIFIER
+	select MMU_ANALTIFIER
 	help
 	  Support hosting paravirtualized guest machines using the SIE
 	  virtualization capability on the mainframe. This should work
 	  on any 64bit machine.
 
 	  This module provides access to the hardware capabilities through
-	  a character device node named /dev/kvm.
+	  a character device analde named /dev/kvm.
 
 	  To compile this as a module, choose M here: the module
 	  will be called kvm.

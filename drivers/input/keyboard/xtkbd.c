@@ -56,7 +56,7 @@ static irqreturn_t xtkbd_interrupt(struct serio *serio,
 				input_report_key(xtkbd->dev, xtkbd->keycode[data & XTKBD_KEY], !(data & XTKBD_RELEASE));
 				input_sync(xtkbd->dev);
 			} else {
-				printk(KERN_WARNING "xtkbd.c: Unknown key (scancode %#x) %s.\n",
+				printk(KERN_WARNING "xtkbd.c: Unkanalwn key (scancode %#x) %s.\n",
 					data & XTKBD_KEY, data & XTKBD_RELEASE ? "released" : "pressed");
 			}
 	}
@@ -67,7 +67,7 @@ static int xtkbd_connect(struct serio *serio, struct serio_driver *drv)
 {
 	struct xtkbd *xtkbd;
 	struct input_dev *input_dev;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 	int i;
 
 	xtkbd = kmalloc(sizeof(struct xtkbd), GFP_KERNEL);

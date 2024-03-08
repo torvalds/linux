@@ -57,7 +57,7 @@
 			      <0x41501014 0x4>;
 			reg-names = "rev", "sysc", "syss";
 			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_ANAL>,
 					<SYSC_IDLE_SMART>;
 			ti,sysc-mask = <(SYSC_OMAP2_CLOCKACTIVITY |
 					 SYSC_OMAP2_SOFTRESET |
@@ -86,7 +86,7 @@
 			      <0x41502014 0x4>;
 			reg-names = "rev", "sysc", "syss";
 			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_ANAL>,
 					<SYSC_IDLE_SMART>;
 			ti,sysc-mask = <(SYSC_OMAP2_CLOCKACTIVITY |
 					 SYSC_OMAP2_SOFTRESET |
@@ -191,11 +191,11 @@
 			reg-names = "rev", "sysc";
 			ti,sysc-mask = <SYSC_OMAP4_DMADISABLE>;
 			ti,sysc-midle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_ANAL>,
 					<SYSC_IDLE_SMART>,
 					<SYSC_IDLE_SMART_WKUP>;
 			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_ANAL>,
 					<SYSC_IDLE_SMART>,
 					<SYSC_IDLE_SMART_WKUP>;
 			/* Domains (P, C): l3init_pwrdm, l3init_clkdm */

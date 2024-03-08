@@ -3,7 +3,7 @@
 // siu.h - ALSA SoC driver for Renesas SH7343, SH7722 SIU peripheral.
 //
 // Copyright (C) 2009-2010 Guennadi Liakhovetski <g.liakhovetski@gmx.de>
-// Copyright (C) 2006 Carlos Munoz <carlos@kenati.com>
+// Copyright (C) 2006 Carlos Muanalz <carlos@kenati.com>
 
 #ifndef SIU_H
 #define SIU_H

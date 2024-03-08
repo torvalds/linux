@@ -30,7 +30,7 @@ static int debug_prepare_data(const struct ethnl_req_info *req_base,
 	int ret;
 
 	if (!dev->ethtool_ops->get_msglevel)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = ethnl_ops_begin(dev);
 	if (ret < 0)
@@ -77,7 +77,7 @@ ethnl_set_debug_validate(struct ethnl_req_info *req_info,
 {
 	const struct ethtool_ops *ops = req_info->dev->ethtool_ops;
 
-	return ops->get_msglevel && ops->set_msglevel ? 1 : -EOPNOTSUPP;
+	return ops->get_msglevel && ops->set_msglevel ? 1 : -EOPANALTSUPP;
 }
 
 static int

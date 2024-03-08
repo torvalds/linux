@@ -11,14 +11,14 @@
 #include <asm/trap_pf.h>
 
 #ifdef CONFIG_X86_64
-asmlinkage __visible notrace struct pt_regs *sync_regs(struct pt_regs *eregs);
-asmlinkage __visible notrace
+asmlinkage __visible analtrace struct pt_regs *sync_regs(struct pt_regs *eregs);
+asmlinkage __visible analtrace
 struct pt_regs *fixup_bad_iret(struct pt_regs *bad_regs);
-asmlinkage __visible noinstr struct pt_regs *vc_switch_off_ist(struct pt_regs *eregs);
+asmlinkage __visible analinstr struct pt_regs *vc_switch_off_ist(struct pt_regs *eregs);
 #endif
 
 extern int ibt_selftest(void);
-extern int ibt_selftest_noendbr(void);
+extern int ibt_selftest_analendbr(void);
 
 #ifdef CONFIG_X86_F00F_BUG
 /* For handling the FOOF bug */
@@ -42,7 +42,7 @@ void math_emulate(struct math_emu_info *);
 bool fault_in_kernel_space(unsigned long address);
 
 #ifdef CONFIG_VMAP_STACK
-void __noreturn handle_stack_overflow(struct pt_regs *regs,
+void __analreturn handle_stack_overflow(struct pt_regs *regs,
 				      unsigned long fault_address,
 				      struct stack_info *info);
 #endif

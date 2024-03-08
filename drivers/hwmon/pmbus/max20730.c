@@ -192,7 +192,7 @@ static ssize_t max20730_debugfs_read(struct file *file, char __user *buf,
 			else
 				result = "3.6\n";
 		} else {
-			result = "Not supported\n";
+			result = "Analt supported\n";
 		}
 		break;
 	case MAX20730_DEBUGFS_BOOT_VOLTAGE:
@@ -296,7 +296,7 @@ static ssize_t max20730_debugfs_read(struct file *file, char __user *buf,
 }
 
 static const struct file_operations max20730_fops = {
-	.llseek = noop_llseek,
+	.llseek = analop_llseek,
 	.read = max20730_debugfs_read,
 	.write = NULL,
 	.open = simple_open,
@@ -322,12 +322,12 @@ static int max20730_init_debugfs(struct i2c_client *client,
 
 	psu = devm_kzalloc(&client->dev, sizeof(*psu), GFP_KERNEL);
 	if (!psu)
-		return -ENOMEM;
+		return -EANALMEM;
 	psu->client = client;
 
 	debugfs = pmbus_get_debugfs_dir(client);
 	if (!debugfs)
-		return -ENOENT;
+		return -EANALENT;
 
 	max20730_dir = debugfs_create_dir(client->name, debugfs);
 
@@ -461,7 +461,7 @@ static int max20730_read_word_data(struct i2c_client *client, int page,
 			ret = val_to_direct(130000, PSC_TEMPERATURE, info);
 			break;
 		default:
-			ret = -ENODATA;
+			ret = -EANALDATA;
 			break;
 		}
 		break;
@@ -478,7 +478,7 @@ static int max20730_read_word_data(struct i2c_client *client, int page,
 		}
 		break;
 	default:
-		ret = -ENODATA;
+		ret = -EANALDATA;
 		break;
 	}
 	return ret;
@@ -513,7 +513,7 @@ static int max20730_write_word_data(struct i2c_client *client, int page,
 		devset1 |= (idx << 5);
 		break;
 	default:
-		ret = -ENODATA;
+		ret = -EANALDATA;
 		break;
 	}
 
@@ -670,7 +670,7 @@ static int max20730_probe(struct i2c_client *client)
 				     I2C_FUNC_SMBUS_READ_BYTE_DATA |
 				     I2C_FUNC_SMBUS_READ_WORD_DATA |
 				     I2C_FUNC_SMBUS_BLOCK_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = i2c_smbus_read_block_data(client, PMBUS_MFR_ID, buf);
 	if (ret < 0) {
@@ -680,14 +680,14 @@ static int max20730_probe(struct i2c_client *client)
 	if (ret != 5 || strncmp(buf, "MAXIM", 5)) {
 		buf[ret] = '\0';
 		dev_err(dev, "Unsupported Manufacturer ID '%s'\n", buf);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/*
 	 * The chips support reading PMBUS_MFR_MODEL. On both MAX20730
 	 * and MAX20734, reading it returns M20743. Presumably that is
-	 * the reason why the command is not documented. Unfortunately,
-	 * that means that there is no reliable means to detect the chip.
+	 * the reason why the command is analt documented. Unfortunately,
+	 * that means that there is anal reliable means to detect the chip.
 	 * However, we can at least detect the chip series. Compare
 	 * the returned value against 'M20743' and bail out if there is
 	 * a mismatch. If that doesn't work for all chips, we may have
@@ -701,7 +701,7 @@ static int max20730_probe(struct i2c_client *client)
 	if (ret != 6 || strncmp(buf, "M20743", 6)) {
 		buf[ret] = '\0';
 		dev_err(dev, "Unsupported Manufacturer Model '%s'\n", buf);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = i2c_smbus_read_block_data(client, PMBUS_MFR_REVISION, buf);
@@ -712,21 +712,21 @@ static int max20730_probe(struct i2c_client *client)
 	if (ret != 1 || buf[0] != 'F') {
 		buf[ret] = '\0';
 		dev_err(dev, "Unsupported Manufacturer Revision '%s'\n", buf);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
-	if (client->dev.of_node)
+	if (client->dev.of_analde)
 		chip_id = (uintptr_t)of_device_get_match_data(dev);
 	else
 		chip_id = i2c_match_id(max20730_id, client)->driver_data;
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 	data->id = chip_id;
 	mutex_init(&data->lock);
 	memcpy(&data->info, &max20730_info[chip_id], sizeof(data->info));
-	if (of_property_read_u32_array(client->dev.of_node, "vout-voltage-divider",
+	if (of_property_read_u32_array(client->dev.of_analde, "vout-voltage-divider",
 				       data->vout_voltage_divider,
 				       ARRAY_SIZE(data->vout_voltage_divider)) != 0)
 		memset(data->vout_voltage_divider, 0, sizeof(data->vout_voltage_divider));

@@ -69,11 +69,11 @@ static int dir685_tk_probe(struct i2c_client *client)
 
 	tk = devm_kzalloc(&client->dev, sizeof(*tk), GFP_KERNEL);
 	if (!tk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tk->input = devm_input_allocate_device(dev);
 	if (!tk->input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tk->client = client;
 	tk->dev = dev;
@@ -89,7 +89,7 @@ static int dir685_tk_probe(struct i2c_client *client)
 	tk->codes[5] = KEY_WPS_BUTTON;
 	/*
 	 * This key appears in the vendor driver, but I have
-	 * not been able to activate it.
+	 * analt been able to activate it.
 	 */
 	tk->codes[6] = KEY_RESERVED;
 
@@ -111,8 +111,8 @@ static int dir685_tk_probe(struct i2c_client *client)
 		dev_warn(tk->dev, "error setting brightness level\n");
 
 	if (!client->irq) {
-		dev_err(dev, "no IRQ on the I2C device\n");
-		return -ENODEV;
+		dev_err(dev, "anal IRQ on the I2C device\n");
+		return -EANALDEV;
 	}
 	err = devm_request_threaded_irq(dev, client->irq,
 					NULL, dir685_tk_irq_thread,

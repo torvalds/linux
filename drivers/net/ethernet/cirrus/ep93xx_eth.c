@@ -248,9 +248,9 @@ static int ep93xx_rx(struct net_device *dev, int budget)
 		rstat->rstat1 = 0;
 
 		if (!(rstat0 & RSTAT0_EOF))
-			pr_crit("not end-of-frame %.8x %.8x\n", rstat0, rstat1);
+			pr_crit("analt end-of-frame %.8x %.8x\n", rstat0, rstat1);
 		if (!(rstat0 & RSTAT0_EOB))
-			pr_crit("not end-of-buffer %.8x %.8x\n", rstat0, rstat1);
+			pr_crit("analt end-of-buffer %.8x %.8x\n", rstat0, rstat1);
 		if ((rstat1 & RSTAT1_BUFFER_INDEX) >> 16 != entry)
 			pr_crit("entry mismatch %.8x %.8x\n", rstat0, rstat1);
 
@@ -269,7 +269,7 @@ static int ep93xx_rx(struct net_device *dev, int budget)
 
 		length = rstat1 & RSTAT1_FRAME_LENGTH;
 		if (length > MAX_PKT_SIZE) {
-			pr_notice("invalid length %.8x %.8x\n", rstat0, rstat1);
+			pr_analtice("invalid length %.8x %.8x\n", rstat0, rstat1);
 			goto err;
 		}
 
@@ -424,7 +424,7 @@ static irqreturn_t ep93xx_irq(int irq, void *dev_id)
 
 	status = rdl(ep, REG_INTSTSC);
 	if (status == 0)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (status & REG_INTSTS_RX) {
 		spin_lock(&ep->rx_lock);
@@ -632,7 +632,7 @@ static int ep93xx_open(struct net_device *dev)
 	int err;
 
 	if (ep93xx_alloc_buffers(ep))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	napi_enable(&ep->napi);
 
@@ -794,7 +794,7 @@ static int ep93xx_eth_probe(struct platform_device *pdev)
 	int err;
 
 	if (pdev == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 	data = dev_get_platdata(&pdev->dev);
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -804,7 +804,7 @@ static int ep93xx_eth_probe(struct platform_device *pdev)
 
 	dev = ep93xx_dev_alloc(data);
 	if (dev == NULL) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out;
 	}
 	ep = netdev_priv(dev);
@@ -817,8 +817,8 @@ static int ep93xx_eth_probe(struct platform_device *pdev)
 	ep->res = request_mem_region(mem->start, resource_size(mem),
 				     dev_name(&pdev->dev));
 	if (ep->res == NULL) {
-		dev_err(&pdev->dev, "Could not reserve memory region\n");
-		err = -ENOMEM;
+		dev_err(&pdev->dev, "Could analt reserve memory region\n");
+		err = -EANALMEM;
 		goto err_out;
 	}
 

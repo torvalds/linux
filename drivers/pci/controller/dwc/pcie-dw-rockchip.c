@@ -125,17 +125,17 @@ static const struct irq_domain_ops intx_domain_ops = {
 static int rockchip_pcie_init_irq_domain(struct rockchip_pcie *rockchip)
 {
 	struct device *dev = rockchip->pci.dev;
-	struct device_node *intc;
+	struct device_analde *intc;
 
-	intc = of_get_child_by_name(dev->of_node, "legacy-interrupt-controller");
+	intc = of_get_child_by_name(dev->of_analde, "legacy-interrupt-controller");
 	if (!intc) {
-		dev_err(dev, "missing child interrupt-controller node\n");
+		dev_err(dev, "missing child interrupt-controller analde\n");
 		return -EINVAL;
 	}
 
 	rockchip->irq_domain = irq_domain_add_linear(intc, PCI_NUM_INTX,
 						    &intx_domain_ops, rockchip);
-	of_node_put(intc);
+	of_analde_put(intc);
 	if (!rockchip->irq_domain) {
 		dev_err(dev, "failed to get a INTx IRQ domain\n");
 		return -EINVAL;
@@ -175,10 +175,10 @@ static int rockchip_pcie_start_link(struct dw_pcie *pci)
 	 * PCIe requires the refclk to be stable for 100µs prior to releasing
 	 * PERST. See table 2-4 in section 2.6.2 AC Specifications of the PCI
 	 * Express Card Electromechanical Specification, 1.1. However, we don't
-	 * know if the refclk is coming from RC's PHY or external OSC. If it's
+	 * kanalw if the refclk is coming from RC's PHY or external OSC. If it's
 	 * from RC, so enabling LTSSM is the just right place to release #PERST.
 	 * We need more extra time as before, rather than setting just
-	 * 100us as we don't know how long should the device need to reset.
+	 * 100us as we don't kanalw how long should the device need to reset.
 	 */
 	msleep(100);
 	gpiod_set_value_cansleep(rockchip->rst_gpio, 1);
@@ -194,7 +194,7 @@ static int rockchip_pcie_host_init(struct dw_pcie_rp *pp)
 	u32 val = HIWORD_UPDATE_BIT(PCIE_LTSSM_ENABLE_ENHANCE);
 	int irq, ret;
 
-	irq = of_irq_get_byname(dev->of_node, "legacy");
+	irq = of_irq_get_byname(dev->of_analde, "legacy");
 	if (irq < 0)
 		return irq;
 
@@ -293,7 +293,7 @@ static int rockchip_pcie_probe(struct platform_device *pdev)
 
 	rockchip = devm_kzalloc(dev, sizeof(*rockchip), GFP_KERNEL);
 	if (!rockchip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, rockchip);
 
@@ -314,7 +314,7 @@ static int rockchip_pcie_probe(struct platform_device *pdev)
 	/* DON'T MOVE ME: must be enable before PHY init */
 	rockchip->vpcie3v3 = devm_regulator_get_optional(dev, "vpcie3v3");
 	if (IS_ERR(rockchip->vpcie3v3)) {
-		if (PTR_ERR(rockchip->vpcie3v3) != -ENODEV)
+		if (PTR_ERR(rockchip->vpcie3v3) != -EANALDEV)
 			return dev_err_probe(dev, PTR_ERR(rockchip->vpcie3v3),
 					"failed to get vpcie3v3 regulator\n");
 		rockchip->vpcie3v3 = NULL;

@@ -1,9 +1,9 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _NFNETLINK_LOG_H
 #define _NFNETLINK_LOG_H
 
 /* This file describes the netlink messages (i.e. 'protocol packets'),
- * and not any kind of function definitions.  It is shared between kernel and
+ * and analt any kind of function definitions.  It is shared between kernel and
  * userspace.  Don't put kernel specific stuff in here */
 
 #include <linux/types.h>
@@ -71,7 +71,7 @@ enum nfulnl_attr_type {
 #define NFULA_MAX (__NFULA_MAX - 1)
 
 enum nfulnl_msg_config_cmds {
-	NFULNL_CFG_CMD_NONE,
+	NFULNL_CFG_CMD_ANALNE,
 	NFULNL_CFG_CMD_BIND,
 	NFULNL_CFG_CMD_UNBIND,
 	NFULNL_CFG_CMD_PF_BIND,
@@ -100,7 +100,7 @@ enum nfulnl_attr_config {
 };
 #define NFULA_CFG_MAX (__NFULA_CFG_MAX -1)
 
-#define NFULNL_COPY_NONE	0x00
+#define NFULNL_COPY_ANALNE	0x00
 #define NFULNL_COPY_META	0x01
 #define NFULNL_COPY_PACKET	0x02
 /* 0xff is reserved, don't use it for new copy modes. */

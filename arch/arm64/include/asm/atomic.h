@@ -22,7 +22,7 @@ static __always_inline void arch_##op(int i, atomic_t *v)		\
 	__lse_ll_sc_body(op, i, v);					\
 }
 
-ATOMIC_OP(atomic_andnot)
+ATOMIC_OP(atomic_andanalt)
 ATOMIC_OP(atomic_or)
 ATOMIC_OP(atomic_xor)
 ATOMIC_OP(atomic_add)
@@ -43,7 +43,7 @@ static __always_inline int arch_##op##name(int i, atomic_t *v)		\
 	ATOMIC_FETCH_OP(_release, op)					\
 	ATOMIC_FETCH_OP(        , op)
 
-ATOMIC_FETCH_OPS(atomic_fetch_andnot)
+ATOMIC_FETCH_OPS(atomic_fetch_andanalt)
 ATOMIC_FETCH_OPS(atomic_fetch_or)
 ATOMIC_FETCH_OPS(atomic_fetch_xor)
 ATOMIC_FETCH_OPS(atomic_fetch_add)
@@ -61,7 +61,7 @@ static __always_inline void arch_##op(long i, atomic64_t *v)		\
 	__lse_ll_sc_body(op, i, v);					\
 }
 
-ATOMIC64_OP(atomic64_andnot)
+ATOMIC64_OP(atomic64_andanalt)
 ATOMIC64_OP(atomic64_or)
 ATOMIC64_OP(atomic64_xor)
 ATOMIC64_OP(atomic64_add)
@@ -82,7 +82,7 @@ static __always_inline long arch_##op##name(long i, atomic64_t *v)	\
 	ATOMIC64_FETCH_OP(_release, op)					\
 	ATOMIC64_FETCH_OP(        , op)
 
-ATOMIC64_FETCH_OPS(atomic64_fetch_andnot)
+ATOMIC64_FETCH_OPS(atomic64_fetch_andanalt)
 ATOMIC64_FETCH_OPS(atomic64_fetch_or)
 ATOMIC64_FETCH_OPS(atomic64_fetch_xor)
 ATOMIC64_FETCH_OPS(atomic64_fetch_add)
@@ -127,10 +127,10 @@ static __always_inline long arch_atomic64_dec_if_positive(atomic64_t *v)
 #define arch_atomic_fetch_and_release		arch_atomic_fetch_and_release
 #define arch_atomic_fetch_and			arch_atomic_fetch_and
 
-#define arch_atomic_fetch_andnot_relaxed	arch_atomic_fetch_andnot_relaxed
-#define arch_atomic_fetch_andnot_acquire	arch_atomic_fetch_andnot_acquire
-#define arch_atomic_fetch_andnot_release	arch_atomic_fetch_andnot_release
-#define arch_atomic_fetch_andnot		arch_atomic_fetch_andnot
+#define arch_atomic_fetch_andanalt_relaxed	arch_atomic_fetch_andanalt_relaxed
+#define arch_atomic_fetch_andanalt_acquire	arch_atomic_fetch_andanalt_acquire
+#define arch_atomic_fetch_andanalt_release	arch_atomic_fetch_andanalt_release
+#define arch_atomic_fetch_andanalt		arch_atomic_fetch_andanalt
 
 #define arch_atomic_fetch_or_relaxed		arch_atomic_fetch_or_relaxed
 #define arch_atomic_fetch_or_acquire		arch_atomic_fetch_or_acquire
@@ -142,7 +142,7 @@ static __always_inline long arch_atomic64_dec_if_positive(atomic64_t *v)
 #define arch_atomic_fetch_xor_release		arch_atomic_fetch_xor_release
 #define arch_atomic_fetch_xor			arch_atomic_fetch_xor
 
-#define arch_atomic_andnot			arch_atomic_andnot
+#define arch_atomic_andanalt			arch_atomic_andanalt
 
 /*
  * 64-bit arch_atomic operations.
@@ -176,10 +176,10 @@ static __always_inline long arch_atomic64_dec_if_positive(atomic64_t *v)
 #define arch_atomic64_fetch_and_release		arch_atomic64_fetch_and_release
 #define arch_atomic64_fetch_and			arch_atomic64_fetch_and
 
-#define arch_atomic64_fetch_andnot_relaxed	arch_atomic64_fetch_andnot_relaxed
-#define arch_atomic64_fetch_andnot_acquire	arch_atomic64_fetch_andnot_acquire
-#define arch_atomic64_fetch_andnot_release	arch_atomic64_fetch_andnot_release
-#define arch_atomic64_fetch_andnot		arch_atomic64_fetch_andnot
+#define arch_atomic64_fetch_andanalt_relaxed	arch_atomic64_fetch_andanalt_relaxed
+#define arch_atomic64_fetch_andanalt_acquire	arch_atomic64_fetch_andanalt_acquire
+#define arch_atomic64_fetch_andanalt_release	arch_atomic64_fetch_andanalt_release
+#define arch_atomic64_fetch_andanalt		arch_atomic64_fetch_andanalt
 
 #define arch_atomic64_fetch_or_relaxed		arch_atomic64_fetch_or_relaxed
 #define arch_atomic64_fetch_or_acquire		arch_atomic64_fetch_or_acquire
@@ -191,7 +191,7 @@ static __always_inline long arch_atomic64_dec_if_positive(atomic64_t *v)
 #define arch_atomic64_fetch_xor_release		arch_atomic64_fetch_xor_release
 #define arch_atomic64_fetch_xor			arch_atomic64_fetch_xor
 
-#define arch_atomic64_andnot			arch_atomic64_andnot
+#define arch_atomic64_andanalt			arch_atomic64_andanalt
 
 #define arch_atomic64_dec_if_positive		arch_atomic64_dec_if_positive
 

@@ -29,7 +29,7 @@ enum {
 };
 
 enum stat_type {
-	STAT_NONE = 0,
+	STAT_ANALNE = 0,
 	STAT_NSECS,
 	STAT_CYCLES,
 	STAT_INSTRUCTIONS,
@@ -133,12 +133,12 @@ static enum stat_type evsel__stat_type(const struct evsel *evsel)
 		return STAT_DTLB_MISS;
 	else if (evsel__match(evsel, HW_CACHE, hw_cache_itlb_miss))
 		return STAT_ITLB_MISS;
-	return STAT_NONE;
+	return STAT_ANALNE;
 }
 
 static const char *get_ratio_color(const double ratios[3], double val)
 {
-	const char *color = PERF_COLOR_NORMAL;
+	const char *color = PERF_COLOR_ANALRMAL;
 
 	if (val > ratios[0])
 		color = PERF_COLOR_RED;
@@ -158,21 +158,21 @@ static double find_stat(const struct evsel *evsel, int aggr_idx, enum stat_type 
 	evlist__for_each_entry(evsel->evlist, cur) {
 		struct perf_stat_aggr *aggr;
 
-		/* Ignore the evsel that is being searched from. */
+		/* Iganalre the evsel that is being searched from. */
 		if (evsel == cur)
 			continue;
 
-		/* Ignore evsels that are part of different groups. */
+		/* Iganalre evsels that are part of different groups. */
 		if (evsel->core.leader->nr_members > 1 &&
 		    evsel->core.leader != cur->core.leader)
 			continue;
-		/* Ignore evsels with mismatched modifiers. */
+		/* Iganalre evsels with mismatched modifiers. */
 		if (evsel_ctx != evsel_context(cur))
 			continue;
-		/* Ignore if not the cgroup we're looking for. */
+		/* Iganalre if analt the cgroup we're looking for. */
 		if (evsel->cgrp != cur->cgrp)
 			continue;
-		/* Ignore if not the stat we're looking for. */
+		/* Iganalre if analt the stat we're looking for. */
 		if (type != evsel__stat_type(cur))
 			continue;
 
@@ -187,13 +187,13 @@ static double find_stat(const struct evsel *evsel, int aggr_idx, enum stat_type 
 static void print_ratio(struct perf_stat_config *config,
 			const struct evsel *evsel, int aggr_idx,
 			double numerator, struct perf_stat_output_ctx *out,
-			enum stat_type denominator_type,
+			enum stat_type deanalminator_type,
 			const double color_ratios[3], const char *unit)
 {
-	double denominator = find_stat(evsel, aggr_idx, denominator_type);
+	double deanalminator = find_stat(evsel, aggr_idx, deanalminator_type);
 
-	if (numerator && denominator) {
-		double ratio = numerator / denominator * 100.0;
+	if (numerator && deanalminator) {
+		double ratio = numerator / deanalminator * 100.0;
 		const char *color = get_ratio_color(color_ratios, ratio);
 
 		out->print_metric(config, out->ctx, color, "%7.2f%%", unit, ratio);
@@ -384,14 +384,14 @@ static int prepare_metric(struct evsel **metric_events,
 				stats = &ru_stats.ru_stime_usec_stat;
 				scale = 1e-6;
 				break;
-			case PERF_TOOL_NONE:
-				pr_err("Invalid tool event 'none'");
+			case PERF_TOOL_ANALNE:
+				pr_err("Invalid tool event 'analne'");
 				abort();
 			case PERF_TOOL_MAX:
 				pr_err("Invalid tool event 'max'");
 				abort();
 			default:
-				pr_err("Unknown tool event '%s'", evsel__name(metric_events[i]));
+				pr_err("Unkanalwn tool event '%s'", evsel__name(metric_events[i]));
 				abort();
 			}
 			val = avg_stats(stats) * scale;
@@ -405,9 +405,9 @@ static int prepare_metric(struct evsel **metric_events,
 
                         if (!metric_events[i]->supported) {
 				/*
-				 * Not supported events will have a count of 0,
+				 * Analt supported events will have a count of 0,
 				 * which can be confusing in a
-				 * metric. Explicitly set the value to NAN. Not
+				 * metric. Explicitly set the value to NAN. Analt
 				 * counted events (enable time of 0) are read as
 				 * 0.
 				 */
@@ -425,7 +425,7 @@ static int prepare_metric(struct evsel **metric_events,
 		}
 		n = strdup(evsel__metric_id(metric_events[i]));
 		if (!n)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		expr__add_id_val_source_count(pctx, n, val, source_count);
 	}
@@ -577,7 +577,7 @@ static void perf_stat__print_metricgroup_header(struct perf_stat_config *config,
 
 /**
  * perf_stat__print_shadow_stats_metricgroup - Print out metrics associated with the evsel
- *					       For the non-default, all metrics associated
+ *					       For the analn-default, all metrics associated
  *					       with the evsel are printed.
  *					       For the default mode, only the metrics from
  *					       the same metricgroup and the name of the
@@ -615,7 +615,7 @@ void *perf_stat__print_shadow_stats_metricgroup(struct perf_stat_config *config,
 			/*
 			 * Two or more metricgroup may share the same metric
 			 * event, e.g., TopdownL1 and TopdownL2 on SPR.
-			 * Return and print the prefix, e.g., noise, running
+			 * Return and print the prefix, e.g., analise, running
 			 * for the next metricgroup.
 			 */
 			if (strcmp(name, mexp->default_metricgroup_name))
@@ -700,7 +700,7 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 
 /**
  * perf_stat__skip_metric_event - Skip the evsel in the Default metricgroup,
- *				  if it's not running or not the metric event.
+ *				  if it's analt running or analt the metric event.
  */
 bool perf_stat__skip_metric_event(struct evsel *evsel,
 				  struct rblist *metric_events,

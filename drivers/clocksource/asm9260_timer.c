@@ -37,7 +37,7 @@
 
 #define HW_TCR		0x0010 /* RW. Timer controller */
 /* BM_C*_RST
- * Timer Counter and the Prescale Counter are synchronously reset on the
+ * Timer Counter and the Prescale Counter are synchroanalusly reset on the
  * next positive edge of PCLK. The counters remain reset until TCR[1] is
  * returned to zero. */
 #define BM_C3_RST	BIT(7)
@@ -68,7 +68,7 @@
 				 BM_DIR_COUNT_UP << BM_DIR3_SHIFT)
 
 #define HW_TC0		0x0030 /* RO. Timer counter 0 */
-/* HW_TC*. Timer counter owerflow (0xffff.ffff to 0x0000.0000) do not generate
+/* HW_TC*. Timer counter owerflow (0xffff.ffff to 0x0000.0000) do analt generate
  * interrupt. This registers can be used to detect overflow */
 #define HW_TC1          0x0040
 #define HW_TC2		0x0050
@@ -180,7 +180,7 @@ static irqreturn_t asm9260_timer_interrupt(int irq, void *dev_id)
  * Timer initialization
  * ---------------------------------------------------------------------------
  */
-static int __init asm9260_timer_init(struct device_node *np)
+static int __init asm9260_timer_init(struct device_analde *np)
 {
 	int irq;
 	struct clk *clk;

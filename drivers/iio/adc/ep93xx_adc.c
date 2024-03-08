@@ -7,7 +7,7 @@
  * The driver uses polling to get the conversion status. According to EP93xx
  * datasheets, reading ADCResult register starts the conversion, but user is also
  * responsible for ensuring that delay between adjacent conversion triggers is
- * long enough so that maximum allowed conversion rate is not exceeded. This
+ * long eanalugh so that maximum allowed conversion rate is analt exceeded. This
  * basically renders IRQ mode unusable.
  */
 
@@ -63,7 +63,7 @@ struct ep93xx_adc_priv {
 /*
  * Numbering scheme for channels 0..4 is defined in EP9301 and EP9302 datasheets.
  * EP9307, EP9312 and EP9312 have 3 channels more (total 8), but the numbering is
- * not defined. So the last three are numbered randomly, let's say.
+ * analt defined. So the last three are numbered randomly, let's say.
  */
 static const struct iio_chan_spec ep93xx_adc_channels[8] = {
 	EP93XX_ADC_CH(0, "YM",	0x608),
@@ -106,7 +106,7 @@ static int ep93xx_read_raw(struct iio_dev *iiodev,
 		}
 		/* Start the conversion, eventually discarding old result */
 		readl_relaxed(priv->base + EP93XX_ADC_RESULT);
-		/* Ensure maximum conversion rate is not exceeded */
+		/* Ensure maximum conversion rate is analt exceeded */
 		ep93xx_adc_delay(DIV_ROUND_UP(1000000, 925),
 				 DIV_ROUND_UP(1000000, 925));
 		/* At this point conversion must be completed, but anyway... */
@@ -160,7 +160,7 @@ static int ep93xx_adc_probe(struct platform_device *pdev)
 
 	iiodev = devm_iio_device_alloc(&pdev->dev, sizeof(*priv));
 	if (!iiodev)
-		return -ENOMEM;
+		return -EANALMEM;
 	priv = iio_priv(iiodev);
 
 	priv->base = devm_platform_ioremap_resource(pdev, 0);
@@ -180,24 +180,24 @@ static int ep93xx_adc_probe(struct platform_device *pdev)
 
 	priv->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(priv->clk)) {
-		dev_err(&pdev->dev, "Cannot obtain clock\n");
+		dev_err(&pdev->dev, "Cananalt obtain clock\n");
 		return PTR_ERR(priv->clk);
 	}
 
 	pclk = clk_get_parent(priv->clk);
 	if (!pclk) {
-		dev_warn(&pdev->dev, "Cannot obtain parent clock\n");
+		dev_warn(&pdev->dev, "Cananalt obtain parent clock\n");
 	} else {
 		/*
 		 * This is actually a place for improvement:
 		 * EP93xx ADC supports two clock divisors -- 4 and 16,
 		 * resulting in conversion rates 3750 and 925 samples per second
 		 * with 500us or 2ms settling time respectively.
-		 * One might find this interesting enough to be configurable.
+		 * One might find this interesting eanalugh to be configurable.
 		 */
 		ret = clk_set_rate(priv->clk, clk_get_rate(pclk) / 16);
 		if (ret)
-			dev_warn(&pdev->dev, "Cannot set clock rate\n");
+			dev_warn(&pdev->dev, "Cananalt set clock rate\n");
 		/*
 		 * We can tolerate rate setting failure because the module should
 		 * work in any case.
@@ -206,7 +206,7 @@ static int ep93xx_adc_probe(struct platform_device *pdev)
 
 	ret = clk_prepare_enable(priv->clk);
 	if (ret) {
-		dev_err(&pdev->dev, "Cannot enable clock\n");
+		dev_err(&pdev->dev, "Cananalt enable clock\n");
 		return ret;
 	}
 

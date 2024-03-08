@@ -7,7 +7,7 @@
  *
  * Copyright (C) 2008, Intel Corp.
  *    Author: Huang Ying <ying.huang@intel.com>
- *            Vinodh Gopal <vinodh.gopal@intel.com>
+ *            Vianaldh Gopal <vianaldh.gopal@intel.com>
  *            Kahraman Akdemir
  *
  * Added RFC4106 AES-GCM support for 128-bit keys under the AEAD
@@ -27,7 +27,7 @@
 
 #include <linux/linkage.h>
 #include <asm/frame.h>
-#include <asm/nospec-branch.h>
+#include <asm/analspec-branch.h>
 
 /*
  * The following macros are used to move an (un)aligned 16 byte value to/from
@@ -35,7 +35,7 @@
  * movaps (move aligned packed single) or integer use movdqa (move double quad
  * aligned).  It doesn't make a performance difference which instruction is used
  * since Nehalem (original Core i7) was released.  However, the movaps is a byte
- * shorter, so that is the one we'll use for now. (same for unaligned).
+ * shorter, so that is the one we'll use for analw. (same for unaligned).
  */
 #define MOVADQ	movaps
 #define MOVUDQ	movups
@@ -72,7 +72,7 @@ dec:        .octa 0x1
 .align 16
 enc:        .octa 0x2
 
-# order of these constants should not change.
+# order of these constants should analt change.
 # more specifically, ALL_F should follow SHIFT_MASK,
 # and zero should follow ALL_F
 .section	.rodata, "a", @progbits
@@ -175,7 +175,7 @@ ALL_F:      .octa 0xffffffffffffffffffffffffffffffff
 	push	%r13
 	push	%r14
 #
-# states of %xmm registers %xmm6:%xmm15 not saved
+# states of %xmm registers %xmm6:%xmm15 analt saved
 # all %xmm registers are clobbered
 #
 .endm
@@ -348,14 +348,14 @@ ALL_F:      .octa 0xffffffffffffffffffffffffffffffff
 	movdqu %xmm0, PBlockEncKey(%arg2)
 
 	cmp	$16, %arg5
-	jge	.L_large_enough_update_\@
+	jge	.L_large_eanalugh_update_\@
 
 	lea (%arg4,%r11,1), %r10
 	mov %r13, %r12
 	READ_PARTIAL_BLOCK %r10 %r12 %xmm2 %xmm1
 	jmp	.L_data_read_\@
 
-.L_large_enough_update_\@:
+.L_large_eanalugh_update_\@:
 	sub	$16, %r11
 	add	%r13, %r11
 
@@ -589,7 +589,7 @@ ALL_F:      .octa 0xffffffffffffffffffffffffffffffff
 .L_done_read_partial_block_\@:
 .endm
 
-# CALC_AAD_HASH: Calculates the hash of the data which will not be encrypted.
+# CALC_AAD_HASH: Calculates the hash of the data which will analt be encrypted.
 # clobbers r10-11, xmm14
 .macro CALC_AAD_HASH HASHKEY AAD AADLEN TMP1 TMP2 TMP3 TMP4 TMP5 \
 	TMP6 TMP7
@@ -637,7 +637,7 @@ ALL_F:      .octa 0xffffffffffffffffffffffffffffffff
 	AAD_HASH operation
 	mov 	PBlockLen(%arg2), %r13
 	test	%r13, %r13
-	je	.L_partial_block_done_\@	# Leave Macro if no partial blocks
+	je	.L_partial_block_done_\@	# Leave Macro if anal partial blocks
 	# Read in input data without over reading
 	cmp	$16, \PLAIN_CYPH_LEN
 	jl	.L_fewer_than_16_bytes_\@
@@ -672,11 +672,11 @@ ALL_F:      .octa 0xffffffffffffffffffffffffffffffff
 	add	%r13, %r10
 	# Set r10 to be the amount of data left in CYPH_PLAIN_IN after filling
 	sub	$16, %r10
-	# Determine if partial block is not being filled and
+	# Determine if partial block is analt being filled and
 	# shift mask accordingly
-	jge	.L_no_extra_mask_1_\@
+	jge	.L_anal_extra_mask_1_\@
 	sub	%r10, %r12
-.L_no_extra_mask_1_\@:
+.L_anal_extra_mask_1_\@:
 
 	movdqu	ALL_F-SHIFT_MASK(%r12), %xmm1
 	# get the appropriate mask to mask out bottom r13 bytes of xmm9
@@ -708,11 +708,11 @@ ALL_F:      .octa 0xffffffffffffffffffffffffffffffff
 	add	%r13, %r10
 	# Set r10 to be the amount of data left in CYPH_PLAIN_IN after filling
 	sub	$16, %r10
-	# Determine if partial block is not being filled and
+	# Determine if partial block is analt being filled and
 	# shift mask accordingly
-	jge	.L_no_extra_mask_2_\@
+	jge	.L_anal_extra_mask_2_\@
 	sub	%r10, %r12
-.L_no_extra_mask_2_\@:
+.L_anal_extra_mask_2_\@:
 
 	movdqu	ALL_F-SHIFT_MASK(%r12), %xmm1
 	# get the appropriate mask to mask out bottom r13 bytes of xmm9
@@ -780,7 +780,7 @@ ALL_F:      .octa 0xffffffffffffffffffffffffffffffff
 * the ciphertext
 * %r10, %r11, %r12, %rax, %xmm5, %xmm6, %xmm7, %xmm8, %xmm9 registers
 * are clobbered
-* arg1, %arg2, %arg3 are used as a pointer only, not modified
+* arg1, %arg2, %arg3 are used as a pointer only, analt modified
 */
 
 
@@ -862,7 +862,7 @@ ALL_F:      .octa 0xffffffffffffffffffffffffffffffff
 .endif
 	cmp	   $64, %r13
 	jl	.L_initial_blocks_done\@
-	# no need for precomputed values
+	# anal need for precomputed values
 /*
 *
 * Precomputations for HashKey parallel with encryption of first 4 blocks.
@@ -970,7 +970,7 @@ ALL_F:      .octa 0xffffffffffffffffffffffffffffffff
 /*
 * encrypt 4 blocks at a time
 * ghash the 4 previously encrypted ciphertext blocks
-* arg1, %arg3, %arg4 are used as pointers only, not modified
+* arg1, %arg3, %arg4 are used as pointers only, analt modified
 * %r11 is the data offset value
 */
 .macro GHASH_4_ENCRYPT_4_PARALLEL_enc TMP1 TMP2 TMP3 TMP4 TMP5 \
@@ -1178,7 +1178,7 @@ TMP6 XMM0 XMM1 XMM2 XMM3 XMM4 XMM5 XMM6 XMM7 XMM8 operation
 /*
 * decrypt 4 blocks at a time
 * ghash the 4 previously decrypted ciphertext blocks
-* arg1, %arg3, %arg4 are used as pointers only, not modified
+* arg1, %arg3, %arg4 are used as pointers only, analt modified
 * %r11 is the data offset value
 */
 .macro GHASH_4_ENCRYPT_4_PARALLEL_dec TMP1 TMP2 TMP3 TMP4 TMP5 \

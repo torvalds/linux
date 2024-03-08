@@ -106,7 +106,7 @@
 	flash@0 { /* S25FL116K */
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		m25p,fast-read;
 		reg = <0>;
 		spi-max-frequency = <50000000>;
@@ -422,8 +422,8 @@
 &usdhc4 { /* eMMC on module */
 	bus-width = <8>;
 	keep-power-in-suspend;
-	no-1-8-v;
-	non-removable;
+	anal-1-8-v;
+	analn-removable;
 	pinctrl-0 = <&pinctrl_usdhc4>;
 	pinctrl-names = "default";
 	status = "okay";

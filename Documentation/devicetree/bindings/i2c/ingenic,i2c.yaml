@@ -13,7 +13,7 @@ allOf:
   - $ref: /schemas/i2c/i2c-controller.yaml#
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^i2c@[0-9a-f]+$"
 
   compatible:

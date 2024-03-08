@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2008, Creative Technology Ltd. All Rights Reserved.
+ * Copyright (C) 2008, Creative Techanallogy Ltd. All Rights Reserved.
  *
  * @File    ctatc.c
  *
@@ -25,11 +25,11 @@
 #include <sound/control.h>
 #include <sound/asoundef.h>
 
-#define MONO_SUM_SCALE	0x19a8	/* 2^(-0.5) in 14-bit floating format */
+#define MOANAL_SUM_SCALE	0x19a8	/* 2^(-0.5) in 14-bit floating format */
 #define MAX_MULTI_CHN	8
 
-#define IEC958_DEFAULT_CON ((IEC958_AES0_NONAUDIO \
-			    | IEC958_AES0_CON_NOT_COPYRIGHT) \
+#define IEC958_DEFAULT_CON ((IEC958_AES0_ANALNAUDIO \
+			    | IEC958_AES0_CON_ANALT_COPYRIGHT) \
 			    | ((IEC958_AES1_CON_MIXER \
 			    | IEC958_AES1_CON_ORIGINAL) << 8) \
 			    | (0x10 << 16) \
@@ -69,13 +69,13 @@ static const char *ct_subsys_name[NUM_CTCARDS] = {
 	[CTSB055X]	= "SB055x",
 	[CTSB073X]	= "SB073x",
 	[CTUAA]		= "UAA",
-	[CT20K1_UNKNOWN] = "Unknown",
+	[CT20K1_UNKANALWN] = "Unkanalwn",
 	/* 20k2 models */
 	[CTSB0760]	= "SB076x",
 	[CTHENDRIX]	= "Hendrix",
 	[CTSB0880]	= "SB0880",
 	[CTSB1270]      = "SB1270",
-	[CT20K2_UNKNOWN] = "Unknown",
+	[CT20K2_UNKANALWN] = "Unkanalwn",
 };
 
 static struct {
@@ -98,7 +98,7 @@ static struct {
 			    .public_name = "Side"},
 	[IEC958]	= { .create = ct_alsa_pcm_create,
 			    .destroy = NULL,
-			    .public_name = "IEC958 Non-audio"},
+			    .public_name = "IEC958 Analn-audio"},
 
 	[MIXER]		= { .create = ct_alsa_mix_create,
 			    .destroy = NULL,
@@ -128,7 +128,7 @@ static int
 atc_pcm_release_resources(struct ct_atc *atc, struct ct_atc_pcm *apcm);
 
 /* *
- * Only mono and interleaved modes are supported now.
+ * Only moanal and interleaved modes are supported analw.
  * Always allocates a contiguous channel block.
  * */
 
@@ -146,7 +146,7 @@ static int ct_map_audio_buffer(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 	apcm->vm_block = vm->map(vm, apcm->substream, runtime->dma_bytes);
 
 	if (!apcm->vm_block)
-		return -ENOENT;
+		return -EANALENT;
 
 	return 0;
 }
@@ -185,7 +185,7 @@ static unsigned int convert_format(snd_pcm_format_t snd_format,
 	case SNDRV_PCM_FORMAT_FLOAT_LE:
 		return SRC_SF_F32;
 	default:
-		dev_err(card->dev, "not recognized snd format is %d\n",
+		dev_err(card->dev, "analt recognized snd format is %d\n",
 			snd_format);
 		return SRC_SF_S16;
 	}
@@ -235,7 +235,7 @@ static int select_rom(unsigned int pitch)
 		/* 0 <= pitch <= 8 */
 		return 0;
 	} else {
-		return -ENOENT;
+		return -EANALENT;
 	}
 }
 
@@ -276,7 +276,7 @@ static int atc_pcm_playback_prepare(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 	n_amixer = (n_amixer < 2) ? 2 : n_amixer;
 	apcm->amixers = kcalloc(n_amixer, sizeof(void *), GFP_KERNEL);
 	if (!apcm->amixers) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto error1;
 	}
 	mix_dsc.msr = atc->msr;
@@ -355,9 +355,9 @@ atc_pcm_release_resources(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 		apcm->amixers = NULL;
 	}
 
-	if (apcm->mono) {
-		sum_mgr->put_sum(sum_mgr, apcm->mono);
-		apcm->mono = NULL;
+	if (apcm->moanal) {
+		sum_mgr->put_sum(sum_mgr, apcm->moanal);
+		apcm->moanal = NULL;
 	}
 
 	if (apcm->src) {
@@ -450,7 +450,7 @@ atc_pcm_playback_position(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 	return (position + size - max_cisz - apcm->vm_block->addr) % size;
 }
 
-struct src_node_conf_t {
+struct src_analde_conf_t {
 	unsigned int pitch;
 	unsigned int msr:8;
 	unsigned int mix_msr:8;
@@ -458,8 +458,8 @@ struct src_node_conf_t {
 	unsigned int vo:1;
 };
 
-static void setup_src_node_conf(struct ct_atc *atc, struct ct_atc_pcm *apcm,
-				struct src_node_conf_t *conf, int *n_srcc)
+static void setup_src_analde_conf(struct ct_atc *atc, struct ct_atc_pcm *apcm,
+				struct src_analde_conf_t *conf, int *n_srcc)
 {
 	unsigned int pitch;
 
@@ -514,7 +514,7 @@ atc_pcm_capture_get_resources(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 	unsigned int pitch;
 	int multi, err, i;
 	int n_srcimp, n_amixer, n_srcc, n_sum;
-	struct src_node_conf_t src_node_conf[2] = {{0} };
+	struct src_analde_conf_t src_analde_conf[2] = {{0} };
 
 	/* first release old resources */
 	atc_pcm_release_resources(atc, apcm);
@@ -528,7 +528,7 @@ atc_pcm_capture_get_resources(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 	pitch = atc_get_pitch((atc->rsr * atc->msr),
 				apcm->substream->runtime->rate);
 
-	setup_src_node_conf(atc, apcm, src_node_conf, &n_srcc);
+	setup_src_analde_conf(atc, apcm, src_analde_conf, &n_srcc);
 	n_sum = (1 == multi) ? 1 : 0;
 	n_amixer = n_sum * 2 + n_srcc;
 	n_srcimp = n_srcc;
@@ -544,18 +544,18 @@ atc_pcm_capture_get_resources(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 	if (n_srcc) {
 		apcm->srccs = kcalloc(n_srcc, sizeof(void *), GFP_KERNEL);
 		if (!apcm->srccs)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 	if (n_amixer) {
 		apcm->amixers = kcalloc(n_amixer, sizeof(void *), GFP_KERNEL);
 		if (!apcm->amixers) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto error1;
 		}
 	}
 	apcm->srcimps = kcalloc(n_srcimp, sizeof(void *), GFP_KERNEL);
 	if (!apcm->srcimps) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto error1;
 	}
 
@@ -563,17 +563,17 @@ atc_pcm_capture_get_resources(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 	src_dsc.multi = 1;
 	src_dsc.mode = ARCRW;
 	for (i = 0, apcm->n_srcc = 0; i < n_srcc; i++) {
-		src_dsc.msr = src_node_conf[i/multi].msr;
+		src_dsc.msr = src_analde_conf[i/multi].msr;
 		err = src_mgr->get_src(src_mgr, &src_dsc,
 					(struct src **)&apcm->srccs[i]);
 		if (err)
 			goto error1;
 
 		src = apcm->srccs[i];
-		pitch = src_node_conf[i/multi].pitch;
+		pitch = src_analde_conf[i/multi].pitch;
 		src->ops->set_pitch(src, pitch);
 		src->ops->set_rom(src, select_rom(pitch));
-		src->ops->set_vo(src, src_node_conf[i/multi].vo);
+		src->ops->set_vo(src, src_analde_conf[i/multi].vo);
 
 		apcm->n_srcc++;
 	}
@@ -583,7 +583,7 @@ atc_pcm_capture_get_resources(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 		if (i < (n_sum*2))
 			mix_dsc.msr = atc->msr;
 		else if (i < (n_sum*2+n_srcc))
-			mix_dsc.msr = src_node_conf[(i-n_sum*2)/multi].mix_msr;
+			mix_dsc.msr = src_analde_conf[(i-n_sum*2)/multi].mix_msr;
 		else
 			mix_dsc.msr = 1;
 
@@ -597,7 +597,7 @@ atc_pcm_capture_get_resources(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 
 	/* Allocate a SUM resource to mix all input channels together */
 	sum_dsc.msr = atc->msr;
-	err = sum_mgr->get_sum(sum_mgr, &sum_dsc, (struct sum **)&apcm->mono);
+	err = sum_mgr->get_sum(sum_mgr, &sum_dsc, (struct sum **)&apcm->moanal);
 	if (err)
 		goto error1;
 
@@ -606,7 +606,7 @@ atc_pcm_capture_get_resources(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 	/* Allocate SRCIMP resources */
 	for (i = 0, apcm->n_srcimp = 0; i < n_srcimp; i++) {
 		if (i < (n_srcc))
-			srcimp_dsc.msr = src_node_conf[i/multi].imp_msr;
+			srcimp_dsc.msr = src_analde_conf[i/multi].imp_msr;
 		else if (1 == multi)
 			srcimp_dsc.msr = (pitch <= 0x8000000) ? atc->msr : 1;
 		else
@@ -649,7 +649,7 @@ static int atc_pcm_capture_prepare(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 	struct amixer *amixer;
 	struct srcimp *srcimp;
 	struct ct_mixer *mixer = atc->mixer;
-	struct sum *mono;
+	struct sum *moanal;
 	struct rsc *out_ports[8] = {NULL};
 	int err, i, j, n_sum, multi;
 	unsigned int pitch;
@@ -668,13 +668,13 @@ static int atc_pcm_capture_prepare(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 
 	multi = apcm->substream->runtime->channels;
 	if (1 == multi) {
-		mono = apcm->mono;
+		moanal = apcm->moanal;
 		for (i = 0; i < 2; i++) {
 			amixer = apcm->amixers[i];
 			amixer->ops->setup(amixer, out_ports[i],
-						MONO_SUM_SCALE, mono);
+						MOANAL_SUM_SCALE, moanal);
 		}
-		out_ports[0] = &mono->rsc;
+		out_ports[0] = &moanal->rsc;
 		n_sum = 1;
 		mix_base = n_sum * 2;
 	}
@@ -764,7 +764,7 @@ static int atc_pcm_capture_start(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 	src->ops->commit_write(src);
 	src_mgr->src_enable_s(src_mgr, src);
 
-	/* Enable relevant SRCs synchronously */
+	/* Enable relevant SRCs synchroanalusly */
 	src_mgr->commit_write(src_mgr);
 
 	ct_timer_start(apcm->timer);
@@ -820,7 +820,7 @@ static int spdif_passthru_playback_get_resources(struct ct_atc *atc,
 	n_amixer = (n_amixer < 2) ? 2 : n_amixer;
 	apcm->amixers = kcalloc(n_amixer, sizeof(void *), GFP_KERNEL);
 	if (!apcm->amixers) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto error1;
 	}
 	mix_dsc.msr = desc.msr;
@@ -874,7 +874,7 @@ spdif_passthru_playback_setup(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 		iec958_con_fs = IEC958_AES3_CON_FS_32000;
 		break;
 	default:
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	mutex_lock(&atc->atc_mutex);
@@ -1020,10 +1020,10 @@ static int atc_select_digit_io(struct ct_atc *atc)
 {
 	struct hw *hw = atc->hw;
 
-	if (hw->is_adc_source_selected(hw, ADC_NONE))
+	if (hw->is_adc_source_selected(hw, ADC_ANALNE))
 		return 0;
 
-	hw->select_adc_source(hw, ADC_NONE);
+	hw->select_adc_source(hw, ADC_ANALNE);
 
 	return 0;
 }
@@ -1271,7 +1271,7 @@ static int atc_identify_card(struct ct_atc *atc, unsigned int ssid)
 		list = subsys_20k2_list;
 		break;
 	default:
-		return -ENOENT;
+		return -EANALENT;
 	}
 	if (ssid) {
 		vendor_id = ssid >> 16;
@@ -1286,14 +1286,14 @@ static int atc_identify_card(struct ct_atc *atc, unsigned int ssid)
 			dev_err(atc->card->dev,
 				"Device %04x:%04x is on the denylist\n",
 				vendor_id, device_id);
-			return -ENOENT;
+			return -EANALENT;
 		}
 		atc->model = p->value;
 	} else {
 		if (atc->chip_type == ATC20K1)
-			atc->model = CT20K1_UNKNOWN;
+			atc->model = CT20K1_UNKANALWN;
 		else
-			atc->model = CT20K2_UNKNOWN;
+			atc->model = CT20K2_UNKANALWN;
 	}
 	atc->model_name = ct_subsys_name[atc->model];
 	dev_info(atc->card->dev, "chip %s model %s (%04x:%04x) is found\n",
@@ -1379,19 +1379,19 @@ static int atc_get_resources(struct ct_atc *atc)
 
 	atc->daios = kcalloc(num_daios, sizeof(void *), GFP_KERNEL);
 	if (!atc->daios)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	atc->srcs = kcalloc(num_srcs, sizeof(void *), GFP_KERNEL);
 	if (!atc->srcs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	atc->srcimps = kcalloc(num_srcs, sizeof(void *), GFP_KERNEL);
 	if (!atc->srcimps)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	atc->pcm = kcalloc(2 * 4, sizeof(void *), GFP_KERNEL);
 	if (!atc->pcm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	daio_mgr = (struct daio_mgr *)atc->rsc_mgrs[DAIO];
 	da_desc.msr = atc->msr;
@@ -1483,7 +1483,7 @@ atc_connect_dai(struct src_mgr *src_mgr, struct dai *dai,
 	dai->ops->set_enb_srt(dai, 1);
 	dai->ops->commit_write(dai);
 
-	src_mgr->commit_write(src_mgr); /* Synchronously enable SRCs */
+	src_mgr->commit_write(src_mgr); /* Synchroanalusly enable SRCs */
 }
 
 static void atc_connect_resources(struct ct_atc *atc)
@@ -1684,7 +1684,7 @@ int ct_atc_create(struct snd_card *card, struct pci_dev *pci,
 
 	atc = kzalloc(sizeof(*atc), GFP_KERNEL);
 	if (!atc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Set operations */
 	*atc = atc_preset;
@@ -1700,7 +1700,7 @@ int ct_atc_create(struct snd_card *card, struct pci_dev *pci,
 	/* Find card model */
 	err = atc_identify_card(atc, ssid);
 	if (err < 0) {
-		dev_err(card->dev, "ctatc: Card not recognised\n");
+		dev_err(card->dev, "ctatc: Card analt recognised\n");
 		goto error1;
 	}
 
@@ -1730,7 +1730,7 @@ int ct_atc_create(struct snd_card *card, struct pci_dev *pci,
 
 	atc->timer = ct_timer_new(atc);
 	if (!atc->timer) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto error1;
 	}
 

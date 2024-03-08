@@ -11,7 +11,7 @@ maintainers:
 
 description:
   This SGPIO controller is for ASPEED AST2400, AST2500 and AST2600 SoC,
-  AST2600 have two sgpio master one with 128 pins another one with 80 pins,
+  AST2600 have two sgpio master one with 128 pins aanalther one with 80 pins,
   AST2500/AST2400 have one sgpio master with 80 pins. Each of the Serial
   GPIO pins can be programmed to support the following options
   - Support interrupt option for each input port and various interrupt

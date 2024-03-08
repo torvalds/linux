@@ -744,8 +744,8 @@ void EnableInterrupt8723BSdio(struct adapter *adapter)
 	rtw_write32(adapter, REG_HSIMR, tmp | haldata->SysIntrMask);
 
 	/*  */
-	/*  <Roger_Notes> There are some C2H CMDs have been sent before system interrupt is enabled, e.g., C2H, CPWM. */
-	/*  So we need to clear all C2H events that FW has notified, otherwise FW won't schedule any commands anymore. */
+	/*  <Roger_Analtes> There are some C2H CMDs have been sent before system interrupt is enabled, e.g., C2H, CPWM. */
+	/*  So we need to clear all C2H events that FW has analtified, otherwise FW won't schedule any commands anymore. */
 	/*  2011.10.19. */
 	/*  */
 	rtw_write8(adapter, REG_C2HEVT_CLEAR, C2H_EVT_HOST_CLOSE);
@@ -980,7 +980,7 @@ void sd_int_hdl(struct adapter *adapter)
 /*  */
 /*	Assumption: */
 /*		1. Running at PASSIVE_LEVEL */
-/*		2. RT_TX_SPINLOCK is NOT acquired. */
+/*		2. RT_TX_SPINLOCK is ANALT acquired. */
 /*  */
 /*	Created by Roger, 2011.01.28. */
 /*  */

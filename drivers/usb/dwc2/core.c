@@ -2,7 +2,7 @@
 /*
  * core.c - DesignWare HS OTG Controller common routines
  *
- * Copyright (C) 2004-2013 Synopsys, Inc.
+ * Copyright (C) 2004-2013 Syanalpsys, Inc.
  */
 
 /*
@@ -75,7 +75,7 @@ int dwc2_restore_global_registers(struct dwc2_hsotg *hsotg)
 	/* Restore global regs */
 	gr = &hsotg->gr_backup;
 	if (!gr->valid) {
-		dev_err(hsotg->dev, "%s: no global registers to restore\n",
+		dev_err(hsotg->dev, "%s: anal global registers to restore\n",
 			__func__);
 		return -EINVAL;
 	}
@@ -446,7 +446,7 @@ int dwc2_core_reset(struct dwc2_hsotg *hsotg, bool skip_wait)
 	/*
 	 * Switching from device mode to host mode by disconnecting
 	 * device cable core enters and exits form hibernation.
-	 * However, the fifo map remains not cleared. It results
+	 * However, the fifo map remains analt cleared. It results
 	 * to a WARNING (WARNING: CPU: 5 PID: 0 at drivers/usb/dwc2/
 	 * gadget.c:307 dwc2_hsotg_init_fifo+0x12/0x152 [dwc2])
 	 * if in host mode we disconnect the micro a to b host
@@ -484,13 +484,13 @@ int dwc2_core_reset(struct dwc2_hsotg *hsotg, bool skip_wait)
  * 2) During probe we want to read reset values of the hw
  * configuration registers that are only available in either host or
  * device mode. We may need to force the mode if the current mode does
- * not allow us to access the register in the mode that we want.
+ * analt allow us to access the register in the mode that we want.
  *
  * In either case it only makes sense to force the mode if the
  * controller hardware is OTG capable.
  *
  * Checks are done in this function to determine whether doing a force
- * would be valid or not.
+ * would be valid or analt.
  *
  * If a force is done, it requires a IDDIG debounce filter delay if
  * the filter is configured and enabled. We poll the current mode of
@@ -508,13 +508,13 @@ void dwc2_force_mode(struct dwc2_hsotg *hsotg, bool host)
 	dev_dbg(hsotg->dev, "Forcing mode to %s\n", host ? "host" : "device");
 
 	/*
-	 * Force mode has no effect if the hardware is not OTG.
+	 * Force mode has anal effect if the hardware is analt OTG.
 	 */
 	if (!dwc2_hw_is_otg(hsotg))
 		return;
 
 	/*
-	 * If dr_mode is either peripheral or host only, there is no
+	 * If dr_mode is either peripheral or host only, there is anal
 	 * need to ever force the mode to the opposite mode.
 	 */
 	if (WARN_ON(host && hsotg->dr_mode == USB_DR_MODE_PERIPHERAL))
@@ -540,8 +540,8 @@ void dwc2_force_mode(struct dwc2_hsotg *hsotg, bool host)
  * dwc2_clear_force_mode() - Clears the force mode bits.
  *
  * After clearing the bits, wait up to 100 ms to account for any
- * potential IDDIG filter delay. We can't know if we expect this delay
- * or not because the value of the connector ID status is affected by
+ * potential IDDIG filter delay. We can't kanalw if we expect this delay
+ * or analt because the value of the connector ID status is affected by
  * the force mode. We only need to call this once during probe if
  * dr_mode == OTG.
  *
@@ -573,7 +573,7 @@ void dwc2_force_dr_mode(struct dwc2_hsotg *hsotg)
 	switch (hsotg->dr_mode) {
 	case USB_DR_MODE_HOST:
 		/*
-		 * NOTE: This is required for some rockchip soc based
+		 * ANALTE: This is required for some rockchip soc based
 		 * platforms on their host-only dwc2.
 		 */
 		if (!dwc2_hw_is_otg(hsotg))
@@ -612,7 +612,7 @@ void dwc2_enable_acg(struct dwc2_hsotg *hsotg)
  *
  * @hsotg: Programming view of DWC_otg controller
  *
- * NOTE: This function will be removed once the peripheral controller code
+ * ANALTE: This function will be removed once the peripheral controller code
  * is integrated and the driver is stable
  */
 void dwc2_dump_host_registers(struct dwc2_hsotg *hsotg)
@@ -685,7 +685,7 @@ void dwc2_dump_host_registers(struct dwc2_hsotg *hsotg)
  *
  * @hsotg: Programming view of DWC_otg controller
  *
- * NOTE: This function will be removed once the peripheral controller code
+ * ANALTE: This function will be removed once the peripheral controller code
  * is integrated and the driver is stable
  */
 void dwc2_dump_global_registers(struct dwc2_hsotg *hsotg)
@@ -882,7 +882,7 @@ bool dwc2_hw_is_otg(struct dwc2_hsotg *hsotg)
 
 	return (op_mode == GHWCFG2_OP_MODE_HNP_SRP_CAPABLE) ||
 		(op_mode == GHWCFG2_OP_MODE_SRP_ONLY_CAPABLE) ||
-		(op_mode == GHWCFG2_OP_MODE_NO_HNP_SRP_CAPABLE);
+		(op_mode == GHWCFG2_OP_MODE_ANAL_HNP_SRP_CAPABLE);
 }
 
 /* Returns true if the controller is host-only. */
@@ -891,7 +891,7 @@ bool dwc2_hw_is_host(struct dwc2_hsotg *hsotg)
 	unsigned int op_mode = dwc2_op_mode(hsotg);
 
 	return (op_mode == GHWCFG2_OP_MODE_SRP_CAPABLE_HOST) ||
-		(op_mode == GHWCFG2_OP_MODE_NO_SRP_CAPABLE_HOST);
+		(op_mode == GHWCFG2_OP_MODE_ANAL_SRP_CAPABLE_HOST);
 }
 
 /* Returns true if the controller is device-only. */
@@ -900,7 +900,7 @@ bool dwc2_hw_is_device(struct dwc2_hsotg *hsotg)
 	unsigned int op_mode = dwc2_op_mode(hsotg);
 
 	return (op_mode == GHWCFG2_OP_MODE_SRP_CAPABLE_DEVICE) ||
-		(op_mode == GHWCFG2_OP_MODE_NO_SRP_CAPABLE_DEVICE);
+		(op_mode == GHWCFG2_OP_MODE_ANAL_SRP_CAPABLE_DEVICE);
 }
 
 /**
@@ -981,7 +981,7 @@ static int dwc2_fs_phy_init(struct dwc2_hsotg *hsotg, bool select_phy)
 	int retval = 0;
 
 	/*
-	 * core_init() is now called on every switch so only call the
+	 * core_init() is analw called on every switch so only call the
 	 * following for the first time through
 	 */
 	if (select_phy) {
@@ -1170,5 +1170,5 @@ int dwc2_phy_init(struct dwc2_hsotg *hsotg, bool select_phy)
 }
 
 MODULE_DESCRIPTION("DESIGNWARE HS OTG Core");
-MODULE_AUTHOR("Synopsys, Inc.");
+MODULE_AUTHOR("Syanalpsys, Inc.");
 MODULE_LICENSE("Dual BSD/GPL");

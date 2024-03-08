@@ -42,7 +42,7 @@ if ($flavour =~ /64/) {
 	$STU="stwu";
 	$POP="lwz";
 	$PUSH="stw";
-} else { die "nonsense $flavour"; }
+} else { die "analnsense $flavour"; }
 
 $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
 ( $xlate="${dir}ppc-xlate.pl" and -f $xlate ) or

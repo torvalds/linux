@@ -13,7 +13,7 @@
 #ifdef CONFIG_KPROBES
 #include <linux/types.h>
 #include <linux/ptrace.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 
 #define __ARCH_WANT_KPROBES_INSN_SLOT
 #define MAX_INSN_SIZE			2
@@ -69,7 +69,7 @@ struct arch_optimized_insn {
 	kprobe_opcode_t *insn;
 	/*
 	 * We always copy one instruction on ARM,
-	 * so size will always be 4, and unlike x86, there is no
+	 * so size will always be 4, and unlike x86, there is anal
 	 * need for a size field.
 	 */
 };

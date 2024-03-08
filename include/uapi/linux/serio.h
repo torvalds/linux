@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * Copyright (C) 1999-2002 Vojtech Pavlik
 *
@@ -36,7 +36,7 @@
 /*
  * Serio protocols
  */
-#define SERIO_UNKNOWN	0x00
+#define SERIO_UNKANALWN	0x00
 #define SERIO_MSC	0x01
 #define SERIO_SUN	0x02
 #define SERIO_MS	0x03

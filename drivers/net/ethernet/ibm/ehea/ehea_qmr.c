@@ -31,7 +31,7 @@ static void *hw_qpageit_get_inc(struct hw_queue *queue)
 		queue->current_q_offset -= queue->pagesize;
 		retvalue = NULL;
 	} else if (((u64) retvalue) & (EHEA_PAGESIZE-1)) {
-		pr_err("not on pageboundary\n");
+		pr_err("analt on pageboundary\n");
 		retvalue = NULL;
 	}
 	return retvalue;
@@ -53,7 +53,7 @@ static int hw_queue_ctor(struct hw_queue *queue, const u32 nr_of_pages,
 	queue->queue_pages = kmalloc_array(nr_of_pages, sizeof(void *),
 					   GFP_KERNEL);
 	if (!queue->queue_pages)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * allocate pages for queue:
@@ -64,7 +64,7 @@ static int hw_queue_ctor(struct hw_queue *queue, const u32 nr_of_pages,
 	while (i < nr_of_pages) {
 		u8 *kpage = (u8 *)get_zeroed_page(GFP_KERNEL);
 		if (!kpage)
-			goto out_nomem;
+			goto out_analmem;
 		for (k = 0; k < pages_per_kpage && i < nr_of_pages; k++) {
 			(queue->queue_pages)[i] = (struct ehea_page *)kpage;
 			kpage += pagesize;
@@ -78,13 +78,13 @@ static int hw_queue_ctor(struct hw_queue *queue, const u32 nr_of_pages,
 	queue->toggle_state = 1;
 
 	return 0;
-out_nomem:
+out_analmem:
 	for (i = 0; i < nr_of_pages; i += pages_per_kpage) {
 		if (!(queue->queue_pages)[i])
 			break;
 		free_page((unsigned long)(queue->queue_pages)[i]);
 	}
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void hw_queue_dtor(struct hw_queue *queue)
@@ -116,7 +116,7 @@ struct ehea_cq *ehea_create_cq(struct ehea_adapter *adapter,
 
 	cq = kzalloc(sizeof(*cq), GFP_KERNEL);
 	if (!cq)
-		goto out_nomem;
+		goto out_analmem;
 
 	cq->attr.max_nr_of_cqes = nr_of_cqe;
 	cq->attr.cq_token = cq_token;
@@ -157,7 +157,7 @@ struct ehea_cq *ehea_create_cq(struct ehea_adapter *adapter,
 			vpage = hw_qpageit_get_inc(&cq->hw_queue);
 
 			if ((hret != H_SUCCESS) || (vpage)) {
-				pr_err("registration of pages not complete hret=%llx\n",
+				pr_err("registration of pages analt complete hret=%llx\n",
 				       hret);
 				goto out_kill_hwq;
 			}
@@ -185,7 +185,7 @@ out_freeres:
 out_freemem:
 	kfree(cq);
 
-out_nomem:
+out_analmem:
 	return NULL;
 }
 
@@ -212,7 +212,7 @@ int ehea_destroy_cq(struct ehea_cq *cq)
 		return 0;
 
 	hcp_epas_dtor(&cq->epas);
-	hret = ehea_destroy_cq_res(cq, NORMAL_FREE);
+	hret = ehea_destroy_cq_res(cq, ANALRMAL_FREE);
 	if (hret == H_R_STATE) {
 		ehea_error_data(cq->adapter, cq->fw_handle, &aer, &aerr);
 		hret = ehea_destroy_cq_res(cq, FORCE_FREE);
@@ -339,7 +339,7 @@ int ehea_destroy_eq(struct ehea_eq *eq)
 
 	hcp_epas_dtor(&eq->epas);
 
-	hret = ehea_destroy_eq_res(eq, NORMAL_FREE);
+	hret = ehea_destroy_eq_res(eq, ANALRMAL_FREE);
 	if (hret == H_R_STATE) {
 		ehea_error_data(eq->adapter, eq->fw_handle, &aer, &aerr);
 		hret = ehea_destroy_eq_res(eq, FORCE_FREE);
@@ -518,7 +518,7 @@ int ehea_destroy_qp(struct ehea_qp *qp)
 
 	hcp_epas_dtor(&qp->epas);
 
-	hret = ehea_destroy_qp_res(qp, NORMAL_FREE);
+	hret = ehea_destroy_qp_res(qp, ANALRMAL_FREE);
 	if (hret == H_R_STATE) {
 		ehea_error_data(qp->adapter, qp->fw_handle, &aer, &aerr);
 		hret = ehea_destroy_qp_res(qp, FORCE_FREE);
@@ -544,7 +544,7 @@ static inline int ehea_init_top_bmap(struct ehea_top_bmap *ehea_top_bmap,
 		ehea_top_bmap->dir[dir] =
 			kzalloc(sizeof(struct ehea_dir_bmap), GFP_KERNEL);
 		if (!ehea_top_bmap->dir[dir])
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 	return 0;
 }
@@ -555,7 +555,7 @@ static inline int ehea_init_bmap(struct ehea_bmap *ehea_bmap, int top, int dir)
 		ehea_bmap->top[top] =
 			kzalloc(sizeof(struct ehea_top_bmap), GFP_KERNEL);
 		if (!ehea_bmap->top[top])
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 	return ehea_init_top_bmap(ehea_bmap->top[top], dir);
 }
@@ -615,7 +615,7 @@ static int ehea_update_busmap(unsigned long pfn, unsigned long nr_pages, int add
 	if (!ehea_bmap) {
 		ehea_bmap = kzalloc(sizeof(struct ehea_bmap), GFP_KERNEL);
 		if (!ehea_bmap)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	start_section = (pfn * PAGE_SIZE) / EHEA_SECTSIZE;
@@ -865,8 +865,8 @@ int ehea_reg_kernel_mr(struct ehea_adapter *adapter, struct ehea_mr *mr)
 
 	pt = (void *)get_zeroed_page(GFP_KERNEL);
 	if (!pt) {
-		pr_err("no mem\n");
-		ret = -ENOMEM;
+		pr_err("anal mem\n");
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -882,7 +882,7 @@ int ehea_reg_kernel_mr(struct ehea_adapter *adapter, struct ehea_mr *mr)
 
 	if (!ehea_bmap) {
 		ehea_h_free_resource(adapter->handle, mr->handle, FORCE_FREE);
-		pr_err("no busmap available\n");
+		pr_err("anal busmap available\n");
 		ret = -EIO;
 		goto out;
 	}
@@ -977,7 +977,7 @@ u64 ehea_error_data(struct ehea_adapter *adapter, u64 res_handle,
 
 	rblock = (void *)get_zeroed_page(GFP_KERNEL);
 	if (!rblock) {
-		pr_err("Cannot allocate rblock memory\n");
+		pr_err("Cananalt allocate rblock memory\n");
 		goto out;
 	}
 
@@ -989,9 +989,9 @@ u64 ehea_error_data(struct ehea_adapter *adapter, u64 res_handle,
 		*aerr = rblock[12];
 		print_error_data(rblock);
 	} else if (ret == H_R_STATE) {
-		pr_err("No error data available: %llX\n", res_handle);
+		pr_err("Anal error data available: %llX\n", res_handle);
 	} else
-		pr_err("Error data could not be fetched: %llX\n", res_handle);
+		pr_err("Error data could analt be fetched: %llX\n", res_handle);
 
 	free_page((unsigned long)rblock);
 out:

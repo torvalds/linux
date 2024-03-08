@@ -59,7 +59,7 @@ void hgsmi_process_display_info(struct gen_pool *ctx, u32 display,
  *                              resize event for any screen, at which time it is
  *                              reset to the bounding rectangle of all virtual
  *                              screens.
- * Return: 0 or negative errno value.
+ * Return: 0 or negative erranal value.
  * @ctx:       The context containing the heap to use.
  * @origin_x:  Upper left X co-ordinate relative to the first screen.
  * @origin_y:  Upper left Y co-ordinate relative to the first screen.
@@ -74,7 +74,7 @@ int hgsmi_update_input_mapping(struct gen_pool *ctx, s32 origin_x, s32 origin_y,
 	p = hgsmi_buffer_alloc(ctx, sizeof(*p), HGSMI_CH_VBVA,
 			       VBVA_REPORT_INPUT_MAPPING);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	p->x = origin_x;
 	p->y = origin_y;
@@ -89,7 +89,7 @@ int hgsmi_update_input_mapping(struct gen_pool *ctx, s32 origin_x, s32 origin_y,
 
 /**
  * hgsmi_get_mode_hints - Get most recent video mode hints.
- * Return: 0 or negative errno value.
+ * Return: 0 or negative erranal value.
  * @ctx:      The context containing the heap to use.
  * @screens:  The number of screens to query hints for, starting at 0.
  * @hints:    Array of vbva_modehint structures for receiving the hints.
@@ -107,11 +107,11 @@ int hgsmi_get_mode_hints(struct gen_pool *ctx, unsigned int screens,
 	p = hgsmi_buffer_alloc(ctx, sizeof(*p) + size, HGSMI_CH_VBVA,
 			       VBVA_QUERY_MODE_HINTS);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	p->hints_queried_count = screens;
 	p->hint_structure_guest_size = sizeof(struct vbva_modehint);
-	p->rc = VERR_NOT_SUPPORTED;
+	p->rc = VERR_ANALT_SUPPORTED;
 
 	hgsmi_buffer_submit(ctx, p);
 

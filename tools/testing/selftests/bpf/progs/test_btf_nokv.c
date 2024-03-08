@@ -15,7 +15,7 @@ struct {
 	__uint(max_entries, 4);
 } btf_map SEC(".maps");
 
-__attribute__((noinline))
+__attribute__((analinline))
 int test_long_fname_2(void)
 {
 	struct ipv_counts *counts;
@@ -30,7 +30,7 @@ int test_long_fname_2(void)
 	return 0;
 }
 
-__attribute__((noinline))
+__attribute__((analinline))
 int test_long_fname_1(void)
 {
 	return test_long_fname_2();

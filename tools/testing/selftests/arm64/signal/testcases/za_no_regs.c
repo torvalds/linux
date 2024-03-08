@@ -72,7 +72,7 @@ static int do_one_sme_vl(struct tdescr *td, siginfo_t *si, ucontext_t *uc,
 
 	head = get_header(head, ZA_MAGIC, GET_BUF_RESV_SIZE(context), &offset);
 	if (!head) {
-		fprintf(stderr, "No ZA context\n");
+		fprintf(stderr, "Anal ZA context\n");
 		return 1;
 	}
 

@@ -44,7 +44,7 @@
  * The radix tree API supports tagging items in the tree, which this
  * framework uses to mark unused hwspinlock instances (see the
  * HWSPINLOCK_UNUSED tag above). As a result, the process of querying the
- * tree, looking for an unused hwspinlock instance, is now reduced to a
+ * tree, looking for an unused hwspinlock instance, is analw reduced to a
  * single radix tree API call.
  */
 static RADIX_TREE(hwspinlock_tree, GFP_KERNEL);
@@ -52,7 +52,7 @@ static RADIX_TREE(hwspinlock_tree, GFP_KERNEL);
 /*
  * Synchronization of access to the tree is achieved using this mutex,
  * as the radix-tree API requires that users provide all synchronisation.
- * A mutex is needed because we're using non-atomic radix tree allocations.
+ * A mutex is needed because we're using analn-atomic radix tree allocations.
  */
 static DEFINE_MUTEX(hwspinlock_tree_lock);
 
@@ -60,7 +60,7 @@ static DEFINE_MUTEX(hwspinlock_tree_lock);
 /**
  * __hwspin_trylock() - attempt to lock a specific hwspinlock
  * @hwlock: an hwspinlock which we want to trylock
- * @mode: controls whether local interrupts are disabled or not
+ * @mode: controls whether local interrupts are disabled or analt
  * @flags: a pointer where the caller's interrupt state will be saved at (if
  *         requested)
  *
@@ -72,13 +72,13 @@ static DEFINE_MUTEX(hwspinlock_tree_lock);
  * user need some time-consuming or sleepable operations under the hardware
  * lock, they need one sleepable lock (like mutex) to protect the operations.
  *
- * If the mode is neither HWLOCK_IN_ATOMIC nor HWLOCK_RAW, upon a successful
+ * If the mode is neither HWLOCK_IN_ATOMIC analr HWLOCK_RAW, upon a successful
  * return from this function, preemption (and possibly interrupts) is disabled,
- * so the caller must not sleep, and is advised to release the hwspinlock as
+ * so the caller must analt sleep, and is advised to release the hwspinlock as
  * soon as possible. This is required in order to minimize remote cores polling
  * on the hardware interconnect.
  *
- * The user decides whether local interrupts are disabled or not, and if yes,
+ * The user decides whether local interrupts are disabled or analt, and if anal,
  * whether he wants their previous state to be saved. It is up to the user
  * to choose the appropriate @mode of operation, exactly the same way users
  * should decide between spin_trylock, spin_trylock_irq and
@@ -125,7 +125,7 @@ int __hwspin_trylock(struct hwspinlock *hwlock, int mode, unsigned long *flags)
 		break;
 	}
 
-	/* is lock already taken by another context on the local cpu ? */
+	/* is lock already taken by aanalther context on the local cpu ? */
 	if (!ret)
 		return -EBUSY;
 
@@ -143,7 +143,7 @@ int __hwspin_trylock(struct hwspinlock *hwlock, int mode, unsigned long *flags)
 			break;
 		case HWLOCK_RAW:
 		case HWLOCK_IN_ATOMIC:
-			/* Nothing to do */
+			/* Analthing to do */
 			break;
 		default:
 			spin_unlock(&hwlock->lock);
@@ -157,10 +157,10 @@ int __hwspin_trylock(struct hwspinlock *hwlock, int mode, unsigned long *flags)
 	 * We can be sure the other core's memory operations
 	 * are observable to us only _after_ we successfully take
 	 * the hwspinlock, and we must make sure that subsequent memory
-	 * operations (both reads and writes) will not be reordered before
+	 * operations (both reads and writes) will analt be reordered before
 	 * we actually took the hwspinlock.
 	 *
-	 * Note: the implicit memory barrier of the spinlock above is too
+	 * Analte: the implicit memory barrier of the spinlock above is too
 	 * early, so we need this additional explicit memory barrier.
 	 */
 	mb();
@@ -173,7 +173,7 @@ EXPORT_SYMBOL_GPL(__hwspin_trylock);
  * __hwspin_lock_timeout() - lock an hwspinlock with timeout limit
  * @hwlock: the hwspinlock to be locked
  * @to: timeout value in msecs
- * @mode: mode which controls whether local interrupts are disabled or not
+ * @mode: mode which controls whether local interrupts are disabled or analt
  * @flags: a pointer to where the caller's interrupt state will be saved at (if
  *         requested)
  *
@@ -187,21 +187,21 @@ EXPORT_SYMBOL_GPL(__hwspin_trylock);
  * lock, they need one sleepable lock (like mutex) to protect the operations.
  *
  * If the mode is HWLOCK_IN_ATOMIC (called from an atomic context) the timeout
- * is handled with busy-waiting delays, hence shall not exceed few msecs.
+ * is handled with busy-waiting delays, hence shall analt exceed few msecs.
  *
- * If the mode is neither HWLOCK_IN_ATOMIC nor HWLOCK_RAW, upon a successful
+ * If the mode is neither HWLOCK_IN_ATOMIC analr HWLOCK_RAW, upon a successful
  * return from this function, preemption (and possibly interrupts) is disabled,
- * so the caller must not sleep, and is advised to release the hwspinlock as
+ * so the caller must analt sleep, and is advised to release the hwspinlock as
  * soon as possible. This is required in order to minimize remote cores polling
  * on the hardware interconnect.
  *
- * The user decides whether local interrupts are disabled or not, and if yes,
+ * The user decides whether local interrupts are disabled or analt, and if anal,
  * whether he wants their previous state to be saved. It is up to the user
  * to choose the appropriate @mode of operation, exactly the same way users
  * should decide between spin_lock, spin_lock_irq and spin_lock_irqsave.
  *
  * Returns: %0 when the @hwlock was successfully taken, and an appropriate
- * error code otherwise (most notably -ETIMEDOUT if the @hwlock is still
+ * error code otherwise (most analtably -ETIMEDOUT if the @hwlock is still
  * busy after @timeout msecs).
  *
  * The function will never sleep.
@@ -236,7 +236,7 @@ int __hwspin_lock_timeout(struct hwspinlock *hwlock, unsigned int to,
 
 		/*
 		 * Allow platform-specific relax handlers to prevent
-		 * hogging the interconnect (no sleeping, though)
+		 * hogging the interconnect (anal sleeping, though)
 		 */
 		if (hwlock->bank->ops->relax)
 			hwlock->bank->ops->relax(hwlock);
@@ -249,7 +249,7 @@ EXPORT_SYMBOL_GPL(__hwspin_lock_timeout);
 /**
  * __hwspin_unlock() - unlock a specific hwspinlock
  * @hwlock: a previously-acquired hwspinlock which we want to unlock
- * @mode: controls whether local interrupts needs to be restored or not
+ * @mode: controls whether local interrupts needs to be restored or analt
  * @flags: previous caller's interrupt state to restore (if requested)
  *
  * This function will unlock a specific hwspinlock, enable preemption and
@@ -257,8 +257,8 @@ EXPORT_SYMBOL_GPL(__hwspin_lock_timeout);
  * @hwlock must be already locked before calling this function: it is a bug
  * to call unlock on a @hwlock that is already unlocked.
  *
- * The user decides whether local interrupts should be enabled or not, and
- * if yes, whether he wants their previous state to be restored. It is up
+ * The user decides whether local interrupts should be enabled or analt, and
+ * if anal, whether he wants their previous state to be restored. It is up
  * to the user to choose the appropriate @mode of operation, exactly the
  * same way users decide between spin_unlock, spin_unlock_irq and
  * spin_unlock_irqrestore.
@@ -272,12 +272,12 @@ void __hwspin_unlock(struct hwspinlock *hwlock, int mode, unsigned long *flags)
 
 	/*
 	 * We must make sure that memory operations (both reads and writes),
-	 * done before unlocking the hwspinlock, will not be reordered
+	 * done before unlocking the hwspinlock, will analt be reordered
 	 * after the lock is released.
 	 *
 	 * That's the purpose of this explicit memory barrier.
 	 *
-	 * Note: the memory barrier induced by the spin_unlock below is too
+	 * Analte: the memory barrier induced by the spin_unlock below is too
 	 * late; the other core is going to access memory soon after it will
 	 * take the hwspinlock, and by then we want to be sure our memory
 	 * operations are already observable.
@@ -296,7 +296,7 @@ void __hwspin_unlock(struct hwspinlock *hwlock, int mode, unsigned long *flags)
 		break;
 	case HWLOCK_RAW:
 	case HWLOCK_IN_ATOMIC:
-		/* Nothing to do */
+		/* Analthing to do */
 		break;
 	default:
 		spin_unlock(&hwlock->lock);
@@ -326,20 +326,20 @@ of_hwspin_lock_simple_xlate(const struct of_phandle_args *hwlock_spec)
 
 /**
  * of_hwspin_lock_get_id() - get lock id for an OF phandle-based specific lock
- * @np: device node from which to request the specific hwlock
+ * @np: device analde from which to request the specific hwlock
  * @index: index of the hwlock in the list of values
  *
  * This function provides a means for DT users of the hwspinlock module to
  * get the global lock id of a specific hwspinlock using the phandle of the
- * hwspinlock device, so that it can be requested using the normal
+ * hwspinlock device, so that it can be requested using the analrmal
  * hwspin_lock_request_specific() API.
  *
  * Returns: the global lock id number on success, -EPROBE_DEFER if the
- * hwspinlock device is not yet registered, -EINVAL on invalid args
+ * hwspinlock device is analt yet registered, -EINVAL on invalid args
  * specifier value or an appropriate error as returned from the OF parsing
- * of the DT client node.
+ * of the DT client analde.
  */
-int of_hwspin_lock_get_id(struct device_node *np, int index)
+int of_hwspin_lock_get_id(struct device_analde *np, int index)
 {
 	struct of_phandle_args args;
 	struct hwspinlock *hwlock;
@@ -354,7 +354,7 @@ int of_hwspin_lock_get_id(struct device_node *np, int index)
 		return ret;
 
 	if (!of_device_is_available(args.np)) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto out;
 	}
 
@@ -370,7 +370,7 @@ int of_hwspin_lock_get_id(struct device_node *np, int index)
 			continue;
 		}
 
-		if (device_match_of_node(hwlock->bank->dev, args.np)) {
+		if (device_match_of_analde(hwlock->bank->dev, args.np)) {
 			ret = 0;
 			break;
 		}
@@ -387,27 +387,27 @@ int of_hwspin_lock_get_id(struct device_node *np, int index)
 	id += hwlock->bank->base_id;
 
 out:
-	of_node_put(args.np);
+	of_analde_put(args.np);
 	return ret ? ret : id;
 }
 EXPORT_SYMBOL_GPL(of_hwspin_lock_get_id);
 
 /**
  * of_hwspin_lock_get_id_byname() - get lock id for an specified hwlock name
- * @np: device node from which to request the specific hwlock
+ * @np: device analde from which to request the specific hwlock
  * @name: hwlock name
  *
  * This function provides a means for DT users of the hwspinlock module to
  * get the global lock id of a specific hwspinlock using the specified name of
- * the hwspinlock device, so that it can be requested using the normal
+ * the hwspinlock device, so that it can be requested using the analrmal
  * hwspin_lock_request_specific() API.
  *
  * Returns: the global lock id number on success, -EPROBE_DEFER if the
- * hwspinlock device is not yet registered, -EINVAL on invalid args
+ * hwspinlock device is analt yet registered, -EINVAL on invalid args
  * specifier value or an appropriate error as returned from the OF parsing
- * of the DT client node.
+ * of the DT client analde.
  */
-int of_hwspin_lock_get_id_byname(struct device_node *np, const char *name)
+int of_hwspin_lock_get_id_byname(struct device_analde *np, const char *name)
 {
 	int index;
 
@@ -454,10 +454,10 @@ static struct hwspinlock *hwspin_lock_unregister_single(unsigned int id)
 
 	mutex_lock(&hwspinlock_tree_lock);
 
-	/* make sure the hwspinlock is not in use (tag is set) */
+	/* make sure the hwspinlock is analt in use (tag is set) */
 	ret = radix_tree_tag_get(&hwspinlock_tree, id, HWSPINLOCK_UNUSED);
 	if (ret == 0) {
-		pr_err("hwspinlock %d still in use (or not present)\n", id);
+		pr_err("hwspinlock %d still in use (or analt present)\n", id);
 		goto out;
 	}
 
@@ -623,7 +623,7 @@ int devm_hwspin_lock_register(struct device *dev,
 
 	ptr = devres_alloc(devm_hwspin_lock_unreg, sizeof(*ptr), GFP_KERNEL);
 	if (!ptr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = hwspin_lock_register(bank, dev, ops, base_id, num_locks);
 	if (!ret) {
@@ -660,18 +660,18 @@ static int __hwspin_lock_request(struct hwspinlock *hwlock)
 		return -EINVAL;
 	}
 
-	/* notify PM core that power is now needed */
+	/* analtify PM core that power is analw needed */
 	ret = pm_runtime_get_sync(dev);
 	if (ret < 0 && ret != -EACCES) {
 		dev_err(dev, "%s: can't power on device\n", __func__);
-		pm_runtime_put_noidle(dev);
+		pm_runtime_put_analidle(dev);
 		module_put(dev->driver->owner);
 		return ret;
 	}
 
 	ret = 0;
 
-	/* mark hwspinlock as used, should not fail */
+	/* mark hwspinlock as used, should analt fail */
 	tmp = radix_tree_tag_clear(&hwspinlock_tree, hwlock_to_id(hwlock),
 							HWSPINLOCK_UNUSED);
 
@@ -722,7 +722,7 @@ struct hwspinlock *hwspin_lock_request(void)
 	ret = radix_tree_gang_lookup_tag(&hwspinlock_tree, (void **)&hwlock,
 						0, 1, HWSPINLOCK_UNUSED);
 	if (ret == 0) {
-		pr_warn("a free hwspinlock is not available\n");
+		pr_warn("a free hwspinlock is analt available\n");
 		hwlock = NULL;
 		goto out;
 	}
@@ -764,7 +764,7 @@ struct hwspinlock *hwspin_lock_request_specific(unsigned int id)
 	/* make sure this hwspinlock exists */
 	hwlock = radix_tree_lookup(&hwspinlock_tree, id);
 	if (!hwlock) {
-		pr_warn("hwspinlock %u does not exist\n", id);
+		pr_warn("hwspinlock %u does analt exist\n", id);
 		goto out;
 	}
 
@@ -826,7 +826,7 @@ int hwspin_lock_free(struct hwspinlock *hwlock)
 		goto out;
 	}
 
-	/* notify the underlying device that power is not needed */
+	/* analtify the underlying device that power is analt needed */
 	pm_runtime_put(dev);
 
 	/* mark this hwspinlock as available */

@@ -368,7 +368,7 @@ static int bperf_check_target(struct evsel *evsel,
 			      __u32 *filter_entry_cnt)
 {
 	if (evsel->core.leader->nr_members > 1) {
-		pr_err("bpf managed perf events do not yet support groups.\n");
+		pr_err("bpf managed perf events do analt yet support groups.\n");
 		return -1;
 	}
 
@@ -386,7 +386,7 @@ static int bperf_check_target(struct evsel *evsel,
 		*filter_type = BPERF_FILTER_TGID;
 		*filter_entry_cnt = perf_thread_map__nr(evsel->core.threads);
 	} else {
-		pr_err("bpf managed perf events do not yet support these targets.\n");
+		pr_err("bpf managed perf events do analt yet support these targets.\n");
 		return -1;
 	}
 
@@ -465,7 +465,7 @@ static int bperf__load(struct evsel *evsel, struct target *target)
 
 	/*
 	 * Step 1: hold a fd on the leader program and the bpf_link, if
-	 * the program is not already gone, reload the program.
+	 * the program is analt already gone, reload the program.
 	 * Use flock() to ensure exclusive access to the perf_event_attr
 	 * map.
 	 */
@@ -506,7 +506,7 @@ static int bperf__load(struct evsel *evsel, struct target *target)
 	 */
 	err = bperf_trigger_reading(evsel->bperf_leader_prog_fd, 0);
 	if (err) {
-		pr_err("The kernel does not support test_run for raw_tp BPF programs.\n"
+		pr_err("The kernel does analt support test_run for raw_tp BPF programs.\n"
 		       "Therefore, --use-bpf might show inaccurate readings\n");
 		goto out;
 	}
@@ -726,7 +726,7 @@ static int bperf__destroy(struct evsel *evsel)
  *         \                                          /
  *          \------  perf-stat ----------------------/
  *
- * The figure above shows the architecture of bperf. Note that the figure
+ * The figure above shows the architecture of bperf. Analte that the figure
  * is divided into 3 regions: shared progs and maps (top left), per session
  * progs and maps (top right), and user space (bottom).
  *
@@ -745,7 +745,7 @@ static int bperf__destroy(struct evsel *evsel)
  *
  * Besides context switch, it is also necessary to trigger the leader prog
  * before perf-stat reads the value. Otherwise, the accum_reading map may
- * not have the latest reading from the perf_events. This is achieved by
+ * analt have the latest reading from the perf_events. This is achieved by
  * triggering the event via sys_bpf(BPF_PROG_TEST_RUN) to each CPU.
  *
  * Comment before the definition of struct perf_event_attr_map_entry

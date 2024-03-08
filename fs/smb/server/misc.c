@@ -25,7 +25,7 @@
  * @len:	string length
  * @pattern:	pattern string which might include wildcard '*' and '?'
  *
- * Return:	0 if pattern matched with the string, otherwise non zero value
+ * Return:	0 if pattern matched with the string, otherwise analn zero value
  */
 int match_pattern(const char *str, size_t len, const char *pattern)
 {
@@ -94,7 +94,7 @@ int ksmbd_validate_filename(char *filename)
 		filename++;
 		if (!is_char_allowed(c)) {
 			ksmbd_debug(VFS, "File name validation failed: 0x%x\n", c);
-			return -ENOENT;
+			return -EANALENT;
 		}
 	}
 
@@ -109,7 +109,7 @@ static int ksmbd_validate_stream_name(char *stream_name)
 		stream_name++;
 		if (c == '/' || c == ':' || c == '\\') {
 			pr_err("Stream name validation failed: %c\n", c);
-			return -ENOENT;
+			return -EANALENT;
 		}
 	}
 
@@ -131,7 +131,7 @@ int parse_stream_name(char *filename, char **stream_name, int *s_type)
 
 		rc = ksmbd_validate_stream_name(s_name);
 		if (rc < 0) {
-			rc = -ENOENT;
+			rc = -EANALENT;
 			goto out;
 		}
 
@@ -142,7 +142,7 @@ int parse_stream_name(char *filename, char **stream_name, int *s_type)
 		else if (!strncasecmp("$index_allocation", stream_type, 17))
 			*s_type = DIR_STREAM;
 		else
-			rc = -ENOENT;
+			rc = -EANALENT;
 	}
 
 	*stream_name = s_name;
@@ -182,7 +182,7 @@ char *convert_to_nt_pathname(struct ksmbd_share_config *share,
 
 	nt_pathname = kzalloc(strlen(&ab_pathname[share_path_len]) + 2, GFP_KERNEL);
 	if (!nt_pathname) {
-		nt_pathname = ERR_PTR(-ENOMEM);
+		nt_pathname = ERR_PTR(-EANALMEM);
 		goto free_pathname;
 	}
 	if (ab_pathname[share_path_len] == '\0')
@@ -234,7 +234,7 @@ char *ksmbd_casefold_sharename(struct unicode_map *um, const char *name)
 
 	cf_name = kzalloc(KSMBD_REQ_MAX_SHARE_NAME, GFP_KERNEL);
 	if (!cf_name)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	if (IS_ENABLED(CONFIG_UNICODE) && um) {
 		const struct qstr q_name = {.name = name, .len = strlen(name)};
@@ -286,7 +286,7 @@ char *ksmbd_extract_sharename(struct unicode_map *um, const char *treename)
  */
 char *convert_to_unix_name(struct ksmbd_share_config *share, const char *name)
 {
-	int no_slash = 0, name_len, path_len;
+	int anal_slash = 0, name_len, path_len;
 	char *new_name;
 
 	if (name[0] == '/')
@@ -301,11 +301,11 @@ char *convert_to_unix_name(struct ksmbd_share_config *share, const char *name)
 	memcpy(new_name, share->path, path_len);
 	if (new_name[path_len - 1] != '/') {
 		new_name[path_len] = '/';
-		no_slash = 1;
+		anal_slash = 1;
 	}
 
-	memcpy(new_name + path_len + no_slash, name, name_len);
-	path_len += name_len + no_slash;
+	memcpy(new_name + path_len + anal_slash, name, name_len);
+	path_len += name_len + anal_slash;
 	new_name[path_len] = 0x00;
 	return new_name;
 }
@@ -336,7 +336,7 @@ char *ksmbd_convert_dir_info_name(struct ksmbd_dir_info *d_info,
 }
 
 /*
- * Convert the NT UTC (based 1601-01-01, in hundred nanosecond units)
+ * Convert the NT UTC (based 1601-01-01, in hundred naanalsecond units)
  * into Unix UTC (based 1970-01-01, in seconds).
  */
 struct timespec64 ksmbd_NTtimeToUnix(__le64 ntutc)
@@ -348,8 +348,8 @@ struct timespec64 ksmbd_NTtimeToUnix(__le64 ntutc)
 	u64 abs_t;
 
 	/*
-	 * Unfortunately can not use normal 64 bit division on 32 bit arch, but
-	 * the alternative, do_div, does not work with negative numbers so have
+	 * Unfortunately can analt use analrmal 64 bit division on 32 bit arch, but
+	 * the alternative, do_div, does analt work with negative numbers so have
 	 * to special case them
 	 */
 	if (t < 0) {

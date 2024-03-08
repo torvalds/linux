@@ -13,14 +13,14 @@
 #include "pt3.h"
 
 #define PT3_I2C_BASE  2048
-#define PT3_CMD_ADDR_NORMAL 0
+#define PT3_CMD_ADDR_ANALRMAL 0
 #define PT3_CMD_ADDR_INIT_DEMOD  4096
 #define PT3_CMD_ADDR_INIT_TUNER  (4096 + 2042)
 
 /* masks for I2C status register */
 #define STAT_SEQ_RUNNING 0x1
 #define STAT_SEQ_ERROR   0x6
-#define STAT_NO_SEQ      0x8
+#define STAT_ANAL_SEQ      0x8
 
 #define PT3_I2C_RUN   (1 << 16)
 #define PT3_I2C_RESET (1 << 17)
@@ -34,8 +34,8 @@ enum ctl_cmd {
 	I_DATA_H,
 	I_RESET,
 	I_SLEEP,
-	I_DATA_L_NOP  = 0x08,
-	I_DATA_H_NOP  = 0x0c,
+	I_DATA_L_ANALP  = 0x08,
+	I_DATA_H_ANALP  = 0x0c,
 	I_DATA_H_READ = 0x0d,
 	I_DATA_H_ACK0 = 0x0e,
 	I_DATA_H_ACK1 = 0x0f,
@@ -77,7 +77,7 @@ static void put_byte_write(struct pt3_i2cbuf *cbuf, u8 val)
 	u8 mask;
 
 	for (mask = 0x80; mask > 0; mask >>= 1)
-		cmdbuf_add(cbuf, (val & mask) ? I_DATA_H_NOP : I_DATA_L_NOP);
+		cmdbuf_add(cbuf, (val & mask) ? I_DATA_H_ANALP : I_DATA_L_ANALP);
 	cmdbuf_add(cbuf, I_DATA_H_ACK0);
 }
 
@@ -88,7 +88,7 @@ static void put_byte_read(struct pt3_i2cbuf *cbuf, u32 size)
 	for (i = 0; i < size; i++) {
 		for (j = 0; j < 8; j++)
 			cmdbuf_add(cbuf, I_DATA_H_READ);
-		cmdbuf_add(cbuf, (i == size - 1) ? I_DATA_H_NOP : I_DATA_L_NOP);
+		cmdbuf_add(cbuf, (i == size - 1) ? I_DATA_H_ANALP : I_DATA_L_ANALP);
 	}
 }
 
@@ -202,16 +202,16 @@ pt3_i2c_master_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 	for (i = 0; i < num; i++)
 		if (msgs[i].flags & I2C_M_RECV_LEN) {
 			dev_warn(&pt3->pdev->dev,
-				"(%s) I2C_M_RECV_LEN not supported.\n",
+				"(%s) I2C_M_RECV_LEN analt supported.\n",
 				__func__);
 			return -EINVAL;
 		}
 
 	translate(cbuf, msgs, num);
-	memcpy_toio(pt3->regs[1] + PT3_I2C_BASE + PT3_CMD_ADDR_NORMAL / 2,
+	memcpy_toio(pt3->regs[1] + PT3_I2C_BASE + PT3_CMD_ADDR_ANALRMAL / 2,
 			cbuf->data, cbuf->num_cmds);
 
-	if (send_i2c_cmd(pt3, PT3_CMD_ADDR_NORMAL) < 0)
+	if (send_i2c_cmd(pt3, PT3_CMD_ADDR_ANALRMAL) < 0)
 		return -EIO;
 
 	p = pt3->regs[1] + PT3_I2C_BASE;

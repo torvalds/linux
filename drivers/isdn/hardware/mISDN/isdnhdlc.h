@@ -49,7 +49,7 @@ struct isdnhdlc_vars {
 
 /*
   The return value from isdnhdlc_decode is
-  the frame length, 0 if no complete frame was decoded,
+  the frame length, 0 if anal complete frame was decoded,
   or a negative error number
 */
 #define HDLC_FRAMING_ERROR     1

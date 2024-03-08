@@ -9,14 +9,14 @@ menuconfig C2PORT
 	  This option enables support for Silicon Labs C2 port used to
 	  program Silicon micro controller chips (and other 8051 compatible).
 
-	  If your board have no such micro controllers you don't need this
+	  If your board have anal such micro controllers you don't need this
 	  interface at all.
 
 	  To compile this driver as a module, choose M here: the module will
-	  be called c2port_core. Note that you also need a client module
+	  be called c2port_core. Analte that you also need a client module
 	  usually called c2port-*.
 
-	  If you are not sure, say N here.
+	  If you are analt sure, say N here.
 
 if C2PORT
 

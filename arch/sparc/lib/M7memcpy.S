@@ -10,7 +10,7 @@
  * memcpy(s1, s2, len)
  *
  * Copy s2 to s1, always copy n bytes.
- * Note: this C code does not work for overlapped copies.
+ * Analte: this C code does analt work for overlapped copies.
  *
  * Fast assembler language version of the following C-program for memcpy
  * which represents the `standard' for the C-library.
@@ -34,17 +34,17 @@
  * if (count < SMALL_MAX) {
  *   if count < SHORTCOPY              (SHORTCOPY=3)
  *	copy bytes; exit with dst addr
- *   if src & dst aligned on word boundary but not long word boundary,
+ *   if src & dst aligned on word boundary but analt long word boundary,
  *     copy with ldw/stw; branch to finish_up
  *   if src & dst aligned on long word boundary
  *     copy with ldx/stx; branch to finish_up
- *   if src & dst not aligned and length <= SHORTCHECK   (SHORTCHECK=14)
+ *   if src & dst analt aligned and length <= SHORTCHECK   (SHORTCHECK=14)
  *     copy bytes; exit with dst addr
- *   move enough bytes to get src to word boundary
- *   if dst now on word boundary
+ *   move eanalugh bytes to get src to word boundary
+ *   if dst analw on word boundary
  * move_words:
  *     copy words; branch to finish_up
- *   if dst now on half word boundary
+ *   if dst analw on half word boundary
  *     load words, shift half words, store words; branch to finish_up
  *   if dst on byte 1
  *     load words, shift 3 bytes, store words; branch to finish_up
@@ -69,7 +69,7 @@
  *       excess STQ and Miss Buffer filling. Repeat until near the end,
  *       then finish up storing before going to finish_long.
  *     }
- *   } else {                                   src/dst not aligned on 8 bytes
+ *   } else {                                   src/dst analt aligned on 8 bytes
  *     if src is word aligned and count < MED_WMAX
  *       move words in 8-way unrolled loop
  *       move final 0-31 bytes; exit with dst addr
@@ -92,7 +92,7 @@
 #include <asm/asi.h>
 
 #if !defined(EX_LD) && !defined(EX_ST)
-#define NON_USER_COPY
+#define ANALN_USER_COPY
 #endif
 
 #ifndef EX_LD
@@ -131,7 +131,7 @@
  * but the last cache line
  */
 #ifndef STORE_ASI
-#ifndef SIMULATE_NIAGARA_ON_NON_NIAGARA
+#ifndef SIMULATE_NIAGARA_ON_ANALN_NIAGARA
 #define STORE_ASI	ASI_BLK_INIT_QUAD_LDD_P
 #else
 #define STORE_ASI	0x80		/* ASI_P */
@@ -139,7 +139,7 @@
 #endif
 
 #ifndef STORE_MRU_ASI
-#ifndef SIMULATE_NIAGARA_ON_NON_NIAGARA
+#ifndef SIMULATE_NIAGARA_ON_ANALN_NIAGARA
 #define STORE_MRU_ASI	ASI_ST_BLKINIT_MRU_P
 #else
 #define STORE_MRU_ASI	0x80		/* ASI_P */
@@ -194,7 +194,7 @@ FUNC_NAME:
 	 or             %o0, %o1, %g2
 	cmp             %o2, SMALL_MAX
 	bl,pn           %icc, .Lmedium_cp
-	 nop
+	 analp
 
 .Lmedium:
 	neg	%o0, %o5
@@ -215,14 +215,14 @@ FUNC_NAME:
 .Ldst_aligned_on_8:
 	andcc	%o1, 7, %o5
 	brnz,pt	%o5, .Lsrc_dst_unaligned_on_8
-	 nop
+	 analp
 
 .Lsrc_dst_aligned_on_8:
 	! check if we are copying MED_MAX or more bytes
 	set MED_MAX, %o3
 	cmp %o2, %o3 			! limit to store buffer size
 	bgu,pn	%xcc, .Llarge_align8_copy
-	 nop
+	 analp
 
 /*
  * Special case for handling when src and dest are both long word aligned
@@ -231,7 +231,7 @@ FUNC_NAME:
 .Lmedlong:
 	subcc	%o2, 63, %o2		! adjust length to allow cc test
 	ble,pn	%xcc, .Lmedl63		! skip big loop if less than 64 bytes
-	 nop
+	 analp
 .Lmedl64:
 	EX_LD(LOAD(ldx, %o1, %o4), memcpy_retl_o2_plus_63)	! load
 	subcc	%o2, 64, %o2		! decrement length count
@@ -256,7 +256,7 @@ FUNC_NAME:
 .Lmedl63:
 	addcc	%o2, 32, %o2		! adjust remaining count
 	ble,pt	%xcc, .Lmedl31		! to skip if 31 or fewer bytes left
-	 nop
+	 analp
 	EX_LD(LOAD(ldx, %o1, %o4), memcpy_retl_o2_plus_31)	! load
 	sub	%o2, 32, %o2		! decrement length count
 	EX_ST(STORE(stx, %o4, %o0), memcpy_retl_o2_plus_31_32)	! and store
@@ -271,7 +271,7 @@ FUNC_NAME:
 .Lmedl31:
 	addcc	%o2, 16, %o2		! adjust remaining count
 	ble,pt	%xcc, .Lmedl15		! skip if 15 or fewer bytes left
-	 nop				!
+	 analp				!
 	EX_LD(LOAD(ldx, %o1, %o4), memcpy_retl_o2_plus_15)
 	add	%o1, 16, %o1		! increase src ptr by 16
 	EX_ST(STORE(stx, %o4, %o0), memcpy_retl_o2_plus_15)
@@ -296,11 +296,11 @@ FUNC_NAME:
 
 	.align 16
 .Lsrc_dst_unaligned_on_8:
-	! DST is 8-byte aligned, src is not
+	! DST is 8-byte aligned, src is analt
 2:
 	andcc	%o1, 0x3, %o5		! test word alignment
-	bnz,pt	%xcc, .Lunalignsetup	! branch to skip if not word aligned
-	 nop
+	bnz,pt	%xcc, .Lunalignsetup	! branch to skip if analt word aligned
+	 analp
 
 /*
  * Handle all cases where src and dest are aligned on word
@@ -312,7 +312,7 @@ FUNC_NAME:
 	set MED_WMAX, %o3
 	cmp %o2, %o3 			! limit to store buffer size
 	bge,pt	%xcc, .Lunalignrejoin	! otherwise rejoin main loop
-	 nop
+	 analp
 
 	subcc	%o2, 31, %o2		! adjust length to allow cc test
 					! for end of loop
@@ -346,10 +346,10 @@ FUNC_NAME:
 	addcc	%o2, 31, %o2		! restore count
 
 	bz,pt	%xcc, .Lsmallx	! exit if finished
-	 nop
+	 analp
 	cmp	%o2, 16
 	blt,pt	%xcc, .Lmedw15
-	 nop
+	 analp
 	EX_LD(LOAD(ld, %o1, %o4), memcpy_retl_o2)! move a block of 16 bytes
 	sllx	%o4, 32, %o5
 	subcc	%o2, 16, %o2		! decrement length count
@@ -379,7 +379,7 @@ FUNC_NAME:
 .Lmedw7:				! count is ge 1, less than 8
 	cmp	%o2, 4			! check for 4 bytes left
 	blt,pn	%xcc, .Lsmallleft3	! skip if 3 or fewer bytes left
-	 nop				!
+	 analp				!
 	EX_LD(LOAD(ld, %o1, %o4), memcpy_retl_o2)	! load 4 bytes
 	add	%o1, 4, %o1		! increase src ptr by 4
 	add	%o0, 4, %o0		! increase dst ptr by 4
@@ -396,7 +396,7 @@ FUNC_NAME:
 	brz,pn	%o3, .Laligned_to_64
 	 andcc	%o0, 8, %o3		! odd long words to move?
 	brz,pt	%o3, .Laligned_to_16
-	 nop
+	 analp
 	EX_LD(LOAD(ldx, %o1, %o4), memcpy_retl_o2)
 	sub	%o2, 8, %o2
 	add	%o1, 8, %o1		! increment src ptr
@@ -405,7 +405,7 @@ FUNC_NAME:
 .Laligned_to_16:
 	andcc	%o0, 16, %o3		! pair of long words to move?
 	brz,pt	%o3, .Laligned_to_32
-	 nop
+	 analp
 	EX_LD(LOAD(ldx, %o1, %o4), memcpy_retl_o2)
 	sub	%o2, 16, %o2
 	EX_ST(STORE(stx, %o4, %o0), memcpy_retl_o2_plus_16)
@@ -416,7 +416,7 @@ FUNC_NAME:
 .Laligned_to_32:
 	andcc	%o0, 32, %o3		! four long words to move?
 	brz,pt	%o3, .Laligned_to_64
-	 nop
+	 analp
 	EX_LD(LOAD(ldx, %o1, %o4), memcpy_retl_o2)
 	sub	%o2, 32, %o2
 	EX_ST(STORE(stx, %o4, %o0), memcpy_retl_o2_plus_32)
@@ -448,7 +448,7 @@ FUNC_NAME:
 !	other cached values during a large memcpy
 !
 !	ST_CHUNK batches up initial BIS operations for several cache lines
-!	to allow multiple requests to not be blocked by overflowing the
+!	to allow multiple requests to analt be blocked by overflowing the
 !	the store miss buffer. Then the matching stores for all those
 !	BIS operations are executed.
 !
@@ -507,7 +507,7 @@ FUNC_NAME:
 
 	cmp	%o5, 0
 	beq	.Lalign_done
-	 nop
+	 analp
 .Lalign_loop_fin:
 	EX_LD(LOAD(ldx, %o1, %o4), memcpy_retl_o2_plus_o5)
 	EX_ST(STORE(stx, %o4, %o0+8), memcpy_retl_o2_plus_o5)
@@ -535,14 +535,14 @@ FUNC_NAME:
 	membar	#StoreStore
 	sub	%o2, 63, %o2		! adjust length to allow cc test
 	ba	.Lmedl63		! in .Lmedl63
-	 nop
+	 analp
 
 	.align 16
-	! Dst is on 8 byte boundary; src is not; remaining count > SMALL_MAX
+	! Dst is on 8 byte boundary; src is analt; remaining count > SMALL_MAX
 .Lunalignsetup:
 .Lunalignrejoin:
 	mov	%g1, %o3	! save %g1 as VISEntryHalf clobbers it
-#ifdef NON_USER_COPY
+#ifdef ANALN_USER_COPY
 	VISEntryHalfFast(.Lmedium_vis_entry_fail_cp)
 #else
 	VISEntryHalf
@@ -555,7 +555,7 @@ FUNC_NAME:
 	 prefetch [%o1 + (4 * BLOCK_SIZE)], 20
 	andn	%o2, 0x3f, %o5		! %o5 is multiple of block size
 	and	%o2, 0x3f, %o2		! residue bytes in %o2
-	cmp	%o2, 8			! Insure we do not load beyond
+	cmp	%o2, 8			! Insure we do analt load beyond
 	bgt	.Lunalign_adjust	! end of source buffer
 	 andn	%o1, 0x7, %o4		! %o4 has long word aligned src address
 	add	%o2, 64, %o2		! adjust to leave loop
@@ -595,7 +595,7 @@ FUNC_NAME:
 	bgu,pt	%xcc, .Lunalign_loop
 	 prefetch [%o4 + (5 * BLOCK_SIZE)], 20
 	ba	.Lunalign_done
-	 nop
+	 analp
 
 .Lunalign_large:
 	andcc	%o0, 0x3f, %o3		! is dst 64-byte block aligned?
@@ -606,10 +606,10 @@ FUNC_NAME:
 	! Move bytes according to source alignment
 	andcc	%o1, 0x1, %o5
 	bnz	%xcc, .Lunalignbyte	! check for byte alignment
-	 nop
+	 analp
 	andcc	%o1, 2, %o5		! check for half word alignment
 	bnz	%xcc, .Lunalignhalf
-	 nop
+	 analp
 	! Src is word aligned
 .Lunalignword:
 	EX_LD_FP(LOAD(ld, %o1, %o4), memcpy_retl_o2_plus_o3)	! load 4 bytes
@@ -621,7 +621,7 @@ FUNC_NAME:
 	bnz	%xcc, .Lunalignword
 	 EX_ST_FP(STORE(stw, %o4, %o0-4), memcpy_retl_o2_plus_o3_plus_4)
 	ba	.Lunalignsrc
-	 nop
+	 analp
 
 	! Src is half-word aligned
 .Lunalignhalf:
@@ -638,7 +638,7 @@ FUNC_NAME:
 	bnz	%xcc, .Lunalignhalf
 	 add	%o0, 8, %o0
 	ba	.Lunalignsrc
-	 nop
+	 analp
 
 	! Src is Byte aligned
 .Lunalignbyte:
@@ -665,11 +665,11 @@ FUNC_NAME:
 	 add	%o1, 8, %o1
 	add	%o0,%o1, %o0 		! restore pointer
 
-	! Destination is now block (64 byte aligned)
+	! Destination is analw block (64 byte aligned)
 .Lunalignsrc:
 	andn	%o2, 0x3f, %o5		! %o5 is multiple of block size
 	and	%o2, 0x3f, %o2		! residue bytes in %o2
-	add	%o2, 64, %o2		! Insure we do not load beyond
+	add	%o2, 64, %o2		! Insure we do analt load beyond
 	sub	%o5, 64, %o5		! end of source buffer
 
 	andn	%o1, 0x7, %o4		! %o4 has long word aligned src address
@@ -712,14 +712,14 @@ FUNC_NAME:
 
 .Lunalign_done:
 	! Handle trailing bytes, 64 to 127
-	! Dest long word aligned, Src not long word aligned
+	! Dest long word aligned, Src analt long word aligned
 	cmp	%o2, 15
 	bleu	%xcc, .Lunalign_short
 
 	 andn	%o2, 0x7, %o5		! %o5 is multiple of 8
 	and	%o2, 0x7, %o2		! residue bytes in %o2
 	add	%o2, 8, %o2
-	sub	%o5, 8, %o5		! insure we do not load past end of src
+	sub	%o5, 8, %o5		! insure we do analt load past end of src
 	andn	%o1, 0x7, %o4		! %o4 has long word aligned src address
 	add	%o1, %o5, %o1		! advance %o1 to after multiple of 8
 	EX_LD_FP(LOAD(ldd, %o4, %f0), memcpy_retl_o2_plus_o5)! fetch partialword
@@ -734,23 +734,23 @@ FUNC_NAME:
 	 add	%o0, 8, %o0
 
 .Lunalign_short:
-#ifdef NON_USER_COPY
+#ifdef ANALN_USER_COPY
 	VISExitHalfFast
 #else
 	VISExitHalf
 #endif
 	ba	.Lsmallrest
-	 nop
+	 analp
 
 /*
  * This is a special case of nested memcpy. This can happen when kernel
  * calls unaligned memcpy back to back without saving FP registers. We need
  * traps(context switch) to save/restore FP registers. If the kernel calls
  * memcpy without this trap sequence we will hit FP corruption. Let's use
- * the normal integer load/store method in this case.
+ * the analrmal integer load/store method in this case.
  */
 
-#ifdef NON_USER_COPY
+#ifdef ANALN_USER_COPY
 .Lmedium_vis_entry_fail_cp:
 	or	%o0, %o1, %g2
 #endif
@@ -758,9 +758,9 @@ FUNC_NAME:
 	LOAD(prefetch, %o1 + 0x40, #n_reads_strong)
 	andcc	%g2, 0x7, %g0
 	bne,pn	%xcc, .Lmedium_unaligned_cp
-	 nop
+	 analp
 
-.Lmedium_noprefetch_cp:
+.Lmedium_analprefetch_cp:
 	andncc	%o2, 0x20 - 1, %o5
 	be,pn	%xcc, 2f
 	 sub	%o2, %o5, %o2
@@ -788,7 +788,7 @@ FUNC_NAME:
 3:	brz,pt	%o2, .Lexit_cp
 	 cmp	%o2, 0x04
 	bl,pn	%xcc, .Ltiny_cp
-	 nop
+	 analp
 	EX_LD(LOAD(lduw, %o1 + 0x00, %o3), memcpy_retl_o2)
 	add	%o1, 0x04, %o1
 	add	%o0, 0x04, %o0
@@ -812,7 +812,7 @@ FUNC_NAME:
 	 EX_ST(STORE(stb, %g2, %o0 - 0x01), memcpy_retl_o2_plus_g1_plus_1)
 2:
 	and	%o1, 0x7, %o3
-	brz,pn	%o3, .Lmedium_noprefetch_cp
+	brz,pn	%o3, .Lmedium_analprefetch_cp
 	 sll	%o3, 3, %o3
 	mov	64, %g2
 	sub	%g2, %o3, %g2
@@ -834,7 +834,7 @@ FUNC_NAME:
 	srl	%o3, 3, %o3
 	add	%o1, %o3, %o1
 	brz,pn	%o2, .Lexit_cp
-	 nop
+	 analp
 	ba,pt	%xcc, .Lsmall_unaligned_cp
 
 .Ltiny_cp:
@@ -863,7 +863,7 @@ FUNC_NAME:
 	bne,pt	%xcc, 1b
 	 EX_ST(STORE(stw, %o3, %o0 - 0x04), memcpy_retl_o2_plus_o5_plus_4)
 	brz,pt	%o2, .Lexit_cp
-	 nop
+	 analp
 	ba,a,pt	%xcc, .Ltiny_cp
 
 .Lsmall_unaligned_cp:
@@ -880,9 +880,9 @@ FUNC_NAME:
 	bz,pt	%xcc, .Lsmallx
 	 cmp	%o2, 4
 	blt,pn	%xcc, .Lsmallleft3
-	 nop
+	 analp
 	sub	%o2, 3, %o2
-.Lsmallnotalign4:
+.Lsmallanaltalign4:
 	EX_LD(LOAD(ldub, %o1, %o3), memcpy_retl_o2_plus_3)! read byte
 	subcc	%o2, 4, %o2		! reduce count by 4
 	EX_ST(STORE(stb, %o3, %o0), memcpy_retl_o2_plus_7)! write byte & repeat
@@ -893,7 +893,7 @@ FUNC_NAME:
 	add	%o0, 4, %o0		! advance DST by 4
 	EX_ST(STORE(stb, %o3, %o0-2), memcpy_retl_o2_plus_5)
 	EX_LD(LOAD(ldub, %o1-1, %o3), memcpy_retl_o2_plus_4)
-	bgu,pt	%xcc, .Lsmallnotalign4	! loop til 3 or fewer bytes remain
+	bgu,pt	%xcc, .Lsmallanaltalign4	! loop til 3 or fewer bytes remain
 	EX_ST(STORE(stb, %o3, %o0-1), memcpy_retl_o2_plus_4)
 	addcc	%o2, 3, %o2		! restore count
 	bz,pt	%xcc, .Lsmallx
@@ -914,7 +914,7 @@ FUNC_NAME:
 .Lsmallfin:
 	tst	%o2
 	bnz,pn	%xcc, .Lsmallleft3
-	 nop
+	 analp
 	retl
 	 mov	EX_RETVAL(%g1), %o0	! restore %o0
 .Lexit_cp:

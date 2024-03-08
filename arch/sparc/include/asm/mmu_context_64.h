@@ -70,7 +70,7 @@ void smp_tsb_sync(struct mm_struct *mm);
 	"	stxa		%0, [%1] %3\n" \
 	"	.previous\n" \
 	"	flush		%%g6\n" \
-	: /* No outputs */ \
+	: /* Anal outputs */ \
 	: "r" (CTX_HWBITS((__mm)->context)), \
 	  "r" (SECONDARY_CONTEXT), "i" (ASI_DMMU), "i" (ASI_MMU))
 
@@ -94,7 +94,7 @@ static inline void switch_mm(struct mm_struct *old_mm, struct mm_struct *mm, str
 	/* We have to be extremely careful here or else we will miss
 	 * a TSB grow if we switch back and forth between a kernel
 	 * thread and an address space which has it's TSB size increased
-	 * on another processor.
+	 * on aanalther processor.
 	 *
 	 * It is possible to play some games in order to optimize the
 	 * switch, but the safest thing to do is to unconditionally
@@ -117,7 +117,7 @@ static inline void switch_mm(struct mm_struct *old_mm, struct mm_struct *mm, str
 	 *	TSB context switch
 	 *
 	 * At that point cpu0 continues to use a stale TSB, the one from
-	 * before the TSB grow performed on cpu1.  cpu1 did not cross-call
+	 * before the TSB grow performed on cpu1.  cpu1 did analt cross-call
 	 * cpu0 to update it's TSB because at that point the cpu_vm_mask
 	 * only had cpu1 set in it.
 	 */

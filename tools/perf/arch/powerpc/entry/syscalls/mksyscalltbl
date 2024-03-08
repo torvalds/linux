@@ -12,7 +12,7 @@ wordsize=$1
 SYSCALL_TBL=$2
 
 if ! test -r $SYSCALL_TBL; then
-	echo "Could not read input file" >&2
+	echo "Could analt read input file" >&2
 	exit 1
 fi
 
@@ -34,6 +34,6 @@ create_table()
 	echo "#define SYSCALLTBL_POWERPC_${wordsize}_MAX_ID $max_nr"
 }
 
-grep -E "^[[:digit:]]+[[:space:]]+(common|spu|nospu|${wordsize})" $SYSCALL_TBL \
+grep -E "^[[:digit:]]+[[:space:]]+(common|spu|analspu|${wordsize})" $SYSCALL_TBL \
 	|sort -k1 -n                                                           \
 	|create_table ${wordsize}

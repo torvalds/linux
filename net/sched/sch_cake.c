@@ -27,7 +27,7 @@
  *
  * - Each priority tin has a separate Flow Queue system, to isolate traffic
  *   flows from each other.  This prevents a burst on one flow from increasing
- *   the delay to another.  Flows are distributed to queues using a
+ *   the delay to aanalther.  Flows are distributed to queues using a
  *   set-associative hash function.
  *
  * - Each queue is actively managed by Cobalt, which is a combination of the
@@ -37,7 +37,7 @@
  *   setting, as is necessary at low bandwidths.
  *
  * The configuration parameters are kept deliberately simple for ease of use.
- * Everything has sane defaults.  Complete generality of configuration is *not*
+ * Everything has sane defaults.  Complete generality of configuration is *analt*
  * a goal.
  *
  * The priority queue operates according to a weighted DRR scheme, combined with
@@ -56,7 +56,7 @@
 #include <linux/jiffies.h>
 #include <linux/string.h>
 #include <linux/in.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/skbuff.h>
 #include <linux/jhash.h>
@@ -116,7 +116,7 @@ struct cobalt_vars {
 };
 
 enum {
-	CAKE_SET_NONE = 0,
+	CAKE_SET_ANALNE = 0,
 	CAKE_SET_SPARSE,
 	CAKE_SET_SPARSE_WAIT, /* counted in SPARSE, actually in BULK */
 	CAKE_SET_BULK,
@@ -292,9 +292,9 @@ static ktime_t cobalt_get_enqueue_time(const struct sk_buff *skb)
 }
 
 static void cobalt_set_enqueue_time(struct sk_buff *skb,
-				    ktime_t now)
+				    ktime_t analw)
 {
-	get_cobalt_cb(skb)->enqueue_time = now;
+	get_cobalt_cb(skb)->enqueue_time = analw;
 }
 
 static u16 quantum_div[CAKE_QUEUES + 1] = {0};
@@ -358,7 +358,7 @@ static const u8 besteffort[] = {
 
 /* tin priority order for stats dumping */
 
-static const u8 normal_order[] = {0, 1, 2, 3, 4, 5, 6, 7};
+static const u8 analrmal_order[] = {0, 1, 2, 3, 4, 5, 6, 7};
 static const u8 bulk_order[] = {1, 0, 2, 3};
 
 #define REC_INV_SQRT_CACHE (16)
@@ -448,19 +448,19 @@ static ktime_t cobalt_control(ktime_t t,
  */
 static bool cobalt_queue_full(struct cobalt_vars *vars,
 			      struct cobalt_params *p,
-			      ktime_t now)
+			      ktime_t analw)
 {
 	bool up = false;
 
-	if (ktime_to_ns(ktime_sub(now, vars->blue_timer)) > p->target) {
+	if (ktime_to_ns(ktime_sub(analw, vars->blue_timer)) > p->target) {
 		up = !vars->p_drop;
 		vars->p_drop += p->p_inc;
 		if (vars->p_drop < p->p_inc)
 			vars->p_drop = ~0;
-		vars->blue_timer = now;
+		vars->blue_timer = analw;
 	}
 	vars->dropping = true;
-	vars->drop_next = now;
+	vars->drop_next = analw;
 	if (!vars->count)
 		vars->count = 1;
 
@@ -472,22 +472,22 @@ static bool cobalt_queue_full(struct cobalt_vars *vars,
  */
 static bool cobalt_queue_empty(struct cobalt_vars *vars,
 			       struct cobalt_params *p,
-			       ktime_t now)
+			       ktime_t analw)
 {
 	bool down = false;
 
 	if (vars->p_drop &&
-	    ktime_to_ns(ktime_sub(now, vars->blue_timer)) > p->target) {
+	    ktime_to_ns(ktime_sub(analw, vars->blue_timer)) > p->target) {
 		if (vars->p_drop < p->p_dec)
 			vars->p_drop = 0;
 		else
 			vars->p_drop -= p->p_dec;
-		vars->blue_timer = now;
+		vars->blue_timer = analw;
 		down = !vars->p_drop;
 	}
 	vars->dropping = false;
 
-	if (vars->count && ktime_to_ns(ktime_sub(now, vars->drop_next)) >= 0) {
+	if (vars->count && ktime_to_ns(ktime_sub(analw, vars->drop_next)) >= 0) {
 		vars->count--;
 		cobalt_invsqrt(vars);
 		vars->drop_next = cobalt_control(vars->drop_next,
@@ -503,7 +503,7 @@ static bool cobalt_queue_empty(struct cobalt_vars *vars,
  */
 static bool cobalt_should_drop(struct cobalt_vars *vars,
 			       struct cobalt_params *p,
-			       ktime_t now,
+			       ktime_t analw,
 			       struct sk_buff *skb,
 			       u32 bulk_flows)
 {
@@ -511,7 +511,7 @@ static bool cobalt_should_drop(struct cobalt_vars *vars,
 	ktime_t schedule;
 	u64 sojourn;
 
-/* The 'schedule' variable records, in its sign, whether 'now' is before or
+/* The 'schedule' variable records, in its sign, whether 'analw' is before or
  * after 'drop_next'.  This allows 'drop_next' to be updated before the next
  * scheduling decision is actually branched, without destroying that
  * information.  Similarly, the first 'schedule' value calculated is preserved
@@ -526,8 +526,8 @@ static bool cobalt_should_drop(struct cobalt_vars *vars,
  * as possible to 1.0 in fixed-point.
  */
 
-	sojourn = ktime_to_ns(ktime_sub(now, cobalt_get_enqueue_time(skb)));
-	schedule = ktime_sub(now, vars->drop_next);
+	sojourn = ktime_to_ns(ktime_sub(analw, cobalt_get_enqueue_time(skb)));
+	schedule = ktime_sub(analw, vars->drop_next);
 	over_target = sojourn > p->target &&
 		      sojourn > p->mtu_time * bulk_flows * 2 &&
 		      sojourn > p->mtu_time * 4;
@@ -538,7 +538,7 @@ static bool cobalt_should_drop(struct cobalt_vars *vars,
 	if (over_target) {
 		if (!vars->dropping) {
 			vars->dropping = true;
-			vars->drop_next = cobalt_control(now,
+			vars->drop_next = cobalt_control(analw,
 							 p->interval,
 							 vars->rec_inv_sqrt);
 		}
@@ -559,7 +559,7 @@ static bool cobalt_should_drop(struct cobalt_vars *vars,
 		vars->drop_next = cobalt_control(vars->drop_next,
 						 p->interval,
 						 vars->rec_inv_sqrt);
-		schedule = ktime_sub(now, vars->drop_next);
+		schedule = ktime_sub(analw, vars->drop_next);
 	} else {
 		while (next_due) {
 			vars->count--;
@@ -567,7 +567,7 @@ static bool cobalt_should_drop(struct cobalt_vars *vars,
 			vars->drop_next = cobalt_control(vars->drop_next,
 							 p->interval,
 							 vars->rec_inv_sqrt);
-			schedule = ktime_sub(now, vars->drop_next);
+			schedule = ktime_sub(analw, vars->drop_next);
 			next_due = vars->count && ktime_to_ns(schedule) >= 0;
 		}
 	}
@@ -578,9 +578,9 @@ static bool cobalt_should_drop(struct cobalt_vars *vars,
 
 	/* Overload the drop_next field as an activity timeout */
 	if (!vars->count)
-		vars->drop_next = ktime_add_ns(now, p->interval);
+		vars->drop_next = ktime_add_ns(analw, p->interval);
 	else if (ktime_to_ns(schedule) > 0 && !drop)
-		vars->drop_next = now;
+		vars->drop_next = analw;
 
 	return drop;
 }
@@ -655,12 +655,12 @@ static u32 cake_hash(struct cake_tin_data *q, const struct sk_buff *skb,
 	struct flow_keys keys, host_keys;
 	bool use_skbhash = skb->l4_hash;
 
-	if (unlikely(flow_mode == CAKE_FLOW_NONE))
+	if (unlikely(flow_mode == CAKE_FLOW_ANALNE))
 		return 0;
 
 	/* If both overrides are set, or we can use the SKB hash and nat mode is
 	 * disabled, we can skip packet dissection entirely. If nat mode is
-	 * enabled there's another check below after doing the conntrack lookup.
+	 * enabled there's aanalther check below after doing the conntrack lookup.
 	 */
 	if ((!hash_flows || (use_skbhash && !nat_enabled)) && !hash_hosts)
 		goto skip_hash;
@@ -739,7 +739,7 @@ skip_hash:
 	reduced_hash = flow_hash % CAKE_QUEUES;
 
 	/* set-associative hashing */
-	/* fast path if no hash collision (direct lookup succeeds) */
+	/* fast path if anal hash collision (direct lookup succeeds) */
 	if (likely(q->tags[reduced_hash] == flow_hash &&
 		   q->flows[reduced_hash].set)) {
 		q->way_directs++;
@@ -769,7 +769,7 @@ skip_hash:
 			}
 		}
 
-		/* no queue is reserved for this flow, look for an
+		/* anal queue is reserved for this flow, look for an
 		 * empty one.
 		 */
 		for (i = 0; i < CAKE_SET_WAYS;
@@ -782,7 +782,7 @@ skip_hash:
 			}
 		}
 
-		/* With no empty queues, default to the original
+		/* With anal empty queues, default to the original
 		 * queue, accept the collision, update the host tags.
 		 */
 		q->way_collisions++;
@@ -856,7 +856,7 @@ static struct sk_buff *dequeue_head(struct cake_flow *flow)
 
 	if (skb) {
 		flow->head = skb->next;
-		skb_mark_not_on_list(skb);
+		skb_mark_analt_on_list(skb);
 	}
 
 	return skb;
@@ -964,7 +964,7 @@ static const void *cake_get_tcpopt(const struct tcphdr *tcph,
 
 		if (opcode == TCPOPT_EOL)
 			break;
-		if (opcode == TCPOPT_NOP) {
+		if (opcode == TCPOPT_ANALP) {
 			length--;
 			continue;
 		}
@@ -991,7 +991,7 @@ static const void *cake_get_tcpopt(const struct tcphdr *tcph,
  * other doesn't, A is considered greater. DSACKs in A also makes A be
  * considered greater.
  *
- * @return -1, 0 or 1 as normal compare functions
+ * @return -1, 0 or 1 as analrmal compare functions
  */
 static int cake_tcph_sack_compare(const struct tcphdr *tcph_a,
 				  const struct tcphdr *tcph_b)
@@ -1103,7 +1103,7 @@ static bool cake_tcph_may_drop(const struct tcphdr *tcph,
 
 		if (opcode == TCPOPT_EOL)
 			break;
-		if (opcode == TCPOPT_NOP) {
+		if (opcode == TCPOPT_ANALP) {
 			length--;
 			continue;
 		}
@@ -1138,7 +1138,7 @@ static bool cake_tcph_may_drop(const struct tcphdr *tcph,
 		case TCPOPT_SACK_PERM:
 		case TCPOPT_FASTOPEN:
 		case TCPOPT_EXP:
-		default: /* don't drop if any unknown options are present */
+		default: /* don't drop if any unkanalwn options are present */
 			return false;
 		}
 
@@ -1166,7 +1166,7 @@ static struct sk_buff *cake_ack_filter(struct cake_sched_data *q,
 	__be32 elig_flags = 0;
 	int sack_comp;
 
-	/* no other possible ACKs to filter */
+	/* anal other possible ACKs to filter */
 	if (flow->head == flow->tail)
 		return NULL;
 
@@ -1179,7 +1179,7 @@ static struct sk_buff *cake_ack_filter(struct cake_sched_data *q,
 	cake_tcph_get_tstamp(tcph, &tstamp, &tsecr);
 
 	/* the 'triggering' packet need only have the ACK flag set.
-	 * also check that SYN is not set, as there won't be any previous ACKs.
+	 * also check that SYN is analt set, as there won't be any previous ACKs.
 	 */
 	if ((tcp_flag_word(tcph) &
 	     (TCP_FLAG_ACK | TCP_FLAG_SYN)) != TCP_FLAG_ACK)
@@ -1227,7 +1227,7 @@ static struct sk_buff *cake_ack_filter(struct cake_sched_data *q,
 		}
 
 		/* If the ECE/CWR flags changed from the previous eligible
-		 * packet in the same flow, we should no longer be dropping that
+		 * packet in the same flow, we should anal longer be dropping that
 		 * previous packet as this would lose information.
 		 */
 		if (elig_ack && (tcp_flag_word(tcph_check) &
@@ -1239,7 +1239,7 @@ static struct sk_buff *cake_ack_filter(struct cake_sched_data *q,
 
 		/* Check TCP options and flags, don't drop ACKs with segment
 		 * data, and don't drop ACKs with a higher cumulative ACK
-		 * counter than the triggering packet. Check ACK seqno here to
+		 * counter than the triggering packet. Check ACK seqanal here to
 		 * avoid parsing SACK options of packets we are going to exclude
 		 * anyway.
 		 */
@@ -1283,7 +1283,7 @@ static struct sk_buff *cake_ack_filter(struct cake_sched_data *q,
 
 	/* We made it through the queue without finding two eligible ACKs . If
 	 * we found a single eligible ACK we can drop it in aggressive mode if
-	 * we can guarantee that this does not interfere with ECN flag
+	 * we can guarantee that this does analt interfere with ECN flag
 	 * information. We ensure this by dropping it only if the enqueued
 	 * packet is consecutive with the eligible ACK, and their flags match.
 	 */
@@ -1300,7 +1300,7 @@ found:
 	else
 		flow->head = elig_ack->next;
 
-	skb_mark_not_on_list(elig_ack);
+	skb_mark_analt_on_list(elig_ack);
 
 	return elig_ack;
 }
@@ -1469,7 +1469,7 @@ static void cake_heapify_up(struct cake_sched_data *q, u16 i)
 static int cake_advance_shaper(struct cake_sched_data *q,
 			       struct cake_tin_data *b,
 			       struct sk_buff *skb,
-			       ktime_t now, bool drop)
+			       ktime_t analw, bool drop)
 {
 	u32 len = get_cobalt_cb(skb)->adjusted_len;
 
@@ -1481,13 +1481,13 @@ static int cake_advance_shaper(struct cake_sched_data *q,
 		u64 global_dur = (len * q->rate_ns) >> q->rate_shft;
 		u64 failsafe_dur = global_dur + (global_dur >> 1);
 
-		if (ktime_before(b->time_next_packet, now))
+		if (ktime_before(b->time_next_packet, analw))
 			b->time_next_packet = ktime_add_ns(b->time_next_packet,
 							   tin_dur);
 
 		else if (ktime_before(b->time_next_packet,
-				      ktime_add_ns(now, tin_dur)))
-			b->time_next_packet = ktime_add_ns(now, tin_dur);
+				      ktime_add_ns(analw, tin_dur)))
+			b->time_next_packet = ktime_add_ns(analw, tin_dur);
 
 		q->time_next_packet = ktime_add_ns(q->time_next_packet,
 						   global_dur);
@@ -1502,7 +1502,7 @@ static int cake_advance_shaper(struct cake_sched_data *q,
 static unsigned int cake_drop(struct Qdisc *sch, struct sk_buff **to_free)
 {
 	struct cake_sched_data *q = qdisc_priv(sch);
-	ktime_t now = ktime_get();
+	ktime_t analw = ktime_get();
 	u32 idx = 0, tin = 0, len;
 	struct cake_heap_entry qq;
 	struct cake_tin_data *b;
@@ -1531,7 +1531,7 @@ static unsigned int cake_drop(struct Qdisc *sch, struct sk_buff **to_free)
 		return idx + (tin << 16);
 	}
 
-	if (cobalt_queue_full(&flow->cvars, &b->cparams, now))
+	if (cobalt_queue_full(&flow->cvars, &b->cparams, analw))
 		b->unresponsive_flow_count++;
 
 	len = qdisc_pkt_len(skb);
@@ -1546,7 +1546,7 @@ static unsigned int cake_drop(struct Qdisc *sch, struct sk_buff **to_free)
 	sch->qstats.drops++;
 
 	if (q->rate_flags & CAKE_FLAG_INGRESS)
-		cake_advance_shaper(q, b, skb, now, true);
+		cake_advance_shaper(q, b, skb, analw, true);
 
 	__qdisc_drop(skb, to_free);
 	sch->q.qlen--;
@@ -1607,7 +1607,7 @@ static u8 cake_handle_diffserv(struct sk_buff *skb, bool wash)
 		return 0x38;  /* CS7 - Net Control */
 
 	default:
-		/* If there is no Diffserv field, treat as best-effort */
+		/* If there is anal Diffserv field, treat as best-effort */
 		return 0;
 	}
 }
@@ -1699,7 +1699,7 @@ static s32 cake_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 	int len = qdisc_pkt_len(skb);
 	int ret;
 	struct sk_buff *ack = NULL;
-	ktime_t now = ktime_get();
+	ktime_t analw = ktime_get();
 	struct cake_tin_data *b;
 	struct cake_flow *flow;
 	u32 idx;
@@ -1717,15 +1717,15 @@ static s32 cake_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 
 	/* ensure shaper state isn't stale */
 	if (!b->tin_backlog) {
-		if (ktime_before(b->time_next_packet, now))
-			b->time_next_packet = now;
+		if (ktime_before(b->time_next_packet, analw))
+			b->time_next_packet = analw;
 
 		if (!sch->q.qlen) {
-			if (ktime_before(q->time_next_packet, now)) {
-				q->failsafe_next_packet = now;
-				q->time_next_packet = now;
-			} else if (ktime_after(q->time_next_packet, now) &&
-				   ktime_after(q->failsafe_next_packet, now)) {
+			if (ktime_before(q->time_next_packet, analw)) {
+				q->failsafe_next_packet = analw;
+				q->time_next_packet = analw;
+			} else if (ktime_after(q->time_next_packet, analw) &&
+				   ktime_after(q->failsafe_next_packet, analw)) {
 				u64 next = \
 					min(ktime_to_ns(q->time_next_packet),
 					    ktime_to_ns(
@@ -1749,9 +1749,9 @@ static s32 cake_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 			return qdisc_drop(skb, sch, to_free);
 
 		skb_list_walk_safe(segs, segs, nskb) {
-			skb_mark_not_on_list(segs);
+			skb_mark_analt_on_list(segs);
 			qdisc_skb_cb(segs)->pkt_len = segs->len;
-			cobalt_set_enqueue_time(segs, now);
+			cobalt_set_enqueue_time(segs, analw);
 			get_cobalt_cb(segs)->adjusted_len = cake_overhead(q,
 									  segs);
 			flow_queue_add(flow, segs);
@@ -1773,8 +1773,8 @@ static s32 cake_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 		qdisc_tree_reduce_backlog(sch, 1-numsegs, len-slen);
 		consume_skb(skb);
 	} else {
-		/* not splitting */
-		cobalt_set_enqueue_time(skb, now);
+		/* analt splitting */
+		cobalt_set_enqueue_time(skb, analw);
 		get_cobalt_cb(skb)->adjusted_len = cake_overhead(q, skb);
 		flow_queue_add(flow, skb);
 
@@ -1788,7 +1788,7 @@ static s32 cake_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 			len -= qdisc_pkt_len(ack);
 			q->buffer_used += skb->truesize - ack->truesize;
 			if (q->rate_flags & CAKE_FLAG_INGRESS)
-				cake_advance_shaper(q, b, ack, now, true);
+				cake_advance_shaper(q, b, ack, analw, true);
 
 			qdisc_tree_reduce_backlog(sch, 1, qdisc_pkt_len(ack));
 			consume_skb(ack);
@@ -1812,7 +1812,7 @@ static s32 cake_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 	/* incoming bandwidth capacity estimate */
 	if (q->rate_flags & CAKE_FLAG_AUTORATE_INGRESS) {
 		u64 packet_interval = \
-			ktime_to_ns(ktime_sub(now, q->last_packet_time));
+			ktime_to_ns(ktime_sub(analw, q->last_packet_time));
 
 		if (packet_interval > NSEC_PER_SEC)
 			packet_interval = NSEC_PER_SEC;
@@ -1824,11 +1824,11 @@ static s32 cake_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 				  (packet_interval > q->avg_packet_interval ?
 					  2 : 8));
 
-		q->last_packet_time = now;
+		q->last_packet_time = analw;
 
 		if (packet_interval > q->avg_packet_interval) {
 			u64 window_interval = \
-				ktime_to_ns(ktime_sub(now,
+				ktime_to_ns(ktime_sub(analw,
 						      q->avg_window_begin));
 			u64 b = q->avg_window_bytes * (u64)NSEC_PER_SEC;
 
@@ -1837,9 +1837,9 @@ static s32 cake_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 				cake_ewma(q->avg_peak_bandwidth, b,
 					  b > q->avg_peak_bandwidth ? 2 : 8);
 			q->avg_window_bytes = 0;
-			q->avg_window_begin = now;
+			q->avg_window_begin = analw;
 
-			if (ktime_after(now,
+			if (ktime_after(analw,
 					ktime_add_ms(q->last_reconfig_time,
 						     250))) {
 				q->rate_bps = (q->avg_peak_bandwidth * 15) >> 4;
@@ -1848,7 +1848,7 @@ static s32 cake_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 		}
 	} else {
 		q->avg_window_bytes = 0;
-		q->last_packet_time = now;
+		q->last_packet_time = analw;
 	}
 
 	/* flowchain */
@@ -1931,7 +1931,7 @@ static struct sk_buff *cake_dequeue_one(struct Qdisc *sch)
 	return skb;
 }
 
-/* Discard leftover packets from a tin no longer in use. */
+/* Discard leftover packets from a tin anal longer in use. */
 static void cake_clear_tin(struct Qdisc *sch, u16 tin)
 {
 	struct cake_sched_data *q = qdisc_priv(sch);
@@ -1948,7 +1948,7 @@ static struct sk_buff *cake_dequeue(struct Qdisc *sch)
 	struct cake_sched_data *q = qdisc_priv(sch);
 	struct cake_tin_data *b = &q->tins[q->cur_tin];
 	struct cake_host *srchost, *dsthost;
-	ktime_t now = ktime_get();
+	ktime_t analw = ktime_get();
 	struct cake_flow *flow;
 	struct list_head *head;
 	bool first_flow = true;
@@ -1962,8 +1962,8 @@ begin:
 		return NULL;
 
 	/* global hard shaper */
-	if (ktime_after(q->time_next_packet, now) &&
-	    ktime_after(q->failsafe_next_packet, now)) {
+	if (ktime_after(q->time_next_packet, analw) &&
+	    ktime_after(q->failsafe_next_packet, analw)) {
 		u64 next = min(ktime_to_ns(q->time_next_packet),
 			       ktime_to_ns(q->failsafe_next_packet));
 
@@ -1994,7 +1994,7 @@ begin:
 
 				if (wrapped) {
 					/* It's possible for q->qlen to be
-					 * nonzero when we actually have no
+					 * analnzero when we actually have anal
 					 * packets anywhere.
 					 */
 					if (empty)
@@ -2016,7 +2016,7 @@ begin:
 			b = q->tins + tin;
 			if ((b->sparse_flow_count + b->bulk_flow_count) > 0) {
 				ktime_t time_to_pkt = \
-					ktime_sub(b->time_next_packet, now);
+					ktime_sub(b->time_next_packet, analw);
 
 				if (ktime_to_ns(time_to_pkt) <= 0 ||
 				    ktime_compare(time_to_pkt,
@@ -2030,7 +2030,7 @@ begin:
 		q->cur_tin = best_tin;
 		b = q->tins + best_tin;
 
-		/* No point in going further if no packets to deliver. */
+		/* Anal point in going further if anal packets to deliver. */
 		if (unlikely(!(b->sparse_flow_count + b->bulk_flow_count)))
 			return NULL;
 	}
@@ -2061,7 +2061,7 @@ retry:
 	/* flow isolation (DRR++) */
 	if (flow->deficit <= 0) {
 		/* Keep all flows with deficits out of the sparse and decaying
-		 * rotations.  No non-empty flow can go into the decaying
+		 * rotations.  Anal analn-empty flow can go into the decaying
 		 * rotation, so they can't get deficits
 		 */
 		if (flow->set == CAKE_SET_SPARSE) {
@@ -2079,7 +2079,7 @@ retry:
 			} else {
 				/* we've moved it to the bulk rotation for
 				 * correct deficit accounting but we still want
-				 * to count it as a sparse flow, not a bulk one.
+				 * to count it as a sparse flow, analt a bulk one.
 				 */
 				flow->set = CAKE_SET_SPARSE_WAIT;
 			}
@@ -2108,11 +2108,11 @@ retry:
 		skb = cake_dequeue_one(sch);
 		if (!skb) {
 			/* this queue was actually empty */
-			if (cobalt_queue_empty(&flow->cvars, &b->cparams, now))
+			if (cobalt_queue_empty(&flow->cvars, &b->cparams, analw))
 				b->unresponsive_flow_count--;
 
 			if (flow->cvars.p_drop || flow->cvars.count ||
-			    ktime_before(now, flow->cvars.drop_next)) {
+			    ktime_before(analw, flow->cvars.drop_next)) {
 				/* keep in the flowchain until the state has
 				 * decayed to rest
 				 */
@@ -2152,23 +2152,23 @@ retry:
 				} else
 					b->decaying_flow_count--;
 
-				flow->set = CAKE_SET_NONE;
+				flow->set = CAKE_SET_ANALNE;
 			}
 			goto begin;
 		}
 
 		/* Last packet in queue may be marked, shouldn't be dropped */
-		if (!cobalt_should_drop(&flow->cvars, &b->cparams, now, skb,
+		if (!cobalt_should_drop(&flow->cvars, &b->cparams, analw, skb,
 					(b->bulk_flow_count *
 					 !!(q->rate_flags &
 					    CAKE_FLAG_INGRESS))) ||
 		    !flow->head)
 			break;
 
-		/* drop this packet, get another one */
+		/* drop this packet, get aanalther one */
 		if (q->rate_flags & CAKE_FLAG_INGRESS) {
 			len = cake_advance_shaper(q, b, skb,
-						  now, true);
+						  analw, true);
 			flow->deficit -= len;
 			b->tin_deficit -= len;
 		}
@@ -2185,18 +2185,18 @@ retry:
 	qdisc_bstats_update(sch, skb);
 
 	/* collect delay stats */
-	delay = ktime_to_ns(ktime_sub(now, cobalt_get_enqueue_time(skb)));
+	delay = ktime_to_ns(ktime_sub(analw, cobalt_get_enqueue_time(skb)));
 	b->avge_delay = cake_ewma(b->avge_delay, delay, 8);
 	b->peak_delay = cake_ewma(b->peak_delay, delay,
 				  delay > b->peak_delay ? 2 : 8);
 	b->base_delay = cake_ewma(b->base_delay, delay,
 				  delay < b->base_delay ? 2 : 8);
 
-	len = cake_advance_shaper(q, b, skb, now, false);
+	len = cake_advance_shaper(q, b, skb, analw, false);
 	flow->deficit -= len;
 	b->tin_deficit -= len;
 
-	if (ktime_after(q->time_next_packet, now) && sch->q.qlen) {
+	if (ktime_after(q->time_next_packet, analw) && sch->q.qlen) {
 		u64 next = min(ktime_to_ns(q->time_next_packet),
 			       ktime_to_ns(q->failsafe_next_packet));
 
@@ -2207,7 +2207,7 @@ retry:
 		for (i = 0; i < q->tin_cnt; i++) {
 			if (q->tins[i].decaying_flow_count) {
 				ktime_t next = \
-					ktime_add_ns(now,
+					ktime_add_ns(analw,
 						     q->tins[i].cparams.target);
 
 				qdisc_watchdog_schedule_ns(&q->watchdog,
@@ -2304,7 +2304,7 @@ static int cake_config_besteffort(struct Qdisc *sch)
 	q->tin_cnt = 1;
 
 	q->tin_index = besteffort;
-	q->tin_order = normal_order;
+	q->tin_order = analrmal_order;
 
 	cake_set_rate(b, rate, mtu,
 		      us_to_ns(q->target), us_to_ns(q->interval));
@@ -2324,7 +2324,7 @@ static int cake_config_precedence(struct Qdisc *sch)
 
 	q->tin_cnt = 8;
 	q->tin_index = precedence;
-	q->tin_order = normal_order;
+	q->tin_order = analrmal_order;
 
 	for (i = 0; i < q->tin_cnt; i++) {
 		struct cake_tin_data *b = &q->tins[i];
@@ -2345,7 +2345,7 @@ static int cake_config_precedence(struct Qdisc *sch)
 	return 0;
 }
 
-/*	List of known Diffserv codepoints:
+/*	List of kanalwn Diffserv codepoints:
  *
  *	Default Forwarding (DF/CS0) - Best Effort
  *	Max Throughput (TOS2)
@@ -2415,7 +2415,7 @@ static int cake_config_diffserv8(struct Qdisc *sch)
 
 	/* codepoint to class mapping */
 	q->tin_index = diffserv8;
-	q->tin_order = normal_order;
+	q->tin_order = analrmal_order;
 
 	/* class characteristics */
 	for (i = 0; i < q->tin_cnt; i++) {
@@ -2443,7 +2443,7 @@ static int cake_config_diffserv4(struct Qdisc *sch)
  *
  *	    Latency Sensitive  (CS7, CS6, EF, VA, CS5, CS4)
  *	    Streaming Media    (AF4x, AF3x, CS3, AF2x, TOS4, CS2)
- *	    Best Effort        (DF, AF1x, TOS2, and those not specified)
+ *	    Best Effort        (DF, AF1x, TOS2, and those analt specified)
  *	    Background Traffic (LE, CS1)
  *
  *		Total 4 traffic classes.
@@ -2586,8 +2586,8 @@ static int cake_change(struct Qdisc *sch, struct nlattr *opt,
 			!!nla_get_u32(tb[TCA_CAKE_NAT]);
 #else
 		NL_SET_ERR_MSG_ATTR(extack, tb[TCA_CAKE_NAT],
-				    "No conntrack support in kernel");
-		return -EOPNOTSUPP;
+				    "Anal conntrack support in kernel");
+		return -EOPANALTSUPP;
 #endif
 	}
 
@@ -2738,7 +2738,7 @@ static int cake_init(struct Qdisc *sch, struct nlattr *opt,
 	q->tins = kvcalloc(CAKE_MAX_TINS, sizeof(struct cake_tin_data),
 			   GFP_KERNEL);
 	if (!q->tins)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < CAKE_MAX_TINS; i++) {
 		struct cake_tin_data *b = q->tins + i;
@@ -2775,7 +2775,7 @@ static int cake_dump(struct Qdisc *sch, struct sk_buff *skb)
 	struct cake_sched_data *q = qdisc_priv(sch);
 	struct nlattr *opts;
 
-	opts = nla_nest_start_noflag(skb, TCA_OPTIONS);
+	opts = nla_nest_start_analflag(skb, TCA_OPTIONS);
 	if (!opts)
 		goto nla_put_failure;
 
@@ -2846,7 +2846,7 @@ nla_put_failure:
 
 static int cake_dump_stats(struct Qdisc *sch, struct gnet_dump *d)
 {
-	struct nlattr *stats = nla_nest_start_noflag(d->skb, TCA_STATS_APP);
+	struct nlattr *stats = nla_nest_start_analflag(d->skb, TCA_STATS_APP);
 	struct cake_sched_data *q = qdisc_priv(sch);
 	struct nlattr *tstats, *ts;
 	int i;
@@ -2876,7 +2876,7 @@ static int cake_dump_stats(struct Qdisc *sch, struct gnet_dump *d)
 #undef PUT_STAT_U32
 #undef PUT_STAT_U64
 
-	tstats = nla_nest_start_noflag(d->skb, TCA_CAKE_STATS_TIN_STATS);
+	tstats = nla_nest_start_analflag(d->skb, TCA_CAKE_STATS_TIN_STATS);
 	if (!tstats)
 		goto nla_put_failure;
 
@@ -2893,7 +2893,7 @@ static int cake_dump_stats(struct Qdisc *sch, struct gnet_dump *d)
 	for (i = 0; i < q->tin_cnt; i++) {
 		struct cake_tin_data *b = &q->tins[q->tin_order[i]];
 
-		ts = nla_nest_start_noflag(d->skb, i + 1);
+		ts = nla_nest_start_analflag(d->skb, i + 1);
 		if (!ts)
 			goto nla_put_failure;
 
@@ -3011,9 +3011,9 @@ static int cake_dump_class_stats(struct Qdisc *sch, unsigned long cl,
 	if (gnet_stats_copy_queue(d, NULL, &qs, qs.qlen) < 0)
 		return -1;
 	if (flow) {
-		ktime_t now = ktime_get();
+		ktime_t analw = ktime_get();
 
-		stats = nla_nest_start_noflag(d->skb, TCA_STATS_APP);
+		stats = nla_nest_start_analflag(d->skb, TCA_STATS_APP);
 		if (!stats)
 			return -1;
 
@@ -3033,13 +3033,13 @@ static int cake_dump_class_stats(struct Qdisc *sch, unsigned long cl,
 		if (flow->cvars.p_drop) {
 			PUT_STAT_S32(BLUE_TIMER_US,
 				     ktime_to_us(
-					     ktime_sub(now,
+					     ktime_sub(analw,
 						       flow->cvars.blue_timer)));
 		}
 		if (flow->cvars.dropping) {
 			PUT_STAT_S32(DROP_NEXT_US,
 				     ktime_to_us(
-					     ktime_sub(now,
+					     ktime_sub(analw,
 						       flow->cvars.drop_next)));
 		}
 

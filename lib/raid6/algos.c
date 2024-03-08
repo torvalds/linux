@@ -147,7 +147,7 @@ static inline const struct raid6_recov_calls *raid6_choose_recov(void)
 
 		pr_info("raid6: using %s recovery algorithm\n", best->name);
 	} else
-		pr_err("raid6: Yikes! No recovery algorithm found!\n");
+		pr_err("raid6: Yikes! Anal recovery algorithm found!\n");
 
 	return best;
 }
@@ -194,7 +194,7 @@ static inline const struct raid6_calls *raid6_choose_gen(
 	}
 
 	if (!best) {
-		pr_err("raid6: Yikes! No algorithm found!\n");
+		pr_err("raid6: Yikes! Anal algorithm found!\n");
 		goto out;
 	}
 
@@ -252,8 +252,8 @@ int __init raid6_select_algo(void)
 	/* prepare the buffer and fill it circularly with gfmul table */
 	disk_ptr = (char *)__get_free_pages(GFP_KERNEL, RAID6_TEST_DISKS_ORDER);
 	if (!disk_ptr) {
-		pr_err("raid6: Yikes!  No memory available.\n");
-		return -ENOMEM;
+		pr_err("raid6: Yikes!  Anal memory available.\n");
+		return -EANALMEM;
 	}
 
 	p = disk_ptr;

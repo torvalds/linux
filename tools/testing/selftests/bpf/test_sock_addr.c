@@ -21,8 +21,8 @@
 #include "cgroup_helpers.h"
 #include "bpf_util.h"
 
-#ifndef ENOTSUPP
-# define ENOTSUPP 524
+#ifndef EANALTSUPP
+# define EANALTSUPP 524
 #endif
 
 #define CG_PATH	"/foo"
@@ -81,7 +81,7 @@ struct sock_addr_test {
 		ATTACH_REJECT,
 		ATTACH_OKAY,
 		SYSCALL_EPERM,
-		SYSCALL_ENOTSUPP,
+		SYSCALL_EANALTSUPP,
 		SUCCESS,
 	} expected_result;
 };
@@ -471,7 +471,7 @@ static struct sock_addr_test tests[] = {
 		SERV6_REWRITE_IP,
 		SERV6_REWRITE_PORT,
 		SRC6_REWRITE_IP,
-		SYSCALL_ENOTSUPP,
+		SYSCALL_EANALTSUPP,
 	},
 	{
 		"sendmsg6: set dst IP = [::] (BSD'ism)",
@@ -1088,7 +1088,7 @@ static int sendmsg_to_server(int type, const struct sockaddr_storage *addr,
 
 	if (sendmsg(fd, &hdr, flags) != sizeof(data)) {
 		log_err("Fail to send message to server");
-		*syscall_err = errno;
+		*syscall_err = erranal;
 		goto err;
 	}
 
@@ -1365,7 +1365,7 @@ static int run_test_case(int cgfd, const struct sock_addr_test *test)
 		goto out;
 	}
 
-	if (test->expected_result == SYSCALL_ENOTSUPP && err == ENOTSUPP) {
+	if (test->expected_result == SYSCALL_EANALTSUPP && err == EANALTSUPP) {
 		err = 0; /* error was expected, reset it */
 		goto out;
 	}

@@ -146,7 +146,7 @@ static int stm32_pwr_regulator_probe(struct platform_device *pdev)
 		priv = devm_kzalloc(&pdev->dev, sizeof(struct stm32_pwr_reg),
 				    GFP_KERNEL);
 		if (!priv)
-			return -ENOMEM;
+			return -EANALMEM;
 		priv->base = base;
 		priv->ready_mask = ready_mask_table[i];
 		config.driver_data = priv;
@@ -174,7 +174,7 @@ static struct platform_driver stm32_pwr_driver = {
 	.probe = stm32_pwr_regulator_probe,
 	.driver = {
 		.name  = "stm32-pwr-regulator",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = of_match_ptr(stm32_pwr_of_match),
 	},
 };

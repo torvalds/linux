@@ -11,7 +11,7 @@
 
 /**
  * This file defines the Secure Monitor Call (SMC) message protocol used for
- * service layer driver in normal world (EL1) to communicate with secure
+ * service layer driver in analrmal world (EL1) to communicate with secure
  * monitor software in Secure Monitor Exception Level 3 (EL3).
  *
  * This file is shared with secure firmware (FW) which is out of kernel tree.
@@ -28,7 +28,7 @@
  *
  * FAST call executes atomic operations, returns when the requested operation
  * has completed.
- * STD call starts a operation which can be preempted by a non-secure
+ * STD call starts a operation which can be preempted by a analn-secure
  * interrupt. The call can return before the requested operation has
  * completed.
  *
@@ -50,7 +50,7 @@
 /**
  * Return values in INTEL_SIP_SMC_* call
  *
- * INTEL_SIP_SMC_RETURN_UNKNOWN_FUNCTION:
+ * INTEL_SIP_SMC_RETURN_UNKANALWN_FUNCTION:
  * Secure monitor software doesn't recognize the request.
  *
  * INTEL_SIP_SMC_STATUS_OK:
@@ -68,7 +68,7 @@
  * INTEL_SIP_SMC_RSU_ERROR:
  * There is error during the process of remote status update request.
  */
-#define INTEL_SIP_SMC_RETURN_UNKNOWN_FUNCTION		0xFFFFFFFF
+#define INTEL_SIP_SMC_RETURN_UNKANALWN_FUNCTION		0xFFFFFFFF
 #define INTEL_SIP_SMC_STATUS_OK				0x0
 #define INTEL_SIP_SMC_STATUS_BUSY			0x1
 #define INTEL_SIP_SMC_STATUS_REJECTED			0x2
@@ -85,11 +85,11 @@
  * a0: INTEL_SIP_SMC_FPGA_CONFIG_START.
  * a1: flag for full or partial configuration. 0 for full and 1 for partial
  * configuration.
- * a2-7: not used.
+ * a2-7: analt used.
  *
  * Return status:
  * a0: INTEL_SIP_SMC_STATUS_OK, or INTEL_SIP_SMC_STATUS_ERROR.
- * a1-3: not used.
+ * a1-3: analt used.
  */
 #define INTEL_SIP_SMC_FUNCID_FPGA_CONFIG_START 1
 #define INTEL_SIP_SMC_FPGA_CONFIG_START \
@@ -105,7 +105,7 @@
  * a0: INTEL_SIP_SMC_FPGA_CONFIG_WRITE.
  * a1: 64bit physical address of the configuration data memory block
  * a2: Size of configuration data block.
- * a3-7: not used.
+ * a3-7: analt used.
  *
  * Return status:
  * a0: INTEL_SIP_SMC_STATUS_OK, INTEL_SIP_SMC_STATUS_BUSY or
@@ -130,7 +130,7 @@
  *
  * Call register usage:
  * a0: INTEL_SIP_SMC_FPGA_CONFIG_COMPLETED_WRITE.
- * a1-7: not used.
+ * a1-7: analt used.
  *
  * Return status:
  * a0: INTEL_SIP_SMC_STATUS_OK, INTEL_SIP_SMC_FPGA_BUSY or
@@ -149,17 +149,17 @@ INTEL_SIP_SMC_FAST_CALL_VAL(INTEL_SIP_SMC_FUNCID_FPGA_CONFIG_COMPLETED_WRITE)
  * Request INTEL_SIP_SMC_FPGA_CONFIG_ISDONE
  *
  * Sync call used by service driver at EL1 to inform secure world that all
- * data are sent, to check whether or not the secure world had completed
+ * data are sent, to check whether or analt the secure world had completed
  * the FPGA configuration process.
  *
  * Call register usage:
  * a0: INTEL_SIP_SMC_FPGA_CONFIG_ISDONE.
- * a1-7: not used.
+ * a1-7: analt used.
  *
  * Return status:
  * a0: INTEL_SIP_SMC_STATUS_OK, INTEL_SIP_SMC_STATUS_BUSY or
  * INTEL_SIP_SMC_STATUS_ERROR.
- * a1-3: not used.
+ * a1-3: analt used.
  */
 #define INTEL_SIP_SMC_FUNCID_FPGA_CONFIG_ISDONE 4
 #define INTEL_SIP_SMC_FPGA_CONFIG_ISDONE \
@@ -173,13 +173,13 @@ INTEL_SIP_SMC_FAST_CALL_VAL(INTEL_SIP_SMC_FUNCID_FPGA_CONFIG_COMPLETED_WRITE)
  *
  * Call register usage:
  * a0:INTEL_SIP_SMC_FPGA_CONFIG_GET_MEM.
- * a1-7: not used.
+ * a1-7: analt used.
  *
  * Return status:
  * a0: INTEL_SIP_SMC_STATUS_OK or INTEL_SIP_SMC_STATUS_ERROR.
  * a1: start of physical address of reserved memory block.
  * a2: size of reserved memory block.
- * a3: not used.
+ * a3: analt used.
  */
 #define INTEL_SIP_SMC_FUNCID_FPGA_CONFIG_GET_MEM 5
 #define INTEL_SIP_SMC_FPGA_CONFIG_GET_MEM \
@@ -193,11 +193,11 @@ INTEL_SIP_SMC_FAST_CALL_VAL(INTEL_SIP_SMC_FUNCID_FPGA_CONFIG_COMPLETED_WRITE)
  *
  * Call register usage:
  * a0: INTEL_SIP_SMC_FPGA_CONFIG_LOOPBACK.
- * a1-7: not used.
+ * a1-7: analt used.
  *
  * Return status:
  * a0: INTEL_SIP_SMC_STATUS_OK or INTEL_SIP_SMC_STATUS_ERROR.
- * a1-3: not used.
+ * a1-3: analt used.
  */
 #define INTEL_SIP_SMC_FUNCID_FPGA_CONFIG_LOOPBACK 6
 #define INTEL_SIP_SMC_FPGA_CONFIG_LOOPBACK \
@@ -211,12 +211,12 @@ INTEL_SIP_SMC_FAST_CALL_VAL(INTEL_SIP_SMC_FUNCID_FPGA_CONFIG_COMPLETED_WRITE)
  * Call register usage:
  * a0: INTEL_SIP_SMC_REG_READ.
  * a1: register address.
- * a2-7: not used.
+ * a2-7: analt used.
  *
  * Return status:
  * a0: INTEL_SIP_SMC_STATUS_OK or INTEL_SIP_SMC_REG_ERROR.
  * a1: value in the register
- * a2-3: not used.
+ * a2-3: analt used.
  */
 #define INTEL_SIP_SMC_FUNCID_REG_READ 7
 #define INTEL_SIP_SMC_REG_READ \
@@ -231,11 +231,11 @@ INTEL_SIP_SMC_FAST_CALL_VAL(INTEL_SIP_SMC_FUNCID_FPGA_CONFIG_COMPLETED_WRITE)
  * a0: INTEL_SIP_SMC_REG_WRITE.
  * a1: register address
  * a2: value to program into register.
- * a3-7: not used.
+ * a3-7: analt used.
  *
  * Return status:
  * a0: INTEL_SIP_SMC_STATUS_OK or INTEL_SIP_SMC_REG_ERROR.
- * a1-3: not used.
+ * a1-3: analt used.
  */
 #define INTEL_SIP_SMC_FUNCID_REG_WRITE 8
 #define INTEL_SIP_SMC_REG_WRITE \
@@ -252,11 +252,11 @@ INTEL_SIP_SMC_FAST_CALL_VAL(INTEL_SIP_SMC_FUNCID_FPGA_CONFIG_COMPLETED_WRITE)
  * a1: register address
  * a2: write Mask.
  * a3: value to write.
- * a4-7: not used.
+ * a4-7: analt used.
  *
  * Return status:
  * a0: INTEL_SIP_SMC_STATUS_OK or INTEL_SIP_SMC_REG_ERROR.
- * a1-3: Not used.
+ * a1-3: Analt used.
  */
 #define INTEL_SIP_SMC_FUNCID_REG_UPDATE 9
 #define INTEL_SIP_SMC_REG_UPDATE \
@@ -265,11 +265,11 @@ INTEL_SIP_SMC_FAST_CALL_VAL(INTEL_SIP_SMC_FUNCID_FPGA_CONFIG_COMPLETED_WRITE)
 /**
  * Request INTEL_SIP_SMC_RSU_STATUS
  *
- * Request remote status update boot log, call is synchronous.
+ * Request remote status update boot log, call is synchroanalus.
  *
  * Call register usage:
  * a0 INTEL_SIP_SMC_RSU_STATUS
- * a1-7 not used
+ * a1-7 analt used
  *
  * Return status
  * a0: Current Image
@@ -289,12 +289,12 @@ INTEL_SIP_SMC_FAST_CALL_VAL(INTEL_SIP_SMC_FUNCID_FPGA_CONFIG_COMPLETED_WRITE)
  * Request INTEL_SIP_SMC_RSU_UPDATE
  *
  * Request to set the offset of the bitstream to boot after reboot, call
- * is synchronous.
+ * is synchroanalus.
  *
  * Call register usage:
  * a0 INTEL_SIP_SMC_RSU_UPDATE
  * a1 64bit physical address of the configuration data memory in flash
- * a2-7 not used
+ * a2-7 analt used
  *
  * Return status
  * a0 INTEL_SIP_SMC_STATUS_OK
@@ -312,7 +312,7 @@ INTEL_SIP_SMC_FAST_CALL_VAL(INTEL_SIP_SMC_FUNCID_FPGA_CONFIG_COMPLETED_WRITE)
  * Call register usage:
  * a0 INTEL_SIP_SMC_ECC_DBE
  * a1 SysManager Double Bit Error value
- * a2-7 not used
+ * a2-7 analt used
  *
  * Return status
  * a0 INTEL_SIP_SMC_STATUS_OK
@@ -322,22 +322,22 @@ INTEL_SIP_SMC_FAST_CALL_VAL(INTEL_SIP_SMC_FUNCID_FPGA_CONFIG_COMPLETED_WRITE)
 	INTEL_SIP_SMC_FAST_CALL_VAL(INTEL_SIP_SMC_FUNCID_ECC_DBE)
 
 /**
- * Request INTEL_SIP_SMC_RSU_NOTIFY
+ * Request INTEL_SIP_SMC_RSU_ANALTIFY
  *
  * Sync call used by service driver at EL1 to report hard processor
  * system execution stage to firmware
  *
  * Call register usage:
- * a0 INTEL_SIP_SMC_RSU_NOTIFY
+ * a0 INTEL_SIP_SMC_RSU_ANALTIFY
  * a1 32bit value representing hard processor system execution stage
- * a2-7 not used
+ * a2-7 analt used
  *
  * Return status
  * a0 INTEL_SIP_SMC_STATUS_OK
  */
-#define INTEL_SIP_SMC_FUNCID_RSU_NOTIFY 14
-#define INTEL_SIP_SMC_RSU_NOTIFY \
-	INTEL_SIP_SMC_FAST_CALL_VAL(INTEL_SIP_SMC_FUNCID_RSU_NOTIFY)
+#define INTEL_SIP_SMC_FUNCID_RSU_ANALTIFY 14
+#define INTEL_SIP_SMC_RSU_ANALTIFY \
+	INTEL_SIP_SMC_FAST_CALL_VAL(INTEL_SIP_SMC_FUNCID_RSU_ANALTIFY)
 
 /**
  * Request INTEL_SIP_SMC_RSU_RETRY_COUNTER
@@ -346,7 +346,7 @@ INTEL_SIP_SMC_FAST_CALL_VAL(INTEL_SIP_SMC_FUNCID_FPGA_CONFIG_COMPLETED_WRITE)
  *
  * Call register usage:
  * a0 INTEL_SIP_SMC_RSU_RETRY_COUNTER
- * a1-7 not used
+ * a1-7 analt used
  *
  * Return status
  * a0 INTEL_SIP_SMC_STATUS_OK
@@ -368,7 +368,7 @@ INTEL_SIP_SMC_FAST_CALL_VAL(INTEL_SIP_SMC_FUNCID_FPGA_CONFIG_COMPLETED_WRITE)
  *
  * Call register usage:
  * a0 INTEL_SIP_SMC_RSU_DCMF_VERSION
- * a1-7 not used
+ * a1-7 analt used
  *
  * Return status
  * a0 INTEL_SIP_SMC_STATUS_OK
@@ -390,7 +390,7 @@ INTEL_SIP_SMC_FAST_CALL_VAL(INTEL_SIP_SMC_FUNCID_FPGA_CONFIG_COMPLETED_WRITE)
  *
  * Call register usage:
  * a0 INTEL_SIP_SMC_RSU_MAX_RETRY
- * a1-7 not used
+ * a1-7 analt used
  *
  * Return status
  * a0 INTEL_SIP_SMC_STATUS_OK
@@ -410,7 +410,7 @@ INTEL_SIP_SMC_FAST_CALL_VAL(INTEL_SIP_SMC_FUNCID_FPGA_CONFIG_COMPLETED_WRITE)
  *
  * Call register usage:
  * a0 INTEL_SIP_SMC_RSU_DCMF_STATUS
- * a1-7 not used
+ * a1-7 analt used
  *
  * Return status
  * a0 INTEL_SIP_SMC_STATUS_OK
@@ -427,14 +427,14 @@ INTEL_SIP_SMC_FAST_CALL_VAL(INTEL_SIP_SMC_FUNCID_FPGA_CONFIG_COMPLETED_WRITE)
 /**
  * Request INTEL_SIP_SMC_SERVICE_COMPLETED
  * Sync call to check if the secure world have completed service request
- * or not.
+ * or analt.
  *
  * Call register usage:
  * a0: INTEL_SIP_SMC_SERVICE_COMPLETED
  * a1: this register is optional. If used, it is the physical address for
  *     secure firmware to put output data
  * a2: this register is optional. If used, it is the size of output data
- * a3-a7: not used
+ * a3-a7: analt used
  *
  * Return status:
  * a0: INTEL_SIP_SMC_STATUS_OK, INTEL_SIP_SMC_STATUS_ERROR,
@@ -456,7 +456,7 @@ INTEL_SIP_SMC_FAST_CALL_VAL(INTEL_SIP_SMC_FUNCID_FPGA_CONFIG_COMPLETED_WRITE)
  *
  * Call register usage:
  * a0 INTEL_SIP_SMC_FIRMWARE_VERSION
- * a1-a7 not used
+ * a1-a7 analt used
  *
  * Return status:
  * a0 INTEL_SIP_SMC_STATUS_OK or INTEL_SIP_SMC_STATUS_ERROR
@@ -472,20 +472,20 @@ INTEL_SIP_SMC_FAST_CALL_VAL(INTEL_SIP_SMC_FUNCID_FPGA_CONFIG_COMPLETED_WRITE)
  * Call register usage:
  * a0 INTEL_SIP_SMC_MBOX_SEND_CMD
  * a1 mailbox command code
- * a2 physical address that contain mailbox command data (not include header)
+ * a2 physical address that contain mailbox command data (analt include header)
  * a3 mailbox command data size in word
  * a4 set to 0 for CASUAL, set to 1 for URGENT
  * a5 physical address for secure firmware to put response data
- *    (not include header)
+ *    (analt include header)
  * a6 maximum size in word of physical address to store response data
- * a7 not used
+ * a7 analt used
  *
  * Return status
  * a0 INTEL_SIP_SMC_STATUS_OK, INTEL_SIP_SMC_STATUS_REJECTED or
  *    INTEL_SIP_SMC_STATUS_ERROR
  * a1 mailbox error code
  * a2 response data length in word
- * a3 not used
+ * a3 analt used
  */
 #define INTEL_SIP_SMC_FUNCID_MBOX_SEND_CMD 60
 	#define INTEL_SIP_SMC_MBOX_SEND_CMD \
@@ -498,12 +498,12 @@ INTEL_SIP_SMC_FAST_CALL_VAL(INTEL_SIP_SMC_FUNCID_FPGA_CONFIG_COMPLETED_WRITE)
  *
  * Call register usage:
  * a0 INTEL_SIP_SMC_SVC_VERSION
- * a1-a7 not used
+ * a1-a7 analt used
  *
  * Return status:
  * a0 INTEL_SIP_SMC_STATUS_OK
  * a1 Major
- * a2 Minor
+ * a2 Mianalr
  */
 #define INTEL_SIP_SMC_SVC_FUNCID_VERSION 512
 #define INTEL_SIP_SMC_SVC_VERSION \
@@ -522,7 +522,7 @@ INTEL_SIP_SMC_FAST_CALL_VAL(INTEL_SIP_SMC_FUNCID_FPGA_CONFIG_COMPLETED_WRITE)
  * Call register usage:
  * a0 INTEL_SIP_SMC_FCS_RANDOM_NUMBER
  * a1 the physical address for firmware to write generated random data
- * a2-a7 not used
+ * a2-a7 analt used
  *
  * Return status:
  * a0 INTEL_SIP_SMC_STATUS_OK, INTEL_SIP_SMC_FCS_ERROR or
@@ -550,12 +550,12 @@ INTEL_SIP_SMC_FAST_CALL_VAL(INTEL_SIP_SMC_FUNCID_FPGA_CONFIG_COMPLETED_WRITE)
  * a3 input data size
  * a4 physical address which will hold the encrypted or decrypted output data
  * a5 output data size
- * a6-a7 not used
+ * a6-a7 analt used
  *
  * Return status:
  * a0 INTEL_SIP_SMC_STATUS_OK, INTEL_SIP_SMC_STATUS_ERROR or
  *      INTEL_SIP_SMC_STATUS_REJECTED
- * a1-3 not used
+ * a1-3 analt used
  */
 #define INTEL_SIP_SMC_FUNCID_FCS_CRYPTION 91
 #define INTEL_SIP_SMC_FCS_CRYPTION \
@@ -569,12 +569,12 @@ INTEL_SIP_SMC_FAST_CALL_VAL(INTEL_SIP_SMC_FUNCID_FPGA_CONFIG_COMPLETED_WRITE)
  * a0 INTEL_SIP_SMC_FCS_SERVICE_REQUEST
  * a1 the physical address of data block
  * a2 size of data block
- * a3-a7 not used
+ * a3-a7 analt used
  *
  * Return status:
  * a0 INTEL_SIP_SMC_STATUS_OK, INTEL_SIP_SMC_ERROR or
  *      INTEL_SIP_SMC_REJECTED
- * a1-a3 not used
+ * a1-a3 analt used
  */
 #define INTEL_SIP_SMC_FUNCID_FCS_SERVICE_REQUEST 92
 #define INTEL_SIP_SMC_FCS_SERVICE_REQUEST \
@@ -588,11 +588,11 @@ INTEL_SIP_SMC_FAST_CALL_VAL(INTEL_SIP_SMC_FUNCID_FPGA_CONFIG_COMPLETED_WRITE)
  * a0 INTEL_SIP_SMC_FCS_SEND_CERTIFICATE
  * a1 the physical address of CERTIFICATE block
  * a2 size of data block
- * a3-a7 not used
+ * a3-a7 analt used
  *
  * Return status:
  * a0 INTEL_SIP_SMC_STATUS_OK or INTEL_SIP_SMC_FCS_REJECTED
- * a1-a3 not used
+ * a1-a3 analt used
  */
 #define INTEL_SIP_SMC_FUNCID_FCS_SEND_CERTIFICATE 93
 #define INTEL_SIP_SMC_FCS_SEND_CERTIFICATE \
@@ -606,7 +606,7 @@ INTEL_SIP_SMC_FAST_CALL_VAL(INTEL_SIP_SMC_FUNCID_FPGA_CONFIG_COMPLETED_WRITE)
  * a0 INTEL_SIP_SMC_FCS_GET_PROVISION_DATA
  * a1 the physical address for firmware to write structure of fuse and
  *    key hashes
- * a2-a7 not used
+ * a2-a7 analt used
  *
  * Return status:
  * a0 INTEL_SIP_SMC_STATUS_OK, INTEL_SIP_SMC_FCS_ERROR or

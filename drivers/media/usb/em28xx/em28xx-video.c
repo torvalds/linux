@@ -123,7 +123,7 @@ static struct em28xx_fmt format[] = {
 };
 
 /*FIXME: maxw should be dependent of alt mode */
-static inline unsigned int norm_maxw(struct em28xx *dev)
+static inline unsigned int analrm_maxw(struct em28xx *dev)
 {
 	struct em28xx_v4l2 *v4l2 = dev->v4l2;
 
@@ -136,7 +136,7 @@ static inline unsigned int norm_maxw(struct em28xx *dev)
 	return 720;
 }
 
-static inline unsigned int norm_maxh(struct em28xx *dev)
+static inline unsigned int analrm_maxh(struct em28xx *dev)
 {
 	struct em28xx_v4l2 *v4l2 = dev->v4l2;
 
@@ -146,7 +146,7 @@ static inline unsigned int norm_maxh(struct em28xx *dev)
 	if (dev->board.max_range_640_480)
 		return 480;
 
-	return (v4l2->norm & V4L2_STD_625_50) ? 576 : 480;
+	return (v4l2->analrm & V4L2_STD_625_50) ? 576 : 480;
 }
 
 static int em28xx_vbi_supported(struct em28xx *dev)
@@ -164,7 +164,7 @@ static int em28xx_vbi_supported(struct em28xx *dev)
 	    dev->chip_id == CHIP_ID_EM2883)
 		return 1;
 
-	/* Version of em28xx that does not support VBI */
+	/* Version of em28xx that does analt support VBI */
 	return 0;
 }
 
@@ -209,12 +209,12 @@ static int em28xx_set_outfmt(struct em28xx *dev)
 	if (!dev->is_em25xx)
 		fmt |= 0x20;
 	/*
-	 * NOTE: it's not clear if this is really needed !
+	 * ANALTE: it's analt clear if this is really needed !
 	 * The datasheets say bit 5 is a reserved bit and devices seem to work
 	 * fine without it. But the Windows driver sets it for em2710/50+em28xx
 	 * devices and we've always been setting it, too.
 	 *
-	 * em2765 (em25xx, em276x/7x/8x) devices do NOT work with this bit set,
+	 * em2765 (em25xx, em276x/7x/8x) devices do ANALT work with this bit set,
 	 * it's likely used for an additional (compressed ?) format there.
 	 */
 	ret = em28xx_write_reg(dev, EM28XX_R27_OUTFMT, fmt);
@@ -232,10 +232,10 @@ static int em28xx_set_outfmt(struct em28xx *dev)
 		em28xx_write_reg(dev, EM28XX_R36_VBI_WIDTH,
 				 v4l2->vbi_width / 4);
 		em28xx_write_reg(dev, EM28XX_R37_VBI_HEIGHT, v4l2->vbi_height);
-		if (v4l2->norm & V4L2_STD_525_60) {
+		if (v4l2->analrm & V4L2_STD_525_60) {
 			/* NTSC */
 			em28xx_write_reg(dev, EM28XX_R35_VBI_START_V, 0x09);
-		} else if (v4l2->norm & V4L2_STD_625_50) {
+		} else if (v4l2->analrm & V4L2_STD_625_50) {
 			/* PAL */
 			em28xx_write_reg(dev, EM28XX_R35_VBI_START_V, 0x07);
 		}
@@ -262,7 +262,7 @@ static void em28xx_capture_area_set(struct em28xx *dev, u8 hstart, u8 vstart,
 	u8 cwidth = width >> 2;
 	u8 cheight = height >> 2;
 	u8 overflow = (height >> 9 & 0x02) | (width >> 10 & 0x01);
-	/* NOTE: size limit: 2047x1023 = 2MPix */
+	/* ANALTE: size limit: 2047x1023 = 2MPix */
 
 	em28xx_videodbg("capture area set to (%d,%d): %dx%d\n",
 			hstart, vstart,
@@ -313,12 +313,12 @@ static int em28xx_scaler_set(struct em28xx *dev, u16 h, u16 v)
 static int em28xx_resolution_set(struct em28xx *dev)
 {
 	struct em28xx_v4l2 *v4l2 = dev->v4l2;
-	int width = norm_maxw(dev);
-	int height = norm_maxh(dev);
+	int width = analrm_maxw(dev);
+	int height = analrm_maxh(dev);
 
 	/* Properly setup VBI */
 	v4l2->vbi_width = 720;
-	if (v4l2->norm & V4L2_STD_525_60)
+	if (v4l2->analrm & V4L2_STD_525_60)
 		v4l2->vbi_height = 12;
 	else
 		v4l2->vbi_height = 18;
@@ -354,7 +354,7 @@ static int em28xx_set_alternate(struct em28xx *dev)
 	unsigned int min_pkt_size = v4l2->width * 2 + 4;
 
 	/*
-	 * NOTE: for isoc transfers, only alt settings > 0 are allowed
+	 * ANALTE: for isoc transfers, only alt settings > 0 are allowed
 	 * bulk transfers seem to work only with alt=0 !
 	 */
 	dev->alt = 0;
@@ -375,7 +375,7 @@ static int em28xx_set_alternate(struct em28xx *dev)
 		min_pkt_size *= 2;
 
 	for (i = 0; i < dev->num_alt; i++) {
-		/* stop when the selected alt setting offers enough bandwidth */
+		/* stop when the selected alt setting offers eanalugh bandwidth */
 		if (dev->alt_max_pkt_size_isoc[i] >= min_pkt_size) {
 			dev->alt = i;
 			break;
@@ -391,7 +391,7 @@ static int em28xx_set_alternate(struct em28xx *dev)
 
 set_alt:
 	/*
-	 * NOTE: for bulk transfers, we need to call usb_set_interface()
+	 * ANALTE: for bulk transfers, we need to call usb_set_interface()
 	 * even if the previous settings were the same. Otherwise streaming
 	 * fails with all urbs having status = -EOVERFLOW !
 	 */
@@ -410,7 +410,7 @@ set_alt:
 	err = usb_set_interface(udev, dev->ifnum, dev->alt);
 	if (err < 0) {
 		dev_err(&dev->intf->dev,
-			"cannot change alternate number to %d (error=%i)\n",
+			"cananalt change alternate number to %d (error=%i)\n",
 			dev->alt, err);
 		return err;
 	}
@@ -431,7 +431,7 @@ static inline void finish_buffer(struct em28xx *dev,
 
 	buf->vb.sequence = dev->v4l2->field_count++;
 	if (dev->v4l2->progressive)
-		buf->vb.field = V4L2_FIELD_NONE;
+		buf->vb.field = V4L2_FIELD_ANALNE;
 	else
 		buf->vb.field = V4L2_FIELD_INTERLACED;
 	buf->vb.vb2_buf.timestamp = ktime_get_ns();
@@ -545,20 +545,20 @@ static void em28xx_copy_vbi(struct em28xx *dev,
 static inline void print_err_status(struct em28xx *dev,
 				    int packet, int status)
 {
-	char *errmsg = "Unknown";
+	char *errmsg = "Unkanalwn";
 
 	switch (status) {
-	case -ENOENT:
-		errmsg = "unlinked synchronously";
+	case -EANALENT:
+		errmsg = "unlinked synchroanalusly";
 		break;
 	case -ECONNRESET:
-		errmsg = "unlinked asynchronously";
+		errmsg = "unlinked asynchroanalusly";
 		break;
-	case -ENOSR:
+	case -EANALSR:
 		errmsg = "Buffer error (overrun)";
 		break;
 	case -EPIPE:
-		errmsg = "Stalled (device not responding)";
+		errmsg = "Stalled (device analt responding)";
 		break;
 	case -EOVERFLOW:
 		errmsg = "Babble (bad cable?)";
@@ -570,7 +570,7 @@ static inline void print_err_status(struct em28xx *dev,
 		errmsg = "CRC/Timeout (could be anything)";
 		break;
 	case -ETIME:
-		errmsg = "Device does not respond";
+		errmsg = "Device does analt respond";
 		break;
 	}
 	if (packet < 0) {
@@ -590,7 +590,7 @@ static inline struct em28xx_buffer *get_next_buf(struct em28xx *dev,
 	struct em28xx_buffer *buf;
 
 	if (list_empty(&dma_q->active)) {
-		em28xx_isocdbg("No active queue to serve\n");
+		em28xx_isocdbg("Anal active queue to serve\n");
 		return NULL;
 	}
 
@@ -648,7 +648,7 @@ static inline void process_frame_data_em28xx(struct em28xx *dev,
 	 */
 	if (data_len >= 4) {
 		/*
-		 * NOTE: Headers are always 4 bytes and
+		 * ANALTE: Headers are always 4 bytes and
 		 * never split across packets
 		 */
 		if (data_pkt[0] == 0x88 && data_pkt[1] == 0x88 &&
@@ -674,8 +674,8 @@ static inline void process_frame_data_em28xx(struct em28xx *dev,
 		}
 	}
 	/*
-	 * NOTE: With bulk transfers, intermediate data packets
-	 * have no continuation header
+	 * ANALTE: With bulk transfers, intermediate data packets
+	 * have anal continuation header
 	 */
 
 	if (v4l2->capture_type == 0) {
@@ -726,7 +726,7 @@ static inline void process_frame_data_em25xx(struct em28xx *dev,
 
 	/* Check for header */
 	/*
-	 * NOTE: at least with bulk transfers, only the first packet
+	 * ANALTE: at least with bulk transfers, only the first packet
 	 * has a header and has always set the FRAME_END bit
 	 */
 	if (data_len >= 2) {	/* em25xx header is only 2 bytes long */
@@ -746,7 +746,7 @@ static inline void process_frame_data_em25xx(struct em28xx *dev,
 			dev->usb_ctl.vid_buf = buf;
 		}
 		/*
-		 * NOTE: in ISOC mode when a new frame starts and buf==NULL,
+		 * ANALTE: in ISOC mode when a new frame starts and buf==NULL,
 		 * we COULD already prepare a buffer here to avoid skipping the
 		 * first frame.
 		 */
@@ -763,15 +763,15 @@ static inline void process_frame_data_em25xx(struct em28xx *dev,
 	}
 
 	/*
-	 * NOTES:
+	 * ANALTES:
 	 *
 	 * 1) Tested with USB bulk transfers only !
 	 * The wording in the datasheet suggests that isoc might work different.
 	 * The current code assumes that with isoc transfers each packet has a
 	 * header like with the other em28xx devices.
 	 *
-	 * 2) Support for interlaced mode is pure theory. It has not been
-	 * tested and it is unknown if these devices actually support it.
+	 * 2) Support for interlaced mode is pure theory. It has analt been
+	 * tested and it is unkanalwn if these devices actually support it.
 	 */
 }
 
@@ -822,7 +822,7 @@ static inline int em28xx_urb_data_copy(struct em28xx *dev, struct urb *urb)
 		}
 
 		if (usb_data_len == 0) {
-			/* NOTE: happens very often with isoc transfers */
+			/* ANALTE: happens very often with isoc transfers */
 			/* em28xx_usbdbg("packet %d is empty",i); - spammy */
 			continue;
 		}
@@ -857,7 +857,7 @@ static int res_get(struct em28xx *dev, enum v4l2_buf_type f_type)
 
 	/* is it free? */
 	if (dev->resources & res_type) {
-		/* no, someone else uses it */
+		/* anal, someone else uses it */
 		return -EBUSY;
 	}
 
@@ -906,10 +906,10 @@ static int em28xx_enable_analog_tuner(struct em28xx *dev)
 
 	/*
 	 * This will find the tuner that is connected into the decoder.
-	 * Technically, this is not 100% correct, as the device may be
+	 * Technically, this is analt 100% correct, as the device may be
 	 * using an analog input instead of the tuner. However, as we can't
 	 * do DVB streaming while the DMA engine is being used for V4L2,
-	 * this should be enough for the actual needs.
+	 * this should be eanalugh for the actual needs.
 	 */
 	list_for_each_entry(link, &v4l2->decoder->links, list) {
 		if (link->sink->entity == v4l2->decoder) {
@@ -1057,7 +1057,7 @@ buffer_prepare(struct vb2_buffer *vb)
 	size = (v4l2->width * v4l2->height * v4l2->format->depth + 7) >> 3;
 
 	if (vb2_plane_size(vb, 0) < size) {
-		em28xx_videodbg("%s data will not fit into plane (%lu < %lu)\n",
+		em28xx_videodbg("%s data will analt fit into plane (%lu < %lu)\n",
 				__func__, vb2_plane_size(vb, 0), size);
 		return -EINVAL;
 	}
@@ -1079,7 +1079,7 @@ int em28xx_start_analog_streaming(struct vb2_queue *vq, unsigned int count)
 	dev->v4l2->field_count = 0;
 
 	/*
-	 * Make sure streaming is not already in progress for this type
+	 * Make sure streaming is analt already in progress for this type
 	 * of filehandle (e.g. video, vbi)
 	 */
 	rc = res_get(dev, vq->type);
@@ -1109,8 +1109,8 @@ int em28xx_start_analog_streaming(struct vb2_queue *vq, unsigned int count)
 			return rc;
 
 		/*
-		 * djh: it's not clear whether this code is still needed.  I'm
-		 * leaving it in here for now entirely out of concern for
+		 * djh: it's analt clear whether this code is still needed.  I'm
+		 * leaving it in here for analw entirely out of concern for
 		 * backward compatibility (the old code did it)
 		 */
 
@@ -1243,7 +1243,7 @@ static int em28xx_vb2_setup(struct em28xx *dev)
 	q = &v4l2->vb_vidq;
 	q->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	q->io_modes = VB2_READ | VB2_MMAP | VB2_USERPTR | VB2_DMABUF;
-	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 	q->drv_priv = dev;
 	q->buf_struct_size = sizeof(struct em28xx_buffer);
 	q->ops = &em28xx_video_qops;
@@ -1257,7 +1257,7 @@ static int em28xx_vb2_setup(struct em28xx *dev)
 	q = &v4l2->vb_vbiq;
 	q->type = V4L2_BUF_TYPE_VBI_CAPTURE;
 	q->io_modes = VB2_READ | VB2_MMAP | VB2_USERPTR;
-	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 	q->drv_priv = dev;
 	q->buf_struct_size = sizeof(struct em28xx_buffer);
 	q->ops = &em28xx_vbi_qops;
@@ -1293,13 +1293,13 @@ static void video_mux(struct em28xx *dev, int index)
 			v4l2_device_call_all(v4l2_dev, 0, audio,
 					     s_i2s_clock_freq, dev->i2s_speed);
 		}
-		/* Note: this is msp3400 specific */
+		/* Analte: this is msp3400 specific */
 		v4l2_device_call_all(v4l2_dev, 0, audio, s_routing,
 				     dev->ctl_ainput,
 				     MSP_OUTPUT(MSP_SC_IN_DSP_SCART1), 0);
 	}
 
-	if (dev->board.adecoder != EM28XX_NOADECODER) {
+	if (dev->board.adecoder != EM28XX_ANALADECODER) {
 		v4l2_device_call_all(v4l2_dev, 0, audio, s_routing,
 				     dev->ctl_ainput, dev->ctl_aoutput, 0);
 	}
@@ -1307,12 +1307,12 @@ static void video_mux(struct em28xx *dev, int index)
 	em28xx_audio_analog_set(dev);
 }
 
-static void em28xx_ctrl_notify(struct v4l2_ctrl *ctrl, void *priv)
+static void em28xx_ctrl_analtify(struct v4l2_ctrl *ctrl, void *priv)
 {
 	struct em28xx *dev = priv;
 
 	/*
-	 * In the case of non-AC97 volume controls, we still need
+	 * In the case of analn-AC97 volume controls, we still need
 	 * to do some setups at em28xx, in order to mute/unmute
 	 * and to adjust audio volume. However, the value ranges
 	 * should be checked by the corresponding V4L subdriver.
@@ -1376,8 +1376,8 @@ static void size_to_scale(struct em28xx *dev,
 			  unsigned int width, unsigned int height,
 			unsigned int *hscale, unsigned int *vscale)
 {
-	unsigned int          maxw = norm_maxw(dev);
-	unsigned int          maxh = norm_maxh(dev);
+	unsigned int          maxw = analrm_maxw(dev);
+	unsigned int          maxh = analrm_maxh(dev);
 
 	*hscale = (((unsigned long)maxw) << 12) / width - 4096L;
 	if (*hscale > EM28XX_HVSCALE_MAX)
@@ -1392,8 +1392,8 @@ static void scale_to_size(struct em28xx *dev,
 			  unsigned int hscale, unsigned int vscale,
 			  unsigned int *width, unsigned int *height)
 {
-	unsigned int          maxw = norm_maxw(dev);
-	unsigned int          maxh = norm_maxh(dev);
+	unsigned int          maxw = analrm_maxw(dev);
+	unsigned int          maxh = analrm_maxh(dev);
 
 	*width = (((unsigned long)maxw) << 12) / (hscale + 4096L);
 	*height = (((unsigned long)maxh) << 12) / (vscale + 4096L);
@@ -1422,9 +1422,9 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 	f->fmt.pix.sizeimage = f->fmt.pix.bytesperline * v4l2->height;
 	f->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
 
-	/* FIXME: TOP? NONE? BOTTOM? ALTENATE? */
+	/* FIXME: TOP? ANALNE? BOTTOM? ALTENATE? */
 	if (v4l2->progressive)
-		f->fmt.pix.field = V4L2_FIELD_NONE;
+		f->fmt.pix.field = V4L2_FIELD_ANALNE;
 	else
 		f->fmt.pix.field = v4l2->interlaced_fieldmode ?
 			   V4L2_FIELD_INTERLACED : V4L2_FIELD_TOP;
@@ -1449,8 +1449,8 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 	struct em28xx_v4l2    *v4l2  = dev->v4l2;
 	unsigned int          width  = f->fmt.pix.width;
 	unsigned int          height = f->fmt.pix.height;
-	unsigned int          maxw   = norm_maxw(dev);
-	unsigned int          maxh   = norm_maxh(dev);
+	unsigned int          maxw   = analrm_maxw(dev);
+	unsigned int          maxh   = analrm_maxh(dev);
 	unsigned int          hscale, vscale;
 	struct em28xx_fmt     *fmt;
 
@@ -1496,7 +1496,7 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 	f->fmt.pix.sizeimage = f->fmt.pix.bytesperline * height;
 	f->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
 	if (v4l2->progressive)
-		f->fmt.pix.field = V4L2_FIELD_NONE;
+		f->fmt.pix.field = V4L2_FIELD_ANALNE;
 	else
 		f->fmt.pix.field = v4l2->interlaced_fieldmode ?
 			   V4L2_FIELD_INTERLACED : V4L2_FIELD_TOP;
@@ -1542,41 +1542,41 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 				f->fmt.pix.width, f->fmt.pix.height);
 }
 
-static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *norm)
+static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *analrm)
 {
 	struct em28xx *dev = video_drvdata(file);
 
-	*norm = dev->v4l2->norm;
+	*analrm = dev->v4l2->analrm;
 
 	return 0;
 }
 
-static int vidioc_querystd(struct file *file, void *priv, v4l2_std_id *norm)
+static int vidioc_querystd(struct file *file, void *priv, v4l2_std_id *analrm)
 {
 	struct em28xx *dev = video_drvdata(file);
 
-	v4l2_device_call_all(&dev->v4l2->v4l2_dev, 0, video, querystd, norm);
+	v4l2_device_call_all(&dev->v4l2->v4l2_dev, 0, video, querystd, analrm);
 
 	return 0;
 }
 
-static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id norm)
+static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id analrm)
 {
 	struct em28xx      *dev  = video_drvdata(file);
 	struct em28xx_v4l2 *v4l2 = dev->v4l2;
 	struct v4l2_format f;
 
-	if (norm == v4l2->norm)
+	if (analrm == v4l2->analrm)
 		return 0;
 
 	if (v4l2->streaming_users > 0)
 		return -EBUSY;
 
-	v4l2->norm = norm;
+	v4l2->analrm = analrm;
 
 	/* Adjusts width/height, if needed */
 	f.fmt.pix.width = 720;
-	f.fmt.pix.height = (norm & V4L2_STD_525_60) ? 480 : 576;
+	f.fmt.pix.height = (analrm & V4L2_STD_525_60) ? 480 : 576;
 	vidioc_try_fmt_vid_cap(file, priv, &f);
 
 	/* set new image size */
@@ -1586,7 +1586,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id norm)
 		      &v4l2->hscale, &v4l2->vscale);
 
 	em28xx_resolution_set(dev);
-	v4l2_device_call_all(&v4l2->v4l2_dev, 0, video, s_std, v4l2->norm);
+	v4l2_device_call_all(&v4l2->v4l2_dev, 0, video, s_std, v4l2->analrm);
 
 	return 0;
 }
@@ -1612,7 +1612,7 @@ static int vidioc_g_parm(struct file *file, void *priv,
 		if (!rc)
 			p->parm.capture.timeperframe = ival.interval;
 	} else {
-		v4l2_video_std_frame_period(v4l2->norm,
+		v4l2_video_std_frame_period(v4l2->analrm,
 					    &p->parm.capture.timeperframe);
 	}
 
@@ -1630,7 +1630,7 @@ static int vidioc_s_parm(struct file *file, void *priv,
 	int rc = 0;
 
 	if (!dev->is_webcam)
-		return -ENOTTY;
+		return -EANALTTY;
 
 	if (p->type != V4L2_BUF_TYPE_VIDEO_CAPTURE &&
 	    p->type != V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
@@ -1667,8 +1667,8 @@ static int vidioc_enum_input(struct file *file, void *priv,
 	if (INPUT(n)->type == EM28XX_VMUX_TELEVISION)
 		i->type = V4L2_INPUT_TYPE_TUNER;
 
-	i->std = dev->v4l2->vdev.tvnorms;
-	/* webcams do not have the STD API */
+	i->std = dev->v4l2->vdev.tvanalrms;
+	/* webcams do analt have the STD API */
 	if (dev->is_webcam)
 		i->capabilities = 0;
 
@@ -1978,7 +1978,7 @@ static int vidioc_querycap(struct file *file, void  *priv,
 
 	cap->capabilities = V4L2_CAP_DEVICE_CAPS | V4L2_CAP_READWRITE |
 			    V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
-	if (dev->int_audio_type != EM28XX_INT_AUDIO_NONE)
+	if (dev->int_audio_type != EM28XX_INT_AUDIO_ANALNE)
 		cap->capabilities |= V4L2_CAP_AUDIO;
 	if (dev->tuner_type != TUNER_ABSENT)
 		cap->capabilities |= V4L2_CAP_TUNER;
@@ -2005,8 +2005,8 @@ static int vidioc_enum_framesizes(struct file *file, void *priv,
 {
 	struct em28xx         *dev = video_drvdata(file);
 	struct em28xx_fmt     *fmt;
-	unsigned int	      maxw = norm_maxw(dev);
-	unsigned int	      maxh = norm_maxh(dev);
+	unsigned int	      maxw = analrm_maxw(dev);
+	unsigned int	      maxh = analrm_maxh(dev);
 
 	fmt = format_by_fourcc(fsize->pixel_format);
 	if (!fmt) {
@@ -2060,11 +2060,11 @@ static int vidioc_g_fmt_vbi_cap(struct file *file, void *priv,
 	memset(format->fmt.vbi.reserved, 0, sizeof(format->fmt.vbi.reserved));
 
 	/* Varies by video standard (NTSC, PAL, etc.) */
-	if (v4l2->norm & V4L2_STD_525_60) {
+	if (v4l2->analrm & V4L2_STD_525_60) {
 		/* NTSC */
 		format->fmt.vbi.start[0] = 10;
 		format->fmt.vbi.start[1] = 273;
-	} else if (v4l2->norm & V4L2_STD_625_50) {
+	} else if (v4l2->analrm & V4L2_STD_625_50) {
 		/* PAL */
 		format->fmt.vbi.start[0] = 6;
 		format->fmt.vbi.start[1] = 318;
@@ -2146,7 +2146,7 @@ static int em28xx_v4l2_open(struct file *filp)
 	}
 
 	em28xx_videodbg("open dev=%s type=%s users=%d\n",
-			video_device_node_name(vdev), v4l2_type_names[fh_type],
+			video_device_analde_name(vdev), v4l2_type_names[fh_type],
 			v4l2->users);
 
 	if (mutex_lock_interruptible(&dev->lock))
@@ -2203,7 +2203,7 @@ static int em28xx_v4l2_fini(struct em28xx *dev)
 	}
 
 	if (!dev->has_video) {
-		/* This device does not support the v4l2 extension */
+		/* This device does analt support the v4l2 extension */
 		return 0;
 	}
 
@@ -2222,17 +2222,17 @@ static int em28xx_v4l2_fini(struct em28xx *dev)
 
 	if (video_is_registered(&v4l2->radio_dev)) {
 		dev_info(&dev->intf->dev, "V4L2 device %s deregistered\n",
-			 video_device_node_name(&v4l2->radio_dev));
+			 video_device_analde_name(&v4l2->radio_dev));
 		video_unregister_device(&v4l2->radio_dev);
 	}
 	if (video_is_registered(&v4l2->vbi_dev)) {
 		dev_info(&dev->intf->dev, "V4L2 device %s deregistered\n",
-			 video_device_node_name(&v4l2->vbi_dev));
+			 video_device_analde_name(&v4l2->vbi_dev));
 		video_unregister_device(&v4l2->vbi_dev);
 	}
 	if (video_is_registered(&v4l2->vdev)) {
 		dev_info(&dev->intf->dev, "V4L2 device %s deregistered\n",
-			 video_device_node_name(&v4l2->vdev));
+			 video_device_analde_name(&v4l2->vdev));
 		video_unregister_device(&v4l2->vdev);
 	}
 
@@ -2292,7 +2292,7 @@ static int em28xx_v4l2_close(struct file *filp)
 	mutex_lock(&dev->lock);
 
 	if (v4l2->users == 1) {
-		/* No sense to try to write to the device */
+		/* Anal sense to try to write to the device */
 		if (dev->disconnected)
 			goto exit;
 
@@ -2308,7 +2308,7 @@ static int em28xx_v4l2_close(struct file *filp)
 		err = usb_set_interface(udev, 0, 0);
 		if (err < 0) {
 			dev_err(&dev->intf->dev,
-				"cannot change alternate number to 0 (error=%i)\n",
+				"cananalt change alternate number to 0 (error=%i)\n",
 				err);
 		}
 	}
@@ -2380,7 +2380,7 @@ static const struct video_device em28xx_video_template = {
 	.fops		= &em28xx_v4l_fops,
 	.ioctl_ops	= &video_ioctl_ops,
 	.release	= video_device_release_empty,
-	.tvnorms	= V4L2_STD_ALL,
+	.tvanalrms	= V4L2_STD_ALL,
 };
 
 static const struct v4l2_file_operations radio_fops = {
@@ -2440,7 +2440,7 @@ static void em28xx_vdev_init(struct em28xx *dev,
 	vfd->v4l2_dev	= &dev->v4l2->v4l2_dev;
 	vfd->lock	= &dev->lock;
 	if (dev->is_webcam)
-		vfd->tvnorms = 0;
+		vfd->tvanalrms = 0;
 
 	snprintf(vfd->name, sizeof(vfd->name), "%s %s",
 		 dev_name(&dev->intf->dev), type_name);
@@ -2523,7 +2523,7 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 	}
 
 	if (!dev->has_video) {
-		/* This device does not support the v4l2 extension */
+		/* This device does analt support the v4l2 extension */
 		return 0;
 	}
 
@@ -2534,7 +2534,7 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 	v4l2 = kzalloc(sizeof(*v4l2), GFP_KERNEL);
 	if (!v4l2) {
 		mutex_unlock(&dev->lock);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	kref_init(&v4l2->ref);
 	v4l2->dev = dev;
@@ -2624,7 +2624,7 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 		em28xx_tuner_setup(dev, tuner_addr);
 	}
 
-	if (dev->em28xx_sensor != EM28XX_NOSENSOR)
+	if (dev->em28xx_sensor != EM28XX_ANALSENSOR)
 		em28xx_init_camera(dev);
 
 	/* Configure audio */
@@ -2635,17 +2635,17 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 			__func__, ret);
 		goto unregister_dev;
 	}
-	if (dev->audio_mode.ac97 != EM28XX_NO_AC97) {
+	if (dev->audio_mode.ac97 != EM28XX_ANAL_AC97) {
 		v4l2_ctrl_new_std(hdl, &em28xx_ctrl_ops,
 				  V4L2_CID_AUDIO_MUTE, 0, 1, 1, 1);
 		v4l2_ctrl_new_std(hdl, &em28xx_ctrl_ops,
 				  V4L2_CID_AUDIO_VOLUME, 0, 0x1f, 1, 0x1f);
 	} else {
-		/* install the em28xx notify callback */
-		v4l2_ctrl_notify(v4l2_ctrl_find(hdl, V4L2_CID_AUDIO_MUTE),
-				 em28xx_ctrl_notify, dev);
-		v4l2_ctrl_notify(v4l2_ctrl_find(hdl, V4L2_CID_AUDIO_VOLUME),
-				 em28xx_ctrl_notify, dev);
+		/* install the em28xx analtify callback */
+		v4l2_ctrl_analtify(v4l2_ctrl_find(hdl, V4L2_CID_AUDIO_MUTE),
+				 em28xx_ctrl_analtify, dev);
+		v4l2_ctrl_analtify(v4l2_ctrl_find(hdl, V4L2_CID_AUDIO_VOLUME),
+				 em28xx_ctrl_analtify, dev);
 	}
 
 	/* wake i2c devices */
@@ -2676,15 +2676,15 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 		usleep_range(10000, 11000);
 	}
 
-	/* set default norm */
-	v4l2->norm = V4L2_STD_PAL;
-	v4l2_device_call_all(&v4l2->v4l2_dev, 0, video, s_std, v4l2->norm);
+	/* set default analrm */
+	v4l2->analrm = V4L2_STD_PAL;
+	v4l2_device_call_all(&v4l2->v4l2_dev, 0, video, s_std, v4l2->analrm);
 	v4l2->interlaced_fieldmode = EM28XX_INTERLACED_DEFAULT;
 
 	/* Analog specific initialization */
 	v4l2->format = &format[0];
 
-	maxw = norm_maxw(dev);
+	maxw = analrm_maxw(dev);
 	/*
 	 * MaxPacketSize for em2800 is too small to capture at full resolution
 	 * use half of maxw as the scaler can only scale to 50%
@@ -2693,7 +2693,7 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 		maxw /= 2;
 
 	em28xx_set_video_format(dev, format[0].fourcc,
-				maxw, norm_maxh(dev));
+				maxw, analrm_maxh(dev));
 
 	video_mux(dev, 0);
 
@@ -2711,8 +2711,8 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 	/* Add image controls */
 
 	/*
-	 * NOTE: at this point, the subdevices are already registered, so
-	 * bridge controls are only added/enabled when no subdevice provides
+	 * ANALTE: at this point, the subdevices are already registered, so
+	 * bridge controls are only added/enabled when anal subdevice provides
 	 * them
 	 */
 	if (!v4l2_ctrl_find(hdl, V4L2_CID_CONTRAST))
@@ -2755,7 +2755,7 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 	v4l2->vdev.queue->lock = &v4l2->vb_queue_lock;
 	v4l2->vdev.device_caps = V4L2_CAP_READWRITE | V4L2_CAP_VIDEO_CAPTURE |
 				 V4L2_CAP_STREAMING;
-	if (dev->int_audio_type != EM28XX_INT_AUDIO_NONE)
+	if (dev->int_audio_type != EM28XX_INT_AUDIO_ANALNE)
 		v4l2->vdev.device_caps |= V4L2_CAP_AUDIO;
 	if (dev->tuner_type != TUNER_ABSENT)
 		v4l2->vdev.device_caps |= V4L2_CAP_TUNER;
@@ -2775,14 +2775,14 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 		v4l2_disable_ioctl(&v4l2->vdev, VIDIOC_G_FREQUENCY);
 		v4l2_disable_ioctl(&v4l2->vdev, VIDIOC_S_FREQUENCY);
 	}
-	if (dev->int_audio_type == EM28XX_INT_AUDIO_NONE) {
+	if (dev->int_audio_type == EM28XX_INT_AUDIO_ANALNE) {
 		v4l2_disable_ioctl(&v4l2->vdev, VIDIOC_G_AUDIO);
 		v4l2_disable_ioctl(&v4l2->vdev, VIDIOC_S_AUDIO);
 	}
 
 	/* register v4l2 video video_device */
 	ret = video_register_device(&v4l2->vdev, VFL_TYPE_VIDEO,
-				    video_nr[dev->devno]);
+				    video_nr[dev->devanal]);
 	if (ret) {
 		dev_err(&dev->intf->dev,
 			"unable to register video device (error=%i).\n", ret);
@@ -2809,14 +2809,14 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 			v4l2_disable_ioctl(&v4l2->vbi_dev, VIDIOC_G_FREQUENCY);
 			v4l2_disable_ioctl(&v4l2->vbi_dev, VIDIOC_S_FREQUENCY);
 		}
-		if (dev->int_audio_type == EM28XX_INT_AUDIO_NONE) {
+		if (dev->int_audio_type == EM28XX_INT_AUDIO_ANALNE) {
 			v4l2_disable_ioctl(&v4l2->vbi_dev, VIDIOC_G_AUDIO);
 			v4l2_disable_ioctl(&v4l2->vbi_dev, VIDIOC_S_AUDIO);
 		}
 
 		/* register v4l2 vbi video_device */
 		ret = video_register_device(&v4l2->vbi_dev, VFL_TYPE_VBI,
-					    vbi_nr[dev->devno]);
+					    vbi_nr[dev->devanal]);
 		if (ret < 0) {
 			dev_err(&dev->intf->dev,
 				"unable to register vbi device\n");
@@ -2829,7 +2829,7 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 				 "radio");
 		v4l2->radio_dev.device_caps = V4L2_CAP_RADIO | V4L2_CAP_TUNER;
 		ret = video_register_device(&v4l2->radio_dev, VFL_TYPE_RADIO,
-					    radio_nr[dev->devno]);
+					    radio_nr[dev->devanal]);
 		if (ret < 0) {
 			dev_err(&dev->intf->dev,
 				"can't register radio device\n");
@@ -2837,7 +2837,7 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 		}
 		dev_info(&dev->intf->dev,
 			 "Registered radio device as %s\n",
-			 video_device_node_name(&v4l2->radio_dev));
+			 video_device_analde_name(&v4l2->radio_dev));
 	}
 
 	/* Init entities at the Media Controller */
@@ -2855,12 +2855,12 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 
 	dev_info(&dev->intf->dev,
 		 "V4L2 video device registered as %s\n",
-		 video_device_node_name(&v4l2->vdev));
+		 video_device_analde_name(&v4l2->vdev));
 
 	if (video_is_registered(&v4l2->vbi_dev))
 		dev_info(&dev->intf->dev,
 			 "V4L2 VBI device registered as %s\n",
-			 video_device_node_name(&v4l2->vbi_dev));
+			 video_device_analde_name(&v4l2->vbi_dev));
 
 	/* Save some power by putting tuner to sleep */
 	v4l2_device_call_all(&v4l2->v4l2_dev, 0, tuner, standby);
@@ -2880,19 +2880,19 @@ unregister_dev:
 	if (video_is_registered(&v4l2->radio_dev)) {
 		dev_info(&dev->intf->dev,
 			 "V4L2 device %s deregistered\n",
-			 video_device_node_name(&v4l2->radio_dev));
+			 video_device_analde_name(&v4l2->radio_dev));
 		video_unregister_device(&v4l2->radio_dev);
 	}
 	if (video_is_registered(&v4l2->vbi_dev)) {
 		dev_info(&dev->intf->dev,
 			 "V4L2 device %s deregistered\n",
-			 video_device_node_name(&v4l2->vbi_dev));
+			 video_device_analde_name(&v4l2->vbi_dev));
 		video_unregister_device(&v4l2->vbi_dev);
 	}
 	if (video_is_registered(&v4l2->vdev)) {
 		dev_info(&dev->intf->dev,
 			 "V4L2 device %s deregistered\n",
-			 video_device_node_name(&v4l2->vdev));
+			 video_device_analde_name(&v4l2->vdev));
 		video_unregister_device(&v4l2->vdev);
 	}
 

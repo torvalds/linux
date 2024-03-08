@@ -2,7 +2,7 @@
 #ifndef _PERF_DEBUGINFO_H
 #define _PERF_DEBUGINFO_H
 
-#include <errno.h>
+#include <erranal.h>
 #include <linux/compiler.h>
 
 #ifdef HAVE_DWARF_SUPPORT
@@ -57,7 +57,7 @@ static inline int get_source_from_debuginfod(const char *raw_path __maybe_unused
 					     const char *sbuild_id __maybe_unused,
 					     char **new_path __maybe_unused)
 {
-	return -ENOTSUP;
+	return -EANALTSUP;
 }
 #endif /* HAVE_DEBUGINFOD_SUPPORT */
 

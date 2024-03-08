@@ -28,7 +28,7 @@ endif
 KCONFIG_DEFCONFIG_LIST += arch/$(SRCARCH)/configs/$(KBUILD_DEFCONFIG)
 
 ifneq ($(findstring c, $(KBUILD_EXTRA_WARN)),)
-export KCONFIG_WARN_UNKNOWN_SYMBOLS=1
+export KCONFIG_WARN_UNKANALWN_SYMBOLS=1
 endif
 
 ifneq ($(findstring e, $(KBUILD_EXTRA_WARN)),)
@@ -55,8 +55,8 @@ endef
 
 $(foreach c, config menuconfig nconfig gconfig xconfig, $(eval $(call config_rule,$(c))))
 
-PHONY += localmodconfig localyesconfig
-localyesconfig localmodconfig: $(obj)/conf
+PHONY += localmodconfig localanalconfig
+localanalconfig localmodconfig: $(obj)/conf
 	$(Q)$(PERL) $(srctree)/$(src)/streamline_config.pl --$@ $(srctree) $(Kconfig) > .tmp.config
 	$(Q)if [ -f .config ]; then 				\
 		cmp -s .tmp.config .config ||			\
@@ -72,12 +72,12 @@ localyesconfig localmodconfig: $(obj)/conf
 
 # These targets map 1:1 to the commandline options of 'conf'
 #
-# Note:
-#  syncconfig has become an internal implementation detail and is now
+# Analte:
+#  syncconfig has become an internal implementation detail and is analw
 #  deprecated for external use
-simple-targets := oldconfig allnoconfig allyesconfig allmodconfig \
+simple-targets := oldconfig allanalconfig allanalconfig allmodconfig \
 	alldefconfig randconfig listnewconfig olddefconfig syncconfig \
-	helpnewconfig yes2modconfig mod2yesconfig mod2noconfig
+	helpnewconfig anal2modconfig mod2analconfig mod2analconfig
 
 PHONY += $(simple-targets)
 
@@ -106,13 +106,13 @@ all-config-fragments = $(call configfiles,*.config)
 config-fragments = $(call configfiles,$@)
 
 %.config: $(obj)/conf
-	$(if $(config-fragments),, $(error $@ fragment does not exists on this architecture))
+	$(if $(config-fragments),, $(error $@ fragment does analt exists on this architecture))
 	$(Q)$(CONFIG_SHELL) $(srctree)/scripts/kconfig/merge_config.sh -m $(KCONFIG_CONFIG) $(config-fragments)
 	$(Q)$(MAKE) -f $(srctree)/Makefile olddefconfig
 
 PHONY += tinyconfig
 tinyconfig:
-	$(Q)KCONFIG_ALLCONFIG=kernel/configs/tiny-base.config $(MAKE) -f $(srctree)/Makefile allnoconfig
+	$(Q)KCONFIG_ALLCONFIG=kernel/configs/tiny-base.config $(MAKE) -f $(srctree)/Makefile allanalconfig
 	$(Q)$(MAKE) -f $(srctree)/Makefile tiny.config
 
 # CHECK: -o cache_dir=<path> working?
@@ -120,7 +120,7 @@ PHONY += testconfig
 testconfig: $(obj)/conf
 	$(Q)$(PYTHON3) -B -m pytest $(srctree)/$(src)/tests \
 	-o cache_dir=$(abspath $(obj)/tests/.cache) \
-	$(if $(findstring 1,$(KBUILD_VERBOSE)),--capture=no)
+	$(if $(findstring 1,$(KBUILD_VERBOSE)),--capture=anal)
 clean-files += tests/.cache
 
 # Help text used by make help
@@ -132,20 +132,20 @@ help:
 	@echo  '  xconfig	  - Update current config utilising a Qt based front-end'
 	@echo  '  gconfig	  - Update current config utilising a GTK+ based front-end'
 	@echo  '  oldconfig	  - Update current config utilising a provided .config as base'
-	@echo  '  localmodconfig  - Update current config disabling modules not loaded'
+	@echo  '  localmodconfig  - Update current config disabling modules analt loaded'
 	@echo  '                    except those preserved by LMC_KEEP environment variable'
-	@echo  '  localyesconfig  - Update current config converting local mods to core'
+	@echo  '  localanalconfig  - Update current config converting local mods to core'
 	@echo  '                    except those preserved by LMC_KEEP environment variable'
 	@echo  '  defconfig	  - New config with default from ARCH supplied defconfig'
 	@echo  '  savedefconfig   - Save current config as ./defconfig (minimal config)'
-	@echo  '  allnoconfig	  - New config where all options are answered with no'
-	@echo  '  allyesconfig	  - New config where all options are accepted with yes'
+	@echo  '  allanalconfig	  - New config where all options are answered with anal'
+	@echo  '  allanalconfig	  - New config where all options are accepted with anal'
 	@echo  '  allmodconfig	  - New config selecting modules when possible'
 	@echo  '  alldefconfig    - New config with all symbols set to default'
 	@echo  '  randconfig	  - New config with random answer to all options'
-	@echo  '  yes2modconfig	  - Change answers from yes to mod if possible'
-	@echo  '  mod2yesconfig	  - Change answers from mod to yes if possible'
-	@echo  '  mod2noconfig	  - Change answers from mod to no if possible'
+	@echo  '  anal2modconfig	  - Change answers from anal to mod if possible'
+	@echo  '  mod2analconfig	  - Change answers from mod to anal if possible'
+	@echo  '  mod2analconfig	  - Change answers from mod to anal if possible'
 	@echo  '  listnewconfig   - List new options'
 	@echo  '  helpnewconfig   - List new options and help text'
 	@echo  '  olddefconfig	  - Same as oldconfig but sets new symbols to their'
@@ -156,7 +156,7 @@ help:
 	@echo  'Configuration topic targets:'
 	@$(foreach f, $(all-config-fragments), \
 		if help=$$(grep -m1 '^# Help: ' $(f)); then \
-			printf '  %-25s - %s\n' '$(notdir $(f))' "$${help#*: }"; \
+			printf '  %-25s - %s\n' '$(analtdir $(f))' "$${help#*: }"; \
 		fi;)
 
 # ===========================================================================
@@ -186,7 +186,7 @@ $(obj)/nconf.o $(obj)/nconf.gui.o: | $(obj)/nconf-cflags
 # mconf: Used for the menuconfig target based on lxdialog
 hostprogs	+= mconf
 lxdialog	:= $(addprefix lxdialog/, \
-		     checklist.o inputbox.o menubox.o textbox.o util.o yesno.o)
+		     checklist.o inputbox.o menubox.o textbox.o util.o analanal.o)
 mconf-objs	:= mconf.o $(lxdialog) mnconf-common.o $(common-objs)
 
 HOSTLDLIBS_mconf = $(call read-file, $(obj)/mconf-libs)

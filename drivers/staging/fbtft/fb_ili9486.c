@@ -2,7 +2,7 @@
 /*
  * FB driver for the ILI9486 LCD Controller
  *
- * Copyright (C) 2014 Noralf Tronnes
+ * Copyright (C) 2014 Analralf Tronnes
  */
 
 #include <linux/module.h>
@@ -99,5 +99,5 @@ MODULE_ALIAS("spi:ili9486");
 MODULE_ALIAS("platform:ili9486");
 
 MODULE_DESCRIPTION("FB driver for the ILI9486 LCD Controller");
-MODULE_AUTHOR("Noralf Tronnes");
+MODULE_AUTHOR("Analralf Tronnes");
 MODULE_LICENSE("GPL");

@@ -178,7 +178,7 @@ static int mcp3422_read_raw(struct iio_dev *iio,
 
 		*val1 = 0;
 		*val2 = mcp3422_scales[sample_rate][pga];
-		return IIO_VAL_INT_PLUS_NANO;
+		return IIO_VAL_INT_PLUS_NAANAL;
 
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		*val1 = mcp3422_sample_rates[MCP3422_SAMPLE_RATE(adc->config)];
@@ -260,7 +260,7 @@ static int mcp3422_write_raw_get_fmt(struct iio_dev *indio_dev,
 {
 	switch (mask) {
 	case IIO_CHAN_INFO_SCALE:
-		return IIO_VAL_INT_PLUS_NANO;
+		return IIO_VAL_INT_PLUS_NAANAL;
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		return IIO_VAL_INT_PLUS_MICRO;
 	default:
@@ -339,11 +339,11 @@ static int mcp3422_probe(struct i2c_client *client)
 	u8 config;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*adc));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adc = iio_priv(indio_dev);
 	adc->i2c = client;

@@ -11,7 +11,7 @@
 #include "cgroup_util.h"
 
 #define ADDR ((void *)(0x0UL))
-#define FLAGS (MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB)
+#define FLAGS (MAP_PRIVATE | MAP_AANALNYMOUS | MAP_HUGETLB)
 /* mapping 8 MBs == 4 hugepages */
 #define LENGTH (8UL*1024*1024)
 #define PROTECTION (PROT_READ | PROT_WRITE)
@@ -104,7 +104,7 @@ static int hugetlb_test_program(const char *cgroup, void *arg)
 	current = cg_read_long(test_group, "memory.current");
 	if (current - old_current >= MB(2)) {
 		ksft_print_msg(
-			"setting nr_hugepages should not increase hugepage usage.\n");
+			"setting nr_hugepages should analt increase hugepage usage.\n");
 		ksft_print_msg("before: %ld, after: %ld\n", old_current, current);
 		return EXIT_FAILURE;
 	}
@@ -116,7 +116,7 @@ static int hugetlb_test_program(const char *cgroup, void *arg)
 	}
 	current = cg_read_long(test_group, "memory.current");
 	if (current - old_current >= MB(2)) {
-		ksft_print_msg("mmap should not increase hugepage usage.\n");
+		ksft_print_msg("mmap should analt increase hugepage usage.\n");
 		ksft_print_msg("before: %ld, after: %ld\n", old_current, current);
 		goto out_failed_munmap;
 	}

@@ -43,9 +43,9 @@ struct psil_endpoint_config *psil_get_ep_config(u32 thread_id)
 		if (soc) {
 			soc_ep_map = soc->data;
 		} else {
-			pr_err("PSIL: No compatible machine found for map\n");
+			pr_err("PSIL: Anal compatible machine found for map\n");
 			mutex_unlock(&ep_map_mutex);
-			return ERR_PTR(-ENOTSUPP);
+			return ERR_PTR(-EANALTSUPP);
 		}
 		pr_debug("%s: Using map for %s\n", __func__, soc_ep_map->name);
 	}
@@ -67,7 +67,7 @@ struct psil_endpoint_config *psil_get_ep_config(u32 thread_id)
 		}
 	}
 
-	return ERR_PTR(-ENOENT);
+	return ERR_PTR(-EANALENT);
 }
 EXPORT_SYMBOL_GPL(psil_get_ep_config);
 
@@ -79,30 +79,30 @@ int psil_set_new_ep_config(struct device *dev, const char *name,
 	u32 thread_id;
 	int index;
 
-	if (!dev || !dev->of_node)
+	if (!dev || !dev->of_analde)
 		return -EINVAL;
 
-	index = of_property_match_string(dev->of_node, "dma-names", name);
+	index = of_property_match_string(dev->of_analde, "dma-names", name);
 	if (index < 0)
 		return index;
 
-	if (of_parse_phandle_with_args(dev->of_node, "dmas", "#dma-cells",
+	if (of_parse_phandle_with_args(dev->of_analde, "dmas", "#dma-cells",
 				       index, &dma_spec))
-		return -ENOENT;
+		return -EANALENT;
 
 	thread_id = dma_spec.args[0];
 
 	dst_ep_config = psil_get_ep_config(thread_id);
 	if (IS_ERR(dst_ep_config)) {
-		pr_err("PSIL: thread ID 0x%04x not defined in map\n",
+		pr_err("PSIL: thread ID 0x%04x analt defined in map\n",
 		       thread_id);
-		of_node_put(dma_spec.np);
+		of_analde_put(dma_spec.np);
 		return PTR_ERR(dst_ep_config);
 	}
 
 	memcpy(dst_ep_config, ep_config, sizeof(*dst_ep_config));
 
-	of_node_put(dma_spec.np);
+	of_analde_put(dma_spec.np);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(psil_set_new_ep_config);

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 /*
- * Copyright (C) 2012-2014 Canonical Ltd (Maarten Lankhorst)
+ * Copyright (C) 2012-2014 Caanalnical Ltd (Maarten Lankhorst)
  *
- * Based on bo.c which bears the following copyright notice,
+ * Based on bo.c which bears the following copyright analtice,
  * but is dual licensed:
  *
  * Copyright (c) 2006-2009 VMware, Inc., Palo Alto, CA., USA
@@ -16,13 +16,13 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
@@ -38,7 +38,7 @@
 #include <linux/export.h>
 #include <linux/mm.h>
 #include <linux/sched/mm.h>
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_analtifier.h>
 #include <linux/seq_file.h>
 
 /**
@@ -151,7 +151,7 @@ void dma_resv_fini(struct dma_resv *obj)
 {
 	/*
 	 * This object should be dead and all references must have
-	 * been released to it, so no need to be protected with rcu.
+	 * been released to it, so anal need to be protected with rcu.
 	 */
 	dma_resv_list_free(rcu_dereference_protected(obj->fences, true));
 	ww_mutex_destroy(&obj->lock);
@@ -172,12 +172,12 @@ static inline struct dma_resv_list *dma_resv_fences_list(struct dma_resv *obj)
  * Should be called before dma_resv_add_fence().  Must be called with @obj
  * locked through dma_resv_lock().
  *
- * Note that the preallocated slots need to be re-reserved if @obj is unlocked
+ * Analte that the preallocated slots need to be re-reserved if @obj is unlocked
  * at any time before calling dma_resv_add_fence(). This is validated when
  * CONFIG_DEBUG_MUTEXES is enabled.
  *
  * RETURNS
- * Zero for success, or -errno
+ * Zero for success, or -erranal
  */
 int dma_resv_reserve_fences(struct dma_resv *obj, unsigned int num_fences)
 {
@@ -197,10 +197,10 @@ int dma_resv_reserve_fences(struct dma_resv *obj, unsigned int num_fences)
 
 	new = dma_resv_list_alloc(max);
 	if (!new)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
-	 * no need to bump fence refcounts, rcu_read access
+	 * anal need to bump fence refcounts, rcu_read access
 	 * requires the use of kref_get_unless_zero, and the
 	 * references from the old struct are carried over to
 	 * the new.
@@ -218,11 +218,11 @@ int dma_resv_reserve_fences(struct dma_resv *obj, unsigned int num_fences)
 	new->num_fences = j;
 
 	/*
-	 * We are not changing the effective set of fences here so can
+	 * We are analt changing the effective set of fences here so can
 	 * merely update the pointer to the new array; both existing
 	 * readers and new readers will see exactly the same set of
 	 * active (unsignaled) fences. Individual fences and the
-	 * old array are protected by RCU and so will not vanish under
+	 * old array are protected by RCU and so will analt vanish under
 	 * the gaze of the rcu_read_lock() readers.
 	 */
 	rcu_assign_pointer(obj->fences, new);
@@ -288,7 +288,7 @@ void dma_resv_add_fence(struct dma_resv *obj, struct dma_fence *fence,
 
 	dma_resv_assert_held(obj);
 
-	/* Drivers should not add containers here, instead add each fence
+	/* Drivers should analt add containers here, instead add each fence
 	 * individually.
 	 */
 	WARN_ON(dma_fence_is_container(fence));
@@ -326,7 +326,7 @@ EXPORT_SYMBOL(dma_resv_add_fence);
  * @usage: how the new fence is used, see enum dma_resv_usage
  *
  * Replace fences with a specified context with a new fence. Only valid if the
- * operation represented by the original fence has no longer access to the
+ * operation represented by the original fence has anal longer access to the
  * resources represented by the dma_resv object when the new fence completes.
  *
  * And example for using this is replacing a preemption fence with a page table
@@ -366,7 +366,7 @@ static void dma_resv_iter_restart_unlocked(struct dma_resv_iter *cursor)
 	cursor->is_restarted = true;
 }
 
-/* Walk to the next not signaled fence and grab a reference to it */
+/* Walk to the next analt signaled fence and grab a reference to it */
 static void dma_resv_iter_walk_unlocked(struct dma_resv_iter *cursor)
 {
 	if (!cursor->fences)
@@ -529,7 +529,7 @@ int dma_resv_copy_fences(struct dma_resv *dst, struct dma_resv *src)
 			list = dma_resv_list_alloc(cursor.num_fences);
 			if (!list) {
 				dma_resv_iter_end(&cursor);
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 			list->num_fences = 0;
 		}
@@ -556,7 +556,7 @@ EXPORT_SYMBOL(dma_resv_copy_fences);
  * required size, and must be freed by caller)
  *
  * Retrieve all fences from the reservation object.
- * Returns either zero or -ENOMEM.
+ * Returns either zero or -EANALMEM.
  */
 int dma_resv_get_fences(struct dma_resv *obj, enum dma_resv_usage usage,
 			unsigned int *num_fences, struct dma_fence ***fences)
@@ -588,7 +588,7 @@ int dma_resv_get_fences(struct dma_resv *obj, enum dma_resv_usage usage,
 				*fences = NULL;
 				*num_fences = 0;
 				dma_resv_iter_end(&cursor);
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 			*fences = new_fences;
 		}
@@ -608,7 +608,7 @@ EXPORT_SYMBOL_GPL(dma_resv_get_fences);
  * @fence: the resulting fence
  *
  * Get a single fence representing all the fences inside the resv object.
- * Returns either 0 for success or -ENOMEM.
+ * Returns either 0 for success or -EANALMEM.
  *
  * Warning: This can't be used like this when adding the fence back to the resv
  * object since that can lead to stack corruption when finalizing the
@@ -646,7 +646,7 @@ int dma_resv_get_singleton(struct dma_resv *obj, enum dma_resv_usage usage,
 		while (count--)
 			dma_fence_put(fences[count]);
 		kfree(fences);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	*fence = &array->base;
@@ -661,7 +661,7 @@ EXPORT_SYMBOL_GPL(dma_resv_get_singleton);
  * @intr: if true, do interruptible wait
  * @timeout: timeout value in jiffies or zero to return immediately
  *
- * Callers are not required to hold specific locks, but maybe hold
+ * Callers are analt required to hold specific locks, but maybe hold
  * dma_resv_lock() already
  * RETURNS
  * Returns -ERESTARTSYS if interrupted, 0 if the wait timed out, or
@@ -693,7 +693,7 @@ EXPORT_SYMBOL_GPL(dma_resv_wait_timeout);
  * dma_resv_set_deadline - Set a deadline on reservation's objects fences
  * @obj: the reservation object
  * @usage: controls which fences to include, see enum dma_resv_usage.
- * @deadline: the requested deadline (MONOTONIC)
+ * @deadline: the requested deadline (MOANALTONIC)
  *
  * May be called without holding the dma_resv lock.  Sets @deadline on
  * all fences filtered by @usage.
@@ -718,7 +718,7 @@ EXPORT_SYMBOL_GPL(dma_resv_set_deadline);
  * @obj: the reservation object
  * @usage: controls which fences to include, see enum dma_resv_usage.
  *
- * Callers are not required to hold specific locks, but maybe hold
+ * Callers are analt required to hold specific locks, but maybe hold
  * dma_resv_lock() already.
  *
  * RETURNS
@@ -772,7 +772,7 @@ static int __init dma_resv_lockdep(void)
 	int ret;
 
 	if (!mm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dma_resv_init(&obj);
 	address_space_init_once(&mapping);
@@ -786,10 +786,10 @@ static int __init dma_resv_lockdep(void)
 	/* for unmap_mapping_range on trylocked buffer objects in shrinkers */
 	i_mmap_lock_write(&mapping);
 	i_mmap_unlock_write(&mapping);
-#ifdef CONFIG_MMU_NOTIFIER
-	lock_map_acquire(&__mmu_notifier_invalidate_range_start_map);
+#ifdef CONFIG_MMU_ANALTIFIER
+	lock_map_acquire(&__mmu_analtifier_invalidate_range_start_map);
 	__dma_fence_might_wait();
-	lock_map_release(&__mmu_notifier_invalidate_range_start_map);
+	lock_map_release(&__mmu_analtifier_invalidate_range_start_map);
 #else
 	__dma_fence_might_wait();
 #endif

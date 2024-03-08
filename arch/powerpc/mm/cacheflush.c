@@ -10,7 +10,7 @@
 static inline bool flush_coherent_icache(void)
 {
 	/*
-	 * For a snooping icache, we still need a dummy icbi to purge all the
+	 * For a sanaloping icache, we still need a dummy icbi to purge all the
 	 * prefetched instructions from the ifetch buffers. We also need a sync
 	 * before the icbi to order the actual stores to memory that might
 	 * have modified instructions with the icbi.
@@ -114,7 +114,7 @@ static void flush_dcache_icache_phys(unsigned long physaddr)
 		: "r" (nb), "r" (msr), "i" (bytes), "r" (msr0)
 		: "ctr", "memory");
 }
-NOKPROBE_SYMBOL(flush_dcache_icache_phys)
+ANALKPROBE_SYMBOL(flush_dcache_icache_phys)
 #else
 static void flush_dcache_icache_phys(unsigned long physaddr)
 {
@@ -123,8 +123,8 @@ static void flush_dcache_icache_phys(unsigned long physaddr)
 
 /**
  * __flush_dcache_icache(): Flush a particular page from the data cache to RAM.
- * Note: this is necessary because the instruction cache does *not*
- * snoop from the data cache.
+ * Analte: this is necessary because the instruction cache does *analt*
+ * sanalop from the data cache.
  *
  * @p: the address of the page to flush
  */
@@ -136,7 +136,7 @@ static void __flush_dcache_icache(void *p)
 
 	/*
 	 * We don't flush the icache on 44x. Those have a virtual icache and we
-	 * don't have access to the virtual address here (it's not the page
+	 * don't have access to the virtual address here (it's analt the page
 	 * vaddr but where it's mapped in user space). The flushing of the
 	 * icache on these is handled elsewhere, when a change in the address
 	 * space occurs, before returning to user space.
@@ -196,10 +196,10 @@ void copy_user_page(void *vto, void *vfrom, unsigned long vaddr,
 	 * We should be able to use the following optimisation, however
 	 * there are two problems.
 	 * Firstly a bug in some versions of binutils meant PLT sections
-	 * were not marked executable.
+	 * were analt marked executable.
 	 * Secondly the first word in the GOT section is blrl, used
 	 * to establish the GOT address. Until recently the GOT was
-	 * not marked executable.
+	 * analt marked executable.
 	 * - Anton
 	 */
 #if 0

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -61,7 +61,7 @@ nvkm_ramht_update(struct nvkm_ramht *ramht, int co, struct nvkm_object *object,
 		  int chid, int addr, u32 handle, u32 context)
 {
 	struct nvkm_ramht_data *data = &ramht->data[co];
-	u64 inst = 0x00000040; /* just non-zero for <=g8x fifo ramht */
+	u64 inst = 0x00000040; /* just analn-zero for <=g8x fifo ramht */
 	int ret;
 
 	nvkm_gpuobj_del(&data->inst);
@@ -71,7 +71,7 @@ nvkm_ramht_update(struct nvkm_ramht *ramht, int co, struct nvkm_object *object,
 	if (object) {
 		ret = nvkm_object_bind(object, ramht->parent, 16, &data->inst);
 		if (ret) {
-			if (ret != -ENODEV) {
+			if (ret != -EANALDEV) {
 				data->chid = -1;
 				return ret;
 			}
@@ -80,7 +80,7 @@ nvkm_ramht_update(struct nvkm_ramht *ramht, int co, struct nvkm_object *object,
 
 		if (data->inst) {
 			if (ramht->device->card_type >= NV_50)
-				inst = data->inst->node->offset;
+				inst = data->inst->analde->offset;
 			else
 				inst = data->inst->addr;
 		}
@@ -123,7 +123,7 @@ nvkm_ramht_insert(struct nvkm_ramht *ramht, struct nvkm_object *object,
 			co = 0;
 	} while (co != ho);
 
-	return -ENOSPC;
+	return -EANALSPC;
 }
 
 void
@@ -145,7 +145,7 @@ nvkm_ramht_new(struct nvkm_device *device, u32 size, u32 align,
 	int ret, i;
 
 	if (!(ramht = *pramht = vzalloc(struct_size(ramht, data, (size >> 3)))))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ramht->device = device;
 	ramht->parent = parent;

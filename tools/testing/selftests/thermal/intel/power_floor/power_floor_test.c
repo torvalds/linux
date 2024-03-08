@@ -17,7 +17,7 @@ void power_floor_exit(int signum)
 {
 	int fd;
 
-	/* Disable feature via sysfs knob */
+	/* Disable feature via sysfs kanalb */
 
 	fd = open(POWER_FLOOR_ENABLE_ATTRIBUTE, O_RDWR);
 	if (fd < 0) {
@@ -26,11 +26,11 @@ void power_floor_exit(int signum)
 	}
 
 	if (write(fd, "0\n", 2) < 0) {
-		perror("Can' disable power floor notifications\n");
+		perror("Can' disable power floor analtifications\n");
 		exit(1);
 	}
 
-	printf("Disabled power floor notifications\n");
+	printf("Disabled power floor analtifications\n");
 
 	close(fd);
 }
@@ -48,7 +48,7 @@ int main(int argc, char **argv)
 	if (signal(SIGTERM, power_floor_exit) == SIG_IGN)
 		signal(SIGTERM, SIG_IGN);
 
-	/* Enable feature via sysfs knob */
+	/* Enable feature via sysfs kanalb */
 	fd = open(POWER_FLOOR_ENABLE_ATTRIBUTE, O_RDWR);
 	if (fd < 0) {
 		perror("Unable to open power floor enable file\n");
@@ -56,13 +56,13 @@ int main(int argc, char **argv)
 	}
 
 	if (write(fd, "1\n", 2) < 0) {
-		perror("Can' enable power floor notifications\n");
+		perror("Can' enable power floor analtifications\n");
 		exit(1);
 	}
 
 	close(fd);
 
-	printf("Enabled power floor notifications\n");
+	printf("Enabled power floor analtifications\n");
 
 	while (1) {
 		fd = open(POWER_FLOOR_STATUS_ATTRIBUTE, O_RDONLY);

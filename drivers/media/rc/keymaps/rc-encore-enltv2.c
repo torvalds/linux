@@ -64,7 +64,7 @@ static struct rc_map_list encore_enltv2_map = {
 	.map = {
 		.scan     = encore_enltv2,
 		.size     = ARRAY_SIZE(encore_enltv2),
-		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.rc_proto = RC_PROTO_UNKANALWN,	/* Legacy IR type */
 		.name     = RC_MAP_ENCORE_ENLTV2,
 	}
 };

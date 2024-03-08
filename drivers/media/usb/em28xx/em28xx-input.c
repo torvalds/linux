@@ -85,7 +85,7 @@ static int em28xx_get_key_terratec(struct i2c_client *i2c_dev,
 
 	/*
 	 * it seems that 0xFE indicates that a button is still hold
-	 * down, while 0xff indicates that no button is hold down.
+	 * down, while 0xff indicates that anal button is hold down.
 	 */
 
 	if (b == 0xff)
@@ -95,7 +95,7 @@ static int em28xx_get_key_terratec(struct i2c_client *i2c_dev,
 		/* keep old data */
 		return 1;
 
-	*protocol = RC_PROTO_UNKNOWN;
+	*protocol = RC_PROTO_UNKANALWN;
 	*scancode = b;
 	return 1;
 }
@@ -119,10 +119,10 @@ static int em28xx_get_key_em_haup(struct i2c_client *i2c_dev,
 	/*
 	 * Rearranges bits to the right order.
 	 * The bit order were determined experimentally by using
-	 * The original Hauppauge Grey IR and another RC5 that uses addr=0x08
+	 * The original Hauppauge Grey IR and aanalther RC5 that uses addr=0x08
 	 * The RC5 code has 14 bits, but we've experimentally determined
 	 * the meaning for only 11 bits.
-	 * So, the code translation is not complete. Yet, it is enough to
+	 * So, the code translation is analt complete. Yet, it is eanalugh to
 	 * work with the provided RC5 IR.
 	 */
 	*protocol = RC_PROTO_RC5;
@@ -144,7 +144,7 @@ static int em28xx_get_key_pinnacle_usb_grey(struct i2c_client *i2c_dev,
 	if (buf[0] != 0x00)
 		return 0;
 
-	*protocol = RC_PROTO_UNKNOWN;
+	*protocol = RC_PROTO_UNKANALWN;
 	*scancode = buf[2] & 0x3f;
 	return 1;
 }
@@ -181,7 +181,7 @@ static int em28xx_get_key_winfast_usbii_deluxe(struct i2c_client *i2c_dev,
 	if (key == 0x00)
 		return 0;
 
-	*protocol = RC_PROTO_UNKNOWN;
+	*protocol = RC_PROTO_UNKANALWN;
 	*scancode = key;
 	return 1;
 }
@@ -226,7 +226,7 @@ static int default_polling_getkey(struct em28xx_IR *ir,
 		break;
 
 	default:
-		poll_result->protocol = RC_PROTO_UNKNOWN;
+		poll_result->protocol = RC_PROTO_UNKANALWN;
 		poll_result->scancode = msg[1] << 8 | msg[2];
 		break;
 	}
@@ -277,7 +277,7 @@ static int em2874_polling_getkey(struct em28xx_IR *ir,
 		break;
 
 	default:
-		poll_result->protocol = RC_PROTO_UNKNOWN;
+		poll_result->protocol = RC_PROTO_UNKANALWN;
 		poll_result->scancode = (msg[1] << 24) | (msg[2] << 16) |
 					(msg[3] << 8)  | msg[4];
 		break;
@@ -333,7 +333,7 @@ static void em28xx_ir_handle_key(struct em28xx_IR *ir)
 				   poll_result.toggle_bit);
 		else
 			rc_keydown(ir->rc,
-				   RC_PROTO_UNKNOWN,
+				   RC_PROTO_UNKANALWN,
 				   poll_result.scancode & 0xff,
 				   poll_result.toggle_bit);
 
@@ -344,7 +344,7 @@ static void em28xx_ir_handle_key(struct em28xx_IR *ir)
 			 * register is read.  The em2860/2880 datasheet says
 			 * that it is supposed to clear the readcount, but it
 			 * doesn't. So with the em2874, we are looking for a
-			 * non-zero read count as opposed to a readcount
+			 * analn-zero read count as opposed to a readcount
 			 * that is incrementing
 			 */
 			ir->last_readcount = 0;
@@ -395,8 +395,8 @@ static int em2860_ir_change_protocol(struct rc_dev *rc_dev, u64 *rc_proto)
 		dev->board.xclk &= ~EM28XX_XCLK_IR_RC5_MODE;
 		ir->full_code = 1;
 		*rc_proto = RC_PROTO_BIT_NEC;
-	} else if (*rc_proto & RC_PROTO_BIT_UNKNOWN) {
-		*rc_proto = RC_PROTO_BIT_UNKNOWN;
+	} else if (*rc_proto & RC_PROTO_BIT_UNKANALWN) {
+		*rc_proto = RC_PROTO_BIT_UNKANALWN;
 	} else {
 		*rc_proto = ir->rc_proto;
 		return -EINVAL;
@@ -422,7 +422,7 @@ static int em2874_ir_change_protocol(struct rc_dev *rc_dev, u64 *rc_proto)
 		*rc_proto = RC_PROTO_BIT_RC5;
 	} else if (*rc_proto & RC_PROTO_BIT_NEC) {
 		dev->board.xclk &= ~EM28XX_XCLK_IR_RC5_MODE;
-		ir_config = EM2874_IR_NEC | EM2874_IR_NEC_NO_PARITY;
+		ir_config = EM2874_IR_NEC | EM2874_IR_NEC_ANAL_PARITY;
 		ir->full_code = 1;
 		*rc_proto = RC_PROTO_BIT_NEC;
 	} else if (*rc_proto & RC_PROTO_BIT_RC6_0) {
@@ -430,8 +430,8 @@ static int em2874_ir_change_protocol(struct rc_dev *rc_dev, u64 *rc_proto)
 		ir_config = EM2874_IR_RC6_MODE_0;
 		ir->full_code = 1;
 		*rc_proto = RC_PROTO_BIT_RC6_0;
-	} else if (*rc_proto & RC_PROTO_BIT_UNKNOWN) {
-		*rc_proto = RC_PROTO_BIT_UNKNOWN;
+	} else if (*rc_proto & RC_PROTO_BIT_UNKANALWN) {
+		*rc_proto = RC_PROTO_BIT_UNKANALWN;
 	} else {
 		*rc_proto = ir->rc_proto;
 		return -EINVAL;
@@ -462,7 +462,7 @@ static int em28xx_ir_change_protocol(struct rc_dev *rc_dev, u64 *rc_proto)
 		return em2874_ir_change_protocol(rc_dev, rc_proto);
 	default:
 		dev_err(&ir->dev->intf->dev,
-			"Unrecognized em28xx chip id 0x%02x: IR not supported\n",
+			"Unrecognized em28xx chip id 0x%02x: IR analt supported\n",
 			dev->chip_id);
 		return -EINVAL;
 	}
@@ -472,8 +472,8 @@ static int em28xx_probe_i2c_ir(struct em28xx *dev)
 {
 	int i = 0;
 	/*
-	 * Leadtek winfast tv USBII deluxe can find a non working IR-device
-	 * at address 0x18, so if that address is needed for another board in
+	 * Leadtek winfast tv USBII deluxe can find a analn working IR-device
+	 * at address 0x18, so if that address is needed for aanalther board in
 	 * the future, please put it after 0x1f.
 	 */
 	static const unsigned short addr_list[] = {
@@ -487,7 +487,7 @@ static int em28xx_probe_i2c_ir(struct em28xx *dev)
 		i++;
 	}
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 /*
@@ -581,7 +581,7 @@ static int em28xx_register_snapshot_button(struct em28xx *dev)
 	dev_info(&dev->intf->dev, "Registering snapshot button...\n");
 	input_dev = input_allocate_device();
 	if (!input_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	usb_make_path(udev, dev->snapshot_button_path,
 		      sizeof(dev->snapshot_button_path));
@@ -641,7 +641,7 @@ static void em28xx_init_buttons(struct em28xx *dev)
 			/* Check sanity */
 			if (!em28xx_find_led(dev, EM28XX_LED_ILLUMINATION)) {
 				dev_err(&dev->intf->dev,
-					"BUG: illumination button defined, but no illumination LED.\n");
+					"BUG: illumination button defined, but anal illumination LED.\n");
 				goto next_button;
 			}
 		}
@@ -689,7 +689,7 @@ static int em28xx_ir_init(struct em28xx *dev)
 	struct usb_device *udev = interface_to_usbdev(dev->intf);
 	struct em28xx_IR *ir;
 	struct rc_dev *rc;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 	u64 rc_proto;
 	u16 i2c_rc_dev_addr = 0;
 
@@ -709,16 +709,16 @@ static int em28xx_ir_init(struct em28xx *dev)
 		if (!i2c_rc_dev_addr) {
 			dev->board.has_ir_i2c = 0;
 			dev_warn(&dev->intf->dev,
-				 "No i2c IR remote control device found.\n");
-			err = -ENODEV;
+				 "Anal i2c IR remote control device found.\n");
+			err = -EANALDEV;
 			goto ref_put;
 		}
 	}
 
 	if (!dev->board.ir_codes && !dev->board.has_ir_i2c) {
-		/* No remote control support */
+		/* Anal remote control support */
 		dev_warn(&dev->intf->dev,
-			 "Remote control support is not available for this card.\n");
+			 "Remote control support is analt available for this card.\n");
 		return 0;
 	}
 
@@ -761,7 +761,7 @@ static int em28xx_ir_init(struct em28xx *dev)
 			ir->get_key_i2c = em28xx_get_key_winfast_usbii_deluxe;
 			break;
 		default:
-			err = -ENODEV;
+			err = -EANALDEV;
 			goto error;
 		}
 
@@ -771,7 +771,7 @@ static int em28xx_ir_init(struct em28xx *dev)
 		ir->i2c_client->adapter = &ir->dev->i2c_adap[dev->def_i2c_bus];
 		ir->i2c_client->addr = i2c_rc_dev_addr;
 		ir->i2c_client->flags = 0;
-		/* NOTE: all other fields of i2c_client are unused */
+		/* ANALTE: all other fields of i2c_client are unused */
 	} else {	/* internal device */
 		switch (dev->chip_id) {
 		case CHIP_ID_EM2860:
@@ -790,7 +790,7 @@ static int em28xx_ir_init(struct em28xx *dev)
 				RC_PROTO_BIT_NEC32 | RC_PROTO_BIT_RC6_0;
 			break;
 		default:
-			err = -ENODEV;
+			err = -EANALDEV;
 			goto error;
 		}
 
@@ -798,7 +798,7 @@ static int em28xx_ir_init(struct em28xx *dev)
 		rc->map_name = dev->board.ir_codes;
 
 		/* By default, keep protocol field untouched */
-		rc_proto = RC_PROTO_BIT_UNKNOWN;
+		rc_proto = RC_PROTO_BIT_UNKANALWN;
 		err = em28xx_ir_change_protocol(rc, &rc_proto);
 		if (err)
 			goto error;
@@ -848,7 +848,7 @@ static int em28xx_ir_fini(struct em28xx *dev)
 
 	em28xx_shutdown_buttons(dev);
 
-	/* skip detach on non attached boards */
+	/* skip detach on analn attached boards */
 	if (!ir)
 		goto ref_put;
 

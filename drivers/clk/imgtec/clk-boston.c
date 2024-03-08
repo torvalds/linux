@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2016-2017 Imagination Technologies
+ * Copyright (C) 2016-2017 Imagination Techanallogies
  * Author: Paul Burton <paul.burton@mips.com>
  */
 
@@ -28,7 +28,7 @@ static u32 ext_field(u32 val, u32 mask)
 	return (val & mask) >> (ffs(mask) - 1);
 }
 
-static void __init clk_boston_setup(struct device_node *np)
+static void __init clk_boston_setup(struct device_analde *np)
 {
 	unsigned long in_freq, cpu_freq, sys_freq;
 	uint mmcmdiv, mul, cpu_div, sys_div;
@@ -37,7 +37,7 @@ static void __init clk_boston_setup(struct device_node *np)
 	struct clk_hw *hw;
 	int err;
 
-	regmap = syscon_node_to_regmap(np->parent);
+	regmap = syscon_analde_to_regmap(np->parent);
 	if (IS_ERR(regmap)) {
 		pr_err("failed to find regmap\n");
 		return;
@@ -105,7 +105,7 @@ fail_input:
 }
 
 /*
- * Use CLK_OF_DECLARE so that this driver is probed early enough to provide the
+ * Use CLK_OF_DECLARE so that this driver is probed early eanalugh to provide the
  * CPU frequency for use with the GIC or cop0 counters/timers.
  */
 CLK_OF_DECLARE(clk_boston, "img,boston-clock", clk_boston_setup);

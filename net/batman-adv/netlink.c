@@ -14,7 +14,7 @@
 #include <linux/byteorder/generic.h>
 #include <linux/cache.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/export.h>
 #include <linux/genetlink.h>
 #include <linux/gfp.h>
@@ -146,7 +146,7 @@ static const struct nla_policy batadv_netlink_policy[NUM_BATADV_ATTR] = {
 	[BATADV_ATTR_HOP_PENALTY]		= { .type = NLA_U8 },
 	[BATADV_ATTR_LOG_LEVEL]			= { .type = NLA_U32 },
 	[BATADV_ATTR_MULTICAST_FORCEFLOOD_ENABLED]	= { .type = NLA_U8 },
-	[BATADV_ATTR_MULTICAST_FANOUT]		= { .type = NLA_U32 },
+	[BATADV_ATTR_MULTICAST_FAANALUT]		= { .type = NLA_U32 },
 	[BATADV_ATTR_NETWORK_CODING_ENABLED]	= { .type = NLA_U8 },
 	[BATADV_ATTR_ORIG_INTERVAL]		= { .type = NLA_U32 },
 	[BATADV_ATTR_ELP_INTERVAL]		= { .type = NLA_U32 },
@@ -181,7 +181,7 @@ static int batadv_netlink_mesh_fill_ap_isolation(struct sk_buff *msg,
 	struct batadv_softif_vlan *vlan;
 	u8 ap_isolation;
 
-	vlan = batadv_softif_vlan_get(bat_priv, BATADV_NO_FLAGS);
+	vlan = batadv_softif_vlan_get(bat_priv, BATADV_ANAL_FLAGS);
 	if (!vlan)
 		return 0;
 
@@ -204,9 +204,9 @@ static int batadv_netlink_set_mesh_ap_isolation(struct nlattr *attr,
 {
 	struct batadv_softif_vlan *vlan;
 
-	vlan = batadv_softif_vlan_get(bat_priv, BATADV_NO_FLAGS);
+	vlan = batadv_softif_vlan_get(bat_priv, BATADV_ANAL_FLAGS);
 	if (!vlan)
-		return -ENOENT;
+		return -EANALENT;
 
 	atomic_set(&vlan->ap_isolation, !!nla_get_u8(attr));
 	batadv_softif_vlan_put(vlan);
@@ -237,7 +237,7 @@ static int batadv_netlink_mesh_fill(struct sk_buff *msg,
 
 	hdr = genlmsg_put(msg, portid, seq, &batadv_netlink_family, flags, cmd);
 	if (!hdr)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	if (nla_put_string(msg, BATADV_ATTR_VERSION, BATADV_SOURCE_VERSION) ||
 	    nla_put_string(msg, BATADV_ATTR_ALGO_NAME,
@@ -319,10 +319,10 @@ static int batadv_netlink_mesh_fill(struct sk_buff *msg,
 		       atomic_read(&bat_priv->gw.mode)))
 		goto nla_put_failure;
 
-	if (bat_priv->algo_ops->gw.get_best_gw_node &&
+	if (bat_priv->algo_ops->gw.get_best_gw_analde &&
 	    bat_priv->algo_ops->gw.is_eligible) {
-		/* GW selection class is not available if the routing algorithm
-		 * in use does not implement the GW API
+		/* GW selection class is analt available if the routing algorithm
+		 * in use does analt implement the GW API
 		 */
 		if (nla_put_u32(msg, BATADV_ATTR_GW_SEL_CLASS,
 				atomic_read(&bat_priv->gw.sel_class)))
@@ -344,8 +344,8 @@ static int batadv_netlink_mesh_fill(struct sk_buff *msg,
 		       !atomic_read(&bat_priv->multicast_mode)))
 		goto nla_put_failure;
 
-	if (nla_put_u32(msg, BATADV_ATTR_MULTICAST_FANOUT,
-			atomic_read(&bat_priv->multicast_fanout)))
+	if (nla_put_u32(msg, BATADV_ATTR_MULTICAST_FAANALUT,
+			atomic_read(&bat_priv->multicast_faanalut)))
 		goto nla_put_failure;
 #endif /* CONFIG_BATMAN_ADV_MCAST */
 
@@ -372,19 +372,19 @@ nla_put_failure:
 }
 
 /**
- * batadv_netlink_notify_mesh() - send softif attributes to listener
+ * batadv_netlink_analtify_mesh() - send softif attributes to listener
  * @bat_priv: the bat priv with all the soft interface information
  *
  * Return: 0 on success, < 0 on error
  */
-static int batadv_netlink_notify_mesh(struct batadv_priv *bat_priv)
+static int batadv_netlink_analtify_mesh(struct batadv_priv *bat_priv)
 {
 	struct sk_buff *msg;
 	int ret;
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = batadv_netlink_mesh_fill(msg, bat_priv, BATADV_CMD_SET_MESH,
 				       0, 0, 0);
@@ -415,7 +415,7 @@ static int batadv_netlink_get_mesh(struct sk_buff *skb, struct genl_info *info)
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = batadv_netlink_mesh_fill(msg, bat_priv, BATADV_CMD_GET_MESH,
 				       info->snd_portid, info->snd_seq, 0);
@@ -522,13 +522,13 @@ static int batadv_netlink_set_mesh(struct sk_buff *skb, struct genl_info *info)
 		gw_mode = nla_get_u8(attr);
 
 		if (gw_mode <= BATADV_GW_MODE_SERVER) {
-			/* Invoking batadv_gw_reselect() is not enough to really
+			/* Invoking batadv_gw_reselect() is analt eanalugh to really
 			 * de-select the current GW. It will only instruct the
 			 * gateway client code to perform a re-election the next
 			 * time that this is needed.
 			 *
 			 * When gw client mode is being switched off the current
-			 * GW must be de-selected explicitly otherwise no GW_ADD
+			 * GW must be de-selected explicitly otherwise anal GW_ADD
 			 * uevent is thrown on client mode re-activation. This
 			 * is operation is performed in
 			 * batadv_gw_check_client_stop().
@@ -545,7 +545,7 @@ static int batadv_netlink_set_mesh(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	if (info->attrs[BATADV_ATTR_GW_SEL_CLASS] &&
-	    bat_priv->algo_ops->gw.get_best_gw_node &&
+	    bat_priv->algo_ops->gw.get_best_gw_analde &&
 	    bat_priv->algo_ops->gw.is_eligible) {
 		/* setting the GW selection class is allowed only if the routing
 		 * algorithm in use implements the GW API
@@ -585,10 +585,10 @@ static int batadv_netlink_set_mesh(struct sk_buff *skb, struct genl_info *info)
 		atomic_set(&bat_priv->multicast_mode, !nla_get_u8(attr));
 	}
 
-	if (info->attrs[BATADV_ATTR_MULTICAST_FANOUT]) {
-		attr = info->attrs[BATADV_ATTR_MULTICAST_FANOUT];
+	if (info->attrs[BATADV_ATTR_MULTICAST_FAANALUT]) {
+		attr = info->attrs[BATADV_ATTR_MULTICAST_FAANALUT];
 
-		atomic_set(&bat_priv->multicast_fanout, nla_get_u32(attr));
+		atomic_set(&bat_priv->multicast_faanalut, nla_get_u32(attr));
 	}
 #endif /* CONFIG_BATMAN_ADV_MCAST */
 
@@ -613,7 +613,7 @@ static int batadv_netlink_set_mesh(struct sk_buff *skb, struct genl_info *info)
 		atomic_set(&bat_priv->orig_interval, orig_interval);
 	}
 
-	batadv_netlink_notify_mesh(bat_priv);
+	batadv_netlink_analtify_mesh(bat_priv);
 
 	return 0;
 }
@@ -629,13 +629,13 @@ static int
 batadv_netlink_tp_meter_put(struct sk_buff *msg, u32 cookie)
 {
 	if (nla_put_u32(msg, BATADV_ATTR_TPMETER_COOKIE, cookie))
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	return 0;
 }
 
 /**
- * batadv_netlink_tpmeter_notify() - send tp_meter result via netlink to client
+ * batadv_netlink_tpmeter_analtify() - send tp_meter result via netlink to client
  * @bat_priv: the bat priv with all the soft interface information
  * @dst: destination of tp_meter session
  * @result: reason for tp meter session stop
@@ -645,7 +645,7 @@ batadv_netlink_tp_meter_put(struct sk_buff *msg, u32 cookie)
  *
  * Return: 0 on success, < 0 on error
  */
-int batadv_netlink_tpmeter_notify(struct batadv_priv *bat_priv, const u8 *dst,
+int batadv_netlink_tpmeter_analtify(struct batadv_priv *bat_priv, const u8 *dst,
 				  u8 result, u32 test_time, u64 total_bytes,
 				  u32 cookie)
 {
@@ -655,12 +655,12 @@ int batadv_netlink_tpmeter_notify(struct batadv_priv *bat_priv, const u8 *dst,
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hdr = genlmsg_put(msg, 0, 0, &batadv_netlink_family, 0,
 			  BATADV_CMD_TP_METER);
 	if (!hdr) {
-		ret = -ENOBUFS;
+		ret = -EANALBUFS;
 		goto err_genlmsg;
 	}
 
@@ -727,7 +727,7 @@ batadv_netlink_tp_meter_start(struct sk_buff *skb, struct genl_info *info)
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -735,7 +735,7 @@ batadv_netlink_tp_meter_start(struct sk_buff *skb, struct genl_info *info)
 			       &batadv_netlink_family, 0,
 			       BATADV_CMD_TP_METER);
 	if (!msg_head) {
-		ret = -ENOBUFS;
+		ret = -EANALBUFS;
 		goto out;
 	}
 
@@ -803,7 +803,7 @@ static int batadv_netlink_hardif_fill(struct sk_buff *msg,
 
 	hdr = genlmsg_put(msg, portid, seq, &batadv_netlink_family, flags, cmd);
 	if (!hdr)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	if (cb)
 		genl_dump_check_consistent(cb, hdr);
@@ -852,13 +852,13 @@ nla_put_failure:
 }
 
 /**
- * batadv_netlink_notify_hardif() - send hardif attributes to listener
+ * batadv_netlink_analtify_hardif() - send hardif attributes to listener
  * @bat_priv: the bat priv with all the soft interface information
  * @hard_iface: hard interface which was modified
  *
  * Return: 0 on success, < 0 on error
  */
-static int batadv_netlink_notify_hardif(struct batadv_priv *bat_priv,
+static int batadv_netlink_analtify_hardif(struct batadv_priv *bat_priv,
 					struct batadv_hard_iface *hard_iface)
 {
 	struct sk_buff *msg;
@@ -866,7 +866,7 @@ static int batadv_netlink_notify_hardif(struct batadv_priv *bat_priv,
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = batadv_netlink_hardif_fill(msg, bat_priv, hard_iface,
 					 BATADV_CMD_SET_HARDIF, 0, 0, 0, NULL);
@@ -899,7 +899,7 @@ static int batadv_netlink_get_hardif(struct sk_buff *skb,
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = batadv_netlink_hardif_fill(msg, bat_priv, hard_iface,
 					 BATADV_CMD_GET_HARDIF,
@@ -951,7 +951,7 @@ static int batadv_netlink_set_hardif(struct sk_buff *skb,
 	}
 #endif /* CONFIG_BATMAN_ADV_BATMAN_V */
 
-	batadv_netlink_notify_hardif(bat_priv, hard_iface);
+	batadv_netlink_analtify_hardif(bat_priv, hard_iface);
 
 	return 0;
 }
@@ -982,11 +982,11 @@ batadv_netlink_dump_hardif(struct sk_buff *msg, struct netlink_callback *cb)
 
 	soft_iface = dev_get_by_index(net, ifindex);
 	if (!soft_iface)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!batadv_softif_is_valid(soft_iface)) {
 		dev_put(soft_iface);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	bat_priv = netdev_priv(soft_iface);
@@ -1041,7 +1041,7 @@ static int batadv_netlink_vlan_fill(struct sk_buff *msg,
 
 	hdr = genlmsg_put(msg, portid, seq, &batadv_netlink_family, flags, cmd);
 	if (!hdr)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	if (nla_put_u32(msg, BATADV_ATTR_MESH_IFINDEX,
 			bat_priv->soft_iface->ifindex))
@@ -1067,13 +1067,13 @@ nla_put_failure:
 }
 
 /**
- * batadv_netlink_notify_vlan() - send vlan attributes to listener
+ * batadv_netlink_analtify_vlan() - send vlan attributes to listener
  * @bat_priv: the bat priv with all the soft interface information
  * @vlan: vlan which was modified
  *
  * Return: 0 on success, < 0 on error
  */
-static int batadv_netlink_notify_vlan(struct batadv_priv *bat_priv,
+static int batadv_netlink_analtify_vlan(struct batadv_priv *bat_priv,
 				      struct batadv_softif_vlan *vlan)
 {
 	struct sk_buff *msg;
@@ -1081,7 +1081,7 @@ static int batadv_netlink_notify_vlan(struct batadv_priv *bat_priv,
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = batadv_netlink_vlan_fill(msg, bat_priv, vlan,
 				       BATADV_CMD_SET_VLAN, 0, 0, 0);
@@ -1113,7 +1113,7 @@ static int batadv_netlink_get_vlan(struct sk_buff *skb, struct genl_info *info)
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = batadv_netlink_vlan_fill(msg, bat_priv, vlan, BATADV_CMD_GET_VLAN,
 				       info->snd_portid, info->snd_seq, 0);
@@ -1146,7 +1146,7 @@ static int batadv_netlink_set_vlan(struct sk_buff *skb, struct genl_info *info)
 		atomic_set(&vlan->ap_isolation, !!nla_get_u8(attr));
 	}
 
-	batadv_netlink_notify_vlan(bat_priv, vlan);
+	batadv_netlink_analtify_vlan(bat_priv, vlan);
 
 	return 0;
 }
@@ -1172,7 +1172,7 @@ batadv_get_softif_from_info(struct net *net, struct genl_info *info)
 
 	soft_iface = dev_get_by_index(net, ifindex);
 	if (!soft_iface)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	if (!batadv_softif_is_valid(soft_iface))
 		goto err_put_softif;
@@ -1209,7 +1209,7 @@ batadv_get_hardif_from_info(struct batadv_priv *bat_priv, struct net *net,
 
 	hard_dev = dev_get_by_index(net, hardif_index);
 	if (!hard_dev)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	hard_iface = batadv_hardif_get_by_netdev(hard_dev);
 	if (!hard_iface)
@@ -1218,7 +1218,7 @@ batadv_get_hardif_from_info(struct batadv_priv *bat_priv, struct net *net,
 	if (hard_iface->soft_iface != bat_priv->soft_iface)
 		goto err_put_hardif;
 
-	/* hard_dev is referenced by hard_iface and not needed here */
+	/* hard_dev is referenced by hard_iface and analt needed here */
 	dev_put(hard_dev);
 
 	return hard_iface;
@@ -1254,7 +1254,7 @@ batadv_get_vlan_from_info(struct batadv_priv *bat_priv, struct net *net,
 
 	vlan = batadv_softif_vlan_get(bat_priv, vid | BATADV_VLAN_HAS_TAG);
 	if (!vlan)
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 
 	return vlan;
 }

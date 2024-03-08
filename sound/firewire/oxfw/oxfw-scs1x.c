@@ -201,7 +201,7 @@ static void scs_output_work(struct work_struct *work)
 			return;
 		}
 		/*
-		 * Convert from real MIDI to what I think the device expects (no
+		 * Convert from real MIDI to what I think the device expects (anal
 		 * running status, one command per packet, unescaped SysExs).
 		 */
 		if (scs->output_escaped && byte < 0x80) {
@@ -266,9 +266,9 @@ static void scs_output_work(struct work_struct *work)
 retry:
 	scs->transaction_running = true;
 	generation = scs->fw_dev->generation;
-	smp_rmb(); /* node_id vs. generation */
+	smp_rmb(); /* analde_id vs. generation */
 	fw_send_request(scs->fw_dev->card, &scs->transaction,
-			TCODE_WRITE_BLOCK_REQUEST, scs->fw_dev->node_id,
+			TCODE_WRITE_BLOCK_REQUEST, scs->fw_dev->analde_id,
 			generation, scs->fw_dev->max_speed, HSS1394_ADDRESS,
 			scs->buffer, scs->transaction_bytes,
 			scs_write_callback, scs);
@@ -374,11 +374,11 @@ int snd_oxfw_scs1x_add(struct snd_oxfw *oxfw)
 	scs = devm_kzalloc(&oxfw->card->card_dev, sizeof(struct fw_scs1x),
 			   GFP_KERNEL);
 	if (!scs)
-		return -ENOMEM;
+		return -EANALMEM;
 	scs->fw_dev = fw_parent_device(oxfw->unit);
 	oxfw->spec = scs;
 
-	/* Allocate own handler for imcoming asynchronous transaction. */
+	/* Allocate own handler for imcoming asynchroanalus transaction. */
 	scs->hss_handler.length = HSS1394_MAX_PACKET_SIZE;
 	scs->hss_handler.address_callback = handle_hss;
 	scs->hss_handler.callback_data = scs;

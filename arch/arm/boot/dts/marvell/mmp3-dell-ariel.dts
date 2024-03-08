@@ -86,7 +86,7 @@
 	max-frequency = <50000000>;
 	status = "okay";
 	bus-width = <8>;
-	non-removable;
+	analn-removable;
 	cap-mmc-highspeed;
 };
 
@@ -122,7 +122,7 @@
 	cs-gpios = <&gpio 46 GPIO_ACTIVE_LOW>;
 
 	firmware-flash@0 {
-		compatible = "winbond,w25q32", "jedec,spi-nor";
+		compatible = "winbond,w25q32", "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <104000000>;
 		m25p,fast-read;

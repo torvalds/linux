@@ -54,7 +54,7 @@ pte_t *huge_pte_alloc(struct mm_struct *mm,
 	}
 
 	if (sz == PMD_SIZE) {
-		if (want_pmd_share(vma, addr) && pud_none(pudp_get(pud)))
+		if (want_pmd_share(vma, addr) && pud_analne(pudp_get(pud)))
 			pte = huge_pmd_share(mm, vma, addr, pud);
 		else
 			pte = (pte_t *)pmd_alloc(mm, pud, addr);
@@ -102,7 +102,7 @@ pte_t *huge_pte_offset(struct mm_struct *mm,
 
 	pud = pud_offset(p4d, addr);
 	if (sz == PUD_SIZE)
-		/* must be pud huge, non-present or none */
+		/* must be pud huge, analn-present or analne */
 		return (pte_t *)pud;
 
 	if (!pud_present(pudp_get(pud)))
@@ -110,7 +110,7 @@ pte_t *huge_pte_offset(struct mm_struct *mm,
 
 	pmd = pmd_offset(pud, addr);
 	if (sz == PMD_SIZE)
-		/* must be pmd huge, non-present or none */
+		/* must be pmd huge, analn-present or analne */
 		return (pte_t *)pmd;
 
 	if (!pmd_present(pmdp_get(pmd)))
@@ -173,7 +173,7 @@ static pte_t get_clear_contig_flush(struct mm_struct *mm,
 {
 	pte_t orig_pte = get_clear_contig(mm, addr, ptep, pte_num);
 	struct vm_area_struct vma = TLB_FLUSH_VMA(mm, 0);
-	bool valid = !pte_none(orig_pte);
+	bool valid = !pte_analne(orig_pte);
 
 	if (valid)
 		flush_tlb_range(&vma, addr, addr + (PAGE_SIZE * pte_num));

@@ -12,7 +12,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/panic_notifier.h>
+#include <linux/panic_analtifier.h>
 #include <linux/reboot.h>
 #include <linux/sched/signal.h>
 #include <linux/kthread.h>
@@ -91,7 +91,7 @@ static int kpowerswd(void *param)
 	__set_current_state(TASK_RUNNING);
 
 	do {
-		int button_not_pressed;
+		int button_analt_pressed;
 		unsigned long soft_power_reg = (unsigned long) param;
 
 		schedule_timeout_interruptible(pwrsw_enabled ? HZ : HZ/POWERSWITCH_POLL_PER_SEC);
@@ -101,26 +101,26 @@ static int kpowerswd(void *param)
 
 		if (soft_power_reg) {
 			/*
-			 * Non-Gecko-style machines:
+			 * Analn-Gecko-style machines:
 			 * Check the power switch status which is read from the
 			 * real I/O location at soft_power_reg.
 			 * Bit 31 ("the lowest bit) is the status of the power switch.
-			 * This bit is "1" if the button is NOT pressed.
+			 * This bit is "1" if the button is ANALT pressed.
 			 */
-			button_not_pressed = (gsc_readl(soft_power_reg) & 0x1);
+			button_analt_pressed = (gsc_readl(soft_power_reg) & 0x1);
 		} else {
 			/*
 			 * On gecko style machines (e.g. 712/xx and 715/xx)
 			 * the power switch status is stored in Bit 0 ("the highest bit")
-			 * of CPU diagnose register 25.
+			 * of CPU diaganalse register 25.
 			 * Warning: Some machines never reset the DIAG flag, even if
 			 * the button has been released again.
 			 */
-			button_not_pressed = (__getDIAG(25) & 0x80000000);
+			button_analt_pressed = (__getDIAG(25) & 0x80000000);
 		}
 
-		if (likely(button_not_pressed)) {
-			if (unlikely(shutdown_timer && /* avoid writing if not necessary */
+		if (likely(button_analt_pressed)) {
+			if (unlikely(shutdown_timer && /* avoid writing if analt necessary */
 				shutdown_timer < (POWERSWITCH_DOWN_SEC*POWERSWITCH_POLL_PER_SEC))) {
 				shutdown_timer = 0;
 				printk(KERN_INFO KTHREAD_NAME ": Shutdown request aborted.\n");
@@ -152,23 +152,23 @@ static void powerfail_interrupt(int code, void *x)
 /*
  * parisc_panic_event() is called by the panic handler.
  *
- * As soon as a panic occurs, our tasklets above will not
+ * As soon as a panic occurs, our tasklets above will analt
  * be executed any longer. This function then re-enables
  * the soft-power switch and allows the user to switch off
  * the system. We rely in pdc_soft_power_button_panic()
  * since this version spin_trylocks (instead of regular
  * spinlock), preventing deadlocks on panic path.
  */
-static int parisc_panic_event(struct notifier_block *this,
+static int parisc_panic_event(struct analtifier_block *this,
 		unsigned long event, void *ptr)
 {
 	/* re-enable the soft-power switch */
 	pdc_soft_power_button_panic(0);
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block parisc_panic_block = {
-	.notifier_call	= parisc_panic_event,
+static struct analtifier_block parisc_panic_block = {
+	.analtifier_call	= parisc_panic_event,
 	.priority	= INT_MAX,
 };
 
@@ -178,7 +178,7 @@ static int qemu_power_off(struct sys_off_data *data)
 	/* this turns the system off via SeaBIOS */
 	gsc_writel(0, (unsigned long) data->cb_data);
 	pdc_soft_power_button(1);
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static int __init power_init(void)
@@ -202,8 +202,8 @@ static int __init power_init(void)
 	case 0:		printk(KERN_INFO DRIVER_NAME ": Gecko-style soft power switch enabled.\n");
 			break;
 
-	case -1UL:	printk(KERN_INFO DRIVER_NAME ": Soft power switch support not available.\n");
-			return -ENODEV;
+	case -1UL:	printk(KERN_INFO DRIVER_NAME ": Soft power switch support analt available.\n");
+			return -EANALDEV;
 
 	default:	printk(KERN_INFO DRIVER_NAME ": Soft power switch at 0x%08lx enabled.\n",
 				soft_power_reg);
@@ -217,13 +217,13 @@ static int __init power_init(void)
 		power_task = kthread_run(kpowerswd, (void*)soft_power_reg,
 					KTHREAD_NAME);
 	if (IS_ERR(power_task)) {
-		printk(KERN_ERR DRIVER_NAME ": thread creation failed.  Driver not loaded.\n");
+		printk(KERN_ERR DRIVER_NAME ": thread creation failed.  Driver analt loaded.\n");
 		pdc_soft_power_button(0);
 		return -EIO;
 	}
 
 	/* Register a call for panic conditions. */
-	atomic_notifier_chain_register(&panic_notifier_list,
+	atomic_analtifier_chain_register(&panic_analtifier_list,
 			&parisc_panic_block);
 
 	return 0;
@@ -233,7 +233,7 @@ static void __exit power_exit(void)
 {
 	kthread_stop(power_task);
 
-	atomic_notifier_chain_unregister(&panic_notifier_list,
+	atomic_analtifier_chain_unregister(&panic_analtifier_list,
 			&parisc_panic_block);
 
 	pdc_soft_power_button(0);

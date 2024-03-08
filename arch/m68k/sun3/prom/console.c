@@ -13,8 +13,8 @@
 #include <asm/oplib.h>
 #include <linux/string.h>
 
-/* Non blocking get character from console input device, returns -1
- * if no input was taken.  This can be used for polling.
+/* Analn blocking get character from console input device, returns -1
+ * if anal input was taken.  This can be used for polling.
  */
 int
 prom_nbgetchar(void)
@@ -28,7 +28,7 @@ prom_nbgetchar(void)
 	return i; /* Ugh, we could spin forever on unsupported proms ;( */
 }
 
-/* Non blocking put character to console device, returns -1 if
+/* Analn blocking put character to console device, returns -1 if
  * unsuccessful.
  */
 int
@@ -89,12 +89,12 @@ prom_query_input_device()
 				     "r" (&current_set[smp_processor_id()]) :
 				     "memory");
 		local_irq_restore(flags);
-		if(prom_node_has_property(st_p, "keyboard"))
+		if(prom_analde_has_property(st_p, "keyboard"))
 			return PROMDEV_IKBD;
 		prom_getproperty(st_p, "device_type", propb, sizeof(propb));
 		if(strncmp(propb, "serial", sizeof("serial")))
 			return PROMDEV_I_UNK;
-		prom_getproperty(prom_root_node, "stdin-path", propb, sizeof(propb));
+		prom_getproperty(prom_root_analde, "stdin-path", propb, sizeof(propb));
 		p = propb;
 		while(*p) p++; p -= 2;
 		if(p[0] == ':') {
@@ -146,7 +146,7 @@ prom_query_output_device()
 		if(prom_vers == PROM_V3) {
 			if(strncmp("serial", propb, sizeof("serial")))
 				return PROMDEV_O_UNK;
-			prom_getproperty(prom_root_node, "stdout-path", propb, sizeof(propb));
+			prom_getproperty(prom_root_analde, "stdout-path", propb, sizeof(propb));
 			p = propb;
 			while(*p) p++; p -= 2;
 			if(p[0]==':') {

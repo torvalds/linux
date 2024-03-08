@@ -48,7 +48,7 @@ struct inet6_ifaddr {
 	__u8			stable_privacy_retry;
 
 	__u16			scope;
-	__u64			dad_nonce;
+	__u64			dad_analnce;
 
 	unsigned long		cstamp;	/* created timestamp */
 	unsigned long		tstamp; /* updated timestamp */
@@ -58,11 +58,11 @@ struct inet6_ifaddr {
 	struct inet6_dev	*idev;
 	struct fib6_info	*rt;
 
-	struct hlist_node	addr_lst;
+	struct hlist_analde	addr_lst;
 	struct list_head	if_list;
 	/*
 	 * Used to safely traverse idev->addr_list in process context
-	 * if the idev->lock needed to protect idev->addr_list cannot be held.
+	 * if the idev->lock needed to protect idev->addr_list cananalt be held.
 	 * In that case, add the items to this list temporarily and iterate
 	 * without holding idev->lock.
 	 * See addrconf_ifdown and dev_forward_change.
@@ -112,7 +112,7 @@ struct ip6_sf_list {
 #define MAF_TIMER_RUNNING	0x01
 #define MAF_LAST_REPORTER	0x02
 #define MAF_LOADED		0x04
-#define MAF_NOREPORT		0x08
+#define MAF_ANALREPORT		0x08
 #define MAF_GSQUERY		0x10
 
 struct ifmcaddr6 {
@@ -145,7 +145,7 @@ struct ifacaddr6 {
 	struct in6_addr		aca_addr;
 	struct fib6_info	*aca_rt;
 	struct ifacaddr6	*aca_next;
-	struct hlist_node	aca_addr_lst;
+	struct hlist_analde	aca_addr_lst;
 	int			aca_users;
 	refcount_t		aca_refcnt;
 	unsigned long		aca_cstamp;

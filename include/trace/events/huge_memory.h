@@ -11,28 +11,28 @@
 	EM( SCAN_FAIL,			"failed")			\
 	EM( SCAN_SUCCEED,		"succeeded")			\
 	EM( SCAN_PMD_NULL,		"pmd_null")			\
-	EM( SCAN_PMD_NONE,		"pmd_none")			\
+	EM( SCAN_PMD_ANALNE,		"pmd_analne")			\
 	EM( SCAN_PMD_MAPPED,		"page_pmd_mapped")		\
-	EM( SCAN_EXCEED_NONE_PTE,	"exceed_none_pte")		\
+	EM( SCAN_EXCEED_ANALNE_PTE,	"exceed_analne_pte")		\
 	EM( SCAN_EXCEED_SWAP_PTE,	"exceed_swap_pte")		\
 	EM( SCAN_EXCEED_SHARED_PTE,	"exceed_shared_pte")		\
-	EM( SCAN_PTE_NON_PRESENT,	"pte_non_present")		\
+	EM( SCAN_PTE_ANALN_PRESENT,	"pte_analn_present")		\
 	EM( SCAN_PTE_UFFD_WP,		"pte_uffd_wp")			\
 	EM( SCAN_PTE_MAPPED_HUGEPAGE,	"pte_mapped_hugepage")		\
-	EM( SCAN_PAGE_RO,		"no_writable_page")		\
+	EM( SCAN_PAGE_RO,		"anal_writable_page")		\
 	EM( SCAN_LACK_REFERENCED_PAGE,	"lack_referenced_page")		\
 	EM( SCAN_PAGE_NULL,		"page_null")			\
 	EM( SCAN_SCAN_ABORT,		"scan_aborted")			\
-	EM( SCAN_PAGE_COUNT,		"not_suitable_page_count")	\
-	EM( SCAN_PAGE_LRU,		"page_not_in_lru")		\
+	EM( SCAN_PAGE_COUNT,		"analt_suitable_page_count")	\
+	EM( SCAN_PAGE_LRU,		"page_analt_in_lru")		\
 	EM( SCAN_PAGE_LOCK,		"page_locked")			\
-	EM( SCAN_PAGE_ANON,		"page_not_anon")		\
+	EM( SCAN_PAGE_AANALN,		"page_analt_aanaln")		\
 	EM( SCAN_PAGE_COMPOUND,		"page_compound")		\
-	EM( SCAN_ANY_PROCESS,		"no_process_for_page")		\
+	EM( SCAN_ANY_PROCESS,		"anal_process_for_page")		\
 	EM( SCAN_VMA_NULL,		"vma_null")			\
 	EM( SCAN_VMA_CHECK,		"vma_check_failed")		\
-	EM( SCAN_ADDRESS_RANGE,		"not_suitable_address_range")	\
-	EM( SCAN_DEL_PAGE_LRU,		"could_not_delete_page_from_lru")\
+	EM( SCAN_ADDRESS_RANGE,		"analt_suitable_address_range")	\
+	EM( SCAN_DEL_PAGE_LRU,		"could_analt_delete_page_from_lru")\
 	EM( SCAN_ALLOC_HUGE_PAGE_FAIL,	"alloc_huge_page_failed")	\
 	EM( SCAN_CGROUP_CHARGE_FAIL,	"ccgroup_charge_failed")	\
 	EM( SCAN_TRUNCATED,		"truncated")			\
@@ -56,16 +56,16 @@ SCAN_STATUS
 TRACE_EVENT(mm_khugepaged_scan_pmd,
 
 	TP_PROTO(struct mm_struct *mm, struct page *page, bool writable,
-		 int referenced, int none_or_zero, int status, int unmapped),
+		 int referenced, int analne_or_zero, int status, int unmapped),
 
-	TP_ARGS(mm, page, writable, referenced, none_or_zero, status, unmapped),
+	TP_ARGS(mm, page, writable, referenced, analne_or_zero, status, unmapped),
 
 	TP_STRUCT__entry(
 		__field(struct mm_struct *, mm)
 		__field(unsigned long, pfn)
 		__field(bool, writable)
 		__field(int, referenced)
-		__field(int, none_or_zero)
+		__field(int, analne_or_zero)
 		__field(int, status)
 		__field(int, unmapped)
 	),
@@ -75,17 +75,17 @@ TRACE_EVENT(mm_khugepaged_scan_pmd,
 		__entry->pfn = page ? page_to_pfn(page) : -1;
 		__entry->writable = writable;
 		__entry->referenced = referenced;
-		__entry->none_or_zero = none_or_zero;
+		__entry->analne_or_zero = analne_or_zero;
 		__entry->status = status;
 		__entry->unmapped = unmapped;
 	),
 
-	TP_printk("mm=%p, scan_pfn=0x%lx, writable=%d, referenced=%d, none_or_zero=%d, status=%s, unmapped=%d",
+	TP_printk("mm=%p, scan_pfn=0x%lx, writable=%d, referenced=%d, analne_or_zero=%d, status=%s, unmapped=%d",
 		__entry->mm,
 		__entry->pfn,
 		__entry->writable,
 		__entry->referenced,
-		__entry->none_or_zero,
+		__entry->analne_or_zero,
 		__print_symbolic(__entry->status, SCAN_STATUS),
 		__entry->unmapped)
 );
@@ -116,14 +116,14 @@ TRACE_EVENT(mm_collapse_huge_page,
 
 TRACE_EVENT(mm_collapse_huge_page_isolate,
 
-	TP_PROTO(struct page *page, int none_or_zero,
+	TP_PROTO(struct page *page, int analne_or_zero,
 		 int referenced, bool  writable, int status),
 
-	TP_ARGS(page, none_or_zero, referenced, writable, status),
+	TP_ARGS(page, analne_or_zero, referenced, writable, status),
 
 	TP_STRUCT__entry(
 		__field(unsigned long, pfn)
-		__field(int, none_or_zero)
+		__field(int, analne_or_zero)
 		__field(int, referenced)
 		__field(bool, writable)
 		__field(int, status)
@@ -131,15 +131,15 @@ TRACE_EVENT(mm_collapse_huge_page_isolate,
 
 	TP_fast_assign(
 		__entry->pfn = page ? page_to_pfn(page) : -1;
-		__entry->none_or_zero = none_or_zero;
+		__entry->analne_or_zero = analne_or_zero;
 		__entry->referenced = referenced;
 		__entry->writable = writable;
 		__entry->status = status;
 	),
 
-	TP_printk("scan_pfn=0x%lx, none_or_zero=%d, referenced=%d, writable=%d, status=%s",
+	TP_printk("scan_pfn=0x%lx, analne_or_zero=%d, referenced=%d, writable=%d, status=%s",
 		__entry->pfn,
-		__entry->none_or_zero,
+		__entry->analne_or_zero,
 		__entry->referenced,
 		__entry->writable,
 		__print_symbolic(__entry->status, SCAN_STATUS))

@@ -25,7 +25,7 @@
  *
  */
 #define DSP_OPT_ULAW		(1 << 0)
-#define DSP_OPT_NOHARDWARE	(1 << 1)
+#define DSP_OPT_ANALHARDWARE	(1 << 1)
 
 #include <linux/timer.h>
 #include <linux/workqueue.h>
@@ -104,7 +104,7 @@ struct dsp_conf {
 	struct list_head	mlist;
 	int			software; /* conf is processed by software */
 	int			hardware; /* conf is processed by hardware */
-	/* note: if both unset, has only one member */
+	/* analte: if both unset, has only one member */
 };
 
 

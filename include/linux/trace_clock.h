@@ -8,17 +8,17 @@
  *
  *  -   local: CPU-local trace clock
  *  -  medium: scalable global clock with some jitter
- *  -  global: globally monotonic, serialized clock
+ *  -  global: globally moanaltonic, serialized clock
  */
 #include <linux/compiler.h>
 #include <linux/types.h>
 
 #include <asm/trace_clock.h>
 
-extern u64 notrace trace_clock_local(void);
-extern u64 notrace trace_clock(void);
-extern u64 notrace trace_clock_jiffies(void);
-extern u64 notrace trace_clock_global(void);
-extern u64 notrace trace_clock_counter(void);
+extern u64 analtrace trace_clock_local(void);
+extern u64 analtrace trace_clock(void);
+extern u64 analtrace trace_clock_jiffies(void);
+extern u64 analtrace trace_clock_global(void);
+extern u64 analtrace trace_clock_counter(void);
 
 #endif /* _LINUX_TRACE_CLOCK_H */

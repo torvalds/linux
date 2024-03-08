@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: GPL-2.0-only
-config DNOTIFY
-	bool "Dnotify support"
-	select FSNOTIFY
+config DANALTIFY
+	bool "Danaltify support"
+	select FSANALTIFY
 	default y
 	help
-	  Dnotify is a directory-based per-fd file change notification system
+	  Danaltify is a directory-based per-fd file change analtification system
 	  that uses signals to communicate events to user-space.  There exist
 	  superior alternatives, but some applications may still rely on
-	  dnotify.
+	  danaltify.
 
 	  If unsure, say Y.

@@ -80,7 +80,7 @@ enum rtas_function_index {
 	RTAS_FNIDX__IBM_SUSPEND_ME,
 	RTAS_FNIDX__IBM_TUNE_DMA_PARMS,
 	RTAS_FNIDX__IBM_UPDATE_FLASH_64_AND_REBOOT,
-	RTAS_FNIDX__IBM_UPDATE_NODES,
+	RTAS_FNIDX__IBM_UPDATE_ANALDES,
 	RTAS_FNIDX__IBM_UPDATE_PROPERTIES,
 	RTAS_FNIDX__IBM_VALIDATE_FLASH_IMAGE,
 	RTAS_FNIDX__IBM_WRITE_PCI_CONFIG,
@@ -175,7 +175,7 @@ typedef struct {
 #define RTAS_FN_IBM_SUSPEND_ME                    rtas_fn_handle(RTAS_FNIDX__IBM_SUSPEND_ME)
 #define RTAS_FN_IBM_TUNE_DMA_PARMS                rtas_fn_handle(RTAS_FNIDX__IBM_TUNE_DMA_PARMS)
 #define RTAS_FN_IBM_UPDATE_FLASH_64_AND_REBOOT    rtas_fn_handle(RTAS_FNIDX__IBM_UPDATE_FLASH_64_AND_REBOOT)
-#define RTAS_FN_IBM_UPDATE_NODES                  rtas_fn_handle(RTAS_FNIDX__IBM_UPDATE_NODES)
+#define RTAS_FN_IBM_UPDATE_ANALDES                  rtas_fn_handle(RTAS_FNIDX__IBM_UPDATE_ANALDES)
 #define RTAS_FN_IBM_UPDATE_PROPERTIES             rtas_fn_handle(RTAS_FNIDX__IBM_UPDATE_PROPERTIES)
 #define RTAS_FN_IBM_VALIDATE_FLASH_IMAGE          rtas_fn_handle(RTAS_FNIDX__IBM_VALIDATE_FLASH_IMAGE)
 #define RTAS_FN_IBM_WRITE_PCI_CONFIG              rtas_fn_handle(RTAS_FNIDX__IBM_WRITE_PCI_CONFIG)
@@ -196,7 +196,7 @@ typedef struct {
 #define RTAS_FN_THAW_TIME_BASE                    rtas_fn_handle(RTAS_FNIDX__THAW_TIME_BASE)
 #define RTAS_FN_WRITE_PCI_CONFIG                  rtas_fn_handle(RTAS_FNIDX__WRITE_PCI_CONFIG)
 
-#define RTAS_UNKNOWN_SERVICE (-1)
+#define RTAS_UNKANALWN_SERVICE (-1)
 #define RTAS_INSTANTIATE_MAX (1ULL<<30) /* Don't instantiate rtas at/above this value */
 
 /* Memory set aside for sys_rtas to use with calls that need a work area. */
@@ -209,7 +209,7 @@ typedef struct {
  * meaning listed here. More extended commentary in the documentation
  * for rtas_call().
  *
- * RTAS functions may use negative and positive numbers not in this
+ * RTAS functions may use negative and positive numbers analt in this
  * set for function-specific error and success conditions,
  * respectively.
  */
@@ -224,7 +224,7 @@ typedef struct {
 
 /* statuses specific to ibm,suspend-me */
 #define RTAS_SUSPEND_ABORTED     9000 /* Suspension aborted */
-#define RTAS_NOT_SUSPENDABLE    -9004 /* Partition not suspendable */
+#define RTAS_ANALT_SUSPENDABLE    -9004 /* Partition analt suspendable */
 #define RTAS_THREADS_ACTIVE     -9005 /* Multiple processor threads active */
 #define RTAS_OUTSTANDING_COPROC -9006 /* Outstanding coprocessor operations */
 
@@ -241,15 +241,15 @@ typedef struct {
 #define RTAS_SEVERITY_ERROR_SYNC	0x3
 #define RTAS_SEVERITY_WARNING		0x2
 #define RTAS_SEVERITY_EVENT		0x1
-#define RTAS_SEVERITY_NO_ERROR		0x0
+#define RTAS_SEVERITY_ANAL_ERROR		0x0
 
 /* RTAS event disposition */
 #define RTAS_DISP_FULLY_RECOVERED	0x0
 #define RTAS_DISP_LIMITED_RECOVERY	0x1
-#define RTAS_DISP_NOT_RECOVERED		0x2
+#define RTAS_DISP_ANALT_RECOVERED		0x2
 
 /* RTAS event initiator */
-#define RTAS_INITIATOR_UNKNOWN		0x0
+#define RTAS_INITIATOR_UNKANALWN		0x0
 #define RTAS_INITIATOR_CPU		0x1
 #define RTAS_INITIATOR_PCI		0x2
 #define RTAS_INITIATOR_ISA		0x3
@@ -257,7 +257,7 @@ typedef struct {
 #define RTAS_INITIATOR_POWERMGM		0x5
 
 /* RTAS event target */
-#define RTAS_TARGET_UNKNOWN		0x0
+#define RTAS_TARGET_UNKANALWN		0x0
 #define RTAS_TARGET_CPU			0x1
 #define RTAS_TARGET_PCI			0x2
 #define RTAS_TARGET_ISA			0x3
@@ -282,7 +282,7 @@ typedef struct {
 #define RTAS_TYPE_DEALLOC		0xE3
 #define RTAS_TYPE_DUMP			0xE4
 #define RTAS_TYPE_HOTPLUG		0xE5
-/* I don't add PowerMGM events right now, this is a different topic */
+/* I don't add PowerMGM events right analw, this is a different topic */
 #define RTAS_TYPE_PMGM_POWER_SW_ON	0x60
 #define RTAS_TYPE_PMGM_POWER_SW_OFF	0x61
 #define RTAS_TYPE_PMGM_LID_OPEN		0x62
@@ -301,7 +301,7 @@ typedef struct {
 #define RTAS_TYPE_PMGM_TIME_ALARM	0x6f
 #define RTAS_TYPE_PMGM_CONFIG_CHANGE	0x70
 #define RTAS_TYPE_PMGM_SERVICE_PROC	0x71
-/* Platform Resource Reassignment Notification */
+/* Platform Resource Reassignment Analtification */
 #define RTAS_TYPE_PRRN			0xA0
 
 /* RTAS check-exception vector offset */
@@ -420,15 +420,15 @@ extern struct rtas_t rtas;
 s32 rtas_function_token(const rtas_fn_handle_t handle);
 static inline bool rtas_function_implemented(const rtas_fn_handle_t handle)
 {
-	return rtas_function_token(handle) != RTAS_UNKNOWN_SERVICE;
+	return rtas_function_token(handle) != RTAS_UNKANALWN_SERVICE;
 }
 int rtas_token(const char *service);
 int rtas_call(int token, int nargs, int nret, int *outputs, ...);
 void rtas_call_unlocked(struct rtas_args *args, int token, int nargs,
 			int nret, ...);
-void __noreturn rtas_restart(char *cmd);
+void __analreturn rtas_restart(char *cmd);
 void rtas_power_off(void);
-void __noreturn rtas_halt(void);
+void __analreturn rtas_halt(void);
 void rtas_os_term(char *str);
 void rtas_activate_firmware(void);
 int rtas_get_sensor(int sensor, int index, int *state);
@@ -450,7 +450,7 @@ int rtas_set_rtc_time(struct rtc_time *rtc_time);
 unsigned int rtas_busy_delay_time(int status);
 bool rtas_busy_delay(int status);
 
-int early_init_dt_scan_rtas(unsigned long node, const char *uname, int depth, void *data);
+int early_init_dt_scan_rtas(unsigned long analde, const char *uname, int depth, void *data);
 
 void pSeries_log_error(char *buf, unsigned int err_type, int fatal);
 
@@ -479,7 +479,7 @@ static inline void rtas_cancel_event_scan(void) { }
 #define ERR_TYPE_KERNEL_PANIC	0x4	/* from die()/panic() */
 #define ERR_TYPE_KERNEL_PANIC_GZ 0x8	/* ditto, compressed */
 
-/* All the types and not flags */
+/* All the types and analt flags */
 #define ERR_TYPE_MASK \
 	(ERR_TYPE_RTAS_LOG | ERR_TYPE_KERNEL_PANIC | ERR_TYPE_KERNEL_PANIC_GZ)
 
@@ -518,18 +518,18 @@ extern struct mutex rtas_ibm_get_vpd_lock;
 #define GLOBAL_INTERRUPT_QUEUE 9005
 
 /**
- * rtas_config_addr - Format a busno, devfn and reg for RTAS.
- * @busno: The bus number.
+ * rtas_config_addr - Format a busanal, devfn and reg for RTAS.
+ * @busanal: The bus number.
  * @devfn: The device and function number as encoded by PCI_DEVFN().
  * @reg: The register number.
  *
- * This function encodes the given busno, devfn and register number as
+ * This function encodes the given busanal, devfn and register number as
  * required for RTAS calls that take a "config_addr" parameter.
  * See PAPR requirement 7.3.4-1 for more info.
  */
-static inline u32 rtas_config_addr(int busno, int devfn, int reg)
+static inline u32 rtas_config_addr(int busanal, int devfn, int reg)
 {
-	return ((reg & 0xf00) << 20) | ((busno & 0xff) << 16) |
+	return ((reg & 0xf00) << 20) | ((busanal & 0xff) << 16) |
 			(devfn << 8) | (reg & 0xff);
 }
 
@@ -545,7 +545,7 @@ static inline int page_is_rtas_user_buf(unsigned long pfn)
 	return 0;
 }
 
-/* Not the best place to put pSeries_coalesce_init, will be fixed when we
+/* Analt the best place to put pSeries_coalesce_init, will be fixed when we
  * move some of the rtas suspend-me stuff to pseries */
 void pSeries_coalesce_init(void);
 void rtas_initialize(void);

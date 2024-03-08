@@ -48,7 +48,7 @@ properties:
     maxItems: 4
     description: |
       Clock for each PS_MGTREFCLK[0-3] reference clock input. Unconnected
-      inputs shall not have an entry.
+      inputs shall analt have an entry.
 
   clock-names:
     minItems: 1

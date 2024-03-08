@@ -101,7 +101,7 @@ static int keyctl_pkey_params_get(key_serial_t id,
 	params->key = key_ref_to_ptr(key_ref);
 
 	if (!params->key->type->asym_query)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return 0;
 }
@@ -159,7 +159,7 @@ static int keyctl_pkey_params_get_2(const struct keyctl_pkey_params __user *_par
 	}
 
 	params->in_len  = uparams.in_len;
-	params->out_len = uparams.out_len; /* Note: same as in2_len */
+	params->out_len = uparams.out_len; /* Analte: same as in2_len */
 	return 0;
 }
 
@@ -223,7 +223,7 @@ long keyctl_pkey_e_d_s(int op,
 	if (ret < 0)
 		goto error_params;
 
-	ret = -EOPNOTSUPP;
+	ret = -EOPANALTSUPP;
 	if (!params.key->type->asym_eds_op)
 		goto error_params;
 
@@ -247,7 +247,7 @@ long keyctl_pkey_e_d_s(int op,
 		goto error_params;
 	}
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	out = kmalloc(params.out_len, GFP_KERNEL);
 	if (!out)
 		goto error_in;
@@ -271,7 +271,7 @@ error_params:
 /*
  * Verify a signature.
  *
- * Verify a public key signature using the given key, or if not given, search
+ * Verify a public key signature using the given key, or if analt given, search
  * for a matching key.
  *
  * _info is a string of supplementary information in key=val format.  For
@@ -299,7 +299,7 @@ long keyctl_pkey_verify(const struct keyctl_pkey_params __user *_params,
 	if (ret < 0)
 		goto error_params;
 
-	ret = -EOPNOTSUPP;
+	ret = -EOPANALTSUPP;
 	if (!params.key->type->asym_verify_signature)
 		goto error_params;
 

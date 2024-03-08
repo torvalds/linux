@@ -1,4 +1,4 @@
-Each HSI port is supposed to have one child node, which
+Each HSI port is supposed to have one child analde, which
 symbols the remote device connected to the HSI port. The
 following properties are standardized for HSI clients:
 
@@ -21,12 +21,12 @@ Optional HSI configuration properties:
 			hsi-channel-ids property
 
 
-Device Tree node example for an HSI client:
+Device Tree analde example for an HSI client:
 
 hsi-controller {
 	hsi-port {
 		modem: hsi-client {
-			compatible = "nokia,n900-modem";
+			compatible = "analkia,n900-modem";
 
 			hsi-channel-ids = <0>, <1>, <2>, <3>;
 			hsi-channel-names = "mcsaab-control",

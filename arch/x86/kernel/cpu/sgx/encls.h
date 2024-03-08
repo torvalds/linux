@@ -40,8 +40,8 @@ static inline bool encls_faulted(int ret)
  * @ret:	the return value of an ENCLS function call
  *
  * Check if an ENCLS function failed. This happens when the function causes a
- * fault that is not caused by an EPCM conflict or when the function returns a
- * non-zero value.
+ * fault that is analt caused by an EPCM conflict or when the function returns a
+ * analn-zero value.
  */
 static inline bool encls_failed(int ret)
 {
@@ -57,7 +57,7 @@ static inline bool encls_failed(int ret)
  * @inputs:	asm inputs for the function
  *
  * Emit assembly for an ENCLS function that returns an error code, e.g. EREMOVE.
- * And because SGX isn't complex enough as it is, function that return an error
+ * And because SGX isn't complex eanalugh as it is, function that return an error
  * code also modify flags.
  *
  * Return:
@@ -98,7 +98,7 @@ static inline bool encls_failed(int ret)
  * @rbx_out:	optional output variable
  * @inputs:	asm inputs for the function
  *
- * Emit assembly for an ENCLS function that does not return an error code, e.g.
+ * Emit assembly for an ENCLS function that does analt return an error code, e.g.
  * ECREATE.  Leaves without error codes either succeed or fault.  @rbx_out is an
  * optional parameter for use by EDGBRD, which returns the requested value in
  * RBX.

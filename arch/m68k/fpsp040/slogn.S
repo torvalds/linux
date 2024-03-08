@@ -3,35 +3,35 @@
 |
 |	slogn computes the natural logarithm of an
 |	input value. slognd does the same except the input value is a
-|	denormalized number. slognp1 computes log(1+X), and slognp1d
-|	computes log(1+X) for denormalized X.
+|	deanalrmalized number. slognp1 computes log(1+X), and slognp1d
+|	computes log(1+X) for deanalrmalized X.
 |
 |	Input: Double-extended value in memory location pointed to by address
 |		register a0.
 |
 |	Output:	log(X) or log(1+X) returned in floating-point register Fp0.
 |
-|	Accuracy and Monotonicity: The returned result is within 2 ulps in
+|	Accuracy and Moanaltonicity: The returned result is within 2 ulps in
 |		64 significant bit, i.e. within 0.5001 ulp to 53 bits if the
 |		result is subsequently rounded to double precision. The
-|		result is provably monotonic in double precision.
+|		result is provably moanaltonic in double precision.
 |
 |	Speed: The program slogn takes approximately 190 cycles for input
 |		argument X such that |X-1| >= 1/16, which is the usual
 |		situation. For those arguments, slognp1 takes approximately
 |		 210 cycles. For the less common arguments, the program will
-|		 run no worse than 10% slower.
+|		 run anal worse than 10% slower.
 |
 |	Algorithm:
 |	LOGN:
-|	Step 1. If |X-1| < 1/16, approximate log(X) by an odd polynomial in
+|	Step 1. If |X-1| < 1/16, approximate log(X) by an odd polyanalmial in
 |		u, where u = 2(X-1)/(X+1). Otherwise, move on to Step 2.
 |
 |	Step 2. X = 2**k * Y where 1 <= Y < 2. Define F to be the first seven
 |		significant bits of Y plus 2**(-7), i.e. F = 1.xxxxxx1 in base
-|		2 where the six "x" match those of Y. Note that |Y-F| <= 2**(-7).
+|		2 where the six "x" match those of Y. Analte that |Y-F| <= 2**(-7).
 |
-|	Step 3. Define u = (Y-F)/F. Approximate log(1+u) by a polynomial in u,
+|	Step 3. Define u = (Y-F)/F. Approximate log(1+u) by a polyanalmial in u,
 |		log(1+u) = poly.
 |
 |	Step 4. Reconstruct log(X) = log( 2**k * Y ) = k*log(2) + log(F) + log(1+u)
@@ -39,7 +39,7 @@
 |		beforehand and stored in the program.
 |
 |	lognp1:
-|	Step 1: If |X| < 1/16, approximate log(1+X) by an odd polynomial in
+|	Step 1: If |X| < 1/16, approximate log(1+X) by an odd polyanalmial in
 |		u where u = 2X/(2+X). Otherwise, move on to Step 2.
 |
 |	Step 2: Let 1+X = 2**k * Y, where 1 <= Y < 2. Define F as done in Step 2
@@ -47,16 +47,16 @@
 |		k*log(2) + log(F) + poly where poly approximates log(1+u),
 |		u = (Y-F)/F.
 |
-|	Implementation Notes:
-|	Note 1. There are 64 different possible values for F, thus 64 log(F)'s
+|	Implementation Analtes:
+|	Analte 1. There are 64 different possible values for F, thus 64 log(F)'s
 |		need to be tabulated. Moreover, the values of 1/F are also
 |		tabulated so that the division in (Y-F)/F can be performed by a
 |		multiplication.
 |
-|	Note 2. In Step 2 of lognp1, in order to preserved accuracy, the value
+|	Analte 2. In Step 2 of lognp1, in order to preserved accuracy, the value
 |		Y-F has to be calculated carefully when 1/2 <= X < 3/2.
 |
-|	Note 3. To fully exploit the pipeline, polynomials are usually separated
+|	Analte 3. To fully exploit the pipeline, polyanalmials are usually separated
 |		into two parts evaluated independently before being added up.
 |
 
@@ -252,23 +252,23 @@ LOGTBL:
 
 	.global	slognd
 slognd:
-|--ENTRY POINT FOR LOG(X) FOR DENORMALIZED INPUT
+|--ENTRY POINT FOR LOG(X) FOR DEANALRMALIZED INPUT
 
 	movel		#-100,ADJK(%a6)	| ...INPUT = 2^(ADJK) * FP0
 
-|----normalize the input value by left shifting k bits (k to be determined
+|----analrmalize the input value by left shifting k bits (k to be determined
 |----below), adjusting exponent and storing -k to  ADJK
-|----the value TWOTO100 is no longer needed.
-|----Note that this code assumes the denormalized input is NON-ZERO.
+|----the value TWOTO100 is anal longer needed.
+|----Analte that this code assumes the deanalrmalized input is ANALN-ZERO.
 
 	moveml	%d2-%d7,-(%a7)		| ...save some registers
-	movel	#0x00000000,%d3		| ...D3 is exponent of smallest norm. #
+	movel	#0x00000000,%d3		| ...D3 is exponent of smallest analrm. #
 	movel	4(%a0),%d4
 	movel	8(%a0),%d5		| ...(D4,D5) is (Hi_X,Lo_X)
 	clrl	%d2			| ...D2 used for holding K
 
 	tstl	%d4
-	bnes	HiX_not0
+	bnes	HiX_analt0
 
 HiX_0:
 	movel	%d5,%d4
@@ -277,7 +277,7 @@ HiX_0:
 	clrl	%d6
 	bfffo      %d4{#0:#32},%d6
 	lsll      %d6,%d4
-	addl	%d6,%d2			| ...(D3,D4,D5) is normalized
+	addl	%d6,%d2			| ...(D3,D4,D5) is analrmalized
 
 	movel	%d3,X(%a6)
 	movel	%d4,XFRAC(%a6)
@@ -290,7 +290,7 @@ HiX_0:
 	bras	LOGBGN			| ...begin regular log(X)
 
 
-HiX_not0:
+HiX_analt0:
 	clrl	%d6
 	bfffo	%d4{#0:#32},%d6		| ...find first 1
 	movel	%d6,%d2			| ...get k
@@ -300,7 +300,7 @@ HiX_not0:
 	negl	%d6
 	addil	#32,%d6
 	lsrl	%d6,%d7
-	orl	%d7,%d4			| ...(D3,D4,D5) normalized
+	orl	%d7,%d4			| ...(D3,D4,D5) analrmalized
 
 	movel	%d3,X(%a6)
 	movel	%d4,XFRAC(%a6)
@@ -315,14 +315,14 @@ HiX_not0:
 
 	.global	slogn
 slogn:
-|--ENTRY POINT FOR LOG(X) FOR X FINITE, NON-ZERO, NOT NAN'S
+|--ENTRY POINT FOR LOG(X) FOR X FINITE, ANALN-ZERO, ANALT NAN'S
 
 	fmovex		(%a0),%fp0	| ...LOAD INPUT
 	movel		#0x00000000,ADJK(%a6)
 
 LOGBGN:
 |--FPCR SAVED AND CLEARED, INPUT IS 2^(ADJK)*FP0, FP0 CONTAINS
-|--A FINITE, NON-ZERO, NORMALIZED NUMBER.
+|--A FINITE, ANALN-ZERO, ANALRMALIZED NUMBER.
 
 	movel	(%a0),%d0
 	movew	4(%a0),%d0
@@ -337,27 +337,27 @@ LOGBGN:
 	bcc	LOGNEAR1	| ...BOUNDS IS ROUGHLY [15/16, 17/16]
 
 LOGMAIN:
-|--THIS SHOULD BE THE USUAL CASE, X NOT VERY CLOSE TO 1
+|--THIS SHOULD BE THE USUAL CASE, X ANALT VERY CLOSE TO 1
 
 |--X = 2^(K) * Y, 1 <= Y < 2. THUS, Y = 1.XXXXXXXX....XX IN BINARY.
 |--WE DEFINE F = 1.XXXXXX1, I.E. FIRST 7 BITS OF Y AND ATTACH A 1.
 |--THE IDEA IS THAT LOG(X) = K*LOG2 + LOG(Y)
 |--			 = K*LOG2 + LOG(F) + LOG(1 + (Y-F)/F).
-|--NOTE THAT U = (Y-F)/F IS VERY SMALL AND THUS APPROXIMATING
+|--ANALTE THAT U = (Y-F)/F IS VERY SMALL AND THUS APPROXIMATING
 |--LOG(1+U) CAN BE VERY EFFICIENT.
-|--ALSO NOTE THAT THE VALUE 1/F IS STORED IN A TABLE SO THAT NO
+|--ALSO ANALTE THAT THE VALUE 1/F IS STORED IN A TABLE SO THAT ANAL
 |--DIVISION IS NEEDED TO CALCULATE (Y-F)/F.
 
 |--GET K, Y, F, AND ADDRESS OF 1/F.
 	asrl	#8,%d0
 	asrl	#8,%d0		| ...SHIFTED 16 BITS, BIASED EXPO. OF X
 	subil	#0x3FFF,%d0	| ...THIS IS K
-	addl	ADJK(%a6),%d0	| ...ADJUST K, ORIGINAL INPUT MAY BE  DENORM.
+	addl	ADJK(%a6),%d0	| ...ADJUST K, ORIGINAL INPUT MAY BE  DEANALRM.
 	lea	LOGTBL,%a0	| ...BASE ADDRESS OF 1/F AND LOG(F)
 	fmovel	%d0,%fp1		| ...CONVERT K TO FLOATING-POINT FORMAT
 
 |--WHILE THE CONVERSION IS GOING ON, WE GET F AND ADDRESS OF 1/F
-	movel	#0x3FFF0000,X(%a6)	| ...X IS NOW Y, I.E. 2^(-K)*X
+	movel	#0x3FFF0000,X(%a6)	| ...X IS ANALW Y, I.E. 2^(-K)*X
 	movel	XFRAC(%a6),FFRAC(%a6)
 	andil	#0xFE000000,FFRAC(%a6) | ...FIRST 7 BITS OF Y
 	oril	#0x01000000,FFRAC(%a6) | ...GET F: ATTACH A 1 AT THE EIGHTH BIT
@@ -372,14 +372,14 @@ LOGMAIN:
 	movel	#0x3fff0000,F(%a6)
 	clrl	F+8(%a6)
 	fsubx	F(%a6),%fp0		| ...Y-F
-	fmovemx %fp2-%fp2/%fp3,-(%sp)	| ...SAVE FP2 WHILE FP0 IS NOT READY
+	fmovemx %fp2-%fp2/%fp3,-(%sp)	| ...SAVE FP2 WHILE FP0 IS ANALT READY
 |--SUMMARY: FP0 IS Y-F, A0 IS ADDRESS OF 1/F, FP1 IS K
 |--REGISTERS SAVED: FPCR, FP1, FP2
 
 LP1CONT1:
 |--AN RE-ENTRY POINT FOR LOGNP1
 	fmulx	(%a0),%fp0	| ...FP0 IS U = (Y-F)/F
-	fmulx	LOGOF2,%fp1	| ...GET K*LOG2 WHILE FP0 IS NOT READY
+	fmulx	LOGOF2,%fp1	| ...GET K*LOG2 WHILE FP0 IS ANALT READY
 	fmovex	%fp0,%fp2
 	fmulx	%fp2,%fp2		| ...FP2 IS V=U*U
 	fmovex	%fp1,KLOG2(%a6)	| ...PUT K*LOG2 IN MEMORY, FREE FP1
@@ -425,14 +425,14 @@ LOGNEAR1:
 	fsubs	one,%fp1		| ...FP1 IS X-1
 	fadds	one,%fp0		| ...FP0 IS X+1
 	faddx	%fp1,%fp1		| ...FP1 IS 2(X-1)
-|--LOG(X) = LOG(1+U/2)-LOG(1-U/2) WHICH IS AN ODD POLYNOMIAL
+|--LOG(X) = LOG(1+U/2)-LOG(1-U/2) WHICH IS AN ODD POLYANALMIAL
 |--IN U, U = 2(X-1)/(X+1) = FP1/FP0
 
 LP1CONT2:
 |--THIS IS AN RE-ENTRY POINT FOR LOGNP1
 	fdivx	%fp0,%fp1		| ...FP1 IS U
 	fmovemx %fp2-%fp2/%fp3,-(%sp)	 | ...SAVE FP2
-|--REGISTERS SAVED ARE NOW FPCR,FP1,FP2,FP3
+|--REGISTERS SAVED ARE ANALW FPCR,FP1,FP2,FP3
 |--LET V=U*U, W=V*V, CALCULATE
 |--U + U*V*(B1 + V*(B2 + V*(B3 + V*(B4 + V*B5)))) BY
 |--U + U*V*(  [B1 + W*(B3 + W*B5)]  +  [V*(B2 + W*B4)]  )
@@ -474,14 +474,14 @@ LOGNEG:
 
 	.global	slognp1d
 slognp1d:
-|--ENTRY POINT FOR LOG(1+Z) FOR DENORMALIZED INPUT
-| Simply return the denorm
+|--ENTRY POINT FOR LOG(1+Z) FOR DEANALRMALIZED INPUT
+| Simply return the deanalrm
 
 	bra	t_extdnrm
 
 	.global	slognp1
 slognp1:
-|--ENTRY POINT FOR LOG(1+X) FOR X FINITE, NON-ZERO, NOT NAN'S
+|--ENTRY POINT FOR LOG(1+X) FOR X FINITE, ANALN-ZERO, ANALT NAN'S
 
 	fmovex	(%a0),%fp0	| ...LOAD INPUT
 	fabsx	%fp0		|test magnitude

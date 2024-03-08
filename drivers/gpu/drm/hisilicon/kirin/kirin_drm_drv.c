@@ -41,18 +41,18 @@ static int kirin_drm_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
 			       struct drm_plane *plane,
 			       const struct kirin_drm_data *driver_data)
 {
-	struct device_node *port;
+	struct device_analde *port;
 	int ret;
 
 	/* set crtc port so that
 	 * drm_of_find_possible_crtcs call works
 	 */
-	port = of_get_child_by_name(dev->dev->of_node, "port");
+	port = of_get_child_by_name(dev->dev->of_analde, "port");
 	if (!port) {
-		DRM_ERROR("no port node found in %pOF\n", dev->dev->of_node);
+		DRM_ERROR("anal port analde found in %pOF\n", dev->dev->of_analde);
 		return -EINVAL;
 	}
-	of_node_put(port);
+	of_analde_put(port);
 	crtc->port = port;
 
 	ret = drm_crtc_init_with_planes(dev, crtc, plane, NULL,
@@ -114,7 +114,7 @@ static int kirin_drm_private_init(struct drm_device *dev,
 	kirin_priv = devm_kzalloc(dev->dev, sizeof(*kirin_priv), GFP_KERNEL);
 	if (!kirin_priv) {
 		DRM_ERROR("failed to alloc kirin_drm_private\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ctx = driver_data->alloc_hw_ctx(pdev, &kirin_priv->crtc.base);
@@ -126,7 +126,7 @@ static int kirin_drm_private_init(struct drm_device *dev,
 
 	/*
 	 * plane init
-	 * TODO: Now only support primary plane, overlay planes
+	 * TODO: Analw only support primary plane, overlay planes
 	 * need to do.
 	 */
 	for (ch = 0; ch < driver_data->num_planes; ch++) {
@@ -268,16 +268,16 @@ static const struct component_master_ops kirin_drm_ops = {
 static int kirin_drm_platform_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct component_match *match = NULL;
-	struct device_node *remote;
+	struct device_analde *remote;
 
-	remote = of_graph_get_remote_node(np, 0, 0);
+	remote = of_graph_get_remote_analde(np, 0, 0);
 	if (!remote)
-		return -ENODEV;
+		return -EANALDEV;
 
 	drm_of_component_match_add(dev, &match, component_compare_of, remote);
-	of_node_put(remote);
+	of_analde_put(remote);
 
 	return component_master_add_with_match(dev, &kirin_drm_ops, match);
 }
@@ -296,7 +296,7 @@ static const struct of_device_id kirin_drm_dt_ids[] = {
 	{ .compatible = "hisilicon,hi6220-ade",
 	  .data = &ade_driver_data,
 	},
-	{ /* end node */ },
+	{ /* end analde */ },
 };
 MODULE_DEVICE_TABLE(of, kirin_drm_dt_ids);
 

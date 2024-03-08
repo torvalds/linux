@@ -17,7 +17,7 @@ Optional properties:
 			waits for this period of time before starting the
 			PWM signals. This helps reduce pops and clicks.
 
-			When not specified, the hardware default of 1300ms
+			When analt specified, the hardware default of 1300ms
 			is retained.
 
  - ti,mid-z-channel-X:	Boolean properties, X being a number from 1 to 6.
@@ -25,11 +25,11 @@ Optional properties:
 			sequence, otherwise the default Low-Z scheme is used.
 
 			The correct configuration depends on how the power
-			stages connected to the PWM output pins work. Not all
+			stages connected to the PWM output pins work. Analt all
 			power stages are compatible to Mid-Z - please refer
 			to the datasheets for more details.
 
-			Most systems should not set any of these properties.
+			Most systems should analt set any of these properties.
 
  - avdd-supply:         Power supply for AVDD, providing 3.3V
  - dvdd-supply:         Power supply for DVDD, providing 3.3V

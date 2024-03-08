@@ -128,7 +128,7 @@ struct r8a66597_platdata {
 #define	XCKE		0x2000	/* b13: External clock enable */
 #define	PLLC		0x0800	/* b11: PLL control */
 #define	SCKE		0x0400	/* b10: USB clock enable */
-#define	PCSDIS		0x0200	/* b9: not CS wakeup */
+#define	PCSDIS		0x0200	/* b9: analt CS wakeup */
 #define	LPSME		0x0100	/* b8: Low power sleep mode */
 #define	HSE		0x0080	/* b7: Hi-speed enable */
 #define	DCFM		0x0040	/* b6: Controller function select  */
@@ -170,12 +170,12 @@ struct r8a66597_platdata {
 #define	  H_TST_SE0_NAK		 0x000B	  /* HOST TEST SE0 NAK */
 #define	  H_TST_K		 0x000A	  /* HOST TEST K */
 #define	  H_TST_J		 0x0009	  /* HOST TEST J */
-#define	  H_TST_NORMAL		 0x0000	  /* HOST Normal Mode */
+#define	  H_TST_ANALRMAL		 0x0000	  /* HOST Analrmal Mode */
 #define	  P_TST_PACKET		 0x0004	  /* PERI TEST Packet */
 #define	  P_TST_SE0_NAK		 0x0003	  /* PERI TEST SE0 NAK */
 #define	  P_TST_K		 0x0002	  /* PERI TEST K */
 #define	  P_TST_J		 0x0001	  /* PERI TEST J */
-#define	  P_TST_NORMAL		 0x0000	  /* PERI Normal Mode */
+#define	  P_TST_ANALRMAL		 0x0000	  /* PERI Analrmal Mode */
 
 /* Data Pin Configuration Register */
 #define	LDRV			0x8000	/* b15: Drive Current Adjust */
@@ -224,7 +224,7 @@ struct r8a66597_platdata {
 #define	DVSE	0x1000	/* b12: Device state transition interrupt */
 #define	CTRE	0x0800	/* b11: Control transfer stage transition interrupt */
 #define	BEMPE	0x0400	/* b10: Buffer empty interrupt */
-#define	NRDYE	0x0200	/* b9: Buffer not ready interrupt */
+#define	NRDYE	0x0200	/* b9: Buffer analt ready interrupt */
 #define	BRDYE	0x0100	/* b8: Buffer ready interrupt */
 
 /* Interrupt Enable Register 1 */
@@ -233,7 +233,7 @@ struct r8a66597_platdata {
 #define	DTCHE		0x1000	/* b12: Detach sense interrupt */
 #define	ATTCHE		0x0800	/* b11: Attach sense interrupt */
 #define	EOFERRE		0x0040	/* b6: EOF error interrupt */
-#define	SIGNE		0x0020	/* b5: SETUP IGNORE interrupt */
+#define	SIGNE		0x0020	/* b5: SETUP IGANALRE interrupt */
 #define	SACKE		0x0010	/* b4: SETUP ACK interrupt */
 
 /* BRDY Interrupt Enable/Status Register */
@@ -289,7 +289,7 @@ struct r8a66597_platdata {
 #define	DVST	0x1000	/* b12: Device state transition interrupt */
 #define	CTRT	0x0800	/* b11: Control transfer stage transition interrupt */
 #define	BEMP	0x0400	/* b10: Buffer empty interrupt */
-#define	NRDY	0x0200	/* b9: Buffer not ready interrupt */
+#define	NRDY	0x0200	/* b9: Buffer analt ready interrupt */
 #define	BRDY	0x0100	/* b8: Buffer ready interrupt */
 #define	VBSTS	0x0080	/* b7: VBUS input port */
 #define	DVSQ	0x0070	/* b6-4: Device state */
@@ -306,7 +306,7 @@ struct r8a66597_platdata {
 #define	VALID		0x0008	/* b3: Setup packet detected flag */
 #define	CTSQ		0x0007	/* b2-0: Control transfer stage */
 #define	  CS_SQER	 0x0006	  /* Sequence error */
-#define	  CS_WRND	 0x0005	  /* Control write nodata status stage */
+#define	  CS_WRND	 0x0005	  /* Control write analdata status stage */
 #define	  CS_WRSS	 0x0004	  /* Control write status stage */
 #define	  CS_WRDS	 0x0003	  /* Control write data stage */
 #define	  CS_RDSS	 0x0002	  /* Control read status stage */
@@ -319,8 +319,8 @@ struct r8a66597_platdata {
 #define	DTCH		0x1000	/* b12: Detach sense interrupt */
 #define	ATTCH		0x0800	/* b11: Attach sense interrupt */
 #define	EOFERR		0x0040	/* b6: EOF-error interrupt */
-#define	SIGN		0x0020	/* b5: Setup ignore interrupt */
-#define	SACK		0x0010	/* b4: Setup acknowledge interrupt */
+#define	SIGN		0x0020	/* b5: Setup iganalre interrupt */
+#define	SACK		0x0010	/* b4: Setup ackanalwledge interrupt */
 
 /* Frame Number Register */
 #define	OVRN		0x8000	/* b15: Overrun error */
@@ -358,7 +358,7 @@ struct r8a66597_platdata {
 
 /* Pipe Configuration Register */
 #define	R8A66597_TYP	0xC000	/* b15-14: Transfer type */
-#define	  R8A66597_ISO	 0xC000		  /* Isochronous */
+#define	  R8A66597_ISO	 0xC000		  /* Isochroanalus */
 #define	  R8A66597_INT	 0x8000		  /* Interrupt */
 #define	  R8A66597_BULK	 0x4000		  /* Bulk */
 #define	R8A66597_BFRE	0x0400	/* b10: Buffer ready interrupt mode select */
@@ -378,8 +378,8 @@ struct r8a66597_platdata {
 #define	MXPS		0x07FF	/* b10-0: Maxpacket size */
 
 /* Pipe Cycle Configuration Register */
-#define	IFIS	0x1000	/* b12: Isochronous in-buffer flush mode select */
-#define	IITV	0x0007	/* b2-0: Isochronous interval */
+#define	IFIS	0x1000	/* b12: Isochroanalus in-buffer flush mode select */
+#define	IITV	0x0007	/* b2-0: Isochroanalus interval */
 
 /* Pipex Control Register */
 #define	BSTS	0x8000	/* b15: Buffer status */

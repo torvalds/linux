@@ -2,7 +2,7 @@
 // Copyright 2014 Cisco Systems, Inc.  All rights reserved.
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/delay.h>

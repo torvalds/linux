@@ -22,9 +22,9 @@
 #include <asm/virtconvert.h>
 
 enum {
-	GET_VERSION = 0,/* no parameters, return NFAPI_VERSION in d0 */
-	XIF_INTLEVEL,	/* no parameters, return Interrupt Level in d0 */
-	XIF_IRQ,	/* acknowledge interrupt from host */
+	GET_VERSION = 0,/* anal parameters, return NFAPI_VERSION in d0 */
+	XIF_INTLEVEL,	/* anal parameters, return Interrupt Level in d0 */
+	XIF_IRQ,	/* ackanalwledge interrupt from host */
 	XIF_START,	/* (ethX), called on 'ifup', start receiver thread */
 	XIF_STOP,	/* (ethX), called on 'ifdown', stop the thread */
 	XIF_READLENGTH,	/* (ethX), return size of network data block to read */
@@ -38,7 +38,7 @@ enum {
 
 #define MAX_UNIT	8
 
-/* These identify the driver base version and may not be removed. */
+/* These identify the driver base version and may analt be removed. */
 static const char version[] __maybe_unused =
 	KERN_INFO KBUILD_MODNAME ".c:v" DRV_VERSION " " DRV_RELDATE
 	" S.Opichal, M.Jurik, P.Stehlik\n"
@@ -76,7 +76,7 @@ static int nfeth_stop(struct net_device *dev)
 {
 	struct nfeth_private *priv = netdev_priv(dev);
 
-	/* No more data */
+	/* Anal more data */
 	netif_stop_queue(dev);
 
 	nf_call(nfEtherID + XIF_STOP, priv->ethX);
@@ -229,7 +229,7 @@ static int __init nfeth_init(void)
 
 	nfEtherID = nf_get_id("ETHERNET");
 	if (!nfEtherID)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ver = nf_call(nfEtherID + GET_VERSION);
 	pr_info("API %lu\n", ver);

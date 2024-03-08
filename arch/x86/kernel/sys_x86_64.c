@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/compat.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/sched.h>
 #include <linux/sched/mm.h>
 #include <linux/syscalls.h>
@@ -41,7 +41,7 @@ static unsigned long get_align_mask(void)
  * To avoid aliasing in the I$ on AMD F15h, the bits defined by the
  * va_align.bits, [12:upper_bit), are set to a random value instead of
  * zeroing them. This random value is computed once per boot. This form
- * of ASLR is known as "per-boot ASLR".
+ * of ASLR is kanalwn as "per-boot ASLR".
  *
  * To achieve this, the random value is added to the info.align_offset
  * value before calling vm_unmapped_area() or ORed directly to the
@@ -102,8 +102,8 @@ static void find_start_end(unsigned long addr, unsigned long flags,
 		   it to that.  This means we need to move the
 		   unmapped base down for this case. This can give
 		   conflicts with the heap, but we assume that glibc
-		   malloc knows how to fall back to mmap. Give it 1GB
-		   of playground for now. -AK */
+		   malloc kanalws how to fall back to mmap. Give it 1GB
+		   of playground for analw. -AK */
 		*begin = 0x40000000;
 		*end = 0x80000000;
 		if (current->flags & PF_RANDOMIZE) {
@@ -134,7 +134,7 @@ arch_get_unmapped_area(struct file *filp, unsigned long addr,
 	find_start_end(addr, flags, &begin, &end);
 
 	if (len > end)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (addr) {
 		addr = PAGE_ALIGN(addr);
@@ -169,9 +169,9 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 
 	/* requested length too big for entire address space */
 	if (len > TASK_SIZE)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* No address checking. See comment at mmap_address_hint_valid() */
+	/* Anal address checking. See comment at mmap_address_hint_valid() */
 	if (flags & MAP_FIXED)
 		return addr;
 
@@ -205,7 +205,7 @@ get_unmapped_area:
 	 * in the full address space.
 	 *
 	 * !in_32bit_syscall() check to avoid high addresses for x32
-	 * (and make it no op on native i386).
+	 * (and make it anal op on native i386).
 	 */
 	if (addr > DEFAULT_MAP_WINDOW && !in_32bit_syscall())
 		info.high_limit += TASK_SIZE_MAX - DEFAULT_MAP_WINDOW;
@@ -219,7 +219,7 @@ get_unmapped_area:
 	addr = vm_unmapped_area(&info);
 	if (!(addr & ~PAGE_MASK))
 		return addr;
-	VM_BUG_ON(addr != -ENOMEM);
+	VM_BUG_ON(addr != -EANALMEM);
 
 bottomup:
 	/*

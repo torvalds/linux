@@ -41,11 +41,11 @@ struct regulator;
 
 /*
  * operations in suspend mode
- * DO_NOTHING_IN_SUSPEND - the default value
+ * DO_ANALTHING_IN_SUSPEND - the default value
  * DISABLE_IN_SUSPEND	- turn off regulator in suspend states
  * ENABLE_IN_SUSPEND	- keep regulator on in suspend states
  */
-#define DO_NOTHING_IN_SUSPEND	0
+#define DO_ANALTHING_IN_SUSPEND	0
 #define DISABLE_IN_SUSPEND	1
 #define ENABLE_IN_SUSPEND	2
 
@@ -76,7 +76,7 @@ enum regulator_active_discharge {
  * @max_uV: Maximum suspend voltage may be set.
  * @mode: Operating mode during suspend.
  * @enabled: operations during suspend.
- *	     - DO_NOTHING_IN_SUSPEND
+ *	     - DO_ANALTHING_IN_SUSPEND
  *	     - DISABLE_IN_SUSPEND
  *	     - ENABLE_IN_SUSPEND
  * @changeable: Is this state can be switched between enabled/disabled,
@@ -90,9 +90,9 @@ struct regulator_state {
 	bool changeable;
 };
 
-#define REGULATOR_NOTIF_LIMIT_DISABLE -1
-#define REGULATOR_NOTIF_LIMIT_ENABLE -2
-struct notification_limit {
+#define REGULATOR_ANALTIF_LIMIT_DISABLE -1
+#define REGULATOR_ANALTIF_LIMIT_ENABLE -2
+struct analtification_limit {
 	int prot;
 	int err;
 	int warn;
@@ -127,7 +127,7 @@ struct notification_limit {
  *
  * @always_on: Set if the regulator should never be disabled.
  * @boot_on: Set if the regulator is enabled when the system is initially
- *           started.  If the regulator is not enabled by the hardware or
+ *           started.  If the regulator is analt enabled by the hardware or
  *           bootloader then it will be enabled when the constraints are
  *           applied.
  * @apply_uV: Apply the voltage constraint when initialising.
@@ -143,7 +143,7 @@ struct notification_limit {
  * @under_voltage_detection: Configure under voltage limits.
  * @over_temp_detection: Configure over temperature limits.
  *
- * @input_uV: Input voltage for regulator when supplied by another regulator.
+ * @input_uV: Input voltage for regulator when supplied by aanalther regulator.
  *
  * @state_disk: State for regulator when system is suspended in disk mode.
  * @state_mem: State for regulator when system is suspended in mem mode.
@@ -153,11 +153,11 @@ struct notification_limit {
  * @initial_mode: Mode to set at startup.
  * @ramp_delay: Time to settle down after voltage change (unit: uV/us)
  * @settling_time: Time to settle down after voltage change when voltage
- *		   change is non-linear (unit: microseconds).
+ *		   change is analn-linear (unit: microseconds).
  * @settling_time_up: Time to settle down after voltage increase when voltage
- *		      change is non-linear (unit: microseconds).
+ *		      change is analn-linear (unit: microseconds).
  * @settling_time_down : Time to settle down after voltage decrease when
- *			 voltage change is non-linear (unit: microseconds).
+ *			 voltage change is analn-linear (unit: microseconds).
  * @active_discharge: Enable/disable active discharge. The enum
  *		      regulator_active_discharge values are used for
  *		      initialisation.
@@ -199,17 +199,17 @@ struct regulation_constraints {
 	/* valid operations for regulator on this machine */
 	unsigned int valid_ops_mask;
 
-	/* regulator input voltage - only if supply is another regulator */
+	/* regulator input voltage - only if supply is aanalther regulator */
 	int input_uV;
 
 	/* regulator suspend states for global PMIC STANDBY/HIBERNATE */
 	struct regulator_state state_disk;
 	struct regulator_state state_mem;
 	struct regulator_state state_standby;
-	struct notification_limit over_curr_limits;
-	struct notification_limit over_voltage_limits;
-	struct notification_limit under_voltage_limits;
-	struct notification_limit temp_limits;
+	struct analtification_limit over_curr_limits;
+	struct analtification_limit over_voltage_limits;
+	struct analtification_limit under_voltage_limits;
+	struct analtification_limit temp_limits;
 	suspend_state_t initial_state; /* suspend state to set at init */
 
 	/* mode to set on startup */
@@ -233,10 +233,10 @@ struct regulation_constraints {
 	unsigned pull_down:1;	/* pull down resistor when regulator off */
 	unsigned system_critical:1;	/* critical to system stability */
 	unsigned over_current_protection:1; /* auto disable on over current */
-	unsigned over_current_detection:1; /* notify on over current */
-	unsigned over_voltage_detection:1; /* notify on over voltage */
-	unsigned under_voltage_detection:1; /* notify on under voltage */
-	unsigned over_temp_detection:1; /* notify on over temperature */
+	unsigned over_current_detection:1; /* analtify on over current */
+	unsigned over_voltage_detection:1; /* analtify on over voltage */
+	unsigned under_voltage_detection:1; /* analtify on under voltage */
+	unsigned over_temp_detection:1; /* analtify on over temperature */
 };
 
 /**
@@ -287,7 +287,7 @@ struct regulator_init_data {
 
 	/* optional regulator machine specific init */
 	int (*regulator_init)(void *driver_data);
-	void *driver_data;	/* core does not touch this */
+	void *driver_data;	/* core does analt touch this */
 };
 
 #ifdef CONFIG_REGULATOR

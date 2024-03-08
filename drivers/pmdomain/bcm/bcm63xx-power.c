@@ -2,7 +2,7 @@
 /*
  * BCM63xx Power Domain Controller Driver
  *
- * Copyright (C) 2020 Álvaro Fernández Rojas <noltari@gmail.com>
+ * Copyright (C) 2020 Álvaro Fernández Rojas <analltari@gmail.com>
  */
 
 #include <dt-bindings/soc/bcm6318-pm.h>
@@ -89,7 +89,7 @@ static int bcm63xx_power_off(struct generic_pm_domain *genpd)
 static int bcm63xx_power_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	const struct bcm63xx_power_data *entry, *table;
 	struct bcm63xx_power *power;
 	unsigned int ndom;
@@ -98,7 +98,7 @@ static int bcm63xx_power_probe(struct platform_device *pdev)
 
 	power = devm_kzalloc(dev, sizeof(*power), GFP_KERNEL);
 	if (!power)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	power->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(power->base))
@@ -116,7 +116,7 @@ static int bcm63xx_power_probe(struct platform_device *pdev)
 	}
 
 	if (!ndom)
-		return -ENODEV;
+		return -EANALDEV;
 
 	power->genpd_data.num_domains = max_bit + 1;
 
@@ -124,13 +124,13 @@ static int bcm63xx_power_probe(struct platform_device *pdev)
 				  sizeof(struct bcm63xx_power_dev),
 				  GFP_KERNEL);
 	if (!power->dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	power->genpd = devm_kcalloc(dev, power->genpd_data.num_domains,
 				    sizeof(struct generic_pm_domain *),
 				    GFP_KERNEL);
 	if (!power->genpd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	power->genpd_data.domains = power->genpd;
 

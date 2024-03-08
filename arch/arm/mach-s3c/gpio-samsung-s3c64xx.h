@@ -36,7 +36,7 @@
 
 /* CONFIG_S3C_GPIO_SPACE allows the user to select extra
  * space for debugging purposes so that any accidental
- * change from one gpio bank to another can be caught.
+ * change from one gpio bank to aanalther can be caught.
 */
 
 #define S3C64XX_GPIO_NEXT(__gpio) \

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ((GPL-2.0+ WITH Linux-syscall-note) OR MIT) */
+/* SPDX-License-Identifier: ((GPL-2.0+ WITH Linux-syscall-analte) OR MIT) */
 /*
  * Allwinner A31 ISP Configuration
  */

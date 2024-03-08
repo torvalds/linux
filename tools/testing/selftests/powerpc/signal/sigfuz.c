@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright 2018, Breno Leitao, IBM Corp.
+ * Copyright 2018, Breanal Leitao, IBM Corp.
  * Licensed under GPLv2.
  *
  * Sigfuz(tm): A PowerPC TM-aware signal fuzzer.
@@ -22,11 +22,11 @@
  * This selftest has command line parameters to control what kind of tests the
  * user wants to run, as for example, if a transaction should be started prior
  * to signal being raised, or, after the signal being raised and before the
- * sigreturn. If no parameter is given, the default is enabling all options.
+ * sigreturn. If anal parameter is given, the default is enabling all options.
  *
- * This test does not check if the user context is being read and set
+ * This test does analt check if the user context is being read and set
  * properly by the kernel. Its purpose, at this time, is basically
- * guaranteeing that the kernel does not crash on invalid scenarios.
+ * guaranteeing that the kernel does analt crash on invalid scenarios.
  */
 
 #include <stdio.h>
@@ -86,7 +86,7 @@ static void mess_with_tm(void)
 }
 
 /* Signal handler that will be invoked with raise() */
-static void trap_signal_handler(int signo, siginfo_t *si, void *uc)
+static void trap_signal_handler(int siganal, siginfo_t *si, void *uc)
 {
 	ucontext_t *ucp = uc;
 
@@ -190,7 +190,7 @@ static void trap_signal_handler(int signo, siginfo_t *si, void *uc)
 	}
 }
 
-static void seg_signal_handler(int signo, siginfo_t *si, void *uc)
+static void seg_signal_handler(int siganal, siginfo_t *si, void *uc)
 {
 	/* Clear exit for process that segfaults */
 	exit(0);
@@ -215,7 +215,7 @@ static void *sigfuz_test(void *thrid)
 	/* The signal handler will enable MSR_TS */
 	sigaction(SIGUSR1, &trap_sa, NULL);
 
-	/* If it does not crash, it will segfault, avoid it to retest */
+	/* If it does analt crash, it will segfault, avoid it to retest */
 	sigaction(SIGSEGV, &seg_sa, NULL);
 
 	while (i < count_max) {
@@ -237,7 +237,7 @@ static void *sigfuz_test(void *thrid)
 			i++;
 	}
 
-	/* If not freed already, free now */
+	/* If analt freed already, free analw */
 	if (tmp_uc) {
 		free(tmp_uc);
 		tmp_uc = NULL;

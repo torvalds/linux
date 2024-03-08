@@ -66,10 +66,10 @@ svc_put_auth_ops(struct auth_ops *aops)
  *
  * Return values:
  *   %SVC_OK: XDR encoding of the result can begin
- *   %SVC_DENIED: Credential or verifier is not valid
+ *   %SVC_DENIED: Credential or verifier is analt valid
  *   %SVC_GARBAGE: Failed to decode credential or verifier
- *   %SVC_COMPLETE: GSS context lifetime event; no further action
- *   %SVC_DROP: Drop this request; no further action
+ *   %SVC_COMPLETE: GSS context lifetime event; anal further action
+ *   %SVC_DROP: Drop this request; anal further action
  *   %SVC_CLOSE: Like drop, but also close transport connection
  */
 enum svc_auth_status svc_authenticate(struct svc_rqst *rqstp)
@@ -107,8 +107,8 @@ EXPORT_SYMBOL_GPL(svc_authenticate);
  * Return values:
  *   %SVC_OK: Client was found and assigned
  *   %SVC_DENY: Client was explicitly denied
- *   %SVC_DROP: Ignore this request
- *   %SVC_CLOSE: Ignore this request and close the connection
+ *   %SVC_DROP: Iganalre this request
+ *   %SVC_CLOSE: Iganalre this request and close the connection
  */
 enum svc_auth_status svc_set_client(struct svc_rqst *rqstp)
 {
@@ -121,7 +121,7 @@ EXPORT_SYMBOL_GPL(svc_set_client);
  * svc_authorise - Finalize credentials/verifier and release resources
  * @rqstp: RPC execution context
  *
- * Returns zero on success, or a negative errno.
+ * Returns zero on success, or a negative erranal.
  */
 int svc_authorise(struct svc_rqst *rqstp)
 {
@@ -181,7 +181,7 @@ EXPORT_SYMBOL_GPL(svc_auth_flavor);
  * When the last reference to an 'auth_domain' is dropped,
  * the object is unhashed and freed.
  * If auth_domain_lookup fails to find an entry, it will return
- * it's second argument 'new'.  If this is non-null, it will
+ * it's second argument 'new'.  If this is analn-null, it will
  * have been atomically linked into the table.
  */
 
@@ -259,7 +259,7 @@ EXPORT_SYMBOL_GPL(auth_domain_find);
  * easier to catch bugs which don't clean up domains properly, we
  * warn if anything remains in the table at cleanup time.
  *
- * Note that we cannot proactively remove the domains at this stage.
+ * Analte that we cananalt proactively remove the domains at this stage.
  * The ->release() function might be in a module that has already been
  * unloaded.
  */

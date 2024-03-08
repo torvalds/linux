@@ -16,7 +16,7 @@ description:
   of the silicon, and controlling reset of different IP blocks.
 
 properties:
-  $nodename:
+  $analdename:
     pattern: '^prcmu@[0-9a-f]+$'
 
   compatible:
@@ -58,7 +58,7 @@ properties:
     const: 2
 
   db8500-prcmu-regulators:
-    description: Node describing the DB8500 regulators. These are mainly
+    description: Analde describing the DB8500 regulators. These are mainly
       power rails inside the silicon but some of those are also routed
       out to external pins.
     type: object
@@ -93,14 +93,14 @@ properties:
         unevaluatedProperties: false
 
       db8500_vsmps1:
-        description: Also known as VIO12, is a step-down voltage regulator
+        description: Also kanalwn as VIO12, is a step-down voltage regulator
           for 1.2V I/O. SMPS means System Management Power Source.
         type: object
         $ref: ../regulator/regulator.yaml#
         unevaluatedProperties: false
 
       db8500_vsmps2:
-        description: Also known as VIO18, is a step-down voltage regulator
+        description: Also kanalwn as VIO18, is a step-down voltage regulator
           for 1.8V I/O. SMPS means System Management Power Source.
         type: object
         $ref: ../regulator/regulator.yaml#
@@ -232,7 +232,7 @@ properties:
 
 patternProperties:
   "^thermal@[0-9a-f]+$":
-    description: Node describing the DB8500 thermal control functions.
+    description: Analde describing the DB8500 thermal control functions.
       This binds to an operating system driver that monitors the
       temperature of the SoC.
     type: object
@@ -260,10 +260,10 @@ patternProperties:
     additionalProperties: false
 
   "^prcmu-timer-4@[0-9a-f]+$":
-    description: Node describing the externally visible timer 4 in the
+    description: Analde describing the externally visible timer 4 in the
       PRCMU block. This timer is interesting to the operating system
       since even thought it has a very low resolution (32768 Hz) it is
-      always on, and thus provides a consistent monotonic timeline for
+      always on, and thus provides a consistent moanaltonic timeline for
       the system.
     type: object
 
@@ -277,7 +277,7 @@ patternProperties:
     additionalProperties: false
 
   "^ab850[05]$":
-    description: Node describing the Analog Baseband 8500 mixed-signals
+    description: Analde describing the Analog Baseband 8500 mixed-signals
       ASIC AB8500 and subcomponents. The AB8500 is accessed through the
       PRCMU and hence it appears here. This component has a separate
       set of devicetree bindings. The AB8505 is a newer version of the

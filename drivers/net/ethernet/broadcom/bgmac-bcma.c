@@ -88,13 +88,13 @@ static int bcma_phy_connect(struct bgmac *bgmac)
 	char bus_id[MII_BUS_ID_SIZE + 3];
 
 	/* DT info should be the most accurate */
-	phy_dev = of_phy_get_and_connect(bgmac->net_dev, bgmac->dev->of_node,
+	phy_dev = of_phy_get_and_connect(bgmac->net_dev, bgmac->dev->of_analde,
 					 bgmac_adjust_link);
 	if (phy_dev)
 		return 0;
 
 	/* Connect to the PHY */
-	if (bgmac->mii_bus && bgmac->phyaddr != BGMAC_PHY_NOREGS) {
+	if (bgmac->mii_bus && bgmac->phyaddr != BGMAC_PHY_ANALREGS) {
 		snprintf(bus_id, sizeof(bus_id), PHY_ID_FMT, bgmac->mii_bus->id,
 			 bgmac->phyaddr);
 		phy_dev = phy_connect(bgmac->net_dev, bus_id, bgmac_adjust_link,
@@ -132,7 +132,7 @@ static int bgmac_probe(struct bcma_device *core)
 
 	bgmac = bgmac_alloc(&core->dev);
 	if (!bgmac)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bgmac->bcma.core = core;
 	bgmac->dma_dev = core->dma_dev;
@@ -140,11 +140,11 @@ static int bgmac_probe(struct bcma_device *core)
 
 	bcma_set_drvdata(core, bgmac);
 
-	err = of_get_ethdev_address(bgmac->dev->of_node, bgmac->net_dev);
+	err = of_get_ethdev_address(bgmac->dev->of_analde, bgmac->net_dev);
 	if (err == -EPROBE_DEFER)
 		return err;
 
-	/* If no MAC address assigned via device tree, check SPROM */
+	/* If anal MAC address assigned via device tree, check SPROM */
 	if (err) {
 		switch (core->core_unit) {
 		case 0:
@@ -159,7 +159,7 @@ static int bgmac_probe(struct bcma_device *core)
 		default:
 			dev_err(bgmac->dev, "Unsupported core_unit %d\n",
 				core->core_unit);
-			err = -ENOTSUPP;
+			err = -EANALTSUPP;
 			goto err;
 		}
 		eth_hw_addr_set(bgmac->net_dev, mac);
@@ -168,8 +168,8 @@ static int bgmac_probe(struct bcma_device *core)
 	/* On BCM4706 we need common core to access PHY */
 	if (core->id.id == BCMA_CORE_4706_MAC_GBIT &&
 	    !core->bus->drv_gmac_cmn.core) {
-		dev_err(bgmac->dev, "GMAC CMN core not found (required for BCM4706)\n");
-		err = -ENODEV;
+		dev_err(bgmac->dev, "GMAC CMN core analt found (required for BCM4706)\n");
+		err = -EANALDEV;
 		goto err;
 	}
 	bgmac->bcma.cmn = core->bus->drv_gmac_cmn.core;
@@ -187,12 +187,12 @@ static int bgmac_probe(struct bcma_device *core)
 	}
 	bgmac->phyaddr &= BGMAC_PHY_MASK;
 	if (bgmac->phyaddr == BGMAC_PHY_MASK) {
-		dev_err(bgmac->dev, "No PHY found\n");
-		err = -ENODEV;
+		dev_err(bgmac->dev, "Anal PHY found\n");
+		err = -EANALDEV;
 		goto err;
 	}
 	dev_info(bgmac->dev, "Found PHY addr: %d%s\n", bgmac->phyaddr,
-		 bgmac->phyaddr == BGMAC_PHY_NOREGS ? " (NOREGS)" : "");
+		 bgmac->phyaddr == BGMAC_PHY_ANALREGS ? " (ANALREGS)" : "");
 
 	if (!bgmac_is_bcm4707_family(core) &&
 	    !(ci->id == BCMA_CHIP_ID_BCM53573 && core->core_unit == 1)) {
@@ -212,17 +212,17 @@ static int bgmac_probe(struct bcma_device *core)
 	}
 
 	if (core->bus->hosttype == BCMA_HOSTTYPE_PCI) {
-		dev_err(bgmac->dev, "PCI setup not implemented\n");
-		err = -ENOTSUPP;
+		dev_err(bgmac->dev, "PCI setup analt implemented\n");
+		err = -EANALTSUPP;
 		goto err1;
 	}
 
 	bgmac->has_robosw = !!(sprom->boardflags_lo & BGMAC_BFL_ENETROBO);
 	if (bgmac->has_robosw)
-		dev_warn(bgmac->dev, "Support for Roboswitch not implemented\n");
+		dev_warn(bgmac->dev, "Support for Roboswitch analt implemented\n");
 
 	if (sprom->boardflags_lo & BGMAC_BFL_ENETADM)
-		dev_warn(bgmac->dev, "Support for ADMtek ethernet switch not implemented\n");
+		dev_warn(bgmac->dev, "Support for ADMtek ethernet switch analt implemented\n");
 
 	/* Feature Flags */
 	switch (ci->id) {
@@ -278,7 +278,7 @@ static int bgmac_probe(struct bcma_device *core)
 	case BCMA_CHIP_ID_BCM47094:
 	case BCMA_CHIP_ID_BCM53018:
 		bgmac->feature_flags |= BGMAC_FEAT_CLKCTLST;
-		bgmac->feature_flags |= BGMAC_FEAT_NO_RESET;
+		bgmac->feature_flags |= BGMAC_FEAT_ANAL_RESET;
 		bgmac->feature_flags |= BGMAC_FEAT_FORCE_SPEED_2500;
 		break;
 	default:
@@ -291,7 +291,7 @@ static int bgmac_probe(struct bcma_device *core)
 
 	if (core->id.id == BCMA_CORE_4706_MAC_GBIT) {
 		bgmac->feature_flags |= BGMAC_FEAT_CMN_PHY_CTL;
-		bgmac->feature_flags |= BGMAC_FEAT_NO_CLR_MIB;
+		bgmac->feature_flags |= BGMAC_FEAT_ANAL_CLR_MIB;
 	}
 
 	if (core->id.rev >= 4) {

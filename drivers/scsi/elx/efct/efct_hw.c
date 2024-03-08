@@ -34,7 +34,7 @@ static int
 efct_hw_link_event_init(struct efct_hw *hw)
 {
 	hw->link.status = SLI4_LINK_STATUS_MAX;
-	hw->link.topology = SLI4_LINK_TOPO_NONE;
+	hw->link.topology = SLI4_LINK_TOPO_ANALNE;
 	hw->link.medium = SLI4_LINK_MEDIUM_MAX;
 	hw->link.speed = 0;
 	hw->link.loop_map = NULL;
@@ -98,8 +98,8 @@ __efct_read_topology_cb(struct efct_hw *hw, int status, u8 *mqe, void *arg)
 	case SLI4_READ_TOPOLOGY_LINK_DOWN:
 		hw->link.status = SLI4_LINK_STATUS_DOWN;
 		break;
-	case SLI4_READ_TOPOLOGY_LINK_NO_ALPA:
-		hw->link.status = SLI4_LINK_STATUS_NO_ALPA;
+	case SLI4_READ_TOPOLOGY_LINK_ANAL_ALPA:
+		hw->link.status = SLI4_LINK_STATUS_ANAL_ALPA;
 		break;
 	default:
 		hw->link.status = SLI4_LINK_STATUS_MAX;
@@ -107,8 +107,8 @@ __efct_read_topology_cb(struct efct_hw *hw, int status, u8 *mqe, void *arg)
 	}
 
 	switch (read_topo->topology) {
-	case SLI4_READ_TOPO_NON_FC_AL:
-		hw->link.topology = SLI4_LINK_TOPO_NON_FC_AL;
+	case SLI4_READ_TOPO_ANALN_FC_AL:
+		hw->link.topology = SLI4_LINK_TOPO_ANALN_FC_AL;
 		break;
 	case SLI4_READ_TOPO_FC_AL:
 		hw->link.topology = SLI4_LINK_TOPO_FC_AL;
@@ -177,7 +177,7 @@ efct_hw_cb_link(void *ctx, void *e)
 		hw->link = *event;
 		efct->efcport->link_status = EFC_LINK_STATUS_UP;
 
-		if (event->topology == SLI4_LINK_TOPO_NON_FC_AL) {
+		if (event->topology == SLI4_LINK_TOPO_ANALN_FC_AL) {
 			struct efc_domain_record drec = {0};
 
 			efc_log_info(hw->os, "Link Up, NPORT, speed is %d\n",
@@ -195,7 +195,7 @@ efct_hw_cb_link(void *ctx, void *e)
 
 			if (!sli_cmd_read_topology(&hw->sli, buf,
 						   &hw->loop_map)) {
-				rc = efct_hw_command(hw, buf, EFCT_CMD_NOWAIT,
+				rc = efct_hw_command(hw, buf, EFCT_CMD_ANALWAIT,
 						__efct_read_topology_cb, NULL);
 			}
 
@@ -236,7 +236,7 @@ efct_hw_setup(struct efct_hw *hw, void *os, struct pci_dev *pdev)
 
 	/*
 	 * efct_hw_init() relies on NULL pointers indicating that a structure
-	 * needs allocation. If a structure is non-NULL, efct_hw_init() won't
+	 * needs allocation. If a structure is analn-NULL, efct_hw_init() won't
 	 * free/realloc that memory
 	 */
 	memset(hw, 0, sizeof(struct efct_hw));
@@ -405,7 +405,7 @@ efct_hw_wq_process_io(void *arg, u8 *cqe, int status)
 	if (status) {
 		ext = sli_fc_ext_status(&hw->sli, cqe);
 		/*
-		 * If we're not an originator IO, and XB is set, then issue
+		 * If we're analt an originator IO, and XB is set, then issue
 		 * abort for the IO from within the HW
 		 */
 		if (efct_hw_iotype_is_originator(io->type) &&
@@ -489,7 +489,7 @@ efct_hw_setup_io(struct efct_hw *hw)
 	if (!hw->io) {
 		hw->io = kmalloc_array(hw->config.n_io, sizeof(io), GFP_KERNEL);
 		if (!hw->io)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		memset(hw->io, 0, hw->config.n_io * sizeof(io));
 
@@ -504,7 +504,7 @@ efct_hw_setup_io(struct efct_hw *hw)
 					GFP_KERNEL);
 		if (!hw->wqe_buffs) {
 			kfree(hw->io);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 	} else {
@@ -518,7 +518,7 @@ efct_hw_setup_io(struct efct_hw *hw)
 		dma->virt = dma_alloc_coherent(&efct->pci->dev,
 					       dma->size, &dma->phys, GFP_KERNEL);
 		if (!dma->virt)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 	xfer_virt = (uintptr_t)hw->xfer_rdy.virt;
 	xfer_phys = hw->xfer_rdy.phys;
@@ -539,11 +539,11 @@ efct_hw_setup_io(struct efct_hw *hw)
 		wqcb = efct_hw_reqtag_alloc(hw, efct_hw_wq_process_io, io);
 		if (!wqcb) {
 			efc_log_err(hw->os, "can't allocate request tag\n");
-			return -ENOSPC;
+			return -EANALSPC;
 		}
 		io->reqtag = wqcb->instance_index;
 
-		/* Now for the fields that are initialized on each free */
+		/* Analw for the fields that are initialized on each free */
 		efct_hw_init_free_io(io);
 
 		/* The XB flag isn't cleared on IO free, so init to zero */
@@ -553,7 +553,7 @@ efct_hw_setup_io(struct efct_hw *hw)
 				       &io->indicator, &index)) {
 			efc_log_err(hw->os,
 				    "sli_resource_alloc failed @ %d\n", i);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		if (new_alloc) {
@@ -567,7 +567,7 @@ efct_hw_setup_io(struct efct_hw *hw)
 				efc_log_err(hw->os, "dma_alloc fail %d\n", i);
 				memset(&io->def_sgl, 0,
 				       sizeof(struct efc_dma));
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 		}
 		io->def_sgl_count = hw->config.n_sgl;
@@ -594,7 +594,7 @@ error:
 	kfree(hw->io);
 	hw->io = NULL;
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int
@@ -613,7 +613,7 @@ efct_hw_init_prereg_io(struct efct_hw *hw)
 
 	sgls = kmalloc_array(sgls_per_request, sizeof(*sgls), GFP_KERNEL);
 	if (!sgls)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(&req, 0, sizeof(struct efc_dma));
 	req.size = 32 + sgls_per_request * 16;
@@ -621,12 +621,12 @@ efct_hw_init_prereg_io(struct efct_hw *hw)
 				      GFP_KERNEL);
 	if (!req.virt) {
 		kfree(sgls);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for (n_rem = hw->config.n_io; n_rem; n_rem -= n) {
 		/* Copy address of SGL's into local sgls[] array, break
-		 * out if the xri is not contiguous.
+		 * out if the xri is analt contiguous.
 		 */
 		u32 min = (sgls_per_request < n_rem) ? sgls_per_request : n_rem;
 
@@ -841,7 +841,7 @@ efct_hw_queue_hash_add(struct efct_queue_hash *hash,
 	while (hash[hash_index].in_use)
 		hash_index = (hash_index + 1) & (EFCT_HW_Q_HASH_SIZE - 1);
 
-	/* not used, claim the entry */
+	/* analt used, claim the entry */
 	hash[hash_index].id = id;
 	hash[hash_index].in_use = true;
 	hash[hash_index].index = index;
@@ -954,7 +954,7 @@ efct_hw_init(struct efct_hw *hw)
 		efc_log_debug(hw->os, "rmvd %d items from io_free list\n",
 			      rem_count);
 
-	/* If MRQ not required, Make sure we dont request feature. */
+	/* If MRQ analt required, Make sure we dont request feature. */
 	if (hw->config.n_rq == 1)
 		hw->sli.features &= (~SLI4_REQFEAT_MRQP);
 
@@ -976,9 +976,9 @@ efct_hw_init(struct efct_hw *hw)
 	 */
 	if (hw->sli.if_type == SLI4_INTF_IF_TYPE_2) {
 		/*
-		 * Non-fatal error. In particular, we can disregard failure to
+		 * Analn-fatal error. In particular, we can disregard failure to
 		 * set EFCT_HW_FDT_XFER_HINT on devices with legacy firmware
-		 * that do not support EFCT_HW_FDT_XFER_HINT feature.
+		 * that do analt support EFCT_HW_FDT_XFER_HINT feature.
 		 */
 		efct_hw_config_set_fdt_xfer_hint(hw, EFCT_HW_FDT_XFER_HINT);
 	}
@@ -1038,14 +1038,14 @@ efct_hw_init(struct efct_hw *hw)
 	}
 
 	/*
-	 * Allocate the WQ request tag pool, if not previously allocated
+	 * Allocate the WQ request tag pool, if analt previously allocated
 	 * (the request tag value is 16 bits, thus the pool allocation size
 	 * of 64k)
 	 */
 	hw->wq_reqtag_pool = efct_hw_reqtag_pool_alloc(hw);
 	if (!hw->wq_reqtag_pool) {
 		efc_log_err(hw->os, "efct_hw_reqtag_pool_alloc failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	rc = efct_hw_setup_io(hw);
@@ -1130,7 +1130,7 @@ efct_hw_parse_filter(struct efct_hw *hw, void *value)
 	p = kstrdup(value, GFP_KERNEL);
 	if (!p || !*p) {
 		efc_log_err(hw->os, "p is NULL\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	idx = 0;
@@ -1289,7 +1289,7 @@ efct_hw_rx_post(struct efct_hw *hw)
 		hw->seq_pool = kmalloc_array(count,
 				sizeof(struct efc_hw_sequence),	GFP_KERNEL);
 		if (!hw->seq_pool)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	/*
@@ -1394,8 +1394,8 @@ efct_hw_command(struct efct_hw *hw, u8 *cmd, u32 opts, void *cb, void *arg)
 
 	/*
 	 * Send a mailbox command to the hardware, and either wait for
-	 * a completion (EFCT_CMD_POLL) or get an optional asynchronous
-	 * completion (EFCT_CMD_NOWAIT).
+	 * a completion (EFCT_CMD_POLL) or get an optional asynchroanalus
+	 * completion (EFCT_CMD_ANALWAIT).
 	 */
 
 	if (opts == EFCT_CMD_POLL) {
@@ -1409,7 +1409,7 @@ efct_hw_command(struct efct_hw *hw, u8 *cmd, u32 opts, void *cb, void *arg)
 			memcpy(cmd, bmbx, SLI4_BMBX_SIZE);
 		}
 		mutex_unlock(&hw->bmbx_lock);
-	} else if (opts == EFCT_CMD_NOWAIT) {
+	} else if (opts == EFCT_CMD_ANALWAIT) {
 		struct efct_command_ctx	*ctx = NULL;
 
 		if (hw->state != EFCT_HW_STATE_ACTIVE) {
@@ -1420,7 +1420,7 @@ efct_hw_command(struct efct_hw *hw, u8 *cmd, u32 opts, void *cb, void *arg)
 
 		ctx = mempool_alloc(hw->cmd_ctx_pool, GFP_ATOMIC);
 		if (!ctx)
-			return -ENOSPC;
+			return -EANALSPC;
 
 		memset(ctx, 0, sizeof(struct efct_command_ctx));
 
@@ -1461,7 +1461,7 @@ efct_hw_command_process(struct efct_hw *hw, int status, u8 *mqe,
 		list_del_init(&ctx->list_entry);
 	}
 	if (!ctx) {
-		efc_log_err(hw->os, "no command context\n");
+		efc_log_err(hw->os, "anal command context\n");
 		spin_unlock_irqrestore(&hw->cmd_lock, flags);
 		return -EIO;
 	}
@@ -1506,9 +1506,9 @@ efct_hw_command_cancel(struct efct_hw *hw)
 	spin_lock_irqsave(&hw->cmd_lock, flags);
 
 	/*
-	 * Manually clean up remaining commands. Note: since this calls
+	 * Manually clean up remaining commands. Analte: since this calls
 	 * efct_hw_command_process(), we'll also process the cmd_pending
-	 * list, so no need to manually clean that out.
+	 * list, so anal need to manually clean that out.
 	 */
 	while (!list_empty(&hw->cmd_head)) {
 		u8		mqe[SLI4_BMBX_SIZE] = { 0 };
@@ -1563,7 +1563,7 @@ efct_issue_mbox_rqst(void *base, void *cmd, void *cb, void *arg)
 	ctx->callback = cb;
 	ctx->arg = arg;
 
-	rc = efct_hw_command(hw, cmd, EFCT_CMD_NOWAIT, efct_mbox_rsp_cb, ctx);
+	rc = efct_hw_command(hw, cmd, EFCT_CMD_ANALWAIT, efct_mbox_rsp_cb, ctx);
 	if (rc) {
 		efc_log_err(efct, "issue mbox rqst failure rc:%d\n", rc);
 		mempool_free(ctx, hw->mbox_rqst_pool);
@@ -1590,7 +1590,7 @@ _efct_hw_io_alloc(struct efct_hw *hw)
 		io->abort_reqtag = U32_MAX;
 		io->wq = hw->wq_cpu_array[raw_smp_processor_id()];
 		if (!io->wq) {
-			efc_log_err(hw->os, "WQ not assigned for cpu:%d\n",
+			efc_log_err(hw->os, "WQ analt assigned for cpu:%d\n",
 				    raw_smp_processor_id());
 			io->wq = hw->hw_wq[0];
 		}
@@ -1633,7 +1633,7 @@ efct_hw_io_free_move_correct_list(struct efct_hw *hw,
 		list_add_tail(&io->list_entry, &hw->io_wait_free);
 		io->state = EFCT_HW_IO_STATE_WAIT_FREE;
 	} else {
-		/* IO not busy, add to free list */
+		/* IO analt busy, add to free list */
 		INIT_LIST_HEAD(&io->list_entry);
 		list_add_tail(&io->list_entry, &hw->io_free);
 		io->state = EFCT_HW_IO_STATE_FREE;
@@ -1742,7 +1742,7 @@ efct_hw_io_init_sges(struct efct_hw *hw, struct efct_hw_io *io,
 		break;
 	case EFCT_HW_IO_TARGET_RSP:
 		/*
-		 * No skips, etc. for FCP_TRSP64
+		 * Anal skips, etc. for FCP_TRSP64
 		 */
 		break;
 	default:
@@ -1809,7 +1809,7 @@ efct_hw_io_add_sge(struct efct_hw *hw, struct efct_hw_io *io,
 
 	/*
 	 * Always assume this is the last entry and mark as such.
-	 * If this is not the first entry unset the "last SGE"
+	 * If this is analt the first entry unset the "last SGE"
 	 * indication for the previous entry
 	 */
 	sge_flags |= SLI4_SGE_LAST;
@@ -1821,7 +1821,7 @@ efct_hw_io_add_sge(struct efct_hw *hw, struct efct_hw_io *io,
 		data[-1].dw2_flags = cpu_to_le32(sge_flags);
 	}
 
-	/* Set first_data_bde if not previously set */
+	/* Set first_data_bde if analt previously set */
 	if (io->first_data_sge == 0)
 		io->first_data_sge = io->n_sge;
 
@@ -1855,19 +1855,19 @@ efct_hw_wq_process_abort(void *arg, u8 *cqe, int status)
 	/*
 	 * For IOs that were aborted internally, we may need to issue the
 	 * callback here depending on whether a XRI_ABORTED CQE is expected ot
-	 * not. If the status is Local Reject/No XRI, then
-	 * issue the callback now.
+	 * analt. If the status is Local Reject/Anal XRI, then
+	 * issue the callback analw.
 	 */
 	ext = sli_fc_ext_status(&hw->sli, cqe);
 	if (status == SLI4_FC_WCQE_STATUS_LOCAL_REJECT &&
-	    ext == SLI4_FC_LOCAL_REJECT_NO_XRI && io->done) {
+	    ext == SLI4_FC_LOCAL_REJECT_ANAL_XRI && io->done) {
 		efct_hw_done_t done = io->done;
 
 		io->done = NULL;
 
 		/*
 		 * Use latched status as this is always saved for an internal
-		 * abort Note: We won't have both a done and abort_done
+		 * abort Analte: We won't have both a done and abort_done
 		 * function, so don't worry about
 		 *       clobbering the len, status and ext fields.
 		 */
@@ -1940,32 +1940,32 @@ efct_hw_io_abort(struct efct_hw *hw, struct efct_hw_io *io_to_abort,
 	}
 
 	if (hw->state != EFCT_HW_STATE_ACTIVE) {
-		efc_log_err(hw->os, "cannot send IO abort, HW state=%d\n",
+		efc_log_err(hw->os, "cananalt send IO abort, HW state=%d\n",
 			    hw->state);
 		return -EIO;
 	}
 
 	/* take a reference on IO being aborted */
 	if (kref_get_unless_zero(&io_to_abort->ref) == 0) {
-		/* command no longer active */
+		/* command anal longer active */
 		efc_log_debug(hw->os,
-			      "io not active xri=0x%x tag=0x%x\n",
+			      "io analt active xri=0x%x tag=0x%x\n",
 			      io_to_abort->indicator, io_to_abort->reqtag);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	/* Must have a valid WQ reference */
 	if (!io_to_abort->wq) {
-		efc_log_debug(hw->os, "io_to_abort xri=0x%x not active on WQ\n",
+		efc_log_debug(hw->os, "io_to_abort xri=0x%x analt active on WQ\n",
 			      io_to_abort->indicator);
 		/* efct_ref_get(): same function */
 		kref_put(&io_to_abort->ref, io_to_abort->release);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	/*
-	 * Validation checks complete; now check to see if already being
-	 * aborted, if not set the flag.
+	 * Validation checks complete; analw check to see if already being
+	 * aborted, if analt set the flag.
 	 */
 	if (cmpxchg(&io_to_abort->abort_in_progress, false, true)) {
 		/* efct_ref_get(): same function */
@@ -1984,7 +1984,7 @@ efct_hw_io_abort(struct efct_hw *hw, struct efct_hw_io *io_to_abort,
 	 * - port owned xri:
 	 *	- rxri: io_to_abort->wq_index == U32_MAX
 	 *		- submit ABORT_WQE to any WQ
-	 *	- non-rxri
+	 *	- analn-rxri
 	 *		- io_to_abort->index != U32_MAX
 	 *			- submit ABORT_WQE to same WQ
 	 *		- io_to_abort->index == U32_MAX
@@ -1997,7 +1997,7 @@ efct_hw_io_abort(struct efct_hw *hw, struct efct_hw_io *io_to_abort,
 	wqcb = efct_hw_reqtag_alloc(hw, efct_hw_wq_process_abort, io_to_abort);
 	if (!wqcb) {
 		efc_log_err(hw->os, "can't allocate request tag\n");
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	io_to_abort->abort_reqtag = wqcb->instance_index;
@@ -2022,9 +2022,9 @@ efct_hw_io_abort(struct efct_hw *hw, struct efct_hw_io *io_to_abort,
 
 	efct_hw_fill_abort_wqe(hw, &io_to_abort->wqe);
 
-	/* ABORT_WQE does not actually utilize an XRI on the Port,
+	/* ABORT_WQE does analt actually utilize an XRI on the Port,
 	 * therefore, keep xbusy as-is to track the exchange's state,
-	 * not the ABORT_WQE's state
+	 * analt the ABORT_WQE's state
 	 */
 	if (efct_hw_wq_write(io_to_abort->wq, &io_to_abort->wqe)) {
 		io_to_abort->abort_in_progress = false;
@@ -2177,7 +2177,7 @@ efct_hw_process(struct efct_hw *hw, u32 vector,
 	/*
 	 * The caller should disable interrupts if they wish to prevent us
 	 * from processing during a shutdown. The following states are defined:
-	 *   EFCT_HW_STATE_UNINITIALIZED - No queues allocated
+	 *   EFCT_HW_STATE_UNINITIALIZED - Anal queues allocated
 	 *   EFCT_HW_STATE_QUEUES_ALLOCATED - The state after a chip reset,
 	 *                                    queues are cleared.
 	 *   EFCT_HW_STATE_ACTIVE - Chip and queues are operational
@@ -2331,14 +2331,14 @@ efct_hw_cq_process(struct efct_hw *hw, struct hw_cq *cq)
 		 * the CQE indicated success
 		 * > 0 : call completed correctly and
 		 * the CQE indicated an error
-		 * < 0 : call failed and no information is available about the
+		 * < 0 : call failed and anal information is available about the
 		 * CQE
 		 */
 		if (status < 0) {
-			if (status == SLI4_MCQE_STATUS_NOT_COMPLETED)
+			if (status == SLI4_MCQE_STATUS_ANALT_COMPLETED)
 				/*
-				 * Notification that an entry was consumed,
-				 * but not completed
+				 * Analtification that an entry was consumed,
+				 * but analt completed
 				 */
 				continue;
 
@@ -2351,7 +2351,7 @@ efct_hw_cq_process(struct efct_hw *hw, struct hw_cq *cq)
 			break;
 		case SLI4_QENTRY_MQ:
 			/*
-			 * Process MQ entry. Note there is no way to determine
+			 * Process MQ entry. Analte there is anal way to determine
 			 * the MQ_ID from the completion entry.
 			 */
 			efct_hw_mq_process(hw, status, hw->mq);
@@ -2451,9 +2451,9 @@ efct_hw_xabt_process(struct efct_hw *hw, struct hw_cq *cq,
 	}
 
 	if (!io->xbusy)
-		efc_log_debug(hw->os, "xabt io not busy rid=%#x\n", rid);
+		efc_log_debug(hw->os, "xabt io analt busy rid=%#x\n", rid);
 	else
-		/* mark IO as no longer busy */
+		/* mark IO as anal longer busy */
 		io->xbusy = false;
 
 	/*
@@ -2483,7 +2483,7 @@ efct_hw_xabt_process(struct efct_hw *hw, struct hw_cq *cq,
 	    io->state == EFCT_HW_IO_STATE_WAIT_FREE) {
 		/* if on wait_free list, caller has already freed IO;
 		 * remove from wait_free list and add to free list.
-		 * if on in-use list, already marked as no longer busy;
+		 * if on in-use list, already marked as anal longer busy;
 		 * just leave there and wait for caller to free.
 		 */
 		if (io->state == EFCT_HW_IO_STATE_WAIT_FREE) {
@@ -2575,7 +2575,7 @@ efct_hw_bls_send(struct efct *efct, u32 type, struct sli_bls_params *bls_params,
 
 	if (hw->state != EFCT_HW_STATE_ACTIVE) {
 		efc_log_err(hw->os,
-			    "cannot send BLS, HW state=%d\n", hw->state);
+			    "cananalt send BLS, HW state=%d\n", hw->state);
 		return -EIO;
 	}
 
@@ -2619,7 +2619,7 @@ efct_hw_bls_send(struct efct *efct, u32 type, struct sli_bls_params *bls_params,
 	hio->wq->use_count++;
 	rc = efct_hw_wq_write(hio->wq, &hio->wqe);
 	if (rc >= 0) {
-		/* non-negative return is success */
+		/* analn-negative return is success */
 		rc = 0;
 	} else {
 		/* failed to write wqe, remove from active wqe list */
@@ -2712,7 +2712,7 @@ efct_els_hw_srrs_send(struct efc *efc, struct efc_disc_io *io)
 
 	if (hw->state != EFCT_HW_STATE_ACTIVE) {
 		efc_log_debug(hw->os,
-			      "cannot send SRRS, HW state=%d\n", hw->state);
+			      "cananalt send SRRS, HW state=%d\n", hw->state);
 		return -EIO;
 	}
 
@@ -2828,7 +2828,7 @@ efct_els_hw_srrs_send(struct efc *efc, struct efc_disc_io *io)
 		hio->wq->use_count++;
 		rc = efct_hw_wq_write(hio->wq, &hio->wqe);
 		if (rc >= 0) {
-			/* non-negative return is success */
+			/* analn-negative return is success */
 			rc = 0;
 		} else {
 			/* failed to write wqe, remove from active wqe list */
@@ -2855,7 +2855,7 @@ efct_hw_io_send(struct efct_hw *hw, enum efct_hw_io_type type,
 	}
 
 	if (hw->state != EFCT_HW_STATE_ACTIVE) {
-		efc_log_err(hw->os, "cannot send IO, HW state=%d\n", hw->state);
+		efc_log_err(hw->os, "cananalt send IO, HW state=%d\n", hw->state);
 		return -EIO;
 	}
 
@@ -2952,7 +2952,7 @@ efct_hw_io_send(struct efct_hw *hw, enum efct_hw_io_type type,
 		io->wq->use_count++;
 		rc = efct_hw_wq_write(io->wq, &io->wqe);
 		if (rc >= 0) {
-			/* non-negative return is success */
+			/* analn-negative return is success */
 			rc = 0;
 		} else {
 			/* failed to write wqe, remove from active wqe list */
@@ -2986,7 +2986,7 @@ efct_hw_send_frame(struct efct_hw *hw, struct fc_frame_header *hdr,
 	ctx->wqcb = efct_hw_reqtag_alloc(hw, callback, arg);
 	if (!ctx->wqcb) {
 		efc_log_err(hw->os, "can't allocate request tag\n");
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	wq = hw->hw_wq[0];
@@ -3072,12 +3072,12 @@ efct_hw_cb_link_stat(struct efct_hw *hw, int status,
 		 le32_to_cpu(mbox_rsp->rx_eofni_cnt);
 	counts[EFCT_HW_LINK_STAT_RCV_SOFF_COUNT].counter =
 		 le32_to_cpu(mbox_rsp->rx_soff_cnt);
-	counts[EFCT_HW_LINK_STAT_RCV_DROPPED_NO_AER_COUNT].counter =
-		 le32_to_cpu(mbox_rsp->rx_dropped_no_aer_cnt);
-	counts[EFCT_HW_LINK_STAT_RCV_DROPPED_NO_RPI_COUNT].counter =
-		 le32_to_cpu(mbox_rsp->rx_dropped_no_avail_rpi_rescnt);
-	counts[EFCT_HW_LINK_STAT_RCV_DROPPED_NO_XRI_COUNT].counter =
-		 le32_to_cpu(mbox_rsp->rx_dropped_no_avail_xri_rescnt);
+	counts[EFCT_HW_LINK_STAT_RCV_DROPPED_ANAL_AER_COUNT].counter =
+		 le32_to_cpu(mbox_rsp->rx_dropped_anal_aer_cnt);
+	counts[EFCT_HW_LINK_STAT_RCV_DROPPED_ANAL_RPI_COUNT].counter =
+		 le32_to_cpu(mbox_rsp->rx_dropped_anal_avail_rpi_rescnt);
+	counts[EFCT_HW_LINK_STAT_RCV_DROPPED_ANAL_XRI_COUNT].counter =
+		 le32_to_cpu(mbox_rsp->rx_dropped_anal_avail_xri_rescnt);
 
 	if (cb_arg) {
 		if (cb_arg->cb) {
@@ -3106,7 +3106,7 @@ efct_hw_get_link_stats(struct efct_hw *hw, u8 req_ext_counters,
 
 	cb_arg = kzalloc(sizeof(*cb_arg), GFP_ATOMIC);
 	if (!cb_arg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cb_arg->cb = cb;
 	cb_arg->arg = arg;
@@ -3114,7 +3114,7 @@ efct_hw_get_link_stats(struct efct_hw *hw, u8 req_ext_counters,
 	/* Send the HW command */
 	if (!sli_cmd_read_link_stats(&hw->sli, mbxdata, req_ext_counters,
 				    clear_overflow_flags, clear_all_counters))
-		rc = efct_hw_command(hw, mbxdata, EFCT_CMD_NOWAIT,
+		rc = efct_hw_command(hw, mbxdata, EFCT_CMD_ANALWAIT,
 				     efct_hw_cb_link_stat, cb_arg);
 
 	if (rc)
@@ -3155,12 +3155,12 @@ efct_hw_cb_host_stat(struct efct_hw *hw, int status, u8 *mqe, void  *arg)
 		 le32_to_cpu(mbox_rsp->recv_p_bsy_cnt);
 	counts[EFCT_HW_HOST_STAT_RX_F_BSY_COUNT].counter =
 		 le32_to_cpu(mbox_rsp->recv_f_bsy_cnt);
-	counts[EFCT_HW_HOST_STAT_DROP_FRM_DUE_TO_NO_RQ_BUF_COUNT].counter =
-		 le32_to_cpu(mbox_rsp->no_rq_buf_dropped_frames_cnt);
+	counts[EFCT_HW_HOST_STAT_DROP_FRM_DUE_TO_ANAL_RQ_BUF_COUNT].counter =
+		 le32_to_cpu(mbox_rsp->anal_rq_buf_dropped_frames_cnt);
 	counts[EFCT_HW_HOST_STAT_EMPTY_RQ_TIMEOUT_COUNT].counter =
 		 le32_to_cpu(mbox_rsp->empty_rq_timeout_cnt);
-	counts[EFCT_HW_HOST_STAT_DROP_FRM_DUE_TO_NO_XRI_COUNT].counter =
-		 le32_to_cpu(mbox_rsp->no_xri_dropped_frames_cnt);
+	counts[EFCT_HW_HOST_STAT_DROP_FRM_DUE_TO_ANAL_XRI_COUNT].counter =
+		 le32_to_cpu(mbox_rsp->anal_xri_dropped_frames_cnt);
 	counts[EFCT_HW_HOST_STAT_EMPTY_XRI_POOL_COUNT].counter =
 		 le32_to_cpu(mbox_rsp->empty_xri_pool_cnt);
 
@@ -3190,14 +3190,14 @@ efct_hw_get_host_stats(struct efct_hw *hw, u8 cc,
 
 	cb_arg = kmalloc(sizeof(*cb_arg), GFP_ATOMIC);
 	if (!cb_arg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cb_arg->cb = cb;
 	cb_arg->arg = arg;
 
 	 /* Send the HW command to get the host stats */
 	if (!sli_cmd_read_status(&hw->sli, mbxdata, cc))
-		rc = efct_hw_command(hw, mbxdata, EFCT_CMD_NOWAIT,
+		rc = efct_hw_command(hw, mbxdata, EFCT_CMD_ANALWAIT,
 				     efct_hw_cb_host_stat, cb_arg);
 
 	if (rc) {
@@ -3240,22 +3240,22 @@ efct_hw_async_call(struct efct_hw *hw, efct_hw_async_cb_t callback, void *arg)
 	 */
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->callback = callback;
 	ctx->arg = arg;
 
-	/* Build and send a NOP mailbox command */
-	if (sli_cmd_common_nop(&hw->sli, ctx->cmd, 0)) {
-		efc_log_err(hw->os, "COMMON_NOP format failure\n");
+	/* Build and send a ANALP mailbox command */
+	if (sli_cmd_common_analp(&hw->sli, ctx->cmd, 0)) {
+		efc_log_err(hw->os, "COMMON_ANALP format failure\n");
 		kfree(ctx);
 		return -EIO;
 	}
 
-	rc = efct_hw_command(hw, ctx->cmd, EFCT_CMD_NOWAIT, efct_hw_async_cb,
+	rc = efct_hw_command(hw, ctx->cmd, EFCT_CMD_ANALWAIT, efct_hw_async_cb,
 			     ctx);
 	if (rc) {
-		efc_log_err(hw->os, "COMMON_NOP command failure, rc=%d\n", rc);
+		efc_log_err(hw->os, "COMMON_ANALP command failure, rc=%d\n", rc);
 		kfree(ctx);
 		return -EIO;
 	}
@@ -3304,20 +3304,20 @@ efct_hw_firmware_write(struct efct_hw *hw, struct efc_dma *dma, u32 size,
 	int rc = -EIO;
 	u8 mbxdata[SLI4_BMBX_SIZE];
 	struct efct_hw_fw_wr_cb_arg *cb_arg;
-	int noc = 0;
+	int analc = 0;
 
 	cb_arg = kzalloc(sizeof(*cb_arg), GFP_KERNEL);
 	if (!cb_arg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cb_arg->cb = cb;
 	cb_arg->arg = arg;
 
 	/* Write a portion of a firmware image to the device */
 	if (!sli_cmd_common_write_object(&hw->sli, mbxdata,
-					 noc, last, size, offset, "/prg/",
+					 analc, last, size, offset, "/prg/",
 					 dma))
-		rc = efct_hw_command(hw, mbxdata, EFCT_CMD_NOWAIT,
+		rc = efct_hw_command(hw, mbxdata, EFCT_CMD_ANALWAIT,
 				     efct_hw_cb_fw_write, cb_arg);
 
 	if (rc != 0) {
@@ -3349,7 +3349,7 @@ efct_hw_port_control(struct efct_hw *hw, enum efct_hw_port ctrl,
 	switch (ctrl) {
 	case EFCT_HW_PORT_INIT:
 		if (!sli_cmd_config_link(&hw->sli, link))
-			rc = efct_hw_command(hw, link, EFCT_CMD_NOWAIT,
+			rc = efct_hw_command(hw, link, EFCT_CMD_ANALWAIT,
 					     efct_hw_cb_port_control, NULL);
 
 		if (rc != 0) {
@@ -3361,18 +3361,18 @@ efct_hw_port_control(struct efct_hw *hw, enum efct_hw_port ctrl,
 
 		rc = -EIO;
 		if (!sli_cmd_init_link(&hw->sli, link, speed, reset_alpa))
-			rc = efct_hw_command(hw, link, EFCT_CMD_NOWAIT,
+			rc = efct_hw_command(hw, link, EFCT_CMD_ANALWAIT,
 					     efct_hw_cb_port_control, NULL);
-		/* Free buffer on error, since no callback is coming */
+		/* Free buffer on error, since anal callback is coming */
 		if (rc)
 			efc_log_err(hw->os, "INIT_LINK failed\n");
 		break;
 
 	case EFCT_HW_PORT_SHUTDOWN:
 		if (!sli_cmd_down_link(&hw->sli, link))
-			rc = efct_hw_command(hw, link, EFCT_CMD_NOWAIT,
+			rc = efct_hw_command(hw, link, EFCT_CMD_ANALWAIT,
 					     efct_hw_cb_port_control, NULL);
-		/* Free buffer on error, since no callback is coming */
+		/* Free buffer on error, since anal callback is coming */
 		if (rc)
 			efc_log_err(hw->os, "DOWN_LINK failed\n");
 		break;
@@ -3422,9 +3422,9 @@ efct_hw_teardown(struct efct_hw *hw)
 	}
 
 	dma_free_coherent(&efct->pci->dev,
-			  hw->rnode_mem.size, hw->rnode_mem.virt,
-			  hw->rnode_mem.phys);
-	memset(&hw->rnode_mem, 0, sizeof(struct efc_dma));
+			  hw->ranalde_mem.size, hw->ranalde_mem.virt,
+			  hw->ranalde_mem.phys);
+	memset(&hw->ranalde_mem, 0, sizeof(struct efc_dma));
 
 	if (hw->io) {
 		for (i = 0; i < hw->config.n_io; i++) {
@@ -3483,7 +3483,7 @@ efct_hw_teardown(struct efct_hw *hw)
 
 	sli_teardown(&hw->sli);
 
-	/* record the fact that the queues are non-functional */
+	/* record the fact that the queues are analn-functional */
 	hw->state = EFCT_HW_STATE_UNINITIALIZED;
 
 	/* free sequence free pool */
@@ -3496,7 +3496,7 @@ efct_hw_teardown(struct efct_hw *hw)
 	mempool_destroy(hw->cmd_ctx_pool);
 	mempool_destroy(hw->mbox_rqst_pool);
 
-	/* Mark HW setup as not having been called */
+	/* Mark HW setup as analt having been called */
 	hw->hw_setup_called = false;
 }
 
@@ -3521,7 +3521,7 @@ efct_hw_sli_reset(struct efct_hw *hw, enum efct_hw_reset reset,
 			rc = -EIO;
 		}
 		/*
-		 * Because the FW reset leaves the FW in a non-running state,
+		 * Because the FW reset leaves the FW in a analn-running state,
 		 * follow that with a regular reset.
 		 */
 		efc_log_debug(hw->os, "issuing function level reset\n");
@@ -3531,7 +3531,7 @@ efct_hw_sli_reset(struct efct_hw *hw, enum efct_hw_reset reset,
 		}
 		break;
 	default:
-		efc_log_err(hw->os, "unknown type - no reset performed\n");
+		efc_log_err(hw->os, "unkanalwn type - anal reset performed\n");
 		hw->state = prev_state;
 		rc = -EINVAL;
 		break;
@@ -3548,7 +3548,7 @@ efct_hw_reset(struct efct_hw *hw, enum efct_hw_reset reset)
 
 	if (hw->state != EFCT_HW_STATE_ACTIVE)
 		efc_log_debug(hw->os,
-			      "HW state %d is not active\n", hw->state);
+			      "HW state %d is analt active\n", hw->state);
 
 	hw->state = EFCT_HW_STATE_RESET_IN_PROGRESS;
 

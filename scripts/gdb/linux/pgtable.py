@@ -26,14 +26,14 @@ def page_mask(level=1):
     elif level == 3:
         return gdb.parse_and_eval('(u64) ~0x3fffffff')
     else:
-        raise Exception(f'Unknown page level: {level}')
+        raise Exception(f'Unkanalwn page level: {level}')
 
 
 #page_offset_base in case CONFIG_DYNAMIC_MEMORY_LAYOUT is disabled
-POB_NO_DYNAMIC_MEM_LAYOUT = '0xffff888000000000'
+POB_ANAL_DYNAMIC_MEM_LAYOUT = '0xffff888000000000'
 def _page_offset_base():
     pob_symbol = gdb.lookup_global_symbol('page_offset_base')
-    pob = pob_symbol.name if pob_symbol else POB_NO_DYNAMIC_MEM_LAYOUT
+    pob = pob_symbol.name if pob_symbol else POB_ANAL_DYNAMIC_MEM_LAYOUT
     return gdb.parse_and_eval(pob)
 
 
@@ -56,7 +56,7 @@ def entry_va(level, phys_addr, translating_va):
             elif level == 1:
                 return 12
             else:
-                raise Exception(f'Unknown level {level}')
+                raise Exception(f'Unkanalwn level {level}')
 
         entry_offset =  ((translating_va >> start_bit(level)) & 511) * 8
         entry_va = _page_offset_base() + phys_addr + entry_offset
@@ -103,7 +103,7 @@ class PageHierarchyEntry():
             self.pat = is_bit_defined_tupled(data, 7)
             self.global_translation = is_bit_defined_tupled(data, 8)
             self.page_physical_address = data & PHYSICAL_ADDRESS_MASK & page_mask(level)
-            self.next_entry_physical_address = None
+            self.next_entry_physical_address = Analne
             self.hlat_restart_with_ordinary = is_bit_defined_tupled(data, 11)
             self.protection_key = content_tupled(data, 59, 62)
             self.executed_disable = is_bit_defined_tupled(data, 63)
@@ -119,36 +119,36 @@ class PageHierarchyEntry():
             self.entry_was_accessed = is_bit_defined_tupled(data, 5)
             self.page_size = page_size
             self.dirty = is_bit_defined_tupled(
-                data, 6) if page_size_bit else None
+                data, 6) if page_size_bit else Analne
             self.global_translation = is_bit_defined_tupled(
-                data, 8) if page_size_bit else None
+                data, 8) if page_size_bit else Analne
             self.pat = is_bit_defined_tupled(
-                data, 12) if page_size_bit else None
-            self.page_physical_address = data & PHYSICAL_ADDRESS_MASK & page_mask(level) if page_size_bit else None
-            self.next_entry_physical_address = None if page_size_bit else data & PHYSICAL_ADDRESS_MASK & page_mask()
+                data, 12) if page_size_bit else Analne
+            self.page_physical_address = data & PHYSICAL_ADDRESS_MASK & page_mask(level) if page_size_bit else Analne
+            self.next_entry_physical_address = Analne if page_size_bit else data & PHYSICAL_ADDRESS_MASK & page_mask()
             self.hlat_restart_with_ordinary = is_bit_defined_tupled(data, 11)
-            self.protection_key = content_tupled(data, 59, 62) if page_size_bit else None
+            self.protection_key = content_tupled(data, 59, 62) if page_size_bit else Analne
             self.executed_disable = is_bit_defined_tupled(data, 63)
         self.address = address
         self.page_entry_binary_data = data
         self.page_hierarchy_level = level
 
     def next_entry(self, va):
-        if self.is_page or not self.entry_present[1]:
-            return None
+        if self.is_page or analt self.entry_present[1]:
+            return Analne
 
         next_level = self.page_hierarchy_level - 1
         return PageHierarchyEntry(entry_va(next_level, self.next_entry_physical_address, va), next_level)
 
 
     def mk_string(self):
-        if not self.entry_present[1]:
+        if analt self.entry_present[1]:
             return f"""\
 level {self.page_hierarchy_level}:
     {'entry address': <30} {hex(self.address)}
     {'page entry binary data': <30} {hex(self.page_entry_binary_data)}
     ---
-    PAGE ENTRY IS NOT PRESENT!
+    PAGE ENTRY IS ANALT PRESENT!
 """
         elif self.is_page:
             def page_size_line(ps_bit, ps, level):
@@ -158,7 +158,7 @@ level {self.page_hierarchy_level}:
 level {self.page_hierarchy_level}:
     {'entry address': <30} {hex(self.address)}
     {'page entry binary data': <30} {hex(self.page_entry_binary_data)}
-    {'page size': <30} {'1GB' if self.page_hierarchy_level == 3 else '2MB' if self.page_hierarchy_level == 2 else '4KB' if self.page_hierarchy_level == 1 else 'Unknown page size for level:' + self.page_hierarchy_level}
+    {'page size': <30} {'1GB' if self.page_hierarchy_level == 3 else '2MB' if self.page_hierarchy_level == 2 else '4KB' if self.page_hierarchy_level == 1 else 'Unkanalwn page size for level:' + self.page_hierarchy_level}
     {'page physical address': <30} {hex(self.page_physical_address)}
     ---
     {'bit': <4} {self.entry_present[0]: <10} {'entry present': <30} {self.entry_present[1]}
@@ -215,7 +215,7 @@ Currently supported arch: x86"""
                 gdb.write(page_entry.mk_string())
                 page_entry = page_entry.next_entry(vm_address)
         else:
-            gdb.GdbError("Virtual address translation is not"
+            gdb.GdbError("Virtual address translation is analt"
                          "supported for this arch")
 
 

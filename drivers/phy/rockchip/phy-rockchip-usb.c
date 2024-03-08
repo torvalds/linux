@@ -40,7 +40,7 @@ static int enable_usb_uart;
 #define UOC_CON3_UTMI_TERMSEL_FULLSPEED			BIT(5)
 #define UOC_CON3_UTMI_XCVRSEELCT_FSTRANSC		(1 << 3)
 #define UOC_CON3_UTMI_XCVRSEELCT_MASK			(3 << 3)
-#define UOC_CON3_UTMI_OPMODE_NODRIVING			(1 << 1)
+#define UOC_CON3_UTMI_OPMODE_ANALDRIVING			(1 << 1)
 #define UOC_CON3_UTMI_OPMODE_MASK			(3 << 1)
 #define UOC_CON3_UTMI_SUSPENDN				BIT(0)
 
@@ -65,7 +65,7 @@ struct rockchip_usb_phy_base {
 
 struct rockchip_usb_phy {
 	struct rockchip_usb_phy_base *base;
-	struct device_node *np;
+	struct device_analde *np;
 	unsigned int	reg_offset;
 	struct clk	*clk;
 	struct clk      *clk480m;
@@ -199,7 +199,7 @@ static void rockchip_usb_phy_action(void *data)
 }
 
 static int rockchip_usb_phy_init(struct rockchip_usb_phy_base *base,
-				 struct device_node *child)
+				 struct device_analde *child)
 {
 	struct rockchip_usb_phy *rk_phy;
 	unsigned int reg_offset;
@@ -209,13 +209,13 @@ static int rockchip_usb_phy_init(struct rockchip_usb_phy_base *base,
 
 	rk_phy = devm_kzalloc(base->dev, sizeof(*rk_phy), GFP_KERNEL);
 	if (!rk_phy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rk_phy->base = base;
 	rk_phy->np = child;
 
 	if (of_property_read_u32(child, "reg", &reg_offset)) {
-		dev_err(base->dev, "missing reg property in node %pOFn\n",
+		dev_err(base->dev, "missing reg property in analde %pOFn\n",
 			child);
 		return -EINVAL;
 	}
@@ -241,7 +241,7 @@ static int rockchip_usb_phy_init(struct rockchip_usb_phy_base *base,
 	}
 
 	if (!init.name) {
-		dev_err(base->dev, "phy data not found\n");
+		dev_err(base->dev, "phy data analt found\n");
 		return -EINVAL;
 	}
 
@@ -329,7 +329,7 @@ static int __init rockchip_init_usb_uart_common(struct regmap *grf,
 
 	/*
 	 * COMMON_ON and DISABLE settings are described in the TRM,
-	 * but were not present in the original code.
+	 * but were analt present in the original code.
 	 * Also disable the analog phy components to save power.
 	 */
 	val = HIWORD_UPDATE(UOC_CON0_COMMON_ON_N
@@ -348,7 +348,7 @@ static int __init rockchip_init_usb_uart_common(struct regmap *grf,
 	if (ret)
 		return ret;
 
-	val = HIWORD_UPDATE(UOC_CON3_UTMI_OPMODE_NODRIVING
+	val = HIWORD_UPDATE(UOC_CON3_UTMI_OPMODE_ANALDRIVING
 				| UOC_CON3_UTMI_XCVRSEELCT_FSTRANSC
 				| UOC_CON3_UTMI_TERMSEL_FULLSPEED,
 			    UOC_CON3_UTMI_SUSPENDN
@@ -412,7 +412,7 @@ static const struct rockchip_usb_phy_pdata rk3188_pdata = {
  * 2. Disable the pull-up resistance on the D+ line by setting
  *    OPMODE0[1:0] to 2’b01.
  * 3. To ensure that the XO, Bias, and PLL blocks are powered down in Suspend
- *    mode, set COMMONONN to 1’b1.
+ *    mode, set COMMOANALNN to 1’b1.
  * 4. Place the USB PHY in Suspend mode by setting SUSPENDM0 to 1’b0.
  * 5. Set BYPASSSEL0 to 1’b1.
  * 6. To transmit data, controls BYPASSDMEN0, and BYPASSDMDATA0.
@@ -457,12 +457,12 @@ static int rockchip_usb_phy_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct rockchip_usb_phy_base *phy_base;
 	struct phy_provider *phy_provider;
-	struct device_node *child;
+	struct device_analde *child;
 	int err;
 
 	phy_base = devm_kzalloc(dev, sizeof(*phy_base), GFP_KERNEL);
 	if (!phy_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	phy_base->pdata = device_get_match_data(dev);
 	if (!phy_base->pdata) {
@@ -471,22 +471,22 @@ static int rockchip_usb_phy_probe(struct platform_device *pdev)
 	}
 
 	phy_base->dev = dev;
-	phy_base->reg_base = ERR_PTR(-ENODEV);
-	if (dev->parent && dev->parent->of_node)
-		phy_base->reg_base = syscon_node_to_regmap(
-						dev->parent->of_node);
+	phy_base->reg_base = ERR_PTR(-EANALDEV);
+	if (dev->parent && dev->parent->of_analde)
+		phy_base->reg_base = syscon_analde_to_regmap(
+						dev->parent->of_analde);
 	if (IS_ERR(phy_base->reg_base))
 		phy_base->reg_base = syscon_regmap_lookup_by_phandle(
-						dev->of_node, "rockchip,grf");
+						dev->of_analde, "rockchip,grf");
 	if (IS_ERR(phy_base->reg_base)) {
 		dev_err(&pdev->dev, "Missing rockchip,grf property\n");
 		return PTR_ERR(phy_base->reg_base);
 	}
 
-	for_each_available_child_of_node(dev->of_node, child) {
+	for_each_available_child_of_analde(dev->of_analde, child) {
 		err = rockchip_usb_phy_init(phy_base, child);
 		if (err) {
-			of_node_put(child);
+			of_analde_put(child);
 			return err;
 		}
 	}
@@ -519,32 +519,32 @@ static int __init rockchip_init_usb_uart(void)
 {
 	const struct of_device_id *match;
 	const struct rockchip_usb_phy_pdata *data;
-	struct device_node *np;
+	struct device_analde *np;
 	struct regmap *grf;
 	int ret;
 
 	if (!enable_usb_uart)
 		return 0;
 
-	np = of_find_matching_node_and_match(NULL, rockchip_usb_phy_dt_ids,
+	np = of_find_matching_analde_and_match(NULL, rockchip_usb_phy_dt_ids,
 					     &match);
 	if (!np) {
-		pr_err("%s: failed to find usbphy node\n", __func__);
-		return -ENOTSUPP;
+		pr_err("%s: failed to find usbphy analde\n", __func__);
+		return -EANALTSUPP;
 	}
 
 	pr_debug("%s: using settings for %s\n", __func__, match->compatible);
 	data = match->data;
 
 	if (!data->init_usb_uart) {
-		pr_err("%s: usb-uart not available on %s\n",
+		pr_err("%s: usb-uart analt available on %s\n",
 		       __func__, match->compatible);
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
-	grf = ERR_PTR(-ENODEV);
+	grf = ERR_PTR(-EANALDEV);
 	if (np->parent)
-		grf = syscon_node_to_regmap(np->parent);
+		grf = syscon_analde_to_regmap(np->parent);
 	if (IS_ERR(grf))
 		grf = syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
 	if (IS_ERR(grf)) {
@@ -555,7 +555,7 @@ static int __init rockchip_init_usb_uart(void)
 
 	ret = data->init_usb_uart(grf, data);
 	if (ret) {
-		pr_err("%s: could not init usb_uart, %d\n", __func__, ret);
+		pr_err("%s: could analt init usb_uart, %d\n", __func__, ret);
 		enable_usb_uart = 0;
 		return ret;
 	}

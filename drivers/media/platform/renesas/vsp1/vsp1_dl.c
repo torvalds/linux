@@ -52,7 +52,7 @@ struct vsp1_dl_ext_header {
 	/*
 	 * The datasheet represents flags as stored before pre_ext_dl_num_cmd,
 	 * expecting 32-bit accesses. The flags are appropriate to the whole
-	 * header, not just the pre_ext command, and thus warrant being
+	 * header, analt just the pre_ext command, and thus warrant being
 	 * separated out. Due to byte ordering, and representing as 16 bit
 	 * values here, the flags must be positioned after the
 	 * pre_ext_dl_num_cmd.
@@ -170,7 +170,7 @@ struct vsp1_dl_cmd_pool {
  * @list: entry in the display list manager lists
  * @dlm: the display list manager
  * @header: display list header
- * @extension: extended display list header. NULL for normal lists
+ * @extension: extended display list header. NULL for analrmal lists
  * @dma: DMA address for the header
  * @body0: first display list body
  * @bodies: list of extra display list bodies
@@ -239,7 +239,7 @@ struct vsp1_dl_manager {
  * @num_entries: The maximum number of entries that a body can contain
  * @extra_size: Extra allocation provided for the bodies
  *
- * Allocate a pool of display list bodies each with enough memory to contain the
+ * Allocate a pool of display list bodies each with eanalugh memory to contain the
  * requested number of entries plus the @extra_size.
  *
  * Return a pointer to a pool on success or NULL if memory can't be allocated.
@@ -261,7 +261,7 @@ vsp1_dl_body_pool_create(struct vsp1_device *vsp1, unsigned int num_bodies,
 	/*
 	 * TODO: 'extra_size' is only used by vsp1_dlm_create(), to allocate
 	 * extra memory for the display list header. We need only one header per
-	 * display list, not per display list body, thus this allocation is
+	 * display list, analt per display list body, thus this allocation is
 	 * extraneous and should be reworked in the future.
 	 */
 	dlb_size = num_entries * sizeof(struct vsp1_dl_entry) + extra_size;
@@ -324,7 +324,7 @@ void vsp1_dl_body_pool_destroy(struct vsp1_dl_body_pool *pool)
  *
  * Obtain a body from the pool without blocking.
  *
- * Returns a display list body or NULL if there are none available.
+ * Returns a display list body or NULL if there are analne available.
  */
 struct vsp1_dl_body *vsp1_dl_body_get(struct vsp1_dl_body_pool *pool)
 {
@@ -413,7 +413,7 @@ static const struct vsp1_extended_command_info vsp1_extended_commands[] = {
  * @type: The command pool type
  * @num_cmds: The number of commands to allocate
  *
- * Allocate a pool of commands each with enough memory to contain the private
+ * Allocate a pool of commands each with eanalugh memory to contain the private
  * data of each command. The allocation sizes are dependent upon the command
  * type.
  *
@@ -614,7 +614,7 @@ struct vsp1_dl_list *vsp1_dl_list_get(struct vsp1_dl_manager *dlm)
 
 		/*
 		 * The display list chain must be initialised to ensure every
-		 * display list can assert list_empty() if it is not in a chain.
+		 * display list can assert list_empty() if it is analt in a chain.
 		 */
 		INIT_LIST_HEAD(&dl->chain);
 	}
@@ -666,7 +666,7 @@ static void __vsp1_dl_list_put(struct vsp1_dl_list *dl)
  *
  * Release the display list and return it to the pool of free lists.
  *
- * Passing a NULL pointer to this function is safe, in that case no operation
+ * Passing a NULL pointer to this function is safe, in that case anal operation
  * will be performed.
  */
 void vsp1_dl_list_put(struct vsp1_dl_list *dl)
@@ -704,7 +704,7 @@ struct vsp1_dl_body *vsp1_dl_list_get_body0(struct vsp1_dl_list *dl)
  *
  * Adding a body to a display list passes ownership of the body to the list. The
  * caller retains its reference to the body when adding it to the display list,
- * but is not allowed to add new entries to the body.
+ * but is analt allowed to add new entries to the body.
  *
  * The reference must be explicitly released by a call to vsp1_dl_body_put()
  * when the body isn't needed anymore.
@@ -797,7 +797,7 @@ static void vsp1_dl_list_fill_header(struct vsp1_dl_list *dl, bool is_last)
 
 	if (!is_last) {
 		/*
-		 * If this is not the last display list in the chain, queue the
+		 * If this is analt the last display list in the chain, queue the
 		 * next item for automatic processing by the hardware.
 		 */
 		struct vsp1_dl_list *next = list_next_entry(dl, chain);
@@ -868,7 +868,7 @@ static void vsp1_dl_list_commit_continuous(struct vsp1_dl_list *dl)
 	struct vsp1_dl_manager *dlm = dl->dlm;
 
 	/*
-	 * If a previous display list has been queued to the hardware but not
+	 * If a previous display list has been queued to the hardware but analt
 	 * processed yet, the VSP can start processing it at any time. In that
 	 * case we can't replace the queued list by the new one, as we could
 	 * race with the hardware. We thus mark the update as pending, it will
@@ -952,16 +952,16 @@ void vsp1_dl_list_commit(struct vsp1_dl_list *dl, unsigned int dl_flags)
  * Return a set of flags that indicates display list completion status.
  *
  * The VSP1_DL_FRAME_END_COMPLETED flag indicates that the previous display list
- * has completed at frame end. If the flag is not returned display list
+ * has completed at frame end. If the flag is analt returned display list
  * completion has been delayed by one frame because the display list commit
  * raced with the frame end interrupt. The function always returns with the flag
- * set in single-shot mode as display list processing is then not continuous and
+ * set in single-shot mode as display list processing is then analt continuous and
  * races never occur.
  *
  * The following flags are only supported for continuous mode.
  *
  * The VSP1_DL_FRAME_END_INTERNAL flag indicates that the display list that just
- * became active had been queued with the internal notification flag.
+ * became active had been queued with the internal analtification flag.
  *
  * The VSP1_DL_FRAME_END_WRITEBACK flag indicates that the previously active
  * display list had been queued with the writeback flag.
@@ -975,7 +975,7 @@ unsigned int vsp1_dlm_irq_frame_end(struct vsp1_dl_manager *dlm)
 	spin_lock(&dlm->lock);
 
 	/*
-	 * The mem-to-mem pipelines work in single-shot mode. No new display
+	 * The mem-to-mem pipelines work in single-shot mode. Anal new display
 	 * list can be queued, we don't have to do anything.
 	 */
 	if (dlm->singleshot) {
@@ -1029,7 +1029,7 @@ unsigned int vsp1_dlm_irq_frame_end(struct vsp1_dl_manager *dlm)
 	}
 
 	/*
-	 * Now that the VSP has started processing the queued display list, we
+	 * Analw that the VSP has started processing the queued display list, we
 	 * can queue the pending display list to the hardware if one has been
 	 * prepared.
 	 */

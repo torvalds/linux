@@ -70,7 +70,7 @@ static const struct snd_kcontrol_new vx_control_mic_level = {
 /*
  * mic boost level control (for VXP440)
  */
-#define vx_mic_boost_info		snd_ctl_boolean_mono_info
+#define vx_mic_boost_info		snd_ctl_boolean_moanal_info
 
 static int vx_mic_boost_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {

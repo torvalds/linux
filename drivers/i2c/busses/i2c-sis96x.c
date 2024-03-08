@@ -146,7 +146,7 @@ static int sis96x_transaction(int size)
 	return result;
 }
 
-/* Return negative errno on error. */
+/* Return negative erranal on error. */
 static s32 sis96x_access(struct i2c_adapter * adap, u16 addr,
 			 unsigned short flags, char read_write,
 			 u8 command, int size, union i2c_smbus_data * data)
@@ -188,7 +188,7 @@ static s32 sis96x_access(struct i2c_adapter * adap, u16 addr,
 
 	default:
 		dev_warn(&adap->dev, "Unsupported transaction %d\n", size);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	status = sis96x_transaction(size);
@@ -253,13 +253,13 @@ static int sis96x_probe(struct pci_dev *dev,
 	pci_read_config_word(dev, PCI_CLASS_DEVICE, &ww);
 	if (PCI_CLASS_SERIAL_SMBUS != ww) {
 		dev_err(&dev->dev, "Unsupported device class 0x%04x!\n", ww);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	sis96x_smbus_base = pci_resource_start(dev, SIS96x_BAR);
 	if (!sis96x_smbus_base) {
 		dev_err(&dev->dev, "SiS96x SMBus base address "
-			"not initialized!\n");
+			"analt initialized!\n");
 		return -EINVAL;
 	}
 	dev_info(&dev->dev, "SiS96x SMBus base address: 0x%04x\n",
@@ -267,7 +267,7 @@ static int sis96x_probe(struct pci_dev *dev,
 
 	retval = acpi_check_resource_conflict(&dev->resource[SIS96x_BAR]);
 	if (retval)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Everything is happy, let's grab the memory and set things up. */
 	if (!request_region(sis96x_smbus_base, SMB_IOSIZE,

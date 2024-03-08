@@ -90,7 +90,7 @@ ethnl_set_linkinfo_validate(struct ethnl_req_info *req_info,
 	const struct ethtool_ops *ops = req_info->dev->ethtool_ops;
 
 	if (!ops->get_link_ksettings || !ops->set_link_ksettings)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	return 1;
 }
 

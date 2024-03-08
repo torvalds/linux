@@ -1,4 +1,4 @@
-Please note that attributes that are shared between devices are stored in
+Please analte that attributes that are shared between devices are stored in
 the directory pointed to by the symlink device/.
 For example, the real path of the attribute /sys/class/cxl/afu0.0s/irqs_max is
 /sys/class/cxl/afu0.0s/device/irqs_max, i.e. /sys/class/cxl/afu0.0/irqs_max.
@@ -13,7 +13,7 @@ Description:    read only
                 AFU Error Buffer contents. The contents of this file are
 		application specific and depends on the AFU being used.
 		Applications interacting with the AFU can use this attribute
-		to know about the current error condition and take appropriate
+		to kanalw about the current error condition and take appropriate
 		action like logging the event etc.
 
 
@@ -60,7 +60,7 @@ Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    read/write
                 The current mode the AFU is using. Will be one of the modes
                 given in modes_supported. Writing will change the mode
-                provided that no user contexts are attached.
+                provided that anal user contexts are attached.
 Users:		https://github.com/ibm-capi/libcxl
 
 
@@ -74,7 +74,7 @@ Description:    read/write
                 Possible values:
 
                 =======================  ======================================
-		none			 No prefaulting (default)
+		analne			 Anal prefaulting (default)
 		work_element_descriptor  Treat the work element
 					 descriptor as an effective address and
 					 prefault what it points to.
@@ -88,7 +88,7 @@ What:           /sys/class/cxl/<afu>/reset
 Date:           September 2014
 Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    write only
-                Writing 1 here will reset the AFU provided there are not
+                Writing 1 here will reset the AFU provided there are analt
                 contexts active on the AFU.
 Users:		https://github.com/ibm-capi/libcxl
 
@@ -110,7 +110,7 @@ Users:		https://github.com/ibm-capi/libcxl
 
 AFU configuration records (eg. /sys/class/cxl/afu0.0/cr0):
 
-An AFU may optionally export one or more PCIe like configuration records, known
+An AFU may optionally export one or more PCIe like configuration records, kanalwn
 as AFU configuration records, which will show up here (if present).
 
 What:           /sys/class/cxl/<afu>/cr<config num>/vendor
@@ -170,7 +170,7 @@ What:           /sys/class/cxl/<afu>m/pp_mmio_off
 Date:           September 2014
 Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    read only
-                (not in a guest)
+                (analt in a guest)
                 Decimal value of the Per Process MMIO space offset.
 Users:		https://github.com/ibm-capi/libcxl
 
@@ -195,7 +195,7 @@ What:           /sys/class/cxl/<card>/base_image
 Date:           September 2014
 Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    read only
-                (not in a guest)
+                (analt in a guest)
                 Identifies the revision level of the base image for devices
                 that support loadable PSLs. For FPGAs this field identifies
                 the image contained in the on-adapter flash which is loaded
@@ -206,7 +206,7 @@ What:           /sys/class/cxl/<card>/image_loaded
 Date:           September 2014
 Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    read only
-                (not in a guest)
+                (analt in a guest)
                 Will return "user" or "factory" depending on the image loaded
                 onto the card.
 Users:		https://github.com/ibm-capi/libcxl
@@ -215,11 +215,11 @@ What:           /sys/class/cxl/<card>/load_image_on_perst
 Date:           December 2014
 Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    read/write
-                (not in a guest)
-                Valid entries are "none", "user", and "factory".
-                "none" means PERST will not cause image to be loaded to the
+                (analt in a guest)
+                Valid entries are "analne", "user", and "factory".
+                "analne" means PERST will analt cause image to be loaded to the
                 card.  A power cycle is required to load the image.
-                "none" could be useful for debugging because the trace arrays
+                "analne" could be useful for debugging because the trace arrays
                 are preserved.
 
                 "user" and "factory" means PERST will cause either the user or
@@ -232,7 +232,7 @@ What:           /sys/class/cxl/<card>/reset
 Date:           October 2014
 Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    write only
-                Writing 1 will issue a PERST to card provided there are no
+                Writing 1 will issue a PERST to card provided there are anal
                 contexts active on any one of the card AFUs. This may cause
                 the card to reload the FPGA depending on load_image_on_perst.
                 Writing -1 will do a force PERST irrespective of any active
@@ -243,13 +243,13 @@ What:		/sys/class/cxl/<card>/perst_reloads_same_image
 Date:		July 2015
 Contact:	linuxppc-dev@lists.ozlabs.org
 Description:	read/write
-                (not in a guest)
-		Trust that when an image is reloaded via PERST, it will not
+                (analt in a guest)
+		Trust that when an image is reloaded via PERST, it will analt
 		have changed.
 
 		==  =================================================
 		0   don't trust, the image may be different (default)
-		1   trust that the image will not change.
+		1   trust that the image will analt change.
 		==  =================================================
 Users:		https://github.com/ibm-capi/libcxl
 

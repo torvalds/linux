@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2019-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -28,9 +28,9 @@
 
 #define TCSR_SOC_HW_VERSION		0x1B00000
 #define TCSR_SOC_HW_VERSION_MAJOR_MASK	GENMASK(11, 8)
-#define TCSR_SOC_HW_VERSION_MINOR_MASK	GENMASK(7, 4)
+#define TCSR_SOC_HW_VERSION_MIANALR_MASK	GENMASK(7, 4)
 
-/* BAR0 + 4k is always accessible, and no
+/* BAR0 + 4k is always accessible, and anal
  * need to force wakeup.
  * 4K - 32 = 0xFE0
  */
@@ -391,7 +391,7 @@ static void ath12k_pci_ce_irq_disable(struct ath12k_base *ab, u16 ce_id)
 		return;
 
 	irq_idx = ATH12K_PCI_IRQ_CE0_OFFSET + ce_id;
-	disable_irq_nosync(ab->irq_num[irq_idx]);
+	disable_irq_analsync(ab->irq_num[irq_idx]);
 }
 
 static void ath12k_pci_ce_irqs_disable(struct ath12k_base *ab)
@@ -443,7 +443,7 @@ static irqreturn_t ath12k_pci_ce_interrupt_handler(int irq, void *arg)
 	/* last interrupt received for this CE */
 	ce_pipe->timestamp = jiffies;
 
-	disable_irq_nosync(ab->irq_num[irq_idx]);
+	disable_irq_analsync(ab->irq_num[irq_idx]);
 
 	tasklet_schedule(&ce_pipe->intr_tq);
 
@@ -462,7 +462,7 @@ static void ath12k_pci_ext_grp_disable(struct ath12k_ext_irq_grp *irq_grp)
 		return;
 
 	for (i = 0; i < irq_grp->num_irq; i++)
-		disable_irq_nosync(irq_grp->ab->irq_num[irq_grp->irqs[i]]);
+		disable_irq_analsync(irq_grp->ab->irq_num[irq_grp->irqs[i]]);
 }
 
 static void __ath12k_pci_ext_irq_disable(struct ath12k_base *ab)
@@ -547,7 +547,7 @@ static irqreturn_t ath12k_pci_ext_interrupt_handler(int irq, void *arg)
 	irq_grp->timestamp = jiffies;
 
 	for (i = 0; i < irq_grp->num_irq; i++)
-		disable_irq_nosync(irq_grp->ab->irq_num[irq_grp->irqs[i]]);
+		disable_irq_analsync(irq_grp->ab->irq_num[irq_grp->irqs[i]]);
 
 	napi_schedule(&irq_grp->napi);
 
@@ -755,7 +755,7 @@ static int ath12k_pci_msi_alloc(struct ath12k_pci *ab_pci)
 		}
 		clear_bit(ATH12K_PCI_FLAG_MULTI_MSI_VECTORS, &ab_pci->flags);
 		ab_pci->msi_config = &msi_config_one_msi;
-		ab_pci->irq_flags = IRQF_SHARED | IRQF_NOBALANCING;
+		ab_pci->irq_flags = IRQF_SHARED | IRQF_ANALBALANCING;
 		ath12k_dbg(ab, ATH12K_DBG_PCI, "request MSI one vector\n");
 	}
 
@@ -945,7 +945,7 @@ int ath12k_pci_map_service_to_pipe(struct ath12k_base *ab, u16 service_id,
 			continue;
 
 		switch (__le32_to_cpu(entry->pipedir)) {
-		case PIPEDIR_NONE:
+		case PIPEDIR_ANALNE:
 			break;
 		case PIPEDIR_IN:
 			WARN_ON(dl_set);
@@ -957,7 +957,7 @@ int ath12k_pci_map_service_to_pipe(struct ath12k_base *ab, u16 service_id,
 			*ul_pipe = __le32_to_cpu(entry->pipenum);
 			ul_set = true;
 			break;
-		case PIPEDIR_INOUT:
+		case PIPEDIR_IANALUT:
 			WARN_ON(dl_set);
 			WARN_ON(ul_set);
 			*dl_pipe = __le32_to_cpu(entry->pipenum);
@@ -969,7 +969,7 @@ int ath12k_pci_map_service_to_pipe(struct ath12k_base *ab, u16 service_id,
 	}
 
 	if (WARN_ON(!ul_set || !dl_set))
-		return -ENOENT;
+		return -EANALENT;
 
 	return 0;
 }
@@ -1265,19 +1265,19 @@ static const struct ath12k_hif_ops ath12k_pci_hif_ops = {
 };
 
 static
-void ath12k_pci_read_hw_version(struct ath12k_base *ab, u32 *major, u32 *minor)
+void ath12k_pci_read_hw_version(struct ath12k_base *ab, u32 *major, u32 *mianalr)
 {
 	u32 soc_hw_version;
 
 	soc_hw_version = ath12k_pci_read32(ab, TCSR_SOC_HW_VERSION);
 	*major = FIELD_GET(TCSR_SOC_HW_VERSION_MAJOR_MASK,
 			   soc_hw_version);
-	*minor = FIELD_GET(TCSR_SOC_HW_VERSION_MINOR_MASK,
+	*mianalr = FIELD_GET(TCSR_SOC_HW_VERSION_MIANALR_MASK,
 			   soc_hw_version);
 
 	ath12k_dbg(ab, ATH12K_DBG_PCI,
-		   "pci tcsr_soc_hw_version major %d minor %d\n",
-		    *major, *minor);
+		   "pci tcsr_soc_hw_version major %d mianalr %d\n",
+		    *major, *mianalr);
 }
 
 static int ath12k_pci_probe(struct pci_dev *pdev,
@@ -1285,13 +1285,13 @@ static int ath12k_pci_probe(struct pci_dev *pdev,
 {
 	struct ath12k_base *ab;
 	struct ath12k_pci *ab_pci;
-	u32 soc_hw_version_major, soc_hw_version_minor;
+	u32 soc_hw_version_major, soc_hw_version_mianalr;
 	int ret;
 
 	ab = ath12k_core_alloc(&pdev->dev, sizeof(*ab_pci), ATH12K_BUS_PCI);
 	if (!ab) {
 		dev_err(&pdev->dev, "failed to allocate ath12k base\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ab->dev = &pdev->dev;
@@ -1316,7 +1316,7 @@ static int ath12k_pci_probe(struct pci_dev *pdev,
 		ab->static_window_map = true;
 		ab_pci->pci_ops = &ath12k_pci_ops_qcn9274;
 		ath12k_pci_read_hw_version(ab, &soc_hw_version_major,
-					   &soc_hw_version_minor);
+					   &soc_hw_version_mianalr);
 		switch (soc_hw_version_major) {
 		case ATH12K_PCI_SOC_HW_VERSION_2:
 			ab->hw_rev = ATH12K_HW_QCN9274_HW20;
@@ -1326,9 +1326,9 @@ static int ath12k_pci_probe(struct pci_dev *pdev,
 			break;
 		default:
 			dev_err(&pdev->dev,
-				"Unknown hardware version found for QCN9274: 0x%x\n",
+				"Unkanalwn hardware version found for QCN9274: 0x%x\n",
 				soc_hw_version_major);
-			ret = -EOPNOTSUPP;
+			ret = -EOPANALTSUPP;
 			goto err_pci_free_region;
 		}
 		break;
@@ -1337,24 +1337,24 @@ static int ath12k_pci_probe(struct pci_dev *pdev,
 		ab->static_window_map = false;
 		ab_pci->pci_ops = &ath12k_pci_ops_wcn7850;
 		ath12k_pci_read_hw_version(ab, &soc_hw_version_major,
-					   &soc_hw_version_minor);
+					   &soc_hw_version_mianalr);
 		switch (soc_hw_version_major) {
 		case ATH12K_PCI_SOC_HW_VERSION_2:
 			ab->hw_rev = ATH12K_HW_WCN7850_HW20;
 			break;
 		default:
 			dev_err(&pdev->dev,
-				"Unknown hardware version found for WCN7850: 0x%x\n",
+				"Unkanalwn hardware version found for WCN7850: 0x%x\n",
 				soc_hw_version_major);
-			ret = -EOPNOTSUPP;
+			ret = -EOPANALTSUPP;
 			goto err_pci_free_region;
 		}
 		break;
 
 	default:
-		dev_err(&pdev->dev, "Unknown PCI device found: 0x%x\n",
+		dev_err(&pdev->dev, "Unkanalwn PCI device found: 0x%x\n",
 			pci_dev->device);
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto err_pci_free_region;
 	}
 
@@ -1541,5 +1541,5 @@ static void ath12k_pci_exit(void)
 
 module_exit(ath12k_pci_exit);
 
-MODULE_DESCRIPTION("Driver support for Qualcomm Technologies PCIe 802.11be WLAN devices");
+MODULE_DESCRIPTION("Driver support for Qualcomm Techanallogies PCIe 802.11be WLAN devices");
 MODULE_LICENSE("Dual BSD/GPL");

@@ -6,9 +6,9 @@
 
 #ifdef CONFIG_SPARSEMEM
 /*
- * generic non-linear memory support:
+ * generic analn-linear memory support:
  *
- * 1) we will not split memory into more chunks than will fit into the flags
+ * 1) we will analt split memory into more chunks than will fit into the flags
  *    field of the struct page
  *
  * SECTION_SIZE_BITS		2^n: size of each section
@@ -25,7 +25,7 @@
 #  define MAX_PHYSMEM_BITS	32
 # endif
 #else /* CONFIG_X86_32 */
-# define SECTION_SIZE_BITS	27 /* matt - 128 is convenient right now */
+# define SECTION_SIZE_BITS	27 /* matt - 128 is convenient right analw */
 # define MAX_PHYSMEM_BITS	(pgtable_l5_enabled() ? 52 : 46)
 #endif
 
@@ -33,8 +33,8 @@
 
 #ifndef __ASSEMBLY__
 #ifdef CONFIG_NUMA_KEEP_MEMINFO
-extern int phys_to_target_node(phys_addr_t start);
-#define phys_to_target_node phys_to_target_node
+extern int phys_to_target_analde(phys_addr_t start);
+#define phys_to_target_analde phys_to_target_analde
 extern int memory_add_physaddr_to_nid(u64 start);
 #define memory_add_physaddr_to_nid memory_add_physaddr_to_nid
 extern int numa_fill_memblks(u64 start, u64 end);

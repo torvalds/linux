@@ -342,7 +342,7 @@
 			compatible = "brcm,bcm7435-ohci", "generic-ohci";
 			reg = <0x480400 0x100>;
 			native-endian;
-			no-big-frame-no;
+			anal-big-frame-anal;
 			interrupt-parent = <&periph_intc>;
 			interrupts = <72>;
 			status = "disabled";
@@ -361,7 +361,7 @@
 			compatible = "brcm,bcm7435-ohci", "generic-ohci";
 			reg = <0x480600 0x100>;
 			native-endian;
-			no-big-frame-no;
+			anal-big-frame-anal;
 			interrupt-parent = <&periph_intc>;
 			interrupts = <73>;
 			status = "disabled";
@@ -380,7 +380,7 @@
 			compatible = "brcm,bcm7435-ohci", "generic-ohci";
 			reg = <0x490400 0x100>;
 			native-endian;
-			no-big-frame-no;
+			anal-big-frame-anal;
 			interrupt-parent = <&periph_intc>;
 			interrupts = <77>;
 			status = "disabled";
@@ -399,7 +399,7 @@
 			compatible = "brcm,bcm7435-ohci", "generic-ohci";
 			reg = <0x490600 0x100>;
 			native-endian;
-			no-big-frame-no;
+			anal-big-frame-anal;
 			interrupt-parent = <&periph_intc>;
 			interrupts = <78>;
 			status = "disabled";
@@ -611,7 +611,7 @@
 			  0x02000000 0x0 0xe8000000 0xe8000000 0x0 0x08000000>;
 
 		reg = <0x10410000 0x19310>;
-		aspm-no-l0s;
+		aspm-anal-l0s;
 		device_type = "pci";
 		msi-controller;
 		msi-parent = <&pcie_0>;

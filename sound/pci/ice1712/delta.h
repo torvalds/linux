@@ -127,7 +127,7 @@ extern struct snd_ice1712_card_info snd_ice1712_delta_cards[];
 #define ICE1712_DELTA_1010LT_CS_CHIP_C	0x20	/* AK4524 #2 */
 #define ICE1712_DELTA_1010LT_CS_CHIP_D	0x30	/* AK4524 #3 */
 #define ICE1712_DELTA_1010LT_CS_CS8427	0x40	/* CS8427 */
-#define ICE1712_DELTA_1010LT_CS_NONE	0x50	/* nothing */
+#define ICE1712_DELTA_1010LT_CS_ANALNE	0x50	/* analthing */
 #define ICE1712_DELTA_1010LT_WORDCLOCK 0x80	/* sample clock source: 0 = Word Clock Input, 1 = S/PDIF Input ??? */
 
 /* M-Audio Delta 66 rev. E definitions.

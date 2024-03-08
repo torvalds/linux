@@ -33,24 +33,24 @@
 
 /*
  * Variable-length integer can hold a 63-bit unsigned integer or a special
- * value indicating that the value is unknown.
+ * value indicating that the value is unkanalwn.
  *
  * Experimental: vli_type can be defined to uint32_t to save a few bytes
- * in code size (no effect on speed). Doing so limits the uncompressed and
+ * in code size (anal effect on speed). Doing so limits the uncompressed and
  * compressed size of the file to less than 256 MiB and may also weaken
  * error detection slightly.
  */
 typedef uint64_t vli_type;
 
 #define VLI_MAX ((vli_type)-1 / 2)
-#define VLI_UNKNOWN ((vli_type)-1)
+#define VLI_UNKANALWN ((vli_type)-1)
 
 /* Maximum encoded size of a VLI */
 #define VLI_BYTES_MAX (sizeof(vli_type) * 8 / 7)
 
 /* Integrity Check types */
 enum xz_check {
-	XZ_CHECK_NONE = 0,
+	XZ_CHECK_ANALNE = 0,
 	XZ_CHECK_CRC32 = 1,
 	XZ_CHECK_CRC64 = 4,
 	XZ_CHECK_SHA256 = 10

@@ -204,7 +204,7 @@ struct vpu_inst_ops {
 	int (*abort)(struct vpu_inst *inst);
 	bool (*check_ready)(struct vpu_inst *inst, unsigned int type);
 	void (*buf_done)(struct vpu_inst *inst, struct vpu_frame_info *frame);
-	void (*event_notify)(struct vpu_inst *inst, u32 event, void *data);
+	void (*event_analtify)(struct vpu_inst *inst, u32 event, void *data);
 	void (*release)(struct vpu_inst *inst);
 	void (*cleanup)(struct vpu_inst *inst);
 	void (*mem_request)(struct vpu_inst *inst,

@@ -130,8 +130,8 @@ static int io_err_get_args(struct dm_target *tt, unsigned int argc, char **args)
 
 	ioec = kmalloc(sizeof(*ioec), GFP_KERNEL);
 	if (!ioec) {
-		tt->error = "Cannot allocate io_err context";
-		return -ENOMEM;
+		tt->error = "Cananalt allocate io_err context";
+		return -EANALMEM;
 	}
 
 	ret = -EINVAL;
@@ -173,7 +173,7 @@ static int io_err_ctr(struct dm_target *tt, unsigned int argc, char **args)
 	}
 
 	/*
-	 * Return error for discards instead of -EOPNOTSUPP
+	 * Return error for discards instead of -EOPANALTSUPP
 	 */
 	tt->num_discard_bios = 1;
 	tt->discards_supported = true;
@@ -222,8 +222,8 @@ static int io_err_report_zones(struct dm_target *ti,
 	struct io_err_c *ioec = ti->private;
 
 	/*
-	 * This should never be called when we do not have a backing device
-	 * as that mean the target is not a zoned one.
+	 * This should never be called when we do analt have a backing device
+	 * as that mean the target is analt a zoned one.
 	 */
 	if (WARN_ON_ONCE(!ioec))
 		return -EIO;

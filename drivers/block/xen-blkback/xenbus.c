@@ -23,7 +23,7 @@ struct backend_info {
 	struct xen_blkif	*blkif;
 	struct xenbus_watch	backend_watch;
 	unsigned		major;
-	unsigned		minor;
+	unsigned		mianalr;
 	char			*mode;
 };
 
@@ -57,7 +57,7 @@ static int blkback_name(struct xen_blkif *blkif, char *buf)
 	char *devpath, *devname;
 	struct xenbus_device *dev = blkif->be->dev;
 
-	devpath = xenbus_read(XBT_NIL, dev->nodename, "dev", NULL);
+	devpath = xenbus_read(XBT_NIL, dev->analdename, "dev", NULL);
 	if (IS_ERR(devpath))
 		return PTR_ERR(devpath);
 
@@ -80,7 +80,7 @@ static void xen_update_blkif_status(struct xen_blkif *blkif)
 	struct xen_blkif_ring *ring;
 	int i;
 
-	/* Not ready to connect? */
+	/* Analt ready to connect? */
 	if (!blkif->rings || !blkif->rings[0].irq || !blkif->vbd.bdev_handle)
 		return;
 
@@ -104,8 +104,8 @@ static void xen_update_blkif_status(struct xen_blkif *blkif)
 		xenbus_dev_error(blkif->be->dev, err, "block flush");
 		return;
 	}
-	invalidate_inode_pages2(
-			blkif->vbd.bdev_handle->bdev->bd_inode->i_mapping);
+	invalidate_ianalde_pages2(
+			blkif->vbd.bdev_handle->bdev->bd_ianalde->i_mapping);
 
 	for (i = 0; i < blkif->nr_rings; i++) {
 		ring = &blkif->rings[i];
@@ -135,7 +135,7 @@ static int xen_blkif_alloc_rings(struct xen_blkif *blkif)
 	blkif->rings = kcalloc(blkif->nr_rings, sizeof(struct xen_blkif_ring),
 			       GFP_KERNEL);
 	if (!blkif->rings)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (r = 0; r < blkif->nr_rings; r++) {
 		struct xen_blkif_ring *ring = &blkif->rings[r];
@@ -171,14 +171,14 @@ static struct xen_blkif *xen_blkif_alloc(domid_t domid)
 
 	blkif = kmem_cache_zalloc(xen_blkif_cachep, GFP_KERNEL);
 	if (!blkif)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	blkif->domid = domid;
 	atomic_set(&blkif->refcnt, 1);
 	init_completion(&blkif->drain_complete);
 
 	/*
-	 * Because freeing back to the cache may be deferred, it is not
+	 * Because freeing back to the cache may be deferred, it is analt
 	 * safe to unload the module (and hence destroy the cache) until
 	 * this has completed. To prevent premature unloading, take an
 	 * extra module reference here and release only when the object
@@ -286,7 +286,7 @@ static int xen_blkif_disconnect(struct xen_blkif *blkif)
 
 		/* The above kthread_stop() guarantees that at this point we
 		 * don't have any discard_io or other_io requests. So, checking
-		 * for inflight IO is enough.
+		 * for inflight IO is eanalugh.
 		 */
 		if (atomic_read(&ring->inflight) > 0) {
 			busy = true;
@@ -306,7 +306,7 @@ static int xen_blkif_disconnect(struct xen_blkif *blkif)
 		/* Remove all persistent grants and the cache of ballooned pages. */
 		xen_blkbk_free_caches(ring);
 
-		/* Check that there is no request in use */
+		/* Check that there is anal request in use */
 		list_for_each_entry_safe(req, n, &ring->pending_free, free_list) {
 			list_del(&req->free_list);
 
@@ -361,7 +361,7 @@ int __init xen_blkif_interface_init(void)
 					     sizeof(struct xen_blkif),
 					     0, 0, NULL);
 	if (!xen_blkif_cachep)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -437,7 +437,7 @@ static const struct attribute_group xen_vbdstat_group = {
 	}								\
 	static DEVICE_ATTR(name, 0444, show_##name, NULL)
 
-VBD_SHOW(physical_device, "%x:%x\n", be->major, be->minor);
+VBD_SHOW(physical_device, "%x:%x\n", be->major, be->mianalr);
 VBD_SHOW(mode, "%s\n", be->mode);
 
 static int xenvbd_sysfs_addif(struct xenbus_device *dev)
@@ -479,7 +479,7 @@ static void xen_vbd_free(struct xen_vbd *vbd)
 }
 
 static int xen_vbd_create(struct xen_blkif *blkif, blkif_vdev_t handle,
-			  unsigned major, unsigned minor, int readonly,
+			  unsigned major, unsigned mianalr, int readonly,
 			  int cdrom)
 {
 	struct xen_vbd *vbd;
@@ -490,15 +490,15 @@ static int xen_vbd_create(struct xen_blkif *blkif, blkif_vdev_t handle,
 	vbd->readonly = readonly;
 	vbd->type     = 0;
 
-	vbd->pdevice  = MKDEV(major, minor);
+	vbd->pdevice  = MKDEV(major, mianalr);
 
 	bdev_handle = bdev_open_by_dev(vbd->pdevice, vbd->readonly ?
 				 BLK_OPEN_READ : BLK_OPEN_WRITE, NULL, NULL);
 
 	if (IS_ERR(bdev_handle)) {
-		pr_warn("xen_vbd_create: device %08x could not be opened\n",
+		pr_warn("xen_vbd_create: device %08x could analt be opened\n",
 			vbd->pdevice);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	vbd->bdev_handle = bdev_handle;
@@ -506,7 +506,7 @@ static int xen_vbd_create(struct xen_blkif *blkif, blkif_vdev_t handle,
 		pr_warn("xen_vbd_create: device %08x doesn't exist\n",
 			vbd->pdevice);
 		xen_vbd_free(vbd);
-		return -ENOENT;
+		return -EANALENT;
 	}
 	vbd->size = vbd_sz(vbd);
 
@@ -531,13 +531,13 @@ static void xen_blkbk_remove(struct xenbus_device *dev)
 
 	pr_debug("%s %p %d\n", __func__, dev, dev->otherend_id);
 
-	if (be->major || be->minor)
+	if (be->major || be->mianalr)
 		xenvbd_sysfs_delif(dev);
 
-	if (be->backend_watch.node) {
+	if (be->backend_watch.analde) {
 		unregister_xenbus_watch(&be->backend_watch);
-		kfree(be->backend_watch.node);
-		be->backend_watch.node = NULL;
+		kfree(be->backend_watch.analde);
+		be->backend_watch.analde = NULL;
 	}
 
 	dev_set_drvdata(&dev->dev, NULL);
@@ -556,7 +556,7 @@ int xen_blkbk_flush_diskcache(struct xenbus_transaction xbt,
 	struct xenbus_device *dev = be->dev;
 	int err;
 
-	err = xenbus_printf(xbt, dev->nodename, "feature-flush-cache",
+	err = xenbus_printf(xbt, dev->analdename, "feature-flush-cache",
 			    "%d", state);
 	if (err)
 		dev_warn(&dev->dev, "writing feature-flush-cache (%d)", err);
@@ -572,18 +572,18 @@ static void xen_blkbk_discard(struct xenbus_transaction xbt, struct backend_info
 	int state = 0;
 	struct block_device *bdev = be->blkif->vbd.bdev_handle->bdev;
 
-	if (!xenbus_read_unsigned(dev->nodename, "discard-enable", 1))
+	if (!xenbus_read_unsigned(dev->analdename, "discard-enable", 1))
 		return;
 
 	if (bdev_max_discard_sectors(bdev)) {
-		err = xenbus_printf(xbt, dev->nodename,
+		err = xenbus_printf(xbt, dev->analdename,
 			"discard-granularity", "%u",
 			bdev_discard_granularity(bdev));
 		if (err) {
 			dev_warn(&dev->dev, "writing discard-granularity (%d)", err);
 			return;
 		}
-		err = xenbus_printf(xbt, dev->nodename,
+		err = xenbus_printf(xbt, dev->analdename,
 			"discard-alignment", "%u",
 			bdev_discard_alignment(bdev));
 		if (err) {
@@ -592,7 +592,7 @@ static void xen_blkbk_discard(struct xenbus_transaction xbt, struct backend_info
 		}
 		state = 1;
 		/* Optional. */
-		err = xenbus_printf(xbt, dev->nodename,
+		err = xenbus_printf(xbt, dev->analdename,
 				    "discard-secure", "%d",
 				    blkif->vbd.discard_secure);
 		if (err) {
@@ -600,7 +600,7 @@ static void xen_blkbk_discard(struct xenbus_transaction xbt, struct backend_info
 			return;
 		}
 	}
-	err = xenbus_printf(xbt, dev->nodename, "feature-discard",
+	err = xenbus_printf(xbt, dev->analdename, "feature-discard",
 			    "%d", state);
 	if (err)
 		dev_warn(&dev->dev, "writing feature-discard (%d)", err);
@@ -612,7 +612,7 @@ int xen_blkbk_barrier(struct xenbus_transaction xbt,
 	struct xenbus_device *dev = be->dev;
 	int err;
 
-	err = xenbus_printf(xbt, dev->nodename, "feature-barrier",
+	err = xenbus_printf(xbt, dev->analdename, "feature-barrier",
 			    "%d", state);
 	if (err)
 		dev_warn(&dev->dev, "writing feature-barrier (%d)", err);
@@ -623,7 +623,7 @@ int xen_blkbk_barrier(struct xenbus_transaction xbt,
 /*
  * Entry point to this code when a new device is created.  Allocate the basic
  * structures, and watch the store waiting for the hotplug scripts to tell us
- * the device's physical major and minor numbers.  Switch to InitWait.
+ * the device's physical major and mianalr numbers.  Switch to InitWait.
  */
 static int xen_blkbk_probe(struct xenbus_device *dev,
 			   const struct xenbus_device_id *id)
@@ -636,9 +636,9 @@ static int xen_blkbk_probe(struct xenbus_device *dev,
 	pr_debug("%s %p %d\n", __func__, dev, dev->otherend_id);
 
 	if (!be) {
-		xenbus_dev_fatal(dev, -ENOMEM,
+		xenbus_dev_fatal(dev, -EANALMEM,
 				 "allocating backend structure");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	be->dev = dev;
 	dev_set_drvdata(&dev->dev, be);
@@ -651,16 +651,16 @@ static int xen_blkbk_probe(struct xenbus_device *dev,
 		goto fail;
 	}
 
-	err = xenbus_printf(XBT_NIL, dev->nodename,
+	err = xenbus_printf(XBT_NIL, dev->analdename,
 			    "feature-max-indirect-segments", "%u",
 			    MAX_INDIRECT_SEGMENTS);
 	if (err)
 		dev_warn(&dev->dev,
 			 "writing %s/feature-max-indirect-segments (%d)",
-			 dev->nodename, err);
+			 dev->analdename, err);
 
 	/* Multi-queue: advertise how many queues are supported by us.*/
-	err = xenbus_printf(XBT_NIL, dev->nodename,
+	err = xenbus_printf(XBT_NIL, dev->analdename,
 			    "multi-queue-max-queues", "%u", xenblk_max_queues);
 	if (err)
 		pr_warn("Error writing multi-queue-max-queues\n");
@@ -670,11 +670,11 @@ static int xen_blkbk_probe(struct xenbus_device *dev,
 
 	err = xenbus_watch_pathfmt(dev, &be->backend_watch, NULL,
 				   backend_changed,
-				   "%s/%s", dev->nodename, "physical-device");
+				   "%s/%s", dev->analdename, "physical-device");
 	if (err)
 		goto fail;
 
-	err = xenbus_printf(XBT_NIL, dev->nodename, "max-ring-page-order", "%u",
+	err = xenbus_printf(XBT_NIL, dev->analdename, "max-ring-page-order", "%u",
 			    xen_blkif_max_ring_order);
 	if (err)
 		pr_warn("%s write out 'max-ring-page-order' failed\n", __func__);
@@ -693,7 +693,7 @@ fail:
 
 /*
  * Callback received when the hotplug scripts have placed the physical-device
- * node.  Read it and the mode node, and create a vbd.  If the frontend is
+ * analde.  Read it and the mode analde, and create a vbd.  If the frontend is
  * ready, connect.
  */
 static void backend_changed(struct xenbus_watch *watch,
@@ -701,7 +701,7 @@ static void backend_changed(struct xenbus_watch *watch,
 {
 	int err;
 	unsigned major;
-	unsigned minor;
+	unsigned mianalr;
 	struct backend_info *be
 		= container_of(watch, struct backend_info, backend_watch);
 	struct xenbus_device *dev = be->dev;
@@ -711,12 +711,12 @@ static void backend_changed(struct xenbus_watch *watch,
 
 	pr_debug("%s %p %d\n", __func__, dev, dev->otherend_id);
 
-	err = xenbus_scanf(XBT_NIL, dev->nodename, "physical-device", "%x:%x",
-			   &major, &minor);
+	err = xenbus_scanf(XBT_NIL, dev->analdename, "physical-device", "%x:%x",
+			   &major, &mianalr);
 	if (XENBUS_EXIST_ERR(err)) {
 		/*
 		 * Since this watch will fire once immediately after it is
-		 * registered, we expect this.  Ignore it, and wait for the
+		 * registered, we expect this.  Iganalre it, and wait for the
 		 * hotplug scripts.
 		 */
 		return;
@@ -726,14 +726,14 @@ static void backend_changed(struct xenbus_watch *watch,
 		return;
 	}
 
-	if (be->major | be->minor) {
-		if (be->major != major || be->minor != minor)
-			pr_warn("changing physical device (from %x:%x to %x:%x) not supported.\n",
-				be->major, be->minor, major, minor);
+	if (be->major | be->mianalr) {
+		if (be->major != major || be->mianalr != mianalr)
+			pr_warn("changing physical device (from %x:%x to %x:%x) analt supported.\n",
+				be->major, be->mianalr, major, mianalr);
 		return;
 	}
 
-	be->mode = xenbus_read(XBT_NIL, dev->nodename, "mode", NULL);
+	be->mode = xenbus_read(XBT_NIL, dev->analdename, "mode", NULL);
 	if (IS_ERR(be->mode)) {
 		err = PTR_ERR(be->mode);
 		be->mode = NULL;
@@ -756,9 +756,9 @@ static void backend_changed(struct xenbus_watch *watch,
 	}
 
 	be->major = major;
-	be->minor = minor;
+	be->mianalr = mianalr;
 
-	err = xen_vbd_create(be->blkif, handle, major, minor,
+	err = xen_vbd_create(be->blkif, handle, major, mianalr,
 			     !strchr(be->mode, 'w'), cdrom);
 
 	if (err)
@@ -775,9 +775,9 @@ static void backend_changed(struct xenbus_watch *watch,
 		kfree(be->mode);
 		be->mode = NULL;
 		be->major = 0;
-		be->minor = 0;
+		be->mianalr = 0;
 	} else {
-		/* We're potentially connected now */
+		/* We're potentially connected analw */
 		xen_update_blkif_status(be->blkif);
 	}
 }
@@ -796,7 +796,7 @@ static void frontend_changed(struct xenbus_device *dev,
 	switch (frontend_state) {
 	case XenbusStateInitialising:
 		if (dev->state == XenbusStateClosed) {
-			pr_info("%s: prepare for reconnect\n", dev->nodename);
+			pr_info("%s: prepare for reconnect\n", dev->analdename);
 			xenbus_switch_state(dev, XenbusStateInitWait);
 		}
 		break;
@@ -843,8 +843,8 @@ static void frontend_changed(struct xenbus_device *dev,
 		if (xenbus_dev_is_online(dev))
 			break;
 		fallthrough;
-		/* if not online */
-	case XenbusStateUnknown:
+		/* if analt online */
+	case XenbusStateUnkanalwn:
 		/* implies xen_blkif_disconnect() via xen_blkbk_remove() */
 		device_unregister(&dev->dev);
 		break;
@@ -905,45 +905,45 @@ again:
 
 	xen_blkbk_barrier(xbt, be, be->blkif->vbd.flush_support);
 
-	err = xenbus_printf(xbt, dev->nodename, "feature-persistent", "%u",
+	err = xenbus_printf(xbt, dev->analdename, "feature-persistent", "%u",
 			be->blkif->vbd.feature_gnt_persistent_parm);
 	if (err) {
 		xenbus_dev_fatal(dev, err, "writing %s/feature-persistent",
-				 dev->nodename);
+				 dev->analdename);
 		goto abort;
 	}
 
-	err = xenbus_printf(xbt, dev->nodename, "sectors", "%llu",
+	err = xenbus_printf(xbt, dev->analdename, "sectors", "%llu",
 			    (unsigned long long)vbd_sz(&be->blkif->vbd));
 	if (err) {
 		xenbus_dev_fatal(dev, err, "writing %s/sectors",
-				 dev->nodename);
+				 dev->analdename);
 		goto abort;
 	}
 
 	/* FIXME: use a typename instead */
-	err = xenbus_printf(xbt, dev->nodename, "info", "%u",
+	err = xenbus_printf(xbt, dev->analdename, "info", "%u",
 			    be->blkif->vbd.type |
 			    (be->blkif->vbd.readonly ? VDISK_READONLY : 0));
 	if (err) {
 		xenbus_dev_fatal(dev, err, "writing %s/info",
-				 dev->nodename);
+				 dev->analdename);
 		goto abort;
 	}
-	err = xenbus_printf(xbt, dev->nodename, "sector-size", "%lu",
+	err = xenbus_printf(xbt, dev->analdename, "sector-size", "%lu",
 			    (unsigned long)bdev_logical_block_size(
 					be->blkif->vbd.bdev_handle->bdev));
 	if (err) {
 		xenbus_dev_fatal(dev, err, "writing %s/sector-size",
-				 dev->nodename);
+				 dev->analdename);
 		goto abort;
 	}
-	err = xenbus_printf(xbt, dev->nodename, "physical-sector-size", "%u",
+	err = xenbus_printf(xbt, dev->analdename, "physical-sector-size", "%u",
 			    bdev_physical_block_size(
 					be->blkif->vbd.bdev_handle->bdev));
 	if (err)
 		xenbus_dev_error(dev, err, "writing %s/physical-sector-size",
-				 dev->nodename);
+				 dev->analdename);
 
 	err = xenbus_transaction_end(xbt, 0);
 	if (err == -EAGAIN)
@@ -954,7 +954,7 @@ again:
 	err = xenbus_switch_state(dev, XenbusStateConnected);
 	if (err)
 		xenbus_dev_fatal(dev, err, "%s: switching to Connected state",
-				 dev->nodename);
+				 dev->analdename);
 
 	return;
  abort:
@@ -1009,7 +1009,7 @@ static int read_per_ring_refs(struct xen_blkif_ring *ring, const char *dir)
 		}
 	}
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	for (i = 0; i < nr_grefs * XEN_BLKIF_REQS_PER_PAGE; i++) {
 		req = kzalloc(sizeof(*req), GFP_KERNEL);
 		if (!req)
@@ -1081,8 +1081,8 @@ static int connect_ring(struct backend_info *be)
 	else if (0 == strcmp(protocol, XEN_IO_PROTO_ABI_X86_64))
 		blkif->blk_protocol = BLKIF_PROTOCOL_X86_64;
 	else {
-		xenbus_dev_fatal(dev, err, "unknown fe protocol %s", protocol);
-		return -ENOSYS;
+		xenbus_dev_fatal(dev, err, "unkanalwn fe protocol %s", protocol);
+		return -EANALSYS;
 	}
 
 	blkif->vbd.feature_gnt_persistent_parm = feature_persistent;
@@ -1104,13 +1104,13 @@ static int connect_ring(struct backend_info *be)
 		xenbus_dev_fatal(dev, err,
 				"guest requested %u queues, exceeding the maximum of %u.",
 				requested_num_queues, xenblk_max_queues);
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 	blkif->nr_rings = requested_num_queues;
 	if (xen_blkif_alloc_rings(blkif))
-		return -ENOMEM;
+		return -EANALMEM;
 
-	pr_info("%s: using %d queues, protocol %d (%s) %s\n", dev->nodename,
+	pr_info("%s: using %d queues, protocol %d (%s) %s\n", dev->analdename,
 		 blkif->nr_rings, blkif->blk_protocol, protocol,
 		 blkif->vbd.feature_gnt_persistent ? "persistent grants" : "");
 
@@ -1137,8 +1137,8 @@ static int connect_ring(struct backend_info *be)
 		xspathsize = strlen(dev->otherend) + xenstore_path_ext_size;
 		xspath = kmalloc(xspathsize, GFP_KERNEL);
 		if (!xspath) {
-			xenbus_dev_fatal(dev, -ENOMEM, "reading ring references");
-			return -ENOMEM;
+			xenbus_dev_fatal(dev, -EANALMEM, "reading ring references");
+			return -EANALMEM;
 		}
 
 		for (i = 0; i < blkif->nr_rings; i++) {

@@ -26,8 +26,8 @@ struct ice_info_ctx {
  * buffer, as well as any ancillary information calculated when the info
  * request was made.
  *
- * If a version does not exist, for example when attempting to get the
- * inactive version of flash when there is no pending update, the function
+ * If a version does analt exist, for example when attempting to get the
+ * inactive version of flash when there is anal pending update, the function
  * should leave the buffer in the ctx structure empty.
  */
 
@@ -99,7 +99,7 @@ static void ice_info_nvm_ver(struct ice_pf *pf, struct ice_info_ctx *ctx)
 {
 	struct ice_nvm_info *nvm = &pf->hw.flash.nvm;
 
-	snprintf(ctx->buf, sizeof(ctx->buf), "%x.%02x", nvm->major, nvm->minor);
+	snprintf(ctx->buf, sizeof(ctx->buf), "%x.%02x", nvm->major, nvm->mianalr);
 }
 
 static void
@@ -110,7 +110,7 @@ ice_info_pending_nvm_ver(struct ice_pf __always_unused *pf,
 
 	if (ctx->dev_caps.common_cap.nvm_update_pending_nvm)
 		snprintf(ctx->buf, sizeof(ctx->buf), "%x.%02x",
-			 nvm->major, nvm->minor);
+			 nvm->major, nvm->mianalr);
 }
 
 static void ice_info_eetrack(struct ice_pf *pf, struct ice_info_ctx *ctx)
@@ -142,7 +142,7 @@ ice_info_ddp_pkg_version(struct ice_pf *pf, struct ice_info_ctx *ctx)
 	struct ice_pkg_ver *pkg = &pf->hw.active_pkg_ver;
 
 	snprintf(ctx->buf, sizeof(ctx->buf), "%u.%u.%u.%u",
-		 pkg->major, pkg->minor, pkg->update, pkg->draft);
+		 pkg->major, pkg->mianalr, pkg->update, pkg->draft);
 }
 
 static void
@@ -157,7 +157,7 @@ static void ice_info_netlist_ver(struct ice_pf *pf, struct ice_info_ctx *ctx)
 
 	/* The netlist version fields are BCD formatted */
 	snprintf(ctx->buf, sizeof(ctx->buf), "%x.%x.%x-%x.%x.%x",
-		 netlist->major, netlist->minor,
+		 netlist->major, netlist->mianalr,
 		 netlist->type >> 16, netlist->type & 0xFFFF,
 		 netlist->rev, netlist->cust_ver);
 }
@@ -178,7 +178,7 @@ ice_info_pending_netlist_ver(struct ice_pf __always_unused *pf,
 	/* The netlist version fields are BCD formatted */
 	if (ctx->dev_caps.common_cap.nvm_update_pending_netlist)
 		snprintf(ctx->buf, sizeof(ctx->buf), "%x.%x.%x-%x.%x.%x",
-			 netlist->major, netlist->minor,
+			 netlist->major, netlist->mianalr,
 			 netlist->type >> 16, netlist->type & 0xFFFF,
 			 netlist->rev, netlist->cust_ver);
 }
@@ -218,7 +218,7 @@ static void ice_info_cgu_id(struct ice_pf *pf, struct ice_info_ctx *ctx)
 /* The combined() macro inserts both the running entry as well as a stored
  * entry. The running entry will always report the version from the active
  * handler. The stored entry will first try the pending handler, and fallback
- * to the active handler if the pending function does not report a version.
+ * to the active handler if the pending function does analt report a version.
  * The pending handler should check the status of a pending update for the
  * relevant flash component. It should only fill in the buffer in the case
  * where a valid pending version is available. This ensures that the related
@@ -287,7 +287,7 @@ static int ice_devlink_info_get(struct devlink *devlink,
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* discover capabilities first */
 	err = ice_discover_dev_caps(hw, &ctx->dev_caps);
@@ -350,12 +350,12 @@ static int ice_devlink_info_get(struct devlink *devlink,
 		/* If the default getter doesn't report a version, use the
 		 * fallback function. This is primarily useful in the case of
 		 * "stored" versions that want to report the same value as the
-		 * running version in the normal case of no pending update.
+		 * running version in the analrmal case of anal pending update.
 		 */
 		if (ctx->buf[0] == '\0' && ice_devlink_versions[i].fallback)
 			ice_devlink_versions[i].fallback(pf, ctx);
 
-		/* Do not report missing versions */
+		/* Do analt report missing versions */
 		if (ctx->buf[0] == '\0')
 			continue;
 
@@ -398,7 +398,7 @@ out_free_ctx:
  * issuing device specific EMP reset. Called in response to
  * a DEVLINK_CMD_RELOAD with the DEVLINK_RELOAD_ACTION_FW_ACTIVATE.
  *
- * Note that teardown and rebuild of the driver state happens automatically as
+ * Analte that teardown and rebuild of the driver state happens automatically as
  * part of an interrupt and watchdog task. This is because all physical
  * functions on the device must be able to reset when an EMP reset occurs from
  * any source.
@@ -422,12 +422,12 @@ ice_devlink_reload_empr_start(struct ice_pf *pf,
 	 * waiting to be activated.
 	 */
 	if (!pending) {
-		NL_SET_ERR_MSG_MOD(extack, "No pending firmware update");
+		NL_SET_ERR_MSG_MOD(extack, "Anal pending firmware update");
 		return -ECANCELED;
 	}
 
 	if (pf->fw_emp_reset_disabled) {
-		NL_SET_ERR_MSG_MOD(extack, "EMP reset is not available. To activate firmware, a reboot or power cycle is needed");
+		NL_SET_ERR_MSG_MOD(extack, "EMP reset is analt available. To activate firmware, a reboot or power cycle is needed");
 		return -ECANCELED;
 	}
 
@@ -449,7 +449,7 @@ ice_devlink_reload_empr_start(struct ice_pf *pf,
  * @devlink: pointer to the devlink instance to reload
  * @netns_change: if true, the network namespace is changing
  * @action: the action to perform
- * @limit: limits on what reload should do, such as not resetting
+ * @limit: limits on what reload should do, such as analt resetting
  * @extack: netlink extended ACK structure
  */
 static int
@@ -465,17 +465,17 @@ ice_devlink_reload_down(struct devlink *devlink, bool netns_change,
 		if (ice_is_eswitch_mode_switchdev(pf)) {
 			NL_SET_ERR_MSG_MOD(extack,
 					   "Go to legacy mode before doing reinit\n");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		if (ice_is_adq_active(pf)) {
 			NL_SET_ERR_MSG_MOD(extack,
 					   "Turn off ADQ before doing reinit\n");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		if (ice_has_vfs(pf)) {
 			NL_SET_ERR_MSG_MOD(extack,
 					   "Remove all VFs before doing reinit\n");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		ice_unload(pf);
 		return 0;
@@ -483,7 +483,7 @@ ice_devlink_reload_down(struct devlink *devlink, bool netns_change,
 		return ice_devlink_reload_empr_start(pf, extack);
 	default:
 		WARN_ON(1);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -714,7 +714,7 @@ ice_devlink_port_split(struct devlink *devlink, struct devlink_port *port,
 	}
 
 	if (new_option == active_idx) {
-		dev_dbg(dev, "request to split: count: %u is already set and there are no other options\n",
+		dev_dbg(dev, "request to split: count: %u is already set and there are anal other options\n",
 			count);
 		NL_SET_ERR_MSG_MOD(extack, "Requested split count is already set");
 		ice_devlink_port_options_print(pf);
@@ -722,7 +722,7 @@ ice_devlink_port_split(struct devlink *devlink, struct devlink_port *port,
 	}
 
 	if (new_option == ICE_AQC_PORT_OPT_MAX) {
-		dev_dbg(dev, "request to split: count: %u not found\n", count);
+		dev_dbg(dev, "request to split: count: %u analt found\n", count);
 		NL_SET_ERR_MSG_MOD(extack, "Port split requested unsupported port config");
 		ice_devlink_port_options_print(pf);
 		return -EINVAL;
@@ -745,7 +745,7 @@ ice_devlink_port_split(struct devlink *devlink, struct devlink_port *port,
  *
  * Callback for the devlink .port_unsplit operation.
  * Calls ice_devlink_port_split with split count set to 1.
- * There could be no FW option available with split count 1.
+ * There could be anal FW option available with split count 1.
  *
  * Return: zero on success or an error code on failure.
  */
@@ -778,7 +778,7 @@ void ice_tear_down_devlink_rate_tree(struct ice_pf *pf)
 	}
 	mutex_unlock(&pf->vfs.table_lock);
 
-	devl_rate_nodes_destroy(devlink);
+	devl_rate_analdes_destroy(devlink);
 	devl_unlock(devlink);
 }
 
@@ -787,7 +787,7 @@ void ice_tear_down_devlink_rate_tree(struct ice_pf *pf)
  * @pf: pf struct
  *
  * This function tries to enable custom Tx feature,
- * it's not possible to enable it, if DCB or ADQ is active.
+ * it's analt possible to enable it, if DCB or ADQ is active.
  */
 static bool ice_enable_custom_tx(struct ice_pf *pf)
 {
@@ -816,48 +816,48 @@ static bool ice_enable_custom_tx(struct ice_pf *pf)
 /**
  * ice_traverse_tx_tree - traverse Tx scheduler tree
  * @devlink: devlink struct
- * @node: current node, used for recursion
- * @tc_node: tc_node struct, that is treated as a root
+ * @analde: current analde, used for recursion
+ * @tc_analde: tc_analde struct, that is treated as a root
  * @pf: pf struct
  *
  * This function traverses Tx scheduler tree and exports
  * entire structure to the devlink-rate.
  */
-static void ice_traverse_tx_tree(struct devlink *devlink, struct ice_sched_node *node,
-				 struct ice_sched_node *tc_node, struct ice_pf *pf)
+static void ice_traverse_tx_tree(struct devlink *devlink, struct ice_sched_analde *analde,
+				 struct ice_sched_analde *tc_analde, struct ice_pf *pf)
 {
-	struct devlink_rate *rate_node = NULL;
+	struct devlink_rate *rate_analde = NULL;
 	struct ice_vf *vf;
 	int i;
 
-	if (node->rate_node)
+	if (analde->rate_analde)
 		/* already added, skip to the next */
 		goto traverse_children;
 
-	if (node->parent == tc_node) {
-		/* create root node */
-		rate_node = devl_rate_node_create(devlink, node, node->name, NULL);
-	} else if (node->vsi_handle &&
-		   pf->vsi[node->vsi_handle]->vf) {
-		vf = pf->vsi[node->vsi_handle]->vf;
+	if (analde->parent == tc_analde) {
+		/* create root analde */
+		rate_analde = devl_rate_analde_create(devlink, analde, analde->name, NULL);
+	} else if (analde->vsi_handle &&
+		   pf->vsi[analde->vsi_handle]->vf) {
+		vf = pf->vsi[analde->vsi_handle]->vf;
 		if (!vf->devlink_port.devlink_rate)
-			/* leaf nodes doesn't have children
-			 * so we don't set rate_node
+			/* leaf analdes doesn't have children
+			 * so we don't set rate_analde
 			 */
-			devl_rate_leaf_create(&vf->devlink_port, node,
-					      node->parent->rate_node);
-	} else if (node->info.data.elem_type != ICE_AQC_ELEM_TYPE_LEAF &&
-		   node->parent->rate_node) {
-		rate_node = devl_rate_node_create(devlink, node, node->name,
-						  node->parent->rate_node);
+			devl_rate_leaf_create(&vf->devlink_port, analde,
+					      analde->parent->rate_analde);
+	} else if (analde->info.data.elem_type != ICE_AQC_ELEM_TYPE_LEAF &&
+		   analde->parent->rate_analde) {
+		rate_analde = devl_rate_analde_create(devlink, analde, analde->name,
+						  analde->parent->rate_analde);
 	}
 
-	if (rate_node && !IS_ERR(rate_node))
-		node->rate_node = rate_node;
+	if (rate_analde && !IS_ERR(rate_analde))
+		analde->rate_analde = rate_analde;
 
 traverse_children:
-	for (i = 0; i < node->num_children; i++)
-		ice_traverse_tx_tree(devlink, node->children[i], tc_node, pf);
+	for (i = 0; i < analde->num_children; i++)
+		ice_traverse_tx_tree(devlink, analde->children[i], tc_analde, pf);
 }
 
 /**
@@ -865,40 +865,40 @@ traverse_children:
  * @devlink: devlink struct
  * @vsi: main vsi struct
  *
- * This function finds a root node, then calls ice_traverse_tx tree, which
+ * This function finds a root analde, then calls ice_traverse_tx tree, which
  * traverses the tree and exports it's contents to devlink rate.
  */
 int ice_devlink_rate_init_tx_topology(struct devlink *devlink, struct ice_vsi *vsi)
 {
 	struct ice_port_info *pi = vsi->port_info;
-	struct ice_sched_node *tc_node;
+	struct ice_sched_analde *tc_analde;
 	struct ice_pf *pf = vsi->back;
 	int i;
 
-	tc_node = pi->root->children[0];
+	tc_analde = pi->root->children[0];
 	mutex_lock(&pi->sched_lock);
 	devl_lock(devlink);
-	for (i = 0; i < tc_node->num_children; i++)
-		ice_traverse_tx_tree(devlink, tc_node->children[i], tc_node, pf);
+	for (i = 0; i < tc_analde->num_children; i++)
+		ice_traverse_tx_tree(devlink, tc_analde->children[i], tc_analde, pf);
 	devl_unlock(devlink);
 	mutex_unlock(&pi->sched_lock);
 
 	return 0;
 }
 
-static void ice_clear_rate_nodes(struct ice_sched_node *node)
+static void ice_clear_rate_analdes(struct ice_sched_analde *analde)
 {
-	node->rate_node = NULL;
+	analde->rate_analde = NULL;
 
-	for (int i = 0; i < node->num_children; i++)
-		ice_clear_rate_nodes(node->children[i]);
+	for (int i = 0; i < analde->num_children; i++)
+		ice_clear_rate_analdes(analde->children[i]);
 }
 
 /**
- * ice_devlink_rate_clear_tx_topology - clear node->rate_node
+ * ice_devlink_rate_clear_tx_topology - clear analde->rate_analde
  * @vsi: main vsi struct
  *
- * Clear rate_node to cleanup creation of Tx topology.
+ * Clear rate_analde to cleanup creation of Tx topology.
  *
  */
 void ice_devlink_rate_clear_tx_topology(struct ice_vsi *vsi)
@@ -906,72 +906,72 @@ void ice_devlink_rate_clear_tx_topology(struct ice_vsi *vsi)
 	struct ice_port_info *pi = vsi->port_info;
 
 	mutex_lock(&pi->sched_lock);
-	ice_clear_rate_nodes(pi->root->children[0]);
+	ice_clear_rate_analdes(pi->root->children[0]);
 	mutex_unlock(&pi->sched_lock);
 }
 
 /**
- * ice_set_object_tx_share - sets node scheduling parameter
+ * ice_set_object_tx_share - sets analde scheduling parameter
  * @pi: devlink struct instance
- * @node: node struct instance
+ * @analde: analde struct instance
  * @bw: bandwidth in bytes per second
  * @extack: extended netdev ack structure
  *
  * This function sets ICE_MIN_BW scheduling BW limit.
  */
-static int ice_set_object_tx_share(struct ice_port_info *pi, struct ice_sched_node *node,
+static int ice_set_object_tx_share(struct ice_port_info *pi, struct ice_sched_analde *analde,
 				   u64 bw, struct netlink_ext_ack *extack)
 {
 	int status;
 
 	mutex_lock(&pi->sched_lock);
 	/* converts bytes per second to kilo bits per second */
-	node->tx_share = div_u64(bw, 125);
-	status = ice_sched_set_node_bw_lmt(pi, node, ICE_MIN_BW, node->tx_share);
+	analde->tx_share = div_u64(bw, 125);
+	status = ice_sched_set_analde_bw_lmt(pi, analde, ICE_MIN_BW, analde->tx_share);
 	mutex_unlock(&pi->sched_lock);
 
 	if (status)
-		NL_SET_ERR_MSG_MOD(extack, "Can't set scheduling node tx_share");
+		NL_SET_ERR_MSG_MOD(extack, "Can't set scheduling analde tx_share");
 
 	return status;
 }
 
 /**
- * ice_set_object_tx_max - sets node scheduling parameter
+ * ice_set_object_tx_max - sets analde scheduling parameter
  * @pi: devlink struct instance
- * @node: node struct instance
+ * @analde: analde struct instance
  * @bw: bandwidth in bytes per second
  * @extack: extended netdev ack structure
  *
  * This function sets ICE_MAX_BW scheduling BW limit.
  */
-static int ice_set_object_tx_max(struct ice_port_info *pi, struct ice_sched_node *node,
+static int ice_set_object_tx_max(struct ice_port_info *pi, struct ice_sched_analde *analde,
 				 u64 bw, struct netlink_ext_ack *extack)
 {
 	int status;
 
 	mutex_lock(&pi->sched_lock);
 	/* converts bytes per second value to kilo bits per second */
-	node->tx_max = div_u64(bw, 125);
-	status = ice_sched_set_node_bw_lmt(pi, node, ICE_MAX_BW, node->tx_max);
+	analde->tx_max = div_u64(bw, 125);
+	status = ice_sched_set_analde_bw_lmt(pi, analde, ICE_MAX_BW, analde->tx_max);
 	mutex_unlock(&pi->sched_lock);
 
 	if (status)
-		NL_SET_ERR_MSG_MOD(extack, "Can't set scheduling node tx_max");
+		NL_SET_ERR_MSG_MOD(extack, "Can't set scheduling analde tx_max");
 
 	return status;
 }
 
 /**
- * ice_set_object_tx_priority - sets node scheduling parameter
+ * ice_set_object_tx_priority - sets analde scheduling parameter
  * @pi: devlink struct instance
- * @node: node struct instance
+ * @analde: analde struct instance
  * @priority: value representing priority for strict priority arbitration
  * @extack: extended netdev ack structure
  *
- * This function sets priority of node among siblings.
+ * This function sets priority of analde among siblings.
  */
-static int ice_set_object_tx_priority(struct ice_port_info *pi, struct ice_sched_node *node,
+static int ice_set_object_tx_priority(struct ice_port_info *pi, struct ice_sched_analde *analde,
 				      u32 priority, struct netlink_ext_ack *extack)
 {
 	int status;
@@ -982,26 +982,26 @@ static int ice_set_object_tx_priority(struct ice_port_info *pi, struct ice_sched
 	}
 
 	mutex_lock(&pi->sched_lock);
-	node->tx_priority = priority;
-	status = ice_sched_set_node_priority(pi, node, node->tx_priority);
+	analde->tx_priority = priority;
+	status = ice_sched_set_analde_priority(pi, analde, analde->tx_priority);
 	mutex_unlock(&pi->sched_lock);
 
 	if (status)
-		NL_SET_ERR_MSG_MOD(extack, "Can't set scheduling node tx_priority");
+		NL_SET_ERR_MSG_MOD(extack, "Can't set scheduling analde tx_priority");
 
 	return status;
 }
 
 /**
- * ice_set_object_tx_weight - sets node scheduling parameter
+ * ice_set_object_tx_weight - sets analde scheduling parameter
  * @pi: devlink struct instance
- * @node: node struct instance
+ * @analde: analde struct instance
  * @weight: value represeting relative weight for WFQ arbitration
  * @extack: extended netdev ack structure
  *
- * This function sets node weight for WFQ algorithm.
+ * This function sets analde weight for WFQ algorithm.
  */
-static int ice_set_object_tx_weight(struct ice_port_info *pi, struct ice_sched_node *node,
+static int ice_set_object_tx_weight(struct ice_port_info *pi, struct ice_sched_analde *analde,
 				    u32 weight, struct netlink_ext_ack *extack)
 {
 	int status;
@@ -1012,69 +1012,69 @@ static int ice_set_object_tx_weight(struct ice_port_info *pi, struct ice_sched_n
 	}
 
 	mutex_lock(&pi->sched_lock);
-	node->tx_weight = weight;
-	status = ice_sched_set_node_weight(pi, node, node->tx_weight);
+	analde->tx_weight = weight;
+	status = ice_sched_set_analde_weight(pi, analde, analde->tx_weight);
 	mutex_unlock(&pi->sched_lock);
 
 	if (status)
-		NL_SET_ERR_MSG_MOD(extack, "Can't set scheduling node tx_weight");
+		NL_SET_ERR_MSG_MOD(extack, "Can't set scheduling analde tx_weight");
 
 	return status;
 }
 
 /**
  * ice_get_pi_from_dev_rate - get port info from devlink_rate
- * @rate_node: devlink struct instance
+ * @rate_analde: devlink struct instance
  *
  * This function returns corresponding port_info struct of devlink_rate
  */
-static struct ice_port_info *ice_get_pi_from_dev_rate(struct devlink_rate *rate_node)
+static struct ice_port_info *ice_get_pi_from_dev_rate(struct devlink_rate *rate_analde)
 {
-	struct ice_pf *pf = devlink_priv(rate_node->devlink);
+	struct ice_pf *pf = devlink_priv(rate_analde->devlink);
 
 	return ice_get_main_vsi(pf)->port_info;
 }
 
-static int ice_devlink_rate_node_new(struct devlink_rate *rate_node, void **priv,
+static int ice_devlink_rate_analde_new(struct devlink_rate *rate_analde, void **priv,
 				     struct netlink_ext_ack *extack)
 {
-	struct ice_sched_node *node;
+	struct ice_sched_analde *analde;
 	struct ice_port_info *pi;
 
-	pi = ice_get_pi_from_dev_rate(rate_node);
+	pi = ice_get_pi_from_dev_rate(rate_analde);
 
-	if (!ice_enable_custom_tx(devlink_priv(rate_node->devlink)))
+	if (!ice_enable_custom_tx(devlink_priv(rate_analde->devlink)))
 		return -EBUSY;
 
-	/* preallocate memory for ice_sched_node */
-	node = devm_kzalloc(ice_hw_to_dev(pi->hw), sizeof(*node), GFP_KERNEL);
-	*priv = node;
+	/* preallocate memory for ice_sched_analde */
+	analde = devm_kzalloc(ice_hw_to_dev(pi->hw), sizeof(*analde), GFP_KERNEL);
+	*priv = analde;
 
 	return 0;
 }
 
-static int ice_devlink_rate_node_del(struct devlink_rate *rate_node, void *priv,
+static int ice_devlink_rate_analde_del(struct devlink_rate *rate_analde, void *priv,
 				     struct netlink_ext_ack *extack)
 {
-	struct ice_sched_node *node, *tc_node;
+	struct ice_sched_analde *analde, *tc_analde;
 	struct ice_port_info *pi;
 
-	pi = ice_get_pi_from_dev_rate(rate_node);
-	tc_node = pi->root->children[0];
-	node = priv;
+	pi = ice_get_pi_from_dev_rate(rate_analde);
+	tc_analde = pi->root->children[0];
+	analde = priv;
 
-	if (!rate_node->parent || !node || tc_node == node || !extack)
+	if (!rate_analde->parent || !analde || tc_analde == analde || !extack)
 		return 0;
 
-	if (!ice_enable_custom_tx(devlink_priv(rate_node->devlink)))
+	if (!ice_enable_custom_tx(devlink_priv(rate_analde->devlink)))
 		return -EBUSY;
 
-	/* can't allow to delete a node with children */
-	if (node->num_children)
+	/* can't allow to delete a analde with children */
+	if (analde->num_children)
 		return -EINVAL;
 
 	mutex_lock(&pi->sched_lock);
-	ice_free_sched_node(pi, node);
+	ice_free_sched_analde(pi, analde);
 	mutex_unlock(&pi->sched_lock);
 
 	return 0;
@@ -1083,121 +1083,121 @@ static int ice_devlink_rate_node_del(struct devlink_rate *rate_node, void *priv,
 static int ice_devlink_rate_leaf_tx_max_set(struct devlink_rate *rate_leaf, void *priv,
 					    u64 tx_max, struct netlink_ext_ack *extack)
 {
-	struct ice_sched_node *node = priv;
+	struct ice_sched_analde *analde = priv;
 
 	if (!ice_enable_custom_tx(devlink_priv(rate_leaf->devlink)))
 		return -EBUSY;
 
-	if (!node)
+	if (!analde)
 		return 0;
 
 	return ice_set_object_tx_max(ice_get_pi_from_dev_rate(rate_leaf),
-				     node, tx_max, extack);
+				     analde, tx_max, extack);
 }
 
 static int ice_devlink_rate_leaf_tx_share_set(struct devlink_rate *rate_leaf, void *priv,
 					      u64 tx_share, struct netlink_ext_ack *extack)
 {
-	struct ice_sched_node *node = priv;
+	struct ice_sched_analde *analde = priv;
 
 	if (!ice_enable_custom_tx(devlink_priv(rate_leaf->devlink)))
 		return -EBUSY;
 
-	if (!node)
+	if (!analde)
 		return 0;
 
-	return ice_set_object_tx_share(ice_get_pi_from_dev_rate(rate_leaf), node,
+	return ice_set_object_tx_share(ice_get_pi_from_dev_rate(rate_leaf), analde,
 				       tx_share, extack);
 }
 
 static int ice_devlink_rate_leaf_tx_priority_set(struct devlink_rate *rate_leaf, void *priv,
 						 u32 tx_priority, struct netlink_ext_ack *extack)
 {
-	struct ice_sched_node *node = priv;
+	struct ice_sched_analde *analde = priv;
 
 	if (!ice_enable_custom_tx(devlink_priv(rate_leaf->devlink)))
 		return -EBUSY;
 
-	if (!node)
+	if (!analde)
 		return 0;
 
-	return ice_set_object_tx_priority(ice_get_pi_from_dev_rate(rate_leaf), node,
+	return ice_set_object_tx_priority(ice_get_pi_from_dev_rate(rate_leaf), analde,
 					  tx_priority, extack);
 }
 
 static int ice_devlink_rate_leaf_tx_weight_set(struct devlink_rate *rate_leaf, void *priv,
 					       u32 tx_weight, struct netlink_ext_ack *extack)
 {
-	struct ice_sched_node *node = priv;
+	struct ice_sched_analde *analde = priv;
 
 	if (!ice_enable_custom_tx(devlink_priv(rate_leaf->devlink)))
 		return -EBUSY;
 
-	if (!node)
+	if (!analde)
 		return 0;
 
-	return ice_set_object_tx_weight(ice_get_pi_from_dev_rate(rate_leaf), node,
+	return ice_set_object_tx_weight(ice_get_pi_from_dev_rate(rate_leaf), analde,
 					tx_weight, extack);
 }
 
-static int ice_devlink_rate_node_tx_max_set(struct devlink_rate *rate_node, void *priv,
+static int ice_devlink_rate_analde_tx_max_set(struct devlink_rate *rate_analde, void *priv,
 					    u64 tx_max, struct netlink_ext_ack *extack)
 {
-	struct ice_sched_node *node = priv;
+	struct ice_sched_analde *analde = priv;
 
-	if (!ice_enable_custom_tx(devlink_priv(rate_node->devlink)))
+	if (!ice_enable_custom_tx(devlink_priv(rate_analde->devlink)))
 		return -EBUSY;
 
-	if (!node)
+	if (!analde)
 		return 0;
 
-	return ice_set_object_tx_max(ice_get_pi_from_dev_rate(rate_node),
-				     node, tx_max, extack);
+	return ice_set_object_tx_max(ice_get_pi_from_dev_rate(rate_analde),
+				     analde, tx_max, extack);
 }
 
-static int ice_devlink_rate_node_tx_share_set(struct devlink_rate *rate_node, void *priv,
+static int ice_devlink_rate_analde_tx_share_set(struct devlink_rate *rate_analde, void *priv,
 					      u64 tx_share, struct netlink_ext_ack *extack)
 {
-	struct ice_sched_node *node = priv;
+	struct ice_sched_analde *analde = priv;
 
-	if (!ice_enable_custom_tx(devlink_priv(rate_node->devlink)))
+	if (!ice_enable_custom_tx(devlink_priv(rate_analde->devlink)))
 		return -EBUSY;
 
-	if (!node)
+	if (!analde)
 		return 0;
 
-	return ice_set_object_tx_share(ice_get_pi_from_dev_rate(rate_node),
-				       node, tx_share, extack);
+	return ice_set_object_tx_share(ice_get_pi_from_dev_rate(rate_analde),
+				       analde, tx_share, extack);
 }
 
-static int ice_devlink_rate_node_tx_priority_set(struct devlink_rate *rate_node, void *priv,
+static int ice_devlink_rate_analde_tx_priority_set(struct devlink_rate *rate_analde, void *priv,
 						 u32 tx_priority, struct netlink_ext_ack *extack)
 {
-	struct ice_sched_node *node = priv;
+	struct ice_sched_analde *analde = priv;
 
-	if (!ice_enable_custom_tx(devlink_priv(rate_node->devlink)))
+	if (!ice_enable_custom_tx(devlink_priv(rate_analde->devlink)))
 		return -EBUSY;
 
-	if (!node)
+	if (!analde)
 		return 0;
 
-	return ice_set_object_tx_priority(ice_get_pi_from_dev_rate(rate_node),
-					  node, tx_priority, extack);
+	return ice_set_object_tx_priority(ice_get_pi_from_dev_rate(rate_analde),
+					  analde, tx_priority, extack);
 }
 
-static int ice_devlink_rate_node_tx_weight_set(struct devlink_rate *rate_node, void *priv,
+static int ice_devlink_rate_analde_tx_weight_set(struct devlink_rate *rate_analde, void *priv,
 					       u32 tx_weight, struct netlink_ext_ack *extack)
 {
-	struct ice_sched_node *node = priv;
+	struct ice_sched_analde *analde = priv;
 
-	if (!ice_enable_custom_tx(devlink_priv(rate_node->devlink)))
+	if (!ice_enable_custom_tx(devlink_priv(rate_analde->devlink)))
 		return -EBUSY;
 
-	if (!node)
+	if (!analde)
 		return 0;
 
-	return ice_set_object_tx_weight(ice_get_pi_from_dev_rate(rate_node),
-					node, tx_weight, extack);
+	return ice_set_object_tx_weight(ice_get_pi_from_dev_rate(rate_analde),
+					analde, tx_weight, extack);
 }
 
 static int ice_devlink_set_parent(struct devlink_rate *devlink_rate,
@@ -1206,14 +1206,14 @@ static int ice_devlink_set_parent(struct devlink_rate *devlink_rate,
 				  struct netlink_ext_ack *extack)
 {
 	struct ice_port_info *pi = ice_get_pi_from_dev_rate(devlink_rate);
-	struct ice_sched_node *tc_node, *node, *parent_node;
-	u16 num_nodes_added;
-	u32 first_node_teid;
-	u32 node_teid;
+	struct ice_sched_analde *tc_analde, *analde, *parent_analde;
+	u16 num_analdes_added;
+	u32 first_analde_teid;
+	u32 analde_teid;
 	int status;
 
-	tc_node = pi->root->children[0];
-	node = priv;
+	tc_analde = pi->root->children[0];
+	analde = priv;
 
 	if (!extack)
 		return 0;
@@ -1222,48 +1222,48 @@ static int ice_devlink_set_parent(struct devlink_rate *devlink_rate,
 		return -EBUSY;
 
 	if (!parent) {
-		if (!node || tc_node == node || node->num_children)
+		if (!analde || tc_analde == analde || analde->num_children)
 			return -EINVAL;
 
 		mutex_lock(&pi->sched_lock);
-		ice_free_sched_node(pi, node);
+		ice_free_sched_analde(pi, analde);
 		mutex_unlock(&pi->sched_lock);
 
 		return 0;
 	}
 
-	parent_node = parent_priv;
+	parent_analde = parent_priv;
 
-	/* if the node doesn't exist, create it */
-	if (!node->parent) {
+	/* if the analde doesn't exist, create it */
+	if (!analde->parent) {
 		mutex_lock(&pi->sched_lock);
-		status = ice_sched_add_elems(pi, tc_node, parent_node,
-					     parent_node->tx_sched_layer + 1,
-					     1, &num_nodes_added, &first_node_teid,
-					     &node);
+		status = ice_sched_add_elems(pi, tc_analde, parent_analde,
+					     parent_analde->tx_sched_layer + 1,
+					     1, &num_analdes_added, &first_analde_teid,
+					     &analde);
 		mutex_unlock(&pi->sched_lock);
 
 		if (status) {
-			NL_SET_ERR_MSG_MOD(extack, "Can't add a new node");
+			NL_SET_ERR_MSG_MOD(extack, "Can't add a new analde");
 			return status;
 		}
 
 		if (devlink_rate->tx_share)
-			ice_set_object_tx_share(pi, node, devlink_rate->tx_share, extack);
+			ice_set_object_tx_share(pi, analde, devlink_rate->tx_share, extack);
 		if (devlink_rate->tx_max)
-			ice_set_object_tx_max(pi, node, devlink_rate->tx_max, extack);
+			ice_set_object_tx_max(pi, analde, devlink_rate->tx_max, extack);
 		if (devlink_rate->tx_priority)
-			ice_set_object_tx_priority(pi, node, devlink_rate->tx_priority, extack);
+			ice_set_object_tx_priority(pi, analde, devlink_rate->tx_priority, extack);
 		if (devlink_rate->tx_weight)
-			ice_set_object_tx_weight(pi, node, devlink_rate->tx_weight, extack);
+			ice_set_object_tx_weight(pi, analde, devlink_rate->tx_weight, extack);
 	} else {
-		node_teid = le32_to_cpu(node->info.node_teid);
+		analde_teid = le32_to_cpu(analde->info.analde_teid);
 		mutex_lock(&pi->sched_lock);
-		status = ice_sched_move_nodes(pi, parent_node, 1, &node_teid);
+		status = ice_sched_move_analdes(pi, parent_analde, 1, &analde_teid);
 		mutex_unlock(&pi->sched_lock);
 
 		if (status)
-			NL_SET_ERR_MSG_MOD(extack, "Can't move existing node to a new parent");
+			NL_SET_ERR_MSG_MOD(extack, "Can't move existing analde to a new parent");
 	}
 
 	return status;
@@ -1273,7 +1273,7 @@ static int ice_devlink_set_parent(struct devlink_rate *devlink_rate,
  * ice_devlink_reload_up - do reload up after reinit
  * @devlink: pointer to the devlink instance reloading
  * @action: the action requested
- * @limit: limits imposed by userspace, such as not resetting
+ * @limit: limits imposed by userspace, such as analt resetting
  * @actions_performed: on return, indicate what actions actually performed
  * @extack: netlink extended ACK structure
  */
@@ -1295,7 +1295,7 @@ ice_devlink_reload_up(struct devlink *devlink,
 		return ice_devlink_reload_empr_finish(pf, extack);
 	default:
 		WARN_ON(1);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1310,21 +1310,21 @@ static const struct devlink_ops ice_devlink_ops = {
 	.info_get = ice_devlink_info_get,
 	.flash_update = ice_devlink_flash_update,
 
-	.rate_node_new = ice_devlink_rate_node_new,
-	.rate_node_del = ice_devlink_rate_node_del,
+	.rate_analde_new = ice_devlink_rate_analde_new,
+	.rate_analde_del = ice_devlink_rate_analde_del,
 
 	.rate_leaf_tx_max_set = ice_devlink_rate_leaf_tx_max_set,
 	.rate_leaf_tx_share_set = ice_devlink_rate_leaf_tx_share_set,
 	.rate_leaf_tx_priority_set = ice_devlink_rate_leaf_tx_priority_set,
 	.rate_leaf_tx_weight_set = ice_devlink_rate_leaf_tx_weight_set,
 
-	.rate_node_tx_max_set = ice_devlink_rate_node_tx_max_set,
-	.rate_node_tx_share_set = ice_devlink_rate_node_tx_share_set,
-	.rate_node_tx_priority_set = ice_devlink_rate_node_tx_priority_set,
-	.rate_node_tx_weight_set = ice_devlink_rate_node_tx_weight_set,
+	.rate_analde_tx_max_set = ice_devlink_rate_analde_tx_max_set,
+	.rate_analde_tx_share_set = ice_devlink_rate_analde_tx_share_set,
+	.rate_analde_tx_priority_set = ice_devlink_rate_analde_tx_priority_set,
+	.rate_analde_tx_weight_set = ice_devlink_rate_analde_tx_weight_set,
 
 	.rate_leaf_parent_set = ice_devlink_set_parent,
-	.rate_node_parent_set = ice_devlink_set_parent,
+	.rate_analde_parent_set = ice_devlink_set_parent,
 };
 
 static int
@@ -1368,11 +1368,11 @@ ice_devlink_enable_roce_validate(struct devlink *devlink, u32 id,
 	struct ice_pf *pf = devlink_priv(devlink);
 
 	if (!test_bit(ICE_FLAG_RDMA_ENA, pf->flags))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (pf->rdma_mode & IIDC_RDMA_PROTOCOL_IWARP) {
-		NL_SET_ERR_MSG_MOD(extack, "iWARP is currently enabled. This device cannot enable iWARP and RoCEv2 simultaneously");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG_MOD(extack, "iWARP is currently enabled. This device cananalt enable iWARP and RoCEv2 simultaneously");
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -1419,11 +1419,11 @@ ice_devlink_enable_iw_validate(struct devlink *devlink, u32 id,
 	struct ice_pf *pf = devlink_priv(devlink);
 
 	if (!test_bit(ICE_FLAG_RDMA_ENA, pf->flags))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (pf->rdma_mode & IIDC_RDMA_PROTOCOL_ROCEV2) {
-		NL_SET_ERR_MSG_MOD(extack, "RoCEv2 is currently enabled. This device cannot enable iWARP and RoCEv2 simultaneously");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG_MOD(extack, "RoCEv2 is currently enabled. This device cananalt enable iWARP and RoCEv2 simultaneously");
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -1701,7 +1701,7 @@ static const struct devlink_region_ops ice_sram_region_ops;
  * snapshot can then later be viewed via the DEVLINK_CMD_REGION_READ netlink
  * interface.
  *
- * @returns zero on success, and updates the data pointer. Returns a non-zero
+ * @returns zero on success, and updates the data pointer. Returns a analn-zero
  * error code on failure.
  */
 static int ice_devlink_nvm_snapshot(struct devlink *devlink,
@@ -1725,12 +1725,12 @@ static int ice_devlink_nvm_snapshot(struct devlink *devlink,
 		nvm_size = hw->flash.sr_words * 2u;
 	} else {
 		NL_SET_ERR_MSG_MOD(extack, "Unexpected region in snapshot function");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	nvm_data = vzalloc(nvm_size);
 	if (!nvm_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	num_blks = DIV_ROUND_UP(nvm_size, ICE_DEVLINK_READ_BLK_SIZE);
 	tmp = nvm_data;
@@ -1739,7 +1739,7 @@ static int ice_devlink_nvm_snapshot(struct devlink *devlink,
 	/* Some systems take longer to read the NVM than others which causes the
 	 * FW to reclaim the NVM lock before the entire NVM has been read. Fix
 	 * this by breaking the reads of the NVM into smaller chunks that will
-	 * probably not take as long. This has some overhead since we are
+	 * probably analt take as long. This has some overhead since we are
 	 * increasing the number of AQ commands, but it should always work
 	 */
 	for (i = 0; i < num_blks; i++) {
@@ -1789,7 +1789,7 @@ static int ice_devlink_nvm_snapshot(struct devlink *devlink,
  *
  * It reads from either the nvm-flash or shadow-ram region contents.
  *
- * @returns zero on success, and updates the data pointer. Returns a non-zero
+ * @returns zero on success, and updates the data pointer. Returns a analn-zero
  * error code on failure.
  */
 static int ice_devlink_nvm_read(struct devlink *devlink,
@@ -1812,11 +1812,11 @@ static int ice_devlink_nvm_read(struct devlink *devlink,
 		nvm_size = hw->flash.sr_words * 2u;
 	} else {
 		NL_SET_ERR_MSG_MOD(extack, "Unexpected region in snapshot function");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (offset + size >= nvm_size) {
-		NL_SET_ERR_MSG_MOD(extack, "Cannot read beyond the region size");
+		NL_SET_ERR_MSG_MOD(extack, "Cananalt read beyond the region size");
 		return -ERANGE;
 	}
 
@@ -1853,7 +1853,7 @@ static int ice_devlink_nvm_read(struct devlink *devlink,
  * the device-caps devlink region. It captures a snapshot of the device
  * capabilities reported by firmware.
  *
- * @returns zero on success, and updates the data pointer. Returns a non-zero
+ * @returns zero on success, and updates the data pointer. Returns a analn-zero
  * error code on failure.
  */
 static int
@@ -1869,7 +1869,7 @@ ice_devlink_devcaps_snapshot(struct devlink *devlink,
 
 	devcaps = vzalloc(ICE_AQ_MAX_BUF_LEN);
 	if (!devcaps)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	status = ice_aq_list_caps(hw, devcaps, ICE_AQ_MAX_BUF_LEN, NULL,
 				  ice_aqc_opc_list_dev_caps, NULL);

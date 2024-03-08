@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -107,7 +107,7 @@ static bool ar9003_hw_per_calibration(struct ath_hw *ah,
 			return true;
 		} else {
 			/*
-			 * Set-up collection of another sub-sample until we
+			 * Set-up collection of aanalther sub-sample until we
 			 * get desired number
 			 */
 			ar9003_hw_setup_calibration(ah, currCal);
@@ -131,7 +131,7 @@ static int ar9003_hw_calibrate(struct ath_hw *ah, struct ath9k_channel *chan,
 	 * For given calibration:
 	 * 1. Call generic cal routine
 	 * 2. When this cal is done (isCalDone) if we have more cals waiting
-	 *    (eg after reset), mask this to upper layers by not propagating
+	 *    (eg after reset), mask this to upper layers by analt propagating
 	 *    isCalDone if it is set to TRUE.
 	 *    Instead, change isCalDone to FALSE and setup the waiting cal(s)
 	 *    to be run.
@@ -198,7 +198,7 @@ static void ar9003_hw_iqcalibrate(struct ath_hw *ah, u8 numChains)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
 	u32 powerMeasQ, powerMeasI, iqCorrMeas;
-	u32 qCoffDenom, iCoffDenom;
+	u32 qCoffDeanalm, iCoffDeanalm;
 	int32_t qCoff, iCoff;
 	int iqCorrNeg, i;
 	static const u_int32_t offset_array[3] = {
@@ -232,12 +232,12 @@ static void ar9003_hw_iqcalibrate(struct ath_hw *ah, u8 numChains)
 			i, powerMeasQ);
 		ath_dbg(common, CALIBRATE, "iqCorrNeg is 0x%08x\n", iqCorrNeg);
 
-		iCoffDenom = (powerMeasI / 2 + powerMeasQ / 2) / 256;
-		qCoffDenom = powerMeasQ / 64;
+		iCoffDeanalm = (powerMeasI / 2 + powerMeasQ / 2) / 256;
+		qCoffDeanalm = powerMeasQ / 64;
 
-		if ((iCoffDenom != 0) && (qCoffDenom != 0)) {
-			iCoff = iqCorrMeas / iCoffDenom;
-			qCoff = powerMeasI / qCoffDenom - 64;
+		if ((iCoffDeanalm != 0) && (qCoffDeanalm != 0)) {
+			iCoff = iqCorrMeas / iCoffDeanalm;
+			qCoff = powerMeasI / qCoffDeanalm - 64;
 			ath_dbg(common, CALIBRATE, "Chn %d iCoff = 0x%08x\n",
 				i, iCoff);
 			ath_dbg(common, CALIBRATE, "Chn %d qCoff = 0x%08x\n",
@@ -745,7 +745,7 @@ static bool ar9003_hw_calc_iq_corr(struct ath_hw *ah,
 		return false;
 	}
 
-	/* normalization sin and cos by mag */
+	/* analrmalization sin and cos by mag */
 	sin_2phi_1 = (sin_2phi_1 * res_scale / mag1);
 	cos_2phi_1 = (cos_2phi_1 * res_scale / mag1);
 	sin_2phi_2 = (sin_2phi_2 * res_scale / mag2);
@@ -921,7 +921,7 @@ static void ar9003_hw_tx_iq_cal_outlier_detection(struct ath_hw *ah,
 			nmeasurement = MAX_MEASUREMENT;
 
 		/*
-		 * Skip normal outlier detection for AR9550.
+		 * Skip analrmal outlier detection for AR9550.
 		 */
 		if (!AR_SREV_9550(ah)) {
 			/* detect outlier only if nmeasurement > 1 */
@@ -994,7 +994,7 @@ static bool ar9003_hw_tx_iq_cal_run(struct ath_hw *ah)
 	if (!ath9k_hw_wait(ah, AR_PHY_TX_IQCAL_START(ah),
 			AR_PHY_TX_IQCAL_START_DO_CAL, 0,
 			AH_WAIT_TIMEOUT)) {
-		ath_dbg(common, CALIBRATE, "Tx IQ Cal is not completed\n");
+		ath_dbg(common, CALIBRATE, "Tx IQ Cal is analt completed\n");
 		return false;
 	}
 	return true;
@@ -1515,7 +1515,7 @@ skip_tx_iqcal:
 			ar9003_hw_rtt_disable(ah);
 
 		ath_dbg(common, CALIBRATE,
-			"offset calibration failed to complete in %d ms; noisy environment?\n",
+			"offset calibration failed to complete in %d ms; analisy environment?\n",
 			AH_WAIT_TIMEOUT / 1000);
 		return false;
 	}
@@ -1531,7 +1531,7 @@ skip_tx_iqcal:
 		if (is_reusable) {
 			if (!ath9k_hw_rfbus_req(ah)) {
 				ath_err(ath9k_hw_common(ah),
-					"Could not stop baseband\n");
+					"Could analt stop baseband\n");
 			} else {
 				ar9003_hw_rtt_fill_hist(ah);
 
@@ -1568,7 +1568,7 @@ static bool do_ar9003_agc_cal(struct ath_hw *ah)
 	if (!status) {
 		ath_dbg(common, CALIBRATE,
 			"offset calibration failed to complete in %d ms,"
-			"noisy environment?\n",
+			"analisy environment?\n",
 			AH_WAIT_TIMEOUT / 1000);
 		return false;
 	}
@@ -1643,7 +1643,7 @@ skip_tx_iqcal:
 		}
 
 		/*
-		 * For non-AR9550 chips, we just trigger AGC calibration
+		 * For analn-AR9550 chips, we just trigger AGC calibration
 		 * in the HW, poll for completion and then process
 		 * the results.
 		 *

@@ -29,7 +29,7 @@
 struct dpmng_rsp_get_version {
 	__le32 revision;
 	__le32 version_major;
-	__le32 version_minor;
+	__le32 version_mianalr;
 };
 
 /*
@@ -38,7 +38,7 @@ struct dpmng_rsp_get_version {
 
 /* Minimal supported DPMCP Version */
 #define DPMCP_MIN_VER_MAJOR		3
-#define DPMCP_MIN_VER_MINOR		0
+#define DPMCP_MIN_VER_MIANALR		0
 
 /* DPMCP command versioning */
 #define DPMCP_CMD_BASE_VERSION		1
@@ -76,7 +76,7 @@ int dpmcp_reset(struct fsl_mc_io *mc_io,
 
 /* Minimal supported DPRC Version */
 #define DPRC_MIN_VER_MAJOR			6
-#define DPRC_MIN_VER_MINOR			0
+#define DPRC_MIN_VER_MIANALR			0
 
 /* DPRC command versioning */
 #define DPRC_CMD_BASE_VERSION			1
@@ -188,7 +188,7 @@ struct dprc_rsp_get_obj {
 	__le32 state;
 	/* response word 2 */
 	__le16 version_major;
-	__le16 version_minor;
+	__le16 version_mianalr;
 	__le16 flags;
 	__le16 pad1;
 	/* response word 3-4 */
@@ -408,7 +408,7 @@ int dprc_get_obj_region(struct fsl_mc_io *mc_io,
 int dprc_get_api_version(struct fsl_mc_io *mc_io,
 			 u32 cmd_flags,
 			 u16 *major_ver,
-			 u16 *minor_ver);
+			 u16 *mianalr_ver);
 
 int dprc_get_container_id(struct fsl_mc_io *mc_io,
 			  u32 cmd_flags,
@@ -441,7 +441,7 @@ int dprc_get_connection(struct fsl_mc_io *mc_io,
 
 /* DPBP Version */
 #define DPBP_VER_MAJOR				3
-#define DPBP_VER_MINOR				2
+#define DPBP_VER_MIANALR				2
 
 /* Command versioning */
 #define DPBP_CMD_BASE_VERSION			1
@@ -470,7 +470,7 @@ struct dpbp_rsp_get_attributes {
 	__le32 id;
 	/* response word 1 */
 	__le16 version_major;
-	__le16 version_minor;
+	__le16 version_mianalr;
 };
 
 /*
@@ -479,7 +479,7 @@ struct dpbp_rsp_get_attributes {
 
 /* DPCON Version */
 #define DPCON_VER_MAJOR				3
-#define DPCON_VER_MINOR				2
+#define DPCON_VER_MIANALR				2
 
 /* Command versioning */
 #define DPCON_CMD_BASE_VERSION			1
@@ -495,7 +495,7 @@ struct dpbp_rsp_get_attributes {
 #define DPCON_CMDID_GET_ATTR			DPCON_CMD(0x004)
 #define DPCON_CMDID_RESET			DPCON_CMD(0x005)
 
-#define DPCON_CMDID_SET_NOTIFICATION		DPCON_CMD(0x100)
+#define DPCON_CMDID_SET_ANALTIFICATION		DPCON_CMD(0x100)
 
 struct dpcon_cmd_open {
 	__le32 dpcon_id;
@@ -511,7 +511,7 @@ struct dpcon_rsp_get_attr {
 	u8 pad;
 };
 
-struct dpcon_cmd_set_notification {
+struct dpcon_cmd_set_analtification {
 	/* cmd word 0 */
 	__le32 dpio_id;
 	u8 priority;
@@ -563,7 +563,7 @@ struct fsl_mc_obj_cmd_open {
  * @max_count: maximum number of resources in the pool
  * @free_count: number of free resources in the pool
  * @mutex: mutex to serialize access to the pool's free list
- * @free_list: anchor node of list of free resources in the pool
+ * @free_list: anchor analde of list of free resources in the pool
  * @mc_bus: pointer to the MC bus that owns this resource pool
  */
 struct fsl_mc_resource_pool {
@@ -580,7 +580,7 @@ struct fsl_mc_resource_pool {
  * @misc: struct miscdevice linked to the root dprc
  * @device: newly created device in /dev
  * @mutex: mutex lock to serialize the open/release operations
- * @local_instance_in_use: local MC I/O instance in use or not
+ * @local_instance_in_use: local MC I/O instance in use or analt
  * @static_mc_io: pointer to the static MC I/O object
  */
 struct fsl_mc_uapi {

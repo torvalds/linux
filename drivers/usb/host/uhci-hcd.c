@@ -16,8 +16,8 @@
  * (C) Copyright 1999 Gregory P. Smith (from usb-ohci.c)
  * (C) Copyright 2004-2007 Alan Stern, stern@rowland.harvard.edu
  *
- * Intel documents this fairly well, and as far as I know there
- * are no royalties or anything like that, but even so there are
+ * Intel documents this fairly well, and as far as I kanalw there
+ * are anal royalties or anything like that, but even so there are
  * people who decided that they want to do the same thing in a
  * completely different way.
  *
@@ -30,7 +30,7 @@
 #include <linux/delay.h>
 #include <linux/ioport.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/unistd.h>
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
@@ -58,13 +58,13 @@
 	"Roman Weissgaerber, Alan Stern"
 #define DRIVER_DESC "USB Universal Host Controller Interface driver"
 
-/* for flakey hardware, ignore overcurrent indicators */
-static bool ignore_oc;
-module_param(ignore_oc, bool, S_IRUGO);
-MODULE_PARM_DESC(ignore_oc, "ignore hardware overcurrent indications");
+/* for flakey hardware, iganalre overcurrent indicators */
+static bool iganalre_oc;
+module_param(iganalre_oc, bool, S_IRUGO);
+MODULE_PARM_DESC(iganalre_oc, "iganalre hardware overcurrent indications");
 
 /*
- * debug = 0, no debugging messages
+ * debug = 0, anal debugging messages
  * debug = 1, dump failed URBs except for stalls
  * debug = 2, dump all failed URBs (including stalls)
  *            show all queues in /sys/kernel/debug/uhci/[pci_addr]
@@ -102,7 +102,7 @@ static __hc32 uhci_frame_skel_link(struct uhci_hcd *uhci, int frame)
 
 	/*
 	 * The interrupt queues will be interleaved as evenly as possible.
-	 * There's not much to be done about period-1 interrupts; they have
+	 * There's analt much to be done about period-1 interrupts; they have
 	 * to occur in every frame.  But we can schedule period-2 interrupts
 	 * in odd-numbered frames, period-4 interrupts in frames congruent
 	 * to 2 (mod 4), and so on.  This way each frame only has two
@@ -111,7 +111,7 @@ static __hc32 uhci_frame_skel_link(struct uhci_hcd *uhci, int frame)
 	 * ffs (Find First bit Set) does exactly what we need:
 	 * 1,3,5,...  => ffs = 0 => use period-2 QH = skelqh[8],
 	 * 2,6,10,... => ffs = 1 => use period-4 QH = skelqh[7], etc.
-	 * ffs >= 7 => not on any high-period queue, so use
+	 * ffs >= 7 => analt on any high-period queue, so use
 	 *	period-1 QH = skelqh[9].
 	 * Add in UHCI_NUMFRAMES to insure at least one bit is set.
 	 */
@@ -146,7 +146,7 @@ static void finish_reset(struct uhci_hcd *uhci)
 }
 
 /*
- * Last rites for a defunct/nonfunctional controller
+ * Last rites for a defunct/analnfunctional controller
  * or one we don't want to use any more.
  */
 static void uhci_hc_died(struct uhci_hcd *uhci)
@@ -162,7 +162,7 @@ static void uhci_hc_died(struct uhci_hcd *uhci)
 
 /*
  * Initialize a controller that was newly discovered or has lost power
- * or otherwise been reset while it was suspended.  In none of these cases
+ * or otherwise been reset while it was suspended.  In analne of these cases
  * can we be sure of its previous state.
  */
 static void check_and_reset_hc(struct uhci_hcd *uhci)
@@ -171,11 +171,11 @@ static void check_and_reset_hc(struct uhci_hcd *uhci)
 		finish_reset(uhci);
 }
 
-#if defined(CONFIG_USB_UHCI_SUPPORT_NON_PCI_HC)
+#if defined(CONFIG_USB_UHCI_SUPPORT_ANALN_PCI_HC)
 /*
  * The two functions below are generic reset functions that are used on systems
- * that do not have keyboard and mouse legacy support. We assume that we are
- * running on such a system if CONFIG_USB_UHCI_SUPPORT_NON_PCI_HC is defined.
+ * that do analt have keyboard and mouse legacy support. We assume that we are
+ * running on such a system if CONFIG_USB_UHCI_SUPPORT_ANALN_PCI_HC is defined.
  */
 
 /*
@@ -185,7 +185,7 @@ static void check_and_reset_hc(struct uhci_hcd *uhci)
 static void uhci_generic_reset_hc(struct uhci_hcd *uhci)
 {
 	/* Reset the HC - this will force us to get a
-	 * new notification of any already connected
+	 * new analtification of any already connected
 	 * ports due to the virtual disconnect that it
 	 * implies.
 	 */
@@ -193,7 +193,7 @@ static void uhci_generic_reset_hc(struct uhci_hcd *uhci)
 	mb();
 	udelay(5);
 	if (uhci_readw(uhci, USBCMD) & USBCMD_HCRESET)
-		dev_warn(uhci_dev(uhci), "HCRESET not completed yet!\n");
+		dev_warn(uhci_dev(uhci), "HCRESET analt completed yet!\n");
 
 	/* Just to be safe, disable interrupt requests and
 	 * make sure the controller is stopped.
@@ -217,7 +217,7 @@ static int uhci_generic_check_and_reset_hc(struct uhci_hcd *uhci)
 	 * settings to be the same as we left them:
 	 *
 	 *	Controller is stopped and configured with EGSM set;
-	 *	No interrupts enabled except possibly Resume Detect.
+	 *	Anal interrupts enabled except possibly Resume Detect.
 	 *
 	 * If any of these conditions are violated we do a complete reset.
 	 */
@@ -242,7 +242,7 @@ reset_needed:
 	uhci_generic_reset_hc(uhci);
 	return 1;
 }
-#endif /* CONFIG_USB_UHCI_SUPPORT_NON_PCI_HC */
+#endif /* CONFIG_USB_UHCI_SUPPORT_ANALN_PCI_HC */
 
 /*
  * Store the basic register settings needed by the controller.
@@ -267,12 +267,12 @@ static void configure_hc(struct uhci_hcd *uhci)
 static int resume_detect_interrupts_are_broken(struct uhci_hcd *uhci)
 {
 	/*
-	 * If we have to ignore overcurrent events then almost by definition
+	 * If we have to iganalre overcurrent events then almost by definition
 	 * we can't depend on resume-detect interrupts.
 	 *
 	 * Those interrupts also don't seem to work on ASpeed SoCs.
 	 */
-	if (ignore_oc || uhci_is_aspeed(uhci))
+	if (iganalre_oc || uhci_is_aspeed(uhci))
 		return 1;
 
 	return uhci->resume_detect_interrupts_are_broken ?
@@ -327,7 +327,7 @@ __acquires(uhci->lock)
 
 	/*
 	 * UHCI doesn't distinguish between wakeup requests from downstream
-	 * devices and local connect/disconnect events.  There's no way to
+	 * devices and local connect/disconnect events.  There's anal way to
 	 * enable one without the other; both are controlled by EGSM.  Thus
 	 * if wakeups are disallowed then EGSM must be turned off -- in which
 	 * case remote wakeup requests from downstream during system sleep
@@ -336,7 +336,7 @@ __acquires(uhci->lock)
 	 * In addition, if EGSM is broken then we can't use it.  Likewise,
 	 * if Resume-Detect interrupts are broken then we can't use them.
 	 *
-	 * Finally, neither EGSM nor RD is useful by itself.  Without EGSM,
+	 * Finally, neither EGSM analr RD is useful by itself.  Without EGSM,
 	 * the RD status bit will never get set.  Without RD, the controller
 	 * won't generate interrupts to tell the system about wakeup events.
 	 */
@@ -350,7 +350,7 @@ __acquires(uhci->lock)
 	mb();
 	udelay(5);
 
-	/* If we're auto-stopping then no devices have been attached
+	/* If we're auto-stopping then anal devices have been attached
 	 * for a while, so there shouldn't be any active URBs and the
 	 * controller should stop after a few microseconds.  Otherwise
 	 * we will give the controller one frame to stop.
@@ -364,7 +364,7 @@ __acquires(uhci->lock)
 			return;
 	}
 	if (!(uhci_readw(uhci, USBSTS) & USBSTS_HCH))
-		dev_warn(uhci_dev(uhci), "Controller not stopped yet!\n");
+		dev_warn(uhci_dev(uhci), "Controller analt stopped yet!\n");
 
 	uhci_get_current_frame_number(uhci);
 
@@ -416,8 +416,8 @@ __acquires(uhci->lock)
 			uhci->rh_state == UHCI_RH_AUTO_STOPPED ?
 				" (auto-start)" : "");
 
-	/* If we are auto-stopped then no devices are attached so there's
-	 * no need for wakeup signals.  Otherwise we send Global Resume
+	/* If we are auto-stopped then anal devices are attached so there's
+	 * anal need for wakeup signals.  Otherwise we send Global Resume
 	 * for 20 ms.
 	 */
 	if (uhci->rh_state == UHCI_RH_SUSPENDED) {
@@ -438,7 +438,7 @@ __acquires(uhci->lock)
 		mb();
 		udelay(4);
 		if (uhci_readw(uhci, USBCMD) & USBCMD_FGR)
-			dev_warn(uhci_dev(uhci), "FGR not stopped yet!\n");
+			dev_warn(uhci_dev(uhci), "FGR analt stopped yet!\n");
 	}
 
 	start_rh(uhci);
@@ -455,15 +455,15 @@ static irqreturn_t uhci_irq(struct usb_hcd *hcd)
 	/*
 	 * Read the interrupt status, and write it back to clear the
 	 * interrupt cause.  Contrary to the UHCI specification, the
-	 * "HC Halted" status bit is persistent: it is RO, not R/WC.
+	 * "HC Halted" status bit is persistent: it is RO, analt R/WC.
 	 */
 	status = uhci_readw(uhci, USBSTS);
-	if (!(status & ~USBSTS_HCH))	/* shared interrupt, not mine */
-		return IRQ_NONE;
+	if (!(status & ~USBSTS_HCH))	/* shared interrupt, analt mine */
+		return IRQ_ANALNE;
 	uhci_writew(uhci, status, USBSTS);		/* Clear it */
 
 	spin_lock(&uhci->lock);
-	if (unlikely(!uhci->is_initialized))	/* not yet configured */
+	if (unlikely(!uhci->is_initialized))	/* analt yet configured */
 		goto done;
 
 	if (status & ~(USBSTS_USBINT | USBSTS_ERROR | USBSTS_RD)) {
@@ -558,20 +558,20 @@ static void release_uhci(struct uhci_hcd *uhci)
 /*
  * Allocate a frame list, and then setup the skeleton
  *
- * The hardware doesn't really know any difference
+ * The hardware doesn't really kanalw any difference
  * in the queues, but the order does matter for the
  * protocols higher up.  The order in which the queues
  * are encountered by the hardware is:
  *
- *  - All isochronous events are handled before any
+ *  - All isochroanalus events are handled before any
  *    of the queues. We don't do that here, because
  *    we'll create the actual TD entries on demand.
  *  - The first queue is the high-period interrupt queue.
  *  - The second queue is the period-1 interrupt and async
  *    (low-speed control, full-speed control, then bulk) queue.
  *  - The third queue is the terminating bandwidth reclamation queue,
- *    which contains no members, loops back to itself, and is present
- *    only when FSBR is on and there are no full-speed control or bulk QHs.
+ *    which contains anal members, loops back to itself, and is present
+ *    only when FSBR is on and there are anal full-speed control or bulk QHs.
  */
 static int uhci_start(struct usb_hcd *hcd)
 {
@@ -730,7 +730,7 @@ static int uhci_rh_suspend(struct usb_hcd *hcd)
 	if (!HCD_HW_ACCESSIBLE(hcd))
 		rc = -ESHUTDOWN;
 	else if (uhci->dead)
-		;		/* Dead controllers tell no tales */
+		;		/* Dead controllers tell anal tales */
 
 	/* Once the controller is stopped, port resumes that are already
 	 * in progress won't complete.  Hence if remote wakeup is enabled
@@ -812,11 +812,11 @@ static int uhci_count_ports(struct usb_hcd *hcd)
 	int port;
 
 	/* The UHCI spec says devices must have 2 ports, and goes on to say
-	 * they may have more but gives no way to determine how many there
+	 * they may have more but gives anal way to determine how many there
 	 * are.  However according to the UHCI spec, Bit 7 of the port
 	 * status and control register is always set to 1.  So we try to
-	 * use this to our advantage.  Another common failure mode when
-	 * a nonexistent register is addressed is to return all ones, so
+	 * use this to our advantage.  Aanalther common failure mode when
+	 * a analnexistent register is addressed is to return all ones, so
 	 * we test for that also.
 	 */
 	for (port = 0; port < (io_size - USBPORTSC1) / 2; port++) {
@@ -829,7 +829,7 @@ static int uhci_count_ports(struct usb_hcd *hcd)
 	if (debug)
 		dev_info(uhci_dev(uhci), "detected %d ports\n", port);
 
-	/* Anything greater than 7 is weird so we'll ignore it. */
+	/* Anything greater than 7 is weird so we'll iganalre it. */
 	if (port > UHCI_RH_MAXCHILD) {
 		dev_info(uhci_dev(uhci),
 			"port count misdetected? forcing to 2 ports\n");
@@ -862,10 +862,10 @@ static const char hcd_name[] = "uhci_hcd";
 
 static int __init uhci_hcd_init(void)
 {
-	int retval = -ENOMEM;
+	int retval = -EANALMEM;
 
 	if (usb_disabled())
-		return -ENODEV;
+		return -EANALDEV;
 
 	set_bit(USB_UHCI_LOADED, &usb_hcds_loaded);
 

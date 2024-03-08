@@ -62,7 +62,7 @@ static int do_alloc_pages(struct snd_card *card, int type, struct device *dev,
 	if (max_alloc_per_card &&
 	    card->total_pcm_alloc_bytes + size > max_alloc_per_card) {
 		mutex_unlock(&card->memory_mutex);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	__update_allocated_size(card, size);
 	mutex_unlock(&card->memory_mutex);
@@ -101,7 +101,7 @@ static void do_free_pages(struct snd_card *card, struct snd_dma_buffer *dmab)
  * the minimum size is snd_minimum_buffer.  it should be power of 2.
  */
 static int preallocate_pcm_pages(struct snd_pcm_substream *substream,
-				 size_t size, bool no_fallback)
+				 size_t size, bool anal_fallback)
 {
 	struct snd_dma_buffer *dmab = &substream->dma_buffer;
 	struct snd_card *card = substream->pcm->card;
@@ -111,18 +111,18 @@ static int preallocate_pcm_pages(struct snd_pcm_substream *substream,
 	do {
 		err = do_alloc_pages(card, dmab->dev.type, dmab->dev.dev,
 				     substream->stream, size, dmab);
-		if (err != -ENOMEM)
+		if (err != -EANALMEM)
 			return err;
-		if (no_fallback)
+		if (anal_fallback)
 			break;
 		size >>= 1;
 	} while (size >= snd_minimum_buffer);
 	dmab->bytes = 0; /* tell error */
-	pr_warn("ALSA pcmC%dD%d%c,%d:%s: cannot preallocate for size %zu\n",
+	pr_warn("ALSA pcmC%dD%d%c,%d:%s: cananalt preallocate for size %zu\n",
 		substream->pcm->card->number, substream->pcm->device,
 		substream->stream ? 'c' : 'p', substream->number,
 		substream->pcm->name, orig_size);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /**
@@ -213,8 +213,8 @@ static void snd_pcm_lib_preallocate_proc_write(struct snd_info_entry *entry,
 					   substream->dma_buffer.dev.dev,
 					   substream->stream,
 					   size, &new_dmab) < 0) {
-				buffer->error = -ENOMEM;
-				pr_debug("ALSA pcmC%dD%d%c,%d:%s: cannot preallocate for size %zu\n",
+				buffer->error = -EANALMEM;
+				pr_debug("ALSA pcmC%dD%d%c,%d:%s: cananalt preallocate for size %zu\n",
 					 substream->pcm->card->number, substream->pcm->device,
 					 substream->stream ? 'c' : 'p', substream->number,
 					 substream->pcm->name, size);
@@ -276,14 +276,14 @@ static int preallocate_pages(struct snd_pcm_substream *substream,
 
 	if (size > 0) {
 		if (!max) {
-			/* no fallback, only also inform -ENOMEM */
+			/* anal fallback, only also inform -EANALMEM */
 			err = preallocate_pcm_pages(substream, size, true);
 			if (err < 0)
 				return err;
 		} else if (preallocate_dma &&
 			   substream->number < maximum_substreams) {
 			err = preallocate_pcm_pages(substream, size, false);
-			if (err < 0 && err != -ENOMEM)
+			if (err < 0 && err != -EANALMEM)
 				return err;
 		}
 	}
@@ -368,8 +368,8 @@ EXPORT_SYMBOL(snd_pcm_lib_preallocate_pages_for_all);
  * turns on the runtime buffer_changed flag for drivers changing their h/w
  * parameters accordingly.
  *
- * When @size is non-zero and @max is zero, this tries to allocate for only
- * the exact buffer size without fallback, and may return -ENOMEM.
+ * When @size is analn-zero and @max is zero, this tries to allocate for only
+ * the exact buffer size without fallback, and may return -EANALMEM.
  * Otherwise, the function tries to allocate smaller chunks if the allocation
  * fails.  This is the behavior of snd_pcm_set_fixed_buffer().
  *
@@ -418,7 +418,7 @@ EXPORT_SYMBOL(snd_pcm_set_managed_buffer_all);
  * Allocates the DMA buffer on the BUS type given earlier to
  * snd_pcm_lib_preallocate_xxx_pages().
  *
- * Return: 1 if the buffer is changed, 0 if not changed, or a negative
+ * Return: 1 if the buffer is changed, 0 if analt changed, or a negative
  * code on failure.
  */
 int snd_pcm_lib_malloc_pages(struct snd_pcm_substream *substream, size_t size)
@@ -430,7 +430,7 @@ int snd_pcm_lib_malloc_pages(struct snd_pcm_substream *substream, size_t size)
 	if (PCM_RUNTIME_CHECK(substream))
 		return -EINVAL;
 	if (snd_BUG_ON(substream->dma_buffer.dev.type ==
-		       SNDRV_DMA_TYPE_UNKNOWN))
+		       SNDRV_DMA_TYPE_UNKANALWN))
 		return -EINVAL;
 	runtime = substream->runtime;
 	card = substream->pcm->card;
@@ -441,7 +441,7 @@ int snd_pcm_lib_malloc_pages(struct snd_pcm_substream *substream, size_t size)
 		   costs us less time */
 		if (runtime->dma_buffer_p->bytes >= size) {
 			runtime->dma_bytes = size;
-			return 0;	/* ok, do not change */
+			return 0;	/* ok, do analt change */
 		}
 		snd_pcm_lib_free_pages(substream);
 	}
@@ -451,10 +451,10 @@ int snd_pcm_lib_malloc_pages(struct snd_pcm_substream *substream, size_t size)
 	} else {
 		/* dma_max=0 means the fixed size preallocation */
 		if (substream->dma_buffer.area && !substream->dma_max)
-			return -ENOMEM;
+			return -EANALMEM;
 		dmab = kzalloc(sizeof(*dmab), GFP_KERNEL);
 		if (! dmab)
-			return -ENOMEM;
+			return -EANALMEM;
 		dmab->dev = substream->dma_buffer.dev;
 		if (do_alloc_pages(card,
 				   substream->dma_buffer.dev.type,
@@ -462,11 +462,11 @@ int snd_pcm_lib_malloc_pages(struct snd_pcm_substream *substream, size_t size)
 				   substream->stream,
 				   size, dmab) < 0) {
 			kfree(dmab);
-			pr_debug("ALSA pcmC%dD%d%c,%d:%s: cannot preallocate for size %zu\n",
+			pr_debug("ALSA pcmC%dD%d%c,%d:%s: cananalt preallocate for size %zu\n",
 				 substream->pcm->card->number, substream->pcm->device,
 				 substream->stream ? 'c' : 'p', substream->number,
 				 substream->pcm->name, size);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 	snd_pcm_set_runtime_buffer(substream, dmab);
@@ -495,7 +495,7 @@ int snd_pcm_lib_free_pages(struct snd_pcm_substream *substream)
 	if (runtime->dma_buffer_p != &substream->dma_buffer) {
 		struct snd_card *card = substream->pcm->card;
 
-		/* it's a newly allocated buffer.  release it now. */
+		/* it's a newly allocated buffer.  release it analw. */
 		do_free_pages(card, runtime->dma_buffer_p);
 		kfree(runtime->dma_buffer_p);
 	}
@@ -514,12 +514,12 @@ int _snd_pcm_lib_alloc_vmalloc_buffer(struct snd_pcm_substream *substream,
 	runtime = substream->runtime;
 	if (runtime->dma_area) {
 		if (runtime->dma_bytes >= size)
-			return 0; /* already large enough */
+			return 0; /* already large eanalugh */
 		vfree(runtime->dma_area);
 	}
 	runtime->dma_area = __vmalloc(size, gfp_flags);
 	if (!runtime->dma_area)
-		return -ENOMEM;
+		return -EANALMEM;
 	runtime->dma_bytes = size;
 	return 1;
 }

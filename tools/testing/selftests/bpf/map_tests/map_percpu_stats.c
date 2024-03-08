@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (c) 2023 Isovalent */
 
-#include <errno.h>
+#include <erranal.h>
 #include <unistd.h>
 #include <pthread.h>
 
@@ -26,7 +26,7 @@ static void map_info(int map_fd, struct bpf_map_info *info)
 	memset(info, 0, sizeof(*info));
 
 	ret = bpf_obj_get_info_by_fd(map_fd, info, &len);
-	CHECK(ret < 0, "bpf_obj_get_info_by_fd", "error: %s\n", strerror(errno));
+	CHECK(ret < 0, "bpf_obj_get_info_by_fd", "error: %s\n", strerror(erranal));
 }
 
 static const char *map_type_to_s(__u32 type)
@@ -73,28 +73,28 @@ static void delete_and_lookup_batch(int map_fd, void *keys, __u32 count)
 
 	/*
 	 * Despite what uapi header says, lookup_and_delete_batch will return
-	 * -ENOENT in case we successfully have deleted all elements, so check
+	 * -EANALENT in case we successfully have deleted all elements, so check
 	 * this separately
 	 */
-	CHECK(ret < 0 && (errno != ENOENT || !count), "bpf_map_lookup_and_delete_batch",
-		       "error: %s\n", strerror(errno));
+	CHECK(ret < 0 && (erranal != EANALENT || !count), "bpf_map_lookup_and_delete_batch",
+		       "error: %s\n", strerror(erranal));
 
 	CHECK(count != save_count,
 			"bpf_map_lookup_and_delete_batch",
-			"deleted not all elements: removed=%u expected=%u\n",
+			"deleted analt all elements: removed=%u expected=%u\n",
 			count, save_count);
 }
 
 static void delete_all_elements(__u32 type, int map_fd, bool batch)
 {
-	static __u8 val[8 << 10]; /* enough for 1024 CPUs */
+	static __u8 val[8 << 10]; /* eanalugh for 1024 CPUs */
 	__u32 key = -1;
 	void *keys;
 	__u32 i, n;
 	int ret;
 
 	keys = calloc(MAX_MAP_KEY_SIZE, MAX_ENTRIES);
-	CHECK(!keys, "calloc", "error: %s\n", strerror(errno));
+	CHECK(!keys, "calloc", "error: %s\n", strerror(erranal));
 
 	for (n = 0; !bpf_map_get_next_key(map_fd, &key, &key); n++)
 		memcpy(keys + n*MAX_MAP_KEY_SIZE, &key, MAX_MAP_KEY_SIZE);
@@ -103,7 +103,7 @@ static void delete_all_elements(__u32 type, int map_fd, bool batch)
 		/* Can't mix delete_batch and delete_and_lookup_batch because
 		 * they have different semantics in relation to the keys
 		 * argument. However, delete_batch utilize map_delete_elem,
-		 * so we actually test it in non-batch scenario */
+		 * so we actually test it in analn-batch scenario */
 		delete_and_lookup_batch(map_fd, keys, n);
 	} else {
 		/* Intentionally mix delete and lookup_and_delete so we can test both */
@@ -113,11 +113,11 @@ static void delete_all_elements(__u32 type, int map_fd, bool batch)
 			if (i % 2 || type == BPF_MAP_TYPE_HASH_OF_MAPS) {
 				ret = bpf_map_delete_elem(map_fd, keyp);
 				CHECK(ret < 0, "bpf_map_delete_elem",
-					       "error: key %u: %s\n", i, strerror(errno));
+					       "error: key %u: %s\n", i, strerror(erranal));
 			} else {
 				ret = bpf_map_lookup_and_delete_elem(map_fd, keyp, val);
 				CHECK(ret < 0, "bpf_map_lookup_and_delete_elem",
-					       "error: key %u: %s\n", i, strerror(errno));
+					       "error: key %u: %s\n", i, strerror(erranal));
 			}
 		}
 	}
@@ -141,7 +141,7 @@ struct upsert_opts {
 	__u32 map_type;
 	int map_fd;
 	__u32 n;
-	bool retry_for_nomem;
+	bool retry_for_analmem;
 };
 
 static int create_small_hash(void)
@@ -150,19 +150,19 @@ static int create_small_hash(void)
 
 	map_fd = bpf_map_create(BPF_MAP_TYPE_HASH, "small", 4, 4, 4, NULL);
 	CHECK(map_fd < 0, "bpf_map_create()", "error:%s (name=%s)\n",
-			strerror(errno), "small");
+			strerror(erranal), "small");
 
 	return map_fd;
 }
 
-static bool retry_for_nomem_fn(int err)
+static bool retry_for_analmem_fn(int err)
 {
-	return err == ENOMEM;
+	return err == EANALMEM;
 }
 
 static void *patch_map_thread(void *arg)
 {
-	/* 8KB is enough for 1024 CPUs. And it is shared between N_THREADS. */
+	/* 8KB is eanalugh for 1024 CPUs. And it is shared between N_THREADS. */
 	static __u8 blob[8 << 10];
 	struct upsert_opts *opts = arg;
 	void *val_ptr;
@@ -181,13 +181,13 @@ static void *patch_map_thread(void *arg)
 			val_ptr = &val;
 		}
 
-		/* 2 seconds may be enough ? */
-		if (opts->retry_for_nomem)
+		/* 2 seconds may be eanalugh ? */
+		if (opts->retry_for_analmem)
 			ret = map_update_retriable(opts->map_fd, &i, val_ptr, 0,
-						   40, retry_for_nomem_fn);
+						   40, retry_for_analmem_fn);
 		else
 			ret = bpf_map_update_elem(opts->map_fd, &i, val_ptr, 0);
-		CHECK(ret < 0, "bpf_map_update_elem", "key=%d error: %s\n", i, strerror(errno));
+		CHECK(ret < 0, "bpf_map_update_elem", "key=%d error: %s\n", i, strerror(erranal));
 
 		if (opts->map_type == BPF_MAP_TYPE_HASH_OF_MAPS)
 			close(val);
@@ -219,12 +219,12 @@ static __u32 read_cur_elements(int iter_fd)
 	__u32 ret;
 
 	n = read(iter_fd, buf, sizeof(buf)-1);
-	CHECK(n <= 0, "read", "error: %s\n", strerror(errno));
+	CHECK(n <= 0, "read", "error: %s\n", strerror(erranal));
 	buf[n] = '\0';
 
-	errno = 0;
+	erranal = 0;
 	ret = (__u32)strtol(buf, NULL, 10);
-	CHECK(errno != 0, "strtol", "error: %s\n", strerror(errno));
+	CHECK(erranal != 0, "strtol", "error: %s\n", strerror(erranal));
 
 	return ret;
 }
@@ -238,18 +238,18 @@ static __u32 get_cur_elements(int map_id)
 	int ret;
 
 	skel = map_percpu_stats__open();
-	CHECK(skel == NULL, "map_percpu_stats__open", "error: %s", strerror(errno));
+	CHECK(skel == NULL, "map_percpu_stats__open", "error: %s", strerror(erranal));
 
 	skel->bss->target_id = map_id;
 
 	ret = map_percpu_stats__load(skel);
-	CHECK(ret != 0, "map_percpu_stats__load", "error: %s", strerror(errno));
+	CHECK(ret != 0, "map_percpu_stats__load", "error: %s", strerror(erranal));
 
 	link = bpf_program__attach_iter(skel->progs.dump_bpf_map, NULL);
-	CHECK(!link, "bpf_program__attach_iter", "error: %s\n", strerror(errno));
+	CHECK(!link, "bpf_program__attach_iter", "error: %s\n", strerror(erranal));
 
 	iter_fd = bpf_iter_create(bpf_link__fd(link));
-	CHECK(iter_fd < 0, "bpf_iter_create", "error: %s\n", strerror(errno));
+	CHECK(iter_fd < 0, "bpf_iter_create", "error: %s\n", strerror(erranal));
 
 	n_elements = read_cur_elements(iter_fd);
 
@@ -300,19 +300,19 @@ static void __test(int map_fd)
 	opts.n = info.max_entries;
 
 	/* Reduce the number of elements we are updating such that we don't
-	 * bump into -E2BIG from non-preallocated hash maps, but still will
+	 * bump into -E2BIG from analn-preallocated hash maps, but still will
 	 * have some evictions for LRU maps  */
 	if (opts.map_type != BPF_MAP_TYPE_HASH_OF_MAPS)
 		opts.n -= 512;
 	else
 		opts.n /= 2;
 
-	/* per-cpu bpf memory allocator may not be able to allocate per-cpu
-	 * pointer successfully and it can not refill free llist timely, and
-	 * bpf_map_update_elem() will return -ENOMEM. so just retry to mitigate
+	/* per-cpu bpf memory allocator may analt be able to allocate per-cpu
+	 * pointer successfully and it can analt refill free llist timely, and
+	 * bpf_map_update_elem() will return -EANALMEM. so just retry to mitigate
 	 * the problem temporarily.
 	 */
-	opts.retry_for_nomem = is_percpu(opts.map_type) && (info.map_flags & BPF_F_NO_PREALLOC);
+	opts.retry_for_analmem = is_percpu(opts.map_type) && (info.map_flags & BPF_F_ANAL_PREALLOC);
 
 	/*
 	 * Upsert keys [0, n) under some competition: with random values from
@@ -324,7 +324,7 @@ static void __test(int map_fd)
 	delete_all_elements(info.type, map_fd, !BATCH);
 	check_expected_number_elements(0, map_fd, &info);
 
-	/* Now do the same, but using batch delete operations */
+	/* Analw do the same, but using batch delete operations */
 	upsert_elements(&opts);
 	check_expected_number_elements(opts.n, map_fd, &info);
 	delete_all_elements(info.type, map_fd, BATCH);
@@ -347,7 +347,7 @@ static int map_create_opts(__u32 type, const char *name,
 
 	map_fd = bpf_map_create(type, name, key_size, val_size, max_entries, map_opts);
 	CHECK(map_fd < 0, "bpf_map_create()", "error:%s (name=%s)\n",
-			strerror(errno), name);
+			strerror(erranal), name);
 
 	return map_fd;
 }
@@ -359,14 +359,14 @@ static int map_create(__u32 type, const char *name, struct bpf_map_create_opts *
 
 static int create_hash(void)
 {
-	LIBBPF_OPTS(bpf_map_create_opts, map_opts, .map_flags = BPF_F_NO_PREALLOC);
+	LIBBPF_OPTS(bpf_map_create_opts, map_opts, .map_flags = BPF_F_ANAL_PREALLOC);
 
 	return map_create(BPF_MAP_TYPE_HASH, "hash", &map_opts);
 }
 
 static int create_percpu_hash(void)
 {
-	LIBBPF_OPTS(bpf_map_create_opts, map_opts, .map_flags = BPF_F_NO_PREALLOC);
+	LIBBPF_OPTS(bpf_map_create_opts, map_opts, .map_flags = BPF_F_ANAL_PREALLOC);
 
 	return map_create(BPF_MAP_TYPE_PERCPU_HASH, "percpu_hash", &map_opts);
 }
@@ -391,7 +391,7 @@ static int create_lru_hash(__u32 type, __u32 map_flags)
 static int create_hash_of_maps(void)
 {
 	LIBBPF_OPTS(bpf_map_create_opts, map_opts,
-		.map_flags = BPF_F_NO_PREALLOC,
+		.map_flags = BPF_F_ANAL_PREALLOC,
 		.inner_map_fd = create_small_hash(),
 	);
 	int ret;
@@ -432,9 +432,9 @@ static void map_percpu_stats_lru_hash(void)
 	printf("test_%s:PASS\n", __func__);
 }
 
-static void map_percpu_stats_lru_hash_no_common(void)
+static void map_percpu_stats_lru_hash_anal_common(void)
 {
-	__test(create_lru_hash(BPF_MAP_TYPE_LRU_HASH, BPF_F_NO_COMMON_LRU));
+	__test(create_lru_hash(BPF_MAP_TYPE_LRU_HASH, BPF_F_ANAL_COMMON_LRU));
 	printf("test_%s:PASS\n", __func__);
 }
 
@@ -444,9 +444,9 @@ static void map_percpu_stats_percpu_lru_hash(void)
 	printf("test_%s:PASS\n", __func__);
 }
 
-static void map_percpu_stats_percpu_lru_hash_no_common(void)
+static void map_percpu_stats_percpu_lru_hash_anal_common(void)
 {
-	__test(create_lru_hash(BPF_MAP_TYPE_LRU_PERCPU_HASH, BPF_F_NO_COMMON_LRU));
+	__test(create_lru_hash(BPF_MAP_TYPE_LRU_PERCPU_HASH, BPF_F_ANAL_COMMON_LRU));
 	printf("test_%s:PASS\n", __func__);
 }
 
@@ -463,8 +463,8 @@ void test_map_percpu_stats(void)
 	map_percpu_stats_hash_prealloc();
 	map_percpu_stats_percpu_hash_prealloc();
 	map_percpu_stats_lru_hash();
-	map_percpu_stats_lru_hash_no_common();
+	map_percpu_stats_lru_hash_anal_common();
 	map_percpu_stats_percpu_lru_hash();
-	map_percpu_stats_percpu_lru_hash_no_common();
+	map_percpu_stats_percpu_lru_hash_anal_common();
 	map_percpu_stats_hash_of_maps();
 }

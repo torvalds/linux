@@ -31,7 +31,7 @@
 #define DEFAULT_MAX_ABS_MT_TRACKING_ID 10
 
 /*
- * A note about RMI4 F11 register structure.
+ * A analte about RMI4 F11 register structure.
  *
  * The properties for a given sensor are described by its query registers.  The
  * number of query registers and the layout of their contents are described by
@@ -54,7 +54,7 @@
  * directly generate the input events, but their size, location and contents
  * are critical to determining where the data we are interested in lives.
  *
- * At this time, the driver does not yet comprehend all possible F11
+ * At this time, the driver does analt yet comprehend all possible F11
  * configuration options, but it should be sufficient to cover 99% of RMI4 F11
  * devices currently in the field.
  */
@@ -169,11 +169,11 @@
 #define RMI_F11_QUERY_SIZE                      4
 #define RMI_F11_QUERY_GESTURE_SIZE              2
 
-#define F11_LIGHT_CTL_NONE 0x00
+#define F11_LIGHT_CTL_ANALNE 0x00
 #define F11_LUXPAD	   0x01
 #define F11_DUAL_MODE      0x02
 
-#define F11_NOT_CLICKPAD     0x00
+#define F11_ANALT_CLICKPAD     0x00
 #define F11_HINGED_CLICKPAD  0x01
 #define F11_UNIFORM_CLICKPAD 0x02
 
@@ -231,7 +231,7 @@
  * @has_press: press gesture reporting is supported.
  * @has_pinch: pinch gesture detection is supported.
  * @has_chiral: chiral (circular) scrolling  gesture detection is supported.
- * @has_palm_det: the 2-D sensor notifies the host whenever a large conductive
+ * @has_palm_det: the 2-D sensor analtifies the host whenever a large conductive
  *	object such as a palm or a cheek touches the 2-D sensor.
  * @has_rotate: rotation gesture detection is supported.
  * @has_touch_shapes: TouchShapes are supported.  A TouchShape is a fixed
@@ -247,10 +247,10 @@
  *	feature is supported.
  *
  * Convenience for checking bytes in the gesture info registers.  This is done
- * often enough that we put it here to declutter the conditionals
+ * often eanalugh that we put it here to declutter the conditionals
  *
- * @query7_nonzero: true if none of the query 7 bits are set
- * @query8_nonzero: true if none of the query 8 bits are set
+ * @query7_analnzero: true if analne of the query 7 bits are set
+ * @query8_analnzero: true if analne of the query 8 bits are set
  *
  * Query 9 is present if the has_query9 is set.
  *
@@ -280,7 +280,7 @@
  *
  * @has_z_tuning: if set, the sensor supports Z tuning and registers
  *	F11_2D_Ctrl29 through F11_2D_Ctrl33 exist.
- * @has_algorithm_selection: controls choice of noise suppression algorithm
+ * @has_algorithm_selection: controls choice of analise suppression algorithm
  * @has_w_tuning: the sensor supports Wx and Wy scaling and registers
  *	F11_2D_Ctrl36 through F11_2D_Ctrl39 exist.
  * @has_pitch_info: the X and Y pitches of the sensor electrodes can be
@@ -369,7 +369,7 @@ struct f11_2d_sensor_queries {
 	bool has_pinch;
 	bool has_chiral;
 
-	bool query7_nonzero;
+	bool query7_analnzero;
 
 	/* query 8 */
 	bool has_palm_det;
@@ -381,7 +381,7 @@ struct f11_2d_sensor_queries {
 	bool has_mf_edge_motion;
 	bool has_mf_scroll_inertia;
 
-	bool query8_nonzero;
+	bool query8_analnzero;
 
 	/* Query 9 */
 	bool has_pen;
@@ -514,7 +514,7 @@ struct f11_2d_data {
  * @dev_query - F11 device specific query registers.
  * @dev_controls - F11 device specific control registers.
  * @dev_controls_mutex - lock for the control registers.
- * @rezero_wait_ms - if nonzero, upon resume we will wait this many
+ * @rezero_wait_ms - if analnzero, upon resume we will wait this many
  * milliseconds before rezeroing the sensor(s).  This is useful in systems with
  * poor electrical behavior on resume, where the initial calibration of the
  * sensor(s) coming out of sleep state may be bogus.
@@ -539,7 +539,7 @@ struct f11_data {
 };
 
 enum f11_finger_state {
-	F11_NO_FINGER	= 0x00,
+	F11_ANAL_FINGER	= 0x00,
 	F11_PRESENT	= 0x01,
 	F11_INACCURATE	= 0x02,
 	F11_RESERVED	= 0x03
@@ -572,7 +572,7 @@ static void rmi_f11_abs_pos_process(struct f11_data *f11,
 		obj->type = RMI_2D_OBJECT_FINGER;
 		break;
 	default:
-		obj->type = RMI_2D_OBJECT_NONE;
+		obj->type = RMI_2D_OBJECT_ANALNE;
 	}
 
 	obj->mt_tool = tool_type;
@@ -634,7 +634,7 @@ static void rmi_f11_finger_handler(struct f11_data *f11,
 		for (i = 0; i < abs_fingers; i++) {
 			finger_state = rmi_f11_parse_finger_state(f_state, i);
 			if (finger_state == F11_RESERVED)
-				/* no need to send twice the error */
+				/* anal need to send twice the error */
 				continue;
 
 			rmi_2d_sensor_abs_report(sensor, &sensor->objs[i], i);
@@ -673,12 +673,12 @@ static int f11_2d_construct_data(struct f11_data *f11)
 	if (query->has_rel)
 		sensor->pkt_size +=  (sensor->nbr_fingers * 2);
 
-	/* Check if F11_2D_Query7 is non-zero */
-	if (query->query7_nonzero)
+	/* Check if F11_2D_Query7 is analn-zero */
+	if (query->query7_analnzero)
 		sensor->pkt_size += sizeof(u8);
 
-	/* Check if F11_2D_Query7 or F11_2D_Query8 is non-zero */
-	if (query->query7_nonzero || query->query8_nonzero)
+	/* Check if F11_2D_Query7 or F11_2D_Query8 is analn-zero */
+	if (query->query7_analnzero || query->query8_analnzero)
 		sensor->pkt_size += sizeof(u8);
 
 	if (query->has_pinch || query->has_flick || query->has_rotate) {
@@ -696,7 +696,7 @@ static int f11_2d_construct_data(struct f11_data *f11)
 	sensor->data_pkt = devm_kzalloc(&sensor->fn->dev, sensor->pkt_size,
 					GFP_KERNEL);
 	if (!sensor->data_pkt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->f_state = sensor->data_pkt;
 	i = DIV_ROUND_UP(sensor->nbr_fingers, 4);
@@ -711,12 +711,12 @@ static int f11_2d_construct_data(struct f11_data *f11)
 		i += (sensor->nbr_fingers * RMI_F11_REL_BYTES);
 	}
 
-	if (query->query7_nonzero) {
+	if (query->query7_analnzero) {
 		data->gest_1 = &sensor->data_pkt[i];
 		i++;
 	}
 
-	if (query->query7_nonzero || query->query8_nonzero) {
+	if (query->query7_analnzero || query->query8_analnzero) {
 		data->gest_2 = &sensor->data_pkt[i];
 		i++;
 	}
@@ -886,8 +886,8 @@ static int rmi_f11_get_query_parameters(struct rmi_device *rmi_dev,
 		sensor_query->has_mf_scroll_inertia =
 			!!(query_buf[1] & RMI_F11_HAS_MF_SCROLL_INERTIA);
 
-		sensor_query->query7_nonzero = !!(query_buf[0]);
-		sensor_query->query8_nonzero = !!(query_buf[1]);
+		sensor_query->query7_analnzero = !!(query_buf[0]);
+		sensor_query->query8_analnzero = !!(query_buf[1]);
 
 		query_size += 2;
 	}
@@ -1085,9 +1085,9 @@ static int rmi_f11_initialize(struct rmi_function *fn)
 	f11 = devm_kzalloc(&fn->dev, sizeof(struct f11_data) + mask_size * 2,
 			GFP_KERNEL);
 	if (!f11)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	if (fn->dev.of_node) {
+	if (fn->dev.of_analde) {
 		rc = rmi_2d_sensor_of_probe(&fn->dev, &f11->sensor_pdata);
 		if (rc)
 			return rc;
@@ -1210,7 +1210,7 @@ static int rmi_f11_initialize(struct rmi_function *fn)
 			sizeof(struct rmi_2d_sensor_abs_object),
 			GFP_KERNEL);
 	if (!sensor->tracking_pos || !sensor->tracking_slots || !sensor->objs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctrl = &f11->dev_controls;
 	if (sensor->axis_align.delta_x_threshold)

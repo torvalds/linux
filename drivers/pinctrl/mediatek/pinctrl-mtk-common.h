@@ -13,14 +13,14 @@
 
 #include "mtk-eint.h"
 
-#define NO_EINT_SUPPORT    255
+#define ANAL_EINT_SUPPORT    255
 #define MT_EDGE_SENSITIVE           0
 #define MT_LEVEL_SENSITIVE          1
 #define EINT_DBNC_SET_DBNC_BITS     4
 #define EINT_DBNC_RST_BIT           (0x1 << 1)
 #define EINT_DBNC_SET_EN            (0x1 << 0)
 
-#define MTK_PINCTRL_NOT_SUPPORT	(0xffff)
+#define MTK_PINCTRL_ANALT_SUPPORT	(0xffff)
 
 struct mtk_desc_function {
 	const char *name;
@@ -203,17 +203,17 @@ struct mtk_eint_offsets {
  *  these pins' pull setting are very different, they have separate pull
  *  up/down bit, R0 and R1 resistor bit, so they need special pull setting.
  *  If special setting is success, this should return 0, otherwise it should
- *  return non-zero value.
+ *  return analn-zero value.
  * @spec_ies_smt_set: Some pins are irregular, their input enable and smt
  * control register are discontinuous, but they are mapping together. That
  * means when user set smt, input enable is set at the same time. So they
  * also need special control. If special control is success, this should
- * return 0, otherwise return non-zero value.
+ * return 0, otherwise return analn-zero value.
  * @spec_pinmux_set: In some cases, there are two pinmux functions share
  * the same value in the same segment of pinmux control register. If user
  * want to use one of the two functions, they need an extra bit setting to
  * select the right one.
- * @spec_dir_set: In very few SoCs, direction control registers are not
+ * @spec_dir_set: In very few SoCs, direction control registers are analt
  * arranged continuously, they may be cut to parts. So they need special
  * dir setting.
  * @mt8365_set_clr_mode: In mt8365, some pins won't set correcty because they

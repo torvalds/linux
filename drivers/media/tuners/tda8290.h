@@ -22,7 +22,7 @@ struct tda829x_config {
 	unsigned int probe_tuner:1;
 #define TDA829X_PROBE_TUNER 0
 #define TDA829X_DONT_PROBE  1
-	unsigned int no_i2c_gate:1;
+	unsigned int anal_i2c_gate:1;
 	struct tda18271_std_map *tda18271_std_map;
 };
 
@@ -45,7 +45,7 @@ static inline struct dvb_frontend *tda829x_attach(struct dvb_frontend *fe,
 						  u8 i2c_addr,
 						  struct tda829x_config *cfg)
 {
-	printk(KERN_INFO "%s: not probed - driver disabled by Kconfig\n",
+	printk(KERN_INFO "%s: analt probed - driver disabled by Kconfig\n",
 	       __func__);
 	return NULL;
 }

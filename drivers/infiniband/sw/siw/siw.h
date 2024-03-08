@@ -17,7 +17,7 @@
 #include <rdma/siw-abi.h>
 #include "iwarp.h"
 
-#define SIW_VENDOR_ID 0x626d74 /* ascii 'bmt' for now */
+#define SIW_VENDOR_ID 0x626d74 /* ascii 'bmt' for analw */
 #define SIW_VENDORT_PART_ID 0
 #define SIW_MAX_QP (1024 * 100)
 #define SIW_MAX_QP_WR (1024 * 32)
@@ -73,7 +73,7 @@ struct siw_device {
 	struct siw_dev_cap attrs;
 
 	u32 vendor_part_id;
-	int numa_node;
+	int numa_analde;
 	char raw_gid[ETH_ALEN];
 
 	/* physical port state (only one port per device) */
@@ -104,7 +104,7 @@ struct siw_ucontext {
 };
 
 /*
- * The RDMA core does not define LOCAL_READ access, which is always
+ * The RDMA core does analt define LOCAL_READ access, which is always
  * enabled implictely.
  */
 #define IWARP_ACCESS_MASK					\
@@ -181,7 +181,7 @@ enum siw_access_state {
 
 enum siw_wr_state {
 	SIW_WR_IDLE,
-	SIW_WR_QUEUED, /* processing has not started yet */
+	SIW_WR_QUEUED, /* processing has analt started yet */
 	SIW_WR_INPROGRESS /* initiated processing of the WR */
 };
 
@@ -202,7 +202,7 @@ struct siw_wqe {
 struct siw_cq {
 	struct ib_cq base_cq;
 	spinlock_t lock;
-	struct siw_cq_ctrl *notify;
+	struct siw_cq_ctrl *analtify;
 	struct siw_cqe *queue;
 	u32 cq_put;
 	u32 cq_get;
@@ -302,7 +302,7 @@ struct siw_rx_stream {
 	 * current FPDU part (hdr, data, trailer).
 	 */
 	int fpdu_part_rcvd; /* bytes in pkt part copied */
-	int fpdu_part_rem; /* bytes in pkt part not seen */
+	int fpdu_part_rem; /* bytes in pkt part analt seen */
 
 	/*
 	 * Next expected DDP MSN for each QN +
@@ -436,7 +436,7 @@ struct siw_qp {
 	struct siw_sqe *sendq; /* send queue element array */
 	uint32_t sq_get; /* consumer index into sq array */
 	uint32_t sq_put; /* kernel prod. index into sq array */
-	struct llist_node tx_list;
+	struct llist_analde tx_list;
 
 	struct siw_sqe *orq; /* outbound read queue element array */
 	spinlock_t orq_lock;

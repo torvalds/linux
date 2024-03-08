@@ -44,6 +44,6 @@ int bch2_data_update_init(struct btree_trans *, struct btree_iter *,
 			  struct write_point_specifier,
 			  struct bch_io_opts, struct data_update_opts,
 			  enum btree_id, struct bkey_s_c);
-void bch2_data_update_opts_normalize(struct bkey_s_c, struct data_update_opts *);
+void bch2_data_update_opts_analrmalize(struct bkey_s_c, struct data_update_opts *);
 
 #endif /* _BCACHEFS_DATA_UPDATE_H */

@@ -184,8 +184,8 @@ static int cc_cipher_init(struct crypto_tfm *tfm)
 			crypto_alloc_skcipher(name, 0, CRYPTO_ALG_NEED_FALLBACK | CRYPTO_ALG_ASYNC);
 
 		if (IS_ERR(ctx_p->fallback_tfm)) {
-			/* Note we're still allowing registration with no fallback since it's
-			 * better to have most modes supported than none at all.
+			/* Analte we're still allowing registration with anal fallback since it's
+			 * better to have most modes supported than analne at all.
 			 */
 			dev_warn(dev, "Error allocating fallback algo %s. Some modes may be available.\n",
 			       name);
@@ -226,7 +226,7 @@ free_fallback:
 	crypto_free_skcipher(ctx_p->fallback_tfm);
 	crypto_free_shash(ctx_p->shash_tfm);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void cc_cipher_exit(struct crypto_tfm *tfm)
@@ -321,7 +321,7 @@ static int cc_cipher_sethkey(struct crypto_skcipher *sktfm, const u8 *key,
 	memcpy(&hki, key, keylen);
 
 	/* The real key len for crypto op is the size of the HW key
-	 * referenced by the HW key slot, not the hardware key token
+	 * referenced by the HW key slot, analt the hardware key token
 	 */
 	keylen = hki.keylen;
 
@@ -370,7 +370,7 @@ static int cc_cipher_sethkey(struct crypto_skcipher *sktfm, const u8 *key,
 
 	case CC_POLICY_PROTECTED_KEY:
 		if (ctx_p->drvdata->hw_rev < CC_HW_REV_713) {
-			dev_err(dev, "CPP keys not supported in this hardware revision.\n");
+			dev_err(dev, "CPP keys analt supported in this hardware revision.\n");
 			return -EINVAL;
 		}
 
@@ -434,7 +434,7 @@ static int cc_cipher_setkey(struct crypto_skcipher *sktfm, const u8 *key,
 				return crypto_skcipher_setkey(ctx_p->fallback_tfm, key, keylen);
 			}
 
-			dev_dbg(dev, "Unsupported key size %d and no fallback.\n", keylen);
+			dev_dbg(dev, "Unsupported key size %d and anal fallback.\n", keylen);
 			return -EINVAL;
 		}
 
@@ -447,7 +447,7 @@ static int cc_cipher_setkey(struct crypto_skcipher *sktfm, const u8 *key,
 
 	/*
 	 * Verify DES weak keys
-	 * Note that we're dropping the expanded key since the
+	 * Analte that we're dropping the expanded key since the
 	 * HW does the expansion on its own.
 	 */
 	if (ctx_p->flow_mode == S_DIN_to_DES) {
@@ -865,7 +865,7 @@ static void cc_cipher_complete(struct device *dev, void *cc_req, int err)
 	unsigned int ivsize = crypto_skcipher_ivsize(sk_tfm);
 
 	if (err != -EINPROGRESS) {
-		/* Not a BACKLOG notification */
+		/* Analt a BACKLOG analtification */
 		cc_unmap_cipher_request(dev, req_ctx, ivsize, src, dst);
 		memcpy(req->iv, req_ctx->iv, ivsize);
 		kfree_sensitive(req_ctx->iv);
@@ -905,7 +905,7 @@ static int cc_cipher_process(struct skcipher_request *req,
 		goto exit_process;
 	}
 	if (nbytes == 0) {
-		/* No data to process is valid */
+		/* Anal data to process is valid */
 		rc = 0;
 		goto exit_process;
 	}
@@ -926,7 +926,7 @@ static int cc_cipher_process(struct skcipher_request *req,
 	 */
 	req_ctx->iv = kmemdup(iv, ivsize, flags);
 	if (!req_ctx->iv) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto exit_process;
 	}
 
@@ -974,7 +974,7 @@ static int cc_cipher_process(struct skcipher_request *req,
 			     &req->base);
 	if (rc != -EINPROGRESS && rc != -EBUSY) {
 		/* Failed to send the request or request completed
-		 * synchronously
+		 * synchroanalusly
 		 */
 		cc_unmap_cipher_request(dev, req_ctx, ivsize, src, dst);
 	}
@@ -1386,7 +1386,7 @@ static struct cc_crypto_alg *cc_create_alg(const struct cc_alg_template *tmpl,
 
 	t_alg = devm_kzalloc(dev, sizeof(*t_alg), GFP_KERNEL);
 	if (!t_alg)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	alg = &t_alg->skcipher_alg;
 
@@ -1431,7 +1431,7 @@ int cc_cipher_alloc(struct cc_drvdata *drvdata)
 {
 	struct cc_crypto_alg *t_alg;
 	struct device *dev = drvdata_to_dev(drvdata);
-	int rc = -ENOMEM;
+	int rc = -EANALMEM;
 	int alg;
 
 	INIT_LIST_HEAD(&drvdata->alg_list);

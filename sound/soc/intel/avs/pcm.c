@@ -46,7 +46,7 @@ avs_dai_find_path_template(struct snd_soc_dai *dai, bool is_fe, int direction)
 		dir = is_fe ? SND_SOC_DAPM_DIR_IN : SND_SOC_DAPM_DIR_OUT;
 	}
 
-	dp = list_first_entry_or_null(&dw->edges[dir], typeof(*dp), list_node[dir]);
+	dp = list_first_entry_or_null(&dw->edges[dir], typeof(*dp), list_analde[dir]);
 	if (!dp)
 		return NULL;
 
@@ -66,20 +66,20 @@ static int avs_dai_startup(struct snd_pcm_substream *substream, struct snd_soc_d
 
 	template = avs_dai_find_path_template(dai, is_fe, substream->stream);
 	if (!template) {
-		dev_err(dai->dev, "no %s path for dai %s, invalid tplg?\n",
+		dev_err(dai->dev, "anal %s path for dai %s, invalid tplg?\n",
 			snd_pcm_stream_str(substream), dai->name);
 		return -EINVAL;
 	}
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->substream = substream;
 	data->template = template;
 	snd_soc_dai_set_dma_data(dai, substream, data);
 
-	if (rtd->dai_link->ignore_suspend)
+	if (rtd->dai_link->iganalre_suspend)
 		adev->num_lp_paths++;
 
 	return 0;
@@ -159,20 +159,20 @@ static int avs_dai_prepare(struct avs_dev *adev, struct snd_pcm_substream *subst
 	return ret;
 }
 
-static const struct snd_soc_dai_ops avs_dai_nonhda_be_ops;
+static const struct snd_soc_dai_ops avs_dai_analnhda_be_ops;
 
-static int avs_dai_nonhda_be_startup(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
+static int avs_dai_analnhda_be_startup(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
 {
-	return avs_dai_startup(substream, dai, false, &avs_dai_nonhda_be_ops);
+	return avs_dai_startup(substream, dai, false, &avs_dai_analnhda_be_ops);
 }
 
-static void avs_dai_nonhda_be_shutdown(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
+static void avs_dai_analnhda_be_shutdown(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct avs_dev *adev = to_avs_dev(dai->dev);
 	struct avs_dma_data *data;
 
-	if (rtd->dai_link->ignore_suspend)
+	if (rtd->dai_link->iganalre_suspend)
 		adev->num_lp_paths--;
 
 	data = snd_soc_dai_get_dma_data(dai, substream);
@@ -181,7 +181,7 @@ static void avs_dai_nonhda_be_shutdown(struct snd_pcm_substream *substream, stru
 	kfree(data);
 }
 
-static int avs_dai_nonhda_be_hw_params(struct snd_pcm_substream *substream,
+static int avs_dai_analnhda_be_hw_params(struct snd_pcm_substream *substream,
 				       struct snd_pcm_hw_params *hw_params, struct snd_soc_dai *dai)
 {
 	struct avs_dma_data *data;
@@ -194,7 +194,7 @@ static int avs_dai_nonhda_be_hw_params(struct snd_pcm_substream *substream,
 	return avs_dai_be_hw_params(substream, hw_params, dai, 0);
 }
 
-static int avs_dai_nonhda_be_hw_free(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
+static int avs_dai_analnhda_be_hw_free(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
 {
 	struct avs_dma_data *data;
 
@@ -209,12 +209,12 @@ static int avs_dai_nonhda_be_hw_free(struct snd_pcm_substream *substream, struct
 	return 0;
 }
 
-static int avs_dai_nonhda_be_prepare(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
+static int avs_dai_analnhda_be_prepare(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
 {
 	return avs_dai_prepare(to_avs_dev(dai->dev), substream, dai);
 }
 
-static int avs_dai_nonhda_be_trigger(struct snd_pcm_substream *substream, int cmd,
+static int avs_dai_analnhda_be_trigger(struct snd_pcm_substream *substream, int cmd,
 				     struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
@@ -225,7 +225,7 @@ static int avs_dai_nonhda_be_trigger(struct snd_pcm_substream *substream, int cm
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_RESUME:
-		if (rtd->dai_link->ignore_suspend)
+		if (rtd->dai_link->iganalre_suspend)
 			break;
 		fallthrough;
 	case SNDRV_PCM_TRIGGER_START:
@@ -242,7 +242,7 @@ static int avs_dai_nonhda_be_trigger(struct snd_pcm_substream *substream, int cm
 		break;
 
 	case SNDRV_PCM_TRIGGER_SUSPEND:
-		if (rtd->dai_link->ignore_suspend)
+		if (rtd->dai_link->iganalre_suspend)
 			break;
 		fallthrough;
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
@@ -264,13 +264,13 @@ static int avs_dai_nonhda_be_trigger(struct snd_pcm_substream *substream, int cm
 	return ret;
 }
 
-static const struct snd_soc_dai_ops avs_dai_nonhda_be_ops = {
-	.startup = avs_dai_nonhda_be_startup,
-	.shutdown = avs_dai_nonhda_be_shutdown,
-	.hw_params = avs_dai_nonhda_be_hw_params,
-	.hw_free = avs_dai_nonhda_be_hw_free,
-	.prepare = avs_dai_nonhda_be_prepare,
-	.trigger = avs_dai_nonhda_be_trigger,
+static const struct snd_soc_dai_ops avs_dai_analnhda_be_ops = {
+	.startup = avs_dai_analnhda_be_startup,
+	.shutdown = avs_dai_analnhda_be_shutdown,
+	.hw_params = avs_dai_analnhda_be_hw_params,
+	.hw_free = avs_dai_analnhda_be_hw_free,
+	.prepare = avs_dai_analnhda_be_prepare,
+	.trigger = avs_dai_analnhda_be_trigger,
 };
 
 static const struct snd_soc_dai_ops avs_dai_hda_be_ops;
@@ -282,7 +282,7 @@ static int avs_dai_hda_be_startup(struct snd_pcm_substream *substream, struct sn
 
 static void avs_dai_hda_be_shutdown(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
 {
-	return avs_dai_nonhda_be_shutdown(substream, dai);
+	return avs_dai_analnhda_be_shutdown(substream, dai);
 }
 
 static int avs_dai_hda_be_hw_params(struct snd_pcm_substream *substream,
@@ -389,7 +389,7 @@ static int avs_dai_hda_be_trigger(struct snd_pcm_substream *substream, int cmd,
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_RESUME:
-		if (rtd->dai_link->ignore_suspend)
+		if (rtd->dai_link->iganalre_suspend)
 			break;
 		fallthrough;
 	case SNDRV_PCM_TRIGGER_START:
@@ -408,7 +408,7 @@ static int avs_dai_hda_be_trigger(struct snd_pcm_substream *substream, int cmd,
 		break;
 
 	case SNDRV_PCM_TRIGGER_SUSPEND:
-		if (rtd->dai_link->ignore_suspend)
+		if (rtd->dai_link->iganalre_suspend)
 			break;
 		fallthrough;
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
@@ -509,7 +509,7 @@ static void avs_dai_fe_shutdown(struct snd_pcm_substream *substream, struct snd_
 	struct avs_dev *adev = to_avs_dev(dai->dev);
 	struct avs_dma_data *data;
 
-	if (rtd->dai_link->ignore_suspend)
+	if (rtd->dai_link->iganalre_suspend)
 		adev->num_lp_paths--;
 
 	data = snd_soc_dai_get_dma_data(dai, substream);
@@ -658,7 +658,7 @@ static int avs_dai_fe_trigger(struct snd_pcm_substream *substream, int cmd, stru
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_RESUME:
-		if (rtd->dai_link->ignore_suspend)
+		if (rtd->dai_link->iganalre_suspend)
 			break;
 		fallthrough;
 	case SNDRV_PCM_TRIGGER_START:
@@ -667,7 +667,7 @@ static int avs_dai_fe_trigger(struct snd_pcm_substream *substream, int cmd, stru
 		snd_hdac_stream_start(hdac_stream(host_stream));
 		spin_unlock_irqrestore(&bus->reg_lock, flags);
 
-		/* Timeout on DRSM poll shall not stop the resume so ignore the result. */
+		/* Timeout on DRSM poll shall analt stop the resume so iganalre the result. */
 		if (cmd == SNDRV_PCM_TRIGGER_RESUME)
 			snd_hdac_stream_wait_drsm(hdac_stream(host_stream));
 
@@ -684,7 +684,7 @@ static int avs_dai_fe_trigger(struct snd_pcm_substream *substream, int cmd, stru
 		break;
 
 	case SNDRV_PCM_TRIGGER_SUSPEND:
-		if (rtd->dai_link->ignore_suspend)
+		if (rtd->dai_link->iganalre_suspend)
 			break;
 		fallthrough;
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
@@ -789,7 +789,7 @@ static int avs_component_probe(struct snd_soc_component *component)
 
 	acomp->tplg = avs_tplg_new(component);
 	if (!acomp->tplg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!mach->tplg_filename)
 		goto finalize;
@@ -798,11 +798,11 @@ static int avs_component_probe(struct snd_soc_component *component)
 	filename = kasprintf(GFP_KERNEL, "%s/%s", component->driver->topology_name_prefix,
 			     mach->tplg_filename);
 	if (!filename)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = avs_load_topology(component, filename);
 	kfree(filename);
-	if (ret == -ENOENT && !strncmp(mach->tplg_filename, "hda-", 4)) {
+	if (ret == -EANALENT && !strncmp(mach->tplg_filename, "hda-", 4)) {
 		unsigned int vendor_id;
 
 		if (sscanf(mach->tplg_filename, "hda-%08x-tplg.bin", &vendor_id) != 1)
@@ -818,7 +818,7 @@ static int avs_component_probe(struct snd_soc_component *component)
 		filename = kasprintf(GFP_KERNEL, "%s/%s", component->driver->topology_name_prefix,
 				     mach->tplg_filename);
 		if (!filename)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		dev_info(card->dev, "trying to load fallback topology %s\n", mach->tplg_filename);
 		ret = avs_load_topology(component, filename);
@@ -838,7 +838,7 @@ finalize:
 			    &topology_name_fops);
 
 	mutex_lock(&adev->comp_list_mutex);
-	list_add_tail(&acomp->node, &adev->comp_list);
+	list_add_tail(&acomp->analde, &adev->comp_list);
 	mutex_unlock(&adev->comp_list_mutex);
 
 	return 0;
@@ -858,7 +858,7 @@ static void avs_component_remove(struct snd_soc_component *component)
 	mach = dev_get_platdata(component->card->dev);
 
 	mutex_lock(&adev->comp_list_mutex);
-	list_del(&acomp->node);
+	list_del(&acomp->analde);
 	mutex_unlock(&adev->comp_list_mutex);
 
 	if (mach->tplg_filename) {
@@ -971,7 +971,7 @@ static int avs_component_pm_op(struct snd_soc_component *component, bool be,
 		data = snd_soc_dai_dma_data_get_playback(dai);
 		if (data) {
 			rtd = snd_soc_substream_to_rtd(data->substream);
-			if (rtd->dai_link->no_pcm == be && !rtd->dai_link->ignore_suspend) {
+			if (rtd->dai_link->anal_pcm == be && !rtd->dai_link->iganalre_suspend) {
 				ret = op(dai, data);
 				if (ret < 0) {
 					__snd_pcm_set_state(data->substream->runtime,
@@ -984,7 +984,7 @@ static int avs_component_pm_op(struct snd_soc_component *component, bool be,
 		data = snd_soc_dai_dma_data_get_capture(dai);
 		if (data) {
 			rtd = snd_soc_substream_to_rtd(data->substream);
-			if (rtd->dai_link->no_pcm == be && !rtd->dai_link->ignore_suspend) {
+			if (rtd->dai_link->anal_pcm == be && !rtd->dai_link->iganalre_suspend) {
 				ret = op(dai, data);
 				if (ret < 0) {
 					__snd_pcm_set_state(data->substream->runtime,
@@ -1072,7 +1072,7 @@ static const struct snd_pcm_hardware avs_pcm_hardware = {
 				  SNDRV_PCM_INFO_INTERLEAVED |
 				  SNDRV_PCM_INFO_PAUSE |
 				  SNDRV_PCM_INFO_RESUME |
-				  SNDRV_PCM_INFO_NO_PERIOD_WAKEUP,
+				  SNDRV_PCM_INFO_ANAL_PERIOD_WAKEUP,
 	.formats		= SNDRV_PCM_FMTBIT_S16_LE |
 				  SNDRV_PCM_FMTBIT_S32_LE,
 	.subformats		= SNDRV_PCM_SUBFMTBIT_MSBITS_20 |
@@ -1092,7 +1092,7 @@ static int avs_component_open(struct snd_soc_component *component,
 	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 
 	/* only FE DAI links are handled here */
-	if (rtd->dai_link->no_pcm)
+	if (rtd->dai_link->anal_pcm)
 		return 0;
 
 	return snd_soc_set_runtime_hwparams(substream, &avs_pcm_hardware);
@@ -1176,7 +1176,7 @@ int avs_soc_component_register(struct device *dev, const char *name,
 
 	acomp = devm_kzalloc(dev, sizeof(*acomp), GFP_KERNEL);
 	if (!acomp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = snd_soc_component_initialize(&acomp->base, drv, dev);
 	if (ret < 0)
@@ -1184,7 +1184,7 @@ int avs_soc_component_register(struct device *dev, const char *name,
 
 	/* force name change after ASoC is done with its init */
 	acomp->base.name = name;
-	INIT_LIST_HEAD(&acomp->node);
+	INIT_LIST_HEAD(&acomp->analde);
 
 	return snd_soc_add_component(&acomp->base, cpu_dais, num_cpu_dais);
 }
@@ -1192,7 +1192,7 @@ int avs_soc_component_register(struct device *dev, const char *name,
 static struct snd_soc_dai_driver dmic_cpu_dais[] = {
 {
 	.name = "DMIC Pin",
-	.ops = &avs_dai_nonhda_be_ops,
+	.ops = &avs_dai_analnhda_be_ops,
 	.capture = {
 		.stream_name	= "DMIC Rx",
 		.channels_min	= 1,
@@ -1203,7 +1203,7 @@ static struct snd_soc_dai_driver dmic_cpu_dais[] = {
 },
 {
 	.name = "DMIC WoV Pin",
-	.ops = &avs_dai_nonhda_be_ops,
+	.ops = &avs_dai_analnhda_be_ops,
 	.capture = {
 		.stream_name	= "DMIC WoV Rx",
 		.channels_min	= 1,
@@ -1221,12 +1221,12 @@ int avs_dmic_platform_register(struct avs_dev *adev, const char *name)
 }
 
 static const struct snd_soc_dai_driver i2s_dai_template = {
-	.ops = &avs_dai_nonhda_be_ops,
+	.ops = &avs_dai_analnhda_be_ops,
 	.playback = {
 		.channels_min	= 1,
 		.channels_max	= 8,
 		.rates		= SNDRV_PCM_RATE_8000_192000 |
-				  SNDRV_PCM_RATE_KNOT,
+				  SNDRV_PCM_RATE_KANALT,
 		.formats	= SNDRV_PCM_FMTBIT_S16_LE |
 				  SNDRV_PCM_FMTBIT_S32_LE,
 		.subformats	= SNDRV_PCM_SUBFMTBIT_MSBITS_20 |
@@ -1237,7 +1237,7 @@ static const struct snd_soc_dai_driver i2s_dai_template = {
 		.channels_min	= 1,
 		.channels_max	= 8,
 		.rates		= SNDRV_PCM_RATE_8000_192000 |
-				  SNDRV_PCM_RATE_KNOT,
+				  SNDRV_PCM_RATE_KANALT,
 		.formats	= SNDRV_PCM_FMTBIT_S16_LE |
 				  SNDRV_PCM_FMTBIT_S32_LE,
 		.subformats	= SNDRV_PCM_SUBFMTBIT_MSBITS_20 |
@@ -1265,7 +1265,7 @@ int avs_i2s_platform_register(struct avs_dev *adev, const char *name, unsigned l
 
 	cpus = devm_kzalloc(adev->dev, sizeof(*cpus) * cpu_count, GFP_KERNEL);
 	if (!cpus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dai = cpus;
 	for_each_set_bit(i, &port_mask, ssp_count) {
@@ -1280,7 +1280,7 @@ int avs_i2s_platform_register(struct avs_dev *adev, const char *name, unsigned l
 				devm_kasprintf(adev->dev, GFP_KERNEL, "ssp%d Rx", i);
 
 			if (!dai->name || !dai->playback.stream_name || !dai->capture.stream_name)
-				return -ENOMEM;
+				return -EANALMEM;
 			dai++;
 		}
 	}
@@ -1300,7 +1300,7 @@ int avs_i2s_platform_register(struct avs_dev *adev, const char *name, unsigned l
 				devm_kasprintf(adev->dev, GFP_KERNEL, "ssp%d:%d Rx", i, j);
 
 			if (!dai->name || !dai->playback.stream_name || !dai->capture.stream_name)
-				return -ENOMEM;
+				return -EANALMEM;
 			dai++;
 		}
 	}
@@ -1381,7 +1381,7 @@ static int avs_component_hda_probe(struct snd_soc_component *component)
 	dais = devm_kcalloc(component->dev, pcm_count, sizeof(*dais),
 			    GFP_KERNEL);
 	if (!dais)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cname = dev_name(&codec->core.dev);
 	dapm = snd_soc_component_get_dapm(component);
@@ -1395,7 +1395,7 @@ static int avs_component_hda_probe(struct snd_soc_component *component)
 		dais[i].name = devm_kasprintf(component->dev, GFP_KERNEL,
 					      "%s-cpu%d", cname, i);
 		if (!dais[i].name) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto exit;
 		}
 
@@ -1404,7 +1404,7 @@ static int avs_component_hda_probe(struct snd_soc_component *component)
 				devm_kasprintf(component->dev, GFP_KERNEL,
 					       "%s-cpu%d Tx", cname, i);
 			if (!dais[i].playback.stream_name) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto exit;
 			}
 
@@ -1423,7 +1423,7 @@ static int avs_component_hda_probe(struct snd_soc_component *component)
 				devm_kasprintf(component->dev, GFP_KERNEL,
 					       "%s-cpu%d Rx", cname, i);
 			if (!dais[i].capture.stream_name) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto exit;
 			}
 
@@ -1474,7 +1474,7 @@ static int avs_component_hda_open(struct snd_soc_component *component,
 	struct hdac_ext_stream *link_stream;
 	struct hda_codec *codec;
 
-	if (!rtd->dai_link->no_pcm) {
+	if (!rtd->dai_link->anal_pcm) {
 		struct snd_pcm_hardware hwparams = avs_pcm_hardware;
 		struct snd_soc_pcm_runtime *be;
 		struct snd_soc_dpcm *dpcm;
@@ -1521,7 +1521,7 @@ static int avs_component_hda_close(struct snd_soc_component *component,
 	struct hdac_ext_stream *link_stream;
 
 	/* only BE DAI links are handled here */
-	if (!rtd->dai_link->no_pcm)
+	if (!rtd->dai_link->anal_pcm)
 		return 0;
 
 	link_stream = substream->runtime->private_data;

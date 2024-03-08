@@ -105,7 +105,7 @@ union scc2698_block {
 #define MR2_CTS_ENABLE_TX_OFF       (0x0 << 4)
 #define MR2_TxRTS_CONTROL_ON        (0x1 << 5)
 #define MR2_TxRTS_CONTROL_OFF       (0x0 << 5)
-#define MR2_CH_MODE_NORMAL          (0x0 << 6)
+#define MR2_CH_MODE_ANALRMAL          (0x0 << 6)
 #define MR2_CH_MODE_ECHO            (0x1 << 6)
 #define MR2_CH_MODE_LOCAL           (0x2 << 6)
 #define MR2_CH_MODE_REMOTE          (0x3 << 6)

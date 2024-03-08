@@ -32,7 +32,7 @@ struct ft_sess {
 	u64 port_name;			/* port name for transport ID */
 	struct ft_tport *tport;
 	struct se_session *se_sess;
-	struct hlist_node hash;		/* linkage in ft_sess_hash table */
+	struct hlist_analde hash;		/* linkage in ft_sess_hash table */
 	struct rcu_head rcu;
 	struct kref kref;		/* ref for hash and outstanding I/Os */
 };
@@ -48,7 +48,7 @@ struct ft_sess {
  * Per local port data.
  * This is created only after a TPG exists that allows target function
  * for the local port.  If the TPG exists, this is allocated when
- * we're notified that the local port has been created, or when
+ * we're analtified that the local port has been created, or when
  * the first PRLI provider callback is received.
  */
 struct ft_tport {
@@ -60,19 +60,19 @@ struct ft_tport {
 };
 
 /*
- * Node ID and authentication.
+ * Analde ID and authentication.
  */
-struct ft_node_auth {
+struct ft_analde_auth {
 	u64	port_name;
-	u64	node_name;
+	u64	analde_name;
 };
 
 /*
- * Node ACL for FC remote port session.
+ * Analde ACL for FC remote port session.
  */
-struct ft_node_acl {
-	struct se_node_acl se_node_acl;
-	struct ft_node_auth node_auth;
+struct ft_analde_acl {
+	struct se_analde_acl se_analde_acl;
+	struct ft_analde_auth analde_auth;
 };
 
 struct ft_lun {
@@ -95,7 +95,7 @@ struct ft_tpg {
 struct ft_lport_wwn {
 	u64 wwpn;
 	char name[FT_NAMELEN];
-	struct list_head ft_wwn_node;
+	struct list_head ft_wwn_analde;
 	struct ft_tpg *tpg;
 	struct se_wwn se_wwn;
 };
@@ -115,7 +115,7 @@ struct ft_cmd {
 	u32 was_ddp_setup:1;		/* Set only if ddp is setup */
 	u32 aborted:1;			/* Set if aborted by reset or timeout */
 	struct scatterlist *sg;		/* Set only if DDP is setup */
-	u32 sg_cnt;			/* No. of item in scatterlist */
+	u32 sg_cnt;			/* Anal. of item in scatterlist */
 };
 
 extern struct mutex ft_lport_lock;
@@ -136,7 +136,7 @@ u32 ft_sess_get_port_name(struct se_session *, unsigned char *, u32);
 
 void ft_lport_add(struct fc_lport *, void *);
 void ft_lport_del(struct fc_lport *, void *);
-int ft_lport_notify(struct notifier_block *, unsigned long, void *);
+int ft_lport_analtify(struct analtifier_block *, unsigned long, void *);
 
 /*
  * IO methods.

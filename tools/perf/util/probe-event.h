@@ -13,7 +13,7 @@ struct probe_conf {
 	bool	show_ext_vars;
 	bool	show_location_range;
 	bool	force_add;
-	bool	no_inlines;
+	bool	anal_inlines;
 	bool	cache;
 	bool	bootconfig;
 	int	max_probes;
@@ -184,7 +184,7 @@ void arch__fix_tev_from_maps(struct perf_probe_event *pev,
 			     struct probe_trace_event *tev, struct map *map,
 			     struct symbol *sym);
 
-/* If there is no space to write, returns -E2BIG. */
+/* If there is anal space to write, returns -E2BIG. */
 int e_snprintf(char *str, size_t size, const char *format, ...) __printf(3, 4);
 
 /* Maximum index number of event-name postfix */

@@ -149,7 +149,7 @@ static ssize_t fifo_read(struct file *file, char __user *buf,
 static const struct proc_ops fifo_proc_ops = {
 	.proc_read	= fifo_read,
 	.proc_write	= fifo_write,
-	.proc_lseek	= noop_llseek,
+	.proc_lseek	= analop_llseek,
 };
 
 static int __init example_init(void)
@@ -176,7 +176,7 @@ static int __init example_init(void)
 #ifdef DYNAMIC
 		kfifo_free(&test);
 #endif
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	return 0;
 }

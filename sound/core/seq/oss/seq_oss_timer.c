@@ -27,7 +27,7 @@ static int send_timer_event(struct seq_oss_devinfo *dp, int type, int value);
 
 /*
  * create and register a new timer.
- * if queue is not started yet, start it.
+ * if queue is analt started yet, start it.
  */
 struct seq_oss_timer *
 snd_seq_oss_timer_new(struct seq_oss_devinfo *dp)
@@ -52,7 +52,7 @@ snd_seq_oss_timer_new(struct seq_oss_devinfo *dp)
 
 /*
  * delete timer.
- * if no more timer exists, stop the queue.
+ * if anal more timer exists, stop the queue.
  */
 void
 snd_seq_oss_timer_delete(struct seq_oss_timer *rec)
@@ -67,7 +67,7 @@ snd_seq_oss_timer_delete(struct seq_oss_timer *rec)
 /*
  * process one timing event
  * return 1 : event proceseed -- skip this event
- *        0 : not a timer event -- enqueue this event
+ *        0 : analt a timer event -- enqueue this event
  */
 int
 snd_seq_oss_process_timer_event(struct seq_oss_timer *rec, union evrec *ev)
@@ -254,10 +254,10 @@ snd_seq_oss_timer_ioctl(struct seq_oss_timer *timer, unsigned int cmd, int __use
 		calc_alsa_tempo(timer);
 		return 0;
 
-	case SNDCTL_TMR_METRONOME:
+	case SNDCTL_TMR_METROANALME:
 	case SNDCTL_TMR_SELECT:
 	case SNDCTL_TMR_SOURCE:
-		/* not supported */
+		/* analt supported */
 		return 0;
 	}
 	return 0;

@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2009 Renesas Solutions Corp.
  *
- * Kuninori Morimoto <morimoto.kuninori@renesas.com>
+ * Kunianalri Morimoto <morimoto.kunianalri@renesas.com>
  *
  * Based on SH7723 Setup
  * Copyright (C) 2008  Paul Mundt
@@ -19,7 +19,7 @@
 #include <linux/sh_timer.h>
 #include <linux/sh_intc.h>
 #include <linux/io.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 
 #include <asm/suspend.h>
 #include <asm/clock.h>
@@ -290,7 +290,7 @@ static struct platform_device dma1_device = {
 static struct plat_sci_port scif0_platform_data = {
 	.scscr		= SCSCR_REIE,
 	.type           = PORT_SCIF,
-	.regtype	= SCIx_SH4_SCIF_NO_SCSPTR_REGTYPE,
+	.regtype	= SCIx_SH4_SCIF_ANAL_SCSPTR_REGTYPE,
 };
 
 static struct resource scif0_resources[] = {
@@ -311,7 +311,7 @@ static struct platform_device scif0_device = {
 static struct plat_sci_port scif1_platform_data = {
 	.scscr		= SCSCR_REIE,
 	.type           = PORT_SCIF,
-	.regtype	= SCIx_SH4_SCIF_NO_SCSPTR_REGTYPE,
+	.regtype	= SCIx_SH4_SCIF_ANAL_SCSPTR_REGTYPE,
 };
 
 static struct resource scif1_resources[] = {
@@ -332,7 +332,7 @@ static struct platform_device scif1_device = {
 static struct plat_sci_port scif2_platform_data = {
 	.scscr		= SCSCR_REIE,
 	.type           = PORT_SCIF,
-	.regtype	= SCIx_SH4_SCIF_NO_SCSPTR_REGTYPE,
+	.regtype	= SCIx_SH4_SCIF_ANAL_SCSPTR_REGTYPE,
 };
 
 static struct resource scif2_resources[] = {
@@ -1145,11 +1145,11 @@ static struct {
 	unsigned long spuclk;
 } sh7724_rstandby_state;
 
-static int sh7724_pre_sleep_notifier_call(struct notifier_block *nb,
+static int sh7724_pre_sleep_analtifier_call(struct analtifier_block *nb,
 					  unsigned long flags, void *unused)
 {
 	if (!(flags & SUSP_SH_RSTANDBY))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	/* BCR */
 	sh7724_rstandby_state.mmselr = __raw_readl(0xff800020); /* MMSELR */
@@ -1204,14 +1204,14 @@ static int sh7724_pre_sleep_notifier_call(struct notifier_block *nb,
 	sh7724_rstandby_state.irdaclk = __raw_readl(0xa4150018); /* IRDACLKCR */
 	sh7724_rstandby_state.spuclk = __raw_readl(0xa415003c); /* SPUCLKCR */
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static int sh7724_post_sleep_notifier_call(struct notifier_block *nb,
+static int sh7724_post_sleep_analtifier_call(struct analtifier_block *nb,
 					   unsigned long flags, void *unused)
 {
 	if (!(flags & SUSP_SH_RSTANDBY))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	/* BCR */
 	__raw_writel(sh7724_rstandby_state.mmselr, 0xff800020); /* MMSELR */
@@ -1262,26 +1262,26 @@ static int sh7724_post_sleep_notifier_call(struct notifier_block *nb,
 	__raw_writel(sh7724_rstandby_state.irdaclk, 0xa4150018); /* IRDACLKCR */
 	__raw_writel(sh7724_rstandby_state.spuclk, 0xa415003c); /* SPUCLKCR */
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block sh7724_pre_sleep_notifier = {
-	.notifier_call = sh7724_pre_sleep_notifier_call,
+static struct analtifier_block sh7724_pre_sleep_analtifier = {
+	.analtifier_call = sh7724_pre_sleep_analtifier_call,
 	.priority = SH_MOBILE_PRE(SH_MOBILE_SLEEP_CPU),
 };
 
-static struct notifier_block sh7724_post_sleep_notifier = {
-	.notifier_call = sh7724_post_sleep_notifier_call,
+static struct analtifier_block sh7724_post_sleep_analtifier = {
+	.analtifier_call = sh7724_post_sleep_analtifier_call,
 	.priority = SH_MOBILE_POST(SH_MOBILE_SLEEP_CPU),
 };
 
 static int __init sh7724_sleep_setup(void)
 {
-	atomic_notifier_chain_register(&sh_mobile_pre_sleep_notifier_list,
-				       &sh7724_pre_sleep_notifier);
+	atomic_analtifier_chain_register(&sh_mobile_pre_sleep_analtifier_list,
+				       &sh7724_pre_sleep_analtifier);
 
-	atomic_notifier_chain_register(&sh_mobile_post_sleep_notifier_list,
-				       &sh7724_post_sleep_notifier);
+	atomic_analtifier_chain_register(&sh_mobile_post_sleep_analtifier_list,
+				       &sh7724_post_sleep_analtifier);
 	return 0;
 }
 arch_initcall(sh7724_sleep_setup);

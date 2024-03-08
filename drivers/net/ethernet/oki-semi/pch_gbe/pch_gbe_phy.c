@@ -39,8 +39,8 @@
 #define MII_CR_POWER_DOWN       0x0800	/* Power down */
 #define MII_CR_AUTO_NEG_EN      0x1000	/* Auto Neg Enable */
 #define MII_CR_SPEED_SELECT_LSB 0x2000	/* bits 6,13: 10=1000, 01=100, 00=10 */
-#define MII_CR_LOOPBACK         0x4000	/* 0 = normal, 1 = loopback */
-#define MII_CR_RESET            0x8000	/* 0 = normal, 1 = PHY reset */
+#define MII_CR_LOOPBACK         0x4000	/* 0 = analrmal, 1 = loopback */
+#define MII_CR_RESET            0x8000	/* 0 = analrmal, 1 = PHY reset */
 #define MII_CR_SPEED_1000       0x0040
 #define MII_CR_SPEED_100        0x2000
 #define MII_CR_SPEED_10         0x0000
@@ -225,8 +225,8 @@ void pch_gbe_phy_power_down(struct pch_gbe_hw *hw)
 	u16 mii_reg;
 
 	mii_reg = 0;
-	/* Power down the PHY so no link is implied when interface is down *
-	 * The PHY cannot be powered down if any of the following is TRUE *
+	/* Power down the PHY so anal link is implied when interface is down *
+	 * The PHY cananalt be powered down if any of the following is TRUE *
 	 * (a) WoL is enabled
 	 * (b) AMT is active
 	 */
@@ -279,14 +279,14 @@ static int pch_gbe_phy_tx_clk_delay(struct pch_gbe_hw *hw)
 		break;
 	default:
 		netdev_err(adapter->netdev,
-			   "Unknown PHY (%x), could not set TX clock delay\n",
+			   "Unkanalwn PHY (%x), could analt set TX clock delay\n",
 			   hw->phy.id);
 		return -EINVAL;
 	}
 
 	if (ret)
 		netdev_err(adapter->netdev,
-			   "Could not configure tx clock delay for PHY\n");
+			   "Could analt configure tx clock delay for PHY\n");
 	return ret;
 }
 
@@ -352,13 +352,13 @@ int pch_gbe_phy_disable_hibernate(struct pch_gbe_hw *hw)
 		break;
 	default:
 		netdev_err(adapter->netdev,
-			   "Unknown PHY (%x), could not disable hibernation\n",
+			   "Unkanalwn PHY (%x), could analt disable hibernation\n",
 			   hw->phy.id);
 		return -EINVAL;
 	}
 
 	if (ret)
 		netdev_err(adapter->netdev,
-			   "Could not disable PHY hibernation\n");
+			   "Could analt disable PHY hibernation\n");
 	return ret;
 }

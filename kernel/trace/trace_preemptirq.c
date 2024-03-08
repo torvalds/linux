@@ -16,14 +16,14 @@
 #include <trace/events/preemptirq.h>
 
 /*
- * Use regular trace points on architectures that implement noinstr
+ * Use regular trace points on architectures that implement analinstr
  * tooling: these calls will only happen with RCU enabled, which can
  * use a regular tracepoint.
  *
  * On older architectures, use the rcuidle tracing methods (which
  * aren't NMI-safe - so exclude NMI contexts):
  */
-#ifdef CONFIG_ARCH_WANTS_NO_INSTR
+#ifdef CONFIG_ARCH_WANTS_ANAL_INSTR
 #define trace(point)	trace_##point
 #else
 #define trace(point)	if (!in_nmi()) trace_##point##_rcuidle
@@ -48,7 +48,7 @@ void trace_hardirqs_on_prepare(void)
 	}
 }
 EXPORT_SYMBOL(trace_hardirqs_on_prepare);
-NOKPROBE_SYMBOL(trace_hardirqs_on_prepare);
+ANALKPROBE_SYMBOL(trace_hardirqs_on_prepare);
 
 void trace_hardirqs_on(void)
 {
@@ -62,7 +62,7 @@ void trace_hardirqs_on(void)
 	lockdep_hardirqs_on(CALLER_ADDR0);
 }
 EXPORT_SYMBOL(trace_hardirqs_on);
-NOKPROBE_SYMBOL(trace_hardirqs_on);
+ANALKPROBE_SYMBOL(trace_hardirqs_on);
 
 /*
  * Like trace_hardirqs_off() but without the lockdep invocation. This is
@@ -80,7 +80,7 @@ void trace_hardirqs_off_finish(void)
 
 }
 EXPORT_SYMBOL(trace_hardirqs_off_finish);
-NOKPROBE_SYMBOL(trace_hardirqs_off_finish);
+ANALKPROBE_SYMBOL(trace_hardirqs_off_finish);
 
 void trace_hardirqs_off(void)
 {
@@ -93,7 +93,7 @@ void trace_hardirqs_off(void)
 	}
 }
 EXPORT_SYMBOL(trace_hardirqs_off);
-NOKPROBE_SYMBOL(trace_hardirqs_off);
+ANALKPROBE_SYMBOL(trace_hardirqs_off);
 #endif /* CONFIG_TRACE_IRQFLAGS */
 
 #ifdef CONFIG_TRACE_PREEMPT_TOGGLE

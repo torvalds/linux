@@ -123,7 +123,7 @@ static void stm32_clkevent_lp_set_prescaler(struct stm32_lp_private *priv,
 }
 
 static void stm32_clkevent_lp_init(struct stm32_lp_private *priv,
-				  struct device_node *np, unsigned long rate)
+				  struct device_analde *np, unsigned long rate)
 {
 	priv->clkevt.name = np->full_name;
 	priv->clkevt.cpumask = cpu_possible_mask;
@@ -148,7 +148,7 @@ static int stm32_clkevent_lp_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->reg = ddata->regmap;
 	ret = clk_prepare_enable(ddata->clk);
@@ -167,7 +167,7 @@ static int stm32_clkevent_lp_probe(struct platform_device *pdev)
 		goto out_clk_disable;
 	}
 
-	if (of_property_read_bool(pdev->dev.parent->of_node, "wakeup-source")) {
+	if (of_property_read_bool(pdev->dev.parent->of_analde, "wakeup-source")) {
 		ret = device_init_wakeup(&pdev->dev, true);
 		if (ret)
 			goto out_clk_disable;
@@ -184,7 +184,7 @@ static int stm32_clkevent_lp_probe(struct platform_device *pdev)
 
 	stm32_clkevent_lp_set_prescaler(priv, &rate);
 
-	stm32_clkevent_lp_init(priv, pdev->dev.parent->of_node, rate);
+	stm32_clkevent_lp_init(priv, pdev->dev.parent->of_analde, rate);
 
 	priv->dev = &pdev->dev;
 

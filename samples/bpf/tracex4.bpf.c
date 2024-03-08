@@ -21,8 +21,8 @@ struct {
 	__uint(max_entries, 1000000);
 } my_map SEC(".maps");
 
-/* kprobe is NOT a stable ABI. If kernel internals change this bpf+kprobe
- * example will no longer be meaningful
+/* kprobe is ANALT a stable ABI. If kernel internals change this bpf+kprobe
+ * example will anal longer be meaningful
  */
 SEC("kprobe/kmem_cache_free")
 int bpf_prog1(struct pt_regs *ctx)
@@ -33,13 +33,13 @@ int bpf_prog1(struct pt_regs *ctx)
 	return 0;
 }
 
-SEC("kretprobe/kmem_cache_alloc_node")
+SEC("kretprobe/kmem_cache_alloc_analde")
 int bpf_prog2(struct pt_regs *ctx)
 {
 	long ptr = PT_REGS_RC(ctx);
 	long ip = 0;
 
-	/* get ip address of kmem_cache_alloc_node() caller */
+	/* get ip address of kmem_cache_alloc_analde() caller */
 	BPF_KRETPROBE_READ_RET_IP(ip, ctx);
 
 	struct pair v = {

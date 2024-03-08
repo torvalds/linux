@@ -21,7 +21,7 @@
 #include <linux/in.h>
 #include <linux/in6.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
 #include <net/ipv6.h>
@@ -70,7 +70,7 @@ enum {
  *
  * For AF_LOCAL SET/UNSET requests, rpcbind treats this string as a
  * UID which it maps to a local user name via a password lookup.
- * In all other cases it is ignored.
+ * In all other cases it is iganalred.
  *
  * For SET/UNSET requests, user space provides a value, even for
  * network requests, and GETADDR uses an empty string.  We follow
@@ -105,7 +105,7 @@ enum {
 #define RPCB_setres_sz		RPCB_boolean_sz
 
 /*
- * Note that RFC 1833 does not put any size restrictions on the
+ * Analte that RFC 1833 does analt put any size restrictions on the
  * address string returned by the remote rpcbind database.
  */
 #define RPCB_getaddrres_sz	RPCB_addr_sz
@@ -222,7 +222,7 @@ static void rpcb_set_local(struct net *net, struct rpc_clnt *clnt,
 		      + 1 + strlen((ptr)->sun_path + 1))
 
 /*
- * Returns zero on success, otherwise a negative errno value
+ * Returns zero on success, otherwise a negative erranal value
  * is returned.
  */
 static int rpcb_create_af_local(struct net *net,
@@ -245,7 +245,7 @@ static int rpcb_create_af_local(struct net *net,
 		 * of the caller and somehow pass that to the socket
 		 * reconnect code.
 		 */
-		.flags		= RPC_CLNT_CREATE_NO_IDLE_TIMEOUT,
+		.flags		= RPC_CLNT_CREATE_ANAL_IDLE_TIMEOUT,
 	};
 	struct rpc_clnt *clnt, *clnt4;
 	int result = 0;
@@ -292,7 +292,7 @@ static int rpcb_create_local_unix(struct net *net)
 }
 
 /*
- * Returns zero on success, otherwise a negative errno value
+ * Returns zero on success, otherwise a negative erranal value
  * is returned.
  */
 static int rpcb_create_local_net(struct net *net)
@@ -312,7 +312,7 @@ static int rpcb_create_local_net(struct net *net)
 		.version	= RPCBVERS_2,
 		.authflavor	= RPC_AUTH_UNIX,
 		.cred		= current_cred(),
-		.flags		= RPC_CLNT_CREATE_NOPING,
+		.flags		= RPC_CLNT_CREATE_ANALPING,
 	};
 	struct rpc_clnt *clnt, *clnt4;
 	int result = 0;
@@ -339,7 +339,7 @@ out:
 }
 
 /*
- * Returns zero on success, otherwise a negative errno value
+ * Returns zero on success, otherwise a negative erranal value
  * is returned.
  */
 int rpcb_create_local(struct net *net)
@@ -363,7 +363,7 @@ out:
 	return result;
 }
 
-static struct rpc_clnt *rpcb_create(struct net *net, const char *nodename,
+static struct rpc_clnt *rpcb_create(struct net *net, const char *analdename,
 				    const char *hostname,
 				    struct sockaddr *srvaddr, size_t salen,
 				    int proto, u32 version,
@@ -377,13 +377,13 @@ static struct rpc_clnt *rpcb_create(struct net *net, const char *nodename,
 		.addrsize	= salen,
 		.timeout	= timeo,
 		.servername	= hostname,
-		.nodename	= nodename,
+		.analdename	= analdename,
 		.program	= &rpcb_program,
 		.version	= version,
 		.authflavor	= RPC_AUTH_UNIX,
 		.cred		= cred,
-		.flags		= (RPC_CLNT_CREATE_NOPING |
-					RPC_CLNT_CREATE_NONPRIVPORT),
+		.flags		= (RPC_CLNT_CREATE_ANALPING |
+					RPC_CLNT_CREATE_ANALNPRIVPORT),
 	};
 
 	switch (srvaddr->sa_family) {
@@ -394,7 +394,7 @@ static struct rpc_clnt *rpcb_create(struct net *net, const char *nodename,
 		((struct sockaddr_in6 *)srvaddr)->sin6_port = htons(RPCBIND_PORT);
 		break;
 	default:
-		return ERR_PTR(-EAFNOSUPPORT);
+		return ERR_PTR(-EAFANALSUPPORT);
 	}
 
 	return rpc_create(&args);
@@ -402,7 +402,7 @@ static struct rpc_clnt *rpcb_create(struct net *net, const char *nodename,
 
 static int rpcb_register_call(struct sunrpc_net *sn, struct rpc_clnt *clnt, struct rpc_message *msg, bool is_set)
 {
-	int flags = RPC_TASK_NOCONNECT;
+	int flags = RPC_TASK_ANALCONNECT;
 	int error, result = 0;
 
 	if (is_set || !sn->rpcb_is_af_local)
@@ -427,8 +427,8 @@ static int rpcb_register_call(struct sunrpc_net *sn, struct rpc_clnt *clnt, stru
  * @port: port value to register
  *
  * Returns zero if the registration request was dispatched successfully
- * and the rpcbind daemon returned success.  Otherwise, returns an errno
- * value that reflects the nature of the error (request could not be
+ * and the rpcbind daemon returned success.  Otherwise, returns an erranal
+ * value that reflects the nature of the error (request could analt be
  * dispatched, timed out, or rpcbind returned an error).
  *
  * RPC services invoke this function to advertise their contact
@@ -436,7 +436,7 @@ static int rpcb_register_call(struct sunrpc_net *sn, struct rpc_clnt *clnt, stru
  * invoke this function once for each [program, version, transport]
  * tuple they wish to advertise.
  *
- * Callers may also unregister RPC services that are no longer
+ * Callers may also unregister RPC services that are anal longer
  * available by setting the passed-in port to zero.  This removes
  * all registered transports for [program, version] from the local
  * rpcbind database.
@@ -550,8 +550,8 @@ static int rpcb_unregister_all_protofamilies(struct sunrpc_net *sn,
  * @netid: netid of transport protocol to (un)register
  *
  * Returns zero if the registration request was dispatched successfully
- * and the rpcbind daemon returned success.  Otherwise, returns an errno
- * value that reflects the nature of the error (request could not be
+ * and the rpcbind daemon returned success.  Otherwise, returns an erranal
+ * value that reflects the nature of the error (request could analt be
  * dispatched, timed out, or rpcbind returned an error).
  *
  * RPC services invoke this function to advertise their contact
@@ -576,13 +576,13 @@ static int rpcb_unregister_all_protofamilies(struct sunrpc_net *sn,
  *
  * The contents of @address determine the address family and the
  * port to be registered.  The usual practice is to pass INADDR_ANY
- * as the raw address, but specifying a non-zero address is also
+ * as the raw address, but specifying a analn-zero address is also
  * supported by this API if the caller wishes to advertise an RPC
  * service on a specific network interface.
  *
- * Note that passing in INADDR_ANY does not create the same service
+ * Analte that passing in INADDR_ANY does analt create the same service
  * registration as IN6ADDR_ANY.  The former advertises an RPC
- * service on any IPv4 address, but not on IPv6.  The latter
+ * service on any IPv4 address, but analt on IPv6.  The latter
  * advertises the service on all IPv4 and IPv6 addresses.
  */
 int rpcb_v4_register(struct net *net, const u32 program, const u32 version,
@@ -600,7 +600,7 @@ int rpcb_v4_register(struct net *net, const u32 program, const u32 version,
 	struct sunrpc_net *sn = net_generic(net, sunrpc_net_id);
 
 	if (sn->rpcb_local_clnt4 == NULL)
-		return -EPROTONOSUPPORT;
+		return -EPROTOANALSUPPORT;
 
 	if (address == NULL)
 		return rpcb_unregister_all_protofamilies(sn, &msg);
@@ -614,7 +614,7 @@ int rpcb_v4_register(struct net *net, const u32 program, const u32 version,
 		return rpcb_register_inet6(sn, address, &msg);
 	}
 
-	return -EAFNOSUPPORT;
+	return -EAFANALSUPPORT;
 }
 
 static struct rpc_task *rpcb_call_async(struct rpc_clnt *rpcb_clnt,
@@ -685,7 +685,7 @@ void rpcb_getport_async(struct rpc_task *task)
 	rcu_read_unlock();
 	xprt = xprt_get(task->tk_xprt);
 
-	/* Put self on the wait queue to ensure we get notified if
+	/* Put self on the wait queue to ensure we get analtified if
 	 * some other task is already attempting to bind the port */
 	rpc_sleep_on_timeout(&xprt->binding, task,
 			NULL, jiffies + xprt->bind_timeout);
@@ -698,7 +698,7 @@ void rpcb_getport_async(struct rpc_task *task)
 	/* Someone else may have bound if we slept */
 	if (xprt_bound(xprt)) {
 		status = 0;
-		goto bailout_nofree;
+		goto bailout_analfree;
 	}
 
 	/* Parent transport's destination address */
@@ -715,31 +715,31 @@ void rpcb_getport_async(struct rpc_task *task)
 		bind_version = rpcb_next_version6[xprt->bind_index].rpc_vers;
 		break;
 	default:
-		status = -EAFNOSUPPORT;
-		goto bailout_nofree;
+		status = -EAFANALSUPPORT;
+		goto bailout_analfree;
 	}
 	if (proc == NULL) {
 		xprt->bind_index = 0;
-		status = -EPFNOSUPPORT;
-		goto bailout_nofree;
+		status = -EPFANALSUPPORT;
+		goto bailout_analfree;
 	}
 
 	trace_rpcb_getport(clnt, task, bind_version);
 
 	rpcb_clnt = rpcb_create(xprt->xprt_net,
-				clnt->cl_nodename,
+				clnt->cl_analdename,
 				xprt->servername, sap, salen,
 				xprt->prot, bind_version,
 				clnt->cl_cred,
 				task->tk_client->cl_timeout);
 	if (IS_ERR(rpcb_clnt)) {
 		status = PTR_ERR(rpcb_clnt);
-		goto bailout_nofree;
+		goto bailout_analfree;
 	}
 
 	map = kzalloc(sizeof(struct rpcbind_args), rpc_task_gfp_mask());
 	if (!map) {
-		status = -ENOMEM;
+		status = -EANALMEM;
 		goto bailout_release_client;
 	}
 	map->r_prog = clnt->cl_prog;
@@ -755,7 +755,7 @@ void rpcb_getport_async(struct rpc_task *task)
 		map->r_netid = xprt->address_strings[RPC_DISPLAY_NETID];
 		map->r_addr = rpc_sockaddr2uaddr(sap, rpc_task_gfp_mask());
 		if (!map->r_addr) {
-			status = -ENOMEM;
+			status = -EANALMEM;
 			goto bailout_free_args;
 		}
 		map->r_owner = "";
@@ -782,7 +782,7 @@ bailout_free_args:
 	kfree(map);
 bailout_release_client:
 	rpc_release_client(rpcb_clnt);
-bailout_nofree:
+bailout_analfree:
 	rpcb_wake_rpcbind_waiters(xprt, status);
 	task->tk_status = status;
 	xprt_put(xprt);
@@ -801,14 +801,14 @@ static void rpcb_getport_done(struct rpc_task *child, void *data)
 
 	/* Garbage reply: retry with a lesser rpcbind version */
 	if (map->r_status == -EIO)
-		map->r_status = -EPROTONOSUPPORT;
+		map->r_status = -EPROTOANALSUPPORT;
 
 	/* rpcbind server doesn't support this rpcbind protocol version */
-	if (map->r_status == -EPROTONOSUPPORT)
+	if (map->r_status == -EPROTOANALSUPPORT)
 		xprt->bind_index++;
 
 	if (map->r_status < 0) {
-		/* rpcbind server not available on remote host? */
+		/* rpcbind server analt available on remote host? */
 		map->r_port = 0;
 
 	} else if (map->r_port == 0) {
@@ -927,7 +927,7 @@ static int rpcb_dec_getaddr(struct rpc_rqst *req, struct xdr_stream *xdr,
 
 	/*
 	 * If the returned universal address is a null string,
-	 * the requested RPC service was not registered.
+	 * the requested RPC service was analt registered.
 	 */
 	if (len == 0)
 		return 0;
@@ -951,7 +951,7 @@ out_fail:
 }
 
 /*
- * Not all rpcbind procedures described in RFC 1833 are implemented
+ * Analt all rpcbind procedures described in RFC 1833 are implemented
  * since the Linux kernel RPC code requires only these.
  */
 

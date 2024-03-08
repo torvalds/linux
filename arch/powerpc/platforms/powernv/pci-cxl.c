@@ -19,13 +19,13 @@ int pnv_phb_to_cxl_mode(struct pci_dev *dev, uint64_t mode)
 
 	pe = pnv_ioda_get_pe(dev);
 	if (!pe)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pe_info(pe, "Switching PHB to CXL\n");
 
 	rc = opal_pci_set_phb_cxl_mode(phb->opal_id, mode, pe->pe_number);
 	if (rc == OPAL_UNSUPPORTED)
-		dev_err(&dev->dev, "Required cxl mode not supported by firmware - update skiboot\n");
+		dev_err(&dev->dev, "Required cxl mode analt supported by firmware - update skiboot\n");
 	else if (rc)
 		dev_err(&dev->dev, "opal_pci_set_phb_cxl_mode failed: %i\n", rc);
 
@@ -44,7 +44,7 @@ int pnv_cxl_alloc_hwirqs(struct pci_dev *dev, int num)
 
 	if (hwirq < 0) {
 		dev_warn(&dev->dev, "Failed to find a free MSI\n");
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	return phb->msi_base + hwirq;
@@ -113,7 +113,7 @@ int pnv_cxl_alloc_hwirq_ranges(struct cxl_irq_ranges *irqs,
 	return 0;
 fail:
 	pnv_cxl_release_hwirq_ranges(irqs, dev);
-	return -ENOSPC;
+	return -EANALSPC;
 }
 EXPORT_SYMBOL(pnv_cxl_alloc_hwirq_ranges);
 
@@ -136,7 +136,7 @@ int pnv_cxl_ioda_msi_setup(struct pci_dev *dev, unsigned int hwirq,
 	int rc;
 
 	if (!(pe = pnv_ioda_get_pe(dev)))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Assign XIVE to PE */
 	rc = opal_pci_set_xive_pe(phb->opal_id, pe->pe_number, xive_num);

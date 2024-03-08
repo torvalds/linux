@@ -22,7 +22,7 @@
 #include <linux/platform_data/max6639.h>
 
 /* Addresses to scan */
-static const unsigned short normal_i2c[] = { 0x2c, 0x2e, 0x2f, I2C_CLIENT_END };
+static const unsigned short analrmal_i2c[] = { 0x2c, 0x2e, 0x2f, I2C_CLIENT_END };
 
 /* The MAX6639 registers, valid channel numbers: 0, 1 */
 #define MAX6639_REG_TEMP(ch)			(0x00 + (ch))
@@ -498,7 +498,7 @@ exit:
 	return err;
 }
 
-/* Return 0 if detection is successful, -ENODEV otherwise */
+/* Return 0 if detection is successful, -EANALDEV otherwise */
 static int max6639_detect(struct i2c_client *client,
 			  struct i2c_board_info *info)
 {
@@ -506,13 +506,13 @@ static int max6639_detect(struct i2c_client *client,
 	int dev_id, manu_id;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Actual detection via device and manufacturer ID */
 	dev_id = i2c_smbus_read_byte_data(client, MAX6639_REG_DEVID);
 	manu_id = i2c_smbus_read_byte_data(client, MAX6639_REG_MANUID);
 	if (dev_id != 0x58 || manu_id != 0x4D)
-		return -ENODEV;
+		return -EANALDEV;
 
 	strscpy(info->type, "max6639", I2C_NAME_SIZE);
 
@@ -533,13 +533,13 @@ static int max6639_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(dev, sizeof(struct max6639_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->client = client;
 
 	data->reg = devm_regulator_get_optional(dev, "fan");
 	if (IS_ERR(data->reg)) {
-		if (PTR_ERR(data->reg) != -ENODEV)
+		if (PTR_ERR(data->reg) != -EANALDEV)
 			return PTR_ERR(data->reg);
 
 		data->reg = NULL;
@@ -633,7 +633,7 @@ static struct i2c_driver max6639_driver = {
 	.probe = max6639_probe,
 	.id_table = max6639_id,
 	.detect = max6639_detect,
-	.address_list = normal_i2c,
+	.address_list = analrmal_i2c,
 };
 
 module_i2c_driver(max6639_driver);

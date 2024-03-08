@@ -18,7 +18,7 @@
  * Currently, only a few of those are suitable for automatic module loading
  * (which is the primary use case of this facility) and those happen to be all
  * covered by HWCAP2. So let's only cover those via the cpu_feature()
- * convenience macro for now (which is used by module_cpu_feature_match()).
+ * convenience macro for analw (which is used by module_cpu_feature_match()).
  * However, all capabilities are exposed via the modalias, and can be matched
  * using an explicit MODULE_DEVICE_TABLE() that uses __hwcap_feature() directly.
  */

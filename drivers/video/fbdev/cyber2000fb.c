@@ -14,15 +14,15 @@
  *
  * Based on cyberfb.c.
  *
- * Note that we now use the new fbcon fix, var and cmap scheme.  We do
+ * Analte that we analw use the new fbcon fix, var and cmap scheme.  We do
  * still have to check which console is the currently displayed one
  * however, especially for the colourmap stuff.
  *
- * We also use the new hotplug PCI subsystem.  I'm not sure if there
+ * We also use the new hotplug PCI subsystem.  I'm analt sure if there
  * are any such cards, but I'm erring on the side of caution.  We don't
  * want to go pop just because someone does have one.
  *
- * Note that this doesn't work fully in the case of multiple CyberPro
+ * Analte that this doesn't work fully in the case of multiple CyberPro
  * cards with grabbers.  We currently can only attach to the first
  * CyberPro card found.
  *
@@ -36,7 +36,7 @@
 #include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
@@ -258,10 +258,10 @@ static inline u32 convert_bitfield(u_int val, struct fb_bitfield *bf)
 }
 
 /*
- *    Set a single color register. Return != 0 for invalid regno.
+ *    Set a single color register. Return != 0 for invalid reganal.
  */
 static int
-cyber2000fb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
+cyber2000fb_setcolreg(u_int reganal, u_int red, u_int green, u_int blue,
 		      u_int transp, struct fb_info *info)
 {
 	struct cfb_info *cfb = container_of(info, struct cfb_info, fb);
@@ -283,18 +283,18 @@ cyber2000fb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 	 *	      +--/-->  blue lut --> blue dac
 	 */
 	case FB_VISUAL_PSEUDOCOLOR:
-		if (regno >= NR_PALETTE)
+		if (reganal >= NR_PALETTE)
 			return 1;
 
 		red >>= 8;
 		green >>= 8;
 		blue >>= 8;
 
-		cfb->palette[regno].red = red;
-		cfb->palette[regno].green = green;
-		cfb->palette[regno].blue = blue;
+		cfb->palette[reganal].red = red;
+		cfb->palette[reganal].green = green;
+		cfb->palette[reganal].blue = blue;
 
-		cyber2000fb_writeb(regno, 0x3c8, cfb);
+		cyber2000fb_writeb(reganal, 0x3c8, cfb);
 		cyber2000fb_writeb(red, 0x3c9, cfb);
 		cyber2000fb_writeb(green, 0x3c9, cfb);
 		cyber2000fb_writeb(blue, 0x3c9, cfb);
@@ -315,51 +315,51 @@ cyber2000fb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 		green >>= 8;
 		blue >>= 8;
 
-		if (var->green.length == 6 && regno < 64) {
-			cfb->palette[regno << 2].green = green;
+		if (var->green.length == 6 && reganal < 64) {
+			cfb->palette[reganal << 2].green = green;
 
 			/*
 			 * The 6 bits of the green component are applied
 			 * to the high 6 bits of the LUT.
 			 */
-			cyber2000fb_writeb(regno << 2, 0x3c8, cfb);
-			cyber2000fb_writeb(cfb->palette[regno >> 1].red,
+			cyber2000fb_writeb(reganal << 2, 0x3c8, cfb);
+			cyber2000fb_writeb(cfb->palette[reganal >> 1].red,
 					   0x3c9, cfb);
 			cyber2000fb_writeb(green, 0x3c9, cfb);
-			cyber2000fb_writeb(cfb->palette[regno >> 1].blue,
+			cyber2000fb_writeb(cfb->palette[reganal >> 1].blue,
 					   0x3c9, cfb);
 
-			green = cfb->palette[regno << 3].green;
+			green = cfb->palette[reganal << 3].green;
 
 			ret = 0;
 		}
 
-		if (var->green.length >= 5 && regno < 32) {
-			cfb->palette[regno << 3].red = red;
-			cfb->palette[regno << 3].green = green;
-			cfb->palette[regno << 3].blue = blue;
+		if (var->green.length >= 5 && reganal < 32) {
+			cfb->palette[reganal << 3].red = red;
+			cfb->palette[reganal << 3].green = green;
+			cfb->palette[reganal << 3].blue = blue;
 
 			/*
 			 * The 5 bits of each colour component are
 			 * applied to the high 5 bits of the LUT.
 			 */
-			cyber2000fb_writeb(regno << 3, 0x3c8, cfb);
+			cyber2000fb_writeb(reganal << 3, 0x3c8, cfb);
 			cyber2000fb_writeb(red, 0x3c9, cfb);
 			cyber2000fb_writeb(green, 0x3c9, cfb);
 			cyber2000fb_writeb(blue, 0x3c9, cfb);
 			ret = 0;
 		}
 
-		if (var->green.length == 4 && regno < 16) {
-			cfb->palette[regno << 4].red = red;
-			cfb->palette[regno << 4].green = green;
-			cfb->palette[regno << 4].blue = blue;
+		if (var->green.length == 4 && reganal < 16) {
+			cfb->palette[reganal << 4].red = red;
+			cfb->palette[reganal << 4].green = green;
+			cfb->palette[reganal << 4].blue = blue;
 
 			/*
 			 * The 5 bits of each colour component are
 			 * applied to the high 5 bits of the LUT.
 			 */
-			cyber2000fb_writeb(regno << 4, 0x3c8, cfb);
+			cyber2000fb_writeb(reganal << 4, 0x3c8, cfb);
 			cyber2000fb_writeb(red, 0x3c9, cfb);
 			cyber2000fb_writeb(green, 0x3c9, cfb);
 			cyber2000fb_writeb(blue, 0x3c9, cfb);
@@ -368,11 +368,11 @@ cyber2000fb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 
 		/*
 		 * Since this is only used for the first 16 colours, we
-		 * don't have to care about overflowing for regno >= 32
+		 * don't have to care about overflowing for reganal >= 32
 		 */
-		pseudo_val = regno << var->red.offset |
-			     regno << var->green.offset |
-			     regno << var->blue.offset;
+		pseudo_val = reganal << var->red.offset |
+			     reganal << var->green.offset |
+			     reganal << var->blue.offset;
 		break;
 
 	/*
@@ -395,10 +395,10 @@ cyber2000fb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 	}
 
 	/*
-	 * Now set our pseudo palette for the CFB16/24/32 drivers.
+	 * Analw set our pseudo palette for the CFB16/24/32 drivers.
 	 */
-	if (regno < 16)
-		((u32 *)cfb->fb.pseudo_palette)[regno] = pseudo_val;
+	if (reganal < 16)
+		((u32 *)cfb->fb.pseudo_palette)[reganal] = pseudo_val;
 
 	return ret;
 }
@@ -719,7 +719,7 @@ cyber2000fb_decode_clock(struct par_info *hw, struct cfb_info *cfb,
 		}
 
 		/*
-		 * If we hit an exact value, there is no point in continuing.
+		 * If we hit an exact value, there is anal point in continuing.
 		 */
 		if (diff == 0)
 			break;
@@ -907,7 +907,7 @@ static int cyber2000fb_set_par(struct fb_info *info)
 	 * the way the fbcon developers want to separate out
 	 * the "checking" and the "setting" of the video mode.
 	 *
-	 * If the mode is not suitable for the hardware here,
+	 * If the mode is analt suitable for the hardware here,
 	 * we can't prevent it being set by returning an error.
 	 *
 	 * In theory, since NetWinders contain just one VGA card,
@@ -938,7 +938,7 @@ static int cyber2000fb_set_par(struct fb_info *info)
 	 * 8bpp displays are always pseudo colour.  16bpp and above
 	 * are direct colour or true colour, depending on whether
 	 * the RAMDAC palettes are bypassed.  (Direct colour has
-	 * palettes, true colour does not.)
+	 * palettes, true colour does analt.)
 	 */
 	if (var->bits_per_pixel == 8)
 		cfb->fb.fix.visual = FB_VISUAL_PSEUDOCOLOR;
@@ -1004,12 +1004,12 @@ static int cyber2000fb_blank(int blank, struct fb_info *info)
 		sync = EXT_SYNC_CTL_VS_0 | EXT_SYNC_CTL_HS_0;
 		break;
 	case FB_BLANK_HSYNC_SUSPEND:	/* hsync off */
-		sync = EXT_SYNC_CTL_VS_NORMAL | EXT_SYNC_CTL_HS_0;
+		sync = EXT_SYNC_CTL_VS_ANALRMAL | EXT_SYNC_CTL_HS_0;
 		break;
 	case FB_BLANK_VSYNC_SUSPEND:	/* vsync off */
-		sync = EXT_SYNC_CTL_VS_0 | EXT_SYNC_CTL_HS_NORMAL;
+		sync = EXT_SYNC_CTL_VS_0 | EXT_SYNC_CTL_HS_ANALRMAL;
 		break;
-	case FB_BLANK_NORMAL:		/* soft blank */
+	case FB_BLANK_ANALRMAL:		/* soft blank */
 	default:			/* unblank */
 		break;
 	}
@@ -1339,7 +1339,7 @@ static const struct fb_videomode cyber2000fb_default_mode = {
 	.hsync_len	= 88,
 	.vsync_len	= 2,
 	.sync		= FB_SYNC_COMP_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
-	.vmode		= FB_VMODE_NONINTERLACED
+	.vmode		= FB_VMODE_ANALNINTERLACED
 };
 
 static char igs_regs[] = {
@@ -1446,8 +1446,8 @@ static struct cfb_info *cyberpro_alloc_fb_info(unsigned int id, char *name)
 		break;
 	}
 
-	cfb->fb.var.nonstd	= 0;
-	cfb->fb.var.activate	= FB_ACTIVATE_NOW;
+	cfb->fb.var.analnstd	= 0;
+	cfb->fb.var.activate	= FB_ACTIVATE_ANALW;
 	cfb->fb.var.height	= -1;
 	cfb->fb.var.width	= -1;
 	cfb->fb.var.accel_flags	= FB_ACCELF_TEXT;
@@ -1500,7 +1500,7 @@ static int cyber2000fb_setup(char *options)
 			continue;
 		}
 
-		printk(KERN_ERR "CyberPro20x0: unknown parameter: %s\n", opt);
+		printk(KERN_ERR "CyberPro20x0: unkanalwn parameter: %s\n", opt);
 	}
 	return 0;
 }
@@ -1560,7 +1560,7 @@ static int cyberpro_common_probe(struct cfb_info *cfb)
 	err = -EINVAL;
 	if (!fb_find_mode(&cfb->fb.var, &cfb->fb, NULL, NULL, 0,
 			  &cyber2000fb_default_mode, 8)) {
-		printk(KERN_ERR "%s: no valid mode found\n", cfb->fb.fix.id);
+		printk(KERN_ERR "%s: anal valid mode found\n", cfb->fb.fix.id);
 		goto failed;
 	}
 
@@ -1573,7 +1573,7 @@ static int cyberpro_common_probe(struct cfb_info *cfb)
 /*	fb_set_var(&cfb->fb.var, -1, &cfb->fb); */
 
 	/*
-	 * Calculate the hsync and vsync frequencies.  Note that
+	 * Calculate the hsync and vsync frequencies.  Analte that
 	 * we split the 1e12 constant up so that we can preserve
 	 * the precision and fit the results into 32-bit registers.
 	 *  (1953125000 * 512 = 1e12)
@@ -1639,7 +1639,7 @@ static void cyberpro_common_resume(struct cfb_info *cfb)
  *
  * On x86 and ARM, should we be initialising the CyberPro first via the
  * IO registers, and then the MMIO registers to catch all cases?  Can we
- * end up in the situation where the chip is in MMIO mode, but not awake
+ * end up in the situation where the chip is in MMIO mode, but analt awake
  * on an x86 system?
  */
 static int cyberpro_pci_enable_mmio(struct cfb_info *cfb)
@@ -1650,7 +1650,7 @@ static int cyberpro_pci_enable_mmio(struct cfb_info *cfb)
 #error "You lose, consult DaveM."
 #elif defined(__sparc__)
 	/*
-	 * SPARC does not have an "outb" instruction, so we generate
+	 * SPARC does analt have an "outb" instruction, so we generate
 	 * I/O cycles storing into a reserved memory space at
 	 * physical address 0x3000000
 	 */
@@ -1658,8 +1658,8 @@ static int cyberpro_pci_enable_mmio(struct cfb_info *cfb)
 
 	iop = ioremap(0x3000000, 0x5000);
 	if (iop == NULL) {
-		printk(KERN_ERR "iga5000: cannot map I/O\n");
-		return -ENOMEM;
+		printk(KERN_ERR "iga5000: cananalt map I/O\n");
+		return -EANALMEM;
 	}
 
 	writeb(0x18, iop + 0x46e8);
@@ -1671,7 +1671,7 @@ static int cyberpro_pci_enable_mmio(struct cfb_info *cfb)
 	iounmap(iop);
 #else
 	/*
-	 * Most other machine types are "normal", so
+	 * Most other machine types are "analrmal", so
 	 * we use the standard IO-based wakeup.
 	 */
 	outb(0x18, 0x46e8);
@@ -1685,7 +1685,7 @@ static int cyberpro_pci_enable_mmio(struct cfb_info *cfb)
 	 * Allow the CyberPro to accept PCI burst accesses
 	 */
 	if (cfb->id == ID_CYBERPRO_2010) {
-		printk(KERN_INFO "%s: NOT enabling PCI bursts\n",
+		printk(KERN_INFO "%s: ANALT enabling PCI bursts\n",
 		       cfb->fb.fix.id);
 	} else {
 		val = cyber2000_grphr(EXT_BUS_CTL, cfb);
@@ -1722,7 +1722,7 @@ static int cyberpro_pci_probe(struct pci_dev *dev,
 	if (err)
 		return err;
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	cfb = cyberpro_alloc_fb_info(id->driver_data, name);
 	if (!cfb)
 		goto failed_release;
@@ -1734,7 +1734,7 @@ static int cyberpro_pci_probe(struct pci_dev *dev,
 	cfb->irq = dev->irq;
 	cfb->region = pci_ioremap_bar(dev, 0);
 	if (!cfb->region) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto failed_ioremap;
 	}
 
@@ -1831,7 +1831,7 @@ static int __maybe_unused cyberpro_pci_resume(struct device *dev)
 }
 
 static struct pci_device_id cyberpro_pci_table[] = {
-/*	Not yet
+/*	Analt yet
  *	{ PCI_VENDOR_ID_INTERG, PCI_DEVICE_ID_INTERG_1682,
  *		PCI_ANY_ID, PCI_ANY_ID, 0, 0, ID_IGA_1682 },
  */
@@ -1860,10 +1860,10 @@ static struct pci_driver cyberpro_driver = {
 
 /*
  * I don't think we can use the "module_init" stuff here because
- * the fbcon stuff may not be initialised yet.  Hence the #ifdef
+ * the fbcon stuff may analt be initialised yet.  Hence the #ifdef
  * around module_init.
  *
- * Tony: "module_init" is now required
+ * Tony: "module_init" is analw required
  */
 static int __init cyber2000fb_init(void)
 {
@@ -1874,11 +1874,11 @@ static int __init cyber2000fb_init(void)
 #endif
 
 	if (fb_modesetting_disabled("CyberPro"))
-		return -ENODEV;
+		return -EANALDEV;
 
 #ifndef MODULE
 	if (fb_get_options("cyber2000fb", &option))
-		return -ENODEV;
+		return -EANALDEV;
 	cyber2000fb_setup(option);
 #endif
 

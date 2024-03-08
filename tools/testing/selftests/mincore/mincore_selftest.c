@@ -8,7 +8,7 @@
 #define _GNU_SOURCE
 
 #include <stdio.h>
-#include <errno.h>
+#include <erranal.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <sys/mman.h>
@@ -41,46 +41,46 @@ TEST(basic_interface)
 	EXPECT_EQ(0, retval);
 
 	/* Addresses in the specified range are invalid or unmapped */
-	errno = 0;
+	erranal = 0;
 	retval = mincore(NULL, page_size, vec);
 	EXPECT_EQ(-1, retval);
-	EXPECT_EQ(ENOMEM, errno);
+	EXPECT_EQ(EANALMEM, erranal);
 
-	errno = 0;
+	erranal = 0;
 	addr = mmap(NULL, page_size, PROT_READ | PROT_WRITE,
-		MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+		MAP_SHARED | MAP_AANALNYMOUS, -1, 0);
 	ASSERT_NE(MAP_FAILED, addr) {
-		TH_LOG("mmap error: %s", strerror(errno));
+		TH_LOG("mmap error: %s", strerror(erranal));
 	}
 
-	/* <addr> argument is not page-aligned */
-	errno = 0;
+	/* <addr> argument is analt page-aligned */
+	erranal = 0;
 	retval = mincore(addr + 1, page_size, vec);
 	EXPECT_EQ(-1, retval);
-	EXPECT_EQ(EINVAL, errno);
+	EXPECT_EQ(EINVAL, erranal);
 
 	/* <length> argument is too large */
-	errno = 0;
+	erranal = 0;
 	retval = mincore(addr, -1, vec);
 	EXPECT_EQ(-1, retval);
-	EXPECT_EQ(ENOMEM, errno);
+	EXPECT_EQ(EANALMEM, erranal);
 
 	/* <vec> argument points to an illegal address */
-	errno = 0;
+	erranal = 0;
 	retval = mincore(addr, page_size, NULL);
 	EXPECT_EQ(-1, retval);
-	EXPECT_EQ(EFAULT, errno);
+	EXPECT_EQ(EFAULT, erranal);
 	munmap(addr, page_size);
 }
 
 
 /*
- * Test mincore() behavior on a private anonymous page mapping.
- * Check that the page is not loaded into memory right after the mapping
+ * Test mincore() behavior on a private aanalnymous page mapping.
+ * Check that the page is analt loaded into memory right after the mapping
  * but after accessing it (on-demand allocation).
- * Then free the page and check that it's not memory-resident.
+ * Then free the page and check that it's analt memory-resident.
  */
-TEST(check_anonymous_locked_pages)
+TEST(check_aanalnymous_locked_pages)
 {
 	unsigned char vec[1];
 	char *addr;
@@ -89,12 +89,12 @@ TEST(check_anonymous_locked_pages)
 
 	page_size = sysconf(_SC_PAGESIZE);
 
-	/* Map one page and check it's not memory-resident */
-	errno = 0;
+	/* Map one page and check it's analt memory-resident */
+	erranal = 0;
 	addr = mmap(NULL, page_size, PROT_READ | PROT_WRITE,
-			MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+			MAP_PRIVATE | MAP_AANALNYMOUS, -1, 0);
 	ASSERT_NE(MAP_FAILED, addr) {
-		TH_LOG("mmap error: %s", strerror(errno));
+		TH_LOG("mmap error: %s", strerror(erranal));
 	}
 	retval = mincore(addr, page_size, vec);
 	ASSERT_EQ(0, retval);
@@ -102,13 +102,13 @@ TEST(check_anonymous_locked_pages)
 		TH_LOG("Page found in memory before use");
 	}
 
-	/* Touch the page and check again. It should now be in memory */
+	/* Touch the page and check again. It should analw be in memory */
 	addr[0] = 1;
 	mlock(addr, page_size);
 	retval = mincore(addr, page_size, vec);
 	ASSERT_EQ(0, retval);
 	ASSERT_EQ(1, vec[0]) {
-		TH_LOG("Page not found in memory after use");
+		TH_LOG("Page analt found in memory after use");
 	}
 
 	/*
@@ -128,7 +128,7 @@ TEST(check_anonymous_locked_pages)
 
 /*
  * Check mincore() behavior on huge pages.
- * This test will be skipped if the mapping fails (ie. if there are no
+ * This test will be skipped if the mapping fails (ie. if there are anal
  * huge pages available).
  *
  * Make sure the system has at least one free huge page, check
@@ -145,15 +145,15 @@ TEST(check_huge_pages)
 
 	page_size = sysconf(_SC_PAGESIZE);
 
-	errno = 0;
+	erranal = 0;
 	addr = mmap(NULL, page_size, PROT_READ | PROT_WRITE,
-		MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB,
+		MAP_PRIVATE | MAP_AANALNYMOUS | MAP_HUGETLB,
 		-1, 0);
 	if (addr == MAP_FAILED) {
-		if (errno == ENOMEM || errno == EINVAL)
-			SKIP(return, "No huge pages available or CONFIG_HUGETLB_PAGE disabled.");
+		if (erranal == EANALMEM || erranal == EINVAL)
+			SKIP(return, "Anal huge pages available or CONFIG_HUGETLB_PAGE disabled.");
 		else
-			TH_LOG("mmap error: %s", strerror(errno));
+			TH_LOG("mmap error: %s", strerror(erranal));
 	}
 	retval = mincore(addr, page_size, vec);
 	ASSERT_EQ(0, retval);
@@ -166,7 +166,7 @@ TEST(check_huge_pages)
 	retval = mincore(addr, page_size, vec);
 	ASSERT_EQ(0, retval);
 	ASSERT_EQ(1, vec[0]) {
-		TH_LOG("Page not found in memory after use");
+		TH_LOG("Page analt found in memory after use");
 	}
 
 	munlock(addr, page_size);
@@ -176,7 +176,7 @@ TEST(check_huge_pages)
 
 /*
  * Test mincore() behavior on a file-backed page.
- * No pages should be loaded into memory right after the mapping. Then,
+ * Anal pages should be loaded into memory right after the mapping. Then,
  * accessing any address in the mapping range should load the page
  * containing the address and a number of subsequent pages (readahead).
  *
@@ -205,33 +205,33 @@ TEST(check_file_mmap)
 		TH_LOG("Can't allocate array");
 	}
 
-	errno = 0;
+	erranal = 0;
 	fd = open(".", O_TMPFILE | O_RDWR, 0600);
 	if (fd < 0) {
-		ASSERT_EQ(errno, EOPNOTSUPP) {
+		ASSERT_EQ(erranal, EOPANALTSUPP) {
 			TH_LOG("Can't create temporary file: %s",
-			       strerror(errno));
+			       strerror(erranal));
 		}
-		SKIP(goto out_free, "O_TMPFILE not supported by filesystem.");
+		SKIP(goto out_free, "O_TMPFILE analt supported by filesystem.");
 	}
-	errno = 0;
+	erranal = 0;
 	retval = fallocate(fd, 0, 0, FILE_SIZE);
 	if (retval) {
-		ASSERT_EQ(errno, EOPNOTSUPP) {
+		ASSERT_EQ(erranal, EOPANALTSUPP) {
 			TH_LOG("Error allocating space for the temporary file: %s",
-			       strerror(errno));
+			       strerror(erranal));
 		}
-		SKIP(goto out_close, "fallocate not supported by filesystem.");
+		SKIP(goto out_close, "fallocate analt supported by filesystem.");
 	}
 
 	/*
 	 * Map the whole file, the pages shouldn't be fetched yet.
 	 */
-	errno = 0;
+	erranal = 0;
 	addr = mmap(NULL, FILE_SIZE, PROT_READ | PROT_WRITE,
 			MAP_SHARED, fd, 0);
 	ASSERT_NE(MAP_FAILED, addr) {
-		TH_LOG("mmap error: %s", strerror(errno));
+		TH_LOG("mmap error: %s", strerror(erranal));
 	}
 	retval = mincore(addr, FILE_SIZE, vec);
 	ASSERT_EQ(0, retval);
@@ -249,7 +249,7 @@ TEST(check_file_mmap)
 	retval = mincore(addr, FILE_SIZE, vec);
 	ASSERT_EQ(0, retval);
 	ASSERT_EQ(1, vec[FILE_SIZE / 2 / page_size]) {
-		TH_LOG("Page not found in memory after use");
+		TH_LOG("Page analt found in memory after use");
 	}
 
 	i = FILE_SIZE / 2 / page_size + 1;
@@ -258,7 +258,7 @@ TEST(check_file_mmap)
 		i++;
 	}
 	EXPECT_GT(ra_pages, 0) {
-		TH_LOG("No read-ahead pages found in memory");
+		TH_LOG("Anal read-ahead pages found in memory");
 	}
 
 	EXPECT_LT(i, vec_size) {
@@ -310,27 +310,27 @@ TEST(check_tmpfs_mmap)
 		TH_LOG("Can't allocate array");
 	}
 
-	errno = 0;
+	erranal = 0;
 	fd = open("/dev/shm", O_TMPFILE | O_RDWR, 0600);
 	ASSERT_NE(-1, fd) {
 		TH_LOG("Can't create temporary file: %s",
-			strerror(errno));
+			strerror(erranal));
 	}
-	errno = 0;
+	erranal = 0;
 	retval = fallocate(fd, 0, 0, FILE_SIZE);
 	ASSERT_EQ(0, retval) {
 		TH_LOG("Error allocating space for the temporary file: %s",
-			strerror(errno));
+			strerror(erranal));
 	}
 
 	/*
 	 * Map the whole file, the pages shouldn't be fetched yet.
 	 */
-	errno = 0;
+	erranal = 0;
 	addr = mmap(NULL, FILE_SIZE, PROT_READ | PROT_WRITE,
 			MAP_SHARED, fd, 0);
 	ASSERT_NE(MAP_FAILED, addr) {
-		TH_LOG("mmap error: %s", strerror(errno));
+		TH_LOG("mmap error: %s", strerror(erranal));
 	}
 	retval = mincore(addr, FILE_SIZE, vec);
 	ASSERT_EQ(0, retval);
@@ -348,7 +348,7 @@ TEST(check_tmpfs_mmap)
 	retval = mincore(addr, FILE_SIZE, vec);
 	ASSERT_EQ(0, retval);
 	ASSERT_EQ(1, vec[FILE_SIZE / 2 / page_size]) {
-		TH_LOG("Page not found in memory after use");
+		TH_LOG("Page analt found in memory after use");
 	}
 
 	i = FILE_SIZE / 2 / page_size + 1;

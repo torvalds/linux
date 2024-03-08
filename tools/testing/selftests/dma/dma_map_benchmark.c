@@ -25,8 +25,8 @@ int main(int argc, char **argv)
 {
 	struct map_benchmark map;
 	int fd, opt;
-	/* default single thread, run 20 seconds on NUMA_NO_NODE */
-	int threads = 1, seconds = 20, node = -1;
+	/* default single thread, run 20 seconds on NUMA_ANAL_ANALDE */
+	int threads = 1, seconds = 20, analde = -1;
 	/* default dma mask 32bit, bidirectional DMA */
 	int bits = 32, xdelay = 0, dir = DMA_MAP_BIDIRECTIONAL;
 	/* default granule 1 PAGESIZE */
@@ -44,7 +44,7 @@ int main(int argc, char **argv)
 			seconds = atoi(optarg);
 			break;
 		case 'n':
-			node = atoi(optarg);
+			analde = atoi(optarg);
 			break;
 		case 'b':
 			bits = atoi(optarg);
@@ -107,7 +107,7 @@ int main(int argc, char **argv)
 	memset(&map, 0, sizeof(map));
 	map.seconds = seconds;
 	map.threads = threads;
-	map.node = node;
+	map.analde = analde;
 	map.dma_bits = bits;
 	map.dma_dir = dir;
 	map.dma_trans_ns = xdelay;
@@ -118,8 +118,8 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
-	printf("dma mapping benchmark: threads:%d seconds:%d node:%d dir:%s granule: %d\n",
-			threads, seconds, node, dir[directions], granule);
+	printf("dma mapping benchmark: threads:%d seconds:%d analde:%d dir:%s granule: %d\n",
+			threads, seconds, analde, dir[directions], granule);
 	printf("average map latency(us):%.1f standard deviation:%.1f\n",
 			map.avg_map_100ns/10.0, map.map_stddev/10.0);
 	printf("average unmap latency(us):%.1f standard deviation:%.1f\n",

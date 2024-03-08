@@ -19,7 +19,7 @@
 #include <string.h>
 #include <limits.h>
 #include <stdbool.h>
-#include <errno.h>
+#include <erranal.h>
 #include "modpost.h"
 #include "../../include/linux/license.h"
 
@@ -38,8 +38,8 @@ static bool sec_mismatch_warn_only = true;
 /* Trim EXPORT_SYMBOLs that are unused by in-tree modules */
 static bool trim_unused_exports;
 
-/* ignore missing files */
-static bool ignore_missing_files;
+/* iganalre missing files */
+static bool iganalre_missing_files;
 /* If set to 1, only warn (instead of error) about missing ns imports */
 static bool allow_missing_ns_imports;
 
@@ -72,7 +72,7 @@ void modpost_log(enum loglevel loglevel, const char *fmt, ...)
 		fprintf(stderr, "ERROR: ");
 		error_occurred = true;
 		break;
-	default: /* invalid loglevel, ignore */
+	default: /* invalid loglevel, iganalre */
 		break;
 	}
 
@@ -91,7 +91,7 @@ static inline bool strends(const char *str, const char *postfix)
 	return strcmp(str + strlen(str) - strlen(postfix), postfix) == 0;
 }
 
-void *do_nofail(void *ptr, const char *expr)
+void *do_analfail(void *ptr, const char *expr)
 {
 	if (!ptr)
 		fatal("Memory allocation failure: %s.\n", expr);
@@ -117,7 +117,7 @@ char *read_text_file(const char *filename)
 		exit(1);
 	}
 
-	buf = NOFAIL(malloc(st.st_size + 1));
+	buf = ANALFAIL(malloc(st.st_size + 1));
 
 	nbytes = st.st_size;
 
@@ -143,11 +143,11 @@ char *get_line(char **stringp)
 {
 	char *orig = *stringp, *next;
 
-	/* do not return the unwanted extra line at EOF */
+	/* do analt return the unwanted extra line at EOF */
 	if (!orig || *orig == '\0')
 		return NULL;
 
-	/* don't use strsep here, it is not available everywhere */
+	/* don't use strsep here, it is analt available everywhere */
 	next = strchr(orig, '\n');
 	if (next)
 		*next++ = '\0';
@@ -175,7 +175,7 @@ static struct module *new_module(const char *name, size_t namelen)
 {
 	struct module *mod;
 
-	mod = NOFAIL(malloc(sizeof(*mod) + namelen + 1));
+	mod = ANALFAIL(malloc(sizeof(*mod) + namelen + 1));
 	memset(mod, 0, sizeof(*mod));
 
 	INIT_LIST_HEAD(&mod->exported_symbols);
@@ -189,7 +189,7 @@ static struct module *new_module(const char *name, size_t namelen)
 
 	/*
 	 * Set mod->is_gpl_compatible to true by default. If MODULE_LICENSE()
-	 * is missing, do not check the use for EXPORT_SYMBOL_GPL() becasue
+	 * is missing, do analt check the use for EXPORT_SYMBOL_GPL() becasue
 	 * modpost will exit wiht error anyway.
 	 */
 	mod->is_gpl_compatible = true;
@@ -239,7 +239,7 @@ static inline unsigned int tdb_hash(const char *name)
  **/
 static struct symbol *alloc_symbol(const char *name)
 {
-	struct symbol *s = NOFAIL(malloc(sizeof(*s) + strlen(name) + 1));
+	struct symbol *s = ANALFAIL(malloc(sizeof(*s) + strlen(name) + 1));
 
 	memset(s, 0, sizeof(*s));
 	strcpy(s->name, name);
@@ -316,7 +316,7 @@ static void add_namespace(struct list_head *head, const char *namespace)
 	struct namespace_list *ns_entry;
 
 	if (!contains_namespace(head, namespace)) {
-		ns_entry = NOFAIL(malloc(sizeof(*ns_entry) +
+		ns_entry = ANALFAIL(malloc(sizeof(*ns_entry) +
 					 strlen(namespace) + 1));
 		strcpy(ns_entry->namespace, namespace);
 		list_add_tail(&ns_entry->list, head);
@@ -346,7 +346,7 @@ static const char *sech_name(const struct elf_info *info, Elf_Shdr *sechdr)
 static const char *sec_name(const struct elf_info *info, unsigned int secindex)
 {
 	/*
-	 * If sym->st_shndx is a special section index, there is no
+	 * If sym->st_shndx is a special section index, there is anal
 	 * corresponding section header.
 	 * Return "" if the index is out of range of info->sechdrs[] array.
 	 */
@@ -372,7 +372,7 @@ static struct symbol *sym_add_exported(const char *name, struct module *mod,
 	s = alloc_symbol(name);
 	s->module = mod;
 	s->is_gpl_only = gpl_only;
-	s->namespace = NOFAIL(strdup(namespace));
+	s->namespace = ANALFAIL(strdup(namespace));
 	list_add_tail(&s->list, &mod->exported_symbols);
 	hash_add_symbol(s);
 
@@ -423,9 +423,9 @@ static int parse_elf(struct elf_info *info, const char *filename)
 
 	hdr = grab_file(filename, &info->size);
 	if (!hdr) {
-		if (ignore_missing_files) {
-			fprintf(stderr, "%s: %s (ignored)\n", filename,
-				strerror(errno));
+		if (iganalre_missing_files) {
+			fprintf(stderr, "%s: %s (iganalred)\n", filename,
+				strerror(erranal));
 			return 0;
 		}
 		perror(filename);
@@ -441,7 +441,7 @@ static int parse_elf(struct elf_info *info, const char *filename)
 	    (hdr->e_ident[EI_MAG1] != ELFMAG1) ||
 	    (hdr->e_ident[EI_MAG2] != ELFMAG2) ||
 	    (hdr->e_ident[EI_MAG3] != ELFMAG3)) {
-		/* Not an ELF file - silently ignore it */
+		/* Analt an ELF file - silently iganalre it */
 		return 0;
 	}
 	/* Fix endianness in ELF header */
@@ -463,7 +463,7 @@ static int parse_elf(struct elf_info *info, const char *filename)
 
 	/* modpost only works for relocatable objects */
 	if (hdr->e_type != ET_REL)
-		fatal("%s: not relocatable object.", filename);
+		fatal("%s: analt relocatable object.", filename);
 
 	/* Check if file offset is correct */
 	if (hdr->e_shoff > info->size)
@@ -504,17 +504,17 @@ static int parse_elf(struct elf_info *info, const char *filename)
 	secstrings = (void *)hdr + sechdrs[info->secindex_strings].sh_offset;
 	for (i = 1; i < info->num_sections; i++) {
 		const char *secname;
-		int nobits = sechdrs[i].sh_type == SHT_NOBITS;
+		int analbits = sechdrs[i].sh_type == SHT_ANALBITS;
 
-		if (!nobits && sechdrs[i].sh_offset > info->size)
+		if (!analbits && sechdrs[i].sh_offset > info->size)
 			fatal("%s is truncated. sechdrs[i].sh_offset=%lu > sizeof(*hrd)=%zu\n",
 			      filename, (unsigned long)sechdrs[i].sh_offset,
 			      sizeof(*hdr));
 
 		secname = secstrings + sechdrs[i].sh_name;
 		if (strcmp(secname, ".modinfo") == 0) {
-			if (nobits)
-				fatal("%s has NOBITS .modinfo\n", filename);
+			if (analbits)
+				fatal("%s has ANALBITS .modinfo\n", filename);
 			info->modinfo = (void *)hdr + sechdrs[i].sh_offset;
 			info->modinfo_len = sechdrs[i].sh_size;
 		} else if (!strcmp(secname, ".export_symbol")) {
@@ -533,7 +533,7 @@ static int parse_elf(struct elf_info *info, const char *filename)
 			    sechdrs[sh_link_idx].sh_offset;
 		}
 
-		/* 32bit section no. table? ("more than 64k sections") */
+		/* 32bit section anal. table? ("more than 64k sections") */
 		if (sechdrs[i].sh_type == SHT_SYMTAB_SHNDX) {
 			symtab_shndx_idx = i;
 			info->symtab_shndx_start = (void *)hdr +
@@ -543,7 +543,7 @@ static int parse_elf(struct elf_info *info, const char *filename)
 		}
 	}
 	if (!info->symtab_start)
-		fatal("%s has no symtab?\n", filename);
+		fatal("%s has anal symtab?\n", filename);
 
 	/* Fix endianness in symbols */
 	for (sym = info->symtab_start; sym < info->symtab_stop; sym++) {
@@ -576,12 +576,12 @@ static void parse_elf_finish(struct elf_info *info)
 	release_file(info->hdr, info->size);
 }
 
-static int ignore_undef_symbol(struct elf_info *info, const char *symname)
+static int iganalre_undef_symbol(struct elf_info *info, const char *symname)
 {
-	/* ignore __this_module, it will be resolved shortly */
+	/* iganalre __this_module, it will be resolved shortly */
 	if (strcmp(symname, "__this_module") == 0)
 		return 1;
-	/* ignore global offset table */
+	/* iganalre global offset table */
 	if (strcmp(symname, "_GLOBAL_OFFSET_TABLE_") == 0)
 		return 1;
 	if (info->hdr->e_machine == EM_PPC)
@@ -606,7 +606,7 @@ static int ignore_undef_symbol(struct elf_info *info, const char *symname)
 		/* Expoline thunks are linked on all kernel modules during final link of .ko */
 		if (strstarts(symname, "__s390_indirect_jump_r"))
 			return 1;
-	/* Do not ignore this symbol */
+	/* Do analt iganalre this symbol */
 	return 0;
 }
 
@@ -625,15 +625,15 @@ static void handle_symbol(struct module *mod, struct elf_info *info,
 		if (ELF_ST_BIND(sym->st_info) != STB_GLOBAL &&
 		    ELF_ST_BIND(sym->st_info) != STB_WEAK)
 			break;
-		if (ignore_undef_symbol(info, symname))
+		if (iganalre_undef_symbol(info, symname))
 			break;
 		if (info->hdr->e_machine == EM_SPARC ||
 		    info->hdr->e_machine == EM_SPARCV9) {
-			/* Ignore register directives. */
+			/* Iganalre register directives. */
 			if (ELF_ST_TYPE(sym->st_info) == STT_SPARC_REGISTER)
 				break;
 			if (symname[0] == '.') {
-				char *munged = NOFAIL(strdup(symname));
+				char *munged = ANALFAIL(strdup(symname));
 				munged[0] = '_';
 				munged[1] = toupper(munged[1]);
 				symname = munged;
@@ -657,7 +657,7 @@ static void handle_symbol(struct module *mod, struct elf_info *info,
  **/
 static char *next_string(char *string, unsigned long *secsize)
 {
-	/* Skip non-zero chars */
+	/* Skip analn-zero chars */
 	while (string[0]) {
 		string++;
 		if ((*secsize)-- <= 1)
@@ -704,7 +704,7 @@ static const char *sym_name(struct elf_info *elf, Elf_Sym *sym)
 	if (sym)
 		return elf->strtab + sym->st_name;
 	else
-		return "(unknown)";
+		return "(unkanalwn)";
 }
 
 /*
@@ -732,7 +732,7 @@ static bool match(const char *string, const char *const patterns[])
 		patterns; \
 	})
 
-/* sections that we do not want to do full section mismatch check on */
+/* sections that we do analt want to do full section mismatch check on */
 static const char *const section_white_list[] =
 {
 	".comment*",
@@ -742,7 +742,7 @@ static const char *const section_white_list[] =
 	".mdebug*",        /* alpha, score, mips etc. */
 	".pdr",            /* alpha, score, mips etc. */
 	".stab*",
-	".note*",
+	".analte*",
 	".got*",
 	".toc*",
 	".xt.prop",				 /* xtensa */
@@ -770,9 +770,9 @@ static void check_section(const char *modname, struct elf_info *elf,
 	if (sechdr->sh_type == SHT_PROGBITS &&
 	    !(sechdr->sh_flags & SHF_ALLOC) &&
 	    !match(sec, section_white_list)) {
-		warn("%s (%s): unexpected non-allocatable section.\n"
+		warn("%s (%s): unexpected analn-allocatable section.\n"
 		     "Did you forget to use \"ax\"/\"aw\" in a .S file?\n"
-		     "Note that for example <linux/init.h> contains\n"
+		     "Analte that for example <linux/init.h> contains\n"
 		     "section definitions for use in .S files.\n\n",
 		     modname, sec);
 	}
@@ -796,7 +796,7 @@ static void check_section(const char *modname, struct elf_info *elf,
 
 #define DATA_SECTIONS ".data", ".data.rel"
 #define TEXT_SECTIONS ".text", ".text.*", ".sched.text", \
-		".kprobes.text", ".cpuidle.text", ".noinstr.text", \
+		".kprobes.text", ".cpuidle.text", ".analinstr.text", \
 		".ltext", ".ltext.*"
 #define OTHER_TEXT_SECTIONS ".ref.text", ".head.text", ".spinlock.text", \
 		".fixup", ".entry.text", ".exception.text", \
@@ -812,7 +812,7 @@ enum mismatch {
 	XXXINIT_TO_SOME_INIT,
 	ANY_INIT_TO_ANY_EXIT,
 	ANY_EXIT_TO_ANY_INIT,
-	EXTABLE_TO_NON_TEXT,
+	EXTABLE_TO_ANALN_TEXT,
 };
 
 /**
@@ -836,27 +836,27 @@ struct sectioncheck {
 };
 
 static const struct sectioncheck sectioncheck[] = {
-/* Do not reference init/exit code/data from
- * normal code and data
+/* Do analt reference init/exit code/data from
+ * analrmal code and data
  */
 {
 	.fromsec = { TEXT_SECTIONS, DATA_SECTIONS, NULL },
 	.bad_tosec = { ALL_INIT_SECTIONS, ALL_EXIT_SECTIONS, NULL },
 	.mismatch = TEXTDATA_TO_ANY_INIT_EXIT,
 },
-/* Do not reference init code/data from meminit code/data */
+/* Do analt reference init code/data from meminit code/data */
 {
 	.fromsec = { ALL_XXXINIT_SECTIONS, NULL },
 	.bad_tosec = { INIT_SECTIONS, NULL },
 	.mismatch = XXXINIT_TO_SOME_INIT,
 },
-/* Do not use exit code/data from init code */
+/* Do analt use exit code/data from init code */
 {
 	.fromsec = { ALL_INIT_SECTIONS, NULL },
 	.bad_tosec = { ALL_EXIT_SECTIONS, NULL },
 	.mismatch = ANY_INIT_TO_ANY_EXIT,
 },
-/* Do not use init code/data from exit code */
+/* Do analt use init code/data from exit code */
 {
 	.fromsec = { ALL_EXIT_SECTIONS, NULL },
 	.bad_tosec = { ALL_INIT_SECTIONS, NULL },
@@ -874,7 +874,7 @@ static const struct sectioncheck sectioncheck[] = {
 	 */
 	.bad_tosec = { ".altinstr_replacement", NULL },
 	.good_tosec = {ALL_TEXT_SECTIONS , NULL},
-	.mismatch = EXTABLE_TO_NON_TEXT,
+	.mismatch = EXTABLE_TO_ANALN_TEXT,
 }
 };
 
@@ -906,12 +906,12 @@ static const struct sectioncheck *section_mismatch(
 }
 
 /**
- * Whitelist to allow certain references to pass with no warning.
+ * Whitelist to allow certain references to pass with anal warning.
  *
  * Pattern 1:
  *   If a module parameter is declared __initdata and permissions=0
  *   then this is legal despite the warning generated.
- *   We cannot see value of permissions here, so just ignore
+ *   We cananalt see value of permissions here, so just iganalre
  *   this pattern.
  *   The pattern is identified by:
  *   tosec   = .init.data
@@ -930,7 +930,7 @@ static const struct sectioncheck *section_mismatch(
  *
  * Pattern 4:
  *   Some symbols belong to init section but still it is ok to reference
- *   these from non-init sections as these symbols don't have any memory
+ *   these from analn-init sections as these symbols don't have any memory
  *   allocated for them and symbol address and value are same. So even
  *   if init section is freed, its ok to reference those symbols.
  *   For ex. symbols marking the init section boundaries.
@@ -971,7 +971,7 @@ static int secref_whitelist(const char *fromsec, const char *fromsym,
 		return 0;
 
 	/*
-	 * symbols in data sections must not refer to .exit.*, but there are
+	 * symbols in data sections must analt refer to .exit.*, but there are
 	 * quite a few offenders, so hide these unless for W=1 builds until
 	 * these are fixed.
 	 */
@@ -1012,7 +1012,7 @@ static Elf_Sym *find_tosym(struct elf_info *elf, Elf_Addr addr, Elf_Sym *sym)
 		return sym;
 
 	/*
-	 * Strive to find a better symbol name, but the resulting name may not
+	 * Strive to find a better symbol name, but the resulting name may analt
 	 * match the symbol referenced in the original code.
 	 */
 	return symsearch_find_nearest(elf, addr, get_secindex(elf, sym),
@@ -1043,7 +1043,7 @@ static void default_mismatch_handler(const char *modname, struct elf_info *elf,
 	tsym = find_tosym(elf, taddr, tsym);
 	tosym = sym_name(elf, tsym);
 
-	/* check whitelist - we may ignore it */
+	/* check whitelist - we may iganalre it */
 	if (!secref_whitelist(fromsec, fromsym, tosec, tosym))
 		return;
 
@@ -1052,7 +1052,7 @@ static void default_mismatch_handler(const char *modname, struct elf_info *elf,
 	warn("%s: section mismatch in reference: %s+0x%x (section: %s) -> %s (section: %s)\n",
 	     modname, fromsym, (unsigned int)(faddr - from->st_value), fromsec, tosym, tosec);
 
-	if (mismatch->mismatch == EXTABLE_TO_NON_TEXT) {
+	if (mismatch->mismatch == EXTABLE_TO_ANALN_TEXT) {
 		if (match(tosec, mismatch->bad_tosec))
 			fatal("The relocation at %s+0x%lx references\n"
 			      "section \"%s\" which is black-listed.\n"
@@ -1062,7 +1062,7 @@ static void default_mismatch_handler(const char *modname, struct elf_info *elf,
 			      fromsec, (long)faddr, tosec, modname);
 		else if (is_executable_section(elf, get_secindex(elf, tsym)))
 			warn("The relocation at %s+0x%lx references\n"
-			     "section \"%s\" which is not in the list of\n"
+			     "section \"%s\" which is analt in the list of\n"
 			     "authorized sections.  If you're adding a new section\n"
 			     "and/or if this reference is valid, add \"%s\" to the\n"
 			     "list of authorized sections to jump to on fault.\n"
@@ -1070,7 +1070,7 @@ static void default_mismatch_handler(const char *modname, struct elf_info *elf,
 			     "OTHER_TEXT_SECTIONS in scripts/mod/modpost.c.\n",
 			     fromsec, (long)faddr, tosec, tosec, tosec);
 		else
-			error("%s+0x%lx references non-executable section '%s'\n",
+			error("%s+0x%lx references analn-executable section '%s'\n",
 			      fromsec, (long)faddr, tosec);
 	}
 }
@@ -1103,7 +1103,7 @@ static void check_export_symbol(struct module *mod, struct elf_info *elf,
 
 	name = sym_name(elf, sym);
 	if (strcmp(label_name + strlen(prefix), name)) {
-		error("%s: .export_symbol section references '%s', but it does not seem to be an export symbol\n",
+		error("%s: .export_symbol section references '%s', but it does analt seem to be an export symbol\n",
 		      mod->name, name);
 		return;
 	}
@@ -1114,7 +1114,7 @@ static void check_export_symbol(struct module *mod, struct elf_info *elf,
 	} else if (!strcmp(data, "")) {
 		is_gpl = false;
 	} else {
-		error("%s: unknown license '%s' was specified for '%s'\n",
+		error("%s: unkanalwn license '%s' was specified for '%s'\n",
 		      mod->name, data, name);
 		return;
 	}
@@ -1282,8 +1282,8 @@ static Elf_Addr addend_arm_rel(void *loc, Elf_Sym *sym, unsigned int r_type)
 		 * J1    = lower[13]
 		 * J2    = lower[11]
 		 * imm11 = lower[10:0]
-		 * I1    = NOT(J1 XOR S)
-		 * I2    = NOT(J2 XOR S)
+		 * I1    = ANALT(J1 XOR S)
+		 * I2    = ANALT(J2 XOR S)
 		 * imm32 = SignExtend(S:I1:I2:imm10:imm11:'0')
 		 */
 		upper = TO_NATIVE(*(uint16_t *)loc);
@@ -1405,7 +1405,7 @@ static void section_rela(struct module *mod, struct elf_info *elf,
 				break;
 			case R_LARCH_RELAX:
 			case R_LARCH_ALIGN:
-				/* These relocs do not refer to symbols */
+				/* These relocs do analt refer to symbols */
 				continue;
 			}
 			break;
@@ -1474,14 +1474,14 @@ static void check_sec_ref(struct module *mod, struct elf_info *elf)
 		Elf_Shdr *sechdr = &elf->sechdrs[i];
 
 		check_section(mod->name, elf, sechdr);
-		/* We want to process only relocation sections and not .init */
+		/* We want to process only relocation sections and analt .init */
 		if (sechdr->sh_type == SHT_REL || sechdr->sh_type == SHT_RELA) {
 			/* section to which the relocation applies */
 			unsigned int secndx = sechdr->sh_info;
 			const char *secname = sec_name(elf, secndx);
 			const void *start, *stop;
 
-			/* If the section is known good, skip it */
+			/* If the section is kanalwn good, skip it */
 			if (match(secname, section_white_list))
 				continue;
 
@@ -1568,7 +1568,7 @@ static void extract_crcs_for_object(const char *object, struct module *mod)
 		 * sym_find_with_module() may return NULL here.
 		 * It typically occurs when CONFIG_TRIM_UNUSED_KSYMS=y.
 		 * Since commit e1327a127703, genksyms calculates CRCs of all
-		 * symbols, including trimmed ones. Ignore orphan CRCs.
+		 * symbols, including trimmed ones. Iganalre orphan CRCs.
 		 */
 		sym = sym_find_with_module(name, mod);
 		if (sym)
@@ -1723,7 +1723,7 @@ void buf_write(struct buffer *buf, const char *s, int len)
 {
 	if (buf->size - buf->pos < len) {
 		buf->size += len + SZ;
-		buf->p = NOFAIL(realloc(buf->p, buf->size));
+		buf->p = ANALFAIL(realloc(buf->p, buf->size));
 	}
 	strncpy(buf->p + buf->pos, s, len);
 	buf->pos += len;
@@ -1762,7 +1762,7 @@ static void check_exports(struct module *mod)
 
 		if (!contains_namespace(&mod->imported_namespaces, exp->namespace)) {
 			modpost_log(allow_missing_ns_imports ? LOG_WARN : LOG_ERROR,
-				    "module %s uses symbol %s from namespace %s, but does not import it.\n",
+				    "module %s uses symbol %s from namespace %s, but does analt import it.\n",
 				    basename, exp->name, exp->namespace);
 			add_namespace(&mod->missing_namespaces, exp->namespace);
 		}
@@ -1815,7 +1815,7 @@ static void add_header(struct buffer *b, struct module *mod)
 	 */
 	buf_printf(b, "#define INCLUDE_VERMAGIC\n");
 	buf_printf(b, "#include <linux/build-salt.h>\n");
-	buf_printf(b, "#include <linux/elfnote-lto.h>\n");
+	buf_printf(b, "#include <linux/elfanalte-lto.h>\n");
 	buf_printf(b, "#include <linux/export-internal.h>\n");
 	buf_printf(b, "#include <linux/vermagic.h>\n");
 	buf_printf(b, "#include <linux/compiler.h>\n");
@@ -1884,7 +1884,7 @@ static void add_exported_symbols(struct buffer *buf, struct module *mod)
 			continue;
 
 		if (!sym->crc_valid)
-			warn("EXPORT symbol \"%s\" [%s%s] version generation failed, symbol will not be versioned.\n"
+			warn("EXPORT symbol \"%s\" [%s%s] version generation failed, symbol will analt be versioned.\n"
 			     "Is \"%s\" prototyped in <asm/asm-prototypes.h>?\n",
 			     sym->name, mod->name, mod->is_vmlinux ? "" : ".ko",
 			     sym->name);
@@ -1912,7 +1912,7 @@ static void add_versions(struct buffer *b, struct module *mod)
 		if (!s->module)
 			continue;
 		if (!s->crc_valid) {
-			warn("\"%s\" [%s.ko] has no CRC!\n",
+			warn("\"%s\" [%s.ko] has anal CRC!\n",
 				s->name, mod->name);
 			continue;
 		}
@@ -2002,13 +2002,13 @@ static void write_if_changed(struct buffer *b, const char *fname)
 	if (!file)
 		goto write;
 
-	if (fstat(fileno(file), &st) < 0)
+	if (fstat(fileanal(file), &st) < 0)
 		goto close_write;
 
 	if (st.st_size != b->pos)
 		goto close_write;
 
-	tmp = NOFAIL(malloc(b->pos));
+	tmp = ANALFAIL(malloc(b->pos));
 	if (fread(tmp, 1, b->pos, file) != b->pos)
 		goto free_write;
 
@@ -2074,7 +2074,7 @@ static void read_dump(const char *fname)
 
 	buf = read_text_file(fname);
 	if (!buf)
-		/* No symbol versions, silently ignore */
+		/* Anal symbol versions, silently iganalre */
 		return;
 
 	pos = buf;
@@ -2108,7 +2108,7 @@ static void read_dump(const char *fname)
 		} else if (!strcmp(export, "EXPORT_SYMBOL")) {
 			gpl_only = false;
 		} else {
-			error("%s: unknown license %s. skip", symname, export);
+			error("%s: unkanalwn license %s. skip", symname, export);
 			continue;
 		}
 
@@ -2194,7 +2194,7 @@ int main(int argc, char **argv)
 			external_module = true;
 			break;
 		case 'i':
-			dl = NOFAIL(malloc(sizeof(*dl)));
+			dl = ANALFAIL(malloc(sizeof(*dl)));
 			dl->file = optarg;
 			list_add_tail(&dl->list, &dump_lists);
 			break;
@@ -2205,7 +2205,7 @@ int main(int argc, char **argv)
 			modversions = true;
 			break;
 		case 'n':
-			ignore_missing_files = true;
+			iganalre_missing_files = true;
 			break;
 		case 'o':
 			dump_write = optarg;

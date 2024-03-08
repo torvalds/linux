@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -35,12 +35,12 @@
  * The DC interface to HW gives us the following color management blocks
  * per pipe (surface):
  *
- * - Input gamma LUT (de-normalized)
- * - Input CSC (normalized)
- * - Surface degamma LUT (normalized)
- * - Surface CSC (normalized)
- * - Surface regamma LUT (normalized)
- * - Output CSC (normalized)
+ * - Input gamma LUT (de-analrmalized)
+ * - Input CSC (analrmalized)
+ * - Surface degamma LUT (analrmalized)
+ * - Surface CSC (analrmalized)
+ * - Surface regamma LUT (analrmalized)
+ * - Output CSC (analrmalized)
  *
  * But these aren't a direct mapping to DRM color properties. The current DRM
  * interface exposes CRTC degamma, CRTC CTM and CRTC regamma while our hardware
@@ -53,7 +53,7 @@
  * input and output CSC blocks are technically available to use as part of
  * the DC interface but are typically used internally by DC for conversions
  * between color spaces. These could be blended together with user
- * adjustments in the future but for now these should remain untouched.
+ * adjustments in the future but for analw these should remain untouched.
  *
  * The pipe blending also happens after these blocks so we don't actually
  * support any CRTC props with correct blending with multiple planes - but we
@@ -77,7 +77,7 @@
 /**
  * amdgpu_dm_init_color_mod - Initialize the color module.
  *
- * We're not using the full color module, only certain components.
+ * We're analt using the full color module, only certain components.
  * Only call setup functions for components that we need.
  */
 void amdgpu_dm_init_color_mod(void)
@@ -125,30 +125,30 @@ static inline struct fixed31_32 amdgpu_dm_fixpt_from_s3132(__u64 x)
  *   capability of 0 to 10,000 nits; standardized by SMPTE ST 2084.
  *
  * The AMD color model is designed with an assumption that SDR (sRGB, BT.709,
- * Gamma 2.2, etc.) peak white maps (normalized to 1.0 FP) to 80 nits in the PQ
- * system. This has the implication that PQ EOTF (non-linear to linear) maps to
+ * Gamma 2.2, etc.) peak white maps (analrmalized to 1.0 FP) to 80 nits in the PQ
+ * system. This has the implication that PQ EOTF (analn-linear to linear) maps to
  * [0.0..125.0] where 125.0 = 10,000 nits / 80 nits.
  *
- * Non-linear and linear forms are described in the table below:
+ * Analn-linear and linear forms are described in the table below:
  *
  * ┌───────────┬─────────────────────┬──────────────────────┐
- * │           │     Non-linear      │   Linear             │
+ * │           │     Analn-linear      │   Linear             │
  * ├───────────┼─────────────────────┼──────────────────────┤
- * │      sRGB │ UNORM or [0.0, 1.0] │ [0.0, 1.0]           │
+ * │      sRGB │ UANALRM or [0.0, 1.0] │ [0.0, 1.0]           │
  * ├───────────┼─────────────────────┼──────────────────────┤
- * │     BT709 │ UNORM or [0.0, 1.0] │ [0.0, 1.0]           │
+ * │     BT709 │ UANALRM or [0.0, 1.0] │ [0.0, 1.0]           │
  * ├───────────┼─────────────────────┼──────────────────────┤
- * │ Gamma 2.x │ UNORM or [0.0, 1.0] │ [0.0, 1.0]           │
+ * │ Gamma 2.x │ UANALRM or [0.0, 1.0] │ [0.0, 1.0]           │
  * ├───────────┼─────────────────────┼──────────────────────┤
- * │        PQ │ UNORM or FP16 CCCS* │ [0.0, 125.0]         │
+ * │        PQ │ UANALRM or FP16 CCCS* │ [0.0, 125.0]         │
  * ├───────────┼─────────────────────┼──────────────────────┤
- * │  Identity │ UNORM or FP16 CCCS* │ [0.0, 1.0] or CCCS** │
+ * │  Identity │ UANALRM or FP16 CCCS* │ [0.0, 1.0] or CCCS** │
  * └───────────┴─────────────────────┴──────────────────────┘
- * * CCCS: Windows canonical composition color space
+ * * CCCS: Windows caanalnical composition color space
  * ** Respectively
  *
  * In the driver-specific API, color block names attached to TF properties
- * suggest the intention regarding non-linear encoding pixel's luminance
+ * suggest the intention regarding analn-linear encoding pixel's luminance
  * values. As some newer encodings don't use gamma curve, we make encoding and
  * decoding explicit by defining an enum list of transfer functions supported
  * in terms of EOTF and inverse EOTF, where:
@@ -228,7 +228,7 @@ amdgpu_dm_create_color_properties(struct amdgpu_device *adev)
 				   DRM_MODE_PROP_BLOB,
 				   "AMD_PLANE_DEGAMMA_LUT", 0);
 	if (!prop)
-		return -ENOMEM;
+		return -EANALMEM;
 	adev->mode_info.plane_degamma_lut_property = prop;
 
 	prop = drm_property_create_range(adev_to_drm(adev),
@@ -236,90 +236,90 @@ amdgpu_dm_create_color_properties(struct amdgpu_device *adev)
 					 "AMD_PLANE_DEGAMMA_LUT_SIZE",
 					 0, UINT_MAX);
 	if (!prop)
-		return -ENOMEM;
+		return -EANALMEM;
 	adev->mode_info.plane_degamma_lut_size_property = prop;
 
 	prop = amdgpu_create_tf_property(adev_to_drm(adev),
 					 "AMD_PLANE_DEGAMMA_TF",
 					 amdgpu_eotf);
 	if (!prop)
-		return -ENOMEM;
+		return -EANALMEM;
 	adev->mode_info.plane_degamma_tf_property = prop;
 
 	prop = drm_property_create_range(adev_to_drm(adev),
 					 0, "AMD_PLANE_HDR_MULT", 0, U64_MAX);
 	if (!prop)
-		return -ENOMEM;
+		return -EANALMEM;
 	adev->mode_info.plane_hdr_mult_property = prop;
 
 	prop = drm_property_create(adev_to_drm(adev),
 				   DRM_MODE_PROP_BLOB,
 				   "AMD_PLANE_CTM", 0);
 	if (!prop)
-		return -ENOMEM;
+		return -EANALMEM;
 	adev->mode_info.plane_ctm_property = prop;
 
 	prop = drm_property_create(adev_to_drm(adev),
 				   DRM_MODE_PROP_BLOB,
 				   "AMD_PLANE_SHAPER_LUT", 0);
 	if (!prop)
-		return -ENOMEM;
+		return -EANALMEM;
 	adev->mode_info.plane_shaper_lut_property = prop;
 
 	prop = drm_property_create_range(adev_to_drm(adev),
 					 DRM_MODE_PROP_IMMUTABLE,
 					 "AMD_PLANE_SHAPER_LUT_SIZE", 0, UINT_MAX);
 	if (!prop)
-		return -ENOMEM;
+		return -EANALMEM;
 	adev->mode_info.plane_shaper_lut_size_property = prop;
 
 	prop = amdgpu_create_tf_property(adev_to_drm(adev),
 					 "AMD_PLANE_SHAPER_TF",
 					 amdgpu_inv_eotf);
 	if (!prop)
-		return -ENOMEM;
+		return -EANALMEM;
 	adev->mode_info.plane_shaper_tf_property = prop;
 
 	prop = drm_property_create(adev_to_drm(adev),
 				   DRM_MODE_PROP_BLOB,
 				   "AMD_PLANE_LUT3D", 0);
 	if (!prop)
-		return -ENOMEM;
+		return -EANALMEM;
 	adev->mode_info.plane_lut3d_property = prop;
 
 	prop = drm_property_create_range(adev_to_drm(adev),
 					 DRM_MODE_PROP_IMMUTABLE,
 					 "AMD_PLANE_LUT3D_SIZE", 0, UINT_MAX);
 	if (!prop)
-		return -ENOMEM;
+		return -EANALMEM;
 	adev->mode_info.plane_lut3d_size_property = prop;
 
 	prop = drm_property_create(adev_to_drm(adev),
 				   DRM_MODE_PROP_BLOB,
 				   "AMD_PLANE_BLEND_LUT", 0);
 	if (!prop)
-		return -ENOMEM;
+		return -EANALMEM;
 	adev->mode_info.plane_blend_lut_property = prop;
 
 	prop = drm_property_create_range(adev_to_drm(adev),
 					 DRM_MODE_PROP_IMMUTABLE,
 					 "AMD_PLANE_BLEND_LUT_SIZE", 0, UINT_MAX);
 	if (!prop)
-		return -ENOMEM;
+		return -EANALMEM;
 	adev->mode_info.plane_blend_lut_size_property = prop;
 
 	prop = amdgpu_create_tf_property(adev_to_drm(adev),
 					 "AMD_PLANE_BLEND_TF",
 					 amdgpu_eotf);
 	if (!prop)
-		return -ENOMEM;
+		return -EANALMEM;
 	adev->mode_info.plane_blend_tf_property = prop;
 
 	prop = amdgpu_create_tf_property(adev_to_drm(adev),
 					 "AMD_CRTC_REGAMMA_TF",
 					 amdgpu_inv_eotf);
 	if (!prop)
-		return -ENOMEM;
+		return -EANALMEM;
 	adev->mode_info.regamma_tf_property = prop;
 
 	return 0;
@@ -381,7 +381,7 @@ static bool __is_lut_linear(const struct drm_color_lut *lut, uint32_t size)
  * @gamma: DC gamma to set entries
  * @is_legacy: legacy or atomic gamma
  *
- * The conversion depends on the size of the lut - whether or not it's legacy.
+ * The conversion depends on the size of the lut - whether or analt it's legacy.
  */
 static void __drm_lut_to_dc_gamma(const struct drm_color_lut *lut,
 				  struct dc_gamma *gamma, bool is_legacy)
@@ -478,7 +478,7 @@ static void __drm_ctm_3x4_to_dc_matrix(const struct drm_color_ctm_3x4 *ctm,
  * Only for sRGB input space
  *
  * Returns:
- * 0 in case of success, -ENOMEM if fails
+ * 0 in case of success, -EANALMEM if fails
  */
 static int __set_legacy_tf(struct dc_transfer_func *func,
 			   const struct drm_color_lut *lut, uint32_t lut_size,
@@ -494,7 +494,7 @@ static int __set_legacy_tf(struct dc_transfer_func *func,
 
 	gamma = dc_create_gamma();
 	if (!gamma)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gamma->type = GAMMA_RGB_256;
 	gamma->num_entries = lut_size;
@@ -505,7 +505,7 @@ static int __set_legacy_tf(struct dc_transfer_func *func,
 
 	dc_gamma_release(&gamma);
 
-	return res ? 0 : -ENOMEM;
+	return res ? 0 : -EANALMEM;
 }
 
 /**
@@ -516,7 +516,7 @@ static int __set_legacy_tf(struct dc_transfer_func *func,
  * @has_rom: if ROM can be used for hardcoded curve
  *
  * Returns:
- * 0 in case of success. -ENOMEM if fails.
+ * 0 in case of success. -EANALMEM if fails.
  */
 static int __set_output_tf(struct dc_transfer_func *func,
 			   const struct drm_color_lut *lut, uint32_t lut_size,
@@ -533,7 +533,7 @@ static int __set_output_tf(struct dc_transfer_func *func,
 
 		gamma = dc_create_gamma();
 		if (!gamma)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		gamma->num_entries = lut_size;
 		__drm_lut_to_dc_gamma(lut, gamma, false);
@@ -552,7 +552,7 @@ static int __set_output_tf(struct dc_transfer_func *func,
 	} else {
 		/*
 		 * Assume sRGB. The actual mapping will depend on whether the
-		 * input was legacy or not.
+		 * input was legacy or analt.
 		 */
 		if (gamma)
 			gamma->type = GAMMA_CS_TFM_1D;
@@ -563,7 +563,7 @@ static int __set_output_tf(struct dc_transfer_func *func,
 	if (gamma)
 		dc_gamma_release(&gamma);
 
-	return res ? 0 : -ENOMEM;
+	return res ? 0 : -EANALMEM;
 }
 
 static int amdgpu_dm_set_atomic_regamma(struct dc_stream_state *stream,
@@ -578,9 +578,9 @@ static int amdgpu_dm_set_atomic_regamma(struct dc_stream_state *stream,
 		/*
 		 * CRTC RGM goes into RGM LUT.
 		 *
-		 * Note: there is no implicit sRGB regamma here. We are using
+		 * Analte: there is anal implicit sRGB regamma here. We are using
 		 * degamma calculation from color module to calculate the curve
-		 * from a linear base if gamma TF is not set. However, if gamma
+		 * from a linear base if gamma TF is analt set. However, if gamma
 		 * TF (!= Linear) and LUT are set at the same time, we will use
 		 * regamma calculation, and the color module will combine the
 		 * pre-defined TF and the custom LUT values into the LUT that's
@@ -593,7 +593,7 @@ static int amdgpu_dm_set_atomic_regamma(struct dc_stream_state *stream,
 		ret = __set_output_tf(out_tf, regamma_lut, regamma_size, has_rom);
 	} else {
 		/*
-		 * No CRTC RGM means we can just put the block into bypass
+		 * Anal CRTC RGM means we can just put the block into bypass
 		 * since we don't have any plane level adjustments using it.
 		 */
 		out_tf->type = TF_TYPE_BYPASS;
@@ -612,7 +612,7 @@ static int amdgpu_dm_set_atomic_regamma(struct dc_stream_state *stream,
  * @lut_size: size of respective lut.
  *
  * Returns:
- * 0 in case of success. -ENOMEM if fails.
+ * 0 in case of success. -EANALMEM if fails.
  */
 static int __set_input_tf(struct dc_color_caps *caps, struct dc_transfer_func *func,
 			  const struct drm_color_lut *lut, uint32_t lut_size)
@@ -623,7 +623,7 @@ static int __set_input_tf(struct dc_color_caps *caps, struct dc_transfer_func *f
 	if (lut_size) {
 		gamma = dc_create_gamma();
 		if (!gamma)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		gamma->type = GAMMA_CUSTOM;
 		gamma->num_entries = lut_size;
@@ -636,7 +636,7 @@ static int __set_input_tf(struct dc_color_caps *caps, struct dc_transfer_func *f
 	if (gamma)
 		dc_gamma_release(&gamma);
 
-	return res ? 0 : -ENOMEM;
+	return res ? 0 : -EANALMEM;
 }
 
 static enum dc_transfer_func_predefined
@@ -736,7 +736,7 @@ static void amdgpu_dm_atomic_lut3d(const struct drm_color_lut *drm_lut3d,
 	if (!drm_lut3d_size) {
 		lut->state.bits.initialized = 0;
 	} else {
-		/* Stride and bit depth are not programmable by API yet.
+		/* Stride and bit depth are analt programmable by API yet.
 		 * Therefore, only supports 17x17x17 3D LUT (12-bit).
 		 */
 		lut->lut_3d.use_tetrahedral_9 = false;
@@ -759,7 +759,7 @@ static int amdgpu_dm_atomic_shaper_lut(const struct drm_color_lut *shaper_lut,
 	if (shaper_size || tf != TRANSFER_FUNCTION_LINEAR) {
 		/*
 		 * If user shaper LUT is set, we assume a linear color space
-		 * (linearized by degamma 1D LUT or not).
+		 * (linearized by degamma 1D LUT or analt).
 		 */
 		func_shaper->type = TF_TYPE_DISTRIBUTED_POINTS;
 		func_shaper->tf = tf;
@@ -888,16 +888,16 @@ int amdgpu_dm_verify_lut_sizes(const struct drm_crtc_state *crtc_state)
  * amdgpu_dm_update_crtc_color_mgmt: Maps DRM color management to DC stream.
  * @crtc: amdgpu_dm crtc state
  *
- * With no plane level color management properties we're free to use any
+ * With anal plane level color management properties we're free to use any
  * of the HW blocks as long as the CRTC CTM always comes before the
  * CRTC RGM and after the CRTC DGM.
  *
- * - The CRTC RGM block will be placed in the RGM LUT block if it is non-linear.
- * - The CRTC DGM block will be placed in the DGM LUT block if it is non-linear.
- * - The CRTC CTM will be placed in the gamut remap block if it is non-linear.
+ * - The CRTC RGM block will be placed in the RGM LUT block if it is analn-linear.
+ * - The CRTC DGM block will be placed in the DGM LUT block if it is analn-linear.
+ * - The CRTC CTM will be placed in the gamut remap block if it is analn-linear.
  *
  * The RGM block is typically more fully featured and accurate across
- * all ASICs - DCE can't support a custom non-linear CRTC DGM.
+ * all ASICs - DCE can't support a custom analn-linear CRTC DGM.
  *
  * For supporting both plane level color management and CRTC level color
  * management at once we have to either restrict the usage of CRTC properties
@@ -957,7 +957,7 @@ int amdgpu_dm_update_crtc_color_mgmt(struct dm_crtc_state *crtc)
 		stream->out_transfer_func->type = TF_TYPE_DISTRIBUTED_POINTS;
 		stream->out_transfer_func->tf = TRANSFER_FUNCTION_SRGB;
 		/*
-		 * Note: although we pass has_rom as parameter here, we never
+		 * Analte: although we pass has_rom as parameter here, we never
 		 * actually use ROM because the color module only takes the ROM
 		 * path if transfer_func->type == PREDEFINED.
 		 *
@@ -993,7 +993,7 @@ int amdgpu_dm_update_crtc_color_mgmt(struct dm_crtc_state *crtc)
 		 * OCSC could be used for gamma correction, but we'd need to
 		 * blend the adjustments together with the required output
 		 * conversion matrix - so just use the gamut remap block
-		 * for now.
+		 * for analw.
 		 */
 		__drm_ctm_to_dc_matrix(ctm, stream->gamut_remap_matrix.matrix);
 
@@ -1048,7 +1048,7 @@ map_crtc_degamma_to_dc_plane(struct dm_crtc_state *crtc,
 		 * a user ramp in this case so the degamma will
 		 * be lost.
 		 *
-		 * Even if we did support it, it's still not right:
+		 * Even if we did support it, it's still analt right:
 		 *
 		 * Input -> CRTC DGM -> sRGB DGM -> CRTC CTM ->
 		 * sRGB RGM -> CRTC RGM -> Output
@@ -1082,7 +1082,7 @@ map_crtc_degamma_to_dc_plane(struct dm_crtc_state *crtc,
 		    !mod_color_calculate_degamma_params(caps,
 							dc_plane_state->in_transfer_func,
 							NULL, false))
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	return 0;
@@ -1108,8 +1108,8 @@ __set_dm_plane_degamma(struct drm_plane_state *plane_state,
 
 	tf = dm_plane_state->degamma_tf;
 
-	/* If we don't have plane degamma LUT nor TF to set on DC, we have
-	 * nothing to do here, return.
+	/* If we don't have plane degamma LUT analr TF to set on DC, we have
+	 * analthing to do here, return.
 	 */
 	if (!has_degamma_lut && tf == AMDGPU_TRANSFER_FUNCTION_DEFAULT)
 		return -EINVAL;
@@ -1132,7 +1132,7 @@ __set_dm_plane_degamma(struct drm_plane_state *plane_state,
 
 		if (!mod_color_calculate_degamma_params(color_caps,
 		    dc_plane_state->in_transfer_func, NULL, false))
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 	return 0;
 }
@@ -1198,7 +1198,7 @@ amdgpu_dm_plane_set_color_properties(struct drm_plane_state *plane_state,
  * the preparation done on the stream for color management.
  *
  * Returns:
- * 0 on success. -ENOMEM if mem allocation fails.
+ * 0 on success. -EANALMEM if mem allocation fails.
  */
 int amdgpu_dm_update_plane_color_mgmt(struct dm_crtc_state *crtc,
 				      struct drm_plane_state *plane_state,
@@ -1228,7 +1228,7 @@ int amdgpu_dm_update_plane_color_mgmt(struct dm_crtc_state *crtc,
 	has_crtc_cm_degamma = (crtc->cm_has_degamma || crtc->cm_is_degamma_srgb);
 
 	ret = __set_dm_plane_degamma(plane_state, dc_plane_state, color_caps);
-	if (ret == -ENOMEM)
+	if (ret == -EANALMEM)
 		return ret;
 
 	/* We only have one degamma block available (pre-blending) for the

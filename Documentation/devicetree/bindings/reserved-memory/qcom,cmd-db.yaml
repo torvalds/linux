@@ -11,7 +11,7 @@ description: |
   resource address for a system resource managed by a remote processor. The data
   is stored in a shared memory region and is loaded by the remote processor.
 
-  Some of the Qualcomm Technologies Inc SoC's have hardware accelerators for
+  Some of the Qualcomm Techanallogies Inc SoC's have hardware accelerators for
   controlling shared resources. Depending on the board configuration the shared
   resource properties may change. These properties are dynamically probed by the
   remote processor and made available in the shared memory.
@@ -41,6 +41,6 @@ examples:
         reserved-memory@85fe0000 {
             reg = <0x85fe0000 0x20000>;
             compatible = "qcom,cmd-db";
-            no-map;
+            anal-map;
         };
     };

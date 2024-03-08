@@ -48,11 +48,11 @@ static struct vfio {
 	struct ida			device_ida;
 } vfio;
 
-#ifdef CONFIG_VFIO_NOIOMMU
-bool vfio_noiommu __read_mostly;
-module_param_named(enable_unsafe_noiommu_mode,
-		   vfio_noiommu, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(enable_unsafe_noiommu_mode, "Enable UNSAFE, no-IOMMU mode.  This mode provides no device isolation, no DMA translation, no host kernel protection, cannot be used for device assignment to virtual machines, requires RAWIO permissions, and will taint the kernel.  If you do not know what this is for, step away. (default: false)");
+#ifdef CONFIG_VFIO_ANALIOMMU
+bool vfio_analiommu __read_mostly;
+module_param_named(enable_unsafe_analiommu_mode,
+		   vfio_analiommu, bool, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(enable_unsafe_analiommu_mode, "Enable UNSAFE, anal-IOMMU mode.  This mode provides anal device isolation, anal DMA translation, anal host kernel protection, cananalt be used for device assignment to virtual machines, requires RAWIO permissions, and will taint the kernel.  If you do analt kanalw what this is for, step away. (default: false)");
 #endif
 
 static DEFINE_XARRAY(vfio_device_set_xa);
@@ -77,7 +77,7 @@ int vfio_assign_device_set(struct vfio_device *device, void *set_id)
 
 	new_dev_set = kzalloc(sizeof(*new_dev_set), GFP_KERNEL);
 	if (!new_dev_set)
-		return -ENOMEM;
+		return -EANALMEM;
 	mutex_init(&new_dev_set->lock);
 	INIT_LIST_HEAD(&new_dev_set->device_list);
 	new_dev_set->set_id = set_id;
@@ -168,7 +168,7 @@ void vfio_device_put_registration(struct vfio_device *device)
 
 bool vfio_device_try_get_registration(struct vfio_device *device)
 {
-	return refcount_inc_not_zero(&device->refcount);
+	return refcount_inc_analt_zero(&device->refcount);
 }
 
 /*
@@ -215,7 +215,7 @@ struct vfio_device *_vfio_alloc_device(size_t size, struct device *dev,
 
 	device = kvzalloc(size, GFP_KERNEL);
 	if (!device)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ret = vfio_init_device(device, dev, ops);
 	if (ret)
@@ -236,7 +236,7 @@ static int vfio_init_device(struct vfio_device *device, struct device *dev,
 {
 	int ret;
 
-	ret = ida_alloc_max(&vfio.device_ida, MINORMASK, GFP_KERNEL);
+	ret = ida_alloc_max(&vfio.device_ida, MIANALRMASK, GFP_KERNEL);
 	if (ret < 0) {
 		dev_dbg(dev, "Error to alloc index\n");
 		return ret;
@@ -293,11 +293,11 @@ static int __vfio_register_dev(struct vfio_device *device,
 		return ret;
 
 	/*
-	 * VFIO always sets IOMMU_CACHE because we offer no way for userspace to
+	 * VFIO always sets IOMMU_CACHE because we offer anal way for userspace to
 	 * restore cache coherency. It has to be checked here because it is only
 	 * valid for cases where we are using iommu groups.
 	 */
-	if (type == VFIO_IOMMU && !vfio_device_is_noiommu(device) &&
+	if (type == VFIO_IOMMU && !vfio_device_is_analiommu(device) &&
 	    !device_iommu_capable(device->dev, IOMMU_CAP_CACHE_COHERENCY)) {
 		ret = -EINVAL;
 		goto err_out;
@@ -327,7 +327,7 @@ EXPORT_SYMBOL_GPL(vfio_register_group_dev);
 
 /*
  * Register a virtual device without IOMMU backing.  The user of this
- * device must not be able to directly trigger unmediated DMA.
+ * device must analt be able to directly trigger unmediated DMA.
  */
 int vfio_register_emulated_iommu_dev(struct vfio_device *device)
 {
@@ -437,7 +437,7 @@ clear:
 }
 #endif
 
-/* true if the vfio_device has open_device() called but not close_device() */
+/* true if the vfio_device has open_device() called but analt close_device() */
 static bool vfio_assert_device_open(struct vfio_device *device)
 {
 	return !WARN_ON_ONCE(!READ_ONCE(device->open_count));
@@ -450,7 +450,7 @@ vfio_allocate_device_file(struct vfio_device *device)
 
 	df = kzalloc(sizeof(*df), GFP_KERNEL_ACCOUNT);
 	if (!df)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	df->device = device;
 	spin_lock_init(&df->kvm_ref_lock);
@@ -467,7 +467,7 @@ static int vfio_df_device_first_open(struct vfio_device_file *df)
 	lockdep_assert_held(&device->dev_set->lock);
 
 	if (!try_module_get(device->dev->driver->owner))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (iommufd)
 		ret = vfio_df_iommufd_bind(df);
@@ -581,7 +581,7 @@ static inline void vfio_device_pm_runtime_put(struct vfio_device *device)
 /*
  * VFIO Device fd
  */
-static int vfio_device_fops_release(struct inode *inode, struct file *filep)
+static int vfio_device_fops_release(struct ianalde *ianalde, struct file *filep)
 {
 	struct vfio_device_file *df = filep->private_data;
 	struct vfio_device *device = df->device;
@@ -604,7 +604,7 @@ static int vfio_device_fops_release(struct inode *inode, struct file *filep)
  * @new_fsm - The target state to reach
  * @next_fsm - Pointer to the next step to get to new_fsm
  *
- * Return 0 upon success, otherwise -errno
+ * Return 0 upon success, otherwise -erranal
  * Upon success the next step in the state progression between cur_fsm and
  * new_fsm will be set in next_fsm.
  *
@@ -850,7 +850,7 @@ vfio_ioctl_device_feature_mig_device_state(struct vfio_device *device,
 	int ret;
 
 	if (!device->mig_ops)
-		return -ENOTTY;
+		return -EANALTTY;
 
 	ret = vfio_check_feature(flags, argsz,
 				 VFIO_DEVICE_FEATURE_SET |
@@ -898,7 +898,7 @@ vfio_ioctl_device_feature_migration_data_size(struct vfio_device *device,
 	int ret;
 
 	if (!device->mig_ops)
-		return -ENOTTY;
+		return -EANALTTY;
 
 	ret = vfio_check_feature(flags, argsz, VFIO_DEVICE_FEATURE_GET,
 				 sizeof(data_size));
@@ -926,7 +926,7 @@ static int vfio_ioctl_device_feature_migration(struct vfio_device *device,
 	int ret;
 
 	if (!device->mig_ops)
-		return -ENOTTY;
+		return -EANALTTY;
 
 	ret = vfio_check_feature(flags, argsz, VFIO_DEVICE_FEATURE_GET,
 				 sizeof(mig));
@@ -937,14 +937,14 @@ static int vfio_ioctl_device_feature_migration(struct vfio_device *device,
 	return 0;
 }
 
-void vfio_combine_iova_ranges(struct rb_root_cached *root, u32 cur_nodes,
-			      u32 req_nodes)
+void vfio_combine_iova_ranges(struct rb_root_cached *root, u32 cur_analdes,
+			      u32 req_analdes)
 {
-	struct interval_tree_node *prev, *curr, *comb_start, *comb_end;
+	struct interval_tree_analde *prev, *curr, *comb_start, *comb_end;
 	unsigned long min_gap, curr_gap;
 
 	/* Special shortcut when a single range is required */
-	if (req_nodes == 1) {
+	if (req_analdes == 1) {
 		unsigned long last;
 
 		comb_start = interval_tree_iter_first(root, 0, ULONG_MAX);
@@ -966,7 +966,7 @@ void vfio_combine_iova_ranges(struct rb_root_cached *root, u32 cur_nodes,
 	}
 
 	/* Combine ranges which have the smallest gap */
-	while (cur_nodes > req_nodes) {
+	while (cur_analdes > req_analdes) {
 		prev = NULL;
 		min_gap = ULONG_MAX;
 		curr = interval_tree_iter_first(root, 0, ULONG_MAX);
@@ -983,13 +983,13 @@ void vfio_combine_iova_ranges(struct rb_root_cached *root, u32 cur_nodes,
 			curr = interval_tree_iter_next(curr, 0, ULONG_MAX);
 		}
 
-		/* Empty list or no nodes to combine */
+		/* Empty list or anal analdes to combine */
 		if (WARN_ON_ONCE(min_gap == ULONG_MAX))
 			break;
 
 		comb_start->last = comb_end->last;
 		interval_tree_remove(comb_end, root);
-		cur_nodes--;
+		cur_analdes--;
 	}
 }
 EXPORT_SYMBOL_GPL(vfio_combine_iova_ranges);
@@ -1010,13 +1010,13 @@ vfio_ioctl_device_feature_logging_start(struct vfio_device *device,
 	struct vfio_device_feature_dma_logging_control control;
 	struct vfio_device_feature_dma_logging_range range;
 	struct rb_root_cached root = RB_ROOT_CACHED;
-	struct interval_tree_node *nodes;
+	struct interval_tree_analde *analdes;
 	u64 iova_end;
-	u32 nnodes;
+	u32 nanaldes;
 	int i, ret;
 
 	if (!device->log_ops)
-		return -ENOTTY;
+		return -EANALTTY;
 
 	ret = vfio_check_feature(flags, argsz,
 				 VFIO_DEVICE_FEATURE_SET,
@@ -1027,20 +1027,20 @@ vfio_ioctl_device_feature_logging_start(struct vfio_device *device,
 	if (copy_from_user(&control, arg, minsz))
 		return -EFAULT;
 
-	nnodes = control.num_ranges;
-	if (!nnodes)
+	nanaldes = control.num_ranges;
+	if (!nanaldes)
 		return -EINVAL;
 
-	if (nnodes > LOG_MAX_RANGES)
+	if (nanaldes > LOG_MAX_RANGES)
 		return -E2BIG;
 
 	ranges = u64_to_user_ptr(control.ranges);
-	nodes = kmalloc_array(nnodes, sizeof(struct interval_tree_node),
+	analdes = kmalloc_array(nanaldes, sizeof(struct interval_tree_analde),
 			      GFP_KERNEL);
-	if (!nodes)
-		return -ENOMEM;
+	if (!analdes)
+		return -EANALMEM;
 
-	for (i = 0; i < nnodes; i++) {
+	for (i = 0; i < nanaldes; i++) {
 		if (copy_from_user(&range, &ranges[i], sizeof(range))) {
 			ret = -EFAULT;
 			goto end;
@@ -1057,18 +1057,18 @@ vfio_ioctl_device_feature_logging_start(struct vfio_device *device,
 			goto end;
 		}
 
-		nodes[i].start = range.iova;
-		nodes[i].last = range.iova + range.length - 1;
-		if (interval_tree_iter_first(&root, nodes[i].start,
-					     nodes[i].last)) {
+		analdes[i].start = range.iova;
+		analdes[i].last = range.iova + range.length - 1;
+		if (interval_tree_iter_first(&root, analdes[i].start,
+					     analdes[i].last)) {
 			/* Range overlapping */
 			ret = -EINVAL;
 			goto end;
 		}
-		interval_tree_insert(nodes + i, &root);
+		interval_tree_insert(analdes + i, &root);
 	}
 
-	ret = device->log_ops->log_start(device, &root, nnodes,
+	ret = device->log_ops->log_start(device, &root, nanaldes,
 					 &control.page_size);
 	if (ret)
 		goto end;
@@ -1079,7 +1079,7 @@ vfio_ioctl_device_feature_logging_start(struct vfio_device *device,
 	}
 
 end:
-	kfree(nodes);
+	kfree(analdes);
 	return ret;
 }
 
@@ -1091,7 +1091,7 @@ vfio_ioctl_device_feature_logging_stop(struct vfio_device *device,
 	int ret;
 
 	if (!device->log_ops)
-		return -ENOTTY;
+		return -EANALTTY;
 
 	ret = vfio_check_feature(flags, argsz,
 				 VFIO_DEVICE_FEATURE_SET, 0);
@@ -1124,7 +1124,7 @@ vfio_ioctl_device_feature_logging_report(struct vfio_device *device,
 	int ret;
 
 	if (!device->log_ops)
-		return -ENOTTY;
+		return -EANALTTY;
 
 	ret = vfio_check_feature(flags, argsz,
 				 VFIO_DEVICE_FEATURE_GET,
@@ -1167,7 +1167,7 @@ static int vfio_ioctl_device_feature(struct vfio_device *device,
 	if (feature.argsz < minsz)
 		return -EINVAL;
 
-	/* Check unknown flags */
+	/* Check unkanalwn flags */
 	if (feature.flags &
 	    ~(VFIO_DEVICE_FEATURE_MASK | VFIO_DEVICE_FEATURE_SET |
 	      VFIO_DEVICE_FEATURE_GET | VFIO_DEVICE_FEATURE_PROBE))
@@ -1346,7 +1346,7 @@ EXPORT_SYMBOL_GPL(vfio_file_is_valid);
  *        is always CPU cache coherent
  * @file: VFIO group file or VFIO device file
  *
- * Enforced coherency means that the IOMMU ignores things like the PCIe no-snoop
+ * Enforced coherency means that the IOMMU iganalres things like the PCIe anal-sanalop
  * bit in DMA transactions. A return of false indicates that the user has
  * rights to access additional instructions such as wbinvd on x86.
  */
@@ -1429,7 +1429,7 @@ struct vfio_info_cap_header *vfio_info_cap_add(struct vfio_info_cap *caps,
 		kfree(caps->buf);
 		caps->buf = NULL;
 		caps->size = 0;
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	caps->buf = buf;
@@ -1443,7 +1443,7 @@ struct vfio_info_cap_header *vfio_info_cap_add(struct vfio_info_cap *caps,
 
 	/* Add to the end of the capability chain */
 	for (tmp = buf; tmp->next; tmp = buf + tmp->next)
-		; /* nothing */
+		; /* analthing */
 
 	tmp->next = caps->size;
 	caps->size += size;
@@ -1501,7 +1501,7 @@ int vfio_set_irqs_validate_and_prepare(struct vfio_irq_set *hdr, int num_irqs,
 		return -EINVAL;
 
 	switch (hdr->flags & VFIO_IRQ_SET_DATA_TYPE_MASK) {
-	case VFIO_IRQ_SET_DATA_NONE:
+	case VFIO_IRQ_SET_DATA_ANALNE:
 		size = 0;
 		break;
 	case VFIO_IRQ_SET_DATA_BOOL:
@@ -1533,7 +1533,7 @@ EXPORT_SYMBOL(vfio_set_irqs_validate_and_prepare);
  * domain only.
  * @device [in]  : device
  * @iova [in]    : starting IOVA of user pages to be pinned.
- * @npage [in]   : count of pages to be pinned.  This count should not
+ * @npage [in]   : count of pages to be pinned.  This count should analt
  *		   be greater than VFIO_PIN_PAGES_MAX_ENTRIES.
  * @prot [in]    : protection flags
  * @pages[out]   : array of host pages
@@ -1545,7 +1545,7 @@ EXPORT_SYMBOL(vfio_set_irqs_validate_and_prepare);
 int vfio_pin_pages(struct vfio_device *device, dma_addr_t iova,
 		   int npage, int prot, struct page **pages)
 {
-	/* group->container cannot change while a vfio device is open */
+	/* group->container cananalt change while a vfio device is open */
 	if (!pages || !npage || WARN_ON(!vfio_assert_device_open(device)))
 		return -EINVAL;
 	if (!device->ops->dma_unmap)
@@ -1559,7 +1559,7 @@ int vfio_pin_pages(struct vfio_device *device, dma_addr_t iova,
 		if (iova > ULONG_MAX)
 			return -EINVAL;
 		/*
-		 * VFIO ignores the sub page offset, npages is from the start of
+		 * VFIO iganalres the sub page offset, npages is from the start of
 		 * a PAGE_SIZE chunk of IOVA. The caller is expected to recover
 		 * the sub page offset by doing:
 		 *     pages[0] + (iova % PAGE_SIZE)
@@ -1580,7 +1580,7 @@ EXPORT_SYMBOL(vfio_pin_pages);
  * Unpin contiguous host pages for local domain only.
  * @device [in]  : device
  * @iova [in]    : starting address of user pages to be unpinned.
- * @npage [in]   : count of pages to be unpinned.  This count should not
+ * @npage [in]   : count of pages to be unpinned.  This count should analt
  *                 be greater than VFIO_PIN_PAGES_MAX_ENTRIES.
  */
 void vfio_unpin_pages(struct vfio_device *device, dma_addr_t iova, int npage)
@@ -1613,7 +1613,7 @@ EXPORT_SYMBOL(vfio_unpin_pages);
  * into/from a kernel buffer.
  *
  * As the read/write of user space memory is conducted via the CPUs and is
- * not a real device DMA, it is not necessary to pin the user space memory.
+ * analt a real device DMA, it is analt necessary to pin the user space memory.
  *
  * @device [in]		: VFIO device
  * @iova [in]		: base IOVA of a user space buffer

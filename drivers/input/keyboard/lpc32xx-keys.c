@@ -40,7 +40,7 @@
 #define LPC32XX_KSCAN_DEB_NUM_DEB_PASS(n)	((n) & 0xFF)
 
 #define LPC32XX_KSCAN_SCOND_IN_IDLE		0x0
-#define LPC32XX_KSCAN_SCOND_IN_SCANONCE		0x1
+#define LPC32XX_KSCAN_SCOND_IN_SCAANALNCE		0x1
 #define LPC32XX_KSCAN_SCOND_IN_IRQGEN		0x2
 #define LPC32XX_KSCAN_SCOND_IN_SCAN_MATRIX	0x3
 
@@ -48,7 +48,7 @@
 
 #define LPC32XX_KSCAN_SCTRL_SCAN_DELAY(n)	((n) & 0xFF)
 
-#define LPC32XX_KSCAN_FTST_FORCESCANONCE	0x1
+#define LPC32XX_KSCAN_FTST_FORCESCAANALNCE	0x1
 #define LPC32XX_KSCAN_FTST_USE32K_CLK		0x2
 
 #define LPC32XX_KSCAN_MSEL_SELECT(n)		((n) & 0xF)
@@ -131,7 +131,7 @@ static void lpc32xx_kscan_close(struct input_dev *dev)
 static int lpc32xx_parse_dt(struct device *dev,
 				      struct lpc32xx_kscan_drv *kscandat)
 {
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	u32 rows = 0, columns = 0;
 	int err;
 
@@ -149,7 +149,7 @@ static int lpc32xx_parse_dt(struct device *dev,
 	of_property_read_u32(np, "nxp,debounce-delay-ms", &kscandat->deb_clks);
 	of_property_read_u32(np, "nxp,scan-delay-ms", &kscandat->scan_delay);
 	if (!kscandat->deb_clks || !kscandat->scan_delay) {
-		dev_err(dev, "debounce or scan delay not specified\n");
+		dev_err(dev, "debounce or scan delay analt specified\n");
 		return -EINVAL;
 	}
 
@@ -171,7 +171,7 @@ static int lpc32xx_kscan_probe(struct platform_device *pdev)
 	kscandat = devm_kzalloc(&pdev->dev, sizeof(*kscandat),
 				GFP_KERNEL);
 	if (!kscandat)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	error = lpc32xx_parse_dt(&pdev->dev, kscandat);
 	if (error) {
@@ -183,12 +183,12 @@ static int lpc32xx_kscan_probe(struct platform_device *pdev)
 				(kscandat->matrix_sz << kscandat->row_shift);
 	kscandat->keymap = devm_kzalloc(&pdev->dev, keymap_size, GFP_KERNEL);
 	if (!kscandat->keymap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	kscandat->input = input = devm_input_allocate_device(&pdev->dev);
 	if (!input) {
 		dev_err(&pdev->dev, "failed to allocate input device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Setup key input */

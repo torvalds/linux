@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 
-#include <errno.h>
+#include <erranal.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <string.h>
@@ -36,7 +36,7 @@ static const struct dexcr_aspect aspects[] = {
 	},
 	{
 		.name = "NPHIE",
-		.desc = "Non-privileged hash instruction enable",
+		.desc = "Analn-privileged hash instruction enable",
 		.index = 5,
 	},
 	{
@@ -77,7 +77,7 @@ static void print_dexcr(char *name, unsigned int bits)
 	}
 
 	if (bits)
-		enabled_aspects[j++] = "unknown";
+		enabled_aspects[j++] = "unkanalwn";
 
 	printf(" (");
 	print_list(enabled_aspects, j);
@@ -106,7 +106,7 @@ static void print_aspect(const struct dexcr_aspect *aspect)
 int main(int argc, char *argv[])
 {
 	if (!dexcr_exists()) {
-		printf("DEXCR not detected on this hardware\n");
+		printf("DEXCR analt detected on this hardware\n");
 		return 1;
 	}
 
@@ -134,7 +134,7 @@ int main(int argc, char *argv[])
 		if (hashchk_triggers())
 			printf("unexpectedly triggered\n");
 		else
-			printf("ignored\n");
+			printf("iganalred\n");
 	}
 
 	return 0;

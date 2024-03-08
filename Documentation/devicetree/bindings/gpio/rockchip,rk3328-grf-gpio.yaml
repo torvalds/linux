@@ -11,7 +11,7 @@ description:
   GPIO_MUTE pin, originally for codec mute control, but it can also be used
   for general purpose. It is manipulated by the GRF_SOC_CON10 register.
   If needed in the future support for the HDMI pins can also be added.
-  The GPIO node should be declared as the child of the GRF node.
+  The GPIO analde should be declared as the child of the GRF analde.
 
   The GPIO_MUTE pin is referred to in the format
 

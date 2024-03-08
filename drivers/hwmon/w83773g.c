@@ -177,7 +177,7 @@ static int w83773_read(struct device *dev, enum hwmon_sensor_types type,
 	if (type == hwmon_chip) {
 		if (attr == hwmon_chip_update_interval)
 			return get_update_interval(regmap, val);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	switch (attr) {
@@ -190,7 +190,7 @@ static int w83773_read(struct device *dev, enum hwmon_sensor_types type,
 	case hwmon_temp_offset:
 		return get_offset(regmap, channel - 1, val);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -205,7 +205,7 @@ static int w83773_write(struct device *dev, enum hwmon_sensor_types type,
 	if (type == hwmon_temp && attr == hwmon_temp_offset)
 		return set_offset(regmap, channel - 1, val);
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static umode_t w83773_is_visible(const void *data, enum hwmon_sensor_types type,

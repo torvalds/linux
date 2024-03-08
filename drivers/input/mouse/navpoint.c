@@ -41,8 +41,8 @@ struct navpoint {
  * Initialization values for SSCR0_x, SSCR1_x, SSSR_x.
  */
 static const u32 sscr0 = 0
-	| SSCR0_TUM		/* TIM = 1; No TUR interrupts */
-	| SSCR0_RIM		/* RIM = 1; No ROR interrupts */
+	| SSCR0_TUM		/* TIM = 1; Anal TUR interrupts */
+	| SSCR0_RIM		/* RIM = 1; Anal ROR interrupts */
 	| SSCR0_SSE		/* SSE = 1; SSP enabled */
 	| SSCR0_Motorola	/* FRF = 0; Motorola SPI */
 	| SSCR0_DataSize(16)	/* DSS = 15; Data size = 16-bit */
@@ -66,7 +66,7 @@ static const u32 sssr = 0
 	;
 
 /*
- * MEP Query $22: Touchpad Coordinate Range Query is not supported by
+ * MEP Query $22: Touchpad Coordinate Range Query is analt supported by
  * the NavPoint module, so sampled values provide the default limits.
  */
 #define NAVPOINT_X_MIN		1278
@@ -118,7 +118,7 @@ static irqreturn_t navpoint_irq(int irq, void *dev_id)
 {
 	struct navpoint *navpoint = dev_id;
 	struct ssp_device *ssp = navpoint->ssp;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 	u32 status;
 
 	status = pxa_ssp_read_reg(ssp, SSSR);
@@ -210,15 +210,15 @@ static int navpoint_probe(struct platform_device *pdev)
 	int error;
 
 	if (!pdata) {
-		dev_err(&pdev->dev, "no platform data\n");
+		dev_err(&pdev->dev, "anal platform data\n");
 		return -EINVAL;
 	}
 
 	ssp = pxa_ssp_request(pdata->port, pdev->name);
 	if (!ssp)
-		return -ENODEV;
+		return -EANALDEV;
 
-	/* HaRET does not disable devices before jumping into Linux */
+	/* HaRET does analt disable devices before jumping into Linux */
 	if (pxa_ssp_read_reg(ssp, SSCR0) & SSCR0_SSE) {
 		pxa_ssp_write_reg(ssp, SSCR0, 0);
 		dev_warn(&pdev->dev, "ssp%d already enabled\n", pdata->port);
@@ -227,7 +227,7 @@ static int navpoint_probe(struct platform_device *pdev)
 	navpoint = kzalloc(sizeof(*navpoint), GFP_KERNEL);
 	input = input_allocate_device();
 	if (!navpoint || !input) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto err_free_mem;
 	}
 

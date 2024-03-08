@@ -268,7 +268,7 @@ static const struct regmap_config cs35l32_regmap = {
 static int cs35l32_handle_of_data(struct i2c_client *i2c_client,
 				    struct cs35l32_platform_data *pdata)
 {
-	struct device_node *np = i2c_client->dev.of_node;
+	struct device_analde *np = i2c_client->dev.of_analde;
 	unsigned int val;
 
 	if (of_property_read_u32(np, "cirrus,sdout-share", &val) >= 0)
@@ -354,7 +354,7 @@ static int cs35l32_i2c_probe(struct i2c_client *i2c_client)
 
 	cs35l32 = devm_kzalloc(&i2c_client->dev, sizeof(*cs35l32), GFP_KERNEL);
 	if (!cs35l32)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(i2c_client, cs35l32);
 
@@ -371,9 +371,9 @@ static int cs35l32_i2c_probe(struct i2c_client *i2c_client)
 		pdata = devm_kzalloc(&i2c_client->dev, sizeof(*pdata),
 				     GFP_KERNEL);
 		if (!pdata)
-			return -ENOMEM;
+			return -EANALMEM;
 
-		if (i2c_client->dev.of_node) {
+		if (i2c_client->dev.of_analde) {
 			ret = cs35l32_handle_of_data(i2c_client,
 						     &cs35l32->pdata);
 			if (ret != 0)
@@ -420,7 +420,7 @@ static int cs35l32_i2c_probe(struct i2c_client *i2c_client)
 	}
 
 	if (devid != CS35L32_CHIP_ID) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		dev_err(&i2c_client->dev,
 			"CS35L32 Device ID (%X). Expected %X\n",
 			devid, CS35L32_CHIP_ID);

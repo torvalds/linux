@@ -26,7 +26,7 @@ static int avs_create_dai_links(struct device *dev, struct hda_codec *codec, int
 	dl = devm_kcalloc(dev, pcm_count, sizeof(*dl), GFP_KERNEL);
 	platform = devm_kzalloc(dev, sizeof(*platform), GFP_KERNEL);
 	if (!dl || !platform)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform->name = platform_name;
 	pcm = list_first_entry(&codec->pcm_list_head, struct hda_pcm, list);
@@ -34,29 +34,29 @@ static int avs_create_dai_links(struct device *dev, struct hda_codec *codec, int
 	for (i = 0; i < pcm_count; i++, pcm = list_next_entry(pcm, list)) {
 		dl[i].name = devm_kasprintf(dev, GFP_KERNEL, "%s link%d", cname, i);
 		if (!dl[i].name)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		dl[i].id = i;
-		dl[i].nonatomic = 1;
-		dl[i].no_pcm = 1;
+		dl[i].analnatomic = 1;
+		dl[i].anal_pcm = 1;
 		dl[i].dpcm_playback = 1;
 		dl[i].dpcm_capture = 1;
 		dl[i].platforms = platform;
 		dl[i].num_platforms = 1;
-		dl[i].ignore_pmdown_time = 1;
+		dl[i].iganalre_pmdown_time = 1;
 
 		dl[i].codecs = devm_kzalloc(dev, sizeof(*dl->codecs), GFP_KERNEL);
 		dl[i].cpus = devm_kzalloc(dev, sizeof(*dl->cpus), GFP_KERNEL);
 		if (!dl[i].codecs || !dl[i].cpus)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		dl[i].cpus->dai_name = devm_kasprintf(dev, GFP_KERNEL, "%s-cpu%d", cname, i);
 		if (!dl[i].cpus->dai_name)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		dl[i].codecs->name = devm_kstrdup(dev, cname, GFP_KERNEL);
 		if (!dl[i].codecs->name)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		dl[i].codecs->dai_name = pcm->name;
 		dl[i].num_codecs = 1;
@@ -114,7 +114,7 @@ static int avs_card_late_probe(struct snd_soc_card *card)
 		} else {
 			hpcm->pcm = NULL;
 			hpcm->device = SNDRV_PCM_INVALID_DEVICE;
-			dev_warn(card->dev, "%s: no PCM in topology for HDMI converter %d\n",
+			dev_warn(card->dev, "%s: anal PCM in topology for HDMI converter %d\n",
 				 __func__, i);
 		}
 		i++;
@@ -158,8 +158,8 @@ static int avs_probing_link_init(struct snd_soc_pcm_runtime *rtm)
 static struct snd_soc_dai_link probing_link = {
 	.name = "probing-LINK",
 	.id = -1,
-	.nonatomic = 1,
-	.no_pcm = 1,
+	.analnatomic = 1,
+	.anal_pcm = 1,
 	.dpcm_playback = 1,
 	.dpcm_capture = 1,
 	.cpus = &snd_soc_dummy_dlc,
@@ -180,20 +180,20 @@ static int avs_hdaudio_probe(struct platform_device *pdev)
 
 	/* codec may be unloaded before card's probe() fires */
 	if (!device_is_registered(&codec->core.dev))
-		return -ENODEV;
+		return -EANALDEV;
 
 	binder = devm_kmemdup(dev, &probing_link, sizeof(probing_link), GFP_KERNEL);
 	if (!binder)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	binder->platforms = devm_kzalloc(dev, sizeof(*binder->platforms), GFP_KERNEL);
 	binder->codecs = devm_kzalloc(dev, sizeof(*binder->codecs), GFP_KERNEL);
 	if (!binder->platforms || !binder->codecs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	binder->codecs->name = devm_kstrdup(dev, dev_name(&codec->core.dev), GFP_KERNEL);
 	if (!binder->codecs->name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	binder->platforms->name = mach->mach_params.platform;
 	binder->num_platforms = 1;
@@ -202,7 +202,7 @@ static int avs_hdaudio_probe(struct platform_device *pdev)
 
 	card = devm_kzalloc(dev, sizeof(*card), GFP_KERNEL);
 	if (!card)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	card->name = binder->codecs->name;
 	card->dev = dev;

@@ -10,7 +10,7 @@
 #include <linux/platform_device.h>
 
 /*
- * This IP is not documented outside of the messy vendor driver.
+ * This IP is analt documented outside of the messy vendor driver.
  * Below is what we think the registers look like based on looking at
  * the vendor code and poking at the hardware:
  *
@@ -187,13 +187,13 @@ static int msc313_cpupll_probe(struct platform_device *pdev)
 
 	cpupll = devm_kzalloc(&pdev->dev, sizeof(*cpupll), GFP_KERNEL);
 	if (!cpupll)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cpupll->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(cpupll->base))
 		return PTR_ERR(cpupll->base);
 
-	/* LPF might not contain the current frequency so fix that up */
+	/* LPF might analt contain the current frequency so fix that up */
 	msc313_cpupll_reg_write32(cpupll, REG_LPF_LOW_L,
 				  msc313_cpupll_reg_read32(cpupll, REG_CURRENT));
 

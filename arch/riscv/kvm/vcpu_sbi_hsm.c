@@ -6,7 +6,7 @@
  *     Atish Patra <atish.patra@wdc.com>
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/err.h>
 #include <linux/kvm_host.h>
 #include <asm/sbi.h>
@@ -95,15 +95,15 @@ static int kvm_sbi_ext_hsm_handler(struct kvm_vcpu *vcpu, struct kvm_run *run,
 		case SBI_HSM_SUSPEND_RET_DEFAULT:
 			kvm_riscv_vcpu_wfi(vcpu);
 			break;
-		case SBI_HSM_SUSPEND_NON_RET_DEFAULT:
-			ret = SBI_ERR_NOT_SUPPORTED;
+		case SBI_HSM_SUSPEND_ANALN_RET_DEFAULT:
+			ret = SBI_ERR_ANALT_SUPPORTED;
 			break;
 		default:
 			ret = SBI_ERR_INVALID_PARAM;
 		}
 		break;
 	default:
-		ret = SBI_ERR_NOT_SUPPORTED;
+		ret = SBI_ERR_ANALT_SUPPORTED;
 	}
 
 	retdata->err_val = ret;

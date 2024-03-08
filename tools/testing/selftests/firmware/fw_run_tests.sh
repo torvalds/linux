@@ -1,7 +1,7 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
 
-# This runs all known tests across all known possible configurations we could
+# This runs all kanalwn tests across all kanalwn possible configurations we could
 # emulate in one run.
 
 set -e
@@ -16,15 +16,15 @@ export HAS_FW_LOADER_COMPRESS=""
 run_tests()
 {
 	proc_set_force_sysfs_fallback $1
-	proc_set_ignore_sysfs_fallback $2
+	proc_set_iganalre_sysfs_fallback $2
 	$TEST_DIR/fw_filesystem.sh
 
 	proc_set_force_sysfs_fallback $1
-	proc_set_ignore_sysfs_fallback $2
+	proc_set_iganalre_sysfs_fallback $2
 	$TEST_DIR/fw_fallback.sh
 
 	proc_set_force_sysfs_fallback $1
-	proc_set_ignore_sysfs_fallback $2
+	proc_set_iganalre_sysfs_fallback $2
 	$TEST_DIR/fw_upload.sh
 }
 
@@ -47,7 +47,7 @@ run_test_config_0002()
 	echo "CONFIG_FW_LOADER=y"
 	echo "CONFIG_FW_LOADER_USER_HELPER=y"
 	echo "CONFIG_FW_LOADER_USER_HELPER_FALLBACK=n"
-	proc_set_ignore_sysfs_fallback 0
+	proc_set_iganalre_sysfs_fallback 0
 	run_tests 0 0
 }
 

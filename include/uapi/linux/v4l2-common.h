@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ((GPL-2.0+ WITH Linux-syscall-note) OR BSD-3-Clause) */
+/* SPDX-License-Identifier: ((GPL-2.0+ WITH Linux-syscall-analte) OR BSD-3-Clause) */
 /*
  * include/linux/v4l2-common.h
  *
@@ -8,7 +8,7 @@
  * (V4L2) or through v4l2-subdev.h (V4L2 subdev) rather than to refer
  * to this file directly.
  *
- * Copyright (C) 2012 Nokia Corporation
+ * Copyright (C) 2012 Analkia Corporation
  * Contact: Sakari Ailus <sakari.ailus@iki.fi>
  */
 

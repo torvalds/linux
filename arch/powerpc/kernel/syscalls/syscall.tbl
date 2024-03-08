@@ -1,15 +1,15 @@
-# SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
+# SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte
 #
 # system call numbers and entry vectors for powerpc
 #
 # The format is:
 # <number> <abi> <name> <entry point> <compat entry point>
 #
-# The <abi> can be common, spu, nospu, 64, or 32 for this file.
+# The <abi> can be common, spu, analspu, 64, or 32 for this file.
 #
-0	nospu	restart_syscall			sys_restart_syscall
-1	nospu	exit				sys_exit
-2	nospu	fork				sys_fork
+0	analspu	restart_syscall			sys_restart_syscall
+1	analspu	exit				sys_exit
+2	analspu	fork				sys_fork
 3	common	read				sys_read
 4	common	write				sys_write
 5	common	open				sys_open			compat_sys_open
@@ -18,12 +18,12 @@
 8	common	creat				sys_creat
 9	common	link				sys_link
 10	common	unlink				sys_unlink
-11	nospu	execve				sys_execve			compat_sys_execve
+11	analspu	execve				sys_execve			compat_sys_execve
 12	common	chdir				sys_chdir
 13	32	time				sys_time32
 13	64	time				sys_time
 13	spu	time				sys_time
-14	common	mknod				sys_mknod
+14	common	mkanald				sys_mkanald
 15	common	chmod				sys_chmod
 16	common	lchown				sys_lchown
 17	common	break				sys_ni_syscall
@@ -32,7 +32,7 @@
 18	spu	oldstat				sys_ni_syscall
 19	common	lseek				sys_lseek			compat_sys_lseek
 20	common	getpid				sys_getpid
-21	nospu	mount				sys_mount
+21	analspu	mount				sys_mount
 22	32	umount				sys_oldumount
 22	64	umount				sys_ni_syscall
 22	spu	umount				sys_ni_syscall
@@ -41,12 +41,12 @@
 25	32	stime				sys_stime32
 25	64	stime				sys_stime
 25	spu	stime				sys_stime
-26	nospu	ptrace				sys_ptrace			compat_sys_ptrace
+26	analspu	ptrace				sys_ptrace			compat_sys_ptrace
 27	common	alarm				sys_alarm
 28	32	oldfstat			sys_fstat			sys_ni_syscall
 28	64	oldfstat			sys_ni_syscall
 28	spu	oldfstat			sys_ni_syscall
-29	nospu	pause				sys_pause
+29	analspu	pause				sys_pause
 30	32	utime				sys_utime32
 30	64	utime				sys_utime
 31	common	stty				sys_ni_syscall
@@ -66,11 +66,11 @@
 45	common	brk				sys_brk
 46	common	setgid				sys_setgid
 47	common	getgid				sys_getgid
-48	nospu	signal				sys_signal
+48	analspu	signal				sys_signal
 49	common	geteuid				sys_geteuid
 50	common	getegid				sys_getegid
-51	nospu	acct				sys_acct
-52	nospu	umount2				sys_umount
+51	analspu	acct				sys_acct
+52	analspu	umount2				sys_umount
 53	common	lock				sys_ni_syscall
 54	common	ioctl				sys_ioctl			compat_sys_ioctl
 55	common	fcntl				sys_fcntl			compat_sys_fcntl
@@ -82,7 +82,7 @@
 59	spu	oldolduname			sys_ni_syscall
 60	common	umask				sys_umask
 61	common	chroot				sys_chroot
-62	nospu	ustat				sys_ustat			compat_sys_ustat
+62	analspu	ustat				sys_ustat			compat_sys_ustat
 63	common	dup2				sys_dup2
 64	common	getppid				sys_getppid
 65	common	getpgrp				sys_getpgrp
@@ -118,9 +118,9 @@
 84	64	oldlstat			sys_ni_syscall
 84	spu	oldlstat			sys_ni_syscall
 85	common	readlink			sys_readlink
-86	nospu	uselib				sys_uselib
-87	nospu	swapon				sys_swapon
-88	nospu	reboot				sys_reboot
+86	analspu	uselib				sys_uselib
+87	analspu	swapon				sys_swapon
+88	analspu	reboot				sys_reboot
 89	32	readdir				sys_old_readdir			compat_sys_old_readdir
 89	64	readdir				sys_ni_syscall
 89	spu	readdir				sys_ni_syscall
@@ -133,8 +133,8 @@
 96	common	getpriority			sys_getpriority
 97	common	setpriority			sys_setpriority
 98	common	profil				sys_ni_syscall
-99	nospu	statfs				sys_statfs			compat_sys_statfs
-100	nospu	fstatfs				sys_fstatfs			compat_sys_fstatfs
+99	analspu	statfs				sys_statfs			compat_sys_statfs
+100	analspu	fstatfs				sys_fstatfs			compat_sys_fstatfs
 101	common	ioperm				sys_ni_syscall
 102	common	socketcall			sys_socketcall			compat_sys_socketcall
 103	common	syslog				sys_syslog
@@ -151,14 +151,14 @@
 112	common	idle				sys_ni_syscall
 113	common	vm86				sys_ni_syscall
 114	common	wait4				sys_wait4			compat_sys_wait4
-115	nospu	swapoff				sys_swapoff
+115	analspu	swapoff				sys_swapoff
 116	common	sysinfo				sys_sysinfo			compat_sys_sysinfo
-117	nospu	ipc				sys_ipc				compat_sys_ipc
+117	analspu	ipc				sys_ipc				compat_sys_ipc
 118	common	fsync				sys_fsync
 119	32	sigreturn			sys_sigreturn			compat_sys_sigreturn
 119	64	sigreturn			sys_ni_syscall
 119	spu	sigreturn			sys_ni_syscall
-120	nospu	clone				sys_clone
+120	analspu	clone				sys_clone
 121	common	setdomainname			sys_setdomainname
 122	common	uname				sys_newuname
 123	common	modify_ldt			sys_ni_syscall
@@ -170,10 +170,10 @@
 126	64	sigprocmask			sys_ni_syscall
 126	spu	sigprocmask			sys_ni_syscall
 127	common	create_module			sys_ni_syscall
-128	nospu	init_module			sys_init_module
-129	nospu	delete_module			sys_delete_module
+128	analspu	init_module			sys_init_module
+129	analspu	delete_module			sys_delete_module
 130	common	get_kernel_syms			sys_ni_syscall
-131	nospu	quotactl			sys_quotactl
+131	analspu	quotactl			sys_quotactl
 132	common	getpgid				sys_getpgid
 133	common	fchdir				sys_fchdir
 134	common	bdflush				sys_ni_syscall
@@ -193,7 +193,7 @@
 146	common	writev				sys_writev
 147	common	getsid				sys_getsid
 148	common	fdatasync			sys_fdatasync
-149	nospu	_sysctl				sys_ni_syscall
+149	analspu	_sysctl				sys_ni_syscall
 150	common	mlock				sys_mlock
 151	common	munlock				sys_munlock
 152	common	mlockall			sys_mlockall
@@ -208,9 +208,9 @@
 161	32	sched_rr_get_interval		sys_sched_rr_get_interval_time32
 161	64	sched_rr_get_interval		sys_sched_rr_get_interval
 161	spu	sched_rr_get_interval		sys_sched_rr_get_interval
-162	32	nanosleep			sys_nanosleep_time32
-162	64	nanosleep			sys_nanosleep
-162	spu	nanosleep			sys_nanosleep
+162	32	naanalsleep			sys_naanalsleep_time32
+162	64	naanalsleep			sys_naanalsleep
+162	spu	naanalsleep			sys_naanalsleep
 163	common	mremap				sys_mremap
 164	common	setresuid			sys_setresuid
 165	common	getresuid			sys_getresuid
@@ -220,14 +220,14 @@
 169	common	setresgid			sys_setresgid
 170	common	getresgid			sys_getresgid
 171	common	prctl				sys_prctl
-172	nospu	rt_sigreturn			sys_rt_sigreturn		compat_sys_rt_sigreturn
-173	nospu	rt_sigaction			sys_rt_sigaction		compat_sys_rt_sigaction
-174	nospu	rt_sigprocmask			sys_rt_sigprocmask		compat_sys_rt_sigprocmask
-175	nospu	rt_sigpending			sys_rt_sigpending		compat_sys_rt_sigpending
+172	analspu	rt_sigreturn			sys_rt_sigreturn		compat_sys_rt_sigreturn
+173	analspu	rt_sigaction			sys_rt_sigaction		compat_sys_rt_sigaction
+174	analspu	rt_sigprocmask			sys_rt_sigprocmask		compat_sys_rt_sigprocmask
+175	analspu	rt_sigpending			sys_rt_sigpending		compat_sys_rt_sigpending
 176	32	rt_sigtimedwait			sys_rt_sigtimedwait_time32	compat_sys_rt_sigtimedwait_time32
 176	64	rt_sigtimedwait			sys_rt_sigtimedwait
-177	nospu 	rt_sigqueueinfo			sys_rt_sigqueueinfo		compat_sys_rt_sigqueueinfo
-178	nospu 	rt_sigsuspend			sys_rt_sigsuspend		compat_sys_rt_sigsuspend
+177	analspu 	rt_sigqueueinfo			sys_rt_sigqueueinfo		compat_sys_rt_sigqueueinfo
+178	analspu 	rt_sigsuspend			sys_rt_sigsuspend		compat_sys_rt_sigsuspend
 179	32	pread64				sys_ppc_pread64			compat_sys_ppc_pread64
 179	64	pread64				sys_pread64
 180	32	pwrite64			sys_ppc_pwrite64		compat_sys_ppc_pwrite64
@@ -236,13 +236,13 @@
 182	common	getcwd				sys_getcwd
 183	common	capget				sys_capget
 184	common	capset				sys_capset
-185	nospu	sigaltstack			sys_sigaltstack			compat_sys_sigaltstack
+185	analspu	sigaltstack			sys_sigaltstack			compat_sys_sigaltstack
 186	32	sendfile			sys_sendfile			compat_sys_sendfile
 186	64	sendfile			sys_sendfile64
 186	spu	sendfile			sys_sendfile64
 187	common	getpmsg				sys_ni_syscall
 188	common 	putpmsg				sys_ni_syscall
-189	nospu	vfork				sys_vfork
+189	analspu	vfork				sys_vfork
 190	common	ugetrlimit			sys_getrlimit			compat_sys_getrlimit
 191	32	readahead			sys_ppc_readahead		compat_sys_ppc_readahead
 191	64	readahead			sys_readahead
@@ -252,9 +252,9 @@
 195	32	stat64				sys_stat64
 196	32	lstat64				sys_lstat64
 197	32	fstat64				sys_fstat64
-198	nospu 	pciconfig_read			sys_pciconfig_read
-199	nospu 	pciconfig_write			sys_pciconfig_write
-200	nospu 	pciconfig_iobase		sys_pciconfig_iobase
+198	analspu 	pciconfig_read			sys_pciconfig_read
+199	analspu 	pciconfig_write			sys_pciconfig_write
+200	analspu 	pciconfig_iobase		sys_pciconfig_iobase
 201	common 	multiplexer			sys_ni_syscall
 202	common	getdents64			sys_getdents64
 203	common	pivot_root			sys_pivot_root
@@ -290,11 +290,11 @@
 229	spu	io_getevents			sys_io_getevents
 230	common	io_submit			sys_io_submit			compat_sys_io_submit
 231	common	io_cancel			sys_io_cancel
-232	nospu	set_tid_address			sys_set_tid_address
+232	analspu	set_tid_address			sys_set_tid_address
 233	32	fadvise64			sys_ppc32_fadvise64		compat_sys_ppc32_fadvise64
 233	64	fadvise64			sys_fadvise64
-234	nospu	exit_group			sys_exit_group
-235	nospu	lookup_dcookie			sys_ni_syscall
+234	analspu	exit_group			sys_exit_group
+235	analspu	lookup_dcookie			sys_ni_syscall
 236	common	epoll_create			sys_epoll_create
 237	common	epoll_ctl			sys_epoll_ctl
 238	common	epoll_wait			sys_epoll_wait
@@ -317,10 +317,10 @@
 247	32	clock_getres			sys_clock_getres_time32
 247	64	clock_getres			sys_clock_getres
 247	spu	clock_getres			sys_clock_getres
-248	32	clock_nanosleep			sys_clock_nanosleep_time32
-248	64	clock_nanosleep			sys_clock_nanosleep
-248	spu	clock_nanosleep			sys_clock_nanosleep
-249	nospu	swapcontext			sys_swapcontext			compat_sys_swapcontext
+248	32	clock_naanalsleep			sys_clock_naanalsleep_time32
+248	64	clock_naanalsleep			sys_clock_naanalsleep
+248	spu	clock_naanalsleep			sys_clock_naanalsleep
+249	analspu	swapcontext			sys_swapcontext			compat_sys_swapcontext
 250	common	tgkill				sys_tgkill
 251	32	utimes				sys_utimes_time32
 251	64	utimes				sys_utimes
@@ -334,30 +334,30 @@
 256	64	sys_debug_setcontext		sys_ni_syscall
 256	spu	sys_debug_setcontext		sys_ni_syscall
 # 257 reserved for vserver
-258	nospu	migrate_pages			sys_migrate_pages
-259	nospu	mbind				sys_mbind
-260	nospu	get_mempolicy			sys_get_mempolicy
-261	nospu	set_mempolicy			sys_set_mempolicy
-262	nospu	mq_open				sys_mq_open			compat_sys_mq_open
-263	nospu	mq_unlink			sys_mq_unlink
+258	analspu	migrate_pages			sys_migrate_pages
+259	analspu	mbind				sys_mbind
+260	analspu	get_mempolicy			sys_get_mempolicy
+261	analspu	set_mempolicy			sys_set_mempolicy
+262	analspu	mq_open				sys_mq_open			compat_sys_mq_open
+263	analspu	mq_unlink			sys_mq_unlink
 264	32	mq_timedsend			sys_mq_timedsend_time32
 264	64	mq_timedsend			sys_mq_timedsend
 265	32	mq_timedreceive			sys_mq_timedreceive_time32
 265	64	mq_timedreceive			sys_mq_timedreceive
-266	nospu	mq_notify			sys_mq_notify			compat_sys_mq_notify
-267	nospu	mq_getsetattr			sys_mq_getsetattr		compat_sys_mq_getsetattr
-268	nospu	kexec_load			sys_kexec_load			compat_sys_kexec_load
-269	nospu	add_key				sys_add_key
-270	nospu	request_key			sys_request_key
-271	nospu	keyctl				sys_keyctl			compat_sys_keyctl
-272	nospu	waitid				sys_waitid			compat_sys_waitid
-273	nospu	ioprio_set			sys_ioprio_set
-274	nospu	ioprio_get			sys_ioprio_get
-275	nospu	inotify_init			sys_inotify_init
-276	nospu	inotify_add_watch		sys_inotify_add_watch
-277	nospu	inotify_rm_watch		sys_inotify_rm_watch
-278	nospu	spu_run				sys_spu_run
-279	nospu	spu_create			sys_spu_create
+266	analspu	mq_analtify			sys_mq_analtify			compat_sys_mq_analtify
+267	analspu	mq_getsetattr			sys_mq_getsetattr		compat_sys_mq_getsetattr
+268	analspu	kexec_load			sys_kexec_load			compat_sys_kexec_load
+269	analspu	add_key				sys_add_key
+270	analspu	request_key			sys_request_key
+271	analspu	keyctl				sys_keyctl			compat_sys_keyctl
+272	analspu	waitid				sys_waitid			compat_sys_waitid
+273	analspu	ioprio_set			sys_ioprio_set
+274	analspu	ioprio_get			sys_ioprio_get
+275	analspu	ianaltify_init			sys_ianaltify_init
+276	analspu	ianaltify_add_watch		sys_ianaltify_add_watch
+277	analspu	ianaltify_rm_watch		sys_ianaltify_rm_watch
+278	analspu	spu_run				sys_spu_run
+279	analspu	spu_create			sys_spu_create
 280	32	pselect6			sys_pselect6_time32		compat_sys_pselect6_time32
 280	64	pselect6			sys_pselect6
 281	32	ppoll				sys_ppoll_time32		compat_sys_ppoll_time32
@@ -368,7 +368,7 @@
 285	common	vmsplice			sys_vmsplice
 286	common	openat				sys_openat			compat_sys_openat
 287	common	mkdirat				sys_mkdirat
-288	common	mknodat				sys_mknodat
+288	common	mkanaldat				sys_mkanaldat
 289	common	fchownat			sys_fchownat
 290	32	futimesat			sys_futimesat_time32
 290	64	futimesat			sys_futimesat
@@ -387,7 +387,7 @@
 300	common	set_robust_list			sys_set_robust_list		compat_sys_set_robust_list
 301	common	move_pages			sys_move_pages
 302	common	getcpu				sys_getcpu
-303	nospu	epoll_pwait			sys_epoll_pwait			compat_sys_epoll_pwait
+303	analspu	epoll_pwait			sys_epoll_pwait			compat_sys_epoll_pwait
 304	32	utimensat			sys_utimensat_time32
 304	64	utimensat			sys_utimensat
 304	spu	utimensat			sys_utimensat
@@ -399,7 +399,7 @@
 308	spu	sync_file_range2		sys_sync_file_range2
 309	32	fallocate			sys_ppc_fallocate		compat_sys_fallocate
 309	64	fallocate			sys_fallocate
-310	nospu	subpage_prot			sys_subpage_prot
+310	analspu	subpage_prot			sys_subpage_prot
 311	32	timerfd_settime			sys_timerfd_settime32
 311	64	timerfd_settime			sys_timerfd_settime
 311	spu	timerfd_settime			sys_timerfd_settime
@@ -411,13 +411,13 @@
 315	common	epoll_create1			sys_epoll_create1
 316	common	dup3				sys_dup3
 317	common	pipe2				sys_pipe2
-318	nospu	inotify_init1			sys_inotify_init1
+318	analspu	ianaltify_init1			sys_ianaltify_init1
 319	common	perf_event_open			sys_perf_event_open
 320	common	preadv				sys_preadv			compat_sys_preadv
 321	common	pwritev				sys_pwritev			compat_sys_pwritev
-322	nospu	rt_tgsigqueueinfo		sys_rt_tgsigqueueinfo		compat_sys_rt_tgsigqueueinfo
-323	nospu	fanotify_init			sys_fanotify_init
-324	nospu	fanotify_mark			sys_fanotify_mark		compat_sys_fanotify_mark
+322	analspu	rt_tgsigqueueinfo		sys_rt_tgsigqueueinfo		compat_sys_rt_tgsigqueueinfo
+323	analspu	faanaltify_init			sys_faanaltify_init
+324	analspu	faanaltify_mark			sys_faanaltify_mark		compat_sys_faanaltify_mark
 325	common	prlimit64			sys_prlimit64
 326	common	socket				sys_socket
 327	common	bind				sys_bind
@@ -448,10 +448,10 @@
 348	common	syncfs				sys_syncfs
 349	common	sendmmsg			sys_sendmmsg			compat_sys_sendmmsg
 350	common	setns				sys_setns
-351	nospu	process_vm_readv		sys_process_vm_readv
-352	nospu	process_vm_writev		sys_process_vm_writev
-353	nospu	finit_module			sys_finit_module
-354	nospu	kcmp				sys_kcmp
+351	analspu	process_vm_readv		sys_process_vm_readv
+352	analspu	process_vm_writev		sys_process_vm_writev
+353	analspu	finit_module			sys_finit_module
+354	analspu	kcmp				sys_kcmp
 355	common	sched_setattr			sys_sched_setattr
 356	common	sched_getattr			sys_sched_getattr
 357	common	renameat2			sys_renameat2
@@ -459,23 +459,23 @@
 359	common	getrandom			sys_getrandom
 360	common	memfd_create			sys_memfd_create
 361	common	bpf				sys_bpf
-362	nospu	execveat			sys_execveat			compat_sys_execveat
+362	analspu	execveat			sys_execveat			compat_sys_execveat
 363	32	switch_endian			sys_ni_syscall
 363	64	switch_endian			sys_switch_endian
 363	spu	switch_endian			sys_ni_syscall
 364	common	userfaultfd			sys_userfaultfd
 365	common	membarrier			sys_membarrier
-# 366-377 originally left for IPC, now unused
-378	nospu	mlock2				sys_mlock2
-379	nospu	copy_file_range			sys_copy_file_range
+# 366-377 originally left for IPC, analw unused
+378	analspu	mlock2				sys_mlock2
+379	analspu	copy_file_range			sys_copy_file_range
 380	common	preadv2				sys_preadv2			compat_sys_preadv2
 381	common	pwritev2			sys_pwritev2			compat_sys_pwritev2
-382	nospu	kexec_file_load			sys_kexec_file_load
-383	nospu	statx				sys_statx
-384	nospu	pkey_alloc			sys_pkey_alloc
-385	nospu	pkey_free			sys_pkey_free
-386	nospu	pkey_mprotect			sys_pkey_mprotect
-387	nospu	rseq				sys_rseq
+382	analspu	kexec_file_load			sys_kexec_file_load
+383	analspu	statx				sys_statx
+384	analspu	pkey_alloc			sys_pkey_alloc
+385	analspu	pkey_free			sys_pkey_free
+386	analspu	pkey_mprotect			sys_pkey_mprotect
+387	analspu	rseq				sys_rseq
 388	32	io_pgetevents			sys_io_pgetevents_time32	compat_sys_io_pgetevents
 388	64	io_pgetevents			sys_io_pgetevents
 # room for arch specific syscalls
@@ -494,7 +494,7 @@
 404	32	clock_settime64			sys_clock_settime		sys_clock_settime
 405	32	clock_adjtime64			sys_clock_adjtime		sys_clock_adjtime
 406	32	clock_getres_time64		sys_clock_getres		sys_clock_getres
-407	32	clock_nanosleep_time64		sys_clock_nanosleep		sys_clock_nanosleep
+407	32	clock_naanalsleep_time64		sys_clock_naanalsleep		sys_clock_naanalsleep
 408	32	timer_gettime64			sys_timer_gettime		sys_timer_gettime
 409	32	timer_settime64			sys_timer_settime		sys_timer_settime
 410	32	timerfd_gettime64		sys_timerfd_gettime		sys_timerfd_gettime
@@ -521,7 +521,7 @@
 432	common	fsmount				sys_fsmount
 433	common	fspick				sys_fspick
 434	common	pidfd_open			sys_pidfd_open
-435	nospu	clone3				sys_clone3
+435	analspu	clone3				sys_clone3
 436	common	close_range			sys_close_range
 437	common	openat2				sys_openat2
 438	common	pidfd_getfd			sys_pidfd_getfd
@@ -536,7 +536,7 @@
 # 447 reserved for memfd_secret
 448	common	process_mrelease		sys_process_mrelease
 449	common  futex_waitv                     sys_futex_waitv
-450 	nospu	set_mempolicy_home_node		sys_set_mempolicy_home_node
+450 	analspu	set_mempolicy_home_analde		sys_set_mempolicy_home_analde
 451	common	cachestat			sys_cachestat
 452	common	fchmodat2			sys_fchmodat2
 453	common	map_shadow_stack		sys_ni_syscall

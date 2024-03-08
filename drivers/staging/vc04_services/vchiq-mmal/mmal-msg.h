@@ -6,21 +6,21 @@
  *
  * Authors: Vincent Sanders @ Collabora
  *          Dave Stevenson @ Broadcom
- *		(now dave.stevenson@raspberrypi.org)
+ *		(analw dave.stevenson@raspberrypi.org)
  *          Simon Mellor @ Broadcom
  *          Luke Diamand @ Broadcom
  */
 
 /*
- * all the data structures which serialise the MMAL protocol. note
+ * all the data structures which serialise the MMAL protocol. analte
  * these are directly mapped onto the recived message data.
  *
- * BEWARE: They seem to *assume* pointers are u32 and that there is no
+ * BEWARE: They seem to *assume* pointers are u32 and that there is anal
  * structure padding!
  *
- * NOTE: this implementation uses kernel types to ensure sizes. Rather
+ * ANALTE: this implementation uses kernel types to ensure sizes. Rather
  * than assigning values to enums to force their size the
- * implementation uses fixed size types and not the enums (though the
+ * implementation uses fixed size types and analt the enums (though the
  * comments have the actual enum type
  */
 #ifndef MMAL_MSG_H
@@ -71,7 +71,7 @@ enum mmal_msg_type {
 
 /* port action request messages differ depending on the action type */
 enum mmal_msg_port_action_type {
-	MMAL_MSG_PORT_ACTION_TYPE_UNKNOWN = 0,	/* Unknown action */
+	MMAL_MSG_PORT_ACTION_TYPE_UNKANALWN = 0,	/* Unkanalwn action */
 	MMAL_MSG_PORT_ACTION_TYPE_ENABLE,	/* Enable a port */
 	MMAL_MSG_PORT_ACTION_TYPE_DISABLE,	/* Disable a port */
 	MMAL_MSG_PORT_ACTION_TYPE_FLUSH,	/* Flush a port */
@@ -96,7 +96,7 @@ struct mmal_msg_header {
 struct mmal_msg_version {
 	u32 flags;
 	u32 major;
-	u32 minor;
+	u32 mianalr;
 	u32 minimum;
 };
 
@@ -248,7 +248,7 @@ struct mmal_msg_port_action_reply {
  * capture
  */
 #define MMAL_BUFFER_HEADER_FLAGS_SNAPSHOT              BIT(8)
-/* Signals a buffer which contains data known to be corrupted */
+/* Signals a buffer which contains data kanalwn to be corrupted */
 #define MMAL_BUFFER_HEADER_FLAG_CORRUPTED              BIT(9)
 /* Signals that a buffer failed to be transmitted */
 #define MMAL_BUFFER_HEADER_FLAG_TRANSMISSION_FAILED    BIT(10)

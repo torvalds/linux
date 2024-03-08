@@ -84,7 +84,7 @@ struct clk_hw *imx_clk_hw_busy_divider(const char *name, const char *parent_name
 
 	busy = kzalloc(sizeof(*busy), GFP_KERNEL);
 	if (!busy)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	busy->reg = busy_reg;
 	busy->shift = busy_shift;
@@ -148,7 +148,7 @@ static int clk_busy_mux_set_parent(struct clk_hw *hw, u8 index)
 }
 
 static const struct clk_ops clk_busy_mux_ops = {
-	.determine_rate = clk_hw_determine_rate_no_reparent,
+	.determine_rate = clk_hw_determine_rate_anal_reparent,
 	.get_parent = clk_busy_mux_get_parent,
 	.set_parent = clk_busy_mux_set_parent,
 };
@@ -164,7 +164,7 @@ struct clk_hw *imx_clk_hw_busy_mux(const char *name, void __iomem *reg, u8 shift
 
 	busy = kzalloc(sizeof(*busy), GFP_KERNEL);
 	if (!busy)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	busy->reg = busy_reg;
 	busy->shift = busy_shift;

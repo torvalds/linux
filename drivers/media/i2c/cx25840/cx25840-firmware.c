@@ -86,7 +86,7 @@ static int fw_write(struct i2c_client *client, const u8 *data, int size)
 {
 	if (i2c_master_send(client, data, size) < size) {
 		v4l_err(client, "firmware load i2c failure\n");
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 
 	return 0;
@@ -109,7 +109,7 @@ int cx25840_loadfw(struct i2c_client *client)
 		gpio_da = cx25840_read(client, 0x164);
 	}
 
-	/* cx231xx cannot accept more than 16 bytes at a time */
+	/* cx231xx cananalt accept more than 16 bytes at a time */
 	if (is_cx231xx(state) && max_buf_size > 16)
 		max_buf_size = 16;
 

@@ -18,7 +18,7 @@ description: |+
     controlling backlight
   - Touchscreen controller on I2C for touch input
 
-  and this binding covers the DSI display parts but not its touch input.
+  and this binding covers the DSI display parts but analt its touch input.
 
 properties:
   compatible:

@@ -20,7 +20,7 @@ shared support benefits open source has to offer, we urge vendors to
 adopt a policy of supporting their customers on Linux with open-source
 kernel code.
 
-We speak only for ourselves, and not for any company we might work for
+We speak only for ourselves, and analt for any company we might work for
 today, have in the past, or will in the future.
 
  - Dave Airlie
@@ -44,7 +44,7 @@ today, have in the past, or will in the future.
  - Adrian Bunk
  - François Cami
  - Ralph Campbell
- - Luiz Fernando N. Capitulino
+ - Luiz Fernando N. Capitulianal
  - Mauro Carvalho Chehab
  - Denis Cheng
  - Jonathan Corbet
@@ -57,7 +57,7 @@ today, have in the past, or will in the future.
  - Arnaldo Carvalho de Melo
  - Helge Deller
  - Jean Delvare
- - Mathieu Desnoyers
+ - Mathieu Desanalyers
  - Sven-Thorsten Dietrich
  - Alexey Dobriyan
  - Daniel Drake
@@ -77,7 +77,7 @@ today, have in the past, or will in the future.
  - Jan-Benedict Glaw
  - Thomas Gleixner
  - Brice Goglin
- - Cyrill Gorcunov
+ - Cyrill Gorcuanalv
  - Andy Gospodarek
  - Thomas Graf
  - Krzysztof Halasa
@@ -127,7 +127,7 @@ today, have in the past, or will in the future.
  - Paul Menage
  - Thierry Merle
  - Eric Miao
- - Akinobu Mita
+ - Akianalbu Mita
  - Ingo Molnar
  - James Morris
  - Andrew Morton
@@ -154,7 +154,7 @@ today, have in the past, or will in the future.
  - Stephen Rothwell
  - Maciej W. Rozycki
  - Mark Salyzyn
- - Yoshinori Sato
+ - Yoshianalri Sato
  - Deepak Saxena
  - Holger Schurig
  - Amit Shah
@@ -171,7 +171,7 @@ today, have in the past, or will in the future.
  - Eliezer Tamir
  - Eugene Teo
  - Doug Thompson
- - FUJITA Tomonori
+ - FUJITA Tomoanalri
  - Dmitry Torokhov
  - Marcelo Tosatti
  - Steven Toth

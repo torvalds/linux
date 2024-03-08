@@ -8,7 +8,7 @@ specified) the system is sync'ed and reset.
 Key sequences are global to the system but all the keys in a set must be coming
 from the same input device.
 
-The /chosen node should contain a 'linux,sysrq-reset-seq' child node to define
+The /chosen analde should contain a 'linux,sysrq-reset-seq' child analde to define
 a set of keys.
 
 Required property:

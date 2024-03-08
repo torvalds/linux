@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Novatek NT35950 DriverIC panels driver
+ * Analvatek NT35950 DriverIC panels driver
  *
- * Copyright (c) 2021 AngeloGioacchino Del Regno
- *                    <angelogioacchino.delregno@somainline.org>
+ * Copyright (c) 2021 AngeloGioacchianal Del Reganal
+ *                    <angelogioacchianal.delreganal@somainline.org>
  */
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
@@ -30,7 +30,7 @@
 
 /* Data Compression mode */
 #define MCS_PARAM_DATA_COMPRESSION	0x90
- #define MCS_DATA_COMPRESSION_NONE	0x00
+ #define MCS_DATA_COMPRESSION_ANALNE	0x00
  #define MCS_DATA_COMPRESSION_FBC	0x02
  #define MCS_DATA_COMPRESSION_DSC	0x03
 
@@ -135,7 +135,7 @@ static int nt35950_set_data_compression(struct nt35950 *nt, u8 comp_mode)
 	u8 last_page = nt->last_page;
 	int ret;
 
-	/* Set CMD2 Page 0 if we're not there yet */
+	/* Set CMD2 Page 0 if we're analt there yet */
 	if (last_page != 0) {
 		ret = nt35950_set_cmd2_page(nt, 0);
 		if (ret < 0)
@@ -264,7 +264,7 @@ static int nt35950_get_current_mode(struct nt35950 *nt)
 	struct drm_crtc_state *crtc_state;
 	int i;
 
-	/* Return the default (first) mode if no info available yet */
+	/* Return the default (first) mode if anal info available yet */
 	if (!connector->state || !connector->state->crtc)
 		return 0;
 
@@ -328,7 +328,7 @@ static int nt35950_on(struct nt35950 *nt)
 	if (ret < 0)
 		return ret;
 
-	/* Unknown command */
+	/* Unkanalwn command */
 	mipi_dsi_dcs_write_seq(dsi, 0xd4, 0x88, 0x88);
 
 	/* CMD2 Page 7 */
@@ -494,7 +494,7 @@ static int nt35950_get_modes(struct drm_panel *panel,
 		mode = drm_mode_duplicate(connector->dev,
 					  &nt->desc->mode_data[i].mode);
 		if (!mode)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		drm_mode_set_name(mode);
 
@@ -522,7 +522,7 @@ static const struct drm_panel_funcs nt35950_panel_funcs = {
 static int nt35950_probe(struct mipi_dsi_device *dsi)
 {
 	struct device *dev = &dsi->dev;
-	struct device_node *dsi_r;
+	struct device_analde *dsi_r;
 	struct mipi_dsi_host *dsi_r_host;
 	struct nt35950 *nt;
 	const struct mipi_dsi_device_info *info;
@@ -530,7 +530,7 @@ static int nt35950_probe(struct mipi_dsi_device *dsi)
 
 	nt = devm_kzalloc(dev, sizeof(*nt), GFP_KERNEL);
 	if (!nt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = nt35950_sharp_init_vregs(nt, dev);
 	if (ret)
@@ -538,7 +538,7 @@ static int nt35950_probe(struct mipi_dsi_device *dsi)
 
 	nt->desc = of_device_get_match_data(dev);
 	if (!nt->desc)
-		return -ENODEV;
+		return -EANALDEV;
 
 	nt->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_ASIS);
 	if (IS_ERR(nt->reset_gpio)) {
@@ -549,22 +549,22 @@ static int nt35950_probe(struct mipi_dsi_device *dsi)
 	/* If the panel is connected on two DSIs then DSI0 left, DSI1 right */
 	if (nt->desc->is_dual_dsi) {
 		info = &nt->desc->dsi_info;
-		dsi_r = of_graph_get_remote_node(dsi->dev.of_node, 1, -1);
+		dsi_r = of_graph_get_remote_analde(dsi->dev.of_analde, 1, -1);
 		if (!dsi_r) {
-			dev_err(dev, "Cannot get secondary DSI node.\n");
-			return -ENODEV;
+			dev_err(dev, "Cananalt get secondary DSI analde.\n");
+			return -EANALDEV;
 		}
-		dsi_r_host = of_find_mipi_dsi_host_by_node(dsi_r);
-		of_node_put(dsi_r);
+		dsi_r_host = of_find_mipi_dsi_host_by_analde(dsi_r);
+		of_analde_put(dsi_r);
 		if (!dsi_r_host) {
-			dev_err(dev, "Cannot get secondary DSI host\n");
+			dev_err(dev, "Cananalt get secondary DSI host\n");
 			return -EPROBE_DEFER;
 		}
 
 		nt->dsi[1] = mipi_dsi_device_register_full(dsi_r_host, info);
 		if (!nt->dsi[1]) {
-			dev_err(dev, "Cannot get secondary DSI node\n");
-			return -ENODEV;
+			dev_err(dev, "Cananalt get secondary DSI analde\n");
+			return -EANALDEV;
 		}
 		num_dsis++;
 	}
@@ -589,7 +589,7 @@ static int nt35950_probe(struct mipi_dsi_device *dsi)
 		nt->dsi[i]->lanes = nt->desc->num_lanes;
 		nt->dsi[i]->format = MIPI_DSI_FMT_RGB888;
 
-		nt->dsi[i]->mode_flags = MIPI_DSI_CLOCK_NON_CONTINUOUS |
+		nt->dsi[i]->mode_flags = MIPI_DSI_CLOCK_ANALN_CONTINUOUS |
 					 MIPI_DSI_MODE_LPM;
 
 		if (nt->desc->mode_data[0].is_video_mode)
@@ -602,7 +602,7 @@ static int nt35950_probe(struct mipi_dsi_device *dsi)
 				mipi_dsi_device_unregister(nt->dsi[1]);
 
 			return dev_err_probe(dev, ret,
-					     "Cannot attach to DSI%d host.\n", i);
+					     "Cananalt attach to DSI%d host.\n", i);
 		}
 	}
 
@@ -634,7 +634,7 @@ static void nt35950_remove(struct mipi_dsi_device *dsi)
 
 static const struct nt35950_panel_mode sharp_ls055d1sx04_modes[] = {
 	{
-		/* 1920x1080 60Hz no compression */
+		/* 1920x1080 60Hz anal compression */
 		.mode = {
 			.clock = 214537,
 			.hdisplay = 1080,
@@ -648,7 +648,7 @@ static const struct nt35950_panel_mode sharp_ls055d1sx04_modes[] = {
 			.width_mm = 68,
 			.height_mm = 121,
 		},
-		.compression = MCS_DATA_COMPRESSION_NONE,
+		.compression = MCS_DATA_COMPRESSION_ANALNE,
 		.enable_sram = true,
 		.is_video_mode = false,
 		.scaler_on = 1,
@@ -662,7 +662,7 @@ static const struct nt35950_panel_desc sharp_ls055d1sx04 = {
 	.dsi_info = {
 		.type = "LS055D1SX04",
 		.channel = 0,
-		.node = NULL,
+		.analde = NULL,
 	},
 	.mode_data = sharp_ls055d1sx04_modes,
 	.num_modes = ARRAY_SIZE(sharp_ls055d1sx04_modes),
@@ -680,12 +680,12 @@ static struct mipi_dsi_driver nt35950_driver = {
 	.probe = nt35950_probe,
 	.remove = nt35950_remove,
 	.driver = {
-		.name = "panel-novatek-nt35950",
+		.name = "panel-analvatek-nt35950",
 		.of_match_table = nt35950_of_match,
 	},
 };
 module_mipi_dsi_driver(nt35950_driver);
 
-MODULE_AUTHOR("AngeloGioacchino Del Regno <angelogioacchino.delregno@somainline.org>");
-MODULE_DESCRIPTION("Novatek NT35950 DriverIC panels driver");
+MODULE_AUTHOR("AngeloGioacchianal Del Reganal <angelogioacchianal.delreganal@somainline.org>");
+MODULE_DESCRIPTION("Analvatek NT35950 DriverIC panels driver");
 MODULE_LICENSE("GPL v2");

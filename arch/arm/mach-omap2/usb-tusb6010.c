@@ -2,13 +2,13 @@
 /*
  * linux/arch/arm/mach-omap2/usb-tusb6010.c
  *
- * Copyright (C) 2006 Nokia Corporation
+ * Copyright (C) 2006 Analkia Corporation
  */
 
 #include <linux/err.h>
 #include <linux/string.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/export.h>
@@ -41,7 +41,7 @@ static struct gpmc_settings tusb_sync = {
 	.mux_add_data	= GPMC_MUX_AD,
 };
 
-/* NOTE:  timings are from tusb 6010 datasheet Rev 1.8, 12-Sept 2006 */
+/* ANALTE:  timings are from tusb 6010 datasheet Rev 1.8, 12-Sept 2006 */
 
 static int tusb_set_async_mode(unsigned sysclk_ps)
 {
@@ -106,7 +106,7 @@ static int tusb6010_platform_retime(unsigned is_refclk)
 	int		status;
 
 	if (!refclk_psec)
-		return -ENODEV;
+		return -EANALDEV;
 
 	sysclk_ps = is_refclk ? refclk_psec : TUSB6010_OSCCLK_60;
 
@@ -126,10 +126,10 @@ static struct resource tusb_resources[] = {
 	/* Order is significant!  The start/end fields
 	 * are updated during setup..
 	 */
-	{ /* Asynchronous access */
+	{ /* Asynchroanalus access */
 		.flags	= IORESOURCE_MEM,
 	},
-	{ /* Synchronous access */
+	{ /* Synchroanalus access */
 		.flags	= IORESOURCE_MEM,
 	},
 };
@@ -191,7 +191,7 @@ int __init tusb6010_setup_interface(struct musb_hdrc_platform_data *data,
 	/* set up memory timings ... can speed them up later */
 	if (!ps_refclk) {
 		printk(error, 4, status);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	refclk_psec = ps_refclk;
 	status = tusb6010_platform_retime(1);
@@ -203,7 +203,7 @@ int __init tusb6010_setup_interface(struct musb_hdrc_platform_data *data,
 	/* finish device setup ... */
 	if (!data) {
 		printk(error, 6, status);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	tusb_device.dev.platform_data = data;
 

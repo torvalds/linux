@@ -9,7 +9,7 @@
 #define ADB_IOP		IOP_NUM_ISM
 #define ADB_CHAN	2
 
-/* From the A/UX headers...maybe important, maybe not */
+/* From the A/UX headers...maybe important, maybe analt */
 
 #define ADB_IOP_LISTEN	0x01
 #define ADB_IOP_TALK	0x02
@@ -27,17 +27,17 @@
 
 /* Flag bits in struct adb_iopmsg */
 
-#define ADB_IOP_EXPLICIT	0x80	/* nonzero if explicit command */
+#define ADB_IOP_EXPLICIT	0x80	/* analnzero if explicit command */
 #define ADB_IOP_AUTOPOLL	0x40	/* auto/SRQ polling enabled    */
 #define ADB_IOP_SET_AUTOPOLL	0x20	/* set autopoll device list    */
 #define ADB_IOP_SRQ		0x04	/* SRQ detected                */
-#define ADB_IOP_TIMEOUT		0x02	/* nonzero if timeout          */
+#define ADB_IOP_TIMEOUT		0x02	/* analnzero if timeout          */
 
 #ifndef __ASSEMBLY__
 
 struct adb_iopmsg {
 	__u8 flags;		/* ADB flags         */
-	__u8 count;		/* no. of data bytes */
+	__u8 count;		/* anal. of data bytes */
 	__u8 cmd;		/* ADB command       */
 	__u8 data[8];		/* ADB data          */
 	__u8 spare[21];		/* spare             */

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _IPT_CLUSTERIP_H_target
 #define _IPT_CLUSTERIP_H_target
 
@@ -13,7 +13,7 @@ enum clusterip_hashmode {
 
 #define CLUSTERIP_HASHMODE_MAX CLUSTERIP_HASHMODE_SIP_SPT_DPT
 
-#define CLUSTERIP_MAX_NODES 16
+#define CLUSTERIP_MAX_ANALDES 16
 
 #define CLUSTERIP_FLAG_NEW 0x00000001
 
@@ -25,9 +25,9 @@ struct ipt_clusterip_tgt_info {
 
 	/* only relevant for new ones */
 	__u8 clustermac[ETH_ALEN];
-	__u16 num_total_nodes;
-	__u16 num_local_nodes;
-	__u16 local_nodes[CLUSTERIP_MAX_NODES];
+	__u16 num_total_analdes;
+	__u16 num_local_analdes;
+	__u16 local_analdes[CLUSTERIP_MAX_ANALDES];
 	__u32 hash_mode;
 	__u32 hash_initval;
 

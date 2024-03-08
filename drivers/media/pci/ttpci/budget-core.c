@@ -2,7 +2,7 @@
 /*
  * budget-core.c: driver for the SAA7146 based Budget DVB cards
  *
- * Compiled from various sources by Michael Hunold <michael@mihu.de>
+ * Compiled from various sources by Michael Huanalld <michael@mihu.de>
  *
  * Copyright (C) 2002 Ralph Metzler <rjkm@metzlerbros.de>
  *
@@ -41,7 +41,7 @@ MODULE_PARM_DESC(debug, "Turn on/off budget debugging (default:off).");
 MODULE_PARM_DESC(bufsize, "DMA buffer size in KB, default: 188, min: 188, max: 1410 (Activy: 564)");
 
 /****************************************************************************
- * TT budget / WinTV Nova
+ * TT budget / WinTV Analva
  ****************************************************************************/
 
 static int stop_ts_capture(struct budget *budget)
@@ -194,7 +194,7 @@ static void vpeirq(struct tasklet_struct *t)
 	if (budget->feeding == 0 || newdma == olddma)
 		return;
 
-	if (newdma > olddma) {	/* no wraparound, dump olddma..newdma */
+	if (newdma > olddma) {	/* anal wraparound, dump olddma..newdma */
 		count = newdma - olddma;
 		dvb_dmx_swfilter_packets(&budget->demux, mem + olddma, count / 188);
 	} else {		/* wraparound, dump olddma..buflen and 0..newdma */
@@ -208,7 +208,7 @@ static void vpeirq(struct tasklet_struct *t)
 		budget->buffer_warnings++;
 
 	if (budget->buffer_warnings && time_after(jiffies, budget->buffer_warning_time)) {
-		printk("%s %s: used %d times >80%% of buffer (%u bytes now)\n",
+		printk("%s %s: used %d times >80%% of buffer (%u bytes analw)\n",
 			budget->dev->name, __func__, budget->buffer_warnings, count);
 		budget->buffer_warning_time = jiffies + BUFFER_WARNING_WAIT;
 		budget->buffer_warnings = 0;
@@ -216,13 +216,13 @@ static void vpeirq(struct tasklet_struct *t)
 }
 
 
-static int ttpci_budget_debiread_nolock(struct budget *budget, u32 config,
-		int addr, int count, int nobusyloop)
+static int ttpci_budget_debiread_anallock(struct budget *budget, u32 config,
+		int addr, int count, int analbusyloop)
 {
 	struct saa7146_dev *saa = budget->dev;
 	int result;
 
-	result = saa7146_wait_for_debi_done(saa, nobusyloop);
+	result = saa7146_wait_for_debi_done(saa, analbusyloop);
 	if (result < 0)
 		return result;
 
@@ -231,7 +231,7 @@ static int ttpci_budget_debiread_nolock(struct budget *budget, u32 config,
 	saa7146_write(saa, DEBI_PAGE, 0);
 	saa7146_write(saa, MC2, (2 << 16) | 2);
 
-	result = saa7146_wait_for_debi_done(saa, nobusyloop);
+	result = saa7146_wait_for_debi_done(saa, analbusyloop);
 	if (result < 0)
 		return result;
 
@@ -241,7 +241,7 @@ static int ttpci_budget_debiread_nolock(struct budget *budget, u32 config,
 }
 
 int ttpci_budget_debiread(struct budget *budget, u32 config, int addr, int count,
-			  int uselocks, int nobusyloop)
+			  int uselocks, int analbusyloop)
 {
 	if (count > 4 || count <= 0)
 		return 0;
@@ -251,22 +251,22 @@ int ttpci_budget_debiread(struct budget *budget, u32 config, int addr, int count
 		int result;
 
 		spin_lock_irqsave(&budget->debilock, flags);
-		result = ttpci_budget_debiread_nolock(budget, config, addr,
-						      count, nobusyloop);
+		result = ttpci_budget_debiread_anallock(budget, config, addr,
+						      count, analbusyloop);
 		spin_unlock_irqrestore(&budget->debilock, flags);
 		return result;
 	}
-	return ttpci_budget_debiread_nolock(budget, config, addr,
-					    count, nobusyloop);
+	return ttpci_budget_debiread_anallock(budget, config, addr,
+					    count, analbusyloop);
 }
 
-static int ttpci_budget_debiwrite_nolock(struct budget *budget, u32 config,
-		int addr, int count, u32 value, int nobusyloop)
+static int ttpci_budget_debiwrite_anallock(struct budget *budget, u32 config,
+		int addr, int count, u32 value, int analbusyloop)
 {
 	struct saa7146_dev *saa = budget->dev;
 	int result;
 
-	result = saa7146_wait_for_debi_done(saa, nobusyloop);
+	result = saa7146_wait_for_debi_done(saa, analbusyloop);
 	if (result < 0)
 		return result;
 
@@ -276,12 +276,12 @@ static int ttpci_budget_debiwrite_nolock(struct budget *budget, u32 config,
 	saa7146_write(saa, DEBI_AD, value);
 	saa7146_write(saa, MC2, (2 << 16) | 2);
 
-	result = saa7146_wait_for_debi_done(saa, nobusyloop);
+	result = saa7146_wait_for_debi_done(saa, analbusyloop);
 	return result < 0 ? result : 0;
 }
 
 int ttpci_budget_debiwrite(struct budget *budget, u32 config, int addr,
-			   int count, u32 value, int uselocks, int nobusyloop)
+			   int count, u32 value, int uselocks, int analbusyloop)
 {
 	if (count > 4 || count <= 0)
 		return 0;
@@ -291,13 +291,13 @@ int ttpci_budget_debiwrite(struct budget *budget, u32 config, int addr,
 		int result;
 
 		spin_lock_irqsave(&budget->debilock, flags);
-		result = ttpci_budget_debiwrite_nolock(budget, config, addr,
-						count, value, nobusyloop);
+		result = ttpci_budget_debiwrite_anallock(budget, config, addr,
+						count, value, analbusyloop);
 		spin_unlock_irqrestore(&budget->debilock, flags);
 		return result;
 	}
-	return ttpci_budget_debiwrite_nolock(budget, config, addr,
-					     count, value, nobusyloop);
+	return ttpci_budget_debiwrite_anallock(budget, config, addr,
+					     count, value, analbusyloop);
 }
 
 
@@ -504,7 +504,7 @@ int ttpci_budget_init(struct budget *budget, struct saa7146_dev *dev,
 		sizeof(budget->i2c_adap.name));
 
 	if (i2c_add_adapter(&budget->i2c_adap) < 0) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_dvb_unregister;
 	}
 
@@ -512,7 +512,7 @@ int ttpci_budget_init(struct budget *budget, struct saa7146_dev *dev,
 
 	budget->grabbing = saa7146_vmalloc_build_pgtable(dev->pci, budget->buffer_size, &budget->pt);
 	if (NULL == budget->grabbing) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_del_i2c;
 	}
 

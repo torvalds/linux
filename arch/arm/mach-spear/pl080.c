@@ -66,7 +66,7 @@ void pl080_put_signal(const struct pl08x_channel_data *cd, int signal)
 
 	spin_lock_irqsave(&lock, flags);
 
-	/* if signal is not used */
+	/* if signal is analt used */
 	if (!signals[signal].busy)
 		BUG();
 

@@ -142,12 +142,12 @@ static int snd_pcsp_ctls_add(struct snd_pcsp *chip,
 	return 0;
 }
 
-int snd_pcsp_new_mixer(struct snd_pcsp *chip, int nopcm)
+int snd_pcsp_new_mixer(struct snd_pcsp *chip, int analpcm)
 {
 	int err;
 	struct snd_card *card = chip->card;
 
-	if (!nopcm) {
+	if (!analpcm) {
 		err = snd_pcsp_ctls_add(chip, snd_pcsp_controls_pcm,
 			ARRAY_SIZE(snd_pcsp_controls_pcm));
 		if (err < 0)

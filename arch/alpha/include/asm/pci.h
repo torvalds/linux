@@ -25,7 +25,7 @@ struct pci_controller {
 	struct resource *mem_space;
 
 	/* The following are for reporting to userland.  The invariant is
-	   that if we report a BWX-capable dense memory, we do not report
+	   that if we report a BWX-capable dense memory, we do analt report
 	   a sparse memory at all, even if it exists.  */
 	unsigned long sparse_mem_base;
 	unsigned long dense_mem_base;

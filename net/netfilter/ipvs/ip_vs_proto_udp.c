@@ -60,7 +60,7 @@ udp_conn_schedule(struct netns_ipvs *ipvs, int af, struct sk_buff *skb,
 					 &iph->saddr, ports[0]);
 
 	if (svc) {
-		int ignored;
+		int iganalred;
 
 		if (ip_vs_todrop(ipvs)) {
 			/*
@@ -75,9 +75,9 @@ udp_conn_schedule(struct netns_ipvs *ipvs, int af, struct sk_buff *skb,
 		 * Let the virtual server select a real server for the
 		 * incoming connection, and create a connection entry.
 		 */
-		*cpp = ip_vs_schedule(svc, skb, pd, &ignored, iph);
-		if (!*cpp && ignored <= 0) {
-			if (!ignored)
+		*cpp = ip_vs_schedule(svc, skb, pd, &iganalred, iph);
+		if (!*cpp && iganalred <= 0) {
+			if (!iganalred)
 				*verdict = ip_vs_leave(svc, skb, pd, iph);
 			else
 				*verdict = NF_DROP;
@@ -186,7 +186,7 @@ udp_snat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 				     cp->dport, cp->vport);
 		if (skb->ip_summed == CHECKSUM_COMPLETE)
 			skb->ip_summed = cp->app ?
-					 CHECKSUM_UNNECESSARY : CHECKSUM_NONE;
+					 CHECKSUM_UNNECESSARY : CHECKSUM_ANALNE;
 	} else {
 		/* full checksum calculation */
 		udph->check = 0;
@@ -270,7 +270,7 @@ udp_dnat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 				     cp->vport, cp->dport);
 		if (skb->ip_summed == CHECKSUM_COMPLETE)
 			skb->ip_summed = cp->app ?
-					 CHECKSUM_UNNECESSARY : CHECKSUM_NONE;
+					 CHECKSUM_UNNECESSARY : CHECKSUM_ANALNE;
 	} else {
 		/* full checksum calculation */
 		udph->check = 0;
@@ -315,7 +315,7 @@ udp_csum_check(int af, struct sk_buff *skb, struct ip_vs_protocol *pp)
 
 	if (uh->check != 0) {
 		switch (skb->ip_summed) {
-		case CHECKSUM_NONE:
+		case CHECKSUM_ANALNE:
 			skb->csum = skb_checksum(skb, udphoff,
 						 skb->len - udphoff, 0);
 			fallthrough;
@@ -344,7 +344,7 @@ udp_csum_check(int af, struct sk_buff *skb, struct ip_vs_protocol *pp)
 				}
 			break;
 		default:
-			/* No need to checksum. */
+			/* Anal need to checksum. */
 			break;
 		}
 	}
@@ -432,12 +432,12 @@ static int udp_app_conn_bind(struct ip_vs_conn *cp)
 
 
 static const int udp_timeouts[IP_VS_UDP_S_LAST+1] = {
-	[IP_VS_UDP_S_NORMAL]		=	5*60*HZ,
+	[IP_VS_UDP_S_ANALRMAL]		=	5*60*HZ,
 	[IP_VS_UDP_S_LAST]		=	2*HZ,
 };
 
 static const char *const udp_state_name_table[IP_VS_UDP_S_LAST+1] = {
-	[IP_VS_UDP_S_NORMAL]		=	"UDP",
+	[IP_VS_UDP_S_ANALRMAL]		=	"UDP",
 	[IP_VS_UDP_S_LAST]		=	"BUG!",
 };
 
@@ -454,11 +454,11 @@ udp_state_transition(struct ip_vs_conn *cp, int direction,
 		     struct ip_vs_proto_data *pd)
 {
 	if (unlikely(!pd)) {
-		pr_err("UDP no ns data\n");
+		pr_err("UDP anal ns data\n");
 		return;
 	}
 
-	cp->timeout = pd->timeout_table[IP_VS_UDP_S_NORMAL];
+	cp->timeout = pd->timeout_table[IP_VS_UDP_S_ANALRMAL];
 	if (direction == IP_VS_DIR_OUTPUT)
 		ip_vs_control_assure_ct(cp);
 }
@@ -469,7 +469,7 @@ static int __udp_init(struct netns_ipvs *ipvs, struct ip_vs_proto_data *pd)
 	pd->timeout_table = ip_vs_create_timeout_table((int *)udp_timeouts,
 							sizeof(udp_timeouts));
 	if (!pd->timeout_table)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 

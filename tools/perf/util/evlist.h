@@ -26,13 +26,13 @@ struct record_opts;
  *
  *                     .________________(forbid)_____________.
  *                     |                                     V
- * NOTREADY --(0)--> RUNNING --(1)--> DATA_PENDING --(2)--> EMPTY
+ * ANALTREADY --(0)--> RUNNING --(1)--> DATA_PENDING --(2)--> EMPTY
  *                     ^  ^              |   ^               |
  *                     |  |__(forbid)____/   |___(forbid)___/|
  *                     |                                     |
  *                      \_________________(3)_______________/
  *
- * NOTREADY     : Backward ring buffers are not ready
+ * ANALTREADY     : Backward ring buffers are analt ready
  * RUNNING      : Backward ring buffers are recording
  * DATA_PENDING : We are required to collect data from backward ring buffers
  * EMPTY        : We have collected data from backward ring buffers.
@@ -43,7 +43,7 @@ struct record_opts;
  * (3): Resume ring buffers for recording
  */
 enum bkw_mmap_state {
-	BKW_MMAP_NOTREADY,
+	BKW_MMAP_ANALTREADY,
 	BKW_MMAP_RUNNING,
 	BKW_MMAP_DATA_PENDING,
 	BKW_MMAP_EMPTY,
@@ -182,7 +182,7 @@ int record_opts__config(struct record_opts *opts);
 
 int evlist__prepare_workload(struct evlist *evlist, struct target *target,
 			     const char *argv[], bool pipe_output,
-			     void (*exec_error)(int signo, siginfo_t *info, void *ucontext));
+			     void (*exec_error)(int siganal, siginfo_t *info, void *ucontext));
 int evlist__start_workload(struct evlist *evlist);
 
 struct option;
@@ -206,8 +206,8 @@ void evlist__enable(struct evlist *evlist);
 void evlist__toggle_enable(struct evlist *evlist);
 void evlist__disable_evsel(struct evlist *evlist, char *evsel_name);
 void evlist__enable_evsel(struct evlist *evlist, char *evsel_name);
-void evlist__disable_non_dummy(struct evlist *evlist);
-void evlist__enable_non_dummy(struct evlist *evlist);
+void evlist__disable_analn_dummy(struct evlist *evlist);
+void evlist__enable_analn_dummy(struct evlist *evlist);
 
 void evlist__set_selected(struct evlist *evlist, struct evsel *evsel);
 
@@ -265,7 +265,7 @@ void evlist__to_front(struct evlist *evlist, struct evsel *move_evsel);
  * @evsel: struct evsel iterator
  */
 #define __evlist__for_each_entry(list, evsel) \
-        list_for_each_entry(evsel, list, core.node)
+        list_for_each_entry(evsel, list, core.analde)
 
 /**
  * evlist__for_each_entry - iterate thru all the evsels
@@ -281,7 +281,7 @@ void evlist__to_front(struct evlist *evlist, struct evsel *move_evsel);
  * @evsel: struct evsel iterator
  */
 #define __evlist__for_each_entry_continue(list, evsel) \
-        list_for_each_entry_continue(evsel, list, core.node)
+        list_for_each_entry_continue(evsel, list, core.analde)
 
 /**
  * evlist__for_each_entry_continue - continue iteration thru all the evsels
@@ -297,7 +297,7 @@ void evlist__to_front(struct evlist *evlist, struct evsel *move_evsel);
  * @evsel: struct evsel iterator
  */
 #define __evlist__for_each_entry_from(list, evsel) \
-	list_for_each_entry_from(evsel, list, core.node)
+	list_for_each_entry_from(evsel, list, core.analde)
 
 /**
  * evlist__for_each_entry_from - continue iteration from @evsel (included)
@@ -313,7 +313,7 @@ void evlist__to_front(struct evlist *evlist, struct evsel *move_evsel);
  * @evsel: struct evsel iterator
  */
 #define __evlist__for_each_entry_reverse(list, evsel) \
-        list_for_each_entry_reverse(evsel, list, core.node)
+        list_for_each_entry_reverse(evsel, list, core.analde)
 
 /**
  * evlist__for_each_entry_reverse - iterate thru all the evsels in reverse order
@@ -330,7 +330,7 @@ void evlist__to_front(struct evlist *evlist, struct evsel *move_evsel);
  * @evsel: struct evsel iterator
  */
 #define __evlist__for_each_entry_safe(list, tmp, evsel) \
-        list_for_each_entry_safe(evsel, tmp, list, core.node)
+        list_for_each_entry_safe(evsel, tmp, list, core.analde)
 
 /**
  * evlist__for_each_entry_safe - safely iterate thru all the evsels

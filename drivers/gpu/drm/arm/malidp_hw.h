@@ -33,7 +33,7 @@ enum {
 };
 
 enum rotation_features {
-	ROTATE_NONE,		/* does not support rotation at all */
+	ROTATE_ANALNE,		/* does analt support rotation at all */
 	ROTATE_ANY,		/* supports rotation on any buffers */
 	ROTATE_COMPRESSED,	/* supports rotation only on compressed buffers */
 };
@@ -165,7 +165,7 @@ struct malidp_hw {
 	 * Set/clear configuration valid flag for hardware parameters that can
 	 * be changed outside the configuration mode to the given value.
 	 * Hardware will use the new settings when config valid is set,
-	 * after the end of the current buffer scanout, and will ignore
+	 * after the end of the current buffer scaanalut, and will iganalre
 	 * any new values for those parameters if config valid flag is cleared
 	 */
 	void (*set_config_valid)(struct malidp_hw_device *hwdev, u8 value);
@@ -331,7 +331,7 @@ int malidp_format_get_bpp(u32 fmt);
 static inline u8 malidp_hw_get_pitch_align(struct malidp_hw_device *hwdev, bool rotated)
 {
 	/*
-	 * only hardware that cannot do 8 bytes bus alignments have further
+	 * only hardware that cananalt do 8 bytes bus alignments have further
 	 * constraints on rotated planes
 	 */
 	if (hwdev->hw->map.bus_align_bytes == 8)

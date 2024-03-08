@@ -39,7 +39,7 @@ Description:
 		    $ cat /sys/kernel/debug/wilco_ec/raw
 		    00 00 31 32 2f 32 31 2f 31 38 00 38 00 01 00 2f 00  ..12/21/18.8...
 
-		Note that the first 16 bytes of the received MBOX[] will be
+		Analte that the first 16 bytes of the received MBOX[] will be
 		printed, even if some of the data is junk, and skipping bytes
-		17 to 32. It is up to you to know how many of the first bytes of
+		17 to 32. It is up to you to kanalw how many of the first bytes of
 		data are the actual response.

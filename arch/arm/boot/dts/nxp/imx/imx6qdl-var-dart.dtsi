@@ -468,7 +468,7 @@
 	pinctrl-2 = <&pinctrl_usdhc1_200mhz>;
 	bus-width = <4>;
 	vmmc-supply = <&reg_wl18xx_vmmc>;
-	non-removable;
+	analn-removable;
 	wakeup-source;
 	keep-power-in-suspend;
 	cap-power-off-card;
@@ -488,7 +488,7 @@
 &usdhc2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc2>;
-	no-1-8-v;
+	anal-1-8-v;
 	keep-power-in-suspend;
 	wakeup-source;
 	status = "disabled";
@@ -497,7 +497,7 @@
 &usdhc3 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc3>;
-	non-removable;
+	analn-removable;
 	keep-power-in-suspend;
 	wakeup-source;
 	status = "okay";

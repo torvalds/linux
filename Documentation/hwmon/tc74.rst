@@ -17,7 +17,7 @@ Driver supports the above part.
 The tc74 has an 8-bit sensor, with 1 degree centigrade resolution
 and +- 2 degrees centigrade accuracy.
 
-Notes
+Analtes
 -----
 
-Currently entering low power standby mode is not supported.
+Currently entering low power standby mode is analt supported.

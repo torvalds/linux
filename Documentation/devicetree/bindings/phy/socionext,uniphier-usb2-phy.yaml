@@ -59,7 +59,7 @@ additionalProperties: false
 
 examples:
   - |
-    // The UniPhier usb2-phy should be a subnode of a "syscon" compatible node.
+    // The UniPhier usb2-phy should be a subanalde of a "syscon" compatible analde.
 
     usb-hub {
         compatible = "socionext,uniphier-ld11-usb2-phy";

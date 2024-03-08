@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exstoren - AML Interpreter object store support,
- *                        Store to Node (namespace object)
+ *                        Store to Analde (namespace object)
  *
  * Copyright (C) 2000 - 2023, Intel Corp.
  *
@@ -71,7 +71,7 @@ acpi_ex_resolve_object(union acpi_operand_object **source_desc_ptr,
 			}
 		}
 
-		/* For copy_object, no further validation necessary */
+		/* For copy_object, anal further validation necessary */
 
 		if (walk_state->opcode == AML_COPY_OBJECT_OP) {
 			break;
@@ -85,10 +85,10 @@ acpi_ex_resolve_object(union acpi_operand_object **source_desc_ptr,
 		    !((source_desc->common.type == ACPI_TYPE_LOCAL_REFERENCE) &&
 		      (source_desc->reference.class == ACPI_REFCLASS_TABLE))) {
 
-			/* Conversion successful but still not a valid type */
+			/* Conversion successful but still analt a valid type */
 
 			ACPI_ERROR((AE_INFO,
-				    "Cannot assign type [%s] to [%s] (must be type Int/Str/Buf)",
+				    "Cananalt assign type [%s] to [%s] (must be type Int/Str/Buf)",
 				    acpi_ut_get_object_type_name(source_desc),
 				    acpi_ut_get_type_name(target_type)));
 
@@ -129,12 +129,12 @@ acpi_ex_resolve_object(union acpi_operand_object **source_desc_ptr,
  *
  * RETURN:      Status
  *
- * DESCRIPTION: "Store" an object to another object. This may include
+ * DESCRIPTION: "Store" an object to aanalther object. This may include
  *              converting the source type to the target type (implicit
  *              conversion), and a copy of the value of the source to
  *              the target.
  *
- *              The Assignment of an object to another (not named) object
+ *              The Assignment of an object to aanalther (analt named) object
  *              is handled here.
  *              The Source passed in will replace the current value (if any)
  *              with the input value.
@@ -142,12 +142,12 @@ acpi_ex_resolve_object(union acpi_operand_object **source_desc_ptr,
  *              When storing into an object the data is converted to the
  *              target object type then stored in the object. This means
  *              that the target object type (for an initialized target) will
- *              not be changed by a store operation.
+ *              analt be changed by a store operation.
  *
  *              This module allows destination types of Number, String,
  *              Buffer, and Package.
  *
- *              Assumes parameters are already validated. NOTE: source_desc
+ *              Assumes parameters are already validated. ANALTE: source_desc
  *              resolution (from a reference object) must be performed by
  *              the caller if necessary.
  *
@@ -167,7 +167,7 @@ acpi_ex_store_object_to_object(union acpi_operand_object *source_desc,
 	actual_src_desc = source_desc;
 	if (!dest_desc) {
 		/*
-		 * There is no destination object (An uninitialized node or
+		 * There is anal destination object (An uninitialized analde or
 		 * package element), so we can simply copy the source object
 		 * creating a new destination object
 		 */
@@ -179,11 +179,11 @@ acpi_ex_store_object_to_object(union acpi_operand_object *source_desc,
 
 	if (source_desc->common.type != dest_desc->common.type) {
 		/*
-		 * The source type does not match the type of the destination.
+		 * The source type does analt match the type of the destination.
 		 * Perform the "implicit conversion" of the source to the current type
 		 * of the target as per the ACPI specification.
 		 *
-		 * If no conversion performed, actual_src_desc = source_desc.
+		 * If anal conversion performed, actual_src_desc = source_desc.
 		 * Otherwise, actual_src_desc is a temporary object to hold the
 		 * converted object.
 		 */
@@ -197,7 +197,7 @@ acpi_ex_store_object_to_object(union acpi_operand_object *source_desc,
 
 		if (source_desc == actual_src_desc) {
 			/*
-			 * No conversion was performed. Return the source_desc as the
+			 * Anal conversion was performed. Return the source_desc as the
 			 * new object.
 			 */
 			*new_desc = source_desc;
@@ -206,7 +206,7 @@ acpi_ex_store_object_to_object(union acpi_operand_object *source_desc,
 	}
 
 	/*
-	 * We now have two objects of identical types, and we can perform a
+	 * We analw have two objects of identical types, and we can perform a
 	 * copy of the *value* of the source object.
 	 */
 	switch (dest_desc->common.type) {
@@ -242,10 +242,10 @@ acpi_ex_store_object_to_object(union acpi_operand_object *source_desc,
 		/*
 		 * All other types come here.
 		 */
-		ACPI_WARNING((AE_INFO, "Store into type [%s] not implemented",
+		ACPI_WARNING((AE_INFO, "Store into type [%s] analt implemented",
 			      acpi_ut_get_object_type_name(dest_desc)));
 
-		status = AE_NOT_IMPLEMENTED;
+		status = AE_ANALT_IMPLEMENTED;
 		break;
 	}
 

@@ -8,11 +8,11 @@
 #include <unistd.h>
 #include <stdio.h>
 
-#pragma GCC diagnostic push
-#if __GNUC__ >= 11 && __GNUC_MINOR__ >= 1
-/* Ignore read(2) overflow and write(2) overread compile warnings */
-#pragma GCC diagnostic ignored "-Wstringop-overread"
-#pragma GCC diagnostic ignored "-Wstringop-overflow"
+#pragma GCC diaganalstic push
+#if __GNUC__ >= 11 && __GNUC_MIANALR__ >= 1
+/* Iganalre read(2) overflow and write(2) overread compile warnings */
+#pragma GCC diaganalstic iganalred "-Wstringop-overread"
+#pragma GCC diaganalstic iganalred "-Wstringop-overflow"
 #endif
 
 void write_read_with_huge_count(char *file)
@@ -34,7 +34,7 @@ void write_read_with_huge_count(char *file)
 	close(filedesc);
 }
 
-#pragma GCC diagnostic pop
+#pragma GCC diaganalstic pop
 
 int main(int argc, char *argv[])
 {

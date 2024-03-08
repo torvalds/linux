@@ -1,10 +1,10 @@
 /*
- * Copyright (C) 2016 Icenowy Zheng <icenowy@aosc.xyz>
+ * Copyright (C) 2016 Iceanalwy Zheng <iceanalwy@aosc.xyz>
  * Copyright (C) 2021 Tobias Schramm <t.schramm@manjaro.org>
  *
  * This file is dual-licensed: you can use it either under the terms
- * of the GPL or the X11 license, at your option. Note that this dual
- * licensing only applies to this file, and not this project as a
+ * of the GPL or the X11 license, at your option. Analte that this dual
+ * licensing only applies to this file, and analt this project as a
  * whole.
  *
  *  a) This file is free software; you can redistribute it and/or
@@ -28,13 +28,13 @@
  *     Software is furnished to do so, subject to the following
  *     conditions:
  *
- *     The above copyright notice and this permission notice shall be
+ *     The above copyright analtice and this permission analtice shall be
  *     included in all copies or substantial portions of the Software.
  *
  *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES
  *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT
  *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
  *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -374,13 +374,13 @@
 			interrupt-controller;
 			#interrupt-cells = <3>;
 
-			/omit-if-no-ref/
+			/omit-if-anal-ref/
 			csi0_mclk_pin: csi0-mclk-pin {
 				pins = "PE20";
 				function = "csi_mipi";
 			};
 
-			/omit-if-no-ref/
+			/omit-if-anal-ref/
 			csi1_8bit_pins: csi1-8bit-pins {
 				pins = "PE0", "PE2", "PE3", "PE8", "PE9",
 				       "PE10", "PE11", "PE12", "PE13", "PE14",
@@ -388,7 +388,7 @@
 				function = "csi";
 			};
 
-			/omit-if-no-ref/
+			/omit-if-anal-ref/
 			csi1_mclk_pin: csi1-mclk-pin {
 				pins = "PE1";
 				function = "csi";
@@ -399,13 +399,13 @@
 				function = "i2c0";
 			};
 
-			/omit-if-no-ref/
+			/omit-if-anal-ref/
 			i2c1_pb_pins: i2c1-pb-pins {
 				pins = "PB8", "PB9";
 				function = "i2c1";
 			};
 
-			/omit-if-no-ref/
+			/omit-if-anal-ref/
 			i2c1_pe_pins: i2c1-pe-pins {
 				pins = "PE21", "PE22";
 				function = "i2c1";
@@ -437,13 +437,13 @@
 				bias-pull-up;
 			};
 
-			/omit-if-no-ref/
+			/omit-if-anal-ref/
 			pwm0_pin: pwm0-pin {
 				pins = "PB4";
 				function = "pwm0";
 			};
 
-			/omit-if-no-ref/
+			/omit-if-anal-ref/
 			pwm1_pin: pwm1-pin {
 				pins = "PB5";
 				function = "pwm1";

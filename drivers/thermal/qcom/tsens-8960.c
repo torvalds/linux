@@ -88,7 +88,7 @@ static int resume_8960(struct tsens_priv *priv)
 		return ret;
 
 	/*
-	 * Separate CONFIG restore is not needed only for 8660 as
+	 * Separate CONFIG restore is analt needed only for 8660 as
 	 * config is part of CTRL Addr and its restored as such
 	 */
 	if (priv->num_sensors > 1) {
@@ -121,7 +121,7 @@ static int enable_8960(struct tsens_priv *priv, int id)
 	 * On platforms with more than 6 sensors, all remaining sensors
 	 * must be enabled together, otherwise undefined results are expected.
 	 * (Sensor 6-7 disabled, Sensor 3 disabled...) In the original driver,
-	 * all the sensors are enabled in one step hence this bug is not
+	 * all the sensors are enabled in one step hence this bug is analt
 	 * triggered.
 	 */
 	if (id > 5)
@@ -201,7 +201,7 @@ static int calibrate_8960(struct tsens_priv *priv)
 
 static const struct reg_field tsens_8960_regfields[MAX_REGFIELDS] = {
 	/* ----- SROT ------ */
-	/* No VERSION information */
+	/* Anal VERSION information */
 
 	/* CNTL */
 	[TSENS_EN]     = REG_FIELD(CNTL_ADDR,  0, 0),
@@ -211,12 +211,12 @@ static const struct reg_field tsens_8960_regfields[MAX_REGFIELDS] = {
 
 	/* ----- TM ------ */
 	/* INTERRUPT ENABLE */
-	/* NO INTERRUPT ENABLE */
+	/* ANAL INTERRUPT ENABLE */
 
 	/* Single UPPER/LOWER TEMPERATURE THRESHOLD for all sensors */
 	[LOW_THRESH_0]   = REG_FIELD(THRESHOLD_ADDR,  0,  7),
 	[UP_THRESH_0]    = REG_FIELD(THRESHOLD_ADDR,  8, 15),
-	/* MIN_THRESH_0 and MAX_THRESH_0 are not present in the regfield
+	/* MIN_THRESH_0 and MAX_THRESH_0 are analt present in the regfield
 	 * Recycle CRIT_THRESH_0 and 1 to set the required regs to hardcoded temp
 	 * MIN_THRESH_0 -> CRIT_THRESH_1
 	 * MAX_THRESH_0 -> CRIT_THRESH_0
@@ -225,11 +225,11 @@ static const struct reg_field tsens_8960_regfields[MAX_REGFIELDS] = {
 	[CRIT_THRESH_0]   = REG_FIELD(THRESHOLD_ADDR, 24, 31),
 
 	/* UPPER/LOWER INTERRUPT [CLEAR/STATUS] */
-	/* 1 == clear, 0 == normal operation */
+	/* 1 == clear, 0 == analrmal operation */
 	[LOW_INT_CLEAR_0]   = REG_FIELD(CNTL_ADDR,  9,  9),
 	[UP_INT_CLEAR_0]    = REG_FIELD(CNTL_ADDR, 10, 10),
 
-	/* NO CRITICAL INTERRUPT SUPPORT on 8960 */
+	/* ANAL CRITICAL INTERRUPT SUPPORT on 8960 */
 
 	/* Sn_STATUS */
 	[LAST_TEMP_0]  = REG_FIELD(S0_STATUS_OFF,  0,  7),
@@ -244,12 +244,12 @@ static const struct reg_field tsens_8960_regfields[MAX_REGFIELDS] = {
 	[LAST_TEMP_9]  = REG_FIELD(S9_STATUS_OFF,  0,  7),
 	[LAST_TEMP_10] = REG_FIELD(S10_STATUS_OFF, 0,  7),
 
-	/* No VALID field on 8960 */
+	/* Anal VALID field on 8960 */
 	/* TSENS_INT_STATUS bits: 1 == threshold violated */
 	[MIN_STATUS_0] = REG_FIELD(INT_STATUS_ADDR, 0, 0),
 	[LOWER_STATUS_0] = REG_FIELD(INT_STATUS_ADDR, 1, 1),
 	[UPPER_STATUS_0] = REG_FIELD(INT_STATUS_ADDR, 2, 2),
-	/* No CRITICAL field on 8960 */
+	/* Anal CRITICAL field on 8960 */
 	[MAX_STATUS_0] = REG_FIELD(INT_STATUS_ADDR, 3, 3),
 
 	/* TRDY: 1=ready, 0=in progress */

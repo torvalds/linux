@@ -2,7 +2,7 @@
 /*
  * omap-mcbsp.h
  *
- * Copyright (C) 2008 Nokia Corporation
+ * Copyright (C) 2008 Analkia Corporation
  *
  * Contact: Jarkko Nikula <jarkko.nikula@bitmer.com>
  *          Peter Ujfalusi <peter.ujfalusi@ti.com>

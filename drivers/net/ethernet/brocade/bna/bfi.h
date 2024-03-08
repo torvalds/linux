@@ -97,7 +97,7 @@ enum bfi_pcifn_class {
 /* Message Classes */
 enum bfi_mclass {
 	BFI_MC_IOC		= 1,	/*!< IO Controller (IOC)	    */
-	BFI_MC_DIAG		= 2,	/*!< Diagnostic Msgs		    */
+	BFI_MC_DIAG		= 2,	/*!< Diaganalstic Msgs		    */
 	BFI_MC_FLASH		= 3,	/*!< Flash message class	    */
 	BFI_MC_CEE		= 4,	/*!< CEE			    */
 	BFI_MC_FCPORT		= 5,	/*!< FC port			    */
@@ -178,7 +178,7 @@ struct bfi_ioc_getattr_req {
 
 struct bfi_ioc_attr {
 	u64		mfg_pwwn;	/*!< Mfg port wwn	   */
-	u64		mfg_nwwn;	/*!< Mfg node wwn	   */
+	u64		mfg_nwwn;	/*!< Mfg analde wwn	   */
 	u8		mfg_mac[ETH_ALEN]; /*!< Mfg mac		   */
 	u8		port_mode;	/* enum bfi_port_mode	   */
 	u8		rsvd_a;
@@ -232,14 +232,14 @@ struct bfi_ioc_fwver {
 #ifdef __BIG_ENDIAN
 	u8 patch;
 	u8 maint;
-	u8 minor;
+	u8 mianalr;
 	u8 major;
 	u8 rsvd[2];
 	u8 build;
 	u8 phase;
 #else
 	u8 major;
-	u8 minor;
+	u8 mianalr;
 	u8 maint;
 	u8 patch;
 	u8 phase;
@@ -278,7 +278,7 @@ enum bfi_ioc_img_ver_cmp {
 	 ((u32)(__p1_mode)))
 
 enum bfi_fwboot_type {
-	BFI_FWBOOT_TYPE_NORMAL	= 0,
+	BFI_FWBOOT_TYPE_ANALRMAL	= 0,
 	BFI_FWBOOT_TYPE_FLASH	= 1,
 	BFI_FWBOOT_TYPE_MEMTEST	= 2,
 };
@@ -295,7 +295,7 @@ struct bfi_ioc_hbeat {
 
 /* IOC hardware/firmware state */
 enum bfi_ioc_state {
-	BFI_IOC_UNINIT		= 0,	/*!< not initialized		     */
+	BFI_IOC_UNINIT		= 0,	/*!< analt initialized		     */
 	BFI_IOC_INITING		= 1,	/*!< h/w is being initialized	     */
 	BFI_IOC_HWINIT		= 2,	/*!< h/w is initialized		     */
 	BFI_IOC_CFG		= 3,	/*!< IOC configuration in progress   */
@@ -317,7 +317,7 @@ enum {
 	BFI_ADAPTER_SPEED_SH	= 0,	        /*!< adapter speed shift   */
 	BFI_ADAPTER_PROTO	= 0x100000,	/*!< prototype adapaters   */
 	BFI_ADAPTER_TTV		= 0x200000,	/*!< TTV debug capable     */
-	BFI_ADAPTER_UNSUPP	= 0x400000,	/*!< unknown adapter type  */
+	BFI_ADAPTER_UNSUPP	= 0x400000,	/*!< unkanalwn adapter type  */
 };
 
 #define BFI_ADAPTER_GETP(__prop, __adap_prop)			\

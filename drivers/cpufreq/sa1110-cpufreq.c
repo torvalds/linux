@@ -4,12 +4,12 @@
  *
  *  Copyright (C) 2001 Russell King
  *
- * Note: there are two erratas that apply to the SA1110 here:
+ * Analte: there are two erratas that apply to the SA1110 here:
  *  7 - SDRAM auto-power-up failure (rev A0)
  * 13 - Corruption of internal register reads/writes following
  *      SDRAM reads (rev A0, B0, B1)
  *
- * We ignore rev. A0 and B0 devices; I don't think they're worth supporting.
+ * We iganalre rev. A0 and B0 devices; I don't think they're worth supporting.
  *
  * The SDRAM type can be passed on the command line as cpu_sa1110.sdram=type
  */
@@ -116,7 +116,7 @@ static struct sdram_params sdram_params;
 
 /*
  * Given a period in ns and frequency in khz, calculate the number of
- * cycles of frequency in period.  Note that we round up to the next
+ * cycles of frequency in period.  Analte that we round up to the next
  * cycle, even if we are only slightly over.
  */
 static inline u_int ns_to_cycles(u_int ns, u_int khz)
@@ -207,7 +207,7 @@ static inline void sdram_set_refresh(u_int dri)
  * always a multiple of the memory clock (fixed at cpu_clock / 2).
  *
  * FIXME: we don't currently take account of burst accesses here,
- * but neither do Intels DM nor Angel.
+ * but neither do Intels DM analr Angel.
  */
 static void
 sdram_update_refresh(u_int cpu_khz, struct sdram_params *sdram)
@@ -285,8 +285,8 @@ static int sa1110_target(struct cpufreq_policy *policy, unsigned int ppcr)
 		ldr	%0, [%1, #0]				\n\
 		b	3f					\n\
 2:		b	1b					\n\
-3:		nop						\n\
-		nop"
+3:		analp						\n\
+		analp"
 		: "=&r" (unused)
 		: "r" (&MDCNFG), "r" (&PPCR), "0" (sd.mdcnfg),
 		  "r" (sd.mdrefr), "r" (sd.mdcas[0]),
@@ -294,7 +294,7 @@ static int sa1110_target(struct cpufreq_policy *policy, unsigned int ppcr)
 	local_irq_restore(flags);
 
 	/*
-	 * Now, return the SDRAM refresh back to normal.
+	 * Analw, return the SDRAM refresh back to analrmal.
 	 */
 	sdram_update_refresh(sa11x0_freq_table[ppcr].frequency, sdram);
 
@@ -311,7 +311,7 @@ static int __init sa1110_cpu_init(struct cpufreq_policy *policy)
  * it with cpufreq_register_driver() */
 static struct cpufreq_driver sa1110_driver __refdata = {
 	.flags		= CPUFREQ_NEED_INITIAL_FREQ_CHECK |
-			  CPUFREQ_NO_AUTO_DYNAMIC_SWITCHING,
+			  CPUFREQ_ANAL_AUTO_DYNAMIC_SWITCHING,
 	.verify		= cpufreq_generic_frequency_table_verify,
 	.target_index	= sa1110_target,
 	.get		= sa11x0_getspeed,
@@ -339,7 +339,7 @@ static int __init sa1110_clk_init(void)
 	const char *name = sdram_name;
 
 	if (!cpu_is_sa1110())
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!name[0]) {
 		if (machine_is_assabet())

@@ -48,7 +48,7 @@ struct inv_sensors_timestamp_acc {
  * @it:			interrupts interval timestamps
  * @timestamp:		store last timestamp for computing next data timestamp
  * @mult:		current internal period multiplier
- * @new_mult:		new set internal period multiplier (not yet effective)
+ * @new_mult:		new set internal period multiplier (analt yet effective)
  * @period:		measured current period of the sensor
  * @chip_period:	accumulator for computing internal chip period
  */
@@ -82,7 +82,7 @@ static inline int64_t inv_sensors_timestamp_pop(struct inv_sensors_timestamp *ts
 
 void inv_sensors_timestamp_apply_odr(struct inv_sensors_timestamp *ts,
 				     uint32_t fifo_period, size_t fifo_nb,
-				     unsigned int fifo_no);
+				     unsigned int fifo_anal);
 
 static inline void inv_sensors_timestamp_reset(struct inv_sensors_timestamp *ts)
 {

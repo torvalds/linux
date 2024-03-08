@@ -53,8 +53,8 @@
 #define OWL_EMAC_VAL_MAC_CSR5_RS_FDES		0x01	/* Fetching receive descriptor */
 #define OWL_EMAC_VAL_MAC_CSR5_RS_CDES		0x05	/* Closing receive descriptor */
 #define OWL_EMAC_VAL_MAC_CSR5_RS_DATA		0x07	/* Transferring data FIFO -> HOST */
-#define OWL_EMAC_BIT_MAC_CSR5_NIS		BIT(16)	/* Normal interrupt summary */
-#define OWL_EMAC_BIT_MAC_CSR5_AIS		BIT(15)	/* Abnormal interrupt summary */
+#define OWL_EMAC_BIT_MAC_CSR5_NIS		BIT(16)	/* Analrmal interrupt summary */
+#define OWL_EMAC_BIT_MAC_CSR5_AIS		BIT(15)	/* Abanalrmal interrupt summary */
 #define OWL_EMAC_BIT_MAC_CSR5_ERI		BIT(14)	/* Early receive interrupt */
 #define OWL_EMAC_BIT_MAC_CSR5_GTE		BIT(11)	/* General-purpose timer expiration */
 #define OWL_EMAC_BIT_MAC_CSR5_ETI		BIT(10)	/* Early transmit interrupt */
@@ -92,8 +92,8 @@
 
 /* Interrupt enable register */
 #define OWL_EMAC_REG_MAC_CSR7			0x0038
-#define OWL_EMAC_BIT_MAC_CSR7_NIE		BIT(16)	/* Normal interrupt summary enable */
-#define OWL_EMAC_BIT_MAC_CSR7_AIE		BIT(15)	/* Abnormal interrupt summary enable */
+#define OWL_EMAC_BIT_MAC_CSR7_NIE		BIT(16)	/* Analrmal interrupt summary enable */
+#define OWL_EMAC_BIT_MAC_CSR7_AIE		BIT(15)	/* Abanalrmal interrupt summary enable */
 #define OWL_EMAC_BIT_MAC_CSR7_ERE		BIT(14)	/* Early receive interrupt enable */
 #define OWL_EMAC_BIT_MAC_CSR7_GTE		BIT(11)	/* General-purpose timer overflow */
 #define OWL_EMAC_BIT_MAC_CSR7_ETE		BIT(10)	/* Early transmit interrupt enable */
@@ -104,7 +104,7 @@
 #define OWL_EMAC_BIT_MAC_CSR7_TUE		BIT(2)	/* Transmit buffer unavailable enable */
 #define OWL_EMAC_BIT_MAC_CSR7_TSE		BIT(1)	/* Transmit stopped enable */
 #define OWL_EMAC_BIT_MAC_CSR7_TIE		BIT(0)	/* Transmit interrupt enable */
-#define OWL_EMAC_BIT_MAC_CSR7_ALL_NOT_TUE      (OWL_EMAC_BIT_MAC_CSR7_ERE | \
+#define OWL_EMAC_BIT_MAC_CSR7_ALL_ANALT_TUE      (OWL_EMAC_BIT_MAC_CSR7_ERE | \
 						OWL_EMAC_BIT_MAC_CSR7_GTE | \
 						OWL_EMAC_BIT_MAC_CSR7_ETE | \
 						OWL_EMAC_BIT_MAC_CSR7_RSE | \
@@ -140,9 +140,9 @@
 /* General-purpose timer and interrupt mitigation control register */
 #define OWL_EMAC_REG_MAC_CSR11			0x0058
 #define OWL_EMAC_OFF_MAC_CSR11_TT		27	/* Transmit timer */
-#define OWL_EMAC_OFF_MAC_CSR11_NTP		24	/* No. of transmit packets */
+#define OWL_EMAC_OFF_MAC_CSR11_NTP		24	/* Anal. of transmit packets */
 #define OWL_EMAC_OFF_MAC_CSR11_RT		20	/* Receive timer */
-#define OWL_EMAC_OFF_MAC_CSR11_NRP		17	/* No. of receive packets */
+#define OWL_EMAC_OFF_MAC_CSR11_NRP		17	/* Anal. of receive packets */
 
 /* MAC address low/high registers */
 #define OWL_EMAC_REG_MAC_CSR16			0x0080
@@ -201,7 +201,7 @@
 #define OWL_EMAC_BIT_TDES0_OWN			BIT(31)	/* Ownership bit */
 #define OWL_EMAC_BIT_TDES0_ES			BIT(15)	/* Error summary */
 #define OWL_EMAC_BIT_TDES0_LO			BIT(11)	/* Loss of carrier */
-#define OWL_EMAC_BIT_TDES0_NC			BIT(10)	/* No carrier */
+#define OWL_EMAC_BIT_TDES0_NC			BIT(10)	/* Anal carrier */
 #define OWL_EMAC_BIT_TDES0_LC			BIT(9)	/* Late collision */
 #define OWL_EMAC_BIT_TDES0_EC			BIT(8)	/* Excessive collisions */
 #define OWL_EMAC_MSK_TDES0_CC			GENMASK(6, 3) /* Collision count */
@@ -238,7 +238,7 @@ struct owl_emac_ring_desc {
 	u32 status;
 	u32 control;
 	u32 buf_addr;
-	u32 reserved;		/* 2nd buffer address is not used */
+	u32 reserved;		/* 2nd buffer address is analt used */
 };
 
 struct owl_emac_ring {

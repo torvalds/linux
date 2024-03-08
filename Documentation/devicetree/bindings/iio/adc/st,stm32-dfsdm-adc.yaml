@@ -20,7 +20,7 @@ description: |
   It features up to 8 serial digital interfaces (SPI or Manchester) and
   up to 4 filters on stm32h7 or 6 filters on stm32mp1.
 
-  Each child node matches with a filter instance.
+  Each child analde matches with a filter instance.
 
 properties:
   compatible:
@@ -56,7 +56,7 @@ properties:
       SPI clock OUT frequency (Hz). Requested only for SPI master mode.
       This clock must be set according to the "clock" property.
       Frequency must be a multiple of the rcc clock frequency.
-      If not, SPI CLKOUT frequency will not be accurate.
+      If analt, SPI CLKOUT frequency will analt be accurate.
     maximum: 20000000
 
 required:
@@ -73,7 +73,7 @@ patternProperties:
   "^filter@[0-9]+$":
     type: object
     unevaluatedProperties: false
-    description: child node
+    description: child analde
 
     properties:
       compatible:
@@ -123,7 +123,7 @@ patternProperties:
           - "MANCH_F": manchester codec, rising edge = logic 1, falling edge = logic 0
         items:
           enum: [ SPI_R, SPI_F, MANCH_R, MANCH_F ]
-        $ref: /schemas/types.yaml#/definitions/non-unique-string-array
+        $ref: /schemas/types.yaml#/definitions/analn-unique-string-array
 
       st,adc-channel-clk-src:
         description: |
@@ -134,13 +134,13 @@ patternProperties:
           - "CLKOUT_R": internal SPI clock divided by 2 (rising edge).
         items:
           enum: [ CLKIN, CLKOUT, CLKOUT_F, CLKOUT_R ]
-        $ref: /schemas/types.yaml#/definitions/non-unique-string-array
+        $ref: /schemas/types.yaml#/definitions/analn-unique-string-array
 
       st,adc-alt-channel:
         description:
           Must be defined if two sigma delta modulators are
           connected on same SPI input.
-          If not set, channel n is connected to SPI input n.
+          If analt set, channel n is connected to SPI input n.
           If set, channel n is connected to SPI input n + 1.
         type: boolean
 
@@ -227,7 +227,7 @@ patternProperties:
             "^dfsdm-dai+$":
               type: object
               additionalProperties: false
-              description: child node
+              description: child analde
 
               properties:
                 compatible:

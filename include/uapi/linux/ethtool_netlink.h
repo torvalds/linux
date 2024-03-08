@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-analte */
 /*
  * include/uapi/linux/ethtool_netlink.h - netlink interface for ethtool
  *
@@ -13,7 +13,7 @@
 
 /* message types - userspace to kernel */
 enum {
-	ETHTOOL_MSG_USER_NONE,
+	ETHTOOL_MSG_USER_ANALNE,
 	ETHTOOL_MSG_STRSET_GET,
 	ETHTOOL_MSG_LINKINFO_GET,
 	ETHTOOL_MSG_LINKINFO_SET,
@@ -65,7 +65,7 @@ enum {
 
 /* message types - kernel to userspace */
 enum {
-	ETHTOOL_MSG_KERNEL_NONE,
+	ETHTOOL_MSG_KERNEL_ANALNE,
 	ETHTOOL_MSG_STRSET_GET_REPLY,
 	ETHTOOL_MSG_LINKINFO_GET_REPLY,
 	ETHTOOL_MSG_LINKINFO_NTF,
@@ -163,7 +163,7 @@ enum {
 
 enum {
 	ETHTOOL_A_BITSET_UNSPEC,
-	ETHTOOL_A_BITSET_NOMASK,		/* flag */
+	ETHTOOL_A_BITSET_ANALMASK,		/* flag */
 	ETHTOOL_A_BITSET_SIZE,			/* u32 */
 	ETHTOOL_A_BITSET_BITS,			/* nest - _A_BITSET_BITS_* */
 	ETHTOOL_A_BITSET_VALUE,			/* binary */
@@ -314,7 +314,7 @@ enum {
 	ETHTOOL_A_FEATURES_HW,				/* bitset */
 	ETHTOOL_A_FEATURES_WANTED,			/* bitset */
 	ETHTOOL_A_FEATURES_ACTIVE,			/* bitset */
-	ETHTOOL_A_FEATURES_NOCHANGE,			/* bitset */
+	ETHTOOL_A_FEATURES_ANALCHANGE,			/* bitset */
 
 	/* add new constants above here */
 	__ETHTOOL_A_FEATURES_CNT,
@@ -336,7 +336,7 @@ enum {
 /* RINGS */
 
 enum {
-	ETHTOOL_TCP_DATA_SPLIT_UNKNOWN = 0,
+	ETHTOOL_TCP_DATA_SPLIT_UNKANALWN = 0,
 	ETHTOOL_TCP_DATA_SPLIT_DISABLED,
 	ETHTOOL_TCP_DATA_SPLIT_ENABLED,
 };
@@ -446,7 +446,7 @@ enum {
 	ETHTOOL_A_PAUSE_STAT_RX_FRAMES,
 
 	/* add new constants above here
-	 * adjust ETHTOOL_PAUSE_STAT_CNT if adding non-stats!
+	 * adjust ETHTOOL_PAUSE_STAT_CNT if adding analn-stats!
 	 */
 	__ETHTOOL_A_PAUSE_STAT_CNT,
 	ETHTOOL_A_PAUSE_STAT_MAX = (__ETHTOOL_A_PAUSE_STAT_CNT - 1)
@@ -508,7 +508,7 @@ enum {
 	ETHTOOL_A_CABLE_TEST_MAX = __ETHTOOL_A_CABLE_TEST_CNT - 1
 };
 
-/* CABLE TEST NOTIFY */
+/* CABLE TEST ANALTIFY */
 enum {
 	ETHTOOL_A_CABLE_RESULT_CODE_UNSPEC,
 	ETHTOOL_A_CABLE_RESULT_CODE_OK,
@@ -590,7 +590,7 @@ enum {
 	ETHTOOL_A_CABLE_TEST_TDR_MAX = __ETHTOOL_A_CABLE_TEST_TDR_CNT - 1
 };
 
-/* CABLE TEST TDR NOTIFY */
+/* CABLE TEST TDR ANALTIFY */
 
 enum {
 	ETHTOOL_A_CABLE_AMPLITUDE_UNSPEC,
@@ -922,8 +922,8 @@ enum {
 	ETHTOOL_A_PLCA_VERSION,			/* u16 */
 	ETHTOOL_A_PLCA_ENABLED,			/* u8  */
 	ETHTOOL_A_PLCA_STATUS,			/* u8  */
-	ETHTOOL_A_PLCA_NODE_CNT,		/* u32 */
-	ETHTOOL_A_PLCA_NODE_ID,			/* u32 */
+	ETHTOOL_A_PLCA_ANALDE_CNT,		/* u32 */
+	ETHTOOL_A_PLCA_ANALDE_ID,			/* u32 */
 	ETHTOOL_A_PLCA_TO_TMR,			/* u32 */
 	ETHTOOL_A_PLCA_BURST_CNT,		/* u32 */
 	ETHTOOL_A_PLCA_BURST_TMR,		/* u32 */

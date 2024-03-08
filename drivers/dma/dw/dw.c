@@ -5,7 +5,7 @@
 
 #include <linux/bitops.h>
 #include <linux/dmaengine.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/types.h>
 
@@ -109,7 +109,7 @@ int dw_dma_probe(struct dw_dma_chip *chip)
 
 	dw = devm_kzalloc(chip->dev, sizeof(*dw), GFP_KERNEL);
 	if (!dw)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Channel operations */
 	dw->initialize_chan = dw_dma_initialize_chan;

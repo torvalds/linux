@@ -8,7 +8,7 @@
 #include <linux/bits.h>
 #include <linux/build_bug.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/gpio/driver.h>
 #include <linux/mfd/cs42l43.h>
 #include <linux/mfd/cs42l43-regs.h>
@@ -121,7 +121,7 @@ static const struct pinctrl_ops cs42l43_pin_group_ops = {
 	.get_group_name = cs42l43_pin_get_group_name,
 	.get_group_pins = cs42l43_pin_get_group_pins,
 #if IS_ENABLED(CONFIG_OF)
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_all,
+	.dt_analde_to_map = pinconf_generic_dt_analde_to_map_all,
 	.dt_free_map = pinconf_generic_dt_free_map,
 #endif
 };
@@ -211,7 +211,7 @@ static int cs42l43_pin_set_mux(struct pinctrl_dev *pctldev,
 	}
 
 	if (priv->shutters_locked && reg == CS42L43_SHUTTER_CONTROL) {
-		dev_err(priv->dev, "Shutter configuration not available\n");
+		dev_err(priv->dev, "Shutter configuration analt available\n");
 		return -EPERM;
 	}
 
@@ -320,7 +320,7 @@ static inline int cs42l43_pin_get_db(struct cs42l43_pin *priv, unsigned int pin)
 	int ret;
 
 	if (pin >= CS42L43_NUM_GPIOS)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	ret = regmap_read(priv->regmap, CS42L43_GPIO_CTRL2, &val);
 	if (ret)
@@ -336,7 +336,7 @@ static inline int cs42l43_pin_set_db(struct cs42l43_pin *priv, unsigned int pin,
 				     unsigned int us)
 {
 	if (pin >= CS42L43_NUM_GPIOS)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	dev_dbg(priv->dev, "Set debounce %s for %s\n",
 		str_on_off(us), cs42l43_pin_pins[pin].name);
@@ -365,7 +365,7 @@ static int cs42l43_pin_config_get(struct pinctrl_dev *pctldev,
 			return ret;
 		break;
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	*config = pinconf_to_config_packed(param, ret);
@@ -395,7 +395,7 @@ static int cs42l43_pin_config_set(struct pinctrl_dev *pctldev, unsigned int pin,
 				return ret;
 			break;
 		default:
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		}
 
 		configs++;
@@ -532,12 +532,12 @@ static int cs42l43_pin_probe(struct platform_device *pdev)
 	struct cs42l43 *cs42l43 = dev_get_drvdata(pdev->dev.parent);
 	struct cs42l43_pin *priv;
 	struct pinctrl_dev *pctldev;
-	struct fwnode_handle *fwnode = dev_fwnode(cs42l43->dev);
+	struct fwanalde_handle *fwanalde = dev_fwanalde(cs42l43->dev);
 	int ret;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->dev = &pdev->dev;
 	priv->regmap = cs42l43->regmap;
@@ -557,16 +557,16 @@ static int cs42l43_pin_probe(struct platform_device *pdev)
 	priv->gpio_chip.base = -1;
 	priv->gpio_chip.ngpio = CS42L43_NUM_GPIOS;
 
-	if (is_of_node(fwnode)) {
-		fwnode = fwnode_get_named_child_node(fwnode, "pinctrl");
+	if (is_of_analde(fwanalde)) {
+		fwanalde = fwanalde_get_named_child_analde(fwanalde, "pinctrl");
 
-		if (fwnode && !fwnode->dev)
-			fwnode->dev = priv->dev;
+		if (fwanalde && !fwanalde->dev)
+			fwanalde->dev = priv->dev;
 	}
 
-	priv->gpio_chip.fwnode = fwnode;
+	priv->gpio_chip.fwanalde = fwanalde;
 
-	device_set_node(priv->dev, fwnode);
+	device_set_analde(priv->dev, fwanalde);
 
 	devm_pm_runtime_enable(priv->dev);
 	pm_runtime_idle(priv->dev);

@@ -33,12 +33,12 @@ int bcma_nflash_init(struct bcma_drv_cc *cc)
 	if (bus->chipinfo.id != BCMA_CHIP_ID_BCM4706 &&
 	    cc->core->id.rev != 38) {
 		bcma_err(bus, "NAND flash on unsupported board!\n");
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	if (!(cc->capabilities & BCMA_CC_CAP_NFLASH)) {
-		bcma_err(bus, "NAND flash not present according to ChipCommon\n");
-		return -ENODEV;
+		bcma_err(bus, "NAND flash analt present according to ChipCommon\n");
+		return -EANALDEV;
 	}
 
 	cc->nflash.present = true;
@@ -55,7 +55,7 @@ int bcma_nflash_init(struct bcma_drv_cc *cc)
 	}
 
 	/* Prepare platform device, but don't register it yet. It's too early,
-	 * malloc (required by device_private_init) is not available yet. */
+	 * malloc (required by device_private_init) is analt available yet. */
 	bcma_nflash_dev.dev.platform_data = &cc->nflash;
 
 	return 0;

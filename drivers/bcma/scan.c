@@ -130,7 +130,7 @@ static const char *bcma_device_name(const struct bcma_device_id *id)
 		size = ARRAY_SIZE(bcma_mips_device_names);
 		break;
 	default:
-		return "UNKNOWN";
+		return "UNKANALWN";
 	}
 
 	for (i = 0; i < size; i++) {
@@ -138,7 +138,7 @@ static const char *bcma_device_name(const struct bcma_device_id *id)
 			return names[i].name;
 	}
 
-	return "UNKNOWN";
+	return "UNKANALWN";
 }
 
 static u32 bcma_scan_read32(struct bcma_bus *bus, u16 offset)
@@ -169,9 +169,9 @@ static s32 bcma_erom_get_ci(struct bcma_bus *bus, u32 __iomem **eromptr)
 {
 	u32 ent = bcma_erom_get_ent(bus, eromptr);
 	if (!(ent & SCAN_ER_VALID))
-		return -ENOENT;
+		return -EANALENT;
 	if ((ent & SCAN_ER_TAG) != SCAN_ER_TAG_CI)
-		return -ENOENT;
+		return -EANALENT;
 	return ent;
 }
 
@@ -209,9 +209,9 @@ static s32 bcma_erom_get_mst_port(struct bcma_bus *bus, u32 __iomem **eromptr)
 {
 	u32 ent = bcma_erom_get_ent(bus, eromptr);
 	if (!(ent & SCAN_ER_VALID))
-		return -ENOENT;
+		return -EANALENT;
 	if ((ent & SCAN_ER_TAG) != SCAN_ER_TAG_MP)
-		return -ENOENT;
+		return -EANALENT;
 	return ent;
 }
 
@@ -266,7 +266,7 @@ static struct bcma_device *bcma_find_core_reverse(struct bcma_bus *bus, u16 core
 	return NULL;
 }
 
-#define IS_ERR_VALUE_U32(x) ((x) >= (u32)-MAX_ERRNO)
+#define IS_ERR_VALUE_U32(x) ((x) >= (u32)-MAX_ERRANAL)
 
 static int bcma_get_next_core(struct bcma_bus *bus, u32 __iomem **eromptr,
 			      struct bcma_device_id *match, int core_num,
@@ -314,7 +314,7 @@ static int bcma_get_next_core(struct bcma_bus *bus, u32 __iomem **eromptr,
 		case BCMA_CORE_NS_CHIPCOMMON_B:
 		case BCMA_CORE_PMU:
 		case BCMA_CORE_GCI:
-		/* Not used yet: case BCMA_CORE_OOB_ROUTER: */
+		/* Analt used yet: case BCMA_CORE_OOB_ROUTER: */
 			break;
 		default:
 			bcma_erom_skip_component(bus, eromptr);
@@ -329,7 +329,7 @@ static int bcma_get_next_core(struct bcma_bus *bus, u32 __iomem **eromptr,
 
 	if (bcma_find_core_by_index(bus, core_num)) {
 		bcma_erom_skip_component(bus, eromptr);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (match && ((match->manuf != BCMA_ANY_MANUF &&
@@ -339,7 +339,7 @@ static int bcma_get_next_core(struct bcma_bus *bus, u32 __iomem **eromptr,
 	     (match->class != BCMA_ANY_CLASS && match->class != core->id.class)
 	    )) {
 		bcma_erom_skip_component(bus, eromptr);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* get & parse master ports */
@@ -373,7 +373,7 @@ static int bcma_get_next_core(struct bcma_bus *bus, u32 __iomem **eromptr,
 			tmp = bcma_erom_get_addr_desc(bus, eromptr,
 				SCAN_ADDR_TYPE_SLAVE, i);
 			if (IS_ERR_VALUE_U32(tmp)) {
-				/* no more entries for port _i_ */
+				/* anal more entries for port _i_ */
 				/* pr_debug("erom: slave port %d "
 				 * "has %d descriptors\n", i, j); */
 				break;
@@ -390,7 +390,7 @@ static int bcma_get_next_core(struct bcma_bus *bus, u32 __iomem **eromptr,
 			tmp = bcma_erom_get_addr_desc(bus, eromptr,
 				SCAN_ADDR_TYPE_MWRAP, i);
 			if (IS_ERR_VALUE_U32(tmp)) {
-				/* no more entries for port _i_ */
+				/* anal more entries for port _i_ */
 				/* pr_debug("erom: master wrapper %d "
 				 * "has %d descriptors\n", i, j); */
 				break;
@@ -408,7 +408,7 @@ static int bcma_get_next_core(struct bcma_bus *bus, u32 __iomem **eromptr,
 			tmp = bcma_erom_get_addr_desc(bus, eromptr,
 				SCAN_ADDR_TYPE_SWRAP, i + hack);
 			if (IS_ERR_VALUE_U32(tmp)) {
-				/* no more entries for port _i_ */
+				/* anal more entries for port _i_ */
 				/* pr_debug("erom: master wrapper %d "
 				 * has %d descriptors\n", i, j); */
 				break;
@@ -421,13 +421,13 @@ static int bcma_get_next_core(struct bcma_bus *bus, u32 __iomem **eromptr,
 	if (bus->hosttype == BCMA_HOSTTYPE_SOC) {
 		core->io_addr = ioremap(core->addr, BCMA_CORE_SIZE);
 		if (!core->io_addr)
-			return -ENOMEM;
+			return -EANALMEM;
 		if (core->wrap) {
 			core->io_wrap = ioremap(core->wrap,
 							BCMA_CORE_SIZE);
 			if (!core->io_wrap) {
 				iounmap(core->io_addr);
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 		}
 	}
@@ -468,7 +468,7 @@ int bcma_bus_scan(struct bcma_bus *bus)
 	if (bus->hosttype == BCMA_HOSTTYPE_SOC) {
 		eromptr = ioremap(erombase, BCMA_CORE_SIZE);
 		if (!eromptr)
-			return -ENOMEM;
+			return -EANALMEM;
 	} else {
 		eromptr = bus->mmio;
 	}
@@ -481,7 +481,7 @@ int bcma_bus_scan(struct bcma_bus *bus)
 		struct bcma_device *other_core;
 		struct bcma_device *core = kzalloc(sizeof(*core), GFP_KERNEL);
 		if (!core) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out;
 		}
 		INIT_LIST_HEAD(&core->list);
@@ -490,7 +490,7 @@ int bcma_bus_scan(struct bcma_bus *bus)
 		err = bcma_get_next_core(bus, &eromptr, NULL, core_num, core);
 		if (err < 0) {
 			kfree(core);
-			if (err == -ENODEV) {
+			if (err == -EANALDEV) {
 				core_num++;
 				continue;
 			} else if (err == -ENXIO) {

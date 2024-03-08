@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -38,7 +38,7 @@
  * 1. Generation pseudocode sequences for HW programming.
  * 2. Implementation of real HW programming by HW Sequencer of DAL3.
  *
- * Note: do *not* add any types which are *not* used for HW programming - this
+ * Analte: do *analt* add any types which are *analt* used for HW programming - this
  * will ensure separation of Logic layer from HW layer.
  ******************************************************************************/
 
@@ -176,7 +176,7 @@ enum surface_pixel_format {
 	SURFACE_PIXEL_FORMAT_GRPH_ARGB2101010,
 	/*swaped*/
 	SURFACE_PIXEL_FORMAT_GRPH_ABGR2101010,
-	/*TOBE REMOVED swaped, XR_BIAS has no differance
+	/*TOBE REMOVED swaped, XR_BIAS has anal differance
 	 * for pixel layout than previous and we can
 	 * delete this after discusion*/
 	SURFACE_PIXEL_FORMAT_GRPH_ABGR2101010_XR_BIAS,
@@ -233,7 +233,7 @@ enum pixel_format {
 	PIXEL_FORMAT_GRPH_END = PIXEL_FORMAT_FP16,
 	PIXEL_FORMAT_VIDEO_BEGIN = PIXEL_FORMAT_420BPP8,
 	PIXEL_FORMAT_VIDEO_END = PIXEL_FORMAT_420BPP10,
-	PIXEL_FORMAT_UNKNOWN
+	PIXEL_FORMAT_UNKANALWN
 };
 
 /*
@@ -288,7 +288,7 @@ enum array_mode_values {
 
 enum tile_mode_values {
 	DC_ADDR_SURF_MICRO_TILING_DISPLAY = 0x0,
-	DC_ADDR_SURF_MICRO_TILING_NON_DISPLAY = 0x1,
+	DC_ADDR_SURF_MICRO_TILING_ANALN_DISPLAY = 0x1,
 };
 
 enum swizzle_mode_values {
@@ -317,7 +317,7 @@ enum swizzle_mode_values {
 	DC_SW_VAR_D_X = 30,
 	DC_SW_VAR_R_X = 31,
 	DC_SW_MAX = 32,
-	DC_SW_UNKNOWN = DC_SW_MAX
+	DC_SW_UNKANALWN = DC_SW_MAX
 };
 
 union dc_tiling_info {
@@ -352,7 +352,7 @@ union dc_tiling_info {
 		 *	contiguously for each tile.
 		 * If the tile data requires more storage than this
 		 *	amount, it is split into multiple slices.
-		 * This field must not be larger than
+		 * This field must analt be larger than
 		 *	GB_ADDR_CONFIG.DRAM_ROW_SIZE.
 		 * Only applies to 2D and 3D tiling modes.
 		 * For color render targets, TILE_SPLIT >= 256B.
@@ -412,7 +412,7 @@ enum dc_rotation_angle {
 };
 
 enum dc_scan_direction {
-	SCAN_DIRECTION_UNKNOWN = 0,
+	SCAN_DIRECTION_UNKANALWN = 0,
 	SCAN_DIRECTION_HORIZONTAL = 1,  /* 0, 180 rotation */
 	SCAN_DIRECTION_VERTICAL = 2,    /* 90, 270 rotation */
 };
@@ -527,7 +527,7 @@ struct dc_gamma {
  * we stored in the cursor surface.
  */
 enum dc_cursor_color_format {
-	CURSOR_MODE_MONO,
+	CURSOR_MODE_MOANAL,
 	CURSOR_MODE_COLOR_1BIT_AND,
 	CURSOR_MODE_COLOR_PRE_MULTIPLIED_ALPHA,
 	CURSOR_MODE_COLOR_UN_PRE_MULTIPLIED_ALPHA,
@@ -603,7 +603,7 @@ struct dpp_cursor_attributes {
 /* OPP */
 
 enum dc_color_space {
-	COLOR_SPACE_UNKNOWN,
+	COLOR_SPACE_UNKANALWN,
 	COLOR_SPACE_SRGB,
 	COLOR_SPACE_XR_RGB,
 	COLOR_SPACE_SRGB_LIMITED,
@@ -656,7 +656,7 @@ enum dc_dither_option {
 };
 
 enum dc_quantization_range {
-	QUANTIZATION_RANGE_UNKNOWN,
+	QUANTIZATION_RANGE_UNKANALWN,
 	QUANTIZATION_RANGE_FULL,
 	QUANTIZATION_RANGE_LIMITED
 };
@@ -722,7 +722,7 @@ enum dc_pixel_encoding {
 };
 
 enum dc_aspect_ratio {
-	ASPECT_RATIO_NO_DATA,
+	ASPECT_RATIO_ANAL_DATA,
 	ASPECT_RATIO_4_3,
 	ASPECT_RATIO_16_9,
 	ASPECT_RATIO_64_27,
@@ -731,7 +731,7 @@ enum dc_aspect_ratio {
 };
 
 enum scanning_type {
-	SCANNING_TYPE_NODATA = 0,
+	SCANNING_TYPE_ANALDATA = 0,
 	SCANNING_TYPE_OVERSCAN,
 	SCANNING_TYPE_UNDERSCAN,
 	SCANNING_TYPE_FUTURE,
@@ -749,12 +749,12 @@ struct dc_crtc_timing_flags {
 
 	uint32_t EXCLUSIVE_3D :1; /* if this bit set,
 	 timing can be driven in 3D format only
-	 and there is no corresponding 2D timing*/
+	 and there is anal corresponding 2D timing*/
 	uint32_t RIGHT_EYE_3D_POLARITY :1; /* 1 - means right eye polarity
 	 (right eye = '1', left eye = '0') */
 	uint32_t SUB_SAMPLE_3D :1; /* 1 - means left/right  images subsampled
 	 when mixed into 3D image. 0 - means summation (3D timing is doubled)*/
-	uint32_t USE_IN_3D_VIEW_ONLY :1; /* Do not use this timing in 2D View,
+	uint32_t USE_IN_3D_VIEW_ONLY :1; /* Do analt use this timing in 2D View,
 	 because corresponding 2D timing also present in the list*/
 	uint32_t STEREO_3D_PREFERENCE :1; /* Means this is 2D timing
 	 and we want to match priority of corresponding 3D timing*/
@@ -774,8 +774,8 @@ struct dc_crtc_timing_flags {
 };
 
 enum dc_timing_3d_format {
-	TIMING_3D_FORMAT_NONE,
-	TIMING_3D_FORMAT_FRAME_ALTERNATE, /* No stereosync at all*/
+	TIMING_3D_FORMAT_ANALNE,
+	TIMING_3D_FORMAT_FRAME_ALTERNATE, /* Anal stereosync at all*/
 	TIMING_3D_FORMAT_INBAND_FA, /* Inband Frame Alternate (DVI/DP)*/
 	TIMING_3D_FORMAT_DP_HDMI_INBAND_FA, /* Inband FA to HDMI Frame Pack*/
 	/* for active DP-HDMI dongle*/
@@ -824,7 +824,7 @@ struct dc_dsc_config {
 	uint32_t bits_per_pixel; /* DSC target bitrate in 1/16 of bpp (e.g. 128 -> 8bpp) */
 	bool block_pred_enable; /* DSC block prediction enable */
 	uint32_t linebuf_depth; /* DSC line buffer depth */
-	uint32_t version_minor; /* DSC minor version. Full version is formed as 1.version_minor. */
+	uint32_t version_mianalr; /* DSC mianalr version. Full version is formed as 1.version_mianalr. */
 	bool ycbcr422_simple; /* Tell DSC engine to convert YCbCr 4:2:2 to 'YCbCr 4:2:2 simple'. */
 	int32_t rc_buffer_size; /* DSC RC buffer block size in bytes */
 #if defined(CONFIG_DRM_AMD_DC_FP)
@@ -832,7 +832,7 @@ struct dc_dsc_config {
 #endif
 	bool is_dp; /* indicate if DSC is applied based on DP's capability */
 	uint32_t mst_pbn; /* pbn of display on dsc mst hub */
-	const struct dc_dsc_rc_params_override *rc_params_ovrd; /* DM owned memory. If not NULL, apply custom dsc rc params */
+	const struct dc_dsc_rc_params_override *rc_params_ovrd; /* DM owned memory. If analt NULL, apply custom dsc rc params */
 };
 
 /**
@@ -897,7 +897,7 @@ struct dc_crtc_timing {
 	uint32_t v_border_top;
 
 	/**
-	 * @v_addressable: It is the range of the scanout at which the
+	 * @v_addressable: It is the range of the scaanalut at which the
 	 * framebuffer is displayed. For example, if the display resolution is
 	 * 3840@2160, the addressable area is 2160 lines, or if the resolution
 	 * is 1920x1080, the addressable area is 1080 lines.
@@ -1033,10 +1033,10 @@ enum dwb_out_format {
 	DWB_OUT_FORMAT_64BPP_RGBA = 3
 };
 
-enum dwb_out_denorm {
-	DWB_OUT_DENORM_10BPC = 0,
-	DWB_OUT_DENORM_8BPC = 1,
-	DWB_OUT_DENORM_BYPASS = 2
+enum dwb_out_deanalrm {
+	DWB_OUT_DEANALRM_10BPC = 0,
+	DWB_OUT_DEANALRM_8BPC = 1,
+	DWB_OUT_DEANALRM_BYPASS = 2
 };
 
 enum cm_gamut_remap_select {

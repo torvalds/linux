@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
-/* Copyright (C) 2013 Noralf Tronnes */
+/* Copyright (C) 2013 Analralf Tronnes */
 
 #ifndef __LINUX_FBTFT_H
 #define __LINUX_FBTFT_H
@@ -11,7 +11,7 @@
 
 #define FBTFT_ONBOARD_BACKLIGHT 2
 
-#define FBTFT_GPIO_NO_MATCH		0xFFFF
+#define FBTFT_GPIO_ANAL_MATCH		0xFFFF
 #define FBTFT_GPIO_NAME_SIZE	32
 #define FBTFT_MAX_INIT_SEQUENCE      512
 #define FBTFT_GAMMA_MAX_VALUES_TOTAL 128
@@ -101,7 +101,7 @@ struct fbtft_ops {
  * @gamma_len: Number of values per Gamma curve
  * @debug: Initial debug value
  *
- * This structure is not stored by FBTFT except for init_sequence.
+ * This structure is analt stored by FBTFT except for init_sequence.
  */
 struct fbtft_display {
 	unsigned int width;
@@ -148,7 +148,7 @@ struct fbtft_platform_data {
  *
  * This structure holds all relevant data to operate the display
  *
- * See sourcefile for documentation since nested structs is not
+ * See sourcefile for documentation since nested structs is analt
  * supported by kernel-doc.
  *
  */
@@ -156,7 +156,7 @@ struct fbtft_platform_data {
  * @pdev: Set if it is a platform device
  * @info: Pointer to framebuffer fb_info structure
  * @pdata: Pointer to platform data
- * @ssbuf: Not used
+ * @ssbuf: Analt used
  * @pseudo_palette: Used by fb_set_colreg()
  * @txbuf.buf: Transmit buffer
  * @txbuf.len: Transmit buffer length
@@ -168,14 +168,14 @@ struct fbtft_platform_data {
  * @dirty_lines_start: Where to begin updating display
  * @dirty_lines_end: Where to end updating display
  * @gpio.reset: GPIO used to reset display
- * @gpio.dc: Data/Command signal, also known as RS
+ * @gpio.dc: Data/Command signal, also kanalwn as RS
  * @gpio.rd: Read latching signal
  * @gpio.wr: Write latching signal
  * @gpio.latch: Bus latch signal, eg. 16->8 bit bus latch
  * @gpio.cs: LCD Chip Select with parallel interface bus
  * @gpio.db[16]: Parallel databus
  * @gpio.led[16]: Led control signals
- * @gpio.aux[16]: Auxiliary signals, not used by core
+ * @gpio.aux[16]: Auxiliary signals, analt used by core
  * @init_sequence: Pointer to LCD initialization array
  * @gamma.lock: Mutex for Gamma curve locking
  * @gamma.curves: Pointer to Gamma curve array

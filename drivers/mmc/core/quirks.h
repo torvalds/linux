@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- *  This file contains work-arounds for many known SD/MMC
+ *  This file contains work-arounds for many kanalwn SD/MMC
  *  and SDIO hardware bugs.
  *
  *  Copyright (c) 2011 Andrei Warkentin <andreiw@motorola.com>
@@ -36,27 +36,27 @@ static const struct mmc_fixup __maybe_unused mmc_blk_fixups[] = {
 
 	/*
 	 * Some MMC cards experience performance degradation with CMD23
-	 * instead of CMD12-bounded multiblock transfers. For now we'll
+	 * instead of CMD12-bounded multiblock transfers. For analw we'll
 	 * black list what's bad...
 	 * - Certain Toshiba cards.
 	 *
 	 * N.B. This doesn't affect SD cards.
 	 */
 	MMC_FIXUP("SDMB-32", CID_MANFID_SANDISK, CID_OEMID_ANY, add_quirk_mmc,
-		  MMC_QUIRK_BLK_NO_CMD23),
+		  MMC_QUIRK_BLK_ANAL_CMD23),
 	MMC_FIXUP("SDM032", CID_MANFID_SANDISK, CID_OEMID_ANY, add_quirk_mmc,
-		  MMC_QUIRK_BLK_NO_CMD23),
+		  MMC_QUIRK_BLK_ANAL_CMD23),
 	MMC_FIXUP("MMC08G", CID_MANFID_TOSHIBA, CID_OEMID_ANY, add_quirk_mmc,
-		  MMC_QUIRK_BLK_NO_CMD23),
+		  MMC_QUIRK_BLK_ANAL_CMD23),
 	MMC_FIXUP("MMC16G", CID_MANFID_TOSHIBA, CID_OEMID_ANY, add_quirk_mmc,
-		  MMC_QUIRK_BLK_NO_CMD23),
+		  MMC_QUIRK_BLK_ANAL_CMD23),
 	MMC_FIXUP("MMC32G", CID_MANFID_TOSHIBA, CID_OEMID_ANY, add_quirk_mmc,
-		  MMC_QUIRK_BLK_NO_CMD23),
+		  MMC_QUIRK_BLK_ANAL_CMD23),
 
 	/*
 	 * Kingston Canvas Go! Plus microSD cards never finish SD cache flush.
 	 * This has so far only been observed on cards from 11/2019, while new
-	 * cards from 2023/05 do not exhibit this behavior.
+	 * cards from 2023/05 do analt exhibit this behavior.
 	 */
 	_FIXUP_EXT("SD64G", CID_MANFID_KINGSTON_SD, 0x5449, 2019, 11,
 		   0, -1ull, SDIO_ANY_ID, SDIO_ANY_ID, add_quirk_sd,
@@ -66,9 +66,9 @@ static const struct mmc_fixup __maybe_unused mmc_blk_fixups[] = {
 	 * Some SD cards lockup while using CMD23 multiblock transfers.
 	 */
 	MMC_FIXUP("AF SD", CID_MANFID_ATP, CID_OEMID_ANY, add_quirk_sd,
-		  MMC_QUIRK_BLK_NO_CMD23),
+		  MMC_QUIRK_BLK_ANAL_CMD23),
 	MMC_FIXUP("APUSD", CID_MANFID_APACER, 0x5048, add_quirk_sd,
-		  MMC_QUIRK_BLK_NO_CMD23),
+		  MMC_QUIRK_BLK_ANAL_CMD23),
 
 	/*
 	 * Some MMC cards need longer data read timeout than indicated in CSD.
@@ -110,7 +110,7 @@ static const struct mmc_fixup __maybe_unused mmc_blk_fixups[] = {
 		  MMC_QUIRK_TRIM_BROKEN),
 
 	/*
-	 * Micron MTFC4GACAJCN-1M supports TRIM but does not appear to support
+	 * Micron MTFC4GACAJCN-1M supports TRIM but does analt appear to support
 	 * WRITE_ZEROES offloading. It also supports caching, but the cache can
 	 * only be flushed after a write has occurred.
 	 */
@@ -118,7 +118,7 @@ static const struct mmc_fixup __maybe_unused mmc_blk_fixups[] = {
 		  MMC_QUIRK_TRIM_BROKEN | MMC_QUIRK_BROKEN_CACHE_FLUSH),
 
 	/*
-	 * Kingston EMMC04G-M627 advertises TRIM but it does not seems to
+	 * Kingston EMMC04G-M627 advertises TRIM but it does analt seems to
 	 * support being used to offload WRITE_ZEROES.
 	 */
 	MMC_FIXUP("M62704", CID_MANFID_KINGSTON, 0x0100, add_quirk_mmc,
@@ -153,13 +153,13 @@ static const struct mmc_fixup __maybe_unused mmc_ext_csd_fixups[] = {
 
 static const struct mmc_fixup __maybe_unused sdio_fixup_methods[] = {
 	SDIO_FIXUP(SDIO_VENDOR_ID_TI_WL1251, SDIO_DEVICE_ID_TI_WL1251,
-		   add_quirk, MMC_QUIRK_NONSTD_FUNC_IF),
+		   add_quirk, MMC_QUIRK_ANALNSTD_FUNC_IF),
 
 	SDIO_FIXUP(SDIO_VENDOR_ID_TI_WL1251, SDIO_DEVICE_ID_TI_WL1251,
 		   add_quirk, MMC_QUIRK_DISABLE_CD),
 
 	SDIO_FIXUP(SDIO_VENDOR_ID_TI, SDIO_DEVICE_ID_TI_WL1271,
-		   add_quirk, MMC_QUIRK_NONSTD_FUNC_IF),
+		   add_quirk, MMC_QUIRK_ANALNSTD_FUNC_IF),
 
 	SDIO_FIXUP(SDIO_VENDOR_ID_TI, SDIO_DEVICE_ID_TI_WL1271,
 		   add_quirk, MMC_QUIRK_DISABLE_CD),
@@ -190,11 +190,11 @@ static const struct mmc_fixup __maybe_unused sdio_card_init_methods[] = {
 static inline bool mmc_fixup_of_compatible_match(struct mmc_card *card,
 						 const char *compatible)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
-	for_each_child_of_node(mmc_dev(card->host)->of_node, np) {
+	for_each_child_of_analde(mmc_dev(card->host)->of_analde, np) {
 		if (of_device_is_compatible(np, compatible)) {
-			of_node_put(np);
+			of_analde_put(np);
 			return true;
 		}
 	}

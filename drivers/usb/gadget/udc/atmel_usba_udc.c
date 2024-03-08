@@ -34,15 +34,15 @@
 #include <linux/debugfs.h>
 #include <linux/uaccess.h>
 
-static int queue_dbg_open(struct inode *inode, struct file *file)
+static int queue_dbg_open(struct ianalde *ianalde, struct file *file)
 {
-	struct usba_ep *ep = inode->i_private;
+	struct usba_ep *ep = ianalde->i_private;
 	struct usba_request *req, *req_copy;
 	struct list_head *queue_data;
 
 	queue_data = kmalloc(sizeof(*queue_data), GFP_KERNEL);
 	if (!queue_data)
-		return -ENOMEM;
+		return -EANALMEM;
 	INIT_LIST_HEAD(queue_data);
 
 	spin_lock_irq(&ep->udc->lock);
@@ -64,7 +64,7 @@ fail:
 		kfree(req);
 	}
 	kfree(queue_data);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /*
@@ -72,14 +72,14 @@ fail:
  *
  * b: buffer address
  * l: buffer length
- * I/i: interrupt/no interrupt
- * Z/z: zero/no zero
- * S/s: short ok/short not ok
+ * I/i: interrupt/anal interrupt
+ * Z/z: zero/anal zero
+ * S/s: short ok/short analt ok
  * s: status
  * n: nr_packets
- * F/f: submitted/not submitted to FIFO
- * D/d: using/not using DMA
- * L/l: last transaction/not last transaction
+ * F/f: submitted/analt submitted to FIFO
+ * D/d: using/analt using DMA
+ * L/l: last transaction/analt last transaction
  */
 static ssize_t queue_dbg_read(struct file *file, char __user *buf,
 		size_t nbytes, loff_t *ppos)
@@ -92,14 +92,14 @@ static ssize_t queue_dbg_read(struct file *file, char __user *buf,
 	if (!access_ok(buf, nbytes))
 		return -EFAULT;
 
-	inode_lock(file_inode(file));
+	ianalde_lock(file_ianalde(file));
 	list_for_each_entry_safe(req, tmp_req, queue, queue) {
 		len = scnprintf(tmpbuf, sizeof(tmpbuf),
 				"%8p %08x %c%c%c %5d %c%c%c\n",
 				req->req.buf, req->req.length,
-				req->req.no_interrupt ? 'i' : 'I',
+				req->req.anal_interrupt ? 'i' : 'I',
 				req->req.zero ? 'Z' : 'z',
-				req->req.short_not_ok ? 's' : 'S',
+				req->req.short_analt_ok ? 's' : 'S',
 				req->req.status,
 				req->submitted ? 'F' : 'f',
 				req->using_dma ? 'D' : 'd',
@@ -118,12 +118,12 @@ static ssize_t queue_dbg_read(struct file *file, char __user *buf,
 		nbytes -= len;
 		buf += len;
 	}
-	inode_unlock(file_inode(file));
+	ianalde_unlock(file_ianalde(file));
 
 	return actual;
 }
 
-static int queue_dbg_release(struct inode *inode, struct file *file)
+static int queue_dbg_release(struct ianalde *ianalde, struct file *file)
 {
 	struct list_head *queue_data = file->private_data;
 	struct usba_request *req, *tmp_req;
@@ -136,21 +136,21 @@ static int queue_dbg_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int regs_dbg_open(struct inode *inode, struct file *file)
+static int regs_dbg_open(struct ianalde *ianalde, struct file *file)
 {
 	struct usba_udc *udc;
 	unsigned int i;
 	u32 *data;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
-	inode_lock(inode);
-	udc = inode->i_private;
-	data = kmalloc(inode->i_size, GFP_KERNEL);
+	ianalde_lock(ianalde);
+	udc = ianalde->i_private;
+	data = kmalloc(ianalde->i_size, GFP_KERNEL);
 	if (!data)
 		goto out;
 
 	spin_lock_irq(&udc->lock);
-	for (i = 0; i < inode->i_size / 4; i++)
+	for (i = 0; i < ianalde->i_size / 4; i++)
 		data[i] = readl_relaxed(udc->regs + i * 4);
 	spin_unlock_irq(&udc->lock);
 
@@ -158,7 +158,7 @@ static int regs_dbg_open(struct inode *inode, struct file *file)
 	ret = 0;
 
 out:
-	inode_unlock(inode);
+	ianalde_unlock(ianalde);
 
 	return ret;
 }
@@ -166,19 +166,19 @@ out:
 static ssize_t regs_dbg_read(struct file *file, char __user *buf,
 		size_t nbytes, loff_t *ppos)
 {
-	struct inode *inode = file_inode(file);
+	struct ianalde *ianalde = file_ianalde(file);
 	int ret;
 
-	inode_lock(inode);
+	ianalde_lock(ianalde);
 	ret = simple_read_from_buffer(buf, nbytes, ppos,
 			file->private_data,
-			file_inode(file)->i_size);
-	inode_unlock(inode);
+			file_ianalde(file)->i_size);
+	ianalde_unlock(ianalde);
 
 	return ret;
 }
 
-static int regs_dbg_release(struct inode *inode, struct file *file)
+static int regs_dbg_release(struct ianalde *ianalde, struct file *file)
 {
 	kfree(file->private_data);
 	return 0;
@@ -187,7 +187,7 @@ static int regs_dbg_release(struct inode *inode, struct file *file)
 static const struct file_operations queue_dbg_fops = {
 	.owner		= THIS_MODULE,
 	.open		= queue_dbg_open,
-	.llseek		= no_llseek,
+	.llseek		= anal_llseek,
 	.read		= queue_dbg_read,
 	.release	= queue_dbg_release,
 };
@@ -382,7 +382,7 @@ static int vbus_is_present(struct usba_udc *udc)
 	if (udc->vbus_pin)
 		return gpiod_get_value(udc->vbus_pin);
 
-	/* No Vbus detection: Assume always present */
+	/* Anal Vbus detection: Assume always present */
 	return 1;
 }
 
@@ -607,7 +607,7 @@ usba_ep_enable(struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 		break;
 	case USB_ENDPOINT_XFER_ISOC:
 		if (!ep->can_isoc) {
-			DBG(DBG_ERR, "ep_enable: %s is not isoc capable\n",
+			DBG(DBG_ERR, "ep_enable: %s is analt isoc capable\n",
 					ep->ep.name);
 			return -EINVAL;
 		}
@@ -675,7 +675,7 @@ static int usba_ep_disable(struct usb_ep *_ep)
 
 	if (!ep->ep.desc) {
 		spin_unlock_irqrestore(&udc->lock, flags);
-		DBG(DBG_ERR, "ep_disable: %s not enabled\n", ep->ep.name);
+		DBG(DBG_ERR, "ep_disable: %s analt enabled\n", ep->ep.name);
 		return -EINVAL;
 	}
 	ep->ep.desc = NULL;
@@ -731,8 +731,8 @@ static int queue_dma(struct usba_udc *udc, struct usba_ep *ep,
 	DBG(DBG_DMA, "%s: req l/%u d/%pad %c%c%c\n",
 		ep->ep.name, req->req.length, &req->req.dma,
 		req->req.zero ? 'Z' : 'z',
-		req->req.short_not_ok ? 'S' : 's',
-		req->req.no_interrupt ? 'I' : 'i');
+		req->req.short_analt_ok ? 'S' : 's',
+		req->req.anal_interrupt ? 'I' : 'i');
 
 	if (req->req.length > 0x10000) {
 		/* Lengths from 0 to 65536 (inclusive) are supported */
@@ -783,7 +783,7 @@ usba_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 	DBG(DBG_GADGET | DBG_QUEUE | DBG_REQ, "%s: queue req %p, len %u\n",
 			ep->ep.name, req, _req->length);
 
-	if (!udc->driver || udc->gadget.speed == USB_SPEED_UNKNOWN ||
+	if (!udc->driver || udc->gadget.speed == USB_SPEED_UNKANALWN ||
 	    !ep->ep.desc)
 		return -ESHUTDOWN;
 
@@ -830,7 +830,7 @@ static int stop_dma(struct usba_ep *ep, u32 *pstatus)
 
 	/*
 	 * Stop the DMA controller. When writing both CH_EN
-	 * and LINK to 0, the other bits are not affected.
+	 * and LINK to 0, the other bits are analt affected.
 	 */
 	usba_dma_writel(ep, CONTROL, 0);
 
@@ -929,12 +929,12 @@ static int usba_ep_set_halt(struct usb_ep *_ep, int value)
 	if (!ep->ep.desc) {
 		DBG(DBG_ERR, "Attempted to halt uninitialized ep %s\n",
 				ep->ep.name);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	if (ep->is_isoc) {
-		DBG(DBG_ERR, "Attempted to halt isochronous ep %s\n",
+		DBG(DBG_ERR, "Attempted to halt isochroanalus ep %s\n",
 				ep->ep.name);
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 
 	spin_lock_irqsave(&udc->lock, flags);
@@ -1092,7 +1092,7 @@ found_ep:
 		if (ep->fifo_size  <= 8)
 			ep->ept_cfg = USBA_BF(EPT_SIZE, USBA_EPT_SIZE_8);
 		else
-			/* LSB is bit 1, not 0 */
+			/* LSB is bit 1, analt 0 */
 			ep->ept_cfg =
 				USBA_BF(EPT_SIZE, fls(ep->fifo_size - 1) - 3);
 
@@ -1118,7 +1118,7 @@ static struct usb_endpoint_descriptor usba_ep0_desc = {
 	.bEndpointAddress = 0,
 	.bmAttributes = USB_ENDPOINT_XFER_CONTROL,
 	.wMaxPacketSize = cpu_to_le16(64),
-	/* FIXME: I have no idea what to put here */
+	/* FIXME: I have anal idea what to put here */
 	.bInterval = 1,
 };
 
@@ -1244,7 +1244,7 @@ static int do_test_mode(struct usba_udc *udc)
 				| USBA_BF(BK_NUMBER, 1));
 		if (!(usba_ep_readl(ep, CFG) & USBA_EPT_MAPPED)) {
 			set_protocol_stall(udc, ep);
-			dev_err(dev, "Test_SE0_NAK: ep0 not mapped\n");
+			dev_err(dev, "Test_SE0_NAK: ep0 analt mapped\n");
 		} else {
 			usba_ep_writel(ep, CTL_ENB, USBA_EPT_ENABLE);
 			dev_info(dev, "Entering Test_SE0_NAK mode...\n");
@@ -1260,7 +1260,7 @@ static int do_test_mode(struct usba_udc *udc)
 				| USBA_BF(BK_NUMBER, 1));
 		if (!(usba_ep_readl(ep, CFG) & USBA_EPT_MAPPED)) {
 			set_protocol_stall(udc, ep);
-			dev_err(dev, "Test_Packet: ep0 not mapped\n");
+			dev_err(dev, "Test_Packet: ep0 analt mapped\n");
 		} else {
 			usba_ep_writel(ep, CTL_ENB, USBA_EPT_ENABLE);
 			usba_writel(udc, TST, USBA_TST_PKT_MODE);
@@ -1328,7 +1328,7 @@ static int handle_ep0_setup(struct usba_udc *udc, struct usba_ep *ep,
 		} else
 			goto delegate;
 
-		/* Write directly to the FIFO. No queueing is done. */
+		/* Write directly to the FIFO. Anal queueing is done. */
 		if (crq->wLength != cpu_to_le16(sizeof(status)))
 			goto stall;
 		ep->state = DATA_STAGE_IN;
@@ -1582,7 +1582,7 @@ restart:
 		if (crq.crq.bRequestType & USB_DIR_IN) {
 			/*
 			 * The USB 2.0 spec states that "if wLength is
-			 * zero, there is no data transfer phase."
+			 * zero, there is anal data transfer phase."
 			 * However, testusb #14 seems to actually
 			 * expect a data phase even if wLength = 0...
 			 */
@@ -1608,7 +1608,7 @@ restart:
 			le16_to_cpu(crq.crq.wLength), ep->state, ret);
 
 		if (ret < 0) {
-			/* Let the host know that we failed */
+			/* Let the host kanalw that we failed */
 			set_protocol_stall(udc, ep);
 		}
 	}
@@ -1688,7 +1688,7 @@ static void usba_dma_irq(struct usba_udc *udc, struct usba_ep *ep)
 			status, pending, control);
 
 		/*
-		 * try to pretend nothing happened. We might have to
+		 * try to pretend analthing happened. We might have to
 		 * do something here...
 		 */
 	}
@@ -1732,7 +1732,7 @@ static irqreturn_t usba_udc_irq(int irq, void *devid)
 		udc->bias_pulse_needed = true;
 		stop_clock(udc);
 		DBG(DBG_BUS, "Suspend detected\n");
-		if (udc->gadget.speed != USB_SPEED_UNKNOWN
+		if (udc->gadget.speed != USB_SPEED_UNKANALWN
 				&& udc->driver && udc->driver->suspend) {
 			spin_unlock(&udc->lock);
 			udc->driver->suspend(&udc->gadget);
@@ -1754,7 +1754,7 @@ static irqreturn_t usba_udc_irq(int irq, void *devid)
 		usba_int_enb_set(udc, USBA_DET_SUSPEND);
 		generate_bias_pulse(udc);
 		DBG(DBG_BUS, "Resume detected\n");
-		if (udc->gadget.speed != USB_SPEED_UNKNOWN
+		if (udc->gadget.speed != USB_SPEED_UNKANALWN
 				&& udc->driver && udc->driver->resume) {
 			spin_unlock(&udc->lock);
 			udc->driver->resume(&udc->gadget);
@@ -1798,8 +1798,8 @@ static irqreturn_t usba_udc_irq(int irq, void *devid)
 		generate_bias_pulse(udc);
 		reset_all_endpoints(udc);
 
-		if (udc->gadget.speed != USB_SPEED_UNKNOWN && udc->driver) {
-			udc->gadget.speed = USB_SPEED_UNKNOWN;
+		if (udc->gadget.speed != USB_SPEED_UNKANALWN && udc->driver) {
+			udc->gadget.speed = USB_SPEED_UNKANALWN;
 			spin_unlock(&udc->lock);
 			usb_gadget_udc_reset(&udc->gadget, udc->driver);
 			spin_lock(&udc->lock);
@@ -1925,7 +1925,7 @@ static void usba_stop(struct usba_udc *udc)
 		return;
 
 	spin_lock_irqsave(&udc->lock, flags);
-	udc->gadget.speed = USB_SPEED_UNKNOWN;
+	udc->gadget.speed = USB_SPEED_UNKANALWN;
 	reset_all_endpoints(udc);
 
 	/* This will also disable the DP pullup */
@@ -2134,14 +2134,14 @@ static const struct of_device_id atmel_pmc_dt_ids[] = {
 static struct usba_ep * atmel_udc_of_init(struct platform_device *pdev,
 						    struct usba_udc *udc)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	const struct of_device_id *match;
-	struct device_node *pp;
+	struct device_analde *pp;
 	int i, ret;
 	struct usba_ep *eps, *ep;
 	const struct usba_udc_config *udc_config;
 
-	match = of_match_node(atmel_udc_dt_ids, np);
+	match = of_match_analde(atmel_udc_dt_ids, np);
 	if (!match)
 		return ERR_PTR(-EINVAL);
 
@@ -2149,13 +2149,13 @@ static struct usba_ep * atmel_udc_of_init(struct platform_device *pdev,
 	udc->ep_prealloc = udc_config->ep_prealloc;
 	udc->errata = udc_config->errata;
 	if (udc->errata) {
-		pp = of_find_matching_node_and_match(NULL, atmel_pmc_dt_ids,
+		pp = of_find_matching_analde_and_match(NULL, atmel_pmc_dt_ids,
 						     NULL);
 		if (!pp)
-			return ERR_PTR(-ENODEV);
+			return ERR_PTR(-EANALDEV);
 
-		udc->pmc = syscon_node_to_regmap(pp);
-		of_node_put(pp);
+		udc->pmc = syscon_analde_to_regmap(pp);
+		of_analde_put(pp);
 		if (IS_ERR(udc->pmc))
 			return ERR_CAST(udc->pmc);
 	}
@@ -2176,7 +2176,7 @@ static struct usba_ep * atmel_udc_of_init(struct platform_device *pdev,
 	eps = devm_kcalloc(&pdev->dev, udc->num_ep, sizeof(struct usba_ep),
 			   GFP_KERNEL);
 	if (!eps)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	udc->gadget.ep0 = &eps[0].ep;
 
@@ -2246,7 +2246,7 @@ static struct usba_ep * atmel_udc_of_init(struct platform_device *pdev,
 			if (ep->fifo_size  <= 8)
 				ep->ept_cfg = USBA_BF(EPT_SIZE, USBA_EPT_SIZE_8);
 			else
-				/* LSB is bit 1, not 0 */
+				/* LSB is bit 1, analt 0 */
 				ep->ept_cfg =
 				  USBA_BF(EPT_SIZE, fls(ep->fifo_size - 1) - 3);
 
@@ -2260,7 +2260,7 @@ static struct usba_ep * atmel_udc_of_init(struct platform_device *pdev,
 	}
 
 	if (i == 0) {
-		dev_err(&pdev->dev, "of_probe: no endpoint specified\n");
+		dev_err(&pdev->dev, "of_probe: anal endpoint specified\n");
 		ret = -EINVAL;
 		goto err;
 	}
@@ -2279,7 +2279,7 @@ static int usba_udc_probe(struct platform_device *pdev)
 
 	udc = devm_kzalloc(&pdev->dev, sizeof(*udc), GFP_KERNEL);
 	if (!udc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	udc->gadget = usba_gadget_template;
 	INIT_LIST_HEAD(&udc->gadget.ep_list);
@@ -2334,14 +2334,14 @@ static int usba_udc_probe(struct platform_device *pdev)
 	ret = devm_request_irq(&pdev->dev, irq, usba_udc_irq, 0,
 				"atmel_usba_udc", udc);
 	if (ret) {
-		dev_err(&pdev->dev, "Cannot request irq %d (error %d)\n",
+		dev_err(&pdev->dev, "Cananalt request irq %d (error %d)\n",
 			irq, ret);
 		return ret;
 	}
 	udc->irq = irq;
 
 	if (udc->vbus_pin) {
-		irq_set_status_flags(gpiod_to_irq(udc->vbus_pin), IRQ_NOAUTOEN);
+		irq_set_status_flags(gpiod_to_irq(udc->vbus_pin), IRQ_ANALAUTOEN);
 		ret = devm_request_threaded_irq(&pdev->dev,
 				gpiod_to_irq(udc->vbus_pin), NULL,
 				usba_vbus_irq_thread, USBA_VBUS_IRQFLAGS,
@@ -2386,7 +2386,7 @@ static int usba_udc_suspend(struct device *dev)
 {
 	struct usba_udc *udc = dev_get_drvdata(dev);
 
-	/* Not started */
+	/* Analt started */
 	if (!udc->driver)
 		return 0;
 
@@ -2419,7 +2419,7 @@ static int usba_udc_resume(struct device *dev)
 {
 	struct usba_udc *udc = dev_get_drvdata(dev);
 
-	/* Not started */
+	/* Analt started */
 	if (!udc->driver)
 		return 0;
 

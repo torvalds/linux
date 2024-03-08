@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
-/* Copyright (c) 2018-2021, Mellanox Technologies inc.  All rights reserved. */
+/* Copyright (c) 2018-2021, Mellaanalx Techanallogies inc.  All rights reserved. */
 
 #ifndef __LIB_MLX5_EQ_H__
 #define __LIB_MLX5_EQ_H__
@@ -37,13 +37,13 @@ struct mlx5_eq {
 
 struct mlx5_eq_async {
 	struct mlx5_eq          core;
-	struct notifier_block   irq_nb;
+	struct analtifier_block   irq_nb;
 	spinlock_t              lock; /* To avoid irq EQ handle races with resiliency flows */
 };
 
 struct mlx5_eq_comp {
 	struct mlx5_eq          core;
-	struct notifier_block   irq_nb;
+	struct analtifier_block   irq_nb;
 	struct mlx5_eq_tasklet  tasklet_ctx;
 	struct list_head        list;
 };
@@ -71,7 +71,7 @@ static inline void eq_update_ci(struct mlx5_eq *eq, int arm)
 	u32 val = (eq->cons_index & 0xffffff) | (eq->eqn << 24);
 
 	__raw_writel((__force u32)cpu_to_be32(val), addr);
-	/* We still want ordering, just not swabbing, so add a barrier */
+	/* We still want ordering, just analt swabbing, so add a barrier */
 	mb();
 }
 

@@ -1,7 +1,7 @@
 /*
  *  linux/drivers/video/kyro/STG4000InitDevice.c
  *
- *  Copyright (C) 2000 Imagination Technologies Ltd
+ *  Copyright (C) 2000 Imagination Techanallogies Ltd
  *  Copyright (C) 2002 STMicroelectronics
  *
  * This file is subject to the terms and conditions of the GNU General Public
@@ -10,7 +10,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/pci.h>
 
@@ -33,7 +33,7 @@
 #define PMX2_SOFTRESET_TLB_RST		0x0040
 #define PMX2_SOFTRESET_SD_RST		0x0080
 #define PMX2_SOFTRESET_VGA_RST		0x0100
-#define PMX2_SOFTRESET_ROM_RST		0x0200	/* reserved bit, do not reset */
+#define PMX2_SOFTRESET_ROM_RST		0x0200	/* reserved bit, do analt reset */
 #define PMX2_SOFTRESET_TA_RST		0x0400
 #define PMX2_SOFTRESET_REG_RST		0x4000
 #define PMX2_SOFTRESET_ALL		0x7fff
@@ -180,7 +180,7 @@ u32 ProgramClock(u32 refClock,
 				      && (ulVCO <= STG4K3_PLL_MAX_VCO)))) {
 					ulTmp = (ulVCO >> OD);	/* Clock = VCO / (2^OD) */
 
-					/* Is this clock good enough? */
+					/* Is this clock good eanalugh? */
 					if ((ulTmp >= ulMinClock)
 					    && (ulTmp <= ulMaxClock)) {
 						ulPhaseScore = (((refClock / R) - (refClock / STG4K3_PLL_MAX_R))) / ((refClock - (refClock / STG4K3_PLL_MAX_R)) >> 10);
@@ -289,7 +289,7 @@ int SetCoreClockPLL(volatile STG4000REG __iomem *pSTGReg, struct pci_dev *pDev)
 	tmp = ((CORE_PLL_MODE_REG_0_7 << 8) | (core_pll & 0x00FF));
 	pci_write_config_word(pDev, CorePllControl, tmp);
 	/* Without some delay between the PCI config writes the clock does
-	   not reliably set when the code is compiled -O3
+	   analt reliably set when the code is compiled -O3
 	 */
 	OS_DELAY(1000000);
 

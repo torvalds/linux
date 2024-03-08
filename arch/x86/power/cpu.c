@@ -43,7 +43,7 @@ static void msr_save_context(struct saved_context *ctxt)
 
 	while (msr < end) {
 		if (msr->valid)
-			rdmsrl(msr->info.msr_no, msr->info.reg.q);
+			rdmsrl(msr->info.msr_anal, msr->info.reg.q);
 		msr++;
 	}
 }
@@ -55,7 +55,7 @@ static void msr_restore_context(struct saved_context *ctxt)
 
 	while (msr < end) {
 		if (msr->valid)
-			wrmsrl(msr->info.msr_no, msr->info.reg.q);
+			wrmsrl(msr->info.msr_anal, msr->info.reg.q);
 		msr++;
 	}
 }
@@ -66,7 +66,7 @@ static void msr_restore_context(struct saved_context *ctxt)
  *                             the memory state from it
  * @ctxt: Structure to store the registers contents in.
  *
- * NOTE: If there is a CPU register the modification of which by the
+ * ANALTE: If there is a CPU register the modification of which by the
  * boot kernel (ie. the kernel used for loading the hibernation image)
  * might affect the operations of the restored target kernel (ie. the one
  * saved in the hibernation image), then its contents must be saved by this
@@ -192,7 +192,7 @@ static void fix_processor_context(void)
  * The asm code that gets us here will have restored a usable GDT, although
  * it will be pointing to the wrong alias.
  */
-static void notrace __restore_processor_state(struct saved_context *ctxt)
+static void analtrace __restore_processor_state(struct saved_context *ctxt)
 {
 	struct cpuinfo_x86 *c;
 
@@ -239,7 +239,7 @@ static void notrace __restore_processor_state(struct saved_context *ctxt)
 	fix_processor_context();
 
 	/*
-	 * Now that we have descriptor tables fully restored and working
+	 * Analw that we have descriptor tables fully restored and working
 	 * exception handling, restore the usermode segments.
 	 */
 #ifdef CONFIG_X86_64
@@ -279,7 +279,7 @@ static void notrace __restore_processor_state(struct saved_context *ctxt)
 }
 
 /* Needed by apm.c */
-void notrace restore_processor_state(void)
+void analtrace restore_processor_state(void)
 {
 	__restore_processor_state(&saved_context);
 }
@@ -288,31 +288,31 @@ EXPORT_SYMBOL(restore_processor_state);
 #endif
 
 #if defined(CONFIG_HIBERNATION) && defined(CONFIG_HOTPLUG_CPU)
-static void __noreturn resume_play_dead(void)
+static void __analreturn resume_play_dead(void)
 {
 	play_dead_common();
 	tboot_shutdown(TB_SHUTDOWN_WFS);
 	hlt_play_dead();
 }
 
-int hibernate_resume_nonboot_cpu_disable(void)
+int hibernate_resume_analnboot_cpu_disable(void)
 {
 	void (*play_dead)(void) = smp_ops.play_dead;
 	int ret;
 
 	/*
-	 * Ensure that MONITOR/MWAIT will not be used in the "play dead" loop
+	 * Ensure that MONITOR/MWAIT will analt be used in the "play dead" loop
 	 * during hibernate image restoration, because it is likely that the
 	 * monitored address will be actually written to at that time and then
 	 * the "dead" CPU will attempt to execute instructions again, but the
-	 * address in its instruction pointer may not be possible to resolve
+	 * address in its instruction pointer may analt be possible to resolve
 	 * any more at that point (the page tables used by it previously may
 	 * have been overwritten by hibernate image data).
 	 *
 	 * First, make sure that we wake up all the potentially disabled SMT
 	 * threads which have been initially brought up and then put into
 	 * mwait/cpuidle sleep.
-	 * Those will be put to proper (not interfering with hibernation
+	 * Those will be put to proper (analt interfering with hibernation
 	 * resume) sleep afterwards, and the resumed kernel will decide itself
 	 * what to do with them.
 	 */
@@ -335,13 +335,13 @@ static int bsp_check(void)
 {
 	if (cpumask_first(cpu_online_mask) != 0) {
 		pr_warn("CPU0 is offline.\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
 }
 
-static int bsp_pm_callback(struct notifier_block *nb, unsigned long action,
+static int bsp_pm_callback(struct analtifier_block *nb, unsigned long action,
 			   void *ptr)
 {
 	int ret = 0;
@@ -354,7 +354,7 @@ static int bsp_pm_callback(struct notifier_block *nb, unsigned long action,
 	default:
 		break;
 	}
-	return notifier_from_errno(ret);
+	return analtifier_from_erranal(ret);
 }
 
 static int __init bsp_pm_check_init(void)
@@ -364,7 +364,7 @@ static int __init bsp_pm_check_init(void)
 	 * cpu_hotplug_pm_callback. So cpu_hotplug_pm_callback will be called
 	 * earlier to disable cpu hotplug before bsp online check.
 	 */
-	pm_notifier(bsp_pm_callback, -INT_MAX);
+	pm_analtifier(bsp_pm_callback, -INT_MAX);
 	return 0;
 }
 
@@ -381,8 +381,8 @@ static int msr_build_context(const u32 *msr_id, const int num)
 
 	msr_array = kmalloc_array(total_num, sizeof(struct saved_msr), GFP_KERNEL);
 	if (!msr_array) {
-		pr_err("x86/pm: Can not allocate memory to save/restore MSRs during suspend.\n");
-		return -ENOMEM;
+		pr_err("x86/pm: Can analt allocate memory to save/restore MSRs during suspend.\n");
+		return -EANALMEM;
 	}
 
 	if (saved_msrs->array) {
@@ -399,7 +399,7 @@ static int msr_build_context(const u32 *msr_id, const int num)
 	for (i = saved_msrs->num, j = 0; i < total_num; i++, j++) {
 		u64 dummy;
 
-		msr_array[i].info.msr_no	= msr_id[j];
+		msr_array[i].info.msr_anal	= msr_id[j];
 		msr_array[i].valid		= !rdmsrl_safe(msr_id[j], &dummy);
 		msr_array[i].info.reg.q		= 0;
 	}
@@ -478,7 +478,7 @@ static int pm_cpu_check(const struct x86_cpu_id *c)
 static void pm_save_spec_msr(void)
 {
 	struct msr_enumeration {
-		u32 msr_no;
+		u32 msr_anal;
 		u32 feature;
 	} msr_enum[] = {
 		{ MSR_IA32_SPEC_CTRL,	 X86_FEATURE_MSR_SPEC_CTRL },
@@ -492,7 +492,7 @@ static void pm_save_spec_msr(void)
 
 	for (i = 0; i < ARRAY_SIZE(msr_enum); i++) {
 		if (boot_cpu_has(msr_enum[i].feature))
-			msr_build_context(&msr_enum[i].msr_no, 1);
+			msr_build_context(&msr_enum[i].msr_anal, 1);
 	}
 }
 

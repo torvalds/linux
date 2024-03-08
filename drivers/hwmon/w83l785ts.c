@@ -33,10 +33,10 @@
 
 /*
  * Address to scan
- * Address is fully defined internally and cannot be changed.
+ * Address is fully defined internally and cananalt be changed.
  */
 
-static const unsigned short normal_i2c[] = { 0x2e, I2C_CLIENT_END };
+static const unsigned short analrmal_i2c[] = { 0x2e, I2C_CLIENT_END };
 
 /*
  * The W83L785TS-S registers
@@ -49,7 +49,7 @@ static const unsigned short normal_i2c[] = { 0x2e, I2C_CLIENT_END };
 #define W83L785TS_REG_CONFIG		0x40
 #define W83L785TS_REG_TYPE		0x52
 #define W83L785TS_REG_TEMP		0x27
-#define W83L785TS_REG_TEMP_OVER		0x53 /* not sure about this one */
+#define W83L785TS_REG_TEMP_OVER		0x53 /* analt sure about this one */
 
 /*
  * Conversions
@@ -88,7 +88,7 @@ static struct i2c_driver w83l785ts_driver = {
 	.remove		= w83l785ts_remove,
 	.id_table	= w83l785ts_id,
 	.detect		= w83l785ts_detect,
-	.address_list	= normal_i2c,
+	.address_list	= analrmal_i2c,
 };
 
 /*
@@ -124,7 +124,7 @@ static SENSOR_DEVICE_ATTR(temp1_max, S_IRUGO, show_temp, NULL, 1);
  * Real code
  */
 
-/* Return 0 if detection is successful, -ENODEV otherwise */
+/* Return 0 if detection is successful, -EANALDEV otherwise */
 static int w83l785ts_detect(struct i2c_client *client,
 			    struct i2c_board_info *info)
 {
@@ -133,7 +133,7 @@ static int w83l785ts_detect(struct i2c_client *client,
 	u8 chip_id;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* detection */
 	if ((w83l785ts_read_value(client, W83L785TS_REG_CONFIG, 0) & 0x80)
@@ -141,7 +141,7 @@ static int w83l785ts_detect(struct i2c_client *client,
 		dev_dbg(&adapter->dev,
 			"W83L785TS-S detection failed at 0x%02x\n",
 			client->addr);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Identification */
@@ -154,7 +154,7 @@ static int w83l785ts_detect(struct i2c_client *client,
 		dev_dbg(&adapter->dev,
 			"Unsupported chip (man_id=0x%04X, chip_id=0x%02X)\n",
 			man_id, chip_id);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	strscpy(info->type, "w83l785ts", I2C_NAME_SIZE);
@@ -170,14 +170,14 @@ static int w83l785ts_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(dev, sizeof(struct w83l785ts_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, data);
 	mutex_init(&data->update_lock);
 
 	/*
 	 * Initialize the W83L785TS chip
-	 * Nothing yet, assume it is already started.
+	 * Analthing yet, assume it is already started.
 	 */
 
 	err = device_create_file(dev, &sensor_dev_attr_temp1_input.dev_attr);

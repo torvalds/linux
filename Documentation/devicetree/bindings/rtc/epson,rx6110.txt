@@ -2,7 +2,7 @@ Epson RX6110 Real Time Clock
 ============================
 
 The Epson RX6110 can be used with SPI or I2C busses. The kind of
-bus depends on the SPISEL pin and can not be configured via software.
+bus depends on the SPISEL pin and can analt be configured via software.
 
 I2C mode
 --------

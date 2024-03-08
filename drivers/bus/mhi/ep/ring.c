@@ -38,7 +38,7 @@ static int __mhi_ep_cache_ring(struct mhi_ep_ring *ring, size_t end)
 	if (ring->type == RING_TYPE_ER)
 		return 0;
 
-	/* No need to cache the ring if write pointer is unmodified */
+	/* Anal need to cache the ring if write pointer is unmodified */
 	if (ring->wr_offset == end)
 		return 0;
 
@@ -126,8 +126,8 @@ int mhi_ep_ring_add_element(struct mhi_ep_ring *ring, struct mhi_ring_element *e
 
 	/* Check if there is space in ring for adding at least an element */
 	if (!num_free_elem) {
-		dev_err(dev, "No space left in the ring\n");
-		return -ENOSPC;
+		dev_err(dev, "Anal space left in the ring\n");
+		return -EANALSPC;
 	}
 
 	old_offset = ring->rd_offset;
@@ -203,7 +203,7 @@ int mhi_ep_ring_start(struct mhi_ep_cntrl *mhi_cntrl, struct mhi_ep_ring *ring,
 	/* Allocate ring cache memory for holding the copy of host ring */
 	ring->ring_cache = kcalloc(ring->ring_size, sizeof(struct mhi_ring_element), GFP_KERNEL);
 	if (!ring->ring_cache)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy_fromio(&val, (void __iomem *) &ring->ring_ctx->generic.wp, sizeof(u64));
 	ret = mhi_ep_cache_ring(ring, le64_to_cpu(val));

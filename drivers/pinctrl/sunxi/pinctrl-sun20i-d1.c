@@ -130,7 +130,7 @@ static const struct sunxi_desc_pin d1_pins[] = {
 		SUNXI_FUNCTION(0x3, "pwm7"),
 		SUNXI_FUNCTION(0x4, "i2c0"),		/* SCK */
 		SUNXI_FUNCTION(0x5, "spi1"),		/* MOSI */
-		SUNXI_FUNCTION(0x6, "clk"),		/* FANOUT0 */
+		SUNXI_FUNCTION(0x6, "clk"),		/* FAANALUT0 */
 		SUNXI_FUNCTION(0x7, "uart1"),		/* RTS */
 		SUNXI_FUNCTION_IRQ_BANK(0xe, 0, 10)),
 	SUNXI_PIN(SUNXI_PINCTRL_PIN(B, 11),
@@ -140,7 +140,7 @@ static const struct sunxi_desc_pin d1_pins[] = {
 		SUNXI_FUNCTION(0x3, "pwm2"),
 		SUNXI_FUNCTION(0x4, "i2c0"),		/* SDA */
 		SUNXI_FUNCTION(0x5, "spi1"),		/* CLK */
-		SUNXI_FUNCTION(0x6, "clk"),		/* FANOUT1 */
+		SUNXI_FUNCTION(0x6, "clk"),		/* FAANALUT1 */
 		SUNXI_FUNCTION(0x7, "uart1"),		/* CTS */
 		SUNXI_FUNCTION_IRQ_BANK(0xe, 0, 11)),
 	SUNXI_PIN(SUNXI_PINCTRL_PIN(B, 12),
@@ -150,7 +150,7 @@ static const struct sunxi_desc_pin d1_pins[] = {
 		SUNXI_FUNCTION(0x3, "pwm0"),
 		SUNXI_FUNCTION(0x4, "spdif"),		/* IN */
 		SUNXI_FUNCTION(0x5, "spi1"),		/* CS0 */
-		SUNXI_FUNCTION(0x6, "clk"),		/* FANOUT2 */
+		SUNXI_FUNCTION(0x6, "clk"),		/* FAANALUT2 */
 		SUNXI_FUNCTION(0x7, "ir"),		/* RX */
 		SUNXI_FUNCTION_IRQ_BANK(0xe, 0, 12)),
 	/* PC */
@@ -421,7 +421,7 @@ static const struct sunxi_desc_pin d1_pins[] = {
 		SUNXI_FUNCTION(0x2, "ncsi0"),		/* PCLK */
 		SUNXI_FUNCTION(0x3, "uart2"),		/* TX */
 		SUNXI_FUNCTION(0x4, "i2c0"),		/* SCK */
-		SUNXI_FUNCTION(0x5, "clk"),		/* FANOUT0 */
+		SUNXI_FUNCTION(0x5, "clk"),		/* FAANALUT0 */
 		SUNXI_FUNCTION(0x6, "uart0"),		/* TX */
 		SUNXI_FUNCTION(0x8, "emac"),		/* RXD1 */
 		SUNXI_FUNCTION_IRQ_BANK(0xe, 3, 2)),
@@ -431,7 +431,7 @@ static const struct sunxi_desc_pin d1_pins[] = {
 		SUNXI_FUNCTION(0x2, "ncsi0"),		/* MCLK */
 		SUNXI_FUNCTION(0x3, "uart2"),		/* RX */
 		SUNXI_FUNCTION(0x4, "i2c0"),		/* SDA */
-		SUNXI_FUNCTION(0x5, "clk"),		/* FANOUT1 */
+		SUNXI_FUNCTION(0x5, "clk"),		/* FAANALUT1 */
 		SUNXI_FUNCTION(0x6, "uart0"),		/* RX */
 		SUNXI_FUNCTION(0x8, "emac"),		/* TXCK */
 		SUNXI_FUNCTION_IRQ_BANK(0xe, 3, 3)),
@@ -441,7 +441,7 @@ static const struct sunxi_desc_pin d1_pins[] = {
 		SUNXI_FUNCTION(0x2, "ncsi0"),		/* D0 */
 		SUNXI_FUNCTION(0x3, "uart4"),		/* TX */
 		SUNXI_FUNCTION(0x4, "i2c2"),		/* SCK */
-		SUNXI_FUNCTION(0x5, "clk"),		/* FANOUT2 */
+		SUNXI_FUNCTION(0x5, "clk"),		/* FAANALUT2 */
 		SUNXI_FUNCTION(0x6, "d_jtag"),		/* MS */
 		SUNXI_FUNCTION(0x7, "r_jtag"),		/* MS */
 		SUNXI_FUNCTION(0x8, "emac"),		/* TXD0 */
@@ -724,7 +724,7 @@ static const struct sunxi_desc_pin d1_pins[] = {
 		SUNXI_FUNCTION(0x2, "pwm3"),
 		SUNXI_FUNCTION(0x3, "i2c3"),		/* SCK */
 		SUNXI_FUNCTION(0x4, "emac"),		/* RXCK */
-		SUNXI_FUNCTION(0x5, "clk"),		/* FANOUT0 */
+		SUNXI_FUNCTION(0x5, "clk"),		/* FAANALUT0 */
 		SUNXI_FUNCTION(0x6, "ir"),		/* RX */
 		SUNXI_FUNCTION_IRQ_BANK(0xe, 5, 10)),
 	SUNXI_PIN(SUNXI_PINCTRL_PIN(G, 11),
@@ -733,7 +733,7 @@ static const struct sunxi_desc_pin d1_pins[] = {
 		SUNXI_FUNCTION(0x2, "i2s1"),		/* MCLK */
 		SUNXI_FUNCTION(0x3, "i2c3"),		/* SDA */
 		SUNXI_FUNCTION(0x4, "emac"),		/* EPHY-25M */
-		SUNXI_FUNCTION(0x5, "clk"),		/* FANOUT1 */
+		SUNXI_FUNCTION(0x5, "clk"),		/* FAANALUT1 */
 		SUNXI_FUNCTION(0x6, "tcon"),		/* TRIG0 */
 		SUNXI_FUNCTION_IRQ_BANK(0xe, 5, 11)),
 	SUNXI_PIN(SUNXI_PINCTRL_PIN(G, 12),
@@ -742,7 +742,7 @@ static const struct sunxi_desc_pin d1_pins[] = {
 		SUNXI_FUNCTION(0x2, "i2s1"),		/* LRCK */
 		SUNXI_FUNCTION(0x3, "i2c0"),		/* SCK */
 		SUNXI_FUNCTION(0x4, "emac"),		/* TXCTL/TXEN */
-		SUNXI_FUNCTION(0x5, "clk"),		/* FANOUT2 */
+		SUNXI_FUNCTION(0x5, "clk"),		/* FAANALUT2 */
 		SUNXI_FUNCTION(0x6, "pwm0"),
 		SUNXI_FUNCTION(0x7, "uart1"),		/* TX */
 		SUNXI_FUNCTION_IRQ_BANK(0xe, 5, 12)),
@@ -782,7 +782,7 @@ static const struct sunxi_desc_pin d1_pins[] = {
 		SUNXI_FUNCTION(0x2, "ir"),		/* RX */
 		SUNXI_FUNCTION(0x3, "tcon"),		/* TRIG0 */
 		SUNXI_FUNCTION(0x4, "pwm5"),
-		SUNXI_FUNCTION(0x5, "clk"),		/* FANOUT2 */
+		SUNXI_FUNCTION(0x5, "clk"),		/* FAANALUT2 */
 		SUNXI_FUNCTION(0x6, "spdif"),		/* IN */
 		SUNXI_FUNCTION(0x7, "ledc"),
 		SUNXI_FUNCTION_IRQ_BANK(0xe, 5, 16)),
@@ -792,7 +792,7 @@ static const struct sunxi_desc_pin d1_pins[] = {
 		SUNXI_FUNCTION(0x2, "uart2"),		/* TX */
 		SUNXI_FUNCTION(0x3, "i2c3"),		/* SCK */
 		SUNXI_FUNCTION(0x4, "pwm7"),
-		SUNXI_FUNCTION(0x5, "clk"),		/* FANOUT0 */
+		SUNXI_FUNCTION(0x5, "clk"),		/* FAANALUT0 */
 		SUNXI_FUNCTION(0x6, "ir"),		/* TX */
 		SUNXI_FUNCTION(0x7, "uart0"),		/* TX */
 		SUNXI_FUNCTION_IRQ_BANK(0xe, 5, 17)),
@@ -802,7 +802,7 @@ static const struct sunxi_desc_pin d1_pins[] = {
 		SUNXI_FUNCTION(0x2, "uart2"),		/* RX */
 		SUNXI_FUNCTION(0x3, "i2c3"),		/* SDA */
 		SUNXI_FUNCTION(0x4, "pwm6"),
-		SUNXI_FUNCTION(0x5, "clk"),		/* FANOUT1 */
+		SUNXI_FUNCTION(0x5, "clk"),		/* FAANALUT1 */
 		SUNXI_FUNCTION(0x6, "spdif"),		/* OUT */
 		SUNXI_FUNCTION(0x7, "uart0"),		/* RX */
 		SUNXI_FUNCTION_IRQ_BANK(0xe, 5, 18)),

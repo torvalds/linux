@@ -15,7 +15,7 @@
 /* Offset substracted by the firmware from the workspace paddr */
 #define WORKSPACE_OFFSET	(5 * SZ_1K)
 
-/* map firmware registers to known MPEG1/2 functions */
+/* map firmware registers to kanalwn MPEG1/2 functions */
 #define MREG_SEQ_INFO		AV_SCRATCH_4
 	#define MPEG2_SEQ_DAR_MASK	GENMASK(3, 0)
 	#define MPEG2_DAR_4_3		2
@@ -68,7 +68,7 @@ static int codec_mpeg12_start(struct amvdec_session *sess)
 
 	mpeg12 = kzalloc(sizeof(*mpeg12), GFP_KERNEL);
 	if (!mpeg12)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Allocate some memory for the MPEG1/2 decoder's state */
 	mpeg12->workspace_vaddr = dma_alloc_coherent(core->dev, SIZE_WORKSPACE,
@@ -76,7 +76,7 @@ static int codec_mpeg12_start(struct amvdec_session *sess)
 						     GFP_KERNEL);
 	if (!mpeg12->workspace_vaddr) {
 		dev_err(core->dev, "Failed to request MPEG 1/2 Workspace\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_mpeg12;
 	}
 
@@ -145,7 +145,7 @@ static void codec_mpeg12_update_dar(struct amvdec_session *sess)
 		break;
 	default:
 		sess->pixelaspect.numerator = 1;
-		sess->pixelaspect.denominator = 1;
+		sess->pixelaspect.deanalminator = 1;
 		break;
 	}
 }
@@ -157,7 +157,7 @@ static irqreturn_t codec_mpeg12_threaded_isr(struct amvdec_session *sess)
 	u32 pic_info;
 	u32 is_progressive;
 	u32 buffer_index;
-	u32 field = V4L2_FIELD_NONE;
+	u32 field = V4L2_FIELD_ANALNE;
 	u32 offset;
 
 	amvdec_write_dos(core, ASSIST_MBOX1_CLR_REG, 1);

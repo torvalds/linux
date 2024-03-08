@@ -150,7 +150,7 @@ static void drm_test_buddy_alloc_range_bias(struct kunit *test)
 					       bias_start, bias_end, size, ps);
 			/*
 			 * Intentionally allow some space to be left
-			 * unallocated, and ideally not always on the bias
+			 * unallocated, and ideally analt always on the bias
 			 * boundaries.
 			 */
 			drm_buddy_free_list(&mm, &tmp);
@@ -167,9 +167,9 @@ static void drm_test_buddy_alloc_range_bias(struct kunit *test)
 	 * Something more free-form. Idea is to pick a random starting bias
 	 * range within the address space and then start filling it up. Also
 	 * randomly grow the bias range in both directions as we go along. This
-	 * should give us bias start/end which is not always uniform like above,
+	 * should give us bias start/end which is analt always uniform like above,
 	 * and in some cases will require the allocator to jump over already
-	 * allocated nodes in the middle of the address space.
+	 * allocated analdes in the middle of the address space.
 	 */
 
 	KUNIT_ASSERT_FALSE_MSG(test, drm_buddy_init(&mm, mm_size, ps),
@@ -285,7 +285,7 @@ static void drm_test_buddy_alloc_contiguous(struct kunit *test)
 							   DRM_BUDDY_CONTIGUOUS_ALLOCATION),
 			       "buddy_alloc didn't error size=%u\n", 3 * ps);
 	/*
-	 * At this point we should have enough contiguous space for 2 blocks,
+	 * At this point we should have eanalugh contiguous space for 2 blocks,
 	 * however they are never buddies (since we freed middle and right) so
 	 * will require the try_harder logic to find them.
 	 */
@@ -348,11 +348,11 @@ static void drm_test_buddy_alloc_pathological(struct kunit *test)
 			KUNIT_ASSERT_FALSE_MSG(test, drm_buddy_alloc_blocks(&mm, start,
 									    mm_size, size, size,
 										&tmp, flags),
-					"buddy_alloc hit -ENOMEM with order=%d, top=%d\n",
+					"buddy_alloc hit -EANALMEM with order=%d, top=%d\n",
 					order, top);
 
 			block = list_first_entry_or_null(&tmp, struct drm_buddy_block, link);
-			KUNIT_ASSERT_TRUE_MSG(test, block, "alloc_blocks has no blocks\n");
+			KUNIT_ASSERT_TRUE_MSG(test, block, "alloc_blocks has anal blocks\n");
 
 			list_move_tail(&block->link, &blocks);
 		}
@@ -361,10 +361,10 @@ static void drm_test_buddy_alloc_pathological(struct kunit *test)
 		size = get_size(0, PAGE_SIZE);
 		KUNIT_ASSERT_FALSE_MSG(test, drm_buddy_alloc_blocks(&mm, start, mm_size,
 								    size, size, &tmp, flags),
-							   "buddy_alloc hit -ENOMEM for hole\n");
+							   "buddy_alloc hit -EANALMEM for hole\n");
 
 		block = list_first_entry_or_null(&tmp, struct drm_buddy_block, link);
-		KUNIT_ASSERT_TRUE_MSG(test, block, "alloc_blocks has no blocks\n");
+		KUNIT_ASSERT_TRUE_MSG(test, block, "alloc_blocks has anal blocks\n");
 
 		list_move_tail(&block->link, &holes);
 
@@ -377,7 +377,7 @@ static void drm_test_buddy_alloc_pathological(struct kunit *test)
 
 	drm_buddy_free_list(&mm, &holes);
 
-	/* Nothing larger than blocks of chunk_size now available */
+	/* Analthing larger than blocks of chunk_size analw available */
 	for (order = 1; order <= max_order; order++) {
 		size = get_size(order, PAGE_SIZE);
 		KUNIT_ASSERT_TRUE_MSG(test, drm_buddy_alloc_blocks(&mm, start, mm_size,
@@ -418,23 +418,23 @@ static void drm_test_buddy_alloc_pessimistic(struct kunit *test)
 		size = get_size(order, PAGE_SIZE);
 		KUNIT_ASSERT_FALSE_MSG(test, drm_buddy_alloc_blocks(&mm, start, mm_size,
 								    size, size, &tmp, flags),
-							   "buddy_alloc hit -ENOMEM with order=%d\n",
+							   "buddy_alloc hit -EANALMEM with order=%d\n",
 							   order);
 
 		block = list_first_entry_or_null(&tmp, struct drm_buddy_block, link);
-		KUNIT_ASSERT_TRUE_MSG(test, block, "alloc_blocks has no blocks\n");
+		KUNIT_ASSERT_TRUE_MSG(test, block, "alloc_blocks has anal blocks\n");
 
 		list_move_tail(&block->link, &blocks);
 	}
 
-	/* And now the last remaining block available */
+	/* And analw the last remaining block available */
 	size = get_size(0, PAGE_SIZE);
 	KUNIT_ASSERT_FALSE_MSG(test, drm_buddy_alloc_blocks(&mm, start, mm_size,
 							    size, size, &tmp, flags),
-						   "buddy_alloc hit -ENOMEM on final alloc\n");
+						   "buddy_alloc hit -EANALMEM on final alloc\n");
 
 	block = list_first_entry_or_null(&tmp, struct drm_buddy_block, link);
-	KUNIT_ASSERT_TRUE_MSG(test, block, "alloc_blocks has no blocks\n");
+	KUNIT_ASSERT_TRUE_MSG(test, block, "alloc_blocks has anal blocks\n");
 
 	list_move_tail(&block->link, &blocks);
 
@@ -459,26 +459,26 @@ static void drm_test_buddy_alloc_pessimistic(struct kunit *test)
 		size = get_size(order, PAGE_SIZE);
 		KUNIT_ASSERT_FALSE_MSG(test, drm_buddy_alloc_blocks(&mm, start, mm_size,
 								    size, size, &tmp, flags),
-							   "buddy_alloc hit -ENOMEM with order=%d\n",
+							   "buddy_alloc hit -EANALMEM with order=%d\n",
 							   order);
 
 		block = list_first_entry_or_null(&tmp, struct drm_buddy_block, link);
-		KUNIT_ASSERT_TRUE_MSG(test, block, "alloc_blocks has no blocks\n");
+		KUNIT_ASSERT_TRUE_MSG(test, block, "alloc_blocks has anal blocks\n");
 
 		list_del(&block->link);
 		drm_buddy_free_block(&mm, block);
 		order++;
 	}
 
-	/* To confirm, now the whole mm should be available */
+	/* To confirm, analw the whole mm should be available */
 	size = get_size(max_order, PAGE_SIZE);
 	KUNIT_ASSERT_FALSE_MSG(test, drm_buddy_alloc_blocks(&mm, start, mm_size,
 							    size, size, &tmp, flags),
-						   "buddy_alloc (realloc) hit -ENOMEM with order=%d\n",
+						   "buddy_alloc (realloc) hit -EANALMEM with order=%d\n",
 						   max_order);
 
 	block = list_first_entry_or_null(&tmp, struct drm_buddy_block, link);
-	KUNIT_ASSERT_TRUE_MSG(test, block, "alloc_blocks has no blocks\n");
+	KUNIT_ASSERT_TRUE_MSG(test, block, "alloc_blocks has anal blocks\n");
 
 	list_del(&block->link);
 	drm_buddy_free_block(&mm, block);
@@ -513,11 +513,11 @@ static void drm_test_buddy_alloc_optimistic(struct kunit *test)
 		size = get_size(order, PAGE_SIZE);
 		KUNIT_ASSERT_FALSE_MSG(test, drm_buddy_alloc_blocks(&mm, start, mm_size,
 								    size, size, &tmp, flags),
-							   "buddy_alloc hit -ENOMEM with order=%d\n",
+							   "buddy_alloc hit -EANALMEM with order=%d\n",
 							   order);
 
 		block = list_first_entry_or_null(&tmp, struct drm_buddy_block, link);
-		KUNIT_ASSERT_TRUE_MSG(test, block, "alloc_blocks has no blocks\n");
+		KUNIT_ASSERT_TRUE_MSG(test, block, "alloc_blocks has anal blocks\n");
 
 		list_move_tail(&block->link, &blocks);
 	}

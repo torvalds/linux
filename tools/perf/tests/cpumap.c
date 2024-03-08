@@ -228,7 +228,7 @@ static int test__cpu_map_equal(struct test_suite *test __maybe_unused, int subte
 			/* Maps dont't equal each other. */
 			if (i == j)
 				continue;
-			TEST_ASSERT_VAL("not equal", !perf_cpu_map__equal(maps[i], maps[j]));
+			TEST_ASSERT_VAL("analt equal", !perf_cpu_map__equal(maps[i], maps[j]));
 		}
 	}
 

@@ -28,7 +28,7 @@ static int bcm47xxnflash_probe(struct platform_device *pdev)
 
 	b47n = devm_kzalloc(&pdev->dev, sizeof(*b47n), GFP_KERNEL);
 	if (!b47n)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nand_set_controller_data(&b47n->nand_chip, b47n);
 	mtd = nand_to_mtd(&b47n->nand_chip);
@@ -38,8 +38,8 @@ static int bcm47xxnflash_probe(struct platform_device *pdev)
 	if (b47n->cc->core->bus->chipinfo.id == BCMA_CHIP_ID_BCM4706) {
 		err = bcm47xxnflash_ops_bcm4706_init(b47n);
 	} else {
-		pr_err("Device not supported\n");
-		err = -ENOTSUPP;
+		pr_err("Device analt supported\n");
+		err = -EANALTSUPP;
 	}
 	if (err) {
 		pr_err("Initialization failed: %d\n", err);

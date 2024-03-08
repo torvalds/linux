@@ -133,7 +133,7 @@ static int dwc_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 	state->enabled = !!(ctrl & DWC_TIM_CTRL_EN);
 
 	/*
-	 * If we're not in PWM, technically the output is a 50-50
+	 * If we're analt in PWM, technically the output is a 50-50
 	 * based on the timer load-count only.
 	 */
 	if (ctrl & DWC_TIM_CTRL_PWM) {

@@ -5,22 +5,22 @@
   Redistribution and use in source and binary forms, with or without
   modification, are permitted provided that the following conditions are met:
 
-  * Redistributions of source code must retain the above copyright notice,
+  * Redistributions of source code must retain the above copyright analtice,
     this list of conditions and the following disclaimer.
-  * Redistributions in binary form must reproduce the above copyright notice,
+  * Redistributions in binary form must reproduce the above copyright analtice,
     this list of conditions and the following disclaimer in the documentation
 	and/or other materials provided with the distribution.
-  * Neither the name of Trident Microsystems nor Hauppauge Computer Works
-    nor the names of its contributors may be used to endorse or promote
+  * Neither the name of Trident Microsystems analr Hauppauge Computer Works
+    analr the names of its contributors may be used to endorse or promote
 	products derived from this software without specific prior written
 	permission.
 
   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE
   IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+  ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
   LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+  CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF
   SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
   INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
   CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
@@ -40,7 +40,7 @@
 * USAGE:
 * Include.
 *
-* NOTES:
+* ANALTES:
 *
 *
 *******************************************************************************/
@@ -76,7 +76,7 @@
 * (3) DRXDAPFASI_LONG_ADDR_ALLOWED=1, DRXDAPFASI_SHORT_ADDR_ALLOWED=1
 *
 * The default setting will be (3) both long and short.
-* The default setting will need no compile switches.
+* The default setting will need anal compile switches.
 * The default setting must be overridden if compile switches are already
 * defined.
 *
@@ -109,7 +109,7 @@
 *
 * Master:
 * Single/multimaster operation set via DRXDAP_SINGLE_MASTER compile switch
-*  + single master mode means no use of repeated starts
+*  + single master mode means anal use of repeated starts
 *  + multi master mode means use of repeated starts
 *  Default is single master.
 *  Default can be overridden by setting the compile switch DRXDAP_SINGLE_MASTER.
@@ -119,7 +119,7 @@
 *  + single master means remember memory address between i2c packets
 *  + multimaster means flush memory address between i2c packets
 *  Default is single master, DAP FASI changes multi-master setting silently
-*  into single master setting. This cannot be overridden.
+*  into single master setting. This cananalt be overridden.
 *
 */
 /* set default */

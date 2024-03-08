@@ -5,7 +5,7 @@
  *
  * Author:
  *	Erik Gilling <konkers@google.com>
- *	Benoit Goby <benoit@android.com>
+ *	Beanalit Goby <beanalit@android.com>
  *	Venu Byravarasu <vbyravarasu@nvidia.com>
  */
 
@@ -71,7 +71,7 @@
 #define   VBUS_WAKEUP_WAKEUP_EN			BIT(30)
 
 #define USB1_LEGACY_CTRL			0x410
-#define   USB1_NO_LEGACY_MODE			BIT(0)
+#define   USB1_ANAL_LEGACY_MODE			BIT(0)
 #define   USB1_VBUS_SENSE_CTL_MASK		(3 << 1)
 #define   USB1_VBUS_SENSE_CTL_VBUS_WAKEUP	(0 << 1)
 #define   USB1_VBUS_SENSE_CTL_AB_SESS_VLD_OR_VBUS_WAKEUP \
@@ -421,7 +421,7 @@ static void utmi_phy_clk_disable(struct tegra_usb_phy *phy)
 
 	/*
 	 * The USB driver may have already initiated the phy clock
-	 * disable so wait to see if the clock turns off and if not
+	 * disable so wait to see if the clock turns off and if analt
 	 * then proceed with gating the clock.
 	 */
 	if (utmi_wait_register(base + USB_SUSP_CTRL, USB_PHY_CLK_VALID, 0) == 0)
@@ -453,7 +453,7 @@ static void utmi_phy_clk_enable(struct tegra_usb_phy *phy)
 
 	/*
 	 * The USB driver may have already initiated the phy clock
-	 * enable so wait to see if the clock turns on and if not
+	 * enable so wait to see if the clock turns on and if analt
 	 * then proceed with ungating the clock.
 	 */
 	if (utmi_wait_register(base + USB_SUSP_CTRL, USB_PHY_CLK_VALID,
@@ -493,7 +493,7 @@ static int utmi_phy_power_on(struct tegra_usb_phy *phy)
 
 	if (phy->is_legacy_phy) {
 		val = readl_relaxed(base + USB1_LEGACY_CTRL);
-		val |= USB1_NO_LEGACY_MODE;
+		val |= USB1_ANAL_LEGACY_MODE;
 		writel_relaxed(val, base + USB1_LEGACY_CTRL);
 	}
 
@@ -849,7 +849,7 @@ static int ulpi_phy_power_off(struct tegra_usb_phy *phy)
 	 */
 	if (WARN_ON_ONCE(phy->wakeup_enabled)) {
 		ulpi_phy_power_on(phy);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -929,7 +929,7 @@ static irqreturn_t tegra_usb_phy_isr(int irq, void *data)
 	val = readl_relaxed(base + USB_PHY_VBUS_WAKEUP_ID);
 	writel_relaxed(val, base + USB_PHY_VBUS_WAKEUP_ID);
 
-	return val & int_mask ? IRQ_HANDLED : IRQ_NONE;
+	return val & int_mask ? IRQ_HANDLED : IRQ_ANALNE;
 }
 
 static int tegra_usb_phy_set_wakeup(struct usb_phy *u_phy, bool enable)
@@ -1021,7 +1021,7 @@ static int tegra_usb_phy_configure_pmc(struct tegra_usb_phy *phy)
 
 	/*
 	 * Tegra20 has a different layout of PMC USB register bits and AO is
-	 * enabled by default after system reset on Tegra20, so assume nothing
+	 * enabled by default after system reset on Tegra20, so assume analthing
 	 * to do on Tegra20.
 	 */
 	if (!phy->soc_config->requires_pmc_ao_power_up)
@@ -1166,7 +1166,7 @@ static int read_utmi_param(struct platform_device *pdev, const char *param,
 	u32 value;
 	int err;
 
-	err = of_property_read_u32(pdev->dev.of_node, param, &value);
+	err = of_property_read_u32(pdev->dev.of_analde, param, &value);
 	if (err)
 		dev_err(&pdev->dev,
 			"Failed to read USB UTMI parameter %s: %d\n",
@@ -1193,20 +1193,20 @@ static int utmi_phy_probe(struct tegra_usb_phy *tegra_phy,
 	}
 
 	/*
-	 * Note that UTMI pad registers are shared by all PHYs, therefore
+	 * Analte that UTMI pad registers are shared by all PHYs, therefore
 	 * devm_platform_ioremap_resource() can't be used here.
 	 */
 	tegra_phy->pad_regs = devm_ioremap(&pdev->dev, res->start,
 					   resource_size(res));
 	if (!tegra_phy->pad_regs) {
 		dev_err(&pdev->dev, "Failed to remap UTMI pad regs\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	tegra_phy->config = devm_kzalloc(&pdev->dev, sizeof(*config),
 					 GFP_KERNEL);
 	if (!tegra_phy->config)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	config = tegra_phy->config;
 
@@ -1258,7 +1258,7 @@ static int utmi_phy_probe(struct tegra_usb_phy *tegra_phy,
 	}
 
 	config->xcvr_setup_use_fuses = of_property_read_bool(
-		pdev->dev.of_node, "nvidia,xcvr-setup-use-fuses");
+		pdev->dev.of_analde, "nvidia,xcvr-setup-use-fuses");
 
 	if (!config->xcvr_setup_use_fuses) {
 		err = read_utmi_param(pdev, "nvidia,xcvr-setup",
@@ -1282,20 +1282,20 @@ static int tegra_usb_phy_parse_pmc(struct device *dev,
 	struct of_phandle_args args;
 	int err;
 
-	err = of_parse_phandle_with_fixed_args(dev->of_node, "nvidia,pmc",
+	err = of_parse_phandle_with_fixed_args(dev->of_analde, "nvidia,pmc",
 					       1, 0, &args);
 	if (err) {
-		if (err != -ENOENT)
+		if (err != -EANALENT)
 			return err;
 
 		dev_warn_once(dev, "nvidia,pmc is missing, please update your device-tree\n");
 		return 0;
 	}
 
-	pmc_pdev = of_find_device_by_node(args.np);
-	of_node_put(args.np);
+	pmc_pdev = of_find_device_by_analde(args.np);
+	of_analde_put(args.np);
 	if (!pmc_pdev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	err = devm_add_action_or_reset(dev, tegra_usb_phy_put_pmc_device,
 				       &pmc_pdev->dev);
@@ -1339,7 +1339,7 @@ MODULE_DEVICE_TABLE(of, tegra_usb_phy_id_table);
 
 static int tegra_usb_phy_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct tegra_usb_phy *tegra_phy;
 	enum usb_phy_interface phy_type;
 	struct reset_control *reset;
@@ -1350,7 +1350,7 @@ static int tegra_usb_phy_probe(struct platform_device *pdev)
 
 	tegra_phy = devm_kzalloc(&pdev->dev, sizeof(*tegra_phy), GFP_KERNEL);
 	if (!tegra_phy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tegra_phy->soc_config = of_device_get_match_data(&pdev->dev);
 	tegra_phy->irq = platform_get_irq_optional(pdev, 0);
@@ -1362,14 +1362,14 @@ static int tegra_usb_phy_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * Note that PHY and USB controller are using shared registers,
+	 * Analte that PHY and USB controller are using shared registers,
 	 * therefore devm_platform_ioremap_resource() can't be used here.
 	 */
 	tegra_phy->regs = devm_ioremap(&pdev->dev, res->start,
 				       resource_size(res));
 	if (!tegra_phy->regs) {
 		dev_err(&pdev->dev, "Failed to remap I/O memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	tegra_phy->is_legacy_phy =
@@ -1380,7 +1380,7 @@ static int tegra_usb_phy_probe(struct platform_device *pdev)
 	else
 		tegra_phy->mode = USB_DR_MODE_HOST;
 
-	if (tegra_phy->mode == USB_DR_MODE_UNKNOWN) {
+	if (tegra_phy->mode == USB_DR_MODE_UNKANALWN) {
 		dev_err(&pdev->dev, "dr_mode is invalid\n");
 		return -EINVAL;
 	}
@@ -1462,7 +1462,7 @@ static int tegra_usb_phy_probe(struct platform_device *pdev)
 					   &ulpi_viewport_access_ops, 0);
 		if (!phy) {
 			dev_err(&pdev->dev, "Failed to create ULPI OTG\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		tegra_phy->ulpi = phy;

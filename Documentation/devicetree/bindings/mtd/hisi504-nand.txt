@@ -8,7 +8,7 @@ Required properties:
                        physical address and size of NAND controller's buffer.
 - interrupts:          Interrupt number for nfc.
 - nand-bus-width:      See nand-controller.yaml.
-- nand-ecc-mode:       Support none and hw ecc mode.
+- nand-ecc-mode:       Support analne and hw ecc mode.
 - #address-cells:      Partition address, should be set 1.
 - #size-cells:         Partition size, should be set 1.
 
@@ -21,7 +21,7 @@ The following ECC strength and step size are currently supported:
 
  - nand-ecc-strength = <16>, nand-ecc-step-size = <1024>
 
-Flash chip may optionally contain additional sub-nodes describing partitions of
+Flash chip may optionally contain additional sub-analdes describing partitions of
 the address space. See partition.txt for more detail.
 
 Example:

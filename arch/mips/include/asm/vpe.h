@@ -3,8 +3,8 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2005 MIPS Technologies, Inc.  All rights reserved.
- * Copyright (C) 2013 Imagination Technologies Ltd.
+ * Copyright (C) 2005 MIPS Techanallogies, Inc.  All rights reserved.
+ * Copyright (C) 2013 Imagination Techanallogies Ltd.
  */
 #ifndef _ASM_VPE_H
 #define _ASM_VPE_H
@@ -15,13 +15,13 @@
 #include <linux/spinlock.h>
 
 #define VPE_MODULE_NAME "vpe"
-#define VPE_MODULE_MINOR 1
+#define VPE_MODULE_MIANALR 1
 
 /* grab the likely amount of memory we will need. */
 #ifdef CONFIG_MIPS_VPE_LOADER_TOM
 #define P_SIZE (2 * 1024 * 1024)
 #else
-/* add an overhead to the max kmalloc size for non-striped symbols/etc */
+/* add an overhead to the max kmalloc size for analn-striped symbols/etc */
 #define P_SIZE (256 * 1024)
 #endif
 
@@ -49,8 +49,8 @@ enum tc_state {
 struct vpe {
 	enum vpe_state state;
 
-	/* (device) minor associated with this vpe */
-	int minor;
+	/* (device) mianalr associated with this vpe */
+	int mianalr;
 
 	/* elfloader stuff */
 	void *load_addr;
@@ -69,8 +69,8 @@ struct vpe {
 	/* shared symbol address */
 	void *shared_ptr;
 
-	/* the list of who wants to know when something major happens */
-	struct list_head notify;
+	/* the list of who wants to kanalw when something major happens */
+	struct list_head analtify;
 
 	unsigned int ntcs;
 };
@@ -84,7 +84,7 @@ struct tc {
 	struct list_head list;	/* The global list of tc's */
 };
 
-struct vpe_notifications {
+struct vpe_analtifications {
 	void (*start)(int vpe);
 	void (*stop)(int vpe);
 
@@ -101,13 +101,13 @@ struct vpe_control {
 extern struct vpe_control vpecontrol;
 extern const struct file_operations vpe_fops;
 
-int vpe_notify(int index, struct vpe_notifications *notify);
+int vpe_analtify(int index, struct vpe_analtifications *analtify);
 
 void *vpe_get_shared(int index);
 
-struct vpe *get_vpe(int minor);
+struct vpe *get_vpe(int mianalr);
 struct tc *get_tc(int index);
-struct vpe *alloc_vpe(int minor);
+struct vpe *alloc_vpe(int mianalr);
 struct tc *alloc_tc(int index);
 void release_vpe(struct vpe *v);
 

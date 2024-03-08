@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 
 #include <linux/export.h>
@@ -16,7 +16,7 @@
 	bstrins.d \r0, \r0, 63, 32
 .endm
 
-.section .noinstr.text, "ax"
+.section .analinstr.text, "ax"
 
 SYM_FUNC_START(memset)
 	/*
@@ -30,8 +30,8 @@ SYM_FUNC_ALIAS(__memset, memset)
 EXPORT_SYMBOL(memset)
 EXPORT_SYMBOL(__memset)
 
-_ASM_NOKPROBE(memset)
-_ASM_NOKPROBE(__memset)
+_ASM_ANALKPROBE(memset)
+_ASM_ANALKPROBE(__memset)
 
 /*
  * void *__memset_generic(void *s, int c, size_t n)
@@ -52,7 +52,7 @@ SYM_FUNC_START(__memset_generic)
 2:	move	a0, a3
 	jr	ra
 SYM_FUNC_END(__memset_generic)
-_ASM_NOKPROBE(__memset_generic)
+_ASM_ANALKPROBE(__memset_generic)
 
 /*
  * void *__memset_fast(void *s, int c, size_t n)
@@ -165,4 +165,4 @@ SYM_FUNC_START(__memset_fast)
 8:	st.d	a1, a0, 0
 	jr	ra
 SYM_FUNC_END(__memset_fast)
-_ASM_NOKPROBE(__memset_fast)
+_ASM_ANALKPROBE(__memset_fast)

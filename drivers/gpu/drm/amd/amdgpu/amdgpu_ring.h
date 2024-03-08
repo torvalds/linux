@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -85,7 +85,7 @@ enum amdgpu_ring_type {
 };
 
 enum amdgpu_ib_pool_type {
-	/* Normal submissions to the top of the pipeline. */
+	/* Analrmal submissions to the top of the pipeline. */
 	AMDGPU_IB_POOL_DELAYED,
 	/* Immediate submissions to the bottom of the pipeline. */
 	AMDGPU_IB_POOL_IMMEDIATE,
@@ -165,9 +165,9 @@ void amdgpu_fence_update_start_timestamp(struct amdgpu_ring *ring, uint32_t seq,
 struct amdgpu_ring_funcs {
 	enum amdgpu_ring_type	type;
 	uint32_t		align_mask;
-	u32			nop;
+	u32			analp;
 	bool			support_64bit_ptrs;
-	bool			no_user_fence;
+	bool			anal_user_fence;
 	bool			secure_submission_supported;
 	unsigned		extra_dw;
 
@@ -203,15 +203,15 @@ struct amdgpu_ring_funcs {
 	/* testing functions */
 	int (*test_ring)(struct amdgpu_ring *ring);
 	int (*test_ib)(struct amdgpu_ring *ring, long timeout);
-	/* insert NOP packets */
-	void (*insert_nop)(struct amdgpu_ring *ring, uint32_t count);
+	/* insert ANALP packets */
+	void (*insert_analp)(struct amdgpu_ring *ring, uint32_t count);
 	void (*insert_start)(struct amdgpu_ring *ring);
 	void (*insert_end)(struct amdgpu_ring *ring);
 	/* pad the indirect buffer to the necessary number of dw */
 	void (*pad_ib)(struct amdgpu_ring *ring, struct amdgpu_ib *ib);
 	unsigned (*init_cond_exec)(struct amdgpu_ring *ring);
 	void (*patch_cond_exec)(struct amdgpu_ring *ring, unsigned offset);
-	/* note usage for clock and power gating */
+	/* analte usage for clock and power gating */
 	void (*begin_use)(struct amdgpu_ring *ring);
 	void (*end_use)(struct amdgpu_ring *ring);
 	void (*emit_switch_buffer) (struct amdgpu_ring *ring);
@@ -290,7 +290,7 @@ struct amdgpu_ring {
 	unsigned		vm_inv_eng;
 	struct dma_fence	*vmid_wait;
 	bool			has_compute_vm_bug;
-	bool			no_scheduler;
+	bool			anal_scheduler;
 	int			hw_prio;
 	unsigned 		num_hw_submission;
 	atomic_t		*sched_score;
@@ -342,7 +342,7 @@ void amdgpu_ring_ib_on_emit_cntl(struct amdgpu_ring *ring);
 void amdgpu_ring_ib_on_emit_ce(struct amdgpu_ring *ring);
 void amdgpu_ring_ib_on_emit_de(struct amdgpu_ring *ring);
 
-void amdgpu_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count);
+void amdgpu_ring_insert_analp(struct amdgpu_ring *ring, uint32_t count);
 void amdgpu_ring_generic_pad_ib(struct amdgpu_ring *ring, struct amdgpu_ib *ib);
 void amdgpu_ring_commit(struct amdgpu_ring *ring);
 void amdgpu_ring_undo(struct amdgpu_ring *ring);
@@ -367,7 +367,7 @@ static inline void amdgpu_ring_clear_ring(struct amdgpu_ring *ring)
 {
 	int i = 0;
 	while (i <= ring->buf_mask)
-		ring->ring[i++] = ring->funcs->nop;
+		ring->ring[i++] = ring->funcs->analp;
 
 }
 

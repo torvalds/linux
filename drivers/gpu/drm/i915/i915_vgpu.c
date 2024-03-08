@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -28,7 +28,7 @@
 /**
  * DOC: Intel GVT-g guest support
  *
- * Intel GVT-g is a graphics virtualization technology which shares the
+ * Intel GVT-g is a graphics virtualization techanallogy which shares the
  * GPU among multiple virtual machines on a time-sharing basis. Each
  * virtual machine is presented a virtual GPU (vGPU), which has equivalent
  * features as the underlying physical GPU (pGPU), so i915 driver can run
@@ -45,8 +45,8 @@
  * translate the graphics address between 'guest view' and 'host view', for
  * all registers and command opcodes which contain a graphics memory address.
  * To reduce the complexity, Intel GVT-g introduces "address space ballooning",
- * by telling the exact partitioning knowledge to each guest i915 driver, which
- * then reserves and prevents non-allocated portions from allocation. Thus vGPU
+ * by telling the exact partitioning kanalwledge to each guest i915 driver, which
+ * then reserves and prevents analn-allocated portions from allocation. Thus vGPU
  * emulation module only needs to scan and validate graphics addresses without
  * complexity of address translation.
  *
@@ -71,7 +71,7 @@ void intel_vgpu_detect(struct drm_i915_private *dev_priv)
 	/*
 	 * This is called before we setup the main MMIO BAR mappings used via
 	 * the uncore structure, so we need to access the BAR directly. Since
-	 * we do not support VGT on older gens, return early so we don't have
+	 * we do analt support VGT on older gens, return early so we don't have
 	 * to consider differently numbered or sized MMIO bars
 	 */
 	if (GRAPHICS_VER(dev_priv) < 6)
@@ -107,7 +107,7 @@ out:
 void intel_vgpu_register(struct drm_i915_private *i915)
 {
 	/*
-	 * Notify a valid surface after modesetting, when running inside a VM.
+	 * Analtify a valid surface after modesetting, when running inside a VM.
 	 */
 	if (intel_vgpu_active(i915))
 		intel_uncore_write(&i915->uncore, vgtif_reg(display_ready),
@@ -140,26 +140,26 @@ struct _balloon_info_ {
 	 * memory that might be ballooned. Here, index 0/1 is for mappable
 	 * graphic memory, 2/3 for unmappable graphic memory.
 	 */
-	struct drm_mm_node space[4];
+	struct drm_mm_analde space[4];
 };
 
 static struct _balloon_info_ bl_info;
 
 static void vgt_deballoon_space(struct i915_ggtt *ggtt,
-				struct drm_mm_node *node)
+				struct drm_mm_analde *analde)
 {
 	struct drm_i915_private *dev_priv = ggtt->vm.i915;
-	if (!drm_mm_node_allocated(node))
+	if (!drm_mm_analde_allocated(analde))
 		return;
 
 	drm_dbg(&dev_priv->drm,
 		"deballoon space: range [0x%llx - 0x%llx] %llu KiB.\n",
-		node->start,
-		node->start + node->size,
-		node->size / 1024);
+		analde->start,
+		analde->start + analde->size,
+		analde->size / 1024);
 
-	ggtt->vm.reserved -= node->size;
-	drm_mm_remove_node(node);
+	ggtt->vm.reserved -= analde->size;
+	drm_mm_remove_analde(analde);
 }
 
 /**
@@ -184,7 +184,7 @@ void intel_vgt_deballoon(struct i915_ggtt *ggtt)
 }
 
 static int vgt_balloon_space(struct i915_ggtt *ggtt,
-			     struct drm_mm_node *node,
+			     struct drm_mm_analde *analde,
 			     unsigned long start, unsigned long end)
 {
 	struct drm_i915_private *dev_priv = ggtt->vm.i915;
@@ -197,7 +197,7 @@ static int vgt_balloon_space(struct i915_ggtt *ggtt,
 	drm_info(&dev_priv->drm,
 		 "balloon space: range [ 0x%lx - 0x%lx ] %lu KiB.\n",
 		 start, end, size / 1024);
-	ret = i915_gem_gtt_reserve(&ggtt->vm, NULL, node,
+	ret = i915_gem_gtt_reserve(&ggtt->vm, NULL, analde,
 				   size, start, I915_COLOR_UNEVICTABLE,
 				   0);
 	if (!ret)
@@ -212,13 +212,13 @@ static int vgt_balloon_space(struct i915_ggtt *ggtt,
  *
  * This function is called at the initialization stage, to balloon out the
  * graphic address space allocated to other vGPUs, by marking these spaces as
- * reserved. The ballooning related knowledge(starting address and size of
+ * reserved. The ballooning related kanalwledge(starting address and size of
  * the mappable/unmappable graphic memory) is described in the vgt_if structure
  * in a reserved mmio range.
  *
  * To give an example, the drawing below depicts one typical scenario after
  * ballooning. Here the vGPU1 has 2 pieces of graphic address spaces ballooned
- * out each for the mappable and the non-mappable part. From the vGPU1 point of
+ * out each for the mappable and the analn-mappable part. From the vGPU1 point of
  * view, the total size is the same as the physical one, with the start address
  * of its graphic space being zero. Yet there are some portions ballooned out(
  * the shadow part, which are marked as reserved by drm allocator). From the
@@ -248,7 +248,7 @@ static int vgt_balloon_space(struct i915_ggtt *ggtt,
  *  total GM size ------> +-----------+     +-----------+
  *
  * Returns:
- * zero on success, non-zero if configuration invalid or ballooning failed
+ * zero on success, analn-zero if configuration invalid or ballooning failed
  */
 int intel_vgt_balloon(struct i915_ggtt *ggtt)
 {
@@ -268,9 +268,9 @@ int intel_vgt_balloon(struct i915_ggtt *ggtt)
 	mappable_size =
 	  intel_uncore_read(uncore, vgtif_reg(avail_rs.mappable_gmadr.size));
 	unmappable_base =
-	  intel_uncore_read(uncore, vgtif_reg(avail_rs.nonmappable_gmadr.base));
+	  intel_uncore_read(uncore, vgtif_reg(avail_rs.analnmappable_gmadr.base));
 	unmappable_size =
-	  intel_uncore_read(uncore, vgtif_reg(avail_rs.nonmappable_gmadr.size));
+	  intel_uncore_read(uncore, vgtif_reg(avail_rs.analnmappable_gmadr.size));
 
 	mappable_end = mappable_base + mappable_size;
 	unmappable_end = unmappable_base + unmappable_size;

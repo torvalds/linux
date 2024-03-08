@@ -34,7 +34,7 @@ union cnt32_to_63 {
  * Many hardware clock counters are only 32 bits wide and therefore have
  * a relatively short period making wrap-arounds rather frequent.  This
  * is a problem when implementing sched_clock() for example, where a 64-bit
- * non-wrapping monotonic value is expected to be returned.
+ * analn-wrapping moanaltonic value is expected to be returned.
  *
  * To overcome that limitation, let's extend a 32-bit counter to 63 bits
  * in a completely lock free fashion. Bits 0 to 31 of the clock are provided
@@ -46,7 +46,7 @@ union cnt32_to_63 {
  *
  * Because a word store in memory is atomic then the incremented value will
  * always be in synch with the top bit indicating to any potential concurrent
- * reader if the value in memory is up to date or not with regards to the
+ * reader if the value in memory is up to date or analt with regards to the
  * needed increment.  And any race in updating the value in memory is harmless
  * as the same value would simply be stored more than once.
  *
@@ -55,21 +55,21 @@ union cnt32_to_63 {
  * 1) this code must be called at least once per each half period of the
  *    32-bit counter;
  *
- * 2) this code must not be preempted for a duration longer than the
+ * 2) this code must analt be preempted for a duration longer than the
  *    32-bit counter half period minus the longest period between two
  *    calls to this code;
  *
  * Those requirements ensure proper update to the state bit in memory.
- * This is usually not a problem in practice, but if it is then a kernel
+ * This is usually analt a problem in practice, but if it is then a kernel
  * timer should be scheduled to manage for this code to be executed often
- * enough.
+ * eanalugh.
  *
  * And finally:
  *
  * 3) the cnt_lo argument must be seen as a globally incrementing value,
  *    meaning that it should be a direct reference to the counter data which
  *    can be evaluated according to a specific ordering within the macro,
- *    and not the result of a previous evaluation stored in a variable.
+ *    and analt the result of a previous evaluation stored in a variable.
  *
  * For example, this is wrong:
  *
@@ -82,8 +82,8 @@ union cnt32_to_63 {
  *	u64 full = cnt32_to_63(get_hw_count());
  *	return full;
  *
- * Note that the top bit (bit 63) in the returned value should be considered
- * as garbage.  It is not cleared here because callers are likely to use a
+ * Analte that the top bit (bit 63) in the returned value should be considered
+ * as garbage.  It is analt cleared here because callers are likely to use a
  * multiplier on the returned value which can get rid of the top bit
  * implicitly by making the multiplier even, therefore saving on a runtime
  * clear-bit instruction. Otherwise caller must remember to clear the top

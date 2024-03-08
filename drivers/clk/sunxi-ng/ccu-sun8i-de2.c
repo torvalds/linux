@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2017 Icenowy Zheng <icenowy@aosc.io>
+ * Copyright (c) 2017 Iceanalwy Zheng <iceanalwy@aosc.io>
  */
 
 #include <linux/clk.h>

@@ -14,7 +14,7 @@ objects by the object type. For example ``$attr`` is the value
 of ``name`` in an attribute, and ``$family`` is the name of the
 family (the global ``name`` property).
 
-The upper case is used to denote literal values, e.g. ``$family-CMD``
+The upper case is used to deanalte literal values, e.g. ``$family-CMD``
 means the concatenation of ``$family``, a dash character, and the literal
 ``CMD``.
 

@@ -153,14 +153,14 @@ struct knav_qmgr_info {
  * pops:			number of pop operations
  * push_errors:			number of push errors
  * pop_errors:			number of pop errors
- * notifies:			notifier counts
+ * analtifies:			analtifier counts
  */
 struct knav_queue_stats {
 	unsigned int pushes;
 	unsigned int pops;
 	unsigned int push_errors;
 	unsigned int pop_errors;
-	unsigned int notifies;
+	unsigned int analtifies;
 };
 
 /**
@@ -241,8 +241,8 @@ struct knav_pool {
  * @qmgr:				queue manager info
  * @id:					queue instance id
  * @irq_num:				irq line number
- * @notify_needed:			notifier needed based on queue type
- * @num_notifiers:			total notifiers
+ * @analtify_needed:			analtifier needed based on queue type
+ * @num_analtifiers:			total analtifiers
  * @handles:				list head
  * @name:				queue instance name
  * @irq_name:				irq line name
@@ -256,8 +256,8 @@ struct knav_queue_inst {
 	struct knav_qmgr_info		*qmgr;
 	u32				id;
 	int				irq_num;
-	int				notify_needed;
-	atomic_t			num_notifiers;
+	int				analtify_needed;
+	atomic_t			num_analtifiers;
 	struct list_head		handles;
 	const char			*name;
 	const char			*irq_name;
@@ -267,9 +267,9 @@ struct knav_queue_inst {
  * struct knav_queue:			qmss queue properties
  * @reg_push, reg_pop, reg_peek:	push, pop queue registers
  * @inst:				qmss queue instance properties
- * @notifier_fn:			notifier function
- * @notifier_fn_arg:			notifier function argument
- * @notifier_enabled:			notier enabled for a give queue
+ * @analtifier_fn:			analtifier function
+ * @analtifier_fn_arg:			analtifier function argument
+ * @analtifier_enabled:			analtier enabled for a give queue
  * @rcu:				rcu head
  * @flags:				queue flags
  * @list:				list head
@@ -278,9 +278,9 @@ struct knav_queue {
 	struct knav_reg_queue __iomem	*reg_push, *reg_pop, *reg_peek;
 	struct knav_queue_inst		*inst;
 	struct knav_queue_stats __percpu	*stats;
-	knav_queue_notify_fn		notifier_fn;
-	void				*notifier_fn_arg;
-	atomic_t			notifier_enabled;
+	knav_queue_analtify_fn		analtifier_fn;
+	void				*analtifier_fn_arg;
+	atomic_t			analtifier_enabled;
 	struct rcu_head			rcu;
 	unsigned			flags;
 	struct list_head		list;
@@ -316,7 +316,7 @@ struct knav_range_ops {
 			      struct knav_queue_inst *inst, unsigned flags);
 	int	(*close_queue)(struct knav_range_info *range,
 			       struct knav_queue_inst *inst);
-	int	(*set_notify)(struct knav_range_info *range,
+	int	(*set_analtify)(struct knav_range_info *range,
 			      struct knav_queue_inst *inst, bool enabled);
 };
 
@@ -380,8 +380,8 @@ knav_find_pdsp(struct knav_device *kdev, unsigned pdsp_id)
 }
 
 extern int knav_init_acc_range(struct knav_device *kdev,
-					struct device_node *node,
+					struct device_analde *analde,
 					struct knav_range_info *range);
-extern void knav_queue_notify(struct knav_queue_inst *inst);
+extern void knav_queue_analtify(struct knav_queue_inst *inst);
 
 #endif /* __KNAV_QMSS_H__ */

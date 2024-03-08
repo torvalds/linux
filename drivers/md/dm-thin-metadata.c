@@ -33,10 +33,10 @@
  *   field holding the time in the low 24 bits, and block in the top 40
  *   bits.
  *
- * BTrees consist solely of btree_nodes, that fill a block.  Some are
- * internal nodes, as such their values are a __le64 pointing to other
- * nodes.  Leaf nodes can store data of any reasonable size (ie. much
- * smaller than the block size).  The nodes consist of the header,
+ * BTrees consist solely of btree_analdes, that fill a block.  Some are
+ * internal analdes, as such their values are a __le64 pointing to other
+ * analdes.  Leaf analdes can store data of any reasonable size (ie. much
+ * smaller than the block size).  The analdes consist of the header,
  * followed by an array of keys, followed by an array of values.  We have
  * to binary search on the keys so they're all held together to help the
  * cpu cache.
@@ -88,7 +88,7 @@
  *  2 for btree lookup used within space map
  * For btree remove:
  *  2 for shadow spine +
- *  4 for rebalance 3 child node
+ *  4 for rebalance 3 child analde
  */
 #define THIN_MAX_CONCURRENT_LOCKS 6
 
@@ -146,7 +146,7 @@ struct disk_device_details {
 } __packed;
 
 struct dm_pool_metadata {
-	struct hlist_node hash;
+	struct hlist_analde hash;
 
 	struct block_device *bdev;
 	struct dm_block_manager *bm;
@@ -163,7 +163,7 @@ struct dm_pool_metadata {
 	struct dm_btree_info info;
 
 	/*
-	 * Non-blocking version of the above.
+	 * Analn-blocking version of the above.
 	 */
 	struct dm_btree_info nb_info;
 
@@ -202,7 +202,7 @@ struct dm_pool_metadata {
 
 	/*
 	 * We reserve a section of the metadata for commit overhead.
-	 * All reported space does *not* include this.
+	 * All reported space does *analt* include this.
 	 */
 	dm_block_t metadata_reserve;
 
@@ -272,7 +272,7 @@ static int sb_check(struct dm_block_validator *v,
 		DMERR("%s failed: blocknr %llu: wanted %llu",
 		      __func__, le64_to_cpu(disk_super->blocknr),
 		      (unsigned long long)dm_block_location(b));
-		return -ENOTBLK;
+		return -EANALTBLK;
 	}
 
 	if (le64_to_cpu(disk_super->magic) != THIN_SUPERBLOCK_MAGIC) {
@@ -331,7 +331,7 @@ static void with_runs(struct dm_space_map *sm, const __le64 *value_le, unsigned 
 	unsigned int i;
 
 	for (i = 0; i < count; i++, value_le++) {
-		/* We know value_le is 8 byte aligned */
+		/* We kanalw value_le is 8 byte aligned */
 		unpack_block_time(le64_to_cpu(*value_le), &b, &t);
 
 		if (in_run) {
@@ -617,10 +617,10 @@ static int __format_metadata(struct dm_pool_metadata *pmd)
 		goto bad_cleanup_tm;
 	}
 
-	pmd->nb_tm = dm_tm_create_non_blocking_clone(pmd->tm);
+	pmd->nb_tm = dm_tm_create_analn_blocking_clone(pmd->tm);
 	if (!pmd->nb_tm) {
-		DMERR("could not create non-blocking clone tm");
-		r = -ENOMEM;
+		DMERR("could analt create analn-blocking clone tm");
+		r = -EANALMEM;
 		goto bad_cleanup_data_sm;
 	}
 
@@ -664,7 +664,7 @@ static int __check_incompat_features(struct thin_disk_superblock *disk_super,
 
 	features = le32_to_cpu(disk_super->incompat_flags) & ~THIN_FEATURE_INCOMPAT_SUPP;
 	if (features) {
-		DMERR("could not access metadata due to unsupported optional features (%lx).",
+		DMERR("could analt access metadata due to unsupported optional features (%lx).",
 		      (unsigned long)features);
 		return -EINVAL;
 	}
@@ -677,7 +677,7 @@ static int __check_incompat_features(struct thin_disk_superblock *disk_super,
 
 	features = le32_to_cpu(disk_super->compat_ro_flags) & ~THIN_FEATURE_COMPAT_RO_SUPP;
 	if (features) {
-		DMERR("could not access metadata RDWR due to unsupported optional features (%lx).",
+		DMERR("could analt access metadata RDWR due to unsupported optional features (%lx).",
 		      (unsigned long)features);
 		return -EINVAL;
 	}
@@ -702,7 +702,7 @@ static int __open_metadata(struct dm_pool_metadata *pmd)
 
 	/* Verify the data block size hasn't changed */
 	if (le32_to_cpu(disk_super->data_block_size) != pmd->data_block_size) {
-		DMERR("changing the data block size (from %u to %llu) is not supported",
+		DMERR("changing the data block size (from %u to %llu) is analt supported",
 		      le32_to_cpu(disk_super->data_block_size),
 		      (unsigned long long)pmd->data_block_size);
 		r = -EINVAL;
@@ -733,10 +733,10 @@ static int __open_metadata(struct dm_pool_metadata *pmd)
 		goto bad_cleanup_tm;
 	}
 
-	pmd->nb_tm = dm_tm_create_non_blocking_clone(pmd->tm);
+	pmd->nb_tm = dm_tm_create_analn_blocking_clone(pmd->tm);
 	if (!pmd->nb_tm) {
-		DMERR("could not create non-blocking clone tm");
-		r = -ENOMEM;
+		DMERR("could analt create analn-blocking clone tm");
+		r = -EANALMEM;
 		goto bad_cleanup_data_sm;
 	}
 
@@ -789,7 +789,7 @@ static int __create_persistent_data_objects(struct dm_pool_metadata *pmd, bool f
 	pmd->bm = dm_block_manager_create(pmd->bdev, THIN_METADATA_BLOCK_SIZE << SECTOR_SHIFT,
 					  THIN_MAX_CONCURRENT_LOCKS);
 	if (IS_ERR(pmd->bm)) {
-		DMERR("could not create block manager");
+		DMERR("could analt create block manager");
 		r = PTR_ERR(pmd->bm);
 		pmd->bm = NULL;
 		return r;
@@ -888,7 +888,7 @@ static int __commit_transaction(struct dm_pool_metadata *pmd)
 	struct dm_block *sblock;
 
 	/*
-	 * We need to know if the thin_disk_superblock exceeds a 512-byte sector.
+	 * We need to kanalw if the thin_disk_superblock exceeds a 512-byte sector.
 	 */
 	BUILD_BUG_ON(sizeof(struct thin_disk_superblock) > 512);
 	BUG_ON(!rwsem_is_locked(&pmd->root_lock));
@@ -944,7 +944,7 @@ static void __set_metadata_reserve(struct dm_pool_metadata *pmd)
 
 	r = dm_sm_get_nr_blocks(pmd->metadata_sm, &total);
 	if (r) {
-		DMERR("could not get size of metadata device");
+		DMERR("could analt get size of metadata device");
 		pmd->metadata_reserve = max_blocks;
 	} else
 		pmd->metadata_reserve = min(max_blocks, div_u64(total, 10));
@@ -959,8 +959,8 @@ struct dm_pool_metadata *dm_pool_metadata_open(struct block_device *bdev,
 
 	pmd = kmalloc(sizeof(*pmd), GFP_KERNEL);
 	if (!pmd) {
-		DMERR("could not allocate metadata struct");
-		return ERR_PTR(-ENOMEM);
+		DMERR("could analt allocate metadata struct");
+		return ERR_PTR(-EANALMEM);
 	}
 
 	init_rwsem(&pmd->root_lock);
@@ -1048,7 +1048,7 @@ static int __open_device(struct dm_pool_metadata *pmd,
 	list_for_each_entry(td2, &pmd->thin_devices, list)
 		if (td2->id == dev) {
 			/*
-			 * May not create an already-open device.
+			 * May analt create an already-open device.
 			 */
 			if (create)
 				return -EEXIST;
@@ -1064,7 +1064,7 @@ static int __open_device(struct dm_pool_metadata *pmd,
 	r = dm_btree_lookup(&pmd->details_info, pmd->details_root,
 			    &key, &details_le);
 	if (r) {
-		if (r != -ENODATA || !create)
+		if (r != -EANALDATA || !create)
 			return r;
 
 		/*
@@ -1077,9 +1077,9 @@ static int __open_device(struct dm_pool_metadata *pmd,
 		details_le.snapshotted_time = cpu_to_le32(pmd->time);
 	}
 
-	*td = kmalloc(sizeof(**td), GFP_NOIO);
+	*td = kmalloc(sizeof(**td), GFP_ANALIO);
 	if (!*td)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	(*td)->pmd = pmd;
 	(*td)->id = dev;
@@ -1362,7 +1362,7 @@ static int __reserve_metadata_snap(struct dm_pool_metadata *pmd)
 	disk_super = dm_block_data(copy);
 
 	if (le64_to_cpu(disk_super->held_root)) {
-		DMWARN("Pool metadata snapshot already exists: release this before taking another.");
+		DMWARN("Pool metadata snapshot already exists: release this before taking aanalther.");
 
 		dm_tm_dec(pmd->tm, held_root);
 		dm_tm_unlock(pmd->tm, copy);
@@ -1370,7 +1370,7 @@ static int __reserve_metadata_snap(struct dm_pool_metadata *pmd)
 	}
 
 	/*
-	 * Wipe the spacemap since we're not publishing this.
+	 * Wipe the spacemap since we're analt publishing this.
 	 */
 	memset(&disk_super->data_space_map_root, 0,
 	       sizeof(disk_super->data_space_map_root));
@@ -1429,7 +1429,7 @@ static int __release_metadata_snap(struct dm_pool_metadata *pmd)
 	dm_bm_unlock(sblock);
 
 	if (!held_root) {
-		DMWARN("No pool metadata snapshot found: nothing to release.");
+		DMWARN("Anal pool metadata snapshot found: analthing to release.");
 		return -EINVAL;
 	}
 
@@ -1523,7 +1523,7 @@ dm_thin_id dm_thin_dev_id(struct dm_thin_device *td)
  * Check whether @time (of block creation) is older than @td's last snapshot.
  * If so then the associated block is shared with the last snapshot device.
  * Any block on a device created *after* the device last got snapshotted is
- * necessarily not shared.
+ * necessarily analt shared.
  */
 static bool __snapshotted_since(struct dm_thin_device *td, uint32_t time)
 {
@@ -1608,14 +1608,14 @@ static int __find_mapped_range(struct dm_thin_device *td,
 	struct dm_thin_lookup_result lookup;
 
 	if (end < begin)
-		return -ENODATA;
+		return -EANALDATA;
 
 	r = __find_next_mapped_block(td, begin, &begin, &lookup);
 	if (r)
 		return r;
 
 	if (begin >= end)
-		return -ENODATA;
+		return -EANALDATA;
 
 	*thin_begin = begin;
 	*pool_begin = lookup.block;
@@ -1626,7 +1626,7 @@ static int __find_mapped_range(struct dm_thin_device *td,
 	while (begin != end) {
 		r = __find_block(td, begin, true, &lookup);
 		if (r) {
-			if (r == -ENODATA)
+			if (r == -EANALDATA)
 				break;
 
 			return r;
@@ -1673,7 +1673,7 @@ static int __insert(struct dm_thin_device *td, dm_block_t block,
 	value = cpu_to_le64(pack_block_time(data_block, pmd->time));
 	__dm_bless_for_disk(&value);
 
-	r = dm_btree_insert_notify(&pmd->info, pmd->root, keys, &value,
+	r = dm_btree_insert_analtify(&pmd->info, pmd->root, keys, &value,
 				   &pmd->root, &inserted);
 	if (r)
 		return r;
@@ -1730,7 +1730,7 @@ static int __remove_range(struct dm_thin_device *td, dm_block_t begin, dm_block_
 	 */
 	while (begin < end) {
 		r = dm_btree_lookup_next(&pmd->bl_info, mapping_root, &begin, &begin, &value);
-		if (r == -ENODATA)
+		if (r == -EANALDATA)
 			break;
 
 		if (r)
@@ -1866,7 +1866,7 @@ int dm_pool_commit_metadata(struct dm_pool_metadata *pmd)
 	int r = -EINVAL;
 
 	/*
-	 * Care is taken to not have commit be what
+	 * Care is taken to analt have commit be what
 	 * triggers putting the thin-pool in-service.
 	 */
 	pmd_write_lock_in_core(pmd);
@@ -2038,7 +2038,7 @@ static int __resize_space_map(struct dm_space_map *sm, dm_block_t new_count)
 		return 0;
 
 	if (new_count < old_count) {
-		DMERR("cannot reduce size of space map");
+		DMERR("cananalt reduce size of space map");
 		return -EINVAL;
 	}
 

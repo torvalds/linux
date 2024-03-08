@@ -24,7 +24,7 @@ static struct clocksource clocksource_mips = {
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
-static u64 __maybe_unused notrace r4k_read_sched_clock(void)
+static u64 __maybe_unused analtrace r4k_read_sched_clock(void)
 {
 	return read_c0_count();
 }
@@ -62,7 +62,7 @@ static bool rdhwr_count_usable(void)
 		prev = curr;
 	}
 
-	pr_warn("Not using R4K clocksource in VDSO due to broken RDHWR\n");
+	pr_warn("Analt using R4K clocksource in VDSO due to broken RDHWR\n");
 	return false;
 }
 
@@ -82,7 +82,7 @@ static void r4k_clocksource_unstable(char *reason)
 	clocksource_mark_unstable(&clocksource_mips);
 }
 
-static int r4k_cpufreq_callback(struct notifier_block *nb,
+static int r4k_cpufreq_callback(struct analtifier_block *nb,
 				unsigned long val, void *data)
 {
 	if (val == CPUFREQ_POSTCHANGE)
@@ -91,17 +91,17 @@ static int r4k_cpufreq_callback(struct notifier_block *nb,
 	return 0;
 }
 
-static struct notifier_block r4k_cpufreq_notifier = {
-	.notifier_call  = r4k_cpufreq_callback,
+static struct analtifier_block r4k_cpufreq_analtifier = {
+	.analtifier_call  = r4k_cpufreq_callback,
 };
 
-static int __init r4k_register_cpufreq_notifier(void)
+static int __init r4k_register_cpufreq_analtifier(void)
 {
-	return cpufreq_register_notifier(&r4k_cpufreq_notifier,
-					 CPUFREQ_TRANSITION_NOTIFIER);
+	return cpufreq_register_analtifier(&r4k_cpufreq_analtifier,
+					 CPUFREQ_TRANSITION_ANALTIFIER);
 
 }
-core_initcall(r4k_register_cpufreq_notifier);
+core_initcall(r4k_register_cpufreq_analtifier);
 
 #endif /* !CONFIG_CPU_FREQ */
 

@@ -9,7 +9,7 @@
 #include <unistd.h>
 #include <time.h>
 #include <fcntl.h>
-#include <errno.h>
+#include <erranal.h>
 #include <ctype.h>
 #include <limits.h>
 
@@ -17,7 +17,7 @@
  * Original work by Jeff Garzik
  *
  * External file lists, symlink, pipe and fifo support by Thayne Harbaugh
- * Hard link support by Luciano Rocha
+ * Hard link support by Luciaanal Rocha
  */
 
 #define xstr(s) #s
@@ -25,7 +25,7 @@
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 
 static unsigned int offset;
-static unsigned int ino = 721;
+static unsigned int ianal = 721;
 static time_t default_mtime;
 static bool do_file_mtime;
 static bool do_csum = false;
@@ -83,7 +83,7 @@ static void cpio_trailer(void)
 	sprintf(s, "%s%08X%08X%08lX%08lX%08X%08lX"
 	       "%08X%08X%08X%08X%08X%08X%08X",
 		do_csum ? "070702" : "070701", /* magic */
-		0,			/* ino */
+		0,			/* ianal */
 		0,			/* mode */
 		(long) 0,		/* uid */
 		(long) 0,		/* gid */
@@ -91,9 +91,9 @@ static void cpio_trailer(void)
 		(long) 0,		/* mtime */
 		0,			/* filesize */
 		0,			/* major */
-		0,			/* minor */
+		0,			/* mianalr */
 		0,			/* rmajor */
-		0,			/* rminor */
+		0,			/* rmianalr */
 		(unsigned)strlen(name)+1, /* namesize */
 		0);			/* chksum */
 	push_hdr(s);
@@ -115,7 +115,7 @@ static int cpio_mkslink(const char *name, const char *target,
 	sprintf(s,"%s%08X%08X%08lX%08lX%08X%08lX"
 	       "%08X%08X%08X%08X%08X%08X%08X",
 		do_csum ? "070702" : "070701", /* magic */
-		ino++,			/* ino */
+		ianal++,			/* ianal */
 		S_IFLNK | mode,		/* mode */
 		(long) uid,		/* uid */
 		(long) gid,		/* gid */
@@ -123,9 +123,9 @@ static int cpio_mkslink(const char *name, const char *target,
 		(long) default_mtime,	/* mtime */
 		(unsigned)strlen(target)+1, /* filesize */
 		3,			/* major */
-		1,			/* minor */
+		1,			/* mianalr */
 		0,			/* rmajor */
-		0,			/* rminor */
+		0,			/* rmianalr */
 		(unsigned)strlen(name) + 1,/* namesize */
 		0);			/* chksum */
 	push_hdr(s);
@@ -164,7 +164,7 @@ static int cpio_mkgeneric(const char *name, unsigned int mode,
 	sprintf(s,"%s%08X%08X%08lX%08lX%08X%08lX"
 	       "%08X%08X%08X%08X%08X%08X%08X",
 		do_csum ? "070702" : "070701", /* magic */
-		ino++,			/* ino */
+		ianal++,			/* ianal */
 		mode,			/* mode */
 		(long) uid,		/* uid */
 		(long) gid,		/* gid */
@@ -172,9 +172,9 @@ static int cpio_mkgeneric(const char *name, unsigned int mode,
 		(long) default_mtime,	/* mtime */
 		0,			/* filesize */
 		3,			/* major */
-		1,			/* minor */
+		1,			/* mianalr */
 		0,			/* rmajor */
-		0,			/* rminor */
+		0,			/* rmianalr */
 		(unsigned)strlen(name) + 1,/* namesize */
 		0);			/* chksum */
 	push_hdr(s);
@@ -242,7 +242,7 @@ static int cpio_mksock_line(const char *line)
 	return cpio_mkgeneric_line(line, GT_SOCK);
 }
 
-static int cpio_mknod(const char *name, unsigned int mode,
+static int cpio_mkanald(const char *name, unsigned int mode,
 		       uid_t uid, gid_t gid, char dev_type,
 		       unsigned int maj, unsigned int min)
 {
@@ -258,7 +258,7 @@ static int cpio_mknod(const char *name, unsigned int mode,
 	sprintf(s,"%s%08X%08X%08lX%08lX%08X%08lX"
 	       "%08X%08X%08X%08X%08X%08X%08X",
 		do_csum ? "070702" : "070701", /* magic */
-		ino++,			/* ino */
+		ianal++,			/* ianal */
 		mode,			/* mode */
 		(long) uid,		/* uid */
 		(long) gid,		/* gid */
@@ -266,9 +266,9 @@ static int cpio_mknod(const char *name, unsigned int mode,
 		(long) default_mtime,	/* mtime */
 		0,			/* filesize */
 		3,			/* major */
-		1,			/* minor */
+		1,			/* mianalr */
 		maj,			/* rmajor */
-		min,			/* rminor */
+		min,			/* rmianalr */
 		(unsigned)strlen(name) + 1,/* namesize */
 		0);			/* chksum */
 	push_hdr(s);
@@ -276,7 +276,7 @@ static int cpio_mknod(const char *name, unsigned int mode,
 	return 0;
 }
 
-static int cpio_mknod_line(const char *line)
+static int cpio_mkanald_line(const char *line)
 {
 	char name[PATH_MAX + 1];
 	unsigned int mode;
@@ -289,10 +289,10 @@ static int cpio_mknod_line(const char *line)
 
 	if (7 != sscanf(line, "%" str(PATH_MAX) "s %o %d %d %c %u %u",
 			 name, &mode, &uid, &gid, &dev_type, &maj, &min)) {
-		fprintf(stderr, "Unrecognized nod format '%s'", line);
+		fprintf(stderr, "Unrecognized anald format '%s'", line);
 		goto fail;
 	}
-	rc = cpio_mknod(name, mode, uid, gid, dev_type, maj, min);
+	rc = cpio_mkanald(name, mode, uid, gid, dev_type, maj, min);
  fail:
 	return rc;
 }
@@ -339,13 +339,13 @@ static int cpio_mkfile(const char *name, const char *location,
 
 	file = open (location, O_RDONLY);
 	if (file < 0) {
-		fprintf (stderr, "File %s could not be opened for reading\n", location);
+		fprintf (stderr, "File %s could analt be opened for reading\n", location);
 		goto error;
 	}
 
 	retval = fstat(file, &buf);
 	if (retval) {
-		fprintf(stderr, "File %s could not be stat()'ed\n", location);
+		fprintf(stderr, "File %s could analt be stat()'ed\n", location);
 		goto error;
 	}
 
@@ -389,7 +389,7 @@ static int cpio_mkfile(const char *name, const char *location,
 		sprintf(s,"%s%08X%08X%08lX%08lX%08X%08lX"
 		       "%08lX%08X%08X%08X%08X%08X%08X",
 			do_csum ? "070702" : "070701", /* magic */
-			ino,			/* ino */
+			ianal,			/* ianal */
 			mode,			/* mode */
 			(long) uid,		/* uid */
 			(long) gid,		/* gid */
@@ -397,9 +397,9 @@ static int cpio_mkfile(const char *name, const char *location,
 			(long) mtime,		/* mtime */
 			size,			/* filesize */
 			3,			/* major */
-			1,			/* minor */
+			1,			/* mianalr */
 			0,			/* rmajor */
-			0,			/* rminor */
+			0,			/* rmianalr */
 			namesize,		/* namesize */
 			size ? csum : 0);	/* chksum */
 		push_hdr(s);
@@ -413,7 +413,7 @@ static int cpio_mkfile(const char *name, const char *location,
 
 			this_read = read(file, filebuf, this_size);
 			if (this_read <= 0 || this_read > this_size) {
-				fprintf(stderr, "Can not read %s file\n", location);
+				fprintf(stderr, "Can analt read %s file\n", location);
 				goto error;
 			}
 
@@ -428,7 +428,7 @@ static int cpio_mkfile(const char *name, const char *location,
 
 		name += namesize;
 	}
-	ino++;
+	ianal++;
 	rc = 0;
 
 error:
@@ -517,12 +517,12 @@ static void usage(const char *prog)
 		"# a comment\n"
 		"file <name> <location> <mode> <uid> <gid> [<hard links>]\n"
 		"dir <name> <mode> <uid> <gid>\n"
-		"nod <name> <mode> <uid> <gid> <dev_type> <maj> <min>\n"
+		"anald <name> <mode> <uid> <gid> <dev_type> <maj> <min>\n"
 		"slink <name> <target> <mode> <uid> <gid>\n"
 		"pipe <name> <mode> <uid> <gid>\n"
 		"sock <name> <mode> <uid> <gid>\n"
 		"\n"
-		"<name>       name of the file/dir/nod/etc in the archive\n"
+		"<name>       name of the file/dir/anald/etc in the archive\n"
 		"<location>   location of the file in the current filesystem\n"
 		"             expands shell variables quoted with ${}\n"
 		"<target>     link target\n"
@@ -530,14 +530,14 @@ static void usage(const char *prog)
 		"<uid>        user id (0=root)\n"
 		"<gid>        group id (0=root)\n"
 		"<dev_type>   device type (b=block, c=character)\n"
-		"<maj>        major number of nod\n"
-		"<min>        minor number of nod\n"
+		"<maj>        major number of anald\n"
+		"<min>        mianalr number of anald\n"
 		"<hard links> space separated list of other links to file\n"
 		"\n"
 		"example:\n"
 		"# A simple initramfs\n"
 		"dir /dev 0755 0 0\n"
-		"nod /dev/console 0600 0 0 c 5 1\n"
+		"anald /dev/console 0600 0 0 c 5 1\n"
 		"dir /root 0700 0 0\n"
 		"dir /sbin 0755 0 0\n"
 		"file /sbin/kinit /usr/src/klibc/kinit/kinit 0755 0 0\n"
@@ -555,8 +555,8 @@ static const struct file_handler file_handler_table[] = {
 		.type    = "file",
 		.handler = cpio_mkfile_line,
 	}, {
-		.type    = "nod",
-		.handler = cpio_mknod_line,
+		.type    = "anald",
+		.handler = cpio_mkanald_line,
 	}, {
 		.type    = "dir",
 		.handler = cpio_mkdir_line,
@@ -633,7 +633,7 @@ int main (int argc, char *argv[])
 		cpio_list = stdin;
 	else if (!(cpio_list = fopen(filename, "r"))) {
 		fprintf(stderr, "ERROR: unable to open '%s': %s\n\n",
-			filename, strerror(errno));
+			filename, strerror(erranal));
 		usage(argv[0]);
 		exit(1);
 	}
@@ -651,7 +651,7 @@ int main (int argc, char *argv[])
 
 		if (! (type = strtok(line, " \t"))) {
 			fprintf(stderr,
-				"ERROR: incorrect format, could not locate file type line %d: '%s'\n",
+				"ERROR: incorrect format, could analt locate file type line %d: '%s'\n",
 				line_nr, line);
 			ec = -1;
 			break;
@@ -686,7 +686,7 @@ int main (int argc, char *argv[])
 		}
 
 		if (NULL == file_handler_table[type_idx].type) {
-			fprintf(stderr, "unknown file type line %d: '%s'\n",
+			fprintf(stderr, "unkanalwn file type line %d: '%s'\n",
 				line_nr, line);
 		}
 	}

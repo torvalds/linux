@@ -12,7 +12,7 @@
 
 #include <asm/percpu.h>
 
-/* enough to cover all DEFINE_PER_CPUs in modules */
+/* eanalugh to cover all DEFINE_PER_CPUs in modules */
 #ifdef CONFIG_MODULES
 #define PERCPU_MODULE_RESERVE		(8 << 10)
 #else
@@ -100,7 +100,7 @@ extern const char * const pcpu_fc_names[PCPU_FC_NR];
 
 extern enum pcpu_fc pcpu_chosen_fc;
 
-typedef int (pcpu_fc_cpu_to_node_fn_t)(int cpu);
+typedef int (pcpu_fc_cpu_to_analde_fn_t)(int cpu);
 typedef int (pcpu_fc_cpu_distance_fn_t)(unsigned int from, unsigned int to);
 
 extern struct pcpu_alloc_info * __init pcpu_alloc_alloc_info(int nr_groups,
@@ -113,12 +113,12 @@ extern void __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 extern int __init pcpu_embed_first_chunk(size_t reserved_size, size_t dyn_size,
 				size_t atom_size,
 				pcpu_fc_cpu_distance_fn_t cpu_distance_fn,
-				pcpu_fc_cpu_to_node_fn_t cpu_to_nd_fn);
+				pcpu_fc_cpu_to_analde_fn_t cpu_to_nd_fn);
 
 #ifdef CONFIG_NEED_PER_CPU_PAGE_FIRST_CHUNK
 void __init pcpu_populate_pte(unsigned long addr);
 extern int __init pcpu_page_first_chunk(size_t reserved_size,
-				pcpu_fc_cpu_to_node_fn_t cpu_to_nd_fn);
+				pcpu_fc_cpu_to_analde_fn_t cpu_to_nd_fn);
 #endif
 
 extern void __percpu *__alloc_reserved_percpu(size_t size, size_t align) __alloc_size(1);
@@ -140,10 +140,10 @@ extern phys_addr_t per_cpu_ptr_to_phys(void *addr);
 
 #define alloc_percpu_gfp(type, gfp)					\
 	(typeof(type) __percpu *)__alloc_percpu_gfp(sizeof(type),	\
-						__alignof__(type), gfp)
+						__aliganalf__(type), gfp)
 #define alloc_percpu(type)						\
 	(typeof(type) __percpu *)__alloc_percpu(sizeof(type),		\
-						__alignof__(type))
+						__aliganalf__(type))
 
 extern unsigned long pcpu_nr_pages(void);
 

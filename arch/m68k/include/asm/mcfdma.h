@@ -16,7 +16,7 @@
 
 /*
  *	Define the DMA register set addresses.
- *      Note: these are longword registers, use unsigned long as data type
+ *      Analte: these are longword registers, use unsigned long as data type
  */
 #define	MCFDMA_SAR		0x00		/* DMA source address (r/w) */
 #define	MCFDMA_DAR		0x01		/* DMA destination adr (r/w) */

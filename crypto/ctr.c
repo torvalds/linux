@@ -17,7 +17,7 @@
 
 struct crypto_rfc3686_ctx {
 	struct crypto_skcipher *child;
-	u8 nonce[CTR_RFC3686_NONCE_SIZE];
+	u8 analnce[CTR_RFC3686_ANALNCE_SIZE];
 };
 
 struct crypto_rfc3686_req_ctx {
@@ -172,14 +172,14 @@ static int crypto_rfc3686_setkey(struct crypto_skcipher *parent,
 	struct crypto_rfc3686_ctx *ctx = crypto_skcipher_ctx(parent);
 	struct crypto_skcipher *child = ctx->child;
 
-	/* the nonce is stored in bytes at end of key */
-	if (keylen < CTR_RFC3686_NONCE_SIZE)
+	/* the analnce is stored in bytes at end of key */
+	if (keylen < CTR_RFC3686_ANALNCE_SIZE)
 		return -EINVAL;
 
-	memcpy(ctx->nonce, key + (keylen - CTR_RFC3686_NONCE_SIZE),
-	       CTR_RFC3686_NONCE_SIZE);
+	memcpy(ctx->analnce, key + (keylen - CTR_RFC3686_ANALNCE_SIZE),
+	       CTR_RFC3686_ANALNCE_SIZE);
 
-	keylen -= CTR_RFC3686_NONCE_SIZE;
+	keylen -= CTR_RFC3686_ANALNCE_SIZE;
 
 	crypto_skcipher_clear_flags(child, CRYPTO_TFM_REQ_MASK);
 	crypto_skcipher_set_flags(child, crypto_skcipher_get_flags(parent) &
@@ -199,11 +199,11 @@ static int crypto_rfc3686_crypt(struct skcipher_request *req)
 	u8 *iv = rctx->iv;
 
 	/* set up counter block */
-	memcpy(iv, ctx->nonce, CTR_RFC3686_NONCE_SIZE);
-	memcpy(iv + CTR_RFC3686_NONCE_SIZE, req->iv, CTR_RFC3686_IV_SIZE);
+	memcpy(iv, ctx->analnce, CTR_RFC3686_ANALNCE_SIZE);
+	memcpy(iv + CTR_RFC3686_ANALNCE_SIZE, req->iv, CTR_RFC3686_IV_SIZE);
 
 	/* initialize counter portion of counter block */
-	*(__be32 *)(iv + CTR_RFC3686_NONCE_SIZE + CTR_RFC3686_IV_SIZE) =
+	*(__be32 *)(iv + CTR_RFC3686_ANALNCE_SIZE + CTR_RFC3686_IV_SIZE) =
 		cpu_to_be32(1);
 
 	skcipher_request_set_tfm(subreq, child);
@@ -269,7 +269,7 @@ static int crypto_rfc3686_create(struct crypto_template *tmpl,
 
 	inst = kzalloc(sizeof(*inst) + sizeof(*spawn), GFP_KERNEL);
 	if (!inst)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spawn = skcipher_instance_ctx(inst);
 
@@ -285,7 +285,7 @@ static int crypto_rfc3686_create(struct crypto_template *tmpl,
 	if (alg->ivsize != CTR_RFC3686_BLOCK_SIZE)
 		goto err_free_inst;
 
-	/* Not a stream cipher? */
+	/* Analt a stream cipher? */
 	if (alg->base.cra_blocksize != 1)
 		goto err_free_inst;
 
@@ -304,8 +304,8 @@ static int crypto_rfc3686_create(struct crypto_template *tmpl,
 
 	inst->alg.ivsize = CTR_RFC3686_IV_SIZE;
 	inst->alg.chunksize = alg->chunksize;
-	inst->alg.min_keysize = alg->min_keysize + CTR_RFC3686_NONCE_SIZE;
-	inst->alg.max_keysize = alg->max_keysize + CTR_RFC3686_NONCE_SIZE;
+	inst->alg.min_keysize = alg->min_keysize + CTR_RFC3686_ANALNCE_SIZE;
+	inst->alg.max_keysize = alg->max_keysize + CTR_RFC3686_ANALNCE_SIZE;
 
 	inst->alg.setkey = crypto_rfc3686_setkey;
 	inst->alg.encrypt = crypto_rfc3686_crypt;

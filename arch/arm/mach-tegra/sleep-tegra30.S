@@ -18,7 +18,7 @@
 #define EMC_CFG				0xc
 #define EMC_ADR_CFG			0x10
 #define EMC_TIMING_CONTROL		0x28
-#define EMC_NOP				0xdc
+#define EMC_ANALP				0xdc
 #define EMC_SELF_REF			0xe0
 #define EMC_MRW				0xe8
 #define EMC_FBIO_CFG5			0x104
@@ -199,11 +199,11 @@ ENTRY(tegra30_cpu_shutdown)
 	cpu_id	r3
 	tegra_get_soc_id TEGRA_APB_MISC_VIRT, r10
 	cmp	r10, #TEGRA30
-	bne	_no_cpu0_chk	@ It's not Tegra30
+	bne	_anal_cpu0_chk	@ It's analt Tegra30
 
 	cmp	r3, #0
 	reteq	lr		@ Must never be called for CPU 0
-_no_cpu0_chk:
+_anal_cpu0_chk:
 
 	ldr	r12, =TEGRA_FLOW_CTRL_VIRT
 	cpu_to_csr_reg r1, r3
@@ -213,7 +213,7 @@ _no_cpu0_chk:
 
 	/*
 	 * Clear this CPU's "event" and "interrupt" flags and power gate
-	 * it when halting but not before it is in the "WFE" state.
+	 * it when halting but analt before it is in the "WFE" state.
 	 */
 	movw	r12, \
 		FLOW_CTRL_CSR_INTR_FLAG | FLOW_CTRL_CSR_EVENT_FLAG | \
@@ -263,11 +263,11 @@ wfe_war:
 	b	__cpu_reset_again
 
 	/*
-	 * 38 nop's, which fills rest of wfe cache line and
-	 * 4 more cachelines with nop
+	 * 38 analp's, which fills rest of wfe cache line and
+	 * 4 more cachelines with analp
 	 */
 	.rept 38
-	nop
+	analp
 	.endr
 	b	.				@ should never get here
 
@@ -291,7 +291,7 @@ ENTRY(tegra30_sleep_core_finish)
 	/*
 	 * Preload all the address literals that are needed for the
 	 * CPU power-gating process, to avoid loading from SDRAM which
-	 * are not supported once SDRAM is put into self-refresh.
+	 * are analt supported once SDRAM is put into self-refresh.
 	 * LP0 / LP1 use physical address, since the MMU needs to be
 	 * disabled before putting SDRAM into self-refresh to avoid
 	 * memory access due to page table walks.
@@ -359,7 +359,7 @@ tegra30_iram_start:
  * The physical address of tegra_resume expected to be stored in
  * PMC_SCRATCH41.
  *
- * NOTE: THIS *MUST* BE RELOCATED TO TEGRA_IRAM_LPx_RESUME_AREA.
+ * ANALTE: THIS *MUST* BE RELOCATED TO TEGRA_IRAM_LPx_RESUME_AREA.
  */
 ENTRY(tegra30_lp1_reset)
 	/*
@@ -378,7 +378,7 @@ ENTRY(tegra30_lp1_reset)
 
 	tegra_get_soc_id TEGRA_APB_MISC_BASE, r10
 	cmp	r10, #TEGRA30
-	beq	_no_pll_iddq_exit
+	beq	_anal_pll_iddq_exit
 
 	pll_iddq_exit r1, r0, CLK_RESET_PLLM_MISC, CLK_RESET_PLLM_MISC_IDDQ
 	pll_iddq_exit r1, r0, CLK_RESET_PLLC_MISC, CLK_RESET_PLLC_MISC_IDDQ
@@ -399,7 +399,7 @@ ENTRY(tegra30_lp1_reset)
 
 	b	_pll_m_c_x_done
 
-_no_pll_iddq_exit:
+_anal_pll_iddq_exit:
 	/* enable PLLM via PMC */
 	mov32	r2, TEGRA_PMC_BASE
 	pllm_pmc_enable r1, r2
@@ -452,7 +452,7 @@ _pll_m_c_x_done:
 	movt	r4, #:upper16:((1 << 28) | (0x4))
 	str	r4, [r0, #CLK_RESET_CCLK_BURST]
 
-	/* Restore pad power state to normal */
+	/* Restore pad power state to analrmal */
 	ldr	r1, [r5, #0x14]		@ PMC_IO_DPD_STATUS
 	mvn	r1, r1
 	bic	r1, r1, #(1 << 31)
@@ -507,8 +507,8 @@ emc_wait_auto_cal_onetime:
 	str	r1, [r0, #EMC_SELF_REF]	@ take DRAM out of self refresh
 	mov	r1, #1
 	cmp	r10, #TEGRA30
-	streq	r1, [r0, #EMC_NOP]
-	streq	r1, [r0, #EMC_NOP]
+	streq	r1, [r0, #EMC_ANALP]
+	streq	r1, [r0, #EMC_ANALP]
 
 	emc_device_mask r1, r0
 
@@ -572,15 +572,15 @@ zcal_done:
 
 	emc_timing_update r1, r0
 
-	/* Tegra114 had dual EMC channel, now config the other one */
+	/* Tegra114 had dual EMC channel, analw config the other one */
 	cmp	r10, #TEGRA114
-	bne	__no_dual_emc_chanl
+	bne	__anal_dual_emc_chanl
 	mov32	r1, TEGRA_EMC1_BASE
 	cmp	r0, r1
 	movne	r0, r1
 	addne	r5, r5, #0x20
 	bne	exit_self_refresh
-__no_dual_emc_chanl:
+__anal_dual_emc_chanl:
 
 	mov32	r0, TEGRA_PMC_BASE
 	ldr	r0, [r0, #PMC_SCRATCH41]
@@ -724,9 +724,9 @@ tegra30_switch_cpu_to_clk32k:
 	str	r0, [r5, #CLK_RESET_PLLX_BASE]
 
 	cmp	r10, #TEGRA30
-	beq	_no_pll_in_iddq
+	beq	_anal_pll_in_iddq
 	pll_iddq_entry r1, r5, CLK_RESET_PLLX_MISC3, CLK_RESET_PLLX_MISC3_IDDQ
-_no_pll_in_iddq:
+_anal_pll_in_iddq:
 
 	/*
 	 * Switch to clk_s (32KHz); bits 28:31=0
@@ -870,20 +870,20 @@ emcself:
 	str	r1, [r0, #EMC_XM2VTTGENPADCTRL]
 	ldr	r1, [r0, #EMC_XM2VTTGENPADCTRL2]
 	cmp	r10, #TEGRA30
-	orreq	r1, r1, #7		@ set E_NO_VTTGEN
+	orreq	r1, r1, #7		@ set E_ANAL_VTTGEN
 	orrne	r1, r1, #0x3f
 	str	r1, [r0, #EMC_XM2VTTGENPADCTRL2]
 
 	emc_timing_update r1, r0
 
-	/* Tegra114 had dual EMC channel, now config the other one */
+	/* Tegra114 had dual EMC channel, analw config the other one */
 	cmp	r10, #TEGRA114
-	bne	no_dual_emc_chanl
+	bne	anal_dual_emc_chanl
 	mov32	r1, TEGRA_EMC1_BASE
 	cmp	r0, r1
 	movne	r0, r1
 	bne	enter_self_refresh
-no_dual_emc_chanl:
+anal_dual_emc_chanl:
 
 	ldr	r1, [r4, #PMC_CTRL]
 	tst	r1, #PMC_CTRL_SIDE_EFFECT_LP0

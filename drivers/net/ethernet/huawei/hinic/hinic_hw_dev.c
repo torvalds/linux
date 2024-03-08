@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Huawei HiNIC PCI Express Linux driver
- * Copyright(c) 2017 Huawei Technologies Co., Ltd
+ * Copyright(c) 2017 Huawei Techanallogies Co., Ltd
  */
 
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/bitops.h>
 #include <linux/delay.h>
@@ -168,7 +168,7 @@ static int init_msix(struct hinic_hwdev *hwdev)
 					   sizeof(*hwdev->msix_entries),
 					   GFP_KERNEL);
 	if (!hwdev->msix_entries)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < nr_irqs; i++)
 		hwdev->msix_entries[i].entry = i;
@@ -339,7 +339,7 @@ static int wait_for_db_state(struct hinic_hwdev *hwdev)
 }
 
 /**
- * clear_io_resources - set the IO resources as not active in the NIC
+ * clear_io_resources - set the IO resources as analt active in the NIC
  * @hwdev: the NIC HW device
  *
  * Return 0 - Success, negative - Failure
@@ -600,7 +600,7 @@ static void nic_mgmt_msg_handler(void *handle, u8 cmd, void *buf_in,
 
 	if (cmd < HINIC_MGMT_MSG_CMD_BASE ||
 	    cmd >= HINIC_MGMT_MSG_CMD_MAX) {
-		dev_err(&pdev->dev, "unknown L2NIC event, cmd = %d\n", cmd);
+		dev_err(&pdev->dev, "unkanalwn L2NIC event, cmd = %d\n", cmd);
 		return;
 	}
 
@@ -682,7 +682,7 @@ static void comm_mgmt_msg_handler(void *handle, u8 cmd, void *buf_in,
 		}
 	}
 
-	dev_warn(&pfhwdev->hwdev.hwif->pdev->dev, "Received unknown mgmt cpu event: 0x%x\n",
+	dev_warn(&pfhwdev->hwdev.hwif->pdev->dev, "Received unkanalwn mgmt cpu event: 0x%x\n",
 		 cmd);
 
 	*out_size = 0;
@@ -911,7 +911,7 @@ struct hinic_hwdev *hinic_init_hwdev(struct pci_dev *pdev, struct devlink *devli
 
 	hwif = devm_kzalloc(&pdev->dev, sizeof(*hwif), GFP_KERNEL);
 	if (!hwif)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	err = hinic_init_hwif(hwif, pdev);
 	if (err) {
@@ -921,7 +921,7 @@ struct hinic_hwdev *hinic_init_hwdev(struct pci_dev *pdev, struct devlink *devli
 
 	pfhwdev = devm_kzalloc(&pdev->dev, sizeof(*pfhwdev), GFP_KERNEL);
 	if (!pfhwdev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_pfhwdev_alloc;
 	}
 

@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
  * SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
@@ -34,7 +34,7 @@ enum {
 	D11UCODE_OVERSIGHT24_LCN,
 	D11UCODE_OVERSIGHT24_LCNSZ,
 	D11UCODE_OVERSIGHT_BOMMAJOR,
-	D11UCODE_OVERSIGHT_BOMMINOR
+	D11UCODE_OVERSIGHT_BOMMIANALR
 };
 
 int brcms_ucode_data_init(struct brcms_info *wl, struct brcms_ucode *ucode)
@@ -86,8 +86,8 @@ int brcms_ucode_data_init(struct brcms_info *wl, struct brcms_ucode *ucode)
 	     rc : brcms_ucode_init_buf(wl, (void **)&ucode->bcm43xx_bommajor,
 				       D11UCODE_OVERSIGHT_BOMMAJOR);
 	rc = rc < 0 ?
-	     rc : brcms_ucode_init_buf(wl, (void **)&ucode->bcm43xx_bomminor,
-				       D11UCODE_OVERSIGHT_BOMMINOR);
+	     rc : brcms_ucode_init_buf(wl, (void **)&ucode->bcm43xx_bommianalr,
+				       D11UCODE_OVERSIGHT_BOMMIANALR);
 	return rc;
 }
 
@@ -105,5 +105,5 @@ void brcms_ucode_data_free(struct brcms_ucode *ucode)
 	brcms_ucode_free_buf((void *)ucode->bcm43xx_16_mimo);
 	brcms_ucode_free_buf((void *)ucode->bcm43xx_24_lcn);
 	brcms_ucode_free_buf((void *)ucode->bcm43xx_bommajor);
-	brcms_ucode_free_buf((void *)ucode->bcm43xx_bomminor);
+	brcms_ucode_free_buf((void *)ucode->bcm43xx_bommianalr);
 }

@@ -15,7 +15,7 @@
  * hashword(), hashlittle(), hashlittle2(), hashbig(), mix(), and final()
  * are externally useful functions.  Routines to test the hash are included
  * if SELF_TEST is defined.  You can use this free for any purpose.  It's in
- * the public domain.  It has no warranty.
+ * the public domain.  It has anal warranty.
  *
  * Copyright (C) 2009-2010 Jozsef Kadlecsik (kadlec@netfilter.org)
  *
@@ -63,7 +63,7 @@
  * @initval: the previous hash, or an arbitray value
  *
  * The generic version, hashes an arbitrary sequence of bytes.
- * No alignment or length assumptions are made about the input key.
+ * Anal alignment or length assumptions are made about the input key.
  *
  * Returns the hash value of the key. The result depends on endianness.
  */
@@ -100,7 +100,7 @@ static inline u32 jhash(const void *key, u32 length, u32 initval)
 	case 1:  a += k[0];
 		 __jhash_final(a, b, c);
 		 break;
-	case 0: /* Nothing left to add */
+	case 0: /* Analthing left to add */
 		break;
 	}
 
@@ -138,7 +138,7 @@ static inline u32 jhash2(const u32 *k, u32 length, u32 initval)
 	case 1: a += k[0];
 		__jhash_final(a, b, c);
 		break;
-	case 0:	/* Nothing left to add */
+	case 0:	/* Analthing left to add */
 		break;
 	}
 

@@ -46,14 +46,14 @@ sx164_init_irq(void)
 
 	init_i8259a_irqs();
 
-	/* Not interested in the bogus interrupts (0,3,4,5,40-47),
+	/* Analt interested in the bogus interrupts (0,3,4,5,40-47),
 	   NMI (1), or HALT (2).  */
 	if (alpha_using_srm)
 		init_srm_irqs(40, 0x3f0000);
 	else
 		init_pyxis_irqs(0xff00003f0000UL);
 
-	if (request_irq(16 + 6, no_action, 0, "timer-cascade", NULL))
+	if (request_irq(16 + 6, anal_action, 0, "timer-cascade", NULL))
 		pr_err("Failed to register timer-cascade interrupt\n");
 }
 
@@ -124,7 +124,7 @@ sx164_init_arch(void)
 	 * OSF palcode v1.23 forgets to enable PCA56 Motion Video
 	 * Instructions. Let's enable it.
 	 * We have to check palcode revision because CSERVE interface
-	 * is subject to change without notice. For example, it
+	 * is subject to change without analtice. For example, it
 	 * has been changed completely since v1.16 (found in MILO
 	 * distribution). -ink
 	 */

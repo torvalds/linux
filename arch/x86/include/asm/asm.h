@@ -141,13 +141,13 @@
 	.popsection
 
 # ifdef CONFIG_KPROBES
-#  define _ASM_NOKPROBE(entry)					\
+#  define _ASM_ANALKPROBE(entry)					\
 	.pushsection "_kprobe_blacklist","aw" ;			\
 	_ASM_ALIGN ;						\
 	_ASM_PTR (entry);					\
 	.popsection
 # else
-#  define _ASM_NOKPROBE(entry)
+#  define _ASM_ANALKPROBE(entry)
 # endif
 
 #else /* ! __ASSEMBLY__ */
@@ -197,7 +197,7 @@
 	UNDEFINE_EXTABLE_TYPE_REG						\
 	" .popsection\n"
 
-/* For C file, we already have NOKPROBE_SYMBOL macro */
+/* For C file, we already have ANALKPROBE_SYMBOL macro */
 
 /*
  * This output constraint should be used for any inline asm which has a "call"

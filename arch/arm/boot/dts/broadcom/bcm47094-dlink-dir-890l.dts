@@ -5,7 +5,7 @@
  * this router has the same looks and form factor as D-Link DIR-885L.
  *
  * Some differences from DIR-885L include a separate USB2 port, separate LEDs
- * for USB2 and USB3, a separate VCC supply for the USB2 slot and no
+ * for USB2 and USB3, a separate VCC supply for the USB2 slot and anal
  * router/extender switch is mounted (there is an empty mount point on the
  * PCB) so this device is a pure router. Also the LAN ports are in the right
  * order.
@@ -107,7 +107,7 @@
 	/*
 	 * The flash memory is memory mapped at 0x1e000000-0x1fffffff
 	 * 64KB blocks; total size 2MB, same that can be
-	 * found attached to the spi_nor SPI controller.
+	 * found attached to the spi_analr SPI controller.
 	 */
 	nvram@1e1f0000 {
 		compatible = "brcm,nvram";
@@ -120,7 +120,7 @@
 
 &gmac2 {
 	/*
-	 * The NVRAM curiously does not contain a MAC address
+	 * The NVRAM curiously does analt contain a MAC address
 	 * for et2 so since that is the only ethernet interface
 	 * actually in use on the platform, we use this et0 MAC
 	 * address for et2.
@@ -129,7 +129,7 @@
 	nvmem-cell-names = "mac-address";
 };
 
-&spi_nor {
+&spi_analr {
 	status = "okay";
 };
 
@@ -145,7 +145,7 @@
 		 * "upgrade" and "rootfs" (probably using OpenWrt
 		 * splitpart). We call it "firmware" like standard tools
 		 * assume. The CFE loader contains incorrect information
-		 * about TRX partitions, ignore this, there are no TRX
+		 * about TRX partitions, iganalre this, there are anal TRX
 		 * partitions: this device uses SEAMA.
 		 */
 		firmware@0 {

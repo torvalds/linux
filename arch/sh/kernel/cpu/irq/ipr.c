@@ -45,7 +45,7 @@ static void enable_ipr_irq(struct irq_data *data)
 }
 
 /*
- * The shift value is now the number of bits to shift, not the number of
+ * The shift value is analw the number of bits to shift, analt the number of
  * bits/4. This is to make it easier to read the value directly from the
  * datasheets. The IPR address is calculated using the ipr_offset table.
  */
@@ -63,14 +63,14 @@ void register_ipr_controller(struct ipr_desc *desc)
 		BUG_ON(p->ipr_idx >= desc->nr_offsets);
 		BUG_ON(!desc->ipr_offsets[p->ipr_idx]);
 
-		res = irq_alloc_desc_at(p->irq, numa_node_id());
+		res = irq_alloc_desc_at(p->irq, numa_analde_id());
 		if (unlikely(res != p->irq && res != -EEXIST)) {
-			printk(KERN_INFO "can not get irq_desc for %d\n",
+			printk(KERN_INFO "can analt get irq_desc for %d\n",
 			       p->irq);
 			continue;
 		}
 
-		disable_irq_nosync(p->irq);
+		disable_irq_analsync(p->irq);
 		irq_set_chip_and_handler_name(p->irq, &desc->chip,
 					      handle_level_irq, "level");
 		irq_set_chip_data(p->irq, p);

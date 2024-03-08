@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -52,7 +52,7 @@
  * very rarely occurs.  An application encountering this "back-pressure" is
  * considered a bug.
  *
- * This is implemented by having each node maintain bitmaps which indicate
+ * This is implemented by having each analde maintain bitmaps which indicate
  * which ports on bound addresses are congested.  As the bitmap changes it is
  * sent through all the connections which terminate in the local address of the
  * bitmap which changed.
@@ -63,14 +63,14 @@
  * reasonably efficiently.  This is much easier to implement than some
  * finer-grained communication of per-port congestion.  The sender does a very
  * inexpensive bit test to test if the port it's about to send to is congested
- * or not.
+ * or analt.
  */
 
 /*
  * Interaction with poll is a tad tricky. We want all processes stuck in
  * poll to wake up and check whether a congested destination became uncongested.
- * The really sad thing is we have no idea which destinations the application
- * wants to send to - we don't even know which rds_connections are involved.
+ * The really sad thing is we have anal idea which destinations the application
+ * wants to send to - we don't even kanalw which rds_connections are involved.
  * So until we implement a more flexible rds poll interface, we have to make
  * do with this:
  * We maintain a global counter that is incremented each time a congestion map
@@ -87,7 +87,7 @@ static LIST_HEAD(rds_cong_monitor);
 static DEFINE_RWLOCK(rds_cong_monitor_lock);
 
 /*
- * Yes, a global lock.  It's used so infrequently that it's worth keeping it
+ * Anal, a global lock.  It's used so infrequently that it's worth keeping it
  * global to simplify the locking.  It's only used in the following
  * circumstances:
  *
@@ -104,15 +104,15 @@ static struct rb_root rds_cong_tree = RB_ROOT;
 static struct rds_cong_map *rds_cong_tree_walk(const struct in6_addr *addr,
 					       struct rds_cong_map *insert)
 {
-	struct rb_node **p = &rds_cong_tree.rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_analde **p = &rds_cong_tree.rb_analde;
+	struct rb_analde *parent = NULL;
 	struct rds_cong_map *map;
 
 	while (*p) {
 		int diff;
 
 		parent = *p;
-		map = rb_entry(parent, struct rds_cong_map, m_rb_node);
+		map = rb_entry(parent, struct rds_cong_map, m_rb_analde);
 
 		diff = rds_addr_cmp(addr, &map->m_addr);
 		if (diff < 0)
@@ -124,8 +124,8 @@ static struct rds_cong_map *rds_cong_tree_walk(const struct in6_addr *addr,
 	}
 
 	if (insert) {
-		rb_link_node(&insert->m_rb_node, parent, p);
-		rb_insert_color(&insert->m_rb_node, &rds_cong_tree);
+		rb_link_analde(&insert->m_rb_analde, parent, p);
+		rb_insert_color(&insert->m_rb_analde, &rds_cong_tree);
 	}
 	return NULL;
 }
@@ -187,7 +187,7 @@ void rds_cong_add_conn(struct rds_connection *conn)
 {
 	unsigned long flags;
 
-	rdsdebug("conn %p now on map %p\n", conn, conn->c_lcong);
+	rdsdebug("conn %p analw on map %p\n", conn, conn->c_lcong);
 	spin_lock_irqsave(&rds_cong_lock, flags);
 	list_add_tail(&conn->c_map_item, &conn->c_lcong->m_conn_list);
 	spin_unlock_irqrestore(&rds_cong_lock, flags);
@@ -209,7 +209,7 @@ int rds_cong_get_maps(struct rds_connection *conn)
 	conn->c_fcong = rds_cong_from_addr(&conn->c_faddr);
 
 	if (!(conn->c_lcong && conn->c_fcong))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -228,7 +228,7 @@ void rds_cong_queue_updates(struct rds_cong_map *map)
 		if (!test_and_set_bit(0, &conn->c_map_queued) &&
 		    !rds_destroy_pending(cp->cp_conn)) {
 			rds_stats_inc(s_cong_update_queued);
-			/* We cannot inline the call to rds_send_xmit() here
+			/* We cananalt inline the call to rds_send_xmit() here
 			 * for two reasons (both pertaining to a TCP transport):
 			 * 1. When we get here from the receive path, we
 			 *    are already holding the sock_lock (held by
@@ -268,10 +268,10 @@ void rds_cong_map_updated(struct rds_cong_map *map, uint64_t portmask)
 		read_lock_irqsave(&rds_cong_monitor_lock, flags);
 		list_for_each_entry(rs, &rds_cong_monitor, rs_cong_list) {
 			spin_lock(&rs->rs_lock);
-			rs->rs_cong_notify |= (rs->rs_cong_mask & portmask);
+			rs->rs_cong_analtify |= (rs->rs_cong_mask & portmask);
 			rs->rs_cong_mask &= ~portmask;
 			spin_unlock(&rs->rs_lock);
-			if (rs->rs_cong_notify)
+			if (rs->rs_cong_analtify)
 				rds_wake_sk_sleep(rs);
 		}
 		read_unlock_irqrestore(&rds_cong_monitor_lock, flags);
@@ -292,7 +292,7 @@ int rds_cong_updated_since(unsigned long *recent)
 /*
  * We're called under the locking that protects the sockets receive buffer
  * consumption.  This makes it a lot easier for the caller to only call us
- * when it knows that an existing set bit needs to be cleared, and vice versa.
+ * when it kanalws that an existing set bit needs to be cleared, and vice versa.
  * We can't block and we need to deal with concurrent sockets working against
  * the same per-address map.
  */
@@ -354,7 +354,7 @@ void rds_cong_remove_socket(struct rds_sock *rs)
 	list_del_init(&rs->rs_cong_list);
 	write_unlock_irqrestore(&rds_cong_monitor_lock, flags);
 
-	/* update congestion map for now-closed port */
+	/* update congestion map for analw-closed port */
 	spin_lock_irqsave(&rds_cong_lock, flags);
 	map = rds_cong_tree_walk(&rs->rs_bound_addr, NULL);
 	spin_unlock_irqrestore(&rds_cong_lock, flags);
@@ -365,12 +365,12 @@ void rds_cong_remove_socket(struct rds_sock *rs)
 	}
 }
 
-int rds_cong_wait(struct rds_cong_map *map, __be16 port, int nonblock,
+int rds_cong_wait(struct rds_cong_map *map, __be16 port, int analnblock,
 		  struct rds_sock *rs)
 {
 	if (!rds_cong_test_bit(map, port))
 		return 0;
-	if (nonblock) {
+	if (analnblock) {
 		if (rs && rs->rs_cong_monitor) {
 			unsigned long flags;
 
@@ -386,7 +386,7 @@ int rds_cong_wait(struct rds_cong_map *map, __be16 port, int nonblock,
 				return 0;
 		}
 		rds_stats_inc(s_cong_send_error);
-		return -ENOBUFS;
+		return -EANALBUFS;
 	}
 
 	rds_stats_inc(s_cong_send_blocked);
@@ -398,14 +398,14 @@ int rds_cong_wait(struct rds_cong_map *map, __be16 port, int nonblock,
 
 void rds_cong_exit(void)
 {
-	struct rb_node *node;
+	struct rb_analde *analde;
 	struct rds_cong_map *map;
 	unsigned long i;
 
-	while ((node = rb_first(&rds_cong_tree))) {
-		map = rb_entry(node, struct rds_cong_map, m_rb_node);
+	while ((analde = rb_first(&rds_cong_tree))) {
+		map = rb_entry(analde, struct rds_cong_map, m_rb_analde);
 		rdsdebug("freeing map %p\n", map);
-		rb_erase(&map->m_rb_node, &rds_cong_tree);
+		rb_erase(&map->m_rb_analde, &rds_cong_tree);
 		for (i = 0; i < RDS_CONG_MAP_PAGES && map->m_page_addrs[i]; i++)
 			free_page(map->m_page_addrs[i]);
 		kfree(map);

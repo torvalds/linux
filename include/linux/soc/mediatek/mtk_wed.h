@@ -231,7 +231,7 @@ extern const struct mtk_wed_ops __rcu *mtk_soc_wed_ops;
 static inline int
 mtk_wed_device_attach(struct mtk_wed_device *dev)
 {
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 
 #ifdef CONFIG_NET_MEDIATEK_SOC_WED
 	rcu_read_lock();
@@ -311,22 +311,22 @@ static inline bool mtk_wed_device_active(struct mtk_wed_device *dev)
 }
 #define mtk_wed_device_detach(_dev) do {} while (0)
 #define mtk_wed_device_start(_dev, _mask) do {} while (0)
-#define mtk_wed_device_tx_ring_setup(_dev, _ring, _regs, _reset) -ENODEV
-#define mtk_wed_device_txfree_ring_setup(_dev, _ring, _regs) -ENODEV
+#define mtk_wed_device_tx_ring_setup(_dev, _ring, _regs, _reset) -EANALDEV
+#define mtk_wed_device_txfree_ring_setup(_dev, _ring, _regs) -EANALDEV
 #define mtk_wed_device_reg_read(_dev, _reg) 0
 #define mtk_wed_device_reg_write(_dev, _reg, _val) do {} while (0)
 #define mtk_wed_device_irq_get(_dev, _mask) 0
 #define mtk_wed_device_irq_set_mask(_dev, _mask) do {} while (0)
-#define mtk_wed_device_rx_ring_setup(_dev, _ring, _regs, _reset) -ENODEV
+#define mtk_wed_device_rx_ring_setup(_dev, _ring, _regs, _reset) -EANALDEV
 #define mtk_wed_device_ppe_check(_dev, _skb, _reason, _hash)  do {} while (0)
-#define mtk_wed_device_update_msg(_dev, _id, _msg, _len) -ENODEV
+#define mtk_wed_device_update_msg(_dev, _id, _msg, _len) -EANALDEV
 #define mtk_wed_device_stop(_dev) do {} while (0)
 #define mtk_wed_device_dma_reset(_dev) do {} while (0)
-#define mtk_wed_device_setup_tc(_dev, _netdev, _type, _type_data) -EOPNOTSUPP
+#define mtk_wed_device_setup_tc(_dev, _netdev, _type, _type_data) -EOPANALTSUPP
 #define mtk_wed_device_start_hw_rro(_dev, _mask, _reset) do {} while (0)
-#define mtk_wed_device_rro_rx_ring_setup(_dev, _ring, _regs) -ENODEV
-#define mtk_wed_device_msdu_pg_rx_ring_setup(_dev, _ring, _regs) -ENODEV
-#define mtk_wed_device_ind_rx_ring_setup(_dev, _regs) -ENODEV
+#define mtk_wed_device_rro_rx_ring_setup(_dev, _ring, _regs) -EANALDEV
+#define mtk_wed_device_msdu_pg_rx_ring_setup(_dev, _ring, _regs) -EANALDEV
+#define mtk_wed_device_ind_rx_ring_setup(_dev, _regs) -EANALDEV
 #endif
 
 #endif

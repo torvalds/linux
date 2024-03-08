@@ -16,7 +16,7 @@
 #include "pmr735b.dtsi"
 
 / {
-	model = "Qualcomm Technologies, Inc. SM8450 QRD";
+	model = "Qualcomm Techanallogies, Inc. SM8450 QRD";
 	compatible = "qcom,sm8450-qrd", "qcom,sm8450";
 	chassis-type = "handset";
 
@@ -402,8 +402,8 @@
 	pinctrl-1 = <&sdc2_sleep_state &sdc2_card_det_n>;
 	vmmc-supply = <&vreg_l9c_2p96>;
 	vqmmc-supply = <&vreg_l6c_1p8>;
-	no-sdio;
-	no-mmc;
+	anal-sdio;
+	anal-mmc;
 	status = "okay";
 };
 

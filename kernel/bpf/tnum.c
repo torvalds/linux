@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* tnum: tracked (or tristate) numbers
  *
- * A tnum tracks knowledge about the bits of a value.  Each bit can be either
- * known (0 or 1), or unknown (x).  Arithmetic operations on tnums will
- * propagate the unknown bits such that the tnum result represents all the
+ * A tnum tracks kanalwledge about the bits of a value.  Each bit can be either
+ * kanalwn (0 or 1), or unkanalwn (x).  Arithmetic operations on tnums will
+ * propagate the unkanalwn bits such that the tnum result represents all the
  * possible results for possible values of the operands.
  */
 #include <linux/kernel.h>
 #include <linux/tnum.h>
 
 #define TNUM(_v, _m)	(struct tnum){.value = _v, .mask = _m}
-/* A completely unknown value */
-const struct tnum tnum_unknown = { .value = 0, .mask = -1 };
+/* A completely unkanalwn value */
+const struct tnum tnum_unkanalwn = { .value = 0, .mask = -1 };
 
 struct tnum tnum_const(u64 value)
 {
@@ -25,7 +25,7 @@ struct tnum tnum_range(u64 min, u64 max)
 
 	/* special case, needed because 1ULL << 64 is undefined */
 	if (bits > 63)
-		return tnum_unknown;
+		return tnum_unkanalwn;
 	/* e.g. if chi = 4, bits = 3, delta = (1<<3) - 1 = 7.
 	 * if chi = 0, bits = 0, delta = (1<<0) - 1 = 0, so we return
 	 *  constant min (since min == max).
@@ -48,7 +48,7 @@ struct tnum tnum_arshift(struct tnum a, u8 min_shift, u8 insn_bitness)
 {
 	/* if a.value is negative, arithmetic shifting by minimum shift
 	 * will have larger negative offset compared to more shifting.
-	 * If a.value is nonnegative, arithmetic shifting by minimum shift
+	 * If a.value is analnnegative, arithmetic shifting by minimum shift
 	 * will have larger positive offset compare to more shifting.
 	 */
 	if (insn_bitness == 32)
@@ -131,15 +131,15 @@ struct tnum tnum_mul(struct tnum a, struct tnum b)
 		/* LSB of tnum a is uncertain */
 		else if (a.mask & 1)
 			acc_m = tnum_add(acc_m, TNUM(0, b.value | b.mask));
-		/* Note: no case for LSB is certain 0 */
+		/* Analte: anal case for LSB is certain 0 */
 		a = tnum_rshift(a, 1);
 		b = tnum_lshift(b, 1);
 	}
 	return tnum_add(TNUM(acc_v, 0), acc_m);
 }
 
-/* Note that if a and b disagree - i.e. one has a 'known 1' where the other has
- * a 'known 0' - this will return a 'known 1' for that bit.
+/* Analte that if a and b disagree - i.e. one has a 'kanalwn 1' where the other has
+ * a 'kanalwn 0' - this will return a 'kanalwn 1' for that bit.
  */
 struct tnum tnum_intersect(struct tnum a, struct tnum b)
 {

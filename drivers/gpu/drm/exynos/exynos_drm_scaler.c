@@ -17,11 +17,11 @@
 
 #include <drm/drm_blend.h>
 #include <drm/drm_fourcc.h>
-#include <drm/exynos_drm.h>
+#include <drm/exyanals_drm.h>
 
-#include "exynos_drm_drv.h"
-#include "exynos_drm_fb.h"
-#include "exynos_drm_ipp.h"
+#include "exyanals_drm_drv.h"
+#include "exyanals_drm_fb.h"
+#include "exyanals_drm_ipp.h"
 #include "regs-scaler.h"
 
 #define scaler_read(offset)		readl(scaler->regs + (offset))
@@ -33,18 +33,18 @@
 struct scaler_data {
 	const char	*clk_name[SCALER_MAX_CLK];
 	unsigned int	num_clk;
-	const struct exynos_drm_ipp_formats *formats;
+	const struct exyanals_drm_ipp_formats *formats;
 	unsigned int	num_formats;
 };
 
 struct scaler_context {
-	struct exynos_drm_ipp		ipp;
+	struct exyanals_drm_ipp		ipp;
 	struct drm_device		*drm_dev;
 	void				*dma_priv;
 	struct device			*dev;
 	void __iomem			*regs;
 	struct clk			*clock[SCALER_MAX_CLK];
-	struct exynos_drm_ipp_task	*task;
+	struct exyanals_drm_ipp_task	*task;
 	const struct scaler_data	*scaler_data;
 };
 
@@ -150,7 +150,7 @@ static inline void scaler_set_src_fmt(struct scaler_context *scaler,
 }
 
 static inline void scaler_set_src_base(struct scaler_context *scaler,
-	struct exynos_drm_ipp_buffer *src_buf)
+	struct exyanals_drm_ipp_buffer *src_buf)
 {
 	static unsigned int bases[] = {
 		SCALER_SRC_Y_BASE,
@@ -164,7 +164,7 @@ static inline void scaler_set_src_base(struct scaler_context *scaler,
 }
 
 static inline void scaler_set_src_span(struct scaler_context *scaler,
-	struct exynos_drm_ipp_buffer *src_buf)
+	struct exyanals_drm_ipp_buffer *src_buf)
 {
 	u32 val;
 
@@ -178,7 +178,7 @@ static inline void scaler_set_src_span(struct scaler_context *scaler,
 }
 
 static inline void scaler_set_src_luma_chroma_pos(struct scaler_context *scaler,
-			struct drm_exynos_ipp_task_rect *src_pos,
+			struct drm_exyanals_ipp_task_rect *src_pos,
 			const struct scaler_format *fmt)
 {
 	u32 val;
@@ -194,7 +194,7 @@ static inline void scaler_set_src_luma_chroma_pos(struct scaler_context *scaler,
 }
 
 static inline void scaler_set_src_wh(struct scaler_context *scaler,
-	struct drm_exynos_ipp_task_rect *src_pos)
+	struct drm_exyanals_ipp_task_rect *src_pos)
 {
 	u32 val;
 
@@ -213,7 +213,7 @@ static inline void scaler_set_dst_fmt(struct scaler_context *scaler,
 }
 
 static inline void scaler_set_dst_base(struct scaler_context *scaler,
-	struct exynos_drm_ipp_buffer *dst_buf)
+	struct exyanals_drm_ipp_buffer *dst_buf)
 {
 	static unsigned int bases[] = {
 		SCALER_DST_Y_BASE,
@@ -227,7 +227,7 @@ static inline void scaler_set_dst_base(struct scaler_context *scaler,
 }
 
 static inline void scaler_set_dst_span(struct scaler_context *scaler,
-	struct exynos_drm_ipp_buffer *dst_buf)
+	struct exyanals_drm_ipp_buffer *dst_buf)
 {
 	u32 val;
 
@@ -241,7 +241,7 @@ static inline void scaler_set_dst_span(struct scaler_context *scaler,
 }
 
 static inline void scaler_set_dst_luma_pos(struct scaler_context *scaler,
-	struct drm_exynos_ipp_task_rect *dst_pos)
+	struct drm_exyanals_ipp_task_rect *dst_pos)
 {
 	u32 val;
 
@@ -251,7 +251,7 @@ static inline void scaler_set_dst_luma_pos(struct scaler_context *scaler,
 }
 
 static inline void scaler_set_dst_wh(struct scaler_context *scaler,
-	struct drm_exynos_ipp_task_rect *dst_pos)
+	struct drm_exyanals_ipp_task_rect *dst_pos)
 {
 	u32 val;
 
@@ -262,8 +262,8 @@ static inline void scaler_set_dst_wh(struct scaler_context *scaler,
 
 static inline void scaler_set_hv_ratio(struct scaler_context *scaler,
 	unsigned int rotation,
-	struct drm_exynos_ipp_task_rect *src_pos,
-	struct drm_exynos_ipp_task_rect *dst_pos)
+	struct drm_exyanals_ipp_task_rect *src_pos,
+	struct drm_exyanals_ipp_task_rect *dst_pos)
 {
 	u32 val, h_ratio, v_ratio;
 
@@ -354,14 +354,14 @@ static inline void scaler_start_hw(struct scaler_context *scaler)
 	scaler_write(SCALER_CFG_START_CMD, SCALER_CFG);
 }
 
-static int scaler_commit(struct exynos_drm_ipp *ipp,
-			  struct exynos_drm_ipp_task *task)
+static int scaler_commit(struct exyanals_drm_ipp *ipp,
+			  struct exyanals_drm_ipp_task *task)
 {
 	struct scaler_context *scaler =
 			container_of(ipp, struct scaler_context, ipp);
 
-	struct drm_exynos_ipp_task_rect *src_pos = &task->src.rect;
-	struct drm_exynos_ipp_task_rect *dst_pos = &task->dst.rect;
+	struct drm_exyanals_ipp_task_rect *src_pos = &task->src.rect;
+	struct drm_exyanals_ipp_task_rect *dst_pos = &task->dst.rect;
 	const struct scaler_format *src_fmt, *dst_fmt;
 	int ret = 0;
 
@@ -403,7 +403,7 @@ static int scaler_commit(struct exynos_drm_ipp *ipp,
 	return 0;
 }
 
-static struct exynos_drm_ipp_funcs ipp_funcs = {
+static struct exyanals_drm_ipp_funcs ipp_funcs = {
 	.commit = scaler_commit,
 };
 
@@ -435,12 +435,12 @@ static irqreturn_t scaler_irq_handler(int irq, void *arg)
 	scaler_disable_int(scaler);
 
 	if (scaler->task) {
-		struct exynos_drm_ipp_task *task = scaler->task;
+		struct exyanals_drm_ipp_task *task = scaler->task;
 
 		scaler->task = NULL;
 		pm_runtime_mark_last_busy(scaler->dev);
 		pm_runtime_put_autosuspend(scaler->dev);
-		exynos_drm_ipp_task_done(task, scaler_task_done(val));
+		exyanals_drm_ipp_task_done(task, scaler_task_done(val));
 	}
 
 	return IRQ_HANDLED;
@@ -450,19 +450,19 @@ static int scaler_bind(struct device *dev, struct device *master, void *data)
 {
 	struct scaler_context *scaler = dev_get_drvdata(dev);
 	struct drm_device *drm_dev = data;
-	struct exynos_drm_ipp *ipp = &scaler->ipp;
+	struct exyanals_drm_ipp *ipp = &scaler->ipp;
 
 	scaler->drm_dev = drm_dev;
 	ipp->drm_dev = drm_dev;
-	exynos_drm_register_dma(drm_dev, dev, &scaler->dma_priv);
+	exyanals_drm_register_dma(drm_dev, dev, &scaler->dma_priv);
 
-	exynos_drm_ipp_register(dev, ipp, &ipp_funcs,
-			DRM_EXYNOS_IPP_CAP_CROP | DRM_EXYNOS_IPP_CAP_ROTATE |
-			DRM_EXYNOS_IPP_CAP_SCALE | DRM_EXYNOS_IPP_CAP_CONVERT,
+	exyanals_drm_ipp_register(dev, ipp, &ipp_funcs,
+			DRM_EXYANALS_IPP_CAP_CROP | DRM_EXYANALS_IPP_CAP_ROTATE |
+			DRM_EXYANALS_IPP_CAP_SCALE | DRM_EXYANALS_IPP_CAP_CONVERT,
 			scaler->scaler_data->formats,
 			scaler->scaler_data->num_formats, "scaler");
 
-	dev_info(dev, "The exynos scaler has been probed successfully\n");
+	dev_info(dev, "The exyanals scaler has been probed successfully\n");
 
 	return 0;
 }
@@ -471,10 +471,10 @@ static void scaler_unbind(struct device *dev, struct device *master,
 			void *data)
 {
 	struct scaler_context *scaler = dev_get_drvdata(dev);
-	struct exynos_drm_ipp *ipp = &scaler->ipp;
+	struct exyanals_drm_ipp *ipp = &scaler->ipp;
 
-	exynos_drm_ipp_unregister(dev, ipp);
-	exynos_drm_unregister_dma(scaler->drm_dev, scaler->dev,
+	exyanals_drm_ipp_unregister(dev, ipp);
+	exyanals_drm_unregister_dma(scaler->drm_dev, scaler->dev,
 				  &scaler->dma_priv);
 }
 
@@ -492,7 +492,7 @@ static int scaler_probe(struct platform_device *pdev)
 
 	scaler = devm_kzalloc(dev, sizeof(*scaler), GFP_KERNEL);
 	if (!scaler)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	scaler->scaler_data =
 		(struct scaler_data *)of_device_get_match_data(dev);
@@ -584,27 +584,27 @@ static int scaler_runtime_resume(struct device *dev)
 static DEFINE_RUNTIME_DEV_PM_OPS(scaler_pm_ops, scaler_runtime_suspend,
 				 scaler_runtime_resume, NULL);
 
-static const struct drm_exynos_ipp_limit scaler_5420_two_pixel_hv_limits[] = {
+static const struct drm_exyanals_ipp_limit scaler_5420_two_pixel_hv_limits[] = {
 	{ IPP_SIZE_LIMIT(BUFFER, .h = { 16, SZ_8K }, .v = { 16, SZ_8K }) },
 	{ IPP_SIZE_LIMIT(AREA, .h.align = 2, .v.align = 2) },
 	{ IPP_SCALE_LIMIT(.h = { 65536 * 1 / 4, 65536 * 16 },
 			  .v = { 65536 * 1 / 4, 65536 * 16 }) },
 };
 
-static const struct drm_exynos_ipp_limit scaler_5420_two_pixel_h_limits[] = {
+static const struct drm_exyanals_ipp_limit scaler_5420_two_pixel_h_limits[] = {
 	{ IPP_SIZE_LIMIT(BUFFER, .h = { 16, SZ_8K }, .v = { 16, SZ_8K }) },
 	{ IPP_SIZE_LIMIT(AREA, .h.align = 2, .v.align = 1) },
 	{ IPP_SCALE_LIMIT(.h = { 65536 * 1 / 4, 65536 * 16 },
 			  .v = { 65536 * 1 / 4, 65536 * 16 }) },
 };
 
-static const struct drm_exynos_ipp_limit scaler_5420_one_pixel_limits[] = {
+static const struct drm_exyanals_ipp_limit scaler_5420_one_pixel_limits[] = {
 	{ IPP_SIZE_LIMIT(BUFFER, .h = { 16, SZ_8K }, .v = { 16, SZ_8K }) },
 	{ IPP_SCALE_LIMIT(.h = { 65536 * 1 / 4, 65536 * 16 },
 			  .v = { 65536 * 1 / 4, 65536 * 16 }) },
 };
 
-static const struct drm_exynos_ipp_limit scaler_5420_tile_limits[] = {
+static const struct drm_exyanals_ipp_limit scaler_5420_tile_limits[] = {
 	{ IPP_SIZE_LIMIT(BUFFER, .h = { 16, SZ_8K }, .v = { 16, SZ_8K })},
 	{ IPP_SIZE_LIMIT(AREA, .h.align = 16, .v.align = 16) },
 	{ IPP_SCALE_LIMIT(.h = {1, 1}, .v = {1, 1})},
@@ -614,7 +614,7 @@ static const struct drm_exynos_ipp_limit scaler_5420_tile_limits[] = {
 #define IPP_SRCDST_TILE_FORMAT(f, l)	\
 	IPP_SRCDST_MFORMAT(f, DRM_FORMAT_MOD_SAMSUNG_16_16_TILE, (l))
 
-static const struct exynos_drm_ipp_formats exynos5420_formats[] = {
+static const struct exyanals_drm_ipp_formats exyanals5420_formats[] = {
 	/* SCALER_YUV420_2P_UV */
 	{ IPP_SRCDST_FORMAT(NV21, scaler_5420_two_pixel_hv_limits) },
 
@@ -691,39 +691,39 @@ static const struct exynos_drm_ipp_formats exynos5420_formats[] = {
 	{ IPP_SRCDST_TILE_FORMAT(YUYV, scaler_5420_tile_limits) },
 };
 
-static const struct scaler_data exynos5420_data = {
+static const struct scaler_data exyanals5420_data = {
 	.clk_name	= {"mscl"},
 	.num_clk	= 1,
-	.formats	= exynos5420_formats,
-	.num_formats	= ARRAY_SIZE(exynos5420_formats),
+	.formats	= exyanals5420_formats,
+	.num_formats	= ARRAY_SIZE(exyanals5420_formats),
 };
 
-static const struct scaler_data exynos5433_data = {
+static const struct scaler_data exyanals5433_data = {
 	.clk_name	= {"pclk", "aclk", "aclk_xiu"},
 	.num_clk	= 3,
-	.formats	= exynos5420_formats, /* intentional */
-	.num_formats	= ARRAY_SIZE(exynos5420_formats),
+	.formats	= exyanals5420_formats, /* intentional */
+	.num_formats	= ARRAY_SIZE(exyanals5420_formats),
 };
 
-static const struct of_device_id exynos_scaler_match[] = {
+static const struct of_device_id exyanals_scaler_match[] = {
 	{
-		.compatible = "samsung,exynos5420-scaler",
-		.data = &exynos5420_data,
+		.compatible = "samsung,exyanals5420-scaler",
+		.data = &exyanals5420_data,
 	}, {
-		.compatible = "samsung,exynos5433-scaler",
-		.data = &exynos5433_data,
+		.compatible = "samsung,exyanals5433-scaler",
+		.data = &exyanals5433_data,
 	}, {
 	},
 };
-MODULE_DEVICE_TABLE(of, exynos_scaler_match);
+MODULE_DEVICE_TABLE(of, exyanals_scaler_match);
 
 struct platform_driver scaler_driver = {
 	.probe		= scaler_probe,
 	.remove_new	= scaler_remove,
 	.driver		= {
-		.name	= "exynos-scaler",
+		.name	= "exyanals-scaler",
 		.owner	= THIS_MODULE,
 		.pm	= pm_ptr(&scaler_pm_ops),
-		.of_match_table = exynos_scaler_match,
+		.of_match_table = exyanals_scaler_match,
 	},
 };

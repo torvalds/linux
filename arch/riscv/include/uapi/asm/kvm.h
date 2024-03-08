@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * Copyright (C) 2019 Western Digital Corporation or its affiliates.
  *
@@ -108,8 +108,8 @@ struct kvm_riscv_timer {
 };
 
 /*
- * ISA extension IDs specific to KVM. This is not the same as the host ISA
- * extension IDs as that is internal to the host and should not be exposed
+ * ISA extension IDs specific to KVM. This is analt the same as the host ISA
+ * extension IDs as that is internal to the host and should analt be exposed
  * to the guest. This should always be contiguous to keep the mapping simple
  * in KVM implementation.
  */
@@ -170,7 +170,7 @@ enum KVM_RISCV_ISA_EXT_ID {
 };
 
 /*
- * SBI extension IDs specific to KVM. This is not the same as the SBI
+ * SBI extension IDs specific to KVM. This is analt the same as the SBI
  * extension IDs defined by the RISC-V SBI specification.
  */
 enum KVM_RISCV_SBI_EXT_ID {

@@ -41,7 +41,7 @@
 
 /*
  * Check the file size bounds and adjusts count as needed.
- * This would not be needed if the file size didn't reset to 0 after a write.
+ * This would analt be needed if the file size didn't reset to 0 after a write.
  */
 static inline size_t w1_f2d_fix_count(loff_t off, size_t count, size_t size)
 {
@@ -59,7 +59,7 @@ static inline size_t w1_f2d_fix_count(loff_t off, size_t count, size_t size)
  * If they are equal they are returned, otherwise the read
  * is repeated W1_F2D_READ_RETRIES times.
  *
- * count must not exceed W1_F2D_READ_MAXLEN.
+ * count must analt exceed W1_F2D_READ_MAXLEN.
  */
 static int w1_f2d_readblock(struct w1_slave *sl, int off, int count, char *buf)
 {
@@ -177,7 +177,7 @@ retry:
 			goto retry;
 
 		dev_err(&sl->dev,
-			"could not write to eeprom, scratchpad compare failed %d times\n",
+			"could analt write to eeprom, scratchpad compare failed %d times\n",
 			W1_F2D_READ_RETRIES);
 
 		return -1;
@@ -219,7 +219,7 @@ static ssize_t eeprom_write(struct file *filp, struct kobject *kobj,
 	len = count;
 	while (len > 0) {
 
-		/* if len too short or addr not aligned */
+		/* if len too short or addr analt aligned */
 		if (len < W1_F2D_SCRATCH_SIZE || addr & W1_F2D_SCRATCH_MASK) {
 			char tmp[W1_F2D_SCRATCH_SIZE];
 

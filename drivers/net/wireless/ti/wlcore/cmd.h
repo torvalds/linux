@@ -3,9 +3,9 @@
  * This file is part of wl1271
  *
  * Copyright (C) 1998-2009 Texas Instruments. All rights reserved.
- * Copyright (C) 2009 Nokia Corporation
+ * Copyright (C) 2009 Analkia Corporation
  *
- * Contact: Luciano Coelho <luciano.coelho@nokia.com>
+ * Contact: Luciaanal Coelho <luciaanal.coelho@analkia.com>
  */
 
 #ifndef __CMD_H__
@@ -109,7 +109,7 @@ enum wl1271_commands {
 	CMD_WRITE_MEMORY	= 11,
 	CMD_SET_TEMPLATE	= 12,
 	CMD_TEST		= 13,
-	CMD_NOISE_HIST		= 14,
+	CMD_ANALISE_HIST		= 14,
 	CMD_QUIET_ELEMENT_SET_STATE = 15,
 	CMD_SET_BCN_MODE	= 16,
 
@@ -153,7 +153,7 @@ enum wl1271_commands {
 	CMD_WFD_STOP_DISCOVERY	= 46,
 	CMD_WFD_ATTRIBUTE_CONFIG	= 47,
 	CMD_GENERIC_CFG			= 48,
-	CMD_NOP				= 49,
+	CMD_ANALP				= 49,
 
 	/* start of 18xx specific commands */
 	CMD_DFS_CHANNEL_CONFIG		= 60,
@@ -222,8 +222,8 @@ struct wl1271_command {
 enum {
 	CMD_MAILBOX_IDLE		=  0,
 	CMD_STATUS_SUCCESS		=  1,
-	CMD_STATUS_UNKNOWN_CMD		=  2,
-	CMD_STATUS_UNKNOWN_IE		=  3,
+	CMD_STATUS_UNKANALWN_CMD		=  2,
+	CMD_STATUS_UNKANALWN_IE		=  3,
 	CMD_STATUS_REJECT_MEAS_SG_ACTIVE	= 11,
 	CMD_STATUS_RX_BUSY		= 13,
 	CMD_STATUS_INVALID_PARAM		= 14,
@@ -235,7 +235,7 @@ enum {
 	CMD_STATUS_TIMEOUT		= 21, /* Driver internal use.*/
 	CMD_STATUS_FW_RESET		= 22, /* Driver internal use.*/
 	CMD_STATUS_TEMPLATE_OOM		= 23,
-	CMD_STATUS_NO_RX_BA_SESSION	= 24,
+	CMD_STATUS_ANAL_RX_BA_SESSION	= 24,
 
 	MAX_COMMAND_STATUS
 };
@@ -279,7 +279,7 @@ enum wlcore_band {
 };
 
 enum wlcore_channel_type {
-	WLCORE_CHAN_NO_HT,
+	WLCORE_CHAN_ANAL_HT,
 	WLCORE_CHAN_HT20,
 	WLCORE_CHAN_HT40MINUS,
 	WLCORE_CHAN_HT40PLUS
@@ -363,7 +363,7 @@ struct wl12xx_cmd_role_start {
 			u8 reset_tsf;
 
 			/*
-			 * ap supports wmm (note that there is additional
+			 * ap supports wmm (analte that there is additional
 			 * per-sta wmm configuration)
 			 */
 			u8 wmm;
@@ -453,7 +453,7 @@ enum wl1271_cmd_lid_key_type {
 };
 
 enum wl1271_cmd_key_type {
-	KEY_NONE = 0,
+	KEY_ANALNE = 0,
 	KEY_WEP  = 1,
 	KEY_TKIP = 2,
 	KEY_AES  = 3,
@@ -621,11 +621,11 @@ enum wl12xx_fwlogger_timestamp {
 };
 
 /*
- * Logs can be routed to the debug pinouts (where available), to the host bus
+ * Logs can be routed to the debug pianaluts (where available), to the host bus
  * (SDIO/SPI), or dropped
  */
 enum wl12xx_fwlogger_output {
-	WL12XX_FWLOG_OUTPUT_NONE,
+	WL12XX_FWLOG_OUTPUT_ANALNE,
 	WL12XX_FWLOG_OUTPUT_DBG_PINS,
 	WL12XX_FWLOG_OUTPUT_HOST,
 };

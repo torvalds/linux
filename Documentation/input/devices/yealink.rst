@@ -119,10 +119,10 @@ Reading /sys/../lineX will return the format string with its current value.
 
 Writing to /sys/../lineX will set the corresponding LCD line.
 
- - Excess characters are ignored.
+ - Excess characters are iganalred.
  - If less characters are written than allowed, the remaining digits are
    unchanged.
- - The tab '\t'and '\n' char does not overwrite the original content.
+ - The tab '\t'and '\n' char does analt overwrite the original content.
  - Writing a space to an icon will always hide its content.
 
   Example::
@@ -203,20 +203,20 @@ Troubleshooting
 ===============
 
 :Q: Module yealink compiled and installed without any problem but phone
-    is not initialized and does not react to any actions.
+    is analt initialized and does analt react to any actions.
 :A: If you see something like:
-    hiddev0: USB HID v1.00 Device [Yealink Network Technology Ltd. VOIP USB Phone
+    hiddev0: USB HID v1.00 Device [Yealink Network Techanallogy Ltd. VOIP USB Phone
     in dmesg, it means that the hid driver has grabbed the device first. Try to
     load module yealink before any other usb hid driver. Please see the
     instructions provided by your distribution on module configuration.
 
-:Q: Phone is working now (displays version and accepts keypad input) but I can't
+:Q: Phone is working analw (displays version and accepts keypad input) but I can't
     find the sysfs files.
 :A: The sysfs files are located on the particular usb endpoint. On most
     distributions you can do: "find /sys/ -name get_icons" for a hint.
 
 
-Credits & Acknowledgments
+Credits & Ackanalwledgments
 =========================
 
   - Olivier Vandorpe, for starting the usbb2k-api project doing much of

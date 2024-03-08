@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -24,15 +24,15 @@
 #ifndef _cl507c_h_
 #define _cl507c_h_
 
-#define NV_DISP_BASE_NOTIFIER_1                                                      0x00000000
-#define NV_DISP_BASE_NOTIFIER_1_SIZEOF                                               0x00000004
-#define NV_DISP_BASE_NOTIFIER_1__0                                                   0x00000000
-#define NV_DISP_BASE_NOTIFIER_1__0_PRESENTATION_COUNT                                15:0
-#define NV_DISP_BASE_NOTIFIER_1__0_TIMESTAMP                                         29:16
-#define NV_DISP_BASE_NOTIFIER_1__0_STATUS                                            31:30
-#define NV_DISP_BASE_NOTIFIER_1__0_STATUS_NOT_BEGUN                                  0x00000000
-#define NV_DISP_BASE_NOTIFIER_1__0_STATUS_BEGUN                                      0x00000001
-#define NV_DISP_BASE_NOTIFIER_1__0_STATUS_FINISHED                                   0x00000002
+#define NV_DISP_BASE_ANALTIFIER_1                                                      0x00000000
+#define NV_DISP_BASE_ANALTIFIER_1_SIZEOF                                               0x00000004
+#define NV_DISP_BASE_ANALTIFIER_1__0                                                   0x00000000
+#define NV_DISP_BASE_ANALTIFIER_1__0_PRESENTATION_COUNT                                15:0
+#define NV_DISP_BASE_ANALTIFIER_1__0_TIMESTAMP                                         29:16
+#define NV_DISP_BASE_ANALTIFIER_1__0_STATUS                                            31:30
+#define NV_DISP_BASE_ANALTIFIER_1__0_STATUS_ANALT_BEGUN                                  0x00000000
+#define NV_DISP_BASE_ANALTIFIER_1__0_STATUS_BEGUN                                      0x00000001
+#define NV_DISP_BASE_ANALTIFIER_1__0_STATUS_FINISHED                                   0x00000002
 
 
 // dma opcode instructions
@@ -40,15 +40,15 @@
 #define NV507C_DMA_OPCODE                                   31:29
 #define NV507C_DMA_OPCODE_METHOD                       0x00000000
 #define NV507C_DMA_OPCODE_JUMP                         0x00000001
-#define NV507C_DMA_OPCODE_NONINC_METHOD                0x00000002
+#define NV507C_DMA_OPCODE_ANALNINC_METHOD                0x00000002
 #define NV507C_DMA_OPCODE_SET_SUBDEVICE_MASK           0x00000003
 #define NV507C_DMA_OPCODE                                   31:29
 #define NV507C_DMA_OPCODE_METHOD                       0x00000000
-#define NV507C_DMA_OPCODE_NONINC_METHOD                0x00000002
+#define NV507C_DMA_OPCODE_ANALNINC_METHOD                0x00000002
 #define NV507C_DMA_METHOD_COUNT                             27:18
 #define NV507C_DMA_METHOD_OFFSET                             11:2
 #define NV507C_DMA_DATA                                      31:0
-#define NV507C_DMA_NOP                                 0x00000000
+#define NV507C_DMA_ANALP                                 0x00000000
 #define NV507C_DMA_OPCODE                                   31:29
 #define NV507C_DMA_OPCODE_JUMP                         0x00000001
 #define NV507C_DMA_JUMP_OFFSET                               11:2
@@ -67,7 +67,7 @@
 #define NV507C_UPDATE_INTERLOCK_WITH_CORE_ENABLE                                (0x00000001)
 #define NV507C_SET_PRESENT_CONTROL                                              (0x00000084)
 #define NV507C_SET_PRESENT_CONTROL_BEGIN_MODE                                   9:8
-#define NV507C_SET_PRESENT_CONTROL_BEGIN_MODE_NON_TEARING                       (0x00000000)
+#define NV507C_SET_PRESENT_CONTROL_BEGIN_MODE_ANALN_TEARING                       (0x00000000)
 #define NV507C_SET_PRESENT_CONTROL_BEGIN_MODE_IMMEDIATE                         (0x00000001)
 #define NV507C_SET_PRESENT_CONTROL_BEGIN_MODE_ON_LINE                           (0x00000002)
 #define NV507C_SET_PRESENT_CONTROL_MIN_PRESENT_INTERVAL                         7:4
@@ -81,13 +81,13 @@
 #define NV507C_SET_SEMAPHORE_RELEASE_VALUE                                      31:0
 #define NV507C_SET_CONTEXT_DMA_SEMAPHORE                                        (0x00000094)
 #define NV507C_SET_CONTEXT_DMA_SEMAPHORE_HANDLE                                 31:0
-#define NV507C_SET_NOTIFIER_CONTROL                                             (0x000000A0)
-#define NV507C_SET_NOTIFIER_CONTROL_MODE                                        30:30
-#define NV507C_SET_NOTIFIER_CONTROL_MODE_WRITE                                  (0x00000000)
-#define NV507C_SET_NOTIFIER_CONTROL_MODE_WRITE_AWAKEN                           (0x00000001)
-#define NV507C_SET_NOTIFIER_CONTROL_OFFSET                                      11:2
-#define NV507C_SET_CONTEXT_DMA_NOTIFIER                                         (0x000000A4)
-#define NV507C_SET_CONTEXT_DMA_NOTIFIER_HANDLE                                  31:0
+#define NV507C_SET_ANALTIFIER_CONTROL                                             (0x000000A0)
+#define NV507C_SET_ANALTIFIER_CONTROL_MODE                                        30:30
+#define NV507C_SET_ANALTIFIER_CONTROL_MODE_WRITE                                  (0x00000000)
+#define NV507C_SET_ANALTIFIER_CONTROL_MODE_WRITE_AWAKEN                           (0x00000001)
+#define NV507C_SET_ANALTIFIER_CONTROL_OFFSET                                      11:2
+#define NV507C_SET_CONTEXT_DMA_ANALTIFIER                                         (0x000000A4)
+#define NV507C_SET_CONTEXT_DMA_ANALTIFIER_HANDLE                                  31:0
 #define NV507C_SET_CONTEXT_DMA_ISO                                              (0x000000C0)
 #define NV507C_SET_CONTEXT_DMA_ISO_HANDLE                                       31:0
 #define NV507C_SET_BASE_LUT_LO                                                  (0x000000E0)

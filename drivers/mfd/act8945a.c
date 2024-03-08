@@ -42,7 +42,7 @@ static int act8945a_i2c_probe(struct i2c_client *i2c)
 
 	i2c_set_clientdata(i2c, regmap);
 
-	ret = devm_mfd_add_devices(&i2c->dev, PLATFORM_DEVID_NONE,
+	ret = devm_mfd_add_devices(&i2c->dev, PLATFORM_DEVID_ANALNE,
 				   act8945a_devs, ARRAY_SIZE(act8945a_devs),
 				   NULL, 0, NULL);
 	if (ret) {

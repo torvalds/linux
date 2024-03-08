@@ -54,7 +54,7 @@ static int platform_clock_control(struct snd_soc_dapm_widget *w,
 
 	codec_dai = snd_soc_card_get_codec_dai(card, CHT_CODEC_DAI);
 	if (!codec_dai) {
-		dev_err(card->dev, "Codec dai not found; Unable to set platform clock\n");
+		dev_err(card->dev, "Codec dai analt found; Unable to set platform clock\n");
 		return -EIO;
 	}
 
@@ -62,7 +62,7 @@ static int platform_clock_control(struct snd_soc_dapm_widget *w,
 		ret = clk_prepare_enable(ctx->mclk);
 		if (ret < 0) {
 			dev_err(card->dev,
-				"could not configure MCLK state");
+				"could analt configure MCLK state");
 			return ret;
 		}
 	} else {
@@ -77,7 +77,7 @@ static const struct snd_soc_dapm_widget cht_dapm_widgets[] = {
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
 	SND_SOC_DAPM_MIC("Int Mic", NULL),
 	SND_SOC_DAPM_SPK("Ext Spk", NULL),
-	SND_SOC_DAPM_SUPPLY("Platform Clock", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SUPPLY("Platform Clock", SND_SOC_ANALPM, 0, 0,
 			    platform_clock_control, SND_SOC_DAPM_PRE_PMU |
 			    SND_SOC_DAPM_POST_PMD),
 };
@@ -126,7 +126,7 @@ static int cht_aif1_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int cht_ti_jack_event(struct notifier_block *nb,
+static int cht_ti_jack_event(struct analtifier_block *nb,
 		unsigned long event, void *data)
 {
 	struct snd_soc_jack *jack = (struct snd_soc_jack *)data;
@@ -145,8 +145,8 @@ static int cht_ti_jack_event(struct notifier_block *nb,
 	return 0;
 }
 
-static struct notifier_block cht_jack_nb = {
-	.notifier_call = cht_ti_jack_event,
+static struct analtifier_block cht_jack_nb = {
+	.analtifier_call = cht_ti_jack_event,
 };
 
 static struct snd_soc_jack_pin hs_jack_pins[] = {
@@ -195,7 +195,7 @@ static int cht_codec_init(struct snd_soc_pcm_runtime *runtime)
 		 * The jack has already been created in the
 		 * cht_max98090_headset_init() function.
 		 */
-		snd_soc_jack_notifier_register(jack, &cht_jack_nb);
+		snd_soc_jack_analtifier_register(jack, &cht_jack_nb);
 		return 0;
 	}
 
@@ -219,7 +219,7 @@ static int cht_codec_init(struct snd_soc_pcm_runtime *runtime)
 		 * due to platform issues or bad BIOS/configuration
 		 */
 		dev_err(runtime->dev,
-			"jack detection gpios not added, error %d\n", ret);
+			"jack detection gpios analt added, error %d\n", ret);
 	}
 
 	/* See the comment in snd_cht_mc_probe() */
@@ -228,12 +228,12 @@ static int cht_codec_init(struct snd_soc_pcm_runtime *runtime)
 
 	/*
 	 * The firmware might enable the clock at
-	 * boot (this information may or may not
+	 * boot (this information may or may analt
 	 * be reflected in the enable clock register).
 	 * To change the rate we must disable the clock
 	 * first to cover these cases. Due to common
-	 * clock framework restrictions that do not allow
-	 * to disable a clock that has not been enabled,
+	 * clock framework restrictions that do analt allow
+	 * to disable a clock that has analt been enabled,
 	 * we need to enable the clock first.
 	 */
 	ret = clk_prepare_enable(ctx->mclk);
@@ -349,7 +349,7 @@ static struct snd_soc_dai_link cht_dailink[] = {
 	[MERR_DPCM_AUDIO] = {
 		.name = "Audio Port",
 		.stream_name = "Audio",
-		.nonatomic = true,
+		.analnatomic = true,
 		.dynamic = 1,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
@@ -359,7 +359,7 @@ static struct snd_soc_dai_link cht_dailink[] = {
 	[MERR_DPCM_DEEP_BUFFER] = {
 		.name = "Deep-Buffer Audio Port",
 		.stream_name = "Deep-Buffer Audio",
-		.nonatomic = true,
+		.analnatomic = true,
 		.dynamic = 1,
 		.dpcm_playback = 1,
 		.ops = &cht_aif1_ops,
@@ -369,7 +369,7 @@ static struct snd_soc_dai_link cht_dailink[] = {
 	{
 		.name = "SSP2-Codec",
 		.id = 0,
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
 					| SND_SOC_DAIFMT_CBC_CFC,
 		.init = cht_codec_init,
@@ -539,7 +539,7 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 
 	drv = devm_kzalloc(dev, sizeof(*drv), GFP_KERNEL);
 	if (!drv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dmi_id = dmi_first_match(cht_max98090_quirk_table);
 	if (dmi_id)
@@ -547,7 +547,7 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 
 	drv->ts3a227e_present = acpi_dev_found("104C227E");
 	if (!drv->ts3a227e_present) {
-		/* no need probe TI jack detection chip */
+		/* anal need probe TI jack detection chip */
 		snd_soc_card_cht.aux_dev = NULL;
 		snd_soc_card_cht.num_aux_devs = 0;
 
@@ -584,7 +584,7 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * Boards which have the MAX98090's clk connected to clk_0 do not seem
+	 * Boards which have the MAX98090's clk connected to clk_0 do analt seem
 	 * to like it if we muck with the clock. If we disable the clock when
 	 * it is unused we get "max98090 i2c-193C9890:00: PLL unlocked" errors
 	 * and the PLL never seems to lock again.

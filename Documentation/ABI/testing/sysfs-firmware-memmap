@@ -55,7 +55,7 @@ Description:
 
 		  - System RAM
 		  - ACPI Tables
-		  - ACPI Non-volatile Storage
+		  - ACPI Analn-volatile Storage
 		  - Unusable memory
 		  - Persistent Memory (legacy)
 		  - Persistent Memory

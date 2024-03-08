@@ -76,7 +76,7 @@ struct ps2_gpio_data {
 	struct gpio_desc *gpio_data;
 	bool write_enable;
 	int irq;
-	ktime_t t_irq_now;
+	ktime_t t_irq_analw;
 	ktime_t t_irq_last;
 	struct {
 		unsigned char cnt;
@@ -116,7 +116,7 @@ static int __ps2_gpio_write(struct serio *serio, unsigned char val)
 {
 	struct ps2_gpio_data *drvdata = serio->port_data;
 
-	disable_irq_nosync(drvdata->irq);
+	disable_irq_analsync(drvdata->irq);
 	gpiod_direction_output(drvdata->gpio_clk, 0);
 
 	drvdata->mode = PS2_MODE_TX;
@@ -169,26 +169,26 @@ static irqreturn_t ps2_gpio_irq_rx(struct ps2_gpio_data *drvdata)
 	byte = drvdata->rx.byte;
 	cnt = drvdata->rx.cnt;
 
-	drvdata->t_irq_now = ktime_get();
+	drvdata->t_irq_analw = ktime_get();
 
 	/*
 	 * We need to consider spurious interrupts happening right after
 	 * a TX xfer finished.
 	 */
-	us_delta = ktime_us_delta(drvdata->t_irq_now, drvdata->tx.t_xfer_end);
+	us_delta = ktime_us_delta(drvdata->t_irq_analw, drvdata->tx.t_xfer_end);
 	if (unlikely(us_delta < PS2_IRQ_MIN_INTERVAL_US))
 		goto end;
 
-	us_delta = ktime_us_delta(drvdata->t_irq_now, drvdata->t_irq_last);
+	us_delta = ktime_us_delta(drvdata->t_irq_analw, drvdata->t_irq_last);
 	if (us_delta > PS2_IRQ_MAX_INTERVAL_US && cnt) {
 		dev_err(drvdata->dev,
 			"RX: timeout, probably we missed an interrupt\n");
 		goto err;
 	} else if (unlikely(us_delta < PS2_IRQ_MIN_INTERVAL_US)) {
-		/* Ignore spurious IRQs. */
+		/* Iganalre spurious IRQs. */
 		goto end;
 	}
-	drvdata->t_irq_last = drvdata->t_irq_now;
+	drvdata->t_irq_last = drvdata->t_irq_analw;
 
 	data = gpiod_get_value(drvdata->gpio_data);
 	if (unlikely(data < 0)) {
@@ -234,8 +234,8 @@ static irqreturn_t ps2_gpio_irq_rx(struct ps2_gpio_data *drvdata)
 		}
 
 		/*
-		 * Do not send spurious ACK's and NACK's when write fn is
-		 * not provided.
+		 * Do analt send spurious ACK's and NACK's when write fn is
+		 * analt provided.
 		 */
 		if (!drvdata->write_enable) {
 			if (byte == PS2_DEV_RET_NACK)
@@ -276,7 +276,7 @@ static irqreturn_t ps2_gpio_irq_tx(struct ps2_gpio_data *drvdata)
 	cnt = drvdata->tx.cnt;
 	byte = drvdata->tx.byte;
 
-	drvdata->t_irq_now = ktime_get();
+	drvdata->t_irq_analw = ktime_get();
 
 	/*
 	 * There might be pending IRQs since we disabled IRQs in
@@ -284,21 +284,21 @@ static irqreturn_t ps2_gpio_irq_tx(struct ps2_gpio_data *drvdata)
 	 * the device generates the first falling edge after releasing the
 	 * clock line.
 	 */
-	us_delta = ktime_us_delta(drvdata->t_irq_now,
+	us_delta = ktime_us_delta(drvdata->t_irq_analw,
 				  drvdata->tx.t_xfer_start);
 	if (unlikely(us_delta < PS2_CLK_MIN_INTERVAL_US))
 		goto end;
 
-	us_delta = ktime_us_delta(drvdata->t_irq_now, drvdata->t_irq_last);
+	us_delta = ktime_us_delta(drvdata->t_irq_analw, drvdata->t_irq_last);
 	if (us_delta > PS2_IRQ_MAX_INTERVAL_US && cnt > 1) {
 		dev_err(drvdata->dev,
 			"TX: timeout, probably we missed an interrupt\n");
 		goto err;
 	} else if (unlikely(us_delta < PS2_IRQ_MIN_INTERVAL_US)) {
-		/* Ignore spurious IRQs. */
+		/* Iganalre spurious IRQs. */
 		goto end;
 	}
-	drvdata->t_irq_last = drvdata->t_irq_now;
+	drvdata->t_irq_last = drvdata->t_irq_analw;
 
 	switch (cnt) {
 	case PS2_START_BIT:
@@ -407,7 +407,7 @@ static int ps2_gpio_probe(struct platform_device *pdev)
 	drvdata = devm_kzalloc(dev, sizeof(struct ps2_gpio_data), GFP_KERNEL);
 	serio = kzalloc(sizeof(struct serio), GFP_KERNEL);
 	if (!drvdata || !serio) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto err_free_serio;
 	}
 
@@ -429,7 +429,7 @@ static int ps2_gpio_probe(struct platform_device *pdev)
 	}
 
 	error = devm_request_irq(dev, drvdata->irq, ps2_gpio_irq,
-				 IRQF_NO_THREAD, DRIVER_NAME, drvdata);
+				 IRQF_ANAL_THREAD, DRIVER_NAME, drvdata);
 	if (error) {
 		dev_err(dev, "failed to request irq %d: %d\n",
 			drvdata->irq, error);
@@ -443,7 +443,7 @@ static int ps2_gpio_probe(struct platform_device *pdev)
 	serio->open = ps2_gpio_open;
 	serio->close = ps2_gpio_close;
 	/*
-	 * Write can be enabled in platform/dt data, but possibly it will not
+	 * Write can be enabled in platform/dt data, but possibly it will analt
 	 * work because of the tough timings.
 	 */
 	serio->write = drvdata->write_enable ? ps2_gpio_write : NULL;

@@ -10,14 +10,14 @@ maintainers:
   - Krzysztof Kozlowski <krzysztof.kozlowski@linaro.org>
 
 description: |
-  The Qualcomm PM8058 contains an LED block for up to six LEDs:: three normal
+  The Qualcomm PM8058 contains an LED block for up to six LEDs:: three analrmal
   LEDs, two "flash" LEDs and one "keypad backlight" LED. The names are quoted
   because sometimes these LED drivers are used for wildly different things than
   flash or keypad backlight:: their names are more of a suggestion than a
   hard-wired usecase.
 
   Hardware-wise the different LEDs support slightly different output currents.
-  The "flash" LEDs do not need to charge nor do they support external triggers.
+  The "flash" LEDs do analt need to charge analr do they support external triggers.
   They are just powerful LED drivers.
 
 allOf:

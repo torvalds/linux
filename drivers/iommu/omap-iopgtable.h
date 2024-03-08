@@ -2,9 +2,9 @@
 /*
  * omap iommu: pagetable definitions
  *
- * Copyright (C) 2008-2010 Nokia Corporation
+ * Copyright (C) 2008-2010 Analkia Corporation
  *
- * Written by Hiroshi DOYU <Hiroshi.DOYU@nokia.com>
+ * Written by Hiroshi DOYU <Hiroshi.DOYU@analkia.com>
  */
 
 #ifndef _OMAP_IOPGTABLE_H

@@ -4,7 +4,7 @@
 //
 // Test that allocating memory beyond the memory limit and then forking is
 // handled correctly, ie. the child is able to access the mappings beyond the
-// memory limit and the child's writes are not visible to the parent.
+// memory limit and the child's writes are analt visible to the parent.
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -16,8 +16,8 @@
 #include "utils.h"
 
 
-#ifndef MAP_FIXED_NOREPLACE
-#define MAP_FIXED_NOREPLACE	MAP_FIXED	// "Should be safe" above 512TB
+#ifndef MAP_FIXED_ANALREPLACE
+#define MAP_FIXED_ANALREPLACE	MAP_FIXED	// "Should be safe" above 512TB
 #endif
 
 
@@ -32,7 +32,7 @@ static int test(void)
 
 	// Create a mapping at 512TB to allocate an extended_id
 	p = mmap((void *)(512ul << 40), page_size, PROT_READ | PROT_WRITE,
-		MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED_NOREPLACE, -1, 0);
+		MAP_PRIVATE | MAP_AANALNYMOUS | MAP_FIXED_ANALREPLACE, -1, 0);
 	if (p == MAP_FAILED) {
 		perror("mmap");
 		printf("Error: couldn't mmap(), confirm kernel has 4TB support?\n");

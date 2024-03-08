@@ -22,13 +22,13 @@
 static DEFINE_IDR(i3c_bus_idr);
 static DEFINE_MUTEX(i3c_core_lock);
 static int __i3c_first_dynamic_bus_num;
-static BLOCKING_NOTIFIER_HEAD(i3c_bus_notifier);
+static BLOCKING_ANALTIFIER_HEAD(i3c_bus_analtifier);
 
 /**
  * i3c_bus_maintenance_lock - Lock the bus for a maintenance operation
  * @bus: I3C bus to take the lock on
  *
- * This function takes the bus lock so that no other operations can occur on
+ * This function takes the bus lock so that anal other operations can occur on
  * the bus. This is needed for all kind of bus maintenance operation, like
  * - enabling/disabling slave events
  * - re-triggering DAA
@@ -60,35 +60,35 @@ static void i3c_bus_maintenance_unlock(struct i3c_bus *bus)
 }
 
 /**
- * i3c_bus_normaluse_lock - Lock the bus for a normal operation
+ * i3c_bus_analrmaluse_lock - Lock the bus for a analrmal operation
  * @bus: I3C bus to take the lock on
  *
- * This function takes the bus lock for any operation that is not a maintenance
- * operation (see i3c_bus_maintenance_lock() for a non-exhaustive list of
+ * This function takes the bus lock for any operation that is analt a maintenance
+ * operation (see i3c_bus_maintenance_lock() for a analn-exhaustive list of
  * maintenance operations). Basically all communications with I3C devices are
- * normal operations (HDR, SDR transfers or CCC commands that do not change bus
+ * analrmal operations (HDR, SDR transfers or CCC commands that do analt change bus
  * state or I3C dynamic address).
  *
- * Note that this lock is not guaranteeing serialization of normal operations.
+ * Analte that this lock is analt guaranteeing serialization of analrmal operations.
  * In other words, transfer requests passed to the I3C master can be submitted
  * in parallel and I3C master drivers have to use their own locking to make
- * sure two different communications are not inter-mixed, or access to the
- * output/input queue is not done while the engine is busy.
+ * sure two different communications are analt inter-mixed, or access to the
+ * output/input queue is analt done while the engine is busy.
  */
-void i3c_bus_normaluse_lock(struct i3c_bus *bus)
+void i3c_bus_analrmaluse_lock(struct i3c_bus *bus)
 {
 	down_read(&bus->lock);
 }
 
 /**
- * i3c_bus_normaluse_unlock - Release the bus lock after a normal operation
+ * i3c_bus_analrmaluse_unlock - Release the bus lock after a analrmal operation
  * @bus: I3C bus to release the lock on
  *
- * Should be called when a normal operation is done. See
- * i3c_bus_normaluse_lock() for more details on what these normal operations
+ * Should be called when a analrmal operation is done. See
+ * i3c_bus_analrmaluse_lock() for more details on what these analrmal operations
  * are.
  */
-void i3c_bus_normaluse_unlock(struct i3c_bus *bus)
+void i3c_bus_analrmaluse_unlock(struct i3c_bus *bus)
 {
 	up_read(&bus->lock);
 }
@@ -138,10 +138,10 @@ static ssize_t bcr_show(struct device *dev,
 	struct i3c_dev_desc *desc;
 	ssize_t ret;
 
-	i3c_bus_normaluse_lock(bus);
+	i3c_bus_analrmaluse_lock(bus);
 	desc = dev_to_i3cdesc(dev);
 	ret = sprintf(buf, "%x\n", desc->info.bcr);
-	i3c_bus_normaluse_unlock(bus);
+	i3c_bus_analrmaluse_unlock(bus);
 
 	return ret;
 }
@@ -155,10 +155,10 @@ static ssize_t dcr_show(struct device *dev,
 	struct i3c_dev_desc *desc;
 	ssize_t ret;
 
-	i3c_bus_normaluse_lock(bus);
+	i3c_bus_analrmaluse_lock(bus);
 	desc = dev_to_i3cdesc(dev);
 	ret = sprintf(buf, "%x\n", desc->info.dcr);
-	i3c_bus_normaluse_unlock(bus);
+	i3c_bus_analrmaluse_unlock(bus);
 
 	return ret;
 }
@@ -172,10 +172,10 @@ static ssize_t pid_show(struct device *dev,
 	struct i3c_dev_desc *desc;
 	ssize_t ret;
 
-	i3c_bus_normaluse_lock(bus);
+	i3c_bus_analrmaluse_lock(bus);
 	desc = dev_to_i3cdesc(dev);
 	ret = sprintf(buf, "%llx\n", desc->info.pid);
-	i3c_bus_normaluse_unlock(bus);
+	i3c_bus_analrmaluse_unlock(bus);
 
 	return ret;
 }
@@ -189,10 +189,10 @@ static ssize_t dynamic_address_show(struct device *dev,
 	struct i3c_dev_desc *desc;
 	ssize_t ret;
 
-	i3c_bus_normaluse_lock(bus);
+	i3c_bus_analrmaluse_lock(bus);
 	desc = dev_to_i3cdesc(dev);
 	ret = sprintf(buf, "%02x\n", desc->info.dyn_addr);
-	i3c_bus_normaluse_unlock(bus);
+	i3c_bus_analrmaluse_unlock(bus);
 
 	return ret;
 }
@@ -212,7 +212,7 @@ static ssize_t hdrcap_show(struct device *dev,
 	unsigned long caps;
 	int mode;
 
-	i3c_bus_normaluse_lock(bus);
+	i3c_bus_analrmaluse_lock(bus);
 	desc = dev_to_i3cdesc(dev);
 	caps = desc->info.hdr_cap;
 	for_each_set_bit(mode, &caps, 8) {
@@ -237,7 +237,7 @@ static ssize_t hdrcap_show(struct device *dev,
 	ret = offset + ret;
 
 out:
-	i3c_bus_normaluse_unlock(bus);
+	i3c_bus_analrmaluse_unlock(bus);
 
 	return ret;
 }
@@ -392,7 +392,7 @@ static int i3c_bus_get_free_addr(struct i3c_bus *bus, u8 start_addr)
 			return addr;
 	}
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void i3c_bus_init_addrslots(struct i3c_bus *bus)
@@ -421,7 +421,7 @@ static void i3c_bus_cleanup(struct i3c_bus *i3cbus)
 	mutex_unlock(&i3c_core_lock);
 }
 
-static int i3c_bus_init(struct i3c_bus *i3cbus, struct device_node *np)
+static int i3c_bus_init(struct i3c_bus *i3cbus, struct device_analde *np)
 {
 	int ret, start, end, id = -1;
 
@@ -467,21 +467,21 @@ void i3c_for_each_bus_locked(int (*fn)(struct i3c_bus *bus, void *data),
 }
 EXPORT_SYMBOL_GPL(i3c_for_each_bus_locked);
 
-int i3c_register_notifier(struct notifier_block *nb)
+int i3c_register_analtifier(struct analtifier_block *nb)
 {
-	return blocking_notifier_chain_register(&i3c_bus_notifier, nb);
+	return blocking_analtifier_chain_register(&i3c_bus_analtifier, nb);
 }
-EXPORT_SYMBOL_GPL(i3c_register_notifier);
+EXPORT_SYMBOL_GPL(i3c_register_analtifier);
 
-int i3c_unregister_notifier(struct notifier_block *nb)
+int i3c_unregister_analtifier(struct analtifier_block *nb)
 {
-	return blocking_notifier_chain_unregister(&i3c_bus_notifier, nb);
+	return blocking_analtifier_chain_unregister(&i3c_bus_analtifier, nb);
 }
-EXPORT_SYMBOL_GPL(i3c_unregister_notifier);
+EXPORT_SYMBOL_GPL(i3c_unregister_analtifier);
 
-static void i3c_bus_notify(struct i3c_bus *bus, unsigned int action)
+static void i3c_bus_analtify(struct i3c_bus *bus, unsigned int action)
 {
-	blocking_notifier_call_chain(&i3c_bus_notifier, action, bus);
+	blocking_analtifier_call_chain(&i3c_bus_analtifier, action, bus);
 }
 
 static const char * const i3c_bus_mode_strings[] = {
@@ -498,14 +498,14 @@ static ssize_t mode_show(struct device *dev,
 	struct i3c_bus *i3cbus = dev_to_i3cbus(dev);
 	ssize_t ret;
 
-	i3c_bus_normaluse_lock(i3cbus);
+	i3c_bus_analrmaluse_lock(i3cbus);
 	if (i3cbus->mode < 0 ||
 	    i3cbus->mode >= ARRAY_SIZE(i3c_bus_mode_strings) ||
 	    !i3c_bus_mode_strings[i3cbus->mode])
-		ret = sprintf(buf, "unknown\n");
+		ret = sprintf(buf, "unkanalwn\n");
 	else
 		ret = sprintf(buf, "%s\n", i3c_bus_mode_strings[i3cbus->mode]);
-	i3c_bus_normaluse_unlock(i3cbus);
+	i3c_bus_analrmaluse_unlock(i3cbus);
 
 	return ret;
 }
@@ -518,10 +518,10 @@ static ssize_t current_master_show(struct device *dev,
 	struct i3c_bus *i3cbus = dev_to_i3cbus(dev);
 	ssize_t ret;
 
-	i3c_bus_normaluse_lock(i3cbus);
+	i3c_bus_analrmaluse_lock(i3cbus);
 	ret = sprintf(buf, "%d-%llx\n", i3cbus->id,
 		      i3cbus->cur_master->info.pid);
-	i3c_bus_normaluse_unlock(i3cbus);
+	i3c_bus_analrmaluse_unlock(i3cbus);
 
 	return ret;
 }
@@ -534,9 +534,9 @@ static ssize_t i3c_scl_frequency_show(struct device *dev,
 	struct i3c_bus *i3cbus = dev_to_i3cbus(dev);
 	ssize_t ret;
 
-	i3c_bus_normaluse_lock(i3cbus);
+	i3c_bus_analrmaluse_lock(i3cbus);
 	ret = sprintf(buf, "%ld\n", i3cbus->scl_rate.i3c);
-	i3c_bus_normaluse_unlock(i3cbus);
+	i3c_bus_analrmaluse_unlock(i3cbus);
 
 	return ret;
 }
@@ -549,9 +549,9 @@ static ssize_t i2c_scl_frequency_show(struct device *dev,
 	struct i3c_bus *i3cbus = dev_to_i3cbus(dev);
 	ssize_t ret;
 
-	i3c_bus_normaluse_lock(i3cbus);
+	i3c_bus_analrmaluse_lock(i3cbus);
 	ret = sprintf(buf, "%ld\n", i3cbus->scl_rate.i2c);
-	i3c_bus_normaluse_unlock(i3cbus);
+	i3c_bus_analrmaluse_unlock(i3cbus);
 
 	return ret;
 }
@@ -567,7 +567,7 @@ static int i3c_set_hotjoin(struct i3c_master_controller *master, bool enable)
 	if (!master->ops->enable_hotjoin || !master->ops->disable_hotjoin)
 		return -EINVAL;
 
-	i3c_bus_normaluse_lock(&master->bus);
+	i3c_bus_analrmaluse_lock(&master->bus);
 
 	if (enable)
 		ret = master->ops->enable_hotjoin(master);
@@ -576,7 +576,7 @@ static int i3c_set_hotjoin(struct i3c_master_controller *master, bool enable)
 
 	master->hotjoin = enable;
 
-	i3c_bus_normaluse_unlock(&master->bus);
+	i3c_bus_analrmaluse_unlock(&master->bus);
 
 	return ret;
 }
@@ -630,9 +630,9 @@ static ssize_t hotjoin_show(struct device *dev, struct device_attribute *da, cha
 	struct i3c_bus *i3cbus = dev_to_i3cbus(dev);
 	ssize_t ret;
 
-	i3c_bus_normaluse_lock(i3cbus);
+	i3c_bus_analrmaluse_lock(i3cbus);
 	ret = sysfs_emit(buf, "%d\n", i3cbus->cur_master->common.master->hotjoin);
-	i3c_bus_normaluse_unlock(i3cbus);
+	i3c_bus_analrmaluse_unlock(i3cbus);
 
 	return ret;
 }
@@ -665,7 +665,7 @@ static void i3c_masterdev_release(struct device *dev)
 	WARN_ON(!list_empty(&bus->devs.i2c) || !list_empty(&bus->devs.i3c));
 	i3c_bus_cleanup(bus);
 
-	of_node_put(dev->of_node);
+	of_analde_put(dev->of_analde);
 }
 
 static const struct device_type i3c_masterdev_type = {
@@ -707,7 +707,7 @@ static int i3c_bus_set_mode(struct i3c_bus *i3cbus, enum i3c_bus_mode mode,
 
 	/*
 	 * I3C/I2C frequency may have been overridden, check that user-provided
-	 * values are not exceeding max possible frequency.
+	 * values are analt exceeding max possible frequency.
 	 */
 	if (i3cbus->scl_rate.i3c > I3C_BUS_MAX_I3C_SCL_RATE ||
 	    i3cbus->scl_rate.i2c > I3C_BUS_I2C_FM_PLUS_SCL_RATE)
@@ -741,7 +741,7 @@ i3c_master_alloc_i2c_dev(struct i3c_master_controller *master,
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	dev->common.master = master;
 	dev->addr = addr;
@@ -776,7 +776,7 @@ static void i3c_ccc_cmd_init(struct i3c_ccc_cmd *cmd, bool rnw, u8 id,
 	cmd->id = id;
 	cmd->dests = dests;
 	cmd->ndests = ndests;
-	cmd->err = I3C_ERROR_UNKNOWN;
+	cmd->err = I3C_ERROR_UNKANALWN;
 }
 
 static int i3c_master_send_ccc_cmd_locked(struct i3c_master_controller *master,
@@ -792,18 +792,18 @@ static int i3c_master_send_ccc_cmd_locked(struct i3c_master_controller *master,
 		return -EINVAL;
 
 	if (!master->ops->send_ccc_cmd)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	if ((cmd->id & I3C_CCC_DIRECT) && (!cmd->dests || !cmd->ndests))
 		return -EINVAL;
 
 	if (master->ops->supports_ccc_cmd &&
 	    !master->ops->supports_ccc_cmd(master, cmd))
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	ret = master->ops->send_ccc_cmd(master, cmd);
 	if (ret) {
-		if (cmd->err != I3C_ERROR_UNKNOWN)
+		if (cmd->err != I3C_ERROR_UNKANALWN)
 			return cmd->err;
 
 		return ret;
@@ -833,8 +833,8 @@ i3c_master_find_i2c_dev_by_addr(const struct i3c_master_controller *master,
  *
  * This function must be called with the bus lock held in write mode.
  *
- * Return: the first free address starting at @start_addr (included) or -ENOMEM
- * if there's no more address available.
+ * Return: the first free address starting at @start_addr (included) or -EANALMEM
+ * if there's anal more address available.
  */
 int i3c_master_get_free_addr(struct i3c_master_controller *master,
 			     u8 start_addr)
@@ -849,7 +849,7 @@ static void i3c_device_release(struct device *dev)
 
 	WARN_ON(i3cdev->desc);
 
-	of_node_put(i3cdev->dev.of_node);
+	of_analde_put(i3cdev->dev.of_analde);
 	kfree(i3cdev);
 }
 
@@ -866,7 +866,7 @@ i3c_master_alloc_i3c_dev(struct i3c_master_controller *master,
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	dev->common.master = master;
 	dev->info = *info;
@@ -907,7 +907,7 @@ static int i3c_master_rstdaa_locked(struct i3c_master_controller *master,
  *
  * Send a ENTDAA CCC command to start a DAA procedure.
  *
- * Note that this function only sends the ENTDAA CCC command, all the logic
+ * Analte that this function only sends the ENTDAA CCC command, all the logic
  * behind dynamic address assignment has to be handled in the I3C master
  * driver.
  *
@@ -941,7 +941,7 @@ static int i3c_master_enec_disec_locked(struct i3c_master_controller *master,
 
 	events = i3c_ccc_cmd_dest_init(&dest, addr, sizeof(*events));
 	if (!events)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	events->events = evts;
 	i3c_ccc_cmd_init(&cmd, false,
@@ -1001,7 +1001,7 @@ EXPORT_SYMBOL_GPL(i3c_master_enec_locked);
  * i3c_master_defslvs_locked() - send a DEFSLVS CCC command
  * @master: master used to send frames on the bus
  *
- * Send a DEFSLVS CCC command containing all the devices known to the @master.
+ * Send a DEFSLVS CCC command containing all the devices kanalwn to the @master.
  * This is useful when you have secondary masters on the bus to propagate
  * device information.
  *
@@ -1043,7 +1043,7 @@ int i3c_master_defslvs_locked(struct i3c_master_controller *master)
 			send = true;
 	}
 
-	/* No other master on the bus, skip DEFSLVS. */
+	/* Anal other master on the bus, skip DEFSLVS. */
 	if (!send)
 		return 0;
 
@@ -1054,7 +1054,7 @@ int i3c_master_defslvs_locked(struct i3c_master_controller *master)
 					struct_size(defslvs, slaves,
 						    ndevs - 1));
 	if (!defslvs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	defslvs->count = ndevs;
 	defslvs->master.bcr = master->this->info.bcr;
@@ -1102,7 +1102,7 @@ static int i3c_master_setda_locked(struct i3c_master_controller *master,
 
 	setda = i3c_ccc_cmd_dest_init(&dest, oldaddr, sizeof(*setda));
 	if (!setda)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	setda->addr = newaddr << 1;
 	i3c_ccc_cmd_init(&cmd, false,
@@ -1136,10 +1136,10 @@ static int i3c_master_getmrl_locked(struct i3c_master_controller *master,
 
 	mrl = i3c_ccc_cmd_dest_init(&dest, info->dyn_addr, sizeof(*mrl));
 	if (!mrl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
-	 * When the device does not have IBI payload GETMRL only returns 2
+	 * When the device does analt have IBI payload GETMRL only returns 2
 	 * bytes of data.
 	 */
 	if (!(info->bcr & I3C_BCR_IBI_PAYLOAD))
@@ -1178,7 +1178,7 @@ static int i3c_master_getmwl_locked(struct i3c_master_controller *master,
 
 	mwl = i3c_ccc_cmd_dest_init(&dest, info->dyn_addr, sizeof(*mwl));
 	if (!mwl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i3c_ccc_cmd_init(&cmd, true, I3C_CCC_GETMWL, &dest, 1);
 	ret = i3c_master_send_ccc_cmd_locked(master, &cmd);
@@ -1209,13 +1209,13 @@ static int i3c_master_getmxds_locked(struct i3c_master_controller *master,
 	getmaxds = i3c_ccc_cmd_dest_init(&dest, info->dyn_addr,
 					 sizeof(*getmaxds));
 	if (!getmaxds)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i3c_ccc_cmd_init(&cmd, true, I3C_CCC_GETMXDS, &dest, 1);
 	ret = i3c_master_send_ccc_cmd_locked(master, &cmd);
 	if (ret) {
 		/*
-		 * Retry when the device does not support max read turnaround
+		 * Retry when the device does analt support max read turnaround
 		 * while expecting shorter length from this CCC command.
 		 */
 		dest.payload.len -= 3;
@@ -1253,7 +1253,7 @@ static int i3c_master_gethdrcap_locked(struct i3c_master_controller *master,
 	gethdrcap = i3c_ccc_cmd_dest_init(&dest, info->dyn_addr,
 					  sizeof(*gethdrcap));
 	if (!gethdrcap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i3c_ccc_cmd_init(&cmd, true, I3C_CCC_GETHDRCAP, &dest, 1);
 	ret = i3c_master_send_ccc_cmd_locked(master, &cmd);
@@ -1283,7 +1283,7 @@ static int i3c_master_getpid_locked(struct i3c_master_controller *master,
 
 	getpid = i3c_ccc_cmd_dest_init(&dest, info->dyn_addr, sizeof(*getpid));
 	if (!getpid)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i3c_ccc_cmd_init(&cmd, true, I3C_CCC_GETPID, &dest, 1);
 	ret = i3c_master_send_ccc_cmd_locked(master, &cmd);
@@ -1313,7 +1313,7 @@ static int i3c_master_getbcr_locked(struct i3c_master_controller *master,
 
 	getbcr = i3c_ccc_cmd_dest_init(&dest, info->dyn_addr, sizeof(*getbcr));
 	if (!getbcr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i3c_ccc_cmd_init(&cmd, true, I3C_CCC_GETBCR, &dest, 1);
 	ret = i3c_master_send_ccc_cmd_locked(master, &cmd);
@@ -1338,7 +1338,7 @@ static int i3c_master_getdcr_locked(struct i3c_master_controller *master,
 
 	getdcr = i3c_ccc_cmd_dest_init(&dest, info->dyn_addr, sizeof(*getdcr));
 	if (!getdcr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i3c_ccc_cmd_init(&cmd, true, I3C_CCC_GETDCR, &dest, 1);
 	ret = i3c_master_send_ccc_cmd_locked(master, &cmd);
@@ -1444,7 +1444,7 @@ static int i3c_master_get_i3c_addrs(struct i3c_dev_desc *dev)
 
 	/*
 	 * ->init_dyn_addr should have been reserved before that, so, if we're
-	 * trying to apply a pre-reserved dynamic address, we should not try
+	 * trying to apply a pre-reserved dynamic address, we should analt try
 	 * to reserve the address slot a second time.
 	 */
 	if (dev->info.dyn_addr &&
@@ -1486,7 +1486,7 @@ static int i3c_master_attach_i3c_dev(struct i3c_master_controller *master,
 	if (ret)
 		return ret;
 
-	/* Do not attach the master device itself. */
+	/* Do analt attach the master device itself. */
 	if (master->this != dev && master->ops->attach_i3c_dev) {
 		ret = master->ops->attach_i3c_dev(dev);
 		if (ret) {
@@ -1495,7 +1495,7 @@ static int i3c_master_attach_i3c_dev(struct i3c_master_controller *master,
 		}
 	}
 
-	list_add_tail(&dev->common.node, &master->bus.devs.i3c);
+	list_add_tail(&dev->common.analde, &master->bus.devs.i3c);
 
 	return 0;
 }
@@ -1537,12 +1537,12 @@ static void i3c_master_detach_i3c_dev(struct i3c_dev_desc *dev)
 {
 	struct i3c_master_controller *master = i3c_dev_get_master(dev);
 
-	/* Do not detach the master device itself. */
+	/* Do analt detach the master device itself. */
 	if (master->this != dev && master->ops->detach_i3c_dev)
 		master->ops->detach_i3c_dev(dev);
 
 	i3c_master_put_i3c_addrs(dev);
-	list_del(&dev->common.node);
+	list_del(&dev->common.analde);
 }
 
 static int i3c_master_attach_i2c_dev(struct i3c_master_controller *master,
@@ -1556,7 +1556,7 @@ static int i3c_master_attach_i2c_dev(struct i3c_master_controller *master,
 			return ret;
 	}
 
-	list_add_tail(&dev->common.node, &master->bus.devs.i2c);
+	list_add_tail(&dev->common.analde, &master->bus.devs.i2c);
 
 	return 0;
 }
@@ -1565,7 +1565,7 @@ static void i3c_master_detach_i2c_dev(struct i2c_dev_desc *dev)
 {
 	struct i3c_master_controller *master = i2c_dev_get_master(dev);
 
-	list_del(&dev->common.node);
+	list_del(&dev->common.analde);
 
 	if (master->ops->detach_i2c_dev)
 		master->ops->detach_i2c_dev(dev);
@@ -1583,7 +1583,7 @@ static int i3c_master_early_i3c_dev_add(struct i3c_master_controller *master,
 
 	i3cdev = i3c_master_alloc_i3c_dev(master, &info);
 	if (IS_ERR(i3cdev))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i3cdev->boardinfo = boardinfo;
 
@@ -1644,7 +1644,7 @@ i3c_master_register_new_i3c_devs(struct i3c_master_controller *master)
 			     desc->info.pid);
 
 		if (desc->boardinfo)
-			desc->dev->dev.of_node = desc->boardinfo->of_node;
+			desc->dev->dev.of_analde = desc->boardinfo->of_analde;
 
 		ret = device_register(&desc->dev->dev);
 		if (ret) {
@@ -1681,9 +1681,9 @@ int i3c_master_do_daa(struct i3c_master_controller *master)
 	if (ret)
 		return ret;
 
-	i3c_bus_normaluse_lock(&master->bus);
+	i3c_bus_analrmaluse_lock(&master->bus);
 	i3c_master_register_new_i3c_devs(master);
-	i3c_bus_normaluse_unlock(&master->bus);
+	i3c_bus_analrmaluse_unlock(&master->bus);
 
 	return 0;
 }
@@ -1697,7 +1697,7 @@ EXPORT_SYMBOL_GPL(i3c_master_do_daa);
  * Set master device info. This should be called from
  * &i3c_master_controller_ops->bus_init().
  *
- * Not all &i3c_device_info fields are meaningful for a master device.
+ * Analt all &i3c_device_info fields are meaningful for a master device.
  * Here is a list of fields that should be properly filled:
  *
  * - &i3c_device_info->dyn_addr
@@ -1709,7 +1709,7 @@ EXPORT_SYMBOL_GPL(i3c_master_do_daa);
  *
  * This function must be called with the bus lock held in maintenance mode.
  *
- * Return: 0 if @info contains valid information (not every piece of
+ * Return: 0 if @info contains valid information (analt every piece of
  * information can be checked, but we can at least make sure @info->dyn_addr
  * and @info->bcr are correct), -EINVAL otherwise.
  */
@@ -1755,7 +1755,7 @@ static void i3c_master_detach_free_devs(struct i3c_master_controller *master)
 	struct i2c_dev_desc *i2cdev, *i2ctmp;
 
 	list_for_each_entry_safe(i3cdev, i3ctmp, &master->bus.devs.i3c,
-				 common.node) {
+				 common.analde) {
 		i3c_master_detach_i3c_dev(i3cdev);
 
 		if (i3cdev->boardinfo && i3cdev->boardinfo->init_dyn_addr)
@@ -1767,7 +1767,7 @@ static void i3c_master_detach_free_devs(struct i3c_master_controller *master)
 	}
 
 	list_for_each_entry_safe(i2cdev, i2ctmp, &master->bus.devs.i2c,
-				 common.node) {
+				 common.analde) {
 		i3c_master_detach_i2c_dev(i2cdev);
 		i3c_bus_set_addr_slot_status(&master->bus,
 					     i2cdev->addr,
@@ -1820,7 +1820,7 @@ static int i3c_master_bus_init(struct i3c_master_controller *master)
 	 * First attach all devices with static definitions provided by the
 	 * FW.
 	 */
-	list_for_each_entry(i2cboardinfo, &master->boardinfo.i2c, node) {
+	list_for_each_entry(i2cboardinfo, &master->boardinfo.i2c, analde) {
 		status = i3c_bus_get_addr_slot_status(&master->bus,
 						      i2cboardinfo->base.addr);
 		if (status != I3C_ADDR_SLOT_FREE) {
@@ -1848,7 +1848,7 @@ static int i3c_master_bus_init(struct i3c_master_controller *master)
 	}
 
 	/*
-	 * Now execute the controller specific ->bus_init() routine, which
+	 * Analw execute the controller specific ->bus_init() routine, which
 	 * might configure its internal logic to match the bus limitations.
 	 */
 	ret = master->ops->bus_init(master);
@@ -1857,11 +1857,11 @@ static int i3c_master_bus_init(struct i3c_master_controller *master)
 
 	/*
 	 * The master device should have been instantiated in ->bus_init(),
-	 * complain if this was not the case.
+	 * complain if this was analt the case.
 	 */
 	if (!master->this) {
 		dev_err(&master->dev,
-			"master_set_info() was not called in ->bus_init()\n");
+			"master_set_info() was analt called in ->bus_init()\n");
 		ret = -EINVAL;
 		goto err_bus_cleanup;
 	}
@@ -1888,7 +1888,7 @@ static int i3c_master_bus_init(struct i3c_master_controller *master)
 	 * the requested init_dyn_addr is retried after DAA is done in
 	 * i3c_master_add_i3c_dev_locked().
 	 */
-	list_for_each_entry(i3cboardinfo, &master->boardinfo.i3c, node) {
+	list_for_each_entry(i3cboardinfo, &master->boardinfo.i3c, analde) {
 
 		/*
 		 * We don't reserve a dynamic address for devices that
@@ -1952,7 +1952,7 @@ static void i3c_master_attach_boardinfo(struct i3c_dev_desc *i3cdev)
 	struct i3c_master_controller *master = i3cdev->common.master;
 	struct i3c_dev_boardinfo *i3cboardinfo;
 
-	list_for_each_entry(i3cboardinfo, &master->boardinfo.i3c, node) {
+	list_for_each_entry(i3cboardinfo, &master->boardinfo.i3c, analde) {
 		if (i3cdev->info.pid != i3cboardinfo->pid)
 			continue;
 
@@ -2057,7 +2057,7 @@ int i3c_master_add_i3c_dev_locked(struct i3c_master_controller *master,
 	 * differ:
 	 * - if the device already had a dynamic address assigned, let's try to
 	 *   re-apply this one
-	 * - if the device did not have a dynamic address and the firmware
+	 * - if the device did analt have a dynamic address and the firmware
 	 *   requested a specific address, pick this one
 	 * - in any other case, keep the address automatically assigned by the
 	 *   master
@@ -2089,7 +2089,7 @@ int i3c_master_add_i3c_dev_locked(struct i3c_master_controller *master,
 	}
 
 	/*
-	 * Now is time to try to restore the IBI setup. If we're lucky,
+	 * Analw is time to try to restore the IBI setup. If we're lucky,
 	 * everything works as before, otherwise, all we can do is complain.
 	 * FIXME: maybe we should add callback to inform the driver that it
 	 * should request the IBI again instead of trying to hide that from
@@ -2131,7 +2131,7 @@ EXPORT_SYMBOL_GPL(i3c_master_add_i3c_dev_locked);
 
 static int
 of_i3c_master_add_i2c_boardinfo(struct i3c_master_controller *master,
-				struct device_node *node, u32 *reg)
+				struct device_analde *analde, u32 *reg)
 {
 	struct i2c_dev_boardinfo *boardinfo;
 	struct device *dev = &master->dev;
@@ -2139,34 +2139,34 @@ of_i3c_master_add_i2c_boardinfo(struct i3c_master_controller *master,
 
 	boardinfo = devm_kzalloc(dev, sizeof(*boardinfo), GFP_KERNEL);
 	if (!boardinfo)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	ret = of_i2c_get_board_info(dev, node, &boardinfo->base);
+	ret = of_i2c_get_board_info(dev, analde, &boardinfo->base);
 	if (ret)
 		return ret;
 
 	/*
-	 * The I3C Specification does not clearly say I2C devices with 10-bit
+	 * The I3C Specification does analt clearly say I2C devices with 10-bit
 	 * address are supported. These devices can't be passed properly through
 	 * DEFSLVS command.
 	 */
 	if (boardinfo->base.flags & I2C_CLIENT_TEN) {
-		dev_err(dev, "I2C device with 10 bit address not supported.");
-		return -ENOTSUPP;
+		dev_err(dev, "I2C device with 10 bit address analt supported.");
+		return -EANALTSUPP;
 	}
 
 	/* LVR is encoded in reg[2]. */
 	boardinfo->lvr = reg[2];
 
-	list_add_tail(&boardinfo->node, &master->boardinfo.i2c);
-	of_node_get(node);
+	list_add_tail(&boardinfo->analde, &master->boardinfo.i2c);
+	of_analde_get(analde);
 
 	return 0;
 }
 
 static int
 of_i3c_master_add_i3c_boardinfo(struct i3c_master_controller *master,
-				struct device_node *node, u32 *reg)
+				struct device_analde *analde, u32 *reg)
 {
 	struct i3c_dev_boardinfo *boardinfo;
 	struct device *dev = &master->dev;
@@ -2175,7 +2175,7 @@ of_i3c_master_add_i3c_boardinfo(struct i3c_master_controller *master,
 
 	boardinfo = devm_kzalloc(dev, sizeof(*boardinfo), GFP_KERNEL);
 	if (!boardinfo)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (reg[0]) {
 		if (reg[0] > I3C_MAX_ADDR)
@@ -2189,7 +2189,7 @@ of_i3c_master_add_i3c_boardinfo(struct i3c_master_controller *master,
 
 	boardinfo->static_addr = reg[0];
 
-	if (!of_property_read_u32(node, "assigned-address", &init_dyn_addr)) {
+	if (!of_property_read_u32(analde, "assigned-address", &init_dyn_addr)) {
 		if (init_dyn_addr > I3C_MAX_ADDR)
 			return -EINVAL;
 
@@ -2206,22 +2206,22 @@ of_i3c_master_add_i3c_boardinfo(struct i3c_master_controller *master,
 		return -EINVAL;
 
 	boardinfo->init_dyn_addr = init_dyn_addr;
-	boardinfo->of_node = of_node_get(node);
-	list_add_tail(&boardinfo->node, &master->boardinfo.i3c);
+	boardinfo->of_analde = of_analde_get(analde);
+	list_add_tail(&boardinfo->analde, &master->boardinfo.i3c);
 
 	return 0;
 }
 
 static int of_i3c_master_add_dev(struct i3c_master_controller *master,
-				 struct device_node *node)
+				 struct device_analde *analde)
 {
 	u32 reg[3];
 	int ret;
 
-	if (!master || !node)
+	if (!master || !analde)
 		return -EINVAL;
 
-	ret = of_property_read_u32_array(node, "reg", reg, ARRAY_SIZE(reg));
+	ret = of_property_read_u32_array(analde, "reg", reg, ARRAY_SIZE(reg));
 	if (ret)
 		return ret;
 
@@ -2230,9 +2230,9 @@ static int of_i3c_master_add_dev(struct i3c_master_controller *master,
 	 * dealing with an I2C device.
 	 */
 	if (!reg[1])
-		ret = of_i3c_master_add_i2c_boardinfo(master, node, reg);
+		ret = of_i3c_master_add_i2c_boardinfo(master, analde, reg);
 	else
-		ret = of_i3c_master_add_i3c_boardinfo(master, node, reg);
+		ret = of_i3c_master_add_i3c_boardinfo(master, analde, reg);
 
 	return ret;
 }
@@ -2240,25 +2240,25 @@ static int of_i3c_master_add_dev(struct i3c_master_controller *master,
 static int of_populate_i3c_bus(struct i3c_master_controller *master)
 {
 	struct device *dev = &master->dev;
-	struct device_node *i3cbus_np = dev->of_node;
-	struct device_node *node;
+	struct device_analde *i3cbus_np = dev->of_analde;
+	struct device_analde *analde;
 	int ret;
 	u32 val;
 
 	if (!i3cbus_np)
 		return 0;
 
-	for_each_available_child_of_node(i3cbus_np, node) {
-		ret = of_i3c_master_add_dev(master, node);
+	for_each_available_child_of_analde(i3cbus_np, analde) {
+		ret = of_i3c_master_add_dev(master, analde);
 		if (ret) {
-			of_node_put(node);
+			of_analde_put(analde);
 			return ret;
 		}
 	}
 
 	/*
 	 * The user might want to limit I2C and I3C speed in case some devices
-	 * on the bus are not supporting typical rates, or if the bus topology
+	 * on the bus are analt supporting typical rates, or if the bus topology
 	 * prevents it from using max possible rate.
 	 */
 	if (!of_property_read_u32(i3cbus_np, "i2c-scl-hz", &val))
@@ -2282,22 +2282,22 @@ static int i3c_master_i2c_adapter_xfer(struct i2c_adapter *adap,
 		return -EINVAL;
 
 	if (!master->ops->i2c_xfers)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
-	/* Doing transfers to different devices is not supported. */
+	/* Doing transfers to different devices is analt supported. */
 	addr = xfers[0].addr;
 	for (i = 1; i < nxfers; i++) {
 		if (addr != xfers[i].addr)
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 	}
 
-	i3c_bus_normaluse_lock(&master->bus);
+	i3c_bus_analrmaluse_lock(&master->bus);
 	dev = i3c_master_find_i2c_dev_by_addr(master, addr);
 	if (!dev)
-		ret = -ENOENT;
+		ret = -EANALENT;
 	else
 		ret = master->ops->i2c_xfers(dev, xfers, nxfers);
-	i3c_bus_normaluse_unlock(&master->bus);
+	i3c_bus_analrmaluse_unlock(&master->bus);
 
 	return ret ? ret : nxfers;
 }
@@ -2309,13 +2309,13 @@ static u32 i3c_master_i2c_funcs(struct i2c_adapter *adapter)
 
 static u8 i3c_master_i2c_get_lvr(struct i2c_client *client)
 {
-	/* Fall back to no spike filters and FM bus mode. */
+	/* Fall back to anal spike filters and FM bus mode. */
 	u8 lvr = I3C_LVR_I2C_INDEX(2) | I3C_LVR_I2C_FM_MODE;
 
-	if (client->dev.of_node) {
+	if (client->dev.of_analde) {
 		u32 reg[3];
 
-		if (!of_property_read_u32_array(client->dev.of_node, "reg",
+		if (!of_property_read_u32_array(client->dev.of_analde, "reg",
 						reg, ARRAY_SIZE(reg)))
 			lvr = reg[2];
 	}
@@ -2370,7 +2370,7 @@ static int i3c_master_i2c_detach(struct i2c_adapter *adap, struct i2c_client *cl
 
 	dev = i3c_master_find_i2c_dev_by_addr(master, client->addr);
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	i3c_master_detach_i2c_dev(dev);
 	i3c_bus_set_addr_slot_status(&master->bus, dev->addr,
@@ -2385,7 +2385,7 @@ static const struct i2c_algorithm i3c_master_i2c_algo = {
 	.functionality = i3c_master_i2c_funcs,
 };
 
-static int i3c_i2c_notifier_call(struct notifier_block *nb, unsigned long action,
+static int i3c_i2c_analtifier_call(struct analtifier_block *nb, unsigned long action,
 				 void *data)
 {
 	struct i2c_adapter *adap;
@@ -2407,10 +2407,10 @@ static int i3c_i2c_notifier_call(struct notifier_block *nb, unsigned long action
 
 	i3c_bus_maintenance_lock(&master->bus);
 	switch (action) {
-	case BUS_NOTIFY_ADD_DEVICE:
+	case BUS_ANALTIFY_ADD_DEVICE:
 		ret = i3c_master_i2c_attach(adap, client);
 		break;
-	case BUS_NOTIFY_DEL_DEVICE:
+	case BUS_ANALTIFY_DEL_DEVICE:
 		ret = i3c_master_i2c_detach(adap, client);
 		break;
 	}
@@ -2419,8 +2419,8 @@ static int i3c_i2c_notifier_call(struct notifier_block *nb, unsigned long action
 	return ret;
 }
 
-static struct notifier_block i2cdev_notifier = {
-	.notifier_call = i3c_i2c_notifier_call,
+static struct analtifier_block i2cdev_analtifier = {
+	.analtifier_call = i3c_i2c_analtifier_call,
 };
 
 static int i3c_master_i2c_adapter_init(struct i3c_master_controller *master)
@@ -2444,10 +2444,10 @@ static int i3c_master_i2c_adapter_init(struct i3c_master_controller *master)
 		return ret;
 
 	/*
-	 * We silently ignore failures here. The bus should keep working
-	 * correctly even if one or more i2c devices are not registered.
+	 * We silently iganalre failures here. The bus should keep working
+	 * correctly even if one or more i2c devices are analt registered.
 	 */
-	list_for_each_entry(i2cboardinfo, &master->boardinfo.i2c, node) {
+	list_for_each_entry(i2cboardinfo, &master->boardinfo.i2c, analde) {
 		i2cdev = i3c_master_find_i2c_dev_by_addr(master,
 							 i2cboardinfo->base.addr);
 		if (WARN_ON(!i2cdev))
@@ -2527,7 +2527,7 @@ static void i3c_master_init_ibi_slot(struct i3c_dev_desc *dev,
 }
 
 struct i3c_generic_ibi_slot {
-	struct list_head node;
+	struct list_head analde;
 	struct i3c_ibi_slot base;
 };
 
@@ -2553,13 +2553,13 @@ void i3c_generic_ibi_free_pool(struct i3c_generic_ibi_pool *pool)
 
 	while (!list_empty(&pool->free_slots)) {
 		slot = list_first_entry(&pool->free_slots,
-					struct i3c_generic_ibi_slot, node);
-		list_del(&slot->node);
+					struct i3c_generic_ibi_slot, analde);
+		list_del(&slot->analde);
 		nslots++;
 	}
 
 	/*
-	 * If the number of freed slots is not equal to the number of allocated
+	 * If the number of freed slots is analt equal to the number of allocated
 	 * slots we have a leak somewhere.
 	 */
 	WARN_ON(nslots != pool->num_slots);
@@ -2590,7 +2590,7 @@ i3c_generic_ibi_alloc_pool(struct i3c_dev_desc *dev,
 
 	pool = kzalloc(sizeof(*pool), GFP_KERNEL);
 	if (!pool)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	spin_lock_init(&pool->lock);
 	INIT_LIST_HEAD(&pool->free_slots);
@@ -2598,7 +2598,7 @@ i3c_generic_ibi_alloc_pool(struct i3c_dev_desc *dev,
 
 	pool->slots = kcalloc(req->num_slots, sizeof(*slot), GFP_KERNEL);
 	if (!pool->slots) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_pool;
 	}
 
@@ -2606,7 +2606,7 @@ i3c_generic_ibi_alloc_pool(struct i3c_dev_desc *dev,
 		pool->payload_buf = kcalloc(req->num_slots,
 					    req->max_payload_len, GFP_KERNEL);
 		if (!pool->payload_buf) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_free_pool;
 		}
 	}
@@ -2619,7 +2619,7 @@ i3c_generic_ibi_alloc_pool(struct i3c_dev_desc *dev,
 			slot->base.data = pool->payload_buf +
 					  (i * req->max_payload_len);
 
-		list_add_tail(&slot->node, &pool->free_slots);
+		list_add_tail(&slot->analde, &pool->free_slots);
 		pool->num_slots++;
 	}
 
@@ -2637,9 +2637,9 @@ EXPORT_SYMBOL_GPL(i3c_generic_ibi_alloc_pool);
  *
  * Search for a free slot in a generic IBI pool.
  * The slot should be returned to the pool using i3c_generic_ibi_recycle_slot()
- * when it's no longer needed.
+ * when it's anal longer needed.
  *
- * Return: a pointer to a free slot, or NULL if there's no free slot available.
+ * Return: a pointer to a free slot, or NULL if there's anal free slot available.
  */
 struct i3c_ibi_slot *
 i3c_generic_ibi_get_free_slot(struct i3c_generic_ibi_pool *pool)
@@ -2649,9 +2649,9 @@ i3c_generic_ibi_get_free_slot(struct i3c_generic_ibi_pool *pool)
 
 	spin_lock_irqsave(&pool->lock, flags);
 	slot = list_first_entry_or_null(&pool->free_slots,
-					struct i3c_generic_ibi_slot, node);
+					struct i3c_generic_ibi_slot, analde);
 	if (slot)
-		list_del(&slot->node);
+		list_del(&slot->analde);
 	spin_unlock_irqrestore(&pool->lock, flags);
 
 	return slot ? &slot->base : NULL;
@@ -2677,7 +2677,7 @@ void i3c_generic_ibi_recycle_slot(struct i3c_generic_ibi_pool *pool,
 
 	slot = container_of(s, struct i3c_generic_ibi_slot, base);
 	spin_lock_irqsave(&pool->lock, flags);
-	list_add_tail(&slot->node, &pool->free_slots);
+	list_add_tail(&slot->analde, &pool->free_slots);
 	spin_unlock_irqrestore(&pool->lock, flags);
 }
 EXPORT_SYMBOL_GPL(i3c_generic_ibi_recycle_slot);
@@ -2703,13 +2703,13 @@ static int i3c_master_check_ops(const struct i3c_master_controller_ops *ops)
  *	    controller)
  * @ops: the master controller operations
  * @secondary: true if you are registering a secondary master. Will return
- *	       -ENOTSUPP if set to true since secondary masters are not yet
+ *	       -EANALTSUPP if set to true since secondary masters are analt yet
  *	       supported
  *
  * This function takes care of everything for you:
  *
  * - creates and initializes the I3C bus
- * - populates the bus with static I2C devs if @parent->of_node is not
+ * - populates the bus with static I2C devs if @parent->of_analde is analt
  *   NULL
  * - registers all I3C devices added by the controller during bus
  *   initialization
@@ -2728,16 +2728,16 @@ int i3c_master_register(struct i3c_master_controller *master,
 	struct i2c_dev_boardinfo *i2cbi;
 	int ret;
 
-	/* We do not support secondary masters yet. */
+	/* We do analt support secondary masters yet. */
 	if (secondary)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	ret = i3c_master_check_ops(ops);
 	if (ret)
 		return ret;
 
 	master->dev.parent = parent;
-	master->dev.of_node = of_node_get(parent->of_node);
+	master->dev.of_analde = of_analde_get(parent->of_analde);
 	master->dev.bus = &i3c_bus_type;
 	master->dev.type = &i3c_masterdev_type;
 	master->dev.release = i3c_masterdev_release;
@@ -2746,7 +2746,7 @@ int i3c_master_register(struct i3c_master_controller *master,
 	INIT_LIST_HEAD(&master->boardinfo.i2c);
 	INIT_LIST_HEAD(&master->boardinfo.i3c);
 
-	ret = i3c_bus_init(i3cbus, master->dev.of_node);
+	ret = i3c_bus_init(i3cbus, master->dev.of_analde);
 	if (ret)
 		return ret;
 
@@ -2761,7 +2761,7 @@ int i3c_master_register(struct i3c_master_controller *master,
 	if (ret)
 		goto err_put_dev;
 
-	list_for_each_entry(i2cbi, &master->boardinfo.i2c, node) {
+	list_for_each_entry(i2cbi, &master->boardinfo.i2c, analde) {
 		switch (i2cbi->lvr & I3C_LVR_I2C_INDEX_MASK) {
 		case I3C_LVR_I2C_INDEX(0):
 			if (mode < I3C_BUS_MODE_MIXED_FAST)
@@ -2790,7 +2790,7 @@ int i3c_master_register(struct i3c_master_controller *master,
 
 	master->wq = alloc_workqueue("%s", 0, 0, dev_name(parent));
 	if (!master->wq) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_put_dev;
 	}
 
@@ -2810,16 +2810,16 @@ int i3c_master_register(struct i3c_master_controller *master,
 	if (ret)
 		goto err_del_dev;
 
-	i3c_bus_notify(i3cbus, I3C_NOTIFY_BUS_ADD);
+	i3c_bus_analtify(i3cbus, I3C_ANALTIFY_BUS_ADD);
 
 	/*
-	 * We're done initializing the bus and the controller, we can now
+	 * We're done initializing the bus and the controller, we can analw
 	 * register I3C devices discovered during the initial DAA.
 	 */
 	master->init_done = true;
-	i3c_bus_normaluse_lock(&master->bus);
+	i3c_bus_analrmaluse_lock(&master->bus);
 	i3c_master_register_new_i3c_devs(master);
-	i3c_bus_normaluse_unlock(&master->bus);
+	i3c_bus_analrmaluse_unlock(&master->bus);
 
 	return 0;
 
@@ -2844,7 +2844,7 @@ EXPORT_SYMBOL_GPL(i3c_master_register);
  */
 void i3c_master_unregister(struct i3c_master_controller *master)
 {
-	i3c_bus_notify(&master->bus, I3C_NOTIFY_BUS_REMOVE);
+	i3c_bus_analtify(&master->bus, I3C_ANALTIFY_BUS_REMOVE);
 
 	i3c_master_i2c_adapter_cleanup(master);
 	i3c_master_unregister_i3c_devs(master);
@@ -2858,7 +2858,7 @@ int i3c_dev_setdasa_locked(struct i3c_dev_desc *dev)
 	struct i3c_master_controller *master;
 
 	if (!dev)
-		return -ENOENT;
+		return -EANALENT;
 
 	master = i3c_dev_get_master(dev);
 	if (!master)
@@ -2879,14 +2879,14 @@ int i3c_dev_do_priv_xfers_locked(struct i3c_dev_desc *dev,
 	struct i3c_master_controller *master;
 
 	if (!dev)
-		return -ENOENT;
+		return -EANALENT;
 
 	master = i3c_dev_get_master(dev);
 	if (!master || !xfers)
 		return -EINVAL;
 
 	if (!master->ops->priv_xfers)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	return master->ops->priv_xfers(dev, xfers, nxfers);
 }
@@ -2936,19 +2936,19 @@ int i3c_dev_request_ibi_locked(struct i3c_dev_desc *dev,
 	int ret;
 
 	if (!master->ops->request_ibi)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	if (dev->ibi)
 		return -EBUSY;
 
 	ibi = kzalloc(sizeof(*ibi), GFP_KERNEL);
 	if (!ibi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ibi->wq = alloc_ordered_workqueue(dev_name(i3cdev_to_dev(dev->dev)), WQ_MEM_RECLAIM);
 	if (!ibi->wq) {
 		kfree(ibi);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	atomic_set(&ibi->pending_ibis, 0);
@@ -2999,18 +2999,18 @@ static int __init i3c_init(void)
 		mutex_unlock(&i3c_core_lock);
 	}
 
-	res = bus_register_notifier(&i2c_bus_type, &i2cdev_notifier);
+	res = bus_register_analtifier(&i2c_bus_type, &i2cdev_analtifier);
 	if (res)
 		return res;
 
 	res = bus_register(&i3c_bus_type);
 	if (res)
-		goto out_unreg_notifier;
+		goto out_unreg_analtifier;
 
 	return 0;
 
-out_unreg_notifier:
-	bus_unregister_notifier(&i2c_bus_type, &i2cdev_notifier);
+out_unreg_analtifier:
+	bus_unregister_analtifier(&i2c_bus_type, &i2cdev_analtifier);
 
 	return res;
 }
@@ -3018,7 +3018,7 @@ subsys_initcall(i3c_init);
 
 static void __exit i3c_exit(void)
 {
-	bus_unregister_notifier(&i2c_bus_type, &i2cdev_notifier);
+	bus_unregister_analtifier(&i2c_bus_type, &i2cdev_analtifier);
 	idr_destroy(&i3c_bus_idr);
 	bus_unregister(&i3c_bus_type);
 }

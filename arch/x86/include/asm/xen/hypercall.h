@@ -18,12 +18,12 @@
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE
  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -35,7 +35,7 @@
 
 #include <linux/kernel.h>
 #include <linux/spinlock.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/pgtable.h>
@@ -44,7 +44,7 @@
 
 #include <asm/page.h>
 #include <asm/smap.h>
-#include <asm/nospec-branch.h>
+#include <asm/analspec-branch.h>
 
 #include <xen/interface/xen.h>
 #include <xen/interface/sched.h>
@@ -67,7 +67,7 @@ struct xen_dm_op_buf;
  *
  * - Mark all registers as potentially clobbered
  *    Even unused parameters can be clobbered by the hypervisor, so we
- *    need to make sure gcc knows it.
+ *    need to make sure gcc kanalws it.
  *
  * - Avoid compiler bugs.
  *    This is the tricky part.  Because x86_32 has such a constrained
@@ -209,7 +209,7 @@ xen_single_call(unsigned int call,
 	if (call >= PAGE_SIZE / sizeof(hypercall_page[0]))
 		return -EINVAL;
 
-	asm volatile(CALL_NOSPEC
+	asm volatile(CALL_ANALSPEC
 		     : __HYPERCALL_5PARAM
 		     : [thunk_target] "a" (&hypercall_page[call])
 		     : __HYPERCALL_CLOBBER5);
@@ -223,13 +223,13 @@ static __always_inline void __xen_stac(void)
 	 * Suppress objtool seeing the STAC/CLAC and getting confused about it
 	 * calling random code with AC=1.
 	 */
-	asm volatile(ANNOTATE_IGNORE_ALTERNATIVE
+	asm volatile(ANANALTATE_IGANALRE_ALTERNATIVE
 		     ASM_STAC ::: "memory", "flags");
 }
 
 static __always_inline void __xen_clac(void)
 {
-	asm volatile(ANNOTATE_IGNORE_ALTERNATIVE
+	asm volatile(ANANALTATE_IGANALRE_ALTERNATIVE
 		     ASM_CLAC ::: "memory", "flags");
 }
 

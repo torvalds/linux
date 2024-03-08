@@ -11,7 +11,7 @@
 #define NR_IRQS 64
 #endif
 
-static inline int irq_canonicalize(int irq)
+static inline int irq_caanalnicalize(int irq)
 {
 	return irq;
 }

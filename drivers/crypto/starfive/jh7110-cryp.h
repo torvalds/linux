@@ -107,7 +107,7 @@ union starfive_pka_cacr {
 		u32 ie				:1;
 		u32 rsvd_0			:1;
 		u32 fifo_mode			:1;
-		u32 not_r2			:1;
+		u32 analt_r2			:1;
 		u32 ecc_sub			:1;
 		u32 pre_expf			:1;
 		u32 cmd				:4;

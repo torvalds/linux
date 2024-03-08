@@ -41,7 +41,7 @@ static int add_hdm_decoder(struct cxl_port *port, struct cxl_decoder *cxld,
 
 /*
  * Per the CXL specification (8.2.5.12 CXL HDM Decoder Capability Structure)
- * single ported host-bridges need not publish a decoder capability when a
+ * single ported host-bridges need analt publish a decoder capability when a
  * passthrough decode can be assumed, i.e. all transactions that the uport sees
  * are claimed and passed to the single dport. Disable the range until the first
  * CXL region is enumerated / activated.
@@ -105,7 +105,7 @@ static bool should_emulate_decoders(struct cxl_endpoint_dvsec_info *info)
 		return false;
 
 	/*
-	 * If any decoders are committed already, there should not be any
+	 * If any decoders are committed already, there should analt be any
 	 * emulated DVSEC decoders.
 	 */
 	for (i = 0; i < cxlhdm->decoder_count; i++) {
@@ -140,14 +140,14 @@ struct cxl_hdm *devm_cxl_setup_hdm(struct cxl_port *port,
 
 	cxlhdm = devm_kzalloc(dev, sizeof(*cxlhdm), GFP_KERNEL);
 	if (!cxlhdm)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	cxlhdm->port = port;
 	dev_set_drvdata(dev, cxlhdm);
 
 	/* Memory devices can configure device HDM using DVSEC range regs. */
-	if (reg_map->resource == CXL_RESOURCE_NONE) {
+	if (reg_map->resource == CXL_RESOURCE_ANALNE) {
 		if (!info || !info->mem_enabled) {
-			dev_err(dev, "No component registers mapped\n");
+			dev_err(dev, "Anal component registers mapped\n");
 			return ERR_PTR(-ENXIO);
 		}
 
@@ -156,9 +156,9 @@ struct cxl_hdm *devm_cxl_setup_hdm(struct cxl_port *port,
 	}
 
 	if (!reg_map->component_map.hdm_decoder.valid) {
-		dev_dbg(&port->dev, "HDM decoder registers not implemented\n");
-		/* unique error code to indicate no HDM decoder capability */
-		return ERR_PTR(-ENODEV);
+		dev_dbg(&port->dev, "HDM decoder registers analt implemented\n");
+		/* unique error code to indicate anal HDM decoder capability */
+		return ERR_PTR(-EANALDEV);
 	}
 
 	rc = cxl_map_component_regs(reg_map, &cxlhdm->regs,
@@ -175,7 +175,7 @@ struct cxl_hdm *devm_cxl_setup_hdm(struct cxl_port *port,
 	}
 
 	/*
-	 * Now that the hdm capability is parsed, decide if range
+	 * Analw that the hdm capability is parsed, decide if range
 	 * register emulation is needed and fixup cxlhdm accordingly.
 	 */
 	if (should_emulate_decoders(info)) {
@@ -243,7 +243,7 @@ static void cxl_dpa_release(void *cxled)
 }
 
 /*
- * Must be called from context that will not race port device
+ * Must be called from context that will analt race port device
  * unregistration, like decoder sysfs attribute methods
  */
 static void devm_cxl_dpa_release(struct cxl_endpoint_decoder *cxled)
@@ -433,12 +433,12 @@ int cxl_dpa_set_mode(struct cxl_endpoint_decoder *cxled,
 	 * configuration
 	 */
 	if (mode == CXL_DECODER_PMEM && !resource_size(&cxlds->pmem_res)) {
-		dev_dbg(dev, "no available pmem capacity\n");
+		dev_dbg(dev, "anal available pmem capacity\n");
 		rc = -ENXIO;
 		goto out;
 	}
 	if (mode == CXL_DECODER_RAM && !resource_size(&cxlds->ram_res)) {
-		dev_dbg(dev, "no available ram capacity\n");
+		dev_dbg(dev, "anal available ram capacity\n");
 		rc = -ENXIO;
 		goto out;
 	}
@@ -512,7 +512,7 @@ int cxl_dpa_alloc(struct cxl_endpoint_decoder *cxled, unsigned long long size)
 			skip_end = start - 1;
 		skip = skip_end - skip_start + 1;
 	} else {
-		dev_dbg(dev, "mode not set\n");
+		dev_dbg(dev, "mode analt set\n");
 		rc = -EINVAL;
 		goto out;
 	}
@@ -521,7 +521,7 @@ int cxl_dpa_alloc(struct cxl_endpoint_decoder *cxled, unsigned long long size)
 		dev_dbg(dev, "%pa exceeds available %s capacity: %pa\n", &size,
 			cxled->mode == CXL_DECODER_RAM ? "ram" : "pmem",
 			&avail);
-		rc = -ENOSPC;
+		rc = -EANALSPC;
 		goto out;
 	}
 
@@ -634,7 +634,7 @@ static int cxl_decoder_commit(struct cxl_decoder *cxld)
 
 	/*
 	 * For endpoint decoders hosted on CXL memory devices that
-	 * support the sanitize operation, make sure sanitize is not in-flight.
+	 * support the sanitize operation, make sure sanitize is analt in-flight.
 	 */
 	if (is_endpoint_decoder(&cxld->dev)) {
 		struct cxl_endpoint_decoder *cxled =
@@ -732,7 +732,7 @@ static int cxl_decoder_reset(struct cxl_decoder *cxld)
 	port->commit_end--;
 	cxld->flags &= ~CXL_DECODER_F_ENABLE;
 
-	/* Userspace is now responsible for reconfiguring this decoder */
+	/* Userspace is analw responsible for reconfiguring this decoder */
 	if (is_endpoint_decoder(&cxld->dev)) {
 		struct cxl_endpoint_decoder *cxled;
 
@@ -752,12 +752,12 @@ static int cxl_setup_hdm_decoder_from_dvsec(
 	int rc;
 
 	if (!is_cxl_endpoint(port))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	cxled = to_cxl_endpoint_decoder(&cxld->dev);
 	len = range_len(&info->dvsec_range[which]);
 	if (!len)
-		return -ENOENT;
+		return -EANALENT;
 
 	cxld->target_type = CXL_DECODER_HOSTONLYMEM;
 	cxld->commit = NULL;
@@ -944,7 +944,7 @@ static void cxl_settle_decoders(struct cxl_hdm *cxlhdm)
 
 	/*
 	 * Since the register resource was recently claimed via request_region()
-	 * be careful about trusting the "not-committed" status until the commit
+	 * be careful about trusting the "analt-committed" status until the commit
 	 * timeout has elapsed.  The commit timeout is 10ms (CXL 2.0
 	 * 8.2.5.12.20), but double it to be tolerant of any clock skew between
 	 * host and target.

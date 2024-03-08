@@ -26,7 +26,7 @@ static void __init smsc_config(int index, int data)
 	outb_p(data, DATA_PORT);
 }
 
-/* XXX: Another candidate for a more generic cchip machine vector */
+/* XXX: Aanalther candidate for a more generic cchip machine vector */
 static void __init smsc_setup(char **cmdline_p)
 {
 	outb_p(CONFIG_ENTER, CONFIG_PORT);

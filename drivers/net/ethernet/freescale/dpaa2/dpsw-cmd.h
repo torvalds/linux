@@ -12,7 +12,7 @@
 
 /* DPSW Version */
 #define DPSW_VER_MAJOR		8
-#define DPSW_VER_MINOR		9
+#define DPSW_VER_MIANALR		9
 
 #define DPSW_CMD_BASE_VERSION	1
 #define DPSW_CMD_VERSION_2	2
@@ -446,7 +446,7 @@ struct dpsw_cmd_ctrl_if_set_queue {
 
 struct dpsw_rsp_get_api_version {
 	__le16 version_major;
-	__le16 version_minor;
+	__le16 version_mianalr;
 };
 
 struct dpsw_rsp_if_get_mac_addr {

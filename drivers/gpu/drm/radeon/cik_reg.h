@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -56,7 +56,7 @@
 #       define CIK_GRPH_FORMAT_ARGB565            1
 #       define CIK_GRPH_FORMAT_ARGB4444           2
 #       define CIK_GRPH_FORMAT_AI88               3
-#       define CIK_GRPH_FORMAT_MONO16             4
+#       define CIK_GRPH_FORMAT_MOANAL16             4
 #       define CIK_GRPH_FORMAT_BGRA5551           5
 /* 32 BPP */
 #       define CIK_GRPH_FORMAT_ARGB8888           0
@@ -113,7 +113,7 @@
 #define CIK_CUR_CONTROL                           0x6998
 #       define CIK_CURSOR_EN                      (1 << 0)
 #       define CIK_CURSOR_MODE(x)                 (((x) & 0x3) << 8)
-#       define CIK_CURSOR_MONO                    0
+#       define CIK_CURSOR_MOANAL                    0
 #       define CIK_CURSOR_24_1                    1
 #       define CIK_CURSOR_24_8_PRE_MULT           2
 #       define CIK_CURSOR_24_8_UNPRE_MULT         3
@@ -216,7 +216,7 @@ enum {
 	ADDRESS_WATCH_REG_MAX
 };
 
-enum {				/*  not defined in the CI/KV reg file  */
+enum {				/*  analt defined in the CI/KV reg file  */
 	ADDRESS_WATCH_REG_CNTL_ATC_BIT = 0x10000000UL,
 	ADDRESS_WATCH_REG_CNTL_DEFAULT_MASK = 0x00FFFFFF,
 	ADDRESS_WATCH_REG_ADDLOW_MASK_EXTENSION = 0x03000000,

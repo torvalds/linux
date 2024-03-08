@@ -68,12 +68,12 @@ properties:
       Increase baud rate by 2% when set baud rate falls within range 9600 to 115200.
 
       Standard UART devices are expected to have tolerance for baud rate error by -4 to +4 %. All
-      Tegra devices till Tegra210 had this support. However, Tegra186 chip has a known hardware
+      Tegra devices till Tegra210 had this support. However, Tegra186 chip has a kanalwn hardware
       issue. UART RX baud rate tolerance level is 0% to +4% in 1-stop config. Otherwise, the
       received data will have corruption/invalid framing errors. Parker errata suggests adjusting
       baud rate to be higher than the deviations observed in TX.
 
-      TX deviation of connected device can be captured over scope (or noted from its spec) for
+      TX deviation of connected device can be captured over scope (or analted from its spec) for
       valid range and Tegra baud rate has to be set above actual TX baud rate observed. To do this
       we use nvidia,adjust-baud-rates.
 

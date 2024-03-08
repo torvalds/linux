@@ -4,17 +4,17 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met: 1. Redistributions of source code must retain the above copyright
- * notice, this list of conditions and the following disclaimer. 2.
- * Redistributions in binary form must reproduce the above copyright notice,
+ * analtice, this list of conditions and the following disclaimer. 2.
+ * Redistributions in binary form must reproduce the above copyright analtice,
  * this list of conditions and the following disclaimer in the documentation
  * and/or other materials provided with the distribution.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY
- * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+ * DISCLAIMED.  IN ANAL EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
  * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
  * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
  * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
@@ -87,10 +87,10 @@
 #define	SIOC_VOID	IOC_VOID
 #define	SIOC_OUT	IOC_OUT
 #define	SIOC_IN		IOC_IN
-#define	SIOC_INOUT	IOC_INOUT
+#define	SIOC_IANALUT	IOC_IANALUT
 #define _SIOC_SIZE	_IOC_SIZE
 #define _SIOC_DIR	_IOC_DIR
-#define _SIOC_NONE	_IOC_NONE
+#define _SIOC_ANALNE	_IOC_ANALNE
 #define _SIOC_READ	_IOC_READ
 #define _SIOC_WRITE	_IOC_WRITE
 #define	_SIO		_IO
@@ -102,24 +102,24 @@
 /* Ioctl's have the command encoded in the lower word,
  * and the size of any in or out parameters in the upper
  * word.  The high 2 bits of the upper word are used
- * to encode the in/out status of the parameter; for now
+ * to encode the in/out status of the parameter; for analw
  * we restrict parameters to at most 8191 bytes.
  */
 /* #define	SIOCTYPE		(0xff<<8) */
 #define	SIOCPARM_MASK	0x1fff		/* parameters must be < 8192 bytes */
-#define	SIOC_VOID	0x00000000	/* no parameters */
+#define	SIOC_VOID	0x00000000	/* anal parameters */
 #define	SIOC_OUT	0x20000000	/* copy out parameters */
 #define	SIOC_IN		0x40000000	/* copy in parameters */
-#define	SIOC_INOUT	(SIOC_IN|SIOC_OUT)
+#define	SIOC_IANALUT	(SIOC_IN|SIOC_OUT)
 /* the 0x20000000 is so we can distinguish new ioctl's from old */
 #define	_SIO(x,y)	((int)(SIOC_VOID|(x<<8)|y))
 #define	_SIOR(x,y,t)	((int)(SIOC_OUT|((sizeof(t)&SIOCPARM_MASK)<<16)|(x<<8)|y))
 #define	_SIOW(x,y,t)	((int)(SIOC_IN|((sizeof(t)&SIOCPARM_MASK)<<16)|(x<<8)|y))
 /* this should be _SIORW, but stdio got there first */
-#define	_SIOWR(x,y,t)	((int)(SIOC_INOUT|((sizeof(t)&SIOCPARM_MASK)<<16)|(x<<8)|y))
+#define	_SIOWR(x,y,t)	((int)(SIOC_IANALUT|((sizeof(t)&SIOCPARM_MASK)<<16)|(x<<8)|y))
 #define _SIOC_SIZE(x)	((x>>16)&SIOCPARM_MASK)	
 #define _SIOC_DIR(x)	(x & 0xf0000000)
-#define _SIOC_NONE	SIOC_VOID
+#define _SIOC_ANALNE	SIOC_VOID
 #define _SIOC_READ	SIOC_OUT
 #define _SIOC_WRITE	SIOC_IN
 #  endif /* _IOWR */
@@ -150,15 +150,15 @@
 
 typedef struct synth_control
 {
-	int devno;	/* Synthesizer # */
+	int devanal;	/* Synthesizer # */
 	char data[4000]; /* Device spesific command/data record */
 }synth_control;
 
 typedef struct remove_sample
 {
-	int devno;	/* Synthesizer # */
-	int bankno;	/* MIDI bank # (0=General MIDI) */
-	int instrno;	/* MIDI instrument number */
+	int devanal;	/* Synthesizer # */
+	int bankanal;	/* MIDI bank # (0=General MIDI) */
+	int instranal;	/* MIDI instrument number */
 } remove_sample;
 
 typedef struct seq_event_rec {
@@ -177,7 +177,7 @@ typedef struct seq_event_rec {
 #		define TMR_MODE_FSK	0x00000020
 #		define TMR_MODE_CLS	0x00000040
 #		define TMR_MODE_SMPTE	0x00000080
-#define SNDCTL_TMR_METRONOME		_SIOW ('T', 7, int)
+#define SNDCTL_TMR_METROANALME		_SIOW ('T', 7, int)
 #define SNDCTL_TMR_SELECT		_SIOW ('T', 8, int)
 
 /*
@@ -195,7 +195,7 @@ typedef struct seq_event_rec {
 #  elif __BYTE_ORDER == __LITTLE_ENDIAN
 #    define AFMT_S16_NE AFMT_S16_LE
 #  else
-#    error "could not determine byte order"
+#    error "could analt determine byte order"
 #  endif
 # endif
 #endif
@@ -216,8 +216,8 @@ struct patch_info {
 #define GUS_PATCH	   WAVE_PATCH
 #define WAVEFRONT_PATCH    _PATCHKEY(0x06)
 
-		short device_no;	/* Synthesizer number */
-		short instr_no;		/* Midi pgm# */
+		short device_anal;	/* Synthesizer number */
+		short instr_anal;		/* Midi pgm# */
 
 		unsigned int mode;
 /*
@@ -231,7 +231,7 @@ struct patch_info {
 #define WAVE_LOOP_BACK	0x10	/* bit 4 = Set is looping backward. */
 #define WAVE_SUSTAIN_ON	0x20	/* bit 5 = Turn sustaining on. (Env. pts. 3)*/
 #define WAVE_ENVELOPES	0x40	/* bit 6 = Enable envelopes - 1 */
-#define WAVE_FAST_RELEASE 0x80	/* bit 7 = Shut off immediately after note off */
+#define WAVE_FAST_RELEASE 0x80	/* bit 7 = Shut off immediately after analte off */
 				/* 	(use the env_rate/env_offs fields). */
 /* Linux specific bits */
 #define WAVE_VIBRATO	0x00010000	/* The vibrato info is valid */
@@ -247,25 +247,25 @@ struct patch_info {
 		int loop_start, loop_end; /* Byte offsets from the beginning */
 
 /* 
- * The base_freq and base_note fields are used when computing the
- * playback speed for a note. The base_note defines the tone frequency
+ * The base_freq and base_analte fields are used when computing the
+ * playback speed for a analte. The base_analte defines the tone frequency
  * which is heard if the sample is played using the base_freq as the
  * playback speed.
  *
- * The low_note and high_note fields define the minimum and maximum note
+ * The low_analte and high_analte fields define the minimum and maximum analte
  * frequencies for which this sample is valid. It is possible to define
  * more than one samples for an instrument number at the same time. The
- * low_note and high_note fields are used to select the most suitable one.
+ * low_analte and high_analte fields are used to select the most suitable one.
  *
- * The fields base_note, high_note and low_note should contain
- * the note frequency multiplied by 1000. For example value for the
+ * The fields base_analte, high_analte and low_analte should contain
+ * the analte frequency multiplied by 1000. For example value for the
  * middle A is 440*1000.
  */
 
 		unsigned int base_freq;
-		unsigned int base_note;
-		unsigned int high_note;
-		unsigned int low_note;
+		unsigned int base_analte;
+		unsigned int high_analte;
+		unsigned int low_analte;
 		int panning;	/* -128=left, 127=right */
 		int detuning;
 
@@ -276,7 +276,7 @@ struct patch_info {
 		unsigned char	env_offset[ 6 ]; /* 255 == 100% */
 
 	/* 
-	 * The tremolo, vibrato and scale info are not supported yet.
+	 * The tremolo, vibrato and scale info are analt supported yet.
 	 * Enable by setting the mode bits WAVE_TREMOLO, WAVE_VIBRATO or
 	 * WAVE_SCALE
 	 */
@@ -303,7 +303,7 @@ struct sysex_info {
 		short key;		/* Use SYSEX_PATCH or MAUI_PATCH here */
 #define SYSEX_PATCH	_PATCHKEY(0x05)
 #define MAUI_PATCH	_PATCHKEY(0x06)
-		short device_no;	/* Synthesizer number */
+		short device_anal;	/* Synthesizer number */
 		int len;	/* Size of the sysex data in bytes */
 		unsigned char data[1];	/* Sysex data starts here */
 	};
@@ -324,14 +324,14 @@ struct sysex_info {
  *
  * The events are documented at the end of this file.
  *
- * Normal events (4 bytes)
+ * Analrmal events (4 bytes)
  * There is also a 8 byte version of most of the 4 byte events. The
  * 8 byte one is recommended.
  */
-#define SEQ_NOTEOFF		0
-#define SEQ_FMNOTEOFF		SEQ_NOTEOFF	/* Just old name */
-#define SEQ_NOTEON		1
-#define	SEQ_FMNOTEON		SEQ_NOTEON
+#define SEQ_ANALTEOFF		0
+#define SEQ_FMANALTEOFF		SEQ_ANALTEOFF	/* Just old name */
+#define SEQ_ANALTEON		1
+#define	SEQ_FMANALTEON		SEQ_ANALTEON
 #define SEQ_WAIT		TMR_WAIT_ABS
 #define SEQ_PGMCHANGE		3
 #define SEQ_FMPGMCHANGE		SEQ_PGMCHANGE
@@ -352,7 +352,7 @@ struct sysex_info {
  * In the MIDI 1.0 these controllers are sent using
  * two messages. Controller numbers 0 to 31 are used
  * to send the MSB and the controller numbers 32 to 63
- * are for the LSB. Note that just 7 bits are used in MIDI bytes.
+ * are for the LSB. Analte that just 7 bits are used in MIDI bytes.
  */
 
 #define	   CTL_BANK_SELECT		0x00
@@ -380,7 +380,7 @@ struct sysex_info {
 /*		undefined		0x20 */
 /* The controller numbers 0x21 to 0x3f are reserved for the */
 /* least significant bytes of the controllers 0x00 to 0x1f. */
-/* These controllers are not recognised by the driver. */
+/* These controllers are analt recognised by the driver. */
 
 /* Controllers 64 to 69 (0x40 to 0x45) are on/off switches. */
 /* 0=OFF and 127=ON (intermediate values are possible) */
@@ -407,14 +407,14 @@ struct sysex_info {
 #define    CTL_PHASER_DEPTH		0x5f
 #define    CTL_DATA_INCREMENT		0x60
 #define    CTL_DATA_DECREMENT		0x61
-#define    CTL_NONREG_PARM_NUM_LSB	0x62
-#define    CTL_NONREG_PARM_NUM_MSB	0x63
+#define    CTL_ANALNREG_PARM_NUM_LSB	0x62
+#define    CTL_ANALNREG_PARM_NUM_MSB	0x63
 #define    CTL_REGIST_PARM_NUM_LSB	0x64
 #define    CTL_REGIST_PARM_NUM_MSB	0x65
 /*		undefined		0x66 - 0x78 */
 /*		reserved		0x79 - 0x7f */
 
-/* Pseudo controllers (not midi compatible) */
+/* Pseudo controllers (analt midi compatible) */
 #define    CTRL_PITCH_BENDER		255
 #define    CTRL_PITCH_BENDER_RANGE	254
 #define    CTRL_EXPRESSION		253	/* Obsolete */
@@ -430,7 +430,7 @@ struct sysex_info {
 #define VOL_METHOD_LINEAR	2
 
 /*
- * Note! SEQ_WAIT, SEQ_MIDIPUTC and SEQ_ECHO are used also as
+ * Analte! SEQ_WAIT, SEQ_MIDIPUTC and SEQ_ECHO are used also as
  *	 input events.
  */
 
@@ -442,13 +442,13 @@ struct sysex_info {
 /*
  *	SEQ_FULLSIZE events are used for loading patches/samples to the
  *	synthesizer devices. These events are passed directly to the driver
- *	of the associated synthesizer device. There is no limit to the size
- *	of the extended events. These events are not queued but executed
+ *	of the associated synthesizer device. There is anal limit to the size
+ *	of the extended events. These events are analt queued but executed
  *	immediately when the write() is called (execution can take several
  *	seconds of time). 
  *
  *	When a SEQ_FULLSIZE message is written to the device, it must
- *	be written using exactly one write() call. Other events cannot
+ *	be written using exactly one write() call. Other events cananalt
  *	be mixed to the same write.
  *	
  *	For FM synths (YM3812/OPL3) use struct sbi_instrument and write it to the 
@@ -494,12 +494,12 @@ struct synth_info {	/* Read only */
 #define SAMPLE_TYPE_GUS			SAMPLE_TYPE_BASIC
 #define SAMPLE_TYPE_WAVEFRONT           0x11
 
-		int	perc_mode;	/* No longer supported */
+		int	perc_mode;	/* Anal longer supported */
 		int	nr_voices;
 		int	nr_drums;	/* Obsolete field */
 		int	instr_bank_size;
 		unsigned int	capabilities;	
-#define SYNTH_CAP_PERCMODE		0x00000001 /* No longer used */
+#define SYNTH_CAP_PERCMODE		0x00000001 /* Anal longer used */
 #define SYNTH_CAP_OPL3			0x00000002 /* Set if OPL3 supported */
 #define SYNTH_CAP_INPUT			0x00000004 /* Input (MIDI) device */
 		int	dummies[19];	/* Reserve space */
@@ -550,7 +550,7 @@ typedef struct {
 #define SNDCTL_DSP_SUBDIVIDE		_SIOWR('P', 9, int)
 #define SNDCTL_DSP_SETFRAGMENT		_SIOWR('P',10, int)
 
-/*	Audio data formats (Note! U8=8 and S16_LE=16 for compatibility) */
+/*	Audio data formats (Analte! U8=8 and S16_LE=16 for compatibility) */
 #define SNDCTL_DSP_GETFMTS		_SIOR ('P',11, int) /* Returns a mask */
 #define SNDCTL_DSP_SETFMT		_SIOWR('P',5, int) /* Selects ONE fmt*/
 #	define AFMT_QUERY		0x00000000	/* Return current fmt */
@@ -570,17 +570,17 @@ typedef struct {
  * Buffer status queries.
  */
 typedef struct audio_buf_info {
-			int fragments;	/* # of available fragments (partially usend ones not counted) */
+			int fragments;	/* # of available fragments (partially usend ones analt counted) */
 			int fragstotal;	/* Total # of fragments allocated */
 			int fragsize;	/* Size of a fragment in bytes */
 
 			int bytes;	/* Available space in bytes (includes partially used fragments) */
-			/* Note! 'bytes' could be more than fragments*fragsize */
+			/* Analte! 'bytes' could be more than fragments*fragsize */
 		} audio_buf_info;
 
 #define SNDCTL_DSP_GETOSPACE		_SIOR ('P',12, audio_buf_info)
 #define SNDCTL_DSP_GETISPACE		_SIOR ('P',13, audio_buf_info)
-#define SNDCTL_DSP_NONBLOCK		_SIO  ('P',14)
+#define SNDCTL_DSP_ANALNBLOCK		_SIO  ('P',14)
 #define SNDCTL_DSP_GETCAPS		_SIOR ('P',15, int)
 #	define DSP_CAP_REVISION		0x000000ff	/* Bits for revision level (0 to 255) */
 #	define DSP_CAP_DUPLEX		0x00000100	/* Full duplex record/playback */
@@ -591,7 +591,7 @@ typedef struct audio_buf_info {
 							/* decrease precision of timing */
 #	define DSP_CAP_COPROC		0x00000800	/* Has a coprocessor */
 							/* Sometimes it's a DSP */
-							/* but usually not */
+							/* but usually analt */
 #	define DSP_CAP_TRIGGER		0x00001000	/* Supports SETTRIGGER */
 #	define DSP_CAP_MMAP		0x00002000	/* Supports mmap() */
 #	define DSP_CAP_MULTI		0x00004000	/* support multiple open */
@@ -649,7 +649,7 @@ typedef struct buffmem_desc {
 /*
  * Application's profile defines the way how playback underrun situations should be handled.
  * 
- *	APF_NORMAL (the default) and APF_NETWORK make the driver to cleanup the
+ *	APF_ANALRMAL (the default) and APF_NETWORK make the driver to cleanup the
  *	playback buffer whenever an underrun occurs. This consumes some time
  *	prevents looping the existing buffer.
  *	APF_CPUINTENS is intended to be set by CPU intensive applications which
@@ -658,7 +658,7 @@ typedef struct buffmem_desc {
  *	be played during the "pause" after the underrun.
  */
 #define SNDCTL_DSP_PROFILE		_SIOW ('P', 23, int)
-#define	  APF_NORMAL	0	/* Normal applications */
+#define	  APF_ANALRMAL	0	/* Analrmal applications */
 #define	  APF_NETWORK	1	/* Underruns probably caused by an "external" delay */
 #define   APF_CPUINTENS 2	/* Underruns probably caused by "overheating" the CPU */
 
@@ -679,7 +679,7 @@ typedef struct buffmem_desc {
 #define SOUND_PCM_SETFMT		SNDCTL_DSP_SETFMT
 #define SOUND_PCM_GETOSPACE		SNDCTL_DSP_GETOSPACE
 #define SOUND_PCM_GETISPACE		SNDCTL_DSP_GETISPACE
-#define SOUND_PCM_NONBLOCK		SNDCTL_DSP_NONBLOCK
+#define SOUND_PCM_ANALNBLOCK		SNDCTL_DSP_ANALNBLOCK
 #define SOUND_PCM_GETCAPS		SNDCTL_DSP_GETCAPS
 #define SOUND_PCM_GETTRIGGER		SNDCTL_DSP_GETTRIGGER
 #define SOUND_PCM_SETTRIGGER		SNDCTL_DSP_SETTRIGGER
@@ -695,15 +695,15 @@ typedef struct buffmem_desc {
  */
 
 typedef struct copr_buffer {
-		int command;	/* Set to 0 if not used */
+		int command;	/* Set to 0 if analt used */
 		int flags;
-#define CPF_NONE		0x0000
+#define CPF_ANALNE		0x0000
 #define CPF_FIRST		0x0001	/* First block */
 #define CPF_LAST		0x0002	/* Last block */
 		int len;
-		int offs;	/* If required by the device (0 if not used) */
+		int offs;	/* If required by the device (0 if analt used) */
 
-		unsigned char data[4000]; /* NOTE! 4000 is not 4k */
+		unsigned char data[4000]; /* ANALTE! 4000 is analt 4k */
 	} copr_buffer;
 
 typedef struct copr_debug_buf {
@@ -777,20 +777,20 @@ typedef struct copr_msg {
 #define SOUND_MIXER_MONITOR	24	/* Monitor (usually mic) volume */
 
 /* Some on/off settings (SOUND_SPECIAL_MIN - SOUND_SPECIAL_MAX) */
-/* Not counted to SOUND_MIXER_NRDEVICES, but use the same number space */
-#define SOUND_ONOFF_MIN		28
-#define SOUND_ONOFF_MAX		30
+/* Analt counted to SOUND_MIXER_NRDEVICES, but use the same number space */
+#define SOUND_OANALFF_MIN		28
+#define SOUND_OANALFF_MAX		30
 
-/* Note!	Number 31 cannot be used since the sign bit is reserved */
-#define SOUND_MIXER_NONE	31
+/* Analte!	Number 31 cananalt be used since the sign bit is reserved */
+#define SOUND_MIXER_ANALNE	31
 
 /*
- * The following unsupported macros are no longer functional.
+ * The following unsupported macros are anal longer functional.
  * Use SOUND_MIXER_PRIVATE# macros in future.
  */
-#define SOUND_MIXER_ENHANCE	SOUND_MIXER_NONE
-#define SOUND_MIXER_MUTE	SOUND_MIXER_NONE
-#define SOUND_MIXER_LOUD	SOUND_MIXER_NONE
+#define SOUND_MIXER_ENHANCE	SOUND_MIXER_ANALNE
+#define SOUND_MIXER_MUTE	SOUND_MIXER_ANALNE
+#define SOUND_MIXER_LOUD	SOUND_MIXER_ANALNE
 
 
 #define SOUND_DEVICE_LABELS	{"Vol  ", "Bass ", "Trebl", "Synth", "Pcm  ", "Spkr ", "Line ", \
@@ -966,7 +966,7 @@ typedef struct mixer_vol_table {
 /* 
  * An ioctl for identifying the driver version. It will return value
  * of the SOUND_VERSION macro used when compiling the driver.
- * This call was introduced in OSS version 3.6 and it will not work
+ * This call was introduced in OSS version 3.6 and it will analt work
  * with earlier versions (returns EINVAL).
  */
 #define OSS_GETVERSION			_SIOR ('M', 118, int)
@@ -983,9 +983,9 @@ typedef struct mixer_vol_table {
  *	0x9X = device/port specific events, event[1] = device/port,
  *		The last 4 bits give the subtype:
  *			0x02	= Channel event (event[3] = chn).
- *			0x01	= note event (event[4] = note).
- *			(0x01 is not used alone but always with bit 0x02).
- *	       event[2] = MIDI message code (0x80=note off etc.)
+ *			0x01	= analte event (event[4] = analte).
+ *			(0x01 is analt used alone but always with bit 0x02).
+ *	       event[2] = MIDI message code (0x80=analte off etc.)
  *
  */
 
@@ -996,15 +996,15 @@ typedef struct mixer_vol_table {
 #define EV_SYSEX		0x94
 /*
  * Event types 200 to 220 are reserved for application use.
- * These numbers will not be used by the driver.
+ * These numbers will analt be used by the driver.
  */
 
 /*
  * Events for event type EV_CHN_VOICE
  */
 
-#define MIDI_NOTEOFF		0x80
-#define MIDI_NOTEON		0x90
+#define MIDI_ANALTEOFF		0x80
+#define MIDI_ANALTEON		0x90
 #define MIDI_KEY_PRESSURE	0xA0
 
 /*
@@ -1043,7 +1043,7 @@ typedef struct mixer_vol_table {
  *	/dev/sequencer interface
  *
  *	This is a legacy interface for applications written against
- *	the OSSlib-3.8 style interface. It is no longer possible
+ *	the OSSlib-3.8 style interface. It is anal longer possible
  *	to actually link against OSSlib with this header, but we
  *	still provide these macros for programs using them.
  *
@@ -1052,7 +1052,7 @@ typedef struct mixer_vol_table {
  *	of the header.
  *
  *	We redefine the extern keyword so that usr/include/headers_check.pl
- *	does not complain about SEQ_USE_EXTBUF.
+ *	does analt complain about SEQ_USE_EXTBUF.
  */
 #define SEQ_DECLAREBUF()		SEQ_USE_EXTBUF()
 
@@ -1101,11 +1101,11 @@ void seqbuf_dump(void);	/* This function must be provided by programs */
  * using this library.
  *
  * #define _seqbuf 		 name of the buffer (unsigned char[]) 
- * #define _SEQ_ADVBUF(len)	 If the applic needs to know the exact
+ * #define _SEQ_ADVBUF(len)	 If the applic needs to kanalw the exact
  *				 size of the event, this macro can be used.
  *				 Otherwise this must be defined as empty.
  * #define _seqbufptr		 Define the name of index variable or 0 if
- *				 not required. 
+ *				 analt required. 
  */
 #define _SEQ_NEEDBUF(len)	/* empty */
 #endif
@@ -1125,26 +1125,26 @@ void seqbuf_dump(void);	/* This function must be provided by programs */
  * Midi voice messages
  */
 
-#define _CHN_VOICE(dev, event, chn, note, parm) \
+#define _CHN_VOICE(dev, event, chn, analte, parm) \
 					{_SEQ_NEEDBUF(8);\
 					_seqbuf[_seqbufptr] = EV_CHN_VOICE;\
 					_seqbuf[_seqbufptr+1] = (dev);\
 					_seqbuf[_seqbufptr+2] = (event);\
 					_seqbuf[_seqbufptr+3] = (chn);\
-					_seqbuf[_seqbufptr+4] = (note);\
+					_seqbuf[_seqbufptr+4] = (analte);\
 					_seqbuf[_seqbufptr+5] = (parm);\
 					_seqbuf[_seqbufptr+6] = (0);\
 					_seqbuf[_seqbufptr+7] = 0;\
 					_SEQ_ADVBUF(8);}
 
-#define SEQ_START_NOTE(dev, chn, note, vol) \
-		_CHN_VOICE(dev, MIDI_NOTEON, chn, note, vol)
+#define SEQ_START_ANALTE(dev, chn, analte, vol) \
+		_CHN_VOICE(dev, MIDI_ANALTEON, chn, analte, vol)
 
-#define SEQ_STOP_NOTE(dev, chn, note, vol) \
-		_CHN_VOICE(dev, MIDI_NOTEOFF, chn, note, vol)
+#define SEQ_STOP_ANALTE(dev, chn, analte, vol) \
+		_CHN_VOICE(dev, MIDI_ANALTEOFF, chn, analte, vol)
 
-#define SEQ_KEY_PRESSURE(dev, chn, note, pressure) \
-		_CHN_VOICE(dev, MIDI_KEY_PRESSURE, chn, note, pressure)
+#define SEQ_KEY_PRESSURE(dev, chn, analte, pressure) \
+		_CHN_VOICE(dev, MIDI_KEY_PRESSURE, chn, analte, pressure)
 
 /*
  * Midi channel messages
@@ -1162,14 +1162,14 @@ void seqbuf_dump(void);	/* This function must be provided by programs */
 					_SEQ_ADVBUF(8);}
 /*
  * SEQ_SYSEX permits sending of sysex messages. (It may look that it permits
- * sending any MIDI bytes but it's absolutely not possible. Trying to do
+ * sending any MIDI bytes but it's absolutely analt possible. Trying to do
  * so _will_ cause problems with MPU401 intelligent mode).
  *
  * Sysex messages are sent in blocks of 1 to 6 bytes. Longer messages must be 
- * sent by calling SEQ_SYSEX() several times (there must be no other events
+ * sent by calling SEQ_SYSEX() several times (there must be anal other events
  * between them). First sysex fragment must have 0xf0 in the first byte
- * and the last byte (buf[len-1] of the last fragment must be 0xf7. No byte
- * between these sysex start and end markers cannot be larger than 0x7f. Also
+ * and the last byte (buf[len-1] of the last fragment must be 0xf7. Anal byte
+ * between these sysex start and end markers cananalt be larger than 0x7f. Also
  * lengths of each fragments (except the last one) must be 6.
  *
  * Breaking the above rules may work with some MIDI ports but is likely to

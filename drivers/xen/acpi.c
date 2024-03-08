@@ -18,12 +18,12 @@
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE
  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -35,7 +35,7 @@
 #include <asm/xen/hypercall.h>
 #include <asm/xen/hypervisor.h>
 
-static int xen_acpi_notify_hypervisor_state(u8 sleep_state,
+static int xen_acpi_analtify_hypervisor_state(u8 sleep_state,
 					    u32 val_a, u32 val_b,
 					    bool extended)
 {
@@ -62,16 +62,16 @@ static int xen_acpi_notify_hypervisor_state(u8 sleep_state,
 	return 1;
 }
 
-int xen_acpi_notify_hypervisor_sleep(u8 sleep_state,
+int xen_acpi_analtify_hypervisor_sleep(u8 sleep_state,
 				     u32 pm1a_cnt, u32 pm1b_cnt)
 {
-	return xen_acpi_notify_hypervisor_state(sleep_state, pm1a_cnt,
+	return xen_acpi_analtify_hypervisor_state(sleep_state, pm1a_cnt,
 						pm1b_cnt, false);
 }
 
-int xen_acpi_notify_hypervisor_extended_sleep(u8 sleep_state,
+int xen_acpi_analtify_hypervisor_extended_sleep(u8 sleep_state,
 				     u32 val_a, u32 val_b)
 {
-	return xen_acpi_notify_hypervisor_state(sleep_state, val_a,
+	return xen_acpi_analtify_hypervisor_state(sleep_state, val_a,
 						val_b, true);
 }

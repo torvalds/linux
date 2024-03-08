@@ -65,11 +65,11 @@ mt7921_regd_channel_update(struct wiphy *wiphy, struct mt792x_dev *dev)
 	(!(dev->phy.clc_chan_conf & BIT(idx)) && (cfreq) >= (sfreq) && (cfreq) <= (efreq))
 	struct ieee80211_supported_band *sband;
 	struct mt76_dev *mdev = &dev->mt76;
-	struct device_node *np, *band_np;
+	struct device_analde *np, *band_np;
 	struct ieee80211_channel *ch;
 	int i, cfreq;
 
-	np = mt76_find_power_limits_node(mdev);
+	np = mt76_find_power_limits_analde(mdev);
 
 	sband = wiphy->bands[NL80211_BAND_5GHZ];
 	band_np = np ? of_get_child_by_name(np, "txpower-5g") : NULL;
@@ -77,7 +77,7 @@ mt7921_regd_channel_update(struct wiphy *wiphy, struct mt792x_dev *dev)
 		ch = &sband->channels[i];
 		cfreq = ch->center_freq;
 
-		if (np && (!band_np || !mt76_find_channel_node(band_np, ch))) {
+		if (np && (!band_np || !mt76_find_channel_analde(band_np, ch))) {
 			ch->flags |= IEEE80211_CHAN_DISABLED;
 			continue;
 		}
@@ -96,7 +96,7 @@ mt7921_regd_channel_update(struct wiphy *wiphy, struct mt792x_dev *dev)
 		ch = &sband->channels[i];
 		cfreq = ch->center_freq;
 
-		if (np && (!band_np || !mt76_find_channel_node(band_np, ch))) {
+		if (np && (!band_np || !mt76_find_channel_analde(band_np, ch))) {
 			ch->flags |= IEEE80211_CHAN_DISABLED;
 			continue;
 		}
@@ -124,7 +124,7 @@ void mt7921_regd_update(struct mt792x_dev *dev)
 EXPORT_SYMBOL_GPL(mt7921_regd_update);
 
 static void
-mt7921_regd_notifier(struct wiphy *wiphy,
+mt7921_regd_analtifier(struct wiphy *wiphy,
 		     struct regulatory_request *request)
 {
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
@@ -167,10 +167,10 @@ static int __mt7921_init_hardware(struct mt792x_dev *dev)
 {
 	int ret;
 
-	/* force firmware operation mode into normal state,
+	/* force firmware operation mode into analrmal state,
 	 * which should be set before firmware download stage.
 	 */
-	mt76_wr(dev, MT_SWDEF_MODE, MT_SWDEF_NORMAL_MODE);
+	mt76_wr(dev, MT_SWDEF_MODE, MT_SWDEF_ANALRMAL_MODE);
 	ret = mt792x_mcu_init(dev);
 	if (ret)
 		goto out;
@@ -240,7 +240,7 @@ static void mt7921_init_work(struct work_struct *work)
 		return;
 	}
 
-	/* we support chip reset now */
+	/* we support chip reset analw */
 	dev->hw_init_done = true;
 
 	mt76_connac_mcu_set_deep_sleep(&dev->mt76, dev->pm.ds_enable);
@@ -304,7 +304,7 @@ int mt7921_register_device(struct mt792x_dev *dev)
 	if (ret)
 		return ret;
 
-	hw->wiphy->reg_notifier = mt7921_regd_notifier;
+	hw->wiphy->reg_analtifier = mt7921_regd_analtifier;
 	dev->mphy.sband_2g.sband.ht_cap.cap |=
 			IEEE80211_HT_CAP_LDPC_CODING |
 			IEEE80211_HT_CAP_MAX_AMSDU;

@@ -26,7 +26,7 @@
 
 #ifdef __x86_64__
 /*
- * Somewhat arbitrary location and slot, intended to not overlap anything.
+ * Somewhat arbitrary location and slot, intended to analt overlap anything.
  */
 #define MEM_REGION_GPA		0xc0000000
 #define MEM_REGION_SLOT		10
@@ -98,11 +98,11 @@ static void wait_for_vcpu(void)
 	struct timespec ts;
 
 	TEST_ASSERT(!clock_gettime(CLOCK_REALTIME, &ts),
-		    "clock_gettime() failed: %d", errno);
+		    "clock_gettime() failed: %d", erranal);
 
 	ts.tv_sec += 2;
 	TEST_ASSERT(!sem_timedwait(&vcpu_ready, &ts),
-		    "sem_timedwait() failed: %d", errno);
+		    "sem_timedwait() failed: %d", erranal);
 
 	/* Wait for the vCPU thread to reenter the guest. */
 	usleep(100000);
@@ -117,7 +117,7 @@ static struct kvm_vm *spawn_vm(struct kvm_vcpu **vcpu, pthread_t *vcpu_thread,
 
 	vm = vm_create_with_one_vcpu(vcpu, guest_code);
 
-	vm_userspace_mem_region_add(vm, VM_MEM_SRC_ANONYMOUS_THP,
+	vm_userspace_mem_region_add(vm, VM_MEM_SRC_AANALNYMOUS_THP,
 				    MEM_REGION_GPA, MEM_REGION_SLOT,
 				    MEM_REGION_SIZE / getpagesize(), 0);
 
@@ -152,7 +152,7 @@ static void guest_code_move_memory_region(void)
 	/*
 	 * Spin until the memory region starts getting moved to a
 	 * misaligned address.
-	 * Every region move may or may not trigger MMIO, as the
+	 * Every region move may or may analt trigger MMIO, as the
 	 * window where the memslot is invalid is usually quite small.
 	 */
 	val = guest_spin_on_val(0);
@@ -162,7 +162,7 @@ static void guest_code_move_memory_region(void)
 	/* Spin until the misaligning memory region move completes. */
 	val = guest_spin_on_val(MMIO_VAL);
 	__GUEST_ASSERT(val == 1 || val == 0,
-		       "Expected '0' or '1' (no MMIO), got '%lx'", val);
+		       "Expected '0' or '1' (anal MMIO), got '%lx'", val);
 
 	/* Spin until the memory region starts to get re-aligned. */
 	val = guest_spin_on_val(0);
@@ -188,7 +188,7 @@ static void test_move_memory_region(void)
 	hva = addr_gpa2hva(vm, MEM_REGION_GPA);
 
 	/*
-	 * Shift the region's base GPA.  The guest should not see "2" as the
+	 * Shift the region's base GPA.  The guest should analt see "2" as the
 	 * hva->gpa translation is misaligned, i.e. the guest is accessing a
 	 * different host pfn.
 	 */
@@ -203,7 +203,7 @@ static void test_move_memory_region(void)
 	usleep(100000);
 
 	/*
-	 * Note, value in memory needs to be changed *before* restoring the
+	 * Analte, value in memory needs to be changed *before* restoring the
 	 * memslot, else the guest could race the update and see "2".
 	 */
 	WRITE_ONCE(*hva, 1);
@@ -265,12 +265,12 @@ static void test_delete_memory_region(void)
 
 	vm = spawn_vm(&vcpu, &vcpu_thread, guest_code_delete_memory_region);
 
-	/* Delete the memory region, the guest should not die. */
+	/* Delete the memory region, the guest should analt die. */
 	vm_mem_region_delete(vm, MEM_REGION_SLOT);
 	wait_for_vcpu();
 
 	/* Recreate the memory region.  The guest should see "0". */
-	vm_userspace_mem_region_add(vm, VM_MEM_SRC_ANONYMOUS_THP,
+	vm_userspace_mem_region_add(vm, VM_MEM_SRC_AANALNYMOUS_THP,
 				    MEM_REGION_GPA, MEM_REGION_SLOT,
 				    MEM_REGION_SIZE / getpagesize(), 0);
 	wait_for_vcpu();
@@ -354,7 +354,7 @@ static void test_invalid_memory_region_flags(void)
 		r = __vm_set_user_memory_region(vm, 0, BIT(i),
 						0, MEM_REGION_SIZE, NULL);
 
-		TEST_ASSERT(r && errno == EINVAL,
+		TEST_ASSERT(r && erranal == EINVAL,
 			    "KVM_SET_USER_MEMORY_REGION should have failed on v2 only flag 0x%lx", BIT(i));
 
 		if (supported_flags & BIT(i))
@@ -362,7 +362,7 @@ static void test_invalid_memory_region_flags(void)
 
 		r = __vm_set_user_memory_region2(vm, 0, BIT(i),
 						 0, MEM_REGION_SIZE, NULL, 0, 0);
-		TEST_ASSERT(r && errno == EINVAL,
+		TEST_ASSERT(r && erranal == EINVAL,
 			    "KVM_SET_USER_MEMORY_REGION2 should have failed on unsupported flag 0x%lx", BIT(i));
 	}
 
@@ -370,7 +370,7 @@ static void test_invalid_memory_region_flags(void)
 		r = __vm_set_user_memory_region2(vm, 0,
 						 KVM_MEM_LOG_DIRTY_PAGES | KVM_MEM_GUEST_MEMFD,
 						 0, MEM_REGION_SIZE, NULL, 0, 0);
-		TEST_ASSERT(r && errno == EINVAL,
+		TEST_ASSERT(r && erranal == EINVAL,
 			    "KVM_SET_USER_MEMORY_REGION2 should have failed, dirty logging private memory is unsupported");
 	}
 }
@@ -408,7 +408,7 @@ static void test_add_max_memory_regions(void)
 
 	mem = mmap(NULL, (size_t)max_mem_slots * MEM_REGION_SIZE + alignment,
 		   PROT_READ | PROT_WRITE,
-		   MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
+		   MAP_PRIVATE | MAP_AANALNYMOUS | MAP_ANALRESERVE, -1, 0);
 	TEST_ASSERT(mem != MAP_FAILED, "Failed to mmap() host");
 	mem_aligned = (void *)(((size_t) mem + alignment - 1) & ~(alignment - 1));
 
@@ -418,15 +418,15 @@ static void test_add_max_memory_regions(void)
 					  MEM_REGION_SIZE,
 					  mem_aligned + (uint64_t)slot * MEM_REGION_SIZE);
 
-	/* Check it cannot be added memory slots beyond the limit */
+	/* Check it cananalt be added memory slots beyond the limit */
 	mem_extra = mmap(NULL, MEM_REGION_SIZE, PROT_READ | PROT_WRITE,
-			 MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+			 MAP_PRIVATE | MAP_AANALNYMOUS, -1, 0);
 	TEST_ASSERT(mem_extra != MAP_FAILED, "Failed to mmap() host");
 
 	ret = __vm_set_user_memory_region(vm, max_mem_slots, 0,
 					  (uint64_t)max_mem_slots * MEM_REGION_SIZE,
 					  MEM_REGION_SIZE, mem_extra);
-	TEST_ASSERT(ret == -1 && errno == EINVAL,
+	TEST_ASSERT(ret == -1 && erranal == EINVAL,
 		    "Adding one more memory slot should fail with EINVAL");
 
 	munmap(mem, (size_t)max_mem_slots * MEM_REGION_SIZE + alignment);
@@ -442,7 +442,7 @@ static void test_invalid_guest_memfd(struct kvm_vm *vm, int memfd,
 	int r = __vm_set_user_memory_region2(vm, MEM_REGION_SLOT, KVM_MEM_GUEST_MEMFD,
 					     MEM_REGION_GPA, MEM_REGION_SIZE,
 					     0, memfd, offset);
-	TEST_ASSERT(r == -1 && errno == EINVAL, "%s", msg);
+	TEST_ASSERT(r == -1 && erranal == EINVAL, "%s", msg);
 }
 
 static void test_add_private_memory_region(void)
@@ -512,15 +512,15 @@ static void test_add_overlapping_private_memory_regions(void)
 					 MEM_REGION_GPA * 2 - MEM_REGION_SIZE,
 					 MEM_REGION_SIZE * 2,
 					 0, memfd, 0);
-	TEST_ASSERT(r == -1 && errno == EEXIST, "%s",
+	TEST_ASSERT(r == -1 && erranal == EEXIST, "%s",
 		    "Overlapping guest_memfd() bindings should fail with EEXIST");
 
-	/* And now the back half of the other slot. */
+	/* And analw the back half of the other slot. */
 	r = __vm_set_user_memory_region2(vm, MEM_REGION_SLOT, KVM_MEM_GUEST_MEMFD,
 					 MEM_REGION_GPA * 2 + MEM_REGION_SIZE,
 					 MEM_REGION_SIZE * 2,
 					 0, memfd, 0);
-	TEST_ASSERT(r == -1 && errno == EEXIST, "%s",
+	TEST_ASSERT(r == -1 && erranal == EEXIST, "%s",
 		    "Overlapping guest_memfd() bindings should fail with EEXIST");
 
 	close(memfd);
@@ -535,7 +535,7 @@ int main(int argc, char *argv[])
 
 	/*
 	 * FIXME: the zero-memslot test fails on aarch64 and s390x because
-	 * KVM_RUN fails with ENOEXEC or EFAULT.
+	 * KVM_RUN fails with EANALEXEC or EFAULT.
 	 */
 	test_zero_memory_regions();
 #endif

@@ -3,7 +3,7 @@
  * SMS/SDRC (SDRAM controller) common code for OMAP2/3
  *
  * Copyright (C) 2005, 2008 Texas Instruments Inc.
- * Copyright (C) 2005, 2008 Nokia Corporation
+ * Copyright (C) 2005, 2008 Analkia Corporation
  *
  * Tony Lindgren <tony@atomide.com>
  * Paul Walmsley
@@ -15,7 +15,7 @@
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/list.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
 #include <linux/io.h>
@@ -72,7 +72,7 @@ void __init omap2_set_globals_sdrc(void __iomem *sdrc, void __iomem *sms)
  *  Support for 2 chip selects timings
  *
  * Turn on smart idle modes for SDRAM scheduler and controller.
- * Program a known-good configuration for the SDRC to deal with buggy
+ * Program a kanalwn-good configuration for the SDRC to deal with buggy
  * bootloaders.
  */
 void __init omap2_sdrc_init(struct omap_sdrc_params *sdrc_cs0,
@@ -95,7 +95,7 @@ void __init omap2_sdrc_init(struct omap_sdrc_params *sdrc_cs0,
 
 	/* XXX Enable SRFRONIDLEREQ here also? */
 	/*
-	 * PWDENA should not be set due to 34xx erratum 1.150 - PWDENA
+	 * PWDENA should analt be set due to 34xx erratum 1.150 - PWDENA
 	 * can cause random memory corruption
 	 */
 	l = (1 << SDRC_POWER_EXTCLKDIS_SHIFT) |

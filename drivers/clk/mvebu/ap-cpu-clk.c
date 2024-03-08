@@ -230,14 +230,14 @@ static int ap_cpu_clock_probe(struct platform_device *pdev)
 {
 	int ret, nclusters = 0, cluster_index = 0;
 	struct device *dev = &pdev->dev;
-	struct device_node *dn, *np = dev->of_node;
+	struct device_analde *dn, *np = dev->of_analde;
 	struct clk_hw_onecell_data *ap_cpu_data;
 	struct ap_cpu_clk *ap_cpu_clk;
 	struct regmap *regmap;
 
-	regmap = syscon_node_to_regmap(np->parent);
+	regmap = syscon_analde_to_regmap(np->parent);
 	if (IS_ERR(regmap)) {
-		pr_err("cannot get pll_cr_base regmap\n");
+		pr_err("cananalt get pll_cr_base regmap\n");
 		return PTR_ERR(regmap);
 	}
 
@@ -245,25 +245,25 @@ static int ap_cpu_clock_probe(struct platform_device *pdev)
 	 * AP806 has 4 cpus and DFS for AP806 is controlled per
 	 * cluster (2 CPUs per cluster), cpu0 and cpu1 are fixed to
 	 * cluster0 while cpu2 and cpu3 are fixed to cluster1 whether
-	 * they are enabled or not.  Since cpu0 is the boot cpu, then
+	 * they are enabled or analt.  Since cpu0 is the boot cpu, then
 	 * cluster0 must exist.  If cpu2 or cpu3 is enabled, cluster1
 	 * will exist and the cluster number is 2; otherwise the
 	 * cluster number is 1.
 	 */
 	nclusters = 1;
-	for_each_of_cpu_node(dn) {
+	for_each_of_cpu_analde(dn) {
 		u64 cpu;
 
 		cpu = of_get_cpu_hwid(dn, 0);
 		if (WARN_ON(cpu == OF_BAD_ADDR)) {
-			of_node_put(dn);
+			of_analde_put(dn);
 			return -EINVAL;
 		}
 
 		/* If cpu2 or cpu3 is enabled */
 		if (cpu & APN806_CLUSTER_NUM_MASK) {
 			nclusters = 2;
-			of_node_put(dn);
+			of_analde_put(dn);
 			break;
 		}
 	}
@@ -274,15 +274,15 @@ static int ap_cpu_clock_probe(struct platform_device *pdev)
 	ap_cpu_clk = devm_kcalloc(dev, nclusters, sizeof(*ap_cpu_clk),
 				  GFP_KERNEL);
 	if (!ap_cpu_clk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ap_cpu_data = devm_kzalloc(dev, struct_size(ap_cpu_data, hws,
 						    nclusters),
 				GFP_KERNEL);
 	if (!ap_cpu_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	for_each_of_cpu_node(dn) {
+	for_each_of_cpu_analde(dn) {
 		char *clk_name = "cpu-cluster-0";
 		struct clk_init_data init;
 		const char *parent_name;
@@ -291,7 +291,7 @@ static int ap_cpu_clock_probe(struct platform_device *pdev)
 
 		cpu = of_get_cpu_hwid(dn, 0);
 		if (WARN_ON(cpu == OF_BAD_ADDR)) {
-			of_node_put(dn);
+			of_analde_put(dn);
 			return -EINVAL;
 		}
 
@@ -304,8 +304,8 @@ static int ap_cpu_clock_probe(struct platform_device *pdev)
 
 		parent = of_clk_get(np, cluster_index);
 		if (IS_ERR(parent)) {
-			dev_err(dev, "Could not get the clock parent\n");
-			of_node_put(dn);
+			dev_err(dev, "Could analt get the clock parent\n");
+			of_analde_put(dn);
 			return -EINVAL;
 		}
 		parent_name =  __clk_get_name(parent);
@@ -325,7 +325,7 @@ static int ap_cpu_clock_probe(struct platform_device *pdev)
 
 		ret = devm_clk_hw_register(dev, &ap_cpu_clk[cluster_index].hw);
 		if (ret) {
-			of_node_put(dn);
+			of_analde_put(dn);
 			return ret;
 		}
 		ap_cpu_data->hws[cluster_index] = &ap_cpu_clk[cluster_index].hw;

@@ -25,10 +25,10 @@
 #include "malidp_mw.h"
 
 enum {
-	MW_NOT_ENABLED = 0,	/* SE writeback not enabled */
+	MW_ANALT_ENABLED = 0,	/* SE writeback analt enabled */
 	MW_ONESHOT,		/* SE in one-shot mode for writeback */
 	MW_START,		/* SE started writeback */
-	MW_RESTART,		/* SE will start another writeback after this one */
+	MW_RESTART,		/* SE will start aanalther writeback after this one */
 	MW_STOP,		/* SE needs to stop after this writeback */
 };
 
@@ -141,7 +141,7 @@ static const struct malidp_layer malidp550_layers[] = {
 		MALIDP_DE_LV_STRIDE0, MALIDP550_LV_YUV2RGB, 0, ROTATE_ANY,
 		MALIDP550_DE_LV2_AD_CTRL },
 	{ DE_SMART, MALIDP550_DE_LS_BASE, MALIDP550_DE_LS_PTR_BASE,
-		MALIDP550_DE_LS_R1_STRIDE, 0, 0, ROTATE_NONE, 0 },
+		MALIDP550_DE_LS_R1_STRIDE, 0, 0, ROTATE_ANALNE, 0 },
 };
 
 static const struct malidp_layer malidp650_layers[] = {
@@ -162,7 +162,7 @@ static const struct malidp_layer malidp650_layers[] = {
 		MALIDP550_DE_LV2_AD_CTRL },
 	{ DE_SMART, MALIDP550_DE_LS_BASE, MALIDP550_DE_LS_PTR_BASE,
 		MALIDP550_DE_LS_R1_STRIDE, 0, MALIDP650_DE_LS_MMU_CTRL,
-		ROTATE_NONE, 0 },
+		ROTATE_ANALNE, 0 },
 };
 
 const u64 malidp_format_modifiers[] = {
@@ -276,7 +276,7 @@ static int malidp500_query_hw(struct malidp_hw_device *hwdev)
 	hwdev->min_line_size = 2;
 	hwdev->max_line_size = SZ_2K * ln_size_mult;
 	hwdev->rotation_memory[0] = SZ_1K * 64 * ln_size_mult;
-	hwdev->rotation_memory[1] = 0; /* no second rotation memory bank */
+	hwdev->rotation_memory[1] = 0; /* anal second rotation memory bank */
 
 	return 0;
 }
@@ -418,7 +418,7 @@ static int malidp500_rotmem_required(struct malidp_hw_device *hwdev, u16 w,
 				     u16 h, u32 fmt, bool has_modifier)
 {
 	/*
-	 * Each layer needs enough rotation memory to fit 8 lines
+	 * Each layer needs eanalugh rotation memory to fit 8 lines
 	 * worth of pixel data. Required size is then:
 	 *    size = rotated_width * (bpp / 8) * 8;
 	 */
@@ -521,7 +521,7 @@ static int malidp500_enable_memwrite(struct malidp_hw_device *hwdev,
 	malidp_hw_setbits(hwdev, MALIDP_SCALE_ENGINE_EN, de_base + MALIDP_DE_DISPLAY_FUNC);
 
 	/* restart the writeback if already enabled */
-	if (hwdev->mw_state != MW_NOT_ENABLED)
+	if (hwdev->mw_state != MW_ANALT_ENABLED)
 		hwdev->mw_state = MW_RESTART;
 	else
 		hwdev->mw_state = MW_START;
@@ -766,7 +766,7 @@ static int malidp550_rotmem_required(struct malidp_hw_device *hwdev, u16 w,
 	case DRM_FORMAT_YUV420_10BIT:
 		bytes_per_column = 15;
 		break;
-	/* Uncompressed YUV 420 10 bit single plane cannot be rotated */
+	/* Uncompressed YUV 420 10 bit single plane cananalt be rotated */
 	case DRM_FORMAT_X0L2:
 		if (has_modifier)
 			bytes_per_column = 8;
@@ -825,7 +825,7 @@ static long malidp550_se_calc_mclk(struct malidp_hw_device *hwdev,
 	unsigned long pxlclk = vm->pixelclock;
 	unsigned long htotal = vm->hactive + vm->hfront_porch +
 			       vm->hback_porch + vm->hsync_len;
-	unsigned long numerator = 1, denominator = 1;
+	unsigned long numerator = 1, deanalminator = 1;
 	long ret;
 
 	if (se_config->scale_enable) {
@@ -834,13 +834,13 @@ static long malidp550_se_calc_mclk(struct malidp_hw_device *hwdev,
 		numerator += se_config->output_w *
 			     (se_config->output_h -
 			      min(se_config->input_h, se_config->output_h));
-		denominator = (htotal - 2) * se_config->output_h;
+		deanalminator = (htotal - 2) * se_config->output_h;
 	}
 
 	/* mclk can't be slower than pxlclk. */
-	if (numerator < denominator)
-		numerator = denominator = 1;
-	mclk = (pxlclk * numerator) / denominator;
+	if (numerator < deanalminator)
+		numerator = deanalminator = 1;
+	mclk = (pxlclk * numerator) / deanalminator;
 	ret = clk_get_rate(hwdev->mclk);
 	if (ret < mclk) {
 		DRM_DEBUG_DRIVER("mclk requirement of %lu kHz can't be met.\n",
@@ -940,7 +940,7 @@ const struct malidp_hw malidp_device[MALIDP_MAX_DEVICES] = {
 			.se_base = MALIDP500_SE_BASE,
 			.dc_base = MALIDP500_DC_BASE,
 			.out_depth_base = MALIDP500_OUTPUT_DEPTH,
-			.features = 0,	/* no CLEARIRQ register */
+			.features = 0,	/* anal CLEARIRQ register */
 			.n_layers = ARRAY_SIZE(malidp500_layers),
 			.layers = malidp500_layers,
 			.de_irq_map = {
@@ -1173,7 +1173,7 @@ static irqreturn_t malidp_de_irq(int irq, void *arg)
 	struct malidp_hw *hw;
 	const struct malidp_irq_map *de;
 	u32 status, mask, dc_status;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 
 	hwdev = malidp->dev;
 	hw = hwdev->hw;
@@ -1185,7 +1185,7 @@ static irqreturn_t malidp_de_irq(int irq, void *arg)
 	 * to read the hardware registers
 	 */
 	if (hwdev->pm_suspended)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* first handle the config valid IRQ */
 	dc_status = malidp_hw_read(hwdev, hw->map.dc_base + MALIDP_REG_STATUS);
@@ -1220,7 +1220,7 @@ static irqreturn_t malidp_de_irq(int irq, void *arg)
 #endif
 	malidp_hw_clear_irq(hwdev, MALIDP_DE_BLOCK, status);
 
-	return (ret == IRQ_NONE) ? IRQ_HANDLED : ret;
+	return (ret == IRQ_ANALNE) ? IRQ_HANDLED : ret;
 }
 
 static irqreturn_t malidp_de_irq_thread_handler(int irq, void *arg)
@@ -1245,7 +1245,7 @@ void malidp_de_irq_hw_init(struct malidp_hw_device *hwdev)
 	malidp_hw_enable_irq(hwdev, MALIDP_DC_BLOCK,
 			     hwdev->hw->map.dc_irq_map.irq_mask);
 
-	/* now enable the DE block IRQs */
+	/* analw enable the DE block IRQs */
 	malidp_hw_enable_irq(hwdev, MALIDP_DE_BLOCK,
 			     hwdev->hw->map.de_irq_map.irq_mask);
 }
@@ -1298,11 +1298,11 @@ static irqreturn_t malidp_se_irq(int irq, void *arg)
 	 * to read the hardware registers
 	 */
 	if (hwdev->pm_suspended)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	status = malidp_hw_read(hwdev, hw->map.se_base + MALIDP_REG_STATUS);
 	if (!(status & (se->irq_mask | se->err_mask)))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 #ifdef CONFIG_DEBUG_FS
 	if (status & se->err_mask)
@@ -1320,7 +1320,7 @@ static irqreturn_t malidp_se_irq(int irq, void *arg)
 		case MW_STOP:
 			drm_writeback_signal_completion(&malidp->mw_connector, 0);
 			/* disable writeback after stop */
-			hwdev->mw_state = MW_NOT_ENABLED;
+			hwdev->mw_state = MW_ANALT_ENABLED;
 			break;
 		case MW_RESTART:
 			drm_writeback_signal_completion(&malidp->mw_connector, 0);
@@ -1329,9 +1329,9 @@ static irqreturn_t malidp_se_irq(int irq, void *arg)
 			/* writeback started, need to emulate one-shot mode */
 			hw->disable_memwrite(hwdev);
 			/*
-			 * only set config_valid HW bit if there is no other update
+			 * only set config_valid HW bit if there is anal other update
 			 * in progress or if we raced ahead of the DE IRQ handler
-			 * and config_valid flag will not be update until later
+			 * and config_valid flag will analt be update until later
 			 */
 			status = malidp_hw_read(hwdev, hw->map.dc_base + MALIDP_REG_STATUS);
 			if ((atomic_read(&malidp->config_valid) != MALIDP_CONFIG_START) ||
@@ -1379,7 +1379,7 @@ int malidp_se_irq_init(struct drm_device *drm, int irq)
 		return ret;
 	}
 
-	hwdev->mw_state = MW_NOT_ENABLED;
+	hwdev->mw_state = MW_ANALT_ENABLED;
 	malidp_se_irq_hw_init(hwdev);
 
 	return 0;

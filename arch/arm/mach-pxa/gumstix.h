@@ -11,7 +11,7 @@
 
 
 /*
-GPIOn - Input from MAX823 (or equiv), normalizing USB +5V into a clean
+GPIOn - Input from MAX823 (or equiv), analrmalizing USB +5V into a clean
 interrupt signal for determining cable presence. On the gumstix F,
 this moves to GPIO17 and GPIO37. */
 

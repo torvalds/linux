@@ -24,7 +24,7 @@
 
 /*
  * Raw I2C access required for just accessing chip and variant info before we
- * know which device is present. The info read from the device using this
+ * kanalw which device is present. The info read from the device using this
  * approach is then used to select the correct regmap tables.
  */
 
@@ -116,7 +116,7 @@ static int da9063_get_device_type(struct i2c_client *i2c, struct da9063 *da9063)
 		dev_err(da9063->dev,
 			"Invalid chip device ID: 0x%02x\n",
 			buf[DA9063_DEV_ID_REG]);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	dev_info(da9063->dev,
@@ -165,18 +165,18 @@ static const struct regmap_range da9063_ad_volatile_ranges[] = {
 };
 
 static const struct regmap_access_table da9063_ad_readable_table = {
-	.yes_ranges = da9063_ad_readable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(da9063_ad_readable_ranges),
+	.anal_ranges = da9063_ad_readable_ranges,
+	.n_anal_ranges = ARRAY_SIZE(da9063_ad_readable_ranges),
 };
 
 static const struct regmap_access_table da9063_ad_writeable_table = {
-	.yes_ranges = da9063_ad_writeable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(da9063_ad_writeable_ranges),
+	.anal_ranges = da9063_ad_writeable_ranges,
+	.n_anal_ranges = ARRAY_SIZE(da9063_ad_writeable_ranges),
 };
 
 static const struct regmap_access_table da9063_ad_volatile_table = {
-	.yes_ranges = da9063_ad_volatile_ranges,
-	.n_yes_ranges = ARRAY_SIZE(da9063_ad_volatile_ranges),
+	.anal_ranges = da9063_ad_volatile_ranges,
+	.n_anal_ranges = ARRAY_SIZE(da9063_ad_volatile_ranges),
 };
 
 static const struct regmap_range da9063_bb_readable_ranges[] = {
@@ -210,18 +210,18 @@ static const struct regmap_range da9063_bb_da_volatile_ranges[] = {
 };
 
 static const struct regmap_access_table da9063_bb_readable_table = {
-	.yes_ranges = da9063_bb_readable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(da9063_bb_readable_ranges),
+	.anal_ranges = da9063_bb_readable_ranges,
+	.n_anal_ranges = ARRAY_SIZE(da9063_bb_readable_ranges),
 };
 
 static const struct regmap_access_table da9063_bb_writeable_table = {
-	.yes_ranges = da9063_bb_writeable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(da9063_bb_writeable_ranges),
+	.anal_ranges = da9063_bb_writeable_ranges,
+	.n_anal_ranges = ARRAY_SIZE(da9063_bb_writeable_ranges),
 };
 
 static const struct regmap_access_table da9063_bb_da_volatile_table = {
-	.yes_ranges = da9063_bb_da_volatile_ranges,
-	.n_yes_ranges = ARRAY_SIZE(da9063_bb_da_volatile_ranges),
+	.anal_ranges = da9063_bb_da_volatile_ranges,
+	.n_anal_ranges = ARRAY_SIZE(da9063_bb_da_volatile_ranges),
 };
 
 static const struct regmap_range da9063l_bb_readable_ranges[] = {
@@ -254,18 +254,18 @@ static const struct regmap_range da9063l_bb_da_volatile_ranges[] = {
 };
 
 static const struct regmap_access_table da9063l_bb_readable_table = {
-	.yes_ranges = da9063l_bb_readable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(da9063l_bb_readable_ranges),
+	.anal_ranges = da9063l_bb_readable_ranges,
+	.n_anal_ranges = ARRAY_SIZE(da9063l_bb_readable_ranges),
 };
 
 static const struct regmap_access_table da9063l_bb_writeable_table = {
-	.yes_ranges = da9063l_bb_writeable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(da9063l_bb_writeable_ranges),
+	.anal_ranges = da9063l_bb_writeable_ranges,
+	.n_anal_ranges = ARRAY_SIZE(da9063l_bb_writeable_ranges),
 };
 
 static const struct regmap_access_table da9063l_bb_da_volatile_table = {
-	.yes_ranges = da9063l_bb_da_volatile_ranges,
-	.n_yes_ranges = ARRAY_SIZE(da9063l_bb_da_volatile_ranges),
+	.anal_ranges = da9063l_bb_da_volatile_ranges,
+	.n_anal_ranges = ARRAY_SIZE(da9063l_bb_da_volatile_ranges),
 };
 
 static const struct regmap_range da9063_da_readable_ranges[] = {
@@ -287,13 +287,13 @@ static const struct regmap_range da9063_da_writeable_ranges[] = {
 };
 
 static const struct regmap_access_table da9063_da_readable_table = {
-	.yes_ranges = da9063_da_readable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(da9063_da_readable_ranges),
+	.anal_ranges = da9063_da_readable_ranges,
+	.n_anal_ranges = ARRAY_SIZE(da9063_da_readable_ranges),
 };
 
 static const struct regmap_access_table da9063_da_writeable_table = {
-	.yes_ranges = da9063_da_writeable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(da9063_da_writeable_ranges),
+	.anal_ranges = da9063_da_writeable_ranges,
+	.n_anal_ranges = ARRAY_SIZE(da9063_da_writeable_ranges),
 };
 
 static const struct regmap_range da9063l_da_readable_ranges[] = {
@@ -314,13 +314,13 @@ static const struct regmap_range da9063l_da_writeable_ranges[] = {
 };
 
 static const struct regmap_access_table da9063l_da_readable_table = {
-	.yes_ranges = da9063l_da_readable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(da9063l_da_readable_ranges),
+	.anal_ranges = da9063l_da_readable_ranges,
+	.n_anal_ranges = ARRAY_SIZE(da9063l_da_readable_ranges),
 };
 
 static const struct regmap_access_table da9063l_da_writeable_table = {
-	.yes_ranges = da9063l_da_writeable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(da9063l_da_writeable_ranges),
+	.anal_ranges = da9063l_da_writeable_ranges,
+	.n_anal_ranges = ARRAY_SIZE(da9063l_da_writeable_ranges),
 };
 
 static const struct regmap_range_cfg da9063_range_cfg[] = {
@@ -359,7 +359,7 @@ static int da9063_i2c_probe(struct i2c_client *i2c)
 
 	da9063 = devm_kzalloc(&i2c->dev, sizeof(struct da9063), GFP_KERNEL);
 	if (da9063 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(i2c, da9063);
 	da9063->dev = &i2c->dev;
@@ -401,8 +401,8 @@ static int da9063_i2c_probe(struct i2c_client *i2c)
 			break;
 		default:
 			dev_err(da9063->dev,
-				"Chip variant not supported for DA9063\n");
-			return -ENODEV;
+				"Chip variant analt supported for DA9063\n");
+			return -EANALDEV;
 		}
 		break;
 	case PMIC_TYPE_DA9063L:
@@ -427,13 +427,13 @@ static int da9063_i2c_probe(struct i2c_client *i2c)
 			break;
 		default:
 			dev_err(da9063->dev,
-				"Chip variant not supported for DA9063L\n");
-			return -ENODEV;
+				"Chip variant analt supported for DA9063L\n");
+			return -EANALDEV;
 		}
 		break;
 	default:
-		dev_err(da9063->dev, "Chip type not supported\n");
-		return -ENODEV;
+		dev_err(da9063->dev, "Chip type analt supported\n");
+		return -EANALDEV;
 	}
 
 	da9063->regmap = devm_regmap_init_i2c(i2c, &da9063_regmap_config);
@@ -444,7 +444,7 @@ static int da9063_i2c_probe(struct i2c_client *i2c)
 		return ret;
 	}
 
-	/* If SMBus is not available and only I2C is possible, enter I2C mode */
+	/* If SMBus is analt available and only I2C is possible, enter I2C mode */
 	if (i2c_check_functionality(i2c->adapter, I2C_FUNC_I2C)) {
 		ret = regmap_clear_bits(da9063->regmap, DA9063_REG_CONFIG_J,
 					DA9063_TWOWIRE_TO);

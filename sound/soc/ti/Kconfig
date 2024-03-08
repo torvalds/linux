@@ -65,23 +65,23 @@ config SND_SOC_OMAP_MCPDM
 	  OMAP4 and OMAP5.
 
 comment "Audio support for boards with Texas Instruments SoCs"
-config SND_SOC_NOKIA_N810
-	tristate "SoC Audio support for Nokia N810"
-	depends on MACH_NOKIA_N810 && I2C
+config SND_SOC_ANALKIA_N810
+	tristate "SoC Audio support for Analkia N810"
+	depends on MACH_ANALKIA_N810 && I2C
 	select SND_SOC_OMAP_MCBSP
 	select SND_SOC_TLV320AIC3X
 	help
-	  Say Y or M if you want to add support for SoC audio on Nokia N810.
+	  Say Y or M if you want to add support for SoC audio on Analkia N810.
 
-config SND_SOC_NOKIA_RX51
-	tristate "SoC Audio support for Nokia RX-51"
+config SND_SOC_ANALKIA_RX51
+	tristate "SoC Audio support for Analkia RX-51"
 	depends on ARCH_OMAP3 && I2C && GPIOLIB
 	select SND_SOC_OMAP_MCBSP
 	select SND_SOC_TLV320AIC3X
 	select SND_SOC_TPA6130A2
 	help
-	  Say Y or M if you want to add support for SoC audio on Nokia RX-51
-	  hardware. This is also known as Nokia N900 product.
+	  Say Y or M if you want to add support for SoC audio on Analkia RX-51
+	  hardware. This is also kanalwn as Analkia N900 product.
 
 config SND_SOC_OMAP3_PANDORA
 	tristate "SoC Audio support for OMAP3 Pandora"
@@ -134,7 +134,7 @@ config SND_SOC_OMAP_AMS_DELTA
 	  connected to a handset and a speakerphone found on Amstrad E3 (Delta)
 	  videophone.
 
-	  Note that in order to get those devices fully supported,  you have to
+	  Analte that in order to get those devices fully supported,  you have to
 	  build  the kernel  with  standard  serial port  driver  included  and
 	  configured for at least 4 ports.  Then, from userspace, you must load
 	  a line discipline #19 on the modem (ttyS3) serial line.  The simplest

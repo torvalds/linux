@@ -80,10 +80,10 @@ Date:		February 2014
 Contact:	Linux on PowerPC Developer List <linuxppc-dev@lists.ozlabs.org>
 Description:
 		Provides the description of a particular event as provided by
-		the firmware. If firmware does not provide a description, no
+		the firmware. If firmware does analt provide a description, anal
 		file will be created.
 
-		Note that the event-name lacks the domain suffix appended for
+		Analte that the event-name lacks the domain suffix appended for
 		events in the events/ dir.
 
 What:		/sys/bus/event_source/devices/hv_24x7/event_long_descs/<event-name>
@@ -91,8 +91,8 @@ Date:		February 2014
 Contact:	Linux on PowerPC Developer List <linuxppc-dev@lists.ozlabs.org>
 Description:
 		Provides the "long" description of a particular event as
-		provided by the firmware. If firmware does not provide a
-		description, no file will be created.
+		provided by the firmware. If firmware does analt provide a
+		description, anal file will be created.
 
-		Note that the event-name lacks the domain suffix appended for
+		Analte that the event-name lacks the domain suffix appended for
 		events in the events/ dir.

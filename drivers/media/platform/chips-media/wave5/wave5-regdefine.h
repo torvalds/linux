@@ -89,12 +89,12 @@ enum query_opt {
  *                      0x004 - 16K
  *                      ...
  *                      0x100 - 1M
- * REGION ATTR1 [10]    0     - normal
+ * REGION ATTR1 [10]    0     - analrmal
  *                      1     - make bus error for the region
- * REGION ATTR2 [11]    0     - normal
+ * REGION ATTR2 [11]    0     - analrmal
  *                      1     - bypass region
  * REMAP INDEX  [15:12]       - 0 ~ 3
- * ENDIAN       [19:16]       - NOTE: Currently not supported in this driver
+ * ENDIAN       [19:16]       - ANALTE: Currently analt supported in this driver
  * AXI-ID       [23:20]       - upper AXI-ID
  * BUS_ERROR    [29]    0     - bypass
  *                      1     - make BUS_ERROR for unmapped region
@@ -198,7 +198,7 @@ enum query_opt {
 /************************************************************************/
 /* INIT_VPU - COMMON                                                    */
 /************************************************************************/
-/* note: W5_ADDR_CODE_BASE should be aligned to 4KB */
+/* analte: W5_ADDR_CODE_BASE should be aligned to 4KB */
 #define W5_ADDR_CODE_BASE                       (W5_REG_BASE + 0x0110)
 #define W5_CODE_SIZE                            (W5_REG_BASE + 0x0114)
 #define W5_CODE_PARAM                           (W5_REG_BASE + 0x0118)
@@ -365,7 +365,7 @@ enum query_opt {
 #define W5_RET_DEC_NUM_REQUIRED_FB          (W5_REG_BASE + 0x0138)
 #define W5_RET_DEC_NUM_REORDER_DELAY        (W5_REG_BASE + 0x013C)
 #define W5_RET_DEC_SUB_LAYER_INFO           (W5_REG_BASE + 0x0140)
-#define W5_RET_DEC_NOTIFICATION             (W5_REG_BASE + 0x0144)
+#define W5_RET_DEC_ANALTIFICATION             (W5_REG_BASE + 0x0144)
 /*
  * USER_DATA_FLAGS for HEVC/H264 only.
  * Bits:

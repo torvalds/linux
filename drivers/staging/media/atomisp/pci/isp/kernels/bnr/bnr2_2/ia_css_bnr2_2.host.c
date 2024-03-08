@@ -16,7 +16,7 @@
 #include "type_support.h"
 #include "ia_css_bnr2_2.host.h"
 
-#ifndef IA_CSS_NO_DEBUG
+#ifndef IA_CSS_ANAL_DEBUG
 #include "ia_css_debug.h" /* ia_css_debug_dtrace() */
 #endif
 
@@ -83,7 +83,7 @@ ia_css_bnr2_2_encode(
 	to->n_var_th_max = from->n_var_th_max;
 }
 
-#ifndef IA_CSS_NO_DEBUG
+#ifndef IA_CSS_ANAL_DEBUG
 void
 ia_css_bnr2_2_debug_dtrace(
     const struct ia_css_bnr2_2_config *bnr,
@@ -92,7 +92,7 @@ ia_css_bnr2_2_debug_dtrace(
 	if (!bnr)
 		return;
 
-	ia_css_debug_dtrace(level, "Bayer Noise Reduction 2.2:\n");
+	ia_css_debug_dtrace(level, "Bayer Analise Reduction 2.2:\n");
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n", "d_var_gain_r", bnr->d_var_gain_r);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n", "d_var_gain_g", bnr->d_var_gain_g);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n", "d_var_gain_b", bnr->d_var_gain_b);
@@ -129,4 +129,4 @@ ia_css_bnr2_2_debug_dtrace(
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n", "n_var_th_min", bnr->n_var_th_min);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n", "n_var_th_max", bnr->n_var_th_max);
 }
-#endif /* IA_CSS_NO_DEBUG */
+#endif /* IA_CSS_ANAL_DEBUG */

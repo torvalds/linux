@@ -627,20 +627,20 @@ static const struct snd_kcontrol_new mt8173_afe_o10_mix[] = {
 
 static const struct snd_soc_dapm_widget mt8173_afe_pcm_widgets[] = {
 	/* inter-connections */
-	SND_SOC_DAPM_MIXER("I03", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I04", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I05", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I06", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I17", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I18", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I03", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I04", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I05", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I06", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I17", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I18", SND_SOC_ANALPM, 0, 0, NULL, 0),
 
-	SND_SOC_DAPM_MIXER("O03", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O03", SND_SOC_ANALPM, 0, 0,
 			   mt8173_afe_o03_mix, ARRAY_SIZE(mt8173_afe_o03_mix)),
-	SND_SOC_DAPM_MIXER("O04", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O04", SND_SOC_ANALPM, 0, 0,
 			   mt8173_afe_o04_mix, ARRAY_SIZE(mt8173_afe_o04_mix)),
-	SND_SOC_DAPM_MIXER("O09", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O09", SND_SOC_ANALPM, 0, 0,
 			   mt8173_afe_o09_mix, ARRAY_SIZE(mt8173_afe_o09_mix)),
-	SND_SOC_DAPM_MIXER("O10", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O10", SND_SOC_ANALPM, 0, 0,
 			   mt8173_afe_o10_mix, ARRAY_SIZE(mt8173_afe_o10_mix)),
 };
 
@@ -707,8 +707,8 @@ static const struct mtk_base_memif_data memif_data[MT8173_AFE_MEMIF_NUM] = {
 		.fs_reg = AFE_DAC_CON1,
 		.fs_shift = 0,
 		.fs_maskbit = 0xf,
-		.mono_reg = AFE_DAC_CON1,
-		.mono_shift = 21,
+		.moanal_reg = AFE_DAC_CON1,
+		.moanal_shift = 21,
 		.hd_reg = -1,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = 1,
@@ -723,8 +723,8 @@ static const struct mtk_base_memif_data memif_data[MT8173_AFE_MEMIF_NUM] = {
 		.fs_reg = AFE_DAC_CON1,
 		.fs_shift = 4,
 		.fs_maskbit = 0xf,
-		.mono_reg = AFE_DAC_CON1,
-		.mono_shift = 22,
+		.moanal_reg = AFE_DAC_CON1,
+		.moanal_shift = 22,
 		.hd_reg = -1,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = 2,
@@ -739,8 +739,8 @@ static const struct mtk_base_memif_data memif_data[MT8173_AFE_MEMIF_NUM] = {
 		.fs_reg = AFE_DAC_CON1,
 		.fs_shift = 16,
 		.fs_maskbit = 0xf,
-		.mono_reg = AFE_DAC_CON1,
-		.mono_shift = 27,
+		.moanal_reg = AFE_DAC_CON1,
+		.moanal_shift = 27,
 		.hd_reg = -1,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = 3,
@@ -755,8 +755,8 @@ static const struct mtk_base_memif_data memif_data[MT8173_AFE_MEMIF_NUM] = {
 		.fs_reg = AFE_DAC_CON0,
 		.fs_shift = 24,
 		.fs_maskbit = 0x3,
-		.mono_reg = -1,
-		.mono_shift = -1,
+		.moanal_reg = -1,
+		.moanal_shift = -1,
 		.hd_reg = -1,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = 4,
@@ -771,8 +771,8 @@ static const struct mtk_base_memif_data memif_data[MT8173_AFE_MEMIF_NUM] = {
 		.fs_reg = AFE_DAC_CON1,
 		.fs_shift = 12,
 		.fs_maskbit = 0xf,
-		.mono_reg = AFE_DAC_CON1,
-		.mono_shift = 24,
+		.moanal_reg = AFE_DAC_CON1,
+		.moanal_shift = 24,
 		.hd_reg = -1,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = 6,
@@ -787,8 +787,8 @@ static const struct mtk_base_memif_data memif_data[MT8173_AFE_MEMIF_NUM] = {
 		.fs_reg = AFE_DAC_CON1,
 		.fs_shift = 30,
 		.fs_maskbit = 0x3,
-		.mono_reg = AFE_DAC_CON1,
-		.mono_shift = 30,
+		.moanal_reg = AFE_DAC_CON1,
+		.moanal_shift = 30,
 		.hd_reg = -1,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = 7,
@@ -803,8 +803,8 @@ static const struct mtk_base_memif_data memif_data[MT8173_AFE_MEMIF_NUM] = {
 		.fs_reg = -1,
 		.fs_shift = -1,
 		.fs_maskbit = -1,
-		.mono_reg = -1,
-		.mono_shift = -1,
+		.moanal_reg = -1,
+		.moanal_shift = -1,
 		.hd_reg = -1,
 		.enable_reg = -1,
 		.msb_reg = AFE_MEMIF_MSB,
@@ -906,7 +906,7 @@ static const struct regmap_config mt8173_afe_regmap_config = {
 	.reg_stride = 4,
 	.val_bits = 32,
 	.max_register = AFE_ADDA2_TOP_CON0,
-	.cache_type = REGCACHE_NONE,
+	.cache_type = REGCACHE_ANALNE,
 };
 
 static irqreturn_t mt8173_afe_irq_handler(int irq, void *dev_id)
@@ -1060,13 +1060,13 @@ static int mt8173_afe_pcm_dev_probe(struct platform_device *pdev)
 
 	afe = devm_kzalloc(&pdev->dev, sizeof(*afe), GFP_KERNEL);
 	if (!afe)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	afe->platform_priv = devm_kzalloc(&pdev->dev, sizeof(*afe_priv),
 					  GFP_KERNEL);
 	afe_priv = afe->platform_priv;
 	if (!afe_priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	afe->dev = &pdev->dev;
 
@@ -1095,13 +1095,13 @@ static int mt8173_afe_pcm_dev_probe(struct platform_device *pdev)
 	afe->memif = devm_kcalloc(afe->dev, afe->memif_size,
 				  sizeof(*afe->memif), GFP_KERNEL);
 	if (!afe->memif)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	afe->irqs_size = MT8173_AFE_IRQ_NUM;
 	afe->irqs = devm_kcalloc(afe->dev, afe->irqs_size,
 				 sizeof(*afe->irqs), GFP_KERNEL);
 	if (!afe->irqs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < afe->irqs_size; i++) {
 		afe->memif[i].data = &memif_data[i];
@@ -1137,7 +1137,7 @@ static int mt8173_afe_pcm_dev_probe(struct platform_device *pdev)
 
 	comp_pcm = devm_kzalloc(&pdev->dev, sizeof(*comp_pcm), GFP_KERNEL);
 	if (!comp_pcm) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_pm_disable;
 	}
 
@@ -1159,7 +1159,7 @@ static int mt8173_afe_pcm_dev_probe(struct platform_device *pdev)
 
 	comp_hdmi = devm_kzalloc(&pdev->dev, sizeof(*comp_hdmi), GFP_KERNEL);
 	if (!comp_hdmi) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_cleanup_components;
 	}
 
@@ -1182,7 +1182,7 @@ static int mt8173_afe_pcm_dev_probe(struct platform_device *pdev)
 	ret = devm_request_irq(afe->dev, irq_id, mt8173_afe_irq_handler,
 			       0, "Afe_ISR_Handle", (void *)afe);
 	if (ret) {
-		dev_err(afe->dev, "could not request_irq\n");
+		dev_err(afe->dev, "could analt request_irq\n");
 		goto err_cleanup_components;
 	}
 

@@ -28,19 +28,19 @@ struct sock;
 #define ISCSI_IQN_LEN			224
 #define NA_AUTHENTICATION_INHERITED	-1
 
-/* struct iscsi_node_attrib sanity values */
+/* struct iscsi_analde_attrib sanity values */
 #define NA_DATAOUT_TIMEOUT		3
 #define NA_DATAOUT_TIMEOUT_MAX		60
 #define NA_DATAOUT_TIMEOUT_MIX		2
 #define NA_DATAOUT_TIMEOUT_RETRIES	5
 #define NA_DATAOUT_TIMEOUT_RETRIES_MAX	15
 #define NA_DATAOUT_TIMEOUT_RETRIES_MIN	1
-#define NA_NOPIN_TIMEOUT		15
-#define NA_NOPIN_TIMEOUT_MAX		60
-#define NA_NOPIN_TIMEOUT_MIN		3
-#define NA_NOPIN_RESPONSE_TIMEOUT	30
-#define NA_NOPIN_RESPONSE_TIMEOUT_MAX	60
-#define NA_NOPIN_RESPONSE_TIMEOUT_MIN	3
+#define NA_ANALPIN_TIMEOUT		15
+#define NA_ANALPIN_TIMEOUT_MAX		60
+#define NA_ANALPIN_TIMEOUT_MIN		3
+#define NA_ANALPIN_RESPONSE_TIMEOUT	30
+#define NA_ANALPIN_RESPONSE_TIMEOUT_MAX	60
+#define NA_ANALPIN_RESPONSE_TIMEOUT_MIN	3
 #define NA_RANDOM_DATAIN_PDU_OFFSETS	0
 #define NA_RANDOM_DATAIN_SEQ_OFFSETS	0
 #define NA_RANDOM_R2T_OFFSETS		0
@@ -50,12 +50,12 @@ struct sock;
 #define TA_LOGIN_TIMEOUT		15
 #define TA_LOGIN_TIMEOUT_MAX		30
 #define TA_LOGIN_TIMEOUT_MIN		5
-#define TA_GENERATE_NODE_ACLS		0
+#define TA_GENERATE_ANALDE_ACLS		0
 #define TA_DEFAULT_CMDSN_DEPTH		64
 #define TA_DEFAULT_CMDSN_DEPTH_MAX	512
 #define TA_DEFAULT_CMDSN_DEPTH_MIN	1
 #define TA_CACHE_DYNAMIC_ACLS		0
-/* Enabled by default in demo mode (generic_node_acls=1) */
+/* Enabled by default in demo mode (generic_analde_acls=1) */
 #define TA_DEMO_MODE_WRITE_PROTECT	1
 /* Disabled by default in production mode w/ explict ACLs */
 #define TA_PROD_MODE_WRITE_PROTECT	0
@@ -69,8 +69,8 @@ struct sock;
 #define TA_DEFAULT_TPG_ENABLED_SENDTARGETS 1
 /*
  * Used to control the sending of keys with optional to respond state bit,
- * as a workaround for non RFC compliant initiators,that do not propose,
- * nor respond to specific keys required for login to complete.
+ * as a workaround for analn RFC compliant initiators,that do analt propose,
+ * analr respond to specific keys required for login to complete.
  *
  * See iscsi_check_proposer_for_optional_reply() for more details.
  */
@@ -116,7 +116,7 @@ enum data_count_type {
 
 /* struct iscsi_datain_req->dr_complete */
 enum datain_req_comp_table {
-	DATAIN_COMPLETE_NORMAL			= 1,
+	DATAIN_COMPLETE_ANALRMAL			= 1,
 	DATAIN_COMPLETE_WITHIN_COMMAND_RECOVERY = 2,
 	DATAIN_COMPLETE_CONNECTION_RECOVERY	= 3,
 };
@@ -145,7 +145,7 @@ enum tiqn_state_table {
 enum cmd_flags_table {
 	ICF_GOT_LAST_DATAOUT			= 0x00000001,
 	ICF_GOT_DATACK_SNACK			= 0x00000002,
-	ICF_NON_IMMEDIATE_UNSOLICITED_DATA	= 0x00000004,
+	ICF_ANALN_IMMEDIATE_UNSOLICITED_DATA	= 0x00000004,
 	ICF_SENT_LAST_R2T			= 0x00000008,
 	ICF_WITHIN_COMMAND_RECOVERY		= 0x00000010,
 	ICF_CONTIG_MEMORY			= 0x00000020,
@@ -157,7 +157,7 @@ enum cmd_flags_table {
 
 /* struct iscsit_cmd->i_state */
 enum cmd_i_state_table {
-	ISTATE_NO_STATE			= 0,
+	ISTATE_ANAL_STATE			= 0,
 	ISTATE_NEW_CMD			= 1,
 	ISTATE_DEFERRED_CMD		= 2,
 	ISTATE_UNSOLICITED_DATA		= 3,
@@ -174,8 +174,8 @@ enum cmd_i_state_table {
 	ISTATE_SENT_LAST_DATAIN		= 14,
 	ISTATE_SEND_LOGOUTRSP		= 15,
 	ISTATE_SENT_LOGOUTRSP		= 16,
-	ISTATE_SEND_NOPIN		= 17,
-	ISTATE_SENT_NOPIN		= 18,
+	ISTATE_SEND_ANALPIN		= 17,
+	ISTATE_SENT_ANALPIN		= 18,
 	ISTATE_SEND_REJECT		= 19,
 	ISTATE_SENT_REJECT		= 20,
 	ISTATE_SEND_R2T			= 21,
@@ -195,17 +195,17 @@ enum cmd_i_state_table {
 	ISTATE_SENT_TASKMGTRSP		= 35,
 	ISTATE_SEND_TEXTRSP		= 36,
 	ISTATE_SENT_TEXTRSP		= 37,
-	ISTATE_SEND_NOPIN_WANT_RESPONSE	= 38,
-	ISTATE_SENT_NOPIN_WANT_RESPONSE	= 39,
-	ISTATE_SEND_NOPIN_NO_RESPONSE	= 40,
+	ISTATE_SEND_ANALPIN_WANT_RESPONSE	= 38,
+	ISTATE_SENT_ANALPIN_WANT_RESPONSE	= 39,
+	ISTATE_SEND_ANALPIN_ANAL_RESPONSE	= 40,
 	ISTATE_REMOVE			= 41,
 	ISTATE_FREE			= 42,
 };
 
 /* Used for iscsi_recover_cmdsn() return values */
 enum recover_cmdsn_ret_table {
-	CMDSN_ERROR_CANNOT_RECOVER	= -1,
-	CMDSN_NORMAL_OPERATION		= 0,
+	CMDSN_ERROR_CANANALT_RECOVER	= -1,
+	CMDSN_ANALRMAL_OPERATION		= 0,
 	CMDSN_LOWER_THAN_EXP		= 1,
 	CMDSN_HIGHER_THAN_EXP		= 2,
 	CMDSN_MAXCMDSN_OVERRUN		= 3,
@@ -213,21 +213,21 @@ enum recover_cmdsn_ret_table {
 
 /* Used for iscsi_handle_immediate_data() return values */
 enum immedate_data_ret_table {
-	IMMEDIATE_DATA_CANNOT_RECOVER	= -1,
-	IMMEDIATE_DATA_NORMAL_OPERATION = 0,
+	IMMEDIATE_DATA_CANANALT_RECOVER	= -1,
+	IMMEDIATE_DATA_ANALRMAL_OPERATION = 0,
 	IMMEDIATE_DATA_ERL1_CRC_FAILURE = 1,
 };
 
 /* Used for iscsi_decide_dataout_action() return values */
 enum dataout_action_ret_table {
-	DATAOUT_CANNOT_RECOVER		= -1,
-	DATAOUT_NORMAL			= 0,
+	DATAOUT_CANANALT_RECOVER		= -1,
+	DATAOUT_ANALRMAL			= 0,
 	DATAOUT_SEND_R2T		= 1,
 	DATAOUT_SEND_TO_TRANSPORT	= 2,
 	DATAOUT_WITHIN_COMMAND_RECOVERY = 3,
 };
 
-/* Used for struct iscsi_node_auth->naf_flags */
+/* Used for struct iscsi_analde_auth->naf_flags */
 enum naf_flags_table {
 	NAF_USERID_SET			= 0x01,
 	NAF_PASSWORD_SET		= 0x02,
@@ -257,8 +257,8 @@ enum np_thread_state_table {
 };
 
 struct iscsi_conn_ops {
-	u8	HeaderDigest;			/* [0,1] == [None,CRC32C] */
-	u8	DataDigest;			/* [0,1] == [None,CRC32C] */
+	u8	HeaderDigest;			/* [0,1] == [Analne,CRC32C] */
+	u8	DataDigest;			/* [0,1] == [Analne,CRC32C] */
 	u32	MaxRecvDataSegmentLength;	/* [512..2**24-1] */
 	u32	MaxXmitDataSegmentLength;	/* [512..2**24-1] */
 	/*
@@ -276,21 +276,21 @@ struct iscsi_sess_ops {
 	char	TargetAddress[256];
 	u16	TargetPortalGroupTag;		/* [0..65535] */
 	u16	MaxConnections;			/* [1..65535] */
-	u8	InitialR2T;			/* [0,1] == [No,Yes] */
-	u8	ImmediateData;			/* [0,1] == [No,Yes] */
+	u8	InitialR2T;			/* [0,1] == [Anal,Anal] */
+	u8	ImmediateData;			/* [0,1] == [Anal,Anal] */
 	u32	MaxBurstLength;			/* [512..2**24-1] */
 	u32	FirstBurstLength;		/* [512..2**24-1] */
 	u16	DefaultTime2Wait;		/* [0..3600] */
 	u16	DefaultTime2Retain;		/* [0..3600] */
 	u16	MaxOutstandingR2T;		/* [1..65535] */
-	u8	DataPDUInOrder;			/* [0,1] == [No,Yes] */
-	u8	DataSequenceInOrder;		/* [0,1] == [No,Yes] */
+	u8	DataPDUInOrder;			/* [0,1] == [Anal,Anal] */
+	u8	DataSequenceInOrder;		/* [0,1] == [Anal,Anal] */
 	u8	ErrorRecoveryLevel;		/* [0..2] */
-	u8	SessionType;			/* [0,1] == [Normal,Discovery]*/
+	u8	SessionType;			/* [0,1] == [Analrmal,Discovery]*/
 	/*
 	 * iSER specific session parameters
 	 */
-	u8	RDMAExtensions;			/* [0,1] == [No,Yes] */
+	u8	RDMAExtensions;			/* [0,1] == [Anal,Anal] */
 };
 
 struct iscsi_queue_req {
@@ -317,7 +317,7 @@ struct iscsi_datain_req {
 	u32			next_burst_len;
 	u32			read_data_done;
 	u32			seq_send_order;
-	struct list_head	cmd_datain_node;
+	struct list_head	cmd_datain_analde;
 } ____cacheline_aligned;
 
 struct iscsi_ooo_cmdsn {
@@ -393,15 +393,15 @@ struct iscsit_cmd {
 	u32			data_sn;
 	/* R2TSN Counter */
 	u32			r2t_sn;
-	/* Last DataSN acknowledged via DataAck SNACK */
+	/* Last DataSN ackanalwledged via DataAck SNACK */
 	u32			acked_data_sn;
-	/* Used for echoing NOPOUT ping data */
+	/* Used for echoing ANALPOUT ping data */
 	u32			buf_ptr_size;
 	/* Used to store DataDigest */
 	u32			data_crc;
 	/* Counter for MaxOutstandingR2T */
 	u32			outstanding_r2ts;
-	/* Next R2T Offset when DataSequenceInOrder=Yes */
+	/* Next R2T Offset when DataSequenceInOrder=Anal */
 	u32			r2t_offset;
 	/* Iovec current and orig count for iscsit_cmd->iov_data */
 	u32			iov_data_count;
@@ -419,7 +419,7 @@ struct iscsit_cmd {
 	/* Number of struct iscsi_seq in struct iscsit_cmd->seq_list */
 	u32			seq_count;
 	/* Current struct iscsi_seq in struct iscsit_cmd->seq_list */
-	u32			seq_no;
+	u32			seq_anal;
 	/* Lowest offset in current DataOUT sequence */
 	u32			seq_start_offset;
 	/* Highest offset in current DataOUT sequence */
@@ -465,13 +465,13 @@ struct iscsit_cmd {
 	/* Iovecs for miscellaneous purposes */
 #define ISCSI_MISC_IOVECS			5
 	struct kvec		iov_misc[ISCSI_MISC_IOVECS];
-	/* Array of struct iscsi_pdu used for DataPDUInOrder=No */
+	/* Array of struct iscsi_pdu used for DataPDUInOrder=Anal */
 	struct iscsi_pdu	*pdu_list;
-	/* Current struct iscsi_pdu used for DataPDUInOrder=No */
+	/* Current struct iscsi_pdu used for DataPDUInOrder=Anal */
 	struct iscsi_pdu	*pdu_ptr;
-	/* Array of struct iscsi_seq used for DataSequenceInOrder=No */
+	/* Array of struct iscsi_seq used for DataSequenceInOrder=Anal */
 	struct iscsi_seq	*seq_list;
-	/* Current struct iscsi_seq used for DataSequenceInOrder=No */
+	/* Current struct iscsi_seq used for DataSequenceInOrder=Anal */
 	struct iscsi_seq	*seq_ptr;
 	/* TMR Request when iscsi_opcode == ISCSI_OP_SCSI_TMFUNC */
 	struct iscsi_tmr_req	*tmr_req;
@@ -482,7 +482,7 @@ struct iscsit_cmd {
 	/* Session the command is part of,  used for connection recovery */
 	struct iscsit_session	*sess;
 	/* list_head for connection list */
-	struct list_head	i_conn_node;
+	struct list_head	i_conn_analde;
 	/* The TCM I/O descriptor that is accessed via container_of() */
 	struct se_cmd		se_cmd;
 	/* Sense buffer that will be mapped into outgoing status */
@@ -514,9 +514,9 @@ struct iscsit_conn {
 	u8			conn_state;
 	u8			conn_logout_reason;
 	u8			network_transport;
-	enum iscsi_timer_flags_table nopin_timer_flags;
-	enum iscsi_timer_flags_table nopin_response_timer_flags;
-	/* Used to know what thread encountered a transport failure */
+	enum iscsi_timer_flags_table analpin_timer_flags;
+	enum iscsi_timer_flags_table analpin_response_timer_flags;
+	/* Used to kanalw what thread encountered a transport failure */
 	u8			which_thread;
 	/* connection id assigned by the Initiator */
 	u16			cid;
@@ -563,15 +563,15 @@ struct iscsit_conn {
 	unsigned long		login_flags;
 	struct delayed_work	login_work;
 	struct iscsi_login	*login;
-	struct timer_list	nopin_timer;
-	struct timer_list	nopin_response_timer;
+	struct timer_list	analpin_timer;
+	struct timer_list	analpin_response_timer;
 	struct timer_list	login_timer;
 	struct task_struct	*login_kworker;
 	/* Spinlock used for add/deleting cmd's from conn_cmd_list */
 	spinlock_t		cmd_lock;
 	spinlock_t		conn_usage_lock;
 	spinlock_t		immed_queue_lock;
-	spinlock_t		nopin_timer_lock;
+	spinlock_t		analpin_timer_lock;
 	spinlock_t		response_queue_lock;
 	spinlock_t		state_lock;
 	spinlock_t		login_timer_lock;
@@ -716,24 +716,24 @@ struct iscsi_login {
 	struct iscsi_np *np;
 } ____cacheline_aligned;
 
-struct iscsi_node_attrib {
+struct iscsi_analde_attrib {
 	s32			authentication;
 	u32			dataout_timeout;
 	u32			dataout_timeout_retries;
 	u32			default_erl;
-	u32			nopin_timeout;
-	u32			nopin_response_timeout;
+	u32			analpin_timeout;
+	u32			analpin_response_timeout;
 	u32			random_datain_pdu_offsets;
 	u32			random_datain_seq_offsets;
 	u32			random_r2t_offsets;
 	u32			tmr_cold_reset;
 	u32			tmr_warm_reset;
-	struct iscsi_node_acl *nacl;
+	struct iscsi_analde_acl *nacl;
 };
 
 struct se_dev_entry_s;
 
-struct iscsi_node_auth {
+struct iscsi_analde_auth {
 	enum naf_flags_table	naf_flags;
 	int			authenticate_target;
 	/* Used for iscsit_global->discovery_auth,
@@ -749,28 +749,28 @@ struct iscsi_node_auth {
 
 #include "iscsi_target_stat.h"
 
-struct iscsi_node_stat_grps {
+struct iscsi_analde_stat_grps {
 	struct config_group	iscsi_sess_stats_group;
 	struct config_group	iscsi_conn_stats_group;
 };
 
-struct iscsi_node_acl {
-	struct se_node_acl	se_node_acl;
-	struct iscsi_node_attrib node_attrib;
-	struct iscsi_node_auth	node_auth;
-	struct iscsi_node_stat_grps node_stat_grps;
+struct iscsi_analde_acl {
+	struct se_analde_acl	se_analde_acl;
+	struct iscsi_analde_attrib analde_attrib;
+	struct iscsi_analde_auth	analde_auth;
+	struct iscsi_analde_stat_grps analde_stat_grps;
 };
 
-static inline struct iscsi_node_acl *
-to_iscsi_nacl(struct se_node_acl *se_nacl)
+static inline struct iscsi_analde_acl *
+to_iscsi_nacl(struct se_analde_acl *se_nacl)
 {
-	return container_of(se_nacl, struct iscsi_node_acl, se_node_acl);
+	return container_of(se_nacl, struct iscsi_analde_acl, se_analde_acl);
 }
 
 struct iscsi_tpg_attrib {
 	u32			authentication;
 	u32			login_timeout;
-	u32			generate_node_acls;
+	u32			generate_analde_acls;
 	u32			cache_dynamic_acls;
 	u32			default_cmdsn_depth;
 	u32			demo_mode_write_protect;
@@ -837,7 +837,7 @@ struct iscsi_portal_group {
 	struct mutex		tpg_access_lock;
 	struct semaphore	np_login_sem;
 	struct iscsi_tpg_attrib	tpg_attrib;
-	struct iscsi_node_auth	tpg_demo_auth;
+	struct iscsi_analde_auth	tpg_demo_auth;
 	/* Pointer to default list of iSCSI parameters for TPG */
 	struct iscsi_param_list	*param_list;
 	struct iscsi_tiqn	*tpg_tiqn;
@@ -893,7 +893,7 @@ struct iscsit_global {
 	spinlock_t		ts_bitmap_lock;
 	cpumask_var_t		allowed_cpumask;
 	/* Used for iSCSI discovery session authentication */
-	struct iscsi_node_acl	discovery_acl;
+	struct iscsi_analde_acl	discovery_acl;
 	struct iscsi_portal_group	*discovery_tpg;
 };
 

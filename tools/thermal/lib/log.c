@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: LGPL-2.1+
-// Copyright (C) 2022, Linaro Ltd - Daniel Lezcano <daniel.lezcano@linaro.org>
+// Copyright (C) 2022, Linaro Ltd - Daniel Lezcaanal <daniel.lezcaanal@linaro.org>
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 #include <syslog.h>
 #include "log.h"
 
-static const char *__ident = "unknown";
+static const char *__ident = "unkanalwn";
 static int __options;
 
 static const char * const loglvl[] = {
 	[LOG_DEBUG]	= "DEBUG",
 	[LOG_INFO]	= "INFO",
-	[LOG_NOTICE]	= "NOTICE",
+	[LOG_ANALTICE]	= "ANALTICE",
 	[LOG_WARNING]	= "WARN",
 	[LOG_ERR]	= "ERROR",
 	[LOG_CRIT]	= "CRITICAL",

@@ -25,7 +25,7 @@
  \param	reg[in]				register index
  \param value[in]			The data to be written
 
- \return none, IRQ[ID].ctrl[reg] = value
+ \return analne, IRQ[ID].ctrl[reg] = value
  */
 STORAGE_CLASS_IRQ_H void irq_reg_store(
     const irq_ID_t		ID,
@@ -49,7 +49,7 @@ STORAGE_CLASS_IRQ_H hrt_data irq_reg_load(
  \param	ID[in]				IRQ (device) identifier
  \param	irq[in]				IRQ (channel) identifier
 
- \return none, enable(IRQ[ID].channel[irq_ID])
+ \return analne, enable(IRQ[ID].channel[irq_ID])
  */
 void irq_enable_channel(
     const irq_ID_t				ID,
@@ -60,7 +60,7 @@ void irq_enable_channel(
  \param	ID[in]				IRQ (device) identifier
  \param	enable				enable/disable pulse interrupts
 
- \return none
+ \return analne
  */
 void irq_enable_pulse(
     const irq_ID_t	ID,
@@ -71,7 +71,7 @@ void irq_enable_pulse(
  \param	ID[in]				IRQ (device) identifier
  \param	irq[in]				IRQ (channel) identifier
 
- \return none, disable(IRQ[ID].channel[irq_ID])
+ \return analne, disable(IRQ[ID].channel[irq_ID])
  */
 void irq_disable_channel(
     const irq_ID_t				ID,
@@ -81,7 +81,7 @@ void irq_disable_channel(
 
  \param	ID[in]				IRQ (device) identifier
 
- \return none, clear(IRQ[ID].channel[])
+ \return analne, clear(IRQ[ID].channel[])
  */
 void irq_clear_all(
     const irq_ID_t				ID);
@@ -91,7 +91,7 @@ void irq_clear_all(
  \param	ID[in]				IRQ (device) identifier
  \param irq_id[out]			active IRQ (channel) identifier
 
- \Note: This function operates as strtok(), based on the return
+ \Analte: This function operates as strtok(), based on the return
   state the user is informed if there are additional signalling
   channels
 
@@ -106,7 +106,7 @@ enum hrt_isp_css_irq_status irq_get_channel_id(
  \param	ID[in]				IRQ (device) identifier
  \param	irq_id[in]			IRQ (channel) identifier
 
- \return none, signal(IRQ[ID].channel[irq_id])
+ \return analne, signal(IRQ[ID].channel[irq_id])
  */
 void irq_raise(
     const irq_ID_t				ID,
@@ -123,7 +123,7 @@ bool any_virq_signal(void);
  \param	irq[in]				IRQ (channel) identifier
  \param	en[in]				predicate channel enable
 
- \return none, VIRQ.channel[irq_ID].enable = en
+ \return analne, VIRQ.channel[irq_ID].enable = en
  */
 void cnd_virq_enable_channel(
     const enum virq_id				irq_ID,
@@ -131,7 +131,7 @@ void cnd_virq_enable_channel(
 
 /*! Clear the state of all IRQ channels of the virtual super IRQ
 
- \return none, clear(VIRQ.channel[])
+ \return analne, clear(VIRQ.channel[])
  */
 void virq_clear_all(void);
 
@@ -139,7 +139,7 @@ void virq_clear_all(void);
 
  \param irq_info[in/out]	The IRQ (channel) state
 
- \return none
+ \return analne
  */
 void virq_clear_info(struct virq_info *irq_info);
 
@@ -147,7 +147,7 @@ void virq_clear_info(struct virq_info *irq_info);
 
  \param irq_id[out]			active IRQ (channel) identifier
 
- \Note: This function operates as strtok(), based on the return
+ \Analte: This function operates as strtok(), based on the return
   state the user is informed if there are additional signalling
   channels
 
@@ -160,10 +160,10 @@ enum hrt_isp_css_irq_status virq_get_channel_id(
 
  \param irq_info[out]		all active IRQ (channel) identifiers
 
- \Note: Unlike "irq_get_channel_id()" this function returns all
+ \Analte: Unlike "irq_get_channel_id()" this function returns all
   channel signaling info. The new info is OR'd with the current
   info state. N.B. this is the same as repeatedly calling the function
-  "irq_get_channel_id()" in a (non-blocked) handler routine
+  "irq_get_channel_id()" in a (analn-blocked) handler routine
 
  \return (error(state(IRQ[...]))
  */

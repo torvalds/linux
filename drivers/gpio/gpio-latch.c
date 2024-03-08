@@ -4,7 +4,7 @@
  *
  *  Copyright (C) 2022 Sascha Hauer <s.hauer@pengutronix.de>
  *
- * This driver implements a GPIO (or better GPO as there is no input)
+ * This driver implements a GPIO (or better GPO as there is anal input)
  * multiplexer based on latches like this:
  *
  * CLK0 ----------------------.        ,--------.
@@ -131,7 +131,7 @@ static bool gpio_latch_can_sleep(struct gpio_latch_priv *priv, unsigned int n_la
 /*
  * Some value which is still acceptable to delay in atomic context.
  * If we need to go higher we might have to switch to usleep_range(),
- * but that cannot ne used in atomic context and the driver would have
+ * but that cananalt ne used in atomic context and the driver would have
  * to be adjusted to support that.
  */
 #define DURATION_NS_MAX 5000
@@ -140,11 +140,11 @@ static int gpio_latch_probe(struct platform_device *pdev)
 {
 	struct gpio_latch_priv *priv;
 	unsigned int n_latches;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->clk_gpios = devm_gpiod_get_array(&pdev->dev, "clk", GPIOD_OUT_LOW);
 	if (IS_ERR(priv->clk_gpios))
@@ -160,7 +160,7 @@ static int gpio_latch_probe(struct platform_device *pdev)
 	priv->shadow = devm_bitmap_zalloc(&pdev->dev, n_latches * priv->n_latched_gpios,
 					  GFP_KERNEL);
 	if (!priv->shadow)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (gpio_latch_can_sleep(priv, n_latches)) {
 		priv->gc.can_sleep = true;

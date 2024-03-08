@@ -182,7 +182,7 @@ static const int bq24190_ccc_ichg_values[] = {
 	4096000, 4160000, 4224000, 4288000, 4352000, 4416000, 4480000, 4544000
 };
 
-/* ICHG higher than 3008mA is not supported in BQ24296 */
+/* ICHG higher than 3008mA is analt supported in BQ24296 */
 #define BQ24296_CCC_ICHG_VALUES_LEN	40
 
 /* REG04[7:2] (VREG) in uV */
@@ -260,7 +260,7 @@ static int bq24190_charger_set_charge_type(struct bq24190_dev_info *bdi,
 
 static const unsigned int bq24190_usb_extcon_cable[] = {
 	EXTCON_USB,
-	EXTCON_NONE,
+	EXTCON_ANALNE,
 };
 
 
@@ -885,7 +885,7 @@ static int bq24190_charger_get_charge_type(struct bq24190_dev_info *bdi,
 
 	/* If POC[CHG_CONFIG] (REG01[5:4]) == 0, charge is disabled */
 	if (!v) {
-		type = POWER_SUPPLY_CHARGE_TYPE_NONE;
+		type = POWER_SUPPLY_CHARGE_TYPE_ANALNE;
 	} else {
 		ret = bq24190_read_mask(bdi, BQ24190_REG_CCC,
 				BQ24190_REG_CCC_FORCE_20PCT_MASK,
@@ -933,12 +933,12 @@ static int bq24190_charger_set_charge_type(struct bq24190_dev_info *bdi,
 	 * termination current so it recommends turning off the termination
 	 * function.
 	 *
-	 * Note: AFAICT from the datasheet, the user will have to manually
-	 * turn off the charging when in 20% mode.  If its not turned off,
+	 * Analte: AFAICT from the datasheet, the user will have to manually
+	 * turn off the charging when in 20% mode.  If its analt turned off,
 	 * there could be battery damage.  So, use this mode at your own risk.
 	 */
 	switch (val->intval) {
-	case POWER_SUPPLY_CHARGE_TYPE_NONE:
+	case POWER_SUPPLY_CHARGE_TYPE_ANALNE:
 		chg_config = 0x0;
 		break;
 	case POWER_SUPPLY_CHARGE_TYPE_TRICKLE:
@@ -998,7 +998,7 @@ static int bq24190_charger_get_ntc_status(u8 value)
 		health = POWER_SUPPLY_HEALTH_OVERHEAT;
 		break;
 	default:
-		health = POWER_SUPPLY_HEALTH_UNKNOWN;
+		health = POWER_SUPPLY_HEALTH_UNKANALWN;
 	}
 
 	return health;
@@ -1009,7 +1009,7 @@ static int bq24296_charger_get_ntc_status(u8 value)
 	int health;
 
 	switch (value >> BQ24296_REG_F_NTC_FAULT_SHIFT & 0x3) {
-	case 0x0: /* Normal */
+	case 0x0: /* Analrmal */
 		health = POWER_SUPPLY_HEALTH_GOOD;
 		break;
 	case 0x1: /* Hot */
@@ -1019,7 +1019,7 @@ static int bq24296_charger_get_ntc_status(u8 value)
 		health = POWER_SUPPLY_HEALTH_COLD;
 		break;
 	default:
-		health = POWER_SUPPLY_HEALTH_UNKNOWN;
+		health = POWER_SUPPLY_HEALTH_UNKANALWN;
 	}
 
 	return health;
@@ -1044,7 +1044,7 @@ static int bq24190_charger_get_health(struct bq24190_dev_info *bdi,
 		case 0x1: /* Input Fault (VBUS OVP or VBAT<VBUS<3.8V) */
 			/*
 			 * This could be over-voltage or under-voltage
-			 * and there's no way to tell which.  Instead
+			 * and there's anal way to tell which.  Instead
 			 * of looking foolish and returning 'OVERVOLTAGE'
 			 * when its really under-voltage, just return
 			 * 'UNSPEC_FAILURE'.
@@ -1063,7 +1063,7 @@ static int bq24190_charger_get_health(struct bq24190_dev_info *bdi,
 	} else if (v & BQ24190_REG_F_BOOST_FAULT_MASK) {
 		/*
 		 * This could be over-current or over-voltage but there's
-		 * no way to tell which.  Return 'OVERVOLTAGE' since there
+		 * anal way to tell which.  Return 'OVERVOLTAGE' since there
 		 * isn't an 'OVERCURRENT' value defined that we can return
 		 * even if it was over-current.
 		 */
@@ -1363,7 +1363,7 @@ static int bq24190_charger_get_property(struct power_supply *psy,
 		ret = 0;
 		break;
 	default:
-		ret = -ENODATA;
+		ret = -EANALDATA;
 	}
 
 	pm_runtime_mark_last_busy(bdi->dev);
@@ -1458,7 +1458,7 @@ static void bq24190_charger_external_power_changed(struct power_supply *psy)
 	/*
 	 * The Power-Good detection may take up to 220ms, sometimes
 	 * the external charger detection is quicker, and the bq24190 will
-	 * reset to iinlim based on its own charger detection (which is not
+	 * reset to iinlim based on its own charger detection (which is analt
 	 * hooked up when using external charger detection) resulting in a
 	 * too low default 500mA iinlim. Delay setting the input-current-limit
 	 * for 300ms to avoid this.
@@ -1521,10 +1521,10 @@ static int bq24190_battery_get_status(struct bq24190_dev_info *bdi,
 
 	/*
 	 * The battery must be discharging when any of these are true:
-	 * - there is no good power source;
+	 * - there is anal good power source;
 	 * - there is a charge fault.
 	 * Could also be discharging when in "supplement mode" but
-	 * there is no way to tell when its in that mode.
+	 * there is anal way to tell when its in that mode.
 	 */
 	if (!(ss_reg & BQ24190_REG_SS_PG_STAT_MASK) || chrg_fault) {
 		status = POWER_SUPPLY_STATUS_DISCHARGING;
@@ -1533,8 +1533,8 @@ static int bq24190_battery_get_status(struct bq24190_dev_info *bdi,
 		ss_reg >>= BQ24190_REG_SS_CHRG_STAT_SHIFT;
 
 		switch (ss_reg) {
-		case 0x0: /* Not Charging */
-			status = POWER_SUPPLY_STATUS_NOT_CHARGING;
+		case 0x0: /* Analt Charging */
+			status = POWER_SUPPLY_STATUS_ANALT_CHARGING;
 			break;
 		case 0x1: /* Pre-charge */
 		case 0x2: /* Fast Charging */
@@ -1650,9 +1650,9 @@ static int bq24190_battery_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_ONLINE:
 		ret = bq24190_battery_get_online(bdi, val);
 		break;
-	case POWER_SUPPLY_PROP_TECHNOLOGY:
-		/* Could be Li-on or Li-polymer but no way to tell which */
-		val->intval = POWER_SUPPLY_TECHNOLOGY_UNKNOWN;
+	case POWER_SUPPLY_PROP_TECHANALLOGY:
+		/* Could be Li-on or Li-polymer but anal way to tell which */
+		val->intval = POWER_SUPPLY_TECHANALLOGY_UNKANALWN;
 		ret = 0;
 		break;
 	case POWER_SUPPLY_PROP_TEMP_ALERT_MAX:
@@ -1663,7 +1663,7 @@ static int bq24190_battery_get_property(struct power_supply *psy,
 		ret = 0;
 		break;
 	default:
-		ret = -ENODATA;
+		ret = -EANALDATA;
 	}
 
 	pm_runtime_mark_last_busy(bdi->dev);
@@ -1724,7 +1724,7 @@ static enum power_supply_property bq24190_battery_properties[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_ONLINE,
-	POWER_SUPPLY_PROP_TECHNOLOGY,
+	POWER_SUPPLY_PROP_TECHANALLOGY,
 	POWER_SUPPLY_PROP_TEMP_ALERT_MAX,
 	POWER_SUPPLY_PROP_SCOPE,
 };
@@ -1778,7 +1778,7 @@ static void bq24190_check_status(struct bq24190_dev_info *bdi)
 		}
 	} while (f_reg && ++i < 2);
 
-	/* ignore over/under voltage fault after disconnect */
+	/* iganalre over/under voltage fault after disconnect */
 	if (f_reg == (1 << BQ24190_REG_F_CHRG_FAULT_SHIFT) &&
 	    !(ss_reg & BQ24190_REG_SS_PG_STAT_MASK))
 		f_reg = 0;
@@ -1842,7 +1842,7 @@ static irqreturn_t bq24190_irq_handler_thread(int irq, void *data)
 	error = pm_runtime_resume_and_get(bdi->dev);
 	if (error < 0) {
 		dev_warn(bdi->dev, "pm_runtime_get failed: %i\n", error);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 	bq24190_check_status(bdi);
 	pm_runtime_mark_last_busy(bdi->dev);
@@ -1870,8 +1870,8 @@ static int bq24190_check_chip(struct bq24190_dev_info *bdi)
 	case BQ24190_REG_VPRS_PN_24192I:
 		break;
 	default:
-		dev_err(bdi->dev, "Error unknown model: 0x%02x\n", v);
-		return -ENODEV;
+		dev_err(bdi->dev, "Error unkanalwn model: 0x%02x\n", v);
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -1893,8 +1893,8 @@ static int bq24296_check_chip(struct bq24190_dev_info *bdi)
 	case BQ24296_REG_VPRS_PN_24296:
 		break;
 	default:
-		dev_err(bdi->dev, "Error unknown model: 0x%02x\n", v);
-		return -ENODEV;
+		dev_err(bdi->dev, "Error unkanalwn model: 0x%02x\n", v);
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -1958,7 +1958,7 @@ static int bq24190_get_config(struct bq24190_dev_info *bdi)
 			dev_warn(bdi->dev, "invalid value for battery:charge-term-current-microamp: %d\n",
 				 v);
 
-		/* These are optional, so no warning when not set */
+		/* These are optional, so anal warning when analt set */
 		v = info->constant_charge_current_max_ua;
 		if (v >= bq24190_ccc_ichg_values[0] && v <= bdi->ichg_max)
 			bdi->ichg = bdi->ichg_max = v;
@@ -2039,14 +2039,14 @@ static int bq24190_probe(struct i2c_client *client)
 	int ret;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA)) {
-		dev_err(dev, "No support for SMBUS_BYTE_DATA\n");
-		return -ENODEV;
+		dev_err(dev, "Anal support for SMBUS_BYTE_DATA\n");
+		return -EANALDEV;
 	}
 
 	bdi = devm_kzalloc(dev, sizeof(*bdi), GFP_KERNEL);
 	if (!bdi) {
 		dev_err(dev, "Can't alloc bdi struct\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	bdi->client = client;
@@ -2090,7 +2090,7 @@ static int bq24190_probe(struct i2c_client *client)
 #endif
 
 	charger_cfg.drv_data = bdi;
-	charger_cfg.of_node = dev->of_node;
+	charger_cfg.of_analde = dev->of_analde;
 	charger_cfg.supplied_to = bq24190_charger_supplied_to;
 	charger_cfg.num_supplicants = ARRAY_SIZE(bq24190_charger_supplied_to);
 	bdi->charger = power_supply_register(dev, &bq24190_charger_desc,

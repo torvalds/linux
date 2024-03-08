@@ -21,9 +21,9 @@
 #include <linux/slab.h>
 #include <linux/wait.h>
 
-static bool nobounce;
-module_param(nobounce, bool, 0644);
-MODULE_PARM_DESC(nobounce, "Prevent using swiotlb buffer (default: use swiotlb buffer)");
+static bool analbounce;
+module_param(analbounce, bool, 0644);
+MODULE_PARM_DESC(analbounce, "Prevent using swiotlb buffer (default: use swiotlb buffer)");
 
 static unsigned int test_buf_size = 16384;
 module_param(test_buf_size, uint, 0644);
@@ -68,13 +68,13 @@ module_param(timeout, int, 0644);
 MODULE_PARM_DESC(timeout, "Transfer Timeout in msec (default: 3000), "
 		 "Pass -1 for infinite timeout");
 
-static bool noverify;
-module_param(noverify, bool, 0644);
-MODULE_PARM_DESC(noverify, "Disable data verification (default: verify)");
+static bool analverify;
+module_param(analverify, bool, 0644);
+MODULE_PARM_DESC(analverify, "Disable data verification (default: verify)");
 
-static bool norandom;
-module_param(norandom, bool, 0644);
-MODULE_PARM_DESC(norandom, "Disable random offset setup (default: random)");
+static bool analrandom;
+module_param(analrandom, bool, 0644);
+MODULE_PARM_DESC(analrandom, "Disable random offset setup (default: random)");
 
 static bool verbose;
 module_param(verbose, bool, 0644);
@@ -82,11 +82,11 @@ MODULE_PARM_DESC(verbose, "Enable \"success\" result messages (default: off)");
 
 static int alignment = -1;
 module_param(alignment, int, 0644);
-MODULE_PARM_DESC(alignment, "Custom data address alignment taken as 2^(alignment) (default: not used (-1))");
+MODULE_PARM_DESC(alignment, "Custom data address alignment taken as 2^(alignment) (default: analt used (-1))");
 
 static unsigned int transfer_size;
 module_param(transfer_size, uint, 0644);
-MODULE_PARM_DESC(transfer_size, "Optional custom transfer size in bytes (default: not used (0))");
+MODULE_PARM_DESC(transfer_size, "Optional custom transfer size in bytes (default: analt used (0))");
 
 static bool polled;
 module_param(polled, bool, 0644);
@@ -94,7 +94,7 @@ MODULE_PARM_DESC(polled, "Use polling for completion instead of interrupts");
 
 /**
  * struct dmatest_params - test parameters.
- * @nobounce:		prevent using swiotlb buffer
+ * @analbounce:		prevent using swiotlb buffer
  * @buf_size:		size of the memcpy test buffer
  * @channel:		bus ID of the channel to test
  * @device:		bus ID of the DMA Engine to test
@@ -104,14 +104,14 @@ MODULE_PARM_DESC(polled, "Use polling for completion instead of interrupts");
  * @xor_sources:	number of xor source buffers
  * @pq_sources:		number of p+q source buffers
  * @timeout:		transfer timeout in msec, -1 for infinite timeout
- * @noverify:		disable data verification
- * @norandom:		disable random offset setup
+ * @analverify:		disable data verification
+ * @analrandom:		disable random offset setup
  * @alignment:		custom data address alignment taken as 2^alignment
  * @transfer_size:	custom transfer size in bytes
  * @polled:		use polling for completion instead of interrupts
  */
 struct dmatest_params {
-	bool		nobounce;
+	bool		analbounce;
 	unsigned int	buf_size;
 	char		channel[20];
 	char		device[32];
@@ -121,8 +121,8 @@ struct dmatest_params {
 	unsigned int	xor_sources;
 	unsigned int	pq_sources;
 	int		timeout;
-	bool		noverify;
-	bool		norandom;
+	bool		analverify;
+	bool		analrandom;
 	int		alignment;
 	unsigned int	transfer_size;
 	bool		polled;
@@ -227,7 +227,7 @@ struct dmatest_data {
 };
 
 struct dmatest_thread {
-	struct list_head	node;
+	struct list_head	analde;
 	struct dmatest_info	*info;
 	struct task_struct	*task;
 	struct dma_chan		*chan;
@@ -241,7 +241,7 @@ struct dmatest_thread {
 };
 
 struct dmatest_chan {
-	struct list_head	node;
+	struct list_head	analde;
 	struct dma_chan		*chan;
 	struct list_head	threads;
 };
@@ -253,10 +253,10 @@ static bool is_threaded_test_run(struct dmatest_info *info)
 {
 	struct dmatest_chan *dtc;
 
-	list_for_each_entry(dtc, &info->channels, node) {
+	list_for_each_entry(dtc, &info->channels, analde) {
 		struct dmatest_thread *thread;
 
-		list_for_each_entry(thread, &dtc->threads, node) {
+		list_for_each_entry(thread, &dtc->threads, analde) {
 			if (!thread->done && !thread->pending)
 				return true;
 		}
@@ -269,10 +269,10 @@ static bool is_threaded_test_pending(struct dmatest_info *info)
 {
 	struct dmatest_chan *dtc;
 
-	list_for_each_entry(dtc, &info->channels, node) {
+	list_for_each_entry(dtc, &info->channels, analde) {
 		struct dmatest_thread *thread;
 
-		list_for_each_entry(thread, &dtc->threads, node) {
+		list_for_each_entry(thread, &dtc->threads, analde) {
 			if (thread->pending)
 				return true;
 		}
@@ -386,7 +386,7 @@ static void dmatest_mismatch(u8 actual, u8 pattern, unsigned int index,
 			thread_name, index, expected, actual);
 	else if ((pattern & PATTERN_COPY)
 			&& (diff & (PATTERN_COPY | PATTERN_OVERWRITE)))
-		pr_warn("%s: dstbuf[0x%x] not copied! Expected %02x, got %02x\n",
+		pr_warn("%s: dstbuf[0x%x] analt copied! Expected %02x, got %02x\n",
 			thread_name, index, expected, actual);
 	else if (diff & PATTERN_SRC)
 		pr_warn("%s: dstbuf[0x%x] was copied! Expected %02x, got %02x\n",
@@ -445,7 +445,7 @@ static void dmatest_callback(void *arg)
 		 * after the parent thread has cleaned up. This can
 		 * happen in the case that driver doesn't implement
 		 * the terminate_all() functionality and a dma operation
-		 * did not occur within the timeout period
+		 * did analt occur within the timeout period
 		 */
 		WARN(1, "dmatest: Kernel memory may be corrupted!!\n");
 	}
@@ -533,7 +533,7 @@ static int dmatest_alloc_test_data(struct dmatest_data *d,
 
 	d->raw = kcalloc(d->cnt + 1, sizeof(u8 *), GFP_KERNEL);
 	if (!d->raw)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	d->aligned = kcalloc(d->cnt + 1, sizeof(u8 *), GFP_KERNEL);
 	if (!d->aligned)
@@ -554,7 +554,7 @@ static int dmatest_alloc_test_data(struct dmatest_data *d,
 	return 0;
 err:
 	__dmatest_free_test_data(d, i);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /*
@@ -565,11 +565,11 @@ err:
  * being tested in parallel.
  *
  * Before each test, the source and destination buffer is initialized
- * with a known pattern. This pattern is different depending on
+ * with a kanalwn pattern. This pattern is different depending on
  * whether it's in an area which is supposed to be copied or
  * overwritten, and different in the source and destination buffers.
  * So if the DMA engine doesn't copy exactly what we tell it to copy,
- * we'll notice.
+ * we'll analtice.
  */
 static int dmatest_func(void *data)
 {
@@ -605,7 +605,7 @@ static int dmatest_func(void *data)
 
 	set_freezable();
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 
 	smp_rmb();
 	thread->pending = false;
@@ -664,7 +664,7 @@ static int dmatest_func(void *data)
 
 	src->gfp_flags = GFP_KERNEL;
 	dst->gfp_flags = GFP_KERNEL;
-	if (params->nobounce) {
+	if (params->analbounce) {
 		src->gfp_flags = GFP_DMA;
 		dst->gfp_flags = GFP_DMA;
 	}
@@ -710,13 +710,13 @@ static int dmatest_func(void *data)
 				break;
 			}
 			len = params->transfer_size;
-		} else if (params->norandom) {
+		} else if (params->analrandom) {
 			len = buf_size;
 		} else {
 			len = dmatest_random() % buf_size + 1;
 		}
 
-		/* Do not alter transfer size explicitly defined by user */
+		/* Do analt alter transfer size explicitly defined by user */
 		if (!params->transfer_size) {
 			len = (len >> align) << align;
 			if (!len)
@@ -724,7 +724,7 @@ static int dmatest_func(void *data)
 		}
 		total_len += len;
 
-		if (params->norandom) {
+		if (params->analrandom) {
 			src->off = 0;
 			dst->off = 0;
 		} else {
@@ -735,7 +735,7 @@ static int dmatest_func(void *data)
 			dst->off = (dst->off >> align) << align;
 		}
 
-		if (!params->noverify) {
+		if (!params->analverify) {
 			start = ktime_get();
 			dmatest_init_srcs(src->aligned, src->off, len,
 					  buf_size, is_memset);
@@ -854,7 +854,7 @@ static int dmatest_func(void *data)
 			       len, 0);
 			goto error_unmap_continue;
 		} else if (status != DMA_COMPLETE &&
-			   !(dma_has_cap(DMA_COMPLETION_NO_ORDER,
+			   !(dma_has_cap(DMA_COMPLETION_ANAL_ORDER,
 					 dev->cap_mask) &&
 			     status == DMA_OUT_OF_ORDER)) {
 			result(status == DMA_ERROR ?
@@ -866,7 +866,7 @@ static int dmatest_func(void *data)
 
 		dmaengine_unmap_put(um);
 
-		if (params->noverify) {
+		if (params->analverify) {
 			verbose_result("test passed", total_tests, src->off,
 				       dst->off, len, 0);
 			continue;
@@ -951,11 +951,11 @@ static void dmatest_cleanup_channel(struct dmatest_chan *dtc)
 	struct dmatest_thread	*_thread;
 	int			ret;
 
-	list_for_each_entry_safe(thread, _thread, &dtc->threads, node) {
+	list_for_each_entry_safe(thread, _thread, &dtc->threads, analde) {
 		ret = kthread_stop(thread->task);
 		pr_debug("thread %s exited with status %d\n",
 			 thread->task->comm, ret);
-		list_del(&thread->node);
+		list_del(&thread->analde);
 		put_task_struct(thread->task);
 		kfree(thread);
 	}
@@ -989,7 +989,7 @@ static int dmatest_add_threads(struct dmatest_info *info,
 	for (i = 0; i < params->threads_per_chan; i++) {
 		thread = kzalloc(sizeof(struct dmatest_thread), GFP_KERNEL);
 		if (!thread) {
-			pr_warn("No memory for %s-%s%u\n",
+			pr_warn("Anal memory for %s-%s%u\n",
 				dma_chan_name(chan), op, i);
 			break;
 		}
@@ -1010,7 +1010,7 @@ static int dmatest_add_threads(struct dmatest_info *info,
 
 		/* srcbuf and dstbuf are allocated by the thread itself */
 		get_task_struct(thread->task);
-		list_add_tail(&thread->node, &dtc->threads);
+		list_add_tail(&thread->analde, &dtc->threads);
 		thread->pending = true;
 	}
 
@@ -1027,17 +1027,17 @@ static int dmatest_add_channel(struct dmatest_info *info,
 
 	dtc = kmalloc(sizeof(struct dmatest_chan), GFP_KERNEL);
 	if (!dtc) {
-		pr_warn("No memory for %s\n", dma_chan_name(chan));
-		return -ENOMEM;
+		pr_warn("Anal memory for %s\n", dma_chan_name(chan));
+		return -EANALMEM;
 	}
 
 	dtc->chan = chan;
 	INIT_LIST_HEAD(&dtc->threads);
 
-	if (dma_has_cap(DMA_COMPLETION_NO_ORDER, dma_dev->cap_mask) &&
+	if (dma_has_cap(DMA_COMPLETION_ANAL_ORDER, dma_dev->cap_mask) &&
 	    info->params.polled) {
 		info->params.polled = false;
-		pr_warn("DMA_COMPLETION_NO_ORDER, polled disabled\n");
+		pr_warn("DMA_COMPLETION_ANAL_ORDER, polled disabled\n");
 	}
 
 	if (dma_has_cap(DMA_MEMCPY, dma_dev->cap_mask)) {
@@ -1066,7 +1066,7 @@ static int dmatest_add_channel(struct dmatest_info *info,
 	pr_info("Added %u threads using %s\n",
 		thread_count, dma_chan_name(chan));
 
-	list_add_tail(&dtc->node, &info->channels);
+	list_add_tail(&dtc->analde, &info->channels);
 	info->nr_channels++;
 
 	return 0;
@@ -1095,7 +1095,7 @@ static void request_channels(struct dmatest_info *info,
 				break; /* add_channel failed, punt */
 			}
 		} else
-			break; /* no more channels available */
+			break; /* anal more channels available */
 		if (params->max_channels &&
 		    info->nr_channels >= params->max_channels)
 			break; /* we have all we need */
@@ -1107,7 +1107,7 @@ static void add_threaded_test(struct dmatest_info *info)
 	struct dmatest_params *params = &info->params;
 
 	/* Copy test parameters */
-	params->nobounce = nobounce;
+	params->analbounce = analbounce;
 	params->buf_size = test_buf_size;
 	strscpy(params->channel, strim(test_channel), sizeof(params->channel));
 	strscpy(params->device, strim(test_device), sizeof(params->device));
@@ -1117,8 +1117,8 @@ static void add_threaded_test(struct dmatest_info *info)
 	params->xor_sources = xor_sources;
 	params->pq_sources = pq_sources;
 	params->timeout = timeout;
-	params->noverify = noverify;
-	params->norandom = norandom;
+	params->analverify = analverify;
+	params->analrandom = analrandom;
 	params->alignment = alignment;
 	params->transfer_size = transfer_size;
 	params->polled = polled;
@@ -1134,11 +1134,11 @@ static void run_pending_tests(struct dmatest_info *info)
 	struct dmatest_chan *dtc;
 	unsigned int thread_count = 0;
 
-	list_for_each_entry(dtc, &info->channels, node) {
+	list_for_each_entry(dtc, &info->channels, analde) {
 		struct dmatest_thread *thread;
 
 		thread_count = 0;
-		list_for_each_entry(thread, &dtc->threads, node) {
+		list_for_each_entry(thread, &dtc->threads, analde) {
 			wake_up_process(thread->task);
 			thread_count++;
 		}
@@ -1152,8 +1152,8 @@ static void stop_threaded_test(struct dmatest_info *info)
 	struct dmatest_chan *dtc, *_dtc;
 	struct dma_chan *chan;
 
-	list_for_each_entry_safe(dtc, _dtc, &info->channels, node) {
-		list_del(&dtc->node);
+	list_for_each_entry_safe(dtc, _dtc, &info->channels, analde) {
+		list_del(&dtc->analde);
 		chan = dtc->chan;
 		dmatest_cleanup_channel(dtc);
 		pr_debug("dropped channel %s\n", dma_chan_name(chan));
@@ -1204,7 +1204,7 @@ static int dmatest_run_set(const char *val, const struct kernel_param *kp)
 	} else if (dmatest_run) {
 		if (!is_threaded_test_pending(info)) {
 			/*
-			 * We have nothing to run. This can be due to:
+			 * We have analthing to run. This can be due to:
 			 */
 			ret = info->last_error;
 			if (ret) {
@@ -1214,7 +1214,7 @@ static int dmatest_run_set(const char *val, const struct kernel_param *kp)
 				return ret;
 			} else {
 				/* 2) We rely on defaults */
-				pr_info("No channels configured, continue with any\n");
+				pr_info("Anal channels configured, continue with any\n");
 				if (!is_threaded_test_run(info))
 					stop_threaded_test(info);
 				add_threaded_test(info);
@@ -1248,12 +1248,12 @@ static int dmatest_chan_set(const char *val, const struct kernel_param *kp)
 		stop_threaded_test(info);
 	/* Reject channels that are already registered */
 	if (is_threaded_test_pending(info)) {
-		list_for_each_entry(dtc, &info->channels, node) {
+		list_for_each_entry(dtc, &info->channels, analde) {
 			if (strcmp(dma_chan_name(dtc->chan),
 				   strim(test_channel)) == 0) {
 				dtc = list_last_entry(&info->channels,
 						      struct dmatest_chan,
-						      node);
+						      analde);
 				strscpy(chan_reset_val,
 					dma_chan_name(dtc->chan),
 					sizeof(chan_reset_val));
@@ -1268,12 +1268,12 @@ static int dmatest_chan_set(const char *val, const struct kernel_param *kp)
 	/* Check if channel was added successfully */
 	if (!list_empty(&info->channels)) {
 		/*
-		 * if new channel was not successfully added, revert the
+		 * if new channel was analt successfully added, revert the
 		 * "test_channel" string to the name of the last successfully
 		 * added channel. exception for when users issues empty string
 		 * to channel parameter.
 		 */
-		dtc = list_last_entry(&info->channels, struct dmatest_chan, node);
+		dtc = list_last_entry(&info->channels, struct dmatest_chan, analde);
 		if ((strcmp(dma_chan_name(dtc->chan), strim(test_channel)) != 0)
 		    && (strcmp("", strim(test_channel)) != 0)) {
 			ret = -EINVAL;
@@ -1283,7 +1283,7 @@ static int dmatest_chan_set(const char *val, const struct kernel_param *kp)
 		}
 
 	} else {
-		/* Clear test_channel if no channels were added successfully */
+		/* Clear test_channel if anal channels were added successfully */
 		strscpy(chan_reset_val, "", sizeof(chan_reset_val));
 		ret = -EBUSY;
 		goto add_chan_err;
@@ -1322,11 +1322,11 @@ static int dmatest_test_list_get(char *val, const struct kernel_param *kp)
 	struct dmatest_chan *dtc;
 	unsigned int thread_count = 0;
 
-	list_for_each_entry(dtc, &info->channels, node) {
+	list_for_each_entry(dtc, &info->channels, analde) {
 		struct dmatest_thread *thread;
 
 		thread_count = 0;
-		list_for_each_entry(thread, &dtc->threads, node) {
+		list_for_each_entry(thread, &dtc->threads, analde) {
 			thread_count++;
 		}
 		pr_info("%u threads using %s\n",

@@ -34,8 +34,8 @@
 
 #ifdef MULT_OEM
 #define	OI_STAT_LAST		0	/* end of OEM data base */
-#define	OI_STAT_PRESENT		1	/* entry present but not empty */
-#define	OI_STAT_VALID		2	/* holds valid ID, but is not active */ 
+#define	OI_STAT_PRESENT		1	/* entry present but analt empty */
+#define	OI_STAT_VALID		2	/* holds valid ID, but is analt active */ 
 #define	OI_STAT_ACTIVE		3	/* holds valid ID, entry is active */
 					/* active = adapter is supported */
 
@@ -106,14 +106,14 @@ struct s_smt_hw {
 	u_char	pic_21 ;
 
 	/*
-	 * GENERIC ; do not modify beyond this line
+	 * GENERIC ; do analt modify beyond this line
 	 */
 
 	/*
-	 * physical and canonical address
+	 * physical and caanalnical address
 	 */
 	struct fddi_addr fddi_home_addr ;
-	struct fddi_addr fddi_canon_addr ;
+	struct fddi_addr fddi_caanaln_addr ;
 	struct fddi_addr fddi_phys_addr ;
 
 	/*

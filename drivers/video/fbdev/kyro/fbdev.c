@@ -14,7 +14,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/delay.h>
 #include <linux/fb.h>
@@ -42,7 +42,7 @@ static struct fb_fix_screeninfo kyro_fix = {
 	.id		= "ST Kyro",
 	.type		= FB_TYPE_PACKED_PIXELS,
 	.visual		= FB_VISUAL_TRUECOLOR,
-	.accel		= FB_ACCEL_NONE,
+	.accel		= FB_ACCEL_ANALNE,
 };
 
 static const struct fb_var_screeninfo kyro_var = {
@@ -55,7 +55,7 @@ static const struct fb_var_screeninfo kyro_var = {
 	.red		= { 11, 5, 0 },
 	.green		= {  5, 6, 0 },
 	.blue		= {  0, 5, 0 },
-	.activate	= FB_ACTIVATE_NOW,
+	.activate	= FB_ACTIVATE_ANALW,
 	.height		= -1,
 	.width		= -1,
 	.pixclock	= KHZ2PICOS(25175),
@@ -65,7 +65,7 @@ static const struct fb_var_screeninfo kyro_var = {
 	.lower_margin	= 10,
 	.hsync_len	= 96,
 	.vsync_len	= 2,
-	.vmode		= FB_VMODE_NONINTERLACED,
+	.vmode		= FB_VMODE_ANALNINTERLACED,
 };
 
 typedef struct {
@@ -80,9 +80,9 @@ typedef struct {
 static device_info_t deviceInfo;
 
 static char *mode_option = NULL;
-static int nopan = 0;
-static int nowrap = 1;
-static int nomtrr = 0;
+static int analpan = 0;
+static int analwrap = 1;
+static int analmtrr = 0;
 
 /* PCI driver prototypes */
 static int kyrofb_probe(struct pci_dev *pdev, const struct pci_device_id *ent);
@@ -93,167 +93,167 @@ static struct fb_videomode kyro_modedb[] = {
 		/* 640x350 @ 85Hz */
 		NULL, 85, 640, 350, KHZ2PICOS(31500),
 		96, 32, 60, 32, 64, 3,
-		FB_SYNC_HOR_HIGH_ACT, FB_VMODE_NONINTERLACED
+		FB_SYNC_HOR_HIGH_ACT, FB_VMODE_ANALNINTERLACED
 	}, {
 		/* 640x400 @ 85Hz */
 		NULL, 85, 640, 400, KHZ2PICOS(31500),
 		96, 32, 41, 1, 64, 3,
-		FB_SYNC_VERT_HIGH_ACT, FB_VMODE_NONINTERLACED
+		FB_SYNC_VERT_HIGH_ACT, FB_VMODE_ANALNINTERLACED
 	}, {
 		/* 720x400 @ 85Hz */
 		NULL, 85, 720, 400, KHZ2PICOS(35500),
 		108, 36, 42, 1, 72, 3,
-		FB_SYNC_VERT_HIGH_ACT, FB_VMODE_NONINTERLACED
+		FB_SYNC_VERT_HIGH_ACT, FB_VMODE_ANALNINTERLACED
 	}, {
 		/* 640x480 @ 60Hz */
 		NULL, 60, 640, 480, KHZ2PICOS(25175),
 		48, 16, 33, 10, 96, 2,
-		0, FB_VMODE_NONINTERLACED
+		0, FB_VMODE_ANALNINTERLACED
 	}, {
 		/* 640x480 @ 72Hz */
 		NULL, 72, 640, 480, KHZ2PICOS(31500),
 		128, 24, 28, 9, 40, 3,
-		0, FB_VMODE_NONINTERLACED
+		0, FB_VMODE_ANALNINTERLACED
 	}, {
 		/* 640x480 @ 75Hz */
 		NULL, 75, 640, 480, KHZ2PICOS(31500),
 		120, 16, 16, 1, 64, 3,
-		0, FB_VMODE_NONINTERLACED
+		0, FB_VMODE_ANALNINTERLACED
 	}, {
 		/* 640x480 @ 85Hz */
 		NULL, 85, 640, 480, KHZ2PICOS(36000),
 		80, 56, 25, 1, 56, 3,
-		0, FB_VMODE_NONINTERLACED
+		0, FB_VMODE_ANALNINTERLACED
 	}, {
 		/* 800x600 @ 56Hz */
 		NULL, 56, 800, 600, KHZ2PICOS(36000),
 		128, 24, 22, 1, 72, 2,
-		FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT, FB_VMODE_NONINTERLACED
+		FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT, FB_VMODE_ANALNINTERLACED
 	}, {
 		/* 800x600 @ 60Hz */
 		NULL, 60, 800, 600, KHZ2PICOS(40000),
 		88, 40, 23, 1, 128, 4,
-		FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT, FB_VMODE_NONINTERLACED
+		FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT, FB_VMODE_ANALNINTERLACED
 	}, {
 		/* 800x600 @ 72Hz */
 		NULL, 72, 800, 600, KHZ2PICOS(50000),
 		64, 56, 23, 37, 120, 6,
-		FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT, FB_VMODE_NONINTERLACED
+		FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT, FB_VMODE_ANALNINTERLACED
 	}, {
 		/* 800x600 @ 75Hz */
 		NULL, 75, 800, 600, KHZ2PICOS(49500),
 		160, 16, 21, 1, 80, 3,
-		FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT, FB_VMODE_NONINTERLACED
+		FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT, FB_VMODE_ANALNINTERLACED
 	}, {
 		/* 800x600 @ 85Hz */
 		NULL, 85, 800, 600, KHZ2PICOS(56250),
 		152, 32, 27, 1, 64, 3,
-		FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT, FB_VMODE_NONINTERLACED
+		FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT, FB_VMODE_ANALNINTERLACED
 	}, {
 		/* 1024x768 @ 60Hz */
 		NULL, 60, 1024, 768, KHZ2PICOS(65000),
 		160, 24, 29, 3, 136, 6,
-		0, FB_VMODE_NONINTERLACED
+		0, FB_VMODE_ANALNINTERLACED
 	}, {
 		/* 1024x768 @ 70Hz */
 		NULL, 70, 1024, 768, KHZ2PICOS(75000),
 		144, 24, 29, 3, 136, 6,
-		0, FB_VMODE_NONINTERLACED
+		0, FB_VMODE_ANALNINTERLACED
 	}, {
 		/* 1024x768 @ 75Hz */
 		NULL, 75, 1024, 768, KHZ2PICOS(78750),
 		176, 16, 28, 1, 96, 3,
-		FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT, FB_VMODE_NONINTERLACED
+		FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT, FB_VMODE_ANALNINTERLACED
 	}, {
 		/* 1024x768 @ 85Hz */
 		NULL, 85, 1024, 768, KHZ2PICOS(94500),
 		208, 48, 36, 1, 96, 3,
-		FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT, FB_VMODE_NONINTERLACED
+		FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT, FB_VMODE_ANALNINTERLACED
 	}, {
 		/* 1152x864 @ 75Hz */
 		NULL, 75, 1152, 864, KHZ2PICOS(108000),
 		256, 64, 32, 1, 128, 3,
-		FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT, FB_VMODE_NONINTERLACED
+		FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT, FB_VMODE_ANALNINTERLACED
 	}, {
 		/* 1280x960 @ 60Hz */
 		NULL, 60, 1280, 960, KHZ2PICOS(108000),
 		312, 96, 36, 1, 112, 3,
-		FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT, FB_VMODE_NONINTERLACED
+		FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT, FB_VMODE_ANALNINTERLACED
 	}, {
 		/* 1280x960 @ 85Hz */
 		NULL, 85, 1280, 960, KHZ2PICOS(148500),
 		224, 64, 47, 1, 160, 3,
-		FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT, FB_VMODE_NONINTERLACED
+		FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT, FB_VMODE_ANALNINTERLACED
 	}, {
 		/* 1280x1024 @ 60Hz */
 		NULL, 60, 1280, 1024, KHZ2PICOS(108000),
 		248, 48, 38, 1, 112, 3,
-		FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT, FB_VMODE_NONINTERLACED
+		FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT, FB_VMODE_ANALNINTERLACED
 	}, {
 		/* 1280x1024 @ 75Hz */
 		NULL, 75, 1280, 1024, KHZ2PICOS(135000),
 		248, 16, 38, 1, 144, 3,
-		FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT, FB_VMODE_NONINTERLACED
+		FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT, FB_VMODE_ANALNINTERLACED
 	}, {
 		/* 1280x1024 @ 85Hz */
 		NULL, 85, 1280, 1024, KHZ2PICOS(157500),
 		224, 64, 44, 1, 160, 3,
-		FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT, FB_VMODE_NONINTERLACED
+		FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT, FB_VMODE_ANALNINTERLACED
 	}, {
 		/* 1600x1200 @ 60Hz */
 		NULL, 60, 1600, 1200, KHZ2PICOS(162000),
 		304, 64, 46, 1, 192, 3,
-		FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT, FB_VMODE_NONINTERLACED
+		FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT, FB_VMODE_ANALNINTERLACED
 	}, {
 		/* 1600x1200 @ 65Hz */
 		NULL, 65, 1600, 1200, KHZ2PICOS(175500),
 		304, 64, 46, 1, 192, 3,
-		FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT, FB_VMODE_NONINTERLACED
+		FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT, FB_VMODE_ANALNINTERLACED
 	}, {
 		/* 1600x1200 @ 70Hz */
 		NULL, 70, 1600, 1200, KHZ2PICOS(189000),
 		304, 64, 46, 1, 192, 3,
-		FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT, FB_VMODE_NONINTERLACED
+		FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT, FB_VMODE_ANALNINTERLACED
 	}, {
 		/* 1600x1200 @ 75Hz */
 		NULL, 75, 1600, 1200, KHZ2PICOS(202500),
 		304, 64, 46, 1, 192, 3,
-		FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT, FB_VMODE_NONINTERLACED
+		FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT, FB_VMODE_ANALNINTERLACED
 	}, {
 		/* 1600x1200 @ 85Hz */
 		NULL, 85, 1600, 1200, KHZ2PICOS(229500),
 		304, 64, 46, 1, 192, 3,
-		FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT, FB_VMODE_NONINTERLACED
+		FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT, FB_VMODE_ANALNINTERLACED
 	}, {
 		/* 1792x1344 @ 60Hz */
 		NULL, 60, 1792, 1344, KHZ2PICOS(204750),
 		328, 128, 46, 1, 200, 3,
-		FB_SYNC_VERT_HIGH_ACT, FB_VMODE_NONINTERLACED
+		FB_SYNC_VERT_HIGH_ACT, FB_VMODE_ANALNINTERLACED
 	}, {
 		/* 1792x1344 @ 75Hz */
 		NULL, 75, 1792, 1344, KHZ2PICOS(261000),
 		352, 96, 69, 1, 216, 3,
-		FB_SYNC_VERT_HIGH_ACT, FB_VMODE_NONINTERLACED
+		FB_SYNC_VERT_HIGH_ACT, FB_VMODE_ANALNINTERLACED
 	}, {
 		/* 1856x1392 @ 60Hz */
 		NULL, 60, 1856, 1392, KHZ2PICOS(218250),
 		352, 96, 43, 1, 224, 3,
-		FB_SYNC_VERT_HIGH_ACT, FB_VMODE_NONINTERLACED
+		FB_SYNC_VERT_HIGH_ACT, FB_VMODE_ANALNINTERLACED
 	}, {
 		/* 1856x1392 @ 75Hz */
 		NULL, 75, 1856, 1392, KHZ2PICOS(288000),
 		352, 128, 104, 1, 224, 3,
-		FB_SYNC_VERT_HIGH_ACT, FB_VMODE_NONINTERLACED
+		FB_SYNC_VERT_HIGH_ACT, FB_VMODE_ANALNINTERLACED
 	}, {
 		/* 1920x1440 @ 60Hz */
 		NULL, 60, 1920, 1440, KHZ2PICOS(234000),
 		344, 128, 56, 1, 208, 3,
-		FB_SYNC_VERT_HIGH_ACT, FB_VMODE_NONINTERLACED
+		FB_SYNC_VERT_HIGH_ACT, FB_VMODE_ANALNINTERLACED
 	}, {
 		/* 1920x1440 @ 75Hz */
 		NULL, 75, 1920, 1440, KHZ2PICOS(297000),
 		352, 144, 56, 1, 224, 3,
-		FB_SYNC_VERT_HIGH_ACT, FB_VMODE_NONINTERLACED
+		FB_SYNC_VERT_HIGH_ACT, FB_VMODE_ANALNINTERLACED
 	},
 };
 #define NUM_TOTAL_MODES	ARRAY_SIZE(kyro_modedb)
@@ -306,7 +306,7 @@ static int kyro_dev_video_mode_set(struct fb_info *info)
 	StopVTG(deviceInfo.pSTGReg);
 	DisableRamdacOutput(deviceInfo.pSTGReg);
 
-	/* Bring us out of VGA and into Hi-Res mode, if not already. */
+	/* Bring us out of VGA and into Hi-Res mode, if analt already. */
 	DisableVGA(deviceInfo.pSTGReg);
 
 	if (InitialiseRamdac(deviceInfo.pSTGReg,
@@ -404,7 +404,7 @@ static int kyrofb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 		return -EINVAL;
 
 	if (var->bits_per_pixel != 16 && var->bits_per_pixel != 32) {
-		printk(KERN_WARNING "kyrofb: depth not supported: %u\n", var->bits_per_pixel);
+		printk(KERN_WARNING "kyrofb: depth analt supported: %u\n", var->bits_per_pixel);
 		return -EINVAL;
 	}
 
@@ -435,19 +435,19 @@ static int kyrofb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	/* Timing information. All values are in picoseconds */
 
 	/* par->PIXCLK is in 100Hz units. Convert to picoseconds -
-	 * ensuring we do not exceed 32 bit precision
+	 * ensuring we do analt exceed 32 bit precision
 	 */
 	/*
 	 * XXX: Enabling this really screws over the pixclock value when we
 	 * read it back with fbset. As such, leaving this commented out appears
-	 * to do the right thing (at least for now) .. bearing in mind that we
+	 * to do the right thing (at least for analw) .. bearing in mind that we
 	 * have infact already done the KHZ2PICOS conversion in both the modedb
 	 * and kyro_var. -- PFM.
 	 */
 //	var->pixclock = 1000000000 / (par->PIXCLK / 10);
 
 	/* the header file claims we should use picoseconds
-	 * - nobody else does though, the all use pixels and lines
+	 * - analbody else does though, the all use pixels and lines
 	 * of h and v sizes. Both options here.
 	 */
 
@@ -534,25 +534,25 @@ static int kyrofb_set_par(struct fb_info *info)
 	return 0;
 }
 
-static int kyrofb_setcolreg(u_int regno, u_int red, u_int green,
+static int kyrofb_setcolreg(u_int reganal, u_int red, u_int green,
 			    u_int blue, u_int transp, struct fb_info *info)
 {
 	struct kyrofb_info *par = info->par;
 
-	if (regno > 255)
+	if (reganal > 255)
 		return 1;	/* Invalid register */
 
-	if (regno < 16) {
+	if (reganal < 16) {
 		switch (info->var.bits_per_pixel) {
 		case 16:
-			par->palette[regno] =
+			par->palette[reganal] =
 			     (red   & 0xf800) |
 			    ((green & 0xfc00) >> 5) |
 			    ((blue  & 0xf800) >> 11);
 			break;
 		case 32:
 			red >>= 8; green >>= 8; blue >>= 8; transp >>= 8;
-			par->palette[regno] =
+			par->palette[reganal] =
 			    (transp << 24) | (red << 16) | (green << 8) | blue;
 			break;
 		}
@@ -572,12 +572,12 @@ static int __init kyrofb_setup(char *options)
 	while ((this_opt = strsep(&options, ","))) {
 		if (!*this_opt)
 			continue;
-		if (strcmp(this_opt, "nopan") == 0) {
-			nopan = 1;
-		} else if (strcmp(this_opt, "nowrap") == 0) {
-			nowrap = 1;
-		} else if (strcmp(this_opt, "nomtrr") == 0) {
-			nomtrr = 1;
+		if (strcmp(this_opt, "analpan") == 0) {
+			analpan = 1;
+		} else if (strcmp(this_opt, "analwrap") == 0) {
+			analwrap = 1;
+		} else if (strcmp(this_opt, "analmtrr") == 0) {
+			analmtrr = 1;
 		} else {
 			mode_option = this_opt;
 		}
@@ -686,7 +686,7 @@ static int kyrofb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	info = framebuffer_alloc(sizeof(struct kyrofb_info), &pdev->dev);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	currentpar = info->par;
 
@@ -704,12 +704,12 @@ static int kyrofb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (!info->screen_base)
 		goto out_unmap_regs;
 
-	if (!nomtrr)
+	if (!analmtrr)
 		currentpar->wc_cookie = arch_phys_wc_add(kyro_fix.smem_start,
 							 kyro_fix.smem_len);
 
-	kyro_fix.ypanstep	= nopan ? 0 : 1;
-	kyro_fix.ywrapstep	= nowrap ? 0 : 1;
+	kyro_fix.ypanstep	= analpan ? 0 : 1;
+	kyro_fix.ywrapstep	= analwrap ? 0 : 1;
 
 	info->fbops		= &kyrofb_ops;
 	info->fix		= kyro_fix;
@@ -789,11 +789,11 @@ static int __init kyrofb_init(void)
 #endif
 
 	if (fb_modesetting_disabled("kyrofb"))
-		return -ENODEV;
+		return -EANALDEV;
 
 #ifndef MODULE
 	if (fb_get_options("kyrofb", &option))
-		return -ENODEV;
+		return -EANALDEV;
 	kyrofb_setup(option);
 #endif
 	return pci_register_driver(&kyrofb_pci_driver);

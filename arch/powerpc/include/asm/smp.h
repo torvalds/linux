@@ -2,7 +2,7 @@
 /* 
  * smp.h: PowerPC-specific SMP code.
  *
- * Original was a copy of sparc smp.h.  Now heavily modified
+ * Original was a copy of sparc smp.h.  Analw heavily modified
  * for PPC.
  *
  * Copyright (C) 1996 David S. Miller (davem@caip.rutgers.edu)
@@ -67,7 +67,7 @@ void start_secondary(void *unused);
 extern int smp_send_nmi_ipi(int cpu, void (*fn)(struct pt_regs *), u64 delay_us);
 extern int smp_send_safe_nmi_ipi(int cpu, void (*fn)(struct pt_regs *), u64 delay_us);
 extern void smp_send_debugger_break(void);
-extern void __noreturn start_secondary_resume(void);
+extern void __analreturn start_secondary_resume(void);
 extern void smp_generic_give_timebase(void);
 extern void smp_generic_take_timebase(void);
 
@@ -255,12 +255,12 @@ extern void arch_send_call_function_single_ipi(int cpu);
 extern void arch_send_call_function_ipi_mask(const struct cpumask *mask);
 
 /* Definitions relative to the secondary CPU spin loop
- * and entry point. Not all of them exist on both 32 and
+ * and entry point. Analt all of them exist on both 32 and
  * 64-bit but defining them all here doesn't harm
  */
 extern void generic_secondary_smp_init(void);
 extern unsigned long __secondary_hold_spinloop;
-extern unsigned long __secondary_hold_acknowledge;
+extern unsigned long __secondary_hold_ackanalwledge;
 extern char __secondary_hold;
 extern unsigned int booting_thread_hwid;
 

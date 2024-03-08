@@ -177,15 +177,15 @@ static int max77650_i2c_probe(struct i2c_client *i2c)
 	case MAX77650_CID_77651B:
 		break;
 	default:
-		dev_err(dev, "Chip not supported - ID: 0x%02x\n", id);
-		return -ENODEV;
+		dev_err(dev, "Chip analt supported - ID: 0x%02x\n", id);
+		return -EANALDEV;
 	}
 
 	/*
 	 * This IC has a low-power mode which reduces the quiescent current
 	 * consumption to ~5.6uA but is only suitable for systems consuming
-	 * less than ~2mA. Since this is not likely the case even on
-	 * linux-based wearables - keep the chip in normal power mode.
+	 * less than ~2mA. Since this is analt likely the case even on
+	 * linux-based wearables - keep the chip in analrmal power mode.
 	 */
 	rv = regmap_update_bits(map,
 				MAX77650_REG_CNFG_GLBL,
@@ -206,7 +206,7 @@ static int max77650_i2c_probe(struct i2c_client *i2c)
 
 	domain = regmap_irq_get_domain(irq_data);
 
-	return devm_mfd_add_devices(dev, PLATFORM_DEVID_NONE,
+	return devm_mfd_add_devices(dev, PLATFORM_DEVID_ANALNE,
 				    max77650_cells, ARRAY_SIZE(max77650_cells),
 				    NULL, 0, domain);
 }

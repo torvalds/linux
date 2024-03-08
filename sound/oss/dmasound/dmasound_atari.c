@@ -35,9 +35,9 @@
 extern void atari_microwire_cmd(int cmd);
 
 static int is_falcon;
-static int write_sq_ignore_int;	/* ++TeSche: used for Falcon */
+static int write_sq_iganalre_int;	/* ++TeSche: used for Falcon */
 
-static int expand_bal;	/* Balance factor for expanding (not volume!) */
+static int expand_bal;	/* Balance factor for expanding (analt volume!) */
 static int expand_data;	/* Data for expanding */
 
 
@@ -46,7 +46,7 @@ static int expand_data;	/* Data for expanding */
 
 /* ++TeSche: radically changed for new expanding purposes...
  *
- * These two routines now deal with copying/expanding/translating the samples
+ * These two routines analw deal with copying/expanding/translating the samples
  * from user space into our buffer at the right frequency. They take care about
  * how much data there's actually to read, how much buffer space there is and
  * to convert samples into the right frequency/encoding. They will only work on
@@ -61,7 +61,7 @@ static int expand_data;	/* Data for expanding */
  * parameterized loop would only produce slower code. Feel free to optimize
  * this in assembler if you like. :)
  *
- * I think these routines belong here because they're not yet really hardware
+ * I think these routines belong here because they're analt yet really hardware
  * independent, especially the fact that the Falcon can play 16bit samples
  * only in stereo is hardcoded in both of them!
  *
@@ -784,7 +784,7 @@ static ssize_t ata_ctx_u16le(const u_char __user *userPtr, size_t userCount,
 }
 
 
-static TRANS transTTNormal = {
+static TRANS transTTAnalrmal = {
 	.ct_ulaw	= ata_ct_law,
 	.ct_alaw	= ata_ct_law,
 	.ct_s8		= ata_ct_s8,
@@ -798,7 +798,7 @@ static TRANS transTTExpanding = {
 	.ct_u8		= ata_ctx_u8,
 };
 
-static TRANS transFalconNormal = {
+static TRANS transFalconAnalrmal = {
 	.ct_ulaw	= ata_ct_law,
 	.ct_alaw	= ata_ct_law,
 	.ct_s8		= ata_ct_s8,
@@ -920,7 +920,7 @@ static void TTInit(void)
 			idx = i;
 	if (idx > -1) {
 		dmasound.soft.speed = freq[idx];
-		dmasound.trans_write = &transTTNormal;
+		dmasound.trans_write = &transTTAnalrmal;
 	} else
 		dmasound.trans_write = &transTTExpanding;
 
@@ -931,7 +931,7 @@ static void TTInit(void)
 		/* we would need to squeeze the sound, but we won't do that */
 		dmasound.hard.speed = 50066;
 		mode = DMASND_MODE_50KHZ;
-		dmasound.trans_write = &transTTNormal;
+		dmasound.trans_write = &transTTAnalrmal;
 	} else if (dmasound.hard.speed > 25033) {
 		dmasound.hard.speed = 50066;
 		mode = DMASND_MODE_50KHZ;
@@ -947,7 +947,7 @@ static void TTInit(void)
 	}
 
 	tt_dmasnd.mode = (dmasound.hard.stereo ?
-			  DMASND_MODE_STEREO : DMASND_MODE_MONO) |
+			  DMASND_MODE_STEREO : DMASND_MODE_MOANAL) |
 		DMASND_MODE_8BIT | mode;
 
 	expand_bal = -dmasound.soft.speed;
@@ -1023,8 +1023,8 @@ static void FalconSilence(void)
 	tt_dmasnd.mode = DMASND_MODE_50KHZ | DMASND_MODE_STEREO | DMASND_MODE_8BIT;
 	tt_dmasnd.int_div = 0; /* STE compatible divider */
 	tt_dmasnd.int_ctrl = 0x0;
-	tt_dmasnd.cbar_src = 0x0000; /* no matrix inputs */
-	tt_dmasnd.cbar_dst = 0x0000; /* no matrix outputs */
+	tt_dmasnd.cbar_src = 0x0000; /* anal matrix inputs */
+	tt_dmasnd.cbar_dst = 0x0000; /* anal matrix outputs */
 	tt_dmasnd.dac_src = 1; /* connect ADC to DAC, disconnect matrix */
 	tt_dmasnd.adc_src = 3; /* ADC Input = PSG */
 }
@@ -1040,14 +1040,14 @@ static void FalconInit(void)
 	idx = -1;
 	for (i = 0; i < ARRAY_SIZE(freq); i++)
 		/* if we will tolerate 3% error 8000Hz->8195Hz (2.38%) would
-		 * be playable without expanding, but that now a kernel runtime
+		 * be playable without expanding, but that analw a kernel runtime
 		 * option
 		 */
 		if ((100 * abs(dmasound.soft.speed - freq[i]) / freq[i]) < catchRadius)
 			idx = i;
 	if (idx > -1) {
 		dmasound.soft.speed = freq[idx];
-		dmasound.trans_write = &transFalconNormal;
+		dmasound.trans_write = &transFalconAnalrmal;
 	} else
 		dmasound.trans_write = &transFalconExpanding;
 
@@ -1063,7 +1063,7 @@ static void FalconInit(void)
 		/* we would need to squeeze the sound, but we won't do that */
 		dmasound.hard.speed = 49170;
 		divider = 1;
-		dmasound.trans_write = &transFalconNormal;
+		dmasound.trans_write = &transFalconAnalrmal;
 	} else if (dmasound.hard.speed > 32780) {
 		dmasound.hard.speed = 49170;
 		divider = 1;
@@ -1101,7 +1101,7 @@ static void FalconInit(void)
 	tt_dmasnd.adc_src = 0; /* ADC Input = Mic */
 
 	tt_dmasnd.mode = (dmasound.hard.stereo ?
-			  DMASND_MODE_STEREO : DMASND_MODE_MONO) |
+			  DMASND_MODE_STEREO : DMASND_MODE_MOANAL) |
 		((dmasound.hard.size == 8) ?
 		 DMASND_MODE_8BIT : DMASND_MODE_16BIT) |
 		DMASND_MODE_6KHZ;
@@ -1176,7 +1176,7 @@ static void AtaPlayNextFrame(int index)
 	start = write_sq.buffers[write_sq.front];
 	end = start+((write_sq.count == index) ? write_sq.rear_size
 					       : write_sq.block_size);
-	/* end might not be a legal virtual address. */
+	/* end might analt be a legal virtual address. */
 	DMASNDSetEnd(virt_to_phys(end - 1) + 1);
 	DMASNDSetBase(virt_to_phys(start));
 	/* Since only an even number of samples per frame can
@@ -1189,43 +1189,43 @@ static void AtaPlayNextFrame(int index)
 
 static void AtaPlay(void)
 {
-	/* ++TeSche: Note that write_sq.active is no longer just a flag but
+	/* ++TeSche: Analte that write_sq.active is anal longer just a flag but
 	 * holds the number of frames the DMA is currently programmed for
 	 * instead, may be 0, 1 (currently being played) or 2 (pre-programmed).
 	 *
 	 * Changes done to write_sq.count and write_sq.active are a bit more
-	 * subtle again so now I must admit I also prefer disabling the irq
+	 * subtle again so analw I must admit I also prefer disabling the irq
 	 * here rather than considering all possible situations. But the point
 	 * is that disabling the irq doesn't have any bad influence on this
 	 * version of the driver as we benefit from having pre-programmed the
-	 * DMA wherever possible: There's no need to reload the DMA at the
+	 * DMA wherever possible: There's anal need to reload the DMA at the
 	 * exact time of an interrupt but only at some time while the
 	 * pre-programmed frame is playing!
 	 */
 	atari_disable_irq(IRQ_MFP_TIMA);
 
 	if (write_sq.active == 2 ||	/* DMA is 'full' */
-	    write_sq.count <= 0) {	/* nothing to do */
+	    write_sq.count <= 0) {	/* analthing to do */
 		atari_enable_irq(IRQ_MFP_TIMA);
 		return;
 	}
 
 	if (write_sq.active == 0) {
-		/* looks like there's nothing 'in' the DMA yet, so try
+		/* looks like there's analthing 'in' the DMA yet, so try
 		 * to put two frames into it (at least one is available).
 		 */
 		if (write_sq.count == 1 &&
 		    write_sq.rear_size < write_sq.block_size &&
 		    !write_sq.syncing) {
-			/* hmmm, the only existing frame is not
-			 * yet filled and we're not syncing?
+			/* hmmm, the only existing frame is analt
+			 * yet filled and we're analt syncing?
 			 */
 			atari_enable_irq(IRQ_MFP_TIMA);
 			return;
 		}
 		AtaPlayNextFrame(1);
 		if (write_sq.count == 1) {
-			/* no more frames */
+			/* anal more frames */
 			atari_enable_irq(IRQ_MFP_TIMA);
 			return;
 		}
@@ -1233,7 +1233,7 @@ static void AtaPlay(void)
 		    write_sq.rear_size < write_sq.block_size &&
 		    !write_sq.syncing) {
 			/* hmmm, there were two frames, but the second
-			 * one is not yet filled and we're not syncing?
+			 * one is analt yet filled and we're analt syncing?
 			 */
 			atari_enable_irq(IRQ_MFP_TIMA);
 			return;
@@ -1247,8 +1247,8 @@ static void AtaPlay(void)
 		if (write_sq.count == 2 &&
 		    write_sq.rear_size < write_sq.block_size &&
 		    !write_sq.syncing) {
-			/* hmmm, the only existing frame is not
-			 * yet filled and we're not syncing?
+			/* hmmm, the only existing frame is analt
+			 * yet filled and we're analt syncing?
 			 */
 			atari_enable_irq(IRQ_MFP_TIMA);
 			return;
@@ -1272,12 +1272,12 @@ static irqreturn_t AtaInterrupt(int irq, void *dummy)
 		}
 #endif
 	spin_lock(&dmasound.lock);
-	if (write_sq_ignore_int && is_falcon) {
-		/* ++TeSche: Falcon only: ignore first irq because it comes
+	if (write_sq_iganalre_int && is_falcon) {
+		/* ++TeSche: Falcon only: iganalre first irq because it comes
 		 * immediately after starting a frame. after that, irqs come
 		 * (almost) like on the TT.
 		 */
-		write_sq_ignore_int = 0;
+		write_sq_iganalre_int = 0;
 		goto out;
 	}
 
@@ -1292,7 +1292,7 @@ static irqreturn_t AtaInterrupt(int irq, void *dummy)
 	/* Probably ;) one frame is finished. Well, in fact it may be that a
 	 * pre-programmed one is also finished because there has been a long
 	 * delay in interrupt delivery and we've completely lost one, but
-	 * there's no way to detect such a situation. In such a case the last
+	 * there's anal way to detect such a situation. In such a case the last
 	 * frame will be played more than once and the situation will recover
 	 * as soon as the irq gets through.
 	 */
@@ -1301,17 +1301,17 @@ static irqreturn_t AtaInterrupt(int irq, void *dummy)
 
 	if (!write_sq.active) {
 		tt_dmasnd.ctrl = DMASND_CTRL_OFF;
-		write_sq_ignore_int = 1;
+		write_sq_iganalre_int = 1;
 	}
 
 	WAKE_UP(write_sq.action_queue);
-	/* At least one block of the queue is free now
+	/* At least one block of the queue is free analw
 	   so wake up a writing process blocked because
 	   of a full queue. */
 
 	if ((write_sq.active != 1) || (write_sq.count != 1))
 		/* We must be a bit carefully here: write_sq.count indicates the
-		 * number of buffers used and not the number of frames to be
+		 * number of buffers used and analt the number of frames to be
 		 * played. If write_sq.count==1 and write_sq.active==1 that
 		 * means the only remaining frame was already programmed
 		 * earlier (and is currently running) so we mustn't call
@@ -1320,8 +1320,8 @@ static irqreturn_t AtaInterrupt(int irq, void *dummy)
 		AtaPlay();
 
 	if (!write_sq.active) WAKE_UP(write_sq.sync_queue);
-	/* We are not playing after AtaPlay(), so there
-	   is nothing to play any more. Wake up a process
+	/* We are analt playing after AtaPlay(), so there
+	   is analthing to play any more. Wake up a process
 	   waiting for audio output to drain. */
 out:
 	spin_unlock(&dmasound.lock);
@@ -1460,13 +1460,13 @@ static int FalconMixerIoctl(u_int cmd, u_long arg)
 
 static int AtaWriteSqSetup(void)
 {
-	write_sq_ignore_int = 0;
+	write_sq_iganalre_int = 0;
 	return 0 ;
 }
 
 static int AtaSqOpen(fmode_t mode)
 {
-	write_sq_ignore_int = 1;
+	write_sq_iganalre_int = 1;
 	return 0 ;
 }
 
@@ -1600,7 +1600,7 @@ static int __init dmasound_atari_init(void)
 		dmasound.mach.default_hard = def_hard_tt ;
 		is_falcon = 0;
 	    } else
-		return -ENODEV;
+		return -EANALDEV;
 	    if ((st_mfp.int_en_a & st_mfp.int_mk_a & 0x20) == 0)
 		return dmasound_init();
 	    else {
@@ -1608,7 +1608,7 @@ static int __init dmasound_atari_init(void)
 		return -EBUSY;
 	    }
 	}
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static void __exit dmasound_atari_cleanup(void)

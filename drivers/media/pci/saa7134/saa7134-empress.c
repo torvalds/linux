@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *
- * (c) 2004 Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]
+ * (c) 2004 Gerd Kanalrr <kraxel@bytesex.org> [SuSE Labs]
  */
 
 #include "saa7134.h"
@@ -18,7 +18,7 @@
 
 /* ------------------------------------------------------------------ */
 
-MODULE_AUTHOR("Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]");
+MODULE_AUTHOR("Gerd Kanalrr <kraxel@bytesex.org> [SuSE Labs]");
 MODULE_LICENSE("GPL");
 
 static unsigned int empress_nr[] = {[0 ... (SAA7134_MAXBOARDS - 1)] = UNSET };
@@ -202,7 +202,7 @@ static const struct video_device saa7134_empress_template = {
 	.fops          = &ts_fops,
 	.ioctl_ops     = &ts_ioctl_ops,
 
-	.tvnorms			= SAA7134_NORMS,
+	.tvanalrms			= SAA7134_ANALRMS,
 };
 
 static void empress_signal_update(struct work_struct *work)
@@ -210,8 +210,8 @@ static void empress_signal_update(struct work_struct *work)
 	struct saa7134_dev* dev =
 		container_of(work, struct saa7134_dev, empress_workqueue);
 
-	if (dev->nosignal) {
-		pr_debug("no video signal\n");
+	if (dev->analsignal) {
+		pr_debug("anal video signal\n");
 	} else {
 		pr_debug("video signal acquired\n");
 	}
@@ -248,7 +248,7 @@ static int empress_init(struct saa7134_dev *dev)
 	pr_debug("%s: %s\n", dev->name, __func__);
 	dev->empress_dev = video_device_alloc();
 	if (NULL == dev->empress_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 	*(dev->empress_dev) = saa7134_empress_template;
 	dev->empress_dev->v4l2_dev  = &dev->v4l2_dev;
 	dev->empress_dev->release = video_device_release;
@@ -271,9 +271,9 @@ static int empress_init(struct saa7134_dev *dev)
 	q = &dev->empress_vbq;
 	q->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	/*
-	 * Do not add VB2_USERPTR: the saa7134 DMA engine cannot handle
-	 * transfers that do not start at the beginning of a page. A USERPTR
-	 * can start anywhere in a page, so USERPTR support is a no-go.
+	 * Do analt add VB2_USERPTR: the saa7134 DMA engine cananalt handle
+	 * transfers that do analt start at the beginning of a page. A USERPTR
+	 * can start anywhere in a page, so USERPTR support is a anal-go.
 	 */
 	q->io_modes = VB2_MMAP | VB2_DMABUF | VB2_READ;
 	q->drv_priv = &dev->ts_q;
@@ -281,7 +281,7 @@ static int empress_init(struct saa7134_dev *dev)
 	q->gfp_flags = GFP_DMA32;
 	q->mem_ops = &vb2_dma_sg_memops;
 	q->buf_struct_size = sizeof(struct saa7134_buf);
-	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 	q->lock = &dev->lock;
 	q->dev = &dev->pci->dev;
 	err = vb2_queue_init(q);
@@ -307,7 +307,7 @@ static int empress_init(struct saa7134_dev *dev)
 		return err;
 	}
 	pr_info("%s: registered device %s [mpeg]\n",
-	       dev->name, video_device_node_name(dev->empress_dev));
+	       dev->name, video_device_analde_name(dev->empress_dev));
 
 	empress_signal_update(&dev->empress_workqueue);
 	return 0;

@@ -3,11 +3,11 @@
  * Copyright (c) 2014 Samsung Electronics Co., Ltd.
  * Author: Rahul Sharma <rahul.sharma@samsung.com>
  *
- * Common Clock Framework support for Exynos5260 SoC.
+ * Common Clock Framework support for Exyanals5260 SoC.
  */
 
-#ifndef __CLK_EXYNOS5260_H
-#define __CLK_EXYNOS5260_H
+#ifndef __CLK_EXYANALS5260_H
+#define __CLK_EXYANALS5260_H
 
 /*
 *Registers for CMU_AUD
@@ -15,7 +15,7 @@
 #define MUX_SEL_AUD				0x0200
 #define MUX_ENABLE_AUD				0x0300
 #define MUX_STAT_AUD				0x0400
-#define MUX_IGNORE_AUD				0x0500
+#define MUX_IGANALRE_AUD				0x0500
 #define DIV_AUD0				0x0600
 #define DIV_AUD1				0x0604
 #define DIV_STAT_AUD0				0x0700
@@ -43,11 +43,11 @@
 #define MUX_STAT_DISP2				0x0408
 #define MUX_STAT_DISP3				0x040c
 #define MUX_STAT_DISP4				0x0410
-#define MUX_IGNORE_DISP0			0x0500
-#define MUX_IGNORE_DISP1			0x0504
-#define MUX_IGNORE_DISP2			0x0508
-#define MUX_IGNORE_DISP3			0x050c
-#define MUX_IGNORE_DISP4			0x0510
+#define MUX_IGANALRE_DISP0			0x0500
+#define MUX_IGANALRE_DISP1			0x0504
+#define MUX_IGANALRE_DISP2			0x0508
+#define MUX_IGANALRE_DISP3			0x050c
+#define MUX_IGANALRE_DISP4			0x0510
 #define DIV_DISP				0x0600
 #define DIV_STAT_DISP				0x0700
 #define EN_ACLK_DISP				0x0800
@@ -107,8 +107,8 @@
 #define MUX_ENABLE_FSYS1			0x0304
 #define MUX_STAT_FSYS0				0x0400
 #define MUX_STAT_FSYS1				0x0404
-#define MUX_IGNORE_FSYS0			0x0500
-#define MUX_IGNORE_FSYS1			0x0504
+#define MUX_IGANALRE_FSYS0			0x0500
+#define MUX_IGANALRE_FSYS1			0x0504
 #define EN_ACLK_FSYS				0x0800
 #define EN_ACLK_FSYS_SECURE_RTIC		0x0804
 #define EN_ACLK_FSYS_SECURE_SMMU_RTIC		0x0808
@@ -158,7 +158,7 @@
 #define MUX_SEL_G3D				0x0200
 #define MUX_EN_G3D				0x0300
 #define MUX_STAT_G3D				0x0400
-#define MUX_IGNORE_G3D				0x0500
+#define MUX_IGANALRE_G3D				0x0500
 #define DIV_G3D					0x0600
 #define DIV_G3D_PLL_FDET			0x0604
 #define DIV_STAT_G3D				0x0700
@@ -180,7 +180,7 @@
 #define MUX_SEL_GSCL				0x0200
 #define MUX_EN_GSCL				0x0300
 #define MUX_STAT_GSCL				0x0400
-#define MUX_IGNORE_GSCL				0x0500
+#define MUX_IGANALRE_GSCL				0x0500
 #define DIV_GSCL				0x0600
 #define DIV_STAT_GSCL				0x0700
 #define EN_ACLK_GSCL				0x0800
@@ -213,8 +213,8 @@
 #define MUX_ENABLE_ISP1				0x0304
 #define MUX_STAT_ISP0				0x0400
 #define MUX_STAT_ISP1				0x0404
-#define MUX_IGNORE_ISP0				0x0500
-#define MUX_IGNORE_ISP1				0x0504
+#define MUX_IGANALRE_ISP0				0x0500
+#define MUX_IGANALRE_ISP1				0x0504
 #define DIV_ISP					0x0600
 #define DIV_STAT_ISP				0x0700
 #define EN_ACLK_ISP0				0x0800
@@ -296,7 +296,7 @@
 #define MUX_SEL_MIF				0x0200
 #define MUX_ENABLE_MIF				0x0300
 #define MUX_STAT_MIF				0x0400
-#define MUX_IGNORE_MIF				0x0500
+#define MUX_IGANALRE_MIF				0x0500
 #define DIV_MIF					0x0600
 #define DIV_MIF_PLL_FDET			0x0604
 #define DIV_STAT_MIF				0x0700
@@ -306,13 +306,13 @@
 #define EN_ACLK_MIF_SECURE_DREX0_TZ		0x0808
 #define EN_ACLK_MIF_SECURE_INTMEM		0x080c
 #define EN_PCLK_MIF				0x0900
-#define EN_PCLK_MIF_SECURE_MONOCNT		0x0904
+#define EN_PCLK_MIF_SECURE_MOANALCNT		0x0904
 #define EN_PCLK_MIF_SECURE_RTC_APBIF		0x0908
 #define EN_PCLK_MIF_SECURE_DREX1_TZ		0x090c
 #define EN_PCLK_MIF_SECURE_DREX0_TZ		0x0910
 #define EN_SCLK_MIF				0x0a00
 #define EN_IP_MIF				0x0b00
-#define EN_IP_MIF_SECURE_MONOCNT		0x0b04
+#define EN_IP_MIF_SECURE_MOANALCNT		0x0b04
 #define EN_IP_MIF_SECURE_RTC_APBIF		0x0b08
 #define EN_IP_MIF_SECURE_DREX1_TZ		0x0b0c
 #define EN_IP_MIF_SECURE_DREX0_TZ		0x0b10
@@ -332,8 +332,8 @@
 #define MUX_ENABLE_PERI1			0x0304
 #define MUX_STAT_PERI				0x0400
 #define MUX_STAT_PERI1				0x0404
-#define MUX_IGNORE_PERI				0x0500
-#define MUX_IGNORE_PERI1			0x0504
+#define MUX_IGANALRE_PERI				0x0500
+#define MUX_IGANALRE_PERI1			0x0504
 #define DIV_PERI				0x0600
 #define DIV_STAT_PERI				0x0700
 #define EN_PCLK_PERI0				0x0800
@@ -408,18 +408,18 @@
 #define MUX_STAT_TOP_PERI0			0x0428
 #define MUX_STAT_TOP_PERI1			0x042c
 #define MUX_STAT_TOP_FSYS			0x0430
-#define MUX_IGNORE_TOP_PLL0			0x0500
-#define MUX_IGNORE_TOP_MFC			0x0504
-#define MUX_IGNORE_TOP_G2D			0x0508
-#define MUX_IGNORE_TOP_GSCL			0x050c
-#define MUX_IGNORE_TOP_ISP10			0x0514
-#define MUX_IGNORE_TOP_ISP11			0x0518
-#define MUX_IGNORE_TOP_DISP0			0x051c
-#define MUX_IGNORE_TOP_DISP1			0x0520
-#define MUX_IGNORE_TOP_BUS			0x0524
-#define MUX_IGNORE_TOP_PERI0			0x0528
-#define MUX_IGNORE_TOP_PERI1			0x052c
-#define MUX_IGNORE_TOP_FSYS			0x0530
+#define MUX_IGANALRE_TOP_PLL0			0x0500
+#define MUX_IGANALRE_TOP_MFC			0x0504
+#define MUX_IGANALRE_TOP_G2D			0x0508
+#define MUX_IGANALRE_TOP_GSCL			0x050c
+#define MUX_IGANALRE_TOP_ISP10			0x0514
+#define MUX_IGANALRE_TOP_ISP11			0x0518
+#define MUX_IGANALRE_TOP_DISP0			0x051c
+#define MUX_IGANALRE_TOP_DISP1			0x0520
+#define MUX_IGANALRE_TOP_BUS			0x0524
+#define MUX_IGANALRE_TOP_PERI0			0x0528
+#define MUX_IGANALRE_TOP_PERI1			0x052c
+#define MUX_IGANALRE_TOP_FSYS			0x0530
 #define DIV_TOP_G2D_MFC				0x0600
 #define DIV_TOP_GSCL_ISP0			0x0604
 #define DIV_TOP_ISP10				0x0608
@@ -452,5 +452,5 @@
 #define CLKOUT_CMU_TOP				0x0c00
 #define CLKOUT_CMU_TOP_DIV_STAT			0x0c04
 
-#endif /*__CLK_EXYNOS5260_H */
+#endif /*__CLK_EXYANALS5260_H */
 

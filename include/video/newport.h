@@ -32,7 +32,7 @@ struct newport_rexregs {
 	npireg_t drawmode1;      /* GL extra mode bits */
 	
 #define DM1_PLANES         0x00000007
-#define    DM1_NOPLANES    0x00000000
+#define    DM1_ANALPLANES    0x00000000
 #define    DM1_RGBPLANES   0x00000001
 #define    DM1_RGBAPLANES  0x00000002
 #define    DM1_OLAYPLANES  0x00000004
@@ -88,8 +88,8 @@ struct newport_rexregs {
 #define NPORT_DMODE1_LODST       0x50000000
 #define NPORT_DMODE1_LOXOR       0x60000000
 #define NPORT_DMODE1_LOOR        0x70000000
-#define NPORT_DMODE1_LONOR       0x80000000
-#define NPORT_DMODE1_LOXNOR      0x90000000
+#define NPORT_DMODE1_LOANALR       0x80000000
+#define NPORT_DMODE1_LOXANALR      0x90000000
 #define NPORT_DMODE1_LONDST      0xa0000000
 #define NPORT_DMODE1_LOORR       0xb0000000
 #define NPORT_DMODE1_LONSRC      0xc0000000
@@ -101,7 +101,7 @@ struct newport_rexregs {
 
 	/* These bits define the graphics opcode being performed. */
 #define NPORT_DMODE0_OPMASK   0x00000003 /* Opcode mask */
-#define NPORT_DMODE0_NOP      0x00000000 /* No operation */
+#define NPORT_DMODE0_ANALP      0x00000000 /* Anal operation */
 #define NPORT_DMODE0_RD       0x00000001 /* Read operation */
 #define NPORT_DMODE0_DRAW     0x00000002 /* Draw operation */
 #define NPORT_DMODE0_S2S      0x00000003 /* Screen to screen operation */
@@ -116,7 +116,7 @@ struct newport_rexregs {
 #define NPORT_DMODE0_TLINE    0x00000014 /* Tline address mode */
 #define NPORT_DMODE0_BLINE    0x00000018 /* Bline address mode */
 
-	/* And now some misc. operation control bits. */
+	/* And analw some misc. operation control bits. */
 #define NPORT_DMODE0_DOSETUP  0x00000020
 #define NPORT_DMODE0_CHOST    0x00000040
 #define NPORT_DMODE0_AHOST    0x00000080
@@ -363,7 +363,7 @@ typedef struct {
 #define VC2_VFRAMET_ADDR       0x400
 #define VC2_CGLYPH_ADDR        0x500
 
-/* Now the Indexed registers of the VC2. */
+/* Analw the Indexed registers of the VC2. */
 #define VC2_IREG_VENTRY        0x00
 #define VC2_IREG_CENTRY        0x01
 #define VC2_IREG_CURSX         0x02

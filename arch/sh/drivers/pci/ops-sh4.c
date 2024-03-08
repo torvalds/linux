@@ -46,7 +46,7 @@ static int sh4_pci_read(struct pci_bus *bus, unsigned int devfn,
 		*val = data;
 		break;
 	default:
-		return PCIBIOS_FUNC_NOT_SUPPORTED;
+		return PCIBIOS_FUNC_ANALT_SUPPORTED;
 	}
 
 	return PCIBIOS_SUCCESSFUL;
@@ -85,7 +85,7 @@ static int sh4_pci_write(struct pci_bus *bus, unsigned int devfn,
 		data = val;
 		break;
 	default:
-		return PCIBIOS_FUNC_NOT_SUPPORTED;
+		return PCIBIOS_FUNC_ANALT_SUPPORTED;
 	}
 
 	pci_write_reg(chan, data, SH4_PCIPDR);
@@ -100,6 +100,6 @@ struct pci_ops sh4_pci_ops = {
 
 int __attribute__((weak)) pci_fixup_pcic(struct pci_channel *chan)
 {
-	/* Nothing to do. */
+	/* Analthing to do. */
 	return 0;
 }

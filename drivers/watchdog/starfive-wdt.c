@@ -2,7 +2,7 @@
 /*
  * Starfive Watchdog driver
  *
- * Copyright (C) 2022 StarFive Technology Co., Ltd.
+ * Copyright (C) 2022 StarFive Techanallogy Co., Ltd.
  */
 
 #include <linux/clk.h>
@@ -63,21 +63,21 @@
 /* module parameter */
 #define STARFIVE_WDT_EARLY_ENA			0
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
+static bool analwayout = WATCHDOG_ANALWAYOUT;
 static int heartbeat;
 static bool early_enable = STARFIVE_WDT_EARLY_ENA;
 
 module_param(heartbeat, int, 0);
 module_param(early_enable, bool, 0);
-module_param(nowayout, bool, 0);
+module_param(analwayout, bool, 0);
 
 MODULE_PARM_DESC(heartbeat, "Watchdog heartbeat in seconds. (default="
 		 __MODULE_STRING(STARFIVE_WDT_DEFAULT_TIME) ")");
 MODULE_PARM_DESC(early_enable,
 		 "Watchdog is started at boot time if set to 1, default="
 		 __MODULE_STRING(STARFIVE_WDT_EARLY_ENA));
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
-		 __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+MODULE_PARM_DESC(analwayout, "Watchdog cananalt be stopped once started (default="
+		 __MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 struct starfive_wdt_variant {
 	unsigned int control;		/* Watchdog Control Resgister for reset enable */
@@ -250,7 +250,7 @@ static int starfive_wdt_int_clr(struct starfive_wdt *wdt)
 		ret = starfive_wdt_wait_int_free(wdt);
 		if (ret)
 			return dev_err_probe(wdt->wdd.parent, ret,
-					     "watchdog is not ready to clear interrupt.\n");
+					     "watchdog is analt ready to clear interrupt.\n");
 	}
 	writel(STARFIVE_WDT_INTCLR, wdt->base + wdt->variant->int_clr);
 
@@ -430,7 +430,7 @@ static int starfive_wdt_probe(struct platform_device *pdev)
 
 	wdt = devm_kzalloc(&pdev->dev, sizeof(*wdt), GFP_KERNEL);
 	if (!wdt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wdt->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(wdt->base))
@@ -477,7 +477,7 @@ static int starfive_wdt_probe(struct platform_device *pdev)
 	watchdog_init_timeout(&wdt->wdd, heartbeat, &pdev->dev);
 	starfive_wdt_set_timeout(&wdt->wdd, wdt->wdd.timeout);
 
-	watchdog_set_nowayout(&wdt->wdd, nowayout);
+	watchdog_set_analwayout(&wdt->wdd, analwayout);
 	watchdog_stop_on_reboot(&wdt->wdd);
 	watchdog_stop_on_unregister(&wdt->wdd);
 
@@ -534,7 +534,7 @@ static int starfive_wdt_suspend(struct device *dev)
 	/* Save watchdog state, and turn it off. */
 	wdt->reload = starfive_wdt_get_count(wdt);
 
-	/* Note that WTCNT doesn't need to be saved. */
+	/* Analte that WTCNT doesn't need to be saved. */
 	starfive_wdt_stop(wdt);
 
 	return pm_runtime_force_suspend(dev);

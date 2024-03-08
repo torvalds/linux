@@ -84,7 +84,7 @@ static int uvc_queue_setup(struct vb2_queue *vq,
 
 	/*
 	 * When called with plane sizes, validate them. The driver supports
-	 * single planar formats only, and requires buffers to be large enough
+	 * single planar formats only, and requires buffers to be large eanalugh
 	 * to store a complete frame.
 	 */
 	if (*nplanes)
@@ -109,7 +109,7 @@ static int uvc_buffer_prepare(struct vb2_buffer *vb)
 	}
 
 	if (unlikely(queue->flags & UVC_QUEUE_DISCONNECTED))
-		return -ENODEV;
+		return -EANALDEV;
 
 	buf->state = UVC_BUF_STATE_QUEUED;
 	buf->error = 0;
@@ -137,7 +137,7 @@ static void uvc_buffer_queue(struct vb2_buffer *vb)
 	} else {
 		/*
 		 * If the device is disconnected return the buffer to userspace
-		 * directly. The next QBUF call will fail with -ENODEV.
+		 * directly. The next QBUF call will fail with -EANALDEV.
 		 */
 		buf->state = UVC_BUF_STATE_ERROR;
 		vb2_buffer_done(vb, VB2_BUF_STATE_ERROR);
@@ -222,7 +222,7 @@ int uvc_queue_init(struct uvc_video_queue *queue, enum v4l2_buf_type type,
 	queue->queue.drv_priv = queue;
 	queue->queue.buf_struct_size = sizeof(struct uvc_buffer);
 	queue->queue.mem_ops = &vb2_vmalloc_memops;
-	queue->queue.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC
+	queue->queue.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC
 		| V4L2_BUF_FLAG_TSTAMP_SRC_SOE;
 	queue->queue.lock = &queue->mutex;
 
@@ -319,12 +319,12 @@ int uvc_export_buffer(struct uvc_video_queue *queue,
 }
 
 int uvc_dequeue_buffer(struct uvc_video_queue *queue, struct v4l2_buffer *buf,
-		       int nonblocking)
+		       int analnblocking)
 {
 	int ret;
 
 	mutex_lock(&queue->mutex);
-	ret = vb2_dqbuf(&queue->queue, buf, nonblocking);
+	ret = vb2_dqbuf(&queue->queue, buf, analnblocking);
 	mutex_unlock(&queue->mutex);
 
 	return ret;
@@ -402,7 +402,7 @@ int uvc_queue_allocated(struct uvc_video_queue *queue)
  * wakes them up and removes them from the queue.
  *
  * If the disconnect parameter is set, further calls to uvc_queue_buffer will
- * fail with -ENODEV.
+ * fail with -EANALDEV.
  *
  * This function acquires the irq spinlock and can be called from interrupt
  * context.
@@ -416,7 +416,7 @@ void uvc_queue_cancel(struct uvc_video_queue *queue, int disconnect)
 	/*
 	 * This must be protected by the irqlock spinlock to avoid race
 	 * conditions between uvc_buffer_queue and the disconnection event that
-	 * could result in an interruptible wait in uvc_dequeue_buffer. Do not
+	 * could result in an interruptible wait in uvc_dequeue_buffer. Do analt
 	 * blindly replace this logic by checking for the UVC_QUEUE_DISCONNECTED
 	 * state outside the queue code.
 	 */

@@ -92,8 +92,8 @@ static ssize_t key_tx_spec_write(struct file *file, const char __user *userbuf,
 	case WLAN_CIPHER_SUITE_WEP104:
 		return -EINVAL;
 	case WLAN_CIPHER_SUITE_TKIP:
-		/* not supported yet */
-		return -EOPNOTSUPP;
+		/* analt supported yet */
+		return -EOPANALTSUPP;
 	case WLAN_CIPHER_SUITE_CCMP:
 	case WLAN_CIPHER_SUITE_CCMP_256:
 	case WLAN_CIPHER_SUITE_AES_CMAC:
@@ -306,7 +306,7 @@ static ssize_t key_key_read(struct file *file, char __user *userbuf,
 	ssize_t res;
 
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < key->conf.keylen; i++)
 		p += scnprintf(p, bufsize + buf - p, "%02x", key->conf.key[i]);

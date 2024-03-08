@@ -57,10 +57,10 @@ module_param(heartbeat, int, 0);
 MODULE_PARM_DESC(heartbeat, "Watchdog heartbeat in seconds. (2<heartbeat<39, "
 			    "default=" __MODULE_STRING(WATCHDOG_HEARTBEAT) ")");
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started"
-		" (default=" __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout, "Watchdog cananalt be stopped once started"
+		" (default=" __MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 /*
  * Some TCO specific functions
@@ -113,7 +113,7 @@ static int tco_timer_set_heartbeat(int t)
 	u8 val;
 
 	/*
-	 * note seconds_to_ticks(t) > t, so if t > 0x3f, so is
+	 * analte seconds_to_ticks(t) > t, so if t > 0x3f, so is
 	 * tmrval=seconds_to_ticks(t).  Check that the count in seconds isn't
 	 * out of range on it's own (to avoid overflow in tmrval).
 	 */
@@ -121,7 +121,7 @@ static int tco_timer_set_heartbeat(int t)
 		return -EINVAL;
 	tmrval = seconds_to_ticks(t);
 
-	/* "Values of 0h-3h are ignored and should not be attempted" */
+	/* "Values of 0h-3h are iganalred and should analt be attempted" */
 	if (tmrval > 0x3f || tmrval < 0x04)
 		return -EINVAL;
 
@@ -148,7 +148,7 @@ static int tco_timer_set_heartbeat(int t)
  *	/dev/watchdog handling
  */
 
-static int nv_tco_open(struct inode *inode, struct file *file)
+static int nv_tco_open(struct ianalde *ianalde, struct file *file)
 {
 	/* /dev/watchdog can only be opened once */
 	if (test_and_set_bit(0, &timer_alive))
@@ -157,16 +157,16 @@ static int nv_tco_open(struct inode *inode, struct file *file)
 	/* Reload and activate timer */
 	tco_timer_keepalive();
 	tco_timer_start();
-	return stream_open(inode, file);
+	return stream_open(ianalde, file);
 }
 
-static int nv_tco_release(struct inode *inode, struct file *file)
+static int nv_tco_release(struct ianalde *ianalde, struct file *file)
 {
 	/* Shut off the timer */
 	if (tco_expect_close == 42) {
 		tco_timer_stop();
 	} else {
-		pr_crit("Unexpected close, not stopping watchdog!\n");
+		pr_crit("Unexpected close, analt stopping watchdog!\n");
 		tco_timer_keepalive();
 	}
 	clear_bit(0, &timer_alive);
@@ -179,17 +179,17 @@ static ssize_t nv_tco_write(struct file *file, const char __user *data,
 {
 	/* See if we got the magic character 'V' and reload the timer */
 	if (len) {
-		if (!nowayout) {
+		if (!analwayout) {
 			size_t i;
 
 			/*
-			 * note: just in case someone wrote the magic character
+			 * analte: just in case someone wrote the magic character
 			 * five months ago...
 			 */
 			tco_expect_close = 0;
 
 			/*
-			 * scan to see whether or not we got the magic
+			 * scan to see whether or analt we got the magic
 			 * character
 			 */
 			for (i = 0; i != len; i++) {
@@ -254,7 +254,7 @@ static long nv_tco_ioctl(struct file *file, unsigned int cmd,
 	case WDIOC_GETTIMEOUT:
 		return put_user(heartbeat, p);
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 }
 
@@ -264,7 +264,7 @@ static long nv_tco_ioctl(struct file *file, unsigned int cmd,
 
 static const struct file_operations nv_tco_fops = {
 	.owner =		THIS_MODULE,
-	.llseek =		no_llseek,
+	.llseek =		anal_llseek,
 	.write =		nv_tco_write,
 	.unlocked_ioctl =	nv_tco_ioctl,
 	.compat_ioctl =		compat_ptr_ioctl,
@@ -273,7 +273,7 @@ static const struct file_operations nv_tco_fops = {
 };
 
 static struct miscdevice nv_tco_miscdev = {
-	.minor =	WATCHDOG_MINOR,
+	.mianalr =	WATCHDOG_MIANALR,
 	.name =		"watchdog",
 	.fops =		&nv_tco_fops,
 };
@@ -282,9 +282,9 @@ static struct miscdevice nv_tco_miscdev = {
  * Data for PCI driver interface
  *
  * This data only exists for exporting the supported
- * PCI ids via MODULE_DEVICE_TABLE.  We do not actually
+ * PCI ids via MODULE_DEVICE_TABLE.  We do analt actually
  * register a pci_driver, because someone else might one day
- * want to register another driver on the same PCI id.
+ * want to register aanalther driver on the same PCI id.
  */
 static const struct pci_device_id tco_pci_tbl[] = {
 	{ PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NFORCE_MCP51_SMBUS,
@@ -357,17 +357,17 @@ static unsigned char nv_tco_getdevice(void)
 	val = inl(MCP51_SMI_EN(tcobase));
 	release_region(MCP51_SMI_EN(tcobase), 4);
 	if (val & MCP51_SMI_EN_TCO) {
-		pr_err("Could not disable SMI caused by TCO\n");
+		pr_err("Could analt disable SMI caused by TCO\n");
 		goto out;
 	}
 
-	/* Check chipset's NO_REBOOT bit */
+	/* Check chipset's ANAL_REBOOT bit */
 	pci_read_config_dword(tco_pci, MCP51_SMBUS_SETUP_B, &val);
 	val |= MCP51_SMBUS_SETUP_B_TCO_REBOOT;
 	pci_write_config_dword(tco_pci, MCP51_SMBUS_SETUP_B, val);
 	pci_read_config_dword(tco_pci, MCP51_SMBUS_SETUP_B, &val);
 	if (!(val & MCP51_SMBUS_SETUP_B_TCO_REBOOT)) {
-		pr_err("failed to reset NO_REBOOT flag, reboot disabled by hardware\n");
+		pr_err("failed to reset ANAL_REBOOT flag, reboot disabled by hardware\n");
 		goto out;
 	}
 
@@ -381,20 +381,20 @@ static int nv_tco_init(struct platform_device *dev)
 {
 	int ret;
 
-	/* Check whether or not the hardware watchdog is there */
+	/* Check whether or analt the hardware watchdog is there */
 	if (!nv_tco_getdevice())
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Check to see if last reboot was due to watchdog timeout */
 	pr_info("Watchdog reboot %sdetected\n",
-		inl(TCO_STS(tcobase)) & TCO_STS_TCO2TO_STS ? "" : "not ");
+		inl(TCO_STS(tcobase)) & TCO_STS_TCO2TO_STS ? "" : "analt ");
 
 	/* Clear out the old status */
 	outl(TCO_STS_RESET, TCO_STS(tcobase));
 
 	/*
 	 * Check that the heartbeat value is within it's range.
-	 * If not, reset to the default.
+	 * If analt, reset to the default.
 	 */
 	if (tco_timer_set_heartbeat(heartbeat)) {
 		heartbeat = WATCHDOG_HEARTBEAT;
@@ -405,8 +405,8 @@ static int nv_tco_init(struct platform_device *dev)
 
 	ret = misc_register(&nv_tco_miscdev);
 	if (ret != 0) {
-		pr_err("cannot register miscdev on minor=%d (err=%d)\n",
-		       WATCHDOG_MINOR, ret);
+		pr_err("cananalt register miscdev on mianalr=%d (err=%d)\n",
+		       WATCHDOG_MIANALR, ret);
 		goto unreg_region;
 	}
 
@@ -414,8 +414,8 @@ static int nv_tco_init(struct platform_device *dev)
 
 	tco_timer_stop();
 
-	pr_info("initialized (0x%04x). heartbeat=%d sec (nowayout=%d)\n",
-		tcobase, heartbeat, nowayout);
+	pr_info("initialized (0x%04x). heartbeat=%d sec (analwayout=%d)\n",
+		tcobase, heartbeat, analwayout);
 
 	return 0;
 
@@ -429,10 +429,10 @@ static void nv_tco_cleanup(void)
 	u32 val;
 
 	/* Stop the timer before we leave */
-	if (!nowayout)
+	if (!analwayout)
 		tco_timer_stop();
 
-	/* Set the NO_REBOOT bit to prevent later reboots, just for sure */
+	/* Set the ANAL_REBOOT bit to prevent later reboots, just for sure */
 	pci_read_config_dword(tco_pci, MCP51_SMBUS_SETUP_B, &val);
 	val &= ~MCP51_SMBUS_SETUP_B_TCO_REBOOT;
 	pci_write_config_dword(tco_pci, MCP51_SMBUS_SETUP_B, val);
@@ -458,7 +458,7 @@ static void nv_tco_shutdown(struct platform_device *dev)
 
 	tco_timer_stop();
 
-	/* Some BIOSes fail the POST (once) if the NO_REBOOT flag is not
+	/* Some BIOSes fail the POST (once) if the ANAL_REBOOT flag is analt
 	 * unset during shutdown. */
 	pci_read_config_dword(tco_pci, MCP51_SMBUS_SETUP_B, &val);
 	val &= ~MCP51_SMBUS_SETUP_B_TCO_REBOOT;

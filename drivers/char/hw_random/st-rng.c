@@ -66,7 +66,7 @@ static int st_rng_read(struct hwrng *rng, void *data, size_t max, bool wait)
 		*(u16 *)(data + i) =
 			readl_relaxed(ddata->base + ST_RNG_DATA_REG);
 
-	return i;	/* No of bytes read */
+	return i;	/* Anal of bytes read */
 }
 
 static int st_rng_probe(struct platform_device *pdev)
@@ -78,7 +78,7 @@ static int st_rng_probe(struct platform_device *pdev)
 
 	ddata = devm_kzalloc(&pdev->dev, sizeof(*ddata), GFP_KERNEL);
 	if (!ddata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))

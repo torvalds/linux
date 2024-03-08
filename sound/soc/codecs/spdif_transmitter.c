@@ -3,7 +3,7 @@
  * ALSA SoC SPDIF DIT driver
  *
  *  This driver is used by controllers which can operate in DIT (SPDI/F) where
- *  no codec is needed.  This file provides stub codec that can be used
+ *  anal codec is needed.  This file provides stub codec that can be used
  *  in these configurations. TI DaVinci Audio controller uses this driver.
  *
  * Author:      Steve Chen,  <schen@mvista.com>

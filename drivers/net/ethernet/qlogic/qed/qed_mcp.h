@@ -138,7 +138,7 @@ struct qed_mcp_function_info {
 	u8				mac[ETH_ALEN];
 
 	u64				wwn_port;
-	u64				wwn_node;
+	u64				wwn_analde;
 
 #define QED_MCP_VLAN_UNSET              (0xffff)
 	u16				ovlan;
@@ -200,7 +200,7 @@ union qed_mcp_protocol_stats {
 };
 
 enum qed_ov_eswitch {
-	QED_OV_ESWITCH_NONE,
+	QED_OV_ESWITCH_ANALNE,
 	QED_OV_ESWITCH_VEB,
 	QED_OV_ESWITCH_VEPA
 };
@@ -212,7 +212,7 @@ enum qed_ov_client {
 };
 
 enum qed_ov_driver_state {
-	QED_OV_DRIVER_STATE_NOT_LOADED,
+	QED_OV_DRIVER_STATE_ANALT_LOADED,
 	QED_OV_DRIVER_STATE_DISABLED,
 	QED_OV_DRIVER_STATE_ACTIVE
 };
@@ -397,7 +397,7 @@ int qed_mcp_get_board_config(struct qed_hwfn *p_hwfn,
  *                mailbox. It acquire mutex lock for the entire
  *                operation, from sending the request until the MCP
  *                response. Waiting for MCP response will be checked up
- *                to 5 seconds every 10ms. Should not be called from atomic
+ *                to 5 seconds every 10ms. Should analt be called from atomic
  *                context.
  *
  * @p_hwfn: HW device data.
@@ -418,12 +418,12 @@ int qed_mcp_cmd(struct qed_hwfn *p_hwfn,
 		u32 *o_mcp_param);
 
 /**
- * qed_mcp_cmd_nosleep(): Function for sending commands to the MCP
+ * qed_mcp_cmd_analsleep(): Function for sending commands to the MCP
  *                        mailbox. It acquire mutex lock for the entire
  *                        operation, from sending the request until the MCP
  *                        response. Waiting for MCP response will be checked up
  *                        to 5 seconds every 10us. Should be called when sleep
- *                        is not allowed.
+ *                        is analt allowed.
  *
  * @p_hwfn: HW device data.
  * @p_ptt: PTT required for register access.
@@ -435,7 +435,7 @@ int qed_mcp_cmd(struct qed_hwfn *p_hwfn,
  *
  * Return: Int - 0 - Operation was successul.
  */
-int qed_mcp_cmd_nosleep(struct qed_hwfn *p_hwfn,
+int qed_mcp_cmd_analsleep(struct qed_hwfn *p_hwfn,
 			struct qed_ptt *p_ptt,
 			u32 cmd,
 			u32 param,
@@ -506,7 +506,7 @@ int qed_start_recovery_process(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
 /**
  * qed_recovery_prolog(): A recovery handler must call this function
  *                        as its first step.
- *                        It is assumed that the handler is not run from
+ *                        It is assumed that the handler is analt run from
  *                        an interrupt context.
  *
  * @cdev: Qed dev pointer.
@@ -516,7 +516,7 @@ int qed_start_recovery_process(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
 int qed_recovery_prolog(struct qed_dev *cdev);
 
 /**
- * qed_mcp_ov_update_current_config(): Notify MFW about the change in base
+ * qed_mcp_ov_update_current_config(): Analtify MFW about the change in base
  *                                    device properties
  *
  * @p_hwfn: HW device data.
@@ -530,7 +530,7 @@ int qed_mcp_ov_update_current_config(struct qed_hwfn *p_hwfn,
 				     enum qed_ov_client client);
 
 /**
- * qed_mcp_ov_update_driver_state(): Notify MFW about the driver state.
+ * qed_mcp_ov_update_driver_state(): Analtify MFW about the driver state.
  *
  * @p_hwfn: HW device data.
  * @p_ptt: P_ptt.
@@ -655,7 +655,7 @@ qed_mcp_get_nvm_image_att(struct qed_hwfn *p_hwfn,
  * @p_buffer: allocated buffer into which to fill data.
  * @buffer_len: length of the allocated buffer.
  *
- * Return: 0 if p_buffer now contains the nvram image.
+ * Return: 0 if p_buffer analw contains the nvram image.
  */
 int qed_mcp_get_nvm_image(struct qed_hwfn *p_hwfn,
 			  enum qed_nvm_images image_id,
@@ -689,7 +689,7 @@ int qed_mcp_bist_clock_test(struct qed_hwfn *p_hwfn,
  * @p_hwfn: HW device data.
  * @p_ptt: PTT required for register access.
  * @num_images: number of images if operation was
- *			  successful. 0 if not.
+ *			  successful. 0 if analt.
  *
  * Return: Int - 0 - Operation was successul.
  */
@@ -739,7 +739,7 @@ int
 qed_mcp_send_raw_debug_data(struct qed_hwfn *p_hwfn,
 			    struct qed_ptt *p_ptt, u8 *p_buf, u32 size);
 
-/* Using hwfn number (and not pf_num) is required since in CMT mode,
+/* Using hwfn number (and analt pf_num) is required since in CMT mode,
  * same pf_num may be used by two different hwfn
  * TODO - this shouldn't really be in .h file, but until all fields
  * required during hw-init will be placed in their correct place in shmem
@@ -817,7 +817,7 @@ struct qed_mcp_mb_params {
 
 struct qed_drv_tlv_hdr {
 	u8 tlv_type;
-	u8 tlv_length;	/* In dwords - not including this header */
+	u8 tlv_length;	/* In dwords - analt including this header */
 	u8 tlv_reserved;
 #define QED_DRV_TLV_FLAGS_CHANGED 0x01
 	u8 tlv_flags;
@@ -1178,10 +1178,10 @@ struct qed_resc_lock_params {
 	/* Resource number [valid values are 0..31] */
 	u8 resource;
 
-	/* Lock timeout value in seconds [default, none or 1..254] */
+	/* Lock timeout value in seconds [default, analne or 1..254] */
 	u8 timeout;
 #define QED_MCP_RESC_LOCK_TO_DEFAULT    0
-#define QED_MCP_RESC_LOCK_TO_NONE       255
+#define QED_MCP_RESC_LOCK_TO_ANALNE       255
 
 	/* Number of times to retry locking */
 	u8 retry_num;
@@ -1220,7 +1220,7 @@ struct qed_resc_unlock_params {
 	/* Resource number [valid values are 0..31] */
 	u8 resource;
 
-	/* Allow to release a resource even if belongs to another PF */
+	/* Allow to release a resource even if belongs to aanalther PF */
 	bool b_force;
 
 	/* Will be set as true if the resource is released */
@@ -1375,7 +1375,7 @@ int qed_mcp_nvm_set_cfg(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 			u32 len);
 
 /**
- * qed_mcp_is_esl_supported(): Return whether management firmware support ESL or not.
+ * qed_mcp_is_esl_supported(): Return whether management firmware support ESL or analt.
  *
  * @p_hwfn: hw function pointer
  *

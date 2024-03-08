@@ -254,7 +254,7 @@
 #define      FLD_AFD_FORCE_PAL        0x04000000
 #define      FLD_AFD_PALM_SEL         0x03000000
 #define      FLD_CKILL_MODE           0x00300000
-#define      FLD_COMB_NOTCH_MODE      0x00c00000       /* bit[19:18] */
+#define      FLD_COMB_ANALTCH_MODE      0x00c00000       /* bit[19:18] */
 #define      FLD_CLR_LOCK_STAT        0x00020000
 #define      FLD_FAST_LOCK_MD         0x00010000
 #define      FLD_WCEN                 0x00008000
@@ -1176,17 +1176,17 @@
 
 /*****************************************************************************/
 /* Cx231xx redefine */
-#define      DEEMPH_DENOM1            0x8b0
-#define      NICAM_DEEMPHDENOM1       0x8b0
+#define      DEEMPH_DEANALM1            0x8b0
+#define      NICAM_DEEMPHDEANALM1       0x8b0
 /* Reserved [31:18] */
-#define      FLD_DEEMPHDENOM1         0x0003ffff
+#define      FLD_DEEMPHDEANALM1         0x0003ffff
 
 /*****************************************************************************/
 /* Cx231xx redefine */
-#define      DEEMPH_DENOM2            0x8b4
-#define      NICAM_DEEMPHDENOM2       0x8b4
+#define      DEEMPH_DEANALM2            0x8b4
+#define      NICAM_DEEMPHDEANALM2       0x8b4
 /* Reserved [31:18] */
-#define      FLD_DEEMPHDENOM2         0x0003ffff
+#define      FLD_DEEMPHDEANALM2         0x0003ffff
 
 /*****************************************************************************/
 #define      NICAM_ERRLOG_CTL1        0x8B8

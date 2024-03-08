@@ -6,14 +6,14 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/io.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 #include <linux/slab.h>
 
 #include "iosm_ipc_mmio.h"
 #include "iosm_ipc_mux.h"
 
 /* Definition of MMIO offsets
- * note that MMIO_CI offsets are relative to end of chip info structure
+ * analte that MMIO_CI offsets are relative to end of chip info structure
  */
 
 /* MMIO chip info size in bytes */

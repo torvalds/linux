@@ -75,7 +75,7 @@ static ssize_t smo8800_misc_read(struct file *file, char __user *buf,
 	return retval;
 }
 
-static int smo8800_misc_open(struct inode *inode, struct file *file)
+static int smo8800_misc_open(struct ianalde *ianalde, struct file *file)
 {
 	struct smo8800_device *smo8800 = container_of(file->private_data,
 					 struct smo8800_device, miscdev);
@@ -87,7 +87,7 @@ static int smo8800_misc_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int smo8800_misc_release(struct inode *inode, struct file *file)
+static int smo8800_misc_release(struct ianalde *ianalde, struct file *file)
 {
 	struct smo8800_device *smo8800 = container_of(file->private_data,
 					 struct smo8800_device, miscdev);
@@ -111,11 +111,11 @@ static int smo8800_probe(struct platform_device *device)
 	smo8800 = devm_kzalloc(&device->dev, sizeof(*smo8800), GFP_KERNEL);
 	if (!smo8800) {
 		dev_err(&device->dev, "failed to allocate device data\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	smo8800->dev = &device->dev;
-	smo8800->miscdev.minor = MISC_DYNAMIC_MINOR;
+	smo8800->miscdev.mianalr = MISC_DYNAMIC_MIANALR;
 	smo8800->miscdev.name = "freefall";
 	smo8800->miscdev.fops = &smo8800_misc_fops;
 
@@ -163,7 +163,7 @@ static void smo8800_remove(struct platform_device *device)
 	dev_dbg(&device->dev, "device /dev/freefall unregistered\n");
 }
 
-/* NOTE: Keep this list in sync with drivers/i2c/busses/i2c-i801.c */
+/* ANALTE: Keep this list in sync with drivers/i2c/busses/i2c-i801.c */
 static const struct acpi_device_id smo8800_ids[] = {
 	{ "SMO8800", 0 },
 	{ "SMO8801", 0 },

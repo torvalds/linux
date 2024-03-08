@@ -91,7 +91,7 @@
 #define ML26124_ALC_HOLD_TIM		0xb6
 #define ML26124_ALC_TARGET_LEV		0xb8
 #define ML26124_ALC_MAXMIN_GAIN		0xba
-#define ML26124_NOIS_GATE_THRSH		0xbc
+#define ML26124_ANALIS_GATE_THRSH		0xbc
 #define ML26124_ALC_ZERO_TIMOUT		0xbe
 
 /* Playback Limiter Control Register */

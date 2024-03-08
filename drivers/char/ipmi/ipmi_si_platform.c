@@ -117,7 +117,7 @@ ipmi_get_info_from_resources(struct platform_device *pdev,
 
 	res = platform_get_mem_or_io(pdev, 0);
 	if (!res) {
-		dev_err(&pdev->dev, "no I/O or memory address\n");
+		dev_err(&pdev->dev, "anal I/O or memory address\n");
 		return NULL;
 	}
 	ipmi_set_addr_data_and_space(res, io);
@@ -146,15 +146,15 @@ static int platform_ipmi_probe(struct platform_device *pdev)
 
 	if (addr_source == SI_SMBIOS) {
 		if (!si_trydmi)
-			return -ENODEV;
+			return -EANALDEV;
 	} else if (addr_source != SI_HARDCODED) {
 		if (!si_tryplatform)
-			return -ENODEV;
+			return -EANALDEV;
 	}
 
 	rv = device_property_read_u8(&pdev->dev, "ipmi-type", &type);
 	if (rv)
-		return -ENODEV;
+		return -EANALDEV;
 
 	memset(&io, 0, sizeof(io));
 	io.addr_source = addr_source;
@@ -168,7 +168,7 @@ static int platform_ipmi_probe(struct platform_device *pdev)
 		io.si_type = type;
 		break;
 	case SI_TYPE_INVALID: /* User disabled this in hardcode. */
-		return -ENODEV;
+		return -EANALDEV;
 	default:
 		dev_err(&pdev->dev, "ipmi-type property is invalid\n");
 		return -EINVAL;
@@ -228,12 +228,12 @@ static int of_ipmi_probe(struct platform_device *pdev)
 	struct si_sm_io io;
 	struct resource resource;
 	const __be32 *regsize, *regspacing, *regshift;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	int ret;
 	int proplen;
 
 	if (!si_tryopenfirmware)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dev_info(&pdev->dev, "probing via device tree\n");
 
@@ -275,7 +275,7 @@ static int of_ipmi_probe(struct platform_device *pdev)
 	io.regspacing	= regspacing ? be32_to_cpup(regspacing) : DEFAULT_REGSPACING;
 	io.regshift	= regshift ? be32_to_cpup(regshift) : 0;
 
-	io.irq		= irq_of_parse_and_map(pdev->dev.of_node, 0);
+	io.irq		= irq_of_parse_and_map(pdev->dev.of_analde, 0);
 	io.dev		= &pdev->dev;
 
 	dev_dbg(&pdev->dev, "addr 0x%lx regsize %d spacing %d irq %d\n",
@@ -287,7 +287,7 @@ static int of_ipmi_probe(struct platform_device *pdev)
 #define of_ipmi_match NULL
 static int of_ipmi_probe(struct platform_device *dev)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 #endif
 
@@ -314,11 +314,11 @@ static int acpi_ipmi_probe(struct platform_device *pdev)
 	struct resource *res;
 
 	if (!si_tryacpi)
-		return -ENODEV;
+		return -EANALDEV;
 
 	handle = ACPI_HANDLE(dev);
 	if (!handle)
-		return -ENODEV;
+		return -EANALDEV;
 
 	memset(&io, 0, sizeof(io));
 	io.addr_source = SI_ACPI;
@@ -329,7 +329,7 @@ static int acpi_ipmi_probe(struct platform_device *pdev)
 	/* _IFT tells us the interface type: KCS, BT, etc */
 	status = acpi_evaluate_integer(handle, "_IFT", NULL, &tmp);
 	if (ACPI_FAILURE(status)) {
-		dev_err(dev, "Could not find ACPI IPMI interface type\n");
+		dev_err(dev, "Could analt find ACPI IPMI interface type\n");
 		return -EINVAL;
 	}
 
@@ -343,10 +343,10 @@ static int acpi_ipmi_probe(struct platform_device *pdev)
 	case 3:
 		io.si_type = SI_BT;
 		break;
-	case 4: /* SSIF, just ignore */
-		return -ENODEV;
+	case 4: /* SSIF, just iganalre */
+		return -EANALDEV;
 	default:
-		dev_info(dev, "unknown IPMI type %lld\n", tmp);
+		dev_info(dev, "unkanalwn IPMI type %lld\n", tmp);
 		return -EINVAL;
 	}
 
@@ -377,7 +377,7 @@ static int acpi_ipmi_probe(struct platform_device *pdev)
 	dev_info(dev, "%pR regsize %d spacing %d irq %d\n",
 		 res, io.regsize, io.regspacing, io.irq);
 
-	request_module_nowait("acpi_ipmi");
+	request_module_analwait("acpi_ipmi");
 
 	return ipmi_si_add_smi(&io);
 }
@@ -390,13 +390,13 @@ MODULE_DEVICE_TABLE(acpi, acpi_ipmi_match);
 #else
 static int acpi_ipmi_probe(struct platform_device *dev)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 #endif
 
 static int ipmi_probe(struct platform_device *pdev)
 {
-	if (pdev->dev.of_node && of_ipmi_probe(pdev) == 0)
+	if (pdev->dev.of_analde && of_ipmi_probe(pdev) == 0)
 		return 0;
 
 	if (acpi_ipmi_probe(pdev) == 0)

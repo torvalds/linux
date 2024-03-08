@@ -19,7 +19,7 @@
 
 #define SOCFPGA_NR_BANKS	8
 
-static int a10_reset_init(struct device_node *np)
+static int a10_reset_init(struct device_analde *np)
 {
 	struct reset_simple_data *data;
 	struct resource res;
@@ -29,7 +29,7 @@ static int a10_reset_init(struct device_node *np)
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = of_address_to_resource(np, 0, &res);
 	if (ret)
@@ -43,7 +43,7 @@ static int a10_reset_init(struct device_node *np)
 
 	data->membase = ioremap(res.start, size);
 	if (!data->membase) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto release_region;
 	}
 
@@ -56,7 +56,7 @@ static int a10_reset_init(struct device_node *np)
 	data->rcdev.owner = THIS_MODULE;
 	data->rcdev.nr_resets = SOCFPGA_NR_BANKS * 32;
 	data->rcdev.ops = &reset_simple_ops;
-	data->rcdev.of_node = np;
+	data->rcdev.of_analde = np;
 	data->status_active_low = true;
 
 	ret = reset_controller_register(&data->rcdev);
@@ -87,9 +87,9 @@ static const struct of_device_id socfpga_early_reset_dt_ids[] __initconst = {
 
 void __init socfpga_reset_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
-	for_each_matching_node(np, socfpga_early_reset_dt_ids)
+	for_each_matching_analde(np, socfpga_early_reset_dt_ids)
 		a10_reset_init(np);
 }
 

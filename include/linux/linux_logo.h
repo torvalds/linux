@@ -18,7 +18,7 @@
 #include <linux/init.h>
 
 
-#define LINUX_LOGO_MONO		1	/* monochrome black/white */
+#define LINUX_LOGO_MOANAL		1	/* moanalchrome black/white */
 #define LINUX_LOGO_VGA16	2	/* 16 colors VGA text palette */
 #define LINUX_LOGO_CLUT224	3	/* 224 colors */
 #define LINUX_LOGO_GRAY256	4	/* 256 levels grayscale */
@@ -33,7 +33,7 @@ struct linux_logo {
 	const unsigned char *data;
 };
 
-extern const struct linux_logo logo_linux_mono;
+extern const struct linux_logo logo_linux_moanal;
 extern const struct linux_logo logo_linux_vga16;
 extern const struct linux_logo logo_linux_clut224;
 extern const struct linux_logo logo_dec_clut224;
@@ -41,7 +41,7 @@ extern const struct linux_logo logo_mac_clut224;
 extern const struct linux_logo logo_parisc_clut224;
 extern const struct linux_logo logo_sgi_clut224;
 extern const struct linux_logo logo_sun_clut224;
-extern const struct linux_logo logo_superh_mono;
+extern const struct linux_logo logo_superh_moanal;
 extern const struct linux_logo logo_superh_vga16;
 extern const struct linux_logo logo_superh_clut224;
 extern const struct linux_logo logo_spe_clut224;

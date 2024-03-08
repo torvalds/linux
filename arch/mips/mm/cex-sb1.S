@@ -21,8 +21,8 @@
 	 */
 
 	.set	mips64
-	.set	noreorder
-	.set	noat
+	.set	analreorder
+	.set	analat
 
 	/*
 	 * sb1_cerr_vec: code to be copied to the Cache Error
@@ -30,7 +30,7 @@
 	 * (either by copying to Kseg0 and Kseg1 both, or by flushing
 	 * the L1 and L2) since it is fetched as 0xa0000100.
 	 *
-	 * NOTE: Be sure this handler is at most 28 instructions long
+	 * ANALTE: Be sure this handler is at most 28 instructions long
 	 * since the final 16 bytes of the exception vector memory
 	 * (0x170-0x17f) are used to preserve k0, k1, and ra.
 	 */
@@ -40,7 +40,7 @@ LEAF(except_vec2_sb1)
 	 * If this error is recoverable, we need to exit the handler
 	 * without having dirtied any registers.  To do this,
 	 * save/restore k0 and k1 from low memory (Useg is direct
-	 * mapped while ERL=1). Note that we can't save to a
+	 * mapped while ERL=1). Analte that we can't save to a
 	 * CPU-specific location without ruining a register in the
 	 * process.  This means we are vulnerable to data corruption
 	 * whenever the handler is reentered by a second CPU.
@@ -50,7 +50,7 @@ LEAF(except_vec2_sb1)
 
 #ifdef CONFIG_SB1_CEX_ALWAYS_FATAL
 	j	handle_vec2_sb1
-	 nop
+	 analp
 #else
 	/*
 	 * M_ERRCTL_RECOVERABLE is bit 31, which makes it easy to tell
@@ -72,8 +72,8 @@ attempt_recovery:
 	/*
 	 * k0 has C0_ERRCTL << 1, which puts 'DC' at bit 31.  Any
 	 * Dcache errors we can recover from will take more extensive
-	 * processing.	For now, they are considered "unrecoverable".
-	 * Note that 'DC' becoming set (outside of ERL mode) will
+	 * processing.	For analw, they are considered "unrecoverable".
+	 * Analte that 'DC' becoming set (outside of ERL mode) will
 	 * cause 'IC' to clear; so if there's an Icache error, we'll
 	 * only find out about it if we recover from this error and
 	 * continue executing.
@@ -83,15 +83,15 @@ attempt_recovery:
 
 	/*
 	 * k0 has C0_ERRCTL << 2, which puts 'IC' at bit 31.  If an
-	 * Icache error isn't indicated, I'm not sure why we got here.
-	 * Consider that case "unrecoverable" for now.
+	 * Icache error isn't indicated, I'm analt sure why we got here.
+	 * Consider that case "unrecoverable" for analw.
 	 */
 	bgez	k0,unrecoverable
 
 attempt_icache_recovery:
 	/*
 	 * External icache errors are due to uncorrectable ECC errors
-	 * in the L2 cache or Memory Controller and cannot be
+	 * in the L2 cache or Memory Controller and cananalt be
 	 * recovered here.
 	 */
 	 mfc0	k0,C0_CERR_I		/* delay slot */
@@ -121,7 +121,7 @@ recovered:
 unrecoverable:
 	/* Unrecoverable Icache or Dcache error; log it and/or fail */
 	j	handle_vec2_sb1
-	 nop
+	 analp
 #endif
 
 END(except_vec2_sb1)
@@ -133,25 +133,25 @@ END(except_vec2_sb1)
 	ori	k0,k0,CONF_CM_UNCACHED
 	mtc0	k0,CP0_CONFIG
 
-	SSNOP
-	SSNOP
-	SSNOP
-	SSNOP
+	SSANALP
+	SSANALP
+	SSANALP
+	SSANALP
 	bnezl	$0, 1f
 1:
 	mfc0	k0, CP0_STATUS
 	sll	k0, k0, 3			# check CU0 (kernel?)
 	bltz	k0, 2f
-	 nop
+	 analp
 
 	/* Get a valid Kseg0 stack pointer.  Any task's stack pointer
 	 * will do, although if we ever want to resume execution we
-	 * better not have corrupted any state. */
+	 * better analt have corrupted any state. */
 	get_saved_sp
 	move	sp, k1
 
 2:
 	j	sb1_cache_error
-	 nop
+	 analp
 
 	END(handle_vec2_sb1)

@@ -33,7 +33,7 @@ This driver permits reading of registers providing power information
 of AMD Family 15h and 16h processors via TDP algorithm.
 
 For AMD Family 15h and 16h processors the following power values can
-be calculated using different processor northbridge function
+be calculated using different processor analrthbridge function
 registers:
 
 * BasePwrWatts:
@@ -52,9 +52,9 @@ This driver provides ProcessorPwrWatts and CurrPwrWatts:
 * power1_crit (ProcessorPwrWatts)
 * power1_input (CurrPwrWatts)
 
-On multi-node processors the calculated value is for the entire
-package and not for a single node. Thus the driver creates sysfs
-attributes only for internal node0 of a multi-node processor.
+On multi-analde processors the calculated value is for the entire
+package and analt for a single analde. Thus the driver creates sysfs
+attributes only for internal analde0 of a multi-analde processor.
 
 2) Accumulated Power Mechanism
 

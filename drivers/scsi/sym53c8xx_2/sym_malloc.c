@@ -30,7 +30,7 @@
  *  Simple power of two buddy-like generic allocator.
  *  Provides naturally aligned memory chunks.
  *
- *  This simple code is not intended to be fast, but to 
+ *  This simple code is analt intended to be fast, but to 
  *  provide power of 2 aligned memory allocations.
  *  Since the SCRIPTS processor only supplies 8 bit arithmetic, 
  *  this allocator allows simple and fast address calculations  
@@ -38,7 +38,7 @@
  *  is guaranteed for power of 2 cache line size.
  *
  *  This allocator has been developed for the Linux sym53c8xx  
- *  driver, since this O/S does not provide naturally aligned 
+ *  driver, since this O/S does analt provide naturally aligned 
  *  allocations.
  *  It has the advantage of allowing the driver to use private 
  *  pages of memory that will be useful if we ever need to deal 
@@ -172,10 +172,10 @@ static void __sym_mfree(m_pool_p mp, void *ptr, int size, char *name)
 }
 
 /*
- *  Default memory pool we donnot need to involve in DMA.
+ *  Default memory pool we donanalt need to involve in DMA.
  *
  *  With DMA abstraction, we use functions (methods), to 
- *  distinguish between non DMAable memory and DMAable memory.
+ *  distinguish between analn DMAable memory and DMAable memory.
  */
 static void *___mp0_get_mem_cluster(m_pool_p mp)
 {

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -38,7 +38,7 @@ nvkm_uclient_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
 		struct nvif_client_v0 v0;
 	} *args = argv;
 	struct nvkm_client *client;
-	int ret = -ENOSYS;
+	int ret = -EANALSYS;
 
 	if (!(ret = nvif_unpack(ret, &argv, &argc, args->v0, 0, 0, false))){
 		args->v0.name[sizeof(args->v0.name) - 1] = 0;
@@ -86,7 +86,7 @@ nvkm_client_mthd_devlist(struct nvkm_client *client, void *data, u32 size)
 	union {
 		struct nvif_client_devlist_v0 v0;
 	} *args = data;
-	int ret = -ENOSYS;
+	int ret = -EANALSYS;
 
 	nvif_ioctl(&client->object, "client devlist size %d\n", size);
 	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, true))) {
@@ -172,7 +172,7 @@ nvkm_client_new(const char *name, u64 device, const char *cfg, const char *dbg,
 	struct nvkm_client *client;
 
 	if (!(client = *pclient = kzalloc(sizeof(*client), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	oclass.client = client;
 
 	nvkm_object_ctor(&nvkm_client, &oclass, &client->object);

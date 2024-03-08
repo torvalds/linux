@@ -5,7 +5,7 @@
 // Copyright: (C) 2013 Petr Strnad.
 // URL: https://coccinelle.gitlabpages.inria.fr/website
 // Keywords: pci_free_consistent, pci_alloc_consistent
-// Options: --no-includes --include-headers
+// Options: --anal-includes --include-headers
 
 virtual report
 virtual org

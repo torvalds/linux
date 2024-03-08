@@ -79,7 +79,7 @@ void xcv_init_hw(void)
 	msleep(1);
 
 	/* Configure DLL - enable or bypass
-	 * TX no bypass, RX bypass
+	 * TX anal bypass, RX bypass
 	 */
 	cfg = readq_relaxed(xcv->reg_base + XCV_DLL_CTL);
 	cfg &= ~0xFF03;
@@ -113,7 +113,7 @@ void xcv_setup_link(bool link_up, int link_speed)
 	int speed = 2;
 
 	if (!xcv) {
-		pr_err("XCV init not done, probe may have failed\n");
+		pr_err("XCV init analt done, probe may have failed\n");
 		return;
 	}
 
@@ -158,7 +158,7 @@ static int xcv_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	xcv = devm_kzalloc(dev, sizeof(struct xcv), GFP_KERNEL);
 	if (!xcv)
-		return -ENOMEM;
+		return -EANALMEM;
 	xcv->pdev = pdev;
 
 	pci_set_drvdata(pdev, xcv);
@@ -178,8 +178,8 @@ static int xcv_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* MAP configuration registers */
 	xcv->reg_base = pcim_iomap(pdev, PCI_CFG_REG_BAR_NUM, 0);
 	if (!xcv->reg_base) {
-		dev_err(dev, "XCV: Cannot map CSR memory space, aborting\n");
-		err = -ENOMEM;
+		dev_err(dev, "XCV: Cananalt map CSR memory space, aborting\n");
+		err = -EANALMEM;
 		goto err_release_regions;
 	}
 

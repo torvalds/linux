@@ -16,7 +16,7 @@ enum iavf_adv_rss_state_t {
 };
 
 enum iavf_adv_rss_flow_seg_hdr {
-	IAVF_ADV_RSS_FLOW_SEG_HDR_NONE	= 0x00000000,
+	IAVF_ADV_RSS_FLOW_SEG_HDR_ANALNE	= 0x00000000,
 	IAVF_ADV_RSS_FLOW_SEG_HDR_IPV4	= 0x00000001,
 	IAVF_ADV_RSS_FLOW_SEG_HDR_IPV6	= 0x00000002,
 	IAVF_ADV_RSS_FLOW_SEG_HDR_TCP	= 0x00000004,
@@ -47,7 +47,7 @@ enum iavf_adv_rss_flow_field {
 	IAVF_ADV_RSS_FLOW_FIELD_IDX_SCTP_SRC_PORT,
 	IAVF_ADV_RSS_FLOW_FIELD_IDX_SCTP_DST_PORT,
 
-	/* The total number of enums must not exceed 64 */
+	/* The total number of enums must analt exceed 64 */
 	IAVF_ADV_RSS_FLOW_FIELD_IDX_MAX
 };
 

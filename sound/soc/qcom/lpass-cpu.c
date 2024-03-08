@@ -49,17 +49,17 @@ static int lpass_cpu_init_i2sctl_bitfields(struct device *dev,
 	i2sctl->loopback = devm_regmap_field_alloc(dev, map, v->loopback);
 	i2sctl->spken = devm_regmap_field_alloc(dev, map, v->spken);
 	i2sctl->spkmode = devm_regmap_field_alloc(dev, map, v->spkmode);
-	i2sctl->spkmono = devm_regmap_field_alloc(dev, map, v->spkmono);
+	i2sctl->spkmoanal = devm_regmap_field_alloc(dev, map, v->spkmoanal);
 	i2sctl->micen = devm_regmap_field_alloc(dev, map, v->micen);
 	i2sctl->micmode = devm_regmap_field_alloc(dev, map, v->micmode);
-	i2sctl->micmono = devm_regmap_field_alloc(dev, map, v->micmono);
+	i2sctl->micmoanal = devm_regmap_field_alloc(dev, map, v->micmoanal);
 	i2sctl->wssrc = devm_regmap_field_alloc(dev, map, v->wssrc);
 	i2sctl->bitwidth = devm_regmap_field_alloc(dev, map, v->bitwidth);
 
 	if (IS_ERR(i2sctl->loopback) || IS_ERR(i2sctl->spken) ||
-	    IS_ERR(i2sctl->spkmode) || IS_ERR(i2sctl->spkmono) ||
+	    IS_ERR(i2sctl->spkmode) || IS_ERR(i2sctl->spkmoanal) ||
 	    IS_ERR(i2sctl->micen) || IS_ERR(i2sctl->micmode) ||
-	    IS_ERR(i2sctl->micmono) || IS_ERR(i2sctl->wssrc) ||
+	    IS_ERR(i2sctl->micmoanal) || IS_ERR(i2sctl->wssrc) ||
 	    IS_ERR(i2sctl->bitwidth))
 		return -EINVAL;
 
@@ -109,8 +109,8 @@ static void lpass_cpu_daiops_shutdown(struct snd_pcm_substream *substream,
 
 	clk_disable_unprepare(drvdata->mi2s_osr_clk[dai->driver->id]);
 	/*
-	 * Ensure LRCLK is disabled even in device node validation.
-	 * Will not impact if disabled in lpass_cpu_daiops_trigger()
+	 * Ensure LRCLK is disabled even in device analde validation.
+	 * Will analt impact if disabled in lpass_cpu_daiops_trigger()
 	 * suspend.
 	 */
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
@@ -119,7 +119,7 @@ static void lpass_cpu_daiops_shutdown(struct snd_pcm_substream *substream,
 		regmap_fields_write(i2sctl->micen, id, LPAIF_I2SCTL_MICEN_DISABLE);
 
 	/*
-	 * BCLK may not be enabled if lpass_cpu_daiops_prepare is called before
+	 * BCLK may analt be enabled if lpass_cpu_daiops_prepare is called before
 	 * lpass_cpu_daiops_shutdown. It's paired with the clk_enable in
 	 * lpass_cpu_daiops_prepare.
 	 */
@@ -191,7 +191,7 @@ static int lpass_cpu_daiops_hw_params(struct snd_pcm_substream *substream,
 		mode = drvdata->mi2s_capture_sd_mode[id];
 
 	if (!mode) {
-		dev_err(dai->dev, "no line is assigned\n");
+		dev_err(dai->dev, "anal line is assigned\n");
 		return -EINVAL;
 	}
 
@@ -212,7 +212,7 @@ static int lpass_cpu_daiops_hw_params(struct snd_pcm_substream *substream,
 		break;
 	case 4:
 		if (mode < LPAIF_I2SCTL_MODE_QUAD01) {
-			dev_err(dai->dev, "cannot configure 4 channels with mode %d\n",
+			dev_err(dai->dev, "cananalt configure 4 channels with mode %d\n",
 				mode);
 			return -EINVAL;
 		}
@@ -226,7 +226,7 @@ static int lpass_cpu_daiops_hw_params(struct snd_pcm_substream *substream,
 		break;
 	case 6:
 		if (mode < LPAIF_I2SCTL_MODE_6CH) {
-			dev_err(dai->dev, "cannot configure 6 channels with mode %d\n",
+			dev_err(dai->dev, "cananalt configure 6 channels with mode %d\n",
 				mode);
 			return -EINVAL;
 		}
@@ -239,7 +239,7 @@ static int lpass_cpu_daiops_hw_params(struct snd_pcm_substream *substream,
 		break;
 	case 8:
 		if (mode < LPAIF_I2SCTL_MODE_8CH) {
-			dev_err(dai->dev, "cannot configure 8 channels with mode %d\n",
+			dev_err(dai->dev, "cananalt configure 8 channels with mode %d\n",
 				mode);
 			return -EINVAL;
 		}
@@ -258,11 +258,11 @@ static int lpass_cpu_daiops_hw_params(struct snd_pcm_substream *substream,
 			return ret;
 		}
 		if (channels >= 2)
-			ret = regmap_fields_write(i2sctl->spkmono, id,
-						 LPAIF_I2SCTL_SPKMONO_STEREO);
+			ret = regmap_fields_write(i2sctl->spkmoanal, id,
+						 LPAIF_I2SCTL_SPKMOANAL_STEREO);
 		else
-			ret = regmap_fields_write(i2sctl->spkmono, id,
-						 LPAIF_I2SCTL_SPKMONO_MONO);
+			ret = regmap_fields_write(i2sctl->spkmoanal, id,
+						 LPAIF_I2SCTL_SPKMOANAL_MOANAL);
 	} else {
 		ret = regmap_fields_write(i2sctl->micmode, id,
 					 LPAIF_I2SCTL_MICMODE(mode));
@@ -272,11 +272,11 @@ static int lpass_cpu_daiops_hw_params(struct snd_pcm_substream *substream,
 			return ret;
 		}
 		if (channels >= 2)
-			ret = regmap_fields_write(i2sctl->micmono, id,
-						 LPAIF_I2SCTL_MICMONO_STEREO);
+			ret = regmap_fields_write(i2sctl->micmoanal, id,
+						 LPAIF_I2SCTL_MICMOANAL_STEREO);
 		else
-			ret = regmap_fields_write(i2sctl->micmono, id,
-						 LPAIF_I2SCTL_MICMONO_MONO);
+			ret = regmap_fields_write(i2sctl->micmoanal, id,
+						 LPAIF_I2SCTL_MICMOANAL_MOANAL);
 	}
 
 	if (ret) {
@@ -310,7 +310,7 @@ static int lpass_cpu_daiops_trigger(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		/*
 		 * Ensure lpass BCLK/LRCLK is enabled during
-		 * device resume as lpass_cpu_daiops_prepare() is not called
+		 * device resume as lpass_cpu_daiops_prepare() is analt called
 		 * after the device resumes. We don't check mi2s_was_prepared before
 		 * enable/disable BCLK in trigger events because:
 		 *  1. These trigger events are paired, so the BCLK
@@ -376,7 +376,7 @@ static int lpass_cpu_daiops_prepare(struct snd_pcm_substream *substream,
 	 * Ensure lpass BCLK/LRCLK is enabled bit before playback/capture
 	 * data flow starts. This allows other codec to have some delay before
 	 * the data flow.
-	 * (ex: to drop start up pop noise before capture starts).
+	 * (ex: to drop start up pop analise before capture starts).
 	 */
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		ret = regmap_fields_write(i2sctl->spken, id, LPAIF_I2SCTL_SPKEN_ENABLE);
@@ -628,7 +628,7 @@ static int lpass_hdmi_init_bitfields(struct device *dev, struct regmap *map)
 
 	tx_ctl = devm_kzalloc(dev, sizeof(*tx_ctl), GFP_KERNEL);
 	if (!tx_ctl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	QCOM_REGMAP_FIELD_ALLOC(dev, map, v->soft_reset, tx_ctl->soft_reset);
 	QCOM_REGMAP_FIELD_ALLOC(dev, map, v->force_reset, tx_ctl->force_reset);
@@ -639,7 +639,7 @@ static int lpass_hdmi_init_bitfields(struct device *dev, struct regmap *map)
 
 	vbit_ctl = devm_kzalloc(dev, sizeof(*vbit_ctl), GFP_KERNEL);
 	if (!vbit_ctl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	QCOM_REGMAP_FIELD_ALLOC(dev, map, v->replace_vbit, vbit_ctl->replace_vbit);
 	QCOM_REGMAP_FIELD_ALLOC(dev, map, v->vbit_stream, vbit_ctl->vbit_stream);
@@ -651,7 +651,7 @@ static int lpass_hdmi_init_bitfields(struct device *dev, struct regmap *map)
 
 	meta_ctl = devm_kzalloc(dev, sizeof(*meta_ctl), GFP_KERNEL);
 	if (!meta_ctl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rval = devm_regmap_field_bulk_alloc(dev, map, &meta_ctl->mute, &v->mute, 7);
 	if (rval)
@@ -660,7 +660,7 @@ static int lpass_hdmi_init_bitfields(struct device *dev, struct regmap *map)
 
 	sstream_ctl = devm_kzalloc(dev, sizeof(*sstream_ctl), GFP_KERNEL);
 	if (!sstream_ctl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rval = devm_regmap_field_bulk_alloc(dev, map, &sstream_ctl->sstream_en, &v->sstream_en, 9);
 	if (rval)
@@ -677,7 +677,7 @@ static int lpass_hdmi_init_bitfields(struct device *dev, struct regmap *map)
 
 		tx_dmactl = devm_kzalloc(dev, sizeof(*tx_dmactl), GFP_KERNEL);
 		if (!tx_dmactl)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		QCOM_REGMAP_FIELD_ALLOC(dev, map, v->use_hw_chs, tx_dmactl->use_hw_chs);
 		QCOM_REGMAP_FIELD_ALLOC(dev, map, v->use_hw_usr, tx_dmactl->use_hw_usr);
@@ -1005,17 +1005,17 @@ static struct regmap_config lpass_va_regmap_config = {
 };
 
 static unsigned int of_lpass_cpu_parse_sd_lines(struct device *dev,
-						struct device_node *node,
+						struct device_analde *analde,
 						const char *name)
 {
 	unsigned int lines[LPASS_CPU_MAX_MI2S_LINES];
 	unsigned int sd_line_mask = 0;
 	int num_lines, i;
 
-	num_lines = of_property_read_variable_u32_array(node, name, lines, 0,
+	num_lines = of_property_read_variable_u32_array(analde, name, lines, 0,
 							LPASS_CPU_MAX_MI2S_LINES);
 	if (num_lines < 0)
-		return LPAIF_I2SCTL_MODE_NONE;
+		return LPAIF_I2SCTL_MODE_ANALNE;
 
 	for (i = 0; i < num_lines; i++)
 		sd_line_mask |= BIT(lines[i]);
@@ -1039,14 +1039,14 @@ static unsigned int of_lpass_cpu_parse_sd_lines(struct device *dev,
 		return LPAIF_I2SCTL_MODE_8CH;
 	default:
 		dev_err(dev, "Unsupported SD line mask: %#x\n", sd_line_mask);
-		return LPAIF_I2SCTL_MODE_NONE;
+		return LPAIF_I2SCTL_MODE_ANALNE;
 	}
 }
 
 static void of_lpass_cpu_parse_dai_data(struct device *dev,
 					struct lpass_data *data)
 {
-	struct device_node *node;
+	struct device_analde *analde;
 	int ret, i, id;
 
 	/* Allow all channels by default for backwards compatibility */
@@ -1056,10 +1056,10 @@ static void of_lpass_cpu_parse_dai_data(struct device *dev,
 		data->mi2s_capture_sd_mode[id] = LPAIF_I2SCTL_MODE_8CH;
 	}
 
-	for_each_child_of_node(dev->of_node, node) {
-		ret = of_property_read_u32(node, "reg", &id);
+	for_each_child_of_analde(dev->of_analde, analde) {
+		ret = of_property_read_u32(analde, "reg", &id);
 		if (ret || id < 0) {
-			dev_err(dev, "valid dai id not found: %d\n", ret);
+			dev_err(dev, "valid dai id analt found: %d\n", ret);
 			continue;
 		}
 		if (id == LPASS_DP_RX) {
@@ -1068,10 +1068,10 @@ static void of_lpass_cpu_parse_dai_data(struct device *dev,
 			data->codec_dma_enable = 1;
 		} else {
 			data->mi2s_playback_sd_mode[id] =
-				of_lpass_cpu_parse_sd_lines(dev, node,
+				of_lpass_cpu_parse_sd_lines(dev, analde,
 							    "qcom,playback-sd-lines");
 			data->mi2s_capture_sd_mode[id] =
-				of_lpass_cpu_parse_sd_lines(dev, node,
+				of_lpass_cpu_parse_sd_lines(dev, analde,
 						    "qcom,capture-sd-lines");
 		}
 	}
@@ -1102,29 +1102,29 @@ static int of_lpass_cdc_dma_clks_parse(struct device *dev,
 int asoc_qcom_lpass_cpu_platform_probe(struct platform_device *pdev)
 {
 	struct lpass_data *drvdata;
-	struct device_node *dsp_of_node;
+	struct device_analde *dsp_of_analde;
 	struct resource *res;
 	const struct lpass_variant *variant;
 	struct device *dev = &pdev->dev;
 	int ret, i, dai_id;
 
-	dsp_of_node = of_parse_phandle(pdev->dev.of_node, "qcom,adsp", 0);
-	if (dsp_of_node) {
+	dsp_of_analde = of_parse_phandle(pdev->dev.of_analde, "qcom,adsp", 0);
+	if (dsp_of_analde) {
 		dev_err(dev, "DSP exists and holds audio resources\n");
-		of_node_put(dsp_of_node);
+		of_analde_put(dsp_of_analde);
 		return -EBUSY;
 	}
 
 	drvdata = devm_kzalloc(dev, sizeof(struct lpass_data), GFP_KERNEL);
 	if (!drvdata)
-		return -ENOMEM;
+		return -EANALMEM;
 	platform_set_drvdata(pdev, drvdata);
 
 	variant = device_get_match_data(dev);
 	if (!variant)
 		return -EINVAL;
 
-	if (of_device_is_compatible(dev->of_node, "qcom,lpass-cpu-apq8016"))
+	if (of_device_is_compatible(dev->of_analde, "qcom,lpass-cpu-apq8016"))
 		dev_warn(dev, "qcom,lpass-cpu-apq8016 compatible is deprecated\n");
 
 	drvdata->variant = variant;

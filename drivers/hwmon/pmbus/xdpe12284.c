@@ -2,7 +2,7 @@
 /*
  * Hardware monitoring driver for Infineon Multi-phase Digital VR Controllers
  *
- * Copyright (c) 2020 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2020 Mellaanalx Techanallogies. All rights reserved.
  */
 
 #include <linux/err.h>
@@ -68,7 +68,7 @@ static int xdpe122_read_word_data(struct i2c_client *client, int page,
 			return -EINVAL;
 		}
 	default:
-		return -ENODATA;
+		return -EANALDATA;
 	}
 
 	return 0;
@@ -91,7 +91,7 @@ static int xdpe122_identify(struct i2c_client *client,
 			info->read_word_data = xdpe122_read_word_data;
 			break;
 		default:
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 
@@ -158,7 +158,7 @@ static int xdpe122_probe(struct i2c_client *client)
 	info = devm_kmemdup(&client->dev, &xdpe122_info, sizeof(*info),
 			    GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return pmbus_do_probe(client, info);
 }
@@ -191,7 +191,7 @@ static struct i2c_driver xdpe122_driver = {
 
 module_i2c_driver(xdpe122_driver);
 
-MODULE_AUTHOR("Vadim Pasternak <vadimp@mellanox.com>");
+MODULE_AUTHOR("Vadim Pasternak <vadimp@mellaanalx.com>");
 MODULE_DESCRIPTION("PMBus driver for Infineon XDPE122 family");
 MODULE_LICENSE("GPL");
 MODULE_IMPORT_NS(PMBUS);

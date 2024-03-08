@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -68,15 +68,15 @@ static inline unsigned long long complete_integer_division_u64(
 #define GET_FRACTIONAL_PART(x) \
 	(FRACTIONAL_PART_MASK & (x))
 
-struct fixed31_32 dc_fixpt_from_fraction(long long numerator, long long denominator)
+struct fixed31_32 dc_fixpt_from_fraction(long long numerator, long long deanalminator)
 {
 	struct fixed31_32 res;
 
 	bool arg1_negative = numerator < 0;
-	bool arg2_negative = denominator < 0;
+	bool arg2_negative = deanalminator < 0;
 
 	unsigned long long arg1_value = arg1_negative ? -numerator : numerator;
-	unsigned long long arg2_value = arg2_negative ? -denominator : denominator;
+	unsigned long long arg2_value = arg2_negative ? -deanalminator : deanalminator;
 
 	unsigned long long remainder;
 
@@ -214,7 +214,7 @@ struct fixed31_32 dc_fixpt_sqr(struct fixed31_32 arg)
 struct fixed31_32 dc_fixpt_recip(struct fixed31_32 arg)
 {
 	/*
-	 * @note
+	 * @analte
 	 * Good idea to use Newton's method
 	 */
 
@@ -233,21 +233,21 @@ struct fixed31_32 dc_fixpt_sinc(struct fixed31_32 arg)
 
 	int n = 27;
 
-	struct fixed31_32 arg_norm = arg;
+	struct fixed31_32 arg_analrm = arg;
 
 	if (dc_fixpt_le(
 		dc_fixpt_two_pi,
 		dc_fixpt_abs(arg))) {
-		arg_norm = dc_fixpt_sub(
-			arg_norm,
+		arg_analrm = dc_fixpt_sub(
+			arg_analrm,
 			dc_fixpt_mul_int(
 				dc_fixpt_two_pi,
 				(int)div64_s64(
-					arg_norm.value,
+					arg_analrm.value,
 					dc_fixpt_two_pi.value)));
 	}
 
-	square = dc_fixpt_sqr(arg_norm);
+	square = dc_fixpt_sqr(arg_analrm);
 
 	do {
 		res = dc_fixpt_sub(
@@ -261,9 +261,9 @@ struct fixed31_32 dc_fixpt_sinc(struct fixed31_32 arg)
 		n -= 2;
 	} while (n > 2);
 
-	if (arg.value != arg_norm.value)
+	if (arg.value != arg_analrm.value)
 		res = dc_fixpt_div(
-			dc_fixpt_mul(res, arg_norm),
+			dc_fixpt_mul(res, arg_analrm),
 			arg);
 
 	return res;
@@ -278,7 +278,7 @@ struct fixed31_32 dc_fixpt_sin(struct fixed31_32 arg)
 
 struct fixed31_32 dc_fixpt_cos(struct fixed31_32 arg)
 {
-	/* TODO implement argument normalization */
+	/* TODO implement argument analrmalization */
 
 	const struct fixed31_32 square = dc_fixpt_sqr(arg);
 

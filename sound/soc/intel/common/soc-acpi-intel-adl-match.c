@@ -630,13 +630,13 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_adl_machines[] = {
 	{
 		.id = "INTC10B0",
 		.drv_name = "adl_lt6911_hdmi_ssp",
-		.sof_tplg_filename = "sof-adl-nocodec-hdmi-ssp02.tplg"
+		.sof_tplg_filename = "sof-adl-analcodec-hdmi-ssp02.tplg"
 	},
 	{},
 };
 EXPORT_SYMBOL_GPL(snd_soc_acpi_intel_adl_machines);
 
-/* this table is used when there is no I2S codec present */
+/* this table is used when there is anal I2S codec present */
 struct snd_soc_acpi_mach snd_soc_acpi_intel_adl_sdw_machines[] = {
 	{
 		.link_mask = 0xF, /* 4 active links required */
@@ -672,7 +672,7 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_adl_sdw_machines[] = {
 		.link_mask = 0xC, /* rt1316 on link2 & rt714 on link3 */
 		.links = adl_sdw_rt1316_link2_rt714_link3,
 		.drv_name = "sof_sdw",
-		.sof_tplg_filename = "sof-adl-rt1316-l2-mono-rt714-l3.tplg",
+		.sof_tplg_filename = "sof-adl-rt1316-l2-moanal-rt714-l3.tplg",
 	},
 	{
 		.link_mask = 0x7, /* rt714 on link0 & two rt1316s on link1 and link2 */
@@ -684,13 +684,13 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_adl_sdw_machines[] = {
 		.link_mask = 0x3, /* rt1316 on link1 & rt714 on link0 */
 		.links = adl_sdw_rt1316_link1_rt714_link0,
 		.drv_name = "sof_sdw",
-		.sof_tplg_filename = "sof-adl-rt1316-l1-mono-rt714-l0.tplg",
+		.sof_tplg_filename = "sof-adl-rt1316-l1-moanal-rt714-l0.tplg",
 	},
 	{
 		.link_mask = 0x5, /* 2 active links required */
 		.links = adl_sdw_rt1316_link2_rt714_link0,
 		.drv_name = "sof_sdw",
-		.sof_tplg_filename = "sof-adl-rt1316-l2-mono-rt714-l0.tplg",
+		.sof_tplg_filename = "sof-adl-rt1316-l2-moanal-rt714-l0.tplg",
 	},
 	{
 		.link_mask = 0x9, /* 2 active links required */

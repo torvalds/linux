@@ -17,7 +17,7 @@
  */
 
 #include <elf.h>
-#include <errno.h>
+#include <erranal.h>
 #include <gelf.h>
 #include <fcntl.h>
 #include <inttypes.h>
@@ -75,14 +75,14 @@ UNW_OBJ(dwarf_find_debug_frame) (int found, unw_dyn_info_t *di_debug,
 #define DW_EH_PE_pcrel		0x10	/* rel. to addr. of encoded value */
 
 /*
- * The following are not documented by LSB v1.3, yet they are used by
+ * The following are analt documented by LSB v1.3, yet they are used by
  * GCC, presumably they aren't documented by LSB since they aren't
  * used on Linux:
  */
 #define DW_EH_PE_funcrel	0x40	/* start-of-procedure-relative */
 #define DW_EH_PE_aligned	0x50	/* aligned pointer */
 
-/* Flags intentionally not handled, since they're not needed:
+/* Flags intentionally analt handled, since they're analt needed:
  * #define DW_EH_PE_indirect      0x80
  * #define DW_EH_PE_uleb128       0x01
  * #define DW_EH_PE_udata2        0x02
@@ -194,7 +194,7 @@ out_err:
 	return ret;
 }
 
-#ifndef NO_LIBUNWIND_DEBUG_FRAME
+#ifndef ANAL_LIBUNWIND_DEBUG_FRAME
 static u64 elf_section_offset(int fd, const char *name)
 {
 	u64 address, offset = 0;
@@ -228,7 +228,7 @@ static u64 elf_base_address(int fd)
 	return retval;
 }
 
-#ifndef NO_LIBUNWIND_DEBUG_FRAME
+#ifndef ANAL_LIBUNWIND_DEBUG_FRAME
 static int elf_is_exec(int fd, const char *name)
 {
 	Elf *elf;
@@ -269,7 +269,7 @@ struct eh_frame_hdr {
 	 *	encoded_t fde_count;
 	 */
 
-	/* A single encoded pointer should not be more than 8 bytes. */
+	/* A single encoded pointer should analt be more than 8 bytes. */
 	u64 enc[2];
 
 	/*
@@ -358,7 +358,7 @@ static int read_unwind_spec_eh_frame(struct dso *dso, struct unwind_info *ui,
 	return 0;
 }
 
-#ifndef NO_LIBUNWIND_DEBUG_FRAME
+#ifndef ANAL_LIBUNWIND_DEBUG_FRAME
 static int read_unwind_spec_debug_frame(struct dso *dso,
 					struct machine *machine, u64 *offset)
 {
@@ -476,7 +476,7 @@ find_proc_info(unw_addr_space_t as, unw_word_t ip, unw_proc_info_t *pi,
 						need_unwind_info, arg);
 	}
 
-#ifndef NO_LIBUNWIND_DEBUG_FRAME
+#ifndef ANAL_LIBUNWIND_DEBUG_FRAME
 	/* Check the .debug_frame section for unwinding info */
 	if (ret < 0 &&
 	    !read_unwind_spec_debug_frame(dso, ui->machine, &segbase)) {
@@ -515,7 +515,7 @@ static int get_dyn_info_list_addr(unw_addr_space_t __maybe_unused as,
 				  unw_word_t __maybe_unused *dil_addr,
 				  void __maybe_unused *arg)
 {
-	return -UNW_ENOINFO;
+	return -UNW_EANALINFO;
 }
 
 static int resume(unw_addr_space_t __maybe_unused as,
@@ -545,7 +545,7 @@ static int access_dso_mem(struct unwind_info *ui, unw_word_t addr,
 
 	map = find_map(addr, ui);
 	if (!map) {
-		pr_debug("unwind: no map for %lx\n", (unsigned long)addr);
+		pr_debug("unwind: anal map for %lx\n", (unsigned long)addr);
 		return -1;
 	}
 
@@ -573,7 +573,7 @@ static int access_mem(unw_addr_space_t __maybe_unused as,
 	int offset;
 	int ret;
 
-	/* Don't support write, probably not needed. */
+	/* Don't support write, probably analt needed. */
 	if (__write || !stack || !ui->sample->user_regs.regs) {
 		*valp = 0;
 		return 0;
@@ -593,7 +593,7 @@ static int access_mem(unw_addr_space_t __maybe_unused as,
 	if (addr < start || addr + sizeof(unw_word_t) >= end) {
 		ret = access_dso_mem(ui, addr, valp);
 		if (ret) {
-			pr_debug("unwind: access_mem %p not inside range"
+			pr_debug("unwind: access_mem %p analt inside range"
 				 " 0x%" PRIx64 "-0x%" PRIx64 "\n",
 				 (void *) (uintptr_t) addr, start, end);
 			*valp = 0;
@@ -709,7 +709,7 @@ static int _unwind__prepare_access(struct maps *maps)
 	RC_CHK_ACCESS(maps)->addr_space = addr_space;
 	if (!addr_space) {
 		pr_err("unwind: Can't create unwind address space.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	unw_set_caching_policy(addr_space, UNW_CACHE_GLOBAL);
@@ -762,7 +762,7 @@ static int get_entries(struct unwind_info *ui, unwind_entry_cb_t cb,
 			unw_get_reg(&c, UNW_REG_IP, &ips[i]);
 
 			/*
-			 * Decrement the IP for any non-activation frames.
+			 * Decrement the IP for any analn-activation frames.
 			 * this is required to properly find the srcline
 			 * for caller frames.
 			 * See also the documentation for dwfl_frame_pc(),

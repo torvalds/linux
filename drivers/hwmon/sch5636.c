@@ -19,23 +19,23 @@
 #include "sch56xx-common.h"
 
 #define DRVNAME "sch5636"
-#define DEVNAME "theseus" /* We only support one model for now */
+#define DEVNAME "theseus" /* We only support one model for analw */
 
 #define SCH5636_REG_FUJITSU_ID		0x780
 #define SCH5636_REG_FUJITSU_REV		0x783
 
-#define SCH5636_NO_INS			5
-#define SCH5636_NO_TEMPS		16
-#define SCH5636_NO_FANS			8
+#define SCH5636_ANAL_INS			5
+#define SCH5636_ANAL_TEMPS		16
+#define SCH5636_ANAL_FANS			8
 
-static const u16 SCH5636_REG_IN_VAL[SCH5636_NO_INS] = {
+static const u16 SCH5636_REG_IN_VAL[SCH5636_ANAL_INS] = {
 	0x22, 0x23, 0x24, 0x25, 0x189 };
-static const u16 SCH5636_REG_IN_FACTORS[SCH5636_NO_INS] = {
+static const u16 SCH5636_REG_IN_FACTORS[SCH5636_ANAL_INS] = {
 	4400, 1500, 4000, 4400, 16000 };
-static const char * const SCH5636_IN_LABELS[SCH5636_NO_INS] = {
+static const char * const SCH5636_IN_LABELS[SCH5636_ANAL_INS] = {
 	"3.3V", "VREF", "VBAT", "3.3AUX", "12V" };
 
-static const u16 SCH5636_REG_TEMP_VAL[SCH5636_NO_TEMPS] = {
+static const u16 SCH5636_REG_TEMP_VAL[SCH5636_ANAL_TEMPS] = {
 	0x2B, 0x26, 0x27, 0x28, 0x29, 0x2A, 0x180, 0x181,
 	0x85, 0x86, 0x87, 0x88, 0x89, 0x8A, 0x8B, 0x8C };
 #define SCH5636_REG_TEMP_CTRL(i)	(0x790 + (i))
@@ -43,12 +43,12 @@ static const u16 SCH5636_REG_TEMP_VAL[SCH5636_NO_TEMPS] = {
 #define SCH5636_TEMP_ALARM		0x02
 #define SCH5636_TEMP_DEACTIVATED	0x80
 
-static const u16 SCH5636_REG_FAN_VAL[SCH5636_NO_FANS] = {
+static const u16 SCH5636_REG_FAN_VAL[SCH5636_ANAL_FANS] = {
 	0x2C, 0x2E, 0x30, 0x32, 0x62, 0x64, 0x66, 0x68 };
 #define SCH5636_REG_FAN_CTRL(i)		(0x880 + (i))
 /* FAULT in datasheet, but acts as an alarm */
 #define SCH5636_FAN_ALARM		0x04
-#define SCH5636_FAN_NOT_PRESENT		0x08
+#define SCH5636_FAN_ANALT_PRESENT		0x08
 #define SCH5636_FAN_DEACTIVATED		0x80
 
 
@@ -59,11 +59,11 @@ struct sch5636_data {
 	struct mutex update_lock;
 	bool valid;			/* true if following fields are valid */
 	unsigned long last_updated;	/* In jiffies */
-	u8 in[SCH5636_NO_INS];
-	u8 temp_val[SCH5636_NO_TEMPS];
-	u8 temp_ctrl[SCH5636_NO_TEMPS];
-	u16 fan_val[SCH5636_NO_FANS];
-	u8 fan_ctrl[SCH5636_NO_FANS];
+	u8 in[SCH5636_ANAL_INS];
+	u8 temp_val[SCH5636_ANAL_TEMPS];
+	u8 temp_ctrl[SCH5636_ANAL_TEMPS];
+	u16 fan_val[SCH5636_ANAL_FANS];
+	u8 fan_ctrl[SCH5636_ANAL_FANS];
 };
 
 static struct sch5636_data *sch5636_update_device(struct device *dev)
@@ -78,7 +78,7 @@ static struct sch5636_data *sch5636_update_device(struct device *dev)
 	if (data->valid && !time_after(jiffies, data->last_updated + HZ))
 		goto abort;
 
-	for (i = 0; i < SCH5636_NO_INS; i++) {
+	for (i = 0; i < SCH5636_ANAL_INS; i++) {
 		val = sch56xx_read_virtual_reg(data->addr,
 					       SCH5636_REG_IN_VAL[i]);
 		if (unlikely(val < 0)) {
@@ -88,7 +88,7 @@ static struct sch5636_data *sch5636_update_device(struct device *dev)
 		data->in[i] = val;
 	}
 
-	for (i = 0; i < SCH5636_NO_TEMPS; i++) {
+	for (i = 0; i < SCH5636_ANAL_TEMPS; i++) {
 		if (data->temp_ctrl[i] & SCH5636_TEMP_DEACTIVATED)
 			continue;
 
@@ -114,7 +114,7 @@ static struct sch5636_data *sch5636_update_device(struct device *dev)
 		}
 	}
 
-	for (i = 0; i < SCH5636_NO_FANS; i++) {
+	for (i = 0; i < SCH5636_ANAL_FANS; i++) {
 		if (data->fan_ctrl[i] & SCH5636_FAN_DEACTIVATED)
 			continue;
 
@@ -257,7 +257,7 @@ static ssize_t fan_fault_show(struct device *dev,
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 
-	val = (data->fan_ctrl[attr->index] & SCH5636_FAN_NOT_PRESENT) ? 1 : 0;
+	val = (data->fan_ctrl[attr->index] & SCH5636_FAN_ANALT_PRESENT) ? 1 : 0;
 	return sysfs_emit(buf, "%d\n", val);
 }
 
@@ -378,11 +378,11 @@ static void sch5636_remove(struct platform_device *pdev)
 	for (i = 0; i < ARRAY_SIZE(sch5636_attr); i++)
 		device_remove_file(&pdev->dev, &sch5636_attr[i].dev_attr);
 
-	for (i = 0; i < SCH5636_NO_TEMPS * 3; i++)
+	for (i = 0; i < SCH5636_ANAL_TEMPS * 3; i++)
 		device_remove_file(&pdev->dev,
 				   &sch5636_temp_attr[i].dev_attr);
 
-	for (i = 0; i < SCH5636_NO_FANS * 3; i++)
+	for (i = 0; i < SCH5636_ANAL_FANS * 3; i++)
 		device_remove_file(&pdev->dev,
 				   &sch5636_fan_attr[i].dev_attr);
 }
@@ -396,7 +396,7 @@ static int sch5636_probe(struct platform_device *pdev)
 	data = devm_kzalloc(&pdev->dev, sizeof(struct sch5636_data),
 			    GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->addr = platform_get_resource(pdev, IORESOURCE_IO, 0)->start;
 	mutex_init(&data->update_lock);
@@ -406,7 +406,7 @@ static int sch5636_probe(struct platform_device *pdev)
 		val = sch56xx_read_virtual_reg(data->addr,
 					       SCH5636_REG_FUJITSU_ID + i);
 		if (val < 0) {
-			pr_err("Could not read Fujitsu id byte at %#x\n",
+			pr_err("Could analt read Fujitsu id byte at %#x\n",
 				SCH5636_REG_FUJITSU_ID + i);
 			err = val;
 			goto error;
@@ -416,9 +416,9 @@ static int sch5636_probe(struct platform_device *pdev)
 	id[i] = '\0';
 
 	if (strcmp(id, "THS")) {
-		pr_err("Unknown Fujitsu id: %02x%02x%02x\n",
+		pr_err("Unkanalwn Fujitsu id: %02x%02x%02x\n",
 		       id[0], id[1], id[2]);
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto error;
 	}
 
@@ -435,7 +435,7 @@ static int sch5636_probe(struct platform_device *pdev)
 		data->addr, revision[0], revision[1]);
 
 	/* Read all temp + fan ctrl registers to determine which are active */
-	for (i = 0; i < SCH5636_NO_TEMPS; i++) {
+	for (i = 0; i < SCH5636_ANAL_TEMPS; i++) {
 		val = sch56xx_read_virtual_reg(data->addr,
 					       SCH5636_REG_TEMP_CTRL(i));
 		if (unlikely(val < 0)) {
@@ -445,7 +445,7 @@ static int sch5636_probe(struct platform_device *pdev)
 		data->temp_ctrl[i] = val;
 	}
 
-	for (i = 0; i < SCH5636_NO_FANS; i++) {
+	for (i = 0; i < SCH5636_ANAL_FANS; i++) {
 		val = sch56xx_read_virtual_reg(data->addr,
 					       SCH5636_REG_FAN_CTRL(i));
 		if (unlikely(val < 0)) {
@@ -462,7 +462,7 @@ static int sch5636_probe(struct platform_device *pdev)
 			goto error;
 	}
 
-	for (i = 0; i < (SCH5636_NO_TEMPS * 3); i++) {
+	for (i = 0; i < (SCH5636_ANAL_TEMPS * 3); i++) {
 		if (data->temp_ctrl[i/3] & SCH5636_TEMP_DEACTIVATED)
 			continue;
 
@@ -472,7 +472,7 @@ static int sch5636_probe(struct platform_device *pdev)
 			goto error;
 	}
 
-	for (i = 0; i < (SCH5636_NO_FANS * 3); i++) {
+	for (i = 0; i < (SCH5636_ANAL_FANS * 3); i++) {
 		if (data->fan_ctrl[i/3] & SCH5636_FAN_DEACTIVATED)
 			continue;
 
@@ -489,7 +489,7 @@ static int sch5636_probe(struct platform_device *pdev)
 		goto error;
 	}
 
-	/* Note failing to register the watchdog is not a fatal error */
+	/* Analte failing to register the watchdog is analt a fatal error */
 	sch56xx_watchdog_register(&pdev->dev, data->addr, (revision[0] << 8) | revision[1],
 				  &data->update_lock, 0);
 

@@ -16,7 +16,7 @@ Parameters: <num devs> <chunk size> [<dev path> <offset>]+
         large as the system's PAGE_SIZE.
     <dev path>:
 	Full pathname to the underlying block-device, or a
-	"major:minor" device-number.
+	"major:mianalr" device-number.
     <offset>:
 	Starting sector within the device.
 

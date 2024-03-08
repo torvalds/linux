@@ -127,7 +127,7 @@ static int iproc_mdio_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->base)) {
@@ -138,7 +138,7 @@ static int iproc_mdio_probe(struct platform_device *pdev)
 	priv->mii_bus = mdiobus_alloc();
 	if (!priv->mii_bus) {
 		dev_err(&pdev->dev, "MDIO bus alloc failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	bus = priv->mii_bus;
@@ -151,7 +151,7 @@ static int iproc_mdio_probe(struct platform_device *pdev)
 
 	iproc_mdio_config_clk(priv->base);
 
-	rc = of_mdiobus_register(bus, pdev->dev.of_node);
+	rc = of_mdiobus_register(bus, pdev->dev.of_analde);
 	if (rc) {
 		dev_err(&pdev->dev, "MDIO bus registration failed\n");
 		goto err_iproc_mdio;

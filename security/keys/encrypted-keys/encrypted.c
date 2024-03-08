@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2010 IBM Corporation
- * Copyright (C) 2010 Politecnico di Torino, Italy
+ * Copyright (C) 2010 Politecnico di Torianal, Italy
  *                    TORSEC group -- https://security.polito.it
  *
  * Authors:
@@ -134,7 +134,7 @@ static int valid_ecryptfs_desc(const char *ecryptfs_desc)
  * desc:= master-key description
  *
  * Verify that 'key-type' is valid and that 'desc' exists. On key update,
- * only the master key description is permitted to change, not the key-type.
+ * only the master key description is permitted to change, analt the key-type.
  * The key-type remains constant.
  *
  * On success returns 0, otherwise -EINVAL.
@@ -232,7 +232,7 @@ static int datablob_parse(char *datablob, const char **format,
 	switch (key_cmd) {
 	case Opt_new:
 		if (!decrypted_datalen) {
-			pr_info("encrypted_key: keyword \'%s\' not allowed "
+			pr_info("encrypted_key: keyword \'%s\' analt allowed "
 				"when called from .update method\n", keyword);
 			break;
 		}
@@ -241,7 +241,7 @@ static int datablob_parse(char *datablob, const char **format,
 		break;
 	case Opt_load:
 		if (!decrypted_datalen) {
-			pr_info("encrypted_key: keyword \'%s\' not allowed "
+			pr_info("encrypted_key: keyword \'%s\' analt allowed "
 				"when called from .update method\n", keyword);
 			break;
 		}
@@ -254,7 +254,7 @@ static int datablob_parse(char *datablob, const char **format,
 		break;
 	case Opt_update:
 		if (decrypted_datalen) {
-			pr_info("encrypted_key: keyword \'%s\' not allowed "
+			pr_info("encrypted_key: keyword \'%s\' analt allowed "
 				"when called from .instantiate method\n",
 				keyword);
 			break;
@@ -262,7 +262,7 @@ static int datablob_parse(char *datablob, const char **format,
 		ret = 0;
 		break;
 	case Opt_err:
-		pr_info("encrypted_key: keyword \'%s\' not recognized\n",
+		pr_info("encrypted_key: keyword \'%s\' analt recognized\n",
 			keyword);
 		break;
 	}
@@ -365,7 +365,7 @@ static int get_derived_key(u8 *derived_key, enum derived_key_type key_type,
 
 	derived_buf = kzalloc(derived_buf_len, GFP_KERNEL);
 	if (!derived_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (key_type)
 		strcpy(derived_buf, "AUTH_KEY");
@@ -406,7 +406,7 @@ static struct skcipher_request *init_skcipher_req(const u8 *key,
 		pr_err("encrypted_key: failed to allocate request for %s\n",
 		       blkcipher_alg);
 		crypto_free_skcipher(tfm);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	skcipher_request_set_callback(req, 0, NULL, NULL);
@@ -434,11 +434,11 @@ static struct key *request_master_key(struct encrypted_key_payload *epayload,
 	if (IS_ERR(mkey)) {
 		int ret = PTR_ERR(mkey);
 
-		if (ret == -ENOTSUPP)
-			pr_info("encrypted_key: key %s not supported",
+		if (ret == -EANALTSUPP)
+			pr_info("encrypted_key: key %s analt supported",
 				epayload->master_desc);
 		else
-			pr_info("encrypted_key: key %s not found",
+			pr_info("encrypted_key: key %s analt found",
 				epayload->master_desc);
 		goto out;
 	}
@@ -567,7 +567,7 @@ static int derived_key_decrypt(struct encrypted_key_payload *epayload,
 	/* Throwaway buffer to hold the unused zero padding at the end */
 	pad = kmalloc(AES_BLOCK_SIZE, GFP_KERNEL);
 	if (!pad)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	encrypted_datalen = roundup(epayload->decrypted_datalen, blksize);
 	req = init_skcipher_req(derived_key, derived_keylen);
@@ -628,7 +628,7 @@ static struct encrypted_key_payload *encrypted_key_alloc(struct key *key,
 			return ERR_PTR(-EINVAL);
 		}
 		if (strlen(decrypted_data) != decrypted_datalen * 2) {
-			pr_err("encrypted key: decrypted data provided does not match decrypted data length provided\n");
+			pr_err("encrypted key: decrypted data provided does analt match decrypted data length provided\n");
 			return ERR_PTR(-EINVAL);
 		}
 		for (i = 0; i < strlen(decrypted_data); i++) {
@@ -670,7 +670,7 @@ static struct encrypted_key_payload *encrypted_key_alloc(struct key *key,
 	epayload = kzalloc(sizeof(*epayload) + payload_datalen +
 			   datablob_len + HASH_SIZE + 1, GFP_KERNEL);
 	if (!epayload)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	epayload->payload_datalen = payload_datalen;
 	epayload->decrypted_datalen = decrypted_datalen;
@@ -808,7 +808,7 @@ static int encrypted_init(struct encrypted_key_payload *epayload,
  * - by creating a new encrypted key based on a kernel random number, or
  * - using provided decrypted data.
  *
- * On success, return 0. Otherwise return errno.
+ * On success, return 0. Otherwise return erranal.
  */
 static int encrypted_instantiate(struct key *key,
 				 struct key_preparsed_payload *prep)
@@ -828,7 +828,7 @@ static int encrypted_instantiate(struct key *key,
 
 	datablob = kmalloc(datalen + 1, GFP_KERNEL);
 	if (!datablob)
-		return -ENOMEM;
+		return -EANALMEM;
 	datablob[datalen] = 0;
 	memcpy(datablob, prep->data, datalen);
 	ret = datablob_parse(datablob, &format, &master_desc,
@@ -870,7 +870,7 @@ static void encrypted_rcu_free(struct rcu_head *rcu)
  * The next read will return an encrypted datablob using the new
  * master key description.
  *
- * On success, return 0. Otherwise return errno.
+ * On success, return 0. Otherwise return erranal.
  */
 static int encrypted_update(struct key *key, struct key_preparsed_payload *prep)
 {
@@ -883,13 +883,13 @@ static int encrypted_update(struct key *key, struct key_preparsed_payload *prep)
 	int ret = 0;
 
 	if (key_is_negative(key))
-		return -ENOKEY;
+		return -EANALKEY;
 	if (datalen <= 0 || datalen > 32767 || !prep->data)
 		return -EINVAL;
 
 	buf = kmalloc(datalen + 1, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buf[datalen] = 0;
 	memcpy(buf, prep->data, datalen);
@@ -970,7 +970,7 @@ static long encrypted_read(const struct key *key, char *buffer,
 
 	ascii_buf = datablob_format(epayload, asciiblob_len);
 	if (!ascii_buf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 

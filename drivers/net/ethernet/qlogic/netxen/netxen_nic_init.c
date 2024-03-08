@@ -29,7 +29,7 @@ static unsigned int crb_addr_xform[NETXEN_MAX_CRB_XFORM];
 #define NETXEN_NIC_XDMA_RESET 0x8000ff
 
 static void
-netxen_post_rx_buffers_nodb(struct netxen_adapter *adapter,
+netxen_post_rx_buffers_analdb(struct netxen_adapter *adapter,
 		struct nx_host_rds_ring *rds_ring);
 static int netxen_p3_has_mn(struct netxen_adapter *adapter);
 
@@ -187,7 +187,7 @@ int netxen_alloc_sw_resources(struct netxen_adapter *adapter)
 
 	tx_ring = kzalloc(sizeof(struct nx_host_tx_ring), GFP_KERNEL);
 	if (tx_ring == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adapter->tx_ring = tx_ring;
 
@@ -212,7 +212,7 @@ int netxen_alloc_sw_resources(struct netxen_adapter *adapter)
 	for (ring = 0; ring < adapter->max_rds_rings; ring++) {
 		rds_ring = &recv_ctx->rds_rings[ring];
 		switch (ring) {
-		case RCV_RING_NORMAL:
+		case RCV_RING_ANALRMAL:
 			rds_ring->num_desc = adapter->num_rxd;
 			if (adapter->ahw.cut_through) {
 				rds_ring->dma_size =
@@ -261,7 +261,7 @@ int netxen_alloc_sw_resources(struct netxen_adapter *adapter)
 
 		INIT_LIST_HEAD(&rds_ring->free_list);
 		/*
-		 * Now go through all of them, set reference handles
+		 * Analw go through all of them, set reference handles
 		 * and put them in the queues.
 		 */
 		rx_buf = rds_ring->rx_buf_arr;
@@ -289,7 +289,7 @@ int netxen_alloc_sw_resources(struct netxen_adapter *adapter)
 
 err_out:
 	netxen_free_sw_resources(adapter);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /*
@@ -446,14 +446,14 @@ int netxen_pinit_from_rom(struct netxen_adapter *adapter)
 	}
 
 	if (n >= 1024) {
-		printk(KERN_ERR "%s:n=0x%x Error! NetXen card flash not"
+		printk(KERN_ERR "%s:n=0x%x Error! NetXen card flash analt"
 		       " initialized.\n", __func__, n);
 		return -EIO;
 	}
 
 	buf = kcalloc(n, sizeof(struct crb_addr_pair), GFP_KERNEL);
 	if (buf == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < n; i++) {
 		if (netxen_rom_fast_read(adapter, 8*i + 4*offset, &val) != 0 ||
@@ -487,7 +487,7 @@ int netxen_pinit_from_rom(struct netxen_adapter *adapter)
 		if (NX_IS_REVISION_P3(adapter->ahw.revision_id)) {
 			if (off == (NETXEN_CRB_I2C0 + 0x1c))
 				continue;
-			/* do not reset PCI */
+			/* do analt reset PCI */
 			if (off == (ROMUSB_GLB + 0xbc))
 				continue;
 			if (off == (ROMUSB_GLB + 0xa8))
@@ -699,7 +699,7 @@ netxen_nic_validate_product_offs(struct netxen_adapter *adapter)
 	if (adapter->fw->size < tab_size)
 		return -EINVAL;
 
-nomn:
+analmn:
 	for (i = 0; i < entries; i++) {
 
 		__le32 flags, file_chiprev, offs;
@@ -723,7 +723,7 @@ nomn:
 
 	if (mn_present && NX_IS_REVISION_P3(adapter->ahw.revision_id)) {
 		mn_present = 0;
-		goto nomn;
+		goto analmn;
 	}
 
 	return -EINVAL;
@@ -822,7 +822,7 @@ nx_get_fw_version(struct netxen_adapter *adapter)
 {
 	struct uni_data_desc *fw_data_desc;
 	const struct firmware *fw = adapter->fw;
-	__le32 major, minor, sub;
+	__le32 major, mianalr, sub;
 	const u8 *ver_str;
 	int i, ret = 0;
 
@@ -836,7 +836,7 @@ nx_get_fw_version(struct netxen_adapter *adapter)
 		for (i = 0; i < 12; i++) {
 			if (!strncmp(&ver_str[i], "REV=", 4)) {
 				ret = sscanf(&ver_str[i+4], "%u.%u.%u ",
-							&major, &minor, &sub);
+							&major, &mianalr, &sub);
 				break;
 			}
 		}
@@ -844,7 +844,7 @@ nx_get_fw_version(struct netxen_adapter *adapter)
 		if (ret != 3)
 			return 0;
 
-		return major + (minor << 8) + (sub << 16);
+		return major + (mianalr << 8) + (sub << 16);
 
 	} else
 		return cpu_to_le32(*(u32 *)&fw->data[NX_FW_VERSION_OFFSET]);
@@ -870,7 +870,7 @@ int
 netxen_need_fw_reset(struct netxen_adapter *adapter)
 {
 	u32 count, old_count;
-	u32 val, version, major, minor, build;
+	u32 val, version, major, mianalr, build;
 	int i, timeout;
 	u8 fw_type;
 
@@ -913,13 +913,13 @@ netxen_need_fw_reset(struct netxen_adapter *adapter)
 		version = NETXEN_DECODE_VERSION(val);
 
 		major = NXRD32(adapter, NETXEN_FW_VERSION_MAJOR);
-		minor = NXRD32(adapter, NETXEN_FW_VERSION_MINOR);
+		mianalr = NXRD32(adapter, NETXEN_FW_VERSION_MIANALR);
 		build = NXRD32(adapter, NETXEN_FW_VERSION_SUB);
 
-		if (version > NETXEN_VERSION_CODE(major, minor, build))
+		if (version > NETXEN_VERSION_CODE(major, mianalr, build))
 			return 1;
 
-		if (version == NETXEN_VERSION_CODE(major, minor, build) &&
+		if (version == NETXEN_VERSION_CODE(major, mianalr, build) &&
 			adapter->fw_type != NX_UNIFIED_ROMIMAGE) {
 
 			val = NXRD32(adapter, NETXEN_MIU_MN_CONTROL);
@@ -958,7 +958,7 @@ netxen_check_flash_fw_compatibility(struct netxen_adapter *adapter)
 
 	dev_info(&adapter->pdev->dev, "Flash fw[%d.%d.%d] is < min fw supported"
 		"[4.0.505]. Please update firmware on flash\n",
-		_major(flash_fw_ver), _minor(flash_fw_ver),
+		_major(flash_fw_ver), _mianalr(flash_fw_ver),
 		_build(flash_fw_ver));
 	return -EINVAL;
 }
@@ -1102,7 +1102,7 @@ netxen_validate_firmware(struct netxen_adapter *adapter)
 	    (file_fw_ver < min_ver)) {
 		dev_err(&pdev->dev,
 				"%s: firmware version %d.%d.%d unsupported\n",
-		fw_name[fw_type], _major(file_fw_ver), _minor(file_fw_ver),
+		fw_name[fw_type], _major(file_fw_ver), _mianalr(file_fw_ver),
 		 _build(file_fw_ver));
 		return -EINVAL;
 	}
@@ -1122,18 +1122,18 @@ netxen_validate_firmware(struct netxen_adapter *adapter)
 	}
 	flash_fw_ver = NETXEN_DECODE_VERSION(flash_fw_ver);
 
-	/* New fw from file is not allowed, if fw on flash is < 4.0.554 */
+	/* New fw from file is analt allowed, if fw on flash is < 4.0.554 */
 	crbinit_fix_fw = NETXEN_VERSION_CODE(4, 0, 554);
 	if (file_fw_ver >= crbinit_fix_fw && flash_fw_ver < crbinit_fix_fw &&
 	    NX_IS_REVISION_P3(adapter->ahw.revision_id)) {
 		dev_err(&pdev->dev, "Incompatibility detected between driver "
 			"and firmware version on flash. This configuration "
-			"is not recommended. Please update the firmware on "
+			"is analt recommended. Please update the firmware on "
 			"flash immediately\n");
 		return -EINVAL;
 	}
 
-	/* check if flashed firmware is newer only for no-mn and P2 case*/
+	/* check if flashed firmware is newer only for anal-mn and P2 case*/
 	if (!netxen_p3_has_mn(adapter) ||
 	    NX_IS_REVISION_P2(adapter->ahw.revision_id)) {
 		if (flash_fw_ver > file_fw_ver) {
@@ -1153,7 +1153,7 @@ nx_get_next_fwtype(struct netxen_adapter *adapter)
 	u8 fw_type;
 
 	switch (adapter->fw_type) {
-	case NX_UNKNOWN_ROMIMAGE:
+	case NX_UNKANALWN_ROMIMAGE:
 		fw_type = NX_UNIFIED_ROMIMAGE;
 		break;
 
@@ -1210,7 +1210,7 @@ void netxen_request_firmware(struct netxen_adapter *adapter)
 	struct pci_dev *pdev = adapter->pdev;
 	int rc = 0;
 
-	adapter->fw_type = NX_UNKNOWN_ROMIMAGE;
+	adapter->fw_type = NX_UNKANALWN_ROMIMAGE;
 
 next:
 	nx_get_next_fwtype(adapter);
@@ -1254,8 +1254,8 @@ int netxen_init_dummy_dma(struct netxen_adapter *adapter)
 						     GFP_KERNEL);
 	if (adapter->dummy_dma.addr == NULL) {
 		dev_err(&adapter->pdev->dev,
-			"ERROR: Could not allocate dummy DMA memory\n");
-		return -ENOMEM;
+			"ERROR: Could analt allocate dummy DMA memory\n");
+		return -EANALMEM;
 	}
 
 	addr = (uint64_t) adapter->dummy_dma.phys_addr;
@@ -1359,7 +1359,7 @@ netxen_receive_peg_ready(struct netxen_adapter *adapter)
 
 	} while (--retries);
 
-	pr_err("Receive Peg initialization not complete, state: 0x%x.\n", val);
+	pr_err("Receive Peg initialization analt complete, state: 0x%x.\n", val);
 	return -EIO;
 }
 
@@ -1495,17 +1495,17 @@ static struct sk_buff *netxen_process_rxbuf(struct netxen_adapter *adapter,
 
 	skb = buffer->skb;
 	if (!skb)
-		goto no_skb;
+		goto anal_skb;
 
 	if (likely((adapter->netdev->features & NETIF_F_RXCSUM)
 	    && cksum == STATUS_CKSUM_OK)) {
 		adapter->stats.csummed++;
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 	} else
-		skb->ip_summed = CHECKSUM_NONE;
+		skb->ip_summed = CHECKSUM_ANALNE;
 
 	buffer->skb = NULL;
-no_skb:
+anal_skb:
 	buffer->state = NETXEN_BUFFER_FREE;
 	return skb;
 }
@@ -1721,7 +1721,7 @@ skip:
 			spin_unlock(&rds_ring->lock);
 		}
 
-		netxen_post_rx_buffers_nodb(adapter, rds_ring);
+		netxen_post_rx_buffers_analdb(adapter, rds_ring);
 	}
 
 	if (count) {
@@ -1856,14 +1856,14 @@ netxen_post_rx_buffers(struct netxen_adapter *adapter, u32 ringid,
 					      (rds_ring->num_desc - 1)));
 			netxen_set_msg_ctxid(msg, adapter->portnum);
 			netxen_set_msg_opcode(msg, NETXEN_RCV_PRODUCER(ringid));
-			NXWRIO(adapter, DB_NORMALIZE(adapter,
+			NXWRIO(adapter, DB_ANALRMALIZE(adapter,
 					NETXEN_RCV_PRODUCER_OFFSET), msg);
 		}
 	}
 }
 
 static void
-netxen_post_rx_buffers_nodb(struct netxen_adapter *adapter,
+netxen_post_rx_buffers_analdb(struct netxen_adapter *adapter,
 		struct nx_host_rds_ring *rds_ring)
 {
 	struct rcv_desc *pdesc;

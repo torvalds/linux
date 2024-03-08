@@ -1,14 +1,14 @@
 * MDIO IO device
 
 The MDIO is a bus to which the PHY devices are connected.  For each
-device that exists on this bus, a child node should be created.  See
-the definition of the PHY node in booting-without-of.txt for an example
+device that exists on this bus, a child analde should be created.  See
+the definition of the PHY analde in booting-without-of.txt for an example
 of how to define a PHY.
 
 Required properties:
   - reg : Offset and length of the register set for the device, and optionally
           the offset and length of the TBIPA register (TBI PHY address
-	  register).  If TBIPA register is not specified, the driver will
+	  register).  If TBIPA register is analt specified, the driver will
 	  attempt to infer it from the register set specified (your mileage may
 	  vary).
   - compatible : Should define the compatible device type for the
@@ -39,11 +39,11 @@ Example:
 As of this writing, every tsec is associated with an internal TBI PHY.
 This PHY is accessed through the local MDIO bus.  These buses are defined
 similarly to the mdio buses, except they are compatible with "fsl,gianfar-tbi".
-The TBI PHYs underneath them are similar to normal PHYs, but the reg property
+The TBI PHYs underneath them are similar to analrmal PHYs, but the reg property
 is considered instructive, rather than descriptive.  The reg property should
 be chosen so it doesn't interfere with other PHYs on the bus.
 
-* Gianfar-compatible ethernet nodes
+* Gianfar-compatible ethernet analdes
 
 Properties:
 
@@ -67,9 +67,9 @@ Properties:
     certain packet types (user) defined by filer rules to wake up the system.
   - bd-stash : If present, indicates that the hardware supports stashing
     buffer descriptors in the L2.
-  - rx-stash-len : Denotes the number of bytes of a received buffer to stash
+  - rx-stash-len : Deanaltes the number of bytes of a received buffer to stash
     in the L2.
-  - rx-stash-idx : Denotes the index of the first byte from the received
+  - rx-stash-idx : Deanaltes the index of the first byte from the received
     buffer to stash in the L2.
 
 Example:
@@ -84,6 +84,6 @@ Example:
 		phy-handle = <&phy0>
 	};
 
-* Gianfar PTP clock nodes
+* Gianfar PTP clock analdes
 
 Refer to Documentation/devicetree/bindings/ptp/ptp-qoriq.txt

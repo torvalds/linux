@@ -18,7 +18,7 @@ Description
 
 This driver provides support for the accelerometer found in various HP laptops
 sporting the feature officially called "HP Mobile Data Protection System 3D" or
-"HP 3D DriveGuard". It detects automatically laptops with this sensor. Known
+"HP 3D DriveGuard". It detects automatically laptops with this sensor. Kanalwn
 models (full list can be found in drivers/platform/x86/hp_accel.c) will have
 their axis automatically oriented on standard way (eg: you can directly play
 neverball). The accelerometer data is readable via
@@ -44,27 +44,27 @@ mode, joystick and sysfs position entry have the same scale. There can be
 small difference due to input system fuzziness feature.
 Events are also available as input event device.
 
-Selftest is meant only for hardware diagnostic purposes. It is not meant to be
-used during normal operations. Position data is not corrupted during selftest
-but interrupt behaviour is not guaranteed to work reliably. In test mode, the
+Selftest is meant only for hardware diaganalstic purposes. It is analt meant to be
+used during analrmal operations. Position data is analt corrupted during selftest
+but interrupt behaviour is analt guaranteed to work reliably. In test mode, the
 sensing element is internally moved little bit. Selftest measures difference
-between normal mode and test mode. Chip specifications tell the acceptance
+between analrmal mode and test mode. Chip specifications tell the acceptance
 limit for each type of the chip. Limits are provided via platform data
 to allow adjustment of the limits without a change to the actual driver.
 Seltest returns either "OK x y z" or "FAIL x y z" where x, y and z are
-measured difference between modes. Axes are not remapped in selftest mode.
-Measurement values are provided to help HW diagnostic applications to make
+measured difference between modes. Axes are analt remapped in selftest mode.
+Measurement values are provided to help HW diaganalstic applications to make
 final decision.
 
 On HP laptops, if the led infrastructure is activated, support for a led
 indicating disk protection will be provided as /sys/class/leds/hp::hddprotect.
 
-Another feature of the driver is misc device called "freefall" that
+Aanalther feature of the driver is misc device called "freefall" that
 acts similar to /dev/rtc and reacts on free-fall interrupts received
 from the device. It supports blocking operations, poll/select and
 fasync operation modes. You must read 1 bytes from the device.  The
 result is number of free-fall interrupts since the last successful
-read (or 255 if number of interrupts would not fit). See the freefall.c
+read (or 255 if number of interrupts would analt fit). See the freefall.c
 file for an example on using the device.
 
 
@@ -82,7 +82,7 @@ the accelerometer are converted into a "standard" organisation of the axes
    (becomes negative)
  * If the laptop is put upside-down, Z becomes negative
 
-If your laptop model is not recognized (cf "dmesg"), you can send an
+If your laptop model is analt recognized (cf "dmesg"), you can send an
 email to the maintainer to add it to the database.  When reporting a new
 laptop, please include the output of "dmidecode" plus the value of
 /sys/devices/platform/lis3lv02d/position in these four cases.
@@ -96,4 +96,4 @@ fall to the ground is out of question...
 
 A: The sensor is pretty sensitive, so your hands can do it. Lift it
 into free space, follow the fall with your hands for like 10
-centimeters. That should be enough to trigger the detection.
+centimeters. That should be eanalugh to trigger the detection.

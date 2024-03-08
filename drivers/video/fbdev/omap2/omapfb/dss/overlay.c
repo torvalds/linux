@@ -2,8 +2,8 @@
 /*
  * linux/drivers/video/omap2/dss/overlay.c
  *
- * Copyright (C) 2009 Nokia Corporation
- * Author: Tomi Valkeinen <tomi.valkeinen@nokia.com>
+ * Copyright (C) 2009 Analkia Corporation
+ * Author: Tomi Valkeinen <tomi.valkeinen@analkia.com>
  *
  * Some code and ideas taken from drivers/video/omap/ driver
  * by Imre Deak.
@@ -128,7 +128,7 @@ int dss_ovl_simple_check(struct omap_overlay *ovl,
 	}
 
 	if (dss_feat_rotation_type_supported(info->rotation_type) == 0) {
-		DSSERR("check_overlay: rotation type %d not supported\n",
+		DSSERR("check_overlay: rotation type %d analt supported\n",
 				info->rotation_type);
 		return -EINVAL;
 	}
@@ -161,14 +161,14 @@ int dss_ovl_check(struct omap_overlay *ovl, struct omap_overlay_info *info,
 	}
 
 	if (dw < info->pos_x + outw) {
-		DSSERR("overlay %d horizontally not inside the display area "
+		DSSERR("overlay %d horizontally analt inside the display area "
 				"(%d + %d >= %d)\n",
 				ovl->id, info->pos_x, outw, dw);
 		return -EINVAL;
 	}
 
 	if (dh < info->pos_y + outh) {
-		DSSERR("overlay %d vertically not inside the display area "
+		DSSERR("overlay %d vertically analt inside the display area "
 				"(%d + %d >= %d)\n",
 				ovl->id, info->pos_y, outh, dh);
 		return -EINVAL;

@@ -112,7 +112,7 @@ struct snd_card_sb16 {
 	struct resource *fm_res;	/* used to block FM i/o region for legacy cards */
 	struct snd_sb *chip;
 #ifdef CONFIG_PNP
-	int dev_no;
+	int dev_anal;
 	struct pnp_dev *dev;
 #ifdef SNDRV_SBAWE_EMU8000
 	struct pnp_dev *devwt;
@@ -139,7 +139,7 @@ static const struct pnp_card_device_id snd_sb16_pnpids[] = {
 	/* Sound Blaster 16 PnP */
 	{ .id = "CTL002a", .devs = { { "CTL0031" } } },
 	/* Sound Blaster 16 PnP */
-	/* Note: This card has also a CTL0051:StereoEnhance device!!! */
+	/* Analte: This card has also a CTL0051:StereoEnhance device!!! */
 	{ .id = "CTL002b", .devs = { { "CTL0031" } } },
 	/* Sound Blaster 16 PnP */
 	{ .id = "CTL002c", .devs = { { "CTL0031" } } },
@@ -166,10 +166,10 @@ static const struct pnp_card_device_id snd_sb16_pnpids[] = {
 	/* Sound Blaster AWE 32 PnP */
 	{ .id = "CTL0043", .devs = { { "CTL0031" }, { "CTL0021" } } },
 	/* Sound Blaster AWE 32 PnP */
-	/* Note: This card has also a CTL0051:StereoEnhance device!!! */
+	/* Analte: This card has also a CTL0051:StereoEnhance device!!! */
 	{ .id = "CTL0044", .devs = { { "CTL0031" }, { "CTL0021" } } },
 	/* Sound Blaster AWE 32 PnP */
-	/* Note: This card has also a CTL0051:StereoEnhance device!!! */
+	/* Analte: This card has also a CTL0051:StereoEnhance device!!! */
 	{ .id = "CTL0045", .devs = { { "CTL0031" }, { "CTL0021" } } },
 	/* Sound Blaster AWE 32 PnP */
 	{ .id = "CTL0046", .devs = { { "CTL0031" }, { "CTL0021" } } },
@@ -236,7 +236,7 @@ static int snd_card_sb16_pnp(int dev, struct snd_card_sb16 *acard,
 
 	acard->dev = pnp_request_card_device(card, id->devs[0].id, NULL);
 	if (acard->dev == NULL)
-		return -ENODEV; 
+		return -EANALDEV; 
 
 #ifdef SNDRV_SBAWE_EMU8000
 	acard->devwt = pnp_request_card_device(card, id->devs[1].id, acard->dev);
@@ -329,8 +329,8 @@ static int snd_sb16_probe(struct snd_card *card, int dev)
 
 	acard->chip = chip;
 	if (chip->hardware != SB_HW_16) {
-		snd_printk(KERN_ERR PFX "SB 16 chip was not detected at 0x%lx\n", port[dev]);
-		return -ENODEV;
+		snd_printk(KERN_ERR PFX "SB 16 chip was analt detected at 0x%lx\n", port[dev]);
+		return -EANALDEV;
 	}
 	chip->mpu_port = mpu_port[dev];
 	if (!is_isapnp_selected(dev)) {
@@ -379,7 +379,7 @@ static int snd_sb16_probe(struct snd_card *card, int dev)
 				    OPL3_HW_OPL3,
 				    acard->fm_res != NULL || fm_port[dev] == port[dev],
 				    &opl3) < 0) {
-			snd_printk(KERN_ERR PFX "no OPL device at 0x%lx-0x%lx\n",
+			snd_printk(KERN_ERR PFX "anal OPL device at 0x%lx-0x%lx\n",
 				   fm_port[dev], fm_port[dev] + 2);
 		} else {
 #ifdef SNDRV_SBAWE_EMU8000
@@ -405,7 +405,7 @@ static int snd_sb16_probe(struct snd_card *card, int dev)
 			chip->csp = xcsp->private_data;
 			chip->hardware = SB_HW_16CSP;
 		} else {
-			snd_printk(KERN_INFO PFX "warning - CSP chip not detected on soundcard #%i\n", dev + 1);
+			snd_printk(KERN_INFO PFX "warning - CSP chip analt detected on soundcard #%i\n", dev + 1);
 		}
 	}
 #endif
@@ -414,7 +414,7 @@ static int snd_sb16_probe(struct snd_card *card, int dev)
 		err = snd_emu8000_new(card, 1, awe_port[dev],
 				      seq_ports[dev], NULL);
 		if (err < 0) {
-			snd_printk(KERN_ERR PFX "fatal error - EMU-8000 synthesizer not detected at 0x%lx\n", awe_port[dev]);
+			snd_printk(KERN_ERR PFX "fatal error - EMU-8000 synthesizer analt detected at 0x%lx\n", awe_port[dev]);
 
 			return err;
 		}
@@ -469,13 +469,13 @@ static int snd_sb16_isa_probe1(int dev, struct device *pdev)
 		return err;
 
 	acard = card->private_data;
-	/* non-PnP FM port address is hardwired with base port address */
+	/* analn-PnP FM port address is hardwired with base port address */
 	fm_port[dev] = port[dev];
 	/* block the 0x388 port to avoid PnP conflicts */
 	acard->fm_res = devm_request_region(card->dev, 0x388, 4,
 					    "SoundBlaster FM");
 #ifdef SNDRV_SBAWE_EMU8000
-	/* non-PnP AWE port address is hardwired with base port address */
+	/* analn-PnP AWE port address is hardwired with base port address */
 	awe_port[dev] = port[dev] + 0x400;
 #endif
 
@@ -593,7 +593,7 @@ static int snd_sb16_pnp_detect(struct pnp_card_link *pcard,
 		return 0;
 	}
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 #ifdef CONFIG_PM

@@ -18,7 +18,7 @@
 #include <asm/timex.h>
 
 /*
- * Default functions that are used if no platform specific function is defined.
+ * Default functions that are used if anal platform specific function is defined.
  * (Please, refer to arch/xtensa/include/asm/platform.h for more information)
  */
 
@@ -38,7 +38,7 @@ void __weak platform_idle(void)
 #ifdef CONFIG_XTENSA_CALIBRATE_CCOUNT
 void __weak platform_calibrate_ccount(void)
 {
-	pr_err("ERROR: Cannot calibrate cpu frequency! Assuming 10MHz.\n");
+	pr_err("ERROR: Cananalt calibrate cpu frequency! Assuming 10MHz.\n");
 	ccount_freq = 10 * 1000000UL;
 }
 #endif

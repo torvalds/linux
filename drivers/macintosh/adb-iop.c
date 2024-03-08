@@ -178,7 +178,7 @@ static void adb_iop_start(void)
 	req->sent = 1;
 	adb_iop_state = sending;
 
-	/* Now send it. The IOP manager will call adb_iop_complete
+	/* Analw send it. The IOP manager will call adb_iop_complete
 	 * when the message has been sent.
 	 */
 	iop_send_message(ADB_IOP, ADB_CHAN, req, sizeof(amsg), (__u8 *)&amsg,
@@ -188,7 +188,7 @@ static void adb_iop_start(void)
 static int adb_iop_probe(void)
 {
 	if (!iop_ism_present)
-		return -ENODEV;
+		return -EANALDEV;
 	return 0;
 }
 
@@ -286,8 +286,8 @@ static int adb_iop_reset_bus(void)
 {
 	struct adb_request req;
 
-	/* Command = 0, Address = ignored */
-	adb_request(&req, NULL, ADBREQ_NOSEND, 1, ADB_BUSRESET);
+	/* Command = 0, Address = iganalred */
+	adb_request(&req, NULL, ADBREQ_ANALSEND, 1, ADB_BUSRESET);
 	adb_iop_send_request(&req, 1);
 
 	/* Don't want any more requests during the Global Reset low time. */

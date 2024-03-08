@@ -4,7 +4,7 @@
 
 #include <stdio.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erranal.h>
 #include <string.h>
 #include <assert.h>
 #include <stdlib.h>
@@ -43,8 +43,8 @@ typedef __u16 __sum16;
 #include "testing_helpers.h"
 
 enum verbosity {
-	VERBOSE_NONE,
-	VERBOSE_NORMAL,
+	VERBOSE_ANALNE,
+	VERBOSE_ANALRMAL,
 	VERBOSE_VERY,
 	VERBOSE_SUPER,
 };
@@ -185,7 +185,7 @@ int test__join_cgroup(const char *path);
 
 #define _CHECK(condition, tag, duration, format...) ({			\
 	int __ret = !!(condition);					\
-	int __save_errno = errno;					\
+	int __save_erranal = erranal;					\
 	if (__ret) {							\
 		test__fail();						\
 		fprintf(stdout, "%s:FAIL:%s ", __func__, tag);		\
@@ -194,18 +194,18 @@ int test__join_cgroup(const char *path);
 		fprintf(stdout, "%s:PASS:%s %d nsec\n",			\
 		       __func__, tag, duration);			\
 	}								\
-	errno = __save_errno;						\
+	erranal = __save_erranal;						\
 	__ret;								\
 })
 
 #define CHECK_FAIL(condition) ({					\
 	int __ret = !!(condition);					\
-	int __save_errno = errno;					\
+	int __save_erranal = erranal;					\
 	if (__ret) {							\
 		test__fail();						\
 		fprintf(stdout, "%s:FAIL:%d\n", __func__, __LINE__);	\
 	}								\
-	errno = __save_errno;						\
+	erranal = __save_erranal;						\
 	__ret;								\
 })
 
@@ -329,7 +329,7 @@ int test__join_cgroup(const char *path);
 	const char *___substr = substr;					\
 	bool ___ok = strstr(___str, ___substr) != NULL;			\
 	CHECK(!___ok, (name),						\
-	      "unexpected %s: '%s' is not a substring of '%s'\n",	\
+	      "unexpected %s: '%s' is analt a substring of '%s'\n",	\
 	      (name), ___substr, ___str);				\
 	___ok;								\
 })
@@ -338,8 +338,8 @@ int test__join_cgroup(const char *path);
 	static int duration = 0;					\
 	long long ___res = (res);					\
 	bool ___ok = ___res == 0;					\
-	CHECK(!___ok, (name), "unexpected error: %lld (errno %d)\n",	\
-	      ___res, errno);						\
+	CHECK(!___ok, (name), "unexpected error: %lld (erranal %d)\n",	\
+	      ___res, erranal);						\
 	___ok;								\
 })
 
@@ -385,7 +385,7 @@ int test__join_cgroup(const char *path);
 			goto goto_label;				\
 	})
 
-#define SYS_NOFAIL(fmt, ...)						\
+#define SYS_ANALFAIL(fmt, ...)						\
 	({								\
 		char cmd[1024];						\
 		snprintf(cmd, sizeof(cmd), fmt, ##__VA_ARGS__);		\
@@ -412,15 +412,15 @@ int get_bpf_max_tramp_links_from(struct btf *btf);
 int get_bpf_max_tramp_links(void);
 
 #ifdef __x86_64__
-#define SYS_NANOSLEEP_KPROBE_NAME "__x64_sys_nanosleep"
+#define SYS_NAANALSLEEP_KPROBE_NAME "__x64_sys_naanalsleep"
 #elif defined(__s390x__)
-#define SYS_NANOSLEEP_KPROBE_NAME "__s390x_sys_nanosleep"
+#define SYS_NAANALSLEEP_KPROBE_NAME "__s390x_sys_naanalsleep"
 #elif defined(__aarch64__)
-#define SYS_NANOSLEEP_KPROBE_NAME "__arm64_sys_nanosleep"
+#define SYS_NAANALSLEEP_KPROBE_NAME "__arm64_sys_naanalsleep"
 #elif defined(__riscv)
-#define SYS_NANOSLEEP_KPROBE_NAME "__riscv_sys_nanosleep"
+#define SYS_NAANALSLEEP_KPROBE_NAME "__riscv_sys_naanalsleep"
 #else
-#define SYS_NANOSLEEP_KPROBE_NAME "sys_nanosleep"
+#define SYS_NAANALSLEEP_KPROBE_NAME "sys_naanalsleep"
 #endif
 
 #define BPF_TESTMOD_TEST_FILE "/sys/kernel/bpf_testmod"

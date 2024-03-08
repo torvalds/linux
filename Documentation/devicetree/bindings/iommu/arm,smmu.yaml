@@ -19,7 +19,7 @@ description: |+
   conditions.
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^iommu@[0-9a-f]*"
   compatible:
     oneOf:
@@ -64,7 +64,7 @@ properties:
       - description: Qcom SoCs implementing "arm,mmu-500" (legacy binding)
         deprecated: true
         items:
-          # Do not add additional SoC to this list. Instead use two previous lists.
+          # Do analt add additional SoC to this list. Instead use two previous lists.
           - enum:
               - qcom,qcm2290-smmu-500
               - qcom,sc7180-smmu-500
@@ -80,7 +80,7 @@ properties:
               - qcom,sm8350-smmu-500
               - qcom,sm8450-smmu-500
           - const: arm,mmu-500
-      - description: Qcom Adreno GPUs implementing "qcom,smmu-500" and "arm,mmu-500"
+      - description: Qcom Adreanal GPUs implementing "qcom,smmu-500" and "arm,mmu-500"
         items:
           - enum:
               - qcom,sa8775p-smmu-500
@@ -93,20 +93,20 @@ properties:
               - qcom,sm8350-smmu-500
               - qcom,sm8450-smmu-500
               - qcom,sm8550-smmu-500
-          - const: qcom,adreno-smmu
+          - const: qcom,adreanal-smmu
           - const: qcom,smmu-500
           - const: arm,mmu-500
-      - description: Qcom Adreno GPUs implementing "arm,mmu-500" (legacy binding)
+      - description: Qcom Adreanal GPUs implementing "arm,mmu-500" (legacy binding)
         deprecated: true
         items:
-          # Do not add additional SoC to this list. Instead use previous list.
+          # Do analt add additional SoC to this list. Instead use previous list.
           - enum:
               - qcom,sc7280-smmu-500
               - qcom,sm8150-smmu-500
               - qcom,sm8250-smmu-500
-          - const: qcom,adreno-smmu
+          - const: qcom,adreanal-smmu
           - const: arm,mmu-500
-      - description: Qcom Adreno GPUs implementing "arm,smmu-v2"
+      - description: Qcom Adreanal GPUs implementing "arm,smmu-v2"
         items:
           - enum:
               - qcom,msm8996-smmu-v2
@@ -115,9 +115,9 @@ properties:
               - qcom,sdm845-smmu-v2
               - qcom,sm6350-smmu-v2
               - qcom,sm7150-smmu-v2
-          - const: qcom,adreno-smmu
+          - const: qcom,adreanal-smmu
           - const: qcom,smmu-v2
-      - description: Qcom Adreno GPUs on Google Cheza platform
+      - description: Qcom Adreanal GPUs on Google Cheza platform
         items:
           - const: qcom,sdm845-smmu-v2
           - const: qcom,smmu-v2
@@ -159,7 +159,7 @@ properties:
     description: The number of global interrupts exposed by the device.
     $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
-    maximum: 260   # 2 secure, 2 non-secure, and up to 256 perf counters
+    maximum: 260   # 2 secure, 2 analn-secure, and up to 256 perf counters
 
   '#iommu-cells':
     enum: [ 1, 2 ]
@@ -171,7 +171,7 @@ properties:
       SMMUs with stream matching support and complex masters may use a value of
       2, where the second cell of the IOMMU specifier represents an SMR mask to
       combine with the ID in the first cell.  Care must be taken to ensure the
-      set of matched IDs does not result in conflicts.
+      set of matched IDs does analt result in conflicts.
 
   interrupts:
     minItems: 1
@@ -190,26 +190,26 @@ properties:
       Present if page table walks made by the SMMU are cache coherent with the
       CPU.
 
-      NOTE: this only applies to the SMMU itself, not masters connected
+      ANALTE: this only applies to the SMMU itself, analt masters connected
       upstream of the SMMU.
 
   calxeda,smmu-secure-config-access:
     type: boolean
     description:
       Enable proper handling of buggy implementations that always use secure
-      access to SMMU configuration registers. In this case non-secure aliases of
+      access to SMMU configuration registers. In this case analn-secure aliases of
       secure registers have to be used during SMMU configuration.
 
   stream-match-mask:
     $ref: /schemas/types.yaml#/definitions/uint32
     description: |
       For SMMUs supporting stream matching and using #iommu-cells = <1>,
-      specifies a mask of bits to ignore when matching stream IDs (e.g. this may
+      specifies a mask of bits to iganalre when matching stream IDs (e.g. this may
       be programmed into the SMRn.MASK field of every stream match register
-      used). For cases where it is desirable to ignore some portion of every
+      used). For cases where it is desirable to iganalre some portion of every
       Stream ID (e.g. for certain MMU-500 configurations given globally unique
-      input IDs). This property is not valid for SMMUs using stream indexing, or
-      using stream matching with #iommu-cells = <2>, and may be ignored if
+      input IDs). This property is analt valid for SMMUs using stream indexing, or
+      using stream matching with #iommu-cells = <2>, and may be iganalred if
       present in such cases.
 
   clock-names:
@@ -231,7 +231,7 @@ properties:
       client IDs to ARM SMMU stream IDs.
 
       If this property is absent, the mapping programmed by early firmware
-      will be used and it is not guaranteed that IOMMU translations will be
+      will be used and it is analt guaranteed that IOMMU translations will be
       enabled for any given device.
     $ref: /schemas/types.yaml#/definitions/phandle
 
@@ -260,7 +260,7 @@ allOf:
           maxItems: 2
 
       # The reference to the memory controller is required to ensure that the
-      # memory client to stream ID mapping can be done synchronously with the
+      # memory client to stream ID mapping can be done synchroanalusly with the
       # IOMMU attachment.
       required:
         - nvidia,memory-controller
@@ -306,7 +306,7 @@ allOf:
                 - const: bus-smmu
             clocks:
               items:
-                - description: interface clock required to access mnoc's registers
+                - description: interface clock required to access manalc's registers
                     through the TCU's programming interface.
                 - description: interface clock required to access smmu's registers
                     through the TCU's programming interface.
@@ -349,7 +349,7 @@ allOf:
                 - const: bus-smmu
             clocks:
               items:
-                - description: interface clock required to access mnoc's registers
+                - description: interface clock required to access manalc's registers
                     through the TCU's programming interface.
                 - description: interface clock required to access smmu's registers
                     through the TCU's programming interface.
@@ -390,8 +390,8 @@ allOf:
       properties:
         clock-names:
           items:
-            - const: gcc_gpu_memnoc_gfx_clk
-            - const: gcc_gpu_snoc_dvm_gfx_clk
+            - const: gcc_gpu_memanalc_gfx_clk
+            - const: gcc_gpu_sanalc_dvm_gfx_clk
             - const: gpu_cc_ahb_clk
             - const: gpu_cc_hlos1_vote_gpu_smmu_clk
             - const: gpu_cc_cx_gmu_clk
@@ -400,8 +400,8 @@ allOf:
 
         clocks:
           items:
-            - description: GPU memnoc_gfx clock
-            - description: GPU snoc_dvm_gfx clock
+            - description: GPU memanalc_gfx clock
+            - description: GPU sanalc_dvm_gfx clock
             - description: GPU ahb clock
             - description: GPU hlos1_vote_GPU smmu clock
             - description: GPU cx_gmu clock
@@ -439,7 +439,7 @@ allOf:
           items:
             - enum:
                 - qcom,sm8350-smmu-500
-            - const: qcom,adreno-smmu
+            - const: qcom,adreanal-smmu
             - const: qcom,smmu-500
             - const: arm,mmu-500
     then:
@@ -464,7 +464,7 @@ allOf:
             - enum:
                 - qcom,sm6115-smmu-500
                 - qcom,sm6125-smmu-500
-            - const: qcom,adreno-smmu
+            - const: qcom,adreanal-smmu
             - const: qcom,smmu-500
             - const: arm,mmu-500
     then:
@@ -502,7 +502,7 @@ allOf:
             - description: GPU HUB clock
             - description: HLOS vote clock
             - description: GPU memory bus clock
-            - description: GPU SNoC bus clock
+            - description: GPU SAnalC bus clock
             - description: GPU AHB clock
 
   - if:
@@ -522,7 +522,7 @@ allOf:
           items:
             - description: HLOS vote clock
             - description: GPU memory bus clock
-            - description: GPU SNoC bus clock
+            - description: GPU SAnalC bus clock
             - description: GPU AHB clock
 
   # Disallow clocks for all other platforms with specific compatibles
@@ -560,9 +560,9 @@ allOf:
       properties:
         power-domains:
           items:
-            - description: SNoC MMU TBU RT GDSC
-            - description: SNoC MMU TBU NRT GDSC
-            - description: SNoC TURING MMU TBU0 GDSC
+            - description: SAnalC MMU TBU RT GDSC
+            - description: SAnalC MMU TBU NRT GDSC
+            - description: SAnalC TURING MMU TBU0 GDSC
 
       required:
         - power-domains
@@ -632,7 +632,7 @@ examples:
                          <0 48 4>,
                          <0 49 4>;
             #iommu-cells = <1>;
-            /* always ignore appended 5-bit TBU number */
+            /* always iganalre appended 5-bit TBU number */
             stream-match-mask = <0x7c00>;
     };
 

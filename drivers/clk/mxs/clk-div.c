@@ -76,7 +76,7 @@ struct clk *mxs_clk_div(const char *name, const char *parent_name,
 
 	div = kzalloc(sizeof(*div), GFP_KERNEL);
 	if (!div)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.ops = &clk_div_ops;

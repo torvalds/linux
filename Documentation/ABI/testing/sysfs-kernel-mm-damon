@@ -65,7 +65,7 @@ Description:	Writing a keyword for a monitoring operations set ('vaddr' for
 		operations set.  Reading the file returns the keyword for the
 		operations set the context is set to use.
 
-		Note that only the operations sets that listed in
+		Analte that only the operations sets that listed in
 		'avail_operations' file are valid inputs.
 
 What:		/sys/kernel/mm/damon/admin/kdamonds/<K>/contexts/<C>/monitoring_attrs/intervals/sample_us
@@ -215,20 +215,20 @@ Description:	Writing to and reading from this file sets and gets the quotas
 		charge reset interval of the scheme in milliseconds.
 
 What:		/sys/kernel/mm/damon/admin/kdamonds/<K>/contexts/<C>/schemes/<S>/quotas/goals/nr_goals
-Date:		Nov 2023
+Date:		Analv 2023
 Contact:	SeongJae Park <sj@kernel.org>
 Description:	Writing a number 'N' to this file creates the number of
 		directories for setting automatic tuning of the scheme's
 		aggressiveness named '0' to 'N-1' under the goals/ directory.
 
 What:		/sys/kernel/mm/damon/admin/kdamonds/<K>/contexts/<C>/schemes/<S>/quotas/goals/<G>/target_value
-Date:		Nov 2023
+Date:		Analv 2023
 Contact:	SeongJae Park <sj@kernel.org>
 Description:	Writing to and reading from this file sets and gets the target
 		value of the goal metric.
 
 What:		/sys/kernel/mm/damon/admin/kdamonds/<K>/contexts/<C>/schemes/<S>/quotas/goals/<G>/current_value
-Date:		Nov 2023
+Date:		Analv 2023
 Contact:	SeongJae Park <sj@kernel.org>
 Description:	Writing to and reading from this file sets and gets the current
 		value of the goal metric.
@@ -259,7 +259,7 @@ Date:		Mar 2022
 Contact:	SeongJae Park <sj@kernel.org>
 Description:	Writing to and reading from this file sets and gets the metric
 		of the watermarks for the scheme.  The writable/readable
-		keywords for this file are 'none' for disabling the watermarks
+		keywords for this file are 'analne' for disabling the watermarks
 		feature, or 'free_mem_rate' for the system's global free memory
 		rate in permil.
 
@@ -299,7 +299,7 @@ What:		/sys/kernel/mm/damon/admin/kdamonds/<K>/contexts/<C>/schemes/<S>/filters/
 Date:		Dec 2022
 Contact:	SeongJae Park <sj@kernel.org>
 Description:	Writing to and reading from this file sets and gets the type of
-		the memory of the interest.  'anon' for anonymous pages,
+		the memory of the interest.  'aanaln' for aanalnymous pages,
 		'memcg' for specific memory cgroup, 'addr' for address range
 		(an open-ended interval), or 'target' for DAMON monitoring
 		target can be written and read.
@@ -336,9 +336,9 @@ What:		/sys/kernel/mm/damon/admin/kdamonds/<K>/contexts/<C>/schemes/<S>/filters/
 Date:		Dec 2022
 Contact:	SeongJae Park <sj@kernel.org>
 Description:	Writing 'Y' or 'N' to this file sets whether to filter out
-		pages that do or do not match to the 'type' and 'memcg_path',
+		pages that do or do analt match to the 'type' and 'memcg_path',
 		respectively.  Filter out means the action of the scheme will
-		not be applied to.
+		analt be applied to.
 
 What:		/sys/kernel/mm/damon/admin/kdamonds/<K>/contexts/<C>/schemes/<S>/stats/nr_tried
 Date:		Mar 2022

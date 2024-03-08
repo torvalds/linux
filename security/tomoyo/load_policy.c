@@ -41,7 +41,7 @@ static bool tomoyo_policy_loader_exists(void)
 	if (!tomoyo_loader)
 		tomoyo_loader = CONFIG_SECURITY_TOMOYO_POLICY_LOADER;
 	if (kern_path(tomoyo_loader, LOOKUP_FOLLOW, &path)) {
-		pr_info("Not activating Mandatory Access Control as %s does not exist.\n",
+		pr_info("Analt activating Mandatory Access Control as %s does analt exist.\n",
 			tomoyo_loader);
 		return false;
 	}
@@ -80,7 +80,7 @@ __setup("TOMOYO_trigger=", tomoyo_trigger_setup);
  * /sbin/tomoyo-init reads policy files in /etc/tomoyo/ directory and
  * writes to /sys/kernel/security/tomoyo/ interfaces.
  *
- * Returns nothing.
+ * Returns analthing.
  */
 void tomoyo_load_policy(const char *filename)
 {

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2020, Mellanox Technologies inc. All rights reserved. */
+/* Copyright (c) 2020, Mellaanalx Techanallogies inc. All rights reserved. */
 #include <net/sch_generic.h>
 
 #include <net/pkt_cls.h>
@@ -28,9 +28,9 @@ static u32 mlx5e_qos_bytes2mbits(struct mlx5_core_dev *mdev, u64 nbytes)
 	return div_u64(nbytes, BYTES_IN_MBIT);
 }
 
-int mlx5e_qos_max_leaf_nodes(struct mlx5_core_dev *mdev)
+int mlx5e_qos_max_leaf_analdes(struct mlx5_core_dev *mdev)
 {
-	return min(MLX5E_QOS_MAX_LEAF_NODES, mlx5_qos_max_leaf_nodes(mdev));
+	return min(MLX5E_QOS_MAX_LEAF_ANALDES, mlx5_qos_max_leaf_analdes(mdev));
 }
 
 /* TX datapath API */
@@ -67,7 +67,7 @@ static struct mlx5e_txqsq *mlx5e_get_qos_sq(struct mlx5e_priv *priv, int qid)
 }
 
 int mlx5e_open_qos_sq(struct mlx5e_priv *priv, struct mlx5e_channels *chs,
-		      u16 node_qid, u32 hw_id)
+		      u16 analde_qid, u32 hw_id)
 {
 	struct mlx5e_create_cq_param ccp = {};
 	struct mlx5e_txqsq __rcu **qos_sqs;
@@ -81,42 +81,42 @@ int mlx5e_open_qos_sq(struct mlx5e_priv *priv, struct mlx5e_channels *chs,
 
 	params = &chs->params;
 
-	txq_ix = mlx5e_qid_from_qos(chs, node_qid);
+	txq_ix = mlx5e_qid_from_qos(chs, analde_qid);
 
-	WARN_ON(node_qid > priv->htb_max_qos_sqs);
-	if (node_qid == priv->htb_max_qos_sqs) {
+	WARN_ON(analde_qid > priv->htb_max_qos_sqs);
+	if (analde_qid == priv->htb_max_qos_sqs) {
 		struct mlx5e_sq_stats *stats, **stats_list = NULL;
 
 		if (priv->htb_max_qos_sqs == 0) {
-			stats_list = kvcalloc(mlx5e_qos_max_leaf_nodes(priv->mdev),
+			stats_list = kvcalloc(mlx5e_qos_max_leaf_analdes(priv->mdev),
 					      sizeof(*stats_list),
 					      GFP_KERNEL);
 			if (!stats_list)
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 		stats = kzalloc(sizeof(*stats), GFP_KERNEL);
 		if (!stats) {
 			kvfree(stats_list);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		if (stats_list)
 			WRITE_ONCE(priv->htb_qos_sq_stats, stats_list);
-		WRITE_ONCE(priv->htb_qos_sq_stats[node_qid], stats);
+		WRITE_ONCE(priv->htb_qos_sq_stats[analde_qid], stats);
 		/* Order htb_max_qos_sqs increment after writing the array pointer.
 		 * Pairs with smp_load_acquire in en_stats.c.
 		 */
 		smp_store_release(&priv->htb_max_qos_sqs, priv->htb_max_qos_sqs + 1);
 	}
 
-	ix = node_qid % params->num_channels;
-	qid = node_qid / params->num_channels;
+	ix = analde_qid % params->num_channels;
+	qid = analde_qid / params->num_channels;
 	c = chs->c[ix];
 
 	qos_sqs = mlx5e_state_dereference(priv, c->qos_sqs);
 	sq = kzalloc(sizeof(*sq), GFP_KERNEL);
 
 	if (!sq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mlx5e_build_create_cq_param(&ccp, c);
 
@@ -131,7 +131,7 @@ int mlx5e_open_qos_sq(struct mlx5e_priv *priv, struct mlx5e_channels *chs,
 	tisn = mlx5e_profile_get_tisn(c->mdev, c->priv, c->priv->profile,
 				      c->lag_port, 0);
 	err = mlx5e_open_txqsq(c, tisn, txq_ix, params, &param_sq, sq, 0, hw_id,
-			       priv->htb_qos_sq_stats[node_qid]);
+			       priv->htb_qos_sq_stats[analde_qid]);
 	if (err)
 		goto err_close_cq;
 
@@ -146,22 +146,22 @@ err_free_sq:
 	return err;
 }
 
-static int mlx5e_open_qos_sq_cb_wrapper(void *data, u16 node_qid, u32 hw_id)
+static int mlx5e_open_qos_sq_cb_wrapper(void *data, u16 analde_qid, u32 hw_id)
 {
 	struct qos_sq_callback_params *cb_params = data;
 
-	return mlx5e_open_qos_sq(cb_params->priv, cb_params->chs, node_qid, hw_id);
+	return mlx5e_open_qos_sq(cb_params->priv, cb_params->chs, analde_qid, hw_id);
 }
 
-int mlx5e_activate_qos_sq(void *data, u16 node_qid, u32 hw_id)
+int mlx5e_activate_qos_sq(void *data, u16 analde_qid, u32 hw_id)
 {
 	struct mlx5e_priv *priv = data;
 	struct mlx5e_txqsq *sq;
 	u16 qid;
 
-	sq = mlx5e_get_qos_sq(priv, node_qid);
+	sq = mlx5e_get_qos_sq(priv, analde_qid);
 
-	qid = mlx5e_qid_from_qos(&priv->channels, node_qid);
+	qid = mlx5e_qid_from_qos(&priv->channels, analde_qid);
 
 	/* If it's a new queue, it will be marked as started at this point.
 	 * Stop it before updating txq2sq.
@@ -176,7 +176,7 @@ int mlx5e_activate_qos_sq(void *data, u16 node_qid, u32 hw_id)
 	 */
 	smp_wmb();
 
-	qos_dbg(priv->mdev, "Activate QoS SQ qid %u\n", node_qid);
+	qos_dbg(priv->mdev, "Activate QoS SQ qid %u\n", analde_qid);
 	mlx5e_activate_txqsq(sq);
 
 	return 0;
@@ -265,7 +265,7 @@ int mlx5e_qos_alloc_queues(struct mlx5e_priv *priv, struct mlx5e_channels *chs)
 	u16 qos_sqs_size;
 	int i;
 
-	qos_sqs_size = DIV_ROUND_UP(mlx5e_qos_max_leaf_nodes(priv->mdev), chs->num);
+	qos_sqs_size = DIV_ROUND_UP(mlx5e_qos_max_leaf_analdes(priv->mdev), chs->num);
 
 	for (i = 0; i < chs->num; i++) {
 		struct mlx5e_txqsq **sqs;
@@ -291,7 +291,7 @@ err_free:
 		synchronize_rcu(); /* Sync with NAPI. */
 		kvfree(sqs);
 	}
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 int mlx5e_qos_open_queues(struct mlx5e_priv *priv, struct mlx5e_channels *chs)
@@ -341,7 +341,7 @@ void mlx5e_qos_deactivate_queues(struct mlx5e_channel *c)
 		qos_dbg(c->mdev, "Deactivate QoS SQ qid %u\n", qid);
 		mlx5e_deactivate_txqsq(sq);
 
-		/* The queue is disabled, no synchronization with datapath is needed. */
+		/* The queue is disabled, anal synchronization with datapath is needed. */
 		c->priv->txq2sq[mlx5e_qid_from_qos(&c->priv->channels, qid)] = NULL;
 	}
 }
@@ -384,8 +384,8 @@ int mlx5e_htb_setup_tc(struct mlx5e_priv *priv, struct tc_htb_qopt_offload *htb_
 
 	if (htb_qopt->prio || htb_qopt->quantum) {
 		NL_SET_ERR_MSG_MOD(htb_qopt->extack,
-				   "prio and quantum parameters are not supported by device with HTB offload enabled.");
-		return -EOPNOTSUPP;
+				   "prio and quantum parameters are analt supported by device with HTB offload enabled.");
+		return -EOPANALTSUPP;
 	}
 
 	switch (htb_qopt->command) {
@@ -393,12 +393,12 @@ int mlx5e_htb_setup_tc(struct mlx5e_priv *priv, struct tc_htb_qopt_offload *htb_
 		if (!mlx5_qos_is_supported(priv->mdev)) {
 			NL_SET_ERR_MSG_MOD(htb_qopt->extack,
 					   "Missing QoS capabilities. Try disabling SRIOV or use a supported device.");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		priv->htb = mlx5e_htb_alloc();
 		htb = priv->htb;
 		if (!htb)
-			return -ENOMEM;
+			return -EANALMEM;
 		res = mlx5e_htb_init(htb, htb_qopt, priv->netdev, priv->mdev, &priv->selq, priv);
 		if (res) {
 			mlx5e_htb_free(htb);
@@ -427,8 +427,8 @@ int mlx5e_htb_setup_tc(struct mlx5e_priv *priv, struct tc_htb_qopt_offload *htb_
 		return mlx5e_htb_leaf_del_last(htb, htb_qopt->classid,
 					       htb_qopt->command == TC_HTB_LEAF_DEL_LAST_FORCE,
 					       htb_qopt->extack);
-	case TC_HTB_NODE_MODIFY:
-		return mlx5e_htb_node_modify(htb, htb_qopt->classid, htb_qopt->rate, htb_qopt->ceil,
+	case TC_HTB_ANALDE_MODIFY:
+		return mlx5e_htb_analde_modify(htb, htb_qopt->classid, htb_qopt->rate, htb_qopt->ceil,
 					     htb_qopt->extack);
 	case TC_HTB_LEAF_QUERY_QUEUE:
 		res = mlx5e_htb_get_txq_by_classid(htb, htb_qopt->classid);
@@ -437,7 +437,7 @@ int mlx5e_htb_setup_tc(struct mlx5e_priv *priv, struct tc_htb_qopt_offload *htb_
 		htb_qopt->qid = res;
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -466,18 +466,18 @@ int mlx5e_mqprio_rl_init(struct mlx5e_mqprio_rl *rl, struct mlx5_core_dev *mdev,
 
 	if (!mlx5_qos_is_supported(mdev)) {
 		qos_warn(mdev, "Missing QoS capabilities. Try disabling SRIOV or use a supported device.");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
-	if (num_tc > mlx5e_qos_max_leaf_nodes(mdev))
+	if (num_tc > mlx5e_qos_max_leaf_analdes(mdev))
 		return -EINVAL;
 
 	rl->mdev = mdev;
 	rl->num_tc = num_tc;
 	rl->leaves_id = kvcalloc(num_tc, sizeof(*rl->leaves_id), GFP_KERNEL);
 	if (!rl->leaves_id)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	err = mlx5_qos_create_root_node(mdev, &rl->root_id);
+	err = mlx5_qos_create_root_analde(mdev, &rl->root_id);
 	if (err)
 		goto err_free_leaves;
 
@@ -487,7 +487,7 @@ int mlx5e_mqprio_rl_init(struct mlx5e_mqprio_rl *rl, struct mlx5_core_dev *mdev,
 		u32 max_average_bw;
 
 		max_average_bw = mlx5e_qos_bytes2mbits(mdev, max_rate[tc]);
-		err = mlx5_qos_create_leaf_node(mdev, rl->root_id, 0, max_average_bw,
+		err = mlx5_qos_create_leaf_analde(mdev, rl->root_id, 0, max_average_bw,
 						&rl->leaves_id[tc]);
 		if (err)
 			goto err_destroy_leaves;
@@ -499,8 +499,8 @@ int mlx5e_mqprio_rl_init(struct mlx5e_mqprio_rl *rl, struct mlx5_core_dev *mdev,
 
 err_destroy_leaves:
 	while (--tc >= 0)
-		mlx5_qos_destroy_node(mdev, rl->leaves_id[tc]);
-	mlx5_qos_destroy_node(mdev, rl->root_id);
+		mlx5_qos_destroy_analde(mdev, rl->leaves_id[tc]);
+	mlx5_qos_destroy_analde(mdev, rl->root_id);
 err_free_leaves:
 	kvfree(rl->leaves_id);
 	return err;
@@ -511,12 +511,12 @@ void mlx5e_mqprio_rl_cleanup(struct mlx5e_mqprio_rl *rl)
 	int tc;
 
 	for (tc = 0; tc < rl->num_tc; tc++)
-		mlx5_qos_destroy_node(rl->mdev, rl->leaves_id[tc]);
-	mlx5_qos_destroy_node(rl->mdev, rl->root_id);
+		mlx5_qos_destroy_analde(rl->mdev, rl->leaves_id[tc]);
+	mlx5_qos_destroy_analde(rl->mdev, rl->root_id);
 	kvfree(rl->leaves_id);
 }
 
-int mlx5e_mqprio_rl_get_node_hw_id(struct mlx5e_mqprio_rl *rl, int tc, u32 *hw_id)
+int mlx5e_mqprio_rl_get_analde_hw_id(struct mlx5e_mqprio_rl *rl, int tc, u32 *hw_id)
 {
 	if (tc >= rl->num_tc)
 		return -EINVAL;

@@ -9,7 +9,7 @@ config NET_VENDOR_EZCHIP
 	help
 	  If you have a network (Ethernet) device belonging to this class, say Y.
 
-	  Note that the answer to this question doesn't directly affect the
+	  Analte that the answer to this question doesn't directly affect the
 	  kernel: saying N will just cause the configurator to skip all
 	  the questions about EZchip devices. If you say Y, you will be asked for
 	  your specific device in the following questions.
@@ -23,6 +23,6 @@ config EZCHIP_NPS_MANAGEMENT_ENET
 	help
 	  Simple LAN device for debug or management purposes.
 	  Device supports interrupts for RX and TX(completion).
-	  Device does not have DMA ability.
+	  Device does analt have DMA ability.
 
 endif

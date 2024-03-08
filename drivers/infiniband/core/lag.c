@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
- * Copyright (c) 2020 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2020 Mellaanalx Techanallogies. All rights reserved.
  */
 
 #include <rdma/ib_verbs.h>
@@ -87,7 +87,7 @@ static struct net_device *rdma_get_xmit_slave_udp(struct ib_device *device,
 
 	skb = rdma_build_skb(master, ah_attr, flags);
 	if (!skb)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	rcu_read_lock();
 	slave = netdev_get_xmit_slave(master, skb,

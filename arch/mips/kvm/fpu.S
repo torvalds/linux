@@ -5,7 +5,7 @@
  *
  * FPU context handling code for KVM.
  *
- * Copyright (C) 2015 Imagination Technologies Ltd.
+ * Copyright (C) 2015 Imagination Techanallogies Ltd.
  */
 
 #include <asm/asm.h>
@@ -17,8 +17,8 @@
 /* preprocessor replaces the fp in ".set fp=64" with $30 otherwise */
 #undef fp
 
-	.set	noreorder
-	.set	noat
+	.set	analreorder
+	.set	analat
 
 LEAF(__kvm_save_fpu)
 	.set	push
@@ -26,8 +26,8 @@ LEAF(__kvm_save_fpu)
 	.set	fp=64
 	mfc0	t0, CP0_STATUS
 	sll     t0, t0, 5			# is Status.FR set?
-	bgez    t0, 1f				# no: skip odd doubles
-	 nop
+	bgez    t0, 1f				# anal: skip odd doubles
+	 analp
 	sdc1	$f1,  VCPU_FPR1(a0)
 	sdc1	$f3,  VCPU_FPR3(a0)
 	sdc1	$f5,  VCPU_FPR5(a0)
@@ -70,8 +70,8 @@ LEAF(__kvm_restore_fpu)
 	.set	fp=64
 	mfc0	t0, CP0_STATUS
 	sll     t0, t0, 5			# is Status.FR set?
-	bgez    t0, 1f				# no: skip odd doubles
-	 nop
+	bgez    t0, 1f				# anal: skip odd doubles
+	 analp
 	ldc1	$f1,  VCPU_FPR1(a0)
 	ldc1	$f3,  VCPU_FPR3(a0)
 	ldc1	$f5,  VCPU_FPR5(a0)
@@ -114,12 +114,12 @@ LEAF(__kvm_restore_fcsr)
 	lw	t0, VCPU_FCR31(a0)
 	/*
 	 * The ctc1 must stay at this offset in __kvm_restore_fcsr.
-	 * See kvm_mips_csr_die_notify() which handles t0 containing a value
+	 * See kvm_mips_csr_die_analtify() which handles t0 containing a value
 	 * which triggers an FP Exception, which must be stepped over and
-	 * ignored since the set cause bits must remain there for the guest.
+	 * iganalred since the set cause bits must remain there for the guest.
 	 */
 	ctc1	t0, fcr31
 	jr	ra
-	 nop
+	 analp
 	.set	pop
 	END(__kvm_restore_fcsr)

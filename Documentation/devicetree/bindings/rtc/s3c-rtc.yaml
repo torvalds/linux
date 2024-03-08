@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/rtc/s3c-rtc.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Samsung S3C, S5P and Exynos Real Time Clock controller
+title: Samsung S3C, S5P and Exyanals Real Time Clock controller
 
 maintainers:
   - Krzysztof Kozlowski <krzk@kernel.org>
@@ -19,10 +19,10 @@ properties:
           - samsung,s3c6410-rtc
       - items:
           - enum:
-              - samsung,exynos7-rtc
-              - samsung,exynos850-rtc
+              - samsung,exyanals7-rtc
+              - samsung,exyanals850-rtc
           - const: samsung,s3c6410-rtc
-      - const: samsung,exynos3250-rtc
+      - const: samsung,exyanals3250-rtc
         deprecated: true
 
   reg:
@@ -60,7 +60,7 @@ allOf:
           contains:
             enum:
               - samsung,s3c6410-rtc
-              - samsung,exynos3250-rtc
+              - samsung,exyanals3250-rtc
     then:
       properties:
         clocks:
@@ -83,7 +83,7 @@ unevaluatedProperties: false
 
 examples:
   - |
-    #include <dt-bindings/clock/exynos5420.h>
+    #include <dt-bindings/clock/exyanals5420.h>
     #include <dt-bindings/clock/samsung,s2mps11.h>
 
     rtc@10070000 {

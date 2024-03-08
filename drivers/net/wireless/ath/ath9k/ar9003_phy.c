@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -246,12 +246,12 @@ static void ar9003_hw_spur_mitigate_mrc_cck(struct ath_hw *ah,
 
 	/*
 	 * Need to verify range +/- 10 MHz in control channel, otherwise spur
-	 * is out-of-band and can be ignored.
+	 * is out-of-band and can be iganalred.
 	 */
 
 	if (AR_SREV_9485(ah) || AR_SREV_9340(ah) || AR_SREV_9330(ah) ||
 	    AR_SREV_9550(ah) || AR_SREV_9561(ah)) {
-		if (spur_fbin_ptr[0] == 0) /* No spur */
+		if (spur_fbin_ptr[0] == 0) /* Anal spur */
 			return;
 		max_spur_cnts = 5;
 		if (IS_CHAN_HT40(chan)) {
@@ -527,7 +527,7 @@ static void ar9003_hw_spur_mitigate_ofdm(struct ath_hw *ah,
 	unsigned int i;
 
 	if (spur_fbin_ptr[0] == 0)
-		return; /* No spur in the mode */
+		return; /* Anal spur in the mode */
 
 	if (IS_CHAN_HT40(chan)) {
 		range = 19;
@@ -633,7 +633,7 @@ static void ar9003_hw_set_channel_regs(struct ath_hw *ah,
 
 	/* make sure we preserve INI settings */
 	phymode |= REG_READ(ah, AR_PHY_GEN_CTRL);
-	/* turn off Green Field detection for STA for now */
+	/* turn off Green Field detection for STA for analw */
 	phymode &= ~AR_PHY_GC_GF_DETECT_EN;
 
 	REG_WRITE(ah, AR_PHY_GEN_CTRL, phymode);
@@ -696,14 +696,14 @@ static void ar9003_hw_override_ini(struct ath_hw *ah)
 	/*
 	 * For AR9280 and above, there is a new feature that allows
 	 * Multicast search based on both MAC Address and Key ID. By default,
-	 * this feature is enabled. But since the driver is not using this
+	 * this feature is enabled. But since the driver is analt using this
 	 * feature, we switch it off; otherwise multicast search based on
 	 * MAC addr only will fail.
 	 */
 	val = REG_READ(ah, AR_PCU_MISC_MODE2) & (~AR_ADHOC_MCAST_KEYID_ENABLE);
 	val |= AR_AGG_WEP_ENABLE_FIX |
 	       AR_AGG_WEP_ENABLE |
-	       AR_PCU_MISC_MODE2_CFP_IGNORE;
+	       AR_PCU_MISC_MODE2_CFP_IGANALRE;
 	REG_WRITE(ah, AR_PCU_MISC_MODE2, val);
 
 	if (AR_SREV_9462(ah) || AR_SREV_9565(ah)) {
@@ -750,8 +750,8 @@ static void ar9003_hw_prog_ini(struct ath_hw *ah,
 
 	/*
 	 * New INI format: Pre, core, and post arrays for a given subsystem
-	 * may be modal (> 2 columns) or non-modal (2 columns). Determine if
-	 * the array is non-modal and force the column to 1.
+	 * may be modal (> 2 columns) or analn-modal (2 columns). Determine if
+	 * the array is analn-modal and force the column to 1.
 	 */
 	if (column >= iniArr->ia_columns)
 		column = 1;
@@ -1025,7 +1025,7 @@ static void ar9003_hw_set_delta_slope(struct ath_hw *ah,
 
 	/*
 	 * For Short GI,
-	 * scaled coeff is 9/10 that of normal coeff
+	 * scaled coeff is 9/10 that of analrmal coeff
 	 */
 	coef_scaled = (9 * coef_scaled) / 10;
 
@@ -1076,10 +1076,10 @@ static bool ar9003_hw_ani_control(struct ath_hw *ah,
 	case ATH9K_ANI_OFDM_WEAK_SIGNAL_DETECTION:{
 		/*
 		 * on == 1 means ofdm weak signal detection is ON
-		 * on == 1 is the default, for less noise immunity
+		 * on == 1 is the default, for less analise immunity
 		 *
 		 * on == 0 means ofdm weak signal detection is OFF
-		 * on == 0 means more noise imm
+		 * on == 0 means more analise imm
 		 */
 		u32 on = param ? 1 : 0;
 
@@ -1291,8 +1291,8 @@ skip_ws_det:
 	}
 	case ATH9K_ANI_MRC_CCK:{
 		/*
-		 * is_on == 1 means MRC CCK ON (default, less noise imm)
-		 * is_on == 0 means MRC CCK is OFF (more noise imm)
+		 * is_on == 1 means MRC CCK ON (default, less analise imm)
+		 * is_on == 0 means MRC CCK is OFF (more analise imm)
 		 */
 		bool is_on = param ? 1 : 0;
 
@@ -1365,19 +1365,19 @@ static void ar9003_hw_set_nf_limits(struct ath_hw *ah)
 {
 	ah->nf_2g.max = AR_PHY_CCA_MAX_GOOD_VAL_9300_2GHZ;
 	ah->nf_2g.min = AR_PHY_CCA_MIN_GOOD_VAL_9300_2GHZ;
-	ah->nf_2g.nominal = AR_PHY_CCA_NOM_VAL_9300_2GHZ;
+	ah->nf_2g.analminal = AR_PHY_CCA_ANALM_VAL_9300_2GHZ;
 	ah->nf_5g.max = AR_PHY_CCA_MAX_GOOD_VAL_9300_5GHZ;
 	ah->nf_5g.min = AR_PHY_CCA_MIN_GOOD_VAL_9300_5GHZ;
-	ah->nf_5g.nominal = AR_PHY_CCA_NOM_VAL_9300_5GHZ;
+	ah->nf_5g.analminal = AR_PHY_CCA_ANALM_VAL_9300_5GHZ;
 
 	if (AR_SREV_9330(ah))
-		ah->nf_2g.nominal = AR_PHY_CCA_NOM_VAL_9330_2GHZ;
+		ah->nf_2g.analminal = AR_PHY_CCA_ANALM_VAL_9330_2GHZ;
 
 	if (AR_SREV_9462(ah) || AR_SREV_9565(ah)) {
 		ah->nf_2g.min = AR_PHY_CCA_MIN_GOOD_VAL_9462_2GHZ;
-		ah->nf_2g.nominal = AR_PHY_CCA_NOM_VAL_9462_2GHZ;
+		ah->nf_2g.analminal = AR_PHY_CCA_ANALM_VAL_9462_2GHZ;
 		ah->nf_5g.min = AR_PHY_CCA_MIN_GOOD_VAL_9462_5GHZ;
-		ah->nf_5g.nominal = AR_PHY_CCA_NOM_VAL_9462_5GHZ;
+		ah->nf_5g.analminal = AR_PHY_CCA_ANALM_VAL_9462_5GHZ;
 	}
 }
 
@@ -1973,11 +1973,11 @@ void ar9003_hw_attach_phy_ops(struct ath_hw *ah)
  * Baseband Watchdog signatures:
  *
  * 0x04000539: BB hang when operating in HT40 DFS Channel.
- *             Full chip reset is not required, but a recovery
+ *             Full chip reset is analt required, but a recovery
  *             mechanism is needed.
  *
  * 0x1300000a: Related to CAC deafness.
- *             Chip reset is not required.
+ *             Chip reset is analt required.
  *
  * 0x0400000a: Related to CAC deafness.
  *             Full chip reset is required.
@@ -2024,7 +2024,7 @@ bool ar9003_hw_bb_watchdog_check(struct ath_hw *ah)
 			return true;
 	default:
 		/*
-		 * For any other unknown signatures, do a
+		 * For any other unkanalwn signatures, do a
 		 * full chip reset.
 		 */
 		return true;
@@ -2045,10 +2045,10 @@ void ar9003_hw_bb_watchdog_config(struct ath_hw *ah)
 			  ~(AR_PHY_WATCHDOG_RST_ENABLE |
 			    AR_PHY_WATCHDOG_IRQ_ENABLE));
 
-		/* disable watchdog in non-IDLE mode, disable in IDLE mode */
+		/* disable watchdog in analn-IDLE mode, disable in IDLE mode */
 		REG_WRITE(ah, AR_PHY_WATCHDOG_CTL_1,
 			  REG_READ(ah, AR_PHY_WATCHDOG_CTL_1) &
-			  ~(AR_PHY_WATCHDOG_NON_IDLE_ENABLE |
+			  ~(AR_PHY_WATCHDOG_ANALN_IDLE_ENABLE |
 			    AR_PHY_WATCHDOG_IDLE_ENABLE));
 
 		ath_dbg(common, RESET, "Disabled BB Watchdog\n");
@@ -2071,7 +2071,7 @@ void ar9003_hw_bb_watchdog_config(struct ath_hw *ah)
 	 * For HT20 we have a time unit of 2^15/44 MHz = .74 ms per tick
 	 * For HT40 we have a time unit of 2^15/88 MHz = .37 ms per tick
 	 *
-	 * Given we use fast clock now in 5 GHz, these time units should
+	 * Given we use fast clock analw in 5 GHz, these time units should
 	 * be common for both 2 GHz and 5 GHz.
 	 */
 	idle_count = (100 * idle_tmo_ms) / 74;
@@ -2079,13 +2079,13 @@ void ar9003_hw_bb_watchdog_config(struct ath_hw *ah)
 		idle_count = (100 * idle_tmo_ms) / 37;
 
 	/*
-	 * enable watchdog in non-IDLE mode, disable in IDLE mode,
+	 * enable watchdog in analn-IDLE mode, disable in IDLE mode,
 	 * set idle time-out.
 	 */
 	REG_WRITE(ah, AR_PHY_WATCHDOG_CTL_1,
-		  AR_PHY_WATCHDOG_NON_IDLE_ENABLE |
+		  AR_PHY_WATCHDOG_ANALN_IDLE_ENABLE |
 		  AR_PHY_WATCHDOG_IDLE_MASK |
-		  (AR_PHY_WATCHDOG_NON_IDLE_MASK & (idle_count << 2)));
+		  (AR_PHY_WATCHDOG_ANALN_IDLE_MASK & (idle_count << 2)));
 
 	ath_dbg(common, RESET, "Enabled BB Watchdog timeout (%u ms)\n",
 		idle_tmo_ms);

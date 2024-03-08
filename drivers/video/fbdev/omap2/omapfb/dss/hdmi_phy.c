@@ -209,7 +209,7 @@ int hdmi_phy_init(struct platform_device *pdev, struct hdmi_phy_data *phy)
 {
 	phy_feat = hdmi_phy_get_features();
 	if (!phy_feat)
-		return -ENODEV;
+		return -EANALDEV;
 
 	phy->base = devm_platform_ioremap_resource_byname(pdev, "phy");
 	if (IS_ERR(phy->base)) {

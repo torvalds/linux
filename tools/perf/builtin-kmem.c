@@ -30,7 +30,7 @@
 #include <linux/rbtree.h>
 #include <linux/string.h>
 #include <linux/zalloc.h>
-#include <errno.h>
+#include <erranal.h>
 #include <inttypes.h>
 #include <locale.h>
 #include <regex.h>
@@ -69,7 +69,7 @@ struct alloc_stat {
 
 	short	alloc_cpu;
 
-	struct rb_node node;
+	struct rb_analde analde;
 };
 
 static struct rb_root root_alloc_stat;
@@ -87,18 +87,18 @@ const char *time_str;
 static int insert_alloc_stat(unsigned long call_site, unsigned long ptr,
 			     int bytes_req, int bytes_alloc, int cpu)
 {
-	struct rb_node **node = &root_alloc_stat.rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_analde **analde = &root_alloc_stat.rb_analde;
+	struct rb_analde *parent = NULL;
 	struct alloc_stat *data = NULL;
 
-	while (*node) {
-		parent = *node;
-		data = rb_entry(*node, struct alloc_stat, node);
+	while (*analde) {
+		parent = *analde;
+		data = rb_entry(*analde, struct alloc_stat, analde);
 
 		if (ptr > data->ptr)
-			node = &(*node)->rb_right;
+			analde = &(*analde)->rb_right;
 		else if (ptr < data->ptr)
-			node = &(*node)->rb_left;
+			analde = &(*analde)->rb_left;
 		else
 			break;
 	}
@@ -119,8 +119,8 @@ static int insert_alloc_stat(unsigned long call_site, unsigned long ptr,
 		data->bytes_req = bytes_req;
 		data->bytes_alloc = bytes_alloc;
 
-		rb_link_node(&data->node, parent, node);
-		rb_insert_color(&data->node, &root_alloc_stat);
+		rb_link_analde(&data->analde, parent, analde);
+		rb_insert_color(&data->analde, &root_alloc_stat);
 	}
 	data->call_site = call_site;
 	data->alloc_cpu = cpu;
@@ -132,18 +132,18 @@ static int insert_alloc_stat(unsigned long call_site, unsigned long ptr,
 static int insert_caller_stat(unsigned long call_site,
 			      int bytes_req, int bytes_alloc)
 {
-	struct rb_node **node = &root_caller_stat.rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_analde **analde = &root_caller_stat.rb_analde;
+	struct rb_analde *parent = NULL;
 	struct alloc_stat *data = NULL;
 
-	while (*node) {
-		parent = *node;
-		data = rb_entry(*node, struct alloc_stat, node);
+	while (*analde) {
+		parent = *analde;
+		data = rb_entry(*analde, struct alloc_stat, analde);
 
 		if (call_site > data->call_site)
-			node = &(*node)->rb_right;
+			analde = &(*analde)->rb_right;
 		else if (call_site < data->call_site)
-			node = &(*node)->rb_left;
+			analde = &(*analde)->rb_left;
 		else
 			break;
 	}
@@ -164,8 +164,8 @@ static int insert_caller_stat(unsigned long call_site,
 		data->bytes_req = bytes_req;
 		data->bytes_alloc = bytes_alloc;
 
-		rb_link_node(&data->node, parent, node);
-		rb_insert_color(&data->node, &root_caller_stat);
+		rb_link_analde(&data->analde, parent, analde);
+		rb_insert_color(&data->analde, &root_caller_stat);
 	}
 
 	return 0;
@@ -189,26 +189,26 @@ static int evsel__process_alloc_event(struct evsel *evsel, struct perf_sample *s
 
 	/*
 	 * Commit 11e9734bcb6a ("mm/slab_common: unify NUMA and UMA
-	 * version of tracepoints") adds the field "node" into the
+	 * version of tracepoints") adds the field "analde" into the
 	 * tracepoints 'kmalloc' and 'kmem_cache_alloc'.
 	 *
-	 * The legacy tracepoints 'kmalloc_node' and 'kmem_cache_alloc_node'
-	 * also contain the field "node".
+	 * The legacy tracepoints 'kmalloc_analde' and 'kmem_cache_alloc_analde'
+	 * also contain the field "analde".
 	 *
-	 * If the tracepoint contains the field "node" the tool stats the
+	 * If the tracepoint contains the field "analde" the tool stats the
 	 * cross allocation.
 	 */
-	if (evsel__field(evsel, "node")) {
-		int node1, node2;
+	if (evsel__field(evsel, "analde")) {
+		int analde1, analde2;
 
-		node1 = cpu__get_node((struct perf_cpu){.cpu = sample->cpu});
-		node2 = evsel__intval(evsel, sample, "node");
+		analde1 = cpu__get_analde((struct perf_cpu){.cpu = sample->cpu});
+		analde2 = evsel__intval(evsel, sample, "analde");
 
 		/*
-		 * If the field "node" is NUMA_NO_NODE (-1), we don't take it
+		 * If the field "analde" is NUMA_ANAL_ANALDE (-1), we don't take it
 		 * as a cross allocation.
 		 */
-		if ((node2 != NUMA_NO_NODE) && (node1 != node2))
+		if ((analde2 != NUMA_ANAL_ANALDE) && (analde1 != analde2))
 			nr_cross_allocs++;
 	}
 
@@ -223,20 +223,20 @@ static struct alloc_stat *search_alloc_stat(unsigned long ptr,
 					    struct rb_root *root,
 					    sort_fn_t sort_fn)
 {
-	struct rb_node *node = root->rb_node;
+	struct rb_analde *analde = root->rb_analde;
 	struct alloc_stat key = { .ptr = ptr, .call_site = call_site };
 
-	while (node) {
+	while (analde) {
 		struct alloc_stat *data;
 		int cmp;
 
-		data = rb_entry(node, struct alloc_stat, node);
+		data = rb_entry(analde, struct alloc_stat, analde);
 
 		cmp = sort_fn(&key, data);
 		if (cmp < 0)
-			node = node->rb_left;
+			analde = analde->rb_left;
 		else if (cmp > 0)
-			node = node->rb_right;
+			analde = analde->rb_right;
 		else
 			return data;
 	}
@@ -271,12 +271,12 @@ static int evsel__process_free_event(struct evsel *evsel, struct perf_sample *sa
 
 static u64 total_page_alloc_bytes;
 static u64 total_page_free_bytes;
-static u64 total_page_nomatch_bytes;
+static u64 total_page_analmatch_bytes;
 static u64 total_page_fail_bytes;
 static unsigned long nr_page_allocs;
 static unsigned long nr_page_frees;
 static unsigned long nr_page_fails;
-static unsigned long nr_page_nomatch;
+static unsigned long nr_page_analmatch;
 
 static bool use_pfn;
 static bool live_page;
@@ -288,7 +288,7 @@ static struct perf_session *kmem_session;
 static int order_stats[MAX_PAGE_ORDER][MAX_MIGRATE_TYPES];
 
 struct page_stat {
-	struct rb_node 	node;
+	struct rb_analde 	analde;
 	u64 		page;
 	u64 		callsite;
 	int 		order;
@@ -345,7 +345,7 @@ static int build_alloc_func_list(void)
 	int ret;
 	struct map *kernel_map;
 	struct symbol *sym;
-	struct rb_node *node;
+	struct rb_analde *analde;
 	struct alloc_func *func;
 	struct machine *machine = &kmem_session->machines.host;
 	regex_t alloc_func_regex;
@@ -362,18 +362,18 @@ static int build_alloc_func_list(void)
 
 	kernel_map = machine__kernel_map(machine);
 	if (map__load(kernel_map) < 0) {
-		pr_err("cannot load kernel map\n");
-		return -ENOENT;
+		pr_err("cananalt load kernel map\n");
+		return -EANALENT;
 	}
 
-	map__for_each_symbol(kernel_map, sym, node) {
+	map__for_each_symbol(kernel_map, sym, analde) {
 		if (regexec(&alloc_func_regex, sym->name, 0, NULL, 0))
 			continue;
 
 		func = realloc(alloc_func_list,
 			       (nr_alloc_funcs + 1) * sizeof(*func));
 		if (func == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		pr_debug("alloc func: %s\n", sym->name);
 		func[nr_alloc_funcs].start = sym->start;
@@ -391,14 +391,14 @@ static int build_alloc_func_list(void)
 }
 
 /*
- * Find first non-memory allocation function from callchain.
+ * Find first analn-memory allocation function from callchain.
  * The allocation functions are in the 'alloc_func_list'.
  */
 static u64 find_callsite(struct evsel *evsel, struct perf_sample *sample)
 {
 	struct addr_location al;
 	struct machine *machine = &kmem_session->machines.host;
-	struct callchain_cursor_node *node;
+	struct callchain_cursor_analde *analde;
 	struct callchain_cursor *cursor;
 	u64 result = sample->ip;
 
@@ -421,19 +421,19 @@ static u64 find_callsite(struct evsel *evsel, struct perf_sample *sample)
 		struct alloc_func key, *caller;
 		u64 addr;
 
-		node = callchain_cursor_current(cursor);
-		if (node == NULL)
+		analde = callchain_cursor_current(cursor);
+		if (analde == NULL)
 			break;
 
-		key.start = key.end = node->ip;
+		key.start = key.end = analde->ip;
 		caller = bsearch(&key, alloc_func_list, nr_alloc_funcs,
 				 sizeof(key), callcmp);
 		if (!caller) {
 			/* found */
-			if (node->ms.map)
-				addr = map__dso_unmap_ip(node->ms.map, node->ip);
+			if (analde->ms.map)
+				addr = map__dso_unmap_ip(analde->ms.map, analde->ip);
 			else
-				addr = node->ip;
+				addr = analde->ip;
 
 			result = addr;
 			goto out;
@@ -443,7 +443,7 @@ static u64 find_callsite(struct evsel *evsel, struct perf_sample *sample)
 		callchain_cursor_advance(cursor);
 	}
 
-	pr_debug2("unknown callsite: %"PRIx64 "\n", sample->ip);
+	pr_debug2("unkanalwn callsite: %"PRIx64 "\n", sample->ip);
 out:
 	addr_location__exit(&al);
 	return result;
@@ -461,21 +461,21 @@ static LIST_HEAD(page_caller_sort_input);
 static struct page_stat *
 __page_stat__findnew_page(struct page_stat *pstat, bool create)
 {
-	struct rb_node **node = &page_live_tree.rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_analde **analde = &page_live_tree.rb_analde;
+	struct rb_analde *parent = NULL;
 	struct page_stat *data;
 
-	while (*node) {
+	while (*analde) {
 		s64 cmp;
 
-		parent = *node;
-		data = rb_entry(*node, struct page_stat, node);
+		parent = *analde;
+		data = rb_entry(*analde, struct page_stat, analde);
 
 		cmp = data->page - pstat->page;
 		if (cmp < 0)
-			node = &parent->rb_left;
+			analde = &parent->rb_left;
 		else if (cmp > 0)
-			node = &parent->rb_right;
+			analde = &parent->rb_right;
 		else
 			return data;
 	}
@@ -490,8 +490,8 @@ __page_stat__findnew_page(struct page_stat *pstat, bool create)
 		data->gfp_flags = pstat->gfp_flags;
 		data->migrate_type = pstat->migrate_type;
 
-		rb_link_node(&data->node, parent, node);
-		rb_insert_color(&data->node, &page_live_tree);
+		rb_link_analde(&data->analde, parent, analde);
+		rb_insert_color(&data->analde, &page_live_tree);
 	}
 
 	return data;
@@ -510,16 +510,16 @@ static struct page_stat *page_stat__findnew_page(struct page_stat *pstat)
 static struct page_stat *
 __page_stat__findnew_alloc(struct page_stat *pstat, bool create)
 {
-	struct rb_node **node = &page_alloc_tree.rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_analde **analde = &page_alloc_tree.rb_analde;
+	struct rb_analde *parent = NULL;
 	struct page_stat *data;
 	struct sort_dimension *sort;
 
-	while (*node) {
+	while (*analde) {
 		int cmp = 0;
 
-		parent = *node;
-		data = rb_entry(*node, struct page_stat, node);
+		parent = *analde;
+		data = rb_entry(*analde, struct page_stat, analde);
 
 		list_for_each_entry(sort, &page_alloc_sort_input, list) {
 			cmp = sort->cmp(pstat, data);
@@ -528,9 +528,9 @@ __page_stat__findnew_alloc(struct page_stat *pstat, bool create)
 		}
 
 		if (cmp < 0)
-			node = &parent->rb_left;
+			analde = &parent->rb_left;
 		else if (cmp > 0)
-			node = &parent->rb_right;
+			analde = &parent->rb_right;
 		else
 			return data;
 	}
@@ -545,8 +545,8 @@ __page_stat__findnew_alloc(struct page_stat *pstat, bool create)
 		data->gfp_flags = pstat->gfp_flags;
 		data->migrate_type = pstat->migrate_type;
 
-		rb_link_node(&data->node, parent, node);
-		rb_insert_color(&data->node, &page_alloc_tree);
+		rb_link_analde(&data->analde, parent, analde);
+		rb_insert_color(&data->analde, &page_alloc_tree);
 	}
 
 	return data;
@@ -565,16 +565,16 @@ static struct page_stat *page_stat__findnew_alloc(struct page_stat *pstat)
 static struct page_stat *
 __page_stat__findnew_caller(struct page_stat *pstat, bool create)
 {
-	struct rb_node **node = &page_caller_tree.rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_analde **analde = &page_caller_tree.rb_analde;
+	struct rb_analde *parent = NULL;
 	struct page_stat *data;
 	struct sort_dimension *sort;
 
-	while (*node) {
+	while (*analde) {
 		int cmp = 0;
 
-		parent = *node;
-		data = rb_entry(*node, struct page_stat, node);
+		parent = *analde;
+		data = rb_entry(*analde, struct page_stat, analde);
 
 		list_for_each_entry(sort, &page_caller_sort_input, list) {
 			cmp = sort->cmp(pstat, data);
@@ -583,9 +583,9 @@ __page_stat__findnew_caller(struct page_stat *pstat, bool create)
 		}
 
 		if (cmp < 0)
-			node = &parent->rb_left;
+			analde = &parent->rb_left;
 		else if (cmp > 0)
-			node = &parent->rb_right;
+			analde = &parent->rb_right;
 		else
 			return data;
 	}
@@ -600,8 +600,8 @@ __page_stat__findnew_caller(struct page_stat *pstat, bool create)
 		data->gfp_flags = pstat->gfp_flags;
 		data->migrate_type = pstat->migrate_type;
 
-		rb_link_node(&data->node, parent, node);
-		rb_insert_color(&data->node, &page_caller_tree);
+		rb_link_analde(&data->analde, parent, analde);
+		rb_insert_color(&data->analde, &page_caller_tree);
 	}
 
 	return data;
@@ -655,26 +655,26 @@ static const struct {
 	{ "GFP_USER",			"U" },
 	{ "GFP_KERNEL_ACCOUNT",		"KAC" },
 	{ "GFP_KERNEL",			"K" },
-	{ "GFP_NOFS",			"NF" },
+	{ "GFP_ANALFS",			"NF" },
 	{ "GFP_ATOMIC",			"A" },
-	{ "GFP_NOIO",			"NI" },
-	{ "GFP_NOWAIT",			"NW" },
+	{ "GFP_ANALIO",			"NI" },
+	{ "GFP_ANALWAIT",			"NW" },
 	{ "GFP_DMA",			"D" },
 	{ "__GFP_HIGHMEM",		"HM" },
 	{ "GFP_DMA32",			"D32" },
 	{ "__GFP_HIGH",			"H" },
 	{ "__GFP_IO",			"I" },
 	{ "__GFP_FS",			"F" },
-	{ "__GFP_NOWARN",		"NWR" },
+	{ "__GFP_ANALWARN",		"NWR" },
 	{ "__GFP_RETRY_MAYFAIL",	"R" },
-	{ "__GFP_NOFAIL",		"NF" },
-	{ "__GFP_NORETRY",		"NR" },
+	{ "__GFP_ANALFAIL",		"NF" },
+	{ "__GFP_ANALRETRY",		"NR" },
 	{ "__GFP_COMP",			"C" },
 	{ "__GFP_ZERO",			"Z" },
-	{ "__GFP_NOMEMALLOC",		"NMA" },
+	{ "__GFP_ANALMEMALLOC",		"NMA" },
 	{ "__GFP_MEMALLOC",		"MA" },
 	{ "__GFP_HARDWALL",		"HW" },
-	{ "__GFP_THISNODE",		"TN" },
+	{ "__GFP_THISANALDE",		"TN" },
 	{ "__GFP_RECLAIMABLE",		"RC" },
 	{ "__GFP_MOVABLE",		"M" },
 	{ "__GFP_ACCOUNT",		"AC" },
@@ -782,7 +782,7 @@ static int parse_gfp_flags(struct evsel *evsel, struct perf_sample *sample,
 
 			new = realloc(gfps, (nr_gfps + 1) * sizeof(*gfps));
 			if (new == NULL)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			gfps = new;
 			new += nr_gfps++;
@@ -791,7 +791,7 @@ static int parse_gfp_flags(struct evsel *evsel, struct perf_sample *sample,
 			new->human_readable = strdup(str + 10);
 			new->compact_str = compact_gfp_flags(str + 10);
 			if (!new->human_readable || !new->compact_str)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			qsort(gfps, nr_gfps, sizeof(*gfps), gfpcmp);
 		}
@@ -846,7 +846,7 @@ static int evsel__process_page_alloc_event(struct evsel *evsel, struct perf_samp
 	this.page = page;
 	pstat = page_stat__findnew_page(&this);
 	if (pstat == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pstat->nr_alloc++;
 	pstat->alloc_bytes += bytes;
@@ -855,7 +855,7 @@ static int evsel__process_page_alloc_event(struct evsel *evsel, struct perf_samp
 	if (!live_page) {
 		pstat = page_stat__findnew_alloc(&this);
 		if (pstat == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		pstat->nr_alloc++;
 		pstat->alloc_bytes += bytes;
@@ -865,7 +865,7 @@ static int evsel__process_page_alloc_event(struct evsel *evsel, struct perf_samp
 	this.callsite = callsite;
 	pstat = page_stat__findnew_caller(&this);
 	if (pstat == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pstat->nr_alloc++;
 	pstat->alloc_bytes += bytes;
@@ -899,8 +899,8 @@ static int evsel__process_page_free_event(struct evsel *evsel, struct perf_sampl
 		pr_debug2("missing free at page %"PRIx64" (order: %d)\n",
 			  page, order);
 
-		nr_page_nomatch++;
-		total_page_nomatch_bytes += bytes;
+		nr_page_analmatch++;
+		total_page_analmatch_bytes += bytes;
 
 		return 0;
 	}
@@ -909,7 +909,7 @@ static int evsel__process_page_free_event(struct evsel *evsel, struct perf_sampl
 	this.migrate_type = pstat->migrate_type;
 	this.callsite = pstat->callsite;
 
-	rb_erase(&pstat->node, &page_live_tree);
+	rb_erase(&pstat->analde, &page_live_tree);
 	free(pstat);
 
 	if (live_page) {
@@ -917,7 +917,7 @@ static int evsel__process_page_free_event(struct evsel *evsel, struct perf_sampl
 	} else {
 		pstat = page_stat__find_alloc(&this);
 		if (pstat == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		pstat->nr_free++;
 		pstat->free_bytes += bytes;
@@ -925,7 +925,7 @@ static int evsel__process_page_free_event(struct evsel *evsel, struct perf_sampl
 
 	pstat = page_stat__find_caller(&this);
 	if (pstat == NULL)
-		return -ENOENT;
+		return -EANALENT;
 
 	pstat->nr_free++;
 	pstat->free_bytes += bytes;
@@ -935,7 +935,7 @@ static int evsel__process_page_free_event(struct evsel *evsel, struct perf_sampl
 		pstat->alloc_bytes -= bytes;
 
 		if (pstat->nr_alloc == 0) {
-			rb_erase(&pstat->node, &page_caller_tree);
+			rb_erase(&pstat->analde, &page_caller_tree);
 			free(pstat);
 		}
 	}
@@ -1007,7 +1007,7 @@ static void __print_slab_result(struct rb_root *root,
 				struct perf_session *session,
 				int n_lines, int is_caller)
 {
-	struct rb_node *next;
+	struct rb_analde *next;
 	struct machine *machine = &session->machines.host;
 
 	printf("%.105s\n", graph_dotted_line);
@@ -1019,7 +1019,7 @@ static void __print_slab_result(struct rb_root *root,
 
 	while (next && n_lines--) {
 		struct alloc_stat *data = rb_entry(next, struct alloc_stat,
-						   node);
+						   analde);
 		struct symbol *sym = NULL;
 		struct map *map;
 		char buf[BUFSIZ];
@@ -1063,12 +1063,12 @@ static const char * const migrate_type_str[] = {
 	"MOVABLE",
 	"RESERVED",
 	"CMA/ISLT",
-	"UNKNOWN",
+	"UNKANALWN",
 };
 
 static void __print_page_alloc_result(struct perf_session *session, int n_lines)
 {
-	struct rb_node *next = rb_first(&page_alloc_sorted);
+	struct rb_analde *next = rb_first(&page_alloc_sorted);
 	struct machine *machine = &session->machines.host;
 	const char *format;
 	int gfp_len = max(strlen("GFP flags"), max_gfp_len);
@@ -1091,7 +1091,7 @@ static void __print_page_alloc_result(struct perf_session *session, int n_lines)
 		char buf[32];
 		char *caller = buf;
 
-		data = rb_entry(next, struct page_stat, node);
+		data = rb_entry(next, struct page_stat, analde);
 		sym = machine__find_kernel_symbol(machine, data->callsite, &map);
 		if (sym)
 			caller = sym->name;
@@ -1117,7 +1117,7 @@ static void __print_page_alloc_result(struct perf_session *session, int n_lines)
 
 static void __print_page_caller_result(struct perf_session *session, int n_lines)
 {
-	struct rb_node *next = rb_first(&page_caller_sorted);
+	struct rb_analde *next = rb_first(&page_caller_sorted);
 	struct machine *machine = &session->machines.host;
 	int gfp_len = max(strlen("GFP flags"), max_gfp_len);
 
@@ -1133,7 +1133,7 @@ static void __print_page_caller_result(struct perf_session *session, int n_lines
 		char buf[32];
 		char *caller = buf;
 
-		data = rb_entry(next, struct page_stat, node);
+		data = rb_entry(next, struct page_stat, analde);
 		sym = machine__find_kernel_symbol(machine, data->callsite, &map);
 		if (sym)
 			caller = sym->name;
@@ -1192,8 +1192,8 @@ static void print_slab_summary(void)
 static void print_page_summary(void)
 {
 	int o, m;
-	u64 nr_alloc_freed = nr_page_frees - nr_page_nomatch;
-	u64 total_alloc_freed_bytes = total_page_free_bytes - total_page_nomatch_bytes;
+	u64 nr_alloc_freed = nr_page_frees - nr_page_analmatch;
+	u64 total_alloc_freed_bytes = total_page_free_bytes - total_page_analmatch_bytes;
 
 	printf("\nSUMMARY (page allocator)");
 	printf("\n========================\n");
@@ -1209,7 +1209,7 @@ static void print_page_summary(void)
 	       nr_page_allocs - nr_alloc_freed,
 	       (total_page_alloc_bytes - total_alloc_freed_bytes) / 1024);
 	printf("%-30s: %'16lu   [ %'16"PRIu64" KB ]\n", "Total free-only requests",
-	       nr_page_nomatch, total_page_nomatch_bytes / 1024);
+	       nr_page_analmatch, total_page_analmatch_bytes / 1024);
 	printf("\n");
 
 	printf("%-30s: %'16lu   [ %'16"PRIu64" KB ]\n", "Total allocation failures",
@@ -1270,15 +1270,15 @@ static LIST_HEAD(page_alloc_sort);
 static void sort_slab_insert(struct rb_root *root, struct alloc_stat *data,
 			     struct list_head *sort_list)
 {
-	struct rb_node **new = &(root->rb_node);
-	struct rb_node *parent = NULL;
+	struct rb_analde **new = &(root->rb_analde);
+	struct rb_analde *parent = NULL;
 	struct sort_dimension *sort;
 
 	while (*new) {
 		struct alloc_stat *this;
 		int cmp = 0;
 
-		this = rb_entry(*new, struct alloc_stat, node);
+		this = rb_entry(*new, struct alloc_stat, analde);
 		parent = *new;
 
 		list_for_each_entry(sort, sort_list, list) {
@@ -1293,23 +1293,23 @@ static void sort_slab_insert(struct rb_root *root, struct alloc_stat *data,
 			new = &((*new)->rb_right);
 	}
 
-	rb_link_node(&data->node, parent, new);
-	rb_insert_color(&data->node, root);
+	rb_link_analde(&data->analde, parent, new);
+	rb_insert_color(&data->analde, root);
 }
 
 static void __sort_slab_result(struct rb_root *root, struct rb_root *root_sorted,
 			       struct list_head *sort_list)
 {
-	struct rb_node *node;
+	struct rb_analde *analde;
 	struct alloc_stat *data;
 
 	for (;;) {
-		node = rb_first(root);
-		if (!node)
+		analde = rb_first(root);
+		if (!analde)
 			break;
 
-		rb_erase(node, root);
-		data = rb_entry(node, struct alloc_stat, node);
+		rb_erase(analde, root);
+		data = rb_entry(analde, struct alloc_stat, analde);
 		sort_slab_insert(root_sorted, data, sort_list);
 	}
 }
@@ -1317,15 +1317,15 @@ static void __sort_slab_result(struct rb_root *root, struct rb_root *root_sorted
 static void sort_page_insert(struct rb_root *root, struct page_stat *data,
 			     struct list_head *sort_list)
 {
-	struct rb_node **new = &root->rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_analde **new = &root->rb_analde;
+	struct rb_analde *parent = NULL;
 	struct sort_dimension *sort;
 
 	while (*new) {
 		struct page_stat *this;
 		int cmp = 0;
 
-		this = rb_entry(*new, struct page_stat, node);
+		this = rb_entry(*new, struct page_stat, analde);
 		parent = *new;
 
 		list_for_each_entry(sort, sort_list, list) {
@@ -1340,23 +1340,23 @@ static void sort_page_insert(struct rb_root *root, struct page_stat *data,
 			new = &parent->rb_right;
 	}
 
-	rb_link_node(&data->node, parent, new);
-	rb_insert_color(&data->node, root);
+	rb_link_analde(&data->analde, parent, new);
+	rb_insert_color(&data->analde, root);
 }
 
 static void __sort_page_result(struct rb_root *root, struct rb_root *root_sorted,
 			       struct list_head *sort_list)
 {
-	struct rb_node *node;
+	struct rb_analde *analde;
 	struct page_stat *data;
 
 	for (;;) {
-		node = rb_first(root);
-		if (!node)
+		analde = rb_first(root);
+		if (!analde)
 			break;
 
-		rb_erase(node, root);
-		data = rb_entry(node, struct page_stat, node);
+		rb_erase(analde, root);
+		data = rb_entry(analde, struct page_stat, analde);
 		sort_page_insert(root_sorted, data, sort_list);
 	}
 }
@@ -1390,8 +1390,8 @@ static int __cmd_kmem(struct perf_session *session)
 		/* slab allocator */
 		{ "kmem:kmalloc",		evsel__process_alloc_event, },
 		{ "kmem:kmem_cache_alloc",	evsel__process_alloc_event, },
-		{ "kmem:kmalloc_node",		evsel__process_alloc_event, },
-		{ "kmem:kmem_cache_alloc_node", evsel__process_alloc_event, },
+		{ "kmem:kmalloc_analde",		evsel__process_alloc_event, },
+		{ "kmem:kmem_cache_alloc_analde", evsel__process_alloc_event, },
 		{ "kmem:kfree",			evsel__process_free_event, },
 		{ "kmem:kmem_cache_free",	evsel__process_free_event, },
 		/* page allocator */
@@ -1737,7 +1737,7 @@ static int setup_slab_sorting(struct list_head *sort_list, const char *arg)
 		if (!tok)
 			break;
 		if (slab_sort_dimension__add(tok, sort_list) < 0) {
-			pr_err("Unknown slab --sort key: '%s'", tok);
+			pr_err("Unkanalwn slab --sort key: '%s'", tok);
 			free(str);
 			return -1;
 		}
@@ -1763,7 +1763,7 @@ static int setup_page_sorting(struct list_head *sort_list, const char *arg)
 		if (!tok)
 			break;
 		if (page_sort_dimension__add(tok, sort_list) < 0) {
-			pr_err("Unknown page --sort key: '%s'", tok);
+			pr_err("Unkanalwn page --sort key: '%s'", tok);
 			free(str);
 			return -1;
 		}
@@ -1848,13 +1848,13 @@ static int parse_line_opt(const struct option *opt __maybe_unused,
 static bool slab_legacy_tp_is_exposed(void)
 {
 	/*
-	 * The tracepoints "kmem:kmalloc_node" and
-	 * "kmem:kmem_cache_alloc_node" have been removed on the latest
-	 * kernel, if the tracepoint "kmem:kmalloc_node" is existed it
+	 * The tracepoints "kmem:kmalloc_analde" and
+	 * "kmem:kmem_cache_alloc_analde" have been removed on the latest
+	 * kernel, if the tracepoint "kmem:kmalloc_analde" is existed it
 	 * means the tool is running on an old kernel, we need to
 	 * rollback to support these legacy tracepoints.
 	 */
-	return IS_ERR(trace_event__tp_format("kmem", "kmalloc_node")) ?
+	return IS_ERR(trace_event__tp_format("kmem", "kmalloc_analde")) ?
 		false : true;
 }
 
@@ -1870,8 +1870,8 @@ static int __cmd_record(int argc, const char **argv)
 	"-e", "kmem:kmem_cache_free",
 	};
 	const char * const slab_legacy_events[] = {
-	"-e", "kmem:kmalloc_node",
-	"-e", "kmem:kmem_cache_alloc_node",
+	"-e", "kmem:kmalloc_analde",
+	"-e", "kmem:kmem_cache_alloc_analde",
 	};
 	const char * const page_events[] = {
 	"-e", "kmem:mm_page_alloc",
@@ -1893,7 +1893,7 @@ static int __cmd_record(int argc, const char **argv)
 	rec_argv = calloc(rec_argc + 1, sizeof(char *));
 
 	if (rec_argv == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ARRAY_SIZE(record_args); i++)
 		rec_argv[i] = strdup(record_args[i]);
@@ -1946,9 +1946,9 @@ int cmd_kmem(int argc, const char **argv)
 	OPT_STRING('i', "input", &input_name, "file", "input file name"),
 	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show symbol address, etc)"),
-	OPT_CALLBACK_NOOPT(0, "caller", NULL, NULL,
+	OPT_CALLBACK_ANALOPT(0, "caller", NULL, NULL,
 			   "show per-callsite statistics", parse_caller_opt),
-	OPT_CALLBACK_NOOPT(0, "alloc", NULL, NULL,
+	OPT_CALLBACK_ANALOPT(0, "alloc", NULL, NULL,
 			   "show per-allocation statistics", parse_alloc_opt),
 	OPT_CALLBACK('s', "sort", NULL, "key[,key2...]",
 		     "sort by keys: ptr, callsite, bytes, hit, pingpong, frag, "
@@ -1956,9 +1956,9 @@ int cmd_kmem(int argc, const char **argv)
 	OPT_CALLBACK('l', "line", NULL, "num", "show n lines", parse_line_opt),
 	OPT_BOOLEAN(0, "raw-ip", &raw_ip, "show raw ip instead of symbol"),
 	OPT_BOOLEAN('f', "force", &data.force, "don't complain, do it"),
-	OPT_CALLBACK_NOOPT(0, "slab", NULL, NULL, "Analyze slab allocator",
+	OPT_CALLBACK_ANALOPT(0, "slab", NULL, NULL, "Analyze slab allocator",
 			   parse_slab_opt),
-	OPT_CALLBACK_NOOPT(0, "page", NULL, NULL, "Analyze page allocator",
+	OPT_CALLBACK_ANALOPT(0, "page", NULL, NULL, "Analyze page allocator",
 			   parse_page_opt),
 	OPT_BOOLEAN(0, "live", &live_page, "Show live page stat"),
 	OPT_STRING(0, "time", &time_str, "str",
@@ -1971,7 +1971,7 @@ int cmd_kmem(int argc, const char **argv)
 		NULL
 	};
 	struct perf_session *session;
-	static const char errmsg[] = "No %s allocation events found.  Have you run 'perf kmem record --%s'?\n";
+	static const char errmsg[] = "Anal %s allocation events found.  Have you run 'perf kmem record --%s'?\n";
 	int ret = perf_config(kmem_config, NULL);
 
 	if (ret)
@@ -1979,7 +1979,7 @@ int cmd_kmem(int argc, const char **argv)
 
 	argc = parse_options_subcommand(argc, argv, kmem_options,
 					kmem_subcommands, kmem_usage,
-					PARSE_OPT_STOP_AT_NON_OPTION);
+					PARSE_OPT_STOP_AT_ANALN_OPTION);
 
 	if (!argc)
 		usage_with_options(kmem_usage, kmem_options);
@@ -2034,7 +2034,7 @@ int cmd_kmem(int argc, const char **argv)
 	if (!strcmp(argv[0], "stat")) {
 		setlocale(LC_ALL, "");
 
-		if (cpu__setup_cpunode_map())
+		if (cpu__setup_cpuanalde_map())
 			goto out_delete;
 
 		if (list_empty(&slab_caller_sort))

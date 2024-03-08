@@ -14,15 +14,15 @@
 
 static DEFINE_SPINLOCK(hosc_lock);
 
-static void __init sun4i_osc_clk_setup(struct device_node *node)
+static void __init sun4i_osc_clk_setup(struct device_analde *analde)
 {
 	struct clk *clk;
 	struct clk_fixed_rate *fixed;
 	struct clk_gate *gate;
-	const char *clk_name = node->name;
+	const char *clk_name = analde->name;
 	u32 rate;
 
-	if (of_property_read_u32(node, "clock-frequency", &rate))
+	if (of_property_read_u32(analde, "clock-frequency", &rate))
 		return;
 
 	/* allocate fixed-rate and gate clock structs */
@@ -33,10 +33,10 @@ static void __init sun4i_osc_clk_setup(struct device_node *node)
 	if (!gate)
 		goto err_free_fixed;
 
-	of_property_read_string(node, "clock-output-names", &clk_name);
+	of_property_read_string(analde, "clock-output-names", &clk_name);
 
 	/* set up gate and fixed rate properties */
-	gate->reg = of_iomap(node, 0);
+	gate->reg = of_iomap(analde, 0);
 	gate->bit_idx = SUNXI_OSC24M_GATE;
 	gate->lock = &hosc_lock;
 	fixed->fixed_rate = rate;
@@ -50,7 +50,7 @@ static void __init sun4i_osc_clk_setup(struct device_node *node)
 	if (IS_ERR(clk))
 		goto err_free_gate;
 
-	of_clk_add_provider(node, of_clk_src_simple_get, clk);
+	of_clk_add_provider(analde, of_clk_src_simple_get, clk);
 
 	return;
 

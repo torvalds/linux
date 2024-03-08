@@ -45,10 +45,10 @@ int wave5_vdi_init(struct device *dev)
 
 	if (!PRODUCT_CODE_W_SERIES(vpu_dev->product_code)) {
 		WARN_ONCE(1, "unsupported product code: 0x%x\n", vpu_dev->product_code);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
-	/* if BIT processor is not running. */
+	/* if BIT processor is analt running. */
 	if (wave5_vdi_read_register(vpu_dev, W5_VCPU_CUR_PC) == 0) {
 		int i;
 
@@ -102,7 +102,7 @@ int wave5_vdi_write_memory(struct vpu_device *vpu_dev, struct vpu_buf *vb, size_
 
 	if (offset > vb->size || len > vb->size || offset + len > vb->size) {
 		dev_err(vpu_dev->dev, "%s: buffer too small\n", __func__);
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	memcpy(vb->vaddr + offset, data, len);
@@ -122,7 +122,7 @@ int wave5_vdi_allocate_dma_memory(struct vpu_device *vpu_dev, struct vpu_buf *vb
 
 	vaddr = dma_alloc_coherent(vpu_dev->dev, vb->size, &daddr, GFP_KERNEL);
 	if (!vaddr)
-		return -ENOMEM;
+		return -EANALMEM;
 	vb->vaddr = vaddr;
 	vb->daddr = daddr;
 
@@ -161,7 +161,7 @@ int wave5_vdi_allocate_array(struct vpu_device *vpu_dev, struct vpu_buf *array, 
 
 		ret = wave5_vdi_allocate_dma_memory(vpu_dev, &vb_buf);
 		if (ret)
-			return -ENOMEM;
+			return -EANALMEM;
 		array[i] = vb_buf;
 	}
 

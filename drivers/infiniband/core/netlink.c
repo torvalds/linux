@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 Mellanox Technologies Inc.  All rights reserved.
+ * Copyright (c) 2017 Mellaanalx Techanallogies Inc.  All rights reserved.
  * Copyright (c) 2010 Voltaire Inc.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -13,18 +13,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -85,7 +85,7 @@ get_cb_table(const struct sk_buff *skb, unsigned int type, unsigned int op)
 
 	/*
 	 * Currently only NLDEV client is supporting netlink commands in
-	 * non init_net net namespace.
+	 * analn init_net net namespace.
 	 */
 	if (sock_net(skb->sk) != &init_net && type != RDMA_NL_NLDEV)
 		return NULL;
@@ -316,7 +316,7 @@ int rdma_nl_net_init(struct rdma_dev_net *rnet)
 
 	nls = netlink_kernel_create(net, NETLINK_RDMA, &cfg);
 	if (!nls)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nls->sk_sndtimeo = 10 * HZ;
 	rnet->nl_sock = nls;

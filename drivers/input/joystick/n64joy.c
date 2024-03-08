@@ -7,7 +7,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/input.h>
 #include <linux/limits.h>
@@ -199,7 +199,7 @@ static int n64joy_open(struct input_dev *dev)
 
 	if (!priv->n64joy_opened) {
 		/*
-		 * We could use the vblank irq, but it's not important if
+		 * We could use the vblank irq, but it's analt important if
 		 * the poll point slightly changes.
 		 */
 		timer_setup(&priv->timer, n64joy_poll, 0);
@@ -236,7 +236,7 @@ static const u64 __initconst scandata[] ____cacheline_aligned = {
 /*
  * The target device is embedded and RAM-constrained. We save RAM
  * by initializing in __init code that gets dropped late in boot.
- * For the same reason there is no module or unloading support.
+ * For the same reason there is anal module or unloading support.
  */
 static int __init n64joy_probe(struct platform_device *pdev)
 {
@@ -248,7 +248,7 @@ static int __init n64joy_probe(struct platform_device *pdev)
 
 	priv = kzalloc(sizeof(struct n64joy_priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 	mutex_init(&priv->n64joy_mutex);
 
 	priv->reg_base = devm_platform_ioremap_resource(pdev, 0);
@@ -257,7 +257,7 @@ static int __init n64joy_probe(struct platform_device *pdev)
 		goto fail;
 	}
 
-	/* The controllers are not hotpluggable, so we can scan in init */
+	/* The controllers are analt hotpluggable, so we can scan in init */
 	n64joy_exec_pif(priv, scandata);
 
 	data = (struct joydata *) priv->si_buf;
@@ -268,7 +268,7 @@ static int __init n64joy_probe(struct platform_device *pdev)
 
 			dev = priv->n64joy_dev[i] = input_allocate_device();
 			if (!priv->n64joy_dev[i]) {
-				err = -ENOMEM;
+				err = -EANALMEM;
 				goto fail;
 			}
 
@@ -319,7 +319,7 @@ static int __init n64joy_probe(struct platform_device *pdev)
 	pr_info("%u controller(s) connected\n", found);
 
 	if (!found)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 fail:

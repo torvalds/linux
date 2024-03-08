@@ -74,7 +74,7 @@ enum icssg_port_state_cmd {
 	ICSSG_EMAC_PORT_MAX_COMMANDS
 };
 
-#define EMAC_NONE           0xffff0000
+#define EMAC_ANALNE           0xffff0000
 #define EMAC_PRU0_P_DI      0xffff0004
 #define EMAC_PRU1_P_DI      0xffff0040
 #define EMAC_TX_P_DI        0xffff0100
@@ -101,10 +101,10 @@ enum icssg_port_state_cmd {
 #define ICSSG_CONFIG_OFFSET_SLICE0   0
 #define ICSSG_CONFIG_OFFSET_SLICE1   0x8000
 
-#define ICSSG_NUM_NORMAL_PDS	64
+#define ICSSG_NUM_ANALRMAL_PDS	64
 #define ICSSG_NUM_SPECIAL_PDS	16
 
-#define ICSSG_NORMAL_PD_SIZE	8
+#define ICSSG_ANALRMAL_PD_SIZE	8
 #define ICSSG_SPECIAL_PD_SIZE	20
 
 #define ICSSG_FLAG_MASK		0xff00ffff
@@ -112,7 +112,7 @@ enum icssg_port_state_cmd {
 struct icssg_setclock_desc {
 	u8 request;
 	u8 restore;
-	u8 acknowledgment;
+	u8 ackanalwledgment;
 	u8 cmp_status;
 	u32 margin;
 	u32 cyclecounter0_set;
@@ -157,7 +157,7 @@ struct icssg_setclock_desc {
 #define ICSSG_FDB_ENTRY_AGEABLE               BIT(3)
 /* If set for DA then packet is determined to be a special packet */
 #define ICSSG_FDB_ENTRY_BLOCK                 BIT(4)
-/* If set for DA then the SA from the packet is not learned */
+/* If set for DA then the SA from the packet is analt learned */
 #define ICSSG_FDB_ENTRY_SECURE                BIT(5)
 /* If set, it means packet has been seen recently with source address + FID
  * matching MAC address/FID of entry
@@ -190,7 +190,7 @@ struct prueth_fdb_slot {
 } __packed;
 
 enum icssg_ietfpe_verify_states {
-	ICSSG_IETFPE_STATE_UNKNOWN = 0,
+	ICSSG_IETFPE_STATE_UNKANALWN = 0,
 	ICSSG_IETFPE_STATE_INITIAL,
 	ICSSG_IETFPE_STATE_VERIFYING,
 	ICSSG_IETFPE_STATE_SUCCEEDED,

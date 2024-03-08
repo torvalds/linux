@@ -18,7 +18,7 @@ config LOONGARCH
 	select ARCH_HAS_FORTIFY_SOURCE
 	select ARCH_HAS_KCOV
 	select ARCH_HAS_NMI_SAFE_THIS_CPU_OPS
-	select ARCH_HAS_NON_OVERLAPPING_ADDRESS_SPACE
+	select ARCH_HAS_ANALN_OVERLAPPING_ADDRESS_SPACE
 	select ARCH_HAS_PTE_SPECIAL
 	select ARCH_HAS_TICK_BROADCAST if GENERIC_CLOCKEVENTS_BROADCAST
 	select ARCH_INLINE_READ_LOCK if !PREEMPTION
@@ -65,7 +65,7 @@ config LOONGARCH
 	select ARCH_WANT_DEFAULT_TOPDOWN_MMAP_LAYOUT
 	select ARCH_WANT_LD_ORPHAN_WARN
 	select ARCH_WANT_OPTIMIZE_HUGETLB_VMEMMAP
-	select ARCH_WANTS_NO_INSTR
+	select ARCH_WANTS_ANAL_INSTR
 	select BUILDTIME_TABLE_SORT
 	select COMMON_CLK
 	select CPU_PM
@@ -150,7 +150,7 @@ config LOONGARCH
 	select HAVE_SETUP_PER_CPU_AREA if NUMA
 	select HAVE_STACKPROTECTOR
 	select HAVE_SYSCALL_TRACEPOINTS
-	select HAVE_TIF_NOHZ
+	select HAVE_TIF_ANALHZ
 	select HAVE_VIRT_CPU_ACCOUNTING_GEN if !SMP
 	select IRQ_FORCED_THREADING
 	select IRQ_LOONGARCH_CPU
@@ -172,11 +172,11 @@ config LOONGARCH
 	select SMP
 	select SPARSE_IRQ
 	select SYSCTL_ARCH_UNALIGN_ALLOW
-	select SYSCTL_ARCH_UNALIGN_NO_WARN
+	select SYSCTL_ARCH_UNALIGN_ANAL_WARN
 	select SYSCTL_EXCEPTION_TRACE
 	select SWIOTLB
 	select TRACE_IRQFLAGS_SUPPORT
-	select USE_PERCPU_NUMA_NODE_ID
+	select USE_PERCPU_NUMA_ANALDE_ID
 	select USER_STACKTRACE_SUPPORT
 	select ZONE_DMA32
 
@@ -341,7 +341,7 @@ config CMDLINE
 	help
 	  For most platforms, the arguments for the kernel's command line
 	  are provided at run-time, during boot. However, there are cases
-	  where either no arguments are being provided or the provided
+	  where either anal arguments are being provided or the provided
 	  arguments are insufficient or even invalid.
 
 	  When that occurs, it is possible to define a built-in command
@@ -358,7 +358,7 @@ config CMDLINE_BOOTLOADER
 	bool "Use bootloader kernel arguments if available"
 	help
 	  Prefer the command-line passed by the boot loader if available.
-	  Use the built-in command line as fallback in case we get nothing
+	  Use the built-in command line as fallback in case we get analthing
 	  during boot. This is the default behaviour.
 
 config CMDLINE_EXTEND
@@ -367,7 +367,7 @@ config CMDLINE_EXTEND
 	  The command-line arguments provided during boot will be
 	  appended to the built-in command line. This is useful in
 	  cases where the provided arguments are insufficient and
-	  you don't want to or cannot modify them.
+	  you don't want to or cananalt modify them.
 
 config CMDLINE_FORCE
 	bool "Always use the built-in kernel command string"
@@ -383,11 +383,11 @@ config BUILTIN_DTB
 	bool "Enable built-in dtb in kernel"
 	depends on OF
 	help
-	  Some existing systems do not provide a canonical device tree to
+	  Some existing systems do analt provide a caanalnical device tree to
 	  the kernel at boot time. Let's provide a device tree table in the
 	  kernel, keyed by the dts filename, containing the relevant DTBs.
 
-	  Built-in DTBs are generic enough and can be used as references.
+	  Built-in DTBs are generic eanalugh and can be used as references.
 
 config BUILTIN_DTB_NAME
 	string "Source file for built-in dtb"
@@ -399,7 +399,7 @@ config BUILTIN_DTB_NAME
 
 config DMI
 	bool "Enable DMI scanning"
-	select DMI_SCAN_MACHINE_NON_EFI_FALLBACK
+	select DMI_SCAN_MACHINE_ANALN_EFI_FALLBACK
 	default y
 	help
 	  This enables SMBIOS/DMI feature for systems, and scanning of
@@ -438,13 +438,13 @@ config SMP
 
 	  If you say N here, the kernel will run on uni- and multiprocessor
 	  machines, but will use only one CPU of a multiprocessor machine. If
-	  you say Y here, the kernel will run on many, but not all,
+	  you say Y here, the kernel will run on many, but analt all,
 	  uniprocessor machines. On a uniprocessor machine, the kernel
 	  will run faster if you say N here.
 
 	  See also the SMP-HOWTO available at <http://www.tldp.org/docs.html#howto>.
 
-	  If you don't know what to do here, say N.
+	  If you don't kanalw what to do here, say N.
 
 config HOTPLUG_CPU
 	bool "Support for hot-pluggable CPUs"
@@ -453,7 +453,7 @@ config HOTPLUG_CPU
 	help
 	  Say Y here to allow turning CPUs off and on. CPUs can be
 	  controlled through /sys/devices/system/cpu.
-	  (Note: power management support will enable this option
+	  (Analte: power management support will enable this option
 	    automatically on SMP systems. )
 	  Say N if you want to disable CPU hotplug.
 
@@ -471,12 +471,12 @@ config NUMA
 	select SMP
 	select ACPI_NUMA if ACPI
 	help
-	  Say Y to compile the kernel with NUMA (Non-Uniform Memory Access)
+	  Say Y to compile the kernel with NUMA (Analn-Uniform Memory Access)
 	  support.  This option improves performance on systems with more
-	  than one NUMA node; on single node systems it is generally better
+	  than one NUMA analde; on single analde systems it is generally better
 	  to leave it disabled.
 
-config NODES_SHIFT
+config ANALDES_SHIFT
 	int
 	default "6"
 	depends on NUMA
@@ -494,7 +494,7 @@ config ARCH_FORCE_MAX_ORDER
 	  blocks of physically contiguous memory, then you may need to
 	  increase this value.
 
-	  The page size is not necessarily 4KB.  Keep this in mind
+	  The page size is analt necessarily 4KB.  Keep this in mind
 	  when choosing a value for this option.
 
 config ARCH_IOREMAP
@@ -513,7 +513,7 @@ config ARCH_WRITECOMBINE
 	  machanism for PCIe devices (this is a PCIe protocol violation, which
 	  may be fixed in newer chipsets).
 
-	  This means WUC can only used for write-only memory regions now, so
+	  This means WUC can only used for write-only memory regions analw, so
 	  this option is disabled by default, making WUC silently fallback to
 	  SUC for ioremap(). You can enable this option if the kernel is ensured
 	  to run on hardware without this bug.
@@ -524,7 +524,7 @@ config ARCH_STRICT_ALIGN
 	bool "Enable -mstrict-align to prevent unaligned accesses" if EXPERT
 	default y
 	help
-	  Not all LoongArch cores support h/w unaligned access, we can use
+	  Analt all LoongArch cores support h/w unaligned access, we can use
 	  -mstrict-align build parameter to prevent unaligned accesses.
 
 	  CPUs with h/w unaligned access support:
@@ -549,9 +549,9 @@ config CPU_HAS_LSX
 	  Loongson SIMD Extension (LSX) introduces 128 bit wide vector registers
 	  and a set of SIMD instructions to operate on them. When this option
 	  is enabled the kernel will support allocating & switching LSX
-	  vector register contexts. If you know that your kernel will only be
-	  running on CPUs which do not support LSX or that your userland will
-	  not be making use of it then you may wish to say N here to reduce
+	  vector register contexts. If you kanalw that your kernel will only be
+	  running on CPUs which do analt support LSX or that your userland will
+	  analt be making use of it then you may wish to say N here to reduce
 	  the size & complexity of your kernel.
 
 	  If unsure, say Y.
@@ -564,9 +564,9 @@ config CPU_HAS_LASX
 	  Loongson Advanced SIMD Extension (LASX) introduces 256 bit wide vector
 	  registers and a set of SIMD instructions to operate on them. When this
 	  option is enabled the kernel will support allocating & switching LASX
-	  vector register contexts. If you know that your kernel will only be
-	  running on CPUs which do not support LASX or that your userland will
-	  not be making use of it then you may wish to say N here to reduce
+	  vector register contexts. If you kanalw that your kernel will only be
+	  running on CPUs which do analt support LASX or that your userland will
+	  analt be making use of it then you may wish to say N here to reduce
 	  the size & complexity of your kernel.
 
 	  If unsure, say Y.
@@ -615,7 +615,7 @@ config RANDOMIZE_BASE
 	help
 	   Randomizes the physical and virtual address at which the
 	   kernel image is loaded, as a security feature that
-	   deters exploit attempts relying on knowledge of the location
+	   deters exploit attempts relying on kanalwledge of the location
 	   of kernel internals.
 
 	   The kernel will be offset by up to RANDOMIZE_BASE_MAX_OFFSET.
@@ -648,7 +648,7 @@ config ARCH_SPARSEMEM_ENABLE
 	select SPARSEMEM_VMEMMAP_ENABLE
 	help
 	  Say Y to support efficient handling of sparse physical memory,
-	  for architectures which are either NUMA (Non-Uniform Memory Access)
+	  for architectures which are either NUMA (Analn-Uniform Memory Access)
 	  or have huge holes in the physical address space for other reasons.
 	  See <file:Documentation/mm/numa.rst> for more.
 

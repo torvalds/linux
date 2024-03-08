@@ -147,7 +147,7 @@ static int bcm2835_rng_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* map peripheral */
 	priv->base = devm_platform_ioremap_resource(pdev, 0);
@@ -168,8 +168,8 @@ static int bcm2835_rng_probe(struct platform_device *pdev)
 	priv->rng.read = bcm2835_rng_read;
 	priv->rng.cleanup = bcm2835_rng_cleanup;
 
-	if (dev_of_node(dev)) {
-		rng_id = of_match_node(bcm2835_rng_of_match, dev->of_node);
+	if (dev_of_analde(dev)) {
+		rng_id = of_match_analde(bcm2835_rng_of_match, dev->of_analde);
 		if (!rng_id)
 			return -EINVAL;
 

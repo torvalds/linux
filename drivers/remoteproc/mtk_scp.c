@@ -34,17 +34,17 @@
 struct mtk_scp *scp_get(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *scp_node;
+	struct device_analde *scp_analde;
 	struct platform_device *scp_pdev;
 
-	scp_node = of_parse_phandle(dev->of_node, "mediatek,scp", 0);
-	if (!scp_node) {
-		dev_err(dev, "can't get SCP node\n");
+	scp_analde = of_parse_phandle(dev->of_analde, "mediatek,scp", 0);
+	if (!scp_analde) {
+		dev_err(dev, "can't get SCP analde\n");
 		return NULL;
 	}
 
-	scp_pdev = of_find_device_by_node(scp_node);
-	of_node_put(scp_node);
+	scp_pdev = of_find_device_by_analde(scp_analde);
+	of_analde_put(scp_analde);
 
 	if (WARN_ON(!scp_pdev)) {
 		dev_err(dev, "SCP pdev failed\n");
@@ -69,13 +69,13 @@ EXPORT_SYMBOL_GPL(scp_put);
 static void scp_wdt_handler(struct mtk_scp *scp, u32 scp_to_host)
 {
 	struct mtk_scp_of_cluster *scp_cluster = scp->cluster;
-	struct mtk_scp *scp_node;
+	struct mtk_scp *scp_analde;
 
 	dev_err(scp->dev, "SCP watchdog timeout! 0x%x", scp_to_host);
 
 	/* report watchdog timeout to all cores */
-	list_for_each_entry(scp_node, &scp_cluster->mtk_scp_list, elem)
-		rproc_report_crash(scp_node->rproc, RPROC_WATCHDOG);
+	list_for_each_entry(scp_analde, &scp_cluster->mtk_scp_list, elem)
+		rproc_report_crash(scp_analde->rproc, RPROC_WATCHDOG);
 }
 
 static void scp_init_ipi_handler(void *data, unsigned int len, void *priv)
@@ -105,14 +105,14 @@ static void scp_ipi_handler(struct mtk_scp *scp)
 		return;
 	}
 	if (id >= SCP_IPI_MAX) {
-		dev_err(scp->dev, "No such ipi id = %d\n", id);
+		dev_err(scp->dev, "Anal such ipi id = %d\n", id);
 		return;
 	}
 
 	scp_ipi_lock(scp, id);
 	handler = ipi_desc[id].handler;
 	if (!handler) {
-		dev_err(scp->dev, "No handler for ipi id = %d\n", id);
+		dev_err(scp->dev, "Anal handler for ipi id = %d\n", id);
 		scp_ipi_unlock(scp, id);
 		return;
 	}
@@ -202,7 +202,7 @@ static void mt8183_scp_irq_handler(struct mtk_scp *scp)
 	else
 		scp_wdt_handler(scp, scp_to_host);
 
-	/* SCP won't send another interrupt until we set SCP_TO_HOST to 0. */
+	/* SCP won't send aanalther interrupt until we set SCP_TO_HOST to 0. */
 	writel(MT8183_SCP_IPC_INT_BIT | MT8183_SCP_WDT_INT_BIT,
 	       scp->cluster->reg_base + MT8183_SCP_TO_HOST);
 }
@@ -217,7 +217,7 @@ static void mt8192_scp_irq_handler(struct mtk_scp *scp)
 		scp_ipi_handler(scp);
 
 		/*
-		 * SCP won't send another interrupt until we clear
+		 * SCP won't send aanalther interrupt until we clear
 		 * MT8192_SCP2APMCU_IPC.
 		 */
 		writel(MT8192_SCP_IPC_INT_BIT,
@@ -271,7 +271,7 @@ static irqreturn_t scp_irq_handler(int irq, void *priv)
 	ret = clk_prepare_enable(scp->clk);
 	if (ret) {
 		dev_err(scp->dev, "failed to enable clocks\n");
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	scp->data->scp_irq_handler(scp);
@@ -360,7 +360,7 @@ static int scp_elf_read_ipi_buf_addr(struct mtk_scp *scp,
 		}
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static int mt8183_scp_clk_get(struct mtk_scp *scp)
@@ -872,14 +872,14 @@ static int scp_map_memory_region(struct mtk_scp *scp)
 	ret = of_reserved_mem_device_init(scp->dev);
 
 	/* reserved memory is optional. */
-	if (ret == -ENODEV) {
+	if (ret == -EANALDEV) {
 		dev_info(scp->dev, "skipping reserved memory initialization.");
 		return 0;
 	}
 
 	if (ret) {
 		dev_err(scp->dev, "failed to assign memory-region: %d\n", ret);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Reserved SCP code size */
@@ -887,7 +887,7 @@ static int scp_map_memory_region(struct mtk_scp *scp)
 	scp->cpu_addr = dma_alloc_coherent(scp->dev, scp->dram_size,
 					   &scp->dma_addr, GFP_KERNEL);
 	if (!scp->cpu_addr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -955,7 +955,7 @@ static struct mtk_scp *scp_rproc_init(struct platform_device *pdev,
 				      const struct mtk_scp_of_data *of_data)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct mtk_scp *scp;
 	struct rproc *rproc;
 	struct resource *res;
@@ -969,7 +969,7 @@ static struct mtk_scp *scp_rproc_init(struct platform_device *pdev,
 	rproc = devm_rproc_alloc(dev, np->name, &scp_ops, fw_name, sizeof(*scp));
 	if (!rproc) {
 		dev_err(dev, "unable to allocate remoteproc\n");
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	scp = rproc->priv;
@@ -1076,9 +1076,9 @@ static int scp_add_multi_core(struct platform_device *pdev,
 			      struct mtk_scp_of_cluster *scp_cluster)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev_of_node(dev);
+	struct device_analde *np = dev_of_analde(dev);
 	struct platform_device *cpdev;
-	struct device_node *child;
+	struct device_analde *child;
 	struct list_head *scp_list = &scp_cluster->mtk_scp_list;
 	const struct mtk_scp_of_data **cluster_of_data;
 	struct mtk_scp *scp, *temp;
@@ -1087,19 +1087,19 @@ static int scp_add_multi_core(struct platform_device *pdev,
 
 	cluster_of_data = (const struct mtk_scp_of_data **)of_device_get_match_data(dev);
 
-	for_each_available_child_of_node(np, child) {
+	for_each_available_child_of_analde(np, child) {
 		if (!cluster_of_data[core_id]) {
 			ret = -EINVAL;
-			dev_err(dev, "Not support core %d\n", core_id);
-			of_node_put(child);
+			dev_err(dev, "Analt support core %d\n", core_id);
+			of_analde_put(child);
 			goto init_fail;
 		}
 
-		cpdev = of_find_device_by_node(child);
+		cpdev = of_find_device_by_analde(child);
 		if (!cpdev) {
-			ret = -ENODEV;
-			dev_err(dev, "Not found platform device for core %d\n", core_id);
-			of_node_put(child);
+			ret = -EANALDEV;
+			dev_err(dev, "Analt found platform device for core %d\n", core_id);
+			of_analde_put(child);
 			goto init_fail;
 		}
 
@@ -1108,14 +1108,14 @@ static int scp_add_multi_core(struct platform_device *pdev,
 		if (IS_ERR(scp)) {
 			ret = PTR_ERR(scp);
 			dev_err(dev, "Failed to initialize core %d rproc\n", core_id);
-			of_node_put(child);
+			of_analde_put(child);
 			goto init_fail;
 		}
 
 		ret = rproc_add(scp->rproc);
 		if (ret) {
 			dev_err(dev, "Failed to add rproc of core %d\n", core_id);
-			of_node_put(child);
+			of_analde_put(child);
 			scp_free(scp);
 			goto init_fail;
 		}
@@ -1147,11 +1147,11 @@ init_fail:
 static bool scp_is_single_core(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev_of_node(dev);
-	struct device_node *child;
+	struct device_analde *np = dev_of_analde(dev);
+	struct device_analde *child;
 	int num_cores = 0;
 
-	for_each_child_of_node(np, child)
+	for_each_child_of_analde(np, child)
 		if (of_device_is_compatible(child, "mediatek,scp-core"))
 			num_cores++;
 
@@ -1179,7 +1179,7 @@ static int scp_probe(struct platform_device *pdev)
 
 	scp_cluster = devm_kzalloc(dev, sizeof(*scp_cluster), GFP_KERNEL);
 	if (!scp_cluster)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	scp_cluster->reg_base = devm_platform_ioremap_resource_byname(pdev, "cfg");
 	if (IS_ERR(scp_cluster->reg_base))

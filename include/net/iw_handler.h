@@ -24,12 +24,12 @@
  *
  * The initial APIs served us well and has proven a reasonably good design.
  * However, there is a few shortcommings :
- *	o No events, everything is a request to the driver.
+ *	o Anal events, everything is a request to the driver.
  *	o Large ioctl function in driver with gigantic switch statement
  *	  (i.e. spaghetti code).
  *	o Driver has to mess up with copy_to/from_user, and in many cases
  *	  does it unproperly. Common mistakes are :
- *		* buffer overflows (no checks or off by one checks)
+ *		* buffer overflows (anal checks or off by one checks)
  *		* call copy_to/from_user with irq disabled
  *	o The user space interface is tied to ioctl because of the use
  *	  copy_to/from_user.
@@ -53,7 +53,7 @@
  *	o Backward compatibility (can be mixed with old API)
  *	o Driver doesn't have to worry about memory and user-space issues
  * The last point is important for the following reasons :
- *	o You are now able to call the new driver API from any API you
+ *	o You are analw able to call the new driver API from any API you
  *		want (including from within other parts of the kernel).
  *	o Common mistakes are avoided (buffer overflow, user space copy
  *		with irq disabled and so on).
@@ -69,7 +69,7 @@
  * ---
  *
  * The new driver API is defined below in this file. User space should
- * not be aware of what's happening down there...
+ * analt be aware of what's happening down there...
  *
  * A new kernel wrapper is in charge of validating the IOCTLs and calling
  * the appropriate driver handler. This is implemented in :
@@ -91,14 +91,14 @@
  * Implementation goals :
  * --------------------
  * The implementation goals were as follow :
- *	o Obvious : you should not need a PhD to understand what's happening,
+ *	o Obvious : you should analt need a PhD to understand what's happening,
  *		the benefit is easier maintenance.
  *	o Flexible : it should accommodate a wide variety of driver
  *		implementations and be as flexible as the old API.
  *	o Lean : it should be efficient memory wise to minimise the impact
  *		on kernel footprint.
  *	o Transparent to user space : the large number of user space
- *		applications that use Wireless Extensions should not need
+ *		applications that use Wireless Extensions should analt need
  *		any modifications.
  *
  * Array of functions versus Struct of functions
@@ -134,12 +134,12 @@
  *	static int mydriver_ioctl_setrate(struct net_device *dev, 
  *					  long rate, int auto)
  * 1) The kernel code doesn't "validate" the content of iwreq_data, and
- * can't do it (different hardware may have different notion of what a
+ * can't do it (different hardware may have different analtion of what a
  * valid frequency is), so we don't pretend that we do it.
- * 2) The above form is not extendable. If I want to add a flag (for
+ * 2) The above form is analt extendable. If I want to add a flag (for
  * example to distinguish setting max rate and basic rate), I would
  * break the prototype. Using iwreq_data is more flexible.
- * 3) Also, the above form is not generic (see above).
+ * 3) Also, the above form is analt generic (see above).
  * 4) I don't expect driver developper using the wrong field of the
  * union (Doh !), so static typechecking doesn't add much value.
  * 5) Lastly, you can skip the union by doing :
@@ -150,29 +150,29 @@
  * And then adding the handler in the array like this :
  *        (iw_handler) mydriver_ioctl_setrate,             // SIOCSIWRATE
  *
- * Using functions and not a registry
+ * Using functions and analt a registry
  * ----------------------------------
- * Another implementation option would have been for every instance to
+ * Aanalther implementation option would have been for every instance to
  * define a registry (a struct containing all the Wireless Extensions)
  * and only have a function to commit the registry to the hardware.
- * 1) This approach can be emulated by the current code, but not
+ * 1) This approach can be emulated by the current code, but analt
  * vice versa.
  * 2) Some drivers don't keep any configuration in the driver, for them
  * adding such a registry would be a significant bloat.
  * 3) The code to translate from Wireless Extension to native format is
- * needed anyway, so it would not reduce significantely the amount of code.
+ * needed anyway, so it would analt reduce significantely the amount of code.
  * 4) The current approach only selectively translate Wireless Extensions
  * to native format and only selectively set, whereas the registry approach
  * would require to translate all WE and set all parameters for any single
  * change.
  * 5) For many Wireless Extensions, the GET operation return the current
- * dynamic value, not the value that was set.
+ * dynamic value, analt the value that was set.
  *
  * This header is <net/iw_handler.h>
  * ---------------------------------
- * 1) This header is kernel space only and should not be exported to
+ * 1) This header is kernel space only and should analt be exported to
  * user space. Headers in "include/linux/" are exported, headers in
- * "include/net/" are not.
+ * "include/net/" are analt.
  *
  * Mixed 32/64 bit issues
  * ----------------------
@@ -184,7 +184,7 @@
  * that *may* need to be translated.
  * This is quite messy. The new API doesn't solve this problem (it can't),
  * but is a step in the right direction :
- * 1) Meta data about each ioctl is easily available, so we know what type
+ * 1) Meta data about each ioctl is easily available, so we kanalw what type
  * of translation is needed.
  * 2) The move of data between kernel and user space is only done in a single
  * place in the kernel, so adding specific hooks in there is possible.
@@ -203,8 +203,8 @@
 
 /***************************** VERSION *****************************/
 /*
- * This constant is used to know which version of the driver API is
- * available. Hopefully, this will be pretty stable and no changes
+ * This constant is used to kanalw which version of the driver API is
+ * available. Hopefully, this will be pretty stable and anal changes
  * will be needed...
  * I just plan to increment with each new version.
  */
@@ -231,7 +231,7 @@
  * --------
  *	- Change the way we get to spy_data method for added safety
  *	- Remove spy #ifdef, they are always on -> cleaner code
- *	- Add IW_DESCR_FLAG_NOMAX flag for very large requests
+ *	- Add IW_DESCR_FLAG_ANALMAX flag for very large requests
  *	- Start migrating get_wireless_stats to struct iw_handler_def
  *
  * V6 to V7
@@ -259,8 +259,8 @@
 /* Flags available in struct iw_request_info */
 #define IW_REQUEST_FLAG_COMPAT	0x0001	/* Compat ioctl call */
 
-/* Type of headers we know about (basically union iwreq_data) */
-#define IW_HEADER_TYPE_NULL	0	/* Not available */
+/* Type of headers we kanalw about (basically union iwreq_data) */
+#define IW_HEADER_TYPE_NULL	0	/* Analt available */
 #define IW_HEADER_TYPE_CHAR	2	/* char [IFNAMSIZ] */
 #define IW_HEADER_TYPE_UINT	4	/* __u32 */
 #define IW_HEADER_TYPE_FREQ	5	/* struct iw_freq */
@@ -270,15 +270,15 @@
 #define IW_HEADER_TYPE_QUAL	10	/* struct iw_quality */
 
 /* Handling flags */
-/* Most are not implemented. I just use them as a reminder of some
+/* Most are analt implemented. I just use them as a reminder of some
  * cool features we might need one day ;-) */
-#define IW_DESCR_FLAG_NONE	0x0000	/* Obvious */
+#define IW_DESCR_FLAG_ANALNE	0x0000	/* Obvious */
 /* Wrapper level flags */
-#define IW_DESCR_FLAG_DUMP	0x0001	/* Not part of the dump command */
+#define IW_DESCR_FLAG_DUMP	0x0001	/* Analt part of the dump command */
 #define IW_DESCR_FLAG_EVENT	0x0002	/* Generate an event on SET */
 #define IW_DESCR_FLAG_RESTRICT	0x0004	/* GET : request is ROOT only */
 				/* SET : Omit payload from generated iwevent */
-#define IW_DESCR_FLAG_NOMAX	0x0008	/* GET : no limit on request size */
+#define IW_DESCR_FLAG_ANALMAX	0x0008	/* GET : anal limit on request size */
 /* Driver level flags */
 #define IW_DESCR_FLAG_WAIT	0x0100	/* Wait for driver event */
 
@@ -295,7 +295,7 @@
 
 /*
  * Meta data about the request passed to the iw_handler.
- * Most handlers can safely ignore what's in there.
+ * Most handlers can safely iganalre what's in there.
  * The 'cmd' field might come handy if you want to use the same handler
  * for multiple command...
  * This struct is also my long term insurance. I can add new fields here
@@ -341,7 +341,7 @@ struct iw_handler_def {
 	const iw_handler *	private;
 
 	/* Arguments of private handler. This one is just a list, so you
-	 * can put it in any order you want and should not leave holes...
+	 * can put it in any order you want and should analt leave holes...
 	 * We will automatically export that to user space... */
 	const struct iw_priv_args *	private_args;
 #endif
@@ -356,7 +356,7 @@ struct iw_handler_def {
 /*
  * One of the main goal of the new interface is to deal entirely with
  * user space/kernel space memory move.
- * For that, we need to know :
+ * For that, we need to kanalw :
  *	o if iwreq is a pointer or contain the full data
  *	o what is the size of the data to copy
  *
@@ -365,7 +365,7 @@ struct iw_handler_def {
  *
  * For standard IOCTLs, things are quite different and we need to
  * use the structures below. Actually, this struct is also more
- * efficient, but that's another story...
+ * efficient, but that's aanalther story...
  */
 
 /*
@@ -385,7 +385,7 @@ struct iw_ioctl_description {
 /* --------------------- ENHANCED SPY SUPPORT --------------------- */
 /*
  * In the old days, the driver was handling spy support all by itself.
- * Now, the driver can delegate this task to Wireless Extensions.
+ * Analw, the driver can delegate this task to Wireless Extensions.
  * It needs to include this struct in its private part and use the
  * standard spy iw_handler.
  */
@@ -434,7 +434,7 @@ struct iw_public_data {
 void wireless_send_event(struct net_device *dev, unsigned int cmd,
 			 union iwreq_data *wrqu, const char *extra);
 #ifdef CONFIG_WEXT_CORE
-/* flush all previous wext events - if work is done from netdev notifiers */
+/* flush all previous wext events - if work is done from netdev analtifiers */
 void wireless_nlevent_flush(void);
 #else
 static inline void wireless_nlevent_flush(void) {}

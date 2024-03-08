@@ -11,14 +11,14 @@ maintainers:
 
 description:
   The Qualcomm SM6115 interconnect providers support adjusting the
-  bandwidth requirements between the various NoC fabrics.
+  bandwidth requirements between the various AnalC fabrics.
 
 properties:
   compatible:
     enum:
       - qcom,sm6115-bimc
-      - qcom,sm6115-cnoc
-      - qcom,sm6115-snoc
+      - qcom,sm6115-canalc
+      - qcom,sm6115-sanalc
 
   reg:
     maxItems: 1
@@ -31,12 +31,12 @@ properties:
     minItems: 1
     maxItems: 4
 
-# Child node's properties
+# Child analde's properties
 patternProperties:
   '^interconnect-[a-z0-9]+$':
     type: object
     description:
-      The interconnect providers do not have a separate QoS register space,
+      The interconnect providers do analt have a separate QoS register space,
       but share parent's space.
 
     $ref: qcom,rpm-common.yaml#
@@ -62,13 +62,13 @@ allOf:
   - if:
       properties:
         compatible:
-          const: qcom,sm6115-cnoc
+          const: qcom,sm6115-canalc
 
     then:
       properties:
         clocks:
           items:
-            - description: USB-NoC AXI clock
+            - description: USB-AnalC AXI clock
 
         clock-names:
           items:
@@ -77,15 +77,15 @@ allOf:
   - if:
       properties:
         compatible:
-          const: qcom,sm6115-snoc
+          const: qcom,sm6115-sanalc
 
     then:
       properties:
         clocks:
           items:
-            - description: CPU-NoC AXI clock.
-            - description: UFS-NoC AXI clock.
-            - description: USB-NoC AXI clock.
+            - description: CPU-AnalC AXI clock.
+            - description: UFS-AnalC AXI clock.
+            - description: USB-AnalC AXI clock.
             - description: IPA clock.
 
         clock-names:
@@ -116,12 +116,12 @@ examples:
     #include <dt-bindings/clock/qcom,gcc-sm6115.h>
     #include <dt-bindings/clock/qcom,rpmcc.h>
 
-    snoc: interconnect@1880000 {
-        compatible = "qcom,sm6115-snoc";
+    sanalc: interconnect@1880000 {
+        compatible = "qcom,sm6115-sanalc";
         reg = <0x01880000 0x60200>;
-        clocks = <&gcc GCC_SYS_NOC_CPUSS_AHB_CLK>,
-                 <&gcc GCC_SYS_NOC_UFS_PHY_AXI_CLK>,
-                 <&gcc GCC_SYS_NOC_USB3_PRIM_AXI_CLK>,
+        clocks = <&gcc GCC_SYS_ANALC_CPUSS_AHB_CLK>,
+                 <&gcc GCC_SYS_ANALC_UFS_PHY_AXI_CLK>,
+                 <&gcc GCC_SYS_ANALC_USB3_PRIM_AXI_CLK>,
                  <&rpmcc RPM_SMD_IPA_CLK>;
         clock-names = "cpu_axi",
                       "ufs_axi",
@@ -145,8 +145,8 @@ examples:
         };
     };
 
-    cnoc: interconnect@1900000 {
-        compatible = "qcom,sm6115-cnoc";
+    canalc: interconnect@1900000 {
+        compatible = "qcom,sm6115-canalc";
         reg = <0x01900000 0x8200>;
         #interconnect-cells = <1>;
     };

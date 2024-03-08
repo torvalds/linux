@@ -26,26 +26,26 @@
 	};
 
 	/*
-	 * For some reason, the signed wcnss firmware is not relocatable.
+	 * For some reason, the signed wcnss firmware is analt relocatable.
 	 * It must be loaded at 0x8b600000. Unfortunately, this also means that
-	 * mpss_mem does not fit when loaded to the typical address at 0x86800000.
+	 * mpss_mem does analt fit when loaded to the typical address at 0x86800000.
 	 *
 	 * Load wcnss_mem to the fixed address and relocate mpss_mem to the next
-	 * working higher address. For some reason the modem firmware does not
+	 * working higher address. For some reason the modem firmware does analt
 	 * boot when placed at 0x8a800000 to 0x8e800000.
 	 */
 	reserved-memory {
-		/delete-node/ mpss@86800000;
-		/delete-node/ wcnss;
+		/delete-analde/ mpss@86800000;
+		/delete-analde/ wcnss;
 
 		wcnss_mem: wcnss@8b600000 {
 			reg = <0x0 0x8b600000 0x0 0x600000>;
-			no-map;
+			anal-map;
 		};
 
 		mpss_mem: mpss@8e800000 {
 			reg = <0x0 0x8e800000 0x0 0x5000000>;
-			no-map;
+			anal-map;
 		};
 	};
 
@@ -156,7 +156,7 @@
 		reg = <0x10>;
 
 		/*
-		 * For some reason the interrupt line is usually not connected
+		 * For some reason the interrupt line is usually analt connected
 		 * to the BMC156. However, there are two pads next to the chip
 		 * that can be shorted to make it work if needed.
 		 *
@@ -242,7 +242,7 @@
 
 		rmi4-f01@1 {
 			reg = <0x1>;
-			syna,nosleep-mode = <1>; /* Allow sleeping */
+			syna,analsleep-mode = <1>; /* Allow sleeping */
 		};
 
 		rmi4-f12@12 {
@@ -276,7 +276,7 @@
 	qcom,micbias-lvl = <2800>;
 	qcom,mbhc-vthreshold-low = <75 150 237 450 500>;
 	qcom,mbhc-vthreshold-high = <75 150 237 450 500>;
-	qcom,hphl-jack-type-normally-open;
+	qcom,hphl-jack-type-analrmally-open;
 };
 
 &pm8916_resin {
@@ -301,7 +301,7 @@
 
 &sdhc_2 {
 	status = "okay";
-	non-removable;
+	analn-removable;
 };
 
 &sound {

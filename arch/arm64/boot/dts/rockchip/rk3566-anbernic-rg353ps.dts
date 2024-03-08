@@ -101,7 +101,7 @@
 	audio-amplifier {
 		spk_amp_enable_h: spk-amp-enable-h {
 			rockchip,pins =
-				<4 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>;
+				<4 RK_PC2 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 };

@@ -10,7 +10,7 @@ maintainers:
   - Andrew Jeffery <andrew@aj.id.au>
 
 description: |+
-  The pin controller node should be the child of a syscon node with the
+  The pin controller analde should be the child of a syscon analde with the
   required property:
 
   - compatible: Should be one of the following:
@@ -24,7 +24,7 @@ properties:
     const: aspeed,ast2600-pinctrl
 
 additionalProperties:
-  $ref: pinmux-node.yaml#
+  $ref: pinmux-analde.yaml#
   additionalProperties: false
 
   properties:

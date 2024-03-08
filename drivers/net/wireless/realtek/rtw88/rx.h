@@ -6,7 +6,7 @@
 #define __RTW_RX_H_
 
 enum rtw_rx_desc_enc {
-	RX_DESC_ENC_NONE	= 0,
+	RX_DESC_ENC_ANALNE	= 0,
 	RX_DESC_ENC_WEP40	= 1,
 	RX_DESC_ENC_TKIP_WO_MIC	= 2,
 	RX_DESC_ENC_TKIP_MIC	= 3,

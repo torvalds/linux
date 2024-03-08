@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
  *  drivers/tty/serial/8250/8250_pxa.c -- driver for PXA on-board UARTS
- *  Copyright:	(C) 2013 Sergei Ianovich <ynvich@gmail.com>
+ *  Copyright:	(C) 2013 Sergei Iaanalvich <ynvich@gmail.com>
  *
  *  replaces drivers/serial/pxa.c by Nicolas Pitre
  *  Created:	Feb 20, 2003
@@ -100,11 +100,11 @@ static int serial_pxa_probe(struct platform_device *pdev)
 
 	mmres = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!mmres)
-		return -ENODEV;
+		return -EANALDEV;
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(data->clk))
@@ -114,7 +114,7 @@ static int serial_pxa_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = of_alias_get_id(pdev->dev.of_node, "serial");
+	ret = of_alias_get_id(pdev->dev.of_analde, "serial");
 	if (ret >= 0)
 		uart.port.line = ret;
 
@@ -175,7 +175,7 @@ static int __init early_serial_pxa_setup(struct earlycon_device *device,
 	struct uart_port *port = &device->port;
 
 	if (!(device->port.membase || device->port.iobase))
-		return -ENODEV;
+		return -EANALDEV;
 
 	port->regshift = 2;
 	return early_serial8250_setup(device, NULL);
@@ -184,6 +184,6 @@ OF_EARLYCON_DECLARE(early_pxa, "mrvl,pxa-uart", early_serial_pxa_setup);
 OF_EARLYCON_DECLARE(mmp, "mrvl,mmp-uart", early_serial_pxa_setup);
 #endif
 
-MODULE_AUTHOR("Sergei Ianovich");
+MODULE_AUTHOR("Sergei Iaanalvich");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:pxa2xx-uart");

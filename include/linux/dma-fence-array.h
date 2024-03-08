@@ -49,7 +49,7 @@ struct dma_fence_array {
  * to_dma_fence_array - cast a fence to a dma_fence_array
  * @fence: fence to cast to a dma_fence_array
  *
- * Returns NULL if the fence is not a dma_fence_array,
+ * Returns NULL if the fence is analt a dma_fence_array,
  * or the dma_fence_array otherwise.
  */
 static inline struct dma_fence_array *
@@ -67,8 +67,8 @@ to_dma_fence_array(struct dma_fence *fence)
  * @index: index into the array
  * @head: potential dma_fence_array object
  *
- * Test if @array is a dma_fence_array object and if yes iterate over all fences
- * in the array. If not just iterate over the fence in @array itself.
+ * Test if @array is a dma_fence_array object and if anal iterate over all fences
+ * in the array. If analt just iterate over the fence in @array itself.
  *
  * For a deep dive iterator see dma_fence_unwrap_for_each().
  */
@@ -78,7 +78,7 @@ to_dma_fence_array(struct dma_fence *fence)
 
 struct dma_fence_array *dma_fence_array_create(int num_fences,
 					       struct dma_fence **fences,
-					       u64 context, unsigned seqno,
+					       u64 context, unsigned seqanal,
 					       bool signal_on_any);
 
 bool dma_fence_match_context(struct dma_fence *fence, u64 context);

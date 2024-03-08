@@ -46,11 +46,11 @@
 	};
 
 	cp0_usb3_0_phy0: cp0_usb3_phy0 {
-		compatible = "usb-nop-xceiv";
+		compatible = "usb-analp-xceiv";
 	};
 
 	cp0_usb3_0_phy1: cp0_usb3_phy1 {
-		compatible = "usb-nop-xceiv";
+		compatible = "usb-analp-xceiv";
 		vcc-supply = <&cp0_reg_usb3_vbus1>;
 	};
 
@@ -178,9 +178,9 @@
 	flash@0 {
 		#address-cells = <0x1>;
 		#size-cells = <0x1>;
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0x0>;
-		/* On-board MUX does not allow higher frequencies */
+		/* On-board MUX does analt allow higher frequencies */
 		spi-max-frequency = <40000000>;
 
 		partitions {

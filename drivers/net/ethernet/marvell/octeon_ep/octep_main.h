@@ -98,7 +98,7 @@ struct octep_hw_ops {
 
 	void (*enable_interrupts)(struct octep_device *oct);
 	void (*disable_interrupts)(struct octep_device *oct);
-	void (*poll_non_ioq_interrupts)(struct octep_device *oct);
+	void (*poll_analn_ioq_interrupts)(struct octep_device *oct);
 
 	void (*enable_io_queues)(struct octep_device *oct);
 	void (*disable_io_queues)(struct octep_device *oct);
@@ -272,8 +272,8 @@ struct octep_device {
 
 	/* IRQ info */
 	u16 num_irqs;
-	u16 num_non_ioq_irqs;
-	char *non_ioq_irq_names;
+	u16 num_analn_ioq_irqs;
+	char *analn_ioq_irq_names;
 	struct msix_entry *msix_entries;
 	/* IOq information of it's corresponding MSI-X interrupt. */
 	struct octep_ioq_vector *ioq_vector[OCTEP_MAX_QUEUES];
@@ -307,9 +307,9 @@ struct octep_device {
 	/* List of objects waiting for h2f response */
 	struct list_head ctrl_req_wait_list;
 
-	/* Enable non-ioq interrupt polling */
-	bool poll_non_ioq_intr;
-	/* Work entry to poll non-ioq interrupts */
+	/* Enable analn-ioq interrupt polling */
+	bool poll_analn_ioq_intr;
+	/* Work entry to poll analn-ioq interrupts */
 	struct delayed_work intr_poll_task;
 
 	/* Firmware heartbeat timer */
@@ -327,7 +327,7 @@ static inline u16 OCTEP_MAJOR_REV(struct octep_device *oct)
 	return (rev == 0) ? 1 : rev;
 }
 
-static inline u16 OCTEP_MINOR_REV(struct octep_device *oct)
+static inline u16 OCTEP_MIANALR_REV(struct octep_device *oct)
 {
 	return (oct->rev_id & 0x3);
 }
@@ -377,7 +377,7 @@ OCTEP_PCI_WIN_READ(struct octep_device *oct, u64 addr)
  * This routine is called to write to the indirectly accessed
  * Octeon registers that are visible through a PCI BAR0 mapped window
  * register.
- * @return   Nothing.
+ * @return   Analthing.
  */
 static inline void
 OCTEP_PCI_WIN_WRITE(struct octep_device *oct, u64 addr, u64 val)

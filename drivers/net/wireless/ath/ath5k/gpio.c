@@ -4,11 +4,11 @@
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -47,7 +47,7 @@
  *
  * Used to set the LED blinking state. This only
  * works for the LED connected to the LED_0, LED_1 pins,
- * not the GPIO based.
+ * analt the GPIO based.
  */
 void
 ath5k_hw_set_ledstate(struct ath5k_hw *ah, unsigned int state)
@@ -74,7 +74,7 @@ ath5k_hw_set_ledstate(struct ath5k_hw *ah, unsigned int state)
 		break;
 
 	case AR5K_LED_INIT:
-		led = AR5K_PCICFG_LEDMODE_PROP | AR5K_PCICFG_LED_NONE;
+		led = AR5K_PCICFG_LEDMODE_PROP | AR5K_PCICFG_LED_ANALNE;
 		led_5210 = AR5K_PCICFG_LED_PEND;
 		break;
 
@@ -85,7 +85,7 @@ ath5k_hw_set_ledstate(struct ath5k_hw *ah, unsigned int state)
 		break;
 
 	default:
-		led = AR5K_PCICFG_LEDMODE_PROM | AR5K_PCICFG_LED_NONE;
+		led = AR5K_PCICFG_LEDMODE_PROM | AR5K_PCICFG_LED_ANALNE;
 		led_5210 = AR5K_PCICFG_LED_PEND;
 		break;
 	}

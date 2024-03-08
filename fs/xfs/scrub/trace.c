@@ -10,7 +10,7 @@
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
-#include "xfs_inode.h"
+#include "xfs_ianalde.h"
 #include "xfs_btree.h"
 #include "xfs_ag.h"
 #include "xfs_rtbitmap.h"
@@ -23,7 +23,7 @@
 
 /* Figure out which block the btree cursor was pointing to. */
 static inline xfs_fsblock_t
-xchk_btree_cur_fsbno(
+xchk_btree_cur_fsbanal(
 	struct xfs_btree_cur	*cur,
 	int			level)
 {
@@ -32,8 +32,8 @@ xchk_btree_cur_fsbno(
 				xfs_buf_daddr(cur->bc_levels[level].bp));
 
 	if (level == cur->bc_nlevels - 1 &&
-	    (cur->bc_flags & XFS_BTREE_ROOT_IN_INODE))
-		return XFS_INO_TO_FSB(cur->bc_mp, cur->bc_ino.ip->i_ino);
+	    (cur->bc_flags & XFS_BTREE_ROOT_IN_IANALDE))
+		return XFS_IANAL_TO_FSB(cur->bc_mp, cur->bc_ianal.ip->i_ianal);
 
 	return NULLFSBLOCK;
 }

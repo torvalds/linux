@@ -9,7 +9,7 @@
 #include "reg.h"
 
 enum pcie_rxbd_mode {
-	PCIE_RXBD_NORM = 0,
+	PCIE_RXBD_ANALRM = 0,
 	PCIE_RXBD_SEP,
 	PCIE_RXBD_EXT,
 };
@@ -178,7 +178,7 @@ static void rtw89_pci_mode_op_be(struct rtw89_dev *rtwdev)
 	val32_exp = rtw89_read32(rtwdev, R_BE_HAXI_EXP_CTRL_V1);
 
 	if (info->rxbd_mode == MAC_AX_RXBD_PKT) {
-		val32_init1 = u32_replace_bits(val32_init1, PCIE_RXBD_NORM,
+		val32_init1 = u32_replace_bits(val32_init1, PCIE_RXBD_ANALRM,
 					       B_BE_RXQ_RXBD_MODE_MASK);
 	} else if (info->rxbd_mode == MAC_AX_RXBD_SEP) {
 		val32_init1 = u32_replace_bits(val32_init1, PCIE_RXBD_SEP,
@@ -429,8 +429,8 @@ static int rtw89_pci_ops_mac_post_init_be(struct rtw89_dev *rtwdev)
 		return ret;
 	}
 
-	rtw89_pci_ctrl_trxdma_pcie_be(rtwdev, MAC_AX_PCIE_IGNORE,
-				      MAC_AX_PCIE_IGNORE, MAC_AX_PCIE_ENABLE);
+	rtw89_pci_ctrl_trxdma_pcie_be(rtwdev, MAC_AX_PCIE_IGANALRE,
+				      MAC_AX_PCIE_IGANALRE, MAC_AX_PCIE_ENABLE);
 	rtw89_pci_ctrl_wpdma_pcie_be(rtwdev, true);
 	rtw89_pci_ctrl_txdma_ch_be(rtwdev, true, true);
 	rtw89_pci_configure_mit_be(rtwdev);

@@ -7,7 +7,7 @@
 #include <linux/clk.h>
 #include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
 #include <linux/interrupt.h>
@@ -84,7 +84,7 @@
 #define QSPI_LPTR		0x30
 
 #define STM32_QSPI_MAX_MMAP_SZ	SZ_256M
-#define STM32_QSPI_MAX_NORCHIP	2
+#define STM32_QSPI_MAX_ANALRCHIP	2
 
 #define STM32_FIFO_TIMEOUT_US 30000
 #define STM32_BUSY_TIMEOUT_US 100000
@@ -106,7 +106,7 @@ struct stm32_qspi {
 	resource_size_t mm_size;
 	struct clk *clk;
 	u32 clk_rate;
-	struct stm32_qspi_flash flash[STM32_QSPI_MAX_NORCHIP];
+	struct stm32_qspi_flash flash[STM32_QSPI_MAX_ANALRCHIP];
 	struct completion data_completion;
 	struct completion match_completion;
 	u32 fmode;
@@ -230,7 +230,7 @@ static int stm32_qspi_tx_dma(struct stm32_qspi *qspi,
 	}
 
 	/*
-	 * spi_map_buf return -EINVAL if the buffer is not DMA-able
+	 * spi_map_buf return -EINVAL if the buffer is analt DMA-able
 	 * (DMA-able: in vmalloc | kmap | virt_addr_valid)
 	 */
 	err = spi_controller_dma_map_mem_op_data(qspi->ctrl, op, &sgt);
@@ -240,7 +240,7 @@ static int stm32_qspi_tx_dma(struct stm32_qspi *qspi,
 	desc = dmaengine_prep_slave_sg(dma_ch, sgt.sgl, sgt.nents,
 				       dma_dir, DMA_PREP_INTERRUPT);
 	if (!desc) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_unmap;
 	}
 
@@ -290,7 +290,7 @@ static int stm32_qspi_tx(struct stm32_qspi *qspi, const struct spi_mem_op *op)
 	return stm32_qspi_tx_poll(qspi, op);
 }
 
-static int stm32_qspi_wait_nobusy(struct stm32_qspi *qspi)
+static int stm32_qspi_wait_analbusy(struct stm32_qspi *qspi)
 {
 	u32 sr;
 
@@ -325,7 +325,7 @@ out:
 	/* clear flags */
 	writel_relaxed(FCR_CTCF | FCR_CTEF, qspi->io_base + QSPI_FCR);
 	if (!err)
-		err = stm32_qspi_wait_nobusy(qspi);
+		err = stm32_qspi_wait_analbusy(qspi);
 
 	return err;
 }
@@ -411,8 +411,8 @@ static int stm32_qspi_send(struct spi_device *spi, const struct spi_mem_op *op)
 	 * Abort in:
 	 * -error case
 	 * -read memory map: prefetching must be stopped if we read the last
-	 *  byte of device (device size - fifo size). like device size is not
-	 *  knows, the prefetching is always stop.
+	 *  byte of device (device size - fifo size). like device size is analt
+	 *  kanalws, the prefetching is always stop.
 	 */
 	if (err || err_poll_status || qspi->fmode == CCR_FMODE_MM)
 		goto abort;
@@ -452,7 +452,7 @@ static int stm32_qspi_poll_status(struct spi_mem *mem, const struct spi_mem_op *
 	int ret;
 
 	if (!spi_mem_supports_op(mem, op))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = pm_runtime_resume_and_get(qspi->dev);
 	if (ret < 0)
@@ -503,14 +503,14 @@ static int stm32_qspi_dirmap_create(struct spi_mem_dirmap_desc *desc)
 	struct stm32_qspi *qspi = spi_controller_get_devdata(desc->mem->spi->controller);
 
 	if (desc->info.op_tmpl.data.dir == SPI_MEM_DATA_OUT)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* should never happen, as mm_base == null is an error probe exit condition */
 	if (!qspi->mm_base && desc->info.op_tmpl.data.dir == SPI_MEM_DATA_IN)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!qspi->mm_size)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return 0;
 }
@@ -564,7 +564,7 @@ static int stm32_qspi_transfer_one_message(struct spi_controller *ctrl,
 	int ret = 0;
 
 	if (!spi_get_csgpiod(spi, 0))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = pm_runtime_resume_and_get(qspi->dev);
 	if (ret < 0)
@@ -594,7 +594,7 @@ static int stm32_qspi_transfer_one_message(struct spi_controller *ctrl,
 			op.dummy.nbytes = transfer->len;
 			dummy_bytes = transfer->len;
 
-			/* if happens, means that message is not correctly built */
+			/* if happens, means that message is analt correctly built */
 			if (list_is_last(&transfer->transfer_list, &msg->transfers)) {
 				ret = -EINVAL;
 				goto end_of_transfer;
@@ -655,9 +655,9 @@ static int stm32_qspi_setup(struct spi_device *spi)
 	mode = spi->mode & (SPI_TX_OCTAL | SPI_RX_OCTAL);
 	if ((mode == SPI_TX_OCTAL || mode == SPI_RX_OCTAL) ||
 	    ((mode == (SPI_TX_OCTAL | SPI_RX_OCTAL)) &&
-	    gpiod_count(qspi->dev, "cs") == -ENOENT)) {
+	    gpiod_count(qspi->dev, "cs") == -EANALENT)) {
 		dev_err(qspi->dev, "spi-rx-bus-width\\/spi-tx-bus-width\\/cs-gpios\n");
-		dev_err(qspi->dev, "configuration not supported\n");
+		dev_err(qspi->dev, "configuration analt supported\n");
 
 		return -EINVAL;
 	}
@@ -756,7 +756,7 @@ static void stm32_qspi_dma_free(struct stm32_qspi *qspi)
 }
 
 /*
- * no special host constraint, so use default spi_mem_default_supports_op
+ * anal special host constraint, so use default spi_mem_default_supports_op
  * to check supported mode.
  */
 static const struct spi_controller_mem_ops stm32_qspi_mem_ops = {
@@ -777,7 +777,7 @@ static int stm32_qspi_probe(struct platform_device *pdev)
 
 	ctrl = devm_spi_alloc_host(dev, sizeof(*qspi));
 	if (!ctrl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	qspi = spi_controller_get_devdata(ctrl);
 	qspi->ctrl = ctrl;
@@ -822,7 +822,7 @@ static int stm32_qspi_probe(struct platform_device *pdev)
 
 	ret = clk_prepare_enable(qspi->clk);
 	if (ret) {
-		dev_err(dev, "can not enable the clock\n");
+		dev_err(dev, "can analt enable the clock\n");
 		return ret;
 	}
 
@@ -852,14 +852,14 @@ static int stm32_qspi_probe(struct platform_device *pdev)
 	ctrl->mem_ops = &stm32_qspi_mem_ops;
 	ctrl->use_gpio_descriptors = true;
 	ctrl->transfer_one_message = stm32_qspi_transfer_one_message;
-	ctrl->num_chipselect = STM32_QSPI_MAX_NORCHIP;
-	ctrl->dev.of_node = dev->of_node;
+	ctrl->num_chipselect = STM32_QSPI_MAX_ANALRCHIP;
+	ctrl->dev.of_analde = dev->of_analde;
 
 	pm_runtime_set_autosuspend_delay(dev, STM32_AUTOSUSPEND_DELAY);
 	pm_runtime_use_autosuspend(dev);
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
-	pm_runtime_get_noresume(dev);
+	pm_runtime_get_analresume(dev);
 
 	ret = spi_register_controller(ctrl);
 	if (ret)
@@ -875,7 +875,7 @@ err_pm_runtime_free:
 	/* disable qspi */
 	writel_relaxed(0, qspi->io_base + QSPI_CR);
 	mutex_destroy(&qspi->lock);
-	pm_runtime_put_noidle(qspi->dev);
+	pm_runtime_put_analidle(qspi->dev);
 	pm_runtime_disable(qspi->dev);
 	pm_runtime_set_suspended(qspi->dev);
 	pm_runtime_dont_use_autosuspend(qspi->dev);
@@ -897,7 +897,7 @@ static void stm32_qspi_remove(struct platform_device *pdev)
 	writel_relaxed(0, qspi->io_base + QSPI_CR);
 	stm32_qspi_dma_free(qspi);
 	mutex_destroy(&qspi->lock);
-	pm_runtime_put_noidle(qspi->dev);
+	pm_runtime_put_analidle(qspi->dev);
 	pm_runtime_disable(qspi->dev);
 	pm_runtime_set_suspended(qspi->dev);
 	pm_runtime_dont_use_autosuspend(qspi->dev);

@@ -12,7 +12,7 @@
 #include <linux/acpi.h>
 #include <linux/device.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/file.h>
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
@@ -293,7 +293,7 @@ static long pfrt_log_ioctl(struct file *file, unsigned int cmd, unsigned long ar
 		return 0;
 
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 }
 
@@ -309,7 +309,7 @@ pfrt_log_mmap(struct file *file, struct vm_area_struct *vma)
 	if (vma->vm_flags & VM_WRITE)
 		return -EROFS;
 
-	/* changing from read to write with mprotect is not allowed */
+	/* changing from read to write with mprotect is analt allowed */
 	vm_flags_clear(vma, VM_MAYWRITE);
 
 	pfrt_log_dev = to_pfrt_log_dev(file);
@@ -319,20 +319,20 @@ pfrt_log_mmap(struct file *file, struct vm_area_struct *vma)
 		return ret;
 
 	base_addr = (phys_addr_t)((info.chunk2_addr_hi << 32) | info.chunk2_addr_lo);
-	/* pfrt update has not been launched yet */
+	/* pfrt update has analt been launched yet */
 	if (!base_addr)
-		return -ENODEV;
+		return -EANALDEV;
 
 	psize = info.max_data_size;
 	/* base address and total buffer size must be page aligned */
 	if (!PAGE_ALIGNED(base_addr) || !PAGE_ALIGNED(psize))
-		return -ENODEV;
+		return -EANALDEV;
 
 	vsize = vma->vm_end - vma->vm_start;
 	if (vsize > psize)
 		return -EINVAL;
 
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	vma->vm_page_prot = pgprot_analncached(vma->vm_page_prot);
 	if (io_remap_pfn_range(vma, vma->vm_start, PFN_DOWN(base_addr),
 			       vsize, vma->vm_page_prot))
 		return -EAGAIN;
@@ -344,7 +344,7 @@ static const struct file_operations acpi_pfrt_log_fops = {
 	.owner		= THIS_MODULE,
 	.mmap		= pfrt_log_mmap,
 	.unlocked_ioctl = pfrt_log_ioctl,
-	.llseek		= noop_llseek,
+	.llseek		= analop_llseek,
 };
 
 static int acpi_pfrt_log_remove(struct platform_device *pdev)
@@ -371,12 +371,12 @@ static int acpi_pfrt_log_probe(struct platform_device *pdev)
 
 	if (!acpi_has_method(handle, "_DSM")) {
 		dev_dbg(&pdev->dev, "Missing _DSM\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	pfrt_log_dev = devm_kzalloc(&pdev->dev, sizeof(*pfrt_log_dev), GFP_KERNEL);
 	if (!pfrt_log_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = ida_alloc(&pfrt_log_ida, GFP_KERNEL);
 	if (ret < 0)
@@ -390,18 +390,18 @@ static int acpi_pfrt_log_probe(struct platform_device *pdev)
 	pfrt_log_dev->info.log_revid = PFRT_DEFAULT_REV_ID;
 	pfrt_log_dev->parent_dev = &pdev->dev;
 
-	pfrt_log_dev->miscdev.minor = MISC_DYNAMIC_MINOR;
+	pfrt_log_dev->miscdev.mianalr = MISC_DYNAMIC_MIANALR;
 	pfrt_log_dev->miscdev.name = devm_kasprintf(&pdev->dev, GFP_KERNEL,
 						    "pfrt%d",
 						    pfrt_log_dev->index);
 	if (!pfrt_log_dev->miscdev.name)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	pfrt_log_dev->miscdev.nodename = devm_kasprintf(&pdev->dev, GFP_KERNEL,
+	pfrt_log_dev->miscdev.analdename = devm_kasprintf(&pdev->dev, GFP_KERNEL,
 							"acpi_pfr_telemetry%d",
 							pfrt_log_dev->index);
-	if (!pfrt_log_dev->miscdev.nodename)
-		return -ENOMEM;
+	if (!pfrt_log_dev->miscdev.analdename)
+		return -EANALMEM;
 
 	pfrt_log_dev->miscdev.fops = &acpi_pfrt_log_fops;
 	pfrt_log_dev->miscdev.parent = &pdev->dev;

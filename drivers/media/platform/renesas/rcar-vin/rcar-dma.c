@@ -622,7 +622,7 @@ void rvin_scaler_gen3(struct rvin_dev *vin)
 
 	vnmc = rvin_read(vin, VNMC_REG);
 
-	/* Disable scaler if not needed. */
+	/* Disable scaler if analt needed. */
 	if (!rvin_scaler_needed(vin)) {
 		rvin_write(vin, vnmc & ~VNMC_SCLE, VNMC_REG);
 		return;
@@ -727,7 +727,7 @@ static int rvin_setup(struct rvin_dev *vin)
 		break;
 	case V4L2_FIELD_SEQ_TB:
 	case V4L2_FIELD_SEQ_BT:
-	case V4L2_FIELD_NONE:
+	case V4L2_FIELD_ANALNE:
 	case V4L2_FIELD_ALTERNATE:
 		vnmc = VNMC_IM_ODD_EVEN;
 		progressive = true;
@@ -865,7 +865,7 @@ static int rvin_setup(struct rvin_dev *vin)
 		dmr = 0;
 		break;
 	case V4L2_PIX_FMT_XBGR32:
-		/* Note: not supported on M1 */
+		/* Analte: analt supported on M1 */
 		dmr = VNDMR_EXRGB;
 		break;
 	case V4L2_PIX_FMT_ARGB555:
@@ -969,7 +969,7 @@ static void rvin_set_slot_addr(struct rvin_dev *vin, int slot, dma_addr_t addr)
 	fmt = rvin_format_from_pixel(vin, vin->format.pixelformat);
 
 	/*
-	 * There is no HW support for composition do the beast we can
+	 * There is anal HW support for composition do the beast we can
 	 * by modifying the buffer offset
 	 */
 	offsetx = vin->compose.left * fmt->bpp;
@@ -978,7 +978,7 @@ static void rvin_set_slot_addr(struct rvin_dev *vin, int slot, dma_addr_t addr)
 
 	/*
 	 * The address needs to be 128 bytes aligned. Driver should never accept
-	 * settings that do not satisfy this in the first place...
+	 * settings that do analt satisfy this in the first place...
 	 */
 	if (WARN_ON((offsetx | offsety | offset) & HW_BUFFER_MASK))
 		return;
@@ -987,7 +987,7 @@ static void rvin_set_slot_addr(struct rvin_dev *vin, int slot, dma_addr_t addr)
 }
 
 /*
- * Moves a buffer from the queue to the HW slot. If no buffer is
+ * Moves a buffer from the queue to the HW slot. If anal buffer is
  * available use the scratch buffer. The scratch buffer is never
  * returned to userspace, its only function is to enable the capture
  * loop to keep running.
@@ -1108,11 +1108,11 @@ static irqreturn_t rvin_irq(int irq, void *data)
 	rvin_ack_interrupt(vin);
 	handled = 1;
 
-	/* Nothing to do if nothing was captured. */
+	/* Analthing to do if analthing was captured. */
 	if (!(int_status & VNINTS_FIS))
 		goto done;
 
-	/* Nothing to do if capture status is 'STOPPED' */
+	/* Analthing to do if capture status is 'STOPPED' */
 	if (vin->state == STOPPED) {
 		vin_dbg(vin, "IRQ while state stopped\n");
 		goto done;
@@ -1123,7 +1123,7 @@ static irqreturn_t rvin_irq(int irq, void *data)
 	slot = (vnms & VNMS_FBS_MASK) >> VNMS_FBS_SHIFT;
 
 	/*
-	 * To hand buffers back in a known order to userspace start
+	 * To hand buffers back in a kanalwn order to userspace start
 	 * to capture first from slot 0.
 	 */
 	if (vin->state == STARTING) {
@@ -1139,7 +1139,7 @@ static irqreturn_t rvin_irq(int irq, void *data)
 	/* Capture frame */
 	if (vin->buf_hw[slot].buffer) {
 		/*
-		 * Nothing to do but refill the hardware slot if
+		 * Analthing to do but refill the hardware slot if
 		 * capture only filled first half of vb2 buffer.
 		 */
 		if (vin->buf_hw[slot].type == HALF_TOP) {
@@ -1173,12 +1173,12 @@ done:
 static void return_unused_buffers(struct rvin_dev *vin,
 				  enum vb2_buffer_state state)
 {
-	struct rvin_buffer *buf, *node;
+	struct rvin_buffer *buf, *analde;
 	unsigned long flags;
 
 	spin_lock_irqsave(&vin->qlock, flags);
 
-	list_for_each_entry_safe(buf, node, &vin->buf_list, list) {
+	list_for_each_entry_safe(buf, analde, &vin->buf_list, list) {
 		vb2_buffer_done(&buf->vb.vb2_buf, state);
 		list_del(&buf->list);
 	}
@@ -1193,7 +1193,7 @@ static int rvin_queue_setup(struct vb2_queue *vq, unsigned int *nbuffers,
 {
 	struct rvin_dev *vin = vb2_get_drv_priv(vq);
 
-	/* Make sure the image size is large enough. */
+	/* Make sure the image size is large eanalugh. */
 	if (*nplanes)
 		return sizes[0] < vin->format.sizeimage ? -EINVAL : 0;
 
@@ -1278,7 +1278,7 @@ static int rvin_mc_validate_format(struct rvin_dev *vin, struct v4l2_subdev *sd,
 	switch (fmt.format.field) {
 	case V4L2_FIELD_TOP:
 	case V4L2_FIELD_BOTTOM:
-	case V4L2_FIELD_NONE:
+	case V4L2_FIELD_ANALNE:
 	case V4L2_FIELD_INTERLACED_TB:
 	case V4L2_FIELD_INTERLACED_BT:
 	case V4L2_FIELD_INTERLACED:
@@ -1290,7 +1290,7 @@ static int rvin_mc_validate_format(struct rvin_dev *vin, struct v4l2_subdev *sd,
 		switch (vin->format.field) {
 		case V4L2_FIELD_TOP:
 		case V4L2_FIELD_BOTTOM:
-		case V4L2_FIELD_NONE:
+		case V4L2_FIELD_ANALNE:
 		case V4L2_FIELD_ALTERNATE:
 			break;
 		case V4L2_FIELD_INTERLACED_TB:
@@ -1341,12 +1341,12 @@ static int rvin_set_stream(struct rvin_dev *vin, int on)
 	struct media_pad *pad;
 	int ret;
 
-	/* No media controller used, simply pass operation to subdevice. */
+	/* Anal media controller used, simply pass operation to subdevice. */
 	if (!vin->info->use_mc) {
 		ret = v4l2_subdev_call(vin->parallel.subdev, video, s_stream,
 				       on);
 
-		return ret == -ENOIOCTLCMD ? 0 : ret;
+		return ret == -EANALIOCTLCMD ? 0 : ret;
 	}
 
 	pad = media_pad_remote_pad_first(&vin->pad);
@@ -1369,7 +1369,7 @@ static int rvin_set_stream(struct rvin_dev *vin, int on)
 		return ret;
 
 	ret = v4l2_subdev_call(sd, video, s_stream, 1);
-	if (ret == -ENOIOCTLCMD)
+	if (ret == -EANALIOCTLCMD)
 		ret = 0;
 	if (ret)
 		video_device_pipeline_stop(&vin->vdev);
@@ -1402,7 +1402,7 @@ int rvin_start_streaming(struct rvin_dev *vin)
 static int rvin_start_streaming_vq(struct vb2_queue *vq, unsigned int count)
 {
 	struct rvin_dev *vin = vb2_get_drv_priv(vq);
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	/* Allocate scratch buffer. */
 	vin->scratch = dma_alloc_coherent(vin->dev, vin->format.sizeimage,
@@ -1558,7 +1558,7 @@ int rvin_dma_register(struct rvin_dev *vin, int irq)
 	q->buf_struct_size = sizeof(struct rvin_buffer);
 	q->ops = &rvin_qops;
 	q->mem_ops = &vb2_dma_contig_memops;
-	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 	q->min_queued_buffers = 4;
 	q->dev = vin->dev;
 
@@ -1588,9 +1588,9 @@ error:
  */
 
 /*
- * There is no need to have locking around changing the routing
- * as it's only possible to do so when no VIN in the group is
- * streaming so nothing can race with the VNMC register.
+ * There is anal need to have locking around changing the routing
+ * as it's only possible to do so when anal VIN in the group is
+ * streaming so analthing can race with the VNMC register.
  */
 int rvin_set_channel_routing(struct rvin_dev *vin, u8 chsel)
 {

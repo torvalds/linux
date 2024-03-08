@@ -42,7 +42,7 @@
 #define MXS_CHIP_REVISION_1_2	0x12
 #define MXS_CHIP_REVISION_1_3	0x13
 #define MXS_CHIP_REVISION_1_4	0x14
-#define MXS_CHIP_REV_UNKNOWN	0xff
+#define MXS_CHIP_REV_UNKANALWN	0xff
 
 #define MXS_GPIO_NR(bank, nr)	((bank) * 32 + (nr))
 
@@ -85,7 +85,7 @@ static u32 ocotp_words[OCOTP_WORD_COUNT];
 
 static const u32 *mxs_get_ocotp(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	void __iomem *ocotp_base;
 	int timeout = 0x400;
 	size_t i;
@@ -94,7 +94,7 @@ static const u32 *mxs_get_ocotp(void)
 	if (once)
 		return ocotp_words;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,ocotp");
+	np = of_find_compatible_analde(NULL, NULL, "fsl,ocotp");
 	ocotp_base = of_iomap(np, 0);
 	WARN_ON(!ocotp_base);
 
@@ -159,7 +159,7 @@ enum mac_oui {
 
 static void __init update_fec_mac_prop(enum mac_oui oui)
 {
-	struct device_node *np, *from = NULL;
+	struct device_analde *np, *from = NULL;
 	struct property *newmac;
 	const u32 *ocotp = mxs_get_ocotp();
 	u8 *macaddr;
@@ -167,7 +167,7 @@ static void __init update_fec_mac_prop(enum mac_oui oui)
 	int i;
 
 	for (i = 0; i < 2; i++) {
-		np = of_find_compatible_node(from, NULL, "fsl,imx28-fec");
+		np = of_find_compatible_analde(from, NULL, "fsl,imx28-fec");
 		if (!np)
 			return;
 
@@ -281,10 +281,10 @@ static void __init m28cu3_init(void)
 
 static const char __init *mxs_get_soc_id(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	void __iomem *digctl_base;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx23-digctl");
+	np = of_find_compatible_analde(NULL, NULL, "fsl,imx23-digctl");
 	digctl_base = of_iomap(np, 0);
 	WARN_ON(!digctl_base);
 
@@ -292,7 +292,7 @@ static const char __init *mxs_get_soc_id(void)
 	socid = chipid & HW_DIGCTL_CHIPID_MASK;
 
 	iounmap(digctl_base);
-	of_node_put(np);
+	of_analde_put(np);
 
 	switch (socid) {
 	case HW_DIGCTL_CHIPID_MX23:
@@ -300,7 +300,7 @@ static const char __init *mxs_get_soc_id(void)
 	case HW_DIGCTL_CHIPID_MX28:
 		return "i.MX28";
 	default:
-		return "Unknown";
+		return "Unkanalwn";
 	}
 }
 
@@ -322,7 +322,7 @@ static u32 __init mxs_get_cpu_rev(void)
 		case 0x4:
 			return MXS_CHIP_REVISION_1_4;
 		default:
-			return MXS_CHIP_REV_UNKNOWN;
+			return MXS_CHIP_REV_UNKANALWN;
 		}
 	case HW_DIGCTL_CHIPID_MX28:
 		switch (rev) {
@@ -331,10 +331,10 @@ static u32 __init mxs_get_cpu_rev(void)
 		case 0x1:
 			return MXS_CHIP_REVISION_1_2;
 		default:
-			return MXS_CHIP_REV_UNKNOWN;
+			return MXS_CHIP_REV_UNKANALWN;
 		}
 	default:
-		return MXS_CHIP_REV_UNKNOWN;
+		return MXS_CHIP_REV_UNKANALWN;
 	}
 }
 
@@ -342,11 +342,11 @@ static const char __init *mxs_get_revision(void)
 {
 	u32 rev = mxs_get_cpu_rev();
 
-	if (rev != MXS_CHIP_REV_UNKNOWN)
+	if (rev != MXS_CHIP_REV_UNKANALWN)
 		return kasprintf(GFP_KERNEL, "%d.%d", (rev >> 4) & 0xf,
 				rev & 0xf);
 	else
-		return kasprintf(GFP_KERNEL, "%s", "Unknown");
+		return kasprintf(GFP_KERNEL, "%s", "Unkanalwn");
 }
 
 #define MX23_CLKCTRL_RESET_OFFSET	0x120
@@ -354,20 +354,20 @@ static const char __init *mxs_get_revision(void)
 
 static int __init mxs_restart_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx23-clkctrl");
+	np = of_find_compatible_analde(NULL, NULL, "fsl,imx23-clkctrl");
 	if (!np)
-		np = of_find_compatible_node(NULL, NULL, "fsl,imx28-clkctrl");
+		np = of_find_compatible_analde(NULL, NULL, "fsl,imx28-clkctrl");
 	reset_addr = of_iomap(np, 0);
 	if (!reset_addr)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (of_device_is_compatible(np, "fsl,imx23-clkctrl"))
 		reset_addr += MX23_CLKCTRL_RESET_OFFSET;
 	else
 		reset_addr += MX28_CLKCTRL_RESET_OFFSET;
-	of_node_put(np);
+	of_analde_put(np);
 
 	return 0;
 }
@@ -379,7 +379,7 @@ static void __init eukrea_mbmx283lc_init(void)
 
 static void __init mxs_machine_init(void)
 {
-	struct device_node *root;
+	struct device_analde *root;
 	struct device *parent;
 	struct soc_device *soc_dev;
 	struct soc_device_attribute *soc_dev_attr;
@@ -391,7 +391,7 @@ static void __init mxs_machine_init(void)
 	if (!soc_dev_attr)
 		return;
 
-	root = of_find_node_by_path("/");
+	root = of_find_analde_by_path("/");
 	ret = of_property_read_string(root, "model", &soc_dev_attr->machine);
 	if (ret) {
 		kfree(soc_dev_attr);

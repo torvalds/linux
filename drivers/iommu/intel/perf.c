@@ -36,7 +36,7 @@ int dmar_latency_enable(struct intel_iommu *iommu, enum latency_type type)
 		iommu->perf_statistic = kzalloc(sizeof(*lstat) * DMAR_LATENCY_NUM,
 						GFP_ATOMIC);
 		if (!iommu->perf_statistic) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto unlock_out;
 		}
 	}

@@ -24,7 +24,7 @@
 #include <linux/delay.h>
 
 /* Packet header defines (first byte of data send / received) */
-#define EKTF2127_NOISE			0x40
+#define EKTF2127_ANALISE			0x40
 #define EKTF2127_RESPONSE		0x52
 #define EKTF2127_REQUEST		0x53
 #define EKTF2127_HELLO			0x55
@@ -33,7 +33,7 @@
 #define EKTF2127_CALIB_DONE		0x66
 
 /* Register defines (second byte of data send / received) */
-#define EKTF2127_ENV_NOISY		0x41
+#define EKTF2127_ENV_ANALISY		0x41
 #define EKTF2127_HEIGHT			0x60
 #define EKTF2127_WIDTH			0x63
 
@@ -141,9 +141,9 @@ static irqreturn_t ektf2127_irq(int irq, void *dev_id)
 		ektf2127_report2_event(ts, buf);
 		break;
 
-	case EKTF2127_NOISE:
-		if (buf[1] == EKTF2127_ENV_NOISY)
-			dev_dbg(dev, "Environment is electrically noisy\n");
+	case EKTF2127_ANALISE:
+		if (buf[1] == EKTF2127_ENV_ANALISY)
+			dev_dbg(dev, "Environment is electrically analisy\n");
 		break;
 
 	case EKTF2127_HELLO:
@@ -254,13 +254,13 @@ static int ektf2127_probe(struct i2c_client *client)
 	int error;
 
 	if (!client->irq) {
-		dev_err(dev, "Error no irq specified\n");
+		dev_err(dev, "Error anal irq specified\n");
 		return -EINVAL;
 	}
 
 	ts = devm_kzalloc(dev, sizeof(*ts), GFP_KERNEL);
 	if (!ts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* This requests the gpio *and* turns on the touchscreen controller */
 	ts->power_gpios = devm_gpiod_get(dev, "power", GPIOD_OUT_HIGH);
@@ -269,7 +269,7 @@ static int ektf2127_probe(struct i2c_client *client)
 
 	input = devm_input_allocate_device(dev);
 	if (!input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input->name = client->name;
 	input->id.bustype = BUS_I2C;
@@ -278,7 +278,7 @@ static int ektf2127_probe(struct i2c_client *client)
 
 	ts->client = client;
 
-	/* Read hello (ignore result, depends on initial power state) */
+	/* Read hello (iganalre result, depends on initial power state) */
 	msleep(20);
 	i2c_master_recv(ts->client, buf, sizeof(buf));
 

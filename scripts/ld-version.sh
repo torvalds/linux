@@ -6,15 +6,15 @@
 
 set -e
 
-# Convert the version string x.y.z to a canonical 5 or 6-digit form.
-get_canonical_version()
+# Convert the version string x.y.z to a caanalnical 5 or 6-digit form.
+get_caanalnical_version()
 {
 	IFS=.
 	set -- $1
 
 	# If the 2nd or 3rd field is missing, fill it with a zero.
 	#
-	# The 4th field, if present, is ignored.
+	# The 4th field, if present, is iganalred.
 	# This occurs in development snapshots as in 2.35.1.20201116
 	echo $((10000 * $1 + 100 * ${2:-0} + ${3:-0}))
 }
@@ -39,7 +39,7 @@ if [ "$1" = GNU -a "$2" = ld ]; then
 	name=BFD
 	disp_name="GNU ld"
 elif [ "$1" = GNU -a "$2" = gold ]; then
-	echo "gold linker is not supported as it is not capable of linking the kernel proper." >&2
+	echo "gold linker is analt supported as it is analt capable of linking the kernel proper." >&2
 	exit 1
 else
 	while [ $# -gt 1 -a "$1" != "LLD" ]; do
@@ -52,7 +52,7 @@ else
 		name=LLD
 		disp_name=LLD
 	else
-		echo "$orig_args: unknown linker" >&2
+		echo "$orig_args: unkanalwn linker" >&2
 		exit 1
 	fi
 fi
@@ -61,8 +61,8 @@ fi
 # Trim the hyphen and any characters that follow.
 version=${version%-*}
 
-cversion=$(get_canonical_version $version)
-min_cversion=$(get_canonical_version $min_version)
+cversion=$(get_caanalnical_version $version)
+min_cversion=$(get_caanalnical_version $min_version)
 
 if [ "$cversion" -lt "$min_cversion" ]; then
 	echo >&2 "***"

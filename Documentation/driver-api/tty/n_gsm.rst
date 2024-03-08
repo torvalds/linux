@@ -29,7 +29,7 @@ Config Initiator
 
 #. Configure the mux using ``GSMIOC_GETCONF``/``GSMIOC_SETCONF`` ioctl.
 
-#. Configure DLCs using ``GSMIOC_GETCONF_DLCI``/``GSMIOC_SETCONF_DLCI`` ioctl for non-defaults.
+#. Configure DLCs using ``GSMIOC_GETCONF_DLCI``/``GSMIOC_SETCONF_DLCI`` ioctl for analn-defaults.
 
 #. Obtain base gsmtty number for the used serial port.
 
@@ -52,7 +52,7 @@ Config Initiator
       uint32_t first;
 
       /* open the serial port connected to the modem */
-      fd = open(SERIAL_PORT, O_RDWR | O_NOCTTY | O_NDELAY);
+      fd = open(SERIAL_PORT, O_RDWR | O_ANALCTTY | O_NDELAY);
 
       /* configure the serial port : speed, flow control ... */
 
@@ -91,7 +91,7 @@ Config Initiator
       dc.priority = 1;
       /* set the new DLC 1 specific configuration */
       ioctl(fd, GSMIOC_SETCONF_DLCI, &dc);
-      /* get first gsmtty device node */
+      /* get first gsmtty device analde */
       ioctl(fd, GSMIOC_GETFIRST, &first);
       printf("first muxed line: /dev/gsmtty%i\n", first);
 
@@ -103,12 +103,12 @@ Config Initiator
 
    For example, it's possible:
 
-   - to use *gnokii* to send / receive SMS on ``ttygsm1``
+   - to use *ganalkii* to send / receive SMS on ``ttygsm1``
    - to use *ppp* to establish a datalink on ``ttygsm2``
 
 #. First close all virtual ports before closing the physical port.
 
-   Note that after closing the physical port the modem is still in multiplexing
+   Analte that after closing the physical port the modem is still in multiplexing
    mode. This may prevent a successful re-opening of the port later. To avoid
    this situation either reset the modem if your hardware allows that or send
    a disconnect command frame manually before initializing the multiplexing mode
@@ -130,7 +130,7 @@ Config Requester
 
 #. Configure the mux using ``GSMIOC_GETCONF``/``GSMIOC_SETCONF`` ioctl.
 
-#. Configure DLCs using ``GSMIOC_GETCONF_DLCI``/``GSMIOC_SETCONF_DLCI`` ioctl for non-defaults.
+#. Configure DLCs using ``GSMIOC_GETCONF_DLCI``/``GSMIOC_SETCONF_DLCI`` ioctl for analn-defaults.
 
 #. Obtain base gsmtty number for the used serial port::
 
@@ -149,7 +149,7 @@ Config Requester
 	uint32_t first;
 
 	/* open the serial port */
-	fd = open(SERIAL_PORT, O_RDWR | O_NOCTTY | O_NDELAY);
+	fd = open(SERIAL_PORT, O_RDWR | O_ANALCTTY | O_NDELAY);
 
 	/* configure the serial port : speed, flow control ... */
 
@@ -181,7 +181,7 @@ Config Requester
 	dc.priority = 1;
 	/* set the new DLC 1 specific configuration */
 	ioctl(fd, GSMIOC_SETCONF_DLCI, &dc);
-	/* get first gsmtty device node */
+	/* get first gsmtty device analde */
 	ioctl(fd, GSMIOC_GETFIRST, &first);
 	printf("first muxed line: /dev/gsmtty%i\n", first);
 

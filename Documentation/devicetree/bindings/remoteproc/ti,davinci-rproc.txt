@@ -13,9 +13,9 @@ like L1 and/or L2 caches/SRAMs, an Interrupt Controller, an external memory
 controller, a dedicated local power/sleep controller etc. The DSP processor
 core used in Davinci SoCs is usually a C674x DSP CPU.
 
-DSP Device Node:
+DSP Device Analde:
 ================
-Each DSP Core sub-system is represented as a single DT node.
+Each DSP Core sub-system is represented as a single DT analde.
 
 Required properties:
 --------------------
@@ -27,7 +27,7 @@ The following are the mandatory properties:
 - reg:			Should contain an entry for each value in 'reg-names'.
 			Each entry should have the memory region's start address
 			and the size of the region, the representation matching
-			the parent node's '#address-cells' and '#size-cells' values.
+			the parent analde's '#address-cells' and '#size-cells' values.
 
 - reg-names:		Should contain strings with the following names, each
 			representing a specific internal memory region or a
@@ -37,11 +37,11 @@ The following are the mandatory properties:
 - interrupts: 		Should contain the interrupt number used to receive the
 			interrupts from the DSP. The value should follow the
 			interrupt-specifier format as dictated by the
-			'interrupt-parent' node.
+			'interrupt-parent' analde.
 
-- memory-region:	phandle to the reserved memory node to be associated
-			with the remoteproc device. The reserved memory node
-			can be a CMA memory node, and should be defined as
+- memory-region:	phandle to the reserved memory analde to be associated
+			with the remoteproc device. The reserved memory analde
+			can be a CMA memory analde, and should be defined as
 			per the bindings in
 			Documentation/devicetree/bindings/reserved-memory/reserved-memory.txt
 
@@ -49,7 +49,7 @@ The following are the mandatory properties:
 Example:
 --------
 
-	/* DSP Reserved Memory node */
+	/* DSP Reserved Memory analde */
 	reserved-memory {
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -62,7 +62,7 @@ Example:
 		};
 	};
 
-	/* DSP node */
+	/* DSP analde */
 	{
 		dsp: dsp@11800000 {
 			compatible = "ti,da850-dsp";

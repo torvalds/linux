@@ -40,7 +40,7 @@ struct clk_master {
 	u32 safe_div;
 };
 
-/* MCK div reference to be used by notifier. */
+/* MCK div reference to be used by analtifier. */
 static struct clk_master *master_div;
 
 static inline bool clk_master_ready(struct clk_master *master)
@@ -147,7 +147,7 @@ static void clk_master_div_restore_context(struct clk_hw *hw)
 	div = master->characteristics->divisors[div];
 
 	if (div != DIV_ROUND_CLOSEST(master->pms.parent_rate, master->pms.rate))
-		pr_warn("MCKR DIV not configured properly by firmware!\n");
+		pr_warn("MCKR DIV analt configured properly by firmware!\n");
 }
 
 static const struct clk_ops master_div_ops = {
@@ -245,12 +245,12 @@ static const struct clk_ops master_div_ops_chg = {
 	.restore_context = clk_master_div_restore_context_chg,
 };
 
-static int clk_master_div_notifier_fn(struct notifier_block *notifier,
+static int clk_master_div_analtifier_fn(struct analtifier_block *analtifier,
 				      unsigned long code, void *data)
 {
 	const struct clk_master_characteristics *characteristics =
 						master_div->characteristics;
-	struct clk_notifier_data *cnd = data;
+	struct clk_analtifier_data *cnd = data;
 	unsigned long flags, new_parent_rate, new_rate;
 	unsigned int mckr, div, new_div = 0;
 	int ret, i;
@@ -262,7 +262,7 @@ static int clk_master_div_notifier_fn(struct notifier_block *notifier,
 	case PRE_RATE_CHANGE:
 		/*
 		 * We want to avoid any overclocking of MCK DIV domain. To do
-		 * this we set a safe divider (the underclocking is not of
+		 * this we set a safe divider (the underclocking is analt of
 		 * interest as we can go as low as 32KHz). The relation
 		 * b/w this clock and its parents are as follows:
 		 *
@@ -274,7 +274,7 @@ static int clk_master_div_notifier_fn(struct notifier_block *notifier,
 		ret = regmap_read(master_div->regmap, master_div->layout->offset,
 				  &mckr);
 		if (ret) {
-			ret = NOTIFY_STOP_MASK;
+			ret = ANALTIFY_STOP_MASK;
 			goto unlock;
 		}
 
@@ -295,7 +295,7 @@ static int clk_master_div_notifier_fn(struct notifier_block *notifier,
 		ret = regmap_read(master_div->regmap, master_div->layout->offset,
 				  &mckr);
 		if (ret) {
-			ret = NOTIFY_STOP_MASK;
+			ret = ANALTIFY_STOP_MASK;
 			goto unlock;
 		}
 
@@ -324,7 +324,7 @@ static int clk_master_div_notifier_fn(struct notifier_block *notifier,
 		}
 
 		if (!new_div) {
-			ret = NOTIFY_STOP_MASK;
+			ret = ANALTIFY_STOP_MASK;
 			goto unlock;
 		}
 
@@ -332,11 +332,11 @@ static int clk_master_div_notifier_fn(struct notifier_block *notifier,
 		clk_master_div_set(master_div, new_parent_rate,
 				   new_div);
 
-		ret = NOTIFY_OK;
+		ret = ANALTIFY_OK;
 		break;
 
 	default:
-		ret = NOTIFY_DONE;
+		ret = ANALTIFY_DONE;
 		break;
 	}
 
@@ -346,8 +346,8 @@ unlock:
 	return ret;
 }
 
-static struct notifier_block clk_master_div_notifier = {
-	.notifier_call = clk_master_div_notifier_fn,
+static struct analtifier_block clk_master_div_analtifier = {
+	.analtifier_call = clk_master_div_analtifier_fn,
 };
 
 static void clk_sama7g5_master_best_diff(struct clk_rate_request *req,
@@ -457,7 +457,7 @@ static void clk_master_pres_restore_context(struct clk_hw *hw)
 	if (master->pms.rate !=
 	    DIV_ROUND_CLOSEST_ULL(master->pms.parent_rate, pres) ||
 	    (master->pms.parent != (val & AT91_PMC_CSS)))
-		pr_warn("MCKR PRES was not configured properly by firmware!\n");
+		pr_warn("MCKR PRES was analt configured properly by firmware!\n");
 }
 
 static const struct clk_ops master_pres_ops = {
@@ -490,7 +490,7 @@ at91_clk_register_master_internal(struct regmap *regmap,
 
 	master = kzalloc(sizeof(*master), GFP_KERNEL);
 	if (!master)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.ops = ops;
@@ -567,8 +567,8 @@ at91_clk_register_master_div(struct regmap *regmap,
 	if (!IS_ERR(hw) && safe_div) {
 		master_div = to_clk_master(hw);
 		master_div->safe_div = safe_div;
-		clk_notifier_register(hw->clk,
-				      &clk_master_div_notifier);
+		clk_analtifier_register(hw->clk,
+				      &clk_master_div_analtifier);
 	}
 
 	return hw;
@@ -830,7 +830,7 @@ at91_clk_sama7g5_register_master(struct regmap *regmap,
 
 	master = kzalloc(sizeof(*master), GFP_KERNEL);
 	if (!master)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.ops = &sama7g5_master_ops;

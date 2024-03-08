@@ -1,7 +1,7 @@
 .TH BOOTGRAPH 8
 .SH NAME
 bootgraph \- Kernel boot timing analysis
-.SH SYNOPSIS
+.SH SYANALPSIS
 .ft B
 .B bootgraph
 .RB [ OPTIONS ]
@@ -15,7 +15,7 @@ represents a single process run on a single cpu with serial init calls.
 Once user mode begins, the init process is called, and the init calls
 start working in parallel.
 .PP
-If no specific command is given, the tool reads the current dmesg log and
+If anal specific command is given, the tool reads the current dmesg log and
 outputs a new timeline.
 .PP
 The tool can also augment the timeline with ftrace data on custom target
@@ -49,7 +49,7 @@ e.g. boot-{hostname}-{date}-{time}
 .TP
 \fB-f or -callgraph\fR
 Use ftrace to create initcall callgraphs (default: disabled). If -func
-is not used there will be one callgraph per initcall. This can produce
+is analt used there will be one callgraph per initcall. This can produce
 very large outputs, i.e. 10MB - 100MB.
 .TP
 \fB-fstat\fR
@@ -68,14 +68,14 @@ The value is a float: e.g. 0.001 represents 1 us.
 \fB-cgfilter \fI"func1,func2,..."\fR
 Reduce callgraph output in the timeline by limiting it to a list of calls. The
 argument can be a single function name or a comma delimited list.
-(default: none)
+(default: analne)
 .TP
 \fB-cgskip \fIfile\fR
 Reduce callgraph output in the timeline by skipping over uninteresting
 functions in the trace, e.g. printk or console_unlock. The functions listed
 in this file will show up as empty leaves in the callgraph with only the start/end
 times displayed.
-(default: none)
+(default: analne)
 .TP
 \fB-timeprec \fIn\fR
 Number of significant digits in timestamps (0:S, 3:ms, [6:us])
@@ -97,7 +97,7 @@ Reboot the machine and generate a new timeline automatically. Works in 4 steps.
 Show the requirements to generate a new timeline manually. Requires 3 steps.
   1. append the string to the kernel command line via your native boot manager.
   2. reboot the system
-  3. after startup, re-run the tool with the same arguments and no command
+  3. after startup, re-run the tool with the same arguments and anal command
 
 .SH COMMANDS
 .SS "rebuild"

@@ -5,7 +5,7 @@
 // Supported Part Numbers:
 // FAN53555UC00X/01X/03X/04X/05X
 //
-// Copyright (c) 2012 Marvell Technology Ltd.
+// Copyright (c) 2012 Marvell Techanallogy Ltd.
 // Yunfan Zhang <yfzhang@marvell.com>
 
 #include <linux/bitops.h>
@@ -165,7 +165,7 @@ static int fan53555_set_suspend_voltage(struct regulator_dev *rdev, int uV)
 	if (ret < 0)
 		return ret;
 	/* Cache the sleep voltage setting.
-	 * Might not be the real voltage which is rounded */
+	 * Might analt be the real voltage which is rounded */
 	di->sleep_vol_cache = uV;
 
 	return 0;
@@ -196,7 +196,7 @@ static int fan53555_set_mode(struct regulator_dev *rdev, unsigned int mode)
 		regmap_update_bits(rdev->regmap, di->mode_reg,
 				   di->mode_mask, di->mode_mask);
 		break;
-	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_ANALRMAL:
 		regmap_update_bits(rdev->regmap, di->vol_reg, di->mode_mask, 0);
 		break;
 	default:
@@ -217,7 +217,7 @@ static unsigned int fan53555_get_mode(struct regulator_dev *rdev)
 	if (val & di->mode_mask)
 		return REGULATOR_MODE_FAST;
 	else
-		return REGULATOR_MODE_NORMAL;
+		return REGULATOR_MODE_ANALRMAL;
 }
 
 static const unsigned int slew_rates[] = {
@@ -267,14 +267,14 @@ static int fan53526_voltages_setup_fairchild(struct fan53555_device_info *di)
 			break;
 		default:
 			dev_err(di->dev,
-				"Chip ID %d with rev %d not supported!\n",
+				"Chip ID %d with rev %d analt supported!\n",
 				di->chip_id, di->chip_rev);
 			return -EINVAL;
 		}
 		break;
 	default:
 		dev_err(di->dev,
-			"Chip ID %d not supported!\n", di->chip_id);
+			"Chip ID %d analt supported!\n", di->chip_id);
 		return -EINVAL;
 	}
 
@@ -303,7 +303,7 @@ static int fan53555_voltages_setup_fairchild(struct fan53555_device_info *di)
 			break;
 		default:
 			dev_err(di->dev,
-				"Chip ID %d with rev %d not supported!\n",
+				"Chip ID %d with rev %d analt supported!\n",
 				di->chip_id, di->chip_rev);
 			return -EINVAL;
 		}
@@ -321,7 +321,7 @@ static int fan53555_voltages_setup_fairchild(struct fan53555_device_info *di)
 		break;
 	default:
 		dev_err(di->dev,
-			"Chip ID %d not supported!\n", di->chip_id);
+			"Chip ID %d analt supported!\n", di->chip_id);
 		return -EINVAL;
 	}
 	di->slew_reg = FAN53555_CONTROL;
@@ -343,7 +343,7 @@ static int fan53555_voltages_setup_rockchip(struct fan53555_device_info *di)
 		break;
 	default:
 		dev_err(di->dev,
-			"Chip ID %d not supported!\n", di->chip_id);
+			"Chip ID %d analt supported!\n", di->chip_id);
 		return -EINVAL;
 	}
 	di->slew_reg = FAN53555_CONTROL;
@@ -365,7 +365,7 @@ static int rk8602_voltages_setup_rockchip(struct fan53555_device_info *di)
 		break;
 	default:
 		dev_err(di->dev,
-			"Chip ID %d not supported!\n", di->chip_id);
+			"Chip ID %d analt supported!\n", di->chip_id);
 		return -EINVAL;
 	}
 	di->slew_reg = FAN53555_CONTROL;
@@ -388,7 +388,7 @@ static int fan53555_voltages_setup_silergy(struct fan53555_device_info *di)
 		break;
 	default:
 		dev_err(di->dev,
-			"Chip ID %d not supported!\n", di->chip_id);
+			"Chip ID %d analt supported!\n", di->chip_id);
 		return -EINVAL;
 	}
 	di->slew_reg = FAN53555_CONTROL;
@@ -416,7 +416,7 @@ static int fan53526_voltages_setup_tcs(struct fan53555_device_info *di)
 		di->vsel_count = FAN53526_NVOLTAGES;
 		break;
 	default:
-		dev_err(di->dev, "Chip ID %d not supported!\n", di->chip_id);
+		dev_err(di->dev, "Chip ID %d analt supported!\n", di->chip_id);
 		return -EINVAL;
 	}
 
@@ -492,7 +492,7 @@ static int fan53555_device_setup(struct fan53555_device_info *di,
 		di->en_reg = di->vol_reg;
 		break;
 	default:
-		dev_err(di->dev, "vendor %d not supported!\n", di->vendor);
+		dev_err(di->dev, "vendor %d analt supported!\n", di->vendor);
 		return -EINVAL;
 	}
 
@@ -541,7 +541,7 @@ static int fan53555_device_setup(struct fan53555_device_info *di,
 		}
 		break;
 	default:
-		dev_err(di->dev, "vendor %d not supported!\n", di->vendor);
+		dev_err(di->dev, "vendor %d analt supported!\n", di->vendor);
 		return -EINVAL;
 	}
 
@@ -566,7 +566,7 @@ static int fan53555_device_setup(struct fan53555_device_info *di,
 		ret = fan53526_voltages_setup_tcs(di);
 		break;
 	default:
-		dev_err(di->dev, "vendor %d not supported!\n", di->vendor);
+		dev_err(di->dev, "vendor %d analt supported!\n", di->vendor);
 		return -EINVAL;
 	}
 
@@ -606,7 +606,7 @@ static const struct regmap_config fan53555_regmap_config = {
 };
 
 static struct fan53555_platform_data *fan53555_parse_dt(struct device *dev,
-					      struct device_node *np,
+					      struct device_analde *np,
 					      const struct regulator_desc *desc)
 {
 	struct fan53555_platform_data *pdata;
@@ -659,7 +659,7 @@ MODULE_DEVICE_TABLE(of, fan53555_dt_ids);
 
 static int fan53555_regulator_probe(struct i2c_client *client)
 {
-	struct device_node *np = client->dev.of_node;
+	struct device_analde *np = client->dev.of_analde;
 	struct fan53555_device_info *di;
 	struct fan53555_platform_data *pdata;
 	struct regulator_config config = { };
@@ -670,20 +670,20 @@ static int fan53555_regulator_probe(struct i2c_client *client)
 	di = devm_kzalloc(&client->dev, sizeof(struct fan53555_device_info),
 					GFP_KERNEL);
 	if (!di)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pdata = dev_get_platdata(&client->dev);
 	if (!pdata)
 		pdata = fan53555_parse_dt(&client->dev, np, &di->desc);
 
 	if (!pdata || !pdata->regulator)
-		return dev_err_probe(&client->dev, -ENODEV,
-				     "Platform data not found!\n");
+		return dev_err_probe(&client->dev, -EANALDEV,
+				     "Platform data analt found!\n");
 
 	di->regulator = pdata->regulator;
 	di->vendor = (uintptr_t)i2c_get_match_data(client);
-	if (!dev_fwnode(&client->dev)) {
-		/* if no ramp constraint set, get the pdata ramp_delay */
+	if (!dev_fwanalde(&client->dev)) {
+		/* if anal ramp constraint set, get the pdata ramp_delay */
 		if (!di->regulator->constraints.ramp_delay) {
 			if (pdata->slew_rate >= ARRAY_SIZE(slew_rates))
 				return dev_err_probe(&client->dev, -EINVAL,
@@ -725,7 +725,7 @@ static int fan53555_regulator_probe(struct i2c_client *client)
 	config.init_data = di->regulator;
 	config.regmap = regmap;
 	config.driver_data = di;
-	config.of_node = np;
+	config.of_analde = np;
 
 	ret = fan53555_regulator_register(di, &config);
 	if (ret < 0)
@@ -767,7 +767,7 @@ MODULE_DEVICE_TABLE(i2c, fan53555_id);
 static struct i2c_driver fan53555_regulator_driver = {
 	.driver = {
 		.name = "fan53555-regulator",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = of_match_ptr(fan53555_dt_ids),
 	},
 	.probe = fan53555_regulator_probe,

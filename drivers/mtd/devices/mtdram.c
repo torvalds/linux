@@ -46,7 +46,7 @@ static int check_offs_len(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 
 	/* Length must align on block boundary */
 	if (mtd_mod_by_eb(len, mtd)) {
-		pr_debug("%s: length not block aligned\n", __func__);
+		pr_debug("%s: length analt block aligned\n", __func__);
 		ret = -EINVAL;
 	}
 
@@ -160,13 +160,13 @@ static int __init init_mtdram(void)
 	/* Allocate some memory */
 	mtd_info = kmalloc(sizeof(struct mtd_info), GFP_KERNEL);
 	if (!mtd_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	addr = vmalloc(MTDRAM_TOTAL_SIZE);
 	if (!addr) {
 		kfree(mtd_info);
 		mtd_info = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	err = mtdram_init_device(mtd_info, addr, MTDRAM_TOTAL_SIZE, "mtdram test device");
 	if (err) {

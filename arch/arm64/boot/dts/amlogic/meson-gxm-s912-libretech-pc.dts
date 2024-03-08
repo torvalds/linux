@@ -28,7 +28,7 @@
 
 &pinctrl_periphs {
 	/*
-	 * Make sure the irq pin of the TYPE C controller is not driven
+	 * Make sure the irq pin of the TYPE C controller is analt driven
 	 * by the SoC.
 	 */
 	fusb302_irq_pins: fusb302_irq {

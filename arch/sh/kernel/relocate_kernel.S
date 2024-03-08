@@ -56,7 +56,7 @@ relocate_new_kernel:
 
 	/* switch to bank0 and save r7->r0 */
 	mov.l	12f, r9
-	not	r9, r9
+	analt	r9, r9
 	stc	sr, r8
 	and	r9, r8
 	ldc	r8, sr
@@ -72,23 +72,23 @@ relocate_new_kernel:
 	mov.l	r4, @-r15	/* save indirection page again */
 
 	bsr	swap_pages	/* swap pages before jumping to new kernel */
-	 nop
+	 analp
 
 	mova	11f, r0
 	mov.l	r15, @r0	/* save pointer to stack */
 
 	jsr	@r6		/* hand over control to new kernel */
-	 nop
+	 analp
 
 	mov.l	11f, r15	/* get pointer to stack */
 	mov.l	@r15+, r4	/* restore r4 to get indirection page */
 
 	bsr	swap_pages	/* swap pages back to previous state */
-	 nop
+	 analp
 
 	/* make sure bank0 is active and restore r0->r7 */
 	mov.l	12f, r9
-	not	r9, r9
+	analt	r9, r9
 	stc	sr, r8
 	and	r9, r8
 	ldc	r8, sr
@@ -117,7 +117,7 @@ relocate_new_kernel:
 
 	/* switch back to bank0 */
 	mov.l	12f, r9
-	not	r9, r9
+	analt	r9, r9
 	stc	sr, r8
 	and	r9, r8
 	ldc	r8, sr
@@ -141,7 +141,7 @@ relocate_new_kernel:
 	mov.l	@r15+, r14
 	mov.l	@r15+, r15
 	rts
-	 nop
+	 analp
 
 swap_pages:
 	bra	1f
@@ -170,7 +170,7 @@ swap_pages:
 	tst	#4,r0
 	bt	4f
 	rts
-	 nop
+	 analp
 
 4:	/* else if(cmd & IND_SOURCE) memcpy(dst,addr,PAGE_SIZE) */
 	tst	#8,r0
@@ -213,7 +213,7 @@ swap_pages:
 	bf	5b
 
 	bra	0b
-	 nop
+	 analp
 
 	.align 2
 10:

@@ -10,7 +10,7 @@
  *
  * $Id: edac_i82875p.c,v 1.5.2.11 2005/10/05 00:43:44 dsp_llnl Exp $
  *
- * Note: E7210 appears same as D82875P - zhenyu.z.wang at intel.com
+ * Analte: E7210 appears same as D82875P - zhenyu.z.wang at intel.com
  */
 
 #include <linux/module.h>
@@ -61,7 +61,7 @@
 #define I82875P_ERRSTS		0xc8	/* Error Status Register (16b)
 					 *
 					 * 15:10 reserved
-					 *  9    non-DRAM lock error (ndlock)
+					 *  9    analn-DRAM lock error (ndlock)
 					 *  8    Sftwr Generated SMI
 					 *  7    ECC UE
 					 *  6    reserved
@@ -76,7 +76,7 @@
 #define I82875P_ERRCMD		0xca	/* Error Command (16b)
 					 *
 					 * 15:10 reserved
-					 *  9    SERR on non-DRAM lock
+					 *  9    SERR on analn-DRAM lock
 					 *  8    SERR on ECC UE
 					 *  7    SERR on ECC CE
 					 *  6    target abort on high exception
@@ -96,7 +96,7 @@
 					 *  8    SERR enable - ro 0
 					 *  7    addr/data stepping - ro 0
 					 *  6    parity err enable - ro 0
-					 *  5    VGA palette snoop - ro 0
+					 *  5    VGA palette sanalop - ro 0
 					 *  4    mem wr & invalidate - ro 0
 					 *  3    special cycle - ro 0
 					 *  2    bus master - ro 0
@@ -108,7 +108,7 @@
 					 *
 					 * 31:12 mem base addr [31:12]
 					 * 11:4  address mask - ro 0
-					 *  3    prefetchable - ro 0(non),1(pre)
+					 *  3    prefetchable - ro 0(analn),1(pre)
 					 *  2:1  mem type - ro 0
 					 *  0    mem space - ro 0
 					 */
@@ -142,7 +142,7 @@
 					 * 28:23 reserved
 					 * 22:21 nr chan 00=1,01=2
 					 * 20    reserved
-					 * 19:18 Data Integ Mode 00=none,01=ecc
+					 * 19:18 Data Integ Mode 00=analne,01=ecc
 					 * 17:11 reserved
 					 * 10:8  refresh mode
 					 *  7    reserved
@@ -191,7 +191,7 @@ static void i82875p_get_error_info(struct mem_ctl_info *mci,
 	pdev = to_pci_dev(mci->pdev);
 
 	/*
-	 * This is a mess because there is no atomic way to read all the
+	 * This is a mess because there is anal atomic way to read all the
 	 * registers at once and the registers can transition from CE being
 	 * overwritten by UE.
 	 */
@@ -208,7 +208,7 @@ static void i82875p_get_error_info(struct mem_ctl_info *mci,
 	/*
 	 * If the error is the same then we can for both reads then
 	 * the first set of reads is valid.  If there is a change then
-	 * there is a CE no info and the second set of reads is valid
+	 * there is a CE anal info and the second set of reads is valid
 	 * and should be UE info.
 	 */
 	if ((info->errsts ^ info->errsts2) & 0x0081) {
@@ -326,7 +326,7 @@ fail1:
 fail0:
 	pci_disable_device(dev);
 #endif
-	/* NOTE: the ovrfl proc entry and pci_dev are intentionally left */
+	/* ANALTE: the ovrfl proc entry and pci_dev are intentionally left */
 	return 1;
 }
 
@@ -345,7 +345,7 @@ static void i82875p_init_csrows(struct mem_ctl_info *mci,
 	unsigned nr_chans = dual_channel_active(drc) + 1;
 	unsigned long last_cumul_size;
 	u8 value;
-	u32 drc_ddim;		/* DRAM Data Integrity Mode 0=none,2=edac */
+	u32 drc_ddim;		/* DRAM Data Integrity Mode 0=analne,2=edac */
 	u32 cumul_size, nr_pages;
 	int index, j;
 
@@ -365,7 +365,7 @@ static void i82875p_init_csrows(struct mem_ctl_info *mci,
 		cumul_size = value << (I82875P_DRB_SHIFT - PAGE_SHIFT);
 		edac_dbg(3, "(%d) cumul_size 0x%x\n", index, cumul_size);
 		if (cumul_size == last_cumul_size)
-			continue;	/* not populated */
+			continue;	/* analt populated */
 
 		csrow->first_page = last_cumul_size;
 		csrow->last_page = cumul_size - 1;
@@ -378,15 +378,15 @@ static void i82875p_init_csrows(struct mem_ctl_info *mci,
 			dimm->nr_pages = nr_pages / nr_chans;
 			dimm->grain = 1 << 12;	/* I82875P_EAP has 4KiB reolution */
 			dimm->mtype = MEM_DDR;
-			dimm->dtype = DEV_UNKNOWN;
-			dimm->edac_mode = drc_ddim ? EDAC_SECDED : EDAC_NONE;
+			dimm->dtype = DEV_UNKANALWN;
+			dimm->edac_mode = drc_ddim ? EDAC_SECDED : EDAC_ANALNE;
 		}
 	}
 }
 
 static int i82875p_probe1(struct pci_dev *pdev, int dev_idx)
 {
-	int rc = -ENODEV;
+	int rc = -EANALDEV;
 	struct mem_ctl_info *mci;
 	struct edac_mc_layer layers[2];
 	struct i82875p_pvt *pvt;
@@ -399,7 +399,7 @@ static int i82875p_probe1(struct pci_dev *pdev, int dev_idx)
 	edac_dbg(0, "\n");
 
 	if (i82875p_setup_overfl_dev(pdev, &ovrfl_pdev, &ovrfl_window))
-		return -ENODEV;
+		return -EANALDEV;
 	drc = readl(ovrfl_window + I82875P_DRC);
 	nr_chans = dual_channel_active(drc) + 1;
 
@@ -411,15 +411,15 @@ static int i82875p_probe1(struct pci_dev *pdev, int dev_idx)
 	layers[1].is_virt_csrow = false;
 	mci = edac_mc_alloc(0, ARRAY_SIZE(layers), layers, sizeof(*pvt));
 	if (!mci) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto fail0;
 	}
 
 	edac_dbg(3, "init mci\n");
 	mci->pdev = &pdev->dev;
 	mci->mtype_cap = MEM_FLAG_DDR;
-	mci->edac_ctl_cap = EDAC_FLAG_NONE | EDAC_FLAG_SECDED;
-	mci->edac_cap = EDAC_FLAG_UNKNOWN;
+	mci->edac_ctl_cap = EDAC_FLAG_ANALNE | EDAC_FLAG_SECDED;
+	mci->edac_cap = EDAC_FLAG_UNKANALWN;
 	mci->mod_name = EDAC_MOD_STR;
 	mci->ctl_name = i82875p_devs[dev_idx].ctl_name;
 	mci->dev_name = pci_name(pdev);
@@ -447,7 +447,7 @@ static int i82875p_probe1(struct pci_dev *pdev, int dev_idx)
 			"%s(): Unable to create PCI control\n",
 			__func__);
 		printk(KERN_WARNING
-			"%s(): PCI error report via EDAC not setup\n",
+			"%s(): PCI error report via EDAC analt setup\n",
 			__func__);
 	}
 
@@ -463,7 +463,7 @@ fail0:
 	pci_release_regions(ovrfl_pdev);
 
 	pci_disable_device(ovrfl_pdev);
-	/* NOTE: the ovrfl proc entry and pci_dev are intentionally left */
+	/* ANALTE: the ovrfl proc entry and pci_dev are intentionally left */
 	return rc;
 }
 
@@ -554,7 +554,7 @@ static int __init i82875p_init(void)
 
 		if (!mci_pdev) {
 			edac_dbg(0, "875p pci_get_device fail\n");
-			pci_rc = -ENODEV;
+			pci_rc = -EANALDEV;
 			goto fail1;
 		}
 
@@ -562,7 +562,7 @@ static int __init i82875p_init(void)
 
 		if (pci_rc < 0) {
 			edac_dbg(0, "875p init fail\n");
-			pci_rc = -ENODEV;
+			pci_rc = -EANALDEV;
 			goto fail1;
 		}
 	}

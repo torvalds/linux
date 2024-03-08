@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
- *  HID driver for UC-Logic devices not fully compliant with HID standard
+ *  HID driver for UC-Logic devices analt fully compliant with HID standard
  *  - original and fixed report descriptors
  *
  *  Copyright (c) 2010-2018 Nikolai Kondrashov

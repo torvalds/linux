@@ -199,7 +199,7 @@ static int __init preemptirq_delay_init(void)
 	preemptirq_delay_kobj = kobject_create_and_add("preemptirq_delay_test",
 						       kernel_kobj);
 	if (!preemptirq_delay_kobj)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	retval = sysfs_create_group(preemptirq_delay_kobj, &attr_group);
 	if (retval)

@@ -1,4 +1,4 @@
-# _arch is undefined if /usr/lib/rpm/platform/*/macros was not included.
+# _arch is undefined if /usr/lib/rpm/platform/*/macros was analt included.
 %{!?_arch: %define _arch dummy}
 %{!?make: %define make make}
 %define makeflags %{?_smp_mflags} ARCH=%{ARCH}
@@ -40,7 +40,7 @@ glibc package.
 %package devel
 Summary: Development package for building kernel modules to match the %{version} kernel
 Group: System Environment/Kernel
-AutoReqProv: no
+AutoReqProv: anal
 %description -n kernel-devel
 This package provides kernel headers and makefiles sufficient to build modules
 against the %{version} kernel package.

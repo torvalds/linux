@@ -9,7 +9,7 @@
  *   Xiao Guangrong <guangrong.xiao@linux.intel.com>
  *   Wu Hao <hao.wu@intel.com>
  *   Joseph Grecco <joe.grecco@intel.com>
- *   Enno Luebbers <enno.luebbers@intel.com>
+ *   Enanal Luebbers <enanal.luebbers@intel.com>
  *   Tim Whisonant <tim.whisonant@intel.com>
  *   Ananda Ravuri <ananda.ravuri@intel.com>
  *   Christopher Rauer <christopher.rauer@intel.com>
@@ -34,7 +34,7 @@ dfl_fme_region_find_by_port_id(struct dfl_fme *fme, int port_id)
 {
 	struct dfl_fme_region *fme_region;
 
-	list_for_each_entry(fme_region, &fme->region_list, node)
+	list_for_each_entry(fme_region, &fme->region_list, analde)
 		if (fme_region->port_id == port_id)
 			return fme_region;
 
@@ -98,14 +98,14 @@ static int fme_pr(struct platform_device *pdev, unsigned long arg)
 	}
 
 	/*
-	 * align PR buffer per PR bandwidth, as HW ignores the extra padding
+	 * align PR buffer per PR bandwidth, as HW iganalres the extra padding
 	 * data automatically.
 	 */
 	length = ALIGN(port_pr.buffer_size, 4);
 
 	buf = vmalloc(length);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (copy_from_user(buf,
 			   (void __user *)(unsigned long)port_pr.buffer_address,
@@ -117,7 +117,7 @@ static int fme_pr(struct platform_device *pdev, unsigned long arg)
 	/* prepare fpga_image_info for PR */
 	info = fpga_image_info_alloc(&pdev->dev);
 	if (!info) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_exit;
 	}
 
@@ -149,7 +149,7 @@ static int fme_pr(struct platform_device *pdev, unsigned long arg)
 	/*
 	 * it allows userspace to reset the PR region's logic by disabling and
 	 * reenabling the bridge to clear things out between acceleration runs.
-	 * so no need to hold the bridges after partial reconfiguration.
+	 * so anal need to hold the bridges after partial reconfiguration.
 	 */
 	if (region->get_bridges)
 		fpga_bridges_put(&region->bridge_list);
@@ -175,10 +175,10 @@ dfl_fme_create_mgr(struct dfl_feature_platform_data *pdata,
 {
 	struct platform_device *mgr, *fme = pdata->dev;
 	struct dfl_fme_mgr_pdata mgr_pdata;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	if (!feature->ioaddr)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	mgr_pdata.ioaddr = feature->ioaddr;
 
@@ -232,7 +232,7 @@ dfl_fme_create_bridge(struct dfl_feature_platform_data *pdata, int port_id)
 	struct device *dev = &pdata->dev->dev;
 	struct dfl_fme_br_pdata br_pdata;
 	struct dfl_fme_bridge *fme_br;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	fme_br = devm_kzalloc(dev, sizeof(*fme_br), GFP_KERNEL);
 	if (!fme_br)
@@ -281,8 +281,8 @@ static void dfl_fme_destroy_bridges(struct dfl_feature_platform_data *pdata)
 	struct dfl_fme *priv = dfl_fpga_pdata_get_private(pdata);
 	struct dfl_fme_bridge *fbridge, *tmp;
 
-	list_for_each_entry_safe(fbridge, tmp, &priv->bridge_list, node) {
-		list_del(&fbridge->node);
+	list_for_each_entry_safe(fbridge, tmp, &priv->bridge_list, analde) {
+		list_del(&fbridge->analde);
 		dfl_fme_destroy_bridge(fbridge);
 	}
 }
@@ -305,7 +305,7 @@ dfl_fme_create_region(struct dfl_feature_platform_data *pdata,
 	struct dfl_fme_region_pdata region_pdata;
 	struct device *dev = &pdata->dev->dev;
 	struct dfl_fme_region *fme_region;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	fme_region = devm_kzalloc(dev, sizeof(*fme_region), GFP_KERNEL);
 	if (!fme_region)
@@ -360,8 +360,8 @@ static void dfl_fme_destroy_regions(struct dfl_feature_platform_data *pdata)
 	struct dfl_fme *priv = dfl_fpga_pdata_get_private(pdata);
 	struct dfl_fme_region *fme_region, *tmp;
 
-	list_for_each_entry_safe(fme_region, tmp, &priv->region_list, node) {
-		list_del(&fme_region->node);
+	list_for_each_entry_safe(fme_region, tmp, &priv->region_list, analde) {
+		list_del(&fme_region->analde);
 		dfl_fme_destroy_region(fme_region);
 	}
 }
@@ -375,7 +375,7 @@ static int pr_mgmt_init(struct platform_device *pdev,
 	struct platform_device *mgr;
 	struct dfl_fme *priv;
 	void __iomem *fme_hdr;
-	int ret = -ENODEV, i = 0;
+	int ret = -EANALDEV, i = 0;
 	u64 fme_cap, port_offset;
 
 	fme_hdr = dfl_get_feature_ioaddr_by_id(&pdev->dev,
@@ -411,7 +411,7 @@ static int pr_mgmt_init(struct platform_device *pdev,
 			goto destroy_region;
 		}
 
-		list_add(&fme_br->node, &priv->bridge_list);
+		list_add(&fme_br->analde, &priv->bridge_list);
 
 		/* Create region for each port */
 		fme_region = dfl_fme_create_region(pdata, mgr,
@@ -421,7 +421,7 @@ static int pr_mgmt_init(struct platform_device *pdev,
 			goto destroy_region;
 		}
 
-		list_add(&fme_region->node, &priv->region_list);
+		list_add(&fme_region->analde, &priv->region_list);
 	}
 	mutex_unlock(&pdata->lock);
 
@@ -460,7 +460,7 @@ static long fme_pr_ioctl(struct platform_device *pdev,
 		ret = fme_pr(pdev, arg);
 		break;
 	default:
-		ret = -ENODEV;
+		ret = -EANALDEV;
 	}
 
 	return ret;

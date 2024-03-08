@@ -28,7 +28,7 @@ opening a netlink socket.
 
 .. code-block:: yaml
 
-  # SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
+  # SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-analte) OR BSD-3-Clause)
 
   name: rt-addr
   protocol: netlink-raw
@@ -86,7 +86,7 @@ contain a fixed header / structure, netlink attributes, or both. Because of
 those shared characteristics we refer to the payload of the wrapper attribute as
 a sub-message.
 
-A sub-message attribute uses the value of another attribute as a selector key to
+A sub-message attribute uses the value of aanalther attribute as a selector key to
 choose the right sub-message format. For example if the following attribute has
 already been decoded:
 
@@ -148,5 +148,5 @@ attributes from an ``attribute-set``. For example the following
           fixed-header: tc-netem-qopt
           attribute-set: tc-netem-attrs
 
-Note that a selector attribute must appear in a netlink message before any
+Analte that a selector attribute must appear in a netlink message before any
 sub-message attributes that depend on it.

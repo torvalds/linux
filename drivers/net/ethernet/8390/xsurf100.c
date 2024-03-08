@@ -168,7 +168,7 @@ static void xs100_block_input(struct net_device *dev, int count,
 
 	ei_local->dmaing |= 0x01;
 
-	ei_outb(E8390_NODMA + E8390_PAGE0 + E8390_START, nic_base + NE_CMD);
+	ei_outb(E8390_ANALDMA + E8390_PAGE0 + E8390_START, nic_base + NE_CMD);
 	ei_outb(count & 0xff, nic_base + EN0_RCNTLO);
 	ei_outb(count >> 8, nic_base + EN0_RCNTHI);
 	ei_outb(ring_offset & 0xff, nic_base + EN0_RSARLO);
@@ -207,11 +207,11 @@ static void xs100_block_output(struct net_device *dev, int count,
 
 	ei_local->dmaing |= 0x01;
 	/* We should already be in page 0, but to be safe... */
-	ei_outb(E8390_PAGE0 + E8390_START + E8390_NODMA, nic_base + NE_CMD);
+	ei_outb(E8390_PAGE0 + E8390_START + E8390_ANALDMA, nic_base + NE_CMD);
 
 	ei_outb(ENISR_RDC, nic_base + EN0_ISR);
 
-	/* Now the normal output. */
+	/* Analw the analrmal output. */
 	ei_outb(count & 0xff, nic_base + EN0_RCNTLO);
 	ei_outb(count >> 8, nic_base + EN0_RCNTHI);
 	ei_outb(0x00, nic_base + EN0_RSARLO);
@@ -255,12 +255,12 @@ static int xsurf100_probe(struct zorro_dev *zdev,
 	int ret = 0;
 
 	/* X-Surf 100 control and 32 bit ring buffer data access areas.
-	 * These resources are not used by the ax88796 driver, so must
+	 * These resources are analt used by the ax88796 driver, so must
 	 * be requested here and passed via platform data.
 	 */
 
 	if (!request_mem_region(zdev->resource.start, 0x100, zdev->name)) {
-		dev_err(&zdev->dev, "cannot reserve X-Surf 100 control registers\n");
+		dev_err(&zdev->dev, "cananalt reserve X-Surf 100 control registers\n");
 		return -ENXIO;
 	}
 
@@ -268,7 +268,7 @@ static int xsurf100_probe(struct zorro_dev *zdev,
 				XS100_8390_DATA32_BASE,
 				XS100_8390_DATA32_SIZE,
 				"X-Surf 100 32-bit data access")) {
-		dev_err(&zdev->dev, "cannot reserve 32-bit area\n");
+		dev_err(&zdev->dev, "cananalt reserve 32-bit area\n");
 		ret = -ENXIO;
 		goto exit_req;
 	}
@@ -287,7 +287,7 @@ static int xsurf100_probe(struct zorro_dev *zdev,
 
 	/* error handling for ioremap regs */
 	if (!ax88796_data.base_regs) {
-		dev_err(&zdev->dev, "Cannot ioremap area %pR (registers)\n",
+		dev_err(&zdev->dev, "Cananalt ioremap area %pR (registers)\n",
 			&zdev->resource);
 
 		ret = -ENXIO;
@@ -300,7 +300,7 @@ static int xsurf100_probe(struct zorro_dev *zdev,
 	/* error handling for ioremap data */
 	if (!ax88796_data.data_area) {
 		dev_err(&zdev->dev,
-			"Cannot ioremap area %pR offset %x (32-bit access)\n",
+			"Cananalt ioremap area %pR offset %x (32-bit access)\n",
 			&zdev->resource,  XS100_8390_DATA32_BASE);
 
 		ret = -ENXIO;
@@ -316,7 +316,7 @@ static int xsurf100_probe(struct zorro_dev *zdev,
 						 sizeof(ax88796_data));
 
 	if (IS_ERR(pdev)) {
-		dev_err(&zdev->dev, "cannot register platform device\n");
+		dev_err(&zdev->dev, "cananalt register platform device\n");
 		ret = -ENXIO;
 		goto exit_mem2;
 	}

@@ -9,7 +9,7 @@ extern void ppc_printk_progress(char *s, unsigned short hex);
 
 extern unsigned long long memory_limit;
 
-struct device_node;
+struct device_analde;
 
 /* Used in very early kernel initialization. */
 extern unsigned long reloc_offset(void);
@@ -42,7 +42,7 @@ void rfi_flush_enable(bool enable);
 
 /* These are bit flags */
 enum l1d_flush_type {
-	L1D_FLUSH_NONE		= 0x1,
+	L1D_FLUSH_ANALNE		= 0x1,
 	L1D_FLUSH_FALLBACK	= 0x2,
 	L1D_FLUSH_ORI		= 0x4,
 	L1D_FLUSH_MTTRIG	= 0x8,
@@ -52,20 +52,20 @@ void setup_rfi_flush(enum l1d_flush_type, bool enable);
 void setup_entry_flush(bool enable);
 void setup_uaccess_flush(bool enable);
 void do_rfi_flush_fixups(enum l1d_flush_type types);
-#ifdef CONFIG_PPC_BARRIER_NOSPEC
-void __init setup_barrier_nospec(void);
+#ifdef CONFIG_PPC_BARRIER_ANALSPEC
+void __init setup_barrier_analspec(void);
 #else
-static inline void setup_barrier_nospec(void) { }
+static inline void setup_barrier_analspec(void) { }
 #endif
 void do_uaccess_flush_fixups(enum l1d_flush_type types);
 void do_entry_flush_fixups(enum l1d_flush_type types);
-void do_barrier_nospec_fixups(bool enable);
-extern bool barrier_nospec_enabled;
+void do_barrier_analspec_fixups(bool enable);
+extern bool barrier_analspec_enabled;
 
-#ifdef CONFIG_PPC_BARRIER_NOSPEC
-void do_barrier_nospec_fixups_range(bool enable, void *start, void *end);
+#ifdef CONFIG_PPC_BARRIER_ANALSPEC
+void do_barrier_analspec_fixups_range(bool enable, void *start, void *end);
 #else
-static inline void do_barrier_nospec_fixups_range(bool enable, void *start, void *end) { }
+static inline void do_barrier_analspec_fixups_range(bool enable, void *start, void *end) { }
 #endif
 
 #ifdef CONFIG_PPC_E500

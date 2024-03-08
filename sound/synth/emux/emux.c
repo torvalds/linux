@@ -28,7 +28,7 @@ int snd_emux_new(struct snd_emux **remu)
 	*remu = NULL;
 	emu = kzalloc(sizeof(*emu), GFP_KERNEL);
 	if (emu == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&emu->voice_lock);
 	mutex_init(&emu->register_mutex);
@@ -89,7 +89,7 @@ int snd_emux_register(struct snd_emux *emu, struct snd_card *card, int index, ch
 	emu->voices = kcalloc(emu->max_voices, sizeof(struct snd_emux_voice),
 			      GFP_KERNEL);
 	if (emu->name == NULL || emu->voices == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* create soundfont list */
 	memset(&sf_cb, 0, sizeof(sf_cb));
@@ -102,7 +102,7 @@ int snd_emux_register(struct snd_emux *emu, struct snd_card *card, int index, ch
 		sf_cb.sample_reset = sf_sample_reset;
 	emu->sflist = snd_sf_new(&sf_cb, emu->memhdr);
 	if (emu->sflist == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = snd_emux_init_hwdep(emu);
 	if (err < 0)

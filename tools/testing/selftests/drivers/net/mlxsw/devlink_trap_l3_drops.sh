@@ -40,7 +40,7 @@
 lib_dir=$(dirname $0)/../../../net/forwarding
 
 ALL_TESTS="
-	non_ip_test
+	analn_ip_test
 	uc_dip_over_mc_dmac_test
 	dip_is_loopback_test
 	sip_is_mc_test
@@ -158,13 +158,13 @@ ping_check()
 
 	devlink_trap_action_set $trap_name "trap"
 	ping_do $h1 $h2_ipv4
-	check_err $? "Packets that should not be trapped were trapped"
+	check_err $? "Packets that should analt be trapped were trapped"
 	devlink_trap_action_set $trap_name "drop"
 }
 
-non_ip_test()
+analn_ip_test()
 {
-	local trap_name="non_ip"
+	local trap_name="analn_ip"
 	local mz_pid
 
 	RET=0
@@ -174,14 +174,14 @@ non_ip_test()
 	tc filter add dev $rp2 egress protocol ip pref 1 handle 101 \
 		flower dst_ip $h2_ipv4 action drop
 
-	# Generate non-IP packets to the router
+	# Generate analn-IP packets to the router
 	$MZ $h1 -c 0 -p 100 -d 1msec -B $h2_ipv4 -q "$rp1mac $h1mac \
 		00:00 de:ad:be:ef" &
 	mz_pid=$!
 
 	devlink_trap_drop_test $trap_name $rp2 101
 
-	log_test "Non IP"
+	log_test "Analn IP"
 
 	devlink_trap_drop_cleanup $mz_pid $rp2 "ip" 1 101
 }
@@ -562,7 +562,7 @@ irif_disabled_test()
 	devlink_trap_action_set $trap_name "trap"
 
 	# When RIF of a physical port ("Sub-port RIF") is destroyed, we first
-	# block the STP of the {Port, VLAN} so packets cannot get into the RIF.
+	# block the STP of the {Port, VLAN} so packets cananalt get into the RIF.
 	# Using bridge enables us to see this trap because when bridge is
 	# destroyed, there is a small time window that packets can go into the
 	# RIF, while it is disabled.
@@ -596,7 +596,7 @@ irif_disabled_test()
 	log_test "Ingress RIF disabled"
 
 	kill $mz_pid && wait $mz_pid &> /dev/null
-	ip link set dev $rp1 nomaster
+	ip link set dev $rp1 analmaster
 	__addr_add_del $rp1 add 192.0.2.2/24 2001:db8:1::2/64
 	ip link del dev br0 type bridge
 	devlink_trap_action_set $trap_name "drop"
@@ -633,8 +633,8 @@ erif_disabled_test()
 
 	sleep 5
 	# Unlinking the port from the bridge will disable the RIF associated
-	# with br0 as it is no longer an upper of any mlxsw port.
-	ip link set dev $rp1 nomaster
+	# with br0 as it is anal longer an upper of any mlxsw port.
+	ip link set dev $rp1 analmaster
 
 	t1_packets=$(devlink_trap_rx_packets_get $trap_name)
 	t1_bytes=$(devlink_trap_rx_bytes_get $trap_name)

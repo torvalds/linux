@@ -20,7 +20,7 @@
  * SW SYNC validation framework
  *
  * A sync object driver that uses a 32bit counter to coordinate
- * synchronization.  Useful when there is no hardware primitive backing
+ * synchronization.  Useful when there is anal hardware primitive backing
  * the synchronization.
  *
  * To start the framework just open:
@@ -38,11 +38,11 @@
  *
  * To increment the timeline counter, SW_SYNC_IOC_INC ioctl should be used
  * with the increment as u32. This will update the last signaled value
- * from the timeline and signal any fence that has a seqno smaller or equal
+ * from the timeline and signal any fence that has a seqanal smaller or equal
  * to it.
  *
  * struct sw_sync_create_fence_data
- * @value:	the seqno to initialise the fence with
+ * @value:	the seqanal to initialise the fence with
  * @name:	the name of the new sync point
  * @fence:	return the fd of the new sync_file with the created fence
  */
@@ -59,8 +59,8 @@ struct sw_sync_create_fence_data {
  * @fence_fd:	the sw_sync fence fd (in)
  *
  * Return the earliest deadline set on the fence.  The timebase for the
- * deadline is CLOCK_MONOTONIC (same as vblank).  If there is no deadline
- * set on the fence, this ioctl will return -ENOENT.
+ * deadline is CLOCK_MOANALTONIC (same as vblank).  If there is anal deadline
+ * set on the fence, this ioctl will return -EANALENT.
  */
 struct sw_sync_get_deadline {
 	__u64	deadline_ns;
@@ -158,7 +158,7 @@ static void timeline_fence_release(struct dma_fence *fence)
 	spin_lock_irqsave(fence->lock, flags);
 	if (!list_empty(&pt->link)) {
 		list_del(&pt->link);
-		rb_erase(&pt->node, &parent->pt_tree);
+		rb_erase(&pt->analde, &parent->pt_tree);
 	}
 	spin_unlock_irqrestore(fence->lock, flags);
 
@@ -170,7 +170,7 @@ static bool timeline_fence_signaled(struct dma_fence *fence)
 {
 	struct sync_timeline *parent = dma_fence_parent(fence);
 
-	return !__dma_fence_is_later(fence->seqno, parent->value, fence->ops);
+	return !__dma_fence_is_later(fence->seqanal, parent->value, fence->ops);
 }
 
 static bool timeline_fence_enable_signaling(struct dma_fence *fence)
@@ -181,7 +181,7 @@ static bool timeline_fence_enable_signaling(struct dma_fence *fence)
 static void timeline_fence_value_str(struct dma_fence *fence,
 				    char *str, int size)
 {
-	snprintf(str, size, "%lld", fence->seqno);
+	snprintf(str, size, "%lld", fence->seqanal);
 }
 
 static void timeline_fence_timeline_value_str(struct dma_fence *fence,
@@ -245,7 +245,7 @@ static void sync_timeline_signal(struct sync_timeline *obj, unsigned int inc)
 		dma_fence_get(&pt->base);
 
 		list_move_tail(&pt->link, &signalled);
-		rb_erase(&pt->node, &obj->pt_tree);
+		rb_erase(&pt->analde, &obj->pt_tree);
 
 		dma_fence_signal_locked(&pt->base);
 	}
@@ -284,16 +284,16 @@ static struct sync_pt *sync_pt_create(struct sync_timeline *obj,
 
 	spin_lock_irq(&obj->lock);
 	if (!dma_fence_is_signaled_locked(&pt->base)) {
-		struct rb_node **p = &obj->pt_tree.rb_node;
-		struct rb_node *parent = NULL;
+		struct rb_analde **p = &obj->pt_tree.rb_analde;
+		struct rb_analde *parent = NULL;
 
 		while (*p) {
 			struct sync_pt *other;
 			int cmp;
 
 			parent = *p;
-			other = rb_entry(parent, typeof(*pt), node);
-			cmp = value - other->base.seqno;
+			other = rb_entry(parent, typeof(*pt), analde);
+			cmp = value - other->base.seqanal;
 			if (cmp > 0) {
 				p = &parent->rb_right;
 			} else if (cmp < 0) {
@@ -308,12 +308,12 @@ static struct sync_pt *sync_pt_create(struct sync_timeline *obj,
 				p = &parent->rb_left;
 			}
 		}
-		rb_link_node(&pt->node, parent, p);
-		rb_insert_color(&pt->node, &obj->pt_tree);
+		rb_link_analde(&pt->analde, parent, p);
+		rb_insert_color(&pt->analde, &obj->pt_tree);
 
-		parent = rb_next(&pt->node);
+		parent = rb_next(&pt->analde);
 		list_add_tail(&pt->link,
-			      parent ? &rb_entry(parent, typeof(*pt), node)->link : &obj->pt_list);
+			      parent ? &rb_entry(parent, typeof(*pt), analde)->link : &obj->pt_list);
 	}
 unlock:
 	spin_unlock_irq(&obj->lock);
@@ -328,7 +328,7 @@ unlock:
  */
 
 /* opening sw_sync create a new sync obj */
-static int sw_sync_debugfs_open(struct inode *inode, struct file *file)
+static int sw_sync_debugfs_open(struct ianalde *ianalde, struct file *file)
 {
 	struct sync_timeline *obj;
 	char task_comm[TASK_COMM_LEN];
@@ -337,14 +337,14 @@ static int sw_sync_debugfs_open(struct inode *inode, struct file *file)
 
 	obj = sync_timeline_create(task_comm);
 	if (!obj)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	file->private_data = obj;
 
 	return 0;
 }
 
-static int sw_sync_debugfs_release(struct inode *inode, struct file *file)
+static int sw_sync_debugfs_release(struct ianalde *ianalde, struct file *file)
 {
 	struct sync_timeline *obj = file->private_data;
 	struct sync_pt *pt, *next;
@@ -352,7 +352,7 @@ static int sw_sync_debugfs_release(struct inode *inode, struct file *file)
 	spin_lock_irq(&obj->lock);
 
 	list_for_each_entry_safe(pt, next, &obj->pt_list, link) {
-		dma_fence_set_error(&pt->base, -ENOENT);
+		dma_fence_set_error(&pt->base, -EANALENT);
 		dma_fence_signal_locked(&pt->base);
 	}
 
@@ -381,14 +381,14 @@ static long sw_sync_ioctl_create_fence(struct sync_timeline *obj,
 
 	pt = sync_pt_create(obj, data.value);
 	if (!pt) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err;
 	}
 
 	sync_file = sync_file_create(&pt->base);
 	dma_fence_put(&pt->base);
 	if (!sync_file) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err;
 	}
 
@@ -451,7 +451,7 @@ static int sw_sync_ioctl_get_deadline(struct sync_timeline *obj, unsigned long a
 	if (test_bit(SW_SYNC_HAS_DEADLINE_BIT, &fence->flags)) {
 		data.deadline_ns = ktime_to_ns(pt->deadline);
 	} else {
-		ret = -ENOENT;
+		ret = -EANALENT;
 	}
 	spin_unlock_irqrestore(fence->lock, flags);
 
@@ -482,7 +482,7 @@ static long sw_sync_ioctl(struct file *file, unsigned int cmd,
 		return sw_sync_ioctl_get_deadline(obj, arg);
 
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 }
 

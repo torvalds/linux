@@ -6,7 +6,7 @@ Required properties:
 - reg: Physical base address of the controller and length of memory mapped
 	region.
 
-- interrupt-controller : Identifies the node as an interrupt controller
+- interrupt-controller : Identifies the analde as an interrupt controller
 
 Example:
 

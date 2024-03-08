@@ -2,7 +2,7 @@
 /*
  * net/ipv6/fib6_rules.c	IPv6 Routing Policy Rules
  *
- * Copyright (C)2003-2006 Helsinki University of Technology
+ * Copyright (C)2003-2006 Helsinki University of Techanallogy
  * Copyright (C)2003-2006 USAGI/WIDE Project
  *
  * Authors
@@ -11,7 +11,7 @@
  */
 
 #include <linux/netdevice.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/export.h>
 #include <linux/indirect_call_wrapper.h>
 
@@ -49,7 +49,7 @@ bool fib6_rule_default(const struct fib_rule *rule)
 }
 EXPORT_SYMBOL_GPL(fib6_rule_default);
 
-int fib6_rules_dump(struct net *net, struct notifier_block *nb,
+int fib6_rules_dump(struct net *net, struct analtifier_block *nb,
 		    struct netlink_ext_ack *extack)
 {
 	return fib_rules_dump(net, nb, AF_INET6, extack);
@@ -60,7 +60,7 @@ unsigned int fib6_rules_seq_read(struct net *net)
 	return fib_rules_seq_read(net, AF_INET6);
 }
 
-/* called with rcu lock held; no reference taken on fib6_info */
+/* called with rcu lock held; anal reference taken on fib6_info */
 int fib6_lookup(struct net *net, int oif, struct flowi6 *fl6,
 		struct fib6_result *res, int flags)
 {
@@ -71,7 +71,7 @@ int fib6_lookup(struct net *net, int oif, struct flowi6 *fl6,
 			.lookup_ptr = fib6_table_lookup,
 			.lookup_data = &oif,
 			.result = res,
-			.flags = FIB_LOOKUP_NOREF,
+			.flags = FIB_LOOKUP_ANALREF,
 		};
 
 		l3mdev_update_flow(net, flowi6_to_flowi(fl6));
@@ -99,7 +99,7 @@ struct dst_entry *fib6_rule_lookup(struct net *net, struct flowi6 *fl6,
 			.lookup_ptr = lookup,
 			.lookup_data = skb,
 			.result = &res,
-			.flags = FIB_LOOKUP_NOREF,
+			.flags = FIB_LOOKUP_ANALREF,
 		};
 
 		/* update flow if oif or iif point to device enslaved to l3mdev */
@@ -125,7 +125,7 @@ struct dst_entry *fib6_rule_lookup(struct net *net, struct flowi6 *fl6,
 		ip6_rt_put_flags(rt, flags);
 	}
 
-	if (!(flags & RT6_LOOKUP_F_DST_NOREF))
+	if (!(flags & RT6_LOOKUP_F_DST_ANALREF))
 		dst_hold(&net->ipv6.ip6_null_entry->dst);
 	return &net->ipv6.ip6_null_entry->dst;
 }
@@ -250,7 +250,7 @@ again:
 	goto out;
 
 discard_pkt:
-	if (!(flags & RT6_LOOKUP_F_DST_NOREF))
+	if (!(flags & RT6_LOOKUP_F_DST_ANALREF))
 		dst_hold(&rt->dst);
 out:
 	res->rt6 = rt;
@@ -281,13 +281,13 @@ INDIRECT_CALLABLE_SCOPE bool fib6_rule_suppress(struct fib_rule *rule,
 	if (rt->rt6i_idev)
 		dev = rt->rt6i_idev->dev;
 
-	/* do not accept result if the route does
-	 * not meet the required prefix length
+	/* do analt accept result if the route does
+	 * analt meet the required prefix length
 	 */
 	if (rt->rt6i_dst.plen <= rule->suppress_prefixlen)
 		goto suppress_route;
 
-	/* do not accept result if the route uses a device
+	/* do analt accept result if the route uses a device
 	 * belonging to a forbidden interface group
 	 */
 	if (rule->suppress_ifgroup != -1 && dev && dev->group == rule->suppress_ifgroup)
@@ -311,7 +311,7 @@ INDIRECT_CALLABLE_SCOPE int fib6_rule_match(struct fib_rule *rule,
 		return 0;
 
 	/*
-	 * If FIB_RULE_FIND_SADDR is set and we do not have a
+	 * If FIB_RULE_FIND_SADDR is set and we do analt have a
 	 * source address for the traffic, we defer check for
 	 * source address.
 	 */
@@ -364,7 +364,7 @@ static int fib6_rule_configure(struct fib_rule *rule, struct sk_buff *skb,
 		}
 
 		if (fib6_new_table(net, rule->table) == NULL) {
-			err = -ENOBUFS;
+			err = -EANALBUFS;
 			goto errout;
 		}
 	}
@@ -440,7 +440,7 @@ static int fib6_rule_fill(struct fib_rule *rule, struct sk_buff *skb,
 	return 0;
 
 nla_put_failure:
-	return -ENOBUFS;
+	return -EANALBUFS;
 }
 
 static size_t fib6_rule_nlmsg_payload(struct fib_rule *rule)

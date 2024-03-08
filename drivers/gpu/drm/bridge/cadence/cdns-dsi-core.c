@@ -187,7 +187,7 @@
 #define ERR_IF_UNDERRUN(x)		BIT(4 + (x))
 #define ERR_UNWANTED_READ		BIT(3)
 #define ERR_TE_MISS			BIT(2)
-#define ERR_NO_TE			BIT(1)
+#define ERR_ANAL_TE			BIT(1)
 #define CSM_RUNNING			BIT(0)
 
 #define DIRECT_CMD_SEND			0x80
@@ -251,7 +251,7 @@
 #define ERR_FIXED			BIT(0)
 
 #define VID_MAIN_CTL			0xb0
-#define VID_IGNORE_MISS_VSYNC		BIT(31)
+#define VID_IGANALRE_MISS_VSYNC		BIT(31)
 #define VID_FIELD_SW			BIT(28)
 #define VID_INTERLACED_EN		BIT(27)
 #define RECOVERY_MODE(x)		((x) << 25)
@@ -362,7 +362,7 @@
 #define TVG_STOPMODE_MASK		GENMASK(2, 1)
 #define TVG_STOPMODE_EOF		(0 << 1)
 #define TVG_STOPMODE_EOL		(1 << 1)
-#define TVG_STOPMODE_NOW		(2 << 1)
+#define TVG_STOPMODE_ANALW		(2 << 1)
 #define TVG_RUN				BIT(0)
 
 #define TVG_IMG_SIZE			0x100
@@ -412,7 +412,7 @@
 #define REV_PRODUCT_ID(x)		(((x) & GENMASK(19, 12)) >> 12)
 #define REV_HW(x)			(((x) & GENMASK(11, 8)) >> 8)
 #define REV_MAJOR(x)			(((x) & GENMASK(7, 4)) >> 4)
-#define REV_MINOR(x)			((x) & GENMASK(3, 0))
+#define REV_MIANALR(x)			((x) & GENMASK(3, 0))
 
 #define DSI_OUTPUT_PORT			0
 #define DSI_INPUT_PORT(inputid)		(1 + (inputid))
@@ -544,7 +544,7 @@ static int cdns_dsi_adjust_phy_config(struct cdns_dsi *dsi,
 	dpi_hz = (mode_valid_check ? mode->clock : mode->crtc_clock) * 1000;
 	dlane_bps = (unsigned long long)dpi_hz * adj_dsi_htotal;
 
-	/* data rate in bytes/sec is not an integer, refuse the mode. */
+	/* data rate in bytes/sec is analt an integer, refuse the mode. */
 	dpi_htotal = mode_valid_check ? mode->htotal : mode->crtc_htotal;
 	if (do_div(dlane_bps, lanes * dpi_htotal))
 		return -EINVAL;
@@ -614,7 +614,7 @@ static int cdns_dsi_bridge_attach(struct drm_bridge *bridge,
 	if (!drm_core_check_feature(bridge->dev, DRIVER_ATOMIC)) {
 		dev_err(dsi->base.dev,
 			"cdns-dsi driver is only compatible with DRM devices supporting atomic updates");
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	return drm_bridge_attach(bridge->encoder, output->bridge, bridge,
@@ -730,7 +730,7 @@ static void cdns_dsi_init_link(struct cdns_dsi *dsi)
 	for (i = 1; i < output->dev->lanes; i++)
 		val |= DATA_LANE_EN(i);
 
-	if (!(output->dev->mode_flags & MIPI_DSI_CLOCK_NON_CONTINUOUS))
+	if (!(output->dev->mode_flags & MIPI_DSI_CLOCK_ANALN_CONTINUOUS))
 		val |= CLK_CONTINUOUS;
 
 	writel(val, dsi->regs + MCTL_MAIN_PHY_CTL);
@@ -807,7 +807,7 @@ static void cdns_dsi_bridge_enable(struct drm_bridge *bridge)
 	tmp = DIV_ROUND_UP(dsi_cfg.htotal, nlanes) -
 	      DIV_ROUND_UP(dsi_cfg.hsa, nlanes);
 
-	if (!(output->dev->mode_flags & MIPI_DSI_MODE_NO_EOT_PACKET))
+	if (!(output->dev->mode_flags & MIPI_DSI_MODE_ANAL_EOT_PACKET))
 		tmp -= DIV_ROUND_UP(DSI_EOT_PKT_SIZE, nlanes);
 
 	tx_byte_period = DIV_ROUND_DOWN_ULL((u64)NSEC_PER_SEC * 8,
@@ -872,7 +872,7 @@ static void cdns_dsi_bridge_enable(struct drm_bridge *bridge)
 		tmp |= REG_BLKLINE_MODE(REG_BLK_MODE_BLANKING_PKT) |
 		       REG_BLKEOL_MODE(REG_BLK_MODE_BLANKING_PKT) |
 		       RECOVERY_MODE(RECOVERY_MODE_NEXT_HSYNC) |
-		       VID_IGNORE_MISS_VSYNC;
+		       VID_IGANALRE_MISS_VSYNC;
 
 		writel(tmp, dsi->regs + VID_MAIN_CTL);
 	}
@@ -880,7 +880,7 @@ static void cdns_dsi_bridge_enable(struct drm_bridge *bridge)
 	tmp = readl(dsi->regs + MCTL_MAIN_DATA_CTL);
 	tmp &= ~(IF_VID_SELECT_MASK | HOST_EOT_GEN | IF_VID_MODE);
 
-	if (!(output->dev->mode_flags & MIPI_DSI_MODE_NO_EOT_PACKET))
+	if (!(output->dev->mode_flags & MIPI_DSI_MODE_ANAL_EOT_PACKET))
 		tmp |= HOST_EOT_GEN;
 
 	if (output->dev->mode_flags & MIPI_DSI_MODE_VIDEO)
@@ -921,43 +921,43 @@ static int cdns_dsi_attach(struct mipi_dsi_host *host,
 	struct cdns_dsi_input *input = &dsi->input;
 	struct drm_bridge *bridge;
 	struct drm_panel *panel;
-	struct device_node *np;
+	struct device_analde *np;
 	int ret;
 
 	/*
-	 * We currently do not support connecting several DSI devices to the
+	 * We currently do analt support connecting several DSI devices to the
 	 * same host. In order to support that we'd need the DRM bridge
 	 * framework to allow dynamic reconfiguration of the bridge chain.
 	 */
 	if (output->dev)
 		return -EBUSY;
 
-	/* We do not support burst mode yet. */
+	/* We do analt support burst mode yet. */
 	if (dev->mode_flags & MIPI_DSI_MODE_VIDEO_BURST)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	/*
 	 * The host <-> device link might be described using an OF-graph
-	 * representation, in this case we extract the device of_node from
-	 * this representation, otherwise we use dsidev->dev.of_node which
+	 * representation, in this case we extract the device of_analde from
+	 * this representation, otherwise we use dsidev->dev.of_analde which
 	 * should have been filled by the core.
 	 */
-	np = of_graph_get_remote_node(dsi->base.dev->of_node, DSI_OUTPUT_PORT,
+	np = of_graph_get_remote_analde(dsi->base.dev->of_analde, DSI_OUTPUT_PORT,
 				      dev->channel);
 	if (!np)
-		np = of_node_get(dev->dev.of_node);
+		np = of_analde_get(dev->dev.of_analde);
 
 	panel = of_drm_find_panel(np);
 	if (!IS_ERR(panel)) {
 		bridge = drm_panel_bridge_add_typed(panel,
 						    DRM_MODE_CONNECTOR_DSI);
 	} else {
-		bridge = of_drm_find_bridge(dev->dev.of_node);
+		bridge = of_drm_find_bridge(dev->dev.of_analde);
 		if (!bridge)
 			bridge = ERR_PTR(-EINVAL);
 	}
 
-	of_node_put(np);
+	of_analde_put(np);
 
 	if (IS_ERR(bridge)) {
 		ret = PTR_ERR(bridge);
@@ -971,7 +971,7 @@ static int cdns_dsi_attach(struct mipi_dsi_host *host,
 	output->panel = panel;
 
 	/*
-	 * The DSI output has been properly configured, we can now safely
+	 * The DSI output has been properly configured, we can analw safely
 	 * register the input to the bridge framework so that it can take place
 	 * in a display pipeline.
 	 */
@@ -997,7 +997,7 @@ static int cdns_dsi_detach(struct mipi_dsi_host *host,
 static irqreturn_t cdns_dsi_interrupt(int irq, void *data)
 {
 	struct cdns_dsi *dsi = data;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 	u32 flag, ctl;
 
 	flag = readl(dsi->regs + DIRECT_CMD_STS_FLAG);
@@ -1035,19 +1035,19 @@ static ssize_t cdns_dsi_transfer(struct mipi_dsi_host *host,
 
 	/* For read operations, the maximum TX len is 2. */
 	if (rx_len && tx_len > 2) {
-		ret = -ENOTSUPP;
+		ret = -EANALTSUPP;
 		goto out;
 	}
 
 	/* TX len is limited by the CMD FIFO depth. */
 	if (tx_len > dsi->direct_cmd_fifo_depth) {
-		ret = -ENOTSUPP;
+		ret = -EANALTSUPP;
 		goto out;
 	}
 
 	/* RX len is limited by the RX FIFO depth. */
 	if (rx_len > dsi->rx_fifo_depth) {
-		ret = -ENOTSUPP;
+		ret = -EANALTSUPP;
 		goto out;
 	}
 
@@ -1102,7 +1102,7 @@ static ssize_t cdns_dsi_transfer(struct mipi_dsi_host *host,
 	writel(readl(dsi->regs + MCTL_MAIN_DATA_CTL) & ~ctl,
 	       dsi->regs + MCTL_MAIN_DATA_CTL);
 
-	/* We did not receive the events we were waiting for. */
+	/* We did analt receive the events we were waiting for. */
 	if (!(sts & wait)) {
 		ret = -ETIMEDOUT;
 		goto out;
@@ -1168,7 +1168,7 @@ static int cdns_dsi_drm_probe(struct platform_device *pdev)
 
 	dsi = devm_kzalloc(&pdev->dev, sizeof(*dsi), GFP_KERNEL);
 	if (!dsi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, dsi);
 
@@ -1227,7 +1227,7 @@ static int cdns_dsi_drm_probe(struct platform_device *pdev)
 	 */
 	input->id = CDNS_DPI_INPUT;
 	input->bridge.funcs = &cdns_dsi_bridge_funcs;
-	input->bridge.of_node = pdev->dev.of_node;
+	input->bridge.of_analde = pdev->dev.of_analde;
 
 	/* Mask all interrupts before registering the IRQ handler. */
 	writel(0, dsi->regs + MCTL_MAIN_STS_CTL);

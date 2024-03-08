@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2014 MediaTek Inc.
  * Copyright (c) 2022 Collabora Ltd.
- * Author: AngeloGioacchino Del Regno <angelogioacchino.delregno@collabora.com>
+ * Author: AngeloGioacchianal Del Reganal <angelogioacchianal.delreganal@collabora.com>
  */
 
 #include <dt-bindings/clock/mt8173-clk.h>
@@ -139,25 +139,25 @@ MODULE_DEVICE_TABLE(of, of_match_clk_mt8173_apmixed);
 
 static int clk_mt8173_apmixed_probe(struct platform_device *pdev)
 {
-	const u8 *fhctl_node = "mediatek,mt8173-fhctl";
-	struct device_node *node = pdev->dev.of_node;
+	const u8 *fhctl_analde = "mediatek,mt8173-fhctl";
+	struct device_analde *analde = pdev->dev.of_analde;
 	struct clk_hw_onecell_data *clk_data;
 	void __iomem *base;
 	struct clk_hw *hw;
 	int r;
 
-	base = of_iomap(node, 0);
+	base = of_iomap(analde, 0);
 	if (!base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	clk_data = mtk_alloc_clk_data(CLK_APMIXED_NR_CLK);
 	if (IS_ERR_OR_NULL(clk_data)) {
 		iounmap(base);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
-	fhctl_parse_dt(fhctl_node, pllfhs, ARRAY_SIZE(pllfhs));
-	r = mtk_clk_register_pllfhs(node, plls, ARRAY_SIZE(plls),
+	fhctl_parse_dt(fhctl_analde, pllfhs, ARRAY_SIZE(pllfhs));
+	r = mtk_clk_register_pllfhs(analde, plls, ARRAY_SIZE(plls),
 				    pllfhs, ARRAY_SIZE(pllfhs), clk_data);
 	if (r)
 		goto free_clk_data;
@@ -175,7 +175,7 @@ static int clk_mt8173_apmixed_probe(struct platform_device *pdev)
 					  CLK_DIVIDER_POWER_OF_TWO, NULL);
 	clk_data->hws[CLK_APMIXED_HDMI_REF] = hw;
 
-	r = of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
+	r = of_clk_add_hw_provider(analde, of_clk_hw_onecell_get, clk_data);
 	if (r)
 		goto unregister_ref2usb;
 
@@ -194,10 +194,10 @@ free_clk_data:
 
 static void clk_mt8173_apmixed_remove(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	struct clk_hw_onecell_data *clk_data = platform_get_drvdata(pdev);
 
-	of_clk_del_provider(node);
+	of_clk_del_provider(analde);
 	mtk_clk_unregister_ref2usb_tx(clk_data->hws[CLK_APMIXED_REF2USB_TX]);
 	mtk_clk_unregister_pllfhs(plls, ARRAY_SIZE(plls), pllfhs,
 				  ARRAY_SIZE(pllfhs), clk_data);

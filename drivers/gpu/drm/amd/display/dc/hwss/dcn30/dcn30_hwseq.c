@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -245,7 +245,7 @@ bool dcn30_set_output_transfer_func(struct dc *dc,
 					stream->out_transfer_func,
 					&mpc->blender_params, false))
 				params = &mpc->blender_params;
-			 /* there are no ROM LUTs in OUTGAM */
+			 /* there are anal ROM LUTs in OUTGAM */
 			if (stream->out_transfer_func->type == TF_TYPE_PREDEFINED)
 				BREAK_TO_DEBUGGER();
 		}
@@ -304,11 +304,11 @@ bool dcn30_mmhubbub_warmup(
 	struct mcif_wb *mcif_wb;
 	struct mcif_warmup_params warmup_params = {0};
 	unsigned int  i, i_buf;
-	/*make sure there is no active DWB eanbled */
+	/*make sure there is anal active DWB eanbled */
 	for (i = 0; i < num_dwb; i++) {
 		dwb = dc->res_pool->dwbc[wb_info[i].dwb_pipe_inst];
 		if (dwb->dwb_is_efc_transition || dwb->dwb_is_drc) {
-			/*can not do warmup while any dwb enabled*/
+			/*can analt do warmup while any dwb enabled*/
 			return false;
 		}
 	}
@@ -319,7 +319,7 @@ bool dcn30_mmhubbub_warmup(
 	/*check whether this is new interface: warmup big buffer once*/
 	if (wb_info->mcif_warmup_params.start_address.quad_part != 0 &&
 		wb_info->mcif_warmup_params.region_size != 0) {
-		/*mmhubbub is shared, so it does not matter which MCIF*/
+		/*mmhubbub is shared, so it does analt matter which MCIF*/
 		mcif_wb = dc->res_pool->mcif_wb[0];
 		/*warmup a big chunk of VM buffer at once*/
 		warmup_params.start_address.quad_part = wb_info->mcif_warmup_params.start_address.quad_part;
@@ -425,7 +425,7 @@ void dcn30_program_all_writeback_pipes_in_tree(
 	/* For each writeback pipe */
 	for (i_wb = 0; i_wb < stream->num_wb_info; i_wb++) {
 
-		/* copy writeback info to local non-const so mpcc_inst can be set */
+		/* copy writeback info to local analn-const so mpcc_inst can be set */
 		wb_info = stream->writeback_info[i_wb];
 		if (wb_info.wb_enabled) {
 
@@ -491,7 +491,7 @@ void dcn30_init_hw(struct dc *dc)
 	}
 
 	if (dc->debug.enable_mem_low_power.bits.dmcu) {
-		// Force ERAM to shutdown if DMCU is not enabled
+		// Force ERAM to shutdown if DMCU is analt enabled
 		if (dc->debug.disable_dmcu || dc->config.disable_dmcu) {
 			REG_UPDATE(DMU_MEM_PWR_CNTL, DMCU_ERAM_MEM_PWR_FORCE, 3);
 		}
@@ -522,7 +522,7 @@ void dcn30_init_hw(struct dc *dc)
 					res_pool->ref_clocks.dccg_ref_clock_inKhz,
 					&res_pool->ref_clocks.dchub_ref_clock_inKhz);
 		} else {
-			// Not all ASICs have DCCG sw component
+			// Analt all ASICs have DCCG sw component
 			res_pool->ref_clocks.dccg_ref_clock_inKhz =
 					res_pool->ref_clocks.xtalin_clock_inKhz;
 			res_pool->ref_clocks.dchub_ref_clock_inKhz =
@@ -557,9 +557,9 @@ void dcn30_init_hw(struct dc *dc)
 		hws->funcs.enable_power_gating_plane(dc->hwseq, true);
 
 	/* If taking control over from VBIOS, we may want to optimize our first
-	 * mode set, so we need to skip powering down pipes until we know which
+	 * mode set, so we need to skip powering down pipes until we kanalw which
 	 * pipes we want to use.
-	 * Otherwise, if taking control is not possible, we need to power
+	 * Otherwise, if taking control is analt possible, we need to power
 	 * everything down.
 	 */
 	if (dcb->funcs->is_accelerated_mode(dcb) || !dc->config.seamless_boot_edp_requested) {
@@ -572,7 +572,7 @@ void dcn30_init_hw(struct dc *dc)
 	/* In headless boot cases, DIG may be turned
 	 * on which causes HW/SW discrepancies.
 	 * To avoid this, power down hardware on boot
-	 * if DIG is turned on and seamless boot not enabled
+	 * if DIG is turned on and seamless boot analt enabled
 	 */
 	if (!dc->config.seamless_boot_edp_requested) {
 		struct dc_link *edp_links[MAX_NUM_EDP];
@@ -639,8 +639,8 @@ void dcn30_init_hw(struct dc *dc)
 	if (!dcb->funcs->is_accelerated_mode(dcb) && dc->res_pool->hubbub->funcs->init_watermarks)
 		dc->res_pool->hubbub->funcs->init_watermarks(dc->res_pool->hubbub);
 
-	if (dc->clk_mgr->funcs->notify_wm_ranges)
-		dc->clk_mgr->funcs->notify_wm_ranges(dc->clk_mgr);
+	if (dc->clk_mgr->funcs->analtify_wm_ranges)
+		dc->clk_mgr->funcs->analtify_wm_ranges(dc->clk_mgr);
 
 	//if softmax is enabled then hardmax will be set by a different call
 	if (dc->clk_mgr->funcs->set_hard_max_memclk && !dc->clk_mgr->dc_mode_softmax_enabled)
@@ -677,7 +677,7 @@ void dcn30_update_info_frame(struct pipe_ctx *pipe_ctx)
 	ASSERT(pipe_ctx->stream);
 
 	if (pipe_ctx->stream_res.stream_enc == NULL)
-		return;  /* this is not root pipe */
+		return;  /* this is analt root pipe */
 
 	is_hdmi_tmds = dc_is_hdmi_tmds_signal(pipe_ctx->stream->signal);
 	is_dp = dc_is_dp_signal(pipe_ctx->stream->signal);
@@ -743,7 +743,7 @@ bool dcn30_apply_idle_power_optimizations(struct dc *dc, bool enable)
 		if (dc->current_state) {
 			int i;
 
-			/* First, check no-memory-requests case */
+			/* First, check anal-memory-requests case */
 			for (i = 0; i < dc->current_state->stream_count; i++) {
 				if (dc->current_state->stream_status[i].plane_count)
 					/* Fail eligibility on a visible stream */
@@ -751,13 +751,13 @@ bool dcn30_apply_idle_power_optimizations(struct dc *dc, bool enable)
 			}
 
 			if (i == dc->current_state->stream_count) {
-				/* Enable no-memory-requests case */
+				/* Enable anal-memory-requests case */
 				memset(&cmd, 0, sizeof(cmd));
 				cmd.mall.header.type = DMUB_CMD__MALL;
-				cmd.mall.header.sub_type = DMUB_CMD__MALL_ACTION_NO_DF_REQ;
+				cmd.mall.header.sub_type = DMUB_CMD__MALL_ACTION_ANAL_DF_REQ;
 				cmd.mall.header.payload_bytes = sizeof(cmd.mall) - sizeof(cmd.mall.header);
 
-				dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_NO_WAIT);
+				dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_ANAL_WAIT);
 
 				return true;
 			}
@@ -774,11 +774,11 @@ bool dcn30_apply_idle_power_optimizations(struct dc *dc, bool enable)
 			/*
 			 * Second, check MALL eligibility
 			 *
-			 * single display only, single surface only, 8 and 16 bit formats only, no VM,
-			 * do not use MALL for displays that support PSR as they use D0i3.2 in DMCUB FW
+			 * single display only, single surface only, 8 and 16 bit formats only, anal VM,
+			 * do analt use MALL for displays that support PSR as they use D0i3.2 in DMCUB FW
 			 *
 			 * TODO: When we implement multi-display, PSR displays will be allowed if there is
-			 * a non-PSR display present, since in that case we can't do D0i3.2
+			 * a analn-PSR display present, since in that case we can't do D0i3.2
 			 */
 			if (dc->current_state->stream_count == 1 &&
 					stream->link->psr_settings.psr_version == DC_PSR_VERSION_UNSUPPORTED &&
@@ -816,12 +816,12 @@ bool dcn30_apply_idle_power_optimizations(struct dc *dc, bool enable)
 				 *
 				 * need to round up the result of the division before the subtraction
 				 */
-				unsigned int denom = refresh_hz * 6528;
+				unsigned int deanalm = refresh_hz * 6528;
 				unsigned int stutter_period = dc->current_state->perf_params.stutter_period_us;
 
 				tmr_delay = div_u64(((1000000LL + 2 * stutter_period * refresh_hz) *
-						(100LL + dc->debug.mall_additional_timer_percent) + denom - 1),
-						denom) - 64LL;
+						(100LL + dc->debug.mall_additional_timer_percent) + deanalm - 1),
+						deanalm) - 64LL;
 
 				/* In some cases the stutter period is really big (tiny modes) in these
 				 * cases MALL cant be enabled, So skip these cases to avoid a ASSERT()
@@ -842,10 +842,10 @@ bool dcn30_apply_idle_power_optimizations(struct dc *dc, bool enable)
 						return false;
 					}
 
-					denom *= 2;
+					deanalm *= 2;
 					tmr_delay = div_u64(((1000000LL + 2 * stutter_period * refresh_hz) *
-							(100LL + dc->debug.mall_additional_timer_percent) + denom - 1),
-							denom) - 64LL;
+							(100LL + dc->debug.mall_additional_timer_percent) + deanalm - 1),
+							deanalm) - 64LL;
 				}
 
 				/* Copy HW cursor */
@@ -857,7 +857,7 @@ bool dcn30_apply_idle_power_optimizations(struct dc *dc, bool enable)
 							sizeof(cmd.mall) - sizeof(cmd.mall.header);
 
 					switch (cursor_attr.color_format) {
-					case CURSOR_MODE_MONO:
+					case CURSOR_MODE_MOANAL:
 						cmd.mall.cursor_bpp = 2;
 						break;
 					case CURSOR_MODE_COLOR_1BIT_AND:
@@ -881,7 +881,7 @@ bool dcn30_apply_idle_power_optimizations(struct dc *dc, bool enable)
 
 					dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 
-					/* Use copied cursor, and it's okay to not switch back */
+					/* Use copied cursor, and it's okay to analt switch back */
 					cursor_attr.address.quad_part = cmd.mall.cursor_copy_dst.quad_part;
 					dc_stream_set_cursor_attributes(stream, &cursor_attr);
 				}
@@ -895,13 +895,13 @@ bool dcn30_apply_idle_power_optimizations(struct dc *dc, bool enable)
 				cmd.mall.tmr_scale = tmr_scale;
 				cmd.mall.debug_bits = dc->debug.mall_error_as_fatal;
 
-				dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_NO_WAIT);
+				dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_ANAL_WAIT);
 
 				return true;
 			}
 		}
 
-		/* No applicable optimizations */
+		/* Anal applicable optimizations */
 		return false;
 	}
 
@@ -932,7 +932,7 @@ bool dcn30_does_plane_fit_in_mall(struct dc *dc, struct dc_plane_state *plane, s
 		cursor_size = dc->caps.max_cursor_size * dc->caps.max_cursor_size;
 
 		switch (cursor_attr->color_format) {
-		case CURSOR_MODE_MONO:
+		case CURSOR_MODE_MOANAL:
 			cursor_size /= 2;
 			break;
 		case CURSOR_MODE_COLOR_1BIT_AND:

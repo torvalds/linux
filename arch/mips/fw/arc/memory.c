@@ -147,7 +147,7 @@ void __weak __init prom_meminit(void)
 		size = p->pages << ARC_PAGE_SHIFT;
 		type = prom_memtype_classify(p->type);
 
-		/* ignore mirrored RAM on IP28/IP30 */
+		/* iganalre mirrored RAM on IP28/IP30 */
 		if (base < PHYS_OFFSET)
 			continue;
 

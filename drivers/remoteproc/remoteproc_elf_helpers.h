@@ -15,7 +15,7 @@
  * fw_elf_get_class - Get elf class
  * @fw: the ELF firmware image
  *
- * Note that we use elf32_hdr to access the class since the start of the
+ * Analte that we use elf32_hdr to access the class since the start of the
  * struct is the same for both elf class
  *
  * Return: elf class of the firmware
@@ -33,7 +33,7 @@ static inline void elf_hdr_init_ident(struct elf32_hdr *hdr, u8 class)
 	hdr->e_ident[EI_CLASS] = class;
 	hdr->e_ident[EI_DATA] = ELFDATA2LSB;
 	hdr->e_ident[EI_VERSION] = EV_CURRENT;
-	hdr->e_ident[EI_OSABI] = ELFOSABI_NONE;
+	hdr->e_ident[EI_OSABI] = ELFOSABI_ANALNE;
 }
 
 /* Generate getter and setter for a specific elf struct/field */

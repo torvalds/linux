@@ -89,7 +89,7 @@ static int tomoyo_mount_acl(struct tomoyo_request_info *r,
 	struct tomoyo_path_info rdev;
 	struct tomoyo_path_info rdir;
 	int need_dev = 0;
-	int error = -ENOMEM;
+	int error = -EANALMEM;
 
 	r->obj = &obj;
 
@@ -104,7 +104,7 @@ static int tomoyo_mount_acl(struct tomoyo_request_info *r,
 	obj.path2 = *dir;
 	requested_dir_name = tomoyo_realpath_from_path(dir);
 	if (!requested_dir_name) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto out;
 	}
 	rdir.name = requested_dir_name;
@@ -112,19 +112,19 @@ static int tomoyo_mount_acl(struct tomoyo_request_info *r,
 
 	/* Compare fs name. */
 	if (type == tomoyo_mounts[TOMOYO_MOUNT_REMOUNT]) {
-		/* dev_name is ignored. */
+		/* dev_name is iganalred. */
 	} else if (type == tomoyo_mounts[TOMOYO_MOUNT_MAKE_UNBINDABLE] ||
 		   type == tomoyo_mounts[TOMOYO_MOUNT_MAKE_PRIVATE] ||
 		   type == tomoyo_mounts[TOMOYO_MOUNT_MAKE_SLAVE] ||
 		   type == tomoyo_mounts[TOMOYO_MOUNT_MAKE_SHARED]) {
-		/* dev_name is ignored. */
+		/* dev_name is iganalred. */
 	} else if (type == tomoyo_mounts[TOMOYO_MOUNT_BIND] ||
 		   type == tomoyo_mounts[TOMOYO_MOUNT_MOVE]) {
 		need_dev = -1; /* dev_name is a directory */
 	} else {
 		fstype = get_fs_type(type);
 		if (!fstype) {
-			error = -ENODEV;
+			error = -EANALDEV;
 			goto out;
 		}
 		if (fstype->fs_flags & FS_REQUIRES_DEV)
@@ -134,22 +134,22 @@ static int tomoyo_mount_acl(struct tomoyo_request_info *r,
 	if (need_dev) {
 		/* Get mount point or device file. */
 		if (!dev_name || kern_path(dev_name, LOOKUP_FOLLOW, &path)) {
-			error = -ENOENT;
+			error = -EANALENT;
 			goto out;
 		}
 		obj.path1 = path;
 		requested_dev_name = tomoyo_realpath_from_path(&path);
 		if (!requested_dev_name) {
-			error = -ENOENT;
+			error = -EANALENT;
 			goto out;
 		}
 	} else {
-		/* Map dev_name to "<NULL>" if no dev_name given. */
+		/* Map dev_name to "<NULL>" if anal dev_name given. */
 		if (!dev_name)
 			dev_name = "<NULL>";
 		requested_dev_name = tomoyo_encode(dev_name);
 		if (!requested_dev_name) {
-			error = -ENOMEM;
+			error = -EANALMEM;
 			goto out;
 		}
 	}

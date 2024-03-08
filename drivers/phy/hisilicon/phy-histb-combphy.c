@@ -50,7 +50,7 @@ struct histb_combphy_priv {
 	struct histb_combphy_mode mode;
 };
 
-static void nano_register_write(struct histb_combphy_priv *priv,
+static void naanal_register_write(struct histb_combphy_priv *priv,
 				u32 addr, u32 data)
 {
 	void __iomem *reg = priv->mmio + COMBPHY_CFG_REG;
@@ -73,7 +73,7 @@ static void nano_register_write(struct histb_combphy_priv *priv,
 
 static int is_mode_fixed(struct histb_combphy_mode *mode)
 {
-	return (mode->fixed != PHY_NONE) ? true : false;
+	return (mode->fixed != PHY_ANALNE) ? true : false;
 }
 
 static int histb_combphy_set_mode(struct histb_combphy_priv *priv)
@@ -132,10 +132,10 @@ static int histb_combphy_init(struct phy *phy)
 	/* Need to wait for EP clock stable */
 	mdelay(5);
 
-	/* Configure nano phy registers as suggested by vendor */
-	nano_register_write(priv, 0x1, 0x8);
-	nano_register_write(priv, 0xc, 0x9);
-	nano_register_write(priv, 0x1a, 0x4);
+	/* Configure naanal phy registers as suggested by vendor */
+	naanal_register_write(priv, 0x1, 0x8);
+	naanal_register_write(priv, 0xc, 0x9);
+	naanal_register_write(priv, 0x1a, 0x4);
 
 	return 0;
 }
@@ -194,14 +194,14 @@ static int histb_combphy_probe(struct platform_device *pdev)
 	struct phy_provider *phy_provider;
 	struct device *dev = &pdev->dev;
 	struct histb_combphy_priv *priv;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct histb_combphy_mode *mode;
 	u32 vals[3];
 	int ret;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->mmio = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->mmio)) {
@@ -209,14 +209,14 @@ static int histb_combphy_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	priv->syscon = syscon_node_to_regmap(np->parent);
+	priv->syscon = syscon_analde_to_regmap(np->parent);
 	if (IS_ERR(priv->syscon)) {
 		dev_err(dev, "failed to find peri_ctrl syscon regmap\n");
 		return PTR_ERR(priv->syscon);
 	}
 
 	mode = &priv->mode;
-	mode->fixed = PHY_NONE;
+	mode->fixed = PHY_ANALNE;
 
 	ret = of_property_read_u32(np, "hisilicon,fixed-mode", &mode->fixed);
 	if (ret == 0)
@@ -236,8 +236,8 @@ static int histb_combphy_probe(struct platform_device *pdev)
 		dev_dbg(dev, "found mode select bits\n");
 	} else {
 		if (!is_mode_fixed(mode)) {
-			dev_err(dev, "no valid select bits found for non-fixed phy\n");
-			return -ENODEV;
+			dev_err(dev, "anal valid select bits found for analn-fixed phy\n");
+			return -EANALDEV;
 		}
 	}
 

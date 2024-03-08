@@ -26,7 +26,7 @@ struct prestera_acl_ruleset_ht_key {
 };
 
 struct prestera_acl_rule_entry {
-	struct rhash_head ht_node;
+	struct rhash_head ht_analde;
 	struct prestera_acl_rule_entry_key key;
 	u32 hw_id;
 	u32 vtcam_id;
@@ -50,7 +50,7 @@ struct prestera_acl_rule_entry {
 };
 
 struct prestera_acl_ruleset {
-	struct rhash_head ht_node; /* Member of acl HT */
+	struct rhash_head ht_analde; /* Member of acl HT */
 	struct prestera_acl_ruleset_ht_key ht_key;
 	struct rhashtable rule_ht;
 	struct prestera_acl *acl;
@@ -81,20 +81,20 @@ struct prestera_acl_vtcam {
 static const struct rhashtable_params prestera_acl_ruleset_ht_params = {
 	.key_len = sizeof(struct prestera_acl_ruleset_ht_key),
 	.key_offset = offsetof(struct prestera_acl_ruleset, ht_key),
-	.head_offset = offsetof(struct prestera_acl_ruleset, ht_node),
+	.head_offset = offsetof(struct prestera_acl_ruleset, ht_analde),
 	.automatic_shrinking = true,
 };
 
 static const struct rhashtable_params prestera_acl_rule_ht_params = {
 	.key_len = sizeof(unsigned long),
 	.key_offset = offsetof(struct prestera_acl_rule, cookie),
-	.head_offset = offsetof(struct prestera_acl_rule, ht_node),
+	.head_offset = offsetof(struct prestera_acl_rule, ht_analde),
 	.automatic_shrinking = true,
 };
 
 static const struct rhashtable_params __prestera_acl_rule_entry_ht_params = {
 	.key_offset  = offsetof(struct prestera_acl_rule_entry, key),
-	.head_offset = offsetof(struct prestera_acl_rule_entry, ht_node),
+	.head_offset = offsetof(struct prestera_acl_rule_entry, ht_analde),
 	.key_len     = sizeof(struct prestera_acl_rule_entry_key),
 	.automatic_shrinking = true,
 };
@@ -146,7 +146,7 @@ prestera_acl_ruleset_create(struct prestera_acl *acl,
 
 	ruleset = kzalloc(sizeof(*ruleset), GFP_KERNEL);
 	if (!ruleset)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ruleset->acl = acl;
 	ruleset->ingress = block->ingress;
@@ -169,7 +169,7 @@ prestera_acl_ruleset_create(struct prestera_acl *acl,
 	ruleset->prio.min = UINT_MAX;
 	ruleset->prio.max = 0;
 
-	err = rhashtable_insert_fast(&acl->ruleset_ht, &ruleset->ht_node,
+	err = rhashtable_insert_fast(&acl->ruleset_ht, &ruleset->ht_analde,
 				     prestera_acl_ruleset_ht_params);
 	if (err)
 		goto err_ruleset_ht_insert;
@@ -190,7 +190,7 @@ int prestera_acl_ruleset_keymask_set(struct prestera_acl_ruleset *ruleset,
 {
 	ruleset->keymask = kmemdup(keymask, ACL_KEYMASK_SIZE, GFP_KERNEL);
 	if (!ruleset->keymask)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -243,7 +243,7 @@ static void prestera_acl_ruleset_destroy(struct prestera_acl_ruleset *ruleset)
 	u8 uid = ruleset->pcl_id & PRESTERA_ACL_KEYMASK_PCL_ID_USER;
 	int err;
 
-	rhashtable_remove_fast(&acl->ruleset_ht, &ruleset->ht_node,
+	rhashtable_remove_fast(&acl->ruleset_ht, &ruleset->ht_analde,
 			       prestera_acl_ruleset_ht_params);
 
 	if (ruleset->offload) {
@@ -288,7 +288,7 @@ prestera_acl_ruleset_lookup(struct prestera_acl *acl,
 
 	ruleset = __prestera_acl_ruleset_lookup(acl, block, chain_index);
 	if (!ruleset)
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 
 	refcount_inc(&ruleset->refcount);
 	return ruleset;
@@ -440,7 +440,7 @@ prestera_acl_rule_create(struct prestera_acl_ruleset *ruleset,
 
 	rule = kzalloc(sizeof(*rule), GFP_KERNEL);
 	if (!rule)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	rule->ruleset = ruleset;
 	rule->cookie = cookie;
@@ -482,7 +482,7 @@ int prestera_acl_rule_add(struct prestera_switch *sw,
 	struct prestera_flow_block *block = ruleset->ht_key.block;
 
 	/* try to add rule to hash table first */
-	err = rhashtable_insert_fast(&ruleset->rule_ht, &rule->ht_node,
+	err = rhashtable_insert_fast(&ruleset->rule_ht, &rule->ht_analde,
 				     prestera_acl_rule_ht_params);
 	if (err)
 		goto err_ht_insert;
@@ -520,7 +520,7 @@ err_acl_block_bind:
 	prestera_acl_rule_entry_destroy(sw->acl, rule->re);
 err_rule_add:
 	rule->re = NULL;
-	rhashtable_remove_fast(&ruleset->rule_ht, &rule->ht_node,
+	rhashtable_remove_fast(&ruleset->rule_ht, &rule->ht_analde,
 			       prestera_acl_rule_ht_params);
 err_ht_insert:
 	return err;
@@ -532,7 +532,7 @@ void prestera_acl_rule_del(struct prestera_switch *sw,
 	struct prestera_acl_ruleset *ruleset = rule->ruleset;
 	struct prestera_flow_block *block = ruleset->ht_key.block;
 
-	rhashtable_remove_fast(&ruleset->rule_ht, &rule->ht_node,
+	rhashtable_remove_fast(&ruleset->rule_ht, &rule->ht_analde,
 			       prestera_acl_rule_ht_params);
 	ruleset->rule_count--;
 	list_del(&rule->list);
@@ -645,11 +645,11 @@ void prestera_acl_rule_entry_destroy(struct prestera_acl *acl,
 {
 	int ret;
 
-	rhashtable_remove_fast(&acl->acl_rule_entry_ht, &e->ht_node,
+	rhashtable_remove_fast(&acl->acl_rule_entry_ht, &e->ht_analde,
 			       __prestera_acl_rule_entry_ht_params);
 
 	ret = __prestera_acl_rule_entry2hw_del(acl->sw, e);
-	WARN_ON(ret && ret != -ENODEV);
+	WARN_ON(ret && ret != -EANALDEV);
 
 	__prestera_acl_rule_entry_act_destruct(acl->sw, e);
 	kfree(e);
@@ -727,7 +727,7 @@ prestera_acl_rule_entry_create(struct prestera_acl *acl,
 	if (err)
 		goto err_hw_add;
 
-	err = rhashtable_insert_fast(&acl->acl_rule_entry_ht, &e->ht_node,
+	err = rhashtable_insert_fast(&acl->acl_rule_entry_ht, &e->ht_analde,
 				     __prestera_acl_rule_entry_ht_params);
 	if (err)
 		goto err_ht_insert;
@@ -765,11 +765,11 @@ static int __prestera_acl_vtcam_id_try_fit(struct prestera_acl *acl, u8 lookup,
 			__be32 __keymask = ((__be32 *)keymask)[i];
 
 			if (!__keymask)
-				/* vtcam keymask in not interested */
+				/* vtcam keymask in analt interested */
 				continue;
 
 			if (__keymask & ~vtcam->keymask[i])
-				/* keymask does not fit the vtcam keymask */
+				/* keymask does analt fit the vtcam keymask */
 				break;
 		}
 
@@ -778,8 +778,8 @@ static int __prestera_acl_vtcam_id_try_fit(struct prestera_acl *acl, u8 lookup,
 			goto vtcam_found;
 	}
 
-	/* nothing is found */
-	return -ENOENT;
+	/* analthing is found */
+	return -EANALENT;
 
 vtcam_found:
 	refcount_inc(&vtcam->refcount);
@@ -794,9 +794,9 @@ int prestera_acl_vtcam_id_get(struct prestera_acl *acl, u8 lookup, u8 dir,
 	u32 new_vtcam_id;
 	int err;
 
-	/* find the vtcam that suits keymask. We do not expect to have
+	/* find the vtcam that suits keymask. We do analt expect to have
 	 * a big number of vtcams, so, the list type for vtcam list is
-	 * fine for now
+	 * fine for analw
 	 */
 	list_for_each_entry(vtcam, &acl->vtcam_list, list) {
 		if (lookup != vtcam->lookup ||
@@ -815,17 +815,17 @@ int prestera_acl_vtcam_id_get(struct prestera_acl *acl, u8 lookup, u8 dir,
 		}
 	}
 
-	/* vtcam not found, try to create new one */
+	/* vtcam analt found, try to create new one */
 	vtcam = kzalloc(sizeof(*vtcam), GFP_KERNEL);
 	if (!vtcam)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = prestera_hw_vtcam_create(acl->sw, lookup, keymask, &new_vtcam_id,
 				       dir);
 	if (err) {
 		kfree(vtcam);
 
-		/* cannot create new, try to fit into existing vtcam */
+		/* cananalt create new, try to fit into existing vtcam */
 		if (__prestera_acl_vtcam_id_try_fit(acl, lookup,
 						    keymask, &new_vtcam_id))
 			return err;
@@ -862,7 +862,7 @@ int prestera_acl_vtcam_id_put(struct prestera_acl *acl, u32 vtcam_id)
 			return 0;
 
 		err = prestera_hw_vtcam_destroy(acl->sw, vtcam->id);
-		if (err && err != -ENODEV) {
+		if (err && err != -EANALDEV) {
 			refcount_set(&vtcam->refcount, 1);
 			return err;
 		}
@@ -872,7 +872,7 @@ int prestera_acl_vtcam_id_put(struct prestera_acl *acl, u32 vtcam_id)
 		return 0;
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 int prestera_acl_init(struct prestera_switch *sw)
@@ -882,7 +882,7 @@ int prestera_acl_init(struct prestera_switch *sw)
 
 	acl = kzalloc(sizeof(*acl), GFP_KERNEL);
 	if (!acl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	acl->sw = sw;
 	INIT_LIST_HEAD(&acl->rules);

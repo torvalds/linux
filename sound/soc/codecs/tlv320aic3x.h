@@ -2,7 +2,7 @@
 /*
  * ALSA SoC TLV320AIC3X codec driver
  *
- * Author:      Vladimir Barinov, <vbarinov@embeddedalley.com>
+ * Author:      Vladimir Barianalv, <vbarianalv@embeddedalley.com>
  * Copyright:   (C) 2007 MontaVista Software, Inc., <source@mvista.com>
  */
 
@@ -125,14 +125,14 @@ void aic3x_remove(struct device *dev);
 #define PGAR_2_HPRCOM_VOL		70
 #define DACR1_2_HPRCOM_VOL		71
 #define HPRCOM_CTRL			72
-/* Mono Line Output Plus/Minus control registers */
-#define LINE2L_2_MONOLOPM_VOL		73
-#define PGAL_2_MONOLOPM_VOL		74
-#define DACL1_2_MONOLOPM_VOL		75
-#define LINE2R_2_MONOLOPM_VOL		76
-#define PGAR_2_MONOLOPM_VOL		77
-#define DACR1_2_MONOLOPM_VOL		78
-#define MONOLOPM_CTRL			79
+/* Moanal Line Output Plus/Minus control registers */
+#define LINE2L_2_MOANALLOPM_VOL		73
+#define PGAL_2_MOANALLOPM_VOL		74
+#define DACL1_2_MOANALLOPM_VOL		75
+#define LINE2R_2_MOANALLOPM_VOL		76
+#define PGAR_2_MOANALLOPM_VOL		77
+#define DACR1_2_MOANALLOPM_VOL		78
+#define MOANALLOPM_CTRL			79
 /* Class-D speaker driver on tlv320aic3007 */
 #define CLASSD_CTRL			73
 /* Left Line Output Plus/Minus control registers */
@@ -189,8 +189,8 @@ void aic3x_remove(struct device *dev);
 #define RDAC2RCH		(0x1 << 1)
 #define LDAC2RCH		(0x2 << 3)
 #define RDAC2LCH		(0x2 << 1)
-#define LDAC2MONOMIX		(0x3 << 3)
-#define RDAC2MONOMIX		(0x3 << 1)
+#define LDAC2MOANALMIX		(0x3 << 3)
+#define RDAC2MOANALMIX		(0x3 << 1)
 
 /* PLL registers bitfields */
 #define PLLP_SHIFT		0
@@ -238,7 +238,7 @@ void aic3x_remove(struct device *dev);
 #define HPROUT_PWR_ON		0x01
 #define HPLCOM_PWR_ON		0x01
 #define HPRCOM_PWR_ON		0x01
-#define MONOLOPM_PWR_ON		0x01
+#define MOANALLOPM_PWR_ON		0x01
 #define LLOPM_PWR_ON		0x01
 #define RLOPM_PWR_ON	0x01
 
@@ -307,7 +307,7 @@ enum {
 	AIC3X_GPIO1_FUNC_CLOCK_MUX_DIV4		= 4,
 	AIC3X_GPIO1_FUNC_CLOCK_MUX_DIV8		= 5,
 	AIC3X_GPIO1_FUNC_SHORT_CIRCUIT_IRQ	= 6,
-	AIC3X_GPIO1_FUNC_AGC_NOISE_IRQ		= 7,
+	AIC3X_GPIO1_FUNC_AGC_ANALISE_IRQ		= 7,
 	AIC3X_GPIO1_FUNC_INPUT			= 8,
 	AIC3X_GPIO1_FUNC_OUTPUT			= 9,
 	AIC3X_GPIO1_FUNC_DIGITAL_MIC_MODCLK	= 10,
@@ -330,7 +330,7 @@ enum {
 	AIC3X_GPIO2_FUNC_SHORT_CIRCUIT_OR_AGC_IRQ = 11,
 	AIC3X_GPIO2_FUNC_HEADSET_OR_BUTTON_PRESS_OR_SHORT_CIRCUIT_IRQ = 12,
 	AIC3X_GPIO2_FUNC_SHORT_CIRCUIT_IRQ	= 13,
-	AIC3X_GPIO2_FUNC_AGC_NOISE_IRQ		= 14,
+	AIC3X_GPIO2_FUNC_AGC_ANALISE_IRQ		= 14,
 	AIC3X_GPIO2_FUNC_BUTTON_PRESS_IRQ	= 15
 };
 

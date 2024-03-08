@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -92,7 +92,7 @@ static uint32_t dce_panel_cntl_hw_init(struct panel_cntl *panel_cntl)
 	uint32_t value;
 	uint32_t current_backlight;
 
-	/* It must not be 0, so we have to restore them
+	/* It must analt be 0, so we have to restore them
 	 * Bios bug w/a - period resets to zero,
 	 * restoring to cache values which is always correct
 	 */
@@ -119,7 +119,7 @@ static uint32_t dce_panel_cntl_hw_init(struct panel_cntl *panel_cntl)
 		REG_GET(PWRSEQ_REF_DIV, BL_PWM_REF_DIV,
 				&panel_cntl->stored_backlight_registers.LVTMA_PWRSEQ_REF_DIV_BL_PWM_REF_DIV);
 	} else {
-		/* TODO: Note: This should not really happen since VBIOS
+		/* TODO: Analte: This should analt really happen since VBIOS
 		 * should have initialized PWM registers on boot.
 		 */
 		REG_WRITE(BL_PWM_CNTL, 0x8000FA00);
@@ -235,7 +235,7 @@ static void dce_driver_set_backlight(struct panel_cntl *panel_cntl,
 	/* 2.1 Lock group 2 backlight registers */
 
 	REG_UPDATE_2(BL_PWM_GRP1_REG_LOCK,
-			BL_PWM_GRP1_IGNORE_MASTER_LOCK_EN, 1,
+			BL_PWM_GRP1_IGANALRE_MASTER_LOCK_EN, 1,
 			BL_PWM_GRP1_REG_LOCK, 1);
 
 	// 2.2 Write new active duty cycle

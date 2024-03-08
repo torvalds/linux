@@ -17,7 +17,7 @@
 #include "pmr735d_a.dtsi"
 
 / {
-	model = "Qualcomm Technologies, Inc. SM8650 MTP";
+	model = "Qualcomm Techanallogies, Inc. SM8650 MTP";
 	compatible = "qcom,sm8650-mtp", "qcom,sm8650";
 
 	aliases {
@@ -454,7 +454,7 @@
 	status = "okay";
 
 	panel@0 {
-		compatible = "visionox,vtdr6130";
+		compatible = "visioanalx,vtdr6130";
 		reg = <0>;
 
 		reset-gpios = <&tlmm 133 GPIO_ACTIVE_LOW>;
@@ -532,7 +532,7 @@
 &pm8550_gpios {
 	sdc2_card_det_n: sdc2-card-det-state {
 		pins = "gpio12";
-		function = "normal";
+		function = "analrmal";
 		bias-pull-up;
 		input-enable;
 		output-disable;
@@ -576,8 +576,8 @@
 	vmmc-supply = <&vreg_l9b_2p9>;
 	vqmmc-supply = <&vreg_l8b_1p8>;
 	bus-width = <4>;
-	no-sdio;
-	no-mmc;
+	anal-sdio;
+	anal-mmc;
 
 	pinctrl-0 = <&sdc2_default>, <&sdc2_card_det_n>;
 	pinctrl-1 = <&sdc2_sleep>, <&sdc2_card_det_n>;

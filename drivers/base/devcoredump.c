@@ -30,7 +30,7 @@ struct devcd_entry {
 	 * user/kernel space which happens when devcd is added with device_add()
 	 * and that sends uevent to user space. User space reads the uevents,
 	 * and calls to devcd_data_write() which try to modify the work which is
-	 * not even initialized/queued from devcoredump.
+	 * analt even initialized/queued from devcoredump.
 	 *
 	 *
 	 *
@@ -50,7 +50,7 @@ struct devcd_entry {
 	 *       schedule_delayed_work()
 	 *
 	 *
-	 * Also, mutex alone would not be enough to avoid scheduling of
+	 * Also, mutex alone would analt be eanalugh to avoid scheduling of
 	 * del_wk work after it get flush from a call to devcd_free()
 	 * mentioned as below.
 	 *
@@ -87,8 +87,8 @@ static void devcd_dev_release(struct device *dev)
 	module_put(devcd->owner);
 
 	/*
-	 * this seems racy, but I don't see a notifier or such on
-	 * a struct device to know when it goes away?
+	 * this seems racy, but I don't see a analtifier or such on
+	 * a struct device to kanalw when it goes away?
 	 */
 	if (devcd->failing_dev->kobj.sd)
 		sysfs_delete_link(&devcd->failing_dev->kobj, &dev->kobj,
@@ -192,9 +192,9 @@ static ssize_t disabled_show(const struct class *class, const struct class_attri
  * In the above diagram, It looks like disabled_store() would be racing with parallely
  * running devcd_del() and result in memory abort while acquiring devcd->mutex which
  * is called after kfree of devcd memory  after dropping its last reference with
- * put_device(). However, this will not happens as fn(dev, data) runs
- * with its own reference to device via klist_node so it is not its last reference.
- * so, above situation would not occur.
+ * put_device(). However, this will analt happens as fn(dev, data) runs
+ * with its own reference to device via klist_analde so it is analt its last reference.
+ * so, above situation would analt occur.
  */
 
 static ssize_t disabled_store(const struct class *class, const struct class_attribute *attr,
@@ -204,7 +204,7 @@ static ssize_t disabled_store(const struct class *class, const struct class_attr
 
 	/*
 	 * This essentially makes the attribute write-once, since you can't
-	 * go back to not having it disabled. This is intentional, it serves
+	 * go back to analt having it disabled. This is intentional, it serves
 	 * as a system lockdown feature.
 	 */
 	if (tmp != 1)
@@ -250,7 +250,7 @@ static void devcd_freev(void *data)
  * @gfp: allocation flags
  *
  * This function takes ownership of the vmalloc'ed data and will free
- * it when it is no longer used. See dev_coredumpm() for more information.
+ * it when it is anal longer used. See dev_coredumpm() for more information.
  */
 void dev_coredumpv(struct device *dev, void *data, size_t datalen,
 		   gfp_t gfp)
@@ -269,7 +269,7 @@ static int devcd_match_failing(struct device *dev, const void *failing)
 /**
  * devcd_free_sgtable - free all the memory of the given scatterlist table
  * (i.e. both pages and scatterlist instances)
- * NOTE: if two tables allocated with devcd_alloc_sgtable and then chained
+ * ANALTE: if two tables allocated with devcd_alloc_sgtable and then chained
  * using the sg_chain function then that function should be called only once
  * on the chained table
  * @data: pointer to sg_table to free
@@ -316,7 +316,7 @@ static ssize_t devcd_read_from_sgtable(char *buffer, loff_t offset,
  *
  * Creates a new device coredump for the given device. If a previous one hasn't
  * been read yet, the new coredump is discarded. The data lifetime is determined
- * by the device coredump framework and when it is no longer needed the @free
+ * by the device coredump framework and when it is anal longer needed the @free
  * function will be called to free the data.
  */
 void dev_coredumpm(struct device *dev, struct module *owner,
@@ -367,7 +367,7 @@ void dev_coredumpm(struct device *dev, struct module *owner,
 		goto put_device;
 
 	/*
-	 * These should normally not fail, but there is no problem
+	 * These should analrmally analt fail, but there is anal problem
 	 * continuing without the links, so just warn instead of
 	 * failing.
 	 */
@@ -403,7 +403,7 @@ EXPORT_SYMBOL_GPL(dev_coredumpm);
  *
  * Creates a new device coredump for the given device. If a previous one hasn't
  * been read yet, the new coredump is discarded. The data lifetime is determined
- * by the device coredump framework and when it is no longer needed
+ * by the device coredump framework and when it is anal longer needed
  * it will free the data.
  */
 void dev_coredumpsg(struct device *dev, struct scatterlist *table,

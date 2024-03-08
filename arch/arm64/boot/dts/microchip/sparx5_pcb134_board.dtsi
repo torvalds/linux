@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2020 Microchip Technology Inc. and its subsidiaries.
+ * Copyright (c) 2020 Microchip Techanallogy Inc. and its subsidiaries.
  */
 
 /dts-v1/;
@@ -275,7 +275,7 @@
 &spi0 {
 	status = "okay";
 	flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		spi-max-frequency = <8000000>;
 		reg = <0>;
 	};
@@ -290,7 +290,7 @@
 		#size-cells = <0>;
 		reg = <0>;	/* CS0 */
 		flash@9 {
-			compatible = "jedec,spi-nor";
+			compatible = "jedec,spi-analr";
 			spi-max-frequency = <8000000>;
 			reg = <0x9>;	/* SPI */
 		};

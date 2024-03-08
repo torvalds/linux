@@ -57,7 +57,7 @@ int irdma_hmc_init_pble(struct irdma_sc_dev *dev,
 	INIT_LIST_HEAD(&pble_rsrc->pinfo.clist);
 	if (add_pble_prm(pble_rsrc)) {
 		irdma_destroy_pble_prm(pble_rsrc);
-		status = -ENOMEM;
+		status = -EANALMEM;
 	}
 
 	return status;
@@ -149,7 +149,7 @@ static int add_bp_pages(struct irdma_hmc_pble_rsrc *pble_rsrc,
 	u32 i;
 
 	if (irdma_pble_get_paged_mem(chunk, info->pages))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	status = irdma_add_sd_table_entry(dev->hw, hmc_info, info->idx.sd_idx,
 					  IRDMA_SD_TYPE_PAGED,
@@ -217,7 +217,7 @@ static int add_pble_prm(struct irdma_hmc_pble_rsrc *pble_rsrc)
 	u32 pages;
 
 	if (pble_rsrc->unallocated_pble < PBLE_PER_PAGE)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (pble_rsrc->next_fpm_addr & 0xfff)
 		return -EINVAL;
@@ -225,7 +225,7 @@ static int add_pble_prm(struct irdma_hmc_pble_rsrc *pble_rsrc)
 	chunkmem.size = sizeof(*chunk);
 	chunkmem.va = kzalloc(chunkmem.size, GFP_KERNEL);
 	if (!chunkmem.va)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chunk = chunkmem.va;
 	chunk->chunkmem = chunkmem;
@@ -352,7 +352,7 @@ static int get_lvl2_pble(struct irdma_hmc_pble_rsrc *pble_rsrc,
 	lvl2->leafmem.size = (sizeof(*leaf) * total);
 	lvl2->leafmem.va = kzalloc(lvl2->leafmem.size, GFP_KERNEL);
 	if (!lvl2->leafmem.va)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lvl2->leaf = lvl2->leafmem.va;
 	leaf = lvl2->leaf;
@@ -361,7 +361,7 @@ static int get_lvl2_pble(struct irdma_hmc_pble_rsrc *pble_rsrc,
 	if (ret_code) {
 		kfree(lvl2->leafmem.va);
 		lvl2->leaf = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	root->idx = fpm_to_idx(pble_rsrc, fpm_addr);
@@ -390,7 +390,7 @@ static int get_lvl2_pble(struct irdma_hmc_pble_rsrc *pble_rsrc,
 error:
 	free_lvl2(pble_rsrc, palloc);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /**
@@ -409,7 +409,7 @@ static int get_lvl1_pble(struct irdma_hmc_pble_rsrc *pble_rsrc,
 				       palloc->total_cnt << 3, &lvl1->addr,
 				       &fpm_addr);
 	if (ret_code)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	palloc->level = PBLE_LEVEL_1;
 	lvl1->idx = fpm_to_idx(pble_rsrc, fpm_addr);

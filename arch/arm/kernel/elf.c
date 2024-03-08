@@ -23,7 +23,7 @@ int elf_check_arch(const struct elf32_hdr *x)
 		return 0;
 
 	eflags = x->e_flags;
-	if ((eflags & EF_ARM_EABI_MASK) == EF_ARM_EABI_UNKNOWN) {
+	if ((eflags & EF_ARM_EABI_MASK) == EF_ARM_EABI_UNKANALWN) {
 		unsigned int flt_fmt;
 
 		/* APCS26 is only allowed if the CPU supports it */
@@ -54,7 +54,7 @@ void elf_set_personality(const struct elf32_hdr *x)
 	/*
 	 * APCS-26 is only valid for OABI executables
 	 */
-	if ((eflags & EF_ARM_EABI_MASK) == EF_ARM_EABI_UNKNOWN &&
+	if ((eflags & EF_ARM_EABI_MASK) == EF_ARM_EABI_UNKANALWN &&
 	    (eflags & EF_ARM_APCS_26))
 		personality &= ~ADDR_LIMIT_32BIT;
 	else
@@ -65,7 +65,7 @@ void elf_set_personality(const struct elf32_hdr *x)
 	/*
 	 * Since the FPA coprocessor uses CP1 and CP2, and iWMMXt uses CP0
 	 * and CP1, we only enable access to the iWMMXt coprocessor if the
-	 * binary is EABI or softfloat (and thus, guaranteed not to use
+	 * binary is EABI or softfloat (and thus, guaranteed analt to use
 	 * FPA instructions.)
 	 */
 	if (elf_hwcap & HWCAP_IWMMXT &&
@@ -88,17 +88,17 @@ EXPORT_SYMBOL(elf_set_personality);
  * ---------------------|------------|------------|
  * missing PT_GNU_STACK | exec-all   | exec-all   |
  * PT_GNU_STACK == RWX  | exec-all   | exec-stack |
- * PT_GNU_STACK == RW   | exec-all   | exec-none  |
+ * PT_GNU_STACK == RW   | exec-all   | exec-analne  |
  *
  *  exec-all  : all PROT_READ user mappings are executable, except when
- *              backed by files on a noexec-filesystem.
- *  exec-none : only PROT_EXEC user mappings are executable.
+ *              backed by files on a analexec-filesystem.
+ *  exec-analne : only PROT_EXEC user mappings are executable.
  *  exec-stack: only the stack and PROT_EXEC user mappings are executable.
  *
- *  *this column has no architectural effect: NX markings are ignored by
+ *  *this column has anal architectural effect: NX markings are iganalred by
  *   hardware, but may have behavioral effects when "wants X" collides with
- *   "cannot be X" constraints in memory permission flags, as in
- *   https://lkml.kernel.org/r/20190418055759.GA3155@mellanox.com
+ *   "cananalt be X" constraints in memory permission flags, as in
+ *   https://lkml.kernel.org/r/20190418055759.GA3155@mellaanalx.com
  *
  */
 int arm_elf_read_implies_exec(int executable_stack)

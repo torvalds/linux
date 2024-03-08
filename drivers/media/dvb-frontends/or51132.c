@@ -170,7 +170,7 @@ static int or51132_load_firmware (struct dvb_frontend* fe, const struct firmware
 	for (i=0;i<4;i++) {
 		/* Once upon a time, this command might have had something
 		   to do with getting the firmware version, but it's
-		   not used anymore:
+		   analt used anymore:
 		   {0x04,0x00,0x30,0x00,i+1} */
 		/* Read 8 bytes, two bytes at a time */
 		if ((ret = or51132_readbuf(state, &rec_buf[i*2], 2))) {
@@ -226,16 +226,16 @@ static int or51132_setmode(struct dvb_frontend* fe)
 
 	switch (state->current_modulation) {
 	case VSB_8:
-		/* Auto CH, Auto NTSC rej, MPEGser, MPEG2tr, phase noise-high */
+		/* Auto CH, Auto NTSC rej, MPEGser, MPEG2tr, phase analise-high */
 		cmd_buf1[2] = 0x50;
-		/* REC MODE inv IF spectrum, Normal */
+		/* REC MODE inv IF spectrum, Analrmal */
 		cmd_buf2[1] = 0x03;
 		/* Channel MODE ATSC/VSB8 */
 		cmd_buf2[2] = 0x06;
 		break;
 	/* All QAM modes are:
-	   Auto-deinterleave; MPEGser, MPEG2tr, phase noise-high
-	   REC MODE Normal Carrier Lock */
+	   Auto-deinterleave; MPEGser, MPEG2tr, phase analise-high
+	   REC MODE Analrmal Carrier Lock */
 	case QAM_AUTO:
 		/* Channel MODE Auto QAM64/256 */
 		cmd_buf2[2] = 0x4f;
@@ -274,7 +274,7 @@ static int or51132_setmode(struct dvb_frontend* fe)
 
 /* Some modulations use the same firmware.  This classifies modulations
    by the firmware they use. */
-#define MOD_FWCLASS_UNKNOWN	0
+#define MOD_FWCLASS_UNKANALWN	0
 #define MOD_FWCLASS_VSB		1
 #define MOD_FWCLASS_QAM		2
 static int modulation_fw_class(enum fe_modulation modulation)
@@ -287,7 +287,7 @@ static int modulation_fw_class(enum fe_modulation modulation)
 	case QAM_256:
 		return MOD_FWCLASS_QAM;
 	default:
-		return MOD_FWCLASS_UNKNOWN;
+		return MOD_FWCLASS_UNKANALWN;
 	}
 }
 
@@ -308,7 +308,7 @@ static int or51132_set_parameters(struct dvb_frontend *fe)
 			dprintk("set_parameters VSB MODE\n");
 			fwname = OR51132_VSB_FIRMWARE;
 
-			/* Set non-punctured clock for VSB */
+			/* Set analn-punctured clock for VSB */
 			clock_mode = 0;
 			break;
 		case MOD_FWCLASS_QAM:
@@ -327,7 +327,7 @@ static int or51132_set_parameters(struct dvb_frontend *fe)
 		       fwname);
 		ret = request_firmware(&fw, fwname, state->i2c->dev.parent);
 		if (ret) {
-			printk(KERN_WARNING "or51132: No firmware uploaded(timeout or file not found?)\n");
+			printk(KERN_WARNING "or51132: Anal firmware uploaded(timeout or file analt found?)\n");
 			return ret;
 		}
 		ret = or51132_load_firmware(fe, fw);
@@ -384,7 +384,7 @@ start:
 	default:
 		if (retry--)
 			goto start;
-		printk(KERN_WARNING "or51132: unknown status 0x%02x\n",
+		printk(KERN_WARNING "or51132: unkanalwn status 0x%02x\n",
 		       status&0xff);
 		return -EREMOTEIO;
 	}
@@ -442,7 +442,7 @@ static int or51132_read_status(struct dvb_frontend *fe, enum fe_status *status)
 
 static u32 calculate_snr(u32 mse, u32 c)
 {
-	if (mse == 0) /* No signal */
+	if (mse == 0) /* Anal signal */
 		return 0;
 
 	mse = 2*intlog10(mse);
@@ -458,18 +458,18 @@ static u32 calculate_snr(u32 mse, u32 c)
 static int or51132_read_snr(struct dvb_frontend* fe, u16* snr)
 {
 	struct or51132_state* state = fe->demodulator_priv;
-	int noise, reg;
+	int analise, reg;
 	u32 c, usK = 0;
 	int retry = 1;
 
 start:
 	/* SNR after Equalizer */
-	noise = or51132_readreg(state, 0x02);
-	if (noise < 0) {
+	analise = or51132_readreg(state, 0x02);
+	if (analise < 0) {
 		printk(KERN_WARNING "or51132: read_snr: error reading equalizer\n");
 		return -EREMOTEIO;
 	}
-	dprintk("read_snr noise (%d)\n", noise);
+	dprintk("read_snr analise (%d)\n", analise);
 
 	/* Read status, contains modulation type for QAM_AUTO and
 	   NTSC filter for VSB */
@@ -490,18 +490,18 @@ start:
 		c = 150290396;
 		break;
 	default:
-		printk(KERN_WARNING "or51132: unknown status 0x%02x\n", reg&0xff);
+		printk(KERN_WARNING "or51132: unkanalwn status 0x%02x\n", reg&0xff);
 		if (retry--) goto start;
 		return -EREMOTEIO;
 	}
 	dprintk("%s: modulation %02x, NTSC rej O%s\n", __func__,
 		reg&0xff, reg&0x1000?"n":"ff");
 
-	/* Calculate SNR using noise, c, and NTSC rejection correction */
-	state->snr = calculate_snr(noise, c) - usK;
+	/* Calculate SNR using analise, c, and NTSC rejection correction */
+	state->snr = calculate_snr(analise, c) - usK;
 	*snr = (state->snr) >> 16;
 
-	dprintk("%s: noise = 0x%08x, snr = %d.%02d dB\n", __func__, noise,
+	dprintk("%s: analise = 0x%08x, snr = %d.%02d dB\n", __func__, analise,
 		state->snr >> 24, (((state->snr>>8) & 0xffff) * 100) >> 16);
 
 	return 0;

@@ -26,11 +26,11 @@
 #endif
 
 /* Instance Attributes Table */
-#define ISCSI_INST_NUM_NODES		1
+#define ISCSI_INST_NUM_ANALDES		1
 #define ISCSI_INST_DESCR		"Storage Engine Target"
 #define ISCSI_DISCONTINUITY_TIME	0
 
-#define ISCSI_NODE_INDEX		1
+#define ISCSI_ANALDE_INDEX		1
 
 #define ISPRINT(a)   ((a >= ' ') && (a <= '~'))
 
@@ -73,10 +73,10 @@ static ssize_t iscsi_stat_instance_portals_show(struct config_item *item,
 			iscsi_instance_tiqn(item)->tiqn_num_tpg_nps);
 }
 
-static ssize_t iscsi_stat_instance_nodes_show(struct config_item *item,
+static ssize_t iscsi_stat_instance_analdes_show(struct config_item *item,
 		char *page)
 {
-	return snprintf(page, PAGE_SIZE, "%u\n", ISCSI_INST_NUM_NODES);
+	return snprintf(page, PAGE_SIZE, "%u\n", ISCSI_INST_NUM_ANALDES);
 }
 
 static ssize_t iscsi_stat_instance_sessions_show(struct config_item *item,
@@ -120,7 +120,7 @@ static ssize_t iscsi_stat_instance_fail_rem_name_show(struct config_item *item,
 
 	return snprintf(page, PAGE_SIZE, "%s\n",
 			sess_err->last_sess_fail_rem_name[0] ?
-			sess_err->last_sess_fail_rem_name : NONE);
+			sess_err->last_sess_fail_rem_name : ANALNE);
 }
 
 static ssize_t iscsi_stat_instance_disc_time_show(struct config_item *item,
@@ -151,7 +151,7 @@ CONFIGFS_ATTR_RO(iscsi_stat_instance_, inst);
 CONFIGFS_ATTR_RO(iscsi_stat_instance_, min_ver);
 CONFIGFS_ATTR_RO(iscsi_stat_instance_, max_ver);
 CONFIGFS_ATTR_RO(iscsi_stat_instance_, portals);
-CONFIGFS_ATTR_RO(iscsi_stat_instance_, nodes);
+CONFIGFS_ATTR_RO(iscsi_stat_instance_, analdes);
 CONFIGFS_ATTR_RO(iscsi_stat_instance_, sessions);
 CONFIGFS_ATTR_RO(iscsi_stat_instance_, fail_sess);
 CONFIGFS_ATTR_RO(iscsi_stat_instance_, fail_type);
@@ -166,7 +166,7 @@ static struct configfs_attribute *iscsi_stat_instance_attrs[] = {
 	&iscsi_stat_instance_attr_min_ver,
 	&iscsi_stat_instance_attr_max_ver,
 	&iscsi_stat_instance_attr_portals,
-	&iscsi_stat_instance_attr_nodes,
+	&iscsi_stat_instance_attr_analdes,
 	&iscsi_stat_instance_attr_sessions,
 	&iscsi_stat_instance_attr_fail_sess,
 	&iscsi_stat_instance_attr_fail_type,
@@ -265,7 +265,7 @@ static ssize_t iscsi_stat_tgt_attr_inst_show(struct config_item *item,
 static ssize_t iscsi_stat_tgt_attr_indx_show(struct config_item *item,
 		char *page)
 {
-	return snprintf(page, PAGE_SIZE, "%u\n", ISCSI_NODE_INDEX);
+	return snprintf(page, PAGE_SIZE, "%u\n", ISCSI_ANALDE_INDEX);
 }
 
 static ssize_t iscsi_stat_tgt_attr_login_fails_show(struct config_item *item,
@@ -323,7 +323,7 @@ static ssize_t iscsi_stat_tgt_attr_fail_intr_name_show(struct config_item *item,
 
 	spin_lock(&lstat->lock);
 	snprintf(buf, ISCSI_IQN_LEN, "%s", lstat->last_intr_fail_name[0] ?
-				lstat->last_intr_fail_name : NONE);
+				lstat->last_intr_fail_name : ANALNE);
 	spin_unlock(&lstat->lock);
 
 	return snprintf(page, PAGE_SIZE, "%s\n", buf);
@@ -405,7 +405,7 @@ static ssize_t iscsi_stat_login_inst_show(struct config_item *item, char *page)
 static ssize_t iscsi_stat_login_indx_show(struct config_item *item,
 		char *page)
 {
-	return snprintf(page, PAGE_SIZE, "%u\n", ISCSI_NODE_INDEX);
+	return snprintf(page, PAGE_SIZE, "%u\n", ISCSI_ANALDE_INDEX);
 }
 
 static ssize_t iscsi_stat_login_accepts_show(struct config_item *item,
@@ -536,37 +536,37 @@ static ssize_t iscsi_stat_logout_inst_show(struct config_item *item, char *page)
 
 static ssize_t iscsi_stat_logout_indx_show(struct config_item *item, char *page)
 {
-	return snprintf(page, PAGE_SIZE, "%u\n", ISCSI_NODE_INDEX);
+	return snprintf(page, PAGE_SIZE, "%u\n", ISCSI_ANALDE_INDEX);
 }
 
-static ssize_t iscsi_stat_logout_normal_logouts_show(struct config_item *item,
+static ssize_t iscsi_stat_logout_analrmal_logouts_show(struct config_item *item,
 		char *page)
 {
 	struct iscsi_tiqn *tiqn = iscsi_logout_stat_tiqn(item);
 	struct iscsi_logout_stats *lstats = &tiqn->logout_stats;
 
-	return snprintf(page, PAGE_SIZE, "%u\n", lstats->normal_logouts);
+	return snprintf(page, PAGE_SIZE, "%u\n", lstats->analrmal_logouts);
 }
 
-static ssize_t iscsi_stat_logout_abnormal_logouts_show(struct config_item *item,
+static ssize_t iscsi_stat_logout_abanalrmal_logouts_show(struct config_item *item,
 		char *page)
 {
 	struct iscsi_tiqn *tiqn = iscsi_logout_stat_tiqn(item);
 	struct iscsi_logout_stats *lstats = &tiqn->logout_stats;
 
-	return snprintf(page, PAGE_SIZE, "%u\n", lstats->abnormal_logouts);
+	return snprintf(page, PAGE_SIZE, "%u\n", lstats->abanalrmal_logouts);
 }
 
 CONFIGFS_ATTR_RO(iscsi_stat_logout_, inst);
 CONFIGFS_ATTR_RO(iscsi_stat_logout_, indx);
-CONFIGFS_ATTR_RO(iscsi_stat_logout_, normal_logouts);
-CONFIGFS_ATTR_RO(iscsi_stat_logout_, abnormal_logouts);
+CONFIGFS_ATTR_RO(iscsi_stat_logout_, analrmal_logouts);
+CONFIGFS_ATTR_RO(iscsi_stat_logout_, abanalrmal_logouts);
 
 static struct configfs_attribute *iscsi_stat_logout_stats_attrs[] = {
 	&iscsi_stat_logout_attr_inst,
 	&iscsi_stat_logout_attr_indx,
-	&iscsi_stat_logout_attr_normal_logouts,
-	&iscsi_stat_logout_attr_abnormal_logouts,
+	&iscsi_stat_logout_attr_analrmal_logouts,
+	&iscsi_stat_logout_attr_abanalrmal_logouts,
 	NULL,
 };
 
@@ -578,27 +578,27 @@ const struct config_item_type iscsi_stat_logout_cit = {
 /*
  * Session Stats Table
  */
-static struct iscsi_node_acl *iscsi_stat_nacl(struct config_item *item)
+static struct iscsi_analde_acl *iscsi_stat_nacl(struct config_item *item)
 {
-	struct iscsi_node_stat_grps *igrps = container_of(to_config_group(item),
-			struct iscsi_node_stat_grps, iscsi_sess_stats_group);
-	return container_of(igrps, struct iscsi_node_acl, node_stat_grps);
+	struct iscsi_analde_stat_grps *igrps = container_of(to_config_group(item),
+			struct iscsi_analde_stat_grps, iscsi_sess_stats_group);
+	return container_of(igrps, struct iscsi_analde_acl, analde_stat_grps);
 }
 
 static ssize_t iscsi_stat_sess_inst_show(struct config_item *item, char *page)
 {
-	struct iscsi_node_acl *acl = iscsi_stat_nacl(item);
-	struct se_wwn *wwn = acl->se_node_acl.se_tpg->se_tpg_wwn;
+	struct iscsi_analde_acl *acl = iscsi_stat_nacl(item);
+	struct se_wwn *wwn = acl->se_analde_acl.se_tpg->se_tpg_wwn;
 	struct iscsi_tiqn *tiqn = container_of(wwn,
 			struct iscsi_tiqn, tiqn_wwn);
 
 	return snprintf(page, PAGE_SIZE, "%u\n", tiqn->tiqn_index);
 }
 
-static ssize_t iscsi_stat_sess_node_show(struct config_item *item, char *page)
+static ssize_t iscsi_stat_sess_analde_show(struct config_item *item, char *page)
 {
-	struct iscsi_node_acl *acl = iscsi_stat_nacl(item);
-	struct se_node_acl *se_nacl = &acl->se_node_acl;
+	struct iscsi_analde_acl *acl = iscsi_stat_nacl(item);
+	struct se_analde_acl *se_nacl = &acl->se_analde_acl;
 	struct iscsit_session *sess;
 	struct se_session *se_sess;
 	ssize_t ret = 0;
@@ -609,7 +609,7 @@ static ssize_t iscsi_stat_sess_node_show(struct config_item *item, char *page)
 		sess = se_sess->fabric_sess_ptr;
 		if (sess)
 			ret = snprintf(page, PAGE_SIZE, "%u\n",
-				sess->sess_ops->SessionType ? 0 : ISCSI_NODE_INDEX);
+				sess->sess_ops->SessionType ? 0 : ISCSI_ANALDE_INDEX);
 	}
 	spin_unlock_bh(&se_nacl->nacl_sess_lock);
 
@@ -618,8 +618,8 @@ static ssize_t iscsi_stat_sess_node_show(struct config_item *item, char *page)
 
 static ssize_t iscsi_stat_sess_indx_show(struct config_item *item, char *page)
 {
-	struct iscsi_node_acl *acl = iscsi_stat_nacl(item);
-	struct se_node_acl *se_nacl = &acl->se_node_acl;
+	struct iscsi_analde_acl *acl = iscsi_stat_nacl(item);
+	struct se_analde_acl *se_nacl = &acl->se_analde_acl;
 	struct iscsit_session *sess;
 	struct se_session *se_sess;
 	ssize_t ret = 0;
@@ -640,8 +640,8 @@ static ssize_t iscsi_stat_sess_indx_show(struct config_item *item, char *page)
 static ssize_t iscsi_stat_sess_cmd_pdus_show(struct config_item *item,
 		char *page)
 {
-	struct iscsi_node_acl *acl = iscsi_stat_nacl(item);
-	struct se_node_acl *se_nacl = &acl->se_node_acl;
+	struct iscsi_analde_acl *acl = iscsi_stat_nacl(item);
+	struct se_analde_acl *se_nacl = &acl->se_analde_acl;
 	struct iscsit_session *sess;
 	struct se_session *se_sess;
 	ssize_t ret = 0;
@@ -662,8 +662,8 @@ static ssize_t iscsi_stat_sess_cmd_pdus_show(struct config_item *item,
 static ssize_t iscsi_stat_sess_rsp_pdus_show(struct config_item *item,
 		char *page)
 {
-	struct iscsi_node_acl *acl = iscsi_stat_nacl(item);
-	struct se_node_acl *se_nacl = &acl->se_node_acl;
+	struct iscsi_analde_acl *acl = iscsi_stat_nacl(item);
+	struct se_analde_acl *se_nacl = &acl->se_analde_acl;
 	struct iscsit_session *sess;
 	struct se_session *se_sess;
 	ssize_t ret = 0;
@@ -684,8 +684,8 @@ static ssize_t iscsi_stat_sess_rsp_pdus_show(struct config_item *item,
 static ssize_t iscsi_stat_sess_txdata_octs_show(struct config_item *item,
 		char *page)
 {
-	struct iscsi_node_acl *acl = iscsi_stat_nacl(item);
-	struct se_node_acl *se_nacl = &acl->se_node_acl;
+	struct iscsi_analde_acl *acl = iscsi_stat_nacl(item);
+	struct se_analde_acl *se_nacl = &acl->se_analde_acl;
 	struct iscsit_session *sess;
 	struct se_session *se_sess;
 	ssize_t ret = 0;
@@ -706,8 +706,8 @@ static ssize_t iscsi_stat_sess_txdata_octs_show(struct config_item *item,
 static ssize_t iscsi_stat_sess_rxdata_octs_show(struct config_item *item,
 		char *page)
 {
-	struct iscsi_node_acl *acl = iscsi_stat_nacl(item);
-	struct se_node_acl *se_nacl = &acl->se_node_acl;
+	struct iscsi_analde_acl *acl = iscsi_stat_nacl(item);
+	struct se_analde_acl *se_nacl = &acl->se_analde_acl;
 	struct iscsit_session *sess;
 	struct se_session *se_sess;
 	ssize_t ret = 0;
@@ -728,8 +728,8 @@ static ssize_t iscsi_stat_sess_rxdata_octs_show(struct config_item *item,
 static ssize_t iscsi_stat_sess_conn_digest_errors_show(struct config_item *item,
 		char *page)
 {
-	struct iscsi_node_acl *acl = iscsi_stat_nacl(item);
-	struct se_node_acl *se_nacl = &acl->se_node_acl;
+	struct iscsi_analde_acl *acl = iscsi_stat_nacl(item);
+	struct se_analde_acl *se_nacl = &acl->se_analde_acl;
 	struct iscsit_session *sess;
 	struct se_session *se_sess;
 	ssize_t ret = 0;
@@ -750,8 +750,8 @@ static ssize_t iscsi_stat_sess_conn_digest_errors_show(struct config_item *item,
 static ssize_t iscsi_stat_sess_conn_timeout_errors_show(
 		struct config_item *item, char *page)
 {
-	struct iscsi_node_acl *acl = iscsi_stat_nacl(item);
-	struct se_node_acl *se_nacl = &acl->se_node_acl;
+	struct iscsi_analde_acl *acl = iscsi_stat_nacl(item);
+	struct se_analde_acl *se_nacl = &acl->se_analde_acl;
 	struct iscsit_session *sess;
 	struct se_session *se_sess;
 	ssize_t ret = 0;
@@ -770,7 +770,7 @@ static ssize_t iscsi_stat_sess_conn_timeout_errors_show(
 }
 
 CONFIGFS_ATTR_RO(iscsi_stat_sess_, inst);
-CONFIGFS_ATTR_RO(iscsi_stat_sess_, node);
+CONFIGFS_ATTR_RO(iscsi_stat_sess_, analde);
 CONFIGFS_ATTR_RO(iscsi_stat_sess_, indx);
 CONFIGFS_ATTR_RO(iscsi_stat_sess_, cmd_pdus);
 CONFIGFS_ATTR_RO(iscsi_stat_sess_, rsp_pdus);
@@ -781,7 +781,7 @@ CONFIGFS_ATTR_RO(iscsi_stat_sess_, conn_timeout_errors);
 
 static struct configfs_attribute *iscsi_stat_sess_stats_attrs[] = {
 	&iscsi_stat_sess_attr_inst,
-	&iscsi_stat_sess_attr_node,
+	&iscsi_stat_sess_attr_analde,
 	&iscsi_stat_sess_attr_indx,
 	&iscsi_stat_sess_attr_cmd_pdus,
 	&iscsi_stat_sess_attr_rsp_pdus,

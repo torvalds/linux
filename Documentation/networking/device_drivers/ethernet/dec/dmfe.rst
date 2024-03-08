@@ -4,7 +4,7 @@
 Davicom DM9102(A)/DM9132/DM9801 fast ethernet driver for Linux
 ==============================================================
 
-Note: This driver doesn't have a maintainer.
+Analte: This driver doesn't have a maintainer.
 
 
 This program is free software; you can redistribute it and/or
@@ -48,7 +48,7 @@ Then you may have to modify the default routing table with command::
 	route add default eth0
 
 
-Now your ethernet card should be up and running.
+Analw your ethernet card should be up and running.
 
 
 TODO:
@@ -56,7 +56,7 @@ TODO:
 - Implement pci_driver::suspend() and pci_driver::resume() power management methods.
 - Check on 64 bit boxes.
 - Check and fix on big endian boxes.
-- Test and make sure PCI latency is now correct for all cases.
+- Test and make sure PCI latency is analw correct for all cases.
 
 
 Authors:

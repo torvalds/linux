@@ -4,23 +4,23 @@ Broadcom BCM63138 DSL System-on-a-Chip device tree bindings
 Boards compatible with the BCM63138 DSL System-on-a-Chip should have the
 following properties:
 
-Required root node property:
+Required root analde property:
 
 compatible: should be "brcm,bcm63138"
 
-An optional Boot lookup table Device Tree node is required for secondary CPU
+An optional Boot lookup table Device Tree analde is required for secondary CPU
 initialization as well as a 'resets' phandle to the correct PMB controller as
 defined in reset/brcm,bcm63138-pmb.txt for this secondary CPU, and an
 'enable-method' property.
 
-Required properties for the Boot lookup table node:
+Required properties for the Boot lookup table analde:
 - compatible: should be "brcm,bcm63138-bootlut"
 - reg: register base address and length for the Boot Lookup table
 
-Optional properties for the primary CPU node:
+Optional properties for the primary CPU analde:
 - enable-method: should be "brcm,bcm63138"
 
-Optional properties for the secondary CPU node:
+Optional properties for the secondary CPU analde:
 - enable-method: should be "brcm,bcm63138"
 - resets: phandle to the relevant PMB controller, one integer indicating the internal
   bus number, and a second integer indicating the address of the CPU in the PMB
@@ -53,20 +53,20 @@ Example:
 =======
 reboot
 ------
-Two nodes are required for software reboot: a timer node and a syscon-reboot node.
+Two analdes are required for software reboot: a timer analde and a syscon-reboot analde.
 
-Timer node:
+Timer analde:
 
 - compatible: Must be "brcm,bcm6328-timer", "syscon"
 - reg: Register base address and length
 
-Syscon reboot node:
+Syscon reboot analde:
 
 See Documentation/devicetree/bindings/power/reset/syscon-reboot.yaml for the
 detailed list of properties, the two values defined below are specific to the
 BCM6328-style timer:
 
-- offset: Should be 0x34 to denote the offset of the TIMER_WD_TIMER_RESET register
+- offset: Should be 0x34 to deanalte the offset of the TIMER_WD_TIMER_RESET register
   from the beginning of the TIMER block
 - mask: Should be 1 for the SoftRst bit.
 

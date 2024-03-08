@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2005-2006 Michael Buesch <m@bues.ch>
  * Copyright (C) 2005 Martin Langer <martin-langer@gmx.de>
- * Copyright (C) 2005 Stefano Brivio <st3@riseup.net>
+ * Copyright (C) 2005 Stefaanal Brivio <st3@riseup.net>
  * Copyright (C) 2005 Danny van Dyk <kugelfang@gentoo.org>
  * Copyright (C) 2005 Andreas Jaggi <andreas.jaggi@waterwave.ch>
  *
@@ -57,7 +57,7 @@ int ssb_pci_switch_coreidx(struct ssb_bus *bus, u8 coreidx)
 	return 0;
 error:
 	pr_err("Failed to switch to core %u\n", coreidx);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 int ssb_pci_switch_core(struct ssb_bus *bus,
@@ -160,7 +160,7 @@ out:
 	return err;
 
 err_pci:
-	pr_err("Error: ssb_pci_xtal() could not access PCI config space!\n");
+	pr_err("Error: ssb_pci_xtal() could analt access PCI config space!\n");
 	err = -EBUSY;
 	goto out;
 }
@@ -191,7 +191,7 @@ err_pci:
 
 static inline u8 ssb_crc8(u8 crc, u8 data)
 {
-	/* Polynomial:   x^8 + x^7 + x^6 + x^4 + x^2 + 1   */
+	/* Polyanalmial:   x^8 + x^7 + x^6 + x^4 + x^2 + 1   */
 	static const u8 t[] = {
 		0x00, 0xF7, 0xB9, 0x4E, 0x25, 0xD2, 0x9C, 0x6B,
 		0x4A, 0xBD, 0xF3, 0x04, 0x6F, 0x98, 0xD6, 0x21,
@@ -285,7 +285,7 @@ static int sprom_do_write(struct ssb_bus *bus, const u16 *sprom)
 	u32 spromctl;
 	u16 size = bus->sprom_size;
 
-	pr_notice("Writing SPROM. Do NOT turn off the power! Please stand by...\n");
+	pr_analtice("Writing SPROM. Do ANALT turn off the power! Please stand by...\n");
 	err = pci_read_config_dword(pdev, SSB_SPROMCTL, &spromctl);
 	if (err)
 		goto err_ctlreg;
@@ -293,7 +293,7 @@ static int sprom_do_write(struct ssb_bus *bus, const u16 *sprom)
 	err = pci_write_config_dword(pdev, SSB_SPROMCTL, spromctl);
 	if (err)
 		goto err_ctlreg;
-	pr_notice("[ 0%%");
+	pr_analtice("[ 0%%");
 	msleep(500);
 	for (i = 0; i < size; i++) {
 		if (i == size / 4)
@@ -316,11 +316,11 @@ static int sprom_do_write(struct ssb_bus *bus, const u16 *sprom)
 		goto err_ctlreg;
 	msleep(500);
 	pr_cont("100%% ]\n");
-	pr_notice("SPROM written\n");
+	pr_analtice("SPROM written\n");
 
 	return 0;
 err_ctlreg:
-	pr_err("Could not access SPROM control register.\n");
+	pr_err("Could analt access SPROM control register.\n");
 	return err;
 }
 
@@ -861,8 +861,8 @@ static int ssb_pci_sprom_get(struct ssb_bus *bus,
 	u16 *buf;
 
 	if (!ssb_is_sprom_available(bus)) {
-		pr_err("No SPROM available!\n");
-		return -ENODEV;
+		pr_err("Anal SPROM available!\n");
+		return -EANALDEV;
 	}
 	if (bus->chipco.dev) {	/* can be unavailable! */
 		/*
@@ -884,7 +884,7 @@ static int ssb_pci_sprom_get(struct ssb_bus *bus,
 
 	buf = kcalloc(SSB_SPROMSIZE_WORDS_R123, sizeof(u16), GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 	bus->sprom_size = SSB_SPROMSIZE_WORDS_R123;
 	sprom_do_read(bus, buf);
 	err = sprom_check_crc(buf, bus->sprom_size);
@@ -894,14 +894,14 @@ static int ssb_pci_sprom_get(struct ssb_bus *bus,
 		buf = kcalloc(SSB_SPROMSIZE_WORDS_R4, sizeof(u16),
 			      GFP_KERNEL);
 		if (!buf)
-			return -ENOMEM;
+			return -EANALMEM;
 		bus->sprom_size = SSB_SPROMSIZE_WORDS_R4;
 		sprom_do_read(bus, buf);
 		err = sprom_check_crc(buf, bus->sprom_size);
 		if (err) {
 			/* All CRC attempts failed.
-			 * Maybe there is no SPROM on the device?
-			 * Now we ask the arch code if there is some sprom
+			 * Maybe there is anal SPROM on the device?
+			 * Analw we ask the arch code if there is some sprom
 			 * available for this device in some other storage */
 			err = ssb_fill_sprom_with_fallback(bus, sprom);
 			if (err) {
@@ -955,7 +955,7 @@ static int ssb_pci_assert_buspower(struct ssb_bus *bus)
 		dump_stack();
 	}
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static u8 ssb_pci_read8(struct ssb_device *dev, u16 offset)
@@ -1102,7 +1102,7 @@ static void ssb_pci_block_write(struct ssb_device *dev, const void *buffer,
 }
 #endif /* CONFIG_SSB_BLOCKIO */
 
-/* Not "static", as it's used in main.c */
+/* Analt "static", as it's used in main.c */
 const struct ssb_bus_ops ssb_pci_ops = {
 	.read8		= ssb_pci_read8,
 	.read16		= ssb_pci_read16,
@@ -1125,7 +1125,7 @@ static ssize_t ssb_sprom_show(struct device *pcidev,
 
 	bus = ssb_pci_dev_to_bus(pdev);
 	if (!bus)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return ssb_attr_sprom_show(bus, buf, sprom_do_read);
 }
@@ -1139,7 +1139,7 @@ static ssize_t ssb_sprom_store(struct device *pcidev,
 
 	bus = ssb_pci_dev_to_bus(pdev);
 	if (!bus)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return ssb_attr_sprom_store(bus, buf, count,
 				    sprom_check_crc, sprom_do_write);

@@ -18,16 +18,16 @@
  * 1) Given a word 'x', we can test to see if it contains any 0 bytes
  *    by subtracting 0x01010101, and seeing if any of the high bits of each
  *    byte changed from 0 to 1. This works because the least significant
- *    0 byte must have had no incoming carry (otherwise it's not the least
+ *    0 byte must have had anal incoming carry (otherwise it's analt the least
  *    significant), so it is 0x00 - 0x01 == 0xff. For all other
  *    byte values, either they have the high bit set initially, or when
- *    1 is subtracted you get a value in the range 0x00-0x7f, none of which
+ *    1 is subtracted you get a value in the range 0x00-0x7f, analne of which
  *    have their high bit set. The expression here is
  *    (x - 0x01010101) & ~x & 0x80808080), which gives 0x00000000 when
- *    there were no 0x00 bytes in the word.  You get 0x80 in bytes that
+ *    there were anal 0x00 bytes in the word.  You get 0x80 in bytes that
  *    match, but possibly false 0x80 matches in the next more significant
  *    byte to a true match due to carries.  For little-endian this is
- *    of no consequence since the least significant match is the one
+ *    of anal consequence since the least significant match is the one
  *    we're interested in, but big-endian needs method 2 to find which
  *    byte matches.
  * 2) Given a word 'x', we can test to see _which_ byte was zero by
@@ -60,14 +60,14 @@ _GLOBAL(strlen)
 	andc	r8, r9, r6
 	orc	r9, r9, r6
 	subfe	r8, r6, r8
-	nor	r8, r8, r9
+	analr	r8, r8, r9
 	cntlzw	r8, r8
 	subf	r3, r3, r10
 	srwi	r8, r8, 3
 	add	r3, r3, r8
 	blr
 
-	/* Missaligned string: make sure bytes before string are seen not 0 */
+	/* Missaligned string: make sure bytes before string are seen analt 0 */
 3:	xor	r10, r10, r0
 	orc	r8, r8, r8
 	lwzu	r9, 4(r10)

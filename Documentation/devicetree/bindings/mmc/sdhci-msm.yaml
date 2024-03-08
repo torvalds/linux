@@ -132,7 +132,7 @@ properties:
     minItems: 1
     maxItems: 8
     description: |
-      phandle to apps_smmu node with sid mask.
+      phandle to apps_smmu analde with sid mask.
 
   interconnects:
     minItems: 1
@@ -147,7 +147,7 @@ properties:
       - const: cpu-sdhc
 
   power-domains:
-    description: A phandle to sdhci power domain node
+    description: A phandle to sdhci power domain analde
     maxItems: 1
 
   operating-points-v2: true

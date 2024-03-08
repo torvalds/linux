@@ -48,7 +48,7 @@ struct frame_vector *vb2_create_framevec(unsigned long start,
 	nr = last - first + 1;
 	vec = frame_vector_create(nr);
 	if (!vec)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	ret = get_vaddr_frames(start & PAGE_MASK, nr, write, vec);
 	if (ret < 0)
 		goto out_destroy;
@@ -84,7 +84,7 @@ EXPORT_SYMBOL(vb2_destroy_framevec);
  * vb2_common_vm_open() - increase refcount of the vma
  * @vma:	virtual memory region for the mapping
  *
- * This function adds another user to the provided vma. It expects
+ * This function adds aanalther user to the provided vma. It expects
  * struct vb2_vmarea_handler pointer in vma->vm_private_data.
  */
 static void vb2_common_vm_open(struct vm_area_struct *vma)

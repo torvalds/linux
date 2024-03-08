@@ -113,7 +113,7 @@ update_interval		data conversion time; affects number of samples used
 			to average results for shunt and bus voltages.
 ======================= ====================================================
 
-.. note::
+.. analte::
 
    - Configure `shunt_resistor` before configure `power1_crit`, because power
      value is calculated based on `shunt_resistor` set.

@@ -1,24 +1,24 @@
 [
     {
-        "BriefDescription": "Counts the number of request that were not accepted into the L2Q because the L2Q is FULL.",
+        "BriefDescription": "Counts the number of request that were analt accepted into the L2Q because the L2Q is FULL.",
         "EventCode": "0x31",
         "EventName": "CORE_REJECT_L2Q.ALL",
-        "PublicDescription": "Counts the number of (demand and L1 prefetchers) core requests rejected by the L2Q due to a full or nearly full w condition which likely indicates back pressure from L2Q.  It also counts requests that would have gone directly to the XQ, but are rejected due to a full or nearly full condition, indicating back pressure from the IDI link.  The L2Q may also reject transactions  from a core to insure fairness between cores, or to delay a core?s dirty eviction when the address conflicts incoming external snoops.  (Note that L2 prefetcher requests that are dropped are not counted by this event.)",
+        "PublicDescription": "Counts the number of (demand and L1 prefetchers) core requests rejected by the L2Q due to a full or nearly full w condition which likely indicates back pressure from L2Q.  It also counts requests that would have gone directly to the XQ, but are rejected due to a full or nearly full condition, indicating back pressure from the IDI link.  The L2Q may also reject transactions  from a core to insure fairness between cores, or to delay a core?s dirty eviction when the address conflicts incoming external sanalops.  (Analte that L2 prefetcher requests that are dropped are analt counted by this event.)",
         "SampleAfterValue": "200003"
     },
     {
         "BriefDescription": "Cycles code-fetch stalled due to an outstanding ICache miss.",
         "EventCode": "0x86",
         "EventName": "FETCH_STALL.ICACHE_FILL_PENDING_CYCLES",
-        "PublicDescription": "Counts cycles that fetch is stalled due to an outstanding ICache miss. That is, the decoder queue is able to accept bytes, but the fetch unit is unable to provide bytes due to an ICache miss.  Note: this event is not the same as the total number of cycles spent retrieving instruction cache lines from the memory hierarchy.\r\nCounts cycles that fetch is stalled due to any reason. That is, the decoder queue is able to accept bytes, but the fetch unit is unable to provide bytes.  This will include cycles due to an ITLB miss, ICache miss and other events.",
+        "PublicDescription": "Counts cycles that fetch is stalled due to an outstanding ICache miss. That is, the decoder queue is able to accept bytes, but the fetch unit is unable to provide bytes due to an ICache miss.  Analte: this event is analt the same as the total number of cycles spent retrieving instruction cache lines from the memory hierarchy.\r\nCounts cycles that fetch is stalled due to any reason. That is, the decoder queue is able to accept bytes, but the fetch unit is unable to provide bytes.  This will include cycles due to an ITLB miss, ICache miss and other events.",
         "SampleAfterValue": "200003",
         "UMask": "0x4"
     },
     {
-        "BriefDescription": "Counts the number of request from the L2 that were not accepted into the XQ",
+        "BriefDescription": "Counts the number of request from the L2 that were analt accepted into the XQ",
         "EventCode": "0x30",
         "EventName": "L2_REJECT_XQ.ALL",
-        "PublicDescription": "This event counts the number of demand and prefetch transactions that the L2 XQ rejects due to a full or near full condition which likely indicates back pressure from the IDI link. The XQ may reject transactions from the L2Q (non-cacheable requests), BBS (L2 misses) and WOB (L2 write-back victims).",
+        "PublicDescription": "This event counts the number of demand and prefetch transactions that the L2 XQ rejects due to a full or near full condition which likely indicates back pressure from the IDI link. The XQ may reject transactions from the L2Q (analn-cacheable requests), BBS (L2 misses) and WOB (L2 write-back victims).",
         "SampleAfterValue": "200003"
     },
     {
@@ -66,7 +66,7 @@
         "BriefDescription": "Loads missed L1",
         "EventCode": "0x04",
         "EventName": "MEM_UOPS_RETIRED.L1_MISS_LOADS",
-        "PublicDescription": "This event counts the number of load ops retired that miss in L1 Data cache. Note that prefetch misses will not be counted.",
+        "PublicDescription": "This event counts the number of load ops retired that miss in L1 Data cache. Analte that prefetch misses will analt be counted.",
         "SampleAfterValue": "200003",
         "UMask": "0x1"
     },
@@ -132,18 +132,18 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts any code reads (demand & prefetch) that miss L2 and the snoops to sibling cores hit in either E/S state and the line is not forwarded.",
+        "BriefDescription": "Counts any code reads (demand & prefetch) that miss L2 and the sanalops to sibling cores hit in either E/S state and the line is analt forwarded.",
         "EventCode": "0xB7",
-        "EventName": "OFFCORE_RESPONSE.ANY_CODE_RD.L2_MISS.HIT_OTHER_CORE_NO_FWD",
+        "EventName": "OFFCORE_RESPONSE.ANY_CODE_RD.L2_MISS.HIT_OTHER_CORE_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x0400000044",
         "SampleAfterValue": "100007",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts any code reads (demand & prefetch) that miss L2 with a snoop miss response.",
+        "BriefDescription": "Counts any code reads (demand & prefetch) that miss L2 with a sanalop miss response.",
         "EventCode": "0xB7",
-        "EventName": "OFFCORE_RESPONSE.ANY_CODE_RD.L2_MISS.SNOOP_MISS",
+        "EventName": "OFFCORE_RESPONSE.ANY_CODE_RD.L2_MISS.SANALOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x0200000044",
         "SampleAfterValue": "100007",
@@ -177,18 +177,18 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts any data read (demand & prefetch) that miss L2 and the snoops to sibling cores hit in either E/S state and the line is not forwarded.",
+        "BriefDescription": "Counts any data read (demand & prefetch) that miss L2 and the sanalops to sibling cores hit in either E/S state and the line is analt forwarded.",
         "EventCode": "0xB7",
-        "EventName": "OFFCORE_RESPONSE.ANY_DATA_RD.L2_MISS.HIT_OTHER_CORE_NO_FWD",
+        "EventName": "OFFCORE_RESPONSE.ANY_DATA_RD.L2_MISS.HIT_OTHER_CORE_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x0400003091",
         "SampleAfterValue": "100007",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts any data read (demand & prefetch) that miss L2 with a snoop miss response.",
+        "BriefDescription": "Counts any data read (demand & prefetch) that miss L2 with a sanalop miss response.",
         "EventCode": "0xB7",
-        "EventName": "OFFCORE_RESPONSE.ANY_DATA_RD.L2_MISS.SNOOP_MISS",
+        "EventName": "OFFCORE_RESPONSE.ANY_DATA_RD.L2_MISS.SANALOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x0200003091",
         "SampleAfterValue": "100007",
@@ -213,18 +213,18 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts any request that miss L2 and the snoops to sibling cores hit in either E/S state and the line is not forwarded.",
+        "BriefDescription": "Counts any request that miss L2 and the sanalops to sibling cores hit in either E/S state and the line is analt forwarded.",
         "EventCode": "0xB7",
-        "EventName": "OFFCORE_RESPONSE.ANY_REQUEST.L2_MISS.HIT_OTHER_CORE_NO_FWD",
+        "EventName": "OFFCORE_RESPONSE.ANY_REQUEST.L2_MISS.HIT_OTHER_CORE_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x0400008008",
         "SampleAfterValue": "100007",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts any request that miss L2 with a snoop miss response.",
+        "BriefDescription": "Counts any request that miss L2 with a sanalop miss response.",
         "EventCode": "0xB7",
-        "EventName": "OFFCORE_RESPONSE.ANY_REQUEST.L2_MISS.SNOOP_MISS",
+        "EventName": "OFFCORE_RESPONSE.ANY_REQUEST.L2_MISS.SANALOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x0200008008",
         "SampleAfterValue": "100007",
@@ -258,18 +258,18 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts any rfo reads (demand & prefetch) that miss L2 and the snoops to sibling cores hit in either E/S state and the line is not forwarded.",
+        "BriefDescription": "Counts any rfo reads (demand & prefetch) that miss L2 and the sanalops to sibling cores hit in either E/S state and the line is analt forwarded.",
         "EventCode": "0xB7",
-        "EventName": "OFFCORE_RESPONSE.ANY_RFO.L2_MISS.HIT_OTHER_CORE_NO_FWD",
+        "EventName": "OFFCORE_RESPONSE.ANY_RFO.L2_MISS.HIT_OTHER_CORE_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x0400000022",
         "SampleAfterValue": "100007",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts any rfo reads (demand & prefetch) that miss L2 with a snoop miss response.",
+        "BriefDescription": "Counts any rfo reads (demand & prefetch) that miss L2 with a sanalop miss response.",
         "EventCode": "0xB7",
-        "EventName": "OFFCORE_RESPONSE.ANY_RFO.L2_MISS.SNOOP_MISS",
+        "EventName": "OFFCORE_RESPONSE.ANY_RFO.L2_MISS.SANALOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x0200000022",
         "SampleAfterValue": "100007",
@@ -285,9 +285,9 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts writeback (modified to exclusive) that miss L2 with no details on snoop-related information.",
+        "BriefDescription": "Counts writeback (modified to exclusive) that miss L2 with anal details on sanalop-related information.",
         "EventCode": "0xB7",
-        "EventName": "OFFCORE_RESPONSE.COREWB.L2_MISS.NO_SNOOP_NEEDED",
+        "EventName": "OFFCORE_RESPONSE.COREWB.L2_MISS.ANAL_SANALOP_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x0080000008",
         "SampleAfterValue": "100007",
@@ -312,18 +312,18 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts demand and DCU prefetch instruction cacheline that miss L2 and the snoops to sibling cores hit in either E/S state and the line is not forwarded.",
+        "BriefDescription": "Counts demand and DCU prefetch instruction cacheline that miss L2 and the sanalops to sibling cores hit in either E/S state and the line is analt forwarded.",
         "EventCode": "0xB7",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L2_MISS.HIT_OTHER_CORE_NO_FWD",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L2_MISS.HIT_OTHER_CORE_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x0400000004",
         "SampleAfterValue": "100007",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts demand and DCU prefetch instruction cacheline that miss L2 with a snoop miss response.",
+        "BriefDescription": "Counts demand and DCU prefetch instruction cacheline that miss L2 with a sanalop miss response.",
         "EventCode": "0xB7",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L2_MISS.SNOOP_MISS",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L2_MISS.SANALOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x0200000004",
         "SampleAfterValue": "100007",
@@ -366,18 +366,18 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts demand and DCU prefetch data read that miss L2 and the snoops to sibling cores hit in either E/S state and the line is not forwarded.",
+        "BriefDescription": "Counts demand and DCU prefetch data read that miss L2 and the sanalops to sibling cores hit in either E/S state and the line is analt forwarded.",
         "EventCode": "0xB7",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L2_MISS.HIT_OTHER_CORE_NO_FWD",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L2_MISS.HIT_OTHER_CORE_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x0400000001",
         "SampleAfterValue": "100007",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts demand and DCU prefetch data read that miss L2 with a snoop miss response.",
+        "BriefDescription": "Counts demand and DCU prefetch data read that miss L2 with a sanalop miss response.",
         "EventCode": "0xB7",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L2_MISS.SNOOP_MISS",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L2_MISS.SANALOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x0200000001",
         "SampleAfterValue": "100007",
@@ -411,18 +411,18 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts demand and DCU prefetch RFOs that miss L2 and the snoops to sibling cores hit in either E/S state and the line is not forwarded.",
+        "BriefDescription": "Counts demand and DCU prefetch RFOs that miss L2 and the sanalops to sibling cores hit in either E/S state and the line is analt forwarded.",
         "EventCode": "0xB7",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L2_MISS.HIT_OTHER_CORE_NO_FWD",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L2_MISS.HIT_OTHER_CORE_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x0400000002",
         "SampleAfterValue": "100007",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts demand and DCU prefetch RFOs that miss L2 with a snoop miss response.",
+        "BriefDescription": "Counts demand and DCU prefetch RFOs that miss L2 with a sanalop miss response.",
         "EventCode": "0xB7",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L2_MISS.SNOOP_MISS",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L2_MISS.SANALOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x0200000002",
         "SampleAfterValue": "100007",
@@ -483,18 +483,18 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts DCU hardware prefetcher data read that miss L2 and the snoops to sibling cores hit in either E/S state and the line is not forwarded.",
+        "BriefDescription": "Counts DCU hardware prefetcher data read that miss L2 and the sanalops to sibling cores hit in either E/S state and the line is analt forwarded.",
         "EventCode": "0xB7",
-        "EventName": "OFFCORE_RESPONSE.PF_L1_DATA_RD.L2_MISS.HIT_OTHER_CORE_NO_FWD",
+        "EventName": "OFFCORE_RESPONSE.PF_L1_DATA_RD.L2_MISS.HIT_OTHER_CORE_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x0400002000",
         "SampleAfterValue": "100007",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts DCU hardware prefetcher data read that miss L2 with a snoop miss response.",
+        "BriefDescription": "Counts DCU hardware prefetcher data read that miss L2 with a sanalop miss response.",
         "EventCode": "0xB7",
-        "EventName": "OFFCORE_RESPONSE.PF_L1_DATA_RD.L2_MISS.SNOOP_MISS",
+        "EventName": "OFFCORE_RESPONSE.PF_L1_DATA_RD.L2_MISS.SANALOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x0200002000",
         "SampleAfterValue": "100007",
@@ -510,18 +510,18 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts code reads generated by L2 prefetchers that miss L2 and the snoops to sibling cores hit in either E/S state and the line is not forwarded.",
+        "BriefDescription": "Counts code reads generated by L2 prefetchers that miss L2 and the sanalops to sibling cores hit in either E/S state and the line is analt forwarded.",
         "EventCode": "0xB7",
-        "EventName": "OFFCORE_RESPONSE.PF_L2_CODE_RD.L2_MISS.HIT_OTHER_CORE_NO_FWD",
+        "EventName": "OFFCORE_RESPONSE.PF_L2_CODE_RD.L2_MISS.HIT_OTHER_CORE_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x0400000040",
         "SampleAfterValue": "100007",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts code reads generated by L2 prefetchers that miss L2 with a snoop miss response.",
+        "BriefDescription": "Counts code reads generated by L2 prefetchers that miss L2 with a sanalop miss response.",
         "EventCode": "0xB7",
-        "EventName": "OFFCORE_RESPONSE.PF_L2_CODE_RD.L2_MISS.SNOOP_MISS",
+        "EventName": "OFFCORE_RESPONSE.PF_L2_CODE_RD.L2_MISS.SANALOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x0200000040",
         "SampleAfterValue": "100007",
@@ -546,18 +546,18 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts data cacheline reads generated by L2 prefetchers that miss L2 and the snoops to sibling cores hit in either E/S state and the line is not forwarded.",
+        "BriefDescription": "Counts data cacheline reads generated by L2 prefetchers that miss L2 and the sanalops to sibling cores hit in either E/S state and the line is analt forwarded.",
         "EventCode": "0xB7",
-        "EventName": "OFFCORE_RESPONSE.PF_L2_DATA_RD.L2_MISS.HIT_OTHER_CORE_NO_FWD",
+        "EventName": "OFFCORE_RESPONSE.PF_L2_DATA_RD.L2_MISS.HIT_OTHER_CORE_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x0400000010",
         "SampleAfterValue": "100007",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts data cacheline reads generated by L2 prefetchers that miss L2 with a snoop miss response.",
+        "BriefDescription": "Counts data cacheline reads generated by L2 prefetchers that miss L2 with a sanalop miss response.",
         "EventCode": "0xB7",
-        "EventName": "OFFCORE_RESPONSE.PF_L2_DATA_RD.L2_MISS.SNOOP_MISS",
+        "EventName": "OFFCORE_RESPONSE.PF_L2_DATA_RD.L2_MISS.SANALOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x0200000010",
         "SampleAfterValue": "100007",
@@ -582,18 +582,18 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts RFO requests generated by L2 prefetchers that miss L2 and the snoops to sibling cores hit in either E/S state and the line is not forwarded.",
+        "BriefDescription": "Counts RFO requests generated by L2 prefetchers that miss L2 and the sanalops to sibling cores hit in either E/S state and the line is analt forwarded.",
         "EventCode": "0xB7",
-        "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.L2_MISS.HIT_OTHER_CORE_NO_FWD",
+        "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.L2_MISS.HIT_OTHER_CORE_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x0400000020",
         "SampleAfterValue": "100007",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts RFO requests generated by L2 prefetchers that miss L2 with a snoop miss response.",
+        "BriefDescription": "Counts RFO requests generated by L2 prefetchers that miss L2 with a sanalop miss response.",
         "EventCode": "0xB7",
-        "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.L2_MISS.SNOOP_MISS",
+        "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.L2_MISS.SANALOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x0200000020",
         "SampleAfterValue": "100007",
@@ -625,10 +625,10 @@
         "UMask": "0x80"
     },
     {
-        "BriefDescription": "Loads blocked due to store data not ready",
+        "BriefDescription": "Loads blocked due to store data analt ready",
         "EventCode": "0x03",
-        "EventName": "REHABQ.LD_BLOCK_STD_NOTREADY",
-        "PublicDescription": "This event counts the cases where a forward was technically possible, but did not occur because the store data was not available at the right time.",
+        "EventName": "REHABQ.LD_BLOCK_STD_ANALTREADY",
+        "PublicDescription": "This event counts the cases where a forward was technically possible, but did analt occur because the store data was analt available at the right time.",
         "SampleAfterValue": "200003",
         "UMask": "0x2"
     },
@@ -662,7 +662,7 @@
         "BriefDescription": "Store address buffer full",
         "EventCode": "0x03",
         "EventName": "REHABQ.STA_FULL",
-        "PublicDescription": "This event counts the number of retired stores that are delayed because there is not a store address buffer available.",
+        "PublicDescription": "This event counts the number of retired stores that are delayed because there is analt a store address buffer available.",
         "SampleAfterValue": "200003",
         "UMask": "0x20"
     },

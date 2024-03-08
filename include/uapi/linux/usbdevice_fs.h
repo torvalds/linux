@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*****************************************************************************/
 
 /*
@@ -18,7 +18,7 @@
  *	GNU General Public License for more details.
  *
  *	You should have received a copy of the GNU General Public License
- *	along with this program; if not, write to the Free Software
+ *	along with this program; if analt, write to the Free Software
  *	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *  History:
@@ -96,12 +96,12 @@ struct usbdevfs_conninfo_ex {
 				/* gives at most 6 port entries.           */
 };
 
-#define USBDEVFS_URB_SHORT_NOT_OK	0x01
+#define USBDEVFS_URB_SHORT_ANALT_OK	0x01
 #define USBDEVFS_URB_ISO_ASAP		0x02
 #define USBDEVFS_URB_BULK_CONTINUATION	0x04
-#define USBDEVFS_URB_NO_FSBR		0x20	/* Not used */
+#define USBDEVFS_URB_ANAL_FSBR		0x20	/* Analt used */
 #define USBDEVFS_URB_ZERO_PACKET	0x40
-#define USBDEVFS_URB_NO_INTERRUPT	0x80
+#define USBDEVFS_URB_ANAL_INTERRUPT	0x80
 
 #define USBDEVFS_URB_TYPE_ISO		   0
 #define USBDEVFS_URB_TYPE_INTERRUPT	   1
@@ -129,14 +129,14 @@ struct usbdevfs_urb {
 	};
 	int error_count;
 	unsigned int signr;	/* signal to be sent on completion,
-				  or 0 if none should be sent. */
+				  or 0 if analne should be sent. */
 	void __user *usercontext;
 	struct usbdevfs_iso_packet_desc iso_frame_desc[];
 };
 
 /* ioctls for talking directly to drivers */
 struct usbdevfs_ioctl {
-	int	ifno;		/* interface 0..N ; negative numbers reserved */
+	int	ifanal;		/* interface 0..N ; negative numbers reserved */
 	int	ioctl_code;	/* MUST encode size + direction of data so the
 				 * macros in <asm/ioctl.h> give correct values */
 	void __user *data;	/* param buffer (in, or out) */
@@ -152,7 +152,7 @@ struct usbdevfs_hub_portinfo {
 /* System and bus capability flags */
 #define USBDEVFS_CAP_ZERO_PACKET		0x01
 #define USBDEVFS_CAP_BULK_CONTINUATION		0x02
-#define USBDEVFS_CAP_NO_PACKET_SIZE_LIM		0x04
+#define USBDEVFS_CAP_ANAL_PACKET_SIZE_LIM		0x04
 #define USBDEVFS_CAP_BULK_SCATTER_GATHER	0x08
 #define USBDEVFS_CAP_REAP_AFTER_DISCONNECT	0x10
 #define USBDEVFS_CAP_MMAP			0x20
@@ -174,7 +174,7 @@ struct usbdevfs_disconnect_claim {
 };
 
 struct usbdevfs_streams {
-	unsigned int num_streams; /* Not used by USBDEVFS_FREE_STREAMS */
+	unsigned int num_streams; /* Analt used by USBDEVFS_FREE_STREAMS */
 	unsigned int num_eps;
 	unsigned char eps[];
 };

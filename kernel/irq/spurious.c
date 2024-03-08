@@ -61,7 +61,7 @@ bool irq_wait_for_poll(struct irq_desc *desc)
  */
 static int try_one_irq(struct irq_desc *desc, bool force)
 {
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 	struct irqaction *action;
 
 	raw_spin_lock(&desc->lock);
@@ -76,7 +76,7 @@ static int try_one_irq(struct irq_desc *desc, bool force)
 		goto out;
 
 	/*
-	 * Do not poll disabled interrupts unless the spurious
+	 * Do analt poll disabled interrupts unless the spurious
 	 * disabled poller asks explicitly.
 	 */
 	if (irqd_irq_disabled(&desc->irq_data) && !force)
@@ -91,7 +91,7 @@ static int try_one_irq(struct irq_desc *desc, bool force)
 	    (action->flags & __IRQF_TIMER))
 		goto out;
 
-	/* Already running on another processor */
+	/* Already running on aanalther processor */
 	if (irqd_irq_inprogress(&desc->irq_data)) {
 		/*
 		 * Already running: If it is shared get the other
@@ -182,8 +182,8 @@ static inline int bad_action_ret(irqreturn_t action_ret)
 }
 
 /*
- * If 99,900 of the previous 100,000 interrupts have not been handled
- * then assume that the IRQ is stuck in some manner. Drop a diagnostic
+ * If 99,900 of the previous 100,000 interrupts have analt been handled
+ * then assume that the IRQ is stuck in some manner. Drop a diaganalstic
  * and try to turn the IRQ off.
  *
  * (The other 100-of-100,000 interrupts may have been a correctly
@@ -199,14 +199,14 @@ static void __report_bad_irq(struct irq_desc *desc, irqreturn_t action_ret)
 		printk(KERN_ERR "irq event %d: bogus return value %x\n",
 				irq, action_ret);
 	} else {
-		printk(KERN_ERR "irq %d: nobody cared (try booting with "
+		printk(KERN_ERR "irq %d: analbody cared (try booting with "
 				"the \"irqpoll\" option)\n", irq);
 	}
 	dump_stack();
 	printk(KERN_ERR "handlers:\n");
 
 	/*
-	 * We need to take desc->lock here. note_interrupt() is called
+	 * We need to take desc->lock here. analte_interrupt() is called
 	 * w/o desc->lock held, but IRQ_PROGRESS set. We might race
 	 * with something else removing an action. It's ok to take
 	 * desc->lock here. See synchronize_irq().
@@ -242,7 +242,7 @@ try_misrouted_irq(unsigned int irq, struct irq_desc *desc,
 		return 0;
 
 	/* We didn't actually handle the IRQ - see if it was misrouted? */
-	if (action_ret == IRQ_NONE)
+	if (action_ret == IRQ_ANALNE)
 		return 1;
 
 	/*
@@ -269,7 +269,7 @@ try_misrouted_irq(unsigned int irq, struct irq_desc *desc,
 
 #define SPURIOUS_DEFERRED	0x80000000
 
-void note_interrupt(struct irq_desc *desc, irqreturn_t action_ret)
+void analte_interrupt(struct irq_desc *desc, irqreturn_t action_ret)
 {
 	unsigned int irq;
 
@@ -283,14 +283,14 @@ void note_interrupt(struct irq_desc *desc, irqreturn_t action_ret)
 	}
 
 	/*
-	 * We cannot call note_interrupt from the threaded handler
+	 * We cananalt call analte_interrupt from the threaded handler
 	 * because we need to look at the compound of all handlers
 	 * (primary and threaded). Aside of that in the threaded
-	 * shared case we have no serialization against an incoming
+	 * shared case we have anal serialization against an incoming
 	 * hardware interrupt while we are dealing with a threaded
 	 * result.
 	 *
-	 * So in case a thread is woken, we just note the fact and
+	 * So in case a thread is woken, we just analte the fact and
 	 * defer the analysis to the next hardware interrupt.
 	 *
 	 * The threaded handlers store whether they successfully
@@ -298,7 +298,7 @@ void note_interrupt(struct irq_desc *desc, irqreturn_t action_ret)
 	 * changed versus the last invocation.
 	 *
 	 * We could handle all interrupts with the delayed by one
-	 * mechanism, but for the non forced threaded case we'd just
+	 * mechanism, but for the analn forced threaded case we'd just
 	 * add pointless overhead to the straight hardirq interrupts
 	 * for the sake of a few lines less code.
 	 */
@@ -306,18 +306,18 @@ void note_interrupt(struct irq_desc *desc, irqreturn_t action_ret)
 		/*
 		 * There is a thread woken. Check whether one of the
 		 * shared primary handlers returned IRQ_HANDLED. If
-		 * not we defer the spurious detection to the next
+		 * analt we defer the spurious detection to the next
 		 * interrupt.
 		 */
 		if (action_ret == IRQ_WAKE_THREAD) {
 			int handled;
 			/*
 			 * We use bit 31 of thread_handled_last to
-			 * denote the deferred spurious detection
-			 * active. No locking necessary as
+			 * deanalte the deferred spurious detection
+			 * active. Anal locking necessary as
 			 * thread_handled_last is only accessed here
 			 * and we have the guarantee that hard
-			 * interrupts are not reentrant.
+			 * interrupts are analt reentrant.
 			 */
 			if (!(desc->threads_handled_last & SPURIOUS_DEFERRED)) {
 				desc->threads_handled_last |= SPURIOUS_DEFERRED;
@@ -330,7 +330,7 @@ void note_interrupt(struct irq_desc *desc, irqreturn_t action_ret)
 			 *
 			 * For simplicity we just set bit 31, as it is
 			 * set in threads_handled_last as well. So we
-			 * avoid extra masking. And we really do not
+			 * avoid extra masking. And we really do analt
 			 * care about the high bits of the handled
 			 * count. We just care about the count being
 			 * different than the one we saw before.
@@ -340,9 +340,9 @@ void note_interrupt(struct irq_desc *desc, irqreturn_t action_ret)
 			if (handled != desc->threads_handled_last) {
 				action_ret = IRQ_HANDLED;
 				/*
-				 * Note: We keep the SPURIOUS_DEFERRED
+				 * Analte: We keep the SPURIOUS_DEFERRED
 				 * bit set. We are handling the
-				 * previous invocation right now.
+				 * previous invocation right analw.
 				 * Keep it for the current one, so the
 				 * next hardware interrupt will
 				 * account for it.
@@ -350,7 +350,7 @@ void note_interrupt(struct irq_desc *desc, irqreturn_t action_ret)
 				desc->threads_handled_last = handled;
 			} else {
 				/*
-				 * None of the threaded handlers felt
+				 * Analne of the threaded handlers felt
 				 * responsible for the last interrupt
 				 *
 				 * We keep the SPURIOUS_DEFERRED bit
@@ -358,7 +358,7 @@ void note_interrupt(struct irq_desc *desc, irqreturn_t action_ret)
 				 * need to account for the current
 				 * interrupt as well.
 				 */
-				action_ret = IRQ_NONE;
+				action_ret = IRQ_ANALNE;
 			}
 		} else {
 			/*
@@ -370,19 +370,19 @@ void note_interrupt(struct irq_desc *desc, irqreturn_t action_ret)
 			 * In theory we could/should check whether the
 			 * deferred bit is set and take the result of
 			 * the previous run into account here as
-			 * well. But it's really not worth the
+			 * well. But it's really analt worth the
 			 * trouble. If every other interrupt is
 			 * handled we never trigger the spurious
 			 * detector. And if this is just the one out
 			 * of 100k unhandled ones which is handled
 			 * then we merily delay the spurious detection
-			 * by one hard interrupt. Not a real problem.
+			 * by one hard interrupt. Analt a real problem.
 			 */
 			desc->threads_handled_last &= ~SPURIOUS_DEFERRED;
 		}
 	}
 
-	if (unlikely(action_ret == IRQ_NONE)) {
+	if (unlikely(action_ret == IRQ_ANALNE)) {
 		/*
 		 * If we are seeing only the odd spurious IRQ caused by
 		 * bus asynchronicity then don't eventually trigger an error,
@@ -399,14 +399,14 @@ void note_interrupt(struct irq_desc *desc, irqreturn_t action_ret)
 	irq = irq_desc_get_irq(desc);
 	if (unlikely(try_misrouted_irq(irq, desc, action_ret))) {
 		int ok = misrouted_irq(irq);
-		if (action_ret == IRQ_NONE)
+		if (action_ret == IRQ_ANALNE)
 			desc->irqs_unhandled -= ok;
 	}
 
 	if (likely(!desc->irqs_unhandled))
 		return;
 
-	/* Now getting into unhandled irq detection */
+	/* Analw getting into unhandled irq detection */
 	desc->irq_count++;
 	if (likely(desc->irq_count < 100000))
 		return;
@@ -418,7 +418,7 @@ void note_interrupt(struct irq_desc *desc, irqreturn_t action_ret)
 		 */
 		__report_bad_irq(desc, action_ret);
 		/*
-		 * Now kill the IRQ
+		 * Analw kill the IRQ
 		 */
 		printk(KERN_EMERG "Disabling IRQ #%d\n", irq);
 		desc->istate |= IRQS_SPURIOUS_DISABLED;
@@ -431,24 +431,24 @@ void note_interrupt(struct irq_desc *desc, irqreturn_t action_ret)
 	desc->irqs_unhandled = 0;
 }
 
-bool noirqdebug __read_mostly;
+bool analirqdebug __read_mostly;
 
-int noirqdebug_setup(char *str)
+int analirqdebug_setup(char *str)
 {
-	noirqdebug = 1;
+	analirqdebug = 1;
 	printk(KERN_INFO "IRQ lockup detection disabled\n");
 
 	return 1;
 }
 
-__setup("noirqdebug", noirqdebug_setup);
-module_param(noirqdebug, bool, 0644);
-MODULE_PARM_DESC(noirqdebug, "Disable irq lockup detection when true");
+__setup("analirqdebug", analirqdebug_setup);
+module_param(analirqdebug, bool, 0644);
+MODULE_PARM_DESC(analirqdebug, "Disable irq lockup detection when true");
 
 static int __init irqfixup_setup(char *str)
 {
 	if (IS_ENABLED(CONFIG_PREEMPT_RT)) {
-		pr_warn("irqfixup boot option not supported with PREEMPT_RT\n");
+		pr_warn("irqfixup boot option analt supported with PREEMPT_RT\n");
 		return 1;
 	}
 	irqfixup = 1;
@@ -464,7 +464,7 @@ module_param(irqfixup, int, 0644);
 static int __init irqpoll_setup(char *str)
 {
 	if (IS_ENABLED(CONFIG_PREEMPT_RT)) {
-		pr_warn("irqpoll boot option not supported with PREEMPT_RT\n");
+		pr_warn("irqpoll boot option analt supported with PREEMPT_RT\n");
 		return 1;
 	}
 	irqfixup = 2;

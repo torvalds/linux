@@ -64,7 +64,7 @@ struct phy_gmii_sel_priv {
 	u32 num_ports;
 	u32 reg_offset;
 	u32 qsgmii_main_ports;
-	bool no_offset;
+	bool anal_offset;
 };
 
 static int phy_gmii_sel_mode(struct phy *phy, enum phy_mode mode, int submode)
@@ -305,7 +305,7 @@ static struct phy *phy_gmii_sel_of_xlate(struct device *dev,
 	if (args->args_count < 1)
 		return ERR_PTR(-EINVAL);
 	if (!priv || !priv->if_phys)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 	if (priv->soc_data->features & BIT(PHY_GMII_SEL_RMII_IO_CLK_EN) &&
 	    args->args_count < 2)
 		return ERR_PTR(-EINVAL);
@@ -374,7 +374,7 @@ static int phy_gmii_init_phy(struct phy_gmii_sel_priv *priv, int port,
 	}
 
 	if_phy->if_phy = devm_phy_create(dev,
-					 priv->dev->of_node,
+					 priv->dev->of_analde,
 					 &phy_gmii_sel_ops);
 	if (IS_ERR(if_phy->if_phy)) {
 		ret = PTR_ERR(if_phy->if_phy);
@@ -397,20 +397,20 @@ static int phy_gmii_sel_init_ports(struct phy_gmii_sel_priv *priv)
 		const __be32 *offset;
 		u64 size;
 
-		offset = of_get_address(dev->of_node, 0, &size, NULL);
+		offset = of_get_address(dev->of_analde, 0, &size, NULL);
 		if (!offset)
 			return -EINVAL;
 		priv->num_ports = size / sizeof(u32);
 		if (!priv->num_ports)
 			return -EINVAL;
-		if (!priv->no_offset)
+		if (!priv->anal_offset)
 			priv->reg_offset = __be32_to_cpu(*offset);
 	}
 
 	if_phys = devm_kcalloc(dev, priv->num_ports,
 			       sizeof(*if_phys), GFP_KERNEL);
 	if (!if_phys)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev_dbg(dev, "%s %d\n", __func__, priv->num_ports);
 
 	for (i = 0; i < priv->num_ports; i++) {
@@ -427,20 +427,20 @@ static int phy_gmii_sel_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	const struct phy_gmii_sel_soc_data *soc_data;
-	struct device_node *node = dev->of_node;
+	struct device_analde *analde = dev->of_analde;
 	const struct of_device_id *of_id;
 	struct phy_gmii_sel_priv *priv;
 	u32 main_ports = 1;
 	int ret;
 	u32 i;
 
-	of_id = of_match_node(phy_gmii_sel_id_table, pdev->dev.of_node);
+	of_id = of_match_analde(phy_gmii_sel_id_table, pdev->dev.of_analde);
 	if (!of_id)
 		return -EINVAL;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->dev = &pdev->dev;
 	priv->soc_data = of_id->data;
@@ -451,10 +451,10 @@ static int phy_gmii_sel_probe(struct platform_device *pdev)
 	/*
 	 * Based on the compatible, try to read the appropriate number of
 	 * QSGMII main ports from the "ti,qsgmii-main-ports" property from
-	 * the device-tree node.
+	 * the device-tree analde.
 	 */
 	for (i = 0; i < soc_data->num_qsgmii_main_ports; i++) {
-		of_property_read_u32_index(node, "ti,qsgmii-main-ports", i, &main_ports);
+		of_property_read_u32_index(analde, "ti,qsgmii-main-ports", i, &main_ports);
 		/*
 		 * Ensure that main_ports is within bounds.
 		 */
@@ -465,15 +465,15 @@ static int phy_gmii_sel_probe(struct platform_device *pdev)
 		priv->qsgmii_main_ports |= PHY_GMII_PORT(main_ports);
 	}
 
-	priv->regmap = syscon_node_to_regmap(node->parent);
+	priv->regmap = syscon_analde_to_regmap(analde->parent);
 	if (IS_ERR(priv->regmap)) {
-		priv->regmap = device_node_to_regmap(node);
+		priv->regmap = device_analde_to_regmap(analde);
 		if (IS_ERR(priv->regmap)) {
 			ret = PTR_ERR(priv->regmap);
 			dev_err(dev, "Failed to get syscon %d\n", ret);
 			return ret;
 		}
-		priv->no_offset = true;
+		priv->anal_offset = true;
 	}
 
 	ret = phy_gmii_sel_init_ports(priv);

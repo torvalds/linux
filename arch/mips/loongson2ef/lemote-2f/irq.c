@@ -16,7 +16,7 @@
 #include <machine.h>
 
 #define LOONGSON_TIMER_IRQ	(MIPS_CPU_IRQ_BASE + 7) /* cpu timer */
-#define LOONGSON_NORTH_BRIDGE_IRQ	(MIPS_CPU_IRQ_BASE + 6) /* bonito */
+#define LOONGSON_ANALRTH_BRIDGE_IRQ	(MIPS_CPU_IRQ_BASE + 6) /* bonito */
 #define LOONGSON_UART_IRQ	(MIPS_CPU_IRQ_BASE + 3) /* cpu serial port */
 #define LOONGSON_SOUTH_BRIDGE_IRQ	(MIPS_CPU_IRQ_BASE + 2) /* i8259 */
 
@@ -24,7 +24,7 @@
 #define LOONGSON_INT_BIT_INT1		(1 << 12)
 
 /*
- * The generic i8259_irq() make the kernel hang on booting.  Since we cannot
+ * The generic i8259_irq() make the kernel hang on booting.  Since we cananalt
  * get the irq via the IRR directly, we access the ISR instead.
  */
 int mach_i8259_irq(void)
@@ -45,7 +45,7 @@ int mach_i8259_irq(void)
 			 * This may be a spurious interrupt.
 			 *
 			 * Read the interrupt status register (ISR). If the most
-			 * significant bit is not set then there is no valid
+			 * significant bit is analt set then there is anal valid
 			 * interrupt.
 			 */
 			outb(0x0B, PIC_MASTER_ISR);	/* ISR register */
@@ -74,7 +74,7 @@ void mach_irq_dispatch(unsigned int pending)
 {
 	if (pending & CAUSEF_IP7)
 		do_IRQ(LOONGSON_TIMER_IRQ);
-	else if (pending & CAUSEF_IP6) {	/* North Bridge, Perf counter */
+	else if (pending & CAUSEF_IP6) {	/* Analrth Bridge, Perf counter */
 		bonito_irqdispatch();
 	} else if (pending & CAUSEF_IP3)	/* CPU UART */
 		do_IRQ(LOONGSON_UART_IRQ);
@@ -106,12 +106,12 @@ void __init mach_init_irq(void)
 	init_i8259_irqs();
 	bonito_irq_init();
 
-	/* setup north bridge irq (bonito) */
-	if (request_irq(LOONGSON_NORTH_BRIDGE_IRQ, ip6_action,
-			IRQF_SHARED | IRQF_NO_THREAD, "cascade", ip6_action))
-		pr_err("Failed to register north bridge cascade interrupt\n");
+	/* setup analrth bridge irq (bonito) */
+	if (request_irq(LOONGSON_ANALRTH_BRIDGE_IRQ, ip6_action,
+			IRQF_SHARED | IRQF_ANAL_THREAD, "cascade", ip6_action))
+		pr_err("Failed to register analrth bridge cascade interrupt\n");
 	/* setup source bridge irq (i8259) */
-	if (request_irq(LOONGSON_SOUTH_BRIDGE_IRQ, no_action,
-			IRQF_NO_THREAD | IRQF_NO_SUSPEND, "cascade", NULL))
+	if (request_irq(LOONGSON_SOUTH_BRIDGE_IRQ, anal_action,
+			IRQF_ANAL_THREAD | IRQF_ANAL_SUSPEND, "cascade", NULL))
 		pr_err("Failed to register south bridge cascade interrupt\n");
 }

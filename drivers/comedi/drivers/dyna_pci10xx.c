@@ -15,8 +15,8 @@
  * Prof. Kannan Moudgalya <kannan@iitb.ac.in>
  * http://www.iitb.ac.in
  *
- * Notes :
- * - Dynalog India Pvt. Ltd. does not have a registered PCI Vendor ID and
+ * Analtes :
+ * - Dynalog India Pvt. Ltd. does analt have a registered PCI Vendor ID and
  *   they are using the PLX Technlogies Vendor ID since that is the PCI Chip
  *   used in the card.
  * - Dynalog India Pvt. Ltd. has provided the internal register specification
@@ -168,7 +168,7 @@ static int dyna_pci10xx_auto_attach(struct comedi_device *dev,
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = comedi_pci_enable(dev);
 	if (ret)

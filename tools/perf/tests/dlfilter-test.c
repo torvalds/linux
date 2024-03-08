@@ -19,7 +19,7 @@
 #include <inttypes.h>
 #include <libgen.h>
 #include <string.h>
-#include <errno.h>
+#include <erranal.h>
 #include "debug.h"
 #include "tool.h"
 #include "event.h"
@@ -326,13 +326,13 @@ static int test__dlfilter_test(struct test_data *td)
 	int err;
 
 	if (get_dlfilters_path(td->name, td->dlfilters, PATH_MAX))
-		return test_result("dlfilters not found", TEST_SKIP);
+		return test_result("dlfilters analt found", TEST_SKIP);
 
 	if (check_filter_desc(td))
 		return test_result("Failed to get expected filter description", TEST_FAIL);
 
 	if (!have_gcc())
-		return test_result("gcc not found", TEST_SKIP);
+		return test_result("gcc analt found", TEST_SKIP);
 
 	pr_debug("dlfilters path: %s\n", td->dlfilters);
 
@@ -430,7 +430,7 @@ static int test__dlfilter(struct test_suite *test __maybe_unused, int subtest __
 
 	if (err)
 		return err;
-	/* No test for version 1 */
+	/* Anal test for version 1 */
 	return test__dlfilter_ver(2);
 }
 

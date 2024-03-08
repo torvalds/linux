@@ -11,7 +11,7 @@ int __bch2_darray_resize(darray_char *d, size_t element_size, size_t new_size, g
 
 		void *data = kvmalloc_array(new_size, element_size, gfp);
 		if (!data)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		memcpy(data, d->data, d->size * element_size);
 		if (d->data != d->preallocated)

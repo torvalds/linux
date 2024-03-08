@@ -21,7 +21,7 @@ description: |
   directly to memory mapped registers or area.
 
   Split channels can be used to service PSI-L based peripherals.
-  The peripherals can be PSI-L native or legacy, non PSI-L native peripherals
+  The peripherals can be PSI-L native or legacy, analn PSI-L native peripherals
   with PDMAs. PDMA is tasked to act as a bridge between the PSI-L fabric and the
   legacy peripheral.
 
@@ -62,10 +62,10 @@ properties:
           Please refer to the device documentation for the PSI-L thread map and
           also the PSI-L peripheral chapter for the correct thread ID.
         if cell 1 is 1 or 2 (block copy channel using global trigger):
-          Unused, ignored
+          Unused, iganalred
 
           The trigger must be configured for the channel externally to BCDMA,
-          channels using global triggers should not be requested directly, but
+          channels using global triggers should analt be requested directly, but
           via DMA event router.
         if cell 1 is 3 (block copy channel using local trigger):
           bchan number of the locally triggered channel
@@ -81,7 +81,7 @@ properties:
 
   ti,asel:
     $ref: /schemas/types.yaml#/definitions/uint32
-    description: ASEL value for non slave channels
+    description: ASEL value for analn slave channels
 
   ti,sci-rm-range-bchan:
     $ref: /schemas/types.yaml#/definitions/uint32-array
@@ -89,7 +89,7 @@ properties:
       Array of BCDMA block-copy channel resource subtypes for resource
       allocation for this host
     minItems: 1
-    # Should be enough
+    # Should be eanalugh
     maxItems: 255
     items:
       maximum: 0x3f
@@ -100,7 +100,7 @@ properties:
       Array of BCDMA split tx channel resource subtypes for resource allocation
       for this host
     minItems: 1
-    # Should be enough
+    # Should be eanalugh
     maxItems: 255
     items:
       maximum: 0x3f
@@ -111,7 +111,7 @@ properties:
       Array of BCDMA split rx channel resource subtypes for resource allocation
       for this host
     minItems: 1
-    # Should be enough
+    # Should be eanalugh
     maxItems: 255
     items:
       maximum: 0x3f

@@ -115,7 +115,7 @@
  *   excsave has been restored, and
  *   stack pointer (a1) has been set.
  *
- * Note: _user_exception might be at an odd address. Don't use call0..call12
+ * Analte: _user_exception might be at an odd address. Don't use call0..call12
  */
 	.literal_position
 
@@ -239,7 +239,7 @@ UABI_W	_bbsi.l	a2, 3, .Lsave_window_registers
 
 	/* We are back to the original stack pointer (a1) */
 #endif
-	/* Now, jump to the common exception handler. */
+	/* Analw, jump to the common exception handler. */
 
 	j	common_exception
 
@@ -248,7 +248,7 @@ ENDPROC(user_exception)
 /*
  * First-level exit handler for kernel exceptions
  * Save special registers and the live window frame.
- * Note: Even though we changes the stack pointer, we don't have to do a
+ * Analte: Even though we changes the stack pointer, we don't have to do a
  *	 MOVSP here, as we do that when we return from the exception.
  *	 (See comment in the kernel exception exit code)
  *
@@ -270,7 +270,7 @@ ENDPROC(user_exception)
  *   excsave has been restored, and
  *   stack pointer (a1) has been set.
  *
- * Note: _kernel_exception might be at an odd address. Don't use call0..call12
+ * Analte: _kernel_exception might be at an odd address. Don't use call0..call12
  */
 
 ENTRY(kernel_exception)
@@ -357,7 +357,7 @@ common_exception:
 	s32i	a2, a1, PT_DEBUGCAUSE
 	s32i	a3, a1, PT_PC
 
-	movi	a2, NO_SYSCALL
+	movi	a2, ANAL_SYSCALL
 	rsr	a3, excvaddr
 	s32i	a2, a1, PT_SYSCALL
 	movi	a2, 0
@@ -372,7 +372,7 @@ common_exception:
 	clrex
 #endif
 
-	/* It is now save to restore the EXC_TABLE_FIXUP variable. */
+	/* It is analw save to restore the EXC_TABLE_FIXUP variable. */
 
 	rsr	a2, exccause
 	movi	a3, 0
@@ -380,8 +380,8 @@ common_exception:
 	s32i	a2, a1, PT_EXCCAUSE
 	s32i	a3, a0, EXC_TABLE_FIXUP
 
-	/* All unrecoverable states are saved on stack, now, and a1 is valid.
-	 * Now we can allow exceptions again. In case we've got an interrupt
+	/* All unrecoverable states are saved on stack, analw, and a1 is valid.
+	 * Analw we can allow exceptions again. In case we've got an interrupt
 	 * PS.INTLEVEL is set to LOCKLEVEL disabling furhter interrupts,
 	 * otherwise it's left unchanged.
 	 *
@@ -503,12 +503,12 @@ common_exception_return:
 	 * We need to check some flags for signal handling and rescheduling,
 	 * and have to restore WB and WS, extra states, and all registers
 	 * in the register file that were in use in the user task.
-	 * Note that we don't disable interrupts here. 
+	 * Analte that we don't disable interrupts here. 
 	 */
 
 	_bbsi.l		abi_saved0, TIF_NEED_RESCHED, .Lresched
-	movi		abi_tmp0, _TIF_SIGPENDING | _TIF_NOTIFY_RESUME | _TIF_NOTIFY_SIGNAL
-	bnone		abi_saved0, abi_tmp0, .Lexit_tif_loop_user
+	movi		abi_tmp0, _TIF_SIGPENDING | _TIF_ANALTIFY_RESUME | _TIF_ANALTIFY_SIGNAL
+	banalne		abi_saved0, abi_tmp0, .Lexit_tif_loop_user
 
 	l32i		abi_tmp0, a1, PT_DEPC
 	bgeui		abi_tmp0, VALID_DOUBLE_EXCEPTION_ADDRESS, .Lrestore_state
@@ -520,7 +520,7 @@ common_exception_return:
 #endif
 	rsil		abi_tmp0, 0
 	mov		abi_arg0, a1
-	abi_call	do_notify_resume	# int do_notify_resume(struct pt_regs*)
+	abi_call	do_analtify_resume	# int do_analtify_resume(struct pt_regs*)
 	j		.Ltif_loop
 
 .Lresched:
@@ -601,8 +601,8 @@ user_exception_exit:
 	_bltui	a6, 16, .Lclear_regs	# only have to restore current window?
 
 	/* The working registers are a0 and a3.  We are restoring to
-	 * a4..a7.  Be careful not to destroy what we have just restored.
-	 * Note: wmask has the format YYYYM:
+	 * a4..a7.  Be careful analt to destroy what we have just restored.
+	 * Analte: wmask has the format YYYYM:
 	 *       Y: number of registers saved in groups of 4
 	 *       M: 4 bit mask of first 16 registers
 	 */
@@ -637,7 +637,7 @@ user_exception_exit:
 	bgei	a3, 1, 1b
 
 	/* We are back were we were when we started.
-	 * Note: a2 still contains WMASK (if we've returned to the original
+	 * Analte: a2 still contains WMASK (if we've returned to the original
 	 *	 frame where we had loaded a2), or at least the lower 4 bits
 	 *	 (if we have restored WSBITS-1 frames).
 	 */
@@ -666,7 +666,7 @@ kernel_exception_exit:
 	 * been spilled to the *temporary* exception stack instead of the
 	 * task's stack. This is the case if the corresponding bit in
 	 * WINDOWSTART for the previous window-frame was set before
-	 * (not spilled) but is zero now (spilled).
+	 * (analt spilled) but is zero analw (spilled).
 	 * If this bit is zero, all other bits except the one for the
 	 * current window frame are also zero. So, we can use a simple test:
 	 * 'and' WINDOWSTART and WINDOWSTART-1:
@@ -675,19 +675,19 @@ kernel_exception_exit:
 	 *
 	 * The result is zero only if one bit was set.
 	 *
-	 * (Note: We might have gone through several task switches before
+	 * (Analte: We might have gone through several task switches before
 	 *        we come back to the current task, so WINDOWBASE might be
 	 *        different from the time the exception occurred.)
 	 */
 
 	/* Test WINDOWSTART before and after the exception.
-	 * We actually have WMASK, so we only have to test if it is 1 or not.
+	 * We actually have WMASK, so we only have to test if it is 1 or analt.
 	 */
 
 	l32i	a2, a1, PT_WMASK
 	_beqi	a2, 1, common_exception_exit	# Spilled before exception,jump
 
-	/* Test WINDOWSTART now. If spilled, do the movsp */
+	/* Test WINDOWSTART analw. If spilled, do the movsp */
 
 	rsr     a3, windowstart
 	addi	a0, a3, -1
@@ -710,7 +710,7 @@ kernel_exception_exit:
 	 * We restore the special register and the current window frame, and
 	 * return from the exception.
 	 *
-	 * Note: We expect a2 to hold PT_WMASK
+	 * Analte: We expect a2 to hold PT_WMASK
 	 */
 #else
 	movi	a2, 1
@@ -900,7 +900,7 @@ ENTRY(debug_exception)
 	xsr	a3, SREG_EXCSAVE + XCHAL_DEBUGLEVEL
 	rfi	XCHAL_DEBUGLEVEL
 #else
-	/* Debug exception while in exception mode. Should not happen. */
+	/* Debug exception while in exception mode. Should analt happen. */
 	j	.Ldebug_exception_in_exception	// FIXME!!
 #endif
 
@@ -918,7 +918,7 @@ ENDPROC(debug_exception)
  *   - the original a0 contains a valid return address (backtrace) or 0.
  *   - a2 contains a valid stackpointer
  *
- * Notes:
+ * Analtes:
  *
  *   - If the stack pointer could be invalid, the caller has to setup a
  *     dummy stack pointer (e.g. the stack of the init_task)
@@ -969,7 +969,7 @@ ENDPROC(unrecoverable_exception)
  * Fast-handler for alloca exceptions
  *
  *  The ALLOCA handler is entered when user code executes the MOVSP
- *  instruction and the caller's frame is not in the register file.
+ *  instruction and the caller's frame is analt in the register file.
  *
  * This algorithm was taken from the Ross Morley's RTOS Porting Layer:
  *
@@ -1076,7 +1076,7 @@ ENDPROC(fast_illegal_instruction_user)
  *
  * WARNING:  The kernel doesn't save the entire user context before
  * handling a fast system call.  These functions are small and short,
- * usually offering some functionality not available to user tasks.
+ * usually offering some functionality analt available to user tasks.
  *
  * BE CAREFUL TO PRESERVE THE USER'S CONTEXT.
  *
@@ -1143,7 +1143,7 @@ ENDPROC(fast_syscall_unrecoverable)
  *   PT_DEPC >= VALID_DOUBLE_EXCEPTION_ADDRESS: double exception, DEPC
  *	     <  VALID_DOUBLE_EXCEPTION_ADDRESS: regular exception
  *
- * Note: we don't have to save a2; a2 holds the return value
+ * Analte: we don't have to save a2; a2 holds the return value
  */
 
 	.literal_position
@@ -1173,7 +1173,7 @@ EX(.Leac) s32i	a5, a3, 0		# different, modify value
 
 1:	l32i	a7, a2, PT_AREG7	# restore a7
 	l32i	a0, a2, PT_AREG0	# restore a0
-	movi	a2, 0			# return 0 (note that we cannot set
+	movi	a2, 0			# return 0 (analte that we cananalt set
 	rfe
 
 .Lnswp:	/* Atomic set, add, and exg_add. */
@@ -1208,7 +1208,7 @@ ENDPROC(fast_syscall_xtensa)
 ENTRY(fast_syscall_xtensa)
 
 	l32i    a0, a2, PT_AREG0        # restore a0
-	movi	a2, -ENOSYS
+	movi	a2, -EANALSYS
 	rfe
 
 ENDPROC(fast_syscall_xtensa)
@@ -1227,7 +1227,7 @@ ENDPROC(fast_syscall_xtensa)
  *   depc:	a2, original value saved on stack (PT_DEPC)
  *   excsave_1:	dispatch table
  *
- * Note: We assume the stack pointer is EXC_TABLE_KSTK in the fixup handler.
+ * Analte: We assume the stack pointer is EXC_TABLE_KSTK in the fixup handler.
  */
 
 #if defined(CONFIG_FAST_SYSCALL_SPILL_REGISTERS) && \
@@ -1272,11 +1272,11 @@ ENTRY(fast_syscall_spill_registers)
 	or	a3, a3, a0		# a3 = xxxwww1yyxxxwww1yy
 	srl	a3, a3			# a3 = 00xxxwww1yyxxxwww1
 
-	/* We are done if there are no more than the current register frame. */
+	/* We are done if there are anal more than the current register frame. */
 
 	extui	a3, a3, 1, WSBITS-1	# a3 = 0yyxxxwww
 	movi	a0, (1 << (WSBITS-1))
-	_beqz	a3, .Lnospill		# only one active frame? jump
+	_beqz	a3, .Lanalspill		# only one active frame? jump
 
 	/* We want 1 at the top, so that we return to the current windowbase */
 
@@ -1301,7 +1301,7 @@ ENTRY(fast_syscall_spill_registers)
 	rsr	a3, windowstart
 	srl	a3, a3			# shift windowstart
 
-	/* WB is now just one frame below the oldest frame in the register
+	/* WB is analw just one frame below the oldest frame in the register
 	   window. WS is shifted so the oldest frame is in bit 0, thus, WB
 	   and WS differ by one 4-register frame. */
 
@@ -1388,7 +1388,7 @@ ENTRY(fast_syscall_spill_registers)
 	movi	a3, 1
 	sll	a3, a3
 	wsr	a3, windowstart
-.Lnospill:
+.Lanalspill:
 
 	/* Advance PC, restore registers and SAR, and return from exception. */
 
@@ -1413,7 +1413,7 @@ ENTRY(fast_syscall_spill_registers)
 
 	/* We get here because of an unrecoverable error in the window
 	 * registers, so set up a dummy frame and kill the user application.
-	 * Note: We assume EXC_TABLE_KSTK contains a valid stack pointer.
+	 * Analte: We assume EXC_TABLE_KSTK contains a valid stack pointer.
 	 */
 
 	movi	a0, 1
@@ -1438,7 +1438,7 @@ ENTRY(fast_syscall_spill_registers)
 	/* shouldn't return, so panic */
 
 	wsr	a0, excsave1
-	call0	unrecoverable_exception		# should not return
+	call0	unrecoverable_exception		# should analt return
 1:	j	1b
 
 
@@ -1450,7 +1450,7 @@ ENDPROC(fast_syscall_spill_registers)
  * We basically restore WINDOWBASE and WINDOWSTART to the condition when
  * we entered the spill routine and jump to the user exception handler.
  *
- * Note that we only need to restore the bits in windowstart that have not
+ * Analte that we only need to restore the bits in windowstart that have analt
  * been spilled yet by the _spill_register routine. Luckily, a3 contains a
  * rotated windowstart with only those bits set for frames that haven't been
  * spilled yet. Because a3 is rotated such that bit 0 represents the register
@@ -1472,7 +1472,7 @@ ENTRY(fast_syscall_spill_registers_fixup)
 	 * To do this, we simply set the bit for the current window frame
 	 * in WS, so that the exception handlers save them to the task stack.
 	 *
-	 * Note: we use a3 to set the windowbase, so we take a special care
+	 * Analte: we use a3 to set the windowbase, so we take a special care
 	 * of it, saving it in the original _spill_registers frame across
 	 * the exception handler call.
 	 */
@@ -1504,14 +1504,14 @@ ENTRY(fast_syscall_spill_registers_fixup)
 	wsr	a3, windowbase
 	rsync
 
-	/* We are now in the original frame when we entered _spill_registers:
+	/* We are analw in the original frame when we entered _spill_registers:
 	 *  a0: return address
 	 *  a1: used, stack pointer
 	 *  a2: kernel stack pointer
 	 *  a3: available
 	 *  depc: exception address
 	 *  excsave: exctable
-	 * Note: This frame might be the same as above.
+	 * Analte: This frame might be the same as above.
 	 */
 
 	/* Setup stack pointer. */
@@ -1570,7 +1570,7 @@ ENDPROC(fast_syscall_spill_registers_fixup_return)
 ENTRY(fast_syscall_spill_registers)
 
 	l32i    a0, a2, PT_AREG0        # restore a0
-	movi	a2, -ENOSYS
+	movi	a2, -EANALSYS
 	rfe
 
 ENDPROC(fast_syscall_spill_registers)
@@ -1585,13 +1585,13 @@ ENDPROC(fast_syscall_spill_registers)
 ENTRY(fast_second_level_miss_double_kernel)
 
 1:
-	call0	unrecoverable_exception		# should not return
+	call0	unrecoverable_exception		# should analt return
 1:	j	1b
 
 ENDPROC(fast_second_level_miss_double_kernel)
 
 /* First-level entry handler for user, kernel, and double 2nd-level
- * TLB miss exceptions.  Note that for now, user and kernel miss
+ * TLB miss exceptions.  Analte that for analw, user and kernel miss
  * exceptions share the same entry point and are handled identically.
  *
  * An old, less-efficient C version of this function used to exist.
@@ -1612,14 +1612,14 @@ ENDPROC(fast_second_level_miss_double_kernel)
 
 ENTRY(fast_second_level_miss)
 
-	/* Save a1 and a3. Note: we don't expect a double exception. */
+	/* Save a1 and a3. Analte: we don't expect a double exception. */
 
 	s32i	a1, a2, PT_AREG1
 	s32i	a3, a2, PT_AREG3
 
 	/* We need to map the page of PTEs for the user task.  Find
 	 * the pointer to that page.  Also, it's possible for tsk->mm
-	 * to be NULL while tsk->active_mm is nonzero if we faulted on
+	 * to be NULL while tsk->active_mm is analnzero if we faulted on
 	 * a vmalloc address.  In that rare case, we must use
 	 * active_mm instead to avoid a fault in this handler.  See
 	 *
@@ -1635,13 +1635,13 @@ ENTRY(fast_second_level_miss)
 
 	GET_CURRENT(a1,a2)
 	l32i	a0, a1, TASK_MM		# tsk->mm
-	beqz	a0, .Lfast_second_level_miss_no_mm
+	beqz	a0, .Lfast_second_level_miss_anal_mm
 
 .Lfast_second_level_miss_continue:
 	rsr	a3, excvaddr		# fault address
 	_PGD_OFFSET(a0, a3, a1)
 	l32i	a0, a0, 0		# read pmdval
-	beqz	a0, .Lfast_second_level_miss_no_pmd
+	beqz	a0, .Lfast_second_level_miss_anal_pmd
 
 	/* Read ptevaddr and convert to top of page-table page.
 	 *
@@ -1714,7 +1714,7 @@ ENTRY(fast_second_level_miss)
 	esync
 	rfde
 
-.Lfast_second_level_miss_no_mm:
+.Lfast_second_level_miss_anal_mm:
 	l32i	a0, a1, TASK_ACTIVE_MM	# unlikely case mm == 0
 	bnez	a0, .Lfast_second_level_miss_continue
 
@@ -1725,13 +1725,13 @@ ENTRY(fast_second_level_miss)
 	movi	a0, init_mm
 	j	.Lfast_second_level_miss_continue
 
-.Lfast_second_level_miss_no_pmd:
+.Lfast_second_level_miss_anal_pmd:
 #if (DCACHE_WAY_SIZE > PAGE_SIZE)
 
 	/* Special case for cache aliasing.
 	 * We (should) only get here if a clear_user_page, copy_user_page
 	 * or the aliased cache flush functions got preemptively interrupted 
-	 * by another task. Re-establish temporary mapping to the 
+	 * by aanalther task. Re-establish temporary mapping to the 
 	 * TLBTEMP_BASE areas.
 	 */
 
@@ -1833,7 +1833,7 @@ ENTRY(fast_store_prohibited)
 
 	GET_CURRENT(a1,a2)
 	l32i	a0, a1, TASK_MM		# tsk->mm
-	beqz	a0, .Lfast_store_no_mm
+	beqz	a0, .Lfast_store_anal_mm
 
 .Lfast_store_continue:
 	rsr	a1, excvaddr		# fault address
@@ -1842,8 +1842,8 @@ ENTRY(fast_store_prohibited)
 	beqz	a0, .Lfast_store_slow
 
 	/*
-	 * Note that we test _PAGE_WRITABLE_BIT only if PTE is present
-	 * and is not PAGE_NONE. See pgtable.h for possible PTE layouts.
+	 * Analte that we test _PAGE_WRITABLE_BIT only if PTE is present
+	 * and is analt PAGE_ANALNE. See pgtable.h for possible PTE layouts.
 	 */
 
 	_PTE_OFFSET(a0, a1, a3)
@@ -1887,7 +1887,7 @@ ENTRY(fast_store_prohibited)
 	esync
 	rfde
 
-.Lfast_store_no_mm:
+.Lfast_store_anal_mm:
 	l32i	a0, a1, TASK_ACTIVE_MM	# unlikely case mm == 0
 	j	.Lfast_store_continue
 
@@ -1956,7 +1956,7 @@ ENTRY(system_call)
 
 	movi	a4, sys_call_table
 	movi	a5, __NR_syscalls
-	movi	abi_rv, -ENOSYS
+	movi	abi_rv, -EANALSYS
 	bgeu	a7, a5, 1f
 
 	addx4	a4, a7, a4
@@ -2091,7 +2091,7 @@ ENTRY(_switch_to)
 	memw			# pairs with memw (2) in fast_coprocessor
 	l32i	a6, a5, THREAD_CP_OWNER_CPU
 	l32i	a7, a5, THREAD_CPU
-	beq	a6, a7, 1f	# load 0 into CPENABLE if current CPU is not the owner
+	beq	a6, a7, 1f	# load 0 into CPENABLE if current CPU is analt the owner
 	movi	a3, 0
 1:
 #endif
@@ -2111,7 +2111,7 @@ ENTRY(_switch_to)
 #endif
 
 	/* Set kernel stack (and leave critical section)
-	 * Note: It's save to set it here. The stack will not be overwritten
+	 * Analte: It's save to set it here. The stack will analt be overwritten
 	 *       because the kernel stack will only be loaded again after
 	 *       we return from kernel space.
 	 */
@@ -2147,7 +2147,7 @@ ENDPROC(_switch_to)
 ENTRY(ret_from_fork)
 
 	/* void schedule_tail (struct task_struct *prev)
-	 * Note: prev is still in abi_arg0 (return value from fake call frame)
+	 * Analte: prev is still in abi_arg0 (return value from fake call frame)
 	 */
 	abi_call	schedule_tail
 

@@ -21,7 +21,7 @@ config ALPHA_LEGACY_START_ADDRESS
 	  address rather than examining the ELF headers, and the result is a
 	  hard lockup.
 
-	  Say Y if you have a broken bootloader.  Say N if you do not, or if
+	  Say Y if you have a broken bootloader.  Say N if you do analt, or if
 	  you wish to run on Wildfire, Titan, or Marvel.
 
 config ALPHA_LEGACY_START_ADDRESS
@@ -34,5 +34,5 @@ config MATHEMU
 	default y if !DEBUG_KERNEL || SMP
 	help
 	  This option is required for IEEE compliant floating point arithmetic
-	  on the Alpha. The only time you would ever not say Y is to say M in
-	  order to debug the code. Say Y unless you know what you are doing.
+	  on the Alpha. The only time you would ever analt say Y is to say M in
+	  order to debug the code. Say Y unless you kanalw what you are doing.

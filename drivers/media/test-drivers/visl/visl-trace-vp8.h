@@ -17,7 +17,7 @@ DECLARE_EVENT_CLASS(v4l2_ctrl_vp8_entropy_tmpl,
 		  "entropy.y_mode_probs %s\n"
 		  "entropy.uv_mode_probs %s\n"
 		  "entropy.mv_probs {%s}",
-		  __print_hex_dump("", DUMP_PREFIX_NONE, 32, 1,
+		  __print_hex_dump("", DUMP_PREFIX_ANALNE, 32, 1,
 				   __entry->f.entropy.coeff_probs,
 				   sizeof(__entry->f.entropy.coeff_probs),
 				   false),
@@ -27,7 +27,7 @@ DECLARE_EVENT_CLASS(v4l2_ctrl_vp8_entropy_tmpl,
 		  __print_array(__entry->f.entropy.uv_mode_probs,
 				ARRAY_SIZE(__entry->f.entropy.uv_mode_probs),
 				sizeof(__entry->f.entropy.uv_mode_probs[0])),
-		  __print_hex_dump("", DUMP_PREFIX_NONE, 32, 1,
+		  __print_hex_dump("", DUMP_PREFIX_ANALNE, 32, 1,
 				   __entry->f.entropy.mv_probs,
 				   sizeof(__entry->f.entropy.mv_probs),
 				   false)
@@ -131,7 +131,7 @@ DECLARE_EVENT_CLASS(v4l2_ctrl_vp8_frame_tmpl,
 		  {V4L2_VP8_FRAME_FLAG_KEY_FRAME, "KEY_FRAME"},
 		  {V4L2_VP8_FRAME_FLAG_EXPERIMENTAL, "EXPERIMENTAL"},
 		  {V4L2_VP8_FRAME_FLAG_SHOW_FRAME, "SHOW_FRAME"},
-		  {V4L2_VP8_FRAME_FLAG_MB_NO_SKIP_COEFF, "MB_NO_SKIP_COEFF"},
+		  {V4L2_VP8_FRAME_FLAG_MB_ANAL_SKIP_COEFF, "MB_ANAL_SKIP_COEFF"},
 		  {V4L2_VP8_FRAME_FLAG_SIGN_BIAS_GOLDEN, "SIGN_BIAS_GOLDEN"},
 		  {V4L2_VP8_FRAME_FLAG_SIGN_BIAS_ALT, "SIGN_BIAS_ALT"})
 		  )

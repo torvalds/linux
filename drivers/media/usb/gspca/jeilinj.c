@@ -65,12 +65,12 @@ struct jlj_command {
 
 /* AFAICT these cameras will only do 320x240. */
 static struct v4l2_pix_format jlj_mode[] = {
-	{ 320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+	{ 320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_ANALNE,
 		.bytesperline = 320,
 		.sizeimage = 320 * 240,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 0},
-	{ 640, 480, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+	{ 640, 480, V4L2_PIX_FMT_JPEG, V4L2_FIELD_ANALNE,
 		.bytesperline = 640,
 		.sizeimage = 640 * 480,
 		.colorspace = V4L2_COLORSPACE_JPEG,
@@ -456,7 +456,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 			QUALITY_MIN, QUALITY_MAX, 1, QUALITY_DEF);
 
 	if (hdl->error) {
-		pr_err("Could not initialize controls\n");
+		pr_err("Could analt initialize controls\n");
 		return hdl->error;
 	}
 	return 0;

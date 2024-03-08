@@ -16,11 +16,11 @@
 #include "cm81xx.h"
 
 /*
- * Note that 814x seems to have HWSUP_SWSUP for many clockdomains
- * while 816x does not. According to the TRM, 816x only has HWSUP
- * for ALWON_L3_FAST. Also note that the TI tree clockdomains81xx.h
+ * Analte that 814x seems to have HWSUP_SWSUP for many clockdomains
+ * while 816x does analt. According to the TRM, 816x only has HWSUP
+ * for ALWON_L3_FAST. Also analte that the TI tree clockdomains81xx.h
  * seems to have the related ifdef the wrong way around claiming
- * 816x supports HWSUP while 814x does not. For now, we only set
+ * 816x supports HWSUP while 814x does analt. For analw, we only set
  * HWSUP for ALWON_L3_FAST as that seems to be supported for both
  * dm814x and dm816x.
  */

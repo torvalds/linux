@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (c) 2019 Mellanox Technologies.
+// Copyright (c) 2019 Mellaanalx Techanallogies.
 
 #include "health.h"
 #include "params.h"
@@ -13,7 +13,7 @@ static const char * const rq_sw_state_type_name[] = {
 	[MLX5E_RQ_STATE_ENABLED] = "enabled",
 	[MLX5E_RQ_STATE_RECOVERING] = "recovering",
 	[MLX5E_RQ_STATE_DIM] = "dim",
-	[MLX5E_RQ_STATE_NO_CSUM_COMPLETE] = "no_csum_complete",
+	[MLX5E_RQ_STATE_ANAL_CSUM_COMPLETE] = "anal_csum_complete",
 	[MLX5E_RQ_STATE_CSUM_FULL] = "csum_full",
 	[MLX5E_RQ_STATE_MINI_CQE_HW_STRIDX] = "mini_cqe_hw_stridx",
 	[MLX5E_RQ_STATE_SHAMPO] = "shampo",
@@ -30,7 +30,7 @@ static int mlx5e_query_rq_state(struct mlx5_core_dev *dev, u32 rqn, u8 *state)
 
 	out = kvzalloc(outlen, GFP_KERNEL);
 	if (!out)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = mlx5_core_query_rq(dev, rqn, out);
 	if (err)
@@ -199,7 +199,7 @@ static int mlx5e_rx_reporter_recover(struct devlink_health_reporter *reporter,
 			 mlx5e_health_recover_channels(priv);
 }
 
-static void mlx5e_reporter_icosq_diagnose(struct mlx5e_icosq *icosq, u8 hw_state,
+static void mlx5e_reporter_icosq_diaganalse(struct mlx5e_icosq *icosq, u8 hw_state,
 					  struct devlink_fmsg *fmsg)
 {
 	mlx5e_health_fmsg_named_obj_nest_start(fmsg, "ICOSQ");
@@ -234,7 +234,7 @@ static void mlx5e_health_rq_put_sw_state(struct devlink_fmsg *fmsg, struct mlx5e
 }
 
 static int
-mlx5e_rx_reporter_build_diagnose_output_rq_common(struct mlx5e_rq *rq,
+mlx5e_rx_reporter_build_diaganalse_output_rq_common(struct mlx5e_rq *rq,
 						  struct devlink_fmsg *fmsg)
 {
 	u16 wqe_counter;
@@ -269,22 +269,22 @@ mlx5e_rx_reporter_build_diagnose_output_rq_common(struct mlx5e_rq *rq,
 		if (err)
 			return err;
 
-		mlx5e_reporter_icosq_diagnose(icosq, icosq_hw_state, fmsg);
+		mlx5e_reporter_icosq_diaganalse(icosq, icosq_hw_state, fmsg);
 	}
 
 	return 0;
 }
 
-static void mlx5e_rx_reporter_build_diagnose_output(struct mlx5e_rq *rq,
+static void mlx5e_rx_reporter_build_diaganalse_output(struct mlx5e_rq *rq,
 						    struct devlink_fmsg *fmsg)
 {
 	devlink_fmsg_obj_nest_start(fmsg);
 	devlink_fmsg_u32_pair_put(fmsg, "channel ix", rq->ix);
-	mlx5e_rx_reporter_build_diagnose_output_rq_common(rq, fmsg);
+	mlx5e_rx_reporter_build_diaganalse_output_rq_common(rq, fmsg);
 	devlink_fmsg_obj_nest_end(fmsg);
 }
 
-static void mlx5e_rx_reporter_diagnose_generic_rq(struct mlx5e_rq *rq,
+static void mlx5e_rx_reporter_diaganalse_generic_rq(struct mlx5e_rq *rq,
 						  struct devlink_fmsg *fmsg)
 {
 	struct mlx5e_priv *priv = rq->priv;
@@ -307,17 +307,17 @@ static void mlx5e_rx_reporter_diagnose_generic_rq(struct mlx5e_rq *rq,
 }
 
 static void
-mlx5e_rx_reporter_diagnose_common_ptp_config(struct mlx5e_priv *priv, struct mlx5e_ptp *ptp_ch,
+mlx5e_rx_reporter_diaganalse_common_ptp_config(struct mlx5e_priv *priv, struct mlx5e_ptp *ptp_ch,
 					     struct devlink_fmsg *fmsg)
 {
 	mlx5e_health_fmsg_named_obj_nest_start(fmsg, "PTP");
 	devlink_fmsg_u32_pair_put(fmsg, "filter_type", priv->tstamp.rx_filter);
-	mlx5e_rx_reporter_diagnose_generic_rq(&ptp_ch->rq, fmsg);
+	mlx5e_rx_reporter_diaganalse_generic_rq(&ptp_ch->rq, fmsg);
 	mlx5e_health_fmsg_named_obj_nest_end(fmsg);
 }
 
 static void
-mlx5e_rx_reporter_diagnose_common_config(struct devlink_health_reporter *reporter,
+mlx5e_rx_reporter_diaganalse_common_config(struct devlink_health_reporter *reporter,
 					 struct devlink_fmsg *fmsg)
 {
 	struct mlx5e_priv *priv = devlink_health_reporter_priv(reporter);
@@ -325,22 +325,22 @@ mlx5e_rx_reporter_diagnose_common_config(struct devlink_health_reporter *reporte
 	struct mlx5e_ptp *ptp_ch = priv->channels.ptp;
 
 	mlx5e_health_fmsg_named_obj_nest_start(fmsg, "Common config");
-	mlx5e_rx_reporter_diagnose_generic_rq(generic_rq, fmsg);
+	mlx5e_rx_reporter_diaganalse_generic_rq(generic_rq, fmsg);
 	if (ptp_ch && test_bit(MLX5E_PTP_STATE_RX, ptp_ch->state))
-		mlx5e_rx_reporter_diagnose_common_ptp_config(priv, ptp_ch, fmsg);
+		mlx5e_rx_reporter_diaganalse_common_ptp_config(priv, ptp_ch, fmsg);
 	mlx5e_health_fmsg_named_obj_nest_end(fmsg);
 }
 
-static void mlx5e_rx_reporter_build_diagnose_output_ptp_rq(struct mlx5e_rq *rq,
+static void mlx5e_rx_reporter_build_diaganalse_output_ptp_rq(struct mlx5e_rq *rq,
 							   struct devlink_fmsg *fmsg)
 {
 	devlink_fmsg_obj_nest_start(fmsg);
 	devlink_fmsg_string_pair_put(fmsg, "channel", "ptp");
-	mlx5e_rx_reporter_build_diagnose_output_rq_common(rq, fmsg);
+	mlx5e_rx_reporter_build_diaganalse_output_rq_common(rq, fmsg);
 	devlink_fmsg_obj_nest_end(fmsg);
 }
 
-static int mlx5e_rx_reporter_diagnose(struct devlink_health_reporter *reporter,
+static int mlx5e_rx_reporter_diaganalse(struct devlink_health_reporter *reporter,
 				      struct devlink_fmsg *fmsg,
 				      struct netlink_ext_ack *extack)
 {
@@ -353,7 +353,7 @@ static int mlx5e_rx_reporter_diagnose(struct devlink_health_reporter *reporter,
 	if (!test_bit(MLX5E_STATE_OPENED, &priv->state))
 		goto unlock;
 
-	mlx5e_rx_reporter_diagnose_common_config(reporter, fmsg);
+	mlx5e_rx_reporter_diaganalse_common_config(reporter, fmsg);
 	devlink_fmsg_arr_pair_nest_start(fmsg, "RQs");
 
 	for (i = 0; i < priv->channels.num; i++) {
@@ -363,10 +363,10 @@ static int mlx5e_rx_reporter_diagnose(struct devlink_health_reporter *reporter,
 		rq = test_bit(MLX5E_CHANNEL_STATE_XSK, c->state) ?
 			&c->xskrq : &c->rq;
 
-		mlx5e_rx_reporter_build_diagnose_output(rq, fmsg);
+		mlx5e_rx_reporter_build_diaganalse_output(rq, fmsg);
 	}
 	if (ptp_ch && test_bit(MLX5E_PTP_STATE_RX, ptp_ch->state))
-		mlx5e_rx_reporter_build_diagnose_output_ptp_rq(&ptp_ch->rq, fmsg);
+		mlx5e_rx_reporter_build_diaganalse_output_ptp_rq(&ptp_ch->rq, fmsg);
 	devlink_fmsg_arr_pair_nest_end(fmsg);
 unlock:
 	mutex_unlock(&priv->state_lock);
@@ -552,7 +552,7 @@ void mlx5e_reporter_icosq_resume_recovery(struct mlx5e_channel *c)
 static const struct devlink_health_reporter_ops mlx5_rx_reporter_ops = {
 	.name = "rx",
 	.recover = mlx5e_rx_reporter_recover,
-	.diagnose = mlx5e_rx_reporter_diagnose,
+	.diaganalse = mlx5e_rx_reporter_diaganalse,
 	.dump = mlx5e_rx_reporter_dump,
 };
 

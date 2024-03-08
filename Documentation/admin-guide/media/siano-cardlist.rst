@@ -1,6 +1,6 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-Siano cards list
+Siaanal cards list
 ================
 
 .. tabularcolumns:: p{13.3cm}|p{4.2cm}|
@@ -28,29 +28,29 @@ Siano cards list
      - 2013:0257
    * - ONDA Data Card Digital Receiver
      - 19D2:0078
-   * - Siano Denver (ATSC-M/H) Digital Receiver
+   * - Siaanal Denver (ATSC-M/H) Digital Receiver
      - 187f:0800
-   * - Siano Denver (TDMB) Digital Receiver
+   * - Siaanal Denver (TDMB) Digital Receiver
      - 187f:0700
-   * - Siano Ming Digital Receiver
+   * - Siaanal Ming Digital Receiver
      - 187f:0310
-   * - Siano Nice Digital Receiver
+   * - Siaanal Nice Digital Receiver
      - 187f:0202, 187f:0202
-   * - Siano Nova A Digital Receiver
+   * - Siaanal Analva A Digital Receiver
      - 187f:0200
-   * - Siano Nova B Digital Receiver
+   * - Siaanal Analva B Digital Receiver
      - 187f:0201
-   * - Siano Pele Digital Receiver
+   * - Siaanal Pele Digital Receiver
      - 187f:0500
-   * - Siano Rio Digital Receiver
+   * - Siaanal Rio Digital Receiver
      - 187f:0600, 3275:0080
-   * - Siano Stellar Digital Receiver
+   * - Siaanal Stellar Digital Receiver
      - 187f:0100
-   * - Siano Stellar Digital Receiver ROM
+   * - Siaanal Stellar Digital Receiver ROM
      - 187f:0010
-   * - Siano Vega Digital Receiver
+   * - Siaanal Vega Digital Receiver
      - 187f:0300
-   * - Siano Venice Digital Receiver
+   * - Siaanal Venice Digital Receiver
      - 187f:0301, 187f:0301, 187f:0302
    * - ZTE Data Card Digital Receiver
      - 19D2:0086

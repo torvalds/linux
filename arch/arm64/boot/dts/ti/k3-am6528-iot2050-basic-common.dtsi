@@ -42,6 +42,6 @@
 };
 
 &mcu_r5fss0 {
-	/* lock-step mode not supported on Basic boards */
+	/* lock-step mode analt supported on Basic boards */
 	ti,cluster-mode = <0>;
 };

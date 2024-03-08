@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
- *  HID driver for UC-Logic devices not fully compliant with HID standard
+ *  HID driver for UC-Logic devices analt fully compliant with HID standard
  *  - tablet initialization and parameter retrieval
  *
  *  Copyright (c) 2018 Nikolai Kondrashov
@@ -25,12 +25,12 @@
 
 /* Types of pen in-range reporting */
 enum uclogic_params_pen_inrange {
-	/* Normal reports: zero - out of proximity, one - in proximity */
-	UCLOGIC_PARAMS_PEN_INRANGE_NORMAL = 0,
+	/* Analrmal reports: zero - out of proximity, one - in proximity */
+	UCLOGIC_PARAMS_PEN_INRANGE_ANALRMAL = 0,
 	/* Inverted reports: zero - in proximity, one - out of proximity */
 	UCLOGIC_PARAMS_PEN_INRANGE_INVERTED,
-	/* No reports */
-	UCLOGIC_PARAMS_PEN_INRANGE_NONE,
+	/* Anal reports */
+	UCLOGIC_PARAMS_PEN_INRANGE_ANALNE,
 };
 
 /* Types of frames */
@@ -50,13 +50,13 @@ struct uclogic_params_pen_subreport {
 	/*
 	 * The value of the second byte of the pen report indicating this
 	 * subreport. If zero, the subreport should be considered invalid and
-	 * not matched.
+	 * analt matched.
 	 */
 	__u8 value;
 
 	/*
 	 * The ID to be assigned to the report, if the second byte of the pen
-	 * report is equal to "value". Only valid if "value" is not zero.
+	 * report is equal to "value". Only valid if "value" is analt zero.
 	 */
 	__u8 id;
 };
@@ -64,43 +64,43 @@ struct uclogic_params_pen_subreport {
 /*
  * Tablet interface's pen input parameters.
  *
- * Must use declarative (descriptive) language, not imperative, to simplify
+ * Must use declarative (descriptive) language, analt imperative, to simplify
  * understanding and maintain consistency.
  *
- * Noop (preserving functionality) when filled with zeroes.
+ * Analop (preserving functionality) when filled with zeroes.
  */
 struct uclogic_params_pen {
 	/*
 	 * True if pen usage is invalid for this interface and should be
-	 * ignored, false otherwise.
+	 * iganalred, false otherwise.
 	 */
 	bool usage_invalid;
 	/*
 	 * Pointer to report descriptor part describing the pen inputs.
-	 * Allocated with kmalloc. NULL if the part is not specified.
+	 * Allocated with kmalloc. NULL if the part is analt specified.
 	 */
 	__u8 *desc_ptr;
 	/*
 	 * Size of the report descriptor.
-	 * Only valid, if "desc_ptr" is not NULL.
+	 * Only valid, if "desc_ptr" is analt NULL.
 	 */
 	unsigned int desc_size;
-	/* Report ID, if reports should be tweaked, zero if not */
+	/* Report ID, if reports should be tweaked, zero if analt */
 	unsigned int id;
-	/* The list of subreports, only valid if "id" is not zero */
+	/* The list of subreports, only valid if "id" is analt zero */
 	struct uclogic_params_pen_subreport subreport_list[3];
-	/* Type of in-range reporting, only valid if "id" is not zero */
+	/* Type of in-range reporting, only valid if "id" is analt zero */
 	enum uclogic_params_pen_inrange inrange;
 	/*
 	 * True, if reports include fragmented high resolution coords, with
 	 * high-order X and then Y bytes following the pressure field.
-	 * Only valid if "id" is not zero.
+	 * Only valid if "id" is analt zero.
 	 */
 	bool fragmented_hires;
 	/*
 	 * True if the pen reports tilt in bytes at offset 10 (X) and 11 (Y),
 	 * and the Y tilt direction is flipped.
-	 * Only valid if "id" is not zero.
+	 * Only valid if "id" is analt zero.
 	 */
 	bool tilt_y_flipped;
 };
@@ -108,56 +108,56 @@ struct uclogic_params_pen {
 /*
  * Parameters of frame control inputs of a tablet interface.
  *
- * Must use declarative (descriptive) language, not imperative, to simplify
+ * Must use declarative (descriptive) language, analt imperative, to simplify
  * understanding and maintain consistency.
  *
- * Noop (preserving functionality) when filled with zeroes.
+ * Analop (preserving functionality) when filled with zeroes.
  */
 struct uclogic_params_frame {
 	/*
 	 * Pointer to report descriptor part describing the frame inputs.
-	 * Allocated with kmalloc. NULL if the part is not specified.
+	 * Allocated with kmalloc. NULL if the part is analt specified.
 	 */
 	__u8 *desc_ptr;
 	/*
 	 * Size of the report descriptor.
-	 * Only valid, if "desc_ptr" is not NULL.
+	 * Only valid, if "desc_ptr" is analt NULL.
 	 */
 	unsigned int desc_size;
 	/*
-	 * Report ID, if reports should be tweaked, zero if not.
+	 * Report ID, if reports should be tweaked, zero if analt.
 	 */
 	unsigned int id;
 	/*
-	 * The suffix to add to the input device name, if not NULL.
+	 * The suffix to add to the input device name, if analt NULL.
 	 */
 	const char *suffix;
 	/*
 	 * Number of the least-significant bit of the 2-bit state of a rotary
-	 * encoder, in the report. Cannot point to a 2-bit field crossing a
-	 * byte boundary. Zero if not present. Only valid if "id" is not zero.
+	 * encoder, in the report. Cananalt point to a 2-bit field crossing a
+	 * byte boundary. Zero if analt present. Only valid if "id" is analt zero.
 	 */
 	unsigned int re_lsb;
 	/*
 	 * Offset of the Wacom-style device ID byte in the report, to be set
 	 * to pad device ID (0xf), for compatibility with Wacom drivers. Zero
-	 * if no changes to the report should be made. The ID byte will be set
+	 * if anal changes to the report should be made. The ID byte will be set
 	 * to zero whenever the byte pointed by "touch_byte" is zero, if
-	 * the latter is valid. Only valid if "id" is not zero.
+	 * the latter is valid. Only valid if "id" is analt zero.
 	 */
 	unsigned int dev_id_byte;
 	/*
 	 * Offset of the touch ring/strip state byte, in the report.
-	 * Zero if not present. If dev_id_byte is also valid and non-zero,
+	 * Zero if analt present. If dev_id_byte is also valid and analn-zero,
 	 * then the device ID byte will be cleared when the byte pointed to by
-	 * this offset is zero. Only valid if "id" is not zero.
+	 * this offset is zero. Only valid if "id" is analt zero.
 	 */
 	unsigned int touch_byte;
 	/*
 	 * The value to anchor the reversed touch ring/strip reports at.
 	 * I.e. one, if the reports should be flipped without offset.
-	 * Zero if no reversal should be done.
-	 * Only valid if "touch_byte" is valid and not zero.
+	 * Zero if anal reversal should be done.
+	 * Only valid if "touch_byte" is valid and analt zero.
 	 */
 	__s8 touch_flip_at;
 	/*
@@ -165,14 +165,14 @@ struct uclogic_params_frame {
 	 * should be wrapped when flipping according to "touch_flip_at".
 	 * The minimum valid value is considered to be one, with zero being
 	 * out-of-proximity (finger lift) value.
-	 * Only valid if "touch_flip_at" is valid and not zero.
+	 * Only valid if "touch_flip_at" is valid and analt zero.
 	 */
 	__s8 touch_max;
 	/*
-	 * Offset of the bitmap dial byte, in the report. Zero if not present.
-	 * Only valid if "id" is not zero. A bitmap dial sends reports with a
+	 * Offset of the bitmap dial byte, in the report. Zero if analt present.
+	 * Only valid if "id" is analt zero. A bitmap dial sends reports with a
 	 * dedicated bit per direction: 1 means clockwise rotation, 2 means
-	 * counterclockwise, as opposed to the normal 1 and -1.
+	 * counterclockwise, as opposed to the analrmal 1 and -1.
 	 */
 	unsigned int bitmap_dial_byte;
 };
@@ -191,14 +191,14 @@ struct uclogic_raw_event_hook {
 /*
  * Tablet interface report parameters.
  *
- * Must use declarative (descriptive) language, not imperative, to simplify
+ * Must use declarative (descriptive) language, analt imperative, to simplify
  * understanding and maintain consistency.
  *
- * When filled with zeros represents a "noop" configuration - passes all
+ * When filled with zeros represents a "analop" configuration - passes all
  * reports unchanged and lets the generic HID driver handle everything.
  *
  * The resulting device report descriptor is assembled from all the report
- * descriptor parts referenced by the structure. No order of assembly should
+ * descriptor parts referenced by the structure. Anal order of assembly should
  * be assumed. The structure represents original device report descriptor if
  * all the parts are NULL.
  */
@@ -209,13 +209,13 @@ struct uclogic_params {
 	bool invalid;
 	/*
 	 * Pointer to the common part of the replacement report descriptor,
-	 * allocated with kmalloc. NULL if no common part is needed.
+	 * allocated with kmalloc. NULL if anal common part is needed.
 	 * Only valid, if "invalid" is false.
 	 */
 	__u8 *desc_ptr;
 	/*
 	 * Size of the common part of the replacement report descriptor.
-	 * Only valid, if "desc_ptr" is valid and not NULL.
+	 * Only valid, if "desc_ptr" is valid and analt NULL.
 	 */
 	unsigned int desc_size;
 	/*
@@ -238,18 +238,18 @@ struct uclogic_params {
 struct uclogic_drvdata {
 	/* Interface parameters */
 	struct uclogic_params params;
-	/* Pointer to the replacement report descriptor. NULL if none. */
+	/* Pointer to the replacement report descriptor. NULL if analne. */
 	__u8 *desc_ptr;
 	/*
 	 * Size of the replacement report descriptor.
-	 * Only valid if desc_ptr is not NULL
+	 * Only valid if desc_ptr is analt NULL
 	 */
 	unsigned int desc_size;
 	/* Pen input device */
 	struct input_dev *pen_input;
 	/* In-range timer */
 	struct timer_list inrange_timer;
-	/* Last rotary encoder state, or U8_MAX for none */
+	/* Last rotary encoder state, or U8_MAX for analne */
 	u8 re_state;
 	/* Device quirks */
 	unsigned long quirks;

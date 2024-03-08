@@ -20,7 +20,7 @@
 
 #include <linux/pxa2xx_ssp.h>
 
-#include <asm/errno.h>
+#include <asm/erranal.h>
 
 #include "intel-lpss.h"
 
@@ -29,13 +29,13 @@ static const struct property_entry spt_spi_properties[] = {
 	{ }
 };
 
-static const struct software_node spt_spi_node = {
+static const struct software_analde spt_spi_analde = {
 	.properties = spt_spi_properties,
 };
 
 static const struct intel_lpss_platform_info spt_info = {
 	.clk_rate = 120000000,
-	.swnode = &spt_spi_node,
+	.swanalde = &spt_spi_analde,
 };
 
 static const struct property_entry spt_i2c_properties[] = {
@@ -43,13 +43,13 @@ static const struct property_entry spt_i2c_properties[] = {
 	{ },
 };
 
-static const struct software_node spt_i2c_node = {
+static const struct software_analde spt_i2c_analde = {
 	.properties = spt_i2c_properties,
 };
 
 static const struct intel_lpss_platform_info spt_i2c_info = {
 	.clk_rate = 120000000,
-	.swnode = &spt_i2c_node,
+	.swanalde = &spt_i2c_analde,
 };
 
 static const struct property_entry uart_properties[] = {
@@ -59,14 +59,14 @@ static const struct property_entry uart_properties[] = {
 	{ },
 };
 
-static const struct software_node uart_node = {
+static const struct software_analde uart_analde = {
 	.properties = uart_properties,
 };
 
 static const struct intel_lpss_platform_info spt_uart_info = {
 	.clk_rate = 120000000,
 	.clk_con_id = "baudclk",
-	.swnode = &uart_node,
+	.swanalde = &uart_analde,
 };
 
 static const struct property_entry bxt_spi_properties[] = {
@@ -74,13 +74,13 @@ static const struct property_entry bxt_spi_properties[] = {
 	{ }
 };
 
-static const struct software_node bxt_spi_node = {
+static const struct software_analde bxt_spi_analde = {
 	.properties = bxt_spi_properties,
 };
 
 static const struct intel_lpss_platform_info bxt_info = {
 	.clk_rate = 100000000,
-	.swnode = &bxt_spi_node,
+	.swanalde = &bxt_spi_analde,
 };
 
 static const struct property_entry bxt_i2c_properties[] = {
@@ -90,13 +90,13 @@ static const struct property_entry bxt_i2c_properties[] = {
 	{ },
 };
 
-static const struct software_node bxt_i2c_node = {
+static const struct software_analde bxt_i2c_analde = {
 	.properties = bxt_i2c_properties,
 };
 
 static const struct intel_lpss_platform_info bxt_i2c_info = {
 	.clk_rate = 133000000,
-	.swnode = &bxt_i2c_node,
+	.swanalde = &bxt_i2c_analde,
 };
 
 static const struct property_entry apl_i2c_properties[] = {
@@ -106,13 +106,13 @@ static const struct property_entry apl_i2c_properties[] = {
 	{ },
 };
 
-static const struct software_node apl_i2c_node = {
+static const struct software_analde apl_i2c_analde = {
 	.properties = apl_i2c_properties,
 };
 
 static const struct intel_lpss_platform_info apl_i2c_info = {
 	.clk_rate = 133000000,
-	.swnode = &apl_i2c_node,
+	.swanalde = &apl_i2c_analde,
 };
 
 static const struct property_entry cnl_spi_properties[] = {
@@ -120,18 +120,18 @@ static const struct property_entry cnl_spi_properties[] = {
 	{ }
 };
 
-static const struct software_node cnl_spi_node = {
+static const struct software_analde cnl_spi_analde = {
 	.properties = cnl_spi_properties,
 };
 
 static const struct intel_lpss_platform_info cnl_info = {
 	.clk_rate = 120000000,
-	.swnode = &cnl_spi_node,
+	.swanalde = &cnl_spi_analde,
 };
 
 static const struct intel_lpss_platform_info cnl_i2c_info = {
 	.clk_rate = 216000000,
-	.swnode = &spt_i2c_node,
+	.swanalde = &spt_i2c_analde,
 };
 
 static const struct acpi_device_id intel_lpss_acpi_ids[] = {
@@ -180,13 +180,13 @@ static int intel_lpss_acpi_probe(struct platform_device *pdev)
 
 	data = device_get_match_data(&pdev->dev);
 	if (!data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	info = devm_kmemdup(&pdev->dev, data, sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* No need to check mem and irq here as intel_lpss_probe() does it for us */
+	/* Anal need to check mem and irq here as intel_lpss_probe() does it for us */
 	info->mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	info->irq = platform_get_irq(pdev, 0);
 

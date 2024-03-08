@@ -17,12 +17,12 @@ static struct dentry *shrinker_debugfs_root;
 
 static unsigned long shrinker_count_objects(struct shrinker *shrinker,
 					    struct mem_cgroup *memcg,
-					    unsigned long *count_per_node)
+					    unsigned long *count_per_analde)
 {
 	unsigned long nr, total = 0;
 	int nid;
 
-	for_each_node(nid) {
+	for_each_analde(nid) {
 		if (nid == 0 || (shrinker->flags & SHRINKER_NUMA_AWARE)) {
 			struct shrink_control sc = {
 				.gfp_mask = GFP_KERNEL,
@@ -37,7 +37,7 @@ static unsigned long shrinker_count_objects(struct shrinker *shrinker,
 			nr = 0;
 		}
 
-		count_per_node[nid] = nr;
+		count_per_analde[nid] = nr;
 		total += nr;
 	}
 
@@ -47,15 +47,15 @@ static unsigned long shrinker_count_objects(struct shrinker *shrinker,
 static int shrinker_debugfs_count_show(struct seq_file *m, void *v)
 {
 	struct shrinker *shrinker = m->private;
-	unsigned long *count_per_node;
+	unsigned long *count_per_analde;
 	struct mem_cgroup *memcg;
 	unsigned long total;
 	bool memcg_aware;
 	int ret = 0, nid;
 
-	count_per_node = kcalloc(nr_node_ids, sizeof(unsigned long), GFP_KERNEL);
-	if (!count_per_node)
-		return -ENOMEM;
+	count_per_analde = kcalloc(nr_analde_ids, sizeof(unsigned long), GFP_KERNEL);
+	if (!count_per_analde)
+		return -EANALMEM;
 
 	rcu_read_lock();
 
@@ -68,11 +68,11 @@ static int shrinker_debugfs_count_show(struct seq_file *m, void *v)
 
 		total = shrinker_count_objects(shrinker,
 					       memcg_aware ? memcg : NULL,
-					       count_per_node);
+					       count_per_analde);
 		if (total) {
-			seq_printf(m, "%lu", mem_cgroup_ino(memcg));
-			for_each_node(nid)
-				seq_printf(m, " %lu", count_per_node[nid]);
+			seq_printf(m, "%lu", mem_cgroup_ianal(memcg));
+			for_each_analde(nid)
+				seq_printf(m, " %lu", count_per_analde[nid]);
 			seq_putc(m, '\n');
 		}
 
@@ -90,15 +90,15 @@ static int shrinker_debugfs_count_show(struct seq_file *m, void *v)
 
 	rcu_read_unlock();
 
-	kfree(count_per_node);
+	kfree(count_per_analde);
 	return ret;
 }
 DEFINE_SHOW_ATTRIBUTE(shrinker_debugfs_count);
 
-static int shrinker_debugfs_scan_open(struct inode *inode, struct file *file)
+static int shrinker_debugfs_scan_open(struct ianalde *ianalde, struct file *file)
 {
-	file->private_data = inode->i_private;
-	return nonseekable_open(inode, file);
+	file->private_data = ianalde->i_private;
+	return analnseekable_open(ianalde, file);
 }
 
 static ssize_t shrinker_debugfs_scan_write(struct file *file,
@@ -106,7 +106,7 @@ static ssize_t shrinker_debugfs_scan_write(struct file *file,
 					   size_t size, loff_t *pos)
 {
 	struct shrinker *shrinker = file->private_data;
-	unsigned long nr_to_scan = 0, ino, read_len;
+	unsigned long nr_to_scan = 0, ianal, read_len;
 	struct shrink_control sc = {
 		.gfp_mask = GFP_KERNEL,
 	};
@@ -119,25 +119,25 @@ static ssize_t shrinker_debugfs_scan_write(struct file *file,
 		return -EFAULT;
 	kbuf[read_len] = '\0';
 
-	if (sscanf(kbuf, "%lu %d %lu", &ino, &nid, &nr_to_scan) != 3)
+	if (sscanf(kbuf, "%lu %d %lu", &ianal, &nid, &nr_to_scan) != 3)
 		return -EINVAL;
 
-	if (nid < 0 || nid >= nr_node_ids)
+	if (nid < 0 || nid >= nr_analde_ids)
 		return -EINVAL;
 
 	if (nr_to_scan == 0)
 		return size;
 
 	if (shrinker->flags & SHRINKER_MEMCG_AWARE) {
-		memcg = mem_cgroup_get_from_ino(ino);
+		memcg = mem_cgroup_get_from_ianal(ianal);
 		if (!memcg || IS_ERR(memcg))
-			return -ENOENT;
+			return -EANALENT;
 
 		if (!mem_cgroup_online(memcg)) {
 			mem_cgroup_put(memcg);
-			return -ENOENT;
+			return -EANALENT;
 		}
-	} else if (ino != 0) {
+	} else if (ianal != 0) {
 		return -EINVAL;
 	}
 
@@ -206,7 +206,7 @@ int shrinker_debugfs_rename(struct shrinker *shrinker, const char *fmt, ...)
 	va_end(ap);
 
 	if (!new)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&shrinker_mutex);
 

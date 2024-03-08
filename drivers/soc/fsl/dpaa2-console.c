@@ -74,7 +74,7 @@ static u64 get_mc_fw_base_address(void)
 
 	mcfbaregs = ioremap(mc_base_addr.start, resource_size(&mc_base_addr));
 	if (!mcfbaregs) {
-		pr_err("could not map MC Firmware Base registers\n");
+		pr_err("could analt map MC Firmware Base registers\n");
 		return 0;
 	}
 
@@ -101,7 +101,7 @@ static ssize_t dpaa2_console_size(struct console_data *cd)
 	return size;
 }
 
-static int dpaa2_generic_console_open(struct inode *node, struct file *fp,
+static int dpaa2_generic_console_open(struct ianalde *analde, struct file *fp,
 				      u64 offset, u64 size,
 				      u32 expected_magic,
 				      u32 offset_delta)
@@ -113,7 +113,7 @@ static int dpaa2_generic_console_open(struct inode *node, struct file *fp,
 
 	cd = kmalloc(sizeof(*cd), GFP_KERNEL);
 	if (!cd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	base_addr = get_mc_fw_base_address();
 	if (!base_addr) {
@@ -123,7 +123,7 @@ static int dpaa2_generic_console_open(struct inode *node, struct file *fp,
 
 	cd->map_addr = ioremap(base_addr + offset, size);
 	if (!cd->map_addr) {
-		pr_err("cannot map console log memory\n");
+		pr_err("cananalt map console log memory\n");
 		err = -EIO;
 		goto err_ioremap;
 	}
@@ -166,21 +166,21 @@ err_fwba:
 	return err;
 }
 
-static int dpaa2_mc_console_open(struct inode *node, struct file *fp)
+static int dpaa2_mc_console_open(struct ianalde *analde, struct file *fp)
 {
-	return dpaa2_generic_console_open(node, fp,
+	return dpaa2_generic_console_open(analde, fp,
 					  MC_BUFFER_OFFSET, MC_BUFFER_SIZE,
 					  MAGIC_MC, MC_OFFSET_DELTA);
 }
 
-static int dpaa2_aiop_console_open(struct inode *node, struct file *fp)
+static int dpaa2_aiop_console_open(struct ianalde *analde, struct file *fp)
 {
-	return dpaa2_generic_console_open(node, fp,
+	return dpaa2_generic_console_open(analde, fp,
 					  AIOP_BUFFER_OFFSET, AIOP_BUFFER_SIZE,
 					  MAGIC_AIOP, AIOP_OFFSET_DELTA);
 }
 
-static int dpaa2_console_close(struct inode *node, struct file *fp)
+static int dpaa2_console_close(struct ianalde *analde, struct file *fp)
 {
 	struct console_data *cd = fp->private_data;
 
@@ -210,7 +210,7 @@ static ssize_t dpaa2_console_read(struct file *fp, char __user *buf,
 
 	kbuf = kmalloc(bytes, GFP_KERNEL);
 	if (!kbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (bytes > bytes_end) {
 		memcpy_fromio(kbuf, cd->cur_ptr, bytes_end);
@@ -249,7 +249,7 @@ static const struct file_operations dpaa2_mc_console_fops = {
 };
 
 static struct miscdevice dpaa2_mc_console_dev = {
-	.minor = MISC_DYNAMIC_MINOR,
+	.mianalr = MISC_DYNAMIC_MIANALR,
 	.name = "dpaa2_mc_console",
 	.fops = &dpaa2_mc_console_fops
 };
@@ -262,7 +262,7 @@ static const struct file_operations dpaa2_aiop_console_fops = {
 };
 
 static struct miscdevice dpaa2_aiop_console_dev = {
-	.minor = MISC_DYNAMIC_MINOR,
+	.mianalr = MISC_DYNAMIC_MIANALR,
 	.name = "dpaa2_aiop_console",
 	.fops = &dpaa2_aiop_console_fops
 };
@@ -271,23 +271,23 @@ static int dpaa2_console_probe(struct platform_device *pdev)
 {
 	int error;
 
-	error = of_address_to_resource(pdev->dev.of_node, 0, &mc_base_addr);
+	error = of_address_to_resource(pdev->dev.of_analde, 0, &mc_base_addr);
 	if (error < 0) {
 		pr_err("of_address_to_resource() failed for %pOF with %d\n",
-		       pdev->dev.of_node, error);
+		       pdev->dev.of_analde, error);
 		return error;
 	}
 
 	error = misc_register(&dpaa2_mc_console_dev);
 	if (error) {
-		pr_err("cannot register device %s\n",
+		pr_err("cananalt register device %s\n",
 		       dpaa2_mc_console_dev.name);
 		goto err_register_mc;
 	}
 
 	error = misc_register(&dpaa2_aiop_console_dev);
 	if (error) {
-		pr_err("cannot register device %s\n",
+		pr_err("cananalt register device %s\n",
 		       dpaa2_aiop_console_dev.name);
 		goto err_register_aiop;
 	}

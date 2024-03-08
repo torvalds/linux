@@ -13,7 +13,7 @@
  *
  * Limitations:
  * - Untested on MPC5125 and M54418.
- * - DMA and pipelining not used.
+ * - DMA and pipelining analt used.
  * - 2K pages or less.
  * - HW ECC: Only 2K page with 64+ OOB.
  * - HW ECC: Only 24 and 32-bit error correction implemented.
@@ -89,8 +89,8 @@
 #define CMD_BYTE1_SHIFT				24
 #define CMD_CODE_MASK				0x00FFFF00
 #define CMD_CODE_SHIFT				8
-#define BUFNO_MASK				0x00000006
-#define BUFNO_SHIFT				1
+#define BUFANAL_MASK				0x00000006
+#define BUFANAL_SHIFT				1
 #define START_BIT				BIT(0)
 
 /* NFC_COL_ADDR Field */
@@ -122,7 +122,7 @@
 #define CONFIG_16BIT				BIT(7)
 #define CONFIG_BOOT_MODE_BIT			BIT(6)
 #define CONFIG_ADDR_AUTO_INCR_BIT		BIT(5)
-#define CONFIG_BUFNO_AUTO_INCR_BIT		BIT(4)
+#define CONFIG_BUFANAL_AUTO_INCR_BIT		BIT(4)
 #define CONFIG_PAGE_CNT_MASK			0xF
 #define CONFIG_PAGE_CNT_SHIFT			0
 
@@ -215,7 +215,7 @@ static inline bool vf610_nfc_kernel_is_little_endian(void)
  * @fix_endian: Fix endianness if required
  *
  * Use this accessor for the internal SRAM buffers. On the ARM
- * Freescale Vybrid SoC it's known that the driver can treat
+ * Freescale Vybrid SoC it's kanalwn that the driver can treat
  * the SRAM buffer as if it's memory. Other platform might need
  * to treat the buffers differently.
  *
@@ -250,7 +250,7 @@ static inline void vf610_nfc_rd_from_sram(void *dst, const void __iomem *src,
  * @fix_endian: Fix endianness if required
  *
  * Use this accessor for the internal SRAM buffers. On the ARM
- * Freescale Vybrid SoC it's known that the driver can treat
+ * Freescale Vybrid SoC it's kanalwn that the driver can treat
  * the SRAM buffer as if it's memory. Other platform might need
  * to treat the buffers differently.
  *
@@ -710,7 +710,7 @@ static void vf610_nfc_preinit_controller(struct vf610_nfc *nfc)
 {
 	vf610_nfc_clear(nfc, NFC_FLASH_CONFIG, CONFIG_16BIT);
 	vf610_nfc_clear(nfc, NFC_FLASH_CONFIG, CONFIG_ADDR_AUTO_INCR_BIT);
-	vf610_nfc_clear(nfc, NFC_FLASH_CONFIG, CONFIG_BUFNO_AUTO_INCR_BIT);
+	vf610_nfc_clear(nfc, NFC_FLASH_CONFIG, CONFIG_BUFANAL_AUTO_INCR_BIT);
 	vf610_nfc_clear(nfc, NFC_FLASH_CONFIG, CONFIG_BOOT_MODE_BIT);
 	vf610_nfc_clear(nfc, NFC_FLASH_CONFIG, CONFIG_DMA_REQ_BIT);
 	vf610_nfc_set(nfc, NFC_FLASH_CONFIG, CONFIG_FAST_FLASH_BIT);
@@ -749,7 +749,7 @@ static int vf610_nfc_attach_chip(struct nand_chip *chip)
 
 	/* Bad block options. */
 	if (chip->bbt_options & NAND_BBT_USE_FLASH)
-		chip->bbt_options |= NAND_BBT_NO_OOB;
+		chip->bbt_options |= NAND_BBT_ANAL_OOB;
 
 	/* Single buffer only, max 256 OOB minus ECC status */
 	if (mtd->writesize + mtd->oobsize > PAGE_2K + OOB_MAX - 8) {
@@ -770,7 +770,7 @@ static int vf610_nfc_attach_chip(struct nand_chip *chip)
 		return -ENXIO;
 	}
 
-	/* Only 64 byte ECC layouts known */
+	/* Only 64 byte ECC layouts kanalwn */
 	if (mtd->oobsize > 64)
 		mtd->oobsize = 64;
 
@@ -810,13 +810,13 @@ static int vf610_nfc_probe(struct platform_device *pdev)
 	struct vf610_nfc *nfc;
 	struct mtd_info *mtd;
 	struct nand_chip *chip;
-	struct device_node *child;
+	struct device_analde *child;
 	int err;
 	int irq;
 
 	nfc = devm_kzalloc(&pdev->dev, sizeof(*nfc), GFP_KERNEL);
 	if (!nfc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nfc->dev = &pdev->dev;
 	chip = &nfc->chip;
@@ -842,28 +842,28 @@ static int vf610_nfc_probe(struct platform_device *pdev)
 
 	nfc->variant = (enum vf610_nfc_variant)device_get_match_data(&pdev->dev);
 	if (!nfc->variant)
-		return -ENODEV;
+		return -EANALDEV;
 
-	for_each_available_child_of_node(nfc->dev->of_node, child) {
+	for_each_available_child_of_analde(nfc->dev->of_analde, child) {
 		if (of_device_is_compatible(child, "fsl,vf610-nfc-nandcs")) {
 
-			if (nand_get_flash_node(chip)) {
+			if (nand_get_flash_analde(chip)) {
 				dev_err(nfc->dev,
 					"Only one NAND chip supported!\n");
-				of_node_put(child);
+				of_analde_put(child);
 				return -EINVAL;
 			}
 
-			nand_set_flash_node(chip, child);
+			nand_set_flash_analde(chip, child);
 		}
 	}
 
-	if (!nand_get_flash_node(chip)) {
-		dev_err(nfc->dev, "NAND chip sub-node missing!\n");
-		return -ENODEV;
+	if (!nand_get_flash_analde(chip)) {
+		dev_err(nfc->dev, "NAND chip sub-analde missing!\n");
+		return -EANALDEV;
 	}
 
-	chip->options |= NAND_NO_SUBPAGE_WRITE;
+	chip->options |= NAND_ANAL_SUBPAGE_WRITE;
 
 	init_completion(&nfc->cmd_done);
 

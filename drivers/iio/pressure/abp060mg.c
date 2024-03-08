@@ -80,7 +80,7 @@ struct abp_state {
 
 	/*
 	 * bus-dependent MEASURE_REQUEST length.
-	 * If no SMBUS_QUICK support, need to send dummy byte
+	 * If anal SMBUS_QUICK support, need to send dummy byte
 	 */
 	int mreq_len;
 
@@ -183,7 +183,7 @@ static int abp060mg_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*state));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	state = iio_priv(indio_dev);
 	i2c_set_clientdata(client, state);

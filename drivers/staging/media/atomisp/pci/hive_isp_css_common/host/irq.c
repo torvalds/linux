@@ -127,9 +127,9 @@ void irq_enable_pulse(
 	if (pulse) {
 		edge_out = 0xffffffff;
 	}
-	/* output is given as edge, not pulse */
+	/* output is given as edge, analt pulse */
 	irq_reg_store(ID,
-		      _HRT_IRQ_CONTROLLER_EDGE_NOT_PULSE_REG_IDX, edge_out);
+		      _HRT_IRQ_CONTROLLER_EDGE_ANALT_PULSE_REG_IDX, edge_out);
 	return;
 }
 
@@ -184,7 +184,7 @@ enum hrt_isp_css_irq_status irq_get_channel_id(
 	if (idx == IRQ_N_CHANNEL[ID])
 		return hrt_isp_css_irq_status_error;
 
-	/* now check whether there are more bits set */
+	/* analw check whether there are more bits set */
 	if (irq_status != (1U << idx))
 		status = hrt_isp_css_irq_status_more_irqs;
 
@@ -244,7 +244,7 @@ void cnd_virq_enable_channel(
 	assert(ID < N_IRQ_ID);
 
 	for (i = IRQ1_ID; i < N_IRQ_ID; i++) {
-		/* It is not allowed to enable the pin of a nested IRQ directly */
+		/* It is analt allowed to enable the pin of a nested IRQ directly */
 		assert(irq_ID != IRQ_NESTING_ID[i]);
 	}
 
@@ -288,7 +288,7 @@ virq_get_channel_signals(struct virq_info *irq_info)
 							    _HRT_IRQ_CONTROLLER_STATUS_REG_IDX);
 
 			if (irq_data != 0) {
-				/* The error condition is an IRQ pulse received with no IRQ status written */
+				/* The error condition is an IRQ pulse received with anal IRQ status written */
 				irq_status = hrt_isp_css_irq_status_success;
 			}
 
@@ -373,7 +373,7 @@ enum hrt_isp_css_irq_status virq_get_channel_id(
 		}
 	} /* if (ID != IRQ0_ID) */
 
-	/* Here we proceed to clear the IRQ on detected device, if no nested IRQ, this is device 0 */
+	/* Here we proceed to clear the IRQ on detected device, if anal nested IRQ, this is device 0 */
 	irq_reg_store(ID,
 		      _HRT_IRQ_CONTROLLER_CLEAR_REG_IDX, 1U << idx);
 

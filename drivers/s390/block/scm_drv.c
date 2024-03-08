@@ -14,7 +14,7 @@
 #include <asm/eadm.h>
 #include "scm_blk.h"
 
-static void scm_notify(struct scm_device *scmdev, enum scm_event event)
+static void scm_analtify(struct scm_device *scmdev, enum scm_event event)
 {
 	struct scm_blk_dev *bdev = dev_get_drvdata(&scmdev->dev);
 
@@ -46,7 +46,7 @@ static int scm_probe(struct scm_device *scmdev)
 
 	bdev = kzalloc(sizeof(*bdev), GFP_KERNEL);
 	if (!bdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(&scmdev->dev, bdev);
 	ret = scm_blk_dev_setup(bdev, scmdev);
@@ -74,7 +74,7 @@ static struct scm_driver scm_drv = {
 		.name = "scm_block",
 		.owner = THIS_MODULE,
 	},
-	.notify = scm_notify,
+	.analtify = scm_analtify,
 	.probe = scm_probe,
 	.remove = scm_remove,
 	.handler = scm_blk_irq,

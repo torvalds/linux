@@ -5,7 +5,7 @@
  */
 
 /*
- * Veritas filesystem driver - inode routines.
+ * Veritas filesystem driver - ianalde routines.
  */
 #include <linux/fs.h>
 #include <linux/buffer_head.h>
@@ -15,22 +15,22 @@
 #include <linux/namei.h>
 
 #include "vxfs.h"
-#include "vxfs_inode.h"
+#include "vxfs_ianalde.h"
 #include "vxfs_extern.h"
 
 
-#ifdef DIAGNOSTIC
+#ifdef DIAGANALSTIC
 /*
- * Dump inode contents (partially).
+ * Dump ianalde contents (partially).
  */
 void
-vxfs_dumpi(struct vxfs_inode_info *vip, ino_t ino)
+vxfs_dumpi(struct vxfs_ianalde_info *vip, ianal_t ianal)
 {
 	printk(KERN_DEBUG "\n\n");
-	if (ino)
-		printk(KERN_DEBUG "dumping vxfs inode %ld\n", ino);
+	if (ianal)
+		printk(KERN_DEBUG "dumping vxfs ianalde %ld\n", ianal);
 	else
-		printk(KERN_DEBUG "dumping unknown vxfs inode\n");
+		printk(KERN_DEBUG "dumping unkanalwn vxfs ianalde\n");
 
 	printk(KERN_DEBUG "---------------------------\n");
 	printk(KERN_DEBUG "mode is %x\n", vip->vii_mode);
@@ -43,15 +43,15 @@ vxfs_dumpi(struct vxfs_inode_info *vip, ino_t ino)
 #endif
 
 /**
- * vxfs_transmod - mode for a VxFS inode
- * @vip:	VxFS inode
+ * vxfs_transmod - mode for a VxFS ianalde
+ * @vip:	VxFS ianalde
  *
  * Description:
  *  vxfs_transmod returns a Linux mode_t for a given
- *  VxFS inode structure.
+ *  VxFS ianalde structure.
  */
 static __inline__ umode_t
-vxfs_transmod(struct vxfs_inode_info *vip)
+vxfs_transmod(struct vxfs_ianalde_info *vip)
 {
 	umode_t			ret = vip->vii_mode & ~VXFS_TYPE_MASK;
 
@@ -74,9 +74,9 @@ vxfs_transmod(struct vxfs_inode_info *vip)
 }
 
 static inline void dip2vip_cpy(struct vxfs_sb_info *sbi,
-		struct vxfs_inode_info *vip, struct vxfs_dinode *dip)
+		struct vxfs_ianalde_info *vip, struct vxfs_dianalde *dip)
 {
-	struct inode *inode = &vip->vfs_inode;
+	struct ianalde *ianalde = &vip->vfs_ianalde;
 
 	vip->vii_mode = fs32_to_cpu(sbi, dip->vdi_mode);
 	vip->vii_nlink = fs32_to_cpu(sbi, dip->vdi_nlink);
@@ -102,167 +102,167 @@ static inline void dip2vip_cpy(struct vxfs_sb_info *sbi,
 	/* don't endian swap the fields that differ by orgtype */
 	memcpy(&vip->vii_org, &dip->vdi_org, sizeof(vip->vii_org));
 
-	inode->i_mode = vxfs_transmod(vip);
-	i_uid_write(inode, (uid_t)vip->vii_uid);
-	i_gid_write(inode, (gid_t)vip->vii_gid);
+	ianalde->i_mode = vxfs_transmod(vip);
+	i_uid_write(ianalde, (uid_t)vip->vii_uid);
+	i_gid_write(ianalde, (gid_t)vip->vii_gid);
 
-	set_nlink(inode, vip->vii_nlink);
-	inode->i_size = vip->vii_size;
+	set_nlink(ianalde, vip->vii_nlink);
+	ianalde->i_size = vip->vii_size;
 
-	inode_set_atime(inode, vip->vii_atime, 0);
-	inode_set_ctime(inode, vip->vii_ctime, 0);
-	inode_set_mtime(inode, vip->vii_mtime, 0);
+	ianalde_set_atime(ianalde, vip->vii_atime, 0);
+	ianalde_set_ctime(ianalde, vip->vii_ctime, 0);
+	ianalde_set_mtime(ianalde, vip->vii_mtime, 0);
 
-	inode->i_blocks = vip->vii_blocks;
-	inode->i_generation = vip->vii_gen;
+	ianalde->i_blocks = vip->vii_blocks;
+	ianalde->i_generation = vip->vii_gen;
 }
 
 /**
- * vxfs_blkiget - find inode based on extent #
+ * vxfs_blkiget - find ianalde based on extent #
  * @sbp:	superblock of the filesystem we search in
  * @extent:	number of the extent to search
- * @ino:	inode number to search
+ * @ianal:	ianalde number to search
  *
  * Description:
- *  vxfs_blkiget searches inode @ino in the filesystem described by
+ *  vxfs_blkiget searches ianalde @ianal in the filesystem described by
  *  @sbp in the extent @extent.
- *  Returns the matching VxFS inode on success, else a NULL pointer.
+ *  Returns the matching VxFS ianalde on success, else a NULL pointer.
  *
- * NOTE:
+ * ANALTE:
  *  While __vxfs_iget uses the pagecache vxfs_blkiget uses the
- *  buffercache.  This function should not be used outside the
+ *  buffercache.  This function should analt be used outside the
  *  read_super() method, otherwise the data may be incoherent.
  */
-struct inode *
-vxfs_blkiget(struct super_block *sbp, u_long extent, ino_t ino)
+struct ianalde *
+vxfs_blkiget(struct super_block *sbp, u_long extent, ianal_t ianal)
 {
 	struct buffer_head		*bp;
-	struct inode			*inode;
+	struct ianalde			*ianalde;
 	u_long				block, offset;
 
-	inode = new_inode(sbp);
-	if (!inode)
+	ianalde = new_ianalde(sbp);
+	if (!ianalde)
 		return NULL;
-	inode->i_ino = get_next_ino();
+	ianalde->i_ianal = get_next_ianal();
 
-	block = extent + ((ino * VXFS_ISIZE) / sbp->s_blocksize);
-	offset = ((ino % (sbp->s_blocksize / VXFS_ISIZE)) * VXFS_ISIZE);
+	block = extent + ((ianal * VXFS_ISIZE) / sbp->s_blocksize);
+	offset = ((ianal % (sbp->s_blocksize / VXFS_ISIZE)) * VXFS_ISIZE);
 	bp = sb_bread(sbp, block);
 
 	if (bp && buffer_mapped(bp)) {
-		struct vxfs_inode_info	*vip = VXFS_INO(inode);
-		struct vxfs_dinode	*dip;
+		struct vxfs_ianalde_info	*vip = VXFS_IANAL(ianalde);
+		struct vxfs_dianalde	*dip;
 
-		dip = (struct vxfs_dinode *)(bp->b_data + offset);
+		dip = (struct vxfs_dianalde *)(bp->b_data + offset);
 		dip2vip_cpy(VXFS_SBI(sbp), vip, dip);
-		vip->vfs_inode.i_mapping->a_ops = &vxfs_aops;
-#ifdef DIAGNOSTIC
-		vxfs_dumpi(vip, ino);
+		vip->vfs_ianalde.i_mapping->a_ops = &vxfs_aops;
+#ifdef DIAGANALSTIC
+		vxfs_dumpi(vip, ianal);
 #endif
 		brelse(bp);
-		return inode;
+		return ianalde;
 	}
 
 	printk(KERN_WARNING "vxfs: unable to read block %ld\n", block);
 	brelse(bp);
-	iput(inode);
+	iput(ianalde);
 	return NULL;
 }
 
 /**
- * __vxfs_iget - generic find inode facility
- * @ilistp:		inode list
- * @vip:		VxFS inode to fill in
- * @ino:		inode number
+ * __vxfs_iget - generic find ianalde facility
+ * @ilistp:		ianalde list
+ * @vip:		VxFS ianalde to fill in
+ * @ianal:		ianalde number
  *
  * Description:
- *  Search the for inode number @ino in the filesystem
- *  described by @sbp.  Use the specified inode table (@ilistp).
- *  Returns the matching inode on success, else an error code.
+ *  Search the for ianalde number @ianal in the filesystem
+ *  described by @sbp.  Use the specified ianalde table (@ilistp).
+ *  Returns the matching ianalde on success, else an error code.
  */
 static int
-__vxfs_iget(struct inode *ilistp, struct vxfs_inode_info *vip, ino_t ino)
+__vxfs_iget(struct ianalde *ilistp, struct vxfs_ianalde_info *vip, ianal_t ianal)
 {
 	struct page			*pp;
 	u_long				offset;
 
-	offset = (ino % (PAGE_SIZE / VXFS_ISIZE)) * VXFS_ISIZE;
-	pp = vxfs_get_page(ilistp->i_mapping, ino * VXFS_ISIZE / PAGE_SIZE);
+	offset = (ianal % (PAGE_SIZE / VXFS_ISIZE)) * VXFS_ISIZE;
+	pp = vxfs_get_page(ilistp->i_mapping, ianal * VXFS_ISIZE / PAGE_SIZE);
 
 	if (!IS_ERR(pp)) {
-		struct vxfs_dinode	*dip;
+		struct vxfs_dianalde	*dip;
 		caddr_t			kaddr = (char *)page_address(pp);
 
-		dip = (struct vxfs_dinode *)(kaddr + offset);
+		dip = (struct vxfs_dianalde *)(kaddr + offset);
 		dip2vip_cpy(VXFS_SBI(ilistp->i_sb), vip, dip);
-		vip->vfs_inode.i_mapping->a_ops = &vxfs_aops;
-#ifdef DIAGNOSTIC
-		vxfs_dumpi(vip, ino);
+		vip->vfs_ianalde.i_mapping->a_ops = &vxfs_aops;
+#ifdef DIAGANALSTIC
+		vxfs_dumpi(vip, ianal);
 #endif
 		vxfs_put_page(pp);
 		return 0;
 	}
 
-	printk(KERN_WARNING "vxfs: error on page 0x%p for inode %ld\n",
-		pp, (unsigned long)ino);
+	printk(KERN_WARNING "vxfs: error on page 0x%p for ianalde %ld\n",
+		pp, (unsigned long)ianal);
 	return PTR_ERR(pp);
 }
 
 /**
- * vxfs_stiget - find inode using the structural inode list
+ * vxfs_stiget - find ianalde using the structural ianalde list
  * @sbp:	VFS superblock
- * @ino:	inode #
+ * @ianal:	ianalde #
  *
  * Description:
- *  Find inode @ino in the filesystem described by @sbp using
- *  the structural inode list.
- *  Returns the matching inode on success, else a NULL pointer.
+ *  Find ianalde @ianal in the filesystem described by @sbp using
+ *  the structural ianalde list.
+ *  Returns the matching ianalde on success, else a NULL pointer.
  */
-struct inode *
-vxfs_stiget(struct super_block *sbp, ino_t ino)
+struct ianalde *
+vxfs_stiget(struct super_block *sbp, ianal_t ianal)
 {
-	struct inode *inode;
+	struct ianalde *ianalde;
 	int error;
 
-	inode = new_inode(sbp);
-	if (!inode)
+	ianalde = new_ianalde(sbp);
+	if (!ianalde)
 		return NULL;
-	inode->i_ino = get_next_ino();
+	ianalde->i_ianal = get_next_ianal();
 
-	error = __vxfs_iget(VXFS_SBI(sbp)->vsi_stilist, VXFS_INO(inode), ino);
+	error = __vxfs_iget(VXFS_SBI(sbp)->vsi_stilist, VXFS_IANAL(ianalde), ianal);
 	if (error) {
-		iput(inode);
+		iput(ianalde);
 		return NULL;
 	}
 
-	return inode;
+	return ianalde;
 }
 
 /**
- * vxfs_iget - get an inode
- * @sbp:	the superblock to get the inode for
- * @ino:	the number of the inode to get
+ * vxfs_iget - get an ianalde
+ * @sbp:	the superblock to get the ianalde for
+ * @ianal:	the number of the ianalde to get
  *
  * Description:
- *  vxfs_read_inode creates an inode, reads the disk inode for @ino and fills
- *  in all relevant fields in the new inode.
+ *  vxfs_read_ianalde creates an ianalde, reads the disk ianalde for @ianal and fills
+ *  in all relevant fields in the new ianalde.
  */
-struct inode *
-vxfs_iget(struct super_block *sbp, ino_t ino)
+struct ianalde *
+vxfs_iget(struct super_block *sbp, ianal_t ianal)
 {
-	struct vxfs_inode_info		*vip;
+	struct vxfs_ianalde_info		*vip;
 	const struct address_space_operations	*aops;
-	struct inode *ip;
+	struct ianalde *ip;
 	int error;
 
-	ip = iget_locked(sbp, ino);
+	ip = iget_locked(sbp, ianal);
 	if (!ip)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	if (!(ip->i_state & I_NEW))
 		return ip;
 
-	vip = VXFS_INO(ip);
-	error = __vxfs_iget(VXFS_SBI(sbp)->vsi_ilist, vip, ino);
+	vip = VXFS_IANAL(ip);
+	error = __vxfs_iget(VXFS_SBI(sbp)->vsi_ilist, vip, ianal);
 	if (error) {
 		iget_failed(ip);
 		return ERR_PTR(error);
@@ -277,38 +277,38 @@ vxfs_iget(struct super_block *sbp, ino_t ino)
 		ip->i_fop = &generic_ro_fops;
 		ip->i_mapping->a_ops = aops;
 	} else if (S_ISDIR(ip->i_mode)) {
-		ip->i_op = &vxfs_dir_inode_ops;
+		ip->i_op = &vxfs_dir_ianalde_ops;
 		ip->i_fop = &vxfs_dir_operations;
 		ip->i_mapping->a_ops = aops;
 	} else if (S_ISLNK(ip->i_mode)) {
 		if (!VXFS_ISIMMED(vip)) {
-			ip->i_op = &page_symlink_inode_operations;
-			inode_nohighmem(ip);
+			ip->i_op = &page_symlink_ianalde_operations;
+			ianalde_analhighmem(ip);
 			ip->i_mapping->a_ops = &vxfs_aops;
 		} else {
-			ip->i_op = &simple_symlink_inode_operations;
+			ip->i_op = &simple_symlink_ianalde_operations;
 			ip->i_link = vip->vii_immed.vi_immed;
 			nd_terminate_link(ip->i_link, ip->i_size,
 					  sizeof(vip->vii_immed.vi_immed) - 1);
 		}
 	} else
-		init_special_inode(ip, ip->i_mode, old_decode_dev(vip->vii_rdev));
+		init_special_ianalde(ip, ip->i_mode, old_decode_dev(vip->vii_rdev));
 
-	unlock_new_inode(ip);
+	unlock_new_ianalde(ip);
 	return ip;
 }
 
 /**
- * vxfs_evict_inode - remove inode from main memory
- * @ip:		inode to discard.
+ * vxfs_evict_ianalde - remove ianalde from main memory
+ * @ip:		ianalde to discard.
  *
  * Description:
- *  vxfs_evict_inode() is called on the final iput and frees the private
- *  inode area.
+ *  vxfs_evict_ianalde() is called on the final iput and frees the private
+ *  ianalde area.
  */
 void
-vxfs_evict_inode(struct inode *ip)
+vxfs_evict_ianalde(struct ianalde *ip)
 {
-	truncate_inode_pages_final(&ip->i_data);
-	clear_inode(ip);
+	truncate_ianalde_pages_final(&ip->i_data);
+	clear_ianalde(ip);
 }

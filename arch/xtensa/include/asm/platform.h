@@ -41,6 +41,6 @@ extern void platform_calibrate_ccount (void);
  * Flush and reset the mmu, simulate a processor reset, and
  * jump to the reset vector.
  */
-void cpu_reset(void) __attribute__((noreturn));
+void cpu_reset(void) __attribute__((analreturn));
 
 #endif	/* _XTENSA_PLATFORM_H */

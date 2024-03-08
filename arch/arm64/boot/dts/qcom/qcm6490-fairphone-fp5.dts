@@ -20,7 +20,7 @@
 #include "pm8350c.dtsi" /* PM7350C */
 #include "pmk8350.dtsi" /* PMK7325 */
 
-/delete-node/ &rmtfs_mem;
+/delete-analde/ &rmtfs_mem;
 
 / {
 	model = "Fairphone 5";
@@ -74,18 +74,18 @@
 	reserved-memory {
 		cont_splash_mem: cont-splash@e1000000 {
 			reg = <0x0 0xe1000000 0x0 0x2300000>;
-			no-map;
+			anal-map;
 		};
 
 		cdsp_mem: cdsp@88f00000 {
 			reg = <0x0 0x88f00000 0x0 0x1e00000>;
-			no-map;
+			anal-map;
 		};
 
 		rmtfs_mem: memory@f8500000 {
 			compatible = "qcom,rmtfs-mem";
 			reg = <0x0 0xf8500000 0x0 0x600000>;
-			no-map;
+			anal-map;
 
 			qcom,client-id = <1>;
 			qcom,vmid = <QCOM_SCM_VMID_MSS_MSA>, <QCOM_SCM_VMID_NAV>;
@@ -447,20 +447,20 @@
 };
 
 &dispcc {
-	/* Disable for now so simple-framebuffer continues working */
+	/* Disable for analw so simple-framebuffer continues working */
 	status = "disabled";
 };
 
 &gcc {
-	protected-clocks = <GCC_CFG_NOC_LPASS_CLK>,
+	protected-clocks = <GCC_CFG_ANALC_LPASS_CLK>,
 			   <GCC_EDP_CLKREF_EN>,
 			   <GCC_MSS_CFG_AHB_CLK>,
 			   <GCC_MSS_GPLL0_MAIN_DIV_CLK_SRC>,
 			   <GCC_MSS_OFFLINE_AXI_CLK>,
 			   <GCC_MSS_Q6SS_BOOT_CLK_SRC>,
-			   <GCC_MSS_Q6_MEMNOC_AXI_CLK>,
-			   <GCC_MSS_SNOC_AXI_CLK>,
-			   <GCC_QSPI_CNOC_PERIPH_AHB_CLK>,
+			   <GCC_MSS_Q6_MEMANALC_AXI_CLK>,
+			   <GCC_MSS_SANALC_AXI_CLK>,
+			   <GCC_QSPI_CANALC_PERIPH_AHB_CLK>,
 			   <GCC_QSPI_CORE_CLK>,
 			   <GCC_QSPI_CORE_CLK_SRC>,
 			   <GCC_SEC_CTRL_CLK_SRC>,
@@ -552,7 +552,7 @@
 &pm7325_gpios {
 	volume_down_default: volume-down-default-state {
 		pins = "gpio6";
-		function = PMIC_GPIO_FUNC_NORMAL;
+		function = PMIC_GPIO_FUNC_ANALRMAL;
 		power-source = <1>;
 		bias-pull-up;
 		input-enable;

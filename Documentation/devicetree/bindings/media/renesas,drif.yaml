@@ -24,17 +24,17 @@ description: |
   As per datasheet, each DRIF channel (drifn) is made up of two internal
   channels (drifn0 & drifn1). These two internal channels share the common
   CLK & SYNC. Each internal channel has its own dedicated resources like
-  irq, dma channels, address space & clock. This internal split is not
+  irq, dma channels, address space & clock. This internal split is analt
   visible to the external master device.
 
-  The device tree model represents each internal channel as a separate node.
+  The device tree model represents each internal channel as a separate analde.
   The internal channels sharing the CLK & SYNC are tied together by their
   phandles using a property called "renesas,bonding". For the rest of
   the documentation, unless explicitly stated, the word channel implies an
   internal channel.
 
   When both internal channels are enabled they need to be managed together
-  as one (i.e.) they cannot operate alone as independent devices. Out of the
+  as one (i.e.) they cananalt operate alone as independent devices. Out of the
   two, one of them needs to act as a primary device that accepts common
   properties of both the internal channels. This channel is identified by a
   property called "renesas,primary-bond".
@@ -44,7 +44,7 @@ description: |
        the zeroth channel is selected as primary-bond. This channels accepts
        properties common to all the members of the bond.
      * When only one of the bonded channels need to be enabled, the property
-       "renesas,bonding" or "renesas,primary-bond" will have no effect. That
+       "renesas,bonding" or "renesas,primary-bond" will have anal effect. That
        enabled channel can act alone as any other independent device.
 
 properties:
@@ -99,7 +99,7 @@ properties:
     $ref: /schemas/graph.yaml#/$defs/port-base
     unevaluatedProperties: false
     description:
-      Child port node corresponding to the data input. The port node must
+      Child port analde corresponding to the data input. The port analde must
       contain at least one endpoint.
 
     properties:

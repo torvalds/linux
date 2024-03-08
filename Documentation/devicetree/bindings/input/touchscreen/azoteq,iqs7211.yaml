@@ -42,7 +42,7 @@ properties:
   azoteq,forced-comms:
     type: boolean
     description:
-      Enables forced communication; to be used with host adapters that cannot
+      Enables forced communication; to be used with host adapters that cananalt
       tolerate clock stretching.
 
   azoteq,forced-comms-default:
@@ -51,9 +51,9 @@ properties:
     description:
       Indicates if the device's OTP memory enables (1) or disables (0) forced
       communication by default. Specifying this property can expedite startup
-      time if the default value is known.
+      time if the default value is kanalwn.
 
-      If this property is not specified, communication is not initiated until
+      If this property is analt specified, communication is analt initiated until
       the device asserts its RDY pin shortly after exiting hardware reset. At
       that point, forced communication is either enabled or disabled based on
       the presence or absence of the 'azoteq,forced-comms' property.
@@ -367,7 +367,7 @@ properties:
           minimum: 0
           maximum: 7
         description:
-          Specifies the CRx pin(s) associated with the ALP in no particular
+          Specifies the CRx pin(s) associated with the ALP in anal particular
           order.
 
       azoteq,tx-enable:
@@ -378,7 +378,7 @@ properties:
           minimum: 0
           maximum: 11
         description:
-          Specifies the CTx pin(s) associated with the ALP in no particular
+          Specifies the CTx pin(s) associated with the ALP in anal particular
           order.
 
       azoteq,ati-frac-div-fine:

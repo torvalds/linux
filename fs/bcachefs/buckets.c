@@ -15,7 +15,7 @@
 #include "buckets_waiting_for_journal.h"
 #include "ec.h"
 #include "error.h"
-#include "inode.h"
+#include "ianalde.h"
 #include "movinggc.h"
 #include "recovery.h"
 #include "reflink.h"
@@ -195,8 +195,8 @@ void bch2_fs_usage_to_text(struct printbuf *out,
 	       fs_usage->u.b.cached);
 	prt_printf(out, "reserved:\t\t\t%llu\n",
 	       fs_usage->u.b.reserved);
-	prt_printf(out, "nr_inodes:\t\t\t%llu\n",
-	       fs_usage->u.b.nr_inodes);
+	prt_printf(out, "nr_ianaldes:\t\t\t%llu\n",
+	       fs_usage->u.b.nr_ianaldes);
 	prt_printf(out, "online reserved:\t\t%llu\n",
 	       fs_usage->online_reserved);
 
@@ -250,7 +250,7 @@ __bch2_fs_usage_read_short(struct bch_fs *c)
 	ret.used	= min(ret.capacity, data + reserve_factor(reserved));
 	ret.free	= ret.capacity - ret.used;
 
-	ret.nr_inodes	= bch2_fs_usage_read_one(c, &c->usage_base->b.nr_inodes);
+	ret.nr_ianaldes	= bch2_fs_usage_read_one(c, &c->usage_base->b.nr_ianaldes);
 
 	return ret;
 }
@@ -377,7 +377,7 @@ int bch2_update_replicas(struct bch_fs *c, struct bkey_s_c k,
 	idx = bch2_replicas_entry_idx(c, r);
 	if (idx < 0 &&
 	    fsck_err(c, ptr_to_missing_replicas_entry,
-		     "no replicas entry\n  while marking %s",
+		     "anal replicas entry\n  while marking %s",
 		     (bch2_bkey_val_to_text(&buf, c, k), buf.buf))) {
 		percpu_up_read(&c->mark_lock);
 		ret = bch2_mark_replicas(c, r);
@@ -430,11 +430,11 @@ static int __replicas_deltas_realloc(struct btree_trans *trans, unsigned more,
 
 		if (unlikely(!d)) {
 			if (alloc_size > REPLICAS_DELTA_LIST_MAX)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			d = mempool_alloc(&trans->c->replicas_delta_pool, gfp);
 			if (!d)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			memset(d, 0, REPLICAS_DELTA_LIST_MAX);
 
@@ -509,7 +509,7 @@ int bch2_mark_metadata_bucket(struct bch_fs *c, struct bch_dev *ca,
 	       data_type != BCH_DATA_journal);
 
 	/*
-	 * Backup superblock might be past the end of our normal usable space:
+	 * Backup superblock might be past the end of our analrmal usable space:
 	 */
 	if (b >= ca->mi.nbuckets)
 		return 0;
@@ -570,7 +570,7 @@ int bch2_check_bucket_ref(struct btree_trans *trans,
 		bucket_data_type = ptr_data_type = BCH_DATA_stripe;
 
 	if (gen_after(ptr->gen, b_gen)) {
-		bch2_fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
+		bch2_fsck_err(c, FSCK_CAN_IGANALRE|FSCK_NEED_FSCK,
 			      BCH_FSCK_ERR_ptr_gen_newer_than_bucket_gen,
 			"bucket %u:%zu gen %u data type %s: ptr gen %u newer than bucket gen\n"
 			"while marking %s",
@@ -583,7 +583,7 @@ int bch2_check_bucket_ref(struct btree_trans *trans,
 	}
 
 	if (gen_cmp(b_gen, ptr->gen) > BUCKET_GC_GEN_MAX) {
-		bch2_fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
+		bch2_fsck_err(c, FSCK_CAN_IGANALRE|FSCK_NEED_FSCK,
 			      BCH_FSCK_ERR_ptr_too_stale,
 			"bucket %u:%zu gen %u data type %s: ptr gen %u too stale\n"
 			"while marking %s",
@@ -597,7 +597,7 @@ int bch2_check_bucket_ref(struct btree_trans *trans,
 	}
 
 	if (b_gen != ptr->gen && !ptr->cached) {
-		bch2_fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
+		bch2_fsck_err(c, FSCK_CAN_IGANALRE|FSCK_NEED_FSCK,
 			      BCH_FSCK_ERR_stale_dirty_ptr,
 			"bucket %u:%zu gen %u (mem gen %u) data type %s: stale dirty ptr (gen %u)\n"
 			"while marking %s",
@@ -619,7 +619,7 @@ int bch2_check_bucket_ref(struct btree_trans *trans,
 	if (!data_type_is_empty(bucket_data_type) &&
 	    ptr_data_type &&
 	    bucket_data_type != ptr_data_type) {
-		bch2_fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
+		bch2_fsck_err(c, FSCK_CAN_IGANALRE|FSCK_NEED_FSCK,
 			      BCH_FSCK_ERR_ptr_bucket_data_type_mismatch,
 			"bucket %u:%zu gen %u different types of data in same bucket: %s, %s\n"
 			"while marking %s",
@@ -633,7 +633,7 @@ int bch2_check_bucket_ref(struct btree_trans *trans,
 	}
 
 	if ((u64) bucket_sectors + sectors > U32_MAX) {
-		bch2_fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
+		bch2_fsck_err(c, FSCK_CAN_IGANALRE|FSCK_NEED_FSCK,
 			      BCH_FSCK_ERR_bucket_sector_count_overflow,
 			"bucket %u:%zu gen %u data type %s sector count overflow: %u + %lli > U32_MAX\n"
 			"while marking %s",
@@ -677,7 +677,7 @@ void bch2_trans_fs_usage_revert(struct btree_trans *trans,
 		BUG_ON(__update_replicas(c, dst, &d->r, -d->delta));
 	}
 
-	dst->b.nr_inodes -= deltas->nr_inodes;
+	dst->b.nr_ianaldes -= deltas->nr_ianaldes;
 
 	for (i = 0; i < BCH_REPLICAS_MAX; i++) {
 		added				-= deltas->persistent_reserved[i];
@@ -709,20 +709,20 @@ void bch2_trans_account_disk_usage_change(struct btree_trans *trans)
 	s64 added = src->btree + src->data + src->reserved;
 
 	/*
-	 * Not allowed to reduce sectors_available except by getting a
+	 * Analt allowed to reduce sectors_available except by getting a
 	 * reservation:
 	 */
-	s64 should_not_have_added = added - (s64) disk_res_sectors;
-	if (unlikely(should_not_have_added > 0)) {
+	s64 should_analt_have_added = added - (s64) disk_res_sectors;
+	if (unlikely(should_analt_have_added > 0)) {
 		u64 old, new, v = atomic64_read(&c->sectors_available);
 
 		do {
 			old = v;
-			new = max_t(s64, 0, old - should_not_have_added);
+			new = max_t(s64, 0, old - should_analt_have_added);
 		} while ((v = atomic64_cmpxchg(&c->sectors_available,
 					       old, new)) != old);
 
-		added -= should_not_have_added;
+		added -= should_analt_have_added;
 		warn = true;
 	}
 
@@ -736,7 +736,7 @@ void bch2_trans_account_disk_usage_change(struct btree_trans *trans)
 	dst->data	+= src->data;
 	dst->cached	+= src->cached;
 	dst->reserved	+= src->reserved;
-	dst->nr_inodes	+= src->nr_inodes;
+	dst->nr_ianaldes	+= src->nr_ianaldes;
 
 	preempt_enable();
 	percpu_up_read(&c->mark_lock);
@@ -744,7 +744,7 @@ void bch2_trans_account_disk_usage_change(struct btree_trans *trans)
 	if (unlikely(warn) && !xchg(&warned_disk_usage, 1))
 		bch2_trans_inconsistent(trans,
 					"disk usage increased %lli more than %llu sectors reserved)",
-					should_not_have_added, disk_res_sectors);
+					should_analt_have_added, disk_res_sectors);
 }
 
 int bch2_trans_fs_usage_apply(struct btree_trans *trans,
@@ -764,7 +764,7 @@ int bch2_trans_fs_usage_apply(struct btree_trans *trans,
 		if (__update_replicas(c, dst, &d->r, d->delta))
 			goto need_mark;
 
-	dst->b.nr_inodes += deltas->nr_inodes;
+	dst->b.nr_ianaldes += deltas->nr_ianaldes;
 
 	for (i = 0; i < BCH_REPLICAS_MAX; i++) {
 		dst->b.reserved			+= deltas->persistent_reserved[i];
@@ -893,8 +893,8 @@ static int bch2_trigger_stripe_ptr(struct btree_trans *trans,
 				BTREE_ITER_WITH_UPDATES, stripe);
 		int ret = PTR_ERR_OR_ZERO(s);
 		if (unlikely(ret)) {
-			bch2_trans_inconsistent_on(bch2_err_matches(ret, ENOENT), trans,
-				"pointer to nonexistent stripe %llu",
+			bch2_trans_inconsistent_on(bch2_err_matches(ret, EANALENT), trans,
+				"pointer to analnexistent stripe %llu",
 				(u64) p.ec.idx);
 			goto err;
 		}
@@ -929,7 +929,7 @@ err:
 		if (!m) {
 			bch_err(c, "error allocating memory for gc_stripes, idx %llu",
 				(u64) p.ec.idx);
-			return -BCH_ERR_ENOMEM_mark_stripe_ptr;
+			return -BCH_ERR_EANALMEM_mark_stripe_ptr;
 		}
 
 		mutex_lock(&c->ec_stripes_heap_lock);
@@ -938,7 +938,7 @@ err:
 			mutex_unlock(&c->ec_stripes_heap_lock);
 			struct printbuf buf = PRINTBUF;
 			bch2_bkey_val_to_text(&buf, c, k);
-			bch_err_ratelimited(c, "pointer to nonexistent stripe %llu\n  while marking %s",
+			bch_err_ratelimited(c, "pointer to analnexistent stripe %llu\n  while marking %s",
 					    (u64) p.ec.idx, buf.buf);
 			printbuf_exit(&buf);
 			bch2_inconsistent_error(c);
@@ -990,7 +990,7 @@ static int __trigger_extent(struct btree_trans *trans,
 				ret = !gc
 					? bch2_update_cached_sectors_list(trans, p.ptr.dev, disk_sectors)
 					: update_cached_sectors(c, k, p.ptr.dev, disk_sectors, 0, true);
-				bch2_fs_fatal_err_on(ret && gc, c, "%s(): no replicas entry while updating cached sectors",
+				bch2_fs_fatal_err_on(ret && gc, c, "%s(): anal replicas entry while updating cached sectors",
 						     __func__);
 				if (ret)
 					return ret;
@@ -1005,7 +1005,7 @@ static int __trigger_extent(struct btree_trans *trans,
 
 			/*
 			 * There may be other dirty pointers in this extent, but
-			 * if so they're not required for mounting if we have an
+			 * if so they're analt required for mounting if we have an
 			 * erasure coded pointer in this extent:
 			 */
 			r.e.nr_required = 0;
@@ -1020,7 +1020,7 @@ static int __trigger_extent(struct btree_trans *trans,
 			struct printbuf buf = PRINTBUF;
 
 			bch2_bkey_val_to_text(&buf, c, k);
-			bch2_fs_fatal_error(c, "%s(): no replicas entry for %s", __func__, buf.buf);
+			bch2_fs_fatal_error(c, "%s(): anal replicas entry for %s", __func__, buf.buf);
 			printbuf_exit(&buf);
 		}
 		if (ret)
@@ -1040,7 +1040,7 @@ int bch2_trigger_extent(struct btree_trans *trans,
 	unsigned new_ptrs_bytes = (void *) new_ptrs.end - (void *) new_ptrs.start;
 	unsigned old_ptrs_bytes = (void *) old_ptrs.end - (void *) old_ptrs.start;
 
-	/* if pointers aren't changing - nothing to do: */
+	/* if pointers aren't changing - analthing to do: */
 	if (new_ptrs_bytes == old_ptrs_bytes &&
 	    !memcmp(new_ptrs.start,
 		    old_ptrs.start,
@@ -1127,7 +1127,7 @@ static int __bch2_trans_mark_metadata_bucket(struct btree_trans *trans,
 	int ret = 0;
 
 	/*
-	 * Backup superblock might be past the end of our normal usable space:
+	 * Backup superblock might be past the end of our analrmal usable space:
 	 */
 	if (b >= ca->mi.nbuckets)
 		return 0;
@@ -1137,11 +1137,11 @@ static int __bch2_trans_mark_metadata_bucket(struct btree_trans *trans,
 		return PTR_ERR(a);
 
 	if (a->v.data_type && type && a->v.data_type != type) {
-		bch2_fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
+		bch2_fsck_err(c, FSCK_CAN_IGANALRE|FSCK_NEED_FSCK,
 			      BCH_FSCK_ERR_bucket_metadata_type_mismatch,
 			"bucket %llu:%llu gen %u different types of data in same bucket: %s, %s\n"
 			"while marking %s",
-			iter.pos.inode, iter.pos.offset, a->v.gen,
+			iter.pos.ianalde, iter.pos.offset, a->v.gen,
 			bch2_data_type_str(a->v.data_type),
 			bch2_data_type_str(type),
 			bch2_data_type_str(type));
@@ -1311,7 +1311,7 @@ recalculate:
 	sectors_available = avail_factor(__bch2_fs_usage_read_short(c).free);
 
 	if (sectors <= sectors_available ||
-	    (flags & BCH_DISK_RESERVATION_NOFAIL)) {
+	    (flags & BCH_DISK_RESERVATION_ANALFAIL)) {
 		atomic64_set(&c->sectors_available,
 			     max_t(s64, 0, sectors_available - sectors));
 		this_cpu_add(*c->online_reserved, sectors);
@@ -1319,7 +1319,7 @@ recalculate:
 		ret = 0;
 	} else {
 		atomic64_set(&c->sectors_available, sectors_available);
-		ret = -BCH_ERR_ENOSPC_disk_reservation;
+		ret = -BCH_ERR_EANALSPC_disk_reservation;
 	}
 
 	mutex_unlock(&c->sectors_available_lock);
@@ -1341,21 +1341,21 @@ static void bucket_gens_free_rcu(struct rcu_head *rcu)
 int bch2_dev_buckets_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 {
 	struct bucket_gens *bucket_gens = NULL, *old_bucket_gens = NULL;
-	unsigned long *buckets_nouse = NULL;
+	unsigned long *buckets_analuse = NULL;
 	bool resize = ca->bucket_gens != NULL;
 	int ret;
 
 	if (!(bucket_gens	= kvpmalloc(sizeof(struct bucket_gens) + nbuckets,
 					    GFP_KERNEL|__GFP_ZERO))) {
-		ret = -BCH_ERR_ENOMEM_bucket_gens;
+		ret = -BCH_ERR_EANALMEM_bucket_gens;
 		goto err;
 	}
 
-	if ((c->opts.buckets_nouse &&
-	     !(buckets_nouse	= kvpmalloc(BITS_TO_LONGS(nbuckets) *
+	if ((c->opts.buckets_analuse &&
+	     !(buckets_analuse	= kvpmalloc(BITS_TO_LONGS(nbuckets) *
 					    sizeof(unsigned long),
 					    GFP_KERNEL|__GFP_ZERO)))) {
-		ret = -BCH_ERR_ENOMEM_buckets_nouse;
+		ret = -BCH_ERR_EANALMEM_buckets_analuse;
 		goto err;
 	}
 
@@ -1376,16 +1376,16 @@ int bch2_dev_buckets_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 		memcpy(bucket_gens->b,
 		       old_bucket_gens->b,
 		       n);
-		if (buckets_nouse)
-			memcpy(buckets_nouse,
-			       ca->buckets_nouse,
+		if (buckets_analuse)
+			memcpy(buckets_analuse,
+			       ca->buckets_analuse,
 			       BITS_TO_LONGS(n) * sizeof(unsigned long));
 	}
 
 	rcu_assign_pointer(ca->bucket_gens, bucket_gens);
 	bucket_gens	= old_bucket_gens;
 
-	swap(ca->buckets_nouse, buckets_nouse);
+	swap(ca->buckets_analuse, buckets_analuse);
 
 	nbuckets = ca->mi.nbuckets;
 
@@ -1397,7 +1397,7 @@ int bch2_dev_buckets_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 
 	ret = 0;
 err:
-	kvpfree(buckets_nouse,
+	kvpfree(buckets_analuse,
 		BITS_TO_LONGS(nbuckets) * sizeof(unsigned long));
 	if (bucket_gens)
 		call_rcu(&bucket_gens->rcu, bucket_gens_free_rcu);
@@ -1409,7 +1409,7 @@ void bch2_dev_buckets_free(struct bch_dev *ca)
 {
 	unsigned i;
 
-	kvpfree(ca->buckets_nouse,
+	kvpfree(ca->buckets_analuse,
 		BITS_TO_LONGS(ca->mi.nbuckets) * sizeof(unsigned long));
 	kvpfree(rcu_dereference_protected(ca->bucket_gens, 1),
 		sizeof(struct bucket_gens) + ca->mi.nbuckets);
@@ -1425,12 +1425,12 @@ int bch2_dev_buckets_alloc(struct bch_fs *c, struct bch_dev *ca)
 
 	ca->usage_base = kzalloc(sizeof(struct bch_dev_usage), GFP_KERNEL);
 	if (!ca->usage_base)
-		return -BCH_ERR_ENOMEM_usage_init;
+		return -BCH_ERR_EANALMEM_usage_init;
 
 	for (i = 0; i < ARRAY_SIZE(ca->usage); i++) {
 		ca->usage[i] = alloc_percpu(struct bch_dev_usage);
 		if (!ca->usage[i])
-			return -BCH_ERR_ENOMEM_usage_init;
+			return -BCH_ERR_EANALMEM_usage_init;
 	}
 
 	return bch2_dev_buckets_resize(c, ca, ca->mi.nbuckets);

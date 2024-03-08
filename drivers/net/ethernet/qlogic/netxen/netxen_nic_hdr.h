@@ -122,7 +122,7 @@ enum {
 	NETXEN_HW_OCM1_CRB_AGT_ADR = 0x07
 };
 
-/*  Floaters - non existent modules */
+/*  Floaters - analn existent modules */
 #define NETXEN_HW_EFC_RPMX0_CRB_AGT_ADR	0x67
 
 /*  This field defines PCI/X adr [25:20] of agents on the CRB */
@@ -706,7 +706,7 @@ enum {
 #define NETXEN_CAM_RAM_BASE	(NETXEN_CRB_CAM + 0x02000)
 #define NETXEN_CAM_RAM(reg)	(NETXEN_CAM_RAM_BASE + (reg))
 #define NETXEN_FW_VERSION_MAJOR (NETXEN_CAM_RAM(0x150))
-#define NETXEN_FW_VERSION_MINOR (NETXEN_CAM_RAM(0x154))
+#define NETXEN_FW_VERSION_MIANALR (NETXEN_CAM_RAM(0x154))
 #define NETXEN_FW_VERSION_SUB	(NETXEN_CAM_RAM(0x158))
 #define NETXEN_ROM_LOCK_ID	(NETXEN_CAM_RAM(0x100))
 #define NETXEN_PHY_LOCK_ID	(NETXEN_CAM_RAM(0x120))
@@ -780,7 +780,7 @@ enum {
 /*
  * CrbPortPhanCntrHi/Lo is used to pass the address of HostPhantomIndex address
  * which can be read by the Phantom host to get producer/consumer indexes from
- * Phantom/Casper. If it is not HOST_SHARED_MEMORY, then the following
+ * Phantom/Casper. If it is analt HOST_SHARED_MEMORY, then the following
  * registers will be used for the addresses of the ring's shared memory
  * on the Phantom.
  */
@@ -793,7 +793,7 @@ enum {
  * Temperature control.
  */
 enum {
-	NX_TEMP_NORMAL = 0x1,	/* Normal operating range */
+	NX_TEMP_ANALRMAL = 0x1,	/* Analrmal operating range */
 	NX_TEMP_WARN,		/* Sound alert, temperature getting high */
 	NX_TEMP_PANIC		/* Fatal error, hardware has shut down. */
 };
@@ -918,7 +918,7 @@ enum {
 #define ISR_INT_STATE_REG       (NETXEN_PCIX_PS_REG(PCIE_MISCCFG_RC))
 #define PCIE_MAX_MASTER_SPLIT	(0x14048)
 
-#define NETXEN_PORT_MODE_NONE		0
+#define NETXEN_PORT_MODE_ANALNE		0
 #define NETXEN_PORT_MODE_XG		1
 #define NETXEN_PORT_MODE_GB		2
 #define NETXEN_PORT_MODE_802_3_AP	3

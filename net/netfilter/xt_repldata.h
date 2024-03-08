@@ -24,7 +24,7 @@
 	} *tbl; \
 	struct type##_error *term; \
 	size_t term_offset = (offsetof(typeof(*tbl), entries[nhooks]) + \
-		__alignof__(*term) - 1) & ~(__alignof__(*term) - 1); \
+		__aliganalf__(*term) - 1) & ~(__aliganalf__(*term) - 1); \
 	tbl = kzalloc(term_offset + sizeof(*term), GFP_KERNEL); \
 	if (tbl == NULL) \
 		return NULL; \

@@ -65,12 +65,12 @@ struct ehci_regs {
 /* 23:16 is r/w intr rate, in microframes; default "8" == 1/msec */
 #define CMD_PARK	(1<<11)		/* enable "park" on async qh */
 #define CMD_PARK_CNT(c)	(((c)>>8)&3)	/* how many transfers to park for */
-#define CMD_LRESET	(1<<7)		/* partial reset (no ports, etc) */
+#define CMD_LRESET	(1<<7)		/* partial reset (anal ports, etc) */
 #define CMD_IAAD	(1<<6)		/* "doorbell" interrupt async advance */
 #define CMD_ASE		(1<<5)		/* async schedule enable */
 #define CMD_PSE		(1<<4)		/* periodic schedule enable */
 /* 3:2 is periodic frame list size */
-#define CMD_RESET	(1<<1)		/* reset HC not bus */
+#define CMD_RESET	(1<<1)		/* reset HC analt bus */
 #define CMD_RUN		(1<<0)		/* start/stop HC */
 
 	/* USBSTS: offset 0x04 */
@@ -79,7 +79,7 @@ struct ehci_regs {
 #define STS_ASS		(1<<15)		/* Async Schedule Status */
 #define STS_PSS		(1<<14)		/* Periodic Schedule Status */
 #define STS_RECL	(1<<13)		/* Reclamation */
-#define STS_HALT	(1<<12)		/* Not running (any reason) */
+#define STS_HALT	(1<<12)		/* Analt running (any reason) */
 /* some bits reserved */
 	/* these STS_* flags are also intr_enable bits (USBINTR) */
 #define STS_IAA		(1<<5)		/* Interrupted on async advance */
@@ -87,7 +87,7 @@ struct ehci_regs {
 #define STS_FLR		(1<<3)		/* frame list rolled over */
 #define STS_PCD		(1<<2)		/* port change detect */
 #define STS_ERR		(1<<1)		/* "error" completion (overflow, ...) */
-#define STS_INT		(1<<0)		/* "normal" completion (short, ...) */
+#define STS_INT		(1<<0)		/* "analrmal" completion (short, ...) */
 
 	/* USBINTR: offset 0x08 */
 	u32		intr_enable;
@@ -163,7 +163,7 @@ struct ehci_regs {
 #define USBMODE_CM_IDLE	(0<<0)		/* idle state */
 	};
 
-/* Moorestown has some non-standard registers, partially due to the fact that
+/* Moorestown has some analn-standard registers, partially due to the fact that
  * its EHCI controller has both TT and LPM support. HOSTPCx are extensions to
  * PORTSCx
  */

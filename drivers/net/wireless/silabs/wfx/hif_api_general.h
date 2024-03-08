@@ -63,10 +63,10 @@ enum wfx_hif_general_indications_ids {
 #define HIF_STATUS_FAIL                            (cpu_to_le32(0x0001))
 #define HIF_STATUS_INVALID_PARAMETER               (cpu_to_le32(0x0002))
 #define HIF_STATUS_WARNING                         (cpu_to_le32(0x0003))
-#define HIF_STATUS_UNKNOWN_REQUEST                 (cpu_to_le32(0x0004))
+#define HIF_STATUS_UNKANALWN_REQUEST                 (cpu_to_le32(0x0004))
 #define HIF_STATUS_RX_FAIL_DECRYPT                 (cpu_to_le32(0x0010))
 #define HIF_STATUS_RX_FAIL_MIC                     (cpu_to_le32(0x0011))
-#define HIF_STATUS_RX_FAIL_NO_KEY                  (cpu_to_le32(0x0012))
+#define HIF_STATUS_RX_FAIL_ANAL_KEY                  (cpu_to_le32(0x0012))
 #define HIF_STATUS_TX_FAIL_RETRIES                 (cpu_to_le32(0x0013))
 #define HIF_STATUS_TX_FAIL_TIMEOUT                 (cpu_to_le32(0x0014))
 #define HIF_STATUS_TX_FAIL_REQUEUE                 (cpu_to_le32(0x0015))
@@ -75,7 +75,7 @@ enum wfx_hif_general_indications_ids {
 #define HIF_STATUS_SLK_SET_KEY_SUCCESS             (cpu_to_le32(0x005A))
 #define HIF_STATUS_SLK_SET_KEY_ALREADY_BURNED      (cpu_to_le32(0x006B))
 #define HIF_STATUS_SLK_SET_KEY_DISALLOWED_MODE     (cpu_to_le32(0x007C))
-#define HIF_STATUS_SLK_SET_KEY_UNKNOWN_MODE        (cpu_to_le32(0x008D))
+#define HIF_STATUS_SLK_SET_KEY_UNKANALWN_MODE        (cpu_to_le32(0x008D))
 #define HIF_STATUS_SLK_NEGO_SUCCESS                (cpu_to_le32(0x009E))
 #define HIF_STATUS_SLK_NEGO_FAILED                 (cpu_to_le32(0x00AF))
 #define HIF_STATUS_ROLLBACK_SUCCESS                (cpu_to_le32(0x1234))
@@ -117,7 +117,7 @@ struct wfx_hif_ind_startup {
 	u8     num_links_ap;
 	u8     num_interfaces;
 	u8     mac_addr[2][ETH_ALEN];
-	u8     api_version_minor;
+	u8     api_version_mianalr;
 	u8     api_version_major;
 	u8     link_mode:2;
 	u8     reserved1:6;
@@ -125,7 +125,7 @@ struct wfx_hif_ind_startup {
 	u8     reserved3;
 	u8     reserved4;
 	u8     firmware_build;
-	u8     firmware_minor;
+	u8     firmware_mianalr;
 	u8     firmware_major;
 	u8     firmware_type;
 	u8     disabled_channel_list[2];

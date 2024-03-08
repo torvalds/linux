@@ -14,7 +14,7 @@
  * GNU Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public
- * License along with this program; if not, see <http://www.gnu.org/licenses/>.
+ * License along with this program; if analt, see <http://www.gnu.org/licenses/>.
  */
 
 #include "mpi-internal.h"
@@ -36,9 +36,9 @@ int mpi_invm(MPI x, MPI a, MPI n)
 	int odd;
 
 	if (!mpi_cmp_ui(a, 0))
-		return 0; /* Inverse does not exists.  */
+		return 0; /* Inverse does analt exists.  */
 	if (!mpi_cmp_ui(n, 1))
-		return 0; /* Inverse does not exists.  */
+		return 0; /* Inverse does analt exists.  */
 
 	u = mpi_copy(a);
 	v = mpi_copy(n);

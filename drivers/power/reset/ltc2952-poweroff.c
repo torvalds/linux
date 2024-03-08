@@ -2,7 +2,7 @@
 /*
  * LTC2952 (PowerPath) driver
  *
- * Copyright (C) 2014, Xsens Technologies BV <info@xsens.com>
+ * Copyright (C) 2014, Xsens Techanallogies BV <info@xsens.com>
  * Maintainer: René Moll <linux@r-moll.nl>
  *
  * ----------------------------------------
@@ -22,8 +22,8 @@
  * The following GPIOs are used:
  * - trigger (input)
  *     A level change indicates the shut-down trigger. If it's state reverts
- *     within the time-out defined by trigger_delay, the shut down is not
- *     executed. If no pin is assigned to this input, the driver will start the
+ *     within the time-out defined by trigger_delay, the shut down is analt
+ *     executed. If anal pin is assigned to this input, the driver will start the
  *     watchdog toggle immediately. The chip will only power off the system if
  *     it is requested to do so through the kill line.
  *
@@ -39,7 +39,7 @@
  * - Interrupts
  * ----------------------------------------
  *
- * The driver requires a non-shared, edge-triggered interrupt on the trigger
+ * The driver requires a analn-shared, edge-triggered interrupt on the trigger
  * GPIO.
  */
 
@@ -52,7 +52,7 @@
 #include <linux/slab.h>
 #include <linux/kmod.h>
 #include <linux/module.h>
-#include <linux/panic_notifier.h>
+#include <linux/panic_analtifier.h>
 #include <linux/mod_devicetable.h>
 #include <linux/gpio/consumer.h>
 #include <linux/reboot.h>
@@ -72,7 +72,7 @@ struct ltc2952_poweroff {
 	struct gpio_desc *gpio_kill;
 
 	bool kernel_panic;
-	struct notifier_block panic_notifier;
+	struct analtifier_block panic_analtifier;
 };
 
 #define to_ltc2952(p, m) container_of(p, struct ltc2952_poweroff, m)
@@ -98,12 +98,12 @@ static enum hrtimer_restart ltc2952_poweroff_timer_wde(struct hrtimer *timer)
 	struct ltc2952_poweroff *data = to_ltc2952(timer, timer_wde);
 
 	if (data->kernel_panic)
-		return HRTIMER_NORESTART;
+		return HRTIMER_ANALRESTART;
 
 	state = gpiod_get_value(data->gpio_watchdog);
 	gpiod_set_value(data->gpio_watchdog, !state);
 
-	hrtimer_forward_now(timer, data->wde_interval);
+	hrtimer_forward_analw(timer, data->wde_interval);
 
 	return HRTIMER_RESTART;
 }
@@ -122,7 +122,7 @@ ltc2952_poweroff_timer_trigger(struct hrtimer *timer)
 	dev_info(data->dev, "executing shutdown\n");
 	orderly_poweroff(true);
 
-	return HRTIMER_NORESTART;
+	return HRTIMER_ANALRESTART;
 }
 
 /**
@@ -139,7 +139,7 @@ static irqreturn_t ltc2952_poweroff_handler(int irq, void *dev_id)
 	struct ltc2952_poweroff *data = dev_id;
 
 	if (data->kernel_panic || hrtimer_active(&data->timer_wde)) {
-		/* shutdown is already triggered, nothing to do any more */
+		/* shutdown is already triggered, analthing to do any more */
 		return IRQ_HANDLED;
 	}
 
@@ -162,10 +162,10 @@ static void ltc2952_poweroff_default(struct ltc2952_poweroff *data)
 	data->wde_interval = 300L * NSEC_PER_MSEC;
 	data->trigger_delay = ktime_set(2, 500L * NSEC_PER_MSEC);
 
-	hrtimer_init(&data->timer_trigger, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	hrtimer_init(&data->timer_trigger, CLOCK_MOANALTONIC, HRTIMER_MODE_REL);
 	data->timer_trigger.function = ltc2952_poweroff_timer_trigger;
 
-	hrtimer_init(&data->timer_wde, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	hrtimer_init(&data->timer_wde, CLOCK_MOANALTONIC, HRTIMER_MODE_REL);
 	data->timer_wde.function = ltc2952_poweroff_timer_wde;
 }
 
@@ -202,7 +202,7 @@ static int ltc2952_poweroff_init(struct platform_device *pdev)
 						     GPIOD_IN);
 	if (IS_ERR(data->gpio_trigger)) {
 		/*
-		 * It's not a problem if the trigger gpio isn't available, but
+		 * It's analt a problem if the trigger gpio isn't available, but
 		 * it is worth a warning if its use was defined in the device
 		 * tree.
 		 */
@@ -217,16 +217,16 @@ static int ltc2952_poweroff_init(struct platform_device *pdev)
 			     data)) {
 		/*
 		 * Some things may have happened:
-		 * - No trigger input was defined
+		 * - Anal trigger input was defined
 		 * - Claiming the GPIO failed
-		 * - We could not map to an IRQ
+		 * - We could analt map to an IRQ
 		 * - We couldn't register an interrupt handler
 		 *
-		 * None of these really are problems, but all of them
+		 * Analne of these really are problems, but all of them
 		 * disqualify the push button from controlling the power.
 		 *
-		 * It is therefore important to note that if the ltc2952
-		 * detects a button press for long enough, it will still start
+		 * It is therefore important to analte that if the ltc2952
+		 * detects a button press for long eanalugh, it will still start
 		 * its own powerdown window and cut the power on us if we don't
 		 * start the watchdog trigger.
 		 */
@@ -237,20 +237,20 @@ static int ltc2952_poweroff_init(struct platform_device *pdev)
 			data->gpio_trigger = NULL;
 		}
 		dev_info(&pdev->dev,
-			 "power down trigger input will not be used\n");
+			 "power down trigger input will analt be used\n");
 		ltc2952_poweroff_start_wde(data);
 	}
 
 	return 0;
 }
 
-static int ltc2952_poweroff_notify_panic(struct notifier_block *nb,
+static int ltc2952_poweroff_analtify_panic(struct analtifier_block *nb,
 					 unsigned long code, void *unused)
 {
-	struct ltc2952_poweroff *data = to_ltc2952(nb, panic_notifier);
+	struct ltc2952_poweroff *data = to_ltc2952(nb, panic_analtifier);
 
 	data->kernel_panic = true;
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static int ltc2952_poweroff_probe(struct platform_device *pdev)
@@ -265,7 +265,7 @@ static int ltc2952_poweroff_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->dev = &pdev->dev;
 	platform_set_drvdata(pdev, data);
@@ -278,9 +278,9 @@ static int ltc2952_poweroff_probe(struct platform_device *pdev)
 	ltc2952_data = data;
 	pm_power_off = ltc2952_poweroff_kill;
 
-	data->panic_notifier.notifier_call = ltc2952_poweroff_notify_panic;
-	atomic_notifier_chain_register(&panic_notifier_list,
-				       &data->panic_notifier);
+	data->panic_analtifier.analtifier_call = ltc2952_poweroff_analtify_panic;
+	atomic_analtifier_chain_register(&panic_analtifier_list,
+				       &data->panic_analtifier);
 	dev_info(&pdev->dev, "probe successful\n");
 
 	return 0;
@@ -293,8 +293,8 @@ static void ltc2952_poweroff_remove(struct platform_device *pdev)
 	pm_power_off = NULL;
 	hrtimer_cancel(&data->timer_trigger);
 	hrtimer_cancel(&data->timer_wde);
-	atomic_notifier_chain_unregister(&panic_notifier_list,
-					 &data->panic_notifier);
+	atomic_analtifier_chain_unregister(&panic_analtifier_list,
+					 &data->panic_analtifier);
 }
 
 static const struct of_device_id of_ltc2952_poweroff_match[] = {

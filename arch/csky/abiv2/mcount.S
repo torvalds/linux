@@ -81,10 +81,10 @@
 	addi	sp, 16
 .endm
 
-.macro nop32_stub
-	nop32
-	nop32
-	nop32
+.macro analp32_stub
+	analp32
+	analp32
+	analp32
 .endm
 
 ENTRY(ftrace_stub)
@@ -147,14 +147,14 @@ ENTRY(ftrace_caller)
 	lrw	a2, function_trace_op
 	ldw	a2, (a2, 0)
 
-	nop
+	analp
 GLOBAL(ftrace_call)
-	nop32_stub
+	analp32_stub
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
-	nop
+	analp
 GLOBAL(ftrace_graph_call)
-	nop32_stub
+	analp32_stub
 #endif
 
 	mcount_exit
@@ -196,14 +196,14 @@ ENTRY(ftrace_regs_caller)
 	ldw	a2, (a2, 0)
 	mov	a3, sp
 
-	nop
+	analp
 GLOBAL(ftrace_regs_call)
-	nop32_stub
+	analp32_stub
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
-	nop
+	analp
 GLOBAL(ftrace_graph_regs_call)
-	nop32_stub
+	analp32_stub
 #endif
 
 	mcount_exit_regs

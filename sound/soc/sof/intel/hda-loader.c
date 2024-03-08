@@ -55,8 +55,8 @@ struct hdac_ext_stream *hda_cl_stream_prepare(struct snd_sof_dev *sdev, unsigned
 	hext_stream = hda_dsp_stream_get(sdev, direction, 0);
 
 	if (!hext_stream) {
-		dev_err(sdev->dev, "error: no stream available\n");
-		return ERR_PTR(-ENODEV);
+		dev_err(sdev->dev, "error: anal stream available\n");
+		return ERR_PTR(-EANALDEV);
 	}
 	hstream = &hext_stream->hstream;
 	hstream->substream = NULL;
@@ -99,7 +99,7 @@ out_put:
 /*
  * first boot sequence has some extra steps.
  * power on all host managed cores and only unstall/run the boot core to boot the
- * DSP then turn off all non boot cores (if any) is powered on.
+ * DSP then turn off all analn boot cores (if any) is powered on.
  */
 int cl_dsp_init(struct snd_sof_dev *sdev, int stream_tag, bool imr_boot)
 {
@@ -121,7 +121,7 @@ int cl_dsp_init(struct snd_sof_dev *sdev, int stream_tag, bool imr_boot)
 
 	hda_ssp_set_cbp_cfp(sdev);
 
-	/* step 2: Send ROM_CONTROL command (stream_tag is ignored for IMR boot) */
+	/* step 2: Send ROM_CONTROL command (stream_tag is iganalred for IMR boot) */
 	ipc_hdr = chip->ipc_req_mask | HDA_DSP_ROM_IPC_CONTROL;
 	if (!imr_boot)
 		ipc_hdr |= HDA_DSP_ROM_IPC_PURGE_FW | ((stream_tag - 1) << 9);
@@ -160,7 +160,7 @@ int cl_dsp_init(struct snd_sof_dev *sdev, int stream_tag, bool imr_boot)
 				       chip->ipc_ack_mask,
 				       chip->ipc_ack_mask);
 
-	/* step 5: power down cores that are no longer needed */
+	/* step 5: power down cores that are anal longer needed */
 	ret = hda_dsp_core_reset_power_down(sdev, chip->host_managed_cores_mask &
 					   ~(chip->init_core_mask));
 	if (ret < 0) {
@@ -330,7 +330,7 @@ int hda_dsp_cl_boot_firmware_iccmax(struct snd_sof_dev *sdev)
 		HDA_VS_INTEL_LTRP_GB_MASK;
 
 	/*
-	 * Prepare capture stream for ICCMAX. We do not need to store
+	 * Prepare capture stream for ICCMAX. We do analt need to store
 	 * the data, so use a buffer of PAGE_SIZE for receiving.
 	 */
 	iccmax_stream = hda_cl_stream_prepare(sdev, HDA_CL_STREAM_FORMAT, PAGE_SIZE,
@@ -462,7 +462,7 @@ int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev)
 	 *
 	 * The WAKEEN interrupt should be processed ASAP to prevent an
 	 * interrupt flood, otherwise other interrupts, such IPC,
-	 * cannot work normally.  The WAKEEN is handled after the ROM
+	 * cananalt work analrmally.  The WAKEEN is handled after the ROM
 	 * is initialized successfully, which ensures power rails are
 	 * enabled before accessing the SoundWire SHIM registers
 	 */
@@ -471,7 +471,7 @@ int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev)
 
 	/*
 	 * Set the boot_iteration to the last attempt, indicating that the
-	 * DSP ROM has been initialized and from this point there will be no
+	 * DSP ROM has been initialized and from this point there will be anal
 	 * retry done to boot.
 	 *
 	 * Continue with code loading and firmware boot
@@ -548,21 +548,21 @@ int hda_dsp_ipc4_load_library(struct snd_sof_dev *sdev,
 	/*
 	 * 1st stage: SOF_IPC4_GLB_LOAD_LIBRARY_PREPARE
 	 * Message includes the dma_id to be prepared for the library loading.
-	 * If the firmware does not have support for the message, we will
-	 * receive -EOPNOTSUPP. In this case we will use single step library
+	 * If the firmware does analt have support for the message, we will
+	 * receive -EOPANALTSUPP. In this case we will use single step library
 	 * loading and proceed to send the LOAD_LIBRARY message.
 	 */
 	msg.primary = hext_stream->hstream.stream_tag - 1;
 	msg.primary |= SOF_IPC4_MSG_TYPE_SET(SOF_IPC4_GLB_LOAD_LIBRARY_PREPARE);
 	msg.primary |= SOF_IPC4_MSG_DIR(SOF_IPC4_MSG_REQUEST);
 	msg.primary |= SOF_IPC4_MSG_TARGET(SOF_IPC4_FW_GEN_MSG);
-	ret = sof_ipc_tx_message_no_reply(sdev->ipc, &msg, 0);
+	ret = sof_ipc_tx_message_anal_reply(sdev->ipc, &msg, 0);
 	if (!ret) {
 		int sd_offset = SOF_STREAM_SD_OFFSET(&hext_stream->hstream);
 		unsigned int status;
 
 		/*
-		 * Make sure that the FIFOS value is not 0 in SDxFIFOS register
+		 * Make sure that the FIFOS value is analt 0 in SDxFIFOS register
 		 * which indicates that the firmware set the GEN bit and we can
 		 * continue to start the DMA
 		 */
@@ -576,7 +576,7 @@ int hda_dsp_ipc4_load_library(struct snd_sof_dev *sdev,
 		if (ret < 0)
 			dev_warn(sdev->dev,
 				 "%s: timeout waiting for FIFOS\n", __func__);
-	} else if (ret != -EOPNOTSUPP) {
+	} else if (ret != -EOPANALTSUPP) {
 		goto cleanup;
 	}
 
@@ -594,7 +594,7 @@ int hda_dsp_ipc4_load_library(struct snd_sof_dev *sdev,
 	msg.primary &= ~SOF_IPC4_MSG_TYPE_MASK;
 	msg.primary |= SOF_IPC4_MSG_TYPE_SET(SOF_IPC4_GLB_LOAD_LIBRARY);
 	msg.primary |= SOF_IPC4_GLB_LOAD_LIBRARY_LIB_ID(fw_lib->id);
-	ret = sof_ipc_tx_message_no_reply(sdev->ipc, &msg, 0);
+	ret = sof_ipc_tx_message_anal_reply(sdev->ipc, &msg, 0);
 
 	/* Stop the DMA channel */
 	ret1 = cl_trigger(sdev, hext_stream, SNDRV_PCM_TRIGGER_STOP);
@@ -636,12 +636,12 @@ int hda_dsp_post_fw_run(struct snd_sof_dev *sdev)
 		ret = hda_sdw_startup(sdev);
 		if (ret < 0) {
 			dev_err(sdev->dev,
-				"error: could not startup SoundWire links\n");
+				"error: could analt startup SoundWire links\n");
 			return ret;
 		}
 
 		/* Check if IMR boot is usable */
-		if (!sof_debug_check_flag(SOF_DBG_IGNORE_D3_PERSISTENT) &&
+		if (!sof_debug_check_flag(SOF_DBG_IGANALRE_D3_PERSISTENT) &&
 		    (sdev->fw_ready.flags & SOF_IPC_INFO_D3_PERSISTENT ||
 		     sdev->pdata->ipc_type == SOF_IPC_TYPE_4))
 			hdev->imrboot_supported = true;
@@ -681,7 +681,7 @@ int hda_dsp_ext_man_get_cavs_config_data(struct snd_sof_dev *sdev,
 			break;
 		case SOF_EXT_MAN_CAVS_CONFIG_OUTBOX_SIZE:
 		case SOF_EXT_MAN_CAVS_CONFIG_INBOX_SIZE:
-			/* These elements are defined but not being used yet. No warn is required */
+			/* These elements are defined but analt being used yet. Anal warn is required */
 			break;
 		default:
 			dev_info(sdev->dev, "unsupported token type: %d\n",

@@ -41,9 +41,9 @@ int sas_ata_add_dev(struct domain_device *parent, struct ex_phy *phy,
 		    struct domain_device *child, int phy_id);
 #else
 
-static inline void sas_ata_disabled_notice(void)
+static inline void sas_ata_disabled_analtice(void)
 {
-	pr_notice_once("ATA device seen but CONFIG_SCSI_SAS_ATA=N\n");
+	pr_analtice_once("ATA device seen but CONFIG_SCSI_SAS_ATA=N\n");
 }
 
 static inline int dev_is_sata(struct domain_device *dev)
@@ -113,15 +113,15 @@ static inline int smp_ata_check_ready_type(struct ata_link *link)
 
 static inline int sas_discover_sata(struct domain_device *dev)
 {
-	sas_ata_disabled_notice();
+	sas_ata_disabled_analtice();
 	return -ENXIO;
 }
 
 static inline int sas_ata_add_dev(struct domain_device *parent, struct ex_phy *phy,
 				  struct domain_device *child, int phy_id)
 {
-	sas_ata_disabled_notice();
-	return -ENODEV;
+	sas_ata_disabled_analtice();
+	return -EANALDEV;
 }
 #endif
 

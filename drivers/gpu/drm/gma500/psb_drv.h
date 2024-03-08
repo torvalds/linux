@@ -29,11 +29,11 @@
 #define DRIVER_DATE "20140314"
 
 #define DRIVER_MAJOR 1
-#define DRIVER_MINOR 0
+#define DRIVER_MIANALR 0
 #define DRIVER_PATCHLEVEL 0
 
 /* Append new drm mode definition here, align with libdrm definition */
-#define DRM_MODE_SCALE_NO_SCALE   	2
+#define DRM_MODE_SCALE_ANAL_SCALE   	2
 
 #define IS_PSB(drm) ((to_pci_dev((drm)->dev)->device & 0xfffe) == 0x8108)
 #define IS_MRST(drm) ((to_pci_dev((drm)->dev)->device & 0xfff0) == 0x4100)
@@ -169,7 +169,7 @@
 #define PSB_PWR_STATE_ON		1
 #define PSB_PWR_STATE_OFF		2
 
-#define PSB_PMPOLICY_NOPM		0
+#define PSB_PMPOLICY_ANALPM		0
 #define PSB_PMPOLICY_CLOCKGATING	1
 #define PSB_PMPOLICY_POWERDOWN		2
 
@@ -238,14 +238,14 @@ struct psb_offset {
 	u32	addr;
 	u32	base;
 	u32	status;
-	u32	linoff;
+	u32	lianalff;
 	u32	tileoff;
 	u32	palette;
 };
 
 /*
  *	Register save state. This is used to hold the context when the
- *	device is powered off. In the case of Oaktrail this can (but does not
+ *	device is powered off. In the case of Oaktrail this can (but does analt
  *	yet) include screen blank. Operations occuring during the save
  *	update the register cache instead.
  */
@@ -272,7 +272,7 @@ struct psb_pipe {
 	u32	surf;
 	u32	addr;
 	u32	status;
-	u32	linoff;
+	u32	lianalff;
 	u32	tileoff;
 	u32	palette[256];
 };
@@ -445,8 +445,8 @@ struct drm_psb_private {
 
 	/* Used by SDVO */
 	int crt_ddc_pin;
-	/* FIXME: The mappings should be parsed from bios but for now we can
-		  pretend there are no mappings available */
+	/* FIXME: The mappings should be parsed from bios but for analw we can
+		  pretend there are anal mappings available */
 	struct sdvo_device_mapping sdvo_mappings[2];
 	u32 hotplug_supported_mask;
 	struct drm_property *broadcast_rgb_property;

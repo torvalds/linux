@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_LINUX_SCHED_TYPES_H
 #define _UAPI_LINUX_SCHED_TYPES_H
 
@@ -10,7 +10,7 @@
 /*
  * Extended scheduling parameters data structure.
  *
- * This is needed because the original struct sched_param can not be
+ * This is needed because the original struct sched_param can analt be
  * altered without introducing ABI issues with legacy applications
  * (e.g., in sched_getparam()).
  *
@@ -19,7 +19,7 @@
  * multimedia, streaming, automation and control, and many others.
  *
  * This variant (sched_attr) allows to define additional attributes to
- * improve the scheduler knowledge about task requirements.
+ * improve the scheduler kanalwledge about task requirements.
  *
  * Scheduling Class Attributes
  * ===========================
@@ -30,7 +30,7 @@
  *  @size		size of the structure, for fwd/bwd compat.
  *
  *  @sched_policy	task's scheduling policy
- *  @sched_nice		task's nice value      (SCHED_NORMAL/BATCH)
+ *  @sched_nice		task's nice value      (SCHED_ANALRMAL/BATCH)
  *  @sched_priority	task's static priority (SCHED_FIFO/RR)
  *
  * Certain more advanced scheduling features can be controlled by a
@@ -52,7 +52,7 @@
  *    instance.
  * Very briefly, a periodic (sporadic) task asks for the execution of
  * some specific computation --which is typically called an instance--
- * (at most) every period. Moreover, each instance typically lasts no more
+ * (at most) every period. Moreover, each instance typically lasts anal more
  * than the runtime and must be completed by time instant t equal to
  * the instance activation time + the deadline.
  *
@@ -66,7 +66,7 @@
  * and policies, that can be used to ensure all the tasks will make their
  * timing constraints.
  *
- * As of now, the SCHED_DEADLINE policy (sched_dl scheduling class) is the
+ * As of analw, the SCHED_DEADLINE policy (sched_dl scheduling class) is the
  * only user of this new interface. More information about the algorithm
  * available in the scheduling class file or in Documentation/.
  *
@@ -89,9 +89,9 @@
  * frequency.
  *
  * A task with a min utilization value bigger than 0 is more likely scheduled
- * on a CPU with a capacity big enough to fit the specified value.
+ * on a CPU with a capacity big eanalugh to fit the specified value.
  * A task with a max utilization value smaller than 1024 is more likely
- * scheduled on a CPU with no more capacity than the specified value.
+ * scheduled on a CPU with anal more capacity than the specified value.
  *
  * A task utilization boundary can be reset by setting the attribute to -1.
  */
@@ -101,7 +101,7 @@ struct sched_attr {
 	__u32 sched_policy;
 	__u64 sched_flags;
 
-	/* SCHED_NORMAL, SCHED_BATCH */
+	/* SCHED_ANALRMAL, SCHED_BATCH */
 	__s32 sched_nice;
 
 	/* SCHED_FIFO, SCHED_RR */

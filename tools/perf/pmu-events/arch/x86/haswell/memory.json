@@ -37,10 +37,10 @@
         "UMask": "0x40"
     },
     {
-        "BriefDescription": "Number of times an HLE execution aborted due to none of the previous 4 categories (e.g. interrupts)",
+        "BriefDescription": "Number of times an HLE execution aborted due to analne of the previous 4 categories (e.g. interrupts)",
         "EventCode": "0xc8",
         "EventName": "HLE_RETIRED.ABORTED_MISC5",
-        "PublicDescription": "Number of times an HLE execution aborted due to none of the previous 4 categories (e.g. interrupts).",
+        "PublicDescription": "Number of times an HLE execution aborted due to analne of the previous 4 categories (e.g. interrupts).",
         "SampleAfterValue": "2000003",
         "UMask": "0x80"
     },
@@ -62,7 +62,7 @@
         "BriefDescription": "Counts the number of machine clears due to memory order conflicts.",
         "EventCode": "0xC3",
         "EventName": "MACHINE_CLEARS.MEMORY_ORDERING",
-        "PublicDescription": "This event counts the number of memory ordering machine clears detected. Memory ordering machine clears can result from memory address aliasing or snoops from another hardware thread or core to data inflight in the pipeline.  Machine clears can have a significant performance impact if they are happening frequently.",
+        "PublicDescription": "This event counts the number of memory ordering machine clears detected. Memory ordering machine clears can result from memory address aliasing or sanalops from aanalther hardware thread or core to data inflight in the pipeline.  Machine clears can have a significant performance impact if they are happening frequently.",
         "SampleAfterValue": "100003",
         "UMask": "0x2"
     },
@@ -406,10 +406,10 @@
         "UMask": "0x40"
     },
     {
-        "BriefDescription": "Number of times an RTM execution aborted due to none of the previous 4 categories (e.g. interrupt)",
+        "BriefDescription": "Number of times an RTM execution aborted due to analne of the previous 4 categories (e.g. interrupt)",
         "EventCode": "0xc9",
         "EventName": "RTM_RETIRED.ABORTED_MISC5",
-        "PublicDescription": "Number of times an RTM execution aborted due to none of the previous 4 categories (e.g. interrupt).",
+        "PublicDescription": "Number of times an RTM execution aborted due to analne of the previous 4 categories (e.g. interrupt).",
         "SampleAfterValue": "2000003",
         "UMask": "0x80"
     },
@@ -428,7 +428,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts the number of times a class of instructions that may cause a transactional abort was executed. Since this is the count of execution, it may not always cause a transactional abort.",
+        "BriefDescription": "Counts the number of times a class of instructions that may cause a transactional abort was executed. Since this is the count of execution, it may analt always cause a transactional abort.",
         "EventCode": "0x5d",
         "EventName": "TX_EXEC.MISC1",
         "SampleAfterValue": "2000003",
@@ -477,16 +477,16 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Number of times an HLE transactional execution aborted due to XRELEASE lock not satisfying the address and value requirements in the elision buffer.",
+        "BriefDescription": "Number of times an HLE transactional execution aborted due to XRELEASE lock analt satisfying the address and value requirements in the elision buffer.",
         "EventCode": "0x54",
         "EventName": "TX_MEM.ABORT_HLE_ELISION_BUFFER_MISMATCH",
         "SampleAfterValue": "2000003",
         "UMask": "0x10"
     },
     {
-        "BriefDescription": "Number of times an HLE transactional execution aborted due to NoAllocatedElisionBuffer being non-zero.",
+        "BriefDescription": "Number of times an HLE transactional execution aborted due to AnalAllocatedElisionBuffer being analn-zero.",
         "EventCode": "0x54",
-        "EventName": "TX_MEM.ABORT_HLE_ELISION_BUFFER_NOT_EMPTY",
+        "EventName": "TX_MEM.ABORT_HLE_ELISION_BUFFER_ANALT_EMPTY",
         "SampleAfterValue": "2000003",
         "UMask": "0x8"
     },
@@ -498,14 +498,14 @@
         "UMask": "0x20"
     },
     {
-        "BriefDescription": "Number of times a HLE transactional region aborted due to a non XRELEASE prefixed instruction writing to an elided lock in the elision buffer.",
+        "BriefDescription": "Number of times a HLE transactional region aborted due to a analn XRELEASE prefixed instruction writing to an elided lock in the elision buffer.",
         "EventCode": "0x54",
         "EventName": "TX_MEM.ABORT_HLE_STORE_TO_ELIDED_LOCK",
         "SampleAfterValue": "2000003",
         "UMask": "0x4"
     },
     {
-        "BriefDescription": "Number of times HLE lock could not be elided due to ElisionBufferAvailable being zero.",
+        "BriefDescription": "Number of times HLE lock could analt be elided due to ElisionBufferAvailable being zero.",
         "EventCode": "0x54",
         "EventName": "TX_MEM.HLE_ELISION_BUFFER_FULL",
         "SampleAfterValue": "2000003",

@@ -36,13 +36,13 @@ except:
 
 glb_switch_str		= {}
 glb_insn		= False
-glb_disassembler	= None
+glb_disassembler	= Analne
 glb_src			= False
-glb_source_file_name	= None
-glb_line_number		= None
-glb_dso			= None
+glb_source_file_name	= Analne
+glb_line_number		= Analne
+glb_dso			= Analne
 glb_stash_dict		= {}
-glb_output		= None
+glb_output		= Analne
 glb_output_pos		= 0
 glb_cpu			= -1
 glb_time		= 0
@@ -65,7 +65,7 @@ def get_optional_bytes(perf_dict, field):
 def get_optional(perf_dict, field):
 	if field in perf_dict:
 		return perf_dict[field]
-	return "[unknown]"
+	return "[unkanalwn]"
 
 def get_offset(perf_dict, field):
 	if field in perf_dict:
@@ -98,7 +98,7 @@ def trace_begin():
 	try:
 		glb_disassembler = LibXED()
 	except:
-		glb_disassembler = None
+		glb_disassembler = Analne
 	perf_set_itrace_options(perf_script_context, itrace)
 
 def trace_end():
@@ -116,7 +116,7 @@ def stash_output():
 	n = len(output_str)
 	if n:
 		glb_output_pos += n
-		if glb_cpu not in glb_stash_dict:
+		if glb_cpu analt in glb_stash_dict:
 			glb_stash_dict[glb_cpu] = []
 		glb_stash_dict[glb_cpu].append(output_str)
 
@@ -132,7 +132,7 @@ def flush_stashed_output():
 				sys.stdout.write(items[0])
 				del items[0]
 				countdown -= 1
-			if not items:
+			if analt items:
 				del glb_stash_dict[cpu]
 
 def print_ptwrite(raw_buf):
@@ -142,7 +142,7 @@ def print_ptwrite(raw_buf):
 	exact_ip = flags & 1
 	try:
 		s = payload.to_bytes(8, "little").decode("ascii").rstrip("\x00")
-		if not s.isprintable():
+		if analt s.isprintable():
 			s = ""
 	except:
 		s = ""
@@ -225,7 +225,7 @@ def print_iflag(raw_buf):
 	if via_branch:
 		s = "via"
 	else:
-		s = "non"
+		s = "analn"
 	print("IFLAG: %u->%u %s branch" % (old_iflag, iflag, s), end=' ')
 
 def common_start_str(comm, sample):
@@ -272,7 +272,7 @@ def print_common_ip(param_dict, sample, symbol, dso):
 		ipc_str = "  IPC: %#.2f (%u/%u)" % (insn_cnt / cyc_cnt, insn_cnt, cyc_cnt)
 	else:
 		ipc_str = ""
-	if glb_insn and glb_disassembler is not None:
+	if glb_insn and glb_disassembler is analt Analne:
 		insn = perf_sample_insn(perf_script_context)
 		if insn and len(insn):
 			cnt, text = disassem(insn, ip)
@@ -298,13 +298,13 @@ def print_common_ip(param_dict, sample, symbol, dso):
 
 def print_srccode(comm, param_dict, sample, symbol, dso, with_insn):
 	ip = sample["ip"]
-	if symbol == "[unknown]":
+	if symbol == "[unkanalwn]":
 		start_str = common_start_str(comm, sample) + ("%x" % ip).rjust(16).ljust(40)
 	else:
 		offs = get_offset(param_dict, "symoff")
 		start_str = common_start_str(comm, sample) + (symbol + offs).ljust(40)
 
-	if with_insn and glb_insn and glb_disassembler is not None:
+	if with_insn and glb_insn and glb_disassembler is analt Analne:
 		insn = perf_sample_insn(perf_script_context)
 		if insn and len(insn):
 			cnt, text = disassem(insn, ip)
@@ -323,11 +323,11 @@ def print_srccode(comm, param_dict, sample, symbol, dso, with_insn):
 				src_file = ("..." + source_file_name[-37:]) + " "
 			else:
 				src_file = source_file_name.ljust(41)
-			if source_line is None:
-				src_str = src_file + str(line_number).rjust(4) + " <source not found>"
+			if source_line is Analne:
+				src_str = src_file + str(line_number).rjust(4) + " <source analt found>"
 			else:
 				src_str = src_file + str(line_number).rjust(4) + " " + source_line
-		glb_dso = None
+		glb_dso = Analne
 	elif dso == glb_dso:
 		src_str = ""
 	else:
@@ -350,7 +350,7 @@ def do_process_event(param_dict):
 	# brstacksym = param_dict["brstacksym"]
 	# event_attr = param_dict["attr"]
 
-	# Symbol and dso info are not always resolved
+	# Symbol and dso info are analt always resolved
 	dso    = get_optional(param_dict, "dso")
 	symbol = get_optional(param_dict, "symbol")
 
@@ -478,10 +478,10 @@ def context_switch(ts, cpu, pid, tid, np_pid, np_tid, machine_pid, out, out_pree
 		machine_pid = x[0]
 		vcpu = x[1]
 	else:
-		vcpu = None;
+		vcpu = Analne;
 	if machine_pid == -1:
 		machine_str = ""
-	elif vcpu is None:
+	elif vcpu is Analne:
 		machine_str = "machine PID %d" % machine_pid
 	else:
 		machine_str = "machine PID %d VCPU %d" % (machine_pid, vcpu)

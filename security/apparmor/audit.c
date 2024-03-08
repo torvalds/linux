@@ -4,8 +4,8 @@
  *
  * This file contains AppArmor auditing functions
  *
- * Copyright (C) 1998-2008 Novell/SUSE
- * Copyright 2009-2010 Canonical Ltd.
+ * Copyright (C) 1998-2008 Analvell/SUSE
+ * Copyright 2009-2010 Caanalnical Ltd.
  */
 
 #include <linux/audit.h>
@@ -18,10 +18,10 @@
 #include "include/secid.h"
 
 const char *const audit_mode_names[] = {
-	"normal",
+	"analrmal",
 	"quiet_denied",
 	"quiet",
-	"noquiet",
+	"analquiet",
 	"all"
 };
 
@@ -37,22 +37,22 @@ static const char *const aa_audit_type[] = {
 };
 
 static const char *const aa_class_names[] = {
-	"none",
-	"unknown",
+	"analne",
+	"unkanalwn",
 	"file",
 	"cap",
 	"net",
 	"rlimits",
 	"domain",
 	"mount",
-	"unknown",
+	"unkanalwn",
 	"ptrace",
 	"signal",
 	"xmatch",
-	"unknown",
-	"unknown",
+	"unkanalwn",
+	"unkanalwn",
 	"net",
-	"unknown",
+	"unkanalwn",
 	"label",
 	"posix_mqueue",
 	"io_uring",
@@ -60,14 +60,14 @@ static const char *const aa_class_names[] = {
 	"lsm",
 	"namespace",
 	"io_uring",
-	"unknown",
-	"unknown",
-	"unknown",
-	"unknown",
-	"unknown",
-	"unknown",
-	"unknown",
-	"unknown",
+	"unkanalwn",
+	"unkanalwn",
+	"unkanalwn",
+	"unkanalwn",
+	"unkanalwn",
+	"unkanalwn",
+	"unkanalwn",
+	"unkanalwn",
 	"X",
 	"dbus",
 };
@@ -84,8 +84,8 @@ static const char *const aa_class_names[] = {
 
 /**
  * audit_pre() - core AppArmor function.
- * @ab: audit buffer to fill (NOT NULL)
- * @va: audit structure containing data to audit (NOT NULL)
+ * @ab: audit buffer to fill (ANALT NULL)
+ * @va: audit structure containing data to audit (ANALT NULL)
  *
  * Record common AppArmor audit data from @va
  */
@@ -105,7 +105,7 @@ static void audit_pre(struct audit_buffer *ab, void *va)
 		audit_log_format(ab, " class=\"%s\"",
 				 ad->class <= AA_CLASS_LAST ?
 				 aa_class_names[ad->class] :
-				 "unknown");
+				 "unkanalwn");
 
 	if (ad->info) {
 		audit_log_format(ab, " info=\"%s\"", ad->info);
@@ -142,7 +142,7 @@ static void audit_pre(struct audit_buffer *ab, void *va)
 /**
  * aa_audit_msg - Log a message to the audit subsystem
  * @type: audit type for the message
- * @ad: audit event structure (NOT NULL)
+ * @ad: audit event structure (ANALT NULL)
  * @cb: optional callback fn for type specific fields (MAYBE NULL)
  */
 void aa_audit_msg(int type, struct apparmor_audit_data *ad,
@@ -155,8 +155,8 @@ void aa_audit_msg(int type, struct apparmor_audit_data *ad,
 /**
  * aa_audit - Log a profile based audit event to the audit subsystem
  * @type: audit type for the message
- * @profile: profile to check against (NOT NULL)
- * @ad: audit event (NOT NULL)
+ * @profile: profile to check against (ANALT NULL)
+ * @ad: audit event (ANALT NULL)
  * @cb: optional callback fn for type specific fields (MAYBE NULL)
  *
  * Handle default message switching based off of audit mode flags
@@ -223,7 +223,7 @@ int aa_audit_rule_init(u32 field, u32 op, char *rulestr, void **vrule)
 
 	switch (field) {
 	case AUDIT_SUBJ_ROLE:
-		if (op != Audit_equal && op != Audit_not_equal)
+		if (op != Audit_equal && op != Audit_analt_equal)
 			return -EINVAL;
 		break;
 	default:
@@ -233,7 +233,7 @@ int aa_audit_rule_init(u32 field, u32 op, char *rulestr, void **vrule)
 	rule = kzalloc(sizeof(struct aa_audit_rule), GFP_KERNEL);
 
 	if (!rule)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Currently rules are treated as coming from the root ns */
 	rule->label = aa_label_parse(&root_ns->unconfined->label, rulestr,
@@ -248,7 +248,7 @@ int aa_audit_rule_init(u32 field, u32 op, char *rulestr, void **vrule)
 	return 0;
 }
 
-int aa_audit_rule_known(struct audit_krule *rule)
+int aa_audit_rule_kanalwn(struct audit_krule *rule)
 {
 	int i;
 
@@ -273,7 +273,7 @@ int aa_audit_rule_match(u32 sid, u32 field, u32 op, void *vrule)
 	label = aa_secid_to_label(sid);
 
 	if (!label)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (aa_label_is_subset(label, rule->label))
 		found = 1;
@@ -283,7 +283,7 @@ int aa_audit_rule_match(u32 sid, u32 field, u32 op, void *vrule)
 		switch (op) {
 		case Audit_equal:
 			return found;
-		case Audit_not_equal:
+		case Audit_analt_equal:
 			return !found;
 		}
 	}

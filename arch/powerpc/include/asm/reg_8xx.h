@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Contains register definitions common to PowerPC 8xx CPUs.  Notice
+ * Contains register definitions common to PowerPC 8xx CPUs.  Analtice
  */
 #ifndef _ASM_POWERPC_REG_8xx_H
 #define _ASM_POWERPC_REG_8xx_H
@@ -27,7 +27,7 @@
 /* Special MSR manipulation registers */
 #define SPRN_EIE	80	/* External interrupt enable (EE=1, RI=1) */
 #define SPRN_EID	81	/* External interrupt disable (EE=0, RI=1) */
-#define SPRN_NRI	82	/* Non recoverable interrupt (EE=0, RI=0) */
+#define SPRN_NRI	82	/* Analn recoverable interrupt (EE=0, RI=0) */
 
 /* Debug registers */
 #define SPRN_CMPA	144

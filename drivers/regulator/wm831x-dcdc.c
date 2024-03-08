@@ -26,7 +26,7 @@
 #define WM831X_BUCKP_MAX_SELECTOR 0x66
 
 #define WM831X_DCDC_MODE_FAST    0
-#define WM831X_DCDC_MODE_NORMAL  1
+#define WM831X_DCDC_MODE_ANALRMAL  1
 #define WM831X_DCDC_MODE_IDLE    2
 #define WM831X_DCDC_MODE_STANDBY 3
 
@@ -73,8 +73,8 @@ static unsigned int wm831x_dcdc_get_mode(struct regulator_dev *rdev)
 	switch (val) {
 	case WM831X_DCDC_MODE_FAST:
 		return REGULATOR_MODE_FAST;
-	case WM831X_DCDC_MODE_NORMAL:
-		return REGULATOR_MODE_NORMAL;
+	case WM831X_DCDC_MODE_ANALRMAL:
+		return REGULATOR_MODE_ANALRMAL;
 	case WM831X_DCDC_MODE_STANDBY:
 		return REGULATOR_MODE_STANDBY;
 	case WM831X_DCDC_MODE_IDLE:
@@ -94,8 +94,8 @@ static int wm831x_dcdc_set_mode_int(struct wm831x *wm831x, int reg,
 	case REGULATOR_MODE_FAST:
 		val = WM831X_DCDC_MODE_FAST;
 		break;
-	case REGULATOR_MODE_NORMAL:
-		val = WM831X_DCDC_MODE_NORMAL;
+	case REGULATOR_MODE_ANALRMAL:
+		val = WM831X_DCDC_MODE_ANALRMAL;
 		break;
 	case REGULATOR_MODE_STANDBY:
 		val = WM831X_DCDC_MODE_STANDBY;
@@ -178,7 +178,7 @@ static irqreturn_t wm831x_dcdc_uv_irq(int irq, void *data)
 {
 	struct wm831x_dcdc *dcdc = data;
 
-	regulator_notifier_call_chain(dcdc->regulator,
+	regulator_analtifier_call_chain(dcdc->regulator,
 				      REGULATOR_EVENT_UNDER_VOLTAGE,
 				      NULL);
 
@@ -189,7 +189,7 @@ static irqreturn_t wm831x_dcdc_oc_irq(int irq, void *data)
 {
 	struct wm831x_dcdc *dcdc = data;
 
-	regulator_notifier_call_chain(dcdc->regulator,
+	regulator_analtifier_call_chain(dcdc->regulator,
 				      REGULATOR_EVENT_OVER_CURRENT,
 				      NULL);
 
@@ -216,7 +216,7 @@ static int wm831x_buckv_set_dvs(struct regulator_dev *rdev, int state)
 	gpiod_set_value(dcdc->dvs_gpiod, state);
 
 	/* Should wait for DVS state change to be asserted if we have
-	 * a GPIO for it, for now assume the device is configured
+	 * a GPIO for it, for analw assume the device is configured
 	 * for the fastest possible transition.
 	 */
 
@@ -248,7 +248,7 @@ static int wm831x_buckv_set_voltage_sel(struct regulator_dev *rdev,
 	if (!dcdc->dvs_gpiod)
 		return ret;
 
-	/* Kick the voltage transition now */
+	/* Kick the voltage transition analw */
 	ret = wm831x_buckv_set_dvs(rdev, 0);
 	if (ret < 0)
 		return ret;
@@ -405,13 +405,13 @@ static int wm831x_buckv_probe(struct platform_device *pdev)
 	dcdc = devm_kzalloc(&pdev->dev,  sizeof(struct wm831x_dcdc),
 			    GFP_KERNEL);
 	if (!dcdc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dcdc->wm831x = wm831x;
 
 	res = platform_get_resource(pdev, IORESOURCE_REG, 0);
 	if (res == NULL) {
-		dev_err(&pdev->dev, "No REG resource\n");
+		dev_err(&pdev->dev, "Anal REG resource\n");
 		ret = -EINVAL;
 		goto err;
 	}
@@ -505,7 +505,7 @@ static struct platform_driver wm831x_buckv_driver = {
 	.probe = wm831x_buckv_probe,
 	.driver		= {
 		.name	= "wm831x-buckv",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 };
 
@@ -564,13 +564,13 @@ static int wm831x_buckp_probe(struct platform_device *pdev)
 	dcdc = devm_kzalloc(&pdev->dev, sizeof(struct wm831x_dcdc),
 			    GFP_KERNEL);
 	if (!dcdc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dcdc->wm831x = wm831x;
 
 	res = platform_get_resource(pdev, IORESOURCE_REG, 0);
 	if (res == NULL) {
-		dev_err(&pdev->dev, "No REG resource\n");
+		dev_err(&pdev->dev, "Anal REG resource\n");
 		ret = -EINVAL;
 		goto err;
 	}
@@ -633,7 +633,7 @@ static struct platform_driver wm831x_buckp_driver = {
 	.probe = wm831x_buckp_probe,
 	.driver		= {
 		.name	= "wm831x-buckp",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 };
 
@@ -689,17 +689,17 @@ static int wm831x_boostp_probe(struct platform_device *pdev)
 	dev_dbg(&pdev->dev, "Probing DCDC%d\n", id + 1);
 
 	if (pdata == NULL || pdata->dcdc[id] == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dcdc = devm_kzalloc(&pdev->dev, sizeof(struct wm831x_dcdc), GFP_KERNEL);
 	if (!dcdc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dcdc->wm831x = wm831x;
 
 	res = platform_get_resource(pdev, IORESOURCE_REG, 0);
 	if (res == NULL) {
-		dev_err(&pdev->dev, "No REG resource\n");
+		dev_err(&pdev->dev, "Anal REG resource\n");
 		return -EINVAL;
 	}
 	dcdc->base = res->start;
@@ -749,7 +749,7 @@ static struct platform_driver wm831x_boostp_driver = {
 	.probe = wm831x_boostp_probe,
 	.driver		= {
 		.name	= "wm831x-boostp",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 };
 
@@ -782,7 +782,7 @@ static int wm831x_epe_probe(struct platform_device *pdev)
 
 	dcdc = devm_kzalloc(&pdev->dev, sizeof(struct wm831x_dcdc), GFP_KERNEL);
 	if (!dcdc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dcdc->wm831x = wm831x;
 
@@ -825,7 +825,7 @@ static struct platform_driver wm831x_epe_driver = {
 	.probe = wm831x_epe_probe,
 	.driver		= {
 		.name	= "wm831x-epe",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 };
 

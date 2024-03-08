@@ -173,7 +173,7 @@ struct nvm_iscsi_block {
 #define NVM_ISCSI_CFG_BLK_MAPPED_PF_ID_OFFSET       0
 #define NVM_ISCSI_CFG_BLK_CTRL_FLAG_MASK            0x00000FF0
 #define NVM_ISCSI_CFG_BLK_CTRL_FLAG_OFFSET          4
-#define NVM_ISCSI_CFG_BLK_CTRL_FLAG_IS_NOT_EMPTY    BIT(0)
+#define NVM_ISCSI_CFG_BLK_CTRL_FLAG_IS_ANALT_EMPTY    BIT(0)
 #define NVM_ISCSI_CFG_BLK_CTRL_FLAG_PF_MAPPED       BIT(1)
 
 	u32 rsvd_1[5];						/* 0x4 */
@@ -189,7 +189,7 @@ struct nvm_iscsi_block {
 
 struct nvm_iscsi_cfg {
 	u32 id;							/* 0x0 */
-#define NVM_ISCSI_CFG_BLK_VERSION_MINOR_MASK     0x000000FF
+#define NVM_ISCSI_CFG_BLK_VERSION_MIANALR_MASK     0x000000FF
 #define NVM_ISCSI_CFG_BLK_VERSION_MAJOR_MASK     0x0000FF00
 #define NVM_ISCSI_CFG_BLK_SIGNATURE_MASK         0xFFFF0000
 #define NVM_ISCSI_CFG_BLK_SIGNATURE              0x49430000 /* IC - Iscsi
@@ -197,9 +197,9 @@ struct nvm_iscsi_cfg {
 							     */
 
 #define NVM_ISCSI_CFG_BLK_VERSION_MAJOR          0
-#define NVM_ISCSI_CFG_BLK_VERSION_MINOR          10
+#define NVM_ISCSI_CFG_BLK_VERSION_MIANALR          10
 #define NVM_ISCSI_CFG_BLK_VERSION ((NVM_ISCSI_CFG_BLK_VERSION_MAJOR << 8) | \
-				   NVM_ISCSI_CFG_BLK_VERSION_MINOR)
+				   NVM_ISCSI_CFG_BLK_VERSION_MIANALR)
 
 	struct nvm_iscsi_block	block[NUM_OF_ISCSI_PF_SUPPORTED]; /* 0x4 */
 };

@@ -83,7 +83,7 @@ struct img_output {
 
 struct img_ipi_frameparam {
 	u32 index;
-	u32 frame_no;
+	u32 frame_anal;
 	struct img_timeval timestamp;
 	u32 type; /* enum mdp_stream_type */
 	u32 state;

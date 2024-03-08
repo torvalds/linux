@@ -40,12 +40,12 @@ static inline struct fsl_upm_nand *to_fsl_upm_nand(struct mtd_info *mtdinfo)
 }
 
 static int fun_chip_init(struct fsl_upm_nand *fun,
-			 const struct device_node *upm_np,
+			 const struct device_analde *upm_np,
 			 const struct resource *io_res)
 {
 	struct mtd_info *mtd = nand_to_mtd(&fun->chip);
 	int ret;
-	struct device_node *flash_np;
+	struct device_analde *flash_np;
 
 	fun->chip.ecc.engine_type = NAND_ECC_ENGINE_TYPE_SOFT;
 	fun->chip.ecc.algo = NAND_ECC_ALGO_HAMMING;
@@ -54,14 +54,14 @@ static int fun_chip_init(struct fsl_upm_nand *fun,
 
 	flash_np = of_get_next_child(upm_np, NULL);
 	if (!flash_np)
-		return -ENODEV;
+		return -EANALDEV;
 
-	nand_set_flash_node(&fun->chip, flash_np);
+	nand_set_flash_analde(&fun->chip, flash_np);
 	mtd->name = devm_kasprintf(fun->dev, GFP_KERNEL, "0x%llx.%pOFn",
 				   (u64)io_res->start,
 				   flash_np);
 	if (!mtd->name) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -71,7 +71,7 @@ static int fun_chip_init(struct fsl_upm_nand *fun,
 
 	ret = mtd_device_register(mtd, NULL, 0);
 err:
-	of_node_put(flash_np);
+	of_analde_put(flash_np);
 	return ret;
 }
 
@@ -171,7 +171,7 @@ static int fun_probe(struct platform_device *ofdev)
 
 	fun = devm_kzalloc(&ofdev->dev, sizeof(*fun), GFP_KERNEL);
 	if (!fun)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fun->io_base = devm_platform_get_and_ioremap_resource(ofdev, 0, &io_res);
 	if (IS_ERR(fun->io_base))
@@ -183,7 +183,7 @@ static int fun_probe(struct platform_device *ofdev)
 		return ret;
 	}
 
-	prop = of_get_property(ofdev->dev.of_node, "fsl,upm-addr-offset",
+	prop = of_get_property(ofdev->dev.of_analde, "fsl,upm-addr-offset",
 			       &size);
 	if (!prop || size != sizeof(uint32_t)) {
 		dev_err(&ofdev->dev, "can't get UPM address offset\n");
@@ -191,14 +191,14 @@ static int fun_probe(struct platform_device *ofdev)
 	}
 	fun->upm_addr_offset = *prop;
 
-	prop = of_get_property(ofdev->dev.of_node, "fsl,upm-cmd-offset", &size);
+	prop = of_get_property(ofdev->dev.of_analde, "fsl,upm-cmd-offset", &size);
 	if (!prop || size != sizeof(uint32_t)) {
 		dev_err(&ofdev->dev, "can't get UPM command offset\n");
 		return -EINVAL;
 	}
 	fun->upm_cmd_offset = *prop;
 
-	prop = of_get_property(ofdev->dev.of_node,
+	prop = of_get_property(ofdev->dev.of_analde,
 			       "fsl,upm-addr-line-cs-offsets", &size);
 	if (prop && (size / sizeof(uint32_t)) > 0) {
 		fun->mchip_count = size / sizeof(uint32_t);
@@ -226,7 +226,7 @@ static int fun_probe(struct platform_device *ofdev)
 	fun->base.ops = &fun_ops;
 	fun->dev = &ofdev->dev;
 
-	ret = fun_chip_init(fun, ofdev->dev.of_node, io_res);
+	ret = fun_chip_init(fun, ofdev->dev.of_analde, io_res);
 	if (ret)
 		return ret;
 

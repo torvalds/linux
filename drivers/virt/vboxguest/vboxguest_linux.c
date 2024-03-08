@@ -17,7 +17,7 @@
 
 /** The device name. */
 #define DEVICE_NAME		"vboxguest"
-/** The device name for the device node open to everyone. */
+/** The device name for the device analde open to everyone. */
 #define DEVICE_NAME_USER	"vboxuser"
 /** VirtualBox PCI vendor ID. */
 #define VBOX_VENDORID		0x80ee
@@ -29,24 +29,24 @@ static DEFINE_MUTEX(vbg_gdev_mutex);
 /** Global vbg_gdev pointer used by vbg_get/put_gdev. */
 static struct vbg_dev *vbg_gdev;
 
-static u32 vbg_misc_device_requestor(struct inode *inode)
+static u32 vbg_misc_device_requestor(struct ianalde *ianalde)
 {
 	u32 requestor = VMMDEV_REQUESTOR_USERMODE |
-			VMMDEV_REQUESTOR_CON_DONT_KNOW |
-			VMMDEV_REQUESTOR_TRUST_NOT_GIVEN;
+			VMMDEV_REQUESTOR_CON_DONT_KANALW |
+			VMMDEV_REQUESTOR_TRUST_ANALT_GIVEN;
 
 	if (from_kuid(current_user_ns(), current_uid()) == 0)
 		requestor |= VMMDEV_REQUESTOR_USR_ROOT;
 	else
 		requestor |= VMMDEV_REQUESTOR_USR_USER;
 
-	if (in_egroup_p(inode->i_gid))
+	if (in_egroup_p(ianalde->i_gid))
 		requestor |= VMMDEV_REQUESTOR_GRP_VBOX;
 
 	return requestor;
 }
 
-static int vbg_misc_device_open(struct inode *inode, struct file *filp)
+static int vbg_misc_device_open(struct ianalde *ianalde, struct file *filp)
 {
 	struct vbg_session *session;
 	struct vbg_dev *gdev;
@@ -54,7 +54,7 @@ static int vbg_misc_device_open(struct inode *inode, struct file *filp)
 	/* misc_open sets filp->private_data to our misc device */
 	gdev = container_of(filp->private_data, struct vbg_dev, misc_device);
 
-	session = vbg_core_open_session(gdev, vbg_misc_device_requestor(inode));
+	session = vbg_core_open_session(gdev, vbg_misc_device_requestor(ianalde));
 	if (IS_ERR(session))
 		return PTR_ERR(session);
 
@@ -62,7 +62,7 @@ static int vbg_misc_device_open(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static int vbg_misc_device_user_open(struct inode *inode, struct file *filp)
+static int vbg_misc_device_user_open(struct ianalde *ianalde, struct file *filp)
 {
 	struct vbg_session *session;
 	struct vbg_dev *gdev;
@@ -71,7 +71,7 @@ static int vbg_misc_device_user_open(struct inode *inode, struct file *filp)
 	gdev = container_of(filp->private_data, struct vbg_dev,
 			    misc_device_user);
 
-	session = vbg_core_open_session(gdev, vbg_misc_device_requestor(inode) |
+	session = vbg_core_open_session(gdev, vbg_misc_device_requestor(ianalde) |
 					      VMMDEV_REQUESTOR_USER_DEVICE);
 	if (IS_ERR(session))
 		return PTR_ERR(session);
@@ -82,12 +82,12 @@ static int vbg_misc_device_user_open(struct inode *inode, struct file *filp)
 
 /**
  * vbg_misc_device_close - Close device.
- * @inode:		Pointer to inode info structure.
+ * @ianalde:		Pointer to ianalde info structure.
  * @filp:		Associated file pointer.
  *
- * Return: %0 on success, negated errno on failure.
+ * Return: %0 on success, negated erranal on failure.
  */
-static int vbg_misc_device_close(struct inode *inode, struct file *filp)
+static int vbg_misc_device_close(struct ianalde *ianalde, struct file *filp)
 {
 	vbg_core_close_session(filp->private_data);
 	filp->private_data = NULL;
@@ -100,7 +100,7 @@ static int vbg_misc_device_close(struct inode *inode, struct file *filp)
  * @req:		The request specified to ioctl().
  * @arg:		The argument specified to ioctl().
  *
- * Return: %0 on success, negated errno on failure.
+ * Return: %0 on success, negated erranal on failure.
  */
 static long vbg_misc_device_ioctl(struct file *filp, unsigned int req,
 				  unsigned long arg)
@@ -130,7 +130,7 @@ static long vbg_misc_device_ioctl(struct file *filp, unsigned int req,
 
 	/*
 	 * IOCTL_VMMDEV_REQUEST needs the buffer to be below 4G to avoid
-	 * the need for a bounce-buffer and another copy later on.
+	 * the need for a bounce-buffer and aanalther copy later on.
 	 */
 	is_vmmdev_req = (req & ~IOCSIZE_MASK) == VBG_IOCTL_VMMDEV_REQUEST(0) ||
 			 req == VBG_IOCTL_VMMDEV_REQUEST_BIG ||
@@ -142,7 +142,7 @@ static long vbg_misc_device_ioctl(struct file *filp, unsigned int req,
 	else
 		buf = kmalloc(size, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*((struct vbg_ioctl_hdr *)buf) = hdr;
 	if (copy_from_user(buf + sizeof(hdr), (void *)arg + sizeof(hdr),
@@ -223,7 +223,7 @@ static void vbg_input_close(struct input_dev *input)
 /*
  * Creates the kernel input device.
  *
- * Return: 0 on success, negated errno on failure.
+ * Return: 0 on success, negated erranal on failure.
  */
 static int vbg_create_input_device(struct vbg_dev *gdev)
 {
@@ -231,7 +231,7 @@ static int vbg_create_input_device(struct vbg_dev *gdev)
 
 	input = devm_input_allocate_device(gdev->dev);
 	if (!input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input->id.bustype = BUS_PCI;
 	input->id.vendor = VBOX_VENDORID;
@@ -282,7 +282,7 @@ ATTRIBUTE_GROUPS(vbg_pci);
 /*
  * Does the PCI detection and init of the device.
  *
- * Return: 0 on success, negated errno on failure.
+ * Return: 0 on success, negated erranal on failure.
  */
 static int vbg_pci_probe(struct pci_dev *pci, const struct pci_device_id *id)
 {
@@ -294,7 +294,7 @@ static int vbg_pci_probe(struct pci_dev *pci, const struct pci_device_id *id)
 
 	gdev = devm_kzalloc(dev, sizeof(*gdev), GFP_KERNEL);
 	if (!gdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = pci_enable_device(pci);
 	if (ret != 0) {
@@ -302,7 +302,7 @@ static int vbg_pci_probe(struct pci_dev *pci, const struct pci_device_id *id)
 		return ret;
 	}
 
-	ret = -ENODEV;
+	ret = -EANALDEV;
 
 	io = pci_resource_start(pci, 0);
 	io_len = pci_resource_len(pci, 0);
@@ -311,7 +311,7 @@ static int vbg_pci_probe(struct pci_dev *pci, const struct pci_device_id *id)
 		goto err_disable_pcidev;
 	}
 	if (devm_request_region(dev, io, io_len, DEVICE_NAME) == NULL) {
-		vbg_err("vboxguest: Error could not claim IO resource\n");
+		vbg_err("vboxguest: Error could analt claim IO resource\n");
 		ret = -EBUSY;
 		goto err_disable_pcidev;
 	}
@@ -324,7 +324,7 @@ static int vbg_pci_probe(struct pci_dev *pci, const struct pci_device_id *id)
 	}
 
 	if (devm_request_mem_region(dev, mmio, mmio_len, DEVICE_NAME) == NULL) {
-		vbg_err("vboxguest: Error could not claim MMIO resource\n");
+		vbg_err("vboxguest: Error could analt claim MMIO resource\n");
 		ret = -EBUSY;
 		goto err_disable_pcidev;
 	}
@@ -348,10 +348,10 @@ static int vbg_pci_probe(struct pci_dev *pci, const struct pci_device_id *id)
 	gdev->io_port = io;
 	gdev->mmio = vmmdev;
 	gdev->dev = dev;
-	gdev->misc_device.minor = MISC_DYNAMIC_MINOR;
+	gdev->misc_device.mianalr = MISC_DYNAMIC_MIANALR;
 	gdev->misc_device.name = DEVICE_NAME;
 	gdev->misc_device.fops = &vbg_misc_device_fops;
-	gdev->misc_device_user.minor = MISC_DYNAMIC_MINOR;
+	gdev->misc_device_user.mianalr = MISC_DYNAMIC_MIANALR;
 	gdev->misc_device_user.name = DEVICE_NAME_USER;
 	gdev->misc_device_user.fops = &vbg_misc_device_user_fops;
 
@@ -436,7 +436,7 @@ struct vbg_dev *vbg_get_gdev(void)
 	mutex_lock(&vbg_gdev_mutex);
 
 	/*
-	 * Note on success we keep the mutex locked until vbg_put_gdev(),
+	 * Analte on success we keep the mutex locked until vbg_put_gdev(),
 	 * this stops vbg_pci_remove from removing the device from underneath
 	 * vboxsf. vboxsf will only hold a reference for a short while.
 	 */
@@ -444,7 +444,7 @@ struct vbg_dev *vbg_get_gdev(void)
 		return vbg_gdev;
 
 	mutex_unlock(&vbg_gdev_mutex);
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 EXPORT_SYMBOL(vbg_get_gdev);
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2019-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #include "core.h"
@@ -39,13 +39,13 @@ static int ath12k_dbring_bufs_replenish(struct ath12k *ar,
 	buf_id = idr_alloc(&ring->bufs_idr, buff, 0, ring->bufs_max, gfp);
 	spin_unlock_bh(&ring->idr_lock);
 	if (buf_id < 0) {
-		ret = -ENOBUFS;
+		ret = -EANALBUFS;
 		goto err_dma_unmap;
 	}
 
 	desc = ath12k_hal_srng_src_get_next_entry(ab, srng);
 	if (!desc) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto err_idr_remove;
 	}
 
@@ -210,7 +210,7 @@ int ath12k_dbring_get_cap(struct ath12k_base *ab,
 	int i;
 
 	if (!ab->num_db_cap || !ab->db_caps)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (id >= WMI_DIRECT_BUF_MAX)
 		return -EINVAL;
@@ -224,7 +224,7 @@ int ath12k_dbring_get_cap(struct ath12k_base *ab,
 		}
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 int ath12k_dbring_buffer_release_event(struct ath12k_base *ab,

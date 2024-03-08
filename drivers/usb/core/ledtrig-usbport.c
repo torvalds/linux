@@ -16,7 +16,7 @@
 struct usbport_trig_data {
 	struct led_classdev *led_cdev;
 	struct list_head ports;
-	struct notifier_block nb;
+	struct analtifier_block nb;
 	int count; /* Amount of connected matching devices */
 };
 
@@ -130,24 +130,24 @@ static bool usbport_trig_port_observed(struct usbport_trig_data *usbport_data,
 				       struct usb_device *usb_dev, int port1)
 {
 	struct device *dev = usbport_data->led_cdev->dev;
-	struct device_node *led_np = dev->of_node;
+	struct device_analde *led_np = dev->of_analde;
 	struct of_phandle_args args;
-	struct device_node *port_np;
+	struct device_analde *port_np;
 	int count, i;
 
 	if (!led_np)
 		return false;
 
 	/*
-	 * Get node of port being added
+	 * Get analde of port being added
 	 *
-	 * FIXME: This is really the device node of the connected device
+	 * FIXME: This is really the device analde of the connected device
 	 */
-	port_np = usb_of_get_device_node(usb_dev, port1);
+	port_np = usb_of_get_device_analde(usb_dev, port1);
 	if (!port_np)
 		return false;
 
-	of_node_put(port_np);
+	of_analde_put(port_np);
 
 	/* Amount of trigger sources for this LED */
 	count = of_count_phandle_with_args(led_np, "trigger-sources",
@@ -171,7 +171,7 @@ static bool usbport_trig_port_observed(struct usbport_trig_data *usbport_data,
 			continue;
 		}
 
-		of_node_put(args.np);
+		of_analde_put(args.np);
 
 		if (args.np == port_np)
 			return true;
@@ -191,7 +191,7 @@ static int usbport_trig_add_port(struct usbport_trig_data *usbport_data,
 
 	port = kzalloc(sizeof(*port), GFP_KERNEL);
 	if (!port) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out;
 	}
 
@@ -204,7 +204,7 @@ static int usbport_trig_add_port(struct usbport_trig_data *usbport_data,
 	len = strlen(hub_name) + 8;
 	port->port_name = kzalloc(len, GFP_KERNEL);
 	if (!port->port_name) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_free_port;
 	}
 	snprintf(port->port_name, len, "%s-port%d", hub_name, portnum);
@@ -272,7 +272,7 @@ static void usbport_trig_remove_usb_dev_ports(struct usbport_trig_data *usbport_
  * Init, exit, etc.
  ***************************************/
 
-static int usbport_trig_notify(struct notifier_block *nb, unsigned long action,
+static int usbport_trig_analtify(struct analtifier_block *nb, unsigned long action,
 			       void *data)
 {
 	struct usbport_trig_data *usbport_data =
@@ -288,15 +288,15 @@ static int usbport_trig_notify(struct notifier_block *nb, unsigned long action,
 		usbport_trig_add_usb_dev_ports(usb_dev, usbport_data);
 		if (observed && usbport_data->count++ == 0)
 			led_set_brightness(led_cdev, LED_FULL);
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 	case USB_DEVICE_REMOVE:
 		usbport_trig_remove_usb_dev_ports(usbport_data, usb_dev);
 		if (observed && --usbport_data->count == 0)
 			led_set_brightness(led_cdev, LED_OFF);
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static int usbport_trig_activate(struct led_classdev *led_cdev)
@@ -306,7 +306,7 @@ static int usbport_trig_activate(struct led_classdev *led_cdev)
 
 	usbport_data = kzalloc(sizeof(*usbport_data), GFP_KERNEL);
 	if (!usbport_data)
-		return -ENOMEM;
+		return -EANALMEM;
 	usbport_data->led_cdev = led_cdev;
 
 	/* List of ports */
@@ -317,10 +317,10 @@ static int usbport_trig_activate(struct led_classdev *led_cdev)
 	usb_for_each_dev(usbport_data, usbport_trig_add_usb_dev_ports);
 	usbport_trig_update_count(usbport_data);
 
-	/* Notifications */
-	usbport_data->nb.notifier_call = usbport_trig_notify;
+	/* Analtifications */
+	usbport_data->nb.analtifier_call = usbport_trig_analtify;
 	led_set_trigger_data(led_cdev, usbport_data);
-	usb_register_notify(&usbport_data->nb);
+	usb_register_analtify(&usbport_data->nb);
 	return 0;
 
 err_free:
@@ -339,7 +339,7 @@ static void usbport_trig_deactivate(struct led_classdev *led_cdev)
 
 	sysfs_remove_group(&led_cdev->dev->kobj, &ports_group);
 
-	usb_unregister_notify(&usbport_data->nb);
+	usb_unregister_analtify(&usbport_data->nb);
 
 	kfree(usbport_data);
 }

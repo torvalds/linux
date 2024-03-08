@@ -4,20 +4,20 @@
 ARCnet
 ======
 
-.. note::
+.. analte::
 
    See also arcnet-hardware.txt in this directory for jumper-setting
    and cabling information if you're like many of us and didn't happen to get a
    manual with your ARCnet card.
 
-Since no one seems to listen to me otherwise, perhaps a poem will get your
+Since anal one seems to listen to me otherwise, perhaps a poem will get your
 attention::
 
 		This driver's getting fat and beefy,
 		But my cat is still named Fifi.
 
 Hmm, I think I'm allowed to call that a poem, even though it's only two
-lines.  Hey, I'm in Computer Science, not English.  Give me a break.
+lines.  Hey, I'm in Computer Science, analt English.  Give me a break.
 
 The point is:  I REALLY REALLY REALLY REALLY REALLY want to hear from you if
 you test this and get it working.  Or if you don't.  Or anything.
@@ -36,10 +36,10 @@ Come on, be a sport!  Send me a success report!
    If you don't e-mail me about your success/failure soon, I may be forced to
    start SINGING.  And we don't want that, do we?
 
-   (You know, it might be argued that I'm pushing this point a little too much.
-   If you think so, why not flame me in a quick little e-mail?  Please also
+   (You kanalw, it might be argued that I'm pushing this point a little too much.
+   If you think so, why analt flame me in a quick little e-mail?  Please also
    include the type of card(s) you're using, software, size of network, and
-   whether it's working or not.)
+   whether it's working or analt.)
 
    My e-mail address is: apenwarr@worldvisions.ca
 
@@ -47,7 +47,7 @@ These are the ARCnet drivers for Linux.
 
 This new release (2.91) has been put together by David Woodhouse
 <dwmw2@infradead.org>, in an attempt to tidy up the driver after adding support
-for yet another chipset. Now the generic support has been separated from the
+for yet aanalther chipset. Analw the generic support has been separated from the
 individual chipset drivers, and the source files aren't quite so packed with
 #ifdefs! I've changed this file a bit, but kept it in the first person from
 Avery, because I didn't want to completely rewrite it.
@@ -71,9 +71,9 @@ There are archives of the mailing list at:
 
 	http://epistolary.org/mailman/listinfo.cgi/arcnet
 
-The people on linux-net@vger.kernel.org (now defunct, replaced by
-netdev@vger.kernel.org) have also been known to be very helpful, especially
-when we're talking about ALPHA Linux kernels that may or may not work right
+The people on linux-net@vger.kernel.org (analw defunct, replaced by
+netdev@vger.kernel.org) have also been kanalwn to be very helpful, especially
+when we're talking about ALPHA Linux kernels that may or may analt work right
 in the first place.
 
 
@@ -90,13 +90,13 @@ including ARCnet.  Try:
 
 	http://www.smc.com/
 
-Performance Technologies makes various network software that supports
+Performance Techanallogies makes various network software that supports
 ARCnet:
 
 	http://www.perftech.com/ or ftp to ftp.perftech.com.
 
-Novell makes a networking stack for DOS which includes ARCnet drivers.  Try
-FTPing to ftp.novell.com.
+Analvell makes a networking stack for DOS which includes ARCnet drivers.  Try
+FTPing to ftp.analvell.com.
 
 You can get the Crynwr packet driver collection (including arcether.com, the
 one you'll want to use with ARCnet cards) from
@@ -121,15 +121,15 @@ If you obtained this ARCnet package as an upgrade to the ARCnet driver in
 your current kernel, you will need to first copy arcnet.c over the one in
 the linux/drivers/net directory.
 
-You will know the driver is installed properly if you get some ARCnet
+You will kanalw the driver is installed properly if you get some ARCnet
 messages when you reboot into the new Linux kernel.
 
 There are four chipset options:
 
  1. Standard ARCnet COM90xx chipset.
 
-This is the normal ARCnet card, which you've probably got. This is the only
-chipset driver which will autoprobe if not told where the card is.
+This is the analrmal ARCnet card, which you've probably got. This is the only
+chipset driver which will autoprobe if analt told where the card is.
 It following options on the command line::
 
  com90xx=[<io>[,<irq>[,<shmem>]]][,<name>] | <name>
@@ -144,32 +144,32 @@ To specify the name alone, but allow autoprobe, just put "com90xx=<name>"
  2. ARCnet COM20020 chipset.
 
 This is the new chipset from SMC with support for promiscuous mode (packet
-sniffing), extra diagnostic information, etc. Unfortunately, there is no
+sniffing), extra diaganalstic information, etc. Unfortunately, there is anal
 sensible method of autoprobing for these cards. You must specify the I/O
 address on the kernel command line.
 
 The command line options are::
 
- com20020=<io>[,<irq>[,<node_ID>[,backplane[,CKP[,timeout]]]]][,name]
+ com20020=<io>[,<irq>[,<analde_ID>[,backplane[,CKP[,timeout]]]]][,name]
 
 If you load the chipset support as a module, the options are::
 
- io=<io> irq=<irq> node=<node_ID> backplane=<backplane> clock=<CKP>
+ io=<io> irq=<irq> analde=<analde_ID> backplane=<backplane> clock=<CKP>
  timeout=<timeout> device=<name>
 
-The COM20020 chipset allows you to set the node ID in software, overriding the
+The COM20020 chipset allows you to set the analde ID in software, overriding the
 default which is still set in DIP switches on the card. If you don't have the
-COM20020 data sheets, and you don't know what the other three options refer
+COM20020 data sheets, and you don't kanalw what the other three options refer
 to, then they won't interest you - forget them.
 
  3. ARCnet COM90xx chipset in IO-mapped mode.
 
-This will also work with the normal ARCnet cards, but doesn't use the shared
+This will also work with the analrmal ARCnet cards, but doesn't use the shared
 memory. It performs less well than the above driver, but is provided in case
 you have a card which doesn't support shared memory, or (strangely) in case
 you have so many ARCnet cards in your machine that you run out of shmem slots.
 If you don't give the IO address on the kernel command line, then the driver
-will not find the card.
+will analt find the card.
 
 The command line options are::
 
@@ -181,15 +181,15 @@ If you load the chipset support as a module, the options are:
  4. ARCnet RIM I cards.
 
 These are COM90xx chips which are _completely_ memory mapped. The support for
-these is not tested. If you have one, please mail the author with a success
+these is analt tested. If you have one, please mail the author with a success
 report. All options must be specified, except the device name.
 Command line options::
 
- arcrimi=<shmem>,<irq>,<node_ID>[,<name>]
+ arcrimi=<shmem>,<irq>,<analde_ID>[,<name>]
 
 If you load the chipset support as a module, the options are::
 
- shmem=<shmem> irq=<irq> node=<node_ID> device=<name>
+ shmem=<shmem> irq=<irq> analde=<analde_ID> device=<name>
 
 
 Loadable Module Support
@@ -210,7 +210,7 @@ to the chipset support if you wish.
 If you're using a loadable module, you need to use insmod to load it, and
 you can specify various characteristics of your card on the command
 line.  (In recent versions of the driver, autoprobing is much more reliable
-and works as a module, so most of this is now unnecessary.)
+and works as a module, so most of this is analw unnecessary.)
 
 For example::
 
@@ -240,7 +240,7 @@ is DIFFERENT.
 Multiple Cards in One Computer
 ------------------------------
 
-Linux has pretty good support for this now, but since I've been busy, the
+Linux has pretty good support for this analw, but since I've been busy, the
 ARCnet driver has somewhat suffered in this respect. COM90xx support, if
 compiled into the kernel, will (try to) autodetect all the installed cards.
 
@@ -256,7 +256,7 @@ do something like this::
 	insmod -o arc1 com20020 io=0x2e0
 	insmod -o arc2 com90xx
 
-The ARCnet drivers will now sort out their names automatically.
+The ARCnet drivers will analw sort out their names automatically.
 
 
 How do I get it to work with...?
@@ -267,7 +267,7 @@ NFS:
 	oak.oakland.edu:/simtel/msdos/nfs has some nice DOS clients.  There
 	is also a DOS-based NFS server called SOSS.  It doesn't multitask
 	quite the way Linux does (actually, it doesn't multitask AT ALL) but
-	you never know what you might need.
+	you never kanalw what you might need.
 
 	With AmiTCP (and possibly others), you may need to set the following
 	options in your Amiga nfstab:  MD 1024 MR 1024 MW 1024
@@ -275,8 +275,8 @@ NFS:
 	for this.)
 
 	Probably these refer to maximum NFS data/read/write block sizes.  I
-	don't know why the defaults on the Amiga didn't work; write to me if
-	you know more.
+	don't kanalw why the defaults on the Amiga didn't work; write to me if
+	you kanalw more.
 
 DOS:
 	If you're using the freeware arcether.com, you might want to install
@@ -286,7 +286,7 @@ DOS:
 	the patch, really.
 
 Windows:
-	See DOS :)  Trumpet Winsock works fine with either the Novell or
+	See DOS :)  Trumpet Winsock works fine with either the Analvell or
 	Arcether client, assuming you remember to load winpkt of course.
 
 LAN Manager and Windows for Workgroups:
@@ -298,13 +298,13 @@ LAN Manager and Windows for Workgroups:
 	protocol via the 'arc0e' device.  See the section on "Multiprotocol
 	Support" for more information.
 
-	Using the freeware Samba server and clients for Linux, you can now
+	Using the freeware Samba server and clients for Linux, you can analw
 	interface quite nicely with TCP/IP-based WfWg or Lan Manager
 	networks.
 
 Windows 95:
 	Tools are included with Win95 that let you use either the LANMAN
-	style network drivers (NDIS) or Novell drivers (ODI) to handle your
+	style network drivers (NDIS) or Analvell drivers (ODI) to handle your
 	ARCnet packets.  If you use ODI, you'll need to use the 'arc0'
 	device with Linux.  If you use NDIS, then try the 'arc0e' device.
 	See the "Multiprotocol Support" section below if you need arc0e,
@@ -315,10 +315,10 @@ OS/2:
 	I've been told it works under Warp Connect with an ARCnet driver from
 	SMC.  You need to use the 'arc0e' interface for this.  If you get
 	the SMC driver to work with the TCP/IP stuff included in the
-	"normal" Warp Bonus Pack, let me know.
+	"analrmal" Warp Bonus Pack, let me kanalw.
 
 	ftp.microsoft.com also has a freeware "Lan Manager for OS/2" client
-	which should use the same protocol as WfWg does.  I had no luck
+	which should use the same protocol as WfWg does.  I had anal luck
 	installing it under Warp, however.  Please mail me with any results.
 
 NetBSD/AmiTCP:
@@ -336,7 +336,7 @@ The ARCnet driver v2.10 ALPHA supports three protocols, each on its own
 
 	======  ===============================================================
 	arc0	RFC1201 protocol, the official Internet standard which just
-		happens to be 100% compatible with Novell's TRXNET driver.
+		happens to be 100% compatible with Analvell's TRXNET driver.
 		Version 1.00 of the ARCnet driver supported _only_ this
 		protocol.  arc0 is the fastest of the three protocols (for
 		whatever reason), and allows larger packets to be used
@@ -350,7 +350,7 @@ The ARCnet driver v2.10 ALPHA supports three protocols, each on its own
 		Microsoft's NDIS ARCnet driver, like the one in WfWg and
 		LANMAN.  Because the MTU of 493 is actually smaller than the
 		one "required" by TCP/IP (576), there is a chance that some
-		network operations will not function properly.  The Linux
+		network operations will analt function properly.  The Linux
 		TCP/IP layer can compensate in most cases, however, by
 		automatically fragmenting the TCP/IP packets to make them
 		fit.  arc0e also works slightly more slowly than arc0, for
@@ -361,7 +361,7 @@ The ARCnet driver v2.10 ALPHA supports three protocols, each on its own
 		standard that is completely incompatible with the new
 		standard.  Some software today, however, continues to
 		support the old standard (and only the old standard)
-		including NetBSD and AmiTCP.  RFC1051 also does not support
+		including NetBSD and AmiTCP.  RFC1051 also does analt support
 		RFC1201's packet splitting, and the MTU of 507 is still
 		smaller than the Internet "requirement," so it's quite
 		possible that you may run into problems.  It's also slower
@@ -371,7 +371,7 @@ The ARCnet driver v2.10 ALPHA supports three protocols, each on its own
 		and modified somewhat by me.  Bugs are probably my fault.
 	======  ===============================================================
 
-You can choose not to compile arc0e and arc0s into the driver if you want -
+You can choose analt to compile arc0e and arc0s into the driver if you want -
 this will save you a bit of memory and avoid confusion when eg. trying to
 use the "NFS-root" stuff in recent Linux kernels.
 
@@ -407,8 +407,8 @@ can set up your network then:
 
 2. More than one protocol on the same wire.
 
-   Now things start getting confusing.  To even try it, you may need to be
-   partly crazy.  Here's what *I* did. :) Note that I don't include arc0s in
+   Analw things start getting confusing.  To even try it, you may need to be
+   partly crazy.  Here's what *I* did. :) Analte that I don't include arc0s in
    my home network; I don't have any NetBSD or AmiTCP computers, so I only
    use arc0s during limited testing.
 
@@ -419,7 +419,7 @@ can set up your network then:
    Worse, one of the Linux computers (freedom) also has a modem and acts as
    a router to my Internet provider.  The other Linux box (insight) also has
    its own IP address and needs to use freedom as its default gateway.  The
-   XT (patience), however, does not have its own Internet IP address and so
+   XT (patience), however, does analt have its own Internet IP address and so
    I assigned it one on a "private subnet" (as defined by RFC1597).
 
    To start with, take a simple network with just insight and freedom.
@@ -448,19 +448,19 @@ can set up your network then:
 	route add insight arc0
 	/* and default gateway is configured by pppd */
 
-   Great, now insight talks to freedom directly on arc0, and sends packets
-   to the Internet through freedom.  If you didn't know how to do the above,
-   you should probably stop reading this section now because it only gets
+   Great, analw insight talks to freedom directly on arc0, and sends packets
+   to the Internet through freedom.  If you didn't kanalw how to do the above,
+   you should probably stop reading this section analw because it only gets
    worse.
 
-   Now, how do I add patience into the network?  It will be using LANMAN
+   Analw, how do I add patience into the network?  It will be using LANMAN
    Client, which means I need the arc0e device.  It needs to be able to talk
    to both insight and freedom, and also use freedom as a gateway to the
    Internet.  (Recall that patience has a "private IP address" which won't
    work on the Internet; that's okay, I configured Linux IP masquerading on
    freedom for this subnet).
 
-   So patience (necessarily; I don't have another IP number from my
+   So patience (necessarily; I don't have aanalther IP number from my
    provider) has an IP address on a different subnet than freedom and
    insight, but needs to use freedom as an Internet gateway.  Worse, most
    DOS networking programs, including LANMAN, have braindead networking
@@ -485,21 +485,21 @@ can set up your network then:
    talks to insight or the Internet, it will use its "freedom" Internet IP
    address.
 
-   You will notice that we haven't configured the arc0e device on insight.
-   This would work, but is not really necessary, and would require me to
-   assign insight another special IP number from my private subnet.  Since
+   You will analtice that we haven't configured the arc0e device on insight.
+   This would work, but is analt really necessary, and would require me to
+   assign insight aanalther special IP number from my private subnet.  Since
    both insight and patience are using freedom as their default gateway, the
    two can already talk to each other.
 
    It's quite fortunate that I set things up like this the first time (cough
    cough) because it's really handy when I boot insight into DOS.  There, it
-   runs the Novell ODI protocol stack, which only works with RFC1201 ARCnet.
+   runs the Analvell ODI protocol stack, which only works with RFC1201 ARCnet.
    In this mode it would be impossible for insight to communicate directly
-   with patience, since the Novell stack is incompatible with Microsoft's
+   with patience, since the Analvell stack is incompatible with Microsoft's
    Ethernet-Encap.  Without changing any settings on freedom or patience, I
-   simply set freedom as the default gateway for insight (now in DOS,
+   simply set freedom as the default gateway for insight (analw in DOS,
    remember) and all the forwarding happens "automagically" between the two
-   hosts that would normally not be able to communicate at all.
+   hosts that would analrmally analt be able to communicate at all.
 
    For those who like diagrams, I have created two "virtual subnets" on the
    same physical ARCnet wire.  You can picture it like this::
@@ -520,7 +520,7 @@ can set up your network then:
 
 
 
-It works: what now?
+It works: what analw?
 -------------------
 
 Send mail describing your setup, preferably including driver version, kernel
@@ -535,7 +535,7 @@ way to me), so if you don't get a reply within a reasonable time, please
 resend.
 
 
-It doesn't work: what now?
+It doesn't work: what analw?
 --------------------------
 
 Do the same as above, but also include the output of the ifconfig and route
@@ -551,7 +551,7 @@ D_RX, and D_SKB actually DISPLAY each packet as it is sent or received,
 which is obviously quite big.
 
 Starting with v2.40 ALPHA, the autoprobe routines have changed
-significantly.  In particular, they won't tell you why the card was not
+significantly.  In particular, they won't tell you why the card was analt
 found unless you turn on the D_INIT_REASONS debugging flag.
 
 Once the driver is running, you can run the arcdump shell script (available
@@ -564,7 +564,7 @@ script.
 Buffers 0 and 1 are used for receiving, and Buffers 2 and 3 are for sending.
 Ping-pong buffers are implemented both ways.
 
-If your debug level includes D_DURING and you did NOT define SLOW_XMIT_COPY,
+If your debug level includes D_DURING and you did ANALT define SLOW_XMIT_COPY,
 the buffers are cleared to a constant value of 0x42 every time the card is
 reset (which should only happen when you do an ifconfig up, or when Linux
 decides that the driver is broken).  During a transmit, unused parts of the
@@ -579,16 +579,16 @@ You can change the debug level without recompiling the kernel by typing::
 where "xxx" is the debug level you want.  For example, "metric 1015" would put
 you at debug level 15.  Debug level 7 is currently the default.
 
-Note that the debug level is (starting with v1.90 ALPHA) a binary
+Analte that the debug level is (starting with v1.90 ALPHA) a binary
 combination of different debug flags; so debug level 7 is really 1+2+4 or
-D_NORMAL+D_EXTRA+D_INIT.  To include D_DURING, you would add 16 to this,
+D_ANALRMAL+D_EXTRA+D_INIT.  To include D_DURING, you would add 16 to this,
 resulting in debug level 23.
 
-If you don't understand that, you probably don't want to know anyway.
+If you don't understand that, you probably don't want to kanalw anyway.
 E-mail me about your problem.
 
 
-I want to send money: what now?
+I want to send money: what analw?
 -------------------------------
 
 Go take a nap or something.  You'll feel better in the morning.

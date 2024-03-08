@@ -36,7 +36,7 @@ render_state_get_rodata(const struct intel_engine_cs *engine)
  * This macro only checks for page overflow before inserting the commands,
  * this is sufficient as the null state generator makes the final batch
  * with two passes to build command and state separately. At this point
- * the size of both are known and it compacts them by relocating the state
+ * the size of both are kanalwn and it compacts them by relocating the state
  * right after the commands taking care of alignment so we should sufficient
  * space below them for adding new commands.
  */
@@ -90,7 +90,7 @@ static int render_state_setup(struct intel_renderstate *so,
 	so->batch_size = rodata->batch_items * sizeof(u32);
 
 	while (i % CACHELINE_DWORDS)
-		OUT_BATCH(d, i, MI_NOOP);
+		OUT_BATCH(d, i, MI_ANALOP);
 
 	so->aux_offset = i * sizeof(u32);
 
@@ -101,10 +101,10 @@ static int render_state_setup(struct intel_renderstate *so,
 		 * shown below.
 		 *
 		 * In the below table 2x6 config always refers to
-		 * fused-down version, native 2x6 is not available and can
-		 * be ignored
+		 * fused-down version, native 2x6 is analt available and can
+		 * be iganalred
 		 *
-		 * SNo  subslices config                eu pool configuration
+		 * SAnal  subslices config                eu pool configuration
 		 * -----------------------------------------------------------
 		 * 1    3 subslices enabled (3x6)  -    0x00777000  (9+9)
 		 * 2    ss0 disabled (2x6)         -    0x00777000  (3+9)
@@ -170,7 +170,7 @@ retry:
 	if (err)
 		goto err_fini;
 
-	/* return early if there's nothing to setup */
+	/* return early if there's analthing to setup */
 	if (!err && !so->rodata)
 		return 0;
 

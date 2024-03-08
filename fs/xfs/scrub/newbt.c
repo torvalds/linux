@@ -14,7 +14,7 @@
 #include "xfs_log_format.h"
 #include "xfs_trans.h"
 #include "xfs_sb.h"
-#include "xfs_inode.h"
+#include "xfs_ianalde.h"
 #include "xfs_alloc.h"
 #include "xfs_rmap.h"
 #include "xfs_ag.h"
@@ -32,9 +32,9 @@
  * btree bulk loading code calculates for us.  However, there are some
  * exceptions to this rule:
  *
- * (0) If someone turned one of the debug knobs.
+ * (0) If someone turned one of the debug kanalbs.
  * (1) If this is a per-AG btree and the AG has less than 10% space free.
- * (2) If this is an inode btree and the FS has less than 10% space free.
+ * (2) If this is an ianalde btree and the FS has less than 10% space free.
 
  * In either case, format the new btree blocks almost completely full to
  * minimize space usage.
@@ -54,17 +54,17 @@ xrep_newbt_estimate_slack(
 	 * here.
 	 */
 	bload->leaf_slack = xfs_globals.bload_leaf_slack;
-	bload->node_slack = xfs_globals.bload_node_slack;
+	bload->analde_slack = xfs_globals.bload_analde_slack;
 
 	if (sc->ops->type == ST_PERAG) {
 		free = sc->sa.pag->pagf_freeblks;
-		sz = xfs_ag_block_count(sc->mp, sc->sa.pag->pag_agno);
+		sz = xfs_ag_block_count(sc->mp, sc->sa.pag->pag_aganal);
 	} else {
 		free = percpu_counter_sum(&sc->mp->m_fdblocks);
 		sz = sc->mp->m_sb.sb_dblocks;
 	}
 
-	/* No further changes if there's more than 10% free space left. */
+	/* Anal further changes if there's more than 10% free space left. */
 	if (free >= div_u64(sz, 10))
 		return;
 
@@ -75,8 +75,8 @@ xrep_newbt_estimate_slack(
 	 */
 	if (bload->leaf_slack < 0)
 		bload->leaf_slack = 2;
-	if (bload->node_slack < 0)
-		bload->node_slack = 2;
+	if (bload->analde_slack < 0)
+		bload->analde_slack = 2;
 }
 
 /* Initialize accounting resources for staging a new AG btree. */
@@ -98,9 +98,9 @@ xrep_newbt_init_ag(
 	xrep_newbt_estimate_slack(xnr);
 }
 
-/* Initialize accounting resources for staging a new inode fork btree. */
+/* Initialize accounting resources for staging a new ianalde fork btree. */
 int
-xrep_newbt_init_inode(
+xrep_newbt_init_ianalde(
 	struct xrep_newbt		*xnr,
 	struct xfs_scrub		*sc,
 	int				whichfork,
@@ -110,13 +110,13 @@ xrep_newbt_init_inode(
 
 	ifp = kmem_cache_zalloc(xfs_ifork_cache, XCHK_GFP_FLAGS);
 	if (!ifp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	xrep_newbt_init_ag(xnr, sc, oinfo,
-			XFS_INO_TO_FSB(sc->mp, sc->ip->i_ino),
-			XFS_AG_RESV_NONE);
+			XFS_IANAL_TO_FSB(sc->mp, sc->ip->i_ianal),
+			XFS_AG_RESV_ANALNE);
 	xnr->ifake.if_fork = ifp;
-	xnr->ifake.if_fork_size = xfs_inode_fork_size(sc->ip, whichfork);
+	xnr->ifake.if_fork_size = xfs_ianalde_fork_size(sc->ip, whichfork);
 	return 0;
 }
 
@@ -130,7 +130,7 @@ xrep_newbt_init_bare(
 	struct xfs_scrub		*sc)
 {
 	xrep_newbt_init_ag(xnr, sc, &XFS_RMAP_OINFO_ANY_OWNER, NULLFSBLOCK,
-			XFS_AG_RESV_NONE);
+			XFS_AG_RESV_ANALNE);
 }
 
 /*
@@ -149,10 +149,10 @@ xrep_newbt_add_blocks(
 
 	resv = kmalloc(sizeof(struct xrep_newbt_resv), XCHK_GFP_FLAGS);
 	if (!resv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&resv->list);
-	resv->agbno = XFS_FSB_TO_AGBNO(mp, args->fsbno);
+	resv->agbanal = XFS_FSB_TO_AGBANAL(mp, args->fsbanal);
 	resv->len = args->len;
 	resv->used = 0;
 	resv->pag = xfs_perag_hold(pag);
@@ -182,14 +182,14 @@ int
 xrep_newbt_add_extent(
 	struct xrep_newbt	*xnr,
 	struct xfs_perag	*pag,
-	xfs_agblock_t		agbno,
+	xfs_agblock_t		agbanal,
 	xfs_extlen_t		len)
 {
 	struct xfs_mount	*mp = xnr->sc->mp;
 	struct xfs_alloc_arg	args = {
-		.tp		= NULL, /* no autoreap */
+		.tp		= NULL, /* anal autoreap */
 		.oinfo		= xnr->oinfo,
-		.fsbno		= XFS_AGB_TO_FSB(mp, pag->pag_agno, agbno),
+		.fsbanal		= XFS_AGB_TO_FSB(mp, pag->pag_aganal, agbanal),
 		.len		= len,
 		.resv		= xnr->resv,
 	};
@@ -203,13 +203,13 @@ xrep_newbt_validate_ag_alloc_hint(
 	struct xrep_newbt	*xnr)
 {
 	struct xfs_scrub	*sc = xnr->sc;
-	xfs_agnumber_t		agno = XFS_FSB_TO_AGNO(sc->mp, xnr->alloc_hint);
+	xfs_agnumber_t		aganal = XFS_FSB_TO_AGANAL(sc->mp, xnr->alloc_hint);
 
-	if (agno == sc->sa.pag->pag_agno &&
-	    xfs_verify_fsbno(sc->mp, xnr->alloc_hint))
+	if (aganal == sc->sa.pag->pag_aganal &&
+	    xfs_verify_fsbanal(sc->mp, xnr->alloc_hint))
 		return;
 
-	xnr->alloc_hint = XFS_AGB_TO_FSB(sc->mp, sc->sa.pag->pag_agno,
+	xnr->alloc_hint = XFS_AGB_TO_FSB(sc->mp, sc->sa.pag->pag_aganal,
 					 XFS_AGFL_BLOCK(sc->mp) + 1);
 }
 
@@ -235,24 +235,24 @@ xrep_newbt_alloc_ag_blocks(
 			.prod		= 1,
 			.resv		= xnr->resv,
 		};
-		xfs_agnumber_t		agno;
+		xfs_agnumber_t		aganal;
 
 		xrep_newbt_validate_ag_alloc_hint(xnr);
 
-		error = xfs_alloc_vextent_near_bno(&args, xnr->alloc_hint);
+		error = xfs_alloc_vextent_near_banal(&args, xnr->alloc_hint);
 		if (error)
 			return error;
-		if (args.fsbno == NULLFSBLOCK)
-			return -ENOSPC;
+		if (args.fsbanal == NULLFSBLOCK)
+			return -EANALSPC;
 
-		agno = XFS_FSB_TO_AGNO(mp, args.fsbno);
+		aganal = XFS_FSB_TO_AGANAL(mp, args.fsbanal);
 
-		trace_xrep_newbt_alloc_ag_blocks(mp, agno,
-				XFS_FSB_TO_AGBNO(mp, args.fsbno), args.len,
+		trace_xrep_newbt_alloc_ag_blocks(mp, aganal,
+				XFS_FSB_TO_AGBANAL(mp, args.fsbanal), args.len,
 				xnr->oinfo.oi_owner);
 
-		if (agno != sc->sa.pag->pag_agno) {
-			ASSERT(agno == sc->sa.pag->pag_agno);
+		if (aganal != sc->sa.pag->pag_aganal) {
+			ASSERT(aganal == sc->sa.pag->pag_aganal);
 			return -EFSCORRUPTED;
 		}
 
@@ -261,7 +261,7 @@ xrep_newbt_alloc_ag_blocks(
 			return error;
 
 		nr_blocks -= args.len;
-		xnr->alloc_hint = args.fsbno + args.len;
+		xnr->alloc_hint = args.fsbanal + args.len;
 
 		error = xrep_defer_finish(sc);
 		if (error)
@@ -278,7 +278,7 @@ xrep_newbt_validate_file_alloc_hint(
 {
 	struct xfs_scrub	*sc = xnr->sc;
 
-	if (xfs_verify_fsbno(sc->mp, xnr->alloc_hint))
+	if (xfs_verify_fsbanal(sc->mp, xnr->alloc_hint))
 		return;
 
 	xnr->alloc_hint = XFS_AGB_TO_FSB(sc->mp, 0, XFS_AGFL_BLOCK(sc->mp) + 1);
@@ -305,23 +305,23 @@ xrep_newbt_alloc_file_blocks(
 			.resv		= xnr->resv,
 		};
 		struct xfs_perag	*pag;
-		xfs_agnumber_t		agno;
+		xfs_agnumber_t		aganal;
 
 		xrep_newbt_validate_file_alloc_hint(xnr);
 
 		error = xfs_alloc_vextent_start_ag(&args, xnr->alloc_hint);
 		if (error)
 			return error;
-		if (args.fsbno == NULLFSBLOCK)
-			return -ENOSPC;
+		if (args.fsbanal == NULLFSBLOCK)
+			return -EANALSPC;
 
-		agno = XFS_FSB_TO_AGNO(mp, args.fsbno);
+		aganal = XFS_FSB_TO_AGANAL(mp, args.fsbanal);
 
-		trace_xrep_newbt_alloc_file_blocks(mp, agno,
-				XFS_FSB_TO_AGBNO(mp, args.fsbno), args.len,
+		trace_xrep_newbt_alloc_file_blocks(mp, aganal,
+				XFS_FSB_TO_AGBANAL(mp, args.fsbanal), args.len,
 				xnr->oinfo.oi_owner);
 
-		pag = xfs_perag_get(mp, agno);
+		pag = xfs_perag_get(mp, aganal);
 		if (!pag) {
 			ASSERT(0);
 			return -EFSCORRUPTED;
@@ -333,7 +333,7 @@ xrep_newbt_alloc_file_blocks(
 			return error;
 
 		nr_blocks -= args.len;
-		xnr->alloc_hint = args.fsbno + args.len;
+		xnr->alloc_hint = args.fsbanal + args.len;
 
 		error = xrep_defer_finish(sc);
 		if (error)
@@ -356,7 +356,7 @@ xrep_newbt_alloc_blocks(
 
 /*
  * Free the unused part of a space extent that was reserved for a new ondisk
- * structure.  Returns the number of EFIs logged or a negative errno.
+ * structure.  Returns the number of EFIs logged or a negative erranal.
  */
 STATIC int
 xrep_newbt_free_extent(
@@ -365,19 +365,19 @@ xrep_newbt_free_extent(
 	bool			btree_committed)
 {
 	struct xfs_scrub	*sc = xnr->sc;
-	xfs_agblock_t		free_agbno = resv->agbno;
+	xfs_agblock_t		free_agbanal = resv->agbanal;
 	xfs_extlen_t		free_aglen = resv->len;
-	xfs_fsblock_t		fsbno;
+	xfs_fsblock_t		fsbanal;
 	int			error;
 
 	if (!btree_committed || resv->used == 0) {
 		/*
-		 * If we're not committing a new btree or we didn't use the
+		 * If we're analt committing a new btree or we didn't use the
 		 * space reservation, let the existing EFI free the entire
 		 * space extent.
 		 */
-		trace_xrep_newbt_free_blocks(sc->mp, resv->pag->pag_agno,
-				free_agbno, free_aglen, xnr->oinfo.oi_owner);
+		trace_xrep_newbt_free_blocks(sc->mp, resv->pag->pag_aganal,
+				free_agbanal, free_aglen, xnr->oinfo.oi_owner);
 		xfs_alloc_commit_autoreap(sc->tp, &resv->autoreap);
 		return 1;
 	}
@@ -388,24 +388,24 @@ xrep_newbt_free_extent(
 	 * to free any unused reservation space.
 	 */
 	xfs_alloc_cancel_autoreap(sc->tp, &resv->autoreap);
-	free_agbno += resv->used;
+	free_agbanal += resv->used;
 	free_aglen -= resv->used;
 
 	if (free_aglen == 0)
 		return 0;
 
-	trace_xrep_newbt_free_blocks(sc->mp, resv->pag->pag_agno, free_agbno,
+	trace_xrep_newbt_free_blocks(sc->mp, resv->pag->pag_aganal, free_agbanal,
 			free_aglen, xnr->oinfo.oi_owner);
 
 	ASSERT(xnr->resv != XFS_AG_RESV_AGFL);
-	ASSERT(xnr->resv != XFS_AG_RESV_IGNORE);
+	ASSERT(xnr->resv != XFS_AG_RESV_IGANALRE);
 
 	/*
 	 * Use EFIs to free the reservations.  This reduces the chance
 	 * that we leak blocks if the system goes down.
 	 */
-	fsbno = XFS_AGB_TO_FSB(sc->mp, resv->pag->pag_agno, free_agbno);
-	error = xfs_free_extent_later(sc->tp, fsbno, free_aglen, &xnr->oinfo,
+	fsbanal = XFS_AGB_TO_FSB(sc->mp, resv->pag->pag_aganal, free_agbanal);
+	error = xfs_free_extent_later(sc->tp, fsbanal, free_aglen, &xnr->oinfo,
 			xnr->resv, true);
 	if (error)
 		return error;
@@ -489,8 +489,8 @@ xrep_newbt_commit(
 
 /*
  * Free all the accounting info and all of the disk space we reserved for a new
- * btree that we're not going to commit.  We want to try to roll things back
- * cleanly for things like ENOSPC midway through allocation.
+ * btree that we're analt going to commit.  We want to try to roll things back
+ * cleanly for things like EANALSPC midway through allocation.
  */
 void
 xrep_newbt_cancel(
@@ -508,7 +508,7 @@ xrep_newbt_claim_block(
 {
 	struct xrep_newbt_resv	*resv;
 	struct xfs_mount	*mp = cur->bc_mp;
-	xfs_agblock_t		agbno;
+	xfs_agblock_t		agbanal;
 
 	/*
 	 * The first item in the list should always have a free block unless
@@ -516,7 +516,7 @@ xrep_newbt_claim_block(
 	 */
 	resv = list_first_entry(&xnr->resv_list, struct xrep_newbt_resv, list);
 	if (resv->used == resv->len)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	/*
 	 * Peel off a block from the start of the reservation.  We allocate
@@ -525,21 +525,21 @@ xrep_newbt_claim_block(
 	 * decreasing order, which hopefully results in leaf blocks ending up
 	 * together.
 	 */
-	agbno = resv->agbno + resv->used;
+	agbanal = resv->agbanal + resv->used;
 	resv->used++;
 
 	/* If we used all the blocks in this reservation, move it to the end. */
 	if (resv->used == resv->len)
 		list_move_tail(&resv->list, &xnr->resv_list);
 
-	trace_xrep_newbt_claim_block(mp, resv->pag->pag_agno, agbno, 1,
+	trace_xrep_newbt_claim_block(mp, resv->pag->pag_aganal, agbanal, 1,
 			xnr->oinfo.oi_owner);
 
 	if (cur->bc_flags & XFS_BTREE_LONG_PTRS)
-		ptr->l = cpu_to_be64(XFS_AGB_TO_FSB(mp, resv->pag->pag_agno,
-								agbno));
+		ptr->l = cpu_to_be64(XFS_AGB_TO_FSB(mp, resv->pag->pag_aganal,
+								agbanal));
 	else
-		ptr->s = cpu_to_be32(agbno);
+		ptr->s = cpu_to_be32(agbanal);
 
 	/* Relog all the EFIs. */
 	return xrep_defer_finish(xnr->sc);

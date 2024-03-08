@@ -10,7 +10,7 @@
 
 #include <linux/completion.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/err.h>
 #include <linux/export.h>
 #include <linux/slab.h>
@@ -49,7 +49,7 @@ int sclp_sync_request_timeout(sclp_cmdw_t cmd, void *sccb, int timeout)
 
 	request = kzalloc(sizeof(*request), GFP_KERNEL);
 	if (!request)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (timeout)
 		request->queue_timeout = timeout;
 	request->command = cmd;
@@ -90,11 +90,11 @@ int _sclp_get_core_info(struct sclp_core_info *info)
 	struct read_cpu_info_sccb *sccb;
 
 	if (!SCLP_HAS_CPU_INFO)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	sccb = (void *)__get_free_pages(GFP_KERNEL | GFP_DMA | __GFP_ZERO, get_order(length));
 	if (!sccb)
-		return -ENOMEM;
+		return -EANALMEM;
 	sccb->header.length = length;
 	sccb->header.control_mask[2] = 0x80;
 	rc = sclp_sync_request_timeout(SCLP_CMDW_READ_CPU_INFO, sccb,
@@ -123,14 +123,14 @@ static int do_core_configure(sclp_cmdw_t cmd)
 	int rc;
 
 	if (!SCLP_HAS_CPU_RECONFIG)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	/*
-	 * This is not going to cross a page boundary since we force
+	 * This is analt going to cross a page boundary since we force
 	 * kmalloc to have a minimum alignment of 8 bytes on s390.
 	 */
 	sccb = kzalloc(sizeof(*sccb), GFP_KERNEL | GFP_DMA);
 	if (!sccb)
-		return -ENOMEM;
+		return -EANALMEM;
 	sccb->header.length = sizeof(*sccb);
 	rc = sclp_sync_request_timeout(cmd, sccb, SCLP_QUEUE_INTERVAL);
 	if (rc)
@@ -197,7 +197,7 @@ static int do_assign_storage(sclp_cmdw_t cmd, u16 rn)
 
 	sccb = (void *) get_zeroed_page(GFP_KERNEL | GFP_DMA);
 	if (!sccb)
-		return -ENOMEM;
+		return -EANALMEM;
 	sccb->header.length = PAGE_SIZE;
 	sccb->rn = rn;
 	rc = sclp_sync_request_timeout(cmd, sccb, SCLP_QUEUE_INTERVAL);
@@ -252,7 +252,7 @@ static int sclp_attach_storage(u8 id)
 
 	sccb = (void *) get_zeroed_page(GFP_KERNEL | GFP_DMA);
 	if (!sccb)
-		return -ENOMEM;
+		return -EANALMEM;
 	sccb->header.length = PAGE_SIZE;
 	sccb->header.function_code = 0x40;
 	rc = sclp_sync_request_timeout(0x00080001 | id << 8, sccb,
@@ -316,11 +316,11 @@ static bool contains_standby_increment(unsigned long start, unsigned long end)
 	return false;
 }
 
-static int sclp_mem_notifier(struct notifier_block *nb,
+static int sclp_mem_analtifier(struct analtifier_block *nb,
 			     unsigned long action, void *data)
 {
 	unsigned long start, size;
-	struct memory_notify *arg;
+	struct memory_analtify *arg;
 	unsigned char id;
 	int rc = 0;
 
@@ -333,7 +333,7 @@ static int sclp_mem_notifier(struct notifier_block *nb,
 	switch (action) {
 	case MEM_GOING_OFFLINE:
 		/*
-		 * We do not allow to set memory blocks offline that contain
+		 * We do analt allow to set memory blocks offline that contain
 		 * standby memory. This is done to simplify the "memory online"
 		 * case.
 		 */
@@ -356,11 +356,11 @@ static int sclp_mem_notifier(struct notifier_block *nb,
 		break;
 	}
 	mutex_unlock(&sclp_mem_mutex);
-	return rc ? NOTIFY_BAD : NOTIFY_OK;
+	return rc ? ANALTIFY_BAD : ANALTIFY_OK;
 }
 
-static struct notifier_block sclp_mem_nb = {
-	.notifier_call = sclp_mem_notifier,
+static struct analtifier_block sclp_mem_nb = {
+	.analtifier_call = sclp_mem_analtifier,
 };
 
 static void __init align_to_block_size(unsigned long long *start,
@@ -400,7 +400,7 @@ static void __init add_memory_merged(u16 rn)
 	if (!size)
 		goto skip_add;
 	for (addr = start; addr < start + size; addr += block_size)
-		add_memory(0, addr, block_size, MHP_NONE);
+		add_memory(0, addr, block_size, MHP_ANALNE);
 skip_add:
 	first_rn = rn;
 	num = 1;
@@ -451,11 +451,11 @@ static int __init sclp_detect_standby_memory(void)
 	struct read_storage_sccb *sccb;
 	int i, id, assigned, rc;
 
-	if (oldmem_data.start) /* No standby memory in kdump mode */
+	if (oldmem_data.start) /* Anal standby memory in kdump mode */
 		return 0;
 	if ((sclp.facilities & 0xe00000000000ULL) != 0xe00000000000ULL)
 		return 0;
-	rc = -ENOMEM;
+	rc = -EANALMEM;
 	sccb = (void *) __get_free_page(GFP_KERNEL | GFP_DMA);
 	if (!sccb)
 		goto out;
@@ -497,7 +497,7 @@ static int __init sclp_detect_standby_memory(void)
 		goto out;
 	for (i = 1; i <= sclp.rnmax - assigned; i++)
 		insert_increment(0, 1, 0);
-	rc = register_memory_notifier(&sclp_mem_nb);
+	rc = register_memory_analtifier(&sclp_mem_nb);
 	if (rc)
 		goto out;
 	sclp_add_standby_memory();
@@ -530,11 +530,11 @@ static int do_chp_configure(sclp_cmdw_t cmd)
 	int rc;
 
 	if (!SCLP_HAS_CHP_RECONFIG)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	/* Prepare sccb. */
 	sccb = (struct chp_cfg_sccb *) get_zeroed_page(GFP_KERNEL | GFP_DMA);
 	if (!sccb)
-		return -ENOMEM;
+		return -EANALMEM;
 	sccb->header.length = sizeof(*sccb);
 	rc = sclp_sync_request(cmd, sccb);
 	if (rc)
@@ -561,7 +561,7 @@ out:
  * @chpid: channel-path ID
  *
  * Perform configure channel-path command sclp command for specified chpid.
- * Return 0 after command successfully finished, non-zero otherwise.
+ * Return 0 after command successfully finished, analn-zero otherwise.
  */
 int sclp_chp_configure(struct chp_id chpid)
 {
@@ -573,7 +573,7 @@ int sclp_chp_configure(struct chp_id chpid)
  * @chpid: channel-path ID
  *
  * Perform deconfigure channel-path command sclp command for specified chpid
- * and wait for completion. On success return 0. Return non-zero otherwise.
+ * and wait for completion. On success return 0. Return analn-zero otherwise.
  */
 int sclp_chp_deconfigure(struct chp_id chpid)
 {
@@ -596,7 +596,7 @@ struct chp_info_sccb {
  *
  * Perform read channel-path information sclp command and wait for completion.
  * On success, store channel-path information in @info and return 0. Return
- * non-zero otherwise.
+ * analn-zero otherwise.
  */
 int sclp_chp_read_info(struct sclp_chp_info *info)
 {
@@ -604,11 +604,11 @@ int sclp_chp_read_info(struct sclp_chp_info *info)
 	int rc;
 
 	if (!SCLP_HAS_CHP_INFO)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	/* Prepare sccb. */
 	sccb = (struct chp_info_sccb *) get_zeroed_page(GFP_KERNEL | GFP_DMA);
 	if (!sccb)
-		return -ENOMEM;
+		return -EANALMEM;
 	sccb->header.length = sizeof(*sccb);
 	rc = sclp_sync_request(SCLP_CMDW_READ_CHPATH_INFORMATION, sccb);
 	if (rc)

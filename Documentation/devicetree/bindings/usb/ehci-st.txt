@@ -25,7 +25,7 @@ Example:
 	ehci1: usb@fe203e00 {
 		compatible = "st,st-ehci-300x";
 		reg = <0xfe203e00 0x100>;
-		interrupts = <GIC_SPI 148 IRQ_TYPE_NONE>;
+		interrupts = <GIC_SPI 148 IRQ_TYPE_ANALNE>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_usb1>;
 		clocks = <&clk_s_a1_ls 0>;

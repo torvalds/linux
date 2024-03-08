@@ -25,7 +25,7 @@ static __always_inline int bpf_send_signal_test(void *ctx)
 	return 0;
 }
 
-SEC("tracepoint/syscalls/sys_enter_nanosleep")
+SEC("tracepoint/syscalls/sys_enter_naanalsleep")
 int send_signal_tp(void *ctx)
 {
 	return bpf_send_signal_test(ctx);

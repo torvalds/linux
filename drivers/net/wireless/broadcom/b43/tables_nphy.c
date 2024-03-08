@@ -538,7 +538,7 @@ static const u8 b43_ntab_mcs[] = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 };
 
-static const u32 b43_ntab_noisevar10[] = {
+static const u32 b43_ntab_analisevar10[] = {
 	0x020C020C, 0x0000014D, 0x020C020C, 0x0000014D,
 	0x020C020C, 0x0000014D, 0x020C020C, 0x0000014D,
 	0x020C020C, 0x0000014D, 0x020C020C, 0x0000014D,
@@ -605,7 +605,7 @@ static const u32 b43_ntab_noisevar10[] = {
 	0x020C020C, 0x0000014D, 0x020C020C, 0x0000014D,
 };
 
-static const u32 b43_ntab_noisevar11[] = {
+static const u32 b43_ntab_analisevar11[] = {
 	0x020C020C, 0x0000014D, 0x020C020C, 0x0000014D,
 	0x020C020C, 0x0000014D, 0x020C020C, 0x0000014D,
 	0x020C020C, 0x0000014D, 0x020C020C, 0x0000014D,
@@ -1614,7 +1614,7 @@ static const u32 b43_ntab_tdtrn_r3[] = {
 	0xfa58fc00, 0x0b64fc7e, 0x0800f7b6, 0x00f006be,
 };
 
-static const u32 b43_ntab_noisevar_r3[] = {
+static const u32 b43_ntab_analisevar_r3[] = {
 	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
 	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
 	0x02110211, 0x0000014d, 0x02110211, 0x0000014d,
@@ -2252,7 +2252,7 @@ static const u32 b43_ntab_tmap_r7[] = {
 };
 
 /* Extracted from MMIO dump of 6.30.223.141 */
-static const u32 b43_ntab_noisevar_r7[] = {
+static const u32 b43_ntab_analisevar_r7[] = {
 	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
 	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
 	0x020c020c, 0x0000014d, 0x020c020c, 0x0000014d,
@@ -3293,8 +3293,8 @@ static inline void assert_ntab_array_sizes(void)
 	check(loftlt0, C0_LOFEEDTH);
 	check(loftlt1, C1_LOFEEDTH);
 	check(mcs, MCS);
-	check(noisevar10, NOISEVAR10);
-	check(noisevar11, NOISEVAR11);
+	check(analisevar10, ANALISEVAR10);
+	check(analisevar11, ANALISEVAR11);
 	check(pilot, PILOT);
 	check(pilotlt, PILOTLT);
 	check(tdi20a0, TDI20A0);
@@ -3515,7 +3515,7 @@ static void b43_nphy_tables_init_rev16(struct b43_wldev *dev)
 {
 	/* Static tables */
 	if (dev->phy.do_full_init) {
-		ntab_upload(dev, B43_NTAB_NOISEVAR_R7, b43_ntab_noisevar_r7);
+		ntab_upload(dev, B43_NTAB_ANALISEVAR_R7, b43_ntab_analisevar_r7);
 		b43_nphy_tables_init_shared_lut(dev);
 	}
 
@@ -3532,7 +3532,7 @@ static void b43_nphy_tables_init_rev7(struct b43_wldev *dev)
 		ntab_upload(dev, B43_NTAB_TMAP_R7, b43_ntab_tmap_r7);
 		ntab_upload(dev, B43_NTAB_INTLEVEL_R3, b43_ntab_intlevel_r3);
 		ntab_upload(dev, B43_NTAB_TDTRN_R3, b43_ntab_tdtrn_r3);
-		ntab_upload(dev, B43_NTAB_NOISEVAR_R7, b43_ntab_noisevar_r7);
+		ntab_upload(dev, B43_NTAB_ANALISEVAR_R7, b43_ntab_analisevar_r7);
 		ntab_upload(dev, B43_NTAB_MCS_R3, b43_ntab_mcs_r3);
 		ntab_upload(dev, B43_NTAB_TDI20A0_R3, b43_ntab_tdi20a0_r3);
 		ntab_upload(dev, B43_NTAB_TDI20A1_R3, b43_ntab_tdi20a1_r3);
@@ -3565,7 +3565,7 @@ static void b43_nphy_tables_init_rev3(struct b43_wldev *dev)
 		ntab_upload(dev, B43_NTAB_TMAP_R3, b43_ntab_tmap_r3);
 		ntab_upload(dev, B43_NTAB_INTLEVEL_R3, b43_ntab_intlevel_r3);
 		ntab_upload(dev, B43_NTAB_TDTRN_R3, b43_ntab_tdtrn_r3);
-		ntab_upload(dev, B43_NTAB_NOISEVAR_R3, b43_ntab_noisevar_r3);
+		ntab_upload(dev, B43_NTAB_ANALISEVAR_R3, b43_ntab_analisevar_r3);
 		ntab_upload(dev, B43_NTAB_MCS_R3, b43_ntab_mcs_r3);
 		ntab_upload(dev, B43_NTAB_TDI20A0_R3, b43_ntab_tdi20a0_r3);
 		ntab_upload(dev, B43_NTAB_TDI20A1_R3, b43_ntab_tdi20a1_r3);
@@ -3601,8 +3601,8 @@ static void b43_nphy_tables_init_rev0(struct b43_wldev *dev)
 		ntab_upload(dev, B43_NTAB_TDI40A1, b43_ntab_tdi40a1);
 		ntab_upload(dev, B43_NTAB_CHANEST, b43_ntab_channelest);
 		ntab_upload(dev, B43_NTAB_MCS, b43_ntab_mcs);
-		ntab_upload(dev, B43_NTAB_NOISEVAR10, b43_ntab_noisevar10);
-		ntab_upload(dev, B43_NTAB_NOISEVAR11, b43_ntab_noisevar11);
+		ntab_upload(dev, B43_NTAB_ANALISEVAR10, b43_ntab_analisevar10);
+		ntab_upload(dev, B43_NTAB_ANALISEVAR11, b43_ntab_analisevar11);
 	}
 
 	/* Volatile tables */
@@ -3664,7 +3664,7 @@ static const u32 *b43_nphy_get_ipa_gain_table(struct b43_wldev *dev)
 		}
 
 		b43err(dev->wl,
-		       "No 2GHz IPA gain table available for this device\n");
+		       "Anal 2GHz IPA gain table available for this device\n");
 		return NULL;
 	} else {
 		switch (phy->rev) {
@@ -3677,7 +3677,7 @@ static const u32 *b43_nphy_get_ipa_gain_table(struct b43_wldev *dev)
 		}
 
 		b43err(dev->wl,
-		       "No 5GHz IPA gain table available for this device\n");
+		       "Anal 5GHz IPA gain table available for this device\n");
 		return NULL;
 	}
 }
@@ -3708,7 +3708,7 @@ const u32 *b43_nphy_get_tx_gain_table(struct b43_wldev *dev)
 			return b43_ntab_tx_gain_epa_rev3_5g;
 		default:
 			b43err(dev->wl,
-			       "No 5GHz EPA gain table available for this device\n");
+			       "Anal 5GHz EPA gain table available for this device\n");
 			return NULL;
 		}
 	} else {
@@ -3723,7 +3723,7 @@ const u32 *b43_nphy_get_tx_gain_table(struct b43_wldev *dev)
 			return b43_ntab_tx_gain_epa_rev3_2g;
 		default:
 			b43err(dev->wl,
-			       "No 2GHz EPA gain table available for this device\n");
+			       "Anal 2GHz EPA gain table available for this device\n");
 			return NULL;
 		}
 	}
@@ -3746,7 +3746,7 @@ const s16 *b43_ntab_get_rf_pwr_offset_table(struct b43_wldev *dev)
 		}
 
 		b43err(dev->wl,
-		       "No 2GHz RF power table available for this device\n");
+		       "Anal 2GHz RF power table available for this device\n");
 		return NULL;
 	} else {
 		switch (phy->rev) {
@@ -3757,7 +3757,7 @@ const s16 *b43_ntab_get_rf_pwr_offset_table(struct b43_wldev *dev)
 		}
 
 		b43err(dev->wl,
-		       "No 5GHz RF power table available for this device\n");
+		       "Anal 5GHz RF power table available for this device\n");
 		return NULL;
 	}
 }

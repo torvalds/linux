@@ -106,12 +106,12 @@ free_struct:
 }
 
 /*
- * There's no way to return an informative status from this function,
+ * There's anal way to return an informative status from this function,
  * because any analysis (and printing of error messages) needs to be
  * done directly at the EFI function call-site.
  *
  * For example, EFI_INVALID_PARAMETER could indicate a bug or maybe we
- * just didn't find any PCI devices, but there's no way to tell outside
+ * just didn't find any PCI devices, but there's anal way to tell outside
  * the context of the call.
  */
 static void setup_efi_pci(struct boot_params *params)
@@ -301,7 +301,7 @@ static void setup_unaccepted_memory(void)
 
 	/*
 	 * Enable unaccepted memory before calling exit boot services in order
-	 * for the UEFI to not accept all memory on EBS.
+	 * for the UEFI to analt accept all memory on EBS.
 	 */
 	status = efi_bs_call(locate_protocol, &mem_acceptance_proto, NULL,
 			     (void **)&proto);
@@ -439,14 +439,14 @@ static void setup_graphics(struct boot_params *boot_params)
 }
 
 
-static void __noreturn efi_exit(efi_handle_t handle, efi_status_t status)
+static void __analreturn efi_exit(efi_handle_t handle, efi_status_t status)
 {
 	efi_bs_call(exit, handle, status, 0, NULL);
 	for(;;)
 		asm("hlt");
 }
 
-void __noreturn efi_stub_entry(efi_handle_t handle,
+void __analreturn efi_stub_entry(efi_handle_t handle,
 			       efi_system_table_t *sys_table_arg,
 			       struct boot_params *boot_params);
 
@@ -492,7 +492,7 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 			  &boot_params.ext_cmd_line_ptr);
 
 	efi_stub_entry(handle, sys_table_arg, &boot_params);
-	/* not reached */
+	/* analt reached */
 
 fail:
 	efi_exit(handle, status);
@@ -717,7 +717,7 @@ static efi_status_t exit_boot(struct boot_params *boot_params, void *handle)
 	if (status != EFI_SUCCESS)
 		return status;
 
-	/* Might as well exit boot services now */
+	/* Might as well exit boot services analw */
 	status = efi_exit_boot_services(handle, &priv, exit_boot_func);
 	if (status != EFI_SUCCESS)
 		return status;
@@ -751,7 +751,7 @@ static void efi_get_seed(void *seed, int size)
 
 	/*
 	 * This only updates seed[0] when running on 32-bit, but in that case,
-	 * seed[1] is not used anyway, as there is no virtual KASLR on 32-bit.
+	 * seed[1] is analt used anyway, as there is anal virtual KASLR on 32-bit.
 	 */
 	*(unsigned long *)seed ^= kaslr_get_random_long("EFI");
 }
@@ -772,7 +772,7 @@ static efi_status_t efi_decompress_kernel(unsigned long *kernel_entry)
 	alloc_size = ALIGN(max_t(unsigned long, output_len, kernel_total_size),
 			   MIN_KERNEL_ALIGN);
 
-	if (IS_ENABLED(CONFIG_RANDOMIZE_BASE) && !efi_nokaslr) {
+	if (IS_ENABLED(CONFIG_RANDOMIZE_BASE) && !efi_analkaslr) {
 		u64 range = KERNEL_IMAGE_SIZE - LOAD_PHYSICAL_ADDR - kernel_total_size;
 		static const efi_char16_t ami[] = L"American Megatrends";
 
@@ -815,7 +815,7 @@ static efi_status_t efi_decompress_kernel(unsigned long *kernel_entry)
 	return efi_adjust_memory_range_protection(addr, kernel_total_size);
 }
 
-static void __noreturn enter_kernel(unsigned long kernel_addr,
+static void __analreturn enter_kernel(unsigned long kernel_addr,
 				    struct boot_params *boot_params)
 {
 	/* enter decompressed kernel with boot_params pointer in RSI/ESI */
@@ -829,7 +829,7 @@ static void __noreturn enter_kernel(unsigned long kernel_addr,
  * return.  On failure, it will exit to the firmware via efi_exit() instead of
  * returning.
  */
-void __noreturn efi_stub_entry(efi_handle_t handle,
+void __analreturn efi_stub_entry(efi_handle_t handle,
 			       efi_system_table_t *sys_table_arg,
 			       struct boot_params *boot_params)
 {
@@ -853,7 +853,7 @@ void __noreturn efi_stub_entry(efi_handle_t handle,
 		efi_dxe_table = get_efi_config_table(EFI_DXE_SERVICES_TABLE_GUID);
 		if (efi_dxe_table &&
 		    efi_dxe_table->hdr.signature != EFI_DXE_SERVICES_TABLE_SIGNATURE) {
-			efi_warn("Ignoring DXE services table: invalid signature\n");
+			efi_warn("Iganalring DXE services table: invalid signature\n");
 			efi_dxe_table = NULL;
 		}
 	}
@@ -895,8 +895,8 @@ void __noreturn efi_stub_entry(efi_handle_t handle,
 	 * bootloader and passed via bootparams. We permit an initrd loaded
 	 * from the LINUX_EFI_INITRD_MEDIA_GUID device path to supersede it.
 	 *
-	 * If the device path is not present, any command-line initrd=
-	 * arguments will be processed only if image is not NULL, which will be
+	 * If the device path is analt present, any command-line initrd=
+	 * arguments will be processed only if image is analt NULL, which will be
 	 * the case only if we were loaded via the PE entry point.
 	 */
 	status = efi_load_initrd(image, hdr->initrd_addr_max, ULONG_MAX,

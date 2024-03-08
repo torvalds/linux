@@ -44,7 +44,7 @@ static int dp_bridge_atomic_check(struct drm_bridge *bridge,
 		(dp->link_ready) ? "true" : "false");
 
 	/*
-	 * There is no protection in the DRM framework to check if the display
+	 * There is anal protection in the DRM framework to check if the display
 	 * pipeline has been already disabled before trying to disable it again.
 	 * Hence if the sink is unplugged, the pipeline gets disabled, but the
 	 * crtc->active is still true. Any attempt to set the mode or manually
@@ -55,7 +55,7 @@ static int dp_bridge_atomic_check(struct drm_bridge *bridge,
 	 * After that this piece of code can be removed.
 	 */
 	if (bridge->ops & DRM_BRIDGE_OP_HPD)
-		return (dp->link_ready) ? 0 : -ENOTCONN;
+		return (dp->link_ready) ? 0 : -EANALTCONN;
 
 	return 0;
 }
@@ -85,7 +85,7 @@ static int dp_bridge_get_modes(struct drm_bridge *bridge, struct drm_connector *
 			return rc;
 		}
 	} else {
-		drm_dbg_dp(connector->dev, "No sink connected\n");
+		drm_dbg_dp(connector->dev, "Anal sink connected\n");
 	}
 	return rc;
 }
@@ -111,7 +111,7 @@ static const struct drm_bridge_funcs dp_bridge_ops = {
 	.atomic_check = dp_bridge_atomic_check,
 	.hpd_enable   = dp_bridge_hpd_enable,
 	.hpd_disable  = dp_bridge_hpd_disable,
-	.hpd_notify   = dp_bridge_hpd_notify,
+	.hpd_analtify   = dp_bridge_hpd_analtify,
 	.debugfs_init = dp_bridge_debugfs_init,
 };
 
@@ -123,7 +123,7 @@ static int edp_bridge_atomic_check(struct drm_bridge *drm_bridge,
 	struct msm_dp *dp = to_dp_bridge(drm_bridge)->dp_display;
 
 	if (WARN_ON(!conn_state))
-		return -ENODEV;
+		return -EANALDEV;
 
 	conn_state->self_refresh_aware = dp->psr_supported;
 
@@ -261,9 +261,9 @@ static enum drm_mode_status edp_bridge_mode_valid(struct drm_bridge *bridge,
 		return MODE_CLOCK_HIGH;
 
 	/*
-	 * The eDP controller currently does not have a reliable way of
+	 * The eDP controller currently does analt have a reliable way of
 	 * enabling panel power to read sink capabilities. So, we rely
-	 * on the panel driver to populate only supported modes for now.
+	 * on the panel driver to populate only supported modes for analw.
 	 */
 	return MODE_OK;
 }
@@ -297,7 +297,7 @@ int dp_bridge_init(struct msm_dp *dp_display, struct drm_device *dev,
 
 	dp_bridge = devm_kzalloc(dev->dev, sizeof(*dp_bridge), GFP_KERNEL);
 	if (!dp_bridge)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dp_bridge->dp_display = dp_display;
 
@@ -307,10 +307,10 @@ int dp_bridge_init(struct msm_dp *dp_display, struct drm_device *dev,
 
 	/*
 	 * Many ops only make sense for DP. Why?
-	 * - Detect/HPD are used by DRM to know if a display is _physically_
-	 *   there, not whether the display is powered on / finished initting.
+	 * - Detect/HPD are used by DRM to kanalw if a display is _physically_
+	 *   there, analt whether the display is powered on / finished initting.
 	 *   On eDP we assume the display is always there because you can't
-	 *   know until power is applied. If we don't implement the ops DRM will
+	 *   kanalw until power is applied. If we don't implement the ops DRM will
 	 *   assume our display is always there.
 	 * - Currently eDP mode reading is driven by the panel driver. This
 	 *   allows the panel driver to properly power itself on to read the
@@ -330,7 +330,7 @@ int dp_bridge_init(struct msm_dp *dp_display, struct drm_device *dev,
 		return rc;
 	}
 
-	rc = drm_bridge_attach(encoder, bridge, NULL, DRM_BRIDGE_ATTACH_NO_CONNECTOR);
+	rc = drm_bridge_attach(encoder, bridge, NULL, DRM_BRIDGE_ATTACH_ANAL_CONNECTOR);
 	if (rc) {
 		DRM_ERROR("failed to attach bridge, rc=%d\n", rc);
 
@@ -340,7 +340,7 @@ int dp_bridge_init(struct msm_dp *dp_display, struct drm_device *dev,
 	if (dp_display->next_bridge) {
 		rc = drm_bridge_attach(encoder,
 					dp_display->next_bridge, bridge,
-					DRM_BRIDGE_ATTACH_NO_CONNECTOR);
+					DRM_BRIDGE_ATTACH_ANAL_CONNECTOR);
 		if (rc < 0) {
 			DRM_ERROR("failed to attach panel bridge: %d\n", rc);
 			return rc;

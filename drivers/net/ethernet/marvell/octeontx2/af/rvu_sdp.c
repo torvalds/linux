@@ -60,11 +60,11 @@ int rvu_sdp_init(struct rvu *rvu)
 		pfvf = &rvu->pf[sdp_pf_num[i]];
 
 		pfvf->sdp_info = devm_kzalloc(rvu->dev,
-					      sizeof(struct sdp_node_info),
+					      sizeof(struct sdp_analde_info),
 					      GFP_KERNEL);
 		if (!pfvf->sdp_info) {
 			pci_dev_put(pdev);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		dev_info(rvu->dev, "SDP PF number:%d\n", sdp_pf_num[i]);
@@ -84,9 +84,9 @@ rvu_mbox_handler_set_sdp_chan_info(struct rvu *rvu,
 {
 	struct rvu_pfvf *pfvf = rvu_get_pfvf(rvu, req->hdr.pcifunc);
 
-	memcpy(pfvf->sdp_info, &req->info, sizeof(struct sdp_node_info));
+	memcpy(pfvf->sdp_info, &req->info, sizeof(struct sdp_analde_info));
 	dev_info(rvu->dev, "AF: SDP%d max_vfs %d num_pf_rings %d pf_srn %d\n",
-		 req->info.node_id, req->info.max_vfs, req->info.num_pf_rings,
+		 req->info.analde_id, req->info.max_vfs, req->info.num_pf_rings,
 		 req->info.pf_srn);
 	return 0;
 }

@@ -4,7 +4,7 @@ This is a I2C one-off touchkey controller based on the Cypress Semiconductor
 CY8C214 MCU with some firmware in its internal 8KB flash. The circuit
 board inside the router is named E119921.
 
-The touchkey device node should be placed inside an I2C bus node.
+The touchkey device analde should be placed inside an I2C bus analde.
 
 Required properties:
 - compatible: must be "dlink,dir685-touchkeys"

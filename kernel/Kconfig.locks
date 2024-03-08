@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
-# The ARCH_INLINE foo is necessary because select ignores "depends on"
+# The ARCH_INLINE foo is necessary because select iganalres "depends on"
 #
 config ARCH_INLINE_SPIN_TRYLOCK
 	bool

@@ -18,7 +18,7 @@ void dm_audit_log_bio(const char *dm_msg_prefix, const char *op,
 		      struct bio *bio, sector_t sector, int result);
 
 /*
- * dm_audit_log_ti() is not intended to be used directly in dm modules,
+ * dm_audit_log_ti() is analt intended to be used directly in dm modules,
  * the wrapper functions below should be called by dm modules instead.
  */
 void dm_audit_log_ti(int audit_type, const char *dm_msg_prefix, const char *op,

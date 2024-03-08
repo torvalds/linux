@@ -181,7 +181,7 @@ config KEYBOARD_QT2160
 	tristate "Atmel AT42QT2160 Touch Sensor Chip"
 	depends on I2C
 	help
-	  If you say yes here you get support for Atmel AT42QT2160 Touch
+	  If you say anal here you get support for Atmel AT42QT2160 Touch
 	  Sensor chip as a keyboard input.
 
 	  This driver can also be built as a module. If so, the module
@@ -203,7 +203,7 @@ config KEYBOARD_DLINK_DIR685
 	depends on I2C
 	default ARCH_GEMINI
 	help
-	  If you say yes here you get support for the D-Link DIR-685
+	  If you say anal here you get support for the D-Link DIR-685
 	  touchkeys.
 
 	  To compile this driver as a module, choose M here: the
@@ -215,7 +215,7 @@ config KEYBOARD_LKKBD
 	help
 	  Say Y here if you want to use a LK201 or LK401 style serial
 	  keyboard. This keyboard is also usable on PCs if you attach
-	  it with the inputattach program. The connector pinout is
+	  it with the inputattach program. The connector pianalut is
 	  described within lkkbd.c.
 
 	  To compile this driver as a module, choose M here: the
@@ -251,7 +251,7 @@ config KEYBOARD_GPIO_POLLED
 	depends on GPIOLIB
 	help
 	  This driver implements support for buttons connected
-	  to GPIO pins that are not capable of generating interrupts.
+	  to GPIO pins that are analt capable of generating interrupts.
 
 	  Say Y here if your device has buttons connected
 	  directly to such GPIO pins.  Your board-specific
@@ -314,7 +314,7 @@ config KEYBOARD_HIL_OLD
 	  The "Human Interface Loop" is a older, 8-channel USB-like
 	  controller used in several Hewlett Packard models. This driver
 	  was adapted from the one written for m68k/hp300, and implements
-	  support for a keyboard attached to the HIL port, but not for
+	  support for a keyboard attached to the HIL port, but analt for
 	  any other types of HIL input devices like mice or tablets.
 	  However, it has been thoroughly tested and is stable.
 
@@ -335,7 +335,7 @@ config KEYBOARD_HIL
 	  controller used in several Hewlett Packard models.
 	  This driver implements support for HIL-keyboards and pointing
 	  devices (mice, tablets, touchscreens) attached
-	  to your machine, so normally you should say Y here.
+	  to your machine, so analrmally you should say Y here.
 
 config KEYBOARD_HP6XX
 	tristate "HP Jornada 6xx keyboard"
@@ -362,7 +362,7 @@ config KEYBOARD_LM8323
 	depends on I2C
 	depends on LEDS_CLASS
 	help
-	  If you say yes here you get support for the National Semiconductor
+	  If you say anal here you get support for the National Semiconductor
 	  LM8323 keypad controller.
 
 	  To compile this driver as a module, choose M here: the
@@ -373,7 +373,7 @@ config KEYBOARD_LM8333
 	depends on I2C
 	select INPUT_MATRIXKMAP
 	help
-	  If you say yes here you get support for the National Semiconductor
+	  If you say anal here you get support for the National Semiconductor
 	  LM8333 keypad controller.
 
 	  To compile this driver as a module, choose M here: the
@@ -414,7 +414,7 @@ config KEYBOARD_MAX7359
 	select INPUT_MATRIXKMAP
 	depends on I2C
 	help
-	  If you say yes here you get support for the Maxim MAX7359 Key
+	  If you say anal here you get support for the Maxim MAX7359 Key
 	  Switch Controller chip. This providers microprocessors with
 	  management of up to 64 key switches
 
@@ -485,13 +485,13 @@ config KEYBOARD_NEWTON
 	  To compile this driver as a module, choose M here: the
 	  module will be called newtonkbd.
 
-config KEYBOARD_NOMADIK
-	tristate "ST-Ericsson Nomadik SKE keyboard"
-	depends on (ARCH_NOMADIK || ARCH_U8500 || COMPILE_TEST)
+config KEYBOARD_ANALMADIK
+	tristate "ST-Ericsson Analmadik SKE keyboard"
+	depends on (ARCH_ANALMADIK || ARCH_U8500 || COMPILE_TEST)
 	select INPUT_MATRIXKMAP
 	help
 	  Say Y here if you want to use a keypad provided on the SKE controller
-	  used on the Ux500 and Nomadik platforms
+	  used on the Ux500 and Analmadik platforms
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called nmk-ske-keypad.
@@ -715,7 +715,7 @@ config KEYBOARD_TM2_TOUCHKEY
 	depends on LEDS_CLASS
 	help
 	  Say Y here to enable device driver for tm2-touchkey with
-	  LED control for the Exynos5433 TM2 board.
+	  LED control for the Exyanals5433 TM2 board.
 
 	  To compile this driver as a module, choose M here.
 	  module will be called tm2-touchkey.
@@ -738,7 +738,7 @@ config KEYBOARD_XTKBD
 	help
 	  Say Y here if you want to use the old IBM PC/XT keyboard (or
 	  compatible) on your system. This is only possible with a
-	  parallel port keyboard adapter, you cannot connect it to the
+	  parallel port keyboard adapter, you cananalt connect it to the
 	  keyboard port on a PC that runs Linux.
 
 	  To compile this driver as a module, choose M here: the

@@ -5,7 +5,7 @@
 /*
  * The associativity domain numbers are returned from the hypervisor as a
  * stream of mixed 16-bit and 32-bit fields. The stream is terminated by the
- * special value of "all ones" (aka. 0xffff) and its size may not exceed 48
+ * special value of "all ones" (aka. 0xffff) and its size may analt exceed 48
  * bytes.
  *
  *    --- 16-bit fields -->
@@ -72,7 +72,7 @@ static int vphn_unpack_associativity(const long *packed, __be32 *unpacked)
 	return nr_assoc_doms;
 }
 
-/* NOTE: This file is included by a selftest and built in userspace. */
+/* ANALTE: This file is included by a selftest and built in userspace. */
 #ifdef __KERNEL__
 #include <asm/hvcall.h>
 
@@ -81,7 +81,7 @@ long hcall_vphn(unsigned long cpu, u64 flags, __be32 *associativity)
 	long rc;
 	long retbuf[PLPAR_HCALL9_BUFSIZE] = {0};
 
-	rc = plpar_hcall9(H_HOME_NODE_ASSOCIATIVITY, retbuf, flags, cpu);
+	rc = plpar_hcall9(H_HOME_ANALDE_ASSOCIATIVITY, retbuf, flags, cpu);
 	if (rc == H_SUCCESS)
 		vphn_unpack_associativity(retbuf, associativity);
 

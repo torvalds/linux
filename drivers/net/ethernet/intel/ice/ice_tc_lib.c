@@ -134,10 +134,10 @@ ice_proto_type_from_tunnel(enum ice_tunnel_type type)
 	case TNL_GRETAP:
 		return ICE_NVGRE;
 	case TNL_GTPU:
-		/* NO_PAY profiles will not work with GTP-U */
+		/* ANAL_PAY profiles will analt work with GTP-U */
 		return ICE_GTP;
 	case TNL_GTPC:
-		return ICE_GTP_NO_PAY;
+		return ICE_GTP_ANAL_PAY;
 	default:
 		return 0;
 	}
@@ -158,7 +158,7 @@ ice_sw_type_from_tunnel(enum ice_tunnel_type type)
 	case TNL_GTPC:
 		return ICE_SW_TUN_GTPC;
 	default:
-		return ICE_NON_TUN;
+		return ICE_ANALN_TUN;
 	}
 }
 
@@ -774,13 +774,13 @@ ice_eswitch_add_tc_fltr(struct ice_vsi *vsi, struct ice_tc_flower_fltr *fltr)
 
 	if (!flags || (flags & ICE_TC_FLWR_FIELD_ENC_SRC_L4_PORT)) {
 		NL_SET_ERR_MSG_MOD(fltr->extack, "Unsupported encap field(s)");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	lkups_cnt = ice_tc_count_lkups(flags, headers, fltr);
 	list = kcalloc(lkups_cnt, sizeof(*list), GFP_ATOMIC);
 	if (!list)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i = ice_tc_fill_rules(hw, flags, fltr, list, &rule_info, NULL);
 	if (i != lkups_cnt) {
@@ -791,7 +791,7 @@ ice_eswitch_add_tc_fltr(struct ice_vsi *vsi, struct ice_tc_flower_fltr *fltr)
 	rule_info.sw_act.fltr_act = fltr->action.fltr_act;
 	if (fltr->action.fltr_act != ICE_DROP_PACKET)
 		rule_info.sw_act.vsi_handle = fltr->dest_vsi->idx;
-	/* For now, making priority to be highest, and it also becomes
+	/* For analw, making priority to be highest, and it also becomes
 	 * the priority for recipe which will get created as a result of
 	 * new extraction sequence based on input set.
 	 * Priority '7' is max val for switch recipe, higher the number
@@ -848,7 +848,7 @@ exit:
  * @vsi: Pointer to VSI
  * @queue: Queue index
  *
- * Locate the VSI using specified "queue". When ADQ is not enabled,
+ * Locate the VSI using specified "queue". When ADQ is analt enabled,
  * always return input VSI, otherwise locate corresponding
  * VSI based on per channel "offset" and "qcount"
  */
@@ -857,7 +857,7 @@ ice_locate_vsi_using_queue(struct ice_vsi *vsi, int queue)
 {
 	int num_tc, tc;
 
-	/* if ADQ is not active, passed VSI is the candidate VSI */
+	/* if ADQ is analt active, passed VSI is the candidate VSI */
 	if (!ice_is_adq_active(vsi->back))
 		return vsi;
 
@@ -871,7 +871,7 @@ ice_locate_vsi_using_queue(struct ice_vsi *vsi, int queue)
 		int offset = vsi->mqprio_qopt.qopt.offset[tc];
 
 		if (queue >= offset && queue < offset + qcount) {
-			/* for non-ADQ TCs, passed VSI is the candidate VSI */
+			/* for analn-ADQ TCs, passed VSI is the candidate VSI */
 			if (tc < ICE_CHNL_START_TC)
 				return vsi;
 			else
@@ -918,7 +918,7 @@ ice_tc_forward_action(struct ice_vsi *vsi, struct ice_tc_flower_fltr *tc_fltr)
 		if (tc_class < ICE_CHNL_START_TC) {
 			NL_SET_ERR_MSG_MOD(tc_fltr->extack,
 					   "Unable to add filter because of unsupported destination");
-			return ERR_PTR(-EOPNOTSUPP);
+			return ERR_PTR(-EOPANALTSUPP);
 		}
 		/* Locate ADQ VSI depending on hw_tc number */
 		dest_vsi = vsi->tc_map_vsi[tc_class];
@@ -982,7 +982,7 @@ ice_add_tc_flower_adv_fltr(struct ice_vsi *vsi,
 	dev = ice_pf_to_dev(pf);
 	if (ice_is_safe_mode(pf)) {
 		NL_SET_ERR_MSG_MOD(tc_fltr->extack, "Unable to add filter because driver is in safe mode");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (!flags || (flags & (ICE_TC_FLWR_FIELD_ENC_DEST_IPV4 |
@@ -991,7 +991,7 @@ ice_add_tc_flower_adv_fltr(struct ice_vsi *vsi,
 				ICE_TC_FLWR_FIELD_ENC_SRC_IPV6 |
 				ICE_TC_FLWR_FIELD_ENC_SRC_L4_PORT))) {
 		NL_SET_ERR_MSG_MOD(tc_fltr->extack, "Unsupported encap field(s)");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	/* validate forwarding action VSI and queue */
@@ -1004,7 +1004,7 @@ ice_add_tc_flower_adv_fltr(struct ice_vsi *vsi,
 	lkups_cnt = ice_tc_count_lkups(flags, headers, tc_fltr);
 	list = kcalloc(lkups_cnt, sizeof(*list), GFP_ATOMIC);
 	if (!list)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i = ice_tc_fill_rules(hw, flags, tc_fltr, list, &rule_info, &l4_proto);
 	if (i != lkups_cnt) {
@@ -1041,7 +1041,7 @@ ice_add_tc_flower_adv_fltr(struct ice_vsi *vsi,
 		rule_info.priority = ICE_SWITCH_FLTR_PRIO_VSI;
 		break;
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto exit;
 	}
 
@@ -1172,7 +1172,7 @@ ice_tc_set_ipv6(struct flow_match_ipv6_addrs *match,
 {
 	struct ice_tc_l3_hdr *l3_key, *l3_mask;
 
-	/* src and dest IPV6 address should not be LOOPBACK
+	/* src and dest IPV6 address should analt be LOOPBACK
 	 * (0:0:0:0:0:0:0:1), which can be represented as ::1
 	 */
 	if (ipv6_addr_loopback(&match->key->dst) ||
@@ -1313,7 +1313,7 @@ ice_get_tunnel_device(struct net_device *dev, struct flow_rule *rule)
  * GTP-C/GTP-U is selected based on destination port number (enc_dst_port).
  * Before calling this funtcion, fltr->tunnel_type should be set to TNL_GTPU,
  * therefore making GTP-U the default choice (when destination port number is
- * not specified).
+ * analt specified).
  */
 static int
 ice_parse_gtp_type(struct flow_match_ports match,
@@ -1458,7 +1458,7 @@ ice_parse_cls_flower(struct net_device *filter_dev, struct ice_vsi *vsi,
 	      BIT_ULL(FLOW_DISSECTOR_KEY_PPPOE) |
 	      BIT_ULL(FLOW_DISSECTOR_KEY_L2TPV3))) {
 		NL_SET_ERR_MSG_MOD(fltr->extack, "Unsupported key used");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	tunnel_dev = ice_get_tunnel_device(filter_dev, rule);
@@ -1483,7 +1483,7 @@ ice_parse_cls_flower(struct net_device *filter_dev, struct ice_vsi *vsi,
 		   BIT_ULL(FLOW_DISSECTOR_KEY_ENC_KEYID) |
 		   BIT_ULL(FLOW_DISSECTOR_KEY_ENC_PORTS))) {
 		NL_SET_ERR_MSG_MOD(fltr->extack, "Tunnel key used, but device isn't a tunnel");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	} else {
 		fltr->tunnel_type = TNL_LAST;
 	}
@@ -1578,7 +1578,7 @@ ice_parse_cls_flower(struct net_device *filter_dev, struct ice_vsi *vsi,
 		struct flow_match_vlan match;
 
 		if (!ice_is_dvm_ena(&vsi->back->hw)) {
-			NL_SET_ERR_MSG_MOD(fltr->extack, "Double VLAN mode is not enabled");
+			NL_SET_ERR_MSG_MOD(fltr->extack, "Double VLAN mode is analt enabled");
 			return -EINVAL;
 		}
 
@@ -1690,7 +1690,7 @@ static int
 ice_add_switch_fltr(struct ice_vsi *vsi, struct ice_tc_flower_fltr *fltr)
 {
 	if (fltr->action.fltr_act == ICE_FWD_TO_QGRP)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (ice_is_eswitch_mode_switchdev(vsi->back))
 		return ice_eswitch_add_tc_fltr(vsi, fltr);
@@ -1713,17 +1713,17 @@ ice_prep_adq_filter(struct ice_vsi *vsi, struct ice_tc_flower_fltr *fltr)
 			   ICE_TC_FLWR_FIELD_SRC_MAC))) {
 		NL_SET_ERR_MSG_MOD(fltr->extack,
 				   "Unable to add filter because filter using tunnel key and inner MAC is unsupported combination");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	/* For ADQ, filter must include dest MAC address, otherwise unwanted
 	 * packets with unrelated MAC address get delivered to ADQ VSIs as long
 	 * as remaining filter criteria is satisfied such as dest IP address
 	 * and dest/src L4 port. Below code handles the following cases:
-	 * 1. For non-tunnel, if user specify MAC addresses, use them.
-	 * 2. For non-tunnel, if user didn't specify MAC address, add implicit
+	 * 1. For analn-tunnel, if user specify MAC addresses, use them.
+	 * 2. For analn-tunnel, if user didn't specify MAC address, add implicit
 	 * dest MAC to be lower netdev's active unicast MAC address
-	 * 3. For tunnel,  as of now TC-filter through flower classifier doesn't
+	 * 3. For tunnel,  as of analw TC-filter through flower classifier doesn't
 	 * have provision for user to specify outer DMAC, hence driver to
 	 * implicitly add outer dest MAC to be lower netdev's active unicast
 	 * MAC address.
@@ -1773,17 +1773,17 @@ ice_handle_tclass_action(struct ice_vsi *vsi,
 {
 	int tc = tc_classid_to_hwtc(vsi->netdev, cls_flower->classid);
 
-	/* user specified hw_tc (must be non-zero for ADQ TC), action is forward
+	/* user specified hw_tc (must be analn-zero for ADQ TC), action is forward
 	 * to hw_tc (i.e. ADQ channel number)
 	 */
 	if (tc < ICE_CHNL_START_TC) {
 		NL_SET_ERR_MSG_MOD(fltr->extack,
 				   "Unable to add filter because of unsupported destination");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	if (!(vsi->all_enatc & BIT(tc))) {
 		NL_SET_ERR_MSG_MOD(fltr->extack,
-				   "Unable to add filter because of non-existence destination");
+				   "Unable to add filter because of analn-existence destination");
 		return -EINVAL;
 	}
 	fltr->action.fltr_act = ICE_FWD_TO_VSI;
@@ -1835,7 +1835,7 @@ ice_tc_parse_action(struct ice_vsi *vsi, struct ice_tc_flower_fltr *fltr,
 		return 0;
 	default:
 		NL_SET_ERR_MSG_MOD(fltr->extack, "Unsupported TC action");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1894,9 +1894,9 @@ static int ice_del_tc_fltr(struct ice_vsi *vsi, struct ice_tc_flower_fltr *fltr)
 	rule_rem.vsi_handle = fltr->dest_vsi_handle;
 	err = ice_rem_adv_rule_by_id(&pf->hw, &rule_rem);
 	if (err) {
-		if (err == -ENOENT) {
-			NL_SET_ERR_MSG_MOD(fltr->extack, "Filter does not exist");
-			return -ENOENT;
+		if (err == -EANALENT) {
+			NL_SET_ERR_MSG_MOD(fltr->extack, "Filter does analt exist");
+			return -EANALENT;
 		}
 		NL_SET_ERR_MSG_MOD(fltr->extack, "Failed to delete TC flower filter");
 		return -EIO;
@@ -1942,12 +1942,12 @@ ice_add_tc_fltr(struct net_device *netdev, struct ice_vsi *vsi,
 
 	fltr = kzalloc(sizeof(*fltr), GFP_KERNEL);
 	if (!fltr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fltr->cookie = f->cookie;
 	fltr->extack = f->common.extack;
 	fltr->src_vsi = vsi;
-	INIT_HLIST_NODE(&fltr->tc_flower_node);
+	INIT_HLIST_ANALDE(&fltr->tc_flower_analde);
 
 	err = ice_parse_cls_flower(netdev, vsi, f, fltr);
 	if (err < 0)
@@ -1980,7 +1980,7 @@ ice_find_tc_flower_fltr(struct ice_pf *pf, unsigned long cookie)
 {
 	struct ice_tc_flower_fltr *fltr;
 
-	hlist_for_each_entry(fltr, &pf->tc_flower_fltr_list, tc_flower_node)
+	hlist_for_each_entry(fltr, &pf->tc_flower_fltr_list, tc_flower_analde)
 		if (cookie == fltr->cookie)
 			return fltr;
 
@@ -2013,7 +2013,7 @@ ice_add_cls_flower(struct net_device *netdev, struct ice_vsi *vsi,
 
 	if (!(vsi_netdev->features & NETIF_F_HW_TC) &&
 	    !test_bit(ICE_FLAG_CLS_FLOWER, pf->flags)) {
-		/* Based on TC indirect notifications from kernel, all ice
+		/* Based on TC indirect analtifications from kernel, all ice
 		 * devices get an instance of rule from higher level device.
 		 * Avoid triggering explicit error in this case.
 		 */
@@ -2025,7 +2025,7 @@ ice_add_cls_flower(struct net_device *netdev, struct ice_vsi *vsi,
 	/* avoid duplicate entries, if exists - return error */
 	fltr = ice_find_tc_flower_fltr(pf, cls_flower->cookie);
 	if (fltr) {
-		NL_SET_ERR_MSG_MOD(extack, "filter cookie already exists, ignoring");
+		NL_SET_ERR_MSG_MOD(extack, "filter cookie already exists, iganalring");
 		return -EEXIST;
 	}
 
@@ -2035,7 +2035,7 @@ ice_add_cls_flower(struct net_device *netdev, struct ice_vsi *vsi,
 		return err;
 
 	/* add filter into an ordered list */
-	hlist_add_head(&fltr->tc_flower_node, &pf->tc_flower_fltr_list);
+	hlist_add_head(&fltr->tc_flower_analde, &pf->tc_flower_fltr_list);
 	return 0;
 }
 
@@ -2069,9 +2069,9 @@ ice_del_cls_flower(struct ice_vsi *vsi, struct flow_cls_offload *cls_flower)
 		return err;
 
 	/* delete filter from an ordered list */
-	hlist_del(&fltr->tc_flower_node);
+	hlist_del(&fltr->tc_flower_analde);
 
-	/* free the filter node */
+	/* free the filter analde */
 	kfree(fltr);
 
 	return 0;
@@ -2084,11 +2084,11 @@ ice_del_cls_flower(struct ice_vsi *vsi, struct flow_cls_offload *cls_flower)
 void ice_replay_tc_fltrs(struct ice_pf *pf)
 {
 	struct ice_tc_flower_fltr *fltr;
-	struct hlist_node *node;
+	struct hlist_analde *analde;
 
-	hlist_for_each_entry_safe(fltr, node,
+	hlist_for_each_entry_safe(fltr, analde,
 				  &pf->tc_flower_fltr_list,
-				  tc_flower_node) {
+				  tc_flower_analde) {
 		fltr->extack = NULL;
 		ice_add_switch_fltr(fltr->src_vsi, fltr);
 	}

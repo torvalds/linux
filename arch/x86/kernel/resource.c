@@ -10,7 +10,7 @@ static void resource_clip(struct resource *res, resource_size_t start,
 	resource_size_t low = 0, high = 0;
 
 	if (res->end < start || res->start > end)
-		return;		/* no conflict */
+		return;		/* anal conflict */
 
 	if (res->start < start)
 		low = start - res->start;
@@ -60,7 +60,7 @@ static void remove_e820_regions(struct resource *avail)
 void arch_remove_reservations(struct resource *avail)
 {
 	/*
-	 * Trim out BIOS area (high 2MB) and E820 regions. We do not remove
+	 * Trim out BIOS area (high 2MB) and E820 regions. We do analt remove
 	 * the low 1MB unconditionally, as this area is needed for some ISA
 	 * cards requiring a memory range, e.g. the i82365 PCMCIA controller.
 	 */

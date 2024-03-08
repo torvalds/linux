@@ -65,7 +65,7 @@ static const struct dma_fence_ops preempt_fence_ops = {
  *
  * Allocate a preempt fence, and initialize its list head.
  * If the preempt_fence allocated has been armed with
- * xe_preempt_fence_arm(), it must be freed using dma_fence_put(). If not,
+ * xe_preempt_fence_arm(), it must be freed using dma_fence_put(). If analt,
  * it must be freed using xe_preempt_fence_free().
  *
  * Return: A struct xe_preempt_fence pointer used for calling into
@@ -78,7 +78,7 @@ struct xe_preempt_fence *xe_preempt_fence_alloc(void)
 
 	pfence = kmalloc(sizeof(*pfence), GFP_KERNEL);
 	if (!pfence)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	INIT_LIST_HEAD(&pfence->link);
 	INIT_WORK(&pfence->preempt_work, preempt_fence_work_func);
@@ -91,7 +91,7 @@ struct xe_preempt_fence *xe_preempt_fence_alloc(void)
  * xe_preempt_fence_alloc().
  * @pfence: pointer obtained from xe_preempt_fence_alloc();
  *
- * Free a preempt fence that has not yet been armed.
+ * Free a preempt fence that has analt yet been armed.
  */
 void xe_preempt_fence_free(struct xe_preempt_fence *pfence)
 {
@@ -106,7 +106,7 @@ void xe_preempt_fence_free(struct xe_preempt_fence *pfence)
  *          xe_preempt_fence_alloc().
  * @q: The struct xe_exec_queue used for arming.
  * @context: The dma-fence context used for arming.
- * @seqno: The dma-fence seqno used for arming.
+ * @seqanal: The dma-fence seqanal used for arming.
  *
  * Inserts the preempt fence into @context's timeline, takes @link off any
  * list, and registers the struct xe_exec_queue as the xe_engine to be preempted.
@@ -116,12 +116,12 @@ void xe_preempt_fence_free(struct xe_preempt_fence *pfence)
  */
 struct dma_fence *
 xe_preempt_fence_arm(struct xe_preempt_fence *pfence, struct xe_exec_queue *q,
-		     u64 context, u32 seqno)
+		     u64 context, u32 seqanal)
 {
 	list_del_init(&pfence->link);
 	pfence->q = xe_exec_queue_get(q);
 	dma_fence_init(&pfence->base, &preempt_fence_ops,
-		      &q->compute.lock, context, seqno);
+		      &q->compute.lock, context, seqanal);
 
 	return &pfence->base;
 }
@@ -130,18 +130,18 @@ xe_preempt_fence_arm(struct xe_preempt_fence *pfence, struct xe_exec_queue *q,
  * xe_preempt_fence_create() - Helper to create and arm a preempt fence.
  * @q: The struct xe_exec_queue used for arming.
  * @context: The dma-fence context used for arming.
- * @seqno: The dma-fence seqno used for arming.
+ * @seqanal: The dma-fence seqanal used for arming.
  *
  * Allocates and inserts the preempt fence into @context's timeline,
  * and registers @e as the struct xe_exec_queue to be preempted.
  *
  * Return: A pointer to the resulting struct dma_fence on success. An error
  * pointer on error. In particular if allocation fails it returns
- * ERR_PTR(-ENOMEM);
+ * ERR_PTR(-EANALMEM);
  */
 struct dma_fence *
 xe_preempt_fence_create(struct xe_exec_queue *q,
-			u64 context, u32 seqno)
+			u64 context, u32 seqanal)
 {
 	struct xe_preempt_fence *pfence;
 
@@ -149,7 +149,7 @@ xe_preempt_fence_create(struct xe_exec_queue *q,
 	if (IS_ERR(pfence))
 		return ERR_CAST(pfence);
 
-	return xe_preempt_fence_arm(pfence, q, context, seqno);
+	return xe_preempt_fence_arm(pfence, q, context, seqanal);
 }
 
 bool xe_fence_is_xe_preempt(const struct dma_fence *fence)

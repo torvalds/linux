@@ -19,9 +19,9 @@ struct fdt_errtabent {
 	[(val)] = { .str = #val, }
 
 static struct fdt_errtabent fdt_errtable[] = {
-	FDT_ERRTABENT(FDT_ERR_NOTFOUND),
+	FDT_ERRTABENT(FDT_ERR_ANALTFOUND),
 	FDT_ERRTABENT(FDT_ERR_EXISTS),
-	FDT_ERRTABENT(FDT_ERR_NOSPACE),
+	FDT_ERRTABENT(FDT_ERR_ANALSPACE),
 
 	FDT_ERRTABENT(FDT_ERR_BADOFFSET),
 	FDT_ERRTABENT(FDT_ERR_BADPATH),
@@ -37,7 +37,7 @@ static struct fdt_errtabent fdt_errtable[] = {
 	FDT_ERRTABENT(FDT_ERR_BADNCELLS),
 	FDT_ERRTABENT(FDT_ERR_BADVALUE),
 	FDT_ERRTABENT(FDT_ERR_BADOVERLAY),
-	FDT_ERRTABENT(FDT_ERR_NOPHANDLES),
+	FDT_ERRTABENT(FDT_ERR_ANALPHANDLES),
 	FDT_ERRTABENT(FDT_ERR_BADFLAGS),
 	FDT_ERRTABENT(FDT_ERR_ALIGNMENT),
 };
@@ -48,7 +48,7 @@ const char *fdt_strerror(int errval)
 	if (errval > 0)
 		return "<valid offset/length>";
 	else if (errval == 0)
-		return "<no error>";
+		return "<anal error>";
 	else if (-errval < FDT_ERRTABSIZE) {
 		const char *s = fdt_errtable[-errval].str;
 
@@ -56,5 +56,5 @@ const char *fdt_strerror(int errval)
 			return s;
 	}
 
-	return "<unknown error>";
+	return "<unkanalwn error>";
 }

@@ -3,7 +3,7 @@
 Video device' s internal representation
 =======================================
 
-The actual device nodes in the ``/dev`` directory are created using the
+The actual device analdes in the ``/dev`` directory are created using the
 :c:type:`video_device` struct (``v4l2-dev.h``). This struct can either be
 allocated dynamically or embedded in a larger struct.
 
@@ -14,7 +14,7 @@ To allocate it dynamically use :c:func:`video_device_alloc`:
 	struct video_device *vdev = video_device_alloc();
 
 	if (vdev == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vdev->release = video_device_release;
 
@@ -34,8 +34,8 @@ The default :c:func:`video_device_release` callback currently
 just calls ``kfree`` to free the allocated memory.
 
 There is also a :c:func:`video_device_release_empty` function that does
-nothing (is empty) and should be used if the struct is embedded and there
-is nothing to do when it is released.
+analthing (is empty) and should be used if the struct is embedded and there
+is analthing to do when it is released.
 
 You should also set these fields of :c:type:`video_device`:
 
@@ -45,7 +45,7 @@ You should also set these fields of :c:type:`video_device`:
 - :c:type:`video_device`->name: set to something descriptive and unique.
 
 - :c:type:`video_device`->vfl_dir: set this to ``VFL_DIR_RX`` for capture
-  devices (``VFL_DIR_RX`` has value 0, so this is normally already the
+  devices (``VFL_DIR_RX`` has value 0, so this is analrmally already the
   default), set to ``VFL_DIR_TX`` for output devices and ``VFL_DIR_M2M`` for mem2mem (codec) devices.
 
 - :c:type:`video_device`->fops: set to the :c:type:`v4l2_file_operations`
@@ -55,11 +55,11 @@ You should also set these fields of :c:type:`video_device`:
   to simplify ioctl maintenance (highly recommended to use this and it might
   become compulsory in the future!), then set this to your
   :c:type:`v4l2_ioctl_ops` struct. The :c:type:`video_device`->vfl_type and
-  :c:type:`video_device`->vfl_dir fields are used to disable ops that do not
-  match the type/dir combination. E.g. VBI ops are disabled for non-VBI nodes,
+  :c:type:`video_device`->vfl_dir fields are used to disable ops that do analt
+  match the type/dir combination. E.g. VBI ops are disabled for analn-VBI analdes,
   and output ops  are disabled for a capture device. This makes it possible to
   provide just one :c:type:`v4l2_ioctl_ops` struct for both vbi and
-  video nodes.
+  video analdes.
 
 - :c:type:`video_device`->lock: leave to ``NULL`` if you want to do all the
   locking  in the driver. Otherwise you give it a pointer to a struct
@@ -68,12 +68,12 @@ You should also set these fields of :c:type:`video_device`:
   afterwards. See the next section for more details.
 
 - :c:type:`video_device`->queue: a pointer to the struct vb2_queue
-  associated with this device node.
-  If queue is not ``NULL``, and queue->lock is not ``NULL``, then queue->lock
+  associated with this device analde.
+  If queue is analt ``NULL``, and queue->lock is analt ``NULL``, then queue->lock
   is used for the queuing ioctls (``VIDIOC_REQBUFS``, ``CREATE_BUFS``,
   ``QBUF``, ``DQBUF``,  ``QUERYBUF``, ``PREPARE_BUF``, ``STREAMON`` and
   ``STREAMOFF``) instead of the lock above.
-  That way the :ref:`vb2 <vb2_framework>` queuing framework does not have
+  That way the :ref:`vb2 <vb2_framework>` queuing framework does analt have
   to wait for other ioctls.   This queue pointer is also used by the
   :ref:`vb2 <vb2_framework>` helper functions to check for
   queuing ownership (i.e. is the filehandle calling it allowed to do the
@@ -83,7 +83,7 @@ You should also set these fields of :c:type:`video_device`:
   implement ``VIDIOC_G_PRIORITY`` and ``VIDIOC_S_PRIORITY``.
   If left to ``NULL``, then it will use the struct v4l2_prio_state
   in :c:type:`v4l2_device`. If you want to have a separate priority state per
-  (group of) device node(s),   then you can point it to your own struct
+  (group of) device analde(s),   then you can point it to your own struct
   :c:type:`v4l2_prio_state`.
 
 - :c:type:`video_device`->dev_parent: you only set this if v4l2_device was
@@ -93,9 +93,9 @@ You should also set these fields of :c:type:`video_device`:
 
   The cx88 driver is an example of this: one core :c:type:`v4l2_device` struct,
   but   it is used by both a raw video PCI device (cx8800) and a MPEG PCI device
-  (cx8802). Since the :c:type:`v4l2_device` cannot be associated with two PCI
+  (cx8802). Since the :c:type:`v4l2_device` cananalt be associated with two PCI
   devices at the same time it is setup without a parent device. But when the
-  struct video_device is initialized you **do** know which parent
+  struct video_device is initialized you **do** kanalw which parent
   PCI device to use and so you set ``dev_device`` to the correct PCI device.
 
 If you use :c:type:`v4l2_ioctl_ops`, then you should set
@@ -103,7 +103,7 @@ If you use :c:type:`v4l2_ioctl_ops`, then you should set
 :c:type:`v4l2_file_operations` struct.
 
 In some cases you want to tell the core that a function you had specified in
-your :c:type:`v4l2_ioctl_ops` should be ignored. You can mark such ioctls by
+your :c:type:`v4l2_ioctl_ops` should be iganalred. You can mark such ioctls by
 calling this function before :c:func:`video_register_device` is called:
 
 	:c:func:`v4l2_disable_ioctl <v4l2_disable_ioctl>`
@@ -114,7 +114,7 @@ being used) you want to turns off certain features in :c:type:`v4l2_ioctl_ops`
 without having to make a new struct.
 
 The :c:type:`v4l2_file_operations` struct is a subset of file_operations.
-The main difference is that the inode argument is omitted since it is never
+The main difference is that the ianalde argument is omitted since it is never
 used.
 
 If integration with the media framework is needed, you must initialize the
@@ -128,7 +128,7 @@ If integration with the media framework is needed, you must initialize the
 
 	err = media_entity_pads_init(&vdev->entity, 1, pad);
 
-The pads array must have been previously initialized. There is no need to
+The pads array must have been previously initialized. There is anal need to
 manually set the struct media_entity type and name fields.
 
 A reference to the entity will be automatically acquired/released when the
@@ -166,7 +166,7 @@ The implementation of a hotplug disconnect should also take the lock from
 :c:type:`video_device` before calling v4l2_device_disconnect. If you are also
 using :c:type:`video_device`->queue->lock, then you have to first lock
 :c:type:`video_device`->queue->lock followed by :c:type:`video_device`->lock.
-That way you can be sure no ioctl is running when you call
+That way you can be sure anal ioctl is running when you call
 :c:func:`v4l2_device_disconnect`.
 
 Video device registration
@@ -183,7 +183,7 @@ This will create the character device for you.
 		return err;
 	}
 
-If the :c:type:`v4l2_device` parent device has a not ``NULL`` mdev field,
+If the :c:type:`v4l2_device` parent device has a analt ``NULL`` mdev field,
 the video device entity will be automatically registered with the media
 device.
 
@@ -191,7 +191,7 @@ Which device is registered depends on the type argument. The following
 types exist:
 
 ========================== ====================	 ==============================
-:c:type:`vfl_devnode_type` Device name		 Usage
+:c:type:`vfl_devanalde_type` Device name		 Usage
 ========================== ====================	 ==============================
 ``VFL_TYPE_VIDEO``         ``/dev/videoX``       for video input/output devices
 ``VFL_TYPE_VBI``           ``/dev/vbiX``         for vertical blank data (i.e.
@@ -204,47 +204,47 @@ types exist:
 ========================== ====================	 ==============================
 
 The last argument gives you a certain amount of control over the device
-node number used (i.e. the X in ``videoX``). Normally you will pass -1
+analde number used (i.e. the X in ``videoX``). Analrmally you will pass -1
 to let the v4l2 framework pick the first free number. But sometimes users
-want to select a specific node number. It is common that drivers allow
-the user to select a specific device node number through a driver module
+want to select a specific analde number. It is common that drivers allow
+the user to select a specific device analde number through a driver module
 option. That number is then passed to this function and video_register_device
-will attempt to select that device node number. If that number was already
-in use, then the next free device node number will be selected and it
+will attempt to select that device analde number. If that number was already
+in use, then the next free device analde number will be selected and it
 will send a warning to the kernel log.
 
-Another use-case is if a driver creates many devices. In that case it can
+Aanalther use-case is if a driver creates many devices. In that case it can
 be useful to place different video devices in separate ranges. For example,
 video capture devices start at 0, video output devices start at 16.
-So you can use the last argument to specify a minimum device node number
+So you can use the last argument to specify a minimum device analde number
 and the v4l2 framework will try to pick the first free number that is equal
 or higher to what you passed. If that fails, then it will just pick the
 first free number.
 
-Since in this case you do not care about a warning about not being able
-to select the specified device node number, you can call the function
-:c:func:`video_register_device_no_warn` instead.
+Since in this case you do analt care about a warning about analt being able
+to select the specified device analde number, you can call the function
+:c:func:`video_register_device_anal_warn` instead.
 
-Whenever a device node is created some attributes are also created for you.
+Whenever a device analde is created some attributes are also created for you.
 If you look in ``/sys/class/video4linux`` you see the devices. Go into e.g.
 ``video0`` and you will see 'name', 'dev_debug' and 'index' attributes. The
 'name' attribute is the 'name' field of the video_device struct. The
 'dev_debug' attribute can be used to enable core debugging. See the next
 section for more detailed information on this.
 
-The 'index' attribute is the index of the device node: for each call to
+The 'index' attribute is the index of the device analde: for each call to
 :c:func:`video_register_device()` the index is just increased by 1. The
-first video device node you register always starts with index 0.
+first video device analde you register always starts with index 0.
 
 Users can setup udev rules that utilize the index attribute to make fancy
-device names (e.g. '``mpegX``' for MPEG video capture device nodes).
+device names (e.g. '``mpegX``' for MPEG video capture device analdes).
 
 After the device was successfully registered, then you can use these fields:
 
 - :c:type:`video_device`->vfl_type: the device type passed to
   :c:func:`video_register_device`.
-- :c:type:`video_device`->minor: the assigned device minor number.
-- :c:type:`video_device`->num: the device node number (i.e. the X in
+- :c:type:`video_device`->mianalr: the assigned device mianalr number.
+- :c:type:`video_device`->num: the device analde number (i.e. the X in
   ``videoX``).
 - :c:type:`video_device`->index: the device index number.
 
@@ -252,7 +252,7 @@ If the registration failed, then you need to call
 :c:func:`video_device_release` to free the allocated :c:type:`video_device`
 struct, or free your own struct if the :c:type:`video_device` was embedded in
 it. The ``vdev->release()`` callback will never be called if the registration
-failed, nor should you ever attempt to unregister the device if the
+failed, analr should you ever attempt to unregister the device if the
 registration failed.
 
 video device debugging
@@ -286,22 +286,22 @@ Mask  Description
 Video device cleanup
 --------------------
 
-When the video device nodes have to be removed, either during the unload
+When the video device analdes have to be removed, either during the unload
 of the driver or because the USB device was disconnected, then you should
 unregister them with:
 
 	:c:func:`video_unregister_device`
 	(:c:type:`vdev <video_device>`);
 
-This will remove the device nodes from sysfs (causing udev to remove them
+This will remove the device analdes from sysfs (causing udev to remove them
 from ``/dev``).
 
-After :c:func:`video_unregister_device` returns no new opens can be done.
+After :c:func:`video_unregister_device` returns anal new opens can be done.
 However, in the case of USB devices some application might still have one of
-these device nodes open. So after the unregister all file operations (except
+these device analdes open. So after the unregister all file operations (except
 release, of course) will return an error as well.
 
-When the last user of the video device node exits, then the ``vdev->release()``
+When the last user of the video device analde exits, then the ``vdev->release()``
 callback is called and you can do the final cleanup there.
 
 Don't forget to cleanup the media entity associated with the video device if
@@ -328,7 +328,7 @@ You can set/get driver private data in the video_device struct using:
 	:c:func:`video_set_drvdata <video_set_drvdata>`
 	(:c:type:`vdev <video_device>`);
 
-Note that you can safely call :c:func:`video_set_drvdata` before calling
+Analte that you can safely call :c:func:`video_set_drvdata` before calling
 :c:func:`video_register_device`.
 
 And this function:
@@ -350,16 +350,16 @@ You can go from a :c:type:`video_device` struct to the v4l2_device struct using:
 
 	struct v4l2_device *v4l2_dev = vdev->v4l2_dev;
 
-- Device node name
+- Device analde name
 
-The :c:type:`video_device` node kernel name can be retrieved using:
+The :c:type:`video_device` analde kernel name can be retrieved using:
 
-	:c:func:`video_device_node_name <video_device_node_name>`
+	:c:func:`video_device_analde_name <video_device_analde_name>`
 	(:c:type:`vdev <video_device>`);
 
 The name is used as a hint by userspace tools such as udev. The function
 should be used where possible instead of accessing the video_device::num and
-video_device::minor fields.
+video_device::mianalr fields.
 
 video_device functions and data structures
 ------------------------------------------

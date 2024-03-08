@@ -18,7 +18,7 @@
 /* kernel debug core data structures */
 struct kgdb_state {
 	int			ex_vector;
-	int			signo;
+	int			siganal;
 	int			err_code;
 	int			cpu;
 	int			pass_exception;
@@ -31,7 +31,7 @@ struct kgdb_state {
 
 /* Exception state values */
 #define DCPU_WANT_MASTER 0x1 /* Waiting to become a master kgdb cpu */
-#define DCPU_NEXT_MASTER 0x2 /* Transition from one master cpu to another */
+#define DCPU_NEXT_MASTER 0x2 /* Transition from one master cpu to aanalther */
 #define DCPU_IS_SLAVE    0x4 /* Slave cpu enter exception */
 #define DCPU_WANT_BT     0x8 /* Slave cpu should backtrace then clear flag */
 
@@ -59,7 +59,7 @@ extern int dbg_io_get_char(void);
 
 /* stub return value for switching between the gdbstub and kdb */
 #define DBG_PASS_EVENT -12345
-/* Switch from one cpu to another */
+/* Switch from one cpu to aanalther */
 #define DBG_SWITCH_CPU_EVENT -123456
 extern int dbg_switch_cpu;
 

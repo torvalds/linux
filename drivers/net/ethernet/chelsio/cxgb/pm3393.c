@@ -137,7 +137,7 @@ static int pm3393_interrupt_enable(struct cmac *cmac)
 
 	/* PM3393 - Global interrupt enable
 	 */
-	/* TBD XXX Disable for now until we figure out why error interrupts keep asserting. */
+	/* TBD XXX Disable for analw until we figure out why error interrupts keep asserting. */
 	pmwrite(cmac, SUNI1x10GEXP_REG_GLOBAL_INTERRUPT_ENABLE,
 		0 /*SUNI1x10GEXP_BITMSK_TOP_INTE */ );
 
@@ -180,7 +180,7 @@ static int pm3393_interrupt_disable(struct cmac *cmac)
 	t1_tpi_write(cmac->adapter, A_ELMER0_INT_ENABLE, elmer);
 
 	/* TERMINATOR - PL_INTERUPTS_EXT */
-	/* DO NOT DISABLE TERMINATOR's EXTERNAL INTERRUPTS. ANOTHER CHIP
+	/* DO ANALT DISABLE TERMINATOR's EXTERNAL INTERRUPTS. AANALTHER CHIP
 	 * COULD WANT THEM ENABLED. We disable PM3393 at the ELMER level.
 	 */
 
@@ -193,7 +193,7 @@ static int pm3393_interrupt_clear(struct cmac *cmac)
 	u32 pl_intr;
 	u32 val32;
 
-	/* PM3393 - Clearing HW interrupt blocks. Note, this assumes
+	/* PM3393 - Clearing HW interrupt blocks. Analte, this assumes
 	 *          bit WCIMODE=0 for a clear-on-read.
 	 */
 	pmread(cmac, SUNI1x10GEXP_REG_SERDES_3125_INTERRUPT_STATUS, &val32);
@@ -243,7 +243,7 @@ static int pm3393_interrupt_handler(struct cmac *cmac)
 		dev_dbg(&cmac->adapter->pdev->dev, "PM3393 intr cause 0x%x\n",
 			master_intr_status);
 
-	/* TBD XXX Lets just clear everything for now */
+	/* TBD XXX Lets just clear everything for analw */
 	pm3393_interrupt_clear(cmac);
 
 	return 0;
@@ -280,7 +280,7 @@ static int pm3393_enable_port(struct cmac *cmac, int which)
 	pm3393_enable(cmac, which);
 
 	/*
-	 * XXX This should be done by the PHY and preferably not at all.
+	 * XXX This should be done by the PHY and preferably analt at all.
 	 * The PHY doesn't give us link status indication on its own so have
 	 * the link management code query it instead.
 	 */
@@ -647,7 +647,7 @@ static struct cmac *pm3393_mac_create(adapter_t *adapter, int index)
 	t1_tpi_write(adapter, OFFSET(0x2280), 0x00002103);	/* PL4ODP Training Repeat and SOP rule */
 	t1_tpi_write(adapter, OFFSET(0x2284), 0x00000000);	/* PL4ODP MAX_T setting */
 
-	t1_tpi_write(adapter, OFFSET(0x3280), 0x00000087);	/* PL4IDU Enable data forward, port state machine. Set ALLOW_NON_ZERO_OLB */
+	t1_tpi_write(adapter, OFFSET(0x3280), 0x00000087);	/* PL4IDU Enable data forward, port state machine. Set ALLOW_ANALN_ZERO_OLB */
 	t1_tpi_write(adapter, OFFSET(0x3282), 0x0000001f);	/* PL4IDU Enable Dip4 check error interrupts */
 
 	t1_tpi_write(adapter, OFFSET(0x3040), 0x0c32);	/* # TXXG Config */
@@ -665,9 +665,9 @@ static struct cmac *pm3393_mac_create(adapter_t *adapter, int index)
 	t1_tpi_write(adapter, OFFSET(0x204c), 0xffff);	/* # high addr */
 	t1_tpi_write(adapter, OFFSET(0x206e), 0x0009);	/* # Enable Match Enable bit */
 
-	t1_tpi_write(adapter, OFFSET(0x0003), 0x0000);	/* # NO SOP/ PAD_EN setup */
+	t1_tpi_write(adapter, OFFSET(0x0003), 0x0000);	/* # ANAL SOP/ PAD_EN setup */
 	t1_tpi_write(adapter, OFFSET(0x0100), 0x0ff0);	/* # RXEQB disabled */
-	t1_tpi_write(adapter, OFFSET(0x0101), 0x0f0f);	/* # No Preemphasis */
+	t1_tpi_write(adapter, OFFSET(0x0101), 0x0f0f);	/* # Anal Preemphasis */
 
 	return cmac;
 }
@@ -684,7 +684,7 @@ static int pm3393_mac_reset(adapter_t * adapter)
 
 	/* The following steps are required to properly reset
 	 * the PM3393. This information is provided in the
-	 * PM3393 datasheet (Issue 2: November 2002)
+	 * PM3393 datasheet (Issue 2: Analvember 2002)
 	 * section 13.1 -- Device Reset.
 	 *
 	 * The PM3393 has three types of components that are
@@ -755,7 +755,7 @@ static int pm3393_mac_reset(adapter_t * adapter)
 		is_pl4_outof_lock = (val & x);
 
 		/* ??? If this fails, might be able to software reset the XAUI part
-		 *     and try to recover... thus saving us from doing another HW reset */
+		 *     and try to recover... thus saving us from doing aanalther HW reset */
 		/* Has the XAUI MABC PLL circuitry stablized? */
 		is_xaui_mabc_pll_locked =
 		    (val & SUNI1x10GEXP_BITMSK_TOP_SXRA_EXPIRED);

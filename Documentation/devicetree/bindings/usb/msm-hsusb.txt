@@ -7,7 +7,7 @@ Required properties:
 - regs:			offset and length of the register set in the memory map
 - usb-phy:		phandle for the PHY device
 
-Example EHCI controller device node:
+Example EHCI controller device analde:
 
 	ehci: ehci@f9a55000 {
 		compatible = "qcom,ehci-host";
@@ -20,7 +20,7 @@ USB PHY with optional OTG:
 Required properties:
 - compatible:   Should contain:
   "qcom,usb-otg-ci" for chipsets with ChipIdea 45nm PHY
-  "qcom,usb-otg-snps" for chipsets with Synopsys 28nm PHY
+  "qcom,usb-otg-snps" for chipsets with Syanalpsys 28nm PHY
 
 - regs:         Offset and length of the register set in the memory map
 - interrupts:   interrupt-specifier for the OTG interrupt.
@@ -31,7 +31,7 @@ Required properties:
   "phy"         USB PHY reference clock
   "core"        Protocol engine clock
   "iface"       Interface bus clock
-  "alt_core"    Protocol engine clock for targets with asynchronous
+  "alt_core"    Protocol engine clock for targets with asynchroanalus
                 reset methodology. (optional)
 
 - vdccx-supply: phandle to the regulator for the vdd supply for
@@ -45,7 +45,7 @@ Required properties:
   "phy"         USB PHY controller reset
   "link"        USB LINK controller reset
 
-- qcom,otg-control: OTG control (VBUS and ID notifications) can be one of
+- qcom,otg-control: OTG control (VBUS and ID analtifications) can be one of
                 1 - PHY control
                 2 - PMIC control
 
@@ -59,7 +59,7 @@ Optional properties:
 - qcom,phy-init-sequence: PHY configuration sequence values. This is related to Device
                 Mode Eye Diagram test. Start address at which these values will be
                 written is ULPI_EXT_VENDOR_SPECIFIC. Value of -1 is reserved as
-                "do not overwrite default value at this address".
+                "do analt overwrite default value at this address".
                 For example: qcom,phy-init-sequence = < -1 0x63 >;
                 Will update only value at address ULPI_EXT_VENDOR_SPECIFIC + 1.
 
@@ -70,10 +70,10 @@ Optional properties:
                 controller work with any of the two HSPHYs present.
 
 - qcom,vdd-levels: This property must be a list of three integer values
-                (no, min, max) where each value represents either a voltage
+                (anal, min, max) where each value represents either a voltage
                 in microvolts or a value corresponding to voltage corner.
 
-- qcom,manual-pullup: If present, vbus is not routed to USB controller/phy
+- qcom,manual-pullup: If present, vbus is analt routed to USB controller/phy
                 and controller driver therefore enables pull-up explicitly
                 before starting controller using usbcmd run/stop bit.
 
@@ -81,10 +81,10 @@ Optional properties:
                 should point to external connector, which provide "USB"
                 cable events, the second should point to external connector
                 device, which provide "USB-HOST" cable events. If one of
-                the external connector devices is not required empty <0>
+                the external connector devices is analt required empty <0>
                 phandle should be specified.
 
-Example HSUSB OTG controller device node:
+Example HSUSB OTG controller device analde:
 
     usb@f9a55000 {
         compatible = "qcom,usb-otg-snps";

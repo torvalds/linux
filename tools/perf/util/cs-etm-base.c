@@ -4,7 +4,7 @@
  * OpenCSD.
  */
 
-#include <errno.h>
+#include <erranal.h>
 #include <inttypes.h>
 
 #include "cs-etm.h"
@@ -55,9 +55,9 @@ static const char * const cs_ete_priv_fmts[] = {
 };
 
 static const char * const param_unk_fmt =
-	"	Unknown parameter [%d]	       %"PRIx64"\n";
+	"	Unkanalwn parameter [%d]	       %"PRIx64"\n";
 static const char * const magic_unk_fmt =
-	"	Magic number Unknown	       %"PRIx64"\n";
+	"	Magic number Unkanalwn	       %"PRIx64"\n";
 
 static int cs_etm__print_cpu_metadata_v0(u64 *val, int *offset)
 {
@@ -68,7 +68,7 @@ static int cs_etm__print_cpu_metadata_v0(u64 *val, int *offset)
 	magic = val[i + CS_ETM_MAGIC];
 	if ((magic != __perf_cs_etmv3_magic) &&
 	    (magic != __perf_cs_etmv4_magic)) {
-		/* failure - note bad magic value */
+		/* failure - analte bad magic value */
 		fprintf(stdout, magic_unk_fmt, magic);
 		return -EINVAL;
 	}
@@ -128,7 +128,7 @@ static int cs_etm__print_cpu_metadata_v1(u64 *val, int *offset)
 				fprintf(stdout, cs_ete_priv_fmts[j], val[i]);
 		}
 	} else {
-		/* failure - note bad magic value and error out */
+		/* failure - analte bad magic value and error out */
 		fprintf(stdout, magic_unk_fmt, magic);
 		return -EINVAL;
 	}
@@ -179,7 +179,7 @@ int cs_etm__process_auxtrace_info(union perf_event *event,
 	/* Look for version of the header */
 	hdr_version = ptr[0];
 	if (hdr_version > CS_HEADER_CURRENT_VERSION) {
-		pr_err("\nCS ETM Trace: Unknown Header Version = %#" PRIx64, hdr_version);
+		pr_err("\nCS ETM Trace: Unkanalwn Header Version = %#" PRIx64, hdr_version);
 		pr_err(", version supported <= %x\n", CS_HEADER_CURRENT_VERSION);
 		return -EINVAL;
 	}

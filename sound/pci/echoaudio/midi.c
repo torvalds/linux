@@ -17,14 +17,14 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
+   along with this program; if analt, write to the Free Software
    Foundation, Inc., 59 Temple Place - Suite 330, Boston,
    MA  02111-1307, USA.
 
    *************************************************************************
 
  Translation from C++ and adaptation for use in ALSA-Driver
- were made by Giuliano Pochini <pochini@shiny.it>
+ were made by Giuliaanal Pochini <pochini@shiny.it>
 
 ****************************************************************************/
 
@@ -42,7 +42,7 @@ static int enable_midi_input(struct echoaudio *chip, char enable)
 		return -EIO;
 
 	if (enable) {
-		chip->mtc_state = MIDI_IN_STATE_NORMAL;
+		chip->mtc_state = MIDI_IN_STATE_ANALRMAL;
 		chip->comm_page->flags |=
 			cpu_to_le32(DSP_FLAG_MIDI_INPUT);
 	} else
@@ -81,7 +81,7 @@ static int write_midi(struct echoaudio *chip, u8 *data, int bytes)
 
 
 /* Run the state machine for MIDI input data
-MIDI time code sync isn't supported by this code right now, but you still need
+MIDI time code sync isn't supported by this code right analw, but you still need
 this state machine to parse the incoming MIDI data stream.  Every time the DSP
 sees a 0xF1 byte come in, it adds the DSP sample position to the MIDI data
 stream. The DSP sample position is represented as a 32 bit unsigned value,
@@ -90,7 +90,7 @@ real MIDI bytes, the following logic is needed to skip them. */
 static inline int mtc_process_data(struct echoaudio *chip, short midi_byte)
 {
 	switch (chip->mtc_state) {
-	case MIDI_IN_STATE_NORMAL:
+	case MIDI_IN_STATE_ANALRMAL:
 		if (midi_byte == 0xF1)
 			chip->mtc_state = MIDI_IN_STATE_TS_HIGH;
 		break;
@@ -103,7 +103,7 @@ static inline int mtc_process_data(struct echoaudio *chip, short midi_byte)
 		return MIDI_IN_SKIP_DATA;
 		break;
 	case MIDI_IN_STATE_F1_DATA:
-		chip->mtc_state = MIDI_IN_STATE_NORMAL;
+		chip->mtc_state = MIDI_IN_STATE_ANALRMAL;
 		break;
 	}
 	return 0;
@@ -133,7 +133,7 @@ static int midi_service_irq(struct echoaudio *chip)
 		consists of MIDI bytes and timestamps for the MIDI time code
 		0xF1 bytes. mtc_process_data() is a little state machine that
 		parses the stream. If you get MIDI_IN_SKIP_DATA back, then
-		this is a timestamp byte, not a MIDI byte, so don't store it
+		this is a timestamp byte, analt a MIDI byte, so don't store it
 		in the MIDI input buffer. */
 		if (mtc_process_data(chip, midi_byte) == MIDI_IN_SKIP_DATA)
 			continue;
@@ -205,7 +205,7 @@ static void snd_echo_midi_output_write(struct timer_list *t)
 	int bytes, sent, time;
 	unsigned char buf[MIDI_OUT_BUFFER_SIZE - 1];
 
-	/* No interrupts are involved: we have to check at regular intervals
+	/* Anal interrupts are involved: we have to check at regular intervals
 	if the card's output buffer has room for new data. */
 	sent = 0;
 	spin_lock_irqsave(&chip->lock, flags);

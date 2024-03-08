@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -94,7 +94,7 @@ nvkm_engine_info(struct nvkm_subdev *subdev, u64 mthd, u64 *data)
 	if (engine->func->info)
 		return engine->func->info(engine, mthd, data);
 
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static int
@@ -171,7 +171,7 @@ nvkm_engine_ctor(const struct nvkm_engine_func *func, struct nvkm_device *device
 
 	if (!nvkm_boolopt(device->cfgopt, engine->subdev.name, enable)) {
 		nvkm_debug(&engine->subdev, "disabled\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	spin_lock_init(&engine->lock);
@@ -184,6 +184,6 @@ nvkm_engine_new_(const struct nvkm_engine_func *func, struct nvkm_device *device
 		 struct nvkm_engine **pengine)
 {
 	if (!(*pengine = kzalloc(sizeof(**pengine), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	return nvkm_engine_ctor(func, device, type, inst, enable, *pengine);
 }

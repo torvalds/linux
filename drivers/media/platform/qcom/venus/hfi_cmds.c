@@ -4,7 +4,7 @@
  * Copyright (C) 2017 Linaro Ltd.
  */
 #include <linux/overflow.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/hash.h>
 
 #include "hfi_cmds.h"
@@ -86,9 +86,9 @@ int pkt_sys_set_resource(struct hfi_sys_set_resource_pkt *pkt, u32 id, u32 size,
 		pkt->hdr.size += sizeof(*res);
 		break;
 	}
-	case VIDC_RESOURCE_NONE:
+	case VIDC_RESOURCE_ANALNE:
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	return 0;
@@ -106,10 +106,10 @@ int pkt_sys_unset_resource(struct hfi_sys_release_resource_pkt *pkt, u32 id,
 	case VIDC_RESOURCE_VMEM:
 		pkt->resource_type = HFI_RESOURCE_OCMEM;
 		break;
-	case VIDC_RESOURCE_NONE:
+	case VIDC_RESOURCE_ANALNE:
 		break;
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	return 0;
@@ -623,11 +623,11 @@ static int pkt_session_set_property_1x(struct hfi_session_set_property_pkt *pkt,
 		pl->level = in->level;
 		pl->profile = in->profile;
 		if (pl->profile <= 0)
-			/* Profile not supported, falling back to high */
+			/* Profile analt supported, falling back to high */
 			pl->profile = HFI_H264_PROFILE_HIGH;
 
 		if (!pl->level)
-			/* Level not supported, falling back to 1 */
+			/* Level analt supported, falling back to 1 */
 			pl->level = 1;
 
 		pkt->shdr.hdr.size += sizeof(u32) + sizeof(*pl);
@@ -781,7 +781,7 @@ static int pkt_session_set_property_1x(struct hfi_session_set_property_pkt *pkt,
 		struct hfi_operations_type *in = pdata, *ops = prop_data;
 
 		switch (in->rotation) {
-		case HFI_ROTATE_NONE:
+		case HFI_ROTATE_ANALNE:
 		case HFI_ROTATE_90:
 		case HFI_ROTATE_180:
 		case HFI_ROTATE_270:
@@ -792,7 +792,7 @@ static int pkt_session_set_property_1x(struct hfi_session_set_property_pkt *pkt,
 		}
 
 		switch (in->flip) {
-		case HFI_FLIP_NONE:
+		case HFI_FLIP_ANALNE:
 		case HFI_FLIP_HORIZONTAL:
 		case HFI_FLIP_VERTICAL:
 			break;
@@ -810,7 +810,7 @@ static int pkt_session_set_property_1x(struct hfi_session_set_property_pkt *pkt,
 		struct hfi_intra_refresh *in = pdata, *intra = prop_data;
 
 		switch (in->mode) {
-		case HFI_INTRA_REFRESH_NONE:
+		case HFI_INTRA_REFRESH_ANALNE:
 		case HFI_INTRA_REFRESH_ADAPTIVE:
 		case HFI_INTRA_REFRESH_CYCLIC:
 		case HFI_INTRA_REFRESH_CYCLIC_ADAPTIVE:
@@ -1038,7 +1038,7 @@ static int pkt_session_set_property_1x(struct hfi_session_set_property_pkt *pkt,
 		pkt->shdr.hdr.size += sizeof(u32) * 2;
 		break;
 	}
-	case HFI_PROPERTY_PARAM_VDEC_NONCP_OUTPUT2: {
+	case HFI_PROPERTY_PARAM_VDEC_ANALNCP_OUTPUT2: {
 		struct hfi_enable *in = pdata, *en = prop_data;
 
 		en->enable = in->enable;
@@ -1065,9 +1065,9 @@ static int pkt_session_set_property_1x(struct hfi_session_set_property_pkt *pkt,
 		break;
 	}
 	case HFI_PROPERTY_PARAM_VENC_HDR10_PQ_SEI:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
-	/* FOLLOWING PROPERTIES ARE NOT IMPLEMENTED IN CORE YET */
+	/* FOLLOWING PROPERTIES ARE ANALT IMPLEMENTED IN CORE YET */
 	case HFI_PROPERTY_CONFIG_BUFFER_REQUIREMENTS:
 	case HFI_PROPERTY_CONFIG_PRIORITY:
 	case HFI_PROPERTY_CONFIG_BATCH_INFO:
@@ -1158,7 +1158,7 @@ pkt_session_set_property_3xx(struct hfi_session_set_property_pkt *pkt,
 		struct hfi_intra_refresh_3x *intra = prop_data;
 
 		switch (in->mode) {
-		case HFI_INTRA_REFRESH_NONE:
+		case HFI_INTRA_REFRESH_ANALNE:
 		case HFI_INTRA_REFRESH_ADAPTIVE:
 		case HFI_INTRA_REFRESH_CYCLIC:
 		case HFI_INTRA_REFRESH_CYCLIC_ADAPTIVE:
@@ -1287,8 +1287,8 @@ pkt_session_set_property_4xx(struct hfi_session_set_property_pkt *pkt,
 	case HFI_PROPERTY_PARAM_BUFFER_ALLOC_MODE:
 	case HFI_PROPERTY_PARAM_VENC_SESSION_QP:
 	case HFI_PROPERTY_PARAM_VENC_SESSION_QP_RANGE:
-		/* not implemented on Venus 4xx */
-		return -ENOTSUPP;
+		/* analt implemented on Venus 4xx */
+		return -EANALTSUPP;
 	default:
 		return pkt_session_set_property_3xx(pkt, cookie, ptype, pdata);
 	}

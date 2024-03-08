@@ -39,7 +39,7 @@ struct sx_common_reg_default {
  * @read_prox_data:	Function to read raw proximity data.
  * @check_whoami:	Set device name based on whoami register.
  * @init_compensation:	Function to set initial compensation.
- * @wait_for_sample:	When there are no physical IRQ, function to wait for a
+ * @wait_for_sample:	When there are anal physical IRQ, function to wait for a
  *			sample to be ready.
  * @get_default_reg:	Populate the initial value for a given register.
  */

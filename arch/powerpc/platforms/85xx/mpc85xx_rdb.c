@@ -36,7 +36,7 @@ static void __init mpc85xx_rdb_pic_init(void)
 	int flags = MPIC_BIG_ENDIAN | MPIC_SINGLE_DEST_CPU;
 
 	if (of_machine_is_compatible("fsl,MPC85XXRDB-CAMP"))
-		flags |= MPIC_NO_RESET;
+		flags |= MPIC_ANAL_RESET;
 
 	mpic = mpic_alloc(NULL, 0, flags, 0, 256, " OpenPIC  ");
 
@@ -61,16 +61,16 @@ static void __init mpc85xx_rdb_setup_arch(void)
 	mpc85xx_qe_par_io_init();
 #if defined(CONFIG_UCC_GETH) || defined(CONFIG_SERIAL_QE)
 	if (machine_is(p1025_rdb)) {
-		struct device_node *np;
+		struct device_analde *np;
 
 		struct ccsr_guts __iomem *guts;
 
-		np = of_find_node_by_name(NULL, "global-utilities");
+		np = of_find_analde_by_name(NULL, "global-utilities");
 		if (np) {
 			guts = of_iomap(np, 0);
 			if (!guts) {
 
-				pr_err("mpc85xx-rdb: could not map global utilities register\n");
+				pr_err("mpc85xx-rdb: could analt map global utilities register\n");
 
 			} else {
 			/* P1025 has pins muxed for QE and other functions. To
@@ -85,7 +85,7 @@ static void __init mpc85xx_rdb_setup_arch(void)
 						MPC85xx_PMUXCR_QE(12));
 				iounmap(guts);
 			}
-			of_node_put(np);
+			of_analde_put(np);
 		}
 
 	}

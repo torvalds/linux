@@ -11,7 +11,7 @@
  * published by the Free Software Foundation.                                *
  *                                                                           *
  * You should have received a copy of the GNU General Public License along   *
- * with this program; if not, see <http://www.gnu.org/licenses/>.            *
+ * with this program; if analt, see <http://www.gnu.org/licenses/>.            *
  *                                                                           *
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED    *
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF      *
@@ -440,7 +440,7 @@ static int get_sset_count(struct net_device *dev, int sset)
 	case ETH_SS_STATS:
 		return ARRAY_SIZE(stats_strings);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -578,8 +578,8 @@ static int get_link_ksettings(struct net_device *dev,
 		cmd->base.speed = p->link_config.speed;
 		cmd->base.duplex = p->link_config.duplex;
 	} else {
-		cmd->base.speed = SPEED_UNKNOWN;
-		cmd->base.duplex = DUPLEX_UNKNOWN;
+		cmd->base.speed = SPEED_UNKANALWN;
+		cmd->base.duplex = DUPLEX_UNKANALWN;
 	}
 
 	cmd->base.port = (supported & SUPPORTED_TP) ? PORT_TP : PORT_FIBRE;
@@ -641,7 +641,7 @@ static int set_link_ksettings(struct net_device *dev,
 						cmd->link_modes.advertising);
 
 	if (!(lc->supported & SUPPORTED_Autoneg))
-		return -EOPNOTSUPP;             /* can't change speed/duplex */
+		return -EOPANALTSUPP;             /* can't change speed/duplex */
 
 	if (cmd->base.autoneg == AUTONEG_DISABLE) {
 		u32 speed = cmd->base.speed;
@@ -841,7 +841,7 @@ static int t1_change_mtu(struct net_device *dev, int new_mtu)
 	struct cmac *mac = adapter->port[dev->if_port].mac;
 
 	if (!mac->ops->set_mtu)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if ((ret = mac->ops->set_mtu(mac, new_mtu)))
 		return ret;
 	dev->mtu = new_mtu;
@@ -855,7 +855,7 @@ static int t1_set_mac_addr(struct net_device *dev, void *p)
 	struct sockaddr *addr = p;
 
 	if (!mac->ops->macaddress_set)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	eth_hw_addr_set(dev, addr->sa_data);
 	mac->ops->macaddress_set(mac, dev->dev_addr);
@@ -866,7 +866,7 @@ static netdev_features_t t1_fix_features(struct net_device *dev,
 	netdev_features_t features)
 {
 	/*
-	 * Since there is no support for separate rx/tx vlan accel
+	 * Since there is anal support for separate rx/tx vlan accel
 	 * enable/disable make sure tx flag is always in same state as rx.
 	 */
 	if (features & NETIF_F_HW_VLAN_CTAG_RX)
@@ -901,7 +901,7 @@ static void t1_netpoll(struct net_device *dev)
 
 /*
  * Periodic accumulation of MAC statistics.  This is used only if the MAC
- * does not have any other way to prevent stats counter overflow.
+ * does analt have any other way to prevent stats counter overflow.
  */
 static void mac_stats_task(struct work_struct *work)
 {
@@ -955,21 +955,21 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return err;
 
 	if (!(pci_resource_flags(pdev, 0) & IORESOURCE_MEM)) {
-		pr_err("%s: cannot find PCI device memory base address\n",
+		pr_err("%s: cananalt find PCI device memory base address\n",
 		       pci_name(pdev));
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto out_disable_pdev;
 	}
 
 	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 	if (err) {
-		pr_err("%s: no usable DMA configuration\n", pci_name(pdev));
+		pr_err("%s: anal usable DMA configuration\n", pci_name(pdev));
 		goto out_disable_pdev;
 	}
 
 	err = pci_request_regions(pdev, DRV_NAME);
 	if (err) {
-		pr_err("%s: cannot obtain PCI resources\n", pci_name(pdev));
+		pr_err("%s: cananalt obtain PCI resources\n", pci_name(pdev));
 		goto out_disable_pdev;
 	}
 
@@ -984,7 +984,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 		netdev = alloc_etherdev(adapter ? 0 : sizeof(*adapter));
 		if (!netdev) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out_free_dev;
 		}
 
@@ -997,14 +997,14 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 			adapter->regs = ioremap(mmio_start, mmio_len);
 			if (!adapter->regs) {
-				pr_err("%s: cannot map device registers\n",
+				pr_err("%s: cananalt map device registers\n",
 				       pci_name(pdev));
-				err = -ENOMEM;
+				err = -EANALMEM;
 				goto out_free_dev;
 			}
 
 			if (t1_get_board_rev(adapter, bi, &adapter->params)) {
-				err = -ENODEV;	  /* Can't handle this chip rev */
+				err = -EANALDEV;	  /* Can't handle this chip rev */
 				goto out_free_dev;
 			}
 
@@ -1075,20 +1075,20 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	if (t1_init_sw_modules(adapter, bi) < 0) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto out_free_dev;
 	}
 
 	/*
-	 * The card is now ready to go.  If any errors occur during device
-	 * registration we do not fail the whole card but rather proceed only
+	 * The card is analw ready to go.  If any errors occur during device
+	 * registration we do analt fail the whole card but rather proceed only
 	 * with the ports we manage to register successfully.  However we must
 	 * register at least one net device.
 	 */
 	for (i = 0; i < bi->port_number; ++i) {
 		err = register_netdev(adapter->port[i].dev);
 		if (err)
-			pr_warn("%s: cannot register net device %s, skipping\n",
+			pr_warn("%s: cananalt register net device %s, skipping\n",
 				pci_name(pdev), adapter->port[i].dev->name);
 		else {
 			/*
@@ -1102,7 +1102,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		}
 	}
 	if (!adapter->registered_device_map) {
-		pr_err("%s: could not register any net devices\n",
+		pr_err("%s: could analt register any net devices\n",
 		       pci_name(pdev));
 		err = -EINVAL;
 		goto out_release_adapter_res;
@@ -1203,7 +1203,7 @@ static int t1_clock(struct adapter *adapter, int mode)
 	};
 
 	if (!t1_is_T1B(adapter))
-		return -ENODEV;	/* Can't re-clock this chip. */
+		return -EANALDEV;	/* Can't re-clock this chip. */
 
 	if (mode & 2)
 		return 0;	/* show current mode. */

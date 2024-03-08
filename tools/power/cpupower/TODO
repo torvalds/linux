@@ -4,8 +4,8 @@ ToDos sorted by priority:
   (current implementation has issues on AMD)
 - Try to read out boost states and frequencies on Intel
 - Somewhere saw the ability to read power consumption of
-  RAM from HW on Intel SandyBridge -> another monitor?
-- Add another c1e debug idle monitor
+  RAM from HW on Intel SandyBridge -> aanalther monitor?
+- Add aanalther c1e debug idle monitor
   -> Is by design racy with BIOS, but could be added
      with a --force option and some "be careful" messages
 - Add cpu_start()/cpu_stop() callbacks for monitor
@@ -20,5 +20,5 @@ ToDos sorted by priority:
   -> Run test executable in a forked process.
   -> Execute stop measures via the forked processes on
      each cpu.
-  This would be ideal as it will not introduce noise in the
+  This would be ideal as it will analt introduce analise in the
   tested executable.

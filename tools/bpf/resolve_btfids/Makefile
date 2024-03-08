@@ -12,9 +12,9 @@ else
   ifeq ($(silent),1)
     msg =
   else
-    msg = @printf '  %-8s %s%s\n' "$(1)" "$(notdir $(2))" "$(if $(3), $(3))";
+    msg = @printf '  %-8s %s%s\n' "$(1)" "$(analtdir $(2))" "$(if $(3), $(3))";
   endif
-  MAKEFLAGS=--no-print-directory
+  MAKEFLAGS=--anal-print-directory
 endif
 
 # Overrides for the prepare step libraries.

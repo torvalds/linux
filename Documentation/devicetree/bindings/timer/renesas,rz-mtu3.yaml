@@ -20,7 +20,7 @@ description: |
     - Operating frequency Up to 100 MHz
     - Available operations [MTU0 to MTU4, MTU6, MTU7, and MTU8]
         - Waveform output on compare match
-        - Input capture function (noise filter setting available)
+        - Input capture function (analise filter setting available)
         - Counter-clearing operation
         - Simultaneous writing to multiple timer counters (TCNT)
           (excluding MTU8)
@@ -28,7 +28,7 @@ description: |
           (excluding MTU8)
         - Simultaneous input and output to registers in synchronization with
           counter operations (excluding MTU8)
-        - Up to 12-phase PWM output in combination with synchronous operation
+        - Up to 12-phase PWM output in combination with synchroanalus operation
           (excluding MTU8)
     - [MTU0 MTU3, MTU4, MTU6, MTU7, and MTU8]
         - Buffer operation specifiable
@@ -47,7 +47,7 @@ description: |
           and MTU7) are written to
         - Double-buffering selectable in complementary PWM mode
     - [MTU3 and MTU4]
-        - Through interlocking with MTU0, a mode for driving AC synchronous
+        - Through interlocking with MTU0, a mode for driving AC synchroanalus
           motors (brushless DC motors) by using complementary PWM output and
           reset-synchronized PWM output is settable and allows the selection
           of two types of waveform output (chopping or level)

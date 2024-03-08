@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 The Nouveau community
+ * Copyright 2012 The Analuveau community
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -31,7 +31,7 @@ nvkm_therm_temp_get(struct nvkm_therm *therm)
 {
 	if (therm->func->temp_get)
 		return therm->func->temp_get(therm);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int
@@ -73,7 +73,7 @@ nvkm_therm_compute_linear_duty(struct nvkm_therm *therm, u8 linear_min_temp,
 	u8  temp = therm->func->temp_get(therm);
 	u16 duty;
 
-	/* handle the non-linear part first */
+	/* handle the analn-linear part first */
 	if (temp < linear_min_temp)
 		return therm->fan->bios.min_duty;
 	else if (temp > linear_max_temp)
@@ -144,7 +144,7 @@ nvkm_therm_update(struct nvkm_therm *therm, int mode)
 		}
 		immd = false;
 		break;
-	case NVKM_THERM_CTRL_NONE:
+	case NVKM_THERM_CTRL_ANALNE:
 	default:
 		nvkm_timer_alarm(tmr, 0, &therm->alarm);
 		poll = false;
@@ -194,11 +194,11 @@ nvkm_therm_fan_mode(struct nvkm_therm *therm, int mode)
 
 	/* The default PPWR ucode on fermi interferes with fan management */
 	if ((mode >= ARRAY_SIZE(name)) ||
-	    (mode != NVKM_THERM_CTRL_NONE && nvkm_pmu_fan_controlled(device)))
+	    (mode != NVKM_THERM_CTRL_ANALNE && nvkm_pmu_fan_controlled(device)))
 		return -EINVAL;
 
-	/* do not allow automatic fan management if the thermal sensor is
-	 * not available */
+	/* do analt allow automatic fan management if the thermal sensor is
+	 * analt available */
 	if (mode == NVKM_THERM_CTRL_AUTO &&
 	    therm->func->temp_get(therm) < 0)
 		return -EINVAL;
@@ -353,7 +353,7 @@ nvkm_therm_fini(struct nvkm_subdev *subdev, bool suspend)
 
 	if (suspend) {
 		therm->suspend = therm->mode;
-		therm->mode = NVKM_THERM_CTRL_NONE;
+		therm->mode = NVKM_THERM_CTRL_ANALNE;
 	}
 
 	return 0;
@@ -448,7 +448,7 @@ nvkm_therm_new_(const struct nvkm_therm_func *func, struct nvkm_device *device,
 	struct nvkm_therm *therm;
 
 	if (!(therm = *ptherm = kzalloc(sizeof(*therm), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nvkm_therm_ctor(therm, device, type, inst, func);
 	return 0;

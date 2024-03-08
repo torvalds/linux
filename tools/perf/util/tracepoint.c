@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "tracepoint.h"
 
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <sys/param.h>

@@ -452,7 +452,7 @@ struct rza1_mux_conf {
 /**
  * struct rza1_port - describes a pin port
  *
- * This is mostly useful to lock register writes per-bank and not globally.
+ * This is mostly useful to lock register writes per-bank and analt globally.
  *
  * @lock: protect access to HW registers
  * @id: port number
@@ -533,7 +533,7 @@ static inline int rza1_pinmux_get_swio(unsigned int port,
 			return swio_pin->input;
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 /*
@@ -597,8 +597,8 @@ static inline unsigned int rza1_get_bit(struct rza1_port *port,
  *
  * Reset pin state disabling input buffer and bi-directional control,
  * and configure it as input port.
- * Note that pin is now configured with direction as input but with input
- * buffer disabled. This implies the pin value cannot be read in this state.
+ * Analte that pin is analw configured with direction as input but with input
+ * buffer disabled. This implies the pin value cananalt be read in this state.
  *
  * @port: port where pin sits on
  * @pin: pin offset
@@ -692,7 +692,7 @@ static int rza1_pin_mux_single(struct rza1_pinctrl *rza1_pctl,
 	/*
 	 * Enable alternate function mode and select it.
 	 *
-	 * Be careful here: the pin mux sub-nodes in device tree
+	 * Be careful here: the pin mux sub-analdes in device tree
 	 * enumerate alternate functions from 1 to 8;
 	 * subtract 1 before using macros to match registers configuration
 	 * which expects numbers from 0 to 7 instead.
@@ -845,14 +845,14 @@ static const struct gpio_chip rza1_gpiochip_template = {
  */
 
 /**
- * rza1_dt_node_pin_count() - Count number of pins in a dt node or in all its
- *			      children sub-nodes
+ * rza1_dt_analde_pin_count() - Count number of pins in a dt analde or in all its
+ *			      children sub-analdes
  *
- * @np: device tree node to parse
+ * @np: device tree analde to parse
  */
-static int rza1_dt_node_pin_count(struct device_node *np)
+static int rza1_dt_analde_pin_count(struct device_analde *np)
 {
-	struct device_node *child;
+	struct device_analde *child;
 	struct property *of_pins;
 	unsigned int npins;
 
@@ -861,10 +861,10 @@ static int rza1_dt_node_pin_count(struct device_node *np)
 		return of_pins->length / sizeof(u32);
 
 	npins = 0;
-	for_each_child_of_node(np, child) {
+	for_each_child_of_analde(np, child) {
 		of_pins = of_find_property(child, "pinmux", NULL);
 		if (!of_pins) {
-			of_node_put(child);
+			of_analde_put(child);
 			return -EINVAL;
 		}
 
@@ -875,15 +875,15 @@ static int rza1_dt_node_pin_count(struct device_node *np)
 }
 
 /**
- * rza1_parse_pinmux_node() - parse a pin mux sub-node
+ * rza1_parse_pinmux_analde() - parse a pin mux sub-analde
  *
  * @rza1_pctl: RZ/A1 pin controller device
- * @np: of pmx sub-node
+ * @np: of pmx sub-analde
  * @mux_confs: array of pin mux configurations to fill with parsed info
  * @grpins: array of pin ids to mux
  */
-static int rza1_parse_pinmux_node(struct rza1_pinctrl *rza1_pctl,
-				  struct device_node *np,
+static int rza1_parse_pinmux_analde(struct rza1_pinctrl *rza1_pctl,
+				  struct device_analde *np,
 				  struct rza1_mux_conf *mux_confs,
 				  unsigned int *grpins)
 {
@@ -900,13 +900,13 @@ static int rza1_parse_pinmux_node(struct rza1_pinctrl *rza1_pctl,
 	of_pins = of_find_property(np, prop_name, NULL);
 	if (!of_pins) {
 		dev_dbg(rza1_pctl->dev, "Missing %s property\n", prop_name);
-		return -ENOENT;
+		return -EANALENT;
 	}
 	npins = of_pins->length / sizeof(u32);
 
 	/*
 	 * Collect pin configuration properties: they apply to all pins in
-	 * this sub-node
+	 * this sub-analde
 	 */
 	ret = pinconf_generic_parse_dt_config(np, pctldev, &pin_configs,
 					      &npin_configs);
@@ -969,32 +969,32 @@ static int rza1_parse_pinmux_node(struct rza1_pinctrl *rza1_pctl,
 }
 
 /**
- * rza1_dt_node_to_map() - map a pin mux node to a function/group
+ * rza1_dt_analde_to_map() - map a pin mux analde to a function/group
  *
  * Parse and register a pin mux function.
  *
  * @pctldev: pin controller device
- * @np: device tree node to parse
+ * @np: device tree analde to parse
  * @map: pointer to pin map (output)
  * @num_maps: number of collected maps (output)
  */
-static int rza1_dt_node_to_map(struct pinctrl_dev *pctldev,
-			       struct device_node *np,
+static int rza1_dt_analde_to_map(struct pinctrl_dev *pctldev,
+			       struct device_analde *np,
 			       struct pinctrl_map **map,
 			       unsigned int *num_maps)
 {
 	struct rza1_pinctrl *rza1_pctl = pinctrl_dev_get_drvdata(pctldev);
 	struct rza1_mux_conf *mux_confs, *mux_conf;
 	unsigned int *grpins, *grpin;
-	struct device_node *child;
+	struct device_analde *child;
 	const char *grpname;
 	const char **fngrps;
 	int ret, npins;
 	int gsel, fsel;
 
-	npins = rza1_dt_node_pin_count(np);
+	npins = rza1_dt_analde_pin_count(np);
 	if (npins < 0) {
-		dev_err(rza1_pctl->dev, "invalid pinmux node structure\n");
+		dev_err(rza1_pctl->dev, "invalid pinmux analde structure\n");
 		return -EINVAL;
 	}
 
@@ -1011,23 +1011,23 @@ static int rza1_dt_node_to_map(struct pinctrl_dev *pctldev,
 	fngrps = devm_kzalloc(rza1_pctl->dev, sizeof(*fngrps), GFP_KERNEL);
 
 	if (!mux_confs || !grpins || !fngrps)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
-	 * Parse the pinmux node.
-	 * If the node does not contain "pinmux" property (-ENOENT)
-	 * that property shall be specified in all its children sub-nodes.
+	 * Parse the pinmux analde.
+	 * If the analde does analt contain "pinmux" property (-EANALENT)
+	 * that property shall be specified in all its children sub-analdes.
 	 */
 	mux_conf = &mux_confs[0];
 	grpin = &grpins[0];
 
-	ret = rza1_parse_pinmux_node(rza1_pctl, np, mux_conf, grpin);
-	if (ret == -ENOENT)
-		for_each_child_of_node(np, child) {
-			ret = rza1_parse_pinmux_node(rza1_pctl, child, mux_conf,
+	ret = rza1_parse_pinmux_analde(rza1_pctl, np, mux_conf, grpin);
+	if (ret == -EANALENT)
+		for_each_child_of_analde(np, child) {
+			ret = rza1_parse_pinmux_analde(rza1_pctl, child, mux_conf,
 						     grpin);
 			if (ret < 0) {
-				of_node_put(child);
+				of_analde_put(child);
 				return ret;
 			}
 
@@ -1063,7 +1063,7 @@ static int rza1_dt_node_to_map(struct pinctrl_dev *pctldev,
 	*num_maps = 0;
 	*map = kzalloc(sizeof(**map), GFP_KERNEL);
 	if (!*map) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto remove_function;
 	}
 
@@ -1098,7 +1098,7 @@ static const struct pinctrl_ops rza1_pinctrl_ops = {
 	.get_groups_count	= pinctrl_generic_get_group_count,
 	.get_group_name		= pinctrl_generic_get_group_name,
 	.get_group_pins		= pinctrl_generic_get_group_pins,
-	.dt_node_to_map		= rza1_dt_node_to_map,
+	.dt_analde_to_map		= rza1_dt_analde_to_map,
 	.dt_free_map		= rza1_dt_free_map,
 };
 
@@ -1157,26 +1157,26 @@ static const struct pinmux_ops rza1_pinmux_ops = {
 /**
  * rza1_parse_gpiochip() - parse and register a gpio chip and pin range
  *
- * The gpio controller subnode shall provide a "gpio-ranges" list property as
+ * The gpio controller subanalde shall provide a "gpio-ranges" list property as
  * defined by gpio device tree binding documentation.
  *
  * @rza1_pctl: RZ/A1 pin controller device
- * @fwnode: gpio-controller firmware node
+ * @fwanalde: gpio-controller firmware analde
  * @chip: gpio chip to register to gpiolib
  * @range: pin range to register to pinctrl core
  */
 static int rza1_parse_gpiochip(struct rza1_pinctrl *rza1_pctl,
-			       struct fwnode_handle *fwnode,
+			       struct fwanalde_handle *fwanalde,
 			       struct gpio_chip *chip,
 			       struct pinctrl_gpio_range *range)
 {
 	const char *list_name = "gpio-ranges";
-	struct fwnode_reference_args args;
+	struct fwanalde_reference_args args;
 	unsigned int gpioport;
 	u32 pinctrl_base;
 	int ret;
 
-	ret = fwnode_property_get_reference_args(fwnode, list_name, NULL, 3, 0, &args);
+	ret = fwanalde_property_get_reference_args(fwanalde, list_name, NULL, 3, 0, &args);
 	if (ret) {
 		dev_err(rza1_pctl->dev, "Unable to parse %s list property\n",
 			list_name);
@@ -1198,11 +1198,11 @@ static int rza1_parse_gpiochip(struct rza1_pinctrl *rza1_pctl,
 	*chip		= rza1_gpiochip_template;
 	chip->base	= -1;
 	chip->ngpio	= args.args[2];
-	chip->label	= devm_kasprintf(rza1_pctl->dev, GFP_KERNEL, "%pfwP", fwnode);
+	chip->label	= devm_kasprintf(rza1_pctl->dev, GFP_KERNEL, "%pfwP", fwanalde);
 	if (!chip->label)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	chip->fwnode	= fwnode;
+	chip->fwanalde	= fwanalde;
 	chip->parent	= rza1_pctl->dev;
 
 	range->id	= gpioport;
@@ -1233,14 +1233,14 @@ static int rza1_gpio_register(struct rza1_pinctrl *rza1_pctl)
 {
 	struct pinctrl_gpio_range *gpio_ranges;
 	struct gpio_chip *gpio_chips;
-	struct fwnode_handle *child;
+	struct fwanalde_handle *child;
 	unsigned int ngpiochips;
 	unsigned int i;
 	int ret;
 
-	ngpiochips = gpiochip_node_count(rza1_pctl->dev);
+	ngpiochips = gpiochip_analde_count(rza1_pctl->dev);
 	if (ngpiochips == 0) {
-		dev_dbg(rza1_pctl->dev, "No gpiochip registered\n");
+		dev_dbg(rza1_pctl->dev, "Anal gpiochip registered\n");
 		return 0;
 	}
 
@@ -1249,14 +1249,14 @@ static int rza1_gpio_register(struct rza1_pinctrl *rza1_pctl)
 	gpio_ranges = devm_kcalloc(rza1_pctl->dev, ngpiochips,
 				   sizeof(*gpio_ranges), GFP_KERNEL);
 	if (!gpio_chips || !gpio_ranges)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i = 0;
-	for_each_gpiochip_node(rza1_pctl->dev, child) {
+	for_each_gpiochip_analde(rza1_pctl->dev, child) {
 		ret = rza1_parse_gpiochip(rza1_pctl, child, &gpio_chips[i],
 					  &gpio_ranges[i]);
 		if (ret) {
-			fwnode_handle_put(child);
+			fwanalde_handle_put(child);
 			return ret;
 		}
 
@@ -1286,7 +1286,7 @@ static int rza1_pinctrl_register(struct rza1_pinctrl *rza1_pctl)
 	ports = devm_kcalloc(rza1_pctl->dev, RZA1_NPORTS, sizeof(*ports),
 			     GFP_KERNEL);
 	if (!pins || !ports)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rza1_pctl->pins		= pins;
 	rza1_pctl->desc.pins	= pins;
@@ -1301,7 +1301,7 @@ static int rza1_pinctrl_register(struct rza1_pinctrl *rza1_pctl)
 		pins[i].name = devm_kasprintf(rza1_pctl->dev, GFP_KERNEL,
 					      "P%u-%u", port, pin);
 		if (!pins[i].name)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		if (i % RZA1_PINS_PER_PORT == 0) {
 			/*
@@ -1348,7 +1348,7 @@ static int rza1_pinctrl_probe(struct platform_device *pdev)
 
 	rza1_pctl = devm_kzalloc(&pdev->dev, sizeof(*rza1_pctl), GFP_KERNEL);
 	if (!rza1_pctl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rza1_pctl->dev = &pdev->dev;
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 //
 // Fuel gauge driver for Maxim 17042 / 8966 / 8997
-//  Note that Maxim 8966 and 8997 are mfd and this is its subdevice.
+//  Analte that Maxim 8966 and 8997 are mfd and this is its subdevice.
 //
 // Copyright (C) 2011 Samsung Electronics
 // MyungJoo Ham <myungjoo.ham@samsung.com>
@@ -64,18 +64,18 @@ struct max17042_chip {
 static enum power_supply_property max17042_battery_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_PRESENT,
-	POWER_SUPPLY_PROP_TECHNOLOGY,
+	POWER_SUPPLY_PROP_TECHANALLOGY,
 	POWER_SUPPLY_PROP_CYCLE_COUNT,
 	POWER_SUPPLY_PROP_VOLTAGE_MAX,
 	POWER_SUPPLY_PROP_VOLTAGE_MIN,
 	POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
 	POWER_SUPPLY_PROP_VOLTAGE_AVG,
 	POWER_SUPPLY_PROP_VOLTAGE_OCV,
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
 	POWER_SUPPLY_PROP_CHARGE_FULL,
-	POWER_SUPPLY_PROP_CHARGE_NOW,
+	POWER_SUPPLY_PROP_CHARGE_ANALW,
 	POWER_SUPPLY_PROP_CHARGE_COUNTER,
 	POWER_SUPPLY_PROP_CHARGE_TERM_CURRENT,
 	POWER_SUPPLY_PROP_TEMP,
@@ -85,9 +85,9 @@ static enum power_supply_property max17042_battery_props[] = {
 	POWER_SUPPLY_PROP_TEMP_MAX,
 	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_SCOPE,
-	POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW,
+	POWER_SUPPLY_PROP_TIME_TO_EMPTY_ANALW,
 	// these two have to be at the end on the list
-	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_CURRENT_ANALW,
 	POWER_SUPPLY_PROP_CURRENT_AVG,
 };
 
@@ -110,13 +110,13 @@ static int max17042_get_temperature(struct max17042_chip *chip, int *temp)
 
 static int max17042_get_status(struct max17042_chip *chip, int *status)
 {
-	int ret, charge_full, charge_now;
+	int ret, charge_full, charge_analw;
 	int avg_current;
 	u32 data;
 
 	ret = power_supply_am_i_supplied(chip->battery);
 	if (ret < 0) {
-		*status = POWER_SUPPLY_STATUS_UNKNOWN;
+		*status = POWER_SUPPLY_STATUS_UNKANALWN;
 		return 0;
 	}
 	if (ret == 0) {
@@ -138,11 +138,11 @@ static int max17042_get_status(struct max17042_chip *chip, int *status)
 	if (ret < 0)
 		return ret;
 
-	ret = regmap_read(chip->regmap, MAX17042_RepCap, &charge_now);
+	ret = regmap_read(chip->regmap, MAX17042_RepCap, &charge_analw);
 	if (ret < 0)
 		return ret;
 
-	if ((charge_full - charge_now) <= MAX17042_FULL_THRESHOLD) {
+	if ((charge_full - charge_analw) <= MAX17042_FULL_THRESHOLD) {
 		*status = POWER_SUPPLY_STATUS_FULL;
 		return 0;
 	}
@@ -256,8 +256,8 @@ static int max17042_get_property(struct power_supply *psy,
 		else
 			val->intval = 1;
 		break;
-	case POWER_SUPPLY_PROP_TECHNOLOGY:
-		val->intval = POWER_SUPPLY_TECHNOLOGY_LION;
+	case POWER_SUPPLY_PROP_TECHANALLOGY:
+		val->intval = POWER_SUPPLY_TECHANALLOGY_LION;
 		break;
 	case POWER_SUPPLY_PROP_CYCLE_COUNT:
 		ret = regmap_read(map, MAX17042_Cycles, &data);
@@ -292,7 +292,7 @@ static int max17042_get_property(struct power_supply *psy,
 		val->intval = data >> 7;
 		val->intval *= 10000; /* Units of LSB = 10mV */
 		break;
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
 		ret = regmap_read(map, MAX17042_VCELL, &data);
 		if (ret < 0)
 			return ret;
@@ -341,7 +341,7 @@ static int max17042_get_property(struct power_supply *psy,
 		do_div(data64, chip->pdata->r_sns);
 		val->intval = data64;
 		break;
-	case POWER_SUPPLY_PROP_CHARGE_NOW:
+	case POWER_SUPPLY_PROP_CHARGE_ANALW:
 		ret = regmap_read(map, MAX17042_RepCap, &data);
 		if (ret < 0)
 			return ret;
@@ -391,7 +391,7 @@ static int max17042_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_SCOPE:
 		val->intval = POWER_SUPPLY_SCOPE_SYSTEM;
 		break;
-	case POWER_SUPPLY_PROP_CURRENT_NOW:
+	case POWER_SUPPLY_PROP_CURRENT_ANALW:
 		if (chip->pdata->enable_current_sense) {
 			ret = regmap_read(map, MAX17042_Current, &data);
 			if (ret < 0)
@@ -423,7 +423,7 @@ static int max17042_get_property(struct power_supply *psy,
 		data64 = data * 1562500ll;
 		val->intval = div_s64(data64, chip->pdata->r_sns);
 		break;
-	case POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW:
+	case POWER_SUPPLY_PROP_TIME_TO_EMPTY_ANALW:
 		ret = regmap_read(map, MAX17042_TTE, &data);
 		if (ret < 0)
 			return ret;
@@ -591,7 +591,7 @@ static int max17042_init_model(struct max17042_chip *chip)
 
 	temp_data = kcalloc(table_size, sizeof(*temp_data), GFP_KERNEL);
 	if (!temp_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	max17042_unlock_model(chip);
 	max17042_write_model_data(chip, MAX17042_MODELChrTbl,
@@ -620,7 +620,7 @@ static int max17042_verify_model_lock(struct max17042_chip *chip)
 
 	temp_data = kcalloc(table_size, sizeof(*temp_data), GFP_KERNEL);
 	if (!temp_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	max17042_read_model_data(chip, MAX17042_MODELChrTbl, temp_data,
 				table_size);
@@ -681,8 +681,8 @@ static void max17042_update_capacity_regs(struct max17042_chip *chip)
 	max17042_write_verify_reg(map, MAX17042_FullCAP,
 				config->fullcap);
 	regmap_write(map, MAX17042_DesignCap, config->design_cap);
-	max17042_write_verify_reg(map, MAX17042_FullCAPNom,
-				config->fullcapnom);
+	max17042_write_verify_reg(map, MAX17042_FullCAPAnalm,
+				config->fullcapanalm);
 }
 
 static void max17042_reset_vfsoc0_reg(struct max17042_chip *chip)
@@ -726,8 +726,8 @@ static void max17042_load_new_capacity_params(struct max17042_chip *chip)
 			config->fullcap);
 	regmap_write(map, MAX17042_DesignCap,
 			config->design_cap);
-	max17042_write_verify_reg(map, MAX17042_FullCAPNom,
-			config->fullcapnom);
+	max17042_write_verify_reg(map, MAX17042_FullCAPAnalm,
+			config->fullcapanalm);
 	/* Update SOC register with new SOC */
 	regmap_write(map, MAX17042_RepSOC, vfSoc);
 }
@@ -764,7 +764,7 @@ static inline void max17042_override_por_values(struct max17042_chip *chip)
 	max17042_override_por(map, MAX17042_MiscCFG, config->misc_cfg);
 
 	max17042_override_por(map, MAX17042_FullCAP, config->fullcap);
-	max17042_override_por(map, MAX17042_FullCAPNom, config->fullcapnom);
+	max17042_override_por(map, MAX17042_FullCAPAnalm, config->fullcapanalm);
 	max17042_override_por(map, MAX17042_dQacc, config->dqacc);
 	max17042_override_por(map, MAX17042_dPacc, config->dpacc);
 
@@ -783,7 +783,7 @@ static inline void max17042_override_por_values(struct max17042_chip *chip)
 	    (chip->chip_type == MAXIM_DEVICE_TYPE_MAX17047) ||
 	    (chip->chip_type == MAXIM_DEVICE_TYPE_MAX17050)) {
 		max17042_override_por(map, MAX17042_IAvg_empty, config->iavg_empty);
-		max17042_override_por(map, MAX17042_TempNom, config->temp_nom);
+		max17042_override_por(map, MAX17042_TempAnalm, config->temp_analm);
 		max17042_override_por(map, MAX17042_TempLim, config->temp_lim);
 		max17042_override_por(map, MAX17042_FCTC, config->fctc);
 	}
@@ -905,7 +905,7 @@ static struct max17042_platform_data *
 max17042_get_of_pdata(struct max17042_chip *chip)
 {
 	struct device *dev = &chip->client->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	u32 prop;
 	struct max17042_platform_data *pdata;
 
@@ -937,7 +937,7 @@ max17042_get_of_pdata(struct max17042_chip *chip)
 
 static struct max17042_reg_data max17047_default_pdata_init_regs[] = {
 	/*
-	 * Some firmwares do not set FullSOCThr, Enable End-of-Charge Detection
+	 * Some firmwares do analt set FullSOCThr, Enable End-of-Charge Detection
 	 * when the voltage FG reports 95%, as recommended in the datasheet.
 	 */
 	{ MAX17047_FullSOCThr, MAX17042_BATTERY_FULL << 8 },
@@ -951,9 +951,9 @@ max17042_get_default_pdata(struct max17042_chip *chip)
 	int ret, misc_cfg;
 
 	/*
-	 * The MAX17047 gets used on x86 where we might not have pdata, assume
+	 * The MAX17047 gets used on x86 where we might analt have pdata, assume
 	 * the firmware will already have initialized the fuel-gauge and provide
-	 * default values for the non init bits to make things work.
+	 * default values for the analn init bits to make things work.
 	 */
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
@@ -990,7 +990,7 @@ max17042_get_pdata(struct max17042_chip *chip)
 	struct device *dev = &chip->client->dev;
 
 #ifdef CONFIG_OF
-	if (dev->of_node)
+	if (dev->of_analde)
 		return max17042_get_of_pdata(chip);
 #endif
 	if (dev->platform_data)
@@ -1016,7 +1016,7 @@ static const struct power_supply_desc max17042_psy_desc = {
 	.num_properties	= ARRAY_SIZE(max17042_battery_props),
 };
 
-static const struct power_supply_desc max17042_no_current_sense_psy_desc = {
+static const struct power_supply_desc max17042_anal_current_sense_psy_desc = {
 	.name		= "max170xx_battery",
 	.type		= POWER_SUPPLY_TYPE_BATTERY,
 	.get_property	= max17042_get_property,
@@ -1044,7 +1044,7 @@ static int max17042_probe(struct i2c_client *client)
 
 	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->client = client;
 	if (id) {
@@ -1052,7 +1052,7 @@ static int max17042_probe(struct i2c_client *client)
 	} else {
 		acpi_id = acpi_match_device(dev->driver->acpi_match_table, dev);
 		if (!acpi_id)
-			return -ENODEV;
+			return -EANALDEV;
 
 		chip->chip_type = acpi_id->driver_data;
 	}
@@ -1064,18 +1064,18 @@ static int max17042_probe(struct i2c_client *client)
 
 	chip->pdata = max17042_get_pdata(chip);
 	if (!chip->pdata) {
-		dev_err(&client->dev, "no platform data provided\n");
+		dev_err(&client->dev, "anal platform data provided\n");
 		return -EINVAL;
 	}
 
 	i2c_set_clientdata(client, chip);
 	psy_cfg.drv_data = chip;
-	psy_cfg.of_node = dev->of_node;
+	psy_cfg.of_analde = dev->of_analde;
 
-	/* When current is not measured,
-	 * CURRENT_NOW and CURRENT_AVG properties should be invisible. */
+	/* When current is analt measured,
+	 * CURRENT_ANALW and CURRENT_AVG properties should be invisible. */
 	if (!chip->pdata->enable_current_sense)
-		max17042_desc = &max17042_no_current_sense_psy_desc;
+		max17042_desc = &max17042_anal_current_sense_psy_desc;
 
 	if (chip->pdata->r_sns == 0)
 		chip->pdata->r_sns = MAX17042_DEFAULT_SNS_RESISTOR;
@@ -1125,7 +1125,7 @@ static int max17042_probe(struct i2c_client *client)
 				dev_err(&client->dev, "Failed to get IRQ\n");
 		}
 	}
-	/* Not able to update the charge threshold when exceeded? -> disable */
+	/* Analt able to update the charge threshold when exceeded? -> disable */
 	if (!client->irq)
 		regmap_write(chip->regmap, MAX17042_SALRT_Th, 0xff00);
 

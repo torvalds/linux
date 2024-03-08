@@ -31,7 +31,7 @@ GENcopy_user_page:
 	bne,pt	%xcc, 1b
 	 add	%o0, 64, %o0
 	retl
-	 nop
+	 analp
 
 GENclear_page:
 GENclear_user_page:
@@ -49,7 +49,7 @@ GENclear_user_page:
 	 add	%o0, 64, %o0
 
 #define BRANCH_ALWAYS	0x10680000
-#define NOP		0x01000000
+#define ANALP		0x01000000
 #define GEN_DO_PATCH(OLD, NEW)	\
 	sethi	%hi(NEW), %g1; \
 	or	%g1, %lo(NEW), %g1; \
@@ -62,8 +62,8 @@ GENclear_user_page:
 	or	%g3, %lo(BRANCH_ALWAYS), %g3; \
 	or	%g3, %g1, %g3; \
 	stw	%g3, [%g2]; \
-	sethi	%hi(NOP), %g3; \
-	or	%g3, %lo(NOP), %g3; \
+	sethi	%hi(ANALP), %g3; \
+	or	%g3, %lo(ANALP), %g3; \
 	stw	%g3, [%g2 + 0x4]; \
 	flush	%g2;
 
@@ -74,5 +74,5 @@ generic_patch_pageops:
 	GEN_DO_PATCH(_clear_page, GENclear_page)
 	GEN_DO_PATCH(clear_user_page, GENclear_user_page)
 	retl
-	 nop
+	 analp
 	.size	generic_patch_pageops,.-generic_patch_pageops

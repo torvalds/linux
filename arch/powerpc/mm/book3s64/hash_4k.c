@@ -59,7 +59,7 @@ int __hash_page_4K(unsigned long ea, unsigned long access, unsigned long vsid,
 	rflags = htab_convert_pte_flags(new_pte, flags);
 	rpte = __real_pte(__pte(old_pte), ptep, PTRS_PER_PTE);
 
-	if (cpu_has_feature(CPU_FTR_NOEXECUTE) &&
+	if (cpu_has_feature(CPU_FTR_ANALEXECUTE) &&
 	    !cpu_has_feature(CPU_FTR_COHERENT_ICACHE))
 		rflags = hash_page_do_lazy_icache(rflags, __pte(old_pte), trap);
 

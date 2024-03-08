@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * arcksyms.c - Exporting symbols not exportable from their own sources
+ * arcksyms.c - Exporting symbols analt exportable from their own sources
  *
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syanalpsys, Inc. (www.syanalpsys.com)
  */
 
 #include <linux/module.h>
 
-/* libgcc functions, not part of kernel sources */
+/* libgcc functions, analt part of kernel sources */
 extern void __ashldi3(void);
 extern void __ashrdi3(void);
 extern void __divsi3(void);

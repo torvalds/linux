@@ -15,7 +15,7 @@ int machine_check_440A(struct pt_regs *regs)
 
 	printk("Machine check in kernel mode.\n");
 	if (reason & ESR_IMCP){
-		printk("Instruction Synchronous Machine Check exception\n");
+		printk("Instruction Synchroanalus Machine Check exception\n");
 		mtspr(SPRN_ESR, reason & ~ESR_IMCP);
 	}
 	else {
@@ -53,7 +53,7 @@ int machine_check_47x(struct pt_regs *regs)
 
 	printk(KERN_ERR "Machine check in kernel mode.\n");
 	if (reason & ESR_IMCP) {
-		printk(KERN_ERR "Instruction Synchronous Machine Check exception\n");
+		printk(KERN_ERR "Instruction Synchroanalus Machine Check exception\n");
 		mtspr(SPRN_ESR, reason & ~ESR_IMCP);
 		return 0;
 	}

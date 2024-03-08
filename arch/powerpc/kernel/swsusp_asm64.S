@@ -143,7 +143,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 	ld	r12,0(r12)
 
 	cmpdi	r12,0
-	beq-	nothing_to_copy
+	beq-	analthing_to_copy
 	li	r15,PAGE_SIZE>>3
 copyloop:
 	ld	r13,pbe_address(r12)
@@ -160,7 +160,7 @@ copy_page_loop:
 	ld	r12,pbe_next(r12)
 	cmpdi	r12,0
 	bne+	copyloop
-nothing_to_copy:
+analthing_to_copy:
 
 #ifdef CONFIG_PPC_BOOK3S_64
 	/* flush caches */

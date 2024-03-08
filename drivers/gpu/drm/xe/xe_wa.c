@@ -26,7 +26,7 @@
  * DOC: Hardware workarounds
  *
  * Hardware workarounds are register programming documented to be executed in
- * the driver that fall outside of the normal programming sequences for a
+ * the driver that fall outside of the analrmal programming sequences for a
  * platform. There are some basic categories of workarounds, depending on
  * how/when they are applied:
  *
@@ -72,17 +72,17 @@
  *   #. BB_PER_CTX_PTR: A batchbuffer is provided in the default context,
  *      pointing the hardware to a buffer to continue executing after the
  *      engine registers are restored in a context restore sequence. This is
- *      currently not used in the driver.
+ *      currently analt used in the driver.
  *
- * - Other/OOB:  There are WAs that, due to their nature, cannot be applied from
+ * - Other/OOB:  There are WAs that, due to their nature, cananalt be applied from
  *   a central place. Those are peppered around the rest of the code, as needed.
  *   Workarounds related to the display IP are the main example.
  *
  * .. [1] Technically, some registers are powercontext saved & restored, so they
- *    survive a suspend/resume. In practice, writing them again is not too
+ *    survive a suspend/resume. In practice, writing them again is analt too
  *    costly and simplifies things, so it's the approach taken in the driver.
  *
- * .. note::
+ * .. analte::
  *    Hardware workarounds in xe work the same way as in i915, with the
  *    difference of how they are maintained in the code. In xe it uses the
  *    xe_rtp infrastructure so the workarounds can be kept in tables, following
@@ -93,7 +93,7 @@
 #define XE_REG_MCR(...)     XE_REG(__VA_ARGS__, .mcr = 1)
 
 __diag_push();
-__diag_ignore_all("-Woverride-init", "Allow field overrides in table");
+__diag_iganalre_all("-Woverride-init", "Allow field overrides in table");
 
 static const struct xe_rtp_entry_sr gt_was[] = {
 	{ XE_RTP_NAME("14011060649"),
@@ -158,7 +158,7 @@ static const struct xe_rtp_entry_sr gt_was[] = {
 	},
 	{ XE_RTP_NAME("14011371254"),
 	  XE_RTP_RULES(SUBPLATFORM(DG2, G10), GRAPHICS_STEP(A0, B0)),
-	  XE_RTP_ACTIONS(SET(XEHP_SLICE_UNIT_LEVEL_CLKGATE, NODEDSS_CLKGATE_DIS))
+	  XE_RTP_ACTIONS(SET(XEHP_SLICE_UNIT_LEVEL_CLKGATE, ANALDEDSS_CLKGATE_DIS))
 	},
 	{ XE_RTP_NAME("14011431319"),
 	  XE_RTP_RULES(SUBPLATFORM(DG2, G10), GRAPHICS_STEP(A0, B0)),
@@ -214,7 +214,7 @@ static const struct xe_rtp_entry_sr gt_was[] = {
 	},
 	{ XE_RTP_NAME("14010648519"),
 	  XE_RTP_RULES(PLATFORM(DG2)),
-	  XE_RTP_ACTIONS(SET(XEHP_L3NODEARBCFG, XEHP_LNESPARE))
+	  XE_RTP_ACTIONS(SET(XEHP_L3ANALDEARBCFG, XEHP_LNESPARE))
 	},
 
 	/* PVC */
@@ -407,7 +407,7 @@ static const struct xe_rtp_entry_sr engine_was[] = {
 			     FORCE_SLM_FENCE_SCOPE_TO_TILE |
 			     FORCE_UGM_FENCE_SCOPE_TO_TILE,
 			     /*
-			      * Ignore read back as it always returns 0 in these
+			      * Iganalre read back as it always returns 0 in these
 			      * steps
 			      */
 			     .read_mask = 0))
@@ -526,7 +526,7 @@ static const struct xe_rtp_entry_sr engine_was[] = {
 	{ XE_RTP_NAME("14015150844"),
 	  XE_RTP_RULES(PLATFORM(DG2), FUNC(xe_rtp_match_first_render_or_compute)),
 	  XE_RTP_ACTIONS(SET(XEHP_HDC_CHICKEN0, DIS_ATOMIC_CHAINING_TYPED_WRITES,
-			     XE_RTP_NOCHECK))
+			     XE_RTP_ANALCHECK))
 	},
 
 	/* PVC */
@@ -561,7 +561,7 @@ static const struct xe_rtp_entry_sr engine_was[] = {
 	  XE_RTP_RULES(GRAPHICS_VERSION_RANGE(1270, 1271),
 		       FUNC(xe_rtp_match_first_render_or_compute)),
 	  XE_RTP_ACTIONS(SET(XEHP_HDC_CHICKEN0, DIS_ATOMIC_CHAINING_TYPED_WRITES,
-			     XE_RTP_NOCHECK))
+			     XE_RTP_ANALCHECK))
 	},
 
 	/* Xe2_LPG */
@@ -601,7 +601,7 @@ static const struct xe_rtp_entry_sr engine_was[] = {
 	/*
 	 * These two workarounds are the same, just applying to different
 	 * engines.  Although Wa_18032095049 (for the RCS) isn't required on
-	 * all steppings, disabling these reports has no impact for our
+	 * all steppings, disabling these reports has anal impact for our
 	 * driver or the GuC, so we go ahead and treat it the same as
 	 * Wa_16021639441 which does apply to all steppings.
 	 */
@@ -737,7 +737,7 @@ static const struct xe_rtp_entry_sr lrc_was[] = {
 	},
 	{ XE_RTP_NAME("14019988906"),
 	  XE_RTP_RULES(GRAPHICS_VERSION(2004), ENGINE_CLASS(RENDER)),
-	  XE_RTP_ACTIONS(SET(XEHP_PSS_CHICKEN, FLSH_IGNORES_PSD))
+	  XE_RTP_ACTIONS(SET(XEHP_PSS_CHICKEN, FLSH_IGANALRES_PSD))
 	},
 
 	{}
@@ -839,7 +839,7 @@ int xe_wa_init(struct xe_gt *gt)
 
 	p = drmm_kzalloc(&xe->drm, sizeof(*p) * total, GFP_KERNEL);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gt->wa_active.gt = p;
 	p += n_gt;
@@ -875,16 +875,16 @@ void xe_wa_dump(struct xe_gt *gt, struct drm_printer *p)
 }
 
 /*
- * Apply tile (non-GT, non-display) workarounds.  Think very carefully before
+ * Apply tile (analn-GT, analn-display) workarounds.  Think very carefully before
  * adding anything to this function; most workarounds should be implemented
  * elsewhere.  The programming here is primarily for sgunit/soc workarounds,
  * which are relatively rare.  Since the registers these workarounds target are
  * outside the GT, they should only need to be applied once at device
- * probe/resume; they will not lose their values on any kind of GT or engine
+ * probe/resume; they will analt lose their values on any kind of GT or engine
  * reset.
  *
  * TODO:  We may want to move this over to xe_rtp in the future once we have
- * enough workarounds to justify the work.
+ * eanalugh workarounds to justify the work.
  */
 void xe_wa_apply_tile_workarounds(struct xe_tile *tile)
 {

@@ -10,14 +10,14 @@
  * Description of forwarding methods:
  * - all transmitters are called from LOCAL_IN (remote clients) and
  * LOCAL_OUT (local clients) but for ICMP can be called from FORWARD
- * - not all connections have destination server, for example,
+ * - analt all connections have destination server, for example,
  * connections in backup server when fwmark is used
  * - bypass connections use daddr from packet
  * - we can use dst without ref while sending in RCU section, we use
  * ref when returning NF_ACCEPT for NAT-ed packet via loopback
  * LOCAL_OUT rules:
- * - skb->dev is NULL, skb->protocol is not set (both are set in POST_ROUTING)
- * - skb->pkt_type is not set yet
+ * - skb->dev is NULL, skb->protocol is analt set (both are set in POST_ROUTING)
+ * - skb->pkt_type is analt set yet
  * - the only place where we can see skb->sk != NULL
  */
 
@@ -47,12 +47,12 @@
 
 enum {
 	IP_VS_RT_MODE_LOCAL	= 1, /* Allow local dest */
-	IP_VS_RT_MODE_NON_LOCAL	= 2, /* Allow non-local dest */
+	IP_VS_RT_MODE_ANALN_LOCAL	= 2, /* Allow analn-local dest */
 	IP_VS_RT_MODE_RDR	= 4, /* Allow redirect from remote daddr to
 				      * local
 				      */
 	IP_VS_RT_MODE_CONNECT	= 8, /* Always bind route to saddr */
-	IP_VS_RT_MODE_KNOWN_NH	= 16,/* Route via remote addr */
+	IP_VS_RT_MODE_KANALWN_NH	= 16,/* Route via remote addr */
 	IP_VS_RT_MODE_TUNNEL	= 32,/* Tunnel mode */
 };
 
@@ -129,8 +129,8 @@ static struct rtable *do_output_route4(struct net *net, __be32 daddr,
 
 	memset(&fl4, 0, sizeof(fl4));
 	fl4.daddr = daddr;
-	fl4.flowi4_flags = (rt_mode & IP_VS_RT_MODE_KNOWN_NH) ?
-			   FLOWI_FLAG_KNOWN_NH : 0;
+	fl4.flowi4_flags = (rt_mode & IP_VS_RT_MODE_KANALWN_NH) ?
+			   FLOWI_FLAG_KANALWN_NH : 0;
 
 retry:
 	rt = ip_route_output_key(net, &fl4);
@@ -167,7 +167,7 @@ static inline bool crosses_local_route_boundary(int skb_af, struct sk_buff *skb,
 						bool new_rt_is_local)
 {
 	bool rt_mode_allow_local = !!(rt_mode & IP_VS_RT_MODE_LOCAL);
-	bool rt_mode_allow_non_local = !!(rt_mode & IP_VS_RT_MODE_NON_LOCAL);
+	bool rt_mode_allow_analn_local = !!(rt_mode & IP_VS_RT_MODE_ANALN_LOCAL);
 	bool rt_mode_allow_redirect = !!(rt_mode & IP_VS_RT_MODE_RDR);
 	bool source_is_loopback;
 	bool old_rt_is_local;
@@ -194,7 +194,7 @@ static inline bool crosses_local_route_boundary(int skb_af, struct sk_buff *skb,
 		if (!rt_mode_allow_redirect && !old_rt_is_local)
 			return true;
 	} else {
-		if (!rt_mode_allow_non_local)
+		if (!rt_mode_allow_analn_local)
 			return true;
 		if (source_is_loopback)
 			return true;
@@ -313,7 +313,7 @@ __ip_vs_get_out_rt(struct netns_ipvs *ipvs, int skb_af, struct sk_buff *skb,
 	struct ip_vs_dest_dst *dest_dst;
 	struct rtable *rt;			/* Route to the other host */
 	int mtu;
-	int local, noref = 1;
+	int local, analref = 1;
 
 	if (dest) {
 		dest_dst = __ip_vs_dst_check(dest);
@@ -346,10 +346,10 @@ __ip_vs_get_out_rt(struct netns_ipvs *ipvs, int skb_af, struct sk_buff *skb,
 	} else {
 		__be32 saddr = htonl(INADDR_ANY);
 
-		noref = 0;
+		analref = 0;
 
 		/* For such unconfigured boxes avoid many route lookups
-		 * for performance reasons because we do not remember saddr
+		 * for performance reasons because we do analt remember saddr
 		 */
 		rt_mode &= ~IP_VS_RT_MODE_CONNECT;
 		rt = do_output_route4(net, daddr, rt_mode, &saddr);
@@ -362,14 +362,14 @@ __ip_vs_get_out_rt(struct netns_ipvs *ipvs, int skb_af, struct sk_buff *skb,
 	local = (rt->rt_flags & RTCF_LOCAL) ? 1 : 0;
 	if (unlikely(crosses_local_route_boundary(skb_af, skb, rt_mode,
 						  local))) {
-		IP_VS_DBG_RL("We are crossing local and non-local addresses"
+		IP_VS_DBG_RL("We are crossing local and analn-local addresses"
 			     " daddr=%pI4\n", &daddr);
 		goto err_put;
 	}
 
 	if (unlikely(local)) {
 		/* skb to local stack, preserve old route */
-		if (!noref)
+		if (!analref)
 			ip_rt_put(rt);
 		return local;
 	}
@@ -407,15 +407,15 @@ __ip_vs_get_out_rt(struct netns_ipvs *ipvs, int skb_af, struct sk_buff *skb,
 		goto err_put;
 
 	skb_dst_drop(skb);
-	if (noref)
-		skb_dst_set_noref(skb, &rt->dst);
+	if (analref)
+		skb_dst_set_analref(skb, &rt->dst);
 	else
 		skb_dst_set(skb, &rt->dst);
 
 	return local;
 
 err_put:
-	if (!noref)
+	if (!analref)
 		ip_rt_put(rt);
 	return -1;
 
@@ -434,8 +434,8 @@ __ip_vs_route_output_v6(struct net *net, struct in6_addr *daddr,
 		.daddr = *daddr,
 	};
 
-	if (rt_mode & IP_VS_RT_MODE_KNOWN_NH)
-		fl6.flowi6_flags = FLOWI_FLAG_KNOWN_NH;
+	if (rt_mode & IP_VS_RT_MODE_KANALWN_NH)
+		fl6.flowi6_flags = FLOWI_FLAG_KANALWN_NH;
 
 	dst = ip6_route_output(net, NULL, &fl6);
 	if (dst->error)
@@ -476,7 +476,7 @@ __ip_vs_get_out_rt_v6(struct netns_ipvs *ipvs, int skb_af, struct sk_buff *skb,
 	struct rt6_info *rt;			/* Route to the other host */
 	struct dst_entry *dst;
 	int mtu;
-	int local, noref = 1;
+	int local, analref = 1;
 
 	if (dest) {
 		dest_dst = __ip_vs_dst_check(dest);
@@ -512,7 +512,7 @@ __ip_vs_get_out_rt_v6(struct netns_ipvs *ipvs, int skb_af, struct sk_buff *skb,
 		if (ret_saddr)
 			*ret_saddr = dest_dst->dst_saddr.in6;
 	} else {
-		noref = 0;
+		analref = 0;
 		dst = __ip_vs_route_output_v6(net, daddr, ret_saddr, do_xfrm,
 					      rt_mode);
 		if (!dst)
@@ -524,14 +524,14 @@ __ip_vs_get_out_rt_v6(struct netns_ipvs *ipvs, int skb_af, struct sk_buff *skb,
 
 	if (unlikely(crosses_local_route_boundary(skb_af, skb, rt_mode,
 						  local))) {
-		IP_VS_DBG_RL("We are crossing local and non-local addresses"
+		IP_VS_DBG_RL("We are crossing local and analn-local addresses"
 			     " daddr=%pI6\n", daddr);
 		goto err_put;
 	}
 
 	if (unlikely(local)) {
 		/* skb to local stack, preserve old route */
-		if (!noref)
+		if (!analref)
 			dst_release(&rt->dst);
 		return local;
 	}
@@ -571,15 +571,15 @@ __ip_vs_get_out_rt_v6(struct netns_ipvs *ipvs, int skb_af, struct sk_buff *skb,
 		goto err_put;
 
 	skb_dst_drop(skb);
-	if (noref)
-		skb_dst_set_noref(skb, &rt->dst);
+	if (analref)
+		skb_dst_set_analref(skb, &rt->dst);
 	else
 		skb_dst_set(skb, &rt->dst);
 
 	return local;
 
 err_put:
-	if (!noref)
+	if (!analref)
 		dst_release(&rt->dst);
 	return -1;
 
@@ -624,13 +624,13 @@ static inline int ip_vs_tunnel_xmit_prepare(struct sk_buff *skb,
 static inline void ip_vs_drop_early_demux_sk(struct sk_buff *skb)
 {
 	/* If dev is set, the packet came from the LOCAL_IN callback and
-	 * not from a local TCP socket.
+	 * analt from a local TCP socket.
 	 */
 	if (skb->dev)
 		skb_orphan(skb);
 }
 
-/* return NF_STOLEN (sent) or NF_ACCEPT if local=1 (not sent) */
+/* return NF_STOLEN (sent) or NF_ACCEPT if local=1 (analt sent) */
 static inline int ip_vs_nat_send_or_cont(int pf, struct sk_buff *skb,
 					 struct ip_vs_conn *cp, int local)
 {
@@ -638,7 +638,7 @@ static inline int ip_vs_nat_send_or_cont(int pf, struct sk_buff *skb,
 
 	skb->ipvs_property = 1;
 	if (likely(!(cp->flags & IP_VS_CONN_F_NFCT)))
-		ip_vs_notrack(skb);
+		ip_vs_analtrack(skb);
 	else
 		ip_vs_update_conntrack(skb, cp, 1);
 
@@ -661,7 +661,7 @@ static inline int ip_vs_nat_send_or_cont(int pf, struct sk_buff *skb,
 	return ret;
 }
 
-/* return NF_STOLEN (sent) or NF_ACCEPT if local=1 (not sent) */
+/* return NF_STOLEN (sent) or NF_ACCEPT if local=1 (analt sent) */
 static inline int ip_vs_send_or_cont(int pf, struct sk_buff *skb,
 				     struct ip_vs_conn *cp, int local)
 {
@@ -669,7 +669,7 @@ static inline int ip_vs_send_or_cont(int pf, struct sk_buff *skb,
 
 	skb->ipvs_property = 1;
 	if (likely(!(cp->flags & IP_VS_CONN_F_NFCT)))
-		ip_vs_notrack(skb);
+		ip_vs_analtrack(skb);
 	if (!local) {
 		ip_vs_drop_early_demux_sk(skb);
 		skb_forward_csum(skb);
@@ -684,20 +684,20 @@ static inline int ip_vs_send_or_cont(int pf, struct sk_buff *skb,
 
 
 /*
- *      NULL transmitter (do nothing except return NF_ACCEPT)
+ *      NULL transmitter (do analthing except return NF_ACCEPT)
  */
 int
 ip_vs_null_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 		struct ip_vs_protocol *pp, struct ip_vs_iphdr *ipvsh)
 {
-	/* we do not touch skb and do not need pskb ptr */
+	/* we do analt touch skb and do analt need pskb ptr */
 	return ip_vs_send_or_cont(NFPROTO_IPV4, skb, cp, 1);
 }
 
 
 /*
  *      Bypass transmitter
- *      Let packets bypass the destination when the destination is not
+ *      Let packets bypass the destination when the destination is analt
  *      available, it may be only used in transparent cache cluster.
  */
 int
@@ -707,13 +707,13 @@ ip_vs_bypass_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 	struct iphdr  *iph = ip_hdr(skb);
 
 	if (__ip_vs_get_out_rt(cp->ipvs, cp->af, skb, NULL, iph->daddr,
-			       IP_VS_RT_MODE_NON_LOCAL, NULL, ipvsh) < 0)
+			       IP_VS_RT_MODE_ANALN_LOCAL, NULL, ipvsh) < 0)
 		goto tx_error;
 
 	ip_send_check(iph);
 
-	/* Another hack: avoid icmp_send in ip_fragment */
-	skb->ignore_df = 1;
+	/* Aanalther hack: avoid icmp_send in ip_fragment */
+	skb->iganalre_df = 1;
 
 	ip_vs_send_or_cont(NFPROTO_IPV4, skb, cp, 0);
 
@@ -733,11 +733,11 @@ ip_vs_bypass_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 
 	if (__ip_vs_get_out_rt_v6(cp->ipvs, cp->af, skb, NULL,
 				  &iph->daddr, NULL,
-				  ipvsh, 0, IP_VS_RT_MODE_NON_LOCAL) < 0)
+				  ipvsh, 0, IP_VS_RT_MODE_ANALN_LOCAL) < 0)
 		goto tx_error;
 
-	/* Another hack: avoid icmp_send in ip_fragment */
-	skb->ignore_df = 1;
+	/* Aanalther hack: avoid icmp_send in ip_fragment */
+	skb->iganalre_df = 1;
 
 	ip_vs_send_or_cont(NFPROTO_IPV6, skb, cp, 0);
 
@@ -751,7 +751,7 @@ ip_vs_bypass_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 
 /*
  *      NAT transmitter (only for outside-to-inside nat forwarding)
- *      Not used for related ICMP
+ *      Analt used for related ICMP
  */
 int
 ip_vs_nat_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
@@ -760,8 +760,8 @@ ip_vs_nat_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 	struct rtable *rt;		/* Route to the other host */
 	int local, rc, was_input;
 
-	/* check if it is a connection of no-client-port */
-	if (unlikely(cp->flags & IP_VS_CONN_F_NO_CPORT)) {
+	/* check if it is a connection of anal-client-port */
+	if (unlikely(cp->flags & IP_VS_CONN_F_ANAL_CPORT)) {
 		__be16 _pt, *p;
 
 		p = skb_header_pointer(skb, ipvsh->len, sizeof(_pt), &_pt);
@@ -774,7 +774,7 @@ ip_vs_nat_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 	was_input = rt_is_input_route(skb_rtable(skb));
 	local = __ip_vs_get_out_rt(cp->ipvs, cp->af, skb, cp->dest, cp->daddr.ip,
 				   IP_VS_RT_MODE_LOCAL |
-				   IP_VS_RT_MODE_NON_LOCAL |
+				   IP_VS_RT_MODE_ANALN_LOCAL |
 				   IP_VS_RT_MODE_RDR, NULL, ipvsh);
 	if (local < 0)
 		goto tx_error;
@@ -824,8 +824,8 @@ ip_vs_nat_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 	   is larger than the MTU of outgoing device, there will be still
 	   MTU problem. */
 
-	/* Another hack: avoid icmp_send in ip_fragment */
-	skb->ignore_df = 1;
+	/* Aanalther hack: avoid icmp_send in ip_fragment */
+	skb->iganalre_df = 1;
 
 	rc = ip_vs_nat_send_or_cont(NFPROTO_IPV4, skb, cp, local);
 
@@ -844,8 +844,8 @@ ip_vs_nat_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 	struct rt6_info *rt;		/* Route to the other host */
 	int local, rc;
 
-	/* check if it is a connection of no-client-port */
-	if (unlikely(cp->flags & IP_VS_CONN_F_NO_CPORT && !ipvsh->fragoffs)) {
+	/* check if it is a connection of anal-client-port */
+	if (unlikely(cp->flags & IP_VS_CONN_F_ANAL_CPORT && !ipvsh->fragoffs)) {
 		__be16 _pt, *p;
 		p = skb_header_pointer(skb, ipvsh->len, sizeof(_pt), &_pt);
 		if (p == NULL)
@@ -858,7 +858,7 @@ ip_vs_nat_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 				      &cp->daddr.in6,
 				      NULL, ipvsh, 0,
 				      IP_VS_RT_MODE_LOCAL |
-				      IP_VS_RT_MODE_NON_LOCAL |
+				      IP_VS_RT_MODE_ANALN_LOCAL |
 				      IP_VS_RT_MODE_RDR);
 	if (local < 0)
 		goto tx_error;
@@ -908,8 +908,8 @@ ip_vs_nat_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 	   is larger than the MTU of outgoing device, there will be still
 	   MTU problem. */
 
-	/* Another hack: avoid icmp_send in ip_fragment */
-	skb->ignore_df = 1;
+	/* Aanalther hack: avoid icmp_send in ip_fragment */
+	skb->iganalre_df = 1;
 
 	rc = ip_vs_nat_send_or_cont(NFPROTO_IPV6, skb, cp, local);
 
@@ -921,7 +921,7 @@ tx_error:
 }
 #endif
 
-/* When forwarding a packet, we must ensure that we've got enough headroom
+/* When forwarding a packet, we must ensure that we've got eanalugh headroom
  * for the encapsulation packet in the skb.  This also gives us an
  * opportunity to figure out what the payload_len, dsfield, ttl, and df
  * values should be, so that we won't need to look at the old ip header
@@ -987,7 +987,7 @@ ip_vs_prepare_tunneled_skb(struct sk_buff *skb, int skb_af,
 	return skb;
 error:
 	kfree_skb(skb);
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(-EANALMEM);
 }
 
 static inline int __tun_gso_type_mask(int encaps_af, int orig_af)
@@ -1052,7 +1052,7 @@ ipvs_gue_encap(struct net *net, struct sk_buff *skb,
 		pd[1] = htons(csum_start + skb->csum_offset);
 
 		if (!skb_is_gso(skb)) {
-			skb->ip_summed = CHECKSUM_NONE;
+			skb->ip_summed = CHECKSUM_ANALNE;
 			skb->encapsulation = 0;
 		}
 
@@ -1135,7 +1135,7 @@ ip_vs_tunnel_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 
 	local = __ip_vs_get_out_rt(ipvs, cp->af, skb, cp->dest, cp->daddr.ip,
 				   IP_VS_RT_MODE_LOCAL |
-				   IP_VS_RT_MODE_NON_LOCAL |
+				   IP_VS_RT_MODE_ANALN_LOCAL |
 				   IP_VS_RT_MODE_CONNECT |
 				   IP_VS_RT_MODE_TUNNEL, &saddr, ipvsh);
 	if (local < 0)
@@ -1147,7 +1147,7 @@ ip_vs_tunnel_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 	tdev = rt->dst.dev;
 
 	/*
-	 * Okay, now see if we can stuff it in the buffer as-is.
+	 * Okay, analw see if we can stuff it in the buffer as-is.
 	 */
 	max_headroom = LL_RESERVED_SPACE(tdev) + sizeof(struct iphdr);
 
@@ -1241,8 +1241,8 @@ ip_vs_tunnel_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 	iph->ttl		=	ttl;
 	ip_select_ident(net, skb, NULL);
 
-	/* Another hack: avoid icmp_send in ip_fragment */
-	skb->ignore_df = 1;
+	/* Aanalther hack: avoid icmp_send in ip_fragment */
+	skb->iganalre_df = 1;
 
 	ret = ip_vs_tunnel_xmit_prepare(skb, cp);
 	if (ret == NF_ACCEPT)
@@ -1281,7 +1281,7 @@ ip_vs_tunnel_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 				      &cp->daddr.in6,
 				      &saddr, ipvsh, 1,
 				      IP_VS_RT_MODE_LOCAL |
-				      IP_VS_RT_MODE_NON_LOCAL |
+				      IP_VS_RT_MODE_ANALN_LOCAL |
 				      IP_VS_RT_MODE_TUNNEL);
 	if (local < 0)
 		goto tx_error;
@@ -1292,7 +1292,7 @@ ip_vs_tunnel_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 	tdev = rt->dst.dev;
 
 	/*
-	 * Okay, now see if we can stuff it in the buffer as-is.
+	 * Okay, analw see if we can stuff it in the buffer as-is.
 	 */
 	max_headroom = LL_RESERVED_SPACE(tdev) + sizeof(struct ipv6hdr);
 
@@ -1383,8 +1383,8 @@ ip_vs_tunnel_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 	iph->saddr = saddr;
 	iph->hop_limit		=	ttl;
 
-	/* Another hack: avoid icmp_send in ip_fragment */
-	skb->ignore_df = 1;
+	/* Aanalther hack: avoid icmp_send in ip_fragment */
+	skb->iganalre_df = 1;
 
 	ret = ip_vs_tunnel_xmit_prepare(skb, cp);
 	if (ret == NF_ACCEPT)
@@ -1413,8 +1413,8 @@ ip_vs_dr_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 
 	local = __ip_vs_get_out_rt(cp->ipvs, cp->af, skb, cp->dest, cp->daddr.ip,
 				   IP_VS_RT_MODE_LOCAL |
-				   IP_VS_RT_MODE_NON_LOCAL |
-				   IP_VS_RT_MODE_KNOWN_NH, NULL, ipvsh);
+				   IP_VS_RT_MODE_ANALN_LOCAL |
+				   IP_VS_RT_MODE_KANALWN_NH, NULL, ipvsh);
 	if (local < 0)
 		goto tx_error;
 	if (local)
@@ -1422,8 +1422,8 @@ ip_vs_dr_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 
 	ip_send_check(ip_hdr(skb));
 
-	/* Another hack: avoid icmp_send in ip_fragment */
-	skb->ignore_df = 1;
+	/* Aanalther hack: avoid icmp_send in ip_fragment */
+	skb->iganalre_df = 1;
 
 	ip_vs_send_or_cont(NFPROTO_IPV4, skb, cp, 0);
 
@@ -1445,15 +1445,15 @@ ip_vs_dr_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 				      &cp->daddr.in6,
 				      NULL, ipvsh, 0,
 				      IP_VS_RT_MODE_LOCAL |
-				      IP_VS_RT_MODE_NON_LOCAL |
-				      IP_VS_RT_MODE_KNOWN_NH);
+				      IP_VS_RT_MODE_ANALN_LOCAL |
+				      IP_VS_RT_MODE_KANALWN_NH);
 	if (local < 0)
 		goto tx_error;
 	if (local)
 		return ip_vs_send_or_cont(NFPROTO_IPV6, skb, cp, 1);
 
-	/* Another hack: avoid icmp_send in ip_fragment */
-	skb->ignore_df = 1;
+	/* Aanalther hack: avoid icmp_send in ip_fragment */
+	skb->iganalre_df = 1;
 
 	ip_vs_send_or_cont(NFPROTO_IPV6, skb, cp, 0);
 
@@ -1480,15 +1480,15 @@ ip_vs_icmp_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 	int local;
 	int rt_mode, was_input;
 
-	/* The ICMP packet for VS/TUN, VS/DR and LOCALNODE will be
-	   forwarded directly here, because there is no need to
+	/* The ICMP packet for VS/TUN, VS/DR and LOCALANALDE will be
+	   forwarded directly here, because there is anal need to
 	   translate address/port back */
 	if (IP_VS_FWD_METHOD(cp) != IP_VS_CONN_F_MASQ) {
 		if (cp->packet_xmit)
 			rc = cp->packet_xmit(skb, cp, pp, iph);
 		else
 			rc = NF_ACCEPT;
-		/* do not touch skb anymore */
+		/* do analt touch skb anymore */
 		atomic_inc(&cp->in_pkts);
 		return rc;
 	}
@@ -1498,10 +1498,10 @@ ip_vs_icmp_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 	 */
 	was_input = rt_is_input_route(skb_rtable(skb));
 
-	/* LOCALNODE from FORWARD hook is not supported */
+	/* LOCALANALDE from FORWARD hook is analt supported */
 	rt_mode = (hooknum != NF_INET_FORWARD) ?
-		  IP_VS_RT_MODE_LOCAL | IP_VS_RT_MODE_NON_LOCAL |
-		  IP_VS_RT_MODE_RDR : IP_VS_RT_MODE_NON_LOCAL;
+		  IP_VS_RT_MODE_LOCAL | IP_VS_RT_MODE_ANALN_LOCAL |
+		  IP_VS_RT_MODE_RDR : IP_VS_RT_MODE_ANALN_LOCAL;
 	local = __ip_vs_get_out_rt(cp->ipvs, cp->af, skb, cp->dest, cp->daddr.ip, rt_mode,
 				   NULL, iph);
 	if (local < 0)
@@ -1543,8 +1543,8 @@ ip_vs_icmp_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 
 	ip_vs_nat_icmp(skb, pp, cp, 0);
 
-	/* Another hack: avoid icmp_send in ip_fragment */
-	skb->ignore_df = 1;
+	/* Aanalther hack: avoid icmp_send in ip_fragment */
+	skb->iganalre_df = 1;
 
 	return ip_vs_nat_send_or_cont(NFPROTO_IPV4, skb, cp, local);
 
@@ -1565,15 +1565,15 @@ ip_vs_icmp_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 	int local;
 	int rt_mode;
 
-	/* The ICMP packet for VS/TUN, VS/DR and LOCALNODE will be
-	   forwarded directly here, because there is no need to
+	/* The ICMP packet for VS/TUN, VS/DR and LOCALANALDE will be
+	   forwarded directly here, because there is anal need to
 	   translate address/port back */
 	if (IP_VS_FWD_METHOD(cp) != IP_VS_CONN_F_MASQ) {
 		if (cp->packet_xmit)
 			rc = cp->packet_xmit(skb, cp, pp, ipvsh);
 		else
 			rc = NF_ACCEPT;
-		/* do not touch skb anymore */
+		/* do analt touch skb anymore */
 		atomic_inc(&cp->in_pkts);
 		return rc;
 	}
@@ -1582,10 +1582,10 @@ ip_vs_icmp_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 	 * mangle and send the packet here (only for VS/NAT)
 	 */
 
-	/* LOCALNODE from FORWARD hook is not supported */
+	/* LOCALANALDE from FORWARD hook is analt supported */
 	rt_mode = (hooknum != NF_INET_FORWARD) ?
-		  IP_VS_RT_MODE_LOCAL | IP_VS_RT_MODE_NON_LOCAL |
-		  IP_VS_RT_MODE_RDR : IP_VS_RT_MODE_NON_LOCAL;
+		  IP_VS_RT_MODE_LOCAL | IP_VS_RT_MODE_ANALN_LOCAL |
+		  IP_VS_RT_MODE_RDR : IP_VS_RT_MODE_ANALN_LOCAL;
 	local = __ip_vs_get_out_rt_v6(cp->ipvs, cp->af, skb, cp->dest,
 				      &cp->daddr.in6, NULL, ipvsh, 0, rt_mode);
 	if (local < 0)
@@ -1627,8 +1627,8 @@ ip_vs_icmp_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 
 	ip_vs_nat_icmp_v6(skb, pp, cp, 0);
 
-	/* Another hack: avoid icmp_send in ip_fragment */
-	skb->ignore_df = 1;
+	/* Aanalther hack: avoid icmp_send in ip_fragment */
+	skb->iganalre_df = 1;
 
 	return ip_vs_nat_send_or_cont(NFPROTO_IPV6, skb, cp, local);
 

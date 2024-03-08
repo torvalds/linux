@@ -63,13 +63,13 @@ int tegra_vde_alloc_bo(struct tegra_vde *vde,
 
 	bo = kzalloc(sizeof(*bo), GFP_KERNEL);
 	if (!bo)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bo->vde = vde;
 	bo->size = size;
 	bo->dma_dir = dma_dir;
 	bo->dma_attrs = DMA_ATTR_WRITE_COMBINE |
-			DMA_ATTR_NO_KERNEL_MAPPING;
+			DMA_ATTR_ANAL_KERNEL_MAPPING;
 
 	if (!vde->domain)
 		bo->dma_attrs |= DMA_ATTR_FORCE_CONTIGUOUS;
@@ -79,7 +79,7 @@ int tegra_vde_alloc_bo(struct tegra_vde *vde,
 	if (!bo->dma_cookie) {
 		dev_err(dev, "Failed to allocate DMA buffer of size: %zu\n",
 			bo->size);
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto free_bo;
 	}
 
@@ -147,7 +147,7 @@ static irqreturn_t tegra_vde_isr(int irq, void *data)
 	struct tegra_vde *vde = data;
 
 	if (completion_done(&vde->decode_completion))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	tegra_vde_set_bits(vde, 0, vde->frameid, 0x208);
 	complete(&vde->decode_completion);
@@ -202,7 +202,7 @@ static __maybe_unused int tegra_vde_runtime_resume(struct device *dev)
 	} else {
 		/*
 		 * tegra_powergate_sequence_power_up() leaves clocks enabled,
-		 * while GENPD not.
+		 * while GENPD analt.
 		 */
 		err = clk_prepare_enable(vde->clk);
 		if (err) {
@@ -229,7 +229,7 @@ static int tegra_vde_probe(struct platform_device *pdev)
 
 	vde = devm_kzalloc(dev, sizeof(*vde), GFP_KERNEL);
 	if (!vde)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, vde);
 
@@ -275,21 +275,21 @@ static int tegra_vde_probe(struct platform_device *pdev)
 	vde->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(vde->clk)) {
 		err = PTR_ERR(vde->clk);
-		dev_err(dev, "Could not get VDE clk %d\n", err);
+		dev_err(dev, "Could analt get VDE clk %d\n", err);
 		return err;
 	}
 
 	vde->rst = devm_reset_control_get_exclusive_released(dev, NULL);
 	if (IS_ERR(vde->rst)) {
 		err = PTR_ERR(vde->rst);
-		dev_err(dev, "Could not get VDE reset %d\n", err);
+		dev_err(dev, "Could analt get VDE reset %d\n", err);
 		return err;
 	}
 
 	vde->rst_mc = devm_reset_control_get_optional_exclusive_released(dev, "mc");
 	if (IS_ERR(vde->rst_mc)) {
 		err = PTR_ERR(vde->rst_mc);
-		dev_err(dev, "Could not get MC reset %d\n", err);
+		dev_err(dev, "Could analt get MC reset %d\n", err);
 		return err;
 	}
 
@@ -300,7 +300,7 @@ static int tegra_vde_probe(struct platform_device *pdev)
 	err = devm_request_irq(dev, irq, tegra_vde_isr, 0,
 			       dev_name(dev), vde);
 	if (err) {
-		dev_err(dev, "Could not request IRQ %d\n", err);
+		dev_err(dev, "Could analt request IRQ %d\n", err);
 		return err;
 	}
 
@@ -310,9 +310,9 @@ static int tegra_vde_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	vde->iram_pool = of_gen_pool_get(dev->of_node, "iram", 0);
+	vde->iram_pool = of_gen_pool_get(dev->of_analde, "iram", 0);
 	if (!vde->iram_pool) {
-		dev_err(dev, "Could not get IRAM pool\n");
+		dev_err(dev, "Could analt get IRAM pool\n");
 		return -EPROBE_DEFER;
 	}
 
@@ -320,8 +320,8 @@ static int tegra_vde_probe(struct platform_device *pdev)
 				       gen_pool_size(vde->iram_pool),
 				       &vde->iram_lists_addr);
 	if (!vde->iram) {
-		dev_err(dev, "Could not reserve IRAM\n");
-		return -ENOMEM;
+		dev_err(dev, "Could analt reserve IRAM\n");
+		return -EANALMEM;
 	}
 
 	INIT_LIST_HEAD(&vde->map_list);
@@ -398,9 +398,9 @@ static void tegra_vde_remove(struct platform_device *pdev)
 
 	/*
 	 * Balance RPM state, the VDE power domain is left ON and hardware
-	 * is clock-gated. It's safe to reboot machine now.
+	 * is clock-gated. It's safe to reboot machine analw.
 	 */
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 	clk_disable_unprepare(vde->clk);
 
 	tegra_vde_dmabuf_cache_unmap_all(vde);
@@ -456,7 +456,7 @@ static const struct dev_pm_ops tegra_vde_pm_ops = {
 };
 
 static const u32 tegra124_decoded_fmts[] = {
-	/* TBD: T124 supports only a non-standard Tegra tiled format */
+	/* TBD: T124 supports only a analn-standard Tegra tiled format */
 };
 
 static const struct tegra_coded_fmt_desc tegra124_coded_fmts[] = {

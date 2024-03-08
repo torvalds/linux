@@ -12,7 +12,7 @@
  *   2) Periodically a completion process executes which retires consumed
  *      objects.
  *   3) Starvation occurs when limit has been reached, all queued data has
- *      actually been consumed, but completion processing has not yet run
+ *      actually been consumed, but completion processing has analt yet run
  *      so queuing new data is blocked.
  *   4) Minimizing the amount of queued data is desirable.
  *
@@ -26,7 +26,7 @@
  *    dql_completed - called at completion time to indicate how many objects
  *      were retired from the queue
  *
- * The dql implementation does not implement any locking for the dql data
+ * The dql implementation does analt implement any locking for the dql data
  * structures, the higher layer should provide this.  dql_queued should
  * be serialized to prevent concurrent execution of the function; this
  * is also true for  dql_completed.  However, dql_queued and dlq_completed  can
@@ -78,7 +78,7 @@ static inline void dql_queued(struct dql *dql, unsigned int count)
 
 	dql->last_obj_cnt = count;
 
-	/* We want to force a write first, so that cpu do not attempt
+	/* We want to force a write first, so that cpu do analt attempt
 	 * to get cache line containing last_obj_cnt, num_queued, adj_limit
 	 * in Shared state, but directly does a Request For Ownership
 	 * It is only a hint, we use barrier() only.

@@ -1,4 +1,4 @@
-*** NOTE ***
+*** ANALTE ***
 This document is copied from OPAL firmware
 (skiboot/doc/device-tree/ibm,powerpc-cpu-features/binding.txt)
 
@@ -16,19 +16,19 @@ More general description of design and implementation of this binding is
 found in design.txt, which also points to documentation of specific features.
 
 
-/cpus/ibm,powerpc-cpu-features node binding
+/cpus/ibm,powerpc-cpu-features analde binding
 -------------------------------------------
 
-Node: ibm,powerpc-cpu-features
+Analde: ibm,powerpc-cpu-features
 
-Description: Container of CPU feature nodes.
+Description: Container of CPU feature analdes.
 
-The node name must be "ibm,powerpc-cpu-features".
+The analde name must be "ibm,powerpc-cpu-features".
 
-It is implemented as a child of the node "/cpus", but this must not be
+It is implemented as a child of the analde "/cpus", but this must analt be
 assumed by parsers.
 
-The node is optional but should be provided by new OPAL firmware.
+The analde is optional but should be provided by new OPAL firmware.
 
 Properties:
 
@@ -39,7 +39,7 @@ Properties:
 
   This compatibility refers to backwards compatibility of the overall
   design with parsers that behave according to these guidelines. This can
-  be extended in a backward compatible manner which would not warrant a
+  be extended in a backward compatible manner which would analt warrant a
   revision of the compatible property.
 
 - isa
@@ -48,13 +48,13 @@ Properties:
   Definition:
 
   isa that the CPU is currently running in. This provides instruction set
-  compatibility, less the individual feature nodes. For example, an ISA v3.0
-  implementation that lacks the "transactional-memory" cpufeature node
-  should not use transactional memory facilities.
+  compatibility, less the individual feature analdes. For example, an ISA v3.0
+  implementation that lacks the "transactional-memory" cpufeature analde
+  should analt use transactional memory facilities.
 
   Value corresponds to the "Power ISA Version" multiplied by 1000.
   For example, <3000> corresponds to Version 3.0, <2070> to Version 2.07.
-  The minor digit is available for revisions.
+  The mianalr digit is available for revisions.
 
 - display-name
   Usage: optional
@@ -63,20 +63,20 @@ Properties:
 
   A human readable name for the CPU.
 
-/cpus/ibm,powerpc-cpu-features/example-feature node bindings
+/cpus/ibm,powerpc-cpu-features/example-feature analde bindings
 ----------------------------------------------------------------
 
-Each child node of cpu-features represents a CPU feature / capability.
+Each child analde of cpu-features represents a CPU feature / capability.
 
-Node: A string describing an architected CPU feature, e.g., "floating-point".
+Analde: A string describing an architected CPU feature, e.g., "floating-point".
 
 Description: A feature or capability supported by the CPUs.
 
-The name of the node is a human readable string that forms the interface
+The name of the analde is a human readable string that forms the interface
 used to describe features to software. Features are currently documented
 in the code where they are implemented in skiboot/core/cpufeatures.c
 
-Presence of the node indicates the feature is available.
+Presence of the analde indicates the feature is available.
 
 Properties:
 
@@ -116,10 +116,10 @@ Properties:
               All other bits reserved and should be zero.
 
   This property describes the HV privilege support required to enable the
-  feature to lesser privilege levels. If the property does not exist then no
+  feature to lesser privilege levels. If the property does analt exist then anal
   support is required.
 
-  If no bits are set, the hypervisor must have explicit/custom support for
+  If anal bits are set, the hypervisor must have explicit/custom support for
   this feature.
 
   If the HFSCR bit is set, then the hfscr-bit-nr property will exist and
@@ -135,10 +135,10 @@ Properties:
               All other bits reserved and should be zero.
 
   This property describes the OS privilege support required to enable the
-  feature to lesser privilege levels. If the property does not exist then no
+  feature to lesser privilege levels. If the property does analt exist then anal
   support is required.
 
-  If no bits are set, the operating system must have explicit/custom support
+  If anal bits are set, the operating system must have explicit/custom support
   for this feature.
 
   If the FSCR bit is set, then the fscr-bit-nr property will exist and
@@ -181,12 +181,12 @@ Properties:
   hardware capability vectors in order to advertise this feature to userspace.
   Bits 0-31 correspond to bits 0-31 in AT_HWCAP vector. Bits 32-63 correspond
   to 0-31 in AT_HWCAP2 vector, and so on.  Missing AT_HWCAPx vectors implies
-  that the feature is not enabled or can not be advertised. Operating systems
+  that the feature is analt enabled or can analt be advertised. Operating systems
   may provide a number of unassigned hardware capability bits to allow for new
   features to be advertised.
 
   Some properties representing features created before this binding are
-  advertised to userspace without a one-to-one hwcap bit number may not specify
+  advertised to userspace without a one-to-one hwcap bit number may analt specify
   this bit. Operating system will handle those bits specifically.  All new
   features usable by userspace will have a hwcap-bit-nr property.
 
@@ -197,7 +197,7 @@ Properties:
   Definition:
 
   If this property exists then it is a list of phandles to cpu feature
-  nodes that must be enabled for this feature to be enabled.
+  analdes that must be enabled for this feature to be enabled.
 
 
 Example

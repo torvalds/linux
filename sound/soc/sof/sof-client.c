@@ -7,7 +7,7 @@
 //
 
 #include <linux/debugfs.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
@@ -62,7 +62,7 @@ static int sof_client_dev_add_data(struct sof_client_dev *cdev, const void *data
 	if (data) {
 		d = kmemdup(data, size, GFP_KERNEL);
 		if (!d)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	cdev->auxdev.dev.platform_data = d;
@@ -130,7 +130,7 @@ static inline void sof_unregister_ipc_msg_injector(struct snd_sof_dev *sdev) {}
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_IPC_KERNEL_INJECTOR)
 static int sof_register_ipc_kernel_injector(struct snd_sof_dev *sdev)
 {
-	/* Only IPC3 supported right now */
+	/* Only IPC3 supported right analw */
 	if (sdev->pdata->ipc_type != SOF_IPC_TYPE_3)
 		return 0;
 
@@ -214,7 +214,7 @@ int sof_client_dev_register(struct snd_sof_dev *sdev, const char *name, u32 id,
 
 	cdev = kzalloc(sizeof(*cdev), GFP_KERNEL);
 	if (!cdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cdev->sdev = sdev;
 	auxdev = &cdev->auxdev;
@@ -318,7 +318,7 @@ int sof_client_ipc_rx_message(struct sof_client_dev *cdev, void *ipc_msg, void *
 		return 0;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 EXPORT_SYMBOL_NS_GPL(sof_client_ipc_rx_message, SND_SOC_SOF_CLIENT);
 
@@ -444,7 +444,7 @@ int sof_client_core_module_get(struct sof_client_dev *cdev)
 	struct snd_sof_dev *sdev = sof_client_dev_to_sof_dev(cdev);
 
 	if (!try_module_get(sdev->dev->driver->owner))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -471,9 +471,9 @@ void sof_client_ipc_rx_dispatcher(struct snd_sof_dev *sdev, void *msg_buf)
 	} else if (sdev->pdata->ipc_type == SOF_IPC_TYPE_4) {
 		struct sof_ipc4_msg *msg = msg_buf;
 
-		msg_type = SOF_IPC4_NOTIFICATION_TYPE_GET(msg->primary);
+		msg_type = SOF_IPC4_ANALTIFICATION_TYPE_GET(msg->primary);
 	} else {
-		dev_dbg_once(sdev->dev, "Not supported IPC version: %d\n",
+		dev_dbg_once(sdev->dev, "Analt supported IPC version: %d\n",
 			     sdev->pdata->ipc_type);
 		return;
 	}
@@ -502,17 +502,17 @@ int sof_client_register_ipc_rx_handler(struct sof_client_dev *cdev,
 		if (!(ipc_msg_type & SOF_GLB_TYPE_MASK))
 			return -EINVAL;
 	} else if (cdev->sdev->pdata->ipc_type == SOF_IPC_TYPE_4) {
-		if (!(ipc_msg_type & SOF_IPC4_NOTIFICATION_TYPE_MASK))
+		if (!(ipc_msg_type & SOF_IPC4_ANALTIFICATION_TYPE_MASK))
 			return -EINVAL;
 	} else {
-		dev_warn(sdev->dev, "%s: Not supported IPC version: %d\n",
+		dev_warn(sdev->dev, "%s: Analt supported IPC version: %d\n",
 			 __func__, sdev->pdata->ipc_type);
 		return -EINVAL;
 	}
 
 	event = kmalloc(sizeof(*event), GFP_KERNEL);
 	if (!event)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	event->ipc_msg_type = ipc_msg_type;
 	event->cdev = cdev;
@@ -547,7 +547,7 @@ void sof_client_unregister_ipc_rx_handler(struct sof_client_dev *cdev,
 }
 EXPORT_SYMBOL_NS_GPL(sof_client_unregister_ipc_rx_handler, SND_SOC_SOF_CLIENT);
 
-/*DSP state notification and query */
+/*DSP state analtification and query */
 void sof_client_fw_state_dispatcher(struct snd_sof_dev *sdev)
 {
 	struct sof_state_event_entry *event;
@@ -571,7 +571,7 @@ int sof_client_register_fw_state_handler(struct sof_client_dev *cdev,
 
 	event = kmalloc(sizeof(*event), GFP_KERNEL);
 	if (!event)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	event->cdev = cdev;
 	event->callback = callback;

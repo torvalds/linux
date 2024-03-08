@@ -17,7 +17,7 @@
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
 /*
  * On Book3E CPUs, the vmemmap is currently mapped in the top half of
- * the vmalloc space using normal page tables, though the size of
+ * the vmalloc space using analrmal page tables, though the size of
  * pages encoded in the PTEs can be different
  */
 int __meminit vmemmap_create_mapping(unsigned long start,
@@ -34,7 +34,7 @@ int __meminit vmemmap_create_mapping(unsigned long start,
 	/* Encode the size in the PTE */
 	flags |= mmu_psize_defs[mmu_vmemmap_psize].enc << 8;
 
-	/* For each PTE for that area, map things. Note that we don't
+	/* For each PTE for that area, map things. Analte that we don't
 	 * increment phys because all PTEs are of the large size and
 	 * thus must have the low bits clear
 	 */
@@ -57,7 +57,7 @@ static void __init *early_alloc_pgtable(unsigned long size)
 	void *ptr;
 
 	ptr = memblock_alloc_try_nid(size, size, MEMBLOCK_LOW_LIMIT,
-				     __pa(MAX_DMA_ADDRESS), NUMA_NO_NODE);
+				     __pa(MAX_DMA_ADDRESS), NUMA_ANAL_ANALDE);
 
 	if (!ptr)
 		panic("%s: Failed to allocate %lu bytes align=0x%lx max_addr=%lx\n",
@@ -85,22 +85,22 @@ int __ref map_kernel_page(unsigned long ea, phys_addr_t pa, pgprot_t prot)
 		p4dp = p4d_offset(pgdp, ea);
 		pudp = pud_alloc(&init_mm, p4dp, ea);
 		if (!pudp)
-			return -ENOMEM;
+			return -EANALMEM;
 		pmdp = pmd_alloc(&init_mm, pudp, ea);
 		if (!pmdp)
-			return -ENOMEM;
+			return -EANALMEM;
 		ptep = pte_alloc_kernel(pmdp, ea);
 		if (!ptep)
-			return -ENOMEM;
+			return -EANALMEM;
 	} else {
 		pgdp = pgd_offset_k(ea);
 		p4dp = p4d_offset(pgdp, ea);
-		if (p4d_none(*p4dp)) {
+		if (p4d_analne(*p4dp)) {
 			pudp = early_alloc_pgtable(PUD_TABLE_SIZE);
 			p4d_populate(&init_mm, p4dp, pudp);
 		}
 		pudp = pud_offset(p4dp, ea);
-		if (pud_none(*pudp)) {
+		if (pud_analne(*pudp)) {
 			pmdp = early_alloc_pgtable(PMD_TABLE_SIZE);
 			pud_populate(&init_mm, pudp, pmdp);
 		}
@@ -122,10 +122,10 @@ void __patch_exception(int exc, unsigned long addr)
 	unsigned int *ibase = &interrupt_base_book3e;
 
 	/*
-	 * Our exceptions vectors start with a NOP and -then- a branch
+	 * Our exceptions vectors start with a ANALP and -then- a branch
 	 * to deal with single stepping from userspace which stops on
 	 * the second instruction. Thus we need to patch the second
-	 * instruction of the exception, not the first one.
+	 * instruction of the exception, analt the first one.
 	 */
 
 	patch_branch(ibase + (exc / 4) + 1, addr, 0);

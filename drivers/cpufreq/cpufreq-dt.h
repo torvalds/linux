@@ -12,7 +12,7 @@
 struct cpufreq_policy;
 
 struct cpufreq_dt_platform_data {
-	bool have_governor_per_policy;
+	bool have_goveranalr_per_policy;
 
 	unsigned int	(*get_intermediate)(struct cpufreq_policy *policy,
 					    unsigned int index);

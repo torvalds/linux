@@ -40,7 +40,7 @@
 
 #define WAIOTTHVAL				25
 
-#define TXHIGHPWRLEVEL_NORMAL			0
+#define TXHIGHPWRLEVEL_ANALRMAL			0
 #define TXHIGHPWRLEVEL_LEVEL1			1
 #define TXHIGHPWRLEVEL_LEVEL2			2
 #define TXHIGHPWRLEVEL_BT1			3
@@ -92,7 +92,7 @@ enum dm_1r_cca_e {
 
 enum dm_rf_e {
 	RF_SAVE = 0,
-	RF_NORMAL = 1,
+	RF_ANALRMAL = 1,
 	RF_MAX = 2,
 };
 
@@ -108,7 +108,7 @@ void rtl92c_dm_write_dig(struct ieee80211_hw *hw);
 void rtl92c_dm_init_edca_turbo(struct ieee80211_hw *hw);
 void rtl92c_dm_check_txpower_tracking(struct ieee80211_hw *hw);
 void rtl92c_dm_init_rate_adaptive_mask(struct ieee80211_hw *hw);
-void rtl92c_dm_rf_saving(struct ieee80211_hw *hw, u8 bforce_in_normal);
+void rtl92c_dm_rf_saving(struct ieee80211_hw *hw, u8 bforce_in_analrmal);
 void rtl92c_phy_ap_calibrate(struct ieee80211_hw *hw, s8 delta);
 void rtl92c_phy_lc_calibrate(struct ieee80211_hw *hw);
 void rtl92c_phy_iq_calibrate(struct ieee80211_hw *hw, bool recovery);

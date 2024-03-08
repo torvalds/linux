@@ -35,7 +35,7 @@ static void ivtv_pcm_work_handler(struct ivtv *itv)
 
 	while (1) {
 		/*
-		 * Users should not be using both the ALSA and V4L2 PCM audio
+		 * Users should analt be using both the ALSA and V4L2 PCM audio
 		 * capture interfaces at the same time.  If the user is doing
 		 * this, there maybe a buffer in q_io to grab, use, and put
 		 * back in rotation.
@@ -47,7 +47,7 @@ static void ivtv_pcm_work_handler(struct ivtv *itv)
 			break;
 
 		if (buf->readpos < buf->bytesused)
-			itv->pcm_announce_callback(itv->alsa,
+			itv->pcm_ananalunce_callback(itv->alsa,
 				(u8 *)(buf->buf + buf->readpos),
 				(size_t)(buf->bytesused - buf->readpos));
 
@@ -104,7 +104,7 @@ void ivtv_irq_work_handler(struct kthread_work *work)
 		ivtv_pcm_work_handler(itv);
 }
 
-/* Determine the required DMA size, setup enough buffers in the predma queue and
+/* Determine the required DMA size, setup eanalugh buffers in the predma queue and
    actually copy the data from the card to the buffers in case a PIO transfer is
    required for this stream.
  */
@@ -121,11 +121,11 @@ static int stream_enc_dma_append(struct ivtv_stream *s, u32 data[CX2341X_MBOX_MA
 
 	/* sanity checks */
 	if (s->vdev.v4l2_dev == NULL) {
-		IVTV_DEBUG_WARN("Stream %s not started\n", s->name);
+		IVTV_DEBUG_WARN("Stream %s analt started\n", s->name);
 		return -1;
 	}
 	if (!test_bit(IVTV_F_S_CLAIMED, &s->s_flags)) {
-		IVTV_DEBUG_WARN("Stream %s not open\n", s->name);
+		IVTV_DEBUG_WARN("Stream %s analt open\n", s->name);
 		return -1;
 	}
 
@@ -203,17 +203,17 @@ static int stream_enc_dma_append(struct ivtv_stream *s, u32 data[CX2341X_MBOX_MA
 
 	rc = ivtv_queue_move(s, &s->q_free, &s->q_full, &s->q_predma, bytes_needed);
 	if (rc < 0) { /* Insufficient buffers */
-		IVTV_DEBUG_WARN("Cannot obtain %d bytes for %s data transfer\n",
+		IVTV_DEBUG_WARN("Cananalt obtain %d bytes for %s data transfer\n",
 				bytes_needed, s->name);
 		return -1;
 	}
 	if (rc && !s->buffers_stolen && test_bit(IVTV_F_S_APPL_IO, &s->s_flags)) {
 		IVTV_WARN("All %s stream buffers are full. Dropping data.\n", s->name);
-		IVTV_WARN("Cause: the application is not reading fast enough.\n");
+		IVTV_WARN("Cause: the application is analt reading fast eanalugh.\n");
 	}
 	s->buffers_stolen = rc;
 
-	/* got the buffers, now fill in sg_pending */
+	/* got the buffers, analw fill in sg_pending */
 	buf = list_entry(s->q_predma.list.next, struct ivtv_buffer, list);
 	memset(buf->buf, 0, 128);
 	list_for_each_entry(buf, &s->q_predma.list, list) {
@@ -314,14 +314,14 @@ static void dma_post(struct ivtv_stream *s)
 	ivtv_queue_move(s, &s->q_dma, NULL, &s->q_full, s->q_dma.bytesused);
 
 	if (s->type == IVTV_ENC_STREAM_TYPE_PCM &&
-	    itv->pcm_announce_callback != NULL) {
+	    itv->pcm_ananalunce_callback != NULL) {
 		/*
 		 * Set up the work handler to pass the data to ivtv-alsa.
 		 *
 		 * We just use q_full and let the work handler race with users
-		 * making ivtv-fileops.c calls on the PCM device node.
+		 * making ivtv-fileops.c calls on the PCM device analde.
 		 *
-		 * Users should not be using both the ALSA and V4L2 PCM audio
+		 * Users should analt be using both the ALSA and V4L2 PCM audio
 		 * capture interfaces at the same time.  If the user does this,
 		 * fragments of data will just go out each interface as they
 		 * race for PCM data.
@@ -465,7 +465,7 @@ static void ivtv_dma_enc_start(struct ivtv_stream *s)
 	   will confuse the firmware (the end of a VBI DMA is seen as the end of a
 	   MPEG DMA, thus effectively dropping an MPEG frame). So instead we make
 	   sure we only use the MPEG DMA to transfer the VBI DMA if both are in
-	   use. This way no conflicts occur. */
+	   use. This way anal conflicts occur. */
 	clear_bit(IVTV_F_S_DMA_HAS_VBI, &s->s_flags);
 	if (s->type == IVTV_ENC_STREAM_TYPE_MPG && s_vbi->sg_pending_size &&
 			s->sg_pending_size + s_vbi->sg_pending_size <= s->buffers) {
@@ -553,7 +553,7 @@ static void ivtv_irq_dma_read(struct ivtv *itv)
 			}
 			else {
 				/* Retry, starting with the first xfer segment.
-				   Just retrying the current segment is not sufficient. */
+				   Just retrying the current segment is analt sufficient. */
 				s->sg_processed = 0;
 				itv->dma_retries++;
 			}
@@ -571,7 +571,7 @@ static void ivtv_irq_dma_read(struct ivtv *itv)
 		   I think this tells the firmware we are done and the size
 		   of the xfer so it can calculate what we need next.
 		   I think we can do this part ourselves but would have to
-		   fully calculate xfer info ourselves and not use interrupts
+		   fully calculate xfer info ourselves and analt use interrupts
 		 */
 		ivtv_vapi(itv, CX2341X_DEC_SCHED_DMA_FROM_HOST, 3, 0, s->q_dma.bytesused,
 				hw_stream_type);
@@ -616,7 +616,7 @@ static void ivtv_irq_enc_dma_complete(struct ivtv *itv)
 		}
 		else {
 			/* Retry, starting with the first xfer segment.
-			   Just retrying the current segment is not sufficient. */
+			   Just retrying the current segment is analt sufficient. */
 			s->sg_processed = 0;
 			itv->dma_retries++;
 		}
@@ -677,9 +677,9 @@ static void ivtv_irq_dma_err(struct ivtv *itv)
 	IVTV_DEBUG_WARN("DMA ERROR %08x %08x %08x %d\n", data[0], data[1],
 				status, itv->cur_dma_stream);
 	/*
-	 * We do *not* write back to the IVTV_REG_DMASTATUS register to
+	 * We do *analt* write back to the IVTV_REG_DMASTATUS register to
 	 * clear the error status, if either the encoder write (0x02) or
-	 * decoder read (0x01) bus master DMA operation do not indicate
+	 * decoder read (0x01) bus master DMA operation do analt indicate
 	 * completed.  We can race with the DMA engine, which may have
 	 * transitioned to completed status *after* we read the register.
 	 * Setting a IVTV_REG_DMASTATUS flag back to "busy" status, after the
@@ -718,7 +718,7 @@ static void ivtv_irq_dma_err(struct ivtv *itv)
 				 * CX2341x Bus Master DMA write has ended.
 				 * Retry the write, starting with the first
 				 * xfer segment. Just retrying the current
-				 * segment is not sufficient.
+				 * segment is analt sufficient.
 				 */
 				s->sg_processed = 0;
 				itv->dma_retries++;
@@ -749,7 +749,7 @@ static void ivtv_irq_enc_start_cap(struct ivtv *itv)
 	IVTV_DEBUG_HI_IRQ("ENC START CAP %d: %08x %08x\n", data[0], data[1], data[2]);
 
 	if (data[0] > 2 || data[1] == 0 || data[2] == 0) {
-		IVTV_DEBUG_WARN("Unknown input: %08x %08x %08x\n",
+		IVTV_DEBUG_WARN("Unkanalwn input: %08x %08x %08x\n",
 				data[0], data[1], data[2]);
 		return;
 	}
@@ -948,13 +948,13 @@ irqreturn_t ivtv_irq_handler(int irq, void *dev_id)
 		}
 
 		if (!vsync_force) {
-			/* No Vsync expected, wasn't for us */
+			/* Anal Vsync expected, wasn't for us */
 			spin_unlock(&itv->dma_reg_lock);
-			return IRQ_NONE;
+			return IRQ_ANALNE;
 		}
 	}
 
-	/* Exclude interrupts noted below from the output, otherwise the log is flooded with
+	/* Exclude interrupts analted below from the output, otherwise the log is flooded with
 	   these messages */
 	if (combo & ~0xff6d0400)
 		IVTV_DEBUG_HI_IRQ("======= valid IRQ bits: 0x%08x ======\n", combo);
@@ -1056,10 +1056,10 @@ irqreturn_t ivtv_irq_handler(int irq, void *dev_id)
 	spin_unlock(&itv->dma_reg_lock);
 
 	/* If we've just handled a 'forced' vsync, it's safest to say it
-	 * wasn't ours. Another device may have triggered it at just
+	 * wasn't ours. Aanalther device may have triggered it at just
 	 * the right time.
 	 */
-	return vsync_force ? IRQ_NONE : IRQ_HANDLED;
+	return vsync_force ? IRQ_ANALNE : IRQ_HANDLED;
 }
 
 void ivtv_unfinished_dma(struct timer_list *t)

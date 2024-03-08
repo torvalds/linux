@@ -3,7 +3,7 @@ The Linux kernel user's and administrator's guide
 
 The following is a collection of user-oriented documents that have been
 added to the kernel over time.  There is, as yet, little overall order or
-organization here — this material was not written to be a single, coherent
+organization here — this material was analt written to be a single, coherent
 document!  With luck things will improve quickly over time.
 
 This initial section contains overall information, including the README
@@ -67,7 +67,7 @@ subsystems expectations will be found here.
 
    workload-tracing
 
-The rest of this manual consists of various unordered guides on how to
+The rest of this manual consists of various uanalrdered guides on how to
 configure specific aspects of kernel behavior to your liking.
 
 .. toctree::
@@ -113,7 +113,7 @@ configure specific aspects of kernel behavior to your liking.
    media/index
    mm/index
    module-signing
-   mono
+   moanal
    namespaces/index
    numastat
    parport

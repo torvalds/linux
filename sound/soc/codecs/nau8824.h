@@ -2,7 +2,7 @@
 /*
  * NAU88L24 ALSA SoC audio driver
  *
- * Copyright 2016 Nuvoton Technology Corp.
+ * Copyright 2016 Nuvoton Techanallogy Corp.
  * Author: John Hsu <KCHSU0@nuvoton.com>
  */
 
@@ -41,8 +41,8 @@
 #define NAU8824_REG_ADC_FILTER_CTRL		0x24
 #define NAU8824_REG_DAC_FILTER_CTRL_1	0x25
 #define NAU8824_REG_DAC_FILTER_CTRL_2	0x26
-#define NAU8824_REG_NOTCH_FILTER_1		0x27
-#define NAU8824_REG_NOTCH_FILTER_2		0x28
+#define NAU8824_REG_ANALTCH_FILTER_1		0x27
+#define NAU8824_REG_ANALTCH_FILTER_2		0x28
 #define NAU8824_REG_EQ1_LOW			0x29
 #define NAU8824_REG_EQ2_EQ3			0x2A
 #define NAU8824_REG_EQ4_EQ5			0x2B
@@ -406,7 +406,7 @@
 #define NAU8824_FEPGA_GAINL_MASK	0x1f
 
 /* CHARGE_PUMP_CONTROL (0x80) */
-#define NAU8824_JAMNODCLOW		(0x1 << 15)
+#define NAU8824_JAMANALDCLOW		(0x1 << 15)
 #define NAU8824_SPKR_PULL_DOWN	(0x1 << 13)
 #define NAU8824_SPKL_PULL_DOWN	(0x1 << 12)
 #define NAU8824_POWER_DOWN_DACR	(0x1 << 9)

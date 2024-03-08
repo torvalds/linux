@@ -2,15 +2,15 @@
 /* Typhoon Radio Card driver for radio support
  * (c) 1999 Dr. Henrik Seidel <Henrik.Seidel@gmx.de>
  *
- * Notes on the hardware
+ * Analtes on the hardware
  *
  * This card has two output sockets, one for speakers and one for line.
  * The speaker output has volume control, but only in four discrete
- * steps. The line output has neither volume control nor mute.
+ * steps. The line output has neither volume control analr mute.
  *
  * The card has auto-stereo according to its manual, although it all
- * sounds mono to me (even with the Win/DOS drivers). Maybe it's my
- * antenna - I really don't know for sure.
+ * sounds moanal to me (even with the Win/DOS drivers). Maybe it's my
+ * antenna - I really don't kanalw for sure.
  *
  * Frequency control is done digitally.
  *
@@ -18,11 +18,11 @@
  * possible values. So you should better always turn the volume up and
  * use line control. I got the best results by connecting line output
  * to the sound card microphone input. For such a configuration the
- * volume control has no effect, since volume control only influences
+ * volume control has anal effect, since volume control only influences
  * the speaker output.
  *
- * There is no explicit mute/unmute. So I set the radio frequency to a
- * value where I do expect just noise and turn the speaker volume down.
+ * There is anal explicit mute/unmute. So I set the radio frequency to a
+ * value where I do expect just analise and turn the speaker volume down.
  * The frequency change is necessary since the card never seems to be
  * completely silent.
  *
@@ -86,13 +86,13 @@ static int typhoon_s_frequency(struct radio_isa_card *isa, u32 freq)
 	unsigned long x;
 
 	/*
-	 * The frequency transfer curve is not linear. The best fit I could
+	 * The frequency transfer curve is analt linear. The best fit I could
 	 * get is
 	 *
 	 * outval = -155 + exp((f + 15.55) * 0.057))
 	 *
 	 * where frequency f is in MHz. Since we don't have exp in the kernel,
-	 * I approximate this function by a third order polynomial.
+	 * I approximate this function by a third order polyanalmial.
 	 *
 	 */
 
@@ -165,7 +165,7 @@ static int __init typhoon_init(void)
 				typhoon_driver.driver.driver.name);
 		printk(KERN_ERR "%s: e.g. with \"mutefreq=87500\" (87000 <= mutefreq <= 108000)\n",
 				typhoon_driver.driver.driver.name);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	return isa_register_driver(&typhoon_driver.driver, TYPHOON_MAX);
 }

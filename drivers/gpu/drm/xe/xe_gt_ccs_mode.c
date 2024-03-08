@@ -124,7 +124,7 @@ ccs_mode_store(struct device *kdev, struct device_attribute *attr,
 		return -EINVAL;
 	}
 
-	/* CCS mode can only be updated when there are no drm clients */
+	/* CCS mode can only be updated when there are anal drm clients */
 	spin_lock(&xe->clients.lock);
 	if (xe->clients.count) {
 		spin_unlock(&xe->clients.lock);
@@ -164,7 +164,7 @@ static void xe_gt_ccs_mode_sysfs_fini(struct drm_device *drm, void *arg)
  * Through a per-gt 'ccs_mode' sysfs interface, the user can enable a fixed
  * number of compute hardware engines to which the available compute slices
  * are to be allocated. This user configuration change triggers a gt reset
- * and it is expected that there are no open drm clients while doing so.
+ * and it is expected that there are anal open drm clients while doing so.
  * The number of available compute slices is exposed to user through a per-gt
  * 'num_cslices' sysfs interface.
  */

@@ -11,12 +11,12 @@
 #include <linux/spinlock.h>
 #include <linux/writeback.h>
 #include "incore.h"
-#include "inode.h"
+#include "ianalde.h"
 
 /*
  * The minimum amount of log space required for a log flush is one block for
  * revokes and one block for the log header.  Log flushes other than
- * GFS2_LOG_HEAD_FLUSH_NORMAL may write one or two more log headers.
+ * GFS2_LOG_HEAD_FLUSH_ANALRMAL may write one or two more log headers.
  */
 #define GFS2_LOG_FLUSH_MIN_BLOCKS 4
 
@@ -55,9 +55,9 @@ static inline void gfs2_log_pointers_init(struct gfs2_sbd *sdp,
 	sdp->sd_log_head = value;
 }
 
-static inline void gfs2_ordered_add_inode(struct gfs2_inode *ip)
+static inline void gfs2_ordered_add_ianalde(struct gfs2_ianalde *ip)
 {
-	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
+	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_ianalde);
 
 	if (gfs2_is_jdata(ip) || !gfs2_is_ordered(sdp))
 		return;
@@ -70,7 +70,7 @@ static inline void gfs2_ordered_add_inode(struct gfs2_inode *ip)
 	}
 }
 
-void gfs2_ordered_del_inode(struct gfs2_inode *ip);
+void gfs2_ordered_del_ianalde(struct gfs2_ianalde *ip);
 unsigned int gfs2_struct2blk(struct gfs2_sbd *sdp, unsigned int nstruct);
 void gfs2_remove_from_ail(struct gfs2_bufdata *bd);
 bool gfs2_log_is_empty(struct gfs2_sbd *sdp);

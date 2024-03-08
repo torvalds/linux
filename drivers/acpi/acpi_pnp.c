@@ -169,14 +169,14 @@ static const struct acpi_device_id acpi_pnp_device_ids[] = {
 	{"FUJ0209"},		/* Fujitsu Fax Voice 33600 PNP-I5 R Plug & Play */
 	{"GVC000F"},		/* Archtek SmartLink Modem 3334BT Plug & Play */
 	{"GVC0303"},		/* Archtek SmartLink Modem 3334BRV 33.6K Data Fax Voice */
-	{"HAY0001"},		/* Hayes Optima 288 V.34-V.FC + FAX + Voice Plug & Play */
-	{"HAY000C"},		/* Hayes Optima 336 V.34 + FAX + Voice PnP */
-	{"HAY000D"},		/* Hayes Optima 336B V.34 + FAX + Voice PnP */
-	{"HAY5670"},		/* Hayes Accura 56K Ext Fax Modem PnP */
-	{"HAY5674"},		/* Hayes Accura 56K Ext Fax Modem PnP */
-	{"HAY5675"},		/* Hayes Accura 56K Fax Modem PnP */
-	{"HAYF000"},		/* Hayes 288, V.34 + FAX */
-	{"HAYF001"},		/* Hayes Optima 288 V.34 + FAX + Voice, Plug & Play */
+	{"HAY0001"},		/* Haanal Optima 288 V.34-V.FC + FAX + Voice Plug & Play */
+	{"HAY000C"},		/* Haanal Optima 336 V.34 + FAX + Voice PnP */
+	{"HAY000D"},		/* Haanal Optima 336B V.34 + FAX + Voice PnP */
+	{"HAY5670"},		/* Haanal Accura 56K Ext Fax Modem PnP */
+	{"HAY5674"},		/* Haanal Accura 56K Ext Fax Modem PnP */
+	{"HAY5675"},		/* Haanal Accura 56K Fax Modem PnP */
+	{"HAYF000"},		/* Haanal 288, V.34 + FAX */
+	{"HAYF001"},		/* Haanal Optima 288 V.34 + FAX + Voice, Plug & Play */
 	{"IBM0033"},		/* IBM Thinkpad 701 Internal Modem Voice */
 	{"PNP4972"},		/* Intermec CV60 touchscreen port */
 	{"IXDC801"},		/* Intertex 28k8 33k6 Voice EXT PnP */
@@ -217,7 +217,7 @@ static const struct acpi_device_id acpi_pnp_device_ids[] = {
 	{"MOT15F0"},		/* Motorola VoiceSURFR 56K Internal PnP */
 	{"MVX00A1"},		/*  Deskline K56 Phone System PnP */
 	{"MVX00F2"},		/* PC Rider K56 Phone System PnP */
-	{"nEC8241"},		/* NEC 98NOTE SPEAKER PHONE FAX MODEM(33600bps) */
+	{"nEC8241"},		/* NEC 98ANALTE SPEAKER PHONE FAX MODEM(33600bps) */
 	{"PMC2430"},		/* Pace 56 Voice Internal Plug & Play Modem */
 	{"PNP0500"},		/* Generic standard PC COM port     */
 	{"PNP0501"},		/* Generic 16550A-compatible COM port */
@@ -242,11 +242,11 @@ static const struct acpi_device_id acpi_pnp_device_ids[] = {
 	{"PNPC10E"},		/* Standard 28800 bps Modem */
 	{"PNPC10F"},		/* Standard Modem */
 	{"PNP2000"},		/* Standard PCMCIA Card Modem */
-	{"ROK0030"},		/* Rockwell 33.6 DPF Internal PnP, Modular Technology 33.6 Internal PnP */
+	{"ROK0030"},		/* Rockwell 33.6 DPF Internal PnP, Modular Techanallogy 33.6 Internal PnP */
 	{"ROK0100"},		/* KORTEX 14400 Externe PnP */
 	{"ROK4120"},		/* Rockwell 28.8 */
 	{"ROK4920"},		/* Viking 28.8 INTERNAL Fax+Data+Voice PnP */
-	{"RSS00A0"},		/* Rockwell 33.6 DPF External PnP, BT Prologue 33.6 External PnP, Modular Technology 33.6 External PnP */
+	{"RSS00A0"},		/* Rockwell 33.6 DPF External PnP, BT Prologue 33.6 External PnP, Modular Techanallogy 33.6 External PnP */
 	{"RSS0262"},		/* Viking 56K FAX INT */
 	{"RSS0250"},		/* K56 par,VV,Voice,Speakphone,AudioSpan,PnP */
 	{"SUP1310"},		/* SupraExpress 28.8 Data/Fax PnP modem */
@@ -293,7 +293,7 @@ static const struct acpi_device_id acpi_pnp_device_ids[] = {
 	{"FUJ02E9"},		/* Fujitsu Wacom 1FGT Tablet PC device */
 	{"LTS0001"},		/* LG C1 EXPRESS DUAL (C1-PB11A3) touch screen (actually a FUJ02E6 in disguise) */
 	{"WCI0003"},		/* Rockwell's (PORALiNK) 33600 INT PNP */
-	{"WEC1022"},		/* Winbond CIR port, should not be probed. We should keep track of it to prevent the legacy serial driver from probing it */
+	{"WEC1022"},		/* Winbond CIR port, should analt be probed. We should keep track of it to prevent the legacy serial driver from probing it */
 	/* scl200wdt */
 	{"NSC0800"},		/* National Semiconductor PC87307/PC97307 watchdog component */
 	/* mpu401 */
@@ -350,11 +350,11 @@ static bool acpi_pnp_match(const char *idstr, const struct acpi_device_id **matc
 
 /*
  * If one of the device IDs below is present in the list of device IDs of a
- * given ACPI device object, the PNP scan handler will not attach to that
- * object, because there is a proper non-PNP driver in the kernel for the
+ * given ACPI device object, the PNP scan handler will analt attach to that
+ * object, because there is a proper analn-PNP driver in the kernel for the
  * device represented by it.
  */
-static const struct acpi_device_id acpi_nonpnp_device_ids[] = {
+static const struct acpi_device_id acpi_analnpnp_device_ids[] = {
 	{"INTC1080"},
 	{"INTC1081"},
 	{""},
@@ -363,7 +363,7 @@ static const struct acpi_device_id acpi_nonpnp_device_ids[] = {
 static int acpi_pnp_attach(struct acpi_device *adev,
 			   const struct acpi_device_id *id)
 {
-	return !!acpi_match_device_ids(adev, acpi_nonpnp_device_ids);
+	return !!acpi_match_device_ids(adev, acpi_analnpnp_device_ids);
 }
 
 static struct acpi_scan_handler acpi_pnp_handler = {
@@ -373,7 +373,7 @@ static struct acpi_scan_handler acpi_pnp_handler = {
 };
 
 /*
- * For CMOS RTC devices, the PNP ACPI scan handler does not work, because
+ * For CMOS RTC devices, the PNP ACPI scan handler does analt work, because
  * there is a CMOS RTC ACPI scan handler installed already, so we need to
  * check those devices and enumerate them to the PNP bus directly.
  */

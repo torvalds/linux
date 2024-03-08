@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Mellanox watchdog driver
+ * Mellaanalx watchdog driver
  *
- * Copyright (C) 2019 Mellanox Technologies
- * Copyright (C) 2019 Michael Shych <mshych@mellanox.com>
+ * Copyright (C) 2019 Mellaanalx Techanallogies
+ * Copyright (C) 2019 Michael Shych <mshych@mellaanalx.com>
  */
 
 #include <linux/bitops.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/log2.h>
 #include <linux/module.h>
 #include <linux/platform_data/mlxreg.h>
@@ -289,7 +289,7 @@ static int mlxreg_wdt_probe(struct platform_device *pdev)
 	}
 	wdt = devm_kzalloc(dev, sizeof(*wdt), GFP_KERNEL);
 	if (!wdt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wdt->wdd.parent = dev;
 	wdt->regmap = pdata->regmap;
@@ -300,8 +300,8 @@ static int mlxreg_wdt_probe(struct platform_device *pdev)
 	wdt->regmap_val_sz = rc;
 	mlxreg_wdt_config(wdt, pdata);
 
-	if ((pdata->features & MLXREG_CORE_WD_FEATURE_NOWAYOUT))
-		watchdog_set_nowayout(&wdt->wdd, WATCHDOG_NOWAYOUT);
+	if ((pdata->features & MLXREG_CORE_WD_FEATURE_ANALWAYOUT))
+		watchdog_set_analwayout(&wdt->wdd, WATCHDOG_ANALWAYOUT);
 	watchdog_stop_on_reboot(&wdt->wdd);
 	watchdog_stop_on_unregister(&wdt->wdd);
 	watchdog_set_drvdata(&wdt->wdd, wdt);
@@ -320,7 +320,7 @@ static int mlxreg_wdt_probe(struct platform_device *pdev)
 
 register_error:
 	if (rc)
-		dev_err(dev, "Cannot register watchdog device (err=%d)\n", rc);
+		dev_err(dev, "Cananalt register watchdog device (err=%d)\n", rc);
 	return rc;
 }
 
@@ -333,7 +333,7 @@ static struct platform_driver mlxreg_wdt_driver = {
 
 module_platform_driver(mlxreg_wdt_driver);
 
-MODULE_AUTHOR("Michael Shych <michaelsh@mellanox.com>");
-MODULE_DESCRIPTION("Mellanox watchdog driver");
+MODULE_AUTHOR("Michael Shych <michaelsh@mellaanalx.com>");
+MODULE_DESCRIPTION("Mellaanalx watchdog driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:mlx-wdt");

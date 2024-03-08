@@ -12,13 +12,13 @@ system calls, as well as constants and structures to be used with these
 system calls.  The C library's header files include the kernel header files
 from the "linux" subdirectory.  The system's libc headers are usually
 installed at the default location /usr/include and the kernel headers in
-subdirectories under that (most notably /usr/include/linux and
+subdirectories under that (most analtably /usr/include/linux and
 /usr/include/asm).
 
-Kernel headers are backwards compatible, but not forwards compatible.  This
+Kernel headers are backwards compatible, but analt forwards compatible.  This
 means that a program built against a C library using older kernel headers
-should run on a newer kernel (although it may not have access to new
-features), but a program built against newer kernel headers may not work on an
+should run on a newer kernel (although it may analt have access to new
+features), but a program built against newer kernel headers may analt work on an
 older kernel.
 
 The "make headers_install" command can be run in the top level directory of the

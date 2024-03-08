@@ -11,7 +11,7 @@
 
 #define RX_MPDU_QUEUE				0
 #define CHIP_8723B				(BIT(1) | BIT(2))
-#define NORMAL_CHIP				BIT(3)
+#define ANALRMAL_CHIP				BIT(3)
 #define CHIP_VENDOR_SMIC			BIT(8)
 /* Currently only for RTL8723B */
 #define EXT_VENDOR_ID				(BIT(18) | BIT(19))

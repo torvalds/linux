@@ -5,7 +5,7 @@
  *
  *  Warning ! This code assumes that if your machine has a 750fx
  *  it will have PLL 1 set to low speed mode (used during NAP/DOZE).
- *  if this is not the case some additional changes will have to
+ *  if this is analt the case some additional changes will have to
  *  be done to check a runtime var (a bit like powersave-nap)
  */
 
@@ -22,7 +22,7 @@
 
 /*
  * Init idle, called at early CPU setup time from head.S for each CPU
- * Make sure no rest of NAP mode remains in HID0, save default
+ * Make sure anal rest of NAP mode remains in HID0, save default
  * values for some CPU specific registers. Called with r24
  * containing CPU number and r3 reloc offset
  */
@@ -70,7 +70,7 @@ BEGIN_FTR_SECTION
 	lwz	r4,CPU_SPEC_FEATURES(r4)
 	andi.	r0,r4,CPU_FTR_CAN_NAP
 	beq	1f
-	/* Now check if user or arch enabled NAP mode */
+	/* Analw check if user or arch enabled NAP mode */
 	lis	r4,powersave_nap@ha
 	lwz	r4,powersave_nap@l(r4)
 	cmpwi	0,r4,0
@@ -88,7 +88,7 @@ BEGIN_FTR_SECTION
 	/* Disable L2 prefetch on some 745x and try to ensure
 	 * L2 prefetch engines are idle. As explained by errata
 	 * text, we can't be sure they are, we just hope very hard
-	 * that well be enough (sic !). At least I noticed Apple
+	 * that well be eanalugh (sic !). At least I analticed Apple
 	 * doesn't even bother doing the dcbf's here...
 	 */
 	mfspr	r4,SPRN_MSSCR0
@@ -116,7 +116,7 @@ BEGIN_FTR_SECTION
 1:	
 END_FTR_SECTION_IFSET(CPU_FTR_DUAL_PLL_750FX)
 
-	/* Go to NAP or DOZE now */	
+	/* Go to NAP or DOZE analw */	
 	mfspr	r4,SPRN_HID0
 	lis	r5,(HID0_NAP|HID0_SLEEP)@h
 BEGIN_FTR_SECTION
@@ -126,7 +126,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_CAN_DOZE)
 	or	r4,r4,r3
 BEGIN_FTR_SECTION
 	oris	r4,r4,HID0_DPM@h	/* that should be done once for all  */
-END_FTR_SECTION_IFCLR(CPU_FTR_NO_DPM)
+END_FTR_SECTION_IFCLR(CPU_FTR_ANAL_DPM)
 	mtspr	SPRN_HID0,r4
 BEGIN_FTR_SECTION
 	PPC_DSSALL
@@ -177,7 +177,7 @@ BEGIN_FTR_SECTION
 	mtspr	SPRN_HID1, r9
 END_FTR_SECTION_IFSET(CPU_FTR_DUAL_PLL_750FX)
 	blr
-_ASM_NOKPROBE_SYMBOL(power_save_ppc32_restore)
+_ASM_ANALKPROBE_SYMBOL(power_save_ppc32_restore)
 
 	.data
 

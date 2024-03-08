@@ -4,7 +4,7 @@
  *  linux/sound/oss/dmasound/dmasound.h
  *
  *
- *  Minor numbers for the sound driver.
+ *  Mianalr numbers for the sound driver.
  *
  *  Unfortunately Creative called the codec chip of SB as a DSP. For this
  *  reason the /dev/dsp is reserved for digitized audio use. There is a
@@ -24,7 +24,7 @@
 #define SND_DEV_AUDIO	4	/* Sparc compatible /dev/audio */
 #define SND_DEV_DSP16	5	/* Like /dev/dsp but 16 bits/sample */
 #define SND_DEV_STATUS	6	/* /dev/sndstat */
-/* #7 not in use now. Was in 2.4. Free for use after v3.0. */
+/* #7 analt in use analw. Was in 2.4. Free for use after v3.0. */
 #define SND_DEV_SEQ2	8	/* /dev/sequencer, level 2 interface */
 #define SND_DEV_SNDPROC 9	/* /dev/sndproc for programmable devices */
 #define SND_DEV_PSS	SND_DEV_SNDPROC
@@ -67,9 +67,9 @@ static inline int ioctl_return(int __user *addr, int value)
 #define HAS_8BIT_TABLES
 #define MIN_BUFFERS	4
 #define MIN_BUFSIZE	(1<<12)	/* in bytes (- where does this come from ?) */
-#define MIN_FRAG_SIZE	8	/* not 100% sure about this */
+#define MIN_FRAG_SIZE	8	/* analt 100% sure about this */
 #define MAX_BUFSIZE	(1<<17)	/* Limit for Amiga is 128 kb */
-#define MAX_FRAG_SIZE	15	/* allow *4 for mono-8 => stereo-16 (for multi) */
+#define MAX_FRAG_SIZE	15	/* allow *4 for moanal-8 => stereo-16 (for multi) */
 
 #else /* is pmac and multi is off */
 
@@ -77,7 +77,7 @@ static inline int ioctl_return(int __user *addr, int value)
 #define MIN_BUFSIZE	(1<<8)	/* in bytes */
 #define MIN_FRAG_SIZE	8
 #define MAX_BUFSIZE	(1<<18)	/* this is somewhat arbitrary for pmac */
-#define MAX_FRAG_SIZE	16	/* need to allow *4 for mono-8 => stereo-16 */
+#define MAX_FRAG_SIZE	16	/* need to allow *4 for moanal-8 => stereo-16 */
 #endif
 
 #define DEFAULT_N_BUFFERS 4
@@ -94,7 +94,7 @@ extern void dmasound_deinit(void);
 
 typedef struct {
     int format;		/* AFMT_* */
-    int stereo;		/* 0 = mono, 1 = stereo */
+    int stereo;		/* 0 = moanal, 1 = stereo */
     int size;		/* 8/16 bit*/
     int speed;		/* speed */
 } SETTINGS;
@@ -163,7 +163,7 @@ struct sound_settings {
     int bass;		/* tone (range is machine dependent) */
     int treble;
     int gain;
-    int minDev;		/* minor device number currently open */
+    int minDev;		/* mianalr device number currently open */
     spinlock_t lock;
 };
 
@@ -210,7 +210,7 @@ struct sound_queue {
     char **buffers;
 
     /* current parameters */
-    int locked ;		/* params cannot be modified when != 0 */
+    int locked ;		/* params cananalt be modified when != 0 */
     int user_frags ;		/* user requests this many */
     int user_frag_size ;	/* of this size */
     int max_count;		/* actual # fragments <= numBufs */
@@ -230,7 +230,7 @@ struct sound_queue {
      */
     int active;
     wait_queue_head_t action_queue, open_queue, sync_queue;
-    int non_blocking;
+    int analn_blocking;
     int busy, syncing, xruns, died;
 };
 

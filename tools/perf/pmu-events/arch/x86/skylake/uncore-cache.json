@@ -90,7 +90,7 @@
         "Unit": "CBOX"
     },
     {
-        "BriefDescription": "A cross-core snoop initiated by this Cbox due to processor core memory request which hits a modified line in some processor core.",
+        "BriefDescription": "A cross-core sanalop initiated by this Cbox due to processor core memory request which hits a modified line in some processor core.",
         "EventCode": "0x22",
         "EventName": "UNC_CBO_XSNP_RESPONSE.HITM_XCORE",
         "PerPkg": "1",
@@ -98,7 +98,7 @@
         "Unit": "CBOX"
     },
     {
-        "BriefDescription": "A cross-core snoop initiated by this Cbox due to processor core memory request which hits a non-modified line in some processor core.",
+        "BriefDescription": "A cross-core sanalop initiated by this Cbox due to processor core memory request which hits a analn-modified line in some processor core.",
         "EventCode": "0x22",
         "EventName": "UNC_CBO_XSNP_RESPONSE.HIT_XCORE",
         "PerPkg": "1",
@@ -106,7 +106,7 @@
         "Unit": "CBOX"
     },
     {
-        "BriefDescription": "A cross-core snoop resulted from L3 Eviction which misses in some processor core.",
+        "BriefDescription": "A cross-core sanalop resulted from L3 Eviction which misses in some processor core.",
         "EventCode": "0x22",
         "EventName": "UNC_CBO_XSNP_RESPONSE.MISS_EVICTION",
         "PerPkg": "1",
@@ -114,7 +114,7 @@
         "Unit": "CBOX"
     },
     {
-        "BriefDescription": "A cross-core snoop initiated by this Cbox due to processor core memory request which misses in some processor core.",
+        "BriefDescription": "A cross-core sanalop initiated by this Cbox due to processor core memory request which misses in some processor core.",
         "EventCode": "0x22",
         "EventName": "UNC_CBO_XSNP_RESPONSE.MISS_XCORE",
         "PerPkg": "1",

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2018 Cambridge Greys Ltd
- * Copyright (C) 2015-2016 Anton Ivanov (aivanov@brocade.com)
+ * Copyright (C) 2015-2016 Anton Ivaanalv (aivaanalv@brocade.com)
  * Copyright (C) 2000 Jeff Dike (jdike@karaya.com)
  */
 
@@ -11,7 +11,7 @@
  * 2002-09-27...2002-10-18 massive tinkering for 2.5
  * partitions have changed in 2.5
  * 2003-01-29 more tinkering for 2.5.59-1
- * This should now address the sysfs problems and has
+ * This should analw address the sysfs problems and has
  * the symlink for devfs to allow for booting with
  * the common /dev/ubd/discX/... names rather than
  * only /dev/ubdN/discN this version also has lots of
@@ -106,7 +106,7 @@ static inline void ubd_set_bit(__u64 bit, unsigned char *data)
 #define DRIVER_NAME "uml-blkdev"
 
 static DEFINE_MUTEX(ubd_lock);
-static DEFINE_MUTEX(ubd_mutex); /* replaces BKL, might not be needed */
+static DEFINE_MUTEX(ubd_mutex); /* replaces BKL, might analt be needed */
 
 static int ubd_open(struct gendisk *disk, blk_mode_t mode);
 static void ubd_release(struct gendisk *disk);
@@ -161,8 +161,8 @@ struct ubd {
 	struct openflags boot_openflags;
 	struct openflags openflags;
 	unsigned shared:1;
-	unsigned no_cow:1;
-	unsigned no_trim:1;
+	unsigned anal_cow:1;
+	unsigned anal_trim:1;
 	struct cow cow;
 	struct platform_device pdev;
 	struct request_queue *queue;
@@ -186,8 +186,8 @@ struct ubd {
 	.size =			-1, \
 	.boot_openflags =	OPEN_FLAGS, \
 	.openflags =		OPEN_FLAGS, \
-	.no_cow =               0, \
-	.no_trim =		0, \
+	.anal_cow =               0, \
+	.anal_trim =		0, \
 	.shared =		0, \
 	.cow =			DEFAULT_COW, \
 	.lock =			__SPIN_LOCK_UNLOCKED(ubd_devs.lock), \
@@ -232,7 +232,7 @@ static int parse_unit(char **ptr)
 
 /* If *index_out == -1 at exit, the passed option was a general one;
  * otherwise, the str pointer is used (and owned) inside ubd_devs array, so it
- * should not be freed on exit.
+ * should analt be freed on exit.
  */
 static int ubd_setup_common(char *str, int *index_out, char **error_out)
 {
@@ -250,7 +250,7 @@ static int ubd_setup_common(char *str, int *index_out, char **error_out)
 			return err;
 		}
 
-		pr_warn("fake major not supported any more\n");
+		pr_warn("fake major analt supported any more\n");
 		return 0;
 	}
 
@@ -286,13 +286,13 @@ static int ubd_setup_common(char *str, int *index_out, char **error_out)
 			flags.s = 1;
 			break;
 		case 'd':
-			ubd_dev->no_cow = 1;
+			ubd_dev->anal_cow = 1;
 			break;
 		case 'c':
 			ubd_dev->shared = 1;
 			break;
 		case 't':
-			ubd_dev->no_trim = 1;
+			ubd_dev->anal_trim = 1;
 			break;
 		case '=':
 			str++;
@@ -324,7 +324,7 @@ break_loop:
 	if (serial && *serial == '\0')
 		serial = NULL;
 
-	if (backing_file && ubd_dev->no_cow) {
+	if (backing_file && ubd_dev->anal_cow) {
 		*error_out = "Can't specify both 'd' and a cow file";
 		goto out;
 	}
@@ -359,13 +359,13 @@ __uml_help(ubd_setup,
 "    COW name and the second is the backing file name. As separator you can\n"
 "    use either a ':' or a ',': the first one allows writing things like;\n"
 "	ubd0=~/Uml/root_cow:~/Uml/root_backing_file\n"
-"    while with a ',' the shell would not expand the 2nd '~'.\n"
+"    while with a ',' the shell would analt expand the 2nd '~'.\n"
 "    When using only one filename, UML will detect whether to treat it like\n"
 "    a COW file or a backing file. To override this detection, add the 'd'\n"
 "    flag:\n"
 "	ubd0d=BackingFile\n"
 "    Usually, there is a filesystem in the file, but \n"
-"    that's not required. Swap devices containing swap files can be\n"
+"    that's analt required. Swap devices containing swap files can be\n"
 "    specified like this. Also, a file which doesn't contain a\n"
 "    filesystem can have its contents read in the virtual \n"
 "    machine by running 'dd' on the device. <n> must be in the range\n"
@@ -378,9 +378,9 @@ __uml_help(ubd_setup,
 "    't' will disable trim/discard support on the device (enabled by default).\n\n"
 "    An optional device serial number can be exposed using the serial parameter\n"
 "    on the cmdline which is exposed as a sysfs entry. This is particularly\n"
-"    useful when a unique number should be given to the device. Note when\n"
+"    useful when a unique number should be given to the device. Analte when\n"
 "    specifying a label, the filename2 must be also presented. It can be\n"
-"    an empty string, in which case the backing file is not used:\n"
+"    an empty string, in which case the backing file is analt used:\n"
 "       ubd0=File,,Serial\n"
 );
 
@@ -436,7 +436,7 @@ static int bulk_req_safe_read(
 		n += res;
 		if ((n % sizeof(struct io_thread_req *)) > 0) {
 			/*
-			* Read somehow returned not a multiple of dword
+			* Read somehow returned analt a multiple of dword
 			* theoretically possible, but never observed in the
 			* wild, so read routine must be able to handle it
 			*/
@@ -480,7 +480,7 @@ static void ubd_handler(void)
 		for (count = 0; count < n/sizeof(struct io_thread_req *); count++) {
 			struct io_thread_req *io_req = (*irq_req_buffer)[count];
 
-			if ((io_req->error == BLK_STS_NOTSUPP) && (req_op(io_req->req) == REQ_OP_DISCARD)) {
+			if ((io_req->error == BLK_STS_ANALTSUPP) && (req_op(io_req->req) == REQ_OP_DISCARD)) {
 				blk_queue_max_discard_sectors(io_req->req->q, 0);
 				blk_queue_max_write_zeroes_sectors(io_req->req->q, 0);
 			}
@@ -612,7 +612,7 @@ static int path_requires_switch(char *from_cmdline, char *from_cow, char *cow)
 		       -err);
 		return 1;
 	}
-	if ((buf1.ust_dev == buf2.ust_dev) && (buf1.ust_ino == buf2.ust_ino))
+	if ((buf1.ust_dev == buf2.ust_dev) && (buf1.ust_ianal == buf2.ust_ianal))
 		return 0;
 
 	printk(KERN_ERR "Backing file mismatch - \"%s\" requested, "
@@ -634,7 +634,7 @@ static int open_ubd_file(char *file, struct openflags *openflags, int shared,
 
 	fd = os_open_file(file, *openflags, mode);
 	if (fd < 0) {
-		if ((fd == -ENOENT) && (create_cow_out != NULL))
+		if ((fd == -EANALENT) && (create_cow_out != NULL))
 			*create_cow_out = 1;
 		if (!openflags->w ||
 		    ((fd != -EROFS) && (fd != -EACCES)))
@@ -646,7 +646,7 @@ static int open_ubd_file(char *file, struct openflags *openflags, int shared,
 	}
 
 	if (shared)
-		printk(KERN_INFO "Not locking \"%s\" on the host\n", file);
+		printk(KERN_INFO "Analt locking \"%s\" on the host\n", file);
 	else {
 		err = os_lock_file(fd, openflags->w);
 		if (err < 0) {
@@ -664,7 +664,7 @@ static int open_ubd_file(char *file, struct openflags *openflags, int shared,
 			      &size, &sectorsize, &align, bitmap_offset_out);
 	if (err && (*backing_file_out != NULL)) {
 		printk(KERN_ERR "Failed to read COW header from COW file "
-		       "\"%s\", errno = %d\n", file, -err);
+		       "\"%s\", erranal = %d\n", file, -err);
 		goto out_close;
 	}
 	if (err)
@@ -673,7 +673,7 @@ static int open_ubd_file(char *file, struct openflags *openflags, int shared,
 	asked_switch = path_requires_switch(*backing_file_out, backing_file,
 					    file);
 
-	/* Allow switching only if no mismatch. */
+	/* Allow switching only if anal mismatch. */
 	if (asked_switch && !backing_file_mismatch(*backing_file_out, size,
 						   mtime)) {
 		printk(KERN_ERR "Switching backing file to '%s'\n",
@@ -681,7 +681,7 @@ static int open_ubd_file(char *file, struct openflags *openflags, int shared,
 		err = write_cow_header(file, fd, *backing_file_out,
 				       sectorsize, align, &size);
 		if (err) {
-			printk(KERN_ERR "Switch failed, errno = %d\n", -err);
+			printk(KERN_ERR "Switch failed, erranal = %d\n", -err);
 			goto out_close;
 		}
 	} else {
@@ -711,7 +711,7 @@ static int create_cow_file(char *cow_file, char *backing_file,
 	fd = open_ubd_file(cow_file, &flags, 0, NULL, NULL, NULL, NULL, NULL);
 	if (fd < 0) {
 		err = fd;
-		printk(KERN_ERR "Open of COW file '%s' failed, errno = %d\n",
+		printk(KERN_ERR "Open of COW file '%s' failed, erranal = %d\n",
 		       cow_file, -err);
 		goto out;
 	}
@@ -747,14 +747,14 @@ static int ubd_open_dev(struct ubd *ubd_dev)
 	ubd_dev->openflags = ubd_dev->boot_openflags;
 	create_cow = 0;
 	create_ptr = (ubd_dev->cow.file != NULL) ? &create_cow : NULL;
-	back_ptr = ubd_dev->no_cow ? NULL : &ubd_dev->cow.file;
+	back_ptr = ubd_dev->anal_cow ? NULL : &ubd_dev->cow.file;
 
 	fd = open_ubd_file(ubd_dev->file, &ubd_dev->openflags, ubd_dev->shared,
 				back_ptr, &ubd_dev->cow.bitmap_offset,
 				&ubd_dev->cow.bitmap_len, &ubd_dev->cow.data_offset,
 				create_ptr);
 
-	if((fd == -ENOENT) && create_cow){
+	if((fd == -EANALENT) && create_cow){
 		fd = create_cow_file(ubd_dev->file, ubd_dev->cow.file,
 					  ubd_dev->openflags, SECTOR_SIZE, PAGE_SIZE,
 					  &ubd_dev->cow.bitmap_offset,
@@ -767,7 +767,7 @@ static int ubd_open_dev(struct ubd *ubd_dev)
 	}
 
 	if(fd < 0){
-		printk("Failed to open '%s', errno = %d\n", ubd_dev->file,
+		printk("Failed to open '%s', erranal = %d\n", ubd_dev->file,
 		       -fd);
 		return fd;
 	}
@@ -776,7 +776,7 @@ static int ubd_open_dev(struct ubd *ubd_dev)
 	if(ubd_dev->cow.file != NULL){
 		blk_queue_max_hw_sectors(ubd_dev->queue, 8 * sizeof(long));
 
-		err = -ENOMEM;
+		err = -EANALMEM;
 		ubd_dev->cow.bitmap = vmalloc(ubd_dev->cow.bitmap_len);
 		if(ubd_dev->cow.bitmap == NULL){
 			printk(KERN_ERR "Failed to vmalloc COW bitmap\n");
@@ -797,11 +797,11 @@ static int ubd_open_dev(struct ubd *ubd_dev)
 		if(err < 0) goto error;
 		ubd_dev->cow.fd = err;
 	}
-	if (ubd_dev->no_trim == 0) {
+	if (ubd_dev->anal_trim == 0) {
 		blk_queue_max_discard_sectors(ubd_dev->queue, UBD_MAX_REQUEST);
 		blk_queue_max_write_zeroes_sectors(ubd_dev->queue, UBD_MAX_REQUEST);
 	}
-	blk_queue_flag_set(QUEUE_FLAG_NONROT, ubd_dev->queue);
+	blk_queue_flag_set(QUEUE_FLAG_ANALNROT, ubd_dev->queue);
 	return 0;
  error:
 	os_close_file(ubd_dev->fd);
@@ -855,8 +855,8 @@ static int ubd_disk_register(int major, u64 size, int unit,
 			     struct gendisk *disk)
 {
 	disk->major = major;
-	disk->first_minor = unit << UBD_SHIFT;
-	disk->minors = 1 << UBD_SHIFT;
+	disk->first_mianalr = unit << UBD_SHIFT;
+	disk->mianalrs = 1 << UBD_SHIFT;
 	disk->fops = &ubd_blops;
 	set_capacity(disk, size / 512);
 	sprintf(disk->disk_name, "ubd%c", 'a' + unit);
@@ -897,7 +897,7 @@ static int ubd_add(int n, char **error_out)
 
 	ubd_dev->tag_set.ops = &ubd_mq_ops;
 	ubd_dev->tag_set.queue_depth = 64;
-	ubd_dev->tag_set.numa_node = NUMA_NO_NODE;
+	ubd_dev->tag_set.numa_analde = NUMA_ANAL_ANALDE;
 	ubd_dev->tag_set.flags = BLK_MQ_F_SHOULD_MERGE;
 	ubd_dev->tag_set.driver_data = ubd_dev;
 	ubd_dev->tag_set.nr_hw_queues = 1;
@@ -942,7 +942,7 @@ static int ubd_config(char *str, char **error_out)
 	str = kstrdup(str, GFP_KERNEL);
 	if (str == NULL) {
 		*error_out = "Failed to allocate memory";
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = ubd_setup_common(str, &n, error_out);
@@ -1014,7 +1014,7 @@ static int ubd_remove(int n, char **error_out)
 {
 	struct gendisk *disk = ubd_gendisk[n];
 	struct ubd *ubd_dev;
-	int err = -ENODEV;
+	int err = -EANALDEV;
 
 	mutex_lock(&ubd_lock);
 
@@ -1023,7 +1023,7 @@ static int ubd_remove(int n, char **error_out)
 	if(ubd_dev->file == NULL)
 		goto out;
 
-	/* you cannot remove a open disk */
+	/* you cananalt remove a open disk */
 	err = -EBUSY;
 	if(ubd_dev->count > 0)
 		goto out;
@@ -1131,23 +1131,23 @@ static int __init ubd_driver_init(void){
 
 	/* Set by CONFIG_BLK_DEV_UBD_SYNC or ubd=sync.*/
 	if(global_openflags.s){
-		printk(KERN_INFO "ubd: Synchronous mode\n");
+		printk(KERN_INFO "ubd: Synchroanalus mode\n");
 		/* Letting ubd=sync be like using ubd#s= instead of ubd#= is
-		 * enough. So use anyway the io thread. */
+		 * eanalugh. So use anyway the io thread. */
 	}
 	stack = alloc_stack(0, 0);
 	io_pid = start_io_thread(stack + PAGE_SIZE, &thread_fd);
 	if(io_pid < 0){
 		printk(KERN_ERR
-		       "ubd : Failed to start I/O thread (errno = %d) - "
-		       "falling back to synchronous I/O\n", -io_pid);
+		       "ubd : Failed to start I/O thread (erranal = %d) - "
+		       "falling back to synchroanalus I/O\n", -io_pid);
 		io_pid = -1;
 		return 0;
 	}
 	err = um_request_irq(UBD_IRQ, thread_fd, IRQ_READ, ubd_intr,
 			     0, "ubd", ubd_devs);
 	if(err < 0)
-		printk(KERN_ERR "um_request_irq failed - errno = %d\n", -err);
+		printk(KERN_ERR "um_request_irq failed - erranal = %d\n", -err);
 	return 0;
 }
 
@@ -1162,7 +1162,7 @@ static int ubd_open(struct gendisk *disk, blk_mode_t mode)
 	if(ubd_dev->count == 0){
 		err = ubd_open_dev(ubd_dev);
 		if(err){
-			printk(KERN_ERR "%s: Can't open \"%s\": errno = %d\n",
+			printk(KERN_ERR "%s: Can't open \"%s\": erranal = %d\n",
 			       disk->disk_name, ubd_dev->file, -err);
 			goto out;
 		}
@@ -1210,7 +1210,7 @@ static void cowify_bitmap(__u64 io_offset, int length, unsigned long *cow_mask,
 	/* This takes care of the case where we're exactly at the end of the
 	 * device, and *cow_offset + 1 is off the end.  So, just back it up
 	 * by one word.  Thanks to Lynn Kerby for the fix and James McMechan
-	 * for the original diagnosis.
+	 * for the original diaganalsis.
 	 */
 	if (*cow_offset == (DIV_ROUND_UP(bitmap_len,
 					 sizeof(unsigned long)) - 1))
@@ -1327,7 +1327,7 @@ static int ubd_submit_request(struct ubd *dev, struct request *req)
 
 	io_req = ubd_alloc_req(dev, req, segs);
 	if (!io_req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	io_req->desc_cnt = segs;
 	if (segs)
@@ -1363,13 +1363,13 @@ static blk_status_t ubd_queue_rq(struct blk_mq_hw_ctx *hctx,
 		break;
 	default:
 		WARN_ON_ONCE(1);
-		res = BLK_STS_NOTSUPP;
+		res = BLK_STS_ANALTSUPP;
 	}
 
 	spin_unlock_irq(&ubd_dev->lock);
 
 	if (ret < 0) {
-		if (ret == -ENOMEM)
+		if (ret == -EANALMEM)
 			res = BLK_STS_RESOURCE;
 		else
 			res = BLK_STS_DEV_RESOURCE;
@@ -1425,25 +1425,25 @@ static int map_error(int error_code)
 	switch (error_code) {
 	case 0:
 		return BLK_STS_OK;
-	case ENOSYS:
-	case EOPNOTSUPP:
-		return BLK_STS_NOTSUPP;
-	case ENOSPC:
-		return BLK_STS_NOSPC;
+	case EANALSYS:
+	case EOPANALTSUPP:
+		return BLK_STS_ANALTSUPP;
+	case EANALSPC:
+		return BLK_STS_ANALSPC;
 	}
 	return BLK_STS_IOERR;
 }
 
 /*
- * Everything from here onwards *IS NOT PART OF THE KERNEL*
+ * Everything from here onwards *IS ANALT PART OF THE KERNEL*
  *
  * The following functions are part of UML hypervisor code.
  * All functions from here onwards are executed as a helper
- * thread and are not allowed to execute any kernel functions.
+ * thread and are analt allowed to execute any kernel functions.
  *
  * Any communication must occur strictly via shared memory and IPC.
  *
- * Do not add printks, locks, kernel memory operations, etc - it
+ * Do analt add printks, locks, kernel memory operations, etc - it
  * will result in unpredictable behaviour and/or crashes.
  */
 
@@ -1469,7 +1469,7 @@ static void do_io(struct io_thread_req *req, struct io_desc *desc)
 	int n, nsectors, start, end, bit;
 	__u64 off;
 
-	/* FLUSH is really a special case, we cannot "case" it with others */
+	/* FLUSH is really a special case, we cananalt "case" it with others */
 
 	if (req_op(req->req) == REQ_OP_FLUSH) {
 		/* fds[0] is always either the rw image or our cow file */
@@ -1529,7 +1529,7 @@ static void do_io(struct io_thread_req *req, struct io_desc *desc)
 			break;
 		default:
 			WARN_ON_ONCE(1);
-			req->error = BLK_STS_NOTSUPP;
+			req->error = BLK_STS_ANALTSUPP;
 			return;
 		}
 

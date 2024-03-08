@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -38,7 +38,7 @@
 #define HNS_ROCE_V2_MAX_RC_INL_INN_SZ		32
 #define HNS_ROCE_V2_MTT_ENTRY_SZ		64
 #define HNS_ROCE_V2_AEQE_VEC_NUM		1
-#define HNS_ROCE_V2_ABNORMAL_VEC_NUM		1
+#define HNS_ROCE_V2_ABANALRMAL_VEC_NUM		1
 #define HNS_ROCE_V2_MAX_SRQWQE_SEGS		0x1000000
 #define HNS_ROCE_V2_MAX_IDX_SEGS		0x1000000
 #define HNS_ROCE_V2_MAX_XRCD_NUM		0x1000000
@@ -122,7 +122,7 @@ enum {
 #define HNS_ROCE_V2_FREE_MR_TIMEOUT		4500
 
 enum {
-	NO_ARMED = 0x0,
+	ANAL_ARMED = 0x0,
 	REG_NXT_CEQE = 0x2,
 	REG_NXT_SE_CEQE = 0x3
 };
@@ -132,8 +132,8 @@ enum {
 	CQE_SIZE_64B = 0x1
 };
 
-#define V2_CQ_DB_REQ_NOT_SOL			0
-#define V2_CQ_DB_REQ_NOT			1
+#define V2_CQ_DB_REQ_ANALT_SOL			0
+#define V2_CQ_DB_REQ_ANALT			1
 
 #define V2_CQ_STATE_VALID			1
 #define V2_QKEY_VAL				0x80010000
@@ -169,7 +169,7 @@ enum {
 	HNS_ROCE_V2_RQ_DB,
 	HNS_ROCE_V2_SRQ_DB,
 	HNS_ROCE_V2_CQ_DB,
-	HNS_ROCE_V2_CQ_DB_NOTIFY
+	HNS_ROCE_V2_CQ_DB_ANALTIFY
 };
 
 enum {
@@ -231,11 +231,11 @@ enum {
 
 enum hns_roce_cmd_return_status {
 	CMD_EXEC_SUCCESS,
-	CMD_NO_AUTH,
-	CMD_NOT_EXIST,
+	CMD_ANAL_AUTH,
+	CMD_ANALT_EXIST,
 	CMD_CRQ_FULL,
 	CMD_NEXT_ERR,
-	CMD_NOT_EXEC,
+	CMD_ANALT_EXEC,
 	CMD_PARA_ERR,
 	CMD_RESULT_ERR,
 	CMD_TIMEOUT,
@@ -248,7 +248,7 @@ enum hns_roce_cmd_return_status {
 
 struct hns_roce_cmd_errcode {
 	enum hns_roce_cmd_return_status return_status;
-	int errno;
+	int erranal;
 };
 
 enum hns_roce_sgid_type {
@@ -284,7 +284,7 @@ struct hns_roce_v2_cq_context {
 #define CQC_CQ_ST CQC_FIELD_LOC(1, 0)
 #define CQC_POLL CQC_FIELD_LOC(2, 2)
 #define CQC_SE CQC_FIELD_LOC(3, 3)
-#define CQC_OVER_IGNORE CQC_FIELD_LOC(4, 4)
+#define CQC_OVER_IGANALRE CQC_FIELD_LOC(4, 4)
 #define CQC_ARM_ST CQC_FIELD_LOC(7, 6)
 #define CQC_SHIFT CQC_FIELD_LOC(12, 8)
 #define CQC_CMD_SN CQC_FIELD_LOC(14, 13)
@@ -585,7 +585,7 @@ struct hns_roce_v2_qp_context {
 #define QPC_OWNER_DB_WAIT_DO QPC_FIELD_LOC(1540, 1540)
 #define QPC_SQ_WQE_INVLD QPC_FIELD_LOC(1541, 1541)
 #define QPC_DCA_MODE QPC_FIELD_LOC(1542, 1542)
-#define QPC_RTY_OWNER_NOCHK QPC_FIELD_LOC(1543, 1543)
+#define QPC_RTY_OWNER_ANALCHK QPC_FIELD_LOC(1543, 1543)
 #define QPC_V2_IRRL_HEAD QPC_FIELD_LOC(1543, 1536)
 #define QPC_SQ_MAX_PSN QPC_FIELD_LOC(1567, 1544)
 #define QPC_SQ_MAX_IDX QPC_FIELD_LOC(1583, 1568)
@@ -643,7 +643,7 @@ struct hns_roce_v2_qp_context {
 #define QPCEX_CONG_ALG_SUB_SEL QPCEX_FIELD_LOC(1, 1)
 #define QPCEX_DIP_CTX_IDX_VLD QPCEX_FIELD_LOC(2, 2)
 #define QPCEX_DIP_CTX_IDX QPCEX_FIELD_LOC(22, 3)
-#define QPCEX_SQ_RQ_NOT_FORBID_EN QPCEX_FIELD_LOC(23, 23)
+#define QPCEX_SQ_RQ_ANALT_FORBID_EN QPCEX_FIELD_LOC(23, 23)
 #define QPCEX_STASH QPCEX_FIELD_LOC(82, 82)
 
 #define	V2_QP_RWE_S 1 /* rdma write enable */
@@ -825,7 +825,7 @@ struct hns_roce_v2_db {
 #define DB_PI DB_FIELD_LOC(47, 32)
 #define DB_SL DB_FIELD_LOC(50, 48)
 #define DB_CQ_CI DB_FIELD_LOC(55, 32)
-#define DB_CQ_NOTIFY DB_FIELD_LOC(56, 56)
+#define DB_CQ_ANALTIFY DB_FIELD_LOC(56, 56)
 #define DB_CQ_CMD_SN DB_FIELD_LOC(58, 57)
 #define EQ_DB_TAG DB_FIELD_LOC(7, 0)
 #define EQ_DB_CMD DB_FIELD_LOC(17, 16)
@@ -949,7 +949,7 @@ struct hns_roce_func_clear {
 #define FUNC_CLEAR_RST_FUN_DONE FUNC_CLEAR_FIELD_LOC(32, 32)
 
 /* Each physical function manages up to 248 virtual functions, it takes up to
- * 100ms for each function to execute clear. If an abnormal reset occurs, it is
+ * 100ms for each function to execute clear. If an abanalrmal reset occurs, it is
  * executed twice at most, so it takes up to 249 * 2 * 100ms.
  */
 #define HNS_ROCE_V2_FUNC_CLEAR_TIMEOUT_MSECS	(249 * 2 * 100)
@@ -1316,7 +1316,7 @@ struct hns_roce_v2_priv {
 struct hns_roce_dip {
 	u8 dgid[GID_LEN_V2];
 	u32 dip_idx;
-	struct list_head node; /* all dips are on a list */
+	struct list_head analde; /* all dips are on a list */
 };
 
 struct fmea_ram_ecc {
@@ -1343,8 +1343,8 @@ struct fmea_ram_ecc {
 #define HNS_ROCE_V2_EQ_STATE_OVERFLOW		2
 #define HNS_ROCE_V2_EQ_STATE_FAILURE		3
 
-#define HNS_ROCE_V2_EQ_OVER_IGNORE_0		0
-#define HNS_ROCE_V2_EQ_OVER_IGNORE_1		1
+#define HNS_ROCE_V2_EQ_OVER_IGANALRE_0		0
+#define HNS_ROCE_V2_EQ_OVER_IGANALRE_1		1
 
 #define HNS_ROCE_V2_EQ_COALESCE_0		0
 #define HNS_ROCE_V2_EQ_COALESCE_1		1
@@ -1392,7 +1392,7 @@ struct hns_roce_eq_context {
 
 #define EQC_EQ_ST EQC_FIELD_LOC(1, 0)
 #define EQC_EQE_HOP_NUM EQC_FIELD_LOC(3, 2)
-#define EQC_OVER_IGNORE EQC_FIELD_LOC(4, 4)
+#define EQC_OVER_IGANALRE EQC_FIELD_LOC(4, 4)
 #define EQC_COALESCE EQC_FIELD_LOC(5, 5)
 #define EQC_ARM_ST EQC_FIELD_LOC(7, 6)
 #define EQC_EQN EQC_FIELD_LOC(15, 8)

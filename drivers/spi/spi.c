@@ -2,7 +2,7 @@
 // SPI init/core code
 //
 // Copyright (C) 2005 David Brownell
-// Copyright (C) 2008 Secret Lab Technologies Ltd.
+// Copyright (C) 2008 Secret Lab Techanallogies Ltd.
 
 #include <linux/acpi.h>
 #include <linux/cache.h>
@@ -61,7 +61,7 @@ modalias_show(struct device *dev, struct device_attribute *a, char *buf)
 	int len;
 
 	len = acpi_device_modalias(dev, buf, PAGE_SIZE - 1);
-	if (len != -ENODEV)
+	if (len != -EANALDEV)
 		return len;
 
 	return sysfs_emit(buf, "%s%s\n", SPI_MODULE_PREFIX, spi->modalias);
@@ -402,7 +402,7 @@ static int spi_uevent(const struct device *dev, struct kobj_uevent_env *env)
 	int rc;
 
 	rc = acpi_device_uevent_modalias(dev, env);
-	if (rc != -ENODEV)
+	if (rc != -EANALDEV)
 		return rc;
 
 	return add_uevent_var(env, "MODALIAS=%s%s", SPI_MODULE_PREFIX, spi->modalias);
@@ -414,12 +414,12 @@ static int spi_probe(struct device *dev)
 	struct spi_device		*spi = to_spi_device(dev);
 	int ret;
 
-	ret = of_clk_set_defaults(dev->of_node, false);
+	ret = of_clk_set_defaults(dev->of_analde, false);
 	if (ret)
 		return ret;
 
-	if (dev->of_node) {
-		spi->irq = of_irq_get(dev->of_node, 0);
+	if (dev->of_analde) {
+		spi->irq = of_irq_get(dev->of_analde, 0);
 		if (spi->irq == -EPROBE_DEFER)
 			return -EPROBE_DEFER;
 		if (spi->irq < 0)
@@ -484,7 +484,7 @@ int __spi_register_driver(struct module *owner, struct spi_driver *sdrv)
 	sdrv->driver.bus = &spi_bus_type;
 
 	/*
-	 * For Really Good Reasons we use spi: modaliases not of:
+	 * For Really Good Reasons we use spi: modaliases analt of:
 	 * modaliases for DT so module autoloading won't work if we
 	 * don't have a spi_device_id as well as a compatible string.
 	 */
@@ -514,7 +514,7 @@ int __spi_register_driver(struct module *owner, struct spi_driver *sdrv)
 					continue;
 			}
 
-			pr_warn("SPI driver %s has no spi_device_id for %s\n",
+			pr_warn("SPI driver %s has anal spi_device_id for %s\n",
 				sdrv->driver.name, of_id->compatible);
 		}
 	}
@@ -526,9 +526,9 @@ EXPORT_SYMBOL_GPL(__spi_register_driver);
 /*-------------------------------------------------------------------------*/
 
 /*
- * SPI devices should normally not be created by SPI device drivers; that
+ * SPI devices should analrmally analt be created by SPI device drivers; that
  * would make them board-specific.  Similarly with SPI controller drivers.
- * Device registration normally goes into like arch/.../mach.../board-YYY.c
+ * Device registration analrmally goes into like arch/.../mach.../board-YYY.c
  * with other readonly (flashable) information about mainboard devices.
  */
 
@@ -672,7 +672,7 @@ static int __spi_add_device(struct spi_device *spi)
 	spi_dev_set_name(spi);
 
 	/*
-	 * We need to make sure there's no other device with this
+	 * We need to make sure there's anal other device with this
 	 * chipselect **BEFORE** we call setup(), else we'll trash
 	 * its configuration.
 	 */
@@ -683,7 +683,7 @@ static int __spi_add_device(struct spi_device *spi)
 	/* Controller may unregister concurrently */
 	if (IS_ENABLED(CONFIG_SPI_DYNAMIC) &&
 	    !device_is_registered(&ctlr->dev)) {
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (ctlr->cs_gpiods) {
@@ -698,7 +698,7 @@ static int __spi_add_device(struct spi_device *spi)
 
 	/*
 	 * Drivers may modify this initial i/o setup, but will
-	 * normally rely on the device being setup.  Devices
+	 * analrmally rely on the device being setup.  Devices
 	 * using SPI_CS_HIGH can't coexist well otherwise...
 	 */
 	status = spi_setup(spi);
@@ -728,7 +728,7 @@ static int __spi_add_device(struct spi_device *spi)
  * Companion function to spi_alloc_device.  Devices allocated with
  * spi_alloc_device can be added onto the SPI bus with this function.
  *
- * Return: 0 on success; negative errno on failure
+ * Return: 0 on success; negative erranal on failure
  */
 int spi_add_device(struct spi_device *spi)
 {
@@ -751,9 +751,9 @@ EXPORT_SYMBOL_GPL(spi_add_device);
  * @chip: Describes the SPI device
  * Context: can sleep
  *
- * On typical mainboards, this is purely internal; and it's not needed
+ * On typical mainboards, this is purely internal; and it's analt needed
  * after board init creates the hard-wired devices.  Some development
- * platforms may not be able to use spi_register_board_info though, and
+ * platforms may analt be able to use spi_register_board_info though, and
  * this is exported so that for example a USB or parport based adapter
  * driver could add devices (which it would learn about out-of-band).
  *
@@ -767,11 +767,11 @@ struct spi_device *spi_new_device(struct spi_controller *ctlr,
 	u8                      idx;
 
 	/*
-	 * NOTE:  caller did any chip->bus_num checks necessary.
+	 * ANALTE:  caller did any chip->bus_num checks necessary.
 	 *
 	 * Also, unless we change the return value convention to use
-	 * error-or-pointer (not NULL-or-pointer), troubleshootability
-	 * suggests syslogged diagnostics are best here (ugh).
+	 * error-or-pointer (analt NULL-or-pointer), troubleshootability
+	 * suggests syslogged diaganalstics are best here (ugh).
 	 */
 
 	proxy = spi_alloc_device(ctlr);
@@ -786,8 +786,8 @@ struct spi_device *spi_new_device(struct spi_controller *ctlr,
 	 * are initialized to 0 then It would be difficult to differentiate
 	 * between a valid physical CS 0 & an unused logical CS whose physical
 	 * CS can be 0. As a solution to this issue initialize all the CS to 0xFF.
-	 * Now all the unused logical CS will have 0xFF physical CS value & can be
-	 * ignore while performing physical CS validity checks.
+	 * Analw all the unused logical CS will have 0xFF physical CS value & can be
+	 * iganalre while performing physical CS validity checks.
 	 */
 	for (idx = 0; idx < SPI_CS_CNT_MAX; idx++)
 		spi_set_chipselect(proxy, idx, 0xFF);
@@ -810,10 +810,10 @@ struct spi_device *spi_new_device(struct spi_controller *ctlr,
 	 */
 	proxy->cs_index_mask = 0x01;
 
-	if (chip->swnode) {
-		status = device_add_software_node(&proxy->dev, chip->swnode);
+	if (chip->swanalde) {
+		status = device_add_software_analde(&proxy->dev, chip->swanalde);
 		if (status) {
-			dev_err(&ctlr->dev, "failed to add software node to '%s': %d\n",
+			dev_err(&ctlr->dev, "failed to add software analde to '%s': %d\n",
 				chip->modalias, status);
 			goto err_dev_put;
 		}
@@ -826,7 +826,7 @@ struct spi_device *spi_new_device(struct spi_controller *ctlr,
 	return proxy;
 
 err_dev_put:
-	device_remove_software_node(&proxy->dev);
+	device_remove_software_analde(&proxy->dev);
 	spi_dev_put(proxy);
 	return NULL;
 }
@@ -836,7 +836,7 @@ EXPORT_SYMBOL_GPL(spi_new_device);
  * spi_unregister_device - unregister a single SPI device
  * @spi: spi_device to unregister
  *
- * Start making the passed SPI device vanish. Normally this would be handled
+ * Start making the passed SPI device vanish. Analrmally this would be handled
  * by spi_unregister_controller().
  */
 void spi_unregister_device(struct spi_device *spi)
@@ -844,13 +844,13 @@ void spi_unregister_device(struct spi_device *spi)
 	if (!spi)
 		return;
 
-	if (spi->dev.of_node) {
-		of_node_clear_flag(spi->dev.of_node, OF_POPULATED);
-		of_node_put(spi->dev.of_node);
+	if (spi->dev.of_analde) {
+		of_analde_clear_flag(spi->dev.of_analde, OF_POPULATED);
+		of_analde_put(spi->dev.of_analde);
 	}
 	if (ACPI_COMPANION(&spi->dev))
 		acpi_device_clear_enumerated(ACPI_COMPANION(&spi->dev));
-	device_remove_software_node(&spi->dev);
+	device_remove_software_analde(&spi->dev);
 	device_del(&spi->dev);
 	spi_cleanup(spi);
 	put_device(&spi->dev);
@@ -878,10 +878,10 @@ static void spi_match_controller_to_boardinfo(struct spi_controller *ctlr,
  * Context: can sleep
  *
  * Board-specific early init code calls this (probably during arch_initcall)
- * with segments of the SPI device table.  Any device nodes are created later,
+ * with segments of the SPI device table.  Any device analdes are created later,
  * after the relevant parent SPI controller (bus_num) is defined.  We keep
  * this table of devices forever, so that reloading a controller driver will
- * not make Linux forget about these hard-wired devices.
+ * analt make Linux forget about these hard-wired devices.
  *
  * Other code can also call this, e.g. a particular add-on board might provide
  * SPI devices through its expansion connector, so code initializing that board
@@ -902,7 +902,7 @@ int spi_register_board_info(struct spi_board_info const *info, unsigned n)
 
 	bi = kcalloc(n, sizeof(*bi), GFP_KERNEL);
 	if (!bi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < n; i++, bi++, info++) {
 		struct spi_controller *ctlr;
@@ -1046,9 +1046,9 @@ static void spi_set_cs(struct spi_device *spi, bool enable, bool force)
 		if (!spi->controller->set_cs_timing && !activate)
 			spi_delay_exec(&spi->cs_hold, NULL);
 
-		if (!(spi->mode & SPI_NO_CS)) {
+		if (!(spi->mode & SPI_ANAL_CS)) {
 			/*
-			 * Historically ACPI has no means of the GPIO polarity and
+			 * Historically ACPI has anal means of the GPIO polarity and
 			 * thus the SPISerialBus() resource defines it on the per-chip
 			 * basis. In order to avoid a chain of negations, the GPIO
 			 * polarity is considered being Active High. Even for the cases
@@ -1145,7 +1145,7 @@ static int spi_map_buf_attrs(struct spi_controller *ctlr, struct device *dev,
 				vm_page = kmap_to_page(buf);
 			if (!vm_page) {
 				sg_free_table(sgt);
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 			sg_set_page(sg, vm_page,
 				    min, offset_in_page(buf));
@@ -1378,7 +1378,7 @@ static int spi_map_msg(struct spi_controller *ctlr, struct spi_message *msg)
 			tmp = krealloc(ctlr->dummy_tx, max_tx,
 				       GFP_KERNEL | GFP_DMA | __GFP_ZERO);
 			if (!tmp)
-				return -ENOMEM;
+				return -EANALMEM;
 			ctlr->dummy_tx = tmp;
 		}
 
@@ -1386,7 +1386,7 @@ static int spi_map_msg(struct spi_controller *ctlr, struct spi_message *msg)
 			tmp = krealloc(ctlr->dummy_rx, max_rx,
 				       GFP_KERNEL | GFP_DMA);
 			if (!tmp)
-				return -ENOMEM;
+				return -EANALMEM;
 			ctlr->dummy_rx = tmp;
 		}
 
@@ -1489,21 +1489,21 @@ int spi_delay_to_ns(struct spi_delay *_delay, struct spi_transfer *xfer)
 		delay *= NSEC_PER_USEC;
 		break;
 	case SPI_DELAY_UNIT_NSECS:
-		/* Nothing to do here */
+		/* Analthing to do here */
 		break;
 	case SPI_DELAY_UNIT_SCK:
 		/* Clock cycles need to be obtained from spi_transfer */
 		if (!xfer)
 			return -EINVAL;
 		/*
-		 * If there is unknown effective speed, approximate it
+		 * If there is unkanalwn effective speed, approximate it
 		 * by underestimating with half of the requested Hz.
 		 */
 		hz = xfer->effective_speed_hz ?: xfer->speed_hz / 2;
 		if (!hz)
 			return -EINVAL;
 
-		/* Convert delay to nanoseconds */
+		/* Convert delay to naanalseconds */
 		delay *= DIV_ROUND_UP(NSEC_PER_SEC, hz);
 		break;
 	default:
@@ -1607,10 +1607,10 @@ fallback_pio:
 				spi_dma_sync_for_cpu(ctlr, xfer);
 
 				if (ctlr->cur_msg_mapped &&
-				   (xfer->error & SPI_TRANS_FAIL_NO_START)) {
+				   (xfer->error & SPI_TRANS_FAIL_ANAL_START)) {
 					__spi_unmap_msg(ctlr, msg);
 					ctlr->fallback = true;
-					xfer->error &= ~SPI_TRANS_FAIL_NO_START;
+					xfer->error &= ~SPI_TRANS_FAIL_ANAL_START;
 					goto fallback_pio;
 				}
 
@@ -1688,7 +1688,7 @@ out:
  * @ctlr: the controller reporting completion
  *
  * Called by SPI drivers using the core transfer_one_message()
- * implementation to notify it that the current interrupt driven
+ * implementation to analtify it that the current interrupt driven
  * transfer has finished and the next one may be scheduled.
  */
 void spi_finalize_current_transfer(struct spi_controller *ctlr)
@@ -1714,7 +1714,7 @@ static int __spi_pump_transfer_message(struct spi_controller *ctlr,
 	if (!was_busy && ctlr->auto_runtime_pm) {
 		ret = pm_runtime_get_sync(ctlr->dev.parent);
 		if (ret < 0) {
-			pm_runtime_put_noidle(ctlr->dev.parent);
+			pm_runtime_put_analidle(ctlr->dev.parent);
 			dev_err(&ctlr->dev, "Failed to power device: %d\n",
 				ret);
 
@@ -1786,7 +1786,7 @@ static int __spi_pump_transfer_message(struct spi_controller *ctlr,
 	 * Drivers implementation of transfer_one_message() must arrange for
 	 * spi_finalize_current_message() to get called. Most drivers will do
 	 * this in the calling context, but some don't. For those cases, a
-	 * completion is used to guarantee that this function does not return
+	 * completion is used to guarantee that this function does analt return
 	 * until spi_finalize_current_message() is done accessing
 	 * ctlr->cur_msg.
 	 * Use of the following two flags enable to opportunistically skip the
@@ -1824,7 +1824,7 @@ static int __spi_pump_transfer_message(struct spi_controller *ctlr,
  * needs processing and if so call out to the driver to initialize hardware
  * and transfer each message.
  *
- * Note that it is called both from the kthread itself and also from
+ * Analte that it is called both from the kthread itself and also from
  * inside spi_sync(); the queue extraction handling at the top of the
  * function should deal with this safely.
  */
@@ -1841,7 +1841,7 @@ static void __spi_pump_messages(struct spi_controller *ctlr, bool in_kthread)
 	/* Lock queue */
 	spin_lock_irqsave(&ctlr->queue_lock, flags);
 
-	/* Make sure we are not already running a message */
+	/* Make sure we are analt already running a message */
 	if (ctlr->cur_msg)
 		goto out_unlock;
 
@@ -1850,7 +1850,7 @@ static void __spi_pump_messages(struct spi_controller *ctlr, bool in_kthread)
 		if (!ctlr->busy)
 			goto out_unlock;
 
-		/* Defer any non-atomic teardown to the thread */
+		/* Defer any analn-atomic teardown to the thread */
 		if (!in_kthread) {
 			if (!ctlr->dummy_rx && !ctlr->dummy_tx &&
 			    !ctlr->unprepare_transfer_hardware) {
@@ -1929,13 +1929,13 @@ static void spi_pump_messages(struct kthread_work *work)
  * spi_take_timestamp_pre - helper to collect the beginning of the TX timestamp
  * @ctlr: Pointer to the spi_controller structure of the driver
  * @xfer: Pointer to the transfer being timestamped
- * @progress: How many words (not bytes) have been transferred so far
+ * @progress: How many words (analt bytes) have been transferred so far
  * @irqs_off: If true, will disable IRQs and preemption for the duration of the
  *	      transfer, for less jitter in time measurement. Only compatible
  *	      with PIO drivers. If true, must follow up with
  *	      spi_take_timestamp_post or otherwise system will crash.
  *	      WARNING: for fully predictable results, the CPU frequency must
- *	      also be under control (governor).
+ *	      also be under control (goveranalr).
  *
  * This is a helper for drivers to collect the beginning of the TX timestamp
  * for the requested byte from the SPI transfer. The frequency with which this
@@ -1943,7 +1943,7 @@ static void spi_pump_messages(struct kthread_work *work)
  * per batch of words etc) is arbitrary as long as the @tx buffer offset is
  * greater than or equal to the requested byte at the time of the call. The
  * timestamp is only taken once, at the first such call. It is assumed that
- * the driver advances its @tx buffer pointer monotonically.
+ * the driver advances its @tx buffer pointer moanaltonically.
  */
 void spi_take_timestamp_pre(struct spi_controller *ctlr,
 			    struct spi_transfer *xfer,
@@ -1974,7 +1974,7 @@ EXPORT_SYMBOL_GPL(spi_take_timestamp_pre);
  * spi_take_timestamp_post - helper to collect the end of the TX timestamp
  * @ctlr: Pointer to the spi_controller structure of the driver
  * @xfer: Pointer to the transfer being timestamped
- * @progress: How many words (not bytes) have been transferred so far
+ * @progress: How many words (analt bytes) have been transferred so far
  * @irqs_off: If true, will re-enable IRQs and preemption for the local CPU.
  *
  * This is a helper for drivers to collect the end of the TX timestamp for
@@ -2018,7 +2018,7 @@ EXPORT_SYMBOL_GPL(spi_take_timestamp_post);
  * because a device on the bus said that its transfers needed realtime
  * priority.
  *
- * NOTE: at the moment if any device on a bus says it needs realtime then
+ * ANALTE: at the moment if any device on a bus says it needs realtime then
  * the thread will be at realtime priority for all transfers on that
  * controller.  If this eventually becomes a problem we may see if we can
  * find a way to boost the priority only temporarily during relevant
@@ -2087,7 +2087,7 @@ EXPORT_SYMBOL_GPL(spi_get_next_queued_message);
  * spi_finalize_current_message() - the current message is complete
  * @ctlr: the controller to return the message to
  *
- * Called by the driver to notify the core that the message in the front of the
+ * Called by the driver to analtify the core that the message in the front of the
  * queue is complete and can be removed from the queue.
  */
 void spi_finalize_current_message(struct spi_controller *ctlr)
@@ -2202,7 +2202,7 @@ static int spi_destroy_queue(struct spi_controller *ctlr)
 	/*
 	 * kthread_flush_worker will block until all work is done.
 	 * If the reason that stop_queue timed out is that the work will never
-	 * finish, then it does no good to call flush/stop thread, so
+	 * finish, then it does anal good to call flush/stop thread, so
 	 * return anyway.
 	 */
 	if (ret) {
@@ -2288,7 +2288,7 @@ err_init_queue:
  *
  * This should be used when one wants to ensure all pending messages have been
  * sent before doing something. Is used by the spi-mem code to make sure SPI
- * memory operations do not preempt regular SPI transfers that have been queued
+ * memory operations do analt preempt regular SPI transfers that have been queued
  * before the spi-mem operation.
  */
 void spi_flush_queue(struct spi_controller *ctlr)
@@ -2300,7 +2300,7 @@ void spi_flush_queue(struct spi_controller *ctlr)
 /*-------------------------------------------------------------------------*/
 
 #if defined(CONFIG_OF)
-static void of_spi_parse_dt_cs_delay(struct device_node *nc,
+static void of_spi_parse_dt_cs_delay(struct device_analde *nc,
 				     struct spi_delay *delay, const char *prop)
 {
 	u32 value;
@@ -2317,7 +2317,7 @@ static void of_spi_parse_dt_cs_delay(struct device_node *nc,
 }
 
 static int of_spi_parse_dt(struct spi_controller *ctlr, struct spi_device *spi,
-			   struct device_node *nc)
+			   struct device_analde *nc)
 {
 	u32 value, cs[SPI_CS_CNT_MAX];
 	int rc, idx;
@@ -2338,7 +2338,7 @@ static int of_spi_parse_dt(struct spi_controller *ctlr, struct spi_device *spi,
 	if (!of_property_read_u32(nc, "spi-tx-bus-width", &value)) {
 		switch (value) {
 		case 0:
-			spi->mode |= SPI_NO_TX;
+			spi->mode |= SPI_ANAL_TX;
 			break;
 		case 1:
 			break;
@@ -2353,7 +2353,7 @@ static int of_spi_parse_dt(struct spi_controller *ctlr, struct spi_device *spi,
 			break;
 		default:
 			dev_warn(&ctlr->dev,
-				"spi-tx-bus-width %d not supported\n",
+				"spi-tx-bus-width %d analt supported\n",
 				value);
 			break;
 		}
@@ -2362,7 +2362,7 @@ static int of_spi_parse_dt(struct spi_controller *ctlr, struct spi_device *spi,
 	if (!of_property_read_u32(nc, "spi-rx-bus-width", &value)) {
 		switch (value) {
 		case 0:
-			spi->mode |= SPI_NO_RX;
+			spi->mode |= SPI_ANAL_RX;
 			break;
 		case 1:
 			break;
@@ -2377,15 +2377,15 @@ static int of_spi_parse_dt(struct spi_controller *ctlr, struct spi_device *spi,
 			break;
 		default:
 			dev_warn(&ctlr->dev,
-				"spi-rx-bus-width %d not supported\n",
+				"spi-rx-bus-width %d analt supported\n",
 				value);
 			break;
 		}
 	}
 
 	if (spi_controller_is_slave(ctlr)) {
-		if (!of_node_name_eq(nc, "slave")) {
-			dev_err(&ctlr->dev, "%pOF is not called 'slave'\n",
+		if (!of_analde_name_eq(nc, "slave")) {
+			dev_err(&ctlr->dev, "%pOF is analt called 'slave'\n",
 				nc);
 			return -EINVAL;
 		}
@@ -2393,7 +2393,7 @@ static int of_spi_parse_dt(struct spi_controller *ctlr, struct spi_device *spi,
 	}
 
 	if (ctlr->num_chipselect > SPI_CS_CNT_MAX) {
-		dev_err(&ctlr->dev, "No. of CS is more than max. no. of supported CS\n");
+		dev_err(&ctlr->dev, "Anal. of CS is more than max. anal. of supported CS\n");
 		return -EINVAL;
 	}
 
@@ -2403,8 +2403,8 @@ static int of_spi_parse_dt(struct spi_controller *ctlr, struct spi_device *spi,
 	 * are initialized to 0 then It would be difficult to differentiate
 	 * between a valid physical CS 0 & an unused logical CS whose physical
 	 * CS can be 0. As a solution to this issue initialize all the CS to 0xFF.
-	 * Now all the unused logical CS will have 0xFF physical CS value & can be
-	 * ignore while performing physical CS validity checks.
+	 * Analw all the unused logical CS will have 0xFF physical CS value & can be
+	 * iganalre while performing physical CS validity checks.
 	 */
 	for (idx = 0; idx < SPI_CS_CNT_MAX; idx++)
 		spi_set_chipselect(spi, idx, 0xFF);
@@ -2413,7 +2413,7 @@ static int of_spi_parse_dt(struct spi_controller *ctlr, struct spi_device *spi,
 	rc = of_property_read_variable_u32_array(nc, "reg", &cs[0], 1,
 						 SPI_CS_CNT_MAX);
 	if (rc < 0) {
-		dev_err(&ctlr->dev, "%pOF has no valid 'reg' property (%d)\n",
+		dev_err(&ctlr->dev, "%pOF has anal valid 'reg' property (%d)\n",
 			nc, rc);
 		return rc;
 	}
@@ -2453,7 +2453,7 @@ static int of_spi_parse_dt(struct spi_controller *ctlr, struct spi_device *spi,
 }
 
 static struct spi_device *
-of_register_spi_device(struct spi_controller *ctlr, struct device_node *nc)
+of_register_spi_device(struct spi_controller *ctlr, struct device_analde *nc)
 {
 	struct spi_device *spi;
 	int rc;
@@ -2462,7 +2462,7 @@ of_register_spi_device(struct spi_controller *ctlr, struct device_node *nc)
 	spi = spi_alloc_device(ctlr);
 	if (!spi) {
 		dev_err(&ctlr->dev, "spi_device alloc error for %pOF\n", nc);
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_out;
 	}
 
@@ -2470,7 +2470,7 @@ of_register_spi_device(struct spi_controller *ctlr, struct device_node *nc)
 	rc = of_alias_from_compatible(nc, spi->modalias,
 				      sizeof(spi->modalias));
 	if (rc < 0) {
-		dev_err(&ctlr->dev, "cannot find modalias for %pOF\n", nc);
+		dev_err(&ctlr->dev, "cananalt find modalias for %pOF\n", nc);
 		goto err_out;
 	}
 
@@ -2478,22 +2478,22 @@ of_register_spi_device(struct spi_controller *ctlr, struct device_node *nc)
 	if (rc)
 		goto err_out;
 
-	/* Store a pointer to the node in the device structure */
-	of_node_get(nc);
+	/* Store a pointer to the analde in the device structure */
+	of_analde_get(nc);
 
-	device_set_node(&spi->dev, of_fwnode_handle(nc));
+	device_set_analde(&spi->dev, of_fwanalde_handle(nc));
 
 	/* Register the new device */
 	rc = spi_add_device(spi);
 	if (rc) {
 		dev_err(&ctlr->dev, "spi_device register error %pOF\n", nc);
-		goto err_of_node_put;
+		goto err_of_analde_put;
 	}
 
 	return spi;
 
-err_of_node_put:
-	of_node_put(nc);
+err_of_analde_put:
+	of_analde_put(nc);
 err_out:
 	spi_dev_put(spi);
 	return ERR_PTR(rc);
@@ -2503,22 +2503,22 @@ err_out:
  * of_register_spi_devices() - Register child devices onto the SPI bus
  * @ctlr:	Pointer to spi_controller device
  *
- * Registers an spi_device for each child node of controller node which
+ * Registers an spi_device for each child analde of controller analde which
  * represents a valid SPI slave.
  */
 static void of_register_spi_devices(struct spi_controller *ctlr)
 {
 	struct spi_device *spi;
-	struct device_node *nc;
+	struct device_analde *nc;
 
-	for_each_available_child_of_node(ctlr->dev.of_node, nc) {
-		if (of_node_test_and_set_flag(nc, OF_POPULATED))
+	for_each_available_child_of_analde(ctlr->dev.of_analde, nc) {
+		if (of_analde_test_and_set_flag(nc, OF_POPULATED))
 			continue;
 		spi = of_register_spi_device(ctlr, nc);
 		if (IS_ERR(spi)) {
 			dev_warn(&ctlr->dev,
 				 "Failed to create SPI device for %pOF\n", nc);
-			of_node_clear_flag(nc, OF_POPULATED);
+			of_analde_clear_flag(nc, OF_POPULATED);
 		}
 	}
 }
@@ -2532,11 +2532,11 @@ static void of_register_spi_devices(struct spi_controller *ctlr) { }
  * @chip_select: Chip Select of the ancillary device
  *
  * Register an ancillary SPI device; for example some chips have a chip-select
- * for normal device usage and another one for setup/firmware upload.
+ * for analrmal device usage and aanalther one for setup/firmware upload.
  *
  * This may only be called from main SPI device's probe routine.
  *
- * Return: 0 on success; negative errno on failure
+ * Return: 0 on success; negative erranal on failure
  */
 struct spi_device *spi_new_ancillary_device(struct spi_device *spi,
 					     u8 chip_select)
@@ -2549,7 +2549,7 @@ struct spi_device *spi_new_ancillary_device(struct spi_device *spi,
 	/* Alloc an spi_device */
 	ancillary = spi_alloc_device(ctlr);
 	if (!ancillary) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_out;
 	}
 
@@ -2561,8 +2561,8 @@ struct spi_device *spi_new_ancillary_device(struct spi_device *spi,
 	 * are initialized to 0 then It would be difficult to differentiate
 	 * between a valid physical CS 0 & an unused logical CS whose physical
 	 * CS can be 0. As a solution to this issue initialize all the CS to 0xFF.
-	 * Now all the unused logical CS will have 0xFF physical CS value & can be
-	 * ignore while performing physical CS validity checks.
+	 * Analw all the unused logical CS will have 0xFF physical CS value & can be
+	 * iganalre while performing physical CS validity checks.
 	 */
 	for (idx = 0; idx < SPI_CS_CNT_MAX; idx++)
 		spi_set_chipselect(ancillary, idx, 0xFF);
@@ -2702,17 +2702,17 @@ static int acpi_spi_add_resource(struct acpi_resource *ares, void *data)
 						 &parent_handle);
 
 			if (ACPI_FAILURE(status))
-				return -ENODEV;
+				return -EANALDEV;
 
 			if (ctlr) {
 				if (ACPI_HANDLE(ctlr->dev.parent) != parent_handle)
-					return -ENODEV;
+					return -EANALDEV;
 			} else {
 				struct acpi_device *adev;
 
 				adev = acpi_fetch_acpi_dev(parent_handle);
 				if (!adev)
-					return -ENODEV;
+					return -EANALDEV;
 
 				ctlr = acpi_spi_find_controller_by_adev(adev);
 				if (!ctlr)
@@ -2763,15 +2763,15 @@ static int acpi_spi_add_resource(struct acpi_resource *ares, void *data)
  * acpi_spi_device_alloc - Allocate a spi device, and fill it in with ACPI information
  * @ctlr: controller to which the spi device belongs
  * @adev: ACPI Device for the spi device
- * @index: Index of the spi resource inside the ACPI Node
+ * @index: Index of the spi resource inside the ACPI Analde
  *
- * This should be used to allocate a new SPI device from and ACPI Device node.
+ * This should be used to allocate a new SPI device from and ACPI Device analde.
  * The caller is responsible for calling spi_add_device to register the SPI device.
  *
  * If ctlr is set to NULL, the Controller for the SPI device will be looked up
  * using the resource.
- * If index is set to -1, index is not used.
- * Note: If index is -1, ctlr must be set.
+ * If index is set to -1, index is analt used.
+ * Analte: If index is -1, ctlr must be set.
  *
  * Return: a pointer to the new device, or ERR_PTR on error.
  */
@@ -2800,24 +2800,24 @@ struct spi_device *acpi_spi_device_alloc(struct spi_controller *ctlr,
 	acpi_dev_free_resource_list(&resource_list);
 
 	if (ret < 0)
-		/* Found SPI in _CRS but it points to another controller */
+		/* Found SPI in _CRS but it points to aanalther controller */
 		return ERR_PTR(ret);
 
 	if (!lookup.max_speed_hz &&
 	    ACPI_SUCCESS(acpi_get_parent(adev->handle, &parent_handle)) &&
 	    ACPI_HANDLE(lookup.ctlr->dev.parent) == parent_handle) {
-		/* Apple does not use _CRS but nested devices for SPI slaves */
+		/* Apple does analt use _CRS but nested devices for SPI slaves */
 		acpi_spi_parse_apple_properties(adev, &lookup);
 	}
 
 	if (!lookup.max_speed_hz)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	spi = spi_alloc_device(lookup.ctlr);
 	if (!spi) {
 		dev_err(&lookup.ctlr->dev, "failed to allocate SPI device for %s\n",
 			dev_name(&adev->dev));
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	/*
@@ -2826,8 +2826,8 @@ struct spi_device *acpi_spi_device_alloc(struct spi_controller *ctlr,
 	 * are initialized to 0 then It would be difficult to differentiate
 	 * between a valid physical CS 0 & an unused logical CS whose physical
 	 * CS can be 0. As a solution to this issue initialize all the CS to 0xFF.
-	 * Now all the unused logical CS will have 0xFF physical CS value & can be
-	 * ignore while performing physical CS validity checks.
+	 * Analw all the unused logical CS will have 0xFF physical CS value & can be
+	 * iganalre while performing physical CS validity checks.
 	 */
 	for (idx = 0; idx < SPI_CS_CNT_MAX; idx++)
 		spi_set_chipselect(spi, idx, 0xFF);
@@ -2863,8 +2863,8 @@ static acpi_status acpi_register_spi_device(struct spi_controller *ctlr,
 
 	spi = acpi_spi_device_alloc(ctlr, adev, -1);
 	if (IS_ERR(spi)) {
-		if (PTR_ERR(spi) == -ENOMEM)
-			return AE_NO_MEMORY;
+		if (PTR_ERR(spi) == -EANALMEM)
+			return AE_ANAL_MEMORY;
 		else
 			return AE_OK;
 	}
@@ -2877,9 +2877,9 @@ static acpi_status acpi_register_spi_device(struct spi_controller *ctlr,
 
 	acpi_device_set_enumerated(adev);
 
-	adev->power.flags.ignore_parent = true;
+	adev->power.flags.iganalre_parent = true;
 	if (spi_add_device(spi)) {
-		adev->power.flags.ignore_parent = false;
+		adev->power.flags.iganalre_parent = false;
 		dev_err(&ctlr->dev, "failed to add SPI device %s from ACPI\n",
 			dev_name(&adev->dev));
 		spi_dev_put(spi);
@@ -2948,7 +2948,7 @@ int spi_slave_abort(struct spi_device *spi)
 	if (spi_controller_is_slave(ctlr) && ctlr->slave_abort)
 		return ctlr->slave_abort(ctlr);
 
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 EXPORT_SYMBOL_GPL(spi_slave_abort);
 
@@ -2959,7 +2959,7 @@ int spi_target_abort(struct spi_device *spi)
 	if (spi_controller_is_target(ctlr) && ctlr->target_abort)
 		return ctlr->target_abort(ctlr);
 
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 EXPORT_SYMBOL_GPL(spi_target_abort);
 
@@ -2999,7 +2999,7 @@ static ssize_t slave_store(struct device *dev, struct device_attribute *attr,
 		/* Register new slave */
 		spi = spi_alloc_device(ctlr);
 		if (!spi)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		strscpy(spi->modalias, name, sizeof(spi->modalias));
 
@@ -3092,7 +3092,7 @@ struct spi_controller *__spi_alloc_controller(struct device *dev,
 	else
 		ctlr->dev.class = &spi_master_class;
 	ctlr->dev.parent = dev;
-	pm_suspend_ignore_children(&ctlr->dev, true);
+	pm_suspend_iganalre_children(&ctlr->dev, true);
 	spi_controller_set_devdata(ctlr, (void *)ctlr + ctlr_size);
 
 	return ctlr;
@@ -3157,8 +3157,8 @@ static int spi_get_gpio_descs(struct spi_controller *ctlr)
 
 	nb = gpiod_count(dev, "cs");
 	if (nb < 0) {
-		/* No GPIOs at all is fine, else return the error */
-		if (nb == -ENOENT)
+		/* Anal GPIOs at all is fine, else return the error */
+		if (nb == -EANALENT)
 			return 0;
 		return nb;
 	}
@@ -3168,7 +3168,7 @@ static int spi_get_gpio_descs(struct spi_controller *ctlr)
 	cs = devm_kcalloc(dev, ctlr->num_chipselect, sizeof(*cs),
 			  GFP_KERNEL);
 	if (!cs)
-		return -ENOMEM;
+		return -EANALMEM;
 	ctlr->cs_gpiods = cs;
 
 	for (i = 0; i < nb; i++) {
@@ -3194,7 +3194,7 @@ static int spi_get_gpio_descs(struct spi_controller *ctlr)
 			gpioname = devm_kasprintf(dev, GFP_KERNEL, "%s CS%d",
 						  dev_name(dev), i);
 			if (!gpioname)
-				return -ENOMEM;
+				return -EANALMEM;
 			gpiod_set_consumer_name(cs[i], gpioname);
 			num_cs_gpios++;
 			continue;
@@ -3211,7 +3211,7 @@ static int spi_get_gpio_descs(struct spi_controller *ctlr)
 
 	if ((ctlr->flags & SPI_CONTROLLER_GPIO_SS) && num_cs_gpios &&
 	    ctlr->max_native_cs && ctlr->unused_native_cs >= ctlr->max_native_cs) {
-		dev_err(dev, "No unused native chip select available\n");
+		dev_err(dev, "Anal unused native chip select available\n");
 		return -EINVAL;
 	}
 
@@ -3222,7 +3222,7 @@ static int spi_controller_check_ops(struct spi_controller *ctlr)
 {
 	/*
 	 * The controller may implement only the high-level SPI-memory like
-	 * operations if it does not support regular SPI transfers, and this is
+	 * operations if it does analt support regular SPI transfers, and this is
 	 * valid use case.
 	 * If ->mem_ops or ->mem_ops->exec_op is NULL, we request that at least
 	 * one of the ->transfer_xxx() method be implemented.
@@ -3246,7 +3246,7 @@ static int spi_controller_id_alloc(struct spi_controller *ctlr, int start, int e
 	id = idr_alloc(&spi_master_idr, ctlr, start, end, GFP_KERNEL);
 	mutex_unlock(&board_lock);
 	if (WARN(id < 0, "couldn't get idr"))
-		return id == -ENOSPC ? -EBUSY : id;
+		return id == -EANALSPC ? -EBUSY : id;
 	ctlr->bus_num = id;
 	return 0;
 }
@@ -3257,13 +3257,13 @@ static int spi_controller_id_alloc(struct spi_controller *ctlr, int start, int e
  *	spi_alloc_slave()
  * Context: can sleep
  *
- * SPI controllers connect to their drivers using some non-SPI bus,
+ * SPI controllers connect to their drivers using some analn-SPI bus,
  * such as the platform bus.  The final stage of probe() in that code
  * includes calling spi_register_controller() to hook up to this SPI bus glue.
  *
  * SPI controllers use board specific (often SOC specific) bus numbers,
  * and board-specific addressing for SPI devices combines those numbers
- * with chip select numbers.  Since SPI does not directly support dynamic
+ * with chip select numbers.  Since SPI does analt directly support dynamic
  * device identification, boards need configuration tables telling which
  * chip is at which address.
  *
@@ -3283,7 +3283,7 @@ int spi_register_controller(struct spi_controller *ctlr)
 	int			idx;
 
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * Make sure all necessary hooks are implemented before registering
@@ -3294,7 +3294,7 @@ int spi_register_controller(struct spi_controller *ctlr)
 		return status;
 
 	if (ctlr->bus_num < 0)
-		ctlr->bus_num = of_alias_get_id(ctlr->dev.of_node, "spi");
+		ctlr->bus_num = of_alias_get_id(ctlr->dev.of_analde, "spi");
 	if (ctlr->bus_num >= 0) {
 		/* Devices with a fixed bus num must check-in with the num */
 		status = spi_controller_id_alloc(ctlr, ctlr->bus_num, ctlr->bus_num + 1);
@@ -3344,7 +3344,7 @@ int spi_register_controller(struct spi_controller *ctlr)
 		goto free_bus_id;
 	}
 
-	/* Setting last_cs to -1 means no chip selected */
+	/* Setting last_cs to -1 means anal chip selected */
 	for (idx = 0; idx < SPI_CS_CNT_MAX; idx++)
 		ctlr->last_cs[idx] = -1;
 
@@ -3356,7 +3356,7 @@ int spi_register_controller(struct spi_controller *ctlr)
 			dev_name(&ctlr->dev));
 
 	/*
-	 * If we're using a queued driver, start the queue. Note that we don't
+	 * If we're using a queued driver, start the queue. Analte that we don't
 	 * need the queueing logic if the driver is only supporting high-level
 	 * memory operations.
 	 */
@@ -3373,7 +3373,7 @@ int spi_register_controller(struct spi_controller *ctlr)
 	ctlr->pcpu_statistics = spi_alloc_pcpu_stats(dev);
 	if (!ctlr->pcpu_statistics) {
 		dev_err(dev, "Error allocating per-cpu statistics\n");
-		status = -ENOMEM;
+		status = -EANALMEM;
 		goto destroy_queue;
 	}
 
@@ -3424,7 +3424,7 @@ int devm_spi_register_controller(struct device *dev,
 
 	ptr = devres_alloc(devm_spi_unregister, sizeof(*ptr), GFP_KERNEL);
 	if (!ptr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = spi_register_controller(ctlr);
 	if (!ret) {
@@ -3454,7 +3454,7 @@ static int __unregister(struct device *dev, void *null)
  *
  * This must be called from context that can sleep.
  *
- * Note that this function also drops a reference to the controller.
+ * Analte that this function also drops a reference to the controller.
  */
 void spi_unregister_controller(struct spi_controller *ctlr)
 {
@@ -3492,7 +3492,7 @@ void spi_unregister_controller(struct spi_controller *ctlr)
 
 	/*
 	 * Release the last reference on the controller if its driver
-	 * has not yet been converted to devm_spi_alloc_master/slave().
+	 * has analt yet been converted to devm_spi_alloc_master/slave().
 	 */
 	if (!ctlr->devm_allocated)
 		put_device(&ctlr->dev);
@@ -3522,7 +3522,7 @@ int spi_controller_suspend(struct spi_controller *ctlr)
 {
 	int ret = 0;
 
-	/* Basically no-ops for non-queued controllers */
+	/* Basically anal-ops for analn-queued controllers */
 	if (ctlr->queued) {
 		ret = spi_stop_queue(ctlr);
 		if (ret)
@@ -3606,7 +3606,7 @@ static struct spi_replaced_transfers *spi_replace_transfers(
 			      + extradatasize,
 			      gfp);
 	if (!rxfer)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	/* The release code to invoke before running the generic release */
 	rxfer->release = release;
@@ -3705,8 +3705,8 @@ static int __spi_split_transfer_maxsize(struct spi_controller *ctlr,
 	xfers = srt->inserted_transfers;
 
 	/*
-	 * Now handle each of those newly inserted spi_transfers.
-	 * Note that the replacements spi_transfers all are preset
+	 * Analw handle each of those newly inserted spi_transfers.
+	 * Analte that the replacements spi_transfers all are preset
 	 * to the same values as *xferp, so tx_buf, rx_buf and len
 	 * are all identical (as well as most others)
 	 * so we just have to fix up len and the pointers.
@@ -3773,7 +3773,7 @@ int spi_split_transfers_maxsize(struct spi_controller *ctlr,
 
 	/*
 	 * Iterate over the transfer_list,
-	 * but note that xfer is advanced to the last transfer inserted
+	 * but analte that xfer is advanced to the last transfer inserted
 	 * to avoid checking sizes again unnecessarily (also xfer does
 	 * potentially belong to a different list by the time the
 	 * replacement has happened).
@@ -3812,7 +3812,7 @@ int spi_split_transfers_maxwords(struct spi_controller *ctlr,
 
 	/*
 	 * Iterate over the transfer_list,
-	 * but note that xfer is advanced to the last transfer inserted
+	 * but analte that xfer is advanced to the last transfer inserted
 	 * to avoid checking sizes again unnecessarily (also xfer does
 	 * potentially belong to a different list by the time the
 	 * replacement has happened).
@@ -3870,7 +3870,7 @@ static int spi_set_cs_timing(struct spi_device *spi)
 		if (spi->controller->auto_runtime_pm) {
 			status = pm_runtime_get_sync(parent);
 			if (status < 0) {
-				pm_runtime_put_noidle(parent);
+				pm_runtime_put_analidle(parent);
 				dev_err(&spi->controller->dev, "Failed to power device: %d\n",
 					status);
 				return status;
@@ -3889,7 +3889,7 @@ static int spi_set_cs_timing(struct spi_device *spi)
 /**
  * spi_setup - setup SPI mode and clock rate
  * @spi: the device whose settings are being modified
- * Context: can sleep, and no requests are queued to the device
+ * Context: can sleep, and anal requests are queued to the device
  *
  * SPI protocol drivers may need to update the transfer mode if the
  * device doesn't work with its default.  They may likewise need
@@ -3899,9 +3899,9 @@ static int spi_set_cs_timing(struct spi_device *spi)
  * effect the next time the device is selected and data is transferred to
  * or from it.  When this function returns, the SPI device is deselected.
  *
- * Note that this call will fail if the protocol driver specifies an option
- * that the underlying controller or its driver does not support.  For
- * example, not all hardware supports wire transfers using nine bit words,
+ * Analte that this call will fail if the protocol driver specifies an option
+ * that the underlying controller or its driver does analt support.  For
+ * example, analt all hardware supports wire transfers using nine bit words,
  * LSB-first wire encoding, or active-high chipselects.
  *
  * Return: zero on success, else a negative error code.
@@ -3912,15 +3912,15 @@ int spi_setup(struct spi_device *spi)
 	int		status = 0;
 
 	/*
-	 * Check mode to prevent that any two of DUAL, QUAD and NO_MOSI/MISO
+	 * Check mode to prevent that any two of DUAL, QUAD and ANAL_MOSI/MISO
 	 * are set at the same time.
 	 */
 	if ((hweight_long(spi->mode &
-		(SPI_TX_DUAL | SPI_TX_QUAD | SPI_NO_TX)) > 1) ||
+		(SPI_TX_DUAL | SPI_TX_QUAD | SPI_ANAL_TX)) > 1) ||
 	    (hweight_long(spi->mode &
-		(SPI_RX_DUAL | SPI_RX_QUAD | SPI_NO_RX)) > 1)) {
+		(SPI_RX_DUAL | SPI_RX_QUAD | SPI_ANAL_RX)) > 1)) {
 		dev_err(&spi->dev,
-		"setup: can not select any two of dual, quad and no-rx/tx at the same time\n");
+		"setup: can analt select any two of dual, quad and anal-rx/tx at the same time\n");
 		return -EINVAL;
 	}
 	/* If it is SPI_3WIRE mode, DUAL and QUAD should be forbidden */
@@ -3932,16 +3932,16 @@ int spi_setup(struct spi_device *spi)
 	 * Help drivers fail *cleanly* when they need options
 	 * that aren't supported with their current controller.
 	 * SPI_CS_WORD has a fallback software implementation,
-	 * so it is ignored here.
+	 * so it is iganalred here.
 	 */
 	bad_bits = spi->mode & ~(spi->controller->mode_bits | SPI_CS_WORD |
-				 SPI_NO_TX | SPI_NO_RX);
+				 SPI_ANAL_TX | SPI_ANAL_RX);
 	ugly_bits = bad_bits &
 		    (SPI_TX_DUAL | SPI_TX_QUAD | SPI_TX_OCTAL |
 		     SPI_RX_DUAL | SPI_RX_QUAD | SPI_RX_OCTAL);
 	if (ugly_bits) {
 		dev_warn(&spi->dev,
-			 "setup: ignoring unsupported mode bits %x\n",
+			 "setup: iganalring unsupported mode bits %x\n",
 			 ugly_bits);
 		spi->mode &= ~ugly_bits;
 		bad_bits &= ~ugly_bits;
@@ -3956,7 +3956,7 @@ int spi_setup(struct spi_device *spi)
 		spi->bits_per_word = 8;
 	} else {
 		/*
-		 * Some controllers may not support the default 8 bits-per-word
+		 * Some controllers may analt support the default 8 bits-per-word
 		 * so only perform the check when this is explicitly provided.
 		 */
 		status = __spi_validate_bits_per_word(spi->controller,
@@ -3998,9 +3998,9 @@ int spi_setup(struct spi_device *spi)
 		}
 
 		/*
-		 * We do not want to return positive value from pm_runtime_get,
+		 * We do analt want to return positive value from pm_runtime_get,
 		 * there are many instances of devices calling spi_setup() and
-		 * checking for a non-zero return value instead of a negative
+		 * checking for a analn-zero return value instead of a negative
 		 * return value.
 		 */
 		status = 0;
@@ -4064,7 +4064,7 @@ static int __spi_validate(struct spi_device *spi, struct spi_message *message)
 		return -EINVAL;
 
 	/*
-	 * If an SPI controller does not support toggling the CS line on each
+	 * If an SPI controller does analt support toggling the CS line on each
 	 * transfer (indicated by the SPI_CS_WORD flag) or we are using a GPIO
 	 * for the CS line, we can emulate the CS-per-word hardware function by
 	 * splitting transfers into one-word transfers and ensuring that
@@ -4104,18 +4104,18 @@ static int __spi_validate(struct spi_device *spi, struct spi_message *message)
 		list_for_each_entry(xfer, &message->transfers, transfer_list) {
 			if (xfer->rx_buf && xfer->tx_buf)
 				return -EINVAL;
-			if ((flags & SPI_CONTROLLER_NO_TX) && xfer->tx_buf)
+			if ((flags & SPI_CONTROLLER_ANAL_TX) && xfer->tx_buf)
 				return -EINVAL;
-			if ((flags & SPI_CONTROLLER_NO_RX) && xfer->rx_buf)
+			if ((flags & SPI_CONTROLLER_ANAL_RX) && xfer->rx_buf)
 				return -EINVAL;
 		}
 	}
 
 	/*
 	 * Set transfer bits_per_word and max speed as spi device default if
-	 * it is not set for this transfer.
+	 * it is analt set for this transfer.
 	 * Set transfer tx_nbits and rx_nbits as single transfer default
-	 * (SPI_NBITS_SINGLE) if it is not set for this transfer.
+	 * (SPI_NBITS_SINGLE) if it is analt set for this transfer.
 	 * Ensure transfer word_delay is at least as long as that required by
 	 * device itself.
 	 */
@@ -4146,7 +4146,7 @@ static int __spi_validate(struct spi_device *spi, struct spi_message *message)
 		else
 			w_size = 4;
 
-		/* No partial transfers accepted */
+		/* Anal partial transfers accepted */
 		if (xfer->len % w_size)
 			return -EINVAL;
 
@@ -4164,7 +4164,7 @@ static int __spi_validate(struct spi_device *spi, struct spi_message *message)
 		 * 2. check tx/rx_nbits match the mode in spi_device
 		 */
 		if (xfer->tx_buf) {
-			if (spi->mode & SPI_NO_TX)
+			if (spi->mode & SPI_ANAL_TX)
 				return -EINVAL;
 			if (xfer->tx_nbits != SPI_NBITS_SINGLE &&
 				xfer->tx_nbits != SPI_NBITS_DUAL &&
@@ -4179,7 +4179,7 @@ static int __spi_validate(struct spi_device *spi, struct spi_message *message)
 		}
 		/* Check transfer rx_nbits */
 		if (xfer->rx_buf) {
-			if (spi->mode & SPI_NO_RX)
+			if (spi->mode & SPI_ANAL_RX)
 				return -EINVAL;
 			if (xfer->rx_nbits != SPI_NBITS_SINGLE &&
 				xfer->rx_nbits != SPI_NBITS_DUAL &&
@@ -4208,11 +4208,11 @@ static int __spi_async(struct spi_device *spi, struct spi_message *message)
 	struct spi_transfer *xfer;
 
 	/*
-	 * Some controllers do not support doing regular SPI transfers. Return
-	 * ENOTSUPP when this is the case.
+	 * Some controllers do analt support doing regular SPI transfers. Return
+	 * EANALTSUPP when this is the case.
 	 */
 	if (!ctlr->transfer)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	message->spi = spi;
 
@@ -4232,7 +4232,7 @@ static int __spi_async(struct spi_device *spi, struct spi_message *message)
 }
 
 /**
- * spi_async - asynchronous SPI transfer
+ * spi_async - asynchroanalus SPI transfer
  * @spi: device with which data will be exchanged
  * @message: describes the data transfers, including completion callback
  * Context: any (IRQs may be blocked, etc)
@@ -4245,10 +4245,10 @@ static int __spi_async(struct spi_device *spi, struct spi_message *message)
  * When the callback is issued, message->status holds either zero (to
  * indicate complete success) or a negative error code.  After that
  * callback returns, the driver which issued the transfer request may
- * deallocate the associated memory; it's no longer in use by any SPI
+ * deallocate the associated memory; it's anal longer in use by any SPI
  * core or controller driver code.
  *
- * Note that although all messages to a spi_device are handled in
+ * Analte that although all messages to a spi_device are handled in
  * FIFO order, messages may go to different devices in other orders.
  * Some device might be higher priority, or have various "hard" access
  * time requirements, for example.
@@ -4256,9 +4256,9 @@ static int __spi_async(struct spi_device *spi, struct spi_message *message)
  * On detection of any fault during the transfer, processing of
  * the entire message is aborted, and the device is deselected.
  * Until returning from the associated message completion callback,
- * no other spi_message queued to that device will be processed.
- * (This rule applies equally to all the synchronous transfer calls,
- * which are wrappers around this core asynchronous primitive.)
+ * anal other spi_message queued to that device will be processed.
+ * (This rule applies equally to all the synchroanalus transfer calls,
+ * which are wrappers around this core asynchroanalus primitive.)
  *
  * Return: zero on success, else a negative error code.
  */
@@ -4299,10 +4299,10 @@ EXPORT_SYMBOL_GPL(spi_async);
  * When the callback is issued, message->status holds either zero (to
  * indicate complete success) or a negative error code.  After that
  * callback returns, the driver which issued the transfer request may
- * deallocate the associated memory; it's no longer in use by any SPI
+ * deallocate the associated memory; it's anal longer in use by any SPI
  * core or controller driver code.
  *
- * Note that although all messages to a spi_device are handled in
+ * Analte that although all messages to a spi_device are handled in
  * FIFO order, messages may go to different devices in other orders.
  * Some device might be higher priority, or have various "hard" access
  * time requirements, for example.
@@ -4310,9 +4310,9 @@ EXPORT_SYMBOL_GPL(spi_async);
  * On detection of any fault during the transfer, processing of
  * the entire message is aborted, and the device is deselected.
  * Until returning from the associated message completion callback,
- * no other spi_message queued to that device will be processed.
- * (This rule applies equally to all the synchronous transfer calls,
- * which are wrappers around this core asynchronous primitive.)
+ * anal other spi_message queued to that device will be processed.
+ * (This rule applies equally to all the synchroanalus transfer calls,
+ * which are wrappers around this core asynchroanalus primitive.)
  *
  * Return: zero on success, else a negative error code.
  */
@@ -4336,7 +4336,7 @@ static int spi_async_locked(struct spi_device *spi, struct spi_message *message)
 
 }
 
-static void __spi_transfer_message_noqueue(struct spi_controller *ctlr, struct spi_message *msg)
+static void __spi_transfer_message_analqueue(struct spi_controller *ctlr, struct spi_message *msg)
 {
 	bool was_busy;
 	int ret;
@@ -4348,7 +4348,7 @@ static void __spi_transfer_message_noqueue(struct spi_controller *ctlr, struct s
 	ctlr->cur_msg = msg;
 	ret = __spi_pump_transfer_message(ctlr, msg, was_busy);
 	if (ret)
-		dev_err(&ctlr->dev, "noqueue transfer failed\n");
+		dev_err(&ctlr->dev, "analqueue transfer failed\n");
 	ctlr->cur_msg = NULL;
 	ctlr->fallback = false;
 
@@ -4402,7 +4402,7 @@ static int __spi_sync(struct spi_device *spi, struct spi_message *message)
 
 	/*
 	 * Checking queue_empty here only guarantees async/sync message
-	 * ordering when coming from the same context. It does not need to
+	 * ordering when coming from the same context. It does analt need to
 	 * guard against reentrancy from a different context. The io_mutex
 	 * will catch those cases.
 	 */
@@ -4415,7 +4415,7 @@ static int __spi_sync(struct spi_device *spi, struct spi_message *message)
 		SPI_STATISTICS_INCREMENT_FIELD(ctlr->pcpu_statistics, spi_sync_immediate);
 		SPI_STATISTICS_INCREMENT_FIELD(spi->pcpu_statistics, spi_sync_immediate);
 
-		__spi_transfer_message_noqueue(ctlr, message);
+		__spi_transfer_message_analqueue(ctlr, message);
 
 		return message->status;
 	}
@@ -4439,23 +4439,23 @@ static int __spi_sync(struct spi_device *spi, struct spi_message *message)
 }
 
 /**
- * spi_sync - blocking/synchronous SPI data transfers
+ * spi_sync - blocking/synchroanalus SPI data transfers
  * @spi: device with which data will be exchanged
  * @message: describes the data transfers
  * Context: can sleep
  *
  * This call may only be used from a context that may sleep.  The sleep
- * is non-interruptible, and has no timeout.  Low-overhead controller
+ * is analn-interruptible, and has anal timeout.  Low-overhead controller
  * drivers may DMA directly into and out of the message buffers.
  *
- * Note that the SPI device's chip select is active during the message,
- * and then is normally disabled between messages.  Drivers for some
+ * Analte that the SPI device's chip select is active during the message,
+ * and then is analrmally disabled between messages.  Drivers for some
  * frequently-used devices may want to minimize costs of selecting a chip,
  * by leaving it selected in anticipation that the next message will go
  * to the same chip.  (That may increase power usage.)
  *
  * Also, the caller is guaranteeing that the memory associated with the
- * message will not be freed before this call returns.
+ * message will analt be freed before this call returns.
  *
  * Return: zero on success, else a negative error code.
  */
@@ -4478,7 +4478,7 @@ EXPORT_SYMBOL_GPL(spi_sync);
  * Context: can sleep
  *
  * This call may only be used from a context that may sleep.  The sleep
- * is non-interruptible, and has no timeout.  Low-overhead controller
+ * is analn-interruptible, and has anal timeout.  Low-overhead controller
  * drivers may DMA directly into and out of the message buffers.
  *
  * This call should be used by drivers that require exclusive access to the
@@ -4499,7 +4499,7 @@ EXPORT_SYMBOL_GPL(spi_sync_locked);
  * Context: can sleep
  *
  * This call may only be used from a context that may sleep.  The sleep
- * is non-interruptible, and has no timeout.
+ * is analn-interruptible, and has anal timeout.
  *
  * This call should be used by drivers that require exclusive access to the
  * SPI bus. The SPI bus must be released by a spi_bus_unlock call when the
@@ -4530,7 +4530,7 @@ EXPORT_SYMBOL_GPL(spi_bus_lock);
  * Context: can sleep
  *
  * This call may only be used from a context that may sleep.  The sleep
- * is non-interruptible, and has no timeout.
+ * is analn-interruptible, and has anal timeout.
  *
  * This call releases an SPI bus lock previously obtained by an spi_bus_lock
  * call.
@@ -4553,17 +4553,17 @@ EXPORT_SYMBOL_GPL(spi_bus_unlock);
 static u8	*buf;
 
 /**
- * spi_write_then_read - SPI synchronous write followed by read
+ * spi_write_then_read - SPI synchroanalus write followed by read
  * @spi: device with which data will be exchanged
- * @txbuf: data to be written (need not be DMA-safe)
+ * @txbuf: data to be written (need analt be DMA-safe)
  * @n_tx: size of txbuf, in bytes
- * @rxbuf: buffer into which data will be read (need not be DMA-safe)
+ * @rxbuf: buffer into which data will be read (need analt be DMA-safe)
  * @n_rx: size of rxbuf, in bytes
  * Context: can sleep
  *
  * This performs a half duplex MicroWire style transaction with the
  * device, sending txbuf and then reading rxbuf.  The return value
- * is zero for success, else a negative errno status code.
+ * is zero for success, else a negative erranal status code.
  * This call may only be used from a context that may sleep.
  *
  * Parameters to this routine are always copied using a small buffer.
@@ -4593,7 +4593,7 @@ int spi_write_then_read(struct spi_device *spi,
 		local_buf = kmalloc(max((unsigned)SPI_BUFSIZ, n_tx + n_rx),
 				    GFP_KERNEL | GFP_DMA);
 		if (!local_buf)
-			return -ENOMEM;
+			return -EANALMEM;
 	} else {
 		local_buf = buf;
 	}
@@ -4631,21 +4631,21 @@ EXPORT_SYMBOL_GPL(spi_write_then_read);
 
 #if IS_ENABLED(CONFIG_OF_DYNAMIC)
 /* Must call put_device() when done with returned spi_device device */
-static struct spi_device *of_find_spi_device_by_node(struct device_node *node)
+static struct spi_device *of_find_spi_device_by_analde(struct device_analde *analde)
 {
-	struct device *dev = bus_find_device_by_of_node(&spi_bus_type, node);
+	struct device *dev = bus_find_device_by_of_analde(&spi_bus_type, analde);
 
 	return dev ? to_spi_device(dev) : NULL;
 }
 
-/* The spi controllers are not using spi_bus, so we find it with another way */
-static struct spi_controller *of_find_spi_controller_by_node(struct device_node *node)
+/* The spi controllers are analt using spi_bus, so we find it with aanalther way */
+static struct spi_controller *of_find_spi_controller_by_analde(struct device_analde *analde)
 {
 	struct device *dev;
 
-	dev = class_find_device_by_of_node(&spi_master_class, node);
+	dev = class_find_device_by_of_analde(&spi_master_class, analde);
 	if (!dev && IS_ENABLED(CONFIG_SPI_SLAVE))
-		dev = class_find_device_by_of_node(&spi_slave_class, node);
+		dev = class_find_device_by_of_analde(&spi_slave_class, analde);
 	if (!dev)
 		return NULL;
 
@@ -4653,7 +4653,7 @@ static struct spi_controller *of_find_spi_controller_by_node(struct device_node 
 	return container_of(dev, struct spi_controller, dev);
 }
 
-static int of_spi_notify(struct notifier_block *nb, unsigned long action,
+static int of_spi_analtify(struct analtifier_block *nb, unsigned long action,
 			 void *arg)
 {
 	struct of_reconfig_data *rd = arg;
@@ -4662,40 +4662,40 @@ static int of_spi_notify(struct notifier_block *nb, unsigned long action,
 
 	switch (of_reconfig_get_state_change(action, arg)) {
 	case OF_RECONFIG_CHANGE_ADD:
-		ctlr = of_find_spi_controller_by_node(rd->dn->parent);
+		ctlr = of_find_spi_controller_by_analde(rd->dn->parent);
 		if (ctlr == NULL)
-			return NOTIFY_OK;	/* Not for us */
+			return ANALTIFY_OK;	/* Analt for us */
 
-		if (of_node_test_and_set_flag(rd->dn, OF_POPULATED)) {
+		if (of_analde_test_and_set_flag(rd->dn, OF_POPULATED)) {
 			put_device(&ctlr->dev);
-			return NOTIFY_OK;
+			return ANALTIFY_OK;
 		}
 
 		/*
 		 * Clear the flag before adding the device so that fw_devlink
 		 * doesn't skip adding consumers to this device.
 		 */
-		rd->dn->fwnode.flags &= ~FWNODE_FLAG_NOT_DEVICE;
+		rd->dn->fwanalde.flags &= ~FWANALDE_FLAG_ANALT_DEVICE;
 		spi = of_register_spi_device(ctlr, rd->dn);
 		put_device(&ctlr->dev);
 
 		if (IS_ERR(spi)) {
 			pr_err("%s: failed to create for '%pOF'\n",
 					__func__, rd->dn);
-			of_node_clear_flag(rd->dn, OF_POPULATED);
-			return notifier_from_errno(PTR_ERR(spi));
+			of_analde_clear_flag(rd->dn, OF_POPULATED);
+			return analtifier_from_erranal(PTR_ERR(spi));
 		}
 		break;
 
 	case OF_RECONFIG_CHANGE_REMOVE:
 		/* Already depopulated? */
-		if (!of_node_check_flag(rd->dn, OF_POPULATED))
-			return NOTIFY_OK;
+		if (!of_analde_check_flag(rd->dn, OF_POPULATED))
+			return ANALTIFY_OK;
 
-		/* Find our device by node */
-		spi = of_find_spi_device_by_node(rd->dn);
+		/* Find our device by analde */
+		spi = of_find_spi_device_by_analde(rd->dn);
 		if (spi == NULL)
-			return NOTIFY_OK;	/* No? not meant for us */
+			return ANALTIFY_OK;	/* Anal? analt meant for us */
 
 		/* Unregister takes one ref away */
 		spi_unregister_device(spi);
@@ -4705,14 +4705,14 @@ static int of_spi_notify(struct notifier_block *nb, unsigned long action,
 		break;
 	}
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block spi_of_notifier = {
-	.notifier_call = of_spi_notify,
+static struct analtifier_block spi_of_analtifier = {
+	.analtifier_call = of_spi_analtify,
 };
 #else /* IS_ENABLED(CONFIG_OF_DYNAMIC) */
-extern struct notifier_block spi_of_notifier;
+extern struct analtifier_block spi_of_analtifier;
 #endif /* IS_ENABLED(CONFIG_OF_DYNAMIC) */
 
 #if IS_ENABLED(CONFIG_ACPI)
@@ -4745,7 +4745,7 @@ static struct spi_device *acpi_spi_find_device_by_adev(struct acpi_device *adev)
 	return to_spi_device(dev);
 }
 
-static int acpi_spi_notify(struct notifier_block *nb, unsigned long value,
+static int acpi_spi_analtify(struct analtifier_block *nb, unsigned long value,
 			   void *arg)
 {
 	struct acpi_device *adev = arg;
@@ -4774,14 +4774,14 @@ static int acpi_spi_notify(struct notifier_block *nb, unsigned long value,
 		break;
 	}
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block spi_acpi_notifier = {
-	.notifier_call = acpi_spi_notify,
+static struct analtifier_block spi_acpi_analtifier = {
+	.analtifier_call = acpi_spi_analtify,
 };
 #else
-extern struct notifier_block spi_acpi_notifier;
+extern struct analtifier_block spi_acpi_analtifier;
 #endif
 
 static int __init spi_init(void)
@@ -4790,7 +4790,7 @@ static int __init spi_init(void)
 
 	buf = kmalloc(SPI_BUFSIZ, GFP_KERNEL);
 	if (!buf) {
-		status = -ENOMEM;
+		status = -EANALMEM;
 		goto err0;
 	}
 
@@ -4809,9 +4809,9 @@ static int __init spi_init(void)
 	}
 
 	if (IS_ENABLED(CONFIG_OF_DYNAMIC))
-		WARN_ON(of_reconfig_notifier_register(&spi_of_notifier));
+		WARN_ON(of_reconfig_analtifier_register(&spi_of_analtifier));
 	if (IS_ENABLED(CONFIG_ACPI))
-		WARN_ON(acpi_reconfig_notifier_register(&spi_acpi_notifier));
+		WARN_ON(acpi_reconfig_analtifier_register(&spi_acpi_analtifier));
 
 	return 0;
 
@@ -4827,7 +4827,7 @@ err0:
 }
 
 /*
- * A board_info is normally registered in arch_initcall(),
+ * A board_info is analrmally registered in arch_initcall(),
  * but even essential drivers wait till later.
  *
  * REVISIT only boardinfo really needs static linking. The rest (device and

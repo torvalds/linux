@@ -8,7 +8,7 @@
 #include <asm/processor-flags.h>
 #include <asm/ptrace-abi.h>
 #include <asm/msr.h>
-#include <asm/nospec-branch.h>
+#include <asm/analspec-branch.h>
 
 /*
 
@@ -19,7 +19,7 @@
  ---------------------------------------------------------------------------
  rdi rsi rdx rcx r8-9 | rbx rbp [*] r12-15 | r10-11             | rax, rdx [**]
 
- ( rsp is obviously invariant across normal function calls. (gcc can 'merge'
+ ( rsp is obviously invariant across analrmal function calls. (gcc can 'merge'
    functions when it sees tail-call optimization possibilities) rflags is
    clobbered. Leftover arguments are passed over the stack frame.)
 
@@ -41,9 +41,9 @@ For 32-bit we have the following conventions - kernel is built with
   arguments         | callee-saved        | extra caller-saved | return
  [callee-clobbered] |                     | [callee-clobbered] |
  -------------------------------------------------------------------------
- eax edx ecx        | ebx edi esi ebp [*] | <none>             | eax, edx [**]
+ eax edx ecx        | ebx edi esi ebp [*] | <analne>             | eax, edx [**]
 
- ( here too esp is obviously invariant across normal function calls. eflags
+ ( here too esp is obviously invariant across analrmal function calls. eflags
    is clobbered. Leftover arguments are passed over the stack frame. )
 
  [*]  In the frame-pointers case ebp is fixed to the stack frame.
@@ -101,19 +101,19 @@ For 32-bit we have the following conventions - kernel is built with
 	 * well before they could be put to use in a speculative execution
 	 * gadget.
 	 */
-	xorl	%esi,  %esi	/* nospec si  */
-	xorl	%edx,  %edx	/* nospec dx  */
-	xorl	%ecx,  %ecx	/* nospec cx  */
-	xorl	%r8d,  %r8d	/* nospec r8  */
-	xorl	%r9d,  %r9d	/* nospec r9  */
-	xorl	%r10d, %r10d	/* nospec r10 */
-	xorl	%r11d, %r11d	/* nospec r11 */
-	xorl	%ebx,  %ebx	/* nospec rbx */
-	xorl	%ebp,  %ebp	/* nospec rbp */
-	xorl	%r12d, %r12d	/* nospec r12 */
-	xorl	%r13d, %r13d	/* nospec r13 */
-	xorl	%r14d, %r14d	/* nospec r14 */
-	xorl	%r15d, %r15d	/* nospec r15 */
+	xorl	%esi,  %esi	/* analspec si  */
+	xorl	%edx,  %edx	/* analspec dx  */
+	xorl	%ecx,  %ecx	/* analspec cx  */
+	xorl	%r8d,  %r8d	/* analspec r8  */
+	xorl	%r9d,  %r9d	/* analspec r9  */
+	xorl	%r10d, %r10d	/* analspec r10 */
+	xorl	%r11d, %r11d	/* analspec r11 */
+	xorl	%ebx,  %ebx	/* analspec rbx */
+	xorl	%ebp,  %ebp	/* analspec rbp */
+	xorl	%r12d, %r12d	/* analspec r12 */
+	xorl	%r13d, %r13d	/* analspec r13 */
+	xorl	%r14d, %r14d	/* analspec r14 */
+	xorl	%r15d, %r15d	/* analspec r15 */
 
 .endm
 
@@ -154,12 +154,12 @@ For 32-bit we have the following conventions - kernel is built with
 #define PTI_USER_PCID_MASK		(1 << PTI_USER_PCID_BIT)
 #define PTI_USER_PGTABLE_AND_PCID_MASK  (PTI_USER_PCID_MASK | PTI_USER_PGTABLE_MASK)
 
-.macro SET_NOFLUSH_BIT	reg:req
-	bts	$X86_CR3_PCID_NOFLUSH_BIT, \reg
+.macro SET_ANALFLUSH_BIT	reg:req
+	bts	$X86_CR3_PCID_ANALFLUSH_BIT, \reg
 .endm
 
 .macro ADJUST_KERNEL_CR3 reg:req
-	ALTERNATIVE "", "SET_NOFLUSH_BIT \reg", X86_FEATURE_PCID
+	ALTERNATIVE "", "SET_ANALFLUSH_BIT \reg", X86_FEATURE_PCID
 	/* Clear PCID and "PAGE_TABLE_ISOLATION bit", point CR3 at kernel pagetables: */
 	andq    $(~PTI_USER_PGTABLE_AND_PCID_MASK), \reg
 .endm
@@ -186,16 +186,16 @@ For 32-bit we have the following conventions - kernel is built with
 	movq	\scratch_reg, \scratch_reg2
 	andq	$(0x7FF), \scratch_reg		/* mask ASID */
 	bt	\scratch_reg, THIS_CPU_user_pcid_flush_mask
-	jnc	.Lnoflush_\@
+	jnc	.Lanalflush_\@
 
 	/* Flush needed, clear the bit */
 	btr	\scratch_reg, THIS_CPU_user_pcid_flush_mask
 	movq	\scratch_reg2, \scratch_reg
 	jmp	.Lwrcr3_pcid_\@
 
-.Lnoflush_\@:
+.Lanalflush_\@:
 	movq	\scratch_reg2, \scratch_reg
-	SET_NOFLUSH_BIT \scratch_reg
+	SET_ANALFLUSH_BIT \scratch_reg
 
 .Lwrcr3_pcid_\@:
 	/* Flip the ASID to the user version */
@@ -207,7 +207,7 @@ For 32-bit we have the following conventions - kernel is built with
 	mov	\scratch_reg, %cr3
 .endm
 
-.macro SWITCH_TO_USER_CR3_NOSTACK scratch_reg:req scratch_reg2:req
+.macro SWITCH_TO_USER_CR3_ANALSTACK scratch_reg:req scratch_reg2:req
 	ALTERNATIVE "jmp .Lend_\@", "", X86_FEATURE_PTI
 	SWITCH_TO_USER_CR3 \scratch_reg \scratch_reg2
 .Lend_\@:
@@ -245,11 +245,11 @@ For 32-bit we have the following conventions - kernel is built with
 	ALTERNATIVE "jmp .Lwrcr3_\@", "", X86_FEATURE_PCID
 
 	/*
-	 * KERNEL pages can always resume with NOFLUSH as we do
+	 * KERNEL pages can always resume with ANALFLUSH as we do
 	 * explicit flushes.
 	 */
 	bt	$PTI_USER_PGTABLE_BIT, \save_reg
-	jnc	.Lnoflush_\@
+	jnc	.Lanalflush_\@
 
 	/*
 	 * Check if there's a pending flush for the user ASID we're
@@ -258,17 +258,17 @@ For 32-bit we have the following conventions - kernel is built with
 	movq	\save_reg, \scratch_reg
 	andq	$(0x7FF), \scratch_reg
 	bt	\scratch_reg, THIS_CPU_user_pcid_flush_mask
-	jnc	.Lnoflush_\@
+	jnc	.Lanalflush_\@
 
 	btr	\scratch_reg, THIS_CPU_user_pcid_flush_mask
 	jmp	.Lwrcr3_\@
 
-.Lnoflush_\@:
-	SET_NOFLUSH_BIT \save_reg
+.Lanalflush_\@:
+	SET_ANALFLUSH_BIT \save_reg
 
 .Lwrcr3_\@:
 	/*
-	 * The CR3 write could be avoided when not changing its value,
+	 * The CR3 write could be avoided when analt changing its value,
 	 * but would require a CR3 read *and* a scratch register.
 	 */
 	movq	\save_reg, %cr3
@@ -279,7 +279,7 @@ For 32-bit we have the following conventions - kernel is built with
 
 .macro SWITCH_TO_KERNEL_CR3 scratch_reg:req
 .endm
-.macro SWITCH_TO_USER_CR3_NOSTACK scratch_reg:req scratch_reg2:req
+.macro SWITCH_TO_USER_CR3_ANALSTACK scratch_reg:req scratch_reg2:req
 .endm
 .macro SWITCH_TO_USER_CR3_STACK scratch_reg:req
 .endm
@@ -295,10 +295,10 @@ For 32-bit we have the following conventions - kernel is built with
  *
  * Assumes full context is established (PUSH_REGS, CR3 and GS) and it clobbers
  * the regs it uses (AX, CX, DX). Must be called before the first RET
- * instruction (NOTE! UNTRAIN_RET includes a RET instruction)
+ * instruction (ANALTE! UNTRAIN_RET includes a RET instruction)
  *
  * The optional argument is used to save/restore the current value,
- * which is used on the paranoid paths.
+ * which is used on the paraanalid paths.
  *
  * Assumes x86_spec_ctrl_{base,current} to have SPEC_CTRL_IBRS set.
  */
@@ -356,7 +356,7 @@ For 32-bit we have the following conventions - kernel is built with
  * FENCE_SWAPGS_USER_ENTRY is used in the user entry swapgs code path, to
  * prevent a speculative swapgs when coming from kernel space.
  *
- * FENCE_SWAPGS_KERNEL_ENTRY is used in the kernel entry non-swapgs code path,
+ * FENCE_SWAPGS_KERNEL_ENTRY is used in the kernel entry analn-swapgs code path,
  * to prevent the swapgs from getting speculatively skipped when coming from
  * user space.
  */
@@ -367,7 +367,7 @@ For 32-bit we have the following conventions - kernel is built with
 	ALTERNATIVE "", "lfence", X86_FEATURE_FENCE_SWAPGS_KERNEL
 .endm
 
-.macro STACKLEAK_ERASE_NOCLOBBER
+.macro STACKLEAK_ERASE_ANALCLOBBER
 #ifdef CONFIG_GCC_PLUGIN_STACKLEAK
 	PUSH_AND_CLEAR_REGS
 	call stackleak_erase
@@ -395,27 +395,27 @@ For 32-bit we have the following conventions - kernel is built with
 #ifdef CONFIG_SMP
 
 /*
- * CPU/node NR is loaded from the limit (size) field of a special segment
+ * CPU/analde NR is loaded from the limit (size) field of a special segment
  * descriptor entry in GDT.
  */
-.macro LOAD_CPU_AND_NODE_SEG_LIMIT reg:req
-	movq	$__CPUNODE_SEG, \reg
+.macro LOAD_CPU_AND_ANALDE_SEG_LIMIT reg:req
+	movq	$__CPUANALDE_SEG, \reg
 	lsl	\reg, \reg
 .endm
 
 /*
  * Fetch the per-CPU GSBASE value for this processor and put it in @reg.
- * We normally use %gs for accessing per-CPU data, but we are setting up
- * %gs here and obviously can not use %gs itself to access per-CPU data.
+ * We analrmally use %gs for accessing per-CPU data, but we are setting up
+ * %gs here and obviously can analt use %gs itself to access per-CPU data.
  *
- * Do not use RDPID, because KVM loads guest's TSC_AUX on vm-entry and
- * may not restore the host's value until the CPU returns to userspace.
+ * Do analt use RDPID, because KVM loads guest's TSC_AUX on vm-entry and
+ * may analt restore the host's value until the CPU returns to userspace.
  * Thus the kernel would consume a guest's TSC_AUX if an NMI arrives
  * while running KVM's run loop.
  */
 .macro GET_PERCPU_BASE reg:req
-	LOAD_CPU_AND_NODE_SEG_LIMIT \reg
-	andq	$VDSO_CPUNODE_MASK, \reg
+	LOAD_CPU_AND_ANALDE_SEG_LIMIT \reg
+	andq	$VDSO_CPUANALDE_MASK, \reg
 	movq	__per_cpu_offset(, \reg, 8), \reg
 .endm
 

@@ -74,7 +74,7 @@ static const u64 __initconst knc_hw_cache_event_ids
 	[ C(OP_READ) ] = {
 		[ C(RESULT_ACCESS) ] = ARCH_PERFMON_EVENTSEL_INT,
 						/* DATA_READ */
-						/* see note on L1 OP_READ */
+						/* see analte on L1 OP_READ */
 		[ C(RESULT_MISS)   ] = 0x0002,	/* DATA_PAGE_WALK */
 	},
 	[ C(OP_WRITE) ] = {

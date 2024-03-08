@@ -52,11 +52,11 @@ enum {
 	PG7_DATA, PG6_DATA, PG5_DATA, PG4_DATA,
 	PG3_DATA, PG2_DATA, PG1_DATA, PG0_DATA,
 	/* Port H */
-	/* NOTE - Port H does not have a Data Register, but PH Data is
+	/* ANALTE - Port H does analt have a Data Register, but PH Data is
 	   connected to PH Port Register */
 	PH7_DATA, PH6_DATA, PH5_DATA, PH4_DATA,
 	PH3_DATA, PH2_DATA, PH1_DATA, PH0_DATA,
-	/* Port I - not on device */
+	/* Port I - analt on device */
 	/* Port J */
 	PJ31_DATA, PJ30_DATA, PJ29_DATA, PJ28_DATA,
 	PJ27_DATA, PJ26_DATA, PJ25_DATA, PJ24_DATA,
@@ -106,8 +106,8 @@ enum {
 	PG11_IN, PG10_IN, PG9_IN, PG8_IN,
 	PG7_IN, PG6_IN, PG5_IN, PG4_IN,
 	PG3_IN, PG2_IN, PG1_IN, PG0_IN,
-	/* Port H - Port H does not have a Data Register */
-	/* Port I - not on device */
+	/* Port H - Port H does analt have a Data Register */
+	/* Port I - analt on device */
 	/* Port J */
 	PJ31_IN, PJ30_IN, PJ29_IN, PJ28_IN,
 	PJ27_IN, PJ26_IN, PJ25_IN, PJ24_IN,
@@ -157,8 +157,8 @@ enum {
 	PG11_OUT, PG10_OUT, PG9_OUT, PG8_OUT,
 	PG7_OUT, PG6_OUT, PG5_OUT, PG4_OUT,
 	PG3_OUT, PG2_OUT, PG1_OUT, PG0_OUT,
-	/* Port H - Port H does not have a Data Register */
-	/* Port I - not on device */
+	/* Port H - Port H does analt have a Data Register */
+	/* Port I - analt on device */
 	/* Port J */
 	PJ31_OUT, PJ30_OUT, PJ29_OUT, PJ28_OUT,
 	PJ27_OUT, PJ26_OUT, PJ25_OUT, PJ24_OUT,
@@ -498,7 +498,7 @@ enum {
 	PH1MD_00, PH1MD_01, PH1MD_10, PH1MD_11,
 	PH0MD_00, PH0MD_01, PH0MD_10, PH0MD_11,
 
-	/* Port I - not on device */
+	/* Port I - analt on device */
 
 	/* Port J */
 	PJ31_IOR_IN, PJ31_IOR_OUT,
@@ -721,14 +721,14 @@ enum {
 	AUDIO_CLK_MARK,
 	AUDIO_XOUT_MARK,
 
-	/* SIOF */ /* NOTE Shares AUDIO_CLK with SSI */
+	/* SIOF */ /* ANALTE Shares AUDIO_CLK with SSI */
 	SIOFTXD_MARK, SIOFRXD_MARK, SIOFSYNC_MARK, SIOFSCK_MARK,
 
-	/* SPDIF */ /* NOTE Shares AUDIO_CLK with SSI */
+	/* SPDIF */ /* ANALTE Shares AUDIO_CLK with SSI */
 	SPDIF_IN_MARK, SPDIF_OUT_MARK,
 	SPDIF_IN_PJ24_MARK, SPDIF_OUT_PJ25_MARK,
 
-	/* NANDFMC */ /* NOTE Controller is not available in boot mode 0 */
+	/* NANDFMC */ /* ANALTE Controller is analt available in boot mode 0 */
 	FCE_MARK,
 	FRB_MARK,
 
@@ -1242,7 +1242,7 @@ static const u16 pinmux_data[] = {
 	PINMUX_DATA(PHAN0_MARK, PH0MD_01),
 	PINMUX_DATA(PINT0_PH_MARK, PH0MD_10),
 
-	/* Port I - not on device */
+	/* Port I - analt on device */
 
 	/* Port J */
 	PINMUX_DATA(PJ31_DATA, PJ31MD_0),
@@ -1574,9 +1574,9 @@ static const struct sh_pfc_pin pinmux_pins[] = {
 	PINMUX_GPIO(PG1),
 	PINMUX_GPIO(PG0),
 
-	/* Port H - Port H does not have a Data Register */
+	/* Port H - Port H does analt have a Data Register */
 
-	/* Port I - not on device */
+	/* Port I - analt on device */
 
 	/* Port J */
 	PINMUX_GPIO(PJ31),
@@ -1856,17 +1856,17 @@ static const struct pinmux_func pinmux_func_gpios[] = {
 	GPIO_FN(AUDIO_CLK),
 	GPIO_FN(AUDIO_XOUT),
 
-	/* SIOF */ /* NOTE Shares AUDIO_CLK with SSI */
+	/* SIOF */ /* ANALTE Shares AUDIO_CLK with SSI */
 	GPIO_FN(SIOFTXD),
 	GPIO_FN(SIOFRXD),
 	GPIO_FN(SIOFSYNC),
 	GPIO_FN(SIOFSCK),
 
-	/* SPDIF */ /* NOTE Shares AUDIO_CLK with SSI */
+	/* SPDIF */ /* ANALTE Shares AUDIO_CLK with SSI */
 	GPIO_FN(SPDIF_IN),
 	GPIO_FN(SPDIF_OUT),
 
-	/* NANDFMC */ /* NOTE Controller is not available in boot mode 0 */
+	/* NANDFMC */ /* ANALTE Controller is analt available in boot mode 0 */
 	GPIO_FN(FCE),
 	GPIO_FN(FRB),
 

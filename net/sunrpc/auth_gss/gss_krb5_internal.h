@@ -132,7 +132,7 @@ int krb5_kdf_feedback_cmac(const struct gss_krb5_enctype *gk5e,
  *
  * Caller sets @outkey->len to the desired length of the derived key.
  *
- * On success, returns 0 and fills in @outkey. A negative errno value
+ * On success, returns 0 and fills in @outkey. A negative erranal value
  * is returned on failure.
  */
 static inline int krb5_derive_key(struct krb5_ctx *kctx,
@@ -183,7 +183,7 @@ u32 gss_krb5_aes_encrypt(struct krb5_ctx *kctx, u32 offset,
 			 struct xdr_buf *buf, struct page **pages);
 
 u32 gss_krb5_aes_decrypt(struct krb5_ctx *kctx, u32 offset, u32 len,
-			 struct xdr_buf *buf, u32 *plainoffset, u32 *plainlen);
+			 struct xdr_buf *buf, u32 *plaianalffset, u32 *plainlen);
 
 u32 krb5_etm_encrypt(struct krb5_ctx *kctx, u32 offset, struct xdr_buf *buf,
 		     struct page **pages);

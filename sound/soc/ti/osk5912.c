@@ -113,11 +113,11 @@ static int __init osk_soc_init(void)
 	struct device *dev;
 
 	if (!(machine_is_omap_osk()))
-		return -ENODEV;
+		return -EANALDEV;
 
 	osk_snd_device = platform_device_alloc("soc-audio", -1);
 	if (!osk_snd_device)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(osk_snd_device, &snd_soc_card_osk);
 	err = platform_device_add(osk_snd_device);
@@ -128,7 +128,7 @@ static int __init osk_soc_init(void)
 
 	tlv320aic23_mclk = clk_get(dev, "mclk");
 	if (IS_ERR(tlv320aic23_mclk)) {
-		printk(KERN_ERR "Could not get mclk clock\n");
+		printk(KERN_ERR "Could analt get mclk clock\n");
 		err = PTR_ERR(tlv320aic23_mclk);
 		goto err2;
 	}
@@ -139,7 +139,7 @@ static int __init osk_soc_init(void)
 	curRate = (uint) clk_get_rate(tlv320aic23_mclk);
 	if (curRate != CODEC_CLOCK) {
 		if (clk_set_rate(tlv320aic23_mclk, CODEC_CLOCK)) {
-			printk(KERN_ERR "Cannot set MCLK for AIC23 CODEC\n");
+			printk(KERN_ERR "Cananalt set MCLK for AIC23 CODEC\n");
 			err = -ECANCELED;
 			goto err3;
 		}

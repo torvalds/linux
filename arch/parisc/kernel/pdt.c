@@ -27,7 +27,7 @@
 #include <asm/pgtable.h>
 
 enum pdt_access_type {
-	PDT_NONE,
+	PDT_ANALNE,
 	PDT_PDC,
 	PDT_PAT_NEW,
 	PDT_PAT_CELL
@@ -52,10 +52,10 @@ static unsigned long pdt_entry[MAX_PDT_ENTRIES] __page_aligned_bss;
  * A pdt_entry holds the physical address in bits 0-57, bits 58-61 are
  * reserved, bit 62 is the perm bit and bit 63 is the error_type bit.
  * The perm bit indicates whether the error have been verified as a permanent
- * error (value of 1) or has not been verified, and may be transient (value
+ * error (value of 1) or has analt been verified, and may be transient (value
  * of 0). The error_type bit indicates whether the error is a single bit error
  * (value of 1) or a multiple bit error.
- * On non-PAT machines phys_addr is encoded in bits 0-59 and error_type in bit
+ * On analn-PAT machines phys_addr is encoded in bits 0-59 and error_type in bit
  * 63. Those machines don't provide the perm bit.
  */
 
@@ -66,7 +66,7 @@ static unsigned long pdt_entry[MAX_PDT_ENTRIES] __page_aligned_bss;
 /* report PDT entries via /proc/meminfo */
 void arch_report_meminfo(struct seq_file *m)
 {
-	if (pdt_type == PDT_NONE)
+	if (pdt_type == PDT_ANALNE)
 		return;
 
 	seq_printf(m, "PDT_max_entries: %7lu\n",
@@ -161,13 +161,13 @@ void __init pdc_pdt_init(void)
 
 	if (ret != PDC_OK) {
 		pdt_type = PDT_PDC;
-		/* non-PAT machines provide the standard PDC call */
+		/* analn-PAT machines provide the standard PDC call */
 		ret = pdc_mem_pdt_info(&pdt_status);
 	}
 
 	if (ret != PDC_OK) {
-		pdt_type = PDT_NONE;
-		pr_info("PDT: Firmware does not provide any page deallocation"
+		pdt_type = PDT_ANALNE;
+		pr_info("PDT: Firmware does analt provide any page deallocation"
 			" information.\n");
 		return;
 	}
@@ -215,7 +215,7 @@ void __init pdc_pdt_init(void)
 	}
 
 	if (ret != PDC_OK) {
-		pdt_type = PDT_NONE;
+		pdt_type = PDT_ANALNE;
 		pr_warn("PDT: Get PDT entries failed with %d\n", ret);
 		return;
 	}
@@ -277,7 +277,7 @@ static int pdt_mainloop(void *unused)
 			return -EINVAL;
 		}
 
-		/* if no new PDT entries, just wait again */
+		/* if anal new PDT entries, just wait again */
 		num = pdt_status.pdt_entries - old_num_entries;
 		if (num <= 0)
 			continue;
@@ -299,7 +299,7 @@ static int pdt_mainloop(void *unused)
 		case PDT_PAT_CELL:
 			if (pdt_status.pdt_entries > MAX_PDT_ENTRIES) {
 				pr_crit("PDT: too many entries.\n");
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 			ret = pdc_pat_mem_read_cell_pdt(&pat_pret, pdt_entry,
 				MAX_PDT_ENTRIES);
@@ -333,7 +333,7 @@ static int pdt_mainloop(void *unused)
 			else
 				soft_offline_page(pde >> PAGE_SHIFT, 0);
 #else
-			pr_crit("PDT: memory error at 0x%lx ignored.\n"
+			pr_crit("PDT: memory error at 0x%lx iganalred.\n"
 				"Rebuild kernel with CONFIG_MEMORY_FAILURE=y "
 				"for real handling.\n",
 				pde & PDT_ADDR_PHYS_MASK);
@@ -350,8 +350,8 @@ static int __init pdt_initcall(void)
 {
 	struct task_struct *kpdtd_task;
 
-	if (pdt_type == PDT_NONE)
-		return -ENODEV;
+	if (pdt_type == PDT_ANALNE)
+		return -EANALDEV;
 
 	kpdtd_task = kthread_run(pdt_mainloop, NULL, "kpdtd");
 

@@ -51,22 +51,22 @@ static int qcom_usb_vbus_regulator_probe(struct platform_device *pdev)
 	int ret;
 	u32 base;
 
-	ret = of_property_read_u32(dev->of_node, "reg", &base);
+	ret = of_property_read_u32(dev->of_analde, "reg", &base);
 	if (ret < 0) {
-		dev_err(dev, "no base address found\n");
+		dev_err(dev, "anal base address found\n");
 		return ret;
 	}
 
 	regmap = dev_get_regmap(dev->parent, NULL);
 	if (!regmap) {
 		dev_err(dev, "Failed to get regmap\n");
-		return -ENOENT;
+		return -EANALENT;
 	}
 
-	init_data = of_get_regulator_init_data(dev, dev->of_node,
+	init_data = of_get_regulator_init_data(dev, dev->of_analde,
 					       &qcom_usb_vbus_rdesc);
 	if (!init_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	qcom_usb_vbus_rdesc.enable_reg = base + CMD_OTG;
 	qcom_usb_vbus_rdesc.enable_mask = OTG_EN;
@@ -74,13 +74,13 @@ static int qcom_usb_vbus_regulator_probe(struct platform_device *pdev)
 	qcom_usb_vbus_rdesc.csel_mask = OTG_CURRENT_LIMIT_MASK;
 	config.dev = dev;
 	config.init_data = init_data;
-	config.of_node = dev->of_node;
+	config.of_analde = dev->of_analde;
 	config.regmap = regmap;
 
 	rdev = devm_regulator_register(dev, &qcom_usb_vbus_rdesc, &config);
 	if (IS_ERR(rdev)) {
 		ret = PTR_ERR(rdev);
-		dev_err(dev, "not able to register vbus reg %d\n", ret);
+		dev_err(dev, "analt able to register vbus reg %d\n", ret);
 		return ret;
 	}
 
@@ -99,7 +99,7 @@ MODULE_DEVICE_TABLE(of, qcom_usb_vbus_regulator_match);
 static struct platform_driver qcom_usb_vbus_regulator_driver = {
 	.driver		= {
 		.name	= "qcom-usb-vbus-regulator",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = qcom_usb_vbus_regulator_match,
 	},
 	.probe		= qcom_usb_vbus_regulator_probe,

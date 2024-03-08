@@ -42,7 +42,7 @@ int unwind__prepare_access(struct maps *maps, struct map *map, bool *initialized
 		goto out_register;
 
 	dso_type = dso__type(dso, machine);
-	if (dso_type == DSO__TYPE_UNKNOWN)
+	if (dso_type == DSO__TYPE_UNKANALWN)
 		return 0;
 
 	arch = perf_env__arch(machine->env);
@@ -56,7 +56,7 @@ int unwind__prepare_access(struct maps *maps, struct map *map, bool *initialized
 	}
 
 	if (!ops) {
-		pr_warning_once("unwind: target platform=%s is not supported\n", arch);
+		pr_warning_once("unwind: target platform=%s is analt supported\n", arch);
 		return 0;
 	}
 out_register:

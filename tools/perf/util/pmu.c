@@ -78,7 +78,7 @@ struct perf_pmu_alias {
 	 */
 	bool snapshot;
 	/**
-	 * @deprecated: Is the event hidden and so not shown in perf list by
+	 * @deprecated: Is the event hidden and so analt shown in perf list by
 	 * default.
 	 */
 	bool deprecated;
@@ -201,7 +201,7 @@ int perf_pmu__format_parse(struct perf_pmu *pmu, int dirfd, bool eager_load)
 
 		format = perf_pmu__new_format(&pmu->format, name);
 		if (!format) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			break;
 		}
 
@@ -210,7 +210,7 @@ int perf_pmu__format_parse(struct perf_pmu *pmu, int dirfd, bool eager_load)
 			int fd = openat(dirfd, name, O_RDONLY);
 
 			if (fd < 0) {
-				ret = -errno;
+				ret = -erranal;
 				break;
 			}
 			file = fdopen(fd, "r");
@@ -264,7 +264,7 @@ int perf_pmu__convert_scale(const char *scale, char **end, double *sval)
 	 */
 	lc = strdup(lc);
 	if (!lc) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -444,7 +444,7 @@ static bool assign_str(const char *name, const char *field, char **old_str,
 	}
 
 	if (!new_str || !strcasecmp(*old_str, new_str))
-		return false; /* Nothing to update. */
+		return false; /* Analthing to update. */
 
 	pr_debug("alias %s differs in field '%s' ('%s' != '%s')\n",
 		name, field, *old_str, new_str);
@@ -523,7 +523,7 @@ static int perf_pmu__new_alias(struct perf_pmu *pmu, const char *name,
 
 	alias = zalloc(sizeof(*alias));
 	if (!alias)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	parse_events_terms__init(&alias->terms);
 	alias->scale = 1.0;
@@ -534,7 +534,7 @@ static int perf_pmu__new_alias(struct perf_pmu *pmu, const char *name,
 
 	ret = parse_events_terms(&alias->terms, val, val_fd);
 	if (ret) {
-		pr_err("Cannot parse alias %s: %d\n", val, ret);
+		pr_err("Cananalt parse alias %s: %d\n", val, ret);
 		free(alias);
 		return ret;
 	}
@@ -636,7 +636,7 @@ static int pmu_aliases_parse(struct perf_pmu *pmu)
 
 		fd = openat(dir_fd, name, O_RDONLY);
 		if (fd == -1) {
-			pr_debug("Cannot open %s\n", name);
+			pr_debug("Cananalt open %s\n", name);
 			continue;
 		}
 		file = fdopen(fd, "r");
@@ -647,7 +647,7 @@ static int pmu_aliases_parse(struct perf_pmu *pmu)
 
 		if (perf_pmu__new_alias(pmu, name, /*desc=*/ NULL,
 					/*val=*/ NULL, file, /*pe=*/ NULL) < 0)
-			pr_debug("Cannot set up %s\n", name);
+			pr_debug("Cananalt set up %s\n", name);
 		fclose(file);
 	}
 
@@ -710,7 +710,7 @@ static struct perf_cpu_map *pmu_cpumask(int dirfd, const char *name, bool is_cor
 			return cpus;
 	}
 
-	/* Nothing found, for core PMUs assume this means all CPUs. */
+	/* Analthing found, for core PMUs assume this means all CPUs. */
 	return is_core ? perf_cpu_map__get(cpu_map__online()) : NULL;
 }
 
@@ -783,13 +783,13 @@ __weak const struct pmu_metrics_table *pmu_metrics_table__find(void)
 }
 
 /**
- * perf_pmu__match_ignoring_suffix - Does the pmu_name match tok ignoring any
+ * perf_pmu__match_iganalring_suffix - Does the pmu_name match tok iganalring any
  *                                   trailing suffix? The Suffix must be in form
  *                                   tok_{digits}, or tok{digits}.
  * @pmu_name: The pmu_name with possible suffix.
  * @tok: The possible match to pmu_name without suffix.
  */
-static bool perf_pmu__match_ignoring_suffix(const char *pmu_name, const char *tok)
+static bool perf_pmu__match_iganalring_suffix(const char *pmu_name, const char *tok)
 {
 	const char *p;
 
@@ -827,7 +827,7 @@ static bool pmu_uncore_alias_match(const char *pmu_name, const char *name)
 	bool res;
 
 	if (strchr(pmu_name, ',') == NULL)
-		return perf_pmu__match_ignoring_suffix(name, pmu_name);
+		return perf_pmu__match_iganalring_suffix(name, pmu_name);
 
 	str = strdup(pmu_name);
 	if (!str)
@@ -855,7 +855,7 @@ static bool pmu_uncore_alias_match(const char *pmu_name, const char *name)
 
 		name = strstr(name, tok);
 		if (!name ||
-		    (!next_tok && !perf_pmu__match_ignoring_suffix(name, tok))) {
+		    (!next_tok && !perf_pmu__match_iganalring_suffix(name, tok))) {
 			res = false;
 			goto out;
 		}
@@ -1017,7 +1017,7 @@ struct perf_pmu *perf_pmu__lookup(struct list_head *pmus, int dirfd, const char 
 	/*
 	 * The pmu data we store & need consists of the pmu
 	 * type value and format definitions. Load both right
-	 * now.
+	 * analw.
 	 */
 	if (pmu_format(pmu, dirfd, name)) {
 		free(pmu);
@@ -1087,7 +1087,7 @@ void perf_pmu__warn_invalid_formats(struct perf_pmu *pmu)
 		perf_pmu_format__load(pmu, format);
 		if (format->value >= PERF_PMU_FORMAT_VALUE_CONFIG_END) {
 			pr_warning("WARNING: '%s' format '%s' requires 'perf_event_attr::config%d'"
-				   "which is not supported by this version of perf!\n",
+				   "which is analt supported by this version of perf!\n",
 				   pmu->name, format->name, format->value);
 			return;
 		}
@@ -1121,7 +1121,7 @@ void evsel__set_config_if_unset(struct perf_pmu *pmu, struct evsel *evsel,
 
 	bits = perf_pmu__format_bits(pmu, config_name);
 
-	/* Do nothing if the user changed the value */
+	/* Do analthing if the user changed the value */
 	if (bits & user_bits)
 		return;
 
@@ -1224,7 +1224,7 @@ static int pmu_resolve_param_term(struct parse_events_term *term,
 	}
 
 	if (verbose > 0)
-		printf("Required parameter '%s' not specified\n", term->config);
+		printf("Required parameter '%s' analt specified\n", term->config);
 
 	return -1;
 }
@@ -1267,13 +1267,13 @@ static int pmu_config_term(const struct perf_pmu *pmu,
 
 	/*
 	 * If this is a parameter we've already used for parameterized-eval,
-	 * skip it in normal eval.
+	 * skip it in analrmal eval.
 	 */
 	if (term->used)
 		return 0;
 
 	/*
-	 * Hardcoded terms should be already in, so nothing
+	 * Hardcoded terms should be already in, so analthing
 	 * to be done for them.
 	 */
 	if (parse_events__is_hardcoded_term(term))
@@ -1282,21 +1282,21 @@ static int pmu_config_term(const struct perf_pmu *pmu,
 	format = pmu_find_format(&pmu->format, term->config);
 	if (!format) {
 		char *pmu_term = pmu_formats_string(&pmu->format);
-		char *unknown_term;
+		char *unkanalwn_term;
 		char *help_msg;
 
-		if (asprintf(&unknown_term,
-				"unknown term '%s' for pmu '%s'",
+		if (asprintf(&unkanalwn_term,
+				"unkanalwn term '%s' for pmu '%s'",
 				term->config, pmu->name) < 0)
-			unknown_term = NULL;
+			unkanalwn_term = NULL;
 		help_msg = parse_events_formats_error_string(pmu_term);
 		if (err) {
 			parse_events_error__handle(err, term->err_term,
-						   unknown_term,
+						   unkanalwn_term,
 						   help_msg);
 		} else {
-			pr_debug("%s (%s)\n", unknown_term, help_msg);
-			free(unknown_term);
+			pr_debug("%s (%s)\n", unkanalwn_term, help_msg);
+			free(unkanalwn_term);
 		}
 		free(pmu_term);
 		return -EINVAL;
@@ -1324,11 +1324,11 @@ static int pmu_config_term(const struct perf_pmu *pmu,
 	 * using event parameters.
 	 */
 	if (term->type_val == PARSE_EVENTS__TERM_TYPE_NUM) {
-		if (term->no_value &&
+		if (term->anal_value &&
 		    bitmap_weight(format->bits, PERF_PMU_FORMAT_BITS) > 1) {
 			if (err) {
 				parse_events_error__handle(err, term->err_val,
-					   strdup("no value assigned for term"),
+					   strdup("anal value assigned for term"),
 					   NULL);
 			}
 			return -EINVAL;
@@ -1417,7 +1417,7 @@ static struct perf_pmu_alias *pmu_find_alias(struct perf_pmu *pmu,
 		return NULL;
 
 	if (term->type_val == PARSE_EVENTS__TERM_TYPE_NUM) {
-		if (!term->no_value)
+		if (!term->anal_value)
 			return NULL;
 		if (pmu_find_format(&pmu->format, term->config))
 			return NULL;
@@ -1505,7 +1505,7 @@ int perf_pmu__check_alias(struct perf_pmu *pmu, struct parse_events_terms *head_
 	info->per_pkg = false;
 
 	/*
-	 * Mark unit and scale as not set
+	 * Mark unit and scale as analt set
 	 * (different from default values, see below)
 	 */
 	info->unit     = NULL;
@@ -1536,9 +1536,9 @@ int perf_pmu__check_alias(struct perf_pmu *pmu, struct parse_events_terms *head_
 	}
 
 	/*
-	 * if no unit or scale found in aliases, then
+	 * if anal unit or scale found in aliases, then
 	 * set defaults as for evsel
-	 * unit cannot left to NULL
+	 * unit cananalt left to NULL
 	 */
 	if (info->unit == NULL)
 		info->unit   = "";
@@ -1643,7 +1643,7 @@ size_t perf_pmu__num_events(struct perf_pmu *pmu)
 	return pmu->selectable ? nr + 1 : nr;
 }
 
-static int sub_non_neg(int a, int b)
+static int sub_analn_neg(int a, int b)
 {
 	if (b > a)
 		return 0;
@@ -1655,22 +1655,22 @@ static char *format_alias(char *buf, int len, const struct perf_pmu *pmu,
 {
 	struct parse_events_term *term;
 	int pmu_name_len = skip_duplicate_pmus
-		? pmu_name_len_no_suffix(pmu->name, /*num=*/NULL)
+		? pmu_name_len_anal_suffix(pmu->name, /*num=*/NULL)
 		: (int)strlen(pmu->name);
 	int used = snprintf(buf, len, "%.*s/%s", pmu_name_len, pmu->name, alias->name);
 
 	list_for_each_entry(term, &alias->terms.terms, list) {
 		if (term->type_val == PARSE_EVENTS__TERM_TYPE_STR)
-			used += snprintf(buf + used, sub_non_neg(len, used),
+			used += snprintf(buf + used, sub_analn_neg(len, used),
 					",%s=%s", term->config,
 					term->val.str);
 	}
 
-	if (sub_non_neg(len, used) > 0) {
+	if (sub_analn_neg(len, used) > 0) {
 		buf[used] = '/';
 		used++;
 	}
-	if (sub_non_neg(len, used) > 0) {
+	if (sub_analn_neg(len, used) > 0) {
 		buf[used] = '\0';
 		used++;
 	} else
@@ -1845,7 +1845,7 @@ static int perf_pmu__new_caps(struct list_head *list, char *name, char *value)
 	struct perf_pmu_caps *caps = zalloc(sizeof(*caps));
 
 	if (!caps)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	caps->name = strdup(name);
 	if (!caps->name)
@@ -1861,7 +1861,7 @@ free_name:
 free_caps:
 	free(caps);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void perf_pmu__del_caps(struct perf_pmu *pmu)
@@ -1899,7 +1899,7 @@ int perf_pmu__caps_parse(struct perf_pmu *pmu)
 
 	if (stat(caps_path, &st) < 0) {
 		pmu->caps_initialized = true;
-		return 0;	/* no error if caps does not exist */
+		return 0;	/* anal error if caps does analt exist */
 	}
 
 	caps_dir = opendir(caps_path);
@@ -1986,8 +1986,8 @@ void perf_pmu__warn_invalid_config(struct perf_pmu *pmu, __u64 config,
 
 	bitmap_scnprintf((unsigned long *)&bits, sizeof(bits) * 8, buf, sizeof(buf));
 
-	pr_warning("WARNING: event '%s' not valid (bits %s of %s "
-		   "'%llx' not supported by kernel)!\n",
+	pr_warning("WARNING: event '%s' analt valid (bits %s of %s "
+		   "'%llx' analt supported by kernel)!\n",
 		   name ?: "N/A", buf, config_name, config);
 }
 
@@ -1999,7 +1999,7 @@ int perf_pmu__match(const char *pattern, const char *name, const char *tok)
 	if (fnmatch(pattern, name, 0))
 		return -1;
 
-	if (tok && !perf_pmu__match_ignoring_suffix(name, tok))
+	if (tok && !perf_pmu__match_iganalring_suffix(name, tok))
 		return -1;
 
 	return 0;
@@ -2037,7 +2037,7 @@ int perf_pmu__event_source_devices_fd(void)
  * then pathname will be filled with
  * "/sys/bus/event_source/devices/cs_etm/format"
  *
- * Return 0 if the sysfs mountpoint couldn't be found, if no characters were
+ * Return 0 if the sysfs mountpoint couldn't be found, if anal characters were
  * written or if the buffer size is exceeded.
  */
 int perf_pmu__pathname_scnprintf(char *buf, size_t size,

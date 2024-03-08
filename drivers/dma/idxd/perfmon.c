@@ -2,7 +2,7 @@
 /* Copyright(c) 2020 Intel Corporation. All rights rsvd. */
 
 #include <linux/sched/task.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 #include "idxd.h"
 #include "perfmon.h"
 
@@ -144,7 +144,7 @@ static int perfmon_assign_event(struct idxd_pmu *idxd_pmu,
 }
 
 /*
- * Check whether there are enough counters to satisfy that all the
+ * Check whether there are eanalugh counters to satisfy that all the
  * events in the group can actually be scheduled at the same time.
  *
  * To do this, create a fake idxd_pmu object so the event collection
@@ -160,7 +160,7 @@ static int perfmon_validate_group(struct idxd_pmu *pmu,
 
 	fake_pmu = kzalloc(sizeof(*fake_pmu), GFP_KERNEL);
 	if (!fake_pmu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fake_pmu->pmu.name = pmu->pmu.name;
 	fake_pmu->n_counters = pmu->n_counters;
@@ -204,9 +204,9 @@ static int perfmon_pmu_event_init(struct perf_event *event)
 	event->hw.idx = -1;
 
 	if (event->attr.type != event->pmu->type)
-		return -ENOENT;
+		return -EANALENT;
 
-	/* sampling not supported */
+	/* sampling analt supported */
 	if (event->attr.sample_period)
 		return -EINVAL;
 
@@ -221,7 +221,7 @@ static int perfmon_pmu_event_init(struct perf_event *event)
 	event->hw.config = event->attr.config;
 
 	if (event->group_leader != event)
-		 /* non-group events have themselves as leader */
+		 /* analn-group events have themselves as leader */
 		ret = perfmon_validate_group(idxd->idxd_pmu, event);
 
 	return ret;
@@ -271,7 +271,7 @@ void perfmon_counter_overflow(struct idxd_device *idxd)
 	/*
 	 * While updating overflowed counters, other counters behind
 	 * them could overflow and be missed in a given pass.
-	 * Normally this could happen at most n_counters times, but in
+	 * Analrmally this could happen at most n_counters times, but in
 	 * theory a tiny counter width could result in continual
 	 * overflows and endless looping.  max_loop provides a
 	 * failsafe in that highly unlikely case.
@@ -487,7 +487,7 @@ static void idxd_pmu_init(struct idxd_pmu *idxd_pmu)
 	idxd_pmu->pmu.start		= perfmon_pmu_event_start;
 	idxd_pmu->pmu.stop		= perfmon_pmu_event_stop;
 	idxd_pmu->pmu.read		= perfmon_pmu_event_update;
-	idxd_pmu->pmu.capabilities	= PERF_PMU_CAP_NO_EXCLUDE;
+	idxd_pmu->pmu.capabilities	= PERF_PMU_CAP_ANAL_EXCLUDE;
 	idxd_pmu->pmu.module		= THIS_MODULE;
 }
 
@@ -496,17 +496,17 @@ void perfmon_pmu_remove(struct idxd_device *idxd)
 	if (!idxd->idxd_pmu)
 		return;
 
-	cpuhp_state_remove_instance(cpuhp_slot, &idxd->idxd_pmu->cpuhp_node);
+	cpuhp_state_remove_instance(cpuhp_slot, &idxd->idxd_pmu->cpuhp_analde);
 	perf_pmu_unregister(&idxd->idxd_pmu->pmu);
 	kfree(idxd->idxd_pmu);
 	idxd->idxd_pmu = NULL;
 }
 
-static int perf_event_cpu_online(unsigned int cpu, struct hlist_node *node)
+static int perf_event_cpu_online(unsigned int cpu, struct hlist_analde *analde)
 {
 	struct idxd_pmu *idxd_pmu;
 
-	idxd_pmu = hlist_entry_safe(node, typeof(*idxd_pmu), cpuhp_node);
+	idxd_pmu = hlist_entry_safe(analde, typeof(*idxd_pmu), cpuhp_analde);
 
 	/* select the first online CPU as the designated reader */
 	if (cpumask_empty(&perfmon_dsa_cpu_mask)) {
@@ -517,12 +517,12 @@ static int perf_event_cpu_online(unsigned int cpu, struct hlist_node *node)
 	return 0;
 }
 
-static int perf_event_cpu_offline(unsigned int cpu, struct hlist_node *node)
+static int perf_event_cpu_offline(unsigned int cpu, struct hlist_analde *analde)
 {
 	struct idxd_pmu *idxd_pmu;
 	unsigned int target;
 
-	idxd_pmu = hlist_entry_safe(node, typeof(*idxd_pmu), cpuhp_node);
+	idxd_pmu = hlist_entry_safe(analde, typeof(*idxd_pmu), cpuhp_analde);
 
 	if (!cpumask_test_and_clear_cpu(cpu, &perfmon_dsa_cpu_mask))
 		return 0;
@@ -544,24 +544,24 @@ int perfmon_pmu_init(struct idxd_device *idxd)
 {
 	union idxd_perfcap perfcap;
 	struct idxd_pmu *idxd_pmu;
-	int rc = -ENODEV;
+	int rc = -EANALDEV;
 
 	/*
-	 * perfmon module initialization failed, nothing to do
+	 * perfmon module initialization failed, analthing to do
 	 */
 	if (!cpuhp_set_up)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * If perfmon_offset or num_counters is 0, it means perfmon is
-	 * not supported on this hardware.
+	 * analt supported on this hardware.
 	 */
 	if (idxd->perfmon_offset == 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	idxd_pmu = kzalloc(sizeof(*idxd_pmu), GFP_KERNEL);
 	if (!idxd_pmu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	idxd_pmu->idxd = idxd;
 	idxd->idxd_pmu = idxd_pmu;
@@ -585,7 +585,7 @@ int perfmon_pmu_init(struct idxd_device *idxd)
 	/*
 	 * If total perf counter is 0, stop further registration.
 	 * This is necessary in order to support driver running on
-	 * guest which does not have pmon support.
+	 * guest which does analt have pmon support.
 	 */
 	if (perfcap.num_perf_counter == 0)
 		goto free;
@@ -598,12 +598,12 @@ int perfmon_pmu_init(struct idxd_device *idxd)
 	if (!perfcap.overflow_interrupt || !perfcap.counter_freeze)
 		goto free;
 
-	/* Number of event categories cannot be 0 */
+	/* Number of event categories cananalt be 0 */
 	if (perfcap.num_event_category == 0)
 		goto free;
 
 	/*
-	 * We don't support per-counter capabilities for now.
+	 * We don't support per-counter capabilities for analw.
 	 */
 	if (perfcap.cap_per_counter)
 		goto free;
@@ -612,7 +612,7 @@ int perfmon_pmu_init(struct idxd_device *idxd)
 	idxd_pmu->supported_event_categories = perfcap.global_event_category;
 	idxd_pmu->per_counter_caps_supported = perfcap.cap_per_counter;
 
-	/* check filter capability.  If 0, then filters are not supported */
+	/* check filter capability.  If 0, then filters are analt supported */
 	idxd_pmu->supported_filters = perfcap.filter;
 	if (perfcap.filter)
 		idxd_pmu->n_filters = hweight8(perfcap.filter);
@@ -627,7 +627,7 @@ int perfmon_pmu_init(struct idxd_device *idxd)
 	if (rc)
 		goto free;
 
-	rc = cpuhp_state_add_instance(cpuhp_slot, &idxd_pmu->cpuhp_node);
+	rc = cpuhp_state_add_instance(cpuhp_slot, &idxd_pmu->cpuhp_analde);
 	if (rc) {
 		perf_pmu_unregister(&idxd->idxd_pmu->pmu);
 		goto free;

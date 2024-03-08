@@ -171,7 +171,7 @@ static psmouse_ret_t vmmouse_report_events(struct psmouse *psmouse)
 			return PSMOUSE_BAD_DATA;
 		}
 
-		/* Now get it */
+		/* Analw get it */
 		VMMOUSE_CMD(ABSPOINTER_DATA, 4, status, x, y, z);
 
 		/*
@@ -191,7 +191,7 @@ static psmouse_ret_t vmmouse_report_events(struct psmouse *psmouse)
 			input_report_abs(abs_dev, ABS_Y, y);
 		}
 
-		/* Xorg seems to ignore wheel events on absolute devices */
+		/* Xorg seems to iganalre wheel events on absolute devices */
 		input_report_rel(rel_dev, REL_WHEEL, -(s8)((u8) z));
 
 		vmmouse_report_button(psmouse, abs_dev, rel_dev,
@@ -266,7 +266,7 @@ static void vmmouse_disable(struct psmouse *psmouse)
  *
  * Tries to enable vmmouse mode. Performs basic checks and requests
  * absolute vmmouse mode.
- * Returns 0 on success, -ENODEV on failure.
+ * Returns 0 on success, -EANALDEV on failure.
  */
 static int vmmouse_enable(struct psmouse *psmouse)
 {
@@ -285,7 +285,7 @@ static int vmmouse_enable(struct psmouse *psmouse)
 	 */
 	VMMOUSE_CMD(ABSPOINTER_STATUS, 0, status, dummy1, dummy2, dummy3);
 	if ((status & 0x0000ffff) == 0) {
-		psmouse_dbg(psmouse, "empty flags - assuming no device\n");
+		psmouse_dbg(psmouse, "empty flags - assuming anal device\n");
 		return -ENXIO;
 	}
 
@@ -338,7 +338,7 @@ static bool vmmouse_check_hypervisor(void)
  * @psmouse: Pointer to the psmouse struct
  * @set_properties: Whether to set psmouse name and vendor
  *
- * Returns 0 if vmmouse channel is available. Negative error code if not.
+ * Returns 0 if vmmouse channel is available. Negative error code if analt.
  */
 int vmmouse_detect(struct psmouse *psmouse, bool set_properties)
 {
@@ -346,7 +346,7 @@ int vmmouse_detect(struct psmouse *psmouse, bool set_properties)
 
 	if (!vmmouse_check_hypervisor()) {
 		psmouse_dbg(psmouse,
-			    "VMMouse not running on supported hypervisor.\n");
+			    "VMMouse analt running on supported hypervisor.\n");
 		return -ENXIO;
 	}
 
@@ -427,7 +427,7 @@ static int vmmouse_reconnect(struct psmouse *psmouse)
  *
  * Requests the device and tries to enable vmmouse mode.
  * If successful, sets up the input device for relative movement events.
- * It also allocates another input device and sets it up for absolute motion
+ * It also allocates aanalther input device and sets it up for absolute motion
  * events. Returns 0 on success and -1 on failure.
  */
 int vmmouse_init(struct psmouse *psmouse)
@@ -444,7 +444,7 @@ int vmmouse_init(struct psmouse *psmouse)
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	abs_dev = input_allocate_device();
 	if (!priv || !abs_dev) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto init_fail;
 	}
 

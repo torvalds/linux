@@ -12,7 +12,7 @@
  * Purpose  : clear some user memory
  * Params   : addr - user memory address to clear
  *          : sz   - number of bytes to clear
- * Returns  : number of bytes NOT cleared
+ * Returns  : number of bytes ANALT cleared
  *
  * Alignment fixed up by hardware.
  */

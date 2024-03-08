@@ -65,7 +65,7 @@ int plfxlc_download_fpga(struct usb_interface *intf)
 	fpga_dmabuff = kmalloc(PLF_FPGA_STATUS_LEN, GFP_KERNEL);
 
 	if (!fpga_dmabuff) {
-		r = -ENOMEM;
+		r = -EANALMEM;
 		goto error_free_fw;
 	}
 	send_vendor_request(udev, PLF_VNDR_FPGA_SET_REQ,
@@ -88,7 +88,7 @@ int plfxlc_download_fpga(struct usb_interface *intf)
 		fw_data = kmemdup(&fw->data[fw_data_i], blk_tran_len,
 				  GFP_KERNEL);
 		if (!fw_data) {
-			r = -ENOMEM;
+			r = -EANALMEM;
 			goto error_free_fw;
 		}
 
@@ -114,7 +114,7 @@ int plfxlc_download_fpga(struct usb_interface *intf)
 	kfree(fpga_dmabuff);
 	fpga_dmabuff = kmalloc(PLF_FPGA_STATE_LEN, GFP_KERNEL);
 	if (!fpga_dmabuff) {
-		r = -ENOMEM;
+		r = -EANALMEM;
 		goto error_free_fw;
 	}
 	memset(fpga_dmabuff, 0xff, PLF_FPGA_STATE_LEN);
@@ -175,7 +175,7 @@ int plfxlc_download_xl_firmware(struct usb_interface *intf)
 	buf = kzalloc(PLF_XL_BUF_LEN, GFP_KERNEL);
 	if (!buf) {
 		release_firmware(fwp);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (file.total_files > 10) {
@@ -241,7 +241,7 @@ int plfxlc_upload_mac_and_serial(struct usb_interface *intf,
 
 	dma_buffer = kmalloc(PLF_SERIAL_LEN, GFP_KERNEL);
 	if (!dma_buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	BUILD_BUG_ON(ETH_ALEN > PLF_SERIAL_LEN);
 	BUILD_BUG_ON(PLF_FW_VER_LEN > PLF_SERIAL_LEN);

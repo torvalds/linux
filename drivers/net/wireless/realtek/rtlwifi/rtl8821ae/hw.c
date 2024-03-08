@@ -462,7 +462,7 @@ void rtl8821ae_get_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 		break;
 	default:
 		rtl_dbg(rtlpriv, COMP_ERR, DBG_LOUD,
-			"switch case %#x not processed\n", variable);
+			"switch case %#x analt processed\n", variable);
 		break;
 	}
 }
@@ -648,7 +648,7 @@ void rtl8821ae_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 				break;
 			default:
 				rtl_dbg(rtlpriv, COMP_ERR, DBG_LOUD,
-					"switch case %#x not processed\n",
+					"switch case %#x analt processed\n",
 					e_aci);
 				break;
 			}
@@ -778,7 +778,7 @@ void rtl8821ae_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 		break; }
 	default:
 		rtl_dbg(rtlpriv, COMP_ERR, DBG_LOUD,
-			"switch case %#x not processed\n", variable);
+			"switch case %#x analt processed\n", variable);
 		break;
 	}
 }
@@ -795,7 +795,7 @@ static bool _rtl8821ae_llt_write(struct ieee80211_hw *hw, u32 address, u32 data)
 
 	do {
 		value = rtl_read_dword(rtlpriv, REG_LLT_INIT);
-		if (_LLT_NO_ACTIVE == _LLT_OP_VALUE(value))
+		if (_LLT_ANAL_ACTIVE == _LLT_OP_VALUE(value))
 			break;
 
 		if (count > POLLING_LLT_THRESHOLD) {
@@ -1019,7 +1019,7 @@ static void _rtl8821ae_hw_configure(struct ieee80211_hw *hw)
 	/* ARFB table 12 for 11ac 24G 1SS */
 	rtl_write_dword(rtlpriv, REG_ARFR3, 0x00000015);
 	rtl_write_dword(rtlpriv, REG_ARFR3 + 4, 0xffcff000);
-	/* 0x420[7] = 0 , enable retry AMPDU in new AMPD not singal MPDU. */
+	/* 0x420[7] = 0 , enable retry AMPDU in new AMPD analt singal MPDU. */
 	rtl_write_word(rtlpriv, REG_FWHW_TXQ_CTRL, 0x1F00);
 	rtl_write_byte(rtlpriv, REG_AMPDU_MAX_TIME, 0x70);
 
@@ -1166,7 +1166,7 @@ void rtl8821ae_enable_hw_security_config(struct ieee80211_hw *hw)
 
 	if (rtlpriv->cfg->mod_params->sw_crypto || rtlpriv->sec.use_sw_sec) {
 		rtl_dbg(rtlpriv, COMP_SEC, DBG_DMESG,
-			"not open hw encryption\n");
+			"analt open hw encryption\n");
 		return;
 	}
 
@@ -1263,7 +1263,7 @@ static bool _rtl8821ae_reset_pcie_interface_dma(struct ieee80211_hw *hw,
 	/* write 0x301 = 0xFF */
 	tmp = rtl_read_byte(rtlpriv, REG_RXDMA_CONTROL);
 	if (tmp & BIT(2)) {
-		/* Already pause before the function for another purpose. */
+		/* Already pause before the function for aanalther purpose. */
 		release_mac_rx_pause = false;
 	} else {
 		rtl_write_byte(rtlpriv, REG_RXDMA_CONTROL, (tmp | BIT(2)));
@@ -1300,12 +1300,12 @@ static bool _rtl8821ae_reset_pcie_interface_dma(struct ieee80211_hw *hw,
 	}
 
 	/* 7. Restore PCIe autoload down bit */
-	/* 8812AE does not has the defination. */
+	/* 8812AE does analt has the defination. */
 	if (rtlhal->hw_type == HARDWARE_TYPE_RTL8821AE) {
 		/* write 0xF8 bit[17] = 1'b1 */
-		tmp = rtl_read_byte(rtlpriv, REG_MAC_PHY_CTRL_NORMAL + 2);
+		tmp = rtl_read_byte(rtlpriv, REG_MAC_PHY_CTRL_ANALRMAL + 2);
 		tmp |= BIT(1);
-		rtl_write_byte(rtlpriv, REG_MAC_PHY_CTRL_NORMAL + 2, tmp);
+		rtl_write_byte(rtlpriv, REG_MAC_PHY_CTRL_ANALRMAL + 2, tmp);
 	}
 
 	/* In MAC power on state, BB and RF maybe in ON state,
@@ -1409,7 +1409,7 @@ static void _rtl8821ae_get_wakeup_reason(struct ieee80211_hw *hw)
 		break;
 	default:
 		rtl_dbg(rtlpriv, COMP_POWER, DBG_DMESG,
-			"WOL Read 0x1c7 = %02X, Unknown reason!\n",
+			"WOL Read 0x1c7 = %02X, Unkanalwn reason!\n",
 			fw_reason);
 		break;
 	}
@@ -1499,7 +1499,7 @@ static bool _rtl8821ae_dynamic_rqpn(struct ieee80211_hw *hw, u32 boundary,
 		count++;
 		if ((count % 200) == 0) {
 			rtl_dbg(rtlpriv, COMP_INIT, DBG_LOUD,
-				"Tx queue is not empty for 20ms!\n");
+				"Tx queue is analt empty for 20ms!\n");
 		}
 		if (count >= 1000) {
 			rtl_dbg(rtlpriv, COMP_INIT, DBG_LOUD,
@@ -1629,7 +1629,7 @@ static void _rtl8821ae_simple_initialize_adapter(struct ieee80211_hw *hw)
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtlpriv);
 
 #if (USE_SPECIFIC_FW_TO_SUPPORT_WOWLAN == 1)
-	/* Re-download normal Fw. */
+	/* Re-download analrmal Fw. */
 	rtl8821ae_set_fw_related_for_wowlan(hw, false);
 #endif
 
@@ -1713,7 +1713,7 @@ static bool _rtl8821ae_wowlan_initialize_adapter(struct ieee80211_hw *hw)
 	_rtl8821ae_get_wakeup_reason(hw);
 
 	/* Patch Pcie Rx DMA hang after S3/S4 several times.
-	 * The root cause has not be found. */
+	 * The root cause has analt be found. */
 	if (_rtl8821ae_check_pcie_dma_hang(hw))
 		_rtl8821ae_reset_pcie_interface_dma(hw, true, false);
 
@@ -1855,7 +1855,7 @@ int rtl8821ae_hw_init(struct ieee80211_hw *hw)
 				      (u8 *)(&support_remote_wakeup));
 	rtlpriv->intf_ops->disable_aspm(hw);
 
-	/*YP wowlan not considered*/
+	/*YP wowlan analt considered*/
 
 	tmp_u1b = rtl_read_byte(rtlpriv, REG_CR);
 	if (tmp_u1b != 0 && tmp_u1b != 0xEA) {
@@ -1883,7 +1883,7 @@ int rtl8821ae_hw_init(struct ieee80211_hw *hw)
 		rtlhal->mac_func_enable = false;
 	}
 
-	/* Reset MAC/BB/RF status if it is not powered off
+	/* Reset MAC/BB/RF status if it is analt powered off
 	 * before calling initialize Hw flow to prevent
 	 * from interface and MAC status mismatch.
 	 * 2013.06.21, by tynli. Suggested by SD1 JackieLau. */
@@ -1906,7 +1906,7 @@ int rtl8821ae_hw_init(struct ieee80211_hw *hw)
 	err = rtl8821ae_download_fw(hw, false);
 	if (err) {
 		rtl_dbg(rtlpriv, COMP_ERR, DBG_WARNING,
-			"Failed to download FW. Init HW without FW now\n");
+			"Failed to download FW. Init HW without FW analw\n");
 		err = 1;
 		rtlhal->fw_ready = false;
 		return err;
@@ -1994,7 +1994,7 @@ static enum version_8821ae _rtl8821ae_read_chip_version(struct ieee80211_hw *hw)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_phy *rtlphy = &rtlpriv->phy;
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
-	enum version_8821ae version = VERSION_UNKNOWN;
+	enum version_8821ae version = VERSION_UNKANALWN;
 	u32 value32;
 
 	value32 = rtl_read_dword(rtlpriv, REG_SYS_CFG);
@@ -2024,18 +2024,18 @@ static enum version_8821ae _rtl8821ae_read_chip_version(struct ieee80211_hw *hw)
 			if (rtlphy->rf_type == RF_2T2R)
 				version =
 					(enum version_8821ae)(CHIP_8812
-					| NORMAL_CHIP |
+					| ANALRMAL_CHIP |
 					RF_TYPE_2T2R);
 			else
 				version = (enum version_8821ae)(CHIP_8812
-					| NORMAL_CHIP);
+					| ANALRMAL_CHIP);
 
 			version = (enum version_8821ae)(version | (rtl_id << 12));
 		} else if (rtlhal->hw_type == HARDWARE_TYPE_RTL8821AE) {
 			u32 rtl_id = value32 & CHIP_VER_RTL_MASK;
 
 			version = (enum version_8821ae)(CHIP_8821
-				| NORMAL_CHIP | rtl_id);
+				| ANALRMAL_CHIP | rtl_id);
 		}
 	}
 
@@ -2054,37 +2054,37 @@ static enum version_8821ae _rtl8821ae_read_chip_version(struct ieee80211_hw *hw)
 		rtl_dbg(rtlpriv, COMP_INIT, DBG_LOUD,
 			"Chip Version ID: VERSION_TEST_CHIP_2T2R_8812\n");
 		break;
-	case VERSION_NORMAL_TSMC_CHIP_1T1R_8812:
+	case VERSION_ANALRMAL_TSMC_CHIP_1T1R_8812:
 		rtl_dbg(rtlpriv, COMP_INIT, DBG_LOUD,
-			"Chip Version ID:VERSION_NORMAL_TSMC_CHIP_1T1R_8812\n");
+			"Chip Version ID:VERSION_ANALRMAL_TSMC_CHIP_1T1R_8812\n");
 		break;
-	case VERSION_NORMAL_TSMC_CHIP_2T2R_8812:
+	case VERSION_ANALRMAL_TSMC_CHIP_2T2R_8812:
 		rtl_dbg(rtlpriv, COMP_INIT, DBG_LOUD,
-			"Chip Version ID: VERSION_NORMAL_TSMC_CHIP_2T2R_8812\n");
+			"Chip Version ID: VERSION_ANALRMAL_TSMC_CHIP_2T2R_8812\n");
 		break;
-	case VERSION_NORMAL_TSMC_CHIP_1T1R_8812_C_CUT:
+	case VERSION_ANALRMAL_TSMC_CHIP_1T1R_8812_C_CUT:
 		rtl_dbg(rtlpriv, COMP_INIT, DBG_LOUD,
-			"Chip Version ID: VERSION_NORMAL_TSMC_CHIP_1T1R_8812 C CUT\n");
+			"Chip Version ID: VERSION_ANALRMAL_TSMC_CHIP_1T1R_8812 C CUT\n");
 		break;
-	case VERSION_NORMAL_TSMC_CHIP_2T2R_8812_C_CUT:
+	case VERSION_ANALRMAL_TSMC_CHIP_2T2R_8812_C_CUT:
 		rtl_dbg(rtlpriv, COMP_INIT, DBG_LOUD,
-			"Chip Version ID: VERSION_NORMAL_TSMC_CHIP_2T2R_8812 C CUT\n");
+			"Chip Version ID: VERSION_ANALRMAL_TSMC_CHIP_2T2R_8812 C CUT\n");
 		break;
 	case VERSION_TEST_CHIP_8821:
 		rtl_dbg(rtlpriv, COMP_INIT, DBG_LOUD,
 			"Chip Version ID: VERSION_TEST_CHIP_8821\n");
 		break;
-	case VERSION_NORMAL_TSMC_CHIP_8821:
+	case VERSION_ANALRMAL_TSMC_CHIP_8821:
 		rtl_dbg(rtlpriv, COMP_INIT, DBG_LOUD,
-			"Chip Version ID: VERSION_NORMAL_TSMC_CHIP_8821 A CUT\n");
+			"Chip Version ID: VERSION_ANALRMAL_TSMC_CHIP_8821 A CUT\n");
 		break;
-	case VERSION_NORMAL_TSMC_CHIP_8821_B_CUT:
+	case VERSION_ANALRMAL_TSMC_CHIP_8821_B_CUT:
 		rtl_dbg(rtlpriv, COMP_INIT, DBG_LOUD,
-			"Chip Version ID: VERSION_NORMAL_TSMC_CHIP_8821 B CUT\n");
+			"Chip Version ID: VERSION_ANALRMAL_TSMC_CHIP_8821 B CUT\n");
 		break;
 	default:
 		rtl_dbg(rtlpriv, COMP_INIT, DBG_LOUD,
-			"Chip Version ID: Unknown (0x%X)\n", version);
+			"Chip Version ID: Unkanalwn (0x%X)\n", version);
 		break;
 	}
 
@@ -2096,7 +2096,7 @@ static int _rtl8821ae_set_media_status(struct ieee80211_hw *hw,
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	u8 bt_msr = rtl_read_byte(rtlpriv, MSR);
-	enum led_ctl_mode ledaction = LED_CTL_NO_LINK;
+	enum led_ctl_mode ledaction = LED_CTL_ANAL_LINK;
 	bt_msr &= 0xfc;
 
 	rtl_write_dword(rtlpriv, REG_BCN_CTRL, 0);
@@ -2113,16 +2113,16 @@ static int _rtl8821ae_set_media_status(struct ieee80211_hw *hw,
 		_rtl8821ae_disable_bcn_sub_func(hw);
 	} else {
 		rtl_dbg(rtlpriv, COMP_ERR, DBG_WARNING,
-			"Set HW_VAR_MEDIA_STATUS: No such media status(%x).\n",
+			"Set HW_VAR_MEDIA_STATUS: Anal such media status(%x).\n",
 			type);
 	}
 
 	switch (type) {
 	case NL80211_IFTYPE_UNSPECIFIED:
-		bt_msr |= MSR_NOLINK;
+		bt_msr |= MSR_ANALLINK;
 		ledaction = LED_CTL_LINK;
 		rtl_dbg(rtlpriv, COMP_INIT, DBG_TRACE,
-			"Set Network type to NO LINK!\n");
+			"Set Network type to ANAL LINK!\n");
 		break;
 	case NL80211_IFTYPE_ADHOC:
 		bt_msr |= MSR_ADHOC;
@@ -2141,7 +2141,7 @@ static int _rtl8821ae_set_media_status(struct ieee80211_hw *hw,
 			"Set Network type to AP!\n");
 		break;
 	default:
-		pr_err("Network type %d not support!\n", type);
+		pr_err("Network type %d analt support!\n", type);
 		return 1;
 	}
 
@@ -2184,7 +2184,7 @@ int rtl8821ae_set_network_type(struct ieee80211_hw *hw, enum nl80211_iftype type
 	rtl_dbg(rtlpriv, COMP_INIT, DBG_LOUD, "%s!\n", __func__);
 
 	if (_rtl8821ae_set_media_status(hw, type))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (rtlpriv->mac80211.link_state == MAC80211_LINKED) {
 		if (type != NL80211_IFTYPE_AP)
@@ -2248,7 +2248,7 @@ void rtl8821ae_enable_interrupt(struct ieee80211_hw *hw)
 	/* there are some C2H CMDs have been sent before
 	system interrupt is enabled, e.g., C2H, CPWM.
 	*So we need to clear all C2H events that FW has
-	notified, otherwise FW won't schedule any commands anymore.
+	analtified, otherwise FW won't schedule any commands anymore.
 	*/
 	/* rtl_write_byte(rtlpriv, REG_C2HEVT_CLEAR, 0); */
 	/*enable system interrupt*/
@@ -2277,7 +2277,7 @@ static void _rtl8821ae_clear_pci_pme_status(struct ieee80211_hw *hw)
 	pm_cap = pci_find_capability(pdev, PCI_CAP_ID_PM);
 	if (!pm_cap) {
 		rtl_dbg(rtlpriv, COMP_INIT, DBG_WARNING,
-			"Cannot find PME Capability\n");
+			"Cananalt find PME Capability\n");
 		return;
 	}
 
@@ -2312,8 +2312,8 @@ void rtl8821ae_card_disable(struct ieee80211_hw *hw)
 
 	if (!(support_remote_wakeup && mac->opmode == NL80211_IFTYPE_STATION)
 	    || !rtlhal->enter_pnp_sleep) {
-		rtl_dbg(rtlpriv, COMP_INIT, DBG_DMESG, "Normal Power off\n");
-		mac->link_state = MAC80211_NOLINK;
+		rtl_dbg(rtlpriv, COMP_INIT, DBG_DMESG, "Analrmal Power off\n");
+		mac->link_state = MAC80211_ANALLINK;
 		opmode = NL80211_IFTYPE_UNSPECIFIED;
 		_rtl8821ae_set_media_status(hw, opmode);
 		_rtl8821ae_poweroff_adapter(hw);
@@ -2529,7 +2529,7 @@ static u8 _rtl8821ae_get_chnl_group(u8 chnl)
 			group = 13;
 	else
 		WARN_ONCE(true,
-			  "rtl8821ae: 5G, Channel %d in Group not found\n",
+			  "rtl8821ae: 5G, Channel %d in Group analt found\n",
 			  chnl);
 	}
 	return group;
@@ -3129,7 +3129,7 @@ static void _rtl8821ae_read_adapter_info(struct ieee80211_hw *hw, bool b_pseudo_
 	rtlefuse->eeprom_thermalmeter = *(u8 *)&hwinfo[EEPROM_THERMAL_METER];
 	if ((rtlefuse->eeprom_thermalmeter == 0xff) ||
 	    rtlefuse->autoload_failflag) {
-		rtlefuse->apk_thermalmeterignore = true;
+		rtlefuse->apk_thermalmeteriganalre = true;
 		rtlefuse->eeprom_thermalmeter = 0xff;
 	}
 
@@ -3195,7 +3195,7 @@ exit:
 	case RT_CID_819X_HP:
 		rtlpriv->ledctl.led_opendrain = true;
 		break;
-	case RT_CID_819X_LENOVO:
+	case RT_CID_819X_LEANALVO:
 	case RT_CID_DEFAULT:
 	case RT_CID_TOSHIBA:
 	case RT_CID_CCX:
@@ -3411,7 +3411,7 @@ static u8 _rtl8821ae_get_ra_ldpc(struct ieee80211_hw *hw,
 			     enum wireless_mode wirelessmode)
 {
 	u8 b_ldpc = 0;
-	/*not support ldpc, do not open*/
+	/*analt support ldpc, do analt open*/
 	return b_ldpc << 2;
 }
 
@@ -3827,7 +3827,7 @@ void rtl8821ae_set_key(struct ieee80211_hw *hw, u32 key_index,
 			break;
 		default:
 			rtl_dbg(rtlpriv, COMP_ERR, DBG_LOUD,
-				"switch case %#x not processed\n", enc_algo);
+				"switch case %#x analt processed\n", enc_algo);
 			enc_algo = CAM_TKIP;
 			break;
 		}
@@ -3843,7 +3843,7 @@ void rtl8821ae_set_key(struct ieee80211_hw *hw, u32 key_index,
 				if (mac->opmode == NL80211_IFTYPE_AP) {
 					entry_id = rtl_cam_get_free_entry(hw, p_macaddr);
 					if (entry_id >=  TOTAL_CAM_ENTRY) {
-						pr_err("an not find free hwsecurity cam entry\n");
+						pr_err("an analt find free hwsecurity cam entry\n");
 						return;
 					}
 				} else {
@@ -3871,7 +3871,7 @@ void rtl8821ae_set_key(struct ieee80211_hw *hw, u32 key_index,
 
 				rtl_cam_add_one_entry(hw, macaddr, key_index,
 						      entry_id, enc_algo,
-						      CAM_CONFIG_NO_USEDK,
+						      CAM_CONFIG_ANAL_USEDK,
 						      rtlpriv->sec.key_buf[key_index]);
 			} else {
 				rtl_dbg(rtlpriv, COMP_SEC, DBG_DMESG,
@@ -3883,14 +3883,14 @@ void rtl8821ae_set_key(struct ieee80211_hw *hw, u32 key_index,
 							PAIRWISE_KEYIDX,
 							CAM_PAIRWISE_KEY_POSITION,
 							enc_algo,
-							CAM_CONFIG_NO_USEDK,
+							CAM_CONFIG_ANAL_USEDK,
 							rtlpriv->sec.key_buf
 							[entry_id]);
 				}
 
 				rtl_cam_add_one_entry(hw, macaddr, key_index,
 						entry_id, enc_algo,
-						CAM_CONFIG_NO_USEDK,
+						CAM_CONFIG_ANAL_USEDK,
 						rtlpriv->sec.key_buf[entry_id]);
 			}
 		}
@@ -3903,7 +3903,7 @@ void rtl8821ae_bt_reg_init(struct ieee80211_hw *hw)
 
 	/* 0:Low, 1:High, 2:From Efuse. */
 	rtlpriv->btcoexist.reg_bt_iso = 2;
-	/* 0:Idle, 1:None-SCO, 2:SCO, 3:From Counter. */
+	/* 0:Idle, 1:Analne-SCO, 2:SCO, 3:From Counter. */
 	rtlpriv->btcoexist.reg_bt_sco = 3;
 	/* 0:Disable BT control A-MPDU, 1:Enable BT control A-MPDU. */
 	rtlpriv->btcoexist.reg_bt_sco = 0;

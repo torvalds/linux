@@ -39,7 +39,7 @@ SECTIONS
 		*(.rodata.*)
 		_erodata = . ;
 	}
-	NOTES
+	ANALTES
 	.data :	{
 		_data = . ;
 		*(.data)
@@ -51,7 +51,7 @@ SECTIONS
 	BOOT_DATA_PRESERVED
 
 	/*
-	 * This is the BSS section of the decompressor and not of the decompressed Linux kernel.
+	 * This is the BSS section of the decompressor and analt of the decompressed Linux kernel.
 	 * It will consume place in the decompressor's image.
 	 */
 	. = ALIGN(8);
@@ -108,7 +108,7 @@ SECTIONS
 
 #define SB_TRAILER_SIZE 32
 	/* Trailer needed for Secure Boot */
-	. += SB_TRAILER_SIZE; /* make sure .sb.trailer does not overwrite the previous section */
+	. += SB_TRAILER_SIZE; /* make sure .sb.trailer does analt overwrite the previous section */
 	. = ALIGN(4096) - SB_TRAILER_SIZE;
 	.sb.trailer : {
 		QUAD(0)

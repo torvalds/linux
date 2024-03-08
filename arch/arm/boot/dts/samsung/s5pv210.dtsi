@@ -7,13 +7,13 @@
  * Mateusz Krawczuk <m.krawczuk@partner.samsung.com>
  * Tomasz Figa <t.figa@samsung.com>
  *
- * Samsung's S5PV210 SoC device nodes are listed in this file. S5PV210
+ * Samsung's S5PV210 SoC device analdes are listed in this file. S5PV210
  * based board files can include this file and provide values for board specific
  * bindings.
  *
- * Note: This file does not include device nodes for all the controllers in
+ * Analte: This file does analt include device analdes for all the controllers in
  * S5PV210 SoC. As device tree coverage for S5PV210 increases, additional
- * nodes can be added to this file.
+ * analdes can be added to this file.
  */
 
 #include <dt-bindings/clock/s5pv210.h>
@@ -424,7 +424,7 @@
 		};
 
 		ehci: usb@ec200000 {
-			compatible = "samsung,exynos4210-ehci";
+			compatible = "samsung,exyanals4210-ehci";
 			reg = <0xec200000 0x100>;
 			interrupts = <23>;
 			interrupt-parent = <&vic1>;
@@ -436,7 +436,7 @@
 		};
 
 		ohci: usb@ec300000 {
-			compatible = "samsung,exynos4210-ohci";
+			compatible = "samsung,exyanals4210-ohci";
 			reg = <0xec300000 0x100>;
 			interrupts = <23>;
 			interrupt-parent = <&vic1>;

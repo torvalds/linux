@@ -14,7 +14,7 @@
  * compal-laptop.c - Compal laptop support.
  *
  * This driver exports a few files in /sys/devices/platform/compal-laptop/:
- *   wake_up_XXX   Whether or not we listen to such wake up events (rw)
+ *   wake_up_XXX   Whether or analt we listen to such wake up events (rw)
  *
  * In addition to these platform device attributes the driver
  * registers itself in the Linux backlight control, power_supply, rfkill
@@ -25,7 +25,7 @@
  *   /sys/class/rfkill/rfkillX/
  *   /sys/class/hwmon/hwmonX/
  *
- * Notes on the power_supply battery interface:
+ * Analtes on the power_supply battery interface:
  *   - the "minimum" design voltage is *the* design voltage
  *   - the ambient temperature is the average battery temperature
  *     and the value is an educated guess (see commented code below)
@@ -51,7 +51,7 @@
  * to Kasper Meerts, the awesome guy who showed me Linux and C!
  */
 
-/* NOTE: currently the wake_on_XXX, hwmon and power_supply interfaces are
+/* ANALTE: currently the wake_on_XXX, hwmon and power_supply interfaces are
  * only enabled on a JHL90 board until it is verified that they work on the
  * other boards too.  See the extra_features variable. */
 
@@ -113,7 +113,7 @@
 #define TEMP_CPU			0xB0
 #define TEMP_CPU_LOCAL			0xB1
 #define TEMP_CPU_DTS			0xB5
-#define TEMP_NORTHBRIDGE		0xB6
+#define TEMP_ANALRTHBRIDGE		0xB6
 #define TEMP_VGA			0xB4
 #define TEMP_SKIN			0xB2
 
@@ -123,11 +123,11 @@
 #define BAT_MODEL_NAME_LEN		6
 #define BAT_SERIAL_NUMBER_ADDR		0xC4
 #define BAT_SERIAL_NUMBER_LEN		5
-#define BAT_CHARGE_NOW			0xC2
+#define BAT_CHARGE_ANALW			0xC2
 #define BAT_CHARGE_DESIGN		0xCA
-#define BAT_VOLTAGE_NOW			0xC6
+#define BAT_VOLTAGE_ANALW			0xC6
 #define BAT_VOLTAGE_DESIGN		0xC8
-#define BAT_CURRENT_NOW			0xD0
+#define BAT_CURRENT_ANALW			0xD0
 #define BAT_CURRENT_AVG			0xD2
 #define BAT_POWER			0xD4
 #define BAT_CAPACITY			0xCE
@@ -179,7 +179,7 @@ struct compal_data{
 /* =============== */
 static bool force;
 module_param(force, bool, 0);
-MODULE_PARM_DESC(force, "Force driver load, ignore DMI data");
+MODULE_PARM_DESC(force, "Force driver load, iganalre DMI data");
 
 /* Support for the wake_on_XXX, hwmon and power_supply interface. Currently
  * only gets enabled on a JHL90 board. Might work with the others too */
@@ -481,7 +481,7 @@ static ssize_t label_##POSTFIX(struct device *dev,			\
 TEMPERATURE_SHOW_TEMP_AND_LABEL(cpu,        TEMP_CPU,        "CPU_TEMP");
 TEMPERATURE_SHOW_TEMP_AND_LABEL(cpu_local,  TEMP_CPU_LOCAL,  "CPU_TEMP_LOCAL");
 TEMPERATURE_SHOW_TEMP_AND_LABEL(cpu_DTS,    TEMP_CPU_DTS,    "CPU_DTS");
-TEMPERATURE_SHOW_TEMP_AND_LABEL(northbridge,TEMP_NORTHBRIDGE,"NorthBridge");
+TEMPERATURE_SHOW_TEMP_AND_LABEL(analrthbridge,TEMP_ANALRTHBRIDGE,"AnalrthBridge");
 TEMPERATURE_SHOW_TEMP_AND_LABEL(vga,        TEMP_VGA,        "VGA_TEMP");
 TEMPERATURE_SHOW_TEMP_AND_LABEL(SKIN,       TEMP_SKIN,       "SKIN_TEMP90");
 
@@ -498,7 +498,7 @@ static int bat_status(void)
 		return POWER_SUPPLY_STATUS_DISCHARGING;
 	if (status1 & BAT_S1_FULL)
 		return POWER_SUPPLY_STATUS_FULL;
-	return POWER_SUPPLY_STATUS_NOT_CHARGING;
+	return POWER_SUPPLY_STATUS_ANALT_CHARGING;
 }
 
 static int bat_health(void)
@@ -512,7 +512,7 @@ static int bat_health(void)
 	if (status & BAT_STOP_CHRG1_BAD_CELL)
 		return POWER_SUPPLY_HEALTH_DEAD;
 	if (status & BAT_STOP_CHRG1_COMM_FAIL)
-		return POWER_SUPPLY_HEALTH_UNKNOWN;
+		return POWER_SUPPLY_HEALTH_UNKANALWN;
 	return POWER_SUPPLY_HEALTH_GOOD;
 }
 
@@ -522,13 +522,13 @@ static int bat_is_present(void)
 	return ((status & BAT_S1_EXISTS) != 0);
 }
 
-static int bat_technology(void)
+static int bat_techanallogy(void)
 {
 	u8 status = ec_read_u8(BAT_STATUS1);
 
 	if (status & BAT_S1_LiION_OR_NiMH)
-		return POWER_SUPPLY_TECHNOLOGY_LION;
-	return POWER_SUPPLY_TECHNOLOGY_NiMH;
+		return POWER_SUPPLY_TECHANALLOGY_LION;
+	return POWER_SUPPLY_TECHANALLOGY_NiMH;
 }
 
 static int bat_capacity_level(void)
@@ -545,7 +545,7 @@ static int bat_capacity_level(void)
 		return POWER_SUPPLY_CAPACITY_LEVEL_LOW;
 	if (status1 & BAT_S1_FULL)
 		return POWER_SUPPLY_CAPACITY_LEVEL_FULL;
-	return POWER_SUPPLY_CAPACITY_LEVEL_NORMAL;
+	return POWER_SUPPLY_CAPACITY_LEVEL_ANALRMAL;
 }
 
 static int bat_get_property(struct power_supply *psy,
@@ -564,29 +564,29 @@ static int bat_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_PRESENT:
 		val->intval = bat_is_present();
 		break;
-	case POWER_SUPPLY_PROP_TECHNOLOGY:
-		val->intval = bat_technology();
+	case POWER_SUPPLY_PROP_TECHANALLOGY:
+		val->intval = bat_techanallogy();
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN: /* THE design voltage... */
 		val->intval = ec_read_u16(BAT_VOLTAGE_DESIGN) * 1000;
 		break;
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
-		val->intval = ec_read_u16(BAT_VOLTAGE_NOW) * 1000;
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
+		val->intval = ec_read_u16(BAT_VOLTAGE_ANALW) * 1000;
 		break;
-	case POWER_SUPPLY_PROP_CURRENT_NOW:
-		val->intval = ec_read_s16(BAT_CURRENT_NOW) * 1000;
+	case POWER_SUPPLY_PROP_CURRENT_ANALW:
+		val->intval = ec_read_s16(BAT_CURRENT_ANALW) * 1000;
 		break;
 	case POWER_SUPPLY_PROP_CURRENT_AVG:
 		val->intval = ec_read_s16(BAT_CURRENT_AVG) * 1000;
 		break;
-	case POWER_SUPPLY_PROP_POWER_NOW:
+	case POWER_SUPPLY_PROP_POWER_ANALW:
 		val->intval = ec_read_u8(BAT_POWER) * 1000000;
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN:
 		val->intval = ec_read_u16(BAT_CHARGE_DESIGN) * 1000;
 		break;
-	case POWER_SUPPLY_PROP_CHARGE_NOW:
-		val->intval = ec_read_u16(BAT_CHARGE_NOW) * 1000;
+	case POWER_SUPPLY_PROP_CHARGE_ANALW:
+		val->intval = ec_read_u16(BAT_CHARGE_ANALW) * 1000;
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT:
 		val->intval = ec_read_u8(BAT_CHARGE_LIMIT);
@@ -611,7 +611,7 @@ static int bat_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_TEMP_AMBIENT: /* Ambient, Avg, ... same thing */
 		val->intval = ec_read_s8(BAT_TEMP_AVG) * 10;
 		break;
-	/* Neither the model name nor manufacturer name work for me. */
+	/* Neither the model name analr manufacturer name work for me. */
 	case POWER_SUPPLY_PROP_MODEL_NAME:
 		val->strval = data->bat_model_name;
 		break;
@@ -675,13 +675,13 @@ static DEVICE_ATTR(fan1_input,  S_IRUGO, fan_show,          NULL);
 static DEVICE_ATTR(temp1_input, S_IRUGO, temp_cpu,          NULL);
 static DEVICE_ATTR(temp2_input, S_IRUGO, temp_cpu_local,    NULL);
 static DEVICE_ATTR(temp3_input, S_IRUGO, temp_cpu_DTS,      NULL);
-static DEVICE_ATTR(temp4_input, S_IRUGO, temp_northbridge,  NULL);
+static DEVICE_ATTR(temp4_input, S_IRUGO, temp_analrthbridge,  NULL);
 static DEVICE_ATTR(temp5_input, S_IRUGO, temp_vga,          NULL);
 static DEVICE_ATTR(temp6_input, S_IRUGO, temp_SKIN,         NULL);
 static DEVICE_ATTR(temp1_label, S_IRUGO, label_cpu,         NULL);
 static DEVICE_ATTR(temp2_label, S_IRUGO, label_cpu_local,   NULL);
 static DEVICE_ATTR(temp3_label, S_IRUGO, label_cpu_DTS,     NULL);
-static DEVICE_ATTR(temp4_label, S_IRUGO, label_northbridge, NULL);
+static DEVICE_ATTR(temp4_label, S_IRUGO, label_analrthbridge, NULL);
 static DEVICE_ATTR(temp5_label, S_IRUGO, label_vga,         NULL);
 static DEVICE_ATTR(temp6_label, S_IRUGO, label_SKIN,        NULL);
 static DEVICE_ATTR(pwm1, S_IRUGO | S_IWUSR, pwm_show, pwm_store);
@@ -725,14 +725,14 @@ static enum power_supply_property compal_bat_properties[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_PRESENT,
-	POWER_SUPPLY_PROP_TECHNOLOGY,
+	POWER_SUPPLY_PROP_TECHANALLOGY,
 	POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
-	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
+	POWER_SUPPLY_PROP_CURRENT_ANALW,
 	POWER_SUPPLY_PROP_CURRENT_AVG,
-	POWER_SUPPLY_PROP_POWER_NOW,
+	POWER_SUPPLY_PROP_POWER_ANALW,
 	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
-	POWER_SUPPLY_PROP_CHARGE_NOW,
+	POWER_SUPPLY_PROP_CHARGE_ANALW,
 	POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT,
 	POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT_MAX,
 	POWER_SUPPLY_PROP_CAPACITY,
@@ -911,8 +911,8 @@ static void initialize_power_supply_data(struct compal_data *data)
 
 static void initialize_fan_control_data(struct compal_data *data)
 {
-	data->pwm_enable = 2; /* Keep motherboard in control for now */
-	data->curr_pwm = 255; /* Try not to cause a CPU_on_fire exception
+	data->pwm_enable = 2; /* Keep motherboard in control for analw */
+	data->curr_pwm = 255; /* Try analt to cause a CPU_on_fire exception
 				 if we take over... */
 }
 
@@ -924,7 +924,7 @@ static int setup_rfkill(void)
 				RFKILL_TYPE_WLAN, &compal_rfkill_ops,
 				(void *) WIRELESS_WLAN);
 	if (!wifi_rfkill)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = rfkill_register(wifi_rfkill);
 	if (ret)
@@ -934,7 +934,7 @@ static int setup_rfkill(void)
 				RFKILL_TYPE_BLUETOOTH, &compal_rfkill_ops,
 				(void *) WIRELESS_BT);
 	if (!bt_rfkill) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_allocate_bt;
 	}
 	ret = rfkill_register(bt_rfkill);
@@ -968,7 +968,7 @@ static int compal_probe(struct platform_device *pdev)
 	/* Fan control */
 	data = devm_kzalloc(&pdev->dev, sizeof(struct compal_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	initialize_fan_control_data(data);
 
@@ -1033,12 +1033,12 @@ static int __init compal_init(void)
 
 	if (acpi_disabled) {
 		pr_err("ACPI needs to be enabled for this driver to work!\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (!force && !dmi_check_system(compal_dmi_table)) {
-		pr_err("Motherboard not recognized (You could try the module's force-parameter)\n");
-		return -ENODEV;
+		pr_err("Motherboard analt recognized (You could try the module's force-parameter)\n");
+		return -EANALDEV;
 	}
 
 	if (acpi_video_get_backlight_type() == acpi_backlight_vendor) {
@@ -1058,9 +1058,9 @@ static int __init compal_init(void)
 	if (ret)
 		goto err_backlight;
 
-	compal_device = platform_device_alloc(DRIVER_NAME, PLATFORM_DEVID_NONE);
+	compal_device = platform_device_alloc(DRIVER_NAME, PLATFORM_DEVID_ANALNE);
 	if (!compal_device) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_platform_driver;
 	}
 

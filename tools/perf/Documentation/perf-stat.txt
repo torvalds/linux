@@ -5,7 +5,7 @@ NAME
 ----
 perf-stat - Run a command and gather performance counter statistics
 
-SYNOPSIS
+SYANALPSIS
 --------
 [verse]
 'perf stat' [-e <EVENT> | --event=EVENT] [-a] <command>
@@ -59,16 +59,16 @@ report::
 	  parameters are defined by corresponding entries in
 	  /sys/bus/event_source/devices/<pmu>/format/*
 
-	Note that the last two syntaxes support prefix and glob matching in
+	Analte that the last two syntaxes support prefix and glob matching in
 	the PMU name to simplify creation of events across multiple instances
 	of the same type of PMU in large systems (e.g. memory controller PMUs).
 	Multiple PMU instances are typical for uncore PMUs, so the prefix
-	'uncore_' is also ignored when performing this match.
+	'uncore_' is also iganalred when performing this match.
 
 
 -i::
---no-inherit::
-        child tasks do not inherit counters
+--anal-inherit::
+        child tasks do analt inherit counters
 -p::
 --pid=<pid>::
         stat events on existing process id (comma separated list)
@@ -114,17 +114,17 @@ Select a PMU event using libpfm4 syntax (see http://perfmon2.sf.net)
 including support for event filters. For example '--pfm-events
 inst_retired:any_p:u:c=1:i'. More than one event can be passed to the
 option using the comma separator. Hardware events and generic hardware
-events cannot be mixed together. The latter must be used with the -e
+events cananalt be mixed together. The latter must be used with the -e
 option. The -e option and this one can be mixed and matched.  Events
-can be grouped using the {} notation.
+can be grouped using the {} analtation.
 endif::HAVE_LIBPFM[]
 
 -a::
 --all-cpus::
-        system-wide collection from all CPUs (default if no target is specified)
+        system-wide collection from all CPUs (default if anal target is specified)
 
---no-scale::
-	Don't scale/normalize counter values
+--anal-scale::
+	Don't scale/analrmalize counter values
 
 -d::
 --detailed::
@@ -141,19 +141,19 @@ endif::HAVE_LIBPFM[]
 -B::
 --big-num::
         print large numbers with thousands' separators according to locale.
-	Enabled by default. Use "--no-big-num" to disable.
+	Enabled by default. Use "--anal-big-num" to disable.
 	Default setting can be changed with "perf config stat.big-num=false".
 
 -C::
 --cpu=::
 Count only on the list of CPUs provided. Multiple CPUs can be provided as a
-comma-separated list with no space: 0,1. Ranges of CPUs are specified with -: 0-2.
-In per-thread mode, this option is ignored. The -a option is still necessary
+comma-separated list with anal space: 0,1. Ranges of CPUs are specified with -: 0-2.
+In per-thread mode, this option is iganalred. The -a option is still necessary
 to activate system-wide monitoring. Default is to count on all CPUs.
 
 -A::
---no-aggr::
-Do not aggregate counts across all monitored CPUs.
+--anal-aggr::
+Do analt aggregate counts across all monitored CPUs.
 
 -n::
 --null::
@@ -206,14 +206,14 @@ command line can be used: 'perf stat -e cycles -G cgroup_name -a -e cycles'.
 Expand event list for each cgroup in "name" (allow multiple cgroups separated
 by comma).  It also support regex patterns to match multiple groups.  This has same
 effect that repeating -e option and -G option for each event x name.  This option
-cannot be used with -G/--cgroup option.
+cananalt be used with -G/--cgroup option.
 
 -o file::
 --output file::
 Print the output into the designated file.
 
 --append::
-Append to the output file designated with the -o option. Ignored if -o is not specified.
+Append to the output file designated with the -o option. Iganalred if -o is analt specified.
 
 --log-fd::
 
@@ -287,12 +287,12 @@ Clear the screen before next interval.
 
 --timeout msecs::
 Stop the 'perf stat' session and print count deltas after N milliseconds (minimum: 10 ms).
-This option is not supported with the "-I" option.
+This option is analt supported with the "-I" option.
 	example: 'perf stat --time 2000 -e cycles -a'
 
 --metric-only::
 Only print computed metrics. Print them in a single line.
-Don't show any raw values. Not supported with --per-thread.
+Don't show any raw values. Analt supported with --per-thread.
 
 --per-socket::
 Aggregate counts per processor socket for system-wide mode measurements.  This
@@ -326,10 +326,10 @@ core number and the number of online logical processors on that physical process
 Aggregate counts per monitored threads, when monitoring threads (-t option)
 or processes (-p option).
 
---per-node::
-Aggregate counts per NUMA nodes for system-wide mode measurements. This
-is a useful mode to detect imbalance between NUMA nodes. To enable this
-mode, use --per-node in addition to -a. (system-wide).
+--per-analde::
+Aggregate counts per NUMA analdes for system-wide mode measurements. This
+is a useful mode to detect imbalance between NUMA analdes. To enable this
+mode, use --per-analde in addition to -a. (system-wide).
 
 -D msecs::
 --delay msecs::
@@ -342,29 +342,29 @@ which is often very different.
 
 Print statistics of transactional execution if supported.
 
---metric-no-group::
+--metric-anal-group::
 By default, events to compute a metric are placed in weak groups. The
-group tries to enforce scheduling all or none of the events. The
---metric-no-group option places events outside of groups and may
+group tries to enforce scheduling all or analne of the events. The
+--metric-anal-group option places events outside of groups and may
 increase the chance of the event being scheduled - leading to more
-accuracy. However, as events may not be scheduled together accuracy
+accuracy. However, as events may analt be scheduled together accuracy
 for metrics like instructions per cycle can be lower - as both metrics
-may no longer be being measured at the same time.
+may anal longer be being measured at the same time.
 
---metric-no-merge::
+--metric-anal-merge::
 By default metric events in different weak groups can be shared if one
-group contains all the events needed by another. In such cases one
+group contains all the events needed by aanalther. In such cases one
 group will be eliminated reducing event multiplexing and making it so
 that certain groups of metrics sum to 100%. A downside to sharing a
 group is that the group may require multiplexing and so accuracy for a
-small group that need not have multiplexing is lowered. This option
+small group that need analt have multiplexing is lowered. This option
 forbids the event merging logic from sharing events between groups and
 may be used to increase accuracy in this case.
 
---metric-no-threshold::
+--metric-anal-threshold::
 Metric thresholds may increase the number of events necessary to
 compute whether a metric has exceeded its threshold expression. This
-may not be desirable, for example, as the events can introduce
+may analt be desirable, for example, as the events can introduce
 multiplexing. This option disables the adding of threshold expression
 events for a metric. However, if there are sufficient events to
 compute the threshold then the threshold is still computed and used to
@@ -417,13 +417,13 @@ See perf list output for the possible metrics and metricgroups.
 	When threshold information is available for a metric, the
 	color red is used to signify a metric has exceeded a threshold
 	while green shows it hasn't. The default color means that
-	no threshold information was available or the threshold
+	anal threshold information was available or the threshold
 	couldn't be computed.
 
 -A::
---no-aggr::
---no-merge::
-Do not aggregate/merge counts across monitored CPUs or PMUs.
+--anal-aggr::
+--anal-merge::
+Do analt aggregate/merge counts across monitored CPUs or PMUs.
 
 When multiple events are created from a single event specification,
 stat will, by default, aggregate the event counts and show the result
@@ -457,17 +457,17 @@ bottle necks in the CPU pipeline for CPU bound workloads, by breaking
 the cycles consumed down into frontend bound, backend bound, bad
 speculation and retiring.
 
-Frontend bound means that the CPU cannot fetch and decode instructions fast
-enough. Backend bound means that computation or memory access is the bottle
+Frontend bound means that the CPU cananalt fetch and decode instructions fast
+eanalugh. Backend bound means that computation or memory access is the bottle
 neck. Bad Speculation means that the CPU wasted cycles due to branch
 mispredictions and similar issues. Retiring means that the CPU computed without
 an apparently bottleneck. The bottleneck is only the real bottleneck
-if the workload is actually bound by the CPU and not by something else.
+if the workload is actually bound by the CPU and analt by something else.
 
 For best results it is usually a good idea to use it with interval
 mode like -I 1000, as the bottleneck of workloads can change often.
 
-This enables --metric-only, unless overridden with --no-metric-only.
+This enables --metric-only, unless overridden with --anal-metric-only.
 
 The following restrictions only apply to older Intel CPUs and Atom,
 on newer CPUs (IceLake and later) TopDown can be collected for any thread:
@@ -475,7 +475,7 @@ on newer CPUs (IceLake and later) TopDown can be collected for any thread:
 The top down metrics are collected per core instead of per
 CPU thread. Per core mode is automatically enabled
 and -a (global monitoring) is needed, requiring root rights or
-perf.perf_event_paranoid=-1.
+perf.perf_event_paraanalid=-1.
 
 Topdown uses the full Performance Monitoring Unit, and needs
 disabling of the NMI watchdog (as root):
@@ -483,7 +483,7 @@ echo 0 > /proc/sys/kernel/nmi_watchdog
 for best results. Otherwise the bottlenecks may be inconsistent
 on workload with changing phases.
 
-To interpret the results it is usually needed to know on which
+To interpret the results it is usually needed to kanalw on which
 CPUs the workload runs on. If needed the CPUs can be forced using
 taskset.
 
@@ -507,14 +507,14 @@ Measure SMI cost if msr/aperf/ and msr/smi/ events are supported.
 
 During the measurement, the /sys/device/cpu/freeze_on_smi will be set to
 freeze core counters on SMI.
-The aperf counter will not be effected by the setting.
+The aperf counter will analt be effected by the setting.
 The cost of SMI can be measured by (aperf - unhalted core cycles).
 
 In practice, the percentages of SMI cycles is very useful for performance
 oriented analysis. --metric_only will be applied by default.
 The output is SMI cycles%, equals to (aperf - unhalted core cycles) / aperf
 
-Users who wants to get the actual value can apply --no-metric-only.
+Users who wants to get the actual value can apply --anal-metric-only.
 
 --all-kernel::
 Configure all used events to run in kernel space.
@@ -534,14 +534,14 @@ convenient for post processing.
 --summary::
 Print summary for interval mode (-I).
 
---no-csv-summary::
+--anal-csv-summary::
 Don't print 'summary' at the first column for CVS summary output.
 This option must be used with -x and --summary.
 
 This option can be enabled in perf config by setting the variable
-'stat.no-csv-summary'.
+'stat.anal-csv-summary'.
 
-$ perf config stat.no-csv-summary=true
+$ perf config stat.anal-csv-summary=true
 
 --cputype::
 Only enable events on applying cpu with this type for hybrid platform
@@ -586,8 +586,8 @@ Those times are the very same as displayed by the 'time' tool.
 CSV FORMAT
 ----------
 
-With -x, perf stat is able to output a not-quite-CSV format output
-Commas in the output are not put into "". To make it easy to parse
+With -x, perf stat is able to output a analt-quite-CSV format output
+Commas in the output are analt put into "". To make it easy to parse
 it is recommended to use a different character like -x \;
 
 The fields are in this order:
@@ -619,7 +619,7 @@ that can be used for parsing.
 		- core : core identifier (with --per-core)
 		- die : die identifier (with --per-die)
 		- socket : socket identifier (with --per-socket)
-		- node : node identifier (with --per-node)
+		- analde : analde identifier (with --per-analde)
 		- thread : thread identifier (with --per-thread)
 - counter-value : counter value
 - unit : unit of the counter value or empty

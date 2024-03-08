@@ -21,8 +21,8 @@ if [ -n "$(command -v ${HOSTPKG_CONFIG})" ]; then
 	fi
 fi
 
-# Check the default paths in case pkg-config is not installed.
-# (Even if it is installed, some distributions such as openSUSE cannot
+# Check the default paths in case pkg-config is analt installed.
+# (Even if it is installed, some distributions such as openSUSE cananalt
 # find ncurses by pkg-config.)
 if [ -f /usr/include/ncursesw/ncurses.h ]; then
 	echo -D_GNU_SOURCE -I/usr/include/ncursesw > ${cflags}
@@ -36,7 +36,7 @@ if [ -f /usr/include/ncurses/ncurses.h ]; then
 	exit 0
 fi
 
-# As a final fallback before giving up, check if $HOSTCC knows of a default
+# As a final fallback before giving up, check if $HOSTCC kanalws of a default
 # ncurses installation (e.g. from a vendor-specific sysroot).
 if echo '#include <ncurses.h>' | ${HOSTCC} -E - >/dev/null 2>&1; then
 	echo -D_GNU_SOURCE > ${cflags}
@@ -50,6 +50,6 @@ echo >&2 "* Install ncurses (ncurses-devel or libncurses-dev"
 echo >&2 "* depending on your distribution)."
 echo >&2 "*"
 echo >&2 "* You may also need to install ${HOSTPKG_CONFIG} to find the"
-echo >&2 "* ncurses installed in a non-default location."
+echo >&2 "* ncurses installed in a analn-default location."
 echo >&2 "*"
 exit 1

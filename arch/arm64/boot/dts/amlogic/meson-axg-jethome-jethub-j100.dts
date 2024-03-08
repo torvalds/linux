@@ -23,7 +23,7 @@
 
 /* wifi module */
 &sd_emmc_b {
-	non-removable;
+	analn-removable;
 
 	brcmf: wifi@1 {
 		reg = <1>;

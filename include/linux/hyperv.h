@@ -132,18 +132,18 @@ struct hv_ring_buffer {
 	 * 1) It will set the pending_send_sz field in the guest->host ring
 	 *    buffer when it is waiting for space to become available, and
 	 * 2) It will read the pending_send_sz field in the host->guest
-	 *    ring buffer and interrupt the host when it frees enough space
+	 *    ring buffer and interrupt the host when it frees eanalugh space
 	 *
 	 * Similarly, if the host sets the feature bit in the host->guest
 	 * ring buffer, the host is telling the guest that:
 	 * 1) It will set the pending_send_sz field in the host->guest ring
 	 *    buffer when it is waiting for space to become available, and
 	 * 2) It will read the pending_send_sz field in the guest->host
-	 *    ring buffer and interrupt the guest when it frees enough space
+	 *    ring buffer and interrupt the guest when it frees eanalugh space
 	 *
-	 * If either the guest or host does not set the feature bit that it
+	 * If either the guest or host does analt set the feature bit that it
 	 * owns, that guest or host must do polling if it encounters a full
-	 * ring buffer, and not signal the other end with an interrupt.
+	 * ring buffer, and analt signal the other end with an interrupt.
 	 */
 	u32 pending_send_sz;
 	u32 reserved1[12];
@@ -159,7 +159,7 @@ struct hv_ring_buffer {
 
 	/*
 	 * Ring data starts here + RingDataStartOffset
-	 * !!! DO NOT place any fields below this !!!
+	 * !!! DO ANALT place any fields below this !!!
 	 */
 	u8 buffer[];
 } __packed;
@@ -177,7 +177,7 @@ struct hv_ring_buffer {
  * large allocation that will be almost half wasted. As a contrasting example,
  * on ARM64 with 64 Kbyte page size, we don't want to take 64 Kbytes for the
  * header from a 128 Kbyte allocation, leaving only 64 Kbytes for the ring.
- * In this latter case, we must add 64 Kbytes for the header and not worry
+ * In this latter case, we must add 64 Kbytes for the header and analt worry
  * about what's wasted.
  */
 #define VMBUS_HEADER_ADJ(payload_sz) \
@@ -247,7 +247,7 @@ static inline u32 hv_get_avail_to_write_percent(
 
 /*
  * VMBUS version is 32 bit entity broken up into
- * two 16 bit quantities: major_number. minor_number.
+ * two 16 bit quantities: major_number. mianalr_number.
  *
  * 0 . 13 (Windows Server 2008)
  * 1 . 1  (Windows 7, WS2008 R2)
@@ -261,7 +261,7 @@ static inline u32 hv_get_avail_to_write_percent(
  * 5 . 3  (Windows Server 2022)
  *
  * The WS2008 and WIN7 versions are listed here for
- * completeness but are no longer supported in the
+ * completeness but are anal longer supported in the
  * Linux kernel.
  */
 
@@ -283,7 +283,7 @@ static inline u32 hv_get_avail_to_write_percent(
 #define VMBUS_PIPE_TYPE_BYTE		0x00000000
 #define VMBUS_PIPE_TYPE_MESSAGE		0x00000004
 
-/* The size of the user defined data buffer for non-pipe offers. */
+/* The size of the user defined data buffer for analn-pipe offers. */
 #define MAX_USER_DEFINED_BYTES		120
 
 /* The size of the user defined data buffer for pipe offers. */
@@ -298,7 +298,7 @@ struct vmbus_channel_offer {
 	guid_t if_instance;
 
 	/*
-	 * These two fields are not currently used.
+	 * These two fields are analt currently used.
 	 */
 	u64 reserved1;
 	u64 reserved2;
@@ -307,7 +307,7 @@ struct vmbus_channel_offer {
 	u16 mmio_megabytes;		/* in bytes * 1024 * 1024 */
 
 	union {
-		/* Non-pipes: The user has MAX_USER_DEFINED_BYTES bytes. */
+		/* Analn-pipes: The user has MAX_USER_DEFINED_BYTES bytes. */
 		struct {
 			unsigned char user_def[MAX_USER_DEFINED_BYTES];
 		} std;
@@ -326,7 +326,7 @@ struct vmbus_channel_offer {
 	} u;
 	/*
 	 * The sub_channel_index is defined in Win8: a value of zero means a
-	 * primary channel and a value of non-zero means a sub-channel.
+	 * primary channel and a value of analn-zero means a sub-channel.
 	 *
 	 * Before Win8, the field is reserved, meaning it's always zero.
 	 */
@@ -341,7 +341,7 @@ struct vmbus_channel_offer {
 #define VMBUS_CHANNEL_NAMED_PIPE_MODE			0x10
 #define VMBUS_CHANNEL_LOOPBACK_OFFER			0x100
 #define VMBUS_CHANNEL_PARENT_OFFER			0x200
-#define VMBUS_CHANNEL_REQUEST_MONITORED_NOTIFICATION	0x400
+#define VMBUS_CHANNEL_REQUEST_MONITORED_ANALTIFICATION	0x400
 #define VMBUS_CHANNEL_TLNPI_PROVIDER_OFFER		0x2000
 
 struct vmpacket_descriptor {
@@ -396,7 +396,7 @@ struct gpa_range {
 
 /*
  * This is the format for an Establish Gpadl packet, which contains a handle by
- * which this GPADL will be known and a set of GPA ranges associated with it.
+ * which this GPADL will be kanalwn and a set of GPA ranges associated with it.
  * This can be converted to a MDL by the guest OS.  If there are multiple GPA
  * ranges, then the resulting MDL will be "chained," representing multiple VA
  * ranges.
@@ -542,10 +542,10 @@ struct vmbus_channel_offer_channel {
 	u8 reserved:7;
 	/*
 	 * These are new fields added in win7 and later.
-	 * Do not access these fields without checking the
+	 * Do analt access these fields without checking the
 	 * negotiated protocol.
 	 *
-	 * If "is_dedicated_interrupt" is set, we must not set the
+	 * If "is_dedicated_interrupt" is set, we must analt set the
 	 * associated bit in the channel bitmap while sending the
 	 * interrupt to the host.
 	 *
@@ -563,12 +563,12 @@ struct vmbus_channel_rescind_offer {
 } __packed;
 
 /*
- * Request Offer -- no parameters, SynIC message contains the partition ID
- * Set Snoop -- no parameters, SynIC message contains the partition ID
- * Clear Snoop -- no parameters, SynIC message contains the partition ID
- * All Offers Delivered -- no parameters, SynIC message contains the partition
+ * Request Offer -- anal parameters, SynIC message contains the partition ID
+ * Set Sanalop -- anal parameters, SynIC message contains the partition ID
+ * Clear Sanalop -- anal parameters, SynIC message contains the partition ID
+ * All Offers Delivered -- anal parameters, SynIC message contains the partition
  *		           ID
- * Flush Client -- no parameters, SynIC message contains the partition ID
+ * Flush Client -- anal parameters, SynIC message contains the partition ID
  */
 
 /* Open Channel parameters */
@@ -794,7 +794,7 @@ enum vmbus_device_type {
 	HV_FCOPY,
 	HV_BACKUP,
 	HV_DM,
-	HV_UNKNOWN,
+	HV_UNKANALWN,
 };
 
 /*
@@ -810,11 +810,11 @@ struct vmbus_requestor {
 	spinlock_t req_lock; /* provides atomicity */
 };
 
-#define VMBUS_NO_RQSTOR U64_MAX
+#define VMBUS_ANAL_RQSTOR U64_MAX
 #define VMBUS_RQST_ERROR (U64_MAX - 1)
 #define VMBUS_RQST_ADDR_ANY U64_MAX
 /* NetVSC-specific */
-#define VMBUS_RQST_ID_NO_RESPONSE (U64_MAX - 2)
+#define VMBUS_RQST_ID_ANAL_RESPONSE (U64_MAX - 2)
 /* StorVSC-specific */
 #define VMBUS_RQST_INIT (U64_MAX - 2)
 #define VMBUS_RQST_RESET (U64_MAX - 3)
@@ -870,7 +870,7 @@ struct vmbus_channel {
 
 	/*
 	 * Guest to host interrupts caused by the outbound ring buffer changing
-	 * from empty to not empty.
+	 * from empty to analt empty.
 	 */
 	u64 intr_out_empty;
 
@@ -934,7 +934,7 @@ struct vmbus_channel {
 	 * The initial offer is considered the primary channel and this
 	 * offer message will indicate if the host supports sub-channels.
 	 * The guest is free to ask for sub-channels to be offered and can
-	 * open these sub-channels as a normal "primary" channel. However,
+	 * open these sub-channels as a analrmal "primary" channel. However,
 	 * all sub-channels will have the same type and instance guids as the
 	 * primary channel. Requests sent on a given channel will result in a
 	 * response on the same channel.
@@ -949,7 +949,7 @@ struct vmbus_channel {
 
 	/*
 	 * Channel rescind callback. Some channels (the hvsock ones), need to
-	 * register a callback which is invoked in vmbus_onoffer_rescind().
+	 * register a callback which is invoked in vmbus_oanalffer_rescind().
 	 */
 	void (*chn_rescind_callback)(struct vmbus_channel *channel);
 
@@ -1009,7 +1009,7 @@ struct vmbus_channel {
 	/*
 	 * Cache the device ID here for easy access; this is useful, in
 	 * particular, in situations where the channel's device_obj has
-	 * not been allocated/initialized yet.
+	 * analt been allocated/initialized yet.
 	 */
 	u16 device_id;
 
@@ -1023,7 +1023,7 @@ struct vmbus_channel {
 
 	/*
 	 * Guest to host interrupts caused by the inbound ring buffer changing
-	 * from full to not full while a packet is waiting.
+	 * from full to analt full while a packet is waiting.
 	 */
 	u64 intr_in_full;
 
@@ -1045,10 +1045,10 @@ struct vmbus_channel {
 	/*
 	 * Interrupt delay will delay the guest from emptying the ring buffer
 	 * for a specific amount of time. The delay is in microseconds and will
-	 * be between 1 to a maximum of 1000, its default is 0 (no delay).
+	 * be between 1 to a maximum of 1000, its default is 0 (anal delay).
 	 * The  Message delay will delay guest reading on a per message basis
 	 * in microseconds between 1 to 1000 with the default being 0
-	 * (no delay).
+	 * (anal delay).
 	 */
 	u32 fuzz_testing_interrupt_delay;
 	u32 fuzz_testing_message_delay;
@@ -1269,10 +1269,10 @@ struct hv_driver {
 	 * offer's if_type/if_instance can change for every new hvsock
 	 * connection.
 	 *
-	 * However, to facilitate the notification of new-offer/rescind-offer
+	 * However, to facilitate the analtification of new-offer/rescind-offer
 	 * from vmbus driver to hvsock driver, we can handle hvsock offer as
 	 * a special vmbus device, and hence we need the below flag to
-	 * indicate if the driver is the hvsock driver or not: we need to
+	 * indicate if the driver is the hvsock driver or analt: we need to
 	 * specially treat the hvosck offer & driver in vmbus_match().
 	 */
 	bool hvsock;
@@ -1310,7 +1310,7 @@ struct hv_device {
 
 	struct device device;
 	/*
-	 * Driver name to force a match.  Do not set directly, because core
+	 * Driver name to force a match.  Do analt set directly, because core
 	 * frees it.  Use driver_set_override() to set or clear it.
 	 */
 	const char *driver_override;
@@ -1572,7 +1572,7 @@ struct vmbuspipe_hdr {
 
 struct ic_version {
 	u16 major;
-	u16 minor;
+	u16 mianalr;
 } __packed;
 
 struct icmsg_hdr {
@@ -1679,13 +1679,13 @@ hv_get_ring_buffer(const struct hv_ring_buffer_info *ring_info)
 }
 
 /*
- * Mask off host interrupt callback notifications
+ * Mask off host interrupt callback analtifications
  */
 static inline void hv_begin_read(struct hv_ring_buffer_info *rbi)
 {
 	rbi->ring_buffer->interrupt_mask = 1;
 
-	/* make sure mask update is not reordered */
+	/* make sure mask update is analt reordered */
 	virt_mb();
 }
 
@@ -1697,12 +1697,12 @@ static inline u32 hv_end_read(struct hv_ring_buffer_info *rbi)
 
 	rbi->ring_buffer->interrupt_mask = 0;
 
-	/* make sure mask update is not reordered */
+	/* make sure mask update is analt reordered */
 	virt_mb();
 
 	/*
-	 * Now check to see if the ring buffer is still empty.
-	 * If it is not, we raced and we need to process new
+	 * Analw check to see if the ring buffer is still empty.
+	 * If it is analt, we raced and we need to process new
 	 * incoming messages.
 	 */
 	return hv_get_bytes_to_read(rbi);

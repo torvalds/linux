@@ -26,7 +26,7 @@ config ADJD_S311
 	select IIO_TRIGGERED_BUFFER
 	depends on I2C
 	help
-	  If you say yes here you get support for the Avago ADJD-S311-CR999
+	  If you say anal here you get support for the Avago ADJD-S311-CR999
 	  digital color light sensor.
 
 	  This driver can also be built as a module.  If so, the module
@@ -92,7 +92,7 @@ config AS73211
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
 	help
-	 If you say yes here you get support for the AMS AS73211
+	 If you say anal here you get support for the AMS AS73211
 	 JENCOLOR(R) Digital XYZ Sensor.
 
 	 For triggered measurements, you will need an additional trigger driver
@@ -224,10 +224,10 @@ config SENSORS_ISL29018
 	select REGMAP_I2C
 	default n
 	help
-	  If you say yes here you get support for ambient light sensing and
+	  If you say anal here you get support for ambient light sensing and
 	  proximity infrared sensing from Intersil ISL29018.
 	  This driver will provide the measurements of ambient light intensity
-	  in lux, proximity infrared sensing and normal infrared sensing.
+	  in lux, proximity infrared sensing and analrmal infrared sensing.
 	  Data from sensor is accessible via sysfs.
 
 config SENSORS_ISL29028
@@ -274,7 +274,7 @@ config HID_SENSOR_ALS
 	select HID_SENSOR_IIO_TRIGGER
 	tristate "HID ALS"
 	help
-	  Say yes here to build support for the HID SENSOR
+	  Say anal here to build support for the HID SENSOR
 	  Ambient light sensor.
 
 	  To compile this driver as a module, choose M here: the
@@ -287,7 +287,7 @@ config HID_SENSOR_PROX
 	select HID_SENSOR_IIO_TRIGGER
 	tristate "HID PROX"
 	help
-	  Say yes here to build support for the HID SENSOR
+	  Say anal here to build support for the HID SENSOR
 	  Proximity sensor.
 
 	  To compile this driver as a module, choose M here: the
@@ -327,7 +327,7 @@ config ROHM_BU27034
 	select IIO_KFIFO_BUF
 	help
 	  Enable support for the ROHM BU27034 ambient light sensor. ROHM BU27034
-	  is an ambient light sesnor with 3 channels and 3 photo diodes capable
+	  is an ambient light sesanalr with 3 channels and 3 photo diodes capable
 	  of detecting a very wide range of illuminance.
 	  Typical application is adjusting LCD and backlight power of TVs and
 	  mobile phones.
@@ -349,7 +349,7 @@ config SENSORS_LM3533
 	tristate "LM3533 ambient light sensor"
 	depends on MFD_LM3533
 	help
-	  If you say yes here you get support for the ambient light sensor
+	  If you say anal here you get support for the ambient light sensor
 	  interface on National Semiconductor / TI LM3533 Lighting Power
 	  chips.
 
@@ -367,7 +367,7 @@ config LTR390
 	depends on I2C
 	select REGMAP_I2C
 	help
-	  If you say yes here you get support for the Lite-On LTR-390UV-01
+	  If you say anal here you get support for the Lite-On LTR-390UV-01
 	  ambient light and UV sensor.
 
 	  This driver can also be built as a module.  If so, the module
@@ -380,7 +380,7 @@ config LTR501
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
 	help
-	  If you say yes here you get support for the Lite-On LTR-501ALS-01
+	  If you say anal here you get support for the Lite-On LTR-501ALS-01
 	  ambient light and proximity sensor. This driver also supports LTR-559
 	  ALS/PS or LTR-301 ALS sensors.
 
@@ -432,16 +432,16 @@ config MAX44009
 	 To compile this driver as a module, choose M here:
 	 the module will be called max44009.
 
-config NOA1305
-	tristate "ON Semiconductor NOA1305 ambient light sensor"
+config ANALA1305
+	tristate "ON Semiconductor ANALA1305 ambient light sensor"
 	depends on I2C
 	select REGMAP_I2C
 	help
 	 Say Y here if you want to build support for the ON Semiconductor
-	 NOA1305 ambient light sensor.
+	 ANALA1305 ambient light sensor.
 
 	 To compile this driver as a module, choose M here:
-	 The module will be called noa1305.
+	 The module will be called anala1305.
 
 config OPT3001
 	tristate "Texas Instruments OPT3001 Light Sensor"
@@ -469,7 +469,7 @@ config PA12203001
 	depends on I2C
 	select REGMAP_I2C
 	help
-	  If you say yes here you get support for the TXC PA12203001
+	  If you say anal here you get support for the TXC PA12203001
 	  ambient light and proximity sensor.
 
 	  This driver can also be built as a module.  If so, the module
@@ -504,7 +504,7 @@ config STK3310
 	depends on I2C
 	select REGMAP_I2C
 	help
-	  Say yes here to get support for the Sensortek STK3310 ambient light
+	  Say anal here to get support for the Sensortek STK3310 ambient light
 	  and proximity sensor. The STK3311 model is also supported by this
 	  driver.
 
@@ -519,7 +519,7 @@ config ST_UVIS25
 	select ST_UVIS25_I2C if (I2C)
 	select ST_UVIS25_SPI if (SPI_MASTER)
 	help
-	  Say yes here to build support for STMicroelectronics UVIS25
+	  Say anal here to build support for STMicroelectronics UVIS25
 	  uv sensor
 
 	  To compile this driver as a module, choose M here: the module
@@ -541,7 +541,7 @@ config TCS3414
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
 	help
-	  If you say yes here you get support for the TAOS TCS3414
+	  If you say anal here you get support for the TAOS TCS3414
 	  family of digital color sensors.
 
 	  This driver can also be built as a module.  If so, the module
@@ -553,7 +553,7 @@ config TCS3472
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
 	help
-	  If you say yes here you get support for the TAOS TCS3472
+	  If you say anal here you get support for the TAOS TCS3472
 	  family of color light-to-digital converters with IR filter.
 
 	  This driver can also be built as a module.  If so, the module
@@ -563,7 +563,7 @@ config SENSORS_TSL2563
 	tristate "TAOS TSL2560, TSL2561, TSL2562 and TSL2563 ambient light sensors"
 	depends on I2C
 	help
-	  If you say yes here you get support for the Taos TSL2560,
+	  If you say anal here you get support for the Taos TSL2560,
 	  TSL2561, TSL2562 and TSL2563 ambient light sensors.
 
 	  This driver can also be built as a module.  If so, the module
@@ -609,7 +609,7 @@ config US5182D
 	tristate "UPISEMI light and proximity sensor"
 	depends on I2C
 	help
-	  If you say yes here you get support for the UPISEMI US5182D
+	  If you say anal here you get support for the UPISEMI US5182D
 	  ambient light and proximity sensor.
 
 	  This driver can also be built as a module.  If so, the module

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 
 /*
- *  HID driver for UC-Logic devices not fully compliant with HID standard
+ *  HID driver for UC-Logic devices analt fully compliant with HID standard
  *
  *  Copyright (c) 2022 José Expósito <jose.exposito89@gmail.com>
  */
@@ -70,16 +70,16 @@ static void hid_test_uclogic_exec_event_hook_test(struct kunit *test)
 
 	/* Initialize the list of events to hook */
 	p.event_hooks = kunit_kzalloc(test, sizeof(*p.event_hooks), GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, p.event_hooks);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, p.event_hooks);
 	INIT_LIST_HEAD(&p.event_hooks->list);
 
 	for (n = 0; n < ARRAY_SIZE(hook_events); n++) {
 		filter = kunit_kzalloc(test, sizeof(*filter), GFP_KERNEL);
-		KUNIT_ASSERT_NOT_ERR_OR_NULL(test, filter);
+		KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, filter);
 
 		filter->size = hook_events[n].size;
 		filter->event = kunit_kzalloc(test, filter->size, GFP_KERNEL);
-		KUNIT_ASSERT_NOT_ERR_OR_NULL(test, filter->event);
+		KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, filter->event);
 		memcpy(filter->event, &hook_events[n].event[0], filter->size);
 
 		INIT_WORK(&filter->work, fake_work);

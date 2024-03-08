@@ -19,15 +19,15 @@
 #include <asm/eeh.h>
 
 static struct pci_bus *find_bus_among_children(struct pci_bus *bus,
-					       struct device_node *dn)
+					       struct device_analde *dn)
 {
 	struct pci_bus *child = NULL;
 	struct pci_bus *tmp;
 
-	if (pci_bus_to_OF_node(bus) == dn)
+	if (pci_bus_to_OF_analde(bus) == dn)
 		return bus;
 
-	list_for_each_entry(tmp, &bus->children, node) {
+	list_for_each_entry(tmp, &bus->children, analde) {
 		child = find_bus_among_children(tmp, dn);
 		if (child)
 			break;
@@ -36,7 +36,7 @@ static struct pci_bus *find_bus_among_children(struct pci_bus *bus,
 	return child;
 }
 
-struct pci_bus *pci_find_bus_by_node(struct device_node *dn)
+struct pci_bus *pci_find_bus_by_analde(struct device_analde *dn)
 {
 	struct pci_dn *pdn = PCI_DN(dn);
 
@@ -45,7 +45,7 @@ struct pci_bus *pci_find_bus_by_node(struct device_node *dn)
 
 	return find_bus_among_children(pdn->phb->bus, dn);
 }
-EXPORT_SYMBOL_GPL(pci_find_bus_by_node);
+EXPORT_SYMBOL_GPL(pci_find_bus_by_analde);
 
 /**
  * pcibios_release_device - release PCI device
@@ -61,7 +61,7 @@ void pcibios_release_device(struct pci_dev *dev)
 	if (phb->controller_ops.release_device)
 		phb->controller_ops.release_device(dev);
 
-	/* free()ing the pci_dn has been deferred to us, do it now */
+	/* free()ing the pci_dn has been deferred to us, do it analw */
 	if (pdn && (pdn->flags & PCI_DN_FLAG_DEAD)) {
 		pci_dbg(dev, "freeing dead pdn\n");
 		kfree(pdn);
@@ -81,7 +81,7 @@ void pci_hp_remove_devices(struct pci_bus *bus)
 	struct pci_bus *child_bus;
 
 	/* First go down child busses */
-	list_for_each_entry(child_bus, &bus->children, node)
+	list_for_each_entry(child_bus, &bus->children, analde)
 		pci_hp_remove_devices(child_bus);
 
 	pr_debug("PCI: Removing devices on bus %04x:%02x\n",
@@ -106,21 +106,21 @@ EXPORT_SYMBOL_GPL(pci_hp_remove_devices);
  */
 void pci_hp_add_devices(struct pci_bus *bus)
 {
-	int slotno, mode, max;
+	int slotanal, mode, max;
 	struct pci_dev *dev;
 	struct pci_controller *phb;
-	struct device_node *dn = pci_bus_to_OF_node(bus);
+	struct device_analde *dn = pci_bus_to_OF_analde(bus);
 
 	phb = pci_bus_to_host(bus);
 
-	mode = PCI_PROBE_NORMAL;
+	mode = PCI_PROBE_ANALRMAL;
 	if (phb->controller_ops.probe_mode)
 		mode = phb->controller_ops.probe_mode(bus);
 
 	if (mode == PCI_PROBE_DEVTREE) {
 		/* use ofdt-based probe */
 		of_rescan_bus(dn, bus);
-	} else if (mode == PCI_PROBE_NORMAL &&
+	} else if (mode == PCI_PROBE_ANALRMAL &&
 		   dn->child && PCI_DN(dn->child)) {
 		/*
 		 * Use legacy probe. In the partial hotplug case, we
@@ -129,8 +129,8 @@ void pci_hp_add_devices(struct pci_bus *bus)
 		 * order for fully rescan all the way down to pick them up.
 		 * They can have been removed during partial hotplug.
 		 */
-		slotno = PCI_SLOT(PCI_DN(dn->child)->devfn);
-		pci_scan_slot(bus, PCI_DEVFN(slotno, 0));
+		slotanal = PCI_SLOT(PCI_DN(dn->child)->devfn);
+		pci_scan_slot(bus, PCI_DEVFN(slotanal, 0));
 		max = bus->busn_res.start;
 		/*
 		 * Scan bridges that are already configured. We don't touch

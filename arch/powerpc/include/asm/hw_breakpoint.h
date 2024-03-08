@@ -21,7 +21,7 @@ struct arch_hw_breakpoint {
 	bool		perf_single_step; /* temporarily uninstalled for a perf single step */
 };
 
-/* Note: Don't change the first 6 bits below as they are in the same order
+/* Analte: Don't change the first 6 bits below as they are in the same order
  * as the dabr and dabrx.
  */
 #define HW_BRK_TYPE_READ		0x01
@@ -80,7 +80,7 @@ extern int arch_check_bp_in_kernelspace(struct arch_hw_breakpoint *hw);
 extern int hw_breakpoint_arch_parse(struct perf_event *bp,
 				    const struct perf_event_attr *attr,
 				    struct arch_hw_breakpoint *hw);
-extern int hw_breakpoint_exceptions_notify(struct notifier_block *unused,
+extern int hw_breakpoint_exceptions_analtify(struct analtifier_block *unused,
 						unsigned long val, void *data);
 int arch_install_hw_breakpoint(struct perf_event *bp);
 void arch_uninstall_hw_breakpoint(struct perf_event *bp);

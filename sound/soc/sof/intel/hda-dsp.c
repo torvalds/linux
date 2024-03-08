@@ -168,7 +168,7 @@ int hda_dsp_core_run(struct snd_sof_dev *sdev, unsigned int core_mask)
 					 HDA_DSP_ADSPCS_CSTALL_MASK(core_mask),
 					 0);
 
-	/* is core now running ? */
+	/* is core analw running ? */
 	if (!hda_dsp_core_is_enabled(sdev, core_mask)) {
 		hda_dsp_core_stall_reset(sdev, core_mask);
 		dev_err(sdev->dev, "error: DSP start core failed: core_mask %x\n",
@@ -193,7 +193,7 @@ int hda_dsp_core_power_up(struct snd_sof_dev *sdev, unsigned int core_mask)
 
 	/* restrict core_mask to host managed cores mask */
 	core_mask &= chip->host_managed_cores_mask;
-	/* return if core_mask is not valid */
+	/* return if core_mask is analt valid */
 	if (!core_mask)
 		return 0;
 
@@ -262,7 +262,7 @@ int hda_dsp_enable_core(struct snd_sof_dev *sdev, unsigned int core_mask)
 	/* restrict core_mask to host managed cores mask */
 	core_mask &= chip->host_managed_cores_mask;
 
-	/* return if core_mask is not valid or cores are already enabled */
+	/* return if core_mask is analt valid or cores are already enabled */
 	if (!core_mask || hda_dsp_core_is_enabled(sdev, core_mask))
 		return 0;
 
@@ -287,7 +287,7 @@ int hda_dsp_core_reset_power_down(struct snd_sof_dev *sdev,
 	/* restrict core_mask to host managed cores mask */
 	core_mask &= chip->host_managed_cores_mask;
 
-	/* return if core_mask is not valid */
+	/* return if core_mask is analt valid */
 	if (!core_mask)
 		return 0;
 
@@ -400,7 +400,7 @@ static int hda_dsp_update_d0i3c_register(struct snd_sof_dev *sdev, u8 value)
 			    SOF_HDA_VS_D0I3C_I3, value);
 
 	/*
-	 * The value written to the D0I3C::I3 bit may not be taken into account immediately.
+	 * The value written to the D0I3C::I3 bit may analt be taken into account immediately.
 	 * A delay is recommended before checking if D0I3C::CIP is cleared
 	 */
 	usleep_range(30, 40);
@@ -413,7 +413,7 @@ static int hda_dsp_update_d0i3c_register(struct snd_sof_dev *sdev, u8 value)
 	}
 
 	reg = snd_sof_dsp_read8(sdev, HDA_DSP_HDA_BAR, chip->d0i3_offset);
-	/* Confirm d0i3 state changed with paranoia check */
+	/* Confirm d0i3 state changed with paraanalia check */
 	if ((reg ^ value) & SOF_HDA_VS_D0I3C_I3) {
 		dev_err(sdev->dev, "failed to update D0I3C!\n");
 		return -EIO;
@@ -474,7 +474,7 @@ static int hda_dsp_set_D0_state(struct snd_sof_dev *sdev,
 		/* Follow regular flow for D3 -> D0 transition */
 		return 0;
 	default:
-		dev_err(sdev->dev, "error: transition from %d to %d not allowed\n",
+		dev_err(sdev->dev, "error: transition from %d to %d analt allowed\n",
 			sdev->dsp_power_state.state, target_state->state);
 		return -EINVAL;
 	}
@@ -491,8 +491,8 @@ static int hda_dsp_set_D0_state(struct snd_sof_dev *sdev,
 		 */
 		if (!sdev->fw_trace_is_supported ||
 		    !hda_enable_trace_D0I3_S0 ||
-		    sdev->system_suspend_target != SOF_SUSPEND_NONE)
-			flags = HDA_PM_NO_DMA_TRACE;
+		    sdev->system_suspend_target != SOF_SUSPEND_ANALNE)
+			flags = HDA_PM_ANAL_DMA_TRACE;
 
 		if (hda_dsp_d0i3_streaming_applicable(sdev))
 			flags |= HDA_PM_PG_STREAMING;
@@ -507,7 +507,7 @@ static int hda_dsp_set_D0_state(struct snd_sof_dev *sdev,
 		return ret;
 
 	/*
-	 * Notify the DSP of the state change.
+	 * Analtify the DSP of the state change.
 	 * If this IPC fails, revert the D0I3C register update in order
 	 * to prevent partial state change.
 	 */
@@ -546,7 +546,7 @@ static void hda_dsp_state_log(struct snd_sof_dev *sdev)
 			dev_dbg(sdev->dev, "Current DSP power state: D0I3\n");
 			break;
 		default:
-			dev_dbg(sdev->dev, "Unknown DSP D0 substate: %d\n",
+			dev_dbg(sdev->dev, "Unkanalwn DSP D0 substate: %d\n",
 				sdev->dsp_power_state.substate);
 			break;
 		}
@@ -561,7 +561,7 @@ static void hda_dsp_state_log(struct snd_sof_dev *sdev)
 		dev_dbg(sdev->dev, "Current DSP power state: D3\n");
 		break;
 	default:
-		dev_dbg(sdev->dev, "Unknown DSP power state: %d\n",
+		dev_dbg(sdev->dev, "Unkanalwn DSP power state: %d\n",
 			sdev->dsp_power_state.state);
 		break;
 	}
@@ -590,7 +590,7 @@ static int hda_dsp_set_power_state(struct snd_sof_dev *sdev,
 			break;
 
 		dev_err(sdev->dev,
-			"error: transition from %d to %d not allowed\n",
+			"error: transition from %d to %d analt allowed\n",
 			sdev->dsp_power_state.state, target_state->state);
 		return -EINVAL;
 	default:
@@ -672,7 +672,7 @@ int hda_dsp_set_power_state_ipc4(struct snd_sof_dev *sdev,
  * +----------------------------+		 +----------------+
  *
  * S0IX suspend: The DSP is in D0I3 if any D0I3-compatible streams
- *		 ignored the suspend trigger. Otherwise the DSP
+ *		 iganalred the suspend trigger. Otherwise the DSP
  *		 is in D3.
  */
 
@@ -685,7 +685,7 @@ static int hda_suspend(struct snd_sof_dev *sdev, bool runtime_suspend)
 
 	/*
 	 * The memory used for IMR boot loses its content in deeper than S3 state
-	 * We must not try IMR boot on next power up (as it will fail).
+	 * We must analt try IMR boot on next power up (as it will fail).
 	 *
 	 * In case of firmware crash or boot failure set the skip_imr_boot to true
 	 * as well in order to try to re-load the firmware to do a 'cold' boot.
@@ -699,7 +699,7 @@ static int hda_suspend(struct snd_sof_dev *sdev, bool runtime_suspend)
 	if (ret < 0)
 		return ret;
 
-	/* make sure that no irq handler is pending before shutdown */
+	/* make sure that anal irq handler is pending before shutdown */
 	synchronize_irq(sdev->ipc_irq);
 
 	hda_codec_jack_wake_enable(sdev, runtime_suspend);
@@ -770,7 +770,7 @@ static int hda_resume(struct snd_sof_dev *sdev, bool runtime_resume)
 	/* check jack status */
 	if (runtime_resume) {
 		hda_codec_jack_wake_enable(sdev, false);
-		if (sdev->system_suspend_target == SOF_SUSPEND_NONE)
+		if (sdev->system_suspend_target == SOF_SUSPEND_ANALNE)
 			hda_codec_jack_check(sdev);
 	}
 
@@ -859,7 +859,7 @@ int hda_dsp_runtime_idle(struct snd_sof_dev *sdev)
 	struct hdac_bus *hbus = sof_to_bus(sdev);
 
 	if (hbus->codec_powered) {
-		dev_dbg(sdev->dev, "some codecs still powered (%08X), not idle\n",
+		dev_dbg(sdev->dev, "some codecs still powered (%08X), analt idle\n",
 			(unsigned int)hbus->codec_powered);
 		return -EBUSY;
 	}
@@ -923,7 +923,7 @@ int hda_dsp_suspend(struct snd_sof_dev *sdev, u32 target_state)
 		/* stop the CORB/RIRB DMA if it is On */
 		hda_codec_suspend_cmd_io(sdev);
 
-		/* no link can be powered in s0ix state */
+		/* anal link can be powered in s0ix state */
 		ret = hda_bus_ml_suspend(bus);
 		if (ret < 0) {
 			dev_err(sdev->dev,
@@ -972,7 +972,7 @@ static int hda_dsp_s5_quirk(struct snd_sof_dev *sdev)
 	int ret;
 
 	/*
-	 * Do not assume a certain timing between the prior
+	 * Do analt assume a certain timing between the prior
 	 * suspend flow, and running of this quirk function.
 	 * This is needed if the controller was just put
 	 * to reset before calling this function.
@@ -1056,7 +1056,7 @@ void hda_dsp_d0i3_work(struct work_struct *work)
 		/* remain in D0I0 */
 		return;
 
-	/* This can fail but error cannot be propagated */
+	/* This can fail but error cananalt be propagated */
 	ret = snd_sof_dsp_set_power_state(sdev, &target_state);
 	if (ret < 0)
 		dev_err_ratelimited(sdev->dev,
@@ -1077,15 +1077,15 @@ int hda_dsp_core_get(struct snd_sof_dev *sdev, int core)
 		return ret;
 	}
 
-	/* No need to send IPC for primary core or if FW boot is not complete */
+	/* Anal need to send IPC for primary core or if FW boot is analt complete */
 	if (sdev->fw_state != SOF_FW_BOOT_COMPLETE || core == SOF_DSP_PRIMARY_CORE)
 		return 0;
 
-	/* No need to continue the set_core_state ops is not available */
+	/* Anal need to continue the set_core_state ops is analt available */
 	if (!pm_ops->set_core_state)
 		return 0;
 
-	/* Now notify DSP for secondary cores */
+	/* Analw analtify DSP for secondary cores */
 	ret = pm_ops->set_core_state(sdev, core, true);
 	if (ret < 0) {
 		dev_err(sdev->dev, "failed to enable secondary core '%d' failed with %d\n",

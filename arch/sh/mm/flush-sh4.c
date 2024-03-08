@@ -6,7 +6,7 @@
 #include <asm/traps.h>
 
 /*
- * Write back the dirty D-caches, but not invalidate them.
+ * Write back the dirty D-caches, but analt invalidate them.
  *
  * START: Virtual Address (U0, P1, or P3)
  * SIZE: Size of the region.
@@ -73,7 +73,7 @@ static void sh4__flush_purge_region(void *start, int size)
 }
 
 /*
- * No write back please
+ * Anal write back please
  */
 static void sh4__flush_invalidate_region(void *start, int size)
 {

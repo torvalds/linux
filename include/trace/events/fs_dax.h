@@ -8,11 +8,11 @@
 #include <linux/tracepoint.h>
 
 DECLARE_EVENT_CLASS(dax_pmd_fault_class,
-	TP_PROTO(struct inode *inode, struct vm_fault *vmf,
+	TP_PROTO(struct ianalde *ianalde, struct vm_fault *vmf,
 		pgoff_t max_pgoff, int result),
-	TP_ARGS(inode, vmf, max_pgoff, result),
+	TP_ARGS(ianalde, vmf, max_pgoff, result),
 	TP_STRUCT__entry(
-		__field(unsigned long, ino)
+		__field(unsigned long, ianal)
 		__field(unsigned long, vm_start)
 		__field(unsigned long, vm_end)
 		__field(unsigned long, vm_flags)
@@ -24,8 +24,8 @@ DECLARE_EVENT_CLASS(dax_pmd_fault_class,
 		__field(int, result)
 	),
 	TP_fast_assign(
-		__entry->dev = inode->i_sb->s_dev;
-		__entry->ino = inode->i_ino;
+		__entry->dev = ianalde->i_sb->s_dev;
+		__entry->ianal = ianalde->i_ianal;
 		__entry->vm_start = vmf->vma->vm_start;
 		__entry->vm_end = vmf->vma->vm_end;
 		__entry->vm_flags = vmf->vma->vm_flags;
@@ -35,11 +35,11 @@ DECLARE_EVENT_CLASS(dax_pmd_fault_class,
 		__entry->max_pgoff = max_pgoff;
 		__entry->result = result;
 	),
-	TP_printk("dev %d:%d ino %#lx %s %s address %#lx vm_start "
+	TP_printk("dev %d:%d ianal %#lx %s %s address %#lx vm_start "
 			"%#lx vm_end %#lx pgoff %#lx max_pgoff %#lx %s",
 		MAJOR(__entry->dev),
-		MINOR(__entry->dev),
-		__entry->ino,
+		MIANALR(__entry->dev),
+		__entry->ianal,
 		__entry->vm_flags & VM_SHARED ? "shared" : "private",
 		__print_flags(__entry->flags, "|", FAULT_FLAG_TRACE),
 		__entry->address,
@@ -53,20 +53,20 @@ DECLARE_EVENT_CLASS(dax_pmd_fault_class,
 
 #define DEFINE_PMD_FAULT_EVENT(name) \
 DEFINE_EVENT(dax_pmd_fault_class, name, \
-	TP_PROTO(struct inode *inode, struct vm_fault *vmf, \
+	TP_PROTO(struct ianalde *ianalde, struct vm_fault *vmf, \
 		pgoff_t max_pgoff, int result), \
-	TP_ARGS(inode, vmf, max_pgoff, result))
+	TP_ARGS(ianalde, vmf, max_pgoff, result))
 
 DEFINE_PMD_FAULT_EVENT(dax_pmd_fault);
 DEFINE_PMD_FAULT_EVENT(dax_pmd_fault_done);
 
 DECLARE_EVENT_CLASS(dax_pmd_load_hole_class,
-	TP_PROTO(struct inode *inode, struct vm_fault *vmf,
+	TP_PROTO(struct ianalde *ianalde, struct vm_fault *vmf,
 		struct page *zero_page,
 		void *radix_entry),
-	TP_ARGS(inode, vmf, zero_page, radix_entry),
+	TP_ARGS(ianalde, vmf, zero_page, radix_entry),
 	TP_STRUCT__entry(
-		__field(unsigned long, ino)
+		__field(unsigned long, ianal)
 		__field(unsigned long, vm_flags)
 		__field(unsigned long, address)
 		__field(struct page *, zero_page)
@@ -74,18 +74,18 @@ DECLARE_EVENT_CLASS(dax_pmd_load_hole_class,
 		__field(dev_t, dev)
 	),
 	TP_fast_assign(
-		__entry->dev = inode->i_sb->s_dev;
-		__entry->ino = inode->i_ino;
+		__entry->dev = ianalde->i_sb->s_dev;
+		__entry->ianal = ianalde->i_ianal;
 		__entry->vm_flags = vmf->vma->vm_flags;
 		__entry->address = vmf->address;
 		__entry->zero_page = zero_page;
 		__entry->radix_entry = radix_entry;
 	),
-	TP_printk("dev %d:%d ino %#lx %s address %#lx zero_page %p "
+	TP_printk("dev %d:%d ianal %#lx %s address %#lx zero_page %p "
 			"radix_entry %#lx",
 		MAJOR(__entry->dev),
-		MINOR(__entry->dev),
-		__entry->ino,
+		MIANALR(__entry->dev),
+		__entry->ianal,
 		__entry->vm_flags & VM_SHARED ? "shared" : "private",
 		__entry->address,
 		__entry->zero_page,
@@ -95,19 +95,19 @@ DECLARE_EVENT_CLASS(dax_pmd_load_hole_class,
 
 #define DEFINE_PMD_LOAD_HOLE_EVENT(name) \
 DEFINE_EVENT(dax_pmd_load_hole_class, name, \
-	TP_PROTO(struct inode *inode, struct vm_fault *vmf, \
+	TP_PROTO(struct ianalde *ianalde, struct vm_fault *vmf, \
 		struct page *zero_page, void *radix_entry), \
-	TP_ARGS(inode, vmf, zero_page, radix_entry))
+	TP_ARGS(ianalde, vmf, zero_page, radix_entry))
 
 DEFINE_PMD_LOAD_HOLE_EVENT(dax_pmd_load_hole);
 DEFINE_PMD_LOAD_HOLE_EVENT(dax_pmd_load_hole_fallback);
 
 DECLARE_EVENT_CLASS(dax_pmd_insert_mapping_class,
-	TP_PROTO(struct inode *inode, struct vm_fault *vmf,
+	TP_PROTO(struct ianalde *ianalde, struct vm_fault *vmf,
 		long length, pfn_t pfn, void *radix_entry),
-	TP_ARGS(inode, vmf, length, pfn, radix_entry),
+	TP_ARGS(ianalde, vmf, length, pfn, radix_entry),
 	TP_STRUCT__entry(
-		__field(unsigned long, ino)
+		__field(unsigned long, ianal)
 		__field(unsigned long, vm_flags)
 		__field(unsigned long, address)
 		__field(long, length)
@@ -117,8 +117,8 @@ DECLARE_EVENT_CLASS(dax_pmd_insert_mapping_class,
 		__field(int, write)
 	),
 	TP_fast_assign(
-		__entry->dev = inode->i_sb->s_dev;
-		__entry->ino = inode->i_ino;
+		__entry->dev = ianalde->i_sb->s_dev;
+		__entry->ianal = ianalde->i_ianal;
 		__entry->vm_flags = vmf->vma->vm_flags;
 		__entry->address = vmf->address;
 		__entry->write = vmf->flags & FAULT_FLAG_WRITE;
@@ -126,11 +126,11 @@ DECLARE_EVENT_CLASS(dax_pmd_insert_mapping_class,
 		__entry->pfn_val = pfn.val;
 		__entry->radix_entry = radix_entry;
 	),
-	TP_printk("dev %d:%d ino %#lx %s %s address %#lx length %#lx "
+	TP_printk("dev %d:%d ianal %#lx %s %s address %#lx length %#lx "
 			"pfn %#llx %s radix_entry %#lx",
 		MAJOR(__entry->dev),
-		MINOR(__entry->dev),
-		__entry->ino,
+		MIANALR(__entry->dev),
+		__entry->ianal,
 		__entry->vm_flags & VM_SHARED ? "shared" : "private",
 		__entry->write ? "write" : "read",
 		__entry->address,
@@ -144,17 +144,17 @@ DECLARE_EVENT_CLASS(dax_pmd_insert_mapping_class,
 
 #define DEFINE_PMD_INSERT_MAPPING_EVENT(name) \
 DEFINE_EVENT(dax_pmd_insert_mapping_class, name, \
-	TP_PROTO(struct inode *inode, struct vm_fault *vmf, \
+	TP_PROTO(struct ianalde *ianalde, struct vm_fault *vmf, \
 		long length, pfn_t pfn, void *radix_entry), \
-	TP_ARGS(inode, vmf, length, pfn, radix_entry))
+	TP_ARGS(ianalde, vmf, length, pfn, radix_entry))
 
 DEFINE_PMD_INSERT_MAPPING_EVENT(dax_pmd_insert_mapping);
 
 DECLARE_EVENT_CLASS(dax_pte_fault_class,
-	TP_PROTO(struct inode *inode, struct vm_fault *vmf, int result),
-	TP_ARGS(inode, vmf, result),
+	TP_PROTO(struct ianalde *ianalde, struct vm_fault *vmf, int result),
+	TP_ARGS(ianalde, vmf, result),
 	TP_STRUCT__entry(
-		__field(unsigned long, ino)
+		__field(unsigned long, ianal)
 		__field(unsigned long, vm_flags)
 		__field(unsigned long, address)
 		__field(pgoff_t, pgoff)
@@ -163,18 +163,18 @@ DECLARE_EVENT_CLASS(dax_pte_fault_class,
 		__field(int, result)
 	),
 	TP_fast_assign(
-		__entry->dev = inode->i_sb->s_dev;
-		__entry->ino = inode->i_ino;
+		__entry->dev = ianalde->i_sb->s_dev;
+		__entry->ianal = ianalde->i_ianal;
 		__entry->vm_flags = vmf->vma->vm_flags;
 		__entry->address = vmf->address;
 		__entry->flags = vmf->flags;
 		__entry->pgoff = vmf->pgoff;
 		__entry->result = result;
 	),
-	TP_printk("dev %d:%d ino %#lx %s %s address %#lx pgoff %#lx %s",
+	TP_printk("dev %d:%d ianal %#lx %s %s address %#lx pgoff %#lx %s",
 		MAJOR(__entry->dev),
-		MINOR(__entry->dev),
-		__entry->ino,
+		MIANALR(__entry->dev),
+		__entry->ianal,
 		__entry->vm_flags & VM_SHARED ? "shared" : "private",
 		__print_flags(__entry->flags, "|", FAULT_FLAG_TRACE),
 		__entry->address,
@@ -185,20 +185,20 @@ DECLARE_EVENT_CLASS(dax_pte_fault_class,
 
 #define DEFINE_PTE_FAULT_EVENT(name) \
 DEFINE_EVENT(dax_pte_fault_class, name, \
-	TP_PROTO(struct inode *inode, struct vm_fault *vmf, int result), \
-	TP_ARGS(inode, vmf, result))
+	TP_PROTO(struct ianalde *ianalde, struct vm_fault *vmf, int result), \
+	TP_ARGS(ianalde, vmf, result))
 
 DEFINE_PTE_FAULT_EVENT(dax_pte_fault);
 DEFINE_PTE_FAULT_EVENT(dax_pte_fault_done);
 DEFINE_PTE_FAULT_EVENT(dax_load_hole);
-DEFINE_PTE_FAULT_EVENT(dax_insert_pfn_mkwrite_no_entry);
+DEFINE_PTE_FAULT_EVENT(dax_insert_pfn_mkwrite_anal_entry);
 DEFINE_PTE_FAULT_EVENT(dax_insert_pfn_mkwrite);
 
 TRACE_EVENT(dax_insert_mapping,
-	TP_PROTO(struct inode *inode, struct vm_fault *vmf, void *radix_entry),
-	TP_ARGS(inode, vmf, radix_entry),
+	TP_PROTO(struct ianalde *ianalde, struct vm_fault *vmf, void *radix_entry),
+	TP_ARGS(ianalde, vmf, radix_entry),
 	TP_STRUCT__entry(
-		__field(unsigned long, ino)
+		__field(unsigned long, ianal)
 		__field(unsigned long, vm_flags)
 		__field(unsigned long, address)
 		__field(void *, radix_entry)
@@ -206,17 +206,17 @@ TRACE_EVENT(dax_insert_mapping,
 		__field(int, write)
 	),
 	TP_fast_assign(
-		__entry->dev = inode->i_sb->s_dev;
-		__entry->ino = inode->i_ino;
+		__entry->dev = ianalde->i_sb->s_dev;
+		__entry->ianal = ianalde->i_ianal;
 		__entry->vm_flags = vmf->vma->vm_flags;
 		__entry->address = vmf->address;
 		__entry->write = vmf->flags & FAULT_FLAG_WRITE;
 		__entry->radix_entry = radix_entry;
 	),
-	TP_printk("dev %d:%d ino %#lx %s %s address %#lx radix_entry %#lx",
+	TP_printk("dev %d:%d ianal %#lx %s %s address %#lx radix_entry %#lx",
 		MAJOR(__entry->dev),
-		MINOR(__entry->dev),
-		__entry->ino,
+		MIANALR(__entry->dev),
+		__entry->ianal,
 		__entry->vm_flags & VM_SHARED ? "shared" : "private",
 		__entry->write ? "write" : "read",
 		__entry->address,
@@ -225,24 +225,24 @@ TRACE_EVENT(dax_insert_mapping,
 )
 
 DECLARE_EVENT_CLASS(dax_writeback_range_class,
-	TP_PROTO(struct inode *inode, pgoff_t start_index, pgoff_t end_index),
-	TP_ARGS(inode, start_index, end_index),
+	TP_PROTO(struct ianalde *ianalde, pgoff_t start_index, pgoff_t end_index),
+	TP_ARGS(ianalde, start_index, end_index),
 	TP_STRUCT__entry(
-		__field(unsigned long, ino)
+		__field(unsigned long, ianal)
 		__field(pgoff_t, start_index)
 		__field(pgoff_t, end_index)
 		__field(dev_t, dev)
 	),
 	TP_fast_assign(
-		__entry->dev = inode->i_sb->s_dev;
-		__entry->ino = inode->i_ino;
+		__entry->dev = ianalde->i_sb->s_dev;
+		__entry->ianal = ianalde->i_ianal;
 		__entry->start_index = start_index;
 		__entry->end_index = end_index;
 	),
-	TP_printk("dev %d:%d ino %#lx pgoff %#lx-%#lx",
+	TP_printk("dev %d:%d ianal %#lx pgoff %#lx-%#lx",
 		MAJOR(__entry->dev),
-		MINOR(__entry->dev),
-		__entry->ino,
+		MIANALR(__entry->dev),
+		__entry->ianal,
 		__entry->start_index,
 		__entry->end_index
 	)
@@ -250,31 +250,31 @@ DECLARE_EVENT_CLASS(dax_writeback_range_class,
 
 #define DEFINE_WRITEBACK_RANGE_EVENT(name) \
 DEFINE_EVENT(dax_writeback_range_class, name, \
-	TP_PROTO(struct inode *inode, pgoff_t start_index, pgoff_t end_index),\
-	TP_ARGS(inode, start_index, end_index))
+	TP_PROTO(struct ianalde *ianalde, pgoff_t start_index, pgoff_t end_index),\
+	TP_ARGS(ianalde, start_index, end_index))
 
 DEFINE_WRITEBACK_RANGE_EVENT(dax_writeback_range);
 DEFINE_WRITEBACK_RANGE_EVENT(dax_writeback_range_done);
 
 TRACE_EVENT(dax_writeback_one,
-	TP_PROTO(struct inode *inode, pgoff_t pgoff, pgoff_t pglen),
-	TP_ARGS(inode, pgoff, pglen),
+	TP_PROTO(struct ianalde *ianalde, pgoff_t pgoff, pgoff_t pglen),
+	TP_ARGS(ianalde, pgoff, pglen),
 	TP_STRUCT__entry(
-		__field(unsigned long, ino)
+		__field(unsigned long, ianal)
 		__field(pgoff_t, pgoff)
 		__field(pgoff_t, pglen)
 		__field(dev_t, dev)
 	),
 	TP_fast_assign(
-		__entry->dev = inode->i_sb->s_dev;
-		__entry->ino = inode->i_ino;
+		__entry->dev = ianalde->i_sb->s_dev;
+		__entry->ianal = ianalde->i_ianal;
 		__entry->pgoff = pgoff;
 		__entry->pglen = pglen;
 	),
-	TP_printk("dev %d:%d ino %#lx pgoff %#lx pglen %#lx",
+	TP_printk("dev %d:%d ianal %#lx pgoff %#lx pglen %#lx",
 		MAJOR(__entry->dev),
-		MINOR(__entry->dev),
-		__entry->ino,
+		MIANALR(__entry->dev),
+		__entry->ianal,
 		__entry->pgoff,
 		__entry->pglen
 	)

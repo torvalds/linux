@@ -122,7 +122,7 @@ static int irdma_puda_replenish_rq(struct irdma_puda_rsrc *rsrc, bool initial)
 	for (i = 0; i < invalid_cnt; i++) {
 		buf = irdma_puda_get_bufpool(rsrc);
 		if (!buf)
-			return -ENOBUFS;
+			return -EANALBUFS;
 		irdma_puda_post_recvbuf(rsrc, rsrc->rx_wqe_idx, buf, initial);
 		rsrc->rx_wqe_idx = ((rsrc->rx_wqe_idx + 1) % rsrc->rq_size);
 		rsrc->rxq_invalid_cnt--;
@@ -219,7 +219,7 @@ static int irdma_puda_poll_info(struct irdma_sc_cq *cq,
 	u64 comp_ctx;
 	bool valid_bit;
 	bool ext_valid = 0;
-	u32 major_err, minor_err;
+	u32 major_err, mianalr_err;
 	u32 peek_head;
 	bool error;
 	u8 polarity;
@@ -228,7 +228,7 @@ static int irdma_puda_poll_info(struct irdma_sc_cq *cq,
 	get_64bit_val(cqe, 24, &qword3);
 	valid_bit = (bool)FIELD_GET(IRDMA_CQ_VALID, qword3);
 	if (valid_bit != cq_uk->polarity)
-		return -ENOENT;
+		return -EANALENT;
 
 	/* Ensure CQE contents are read after valid bit is checked */
 	dma_rmb();
@@ -244,12 +244,12 @@ static int irdma_puda_poll_info(struct irdma_sc_cq *cq,
 		if (!peek_head)
 			polarity ^= 1;
 		if (polarity != cq_uk->polarity)
-			return -ENOENT;
+			return -EANALENT;
 
 		/* Ensure ext CQE contents are read after ext valid bit is checked */
 		dma_rmb();
 
-		IRDMA_RING_MOVE_HEAD_NOCHECK(cq_uk->cq_ring);
+		IRDMA_RING_MOVE_HEAD_ANALCHECK(cq_uk->cq_ring);
 		if (!IRDMA_RING_CURRENT_HEAD(cq_uk->cq_ring))
 			cq_uk->polarity = !cq_uk->polarity;
 		/* update cq tail in cq shadow memory also */
@@ -266,8 +266,8 @@ static int irdma_puda_poll_info(struct irdma_sc_cq *cq,
 	if (error) {
 		ibdev_dbg(to_ibdev(cq->dev), "PUDA: receive error\n");
 		major_err = (u32)(FIELD_GET(IRDMA_CQ_MAJERR, qword3));
-		minor_err = (u32)(FIELD_GET(IRDMA_CQ_MINERR, qword3));
-		info->compl_error = major_err << 16 | minor_err;
+		mianalr_err = (u32)(FIELD_GET(IRDMA_CQ_MINERR, qword3));
+		info->compl_error = major_err << 16 | mianalr_err;
 		return -EIO;
 	}
 
@@ -342,7 +342,7 @@ int irdma_puda_poll_cmpl(struct irdma_sc_dev *dev, struct irdma_sc_cq *cq,
 
 	ret = irdma_puda_poll_info(cq, &info);
 	*compl_err = info.compl_error;
-	if (ret == -ENOENT)
+	if (ret == -EANALENT)
 		return ret;
 	if (ret)
 		goto done;
@@ -406,7 +406,7 @@ int irdma_puda_poll_cmpl(struct irdma_sc_dev *dev, struct irdma_sc_cq *cq,
 	}
 
 done:
-	IRDMA_RING_MOVE_HEAD_NOCHECK(cq_uk->cq_ring);
+	IRDMA_RING_MOVE_HEAD_ANALCHECK(cq_uk->cq_ring);
 	if (!IRDMA_RING_CURRENT_HEAD(cq_uk->cq_ring))
 		cq_uk->polarity = !cq_uk->polarity;
 	/* update cq tail in cq shadow memory also */
@@ -442,7 +442,7 @@ int irdma_puda_send(struct irdma_sc_qp *qp, struct irdma_puda_send_info *info)
 
 	wqe = irdma_puda_get_next_send_wqe(&qp->qp_uk, &wqe_idx);
 	if (!wqe)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	qp->qp_uk.sq_wrtrk_array[wqe_idx].wrid = (uintptr_t)info->scratch;
 	/* Third line of WQE descriptor */
@@ -506,7 +506,7 @@ void irdma_puda_send_buf(struct irdma_puda_rsrc *rsrc,
 	unsigned long flags;
 
 	spin_lock_irqsave(&rsrc->bufpool_lock, flags);
-	/* if no wqe available or not from a completion and we have
+	/* if anal wqe available or analt from a completion and we have
 	 * pending buffers, we must queue new buffer
 	 */
 	if (!rsrc->tx_wqe_avail_cnt || (buf && !list_empty(&rsrc->txpend))) {
@@ -613,7 +613,7 @@ static int irdma_puda_qp_wqe(struct irdma_sc_dev *dev, struct irdma_sc_qp *qp)
 	cqp = dev->cqp;
 	wqe = irdma_sc_cqp_get_next_send_wqe(cqp, 0);
 	if (!wqe)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	set_64bit_val(wqe, 16, qp->hw_host_ctx_pa);
 	set_64bit_val(wqe, 40, qp->shadow_area_pa);
@@ -657,7 +657,7 @@ static int irdma_puda_qp_create(struct irdma_puda_rsrc *rsrc)
 					    rsrc->qpmem.size, &rsrc->qpmem.pa,
 					    GFP_KERNEL);
 	if (!rsrc->qpmem.va)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mem = &rsrc->qpmem;
 	memset(mem->va, 0, rsrc->qpmem.size);
@@ -731,7 +731,7 @@ static int irdma_puda_cq_wqe(struct irdma_sc_dev *dev, struct irdma_sc_cq *cq)
 	cqp = dev->cqp;
 	wqe = irdma_sc_cqp_get_next_send_wqe(cqp, 0);
 	if (!wqe)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	set_64bit_val(wqe, 0, cq->cq_uk.cq_size);
 	set_64bit_val(wqe, 8, (uintptr_t)cq >> 1);
@@ -789,7 +789,7 @@ static int irdma_puda_cq_create(struct irdma_puda_rsrc *rsrc)
 	rsrc->cqmem.va = dma_alloc_coherent(dev->hw->device, rsrc->cqmem.size,
 					    &rsrc->cqmem.pa, GFP_KERNEL);
 	if (!rsrc->cqmem.va)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mem = &rsrc->cqmem;
 	info.dev = dev;
@@ -944,7 +944,7 @@ void irdma_puda_dele_rsrc(struct irdma_sc_vsi *vsi, enum puda_rsrc_type type,
 		rsrc->cqmem.va = NULL;
 		break;
 	default:
-		ibdev_dbg(to_ibdev(rsrc->dev), "PUDA: error no resources\n");
+		ibdev_dbg(to_ibdev(rsrc->dev), "PUDA: error anal resources\n");
 		break;
 	}
 	/* Free all allocated puda buffers for both tx and rx */
@@ -974,7 +974,7 @@ static int irdma_puda_allocbufs(struct irdma_puda_rsrc *rsrc, u32 count)
 		buf = irdma_puda_alloc_buf(rsrc->dev, rsrc->buf_size);
 		if (!buf) {
 			rsrc->stats_buf_alloc_fail++;
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		irdma_puda_ret_bufpool(rsrc, buf);
 		rsrc->alloc_buf_count++;
@@ -1019,12 +1019,12 @@ int irdma_puda_create_rsrc(struct irdma_sc_vsi *vsi,
 		vmem = &vsi->ieq_mem;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	vmem->size = pudasize + sqwridsize + rqwridsize;
 	vmem->va = kzalloc(vmem->size, GFP_KERNEL);
 	if (!vmem->va)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rsrc = vmem->va;
 	spin_lock_init(&rsrc->bufpool_lock);
@@ -1042,7 +1042,7 @@ int irdma_puda_create_rsrc(struct irdma_sc_vsi *vsi,
 		rsrc->xmit_complete = irdma_ieq_tx_compl;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	rsrc->type = info->type;
@@ -1334,7 +1334,7 @@ static int irdma_ieq_create_pbufl(struct irdma_pfpdu *pfpdu,
 	do {
 		nextbuf = irdma_puda_get_listbuf(rxlist);
 		if (!nextbuf) {
-			status = -ENOBUFS;
+			status = -EANALBUFS;
 			break;
 		}
 		list_add_tail(&nextbuf->list, pbufl);
@@ -1385,8 +1385,8 @@ static int irdma_ieq_handle_partial(struct irdma_puda_rsrc *ieq,
 
 	txbuf = irdma_puda_get_bufpool(ieq);
 	if (!txbuf) {
-		pfpdu->no_tx_bufs++;
-		status = -ENOBUFS;
+		pfpdu->anal_tx_bufs++;
+		status = -EANALBUFS;
 		goto error;
 	}
 
@@ -1484,9 +1484,9 @@ static int irdma_ieq_process_buf(struct irdma_puda_rsrc *ieq,
 		/* copy full pdu's in the txbuf and send them out */
 		txbuf = irdma_puda_get_bufpool(ieq);
 		if (!txbuf) {
-			pfpdu->no_tx_bufs++;
+			pfpdu->anal_tx_bufs++;
 			list_add(&buf->list, rxlist);
-			return -ENOBUFS;
+			return -EANALBUFS;
 		}
 		/* modify txbuf's buffer header */
 		irdma_ieq_setup_tx_buf(buf, txbuf);
@@ -1542,7 +1542,7 @@ void irdma_ieq_process_fpdus(struct irdma_sc_qp *qp,
 			break;
 		buf = irdma_puda_get_listbuf(rxlist);
 		if (!buf) {
-			ibdev_dbg(to_ibdev(ieq->dev), "IEQ: error no buf\n");
+			ibdev_dbg(to_ibdev(ieq->dev), "IEQ: error anal buf\n");
 			break;
 		}
 		if (buf->seqnum != pfpdu->rcv_nxt) {

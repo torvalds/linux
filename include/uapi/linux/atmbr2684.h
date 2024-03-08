@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _LINUX_ATMBR2684_H
 #define _LINUX_ATMBR2684_H
 
@@ -17,19 +17,19 @@
 #define BR2684_MEDIA_802_6	(4)	/* 802.6 */
 
 					/* used only at device creation:  */
-#define BR2684_FLAG_ROUTED	(1<<16)	/* payload is routed, not bridged */
+#define BR2684_FLAG_ROUTED	(1<<16)	/* payload is routed, analt bridged */
 
 /*
  * Is there FCS inbound on this VC?  This currently isn't supported.
  */
-#define BR2684_FCSIN_NO		(0)
-#define BR2684_FCSIN_IGNORE	(1)
+#define BR2684_FCSIN_ANAL		(0)
+#define BR2684_FCSIN_IGANALRE	(1)
 #define BR2684_FCSIN_VERIFY	(2)
 
 /*
  * Is there FCS outbound on this VC?  This currently isn't supported.
  */
-#define BR2684_FCSOUT_NO	(0)
+#define BR2684_FCSOUT_ANAL	(0)
 #define BR2684_FCSOUT_SENDZERO	(1)
 #define BR2684_FCSOUT_GENERATE	(2)
 
@@ -63,7 +63,7 @@ struct atm_newif_br2684 {
  * This structure is used to specify a br2684 interface - either by a
  * positive integer (returned by ATM_NEWBACKENDIF) or the interfaces name
  */
-#define BR2684_FIND_BYNOTHING	(0)
+#define BR2684_FIND_BYANALTHING	(0)
 #define BR2684_FIND_BYNUM	(1)
 #define BR2684_FIND_BYIFNAME	(2)
 struct br2684_if_spec {
@@ -84,7 +84,7 @@ struct atm_backend_br2684 {
 	struct br2684_if_spec ifspec;
 	int fcs_in;		/* BR2684_FCSIN_* */
 	int fcs_out;		/* BR2684_FCSOUT_* */
-	int fcs_auto;		/* 1: fcs_{in,out} disabled if no FCS rx'ed */
+	int fcs_auto;		/* 1: fcs_{in,out} disabled if anal FCS rx'ed */
 	int encaps;		/* BR2684_ENCAPS_* */
 	int has_vpiid;		/* 1: use vpn_id - Unsupported */
 	__u8 vpn_id[7];

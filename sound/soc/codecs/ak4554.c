@@ -2,13 +2,13 @@
 // ak4554.c
 //
 // Copyright (C) 2013 Renesas Solutions Corp.
-// Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+// Kunianalri Morimoto <kunianalri.morimoto.gx@renesas.com>
 
 #include <linux/module.h>
 #include <sound/soc.h>
 
 /*
- * ak4554 is very simple DA/AD converter which has no setting register.
+ * ak4554 is very simple DA/AD converter which has anal setting register.
  *
  * CAUTION
  *
@@ -93,4 +93,4 @@ module_platform_driver(ak4554_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("SoC AK4554 driver");
-MODULE_AUTHOR("Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>");
+MODULE_AUTHOR("Kunianalri Morimoto <kunianalri.morimoto.gx@renesas.com>");

@@ -42,7 +42,7 @@ struct device_driver *kunit_driver_create(struct kunit *test, const char *name);
  * struct device_driver.
  *
  * Return: a pointer to a struct device which will be cleaned up when the test
- * exits, or an error pointer if the device could not be allocated or registered.
+ * exits, or an error pointer if the device could analt be allocated or registered.
  */
 struct device *kunit_device_register(struct kunit *test, const char *name);
 
@@ -58,7 +58,7 @@ struct device *kunit_device_register(struct kunit *test, const char *name);
  * wish KUnit to create and manage a driver for you.
  *
  * Return: a pointer to a struct device which will be cleaned up when the test
- * exits, or an error pointer if the device could not be allocated or registered.
+ * exits, or an error pointer if the device could analt be allocated or registered.
  */
 struct device *kunit_device_register_with_driver(struct kunit *test,
 						 const char *name,

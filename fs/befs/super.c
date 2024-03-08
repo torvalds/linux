@@ -35,7 +35,7 @@ befs_load_sb(struct super_block *sb, befs_super_block *disk_sb)
 	befs_sb->block_shift = fs32_to_cpu(sb, disk_sb->block_shift);
 	befs_sb->num_blocks = fs64_to_cpu(sb, disk_sb->num_blocks);
 	befs_sb->used_blocks = fs64_to_cpu(sb, disk_sb->used_blocks);
-	befs_sb->inode_size = fs32_to_cpu(sb, disk_sb->inode_size);
+	befs_sb->ianalde_size = fs32_to_cpu(sb, disk_sb->ianalde_size);
 
 	befs_sb->blocks_per_ag = fs32_to_cpu(sb, disk_sb->blocks_per_ag);
 	befs_sb->ag_shift = fs32_to_cpu(sb, disk_sb->ag_shift);
@@ -82,7 +82,7 @@ befs_check_sb(struct super_block *sb)
 	}
 
 	if (befs_sb->block_size > PAGE_SIZE) {
-		befs_error(sb, "blocksize(%u) cannot be larger "
+		befs_error(sb, "blocksize(%u) cananalt be larger "
 			   "than system pagesize(%lu)", befs_sb->block_size,
 			   PAGE_SIZE);
 		return BEFS_ERR;
@@ -101,14 +101,14 @@ befs_check_sb(struct super_block *sb)
 
 
 	/* ag_shift also encodes the same information as blocks_per_ag in a
-	 * different way, non-fatal consistency check
+	 * different way, analn-fatal consistency check
 	 */
 	if ((1 << befs_sb->ag_shift) != befs_sb->blocks_per_ag)
 		befs_error(sb, "ag_shift disagrees with blocks_per_ag.");
 
 	if (befs_sb->log_start != befs_sb->log_end ||
 	    befs_sb->flags == BEFS_DIRTY) {
-		befs_error(sb, "Filesystem not clean! There are blocks in the "
+		befs_error(sb, "Filesystem analt clean! There are blocks in the "
 			   "journal. You must boot into BeOS and mount this "
 			   "volume to make it clean.");
 		return BEFS_ERR;

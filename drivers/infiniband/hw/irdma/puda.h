@@ -33,7 +33,7 @@ struct irdma_puda_cmpl_info {
 	u8 l4proto;
 	u16 vlan;
 	u32 payload_len;
-	u32 compl_error; /* No_err=0, else major and minor err code */
+	u32 compl_error; /* Anal_err=0, else major and mianalr err code */
 	u32 qp_id;
 	u32 wqe_idx;
 	bool ipv4:1;

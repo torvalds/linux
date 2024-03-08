@@ -113,7 +113,7 @@
 	transpose_4x4(a3, b3, c3, d3, b0, b1);		\
 	vmovdqu st0, b0;				\
 	vmovdqu st1, b1;				\
-	/* does not adjust output bytes inside vectors */
+	/* does analt adjust output bytes inside vectors */
 
 #define debyteslice_16x16b(a0, b0, c0, d0,		\
 			   a1, b1, c1, d1,		\
@@ -165,7 +165,7 @@
 	transpose_4x4(c3, d3, a3, b3, b0, b1);		\
 	vmovdqu st0, b0;				\
 	vmovdqu st1, b1;				\
-	/* does not adjust output bytes inside vectors */
+	/* does analt adjust output bytes inside vectors */
 
 /* load blocks to registers and apply pre-whitening */
 #define inpack16_pre(x0, x1, x2, x3,			\

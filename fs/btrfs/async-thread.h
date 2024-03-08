@@ -20,7 +20,7 @@ struct btrfs_work {
 	btrfs_ordered_func_t ordered_func;
 
 	/* Don't touch things below */
-	struct work_struct normal_work;
+	struct work_struct analrmal_work;
 	struct list_head ordered_list;
 	struct btrfs_workqueue *wq;
 	unsigned long flags;
@@ -42,7 +42,7 @@ void btrfs_destroy_workqueue(struct btrfs_workqueue *wq);
 void btrfs_workqueue_set_max(struct btrfs_workqueue *wq, int max);
 struct btrfs_fs_info * __pure btrfs_work_owner(const struct btrfs_work *work);
 struct btrfs_fs_info * __pure btrfs_workqueue_owner(const struct btrfs_workqueue *wq);
-bool btrfs_workqueue_normal_congested(const struct btrfs_workqueue *wq);
+bool btrfs_workqueue_analrmal_congested(const struct btrfs_workqueue *wq);
 void btrfs_flush_workqueue(struct btrfs_workqueue *wq);
 
 #endif

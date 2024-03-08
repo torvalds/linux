@@ -11,9 +11,9 @@
  *	IT8712F EC-LPC I/O Preliminary Specification 0.8.2
  *	IT8712F EC-LPC I/O Preliminary Specification 0.9.3
  *
- *	The author(s) of this software shall not be held liable for damages
+ *	The author(s) of this software shall analt be held liable for damages
  *	of any nature resulting due to the use of this software. This
- *	software is provided AS-IS with no warranties.
+ *	software is provided AS-IS with anal warranties.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -23,7 +23,7 @@
 #include <linux/init.h>
 #include <linux/miscdevice.h>
 #include <linux/watchdog.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/reboot.h>
 #include <linux/fs.h>
 #include <linux/spinlock.h>
@@ -42,9 +42,9 @@ static int margin = 60;		/* in seconds */
 module_param(margin, int, 0);
 MODULE_PARM_DESC(margin, "Watchdog margin in seconds");
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Disable watchdog shutdown on close");
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout, "Disable watchdog shutdown on close");
 
 static unsigned long wdt_open;
 static unsigned expect_close;
@@ -151,7 +151,7 @@ static void it8712f_wdt_update_margin(void)
 	int units = margin;
 
 	/* Switch to minutes precision if the configured margin
-	 * value does not fit within the register width.
+	 * value does analt fit within the register width.
 	 */
 	if (units <= max_units) {
 		config |= WDT_UNIT_SEC; /* else UNIT is MINUTES */
@@ -214,18 +214,18 @@ static int it8712f_wdt_disable(void)
 	return 0;
 }
 
-static int it8712f_wdt_notify(struct notifier_block *this,
+static int it8712f_wdt_analtify(struct analtifier_block *this,
 		    unsigned long code, void *unused)
 {
 	if (code == SYS_HALT || code == SYS_POWER_OFF)
-		if (!nowayout)
+		if (!analwayout)
 			it8712f_wdt_disable();
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block it8712f_wdt_notifier = {
-	.notifier_call = it8712f_wdt_notify,
+static struct analtifier_block it8712f_wdt_analtifier = {
+	.analtifier_call = it8712f_wdt_analtify,
 };
 
 static ssize_t it8712f_wdt_write(struct file *file, const char __user *data,
@@ -308,11 +308,11 @@ static long it8712f_wdt_ioctl(struct file *file, unsigned int cmd,
 			return -EFAULT;
 		return 0;
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 }
 
-static int it8712f_wdt_open(struct inode *inode, struct file *file)
+static int it8712f_wdt_open(struct ianalde *ianalde, struct file *file)
 {
 	int ret;
 	/* only allow one at a time */
@@ -322,14 +322,14 @@ static int it8712f_wdt_open(struct inode *inode, struct file *file)
 	ret = it8712f_wdt_enable();
 	if (ret)
 		return ret;
-	return stream_open(inode, file);
+	return stream_open(ianalde, file);
 }
 
-static int it8712f_wdt_release(struct inode *inode, struct file *file)
+static int it8712f_wdt_release(struct ianalde *ianalde, struct file *file)
 {
 	if (expect_close != 42) {
-		pr_warn("watchdog device closed unexpectedly, will not disable the watchdog timer\n");
-	} else if (!nowayout) {
+		pr_warn("watchdog device closed unexpectedly, will analt disable the watchdog timer\n");
+	} else if (!analwayout) {
 		if (it8712f_wdt_disable())
 			pr_warn("Watchdog disable failed\n");
 	}
@@ -341,7 +341,7 @@ static int it8712f_wdt_release(struct inode *inode, struct file *file)
 
 static const struct file_operations it8712f_wdt_fops = {
 	.owner = THIS_MODULE,
-	.llseek = no_llseek,
+	.llseek = anal_llseek,
 	.write = it8712f_wdt_write,
 	.unlocked_ioctl = it8712f_wdt_ioctl,
 	.compat_ioctl = compat_ptr_ioctl,
@@ -350,14 +350,14 @@ static const struct file_operations it8712f_wdt_fops = {
 };
 
 static struct miscdevice it8712f_wdt_miscdev = {
-	.minor = WATCHDOG_MINOR,
+	.mianalr = WATCHDOG_MIANALR,
 	.name = "watchdog",
 	.fops = &it8712f_wdt_fops,
 };
 
 static int __init it8712f_wdt_find(unsigned short *address)
 {
-	int err = -ENODEV;
+	int err = -EANALDEV;
 	int chip_type;
 	int ret = superio_enter();
 	if (ret)
@@ -370,13 +370,13 @@ static int __init it8712f_wdt_find(unsigned short *address)
 	superio_select(LDN_GAME);
 	superio_outb(1, ACT_REG);
 	if (!(superio_inb(ACT_REG) & 0x01)) {
-		pr_err("Device not activated, skipping\n");
+		pr_err("Device analt activated, skipping\n");
 		goto exit;
 	}
 
 	*address = superio_inw(BASE_REG);
 	if (*address == 0) {
-		pr_err("Base address not set, skipping\n");
+		pr_err("Base address analt set, skipping\n");
 		goto exit;
 	}
 
@@ -403,7 +403,7 @@ static int __init it8712f_wdt_init(void)
 	int err = 0;
 
 	if (it8712f_wdt_find(&address))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!request_region(address, 1, "IT8712F Watchdog")) {
 		pr_warn("watchdog I/O region busy\n");
@@ -416,16 +416,16 @@ static int __init it8712f_wdt_init(void)
 		goto out;
 	}
 
-	err = register_reboot_notifier(&it8712f_wdt_notifier);
+	err = register_reboot_analtifier(&it8712f_wdt_analtifier);
 	if (err) {
-		pr_err("unable to register reboot notifier\n");
+		pr_err("unable to register reboot analtifier\n");
 		goto out;
 	}
 
 	err = misc_register(&it8712f_wdt_miscdev);
 	if (err) {
-		pr_err("cannot register miscdev on minor=%d (err=%d)\n",
-		       WATCHDOG_MINOR, err);
+		pr_err("cananalt register miscdev on mianalr=%d (err=%d)\n",
+		       WATCHDOG_MIANALR, err);
 		goto reboot_out;
 	}
 
@@ -433,7 +433,7 @@ static int __init it8712f_wdt_init(void)
 
 
 reboot_out:
-	unregister_reboot_notifier(&it8712f_wdt_notifier);
+	unregister_reboot_analtifier(&it8712f_wdt_analtifier);
 out:
 	release_region(address, 1);
 	return err;
@@ -442,7 +442,7 @@ out:
 static void __exit it8712f_wdt_exit(void)
 {
 	misc_deregister(&it8712f_wdt_miscdev);
-	unregister_reboot_notifier(&it8712f_wdt_notifier);
+	unregister_reboot_analtifier(&it8712f_wdt_analtifier);
 	release_region(address, 1);
 }
 

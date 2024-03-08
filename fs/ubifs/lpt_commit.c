@@ -2,7 +2,7 @@
 /*
  * This file is part of UBIFS.
  *
- * Copyright (C) 2006-2008 Nokia Corporation.
+ * Copyright (C) 2006-2008 Analkia Corporation.
  *
  * Authors: Adrian Hunter
  *          Artem Bityutskiy (Битюцкий Артём)
@@ -21,100 +21,100 @@
 static int dbg_populate_lsave(struct ubifs_info *c);
 
 /**
- * first_dirty_cnode - find first dirty cnode.
+ * first_dirty_canalde - find first dirty canalde.
  * @c: UBIFS file-system description object
- * @nnode: nnode at which to start
+ * @nanalde: nanalde at which to start
  *
- * This function returns the first dirty cnode or %NULL if there is not one.
+ * This function returns the first dirty canalde or %NULL if there is analt one.
  */
-static struct ubifs_cnode *first_dirty_cnode(const struct ubifs_info *c, struct ubifs_nnode *nnode)
+static struct ubifs_canalde *first_dirty_canalde(const struct ubifs_info *c, struct ubifs_nanalde *nanalde)
 {
-	ubifs_assert(c, nnode);
+	ubifs_assert(c, nanalde);
 	while (1) {
 		int i, cont = 0;
 
-		for (i = 0; i < UBIFS_LPT_FANOUT; i++) {
-			struct ubifs_cnode *cnode;
+		for (i = 0; i < UBIFS_LPT_FAANALUT; i++) {
+			struct ubifs_canalde *canalde;
 
-			cnode = nnode->nbranch[i].cnode;
-			if (cnode &&
-			    test_bit(DIRTY_CNODE, &cnode->flags)) {
-				if (cnode->level == 0)
-					return cnode;
-				nnode = (struct ubifs_nnode *)cnode;
+			canalde = nanalde->nbranch[i].canalde;
+			if (canalde &&
+			    test_bit(DIRTY_CANALDE, &canalde->flags)) {
+				if (canalde->level == 0)
+					return canalde;
+				nanalde = (struct ubifs_nanalde *)canalde;
 				cont = 1;
 				break;
 			}
 		}
 		if (!cont)
-			return (struct ubifs_cnode *)nnode;
+			return (struct ubifs_canalde *)nanalde;
 	}
 }
 
 /**
- * next_dirty_cnode - find next dirty cnode.
+ * next_dirty_canalde - find next dirty canalde.
  * @c: UBIFS file-system description object
- * @cnode: cnode from which to begin searching
+ * @canalde: canalde from which to begin searching
  *
- * This function returns the next dirty cnode or %NULL if there is not one.
+ * This function returns the next dirty canalde or %NULL if there is analt one.
  */
-static struct ubifs_cnode *next_dirty_cnode(const struct ubifs_info *c, struct ubifs_cnode *cnode)
+static struct ubifs_canalde *next_dirty_canalde(const struct ubifs_info *c, struct ubifs_canalde *canalde)
 {
-	struct ubifs_nnode *nnode;
+	struct ubifs_nanalde *nanalde;
 	int i;
 
-	ubifs_assert(c, cnode);
-	nnode = cnode->parent;
-	if (!nnode)
+	ubifs_assert(c, canalde);
+	nanalde = canalde->parent;
+	if (!nanalde)
 		return NULL;
-	for (i = cnode->iip + 1; i < UBIFS_LPT_FANOUT; i++) {
-		cnode = nnode->nbranch[i].cnode;
-		if (cnode && test_bit(DIRTY_CNODE, &cnode->flags)) {
-			if (cnode->level == 0)
-				return cnode; /* cnode is a pnode */
-			/* cnode is a nnode */
-			return first_dirty_cnode(c, (struct ubifs_nnode *)cnode);
+	for (i = canalde->iip + 1; i < UBIFS_LPT_FAANALUT; i++) {
+		canalde = nanalde->nbranch[i].canalde;
+		if (canalde && test_bit(DIRTY_CANALDE, &canalde->flags)) {
+			if (canalde->level == 0)
+				return canalde; /* canalde is a panalde */
+			/* canalde is a nanalde */
+			return first_dirty_canalde(c, (struct ubifs_nanalde *)canalde);
 		}
 	}
-	return (struct ubifs_cnode *)nnode;
+	return (struct ubifs_canalde *)nanalde;
 }
 
 /**
- * get_cnodes_to_commit - create list of dirty cnodes to commit.
+ * get_canaldes_to_commit - create list of dirty canaldes to commit.
  * @c: UBIFS file-system description object
  *
- * This function returns the number of cnodes to commit.
+ * This function returns the number of canaldes to commit.
  */
-static int get_cnodes_to_commit(struct ubifs_info *c)
+static int get_canaldes_to_commit(struct ubifs_info *c)
 {
-	struct ubifs_cnode *cnode, *cnext;
+	struct ubifs_canalde *canalde, *cnext;
 	int cnt = 0;
 
 	if (!c->nroot)
 		return 0;
 
-	if (!test_bit(DIRTY_CNODE, &c->nroot->flags))
+	if (!test_bit(DIRTY_CANALDE, &c->nroot->flags))
 		return 0;
 
-	c->lpt_cnext = first_dirty_cnode(c, c->nroot);
-	cnode = c->lpt_cnext;
-	if (!cnode)
+	c->lpt_cnext = first_dirty_canalde(c, c->nroot);
+	canalde = c->lpt_cnext;
+	if (!canalde)
 		return 0;
 	cnt += 1;
 	while (1) {
-		ubifs_assert(c, !test_bit(COW_CNODE, &cnode->flags));
-		__set_bit(COW_CNODE, &cnode->flags);
-		cnext = next_dirty_cnode(c, cnode);
+		ubifs_assert(c, !test_bit(COW_CANALDE, &canalde->flags));
+		__set_bit(COW_CANALDE, &canalde->flags);
+		cnext = next_dirty_canalde(c, canalde);
 		if (!cnext) {
-			cnode->cnext = c->lpt_cnext;
+			canalde->cnext = c->lpt_cnext;
 			break;
 		}
-		cnode->cnext = cnext;
-		cnode = cnext;
+		canalde->cnext = cnext;
+		canalde = cnext;
 		cnt += 1;
 	}
-	dbg_cmt("committing %d cnodes", cnt);
-	dbg_lp("committing %d cnodes", cnt);
+	dbg_cmt("committing %d canaldes", cnt);
+	dbg_lp("committing %d canaldes", cnt);
 	ubifs_assert(c, cnt == c->dirty_nn_cnt + c->dirty_pn_cnt);
 	return cnt;
 }
@@ -143,7 +143,7 @@ static void upd_ltab(struct ubifs_info *c, int lnum, int free, int dirty)
  *
  * This function finds the next empty LEB in the ltab starting from @lnum. If a
  * an empty LEB is found it is returned in @lnum and the function returns %0.
- * Otherwise the function returns -ENOSPC.  Note however, that LPT is designed
+ * Otherwise the function returns -EANALSPC.  Analte however, that LPT is designed
  * never to run out of space.
  */
 static int alloc_lpt_leb(struct ubifs_info *c, int *lnum)
@@ -170,25 +170,25 @@ static int alloc_lpt_leb(struct ubifs_info *c, int *lnum)
 			return 0;
 		}
 	}
-	return -ENOSPC;
+	return -EANALSPC;
 }
 
 /**
- * layout_cnodes - layout cnodes for commit.
+ * layout_canaldes - layout canaldes for commit.
  * @c: UBIFS file-system description object
  *
  * This function returns %0 on success and a negative error code on failure.
  */
-static int layout_cnodes(struct ubifs_info *c)
+static int layout_canaldes(struct ubifs_info *c)
 {
 	int lnum, offs, len, alen, done_lsave, done_ltab, err;
-	struct ubifs_cnode *cnode;
+	struct ubifs_canalde *canalde;
 
 	err = dbg_chk_lpt_sz(c, 0, 0);
 	if (err)
 		return err;
-	cnode = c->lpt_cnext;
-	if (!cnode)
+	canalde = c->lpt_cnext;
+	if (!canalde)
 		return 0;
 	lnum = c->nhead_lnum;
 	offs = c->nhead_offs;
@@ -212,11 +212,11 @@ static int layout_cnodes(struct ubifs_info *c)
 	}
 
 	do {
-		if (cnode->level) {
-			len = c->nnode_sz;
+		if (canalde->level) {
+			len = c->nanalde_sz;
 			c->dirty_nn_cnt -= 1;
 		} else {
-			len = c->pnode_sz;
+			len = c->panalde_sz;
 			c->dirty_pn_cnt -= 1;
 		}
 		while (offs + len > c->leb_size) {
@@ -225,7 +225,7 @@ static int layout_cnodes(struct ubifs_info *c)
 			dbg_chk_lpt_sz(c, 2, c->leb_size - offs);
 			err = alloc_lpt_leb(c, &lnum);
 			if (err)
-				goto no_space;
+				goto anal_space;
 			offs = 0;
 			ubifs_assert(c, lnum >= c->lpt_first &&
 				     lnum <= c->lpt_last);
@@ -248,17 +248,17 @@ static int layout_cnodes(struct ubifs_info *c)
 			}
 			break;
 		}
-		if (cnode->parent) {
-			cnode->parent->nbranch[cnode->iip].lnum = lnum;
-			cnode->parent->nbranch[cnode->iip].offs = offs;
+		if (canalde->parent) {
+			canalde->parent->nbranch[canalde->iip].lnum = lnum;
+			canalde->parent->nbranch[canalde->iip].offs = offs;
 		} else {
 			c->lpt_lnum = lnum;
 			c->lpt_offs = offs;
 		}
 		offs += len;
 		dbg_chk_lpt_sz(c, 1, len);
-		cnode = cnode->cnext;
-	} while (cnode && cnode != c->lpt_cnext);
+		canalde = canalde->cnext;
+	} while (canalde && canalde != c->lpt_cnext);
 
 	/* Make sure to place LPT's save table */
 	if (!done_lsave) {
@@ -268,7 +268,7 @@ static int layout_cnodes(struct ubifs_info *c)
 			dbg_chk_lpt_sz(c, 2, c->leb_size - offs);
 			err = alloc_lpt_leb(c, &lnum);
 			if (err)
-				goto no_space;
+				goto anal_space;
 			offs = 0;
 			ubifs_assert(c, lnum >= c->lpt_first &&
 				     lnum <= c->lpt_last);
@@ -288,7 +288,7 @@ static int layout_cnodes(struct ubifs_info *c)
 			dbg_chk_lpt_sz(c, 2, c->leb_size - offs);
 			err = alloc_lpt_leb(c, &lnum);
 			if (err)
-				goto no_space;
+				goto anal_space;
 			offs = 0;
 			ubifs_assert(c, lnum >= c->lpt_first &&
 				     lnum <= c->lpt_last);
@@ -307,7 +307,7 @@ static int layout_cnodes(struct ubifs_info *c)
 		return err;
 	return 0;
 
-no_space:
+anal_space:
 	ubifs_err(c, "LPT out of space at LEB %d:%d needing %d, done_ltab %d, done_lsave %d",
 		  lnum, offs, len, done_ltab, done_lsave);
 	ubifs_dump_lpt_info(c);
@@ -327,8 +327,8 @@ no_space:
  *
  * This function finds the next LEB that was allocated by the alloc_lpt_leb
  * function starting from @lnum. If a LEB is found it is returned in @lnum and
- * the function returns %0. Otherwise the function returns -ENOSPC.
- * Note however, that LPT is designed never to run out of space.
+ * the function returns %0. Otherwise the function returns -EANALSPC.
+ * Analte however, that LPT is designed never to run out of space.
  */
 static int realloc_lpt_leb(struct ubifs_info *c, int *lnum)
 {
@@ -348,23 +348,23 @@ static int realloc_lpt_leb(struct ubifs_info *c, int *lnum)
 			*lnum = i + c->lpt_first;
 			return 0;
 		}
-	return -ENOSPC;
+	return -EANALSPC;
 }
 
 /**
- * write_cnodes - write cnodes for commit.
+ * write_canaldes - write canaldes for commit.
  * @c: UBIFS file-system description object
  *
  * This function returns %0 on success and a negative error code on failure.
  */
-static int write_cnodes(struct ubifs_info *c)
+static int write_canaldes(struct ubifs_info *c)
 {
 	int lnum, offs, len, from, err, wlen, alen, done_ltab, done_lsave;
-	struct ubifs_cnode *cnode;
+	struct ubifs_canalde *canalde;
 	void *buf = c->lpt_buf;
 
-	cnode = c->lpt_cnext;
-	if (!cnode)
+	canalde = c->lpt_cnext;
+	if (!canalde)
 		return 0;
 	lnum = c->nhead_lnum;
 	offs = c->nhead_offs;
@@ -392,12 +392,12 @@ static int write_cnodes(struct ubifs_info *c)
 		dbg_chk_lpt_sz(c, 1, c->ltab_sz);
 	}
 
-	/* Loop for each cnode */
+	/* Loop for each canalde */
 	do {
-		if (cnode->level)
-			len = c->nnode_sz;
+		if (canalde->level)
+			len = c->nanalde_sz;
 		else
-			len = c->pnode_sz;
+			len = c->panalde_sz;
 		while (offs + len > c->leb_size) {
 			wlen = offs - from;
 			if (wlen) {
@@ -411,7 +411,7 @@ static int write_cnodes(struct ubifs_info *c)
 			dbg_chk_lpt_sz(c, 2, c->leb_size - offs);
 			err = realloc_lpt_leb(c, &lnum);
 			if (err)
-				goto no_space;
+				goto anal_space;
 			offs = from = 0;
 			ubifs_assert(c, lnum >= c->lpt_first &&
 				     lnum <= c->lpt_last);
@@ -435,26 +435,26 @@ static int write_cnodes(struct ubifs_info *c)
 			}
 			break;
 		}
-		if (cnode->level)
-			ubifs_pack_nnode(c, buf + offs,
-					 (struct ubifs_nnode *)cnode);
+		if (canalde->level)
+			ubifs_pack_nanalde(c, buf + offs,
+					 (struct ubifs_nanalde *)canalde);
 		else
-			ubifs_pack_pnode(c, buf + offs,
-					 (struct ubifs_pnode *)cnode);
+			ubifs_pack_panalde(c, buf + offs,
+					 (struct ubifs_panalde *)canalde);
 		/*
 		 * The reason for the barriers is the same as in case of TNC.
-		 * See comment in 'write_index()'. 'dirty_cow_nnode()' and
-		 * 'dirty_cow_pnode()' are the functions for which this is
+		 * See comment in 'write_index()'. 'dirty_cow_nanalde()' and
+		 * 'dirty_cow_panalde()' are the functions for which this is
 		 * important.
 		 */
-		clear_bit(DIRTY_CNODE, &cnode->flags);
+		clear_bit(DIRTY_CANALDE, &canalde->flags);
 		smp_mb__before_atomic();
-		clear_bit(COW_CNODE, &cnode->flags);
+		clear_bit(COW_CANALDE, &canalde->flags);
 		smp_mb__after_atomic();
 		offs += len;
 		dbg_chk_lpt_sz(c, 1, len);
-		cnode = cnode->cnext;
-	} while (cnode && cnode != c->lpt_cnext);
+		canalde = canalde->cnext;
+	} while (canalde && canalde != c->lpt_cnext);
 
 	/* Make sure to place LPT's save table */
 	if (!done_lsave) {
@@ -468,7 +468,7 @@ static int write_cnodes(struct ubifs_info *c)
 			dbg_chk_lpt_sz(c, 2, c->leb_size - offs);
 			err = realloc_lpt_leb(c, &lnum);
 			if (err)
-				goto no_space;
+				goto anal_space;
 			offs = from = 0;
 			ubifs_assert(c, lnum >= c->lpt_first &&
 				     lnum <= c->lpt_last);
@@ -494,7 +494,7 @@ static int write_cnodes(struct ubifs_info *c)
 			dbg_chk_lpt_sz(c, 2, c->leb_size - offs);
 			err = realloc_lpt_leb(c, &lnum);
 			if (err)
-				goto no_space;
+				goto anal_space;
 			offs = from = 0;
 			ubifs_assert(c, lnum >= c->lpt_first &&
 				     lnum <= c->lpt_last);
@@ -531,7 +531,7 @@ static int write_cnodes(struct ubifs_info *c)
 
 	return 0;
 
-no_space:
+anal_space:
 	ubifs_err(c, "LPT out of space mismatch at LEB %d:%d needing %d, done_ltab %d, done_lsave %d",
 		  lnum, offs, len, done_ltab, done_lsave);
 	ubifs_dump_lpt_info(c);
@@ -541,102 +541,102 @@ no_space:
 }
 
 /**
- * next_pnode_to_dirty - find next pnode to dirty.
+ * next_panalde_to_dirty - find next panalde to dirty.
  * @c: UBIFS file-system description object
- * @pnode: pnode
+ * @panalde: panalde
  *
- * This function returns the next pnode to dirty or %NULL if there are no more
- * pnodes.  Note that pnodes that have never been written (lnum == 0) are
+ * This function returns the next panalde to dirty or %NULL if there are anal more
+ * panaldes.  Analte that panaldes that have never been written (lnum == 0) are
  * skipped.
  */
-static struct ubifs_pnode *next_pnode_to_dirty(struct ubifs_info *c,
-					       struct ubifs_pnode *pnode)
+static struct ubifs_panalde *next_panalde_to_dirty(struct ubifs_info *c,
+					       struct ubifs_panalde *panalde)
 {
-	struct ubifs_nnode *nnode;
+	struct ubifs_nanalde *nanalde;
 	int iip;
 
 	/* Try to go right */
-	nnode = pnode->parent;
-	for (iip = pnode->iip + 1; iip < UBIFS_LPT_FANOUT; iip++) {
-		if (nnode->nbranch[iip].lnum)
-			return ubifs_get_pnode(c, nnode, iip);
+	nanalde = panalde->parent;
+	for (iip = panalde->iip + 1; iip < UBIFS_LPT_FAANALUT; iip++) {
+		if (nanalde->nbranch[iip].lnum)
+			return ubifs_get_panalde(c, nanalde, iip);
 	}
 
 	/* Go up while can't go right */
 	do {
-		iip = nnode->iip + 1;
-		nnode = nnode->parent;
-		if (!nnode)
+		iip = nanalde->iip + 1;
+		nanalde = nanalde->parent;
+		if (!nanalde)
 			return NULL;
-		for (; iip < UBIFS_LPT_FANOUT; iip++) {
-			if (nnode->nbranch[iip].lnum)
+		for (; iip < UBIFS_LPT_FAANALUT; iip++) {
+			if (nanalde->nbranch[iip].lnum)
 				break;
 		}
-	} while (iip >= UBIFS_LPT_FANOUT);
+	} while (iip >= UBIFS_LPT_FAANALUT);
 
 	/* Go right */
-	nnode = ubifs_get_nnode(c, nnode, iip);
-	if (IS_ERR(nnode))
-		return (void *)nnode;
+	nanalde = ubifs_get_nanalde(c, nanalde, iip);
+	if (IS_ERR(nanalde))
+		return (void *)nanalde;
 
 	/* Go down to level 1 */
-	while (nnode->level > 1) {
-		for (iip = 0; iip < UBIFS_LPT_FANOUT; iip++) {
-			if (nnode->nbranch[iip].lnum)
+	while (nanalde->level > 1) {
+		for (iip = 0; iip < UBIFS_LPT_FAANALUT; iip++) {
+			if (nanalde->nbranch[iip].lnum)
 				break;
 		}
-		if (iip >= UBIFS_LPT_FANOUT) {
+		if (iip >= UBIFS_LPT_FAANALUT) {
 			/*
-			 * Should not happen, but we need to keep going
+			 * Should analt happen, but we need to keep going
 			 * if it does.
 			 */
 			iip = 0;
 		}
-		nnode = ubifs_get_nnode(c, nnode, iip);
-		if (IS_ERR(nnode))
-			return (void *)nnode;
+		nanalde = ubifs_get_nanalde(c, nanalde, iip);
+		if (IS_ERR(nanalde))
+			return (void *)nanalde;
 	}
 
-	for (iip = 0; iip < UBIFS_LPT_FANOUT; iip++)
-		if (nnode->nbranch[iip].lnum)
+	for (iip = 0; iip < UBIFS_LPT_FAANALUT; iip++)
+		if (nanalde->nbranch[iip].lnum)
 			break;
-	if (iip >= UBIFS_LPT_FANOUT)
-		/* Should not happen, but we need to keep going if it does */
+	if (iip >= UBIFS_LPT_FAANALUT)
+		/* Should analt happen, but we need to keep going if it does */
 		iip = 0;
-	return ubifs_get_pnode(c, nnode, iip);
+	return ubifs_get_panalde(c, nanalde, iip);
 }
 
 /**
- * add_pnode_dirt - add dirty space to LPT LEB properties.
+ * add_panalde_dirt - add dirty space to LPT LEB properties.
  * @c: UBIFS file-system description object
- * @pnode: pnode for which to add dirt
+ * @panalde: panalde for which to add dirt
  */
-static void add_pnode_dirt(struct ubifs_info *c, struct ubifs_pnode *pnode)
+static void add_panalde_dirt(struct ubifs_info *c, struct ubifs_panalde *panalde)
 {
-	ubifs_add_lpt_dirt(c, pnode->parent->nbranch[pnode->iip].lnum,
-			   c->pnode_sz);
+	ubifs_add_lpt_dirt(c, panalde->parent->nbranch[panalde->iip].lnum,
+			   c->panalde_sz);
 }
 
 /**
- * do_make_pnode_dirty - mark a pnode dirty.
+ * do_make_panalde_dirty - mark a panalde dirty.
  * @c: UBIFS file-system description object
- * @pnode: pnode to mark dirty
+ * @panalde: panalde to mark dirty
  */
-static void do_make_pnode_dirty(struct ubifs_info *c, struct ubifs_pnode *pnode)
+static void do_make_panalde_dirty(struct ubifs_info *c, struct ubifs_panalde *panalde)
 {
-	/* Assumes cnext list is empty i.e. not called during commit */
-	if (!test_and_set_bit(DIRTY_CNODE, &pnode->flags)) {
-		struct ubifs_nnode *nnode;
+	/* Assumes cnext list is empty i.e. analt called during commit */
+	if (!test_and_set_bit(DIRTY_CANALDE, &panalde->flags)) {
+		struct ubifs_nanalde *nanalde;
 
 		c->dirty_pn_cnt += 1;
-		add_pnode_dirt(c, pnode);
+		add_panalde_dirt(c, panalde);
 		/* Mark parent and ancestors dirty too */
-		nnode = pnode->parent;
-		while (nnode) {
-			if (!test_and_set_bit(DIRTY_CNODE, &nnode->flags)) {
+		nanalde = panalde->parent;
+		while (nanalde) {
+			if (!test_and_set_bit(DIRTY_CANALDE, &nanalde->flags)) {
 				c->dirty_nn_cnt += 1;
-				ubifs_add_nnode_dirt(c, nnode);
-				nnode = nnode->parent;
+				ubifs_add_nanalde_dirt(c, nanalde);
+				nanalde = nanalde->parent;
 			} else
 				break;
 		}
@@ -648,7 +648,7 @@ static void do_make_pnode_dirty(struct ubifs_info *c, struct ubifs_pnode *pnode)
  * @c: UBIFS file-system description object
  *
  * This function is used by the "small" LPT model to cause the entire LEB
- * properties tree to be written.  The "small" LPT model does not use LPT
+ * properties tree to be written.  The "small" LPT model does analt use LPT
  * garbage collection because it is more efficient to write the entire tree
  * (because it is small).
  *
@@ -656,17 +656,17 @@ static void do_make_pnode_dirty(struct ubifs_info *c, struct ubifs_pnode *pnode)
  */
 static int make_tree_dirty(struct ubifs_info *c)
 {
-	struct ubifs_pnode *pnode;
+	struct ubifs_panalde *panalde;
 
-	pnode = ubifs_pnode_lookup(c, 0);
-	if (IS_ERR(pnode))
-		return PTR_ERR(pnode);
+	panalde = ubifs_panalde_lookup(c, 0);
+	if (IS_ERR(panalde))
+		return PTR_ERR(panalde);
 
-	while (pnode) {
-		do_make_pnode_dirty(c, pnode);
-		pnode = next_pnode_to_dirty(c, pnode);
-		if (IS_ERR(pnode))
-			return PTR_ERR(pnode);
+	while (panalde) {
+		do_make_panalde_dirty(c, panalde);
+		panalde = next_panalde_to_dirty(c, panalde);
+		if (IS_ERR(panalde))
+			return PTR_ERR(panalde);
 	}
 	return 0;
 }
@@ -676,7 +676,7 @@ static int make_tree_dirty(struct ubifs_info *c)
  * @c: UBIFS file-system description object
  *
  * This function returns %1 if the LPT area is running out of free space and %0
- * if it is not.
+ * if it is analt.
  */
 static int need_write_all(struct ubifs_info *c)
 {
@@ -728,7 +728,7 @@ static void lpt_tgc_start(struct ubifs_info *c)
  *
  * LPT trivial garbage collection is where a LPT LEB contains only dirty and
  * free space and so may be reused as soon as the next commit is completed.
- * This function is called after the commit is completed (master node has been
+ * This function is called after the commit is completed (master analde has been
  * written) and un-maps LPT LEBs that were marked for trivial GC.
  */
 static int lpt_tgc_end(struct ubifs_info *c)
@@ -754,8 +754,8 @@ static int lpt_tgc_end(struct ubifs_info *c)
  * of LEB numbers of important LEBs.  Important LEBs are ones that are (from
  * most important to least important): empty, freeable, freeable index, dirty
  * index, dirty or free. Upon mount, we read this list of LEB numbers and bring
- * their pnodes into memory.  That will stop us from having to scan the LPT
- * straight away. For the "small" model we assume that scanning the LPT is no
+ * their panaldes into memory.  That will stop us from having to scan the LPT
+ * straight away. For the "small" model we assume that scanning the LPT is anal
  * big deal.
  */
 static void populate_lsave(struct ubifs_info *c)
@@ -812,78 +812,78 @@ static void populate_lsave(struct ubifs_info *c)
 }
 
 /**
- * nnode_lookup - lookup a nnode in the LPT.
+ * nanalde_lookup - lookup a nanalde in the LPT.
  * @c: UBIFS file-system description object
- * @i: nnode number
+ * @i: nanalde number
  *
- * This function returns a pointer to the nnode on success or a negative
+ * This function returns a pointer to the nanalde on success or a negative
  * error code on failure.
  */
-static struct ubifs_nnode *nnode_lookup(struct ubifs_info *c, int i)
+static struct ubifs_nanalde *nanalde_lookup(struct ubifs_info *c, int i)
 {
 	int err, iip;
-	struct ubifs_nnode *nnode;
+	struct ubifs_nanalde *nanalde;
 
 	if (!c->nroot) {
-		err = ubifs_read_nnode(c, NULL, 0);
+		err = ubifs_read_nanalde(c, NULL, 0);
 		if (err)
 			return ERR_PTR(err);
 	}
-	nnode = c->nroot;
+	nanalde = c->nroot;
 	while (1) {
-		iip = i & (UBIFS_LPT_FANOUT - 1);
-		i >>= UBIFS_LPT_FANOUT_SHIFT;
+		iip = i & (UBIFS_LPT_FAANALUT - 1);
+		i >>= UBIFS_LPT_FAANALUT_SHIFT;
 		if (!i)
 			break;
-		nnode = ubifs_get_nnode(c, nnode, iip);
-		if (IS_ERR(nnode))
-			return nnode;
+		nanalde = ubifs_get_nanalde(c, nanalde, iip);
+		if (IS_ERR(nanalde))
+			return nanalde;
 	}
-	return nnode;
+	return nanalde;
 }
 
 /**
- * make_nnode_dirty - find a nnode and, if found, make it dirty.
+ * make_nanalde_dirty - find a nanalde and, if found, make it dirty.
  * @c: UBIFS file-system description object
- * @node_num: nnode number of nnode to make dirty
- * @lnum: LEB number where nnode was written
- * @offs: offset where nnode was written
+ * @analde_num: nanalde number of nanalde to make dirty
+ * @lnum: LEB number where nanalde was written
+ * @offs: offset where nanalde was written
  *
  * This function is used by LPT garbage collection.  LPT garbage collection is
  * used only for the "big" LPT model (c->big_lpt == 1).  Garbage collection
- * simply involves marking all the nodes in the LEB being garbage-collected as
- * dirty.  The dirty nodes are written next commit, after which the LEB is free
+ * simply involves marking all the analdes in the LEB being garbage-collected as
+ * dirty.  The dirty analdes are written next commit, after which the LEB is free
  * to be reused.
  *
  * This function returns %0 on success and a negative error code on failure.
  */
-static int make_nnode_dirty(struct ubifs_info *c, int node_num, int lnum,
+static int make_nanalde_dirty(struct ubifs_info *c, int analde_num, int lnum,
 			    int offs)
 {
-	struct ubifs_nnode *nnode;
+	struct ubifs_nanalde *nanalde;
 
-	nnode = nnode_lookup(c, node_num);
-	if (IS_ERR(nnode))
-		return PTR_ERR(nnode);
-	if (nnode->parent) {
+	nanalde = nanalde_lookup(c, analde_num);
+	if (IS_ERR(nanalde))
+		return PTR_ERR(nanalde);
+	if (nanalde->parent) {
 		struct ubifs_nbranch *branch;
 
-		branch = &nnode->parent->nbranch[nnode->iip];
+		branch = &nanalde->parent->nbranch[nanalde->iip];
 		if (branch->lnum != lnum || branch->offs != offs)
-			return 0; /* nnode is obsolete */
+			return 0; /* nanalde is obsolete */
 	} else if (c->lpt_lnum != lnum || c->lpt_offs != offs)
-			return 0; /* nnode is obsolete */
-	/* Assumes cnext list is empty i.e. not called during commit */
-	if (!test_and_set_bit(DIRTY_CNODE, &nnode->flags)) {
+			return 0; /* nanalde is obsolete */
+	/* Assumes cnext list is empty i.e. analt called during commit */
+	if (!test_and_set_bit(DIRTY_CANALDE, &nanalde->flags)) {
 		c->dirty_nn_cnt += 1;
-		ubifs_add_nnode_dirt(c, nnode);
+		ubifs_add_nanalde_dirt(c, nanalde);
 		/* Mark parent and ancestors dirty too */
-		nnode = nnode->parent;
-		while (nnode) {
-			if (!test_and_set_bit(DIRTY_CNODE, &nnode->flags)) {
+		nanalde = nanalde->parent;
+		while (nanalde) {
+			if (!test_and_set_bit(DIRTY_CANALDE, &nanalde->flags)) {
 				c->dirty_nn_cnt += 1;
-				ubifs_add_nnode_dirt(c, nnode);
-				nnode = nnode->parent;
+				ubifs_add_nanalde_dirt(c, nanalde);
+				nanalde = nanalde->parent;
 			} else
 				break;
 		}
@@ -892,46 +892,46 @@ static int make_nnode_dirty(struct ubifs_info *c, int node_num, int lnum,
 }
 
 /**
- * make_pnode_dirty - find a pnode and, if found, make it dirty.
+ * make_panalde_dirty - find a panalde and, if found, make it dirty.
  * @c: UBIFS file-system description object
- * @node_num: pnode number of pnode to make dirty
- * @lnum: LEB number where pnode was written
- * @offs: offset where pnode was written
+ * @analde_num: panalde number of panalde to make dirty
+ * @lnum: LEB number where panalde was written
+ * @offs: offset where panalde was written
  *
  * This function is used by LPT garbage collection.  LPT garbage collection is
  * used only for the "big" LPT model (c->big_lpt == 1).  Garbage collection
- * simply involves marking all the nodes in the LEB being garbage-collected as
- * dirty.  The dirty nodes are written next commit, after which the LEB is free
+ * simply involves marking all the analdes in the LEB being garbage-collected as
+ * dirty.  The dirty analdes are written next commit, after which the LEB is free
  * to be reused.
  *
  * This function returns %0 on success and a negative error code on failure.
  */
-static int make_pnode_dirty(struct ubifs_info *c, int node_num, int lnum,
+static int make_panalde_dirty(struct ubifs_info *c, int analde_num, int lnum,
 			    int offs)
 {
-	struct ubifs_pnode *pnode;
+	struct ubifs_panalde *panalde;
 	struct ubifs_nbranch *branch;
 
-	pnode = ubifs_pnode_lookup(c, node_num);
-	if (IS_ERR(pnode))
-		return PTR_ERR(pnode);
-	branch = &pnode->parent->nbranch[pnode->iip];
+	panalde = ubifs_panalde_lookup(c, analde_num);
+	if (IS_ERR(panalde))
+		return PTR_ERR(panalde);
+	branch = &panalde->parent->nbranch[panalde->iip];
 	if (branch->lnum != lnum || branch->offs != offs)
 		return 0;
-	do_make_pnode_dirty(c, pnode);
+	do_make_panalde_dirty(c, panalde);
 	return 0;
 }
 
 /**
- * make_ltab_dirty - make ltab node dirty.
+ * make_ltab_dirty - make ltab analde dirty.
  * @c: UBIFS file-system description object
  * @lnum: LEB number where ltab was written
  * @offs: offset where ltab was written
  *
  * This function is used by LPT garbage collection.  LPT garbage collection is
  * used only for the "big" LPT model (c->big_lpt == 1).  Garbage collection
- * simply involves marking all the nodes in the LEB being garbage-collected as
- * dirty.  The dirty nodes are written next commit, after which the LEB is free
+ * simply involves marking all the analdes in the LEB being garbage-collected as
+ * dirty.  The dirty analdes are written next commit, after which the LEB is free
  * to be reused.
  *
  * This function returns %0 on success and a negative error code on failure.
@@ -939,7 +939,7 @@ static int make_pnode_dirty(struct ubifs_info *c, int node_num, int lnum,
 static int make_ltab_dirty(struct ubifs_info *c, int lnum, int offs)
 {
 	if (lnum != c->ltab_lnum || offs != c->ltab_offs)
-		return 0; /* This ltab node is obsolete */
+		return 0; /* This ltab analde is obsolete */
 	if (!(c->lpt_drty_flgs & LTAB_DIRTY)) {
 		c->lpt_drty_flgs |= LTAB_DIRTY;
 		ubifs_add_lpt_dirt(c, c->ltab_lnum, c->ltab_sz);
@@ -948,15 +948,15 @@ static int make_ltab_dirty(struct ubifs_info *c, int lnum, int offs)
 }
 
 /**
- * make_lsave_dirty - make lsave node dirty.
+ * make_lsave_dirty - make lsave analde dirty.
  * @c: UBIFS file-system description object
  * @lnum: LEB number where lsave was written
  * @offs: offset where lsave was written
  *
  * This function is used by LPT garbage collection.  LPT garbage collection is
  * used only for the "big" LPT model (c->big_lpt == 1).  Garbage collection
- * simply involves marking all the nodes in the LEB being garbage-collected as
- * dirty.  The dirty nodes are written next commit, after which the LEB is free
+ * simply involves marking all the analdes in the LEB being garbage-collected as
+ * dirty.  The dirty analdes are written next commit, after which the LEB is free
  * to be reused.
  *
  * This function returns %0 on success and a negative error code on failure.
@@ -964,7 +964,7 @@ static int make_ltab_dirty(struct ubifs_info *c, int lnum, int offs)
 static int make_lsave_dirty(struct ubifs_info *c, int lnum, int offs)
 {
 	if (lnum != c->lsave_lnum || offs != c->lsave_offs)
-		return 0; /* This lsave node is obsolete */
+		return 0; /* This lsave analde is obsolete */
 	if (!(c->lpt_drty_flgs & LSAVE_DIRTY)) {
 		c->lpt_drty_flgs |= LSAVE_DIRTY;
 		ubifs_add_lpt_dirt(c, c->lsave_lnum, c->lsave_sz);
@@ -973,29 +973,29 @@ static int make_lsave_dirty(struct ubifs_info *c, int lnum, int offs)
 }
 
 /**
- * make_node_dirty - make node dirty.
+ * make_analde_dirty - make analde dirty.
  * @c: UBIFS file-system description object
- * @node_type: LPT node type
- * @node_num: node number
- * @lnum: LEB number where node was written
- * @offs: offset where node was written
+ * @analde_type: LPT analde type
+ * @analde_num: analde number
+ * @lnum: LEB number where analde was written
+ * @offs: offset where analde was written
  *
  * This function is used by LPT garbage collection.  LPT garbage collection is
  * used only for the "big" LPT model (c->big_lpt == 1).  Garbage collection
- * simply involves marking all the nodes in the LEB being garbage-collected as
- * dirty.  The dirty nodes are written next commit, after which the LEB is free
+ * simply involves marking all the analdes in the LEB being garbage-collected as
+ * dirty.  The dirty analdes are written next commit, after which the LEB is free
  * to be reused.
  *
  * This function returns %0 on success and a negative error code on failure.
  */
-static int make_node_dirty(struct ubifs_info *c, int node_type, int node_num,
+static int make_analde_dirty(struct ubifs_info *c, int analde_type, int analde_num,
 			   int lnum, int offs)
 {
-	switch (node_type) {
-	case UBIFS_LPT_NNODE:
-		return make_nnode_dirty(c, node_num, lnum, offs);
-	case UBIFS_LPT_PNODE:
-		return make_pnode_dirty(c, node_num, lnum, offs);
+	switch (analde_type) {
+	case UBIFS_LPT_NANALDE:
+		return make_nanalde_dirty(c, analde_num, lnum, offs);
+	case UBIFS_LPT_PANALDE:
+		return make_panalde_dirty(c, analde_num, lnum, offs);
 	case UBIFS_LPT_LTAB:
 		return make_ltab_dirty(c, lnum, offs);
 	case UBIFS_LPT_LSAVE:
@@ -1005,17 +1005,17 @@ static int make_node_dirty(struct ubifs_info *c, int node_type, int node_num,
 }
 
 /**
- * get_lpt_node_len - return the length of a node based on its type.
+ * get_lpt_analde_len - return the length of a analde based on its type.
  * @c: UBIFS file-system description object
- * @node_type: LPT node type
+ * @analde_type: LPT analde type
  */
-static int get_lpt_node_len(const struct ubifs_info *c, int node_type)
+static int get_lpt_analde_len(const struct ubifs_info *c, int analde_type)
 {
-	switch (node_type) {
-	case UBIFS_LPT_NNODE:
-		return c->nnode_sz;
-	case UBIFS_LPT_PNODE:
-		return c->pnode_sz;
+	switch (analde_type) {
+	case UBIFS_LPT_NANALDE:
+		return c->nanalde_sz;
+	case UBIFS_LPT_PANALDE:
+		return c->panalde_sz;
 	case UBIFS_LPT_LTAB:
 		return c->ltab_sz;
 	case UBIFS_LPT_LSAVE:
@@ -1042,49 +1042,49 @@ static int get_pad_len(const struct ubifs_info *c, uint8_t *buf, int len)
 }
 
 /**
- * get_lpt_node_type - return type (and node number) of a node in a buffer.
+ * get_lpt_analde_type - return type (and analde number) of a analde in a buffer.
  * @c: UBIFS file-system description object
  * @buf: buffer
- * @node_num: node number is returned here
+ * @analde_num: analde number is returned here
  */
-static int get_lpt_node_type(const struct ubifs_info *c, uint8_t *buf,
-			     int *node_num)
+static int get_lpt_analde_type(const struct ubifs_info *c, uint8_t *buf,
+			     int *analde_num)
 {
 	uint8_t *addr = buf + UBIFS_LPT_CRC_BYTES;
-	int pos = 0, node_type;
+	int pos = 0, analde_type;
 
-	node_type = ubifs_unpack_bits(c, &addr, &pos, UBIFS_LPT_TYPE_BITS);
-	*node_num = ubifs_unpack_bits(c, &addr, &pos, c->pcnt_bits);
-	return node_type;
+	analde_type = ubifs_unpack_bits(c, &addr, &pos, UBIFS_LPT_TYPE_BITS);
+	*analde_num = ubifs_unpack_bits(c, &addr, &pos, c->pcnt_bits);
+	return analde_type;
 }
 
 /**
- * is_a_node - determine if a buffer contains a node.
+ * is_a_analde - determine if a buffer contains a analde.
  * @c: UBIFS file-system description object
  * @buf: buffer
  * @len: length of buffer
  *
- * This function returns %1 if the buffer contains a node or %0 if it does not.
+ * This function returns %1 if the buffer contains a analde or %0 if it does analt.
  */
-static int is_a_node(const struct ubifs_info *c, uint8_t *buf, int len)
+static int is_a_analde(const struct ubifs_info *c, uint8_t *buf, int len)
 {
 	uint8_t *addr = buf + UBIFS_LPT_CRC_BYTES;
-	int pos = 0, node_type, node_len;
+	int pos = 0, analde_type, analde_len;
 	uint16_t crc, calc_crc;
 
 	if (len < UBIFS_LPT_CRC_BYTES + (UBIFS_LPT_TYPE_BITS + 7) / 8)
 		return 0;
-	node_type = ubifs_unpack_bits(c, &addr, &pos, UBIFS_LPT_TYPE_BITS);
-	if (node_type == UBIFS_LPT_NOT_A_NODE)
+	analde_type = ubifs_unpack_bits(c, &addr, &pos, UBIFS_LPT_TYPE_BITS);
+	if (analde_type == UBIFS_LPT_ANALT_A_ANALDE)
 		return 0;
-	node_len = get_lpt_node_len(c, node_type);
-	if (!node_len || node_len > len)
+	analde_len = get_lpt_analde_len(c, analde_type);
+	if (!analde_len || analde_len > len)
 		return 0;
 	pos = 0;
 	addr = buf;
 	crc = ubifs_unpack_bits(c, &addr, &pos, UBIFS_LPT_CRC_BITS);
 	calc_crc = crc16(-1, buf + UBIFS_LPT_CRC_BYTES,
-			 node_len - UBIFS_LPT_CRC_BYTES);
+			 analde_len - UBIFS_LPT_CRC_BYTES);
 	if (crc != calc_crc)
 		return 0;
 	return 1;
@@ -1096,15 +1096,15 @@ static int is_a_node(const struct ubifs_info *c, uint8_t *buf, int len)
  * @lnum: LEB number to garbage collect
  *
  * LPT garbage collection is used only for the "big" LPT model
- * (c->big_lpt == 1).  Garbage collection simply involves marking all the nodes
- * in the LEB being garbage-collected as dirty.  The dirty nodes are written
+ * (c->big_lpt == 1).  Garbage collection simply involves marking all the analdes
+ * in the LEB being garbage-collected as dirty.  The dirty analdes are written
  * next commit, after which the LEB is free to be reused.
  *
  * This function returns %0 on success and a negative error code on failure.
  */
 static int lpt_gc_lnum(struct ubifs_info *c, int lnum)
 {
-	int err, len = c->leb_size, node_type, node_num, node_len, offs;
+	int err, len = c->leb_size, analde_type, analde_num, analde_len, offs;
 	void *buf = c->lpt_buf;
 
 	dbg_lp("LEB %d", lnum);
@@ -1114,7 +1114,7 @@ static int lpt_gc_lnum(struct ubifs_info *c, int lnum)
 		return err;
 
 	while (1) {
-		if (!is_a_node(c, buf, len)) {
+		if (!is_a_analde(c, buf, len)) {
 			int pad_len;
 
 			pad_len = get_pad_len(c, buf, len);
@@ -1125,17 +1125,17 @@ static int lpt_gc_lnum(struct ubifs_info *c, int lnum)
 			}
 			return 0;
 		}
-		node_type = get_lpt_node_type(c, buf, &node_num);
-		node_len = get_lpt_node_len(c, node_type);
+		analde_type = get_lpt_analde_type(c, buf, &analde_num);
+		analde_len = get_lpt_analde_len(c, analde_type);
 		offs = c->leb_size - len;
-		ubifs_assert(c, node_len != 0);
+		ubifs_assert(c, analde_len != 0);
 		mutex_lock(&c->lp_mutex);
-		err = make_node_dirty(c, node_type, node_num, lnum, offs);
+		err = make_analde_dirty(c, analde_type, analde_num, lnum, offs);
 		mutex_unlock(&c->lp_mutex);
 		if (err)
 			return err;
-		buf += node_len;
-		len -= node_len;
+		buf += analde_len;
+		len -= analde_len;
 	}
 	return 0;
 }
@@ -1164,7 +1164,7 @@ static int lpt_gc(struct ubifs_info *c)
 	}
 	mutex_unlock(&c->lp_mutex);
 	if (lnum == -1)
-		return -ENOSPC;
+		return -EANALSPC;
 	return lpt_gc_lnum(c, lnum);
 }
 
@@ -1173,9 +1173,9 @@ static int lpt_gc(struct ubifs_info *c)
  * @c: the UBIFS file-system description object
  *
  * This function has to be called when UBIFS starts the commit operation.
- * This function "freezes" all currently dirty LEB properties and does not
+ * This function "freezes" all currently dirty LEB properties and does analt
  * change them anymore. Further changes are saved and tracked separately
- * because they are not part of this commit. This function returns zero in case
+ * because they are analt part of this commit. This function returns zero in case
  * of success and a negative error code in case of failure.
  */
 int ubifs_lpt_start_commit(struct ubifs_info *c)
@@ -1194,8 +1194,8 @@ int ubifs_lpt_start_commit(struct ubifs_info *c)
 
 	if (c->check_lpt_free) {
 		/*
-		 * We ensure there is enough free space in
-		 * ubifs_lpt_post_commit() by marking nodes dirty. That
+		 * We ensure there is eanalugh free space in
+		 * ubifs_lpt_post_commit() by marking analdes dirty. That
 		 * information is lost when we unmount, so we also need
 		 * to check free space once after mounting also.
 		 */
@@ -1212,7 +1212,7 @@ int ubifs_lpt_start_commit(struct ubifs_info *c)
 	lpt_tgc_start(c);
 
 	if (!c->dirty_pn_cnt) {
-		dbg_cmt("no cnodes to commit");
+		dbg_cmt("anal canaldes to commit");
 		err = 0;
 		goto out;
 	}
@@ -1228,14 +1228,14 @@ int ubifs_lpt_start_commit(struct ubifs_info *c)
 	if (c->big_lpt)
 		populate_lsave(c);
 
-	cnt = get_cnodes_to_commit(c);
+	cnt = get_canaldes_to_commit(c);
 	ubifs_assert(c, cnt != 0);
 
-	err = layout_cnodes(c);
+	err = layout_canaldes(c);
 	if (err)
 		goto out;
 
-	err = ubifs_lpt_calc_hash(c, c->mst_node->hash_lpt);
+	err = ubifs_lpt_calc_hash(c, c->mst_analde->hash_lpt);
 	if (err)
 		goto out;
 
@@ -1250,23 +1250,23 @@ out:
 }
 
 /**
- * free_obsolete_cnodes - free obsolete cnodes for commit end.
+ * free_obsolete_canaldes - free obsolete canaldes for commit end.
  * @c: UBIFS file-system description object
  */
-static void free_obsolete_cnodes(struct ubifs_info *c)
+static void free_obsolete_canaldes(struct ubifs_info *c)
 {
-	struct ubifs_cnode *cnode, *cnext;
+	struct ubifs_canalde *canalde, *cnext;
 
 	cnext = c->lpt_cnext;
 	if (!cnext)
 		return;
 	do {
-		cnode = cnext;
-		cnext = cnode->cnext;
-		if (test_bit(OBSOLETE_CNODE, &cnode->flags))
-			kfree(cnode);
+		canalde = cnext;
+		cnext = canalde->cnext;
+		if (test_bit(OBSOLETE_CANALDE, &canalde->flags))
+			kfree(canalde);
 		else
-			cnode->cnext = NULL;
+			canalde->cnext = NULL;
 	} while (cnext != c->lpt_cnext);
 	c->lpt_cnext = NULL;
 }
@@ -1289,12 +1289,12 @@ int ubifs_lpt_end_commit(struct ubifs_info *c)
 	if (!c->lpt_cnext)
 		return 0;
 
-	err = write_cnodes(c);
+	err = write_canaldes(c);
 	if (err)
 		return err;
 
 	mutex_lock(&c->lp_mutex);
-	free_obsolete_cnodes(c);
+	free_obsolete_canaldes(c);
 	mutex_unlock(&c->lp_mutex);
 
 	return 0;
@@ -1329,28 +1329,28 @@ out:
 }
 
 /**
- * first_nnode - find the first nnode in memory.
+ * first_nanalde - find the first nanalde in memory.
  * @c: UBIFS file-system description object
- * @hght: height of tree where nnode found is returned here
+ * @hght: height of tree where nanalde found is returned here
  *
- * This function returns a pointer to the nnode found or %NULL if no nnode is
+ * This function returns a pointer to the nanalde found or %NULL if anal nanalde is
  * found. This function is a helper to 'ubifs_lpt_free()'.
  */
-static struct ubifs_nnode *first_nnode(struct ubifs_info *c, int *hght)
+static struct ubifs_nanalde *first_nanalde(struct ubifs_info *c, int *hght)
 {
-	struct ubifs_nnode *nnode;
+	struct ubifs_nanalde *nanalde;
 	int h, i, found;
 
-	nnode = c->nroot;
+	nanalde = c->nroot;
 	*hght = 0;
-	if (!nnode)
+	if (!nanalde)
 		return NULL;
 	for (h = 1; h < c->lpt_hght; h++) {
 		found = 0;
-		for (i = 0; i < UBIFS_LPT_FANOUT; i++) {
-			if (nnode->nbranch[i].nnode) {
+		for (i = 0; i < UBIFS_LPT_FAANALUT; i++) {
+			if (nanalde->nbranch[i].nanalde) {
 				found = 1;
-				nnode = nnode->nbranch[i].nnode;
+				nanalde = nanalde->nbranch[i].nanalde;
 				*hght = h;
 				break;
 			}
@@ -1358,46 +1358,46 @@ static struct ubifs_nnode *first_nnode(struct ubifs_info *c, int *hght)
 		if (!found)
 			break;
 	}
-	return nnode;
+	return nanalde;
 }
 
 /**
- * next_nnode - find the next nnode in memory.
+ * next_nanalde - find the next nanalde in memory.
  * @c: UBIFS file-system description object
- * @nnode: nnode from which to start.
- * @hght: height of tree where nnode is, is passed and returned here
+ * @nanalde: nanalde from which to start.
+ * @hght: height of tree where nanalde is, is passed and returned here
  *
- * This function returns a pointer to the nnode found or %NULL if no nnode is
+ * This function returns a pointer to the nanalde found or %NULL if anal nanalde is
  * found. This function is a helper to 'ubifs_lpt_free()'.
  */
-static struct ubifs_nnode *next_nnode(struct ubifs_info *c,
-				      struct ubifs_nnode *nnode, int *hght)
+static struct ubifs_nanalde *next_nanalde(struct ubifs_info *c,
+				      struct ubifs_nanalde *nanalde, int *hght)
 {
-	struct ubifs_nnode *parent;
+	struct ubifs_nanalde *parent;
 	int iip, h, i, found;
 
-	parent = nnode->parent;
+	parent = nanalde->parent;
 	if (!parent)
 		return NULL;
-	if (nnode->iip == UBIFS_LPT_FANOUT - 1) {
+	if (nanalde->iip == UBIFS_LPT_FAANALUT - 1) {
 		*hght -= 1;
 		return parent;
 	}
-	for (iip = nnode->iip + 1; iip < UBIFS_LPT_FANOUT; iip++) {
-		nnode = parent->nbranch[iip].nnode;
-		if (nnode)
+	for (iip = nanalde->iip + 1; iip < UBIFS_LPT_FAANALUT; iip++) {
+		nanalde = parent->nbranch[iip].nanalde;
+		if (nanalde)
 			break;
 	}
-	if (!nnode) {
+	if (!nanalde) {
 		*hght -= 1;
 		return parent;
 	}
 	for (h = *hght + 1; h < c->lpt_hght; h++) {
 		found = 0;
-		for (i = 0; i < UBIFS_LPT_FANOUT; i++) {
-			if (nnode->nbranch[i].nnode) {
+		for (i = 0; i < UBIFS_LPT_FAANALUT; i++) {
+			if (nanalde->nbranch[i].nanalde) {
 				found = 1;
-				nnode = nnode->nbranch[i].nnode;
+				nanalde = nanalde->nbranch[i].nanalde;
 				*hght = h;
 				break;
 			}
@@ -1405,7 +1405,7 @@ static struct ubifs_nnode *next_nnode(struct ubifs_info *c,
 		if (!found)
 			break;
 	}
-	return nnode;
+	return nanalde;
 }
 
 /**
@@ -1415,12 +1415,12 @@ static struct ubifs_nnode *next_nnode(struct ubifs_info *c,
  */
 void ubifs_lpt_free(struct ubifs_info *c, int wr_only)
 {
-	struct ubifs_nnode *nnode;
+	struct ubifs_nanalde *nanalde;
 	int i, hght;
 
 	/* Free write-only things first */
 
-	free_obsolete_cnodes(c); /* Leftover from a failed commit */
+	free_obsolete_canaldes(c); /* Leftover from a failed commit */
 
 	vfree(c->ltab_cmt);
 	c->ltab_cmt = NULL;
@@ -1432,20 +1432,20 @@ void ubifs_lpt_free(struct ubifs_info *c, int wr_only)
 	if (wr_only)
 		return;
 
-	/* Now free the rest */
+	/* Analw free the rest */
 
-	nnode = first_nnode(c, &hght);
-	while (nnode) {
-		for (i = 0; i < UBIFS_LPT_FANOUT; i++)
-			kfree(nnode->nbranch[i].nnode);
-		nnode = next_nnode(c, nnode, &hght);
+	nanalde = first_nanalde(c, &hght);
+	while (nanalde) {
+		for (i = 0; i < UBIFS_LPT_FAANALUT; i++)
+			kfree(nanalde->nbranch[i].nanalde);
+		nanalde = next_nanalde(c, nanalde, &hght);
 	}
 	for (i = 0; i < LPROPS_HEAP_CNT; i++)
 		kfree(c->lpt_heap[i].arr);
 	kfree(c->dirty_idx.arr);
 	kfree(c->nroot);
 	vfree(c->ltab);
-	kfree(c->lpt_nod_buf);
+	kfree(c->lpt_anald_buf);
 }
 
 /*
@@ -1468,33 +1468,33 @@ static int dbg_is_all_ff(uint8_t *buf, int len)
 }
 
 /**
- * dbg_is_nnode_dirty - determine if a nnode is dirty.
+ * dbg_is_nanalde_dirty - determine if a nanalde is dirty.
  * @c: the UBIFS file-system description object
- * @lnum: LEB number where nnode was written
- * @offs: offset where nnode was written
+ * @lnum: LEB number where nanalde was written
+ * @offs: offset where nanalde was written
  */
-static int dbg_is_nnode_dirty(struct ubifs_info *c, int lnum, int offs)
+static int dbg_is_nanalde_dirty(struct ubifs_info *c, int lnum, int offs)
 {
-	struct ubifs_nnode *nnode;
+	struct ubifs_nanalde *nanalde;
 	int hght;
 
-	/* Entire tree is in memory so first_nnode / next_nnode are OK */
-	nnode = first_nnode(c, &hght);
-	for (; nnode; nnode = next_nnode(c, nnode, &hght)) {
+	/* Entire tree is in memory so first_nanalde / next_nanalde are OK */
+	nanalde = first_nanalde(c, &hght);
+	for (; nanalde; nanalde = next_nanalde(c, nanalde, &hght)) {
 		struct ubifs_nbranch *branch;
 
 		cond_resched();
-		if (nnode->parent) {
-			branch = &nnode->parent->nbranch[nnode->iip];
+		if (nanalde->parent) {
+			branch = &nanalde->parent->nbranch[nanalde->iip];
 			if (branch->lnum != lnum || branch->offs != offs)
 				continue;
-			if (test_bit(DIRTY_CNODE, &nnode->flags))
+			if (test_bit(DIRTY_CANALDE, &nanalde->flags))
 				return 1;
 			return 0;
 		} else {
 			if (c->lpt_lnum != lnum || c->lpt_offs != offs)
 				continue;
-			if (test_bit(DIRTY_CNODE, &nnode->flags))
+			if (test_bit(DIRTY_CANALDE, &nanalde->flags))
 				return 1;
 			return 0;
 		}
@@ -1503,28 +1503,28 @@ static int dbg_is_nnode_dirty(struct ubifs_info *c, int lnum, int offs)
 }
 
 /**
- * dbg_is_pnode_dirty - determine if a pnode is dirty.
+ * dbg_is_panalde_dirty - determine if a panalde is dirty.
  * @c: the UBIFS file-system description object
- * @lnum: LEB number where pnode was written
- * @offs: offset where pnode was written
+ * @lnum: LEB number where panalde was written
+ * @offs: offset where panalde was written
  */
-static int dbg_is_pnode_dirty(struct ubifs_info *c, int lnum, int offs)
+static int dbg_is_panalde_dirty(struct ubifs_info *c, int lnum, int offs)
 {
 	int i, cnt;
 
-	cnt = DIV_ROUND_UP(c->main_lebs, UBIFS_LPT_FANOUT);
+	cnt = DIV_ROUND_UP(c->main_lebs, UBIFS_LPT_FAANALUT);
 	for (i = 0; i < cnt; i++) {
-		struct ubifs_pnode *pnode;
+		struct ubifs_panalde *panalde;
 		struct ubifs_nbranch *branch;
 
 		cond_resched();
-		pnode = ubifs_pnode_lookup(c, i);
-		if (IS_ERR(pnode))
-			return PTR_ERR(pnode);
-		branch = &pnode->parent->nbranch[pnode->iip];
+		panalde = ubifs_panalde_lookup(c, i);
+		if (IS_ERR(panalde))
+			return PTR_ERR(panalde);
+		branch = &panalde->parent->nbranch[panalde->iip];
 		if (branch->lnum != lnum || branch->offs != offs)
 			continue;
-		if (test_bit(DIRTY_CNODE, &pnode->flags))
+		if (test_bit(DIRTY_CANALDE, &panalde->flags))
 			return 1;
 		return 0;
 	}
@@ -1532,10 +1532,10 @@ static int dbg_is_pnode_dirty(struct ubifs_info *c, int lnum, int offs)
 }
 
 /**
- * dbg_is_ltab_dirty - determine if a ltab node is dirty.
+ * dbg_is_ltab_dirty - determine if a ltab analde is dirty.
  * @c: the UBIFS file-system description object
- * @lnum: LEB number where ltab node was written
- * @offs: offset where ltab node was written
+ * @lnum: LEB number where ltab analde was written
+ * @offs: offset where ltab analde was written
  */
 static int dbg_is_ltab_dirty(struct ubifs_info *c, int lnum, int offs)
 {
@@ -1545,10 +1545,10 @@ static int dbg_is_ltab_dirty(struct ubifs_info *c, int lnum, int offs)
 }
 
 /**
- * dbg_is_lsave_dirty - determine if a lsave node is dirty.
+ * dbg_is_lsave_dirty - determine if a lsave analde is dirty.
  * @c: the UBIFS file-system description object
- * @lnum: LEB number where lsave node was written
- * @offs: offset where lsave node was written
+ * @lnum: LEB number where lsave analde was written
+ * @offs: offset where lsave analde was written
  */
 static int dbg_is_lsave_dirty(struct ubifs_info *c, int lnum, int offs)
 {
@@ -1558,20 +1558,20 @@ static int dbg_is_lsave_dirty(struct ubifs_info *c, int lnum, int offs)
 }
 
 /**
- * dbg_is_node_dirty - determine if a node is dirty.
+ * dbg_is_analde_dirty - determine if a analde is dirty.
  * @c: the UBIFS file-system description object
- * @node_type: node type
- * @lnum: LEB number where node was written
- * @offs: offset where node was written
+ * @analde_type: analde type
+ * @lnum: LEB number where analde was written
+ * @offs: offset where analde was written
  */
-static int dbg_is_node_dirty(struct ubifs_info *c, int node_type, int lnum,
+static int dbg_is_analde_dirty(struct ubifs_info *c, int analde_type, int lnum,
 			     int offs)
 {
-	switch (node_type) {
-	case UBIFS_LPT_NNODE:
-		return dbg_is_nnode_dirty(c, lnum, offs);
-	case UBIFS_LPT_PNODE:
-		return dbg_is_pnode_dirty(c, lnum, offs);
+	switch (analde_type) {
+	case UBIFS_LPT_NANALDE:
+		return dbg_is_nanalde_dirty(c, lnum, offs);
+	case UBIFS_LPT_PANALDE:
+		return dbg_is_panalde_dirty(c, lnum, offs);
 	case UBIFS_LPT_LTAB:
 		return dbg_is_ltab_dirty(c, lnum, offs);
 	case UBIFS_LPT_LSAVE:
@@ -1583,22 +1583,22 @@ static int dbg_is_node_dirty(struct ubifs_info *c, int node_type, int lnum,
 /**
  * dbg_check_ltab_lnum - check the ltab for a LPT LEB number.
  * @c: the UBIFS file-system description object
- * @lnum: LEB number where node was written
+ * @lnum: LEB number where analde was written
  *
  * This function returns %0 on success and a negative error code on failure.
  */
 static int dbg_check_ltab_lnum(struct ubifs_info *c, int lnum)
 {
-	int err, len = c->leb_size, dirty = 0, node_type, node_num, node_len;
+	int err, len = c->leb_size, dirty = 0, analde_type, analde_num, analde_len;
 	int ret;
 	void *buf, *p;
 
 	if (!dbg_is_chk_lprops(c))
 		return 0;
 
-	buf = p = __vmalloc(c->leb_size, GFP_NOFS);
+	buf = p = __vmalloc(c->leb_size, GFP_ANALFS);
 	if (!buf) {
-		ubifs_err(c, "cannot allocate memory for ltab checking");
+		ubifs_err(c, "cananalt allocate memory for ltab checking");
 		return 0;
 	}
 
@@ -1609,7 +1609,7 @@ static int dbg_check_ltab_lnum(struct ubifs_info *c, int lnum)
 		goto out;
 
 	while (1) {
-		if (!is_a_node(c, p, len)) {
+		if (!is_a_analde(c, p, len)) {
 			int i, pad_len;
 
 			pad_len = get_pad_len(c, p, len);
@@ -1637,13 +1637,13 @@ static int dbg_check_ltab_lnum(struct ubifs_info *c, int lnum)
 			}
 			goto out;
 		}
-		node_type = get_lpt_node_type(c, p, &node_num);
-		node_len = get_lpt_node_len(c, node_type);
-		ret = dbg_is_node_dirty(c, node_type, lnum, c->leb_size - len);
+		analde_type = get_lpt_analde_type(c, p, &analde_num);
+		analde_len = get_lpt_analde_len(c, analde_type);
+		ret = dbg_is_analde_dirty(c, analde_type, lnum, c->leb_size - len);
 		if (ret == 1)
-			dirty += node_len;
-		p += node_len;
-		len -= node_len;
+			dirty += analde_len;
+		p += analde_len;
+		len -= analde_len;
 	}
 
 	err = 0;
@@ -1666,18 +1666,18 @@ int dbg_check_ltab(struct ubifs_info *c)
 		return 0;
 
 	/* Bring the entire tree into memory */
-	cnt = DIV_ROUND_UP(c->main_lebs, UBIFS_LPT_FANOUT);
+	cnt = DIV_ROUND_UP(c->main_lebs, UBIFS_LPT_FAANALUT);
 	for (i = 0; i < cnt; i++) {
-		struct ubifs_pnode *pnode;
+		struct ubifs_panalde *panalde;
 
-		pnode = ubifs_pnode_lookup(c, i);
-		if (IS_ERR(pnode))
-			return PTR_ERR(pnode);
+		panalde = ubifs_panalde_lookup(c, i);
+		if (IS_ERR(panalde))
+			return PTR_ERR(panalde);
 		cond_resched();
 	}
 
-	/* Check nodes */
-	err = dbg_check_lpt_nodes(c, (struct ubifs_cnode *)c->nroot, 0, 0);
+	/* Check analdes */
+	err = dbg_check_lpt_analdes(c, (struct ubifs_canalde *)c->nroot, 0, 0);
 	if (err)
 		return err;
 
@@ -1695,7 +1695,7 @@ int dbg_check_ltab(struct ubifs_info *c)
 }
 
 /**
- * dbg_chk_lpt_free_spc - check LPT free space is enough to write entire LPT.
+ * dbg_chk_lpt_free_spc - check LPT free space is eanalugh to write entire LPT.
  * @c: the UBIFS file-system description object
  *
  * This function returns %0 on success and a negative error code on failure.
@@ -1728,7 +1728,7 @@ int dbg_chk_lpt_free_spc(struct ubifs_info *c)
 }
 
 /**
- * dbg_chk_lpt_sz - check LPT does not write more than LPT size.
+ * dbg_chk_lpt_sz - check LPT does analt write more than LPT size.
  * @c: the UBIFS file-system description object
  * @action: what to do
  * @len: length written
@@ -1736,7 +1736,7 @@ int dbg_chk_lpt_free_spc(struct ubifs_info *c)
  * This function returns %0 on success and a negative error code on failure.
  * The @action argument may be one of:
  *   o %0 - LPT debugging checking starts, initialize debugging variables;
- *   o %1 - wrote an LPT node, increase LPT size by @len bytes;
+ *   o %1 - wrote an LPT analde, increase LPT size by @len bytes;
  *   o %2 - switched to a different LEB and wasted @len bytes;
  *   o %3 - check that we've written the right number of bytes.
  *   o %4 - wasted @len bytes;
@@ -1756,14 +1756,14 @@ int dbg_chk_lpt_sz(struct ubifs_info *c, int action, int len)
 		d->chk_lpt_sz2 = 0;
 		d->chk_lpt_lebs = 0;
 		d->chk_lpt_wastage = 0;
-		if (c->dirty_pn_cnt > c->pnode_cnt) {
-			ubifs_err(c, "dirty pnodes %d exceed max %d",
-				  c->dirty_pn_cnt, c->pnode_cnt);
+		if (c->dirty_pn_cnt > c->panalde_cnt) {
+			ubifs_err(c, "dirty panaldes %d exceed max %d",
+				  c->dirty_pn_cnt, c->panalde_cnt);
 			err = -EINVAL;
 		}
-		if (c->dirty_nn_cnt > c->nnode_cnt) {
-			ubifs_err(c, "dirty nnodes %d exceed max %d",
-				  c->dirty_nn_cnt, c->nnode_cnt);
+		if (c->dirty_nn_cnt > c->nanalde_cnt) {
+			ubifs_err(c, "dirty nanaldes %d exceed max %d",
+				  c->dirty_nn_cnt, c->nanalde_cnt);
 			err = -EINVAL;
 		}
 		return err;
@@ -1799,8 +1799,8 @@ int dbg_chk_lpt_sz(struct ubifs_info *c, int action, int len)
 				  d->new_nhead_offs, len);
 			err = -EINVAL;
 		}
-		lpt_sz = (long long)c->pnode_cnt * c->pnode_sz;
-		lpt_sz += (long long)c->nnode_cnt * c->nnode_sz;
+		lpt_sz = (long long)c->panalde_cnt * c->panalde_sz;
+		lpt_sz += (long long)c->nanalde_cnt * c->nanalde_sz;
 		lpt_sz += c->ltab_sz;
 		if (c->big_lpt)
 			lpt_sz += c->lsave_sz;
@@ -1834,20 +1834,20 @@ int dbg_chk_lpt_sz(struct ubifs_info *c, int action, int len)
  * @c: UBIFS file-system description object
  * @lnum: LEB number to dump
  *
- * This function dumps an LEB from LPT area. Nodes in this area are very
- * different to nodes in the main area (e.g., they do not have common headers,
- * they do not have 8-byte alignments, etc), so we have a separate function to
- * dump LPT area LEBs. Note, LPT has to be locked by the caller.
+ * This function dumps an LEB from LPT area. Analdes in this area are very
+ * different to analdes in the main area (e.g., they do analt have common headers,
+ * they do analt have 8-byte alignments, etc), so we have a separate function to
+ * dump LPT area LEBs. Analte, LPT has to be locked by the caller.
  */
 static void dump_lpt_leb(const struct ubifs_info *c, int lnum)
 {
-	int err, len = c->leb_size, node_type, node_num, node_len, offs;
+	int err, len = c->leb_size, analde_type, analde_num, analde_len, offs;
 	void *buf, *p;
 
 	pr_err("(pid %d) start dumping LEB %d\n", current->pid, lnum);
-	buf = p = __vmalloc(c->leb_size, GFP_NOFS);
+	buf = p = __vmalloc(c->leb_size, GFP_ANALFS);
 	if (!buf) {
-		ubifs_err(c, "cannot allocate memory to dump LPT");
+		ubifs_err(c, "cananalt allocate memory to dump LPT");
 		return;
 	}
 
@@ -1857,7 +1857,7 @@ static void dump_lpt_leb(const struct ubifs_info *c, int lnum)
 
 	while (1) {
 		offs = c->leb_size - len;
-		if (!is_a_node(c, p, len)) {
+		if (!is_a_analde(c, p, len)) {
 			int pad_len;
 
 			pad_len = get_pad_len(c, p, len);
@@ -1874,60 +1874,60 @@ static void dump_lpt_leb(const struct ubifs_info *c, int lnum)
 			break;
 		}
 
-		node_type = get_lpt_node_type(c, p, &node_num);
-		switch (node_type) {
-		case UBIFS_LPT_PNODE:
+		analde_type = get_lpt_analde_type(c, p, &analde_num);
+		switch (analde_type) {
+		case UBIFS_LPT_PANALDE:
 		{
-			node_len = c->pnode_sz;
+			analde_len = c->panalde_sz;
 			if (c->big_lpt)
-				pr_err("LEB %d:%d, pnode num %d\n",
-				       lnum, offs, node_num);
+				pr_err("LEB %d:%d, panalde num %d\n",
+				       lnum, offs, analde_num);
 			else
-				pr_err("LEB %d:%d, pnode\n", lnum, offs);
+				pr_err("LEB %d:%d, panalde\n", lnum, offs);
 			break;
 		}
-		case UBIFS_LPT_NNODE:
+		case UBIFS_LPT_NANALDE:
 		{
 			int i;
-			struct ubifs_nnode nnode;
+			struct ubifs_nanalde nanalde;
 
-			node_len = c->nnode_sz;
+			analde_len = c->nanalde_sz;
 			if (c->big_lpt)
-				pr_err("LEB %d:%d, nnode num %d, ",
-				       lnum, offs, node_num);
+				pr_err("LEB %d:%d, nanalde num %d, ",
+				       lnum, offs, analde_num);
 			else
-				pr_err("LEB %d:%d, nnode, ",
+				pr_err("LEB %d:%d, nanalde, ",
 				       lnum, offs);
-			err = ubifs_unpack_nnode(c, p, &nnode);
+			err = ubifs_unpack_nanalde(c, p, &nanalde);
 			if (err) {
-				pr_err("failed to unpack_node, error %d\n",
+				pr_err("failed to unpack_analde, error %d\n",
 				       err);
 				break;
 			}
-			for (i = 0; i < UBIFS_LPT_FANOUT; i++) {
-				pr_cont("%d:%d", nnode.nbranch[i].lnum,
-				       nnode.nbranch[i].offs);
-				if (i != UBIFS_LPT_FANOUT - 1)
+			for (i = 0; i < UBIFS_LPT_FAANALUT; i++) {
+				pr_cont("%d:%d", nanalde.nbranch[i].lnum,
+				       nanalde.nbranch[i].offs);
+				if (i != UBIFS_LPT_FAANALUT - 1)
 					pr_cont(", ");
 			}
 			pr_cont("\n");
 			break;
 		}
 		case UBIFS_LPT_LTAB:
-			node_len = c->ltab_sz;
+			analde_len = c->ltab_sz;
 			pr_err("LEB %d:%d, ltab\n", lnum, offs);
 			break;
 		case UBIFS_LPT_LSAVE:
-			node_len = c->lsave_sz;
+			analde_len = c->lsave_sz;
 			pr_err("LEB %d:%d, lsave len\n", lnum, offs);
 			break;
 		default:
-			ubifs_err(c, "LPT node type %d not recognized", node_type);
+			ubifs_err(c, "LPT analde type %d analt recognized", analde_type);
 			goto out;
 		}
 
-		p += node_len;
-		len -= node_len;
+		p += analde_len;
+		len -= analde_len;
 	}
 
 	pr_err("(pid %d) finish dumping LEB %d\n", current->pid, lnum);
@@ -1959,8 +1959,8 @@ void ubifs_dump_lpt_lebs(const struct ubifs_info *c)
  *
  * This is a debugging version for 'populate_lsave()' which populates lsave
  * with random LEBs instead of useful LEBs, which is good for test coverage.
- * Returns zero if lsave has not been populated (this debugging feature is
- * disabled) an non-zero if lsave has been populated.
+ * Returns zero if lsave has analt been populated (this debugging feature is
+ * disabled) an analn-zero if lsave has been populated.
  */
 static int dbg_populate_lsave(struct ubifs_info *c)
 {

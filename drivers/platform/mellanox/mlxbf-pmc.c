@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only OR Linux-OpenIB
 /*
- * Mellanox BlueField Performance Monitoring Counters driver
+ * Mellaanalx BlueField Performance Monitoring Counters driver
  *
  * This driver provides a sysfs interface for monitoring
  * performance statistics in BlueField SoC.
@@ -11,7 +11,7 @@
 #include <linux/acpi.h>
 #include <linux/arm-smccc.h>
 #include <linux/bitfield.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/hwmon.h>
 #include <linux/platform_device.h>
 #include <linux/string.h>
@@ -24,7 +24,7 @@
 #define MLXBF_PMC_SIP_SVC_UID 0x8200ff01
 #define MLXBF_PMC_SIP_SVC_VERSION 0x8200ff03
 #define MLXBF_PMC_SVC_REQ_MAJOR 0
-#define MLXBF_PMC_SVC_MIN_MINOR 3
+#define MLXBF_PMC_SVC_MIN_MIANALR 3
 
 #define MLXBF_PMC_SMCCC_ACCESS_VIOLATION -4
 
@@ -478,16 +478,16 @@ static const struct mlxbf_pmc_events mlxbf_pmc_hnf_events[] = {
 	{ 0x62, "HNF_ACCEPTS" },
 	{ 0x63, "REQ_BUF_EMPTY" },
 	{ 0x64, "REQ_BUF_IDLE_MAF" },
-	{ 0x65, "TSO_NOARB" },
-	{ 0x66, "TSO_NOARB_CYCLES" },
-	{ 0x67, "MSS_NO_CREDIT" },
-	{ 0x68, "TXDAT_NO_LCRD" },
-	{ 0x69, "TXSNP_NO_LCRD" },
-	{ 0x6a, "TXRSP_NO_LCRD" },
-	{ 0x6b, "TXREQ_NO_LCRD" },
+	{ 0x65, "TSO_ANALARB" },
+	{ 0x66, "TSO_ANALARB_CYCLES" },
+	{ 0x67, "MSS_ANAL_CREDIT" },
+	{ 0x68, "TXDAT_ANAL_LCRD" },
+	{ 0x69, "TXSNP_ANAL_LCRD" },
+	{ 0x6a, "TXRSP_ANAL_LCRD" },
+	{ 0x6b, "TXREQ_ANAL_LCRD" },
 	{ 0x6c, "TSO_CL_MATCH" },
 	{ 0x6d, "MEMORY_READS_BYPASS" },
-	{ 0x6e, "TSO_NOARB_TIMEOUT" },
+	{ 0x6e, "TSO_ANALARB_TIMEOUT" },
 	{ 0x6f, "ALLOCATE" },
 	{ 0x70, "VICTIM" },
 	{ 0x71, "A72_WRITE" },
@@ -638,10 +638,10 @@ static const struct mlxbf_pmc_events mlxbf_pmc_llt_events[] = {
 	{29, "HNF0_EXCL_READ"},
 	{30, "HNF0_REQ_BUF_EMPTY"},
 	{31, "HNF0_ALL_MAFS_BUSY"},
-	{32, "HNF0_TXDAT_NO_LCRD"},
-	{33, "HNF0_TXSNP_NO_LCRD"},
-	{34, "HNF0_TXRSP_NO_LCRD"},
-	{35, "HNF0_TXREQ_NO_LCRD"},
+	{32, "HNF0_TXDAT_ANAL_LCRD"},
+	{33, "HNF0_TXSNP_ANAL_LCRD"},
+	{34, "HNF0_TXRSP_ANAL_LCRD"},
+	{35, "HNF0_TXREQ_ANAL_LCRD"},
 	{36, "HNF0_WRITE"},
 	{37, "HNF0_READ"},
 	{38, "HNF0_ACCESS"},
@@ -680,10 +680,10 @@ static const struct mlxbf_pmc_events mlxbf_pmc_llt_events[] = {
 	{71, "HNF1_EXCL_READ"},
 	{72, "HNF1_REQ_BUF_EMPTY"},
 	{73, "HNF1_ALL_MAFS_BUSY"},
-	{74, "HNF1_TXDAT_NO_LCRD"},
-	{75, "HNF1_TXSNP_NO_LCRD"},
-	{76, "HNF1_TXRSP_NO_LCRD"},
-	{77, "HNF1_TXREQ_NO_LCRD"},
+	{74, "HNF1_TXDAT_ANAL_LCRD"},
+	{75, "HNF1_TXSNP_ANAL_LCRD"},
+	{76, "HNF1_TXRSP_ANAL_LCRD"},
+	{77, "HNF1_TXREQ_ANAL_LCRD"},
 	{78, "HNF1_WRITE"},
 	{79, "HNF1_READ"},
 	{80, "HNF1_ACCESS"},
@@ -699,11 +699,11 @@ static const struct mlxbf_pmc_events mlxbf_pmc_llt_events[] = {
 	{90, "GDC_BANK0_EVICT"},
 	{91, "GDC_BANK0_RD_RESP"},
 	{92, "GDC_BANK0_WR_ACK"},
-	{93, "GDC_BANK0_SNOOP"},
-	{94, "GDC_BANK0_SNOOP_NORMAL"},
-	{95, "GDC_BANK0_SNOOP_FWD"},
-	{96, "GDC_BANK0_SNOOP_STASH"},
-	{97, "GDC_BANK0_SNOOP_STASH_INDPND_RD"},
+	{93, "GDC_BANK0_SANALOP"},
+	{94, "GDC_BANK0_SANALOP_ANALRMAL"},
+	{95, "GDC_BANK0_SANALOP_FWD"},
+	{96, "GDC_BANK0_SANALOP_STASH"},
+	{97, "GDC_BANK0_SANALOP_STASH_INDPND_RD"},
 	{98, "GDC_BANK0_FOLLOWER"},
 	{99, "GDC_BANK0_FW"},
 	{100, "GDC_BANK0_HIT_DCL_BOTH"},
@@ -738,11 +738,11 @@ static const struct mlxbf_pmc_events mlxbf_pmc_llt_events[] = {
 	{129, "GDC_BANK1_EVICT"},
 	{130, "GDC_BANK1_RD_RESP"},
 	{131, "GDC_BANK1_WR_ACK"},
-	{132, "GDC_BANK1_SNOOP"},
-	{133, "GDC_BANK1_SNOOP_NORMAL"},
-	{134, "GDC_BANK1_SNOOP_FWD"},
-	{135, "GDC_BANK1_SNOOP_STASH"},
-	{136, "GDC_BANK1_SNOOP_STASH_INDPND_RD"},
+	{132, "GDC_BANK1_SANALOP"},
+	{133, "GDC_BANK1_SANALOP_ANALRMAL"},
+	{134, "GDC_BANK1_SANALOP_FWD"},
+	{135, "GDC_BANK1_SANALOP_STASH"},
+	{136, "GDC_BANK1_SANALOP_STASH_INDPND_RD"},
 	{137, "GDC_BANK1_FOLLOWER"},
 	{138, "GDC_BANK1_FW"},
 	{139, "GDC_BANK1_HIT_DCL_BOTH"},
@@ -835,18 +835,18 @@ static const struct mlxbf_pmc_events mlxbf_pmc_llt_miss_events[] = {
 	{51, "GDC_MISS_MACHINE_G_CREDIT_TXRSP_1"},
 	{52, "GDC_MISS_MACHINE_G_RSE_PIPE_INARB_0"},
 	{53, "GDC_MISS_MACHINE_G_RSE_PIPE_INARB_1"},
-	{54, "GDC_MISS_MACHINE_G_FIFO_FF_SNOOP_IN_0"},
-	{55, "GDC_MISS_MACHINE_G_FIFO_FF_SNOOP_IN_1"},
-	{56, "GDC_MISS_MACHINE_G_FIFO_FF_SNOOP_IN_2"},
-	{57, "GDC_MISS_MACHINE_G_FIFO_FF_SNOOP_IN_3"},
-	{58, "GDC_MISS_MACHINE_G_FIFO_FF_TXRSP_SNOOP_DATAPULL_0"},
-	{59, "GDC_MISS_MACHINE_G_FIFO_FF_TXRSP_SNOOP_DATAPULL_1"},
-	{60, "GDC_MISS_MACHINE_G_FIFO_FF_TXRSP_SNOOP_DATAPULL_2"},
-	{61, "GDC_MISS_MACHINE_G_FIFO_FF_TXRSP_SNOOP_DATAPULL_3"},
-	{62, "GDC_MISS_MACHINE_G_FIFO_FF_TXDAT_SNOOP_DATAPULL_4"},
-	{63, "GDC_MISS_MACHINE_G_FIFO_FF_TXDAT_SNOOP_DATAPULL_5"},
-	{64, "GDC_MISS_MACHINE_G_FIFO_FF_TXDAT_SNOOP_DATAPULL_6"},
-	{65, "GDC_MISS_MACHINE_G_FIFO_FF_TXDAT_SNOOP_DATAPULL_7"},
+	{54, "GDC_MISS_MACHINE_G_FIFO_FF_SANALOP_IN_0"},
+	{55, "GDC_MISS_MACHINE_G_FIFO_FF_SANALOP_IN_1"},
+	{56, "GDC_MISS_MACHINE_G_FIFO_FF_SANALOP_IN_2"},
+	{57, "GDC_MISS_MACHINE_G_FIFO_FF_SANALOP_IN_3"},
+	{58, "GDC_MISS_MACHINE_G_FIFO_FF_TXRSP_SANALOP_DATAPULL_0"},
+	{59, "GDC_MISS_MACHINE_G_FIFO_FF_TXRSP_SANALOP_DATAPULL_1"},
+	{60, "GDC_MISS_MACHINE_G_FIFO_FF_TXRSP_SANALOP_DATAPULL_2"},
+	{61, "GDC_MISS_MACHINE_G_FIFO_FF_TXRSP_SANALOP_DATAPULL_3"},
+	{62, "GDC_MISS_MACHINE_G_FIFO_FF_TXDAT_SANALOP_DATAPULL_4"},
+	{63, "GDC_MISS_MACHINE_G_FIFO_FF_TXDAT_SANALOP_DATAPULL_5"},
+	{64, "GDC_MISS_MACHINE_G_FIFO_FF_TXDAT_SANALOP_DATAPULL_6"},
+	{65, "GDC_MISS_MACHINE_G_FIFO_FF_TXDAT_SANALOP_DATAPULL_7"},
 	{66, "HISTOGRAM_HISTOGRAM_BIN0"},
 	{67, "HISTOGRAM_HISTOGRAM_BIN1"},
 	{68, "HISTOGRAM_HISTOGRAM_BIN2"},
@@ -877,7 +877,7 @@ static int mlxbf_pmc_secure_read(void __iomem *addr, uint32_t command,
 	status = res.a0;
 
 	switch (status) {
-	case PSCI_RET_NOT_SUPPORTED:
+	case PSCI_RET_ANALT_SUPPORTED:
 		err = -EINVAL;
 		break;
 	case MLXBF_PMC_SMCCC_ACCESS_VIOLATION:
@@ -933,7 +933,7 @@ static int mlxbf_pmc_secure_write(void __iomem *addr, uint32_t command,
 	status = res.a0;
 
 	switch (status) {
-	case PSCI_RET_NOT_SUPPORTED:
+	case PSCI_RET_ANALT_SUPPORTED:
 		err = -EINVAL;
 		break;
 	case MLXBF_PMC_SMCCC_ACCESS_VIOLATION:
@@ -1058,7 +1058,7 @@ static int mlxbf_pmc_get_event_num(const char *blk, const char *evt)
 			return events[i].evt_num;
 	}
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 /* Get the event number given the name */
@@ -1205,7 +1205,7 @@ static int mlxbf_pmc_program_counter(int blk_num, uint32_t cnt_num,
 	uint64_t perfctl, perfevt, perfmon_cfg;
 
 	if (cnt_num >= pmc->block[blk_num].counters)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (is_l3)
 		return mlxbf_pmc_program_l3_counter(blk_num, cnt_num, evt);
@@ -1555,11 +1555,11 @@ static ssize_t mlxbf_pmc_counter_store(struct device *dev,
 	if (err < 0)
 		return err;
 
-	/* Allow non-zero writes only to the ecc regs */
+	/* Allow analn-zero writes only to the ecc regs */
 	if (!(strstr(pmc->block_name[blk_num], "ecc")) && data)
 		return -EINVAL;
 
-	/* Do not allow writes to the L3C regs */
+	/* Do analt allow writes to the L3C regs */
 	if (strstr(pmc->block_name[blk_num], "l3cache"))
 		return -EINVAL;
 
@@ -1608,7 +1608,7 @@ static ssize_t mlxbf_pmc_event_show(struct device *dev,
 
 	err = mlxbf_pmc_read_event(blk_num, cnt_num, is_l3, &evt_num);
 	if (err)
-		return sysfs_emit(buf, "No event being monitored\n");
+		return sysfs_emit(buf, "Anal event being monitored\n");
 
 	evt_name = mlxbf_pmc_get_event_name(pmc->block_name[blk_num], evt_num);
 	if (!evt_name)
@@ -1772,7 +1772,7 @@ static int mlxbf_pmc_init_perftype_counter(struct device *dev, int blk_num)
 	attr->nr = blk_num;
 	attr->dev_attr.attr.name = devm_kasprintf(dev, GFP_KERNEL, "event_list");
 	if (!attr->dev_attr.attr.name)
-		return -ENOMEM;
+		return -EANALMEM;
 	pmc->block[blk_num].block_attr[i] = &attr->dev_attr.attr;
 	attr = NULL;
 
@@ -1787,7 +1787,7 @@ static int mlxbf_pmc_init_perftype_counter(struct device *dev, int blk_num)
 		attr->dev_attr.attr.name = devm_kasprintf(dev, GFP_KERNEL,
 							  "enable");
 		if (!attr->dev_attr.attr.name)
-			return -ENOMEM;
+			return -EANALMEM;
 		pmc->block[blk_num].block_attr[++i] = &attr->dev_attr.attr;
 		attr = NULL;
 	}
@@ -1796,13 +1796,13 @@ static int mlxbf_pmc_init_perftype_counter(struct device *dev, int blk_num)
 		dev, pmc->block[blk_num].counters,
 		sizeof(struct mlxbf_pmc_attribute), GFP_KERNEL);
 	if (!pmc->block[blk_num].attr_counter)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pmc->block[blk_num].attr_event = devm_kcalloc(
 		dev, pmc->block[blk_num].counters,
 		sizeof(struct mlxbf_pmc_attribute), GFP_KERNEL);
 	if (!pmc->block[blk_num].attr_event)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* "eventX" and "counterX" sysfs to program and read counter values */
 	for (j = 0; j < pmc->block[blk_num].counters; ++j) {
@@ -1815,7 +1815,7 @@ static int mlxbf_pmc_init_perftype_counter(struct device *dev, int blk_num)
 		attr->dev_attr.attr.name = devm_kasprintf(dev, GFP_KERNEL,
 							  "counter%d", j);
 		if (!attr->dev_attr.attr.name)
-			return -ENOMEM;
+			return -EANALMEM;
 		pmc->block[blk_num].block_attr[++i] = &attr->dev_attr.attr;
 		attr = NULL;
 
@@ -1828,7 +1828,7 @@ static int mlxbf_pmc_init_perftype_counter(struct device *dev, int blk_num)
 		attr->dev_attr.attr.name = devm_kasprintf(dev, GFP_KERNEL,
 							  "event%d", j);
 		if (!attr->dev_attr.attr.name)
-			return -ENOMEM;
+			return -EANALMEM;
 		pmc->block[blk_num].block_attr[++i] = &attr->dev_attr.attr;
 		attr = NULL;
 	}
@@ -1850,7 +1850,7 @@ static int mlxbf_pmc_init_perftype_reg(struct device *dev, int blk_num)
 	pmc->block[blk_num].attr_event = devm_kcalloc(
 		dev, j, sizeof(struct mlxbf_pmc_attribute), GFP_KERNEL);
 	if (!pmc->block[blk_num].attr_event)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	while (j > 0) {
 		--j;
@@ -1862,7 +1862,7 @@ static int mlxbf_pmc_init_perftype_reg(struct device *dev, int blk_num)
 		attr->dev_attr.attr.name = devm_kasprintf(dev, GFP_KERNEL,
 							  events[j].evt_name);
 		if (!attr->dev_attr.attr.name)
-			return -ENOMEM;
+			return -EANALMEM;
 		pmc->block[blk_num].block_attr[i] = &attr->dev_attr.attr;
 		attr = NULL;
 		i++;
@@ -1893,7 +1893,7 @@ static int mlxbf_pmc_create_groups(struct device *dev, int blk_num)
 	pmc->block[blk_num].block_attr_grp.name = devm_kasprintf(
 		dev, GFP_KERNEL, pmc->block_name[blk_num]);
 	if (!pmc->block[blk_num].block_attr_grp.name)
-		return -ENOMEM;
+		return -EANALMEM;
 	pmc->groups[pmc->group_num] = &pmc->block[blk_num].block_attr_grp;
 	pmc->group_num++;
 
@@ -1970,7 +1970,7 @@ static int mlxbf_pmc_map_counters(struct device *dev)
 			return ret;
 
 		/*
-		 * Do not remap if the proper SMC calls are supported,
+		 * Do analt remap if the proper SMC calls are supported,
 		 * since the SMC calls expect physical addresses.
 		 */
 		if (pmc->svc_sreg_support)
@@ -1984,7 +1984,7 @@ static int mlxbf_pmc_map_counters(struct device *dev)
 		pmc->block[i].type = info[3];
 
 		if (!pmc->block[i].mmio_base)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ret = mlxbf_pmc_create_groups(dev, i);
 		if (ret)
@@ -2007,15 +2007,15 @@ static int mlxbf_pmc_probe(struct platform_device *pdev)
 	arm_smccc_smc(MLXBF_PMC_SIP_SVC_UID, 0, 0, 0, 0, 0, 0, 0, &res);
 	guid_parse(mlxbf_pmc_svc_uuid_str, &guid);
 	if (!mlxbf_pmc_guid_match(&guid, &res))
-		return -ENODEV;
+		return -EANALDEV;
 
 	pmc = devm_kzalloc(dev, sizeof(struct mlxbf_pmc_context), GFP_KERNEL);
 	if (!pmc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
-	 * ACPI indicates whether we use SMCs to access registers or not.
-	 * If sreg_tbl_perf is not present, just assume we're not using SMCs.
+	 * ACPI indicates whether we use SMCs to access registers or analt.
+	 * If sreg_tbl_perf is analt present, just assume we're analt using SMCs.
 	 */
 	ret = device_property_read_u32(dev, "sec_reg_block",
 				       &pmc->sreg_tbl_perf);
@@ -2030,7 +2030,7 @@ static int mlxbf_pmc_probe(struct platform_device *pdev)
 		arm_smccc_smc(MLXBF_PMC_SIP_SVC_VERSION, 0, 0, 0, 0, 0, 0, 0,
 			      &res);
 		if (res.a0 == MLXBF_PMC_SVC_REQ_MAJOR &&
-		    res.a1 >= MLXBF_PMC_SVC_MIN_MINOR)
+		    res.a1 >= MLXBF_PMC_SVC_MIN_MIANALR)
 			pmc->svc_sreg_support = true;
 		else
 			return -EINVAL;
@@ -2043,7 +2043,7 @@ static int mlxbf_pmc_probe(struct platform_device *pdev)
 	else if (!strcmp(hid, "MLNXBFD2"))
 		pmc->event_set = MLXBF_PMC_EVENT_SET_BF3;
 	else
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = device_property_read_u32(dev, "block_num", &pmc->total_blocks);
 	if (ret)
@@ -2096,6 +2096,6 @@ static struct platform_driver pmc_driver = {
 
 module_platform_driver(pmc_driver);
 
-MODULE_AUTHOR("Shravan Kumar Ramani <sramani@mellanox.com>");
-MODULE_DESCRIPTION("Mellanox PMC driver");
+MODULE_AUTHOR("Shravan Kumar Ramani <sramani@mellaanalx.com>");
+MODULE_DESCRIPTION("Mellaanalx PMC driver");
 MODULE_LICENSE("Dual BSD/GPL");

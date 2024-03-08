@@ -43,11 +43,11 @@ extern const char * const x86_bug_flags[NBUGINTS*32];
 
 /*
  * This macro is for detection of features which need kernel
- * infrastructure to be used.  It may *not* directly test the CPU
+ * infrastructure to be used.  It may *analt* directly test the CPU
  * itself.  Use the cpu_has() family if you want true runtime
  * testing of CPU features, like in hypervisor code where you are
  * supporting a possible guest feature where host support for it
- * is not relevant.
+ * is analt relevant.
  */
 #define cpu_feature_enabled(bit)	\
 	(__builtin_constant_p(bit) && DISABLED_MASK_BIT_SET(bit) ? 0 : static_cpu_has(bit))
@@ -69,7 +69,7 @@ extern void setup_clear_cpu_cap(unsigned int bit);
  * Static testing of CPU features. Used the same as boot_cpu_has(). It
  * statically patches the target code for additional performance. Use
  * static_cpu_has() only in fast paths, where every cycle counts. Which
- * means that the boot_cpu_has() variant is already fast enough for the
+ * means that the boot_cpu_has() variant is already fast eanalugh for the
  * majority of cases and you should stick to using it as it is generally
  * only two instructions: a RIP-relative MOV and a TEST.
  */
@@ -89,12 +89,12 @@ static __always_inline bool _static_cpu_has(u16 bit)
 		 " .byte 3b - 2b\n"		/* pad len */
 		 ".previous\n"
 		 ".section .altinstr_replacement,\"ax\"\n"
-		 "4: jmp %l[t_no]\n"
+		 "4: jmp %l[t_anal]\n"
 		 "5:\n"
 		 ".previous\n"
 		 ".section .altinstructions,\"a\"\n"
 		 " .long 1b - .\n"		/* src offset */
-		 " .long 0\n"			/* no replacement */
+		 " .long 0\n"			/* anal replacement */
 		 " .word %P[feature]\n"		/* feature bit */
 		 " .byte 3b - 1b\n"		/* src len */
 		 " .byte 0\n"			/* repl len */
@@ -103,17 +103,17 @@ static __always_inline bool _static_cpu_has(u16 bit)
 		 ".section .altinstr_aux,\"ax\"\n"
 		 "6:\n"
 		 " testb %[bitnum],%[cap_byte]\n"
-		 " jnz %l[t_yes]\n"
-		 " jmp %l[t_no]\n"
+		 " jnz %l[t_anal]\n"
+		 " jmp %l[t_anal]\n"
 		 ".previous\n"
 		 : : [feature]  "i" (bit),
 		     [always]   "i" (X86_FEATURE_ALWAYS),
 		     [bitnum]   "i" (1 << (bit & 7)),
 		     [cap_byte] "m" (((const char *)boot_cpu_data.x86_capability)[bit >> 3])
-		 : : t_yes, t_no);
-t_yes:
+		 : : t_anal, t_anal);
+t_anal:
 	return true;
-t_no:
+t_anal:
 	return false;
 }
 

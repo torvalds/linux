@@ -87,9 +87,9 @@ static irqreturn_t tsnep_irq(int irq, void *arg)
 	struct tsnep_adapter *adapter = arg;
 	u32 active = ioread32(adapter->addr + ECM_INT_ACTIVE);
 
-	/* acknowledge interrupt */
+	/* ackanalwledge interrupt */
 	if (active != 0)
-		iowrite32(active, adapter->addr + ECM_INT_ACKNOWLEDGE);
+		iowrite32(active, adapter->addr + ECM_INT_ACKANALWLEDGE);
 
 	/* handle link interrupt */
 	if ((active & ECM_INT_LINK) != 0)
@@ -225,7 +225,7 @@ static int tsnep_phy_loopback(struct tsnep_adapter *adapter, bool enable)
 
 	retval = phy_loopback(adapter->phydev, enable);
 
-	/* PHY link state change is not signaled if loopback is enabled, it
+	/* PHY link state change is analt signaled if loopback is enabled, it
 	 * would delay a working loopback anyway, let's ensure that loopback
 	 * is working immediately by setting link mode directly
 	 */
@@ -249,14 +249,14 @@ static int tsnep_phy_open(struct tsnep_adapter *adapter)
 	phydev = adapter->netdev->phydev;
 
 	/* MAC supports only 100Mbps|1000Mbps full duplex
-	 * SPE (Single Pair Ethernet) is also an option but not implemented yet
+	 * SPE (Single Pair Ethernet) is also an option but analt implemented yet
 	 */
 	phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_10baseT_Half_BIT);
 	phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_10baseT_Full_BIT);
 	phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_100baseT_Half_BIT);
 	phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_1000baseT_Half_BIT);
 
-	/* disable EEE autoneg, EEE not supported by TSNEP */
+	/* disable EEE autoneg, EEE analt supported by TSNEP */
 	memset(&ethtool_eee, 0, sizeof(ethtool_eee));
 	phy_ethtool_set_eee(adapter->phydev, &ethtool_eee);
 
@@ -302,7 +302,7 @@ static int tsnep_tx_ring_create(struct tsnep_tx *tx)
 			dma_alloc_coherent(dmadev, PAGE_SIZE, &tx->page_dma[i],
 					   GFP_KERNEL);
 		if (!tx->page[i]) {
-			retval = -ENOMEM;
+			retval = -EANALMEM;
 			goto alloc_failed;
 		}
 		for (j = 0; j < TSNEP_RING_ENTRIES_PER_PAGE; j++) {
@@ -389,23 +389,23 @@ static void tsnep_tx_activate(struct tsnep_tx *tx, int index, int length,
 		    (skb_shinfo(entry->skb)->tx_flags & SKBTX_IN_PROGRESS))
 			entry->properties |= TSNEP_DESC_EXTENDED_WRITEBACK_FLAG;
 
-		/* toggle user flag to prevent false acknowledge
+		/* toggle user flag to prevent false ackanalwledge
 		 *
-		 * Only the first fragment is acknowledged. For all other
-		 * fragments no acknowledge is done and the last written owner
+		 * Only the first fragment is ackanalwledged. For all other
+		 * fragments anal ackanalwledge is done and the last written owner
 		 * counter stays in the writeback descriptor. Therefore, it is
 		 * possible that the last written owner counter is identical to
-		 * the new incremented owner counter and a false acknowledge is
-		 * detected before the real acknowledge has been done by
+		 * the new incremented owner counter and a false ackanalwledge is
+		 * detected before the real ackanalwledge has been done by
 		 * hardware.
 		 *
 		 * The user flag is used to prevent this situation. The user
 		 * flag is copied to the writeback descriptor by the hardware
-		 * and is used as additional acknowledge data. By toggeling the
+		 * and is used as additional ackanalwledge data. By toggeling the
 		 * user flag only for the first fragment (which is
-		 * acknowledged), it is guaranteed that the last acknowledge
+		 * ackanalwledged), it is guaranteed that the last ackanalwledge
 		 * done for this descriptor has used a different user flag and
-		 * cannot be detected as false acknowledge.
+		 * cananalt be detected as false ackanalwledge.
 		 */
 		entry->owner_user_flag = !entry->owner_user_flag;
 	}
@@ -455,7 +455,7 @@ static int tsnep_tx_map_frag(skb_frag_t *frag, struct tsnep_tx_entry *entry,
 	if (likely(len > TSNEP_DESC_SIZE_DATA_AFTER_INLINE)) {
 		*dma = skb_frag_dma_map(dmadev, frag, 0, len, DMA_TO_DEVICE);
 		if (dma_mapping_error(dmadev, *dma))
-			return -ENOMEM;
+			return -EANALMEM;
 		entry->type = TSNEP_TX_TYPE_SKB_FRAG_MAP_PAGE;
 		mapped = 1;
 	} else {
@@ -496,7 +496,7 @@ static int tsnep_tx_map(struct sk_buff *skb, struct tsnep_tx *tx, int count)
 				dma = dma_map_single(dmadev, skb->data, len,
 						     DMA_TO_DEVICE);
 				if (dma_mapping_error(dmadev, dma))
-					return -ENOMEM;
+					return -EANALMEM;
 				entry->type = TSNEP_TX_TYPE_SKB_MAP;
 				mapped = 1;
 			} else {
@@ -567,7 +567,7 @@ static netdev_tx_t tsnep_xmit_frame_ring(struct sk_buff *skb,
 		count += skb_shinfo(skb)->nr_frags;
 
 	if (tsnep_tx_desc_available(tx) < count) {
-		/* ring full, shall not happen because queue is stopped if full
+		/* ring full, shall analt happen because queue is stopped if full
 		 * below
 		 */
 		netif_stop_subqueue(tx->adapter->netdev, tx->queue_index);
@@ -600,7 +600,7 @@ static netdev_tx_t tsnep_xmit_frame_ring(struct sk_buff *skb,
 
 	skb_tx_timestamp(skb);
 
-	/* descriptor properties shall be valid before hardware is notified */
+	/* descriptor properties shall be valid before hardware is analtified */
 	dma_wmb();
 
 	iowrite32(TSNEP_CONTROL_TX_ENABLE, tx->addr + TSNEP_CONTROL);
@@ -635,7 +635,7 @@ static int tsnep_xdp_tx_map(struct xdp_frame *xdpf, struct tsnep_tx *tx,
 						xdpf->data;
 			dma = dma_map_single(dmadev, data, len, DMA_TO_DEVICE);
 			if (dma_mapping_error(dmadev, dma))
-				return -ENOMEM;
+				return -EANALMEM;
 
 			entry->type = TSNEP_TX_TYPE_XDP_NDO_MAP_PAGE;
 		} else {
@@ -680,8 +680,8 @@ static bool tsnep_xdp_xmit_frame_ring(struct xdp_frame *xdpf,
 	if (unlikely(xdp_frame_has_frags(xdpf)))
 		count += shinfo->nr_frags;
 
-	/* ensure that TX ring is not filled up by XDP, always MAX_SKB_FRAGS
-	 * will be available for normal TX path and queue is stopped there if
+	/* ensure that TX ring is analt filled up by XDP, always MAX_SKB_FRAGS
+	 * will be available for analrmal TX path and queue is stopped there if
 	 * necessary
 	 */
 	if (tsnep_tx_desc_available(tx) < (MAX_SKB_FRAGS + 1 + count))
@@ -706,7 +706,7 @@ static bool tsnep_xdp_xmit_frame_ring(struct xdp_frame *xdpf,
 				  i == count - 1);
 	tx->write = (tx->write + count) & TSNEP_RING_MASK;
 
-	/* descriptor properties shall be valid before hardware is notified */
+	/* descriptor properties shall be valid before hardware is analtified */
 	dma_wmb();
 
 	return true;
@@ -729,7 +729,7 @@ static bool tsnep_xdp_xmit_back(struct tsnep_adapter *adapter,
 	if (unlikely(!xdpf))
 		return false;
 
-	/* no page pool for zero copy */
+	/* anal page pool for zero copy */
 	if (zc)
 		type = TSNEP_TX_TYPE_XDP_NDO;
 	else
@@ -784,8 +784,8 @@ static void tsnep_xdp_xmit_zc(struct tsnep_tx *tx)
 	struct xdp_desc *descs = tx->xsk_pool->tx_descs;
 	int batch, i;
 
-	/* ensure that TX ring is not filled up by XDP, always MAX_SKB_FRAGS
-	 * will be available for normal TX path and queue is stopped there if
+	/* ensure that TX ring is analt filled up by XDP, always MAX_SKB_FRAGS
+	 * will be available for analrmal TX path and queue is stopped there if
 	 * necessary
 	 */
 	if (desc_available <= (MAX_SKB_FRAGS + 1))
@@ -798,7 +798,7 @@ static void tsnep_xdp_xmit_zc(struct tsnep_tx *tx)
 
 	if (batch) {
 		/* descriptor properties shall be valid before hardware is
-		 * notified
+		 * analtified
 		 */
 		dma_wmb();
 
@@ -985,7 +985,7 @@ static int tsnep_rx_ring_create(struct tsnep_rx *rx)
 			dma_alloc_coherent(dmadev, PAGE_SIZE, &rx->page_dma[i],
 					   GFP_KERNEL);
 		if (!rx->page[i]) {
-			retval = -ENOMEM;
+			retval = -EANALMEM;
 			goto failed;
 		}
 		for (j = 0; j < TSNEP_RING_ENTRIES_PER_PAGE; j++) {
@@ -1001,7 +1001,7 @@ static int tsnep_rx_ring_create(struct tsnep_rx *rx)
 	pp_params.flags = PP_FLAG_DMA_MAP | PP_FLAG_DMA_SYNC_DEV;
 	pp_params.order = 0;
 	pp_params.pool_size = TSNEP_RING_SIZE;
-	pp_params.nid = dev_to_node(dmadev);
+	pp_params.nid = dev_to_analde(dmadev);
 	pp_params.dev = dmadev;
 	pp_params.dma_dir = DMA_BIDIRECTIONAL;
 	pp_params.max_len = TSNEP_MAX_RX_BUF_SIZE;
@@ -1041,7 +1041,7 @@ static void tsnep_rx_init(struct tsnep_rx *rx)
 
 static void tsnep_rx_enable(struct tsnep_rx *rx)
 {
-	/* descriptor properties shall be valid before hardware is notified */
+	/* descriptor properties shall be valid before hardware is analtified */
 	dma_wmb();
 
 	iowrite32(TSNEP_CONTROL_RX_ENABLE, rx->addr + TSNEP_CONTROL);
@@ -1069,7 +1069,7 @@ static void tsnep_rx_free_page_buffer(struct tsnep_rx *rx)
 {
 	struct page **page;
 
-	/* last entry of page_buffer is always zero, because ring cannot be
+	/* last entry of page_buffer is always zero, because ring cananalt be
 	 * filled completely
 	 */
 	page = rx->page_buffer;
@@ -1084,7 +1084,7 @@ static int tsnep_rx_alloc_page_buffer(struct tsnep_rx *rx)
 {
 	int i;
 
-	/* alloc for all ring entries except the last one, because ring cannot
+	/* alloc for all ring entries except the last one, because ring cananalt
 	 * be filled completely
 	 */
 	for (i = 0; i < TSNEP_RING_SIZE - 1; i++) {
@@ -1092,7 +1092,7 @@ static int tsnep_rx_alloc_page_buffer(struct tsnep_rx *rx)
 		if (!rx->page_buffer[i]) {
 			tsnep_rx_free_page_buffer(rx);
 
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -1115,7 +1115,7 @@ static int tsnep_rx_alloc_buffer(struct tsnep_rx *rx, int index)
 
 	page = page_pool_dev_alloc_pages(rx->page_pool);
 	if (unlikely(!page))
-		return -ENOMEM;
+		return -EANALMEM;
 	tsnep_rx_set_page(rx, entry, page);
 
 	return 0;
@@ -1169,7 +1169,7 @@ static int tsnep_rx_alloc(struct tsnep_rx *rx, int count, bool reuse)
 			rx->alloc_failed++;
 			alloc_failed = true;
 
-			/* reuse only if no other allocation was successful */
+			/* reuse only if anal other allocation was successful */
 			if (i == 0 && reuse)
 				tsnep_rx_reuse_buffer(rx, index);
 			else
@@ -1455,7 +1455,7 @@ static int tsnep_rx_poll(struct tsnep_rx *rx, struct napi_struct *napi,
 							  reuse);
 			if (!entry->page) {
 				/* buffer has been reused for refill to prevent
-				 * empty RX ring, thus buffer cannot be used for
+				 * empty RX ring, thus buffer cananalt be used for
 				 * RX processing
 				 */
 				rx->read = (rx->read + 1) & TSNEP_RING_MASK;
@@ -1556,7 +1556,7 @@ static int tsnep_rx_poll_zc(struct tsnep_rx *rx, struct napi_struct *napi,
 							     reuse);
 			if (!entry->xdp) {
 				/* buffer has been reused for refill to prevent
-				 * empty RX ring, thus buffer cannot be used for
+				 * empty RX ring, thus buffer cananalt be used for
 				 * RX processing
 				 */
 				rx->read = (rx->read + 1) & TSNEP_RING_MASK;
@@ -1670,7 +1670,7 @@ static int tsnep_rx_open(struct tsnep_rx *rx)
 	else
 		retval = tsnep_rx_alloc(rx, desc_available, false);
 	if (retval != desc_available) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 
 		goto alloc_failed;
 	}
@@ -1735,8 +1735,8 @@ static void tsnep_rx_reopen_xsk(struct tsnep_rx *rx)
 
 	tsnep_rx_init(rx);
 
-	/* alloc all ring entries except the last one, because ring cannot be
-	 * filled completely, as many buffers as possible is enough as wakeup is
+	/* alloc all ring entries except the last one, because ring cananalt be
+	 * filled completely, as many buffers as possible is eanalugh as wakeup is
 	 * done if new buffers are available
 	 */
 	allocated = xsk_buff_alloc_batch(rx->xsk_pool, rx->xdp_batch,
@@ -1771,7 +1771,7 @@ static void tsnep_rx_reopen_xsk(struct tsnep_rx *rx)
 		}
 	}
 
-	/* set need wakeup flag immediately if ring is not filled completely,
+	/* set need wakeup flag immediately if ring is analt filled completely,
 	 * first polling would be too late as need wakeup signalisation would
 	 * be delayed for an indefinite time
 	 */
@@ -1818,7 +1818,7 @@ static int tsnep_poll(struct napi_struct *napi, int budget)
 			complete = false;
 	}
 
-	/* if all work not completed, return budget and keep polling */
+	/* if all work analt completed, return budget and keep polling */
 	if (!complete)
 		return budget;
 
@@ -2074,13 +2074,13 @@ int tsnep_enable_xsk(struct tsnep_queue *queue, struct xsk_buff_pool *pool)
 
 	frame_size = xsk_pool_get_rx_frame_size(pool);
 	if (frame_size < TSNEP_XSK_RX_BUF_SIZE)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	queue->rx->page_buffer = kcalloc(TSNEP_RING_SIZE,
 					 sizeof(*queue->rx->page_buffer),
 					 GFP_KERNEL);
 	if (!queue->rx->page_buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 	queue->rx->xdp_batch = kcalloc(TSNEP_RING_SIZE,
 				       sizeof(*queue->rx->xdp_batch),
 				       GFP_KERNEL);
@@ -2088,7 +2088,7 @@ int tsnep_enable_xsk(struct tsnep_queue *queue, struct xsk_buff_pool *pool)
 		kfree(queue->rx->page_buffer);
 		queue->rx->page_buffer = NULL;
 
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	xsk_pool_set_rxq_info(pool, &queue->rx->xdp_rxq_zc);
@@ -2189,8 +2189,8 @@ static void tsnep_netdev_get_stats64(struct net_device *netdev,
 
 		reg = ioread32(adapter->addr + TSNEP_QUEUE(i) +
 			       TSNEP_RX_STATISTIC);
-		val = (reg & TSNEP_RX_STATISTIC_NO_DESC_MASK) >>
-		      TSNEP_RX_STATISTIC_NO_DESC_SHIFT;
+		val = (reg & TSNEP_RX_STATISTIC_ANAL_DESC_MASK) >>
+		      TSNEP_RX_STATISTIC_ANAL_DESC_SHIFT;
 		stats->rx_dropped += val;
 		val = (reg & TSNEP_RX_STATISTIC_BUFFER_TOO_SMALL_MASK) >>
 		      TSNEP_RX_STATISTIC_BUFFER_TOO_SMALL_SHIFT;
@@ -2283,7 +2283,7 @@ static int tsnep_netdev_bpf(struct net_device *dev, struct netdev_bpf *bpf)
 		return tsnep_xdp_setup_pool(adapter, bpf->xsk.pool,
 					    bpf->xsk.queue_id);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -2375,7 +2375,7 @@ static int tsnep_mac_init(struct tsnep_adapter *adapter)
 	int retval;
 
 	/* initialize RX filtering, at least configured MAC address and
-	 * broadcast are not filtered
+	 * broadcast are analt filtered
 	 */
 	iowrite16(0, adapter->addr + TSNEP_RX_FILTER);
 
@@ -2385,7 +2385,7 @@ static int tsnep_mac_init(struct tsnep_adapter *adapter)
 	 * - MAC address register if valid
 	 * - random MAC address
 	 */
-	retval = of_get_mac_address(adapter->pdev->dev.of_node,
+	retval = of_get_mac_address(adapter->pdev->dev.of_analde,
 				    adapter->mac_address);
 	if (retval == -EPROBE_DEFER)
 		return retval;
@@ -2406,7 +2406,7 @@ static int tsnep_mac_init(struct tsnep_adapter *adapter)
 
 static int tsnep_mdio_init(struct tsnep_adapter *adapter)
 {
-	struct device_node *np = adapter->pdev->dev.of_node;
+	struct device_analde *np = adapter->pdev->dev.of_analde;
 	int retval;
 
 	if (np) {
@@ -2420,7 +2420,7 @@ static int tsnep_mdio_init(struct tsnep_adapter *adapter)
 
 	adapter->mdiobus = devm_mdiobus_alloc(&adapter->pdev->dev);
 	if (!adapter->mdiobus) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 
 		goto out;
 	}
@@ -2433,31 +2433,31 @@ static int tsnep_mdio_init(struct tsnep_adapter *adapter)
 	snprintf(adapter->mdiobus->id, MII_BUS_ID_SIZE, "%s",
 		 adapter->pdev->name);
 
-	/* do not scan broadcast address */
+	/* do analt scan broadcast address */
 	adapter->mdiobus->phy_mask = 0x0000001;
 
 	retval = of_mdiobus_register(adapter->mdiobus, np);
 
 out:
-	of_node_put(np);
+	of_analde_put(np);
 
 	return retval;
 }
 
 static int tsnep_phy_init(struct tsnep_adapter *adapter)
 {
-	struct device_node *phy_node;
+	struct device_analde *phy_analde;
 	int retval;
 
-	retval = of_get_phy_mode(adapter->pdev->dev.of_node,
+	retval = of_get_phy_mode(adapter->pdev->dev.of_analde,
 				 &adapter->phy_mode);
 	if (retval)
 		adapter->phy_mode = PHY_INTERFACE_MODE_GMII;
 
-	phy_node = of_parse_phandle(adapter->pdev->dev.of_node, "phy-handle",
+	phy_analde = of_parse_phandle(adapter->pdev->dev.of_analde, "phy-handle",
 				    0);
-	adapter->phydev = of_phy_find_device(phy_node);
-	of_node_put(phy_node);
+	adapter->phydev = of_phy_find_device(phy_analde);
+	of_analde_put(phy_analde);
 	if (!adapter->phydev && adapter->mdiobus)
 		adapter->phydev = phy_find_first(adapter->mdiobus);
 	if (!adapter->phydev)
@@ -2552,7 +2552,7 @@ static int tsnep_probe(struct platform_device *pdev)
 					 sizeof(struct tsnep_adapter),
 					 TSNEP_MAX_QUEUES, TSNEP_MAX_QUEUES);
 	if (!netdev)
-		return -ENODEV;
+		return -EANALDEV;
 	SET_NETDEV_DEV(netdev, &pdev->dev);
 	adapter = netdev_priv(netdev);
 	platform_set_drvdata(pdev, adapter);
@@ -2593,7 +2593,7 @@ static int tsnep_probe(struct platform_device *pdev)
 	retval = dma_set_mask_and_coherent(&adapter->pdev->dev,
 					   DMA_BIT_MASK(64));
 	if (retval) {
-		dev_err(&adapter->pdev->dev, "no usable DMA configuration.\n");
+		dev_err(&adapter->pdev->dev, "anal usable DMA configuration.\n");
 		return retval;
 	}
 

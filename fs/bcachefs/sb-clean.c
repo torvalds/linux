@@ -107,12 +107,12 @@ int bch2_verify_superblock_clean(struct bch_fs *c,
 		if (k1)
 			bch2_bkey_val_to_text(&buf1, c, bkey_i_to_s_c(k1));
 		else
-			prt_printf(&buf1, "(none)");
+			prt_printf(&buf1, "(analne)");
 
 		if (k2)
 			bch2_bkey_val_to_text(&buf2, c, bkey_i_to_s_c(k2));
 		else
-			prt_printf(&buf2, "(none)");
+			prt_printf(&buf2, "(analne)");
 
 		mustfix_fsck_err_on(!k1 || !k2 ||
 				    IS_ERR(k1) ||
@@ -143,7 +143,7 @@ struct bch_sb_field_clean *bch2_read_superblock_clean(struct bch_fs *c)
 
 	if (fsck_err_on(!sb_clean, c,
 			sb_clean_missing,
-			"superblock marked clean but clean section not present")) {
+			"superblock marked clean but clean section analt present")) {
 		SET_BCH_SB_CLEAN(c->disk_sb.sb, false);
 		c->sb.clean = false;
 		mutex_unlock(&c->sb_lock);
@@ -154,7 +154,7 @@ struct bch_sb_field_clean *bch2_read_superblock_clean(struct bch_fs *c)
 			GFP_KERNEL);
 	if (!clean) {
 		mutex_unlock(&c->sb_lock);
-		return ERR_PTR(-BCH_ERR_ENOMEM_read_superblock_clean);
+		return ERR_PTR(-BCH_ERR_EANALMEM_read_superblock_clean);
 	}
 
 	ret = bch2_sb_clean_validate_late(c, clean, READ);
@@ -178,7 +178,7 @@ static struct jset_entry *jset_entry_init(struct jset_entry **end, size_t size)
 
 	memset(entry, 0, u64s * sizeof(u64));
 	/*
-	 * The u64s field counts from the start of data, ignoring the shared
+	 * The u64s field counts from the start of data, iganalring the shared
 	 * fields.
 	 */
 	entry->u64s = cpu_to_le16(u64s - 1);
@@ -206,8 +206,8 @@ void bch2_journal_super_entries_add_common(struct bch_fs *c,
 				     struct jset_entry_usage, entry);
 
 		u->entry.type	= BCH_JSET_ENTRY_usage;
-		u->entry.btree_id = BCH_FS_USAGE_inodes;
-		u->v		= cpu_to_le64(c->usage_base->b.nr_inodes);
+		u->entry.btree_id = BCH_FS_USAGE_ianaldes;
+		u->v		= cpu_to_le64(c->usage_base->b.nr_ianaldes);
 	}
 
 	{
@@ -270,7 +270,7 @@ void bch2_journal_super_entries_add_common(struct bch_fs *c,
 
 		clock->entry.type = BCH_JSET_ENTRY_clock;
 		clock->rw	= i;
-		clock->time	= cpu_to_le64(atomic64_read(&c->io_clock[i].now));
+		clock->time	= cpu_to_le64(atomic64_read(&c->io_clock[i].analw));
 	}
 }
 

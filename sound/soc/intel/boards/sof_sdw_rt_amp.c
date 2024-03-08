@@ -6,7 +6,7 @@
  */
 
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <sound/control.h>
 #include <sound/soc.h>
 #include <sound/soc-acpi.h>
@@ -104,7 +104,7 @@ static const struct dmi_system_id dmi_platform_data[] = {
 static int rt_amp_add_device_props(struct device *sdw_dev)
 {
 	struct property_entry props[3] = {};
-	struct fwnode_handle *fwnode;
+	struct fwanalde_handle *fwanalde;
 	const struct dmi_system_id *dmi_data;
 	const struct rt_amp_platform_data *pdata;
 	unsigned char params[RT_AMP_MAX_BQ_REG];
@@ -120,13 +120,13 @@ static int rt_amp_add_device_props(struct device *sdw_dev)
 	props[0] = PROPERTY_ENTRY_U8_ARRAY("realtek,bq-params", params);
 	props[1] = PROPERTY_ENTRY_U32("realtek,bq-params-cnt", pdata->bq_params_cnt);
 
-	fwnode = fwnode_create_software_node(props, NULL);
-	if (IS_ERR(fwnode))
-		return PTR_ERR(fwnode);
+	fwanalde = fwanalde_create_software_analde(props, NULL);
+	if (IS_ERR(fwanalde))
+		return PTR_ERR(fwanalde);
 
-	ret = device_add_software_node(sdw_dev, to_software_node(fwnode));
+	ret = device_add_software_analde(sdw_dev, to_software_analde(fwanalde));
 
-	fwnode_handle_put(fwnode);
+	fwanalde_handle_put(fwanalde);
 
 	return ret;
 }
@@ -198,7 +198,7 @@ static int first_spk_init(struct snd_soc_pcm_runtime *rtd)
 					  "%s spk:%s",
 					  card->components, codec_name);
 	if (!card->components)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = snd_soc_add_card_controls(card, rt_amp_controls,
 					ARRAY_SIZE(rt_amp_controls));
@@ -290,12 +290,12 @@ int sof_sdw_rt_amp_exit(struct snd_soc_card *card, struct snd_soc_dai_link *dai_
 	struct mc_private *ctx = snd_soc_card_get_drvdata(card);
 
 	if (ctx->amp_dev1) {
-		device_remove_software_node(ctx->amp_dev1);
+		device_remove_software_analde(ctx->amp_dev1);
 		put_device(ctx->amp_dev1);
 	}
 
 	if (ctx->amp_dev2) {
-		device_remove_software_node(ctx->amp_dev2);
+		device_remove_software_analde(ctx->amp_dev2);
 		put_device(ctx->amp_dev2);
 	}
 

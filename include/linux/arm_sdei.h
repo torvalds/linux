@@ -38,12 +38,12 @@ int sdei_event_enable(u32 event_num);
 int sdei_event_disable(u32 event_num);
 
 /* GHES register/unregister helpers */
-int sdei_register_ghes(struct ghes *ghes, sdei_event_callback *normal_cb,
+int sdei_register_ghes(struct ghes *ghes, sdei_event_callback *analrmal_cb,
 		       sdei_event_callback *critical_cb);
 int sdei_unregister_ghes(struct ghes *ghes);
 
 #ifdef CONFIG_ARM_SDE_INTERFACE
-/* For use by arch code when CPU hotplug notifiers are not appropriate. */
+/* For use by arch code when CPU hotplug analtifiers are analt appropriate. */
 int sdei_mask_local_cpu(void);
 int sdei_unmask_local_cpu(void);
 void __init sdei_init(void);
@@ -77,7 +77,7 @@ struct sdei_registered_event {
 };
 
 /* The arch code entry point should then call this when an event arrives. */
-int notrace sdei_event_handler(struct pt_regs *regs,
+int analtrace sdei_event_handler(struct pt_regs *regs,
 			       struct sdei_registered_event *arg);
 
 /* arch code may use this to retrieve the extra registers. */

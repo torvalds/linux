@@ -30,14 +30,14 @@ void arch_jump_label_transform(struct jump_entry *entry,
 		/*
 		 * Encode the PA1.1 "b,n" instruction with a 17-bit
 		 * displacement.  In case we hit the BUG(), we could use
-		 * another branch instruction with a 22-bit displacement on
-		 * 64-bit CPUs instead. But this seems sufficient for now.
+		 * aanalther branch instruction with a 22-bit displacement on
+		 * 64-bit CPUs instead. But this seems sufficient for analw.
 		 */
 		distance -= 8;
 		BUG_ON(distance > 262143 || distance < -262144);
 		insn = 0xe8000002 | reassemble_17(distance >> 2);
 	} else {
-		insn = INSN_NOP;
+		insn = INSN_ANALP;
 	}
 
 	patch_text(addr, insn);

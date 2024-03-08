@@ -4,6 +4,6 @@ Contact:	Pablo Neira Ayuso <pablo@netfilter.org>
 Description:
 	ip_queue has been replaced by nfnetlink_queue which provides
 	more advanced queueing mechanism to user-space. The ip_queue
-	module was already announced to become obsolete years ago.
+	module was already ananalunced to become obsolete years ago.
 
 Users:

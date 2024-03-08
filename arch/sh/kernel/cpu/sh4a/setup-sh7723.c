@@ -23,7 +23,7 @@
 static struct plat_sci_port scif0_platform_data = {
 	.scscr		= SCSCR_REIE,
 	.type           = PORT_SCIF,
-	.regtype	= SCIx_SH4_SCIF_NO_SCSPTR_REGTYPE,
+	.regtype	= SCIx_SH4_SCIF_ANAL_SCSPTR_REGTYPE,
 };
 
 static struct resource scif0_resources[] = {
@@ -44,7 +44,7 @@ static struct platform_device scif0_device = {
 static struct plat_sci_port scif1_platform_data = {
 	.scscr		= SCSCR_REIE,
 	.type           = PORT_SCIF,
-	.regtype	= SCIx_SH4_SCIF_NO_SCSPTR_REGTYPE,
+	.regtype	= SCIx_SH4_SCIF_ANAL_SCSPTR_REGTYPE,
 };
 
 static struct resource scif1_resources[] = {
@@ -65,7 +65,7 @@ static struct platform_device scif1_device = {
 static struct plat_sci_port scif2_platform_data = {
 	.scscr		= SCSCR_REIE,
 	.type           = PORT_SCIF,
-	.regtype	= SCIx_SH4_SCIF_NO_SCSPTR_REGTYPE,
+	.regtype	= SCIx_SH4_SCIF_ANAL_SCSPTR_REGTYPE,
 };
 
 static struct resource scif2_resources[] = {
@@ -339,7 +339,7 @@ static struct platform_device sh7723_usb_host_device = {
 	.name		= "r8a66597_hcd",
 	.id		= 0,
 	.dev = {
-		.dma_mask		= NULL,         /*  not use dma */
+		.dma_mask		= NULL,         /*  analt use dma */
 		.coherent_dma_mask	= 0xffffffff,
 		.platform_data		= &r8a66597_data,
 	},

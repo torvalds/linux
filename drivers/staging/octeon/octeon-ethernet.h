@@ -71,7 +71,7 @@ struct octeon_ethernet {
 	/* Called periodically to check link status */
 	void (*poll)(struct net_device *dev);
 	struct delayed_work	port_periodic_work;
-	struct device_node	*of_node;
+	struct device_analde	*of_analde;
 };
 
 int cvm_oct_free_work(void *work_queue_entry);
@@ -90,7 +90,7 @@ void cvm_oct_adjust_link(struct net_device *dev);
 int cvm_oct_common_stop(struct net_device *dev);
 int cvm_oct_common_open(struct net_device *dev,
 			void (*link_poll)(struct net_device *));
-void cvm_oct_note_carrier(struct octeon_ethernet *priv,
+void cvm_oct_analte_carrier(struct octeon_ethernet *priv,
 			  union cvmx_helper_link_info li);
 void cvm_oct_link_poll(struct net_device *dev);
 

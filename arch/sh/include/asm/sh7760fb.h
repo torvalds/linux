@@ -3,8 +3,8 @@
  * sh7760fb.h -- platform data for SH7760/SH7763 LCDC framebuffer driver.
  *
  * (c) 2006-2008 MSC Vertriebsges.m.b.H.,
- * 			Manuel Lauss <mano@roarinelk.homelinux.net>
- * (c) 2008 Nobuhiro Iwamatsu <iwamatsu.nobuhiro@renesas.com>
+ * 			Manuel Lauss <maanal@roarinelk.homelinux.net>
+ * (c) 2008 Analbuhiro Iwamatsu <iwamatsu.analbuhiro@renesas.com>
  */
 
 #ifndef _ASM_SH_SH7760FB_H
@@ -94,24 +94,24 @@
 #define LDMTR_CL2CNT (1 << 8)
 
 /* Display types supported by the LCDC */
-#define LDMTR_STN_MONO_4       0x00
-#define LDMTR_STN_MONO_8       0x01
+#define LDMTR_STN_MOANAL_4       0x00
+#define LDMTR_STN_MOANAL_8       0x01
 #define LDMTR_STN_COLOR_4      0x08
 #define LDMTR_STN_COLOR_8      0x09
 #define LDMTR_STN_COLOR_12     0x0A
 #define LDMTR_STN_COLOR_16     0x0B
-#define LDMTR_DSTN_MONO_8      0x11
-#define LDMTR_DSTN_MONO_16     0x13
+#define LDMTR_DSTN_MOANAL_8      0x11
+#define LDMTR_DSTN_MOANAL_16     0x13
 #define LDMTR_DSTN_COLOR_8     0x19
 #define LDMTR_DSTN_COLOR_12    0x1A
 #define LDMTR_DSTN_COLOR_16    0x1B
 #define LDMTR_TFT_COLOR_16     0x2B
 
 /* framebuffer color layout */
-#define LDDFR_1BPP_MONO 0x00
-#define LDDFR_2BPP_MONO 0x01
-#define LDDFR_4BPP_MONO 0x02
-#define LDDFR_6BPP_MONO 0x04
+#define LDDFR_1BPP_MOANAL 0x00
+#define LDDFR_2BPP_MOANAL 0x01
+#define LDDFR_4BPP_MOANAL 0x02
+#define LDDFR_6BPP_MOANAL 0x04
 #define LDDFR_4BPP 0x0A
 #define LDDFR_8BPP 0x0C
 #define LDDFR_16BPP_RGB555 0x1D
@@ -136,7 +136,7 @@ struct sh7760fb_platdata {
 	 * xres, yres, hsync_len, vsync_len, sync,
 	 * {left,right,upper,lower}_margin.
 	 * The driver uses the above members to calculate register values
-	 * and memory requirements. Other members are ignored but may
+	 * and memory requirements. Other members are iganalred but may
 	 * be used by other framebuffer layer components.
 	 */
 	struct fb_videomode *def_mode;
@@ -150,8 +150,8 @@ struct sh7760fb_platdata {
 	 * AC Modulation signal (default off)           MCNT
 	 * Hsync-During-Vsync suppression (default off) CL1CNT
 	 * Vsync-during-vsync suppression (default off) CL2CNT
-	 * NOTE: also set a display type!
-	 * (one of LDMTR_{STN,DSTN,TFT}_{MONO,COLOR}_{4,8,12,16})
+	 * ANALTE: also set a display type!
+	 * (one of LDMTR_{STN,DSTN,TFT}_{MOANAL,COLOR}_{4,8,12,16})
 	 */
 	u16 ldmtr;
 
@@ -169,7 +169,7 @@ struct sh7760fb_platdata {
 
 	/* LDACLNR contains the line numbers after which the AC modulation
 	 * signal is to toggle. Set to ZERO for TFTs or displays which
-	 * do not need it. (Chapter 30.3.15 in SH7760 Hardware Manual).
+	 * do analt need it. (Chapter 30.3.15 in SH7760 Hardware Manual).
 	 */
 	u16 ldaclnr;
 
@@ -186,7 +186,7 @@ struct sh7760fb_platdata {
 	int rotate;		/* set to 1 to rotate 90 CCW */
 
 	/* set this to 1 to suppress vsync irq use. */
-	int novsync;
+	int analvsync;
 
 	/* blanking hook for platform. Set this if your platform can do
 	 * more than the LCDC in terms of blanking (e.g. disable clock

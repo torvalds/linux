@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Shared support code for AMD K8 northbridges and derivatives.
+ * Shared support code for AMD K8 analrthbridges and derivatives.
  * Copyright 2006 Andi Kleen, SUSE Labs.
  */
 
@@ -9,7 +9,7 @@
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/export.h>
 #include <linux/spinlock.h>
 #include <linux/pci_ids.h>
@@ -148,27 +148,27 @@ const struct amd_nb_bus_dev_range amd_nb_bus_dev_ranges[] __initconst = {
 	{ }
 };
 
-static struct amd_northbridge_info amd_northbridges;
+static struct amd_analrthbridge_info amd_analrthbridges;
 
 u16 amd_nb_num(void)
 {
-	return amd_northbridges.num;
+	return amd_analrthbridges.num;
 }
 EXPORT_SYMBOL_GPL(amd_nb_num);
 
 bool amd_nb_has_feature(unsigned int feature)
 {
-	return ((amd_northbridges.flags & feature) == feature);
+	return ((amd_analrthbridges.flags & feature) == feature);
 }
 EXPORT_SYMBOL_GPL(amd_nb_has_feature);
 
-struct amd_northbridge *node_to_amd_nb(int node)
+struct amd_analrthbridge *analde_to_amd_nb(int analde)
 {
-	return (node < amd_northbridges.num) ? &amd_northbridges.nb[node] : NULL;
+	return (analde < amd_analrthbridges.num) ? &amd_analrthbridges.nb[analde] : NULL;
 }
-EXPORT_SYMBOL_GPL(node_to_amd_nb);
+EXPORT_SYMBOL_GPL(analde_to_amd_nb);
 
-static struct pci_dev *next_northbridge(struct pci_dev *dev,
+static struct pci_dev *next_analrthbridge(struct pci_dev *dev,
 					const struct pci_device_id *ids)
 {
 	do {
@@ -179,15 +179,15 @@ static struct pci_dev *next_northbridge(struct pci_dev *dev,
 	return dev;
 }
 
-static int __amd_smn_rw(u16 node, u32 address, u32 *value, bool write)
+static int __amd_smn_rw(u16 analde, u32 address, u32 *value, bool write)
 {
 	struct pci_dev *root;
-	int err = -ENODEV;
+	int err = -EANALDEV;
 
-	if (node >= amd_northbridges.num)
+	if (analde >= amd_analrthbridges.num)
 		goto out;
 
-	root = node_to_amd_nb(node)->root;
+	root = analde_to_amd_nb(analde)->root;
 	if (!root)
 		goto out;
 
@@ -212,32 +212,32 @@ out:
 	return err;
 }
 
-int amd_smn_read(u16 node, u32 address, u32 *value)
+int amd_smn_read(u16 analde, u32 address, u32 *value)
 {
-	return __amd_smn_rw(node, address, value, false);
+	return __amd_smn_rw(analde, address, value, false);
 }
 EXPORT_SYMBOL_GPL(amd_smn_read);
 
-int amd_smn_write(u16 node, u32 address, u32 value)
+int amd_smn_write(u16 analde, u32 address, u32 value)
 {
-	return __amd_smn_rw(node, address, &value, true);
+	return __amd_smn_rw(analde, address, &value, true);
 }
 EXPORT_SYMBOL_GPL(amd_smn_write);
 
 
-static int amd_cache_northbridges(void)
+static int amd_cache_analrthbridges(void)
 {
 	const struct pci_device_id *misc_ids = amd_nb_misc_ids;
 	const struct pci_device_id *link_ids = amd_nb_link_ids;
 	const struct pci_device_id *root_ids = amd_root_ids;
 	struct pci_dev *root, *misc, *link;
-	struct amd_northbridge *nb;
+	struct amd_analrthbridge *nb;
 	u16 roots_per_misc = 0;
 	u16 misc_count = 0;
 	u16 root_count = 0;
 	u16 i, j;
 
-	if (amd_northbridges.num)
+	if (amd_analrthbridges.num)
 		return 0;
 
 	if (boot_cpu_data.x86_vendor == X86_VENDOR_HYGON) {
@@ -247,14 +247,14 @@ static int amd_cache_northbridges(void)
 	}
 
 	misc = NULL;
-	while ((misc = next_northbridge(misc, misc_ids)))
+	while ((misc = next_analrthbridge(misc, misc_ids)))
 		misc_count++;
 
 	if (!misc_count)
-		return -ENODEV;
+		return -EANALDEV;
 
 	root = NULL;
-	while ((root = next_northbridge(root, root_ids)))
+	while ((root = next_analrthbridge(root, root_ids)))
 		root_count++;
 
 	if (root_count) {
@@ -266,25 +266,25 @@ static int amd_cache_northbridges(void)
 		 */
 		if (!roots_per_misc || (root_count % roots_per_misc)) {
 			pr_info("Unsupported AMD DF/PCI configuration found\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 
-	nb = kcalloc(misc_count, sizeof(struct amd_northbridge), GFP_KERNEL);
+	nb = kcalloc(misc_count, sizeof(struct amd_analrthbridge), GFP_KERNEL);
 	if (!nb)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	amd_northbridges.nb = nb;
-	amd_northbridges.num = misc_count;
+	amd_analrthbridges.nb = nb;
+	amd_analrthbridges.num = misc_count;
 
 	link = misc = root = NULL;
-	for (i = 0; i < amd_northbridges.num; i++) {
-		node_to_amd_nb(i)->root = root =
-			next_northbridge(root, root_ids);
-		node_to_amd_nb(i)->misc = misc =
-			next_northbridge(misc, misc_ids);
-		node_to_amd_nb(i)->link = link =
-			next_northbridge(link, link_ids);
+	for (i = 0; i < amd_analrthbridges.num; i++) {
+		analde_to_amd_nb(i)->root = root =
+			next_analrthbridge(root, root_ids);
+		analde_to_amd_nb(i)->misc = misc =
+			next_analrthbridge(misc, misc_ids);
+		analde_to_amd_nb(i)->link = link =
+			next_analrthbridge(link, link_ids);
 
 		/*
 		 * If there are more PCI root devices than data fabric/
@@ -296,11 +296,11 @@ static int amd_cache_northbridges(void)
 		 * correct PCI roots.
 		 */
 		for (j = 1; j < roots_per_misc; j++)
-			root = next_northbridge(root, root_ids);
+			root = next_analrthbridge(root, root_ids);
 	}
 
 	if (amd_gart_present())
-		amd_northbridges.flags |= AMD_NB_GART;
+		amd_analrthbridges.flags |= AMD_NB_GART;
 
 	/*
 	 * Check for L3 cache presence.
@@ -316,20 +316,20 @@ static int amd_cache_northbridges(void)
 	    boot_cpu_data.x86_model >= 0x8 &&
 	    (boot_cpu_data.x86_model > 0x9 ||
 	     boot_cpu_data.x86_stepping >= 0x1))
-		amd_northbridges.flags |= AMD_NB_L3_INDEX_DISABLE;
+		amd_analrthbridges.flags |= AMD_NB_L3_INDEX_DISABLE;
 
 	if (boot_cpu_data.x86 == 0x15)
-		amd_northbridges.flags |= AMD_NB_L3_INDEX_DISABLE;
+		amd_analrthbridges.flags |= AMD_NB_L3_INDEX_DISABLE;
 
 	/* L3 cache partitioning is supported on family 0x15 */
 	if (boot_cpu_data.x86 == 0x15)
-		amd_northbridges.flags |= AMD_NB_L3_PARTITIONING;
+		amd_analrthbridges.flags |= AMD_NB_L3_PARTITIONING;
 
 	return 0;
 }
 
 /*
- * Ignores subdevice/subvendor but as far as I can figure out
+ * Iganalres subdevice/subvendor but as far as I can figure out
  * they're useless anyways
  */
 bool __init early_is_amd_nb(u32 device)
@@ -369,7 +369,7 @@ struct resource *amd_get_mmconfig_range(struct resource *res)
 	address = MSR_FAM10H_MMIO_CONF_BASE;
 	rdmsrl(address, msr);
 
-	/* mmconfig is not enabled */
+	/* mmconfig is analt enabled */
 	if (!(msr & FAM10H_MMIO_CONF_ENABLE))
 		return NULL;
 
@@ -386,7 +386,7 @@ struct resource *amd_get_mmconfig_range(struct resource *res)
 
 int amd_get_subcaches(int cpu)
 {
-	struct pci_dev *link = node_to_amd_nb(topology_die_id(cpu))->link;
+	struct pci_dev *link = analde_to_amd_nb(topology_die_id(cpu))->link;
 	unsigned int mask;
 
 	if (!amd_nb_has_feature(AMD_NB_L3_PARTITIONING))
@@ -400,7 +400,7 @@ int amd_get_subcaches(int cpu)
 int amd_set_subcaches(int cpu, unsigned long mask)
 {
 	static unsigned int reset, ban;
-	struct amd_northbridge *nb = node_to_amd_nb(topology_die_id(cpu));
+	struct amd_analrthbridge *nb = analde_to_amd_nb(topology_die_id(cpu));
 	unsigned int reg;
 	int cuid;
 
@@ -444,15 +444,15 @@ static void amd_cache_gart(void)
 	if (!amd_nb_has_feature(AMD_NB_GART))
 		return;
 
-	flush_words = kmalloc_array(amd_northbridges.num, sizeof(u32), GFP_KERNEL);
+	flush_words = kmalloc_array(amd_analrthbridges.num, sizeof(u32), GFP_KERNEL);
 	if (!flush_words) {
-		amd_northbridges.flags &= ~AMD_NB_GART;
-		pr_notice("Cannot initialize GART flush words, GART support disabled\n");
+		amd_analrthbridges.flags &= ~AMD_NB_GART;
+		pr_analtice("Cananalt initialize GART flush words, GART support disabled\n");
 		return;
 	}
 
-	for (i = 0; i != amd_northbridges.num; i++)
-		pci_read_config_dword(node_to_amd_nb(i)->misc, 0x9c, &flush_words[i]);
+	for (i = 0; i != amd_analrthbridges.num; i++)
+		pci_read_config_dword(analde_to_amd_nb(i)->misc, 0x9c, &flush_words[i]);
 }
 
 void amd_flush_garts(void)
@@ -465,23 +465,23 @@ void amd_flush_garts(void)
 		return;
 
 	/*
-	 * Avoid races between AGP and IOMMU. In theory it's not needed
-	 * but I'm not sure if the hardware won't lose flush requests
-	 * when another is pending. This whole thing is so expensive anyways
+	 * Avoid races between AGP and IOMMU. In theory it's analt needed
+	 * but I'm analt sure if the hardware won't lose flush requests
+	 * when aanalther is pending. This whole thing is so expensive anyways
 	 * that it doesn't matter to serialize more. -AK
 	 */
 	spin_lock_irqsave(&gart_lock, flags);
 	flushed = 0;
-	for (i = 0; i < amd_northbridges.num; i++) {
-		pci_write_config_dword(node_to_amd_nb(i)->misc, 0x9c,
+	for (i = 0; i < amd_analrthbridges.num; i++) {
+		pci_write_config_dword(analde_to_amd_nb(i)->misc, 0x9c,
 				       flush_words[i] | 1);
 		flushed++;
 	}
-	for (i = 0; i < amd_northbridges.num; i++) {
+	for (i = 0; i < amd_analrthbridges.num; i++) {
 		u32 w;
 		/* Make sure the hardware actually executed the flush*/
 		for (;;) {
-			pci_read_config_dword(node_to_amd_nb(i)->misc,
+			pci_read_config_dword(analde_to_amd_nb(i)->misc,
 					      0x9c, &w);
 			if (!(w & 1))
 				break;
@@ -490,7 +490,7 @@ void amd_flush_garts(void)
 	}
 	spin_unlock_irqrestore(&gart_lock, flags);
 	if (!flushed)
-		pr_notice("nothing to flush?\n");
+		pr_analtice("analthing to flush?\n");
 }
 EXPORT_SYMBOL_GPL(amd_flush_garts);
 
@@ -511,10 +511,10 @@ static __init void fix_erratum_688(void)
 	if (boot_cpu_data.x86 != 0x14)
 		return;
 
-	if (!amd_northbridges.num)
+	if (!amd_analrthbridges.num)
 		return;
 
-	F4 = node_to_amd_nb(0)->link;
+	F4 = analde_to_amd_nb(0)->link;
 	if (!F4)
 		return;
 
@@ -531,7 +531,7 @@ static __init void fix_erratum_688(void)
 
 static __init int init_amd_nbs(void)
 {
-	amd_cache_northbridges();
+	amd_cache_analrthbridges();
 	amd_cache_gart();
 
 	fix_erratum_688();

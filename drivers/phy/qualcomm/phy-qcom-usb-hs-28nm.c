@@ -30,7 +30,7 @@
 #define DM_0_1				BIT(1)
 
 enum hsphy_voltage {
-	VOL_NONE,
+	VOL_ANALNE,
 	VOL_MIN,
 	VOL_MAX,
 	VOL_NUM,
@@ -107,7 +107,7 @@ static void qcom_snps_hsphy_enable_hv_interrupts(struct hsphy_priv *priv)
 		val |= DP_0_1 | DM_1_0;
 		break;
 	default:
-		/* No device connected */
+		/* Anal device connected */
 		val |= DP_0_1 | DM_0_1;
 		break;
 	}
@@ -314,7 +314,7 @@ static int qcom_snps_hsphy_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->base))
@@ -324,7 +324,7 @@ static int qcom_snps_hsphy_probe(struct platform_device *pdev)
 	priv->clks = devm_kcalloc(dev, priv->num_clks, sizeof(*priv->clks),
 				  GFP_KERNEL);
 	if (!priv->clks)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < priv->num_clks; i++)
 		priv->clks[i].id = qcom_snps_hsphy_clks[i];
@@ -352,7 +352,7 @@ static int qcom_snps_hsphy_probe(struct platform_device *pdev)
 	/* Get device match data */
 	priv->data = device_get_match_data(dev);
 
-	phy = devm_phy_create(dev, dev->of_node, &qcom_snps_hsphy_ops);
+	phy = devm_phy_create(dev, dev->of_analde, &qcom_snps_hsphy_ops);
 	if (IS_ERR(phy))
 		return PTR_ERR(phy);
 

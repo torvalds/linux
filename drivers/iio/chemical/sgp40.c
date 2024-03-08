@@ -37,7 +37,7 @@
  */
 #define SGP40_CALC_POWER	14
 
-#define SGP40_CRC8_POLYNOMIAL	0x31
+#define SGP40_CRC8_POLYANALMIAL	0x31
 #define SGP40_CRC8_INIT		0xff
 
 DECLARE_CRC8_TABLE(sgp40_crc8_table);
@@ -321,13 +321,13 @@ static int sgp40_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	data->client = client;
 	data->dev = dev;
 
-	crc8_populate_msb(sgp40_crc8_table, SGP40_CRC8_POLYNOMIAL);
+	crc8_populate_msb(sgp40_crc8_table, SGP40_CRC8_POLYANALMIAL);
 
 	mutex_init(&data->lock);
 

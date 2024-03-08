@@ -63,7 +63,7 @@
 
 /*
  * The lowest value for the valid tm_year. RTC hardware would take incorrectly
- * tm_year 100 as not a leap year and thus it is also required being excluded
+ * tm_year 100 as analt a leap year and thus it is also required being excluded
  * from the valid options.
  */
 #define MTK_RTC_TM_YR_L		(MTK_RTC_TM_YR_OFFSET + 1)
@@ -155,9 +155,9 @@ static void mtk_rtc_get_alarm_or_time(struct mtk_rtc *hw, struct rtc_time *tm,
 	u32 year, mon, mday, wday, hour, min, sec;
 
 	/*
-	 * Read again until the field of the second is not changed which
-	 * ensures all fields in the consistent state. Note that MTK_SEC must
-	 * be read first. In this way, it guarantees the others remain not
+	 * Read again until the field of the second is analt changed which
+	 * ensures all fields in the consistent state. Analte that MTK_SEC must
+	 * be read first. In this way, it guarantees the others remain analt
 	 * changed when the results for two MTK_SEC consecutive reads are same.
 	 */
 	do {
@@ -214,7 +214,7 @@ static irqreturn_t mtk_rtc_alarmirq(int irq, void *id)
 		return IRQ_HANDLED;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static int mtk_rtc_gettime(struct device *dev, struct rtc_time *tm)
@@ -307,7 +307,7 @@ static int mtk_rtc_probe(struct platform_device *pdev)
 
 	hw = devm_kzalloc(&pdev->dev, sizeof(*hw), GFP_KERNEL);
 	if (!hw)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, hw);
 
@@ -317,7 +317,7 @@ static int mtk_rtc_probe(struct platform_device *pdev)
 
 	hw->clk = devm_clk_get(&pdev->dev, "rtc");
 	if (IS_ERR(hw->clk)) {
-		dev_err(&pdev->dev, "No clock\n");
+		dev_err(&pdev->dev, "Anal clock\n");
 		return PTR_ERR(hw->clk);
 	}
 

@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2013 Roman Rolinsky
  *
- * Based on fb_ili9325.c by Noralf Tronnes
+ * Based on fb_ili9325.c by Analralf Tronnes
  * Based on ili9325.c by Jeroen Domburg
  * Init code from UTFT library by Henning Karlsen
  */

@@ -213,7 +213,7 @@ static ssize_t lpc_debug_read(struct file *filp, char __user *ubuf,
 			return -ENXIO;
 
 		/*
-		 * Now there is some trickery with the data returned by OPAL
+		 * Analw there is some trickery with the data returned by OPAL
 		 * as it's the desired data right justified in a 32-bit BE
 		 * word.
 		 *
@@ -304,7 +304,7 @@ static ssize_t lpc_debug_write(struct file *filp, const char __user *ubuf,
 		 * it's different to handle. We need to pass the value to OPAL in
 		 * a register whose layout depends on the access size. We want
 		 * to reproduce the memory layout of the user, however we aren't
-		 * doing a load from user and a store to another memory location
+		 * doing a load from user and a store to aanalther memory location
 		 * which would achieve that. Here we pass the value to OPAL via
 		 * a register which is expected to contain the "BE" interpretation
 		 * of the byte sequence. IE: for a 32-bit access, byte 0 should be
@@ -357,7 +357,7 @@ static int opal_lpc_debugfs_create_type(struct dentry *folder,
 	struct lpc_debugfs_entry *entry;
 	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry)
-		return -ENOMEM;
+		return -EANALMEM;
 	entry->lpc_type = type;
 	debugfs_create_file(fname, 0600, folder, entry, &lpc_fops);
 	return 0;
@@ -369,7 +369,7 @@ static int opal_lpc_init_debugfs(void)
 	int rc = 0;
 
 	if (opal_lpc_chip_id < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	root = debugfs_create_dir("lpc", arch_debugfs_dir);
 
@@ -383,20 +383,20 @@ machine_device_initcall(powernv, opal_lpc_init_debugfs);
 
 void __init opal_lpc_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
 	/*
 	 * Look for a Power8 LPC bus tagged as "primary",
 	 * we currently support only one though the OPAL APIs
 	 * support any number.
 	 */
-	for_each_compatible_node(np, NULL, "ibm,power8-lpc") {
+	for_each_compatible_analde(np, NULL, "ibm,power8-lpc") {
 		if (!of_device_is_available(np))
 			continue;
 		if (!of_get_property(np, "primary", NULL))
 			continue;
 		opal_lpc_chip_id = of_get_ibm_chip_id(np);
-		of_node_put(np);
+		of_analde_put(np);
 		break;
 	}
 	if (opal_lpc_chip_id < 0)
@@ -406,9 +406,9 @@ void __init opal_lpc_init(void)
 	if (of_property_present(np, "ranges")) {
 		pr_info("OPAL: Found memory mapped LPC bus on chip %d\n",
 			opal_lpc_chip_id);
-		isa_bridge_init_non_pci(np);
+		isa_bridge_init_analn_pci(np);
 	} else {
-		pr_info("OPAL: Found non-mapped LPC bus on chip %d\n",
+		pr_info("OPAL: Found analn-mapped LPC bus on chip %d\n",
 			opal_lpc_chip_id);
 
 		/* Setup special IO ops */

@@ -99,7 +99,7 @@ static int stk17ta8_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	unsigned int century;
 	u8 flags;
 
-	/* give enough time to update RTC in case of continuous read */
+	/* give eanalugh time to update RTC in case of continuous read */
 	if (pdata->last_jiffies == jiffies)
 		msleep(1);
 	pdata->last_jiffies = jiffies;
@@ -204,7 +204,7 @@ static irqreturn_t stk17ta8_rtc_interrupt(int irq, void *dev_id)
 		rtc_update_irq(pdata->rtc, 1, events);
 	}
 	spin_unlock(&pdata->lock);
-	return events ? IRQ_HANDLED : IRQ_NONE;
+	return events ? IRQ_HANDLED : IRQ_ANALNE;
 }
 
 static int stk17ta8_rtc_alarm_irq_enable(struct device *dev,
@@ -272,7 +272,7 @@ static int stk17ta8_rtc_probe(struct platform_device *pdev)
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ioaddr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ioaddr))
@@ -280,7 +280,7 @@ static int stk17ta8_rtc_probe(struct platform_device *pdev)
 	pdata->ioaddr = ioaddr;
 	pdata->irq = platform_get_irq(pdev, 0);
 
-	/* turn RTC on if it was not on */
+	/* turn RTC on if it was analt on */
 	cal = readb(ioaddr + RTC_CALIBRATION);
 	if (cal & RTC_STOP) {
 		cal &= RTC_CAL_MASK;
@@ -301,7 +301,7 @@ static int stk17ta8_rtc_probe(struct platform_device *pdev)
 				stk17ta8_rtc_interrupt,
 				IRQF_SHARED,
 				pdev->name, pdev) < 0) {
-			dev_warn(&pdev->dev, "interrupt not available.\n");
+			dev_warn(&pdev->dev, "interrupt analt available.\n");
 			pdata->irq = 0;
 		}
 	}

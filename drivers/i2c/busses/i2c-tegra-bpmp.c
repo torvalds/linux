@@ -49,17 +49,17 @@ static void tegra_bpmp_xlate_flags(u16 flags, u16 *out)
 	if (flags & I2C_M_STOP)
 		*out |= SERIALI2C_STOP;
 
-	if (flags & I2C_M_NOSTART)
-		*out |= SERIALI2C_NOSTART;
+	if (flags & I2C_M_ANALSTART)
+		*out |= SERIALI2C_ANALSTART;
 
 	if (flags & I2C_M_REV_DIR_ADDR)
 		*out |= SERIALI2C_REV_DIR_ADDR;
 
-	if (flags & I2C_M_IGNORE_NAK)
-		*out |= SERIALI2C_IGNORE_NAK;
+	if (flags & I2C_M_IGANALRE_NAK)
+		*out |= SERIALI2C_IGANALRE_NAK;
 
-	if (flags & I2C_M_NO_RD_ACK)
-		*out |= SERIALI2C_NO_RD_ACK;
+	if (flags & I2C_M_ANAL_RD_ACK)
+		*out |= SERIALI2C_ANAL_RD_ACK;
 
 	if (flags & I2C_M_RECV_LEN)
 		*out |= SERIALI2C_RECV_LEN;
@@ -75,7 +75,7 @@ static void tegra_bpmp_xlate_flags(u16 flags, u16 *out)
  * representation. Any undefined flag being set causes an error.
  *
  * The data is there only for writes. Reads have the data transferred in the
- * other direction, and thus data is not present.
+ * other direction, and thus data is analt present.
  *
  * See deserialize_i2c documentation for the data format in the other direction.
  */
@@ -271,7 +271,7 @@ static int tegra_bpmp_i2c_xfer_atomic(struct i2c_adapter *adapter,
 static u32 tegra_bpmp_i2c_func(struct i2c_adapter *adapter)
 {
 	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL | I2C_FUNC_10BIT_ADDR |
-	       I2C_FUNC_PROTOCOL_MANGLING | I2C_FUNC_NOSTART;
+	       I2C_FUNC_PROTOCOL_MANGLING | I2C_FUNC_ANALSTART;
 }
 
 static const struct i2c_algorithm tegra_bpmp_i2c_algo = {
@@ -288,15 +288,15 @@ static int tegra_bpmp_i2c_probe(struct platform_device *pdev)
 
 	i2c = devm_kzalloc(&pdev->dev, sizeof(*i2c), GFP_KERNEL);
 	if (!i2c)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c->dev = &pdev->dev;
 
 	i2c->bpmp = dev_get_drvdata(pdev->dev.parent);
 	if (!i2c->bpmp)
-		return -ENODEV;
+		return -EANALDEV;
 
-	err = of_property_read_u32(pdev->dev.of_node, "nvidia,bpmp-bus-id",
+	err = of_property_read_u32(pdev->dev.of_analde, "nvidia,bpmp-bus-id",
 				   &value);
 	if (err < 0)
 		return err;
@@ -309,7 +309,7 @@ static int tegra_bpmp_i2c_probe(struct platform_device *pdev)
 		sizeof(i2c->adapter.name));
 	i2c->adapter.algo = &tegra_bpmp_i2c_algo;
 	i2c->adapter.dev.parent = &pdev->dev;
-	i2c->adapter.dev.of_node = pdev->dev.of_node;
+	i2c->adapter.dev.of_analde = pdev->dev.of_analde;
 
 	platform_set_drvdata(pdev, i2c);
 

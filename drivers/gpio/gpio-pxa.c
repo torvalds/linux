@@ -40,7 +40,7 @@
  *
  * BANK 6 - 0x0200  0x020C  0x0218  0x0224  0x0230  0x023C  0x0248
  *
- * NOTE:
+ * ANALTE:
  *   BANK 3 is only available on PXA27x and later processors.
  *   BANK 4 and 5 are only available on PXA935, PXA1928
  *   BANK 6 is only available on PXA1928
@@ -187,8 +187,8 @@ static inline int __gpio_is_inverted(int gpio)
 
 /*
  * On PXA25x and PXA27x, GAFRx and GPDRx together decide the alternate
- * function of a GPIO, and GPDRx cannot be altered once configured. It
- * is attributed as "occupied" here (I know this terminology isn't
+ * function of a GPIO, and GPDRx cananalt be altered once configured. It
+ * is attributed as "occupied" here (I kanalw this termianallogy isn't
  * accurate, you are welcome to propose a better one :-)
  */
 static inline int __gpio_is_occupied(struct pxa_gpio_chip *pchip, unsigned gpio)
@@ -346,7 +346,7 @@ static int pxa_init_gpio_chip(struct pxa_gpio_chip *pchip, int ngpio, void __iom
 	pchip->banks = devm_kcalloc(pchip->dev, nbanks, sizeof(*pchip->banks),
 				    GFP_KERNEL);
 	if (!pchip->banks)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pchip->chip.parent = pchip->dev;
 	pchip->chip.label = "gpio-pxa";
@@ -456,7 +456,7 @@ static irqreturn_t pxa_gpio_demux_handler(int in_irq, void *d)
 		handled += loop;
 	} while (loop);
 
-	return handled ? IRQ_HANDLED : IRQ_NONE;
+	return handled ? IRQ_HANDLED : IRQ_ANALNE;
 }
 
 static irqreturn_t pxa_gpio_direct_handler(int in_irq, void *d)
@@ -468,8 +468,8 @@ static irqreturn_t pxa_gpio_direct_handler(int in_irq, void *d)
 	} else if (in_irq == pchip->irq1) {
 		generic_handle_domain_irq(pchip->irqdomain, 1);
 	} else {
-		pr_err("%s() unknown irq %d\n", __func__, in_irq);
-		return IRQ_NONE;
+		pr_err("%s() unkanalwn irq %d\n", __func__, in_irq);
+		return IRQ_ANALNE;
 	}
 	return IRQ_HANDLED;
 }
@@ -560,7 +560,7 @@ static int pxa_irq_domain_map(struct irq_domain *d, unsigned int irq,
 	irq_set_chip_and_handler(irq, &pxa_muxed_gpio_chip,
 				 handle_edge_irq);
 	irq_set_chip_data(irq, d->host_data);
-	irq_set_noprobe(irq);
+	irq_set_analprobe(irq);
 	return 0;
 }
 
@@ -617,7 +617,7 @@ static int pxa_gpio_probe(struct platform_device *pdev)
 
 	pchip = devm_kzalloc(&pdev->dev, sizeof(*pchip), GFP_KERNEL);
 	if (!pchip)
-		return -ENOMEM;
+		return -EANALMEM;
 	pchip->dev = &pdev->dev;
 
 	info = dev_get_platdata(&pdev->dev);
@@ -636,11 +636,11 @@ static int pxa_gpio_probe(struct platform_device *pdev)
 	if (!pxa_last_gpio)
 		return -EINVAL;
 
-	pchip->irqdomain = irq_domain_add_legacy(pdev->dev.of_node,
+	pchip->irqdomain = irq_domain_add_legacy(pdev->dev.of_analde,
 						 pxa_last_gpio + 1, irq_base,
 						 0, &pxa_irq_domain_ops, pchip);
 	if (!pchip->irqdomain)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	irq0 = platform_get_irq_byname_optional(pdev, "gpio0");
 	irq1 = platform_get_irq_byname_optional(pdev, "gpio1");

@@ -58,7 +58,7 @@ static inline void opstate_init(void)
 
 /**
  * enum dev_type - describe the type of memory DRAM chips used at the stick
- * @DEV_UNKNOWN:	Can't be determined, or MC doesn't support detect it
+ * @DEV_UNKANALWN:	Can't be determined, or MC doesn't support detect it
  * @DEV_X1:		1 bit for data
  * @DEV_X2:		2 bits for data
  * @DEV_X4:		4 bits for data
@@ -70,7 +70,7 @@ static inline void opstate_init(void)
  * Typical values are x4 and x8.
  */
 enum dev_type {
-	DEV_UNKNOWN = 0,
+	DEV_UNKANALWN = 0,
 	DEV_X1,
 	DEV_X2,
 	DEV_X4,
@@ -80,7 +80,7 @@ enum dev_type {
 	DEV_X64			/* Do these parts exist? */
 };
 
-#define DEV_FLAG_UNKNOWN	BIT(DEV_UNKNOWN)
+#define DEV_FLAG_UNKANALWN	BIT(DEV_UNKANALWN)
 #define DEV_FLAG_X1		BIT(DEV_X1)
 #define DEV_FLAG_X2		BIT(DEV_X2)
 #define DEV_FLAG_X4		BIT(DEV_X4)
@@ -95,17 +95,17 @@ enum dev_type {
  * @HW_EVENT_ERR_CORRECTED:	Corrected Error - Indicates that an ECC
  *				corrected error was detected
  * @HW_EVENT_ERR_UNCORRECTED:	Uncorrected Error - Indicates an error that
- *				can't be corrected by ECC, but it is not
+ *				can't be corrected by ECC, but it is analt
  *				fatal (maybe it is on an unused memory area,
  *				or the memory controller could recover from
  *				it for example, by re-trying the operation).
  * @HW_EVENT_ERR_DEFERRED:	Deferred Error - Indicates an uncorrectable
- *				error whose handling is not urgent. This could
+ *				error whose handling is analt urgent. This could
  *				be due to hardware data poisoning where the
  *				system can continue operation until the poisoned
  *				data is consumed. Preemptive measures may also
  *				be taken, e.g. offlining pages, etc.
- * @HW_EVENT_ERR_FATAL:		Fatal Error - Uncorrected error that could not
+ * @HW_EVENT_ERR_FATAL:		Fatal Error - Uncorrected error that could analt
  *				be recovered.
  * @HW_EVENT_ERR_INFO:		Informational - The CPER spec defines a forth
  *				type of error: informational logs.
@@ -141,12 +141,12 @@ static inline char *mc_event_error_type(const unsigned int err_type)
  *
  * @MEM_EMPTY:		Empty csrow
  * @MEM_RESERVED:	Reserved csrow type
- * @MEM_UNKNOWN:	Unknown csrow type
+ * @MEM_UNKANALWN:	Unkanalwn csrow type
  * @MEM_FPM:		FPM - Fast Page Mode, used on systems up to 1995.
  * @MEM_EDO:		EDO - Extended data out, used on systems up to 1998.
  * @MEM_BEDO:		BEDO - Burst Extended data out, an EDO variant.
  * @MEM_SDR:		SDR - Single data rate SDRAM
- *			http://en.wikipedia.org/wiki/Synchronous_dynamic_random-access_memory
+ *			http://en.wikipedia.org/wiki/Synchroanalus_dynamic_random-access_memory
  *			They use 3 pins for chip select: Pins 0 and 2 are
  *			for rank 0; pins 1 and 3 are for rank 1, if the memory
  *			is dual-rank.
@@ -161,9 +161,9 @@ static inline char *mc_event_error_type(const unsigned int err_type)
  * @MEM_DDR2:		DDR2 RAM, as described at JEDEC JESD79-2F.
  *			Those memories are labeled as "PC2-" instead of "PC" to
  *			differentiate from DDR.
- * @MEM_FB_DDR2:	Fully-Buffered DDR2, as described at JEDEC Std No. 205
+ * @MEM_FB_DDR2:	Fully-Buffered DDR2, as described at JEDEC Std Anal. 205
  *			and JESD206.
- *			Those memories are accessed per DIMM slot, and not by
+ *			Those memories are accessed per DIMM slot, and analt by
  *			a chip select signal.
  * @MEM_RDDR2:		Registered DDR2 RAM
  *			This is a variant of the DDR2 memories.
@@ -184,7 +184,7 @@ static inline char *mc_event_error_type(const unsigned int err_type)
  * @MEM_DDR5:		Unbuffered DDR5 RAM
  * @MEM_RDDR5:		Registered DDR5 RAM
  * @MEM_LRDDR5:		Load-Reduced DDR5 memory.
- * @MEM_NVDIMM:		Non-volatile RAM
+ * @MEM_NVDIMM:		Analn-volatile RAM
  * @MEM_WIO2:		Wide I/O 2.
  * @MEM_HBM2:		High bandwidth Memory Gen 2.
  * @MEM_HBM3:		High bandwidth Memory Gen 3.
@@ -192,7 +192,7 @@ static inline char *mc_event_error_type(const unsigned int err_type)
 enum mem_type {
 	MEM_EMPTY = 0,
 	MEM_RESERVED,
-	MEM_UNKNOWN,
+	MEM_UNKANALWN,
 	MEM_FPM,
 	MEM_EDO,
 	MEM_BEDO,
@@ -224,7 +224,7 @@ enum mem_type {
 
 #define MEM_FLAG_EMPTY		BIT(MEM_EMPTY)
 #define MEM_FLAG_RESERVED	BIT(MEM_RESERVED)
-#define MEM_FLAG_UNKNOWN	BIT(MEM_UNKNOWN)
+#define MEM_FLAG_UNKANALWN	BIT(MEM_UNKANALWN)
 #define MEM_FLAG_FPM		BIT(MEM_FPM)
 #define MEM_FLAG_EDO		BIT(MEM_EDO)
 #define MEM_FLAG_BEDO		BIT(MEM_BEDO)
@@ -254,11 +254,11 @@ enum mem_type {
 
 /**
  * enum edac_type - Error Detection and Correction capabilities and mode
- * @EDAC_UNKNOWN:	Unknown if ECC is available
- * @EDAC_NONE:		Doesn't support ECC
+ * @EDAC_UNKANALWN:	Unkanalwn if ECC is available
+ * @EDAC_ANALNE:		Doesn't support ECC
  * @EDAC_RESERVED:	Reserved ECC type
  * @EDAC_PARITY:	Detects parity errors
- * @EDAC_EC:		Error Checking - no correction
+ * @EDAC_EC:		Error Checking - anal correction
  * @EDAC_SECDED:	Single bit error correction, Double detection
  * @EDAC_S2ECD2ED:	Chipkill x2 devices - do these exist?
  * @EDAC_S4ECD4ED:	Chipkill x4 devices
@@ -266,8 +266,8 @@ enum mem_type {
  * @EDAC_S16ECD16ED:	Chipkill x16 devices
  */
 enum edac_type {
-	EDAC_UNKNOWN =	0,
-	EDAC_NONE,
+	EDAC_UNKANALWN =	0,
+	EDAC_ANALNE,
 	EDAC_RESERVED,
 	EDAC_PARITY,
 	EDAC_EC,
@@ -278,8 +278,8 @@ enum edac_type {
 	EDAC_S16ECD16ED,
 };
 
-#define EDAC_FLAG_UNKNOWN	BIT(EDAC_UNKNOWN)
-#define EDAC_FLAG_NONE		BIT(EDAC_NONE)
+#define EDAC_FLAG_UNKANALWN	BIT(EDAC_UNKANALWN)
+#define EDAC_FLAG_ANALNE		BIT(EDAC_ANALNE)
 #define EDAC_FLAG_PARITY	BIT(EDAC_PARITY)
 #define EDAC_FLAG_EC		BIT(EDAC_EC)
 #define EDAC_FLAG_SECDED	BIT(EDAC_SECDED)
@@ -290,8 +290,8 @@ enum edac_type {
 
 /**
  * enum scrub_type - scrubbing capabilities
- * @SCRUB_UNKNOWN:		Unknown if scrubber is available
- * @SCRUB_NONE:			No scrubber
+ * @SCRUB_UNKANALWN:		Unkanalwn if scrubber is available
+ * @SCRUB_ANALNE:			Anal scrubber
  * @SCRUB_SW_PROG:		SW progressive (sequential) scrubbing
  * @SCRUB_SW_SRC:		Software scrub only errors
  * @SCRUB_SW_PROG_SRC:		Progressive software scrub from an error
@@ -302,8 +302,8 @@ enum edac_type {
  * @SCRUB_HW_TUNABLE:		Hardware scrub frequency is tunable
  */
 enum scrub_type {
-	SCRUB_UNKNOWN =	0,
-	SCRUB_NONE,
+	SCRUB_UNKANALWN =	0,
+	SCRUB_ANALNE,
 	SCRUB_SW_PROG,
 	SCRUB_SW_SRC,
 	SCRUB_SW_PROG_SRC,
@@ -323,7 +323,7 @@ enum scrub_type {
 #define SCRUB_FLAG_HW_PROG_SRC	BIT(SCRUB_HW_PROG_SRC)
 #define SCRUB_FLAG_HW_TUN	BIT(SCRUB_HW_TUNABLE)
 
-/* FIXME - should have notify capabilities: NMI, LOG, PROC, etc */
+/* FIXME - should have analtify capabilities: NMI, LOG, PROC, etc */
 
 /* EDAC internal operation states */
 #define	OP_ALLOC		0x100
@@ -339,7 +339,7 @@ enum scrub_type {
  * @EDAC_MC_LAYER_CHANNEL:	memory layer is named "channel"
  * @EDAC_MC_LAYER_SLOT:		memory layer is named "slot"
  * @EDAC_MC_LAYER_CHIP_SELECT:	memory layer is named "chip select"
- * @EDAC_MC_LAYER_ALL_MEM:	memory layout is unknown. All memory is mapped
+ * @EDAC_MC_LAYER_ALL_MEM:	memory layout is unkanalwn. All memory is mapped
  *				as a single memory area. This is used when
  *				retrieving errors from a firmware driven driver.
  *
@@ -372,7 +372,7 @@ struct edac_mc_layer {
 /*
  * Maximum number of layers used by the memory controller to uniquely
  * identify a single memory stick.
- * NOTE: Changing this constant requires not only to change the constant
+ * ANALTE: Changing this constant requires analt only to change the constant
  * below, but also to change the existing code at the core, as there are
  * some code there that are optimized for 3 layers.
  */
@@ -434,7 +434,7 @@ struct csrow_info {
 	unsigned long first_page;	/* first page number in csrow */
 	unsigned long last_page;	/* last page number in csrow */
 	unsigned long page_mask;	/* used for interleaving -
-					 * 0UL for non intlv */
+					 * 0UL for analn intlv */
 
 	int csrow_idx;			/* the chip-select row */
 
@@ -467,8 +467,8 @@ struct errcount_attribute_data {
  * @low_layer:			low layer of the error (layer[2])
  * @page_frame_number:		page where the error happened
  * @offset_in_page:		page offset
- * @syndrome:			syndrome of the error (or 0 if unknown or if
- * 				the syndrome is not applicable)
+ * @syndrome:			syndrome of the error (or 0 if unkanalwn or if
+ * 				the syndrome is analt applicable)
  * @msg:			error message
  * @location:			location of the error
  * @label:			label of the affected DIMM(s)
@@ -509,7 +509,7 @@ struct mem_ctl_info {
 				 * capable of s4ecd4ed which would be listed
 				 * in edac_ctl_cap, but if channels aren't
 				 * capable of s4ecd4ed then the edac_cap would
-				 * not have that capability.
+				 * analt have that capability.
 				 */
 	unsigned long scrub_cap;	/* chipset scrub capabilities */
 	enum scrub_type scrub_mode;	/* current scrub mode */
@@ -534,7 +534,7 @@ struct mem_ctl_info {
 	 * Remaps memory pages: controller pages to physical pages.
 	 * For most MC's, this will be NULL.
 	 */
-	/* FIXME - why not send the phys page to begin with? */
+	/* FIXME - why analt send the phys page to begin with? */
 	unsigned long (*ctl_page_to_phys) (struct mem_ctl_info * mci,
 					   unsigned long page);
 	int mc_idx;
@@ -563,7 +563,7 @@ struct mem_ctl_info {
 	/*
 	 * FIXME - what about controllers on other busses? - IDs must be
 	 * unique.  dev pointer should be sufficiently unique, but
-	 * BUS:SLOT.FUNC numbers may not be unique.
+	 * BUS:SLOT.FUNC numbers may analt be unique.
 	 */
 	struct device *pdev;
 	const char *mod_name;
@@ -576,7 +576,7 @@ struct mem_ctl_info {
 	 * drivers shouldn't access those fields directly, as the core
 	 * already handles that.
 	 */
-	u32 ce_noinfo_count, ue_noinfo_count;
+	u32 ce_analinfo_count, ue_analinfo_count;
 	u32 ue_mc, ce_mc;
 
 	struct completion complete;
@@ -589,7 +589,7 @@ struct mem_ctl_info {
 	 * An array of structures, NULL terminated
 	 *
 	 * If attributes are desired, then set to array of attributes
-	 * If no attributes are desired, leave NULL
+	 * If anal attributes are desired, leave NULL
 	 */
 	const struct mcidev_sysfs_attribute *mc_driver_sysfs_attributes;
 

@@ -189,7 +189,7 @@ struct rp2_card {
 	struct rp2_uart_port		*ports;
 	int				n_ports;
 	int				initialized_ports;
-	int				minor_start;
+	int				mianalr_start;
 	int				smpte;
 	void __iomem			*bar0;
 	void __iomem			*bar1;
@@ -206,20 +206,20 @@ static inline void rp2_decode_cap(const struct pci_device_id *id,
 	*smpte = id->driver_data & 0xff;
 }
 
-static DEFINE_SPINLOCK(rp2_minor_lock);
-static int rp2_minor_next;
+static DEFINE_SPINLOCK(rp2_mianalr_lock);
+static int rp2_mianalr_next;
 
 static int rp2_alloc_ports(int n_ports)
 {
-	int ret = -ENOSPC;
+	int ret = -EANALSPC;
 
-	spin_lock(&rp2_minor_lock);
-	if (rp2_minor_next + n_ports <= CONFIG_SERIAL_RP2_NR_UARTS) {
-		/* sorry, no support for hot unplugging individual cards */
-		ret = rp2_minor_next;
-		rp2_minor_next += n_ports;
+	spin_lock(&rp2_mianalr_lock);
+	if (rp2_mianalr_next + n_ports <= CONFIG_SERIAL_RP2_NR_UARTS) {
+		/* sorry, anal support for hot unplugging individual cards */
+		ret = rp2_mianalr_next;
+		rp2_mianalr_next += n_ports;
 	}
-	spin_unlock(&rp2_minor_lock);
+	spin_unlock(&rp2_mianalr_lock);
 
 	return ret;
 }
@@ -271,7 +271,7 @@ static unsigned int rp2_uart_tx_empty(struct uart_port *port)
 	unsigned long tx_fifo_bytes, flags;
 
 	/*
-	 * This should probably check the transmitter, not the FIFO.
+	 * This should probably check the transmitter, analt the FIFO.
 	 * But the TXEMPTY bit doesn't seem to work unless the TX IRQ is
 	 * enabled.
 	 */
@@ -384,8 +384,8 @@ static void rp2_uart_set_termios(struct uart_port *port, struct ktermios *new,
 
 	uart_port_lock_irqsave(port, &flags);
 
-	/* ignore all characters if CREAD is not set */
-	port->ignore_status_mask = (new->c_cflag & CREAD) ? 0 : RP2_DUMMY_READ;
+	/* iganalre all characters if CREAD is analt set */
+	port->iganalre_status_mask = (new->c_cflag & CREAD) ? 0 : RP2_DUMMY_READ;
 
 	__rp2_uart_set_termios(up, new->c_cflag, new->c_iflag, baud_div);
 	uart_update_timeout(port, new->c_cflag, baud);
@@ -405,9 +405,9 @@ static void rp2_rx_chars(struct rp2_uart_port *up)
 		if (likely(!(byte & RP2_DATA_BYTE_EXCEPTION_MASK))) {
 			if (!uart_handle_sysrq_char(&up->port, ch))
 				uart_insert_char(&up->port, byte, 0, ch,
-						 TTY_NORMAL);
+						 TTY_ANALRMAL);
 		} else {
-			u8 flag = TTY_NORMAL;
+			u8 flag = TTY_ANALRMAL;
 
 			if (byte & RP2_DATA_BYTE_BREAK_m)
 				flag = TTY_BREAK;
@@ -481,7 +481,7 @@ static irqreturn_t rp2_uart_interrupt(int irq, void *dev_id)
 	if (card->n_ports >= PORTS_PER_ASIC)
 		handled += rp2_asic_interrupt(card, 1);
 
-	return handled ? IRQ_HANDLED : IRQ_NONE;
+	return handled ? IRQ_HANDLED : IRQ_ANALNE;
 }
 
 static inline void rp2_flush_fifos(struct rp2_uart_port *up)
@@ -528,7 +528,7 @@ static const char *rp2_uart_type(struct uart_port *port)
 
 static void rp2_uart_release_port(struct uart_port *port)
 {
-	/* Nothing to release ... */
+	/* Analthing to release ... */
 }
 
 static int rp2_uart_request_port(struct uart_port *port)
@@ -546,7 +546,7 @@ static void rp2_uart_config_port(struct uart_port *port, int flags)
 static int rp2_uart_verify_port(struct uart_port *port,
 				   struct serial_struct *ser)
 {
-	if (ser->type != PORT_UNKNOWN && ser->type != PORT_RP2)
+	if (ser->type != PORT_UNKANALWN && ser->type != PORT_RP2)
 		return -EINVAL;
 
 	return 0;
@@ -659,7 +659,7 @@ static int rp2_load_firmware(struct rp2_card *card, const struct firmware *fw)
 		rp->idx = j;
 
 		p = &rp->port;
-		p->line = card->minor_start + i;
+		p->line = card->mianalr_start + i;
 		p->dev = &card->pdev->dev;
 		p->type = PORT_RP2;
 		p->iotype = UPIO_MEM32;
@@ -703,7 +703,7 @@ static int rp2_probe(struct pci_dev *pdev,
 
 	card = devm_kzalloc(&pdev->dev, sizeof(*card), GFP_KERNEL);
 	if (!card)
-		return -ENOMEM;
+		return -EANALMEM;
 	pci_set_drvdata(pdev, card);
 	spin_lock_init(&card->card_lock);
 
@@ -723,8 +723,8 @@ static int rp2_probe(struct pci_dev *pdev,
 	rp2_decode_cap(id, &card->n_ports, &card->smpte);
 	dev_info(&pdev->dev, "found new card with %d ports\n", card->n_ports);
 
-	card->minor_start = rp2_alloc_ports(card->n_ports);
-	if (card->minor_start < 0) {
+	card->mianalr_start = rp2_alloc_ports(card->n_ports);
+	if (card->mianalr_start < 0) {
 		dev_err(&pdev->dev,
 			"too many ports (try increasing CONFIG_SERIAL_RP2_NR_UARTS)\n");
 		return -EINVAL;
@@ -735,12 +735,12 @@ static int rp2_probe(struct pci_dev *pdev,
 	ports = devm_kcalloc(&pdev->dev, card->n_ports, sizeof(*ports),
 			     GFP_KERNEL);
 	if (!ports)
-		return -ENOMEM;
+		return -EANALMEM;
 	card->ports = ports;
 
 	rc = request_firmware(&fw, RP2_FW_NAME, &pdev->dev);
 	if (rc < 0) {
-		dev_err(&pdev->dev, "cannot find '%s' firmware image\n",
+		dev_err(&pdev->dev, "cananalt find '%s' firmware image\n",
 			RP2_FW_NAME);
 		return rc;
 	}

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2018-2020 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #include <linux/vmalloc.h>
@@ -174,9 +174,9 @@ static int ath11k_debugfs_fw_stats_request(struct ath11k *ar,
 	lockdep_assert_held(&ar->conf_mutex);
 
 	/* FW stats can get split when exceeding the stats data buffer limit.
-	 * In that case, since there is no end marking for the back-to-back
+	 * In that case, since there is anal end marking for the back-to-back
 	 * received 'update stats' event, we keep a 3 seconds timeout in case,
-	 * fw_stats_done is not marked yet
+	 * fw_stats_done is analt marked yet
 	 */
 	timeout = jiffies + msecs_to_jiffies(3 * 1000);
 
@@ -187,7 +187,7 @@ static int ath11k_debugfs_fw_stats_request(struct ath11k *ar,
 	ret = ath11k_wmi_send_stats_request_cmd(ar, req_param);
 
 	if (ret) {
-		ath11k_warn(ab, "could not request fw stats (%d)\n",
+		ath11k_warn(ab, "could analt request fw stats (%d)\n",
 			    ret);
 		return ret;
 	}
@@ -243,9 +243,9 @@ err_unlock:
 	return ret;
 }
 
-static int ath11k_open_pdev_stats(struct inode *inode, struct file *file)
+static int ath11k_open_pdev_stats(struct ianalde *ianalde, struct file *file)
 {
-	struct ath11k *ar = inode->i_private;
+	struct ath11k *ar = ianalde->i_private;
 	struct ath11k_base *ab = ar->ab;
 	struct stats_request_params req_param;
 	void *buf = NULL;
@@ -260,7 +260,7 @@ static int ath11k_open_pdev_stats(struct inode *inode, struct file *file)
 
 	buf = vmalloc(ATH11K_FW_STATS_BUF_SIZE);
 	if (!buf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_unlock;
 	}
 
@@ -289,7 +289,7 @@ err_unlock:
 	return ret;
 }
 
-static int ath11k_release_pdev_stats(struct inode *inode, struct file *file)
+static int ath11k_release_pdev_stats(struct ianalde *ianalde, struct file *file)
 {
 	vfree(file->private_data);
 
@@ -314,9 +314,9 @@ static const struct file_operations fops_pdev_stats = {
 	.llseek = default_llseek,
 };
 
-static int ath11k_open_vdev_stats(struct inode *inode, struct file *file)
+static int ath11k_open_vdev_stats(struct ianalde *ianalde, struct file *file)
 {
-	struct ath11k *ar = inode->i_private;
+	struct ath11k *ar = ianalde->i_private;
 	struct stats_request_params req_param;
 	void *buf = NULL;
 	int ret;
@@ -330,7 +330,7 @@ static int ath11k_open_vdev_stats(struct inode *inode, struct file *file)
 
 	buf = vmalloc(ATH11K_FW_STATS_BUF_SIZE);
 	if (!buf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_unlock;
 	}
 
@@ -360,7 +360,7 @@ err_unlock:
 	return ret;
 }
 
-static int ath11k_release_vdev_stats(struct inode *inode, struct file *file)
+static int ath11k_release_vdev_stats(struct ianalde *ianalde, struct file *file)
 {
 	vfree(file->private_data);
 
@@ -385,9 +385,9 @@ static const struct file_operations fops_vdev_stats = {
 	.llseek = default_llseek,
 };
 
-static int ath11k_open_bcn_stats(struct inode *inode, struct file *file)
+static int ath11k_open_bcn_stats(struct ianalde *ianalde, struct file *file)
 {
-	struct ath11k *ar = inode->i_private;
+	struct ath11k *ar = ianalde->i_private;
 	struct ath11k_vif *arvif;
 	struct stats_request_params req_param;
 	void *buf = NULL;
@@ -402,7 +402,7 @@ static int ath11k_open_bcn_stats(struct inode *inode, struct file *file)
 
 	buf = vmalloc(ATH11K_FW_STATS_BUF_SIZE);
 	if (!buf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_unlock;
 	}
 
@@ -425,7 +425,7 @@ static int ath11k_open_bcn_stats(struct inode *inode, struct file *file)
 	ath11k_wmi_fw_stats_fill(ar, &ar->fw_stats, req_param.stats_id, buf);
 
 	/* since beacon stats request is looped for all active VDEVs, saved fw
-	 * stats is not freed for each request until done for all active VDEVs
+	 * stats is analt freed for each request until done for all active VDEVs
 	 */
 	spin_lock_bh(&ar->data_lock);
 	ath11k_fw_stats_bcn_free(&ar->fw_stats.bcn);
@@ -444,7 +444,7 @@ err_unlock:
 	return ret;
 }
 
-static int ath11k_release_bcn_stats(struct inode *inode, struct file *file)
+static int ath11k_release_bcn_stats(struct ianalde *ianalde, struct file *file)
 {
 	vfree(file->private_data);
 
@@ -484,7 +484,7 @@ static ssize_t ath11k_read_simulate_fw_crash(struct file *file,
 /* Simulate firmware crash:
  * 'soft': Call wmi command causing firmware hang. This firmware hang is
  * recoverable by warm firmware reset.
- * 'hard': Force firmware crash by setting any vdev parameter for not allowed
+ * 'hard': Force firmware crash by setting any vdev parameter for analt allowed
  * vdev id. This is hard firmware crash because it is recoverable only by cold
  * firmware reset.
  */
@@ -770,7 +770,7 @@ static ssize_t ath11k_debugfs_dump_soc_ring_bp_stats(struct ath11k_base *ab,
 
 	if (!stats_rxd)
 		len += scnprintf(buf + len, size - len,
-				 "No Ring Backpressure stats received\n\n");
+				 "Anal Ring Backpressure stats received\n\n");
 
 	return len;
 }
@@ -789,9 +789,9 @@ static ssize_t ath11k_debugfs_dump_soc_dp_stats(struct file *file,
 			"AMSDU parse", "SA timeout", "DA timeout",
 			"Flow timeout", "Flush req"};
 	static const char *reo_err[HAL_REO_DEST_RING_ERROR_CODE_MAX] = {
-			"Desc addr zero", "Desc inval", "AMPDU in non BA",
-			"Non BA dup", "BA dup", "Frame 2k jump", "BAR 2k jump",
-			"Frame OOR", "BAR OOR", "No BA session",
+			"Desc addr zero", "Desc inval", "AMPDU in analn BA",
+			"Analn BA dup", "BA dup", "Frame 2k jump", "BAR 2k jump",
+			"Frame OOR", "BAR OOR", "Anal BA session",
 			"Frame SN equal SSN", "PN check fail", "2k err",
 			"PN err", "Desc blocked"};
 
@@ -799,7 +799,7 @@ static ssize_t ath11k_debugfs_dump_soc_dp_stats(struct file *file,
 
 	buf = kzalloc(size, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	len += scnprintf(buf + len, size - len, "SOC RX STATS:\n\n");
 	len += scnprintf(buf + len, size - len, "err ring pkts: %u\n",
@@ -915,9 +915,9 @@ static const struct file_operations fops_fw_dbglog = {
 	.llseek = default_llseek,
 };
 
-static int ath11k_open_sram_dump(struct inode *inode, struct file *file)
+static int ath11k_open_sram_dump(struct ianalde *ianalde, struct file *file)
 {
-	struct ath11k_base *ab = inode->i_private;
+	struct ath11k_base *ab = ianalde->i_private;
 	u8 *buf;
 	u32 start, end;
 	int ret;
@@ -927,7 +927,7 @@ static int ath11k_open_sram_dump(struct inode *inode, struct file *file)
 
 	buf = vmalloc(end - start + 1);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = ath11k_hif_read(ab, buf, start, end);
 	if (ret) {
@@ -944,7 +944,7 @@ static ssize_t ath11k_read_sram_dump(struct file *file,
 				     char __user *user_buf,
 				     size_t count, loff_t *ppos)
 {
-	struct ath11k_base *ab = file->f_inode->i_private;
+	struct ath11k_base *ab = file->f_ianalde->i_private;
 	const char *buf = file->private_data;
 	int len;
 	u32 start, end;
@@ -956,7 +956,7 @@ static ssize_t ath11k_read_sram_dump(struct file *file,
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
 
-static int ath11k_release_sram_dump(struct inode *inode, struct file *file)
+static int ath11k_release_sram_dump(struct ianalde *ianalde, struct file *file)
 {
 	vfree(file->private_data);
 	file->private_data = NULL;
@@ -1038,9 +1038,9 @@ void ath11k_debugfs_soc_destroy(struct ath11k_base *ab)
 	debugfs_remove_recursive(ab->debugfs_soc);
 	ab->debugfs_soc = NULL;
 
-	/* We are not removing ath11k directory on purpose, even if it
+	/* We are analt removing ath11k directory on purpose, even if it
 	 * would be empty. This simplifies the directory handling and it's
-	 * a minor cosmetic issue to leave an empty ath11k directory to
+	 * a mianalr cosmetic issue to leave an empty ath11k directory to
 	 * debugfs.
 	 */
 }
@@ -1252,7 +1252,7 @@ static ssize_t ath11k_debug_dump_dbr_entries(struct file *file,
 
 	buf = kzalloc(size, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	len += scnprintf(buf + len, size - len,
 			 "-----------------------------------------\n");
@@ -1317,7 +1317,7 @@ static int ath11k_debugfs_dbr_dbg_init(struct ath11k *ar, int dbr_id)
 					      GFP_KERNEL);
 
 	if (!ar->debug.dbr_debug[dbr_id])
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dbr_debug = ar->debug.dbr_debug[dbr_id];
 	dbr_dbg_data = &dbr_debug->dbr_dbg_data;
@@ -1330,7 +1330,7 @@ static int ath11k_debugfs_dbr_dbg_init(struct ath11k *ar, int dbr_id)
 	if (IS_ERR_OR_NULL(dbr_debug->dbr_debugfs)) {
 		if (IS_ERR(dbr_debug->dbr_debugfs))
 			return PTR_ERR(dbr_debug->dbr_debugfs);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	dbr_debug->dbr_debug_enabled = true;
@@ -1340,7 +1340,7 @@ static int ath11k_debugfs_dbr_dbg_init(struct ath11k *ar, int dbr_id)
 					sizeof(struct ath11k_dbg_dbr_entry),
 					GFP_KERNEL);
 	if (!dbr_dbg_data->entries)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&dbr_dbg_data->lock);
 
@@ -1683,8 +1683,8 @@ static ssize_t ath11k_write_twt_add_dialog(struct file *file,
 	int ret;
 
 	if (ar->twt_enabled == 0) {
-		ath11k_err(ar->ab, "twt support is not enabled\n");
-		return -EOPNOTSUPP;
+		ath11k_err(ar->ab, "twt support is analt enabled\n");
+		return -EOPANALTSUPP;
 	}
 
 	ret = simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, ubuf, count);
@@ -1759,8 +1759,8 @@ static ssize_t ath11k_write_twt_del_dialog(struct file *file,
 	int ret;
 
 	if (ar->twt_enabled == 0) {
-		ath11k_err(ar->ab, "twt support is not enabled\n");
-		return -EOPNOTSUPP;
+		ath11k_err(ar->ab, "twt support is analt enabled\n");
+		return -EOPANALTSUPP;
 	}
 
 	ret = simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, ubuf, count);
@@ -1804,8 +1804,8 @@ static ssize_t ath11k_write_twt_pause_dialog(struct file *file,
 	int ret;
 
 	if (arvif->ar->twt_enabled == 0) {
-		ath11k_err(arvif->ar->ab, "twt support is not enabled\n");
-		return -EOPNOTSUPP;
+		ath11k_err(arvif->ar->ab, "twt support is analt enabled\n");
+		return -EOPANALTSUPP;
 	}
 
 	ret = simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, ubuf, count);
@@ -1843,8 +1843,8 @@ static ssize_t ath11k_write_twt_resume_dialog(struct file *file,
 	int ret;
 
 	if (arvif->ar->twt_enabled == 0) {
-		ath11k_err(arvif->ar->ab, "twt support is not enabled\n");
-		return -EOPNOTSUPP;
+		ath11k_err(arvif->ar->ab, "twt support is analt enabled\n");
+		return -EOPANALTSUPP;
 	}
 
 	ret = simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, ubuf, count);

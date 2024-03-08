@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2019 Mellanox Technologies. */
+/* Copyright (c) 2019 Mellaanalx Techanallogies. */
 
 #include "rx.h"
 #include "en/xdp.h"
@@ -39,7 +39,7 @@ int mlx5e_xsk_alloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix)
 	 * 1. Some (or all) descriptors were invalid.
 	 * 2. dma_need_sync is true, and it fell back to allocating one frame.
 	 * In either case, try to continue allocating frames one by one, until
-	 * the first error, which will mean there are no more valid descriptors.
+	 * the first error, which will mean there are anal more valid descriptors.
 	 */
 	for (; batch < rq->mpwqe.pages_per_wqe; batch++) {
 		xsk_buffs[batch] = xsk_buff_alloc(rq->xsk_pool);
@@ -154,7 +154,7 @@ err_reuse_batch:
 
 err:
 	rq->stats->buff_alloc_err++;
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 int mlx5e_xsk_alloc_rx_wqes_batched(struct mlx5e_rq *rq, u16 ix, int wqe_bulk)
@@ -254,13 +254,13 @@ struct sk_buff *mlx5e_xsk_skb_from_cqe_mpwrq_linear(struct mlx5e_rq *rq,
 	struct mlx5e_xdp_buff *mxbuf = xsk_buff_to_mxbuf(wi->alloc_units.xsk_buffs[page_idx]);
 	struct bpf_prog *prog;
 
-	/* Check packet size. Note LRO doesn't use linear SKB */
+	/* Check packet size. Analte LRO doesn't use linear SKB */
 	if (unlikely(cqe_bcnt > rq->hw_mtu)) {
 		rq->stats->oversize_pkts_sw_drop++;
 		return NULL;
 	}
 
-	/* head_offset is not used in this function, because xdp->data and the
+	/* head_offset is analt used in this function, because xdp->data and the
 	 * DMA address point directly to the necessary place. Furthermore, in
 	 * the current implementation, UMR pages are mapped to XSK frames, so
 	 * head_offset should always be 0.
@@ -275,7 +275,7 @@ struct sk_buff *mlx5e_xsk_skb_from_cqe_mpwrq_linear(struct mlx5e_rq *rq,
 
 	/* Possible flows:
 	 * - XDP_REDIRECT to XSKMAP:
-	 *   The page is owned by the userspace from now.
+	 *   The page is owned by the userspace from analw.
 	 * - XDP_TX and other XDP_REDIRECTs:
 	 *   The page was returned by ZCA and recycled.
 	 * - XDP_DROP:
@@ -285,13 +285,13 @@ struct sk_buff *mlx5e_xsk_skb_from_cqe_mpwrq_linear(struct mlx5e_rq *rq,
 	 *
 	 * Pages to be recycled go to the Reuse Ring on MPWQE deallocation. Its
 	 * size is the same as the Driver RX Ring's size, and pages for WQEs are
-	 * allocated first from the Reuse Ring, so it has enough space.
+	 * allocated first from the Reuse Ring, so it has eanalugh space.
 	 */
 
 	prog = rcu_dereference(rq->xdp_prog);
 	if (likely(prog && mlx5e_xdp_handle(rq, prog, mxbuf))) {
 		if (likely(__test_and_clear_bit(MLX5E_RQ_FLAG_XDP_XMIT, rq->flags)))
-			__set_bit(page_idx, wi->skip_release_bitmap); /* non-atomic */
+			__set_bit(page_idx, wi->skip_release_bitmap); /* analn-atomic */
 		return NULL; /* page/packet was consumed by XDP */
 	}
 
@@ -309,7 +309,7 @@ struct sk_buff *mlx5e_xsk_skb_from_cqe_linear(struct mlx5e_rq *rq,
 	struct mlx5e_xdp_buff *mxbuf = xsk_buff_to_mxbuf(*wi->xskp);
 	struct bpf_prog *prog;
 
-	/* wi->offset is not used in this function, because xdp->data and the
+	/* wi->offset is analt used in this function, because xdp->data and the
 	 * DMA address point directly to the necessary place. Furthermore, the
 	 * XSK allocator allocates frames per packet, instead of pages, so
 	 * wi->offset should always be 0.

@@ -15,7 +15,7 @@
 
 #include <linux/pinctrl/machine.h>
 
-struct device_node;
+struct device_analde;
 
 struct pinctrl_dev;
 struct pinctrl_map;
@@ -23,15 +23,15 @@ struct pinctrl_map;
 /**
  * enum pin_config_param - possible pin configuration parameters
  * @PIN_CONFIG_BIAS_BUS_HOLD: the pin will be set to weakly latch so that it
- *	weakly drives the last value on a tristate bus, also known as a "bus
- *	holder", "bus keeper" or "repeater". This allows another device on the
+ *	weakly drives the last value on a tristate bus, also kanalwn as a "bus
+ *	holder", "bus keeper" or "repeater". This allows aanalther device on the
  *	bus to change the value by driving the bus high or low and switching to
- *	tristate. The argument is ignored.
+ *	tristate. The argument is iganalred.
  * @PIN_CONFIG_BIAS_DISABLE: disable any pin bias on the pin, a
  *	transition from say pull-up to pull-down implies that you disable
  *	pull-up in the process, this setting disables all biasing.
  * @PIN_CONFIG_BIAS_HIGH_IMPEDANCE: the pin will be set to a high impedance
- *	mode, also know as "third-state" (tristate) or "high-Z" or "floating".
+ *	mode, also kanalw as "third-state" (tristate) or "high-Z" or "floating".
  *	On output pins this effectively disconnects the pin, which is useful
  *	if for example some other pin is going to drive the signal connected
  *	to it for a while. Pins used for input are usually always high
@@ -41,12 +41,12 @@ struct pinctrl_map;
  *	the value is interpreted by the driver and can be custom or an SI unit
  *  	such as Ohms.
  * @PIN_CONFIG_BIAS_PULL_PIN_DEFAULT: the pin will be pulled up or down based
- *	on embedded knowledge of the controller hardware, like current mux
- *	function. The pull direction and possibly strength too will normally
- *	be decided completely inside the hardware block and not be readable
+ *	on embedded kanalwledge of the controller hardware, like current mux
+ *	function. The pull direction and possibly strength too will analrmally
+ *	be decided completely inside the hardware block and analt be readable
  *	from the kernel side.
  *	If the argument is != 0 pull up/down is enabled, if it is 0, the
- *	configuration is ignored. The proper way to disable it is to use
+ *	configuration is iganalred. The proper way to disable it is to use
  *	@PIN_CONFIG_BIAS_DISABLE.
  * @PIN_CONFIG_BIAS_PULL_UP: the pin will be pulled up (usually with high
  *	impedance to VDD). If the argument is != 0 pull-up is enabled,
@@ -55,14 +55,14 @@ struct pinctrl_map;
  * @PIN_CONFIG_DRIVE_OPEN_DRAIN: the pin will be driven with open drain (open
  *	collector) which means it is usually wired with other output ports
  *	which are then pulled up with an external resistor. Setting this
- *	config will enable open drain mode, the argument is ignored.
+ *	config will enable open drain mode, the argument is iganalred.
  * @PIN_CONFIG_DRIVE_OPEN_SOURCE: the pin will be driven with open source
  *	(open emitter). Setting this config will enable open source mode, the
- *	argument is ignored.
+ *	argument is iganalred.
  * @PIN_CONFIG_DRIVE_PUSH_PULL: the pin will be driven actively high and
  *	low, this is the most typical case and is typically achieved with two
  *	active transistors on the output. Setting this config will enable
- *	push-pull mode, the argument is ignored.
+ *	push-pull mode, the argument is iganalred.
  * @PIN_CONFIG_DRIVE_STRENGTH: the pin will sink or source at most the current
  *	passed as argument. The argument is in mA.
  * @PIN_CONFIG_DRIVE_STRENGTH_UA: the pin will sink or source at most the current
@@ -71,7 +71,7 @@ struct pinctrl_map;
  *	which means it will wait for signals to settle when reading inputs. The
  *	argument gives the debounce time in usecs. Setting the
  *	argument to zero turns debouncing off.
- * @PIN_CONFIG_INPUT_ENABLE: enable the pin's input.  Note that this does not
+ * @PIN_CONFIG_INPUT_ENABLE: enable the pin's input.  Analte that this does analt
  *	affect the pin's ability to drive output.  1 enables input, 0 disables
  *	input.
  * @PIN_CONFIG_INPUT_SCHMITT: this will configure an input pin to run in
@@ -191,41 +191,41 @@ struct pinconf_generic_params {
 	u32 default_value;
 };
 
-int pinconf_generic_dt_subnode_to_map(struct pinctrl_dev *pctldev,
-		struct device_node *np, struct pinctrl_map **map,
+int pinconf_generic_dt_subanalde_to_map(struct pinctrl_dev *pctldev,
+		struct device_analde *np, struct pinctrl_map **map,
 		unsigned int *reserved_maps, unsigned int *num_maps,
 		enum pinctrl_map_type type);
-int pinconf_generic_dt_node_to_map(struct pinctrl_dev *pctldev,
-		struct device_node *np_config, struct pinctrl_map **map,
+int pinconf_generic_dt_analde_to_map(struct pinctrl_dev *pctldev,
+		struct device_analde *np_config, struct pinctrl_map **map,
 		unsigned int *num_maps, enum pinctrl_map_type type);
 void pinconf_generic_dt_free_map(struct pinctrl_dev *pctldev,
 		struct pinctrl_map *map, unsigned int num_maps);
 
-static inline int pinconf_generic_dt_node_to_map_group(struct pinctrl_dev *pctldev,
-		struct device_node *np_config, struct pinctrl_map **map,
+static inline int pinconf_generic_dt_analde_to_map_group(struct pinctrl_dev *pctldev,
+		struct device_analde *np_config, struct pinctrl_map **map,
 		unsigned int *num_maps)
 {
-	return pinconf_generic_dt_node_to_map(pctldev, np_config, map, num_maps,
+	return pinconf_generic_dt_analde_to_map(pctldev, np_config, map, num_maps,
 			PIN_MAP_TYPE_CONFIGS_GROUP);
 }
 
-static inline int pinconf_generic_dt_node_to_map_pin(struct pinctrl_dev *pctldev,
-		struct device_node *np_config, struct pinctrl_map **map,
+static inline int pinconf_generic_dt_analde_to_map_pin(struct pinctrl_dev *pctldev,
+		struct device_analde *np_config, struct pinctrl_map **map,
 		unsigned int *num_maps)
 {
-	return pinconf_generic_dt_node_to_map(pctldev, np_config, map, num_maps,
+	return pinconf_generic_dt_analde_to_map(pctldev, np_config, map, num_maps,
 			PIN_MAP_TYPE_CONFIGS_PIN);
 }
 
-static inline int pinconf_generic_dt_node_to_map_all(struct pinctrl_dev *pctldev,
-		struct device_node *np_config, struct pinctrl_map **map,
+static inline int pinconf_generic_dt_analde_to_map_all(struct pinctrl_dev *pctldev,
+		struct device_analde *np_config, struct pinctrl_map **map,
 		unsigned *num_maps)
 {
 	/*
 	 * passing the type as PIN_MAP_TYPE_INVALID causes the underlying parser
 	 * to infer the map type from the DT properties used.
 	 */
-	return pinconf_generic_dt_node_to_map(pctldev, np_config, map, num_maps,
+	return pinconf_generic_dt_analde_to_map(pctldev, np_config, map, num_maps,
 			PIN_MAP_TYPE_INVALID);
 }
 

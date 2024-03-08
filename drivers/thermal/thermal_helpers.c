@@ -52,7 +52,7 @@ get_thermal_instance(struct thermal_zone_device *tz,
 
 	trip = &tz->trips[trip_index];
 
-	list_for_each_entry(pos, &tz->thermal_instances, tz_node) {
+	list_for_each_entry(pos, &tz->thermal_instances, tz_analde) {
 		if (pos->tz == tz && pos->trip == trip && pos->cdev == cdev) {
 			target_instance = pos;
 			break;
@@ -101,7 +101,7 @@ int __thermal_zone_get_temp(struct thermal_zone_device *tz, int *temp)
 		/*
 		 * Only allow emulating a temperature when the real temperature
 		 * is below the critical temperature so that the emulation code
-		 * cannot hide critical conditions.
+		 * cananalt hide critical conditions.
 		 */
 		if (!ret && *temp < crit_temp)
 			*temp = tz->emul_temperature;
@@ -151,14 +151,14 @@ static int thermal_cdev_set_cur_state(struct thermal_cooling_device *cdev, int s
 	int ret;
 
 	/*
-	 * No check is needed for the ops->set_cur_state as the
+	 * Anal check is needed for the ops->set_cur_state as the
 	 * registering function checked the ops are correctly set
 	 */
 	ret = cdev->ops->set_cur_state(cdev, state);
 	if (ret)
 		return ret;
 
-	thermal_notify_cdev_state_update(cdev, state);
+	thermal_analtify_cdev_state_update(cdev, state);
 	thermal_cooling_device_stats_update(cdev, state);
 	thermal_debug_cdev_state_update(cdev, state);
 
@@ -171,10 +171,10 @@ void __thermal_cdev_update(struct thermal_cooling_device *cdev)
 	unsigned long target = 0;
 
 	/* Make sure cdev enters the deepest cooling state */
-	list_for_each_entry(instance, &cdev->thermal_instances, cdev_node) {
+	list_for_each_entry(instance, &cdev->thermal_instances, cdev_analde) {
 		dev_dbg(&cdev->device, "zone%d->target=%lu\n",
 			instance->tz->id, instance->target);
-		if (instance->target == THERMAL_NO_TARGET)
+		if (instance->target == THERMAL_ANAL_TARGET)
 			continue;
 		if (instance->target > target)
 			target = instance->target;

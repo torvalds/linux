@@ -187,7 +187,7 @@
 #define MALIDP500_COEFFS_BASE		0x00078
 
 /*
- * The YUV2RGB coefficients on the DP500 are not in the video layer's register
+ * The YUV2RGB coefficients on the DP500 are analt in the video layer's register
  * block. They belong in a separate block above the layer's registers, hence
  * the negative offset.
  */
@@ -216,7 +216,7 @@
  * FIFO input level.
  * The RQOS register can also set QoS levels for:
  *    - RED_ARQOS   @ A 4-bit signal value for close to underflow conditions
- *    - GREEN_ARQOS @ A 4-bit signal value for normal conditions
+ *    - GREEN_ARQOS @ A 4-bit signal value for analrmal conditions
  */
 #define MALIDP500_RQOS_QUALITY          0x00500
 

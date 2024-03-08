@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) 2019 Radxa Limited
- * Copyright (c) 2022 Edgeble AI Technologies Pvt. Ltd.
+ * Copyright (c) 2022 Edgeble AI Techanallogies Pvt. Ltd.
  *
  * Author:
  * - Jagan Teki <jagan@amarulasolutions.com>
@@ -147,7 +147,7 @@ static int jadard_get_modes(struct drm_panel *panel,
 		DRM_DEV_ERROR(&jadard->dsi->dev, "failed to add mode %ux%ux@%u\n",
 			      desc_mode->hdisplay, desc_mode->vdisplay,
 			      drm_mode_vrefresh(desc_mode));
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	drm_mode_set_name(mode);
@@ -593,11 +593,11 @@ static int jadard_dsi_probe(struct mipi_dsi_device *dsi)
 
 	jadard = devm_kzalloc(&dsi->dev, sizeof(*jadard), GFP_KERNEL);
 	if (!jadard)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	desc = of_device_get_match_data(dev);
 	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
-			  MIPI_DSI_MODE_NO_EOT_PACKET;
+			  MIPI_DSI_MODE_ANAL_EOT_PACKET;
 	dsi->format = desc->format;
 	dsi->lanes = desc->lanes;
 

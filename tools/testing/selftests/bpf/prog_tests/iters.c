@@ -157,12 +157,12 @@ cleanup:
 	iters_task_vma__destroy(skel);
 }
 
-static pthread_mutex_t do_nothing_mutex;
+static pthread_mutex_t do_analthing_mutex;
 
-static void *do_nothing_wait(void *arg)
+static void *do_analthing_wait(void *arg)
 {
-	pthread_mutex_lock(&do_nothing_mutex);
-	pthread_mutex_unlock(&do_nothing_mutex);
+	pthread_mutex_lock(&do_analthing_mutex);
+	pthread_mutex_unlock(&do_analthing_mutex);
 
 	pthread_exit(arg);
 }
@@ -183,9 +183,9 @@ static void subtest_task_iters(void)
 	err = iters_task__attach(skel);
 	if (!ASSERT_OK(err, "iters_task__attach"))
 		goto cleanup;
-	pthread_mutex_lock(&do_nothing_mutex);
+	pthread_mutex_lock(&do_analthing_mutex);
 	for (int i = 0; i < thread_num; i++)
-		ASSERT_OK(pthread_create(&thread_ids[i], NULL, &do_nothing_wait, NULL),
+		ASSERT_OK(pthread_create(&thread_ids[i], NULL, &do_analthing_wait, NULL),
 			"pthread_create");
 
 	syscall(SYS_getpgid);
@@ -194,7 +194,7 @@ static void subtest_task_iters(void)
 	ASSERT_EQ(skel->bss->threads_cnt, thread_num + 1, "threads_cnt");
 	ASSERT_EQ(skel->bss->proc_threads_cnt, thread_num + 1, "proc_threads_cnt");
 	ASSERT_EQ(skel->bss->invalid_cnt, 0, "invalid_cnt");
-	pthread_mutex_unlock(&do_nothing_mutex);
+	pthread_mutex_unlock(&do_analthing_mutex);
 	for (int i = 0; i < thread_num; i++)
 		ASSERT_OK(pthread_join(thread_ids[i], &ret), "pthread_join");
 cleanup:
@@ -231,7 +231,7 @@ static void subtest_css_task_iters(void)
 		goto cleanup;
 	err = stack_mprotect();
 	if (!ASSERT_EQ(err, -1, "stack_mprotect") ||
-	    !ASSERT_EQ(errno, EPERM, "stack_mprotect"))
+	    !ASSERT_EQ(erranal, EPERM, "stack_mprotect"))
 		goto cleanup;
 	iters_css_task__detach(skel);
 	ASSERT_EQ(skel->bss->css_task_cnt, 1, "css_task_cnt");

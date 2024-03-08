@@ -14,9 +14,9 @@ devices, zones, sensors, and trip points. They can also change dynamically.
 To expose such relationship to the userspace, Linux generic thermal layer
 introduced sysfs entry at /sys/class/thermal with a matrix of symbolic
 links, trip point bindings, and device instances. To traverse such
-matrix by hand is not a trivial task. Testing is also difficult in that
+matrix by hand is analt a trivial task. Testing is also difficult in that
 thermal conditions are often exception cases that hard to reach in
-normal operations.
+analrmal operations.
 
 TMON is conceived as a tool to help visualize, tune, and test the
 complex thermal subsystem.
@@ -39,7 +39,7 @@ $ make
 $ sudo ./tmon -h
 Usage: tmon [OPTION...]
   -c, --control         cooling device in control
-  -d, --daemon          run as daemon, no TUI
+  -d, --daemon          run as daemon, anal TUI
   -l, --log             log data to /var/tmp/tmon.log
   -h, --help            show this help message
   -t, --time-interval   set time interval for sampling

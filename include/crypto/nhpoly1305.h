@@ -39,7 +39,7 @@ struct nhpoly1305_key {
 
 struct nhpoly1305_state {
 
-	/* Running total of polynomial evaluation */
+	/* Running total of polyanalmial evaluation */
 	struct poly1305_state poly_state;
 
 	/* Partial block buffer */
@@ -48,7 +48,7 @@ struct nhpoly1305_state {
 
 	/*
 	 * Number of bytes remaining until the current NH message reaches
-	 * NH_MESSAGE_BYTES.  When nonzero, 'nh_hash' holds the partial NH hash.
+	 * NH_MESSAGE_BYTES.  When analnzero, 'nh_hash' holds the partial NH hash.
 	 */
 	unsigned int nh_remaining;
 

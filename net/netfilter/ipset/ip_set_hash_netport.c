@@ -7,7 +7,7 @@
 #include <linux/module.h>
 #include <linux/ip.h>
 #include <linux/skbuff.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/random.h>
 #include <net/ip.h>
 #include <net/ipv6.h>
@@ -22,7 +22,7 @@
 #define IPSET_TYPE_REV_MIN	0
 /*				1    SCTP and UDPLITE support added */
 /*				2    Range as input support for IPv4 added */
-/*				3    nomatch flag support added */
+/*				3    analmatch flag support added */
 /*				4    Counters support added */
 /*				5    Comments support added */
 /*				6    Forceadd support added */
@@ -39,7 +39,7 @@ MODULE_ALIAS("ip_set_hash:net,port");
 #define IP_SET_HASH_WITH_PROTO
 #define IP_SET_HASH_WITH_NETS
 
-/* We squeeze the "nomatch" flag into cidr: we don't support cidr == 0
+/* We squeeze the "analmatch" flag into cidr: we don't support cidr == 0
  * However this way we have to store internally cidr - 1,
  * dancing back and forth.
  */
@@ -53,7 +53,7 @@ struct hash_netport4_elem {
 	__be16 port;
 	u8 proto;
 	u8 cidr:7;
-	u8 nomatch:1;
+	u8 analmatch:1;
 };
 
 /* Common functions */
@@ -72,19 +72,19 @@ hash_netport4_data_equal(const struct hash_netport4_elem *ip1,
 static int
 hash_netport4_do_data_match(const struct hash_netport4_elem *elem)
 {
-	return elem->nomatch ? -ENOTEMPTY : 1;
+	return elem->analmatch ? -EANALTEMPTY : 1;
 }
 
 static void
 hash_netport4_data_set_flags(struct hash_netport4_elem *elem, u32 flags)
 {
-	elem->nomatch = !!((flags >> 16) & IPSET_FLAG_NOMATCH);
+	elem->analmatch = !!((flags >> 16) & IPSET_FLAG_ANALMATCH);
 }
 
 static void
 hash_netport4_data_reset_flags(struct hash_netport4_elem *elem, u8 *flags)
 {
-	swap(*flags, elem->nomatch);
+	swap(*flags, elem->analmatch);
 }
 
 static void
@@ -98,7 +98,7 @@ static bool
 hash_netport4_data_list(struct sk_buff *skb,
 			const struct hash_netport4_elem *data)
 {
-	u32 flags = data->nomatch ? IPSET_FLAG_NOMATCH : 0;
+	u32 flags = data->analmatch ? IPSET_FLAG_ANALMATCH : 0;
 
 	if (nla_put_ipaddr4(skb, IPSET_ATTR_IP, data->ip) ||
 	    nla_put_net16(skb, IPSET_ATTR_PORT, data->port) ||
@@ -152,7 +152,7 @@ hash_netport4_kadt(struct ip_set *set, const struct sk_buff *skb,
 
 static int
 hash_netport4_uadt(struct ip_set *set, struct nlattr *tb[],
-		   enum ipset_adt adt, u32 *lineno, u32 flags, bool retried)
+		   enum ipset_adt adt, u32 *lineanal, u32 flags, bool retried)
 {
 	struct hash_netport4 *h = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
@@ -163,8 +163,8 @@ hash_netport4_uadt(struct ip_set *set, struct nlattr *tb[],
 	u8 cidr;
 	int ret;
 
-	if (tb[IPSET_ATTR_LINENO])
-		*lineno = nla_get_u32(tb[IPSET_ATTR_LINENO]);
+	if (tb[IPSET_ATTR_LINEANAL])
+		*lineanal = nla_get_u32(tb[IPSET_ATTR_LINEANAL]);
 
 	if (unlikely(!tb[IPSET_ATTR_IP] ||
 		     !ip_set_attr_netorder(tb, IPSET_ATTR_PORT) ||
@@ -207,14 +207,14 @@ hash_netport4_uadt(struct ip_set *set, struct nlattr *tb[],
 	if (tb[IPSET_ATTR_CADT_FLAGS]) {
 		u32 cadt_flags = ip_set_get_h32(tb[IPSET_ATTR_CADT_FLAGS]);
 
-		if (cadt_flags & IPSET_FLAG_NOMATCH)
-			flags |= (IPSET_FLAG_NOMATCH << 16);
+		if (cadt_flags & IPSET_FLAG_ANALMATCH)
+			flags |= (IPSET_FLAG_ANALMATCH << 16);
 	}
 
 	if (adt == IPSET_TEST || !(with_ports || tb[IPSET_ATTR_IP_TO])) {
 		e.ip = htonl(ip & ip_set_hostmask(e.cidr + 1));
 		ret = adtfn(set, &e, &ext, &ext, flags);
-		return ip_set_enomatch(ret, flags, adt, set) ? -ret :
+		return ip_set_eanalmatch(ret, flags, adt, set) ? -ret :
 		       ip_set_eexist(ret, flags) ? 0 : ret;
 	}
 
@@ -270,7 +270,7 @@ struct hash_netport6_elem {
 	__be16 port;
 	u8 proto;
 	u8 cidr:7;
-	u8 nomatch:1;
+	u8 analmatch:1;
 };
 
 /* Common functions */
@@ -289,19 +289,19 @@ hash_netport6_data_equal(const struct hash_netport6_elem *ip1,
 static int
 hash_netport6_do_data_match(const struct hash_netport6_elem *elem)
 {
-	return elem->nomatch ? -ENOTEMPTY : 1;
+	return elem->analmatch ? -EANALTEMPTY : 1;
 }
 
 static void
 hash_netport6_data_set_flags(struct hash_netport6_elem *elem, u32 flags)
 {
-	elem->nomatch = !!((flags >> 16) & IPSET_FLAG_NOMATCH);
+	elem->analmatch = !!((flags >> 16) & IPSET_FLAG_ANALMATCH);
 }
 
 static void
 hash_netport6_data_reset_flags(struct hash_netport6_elem *elem, u8 *flags)
 {
-	swap(*flags, elem->nomatch);
+	swap(*flags, elem->analmatch);
 }
 
 static void
@@ -315,7 +315,7 @@ static bool
 hash_netport6_data_list(struct sk_buff *skb,
 			const struct hash_netport6_elem *data)
 {
-	u32 flags = data->nomatch ? IPSET_FLAG_NOMATCH : 0;
+	u32 flags = data->analmatch ? IPSET_FLAG_ANALMATCH : 0;
 
 	if (nla_put_ipaddr6(skb, IPSET_ATTR_IP, &data->ip.in6) ||
 	    nla_put_net16(skb, IPSET_ATTR_PORT, data->port) ||
@@ -372,7 +372,7 @@ hash_netport6_kadt(struct ip_set *set, const struct sk_buff *skb,
 
 static int
 hash_netport6_uadt(struct ip_set *set, struct nlattr *tb[],
-		   enum ipset_adt adt, u32 *lineno, u32 flags, bool retried)
+		   enum ipset_adt adt, u32 *lineanal, u32 flags, bool retried)
 {
 	const struct hash_netport6 *h = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
@@ -383,8 +383,8 @@ hash_netport6_uadt(struct ip_set *set, struct nlattr *tb[],
 	u8 cidr;
 	int ret;
 
-	if (tb[IPSET_ATTR_LINENO])
-		*lineno = nla_get_u32(tb[IPSET_ATTR_LINENO]);
+	if (tb[IPSET_ATTR_LINEANAL])
+		*lineanal = nla_get_u32(tb[IPSET_ATTR_LINEANAL]);
 
 	if (unlikely(!tb[IPSET_ATTR_IP] ||
 		     !ip_set_attr_netorder(tb, IPSET_ATTR_PORT) ||
@@ -428,13 +428,13 @@ hash_netport6_uadt(struct ip_set *set, struct nlattr *tb[],
 	if (tb[IPSET_ATTR_CADT_FLAGS]) {
 		u32 cadt_flags = ip_set_get_h32(tb[IPSET_ATTR_CADT_FLAGS]);
 
-		if (cadt_flags & IPSET_FLAG_NOMATCH)
-			flags |= (IPSET_FLAG_NOMATCH << 16);
+		if (cadt_flags & IPSET_FLAG_ANALMATCH)
+			flags |= (IPSET_FLAG_ANALMATCH << 16);
 	}
 
 	if (adt == IPSET_TEST || !with_ports || !tb[IPSET_ATTR_PORT_TO]) {
 		ret = adtfn(set, &e, &ext, &ext, flags);
-		return ip_set_enomatch(ret, flags, adt, set) ? -ret :
+		return ip_set_eanalmatch(ret, flags, adt, set) ? -ret :
 		       ip_set_eexist(ret, flags) ? 0 : ret;
 	}
 
@@ -460,7 +460,7 @@ hash_netport6_uadt(struct ip_set *set, struct nlattr *tb[],
 static struct ip_set_type hash_netport_type __read_mostly = {
 	.name		= "hash:net,port",
 	.protocol	= IPSET_PROTOCOL,
-	.features	= IPSET_TYPE_IP | IPSET_TYPE_PORT | IPSET_TYPE_NOMATCH,
+	.features	= IPSET_TYPE_IP | IPSET_TYPE_PORT | IPSET_TYPE_ANALMATCH,
 	.dimension	= IPSET_DIM_TWO,
 	.family		= NFPROTO_UNSPEC,
 	.revision_min	= IPSET_TYPE_REV_MIN,
@@ -485,7 +485,7 @@ static struct ip_set_type hash_netport_type __read_mostly = {
 		[IPSET_ATTR_PROTO]	= { .type = NLA_U8 },
 		[IPSET_ATTR_CIDR]	= { .type = NLA_U8 },
 		[IPSET_ATTR_TIMEOUT]	= { .type = NLA_U32 },
-		[IPSET_ATTR_LINENO]	= { .type = NLA_U32 },
+		[IPSET_ATTR_LINEANAL]	= { .type = NLA_U32 },
 		[IPSET_ATTR_CADT_FLAGS]	= { .type = NLA_U32 },
 		[IPSET_ATTR_BYTES]	= { .type = NLA_U64 },
 		[IPSET_ATTR_PACKETS]	= { .type = NLA_U64 },

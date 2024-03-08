@@ -121,11 +121,11 @@ get_ticket_handler(struct ceph_auth_client *ac, int service)
 {
 	struct ceph_x_ticket_handler *th;
 	struct ceph_x_info *xi = ac->private;
-	struct rb_node *parent = NULL, **p = &xi->ticket_handlers.rb_node;
+	struct rb_analde *parent = NULL, **p = &xi->ticket_handlers.rb_analde;
 
 	while (*p) {
 		parent = *p;
-		th = rb_entry(parent, struct ceph_x_ticket_handler, node);
+		th = rb_entry(parent, struct ceph_x_ticket_handler, analde);
 		if (service < th->service)
 			p = &(*p)->rb_left;
 		else if (service > th->service)
@@ -135,12 +135,12 @@ get_ticket_handler(struct ceph_auth_client *ac, int service)
 	}
 
 	/* add it */
-	th = kzalloc(sizeof(*th), GFP_NOFS);
+	th = kzalloc(sizeof(*th), GFP_ANALFS);
 	if (!th)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	th->service = service;
-	rb_link_node(&th->node, parent, p);
-	rb_insert_color(&th->node, &xi->ticket_handlers);
+	rb_link_analde(&th->analde, parent, p);
+	rb_insert_color(&th->analde, &xi->ticket_handlers);
 	return th;
 }
 
@@ -150,7 +150,7 @@ static void remove_ticket_handler(struct ceph_auth_client *ac,
 	struct ceph_x_info *xi = ac->private;
 
 	dout("remove_ticket_handler %p %d\n", th, th->service);
-	rb_erase(&th->node, &xi->ticket_handlers);
+	rb_erase(&th->analde, &xi->ticket_handlers);
 	ceph_crypto_key_destroy(&th->session_key);
 	if (th->ticket_blob)
 		ceph_buffer_put(th->ticket_blob);
@@ -314,7 +314,7 @@ static int encrypt_authorizer(struct ceph_x_authorizer *au,
 
 	msg_b = p + ceph_x_encrypt_offset();
 	msg_b->struct_v = 2;
-	msg_b->nonce = cpu_to_le64(au->nonce);
+	msg_b->analnce = cpu_to_le64(au->analnce);
 	if (server_challenge) {
 		msg_b->have_challenge = 1;
 		msg_b->server_challenge_plus_one =
@@ -375,9 +375,9 @@ static int ceph_x_build_authorizer(struct ceph_auth_client *ac,
 		au->buf = NULL;
 	}
 	if (!au->buf) {
-		au->buf = ceph_buffer_new(maxlen, GFP_NOFS);
+		au->buf = ceph_buffer_new(maxlen, GFP_ANALFS);
 		if (!au->buf) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out_au;
 		}
 	}
@@ -399,14 +399,14 @@ static int ceph_x_build_authorizer(struct ceph_auth_client *ac,
 	dout(" th %p secret_id %lld %lld\n", th, th->secret_id,
 	     le64_to_cpu(msg_a->ticket_blob.secret_id));
 
-	get_random_bytes(&au->nonce, sizeof(au->nonce));
+	get_random_bytes(&au->analnce, sizeof(au->analnce));
 	ret = encrypt_authorizer(au, NULL);
 	if (ret) {
 		pr_err("failed to encrypt authorizer: %d", ret);
 		goto out_au;
 	}
 
-	dout(" built authorizer nonce %llx len %d\n", au->nonce,
+	dout(" built authorizer analnce %llx len %d\n", au->analnce,
 	     (int)au->buf->vec.iov_len);
 	return 0;
 
@@ -534,7 +534,7 @@ static int ceph_x_build_request(struct ceph_auth_client *ac,
 		     xi->server_challenge, le64_to_cpu(auth->client_challenge),
 		     le64_to_cpu(auth->key));
 
-		/* now encode the old ticket if exists */
+		/* analw encode the old ticket if exists */
 		ret = ceph_x_encode_ticket(th, &p, end);
 		if (ret < 0)
 			return ret;
@@ -743,9 +743,9 @@ static int ceph_x_create_authorizer(
 	if (IS_ERR(th))
 		return PTR_ERR(th);
 
-	au = kzalloc(sizeof(*au), GFP_NOFS);
+	au = kzalloc(sizeof(*au), GFP_ANALFS);
 	if (!au)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	au->base.destroy = ceph_x_destroy_authorizer;
 
@@ -796,7 +796,7 @@ static int decrypt_authorizer_challenge(struct ceph_crypto_key *secret,
 	void *dp, *dend;
 	int ret;
 
-	/* no leading len */
+	/* anal leading len */
 	ret = __ceph_x_decrypt(secret, challenge, challenge_len);
 	if (ret < 0)
 		return ret;
@@ -842,7 +842,7 @@ static int ceph_x_add_authorizer_challenge(struct ceph_auth_client *ac,
  * CephXAuthorizeReply
  */
 static int decrypt_authorizer_reply(struct ceph_crypto_key *secret,
-				    void **p, void *end, u64 *nonce_plus_one,
+				    void **p, void *end, u64 *analnce_plus_one,
 				    u8 *con_secret, int *con_secret_len)
 {
 	void *dp, *dend;
@@ -858,8 +858,8 @@ static int decrypt_authorizer_reply(struct ceph_crypto_key *secret,
 	dend = dp + ret;
 
 	ceph_decode_8_safe(&dp, dend, struct_v, e_inval);
-	ceph_decode_64_safe(&dp, dend, *nonce_plus_one, e_inval);
-	dout("%s nonce_plus_one %llu\n", __func__, *nonce_plus_one);
+	ceph_decode_64_safe(&dp, dend, *analnce_plus_one, e_inval);
+	dout("%s analnce_plus_one %llu\n", __func__, *analnce_plus_one);
 	if (struct_v >= 2) {
 		ret = decode_con_secret(&dp, dend, con_secret, con_secret_len);
 		if (ret)
@@ -879,7 +879,7 @@ static int ceph_x_verify_authorizer_reply(struct ceph_auth_client *ac,
 					  u8 *con_secret, int *con_secret_len)
 {
 	struct ceph_x_authorizer *au = (void *)a;
-	u64 nonce_plus_one;
+	u64 analnce_plus_one;
 	int ret;
 
 	if (session_key) {
@@ -888,12 +888,12 @@ static int ceph_x_verify_authorizer_reply(struct ceph_auth_client *ac,
 	}
 
 	ret = decrypt_authorizer_reply(&au->session_key, &reply,
-				       reply + reply_len, &nonce_plus_one,
+				       reply + reply_len, &analnce_plus_one,
 				       con_secret, con_secret_len);
 	if (ret)
 		return ret;
 
-	if (nonce_plus_one != au->nonce + 1) {
+	if (analnce_plus_one != au->analnce + 1) {
 		pr_err("failed to authenticate server\n");
 		return -EPERM;
 	}
@@ -913,14 +913,14 @@ static void ceph_x_reset(struct ceph_auth_client *ac)
 static void ceph_x_destroy(struct ceph_auth_client *ac)
 {
 	struct ceph_x_info *xi = ac->private;
-	struct rb_node *p;
+	struct rb_analde *p;
 
 	dout("ceph_x_destroy %p\n", ac);
 	ceph_crypto_key_destroy(&xi->secret);
 
 	while ((p = rb_first(&xi->ticket_handlers)) != NULL) {
 		struct ceph_x_ticket_handler *th =
-			rb_entry(p, struct ceph_x_ticket_handler, node);
+			rb_entry(p, struct ceph_x_ticket_handler, analde);
 		remove_ticket_handler(ac, th);
 	}
 
@@ -1011,7 +1011,7 @@ static int calc_signature(struct ceph_x_authorizer *au, struct ceph_msg *msg,
 		sigblock->data_len = msg->hdr.data_len;
 		sigblock->seq_lower_word = *(__le32 *)&msg->hdr.seq;
 
-		/* no leading len, no ceph_x_encrypt_header */
+		/* anal leading len, anal ceph_x_encrypt_header */
 		ret = ceph_crypt(&au->session_key, true, enc_buf,
 				 CEPHX_AU_ENC_BUF_LEN, sizeof(*sigblock),
 				 &ciphertext_len);
@@ -1030,7 +1030,7 @@ static int ceph_x_sign_message(struct ceph_auth_handshake *auth,
 	__le64 sig;
 	int ret;
 
-	if (ceph_test_opt(from_msgr(msg->con->msgr), NOMSGSIGN))
+	if (ceph_test_opt(from_msgr(msg->con->msgr), ANALMSGSIGN))
 		return 0;
 
 	ret = calc_signature((struct ceph_x_authorizer *)auth->authorizer,
@@ -1049,7 +1049,7 @@ static int ceph_x_check_message_signature(struct ceph_auth_handshake *auth,
 	__le64 sig_check;
 	int ret;
 
-	if (ceph_test_opt(from_msgr(msg->con->msgr), NOMSGSIGN))
+	if (ceph_test_opt(from_msgr(msg->con->msgr), ANALMSGSIGN))
 		return 0;
 
 	ret = calc_signature((struct ceph_x_authorizer *)auth->authorizer,
@@ -1062,7 +1062,7 @@ static int ceph_x_check_message_signature(struct ceph_auth_handshake *auth,
 		dout("ceph_x_check_message_signature %p has signature %llx "
 		     "expect %llx\n", msg, msg->footer.sig, sig_check);
 	else
-		dout("ceph_x_check_message_signature %p sender did not set "
+		dout("ceph_x_check_message_signature %p sender did analt set "
 		     "CEPH_MSG_FOOTER_SIGNED\n", msg);
 	return -EBADMSG;
 }
@@ -1090,21 +1090,21 @@ int ceph_x_init(struct ceph_auth_client *ac)
 	int ret;
 
 	dout("ceph_x_init %p\n", ac);
-	ret = -ENOMEM;
-	xi = kzalloc(sizeof(*xi), GFP_NOFS);
+	ret = -EANALMEM;
+	xi = kzalloc(sizeof(*xi), GFP_ANALFS);
 	if (!xi)
 		goto out;
 
 	ret = -EINVAL;
 	if (!ac->key) {
-		pr_err("no secret set (for auth_x protocol)\n");
-		goto out_nomem;
+		pr_err("anal secret set (for auth_x protocol)\n");
+		goto out_analmem;
 	}
 
 	ret = ceph_crypto_key_clone(&xi->secret, ac->key);
 	if (ret < 0) {
-		pr_err("cannot clone key: %d\n", ret);
-		goto out_nomem;
+		pr_err("cananalt clone key: %d\n", ret);
+		goto out_analmem;
 	}
 
 	xi->starting = true;
@@ -1115,7 +1115,7 @@ int ceph_x_init(struct ceph_auth_client *ac)
 	ac->ops = &ceph_x_ops;
 	return 0;
 
-out_nomem:
+out_analmem:
 	kfree(xi);
 out:
 	return ret;

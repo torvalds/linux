@@ -3,7 +3,7 @@
  * MIPS64 and compat userspace implementations of gettimeofday()
  * and similar.
  *
- * Copyright (C) 2015 Imagination Technologies
+ * Copyright (C) 2015 Imagination Techanallogies
  * Copyright (C) 2018 ARM Limited
  *
  */
@@ -21,8 +21,8 @@ int __vdso_clock_gettime(clockid_t clock,
 #ifdef CONFIG_MIPS_CLOCK_VSYSCALL
 
 /*
- * This is behind the ifdef so that we don't provide the symbol when there's no
- * possibility of there being a usable clocksource, because there's nothing we
+ * This is behind the ifdef so that we don't provide the symbol when there's anal
+ * possibility of there being a usable clocksource, because there's analthing we
  * can do without it. When libc fails the symbol lookup it should fall back on
  * the standard syscall path.
  */
@@ -57,8 +57,8 @@ int __vdso_clock_gettime(clockid_t clock,
 #ifdef CONFIG_MIPS_CLOCK_VSYSCALL
 
 /*
- * This is behind the ifdef so that we don't provide the symbol when there's no
- * possibility of there being a usable clocksource, because there's nothing we
+ * This is behind the ifdef so that we don't provide the symbol when there's anal
+ * possibility of there being a usable clocksource, because there's analthing we
  * can do without it. When libc fails the symbol lookup it should fall back on
  * the standard syscall path.
  */

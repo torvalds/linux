@@ -28,7 +28,7 @@ struct alg_sock {
 	struct sock *parent;
 
 	atomic_t refcnt;
-	atomic_t nokey_refcnt;
+	atomic_t analkey_refcnt;
 
 	const struct af_alg_type *type;
 	void *private;
@@ -46,11 +46,11 @@ struct af_alg_type {
 	int (*setkey)(void *private, const u8 *key, unsigned int keylen);
 	int (*setentropy)(void *private, sockptr_t entropy, unsigned int len);
 	int (*accept)(void *private, struct sock *sk);
-	int (*accept_nokey)(void *private, struct sock *sk);
+	int (*accept_analkey)(void *private, struct sock *sk);
 	int (*setauthsize)(void *private, unsigned int authsize);
 
 	struct proto_ops *ops;
-	struct proto_ops *ops_nokey;
+	struct proto_ops *ops_analkey;
 	struct module *owner;
 	char name[14];
 };
@@ -123,12 +123,12 @@ struct af_alg_async_req {
  * @iv:			IV for cipher operation
  * @state:		Existing state for continuing operation
  * @aead_assoclen:	Length of AAD for AEAD cipher operations
- * @completion:		Work queue for synchronous operation
+ * @completion:		Work queue for synchroanalus operation
  * @used:		TX bytes sent to kernel. This variable is used to
- *			ensure that user space cannot cause the kernel
+ *			ensure that user space cananalt cause the kernel
  *			to allocate too much memory in sendmsg operation.
  * @rcvused:		Total RX bytes to be filled by kernel. This variable
- *			is used to ensure user space cannot cause the kernel
+ *			is used to ensure user space cananalt cause the kernel
  *			to allocate too much memory in a recvmsg operation.
  * @more:		More data to be expected from user space?
  * @merge:		Shall new data from user space be merged into existing
@@ -137,7 +137,7 @@ struct af_alg_async_req {
  *			recvmsg is invoked.
  * @init:		True if metadata has been sent.
  * @len:		Length of memory allocated for this data structure.
- * @inflight:		Non-zero when AIO requests are in flight.
+ * @inflight:		Analn-zero when AIO requests are in flight.
  */
 struct af_alg_ctx {
 	struct list_head tsgl_list;
@@ -194,7 +194,7 @@ static inline int af_alg_sndbuf(struct sock *sk)
  * Can the send buffer still be written to?
  *
  * @sk socket of connection to user space
- * @return true => writable, false => not writable
+ * @return true => writable, false => analt writable
  */
 static inline bool af_alg_writable(struct sock *sk)
 {
@@ -220,7 +220,7 @@ static inline int af_alg_rcvbuf(struct sock *sk)
  * Can the RX buffer still be written to?
  *
  * @sk socket of connection to user space
- * @return true => writable, false => not writable
+ * @return true => writable, false => analt writable
  */
 static inline bool af_alg_readable(struct sock *sk)
 {

@@ -61,7 +61,7 @@ static int pcm_open(struct snd_pcm_substream *substream)
 
 	mutex_lock(&tscm->mutex);
 
-	// When source of clock is not internal or any stream is reserved for
+	// When source of clock is analt internal or any stream is reserved for
 	// transmission of PCM frames, the available sampling rate is limited
 	// at current one.
 	if (clock != SND_TSCM_CLOCK_INTERNAL || tscm->substreams_counter > 0) {

@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2014 Imagination Technologies Ltd.
+ * Copyright (C) 2014 Imagination Techanallogies Ltd.
  *
  */
 
@@ -32,7 +32,7 @@
 
 #ifdef CONFIG_32BIT
 /*
- * No 'sd' or 'ld' instructions in 32-bit but the code will
+ * Anal 'sd' or 'ld' instructions in 32-bit but the code will
  * do the correct thing
  */
 #define kernel_sd(reg, addr)		user_sw(reg, addr)
@@ -61,14 +61,14 @@
 #define user_lh(reg, addr)		__BUILD_EVA_INSN("lhe", reg, addr)
 #define user_lb(reg, addr)		__BUILD_EVA_INSN("lbe", reg, addr)
 #define user_lbu(reg, addr)		__BUILD_EVA_INSN("lbue", reg, addr)
-/* No 64-bit EVA instruction for loading double words */
+/* Anal 64-bit EVA instruction for loading double words */
 #define user_ld(reg, addr)		user_lw(reg, addr)
 #define user_sw(reg, addr)		__BUILD_EVA_INSN("swe", reg, addr)
 #define user_swl(reg, addr)		__BUILD_EVA_INSN("swle", reg, addr)
 #define user_swr(reg, addr)		__BUILD_EVA_INSN("swre", reg, addr)
 #define user_sh(reg, addr)		__BUILD_EVA_INSN("she", reg, addr)
 #define user_sb(reg, addr)		__BUILD_EVA_INSN("sbe", reg, addr)
-/* No 64-bit EVA instruction for storing double words */
+/* Anal 64-bit EVA instruction for storing double words */
 #define user_sd(reg, addr)		user_sw(reg, addr)
 
 #else
@@ -119,7 +119,7 @@
 
 #ifdef CONFIG_32BIT
 /*
- * No 'sd' or 'ld' instructions in 32-bit but the code will
+ * Anal 'sd' or 'ld' instructions in 32-bit but the code will
  * do the correct thing
  */
 #define kernel_sd(reg, addr)		user_sw(reg, addr)
@@ -148,14 +148,14 @@
 #define user_lh(reg, addr)		__BUILD_EVA_INSN(lhe, reg, addr)
 #define user_lb(reg, addr)		__BUILD_EVA_INSN(lbe, reg, addr)
 #define user_lbu(reg, addr)		__BUILD_EVA_INSN(lbue, reg, addr)
-/* No 64-bit EVA instruction for loading double words */
+/* Anal 64-bit EVA instruction for loading double words */
 #define user_ld(reg, addr)		user_lw(reg, addr)
 #define user_sw(reg, addr)		__BUILD_EVA_INSN(swe, reg, addr)
 #define user_swl(reg, addr)		__BUILD_EVA_INSN(swle, reg, addr)
 #define user_swr(reg, addr)		__BUILD_EVA_INSN(swre, reg, addr)
 #define user_sh(reg, addr)		__BUILD_EVA_INSN(she, reg, addr)
 #define user_sb(reg, addr)		__BUILD_EVA_INSN(sbe, reg, addr)
-/* No 64-bit EVA instruction for loading double words */
+/* Anal 64-bit EVA instruction for loading double words */
 #define user_sd(reg, addr)		user_sw(reg, addr)
 #else
 

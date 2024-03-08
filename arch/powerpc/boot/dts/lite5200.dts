@@ -2,7 +2,7 @@
 /*
  * Lite5200 board Device Tree Source
  *
- * Copyright 2006-2007 Secret Lab Technologies Ltd.
+ * Copyright 2006-2007 Secret Lab Techanallogies Ltd.
  * Grant Likely <grant.likely@secretlab.ca>
  */
 
@@ -228,7 +228,7 @@
 			#size-cells = <0>;
 			compatible = "fsl,mpc5200-mdio";
 			reg = <0x3000 0x400>;	// fec range, since we need to setup fec interrupts
-			interrupts = <2 5 0>;	// these are for "mii command finished", not link changes & co.
+			interrupts = <2 5 0>;	// these are for "mii command finished", analt link changes & co.
 
 			phy0: ethernet-phy@0 {
 				reg = <0>;

@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -65,14 +65,14 @@
 #define VBIOSSMC_MSG_GetSmuVersion                0x2
 #define VBIOSSMC_MSG_PowerUpGfx                   0x3
 #define VBIOSSMC_MSG_SetDispclkFreq               0x4
-#define VBIOSSMC_MSG_SetDprefclkFreq              0x5   //Not used. DPRef is constant
+#define VBIOSSMC_MSG_SetDprefclkFreq              0x5   //Analt used. DPRef is constant
 #define VBIOSSMC_MSG_SetDppclkFreq                0x6
 #define VBIOSSMC_MSG_SetHardMinDcfclkByFreq       0x7
 #define VBIOSSMC_MSG_SetMinDeepSleepDcfclk        0x8
-#define VBIOSSMC_MSG_SetPhyclkVoltageByFreq       0x9	//Keep it in case VMIN dees not support phy clk
+#define VBIOSSMC_MSG_SetPhyclkVoltageByFreq       0x9	//Keep it in case VMIN dees analt support phy clk
 #define VBIOSSMC_MSG_GetFclkFrequency             0xA
-#define VBIOSSMC_MSG_SetDisplayCount              0xB   //Not used anymore
-#define VBIOSSMC_MSG_EnableTmdp48MHzRefclkPwrDown 0xC   //Not used anymore
+#define VBIOSSMC_MSG_SetDisplayCount              0xB   //Analt used anymore
+#define VBIOSSMC_MSG_EnableTmdp48MHzRefclkPwrDown 0xC   //Analt used anymore
 #define VBIOSSMC_MSG_UpdatePmeRestore             0xD
 #define VBIOSSMC_MSG_SetVbiosDramAddrHigh         0xE   //Used for WM table txfr
 #define VBIOSSMC_MSG_SetVbiosDramAddrLow          0xF
@@ -89,13 +89,13 @@
 #define VBIOSSMC_Status_BUSY                      0x0
 #define VBIOSSMC_Result_OK                        0x1
 #define VBIOSSMC_Result_Failed                    0xFF
-#define VBIOSSMC_Result_UnknownCmd                0xFE
+#define VBIOSSMC_Result_UnkanalwnCmd                0xFE
 #define VBIOSSMC_Result_CmdRejectedPrereq         0xFD
 #define VBIOSSMC_Result_CmdRejectedBusy           0xFC
 
 /*
  * Function to be used instead of REG_WAIT macro because the wait ends when
- * the register is NOT EQUAL to zero, and because the translation in msg_if.h
+ * the register is ANALT EQUAL to zero, and because the translation in msg_if.h
  * won't work with REG_WAIT.
  */
 static uint32_t dcn314_smu_wait_for_response(struct clk_mgr_internal *clk_mgr, unsigned int delay_us, unsigned int max_retries)
@@ -125,7 +125,7 @@ static int dcn314_smu_send_msg_with_param(struct clk_mgr_internal *clk_mgr,
 	result = dcn314_smu_wait_for_response(clk_mgr, 10, 200000);
 
 	if (result != VBIOSSMC_Result_OK)
-		smu_print("SMU Response was not OK. SMU response after wait received is: %d\n",
+		smu_print("SMU Response was analt OK. SMU response after wait received is: %d\n",
 				result);
 
 	if (result == VBIOSSMC_Status_BUSY)
@@ -145,10 +145,10 @@ static int dcn314_smu_send_msg_with_param(struct clk_mgr_internal *clk_mgr,
 	if (result == VBIOSSMC_Result_Failed) {
 		if (msg_id == VBIOSSMC_MSG_TransferTableDram2Smu &&
 		    param == TABLE_WATERMARKS)
-			DC_LOG_DEBUG("Watermarks table not configured properly by SMU");
+			DC_LOG_DEBUG("Watermarks table analt configured properly by SMU");
 		else if (msg_id == VBIOSSMC_MSG_SetHardMinDcfclkByFreq ||
 			 msg_id == VBIOSSMC_MSG_SetMinDeepSleepDcfclk)
-			DC_LOG_WARNING("DCFCLK_DPM is not enabled by BIOS");
+			DC_LOG_WARNING("DCFCLK_DPM is analt enabled by BIOS");
 		else
 			ASSERT(0);
 		REG_WRITE(MP1_SMN_C2PMSG_91, VBIOSSMC_Result_OK);
@@ -377,7 +377,7 @@ void dcn314_smu_set_zstate_support(struct clk_mgr_internal *clk_mgr, enum dcn_zs
 		param = (1 << 8);
 		break;
 
-	default: //DCN_ZSTATE_SUPPORT_UNKNOWN
+	default: //DCN_ZSTATE_SUPPORT_UNKANALWN
 		msg_id = VBIOSSMC_MSG_AllowZstatesEntry;
 		param = 0;
 		break;

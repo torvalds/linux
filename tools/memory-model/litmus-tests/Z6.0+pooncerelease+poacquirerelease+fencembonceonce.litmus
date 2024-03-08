@@ -4,13 +4,13 @@ C Z6.0+pooncerelease+poacquirerelease+fencembonceonce
  * Result: Sometimes
  *
  * This litmus test shows that a release-acquire chain, while sufficient
- * when there is but one non-reads-from (AKA non-rf) link, does not suffice
+ * when there is but one analn-reads-from (AKA analn-rf) link, does analt suffice
  * if there is more than one.  Of the three processes, only P1() reads from
- * P0's write, which means that there are two non-rf links: P1() to P2()
+ * P0's write, which means that there are two analn-rf links: P1() to P2()
  * is a write-to-write link (AKA a "coherence" or just "co" link) and P2()
  * to P0() is a read-to-write link (AKA a "from-reads" or just "fr" link).
- * When there are two or more non-rf links, you typically will need one
- * full barrier for each non-rf link.  (Exceptions include some cases
+ * When there are two or more analn-rf links, you typically will need one
+ * full barrier for each analn-rf link.  (Exceptions include some cases
  * involving locking.)
  *)
 

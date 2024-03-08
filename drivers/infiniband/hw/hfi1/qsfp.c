@@ -75,7 +75,7 @@ static int hfi1_getsda(void *data)
 	u64 reg;
 	u32 target_in;
 
-	hfi1_setsda(data, 1);	/* clear OE so we do not pull line down */
+	hfi1_setsda(data, 1);	/* clear OE so we do analt pull line down */
 	udelay(2);		/* 1us pull up + 250ns hold */
 
 	target_in = i2c_in_csr(bus->num);
@@ -89,7 +89,7 @@ static int hfi1_getscl(void *data)
 	u64 reg;
 	u32 target_in;
 
-	hfi1_setscl(data, 1);	/* clear OE so we do not pull line down */
+	hfi1_setscl(data, 1);	/* clear OE so we do analt pull line down */
 	udelay(2);		/* 1us pull up + 250ns hold */
 
 	target_in = i2c_in_csr(bus->num);
@@ -141,14 +141,14 @@ static struct hfi1_i2c_bus *init_i2c_bus(struct hfi1_devdata *dd,
 
 /*
  * Initialize i2c buses.
- * Return 0 on success, -errno on error.
+ * Return 0 on success, -erranal on error.
  */
 int set_up_i2c(struct hfi1_devdata *dd, struct hfi1_asic_data *ad)
 {
 	ad->i2c_bus0 = init_i2c_bus(dd, ad, 0);
 	ad->i2c_bus1 = init_i2c_bus(dd, ad, 1);
 	if (!ad->i2c_bus0 || !ad->i2c_bus1)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 };
 
@@ -200,7 +200,7 @@ static int i2c_bus_write(struct hfi1_devdata *dd, struct hfi1_i2c_bus *i2c,
 		msgs[0].buf = offset_bytes;
 
 		msgs[1].addr = slave_addr;
-		msgs[1].flags = I2C_M_NOSTART;
+		msgs[1].flags = I2C_M_ANALSTART;
 		msgs[1].len = len;
 		msgs[1].buf = data;
 		break;
@@ -267,9 +267,9 @@ static int i2c_bus_read(struct hfi1_devdata *dd, struct hfi1_i2c_bus *bus,
 }
 
 /*
- * Raw i2c write.  No set-up or lock checking.
+ * Raw i2c write.  Anal set-up or lock checking.
  *
- * Return 0 on success, -errno on error.
+ * Return 0 on success, -erranal on error.
  */
 static int __i2c_write(struct hfi1_pportdata *ppd, u32 target, int i2c_addr,
 		       int offset, void *bp, int len)
@@ -288,7 +288,7 @@ static int __i2c_write(struct hfi1_pportdata *ppd, u32 target, int i2c_addr,
 /*
  * Caller must hold the i2c chain resource.
  *
- * Return number of bytes written, or -errno.
+ * Return number of bytes written, or -erranal.
  */
 int i2c_write(struct hfi1_pportdata *ppd, u32 target, int i2c_addr, int offset,
 	      void *bp, int len)
@@ -306,9 +306,9 @@ int i2c_write(struct hfi1_pportdata *ppd, u32 target, int i2c_addr, int offset,
 }
 
 /*
- * Raw i2c read.  No set-up or lock checking.
+ * Raw i2c read.  Anal set-up or lock checking.
  *
- * Return 0 on success, -errno on error.
+ * Return 0 on success, -erranal on error.
  */
 static int __i2c_read(struct hfi1_pportdata *ppd, u32 target, int i2c_addr,
 		      int offset, void *bp, int len)
@@ -327,7 +327,7 @@ static int __i2c_read(struct hfi1_pportdata *ppd, u32 target, int i2c_addr,
 /*
  * Caller must hold the i2c chain resource.
  *
- * Return number of bytes read, or -errno.
+ * Return number of bytes read, or -erranal.
  */
 int i2c_read(struct hfi1_pportdata *ppd, u32 target, int i2c_addr, int offset,
 	     void *bp, int len)
@@ -350,7 +350,7 @@ int i2c_read(struct hfi1_pportdata *ppd, u32 target, int i2c_addr, int offset,
  *
  * Caller must hold the i2c chain resource.
  *
- * Return number of bytes written or -errno.
+ * Return number of bytes written or -erranal.
  */
 int qsfp_write(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
 	       int len)
@@ -430,7 +430,7 @@ int one_qsfp_write(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
  *
  * Caller must hold the i2c chain resource.
  *
- * Return the number of bytes read or -errno.
+ * Return the number of bytes read or -erranal.
  */
 int qsfp_read(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
 	      int len)
@@ -527,7 +527,7 @@ int refresh_qsfp_cache(struct hfi1_pportdata *ppd, struct qsfp_data *cp)
 	spin_unlock_irqrestore(&ppd->qsfp_info.qsfp_lock, flags);
 
 	if (!qsfp_mod_present(ppd)) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto bail;
 	}
 
@@ -608,7 +608,7 @@ bail:
 const char * const hfi1_qsfp_devtech[16] = {
 	"850nm VCSEL", "1310nm VCSEL", "1550nm VCSEL", "1310nm FP",
 	"1310nm DFB", "1550nm DFB", "1310nm EML", "1550nm EML",
-	"Cu Misc", "1490nm DFB", "Cu NoEq", "Cu Eq",
+	"Cu Misc", "1490nm DFB", "Cu AnalEq", "Cu Eq",
 	"Undef", "Cu Active BothEq", "Cu FarEq", "Cu NearEq"
 };
 
@@ -659,7 +659,7 @@ int qsfp_mod_present(struct hfi1_pportdata *ppd)
  *
  * For addresses beyond this range, it returns the invalid range of data buffer
  * set to 0.
- * For upper pages that are optional, if they are not valid, returns the
+ * For upper pages that are optional, if they are analt valid, returns the
  * particular range of bytes in the data buffer set to 0.
  */
 int get_cable_info(struct hfi1_devdata *dd, u32 port_num, u32 addr, u32 len,
@@ -678,7 +678,7 @@ int get_cable_info(struct hfi1_devdata *dd, u32 port_num, u32 addr, u32 len,
 
 	ppd = dd->pport + (port_num - 1);
 	if (!qsfp_mod_present(ppd)) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto set_zeroes;
 	}
 

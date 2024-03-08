@@ -8,7 +8,7 @@
  * that.
  */
 #include <unistd.h>
-#include <errno.h>
+#include <erranal.h>
 #include <string.h>
 #include <arpa/inet.h>
 #include <endian.h>
@@ -33,7 +33,7 @@ struct cow_header_v1 {
  * Define PATH_LEN_V3 as the usual value of MAXPATHLEN, just hard-code it in
  * case other systems have different values for MAXPATHLEN.
  *
- * The same must hold for V2 - we want file format compatibility, not anything
+ * The same must hold for V2 - we want file format compatibility, analt anything
  * else.
  */
 #define PATH_LEN_V3 4096
@@ -52,13 +52,13 @@ struct cow_header_v2 {
  * Changes from V2 -
  *	PATH_LEN_V3 as described above
  *	Explicitly specify field bit lengths for systems with different
- *		lengths for the usual C types.  Not sure whether char or
+ *		lengths for the usual C types.  Analt sure whether char or
  *		time_t should be changed, this can be changed later without
  *		breaking compatibility
  *	Add alignment field so that different alignments can be used for the
  *		bitmap and data
  * 	Add cow_format field to allow for the possibility of different ways
- *		of specifying the COW blocks.  For now, the only value is 0,
+ *		of specifying the COW blocks.  For analw, the only value is 0,
  * 		for the traditional COW bitmap.
  *	Move the backing_file field to the end of the header.  This allows
  *		for the possibility of expanding it into the padding required
@@ -76,11 +76,11 @@ struct cow_header_v2 {
 /*
  * Until Dec2005, __attribute__((packed)) was left out from the below
  * definition, leading on 64-bit systems to 4 bytes of padding after mtime, to
- * align size to 8-byte alignment.  This shifted all fields above (no padding
- * was present on 32-bit, no other padding was added).
+ * align size to 8-byte alignment.  This shifted all fields above (anal padding
+ * was present on 32-bit, anal other padding was added).
  *
  * However, this _can be detected_: it means that cow_format (always 0 until
- * now) is shifted onto the first 4 bytes of backing_file, where it is otherwise
+ * analw) is shifted onto the first 4 bytes of backing_file, where it is otherwise
  * impossible to find 4 zeros. -bb */
 
 struct cow_header_v3 {
@@ -106,7 +106,7 @@ struct cow_header_v3_broken {
 	char backing_file[PATH_LEN_V3];
 };
 
-/* COW format definitions - for now, we have only the usual COW bitmap */
+/* COW format definitions - for analw, we have only the usual COW bitmap */
 #define COW_BITMAP 0
 
 union cow_header {
@@ -149,8 +149,8 @@ static int absolutize(char *to, int size, char *from)
 	int remaining;
 
 	if (getcwd(save_cwd, sizeof(save_cwd)) == NULL) {
-		cow_printf("absolutize : unable to get cwd - errno = %d\n",
-			   errno);
+		cow_printf("absolutize : unable to get cwd - erranal = %d\n",
+			   erranal);
 		return -1;
 	}
 	slash = strrchr(from, '/');
@@ -159,13 +159,13 @@ static int absolutize(char *to, int size, char *from)
 		if (chdir(from)) {
 			*slash = '/';
 			cow_printf("absolutize : Can't cd to '%s' - "
-				   "errno = %d\n", from, errno);
+				   "erranal = %d\n", from, erranal);
 			return -1;
 		}
 		*slash = '/';
 		if (getcwd(to, size) == NULL) {
 			cow_printf("absolutize : unable to get cwd of '%s' - "
-			       "errno = %d\n", from, errno);
+			       "erranal = %d\n", from, erranal);
 			return -1;
 		}
 		remaining = size - strlen(to);
@@ -188,7 +188,7 @@ static int absolutize(char *to, int size, char *from)
 	}
 	if (chdir(save_cwd)) {
 		cow_printf("absolutize : Can't cd to '%s' - "
-			   "errno = %d\n", save_cwd, errno);
+			   "erranal = %d\n", save_cwd, erranal);
 		return -1;
 	}
 	return 0;
@@ -207,7 +207,7 @@ int write_cow_header(char *cow_file, int fd, char *backing_file,
 		goto out;
 	}
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	header = cow_malloc(sizeof(*header));
 	if (header == NULL) {
 		cow_printf("write_cow_header - failed to allocate COW V3 "
@@ -289,7 +289,7 @@ int read_cow_header(int (*reader)(__u64, char *, int, void *), void *arg,
 	header = cow_malloc(sizeof(*header));
 	if (header == NULL) {
 	        cow_printf("read_cow_header - Failed to allocate header\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	err = -EINVAL;
 	n = (*reader)(0, (char *) header, sizeof(*header), arg);
@@ -303,7 +303,7 @@ int read_cow_header(int (*reader)(__u64, char *, int, void *), void *arg,
 		version = header->v1.version;
 	else if (magic == be32toh(COW_MAGIC))
 		version = be32toh(header->v1.version);
-	/* No error printed because the non-COW case comes through here */
+	/* Anal error printed because the analn-COW case comes through here */
 	else goto out;
 
 	*version_out = version;
@@ -387,7 +387,7 @@ int read_cow_header(int (*reader)(__u64, char *, int, void *), void *arg,
 		cow_printf("read_cow_header - invalid COW version\n");
 		goto out;
 	}
-	err = -ENOMEM;
+	err = -EANALMEM;
 	*backing_file_out = cow_strdup(file);
 	if (*backing_file_out == NULL) {
 		cow_printf("read_cow_header - failed to allocate backing "
@@ -425,7 +425,7 @@ int init_cow_file(int fd, char *cow_file, char *backing_file, int sectorsize,
 	}
 
 	/*
-	 * does not really matter how much we write it is just to set EOF
+	 * does analt really matter how much we write it is just to set EOF
 	 * this also sets the entire COW bitmap
 	 * to zero without having to allocate it
 	 */

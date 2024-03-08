@@ -425,16 +425,16 @@ static int flow_change(struct net *net, struct sk_buff *in_skb,
 			return -EINVAL;
 
 		if (fls(keymask) - 1 > FLOW_KEY_MAX)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		if ((keymask & (FLOW_KEY_SKUID|FLOW_KEY_SKGID)) &&
 		    sk_user_ns(NETLINK_CB(in_skb).sk) != &init_user_ns)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 	}
 
 	fnew = kzalloc(sizeof(*fnew), GFP_KERNEL);
 	if (!fnew)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	err = tcf_em_tree_validate(tp, tb[TCA_FLOW_EMATCHES], &fnew->ematches);
 	if (err < 0)
@@ -584,7 +584,7 @@ static int flow_init(struct tcf_proto *tp)
 
 	head = kzalloc(sizeof(*head), GFP_KERNEL);
 	if (head == NULL)
-		return -ENOBUFS;
+		return -EANALBUFS;
 	INIT_LIST_HEAD(&head->filters);
 	rcu_assign_pointer(tp->root, head);
 	return 0;
@@ -628,7 +628,7 @@ static int flow_dump(struct net *net, struct tcf_proto *tp, void *fh,
 
 	t->tcm_handle = f->handle;
 
-	nest = nla_nest_start_noflag(skb, TCA_OPTIONS);
+	nest = nla_nest_start_analflag(skb, TCA_OPTIONS);
 	if (nest == NULL)
 		goto nla_put_failure;
 

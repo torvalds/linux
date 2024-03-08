@@ -197,7 +197,7 @@ static const struct snd_kcontrol_new rt1016_if_data_swap_mux =
 	SOC_DAPM_ENUM("Data Swap Mux", rt1016_if_data_swap_enum);
 
 static const struct snd_soc_dapm_widget rt1016_dapm_widgets[] = {
-	SND_SOC_DAPM_MUX("Data Swap Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Data Swap Mux", SND_SOC_ANALPM, 0, 0,
 			&rt1016_if_data_swap_mux),
 
 	SND_SOC_DAPM_SUPPLY("DAC Filter", RT1016_CLOCK_3,
@@ -256,8 +256,8 @@ static const struct snd_soc_dapm_widget rt1016_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY_S("MBIAS", 1, RT1016_PWR_CTRL, RT1016_PWR_MBIAS_BIT,
 		0, NULL, 0),
 
-	SND_SOC_DAPM_AIF_IN("AIFRX", "AIF Playback", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_DAC("DAC", NULL, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("AIFRX", "AIF Playback", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_DAC("DAC", NULL, SND_SOC_ANALPM, 0, 0),
 
 	SND_SOC_DAPM_OUTPUT("SPO"),
 };
@@ -483,7 +483,7 @@ static int rt1016_set_component_pll(struct snd_soc_component *component,
 		break;
 
 	default:
-		dev_err(component->dev, "Unknown PLL Source %d\n", source);
+		dev_err(component->dev, "Unkanalwn PLL Source %d\n", source);
 		return -EINVAL;
 	}
 
@@ -638,7 +638,7 @@ static int rt1016_i2c_probe(struct i2c_client *i2c)
 	rt1016 = devm_kzalloc(&i2c->dev, sizeof(struct rt1016_priv),
 				GFP_KERNEL);
 	if (rt1016 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(i2c, rt1016);
 
@@ -653,8 +653,8 @@ static int rt1016_i2c_probe(struct i2c_client *i2c)
 	regmap_read(rt1016->regmap, RT1016_DEVICE_ID, &val);
 	if (val != RT1016_DEVICE_ID_VAL) {
 		dev_err(&i2c->dev,
-			"Device with ID register %x is not rt1016\n", val);
-		return -ENODEV;
+			"Device with ID register %x is analt rt1016\n", val);
+		return -EANALDEV;
 	}
 
 	regmap_write(rt1016->regmap, RT1016_RESET, 0);

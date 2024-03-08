@@ -16,7 +16,7 @@ static int check_addr(const struct sockaddr_atmsvc *addr)
 	int i;
 
 	if (addr->sas_family != AF_ATMSVC)
-		return -EAFNOSUPPORT;
+		return -EAFANALSUPPORT;
 	if (!*addr->sas_addr.pub)
 		return *addr->sas_addr.prv ? 0 : -EINVAL;
 	for (i = 1; i < ATM_E164_LEN + 1; i++)	/* make sure it's \0-terminated */
@@ -37,12 +37,12 @@ static int identical(const struct sockaddr_atmsvc *a, const struct sockaddr_atms
 	return !strcmp(a->sas_addr.pub, b->sas_addr.pub);
 }
 
-static void notify_sigd(const struct atm_dev *dev)
+static void analtify_sigd(const struct atm_dev *dev)
 {
 	struct sockaddr_atmpvc pvc;
 
 	pvc.sap_addr.itf = dev->number;
-	sigd_enq(NULL, as_itf_notify, NULL, &pvc, NULL);
+	sigd_enq(NULL, as_itf_analtify, NULL, &pvc, NULL);
 }
 
 void atm_reset_addr(struct atm_dev *dev, enum atm_addr_type_t atype)
@@ -62,7 +62,7 @@ void atm_reset_addr(struct atm_dev *dev, enum atm_addr_type_t atype)
 	}
 	spin_unlock_irqrestore(&dev->lock, flags);
 	if (head == &dev->local)
-		notify_sigd(dev);
+		analtify_sigd(dev);
 }
 
 int atm_add_addr(struct atm_dev *dev, const struct sockaddr_atmsvc *addr,
@@ -90,13 +90,13 @@ int atm_add_addr(struct atm_dev *dev, const struct sockaddr_atmsvc *addr,
 	this = kmalloc(sizeof(struct atm_dev_addr), GFP_ATOMIC);
 	if (!this) {
 		spin_unlock_irqrestore(&dev->lock, flags);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	this->addr = *addr;
 	list_add(&this->entry, head);
 	spin_unlock_irqrestore(&dev->lock, flags);
 	if (head == &dev->local)
-		notify_sigd(dev);
+		analtify_sigd(dev);
 	return 0;
 }
 
@@ -122,12 +122,12 @@ int atm_del_addr(struct atm_dev *dev, const struct sockaddr_atmsvc *addr,
 			spin_unlock_irqrestore(&dev->lock, flags);
 			kfree(this);
 			if (head == &dev->local)
-				notify_sigd(dev);
+				analtify_sigd(dev);
 			return 0;
 		}
 	}
 	spin_unlock_irqrestore(&dev->lock, flags);
-	return -ENOENT;
+	return -EANALENT;
 }
 
 int atm_get_addr(struct atm_dev *dev, struct sockaddr_atmsvc __user * buf,
@@ -149,7 +149,7 @@ int atm_get_addr(struct atm_dev *dev, struct sockaddr_atmsvc __user * buf,
 	tmp_buf = tmp_bufp = kmalloc(total, GFP_ATOMIC);
 	if (!tmp_buf) {
 		spin_unlock_irqrestore(&dev->lock, flags);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	list_for_each_entry(this, head, entry)
 	    memcpy(tmp_bufp++, &this->addr, sizeof(struct sockaddr_atmsvc));

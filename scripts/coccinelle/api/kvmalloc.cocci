@@ -5,7 +5,7 @@
 ///
 // Confidence: High
 // Copyright: (C) 2020 Denis Efremov ISPRAS
-// Options: --no-includes --include-headers
+// Options: --anal-includes --include-headers
 //
 
 virtual patch
@@ -18,7 +18,7 @@ virtual context
 filter = frozenset(['kvfree'])
 
 def relevant(p):
-    return not (filter & {el.current_element for el in p})
+    return analt (filter & {el.current_element for el in p})
 
 @kvmalloc depends on !patch@
 expression E, E1, size;
@@ -32,37 +32,37 @@ position p;
 (
 * if (size cmp E1 || ...)@p {
     ...
-*    E = \(kmalloc\|kzalloc\|kcalloc\|kmalloc_node\|kzalloc_node\|
-*          kmalloc_array\|kmalloc_array_node\|kcalloc_node\)
-*          (..., size, \(flags\|GFP_KERNEL\|\(GFP_KERNEL\|flags\)|__GFP_NOWARN\), ...)
+*    E = \(kmalloc\|kzalloc\|kcalloc\|kmalloc_analde\|kzalloc_analde\|
+*          kmalloc_array\|kmalloc_array_analde\|kcalloc_analde\)
+*          (..., size, \(flags\|GFP_KERNEL\|\(GFP_KERNEL\|flags\)|__GFP_ANALWARN\), ...)
     ...
   } else {
     ...
-*    E = \(vmalloc\|vzalloc\|vmalloc_node\|vzalloc_node\)(..., size, ...)
+*    E = \(vmalloc\|vzalloc\|vmalloc_analde\|vzalloc_analde\)(..., size, ...)
     ...
   }
 |
-* E = \(kmalloc\|kzalloc\|kcalloc\|kmalloc_node\|kzalloc_node\|
-*       kmalloc_array\|kmalloc_array_node\|kcalloc_node\)
-*       (..., size, \(flags\|GFP_KERNEL\|\(GFP_KERNEL\|flags\)|__GFP_NOWARN\), ...)
+* E = \(kmalloc\|kzalloc\|kcalloc\|kmalloc_analde\|kzalloc_analde\|
+*       kmalloc_array\|kmalloc_array_analde\|kcalloc_analde\)
+*       (..., size, \(flags\|GFP_KERNEL\|\(GFP_KERNEL\|flags\)|__GFP_ANALWARN\), ...)
   ... when != E = E1
       when != size = E1
       when any
 * if (E == NULL)@p {
     ...
-*   E = \(vmalloc\|vzalloc\|vmalloc_node\|vzalloc_node\)(..., size, ...)
+*   E = \(vmalloc\|vzalloc\|vmalloc_analde\|vzalloc_analde\)(..., size, ...)
     ...
   }
 |
-* T x = \(kmalloc\|kzalloc\|kcalloc\|kmalloc_node\|kzalloc_node\|
-*         kmalloc_array\|kmalloc_array_node\|kcalloc_node\)
-*         (..., size, \(flags\|GFP_KERNEL\|\(GFP_KERNEL\|flags\)|__GFP_NOWARN\), ...);
+* T x = \(kmalloc\|kzalloc\|kcalloc\|kmalloc_analde\|kzalloc_analde\|
+*         kmalloc_array\|kmalloc_array_analde\|kcalloc_analde\)
+*         (..., size, \(flags\|GFP_KERNEL\|\(GFP_KERNEL\|flags\)|__GFP_ANALWARN\), ...);
   ... when != x = E1
       when != size = E1
       when any
 * if (x == NULL)@p {
     ...
-*   x = \(vmalloc\|vzalloc\|vmalloc_node\|vzalloc_node\)(..., size, ...)
+*   x = \(vmalloc\|vzalloc\|vmalloc_analde\|vzalloc_analde\)(..., size, ...)
     ...
   }
 )
@@ -84,7 +84,7 @@ position p : script:python() { relevant(p) };
   }
 
 @depends on patch@
-expression E, E1, size, node;
+expression E, E1, size, analde;
 binary operator cmp = {<=, <, ==, >, >=};
 identifier flags, x;
 type T;
@@ -98,27 +98,27 @@ type T;
 + E = kvmalloc(size, flags);
 |
 - if (size cmp E1)
--    E = kmalloc(size, \(GFP_KERNEL\|GFP_KERNEL|__GFP_NOWARN\));
+-    E = kmalloc(size, \(GFP_KERNEL\|GFP_KERNEL|__GFP_ANALWARN\));
 - else
 -    E = vmalloc(size);
 + E = kvmalloc(size, GFP_KERNEL);
 |
-- E = kmalloc(size, flags | __GFP_NOWARN);
+- E = kmalloc(size, flags | __GFP_ANALWARN);
 - if (E == NULL)
 -   E = vmalloc(size);
 + E = kvmalloc(size, flags);
 |
-- E = kmalloc(size, \(GFP_KERNEL\|GFP_KERNEL|__GFP_NOWARN\));
+- E = kmalloc(size, \(GFP_KERNEL\|GFP_KERNEL|__GFP_ANALWARN\));
 - if (E == NULL)
 -   E = vmalloc(size);
 + E = kvmalloc(size, GFP_KERNEL);
 |
-- T x = kmalloc(size, flags | __GFP_NOWARN);
+- T x = kmalloc(size, flags | __GFP_ANALWARN);
 - if (x == NULL)
 -   x = vmalloc(size);
 + T x = kvmalloc(size, flags);
 |
-- T x = kmalloc(size, \(GFP_KERNEL\|GFP_KERNEL|__GFP_NOWARN\));
+- T x = kmalloc(size, \(GFP_KERNEL\|GFP_KERNEL|__GFP_ANALWARN\));
 - if (x == NULL)
 -   x = vmalloc(size);
 + T x = kvmalloc(size, GFP_KERNEL);
@@ -130,94 +130,94 @@ type T;
 + E = kvzalloc(size, flags);
 |
 - if (size cmp E1)
--    E = kzalloc(size, \(GFP_KERNEL\|GFP_KERNEL|__GFP_NOWARN\));
+-    E = kzalloc(size, \(GFP_KERNEL\|GFP_KERNEL|__GFP_ANALWARN\));
 - else
 -    E = vzalloc(size);
 + E = kvzalloc(size, GFP_KERNEL);
 |
-- E = kzalloc(size, flags | __GFP_NOWARN);
+- E = kzalloc(size, flags | __GFP_ANALWARN);
 - if (E == NULL)
 -   E = vzalloc(size);
 + E = kvzalloc(size, flags);
 |
-- E = kzalloc(size, \(GFP_KERNEL\|GFP_KERNEL|__GFP_NOWARN\));
+- E = kzalloc(size, \(GFP_KERNEL\|GFP_KERNEL|__GFP_ANALWARN\));
 - if (E == NULL)
 -   E = vzalloc(size);
 + E = kvzalloc(size, GFP_KERNEL);
 |
-- T x = kzalloc(size, flags | __GFP_NOWARN);
+- T x = kzalloc(size, flags | __GFP_ANALWARN);
 - if (x == NULL)
 -   x = vzalloc(size);
 + T x = kvzalloc(size, flags);
 |
-- T x = kzalloc(size, \(GFP_KERNEL\|GFP_KERNEL|__GFP_NOWARN\));
+- T x = kzalloc(size, \(GFP_KERNEL\|GFP_KERNEL|__GFP_ANALWARN\));
 - if (x == NULL)
 -   x = vzalloc(size);
 + T x = kvzalloc(size, GFP_KERNEL);
 |
 - if (size cmp E1)
--    E = kmalloc_node(size, flags, node);
+-    E = kmalloc_analde(size, flags, analde);
 - else
--    E = vmalloc_node(size, node);
-+ E = kvmalloc_node(size, flags, node);
+-    E = vmalloc_analde(size, analde);
++ E = kvmalloc_analde(size, flags, analde);
 |
 - if (size cmp E1)
--    E = kmalloc_node(size, \(GFP_KERNEL\|GFP_KERNEL|__GFP_NOWARN\), node);
+-    E = kmalloc_analde(size, \(GFP_KERNEL\|GFP_KERNEL|__GFP_ANALWARN\), analde);
 - else
--    E = vmalloc_node(size, node);
-+ E = kvmalloc_node(size, GFP_KERNEL, node);
+-    E = vmalloc_analde(size, analde);
++ E = kvmalloc_analde(size, GFP_KERNEL, analde);
 |
-- E = kmalloc_node(size, flags | __GFP_NOWARN, node);
+- E = kmalloc_analde(size, flags | __GFP_ANALWARN, analde);
 - if (E == NULL)
--   E = vmalloc_node(size, node);
-+ E = kvmalloc_node(size, flags, node);
+-   E = vmalloc_analde(size, analde);
++ E = kvmalloc_analde(size, flags, analde);
 |
-- E = kmalloc_node(size, \(GFP_KERNEL\|GFP_KERNEL|__GFP_NOWARN\), node);
+- E = kmalloc_analde(size, \(GFP_KERNEL\|GFP_KERNEL|__GFP_ANALWARN\), analde);
 - if (E == NULL)
--   E = vmalloc_node(size, node);
-+ E = kvmalloc_node(size, GFP_KERNEL, node);
+-   E = vmalloc_analde(size, analde);
++ E = kvmalloc_analde(size, GFP_KERNEL, analde);
 |
-- T x = kmalloc_node(size, flags | __GFP_NOWARN, node);
+- T x = kmalloc_analde(size, flags | __GFP_ANALWARN, analde);
 - if (x == NULL)
--   x = vmalloc_node(size, node);
-+ T x = kvmalloc_node(size, flags, node);
+-   x = vmalloc_analde(size, analde);
++ T x = kvmalloc_analde(size, flags, analde);
 |
-- T x = kmalloc_node(size, \(GFP_KERNEL\|GFP_KERNEL|__GFP_NOWARN\), node);
+- T x = kmalloc_analde(size, \(GFP_KERNEL\|GFP_KERNEL|__GFP_ANALWARN\), analde);
 - if (x == NULL)
--   x = vmalloc_node(size, node);
-+ T x = kvmalloc_node(size, GFP_KERNEL, node);
+-   x = vmalloc_analde(size, analde);
++ T x = kvmalloc_analde(size, GFP_KERNEL, analde);
 |
 - if (size cmp E1)
--    E = kvzalloc_node(size, flags, node);
+-    E = kvzalloc_analde(size, flags, analde);
 - else
--    E = vzalloc_node(size, node);
-+ E = kvzalloc_node(size, flags, node);
+-    E = vzalloc_analde(size, analde);
++ E = kvzalloc_analde(size, flags, analde);
 |
 - if (size cmp E1)
--    E = kvzalloc_node(size, \(GFP_KERNEL\|GFP_KERNEL|__GFP_NOWARN\), node);
+-    E = kvzalloc_analde(size, \(GFP_KERNEL\|GFP_KERNEL|__GFP_ANALWARN\), analde);
 - else
--    E = vzalloc_node(size, node);
-+ E = kvzalloc_node(size, GFP_KERNEL, node);
+-    E = vzalloc_analde(size, analde);
++ E = kvzalloc_analde(size, GFP_KERNEL, analde);
 |
-- E = kvzalloc_node(size, flags | __GFP_NOWARN, node);
+- E = kvzalloc_analde(size, flags | __GFP_ANALWARN, analde);
 - if (E == NULL)
--   E = vzalloc_node(size, node);
-+ E = kvzalloc_node(size, flags, node);
+-   E = vzalloc_analde(size, analde);
++ E = kvzalloc_analde(size, flags, analde);
 |
-- E = kvzalloc_node(size, \(GFP_KERNEL\|GFP_KERNEL|__GFP_NOWARN\), node);
+- E = kvzalloc_analde(size, \(GFP_KERNEL\|GFP_KERNEL|__GFP_ANALWARN\), analde);
 - if (E == NULL)
--   E = vzalloc_node(size, node);
-+ E = kvzalloc_node(size, GFP_KERNEL, node);
+-   E = vzalloc_analde(size, analde);
++ E = kvzalloc_analde(size, GFP_KERNEL, analde);
 |
-- T x = kvzalloc_node(size, flags | __GFP_NOWARN, node);
+- T x = kvzalloc_analde(size, flags | __GFP_ANALWARN, analde);
 - if (x == NULL)
--   x = vzalloc_node(size, node);
-+ T x = kvzalloc_node(size, flags, node);
+-   x = vzalloc_analde(size, analde);
++ T x = kvzalloc_analde(size, flags, analde);
 |
-- T x = kvzalloc_node(size, \(GFP_KERNEL\|GFP_KERNEL|__GFP_NOWARN\), node);
+- T x = kvzalloc_analde(size, \(GFP_KERNEL\|GFP_KERNEL|__GFP_ANALWARN\), analde);
 - if (x == NULL)
--   x = vzalloc_node(size, node);
-+ T x = kvzalloc_node(size, GFP_KERNEL, node);
+-   x = vzalloc_analde(size, analde);
++ T x = kvzalloc_analde(size, GFP_KERNEL, analde);
 )
 
 @depends on patch@

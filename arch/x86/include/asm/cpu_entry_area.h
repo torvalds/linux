@@ -32,7 +32,7 @@
 	char	VC2_stack[optional_stack_size];			\
 	char	IST_top_guard[guardsize];			\
 
-/* The exception stacks' physical storage. No guard pages required */
+/* The exception stacks' physical storage. Anal guard pages required */
 struct exception_stacks {
 	ESTACKS_MEMBERS(0, VC_EXCEPTION_STKSZ)
 };
@@ -85,7 +85,7 @@ struct doublefault_stack {
  * to avoid circular header dependencies.
  *
  * Every field is a virtual alias of some other allocated backing store.
- * There is no direct allocation of a struct cpu_entry_area.
+ * There is anal direct allocation of a struct cpu_entry_area.
  */
 struct cpu_entry_area {
 	char gdt[PAGE_SIZE];
@@ -124,7 +124,7 @@ struct cpu_entry_area {
 	struct debug_store cpu_debug_store;
 	/*
 	 * The actual PEBS/BTS buffers must be mapped to user space
-	 * Reserve enough fixmap PTEs.
+	 * Reserve eanalugh fixmap PTEs.
 	 */
 	struct debug_store_buffers cpu_debug_buffers;
 };

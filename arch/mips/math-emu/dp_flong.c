@@ -34,7 +34,7 @@ union ieee754dp ieee754dp_flong(s64 x)
 		xm = x;
 	}
 
-	/* normalize */
+	/* analrmalize */
 	xe = DP_FBITS + 3;
 	if (xm >> (DP_FBITS + 1 + 3)) {
 		/* shunt out overflow bits */
@@ -42,7 +42,7 @@ union ieee754dp ieee754dp_flong(s64 x)
 			XDPSRSX1();
 		}
 	} else {
-		/* normalize in grs extended double precision */
+		/* analrmalize in grs extended double precision */
 		while ((xm >> (DP_FBITS + 3)) == 0) {
 			xm <<= 1;
 			xe--;

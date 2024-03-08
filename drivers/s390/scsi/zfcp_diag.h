@@ -2,7 +2,7 @@
 /*
  * zfcp device driver
  *
- * Definitions for handling diagnostics in the zfcp device driver.
+ * Definitions for handling diaganalstics in the zfcp device driver.
  *
  * Copyright IBM Corp. 2018, 2020
  */
@@ -16,7 +16,7 @@
 #include "zfcp_def.h"
 
 /**
- * struct zfcp_diag_header - general part of a diagnostic buffer.
+ * struct zfcp_diag_header - general part of a diaganalstic buffer.
  * @access_lock: lock protecting all the data in this buffer.
  * @updating: flag showing that an update for this buffer is currently running.
  * @incomplete: flag showing that the data in @buffer is incomplete.
@@ -38,9 +38,9 @@ struct zfcp_diag_header {
 };
 
 /**
- * struct zfcp_diag_adapter - central storage for all diagnostics concerning an
+ * struct zfcp_diag_adapter - central storage for all diaganalstics concerning an
  *			      adapter.
- * @max_age: maximum age of data in diagnostic buffers before they need to be
+ * @max_age: maximum age of data in diaganalstic buffers before they need to be
  *	     refreshed (in ms).
  * @port_data: data retrieved using exchange port data.
  * @port_data.header: header with metadata for the cache in @port_data.data.

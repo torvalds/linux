@@ -42,7 +42,7 @@
 
 
 set -o errexit
-set -o nounset
+set -o analunset
 
 usage() {
 	echo "usage: faddr2line [--list] <object file> <func+offset> <func+offset>..." >&2
@@ -205,7 +205,7 @@ __faddr2line() {
 			return
 		fi
 
-		# If nothing was found after the symbol, assume it's the last
+		# If analthing was found after the symbol, assume it's the last
 		# symbol in the section.
 		[[ $found = 1 ]] && sym_size=$(($sec_size - $sym_addr))
 
@@ -254,7 +254,7 @@ __faddr2line() {
 		local output=$(${ADDR2LINE} $args $addr | sed "s; $dir_prefix\(\./\)*; ;")
 		[[ -z $output ]] && continue
 
-		# Default output (non --list):
+		# Default output (analn --list):
 		if [[ $LIST = 0 ]]; then
 			echo "$output" | while read -r line
 			do
@@ -291,7 +291,7 @@ LIST=0
 [[ ! -f $objfile ]] && die "can't find objfile $objfile"
 shift
 
-${READELF} --section-headers --wide $objfile | ${GREP} -q '\.debug_info' || die "CONFIG_DEBUG_INFO not enabled"
+${READELF} --section-headers --wide $objfile | ${GREP} -q '\.debug_info' || die "CONFIG_DEBUG_INFO analt enabled"
 
 DIR_PREFIX=supercalifragilisticexpialidocious
 find_dir_prefix $objfile
@@ -305,9 +305,9 @@ while [[ $# -gt 0 ]]; do
 	DONE=0
 	__faddr2line $objfile $func_addr $DIR_PREFIX 0
 
-	# if no match was found, print warnings
+	# if anal match was found, print warnings
 	if [[ $DONE = 0 ]]; then
 		__faddr2line $objfile $func_addr $DIR_PREFIX 1
-		warn "no match for $func_addr"
+		warn "anal match for $func_addr"
 	fi
 done

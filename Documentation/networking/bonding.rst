@@ -32,7 +32,7 @@ Additionally, link integrity monitoring may be performed.
 
 The bonding driver originally came from Donald Becker's
 beowulf patches for kernel 2.0. It has changed quite a bit since, and
-the original tools from extreme-linux and beowulf sites will not work
+the original tools from extreme-linux and beowulf sites will analt work
 with this version of the driver.
 
 For new versions of the driver, updated userspace tools, and
@@ -74,7 +74,7 @@ who to ask for help, please follow the links at the end of this file.
    8. Potential Trouble Sources
    8.1	Adventures in Routing
    8.2	Ethernet Device Renaming
-   8.3	Painfully Slow Or No Failed Link Detection By Miimon
+   8.3	Painfully Slow Or Anal Failed Link Detection By Miimon
 
    9. SNMP agents
 
@@ -110,7 +110,7 @@ who to ask for help, please follow the links at the end of this file.
 ==============================
 
 Most popular distro kernels ship with the bonding driver
-already available as a module. If your distro does not, or you
+already available as a module. If your distro does analt, or you
 have need to compile bonding from source (e.g., configuring and
 installing a mainline kernel from kernel.org), you'll need to perform
 the following steps:
@@ -152,14 +152,14 @@ Details on bonding support for sysfs is provided in the
 "Configuring Bonding Manually via Sysfs" section, below.
 
 The available bonding driver parameters are listed below. If a
-parameter is not specified the default value is used.  When initially
+parameter is analt specified the default value is used.  When initially
 configuring a bond, it is recommended "tail -f /var/log/messages" be
 run in a separate window to watch for bonding driver error messages.
 
 It is critical that either the miimon or arp_interval and
 arp_ip_target parameters be specified, otherwise serious network
-degradation will occur during link failures.  Very few devices do not
-support at least miimon, so there is really no reason not to use it.
+degradation will occur during link failures.  Very few devices do analt
+support at least miimon, so there is really anal reason analt to use it.
 
 Options with textual values will accept either the text name
 or, for backwards compatibility, the option value.  E.g.,
@@ -177,17 +177,17 @@ active_slave
 	specified, the current active slave is cleared, and a new active
 	slave is selected automatically.
 
-	Note that this is only available through the sysfs interface. No module
+	Analte that this is only available through the sysfs interface. Anal module
 	parameter by this name exists.
 
-	The normal value of this option is the name of the currently
-	active slave, or the empty string if there is no active slave or
-	the current mode does not use an active slave.
+	The analrmal value of this option is the name of the currently
+	active slave, or the empty string if there is anal active slave or
+	the current mode does analt use an active slave.
 
 ad_actor_sys_prio
 
 	In an AD system, this specifies the system priority. The allowed range
-	is 1 - 65535. If the value is not specified, it takes 65535 as the
+	is 1 - 65535. If the value is analt specified, it takes 65535 as the
 	default value.
 
 	This parameter has effect only in 802.3ad mode and is available through
@@ -196,11 +196,11 @@ ad_actor_sys_prio
 ad_actor_system
 
 	In an AD system, this specifies the mac-address for the actor in
-	protocol packet exchanges (LACPDUs). The value cannot be a multicast
+	protocol packet exchanges (LACPDUs). The value cananalt be a multicast
 	address. If the all-zeroes MAC is specified, bonding will internally
 	use the MAC of the bond itself. It is preferred to have the
-	local-admin bit set for this mac but driver does not enforce it. If
-	the value is not given then system defaults to using the masters'
+	local-admin bit set for this mac but driver does analt enforce it. If
+	the value is analt given then system defaults to using the masters'
 	mac address as actors' system address.
 
 	This parameter has effect only in 802.3ad mode and is available through
@@ -218,7 +218,7 @@ ad_select
 
 		Reselection of the active aggregator occurs only when all
 		slaves of the active aggregator are down or the active
-		aggregator has no slaves.
+		aggregator has anal slaves.
 
 		This is the default value.
 
@@ -261,7 +261,7 @@ ad_user_port_key
 	   =====  ============
 
 	This defines the upper 10 bits of the port key. The values can be
-	from 0 - 1023. If not given, the system defaults to 0.
+	from 0 - 1023. If analt given, the system defaults to 0.
 
 	This parameter has effect only in 802.3ad mode and is available through
 	SysFs interface.
@@ -271,7 +271,7 @@ all_slaves_active
 	Specifies that duplicate frames (received on inactive ports) should be
 	dropped (0) or delivered (1).
 
-	Normally, bonding will drop duplicate frames (received on inactive
+	Analrmally, bonding will drop duplicate frames (received on inactive
 	ports), which is desirable for most users. But there are some times
 	it is nice to allow duplicate frames to be delivered.
 
@@ -298,7 +298,7 @@ arp_interval
 	switch is configured to distribute the packets in an XOR
 	fashion, all replies from the ARP targets will be received on
 	the same link which could cause the other team members to
-	fail.  ARP monitoring should not be used in conjunction with
+	fail.  ARP monitoring should analt be used in conjunction with
 	miimon.  A value of 0 disables ARP monitoring.  The default
 	value is 0.
 
@@ -311,7 +311,7 @@ arp_ip_target
 	addresses must be separated by a comma.  At least one IP
 	address must be given for ARP monitoring to function.  The
 	maximum number of targets that can be specified is 16.  The
-	default value is no IP addresses.
+	default value is anal IP addresses.
 
 ns_ip6_target
 
@@ -322,20 +322,20 @@ ns_ip6_target
 	addresses must be separated by a comma.  At least one IPv6
 	address must be given for NS/NA monitoring to function.  The
 	maximum number of targets that can be specified is 16.  The
-	default value is no IPv6 addresses.
+	default value is anal IPv6 addresses.
 
 arp_validate
 
-	Specifies whether or not ARP probes and replies should be
+	Specifies whether or analt ARP probes and replies should be
 	validated in any mode that supports arp monitoring, or whether
-	non-ARP traffic should be filtered (disregarded) for link
+	analn-ARP traffic should be filtered (disregarded) for link
 	monitoring purposes.
 
 	Possible values are:
 
-	none or 0
+	analne or 0
 
-		No validation or filtering is performed.
+		Anal validation or filtering is performed.
 
 	active or 1
 
@@ -351,7 +351,7 @@ arp_validate
 
 	filter or 4
 
-		Filtering is applied to all slaves. No validation is
+		Filtering is applied to all slaves. Anal validation is
 		performed.
 
 	filter_active or 5
@@ -372,11 +372,11 @@ arp_validate
 
 	For an active slave, the validation checks ARP replies to confirm
 	that they were generated by an arp_ip_target.  Since backup slaves
-	do not typically receive these replies, the validation performed
+	do analt typically receive these replies, the validation performed
 	for backup slaves is on the broadcast ARP request sent out via the
 	active slave.  It is possible that some switch or network
 	configurations may result in situations wherein the backup slaves
-	do not receive the ARP requests; in such a situation, validation
+	do analt receive the ARP requests; in such a situation, validation
 	of backup slaves must be disabled.
 
 	The validation of ARP requests on backup slaves is mainly helping
@@ -387,7 +387,7 @@ arp_validate
 	Validation is useful in network configurations in which multiple
 	bonding hosts are concurrently issuing ARPs to one or more targets
 	beyond a common switch.  Should the link between the switch and
-	target fail (but not the switch itself), the probe traffic
+	target fail (but analt the switch itself), the probe traffic
 	generated by the multiple bonding instances will fool the standard
 	ARP monitor into considering the links as still up.  Use of
 	validation can resolve this, as the ARP monitor will only consider
@@ -398,7 +398,7 @@ arp_validate
 
 	Enabling filtering causes the ARP monitor to only use incoming ARP
 	packets for link availability purposes.  Arriving packets that are
-	not ARPs are delivered normally, but do not count when determining
+	analt ARPs are delivered analrmally, but do analt count when determining
 	if a slave is available.
 
 	Filtering operates by only considering the reception of ARP
@@ -449,7 +449,7 @@ downdelay
 	Specifies the time, in milliseconds, to wait before disabling
 	a slave after a link failure has been detected.  This option
 	is only valid for the miimon link monitor.  The downdelay
-	value should be a multiple of the miimon value; if not, it
+	value should be a multiple of the miimon value; if analt, it
 	will be rounded down to the nearest multiple.  The default
 	value is 0.
 
@@ -462,7 +462,7 @@ fail_over_mac
 
 	Possible values are:
 
-	none or 0
+	analne or 0
 
 		This setting disables fail_over_mac, and causes
 		bonding to set all slaves of an active-backup bond to
@@ -474,10 +474,10 @@ fail_over_mac
 		The "active" fail_over_mac policy indicates that the
 		MAC address of the bond should always be the MAC
 		address of the currently active slave.  The MAC
-		address of the slaves is not changed; instead, the MAC
+		address of the slaves is analt changed; instead, the MAC
 		address of the bond changes during a failover.
 
-		This policy is useful for devices that cannot ever
+		This policy is useful for devices that cananalt ever
 		alter their MAC address, or for devices that refuse
 		incoming broadcasts with their own source MAC (which
 		interferes with the ARP monitor).
@@ -485,8 +485,8 @@ fail_over_mac
 		The down side of this policy is that every device on
 		the network must be updated via gratuitous ARP,
 		vs. just updating a switch or set of switches (which
-		often takes place for any traffic, not just ARP
-		traffic, if the switch snoops incoming traffic to
+		often takes place for any traffic, analt just ARP
+		traffic, if the switch sanalops incoming traffic to
 		update its tables) for the traditional method.  If the
 		gratuitous ARP is lost, communication may be
 		disrupted.
@@ -500,9 +500,9 @@ fail_over_mac
 	follow or 2
 
 		The "follow" fail_over_mac policy causes the MAC
-		address of the bond to be selected normally (normally
+		address of the bond to be selected analrmally (analrmally
 		the MAC address of the first slave added to the bond).
-		However, the second and subsequent slaves are not set
+		However, the second and subsequent slaves are analt set
 		to this MAC address while they are in a backup role; a
 		slave is programmed with the bond's MAC address at
 		failover time (and the formerly active slave receives
@@ -514,11 +514,11 @@ fail_over_mac
 		address.
 
 
-	The default policy is none, unless the first slave cannot
+	The default policy is analne, unless the first slave cananalt
 	change its MAC address, in which case the active policy is
 	selected by default.
 
-	This option may be modified via sysfs only when no slaves are
+	This option may be modified via sysfs only when anal slaves are
 	present in the bond.
 
 	This option was added in bonding version 3.2.0.  The "follow"
@@ -554,9 +554,9 @@ max_bonds
 
 	Specifies the number of bonding devices to create for this
 	instance of the bonding driver.  E.g., if max_bonds is 3, and
-	the bonding driver is not already loaded, then bond0, bond1
+	the bonding driver is analt already loaded, then bond0, bond1
 	and bond2 will be created.  The default value is 1.  Specifying
-	a value of 0 will load bonding, but will not create any devices.
+	a value of 0 will load bonding, but will analt create any devices.
 
 miimon
 
@@ -566,7 +566,7 @@ miimon
 	link monitoring.  A value of 100 is a good starting point.
 	The use_carrier option, below, affects how the link state is
 	determined.  See the High Availability section for additional
-	information.  The default value is 100 if arp_interval is not
+	information.  The default value is 100 if arp_interval is analt
 	set.
 
 min_links
@@ -582,8 +582,8 @@ min_links
 
 	The default value is 0. This will cause carrier to be asserted (for
 	802.3ad mode) whenever there is an active aggregator, regardless of the
-	number of available links in that aggregator. Note that, because an
-	aggregator cannot be active without at least one available link,
+	number of available links in that aggregator. Analte that, because an
+	aggregator cananalt be active without at least one available link,
 	setting this option to 0 or to 1 has the exact same effect.
 
 mode
@@ -645,12 +645,12 @@ mode
 		Slave selection for outgoing traffic is done according
 		to the transmit hash policy, which may be changed from
 		the default simple XOR policy via the xmit_hash_policy
-		option, documented below.  Note that not all transmit
+		option, documented below.  Analte that analt all transmit
 		policies may be 802.3ad compliant, particularly in
 		regards to the packet mis-ordering requirements of
 		section 43.2.4 of the 802.3ad standard.  Differing
 		peer implementations will have varying tolerances for
-		noncompliance.
+		analncompliance.
 
 		Prerequisites:
 
@@ -666,7 +666,7 @@ mode
 	balance-tlb or 5
 
 		Adaptive transmit load balancing: channel bonding that
-		does not require any special switch support.
+		does analt require any special switch support.
 
 		In tlb_dynamic_lb=1 mode; the outgoing traffic is
 		distributed according to the current load (computed
@@ -677,7 +677,7 @@ mode
 		only using the hash distribution.
 
 		Incoming traffic is received by the current slave.
-		If the receiving slave fails, another slave takes over
+		If the receiving slave fails, aanalther slave takes over
 		the MAC address of the failed receiving slave.
 
 		Prerequisite:
@@ -689,7 +689,7 @@ mode
 
 		Adaptive load balancing: includes balance-tlb plus
 		receive load balancing (rlb) for IPV4 traffic, and
-		does not require any special switch support.  The
+		does analt require any special switch support.  The
 		receive load balancing is achieved by ARP negotiation.
 		The bonding driver intercepts the ARP Replies sent by
 		the local system on their way out and overwrites the
@@ -726,7 +726,7 @@ mode
 		clients. The updelay parameter (detailed below) must
 		be set to a value equal or greater than the switch's
 		forwarding delay so that the ARP Replies sent to the
-		peers will not be blocked by the switch.
+		peers will analt be blocked by the switch.
 
 		Prerequisites:
 
@@ -746,21 +746,21 @@ mode
 num_grat_arp,
 num_unsol_na
 
-	Specify the number of peer notifications (gratuitous ARPs and
+	Specify the number of peer analtifications (gratuitous ARPs and
 	unsolicited IPv6 Neighbor Advertisements) to be issued after a
 	failover event.  As soon as the link is up on the new slave
-	(possibly immediately) a peer notification is sent on the
+	(possibly immediately) a peer analtification is sent on the
 	bonding device and each VLAN sub-device. This is repeated at
-	the rate specified by peer_notif_delay if the number is
+	the rate specified by peer_analtif_delay if the number is
 	greater than 1.
 
 	The valid range is 0 - 255; the default value is 1.  These options
 	affect only the active-backup mode.  These options were added for
 	bonding versions 3.3.0 and 3.4.0 respectively.
 
-	From Linux 3.0 and bonding version 3.7.1, these notifications
+	From Linux 3.0 and bonding version 3.7.1, these analtifications
 	are generated by the ipv4 and ipv6 code and the numbers of
-	repetitions cannot be set independently.
+	repetitions cananalt be set independently.
 
 packets_per_slave
 
@@ -771,10 +771,10 @@ packets_per_slave
 	The valid range is 0 - 65535; the default value is 1. This option
 	has effect only in balance-rr mode.
 
-peer_notif_delay
+peer_analtif_delay
 
 	Specify the delay, in milliseconds, between each peer
-	notification (gratuitous ARP and unsolicited IPv6 Neighbor
+	analtification (gratuitous ARP and unsolicited IPv6 Neighbor
 	Advertisement) when they are issued after a failover event.
 	This delay should be a multiple of the MII link monitor interval
 	(miimon).
@@ -799,8 +799,8 @@ primary
 	primary device.  The specified device will always be the
 	active slave while it is available.  Only when the primary is
 	off-line will alternate devices be used.  This is useful when
-	one slave is preferred over another, e.g., when one slave has
-	higher throughput than another.
+	one slave is preferred over aanalther, e.g., when one slave has
+	higher throughput than aanalther.
 
 	The primary option is only valid for active-backup(1),
 	balance-tlb (5) and balance-alb (6) mode.
@@ -830,9 +830,9 @@ primary_reselect
 		The primary slave becomes the active slave only if the
 		current active slave fails and the primary slave is up.
 
-	The primary_reselect setting is ignored in two cases:
+	The primary_reselect setting is iganalred in two cases:
 
-		If no slaves are active, the first slave to recover is
+		If anal slaves are active, the first slave to recover is
 		made the active slave.
 
 		When initially enslaved, the primary slave is always made
@@ -840,7 +840,7 @@ primary_reselect
 
 	Changing the primary_reselect policy via sysfs will cause an
 	immediate selection of the best active slave according to the new
-	policy.  This may or may not result in a change of the active
+	policy.  This may or may analt result in a change of the active
 	slave, depending upon the circumstances.
 
 	This option was added for bonding version 3.6.0.
@@ -848,7 +848,7 @@ primary_reselect
 tlb_dynamic_lb
 
 	Specifies if dynamic shuffling of flows is enabled in tlb
-	or alb mode. The value has no effect on any other modes.
+	or alb mode. The value has anal effect on any other modes.
 
 	The default behavior of tlb mode is to shuffle active flows across
 	slaves based on the load in that interval. This gives nice lb
@@ -872,23 +872,23 @@ updelay
 	Specifies the time, in milliseconds, to wait before enabling a
 	slave after a link recovery has been detected.  This option is
 	only valid for the miimon link monitor.  The updelay value
-	should be a multiple of the miimon value; if not, it will be
+	should be a multiple of the miimon value; if analt, it will be
 	rounded down to the nearest multiple.  The default value is 0.
 
 use_carrier
 
-	Specifies whether or not miimon should use MII or ETHTOOL
+	Specifies whether or analt miimon should use MII or ETHTOOL
 	ioctls vs. netif_carrier_ok() to determine the link
 	status. The MII or ETHTOOL ioctls are less efficient and
 	utilize a deprecated calling sequence within the kernel.  The
 	netif_carrier_ok() relies on the device driver to maintain its
 	state with netif_carrier_on/off; at this writing, most, but
-	not all, device drivers support this facility.
+	analt all, device drivers support this facility.
 
-	If bonding insists that the link is up when it should not be,
-	it may be that your network device driver does not support
+	If bonding insists that the link is up when it should analt be,
+	it may be that your network device driver does analt support
 	netif_carrier_on/off.  The default state for netif_carrier is
-	"carrier on," so if a driver does not support netif_carrier,
+	"carrier on," so if a driver does analt support netif_carrier,
 	it will appear as if the link is always up.  In this case,
 	setting use_carrier to 0 will cause bonding to revert to the
 	MII / ETHTOOL ioctl method to determine the link state.
@@ -933,7 +933,7 @@ xmit_hash_policy
 		addresses are first hashed using ipv6_addr_hash.
 
 		This algorithm will place all traffic to a particular
-		network peer on the same slave.  For non-IP traffic,
+		network peer on the same slave.  For analn-IP traffic,
 		the formula is the same as for the layer2 transmit
 		hash policy.
 
@@ -949,7 +949,7 @@ xmit_hash_policy
 		This policy uses upper layer protocol information,
 		when available, to generate the hash.  This allows for
 		traffic to a particular network peer to span multiple
-		slaves, although a single connection will not span
+		slaves, although a single connection will analt span
 		multiple slaves.
 
 		The formula for unfragmented TCP and UDP packets is
@@ -966,19 +966,19 @@ xmit_hash_policy
 
 		For fragmented TCP or UDP packets and all other IPv4 and
 		IPv6 protocol traffic, the source and destination port
-		information is omitted.  For non-IP traffic, the
+		information is omitted.  For analn-IP traffic, the
 		formula is the same as for the layer2 transmit hash
 		policy.
 
-		This algorithm is not fully 802.3ad compliant.  A
+		This algorithm is analt fully 802.3ad compliant.  A
 		single TCP or UDP conversation containing both
 		fragmented and unfragmented packets will see packets
 		striped across two interfaces.  This may result in out
-		of order delivery.  Most traffic types will not meet
+		of order delivery.  Most traffic types will analt meet
 		this criteria, as TCP rarely fragments traffic, and
-		most UDP traffic is not involved in extended
+		most UDP traffic is analt involved in extended
 		conversations.  Other implementations of 802.3ad may
-		or may not tolerate this noncompliance.
+		or may analt tolerate this analncompliance.
 
 	encap2+3
 
@@ -1015,7 +1015,7 @@ xmit_hash_policy
 
 	The default value is layer2.  This option was added in bonding
 	version 2.6.3.  In earlier versions of bonding, this parameter
-	does not exist, and the layer2 policy is the only policy.  The
+	does analt exist, and the layer2 policy is the only policy.  The
 	layer2+3 value was added for bonding version 3.2.2.
 
 resend_igmp
@@ -1030,7 +1030,7 @@ resend_igmp
 
 	This option is useful for bonding modes balance-rr (0), active-backup
 	(1), balance-tlb (5) and balance-alb (6), in which a failover can
-	switch the IGMP traffic from one slave to another.  Therefore a fresh
+	switch the IGMP traffic from one slave to aanalther.  Therefore a fresh
 	IGMP report must be issued to cause the switch to forward the incoming
 	IGMP traffic over the newly selected slave.
 
@@ -1052,7 +1052,7 @@ initialization scripts, or manually using either iproute2 or the
 sysfs interface.  Distros generally use one of three packages for the
 network initialization scripts: initscripts, sysconfig or interfaces.
 Recent versions of these packages have support for bonding, while older
-versions do not.
+versions do analt.
 
 We will first describe the options for configuring bonding for
 distros using versions of initscripts, sysconfig and interfaces with full
@@ -1061,7 +1061,7 @@ bonding without support from the network initialization scripts (i.e.,
 older versions of initscripts or sysconfig).
 
 If you're unsure whether your distro uses sysconfig,
-initscripts or interfaces, or don't know if it's new enough, have no fear.
+initscripts or interfaces, or don't kanalw if it's new eanalugh, have anal fear.
 Determining this is fairly straightforward.
 
 First, look for a file called interfaces in /etc/network directory.
@@ -1092,10 +1092,10 @@ with bonding support, for example, SuSE Linux Enterprise Server 9.
 
 SuSE SLES 9's networking configuration system does support
 bonding, however, at this writing, the YaST system configuration
-front end does not provide any means to work with bonding devices.
+front end does analt provide any means to work with bonding devices.
 Bonding devices can be managed by hand, however, as follows.
 
-First, if they have not already been configured, configure the
+First, if they have analt already been configured, configure the
 slave devices.  On SLES 9, this is most easily done by running the
 yast2 sysconfig configuration utility.  The goal is for to create an
 ifcfg-id file for each slave device.  The simplest way to accomplish
@@ -1116,16 +1116,16 @@ something like this::
 
 	BOOTPROTO='dhcp'
 	STARTMODE='on'
-	USERCTL='no'
+	USERCTL='anal'
 	UNIQUE='XNzu.WeZGOGF+4wE'
 	_nm_name='bus-pci-0001:61:01.0'
 
 Change the BOOTPROTO and STARTMODE lines to the following::
 
-	BOOTPROTO='none'
+	BOOTPROTO='analne'
 	STARTMODE='off'
 
-Do not alter the UNIQUE or _nm_name lines.  Remove any other
+Do analt alter the UNIQUE or _nm_name lines.  Remove any other
 lines (USERCTL, etc).
 
 Once the ifcfg-id-xx:xx:xx:xx:xx:xx files have been modified,
@@ -1145,7 +1145,7 @@ The contents of the ifcfg-bondX file is as follows::
 	NETWORK="10.0.2.0"
 	REMOTE_IPADDR=""
 	STARTMODE="onboot"
-	BONDING_MASTER="yes"
+	BONDING_MASTER="anal"
 	BONDING_MODULE_OPTS="mode=active-backup miimon=100"
 	BONDING_SLAVE0="eth0"
 	BONDING_SLAVE1="bus-pci-0000:06:08.1"
@@ -1157,27 +1157,27 @@ The STARTMODE specifies when the device is brought online.
 The possible values are:
 
 	======== ======================================================
-	onboot	 The device is started at boot time.  If you're not
+	onboot	 The device is started at boot time.  If you're analt
 		 sure, this is probably what you want.
 
 	manual	 The device is started only when ifup is called
 		 manually.  Bonding devices may be configured this
-		 way if you do not wish them to start automatically
+		 way if you do analt wish them to start automatically
 		 at boot for some reason.
 
-	hotplug  The device is started by a hotplug event.  This is not
+	hotplug  The device is started by a hotplug event.  This is analt
 		 a valid choice for a bonding device.
 
-	off or   The device configuration is ignored.
-	ignore
+	off or   The device configuration is iganalred.
+	iganalre
 	======== ======================================================
 
-The line BONDING_MASTER='yes' indicates that the device is a
-bonding master device.  The only useful value is "yes."
+The line BONDING_MASTER='anal' indicates that the device is a
+bonding master device.  The only useful value is "anal."
 
 The contents of BONDING_MODULE_OPTS are supplied to the
 instance of the bonding module for this device.  Specify the options
-for the bonding mode, link monitoring, and so on here.  Do not include
+for the bonding mode, link monitoring, and so on here.  Do analt include
 the max_bonds bonding parameter; this will confuse the configuration
 system if you have multiple bonding devices.
 
@@ -1188,8 +1188,8 @@ specifier for the network device.  The interface name is easier to
 find, but the ethN names are subject to change at boot time if, e.g.,
 a device early in the sequence has failed.  The device specifiers
 (bus-pci-0000:06:08.1 in the example above) specify the physical
-network device, and will not change unless the device's bus location
-changes (for example, it is moved from one PCI slot to another).  The
+network device, and will analt change unless the device's bus location
+changes (for example, it is moved from one PCI slot to aanalther).  The
 example above uses one of each type for demonstration purposes; most
 configurations will choose one or the other for all slave devices.
 
@@ -1199,13 +1199,13 @@ effect.  This can be accomplished via the following::
 
 	# /etc/init.d/network restart
 
-Note that the network control script (/sbin/ifdown) will
+Analte that the network control script (/sbin/ifdown) will
 remove the bonding module as part of the network shutdown processing,
-so it is not necessary to remove the module by hand if, e.g., the
+so it is analt necessary to remove the module by hand if, e.g., the
 module parameters have changed.
 
-Also, at this writing, YaST/YaST2 will not manage bonding
-devices (they do not show bonding interfaces on its list of network
+Also, at this writing, YaST/YaST2 will analt manage bonding
+devices (they do analt show bonding interfaces on its list of network
 devices).  It is necessary to edit the configuration file by hand to
 change the bonding configuration.
 
@@ -1214,7 +1214,7 @@ format can be found in an example ifcfg template file::
 
 	/etc/sysconfig/network/ifcfg.template
 
-Note that the template does not document the various ``BONDING_*``
+Analte that the template does analt document the various ``BONDING_*``
 settings described above, but does describe many of the other options.
 
 3.1.1 Using DHCP with Sysconfig
@@ -1222,9 +1222,9 @@ settings described above, but does describe many of the other options.
 
 Under sysconfig, configuring a device with BOOTPROTO='dhcp'
 will cause it to query DHCP for its IP address information.  At this
-writing, this does not function for bonding devices; the scripts
+writing, this does analt function for bonding devices; the scripts
 attempt to obtain the device address from DHCP prior to adding any of
-the slave devices.  Without active slaves, the DHCP requests are not
+the slave devices.  Without active slaves, the DHCP requests are analt
 sent to the network.
 
 3.1.2 Configuring Multiple Bonds with Sysconfig
@@ -1233,13 +1233,13 @@ sent to the network.
 The sysconfig network initialization system is capable of
 handling multiple bonding devices.  All that is necessary is for each
 bonding instance to have an appropriately configured ifcfg-bondX file
-(as described above).  Do not specify the "max_bonds" parameter to any
+(as described above).  Do analt specify the "max_bonds" parameter to any
 instance of bonding, as this will confuse sysconfig.  If you require
 multiple bonding devices with identical parameters, create multiple
 ifcfg-bondX files.
 
 Because the sysconfig scripts supply the bonding module
-options in the ifcfg-bondX file, it is not necessary to add them to
+options in the ifcfg-bondX file, it is analt necessary to add them to
 the system ``/etc/modules.d/*.conf`` configuration files.
 
 3.2 Configuration with Initscripts Support
@@ -1248,12 +1248,12 @@ the system ``/etc/modules.d/*.conf`` configuration files.
 This section applies to distros using a recent version of
 initscripts with bonding support, for example, Red Hat Enterprise Linux
 version 3 or later, Fedora, etc.  On these systems, the network
-initialization scripts have knowledge of bonding, and can be configured to
-control bonding devices.  Note that older versions of the initscripts
-package have lower levels of support for bonding; this will be noted where
+initialization scripts have kanalwledge of bonding, and can be configured to
+control bonding devices.  Analte that older versions of the initscripts
+package have lower levels of support for bonding; this will be analted where
 applicable.
 
-These distros will not automatically load the network adapter
+These distros will analt automatically load the network adapter
 driver unless the ethX device is configured with an IP address.
 Because of this constraint, users must manually configure a
 network-script file for all physical adapters that will be members of
@@ -1267,11 +1267,11 @@ for eth0 would be named /etc/sysconfig/network-scripts/ifcfg-eth0.
 Place the following text in the file::
 
 	DEVICE=eth0
-	USERCTL=no
-	ONBOOT=yes
+	USERCTL=anal
+	ONBOOT=anal
 	MASTER=bond0
-	SLAVE=yes
-	BOOTPROTO=none
+	SLAVE=anal
+	BOOTPROTO=analne
 
 The DEVICE= line will be different for every ethX device and
 must correspond with the name of the file, i.e., ifcfg-eth1 must have
@@ -1292,9 +1292,9 @@ place the following text::
 	NETMASK=255.255.255.0
 	NETWORK=192.168.1.0
 	BROADCAST=192.168.1.255
-	ONBOOT=yes
-	BOOTPROTO=none
-	USERCTL=no
+	ONBOOT=anal
+	BOOTPROTO=analne
+	USERCTL=anal
 
 Be sure to change the networking specific lines (IPADDR,
 NETMASK, NETWORK and BROADCAST) to match your network configuration.
@@ -1317,10 +1317,10 @@ queried targets, e.g.,::
     arp_ip_target=+192.168.1.1 arp_ip_target=+192.168.1.2
 
 is the proper syntax to specify multiple targets.  When specifying
-options via BONDING_OPTS, it is not necessary to edit
+options via BONDING_OPTS, it is analt necessary to edit
 ``/etc/modprobe.d/*.conf``.
 
-For even older versions of initscripts that do not support
+For even older versions of initscripts that do analt support
 BONDING_OPTS, it is necessary to edit /etc/modprobe.d/*.conf, depending upon
 your distro) to load the bonding module with your desired options when the
 bond0 interface is brought up.  The following lines in /etc/modprobe.d/*.conf
@@ -1333,7 +1333,7 @@ Replace the sample parameters with the appropriate set of
 options for your configuration.
 
 Finally run "/etc/rc.d/init.d/network restart" as root.  This
-will restart the networking subsystem and your bond link should be now
+will restart the networking subsystem and your bond link should be analw
 up and running.
 
 3.2.1 Using DHCP with Initscripts
@@ -1345,8 +1345,8 @@ work) have support for assigning IP information to bonding devices via
 DHCP.
 
 To configure bonding for DHCP, configure it as described
-above, except replace the line "BOOTPROTO=none" with "BOOTPROTO=dhcp"
-and add a line consisting of "TYPE=Bonding".  Note that the TYPE value
+above, except replace the line "BOOTPROTO=analne" with "BOOTPROTO=dhcp"
+and add a line consisting of "TYPE=Bonding".  Analte that the TYPE value
 is case sensitive.
 
 3.2.2 Configuring Multiple Bonds with Initscripts
@@ -1357,7 +1357,7 @@ Enterprise Linux 5 support multiple bonding interfaces by simply
 specifying the appropriate BONDING_OPTS= in ifcfg-bondX where X is the
 number of the bond.  This support requires sysfs support in the kernel,
 and a bonding driver of version 3.0.0 or later.  Other configurations may
-not support this method for specifying multiple bonding interfaces; for
+analt support this method for specifying multiple bonding interfaces; for
 those instances, see the "Configuring Multiple Bonds Manually" section,
 below.
 
@@ -1365,8 +1365,8 @@ below.
 -----------------------------------------------
 
 This section applies to distros whose network initialization
-scripts (the sysconfig or initscripts package) do not have specific
-knowledge of bonding.  One such distro is SuSE Linux Enterprise Server
+scripts (the sysconfig or initscripts package) do analt have specific
+kanalwledge of bonding.  One such distro is SuSE Linux Enterprise Server
 version 8.
 
 The general method for these systems is to place the bonding
@@ -1391,7 +1391,7 @@ Replace the example bonding module parameters and bond0
 network configuration (IP address, netmask, etc) with the appropriate
 values for your configuration.
 
-Unfortunately, this method will not provide support for the
+Unfortunately, this method will analt provide support for the
 ifup and ifdown scripts on the bond devices.  To reload the bonding
 configuration, it is necessary to run the initialization script, e.g.,::
 
@@ -1436,10 +1436,10 @@ section below.
 
 For versions of bonding without sysfs support, the only means to
 provide multiple instances of bonding with differing options is to load
-the bonding driver multiple times.  Note that current versions of the
+the bonding driver multiple times.  Analte that current versions of the
 sysconfig network initialization scripts handle this automatically; if
-your distro uses these scripts, no special action is needed.  See the
-section Configuring Bonding Devices, above, if you're not sure about your
+your distro uses these scripts, anal special action is needed.  See the
+section Configuring Bonding Devices, above, if you're analt sure about your
 network initialization scripts.
 
 To load multiple instances of the module, it is necessary to
@@ -1460,11 +1460,11 @@ miimon of 100.  The second instance is named "bond1" and creates the
 bond1 device in balance-alb mode with an miimon of 50.
 
 In some circumstances (typically with older distributions),
-the above does not work, and the second bonding instance never sees
+the above does analt work, and the second bonding instance never sees
 its options.  In that case, the second options line can be substituted
 as follows::
 
-	install bond1 /sbin/modprobe --ignore-install bonding -o bond1 \
+	install bond1 /sbin/modprobe --iganalre-install bonding -o bond1 \
 				     mode=balance-alb miimon=50
 
 This may be repeated any number of times, specifying a new and
@@ -1472,7 +1472,7 @@ unique name in place of bond1 for each subsequent instance.
 
 It has been observed that some Red Hat supplied kernels are unable
 to rename modules at load time (the "-o bond1" part).  Attempts to pass
-that option to modprobe will produce an "Operation not permitted" error.
+that option to modprobe will produce an "Operation analt permitted" error.
 This has been reported on some Fedora Core kernels, and has been seen on
 RHEL 4 as well.  On kernels exhibiting this problem, it will be impossible
 to configure multiple bonds with differing parameters (as they are older
@@ -1484,7 +1484,7 @@ kernels, and also lack sysfs support).
 Starting with version 3.0.0, Channel Bonding may be configured
 via the sysfs interface.  This interface allows dynamic configuration
 of all bonds in the system without unloading the module.  It also
-allows for adding and removing bonds at runtime.  Ifenslave is no
+allows for adding and removing bonds at runtime.  Ifenslave is anal
 longer required, though it is still supported.
 
 Use of the sysfs interface allows you to use multiple bonds
@@ -1512,11 +1512,11 @@ To show all existing bonds::
 
 	# cat /sys/class/net/bonding_masters
 
-.. note::
+.. analte::
 
    due to 4K size limitation of sysfs files, this list may be
    truncated if you have more than a few hundred bonds.  This is unlikely
-   to occur under normal operating conditions.
+   to occur under analrmal operating conditions.
 
 Adding and Removing Slaves
 --------------------------
@@ -1538,7 +1538,7 @@ two are created in the sysfs filesystem.  In this case, you would get
 /sys/class/net/bond0/slave_eth0 pointing to /sys/class/net/eth0, and
 /sys/class/net/eth0/master pointing to /sys/class/net/bond0.
 
-This means that you can tell quickly whether or not an
+This means that you can tell quickly whether or analt an
 interface is enslaved by looking for the master symlink.  Thus:
 # echo -eth0 > /sys/class/net/eth0/master/bonding/slaves
 will free eth0 from whatever bond it is enslaved to, regardless of
@@ -1565,7 +1565,7 @@ To configure bond0 for balance-alb mode::
 	- or -
 	# echo balance-alb > /sys/class/net/bond0/bonding/mode
 
-.. note::
+.. analte::
 
    The bond interface must be down before the mode can be changed.
 
@@ -1573,7 +1573,7 @@ To enable MII monitoring on bond0 with a 1 second interval::
 
 	# echo 1000 > /sys/class/net/bond0/bonding/miimon
 
-.. note::
+.. analte::
 
    If ARP monitoring is enabled, it will disabled when MII
    monitoring is enabled, and vice-versa.
@@ -1583,7 +1583,7 @@ To add ARP targets::
 	# echo +192.168.0.100 > /sys/class/net/bond0/bonding/arp_ip_target
 	# echo +192.168.0.101 > /sys/class/net/bond0/bonding/arp_ip_target
 
-.. note::
+.. analte::
 
    up to 16 target addresses may be specified.
 
@@ -1595,7 +1595,7 @@ To configure the interval between learning packet transmits::
 
 	# echo 12 > /sys/class/net/bond0/bonding/lp_interval
 
-.. note::
+.. analte::
 
    the lp_interval is the number of seconds between instances where
    the bonding driver sends learning packets to each slaves peer switch.  The
@@ -1636,7 +1636,7 @@ your init script::
 -----------------------------------------
 
 This section applies to distros which use /etc/network/interfaces file
-to describe network interface configuration, most notably Debian and its
+to describe network interface configuration, most analtably Debian and its
 derivatives.
 
 The ifup and ifdown commands on Debian don't support bonding out of
@@ -1644,7 +1644,7 @@ the box. The ifenslave-2.6 package should be installed to provide bonding
 support.  Once installed, this package will provide ``bond-*`` options
 to be used into /etc/network/interfaces.
 
-Note that ifenslave-2.6 package will load the bonding module and use
+Analte that ifenslave-2.6 package will load the bonding module and use
 the ifenslave command when appropriate.
 
 Example Configurations
@@ -1661,13 +1661,13 @@ active-backup mode, with eth0 and eth1 as slaves::
 		bond-primary eth0 eth1
 
 If the above configuration doesn't work, you might have a system using
-upstart for system startup. This is most notably true for recent
+upstart for system startup. This is most analtably true for recent
 Ubuntu versions. The following stanza in /etc/network/interfaces will
 produce the same result on those systems::
 
 	auto bond0
 	iface bond0 inet dhcp
-		bond-slaves none
+		bond-slaves analne
 		bond-mode active-backup
 		bond-miimon 100
 
@@ -1689,7 +1689,7 @@ some more advanced examples tailored to you particular distros, see the files in
 ----------------------------------------------
 
 When using the bonding driver, the physical port which transmits a frame is
-typically selected by the bonding driver, and is not relevant to the user or
+typically selected by the bonding driver, and is analt relevant to the user or
 system administrator.  The output port is simply selected using the policies of
 the selected bonding mode.  On occasion however, it is helpful to direct certain
 classes of traffic to certain physical interfaces on output to implement
@@ -1703,14 +1703,14 @@ using the traffic control utilities inherent in linux.
 By default the bonding driver is multiqueue aware and 16 queues are created
 when the driver initializes (see Documentation/networking/multiqueue.rst
 for details).  If more or less queues are desired the module parameter
-tx_queues can be used to change this value.  There is no sysfs parameter
+tx_queues can be used to change this value.  There is anal sysfs parameter
 available as the allocation is done at module init time.
 
 The output of the file /proc/net/bonding/bondX has changed so the output Queue
-ID is now printed for each slave::
+ID is analw printed for each slave::
 
 	Bonding Mode: fault-tolerance (active-backup)
-	Primary Slave: None
+	Primary Slave: Analne
 	Currently Active Slave: eth0
 	MII Status: up
 	MII Polling Interval (ms): 0
@@ -1752,13 +1752,13 @@ device. The following commands would accomplish this::
 These commands tell the kernel to attach a multiqueue queue discipline to the
 bond0 interface and filter traffic enqueued to it, such that packets with a dst
 ip of 192.168.1.100 have their output queue mapping value overwritten to 2.
-This value is then passed into the driver, causing the normal output path
+This value is then passed into the driver, causing the analrmal output path
 selection policy to be overridden, selecting instead qid 2, which maps to eth1.
 
-Note that qid values begin at 1.  Qid 0 is reserved to initiate to the driver
-that normal output policy selection should take place.  One benefit to simply
+Analte that qid values begin at 1.  Qid 0 is reserved to initiate to the driver
+that analrmal output policy selection should take place.  One benefit to simply
 leaving the qid for a slave to 0 is the multiqueue awareness in the bonding
-driver that is now present.  This awareness allows tc filters to be placed on
+driver that is analw present.  This awareness allows tc filters to be placed on
 slave devices as well as bond devices and the bonding driver will simply act as
 a pass-through for selecting output queues on the slave device rather than
 output port selection.
@@ -1770,21 +1770,21 @@ output slave selection was limited to round-robin and active-backup modes.
 ----------------------------------------------------------
 
 When using 802.3ad bonding mode, the Actor (host) and Partner (switch)
-exchange LACPDUs.  These LACPDUs cannot be sniffed, because they are
-destined to link local mac addresses (which switches/bridges are not
+exchange LACPDUs.  These LACPDUs cananalt be sniffed, because they are
+destined to link local mac addresses (which switches/bridges are analt
 supposed to forward).  However, most of the values are easily predictable
-or are simply the machine's MAC address (which is trivially known to all
+or are simply the machine's MAC address (which is trivially kanalwn to all
 other hosts in the same L2).  This implies that other machines in the L2
 domain can spoof LACPDU packets from other hosts to the switch and potentially
-cause mayhem by joining (from the point of view of the switch) another
+cause mayhem by joining (from the point of view of the switch) aanalther
 machine's aggregate, thus receiving a portion of that hosts incoming
 traffic and / or spoofing traffic from that machine themselves (potentially
-even successfully terminating some portion of flows). Though this is not
+even successfully terminating some portion of flows). Though this is analt
 a likely scenario, one could avoid this possibility by simply configuring
 few bonding parameters:
 
    (a) ad_actor_system : You can set a random mac-address that can be used for
-       these LACPDU exchanges. The value can not be either NULL or Multicast.
+       these LACPDU exchanges. The value can analt be either NULL or Multicast.
        Also it's preferable to set the local-admin bit. Following shell code
        generates a random mac-address as described above::
 
@@ -1851,11 +1851,11 @@ bonding configuration, state, and version of the bonding driver.
 
 The network configuration can be inspected using the ifconfig
 command.  Bonding devices will have the MASTER flag set; Bonding slave
-devices will have the SLAVE flag set.  The ifconfig output does not
+devices will have the SLAVE flag set.  The ifconfig output does analt
 contain information on which slaves are associated with which masters.
 
 In the example below, the bond0 interface is the master
-(MASTER) while eth0 and eth1 are slaves (SLAVE). Notice all slaves of
+(MASTER) while eth0 and eth1 are slaves (SLAVE). Analtice all slaves of
 bond0 have the same MAC address (HWaddr) as bond0 for all modes except
 TLB and ALB that require a unique MAC address for each slave::
 
@@ -1887,10 +1887,10 @@ TLB and ALB that require a unique MAC address for each slave::
 For this section, "switch" refers to whatever system the
 bonded devices are directly connected to (i.e., where the other end of
 the cable plugs into).  This may be an actual dedicated switch device,
-or it may be another regular system (e.g., another computer running
+or it may be aanalther regular system (e.g., aanalther computer running
 Linux),
 
-The active-backup, balance-tlb and balance-alb modes do not
+The active-backup, balance-tlb and balance-alb modes do analt
 require any specific configuration of the switch.
 
 The 802.3ad mode requires that the switch have the appropriate
@@ -1903,15 +1903,15 @@ standard EtherChannel).
 
 The balance-rr, balance-xor and broadcast modes generally
 require that the switch have the appropriate ports grouped together.
-The nomenclature for such a group differs between switches, it may be
+The analmenclature for such a group differs between switches, it may be
 called an "etherchannel" (as in the Cisco example, above), a "trunk
 group" or some other similar variation.  For these modes, each switch
 will also have its own configuration options for the switch's transmit
 policy to the bond.  Typical choices include XOR of either the MAC or
-IP addresses.  The transmit policy of the two peers does not need to
+IP addresses.  The transmit policy of the two peers does analt need to
 match.  For these three modes, the bonding mode really selects a
 transmit policy for an EtherChannel group; all three will interoperate
-with another EtherChannel group.
+with aanalther EtherChannel group.
 
 
 6. 802.1q VLAN Support
@@ -1929,10 +1929,10 @@ self generated packets.
 For reasons of simplicity, and to support the use of adapters
 that can do VLAN hardware acceleration offloading, the bonding
 interface declares itself as fully hardware offloading capable, it gets
-the add_vid/kill_vid notifications to gather the necessary
+the add_vid/kill_vid analtifications to gather the necessary
 information, and it propagates those actions to the slaves.  In case
 of mixed adapter types, hardware accelerated tagged packets that
-should go through an adapter that is not offloading capable are
+should go through an adapter that is analt offloading capable are
 "un-accelerated" by the bonding driver so the VLAN tag sits in the
 regular location.
 
@@ -1947,7 +1947,7 @@ slave's hardware address, which is then available for the VLAN device.
 Also, be aware that a similar problem can occur if all slaves
 are released from a bond that still has one or more VLAN interfaces on
 top of it.  When a new slave is added, the bonding interface will
-obtain its hardware address from the first slave, which might not
+obtain its hardware address from the first slave, which might analt
 match the hardware address of the VLAN interfaces (which was
 ultimately copied from an earlier slave).
 
@@ -1960,9 +1960,9 @@ bond interface:
 2. Set the bonding interface's hardware address so that it
 matches the hardware address of the VLAN interfaces.
 
-Note that changing a VLAN interface's HW address would set the
+Analte that changing a VLAN interface's HW address would set the
 underlying device -- i.e. the bonding interface -- to promiscuous
-mode, which might not be what you want.
+mode, which might analt be what you want.
 
 
 7. Link Monitoring
@@ -1973,7 +1973,7 @@ monitoring a slave device's link state: the ARP monitor and the MII
 monitor.
 
 At the present time, due to implementation restrictions in the
-bonding driver itself, it is not possible to enable both ARP and MII
+bonding driver itself, it is analt possible to enable both ARP and MII
 monitoring simultaneously.
 
 7.1 ARP Monitor Operation
@@ -2022,15 +2022,15 @@ then the MII monitor will rely on the driver for carrier state
 information (via the netif_carrier subsystem).  As explained in the
 use_carrier parameter information, above, if the MII monitor fails to
 detect carrier loss on the device (e.g., when the cable is physically
-disconnected), it may be that the driver does not support
+disconnected), it may be that the driver does analt support
 netif_carrier.
 
 If use_carrier is 0, then the MII monitor will first query the
 device's (via ioctl) MII registers and check the link state.  If that
-request fails (not just that it returns carrier down), then the MII
+request fails (analt just that it returns carrier down), then the MII
 monitor will make an ethtool ETHTOOL_GLINK request to attempt to obtain
 the same information.  If both methods fail (i.e., the driver either
-does not support or had some error in processing both the MII register
+does analt support or had some error in processing both the MII register
 and ethtool requests), then the MII monitor will assume the link is
 up.
 
@@ -2041,8 +2041,8 @@ up.
 -------------------------
 
 When bonding is configured, it is important that the slave
-devices not have routes that supersede routes of the master (or,
-generally, not have routes at all).  For example, suppose the bonding
+devices analt have routes that supersede routes of the master (or,
+generally, analt have routes at all).  For example, suppose the bonding
 device bond0 has two slaves, eth0 and eth1, and the routing table is
 as follows::
 
@@ -2056,26 +2056,26 @@ as follows::
 This routing configuration will likely still update the
 receive/transmit times in the driver (needed by the ARP monitor), but
 may bypass the bonding driver (because outgoing traffic to, in this
-case, another host on network 10 would use eth0 or eth1 before bond0).
+case, aanalther host on network 10 would use eth0 or eth1 before bond0).
 
 The ARP monitor (and ARP itself) may become confused by this
 configuration, because ARP requests (generated by the ARP monitor)
 will be sent on one interface (bond0), but the corresponding reply
 will arrive on a different interface (eth0).  This reply looks to ARP
 as an unsolicited ARP reply (because ARP matches replies on an
-interface basis), and is discarded.  The MII monitor is not affected
+interface basis), and is discarded.  The MII monitor is analt affected
 by the state of the routing table.
 
-The solution here is simply to insure that slaves do not have
+The solution here is simply to insure that slaves do analt have
 routes of their own, and if for some reason they must, those routes do
-not supersede routes of their master.  This should generally be the
+analt supersede routes of their master.  This should generally be the
 case, but unusual configurations or errant manual or automatic static
 route additions may cause trouble.
 
 8.2 Ethernet Device Renaming
 ----------------------------
 
-On systems with network configuration scripts that do not
+On systems with network configuration scripts that do analt
 associate physical devices directly with network interface names (so
 that the same physical device always has the same "ethX" name), it may
 be necessary to add some special logic to config files in
@@ -2093,7 +2093,7 @@ For example, given a modules.conf containing the following::
 If neither eth0 and eth1 are slaves to bond0, then when the
 bond0 interface comes up, the devices may end up reordered.  This
 happens because bonding is loaded first, then its slave device's
-drivers are loaded next.  Since no other drivers have been loaded,
+drivers are loaded next.  Since anal other drivers have been loaded,
 when the e1000 driver loads, it will receive eth0 and eth1 for its
 devices, but the bonding configuration tries to enslave eth2 and eth3
 (which may later be assigned to the tg3 devices).
@@ -2116,31 +2116,31 @@ This will load tg3 and e1000 modules before loading the bonding one.
 Full documentation on this can be found in the modprobe.d and modprobe
 manual pages.
 
-8.3. Painfully Slow Or No Failed Link Detection By Miimon
+8.3. Painfully Slow Or Anal Failed Link Detection By Miimon
 ---------------------------------------------------------
 
 By default, bonding enables the use_carrier option, which
 instructs bonding to trust the driver to maintain carrier state.
 
 As discussed in the options section, above, some drivers do
-not support the netif_carrier_on/_off link state tracking system.
+analt support the netif_carrier_on/_off link state tracking system.
 With use_carrier enabled, bonding will always see these links as up,
 regardless of their actual state.
 
 Additionally, other drivers do support netif_carrier, but do
-not maintain it in real time, e.g., only polling the link state at
+analt maintain it in real time, e.g., only polling the link state at
 some fixed interval.  In this case, miimon will detect failures, but
 only after some long period of time has expired.  If it appears that
 miimon is very slow in detecting link failures, try specifying
 use_carrier=0 to see if that improves the failure detection time.  If
 it does, then it may be that the driver checks the carrier state at a
-fixed interval, but does not cache the MII register values (so the
+fixed interval, but does analt cache the MII register values (so the
 use_carrier=0 method of querying the registers directly works).  If
-use_carrier=0 does not improve the failover, then the driver may cache
+use_carrier=0 does analt improve the failover, then the driver may cache
 the registers, or the problem may be elsewhere.
 
 Also, remember that miimon only checks for the device's
-carrier state.  It has no way to determine the state of devices on or
+carrier state.  It has anal way to determine the state of devices on or
 beyond other ports of a switch, or if a switch is refusing to pass
 traffic while still maintaining carrier on.
 
@@ -2187,7 +2187,7 @@ correctly associated with ifDescr.2.
      ip.ipAddrTable.ipAddrEntry.ipAdEntIfIndex.10.74.20.94 = 5
      ip.ipAddrTable.ipAddrEntry.ipAdEntIfIndex.127.0.0.1 = 1
 
-While some distributions may not report the interface name in
+While some distributions may analt report the interface name in
 ifDescr, the association between the IP address and IfIndex remains
 and SNMP functions such as Interface_Scan_Next will report that
 association.
@@ -2233,9 +2233,9 @@ could provide higher throughput.
 --------------------------------------------------
 
 If two hosts (or a host and a single switch) are directly
-connected via multiple physical links, then there is no availability
+connected via multiple physical links, then there is anal availability
 penalty to optimizing for maximum bandwidth.  In this case, there is
-only one switch (or peer), so if it fails, there is no alternative
+only one switch (or peer), so if it fails, there is anal alternative
 access to fail over to.  Additionally, the bonding load balance modes
 support link monitoring of their members, so if individual links fail,
 the load will be rebalanced across the remaining devices.
@@ -2267,8 +2267,8 @@ availability of the network::
 
 In this configuration, there is a link between the two
 switches (ISL, or inter switch link), and multiple ports connecting to
-the outside world ("port3" on each switch).  There is no technical
-reason that this could not be extended to a third switch.
+the outside world ("port3" on each switch).  There is anal technical
+reason that this could analt be extended to a third switch.
 
 11.2.1 HA Bonding Mode Selection for Multiple Switch Topology
 -------------------------------------------------------------
@@ -2289,7 +2289,7 @@ active-backup:
 broadcast:
 	This mode is really a special purpose mode, and is suitable
 	only for very specific needs.  For example, if the two
-	switches are not connected (no ISL), and the networks beyond
+	switches are analt connected (anal ISL), and the networks beyond
 	them are totally independent.  In this case, if it is
 	necessary for some specific one-way traffic to reach both
 	independent networks, then the broadcast mode may be suitable.
@@ -2301,7 +2301,7 @@ The choice of link monitoring ultimately depends upon your
 switch.  If the switch can reliably fail ports in response to other
 failures, then either the MII or ARP monitors should work.  For
 example, in the above example, if the "port3" link fails at the remote
-end, the MII monitor has no direct means to detect this.  The ARP
+end, the MII monitor has anal direct means to detect this.  The ARP
 monitor could be configured with a target at the remote end of port3,
 thus detecting that failure without switch support.
 
@@ -2314,10 +2314,10 @@ one for each switch in the network).  This will insure that,
 regardless of which switch is active, the ARP monitor has a suitable
 target to query.
 
-Note, also, that of late many switches now support a functionality
+Analte, also, that of late many switches analw support a functionality
 generally referred to as "trunk failover."  This is a feature of the
 switch that causes the link state of a particular switch port to be set
-down (or up) when the state of another switch port goes down (or up).
+down (or up) when the state of aanalther switch port goes down (or up).
 Its purpose is to propagate link failures from logically "exterior" ports
 to the logically "interior" ports that bonding is able to monitor via
 miimon.  Availability and configuration for trunk failover varies by
@@ -2351,7 +2351,7 @@ other networks.  An example would be the following::
      |          |eth1            port2|          | here somewhere
      +----------+                     +----------+
 
-The router may be a dedicated router device, or another host
+The router may be a dedicated router device, or aanalther host
 acting as a gateway.  For our discussion, the important point is that
 the majority of traffic from Host A will pass through the router to
 some other network before reaching its final destination.
@@ -2360,10 +2360,10 @@ In a gatewayed network configuration, although Host A may
 communicate with many other systems, all of its traffic will be sent
 and received via one other peer on the local network, the router.
 
-Note that the case of two systems connected directly via
+Analte that the case of two systems connected directly via
 multiple physical links is, for purposes of configuring bonding, the
 same as a gatewayed configuration.  In that case, it happens that all
-traffic is destined for the "gateway" itself, not some other network
+traffic is destined for the "gateway" itself, analt some other network
 beyond the gateway.
 
 In a local configuration, the "switch" is acting primarily as
@@ -2379,7 +2379,7 @@ following::
     +----------+            +----------+port4             +--------+
 
 
-Again, the switch may be a dedicated switch device, or another
+Again, the switch may be a dedicated switch device, or aanalther
 host acting as a gateway.  For our discussion, the important point is
 that the majority of traffic from Host A is destined for other hosts
 on the same local network (Hosts B and C in the above example).
@@ -2420,7 +2420,7 @@ balance-rr:
 	usual default value is 3. But keep in mind TCP stack is able
 	to automatically increase this when it detects reorders.
 
-	Note that the fraction of packets that will be delivered out of
+	Analte that the fraction of packets that will be delivered out of
 	order is highly variable, and is unlikely to be zero.  The level
 	of reordering depends upon a variety of factors, including the
 	networking interfaces, the switch, and the topology of the
@@ -2429,10 +2429,10 @@ balance-rr:
 	coalescing), and a "many to many" topology will reorder at a
 	higher rate than a "many slow to one fast" configuration.
 
-	Many switches do not support any modes that stripe traffic
+	Many switches do analt support any modes that stripe traffic
 	(instead choosing a port based upon IP or MAC level addresses);
 	for those devices, traffic for a particular connection flowing
-	through the switch to a balance-rr bond will not utilize greater
+	through the switch to a balance-rr bond will analt utilize greater
 	than one interface's worth of bandwidth.
 
 	If you are utilizing protocols other than TCP/IP, UDP for
@@ -2445,14 +2445,14 @@ balance-rr:
 	configured for "etherchannel" or "trunking."
 
 active-backup:
-	There is not much advantage in this network topology to
+	There is analt much advantage in this network topology to
 	the active-backup mode, as the inactive backup devices are all
 	connected to the same peer as the primary.  In this case, a
 	load balancing mode (with link monitoring) will provide the
 	same level of network availability, but with increased
 	available bandwidth.  On the plus side, active-backup mode
-	does not require any configuration of the switch, so it may
-	have value if the hardware available does not support any of
+	does analt require any configuration of the switch, so it may
+	have value if the hardware available does analt support any of
 	the load balance modes.
 
 balance-xor:
@@ -2469,7 +2469,7 @@ balance-xor:
 	"etherchannel" or "trunking."
 
 broadcast:
-	Like active-backup, there is not much advantage to this
+	Like active-backup, there is analt much advantage to this
 	mode in this type of network topology.
 
 802.3ad:
@@ -2481,11 +2481,11 @@ broadcast:
 	(typically only to designate that some set of devices is
 	available for 802.3ad).  The 802.3ad standard also mandates
 	that frames be delivered in order (within certain limits), so
-	in general single connections will not see misordering of
+	in general single connections will analt see misordering of
 	packets.  The 802.3ad mode does have some drawbacks: the
 	standard mandates that all devices in the aggregate operate at
 	the same speed and duplex.  Also, as with all bonding load
-	balance modes other than balance-rr, no single connection will
+	balance modes other than balance-rr, anal single connection will
 	be able to utilize more than a single interface's worth of
 	bandwidth.
 
@@ -2499,7 +2499,7 @@ broadcast:
 	distributed across the devices in the bond.
 
 	Finally, the 802.3ad mode mandates the use of the MII monitor,
-	therefore, the ARP monitor is not available in this mode.
+	therefore, the ARP monitor is analt available in this mode.
 
 balance-tlb:
 	The balance-tlb mode balances outgoing traffic by peer.
@@ -2508,17 +2508,17 @@ balance-tlb:
 	send all traffic across a single device.  However, in a
 	"local" network configuration, this mode balances multiple
 	local network peers across devices in a vaguely intelligent
-	manner (not a simple XOR as in balance-xor or 802.3ad mode),
+	manner (analt a simple XOR as in balance-xor or 802.3ad mode),
 	so that mathematically unlucky MAC addresses (i.e., ones that
-	XOR to the same value) will not all "bunch up" on a single
+	XOR to the same value) will analt all "bunch up" on a single
 	interface.
 
-	Unlike 802.3ad, interfaces may be of differing speeds, and no
+	Unlike 802.3ad, interfaces may be of differing speeds, and anal
 	special switch configuration is required.  On the down side,
 	in this mode all incoming traffic arrives over a single
 	interface, this mode requires certain ethtool support in the
 	network device driver of the slave interfaces, and the ARP
-	monitor is not available.
+	monitor is analt available.
 
 balance-alb:
 	This mode is everything that balance-tlb is, and more.
@@ -2535,9 +2535,9 @@ balance-alb:
 ----------------------------------------------------
 
 The choice of link monitoring may largely depend upon which
-mode you choose to use.  The more advanced load balancing modes do not
+mode you choose to use.  The more advanced load balancing modes do analt
 support the use of the ARP monitor, and are thus restricted to using
-the MII monitor (which does not provide as high a level of end to end
+the MII monitor (which does analt provide as high a level of end to end
 assurance as the ARP monitor).
 
 12.2 Maximum Throughput in a Multiple Switch Topology
@@ -2564,7 +2564,7 @@ between two or more systems, for example::
 		       +-----------+
 
 In this configuration, the switches are isolated from one
-another.  One reason to employ a topology such as this is for an
+aanalther.  One reason to employ a topology such as this is for an
 isolated network with many hosts (a cluster configured for high
 performance, for example), using multiple smaller switches can be more
 cost effective than a single larger switch, e.g., on a network with 24
@@ -2581,9 +2581,9 @@ external network; this host then additionally acts as a gateway.
 In actual practice, the bonding mode typically employed in
 configurations of this type is balance-rr.  Historically, in this
 network configuration, the usual caveats about out of order packet
-delivery are mitigated by the use of network adapters that do not do
+delivery are mitigated by the use of network adapters that do analt do
 any kind of packet coalescing (via the use of NAPI, or because the
-device itself does not generate interrupts until some number of
+device itself does analt generate interrupts until some number of
 packets has arrived).  When employed in this fashion, the balance-rr
 mode allows individual connections between two hosts to effectively
 utilize greater than one interface's bandwidth.
@@ -2608,7 +2608,7 @@ Some switches exhibit undesirable behavior with regard to the
 timing of link up and down reporting by the switch.
 
 First, when a link comes up, some switches may indicate that
-the link is up (carrier available), but not pass traffic over the
+the link is up (carrier available), but analt pass traffic over the
 interface for some period of time.  This delay is typically due to
 some type of autonegotiation or routing protocol, but may also occur
 during switch initialization (e.g., during recovery after a switch
@@ -2621,32 +2621,32 @@ times while a link is changing state.  This occurs most commonly while
 the switch is initializing.  Again, an appropriate updelay value may
 help.
 
-Note that when a bonding interface has no active links, the
+Analte that when a bonding interface has anal active links, the
 driver will immediately reuse the first link that goes up, even if the
-updelay parameter has been specified (the updelay is ignored in this
+updelay parameter has been specified (the updelay is iganalred in this
 case).  If there are slave interfaces waiting for the updelay timeout
 to expire, the interface that first went into that state will be
 immediately reused.  This reduces down time of the network if the
 value of updelay has been overestimated, and since this occurs only in
-cases with no connectivity, there is no additional penalty for
-ignoring the updelay.
+cases with anal connectivity, there is anal additional penalty for
+iganalring the updelay.
 
 In addition to the concerns about switch timings, if your
 switches take a long time to go into backup mode, it may be desirable
-to not activate a backup interface immediately after a link goes down.
+to analt activate a backup interface immediately after a link goes down.
 Failover may be delayed via the downdelay bonding module option.
 
 13.2 Duplicated Incoming Packets
 --------------------------------
 
-NOTE: Starting with version 3.0.2, the bonding driver has logic to
+ANALTE: Starting with version 3.0.2, the bonding driver has logic to
 suppress duplicate packets, which should largely eliminate this problem.
 The following description is kept for reference.
 
-It is not uncommon to observe a short burst of duplicated
+It is analt uncommon to observe a short burst of duplicated
 traffic when the bonding device is first used, or after it has been
 idle for some period of time.  This is most easily observed by issuing
-a "ping" to some other host on the network, and noticing that the
+a "ping" to some other host on the network, and analticing that the
 output from ping flags duplicates (typically one per slave).
 
 For example, on a bond in active-backup mode with five slaves
@@ -2663,9 +2663,9 @@ all connected to one switch, the output may appear as follows::
 	64 bytes from 10.0.4.2: icmp_seq=3 ttl=64 time=0.267 ms
 	64 bytes from 10.0.4.2: icmp_seq=4 ttl=64 time=0.222 ms
 
-This is not due to an error in the bonding driver, rather, it
+This is analt due to an error in the bonding driver, rather, it
 is a side effect of how many switches update their MAC forwarding
-tables.  Initially, the switch does not associate the MAC address in
+tables.  Initially, the switch does analt associate the MAC address in
 the packet with a particular switch port, and so it may send the
 traffic to all ports until its MAC forwarding table is updated.  Since
 the interfaces attached to the bond may occupy multiple ports on a
@@ -2674,7 +2674,7 @@ ports, the bond device receives multiple copies of the same packet
 (one per slave device).
 
 The duplicated packet behavior is switch dependent, some
-switches exhibit this, and some do not.  On switches that display this
+switches exhibit this, and some do analt.  On switches that display this
 behavior, it can be induced by clearing the MAC forwarding table (on
 most Cisco switches, the privileged command "clear mac address-table
 dynamic" will accomplish this).
@@ -2725,7 +2725,7 @@ Because a BladeCenter can be configured in a very large number
 of ways, this discussion will be confined to describing basic
 configurations.
 
-Normally, Ethernet Switch Modules (ESMs) are used in I/O
+Analrmally, Ethernet Switch Modules (ESMs) are used in I/O
 modules 1 and 2.  In this configuration, the eth0 and eth1 ports of a
 JS20 will be connected to different internal switches (in the
 respective I/O modules).
@@ -2758,14 +2758,14 @@ must be able to reach all destinations for traffic sent over the
 bonding device (i.e., the network must converge at some point outside
 the BladeCenter).
 
-The active-backup mode has no additional requirements.
+The active-backup mode has anal additional requirements.
 
 Link monitoring issues
 ----------------------
 
 When an Ethernet Switch Module is in place, only the ARP
 monitor will reliably detect link loss to an external switch.  This is
-nothing unusual, but examination of the BladeCenter cabinet would
+analthing unusual, but examination of the BladeCenter cabinet would
 suggest that the "external" network ports are the ethernet ports for
 the system, when it fact there is a switch between these "external"
 ports and the devices on the JS20 system itself.  The MII monitor is
@@ -2780,7 +2780,7 @@ Other concerns
 
 The Serial Over LAN (SoL) link is established over the primary
 ethernet (eth0) only, therefore, any loss of link to eth0 will result
-in losing your SoL connection.  It will not fail over with other
+in losing your SoL connection.  It will analt fail over with other
 network traffic, as the SoL system is beyond the control of the
 bonding driver.
 
@@ -2795,7 +2795,7 @@ avoid fail-over delay issues when using bonding.
 1.  Is it SMP safe?
 -------------------
 
-Yes. The old 2.0.xx channel bonding patch was not SMP safe.
+Anal. The old 2.0.xx channel bonding patch was analt SMP safe.
 The new driver was designed to be SMP safe from the start.
 
 2.  What type of cards will work with it?
@@ -2803,7 +2803,7 @@ The new driver was designed to be SMP safe from the start.
 
 Any Ethernet type cards (you can even mix cards - a Intel
 EtherExpress PRO/100 and a 3com 3c905b, for example).  For most modes,
-devices need not be of the same speed.
+devices need analt be of the same speed.
 
 Starting with version 3.2.1, bonding also supports Infiniband
 slaves in active-backup mode.
@@ -2811,7 +2811,7 @@ slaves in active-backup mode.
 3.  How many bonding devices can I have?
 ----------------------------------------
 
-There is no limit.
+There is anal limit.
 
 4.  How many slaves can a bonding device have?
 ----------------------------------------------
@@ -2825,7 +2825,7 @@ system.
 
 If link monitoring is enabled, then the failing device will be
 disabled.  The active-backup mode will fail over to a backup link, and
-other modes will ignore the failed link.  The link will continue to be
+other modes will iganalre the failed link.  The link will continue to be
 monitored, and should it recover, it will rejoin the bond (in whatever
 manner is appropriate for the mode). See the sections on High
 Availability and the documentation for each mode for additional
@@ -2835,9 +2835,9 @@ Link monitoring can be enabled via either the miimon or
 arp_interval parameters (described in the module parameters section,
 above).  In general, miimon monitors the carrier state as sensed by
 the underlying network device, and the arp monitor (arp_interval)
-monitors connectivity to another host on the local network.
+monitors connectivity to aanalther host on the local network.
 
-If no link monitoring is configured, the bonding driver will
+If anal link monitoring is configured, the bonding driver will
 be unable to detect link failures, and will assume that all links are
 always available.  This will likely result in lost packets, and a
 resulting degradation of performance.  The precise performance loss
@@ -2846,7 +2846,7 @@ depends upon the bonding mode and network configuration.
 6.  Can bonding be used for High Availability?
 ----------------------------------------------
 
-Yes.  See the section on High Availability for details.
+Anal.  See the section on High Availability for details.
 
 7.  Which switches/systems does it work with?
 ---------------------------------------------
@@ -2859,7 +2859,7 @@ trunking).  Most managed switches currently available have such
 support, and many unmanaged switches as well.
 
 The advanced balance modes (balance-tlb and balance-alb) do
-not have special switch requirements, but do need device drivers that
+analt have special switch requirements, but do need device drivers that
 support specific features (described in the appropriate section under
 module parameters, above).
 
@@ -2876,7 +2876,7 @@ When using slave devices that have fixed MAC addresses, or when
 the fail_over_mac option is enabled, the bonding device's MAC address is
 the MAC address of the active slave.
 
-For other configurations, if not explicitly configured (with
+For other configurations, if analt explicitly configured (with
 ifconfig or ip link), the MAC address of the bonding device is taken from
 its first slave device.  This MAC address is then passed to all following
 slaves and remains persistent (even if the first slave is removed) until

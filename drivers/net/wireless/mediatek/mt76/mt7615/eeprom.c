@@ -57,7 +57,7 @@ static int mt7615_efuse_init(struct mt7615_dev *dev, u32 base)
 	dev->mt76.otp.data = devm_kzalloc(dev->mt76.dev, len, GFP_KERNEL);
 	dev->mt76.otp.size = len;
 	if (!dev->mt76.otp.data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buf = dev->mt76.otp.data;
 	for (i = 0; i + 16 <= len; i += 16) {
@@ -269,7 +269,7 @@ static void mt7615_apply_cal_free_data(struct mt7615_dev *dev)
 		0x172, 0x173, 0x17c, 0x17d, 0x181, 0x182, 0x186, 0x187, 0x18b,
 		0x18c
 	};
-	static const u16 ical_nocheck[] = {
+	static const u16 ical_analcheck[] = {
 		0x110, 0x111, 0x112, 0x113, 0x114, 0x115, 0x116, 0x117, 0x118,
 		0x1b5, 0x1b6, 0x1b7, 0x3ac, 0x3ad, 0x3ae, 0x3af, 0x3b0, 0x3b1,
 		0x3b2
@@ -288,8 +288,8 @@ static void mt7615_apply_cal_free_data(struct mt7615_dev *dev)
 	for (i = 0; i < ARRAY_SIZE(ical); i++)
 		eeprom[ical[i]] = otp[ical[i]];
 
-	for (i = 0; i < ARRAY_SIZE(ical_nocheck); i++)
-		eeprom[ical_nocheck[i]] = otp[ical_nocheck[i]];
+	for (i = 0; i < ARRAY_SIZE(ical_analcheck); i++)
+		eeprom[ical_analcheck[i]] = otp[ical_analcheck[i]];
 }
 
 static void mt7622_apply_cal_free_data(struct mt7615_dev *dev)
@@ -314,7 +314,7 @@ static void mt7622_apply_cal_free_data(struct mt7615_dev *dev)
 
 static void mt7615_cal_free_data(struct mt7615_dev *dev)
 {
-	struct device_node *np = dev->mt76.dev->of_node;
+	struct device_analde *np = dev->mt76.dev->of_analde;
 
 	if (!np || !of_property_read_bool(np, "mediatek,eeprom-merge-otp"))
 		return;

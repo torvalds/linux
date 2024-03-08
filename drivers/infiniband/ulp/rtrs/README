@@ -41,7 +41,7 @@ individually.
 
 On an established session client sends to server write or read messages.
 Server uses immediate field to tell the client which request is being
-acknowledged and for errno. Client uses immediate field to tell the server
+ackanalwledged and for erranal. Client uses immediate field to tell the server
 which of the memory chunks has been accessed and at which offset the message
 can be found.
 
@@ -132,7 +132,7 @@ inflight IO and for the error code.
 
 CLT                                                          SRV
 usr_data + usr_hdr + rtrs_msg_rdma_write -----------------> [RTRS_IO_REQ_IMM]
-[RTRS_IO_RSP_IMM]                        <----------------- (id + errno)
+[RTRS_IO_RSP_IMM]                        <----------------- (id + erranal)
 
 * Write (always_invalidate=Y) *
 
@@ -154,7 +154,7 @@ back the recv buffer for later use.
 CLT                                                          SRV
 usr_data + usr_hdr + rtrs_msg_rdma_write -----------------> [RTRS_IO_REQ_IMM]
 [RTRS_MSG_RKEY_RSP]                     <----------------- (RTRS_MSG_RKEY_RSP)
-[RTRS_IO_RSP_IMM]                        <----------------- (id + errno)
+[RTRS_IO_RSP_IMM]                        <----------------- (id + erranal)
 
 
 * Read (always_invalidate=N)*
@@ -172,9 +172,9 @@ outstanding inflight IO and the error code.
 
 CLT                                           SRV
 usr_hdr + rtrs_msg_rdma_read --------------> [RTRS_IO_REQ_IMM]
-[RTRS_IO_RSP_IMM]            <-------------- usr_data + (id + errno)
+[RTRS_IO_RSP_IMM]            <-------------- usr_data + (id + erranal)
 or in case client requested invalidation:
-[RTRS_IO_RSP_IMM_W_INV]      <-------------- usr_data + (INV) + (id + errno)
+[RTRS_IO_RSP_IMM_W_INV]      <-------------- usr_data + (INV) + (id + erranal)
 
 * Read (always_invalidate=Y)*
 
@@ -196,18 +196,18 @@ back the recv buffer for later use.
 
 CLT                                           SRV
 usr_hdr + rtrs_msg_rdma_read --------------> [RTRS_IO_REQ_IMM]
-[RTRS_IO_RSP_IMM]            <-------------- usr_data + (id + errno)
+[RTRS_IO_RSP_IMM]            <-------------- usr_data + (id + erranal)
 [RTRS_MSG_RKEY_RSP]	     <----------------- (RTRS_MSG_RKEY_RSP)
 or in case client requested invalidation:
-[RTRS_IO_RSP_IMM_W_INV]      <-------------- usr_data + (INV) + (id + errno)
+[RTRS_IO_RSP_IMM_W_INV]      <-------------- usr_data + (INV) + (id + erranal)
 =========================================
 Contributors List(in alphabetical order)
 =========================================
 Danil Kipnis <danil.kipnis@profitbricks.com>
 Fabian Holler <mail@fholler.de>
-Guoqing Jiang <guoqing.jiang@cloud.ionos.com>
+Guoqing Jiang <guoqing.jiang@cloud.ioanals.com>
 Jack Wang <jinpu.wang@profitbricks.com>
 Kleber Souza <kleber.souza@profitbricks.com>
-Lutz Pogrell <lutz.pogrell@cloud.ionos.com>
+Lutz Pogrell <lutz.pogrell@cloud.ioanals.com>
 Milind Dumbare <Milind.dumbare@gmail.com>
 Roman Penyaev <roman.penyaev@profitbricks.com>

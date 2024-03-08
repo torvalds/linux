@@ -14,7 +14,7 @@ allOf:
   - if:
       properties:
         compatible:
-          not:
+          analt:
             contains:
               const: ibm,usb-ehci-440epx
     then:

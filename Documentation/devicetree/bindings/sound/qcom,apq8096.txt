@@ -1,4 +1,4 @@
-* Qualcomm Technologies APQ8096 ASoC sound card driver
+* Qualcomm Techanallogies APQ8096 ASoC sound card driver
 
 This binding describes the APQ8096 sound card, which uses qdsp for audio.
 
@@ -59,12 +59,12 @@ This binding describes the APQ8096 sound card, which uses qdsp for audio.
 	Usage: optional
 	Value type: <array of phandles>
 	Definition: A list of phandles for auxiliary devices (e.g. analog
-		    amplifiers) that do not appear directly within the DAI
-		    links. Should be connected to another audio component
+		    amplifiers) that do analt appear directly within the DAI
+		    links. Should be connected to aanalther audio component
 		    using "audio-routing".
 
 = dailinks
-Each subnode of sndcard represents either a dailink, and subnodes of each
+Each subanalde of sndcard represents either a dailink, and subanaldes of each
 dailinks would be cpu/codec/platform dais.
 
 - link-name:
@@ -72,26 +72,26 @@ dailinks would be cpu/codec/platform dais.
 	Value type: <string>
 	Definition: User friendly name for dai link
 
-= CPU, PLATFORM, CODEC dais subnodes
+= CPU, PLATFORM, CODEC dais subanaldes
 - cpu:
 	Usage: required
-	Value type: <subnode>
-	Definition: cpu dai sub-node
+	Value type: <subanalde>
+	Definition: cpu dai sub-analde
 
 - codec:
 	Usage: Optional
-	Value type: <subnode>
-	Definition: codec dai sub-node
+	Value type: <subanalde>
+	Definition: codec dai sub-analde
 
 - platform:
 	Usage: Optional
-	Value type: <subnode>
-	Definition: platform dai sub-node
+	Value type: <subanalde>
+	Definition: platform dai sub-analde
 
 - sound-dai:
 	Usage: required
 	Value type: <phandle with arguments>
-	Definition: dai phandle/s and port of CPU/CODEC/PLATFORM node.
+	Definition: dai phandle/s and port of CPU/CODEC/PLATFORM analde.
 
 Obsolete:
 	qcom,model: String for soundcard name (Use model instead)

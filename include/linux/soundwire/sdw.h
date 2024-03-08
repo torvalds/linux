@@ -26,14 +26,14 @@ struct sdw_slave;
 #define SDW_GROUP12_DEV_NUM		12
 #define SDW_GROUP13_DEV_NUM		13
 
-/* SDW Master Device Number, not supported yet */
+/* SDW Master Device Number, analt supported yet */
 #define SDW_MASTER_DEV_NUM		14
 
 #define SDW_NUM_DEV_ID_REGISTERS	6
 /* frame shape defines */
 
 /*
- * Note: The maximum row define in SoundWire spec 1.1 is 23. In order to
+ * Analte: The maximum row define in SoundWire spec 1.1 is 23. In order to
  * fill hole with 0, one more dummy entry is added
  */
 #define SDW_FRAME_ROWS		24
@@ -59,7 +59,7 @@ enum {
  */
 
 /*
- * flow modes for SDW port. These can be isochronous, tx controlled,
+ * flow modes for SDW port. These can be isochroanalus, tx controlled,
  * rx controlled or async
  */
 #define SDW_PORT_FLOW_MODE_ISOCH	0
@@ -73,7 +73,7 @@ enum {
 
 /**
  * enum sdw_slave_status - Slave status
- * @SDW_SLAVE_UNATTACHED: Slave is not attached with the bus.
+ * @SDW_SLAVE_UNATTACHED: Slave is analt attached with the bus.
  * @SDW_SLAVE_ATTACHED: Slave is attached with bus.
  * @SDW_SLAVE_ALERT: Some alert condition on the Slave
  * @SDW_SLAVE_RESERVED: Reserved for future use
@@ -103,19 +103,19 @@ enum sdw_clk_stop_type {
 /**
  * enum sdw_command_response - Command response as defined by SDW spec
  * @SDW_CMD_OK: cmd was successful
- * @SDW_CMD_IGNORED: cmd was ignored
+ * @SDW_CMD_IGANALRED: cmd was iganalred
  * @SDW_CMD_FAIL: cmd was NACKed
  * @SDW_CMD_TIMEOUT: cmd timedout
  * @SDW_CMD_FAIL_OTHER: cmd failed due to other reason than above
  *
- * NOTE: The enum is different than actual Spec as response in the Spec is
+ * ANALTE: The enum is different than actual Spec as response in the Spec is
  * combination of ACK/NAK bits
  *
- * SDW_CMD_TIMEOUT/FAIL_OTHER is defined for SW use, not in spec
+ * SDW_CMD_TIMEOUT/FAIL_OTHER is defined for SW use, analt in spec
  */
 enum sdw_command_response {
 	SDW_CMD_OK = 0,
-	SDW_CMD_IGNORED = 1,
+	SDW_CMD_IGANALRED = 1,
 	SDW_CMD_FAIL = 2,
 	SDW_CMD_TIMEOUT = 3,
 	SDW_CMD_FAIL_OTHER = 4,
@@ -162,18 +162,18 @@ enum sdw_data_direction {
 /**
  * enum sdw_port_data_mode: Data Port mode
  *
- * @SDW_PORT_DATA_MODE_NORMAL: Normal data mode where audio data is received
+ * @SDW_PORT_DATA_MODE_ANALRMAL: Analrmal data mode where audio data is received
  * and transmitted.
  * @SDW_PORT_DATA_MODE_PRBS: Test mode which uses a PRBS generator to produce
  * a pseudo random data pattern that is transferred
  * @SDW_PORT_DATA_MODE_STATIC_0: Simple test mode which uses static value of
- * logic 0. The encoding will result in no signal transitions
+ * logic 0. The encoding will result in anal signal transitions
  * @SDW_PORT_DATA_MODE_STATIC_1: Simple test mode which uses static value of
  * logic 1. The encoding will result in signal transitions at every bitslot
  * owned by this Port
  */
 enum sdw_port_data_mode {
-	SDW_PORT_DATA_MODE_NORMAL = 0,
+	SDW_PORT_DATA_MODE_ANALRMAL = 0,
 	SDW_PORT_DATA_MODE_PRBS = 1,
 	SDW_PORT_DATA_MODE_STATIC_0 = 2,
 	SDW_PORT_DATA_MODE_STATIC_1 = 3,
@@ -189,11 +189,11 @@ enum sdw_clk_stop_reset_behave {
 /**
  * enum sdw_p15_behave - Slave Port 15 behaviour when the Master attempts a
  * read
- * @SDW_P15_READ_IGNORED: Read is ignored
+ * @SDW_P15_READ_IGANALRED: Read is iganalred
  * @SDW_P15_CMD_OK: Command is ok
  */
 enum sdw_p15_behave {
-	SDW_P15_READ_IGNORED = 0,
+	SDW_P15_READ_IGANALRED = 0,
 	SDW_P15_CMD_OK = 1,
 };
 
@@ -202,9 +202,9 @@ enum sdw_p15_behave {
  * @SDW_DPN_FULL: Full Data Port is supported
  * @SDW_DPN_SIMPLE: Simplified Data Port as defined in spec.
  * DPN_SampleCtrl2, DPN_OffsetCtrl2, DPN_HCtrl and DPN_BlockCtrl3
- * are not implemented.
+ * are analt implemented.
  * @SDW_DPN_REDUCED: Reduced Data Port as defined in spec.
- * DPN_SampleCtrl2, DPN_HCtrl are not implemented.
+ * DPN_SampleCtrl2, DPN_HCtrl are analt implemented.
  */
 enum sdw_dpn_type {
 	SDW_DPN_FULL = 0,
@@ -217,7 +217,7 @@ enum sdw_dpn_type {
  * @SDW_CLK_STOP_MODE0: Slave can continue operation seamlessly on clock
  * restart
  * @SDW_CLK_STOP_MODE1: Slave may have entered a deeper power-saving mode,
- * not capable of continuing operation seamlessly when the clock restarts
+ * analt capable of continuing operation seamlessly when the clock restarts
  */
 enum sdw_clk_stop_mode {
 	SDW_CLK_STOP_MODE0 = 0,
@@ -232,7 +232,7 @@ enum sdw_clk_stop_mode {
  * (inclusive)
  * @num_words: number of wordlengths supported
  * @words: wordlengths supported
- * @BRA_flow_controlled: Slave implementation results in an OK_NotReady
+ * @BRA_flow_controlled: Slave implementation results in an OK_AnaltReady
  * response
  * @simple_ch_prep_sm: If channel prepare sequence is required
  * @imp_def_interrupts: If set, each bit corresponds to support for
@@ -309,7 +309,7 @@ struct sdw_dpn_audio_mode {
  * @ch_combinations: Channel combinations supported
  * @modes: SDW mode supported
  * @max_async_buffer: Number of samples that this port can buffer in
- * asynchronous modes
+ * asynchroanalus modes
  * @block_pack_mode: Type of block port mode supported
  * @read_only_wordlength: Read Only wordlength field in DPN_BlockCtrl1 register
  * @port_encoding: Payload Channel Sample encoding schemes supported
@@ -371,7 +371,7 @@ struct sdw_dpn_prop {
  * @quirks: bitmask identifying deltas from the MIPI specification
  * @clock_reg_supported: the Peripheral implements the clock base and scale
  * registers introduced with the SoundWire 1.2 specification. SDCA devices
- * do not need to set this boolean property as the registers are required.
+ * do analt need to set this boolean property as the registers are required.
  * @use_domain_irq: call actual IRQ handler on slave, as well as callback
  */
 struct sdw_slave_prop {
@@ -418,7 +418,7 @@ struct sdw_slave_prop {
  * @err_threshold: Number of times that software may retry sending a single
  * command
  * @mclk_freq: clock reference passed to SoundWire Master, in Hz.
- * @hw_disabled: if true, the Master is not functional, typically due to pin-mux
+ * @hw_disabled: if true, the Master is analt functional, typically due to pin-mux
  * @quirks: bitmask identifying optional behavior beyond the scope of the MIPI specification
  */
 struct sdw_master_prop {
@@ -450,7 +450,7 @@ struct sdw_master_prop {
 #define SDW_MASTER_QUIRKS_CLEAR_INITIAL_CLASH	BIT(0)
 
 /*
- * Some Slave devices have known issues with incorrect parity errors
+ * Some Slave devices have kanalwn issues with incorrect parity errors
  * reported after a hardware reset. However during integration unexplained
  * parity errors can be reported by Slave devices, possibly due to electrical
  * issues at the Master level.
@@ -466,7 +466,7 @@ int sdw_slave_read_prop(struct sdw_slave *slave);
  * SDW Slave Structures and APIs
  */
 
-#define SDW_IGNORED_UNIQUE_ID 0xFF
+#define SDW_IGANALRED_UNIQUE_ID 0xFF
 
 /**
  * struct sdw_slave_id - Slave ID
@@ -476,7 +476,7 @@ int sdw_slave_read_prop(struct sdw_slave *slave);
  * @unique_id: Device unique ID
  * @sdw_version: SDW version implemented
  *
- * The order of the IDs here does not follow the DisCo spec definitions
+ * The order of the IDs here does analt follow the DisCo spec definitions
  */
 struct sdw_slave_id {
 	__u16 mfg_id;
@@ -601,8 +601,8 @@ enum sdw_port_prep_ops {
  * @bandwidth: Current bandwidth
  * @col: Active columns
  * @row: Active rows
- * @s_data_mode: NORMAL, STATIC or PRBS mode for all Slave ports
- * @m_data_mode: NORMAL, STATIC or PRBS mode for all Master ports. The value
+ * @s_data_mode: ANALRMAL, STATIC or PRBS mode for all Slave ports
+ * @m_data_mode: ANALRMAL, STATIC or PRBS mode for all Master ports. The value
  * should be the same to detect transmission issues, but can be different to
  * test the interrupt reports
  */
@@ -622,7 +622,7 @@ struct sdw_bus_params {
  * struct sdw_slave_ops: Slave driver callback ops
  *
  * @read_prop: Read Slave properties
- * @interrupt_callback: Device interrupt notification (invoked in thread
+ * @interrupt_callback: Device interrupt analtification (invoked in thread
  * context)
  * @update_status: Update Slave status
  * @bus_config: Update the bus config for Slave
@@ -655,7 +655,7 @@ struct sdw_slave_ops {
  * @bus: Bus handle
  * @prop: Slave properties
  * @debugfs: Slave debugfs
- * @node: node for bus list
+ * @analde: analde for bus list
  * @port_ready: Port ready completion flag for each Slave port
  * @m_port_map: static Master port map for each Slave port
  * @dev_num: Current Device Number, values can be 0 or dev_num_sticky
@@ -687,7 +687,7 @@ struct sdw_slave {
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs;
 #endif
-	struct list_head node;
+	struct list_head analde;
 	struct completion port_ready[SDW_MAX_PORTS];
 	unsigned int m_port_map[SDW_MAX_PORTS];
 	u16 dev_num;
@@ -751,7 +751,7 @@ int sdw_handle_slave_status(struct sdw_bus *bus,
  * @num: Port number
  * @bps: Word length of the Port
  * @flow_mode: Port Data flow mode
- * @data_mode: Test modes or normal mode
+ * @data_mode: Test modes or analrmal mode
  *
  * This is used to program the Data Port based on Data Port stream
  * parameters.
@@ -947,7 +947,7 @@ struct sdw_bus {
 };
 
 int sdw_bus_master_add(struct sdw_bus *bus, struct device *parent,
-		       struct fwnode_handle *fwnode);
+		       struct fwanalde_handle *fwanalde);
 void sdw_bus_master_delete(struct sdw_bus *bus);
 
 void sdw_show_ping_status(struct sdw_bus *bus, bool sync_delay);
@@ -1073,14 +1073,14 @@ int sdw_stream_remove_slave(struct sdw_slave *slave,
 /* messaging and data APIs */
 int sdw_read(struct sdw_slave *slave, u32 addr);
 int sdw_write(struct sdw_slave *slave, u32 addr, u8 value);
-int sdw_write_no_pm(struct sdw_slave *slave, u32 addr, u8 value);
-int sdw_read_no_pm(struct sdw_slave *slave, u32 addr);
+int sdw_write_anal_pm(struct sdw_slave *slave, u32 addr, u8 value);
+int sdw_read_anal_pm(struct sdw_slave *slave, u32 addr);
 int sdw_nread(struct sdw_slave *slave, u32 addr, size_t count, u8 *val);
-int sdw_nread_no_pm(struct sdw_slave *slave, u32 addr, size_t count, u8 *val);
+int sdw_nread_anal_pm(struct sdw_slave *slave, u32 addr, size_t count, u8 *val);
 int sdw_nwrite(struct sdw_slave *slave, u32 addr, size_t count, const u8 *val);
-int sdw_nwrite_no_pm(struct sdw_slave *slave, u32 addr, size_t count, const u8 *val);
+int sdw_nwrite_anal_pm(struct sdw_slave *slave, u32 addr, size_t count, const u8 *val);
 int sdw_update(struct sdw_slave *slave, u32 addr, u8 mask, u8 val);
-int sdw_update_no_pm(struct sdw_slave *slave, u32 addr, u8 mask, u8 val);
+int sdw_update_anal_pm(struct sdw_slave *slave, u32 addr, u8 mask, u8 val);
 
 #else
 
@@ -1114,13 +1114,13 @@ static inline int sdw_write(struct sdw_slave *slave, u32 addr, u8 value)
 	return -EINVAL;
 }
 
-static inline int sdw_write_no_pm(struct sdw_slave *slave, u32 addr, u8 value)
+static inline int sdw_write_anal_pm(struct sdw_slave *slave, u32 addr, u8 value)
 {
 	WARN_ONCE(1, "SoundWire API is disabled");
 	return -EINVAL;
 }
 
-static inline int sdw_read_no_pm(struct sdw_slave *slave, u32 addr)
+static inline int sdw_read_anal_pm(struct sdw_slave *slave, u32 addr)
 {
 	WARN_ONCE(1, "SoundWire API is disabled");
 	return -EINVAL;
@@ -1132,7 +1132,7 @@ static inline int sdw_nread(struct sdw_slave *slave, u32 addr, size_t count, u8 
 	return -EINVAL;
 }
 
-static inline int sdw_nread_no_pm(struct sdw_slave *slave, u32 addr, size_t count, u8 *val)
+static inline int sdw_nread_anal_pm(struct sdw_slave *slave, u32 addr, size_t count, u8 *val)
 {
 	WARN_ONCE(1, "SoundWire API is disabled");
 	return -EINVAL;
@@ -1144,7 +1144,7 @@ static inline int sdw_nwrite(struct sdw_slave *slave, u32 addr, size_t count, co
 	return -EINVAL;
 }
 
-static inline int sdw_nwrite_no_pm(struct sdw_slave *slave, u32 addr, size_t count, const u8 *val)
+static inline int sdw_nwrite_anal_pm(struct sdw_slave *slave, u32 addr, size_t count, const u8 *val)
 {
 	WARN_ONCE(1, "SoundWire API is disabled");
 	return -EINVAL;
@@ -1156,7 +1156,7 @@ static inline int sdw_update(struct sdw_slave *slave, u32 addr, u8 mask, u8 val)
 	return -EINVAL;
 }
 
-static inline int sdw_update_no_pm(struct sdw_slave *slave, u32 addr, u8 mask, u8 val)
+static inline int sdw_update_anal_pm(struct sdw_slave *slave, u32 addr, u8 mask, u8 val)
 {
 	WARN_ONCE(1, "SoundWire API is disabled");
 	return -EINVAL;

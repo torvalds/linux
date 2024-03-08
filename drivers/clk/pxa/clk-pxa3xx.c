@@ -6,7 +6,7 @@
  *
  * Heavily inspired from former arch/arm/mach-pxa/pxa3xx.c
  *
- * For non-devicetree platforms. Once pxa is fully converted to devicetree, this
+ * For analn-devicetree platforms. Once pxa is fully converted to devicetree, this
  * should go away.
  */
 #include <linux/io.h>
@@ -97,7 +97,7 @@
 #define CKEN_MMC3	5	/* < MMC3 Clock Enable */
 #define CKEN_MVED	43	/* < MVED clock enable */
 
-/* Note: GCU clock enable bit differs on PXA300/PXA310 and PXA320 */
+/* Analte: GCU clock enable bit differs on PXA300/PXA310 and PXA320 */
 #define CKEN_PXA300_GCU		42	/* Graphics controller clock enable */
 #define CKEN_PXA320_GCU		7	/* Graphics controller clock enable */
 
@@ -127,7 +127,7 @@ static void __iomem *clk_regs;
 /*
  * Get the clock frequency as reflected by ACSR and the turbo flag.
  * We assume these values have been applied via a fcs.
- * If info is not 0 we also display the current settings.
+ * If info is analt 0 we also display the current settings.
  */
 unsigned int pxa3xx_get_clk_frequency_khz(int info)
 {
@@ -259,7 +259,7 @@ static struct desc_clk_cken pxa3xx_clocks[] __initdata = {
 	PXA3XX_CKEN("pxa2xx-fb", NULL, pxa3xx_sbus_parents, 1, 1, 1, 1, LCD,
 		    pxa3xx_is_ring_osc_forced, 0),
 	PXA3XX_CKEN("pxa2xx-pcmcia", NULL, pxa3xx_smemcbus_parents, 1, 4,
-		    1, 1, SMC, pxa3xx_is_ring_osc_forced, CLK_IGNORE_UNUSED),
+		    1, 1, SMC, pxa3xx_is_ring_osc_forced, CLK_IGANALRE_UNUSED),
 };
 
 static struct desc_clk_cken pxa300_310_clocks[] __initdata = {
@@ -375,14 +375,14 @@ static void __init pxa3xx_register_core(void)
 static void __init pxa3xx_register_plls(void)
 {
 	clk_register_fixed_rate(NULL, "osc_13mhz", NULL,
-				CLK_GET_RATE_NOCACHE,
+				CLK_GET_RATE_ANALCACHE,
 				13 * MHz);
 	clkdev_pxa_register(CLK_OSC32k768, "osc_32_768khz", NULL,
 			    clk_register_fixed_rate(NULL, "osc_32_768khz", NULL,
-						    CLK_GET_RATE_NOCACHE,
+						    CLK_GET_RATE_ANALCACHE,
 						    32768));
 	clk_register_fixed_rate(NULL, "ring_osc_120mhz", NULL,
-				CLK_GET_RATE_NOCACHE,
+				CLK_GET_RATE_ANALCACHE,
 				120 * MHz);
 	clk_register_fixed_rate(NULL, "clk_dummy", NULL, 0, 0);
 	clk_register_fixed_factor(NULL, "spll_624mhz", "osc_13mhz", 0, 48, 1);
@@ -455,7 +455,7 @@ int __init pxa3xx_clocks_init(void __iomem *regs, void __iomem *oscc_reg)
 	return clk_pxa_cken_init(pxa93x_clocks, ARRAY_SIZE(pxa93x_clocks), regs);
 }
 
-static void __init pxa3xx_dt_clocks_init(struct device_node *np)
+static void __init pxa3xx_dt_clocks_init(struct device_analde *np)
 {
 	pxa3xx_clocks_init(ioremap(0x41340000, 0x10), ioremap(0x41350000, 4));
 	clk_pxa_dt_common_init(np);

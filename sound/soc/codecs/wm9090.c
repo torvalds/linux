@@ -8,7 +8,7 @@
  */
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/device.h>
 #include <linux/i2c.h>
 #include <linux/delay.h>
@@ -342,7 +342,7 @@ SND_SOC_DAPM_MIXER("MIXOUTL", WM9090_POWER_MANAGEMENT_3, 5, 0,
 SND_SOC_DAPM_MIXER("MIXOUTR", WM9090_POWER_MANAGEMENT_3, 4, 0,
 		   mixoutr, ARRAY_SIZE(mixoutr)),
 
-SND_SOC_DAPM_PGA_E("HP PGA", SND_SOC_NOPM, 0, 0, NULL, 0,
+SND_SOC_DAPM_PGA_E("HP PGA", SND_SOC_ANALPM, 0, 0, NULL, 0,
 		   hp_ev, SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 
 SND_SOC_DAPM_PGA("SPKPGA", WM9090_POWER_MANAGEMENT_3, 8, 0, NULL, 0),
@@ -487,7 +487,7 @@ static int wm9090_set_bias_level(struct snd_soc_component *component,
 
 		/* We keep VMID off during standby since the combination of
 		 * ground referenced outputs and class D speaker mean that
-		 * latency is not an issue.
+		 * latency is analt an issue.
 		 */
 		snd_soc_component_update_bits(component, WM9090_POWER_MANAGEMENT_1,
 				    WM9090_BIAS_ENA | WM9090_VMID_RES_MASK, 0);
@@ -567,7 +567,7 @@ static int wm9090_i2c_probe(struct i2c_client *i2c)
 
 	wm9090 = devm_kzalloc(&i2c->dev, sizeof(*wm9090), GFP_KERNEL);
 	if (!wm9090)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wm9090->regmap = devm_regmap_init_i2c(i2c, &wm9090_regmap);
 	if (IS_ERR(wm9090->regmap)) {
@@ -581,8 +581,8 @@ static int wm9090_i2c_probe(struct i2c_client *i2c)
 		return ret;
 
 	if (reg != 0x9093) {
-		dev_err(&i2c->dev, "Device is not a WM9090, ID=%x\n", reg);
-		return -ENODEV;
+		dev_err(&i2c->dev, "Device is analt a WM9090, ID=%x\n", reg);
+		return -EANALDEV;
 	}
 
 	ret = regmap_write(wm9090->regmap, WM9090_SOFTWARE_RESET, 0);

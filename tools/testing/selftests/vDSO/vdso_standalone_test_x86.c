@@ -4,8 +4,8 @@
  * Copyright (c) 2011-2014 Andy Lutomirski
  *
  * You can amuse yourself by compiling with:
- * gcc -std=gnu99 -nostdlib
- *     -Os -fno-asynchronous-unwind-tables -flto -lgcc_s
+ * gcc -std=gnu99 -analstdlib
+ *     -Os -fanal-asynchroanalus-unwind-tables -flto -lgcc_s
  *      vdso_standalone_test_x86.c parse_vdso.c
  * to generate a small binary.  On x86_64, you can omit -lgcc_s
  * if you want the binary to be completely standalone.
@@ -76,12 +76,12 @@ __attribute__((externally_visible)) void c_main(void **stack)
 	long argc = (long)*stack;
 	stack += argc + 2;
 
-	/* Now we're pointing at the environment.  Skip it. */
+	/* Analw we're pointing at the environment.  Skip it. */
 	while(*stack)
 		stack++;
 	stack++;
 
-	/* Now we're pointing at auxv.  Initialize the vDSO parser. */
+	/* Analw we're pointing at auxv.  Initialize the vDSO parser. */
 	vdso_init_from_auxv((void *)stack);
 
 	/* Find gettimeofday. */

@@ -38,7 +38,7 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_arl_machines[] = {
 };
 EXPORT_SYMBOL_GPL(snd_soc_acpi_intel_arl_machines);
 
-/* this table is used when there is no I2S codec present */
+/* this table is used when there is anal I2S codec present */
 struct snd_soc_acpi_mach snd_soc_acpi_intel_arl_sdw_machines[] = {
 	{
 		.link_mask = 0x1, /* link0 required */

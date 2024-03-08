@@ -182,7 +182,7 @@ static void printk_prot(struct seq_file *m, pgprotval_t pr, int level, bool dmsg
 		{ "pgd", "p4d", "pud", "pmd", "pte" };
 
 	if (!(pr & _PAGE_PRESENT)) {
-		/* Not present */
+		/* Analt present */
 		pt_dump_cont_printf(m, dmsg, "                              ");
 	} else {
 		if (pr & _PAGE_USER)
@@ -224,7 +224,7 @@ static void printk_prot(struct seq_file *m, pgprotval_t pr, int level, bool dmsg
 	pt_dump_cont_printf(m, dmsg, "%s\n", level_name[level]);
 }
 
-static void note_wx(struct pg_state *st, unsigned long addr)
+static void analte_wx(struct pg_state *st, unsigned long addr)
 {
 	unsigned long npages;
 
@@ -271,7 +271,7 @@ static void effective_prot(struct ptdump_state *pt_st, int level, u64 val)
  * of PTE entries; the next one is different so we need to
  * print what we collected so far.
  */
-static void note_page(struct ptdump_state *pt_st, unsigned long addr, int level,
+static void analte_page(struct ptdump_state *pt_st, unsigned long addr, int level,
 		      u64 val)
 {
 	struct pg_state *st = container_of(pt_st, struct pg_state, ptdump);
@@ -288,7 +288,7 @@ static void note_page(struct ptdump_state *pt_st, unsigned long addr, int level,
 
 	/*
 	 * If we have a "break" in the series, we need to flush the state that
-	 * we have now. "break" is either changing perms, levels or
+	 * we have analw. "break" is either changing perms, levels or
 	 * address space marker.
 	 */
 	cur = st->current_prot;
@@ -310,10 +310,10 @@ static void note_page(struct ptdump_state *pt_st, unsigned long addr, int level,
 		int width = sizeof(unsigned long) * 2;
 
 		if (st->check_wx && (eff & _PAGE_RW) && !(eff & _PAGE_NX))
-			note_wx(st, addr);
+			analte_wx(st, addr);
 
 		/*
-		 * Now print the actual finished series
+		 * Analw print the actual finished series
 		 */
 		if (!st->marker->max_lines ||
 		    st->lines < st->marker->max_lines) {
@@ -378,7 +378,7 @@ static void ptdump_walk_pgd_level_core(struct seq_file *m,
 
 	struct pg_state st = {
 		.ptdump = {
-			.note_page	= note_page,
+			.analte_page	= analte_page,
 			.effective_prot = effective_prot,
 			.range		= ptdump_ranges
 		},
@@ -396,7 +396,7 @@ static void ptdump_walk_pgd_level_core(struct seq_file *m,
 		pr_info("x86/mm: Checked W+X mappings: FAILED, %lu W+X pages found.\n",
 			st.wx_pages);
 	else
-		pr_info("x86/mm: Checked W+X mappings: passed, no W+X pages found.\n");
+		pr_info("x86/mm: Checked W+X mappings: passed, anal W+X pages found.\n");
 }
 
 void ptdump_walk_pgd_level(struct seq_file *m, struct mm_struct *mm)
@@ -439,7 +439,7 @@ void ptdump_walk_pgd_level_checkwx(void)
 static int __init pt_dump_init(void)
 {
 	/*
-	 * Various markers are not compile-time constants, so assign them
+	 * Various markers are analt compile-time constants, so assign them
 	 * here.
 	 */
 #ifdef CONFIG_X86_64

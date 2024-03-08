@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * CPU-agnostic ARM page table allocator.
+ * CPU-aganalstic ARM page table allocator.
  *
  * Copyright (C) 2014 ARM Limited
  *
@@ -83,7 +83,7 @@
 #define ARM_LPAE_PTE_VALID		(((arm_lpae_iopte)1) << 0)
 
 #define ARM_LPAE_PTE_ATTR_LO_MASK	(((arm_lpae_iopte)0x3ff) << 2)
-/* Ignore the contiguous bit for block splitting */
+/* Iganalre the contiguous bit for block splitting */
 #define ARM_LPAE_PTE_ATTR_HI_MASK	(((arm_lpae_iopte)6) << 52)
 #define ARM_LPAE_PTE_ATTR_MASK		(ARM_LPAE_PTE_ATTR_LO_MASK |	\
 					 ARM_LPAE_PTE_ATTR_HI_MASK)
@@ -203,7 +203,7 @@ static void *__arm_lpae_alloc_pages(size_t size, gfp_t gfp,
 	} else {
 		struct page *p;
 
-		p = alloc_pages_node(dev_to_node(dev), gfp | __GFP_ZERO, order);
+		p = alloc_pages_analde(dev_to_analde(dev), gfp | __GFP_ZERO, order);
 		pages = p ? page_address(p) : NULL;
 	}
 
@@ -226,7 +226,7 @@ static void *__arm_lpae_alloc_pages(size_t size, gfp_t gfp,
 	return pages;
 
 out_unmap:
-	dev_err(dev, "Cannot accommodate DMA translation for IOMMU page tables\n");
+	dev_err(dev, "Cananalt accommodate DMA translation for IOMMU page tables\n");
 	dma_unmap_single(dev, dma, size, DMA_TO_DEVICE);
 
 out_free:
@@ -350,7 +350,7 @@ static arm_lpae_iopte arm_lpae_install_table(arm_lpae_iopte *table,
 	if (cfg->coherent_walk || (old & ARM_LPAE_PTE_SW_SYNC))
 		return old;
 
-	/* Even if it's not ours, there's no point waiting; just kick it */
+	/* Even if it's analt ours, there's anal point waiting; just kick it */
 	__arm_lpae_sync_pte(ptep, 1, cfg);
 	if (old == curr)
 		WRITE_ONCE(*ptep, new | ARM_LPAE_PTE_SW_SYNC);
@@ -393,7 +393,7 @@ static int __arm_lpae_map(struct arm_lpae_io_pgtable *data, unsigned long iova,
 	if (!pte) {
 		cptep = __arm_lpae_alloc_pages(tblsz, gfp, cfg, data->iop.cookie);
 		if (!cptep)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		pte = arm_lpae_install_table(cptep, ptep, 0, data);
 		if (pte)
@@ -436,7 +436,7 @@ static arm_lpae_iopte arm_lpae_prot_to_pte(struct arm_lpae_io_pgtable *data,
 	}
 
 	/*
-	 * Note that this logic is structured to accommodate Mali LPAE
+	 * Analte that this logic is structured to accommodate Mali LPAE
 	 * having stage-1-like attributes but stage-2-like permissions.
 	 */
 	if (data->iop.fmt == ARM_64_LPAE_S2 ||
@@ -457,7 +457,7 @@ static arm_lpae_iopte arm_lpae_prot_to_pte(struct arm_lpae_io_pgtable *data,
 	}
 
 	/*
-	 * Also Mali has its own notions of shareability wherein its Inner
+	 * Also Mali has its own analtions of shareability wherein its Inner
 	 * domain covers the cores within the GPU, and its Outer domain is
 	 * "outside the GPU" (i.e. either the Inner or System domain in CPU
 	 * terms, depending on coherency).
@@ -467,7 +467,7 @@ static arm_lpae_iopte arm_lpae_prot_to_pte(struct arm_lpae_io_pgtable *data,
 	else
 		pte |= ARM_LPAE_PTE_SH_OS;
 
-	if (prot & IOMMU_NOEXEC)
+	if (prot & IOMMU_ANALEXEC)
 		pte |= ARM_LPAE_PTE_XN;
 
 	if (data->iop.cfg.quirks & IO_PGTABLE_QUIRK_ARM_NS)
@@ -498,7 +498,7 @@ static int arm_lpae_map_pages(struct io_pgtable_ops *ops, unsigned long iova,
 	if (WARN_ON(iaext || paddr >> cfg->oas))
 		return -ERANGE;
 
-	/* If no access, then nothing to do */
+	/* If anal access, then analthing to do */
 	if (!(iommu_prot & (IOMMU_READ | IOMMU_WRITE)))
 		return 0;
 
@@ -595,7 +595,7 @@ static size_t arm_lpae_split_blk_unmap(struct arm_lpae_io_pgtable *data,
 	if (pte != blk_pte) {
 		__arm_lpae_free_pages(tablep, tablesz, cfg, data->iop.cookie);
 		/*
-		 * We may race against someone unmapping another part of this
+		 * We may race against someone unmapping aanalther part of this
 		 * block, but anything else is invalid. We can't misinterpret
 		 * a page entry here since we're never at the last level.
 		 */
@@ -1043,7 +1043,7 @@ arm_mali_lpae_alloc_pgtable(struct io_pgtable_cfg *cfg, void *cookie)
 {
 	struct arm_lpae_io_pgtable *data;
 
-	/* No quirks for Mali (hopefully) */
+	/* Anal quirks for Mali (hopefully) */
 	if (cfg->quirks)
 		return NULL;
 
@@ -1062,9 +1062,9 @@ arm_mali_lpae_alloc_pgtable(struct io_pgtable_cfg *cfg, void *cookie)
 		data->pgd_bits = 0;
 	}
 	/*
-	 * MEMATTR: Mali has no actual notion of a non-cacheable type, so the
+	 * MEMATTR: Mali has anal actual analtion of a analn-cacheable type, so the
 	 * best we can do is mimic the out-of-tree driver and hope that the
-	 * "implementation-defined caching policy" is good enough. Similarly,
+	 * "implementation-defined caching policy" is good eanalugh. Similarly,
 	 * we'll use it for the sake of a valid attribute for our 'device'
 	 * index, although callers should never request that in practice.
 	 */
@@ -1194,7 +1194,7 @@ static int __init arm_lpae_run_tests(struct io_pgtable_cfg *cfg)
 		ops = alloc_io_pgtable_ops(fmts[i], cfg, cfg);
 		if (!ops) {
 			pr_err("selftest: failed to allocate io pgtable ops\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		/*
@@ -1219,13 +1219,13 @@ static int __init arm_lpae_run_tests(struct io_pgtable_cfg *cfg)
 
 			if (ops->map_pages(ops, iova, iova, size, 1,
 					   IOMMU_READ | IOMMU_WRITE |
-					   IOMMU_NOEXEC | IOMMU_CACHE,
+					   IOMMU_ANALEXEC | IOMMU_CACHE,
 					   GFP_KERNEL, &mapped))
 				return __FAIL(ops, i);
 
 			/* Overlapping mappings */
 			if (!ops->map_pages(ops, iova, iova + size, size, 1,
-					    IOMMU_READ | IOMMU_NOEXEC,
+					    IOMMU_READ | IOMMU_ANALEXEC,
 					    GFP_KERNEL, &mapped))
 				return __FAIL(ops, i);
 
@@ -1298,8 +1298,8 @@ static int __init arm_lpae_do_selftests(void)
 		.iommu_dev = &dev,
 	};
 
-	/* __arm_lpae_alloc_pages() merely needs dev_to_node() to work */
-	set_dev_node(&dev, NUMA_NO_NODE);
+	/* __arm_lpae_alloc_pages() merely needs dev_to_analde() to work */
+	set_dev_analde(&dev, NUMA_ANAL_ANALDE);
 
 	for (i = 0; i < ARRAY_SIZE(pgsize); ++i) {
 		for (j = 0; j < ARRAY_SIZE(ias); ++j) {

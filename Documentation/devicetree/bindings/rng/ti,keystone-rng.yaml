@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Keystone SoC Hardware Random Number Generator
 
 maintainers:
-  - Nishanth Menon <nm@ti.com>
+  - Nishanth Meanaln <nm@ti.com>
   - Santosh Shilimkar <ssantosh@kernel.org>
 
 properties:
@@ -27,7 +27,7 @@ properties:
   ti,syscon-sa-cfg:
     $ref: /schemas/types.yaml#/definitions/phandle
     description: |
-      Phandle to syscon node of the SA configuration registers.  These
+      Phandle to syscon analde of the SA configuration registers.  These
       registers are shared between HWRNG and crypto drivers.
 
 required:

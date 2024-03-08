@@ -10,7 +10,7 @@
  */
 
 #define _GNU_SOURCE
-#include <errno.h>
+#include <erranal.h>
 #include <inttypes.h>
 #include <libgen.h>
 #include <pthread.h>

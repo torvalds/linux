@@ -15,7 +15,7 @@
 #define	CHIP_BONDING_92C_1T2R		0x1
 
 #define CHIP_8723		BIT(0)
-#define NORMAL_CHIP		BIT(3)
+#define ANALRMAL_CHIP		BIT(3)
 #define RF_TYPE_1T1R		(~(BIT(4)|BIT(5)|BIT(6)))
 #define RF_TYPE_1T2R		BIT(4)
 #define RF_TYPE_2T2R		BIT(5)
@@ -89,7 +89,7 @@ enum power_policy_config {
 	POWERCFG_MAX_POWER_SAVINGS,
 	POWERCFG_GLOBAL_POWER_SAVINGS,
 	POWERCFG_LOCAL_POWER_SAVINGS,
-	POWERCFG_LENOVO,
+	POWERCFG_LEANALVO,
 };
 
 enum interface_select_pci {

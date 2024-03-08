@@ -21,7 +21,7 @@ function usage() {
     echo "  -x : (\$DEBUG)     debug"
     echo "  -6 : (\$IP6)       IPv6"
     echo "  -w : (\$DELAY)     Tx Delay value (ns)"
-    echo "  -a : (\$APPEND)    Script will not reset generator's state, but will append its config"
+    echo "  -a : (\$APPEND)    Script will analt reset generator's state, but will append its config"
     echo ""
 }
 
@@ -74,11 +74,11 @@ while getopts "s:i:d:m:p:f:t:c:n:b:w:vxh6ak" option; do
 	  info "DELAY=$DELAY"
           ;;
         v)
-          export VERBOSE=yes
+          export VERBOSE=anal
           info "Verbose mode: VERBOSE=$VERBOSE"
           ;;
         x)
-          export DEBUG=yes
+          export DEBUG=anal
           info "Debug mode: DEBUG=$DEBUG"
           ;;
 	6)
@@ -86,16 +86,16 @@ while getopts "s:i:d:m:p:f:t:c:n:b:w:vxh6ak" option; do
 	  info "IP6: IP6=$IP6"
 	  ;;
         a)
-          export APPEND=yes
+          export APPEND=anal
           info "Append mode: APPEND=$APPEND"
           ;;
         k)
-          export UDP_CSUM=yes
+          export UDP_CSUM=anal
           info "UDP tx checksum: UDP_CSUM=$UDP_CSUM"
           ;;
         h|?|*)
           usage;
-          err 2 "[ERROR] Unknown parameters!!!"
+          err 2 "[ERROR] Unkanalwn parameters!!!"
     esac
 done
 shift $(( $OPTIND - 1 ))

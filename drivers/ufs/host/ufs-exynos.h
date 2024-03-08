@@ -1,13 +1,13 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * UFS Host Controller driver for Exynos specific extensions
+ * UFS Host Controller driver for Exyanals specific extensions
  *
  * Copyright (C) 2014-2015 Samsung Electronics Co., Ltd.
  *
  */
 
-#ifndef _UFS_EXYNOS_H_
-#define _UFS_EXYNOS_H_
+#ifndef _UFS_EXYANALS_H_
+#define _UFS_EXYANALS_H_
 
 /*
  * UNIPRO registers
@@ -35,7 +35,7 @@
 #define T_DBG_SKIP_INIT_HIBERN8_EXIT	0xc001
 
 /*
- * Exynos MPHY attributes
+ * Exyanals MPHY attributes
  */
 #define TX_LINERESET_N_VAL	0x0277
 #define TX_LINERESET_N(v)	(((v) >> 10) & 0xFF)
@@ -77,7 +77,7 @@
 #define RX_FILLER_EN		(1 << 1)
 #define RX_LINERESET_VAL	0x0317
 #define RX_LINERESET(v)	(((v) >> 12) & 0xFF)
-#define RX_LCC_IGNORE		0x0318
+#define RX_LCC_IGANALRE		0x0318
 #define RX_SYNC_MASK_LENGTH	0x0321
 #define RX_HIBERN8_WAIT_VAL_BIT_20_16	0x0331
 #define RX_HIBERN8_WAIT_VAL_BIT_15_08	0x0332
@@ -101,7 +101,7 @@
 #define IATOVAL_NSEC		20000	/* unit: ns */
 #define UNIPRO_PCLK_PERIOD(ufs) (NSEC_PER_SEC / ufs->pclk_rate)
 
-struct exynos_ufs;
+struct exyanals_ufs;
 
 /* vendor specific pre-defined parameters */
 #define SLOW 1
@@ -118,7 +118,7 @@ struct exynos_ufs;
 #define PCLK_AVAIL_MIN	70000000
 #define PCLK_AVAIL_MAX	167000000
 
-struct exynos_ufs_uic_attr {
+struct exyanals_ufs_uic_attr {
 	/* TX Attributes */
 	unsigned int tx_trailingclks;
 	unsigned int tx_dif_p_nsec;
@@ -158,21 +158,21 @@ struct exynos_ufs_uic_attr {
 	unsigned int pa_hibern8time;
 };
 
-struct exynos_ufs_drv_data {
+struct exyanals_ufs_drv_data {
 	const struct ufs_hba_variant_ops *vops;
-	struct exynos_ufs_uic_attr *uic_attr;
+	struct exyanals_ufs_uic_attr *uic_attr;
 	unsigned int quirks;
 	unsigned int opts;
 	/* SoC's specific operations */
-	int (*drv_init)(struct device *dev, struct exynos_ufs *ufs);
-	int (*pre_link)(struct exynos_ufs *ufs);
-	int (*post_link)(struct exynos_ufs *ufs);
-	int (*pre_pwr_change)(struct exynos_ufs *ufs,
+	int (*drv_init)(struct device *dev, struct exyanals_ufs *ufs);
+	int (*pre_link)(struct exyanals_ufs *ufs);
+	int (*post_link)(struct exyanals_ufs *ufs);
+	int (*pre_pwr_change)(struct exyanals_ufs *ufs,
 				struct ufs_pa_layer_attr *pwr);
-	int (*post_pwr_change)(struct exynos_ufs *ufs,
+	int (*post_pwr_change)(struct exyanals_ufs *ufs,
 				struct ufs_pa_layer_attr *pwr);
-	int (*pre_hce_enable)(struct exynos_ufs *ufs);
-	int (*post_hce_enable)(struct exynos_ufs *ufs);
+	int (*pre_hce_enable)(struct exyanals_ufs *ufs);
+	int (*post_hce_enable)(struct exyanals_ufs *ufs);
 };
 
 struct ufs_phy_time_cfg {
@@ -190,7 +190,7 @@ struct ufs_phy_time_cfg {
 	u32 rx_stall_cnt;
 };
 
-struct exynos_ufs {
+struct exyanals_ufs {
 	struct ufs_hba *hba;
 	struct phy *phy;
 	void __iomem *reg_hci;
@@ -210,17 +210,17 @@ struct exynos_ufs {
 	struct ufs_pa_layer_attr dev_req_params;
 	struct ufs_phy_time_cfg t_cfg;
 	ktime_t entry_hibern8_t;
-	const struct exynos_ufs_drv_data *drv_data;
+	const struct exyanals_ufs_drv_data *drv_data;
 	struct regmap *sysreg;
 	u32 shareability_reg_offset;
 
 	u32 opts;
-#define EXYNOS_UFS_OPT_HAS_APB_CLK_CTRL		BIT(0)
-#define EXYNOS_UFS_OPT_SKIP_CONNECTION_ESTAB	BIT(1)
-#define EXYNOS_UFS_OPT_BROKEN_AUTO_CLK_CTRL	BIT(2)
-#define EXYNOS_UFS_OPT_BROKEN_RX_SEL_IDX	BIT(3)
-#define EXYNOS_UFS_OPT_USE_SW_HIBERN8_TIMER	BIT(4)
-#define EXYNOS_UFS_OPT_SKIP_CONFIG_PHY_ATTR	BIT(5)
+#define EXYANALS_UFS_OPT_HAS_APB_CLK_CTRL		BIT(0)
+#define EXYANALS_UFS_OPT_SKIP_CONNECTION_ESTAB	BIT(1)
+#define EXYANALS_UFS_OPT_BROKEN_AUTO_CLK_CTRL	BIT(2)
+#define EXYANALS_UFS_OPT_BROKEN_RX_SEL_IDX	BIT(3)
+#define EXYANALS_UFS_OPT_USE_SW_HIBERN8_TIMER	BIT(4)
+#define EXYANALS_UFS_OPT_SKIP_CONFIG_PHY_ATTR	BIT(5)
 };
 
 #define for_each_ufs_rx_lane(ufs, i) \
@@ -229,42 +229,42 @@ struct exynos_ufs {
 #define for_each_ufs_tx_lane(ufs, i) \
 	for (i = 0; i < (ufs)->avail_ln_tx; i++)
 
-#define EXYNOS_UFS_MMIO_FUNC(name)					  \
-static inline void name##_writel(struct exynos_ufs *ufs, u32 val, u32 reg)\
+#define EXYANALS_UFS_MMIO_FUNC(name)					  \
+static inline void name##_writel(struct exyanals_ufs *ufs, u32 val, u32 reg)\
 {									  \
 	writel(val, ufs->reg_##name + reg);				  \
 }									  \
 									  \
-static inline u32 name##_readl(struct exynos_ufs *ufs, u32 reg)		  \
+static inline u32 name##_readl(struct exyanals_ufs *ufs, u32 reg)		  \
 {									  \
 	return readl(ufs->reg_##name + reg);				  \
 }
 
-EXYNOS_UFS_MMIO_FUNC(hci);
-EXYNOS_UFS_MMIO_FUNC(unipro);
-EXYNOS_UFS_MMIO_FUNC(ufsp);
-#undef EXYNOS_UFS_MMIO_FUNC
+EXYANALS_UFS_MMIO_FUNC(hci);
+EXYANALS_UFS_MMIO_FUNC(unipro);
+EXYANALS_UFS_MMIO_FUNC(ufsp);
+#undef EXYANALS_UFS_MMIO_FUNC
 
-long exynos_ufs_calc_time_cntr(struct exynos_ufs *, long);
+long exyanals_ufs_calc_time_cntr(struct exyanals_ufs *, long);
 
-static inline void exynos_ufs_enable_ov_tm(struct ufs_hba *hba)
+static inline void exyanals_ufs_enable_ov_tm(struct ufs_hba *hba)
 {
 	ufshcd_dme_set(hba, UIC_ARG_MIB(PA_DBG_OV_TM), true);
 }
 
-static inline void exynos_ufs_disable_ov_tm(struct ufs_hba *hba)
+static inline void exyanals_ufs_disable_ov_tm(struct ufs_hba *hba)
 {
 	ufshcd_dme_set(hba, UIC_ARG_MIB(PA_DBG_OV_TM), false);
 }
 
-static inline void exynos_ufs_enable_dbg_mode(struct ufs_hba *hba)
+static inline void exyanals_ufs_enable_dbg_mode(struct ufs_hba *hba)
 {
 	ufshcd_dme_set(hba, UIC_ARG_MIB(PA_DBG_MODE), true);
 }
 
-static inline void exynos_ufs_disable_dbg_mode(struct ufs_hba *hba)
+static inline void exyanals_ufs_disable_dbg_mode(struct ufs_hba *hba)
 {
 	ufshcd_dme_set(hba, UIC_ARG_MIB(PA_DBG_MODE), false);
 }
 
-#endif /* _UFS_EXYNOS_H_ */
+#endif /* _UFS_EXYANALS_H_ */

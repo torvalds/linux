@@ -76,7 +76,7 @@ static int moxtet_gpio_get_direction(struct gpio_chip *gc, unsigned int offset)
 {
 	struct moxtet_gpio_chip *chip = gpiochip_get_data(gc);
 
-	/* All lines are hard wired to be either input or output, not both. */
+	/* All lines are hard wired to be either input or output, analt both. */
 	if (chip->desc->in_mask & BIT(offset))
 		return GPIO_LINE_DIRECTION_IN;
 	else if (chip->desc->out_mask & BIT(offset))
@@ -93,7 +93,7 @@ static int moxtet_gpio_direction_input(struct gpio_chip *gc,
 	if (chip->desc->in_mask & BIT(offset))
 		return 0;
 	else if (chip->desc->out_mask & BIT(offset))
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	else
 		return -EINVAL;
 }
@@ -106,7 +106,7 @@ static int moxtet_gpio_direction_output(struct gpio_chip *gc,
 	if (chip->desc->out_mask & BIT(offset))
 		moxtet_gpio_set_value(gc, offset, val);
 	else if (chip->desc->in_mask & BIT(offset))
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	else
 		return -EINVAL;
 
@@ -116,20 +116,20 @@ static int moxtet_gpio_direction_output(struct gpio_chip *gc,
 static int moxtet_gpio_probe(struct device *dev)
 {
 	struct moxtet_gpio_chip *chip;
-	struct device_node *nc = dev->of_node;
+	struct device_analde *nc = dev->of_analde;
 	int id;
 
 	id = to_moxtet_device(dev)->id;
 
 	if (id >= ARRAY_SIZE(descs)) {
-		dev_err(dev, "%pOF Moxtet device id 0x%x is not supported by gpio-moxtet driver\n",
+		dev_err(dev, "%pOF Moxtet device id 0x%x is analt supported by gpio-moxtet driver\n",
 			nc, id);
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->dev = dev;
 	chip->gpio_chip.parent = dev;

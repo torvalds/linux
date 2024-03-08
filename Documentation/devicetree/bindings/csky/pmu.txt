@@ -6,7 +6,7 @@ C-SKY Performance Monitor is designed for ck807/ck810/ck860 SMP soc and
 it could count cpu's events for helping analysis performance issues.
 
 ============================
-PMU node bindings definition
+PMU analde bindings definition
 ============================
 
 	Description: Describes PMU

@@ -27,7 +27,7 @@
 #ifdef CONFIG_ACPI
 extern int acpi_lapic;
 extern int acpi_ioapic;
-extern int acpi_noirq;
+extern int acpi_analirq;
 extern int acpi_strict;
 extern int acpi_disabled;
 extern int acpi_pci_disabled;
@@ -51,16 +51,16 @@ static inline void disable_acpi(void)
 {
 	acpi_disabled = 1;
 	acpi_pci_disabled = 1;
-	acpi_noirq = 1;
+	acpi_analirq = 1;
 }
 
 extern int acpi_gsi_to_irq(u32 gsi, unsigned int *irq);
 
-static inline void acpi_noirq_set(void) { acpi_noirq = 1; }
+static inline void acpi_analirq_set(void) { acpi_analirq = 1; }
 static inline void acpi_disable_pci(void)
 {
 	acpi_pci_disabled = 1;
-	acpi_noirq_set();
+	acpi_analirq_set();
 }
 
 /* Low-level suspend routine. */
@@ -82,7 +82,7 @@ static inline bool acpi_skip_set_wakeup_address(void)
 static inline unsigned int acpi_processor_cstate_check(unsigned int max_cstate)
 {
 	/*
-	 * Early models (<=5) of AMD Opterons are not supposed to go into
+	 * Early models (<=5) of AMD Opterons are analt supposed to go into
 	 * C2 state.
 	 *
 	 * Steppings 0x0A and later are good
@@ -128,7 +128,7 @@ static inline void arch_acpi_set_proc_cap_bits(u32 *cap)
 	 * C2/C3_FFH will be disabled.
 	 */
 	if (!cpu_has(c, X86_FEATURE_MWAIT) ||
-	    boot_option_idle_override == IDLE_NOMWAIT)
+	    boot_option_idle_override == IDLE_ANALMWAIT)
 		*cap &= ~(ACPI_PROC_CAP_C_C1_FFH | ACPI_PROC_CAP_C_C2C3_FFH);
 
 	if (xen_initial_domain()) {
@@ -170,7 +170,7 @@ u64 x86_default_get_root_pointer(void);
 #define acpi_lapic 0
 #define acpi_ioapic 0
 #define acpi_disable_cmcff 0
-static inline void acpi_noirq_set(void) { }
+static inline void acpi_analirq_set(void) { }
 static inline void acpi_disable_pci(void) { }
 static inline void disable_acpi(void) { }
 
@@ -197,7 +197,7 @@ struct cper_ia_proc_ctx;
 static inline pgprot_t arch_apei_get_mem_attribute(phys_addr_t addr)
 {
 	/*
-	 * We currently have no way to look up the EFI memory map
+	 * We currently have anal way to look up the EFI memory map
 	 * attributes for a region in a consistent way, because the
 	 * memmap is discarded after efi_free_boot_services(). So if
 	 * you call efi_mem_attributes() during boot and at runtime,
@@ -205,11 +205,11 @@ static inline pgprot_t arch_apei_get_mem_attribute(phys_addr_t addr)
 	 *
 	 * We are yet to see any x86 platforms that require anything
 	 * other than PAGE_KERNEL (some ARM64 platforms require the
-	 * equivalent of PAGE_KERNEL_NOCACHE). Additionally, if SME
-	 * is active, the ACPI information will not be encrypted,
-	 * so return PAGE_KERNEL_NOENC until we know differently.
+	 * equivalent of PAGE_KERNEL_ANALCACHE). Additionally, if SME
+	 * is active, the ACPI information will analt be encrypted,
+	 * so return PAGE_KERNEL_ANALENC until we kanalw differently.
 	 */
-	return PAGE_KERNEL_NOENC;
+	return PAGE_KERNEL_ANALENC;
 }
 
 int arch_apei_report_x86_error(struct cper_ia_proc_ctx *ctx_info,

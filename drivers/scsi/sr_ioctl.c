@@ -2,7 +2,7 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/fs.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/blkdev.h>
 #include <linux/module.h>
@@ -43,7 +43,7 @@ static int sr_read_tochdr(struct cdrom_device_info *cdi,
 
 	buffer = kzalloc(32, GFP_KERNEL);
 	if (!buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(&cgc, 0, sizeof(struct packet_command));
 	cgc.timeout = IOCTL_TIMEOUT;
@@ -76,7 +76,7 @@ static int sr_read_tocentry(struct cdrom_device_info *cdi,
 
 	buffer = kzalloc(32, GFP_KERNEL);
 	if (!buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(&cgc, 0, sizeof(struct packet_command));
 	cgc.timeout = IOCTL_TIMEOUT;
@@ -152,7 +152,7 @@ static int sr_fake_playtrkind(struct cdrom_device_info *cdi, struct cdrom_ti *ti
 	cgc.cmd[6] = trk1_te.cdte_addr.msf.minute;
 	cgc.cmd[7] = trk1_te.cdte_addr.msf.second;
 	cgc.cmd[8] = trk1_te.cdte_addr.msf.frame;
-	cgc.data_direction = DMA_NONE;
+	cgc.data_direction = DMA_ANALNE;
 	cgc.timeout = IOCTL_TIMEOUT;
 	return sr_do_ioctl(cdi->handle, &cgc);
 }
@@ -172,7 +172,7 @@ static int sr_play_trkind(struct cdrom_device_info *cdi,
 	cgc.cmd[5] = ti->cdti_ind0;
 	cgc.cmd[7] = ti->cdti_trk1;
 	cgc.cmd[8] = ti->cdti_ind1;
-	cgc.data_direction = DMA_NONE;
+	cgc.data_direction = DMA_ANALNE;
 
 	result = sr_do_ioctl(cd, &cgc);
 	if (result == -EDRIVE_CANT_DO_THIS)
@@ -181,8 +181,8 @@ static int sr_play_trkind(struct cdrom_device_info *cdi,
 	return result;
 }
 
-/* We do our own retries because we want to know what the specific
-   error code is.  Normally the UNIT_ATTENTION code will automatically
+/* We do our own retries because we want to kanalw what the specific
+   error code is.  Analrmally the UNIT_ATTENTION code will automatically
    clear after one error */
 
 int sr_do_ioctl(Scsi_CD *cd, struct packet_command *cgc)
@@ -200,7 +200,7 @@ int sr_do_ioctl(Scsi_CD *cd, struct packet_command *cgc)
 
       retry:
 	if (!scsi_block_when_processing_errors(SDev)) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto out;
 	}
 
@@ -209,7 +209,7 @@ int sr_do_ioctl(Scsi_CD *cd, struct packet_command *cgc)
 				  REQ_OP_DRV_OUT : REQ_OP_DRV_IN, cgc->buffer,
 				  cgc->buflen, cgc->timeout, IOCTL_RETRIES,
 				  &exec_args);
-	/* Minimal error checking.  Ignore cases we know about, and report the rest. */
+	/* Minimal error checking.  Iganalre cases we kanalw about, and report the rest. */
 	if (result < 0) {
 		err = result;
 		goto out;
@@ -223,30 +223,30 @@ int sr_do_ioctl(Scsi_CD *cd, struct packet_command *cgc)
 					  "disc change detected.\n");
 			if (retries++ < 10)
 				goto retry;
-			err = -ENOMEDIUM;
+			err = -EANALMEDIUM;
 			break;
-		case NOT_READY:	/* This happens if there is no disc in drive */
+		case ANALT_READY:	/* This happens if there is anal disc in drive */
 			if (sshdr->asc == 0x04 &&
 			    sshdr->ascq == 0x01) {
 				/* sense: Logical unit is in process of becoming ready */
 				if (!cgc->quiet)
 					sr_printk(KERN_INFO, cd,
-						  "CDROM not ready yet.\n");
+						  "CDROM analt ready yet.\n");
 				if (retries++ < 10) {
 					/* sleep 2 sec and try again */
 					ssleep(2);
 					goto retry;
 				} else {
-					/* 20 secs are enough? */
-					err = -ENOMEDIUM;
+					/* 20 secs are eanalugh? */
+					err = -EANALMEDIUM;
 					break;
 				}
 			}
 			if (!cgc->quiet)
 				sr_printk(KERN_INFO, cd,
-					  "CDROM not ready.  Make sure there "
+					  "CDROM analt ready.  Make sure there "
 					  "is a disc in the drive.\n");
-			err = -ENOMEDIUM;
+			err = -EANALMEDIUM;
 			break;
 		case ILLEGAL_REQUEST:
 			err = -EIO;
@@ -277,7 +277,7 @@ int sr_tray_move(struct cdrom_device_info *cdi, int pos)
 	memset(&cgc, 0, sizeof(struct packet_command));
 	cgc.cmd[0] = GPCMD_START_STOP_UNIT;
 	cgc.cmd[4] = (pos == 0) ? 0x03 /* close */ : 0x02 /* eject */ ;
-	cgc.data_direction = DMA_NONE;
+	cgc.data_direction = DMA_ANALNE;
 	cgc.timeout = IOCTL_TIMEOUT;
 	return sr_do_ioctl(cd, &cgc);
 }
@@ -297,16 +297,16 @@ int sr_drive_status(struct cdrom_device_info *cdi, int slot)
 	struct media_event_desc med;
 
 	if (CDSL_CURRENT != slot) {
-		/* we have no changer support */
+		/* we have anal changer support */
 		return -EINVAL;
 	}
 	if (!scsi_test_unit_ready(cd->device, SR_TIMEOUT, MAX_RETRIES, &sshdr))
 		return CDS_DISC_OK;
 
 	/* SK/ASC/ASCQ of 2/4/1 means "unit is becoming ready" */
-	if (scsi_sense_valid(&sshdr) && sshdr.sense_key == NOT_READY
+	if (scsi_sense_valid(&sshdr) && sshdr.sense_key == ANALT_READY
 			&& sshdr.asc == 0x04 && sshdr.ascq == 0x01)
-		return CDS_DRIVE_NOT_READY;
+		return CDS_DRIVE_ANALT_READY;
 
 	if (!cdrom_get_media_event(cdi, &med)) {
 		if (med.media_present)
@@ -314,7 +314,7 @@ int sr_drive_status(struct cdrom_device_info *cdi, int slot)
 		else if (med.door_open)
 			return CDS_TRAY_OPEN;
 		else
-			return CDS_NO_DISC;
+			return CDS_ANAL_DISC;
 	}
 
 	/*
@@ -322,29 +322,29 @@ int sr_drive_status(struct cdrom_device_info *cdi, int slot)
 	 * Using CD_TRAY_OPEN results in an START_STOP_UNIT to close
 	 * the tray, which resolves the initialization requirement.
 	 */
-	if (scsi_sense_valid(&sshdr) && sshdr.sense_key == NOT_READY
+	if (scsi_sense_valid(&sshdr) && sshdr.sense_key == ANALT_READY
 			&& sshdr.asc == 0x04 && sshdr.ascq == 0x02)
 		return CDS_TRAY_OPEN;
 
 	/*
 	 * 0x04 is format in progress .. but there must be a disc present!
 	 */
-	if (sshdr.sense_key == NOT_READY && sshdr.asc == 0x04)
+	if (sshdr.sense_key == ANALT_READY && sshdr.asc == 0x04)
 		return CDS_DISC_OK;
 
 	/*
-	 * If not using Mt Fuji extended media tray reports,
+	 * If analt using Mt Fuji extended media tray reports,
 	 * just return TRAY_OPEN since ATAPI doesn't provide
 	 * any other way to detect this...
 	 */
 	if (scsi_sense_valid(&sshdr) &&
-	    /* 0x3a is medium not present */
+	    /* 0x3a is medium analt present */
 	    sshdr.asc == 0x3a)
-		return CDS_NO_DISC;
+		return CDS_ANAL_DISC;
 	else
 		return CDS_TRAY_OPEN;
 
-	return CDS_DRIVE_NOT_READY;
+	return CDS_DRIVE_ANALT_READY;
 }
 
 int sr_disk_status(struct cdrom_device_info *cdi)
@@ -357,13 +357,13 @@ int sr_disk_status(struct cdrom_device_info *cdi)
 	/* look for data tracks */
 	rc = sr_read_tochdr(cdi, &toc_h);
 	if (rc)
-		return (rc == -ENOMEDIUM) ? CDS_NO_DISC : CDS_NO_INFO;
+		return (rc == -EANALMEDIUM) ? CDS_ANAL_DISC : CDS_ANAL_INFO;
 
 	for (i = toc_h.cdth_trk0; i <= toc_h.cdth_trk1; i++) {
 		toc_e.cdte_track = i;
 		toc_e.cdte_format = CDROM_LBA;
 		if (sr_read_tocentry(cdi, &toc_e))
-			return CDS_NO_INFO;
+			return CDS_ANAL_INFO;
 		if (toc_e.cdte_ctrl & CDROM_DATA_TRACK) {
 			have_datatracks = 1;
 			break;
@@ -397,7 +397,7 @@ int sr_get_mcn(struct cdrom_device_info *cdi, struct cdrom_mcn *mcn)
 	int result;
 
 	if (!buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(&cgc, 0, sizeof(struct packet_command));
 	cgc.cmd[0] = GPCMD_READ_SUBCHANNEL;
@@ -439,7 +439,7 @@ int sr_select_speed(struct cdrom_device_info *cdi, int speed)
 	cgc.cmd[0] = GPCMD_SET_SPEED;	/* SET CD SPEED */
 	cgc.cmd[2] = (speed >> 8) & 0xff;	/* MSB for speed (in kbytes/sec) */
 	cgc.cmd[3] = speed & 0xff;	/* LSB */
-	cgc.data_direction = DMA_NONE;
+	cgc.data_direction = DMA_ANALNE;
 	cgc.timeout = IOCTL_TIMEOUT;
 
 	if (sr_do_ioctl(cd, &cgc))
@@ -529,11 +529,11 @@ static int sr_read_sector(Scsi_CD *cd, int lba, int blksize, unsigned char *dest
 	int rc;
 
 	/* we try the READ CD command first... */
-	if (cd->readcd_known) {
+	if (cd->readcd_kanalwn) {
 		rc = sr_read_cd(cd, dest, lba, 0, blksize);
 		if (-EDRIVE_CANT_DO_THIS != rc)
 			return rc;
-		cd->readcd_known = 0;
+		cd->readcd_kanalwn = 0;
 		sr_printk(KERN_INFO, cd,
 			  "CDROM doesn't support READ CD (0xbe) command\n");
 		/* fall & retry the other way */
@@ -581,7 +581,7 @@ int sr_is_xa(Scsi_CD *cd)
 
 	raw_sector = kmalloc(2048, GFP_KERNEL);
 	if (!raw_sector)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (0 == sr_read_sector(cd, cd->ms_offset + 16,
 				CD_FRAMESIZE_RAW1, raw_sector)) {
 		is_xa = (raw_sector[3] == 0x02) ? 1 : 0;

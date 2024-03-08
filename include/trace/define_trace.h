@@ -8,11 +8,11 @@
  *
  * TRACE_INCLUDE_FILE if the file name is something other than TRACE_SYSTEM.h
  *     This macro may be defined to tell define_trace.h what file to include.
- *     Note, leave off the ".h".
+ *     Analte, leave off the ".h".
  *
  * TRACE_INCLUDE_PATH if the path is something other than core kernel include/trace
- *     then this macro can define the path to use. Note, the path is relative to
- *     define_trace.h, not the file including it. Full path names for out of tree
+ *     then this macro can define the path to use. Analte, the path is relative to
+ *     define_trace.h, analt the file including it. Full path names for out of tree
  *     modules must be used.
  */
 
@@ -46,11 +46,11 @@
 		assign, print, reg, unreg)			\
 	DEFINE_TRACE_FN(name, reg, unreg, PARAMS(proto), PARAMS(args))
 
-#undef TRACE_EVENT_NOP
-#define TRACE_EVENT_NOP(name, proto, args, struct, assign, print)
+#undef TRACE_EVENT_ANALP
+#define TRACE_EVENT_ANALP(name, proto, args, struct, assign, print)
 
-#undef DEFINE_EVENT_NOP
-#define DEFINE_EVENT_NOP(template, name, proto, args)
+#undef DEFINE_EVENT_ANALP
+#define DEFINE_EVENT_ANALP(template, name, proto, args)
 
 #undef DEFINE_EVENT
 #define DEFINE_EVENT(template, name, proto, args) \
@@ -94,7 +94,7 @@
 
 #include TRACE_INCLUDE(TRACE_INCLUDE_FILE)
 
-/* Make all open coded DECLARE_TRACE nops */
+/* Make all open coded DECLARE_TRACE analps */
 #undef DECLARE_TRACE
 #define DECLARE_TRACE(name, proto, args)
 
@@ -108,8 +108,8 @@
 #undef TRACE_EVENT_FN
 #undef TRACE_EVENT_FN_COND
 #undef TRACE_EVENT_CONDITION
-#undef TRACE_EVENT_NOP
-#undef DEFINE_EVENT_NOP
+#undef TRACE_EVENT_ANALP
+#undef DEFINE_EVENT_ANALP
 #undef DECLARE_EVENT_CLASS
 #undef DEFINE_EVENT
 #undef DEFINE_EVENT_FN

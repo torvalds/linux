@@ -18,7 +18,7 @@
 #include "sh_css_defs.h"
 
 /*#include "sh_css_frac.h"*/
-#ifndef IA_CSS_NO_DEBUG
+#ifndef IA_CSS_ANAL_DEBUG
 /* FIXME: See BZ 4427 */
 #include "ia_css_debug.h"
 #endif
@@ -37,7 +37,7 @@ ia_css_formats_encode(
 	to->video_full_range_flag = from->video_full_range_flag;
 }
 
-#ifndef IA_CSS_NO_DEBUG
+#ifndef IA_CSS_ANAL_DEBUG
 /* FIXME: See BZ 4427 */
 void
 ia_css_formats_dump(
@@ -50,7 +50,7 @@ ia_css_formats_dump(
 }
 #endif
 
-#ifndef IA_CSS_NO_DEBUG
+#ifndef IA_CSS_ANAL_DEBUG
 /* FIXME: See BZ 4427 */
 void
 ia_css_formats_debug_dtrace(

@@ -16,9 +16,9 @@
 #include <asm/isa-rev.h>
 
 struct module;
-extern void jump_label_apply_nops(struct module *mod);
+extern void jump_label_apply_analps(struct module *mod);
 
-#define JUMP_LABEL_NOP_SIZE 4
+#define JUMP_LABEL_ANALP_SIZE 4
 
 #ifdef CONFIG_64BIT
 #define WORD_INSN ".dword"
@@ -42,25 +42,25 @@ static __always_inline bool arch_static_branch(struct static_key *key, bool bran
 	asm goto("1:\t" B_INSN " 2f\n\t"
 		"2:\t.insn\n\t"
 		".pushsection __jump_table,  \"aw\"\n\t"
-		WORD_INSN " 1b, %l[l_yes], %0\n\t"
+		WORD_INSN " 1b, %l[l_anal], %0\n\t"
 		".popsection\n\t"
-		: :  "i" (&((char *)key)[branch]) : : l_yes);
+		: :  "i" (&((char *)key)[branch]) : : l_anal);
 
 	return false;
-l_yes:
+l_anal:
 	return true;
 }
 
 static __always_inline bool arch_static_branch_jump(struct static_key *key, bool branch)
 {
-	asm goto("1:\t" J_INSN " %l[l_yes]\n\t"
+	asm goto("1:\t" J_INSN " %l[l_anal]\n\t"
 		".pushsection __jump_table,  \"aw\"\n\t"
-		WORD_INSN " 1b, %l[l_yes], %0\n\t"
+		WORD_INSN " 1b, %l[l_anal], %0\n\t"
 		".popsection\n\t"
-		: :  "i" (&((char *)key)[branch]) : : l_yes);
+		: :  "i" (&((char *)key)[branch]) : : l_anal);
 
 	return false;
-l_yes:
+l_anal:
 	return true;
 }
 

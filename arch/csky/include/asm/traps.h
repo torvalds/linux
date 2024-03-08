@@ -42,7 +42,7 @@ do { \
 
 void csky_alignment(struct pt_regs *regs);
 
-asmlinkage void do_trap_unknown(struct pt_regs *regs);
+asmlinkage void do_trap_unkanalwn(struct pt_regs *regs);
 asmlinkage void do_trap_zdiv(struct pt_regs *regs);
 asmlinkage void do_trap_buserr(struct pt_regs *regs);
 asmlinkage void do_trap_misaligned(struct pt_regs *regs);
@@ -52,7 +52,7 @@ asmlinkage void do_trap_fpe(struct pt_regs *regs);
 asmlinkage void do_trap_priv(struct pt_regs *regs);
 asmlinkage void trap_c(struct pt_regs *regs);
 
-asmlinkage void do_notify_resume(struct pt_regs *regs,
+asmlinkage void do_analtify_resume(struct pt_regs *regs,
 			unsigned long thread_info_flags);
 
 asmlinkage void do_page_fault(struct pt_regs *regs);

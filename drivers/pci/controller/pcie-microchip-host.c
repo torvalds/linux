@@ -485,7 +485,7 @@ static int mc_irq_msi_domain_alloc(struct irq_domain *domain, unsigned int virq,
 	bit = find_first_zero_bit(msi->used, msi->num_vectors);
 	if (bit >= msi->num_vectors) {
 		mutex_unlock(&msi->lock);
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	set_bit(bit, msi->used);
@@ -536,7 +536,7 @@ static struct msi_domain_info mc_msi_domain_info = {
 static int mc_allocate_msi_domains(struct mc_pcie *port)
 {
 	struct device *dev = port->dev;
-	struct fwnode_handle *fwnode = of_node_to_fwnode(dev->of_node);
+	struct fwanalde_handle *fwanalde = of_analde_to_fwanalde(dev->of_analde);
 	struct mc_msi *msi = &port->msi;
 
 	mutex_init(&port->msi.lock);
@@ -545,15 +545,15 @@ static int mc_allocate_msi_domains(struct mc_pcie *port)
 						&msi_domain_ops, port);
 	if (!msi->dev_domain) {
 		dev_err(dev, "failed to create IRQ domain\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
-	msi->msi_domain = pci_msi_create_irq_domain(fwnode, &mc_msi_domain_info,
+	msi->msi_domain = pci_msi_create_irq_domain(fwanalde, &mc_msi_domain_info,
 						    msi->dev_domain);
 	if (!msi->msi_domain) {
 		dev_err(dev, "failed to create MSI domain\n");
 		irq_domain_remove(msi->dev_domain);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -895,37 +895,37 @@ static int mc_pcie_init_clks(struct device *dev)
 static int mc_pcie_init_irq_domains(struct mc_pcie *port)
 {
 	struct device *dev = port->dev;
-	struct device_node *node = dev->of_node;
-	struct device_node *pcie_intc_node;
+	struct device_analde *analde = dev->of_analde;
+	struct device_analde *pcie_intc_analde;
 
 	/* Setup INTx */
-	pcie_intc_node = of_get_next_child(node, NULL);
-	if (!pcie_intc_node) {
-		dev_err(dev, "failed to find PCIe Intc node\n");
+	pcie_intc_analde = of_get_next_child(analde, NULL);
+	if (!pcie_intc_analde) {
+		dev_err(dev, "failed to find PCIe Intc analde\n");
 		return -EINVAL;
 	}
 
-	port->event_domain = irq_domain_add_linear(pcie_intc_node, NUM_EVENTS,
+	port->event_domain = irq_domain_add_linear(pcie_intc_analde, NUM_EVENTS,
 						   &event_domain_ops, port);
 	if (!port->event_domain) {
 		dev_err(dev, "failed to get event domain\n");
-		of_node_put(pcie_intc_node);
-		return -ENOMEM;
+		of_analde_put(pcie_intc_analde);
+		return -EANALMEM;
 	}
 
 	irq_domain_update_bus_token(port->event_domain, DOMAIN_BUS_NEXUS);
 
-	port->intx_domain = irq_domain_add_linear(pcie_intc_node, PCI_NUM_INTX,
+	port->intx_domain = irq_domain_add_linear(pcie_intc_analde, PCI_NUM_INTX,
 						  &intx_domain_ops, port);
 	if (!port->intx_domain) {
 		dev_err(dev, "failed to get an INTx IRQ domain\n");
-		of_node_put(pcie_intc_node);
-		return -ENOMEM;
+		of_analde_put(pcie_intc_analde);
+		return -EANALMEM;
 	}
 
 	irq_domain_update_bus_token(port->intx_domain, DOMAIN_BUS_WIRED);
 
-	of_node_put(pcie_intc_node);
+	of_analde_put(pcie_intc_analde);
 	raw_spin_lock_init(&port->lock);
 
 	return mc_allocate_msi_domains(port);
@@ -1067,7 +1067,7 @@ static int mc_init_interrupts(struct platform_device *pdev, struct mc_pcie *port
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	for (i = 0; i < NUM_EVENTS; i++) {
 		event_irq = irq_create_mapping(port->event_domain, i);
@@ -1124,7 +1124,7 @@ static int mc_platform_init(struct pci_config_window *cfg)
 	/* Need some fixups in config space */
 	mc_pcie_enable_msi(port, cfg->win);
 
-	/* Configure non-config space outbound ranges */
+	/* Configure analn-config space outbound ranges */
 	ret = mc_pcie_setup_windows(pdev, port);
 	if (ret)
 		return ret;
@@ -1146,7 +1146,7 @@ static int mc_host_probe(struct platform_device *pdev)
 
 	port = devm_kzalloc(dev, sizeof(*port), GFP_KERNEL);
 	if (!port)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	port->dev = dev;
 
@@ -1176,7 +1176,7 @@ static int mc_host_probe(struct platform_device *pdev)
 	ret = mc_pcie_init_clks(dev);
 	if (ret) {
 		dev_err(dev, "failed to get clock resources, error %d\n", ret);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return pci_host_common_probe(pdev);

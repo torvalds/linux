@@ -4,7 +4,7 @@
  * Copyright (c) 2013-2014, Intel Corporation.
  */
 
-#include <errno.h>
+#include <erranal.h>
 #include <stdbool.h>
 
 #include "../../../util/header.h"
@@ -37,7 +37,7 @@ struct auxtrace_record *auxtrace_record__init_intel(struct evlist *evlist,
 	}
 
 	if (found_pt && found_bts) {
-		pr_err("intel_pt and intel_bts may not be used together\n");
+		pr_err("intel_pt and intel_bts may analt be used together\n");
 		*err = -EINVAL;
 		return NULL;
 	}

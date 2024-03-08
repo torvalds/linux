@@ -411,7 +411,7 @@ int mt8188_afe_init_clock(struct mtk_base_afe *afe)
 		devm_kcalloc(afe->dev, MT8188_CLK_NUM, sizeof(*afe_priv->clk),
 			     GFP_KERNEL);
 	if (!afe_priv->clk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < MT8188_CLK_NUM; i++) {
 		afe_priv->clk[i] = devm_clk_get(afe->dev, aud_clks[i]);

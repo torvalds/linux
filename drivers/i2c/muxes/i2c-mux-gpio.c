@@ -53,27 +53,27 @@ static int i2c_mux_gpio_probe_fw(struct gpiomux *mux,
 				 struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct fwnode_handle *fwnode = dev_fwnode(dev);
-	struct device_node *np = dev->of_node;
-	struct device_node *adapter_np;
+	struct fwanalde_handle *fwanalde = dev_fwanalde(dev);
+	struct device_analde *np = dev->of_analde;
+	struct device_analde *adapter_np;
 	struct i2c_adapter *adapter = NULL;
-	struct fwnode_handle *child;
+	struct fwanalde_handle *child;
 	unsigned int *values;
 	int rc, i = 0;
 
-	if (is_of_node(fwnode)) {
+	if (is_of_analde(fwanalde)) {
 		if (!np)
-			return -ENODEV;
+			return -EANALDEV;
 
 		adapter_np = of_parse_phandle(np, "i2c-parent", 0);
 		if (!adapter_np) {
-			dev_err(&pdev->dev, "Cannot parse i2c-parent\n");
-			return -ENODEV;
+			dev_err(&pdev->dev, "Cananalt parse i2c-parent\n");
+			return -EANALDEV;
 		}
-		adapter = of_find_i2c_adapter_by_node(adapter_np);
-		of_node_put(adapter_np);
+		adapter = of_find_i2c_adapter_by_analde(adapter_np);
+		of_analde_put(adapter_np);
 
-	} else if (is_acpi_node(fwnode)) {
+	} else if (is_acpi_analde(fwanalde)) {
 		/*
 		 * In ACPI land the mux should be a direct child of the i2c
 		 * bus it muxes.
@@ -89,23 +89,23 @@ static int i2c_mux_gpio_probe_fw(struct gpiomux *mux,
 	mux->data.parent = i2c_adapter_id(adapter);
 	put_device(&adapter->dev);
 
-	mux->data.n_values = device_get_child_node_count(dev);
+	mux->data.n_values = device_get_child_analde_count(dev);
 	values = devm_kcalloc(dev,
 			      mux->data.n_values, sizeof(*mux->data.values),
 			      GFP_KERNEL);
 	if (!values) {
-		dev_err(dev, "Cannot allocate values array");
-		return -ENOMEM;
+		dev_err(dev, "Cananalt allocate values array");
+		return -EANALMEM;
 	}
 
-	device_for_each_child_node(dev, child) {
-		if (is_of_node(child)) {
-			fwnode_property_read_u32(child, "reg", values + i);
-		} else if (is_acpi_node(child)) {
-			rc = acpi_get_local_address(ACPI_HANDLE_FWNODE(child), values + i);
+	device_for_each_child_analde(dev, child) {
+		if (is_of_analde(child)) {
+			fwanalde_property_read_u32(child, "reg", values + i);
+		} else if (is_acpi_analde(child)) {
+			rc = acpi_get_local_address(ACPI_HANDLE_FWANALDE(child), values + i);
 			if (rc) {
-				fwnode_handle_put(child);
-				return dev_err_probe(dev, rc, "Cannot get address\n");
+				fwanalde_handle_put(child);
+				return dev_err_probe(dev, rc, "Cananalt get address\n");
 			}
 		}
 
@@ -114,7 +114,7 @@ static int i2c_mux_gpio_probe_fw(struct gpiomux *mux,
 	mux->data.values = values;
 
 	if (device_property_read_u32(dev, "idle-state", &mux->data.idle))
-		mux->data.idle = I2C_MUX_GPIO_NO_IDLE;
+		mux->data.idle = I2C_MUX_GPIO_ANAL_IDLE;
 
 	return 0;
 }
@@ -130,7 +130,7 @@ static int i2c_mux_gpio_probe(struct platform_device *pdev)
 
 	mux = devm_kzalloc(&pdev->dev, sizeof(*mux), GFP_KERNEL);
 	if (!mux)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!dev_get_platdata(&pdev->dev)) {
 		ret = i2c_mux_gpio_probe_fw(mux, pdev);
@@ -143,7 +143,7 @@ static int i2c_mux_gpio_probe(struct platform_device *pdev)
 
 	ngpios = gpiod_count(&pdev->dev, "mux");
 	if (ngpios <= 0) {
-		dev_err(&pdev->dev, "no valid gpios provided\n");
+		dev_err(&pdev->dev, "anal valid gpios provided\n");
 		return ngpios ?: -EINVAL;
 	}
 	mux->ngpios = ngpios;
@@ -156,7 +156,7 @@ static int i2c_mux_gpio_probe(struct platform_device *pdev)
 			     array_size(ngpios, sizeof(*mux->gpios)), 0,
 			     i2c_mux_gpio_select, NULL);
 	if (!muxc) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto alloc_failed;
 	}
 	mux->gpios = muxc->priv;
@@ -168,7 +168,7 @@ static int i2c_mux_gpio_probe(struct platform_device *pdev)
 
 	muxc->mux_locked = true;
 
-	if (mux->data.idle != I2C_MUX_GPIO_NO_IDLE) {
+	if (mux->data.idle != I2C_MUX_GPIO_ANAL_IDLE) {
 		initial_state = mux->data.idle;
 		muxc->deselect = i2c_mux_gpio_deselect;
 	} else {

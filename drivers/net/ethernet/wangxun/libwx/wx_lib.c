@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (c) 2019 - 2022 Beijing WangXun Technology Co., Ltd. */
+/* Copyright (c) 2019 - 2022 Beijing WangXun Techanallogy Co., Ltd. */
 
 #include <linux/etherdevice.h>
 #include <net/ip6_checksum.h>
@@ -18,131 +18,131 @@
 /* Lookup table mapping the HW PTYPE to the bit field for decoding */
 static struct wx_dec_ptype wx_ptype_lookup[256] = {
 	/* L2: mac */
-	[0x11] = WX_PTT(L2, NONE, NONE, NONE, NONE, PAY2),
-	[0x12] = WX_PTT(L2, NONE, NONE, NONE, TS,   PAY2),
-	[0x13] = WX_PTT(L2, NONE, NONE, NONE, NONE, PAY2),
-	[0x14] = WX_PTT(L2, NONE, NONE, NONE, NONE, PAY2),
-	[0x15] = WX_PTT(L2, NONE, NONE, NONE, NONE, NONE),
-	[0x16] = WX_PTT(L2, NONE, NONE, NONE, NONE, PAY2),
-	[0x17] = WX_PTT(L2, NONE, NONE, NONE, NONE, NONE),
+	[0x11] = WX_PTT(L2, ANALNE, ANALNE, ANALNE, ANALNE, PAY2),
+	[0x12] = WX_PTT(L2, ANALNE, ANALNE, ANALNE, TS,   PAY2),
+	[0x13] = WX_PTT(L2, ANALNE, ANALNE, ANALNE, ANALNE, PAY2),
+	[0x14] = WX_PTT(L2, ANALNE, ANALNE, ANALNE, ANALNE, PAY2),
+	[0x15] = WX_PTT(L2, ANALNE, ANALNE, ANALNE, ANALNE, ANALNE),
+	[0x16] = WX_PTT(L2, ANALNE, ANALNE, ANALNE, ANALNE, PAY2),
+	[0x17] = WX_PTT(L2, ANALNE, ANALNE, ANALNE, ANALNE, ANALNE),
 
 	/* L2: ethertype filter */
-	[0x18 ... 0x1F] = WX_PTT(L2, NONE, NONE, NONE, NONE, NONE),
+	[0x18 ... 0x1F] = WX_PTT(L2, ANALNE, ANALNE, ANALNE, ANALNE, ANALNE),
 
-	/* L3: ip non-tunnel */
-	[0x21] = WX_PTT(IP, FGV4, NONE, NONE, NONE, PAY3),
-	[0x22] = WX_PTT(IP, IPV4, NONE, NONE, NONE, PAY3),
-	[0x23] = WX_PTT(IP, IPV4, NONE, NONE, UDP,  PAY4),
-	[0x24] = WX_PTT(IP, IPV4, NONE, NONE, TCP,  PAY4),
-	[0x25] = WX_PTT(IP, IPV4, NONE, NONE, SCTP, PAY4),
-	[0x29] = WX_PTT(IP, FGV6, NONE, NONE, NONE, PAY3),
-	[0x2A] = WX_PTT(IP, IPV6, NONE, NONE, NONE, PAY3),
-	[0x2B] = WX_PTT(IP, IPV6, NONE, NONE, UDP,  PAY3),
-	[0x2C] = WX_PTT(IP, IPV6, NONE, NONE, TCP,  PAY4),
-	[0x2D] = WX_PTT(IP, IPV6, NONE, NONE, SCTP, PAY4),
+	/* L3: ip analn-tunnel */
+	[0x21] = WX_PTT(IP, FGV4, ANALNE, ANALNE, ANALNE, PAY3),
+	[0x22] = WX_PTT(IP, IPV4, ANALNE, ANALNE, ANALNE, PAY3),
+	[0x23] = WX_PTT(IP, IPV4, ANALNE, ANALNE, UDP,  PAY4),
+	[0x24] = WX_PTT(IP, IPV4, ANALNE, ANALNE, TCP,  PAY4),
+	[0x25] = WX_PTT(IP, IPV4, ANALNE, ANALNE, SCTP, PAY4),
+	[0x29] = WX_PTT(IP, FGV6, ANALNE, ANALNE, ANALNE, PAY3),
+	[0x2A] = WX_PTT(IP, IPV6, ANALNE, ANALNE, ANALNE, PAY3),
+	[0x2B] = WX_PTT(IP, IPV6, ANALNE, ANALNE, UDP,  PAY3),
+	[0x2C] = WX_PTT(IP, IPV6, ANALNE, ANALNE, TCP,  PAY4),
+	[0x2D] = WX_PTT(IP, IPV6, ANALNE, ANALNE, SCTP, PAY4),
 
 	/* L2: fcoe */
-	[0x30 ... 0x34] = WX_PTT(FCOE, NONE, NONE, NONE, NONE, PAY3),
-	[0x38 ... 0x3C] = WX_PTT(FCOE, NONE, NONE, NONE, NONE, PAY3),
+	[0x30 ... 0x34] = WX_PTT(FCOE, ANALNE, ANALNE, ANALNE, ANALNE, PAY3),
+	[0x38 ... 0x3C] = WX_PTT(FCOE, ANALNE, ANALNE, ANALNE, ANALNE, PAY3),
 
 	/* IPv4 --> IPv4/IPv6 */
-	[0x81] = WX_PTT(IP, IPV4, IPIP, FGV4, NONE, PAY3),
-	[0x82] = WX_PTT(IP, IPV4, IPIP, IPV4, NONE, PAY3),
+	[0x81] = WX_PTT(IP, IPV4, IPIP, FGV4, ANALNE, PAY3),
+	[0x82] = WX_PTT(IP, IPV4, IPIP, IPV4, ANALNE, PAY3),
 	[0x83] = WX_PTT(IP, IPV4, IPIP, IPV4, UDP,  PAY4),
 	[0x84] = WX_PTT(IP, IPV4, IPIP, IPV4, TCP,  PAY4),
 	[0x85] = WX_PTT(IP, IPV4, IPIP, IPV4, SCTP, PAY4),
-	[0x89] = WX_PTT(IP, IPV4, IPIP, FGV6, NONE, PAY3),
-	[0x8A] = WX_PTT(IP, IPV4, IPIP, IPV6, NONE, PAY3),
+	[0x89] = WX_PTT(IP, IPV4, IPIP, FGV6, ANALNE, PAY3),
+	[0x8A] = WX_PTT(IP, IPV4, IPIP, IPV6, ANALNE, PAY3),
 	[0x8B] = WX_PTT(IP, IPV4, IPIP, IPV6, UDP,  PAY4),
 	[0x8C] = WX_PTT(IP, IPV4, IPIP, IPV6, TCP,  PAY4),
 	[0x8D] = WX_PTT(IP, IPV4, IPIP, IPV6, SCTP, PAY4),
 
-	/* IPv4 --> GRE/NAT --> NONE/IPv4/IPv6 */
-	[0x90] = WX_PTT(IP, IPV4, IG, NONE, NONE, PAY3),
-	[0x91] = WX_PTT(IP, IPV4, IG, FGV4, NONE, PAY3),
-	[0x92] = WX_PTT(IP, IPV4, IG, IPV4, NONE, PAY3),
+	/* IPv4 --> GRE/NAT --> ANALNE/IPv4/IPv6 */
+	[0x90] = WX_PTT(IP, IPV4, IG, ANALNE, ANALNE, PAY3),
+	[0x91] = WX_PTT(IP, IPV4, IG, FGV4, ANALNE, PAY3),
+	[0x92] = WX_PTT(IP, IPV4, IG, IPV4, ANALNE, PAY3),
 	[0x93] = WX_PTT(IP, IPV4, IG, IPV4, UDP,  PAY4),
 	[0x94] = WX_PTT(IP, IPV4, IG, IPV4, TCP,  PAY4),
 	[0x95] = WX_PTT(IP, IPV4, IG, IPV4, SCTP, PAY4),
-	[0x99] = WX_PTT(IP, IPV4, IG, FGV6, NONE, PAY3),
-	[0x9A] = WX_PTT(IP, IPV4, IG, IPV6, NONE, PAY3),
+	[0x99] = WX_PTT(IP, IPV4, IG, FGV6, ANALNE, PAY3),
+	[0x9A] = WX_PTT(IP, IPV4, IG, IPV6, ANALNE, PAY3),
 	[0x9B] = WX_PTT(IP, IPV4, IG, IPV6, UDP,  PAY4),
 	[0x9C] = WX_PTT(IP, IPV4, IG, IPV6, TCP,  PAY4),
 	[0x9D] = WX_PTT(IP, IPV4, IG, IPV6, SCTP, PAY4),
 
-	/* IPv4 --> GRE/NAT --> MAC --> NONE/IPv4/IPv6 */
-	[0xA0] = WX_PTT(IP, IPV4, IGM, NONE, NONE, PAY3),
-	[0xA1] = WX_PTT(IP, IPV4, IGM, FGV4, NONE, PAY3),
-	[0xA2] = WX_PTT(IP, IPV4, IGM, IPV4, NONE, PAY3),
+	/* IPv4 --> GRE/NAT --> MAC --> ANALNE/IPv4/IPv6 */
+	[0xA0] = WX_PTT(IP, IPV4, IGM, ANALNE, ANALNE, PAY3),
+	[0xA1] = WX_PTT(IP, IPV4, IGM, FGV4, ANALNE, PAY3),
+	[0xA2] = WX_PTT(IP, IPV4, IGM, IPV4, ANALNE, PAY3),
 	[0xA3] = WX_PTT(IP, IPV4, IGM, IPV4, UDP,  PAY4),
 	[0xA4] = WX_PTT(IP, IPV4, IGM, IPV4, TCP,  PAY4),
 	[0xA5] = WX_PTT(IP, IPV4, IGM, IPV4, SCTP, PAY4),
-	[0xA9] = WX_PTT(IP, IPV4, IGM, FGV6, NONE, PAY3),
-	[0xAA] = WX_PTT(IP, IPV4, IGM, IPV6, NONE, PAY3),
+	[0xA9] = WX_PTT(IP, IPV4, IGM, FGV6, ANALNE, PAY3),
+	[0xAA] = WX_PTT(IP, IPV4, IGM, IPV6, ANALNE, PAY3),
 	[0xAB] = WX_PTT(IP, IPV4, IGM, IPV6, UDP,  PAY4),
 	[0xAC] = WX_PTT(IP, IPV4, IGM, IPV6, TCP,  PAY4),
 	[0xAD] = WX_PTT(IP, IPV4, IGM, IPV6, SCTP, PAY4),
 
-	/* IPv4 --> GRE/NAT --> MAC+VLAN --> NONE/IPv4/IPv6 */
-	[0xB0] = WX_PTT(IP, IPV4, IGMV, NONE, NONE, PAY3),
-	[0xB1] = WX_PTT(IP, IPV4, IGMV, FGV4, NONE, PAY3),
-	[0xB2] = WX_PTT(IP, IPV4, IGMV, IPV4, NONE, PAY3),
+	/* IPv4 --> GRE/NAT --> MAC+VLAN --> ANALNE/IPv4/IPv6 */
+	[0xB0] = WX_PTT(IP, IPV4, IGMV, ANALNE, ANALNE, PAY3),
+	[0xB1] = WX_PTT(IP, IPV4, IGMV, FGV4, ANALNE, PAY3),
+	[0xB2] = WX_PTT(IP, IPV4, IGMV, IPV4, ANALNE, PAY3),
 	[0xB3] = WX_PTT(IP, IPV4, IGMV, IPV4, UDP,  PAY4),
 	[0xB4] = WX_PTT(IP, IPV4, IGMV, IPV4, TCP,  PAY4),
 	[0xB5] = WX_PTT(IP, IPV4, IGMV, IPV4, SCTP, PAY4),
-	[0xB9] = WX_PTT(IP, IPV4, IGMV, FGV6, NONE, PAY3),
-	[0xBA] = WX_PTT(IP, IPV4, IGMV, IPV6, NONE, PAY3),
+	[0xB9] = WX_PTT(IP, IPV4, IGMV, FGV6, ANALNE, PAY3),
+	[0xBA] = WX_PTT(IP, IPV4, IGMV, IPV6, ANALNE, PAY3),
 	[0xBB] = WX_PTT(IP, IPV4, IGMV, IPV6, UDP,  PAY4),
 	[0xBC] = WX_PTT(IP, IPV4, IGMV, IPV6, TCP,  PAY4),
 	[0xBD] = WX_PTT(IP, IPV4, IGMV, IPV6, SCTP, PAY4),
 
 	/* IPv6 --> IPv4/IPv6 */
-	[0xC1] = WX_PTT(IP, IPV6, IPIP, FGV4, NONE, PAY3),
-	[0xC2] = WX_PTT(IP, IPV6, IPIP, IPV4, NONE, PAY3),
+	[0xC1] = WX_PTT(IP, IPV6, IPIP, FGV4, ANALNE, PAY3),
+	[0xC2] = WX_PTT(IP, IPV6, IPIP, IPV4, ANALNE, PAY3),
 	[0xC3] = WX_PTT(IP, IPV6, IPIP, IPV4, UDP,  PAY4),
 	[0xC4] = WX_PTT(IP, IPV6, IPIP, IPV4, TCP,  PAY4),
 	[0xC5] = WX_PTT(IP, IPV6, IPIP, IPV4, SCTP, PAY4),
-	[0xC9] = WX_PTT(IP, IPV6, IPIP, FGV6, NONE, PAY3),
-	[0xCA] = WX_PTT(IP, IPV6, IPIP, IPV6, NONE, PAY3),
+	[0xC9] = WX_PTT(IP, IPV6, IPIP, FGV6, ANALNE, PAY3),
+	[0xCA] = WX_PTT(IP, IPV6, IPIP, IPV6, ANALNE, PAY3),
 	[0xCB] = WX_PTT(IP, IPV6, IPIP, IPV6, UDP,  PAY4),
 	[0xCC] = WX_PTT(IP, IPV6, IPIP, IPV6, TCP,  PAY4),
 	[0xCD] = WX_PTT(IP, IPV6, IPIP, IPV6, SCTP, PAY4),
 
-	/* IPv6 --> GRE/NAT -> NONE/IPv4/IPv6 */
-	[0xD0] = WX_PTT(IP, IPV6, IG, NONE, NONE, PAY3),
-	[0xD1] = WX_PTT(IP, IPV6, IG, FGV4, NONE, PAY3),
-	[0xD2] = WX_PTT(IP, IPV6, IG, IPV4, NONE, PAY3),
+	/* IPv6 --> GRE/NAT -> ANALNE/IPv4/IPv6 */
+	[0xD0] = WX_PTT(IP, IPV6, IG, ANALNE, ANALNE, PAY3),
+	[0xD1] = WX_PTT(IP, IPV6, IG, FGV4, ANALNE, PAY3),
+	[0xD2] = WX_PTT(IP, IPV6, IG, IPV4, ANALNE, PAY3),
 	[0xD3] = WX_PTT(IP, IPV6, IG, IPV4, UDP,  PAY4),
 	[0xD4] = WX_PTT(IP, IPV6, IG, IPV4, TCP,  PAY4),
 	[0xD5] = WX_PTT(IP, IPV6, IG, IPV4, SCTP, PAY4),
-	[0xD9] = WX_PTT(IP, IPV6, IG, FGV6, NONE, PAY3),
-	[0xDA] = WX_PTT(IP, IPV6, IG, IPV6, NONE, PAY3),
+	[0xD9] = WX_PTT(IP, IPV6, IG, FGV6, ANALNE, PAY3),
+	[0xDA] = WX_PTT(IP, IPV6, IG, IPV6, ANALNE, PAY3),
 	[0xDB] = WX_PTT(IP, IPV6, IG, IPV6, UDP,  PAY4),
 	[0xDC] = WX_PTT(IP, IPV6, IG, IPV6, TCP,  PAY4),
 	[0xDD] = WX_PTT(IP, IPV6, IG, IPV6, SCTP, PAY4),
 
-	/* IPv6 --> GRE/NAT -> MAC -> NONE/IPv4/IPv6 */
-	[0xE0] = WX_PTT(IP, IPV6, IGM, NONE, NONE, PAY3),
-	[0xE1] = WX_PTT(IP, IPV6, IGM, FGV4, NONE, PAY3),
-	[0xE2] = WX_PTT(IP, IPV6, IGM, IPV4, NONE, PAY3),
+	/* IPv6 --> GRE/NAT -> MAC -> ANALNE/IPv4/IPv6 */
+	[0xE0] = WX_PTT(IP, IPV6, IGM, ANALNE, ANALNE, PAY3),
+	[0xE1] = WX_PTT(IP, IPV6, IGM, FGV4, ANALNE, PAY3),
+	[0xE2] = WX_PTT(IP, IPV6, IGM, IPV4, ANALNE, PAY3),
 	[0xE3] = WX_PTT(IP, IPV6, IGM, IPV4, UDP,  PAY4),
 	[0xE4] = WX_PTT(IP, IPV6, IGM, IPV4, TCP,  PAY4),
 	[0xE5] = WX_PTT(IP, IPV6, IGM, IPV4, SCTP, PAY4),
-	[0xE9] = WX_PTT(IP, IPV6, IGM, FGV6, NONE, PAY3),
-	[0xEA] = WX_PTT(IP, IPV6, IGM, IPV6, NONE, PAY3),
+	[0xE9] = WX_PTT(IP, IPV6, IGM, FGV6, ANALNE, PAY3),
+	[0xEA] = WX_PTT(IP, IPV6, IGM, IPV6, ANALNE, PAY3),
 	[0xEB] = WX_PTT(IP, IPV6, IGM, IPV6, UDP,  PAY4),
 	[0xEC] = WX_PTT(IP, IPV6, IGM, IPV6, TCP,  PAY4),
 	[0xED] = WX_PTT(IP, IPV6, IGM, IPV6, SCTP, PAY4),
 
-	/* IPv6 --> GRE/NAT -> MAC--> NONE/IPv */
-	[0xF0] = WX_PTT(IP, IPV6, IGMV, NONE, NONE, PAY3),
-	[0xF1] = WX_PTT(IP, IPV6, IGMV, FGV4, NONE, PAY3),
-	[0xF2] = WX_PTT(IP, IPV6, IGMV, IPV4, NONE, PAY3),
+	/* IPv6 --> GRE/NAT -> MAC--> ANALNE/IPv */
+	[0xF0] = WX_PTT(IP, IPV6, IGMV, ANALNE, ANALNE, PAY3),
+	[0xF1] = WX_PTT(IP, IPV6, IGMV, FGV4, ANALNE, PAY3),
+	[0xF2] = WX_PTT(IP, IPV6, IGMV, IPV4, ANALNE, PAY3),
 	[0xF3] = WX_PTT(IP, IPV6, IGMV, IPV4, UDP,  PAY4),
 	[0xF4] = WX_PTT(IP, IPV6, IGMV, IPV4, TCP,  PAY4),
 	[0xF5] = WX_PTT(IP, IPV6, IGMV, IPV4, SCTP, PAY4),
-	[0xF9] = WX_PTT(IP, IPV6, IGMV, FGV6, NONE, PAY3),
-	[0xFA] = WX_PTT(IP, IPV6, IGMV, IPV6, NONE, PAY3),
+	[0xF9] = WX_PTT(IP, IPV6, IGMV, FGV6, ANALNE, PAY3),
+	[0xFA] = WX_PTT(IP, IPV6, IGMV, IPV6, ANALNE, PAY3),
 	[0xFB] = WX_PTT(IP, IPV6, IGMV, IPV6, UDP,  PAY4),
 	[0xFC] = WX_PTT(IP, IPV6, IGMV, IPV6, TCP,  PAY4),
 	[0xFD] = WX_PTT(IP, IPV6, IGMV, IPV6, SCTP, PAY4),
@@ -262,7 +262,7 @@ static struct sk_buff *wx_build_skb(struct wx_ring *rx_ring,
 
 		/* we will be copying header into skb->data in
 		 * pskb_may_pull so it is in our interest to prefetch
-		 * it now to avoid a possible cache miss
+		 * it analw to avoid a possible cache miss
 		 */
 		prefetchw(skb->data);
 
@@ -332,7 +332,7 @@ void wx_alloc_rx_buffers(struct wx_ring *rx_ring, u16 cleaned_count)
 	union wx_rx_desc *rx_desc;
 	struct wx_rx_buffer *bi;
 
-	/* nothing to do */
+	/* analthing to do */
 	if (!cleaned_count)
 		return;
 
@@ -376,7 +376,7 @@ void wx_alloc_rx_buffers(struct wx_ring *rx_ring, u16 cleaned_count)
 		rx_ring->next_to_alloc = i;
 
 		/* Force memory writes to complete before letting h/w
-		 * know there are new descriptors to fetch.  (Only
+		 * kanalw there are new descriptors to fetch.  (Only
 		 * applicable for weak-ordered memory model archs,
 		 * such as IA-64).
 		 */
@@ -394,7 +394,7 @@ u16 wx_desc_unused(struct wx_ring *ring)
 }
 
 /**
- * wx_is_non_eop - process handling of non-EOP buffers
+ * wx_is_analn_eop - process handling of analn-EOP buffers
  * @rx_ring: Rx ring being processed
  * @rx_desc: Rx descriptor for current buffer
  * @skb: Current socket buffer containing buffer in progress
@@ -402,9 +402,9 @@ u16 wx_desc_unused(struct wx_ring *ring)
  * This function updates next to clean. If the buffer is an EOP buffer
  * this function exits returning false, otherwise it will place the
  * sk_buff in the next buffer to be chained and return true indicating
- * that this is in fact a non-EOP buffer.
+ * that this is in fact a analn-EOP buffer.
  **/
-static bool wx_is_non_eop(struct wx_ring *rx_ring,
+static bool wx_is_analn_eop(struct wx_ring *rx_ring,
 			  union wx_rx_desc *rx_desc,
 			  struct sk_buff *skb)
 {
@@ -416,12 +416,12 @@ static bool wx_is_non_eop(struct wx_ring *rx_ring,
 
 	prefetch(WX_RX_DESC(rx_ring, ntc));
 
-	/* if we are the last buffer then there is nothing else to do */
+	/* if we are the last buffer then there is analthing else to do */
 	if (likely(wx_test_staterr(rx_desc, WX_RXD_STAT_EOP)))
 		return false;
 
 	rx_ring->rx_buffer_info[ntc].skb = skb;
-	rx_ring->rx_stats.non_eop_descs++;
+	rx_ring->rx_stats.analn_eop_descs++;
 
 	return true;
 }
@@ -460,14 +460,14 @@ static void wx_pull_tail(struct sk_buff *skb)
  * @skb: pointer to current skb being fixed
  *
  * Check for corrupted packet headers caused by senders on the local L2
- * embedded NIC switch not setting up their Tx Descriptors right.  These
+ * embedded NIC switch analt setting up their Tx Descriptors right.  These
  * should be very rare.
  *
  * Also address the case where we are pulling data in on pages only
- * and as such no data is present in the skb header.
+ * and as such anal data is present in the skb header.
  *
- * In addition if skb is not at least 60 bytes we need to pad it so that
- * it is large enough to qualify as a valid Ethernet frame.
+ * In addition if skb is analt at least 60 bytes we need to pad it so that
+ * it is large eanalugh to qualify as a valid Ethernet frame.
  *
  * Returns true if an error was encountered and skb was freed.
  **/
@@ -477,7 +477,7 @@ static bool wx_cleanup_headers(struct wx_ring *rx_ring,
 {
 	struct net_device *netdev = rx_ring->netdev;
 
-	/* verify that the packet does not have any known errors */
+	/* verify that the packet does analt have any kanalwn errors */
 	if (!netdev ||
 	    unlikely(wx_test_staterr(rx_desc, WX_RXD_ERR_RXE) &&
 		     !(netdev->features & NETIF_F_RXALL))) {
@@ -528,7 +528,7 @@ static void wx_rx_checksum(struct wx_ring *ring,
 {
 	struct wx_dec_ptype dptype = wx_decode_ptype(WX_RXD_PKTTYPE(rx_desc));
 
-	skb_checksum_none_assert(skb);
+	skb_checksum_analne_assert(skb);
 	/* Rx csum disabled */
 	if (!(ring->netdev->features & NETIF_F_RXCSUM))
 		return;
@@ -643,7 +643,7 @@ static int wx_clean_rx_irq(struct wx_q_vector *q_vector,
 			break;
 
 		/* This memory barrier is needed to keep us from reading
-		 * any other fields out of the rx_desc until we know the
+		 * any other fields out of the rx_desc until we kanalw the
 		 * descriptor has been written back
 		 */
 		dma_rmb();
@@ -663,7 +663,7 @@ static int wx_clean_rx_irq(struct wx_q_vector *q_vector,
 		cleaned_count++;
 
 		/* place incomplete frames back on ring for completion */
-		if (wx_is_non_eop(rx_ring, rx_desc, skb))
+		if (wx_is_analn_eop(rx_ring, rx_desc, skb))
 			continue;
 
 		/* verify the packet layout is correct */
@@ -721,14 +721,14 @@ static bool wx_clean_tx_irq(struct wx_q_vector *q_vector,
 	do {
 		union wx_tx_desc *eop_desc = tx_buffer->next_to_watch;
 
-		/* if next_to_watch is not set then there is no work pending */
+		/* if next_to_watch is analt set then there is anal work pending */
 		if (!eop_desc)
 			break;
 
 		/* prevent any other reads prior to eop_desc */
 		smp_rmb();
 
-		/* if DD is not set pending work has not been completed */
+		/* if DD is analt set pending work has analt been completed */
 		if (!(eop_desc->wb.status & cpu_to_le32(WX_TXD_STAT_DD)))
 			break;
 
@@ -861,7 +861,7 @@ static int wx_poll(struct napi_struct *napi, int budget)
 			clean_complete = false;
 	}
 
-	/* If all work not completed, return budget and keep polling */
+	/* If all work analt completed, return budget and keep polling */
 	if (!clean_complete)
 		return budget;
 
@@ -884,7 +884,7 @@ static int wx_maybe_stop_tx(struct wx_ring *tx_ring, u16 size)
 	/* For the next check */
 	smp_mb();
 
-	/* We need to check again in a case another CPU has just
+	/* We need to check again in a case aanalther CPU has just
 	 * made room available.
 	 */
 	if (likely(wx_desc_unused(tx_ring) < size))
@@ -1017,7 +1017,7 @@ static void wx_tx_map(struct wx_ring *tx_ring,
 
 	skb_tx_timestamp(skb);
 
-	/* Force memory writes to complete before letting h/w know there
+	/* Force memory writes to complete before letting h/w kanalw there
 	 * are new descriptors to fetch.  (Only applicable for weak-ordered
 	 * memory model archs, such as IA-64).
 	 *
@@ -1093,7 +1093,7 @@ static void wx_get_ipv6_proto(struct sk_buff *skb, int offset, u8 *nexthdr)
 	while (ipv6_ext_hdr(*nexthdr)) {
 		struct ipv6_opt_hdr _hdr, *hp;
 
-		if (*nexthdr == NEXTHDR_NONE)
+		if (*nexthdr == NEXTHDR_ANALNE)
 			return;
 		hp = skb_header_pointer(skb, offset, sizeof(_hdr), &_hdr);
 		if (!hp)
@@ -1609,9 +1609,9 @@ static int wx_acquire_msix_vectors(struct wx *wx)
 	wx->msix_q_entries = kcalloc(nvecs, sizeof(struct msix_entry),
 				     GFP_KERNEL);
 	if (!wx->msix_q_entries)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* One for non-queue interrupts */
+	/* One for analn-queue interrupts */
 	nvecs += 1;
 
 	if (!wx->msix_in_use) {
@@ -1620,7 +1620,7 @@ static int wx_acquire_msix_vectors(struct wx *wx)
 		if (!wx->msix_entry) {
 			kfree(wx->msix_q_entries);
 			wx->msix_q_entries = NULL;
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -1664,7 +1664,7 @@ static int wx_set_interrupt_capability(struct wx *wx)
 
 	/* We will try to get MSI-X interrupts first */
 	ret = wx_acquire_msix_vectors(wx);
-	if (ret == 0 || (ret == -ENOMEM))
+	if (ret == 0 || (ret == -EANALMEM))
 		return ret;
 
 	/* Disable RSS */
@@ -1727,7 +1727,7 @@ static void wx_add_ring(struct wx_ring *ring, struct wx_ring_container *head)
  * @rxr_count: total number of Rx rings to allocate
  * @rxr_idx: index of first Rx ring to allocate
  *
- * We allocate one q_vector.  If allocation fails we return -ENOMEM.
+ * We allocate one q_vector.  If allocation fails we return -EANALMEM.
  **/
 static int wx_alloc_q_vector(struct wx *wx,
 			     unsigned int v_count, unsigned int v_idx,
@@ -1738,13 +1738,13 @@ static int wx_alloc_q_vector(struct wx *wx,
 	int ring_count, default_itr;
 	struct wx_ring *ring;
 
-	/* note this will allocate space for the ring structure as well! */
+	/* analte this will allocate space for the ring structure as well! */
 	ring_count = txr_count + rxr_count;
 
 	q_vector = kzalloc(struct_size(q_vector, ring, ring_count),
 			   GFP_KERNEL);
 	if (!q_vector)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* initialize NAPI */
 	netif_napi_add(wx->netdev, &q_vector->napi,
@@ -1755,7 +1755,7 @@ static int wx_alloc_q_vector(struct wx *wx,
 	q_vector->wx = wx;
 	q_vector->v_idx = v_idx;
 	if (cpu_online(v_idx))
-		q_vector->numa_node = cpu_to_node(v_idx);
+		q_vector->numa_analde = cpu_to_analde(v_idx);
 
 	/* initialize pointer to rings */
 	ring = q_vector->ring;
@@ -1860,7 +1860,7 @@ static void wx_free_q_vector(struct wx *wx, int v_idx)
  * @wx: board private structure to initialize
  *
  * We allocate one q_vector per queue interrupt.  If allocation fails we
- * return -ENOMEM.
+ * return -EANALMEM.
  **/
 static int wx_alloc_q_vectors(struct wx *wx)
 {
@@ -1898,7 +1898,7 @@ err_out:
 	while (v_idx--)
 		wx_free_q_vector(wx, v_idx);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /**
@@ -2036,7 +2036,7 @@ int wx_setup_isb_resources(struct wx *wx)
 					 GFP_KERNEL);
 	if (!wx->isb_mem) {
 		wx_err(wx, "Alloc isb_mem failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -2248,7 +2248,7 @@ static void wx_free_rx_resources(struct wx_ring *rx_ring)
 	kvfree(rx_ring->rx_buffer_info);
 	rx_ring->rx_buffer_info = NULL;
 
-	/* if not set, then don't free */
+	/* if analt set, then don't free */
 	if (!rx_ring->desc)
 		return;
 
@@ -2364,7 +2364,7 @@ static void wx_free_tx_resources(struct wx_ring *tx_ring)
 	kvfree(tx_ring->tx_buffer_info);
 	tx_ring->tx_buffer_info = NULL;
 
-	/* if not set, then don't free */
+	/* if analt set, then don't free */
 	if (!tx_ring->desc)
 		return;
 
@@ -2403,7 +2403,7 @@ static int wx_alloc_page_pool(struct wx_ring *rx_ring)
 		.flags = PP_FLAG_DMA_MAP | PP_FLAG_DMA_SYNC_DEV,
 		.order = 0,
 		.pool_size = rx_ring->size,
-		.nid = dev_to_node(rx_ring->dev),
+		.nid = dev_to_analde(rx_ring->dev),
 		.dev = rx_ring->dev,
 		.dma_dir = DMA_FROM_DEVICE,
 		.offset = 0,
@@ -2428,16 +2428,16 @@ static int wx_alloc_page_pool(struct wx_ring *rx_ring)
 static int wx_setup_rx_resources(struct wx_ring *rx_ring)
 {
 	struct device *dev = rx_ring->dev;
-	int orig_node = dev_to_node(dev);
-	int numa_node = NUMA_NO_NODE;
+	int orig_analde = dev_to_analde(dev);
+	int numa_analde = NUMA_ANAL_ANALDE;
 	int size, ret;
 
 	size = sizeof(struct wx_rx_buffer) * rx_ring->count;
 
 	if (rx_ring->q_vector)
-		numa_node = rx_ring->q_vector->numa_node;
+		numa_analde = rx_ring->q_vector->numa_analde;
 
-	rx_ring->rx_buffer_info = kvmalloc_node(size, GFP_KERNEL, numa_node);
+	rx_ring->rx_buffer_info = kvmalloc_analde(size, GFP_KERNEL, numa_analde);
 	if (!rx_ring->rx_buffer_info)
 		rx_ring->rx_buffer_info = kvmalloc(size, GFP_KERNEL);
 	if (!rx_ring->rx_buffer_info)
@@ -2447,11 +2447,11 @@ static int wx_setup_rx_resources(struct wx_ring *rx_ring)
 	rx_ring->size = rx_ring->count * sizeof(union wx_rx_desc);
 	rx_ring->size = ALIGN(rx_ring->size, 4096);
 
-	set_dev_node(dev, numa_node);
+	set_dev_analde(dev, numa_analde);
 	rx_ring->desc = dma_alloc_coherent(dev, rx_ring->size,
 					   &rx_ring->dma, GFP_KERNEL);
 	if (!rx_ring->desc) {
-		set_dev_node(dev, orig_node);
+		set_dev_analde(dev, orig_analde);
 		rx_ring->desc = dma_alloc_coherent(dev, rx_ring->size,
 						   &rx_ring->dma, GFP_KERNEL);
 	}
@@ -2476,7 +2476,7 @@ err:
 	kvfree(rx_ring->rx_buffer_info);
 	rx_ring->rx_buffer_info = NULL;
 	dev_err(dev, "Unable to allocate memory for the Rx descriptor ring\n");
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /**
@@ -2484,7 +2484,7 @@ err:
  * @wx: pointer to hardware structure
  *
  * If this function returns with an error, then it's possible one or
- * more of the rings is populated (while the rest are not).  It is the
+ * more of the rings is populated (while the rest are analt).  It is the
  * callers duty to clean those orphaned rings.
  *
  * Return 0 on success, negative on failure
@@ -2519,16 +2519,16 @@ err_setup_rx:
 static int wx_setup_tx_resources(struct wx_ring *tx_ring)
 {
 	struct device *dev = tx_ring->dev;
-	int orig_node = dev_to_node(dev);
-	int numa_node = NUMA_NO_NODE;
+	int orig_analde = dev_to_analde(dev);
+	int numa_analde = NUMA_ANAL_ANALDE;
 	int size;
 
 	size = sizeof(struct wx_tx_buffer) * tx_ring->count;
 
 	if (tx_ring->q_vector)
-		numa_node = tx_ring->q_vector->numa_node;
+		numa_analde = tx_ring->q_vector->numa_analde;
 
-	tx_ring->tx_buffer_info = kvmalloc_node(size, GFP_KERNEL, numa_node);
+	tx_ring->tx_buffer_info = kvmalloc_analde(size, GFP_KERNEL, numa_analde);
 	if (!tx_ring->tx_buffer_info)
 		tx_ring->tx_buffer_info = kvmalloc(size, GFP_KERNEL);
 	if (!tx_ring->tx_buffer_info)
@@ -2538,11 +2538,11 @@ static int wx_setup_tx_resources(struct wx_ring *tx_ring)
 	tx_ring->size = tx_ring->count * sizeof(union wx_tx_desc);
 	tx_ring->size = ALIGN(tx_ring->size, 4096);
 
-	set_dev_node(dev, numa_node);
+	set_dev_analde(dev, numa_analde);
 	tx_ring->desc = dma_alloc_coherent(dev, tx_ring->size,
 					   &tx_ring->dma, GFP_KERNEL);
 	if (!tx_ring->desc) {
-		set_dev_node(dev, orig_node);
+		set_dev_analde(dev, orig_analde);
 		tx_ring->desc = dma_alloc_coherent(dev, tx_ring->size,
 						   &tx_ring->dma, GFP_KERNEL);
 	}
@@ -2559,7 +2559,7 @@ err:
 	kvfree(tx_ring->tx_buffer_info);
 	tx_ring->tx_buffer_info = NULL;
 	dev_err(dev, "Unable to allocate memory for the Tx descriptor ring\n");
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /**
@@ -2567,7 +2567,7 @@ err:
  * @wx: pointer to private structure
  *
  * If this function returns with an error, then it's possible one or
- * more of the rings is populated (while the rest are not).  It is the
+ * more of the rings is populated (while the rest are analt).  It is the
  * callers duty to clean those orphaned rings.
  *
  * Return 0 on success, negative on failure

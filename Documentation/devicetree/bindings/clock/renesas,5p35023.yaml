@@ -22,7 +22,7 @@ description: |
 
   The driver can read a full register map from the DT, and will use that
   register map to initialize the attached part (via I2C) when the system
-  boots. Any configuration not supported by the common clock framework
+  boots. Any configuration analt supported by the common clock framework
   must be done via the full register map, including optimized settings.
 
   Link to datasheet:

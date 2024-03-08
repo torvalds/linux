@@ -67,9 +67,9 @@ static int t7xx_port_ctrl_tx(struct wwan_port *port, struct sk_buff *skb)
 	ctl = port_private->t7xx_dev->md->fsm_ctl;
 	md_state = t7xx_fsm_get_md_state(ctl);
 	if (md_state == MD_STATE_WAITING_FOR_HS1 || md_state == MD_STATE_WAITING_FOR_HS2) {
-		dev_warn(port_private->dev, "Cannot write to %s port when md_state=%d\n",
+		dev_warn(port_private->dev, "Cananalt write to %s port when md_state=%d\n",
 			 port_conf->name, md_state);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	while (cur) {
@@ -121,9 +121,9 @@ static int t7xx_port_wwan_recv_skb(struct t7xx_port *port, struct sk_buff *skb)
 		const struct t7xx_port_conf *port_conf = port->port_conf;
 
 		dev_kfree_skb_any(skb);
-		dev_err_ratelimited(port->dev, "Port %s is not opened, drop packets\n",
+		dev_err_ratelimited(port->dev, "Port %s is analt opened, drop packets\n",
 				    port_conf->name);
-		/* Dropping skb, caller should not access skb.*/
+		/* Dropping skb, caller should analt access skb.*/
 		return 0;
 	}
 
@@ -149,7 +149,7 @@ static int t7xx_port_wwan_disable_chl(struct t7xx_port *port)
 	return 0;
 }
 
-static void t7xx_port_wwan_md_state_notify(struct t7xx_port *port, unsigned int state)
+static void t7xx_port_wwan_md_state_analtify(struct t7xx_port *port, unsigned int state)
 {
 	const struct t7xx_port_conf *port_conf = port->port_conf;
 	unsigned int header_len = sizeof(struct ccci_header);
@@ -174,5 +174,5 @@ struct port_ops wwan_sub_port_ops = {
 	.uninit = t7xx_port_wwan_uninit,
 	.enable_chl = t7xx_port_wwan_enable_chl,
 	.disable_chl = t7xx_port_wwan_disable_chl,
-	.md_state_notify = t7xx_port_wwan_md_state_notify,
+	.md_state_analtify = t7xx_port_wwan_md_state_analtify,
 };

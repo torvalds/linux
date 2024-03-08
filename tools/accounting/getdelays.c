@@ -14,7 +14,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <errno.h>
+#include <erranal.h>
 #include <unistd.h>
 #include <poll.h>
 #include <string.h>
@@ -148,7 +148,7 @@ static int send_cmd(int sd, __u16 nlmsg_type, __u32 nlmsg_pid,
 		if (r > 0) {
 			buf += r;
 			buflen -= r;
-		} else if (errno != EAGAIN)
+		} else if (erranal != EAGAIN)
 			return -1;
 	}
 	return 0;
@@ -252,7 +252,7 @@ static void task_context_switch_counts(struct taskstats *t)
 {
 	printf("\n\nTask   %15s%15s\n"
 	       "       %15llu%15llu\n",
-	       "voluntary", "nonvoluntary",
+	       "voluntary", "analnvoluntary",
 	       (unsigned long long)t->nvcsw, (unsigned long long)t->nivcsw);
 }
 
@@ -393,7 +393,7 @@ int main(int argc, char *argv[])
 		fd = open(logfile, O_WRONLY | O_CREAT | O_TRUNC,
 			  S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 		if (fd == -1) {
-			perror("Cannot open output file\n");
+			perror("Cananalt open output file\n");
 			exit(1);
 		}
 	}
@@ -406,7 +406,7 @@ int main(int argc, char *argv[])
 	mypid = getpid();
 	id = get_family_id(nl_sd);
 	if (!id) {
-		fprintf(stderr, "Error getting family id, errno %d\n", errno);
+		fprintf(stderr, "Error getting family id, erranal %d\n", erranal);
 		goto err;
 	}
 	PRINTF("family id %d\n", id);
@@ -423,12 +423,12 @@ int main(int argc, char *argv[])
 	}
 
 	if (tid && containerset) {
-		fprintf(stderr, "Select either -t or -C, not both\n");
+		fprintf(stderr, "Select either -t or -C, analt both\n");
 		goto err;
 	}
 
 	/*
-	 * If we forked a child, wait for it to exit. Cannot use waitpid()
+	 * If we forked a child, wait for it to exit. Cananalt use waitpid()
 	 * as all the delicious data would be reaped as part of the wait
 	 */
 	if (tid && forking) {
@@ -469,14 +469,14 @@ int main(int argc, char *argv[])
 		PRINTF("received %d bytes\n", rep_len);
 
 		if (rep_len < 0) {
-			fprintf(stderr, "nonfatal reply error: errno %d\n",
-				errno);
+			fprintf(stderr, "analnfatal reply error: erranal %d\n",
+				erranal);
 			continue;
 		}
 		if (msg.n.nlmsg_type == NLMSG_ERROR ||
 		    !NLMSG_OK((&msg.n), rep_len)) {
 			struct nlmsgerr *err = NLMSG_DATA(&msg);
-			fprintf(stderr, "fatal reply error,  errno %d\n",
+			fprintf(stderr, "fatal reply error,  erranal %d\n",
 				err->error);
 			goto done;
 		}
@@ -529,7 +529,7 @@ int main(int argc, char *argv[])
 					case TASKSTATS_TYPE_NULL:
 						break;
 					default:
-						fprintf(stderr, "Unknown nested"
+						fprintf(stderr, "Unkanalwn nested"
 							" nla_type %d\n",
 							na->nla_type);
 						break;
@@ -544,7 +544,7 @@ int main(int argc, char *argv[])
 				print_cgroupstats(NLA_DATA(na));
 				break;
 			default:
-				fprintf(stderr, "Unknown nla_type %d\n",
+				fprintf(stderr, "Unkanalwn nla_type %d\n",
 					na->nla_type);
 			case TASKSTATS_TYPE_NULL:
 				break;

@@ -17,12 +17,12 @@ static DEFINE_WD_CLASS(ww_class);
 struct workqueue_struct *wq;
 
 #ifdef CONFIG_DEBUG_WW_MUTEX_SLOWPATH
-#define ww_acquire_init_noinject(a, b) do { \
+#define ww_acquire_init_analinject(a, b) do { \
 		ww_acquire_init((a), (b)); \
 		(a)->deadlock_inject_countdown = ~0U; \
 	} while (0)
 #else
-#define ww_acquire_init_noinject(a, b) ww_acquire_init((a), (b))
+#define ww_acquire_init_analinject(a, b) ww_acquire_init((a), (b))
 #endif
 
 struct test_mutex {
@@ -189,7 +189,7 @@ static void test_abba_work(struct work_struct *work)
 	struct ww_acquire_ctx ctx;
 	int err;
 
-	ww_acquire_init_noinject(&ctx, &ww_class);
+	ww_acquire_init_analinject(&ctx, &ww_class);
 	if (!abba->trylock)
 		ww_mutex_lock(&abba->b_mutex, &ctx);
 	else
@@ -231,7 +231,7 @@ static int test_abba(bool trylock, bool resolve)
 
 	schedule_work(&abba.work);
 
-	ww_acquire_init_noinject(&ctx, &ww_class);
+	ww_acquire_init_analinject(&ctx, &ww_class);
 	if (!trylock)
 		ww_mutex_lock(&abba.a_mutex, &ctx);
 	else
@@ -289,7 +289,7 @@ static void test_cycle_work(struct work_struct *work)
 	struct ww_acquire_ctx ctx;
 	int err, erra = 0;
 
-	ww_acquire_init_noinject(&ctx, &ww_class);
+	ww_acquire_init_analinject(&ctx, &ww_class);
 	ww_mutex_lock(&cycle->a_mutex, &ctx);
 
 	complete(cycle->a_signal);
@@ -320,7 +320,7 @@ static int __test_cycle(unsigned int nthreads)
 
 	cycles = kmalloc_array(nthreads, sizeof(*cycles), GFP_KERNEL);
 	if (!cycles)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (n = 0; n < nthreads; n++) {
 		struct test_cycle *cycle = &cycles[n];
@@ -353,7 +353,7 @@ static int __test_cycle(unsigned int nthreads)
 		if (!cycle->result)
 			continue;
 
-		pr_err("cyclic deadlock not resolved, ret[%d/%d] = %d\n",
+		pr_err("cyclic deadlock analt resolved, ret[%d/%d] = %d\n",
 		       n, nthreads, cycle->result);
 		ret = -EINVAL;
 		break;
@@ -428,7 +428,7 @@ static void dummy_load(struct stress *stress)
 	usleep_range(1000, 2000);
 }
 
-static void stress_inorder_work(struct work_struct *work)
+static void stress_ianalrder_work(struct work_struct *work)
 {
 	struct stress *stress = container_of(work, typeof(*stress), work);
 	const int nlocks = stress->nlocks;
@@ -566,10 +566,10 @@ static void stress_one_work(struct work_struct *work)
 	} while (!time_after(jiffies, stress->timeout));
 }
 
-#define STRESS_INORDER BIT(0)
+#define STRESS_IANALRDER BIT(0)
 #define STRESS_REORDER BIT(1)
 #define STRESS_ONE BIT(2)
-#define STRESS_ALL (STRESS_INORDER | STRESS_REORDER | STRESS_ONE)
+#define STRESS_ALL (STRESS_IANALRDER | STRESS_REORDER | STRESS_ONE)
 
 static int stress(int nlocks, int nthreads, unsigned int flags)
 {
@@ -579,13 +579,13 @@ static int stress(int nlocks, int nthreads, unsigned int flags)
 
 	locks = kmalloc_array(nlocks, sizeof(*locks), GFP_KERNEL);
 	if (!locks)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	stress_array = kmalloc_array(nthreads, sizeof(*stress_array),
 				     GFP_KERNEL);
 	if (!stress_array) {
 		kfree(locks);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for (n = 0; n < nlocks; n++)
@@ -599,8 +599,8 @@ static int stress(int nlocks, int nthreads, unsigned int flags)
 		fn = NULL;
 		switch (n & 3) {
 		case 0:
-			if (flags & STRESS_INORDER)
-				fn = stress_inorder_work;
+			if (flags & STRESS_IANALRDER)
+				fn = stress_ianalrder_work;
 			break;
 		case 1:
 			if (flags & STRESS_REORDER)
@@ -647,7 +647,7 @@ static int __init test_ww_mutex_init(void)
 
 	wq = alloc_workqueue("test-ww_mutex", WQ_UNBOUND, 0);
 	if (!wq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = test_mutex();
 	if (ret)
@@ -671,7 +671,7 @@ static int __init test_ww_mutex_init(void)
 	if (ret)
 		return ret;
 
-	ret = stress(16, 2*ncpus, STRESS_INORDER);
+	ret = stress(16, 2*ncpus, STRESS_IANALRDER);
 	if (ret)
 		return ret;
 

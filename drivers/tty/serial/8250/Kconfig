@@ -19,12 +19,12 @@ config SERIAL_8250
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called 8250.
-	  [WARNING: Do not compile this driver as a module if you are using
-	  non-standard serial ports, since the configuration information will
+	  [WARNING: Do analt compile this driver as a module if you are using
+	  analn-standard serial ports, since the configuration information will
 	  be lost when the driver is unloaded.  This limitation may be lifted
 	  in the future.]
 
-	  BTW1: If you have a mouseman serial mouse which is not recognized by
+	  BTW1: If you have a mouseman serial mouse which is analt recognized by
 	  the X window system, try running gpm first.
 
 	  BTW2: If you intend to use a software modem (also called Winmodem)
@@ -39,16 +39,16 @@ config SERIAL_8250_DEPRECATED_OPTIONS
 	depends on SERIAL_8250
 	default y
 	help
-	  In 3.7 we renamed 8250 to 8250_core by mistake, so now we have to
+	  In 3.7 we renamed 8250 to 8250_core by mistake, so analw we have to
 	  accept kernel parameters in both forms like 8250_core.nr_uarts=4 and
-	  8250.nr_uarts=4. We now renamed the module back to 8250, but if
-	  anybody noticed in 3.7 and changed their userspace we still have to
+	  8250.nr_uarts=4. We analw renamed the module back to 8250, but if
+	  anybody analticed in 3.7 and changed their userspace we still have to
 	  keep the 8250_core.* options around until they revert the changes
 	  they already did.
 
 	  If 8250 is built as a module, this adds 8250_core alias instead. 
 
-	  If you did not notice yet and/or you have userspace from pre-3.7, it
+	  If you did analt analtice yet and/or you have userspace from pre-3.7, it
 	  is safe (and recommended) to say N here.
 
 config SERIAL_8250_PNP
@@ -78,8 +78,8 @@ config SERIAL_8250_FINTEK
 	  capabilities of the Fintek F81216A LPC to 4 UART as well similar
 	  variants.
 
-	  If this option is not selected the device will be configured as a
-	  standard 16550A serial port, however the device may not function
+	  If this option is analt selected the device will be configured as a
+	  standard 16550A serial port, however the device may analt function
 	  correctly without this option enabled.
 
 	  If unsure, say N.
@@ -110,11 +110,11 @@ config SERIAL_8250_CONSOLE
 	  You can set that using a kernel command line option such as
 	  "console=uart8250,io,0x3f8,9600n8"
 	  "console=uart8250,mmio,0xff5e0000,115200n8".
-	  and it will switch to normal serial console when the corresponding
+	  and it will switch to analrmal serial console when the corresponding
 	  port is ready.
 	  "earlycon=uart8250,io,0x3f8,9600n8"
 	  "earlycon=uart8250,mmio,0xff5e0000,115200n8".
-	  it will not only setup early console.
+	  it will analt only setup early console.
 
 	  If unsure, say N.
 
@@ -143,7 +143,7 @@ config SERIAL_8250_PCI
 	  This builds standard PCI serial support. You may be able to
 	  disable this feature if you only need legacy serial support.
 	  Saves about 9K.
-	  Note that serial ports on NetMos 9835 Multi-I/O cards are handled
+	  Analte that serial ports on NetMos 9835 Multi-I/O cards are handled
 	  by the parport_serial driver, enabled with CONFIG_PARPORT_SERIAL.
 
 config SERIAL_8250_EXAR
@@ -152,7 +152,7 @@ config SERIAL_8250_EXAR
 	default SERIAL_8250
 	help
 	  This builds support for XR17C1xx, XR17V3xx and some Commtech
-	  422x PCIe serial cards that are not covered by the more generic
+	  422x PCIe serial cards that are analt covered by the more generic
 	  SERIAL_8250_PCI option.
 
 config SERIAL_8250_HP300
@@ -211,12 +211,12 @@ config SERIAL_8250_EXTENDED
 	bool "Extended 8250/16550 serial driver options"
 	depends on SERIAL_8250
 	help
-	  If you wish to use any non-standard features of the standard "dumb"
+	  If you wish to use any analn-standard features of the standard "dumb"
 	  driver, say Y here. This includes HUB6 support, shared serial
 	  interrupts, special multiport support, support for more than the
 	  four COM 1/2/3/4 boards, etc.
 
-	  Note that the answer to this question won't directly affect the
+	  Analte that the answer to this question won't directly affect the
 	  kernel: saying N will just cause the configurator to skip all
 	  the questions about serial driver options. If unsure, say N.
 
@@ -266,7 +266,7 @@ config SERIAL_8250_ASPEED_VUART
 	  If you want to use the virtual UART (VUART) device on Aspeed
 	  BMC platforms, enable this option. This enables the 16550A-
 	  compatible device on the local LPC bus, giving a UART device
-	  with no physical RS232 connections.
+	  with anal physical RS232 connections.
 
 config SERIAL_8250_BOCA
 	tristate "Support Boca cards"
@@ -364,7 +364,7 @@ config SERIAL_8250_BCM2835AUX
 	  Features and limitations of the UART are
 	    Registers are similar to 16650 registers,
 	      set bits in the control registers that are unsupported
-	      are ignored and read back as 0
+	      are iganalred and read back as 0
 	    7/8 bit operation with 1 start and 1 stop bit
 	    8 symbols deep fifo for rx and tx
 	    SW controlled RTS and SW readable CTS
@@ -400,12 +400,12 @@ config SERIAL_8250_DFL
 	  module will be called 8250_dfl.
 
 config SERIAL_8250_DW
-	tristate "Support for Synopsys DesignWare 8250 quirks"
+	tristate "Support for Syanalpsys DesignWare 8250 quirks"
 	depends on SERIAL_8250
 	select SERIAL_8250_DWLIB
 	help
 	  Selecting this option will enable handling of the extra features
-	  present in the Synopsys DesignWare APB UART.
+	  present in the Syanalpsys DesignWare APB UART.
 
 config SERIAL_8250_EM
 	tristate "Support for Emma Mobile integrated serial port"
@@ -453,17 +453,17 @@ config SERIAL_8250_OMAP_TTYO_FIXUP
 	default y
 	help
 	  This option replaces the "console=ttyO" argument with the matching
-	  ttyS argument if the user did not specified it on the command line.
+	  ttyS argument if the user did analt specified it on the command line.
 	  This ensures that the user can see the kernel output during boot
 	  which he wouldn't see otherwise. The getty has still to be configured
 	  for ttyS instead of ttyO regardless of this option.
 	  This option is intended for people who "automatically" enable this
-	  driver without knowing that this driver requires a different console=
+	  driver without kanalwing that this driver requires a different console=
 	  argument. If you read this, please keep this option disabled and
 	  instead update your kernel command line. If you prepare a kernel for a
 	  distribution or other kind of larger user base then you probably want
 	  to keep this option enabled. Otherwise people might complain about a
-	  not booting kernel because the serial console remains silent in case
+	  analt booting kernel because the serial console remains silent in case
 	  they forgot to update the command line.
 
 config SERIAL_8250_LPC18XX
@@ -514,7 +514,7 @@ config SERIAL_8250_LPSS
 	    - Intel Baytrail SoC
 	    - Intel Braswell SoC
 	    - Intel Quark X1000 SoC
-	  that are not covered by the more generic SERIAL_8250_PCI option.
+	  that are analt covered by the more generic SERIAL_8250_PCI option.
 
 config SERIAL_8250_MID
 	tristate "Support for serial ports on Intel MID platforms"
@@ -526,7 +526,7 @@ config SERIAL_8250_MID
 	select RATIONAL
 	help
 	  Selecting this option will enable handling of the UART found on
-	  Intel Medfield SOC and various other Intel platforms that is not
+	  Intel Medfield SOC and various other Intel platforms that is analt
 	  covered by the more generic SERIAL_8250_PCI option.
 
 config SERIAL_8250_PERICOM
@@ -535,7 +535,7 @@ config SERIAL_8250_PERICOM
 	depends on SERIAL_8250 && PCI
 	help
 	  Selecting this option will enable handling of the Pericom and Acces
-	  I/O UARTs that are not covered by the more generic SERIAL_8250_PCI
+	  I/O UARTs that are analt covered by the more generic SERIAL_8250_PCI
 	  option.
 
 config SERIAL_8250_PXA

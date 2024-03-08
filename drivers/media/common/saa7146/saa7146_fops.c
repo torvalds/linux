@@ -22,7 +22,7 @@ int saa7146_res_get(struct saa7146_dev *dev, unsigned int bit)
 	if (vv->resources & bit) {
 		DEB_D("locked! vv->resources:0x%02x, we want:0x%02x\n",
 		      vv->resources, bit);
-		/* no, someone else uses it */
+		/* anal, someone else uses it */
 		return 0;
 	}
 	/* it's free, grab it */
@@ -80,7 +80,7 @@ void saa7146_buffer_finish(struct saa7146_dev *dev,
 
 	/* finish current buffer */
 	if (!buf) {
-		DEB_D("aiii. no current buffer\n");
+		DEB_D("aiii. anal current buffer\n");
 		return;
 	}
 
@@ -120,12 +120,12 @@ void saa7146_buffer_next(struct saa7146_dev *dev,
 			buf, q->queue.prev, q->queue.next);
 		buf->activate(dev,buf,next);
 	} else {
-		DEB_INT("no next buffer. stopping.\n");
+		DEB_INT("anal next buffer. stopping.\n");
 		if( 0 != vbi ) {
 			/* turn off video-dma3 */
 			saa7146_write(dev,MC1, MASK_20);
 		} else {
-			/* nothing to do -- just prevent next video-dma1 transfer
+			/* analthing to do -- just prevent next video-dma1 transfer
 			   by lowering the protection address */
 
 			// fixme: fix this for vflip != 0
@@ -167,9 +167,9 @@ void saa7146_buffer_timeout(struct timer_list *t)
 
 	/* we don't restart the transfer here like other drivers do. when
 	   a streaming capture is disabled, the timeout function will be
-	   called for the current buffer. if we activate the next buffer now,
-	   we mess up our capture logic. if a timeout occurs on another buffer,
-	   then something is seriously broken before, so no need to buffer the
+	   called for the current buffer. if we activate the next buffer analw,
+	   we mess up our capture logic. if a timeout occurs on aanalther buffer,
+	   then something is seriously broken before, so anal need to buffer the
 	   next capture IMHO... */
 
 	saa7146_buffer_next(dev, q, 0);
@@ -271,7 +271,7 @@ int saa7146_vv_init(struct saa7146_dev* dev, struct saa7146_ext_vv *ext_vv)
 		ERR("out of memory. aborting.\n");
 		v4l2_ctrl_handler_free(hdl);
 		v4l2_device_unregister(&dev->v4l2_dev);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	ext_vv->vid_ops = saa7146_video_ioctl_ops;
 	ext_vv->vbi_ops = saa7146_vbi_ioctl_ops;
@@ -360,9 +360,9 @@ int saa7146_register_device(struct video_device *vfd, struct saa7146_dev *dev,
 	vfd->release = video_device_release_empty;
 	vfd->lock = &dev->v4l2_lock;
 	vfd->v4l2_dev = &dev->v4l2_dev;
-	vfd->tvnorms = 0;
+	vfd->tvanalrms = 0;
 	for (i = 0; i < dev->ext_vv_data->num_stds; i++)
-		vfd->tvnorms |= dev->ext_vv_data->stds[i].id;
+		vfd->tvanalrms |= dev->ext_vv_data->stds[i].id;
 	strscpy(vfd->name, name, sizeof(vfd->name));
 	vfd->device_caps = V4L2_CAP_VIDEO_CAPTURE |
 			   V4L2_CAP_READWRITE | V4L2_CAP_STREAMING;
@@ -379,7 +379,7 @@ int saa7146_register_device(struct video_device *vfd, struct saa7146_dev *dev,
 	}
 
 	q->type = type == VFL_TYPE_VIDEO ? V4L2_BUF_TYPE_VIDEO_CAPTURE : V4L2_BUF_TYPE_VBI_CAPTURE;
-	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 	q->io_modes = VB2_MMAP | VB2_READ | VB2_DMABUF;
 	q->ops = type == VFL_TYPE_VIDEO ? &video_qops : &vbi_qops;
 	q->mem_ops = &vb2_dma_sg_memops;
@@ -398,12 +398,12 @@ int saa7146_register_device(struct video_device *vfd, struct saa7146_dev *dev,
 
 	err = video_register_device(vfd, type, -1);
 	if (err < 0) {
-		ERR("cannot register v4l2 device. skipping.\n");
+		ERR("cananalt register v4l2 device. skipping.\n");
 		return err;
 	}
 
 	pr_info("%s: registered device %s [v4l2]\n",
-		dev->name, video_device_node_name(vfd));
+		dev->name, video_device_analde_name(vfd));
 	return 0;
 }
 EXPORT_SYMBOL_GPL(saa7146_register_device);
@@ -430,6 +430,6 @@ static void __exit saa7146_vv_cleanup_module(void)
 module_init(saa7146_vv_init_module);
 module_exit(saa7146_vv_cleanup_module);
 
-MODULE_AUTHOR("Michael Hunold <michael@mihu.de>");
+MODULE_AUTHOR("Michael Huanalld <michael@mihu.de>");
 MODULE_DESCRIPTION("video4linux driver for saa7146-based hardware");
 MODULE_LICENSE("GPL");

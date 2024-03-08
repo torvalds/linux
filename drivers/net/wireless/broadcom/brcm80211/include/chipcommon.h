@@ -237,13 +237,13 @@ struct chipcregs {
 #define CC_CAP_UINTCLK		0x00000008
 #define CC_CAP_UARTGPIO		0x00000020	/* UARTs own GPIOs 15:12 */
 #define CC_CAP_EXTBUS_MASK	0x000000c0	/* External bus mask */
-#define CC_CAP_EXTBUS_NONE	0x00000000	/* No ExtBus present */
+#define CC_CAP_EXTBUS_ANALNE	0x00000000	/* Anal ExtBus present */
 #define CC_CAP_EXTBUS_FULL	0x00000040	/* ExtBus: PCMCIA, IDE & Prog */
 #define CC_CAP_EXTBUS_PROG	0x00000080	/* ExtBus: ProgIf only */
 #define	CC_CAP_FLASH_MASK	0x00000700	/* Type of flash */
 #define	CC_CAP_PLL_MASK		0x00038000	/* Type of PLL */
 #define CC_CAP_PWR_CTL		0x00040000	/* Power control */
-#define CC_CAP_OTPSIZE		0x00380000	/* OTP Size (0 = none) */
+#define CC_CAP_OTPSIZE		0x00380000	/* OTP Size (0 = analne) */
 #define CC_CAP_OTPSIZE_SHIFT	19	/* OTP Size shift */
 #define CC_CAP_OTPSIZE_BASE	5	/* OTP Size base */
 #define CC_CAP_JTAGP		0x00400000	/* JTAG Master Present */

@@ -31,7 +31,7 @@ void kvmppc_set_pending_interrupt(struct kvm_vcpu *vcpu, enum int_class type)
 	unsigned long tag;
 
 	switch (type) {
-	case INT_CLASS_NONCRIT:
+	case INT_CLASS_ANALNCRIT:
 		dbell_type = PPC_G_DBELL;
 		break;
 	case INT_CLASS_CRIT:
@@ -41,7 +41,7 @@ void kvmppc_set_pending_interrupt(struct kvm_vcpu *vcpu, enum int_class type)
 		dbell_type = PPC_G_DBELL_MC;
 		break;
 	default:
-		WARN_ONCE(1, "%s: unknown int type %d\n", __func__, type);
+		WARN_ONCE(1, "%s: unkanalwn int type %d\n", __func__, type);
 		return;
 	}
 
@@ -52,7 +52,7 @@ void kvmppc_set_pending_interrupt(struct kvm_vcpu *vcpu, enum int_class type)
 	preempt_enable();
 }
 
-/* gtlbe must not be mapped by more than one host tlb entry */
+/* gtlbe must analt be mapped by more than one host tlb entry */
 void kvmppc_e500_tlbil_one(struct kvmppc_vcpu_e500 *vcpu_e500,
 			   struct kvm_book3e_206_tlb_entry *gtlbe)
 {
@@ -80,7 +80,7 @@ void kvmppc_e500_tlbil_one(struct kvmppc_vcpu_e500 *vcpu_e500,
 		asm volatile("tlbwe");
 	}
 	mtspr(SPRN_MAS5, 0);
-	/* NOTE: tlbsx also updates mas8, so clear it for host tlbwe */
+	/* ANALTE: tlbsx also updates mas8, so clear it for host tlbwe */
 	mtspr(SPRN_MAS8, 0);
 	isync();
 
@@ -94,7 +94,7 @@ void kvmppc_e500_tlbil_all(struct kvmppc_vcpu_e500 *vcpu_e500)
 	local_irq_save(flags);
 	mtspr(SPRN_MAS5, MAS5_SGS | get_lpid(&vcpu_e500->vcpu));
 	/*
-	 * clang-17 and older could not assemble tlbilxlpid.
+	 * clang-17 and older could analt assemble tlbilxlpid.
 	 * https://github.com/ClangBuiltLinux/linux/issues/1891
 	 */
 	asm volatile (PPC_TLBILX_LPID);
@@ -107,7 +107,7 @@ void kvmppc_set_pid(struct kvm_vcpu *vcpu, u32 pid)
 	vcpu->arch.pid = pid;
 }
 
-void kvmppc_mmu_msr_notify(struct kvm_vcpu *vcpu, u32 old_msr)
+void kvmppc_mmu_msr_analtify(struct kvm_vcpu *vcpu, u32 old_msr)
 {
 }
 
@@ -192,7 +192,7 @@ static int kvmppc_e500mc_check_processor_compat(void)
 		r = 0;
 #endif
 	else
-		r = -ENOTSUPP;
+		r = -EANALTSUPP;
 
 	return r;
 }
@@ -323,7 +323,7 @@ static int kvmppc_core_vcpu_create_e500mc(struct kvm_vcpu *vcpu)
 
 	vcpu->arch.shared = (void *)__get_free_page(GFP_KERNEL | __GFP_ZERO);
 	if (!vcpu->arch.shared) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto uninit_tlb;
 	}
 
@@ -427,5 +427,5 @@ static void __exit kvmppc_e500mc_exit(void)
 
 module_init(kvmppc_e500mc_init);
 module_exit(kvmppc_e500mc_exit);
-MODULE_ALIAS_MISCDEV(KVM_MINOR);
+MODULE_ALIAS_MISCDEV(KVM_MIANALR);
 MODULE_ALIAS("devname:kvm");

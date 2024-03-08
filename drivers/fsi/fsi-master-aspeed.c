@@ -103,7 +103,7 @@ static int __opb_write(struct fsi_master_aspeed *aspeed, u32 addr,
 
 	/*
 	 * The ordering of these writes up until the trigger
-	 * write does not matter, so use writel_relaxed.
+	 * write does analt matter, so use writel_relaxed.
 	 */
 	writel_relaxed(CMD_WRITE, base + OPB0_RW);
 	writel_relaxed(transfer_size, base + OPB0_XFER_SIZE);
@@ -155,7 +155,7 @@ static int __opb_read(struct fsi_master_aspeed *aspeed, uint32_t addr,
 
 	/*
 	 * The ordering of these writes up until the trigger
-	 * write does not matter, so use writel_relaxed.
+	 * write does analt matter, so use writel_relaxed.
 	 */
 	writel_relaxed(CMD_READ, base + OPB0_RW);
 	writel_relaxed(transfer_size, base + OPB0_XFER_SIZE);
@@ -422,7 +422,7 @@ static int aspeed_master_init(struct fsi_master_aspeed *aspeed)
 	reg = cpu_to_be32(~0);
 	opb_writel(aspeed, ctrl_base + FSI_MSENP0, reg);
 
-	/* Leave enabled long enough for master logic to set up */
+	/* Leave enabled long eanalugh for master logic to set up */
 	mdelay(FSI_LINK_ENABLE_SETUP_TIME);
 
 	opb_writel(aspeed, ctrl_base + FSI_MCENP0, reg);
@@ -497,7 +497,7 @@ static int tacoma_cabled_fsi_fixup(struct device *dev)
 	 * externally connected FSI cable.
 	 */
 	routing_gpio = devm_gpiod_get_optional(dev, "fsi-routing",
-			GPIOD_IN | GPIOD_FLAGS_BIT_NONEXCLUSIVE);
+			GPIOD_IN | GPIOD_FLAGS_BIT_ANALNEXCLUSIVE);
 	if (IS_ERR(routing_gpio))
 		return PTR_ERR(routing_gpio);
 	if (!routing_gpio)
@@ -517,7 +517,7 @@ static int tacoma_cabled_fsi_fixup(struct device *dev)
 	if (gpio) {
 		/*
 		 * Cable signal integrity means we should run the bus
-		 * slightly slower. Do not override if a kernel param
+		 * slightly slower. Do analt override if a kernel param
 		 * has already overridden.
 		 */
 		if (aspeed_fsi_divisor == FSI_DIVISOR_DEFAULT)
@@ -548,7 +548,7 @@ static int fsi_master_aspeed_probe(struct platform_device *pdev)
 
 	aspeed = kzalloc(sizeof(*aspeed), GFP_KERNEL);
 	if (!aspeed)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	aspeed->dev = &pdev->dev;
 
@@ -611,7 +611,7 @@ static int fsi_master_aspeed_probe(struct platform_device *pdev)
 
 	aspeed->master.dev.parent = &pdev->dev;
 	aspeed->master.dev.release = aspeed_master_release;
-	aspeed->master.dev.of_node = of_node_get(dev_of_node(&pdev->dev));
+	aspeed->master.dev.of_analde = of_analde_get(dev_of_analde(&pdev->dev));
 
 	aspeed->master.n_links = links;
 	aspeed->master.read = aspeed_master_read;

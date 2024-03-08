@@ -13,9 +13,9 @@
  *		Alan Cox	: Ahah! udp icmp errors don't work because
  *				  udp_err is never called!
  *		Alan Cox	: Added new fields for init and ready for
- *				  proper fragmentation (_NO_ 4K limits!)
+ *				  proper fragmentation (_ANAL_ 4K limits!)
  *		Richard Colella	: Hang on hash collision
- *		Vince Laviano	: Modified inet_del_protocol() to correctly
+ *		Vince Laviaanal	: Modified inet_del_protocol() to correctly
  *				  maintain copy bit.
  */
 #include <linux/cache.h>

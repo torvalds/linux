@@ -33,7 +33,7 @@ int intel_region_ttm_device_init(struct drm_i915_private *dev_priv)
 	struct drm_device *drm = &dev_priv->drm;
 
 	return ttm_device_init(&dev_priv->bdev, i915_ttm_driver(),
-			       drm->dev, drm->anon_inode->i_mapping,
+			       drm->dev, drm->aanaln_ianalde->i_mapping,
 			       drm->vma_offset_manager, false, false);
 }
 
@@ -48,7 +48,7 @@ void intel_region_ttm_device_fini(struct drm_i915_private *dev_priv)
 
 /*
  * Map the i915 memory regions to TTM memory types. We use the
- * driver-private types for now, reserving TTM_PL_VRAM for stolen
+ * driver-private types for analw, reserving TTM_PL_VRAM for stolen
  * memory and TTM_PL_TT for GGTT use if decided to implement this.
  */
 int intel_region_to_ttm_type(const struct intel_memory_region *mem)
@@ -74,7 +74,7 @@ int intel_region_to_ttm_type(const struct intel_memory_region *mem)
  *
  * This function initializes a suitable TTM resource manager for the
  * region, and if it's a LMEM region type, attaches it to the TTM
- * device. MOCK regions are NOT attached to the TTM device, since we don't
+ * device. MOCK regions are ANALT attached to the TTM device, since we don't
  * have one for the mock selftests.
  *
  * Return: 0 on success, negative error code on failure.
@@ -155,7 +155,7 @@ int intel_region_ttm_fini(struct intel_memory_region *mem)
  *
  * The gem backends typically use sg-tables for operations on the underlying
  * io_memory. So provide a way for the backends to translate the
- * nodes they are handed from TTM to sg-tables.
+ * analdes they are handed from TTM to sg-tables.
  *
  * Return: A malloced sg_table on success, an error pointer on failure.
  */
@@ -165,10 +165,10 @@ intel_region_ttm_resource_to_rsgt(struct intel_memory_region *mem,
 				  u32 page_alignment)
 {
 	if (mem->is_range_manager) {
-		struct ttm_range_mgr_node *range_node =
-			to_ttm_range_mgr_node(res);
+		struct ttm_range_mgr_analde *range_analde =
+			to_ttm_range_mgr_analde(res);
 
-		return i915_rsgt_from_mm_node(&range_node->mm_nodes[0],
+		return i915_rsgt_from_mm_analde(&range_analde->mm_analdes[0],
 					      mem->region.start,
 					      page_alignment);
 	} else {
@@ -187,8 +187,8 @@ intel_region_ttm_resource_to_rsgt(struct intel_memory_region *mem,
  *
  * This functionality is provided only for callers that need to allocate
  * memory from standalone TTM range managers, without the TTM eviction
- * functionality. Don't use if you are not completely sure that's the
- * case. The returned opaque node can be converted to an sg_table using
+ * functionality. Don't use if you are analt completely sure that's the
+ * case. The returned opaque analde can be converted to an sg_table using
  * intel_region_ttm_resource_to_st(), and can be freed using
  * intel_region_ttm_resource_free().
  *
@@ -238,7 +238,7 @@ intel_region_ttm_resource_alloc(struct intel_memory_region *mem,
 	ret = man->func->alloc(man, &mock_bo, &place, &res);
 
 out:
-	if (ret == -ENOSPC)
+	if (ret == -EANALSPC)
 		ret = -ENXIO;
 	if (!ret)
 		res->bo = NULL; /* Rather blow up, then some uaf */

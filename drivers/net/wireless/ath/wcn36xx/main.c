@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
  * SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
@@ -344,7 +344,7 @@ static void wcn36xx_change_opchannel(struct wcn36xx *wcn, int ch)
 	}
 
 	if (!channel) {
-		wcn36xx_err("Cannot tune to channel %d\n", ch);
+		wcn36xx_err("Cananalt tune to channel %d\n", ch);
 		return;
 	}
 
@@ -387,13 +387,13 @@ static int wcn36xx_config(struct ieee80211_hw *hw, u32 changed)
 							wcn->sw_scan_vif);
 			}
 		} else if (wcn->sw_scan) {
-			/* A scan is ongoing, do not change the operating
+			/* A scan is ongoing, do analt change the operating
 			 * channel, but start a scan session on the channel.
 			 */
 			if (wcn->sw_scan_channel)
 				wcn36xx_smd_end_scan(wcn, wcn->sw_scan_channel);
 			if (!wcn->sw_scan_init) {
-				/* This can fail if we are unable to notify the
+				/* This can fail if we are unable to analtify the
 				 * operating channel.
 				 */
 				ret = wcn36xx_smd_init_scan(wcn,
@@ -533,7 +533,7 @@ static int wcn36xx_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	default:
 		wcn36xx_err("Unsupported key type 0x%x\n",
 			      key_conf->cipher);
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto out;
 	}
 
@@ -603,10 +603,10 @@ static int wcn36xx_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 					vif_priv->bss_index,
 					key_conf->keyidx);
 
-			vif_priv->encrypt_type = WCN36XX_HAL_ED_NONE;
+			vif_priv->encrypt_type = WCN36XX_HAL_ED_ANALNE;
 		} else {
 			sta_priv->is_data_encrypted = false;
-			/* do not remove key if disassociated */
+			/* do analt remove key if disassociated */
 			if (sta_priv->aid)
 				wcn36xx_smd_remove_stakey(wcn,
 					vif_priv->encrypt_type,
@@ -616,7 +616,7 @@ static int wcn36xx_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		break;
 	default:
 		wcn36xx_err("Unsupported key cmd 0x%x\n", cmd);
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto out;
 	}
 
@@ -838,7 +838,7 @@ static void wcn36xx_bss_info_changed(struct ieee80211_hw *hw,
 			wcn36xx_smd_delete_bss(wcn, vif);
 			wcn36xx_smd_set_link_st(wcn, bss_conf->bssid, vif->addr,
 						WCN36XX_HAL_LINK_IDLE_STATE);
-			vif_priv->encrypt_type = WCN36XX_HAL_ED_NONE;
+			vif_priv->encrypt_type = WCN36XX_HAL_ED_ANALNE;
 		}
 	}
 
@@ -872,11 +872,11 @@ static void wcn36xx_bss_info_changed(struct ieee80211_hw *hw,
 			 * Holding conf_mutex ensures mutal exclusion with
 			 * wcn36xx_sta_remove() and as such ensures that sta
 			 * won't be freed while we're operating on it. As such
-			 * we do not need to hold the rcu_read_lock().
+			 * we do analt need to hold the rcu_read_lock().
 			 */
 			sta = ieee80211_find_sta(vif, bss_conf->bssid);
 			if (!sta) {
-				wcn36xx_err("sta %pM is not found\n",
+				wcn36xx_err("sta %pM is analt found\n",
 					      bss_conf->bssid);
 				goto out;
 			}
@@ -1007,7 +1007,7 @@ static int wcn36xx_add_interface(struct ieee80211_hw *hw,
 	      NL80211_IFTYPE_MESH_POINT == vif->type)) {
 		wcn36xx_warn("Unsupported interface type requested: %d\n",
 			     vif->type);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	mutex_lock(&wcn->conf_mutex);
@@ -1039,7 +1039,7 @@ static int wcn36xx_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 	/*
 	 * For STA mode HW will be configured on BSS_CHANGED_ASSOC because
-	 * at this stage AID is not available yet.
+	 * at this stage AID is analt available yet.
 	 */
 	if (NL80211_IFTYPE_STATION != vif->type) {
 		wcn36xx_update_allowed_rates(sta, WCN36XX_BAND(wcn));
@@ -1234,14 +1234,14 @@ static int wcn36xx_ampdu_action(struct ieee80211_hw *hw,
 	case IEEE80211_AMPDU_TX_STOP_FLUSH_CONT:
 	case IEEE80211_AMPDU_TX_STOP_CONT:
 		spin_lock_bh(&sta_priv->ampdu_lock);
-		sta_priv->ampdu_state[tid] = WCN36XX_AMPDU_NONE;
+		sta_priv->ampdu_state[tid] = WCN36XX_AMPDU_ANALNE;
 		spin_unlock_bh(&sta_priv->ampdu_lock);
 
 		wcn36xx_smd_del_ba(wcn, tid, 1, get_sta_index(vif, sta_priv));
 		ieee80211_stop_tx_ba_cb_irqsafe(vif, sta->addr, tid);
 		break;
 	default:
-		wcn36xx_err("Unknown AMPDU action\n");
+		wcn36xx_err("Unkanalwn AMPDU action\n");
 	}
 
 out:
@@ -1305,17 +1305,17 @@ static int wcn36xx_get_survey(struct ieee80211_hw *hw, int idx,
 	}
 
 	if (!sband || band_idx >= sband->n_channels)
-		return -ENOENT;
+		return -EANALENT;
 
 	spin_lock_irqsave(&wcn->survey_lock, flags);
 
 	chan_survey = &wcn->chan_survey[idx];
 	survey->channel = &sband->channels[band_idx];
-	survey->noise = chan_survey->rssi - chan_survey->snr;
+	survey->analise = chan_survey->rssi - chan_survey->snr;
 	survey->filled = 0;
 
 	if (chan_survey->rssi > -100 && chan_survey->rssi < 0)
-		survey->filled |= SURVEY_INFO_NOISE_DBM;
+		survey->filled |= SURVEY_INFO_ANALISE_DBM;
 
 	if (survey->channel == wcn->channel)
 		survey->filled |= SURVEY_INFO_IN_USE;
@@ -1323,9 +1323,9 @@ static int wcn36xx_get_survey(struct ieee80211_hw *hw, int idx,
 	spin_unlock_irqrestore(&wcn->survey_lock, flags);
 
 	wcn36xx_dbg(WCN36XX_DBG_MAC,
-		    "ch %d rssi %d snr %d noise %d filled %x freq %d\n",
+		    "ch %d rssi %d snr %d analise %d filled %x freq %d\n",
 		    HW_VALUE_CHANNEL(survey->channel->hw_value),
-		    chan_survey->rssi, chan_survey->snr, survey->noise,
+		    chan_survey->rssi, chan_survey->snr, survey->analise,
 		    survey->filled, survey->channel->center_freq);
 
 	return 0;
@@ -1396,13 +1396,13 @@ wcn36xx_set_ieee80211_vht_caps(struct ieee80211_sta_vht_cap *vht_cap)
 
 	vht_cap->vht_mcs.rx_mcs_map =
 		cpu_to_le16(IEEE80211_VHT_MCS_SUPPORT_0_9 |
-			    IEEE80211_VHT_MCS_NOT_SUPPORTED << 2 |
-			    IEEE80211_VHT_MCS_NOT_SUPPORTED << 4 |
-			    IEEE80211_VHT_MCS_NOT_SUPPORTED << 6 |
-			    IEEE80211_VHT_MCS_NOT_SUPPORTED << 8 |
-			    IEEE80211_VHT_MCS_NOT_SUPPORTED << 10 |
-			    IEEE80211_VHT_MCS_NOT_SUPPORTED << 12 |
-			    IEEE80211_VHT_MCS_NOT_SUPPORTED << 14);
+			    IEEE80211_VHT_MCS_ANALT_SUPPORTED << 2 |
+			    IEEE80211_VHT_MCS_ANALT_SUPPORTED << 4 |
+			    IEEE80211_VHT_MCS_ANALT_SUPPORTED << 6 |
+			    IEEE80211_VHT_MCS_ANALT_SUPPORTED << 8 |
+			    IEEE80211_VHT_MCS_ANALT_SUPPORTED << 10 |
+			    IEEE80211_VHT_MCS_ANALT_SUPPORTED << 12 |
+			    IEEE80211_VHT_MCS_ANALT_SUPPORTED << 14);
 
 	vht_cap->vht_mcs.rx_highest = cpu_to_le16(433);
 	vht_cap->vht_mcs.tx_highest = vht_cap->vht_mcs.rx_highest;
@@ -1467,8 +1467,8 @@ static int wcn36xx_init_ieee80211(struct wcn36xx *wcn)
 static int wcn36xx_platform_get_resources(struct wcn36xx *wcn,
 					  struct platform_device *pdev)
 {
-	struct device_node *mmio_node;
-	struct device_node *iris_node;
+	struct device_analde *mmio_analde;
+	struct device_analde *iris_analde;
 	int index;
 	int ret;
 
@@ -1500,53 +1500,53 @@ static int wcn36xx_platform_get_resources(struct wcn36xx *wcn,
 		return PTR_ERR(wcn->tx_rings_empty_state);
 	}
 
-	mmio_node = of_parse_phandle(pdev->dev.parent->of_node, "qcom,mmio", 0);
-	if (!mmio_node) {
+	mmio_analde = of_parse_phandle(pdev->dev.parent->of_analde, "qcom,mmio", 0);
+	if (!mmio_analde) {
 		wcn36xx_err("failed to acquire qcom,mmio reference\n");
 		return -EINVAL;
 	}
 
-	wcn->is_pronto = !!of_device_is_compatible(mmio_node, "qcom,pronto");
-	wcn->is_pronto_v3 = !!of_device_is_compatible(mmio_node, "qcom,pronto-v3-pil");
+	wcn->is_pronto = !!of_device_is_compatible(mmio_analde, "qcom,pronto");
+	wcn->is_pronto_v3 = !!of_device_is_compatible(mmio_analde, "qcom,pronto-v3-pil");
 
 	/* Map the CCU memory */
-	index = of_property_match_string(mmio_node, "reg-names", "ccu");
-	wcn->ccu_base = of_iomap(mmio_node, index);
+	index = of_property_match_string(mmio_analde, "reg-names", "ccu");
+	wcn->ccu_base = of_iomap(mmio_analde, index);
 	if (!wcn->ccu_base) {
 		wcn36xx_err("failed to map ccu memory\n");
-		ret = -ENOMEM;
-		goto put_mmio_node;
+		ret = -EANALMEM;
+		goto put_mmio_analde;
 	}
 
 	/* Map the DXE memory */
-	index = of_property_match_string(mmio_node, "reg-names", "dxe");
-	wcn->dxe_base = of_iomap(mmio_node, index);
+	index = of_property_match_string(mmio_analde, "reg-names", "dxe");
+	wcn->dxe_base = of_iomap(mmio_analde, index);
 	if (!wcn->dxe_base) {
 		wcn36xx_err("failed to map dxe memory\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto unmap_ccu;
 	}
 
 	/* External RF module */
-	iris_node = of_get_child_by_name(mmio_node, "iris");
-	if (iris_node) {
-		if (of_device_is_compatible(iris_node, "qcom,wcn3620"))
+	iris_analde = of_get_child_by_name(mmio_analde, "iris");
+	if (iris_analde) {
+		if (of_device_is_compatible(iris_analde, "qcom,wcn3620"))
 			wcn->rf_id = RF_IRIS_WCN3620;
-		if (of_device_is_compatible(iris_node, "qcom,wcn3660") ||
-		    of_device_is_compatible(iris_node, "qcom,wcn3660b"))
+		if (of_device_is_compatible(iris_analde, "qcom,wcn3660") ||
+		    of_device_is_compatible(iris_analde, "qcom,wcn3660b"))
 			wcn->rf_id = RF_IRIS_WCN3660;
-		if (of_device_is_compatible(iris_node, "qcom,wcn3680"))
+		if (of_device_is_compatible(iris_analde, "qcom,wcn3680"))
 			wcn->rf_id = RF_IRIS_WCN3680;
-		of_node_put(iris_node);
+		of_analde_put(iris_analde);
 	}
 
-	of_node_put(mmio_node);
+	of_analde_put(mmio_analde);
 	return 0;
 
 unmap_ccu:
 	iounmap(wcn->ccu_base);
-put_mmio_node:
-	of_node_put(mmio_node);
+put_mmio_analde:
+	of_analde_put(mmio_analde);
 	return ret;
 }
 
@@ -1566,7 +1566,7 @@ static int wcn36xx_probe(struct platform_device *pdev)
 	hw = ieee80211_alloc_hw(sizeof(struct wcn36xx), &wcn36xx_ops);
 	if (!hw) {
 		wcn36xx_err("failed to alloc hw\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_err;
 	}
 	platform_set_drvdata(pdev, hw);
@@ -1581,14 +1581,14 @@ static int wcn36xx_probe(struct platform_device *pdev)
 
 	wcn->hal_buf = devm_kmalloc(wcn->dev, WCN36XX_HAL_BUF_SIZE, GFP_KERNEL);
 	if (!wcn->hal_buf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_wq;
 	}
 
 	n_channels = wcn_band_2ghz.n_channels + wcn_band_5ghz.n_channels;
 	wcn->chan_survey = devm_kmalloc(wcn->dev, n_channels, GFP_KERNEL);
 	if (!wcn->chan_survey) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_wq;
 	}
 
@@ -1599,7 +1599,7 @@ static int wcn36xx_probe(struct platform_device *pdev)
 	}
 
 	wcn->nv_file = WLAN_NV_FILE;
-	ret = of_property_read_string(wcn->dev->parent->of_node, "firmware-name", &wcn->nv_file);
+	ret = of_property_read_string(wcn->dev->parent->of_analde, "firmware-name", &wcn->nv_file);
 	if (ret < 0 && ret != -EINVAL) {
 		wcn36xx_err("failed to read \"firmware-name\" property: %d\n", ret);
 		goto out_wq;
@@ -1612,7 +1612,7 @@ static int wcn36xx_probe(struct platform_device *pdev)
 		goto out_wq;
 	}
 
-	addr = of_get_property(pdev->dev.of_node, "local-mac-address", &ret);
+	addr = of_get_property(pdev->dev.of_analde, "local-mac-address", &ret);
 	if (addr && ret != ETH_ALEN) {
 		wcn36xx_err("invalid local-mac-address\n");
 		ret = -EINVAL;

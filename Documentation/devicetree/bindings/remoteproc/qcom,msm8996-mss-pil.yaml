@@ -12,7 +12,7 @@ maintainers:
 
 description:
   MSS Peripheral Image Loader loads and boots firmware on the
-  Qualcomm Technology Inc. MSM8996 Modem Hexagon Core (and similar).
+  Qualcomm Techanallogy Inc. MSM8996 Modem Hexagon Core (and similar).
 
 properties:
   compatible:
@@ -43,8 +43,8 @@ properties:
       - description: Fatal interrupt
       - description: Ready interrupt
       - description: Handover interrupt
-      - description: Stop acknowledge interrupt
-      - description: Shutdown acknowledge interrupt
+      - description: Stop ackanalwledge interrupt
+      - description: Shutdown ackanalwledge interrupt
 
   interrupt-names:
     items:
@@ -134,14 +134,14 @@ properties:
   smd-edge:
     $ref: /schemas/remoteproc/qcom,smd-edge.yaml#
     description:
-      Qualcomm Shared Memory subnode which represents communication edge,
+      Qualcomm Shared Memory subanalde which represents communication edge,
       channels and devices related to the Modem.
     unevaluatedProperties: false
 
   glink-edge:
     $ref: /schemas/remoteproc/qcom,glink-edge.yaml#
     description:
-      Qualcomm G-Link subnode which represents communication edge, channels
+      Qualcomm G-Link subanalde which represents communication edge, channels
       and devices related to the Modem.
     unevaluatedProperties: false
 
@@ -218,8 +218,8 @@ allOf:
             - description: GCC MSS MEM clock
             - description: RPM XO clock
             - description: GCC MSS GPLL0 clock
-            - description: GCC MSS SNOC_AXI clock
-            - description: GCC MSS MNOC_AXI clock
+            - description: GCC MSS SANALC_AXI clock
+            - description: GCC MSS MANALC_AXI clock
             - description: RPM QDSS clock
         clock-names:
           items:
@@ -228,8 +228,8 @@ allOf:
             - const: mem
             - const: xo
             - const: gpll0_mss
-            - const: snoc_axi
-            - const: mnoc_axi
+            - const: sanalc_axi
+            - const: manalc_axi
             - const: qdss
         glink-edge: false
       required:
@@ -254,8 +254,8 @@ allOf:
             - description: GCC MSS BUS clock
             - description: GCC MSS MEM clock
             - description: GCC MSS GPLL0 clock
-            - description: GCC MSS SNOC_AXI clock
-            - description: GCC MSS MNOC_AXI clock
+            - description: GCC MSS SANALC_AXI clock
+            - description: GCC MSS MANALC_AXI clock
             - description: RPMH QDSS clock
             - description: RPMH XO clock
         clock-names:
@@ -264,8 +264,8 @@ allOf:
             - const: bus
             - const: mem
             - const: gpll0_mss
-            - const: snoc_axi
-            - const: mnoc_axi
+            - const: sanalc_axi
+            - const: manalc_axi
             - const: qdss
             - const: xo
       required:
@@ -291,8 +291,8 @@ allOf:
             - description: GCC MSS BUS clock
             - description: GCC MSS MEM clock
             - description: GCC MSS GPLL0 clock
-            - description: GCC MSS SNOC_AXI clock
-            - description: GCC MSS MNOC_AXI clock
+            - description: GCC MSS SANALC_AXI clock
+            - description: GCC MSS MANALC_AXI clock
             - description: GCC MSS PRNG clock
             - description: RPMH XO clock
         clock-names:
@@ -301,8 +301,8 @@ allOf:
             - const: bus
             - const: mem
             - const: gpll0_mss
-            - const: snoc_axi
-            - const: mnoc_axi
+            - const: sanalc_axi
+            - const: manalc_axi
             - const: prng
             - const: xo
       required:
@@ -356,15 +356,15 @@ examples:
                           "shutdown-ack";
 
         clocks = <&gcc GCC_MSS_CFG_AHB_CLK>,
-                 <&gcc GCC_MSS_Q6_MEMNOC_AXI_CLK>,
+                 <&gcc GCC_MSS_Q6_MEMANALC_AXI_CLK>,
                  <&gcc GCC_BOOT_ROM_AHB_CLK>,
                  <&gcc GCC_MSS_GPLL0_DIV_CLK_SRC>,
-                 <&gcc GCC_MSS_SNOC_AXI_CLK>,
+                 <&gcc GCC_MSS_SANALC_AXI_CLK>,
                  <&gcc GCC_MSS_MFAB_AXIS_CLK>,
                  <&gcc GCC_PRNG_AHB_CLK>,
                  <&rpmhcc RPMH_CXO_CLK>;
         clock-names = "iface", "bus", "mem", "gpll0_mss",
-                      "snoc_axi", "mnoc_axi", "prng", "xo";
+                      "sanalc_axi", "manalc_axi", "prng", "xo";
 
         power-domains = <&rpmhpd SDM845_CX>,
                         <&rpmhpd SDM845_MX>,

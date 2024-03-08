@@ -27,9 +27,9 @@
 ** This causes the top HALF of the flash to be accessed first. Beyond
 ** the physical limits of the flash, the flash chip aliases over (to
 ** 0x880000 which causes the bottom half to be accessed. This splits the
-** flash into two and inverts it! If you then try to access this from another
-** program that does NOT do this insanity, then you *will* access the
-** first half of the flash, but not find what you expect there. That
+** flash into two and inverts it! If you then try to access this from aanalther
+** program that does ANALT do this insanity, then you *will* access the
+** first half of the flash, but analt find what you expect there. That
 ** stuff is in the *second* half! Similarly, the address used by the
 ** BIOS for the second FLASH bank is also quite a bad choice.
 ** If REPROGRAM_PAR is defined below (the default), then this driver will
@@ -37,7 +37,7 @@
 ** responsible PARxx registers in the SC520's MMCR region. This will
 ** cause the settings to be incompatible with the BIOS's settings, which
 ** shouldn't be a problem since you are running Linux, (i.e. the BIOS is
-** not much use anyway). However, if you need to be compatible with
+** analt much use anyway). However, if you need to be compatible with
 ** the BIOS for some reason, just undefine REPROGRAM_PAR.
 */
 #define REPROGRAM_PAR
@@ -119,11 +119,11 @@ static struct mtd_info *merged_mtd;
 
 /*
 ** Bits 28 thru 26 determine some attributes for the
-** region controlled by the PAR. (We only use non-cacheable)
+** region controlled by the PAR. (We only use analn-cacheable)
 */
 #define SC520_PAR_WRPROT	(1<<26)	/* write protected       */
-#define SC520_PAR_NOCACHE	(1<<27)	/* non-cacheable         */
-#define SC520_PAR_NOEXEC	(1<<28)	/* code execution denied */
+#define SC520_PAR_ANALCACHE	(1<<27)	/* analn-cacheable         */
+#define SC520_PAR_ANALEXEC	(1<<28)	/* code execution denied */
 
 
 /*
@@ -137,7 +137,7 @@ static struct mtd_info *merged_mtd;
 ** We only need ROM entries, 64K page size:
 */
 #define SC520_PAR_ENTRY(trgdev, address, size) \
-	((trgdev) | SC520_PAR_NOCACHE | SC520_PAR_PG_SIZ64 | \
+	((trgdev) | SC520_PAR_ANALCACHE | SC520_PAR_PG_SIZ64 | \
 	(address) >> 16 | (((size) >> 16) - 1) << 14)
 
 struct sc520_par_table
@@ -198,10 +198,10 @@ static void sc520cdp_setup_par(void)
 			}
 		}
 		if(j == NUM_SC520_PAR)
-		{	/* no matching PAR found: try default BIOS address */
-			printk(KERN_NOTICE "Could not find PAR responsible for %s\n",
+		{	/* anal matching PAR found: try default BIOS address */
+			printk(KERN_ANALTICE "Could analt find PAR responsible for %s\n",
 				sc520cdp_map[i].name);
-			printk(KERN_NOTICE "Trying default address 0x%lx\n",
+			printk(KERN_ANALTICE "Trying default address 0x%lx\n",
 				par_table[i].default_address);
 			sc520cdp_map[i].phys = par_table[i].default_address;
 		}
@@ -221,7 +221,7 @@ static int __init init_sc520cdp(void)
 #endif
 
 	for (i = 0; i < NUM_FLASH_BANKS; i++) {
-		printk(KERN_NOTICE "SC520 CDP flash device: 0x%Lx at 0x%Lx\n",
+		printk(KERN_ANALTICE "SC520 CDP flash device: 0x%Lx at 0x%Lx\n",
 			(unsigned long long)sc520cdp_map[i].size,
 			(unsigned long long)sc520cdp_map[i].phys);
 

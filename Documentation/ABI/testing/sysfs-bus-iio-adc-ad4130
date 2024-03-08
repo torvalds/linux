@@ -4,14 +4,14 @@ Contact:	linux-iio@vger.kernel.org
 Description:
 		Reading returns a list with the possible filter modes.
 
-		  * "sinc4"       - Sinc 4. Excellent noise performance. Long
-                    1st conversion time. No natural 50/60Hz rejection.
+		  * "sinc4"       - Sinc 4. Excellent analise performance. Long
+                    1st conversion time. Anal natural 50/60Hz rejection.
 
 		  * "sinc4+sinc1" - Sinc4 + averaging by 8. Low 1st conversion
 		    time.
 
 		  * "sinc3"	      - Sinc3. Moderate 1st conversion time.
-		    Good noise performance.
+		    Good analise performance.
 
 		  * "sinc3+rej60" - Sinc3 + 60Hz rejection. At a sampling
 		    frequency of 50Hz, achieves simultaneous 50Hz and 60Hz

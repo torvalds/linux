@@ -42,11 +42,11 @@ static const struct msp_protdesc prot_descs[] = {
 		MSP_FALLING_EDGE,
 		MSP_FSYNC_POL_ACT_LO,
 		MSP_FSYNC_POL_ACT_LO,
-		MSP_SWAP_NONE,
-		MSP_SWAP_NONE,
+		MSP_SWAP_ANALNE,
+		MSP_SWAP_ANALNE,
 		MSP_COMPRESS_MODE_LINEAR,
 		MSP_EXPAND_MODE_LINEAR,
-		MSP_FSYNC_IGNORE,
+		MSP_FSYNC_IGANALRE,
 		31,
 		15,
 		32,
@@ -71,11 +71,11 @@ static const struct msp_protdesc prot_descs[] = {
 		MSP_FALLING_EDGE,
 		MSP_FSYNC_POL_ACT_HI,
 		MSP_FSYNC_POL_ACT_HI,
-		MSP_SWAP_NONE,
-		MSP_SWAP_NONE,
+		MSP_SWAP_ANALNE,
+		MSP_SWAP_ANALNE,
 		MSP_COMPRESS_MODE_LINEAR,
 		MSP_EXPAND_MODE_LINEAR,
-		MSP_FSYNC_IGNORE,
+		MSP_FSYNC_IGANALRE,
 		255,
 		0,
 		256,
@@ -100,11 +100,11 @@ static const struct msp_protdesc prot_descs[] = {
 		MSP_RISING_EDGE,
 		MSP_FSYNC_POL_ACT_HI,
 		MSP_FSYNC_POL_ACT_HI,
-		MSP_SWAP_NONE,
-		MSP_SWAP_NONE,
+		MSP_SWAP_ANALNE,
+		MSP_SWAP_ANALNE,
 		MSP_COMPRESS_MODE_LINEAR,
 		MSP_EXPAND_MODE_LINEAR,
-		MSP_FSYNC_IGNORE,
+		MSP_FSYNC_IGANALRE,
 		255,
 		0,
 		256,
@@ -133,7 +133,7 @@ static void set_prot_desc_tx(struct ux500_msp *msp,
 	temp_reg |= MSP_FSYNC_POL(protdesc->tx_fsync_pol);
 	temp_reg |= MSP_DATA_WORD_SWAP(protdesc->tx_half_word_swap);
 	temp_reg |= MSP_SET_COMPANDING_MODE(protdesc->compression_mode);
-	temp_reg |= MSP_SET_FSYNC_IGNORE(protdesc->frame_sync_ignore);
+	temp_reg |= MSP_SET_FSYNC_IGANALRE(protdesc->frame_sync_iganalre);
 
 	writel(temp_reg, msp->registers + MSP_TCF);
 }
@@ -161,7 +161,7 @@ static void set_prot_desc_rx(struct ux500_msp *msp,
 	temp_reg |= MSP_FSYNC_POL(protdesc->rx_fsync_pol);
 	temp_reg |= MSP_DATA_WORD_SWAP(protdesc->rx_half_word_swap);
 	temp_reg |= MSP_SET_COMPANDING_MODE(protdesc->expansion_mode);
-	temp_reg |= MSP_SET_FSYNC_IGNORE(protdesc->frame_sync_ignore);
+	temp_reg |= MSP_SET_FSYNC_IGANALRE(protdesc->frame_sync_iganalre);
 
 	writel(temp_reg, msp->registers + MSP_RCF);
 }
@@ -199,7 +199,7 @@ static int configure_protocol(struct ux500_msp *msp,
 	if (config->direction & MSP_DIR_RX)
 		set_prot_desc_rx(msp, protdesc, data_size);
 
-	/* The code below should not be separated. */
+	/* The code below should analt be separated. */
 	temp_reg = readl(msp->registers + MSP_GCR) & ~TX_CLK_POL_RISING;
 	temp_reg |= MSP_TX_CLKPOL_BIT(~protdesc->tx_clk_pol);
 	writel(temp_reg, msp->registers + MSP_GCR);
@@ -243,7 +243,7 @@ static int setup_bitclk(struct ux500_msp *msp, struct ux500_msp_config *config)
 		frame_per = protdesc->frame_period;
 		break;
 	default:
-		dev_err(msp->dev, "%s: ERROR: Unknown protocol (%d)!\n",
+		dev_err(msp->dev, "%s: ERROR: Unkanalwn protocol (%d)!\n",
 			__func__,
 			config->protocol);
 		return -EINVAL;
@@ -428,7 +428,7 @@ int ux500_msp_i2s_open(struct ux500_msp *msp,
 	tx_sel = (config->direction & MSP_DIR_TX) > 0;
 	rx_sel = (config->direction & MSP_DIR_RX) > 0;
 	if (!tx_sel && !rx_sel) {
-		dev_err(msp->dev, "%s: Error: No direction selected!\n",
+		dev_err(msp->dev, "%s: Error: Anal direction selected!\n",
 			__func__);
 		return -EINVAL;
 	}
@@ -556,7 +556,7 @@ int ux500_msp_i2s_trigger(struct ux500_msp *msp, int cmd, int direction)
 	u32 reg_val_GCR, enable_bit;
 
 	if (msp->msp_state == MSP_STATE_IDLE) {
-		dev_err(msp->dev, "%s: ERROR: MSP is not configured!\n",
+		dev_err(msp->dev, "%s: ERROR: MSP is analt configured!\n",
 			__func__);
 		return -EINVAL;
 	}
@@ -633,7 +633,7 @@ int ux500_msp_i2s_init_msp(struct platform_device *pdev,
 	*msp_p = devm_kzalloc(&pdev->dev, sizeof(struct ux500_msp), GFP_KERNEL);
 	msp = *msp_p;
 	if (!msp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	msp->dev = &pdev->dev;
 
@@ -641,7 +641,7 @@ int ux500_msp_i2s_init_msp(struct platform_device *pdev,
 	if (res == NULL) {
 		dev_err(&pdev->dev, "%s: ERROR: Unable to get resource!\n",
 			__func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	msp->tx_rx_addr = res->start + MSP_DR;
@@ -649,7 +649,7 @@ int ux500_msp_i2s_init_msp(struct platform_device *pdev,
 				      resource_size(res));
 	if (msp->registers == NULL) {
 		dev_err(&pdev->dev, "%s: ERROR: ioremap failed!\n", __func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	msp->msp_state = MSP_STATE_IDLE;

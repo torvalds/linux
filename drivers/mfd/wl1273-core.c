@@ -2,8 +2,8 @@
 /*
  * MFD driver for wl1273 FM radio and audio codec submodules.
  *
- * Copyright (C) 2011 Nokia Corporation
- * Author: Matti Aaltonen <matti.j.aaltonen@nokia.com>
+ * Copyright (C) 2011 Analkia Corporation
+ * Author: Matti Aaltonen <matti.j.aaltonen@analkia.com>
  */
 
 #include <linux/mfd/wl1273-core.h>
@@ -167,18 +167,18 @@ static int wl1273_core_probe(struct i2c_client *client)
 	dev_dbg(&client->dev, "%s\n", __func__);
 
 	if (!pdata) {
-		dev_err(&client->dev, "No platform data.\n");
+		dev_err(&client->dev, "Anal platform data.\n");
 		return -EINVAL;
 	}
 
 	if (!(pdata->children & WL1273_RADIO_CHILD)) {
-		dev_err(&client->dev, "Cannot function without radio child.\n");
+		dev_err(&client->dev, "Cananalt function without radio child.\n");
 		return -EINVAL;
 	}
 
 	core = devm_kzalloc(&client->dev, sizeof(*core), GFP_KERNEL);
 	if (!core)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	core->pdata = pdata;
 	core->client = client;
@@ -257,6 +257,6 @@ static void __exit wl1273_core_exit(void)
 late_initcall(wl1273_core_init);
 module_exit(wl1273_core_exit);
 
-MODULE_AUTHOR("Matti Aaltonen <matti.j.aaltonen@nokia.com>");
+MODULE_AUTHOR("Matti Aaltonen <matti.j.aaltonen@analkia.com>");
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");

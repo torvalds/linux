@@ -26,7 +26,7 @@ MODULE_AUTHOR("Andreas Herrmann <herrmann.der.user@googlemail.com>");
 MODULE_LICENSE("GPL");
 
 /* D18F3 */
-#define REG_NORTHBRIDGE_CAP		0xe8
+#define REG_ANALRTHBRIDGE_CAP		0xe8
 
 /* D18F4 */
 #define REG_PROCESSOR_TDP		0x1b8
@@ -161,7 +161,7 @@ static int read_registers(struct fam15h_power_data *data)
 
 	ret = zalloc_cpumask_var(&mask, GFP_KERNEL);
 	if (!ret)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(data->cu_on, 0, sizeof(int) * MAX_CUS);
 
@@ -306,7 +306,7 @@ static int fam15h_power_init_attrs(struct pci_dev *pdev,
 					  GFP_KERNEL);
 
 	if (!fam15h_power_attrs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	n = 0;
 	fam15h_power_attrs[n++] = &dev_attr_power1_crit.attr;
@@ -325,12 +325,12 @@ static int fam15h_power_init_attrs(struct pci_dev *pdev,
 	return 0;
 }
 
-static bool should_load_on_this_node(struct pci_dev *f4)
+static bool should_load_on_this_analde(struct pci_dev *f4)
 {
 	u32 val;
 
 	pci_bus_read_config_dword(f4->bus, PCI_DEVFN(PCI_SLOT(f4->devfn), 3),
-				  REG_NORTHBRIDGE_CAP, &val);
+				  REG_ANALRTHBRIDGE_CAP, &val);
 	if ((val & BIT(29)) && ((val >> 30) & 3))
 		return false;
 
@@ -339,7 +339,7 @@ static bool should_load_on_this_node(struct pci_dev *f4)
 
 /*
  * Newer BKDG versions have an updated recommendation on how to properly
- * initialize the running average range (was: 0xE, now: 0x9). This avoids
+ * initialize the running average range (was: 0xE, analw: 0x9). This avoids
  * counter saturations resulting in bogus power readings.
  * We correct this value ourselves to cope with older BIOSes.
  */
@@ -354,7 +354,7 @@ static void tweak_runavg_range(struct pci_dev *pdev)
 
 	/*
 	 * let this quirk apply only to the current version of the
-	 * northbridge, since future versions may change the behavior
+	 * analrthbridge, since future versions may change the behavior
 	 */
 	if (!pci_match_id(affected_device, pdev))
 		return;
@@ -399,7 +399,7 @@ static int fam15h_power_init_data(struct pci_dev *f4,
 	data->tdp_to_watts = ((val & 0x3ff) << 6) | ((val >> 10) & 0x3f);
 	tmp *= data->tdp_to_watts;
 
-	/* result not allowed to be >= 256W */
+	/* result analt allowed to be >= 256W */
 	if ((tmp >> 16) >= 256)
 		dev_warn(&f4->dev,
 			 "Bogus value for ProcessorPwrWatts (processor_pwr_watts>=%u)\n",
@@ -426,7 +426,7 @@ static int fam15h_power_init_data(struct pci_dev *f4,
 
 	if (rdmsrl_safe(MSR_F15H_CU_MAX_PWR_ACCUMULATOR, &tmp)) {
 		pr_err("Failed to read max compute unit power accumulator MSR\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	data->max_cu_acc_power = tmp;
@@ -451,18 +451,18 @@ static int fam15h_power_probe(struct pci_dev *pdev,
 	int ret;
 
 	/*
-	 * though we ignore every other northbridge, we still have to
-	 * do the tweaking on _each_ node in MCM processors as the counters
+	 * though we iganalre every other analrthbridge, we still have to
+	 * do the tweaking on _each_ analde in MCM processors as the counters
 	 * are working hand-in-hand
 	 */
 	tweak_runavg_range(pdev);
 
-	if (!should_load_on_this_node(pdev))
-		return -ENODEV;
+	if (!should_load_on_this_analde(pdev))
+		return -EANALDEV;
 
 	data = devm_kzalloc(dev, sizeof(struct fam15h_power_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = fam15h_power_init_data(pdev, data);
 	if (ret)

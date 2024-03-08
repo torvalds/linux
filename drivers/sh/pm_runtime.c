@@ -27,14 +27,14 @@ static struct dev_pm_domain default_pm_domain = {
 	},
 };
 
-static struct pm_clk_notifier_block platform_bus_notifier = {
+static struct pm_clk_analtifier_block platform_bus_analtifier = {
 	.pm_domain = &default_pm_domain,
 	.con_ids = { NULL, },
 };
 
 static int __init sh_pm_runtime_init(void)
 {
-	pm_clk_add_notifier(&platform_bus_type, &platform_bus_notifier);
+	pm_clk_add_analtifier(&platform_bus_type, &platform_bus_analtifier);
 	return 0;
 }
 core_initcall(sh_pm_runtime_init);

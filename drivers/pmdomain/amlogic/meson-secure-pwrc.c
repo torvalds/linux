@@ -20,7 +20,7 @@
 
 #define PWRC_ON		1
 #define PWRC_OFF	0
-#define PWRC_NO_PARENT	UINT_MAX
+#define PWRC_ANAL_PARENT	UINT_MAX
 
 struct meson_secure_pwrc_domain {
 	struct generic_pm_domain base;
@@ -96,7 +96,7 @@ static int meson_secure_pwrc_on(struct generic_pm_domain *domain)
 	.index = PWRC_##__name##_ID,		\
 	.is_off = pwrc_secure_is_off,		\
 	.flags = __flag,			\
-	.parent = PWRC_NO_PARENT,		\
+	.parent = PWRC_ANAL_PARENT,		\
 }
 
 #define TOP_PD(__name, __flag, __parent)	\
@@ -208,8 +208,8 @@ static struct meson_secure_pwrc_domain_desc t7_pwrc_domains[] = {
 	SEC_PD(T7_DMC0,		GENPD_FLAG_ALWAYS_ON),
 	/* DMC1 is for DDR PHY ana/dig and DMC, and should be always on */
 	SEC_PD(T7_DMC1,		GENPD_FLAG_ALWAYS_ON),
-	/* NOC is related to clk bus, and should be always on */
-	SEC_PD(T7_NOC,		GENPD_FLAG_ALWAYS_ON),
+	/* ANALC is related to clk bus, and should be always on */
+	SEC_PD(T7_ANALC,		GENPD_FLAG_ALWAYS_ON),
 	/* NIC is for the Arm NIC-400 interconnect, and should be always on */
 	SEC_PD(T7_NIC2,		GENPD_FLAG_ALWAYS_ON),
 	SEC_PD(T7_NIC3,		0),
@@ -231,30 +231,30 @@ static struct meson_secure_pwrc_domain_desc t7_pwrc_domains[] = {
 static int meson_secure_pwrc_probe(struct platform_device *pdev)
 {
 	int i;
-	struct device_node *sm_np;
+	struct device_analde *sm_np;
 	struct meson_secure_pwrc *pwrc;
 	const struct meson_secure_pwrc_domain_data *match;
 
 	match = of_device_get_match_data(&pdev->dev);
 	if (!match) {
 		dev_err(&pdev->dev, "failed to get match data\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
-	sm_np = of_find_compatible_node(NULL, NULL, "amlogic,meson-gxbb-sm");
+	sm_np = of_find_compatible_analde(NULL, NULL, "amlogic,meson-gxbb-sm");
 	if (!sm_np) {
-		dev_err(&pdev->dev, "no secure-monitor node\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "anal secure-monitor analde\n");
+		return -EANALDEV;
 	}
 
 	pwrc = devm_kzalloc(&pdev->dev, sizeof(*pwrc), GFP_KERNEL);
 	if (!pwrc) {
-		of_node_put(sm_np);
-		return -ENOMEM;
+		of_analde_put(sm_np);
+		return -EANALMEM;
 	}
 
 	pwrc->fw = meson_sm_get(sm_np);
-	of_node_put(sm_np);
+	of_analde_put(sm_np);
 	if (!pwrc->fw)
 		return -EPROBE_DEFER;
 
@@ -262,12 +262,12 @@ static int meson_secure_pwrc_probe(struct platform_device *pdev)
 					   sizeof(*pwrc->xlate.domains),
 					   GFP_KERNEL);
 	if (!pwrc->xlate.domains)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pwrc->domains = devm_kcalloc(&pdev->dev, match->count,
 				     sizeof(*pwrc->domains), GFP_KERNEL);
 	if (!pwrc->domains)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pwrc->xlate.num_domains = match->count;
 	platform_set_drvdata(pdev, pwrc);
@@ -297,13 +297,13 @@ static int meson_secure_pwrc_probe(struct platform_device *pdev)
 	for (i = 0; i < match->count; i++) {
 		struct meson_secure_pwrc_domain *dom = pwrc->domains;
 
-		if (!match->domains[i].name || match->domains[i].parent == PWRC_NO_PARENT)
+		if (!match->domains[i].name || match->domains[i].parent == PWRC_ANAL_PARENT)
 			continue;
 
 		pm_genpd_add_subdomain(&dom[dom[i].parent].base, &dom[i].base);
 	}
 
-	return of_genpd_add_provider_onecell(pdev->dev.of_node, &pwrc->xlate);
+	return of_genpd_add_provider_onecell(pdev->dev.of_analde, &pwrc->xlate);
 }
 
 static struct meson_secure_pwrc_domain_data meson_secure_a1_pwrc_data = {

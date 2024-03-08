@@ -23,7 +23,7 @@ ACPI_MODULE_NAME("exoparg1")
  *
  * The routines that begin execution of AML opcodes are named with a common
  * convention based upon the number of arguments, the number of target operands,
- * and whether or not a value is returned:
+ * and whether or analt a value is returned:
  *
  *      AcpiExOpcode_xA_yT_zR
  *
@@ -47,7 +47,7 @@ ACPI_MODULE_NAME("exoparg1")
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Execute operator with no operands, one return value
+ * DESCRIPTION: Execute operator with anal operands, one return value
  *
  ******************************************************************************/
 acpi_status acpi_ex_opcode_0A_0T_1R(struct acpi_walk_state *walk_state)
@@ -68,14 +68,14 @@ acpi_status acpi_ex_opcode_0A_0T_1R(struct acpi_walk_state *walk_state)
 		return_desc =
 		    acpi_ut_create_integer_object(acpi_os_get_timer());
 		if (!return_desc) {
-			status = AE_NO_MEMORY;
+			status = AE_ANAL_MEMORY;
 			goto cleanup;
 		}
 		break;
 
-	default:		/*  Unknown opcode  */
+	default:		/*  Unkanalwn opcode  */
 
-		ACPI_ERROR((AE_INFO, "Unknown AML opcode 0x%X",
+		ACPI_ERROR((AE_INFO, "Unkanalwn AML opcode 0x%X",
 			    walk_state->opcode));
 		status = AE_AML_BAD_OPCODE;
 		break;
@@ -152,9 +152,9 @@ acpi_status acpi_ex_opcode_1A_0T_0R(struct acpi_walk_state *walk_state)
 		status = acpi_ex_unload_table(operand[0]);
 		break;
 
-	default:		/*  Unknown opcode  */
+	default:		/*  Unkanalwn opcode  */
 
-		ACPI_ERROR((AE_INFO, "Unknown AML opcode 0x%X",
+		ACPI_ERROR((AE_INFO, "Unkanalwn AML opcode 0x%X",
 			    walk_state->opcode));
 		status = AE_AML_BAD_OPCODE;
 		break;
@@ -172,7 +172,7 @@ acpi_status acpi_ex_opcode_1A_0T_0R(struct acpi_walk_state *walk_state)
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Execute opcode with one argument, one target, and no
+ * DESCRIPTION: Execute opcode with one argument, one target, and anal
  *              return value.
  *
  ******************************************************************************/
@@ -195,9 +195,9 @@ acpi_status acpi_ex_opcode_1A_1T_0R(struct acpi_walk_state *walk_state)
 		break;
 #endif
 
-	default:		/* Unknown opcode */
+	default:		/* Unkanalwn opcode */
 
-		ACPI_ERROR((AE_INFO, "Unknown AML opcode 0x%X",
+		ACPI_ERROR((AE_INFO, "Unkanalwn AML opcode 0x%X",
 			    walk_state->opcode));
 		status = AE_AML_BAD_OPCODE;
 		goto cleanup;
@@ -241,7 +241,7 @@ acpi_status acpi_ex_opcode_1A_1T_1R(struct acpi_walk_state *walk_state)
 	/* Examine the AML opcode */
 
 	switch (walk_state->opcode) {
-	case AML_BIT_NOT_OP:
+	case AML_BIT_ANALT_OP:
 	case AML_FIND_SET_LEFT_BIT_OP:
 	case AML_FIND_SET_RIGHT_BIT_OP:
 	case AML_FROM_BCD_OP:
@@ -253,12 +253,12 @@ acpi_status acpi_ex_opcode_1A_1T_1R(struct acpi_walk_state *walk_state)
 
 		return_desc = acpi_ut_create_internal_object(ACPI_TYPE_INTEGER);
 		if (!return_desc) {
-			status = AE_NO_MEMORY;
+			status = AE_ANAL_MEMORY;
 			goto cleanup;
 		}
 
 		switch (walk_state->opcode) {
-		case AML_BIT_NOT_OP:	/* Not (Operand, Result)  */
+		case AML_BIT_ANALT_OP:	/* Analt (Operand, Result)  */
 
 			return_desc->integer.value = ~operand[0]->integer.value;
 			break;
@@ -323,7 +323,7 @@ acpi_status acpi_ex_opcode_1A_1T_1R(struct acpi_walk_state *walk_state)
 
 				if (temp32 > 9) {
 					ACPI_ERROR((AE_INFO,
-						    "BCD digit too large (not decimal): 0x%X",
+						    "BCD digit too large (analt decimal): 0x%X",
 						    temp32));
 
 					status = AE_AML_NUMERIC_OVERFLOW;
@@ -353,7 +353,7 @@ acpi_status acpi_ex_opcode_1A_1T_1R(struct acpi_walk_state *walk_state)
 					    walk_state);
 			if (ACPI_SUCCESS(status)) {
 
-				/* Return -1 (non-zero) indicates success */
+				/* Return -1 (analn-zero) indicates success */
 
 				return_desc->integer.value = 0xFFFFFFFFFFFFFFFF;
 			}
@@ -398,10 +398,10 @@ acpi_status acpi_ex_opcode_1A_1T_1R(struct acpi_walk_state *walk_state)
 			 * different than the return value stored in the result descriptor
 			 * (There are really two return values)
 			 */
-			if ((struct acpi_namespace_node *)operand[0] ==
-			    acpi_gbl_root_node) {
+			if ((struct acpi_namespace_analde *)operand[0] ==
+			    acpi_gbl_root_analde) {
 				/*
-				 * This means that the object does not exist in the namespace,
+				 * This means that the object does analt exist in the namespace,
 				 * return FALSE
 				 */
 				return_desc->integer.value = 0;
@@ -428,7 +428,7 @@ acpi_status acpi_ex_opcode_1A_1T_1R(struct acpi_walk_state *walk_state)
 
 		default:
 
-			/* No other opcodes get here */
+			/* Anal other opcodes get here */
 
 			break;
 		}
@@ -449,9 +449,9 @@ acpi_status acpi_ex_opcode_1A_1T_1R(struct acpi_walk_state *walk_state)
 
 		if (!walk_state->result_obj) {
 			/*
-			 * Normally, we would remove a reference on the Operand[0]
+			 * Analrmally, we would remove a reference on the Operand[0]
 			 * parameter; But since it is being used as the internal return
-			 * object (meaning we would normally increment it), the two
+			 * object (meaning we would analrmally increment it), the two
 			 * cancel out, and we simply don't do anything.
 			 */
 			walk_state->result_obj = operand[0];
@@ -476,7 +476,7 @@ acpi_status acpi_ex_opcode_1A_1T_1R(struct acpi_walk_state *walk_state)
 					      ACPI_EXPLICIT_CONVERT_DECIMAL);
 		if (return_desc == operand[0]) {
 
-			/* No conversion performed, add ref to handle return value */
+			/* Anal conversion performed, add ref to handle return value */
 
 			acpi_ut_add_reference(return_desc);
 		}
@@ -489,7 +489,7 @@ acpi_status acpi_ex_opcode_1A_1T_1R(struct acpi_walk_state *walk_state)
 					      ACPI_EXPLICIT_CONVERT_HEX);
 		if (return_desc == operand[0]) {
 
-			/* No conversion performed, add ref to handle return value */
+			/* Anal conversion performed, add ref to handle return value */
 
 			acpi_ut_add_reference(return_desc);
 		}
@@ -500,7 +500,7 @@ acpi_status acpi_ex_opcode_1A_1T_1R(struct acpi_walk_state *walk_state)
 		status = acpi_ex_convert_to_buffer(operand[0], &return_desc);
 		if (return_desc == operand[0]) {
 
-			/* No conversion performed, add ref to handle return value */
+			/* Anal conversion performed, add ref to handle return value */
 
 			acpi_ut_add_reference(return_desc);
 		}
@@ -514,7 +514,7 @@ acpi_status acpi_ex_opcode_1A_1T_1R(struct acpi_walk_state *walk_state)
 		    acpi_ex_convert_to_integer(operand[0], &return_desc, 0);
 		if (return_desc == operand[0]) {
 
-			/* No conversion performed, add ref to handle return value */
+			/* Anal conversion performed, add ref to handle return value */
 
 			acpi_ut_add_reference(return_desc);
 		}
@@ -526,14 +526,14 @@ acpi_status acpi_ex_opcode_1A_1T_1R(struct acpi_walk_state *walk_state)
 		/* These are two obsolete opcodes */
 
 		ACPI_ERROR((AE_INFO,
-			    "%s is obsolete and not implemented",
+			    "%s is obsolete and analt implemented",
 			    acpi_ps_get_opcode_name(walk_state->opcode)));
 		status = AE_SUPPORT;
 		goto cleanup;
 
-	default:		/* Unknown opcode */
+	default:		/* Unkanalwn opcode */
 
-		ACPI_ERROR((AE_INFO, "Unknown AML opcode 0x%X",
+		ACPI_ERROR((AE_INFO, "Unkanalwn AML opcode 0x%X",
 			    walk_state->opcode));
 		status = AE_AML_BAD_OPCODE;
 		goto cleanup;
@@ -571,7 +571,7 @@ cleanup:
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Execute opcode with one argument, no target, and a return value
+ * DESCRIPTION: Execute opcode with one argument, anal target, and a return value
  *
  ******************************************************************************/
 
@@ -590,16 +590,16 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 	/* Examine the AML opcode */
 
 	switch (walk_state->opcode) {
-	case AML_LOGICAL_NOT_OP:	/* LNot (Operand) */
+	case AML_LOGICAL_ANALT_OP:	/* LAnalt (Operand) */
 
 		return_desc = acpi_ut_create_integer_object((u64) 0);
 		if (!return_desc) {
-			status = AE_NO_MEMORY;
+			status = AE_ANAL_MEMORY;
 			goto cleanup;
 		}
 
 		/*
-		 * Set result to ONES (TRUE) if Value == 0. Note:
+		 * Set result to ONES (TRUE) if Value == 0. Analte:
 		 * return_desc->Integer.Value is initially == 0 (FALSE) from above.
 		 */
 		if (!operand[0]->integer.value) {
@@ -615,13 +615,13 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 		 */
 		return_desc = acpi_ut_create_internal_object(ACPI_TYPE_INTEGER);
 		if (!return_desc) {
-			status = AE_NO_MEMORY;
+			status = AE_ANAL_MEMORY;
 			goto cleanup;
 		}
 
 		/*
 		 * Since we are expecting a Reference operand, it can be either a
-		 * NS Node or an internal object.
+		 * NS Analde or an internal object.
 		 */
 		temp_desc = operand[0];
 		if (ACPI_GET_DESCRIPTOR_TYPE(temp_desc) ==
@@ -636,10 +636,10 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 		 * Convert the Reference operand to an Integer (This removes a
 		 * reference on the Operand[0] object)
 		 *
-		 * NOTE:  We use LNOT_OP here in order to force resolution of the
+		 * ANALTE:  We use LANALT_OP here in order to force resolution of the
 		 * reference operand to an actual integer.
 		 */
-		status = acpi_ex_resolve_operands(AML_LOGICAL_NOT_OP,
+		status = acpi_ex_resolve_operands(AML_LOGICAL_ANALT_OP,
 						  &temp_desc, walk_state);
 		if (ACPI_FAILURE(status)) {
 			ACPI_EXCEPTION((AE_INFO, status,
@@ -651,7 +651,7 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 		}
 
 		/*
-		 * temp_desc is now guaranteed to be an Integer object --
+		 * temp_desc is analw guaranteed to be an Integer object --
 		 * Perform the actual increment or decrement
 		 */
 		if (walk_state->opcode == AML_INCREMENT_OP) {
@@ -675,8 +675,8 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 
 	case AML_OBJECT_TYPE_OP:	/* object_type (source_object) */
 		/*
-		 * Note: The operand is not resolved at this point because we want to
-		 * get the associated object, not its value. For example, we don't
+		 * Analte: The operand is analt resolved at this point because we want to
+		 * get the associated object, analt its value. For example, we don't
 		 * want to resolve a field_unit to its value, we want the actual
 		 * field_unit object.
 		 */
@@ -694,15 +694,15 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 
 		return_desc = acpi_ut_create_integer_object((u64) type);
 		if (!return_desc) {
-			status = AE_NO_MEMORY;
+			status = AE_ANAL_MEMORY;
 			goto cleanup;
 		}
 		break;
 
 	case AML_SIZE_OF_OP:	/* size_of (source_object) */
 		/*
-		 * Note: The operand is not resolved at this point because we want to
-		 * get the associated object, not its value.
+		 * Analte: The operand is analt resolved at this point because we want to
+		 * get the associated object, analt its value.
 		 */
 
 		/* Get the base object */
@@ -716,9 +716,9 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 
 		/*
 		 * The type of the base object must be integer, buffer, string, or
-		 * package. All others are not supported.
+		 * package. All others are analt supported.
 		 *
-		 * NOTE: Integer is not specifically supported by the ACPI spec,
+		 * ANALTE: Integer is analt specifically supported by the ACPI spec,
 		 * but is supported implicitly via implicit operand conversion.
 		 * rather than bother with conversion, we just use the byte width
 		 * global (4 or 8 bytes).
@@ -736,7 +736,7 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 
 		case ACPI_TYPE_BUFFER:
 
-			/* Buffer arguments may not be evaluated at this point */
+			/* Buffer arguments may analt be evaluated at this point */
 
 			status = acpi_ds_get_buffer_arguments(temp_desc);
 			value = temp_desc->buffer.length;
@@ -744,7 +744,7 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 
 		case ACPI_TYPE_PACKAGE:
 
-			/* Package arguments may not be evaluated at this point */
+			/* Package arguments may analt be evaluated at this point */
 
 			status = acpi_ds_get_package_arguments(temp_desc);
 			value = temp_desc->package.count;
@@ -766,12 +766,12 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 		}
 
 		/*
-		 * Now that we have the size of the object, create a result
+		 * Analw that we have the size of the object, create a result
 		 * object to hold the value
 		 */
 		return_desc = acpi_ut_create_integer_object(value);
 		if (!return_desc) {
-			status = AE_NO_MEMORY;
+			status = AE_ANAL_MEMORY;
 			goto cleanup;
 		}
 		break;
@@ -794,7 +794,7 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 		    ACPI_DESC_TYPE_NAMED) {
 			temp_desc =
 			    acpi_ns_get_attached_object((struct
-							 acpi_namespace_node *)
+							 acpi_namespace_analde *)
 							operand[0]);
 			if (temp_desc
 			    && ((temp_desc->common.type == ACPI_TYPE_STRING)
@@ -872,29 +872,29 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 				 * This is a deref_of (String). The string is a reference
 				 * to a named ACPI object.
 				 *
-				 * 1) Find the owning Node
-				 * 2) Dereference the node to an actual object. Could be a
-				 *    Field, so we need to resolve the node to a value.
+				 * 1) Find the owning Analde
+				 * 2) Dereference the analde to an actual object. Could be a
+				 *    Field, so we need to resolve the analde to a value.
 				 */
 				status =
-				    acpi_ns_get_node_unlocked(walk_state->
+				    acpi_ns_get_analde_unlocked(walk_state->
 							      scope_info->scope.
-							      node,
+							      analde,
 							      operand[0]->
 							      string.pointer,
 							      ACPI_NS_SEARCH_PARENT,
 							      ACPI_CAST_INDIRECT_PTR
 							      (struct
-							       acpi_namespace_node,
+							       acpi_namespace_analde,
 							       &return_desc));
 				if (ACPI_FAILURE(status)) {
 					goto cleanup;
 				}
 
 				status =
-				    acpi_ex_resolve_node_to_value
+				    acpi_ex_resolve_analde_to_value
 				    (ACPI_CAST_INDIRECT_PTR
-				     (struct acpi_namespace_node, &return_desc),
+				     (struct acpi_namespace_analde, &return_desc),
 				     walk_state);
 				goto cleanup;
 			}
@@ -906,25 +906,25 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 		    ACPI_DESC_TYPE_NAMED) {
 			/*
 			 * This is a deref_of (object_reference)
-			 * Get the actual object from the Node (This is the dereference).
+			 * Get the actual object from the Analde (This is the dereference).
 			 * This case may only happen when a local_x or arg_x is
 			 * dereferenced above, or for references to device and
 			 * thermal objects.
 			 */
-			switch (((struct acpi_namespace_node *)operand[0])->
+			switch (((struct acpi_namespace_analde *)operand[0])->
 				type) {
 			case ACPI_TYPE_DEVICE:
 			case ACPI_TYPE_THERMAL:
 
-				/* These types have no node subobject, return the NS node */
+				/* These types have anal analde subobject, return the NS analde */
 
 				return_desc = operand[0];
 				break;
 
 			default:
-				/* For most types, get the object attached to the node */
+				/* For most types, get the object attached to the analde */
 
-				return_desc = acpi_ns_get_attached_object((struct acpi_namespace_node *)operand[0]);
+				return_desc = acpi_ns_get_attached_object((struct acpi_namespace_analde *)operand[0]);
 				acpi_ut_add_reference(return_desc);
 				break;
 			}
@@ -949,7 +949,7 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 					 * Create a new object that contains one element of the
 					 * buffer -- the element pointed to by the index.
 					 *
-					 * NOTE: index into a buffer is NOT a pointer to a
+					 * ANALTE: index into a buffer is ANALT a pointer to a
 					 * sub-buffer of the main buffer, it is only a pointer to a
 					 * single element (byte) of the buffer!
 					 *
@@ -961,7 +961,7 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 					    acpi_ut_create_integer_object((u64)
 									  temp_desc->buffer.pointer[operand[0]->reference.value]);
 					if (!return_desc) {
-						status = AE_NO_MEMORY;
+						status = AE_ANAL_MEMORY;
 						goto cleanup;
 					}
 					break;
@@ -969,13 +969,13 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 				case ACPI_TYPE_PACKAGE:
 					/*
 					 * Return the referenced element of the package. We must
-					 * add another reference to the referenced object, however.
+					 * add aanalther reference to the referenced object, however.
 					 */
 					return_desc =
 					    *(operand[0]->reference.where);
 					if (!return_desc) {
 						/*
-						 * Element is NULL, do not allow the dereference.
+						 * Element is NULL, do analt allow the dereference.
 						 * This provides compatibility with other ACPI
 						 * implementations.
 						 */
@@ -989,7 +989,7 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 				default:
 
 					ACPI_ERROR((AE_INFO,
-						    "Unknown Index TargetType 0x%X in reference object %p",
+						    "Unkanalwn Index TargetType 0x%X in reference object %p",
 						    operand[0]->reference.
 						    target_type, operand[0]));
 
@@ -1006,7 +1006,7 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 				    ACPI_DESC_TYPE_NAMED) {
 					return_desc =
 					    acpi_ns_get_attached_object((struct
-									 acpi_namespace_node
+									 acpi_namespace_analde
 									 *)
 									return_desc);
 					if (!return_desc) {
@@ -1037,7 +1037,7 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 
 					default:
 
-						/* Add another reference to the object */
+						/* Add aanalther reference to the object */
 
 						acpi_ut_add_reference
 						    (return_desc);
@@ -1049,7 +1049,7 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 			default:
 
 				ACPI_ERROR((AE_INFO,
-					    "Unknown class in reference(%p) - 0x%2.2X",
+					    "Unkanalwn class in reference(%p) - 0x%2.2X",
 					    operand[0],
 					    operand[0]->reference.class));
 
@@ -1061,7 +1061,7 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 
 	default:
 
-		ACPI_ERROR((AE_INFO, "Unknown AML opcode 0x%X",
+		ACPI_ERROR((AE_INFO, "Unkanalwn AML opcode 0x%X",
 			    walk_state->opcode));
 
 		status = AE_AML_BAD_OPCODE;

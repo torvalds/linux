@@ -44,7 +44,7 @@ static bool ah_mt6(const struct sk_buff *skb, struct xt_action_param *par)
 
 	err = ipv6_find_hdr(skb, &ptr, NEXTHDR_AUTH, NULL, NULL);
 	if (err < 0) {
-		if (err != -ENOENT)
+		if (err != -EANALENT)
 			par->hotdrop = true;
 		return false;
 	}
@@ -88,7 +88,7 @@ static int ah_mt6_check(const struct xt_mtchk_param *par)
 	const struct ip6t_ah *ahinfo = par->matchinfo;
 
 	if (ahinfo->invflags & ~IP6T_AH_INV_MASK) {
-		pr_debug("unknown flags %X\n", ahinfo->invflags);
+		pr_debug("unkanalwn flags %X\n", ahinfo->invflags);
 		return -EINVAL;
 	}
 	return 0;

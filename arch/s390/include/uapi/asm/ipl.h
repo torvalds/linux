@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _ASM_S390_UAPI_IPL_H
 #define _ASM_S390_UAPI_IPL_H
 
@@ -54,7 +54,7 @@ struct ipl_pb0_fcp {
 	__u8  reserved3[3];
 	__u8  cssid;
 	__u8  reserved4[1];
-	__u16 devno;
+	__u16 devanal;
 	__u8  reserved5[4];
 	__u64 wwpn;
 	__u64 lun;
@@ -103,7 +103,7 @@ struct ipl_pb0_ccw {
 	__u8  reserved2[84];
 	__u16 reserved3 : 13;
 	__u8  ssid : 3;
-	__u16 devno;
+	__u16 devanal;
 	__u8  vm_flags;
 	__u8  reserved4[3];
 	__u32 vm_parm_len;
@@ -122,7 +122,7 @@ struct ipl_pb0_eckd {
 	__u8  reserved4[4];
 	__u8  reserved5:5;
 	__u8  ssid:3;
-	__u16 devno;
+	__u16 devanal;
 	__u32 reserved6[5];
 	__u32 bootprog;
 	__u8  reserved7[12];

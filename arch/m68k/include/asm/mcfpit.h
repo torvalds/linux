@@ -40,7 +40,7 @@
 #define	MCFPIT_PCSR_CLK32768	0x0f00		/* System clock divisor */
 #define	MCFPIT_PCSR_DOZE	0x0040		/* Clock run in doze mode */
 #define	MCFPIT_PCSR_HALTED	0x0020		/* Clock run in halt mode */
-#define	MCFPIT_PCSR_OVW		0x0010		/* Overwrite PIT counter now */
+#define	MCFPIT_PCSR_OVW		0x0010		/* Overwrite PIT counter analw */
 #define	MCFPIT_PCSR_PIE		0x0008		/* Enable PIT interrupt */
 #define	MCFPIT_PCSR_PIF		0x0004		/* PIT interrupt flag */
 #define	MCFPIT_PCSR_RLD		0x0002		/* Reload counter */

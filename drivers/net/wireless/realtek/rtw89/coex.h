@@ -8,7 +8,7 @@
 #include "core.h"
 
 enum btc_mode {
-	BTC_MODE_NORMAL,
+	BTC_MODE_ANALRMAL,
 	BTC_MODE_WL,
 	BTC_MODE_BT,
 	BTC_MODE_WLOFF,
@@ -125,7 +125,7 @@ enum btc_role_state {
 	BTC_ROLE_MSTS_STA_DIS_CONN,
 	BTC_ROLE_MSTS_AP_START,
 	BTC_ROLE_MSTS_AP_STOP,
-	BTC_ROLE_STATE_UNKNOWN
+	BTC_ROLE_STATE_UNKANALWN
 };
 
 enum btc_rfctrl {
@@ -150,7 +150,7 @@ enum btc_lps_state {
 #define B_BTC_BB_PRE_AGC_MASK GENMASK(31, 24)
 #define B_BTC_BB_PRE_AGC_VAL BIT(31)
 
-#define BTC_REG_NOTFOUND 0xff
+#define BTC_REG_ANALTFOUND 0xff
 
 enum btc_ant_div_pos {
 	BTC_ANT_DIV_MAIN = 0,
@@ -170,14 +170,14 @@ enum btc_preagc_type {
 	BTC_PREAGC_DISABLE,
 	BTC_PREAGC_ENABLE,
 	BTC_PREAGC_BB_FWCTRL,
-	BTC_PREAGC_NOTFOUND,
+	BTC_PREAGC_ANALTFOUND,
 };
 
 enum btc_btgctrl_type {
 	BTC_BTGCTRL_DISABLE,
 	BTC_BTGCTRL_ENABLE,
 	BTC_BTGCTRL_BB_GNT_FWCTRL,
-	BTC_BTGCTRL_BB_GNT_NOTFOUND,
+	BTC_BTGCTRL_BB_GNT_ANALTFOUND,
 };
 
 void rtw89_btc_ntfy_poweron(struct rtw89_dev *rtwdev);

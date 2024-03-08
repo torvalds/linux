@@ -3,7 +3,7 @@
 /* Authors: Bernard Metzler <bmt@zurich.ibm.com> */
 /* Copyright (c) 2008-2019, IBM Corporation */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/uaccess.h>
 #include <linux/vmalloc.h>
@@ -63,7 +63,7 @@ int siw_mmap(struct ib_ucontext *ctx, struct vm_area_struct *vma)
 	 * Must be page aligned
 	 */
 	if (vma->vm_start & (PAGE_SIZE - 1)) {
-		pr_warn("siw: mmap not page aligned\n");
+		pr_warn("siw: mmap analt page aligned\n");
 		return -EINVAL;
 	}
 	rdma_entry = rdma_user_mmap_entry_get(&uctx->base_ucontext, vma);
@@ -91,7 +91,7 @@ int siw_alloc_ucontext(struct ib_ucontext *base_ctx, struct ib_udata *udata)
 	int rv;
 
 	if (atomic_inc_return(&sdev->num_ctx) > SIW_MAX_CONTEXT) {
-		rv = -ENOMEM;
+		rv = -EANALMEM;
 		goto err_out;
 	}
 	ctx->sdev = sdev;
@@ -106,14 +106,14 @@ int siw_alloc_ucontext(struct ib_ucontext *base_ctx, struct ib_udata *udata)
 	if (rv)
 		goto err_out;
 
-	siw_dbg(base_ctx->device, "success. now %d context(s)\n",
+	siw_dbg(base_ctx->device, "success. analw %d context(s)\n",
 		atomic_read(&sdev->num_ctx));
 
 	return 0;
 
 err_out:
 	atomic_dec(&sdev->num_ctx);
-	siw_dbg(base_ctx->device, "failure %d. now %d context(s)\n", rv,
+	siw_dbg(base_ctx->device, "failure %d. analw %d context(s)\n", rv,
 		atomic_read(&sdev->num_ctx));
 
 	return rv;
@@ -235,9 +235,9 @@ int siw_alloc_pd(struct ib_pd *pd, struct ib_udata *udata)
 
 	if (atomic_inc_return(&sdev->num_pd) > SIW_MAX_PD) {
 		atomic_dec(&sdev->num_pd);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
-	siw_dbg_pd(pd, "now %d PD's(s)\n", atomic_read(&sdev->num_pd));
+	siw_dbg_pd(pd, "analw %d PD's(s)\n", atomic_read(&sdev->num_pd));
 
 	return 0;
 }
@@ -315,16 +315,16 @@ int siw_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *attrs,
 	siw_dbg(base_dev, "create new QP\n");
 
 	if (attrs->create_flags)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (atomic_inc_return(&sdev->num_qp) > SIW_MAX_QP) {
 		siw_dbg(base_dev, "too many QP's\n");
-		rv = -ENOMEM;
+		rv = -EANALMEM;
 		goto err_atomic;
 	}
 	if (attrs->qp_type != IB_QPT_RC) {
 		siw_dbg(base_dev, "only RC QP's supported\n");
-		rv = -EOPNOTSUPP;
+		rv = -EOPANALTSUPP;
 		goto err_atomic;
 	}
 	if ((attrs->cap.max_send_wr > SIW_MAX_QP_WR) ||
@@ -342,7 +342,7 @@ int siw_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *attrs,
 		goto err_atomic;
 	}
 	/*
-	 * NOTE: we don't allow for a QP unable to hold any SQ WQE
+	 * ANALTE: we don't allow for a QP unable to hold any SQ WQE
 	 */
 	if (attrs->cap.max_send_wr == 0) {
 		siw_dbg(base_dev, "QP must have send queue\n");
@@ -382,7 +382,7 @@ int siw_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *attrs,
 		qp->sendq = vcalloc(num_sqe, sizeof(struct siw_sqe));
 
 	if (qp->sendq == NULL) {
-		rv = -ENOMEM;
+		rv = -EANALMEM;
 		goto err_out_xa;
 	}
 	if (attrs->sq_sig_type != IB_SIGNAL_REQ_WR) {
@@ -400,8 +400,8 @@ int siw_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *attrs,
 	if (attrs->srq) {
 		/*
 		 * SRQ support.
-		 * Verbs 6.3.7: ignore RQ size, if SRQ present
-		 * Verbs 6.3.5: do not check PD of SRQ against PD of QP
+		 * Verbs 6.3.7: iganalre RQ size, if SRQ present
+		 * Verbs 6.3.5: do analt check PD of SRQ against PD of QP
 		 */
 		qp->srq = to_siw_srq(attrs->srq);
 		qp->attrs.rq_size = 0;
@@ -415,7 +415,7 @@ int siw_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *attrs,
 			qp->recvq = vcalloc(num_rqe, sizeof(struct siw_rqe));
 
 		if (qp->recvq == NULL) {
-			rv = -ENOMEM;
+			rv = -EANALMEM;
 			goto err_out_xa;
 		}
 		qp->attrs.rq_size = num_rqe;
@@ -424,7 +424,7 @@ int siw_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *attrs,
 	qp->attrs.sq_max_sges = attrs->cap.max_send_sge;
 	qp->attrs.rq_max_sges = attrs->cap.max_recv_sge;
 
-	/* Make those two tunables fixed for now. */
+	/* Make those two tunables fixed for analw. */
 	qp->tx_ctx.gso_seg_limit = 1;
 	qp->tx_ctx.zcopy_tx = zcopy_tx;
 
@@ -443,7 +443,7 @@ int siw_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *attrs,
 				siw_mmap_entry_insert(uctx, qp->sendq,
 						      length, &uresp.sq_key);
 			if (!qp->sq_entry) {
-				rv = -ENOMEM;
+				rv = -EANALMEM;
 				goto err_out_xa;
 			}
 		}
@@ -455,7 +455,7 @@ int siw_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *attrs,
 						      length, &uresp.rq_key);
 			if (!qp->rq_entry) {
 				uresp.sq_key = SIW_INVAL_UOBJ_KEY;
-				rv = -ENOMEM;
+				rv = -EANALMEM;
 				goto err_out_xa;
 			}
 		}
@@ -499,7 +499,7 @@ err_atomic:
 /*
  * Minimum siw_query_qp() verb interface.
  *
- * @qp_attr_mask is not used but all available information is provided
+ * @qp_attr_mask is analt used but all available information is provided
  */
 int siw_query_qp(struct ib_qp *base_qp, struct ib_qp_attr *qp_attr,
 		 int qp_attr_mask, struct ib_qp_init_attr *qp_init_attr)
@@ -549,7 +549,7 @@ int siw_verbs_modify_qp(struct ib_qp *base_qp, struct ib_qp_attr *attr,
 		return 0;
 
 	if (attr_mask & ~IB_QP_ATTR_STANDARD_BITS)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	memset(&new_attrs, 0, sizeof(new_attrs));
 
@@ -751,7 +751,7 @@ static int siw_rq_flush_wr(struct siw_qp *qp, const struct ib_recv_wr *wr,
  *
  * @base_qp:	Base QP contained in siw QP
  * @wr:		Null terminated list of user WR's
- * @bad_wr:	Points to failing WR in case of synchronous failure.
+ * @bad_wr:	Points to failing WR in case of synchroanalus failure.
  */
 int siw_post_send(struct ib_qp *base_qp, const struct ib_send_wr *wr,
 		  const struct ib_send_wr **bad_wr)
@@ -769,14 +769,14 @@ int siw_post_send(struct ib_qp *base_qp, const struct ib_send_wr *wr,
 	}
 
 	/*
-	 * Try to acquire QP state lock. Must be non-blocking
+	 * Try to acquire QP state lock. Must be analn-blocking
 	 * to accommodate kernel clients needs.
 	 */
 	if (!down_read_trylock(&qp->state_lock)) {
 		if (qp->attrs.state == SIW_QP_STATE_ERROR) {
 			/*
 			 * ERROR state is final, so we can be sure
-			 * this state will not change as long as the QP
+			 * this state will analt change as long as the QP
 			 * exists.
 			 *
 			 * This handles an ib_drain_sq() call with
@@ -788,7 +788,7 @@ int siw_post_send(struct ib_qp *base_qp, const struct ib_send_wr *wr,
 			siw_dbg_qp(qp, "QP locked, state %d\n",
 				   qp->attrs.state);
 			*bad_wr = wr;
-			rv = -ENOTCONN;
+			rv = -EANALTCONN;
 		}
 		return rv;
 	}
@@ -806,7 +806,7 @@ int siw_post_send(struct ib_qp *base_qp, const struct ib_send_wr *wr,
 			siw_dbg_qp(qp, "QP out of state %d\n",
 				   qp->attrs.state);
 			*bad_wr = wr;
-			rv = -ENOTCONN;
+			rv = -EANALTCONN;
 		}
 		up_read(&qp->state_lock);
 		return rv;
@@ -819,7 +819,7 @@ int siw_post_send(struct ib_qp *base_qp, const struct ib_send_wr *wr,
 
 		if (sqe->flags) {
 			siw_dbg_qp(qp, "sq full\n");
-			rv = -ENOMEM;
+			rv = -EANALMEM;
 			break;
 		}
 		if (wr->num_sge > qp->attrs.sq_max_sges) {
@@ -878,7 +878,7 @@ int siw_post_send(struct ib_qp *base_qp, const struct ib_send_wr *wr,
 			}
 			siw_copy_sgl(wr->sg_list, &sqe->sge[0], 1);
 			/*
-			 * NOTE: zero length RREAD is allowed!
+			 * ANALTE: zero length RREAD is allowed!
 			 */
 			sqe->raddr = rdma_wr(wr)->remote_addr;
 			sqe->rkey = rdma_wr(wr)->rkey;
@@ -943,9 +943,9 @@ int siw_post_send(struct ib_qp *base_qp, const struct ib_send_wr *wr,
 	}
 
 	/*
-	 * Send directly if SQ processing is not in progress.
-	 * Eventual immediate errors (rv < 0) do not affect the involved
-	 * RI resources (Verbs, 8.3.1) and thus do not prevent from SQ
+	 * Send directly if SQ processing is analt in progress.
+	 * Eventual immediate errors (rv < 0) do analt affect the involved
+	 * RI resources (Verbs, 8.3.1) and thus do analt prevent from SQ
 	 * processing, if new work is already pending. But rv must be passed
 	 * to caller.
 	 */
@@ -991,7 +991,7 @@ skip_direct_sending:
  *
  * @base_qp:	Base QP contained in siw QP
  * @wr:		Null terminated list of user WR's
- * @bad_wr:	Points to failing WR in case of synchronous failure.
+ * @bad_wr:	Points to failing WR in case of synchroanalus failure.
  */
 int siw_post_receive(struct ib_qp *base_qp, const struct ib_recv_wr *wr,
 		     const struct ib_recv_wr **bad_wr)
@@ -1005,20 +1005,20 @@ int siw_post_receive(struct ib_qp *base_qp, const struct ib_recv_wr *wr,
 		return -EINVAL;
 	}
 	if (!rdma_is_kernel_res(&qp->base_qp.res)) {
-		siw_dbg_qp(qp, "no kernel post_recv for user mapped rq\n");
+		siw_dbg_qp(qp, "anal kernel post_recv for user mapped rq\n");
 		*bad_wr = wr;
 		return -EINVAL;
 	}
 
 	/*
-	 * Try to acquire QP state lock. Must be non-blocking
+	 * Try to acquire QP state lock. Must be analn-blocking
 	 * to accommodate kernel clients needs.
 	 */
 	if (!down_read_trylock(&qp->state_lock)) {
 		if (qp->attrs.state == SIW_QP_STATE_ERROR) {
 			/*
 			 * ERROR state is final, so we can be sure
-			 * this state will not change as long as the QP
+			 * this state will analt change as long as the QP
 			 * exists.
 			 *
 			 * This handles an ib_drain_rq() call with
@@ -1030,7 +1030,7 @@ int siw_post_receive(struct ib_qp *base_qp, const struct ib_recv_wr *wr,
 			siw_dbg_qp(qp, "QP locked, state %d\n",
 				   qp->attrs.state);
 			*bad_wr = wr;
-			rv = -ENOTCONN;
+			rv = -EANALTCONN;
 		}
 		return rv;
 	}
@@ -1048,14 +1048,14 @@ int siw_post_receive(struct ib_qp *base_qp, const struct ib_recv_wr *wr,
 			siw_dbg_qp(qp, "QP out of state %d\n",
 				   qp->attrs.state);
 			*bad_wr = wr;
-			rv = -ENOTCONN;
+			rv = -EANALTCONN;
 		}
 		up_read(&qp->state_lock);
 		return rv;
 	}
 	/*
 	 * Serialize potentially multiple producers.
-	 * Not needed for single threaded consumer side.
+	 * Analt needed for single threaded consumer side.
 	 */
 	spin_lock_irqsave(&qp->rq_lock, flags);
 
@@ -1065,7 +1065,7 @@ int siw_post_receive(struct ib_qp *base_qp, const struct ib_recv_wr *wr,
 
 		if (rqe->flags) {
 			siw_dbg_qp(qp, "RQ full\n");
-			rv = -ENOMEM;
+			rv = -EANALMEM;
 			break;
 		}
 		if (wr->num_sge > qp->attrs.rq_max_sges) {
@@ -1135,11 +1135,11 @@ int siw_create_cq(struct ib_cq *base_cq, const struct ib_cq_init_attr *attr,
 	int rv, size = attr->cqe;
 
 	if (attr->flags)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (atomic_inc_return(&sdev->num_cq) > SIW_MAX_CQ) {
 		siw_dbg(base_cq->device, "too many CQ's\n");
-		rv = -ENOMEM;
+		rv = -EANALMEM;
 		goto err_out;
 	}
 	if (size < 1 || size > sdev->attrs.max_cqe) {
@@ -1159,7 +1159,7 @@ int siw_create_cq(struct ib_cq *base_cq, const struct ib_cq_init_attr *attr,
 				    sizeof(struct siw_cq_ctrl));
 
 	if (cq->queue == NULL) {
-		rv = -ENOMEM;
+		rv = -EANALMEM;
 		goto err_out;
 	}
 	get_random_bytes(&cq->id, 4);
@@ -1167,7 +1167,7 @@ int siw_create_cq(struct ib_cq *base_cq, const struct ib_cq_init_attr *attr,
 
 	spin_lock_init(&cq->lock);
 
-	cq->notify = (struct siw_cq_ctrl *)&cq->queue[size];
+	cq->analtify = (struct siw_cq_ctrl *)&cq->queue[size];
 
 	if (udata) {
 		struct siw_uresp_create_cq uresp = {};
@@ -1181,7 +1181,7 @@ int siw_create_cq(struct ib_cq *base_cq, const struct ib_cq_init_attr *attr,
 			siw_mmap_entry_insert(ctx, cq->queue,
 					      length, &uresp.cq_key);
 		if (!cq->cq_entry) {
-			rv = -ENOMEM;
+			rv = -EANALMEM;
 			goto err_out;
 		}
 
@@ -1238,22 +1238,22 @@ int siw_poll_cq(struct ib_cq *base_cq, int num_cqe, struct ib_wc *wc)
 }
 
 /*
- * siw_req_notify_cq()
+ * siw_req_analtify_cq()
  *
- * Request notification for new CQE's added to that CQ.
+ * Request analtification for new CQE's added to that CQ.
  * Defined flags:
- * o SIW_CQ_NOTIFY_SOLICITED lets siw trigger a notification
- *   event if a WQE with notification flag set enters the CQ
- * o SIW_CQ_NOTIFY_NEXT_COMP lets siw trigger a notification
+ * o SIW_CQ_ANALTIFY_SOLICITED lets siw trigger a analtification
+ *   event if a WQE with analtification flag set enters the CQ
+ * o SIW_CQ_ANALTIFY_NEXT_COMP lets siw trigger a analtification
  *   event if a WQE enters the CQ.
  * o IB_CQ_REPORT_MISSED_EVENTS: return value will provide the
- *   number of not reaped CQE's regardless of its notification
- *   type and current or new CQ notification settings.
+ *   number of analt reaped CQE's regardless of its analtification
+ *   type and current or new CQ analtification settings.
  *
  * @base_cq:	Base CQ contained in siw CQ.
- * @flags:	Requested notification flags.
+ * @flags:	Requested analtification flags.
  */
-int siw_req_notify_cq(struct ib_cq *base_cq, enum ib_cq_notify_flags flags)
+int siw_req_analtify_cq(struct ib_cq *base_cq, enum ib_cq_analtify_flags flags)
 {
 	struct siw_cq *cq = to_siw_cq(base_cq);
 
@@ -1264,13 +1264,13 @@ int siw_req_notify_cq(struct ib_cq *base_cq, enum ib_cq_notify_flags flags)
 		 * Enable CQ event for next solicited completion.
 		 * and make it visible to all associated producers.
 		 */
-		smp_store_mb(cq->notify->flags, SIW_NOTIFY_SOLICITED);
+		smp_store_mb(cq->analtify->flags, SIW_ANALTIFY_SOLICITED);
 	else
 		/*
 		 * Enable CQ event for any signalled completion.
 		 * and make it visible to all associated producers.
 		 */
-		smp_store_mb(cq->notify->flags, SIW_NOTIFY_ALL);
+		smp_store_mb(cq->analtify->flags, SIW_ANALTIFY_ALL);
 
 	if (flags & IB_CQ_REPORT_MISSED_EVENTS)
 		return cq->cq_put - cq->cq_get;
@@ -1309,7 +1309,7 @@ int siw_dereg_mr(struct ib_mr *base_mr, struct ib_udata *udata)
  * @pd:		Protection Domain
  * @start:	starting address of MR (virtual address)
  * @len:	len of MR
- * @rnic_va:	not used by siw
+ * @rnic_va:	analt used by siw
  * @rights:	MR access rights
  * @udata:	user buffer to communicate STag and Key.
  */
@@ -1328,7 +1328,7 @@ struct ib_mr *siw_reg_user_mr(struct ib_pd *pd, u64 start, u64 len,
 
 	if (atomic_inc_return(&sdev->num_mr) > SIW_MAX_MR) {
 		siw_dbg_pd(pd, "too many mr's\n");
-		rv = -ENOMEM;
+		rv = -EANALMEM;
 		goto err_out;
 	}
 	if (!len) {
@@ -1344,7 +1344,7 @@ struct ib_mr *siw_reg_user_mr(struct ib_pd *pd, u64 start, u64 len,
 	}
 	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
 	if (!mr) {
-		rv = -ENOMEM;
+		rv = -EANALMEM;
 		goto err_out;
 	}
 	rv = siw_mr_add_mem(mr, pd, umem, start, len, rights);
@@ -1403,17 +1403,17 @@ struct ib_mr *siw_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type,
 
 	if (atomic_inc_return(&sdev->num_mr) > SIW_MAX_MR) {
 		siw_dbg_pd(pd, "too many mr's\n");
-		rv = -ENOMEM;
+		rv = -EANALMEM;
 		goto err_out;
 	}
 	if (mr_type != IB_MR_TYPE_MEM_REG) {
 		siw_dbg_pd(pd, "mr type %d unsupported\n", mr_type);
-		rv = -EOPNOTSUPP;
+		rv = -EOPANALTSUPP;
 		goto err_out;
 	}
 	if (max_sge > SIW_MAX_SGE_PBL) {
 		siw_dbg_pd(pd, "too many sge's: %d\n", max_sge);
-		rv = -ENOMEM;
+		rv = -EANALMEM;
 		goto err_out;
 	}
 	pbl = siw_pbl_alloc(max_sge);
@@ -1425,7 +1425,7 @@ struct ib_mr *siw_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type,
 	}
 	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
 	if (!mr) {
-		rv = -ENOMEM;
+		rv = -EANALMEM;
 		goto err_out;
 	}
 	rv = siw_mr_add_mem(mr, pd, pbl, 0, max_sge * PAGE_SIZE, 0);
@@ -1471,7 +1471,7 @@ int siw_map_mr_sg(struct ib_mr *base_mr, struct scatterlist *sl, int num_sle,
 	int i, rv;
 
 	if (!pbl) {
-		siw_dbg_mem(mem, "no PBL allocated\n");
+		siw_dbg_mem(mem, "anal PBL allocated\n");
 		return -EINVAL;
 	}
 	pble = pbl->pbe;
@@ -1479,7 +1479,7 @@ int siw_map_mr_sg(struct ib_mr *base_mr, struct scatterlist *sl, int num_sle,
 	if (pbl->max_buf < num_sle) {
 		siw_dbg_mem(mem, "too many SGE's: %d > %d\n",
 			    num_sle, pbl->max_buf);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	for_each_sg(sl, slp, num_sle, i) {
 		if (sg_dma_len(slp) == 0) {
@@ -1525,7 +1525,7 @@ int siw_map_mr_sg(struct ib_mr *base_mr, struct scatterlist *sl, int num_sle,
 /*
  * siw_get_dma_mr()
  *
- * Create a (empty) DMA memory region, where no umem is attached.
+ * Create a (empty) DMA memory region, where anal umem is attached.
  */
 struct ib_mr *siw_get_dma_mr(struct ib_pd *pd, int rights)
 {
@@ -1535,12 +1535,12 @@ struct ib_mr *siw_get_dma_mr(struct ib_pd *pd, int rights)
 
 	if (atomic_inc_return(&sdev->num_mr) > SIW_MAX_MR) {
 		siw_dbg_pd(pd, "too many mr's\n");
-		rv = -ENOMEM;
+		rv = -EANALMEM;
 		goto err_out;
 	}
 	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
 	if (!mr) {
-		rv = -ENOMEM;
+		rv = -EANALMEM;
 		goto err_out;
 	}
 	rv = siw_mr_add_mem(mr, pd, NULL, 0, ULONG_MAX, rights);
@@ -1584,11 +1584,11 @@ int siw_create_srq(struct ib_srq *base_srq,
 	int rv;
 
 	if (init_attrs->srq_type != IB_SRQT_BASIC)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (atomic_inc_return(&sdev->num_srq) > SIW_MAX_SRQ) {
 		siw_dbg_pd(base_srq->pd, "too many SRQ's\n");
-		rv = -ENOMEM;
+		rv = -EANALMEM;
 		goto err_out;
 	}
 	if (attrs->max_wr == 0 || attrs->max_wr > SIW_MAX_SRQ_WR ||
@@ -1611,7 +1611,7 @@ int siw_create_srq(struct ib_srq *base_srq,
 		srq->recvq = vcalloc(srq->num_rqe, sizeof(struct siw_rqe));
 
 	if (srq->recvq == NULL) {
-		rv = -ENOMEM;
+		rv = -EANALMEM;
 		goto err_out;
 	}
 	if (udata) {
@@ -1622,7 +1622,7 @@ int siw_create_srq(struct ib_srq *base_srq,
 			siw_mmap_entry_insert(ctx, srq->recvq,
 					      length, &uresp.srq_key);
 		if (!srq->srq_entry) {
-			rv = -ENOMEM;
+			rv = -EANALMEM;
 			goto err_out;
 		}
 
@@ -1656,11 +1656,11 @@ err_out:
 /*
  * siw_modify_srq()
  *
- * Modify SRQ. The caller may resize SRQ and/or set/reset notification
- * limit and (re)arm IB_EVENT_SRQ_LIMIT_REACHED notification.
+ * Modify SRQ. The caller may resize SRQ and/or set/reset analtification
+ * limit and (re)arm IB_EVENT_SRQ_LIMIT_REACHED analtification.
  *
- * NOTE: it is unclear if RDMA core allows for changing the MAX_SGE
- * parameter. siw_modify_srq() does not check the attrs->max_sge param.
+ * ANALTE: it is unclear if RDMA core allows for changing the MAX_SGE
+ * parameter. siw_modify_srq() does analt check the attrs->max_sge param.
  */
 int siw_modify_srq(struct ib_srq *base_srq, struct ib_srq_attr *attrs,
 		   enum ib_srq_attr_mask attr_mask, struct ib_udata *udata)
@@ -1672,8 +1672,8 @@ int siw_modify_srq(struct ib_srq *base_srq, struct ib_srq_attr *attrs,
 	spin_lock_irqsave(&srq->lock, flags);
 
 	if (attr_mask & IB_SRQ_MAX_WR) {
-		/* resize request not yet supported */
-		rv = -EOPNOTSUPP;
+		/* resize request analt yet supported */
+		rv = -EOPANALTSUPP;
 		goto out;
 	}
 	if (attr_mask & IB_SRQ_LIMIT) {
@@ -1719,7 +1719,7 @@ int siw_query_srq(struct ib_srq *base_srq, struct ib_srq_attr *attrs)
  * siw_destroy_srq()
  *
  * Destroy SRQ.
- * It is assumed that the SRQ is not referenced by any
+ * It is assumed that the SRQ is analt referenced by any
  * QP anymore - the code trusts the RDMA core environment to keep track
  * of QP references.
  */
@@ -1742,7 +1742,7 @@ int siw_destroy_srq(struct ib_srq *base_srq, struct ib_udata *udata)
  * siw_post_srq_recv()
  *
  * Post a list of receive queue elements to SRQ.
- * NOTE: The function does not check or lock a certain SRQ state
+ * ANALTE: The function does analt check or lock a certain SRQ state
  *       during the post operation. The code simply trusts the
  *       RDMA core environment.
  *
@@ -1759,7 +1759,7 @@ int siw_post_srq_recv(struct ib_srq *base_srq, const struct ib_recv_wr *wr,
 
 	if (unlikely(!srq->is_kernel_res)) {
 		siw_dbg_pd(base_srq->pd,
-			   "[SRQ]: no kernel post_recv for mapped srq\n");
+			   "[SRQ]: anal kernel post_recv for mapped srq\n");
 		rv = -EINVAL;
 		goto out;
 	}
@@ -1776,7 +1776,7 @@ int siw_post_srq_recv(struct ib_srq *base_srq, const struct ib_recv_wr *wr,
 
 		if (rqe->flags) {
 			siw_dbg_pd(base_srq->pd, "SRQ full\n");
-			rv = -ENOMEM;
+			rv = -EANALMEM;
 			break;
 		}
 		if (unlikely(wr->num_sge > srq->max_sge)) {
@@ -1812,7 +1812,7 @@ void siw_qp_event(struct siw_qp *qp, enum ib_event_type etype)
 	struct ib_qp *base_qp = &qp->base_qp;
 
 	/*
-	 * Do not report asynchronous errors on QP which gets
+	 * Do analt report asynchroanalus errors on QP which gets
 	 * destroyed via verbs interface (siw_destroy_qp())
 	 */
 	if (qp->attrs.flags & SIW_QP_IN_DESTROY)

@@ -79,8 +79,8 @@ static char mv643xx_eth_driver_version[] = "1.4";
 #define SDMA_CONFIG			0x001c
 #define  TX_BURST_SIZE_16_64BIT		0x01000000
 #define  TX_BURST_SIZE_4_64BIT		0x00800000
-#define  BLM_TX_NO_SWAP			0x00000020
-#define  BLM_RX_NO_SWAP			0x00000010
+#define  BLM_TX_ANAL_SWAP			0x00000020
+#define  BLM_RX_ANAL_SWAP			0x00000010
 #define  RX_BURST_SIZE_16_64BIT		0x00000008
 #define  RX_BURST_SIZE_4_64BIT		0x00000004
 #define PORT_SERIAL_CONTROL		0x003c
@@ -89,7 +89,7 @@ static char mv643xx_eth_driver_version[] = "1.4";
 #define  SET_FULL_DUPLEX_MODE		0x00200000
 #define  MAX_RX_PACKET_9700BYTE		0x000a0000
 #define  DISABLE_AUTO_NEG_SPEED_GMII	0x00002000
-#define  DO_NOT_FORCE_LINK_FAIL		0x00000400
+#define  DO_ANALT_FORCE_LINK_FAIL		0x00000400
 #define  SERIAL_PORT_CONTROL_RESERVED	0x00000200
 #define  DISABLE_AUTO_NEG_FOR_FLOW_CTRL	0x00000008
 #define  DISABLE_AUTO_NEG_FOR_DUPLEX	0x00000004
@@ -157,8 +157,8 @@ static char mv643xx_eth_driver_version[] = "1.4";
 #elif defined(__LITTLE_ENDIAN)
 #define PORT_SDMA_CONFIG_DEFAULT_VALUE		\
 		(RX_BURST_SIZE_4_64BIT	|	\
-		 BLM_RX_NO_SWAP		|	\
-		 BLM_TX_NO_SWAP		|	\
+		 BLM_RX_ANAL_SWAP		|	\
+		 BLM_TX_ANAL_SWAP		|	\
 		 TX_BURST_SIZE_4_64BIT)
 #else
 #error One of __BIG_ENDIAN or __LITTLE_ENDIAN must be defined
@@ -317,7 +317,7 @@ struct mib_counters {
 	u32 bad_crc_event;
 	u32 collision;
 	u32 late_collision;
-	/* Non MIB hardware counters */
+	/* Analn MIB hardware counters */
 	u32 rx_discard;
 	u32 rx_overrun;
 };
@@ -542,7 +542,7 @@ static int rxq_process(struct rx_queue *rxq, int budget)
 		/*
 		 * Update statistics.
 		 *
-		 * Note that the descriptor byte count includes 2 dummy
+		 * Analte that the descriptor byte count includes 2 dummy
 		 * bytes automatically inserted by the hardware at the
 		 * start of the packet (which we don't count), and a 4
 		 * byte CRC at the end of the packet (which we do count).
@@ -687,7 +687,7 @@ static int skb_tx_csum(struct mv643xx_eth_private *mp, struct sk_buff *skb,
 		    unlikely(tag_bytes & ~12)) {
 			ret = skb_checksum_help(skb);
 			if (!ret)
-				goto no_csum;
+				goto anal_csum;
 			return ret;
 		}
 
@@ -712,11 +712,11 @@ static int skb_tx_csum(struct mv643xx_eth_private *mp, struct sk_buff *skb,
 			*l4i_chk = 0;
 			break;
 		default:
-			WARN(1, "protocol not supported");
+			WARN(1, "protocol analt supported");
 		}
 	} else {
-no_csum:
-		/* Errata BTS #50, IHL must be 5 if no HW checksum */
+anal_csum:
+		/* Errata BTS #50, IHL must be 5 if anal HW checksum */
 		cmd |= 5 << TX_IHL_SHIFT;
 	}
 	*command = cmd;
@@ -755,7 +755,7 @@ txq_put_data_tso(struct net_device *dev, struct tx_queue *txq,
 		if (unlikely(dma_mapping_error(dev->dev.parent,
 					       desc->buf_ptr))) {
 			WARN(1, "dma_map_single failed!\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -792,7 +792,7 @@ txq_put_hdr_tso(struct sk_buff *skb, struct tx_queue *txq, int length,
 		WARN(1, "failed to prepare checksum!");
 
 	/* Should we set this? Can't use the value from skb_tx_csum()
-	 * as it's not the correct initial L4 checksum to use.
+	 * as it's analt the correct initial L4 checksum to use.
 	 */
 	desc->l4i_chk = 0;
 
@@ -827,7 +827,7 @@ static int txq_submit_tso(struct tx_queue *txq, struct sk_buff *skb,
 
 	/* Count needed descriptors */
 	if ((txq->tx_desc_count + tso_count_descs(skb)) >= txq->tx_ring_size) {
-		netdev_dbg(dev, "not enough descriptors for TSO!\n");
+		netdev_dbg(dev, "analt eanalugh descriptors for TSO!\n");
 		return -EBUSY;
 	}
 
@@ -882,7 +882,7 @@ static int txq_submit_tso(struct tx_queue *txq, struct sk_buff *skb,
 	txq->tx_desc_count += desc_count;
 	return 0;
 err_release:
-	/* TODO: Release all used data descriptors; header descriptors must not
+	/* TODO: Release all used data descriptors; header descriptors must analt
 	 * be DMA-unmapped.
 	 */
 	return ret;
@@ -1226,7 +1226,7 @@ static void mv643xx_eth_adjust_link(struct net_device *dev)
 	pscr |= autoneg_disable;
 
 	if (dev->phydev->speed == SPEED_1000) {
-		/* force gigabit, half duplex not supported */
+		/* force gigabit, half duplex analt supported */
 		pscr |= SET_GMII_SPEED_TO_1000;
 		pscr |= SET_FULL_DUPLEX_MODE;
 		goto out_write;
@@ -1285,7 +1285,7 @@ static void mib_counters_clear(struct mv643xx_eth_private *mp)
 	for (i = 0; i < 0x80; i += 4)
 		mib_read(mp, i);
 
-	/* Clear non MIB hw counters also */
+	/* Clear analn MIB hw counters also */
 	rdlp(mp, RX_DISCARD_FRAME_CNT);
 	rdlp(mp, RX_OVERRUN_FRAME_CNT);
 }
@@ -1325,7 +1325,7 @@ static void mib_counters_update(struct mv643xx_eth_private *mp)
 	p->bad_crc_event += mib_read(mp, 0x74);
 	p->collision += mib_read(mp, 0x78);
 	p->late_collision += mib_read(mp, 0x7c);
-	/* Non MIB hardware counters */
+	/* Analn MIB hardware counters */
 	p->rx_discard += rdlp(mp, RX_DISCARD_FRAME_CNT);
 	p->rx_overrun += rdlp(mp, RX_OVERRUN_FRAME_CNT);
 	spin_unlock_bh(&mp->mib_counters_lock);
@@ -1488,7 +1488,7 @@ mv643xx_eth_get_link_ksettings_phy(struct mv643xx_eth_private *mp,
 	phy_ethtool_ksettings_get(dev->phydev, cmd);
 
 	/*
-	 * The MAC does not support 1000baseT_Half.
+	 * The MAC does analt support 1000baseT_Half.
 	 */
 	linkmode_clear_bit(ETHTOOL_LINK_MODE_1000baseT_Half_BIT,
 			   cmd->link_modes.supported);
@@ -1552,14 +1552,14 @@ mv643xx_eth_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 	int err;
 
 	if (!dev->phydev)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	err = phy_ethtool_set_wol(dev->phydev, wol);
 	/* Given that mv643xx_eth works without the marvell-specific PHY driver,
 	 * this debugging hint is useful to have.
 	 */
-	if (err == -EOPNOTSUPP)
-		netdev_info(dev, "The PHY does not support set_wol, was CONFIG_MARVELL_PHY enabled?\n");
+	if (err == -EOPANALTSUPP)
+		netdev_info(dev, "The PHY does analt support set_wol, was CONFIG_MARVELL_PHY enabled?\n");
 	return err;
 }
 
@@ -1587,7 +1587,7 @@ mv643xx_eth_set_link_ksettings(struct net_device *dev,
 		return -EINVAL;
 
 	/*
-	 * The MAC does not support 1000baseT_Half.
+	 * The MAC does analt support 1000baseT_Half.
 	 */
 	ethtool_convert_link_mode_to_legacy_u32(&advertising,
 						c.link_modes.advertising);
@@ -1674,7 +1674,7 @@ mv643xx_eth_set_ringparam(struct net_device *dev, struct ethtool_ringparam *er,
 		if (mv643xx_eth_open(dev)) {
 			netdev_err(dev,
 				   "fatal error on re-opening device after ring param change\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -1738,7 +1738,7 @@ static int mv643xx_eth_get_sset_count(struct net_device *dev, int sset)
 	if (sset == ETH_SS_STATS)
 		return ARRAY_SIZE(mv643xx_eth_stats);
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static const struct ethtool_ops mv643xx_eth_ethtool_ops = {
@@ -1922,7 +1922,7 @@ static int mv643xx_eth_set_mac_address(struct net_device *dev, void *addr)
 	struct sockaddr *sa = addr;
 
 	if (!is_valid_ether_addr(sa->sa_data))
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	eth_hw_addr_set(dev, sa->sa_data);
 
@@ -1999,7 +1999,7 @@ out_free:
 				  rxq->rx_desc_dma);
 
 out:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void rxq_deinit(struct rx_queue *rxq)
@@ -2069,7 +2069,7 @@ static int txq_init(struct mv643xx_eth_private *mp, int index)
 	if (txq->tx_desc_area == NULL) {
 		netdev_err(mp->dev,
 			   "can't allocate tx ring (%d bytes)\n", size);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	memset(txq->tx_desc_area, 0, size);
 
@@ -2092,7 +2092,7 @@ static int txq_init(struct mv643xx_eth_private *mp, int index)
 	txq->tx_desc_mapping = kcalloc(txq->tx_ring_size, sizeof(char),
 				       GFP_KERNEL);
 	if (!txq->tx_desc_mapping) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_desc_area;
 	}
 
@@ -2101,7 +2101,7 @@ static int txq_init(struct mv643xx_eth_private *mp, int index)
 					   txq->tx_ring_size * TSO_HEADER_SIZE,
 					   &txq->tso_hdrs_dma, GFP_KERNEL);
 	if (txq->tso_hdrs == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_desc_mapping;
 	}
 	skb_queue_head_init(&txq->tx_skb);
@@ -2183,7 +2183,7 @@ static irqreturn_t mv643xx_eth_irq(int irq, void *dev_id)
 	struct mv643xx_eth_private *mp = netdev_priv(dev);
 
 	if (unlikely(!mv643xx_eth_collect_events(mp)))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	wrlp(mp, INT_MASK, 0);
 	napi_schedule(&mp->napi);
@@ -2342,7 +2342,7 @@ static void port_start(struct mv643xx_eth_private *mp)
 	pscr |= SERIAL_PORT_ENABLE;
 	wrlp(mp, PORT_SERIAL_CONTROL, pscr);
 
-	pscr |= DO_NOT_FORCE_LINK_FAIL;
+	pscr |= DO_ANALT_FORCE_LINK_FAIL;
 	if (!dev->phydev)
 		pscr |= FORCE_LINK_PASS;
 	wrlp(mp, PORT_SERIAL_CONTROL, pscr);
@@ -2367,7 +2367,7 @@ static void port_start(struct mv643xx_eth_private *mp)
 	mv643xx_eth_set_features(mp->dev, mp->dev->features);
 
 	/*
-	 * Treat BPDUs as normal multicasts, and disable partition mode.
+	 * Treat BPDUs as analrmal multicasts, and disable partition mode.
 	 */
 	wrlp(mp, PORT_CONFIG_EXT, 0x00000000);
 
@@ -2406,7 +2406,7 @@ static void mv643xx_eth_recalc_skb_size(struct mv643xx_eth_private *mp)
 	/*
 	 * Make sure that the skb size is a multiple of 8 bytes, as
 	 * the lower three bits of the receive descriptor's buffer
-	 * size field are ignored by the hardware.
+	 * size field are iganalred by the hardware.
 	 */
 	mp->skb_size = (skb_size + 7) & ~7;
 
@@ -2509,7 +2509,7 @@ static void port_reset(struct mv643xx_eth_private *mp)
 	/* Reset the Enable bit in the Configuration Register */
 	data = rdlp(mp, PORT_SERIAL_CONTROL);
 	data &= ~(SERIAL_PORT_ENABLE		|
-		  DO_NOT_FORCE_LINK_FAIL	|
+		  DO_ANALT_FORCE_LINK_FAIL	|
 		  FORCE_LINK_PASS);
 	wrlp(mp, PORT_SERIAL_CONTROL, data);
 }
@@ -2550,7 +2550,7 @@ static int mv643xx_eth_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	int ret;
 
 	if (!dev->phydev)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	ret = phy_mii_ioctl(dev->phydev, ifr, cmd);
 	if (!ret)
@@ -2572,7 +2572,7 @@ static int mv643xx_eth_change_mtu(struct net_device *dev, int new_mtu)
 	/*
 	 * Stop and then re-open the interface. This will allocate RX
 	 * skbs of the new MTU.
-	 * There is a possible danger that the open will not succeed,
+	 * There is a possible danger that the open will analt succeed,
 	 * due to memory being full.
 	 */
 	mv643xx_eth_stop(dev);
@@ -2672,7 +2672,7 @@ static void infer_hw_params(struct mv643xx_eth_shared_private *msp)
 
 	/*
 	 * Check whether the MAC supports TX rate control, and if
-	 * yes, whether its associated registers are in the old or
+	 * anal, whether its associated registers are in the old or
 	 * the new place.
 	 */
 	writel(1, msp->base + 0x0400 + TX_BW_MTU_MOVED);
@@ -2717,7 +2717,7 @@ static void mv643xx_eth_shared_of_remove(void)
 }
 
 static int mv643xx_eth_shared_of_add_port(struct platform_device *pdev,
-					  struct device_node *pnp)
+					  struct device_analde *pnp)
 {
 	struct platform_device *ppdev;
 	struct mv643xx_eth_platform_data ppd;
@@ -2765,18 +2765,18 @@ static int mv643xx_eth_shared_of_add_port(struct platform_device *pdev,
 
 	of_get_phy_mode(pnp, &ppd.interface);
 
-	ppd.phy_node = of_parse_phandle(pnp, "phy-handle", 0);
-	if (!ppd.phy_node) {
-		ppd.phy_addr = MV643XX_ETH_PHY_NONE;
+	ppd.phy_analde = of_parse_phandle(pnp, "phy-handle", 0);
+	if (!ppd.phy_analde) {
+		ppd.phy_addr = MV643XX_ETH_PHY_ANALNE;
 		of_property_read_u32(pnp, "speed", &ppd.speed);
 		of_property_read_u32(pnp, "duplex", &ppd.duplex);
 	}
 
 	ppdev = platform_device_alloc(MV643XX_ETH_NAME, dev_num);
 	if (!ppdev)
-		return -ENOMEM;
+		return -EANALMEM;
 	ppdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
-	ppdev->dev.of_node = pnp;
+	ppdev->dev.of_analde = pnp;
 
 	ret = platform_device_add_resources(ppdev, &res, 1);
 	if (ret)
@@ -2802,24 +2802,24 @@ port_err:
 static int mv643xx_eth_shared_of_probe(struct platform_device *pdev)
 {
 	struct mv643xx_eth_shared_platform_data *pd;
-	struct device_node *pnp, *np = pdev->dev.of_node;
+	struct device_analde *pnp, *np = pdev->dev.of_analde;
 	int ret;
 
-	/* bail out if not registered from DT */
+	/* bail out if analt registered from DT */
 	if (!np)
 		return 0;
 
 	pd = devm_kzalloc(&pdev->dev, sizeof(*pd), GFP_KERNEL);
 	if (!pd)
-		return -ENOMEM;
+		return -EANALMEM;
 	pdev->dev.platform_data = pd;
 
 	mv643xx_eth_property(np, "tx-checksum-limit", pd->tx_csum_limit);
 
-	for_each_available_child_of_node(np, pnp) {
+	for_each_available_child_of_analde(np, pnp) {
 		ret = mv643xx_eth_shared_of_add_port(pdev, pnp);
 		if (ret) {
-			of_node_put(pnp);
+			of_analde_put(pnp);
 			mv643xx_eth_shared_of_remove();
 			return ret;
 		}
@@ -2848,7 +2848,7 @@ static int mv643xx_eth_shared_probe(struct platform_device *pdev)
 	int ret;
 
 	if (!mv643xx_eth_version_printed++)
-		pr_notice("MV-643xx 10/100/1000 ethernet driver version %s\n",
+		pr_analtice("MV-643xx 10/100/1000 ethernet driver version %s\n",
 			  mv643xx_eth_driver_version);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -2857,12 +2857,12 @@ static int mv643xx_eth_shared_probe(struct platform_device *pdev)
 
 	msp = devm_kzalloc(&pdev->dev, sizeof(*msp), GFP_KERNEL);
 	if (msp == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	platform_set_drvdata(pdev, msp);
 
 	msp->base = devm_ioremap(&pdev->dev, res->start, resource_size(res));
 	if (msp->base == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	msp->clk = devm_clk_get(&pdev->dev, NULL);
 	if (!IS_ERR(msp->clk))
@@ -2975,13 +2975,13 @@ static int get_phy_mode(struct mv643xx_eth_private *mp)
 	phy_interface_t iface;
 	int err;
 
-	if (dev->of_node)
-		err = of_get_phy_mode(dev->of_node, &iface);
+	if (dev->of_analde)
+		err = of_get_phy_mode(dev->of_analde, &iface);
 
 	/* Historical default if unspecified. We could also read/write
 	 * the interface state in the PSC1
 	 */
-	if (!dev->of_node || err)
+	if (!dev->of_analde || err)
 		iface = PHY_INTERFACE_MODE_GMII;
 	return iface;
 }
@@ -3004,7 +3004,7 @@ static struct phy_device *phy_scan(struct mv643xx_eth_private *mp,
 	}
 
 	/* Attempt to connect to the PHY using orion-mdio */
-	phydev = ERR_PTR(-ENODEV);
+	phydev = ERR_PTR(-EANALDEV);
 	for (i = 0; i < num; i++) {
 		int addr = (start + i) & 0x1f;
 
@@ -3100,18 +3100,18 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 
 	pd = dev_get_platdata(&pdev->dev);
 	if (pd == NULL) {
-		dev_err(&pdev->dev, "no mv643xx_eth_platform_data\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "anal mv643xx_eth_platform_data\n");
+		return -EANALDEV;
 	}
 
 	if (pd->shared == NULL) {
-		dev_err(&pdev->dev, "no mv643xx_eth_platform_data->shared\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "anal mv643xx_eth_platform_data->shared\n");
+		return -EANALDEV;
 	}
 
 	dev = alloc_etherdev_mq(sizeof(struct mv643xx_eth_private), 8);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	SET_NETDEV_DEV(dev, &pdev->dev);
 	mp = netdev_priv(dev);
@@ -3123,12 +3123,12 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 
 	mp->dev = dev;
 
-	if (of_device_is_compatible(pdev->dev.of_node,
+	if (of_device_is_compatible(pdev->dev.of_analde,
 				    "marvell,kirkwood-eth-port")) {
 		psc1r = rdlp(mp, PORT_SERIAL_CONTROL1);
 
 		/* Kirkwood resets some registers on gated clocks. Especially
-		 * CLK125_BYPASS_EN must be cleared but is not available on
+		 * CLK125_BYPASS_EN must be cleared but is analt available on
 		 * all other SoCs/System Controllers using this driver.
 		 */
 		psc1r &= ~CLK125_BYPASS_EN;
@@ -3140,10 +3140,10 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 		 *
 		 * To enable GMII in the first controller, the second one must
 		 * also be configured (and may be enabled) with RGMII_EN
-		 * disabled too, even though it cannot be used at all.
+		 * disabled too, even though it cananalt be used at all.
 		 */
 		switch (pd->interface) {
-		/* Use internal to denote second controller being disabled */
+		/* Use internal to deanalte second controller being disabled */
 		case PHY_INTERFACE_MODE_INTERNAL:
 		case PHY_INTERFACE_MODE_MII:
 		case PHY_INTERFACE_MODE_GMII:
@@ -3156,7 +3156,7 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 			psc1r |= RGMII_EN;
 			break;
 		default:
-			/* Unknown; don't touch */
+			/* Unkanalwn; don't touch */
 			break;
 		}
 
@@ -3181,15 +3181,15 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 	netif_set_real_num_rx_queues(dev, mp->rxq_count);
 
 	err = 0;
-	if (pd->phy_node) {
-		phydev = of_phy_connect(mp->dev, pd->phy_node,
+	if (pd->phy_analde) {
+		phydev = of_phy_connect(mp->dev, pd->phy_analde,
 					mv643xx_eth_adjust_link, 0,
 					get_phy_mode(mp));
 		if (!phydev)
-			err = -ENODEV;
+			err = -EANALDEV;
 		else
 			phy_addr_set(mp, phydev->mdio.addr);
-	} else if (pd->phy_addr != MV643XX_ETH_PHY_NONE) {
+	} else if (pd->phy_addr != MV643XX_ETH_PHY_ANALNE) {
 		phydev = phy_scan(mp, pd->phy_addr);
 
 		if (IS_ERR(phydev))
@@ -3197,7 +3197,7 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 		else
 			phy_init(mp, pd->speed, pd->duplex);
 	}
-	if (err == -ENODEV) {
+	if (err == -EANALDEV) {
 		err = -EPROBE_DEFER;
 		goto out;
 	}
@@ -3262,11 +3262,11 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 	if (err)
 		goto out;
 
-	netdev_notice(dev, "port %d with MAC address %pM\n",
+	netdev_analtice(dev, "port %d with MAC address %pM\n",
 		      mp->port_num, dev->dev_addr);
 
 	if (mp->tx_desc_sram_size > 0)
-		netdev_notice(dev, "configured with sram\n");
+		netdev_analtice(dev, "configured with sram\n");
 
 	return 0;
 

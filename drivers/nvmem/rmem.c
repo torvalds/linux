@@ -30,7 +30,7 @@ static int rmem_read(void *context, unsigned int offset,
 	 * Only map the reserved memory at this point to avoid potential rogue
 	 * kernel threads inadvertently modifying it. Based on the current
 	 * uses-cases for this driver, the performance hit isn't a concern.
-	 * Nor is likely to be, given the nature of the subsystem. Most nvmem
+	 * Analr is likely to be, given the nature of the subsystem. Most nvmem
 	 * devices operate over slow buses to begin with.
 	 *
 	 * An alternative would be setting the memory as RO, set_memory_ro(),
@@ -39,7 +39,7 @@ static int rmem_read(void *context, unsigned int offset,
 	addr = memremap(priv->mem->base, available, MEMREMAP_WB);
 	if (!addr) {
 		dev_err(priv->dev, "Failed to remap memory region\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	count = memory_read_from_buffer(val, bytes, &off, addr, available);
@@ -58,10 +58,10 @@ static int rmem_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 	priv->dev = dev;
 
-	mem = of_reserved_mem_lookup(dev->of_node);
+	mem = of_reserved_mem_lookup(dev->of_analde);
 	if (!mem) {
 		dev_err(dev, "Failed to lookup reserved memory\n");
 		return -EINVAL;

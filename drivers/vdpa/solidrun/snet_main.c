@@ -19,7 +19,7 @@
 #define SNET_CFG_VERSION        0x2
 /* Queue align */
 #define SNET_QUEUE_ALIGNMENT    PAGE_SIZE
-/* Kick value to notify that new data is available */
+/* Kick value to analtify that new data is available */
 #define SNET_KICK_VAL           0x1
 #define SNET_CONFIG_OFF         0x0
 /* How long we are willing to wait for a SNET device */
@@ -105,7 +105,7 @@ static void snet_set_vq_num(struct vdpa_device *vdev, u16 idx, u32 num)
 static void snet_kick_vq(struct vdpa_device *vdev, u16 idx)
 {
 	struct snet *snet = vdpa_to_snet(vdev);
-	/* not ready - ignore */
+	/* analt ready - iganalre */
 	if (unlikely(!snet->vqs[idx]->ready))
 		return;
 
@@ -117,7 +117,7 @@ static void snet_kick_vq_with_data(struct vdpa_device *vdev, u32 data)
 	struct snet *snet = vdpa_to_snet(vdev);
 	u16 idx = data & 0xFFFF;
 
-	/* not ready - ignore */
+	/* analt ready - iganalre */
 	if (unlikely(!snet->vqs[idx]->ready))
 		return;
 
@@ -180,7 +180,7 @@ static int snet_set_vq_state(struct vdpa_device *vdev, u16 idx, const struct vdp
 	if (snet_vq_state_is_initial(snet, state))
 		return 0;
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int snet_get_vq_state(struct vdpa_device *vdev, u16 idx, struct vdpa_vq_state *state)
@@ -208,7 +208,7 @@ static int snet_reset_dev(struct snet *snet)
 	int ret = 0;
 	u32 i;
 
-	/* If status is 0, nothing to do */
+	/* If status is 0, analthing to do */
 	if (!snet->status)
 		return 0;
 
@@ -320,7 +320,7 @@ static int snet_write_conf(struct snet *snet)
 	u32 off, i, tmp;
 	int ret;
 
-	/* No need to write the config twice */
+	/* Anal need to write the config twice */
 	if (snet->dpu_ready)
 		return true;
 
@@ -344,7 +344,7 @@ static int snet_write_conf(struct snet *snet)
 	/* Init offset */
 	off = snet->psnet->cfg.host_cfg_off;
 
-	/* Ignore magic number for now */
+	/* Iganalre magic number for analw */
 	off += 4;
 	snet_write32(snet, off, snet->psnet->negotiated_cfg_ver);
 	off += 4;
@@ -356,7 +356,7 @@ static int snet_write_conf(struct snet *snet)
 	off += 4;
 	snet_write64(snet, off, snet->negotiated_features);
 	off += 8;
-	/* Ignore reserved */
+	/* Iganalre reserved */
 	off += 8;
 	/* Write VQs */
 	for (i = 0 ; i < snet->cfg->vq_num ; i++) {
@@ -376,7 +376,7 @@ static int snet_write_conf(struct snet *snet)
 			snet_write32(snet, off, *(u32 *)&snet->vqs[i]->vq_state);
 		off += 4;
 
-		/* Ignore reserved */
+		/* Iganalre reserved */
 		off += 4;
 	}
 
@@ -557,7 +557,7 @@ static int psnet_open_pf_bar(struct pci_dev *pdev, struct psnet *psnet)
 {
 	char name[50];
 	int ret, i, mask = 0;
-	/* We don't know which BAR will be used to communicate..
+	/* We don't kanalw which BAR will be used to communicate..
 	 * We will map every bar with len > 0.
 	 *
 	 * Later, we will discover the BAR and unmap all other BARs.
@@ -567,10 +567,10 @@ static int psnet_open_pf_bar(struct pci_dev *pdev, struct psnet *psnet)
 			mask |= (1 << i);
 	}
 
-	/* No BAR can be used.. */
+	/* Anal BAR can be used.. */
 	if (!mask) {
 		SNET_ERR(pdev, "Failed to find a PCI BAR\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	snprintf(name, sizeof(name), "psnet[%s]-bars", pci_name(pdev));
@@ -645,7 +645,7 @@ static int psnet_detect_bar(struct psnet *psnet, u32 off)
 		usleep_range(1000, 10000);
 	}
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static void psnet_unmap_unused_bars(struct pci_dev *pdev, struct psnet *psnet)
@@ -653,7 +653,7 @@ static void psnet_unmap_unused_bars(struct pci_dev *pdev, struct psnet *psnet)
 	int i, mask = 0;
 
 	for (i = 0; i < PCI_STD_NUM_BARS; i++) {
-		if (psnet->bars[i] && i != psnet->barno)
+		if (psnet->bars[i] && i != psnet->baranal)
 			mask |= (1 << i);
 	}
 
@@ -666,21 +666,21 @@ static int psnet_read_cfg(struct pci_dev *pdev, struct psnet *psnet)
 {
 	struct snet_cfg *cfg = &psnet->cfg;
 	u32 i, off;
-	int barno;
+	int baranal;
 
 	/* Move to where the config starts */
 	off = SNET_CONFIG_OFF;
 
 	/* Find BAR used for communication */
-	barno = psnet_detect_bar(psnet, off);
-	if (barno < 0) {
-		SNET_ERR(pdev, "SNET config is not ready.\n");
-		return barno;
+	baranal = psnet_detect_bar(psnet, off);
+	if (baranal < 0) {
+		SNET_ERR(pdev, "SNET config is analt ready.\n");
+		return baranal;
 	}
 
 	/* Save used BAR number and unmap all other BARs */
-	psnet->barno = barno;
-	SNET_DBG(pdev, "Using BAR number %d\n", barno);
+	psnet->baranal = baranal;
+	SNET_DBG(pdev, "Using BAR number %d\n", baranal);
 
 	psnet_unmap_unused_bars(pdev, psnet);
 
@@ -715,7 +715,7 @@ static int psnet_read_cfg(struct pci_dev *pdev, struct psnet *psnet)
 	off += 4;
 	cfg->flags = psnet_read32(psnet, off);
 	off += 4;
-	/* Ignore Reserved */
+	/* Iganalre Reserved */
 	off += sizeof(cfg->rsvd);
 
 	cfg->devices_num = psnet_read32(psnet, off);
@@ -723,14 +723,14 @@ static int psnet_read_cfg(struct pci_dev *pdev, struct psnet *psnet)
 	/* Allocate memory to hold pointer to the devices */
 	cfg->devs = kcalloc(cfg->devices_num, sizeof(void *), GFP_KERNEL);
 	if (!cfg->devs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Load device configuration from BAR */
 	for (i = 0; i < cfg->devices_num; i++) {
 		cfg->devs[i] = kzalloc(sizeof(*cfg->devs[i]), GFP_KERNEL);
 		if (!cfg->devs[i]) {
 			snet_free_cfg(cfg);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		/* Read device config */
 		cfg->devs[i]->virtio_id = psnet_read32(psnet, off);
@@ -743,7 +743,7 @@ static int psnet_read_cfg(struct pci_dev *pdev, struct psnet *psnet)
 		off += 4;
 		cfg->devs[i]->features = psnet_read64(psnet, off);
 		off += 8;
-		/* Ignore Reserved */
+		/* Iganalre Reserved */
 		off += sizeof(cfg->devs[i]->rsvd);
 
 		cfg->devs[i]->cfg_size = psnet_read32(psnet, off);
@@ -818,14 +818,14 @@ static int snet_build_vqs(struct snet *snet)
 	/* Allocate the VQ pointers array */
 	snet->vqs = kcalloc(snet->cfg->vq_num, sizeof(void *), GFP_KERNEL);
 	if (!snet->vqs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Allocate the VQs */
 	for (i = 0; i < snet->cfg->vq_num; i++) {
 		snet->vqs[i] = kzalloc(sizeof(*snet->vqs[i]), GFP_KERNEL);
 		if (!snet->vqs[i]) {
 			snet_free_vqs(snet);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		/* Reset IRQ num */
 		snet->vqs[i]->irq = -1;
@@ -879,7 +879,7 @@ static struct snet_dev_cfg *snet_find_dev_cfg(struct snet_cfg *cfg, u32 vfid)
 		if (cfg->devs[i]->vfid == vfid)
 			return cfg->devs[i];
 	}
-	/* Oppss.. no config found.. */
+	/* Oppss.. anal config found.. */
 	return NULL;
 }
 
@@ -899,7 +899,7 @@ static int snet_vdpa_probe_pf(struct pci_dev *pdev)
 	/* Allocate a PCI physical function device */
 	psnet = kzalloc(sizeof(*psnet), GFP_KERNEL);
 	if (!psnet)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Init PSNET spinlock */
 	spin_lock_init(&psnet->lock);
@@ -940,7 +940,7 @@ static int snet_vdpa_probe_pf(struct pci_dev *pdev)
 #if IS_ENABLED(CONFIG_HWMON)
 		psnet_create_hwmon(pdev);
 #else
-		SNET_WARN(pdev, "Can't start HWMON, CONFIG_HWMON is not enabled\n");
+		SNET_WARN(pdev, "Can't start HWMON, CONFIG_HWMON is analt enabled\n");
 #endif
 	}
 
@@ -981,7 +981,7 @@ static int snet_vdpa_probe_vf(struct pci_dev *pdev)
 	dev_cfg = snet_find_dev_cfg(&psnet->cfg, vfid);
 	if (!dev_cfg) {
 		SNET_WARN(pdev, "Failed to find a VF config..\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Which PCI device should allocate the IRQs?
@@ -1007,7 +1007,7 @@ static int snet_vdpa_probe_vf(struct pci_dev *pdev)
 				 false);
 	if (!snet) {
 		SNET_ERR(pdev, "Failed to allocate a vdpa device\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_irqs;
 	}
 

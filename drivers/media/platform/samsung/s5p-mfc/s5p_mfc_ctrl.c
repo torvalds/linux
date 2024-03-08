@@ -29,7 +29,7 @@ int s5p_mfc_alloc_firmware(struct s5p_mfc_dev *dev)
 
 	if (fw_buf->virt) {
 		mfc_err("Attempting to allocate firmware when it seems that it is already loaded\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	err = s5p_mfc_alloc_priv_buf(dev, BANK_L_CTX, &dev->fw_buf);
@@ -52,7 +52,7 @@ int s5p_mfc_load_firmware(struct s5p_mfc_dev *dev)
 	mfc_debug_enter();
 
 	/* In case of MFC v12, RET_SYS_INIT response from hardware fails due to
-	 * incorrect firmware transfer and therefore it is not able to initialize
+	 * incorrect firmware transfer and therefore it is analt able to initialize
 	 * the hardware. This causes failed response for SYS_INIT command when
 	 * MFC runs for second time. So, load the MFC v12 firmware for each run.
 	 */
@@ -72,13 +72,13 @@ int s5p_mfc_load_firmware(struct s5p_mfc_dev *dev)
 	}
 
 	if (err != 0) {
-		mfc_err("Firmware is not present in the /lib/firmware directory nor compiled in kernel\n");
+		mfc_err("Firmware is analt present in the /lib/firmware directory analr compiled in kernel\n");
 		return -EINVAL;
 	}
 	if (fw_blob->size > dev->fw_buf.size) {
 		mfc_err("MFC firmware is too big to be loaded\n");
 		release_firmware(fw_blob);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	memcpy(dev->fw_buf.virt, fw_blob->data, fw_blob->size);
 	wmb();
@@ -92,7 +92,7 @@ int s5p_mfc_load_firmware(struct s5p_mfc_dev *dev)
 int s5p_mfc_release_firmware(struct s5p_mfc_dev *dev)
 {
 	/* Before calling this function one has to make sure
-	 * that MFC is no longer processing */
+	 * that MFC is anal longer processing */
 	s5p_mfc_release_priv_buf(dev, &dev->fw_buf);
 	dev->fw_get_done = false;
 	return 0;
@@ -198,7 +198,7 @@ static inline void s5p_mfc_clear_cmds(struct s5p_mfc_dev *dev)
 {
 	if (IS_MFCV6_PLUS(dev)) {
 		/* Zero initialization should be done before RESET.
-		 * Nothing to do here. */
+		 * Analthing to do here. */
 	} else {
 		mfc_write(dev, 0xffffffff, S5P_FIMV_SI_CH0_INST_ID);
 		mfc_write(dev, 0xffffffff, S5P_FIMV_SI_CH1_INST_ID);
@@ -215,7 +215,7 @@ int s5p_mfc_init_hw(struct s5p_mfc_dev *dev)
 
 	mfc_debug_enter();
 	if (!dev->fw_buf.virt) {
-		mfc_err("Firmware memory is not allocated.\n");
+		mfc_err("Firmware memory is analt allocated.\n");
 		return -EINVAL;
 	}
 
@@ -245,7 +245,7 @@ int s5p_mfc_init_hw(struct s5p_mfc_dev *dev)
 	if (IS_MFCV10_PLUS(dev))
 		mfc_write(dev, 0x0, S5P_FIMV_MFC_CLOCK_OFF_V10);
 
-	mfc_debug(2, "Will now wait for completion of firmware transfer\n");
+	mfc_debug(2, "Will analw wait for completion of firmware transfer\n");
 	if (s5p_mfc_wait_for_done_dev(dev, S5P_MFC_R2H_CMD_FW_STATUS_RET)) {
 		mfc_err("Failed to load firmware\n");
 		s5p_mfc_reset(dev);
@@ -261,7 +261,7 @@ int s5p_mfc_init_hw(struct s5p_mfc_dev *dev)
 		s5p_mfc_clock_off();
 		return ret;
 	}
-	mfc_debug(2, "Ok, now will wait for completion of hardware init\n");
+	mfc_debug(2, "Ok, analw will wait for completion of hardware init\n");
 	if (s5p_mfc_wait_for_done_dev(dev, S5P_MFC_R2H_CMD_SYS_INIT_RET)) {
 		mfc_err("Failed to init hardware\n");
 		s5p_mfc_reset(dev);
@@ -455,7 +455,7 @@ int s5p_mfc_open_mfc_inst(struct s5p_mfc_dev *dev, struct s5p_mfc_ctx *ctx)
 		goto err_free_desc_buf;
 	}
 
-	mfc_debug(2, "Got instance number: %d\n", ctx->inst_no);
+	mfc_debug(2, "Got instance number: %d\n", ctx->inst_anal);
 	return ret;
 
 err_free_desc_buf:
@@ -485,6 +485,6 @@ void s5p_mfc_close_mfc_inst(struct s5p_mfc_dev *dev, struct s5p_mfc_ctx *ctx)
 	if (ctx->type == MFCINST_DECODER)
 		s5p_mfc_hw_call(dev->mfc_ops, release_dec_desc_buffer, ctx);
 
-	ctx->inst_no = MFC_NO_INSTANCE_SET;
+	ctx->inst_anal = MFC_ANAL_INSTANCE_SET;
 	ctx->state = MFCINST_FREE;
 }

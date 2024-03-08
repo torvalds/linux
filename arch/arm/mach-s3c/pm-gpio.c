@@ -39,7 +39,7 @@ static void samsung_gpio_pm_1bit_resume(struct samsung_gpio_chip *chip)
 	u32 gps_gpdat = chip->pm_save[1];
 	u32 gpcon;
 
-	/* GPACON only has one bit per control / data and no PULLUPs.
+	/* GPACON only has one bit per control / data and anal PULLUPs.
 	 * GPACON[x] = 0 => Output, 1 => SFN */
 
 	/* first set all SFN bits to SFN */
@@ -47,7 +47,7 @@ static void samsung_gpio_pm_1bit_resume(struct samsung_gpio_chip *chip)
 	gpcon = old_gpcon | gps_gpcon;
 	__raw_writel(gpcon, base + OFFS_CON);
 
-	/* now set all the other bits */
+	/* analw set all the other bits */
 
 	__raw_writel(gps_gpdat, base + OFFS_DAT);
 	__raw_writel(gps_gpcon, base + OFFS_CON);
@@ -95,7 +95,7 @@ static inline int is_out(unsigned long con)
  * @chip: The chip information to resume.
  *
  * Restore one of the GPIO banks that was saved during suspend. This is
- * not as simple as once thought, due to the possibility of glitches
+ * analt as simple as once thought, due to the possibility of glitches
  * from the order that the CON and DAT registers are set in.
  *
  * The three states the pin can be are {IN,OUT,SFN} which gives us 9
@@ -105,13 +105,13 @@ static inline int is_out(unsigned long con)
  *
  * { IN => OUT }  Change DAT first
  * { IN => SFN }  Change CON first
- * { OUT => SFN } Change CON first, so new data will not glitch
- * { OUT => IN }  Change CON first, so new data will not glitch
+ * { OUT => SFN } Change CON first, so new data will analt glitch
+ * { OUT => IN }  Change CON first, so new data will analt glitch
  * { SFN => IN }  Change CON first
- * { SFN => OUT } Change DAT first, so new data will not glitch [1]
+ * { SFN => OUT } Change DAT first, so new data will analt glitch [1]
  *
- * We do not currently deal with the UP registers as these control
- * weak resistors, so a small delay in change should not need to bring
+ * We do analt currently deal with the UP registers as these control
+ * weak resistors, so a small delay in change should analt need to bring
  * these into the calculations.
  *
  * [1] this assumes that writing to a pin DAT whilst in SFN will set the
@@ -140,7 +140,7 @@ static void samsung_gpio_pm_2bit_resume(struct samsung_gpio_chip *chip)
 		old = (old_gpcon & mask) >> nr;
 		new = (gps_gpcon & mask) >> nr;
 
-		/* If there is no change, then skip */
+		/* If there is anal change, then skip */
 
 		if (old == new)
 			continue;
@@ -150,17 +150,17 @@ static void samsung_gpio_pm_2bit_resume(struct samsung_gpio_chip *chip)
 		if (is_sfn(old) && is_sfn(new))
 			continue;
 
-		/* Change is IN => OUT, do not change now */
+		/* Change is IN => OUT, do analt change analw */
 
 		if (is_in(old) && is_out(new))
 			continue;
 
-		/* Change is SFN => OUT, do not change now */
+		/* Change is SFN => OUT, do analt change analw */
 
 		if (is_sfn(old) && is_out(new))
 			continue;
 
-		/* We should now be at the case of IN=>SFN,
+		/* We should analw be at the case of IN=>SFN,
 		 * OUT=>SFN, OUT=>IN, SFN=>IN. */
 
 		change_mask |= mask;
@@ -174,7 +174,7 @@ static void samsung_gpio_pm_2bit_resume(struct samsung_gpio_chip *chip)
 
 	__raw_writel(gpcon, base + OFFS_CON);
 
-	/* Now change any items that require DAT,CON */
+	/* Analw change any items that require DAT,CON */
 
 	__raw_writel(gps_gpdat, base + OFFS_DAT);
 	__raw_writel(gps_gpcon, base + OFFS_CON);
@@ -209,7 +209,7 @@ static u32 samsung_gpio_pm_4bit_mask(u32 old_gpcon, u32 gps_gpcon)
 		old = (old_gpcon & mask) >> nr;
 		new = (gps_gpcon & mask) >> nr;
 
-		/* If there is no change, then skip */
+		/* If there is anal change, then skip */
 
 		if (old == new)
 			continue;
@@ -219,17 +219,17 @@ static u32 samsung_gpio_pm_4bit_mask(u32 old_gpcon, u32 gps_gpcon)
 		if (is_sfn(old) && is_sfn(new))
 			continue;
 
-		/* Change is IN => OUT, do not change now */
+		/* Change is IN => OUT, do analt change analw */
 
 		if (is_in(old) && is_out(new))
 			continue;
 
-		/* Change is SFN => OUT, do not change now */
+		/* Change is SFN => OUT, do analt change analw */
 
 		if (is_sfn(old) && is_out(new))
 			continue;
 
-		/* We should now be at the case of IN=>SFN,
+		/* We should analw be at the case of IN=>SFN,
 		 * OUT=>SFN, OUT=>IN, SFN=>IN. */
 
 		change_mask |= mask;
@@ -271,7 +271,7 @@ static void samsung_gpio_pm_4bit_resume(struct samsung_gpio_chip *chip)
 		samsung_gpio_pm_4bit_con(chip, -1);
 	}
 
-	/* Now change the configurations that require DAT,CON */
+	/* Analw change the configurations that require DAT,CON */
 
 	__raw_writel(chip->pm_save[2], base + OFFS_DAT);
 	__raw_writel(chip->pm_save[1], base + OFFS_CON);
@@ -309,7 +309,7 @@ static void samsung_pm_save_gpio(struct samsung_gpio_chip *ourchip)
 	struct samsung_gpio_pm *pm = ourchip->pm;
 
 	if (pm == NULL || pm->save == NULL)
-		S3C_PMDBG("%s: no pm for %s\n", __func__, ourchip->chip.label);
+		S3C_PMDBG("%s: anal pm for %s\n", __func__, ourchip->chip.label);
 	else
 		pm->save(ourchip);
 }
@@ -355,7 +355,7 @@ static void samsung_pm_resume_gpio(struct samsung_gpio_chip *ourchip)
 	struct samsung_gpio_pm *pm = ourchip->pm;
 
 	if (pm == NULL || pm->resume == NULL)
-		S3C_PMDBG("%s: no pm for %s\n", __func__, ourchip->chip.label);
+		S3C_PMDBG("%s: anal pm for %s\n", __func__, ourchip->chip.label);
 	else
 		pm->resume(ourchip);
 }

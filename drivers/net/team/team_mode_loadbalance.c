@@ -8,7 +8,7 @@
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/filter.h>
@@ -24,7 +24,7 @@ static rx_handler_result_t lb_receive(struct team *team, struct team_port *port,
 		if (is_link_local_ether_addr(dest) && dest[5] == 0x02)
 			return RX_HANDLER_EXACT;
 	}
-	return RX_HANDLER_ANOTHER;
+	return RX_HANDLER_AANALTHER;
 }
 
 struct lb_priv;
@@ -133,7 +133,7 @@ static struct team_port *lb_htpm_select_tx_port(struct team *team,
 	port = rcu_dereference_bh(LB_HTPM_PORT_BY_HASH(lb_priv, hash));
 	if (likely(port))
 		return port;
-	/* If no valid port in the table, fall back to simple hash */
+	/* If anal valid port in the table, fall back to simple hash */
 	return lb_hash_select_tx_port(team, hash);
 }
 
@@ -261,11 +261,11 @@ static int __fprog_create(struct sock_fprog_kern **pfprog, u32 data_len,
 		return -EINVAL;
 	fprog = kmalloc(sizeof(*fprog), GFP_KERNEL);
 	if (!fprog)
-		return -ENOMEM;
+		return -EANALMEM;
 	fprog->filter = kmemdup(filter, data_len, GFP_KERNEL);
 	if (!fprog->filter) {
 		kfree(fprog);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	fprog->len = data_len / sizeof(struct sock_filter);
 	*pfprog = fprog;
@@ -389,7 +389,7 @@ static int lb_tx_hash_to_port_mapping_set(struct team *team,
 			return 0;
 		}
 	}
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static void lb_hash_stats_init(struct team *team,
@@ -599,12 +599,12 @@ static int lb_init(struct team *team)
 
 	lb_priv->ex = kzalloc(sizeof(*lb_priv->ex), GFP_KERNEL);
 	if (!lb_priv->ex)
-		return -ENOMEM;
+		return -EANALMEM;
 	lb_priv->ex->team = team;
 
 	lb_priv->pcpu_stats = alloc_percpu(struct lb_pcpu_stats);
 	if (!lb_priv->pcpu_stats) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_alloc_pcpu_stats;
 	}
 
@@ -647,7 +647,7 @@ static int lb_port_enter(struct team *team, struct team_port *port)
 
 	lb_port_priv->pcpu_stats = alloc_percpu(struct lb_stats);
 	if (!lb_port_priv->pcpu_stats)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 

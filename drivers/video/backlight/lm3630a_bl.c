@@ -139,7 +139,7 @@ static irqreturn_t lm3630a_isr_func(int irq, void *chip)
 	rval = lm3630a_update(pchip, REG_CTRL, 0x80, 0x00);
 	if (rval < 0) {
 		dev_err(pchip->dev, "i2c failed to access register\n");
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 	return IRQ_HANDLED;
 }
@@ -156,14 +156,14 @@ static int lm3630a_intr_config(struct lm3630a_chip *pchip)
 	pchip->irqthread = create_singlethread_workqueue("lm3630a-irqthd");
 	if (!pchip->irqthread) {
 		dev_err(pchip->dev, "create irq thread fail\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	if (request_threaded_irq
 	    (pchip->irq, NULL, lm3630a_isr_func,
 	     IRQF_TRIGGER_FALLING | IRQF_ONESHOT, "lm3630a_irq", pchip)) {
 		dev_err(pchip->dev, "request threaded irq fail\n");
 		destroy_workqueue(pchip->irqthread);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	return rval;
 }
@@ -377,19 +377,19 @@ static const struct regmap_config lm3630a_regmap = {
 	.max_register = REG_MAX,
 };
 
-static int lm3630a_parse_led_sources(struct fwnode_handle *node,
+static int lm3630a_parse_led_sources(struct fwanalde_handle *analde,
 				     int default_led_sources)
 {
 	u32 sources[LM3630A_NUM_SINKS];
 	int ret, num_sources, i;
 
-	num_sources = fwnode_property_count_u32(node, "led-sources");
+	num_sources = fwanalde_property_count_u32(analde, "led-sources");
 	if (num_sources < 0)
 		return default_led_sources;
 	else if (num_sources > ARRAY_SIZE(sources))
 		return -EINVAL;
 
-	ret = fwnode_property_read_u32_array(node, "led-sources", sources,
+	ret = fwanalde_property_read_u32_array(analde, "led-sources", sources,
 					     num_sources);
 	if (ret)
 		return ret;
@@ -405,21 +405,21 @@ static int lm3630a_parse_led_sources(struct fwnode_handle *node,
 }
 
 static int lm3630a_parse_bank(struct lm3630a_platform_data *pdata,
-			      struct fwnode_handle *node, int *seen_led_sources)
+			      struct fwanalde_handle *analde, int *seen_led_sources)
 {
 	int led_sources, ret;
 	const char *label;
 	u32 bank, val;
 	bool linear;
 
-	ret = fwnode_property_read_u32(node, "reg", &bank);
+	ret = fwanalde_property_read_u32(analde, "reg", &bank);
 	if (ret)
 		return ret;
 
 	if (bank != LM3630A_BANK_0 && bank != LM3630A_BANK_1)
 		return -EINVAL;
 
-	led_sources = lm3630a_parse_led_sources(node, BIT(bank));
+	led_sources = lm3630a_parse_led_sources(analde, BIT(bank));
 	if (led_sources < 0)
 		return led_sources;
 
@@ -428,7 +428,7 @@ static int lm3630a_parse_bank(struct lm3630a_platform_data *pdata,
 
 	*seen_led_sources |= led_sources;
 
-	linear = fwnode_property_read_bool(node,
+	linear = fwanalde_property_read_bool(analde,
 					   "ti,linear-mapping-mode");
 	if (bank) {
 		if (led_sources & BIT(LM3630A_SINK_0) ||
@@ -450,7 +450,7 @@ static int lm3630a_parse_bank(struct lm3630a_platform_data *pdata,
 			pdata->ledb_ctrl = LM3630A_LEDB_ON_A;
 	}
 
-	ret = fwnode_property_read_string(node, "label", &label);
+	ret = fwanalde_property_read_string(analde, "label", &label);
 	if (!ret) {
 		if (bank)
 			pdata->ledb_label = label;
@@ -458,7 +458,7 @@ static int lm3630a_parse_bank(struct lm3630a_platform_data *pdata,
 			pdata->leda_label = label;
 	}
 
-	ret = fwnode_property_read_u32(node, "default-brightness",
+	ret = fwanalde_property_read_u32(analde, "default-brightness",
 				       &val);
 	if (!ret) {
 		if (bank)
@@ -467,7 +467,7 @@ static int lm3630a_parse_bank(struct lm3630a_platform_data *pdata,
 			pdata->leda_init_brt = val;
 	}
 
-	ret = fwnode_property_read_u32(node, "max-brightness", &val);
+	ret = fwanalde_property_read_u32(analde, "max-brightness", &val);
 	if (!ret) {
 		if (bank)
 			pdata->ledb_max_brt = val;
@@ -478,16 +478,16 @@ static int lm3630a_parse_bank(struct lm3630a_platform_data *pdata,
 	return 0;
 }
 
-static int lm3630a_parse_node(struct lm3630a_chip *pchip,
+static int lm3630a_parse_analde(struct lm3630a_chip *pchip,
 			      struct lm3630a_platform_data *pdata)
 {
-	int ret = -ENODEV, seen_led_sources = 0;
-	struct fwnode_handle *node;
+	int ret = -EANALDEV, seen_led_sources = 0;
+	struct fwanalde_handle *analde;
 
-	device_for_each_child_node(pchip->dev, node) {
-		ret = lm3630a_parse_bank(pdata, node, &seen_led_sources);
+	device_for_each_child_analde(pchip->dev, analde) {
+		ret = lm3630a_parse_bank(pdata, analde, &seen_led_sources);
 		if (ret) {
-			fwnode_handle_put(node);
+			fwanalde_handle_put(analde);
 			return ret;
 		}
 	}
@@ -503,13 +503,13 @@ static int lm3630a_probe(struct i2c_client *client)
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		dev_err(&client->dev, "fail : i2c functionality check\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	pchip = devm_kzalloc(&client->dev, sizeof(struct lm3630a_chip),
 			     GFP_KERNEL);
 	if (!pchip)
-		return -ENOMEM;
+		return -EANALMEM;
 	pchip->dev = &client->dev;
 
 	pchip->regmap = devm_regmap_init_i2c(client, &lm3630a_regmap);
@@ -525,7 +525,7 @@ static int lm3630a_probe(struct i2c_client *client)
 				     sizeof(struct lm3630a_platform_data),
 				     GFP_KERNEL);
 		if (pdata == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		/* default values */
 		pdata->leda_max_brt = LM3630A_MAX_BRIGHTNESS;
@@ -533,9 +533,9 @@ static int lm3630a_probe(struct i2c_client *client)
 		pdata->leda_init_brt = LM3630A_MAX_BRIGHTNESS;
 		pdata->ledb_init_brt = LM3630A_MAX_BRIGHTNESS;
 
-		rval = lm3630a_parse_node(pchip, pdata);
+		rval = lm3630a_parse_analde(pchip, pdata);
 		if (rval) {
-			dev_err(&client->dev, "fail : parse node\n");
+			dev_err(&client->dev, "fail : parse analde\n");
 			return rval;
 		}
 	}
@@ -571,7 +571,7 @@ static int lm3630a_probe(struct i2c_client *client)
 		pwm_init_state(pchip->pwmd, &pchip->pwmd_state);
 	}
 
-	/* interrupt enable  : irq 0 is not allowed */
+	/* interrupt enable  : irq 0 is analt allowed */
 	pchip->irq = client->irq;
 	if (pchip->irq) {
 		rval = lm3630a_intr_config(pchip);

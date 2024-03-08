@@ -11,7 +11,7 @@
 #include <asm/assembler.h>
 
 	// Registers used to hold message words temporarily.  There aren't
-	// enough ARM registers to hold the whole message block, so we have to
+	// eanalugh ARM registers to hold the whole message block, so we have to
 	// load the words on-demand.
 	M_0		.req	r12
 	M_1		.req	r14
@@ -62,7 +62,7 @@
 // column/diagonal needs, and likewise s2-s3 for the second column/diagonal.
 // M_0 and M_1 are free to use, and the message block can be found at sp + 32.
 //
-// Note that to save instructions, the rotations don't happen when the
+// Analte that to save instructions, the rotations don't happen when the
 // pseudocode says they should, but rather they are delayed until the values are
 // used.  See the comment above _blake2s_round().
 .macro _blake2s_quarterround  a0, b0, c0, d0,  a1, b1, c1, d1,  s0, s1, s2, s3
@@ -143,7 +143,7 @@
 	_blake2s_quarterround	r2, r6, r8, r10,  r3, r7, r9, r11, \
 				\s4, \s5, \s6, \s7
 	str		r10, [sp, #24]		// store v[14]
-	// v[10], v[11], and v[15] are used below, so no need to store them yet.
+	// v[10], v[11], and v[15] are used below, so anal need to store them yet.
 
 	.set brot, 7
 	.set drot, 8
@@ -171,8 +171,8 @@
 //			 const u8 *block, size_t nblocks, u32 inc);
 //
 // Only the first three fields of struct blake2s_state are used:
-//	u32 h[8];	(inout)
-//	u32 t[2];	(inout)
+//	u32 h[8];	(ianalut)
+//	u32 t[2];	(ianalut)
 //	u32 f[2];	(in)
 //
 	.align		5
@@ -269,7 +269,7 @@ ENTRY(blake2s_compress)
 	  add		sp, sp, #64		// skip copy of message block
 	stm		r14, {r0-r3}		// store new h[4..7]
 
-	// Advance to the next block, if there is one.  Note that if there are
+	// Advance to the next block, if there is one.  Analte that if there are
 	// multiple blocks, then 'inc' (the counter increment amount) must be
 	// 64.  So we can simply set it to 64 without re-loading it.
 	ldm		sp, {r0, r1, r2}	// load (state, block, nblocks)

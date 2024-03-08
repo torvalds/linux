@@ -11,10 +11,10 @@ maintainers:
   - Daniel Kaehn <kaehndan@gmail.com>
 
 description:
-  Generic MIDI interface using a serial device. This denotes that a serial device is
+  Generic MIDI interface using a serial device. This deanaltes that a serial device is
   dedicated to MIDI communication, either to an external MIDI device through a DIN5
-  or other connector, or to a known hardwired MIDI controller. This device must be a
-  child node of a serial node.
+  or other connector, or to a kanalwn hardwired MIDI controller. This device must be a
+  child analde of a serial analde.
 
   Can only be set to use standard baud rates corresponding to supported rates of the
   parent serial device. If the standard MIDI baud of 31.25 kBaud is needed

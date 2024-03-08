@@ -29,7 +29,7 @@
 #define DRIVER_DESC	"STMicroelectronics SoC DRM"
 #define DRIVER_DATE	"20140601"
 #define DRIVER_MAJOR	1
-#define DRIVER_MINOR	0
+#define DRIVER_MIANALR	0
 
 #define STI_MAX_FB_HEIGHT	4096
 #define STI_MAX_FB_WIDTH	4096
@@ -74,8 +74,8 @@ DEFINE_SIMPLE_ATTRIBUTE(sti_drm_fps_fops,
 
 static int sti_drm_fps_dbg_show(struct seq_file *s, void *data)
 {
-	struct drm_info_node *node = s->private;
-	struct drm_device *dev = node->minor->dev;
+	struct drm_info_analde *analde = s->private;
+	struct drm_device *dev = analde->mianalr->dev;
 	struct drm_plane *p;
 
 	list_for_each_entry(p, &dev->mode_config.plane_list, head) {
@@ -93,14 +93,14 @@ static struct drm_info_list sti_drm_dbg_list[] = {
 	{"fps_get", sti_drm_fps_dbg_show, 0},
 };
 
-static void sti_drm_dbg_init(struct drm_minor *minor)
+static void sti_drm_dbg_init(struct drm_mianalr *mianalr)
 {
 	drm_debugfs_create_files(sti_drm_dbg_list,
 				 ARRAY_SIZE(sti_drm_dbg_list),
-				 minor->debugfs_root, minor);
+				 mianalr->debugfs_root, mianalr);
 
-	debugfs_create_file("fps_show", S_IRUGO | S_IWUSR, minor->debugfs_root,
-			    minor->dev, &sti_drm_fps_fops);
+	debugfs_create_file("fps_show", S_IRUGO | S_IWUSR, mianalr->debugfs_root,
+			    mianalr->dev, &sti_drm_fps_fops);
 
 	DRM_INFO("%s: debugfs installed\n", DRIVER_NAME);
 }
@@ -126,7 +126,7 @@ static void sti_mode_config_init(struct drm_device *dev)
 
 	dev->mode_config.funcs = &sti_mode_config_funcs;
 
-	dev->mode_config.normalize_zpos = true;
+	dev->mode_config.analrmalize_zpos = true;
 }
 
 DEFINE_DRM_GEM_DMA_FOPS(sti_driver_fops);
@@ -142,7 +142,7 @@ static const struct drm_driver sti_driver = {
 	.desc = DRIVER_DESC,
 	.date = DRIVER_DATE,
 	.major = DRIVER_MAJOR,
-	.minor = DRIVER_MINOR,
+	.mianalr = DRIVER_MIANALR,
 };
 
 static int sti_init(struct drm_device *ddev)
@@ -151,7 +151,7 @@ static int sti_init(struct drm_device *ddev)
 
 	private = kzalloc(sizeof(*private), GFP_KERNEL);
 	if (!private)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ddev->dev_private = (void *)private;
 	dev_set_drvdata(ddev->dev, ddev);
@@ -230,20 +230,20 @@ static const struct component_master_ops sti_ops = {
 static int sti_platform_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node;
-	struct device_node *child_np;
+	struct device_analde *analde = dev->of_analde;
+	struct device_analde *child_np;
 	struct component_match *match = NULL;
 
 	dma_set_coherent_mask(dev, DMA_BIT_MASK(32));
 
 	devm_of_platform_populate(dev);
 
-	child_np = of_get_next_available_child(node, NULL);
+	child_np = of_get_next_available_child(analde, NULL);
 
 	while (child_np) {
 		drm_of_component_match_add(dev, &match, component_compare_of,
 					   child_np);
-		child_np = of_get_next_available_child(node, child_np);
+		child_np = of_get_next_available_child(analde, child_np);
 	}
 
 	return component_master_add_with_match(dev, &sti_ops, match);
@@ -261,7 +261,7 @@ static void sti_platform_shutdown(struct platform_device *pdev)
 
 static const struct of_device_id sti_dt_ids[] = {
 	{ .compatible = "st,sti-display-subsystem", },
-	{ /* end node */ },
+	{ /* end analde */ },
 };
 MODULE_DEVICE_TABLE(of, sti_dt_ids);
 
@@ -289,7 +289,7 @@ static struct platform_driver * const drivers[] = {
 static int sti_drm_init(void)
 {
 	if (drm_firmware_drivers_only())
-		return -ENODEV;
+		return -EANALDEV;
 
 	return platform_register_drivers(drivers, ARRAY_SIZE(drivers));
 }

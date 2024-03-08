@@ -154,48 +154,48 @@
 
 		mpss_region: mpss@8000000 {
 			reg = <0x08000000 0x5100000>;
-			no-map;
+			anal-map;
 		};
 
 		mba_region: mba@d100000 {
 			reg = <0x0d100000 0x100000>;
-			no-map;
+			anal-map;
 		};
 
 		wcnss_region: wcnss@d200000 {
 			reg = <0x0d200000 0xa00000>;
-			no-map;
+			anal-map;
 		};
 
 		adsp_region: adsp@dc00000 {
 			reg = <0x0dc00000 0x1900000>;
-			no-map;
+			anal-map;
 		};
 
 		venus_region: memory@f500000 {
 			reg = <0x0f500000 0x500000>;
-			no-map;
+			anal-map;
 		};
 
 		smem_region: smem@fa00000 {
 			reg = <0xfa00000 0x200000>;
-			no-map;
+			anal-map;
 		};
 
 		tz_region: memory@fc00000 {
 			reg = <0x0fc00000 0x160000>;
-			no-map;
+			anal-map;
 		};
 
 		rfsa_mem: memory@fd60000 {
 			reg = <0x0fd60000 0x20000>;
-			no-map;
+			anal-map;
 		};
 
 		rmtfs@fd80000 {
 			compatible = "qcom,rmtfs-mem";
 			reg = <0x0fd80000 0x180000>;
-			no-map;
+			anal-map;
 
 			qcom,client-id = <1>;
 		};
@@ -471,7 +471,7 @@
 				 <&xo_board>;
 			clock-names = "iface", "core", "xo";
 			bus-width = <8>;
-			non-removable;
+			analn-removable;
 
 			status = "disabled";
 		};
@@ -842,13 +842,13 @@
 				#size-cells = <0>;
 
 				/*
-				 * Not described input ports:
-				 * 0 - not-connected
+				 * Analt described input ports:
+				 * 0 - analt-connected
 				 * 1 - connected trought funnel to Multimedia CPU
 				 * 2 - connected to Wireless CPU
-				 * 3 - not-connected
-				 * 4 - not-connected
-				 * 6 - not-connected
+				 * 3 - analt-connected
+				 * 4 - analt-connected
+				 * 6 - analt-connected
 				 * 7 - connected to STM
 				 */
 				port@5 {
@@ -880,10 +880,10 @@
 				#size-cells = <0>;
 
 				/*
-				 * Not described input ports:
+				 * Analt described input ports:
 				 * 0 - connected trought funnel to Audio, Modem and
 				 *     Resource and Power Manager CPU's
-				 * 2...7 - not-connected
+				 * 2...7 - analt-connected
 				 */
 				port@1 {
 					reg = <1>;
@@ -1118,49 +1118,49 @@
 			};
 		};
 
-		snoc: interconnect@fc460000 {
+		sanalc: interconnect@fc460000 {
 			reg = <0xfc460000 0x4000>;
-			compatible = "qcom,msm8974-snoc";
+			compatible = "qcom,msm8974-sanalc";
 			#interconnect-cells = <1>;
 			clock-names = "bus", "bus_a";
-			clocks = <&rpmcc RPM_SMD_SNOC_CLK>,
-				 <&rpmcc RPM_SMD_SNOC_A_CLK>;
+			clocks = <&rpmcc RPM_SMD_SANALC_CLK>,
+				 <&rpmcc RPM_SMD_SANALC_A_CLK>;
 		};
 
-		pnoc: interconnect@fc468000 {
+		panalc: interconnect@fc468000 {
 			reg = <0xfc468000 0x4000>;
-			compatible = "qcom,msm8974-pnoc";
+			compatible = "qcom,msm8974-panalc";
 			#interconnect-cells = <1>;
 			clock-names = "bus", "bus_a";
-			clocks = <&rpmcc RPM_SMD_PNOC_CLK>,
-				 <&rpmcc RPM_SMD_PNOC_A_CLK>;
+			clocks = <&rpmcc RPM_SMD_PANALC_CLK>,
+				 <&rpmcc RPM_SMD_PANALC_A_CLK>;
 		};
 
-		ocmemnoc: interconnect@fc470000 {
+		ocmemanalc: interconnect@fc470000 {
 			reg = <0xfc470000 0x4000>;
-			compatible = "qcom,msm8974-ocmemnoc";
+			compatible = "qcom,msm8974-ocmemanalc";
 			#interconnect-cells = <1>;
 			clock-names = "bus", "bus_a";
 			clocks = <&rpmcc RPM_SMD_OCMEMGX_CLK>,
 				 <&rpmcc RPM_SMD_OCMEMGX_A_CLK>;
 		};
 
-		mmssnoc: interconnect@fc478000 {
+		mmssanalc: interconnect@fc478000 {
 			reg = <0xfc478000 0x4000>;
-			compatible = "qcom,msm8974-mmssnoc";
+			compatible = "qcom,msm8974-mmssanalc";
 			#interconnect-cells = <1>;
 			clock-names = "bus", "bus_a";
 			clocks = <&mmcc MMSS_S0_AXI_CLK>,
 				 <&mmcc MMSS_S0_AXI_CLK>;
 		};
 
-		cnoc: interconnect@fc480000 {
+		canalc: interconnect@fc480000 {
 			reg = <0xfc480000 0x4000>;
-			compatible = "qcom,msm8974-cnoc";
+			compatible = "qcom,msm8974-canalc";
 			#interconnect-cells = <1>;
 			clock-names = "bus", "bus_a";
-			clocks = <&rpmcc RPM_SMD_CNOC_CLK>,
-				 <&rpmcc RPM_SMD_CNOC_A_CLK>;
+			clocks = <&rpmcc RPM_SMD_CANALC_CLK>,
+				 <&rpmcc RPM_SMD_CANALC_A_CLK>;
 		};
 
 		tsens: thermal-sensor@fc4a9000 {
@@ -1928,7 +1928,7 @@
 					 <&mmcc MDSS_VSYNC_CLK>;
 				clock-names = "iface", "bus", "core", "vsync";
 
-				interconnects = <&mmssnoc MNOC_MAS_MDP_PORT0 &bimc BIMC_SLV_EBI_CH0>;
+				interconnects = <&mmssanalc MANALC_MAS_MDP_PORT0 &bimc BIMC_SLV_EBI_CH0>;
 				interconnect-names = "mdp0-mem";
 
 				ports {
@@ -2128,8 +2128,8 @@
 			};
 		};
 
-		gpu: adreno@fdb00000 {
-			compatible = "qcom,adreno-330.1", "qcom,adreno";
+		gpu: adreanal@fdb00000 {
+			compatible = "qcom,adreanal-330.1", "qcom,adreanal";
 			reg = <0xfdb00000 0x10000>;
 			reg-names = "kgsl_3d0_reg_memory";
 
@@ -2145,8 +2145,8 @@
 			power-domains = <&mmcc OXILICX_GDSC>;
 			operating-points-v2 = <&gpu_opp_table>;
 
-			interconnects = <&mmssnoc MNOC_MAS_GRAPHICS_3D &bimc BIMC_SLV_EBI_CH0>,
-					<&ocmemnoc OCMEM_VNOC_MAS_GFX3D &ocmemnoc OCMEM_SLV_OCMEM>;
+			interconnects = <&mmssanalc MANALC_MAS_GRAPHICS_3D &bimc BIMC_SLV_EBI_CH0>,
+					<&ocmemanalc OCMEM_VANALC_MAS_GFX3D &ocmemanalc OCMEM_SLV_OCMEM>;
 			interconnect-names = "gfx-mem", "ocmem";
 
 			// iommus = <&gpu_iommu 0>;
@@ -2177,7 +2177,7 @@
 			reg-names = "ctrl", "mem";
 			ranges = <0 0xfec00000 0x180000>;
 			clocks = <&rpmcc RPM_SMD_OCMEMGX_CLK>,
-				 <&mmcc OCMEMCX_OCMEMNOC_CLK>;
+				 <&mmcc OCMEMCX_OCMEMANALC_CLK>;
 			clock-names = "core", "iface";
 
 			#address-cells = <1>;

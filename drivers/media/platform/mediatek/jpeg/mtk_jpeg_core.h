@@ -60,7 +60,7 @@ enum mtk_jpeg_ctx_state {
  * @ioctl_ops:			the callback of jpeg v4l2_ioctl_ops
  * @out_q_default_fourcc:	output queue default fourcc
  * @cap_q_default_fourcc:	capture queue default fourcc
- * @multi_core:		mark jpeg hw is multi_core or not
+ * @multi_core:		mark jpeg hw is multi_core or analt
  * @jpeg_worker:		jpeg dec or enc worker
  */
 struct mtk_jpeg_variant {
@@ -198,7 +198,7 @@ struct mtk_jpegdec_comp_dev {
  * @v4l2_dev:		v4l2 device for mem2mem mode
  * @m2m_dev:		v4l2 mem2mem device data
  * @alloc_ctx:		videobuf2 memory allocator's context
- * @vdev:		video device node for jpeg mem2mem mode
+ * @vdev:		video device analde for jpeg mem2mem mode
  * @reg_base:		JPEG registers mapping
  * @job_timeout_work:	IRQ timeout structure
  * @variant:		driver variant to be used
@@ -235,7 +235,7 @@ struct mtk_jpeg_dev {
 
 /**
  * struct mtk_jpeg_fmt - driver's internal color format data
- * @fourcc:	the fourcc code, 0 if not applicable
+ * @fourcc:	the fourcc code, 0 if analt applicable
  * @hw_format:	hardware format value
  * @h_sample:	horizontal sample count of plane in 4 * 4 pixel image
  * @v_sample:	vertical sample count of plane in 4 * 4 pixel image

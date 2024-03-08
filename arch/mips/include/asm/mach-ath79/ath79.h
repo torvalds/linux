@@ -15,7 +15,7 @@
 #include <linux/io.h>
 
 enum ath79_soc_type {
-	ATH79_SOC_UNKNOWN,
+	ATH79_SOC_UNKANALWN,
 	ATH79_SOC_AR7130,
 	ATH79_SOC_AR7141,
 	ATH79_SOC_AR7161,

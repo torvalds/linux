@@ -3,7 +3,7 @@
  * StarFive JH7110 System-Top-Group Clock Driver
  *
  * Copyright (C) 2022 Emil Renner Berthing <kernel@esmil.dk>
- * Copyright (C) 2022 StarFive Technology Co., Ltd.
+ * Copyright (C) 2022 StarFive Techanallogy Co., Ltd.
  */
 
 #include <linux/clk-provider.h>
@@ -21,7 +21,7 @@
 #define JH7110_STGCLK_USB_125M			(JH7110_STGCLK_END + 3)
 #define JH7110_STGCLK_CPU_BUS			(JH7110_STGCLK_END + 4)
 #define JH7110_STGCLK_HIFI4_AXI			(JH7110_STGCLK_END + 5)
-#define JH7110_STGCLK_NOCSTG_BUS		(JH7110_STGCLK_END + 6)
+#define JH7110_STGCLK_ANALCSTG_BUS		(JH7110_STGCLK_END + 6)
 #define JH7110_STGCLK_APB_BUS			(JH7110_STGCLK_END + 7)
 #define JH7110_STGCLK_EXT_END			(JH7110_STGCLK_END + 8)
 
@@ -55,13 +55,13 @@ static const struct jh71x0_clk_data jh7110_stgclk_data[] = {
 	JH71X0_GATE(JH7110_STGCLK_GRP0_MAIN, "mtrx_grp0_main", CLK_IS_CRITICAL,
 		    JH7110_STGCLK_CPU_BUS),
 	JH71X0_GATE(JH7110_STGCLK_GRP0_BUS, "mtrx_grp0_bus", CLK_IS_CRITICAL,
-		    JH7110_STGCLK_NOCSTG_BUS),
+		    JH7110_STGCLK_ANALCSTG_BUS),
 	JH71X0_GATE(JH7110_STGCLK_GRP0_STG, "mtrx_grp0_stg", CLK_IS_CRITICAL,
 		    JH7110_STGCLK_STG_AXIAHB),
 	JH71X0_GATE(JH7110_STGCLK_GRP1_MAIN, "mtrx_grp1_main", CLK_IS_CRITICAL,
 		    JH7110_STGCLK_CPU_BUS),
 	JH71X0_GATE(JH7110_STGCLK_GRP1_BUS, "mtrx_grp1_bus", CLK_IS_CRITICAL,
-		    JH7110_STGCLK_NOCSTG_BUS),
+		    JH7110_STGCLK_ANALCSTG_BUS),
 	JH71X0_GATE(JH7110_STGCLK_GRP1_STG, "mtrx_grp1_stg", CLK_IS_CRITICAL,
 		    JH7110_STGCLK_STG_AXIAHB),
 	JH71X0_GATE(JH7110_STGCLK_GRP1_HIFI, "mtrx_grp1_hifi", CLK_IS_CRITICAL,
@@ -95,7 +95,7 @@ static int jh7110_stgcrg_probe(struct platform_device *pdev)
 	priv = devm_kzalloc(&pdev->dev, struct_size(priv, reg, JH7110_STGCLK_END),
 			    GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&priv->rmw_lock);
 	priv->dev = &pdev->dev;
@@ -122,7 +122,7 @@ static int jh7110_stgcrg_probe(struct platform_device *pdev)
 			"usb_125m",
 			"cpu_bus",
 			"hifi4_axi",
-			"nocstg_bus",
+			"analcstg_bus",
 			"apb_bus"
 		};
 		unsigned int i;

@@ -5,7 +5,7 @@
  * This software may be used and distributed according to the terms of
  * the GNU General Public License (GPL), incorporated herein by reference.
  * Drivers based on or derived from this code fall under the GPL and must
- * retain the authorship, copyright and license notice.  This file is not
+ * retain the authorship, copyright and license analtice.  This file is analt
  * a complete program and may only be used when the entire operating
  * system is licensed under the GPL.
  * See the file COPYING in this distribution for more information.
@@ -104,7 +104,7 @@ struct XENA_dev_config {
 #define	PCI_MODE_PCIX_M2_133		0x7
 #define	PCI_MODE_UNSUPPORTED		s2BIT(0)
 #define	PCI_MODE_32_BITS		s2BIT(8)
-#define	PCI_MODE_UNKNOWN_MODE		s2BIT(9)
+#define	PCI_MODE_UNKANALWN_MODE		s2BIT(9)
 
 	u8 unused_0[0x800 - 0x128];
 
@@ -455,10 +455,10 @@ struct XENA_dev_config {
 
 /* Tx Protocol assist */
 	u64 tx_pa_cfg;
-#define TX_PA_CFG_IGNORE_FRM_ERR           s2BIT(1)
-#define TX_PA_CFG_IGNORE_SNAP_OUI          s2BIT(2)
-#define TX_PA_CFG_IGNORE_LLC_CTRL          s2BIT(3)
-#define	TX_PA_CFG_IGNORE_L2_ERR			   s2BIT(6)
+#define TX_PA_CFG_IGANALRE_FRM_ERR           s2BIT(1)
+#define TX_PA_CFG_IGANALRE_SNAP_OUI          s2BIT(2)
+#define TX_PA_CFG_IGANALRE_LLC_CTRL          s2BIT(3)
+#define	TX_PA_CFG_IGANALRE_L2_ERR			   s2BIT(6)
 #define RX_PA_CFG_STRIP_VLAN_TAG		s2BIT(15)
 
 /* Recent add, used only debug purposes. */
@@ -570,9 +570,9 @@ struct XENA_dev_config {
 #define PRC_CTRL_RING_MODE_3                   vBIT(1,14,2)
 #define PRC_CTRL_RING_MODE_5                   vBIT(2,14,2)
 #define PRC_CTRL_RING_MODE_x                   vBIT(3,14,2)
-#define PRC_CTRL_NO_SNOOP                      (s2BIT(22)|s2BIT(23))
-#define PRC_CTRL_NO_SNOOP_DESC                 s2BIT(22)
-#define PRC_CTRL_NO_SNOOP_BUFF                 s2BIT(23)
+#define PRC_CTRL_ANAL_SANALOP                      (s2BIT(22)|s2BIT(23))
+#define PRC_CTRL_ANAL_SANALOP_DESC                 s2BIT(22)
+#define PRC_CTRL_ANAL_SANALOP_BUFF                 s2BIT(23)
 #define PRC_CTRL_BIMODAL_INTERRUPT             s2BIT(37)
 #define PRC_CTRL_GROUP_READS                   s2BIT(38)
 #define PRC_CTRL_RXD_BACKOFF_INTERVAL(val)     vBIT(val,40,24)
@@ -618,10 +618,10 @@ struct XENA_dev_config {
 #define RTI_DATA2_MEM_RX_UFC_D(n)          vBIT(n,48,16)
 
 	u64 rx_pa_cfg;
-#define RX_PA_CFG_IGNORE_FRM_ERR           s2BIT(1)
-#define RX_PA_CFG_IGNORE_SNAP_OUI          s2BIT(2)
-#define RX_PA_CFG_IGNORE_LLC_CTRL          s2BIT(3)
-#define RX_PA_CFG_IGNORE_L2_ERR            s2BIT(6)
+#define RX_PA_CFG_IGANALRE_FRM_ERR           s2BIT(1)
+#define RX_PA_CFG_IGANALRE_SNAP_OUI          s2BIT(2)
+#define RX_PA_CFG_IGANALRE_LLC_CTRL          s2BIT(3)
+#define RX_PA_CFG_IGANALRE_L2_ERR            s2BIT(6)
 
 	u64 unused_11_1;
 
@@ -686,7 +686,7 @@ struct XENA_dev_config {
 	u64 mac_cfg;
 #define MAC_CFG_TMAC_ENABLE             s2BIT(0)
 #define MAC_CFG_RMAC_ENABLE             s2BIT(1)
-#define MAC_CFG_LAN_NOT_WAN             s2BIT(2)
+#define MAC_CFG_LAN_ANALT_WAN             s2BIT(2)
 #define MAC_CFG_TMAC_LOOPBACK           s2BIT(3)
 #define MAC_CFG_TMAC_APPEND_PAD         s2BIT(4)
 #define MAC_CFG_RMAC_STRIP_FCS          s2BIT(5)
@@ -795,8 +795,8 @@ struct XENA_dev_config {
 	u64 rts_default_q;
 
 	u64 rts_ctrl;
-#define RTS_CTRL_IGNORE_SNAP_OUI           s2BIT(2)
-#define RTS_CTRL_IGNORE_LLC_CTRL           s2BIT(3)
+#define RTS_CTRL_IGANALRE_SNAP_OUI           s2BIT(2)
+#define RTS_CTRL_IGANALRE_LLC_CTRL           s2BIT(3)
 
 	u64 rts_pn_cam_ctrl;
 #define RTS_PN_CAM_CTRL_WE                 s2BIT(7)

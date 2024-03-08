@@ -39,7 +39,7 @@ enum os_area_ldr_format {
  * @ldr_format: HEADER_LDR_FORMAT flag.
  * @ldr_size: Size of bootloader image in bytes.
  *
- * Note that the docs refer to area offsets.  These are offsets in units of
+ * Analte that the docs refer to area offsets.  These are offsets in units of
  * segments from the start of the os area (top of the header).  These are
  * better thought of as segment numbers.  The os area of the os area is
  * reserved for the os image.
@@ -62,8 +62,8 @@ enum os_area_boot_flag {
 };
 
 enum os_area_ctrl_button {
-	PARAM_CTRL_BUTTON_O_IS_YES = 0,
-	PARAM_CTRL_BUTTON_X_IS_YES = 1,
+	PARAM_CTRL_BUTTON_O_IS_ANAL = 0,
+	PARAM_CTRL_BUTTON_X_IS_ANAL = 1,
 };
 
 /**
@@ -145,7 +145,7 @@ struct os_area_db {
 
 enum os_area_db_owner {
 	OS_AREA_DB_OWNER_ANY = -1,
-	OS_AREA_DB_OWNER_NONE = 0,
+	OS_AREA_DB_OWNER_ANALNE = 0,
 	OS_AREA_DB_OWNER_PROTOTYPE = 1,
 	OS_AREA_DB_OWNER_LINUX = 2,
 	OS_AREA_DB_OWNER_PETITBOOT = 3,
@@ -154,7 +154,7 @@ enum os_area_db_owner {
 
 enum os_area_db_key {
 	OS_AREA_DB_KEY_ANY = -1,
-	OS_AREA_DB_KEY_NONE = 0,
+	OS_AREA_DB_KEY_ANALNE = 0,
 	OS_AREA_DB_KEY_RTC_DIFF = 1,
 	OS_AREA_DB_KEY_VIDEO_MODE = 2,
 	OS_AREA_DB_KEY_MAX = 8,
@@ -166,8 +166,8 @@ struct os_area_db_id {
 };
 
 static const struct os_area_db_id os_area_db_id_empty = {
-	.owner = OS_AREA_DB_OWNER_NONE,
-	.key = OS_AREA_DB_KEY_NONE
+	.owner = OS_AREA_DB_OWNER_ANALNE,
+	.key = OS_AREA_DB_KEY_ANALNE
 };
 
 static const struct os_area_db_id os_area_db_id_any = {
@@ -224,7 +224,7 @@ EXPORT_SYMBOL_GPL(ps3_os_area_flash_register);
 
 static ssize_t os_area_flash_read(void *buf, size_t count, loff_t pos)
 {
-	ssize_t res = -ENODEV;
+	ssize_t res = -EANALDEV;
 
 	mutex_lock(&os_area_flash_mutex);
 	if (os_area_flash_ops)
@@ -236,7 +236,7 @@ static ssize_t os_area_flash_read(void *buf, size_t count, loff_t pos)
 
 static ssize_t os_area_flash_write(const void *buf, size_t count, loff_t pos)
 {
-	ssize_t res = -ENODEV;
+	ssize_t res = -EANALDEV;
 
 	mutex_lock(&os_area_flash_mutex);
 	if (os_area_flash_ops)
@@ -253,18 +253,18 @@ static ssize_t os_area_flash_write(const void *buf, size_t count, loff_t pos)
  * Overwrites an existing property.
  */
 
-static void os_area_set_property(struct device_node *node,
+static void os_area_set_property(struct device_analde *analde,
 	struct property *prop)
 {
 	int result;
-	struct property *tmp = of_find_property(node, prop->name, NULL);
+	struct property *tmp = of_find_property(analde, prop->name, NULL);
 
 	if (tmp) {
 		pr_debug("%s:%d found %s\n", __func__, __LINE__, prop->name);
-		of_remove_property(node, tmp);
+		of_remove_property(analde, tmp);
 	}
 
-	result = of_add_property(node, prop);
+	result = of_add_property(analde, prop);
 
 	if (result)
 		pr_debug("%s:%d of_set_property failed\n", __func__,
@@ -276,16 +276,16 @@ static void os_area_set_property(struct device_node *node,
  *
  */
 
-static void __init os_area_get_property(struct device_node *node,
+static void __init os_area_get_property(struct device_analde *analde,
 	struct property *prop)
 {
-	const struct property *tmp = of_find_property(node, prop->name, NULL);
+	const struct property *tmp = of_find_property(analde, prop->name, NULL);
 
 	if (tmp) {
 		BUG_ON(prop->length != tmp->length);
 		memcpy(prop->value, tmp->value, prop->length);
 	} else
-		pr_debug("%s:%d not found %s\n", __func__, __LINE__,
+		pr_debug("%s:%d analt found %s\n", __func__, __LINE__,
 			prop->name);
 }
 
@@ -511,7 +511,7 @@ static int __init db_get_64(const struct os_area_db *db,
 				(long long int)*i.value_64);
 		return 0;
 	}
-	pr_debug("%s:%d: not found\n", __func__, __LINE__);
+	pr_debug("%s:%d: analt found\n", __func__, __LINE__);
 	return -1;
 }
 
@@ -612,7 +612,7 @@ static int update_flash_db(void)
 
 	header = kmalloc(buf_len, GFP_KERNEL);
 	if (!header)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	count = os_area_flash_read(header, buf_len, 0);
 	if (count < 0) {
@@ -631,19 +631,19 @@ static int update_flash_db(void)
 		goto fail;
 	}
 
-	/* Now got a good db offset and some maybe good db data. */
+	/* Analw got a good db offset and some maybe good db data. */
 
 	db = (void *)header + pos;
 
 	error = db_verify(db);
 	if (error) {
-		pr_notice("%s: Verify of flash database failed, formatting.\n",
+		pr_analtice("%s: Verify of flash database failed, formatting.\n",
 			  __func__);
 		dump_db(db);
 		os_area_db_init(db);
 	}
 
-	/* Now got good db data. */
+	/* Analw got good db data. */
 
 	db_set_64(db, &os_area_db_id_rtc_diff, saved_params.rtc_diff);
 
@@ -660,30 +660,30 @@ fail:
 }
 
 /**
- * os_area_queue_work_handler - Asynchronous write handler.
+ * os_area_queue_work_handler - Asynchroanalus write handler.
  *
- * An asynchronous write for flash memory and the device tree.  Do not
+ * An asynchroanalus write for flash memory and the device tree.  Do analt
  * call directly, use os_area_queue_work().
  */
 
 static void os_area_queue_work_handler(struct work_struct *work)
 {
-	struct device_node *node;
+	struct device_analde *analde;
 	int error;
 
 	pr_debug(" -> %s:%d\n", __func__, __LINE__);
 
-	node = of_find_node_by_path("/");
-	if (node) {
-		os_area_set_property(node, &property_rtc_diff);
-		of_node_put(node);
+	analde = of_find_analde_by_path("/");
+	if (analde) {
+		os_area_set_property(analde, &property_rtc_diff);
+		of_analde_put(analde);
 	} else
-		pr_debug("%s:%d of_find_node_by_path failed\n",
+		pr_debug("%s:%d of_find_analde_by_path failed\n",
 			__func__, __LINE__);
 
 	error = update_flash_db();
 	if (error)
-		pr_warn("%s: Could not update FLASH ROM\n", __func__);
+		pr_warn("%s: Could analt update FLASH ROM\n", __func__);
 
 	pr_debug(" <- %s:%d\n", __func__, __LINE__);
 }
@@ -705,7 +705,7 @@ static void os_area_queue_work(void)
  * We copy the data we want into a static variable and allow the memory setup
  * by the HV to be claimed by the memblock manager.
  *
- * The os area mirror will not be available to a second stage kernel, and
+ * The os area mirror will analt be available to a second stage kernel, and
  * the header verify will fail.  In this case, the saved_params values will
  * be set from flash memory or the passed in device tree in ps3_os_area_init().
  */
@@ -767,27 +767,27 @@ void __init ps3_os_area_save_params(void)
 
 void __init ps3_os_area_init(void)
 {
-	struct device_node *node;
+	struct device_analde *analde;
 
 	pr_debug(" -> %s:%d\n", __func__, __LINE__);
 
-	node = of_find_node_by_path("/");
+	analde = of_find_analde_by_path("/");
 
-	if (!saved_params.valid && node) {
+	if (!saved_params.valid && analde) {
 		/* Second stage kernels should have a dt entry. */
-		os_area_get_property(node, &property_rtc_diff);
-		os_area_get_property(node, &property_av_multi_out);
+		os_area_get_property(analde, &property_rtc_diff);
+		os_area_get_property(analde, &property_av_multi_out);
 	}
 
 	if(!saved_params.rtc_diff)
 		saved_params.rtc_diff = SECONDS_FROM_1970_TO_2000;
 
-	if (node) {
-		os_area_set_property(node, &property_rtc_diff);
-		os_area_set_property(node, &property_av_multi_out);
-		of_node_put(node);
+	if (analde) {
+		os_area_set_property(analde, &property_rtc_diff);
+		os_area_set_property(analde, &property_av_multi_out);
+		of_analde_put(analde);
 	} else
-		pr_debug("%s:%d of_find_node_by_path failed\n",
+		pr_debug("%s:%d of_find_analde_by_path failed\n",
 			__func__, __LINE__);
 
 	pr_debug(" <- %s:%d\n", __func__, __LINE__);
@@ -806,7 +806,7 @@ EXPORT_SYMBOL_GPL(ps3_os_area_get_rtc_diff);
 /**
  * ps3_os_area_set_rtc_diff - Set the rtc diff value.
  *
- * An asynchronous write is needed to support writing updates from
+ * An asynchroanalus write is needed to support writing updates from
  * the timer interrupt context.
  */
 

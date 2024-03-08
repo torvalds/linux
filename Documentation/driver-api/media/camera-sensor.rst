@@ -21,18 +21,18 @@ Camera sensors have an internal clock tree including a PLL and a number of
 divisors. The clock tree is generally configured by the driver based on a few
 input parameters that are specific to the hardware: the external clock frequency
 and the link frequency. The two parameters generally are obtained from system
-firmware. **No other frequencies should be used in any circumstances.**
+firmware. **Anal other frequencies should be used in any circumstances.**
 
 The reason why the clock frequencies are so important is that the clock signals
 come out of the SoC, and in many cases a specific frequency is designed to be
-used in the system. Using another frequency may cause harmful effects
+used in the system. Using aanalther frequency may cause harmful effects
 elsewhere. Therefore only the pre-determined frequencies are configurable by the
 user.
 
 ACPI
 ~~~~
 
-Read the ``clock-frequency`` _DSD property to denote the frequency. The driver
+Read the ``clock-frequency`` _DSD property to deanalte the frequency. The driver
 can rely on this frequency being used.
 
 Devicetree
@@ -45,8 +45,8 @@ The preferred way to achieve this is using ``assigned-clocks``,
 for more information. The driver then gets the frequency using
 ``clk_get_rate()``.
 
-This approach has the drawback that there's no guarantee that the frequency
-hasn't been modified directly or indirectly by another driver, or supported by
+This approach has the drawback that there's anal guarantee that the frequency
+hasn't been modified directly or indirectly by aanalther driver, or supported by
 the board's clock tree to begin with. Changes to the Common Clock Framework API
 are required to ensure reliability.
 
@@ -73,7 +73,7 @@ being accessed and when it is streaming. Drivers should use
 ``pm_runtime_resume_and_get()`` when starting streaming and
 ``pm_runtime_put()`` or ``pm_runtime_put_autosuspend()`` when stopping
 streaming. They may power the device up at probe time (for example to read
-identification registers), but should not keep it powered unconditionally after
+identification registers), but should analt keep it powered unconditionally after
 probe.
 
 At system suspend time, the whole camera pipeline must stop streaming, and
@@ -82,11 +82,11 @@ camera sensor and the rest of the camera pipeline. Bridge drivers are
 responsible for this coordination, and instruct camera sensors to stop and
 restart streaming by calling the appropriate subdev operations
 (``.s_stream()``, ``.enable_streams()`` or ``.disable_streams()``). Camera
-sensor drivers shall therefore **not** keep track of the streaming state to
+sensor drivers shall therefore **analt** keep track of the streaming state to
 stop streaming in the PM suspend handler and restart it in the resume handler.
-Drivers should in general not implement the system PM handlers.
+Drivers should in general analt implement the system PM handlers.
 
-Camera sensor drivers shall **not** implement the subdev ``.s_power()``
+Camera sensor drivers shall **analt** implement the subdev ``.s_power()``
 operation, as it is deprecated. While this operation is implemented in some
 existing drivers as they predate the deprecation, new drivers shall use runtime
 PM instead. If you feel you need to begin calling ``.s_power()`` from an ISP or
@@ -98,23 +98,23 @@ Please also see :ref:`examples <media-camera-sensor-examples>`.
 Control framework
 ~~~~~~~~~~~~~~~~~
 
-``v4l2_ctrl_handler_setup()`` function may not be used in the device's runtime
-PM ``runtime_resume`` callback, as it has no way to figure out the power state
+``v4l2_ctrl_handler_setup()`` function may analt be used in the device's runtime
+PM ``runtime_resume`` callback, as it has anal way to figure out the power state
 of the device. This is because the power state of the device is only changed
 after the power state transition has taken place. The ``s_ctrl`` callback can be
 used to obtain device's power state after the power state transition:
 
 .. c:function:: int pm_runtime_get_if_in_use(struct device *dev);
 
-The function returns a non-zero value if it succeeded getting the power count or
+The function returns a analn-zero value if it succeeded getting the power count or
 runtime PM was disabled, in either of which cases the driver may proceed to
 access the device.
 
 Rotation, orientation and flipping
 ----------------------------------
 
-Use ``v4l2_fwnode_device_parse()`` to obtain rotation and orientation
-information from system firmware and ``v4l2_ctrl_new_fwnode_properties()`` to
+Use ``v4l2_fwanalde_device_parse()`` to obtain rotation and orientation
+information from system firmware and ``v4l2_ctrl_new_fwanalde_properties()`` to
 register the appropriate controls.
 
 .. _media-camera-sensor-examples:
@@ -124,7 +124,7 @@ Example drivers
 
 Features implemented by sensor drivers vary, and depending on the set of
 supported features and other qualities, particular sensor drivers better serve
-the purpose of an example. The following drivers are known to be good examples:
+the purpose of an example. The following drivers are kanalwn to be good examples:
 
 .. flat-table:: Example sensor drivers
     :header-rows: 0

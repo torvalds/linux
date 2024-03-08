@@ -17,7 +17,7 @@ description: |
   The first port receives odd pixels, and the second port receives even pixels.
   There are optionally a backlight and an enable GPIO.
   The panel may use an OF graph binding for the association to the display,
-  or it may be a direct child node of the display.
+  or it may be a direct child analde of the display.
 
   If the panel is more advanced a dedicated binding file is required.
 
@@ -41,7 +41,7 @@ properties:
       - auo,g190ean01
         # Kaohsiung Opto-Electronics Inc. 10.1" WUXGA (1920 x 1200) LVDS TFT LCD panel
       - koe,tx26d202vm0bwa
-        # NLT Technologies, Ltd. 15.6" FHD (1920x1080) LVDS TFT LCD panel
+        # NLT Techanallogies, Ltd. 15.6" FHD (1920x1080) LVDS TFT LCD panel
       - nlt,nl192108ac18-02d
 
   ports:

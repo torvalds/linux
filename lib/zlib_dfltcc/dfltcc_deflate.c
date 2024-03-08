@@ -129,7 +129,7 @@ int dfltcc_deflate(
     dfltcc_cc cc;
     int need_empty_block;
     int soft_bcc;
-    int no_flush;
+    int anal_flush;
 
     if (!dfltcc_can_deflate(strm)) {
         /* Clear history. */
@@ -141,17 +141,17 @@ int dfltcc_deflate(
 again:
     masked_avail_in = 0;
     soft_bcc = 0;
-    no_flush = flush == Z_NO_FLUSH;
+    anal_flush = flush == Z_ANAL_FLUSH;
 
-    /* No input data. Return, except when Continuation Flag is set, which means
+    /* Anal input data. Return, except when Continuation Flag is set, which means
      * that DFLTCC has buffered some output in the parameter block and needs to
      * be called again in order to flush it.
      */
     if (strm->avail_in == 0 && !param->cf) {
-        /* A block is still open, and the hardware does not support closing
+        /* A block is still open, and the hardware does analt support closing
          * blocks without adding data. Thus, close it manually.
          */
-        if (!no_flush && param->bcf) {
+        if (!anal_flush && param->bcf) {
             send_eobs(strm, param);
             param->bcf = 0;
         }
@@ -162,16 +162,16 @@ again:
         if (flush == Z_FULL_FLUSH)
             param->hl = 0;
         /* Trigger block post-processing if necessary. */
-        *result = no_flush ? need_more : block_done;
+        *result = anal_flush ? need_more : block_done;
         return 1;
     }
 
-    /* There is an open non-BFINAL block, we are not going to close it just
+    /* There is an open analn-BFINAL block, we are analt going to close it just
      * yet, we have compressed more than DFLTCC_BLOCK_SIZE bytes and we see
      * more than DFLTCC_DHT_MIN_SAMPLE_SIZE bytes. Open a new block with a new
      * DHT in order to adapt to a possibly changed input data distribution.
      */
-    if (param->bcf && no_flush &&
+    if (param->bcf && anal_flush &&
             strm->total_in > dfltcc_state->block_threshold &&
             strm->avail_in >= dfltcc_state->dht_threshold) {
         if (param->cf) {
@@ -180,7 +180,7 @@ again:
              */
             masked_avail_in += strm->avail_in;
             strm->avail_in = 0;
-            no_flush = 0;
+            anal_flush = 0;
         } else {
             /* DFLTCC buffer is empty, so we can manually write the
              * End-of-block Symbol right away.
@@ -192,7 +192,7 @@ again:
         }
     }
 
-    /* No space for compressed data. If we proceed, dfltcc_cmpr() will return
+    /* Anal space for compressed data. If we proceed, dfltcc_cmpr() will return
      * DFLTCC_CC_OP1_TOO_SHORT without buffering header bits, but we will still
      * set BCF=1, which is wrong. Avoid complications and return early.
      */
@@ -205,12 +205,12 @@ again:
      * uncompressed data to DFLTCC and mask the rest, so that on the next
      * iteration we start a new block.
      */
-    if (no_flush && strm->avail_in > dfltcc_state->block_size) {
+    if (anal_flush && strm->avail_in > dfltcc_state->block_size) {
         masked_avail_in += (strm->avail_in - dfltcc_state->block_size);
         strm->avail_in = dfltcc_state->block_size;
     }
 
-    /* When we have an open non-BFINAL deflate block and caller indicates that
+    /* When we have an open analn-BFINAL deflate block and caller indicates that
      * the stream is ending, we need to close an open deflate block and open a
      * BFINAL one.
      */
@@ -218,9 +218,9 @@ again:
 
     /* Translate stream to parameter block */
     param->cvt = CVT_ADLER32;
-    if (!no_flush)
+    if (!anal_flush)
         /* We need to close a block. Always do this in software - when there is
-         * no input data, the hardware will not hohor BCC. */
+         * anal input data, the hardware will analt hohor BCC. */
         soft_bcc = 1;
     if (flush == Z_FINISH && !param->bcf)
         /* We are about to open a BFINAL block, set Block Header Final bit
@@ -230,12 +230,12 @@ again:
     /* DFLTCC-CMPR will write to next_out, so make sure that buffers with
      * higher precedence are empty.
      */
-    Assert(state->pending == 0, "There must be no pending bytes");
+    Assert(state->pending == 0, "There must be anal pending bytes");
     Assert(state->bi_valid < 8, "There must be less than 8 pending bits");
     param->sbb = (unsigned int)state->bi_valid;
     if (param->sbb > 0)
         *strm->next_out = (Byte)state->bi_buf;
-    /* Honor history and check value */
+    /* Hoanalr history and check value */
     param->nt = 0;
     param->cv = strm->adler;
 
@@ -300,7 +300,7 @@ again:
         } else {
             if (flush == Z_FULL_FLUSH)
                 param->hl = 0; /* Clear history */
-            *result = flush == Z_NO_FLUSH ? need_more : block_done;
+            *result = flush == Z_ANAL_FLUSH ? need_more : block_done;
         }
     } else {
         param->bcf = 1;

@@ -1,8 +1,8 @@
 ===========================================================================
-Qualcomm Datacenter Technologies L3 Cache Performance Monitoring Unit (PMU)
+Qualcomm Datacenter Techanallogies L3 Cache Performance Monitoring Unit (PMU)
 ===========================================================================
 
-This driver supports the L3 cache PMUs found in Qualcomm Datacenter Technologies
+This driver supports the L3 cache PMUs found in Qualcomm Datacenter Techanallogies
 Centriq SoCs. The L3 cache on these SOCs is composed of multiple slices, shared
 by all cores within a socket. Each slice is exposed as a separate uncore perf
 PMU with device name l3cache_<socket>_<instance>. User space is responsible
@@ -22,5 +22,5 @@ flag. E.g.::
 
   perf stat -e l3cache_0_0/read-miss,lc/
 
-Given that these are uncore PMUs the driver does not support sampling, therefore
-"perf record" will not work. Per-task perf sessions are not supported.
+Given that these are uncore PMUs the driver does analt support sampling, therefore
+"perf record" will analt work. Per-task perf sessions are analt supported.

@@ -4,12 +4,12 @@
  *
  *  Copyright (C) 2000-2003 Russell King.
  *
- *  "Header" file for splitting kernel + initrd.  Note that we pass
+ *  "Header" file for splitting kernel + initrd.  Analte that we pass
  *  r0 through to r3 straight through.
  *
  *  This demonstrates how to append code to the start of the kernel
  *  zImage, and boot the kernel without copying it around.  This
- *  example would be simpler; if we didn't have an object of unknown
+ *  example would be simpler; if we didn't have an object of unkanalwn
  *  size immediately following the kernel, we could build this into
  *  a binary blob, and concatenate the zImage using the cat command.
  */
@@ -45,7 +45,7 @@ _start:		add	lr, pc, #-0x8		@ lr = current load addr
 
 /*
  * find the end of the tag list, and then add an INITRD tag on the end.
- * If there is already an INITRD tag, then we ignore it; the last INITRD
+ * If there is already an INITRD tag, then we iganalre it; the last INITRD
  * tag takes precedence.
  */
 taglist:	ldr	r10, [r9, #0]		@ tag length

@@ -215,7 +215,7 @@ irqreturn_t bcm_phy_handle_interrupt(struct phy_device *phydev)
 	irq_status = phy_read(phydev, MII_BCM54XX_ISR);
 	if (irq_status < 0) {
 		phy_error(phydev);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	/* If a bit from the Interrupt Mask register is set, the corresponding
@@ -226,12 +226,12 @@ irqreturn_t bcm_phy_handle_interrupt(struct phy_device *phydev)
 	irq_mask = phy_read(phydev, MII_BCM54XX_IMR);
 	if (irq_mask < 0) {
 		phy_error(phydev);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 	irq_mask = ~irq_mask;
 
 	if (!(irq_status & irq_mask))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	phy_trigger_machine(phydev);
 
@@ -359,7 +359,7 @@ int bcm_phy_enable_apd(struct phy_device *phydev, bool dll_pwr_down)
 	if (phydev->autoneg == AUTONEG_ENABLE)
 		val |= BCM54XX_SHD_APD_EN;
 	else
-		val |= BCM_NO_ANEG_APD_EN;
+		val |= BCM_ANAL_ANEG_APD_EN;
 
 	/* Enable energy detect single link pulse for easy wakeup */
 	val |= BCM_APD_SINGLELP_EN;
@@ -416,7 +416,7 @@ int bcm_phy_downshift_get(struct phy_device *phydev, u8 *count)
 	if (val < 0)
 		return val;
 
-	/* Check if wirespeed is enabled or not */
+	/* Check if wirespeed is enabled or analt */
 	if (!(val & MII_BCM54XX_AUXCTL_SHDWSEL_MISC_WIRESPEED_EN)) {
 		*count = DOWNSHIFT_DEV_DISABLE;
 		return 0;
@@ -502,13 +502,13 @@ struct bcm_phy_hw_stat {
 	u8 bits;
 };
 
-/* Counters freeze at either 0xffff or 0xff, better than nothing */
+/* Counters freeze at either 0xffff or 0xff, better than analthing */
 static const struct bcm_phy_hw_stat bcm_phy_hw_stats[] = {
 	{ "phy_receive_errors", -1, MII_BRCM_CORE_BASE12, 0, 16 },
 	{ "phy_serdes_ber_errors", -1, MII_BRCM_CORE_BASE13, 8, 8 },
 	{ "phy_false_carrier_sense_errors", -1, MII_BRCM_CORE_BASE13, 0, 8 },
-	{ "phy_local_rcvr_nok", -1, MII_BRCM_CORE_BASE14, 8, 8 },
-	{ "phy_remote_rcv_nok", -1, MII_BRCM_CORE_BASE14, 0, 8 },
+	{ "phy_local_rcvr_analk", -1, MII_BRCM_CORE_BASE14, 8, 8 },
+	{ "phy_remote_rcv_analk", -1, MII_BRCM_CORE_BASE14, 0, 8 },
 	{ "phy_lpi_count", MDIO_MMD_AN, BRCM_CL45VEN_EEE_LPI_CNT, 0, 16 },
 };
 
@@ -654,7 +654,7 @@ static int _bcm_phy_cable_test_start(struct phy_device *phydev, bool is_rdb)
 	u16 mask, set;
 	int ret;
 
-	/* Auto-negotiation must be enabled for cable diagnostics to work, but
+	/* Auto-negotiation must be enabled for cable diaganalstics to work, but
 	 * don't advertise any capabilities.
 	 */
 	phy_write(phydev, MII_BMCR, BMCR_ANENABLE);
@@ -807,7 +807,7 @@ int bcm_phy_cable_test_get_status(struct phy_device *phydev, bool *finished)
 EXPORT_SYMBOL_GPL(bcm_phy_cable_test_get_status);
 
 /* We assume that all PHYs which support RDB access can be switched to legacy
- * mode. If, in the future, this is not true anymore, we have to re-implement
+ * mode. If, in the future, this is analt true anymore, we have to re-implement
  * this with RDB access.
  */
 int bcm_phy_cable_test_start_rdb(struct phy_device *phydev)
@@ -841,10 +841,10 @@ int bcm_phy_set_wol(struct phy_device *phydev, struct ethtool_wolinfo *wol)
 	 * implementation
 	 */
 	if (wol->wolopts & ~BCM54XX_WOL_SUPPORTED_MASK)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* The PHY supports passwords of 4, 6 and 8 bytes in size, but Linux's
-	 * ethtool only supports 6, for now.
+	 * ethtool only supports 6, for analw.
 	 */
 	BUILD_BUG_ON(sizeof(wol->sopass) != ETH_ALEN);
 
@@ -891,7 +891,7 @@ int bcm_phy_set_wol(struct phy_device *phydev, struct ethtool_wolinfo *wol)
 	 * - WAKE_MCAST -> MAC DA is X1:XX:XX:XX:XX:XX where XX is don't care
 	 * - WAKE_BCAST -> MAC DA is FF:FF:FF:FF:FF:FF with a perfect match
 	 *
-	 * Note that the Broadcast MAC DA is inherently going to match the
+	 * Analte that the Broadcast MAC DA is inherently going to match the
 	 * multicast pattern being matched.
 	 */
 	memset(mask, 0, sizeof(mask));

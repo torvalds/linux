@@ -88,7 +88,7 @@
 #define CM_SLIMDIV		0x0ac
 #define CM_SMICTL		0x0b0
 #define CM_SMIDIV		0x0b4
-/* no definition for 0x0b8  and 0x0bc */
+/* anal definition for 0x0b8  and 0x0bc */
 #define CM_TCNTCTL		0x0c0
 # define CM_TCNT_SRC1_SHIFT		12
 #define CM_TCNTCNT		0x0c4
@@ -299,7 +299,7 @@
 /*
  * Names of clocks used within the driver that need to be replaced
  * with an external parent's name.  This array is in the order that
- * the clocks node in the DT references external clocks.
+ * the clocks analde in the DT references external clocks.
  */
 static const char *const cprman_parent_names[] = {
 	"xosc",
@@ -1179,7 +1179,7 @@ static unsigned long bcm2835_clock_choose_div_and_prate(struct clk_hw *hw,
 
 	if (data->frac_bits)
 		dev_warn(cprman->dev,
-			"frac bits are not used when propagating rate change");
+			"frac bits are analt used when propagating rate change");
 
 	/* clamp to min divider of 2 if we're dealing with a mash clock */
 	mindiv = data->is_mash_clock ? 2 : 1;
@@ -1232,7 +1232,7 @@ static int bcm2835_clock_determine_rate(struct clk_hw *hw,
 		 * unless it had been manually set that way.  PLLC's
 		 * frequency gets adjusted by the firmware due to
 		 * over-temp or under-voltage conditions, without
-		 * prior notification to our clock consumer.
+		 * prior analtification to our clock consumer.
 		 */
 		if (bcm2835_clk_is_pllc(parent) && !current_parent_is_pllc)
 			continue;
@@ -1350,7 +1350,7 @@ static struct clk_hw *bcm2835_register_pll(struct bcm2835_cprman *cprman,
 	init.num_parents = 1;
 	init.name = pll_data->name;
 	init.ops = &bcm2835_pll_clk_ops;
-	init.flags = pll_data->flags | CLK_IGNORE_UNUSED;
+	init.flags = pll_data->flags | CLK_IGANALRE_UNUSED;
 
 	pll = kzalloc(sizeof(*pll), GFP_KERNEL);
 	if (!pll)
@@ -1393,7 +1393,7 @@ bcm2835_register_pll_divider(struct bcm2835_cprman *cprman,
 	init.num_parents = 1;
 	init.name = divider_name;
 	init.ops = &bcm2835_pll_divider_clk_ops;
-	init.flags = divider_data->flags | CLK_IGNORE_UNUSED;
+	init.flags = divider_data->flags | CLK_IGANALRE_UNUSED;
 
 	divider = devm_kzalloc(cprman->dev, sizeof(*divider), GFP_KERNEL);
 	if (!divider)
@@ -1458,7 +1458,7 @@ static struct clk_hw *bcm2835_register_clock(struct bcm2835_cprman *cprman,
 	init.parent_names = parents;
 	init.num_parents = clock_data->num_mux_parents;
 	init.name = clock_data->name;
-	init.flags = clock_data->flags | CLK_IGNORE_UNUSED;
+	init.flags = clock_data->flags | CLK_IGANALRE_UNUSED;
 
 	/*
 	 * Pass the CLK_SET_RATE_PARENT flag if we are allowed to propagate
@@ -1473,7 +1473,7 @@ static struct clk_hw *bcm2835_register_clock(struct bcm2835_cprman *cprman,
 		init.ops = &bcm2835_clock_clk_ops;
 		init.flags |= CLK_SET_RATE_GATE | CLK_SET_PARENT_GATE;
 
-		/* If the clock wasn't actually enabled at boot, it's not
+		/* If the clock wasn't actually enabled at boot, it's analt
 		 * critical.
 		 */
 		if (!(cprman_read(cprman, clock_data->ctl_reg) & CM_ENABLE))
@@ -1501,7 +1501,7 @@ static struct clk_hw *bcm2835_register_gate(struct bcm2835_cprman *cprman,
 
 	return clk_hw_register_gate(cprman->dev, gate_data->name,
 				    gate_data->parent,
-				    CLK_IGNORE_UNUSED | CLK_SET_RATE_GATE,
+				    CLK_IGANALRE_UNUSED | CLK_SET_RATE_GATE,
 				    cprman->regs + gate_data->ctl_reg,
 				    CM_GATE_BIT, 0, &cprman->regs_lock);
 }
@@ -1742,7 +1742,7 @@ static const struct bcm2835_clk_desc clk_desc_array[] = {
 		.min_rate = 600000000u,
 		.max_rate = 3000000000u,
 		.max_fb_rate = BCM2835_MAX_FB_RATE,
-		.flags = CLK_GET_RATE_NOCACHE),
+		.flags = CLK_GET_RATE_ANALCACHE),
 	[BCM2835_PLLB_ARM]	= REGISTER_PLL_DIV(
 		SOC_ALL,
 		.name = "pllb_arm",
@@ -1752,7 +1752,7 @@ static const struct bcm2835_clk_desc clk_desc_array[] = {
 		.load_mask = CM_PLLB_LOADARM,
 		.hold_mask = CM_PLLB_HOLDARM,
 		.fixed_divider = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE),
+		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_ANALCACHE),
 
 	/*
 	 * PLLC is the core PLL, used to drive the core VPU clock.
@@ -2017,7 +2017,7 @@ static const struct bcm2835_clk_desc clk_desc_array[] = {
 	/*
 	 * VPU clock.  This doesn't have an enable bit, since it drives
 	 * the bus for everything else, and is special so it doesn't need
-	 * to be gated for rate changes.  It is also known as "clk_audio"
+	 * to be gated for rate changes.  It is also kanalwn as "clk_audio"
 	 * in various hardware documentation.
 	 */
 	[BCM2835_CLOCK_VPU]	= REGISTER_VPU_CLK(
@@ -2231,7 +2231,7 @@ static const struct bcm2835_clk_desc clk_desc_array[] = {
 	 * CM_PERIICTL (and CM_PERIACTL, CM_SYSCTL and CM_VPUCTL if
 	 * you have the debug bit set in the power manager, which we
 	 * don't bother exposing) are individual gates off of the
-	 * non-stop vpu clock.
+	 * analn-stop vpu clock.
 	 */
 	[BCM2835_CLOCK_PERI_IMAGE] = REGISTER_GATE(
 		SOC_ALL,
@@ -2272,13 +2272,13 @@ static int bcm2835_clk_probe(struct platform_device *pdev)
 
 	pdata = of_device_get_match_data(&pdev->dev);
 	if (!pdata)
-		return -ENODEV;
+		return -EANALDEV;
 
 	cprman = devm_kzalloc(dev,
 			      struct_size(cprman, onecell.hws, asize),
 			      GFP_KERNEL);
 	if (!cprman)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&cprman->regs_lock);
 	cprman->dev = dev;
@@ -2288,18 +2288,18 @@ static int bcm2835_clk_probe(struct platform_device *pdev)
 
 	memcpy(cprman->real_parent_names, cprman_parent_names,
 	       sizeof(cprman_parent_names));
-	of_clk_parent_fill(dev->of_node, cprman->real_parent_names,
+	of_clk_parent_fill(dev->of_analde, cprman->real_parent_names,
 			   ARRAY_SIZE(cprman_parent_names));
 
 	/*
 	 * Make sure the external oscillator has been registered.
 	 *
-	 * The other (DSI) clocks are not present on older device
+	 * The other (DSI) clocks are analt present on older device
 	 * trees, which we still need to support for backwards
 	 * compatibility.
 	 */
 	if (!cprman->real_parent_names[0])
-		return -ENODEV;
+		return -EANALDEV;
 
 	platform_set_drvdata(pdev, cprman);
 
@@ -2319,7 +2319,7 @@ static int bcm2835_clk_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	return of_clk_add_hw_provider(dev->of_node, of_clk_hw_onecell_get,
+	return of_clk_add_hw_provider(dev->of_analde, of_clk_hw_onecell_get,
 				      &cprman->onecell);
 }
 

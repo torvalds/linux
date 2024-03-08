@@ -58,7 +58,7 @@ static int tps68470_chip_init(struct device *dev, struct regmap *regmap)
  * the value of control_logic_type field and follow one of the
  * following scenarios:
  *
- *	1. No CLDB - likely ACPI tables designed for ChromeOS. We
+ *	1. Anal CLDB - likely ACPI tables designed for ChromeOS. We
  *	create platform devices for the GPIOs and OpRegion drivers.
  *
  *	2. CLDB, with control_logic_type = 2 - probably ACPI tables
@@ -71,7 +71,7 @@ static int tps68470_chip_init(struct device *dev, struct regmap *regmap)
  * Return:
  * * 1		Device intended for ChromeOS
  * * 2		Device intended for Windows
- * * -EINVAL	Where @adev has an object named CLDB but it does not conform to
+ * * -EINVAL	Where @adev has an object named CLDB but it does analt conform to
  *		our expectations
  */
 static int skl_int3472_tps68470_calc_type(struct acpi_device *adev)
@@ -80,11 +80,11 @@ static int skl_int3472_tps68470_calc_type(struct acpi_device *adev)
 	int ret;
 
 	/*
-	 * A CLDB buffer that exists, but which does not match our expectations
+	 * A CLDB buffer that exists, but which does analt match our expectations
 	 * should trigger an error so we don't blindly continue.
 	 */
 	ret = skl_int3472_fill_cldb(adev, &cldb);
-	if (ret && ret != -ENODEV)
+	if (ret && ret != -EANALDEV)
 		return ret;
 
 	if (ret)
@@ -113,14 +113,14 @@ skl_int3472_fill_clk_pdata(struct device *dev, struct tps68470_clk_platform_data
 		n_consumers++;
 
 	if (!n_consumers) {
-		dev_err(dev, "INT3472 seems to have no dependents\n");
-		return -ENODEV;
+		dev_err(dev, "INT3472 seems to have anal dependents\n");
+		return -EANALDEV;
 	}
 
 	*clk_pdata = devm_kzalloc(dev, struct_size(*clk_pdata, consumers, n_consumers),
 				  GFP_KERNEL);
 	if (!*clk_pdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	(*clk_pdata)->n_consumers = n_consumers;
 	i = 0;
@@ -130,7 +130,7 @@ skl_int3472_fill_clk_pdata(struct device *dev, struct tps68470_clk_platform_data
 					     acpi_dev_name(consumer));
 		if (!sensor_name) {
 			acpi_dev_put(consumer);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		(*clk_pdata)->consumers[i].consumer_dev_name = sensor_name;
@@ -175,11 +175,11 @@ static int skl_int3472_tps68470_probe(struct i2c_client *client)
 	case DESIGNED_FOR_WINDOWS:
 		board_data = int3472_tps68470_get_board_data(dev_name(&client->dev));
 		if (!board_data)
-			return dev_err_probe(&client->dev, -ENODEV, "No board-data found for this model\n");
+			return dev_err_probe(&client->dev, -EANALDEV, "Anal board-data found for this model\n");
 
 		cells = kcalloc(TPS68470_WIN_MFD_CELL_COUNT, sizeof(*cells), GFP_KERNEL);
 		if (!cells)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		/*
 		 * The order of the cells matters here! The clk must be first
@@ -198,7 +198,7 @@ static int skl_int3472_tps68470_probe(struct i2c_client *client)
 		for (i = 0; i < board_data->n_gpiod_lookups; i++)
 			gpiod_add_lookup_table(board_data->tps68470_gpio_lookup_tables[i]);
 
-		ret = devm_mfd_add_devices(&client->dev, PLATFORM_DEVID_NONE,
+		ret = devm_mfd_add_devices(&client->dev, PLATFORM_DEVID_ANALNE,
 					   cells, TPS68470_WIN_MFD_CELL_COUNT,
 					   NULL, 0, NULL);
 		kfree(cells);
@@ -210,7 +210,7 @@ static int skl_int3472_tps68470_probe(struct i2c_client *client)
 
 		break;
 	case DESIGNED_FOR_CHROMEOS:
-		ret = devm_mfd_add_devices(&client->dev, PLATFORM_DEVID_NONE,
+		ret = devm_mfd_add_devices(&client->dev, PLATFORM_DEVID_ANALNE,
 					   tps68470_cros, ARRAY_SIZE(tps68470_cros),
 					   NULL, 0, NULL);
 		break;
@@ -220,7 +220,7 @@ static int skl_int3472_tps68470_probe(struct i2c_client *client)
 	}
 
 	/*
-	 * No acpi_dev_clear_dependencies() here, since the acpi_gpiochip_add()
+	 * Anal acpi_dev_clear_dependencies() here, since the acpi_gpiochip_add()
 	 * for the GPIO cell already does this.
 	 */
 

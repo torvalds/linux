@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -226,7 +226,7 @@ static void submit_channel_request(
 	/* The length include
 	 * the 4 bit header and the 20 bit address
 	 * (that is 3 byte).
-	 * If the requested length is non zero this means
+	 * If the requested length is analn zero this means
 	 * an addition byte specifying the length is required.
 	 */
 
@@ -313,7 +313,7 @@ static int read_channel_reply(struct dce_aux *engine, uint32_t size,
 		/* First byte was already used to get the command status */
 		--bytes_replied;
 
-		/* Do not overflow buffer */
+		/* Do analt overflow buffer */
 		if (bytes_replied > size)
 			return -1;
 
@@ -342,7 +342,7 @@ static enum aux_return_code_type get_channel_status(
 	if (returned_bytes == NULL) {
 		/*caller pass NULL pointer*/
 		ASSERT_CRITICAL(false);
-		return AUX_RET_ERROR_UNKNOWN;
+		return AUX_RET_ERROR_UNKANALWN;
 	}
 	*returned_bytes = 0;
 
@@ -355,13 +355,13 @@ static enum aux_return_code_type get_channel_status(
 	if ((value & AUX_SW_STATUS__AUX_SW_HPD_DISCON_MASK))
 		return AUX_RET_ERROR_HPD_DISCON;
 
-	/* Note that the following bits are set in 'status.bits'
+	/* Analte that the following bits are set in 'status.bits'
 	 * during CTS 4.2.1.2 (FW 3.3.1):
 	 * AUX_SW_RX_MIN_COUNT_VIOL, AUX_SW_RX_INVALID_STOP,
-	 * AUX_SW_RX_RECV_NO_DET, AUX_SW_RX_RECV_INVALID_H.
+	 * AUX_SW_RX_RECV_ANAL_DET, AUX_SW_RX_RECV_INVALID_H.
 	 *
 	 * AUX_SW_RX_MIN_COUNT_VIOL is an internal,
-	 * HW debugging bit and should be ignored.
+	 * HW debugging bit and should be iganalred.
 	 */
 	if (value & AUX_SW_STATUS__AUX_SW_DONE_MASK) {
 		if ((value & AUX_SW_STATUS__AUX_SW_RX_TIMEOUT_STATE_MASK) ||
@@ -369,7 +369,7 @@ static enum aux_return_code_type get_channel_status(
 			return AUX_RET_ERROR_TIMEOUT;
 
 		else if ((value & AUX_SW_STATUS__AUX_SW_RX_INVALID_STOP_MASK) ||
-			(value & AUX_SW_STATUS__AUX_SW_RX_RECV_NO_DET_MASK) ||
+			(value & AUX_SW_STATUS__AUX_SW_RX_RECV_ANAL_DET_MASK) ||
 			(value &
 				AUX_SW_STATUS__AUX_SW_RX_RECV_INVALID_H_MASK) ||
 			(value & AUX_SW_STATUS__AUX_SW_RX_RECV_INVALID_L_MASK))
@@ -784,7 +784,7 @@ bool dce_aux_transfer_with_retries(struct ddc_service *ddc,
 					}
 
 					/* retry reading the write status until complete
-					 * NOTE: payload is modified here
+					 * ANALTE: payload is modified here
 					 */
 					payload->write = false;
 					payload->write_status_update = true;
@@ -873,7 +873,7 @@ bool dce_aux_transfer_with_retries(struct ddc_service *ddc,
 			default:
 				DC_TRACE_LEVEL_MESSAGE(DAL_TRACE_LEVEL_ERROR,
 							LOG_FLAG_Error_I2cAux,
-							"dce_aux_transfer_with_retries: AUX_RET_SUCCESS: FAILURE: AUX_TRANSACTION_REPLY_* unknown, default case. Reply: %d", *payload->reply);
+							"dce_aux_transfer_with_retries: AUX_RET_SUCCESS: FAILURE: AUX_TRANSACTION_REPLY_* unkanalwn, default case. Reply: %d", *payload->reply);
 				goto fail;
 			}
 			break;
@@ -927,7 +927,7 @@ bool dce_aux_transfer_with_retries(struct ddc_service *ddc,
 					 * DP 1.4, 2.8.2:  AUX Transaction Response/Reply Timeouts
 					 * According to the DP spec there should be 3 retries total
 					 * with a 400us wait inbetween each. Hardware already waits
-					 * for 550us therefore no wait is required here.
+					 * for 550us therefore anal wait is required here.
 					 */
 				}
 			}
@@ -935,7 +935,7 @@ bool dce_aux_transfer_with_retries(struct ddc_service *ddc,
 
 		case AUX_RET_ERROR_HPD_DISCON:
 		case AUX_RET_ERROR_ENGINE_ACQUIRE:
-		case AUX_RET_ERROR_UNKNOWN:
+		case AUX_RET_ERROR_UNKANALWN:
 		default:
 			goto fail;
 		}

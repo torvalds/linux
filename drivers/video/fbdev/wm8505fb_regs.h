@@ -2,7 +2,7 @@
 /*
  *  GOVR registers list for WM8505 chips
  *
- *  Copyright (C) 2010 Ed Spiridonov <edo.rus@gmail.com>
+ *  Copyright (C) 2010 Ed Spiridoanalv <edo.rus@gmail.com>
  *   Based on VIA/WonderMedia wm8510-govrh-reg.h
  *   http://github.com/projectgus/kernel_wm8505/blob/wm8505_2.6.29/
  *         drivers/video/wmt/register/wm8510/wm8510-govrh-reg.h
@@ -21,7 +21,7 @@
  */
 #define WMT_GOVR_COLORSPACE	0x1e4
 /*
- * Another colorspace select register, default value 1
+ * Aanalther colorspace select register, default value 1
  *   BIT0 GOVRH_DVO_RGB
  *   BIT1 GOVRH_DVO_YUV422
  */

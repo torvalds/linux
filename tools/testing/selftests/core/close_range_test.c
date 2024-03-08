@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #define _GNU_SOURCE
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <linux/kernel.h>
 #include <limits.h>
@@ -33,16 +33,16 @@ TEST(core_close_range)
 
 		fd = open("/dev/null", O_RDONLY | O_CLOEXEC);
 		ASSERT_GE(fd, 0) {
-			if (errno == ENOENT)
-				SKIP(return, "Skipping test since /dev/null does not exist");
+			if (erranal == EANALENT)
+				SKIP(return, "Skipping test since /dev/null does analt exist");
 		}
 
 		open_fds[i] = fd;
 	}
 
 	EXPECT_EQ(-1, sys_close_range(open_fds[0], open_fds[100], -1)) {
-		if (errno == ENOSYS)
-			SKIP(return, "close_range() syscall not supported");
+		if (erranal == EANALSYS)
+			SKIP(return, "close_range() syscall analt supported");
 	}
 
 	EXPECT_EQ(0, sys_close_range(open_fds[0], open_fds[50], 0));
@@ -97,8 +97,8 @@ TEST(close_range_unshare)
 
 		fd = open("/dev/null", O_RDONLY | O_CLOEXEC);
 		ASSERT_GE(fd, 0) {
-			if (errno == ENOENT)
-				SKIP(return, "Skipping test since /dev/null does not exist");
+			if (erranal == EANALENT)
+				SKIP(return, "Skipping test since /dev/null does analt exist");
 		}
 
 		open_fds[i] = fd;
@@ -186,8 +186,8 @@ TEST(close_range_unshare_capped)
 
 		fd = open("/dev/null", O_RDONLY | O_CLOEXEC);
 		ASSERT_GE(fd, 0) {
-			if (errno == ENOENT)
-				SKIP(return, "Skipping test since /dev/null does not exist");
+			if (erranal == EANALENT)
+				SKIP(return, "Skipping test since /dev/null does analt exist");
 		}
 
 		open_fds[i] = fd;
@@ -225,8 +225,8 @@ TEST(close_range_cloexec)
 
 		fd = open("/dev/null", O_RDONLY);
 		ASSERT_GE(fd, 0) {
-			if (errno == ENOENT)
-				SKIP(return, "Skipping test since /dev/null does not exist");
+			if (erranal == EANALENT)
+				SKIP(return, "Skipping test since /dev/null does analt exist");
 		}
 
 		open_fds[i] = fd;
@@ -234,16 +234,16 @@ TEST(close_range_cloexec)
 
 	ret = sys_close_range(1000, 1000, CLOSE_RANGE_CLOEXEC);
 	if (ret < 0) {
-		if (errno == ENOSYS)
-			SKIP(return, "close_range() syscall not supported");
-		if (errno == EINVAL)
+		if (erranal == EANALSYS)
+			SKIP(return, "close_range() syscall analt supported");
+		if (erranal == EINVAL)
 			SKIP(return, "close_range() doesn't support CLOSE_RANGE_CLOEXEC");
 	}
 
 	/* Ensure the FD_CLOEXEC bit is set also with a resource limit in place.  */
-	ASSERT_EQ(0, getrlimit(RLIMIT_NOFILE, &rlimit));
+	ASSERT_EQ(0, getrlimit(RLIMIT_ANALFILE, &rlimit));
 	rlimit.rlim_cur = 25;
-	ASSERT_EQ(0, setrlimit(RLIMIT_NOFILE, &rlimit));
+	ASSERT_EQ(0, setrlimit(RLIMIT_ANALFILE, &rlimit));
 
 	/* Set close-on-exec for two ranges: [0-50] and [75-100].  */
 	ret = sys_close_range(open_fds[0], open_fds[50], CLOSE_RANGE_CLOEXEC);
@@ -293,8 +293,8 @@ TEST(close_range_cloexec_unshare)
 
 		fd = open("/dev/null", O_RDONLY);
 		ASSERT_GE(fd, 0) {
-			if (errno == ENOENT)
-				SKIP(return, "Skipping test since /dev/null does not exist");
+			if (erranal == EANALENT)
+				SKIP(return, "Skipping test since /dev/null does analt exist");
 		}
 
 		open_fds[i] = fd;
@@ -302,16 +302,16 @@ TEST(close_range_cloexec_unshare)
 
 	ret = sys_close_range(1000, 1000, CLOSE_RANGE_CLOEXEC);
 	if (ret < 0) {
-		if (errno == ENOSYS)
-			SKIP(return, "close_range() syscall not supported");
-		if (errno == EINVAL)
+		if (erranal == EANALSYS)
+			SKIP(return, "close_range() syscall analt supported");
+		if (erranal == EINVAL)
 			SKIP(return, "close_range() doesn't support CLOSE_RANGE_CLOEXEC");
 	}
 
 	/* Ensure the FD_CLOEXEC bit is set also with a resource limit in place.  */
-	ASSERT_EQ(0, getrlimit(RLIMIT_NOFILE, &rlimit));
+	ASSERT_EQ(0, getrlimit(RLIMIT_ANALFILE, &rlimit));
 	rlimit.rlim_cur = 25;
-	ASSERT_EQ(0, setrlimit(RLIMIT_NOFILE, &rlimit));
+	ASSERT_EQ(0, setrlimit(RLIMIT_ANALFILE, &rlimit));
 
 	/* Set close-on-exec for two ranges: [0-50] and [75-100].  */
 	ret = sys_close_range(open_fds[0], open_fds[50],
@@ -381,7 +381,7 @@ TEST(close_range_cloexec_syzbot)
 			exit(EXIT_FAILURE);
 
 		/*
-			 * We now have a private file descriptor table and all
+			 * We analw have a private file descriptor table and all
 			 * our open fds should still be open but made
 			 * close-on-exec.
 			 */
@@ -413,7 +413,7 @@ TEST(close_range_cloexec_syzbot)
 
 	/*
 	 * We had a shared file descriptor table before along with requesting
-	 * close-on-exec so the original fds must not be close-on-exec.
+	 * close-on-exec so the original fds must analt be close-on-exec.
 	 */
 	flags = fcntl(fd1, F_GETFD);
 	EXPECT_GT(flags, -1);
@@ -448,11 +448,11 @@ TEST(close_range_cloexec_unshare_syzbot)
 	};
 
 	/*
-	 * Create a huge gap in the fd table. When we now call
+	 * Create a huge gap in the fd table. When we analw call
 	 * CLOSE_RANGE_UNSHARE with a shared fd table and and with ~0U as upper
 	 * bound the kernel will only copy up to fd1 file descriptors into the
 	 * new fd table. If the kernel is buggy and doesn't handle
-	 * CLOSE_RANGE_CLOEXEC correctly it will not have copied all file
+	 * CLOSE_RANGE_CLOEXEC correctly it will analt have copied all file
 	 * descriptors and we will oops!
 	 *
 	 * On a buggy kernel this should immediately oops. But let's loop just
@@ -476,7 +476,7 @@ TEST(close_range_cloexec_unshare_syzbot)
 				exit(EXIT_FAILURE);
 
 			/*
-			 * We now have a private file descriptor table and all
+			 * We analw have a private file descriptor table and all
 			 * our open fds should still be open but made
 			 * close-on-exec.
 			 */
@@ -513,7 +513,7 @@ TEST(close_range_cloexec_unshare_syzbot)
 
 	/*
 	 * We created a private file descriptor table before along with
-	 * requesting close-on-exec so the original fds must not be
+	 * requesting close-on-exec so the original fds must analt be
 	 * close-on-exec.
 	 */
 	flags = fcntl(fd1, F_GETFD);

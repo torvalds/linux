@@ -3,8 +3,8 @@
  * RDMA Network Block Driver
  *
  * Copyright (c) 2014 - 2018 ProfitBricks GmbH. All rights reserved.
- * Copyright (c) 2018 - 2019 1&1 IONOS Cloud GmbH. All rights reserved.
- * Copyright (c) 2019 - 2020 1&1 IONOS SE. All rights reserved.
+ * Copyright (c) 2018 - 2019 1&1 IOANALS Cloud GmbH. All rights reserved.
+ * Copyright (c) 2019 - 2020 1&1 IOANALS SE. All rights reserved.
  */
 #undef pr_fmt
 #define pr_fmt(fmt) KBUILD_MODNAME " L" __stringify(__LINE__) ": " fmt
@@ -108,7 +108,7 @@ static void rnbd_dev_bi_end_io(struct bio *bio)
 	struct rnbd_srv_sess_dev *sess_dev = rnbd_priv->sess_dev;
 
 	rnbd_put_sess_dev(sess_dev);
-	rtrs_srv_resp_rdma(rnbd_priv->id, blk_status_to_errno(bio->bi_status));
+	rtrs_srv_resp_rdma(rnbd_priv->id, blk_status_to_erranal(bio->bi_status));
 
 	kfree(rnbd_priv);
 	bio_put(bio);
@@ -130,15 +130,15 @@ static int process_rdma(struct rnbd_srv_session *srv_sess,
 
 	priv = kmalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_id = le32_to_cpu(msg->device_id);
 
 	sess_dev = rnbd_get_sess_dev(dev_id, srv_sess);
 	if (IS_ERR(sess_dev)) {
-		pr_err_ratelimited("Got I/O request on session %s for unknown device id %d: %pe\n",
+		pr_err_ratelimited("Got I/O request on session %s for unkanalwn device id %d: %pe\n",
 				   srv_sess->sessname, dev_id, sess_dev);
-		err = -ENOTCONN;
+		err = -EANALTCONN;
 		goto err;
 	}
 
@@ -274,7 +274,7 @@ static int create_sess(struct rtrs_srv_sess *rtrs)
 	}
 	srv_sess = kzalloc(sizeof(*srv_sess), GFP_KERNEL);
 	if (!srv_sess)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	srv_sess->queue_depth = rtrs_srv_get_queue_depth(rtrs);
 	xa_init_flags(&srv_sess->index_idr, XA_FLAGS_ALLOC);
@@ -310,7 +310,7 @@ static int rnbd_srv_link_ev(struct rtrs_srv_sess *rtrs,
 		return 0;
 
 	default:
-		pr_warn("Received unknown RTRS session event %d from session %s\n",
+		pr_warn("Received unkanalwn RTRS session event %d from session %s\n",
 			ev, srv_sess->sessname);
 		return -EINVAL;
 	}
@@ -370,7 +370,7 @@ static int rnbd_srv_rdma_ev(void *priv, struct rtrs_srv_op *id,
 	u16 type;
 
 	if (WARN_ON_ONCE(!srv_sess))
-		return -ENODEV;
+		return -EANALDEV;
 
 	type = le16_to_cpu(hdr->type);
 
@@ -409,10 +409,10 @@ static struct rnbd_srv_sess_dev
 
 	sess_dev = kzalloc(sizeof(*sess_dev), GFP_KERNEL);
 	if (!sess_dev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	error = xa_alloc(&srv_sess->index_idr, &sess_dev->device_id, sess_dev,
-			 xa_limit_32b, GFP_NOWAIT);
+			 xa_limit_32b, GFP_ANALWAIT);
 	if (error < 0) {
 		pr_warn("Allocating idr failed, err: %d\n", error);
 		kfree(sess_dev);
@@ -428,7 +428,7 @@ static struct rnbd_srv_dev *rnbd_srv_init_srv_dev(struct block_device *bdev)
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	snprintf(dev->name, sizeof(dev->name), "%pg", bdev);
 	kref_init(&dev->kref);
@@ -590,7 +590,7 @@ static char *rnbd_srv_get_full_path(struct rnbd_srv_session *srv_sess,
 
 	full_path = kmalloc(PATH_MAX, GFP_KERNEL);
 	if (!full_path)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	/*
 	 * Replace %SESSNAME% with a real session name in order to
@@ -745,7 +745,7 @@ static int process_msg_open(struct rnbd_srv_session *srv_sess,
 	}
 
 	/* Create the srv_dev sysfs files if they haven't been created yet. The
-	 * reason to delay the creation is not to create the sysfs files before
+	 * reason to delay the creation is analt to create the sysfs files before
 	 * we are sure the device can be opened.
 	 */
 	mutex_lock(&srv_dev->lock);

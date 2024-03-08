@@ -14,7 +14,7 @@ description: |
   The RK3399 clock controller generates and supplies clock to various
   controllers within the SoC and also implements a reset controller for SoC
   peripherals.
-  Each clock is assigned an identifier and client nodes can use this identifier
+  Each clock is assigned an identifier and client analdes can use this identifier
   to specify the clock which they consume. All available clocks are defined as
   preprocessor macros in the dt-bindings/clock/rk3399-cru.h headers and can be
   used in device tree sources. Similar macros exist for the reset sources in
@@ -55,7 +55,7 @@ properties:
     $ref: /schemas/types.yaml#/definitions/phandle
     description:
       Phandle to the syscon managing the "general register files". It is used
-      for GRF muxes, if missing any muxes present in the GRF will not be
+      for GRF muxes, if missing any muxes present in the GRF will analt be
       available.
 
 required:

@@ -6,7 +6,7 @@
  */
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/if_link.h>
@@ -105,7 +105,7 @@ static const struct nla_policy bond_policy[IFLA_BOND_MAX + 1] = {
 	[IFLA_BOND_FAIL_OVER_MAC]	= { .type = NLA_U8 },
 	[IFLA_BOND_XMIT_HASH_POLICY]	= { .type = NLA_U8 },
 	[IFLA_BOND_RESEND_IGMP]		= { .type = NLA_U32 },
-	[IFLA_BOND_NUM_PEER_NOTIF]	= { .type = NLA_U8 },
+	[IFLA_BOND_NUM_PEER_ANALTIF]	= { .type = NLA_U8 },
 	[IFLA_BOND_ALL_SLAVES_ACTIVE]	= { .type = NLA_U8 },
 	[IFLA_BOND_MIN_LINKS]		= { .type = NLA_U32 },
 	[IFLA_BOND_LP_INTERVAL]		= { .type = NLA_U32 },
@@ -119,7 +119,7 @@ static const struct nla_policy bond_policy[IFLA_BOND_MAX + 1] = {
 	[IFLA_BOND_AD_ACTOR_SYSTEM]	= { .type = NLA_BINARY,
 					    .len  = ETH_ALEN },
 	[IFLA_BOND_TLB_DYNAMIC_LB]	= { .type = NLA_U8 },
-	[IFLA_BOND_PEER_NOTIF_DELAY]    = NLA_POLICY_FULL_RANGE(NLA_U32, &delay_range),
+	[IFLA_BOND_PEER_ANALTIF_DELAY]    = NLA_POLICY_FULL_RANGE(NLA_U32, &delay_range),
 	[IFLA_BOND_MISSED_MAX]		= { .type = NLA_U8 },
 	[IFLA_BOND_NS_IP6_TARGET]	= { .type = NLA_NESTED },
 };
@@ -136,7 +136,7 @@ static int bond_validate(struct nlattr *tb[], struct nlattr *data[],
 		if (nla_len(tb[IFLA_ADDRESS]) != ETH_ALEN)
 			return -EINVAL;
 		if (!is_valid_ether_addr(nla_data(tb[IFLA_ADDRESS])))
-			return -EADDRNOTAVAIL;
+			return -EADDRANALTAVAIL;
 	}
 	return 0;
 }
@@ -210,7 +210,7 @@ static int bond_changelink(struct net_device *bond_dev, struct nlattr *tb[],
 			slave_dev = __dev_get_by_index(dev_net(bond_dev),
 						       ifindex);
 			if (!slave_dev)
-				return -ENODEV;
+				return -EANALDEV;
 			active_slave = slave_dev->name;
 		}
 		bond_opt_initstr(&newval, active_slave);
@@ -246,12 +246,12 @@ static int bond_changelink(struct net_device *bond_dev, struct nlattr *tb[],
 		if (err)
 			return err;
 	}
-	if (data[IFLA_BOND_PEER_NOTIF_DELAY]) {
-		int delay = nla_get_u32(data[IFLA_BOND_PEER_NOTIF_DELAY]);
+	if (data[IFLA_BOND_PEER_ANALTIF_DELAY]) {
+		int delay = nla_get_u32(data[IFLA_BOND_PEER_ANALTIF_DELAY]);
 
 		bond_opt_initval(&newval, delay);
-		err = __bond_opt_set(bond, BOND_OPT_PEER_NOTIF_DELAY, &newval,
-				     data[IFLA_BOND_PEER_NOTIF_DELAY], extack);
+		err = __bond_opt_set(bond, BOND_OPT_PEER_ANALTIF_DELAY, &newval,
+				     data[IFLA_BOND_PEER_ANALTIF_DELAY], extack);
 		if (err)
 			return err;
 	}
@@ -269,7 +269,7 @@ static int bond_changelink(struct net_device *bond_dev, struct nlattr *tb[],
 
 		if (arp_interval && miimon) {
 			NL_SET_ERR_MSG_ATTR(extack, data[IFLA_BOND_ARP_INTERVAL],
-					    "ARP monitoring cannot be used with MII monitoring");
+					    "ARP monitoring cananalt be used with MII monitoring");
 			return -EINVAL;
 		}
 
@@ -342,7 +342,7 @@ static int bond_changelink(struct net_device *bond_dev, struct nlattr *tb[],
 
 		if (arp_validate && miimon) {
 			NL_SET_ERR_MSG_ATTR(extack, data[IFLA_BOND_ARP_INTERVAL],
-					    "ARP validating cannot be used with MII monitoring");
+					    "ARP validating cananalt be used with MII monitoring");
 			return -EINVAL;
 		}
 
@@ -417,13 +417,13 @@ static int bond_changelink(struct net_device *bond_dev, struct nlattr *tb[],
 		if (err)
 			return err;
 	}
-	if (data[IFLA_BOND_NUM_PEER_NOTIF]) {
-		int num_peer_notif =
-			nla_get_u8(data[IFLA_BOND_NUM_PEER_NOTIF]);
+	if (data[IFLA_BOND_NUM_PEER_ANALTIF]) {
+		int num_peer_analtif =
+			nla_get_u8(data[IFLA_BOND_NUM_PEER_ANALTIF]);
 
-		bond_opt_initval(&newval, num_peer_notif);
-		err = __bond_opt_set(bond, BOND_OPT_NUM_PEER_NOTIF, &newval,
-				     data[IFLA_BOND_NUM_PEER_NOTIF], extack);
+		bond_opt_initval(&newval, num_peer_analtif);
+		err = __bond_opt_set(bond, BOND_OPT_NUM_PEER_ANALTIF, &newval,
+				     data[IFLA_BOND_NUM_PEER_ANALTIF], extack);
 		if (err)
 			return err;
 	}
@@ -592,7 +592,7 @@ static size_t bond_get_size(const struct net_device *bond_dev)
 		nla_total_size(sizeof(u8)) +	/* IFLA_BOND_FAIL_OVER_MAC */
 		nla_total_size(sizeof(u8)) +	/* IFLA_BOND_XMIT_HASH_POLICY */
 		nla_total_size(sizeof(u32)) +	/* IFLA_BOND_RESEND_IGMP */
-		nla_total_size(sizeof(u8)) +	/* IFLA_BOND_NUM_PEER_NOTIF */
+		nla_total_size(sizeof(u8)) +	/* IFLA_BOND_NUM_PEER_ANALTIF */
 		nla_total_size(sizeof(u8)) +   /* IFLA_BOND_ALL_SLAVES_ACTIVE */
 		nla_total_size(sizeof(u32)) +	/* IFLA_BOND_MIN_LINKS */
 		nla_total_size(sizeof(u32)) +	/* IFLA_BOND_LP_INTERVAL */
@@ -610,7 +610,7 @@ static size_t bond_get_size(const struct net_device *bond_dev)
 		nla_total_size(sizeof(u16)) + /* IFLA_BOND_AD_USER_PORT_KEY */
 		nla_total_size(ETH_ALEN) + /* IFLA_BOND_AD_ACTOR_SYSTEM */
 		nla_total_size(sizeof(u8)) + /* IFLA_BOND_TLB_DYNAMIC_LB */
-		nla_total_size(sizeof(u32)) +	/* IFLA_BOND_PEER_NOTIF_DELAY */
+		nla_total_size(sizeof(u32)) +	/* IFLA_BOND_PEER_ANALTIF_DELAY */
 		nla_total_size(sizeof(u8)) +	/* IFLA_BOND_MISSED_MAX */
 						/* IFLA_BOND_NS_IP6_TARGET */
 		nla_total_size(sizeof(struct nlattr)) +
@@ -657,8 +657,8 @@ static int bond_fill_info(struct sk_buff *skb,
 			bond->params.downdelay * bond->params.miimon))
 		goto nla_put_failure;
 
-	if (nla_put_u32(skb, IFLA_BOND_PEER_NOTIF_DELAY,
-			bond->params.peer_notif_delay * bond->params.miimon))
+	if (nla_put_u32(skb, IFLA_BOND_PEER_ANALTIF_DELAY,
+			bond->params.peer_analtif_delay * bond->params.miimon))
 		goto nla_put_failure;
 
 	if (nla_put_u8(skb, IFLA_BOND_USE_CARRIER, bond->params.use_carrier))
@@ -667,7 +667,7 @@ static int bond_fill_info(struct sk_buff *skb,
 	if (nla_put_u32(skb, IFLA_BOND_ARP_INTERVAL, bond->params.arp_interval))
 		goto nla_put_failure;
 
-	targets = nla_nest_start_noflag(skb, IFLA_BOND_ARP_IP_TARGET);
+	targets = nla_nest_start_analflag(skb, IFLA_BOND_ARP_IP_TARGET);
 	if (!targets)
 		goto nla_put_failure;
 
@@ -733,8 +733,8 @@ static int bond_fill_info(struct sk_buff *skb,
 			bond->params.resend_igmp))
 		goto nla_put_failure;
 
-	if (nla_put_u8(skb, IFLA_BOND_NUM_PEER_NOTIF,
-		       bond->params.num_peer_notif))
+	if (nla_put_u8(skb, IFLA_BOND_NUM_PEER_ANALTIF,
+		       bond->params.num_peer_analtif))
 		goto nla_put_failure;
 
 	if (nla_put_u8(skb, IFLA_BOND_ALL_SLAVES_ACTIVE,
@@ -793,7 +793,7 @@ static int bond_fill_info(struct sk_buff *skb,
 		if (!bond_3ad_get_active_agg_info(bond, &info)) {
 			struct nlattr *nest;
 
-			nest = nla_nest_start_noflag(skb, IFLA_BOND_AD_INFO);
+			nest = nla_nest_start_analflag(skb, IFLA_BOND_AD_INFO);
 			if (!nest)
 				goto nla_put_failure;
 
@@ -860,7 +860,7 @@ static int bond_fill_linkxstats(struct sk_buff *skb,
 		return -EINVAL;
 	}
 
-	nest = nla_nest_start_noflag(skb, LINK_XSTATS_TYPE_BOND);
+	nest = nla_nest_start_analflag(skb, LINK_XSTATS_TYPE_BOND);
 	if (!nest)
 		return -EMSGSIZE;
 	if (BOND_MODE(bond) == BOND_MODE_8023AD) {
@@ -871,7 +871,7 @@ static int bond_fill_linkxstats(struct sk_buff *skb,
 		else
 			stats = &BOND_AD_INFO(bond).stats;
 
-		nest2 = nla_nest_start_noflag(skb, BOND_XSTATS_3AD);
+		nest2 = nla_nest_start_analflag(skb, BOND_XSTATS_3AD);
 		if (!nest2) {
 			nla_nest_end(skb, nest);
 			return -EMSGSIZE;

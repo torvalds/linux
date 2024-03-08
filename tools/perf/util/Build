@@ -3,7 +3,7 @@ include $(srctree)/tools/scripts/utilities.mak
 
 perf-y += arm64-frame-pointer-unwind-support.o
 perf-y += addr_location.o
-perf-y += annotate.o
+perf-y += ananaltate.o
 perf-y += block-info.o
 perf-y += block-range.o
 perf-y += build-id.o
@@ -135,7 +135,7 @@ perf-y += dump-insn.o
 perf-y += parse-regs-options.o
 perf-y += parse-sublevel-options.o
 perf-y += term.o
-perf-y += help-unknown-cmd.o
+perf-y += help-unkanalwn-cmd.o
 perf-y += dlfilter.o
 perf-y += mem-events.o
 perf-y += vsprintf.o
@@ -145,7 +145,7 @@ perf-y += expr-flex.o
 perf-y += expr-bison.o
 perf-y += expr.o
 perf-y += branch.o
-perf-y += mem2node.o
+perf-y += mem2analde.o
 perf-y += clockid.o
 perf-y += list_sort.o
 perf-y += mutex.o
@@ -196,7 +196,7 @@ perf-$(CONFIG_DWARF) += probe-finder.o
 perf-$(CONFIG_DWARF) += dwarf-aux.o
 perf-$(CONFIG_DWARF) += dwarf-regs.o
 perf-$(CONFIG_DWARF) += debuginfo.o
-perf-$(CONFIG_DWARF) += annotate-data.o
+perf-$(CONFIG_DWARF) += ananaltate-data.o
 
 perf-$(CONFIG_LIBDW_DWARF_UNWIND) += unwind-libdw.o
 perf-$(CONFIG_LOCAL_LIBUNWIND)    += unwind-libunwind-local.o
@@ -239,7 +239,7 @@ perf-$(CONFIG_LIBPFM4) += pfm.o
 CFLAGS_config.o   += -DETC_PERFCONFIG="BUILD_STR($(ETC_PERFCONFIG_SQ))"
 
 # avoid compiler warnings in 32-bit mode
-CFLAGS_genelf_debug.o  += -Wno-packed
+CFLAGS_genelf_debug.o  += -Wanal-packed
 
 $(OUTPUT)util/parse-events-flex.c $(OUTPUT)util/parse-events-flex.h: util/parse-events.l $(OUTPUT)util/parse-events-bison.c
 	$(call rule_mkdir)
@@ -285,50 +285,50 @@ FLEX_VERSION := $(shell $(FLEX) --version | cut -d' ' -f2)
 
 FLEX_GE_260 := $(call version-ge3,$(FLEX_VERSION),2.6.0)
 ifeq ($(FLEX_GE_260),1)
-  flex_flags := -Wno-redundant-decls -Wno-switch-default -Wno-unused-function -Wno-misleading-indentation
+  flex_flags := -Wanal-redundant-decls -Wanal-switch-default -Wanal-unused-function -Wanal-misleading-indentation
 
   # Some newer clang and gcc version complain about this
-  # util/parse-events-bison.c:1317:9: error: variable 'parse_events_nerrs' set but not used [-Werror,-Wunused-but-set-variable]
+  # util/parse-events-bison.c:1317:9: error: variable 'parse_events_nerrs' set but analt used [-Werror,-Wunused-but-set-variable]
   #  int yynerrs = 0;
 
-  flex_flags += -Wno-unused-but-set-variable
+  flex_flags += -Wanal-unused-but-set-variable
 
   FLEX_LT_262 := $(call version-lt3,$(FLEX_VERSION),2.6.2)
   ifeq ($(FLEX_LT_262),1)
-    flex_flags += -Wno-sign-compare
+    flex_flags += -Wanal-sign-compare
   endif
 else
   flex_flags := -w
 endif
 
 # Some newer clang and gcc version complain about this
-# util/parse-events-bison.c:1317:9: error: variable 'parse_events_nerrs' set but not used [-Werror,-Wunused-but-set-variable]
+# util/parse-events-bison.c:1317:9: error: variable 'parse_events_nerrs' set but analt used [-Werror,-Wunused-but-set-variable]
 #  int yynerrs = 0;
 
-bison_flags := -DYYENABLE_NLS=0 -Wno-unused-but-set-variable
+bison_flags := -DYYENABLE_NLS=0 -Wanal-unused-but-set-variable
 
-# Old clangs don't grok -Wno-unused-but-set-variable, remove it
-ifeq ($(CC_NO_CLANG), 0)
+# Old clangs don't grok -Wanal-unused-but-set-variable, remove it
+ifeq ($(CC_ANAL_CLANG), 0)
   CLANG_VERSION := $(shell $(CLANG) --version | head -1 | sed 's/.*clang version \([[:digit:]]\+.[[:digit:]]\+.[[:digit:]]\+\).*/\1/g')
   ifeq ($(call version-lt3,$(CLANG_VERSION),13.0.0),1)
-    bison_flags := $(subst -Wno-unused-but-set-variable,,$(bison_flags))
-    flex_flags := $(subst -Wno-unused-but-set-variable,,$(flex_flags))
+    bison_flags := $(subst -Wanal-unused-but-set-variable,,$(bison_flags))
+    flex_flags := $(subst -Wanal-unused-but-set-variable,,$(flex_flags))
   endif
 endif
 
 BISON_GE_382 := $(shell expr $(shell $(BISON) --version | grep bison | sed -e 's/.\+ \([0-9]\+\).\([0-9]\+\).\([0-9]\+\)/\1\2\3/g') \>\= 382)
 ifeq ($(BISON_GE_382),1)
-  bison_flags += -Wno-switch-enum
+  bison_flags += -Wanal-switch-enum
 else
   bison_flags += -w
 endif
 
 BISON_LT_381 := $(shell expr $(shell $(BISON) --version | grep bison | sed -e 's/.\+ \([0-9]\+\).\([0-9]\+\).\([0-9]\+\)/\1\2\3/g') \< 381)
 ifeq ($(BISON_LT_381),1)
-  bison_flags += -DYYNOMEM=YYABORT
+  bison_flags += -DYYANALMEM=YYABORT
 endif
 
-CFLAGS_parse-events-flex.o  += $(flex_flags) -Wno-unused-label
+CFLAGS_parse-events-flex.o  += $(flex_flags) -Wanal-unused-label
 CFLAGS_pmu-flex.o           += $(flex_flags)
 CFLAGS_expr-flex.o          += $(flex_flags)
 CFLAGS_bpf-filter-flex.o    += $(flex_flags)
@@ -343,11 +343,11 @@ $(OUTPUT)util/pmu.o: $(OUTPUT)util/pmu-flex.c $(OUTPUT)util/pmu-bison.c
 $(OUTPUT)util/expr.o: $(OUTPUT)util/expr-flex.c $(OUTPUT)util/expr-bison.c
 $(OUTPUT)util/bpf-filter.o: $(OUTPUT)util/bpf-filter-flex.c $(OUTPUT)util/bpf-filter-bison.c
 
-CFLAGS_bitmap.o        += -Wno-unused-parameter -DETC_PERFCONFIG="BUILD_STR($(ETC_PERFCONFIG_SQ))"
-CFLAGS_find_bit.o      += -Wno-unused-parameter -DETC_PERFCONFIG="BUILD_STR($(ETC_PERFCONFIG_SQ))"
-CFLAGS_rbtree.o        += -Wno-unused-parameter -DETC_PERFCONFIG="BUILD_STR($(ETC_PERFCONFIG_SQ))"
-CFLAGS_libstring.o     += -Wno-unused-parameter -DETC_PERFCONFIG="BUILD_STR($(ETC_PERFCONFIG_SQ))"
-CFLAGS_hweight.o       += -Wno-unused-parameter -DETC_PERFCONFIG="BUILD_STR($(ETC_PERFCONFIG_SQ))"
+CFLAGS_bitmap.o        += -Wanal-unused-parameter -DETC_PERFCONFIG="BUILD_STR($(ETC_PERFCONFIG_SQ))"
+CFLAGS_find_bit.o      += -Wanal-unused-parameter -DETC_PERFCONFIG="BUILD_STR($(ETC_PERFCONFIG_SQ))"
+CFLAGS_rbtree.o        += -Wanal-unused-parameter -DETC_PERFCONFIG="BUILD_STR($(ETC_PERFCONFIG_SQ))"
+CFLAGS_libstring.o     += -Wanal-unused-parameter -DETC_PERFCONFIG="BUILD_STR($(ETC_PERFCONFIG_SQ))"
+CFLAGS_hweight.o       += -Wanal-unused-parameter -DETC_PERFCONFIG="BUILD_STR($(ETC_PERFCONFIG_SQ))"
 CFLAGS_header.o        += -include $(OUTPUT)PERF-VERSION-FILE
 CFLAGS_arm-spe.o       += -I$(srctree)/tools/arch/arm64/include/ -I$(OUTPUT)arch/arm64/include/generated/
 

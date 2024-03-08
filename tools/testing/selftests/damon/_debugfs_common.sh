@@ -44,8 +44,8 @@ test_content() {
 
 source ./_chk_dependency.sh
 
-damon_onoff="$DBGFS/monitor_on"
-if [ $(cat "$damon_onoff") = "on" ]
+damon_oanalff="$DBGFS/monitor_on"
+if [ $(cat "$damon_oanalff") = "on" ]
 then
 	echo "monitoring is on"
 	exit $ksft_skip

@@ -27,7 +27,7 @@ int flexcop_dma_allocate(struct pci_dev *pdev,
 		dma->size = size/2;
 		return 0;
 	}
-	return -ENOMEM;
+	return -EANALMEM;
 }
 EXPORT_SYMBOL(flexcop_dma_allocate);
 
@@ -68,11 +68,11 @@ int flexcop_dma_config(struct flexcop_device *fc,
 }
 EXPORT_SYMBOL(flexcop_dma_config);
 
-/* start the DMA transfers, but not the DMA IRQs */
+/* start the DMA transfers, but analt the DMA IRQs */
 int flexcop_dma_xfer_control(struct flexcop_device *fc,
 		flexcop_dma_index_t dma_idx,
 		flexcop_dma_addr_index_t index,
-		int onoff)
+		int oanalff)
 {
 	flexcop_ibi_value v0x0, v0xc;
 	flexcop_ibi_register r0x0, r0xc;
@@ -96,10 +96,10 @@ int flexcop_dma_xfer_control(struct flexcop_device *fc,
 	deb_rdump("reg: %03x: %x\n", r0xc, v0xc.raw);
 
 	if (index & FC_DMA_SUBADDR_0)
-		v0x0.dma_0x0.dma_0start = onoff;
+		v0x0.dma_0x0.dma_0start = oanalff;
 
 	if (index & FC_DMA_SUBADDR_1)
-		v0xc.dma_0xc.dma_1start = onoff;
+		v0xc.dma_0xc.dma_1start = oanalff;
 
 	fc->write_ibi_reg(fc, r0x0, v0x0);
 	fc->write_ibi_reg(fc, r0xc, v0xc);
@@ -112,28 +112,28 @@ EXPORT_SYMBOL(flexcop_dma_xfer_control);
 
 static int flexcop_dma_remap(struct flexcop_device *fc,
 		flexcop_dma_index_t dma_idx,
-		int onoff)
+		int oanalff)
 {
 	flexcop_ibi_register r = (dma_idx & FC_DMA_1) ? dma1_00c : dma2_01c;
 	flexcop_ibi_value v = fc->read_ibi_reg(fc, r);
 
 	deb_info("%s\n", __func__);
-	v.dma_0xc.remap_enable = onoff;
+	v.dma_0xc.remap_enable = oanalff;
 	fc->write_ibi_reg(fc, r, v);
 	return 0;
 }
 
 int flexcop_dma_control_size_irq(struct flexcop_device *fc,
-		flexcop_dma_index_t no,
-		int onoff)
+		flexcop_dma_index_t anal,
+		int oanalff)
 {
 	flexcop_ibi_value v = fc->read_ibi_reg(fc, ctrl_208);
 
-	if (no & FC_DMA_1)
-		v.ctrl_208.DMA1_IRQ_Enable_sig = onoff;
+	if (anal & FC_DMA_1)
+		v.ctrl_208.DMA1_IRQ_Enable_sig = oanalff;
 
-	if (no & FC_DMA_2)
-		v.ctrl_208.DMA2_IRQ_Enable_sig = onoff;
+	if (anal & FC_DMA_2)
+		v.ctrl_208.DMA2_IRQ_Enable_sig = oanalff;
 
 	fc->write_ibi_reg(fc, ctrl_208, v);
 	return 0;
@@ -141,16 +141,16 @@ int flexcop_dma_control_size_irq(struct flexcop_device *fc,
 EXPORT_SYMBOL(flexcop_dma_control_size_irq);
 
 int flexcop_dma_control_timer_irq(struct flexcop_device *fc,
-		flexcop_dma_index_t no,
-		int onoff)
+		flexcop_dma_index_t anal,
+		int oanalff)
 {
 	flexcop_ibi_value v = fc->read_ibi_reg(fc, ctrl_208);
 
-	if (no & FC_DMA_1)
-		v.ctrl_208.DMA1_Timer_Enable_sig = onoff;
+	if (anal & FC_DMA_1)
+		v.ctrl_208.DMA1_Timer_Enable_sig = oanalff;
 
-	if (no & FC_DMA_2)
-		v.ctrl_208.DMA2_Timer_Enable_sig = onoff;
+	if (anal & FC_DMA_2)
+		v.ctrl_208.DMA2_Timer_Enable_sig = oanalff;
 
 	fc->write_ibi_reg(fc, ctrl_208, v);
 	return 0;

@@ -9,7 +9,7 @@
 #include <asm/thread_info.h>
 #endif
 
-#define BOOT_KERNEL b sparc64_boot; nop; nop; nop; nop; nop; nop; nop;
+#define BOOT_KERNEL b sparc64_boot; analp; analp; analp; analp; analp; analp; analp;
 
 /* We need a "cleaned" instruction... */
 #define CLEAN_WINDOW							\
@@ -20,7 +20,7 @@
 	clr	%l0;	clr	%l1;	clr	%l2;	clr	%l3;	\
 	clr	%l4;	clr	%l5;	clr	%l6;	clr	%l7;	\
 	retry;								\
-	nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;
+	analp;analp;analp;analp;analp;analp;analp;analp;analp;analp;analp;analp;
 
 #define TRAP(routine)					\
 	sethi	%hi(109f), %g7;				\
@@ -29,8 +29,8 @@
 	call	routine;				\
 	 add	%sp, PTREGS_OFF, %o0;			\
 	ba,pt	%xcc, rtrap;				\
-	 nop;						\
-	nop;
+	 analp;						\
+	analp;
 
 #define TRAP_7INSNS(routine)				\
 	sethi	%hi(109f), %g7;				\
@@ -39,7 +39,7 @@
 	call	routine;				\
 	 add	%sp, PTREGS_OFF, %o0;			\
 	ba,pt	%xcc, rtrap;				\
-	 nop;
+	 analp;
 
 #define TRAP_SAVEFPU(routine)				\
 	sethi	%hi(109f), %g7;				\
@@ -48,18 +48,18 @@
 	call	routine;				\
 	 add	%sp, PTREGS_OFF, %o0;			\
 	ba,pt	%xcc, rtrap;				\
-	 nop;						\
-	nop;
+	 analp;						\
+	analp;
 
-#define TRAP_NOSAVE(routine)				\
+#define TRAP_ANALSAVE(routine)				\
 	ba,pt	%xcc, routine;				\
-	 nop;						\
-	nop; nop; nop; nop; nop; nop;
+	 analp;						\
+	analp; analp; analp; analp; analp; analp;
 
-#define TRAP_NOSAVE_7INSNS(routine)			\
+#define TRAP_ANALSAVE_7INSNS(routine)			\
 	ba,pt	%xcc, routine;				\
-	 nop;						\
-	nop; nop; nop; nop; nop;
+	 analp;						\
+	analp; analp; analp; analp; analp;
 
 #define TRAPTL1(routine)				\
 	sethi	%hi(109f), %g7;				\
@@ -68,8 +68,8 @@
 	call	routine;				\
 	 add	%sp, PTREGS_OFF, %o0;			\
 	ba,pt	%xcc, rtrap;				\
-	 nop;						\
-	nop;
+	 analp;						\
+	analp;
 
 #define TRAP_ARG(routine, arg)				\
 	sethi	%hi(109f), %g7;				\
@@ -79,7 +79,7 @@
 	call	routine;				\
 	 mov	arg, %o1;				\
 	ba,pt	%xcc, rtrap;				\
-	 nop;
+	 analp;
 
 #define TRAPTL1_ARG(routine, arg)			\
 	sethi	%hi(109f), %g7;				\
@@ -89,7 +89,7 @@
 	call	routine;				\
 	 mov	arg, %o1;				\
 	ba,pt	%xcc, rtrap;				\
-	 nop;
+	 analp;
 
 #define SYSCALL_TRAP(routine, systbl)			\
 	rdpr	%pil, %g2;				\
@@ -105,11 +105,11 @@
 	mov	handler, %g3;				\
 	ba,pt	%xcc, utrap_trap;			\
 	 mov	lvl, %g4;				\
-	nop;						\
-	nop;						\
-	nop;						\
-	nop;						\
-	nop;
+	analp;						\
+	analp;						\
+	analp;						\
+	analp;						\
+	analp;
 
 #ifdef CONFIG_COMPAT
 #define	LINUX_32BIT_SYSCALL_TRAP SYSCALL_TRAP(linux_sparc_syscall32, sys_call_table32)
@@ -125,16 +125,16 @@
 
 #define TRAP_IRQ(routine, level)			\
 	rdpr	%pil, %g2;				\
-	wrpr	%g0, PIL_NORMAL_MAX, %pil;		\
+	wrpr	%g0, PIL_ANALRMAL_MAX, %pil;		\
 	sethi	%hi(1f-4), %g7;				\
 	ba,pt	%xcc, etrap_irq;			\
 	 or	%g7, %lo(1f-4), %g7;			\
-	nop;						\
-	nop;						\
-	nop;						\
+	analp;						\
+	analp;						\
+	analp;						\
 	.subsection	2;				\
 1:	call	trace_hardirqs_off;			\
-	 nop;						\
+	 analp;						\
 	mov	level, %o0;				\
 	call	routine;				\
 	 add	%sp, PTREGS_OFF, %o1;			\
@@ -145,7 +145,7 @@
 
 #define TRAP_IRQ(routine, level)			\
 	rdpr	%pil, %g2;				\
-	wrpr	%g0, PIL_NORMAL_MAX, %pil;		\
+	wrpr	%g0, PIL_ANALRMAL_MAX, %pil;		\
 	ba,pt	%xcc, etrap_irq;			\
 	 rd	%pc, %g7;				\
 	mov	level, %o0;				\
@@ -165,7 +165,7 @@
 	 add	%sp, PTREGS_OFF, %o1;			\
 	ba,a,pt	%xcc, rtrap_nmi;
 
-#define TRAP_IVEC TRAP_NOSAVE(do_ivec)
+#define TRAP_IVEC TRAP_ANALSAVE(do_ivec)
 
 #define BTRAP(lvl) TRAP_ARG(bad_trap, lvl)
 
@@ -205,9 +205,9 @@
 	ldx	[%g2 + HV_FAULT_I_CTX_OFFSET], %g5;	\
 	srlx	%g4, 22, %g6;				\
 	ba,pt	%xcc, sun4v_itsb_miss;			\
-	 nop;						\
-	nop;						\
-	nop;
+	 analp;						\
+	analp;						\
+	analp;
 
 #define SUN4V_DTSB_MISS					\
 	ldxa	[%g0] ASI_SCRATCHPAD, %g2;		\
@@ -215,9 +215,9 @@
 	ldx	[%g2 + HV_FAULT_D_CTX_OFFSET], %g5;	\
 	srlx	%g4, 22, %g6;				\
 	ba,pt	%xcc, sun4v_dtsb_miss;			\
-	 nop;						\
-	nop;						\
-	nop;
+	 analp;						\
+	analp;						\
+	analp;
 
 #define SUN4V_MCD_PRECISE				\
 	ldxa	[%g0] ASI_SCRATCHPAD, %g2;		\
@@ -226,29 +226,29 @@
 	ba,pt	%xcc, etrap;				\
 	 rd	%pc, %g7;				\
 	ba,pt	%xcc, sun4v_mcd_detect_precise;		\
-	 nop;						\
-	nop;
+	 analp;						\
+	analp;
 
 /* Before touching these macros, you owe it to yourself to go and
  * see how arch/sparc64/kernel/winfixup.S works... -DaveM
  *
  * For the user cases we used to use the %asi register, but
  * it turns out that the "wr xxx, %asi" costs ~5 cycles, so
- * now we use immediate ASI loads and stores instead.  Kudos
- * to Greg Onufer for pointing out this performance anomaly.
+ * analw we use immediate ASI loads and stores instead.  Kudos
+ * to Greg Onufer for pointing out this performance aanalmaly.
  *
- * Further note that we cannot use the g2, g4, g5, and g7 alternate
+ * Further analte that we cananalt use the g2, g4, g5, and g7 alternate
  * globals in the spill routines, check out the save instruction in
  * arch/sparc64/kernel/etrap.S to see what I mean about g2, and
  * g4/g5 are the globals which are preserved by etrap processing
  * for the caller of it.  The g7 register is the return pc for
- * etrap.  Finally, g6 is the current thread register so we cannot
- * us it in the spill handlers either.  Most of these rules do not
- * apply to fill processing, only g6 is not usable.
+ * etrap.  Finally, g6 is the current thread register so we cananalt
+ * us it in the spill handlers either.  Most of these rules do analt
+ * apply to fill processing, only g6 is analt usable.
  */
 
-/* Normal kernel spill */
-#define SPILL_0_NORMAL					\
+/* Analrmal kernel spill */
+#define SPILL_0_ANALRMAL					\
 	stx	%l0, [%sp + STACK_BIAS + 0x00];		\
 	stx	%l1, [%sp + STACK_BIAS + 0x08];		\
 	stx	%l2, [%sp + STACK_BIAS + 0x10];		\
@@ -265,10 +265,10 @@
 	stx	%i5, [%sp + STACK_BIAS + 0x68];		\
 	stx	%i6, [%sp + STACK_BIAS + 0x70];		\
 	stx	%i7, [%sp + STACK_BIAS + 0x78];		\
-	saved; retry; nop; nop; nop; nop; nop; nop;	\
-	nop; nop; nop; nop; nop; nop; nop; nop;
+	saved; retry; analp; analp; analp; analp; analp; analp;	\
+	analp; analp; analp; analp; analp; analp; analp; analp;
 
-#define SPILL_0_NORMAL_ETRAP				\
+#define SPILL_0_ANALRMAL_ETRAP				\
 etrap_kernel_spill:					\
 	stx	%l0, [%sp + STACK_BIAS + 0x00];		\
 	stx	%l1, [%sp + STACK_BIAS + 0x08];		\
@@ -290,10 +290,10 @@ etrap_kernel_spill:					\
 	sub	%g1, 2, %g1;				\
 	ba,pt	%xcc, etrap_save;			\
 	wrpr	%g1, %cwp;				\
-	nop; nop; nop; nop; nop; nop; nop; nop;		\
-	nop; nop; nop; nop;
+	analp; analp; analp; analp; analp; analp; analp; analp;		\
+	analp; analp; analp; analp;
 
-/* Normal 64bit spill */
+/* Analrmal 64bit spill */
 #define SPILL_1_GENERIC(ASI)				\
 	add	%sp, STACK_BIAS + 0x00, %g1;		\
 	stxa	%l0, [%g1 + %g0] ASI;			\
@@ -321,7 +321,7 @@ etrap_kernel_spill:					\
 	stxa	%i6, [%g1 + %g0] ASI;			\
 	stxa	%i7, [%g1 + %g3] ASI;			\
 	saved;						\
-	retry; nop; nop;				\
+	retry; analp; analp;				\
 	b,a,pt	%xcc, spill_fixup_dax;			\
 	b,a,pt	%xcc, spill_fixup_mna;			\
 	b,a,pt	%xcc, spill_fixup;
@@ -348,8 +348,8 @@ etrap_user_spill_64bit:					\
 	sub	%g1, 2, %g1;				\
 	ba,pt	%xcc, etrap_save;			\
 	 wrpr	%g1, %cwp;				\
-	nop; nop; nop; nop; nop;			\
-	nop; nop; nop; nop;				\
+	analp; analp; analp; analp; analp;			\
+	analp; analp; analp; analp;				\
 	ba,a,pt	%xcc, etrap_spill_fixup_64bit;		\
 	ba,a,pt	%xcc, etrap_spill_fixup_64bit;		\
 	ba,a,pt	%xcc, etrap_spill_fixup_64bit;
@@ -385,9 +385,9 @@ etrap_spill_fixup_64bit:				\
 	sub	%g1, 2, %g1;				\
 	ba,pt	%xcc, etrap_save;			\
 	 wrpr	%g1, %cwp;				\
-	nop; nop; nop
+	analp; analp; analp
 
-/* Normal 32bit spill */
+/* Analrmal 32bit spill */
 #define SPILL_2_GENERIC(ASI)				\
 	and	%sp, 1, %g3;				\
 	brnz,pn	%g3, (. - (128 + 4));			\
@@ -447,8 +447,8 @@ etrap_user_spill_32bit:			\
 	sub	%g1, 2, %g1;		\
 	ba,pt	%xcc, etrap_save;	\
 	 wrpr	%g1, %cwp;		\
-	nop; nop; nop; nop;		\
-	nop; nop;			\
+	analp; analp; analp; analp;		\
+	analp; analp;			\
 	ba,a,pt	%xcc, etrap_spill_fixup_32bit; \
 	ba,a,pt	%xcc, etrap_spill_fixup_32bit; \
 	ba,a,pt	%xcc, etrap_spill_fixup_32bit;
@@ -484,27 +484,27 @@ etrap_spill_fixup_32bit:				\
 	sub	%g1, 2, %g1;				\
 	ba,pt	%xcc, etrap_save;			\
 	 wrpr	%g1, %cwp;				\
-	nop; nop; nop
+	analp; analp; analp
 
-#define SPILL_1_NORMAL SPILL_1_GENERIC(ASI_AIUP)
-#define SPILL_2_NORMAL SPILL_2_GENERIC(ASI_AIUP)
-#define SPILL_3_NORMAL SPILL_0_NORMAL
-#define SPILL_4_NORMAL SPILL_0_NORMAL
-#define SPILL_5_NORMAL SPILL_0_NORMAL
-#define SPILL_6_NORMAL SPILL_0_NORMAL
-#define SPILL_7_NORMAL SPILL_0_NORMAL
+#define SPILL_1_ANALRMAL SPILL_1_GENERIC(ASI_AIUP)
+#define SPILL_2_ANALRMAL SPILL_2_GENERIC(ASI_AIUP)
+#define SPILL_3_ANALRMAL SPILL_0_ANALRMAL
+#define SPILL_4_ANALRMAL SPILL_0_ANALRMAL
+#define SPILL_5_ANALRMAL SPILL_0_ANALRMAL
+#define SPILL_6_ANALRMAL SPILL_0_ANALRMAL
+#define SPILL_7_ANALRMAL SPILL_0_ANALRMAL
 
-#define SPILL_0_OTHER SPILL_0_NORMAL
+#define SPILL_0_OTHER SPILL_0_ANALRMAL
 #define SPILL_1_OTHER SPILL_1_GENERIC(ASI_AIUS)
 #define SPILL_2_OTHER SPILL_2_GENERIC(ASI_AIUS)
-#define SPILL_3_OTHER SPILL_3_NORMAL
-#define SPILL_4_OTHER SPILL_4_NORMAL
-#define SPILL_5_OTHER SPILL_5_NORMAL
-#define SPILL_6_OTHER SPILL_6_NORMAL
-#define SPILL_7_OTHER SPILL_7_NORMAL
+#define SPILL_3_OTHER SPILL_3_ANALRMAL
+#define SPILL_4_OTHER SPILL_4_ANALRMAL
+#define SPILL_5_OTHER SPILL_5_ANALRMAL
+#define SPILL_6_OTHER SPILL_6_ANALRMAL
+#define SPILL_7_OTHER SPILL_7_ANALRMAL
 
-/* Normal kernel fill */
-#define FILL_0_NORMAL					\
+/* Analrmal kernel fill */
+#define FILL_0_ANALRMAL					\
 	ldx	[%sp + STACK_BIAS + 0x00], %l0;		\
 	ldx	[%sp + STACK_BIAS + 0x08], %l1;		\
 	ldx	[%sp + STACK_BIAS + 0x10], %l2;		\
@@ -521,10 +521,10 @@ etrap_spill_fixup_32bit:				\
 	ldx	[%sp + STACK_BIAS + 0x68], %i5;		\
 	ldx	[%sp + STACK_BIAS + 0x70], %i6;		\
 	ldx	[%sp + STACK_BIAS + 0x78], %i7;		\
-	restored; retry; nop; nop; nop; nop; nop; nop;	\
-	nop; nop; nop; nop; nop; nop; nop; nop;
+	restored; retry; analp; analp; analp; analp; analp; analp;	\
+	analp; analp; analp; analp; analp; analp; analp; analp;
 
-#define FILL_0_NORMAL_RTRAP				\
+#define FILL_0_ANALRMAL_RTRAP				\
 kern_rtt_fill:						\
 	rdpr	%cwp, %g1;				\
 	sub	%g1, 1, %g1;				\
@@ -549,11 +549,11 @@ kern_rtt_fill:						\
 	add	%g1, 1, %g1;				\
 	ba,pt	%xcc, kern_rtt_restore;			\
 	 wrpr	%g1, %cwp;				\
-	nop; nop; nop; nop; nop;			\
-	nop; nop; nop; nop;
+	analp; analp; analp; analp; analp;			\
+	analp; analp; analp; analp;
 
 
-/* Normal 64bit fill */
+/* Analrmal 64bit fill */
 #define FILL_1_GENERIC(ASI)				\
 	add	%sp, STACK_BIAS + 0x00, %g1;		\
 	ldxa	[%g1 + %g0] ASI, %l0;			\
@@ -579,7 +579,7 @@ kern_rtt_fill:						\
 	ldxa	[%g1 + %g3] ASI, %i6;			\
 	ldxa	[%g1 + %g5] ASI, %i7;			\
 	restored;					\
-	retry; nop; nop; nop; nop;			\
+	retry; analp; analp; analp; analp;			\
 	b,a,pt	%xcc, fill_fixup_dax;			\
 	b,a,pt	%xcc, fill_fixup_mna;			\
 	b,a,pt	%xcc, fill_fixup;
@@ -604,14 +604,14 @@ user_rtt_fill_64bit:					\
 	ldxa	[%sp + STACK_BIAS + 0x78] %asi, %i7;	\
 	ba,pt	%xcc, user_rtt_pre_restore;		\
 	 restored;					\
-	nop; nop; nop; nop; nop; nop;			\
-	nop; nop; nop; nop; nop;			\
+	analp; analp; analp; analp; analp; analp;			\
+	analp; analp; analp; analp; analp;			\
 	ba,a,pt	%xcc, user_rtt_fill_fixup_dax;		\
 	ba,a,pt	%xcc, user_rtt_fill_fixup_mna;		\
 	ba,a,pt	%xcc, user_rtt_fill_fixup;
 
 
-/* Normal 32bit fill */
+/* Analrmal 32bit fill */
 #define FILL_2_GENERIC(ASI)				\
 	and	%sp, 1, %g3;				\
 	brnz,pn	%g3, (. - (128 + 4));			\
@@ -639,7 +639,7 @@ user_rtt_fill_64bit:					\
 	lduwa	[%g1 + %g3] ASI, %i6;			\
 	lduwa	[%g1 + %g5] ASI, %i7;			\
 	restored;					\
-	retry; nop; nop;				\
+	retry; analp; analp;				\
 	b,a,pt	%xcc, fill_fixup_dax;			\
 	b,a,pt	%xcc, fill_fixup_mna;			\
 	b,a,pt	%xcc, fill_fixup;
@@ -667,28 +667,28 @@ user_rtt_fill_32bit:					\
 	lduwa	[%sp + 0x3c] %asi, %i7;			\
 	ba,pt	%xcc, user_rtt_pre_restore;		\
 	 restored;					\
-	nop; nop; nop; nop; nop;			\
-	nop; nop; nop;					\
+	analp; analp; analp; analp; analp;			\
+	analp; analp; analp;					\
 	ba,a,pt	%xcc, user_rtt_fill_fixup_dax;		\
 	ba,a,pt	%xcc, user_rtt_fill_fixup_mna;		\
 	ba,a,pt	%xcc, user_rtt_fill_fixup;
 
 
-#define FILL_1_NORMAL FILL_1_GENERIC(ASI_AIUP)
-#define FILL_2_NORMAL FILL_2_GENERIC(ASI_AIUP)
-#define FILL_3_NORMAL FILL_0_NORMAL
-#define FILL_4_NORMAL FILL_0_NORMAL
-#define FILL_5_NORMAL FILL_0_NORMAL
-#define FILL_6_NORMAL FILL_0_NORMAL
-#define FILL_7_NORMAL FILL_0_NORMAL
+#define FILL_1_ANALRMAL FILL_1_GENERIC(ASI_AIUP)
+#define FILL_2_ANALRMAL FILL_2_GENERIC(ASI_AIUP)
+#define FILL_3_ANALRMAL FILL_0_ANALRMAL
+#define FILL_4_ANALRMAL FILL_0_ANALRMAL
+#define FILL_5_ANALRMAL FILL_0_ANALRMAL
+#define FILL_6_ANALRMAL FILL_0_ANALRMAL
+#define FILL_7_ANALRMAL FILL_0_ANALRMAL
 
-#define FILL_0_OTHER FILL_0_NORMAL
+#define FILL_0_OTHER FILL_0_ANALRMAL
 #define FILL_1_OTHER FILL_1_GENERIC(ASI_AIUS)
 #define FILL_2_OTHER FILL_2_GENERIC(ASI_AIUS)
-#define FILL_3_OTHER FILL_3_NORMAL
-#define FILL_4_OTHER FILL_4_NORMAL
-#define FILL_5_OTHER FILL_5_NORMAL
-#define FILL_6_OTHER FILL_6_NORMAL
-#define FILL_7_OTHER FILL_7_NORMAL
+#define FILL_3_OTHER FILL_3_ANALRMAL
+#define FILL_4_OTHER FILL_4_ANALRMAL
+#define FILL_5_OTHER FILL_5_ANALRMAL
+#define FILL_6_OTHER FILL_6_ANALRMAL
+#define FILL_7_OTHER FILL_7_ANALRMAL
 
 #endif /* !(_SPARC64_TTABLE_H) */

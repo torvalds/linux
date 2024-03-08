@@ -2,8 +2,8 @@
 /*
  * Copyright (C) 2020 Arm Ltd.
  *
- * DT nodes common between Orange Pi Zero 2 and Orange Pi Zero 3.
- * Excludes PMIC nodes and properties, since they are different between the two.
+ * DT analdes common between Orange Pi Zero 2 and Orange Pi Zero 3.
+ * Excludes PMIC analdes and properties, since they are different between the two.
  */
 
 #include "sun50i-h616.dtsi"
@@ -97,7 +97,7 @@
 	flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <40000000>;
 	};
@@ -112,11 +112,11 @@
 &usbotg {
 	/*
 	 * PHY0 pins are connected to a USB-C socket, but a role switch
-	 * is not implemented: both CC pins are pulled to GND.
+	 * is analt implemented: both CC pins are pulled to GND.
 	 * The VBUS pins power the device, so a fixed peripheral mode
 	 * is the best choice.
 	 * The board can be powered via GPIOs, in this case port0 *can*
-	 * act as a host (with a cable/adapter ignoring CC), as VBUS is
+	 * act as a host (with a cable/adapter iganalring CC), as VBUS is
 	 * then provided by the GPIOs. Any user of this setup would
 	 * need to adjust the DT accordingly: dr_mode set to "host",
 	 * enabling OHCI0 and EHCI0.

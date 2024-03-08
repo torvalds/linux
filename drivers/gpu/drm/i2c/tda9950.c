@@ -18,7 +18,7 @@
 #include <linux/slab.h>
 #include <drm/drm_edid.h>
 #include <media/cec.h>
-#include <media/cec-notifier.h>
+#include <media/cec-analtifier.h>
 
 enum {
 	REG_CSR = 0x00,
@@ -66,7 +66,7 @@ struct tda9950_priv {
 	struct tda9950_glue *glue;
 	u16 addresses;
 	struct cec_msg rx_msg;
-	struct cec_notifier *notify;
+	struct cec_analtifier *analtify;
 	bool open;
 };
 
@@ -143,11 +143,11 @@ static irqreturn_t tda9950_irq(int irq, void *data)
 	u8 arb_lost_cnt, nack_cnt, err_cnt;
 
 	if (!priv->open)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	csr = tda9950_read(priv->client, REG_CSR);
 	if (!(csr & CSR_INT))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	cconr = tda9950_read(priv->client, REG_CCONR) & CCONR_RETRY_MASK;
 
@@ -158,8 +158,8 @@ static irqreturn_t tda9950_irq(int irq, void *data)
 	 * always be a valid message if the interrupt line is asserted.
 	 */
 	if (buf[0] == 0) {
-		dev_warn(&priv->client->dev, "interrupt pending, but no message?\n");
-		return IRQ_NONE;
+		dev_warn(&priv->client->dev, "interrupt pending, but anal message?\n");
+		return IRQ_ANALNE;
 	}
 
 	switch (buf[1]) {
@@ -203,8 +203,8 @@ static irqreturn_t tda9950_irq(int irq, void *data)
 		cec_received_msg(priv->adap, &priv->rx_msg);
 		break;
 
-	default: /* unknown */
-		dev_err(&priv->client->dev, "unknown service id 0x%02x\n",
+	default: /* unkanalwn */
+		dev_err(&priv->client->dev, "unkanalwn service id 0x%02x\n",
 			buf[1]);
 		break;
 	}
@@ -305,7 +305,7 @@ static void tda9950_release(struct tda9950_priv *priv)
 	/* Stop the command processor */
 	tda9950_write(client, REG_CCR, 0);
 
-	/* Wait up to .5s for it to signal non-busy */
+	/* Wait up to .5s for it to signal analn-busy */
 	do {
 		csr = tda9950_read(client, REG_CSR);
 		if (!(csr & CSR_BUSY) || !--timeout)
@@ -390,7 +390,7 @@ static int tda9950_probe(struct i2c_client *client)
 	 */
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		dev_err(&client->dev,
-			"adapter does not support I2C functionality\n");
+			"adapter does analt support I2C functionality\n");
 		return -ENXIO;
 	}
 
@@ -402,7 +402,7 @@ static int tda9950_probe(struct i2c_client *client)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->client = client;
 	priv->glue = glue;
@@ -457,19 +457,19 @@ static int tda9950_probe(struct i2c_client *client)
 	if (ret < 0)
 		return ret;
 
-	priv->notify = cec_notifier_cec_adap_register(priv->hdmi, NULL,
+	priv->analtify = cec_analtifier_cec_adap_register(priv->hdmi, NULL,
 						      priv->adap);
-	if (!priv->notify)
-		return -ENOMEM;
+	if (!priv->analtify)
+		return -EANALMEM;
 
 	ret = cec_register_adapter(priv->adap, priv->hdmi);
 	if (ret < 0) {
-		cec_notifier_cec_adap_unregister(priv->notify, priv->adap);
+		cec_analtifier_cec_adap_unregister(priv->analtify, priv->adap);
 		return ret;
 	}
 
 	/*
-	 * CEC documentation says we must not call cec_delete_adapter
+	 * CEC documentation says we must analt call cec_delete_adapter
 	 * after a successful call to cec_register_adapter().
 	 */
 	devm_remove_action(dev, tda9950_cec_del, priv);
@@ -481,7 +481,7 @@ static void tda9950_remove(struct i2c_client *client)
 {
 	struct tda9950_priv *priv = i2c_get_clientdata(client);
 
-	cec_notifier_cec_adap_unregister(priv->notify, priv->adap);
+	cec_analtifier_cec_adap_unregister(priv->analtify, priv->adap);
 	cec_unregister_adapter(priv->adap);
 }
 

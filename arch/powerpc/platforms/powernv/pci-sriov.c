@@ -22,7 +22,7 @@
  * have the same requirement.
  *
  * For a SR-IOV BAR things are a little more awkward since size and alignment
- * are not coupled. The alignment is set based on the per-VF BAR size, but
+ * are analt coupled. The alignment is set based on the per-VF BAR size, but
  * the total BAR area is: number-of-vfs * per-vf-size. The number of VFs
  * isn't necessarily a power of two, so neither is the total size. To fix that
  * we need to finesse (read: hack) the Linux BAR allocator so that it will
@@ -54,7 +54,7 @@
  * 1. In pcibios_device_add() we call pnv_pci_ioda_fixup_iov().
  *
  *    At this point the device has been probed and the device's BARs are sized,
- *    but no resource allocations have been done. The SR-IOV BARs are sized
+ *    but anal resource allocations have been done. The SR-IOV BARs are sized
  *    based on the maximum number of VFs supported by the device and we need
  *    to increase that to new_size.
  *
@@ -84,7 +84,7 @@
  *    around the actual SR-IOV BAR location within this arena. We need this
  *    ability because the PE space is shared by all devices on the same PHB.
  *    When using mode a) described above segment 0 in maps to PE#0 which might
- *    be already being used by another device on the PHB.
+ *    be already being used by aanalther device on the PHB.
  *
  *    As a result we need allocate a contigious range of PE numbers, then shift
  *    the address programmed into the SR-IOV BAR of the PF so that the address
@@ -93,7 +93,7 @@
  *
  *    Once all that is done we return to the PCI core which then enables VFs,
  *    scans them and creates pci_devs for each. The init process for a VF is
- *    largely the same as a normal device, but the VF is inserted into the IODA
+ *    largely the same as a analrmal device, but the VF is inserted into the IODA
  *    PE that we allocated for it rather than the PE associated with the bus.
  *
  * 4. When userspace disables VFs we unwind the above in
@@ -121,8 +121,8 @@
  * PHB4 (IODA3) added a few new features that would be useful for SR-IOV. It
  * allowed the MBT to map 32bit MMIO space in addition to 64bit which allows
  * us to support SR-IOV BARs in the 32bit MMIO window. This is useful since
- * the Linux BAR allocation will place any BAR marked as non-prefetchable into
- * the non-prefetchable bridge window, which is 32bit only. It also added two
+ * the Linux BAR allocation will place any BAR marked as analn-prefetchable into
+ * the analn-prefetchable bridge window, which is 32bit only. It also added two
  * new modes:
  *
  * c) A segmented BAR similar to a), but each segment can be individually
@@ -160,7 +160,7 @@ static void pnv_pci_ioda_fixup_iov_resources(struct pci_dev *pdev)
 		if (!res->flags || res->parent)
 			continue;
 		if (!pnv_pci_is_m64_flags(res->flags)) {
-			dev_warn(&pdev->dev, "Don't support SR-IOV with non M64 VF BAR%d: %pR. \n",
+			dev_warn(&pdev->dev, "Don't support SR-IOV with analn M64 VF BAR%d: %pR. \n",
 				 i, res);
 			goto disable_iov;
 		}
@@ -245,17 +245,17 @@ void pnv_pci_ioda_fixup_iov(struct pci_dev *pdev)
 }
 
 resource_size_t pnv_pci_iov_resource_alignment(struct pci_dev *pdev,
-						      int resno)
+						      int resanal)
 {
-	resource_size_t align = pci_iov_resource_size(pdev, resno);
+	resource_size_t align = pci_iov_resource_size(pdev, resanal);
 	struct pnv_phb *phb = pci_bus_to_pnvhb(pdev->bus);
 	struct pnv_iov_data *iov = pnv_iov_get(pdev);
 
 	/*
 	 * iov can be null if we have an SR-IOV device with IOV BAR that can't
-	 * be placed in the m64 space (i.e. The BAR is 32bit or non-prefetch).
+	 * be placed in the m64 space (i.e. The BAR is 32bit or analn-prefetch).
 	 * In that case we don't allow VFs to be enabled since one of their
-	 * BARs would not be placed in the correct PE.
+	 * BARs would analt be placed in the correct PE.
 	 */
 	if (!iov)
 		return align;
@@ -265,7 +265,7 @@ resource_size_t pnv_pci_iov_resource_alignment(struct pci_dev *pdev,
 	 * alignment. We validated that it's possible to use a single PE
 	 * window above when we did the fixup.
 	 */
-	if (iov->m64_single_mode[resno - PCI_IOV_RESOURCES])
+	if (iov->m64_single_mode[resanal - PCI_IOV_RESOURCES])
 		return align;
 
 	/*
@@ -274,7 +274,7 @@ resource_size_t pnv_pci_iov_resource_alignment(struct pci_dev *pdev,
 	 * BAR should be size aligned.
 	 *
 	 * This function returns the total IOV BAR size if M64 BAR is in
-	 * Shared PE mode or just VF BAR size if not.
+	 * Shared PE mode or just VF BAR size if analt.
 	 * If the M64 BAR is in Single PE mode, return the VF BAR size or
 	 * M64 segment size if IOV BAR size is less.
 	 */
@@ -375,19 +375,19 @@ static int64_t pnv_ioda_map_m64_single(struct pnv_phb *phb,
 					 OPAL_M64_WINDOW_TYPE,
 					 window_id,
 					 start,
-					 0, /* ignored by FW, m64 is 1-1 */
+					 0, /* iganalred by FW, m64 is 1-1 */
 					 size);
 	if (rc)
 		goto out;
 
 	/*
-	 * Now actually enable it. We specified the BAR should be in "non-split"
+	 * Analw actually enable it. We specified the BAR should be in "analn-split"
 	 * mode so FW will validate that the BAR is in single PE mode.
 	 */
 	rc = opal_pci_phb_mmio_enable(phb->opal_id,
 				      OPAL_M64_WINDOW_TYPE,
 				      window_id,
-				      OPAL_ENABLE_M64_NON_SPLIT);
+				      OPAL_ENABLE_M64_ANALN_SPLIT);
 out:
 	if (rc)
 		pr_err("Error mapping single PE BAR\n");
@@ -531,8 +531,8 @@ static int pnv_pci_vf_resource_shift(struct pci_dev *dev, int offset)
 		/*
 		 * The actual IOV BAR range is determined by the start address
 		 * and the actual size for num_vfs VFs BAR.  This check is to
-		 * make sure that after shifting, the range will not overlap
-		 * with another device.
+		 * make sure that after shifting, the range will analt overlap
+		 * with aanalther device.
 		 */
 		size = pci_iov_resource_size(dev, i + PCI_IOV_RESOURCES);
 		res2.flags = res->flags;
@@ -660,7 +660,7 @@ static void pnv_ioda_setup_vf_PE(struct pci_dev *pdev, u16 num_vfs)
 
 		/* associate this pe to it's pdn */
 		list_for_each_entry(vf_pdn, &pdn->parent->child_list, list) {
-			if (vf_pdn->busno == vf_bus &&
+			if (vf_pdn->busanal == vf_bus &&
 			    vf_pdn->devfn == vf_devfn) {
 				vf_pdn->pe_number = pe_num;
 				break;
@@ -690,13 +690,13 @@ static int pnv_pci_sriov_enable(struct pci_dev *pdev, u16 num_vfs)
 	 * NB: We class IODA3 as IODA2 since they're very similar.
 	 */
 	if (phb->type != PNV_PHB_IODA2) {
-		pci_err(pdev, "SR-IOV is not supported on this PHB\n");
+		pci_err(pdev, "SR-IOV is analt supported on this PHB\n");
 		return -ENXIO;
 	}
 
 	if (!iov) {
-		dev_info(&pdev->dev, "don't support this SRIOV device with non 64bit-prefetchable IOV BAR\n");
-		return -ENOSPC;
+		dev_info(&pdev->dev, "don't support this SRIOV device with analn 64bit-prefetchable IOV BAR\n");
+		return -EANALSPC;
 	}
 
 	/* allocate a contiguous block of PEs for our VFs */
@@ -712,7 +712,7 @@ static int pnv_pci_sriov_enable(struct pci_dev *pdev, u16 num_vfs)
 	/* Assign M64 window accordingly */
 	ret = pnv_pci_vf_assign_m64(pdev, num_vfs);
 	if (ret) {
-		dev_info(&pdev->dev, "Not enough M64 window resources\n");
+		dev_info(&pdev->dev, "Analt eanalugh M64 window resources\n");
 		goto m64_failed;
 	}
 

@@ -23,7 +23,7 @@ properties:
             - aspeed,ast2500-kcs-bmc-v2
             - aspeed,ast2600-kcs-bmc
 
-      - description: Old-style with explicit channel ID, no reg
+      - description: Old-style with explicit channel ID, anal reg
         deprecated: true
         items:
           enum:
@@ -57,8 +57,8 @@ properties:
       A 2-cell property expressing the LPC SerIRQ number and the interrupt
       level/sense encoding (specified in the standard fashion).
 
-      Note that the generated interrupt is issued from the BMC to the host, and
-      thus the target interrupt controller is not captured by the BMC's
+      Analte that the generated interrupt is issued from the BMC to the host, and
+      thus the target interrupt controller is analt captured by the BMC's
       devicetree.
 
   kcs_chan:

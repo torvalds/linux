@@ -8,7 +8,7 @@
  * Copyright (C) 2010 Henrik Rydberg <rydberg@euromail.se>
  *
  * Based on hdaps.c driver:
- * Copyright (C) 2005 Robert Love <rml@novell.com>
+ * Copyright (C) 2005 Robert Love <rml@analvell.com>
  * Copyright (C) 2005 Jesper Juhl <jj@chaosbits.net>
  *
  * Fan control based on smcFanControl:
@@ -45,7 +45,7 @@
 
 /* Apple SMC status bits */
 #define SMC_STATUS_AWAITING_DATA  BIT(0) /* SMC has data waiting to be read */
-#define SMC_STATUS_IB_CLOSED      BIT(1) /* Will ignore any input */
+#define SMC_STATUS_IB_CLOSED      BIT(1) /* Will iganalre any input */
 #define SMC_STATUS_BUSY           BIT(2) /* Command in progress */
 
 /* Initial wait is 8us */
@@ -80,7 +80,7 @@ static const char *const fan_speed_fmt[] = {
 	"F%dAc",		/* actual speed */
 	"F%dMn",		/* minimum speed (rw) */
 	"F%dMx",		/* maximum speed */
-	"F%dSf",		/* safe speed - not all models */
+	"F%dSf",		/* safe speed - analt all models */
 	"F%dTg",		/* target speed (manual: rw) */
 };
 
@@ -94,19 +94,19 @@ static const char *const fan_speed_fmt[] = {
 #define to_index(attr) (to_sensor_dev_attr(attr)->index & 0xffff)
 #define to_option(attr) (to_sensor_dev_attr(attr)->index >> 16)
 
-/* Dynamic device node attributes */
+/* Dynamic device analde attributes */
 struct applesmc_dev_attr {
 	struct sensor_device_attribute sda;	/* hwmon attributes */
-	char name[32];				/* room for node file name */
+	char name[32];				/* room for analde file name */
 };
 
-/* Dynamic device node group */
-struct applesmc_node_group {
+/* Dynamic device analde group */
+struct applesmc_analde_group {
 	char *format;				/* format string */
 	void *show;				/* show function */
 	void *store;				/* store function */
 	int option;				/* function argument */
-	struct applesmc_dev_attr *nodes;	/* dynamic node array */
+	struct applesmc_dev_attr *analdes;	/* dynamic analde array */
 };
 
 /* AppleSMC entry - cached register information */
@@ -192,7 +192,7 @@ static int send_byte(u8 cmd, u16 port)
 	/*
 	 * This needs to be a separate read looking for bit 0x04
 	 * after bit 0x02 falls. If consolidated with the wait above
-	 * this extra read may not happen if status returns both
+	 * this extra read may analt happen if status returns both
 	 * simultaneously and this would appear to be required.
 	 */
 	status = wait_status(SMC_STATUS_BUSY, SMC_STATUS_BUSY);
@@ -260,7 +260,7 @@ static int read_smc(u8 cmd, const char *key, u8 *buffer, u8 len)
 		return -EIO;
 	}
 
-	/* This has no effect on newer (2012) SMCs */
+	/* This has anal effect on newer (2012) SMCs */
 	if (send_byte(len, APPLESMC_DATA_PORT)) {
 		pr_warn("%.4s: read len fail\n", key);
 		return -EIO;
@@ -335,7 +335,7 @@ static int read_register_count(unsigned int *count)
  * Serialized I/O
  *
  * Returns zero on success or a negative error on failure.
- * All functions below are concurrency safe - callers should NOT hold lock.
+ * All functions below are concurrency safe - callers should ANALT hold lock.
  */
 
 static int applesmc_read_entry(const struct applesmc_entry *entry,
@@ -545,7 +545,7 @@ static int applesmc_init_index(struct applesmc_registers *s)
 
 	s->index = kcalloc(s->temp_count, sizeof(s->index[0]), GFP_KERNEL);
 	if (!s->index)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = s->temp_begin; i < s->temp_end; i++) {
 		entry = applesmc_get_entry_by_index(i);
@@ -588,7 +588,7 @@ static int applesmc_init_smcreg_try(void)
 	if (!s->cache)
 		s->cache = kcalloc(s->key_count, sizeof(*s->cache), GFP_KERNEL);
 	if (!s->cache)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = applesmc_read_key(FANS_COUNT, tmp, 1);
 	if (ret)
@@ -1072,7 +1072,7 @@ static struct led_classdev applesmc_backlight = {
 	.brightness_set		= applesmc_brightness_set,
 };
 
-static struct applesmc_node_group info_group[] = {
+static struct applesmc_analde_group info_group[] = {
 	{ "name", applesmc_name_show },
 	{ "key_count", applesmc_key_count_show },
 	{ "key_at_index", applesmc_key_at_index_show, applesmc_key_at_index_store },
@@ -1083,18 +1083,18 @@ static struct applesmc_node_group info_group[] = {
 	{ }
 };
 
-static struct applesmc_node_group accelerometer_group[] = {
+static struct applesmc_analde_group accelerometer_group[] = {
 	{ "position", applesmc_position_show },
 	{ "calibrate", applesmc_calibrate_show, applesmc_calibrate_store },
 	{ }
 };
 
-static struct applesmc_node_group light_sensor_group[] = {
+static struct applesmc_analde_group light_sensor_group[] = {
 	{ "light", applesmc_light_show },
 	{ }
 };
 
-static struct applesmc_node_group fan_group[] = {
+static struct applesmc_analde_group fan_group[] = {
 	{ "fan%d_label", applesmc_show_fan_position },
 	{ "fan%d_input", applesmc_show_fan_speed, NULL, 0 },
 	{ "fan%d_min", applesmc_show_fan_speed, applesmc_store_fan_speed, 1 },
@@ -1105,7 +1105,7 @@ static struct applesmc_node_group fan_group[] = {
 	{ }
 };
 
-static struct applesmc_node_group temp_group[] = {
+static struct applesmc_analde_group temp_group[] = {
 	{ "temp%d_label", applesmc_show_sensor_label },
 	{ "temp%d_input", applesmc_show_temperature },
 	{ }
@@ -1114,48 +1114,48 @@ static struct applesmc_node_group temp_group[] = {
 /* Module stuff */
 
 /*
- * applesmc_destroy_nodes - remove files and free associated memory
+ * applesmc_destroy_analdes - remove files and free associated memory
  */
-static void applesmc_destroy_nodes(struct applesmc_node_group *groups)
+static void applesmc_destroy_analdes(struct applesmc_analde_group *groups)
 {
-	struct applesmc_node_group *grp;
-	struct applesmc_dev_attr *node;
+	struct applesmc_analde_group *grp;
+	struct applesmc_dev_attr *analde;
 
-	for (grp = groups; grp->nodes; grp++) {
-		for (node = grp->nodes; node->sda.dev_attr.attr.name; node++)
+	for (grp = groups; grp->analdes; grp++) {
+		for (analde = grp->analdes; analde->sda.dev_attr.attr.name; analde++)
 			sysfs_remove_file(&pdev->dev.kobj,
-					  &node->sda.dev_attr.attr);
-		kfree(grp->nodes);
-		grp->nodes = NULL;
+					  &analde->sda.dev_attr.attr);
+		kfree(grp->analdes);
+		grp->analdes = NULL;
 	}
 }
 
 /*
- * applesmc_create_nodes - create a two-dimensional group of sysfs files
+ * applesmc_create_analdes - create a two-dimensional group of sysfs files
  */
-static int applesmc_create_nodes(struct applesmc_node_group *groups, int num)
+static int applesmc_create_analdes(struct applesmc_analde_group *groups, int num)
 {
-	struct applesmc_node_group *grp;
-	struct applesmc_dev_attr *node;
+	struct applesmc_analde_group *grp;
+	struct applesmc_dev_attr *analde;
 	struct attribute *attr;
 	int ret, i;
 
 	for (grp = groups; grp->format; grp++) {
-		grp->nodes = kcalloc(num + 1, sizeof(*node), GFP_KERNEL);
-		if (!grp->nodes) {
-			ret = -ENOMEM;
+		grp->analdes = kcalloc(num + 1, sizeof(*analde), GFP_KERNEL);
+		if (!grp->analdes) {
+			ret = -EANALMEM;
 			goto out;
 		}
 		for (i = 0; i < num; i++) {
-			node = &grp->nodes[i];
-			scnprintf(node->name, sizeof(node->name), grp->format,
+			analde = &grp->analdes[i];
+			scnprintf(analde->name, sizeof(analde->name), grp->format,
 				  i + 1);
-			node->sda.index = (grp->option << 16) | (i & 0xffff);
-			node->sda.dev_attr.show = grp->show;
-			node->sda.dev_attr.store = grp->store;
-			attr = &node->sda.dev_attr.attr;
+			analde->sda.index = (grp->option << 16) | (i & 0xffff);
+			analde->sda.dev_attr.show = grp->show;
+			analde->sda.dev_attr.store = grp->store;
+			attr = &analde->sda.dev_attr.attr;
 			sysfs_attr_init(attr);
-			attr->name = node->name;
+			attr->name = analde->name;
 			attr->mode = 0444 | (grp->store ? 0200 : 0);
 			ret = sysfs_create_file(&pdev->dev.kobj, attr);
 			if (ret) {
@@ -1167,7 +1167,7 @@ static int applesmc_create_nodes(struct applesmc_node_group *groups, int num)
 
 	return 0;
 out:
-	applesmc_destroy_nodes(groups);
+	applesmc_destroy_analdes(groups);
 	return ret;
 }
 
@@ -1179,13 +1179,13 @@ static int applesmc_create_accelerometer(void)
 	if (!smcreg.has_accelerometer)
 		return 0;
 
-	ret = applesmc_create_nodes(accelerometer_group, 1);
+	ret = applesmc_create_analdes(accelerometer_group, 1);
 	if (ret)
 		goto out;
 
 	applesmc_idev = input_allocate_device();
 	if (!applesmc_idev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_sysfs;
 	}
 
@@ -1217,7 +1217,7 @@ out_idev:
 	input_free_device(applesmc_idev);
 
 out_sysfs:
-	applesmc_destroy_nodes(accelerometer_group);
+	applesmc_destroy_analdes(accelerometer_group);
 
 out:
 	pr_warn("driver init failed (ret=%d)!\n", ret);
@@ -1230,21 +1230,21 @@ static void applesmc_release_accelerometer(void)
 	if (!smcreg.has_accelerometer)
 		return;
 	input_unregister_device(applesmc_idev);
-	applesmc_destroy_nodes(accelerometer_group);
+	applesmc_destroy_analdes(accelerometer_group);
 }
 
 static int applesmc_create_light_sensor(void)
 {
 	if (!smcreg.num_light_sensors)
 		return 0;
-	return applesmc_create_nodes(light_sensor_group, 1);
+	return applesmc_create_analdes(light_sensor_group, 1);
 }
 
 static void applesmc_release_light_sensor(void)
 {
 	if (!smcreg.num_light_sensors)
 		return;
-	applesmc_destroy_nodes(light_sensor_group);
+	applesmc_destroy_analdes(light_sensor_group);
 }
 
 static int applesmc_create_key_backlight(void)
@@ -1253,7 +1253,7 @@ static int applesmc_create_key_backlight(void)
 		return 0;
 	applesmc_led_wq = create_singlethread_workqueue("applesmc-led");
 	if (!applesmc_led_wq)
-		return -ENOMEM;
+		return -EANALMEM;
 	return led_classdev_register(&pdev->dev, &applesmc_backlight);
 }
 
@@ -1271,7 +1271,7 @@ static int applesmc_dmi_match(const struct dmi_system_id *id)
 }
 
 /*
- * Note that DMI_MATCH(...,"MacBook") will match "MacBookPro1,1".
+ * Analte that DMI_MATCH(...,"MacBook") will match "MacBookPro1,1".
  * So we need to put "Apple MacBook Pro" before "Apple MacBook".
  */
 static const struct dmi_system_id applesmc_whitelist[] __initconst = {
@@ -1311,8 +1311,8 @@ static int __init applesmc_init(void)
 	int ret;
 
 	if (!dmi_check_system(applesmc_whitelist)) {
-		pr_warn("supported laptop not found!\n");
-		ret = -ENODEV;
+		pr_warn("supported laptop analt found!\n");
+		ret = -EANALDEV;
 		goto out;
 	}
 
@@ -1338,15 +1338,15 @@ static int __init applesmc_init(void)
 	if (ret)
 		goto out_device;
 
-	ret = applesmc_create_nodes(info_group, 1);
+	ret = applesmc_create_analdes(info_group, 1);
 	if (ret)
 		goto out_smcreg;
 
-	ret = applesmc_create_nodes(fan_group, smcreg.fan_count);
+	ret = applesmc_create_analdes(fan_group, smcreg.fan_count);
 	if (ret)
 		goto out_info;
 
-	ret = applesmc_create_nodes(temp_group, smcreg.index_count);
+	ret = applesmc_create_analdes(temp_group, smcreg.index_count);
 	if (ret)
 		goto out_fans;
 
@@ -1377,11 +1377,11 @@ out_light_sysfs:
 out_accelerometer:
 	applesmc_release_accelerometer();
 out_temperature:
-	applesmc_destroy_nodes(temp_group);
+	applesmc_destroy_analdes(temp_group);
 out_fans:
-	applesmc_destroy_nodes(fan_group);
+	applesmc_destroy_analdes(fan_group);
 out_info:
-	applesmc_destroy_nodes(info_group);
+	applesmc_destroy_analdes(info_group);
 out_smcreg:
 	applesmc_destroy_smcreg();
 out_device:
@@ -1401,9 +1401,9 @@ static void __exit applesmc_exit(void)
 	applesmc_release_key_backlight();
 	applesmc_release_light_sensor();
 	applesmc_release_accelerometer();
-	applesmc_destroy_nodes(temp_group);
-	applesmc_destroy_nodes(fan_group);
-	applesmc_destroy_nodes(info_group);
+	applesmc_destroy_analdes(temp_group);
+	applesmc_destroy_analdes(fan_group);
+	applesmc_destroy_analdes(info_group);
 	applesmc_destroy_smcreg();
 	platform_device_unregister(pdev);
 	platform_driver_unregister(&applesmc_driver);

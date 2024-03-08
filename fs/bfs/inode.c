@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *	fs/bfs/inode.c
- *	BFS superblock and inode operations.
+ *	fs/bfs/ianalde.c
+ *	BFS superblock and ianalde operations.
  *	Copyright (C) 1999-2018 Tigran Aivazian <aivazian.tigran@gmail.com>
  *	From fs/minix, Copyright (C) 1991, 1992 Linus Torvalds.
  *	Made endianness-clean by Andrew Stribblehill <ads@wompom.org>, 2005.
@@ -31,120 +31,120 @@ MODULE_LICENSE("GPL");
 #define dprintf(x...)
 #endif
 
-struct inode *bfs_iget(struct super_block *sb, unsigned long ino)
+struct ianalde *bfs_iget(struct super_block *sb, unsigned long ianal)
 {
-	struct bfs_inode *di;
-	struct inode *inode;
+	struct bfs_ianalde *di;
+	struct ianalde *ianalde;
 	struct buffer_head *bh;
 	int block, off;
 
-	inode = iget_locked(sb, ino);
-	if (!inode)
-		return ERR_PTR(-ENOMEM);
-	if (!(inode->i_state & I_NEW))
-		return inode;
+	ianalde = iget_locked(sb, ianal);
+	if (!ianalde)
+		return ERR_PTR(-EANALMEM);
+	if (!(ianalde->i_state & I_NEW))
+		return ianalde;
 
-	if ((ino < BFS_ROOT_INO) || (ino > BFS_SB(inode->i_sb)->si_lasti)) {
-		printf("Bad inode number %s:%08lx\n", inode->i_sb->s_id, ino);
+	if ((ianal < BFS_ROOT_IANAL) || (ianal > BFS_SB(ianalde->i_sb)->si_lasti)) {
+		printf("Bad ianalde number %s:%08lx\n", ianalde->i_sb->s_id, ianal);
 		goto error;
 	}
 
-	block = (ino - BFS_ROOT_INO) / BFS_INODES_PER_BLOCK + 1;
-	bh = sb_bread(inode->i_sb, block);
+	block = (ianal - BFS_ROOT_IANAL) / BFS_IANALDES_PER_BLOCK + 1;
+	bh = sb_bread(ianalde->i_sb, block);
 	if (!bh) {
-		printf("Unable to read inode %s:%08lx\n", inode->i_sb->s_id,
-									ino);
+		printf("Unable to read ianalde %s:%08lx\n", ianalde->i_sb->s_id,
+									ianal);
 		goto error;
 	}
 
-	off = (ino - BFS_ROOT_INO) % BFS_INODES_PER_BLOCK;
-	di = (struct bfs_inode *)bh->b_data + off;
+	off = (ianal - BFS_ROOT_IANAL) % BFS_IANALDES_PER_BLOCK;
+	di = (struct bfs_ianalde *)bh->b_data + off;
 
-	inode->i_mode = 0x0000FFFF & le32_to_cpu(di->i_mode);
+	ianalde->i_mode = 0x0000FFFF & le32_to_cpu(di->i_mode);
 	if (le32_to_cpu(di->i_vtype) == BFS_VDIR) {
-		inode->i_mode |= S_IFDIR;
-		inode->i_op = &bfs_dir_inops;
-		inode->i_fop = &bfs_dir_operations;
+		ianalde->i_mode |= S_IFDIR;
+		ianalde->i_op = &bfs_dir_ianalps;
+		ianalde->i_fop = &bfs_dir_operations;
 	} else if (le32_to_cpu(di->i_vtype) == BFS_VREG) {
-		inode->i_mode |= S_IFREG;
-		inode->i_op = &bfs_file_inops;
-		inode->i_fop = &bfs_file_operations;
-		inode->i_mapping->a_ops = &bfs_aops;
+		ianalde->i_mode |= S_IFREG;
+		ianalde->i_op = &bfs_file_ianalps;
+		ianalde->i_fop = &bfs_file_operations;
+		ianalde->i_mapping->a_ops = &bfs_aops;
 	}
 
-	BFS_I(inode)->i_sblock =  le32_to_cpu(di->i_sblock);
-	BFS_I(inode)->i_eblock =  le32_to_cpu(di->i_eblock);
-	BFS_I(inode)->i_dsk_ino = le16_to_cpu(di->i_ino);
-	i_uid_write(inode, le32_to_cpu(di->i_uid));
-	i_gid_write(inode,  le32_to_cpu(di->i_gid));
-	set_nlink(inode, le32_to_cpu(di->i_nlink));
-	inode->i_size = BFS_FILESIZE(di);
-	inode->i_blocks = BFS_FILEBLOCKS(di);
-	inode_set_atime(inode, le32_to_cpu(di->i_atime), 0);
-	inode_set_mtime(inode, le32_to_cpu(di->i_mtime), 0);
-	inode_set_ctime(inode, le32_to_cpu(di->i_ctime), 0);
+	BFS_I(ianalde)->i_sblock =  le32_to_cpu(di->i_sblock);
+	BFS_I(ianalde)->i_eblock =  le32_to_cpu(di->i_eblock);
+	BFS_I(ianalde)->i_dsk_ianal = le16_to_cpu(di->i_ianal);
+	i_uid_write(ianalde, le32_to_cpu(di->i_uid));
+	i_gid_write(ianalde,  le32_to_cpu(di->i_gid));
+	set_nlink(ianalde, le32_to_cpu(di->i_nlink));
+	ianalde->i_size = BFS_FILESIZE(di);
+	ianalde->i_blocks = BFS_FILEBLOCKS(di);
+	ianalde_set_atime(ianalde, le32_to_cpu(di->i_atime), 0);
+	ianalde_set_mtime(ianalde, le32_to_cpu(di->i_mtime), 0);
+	ianalde_set_ctime(ianalde, le32_to_cpu(di->i_ctime), 0);
 
 	brelse(bh);
-	unlock_new_inode(inode);
-	return inode;
+	unlock_new_ianalde(ianalde);
+	return ianalde;
 
 error:
-	iget_failed(inode);
+	iget_failed(ianalde);
 	return ERR_PTR(-EIO);
 }
 
-static struct bfs_inode *find_inode(struct super_block *sb, u16 ino, struct buffer_head **p)
+static struct bfs_ianalde *find_ianalde(struct super_block *sb, u16 ianal, struct buffer_head **p)
 {
-	if ((ino < BFS_ROOT_INO) || (ino > BFS_SB(sb)->si_lasti)) {
-		printf("Bad inode number %s:%08x\n", sb->s_id, ino);
+	if ((ianal < BFS_ROOT_IANAL) || (ianal > BFS_SB(sb)->si_lasti)) {
+		printf("Bad ianalde number %s:%08x\n", sb->s_id, ianal);
 		return ERR_PTR(-EIO);
 	}
 
-	ino -= BFS_ROOT_INO;
+	ianal -= BFS_ROOT_IANAL;
 
-	*p = sb_bread(sb, 1 + ino / BFS_INODES_PER_BLOCK);
+	*p = sb_bread(sb, 1 + ianal / BFS_IANALDES_PER_BLOCK);
 	if (!*p) {
-		printf("Unable to read inode %s:%08x\n", sb->s_id, ino);
+		printf("Unable to read ianalde %s:%08x\n", sb->s_id, ianal);
 		return ERR_PTR(-EIO);
 	}
 
-	return (struct bfs_inode *)(*p)->b_data +  ino % BFS_INODES_PER_BLOCK;
+	return (struct bfs_ianalde *)(*p)->b_data +  ianal % BFS_IANALDES_PER_BLOCK;
 }
 
-static int bfs_write_inode(struct inode *inode, struct writeback_control *wbc)
+static int bfs_write_ianalde(struct ianalde *ianalde, struct writeback_control *wbc)
 {
-	struct bfs_sb_info *info = BFS_SB(inode->i_sb);
-	unsigned int ino = (u16)inode->i_ino;
+	struct bfs_sb_info *info = BFS_SB(ianalde->i_sb);
+	unsigned int ianal = (u16)ianalde->i_ianal;
 	unsigned long i_sblock;
-	struct bfs_inode *di;
+	struct bfs_ianalde *di;
 	struct buffer_head *bh;
 	int err = 0;
 
-	dprintf("ino=%08x\n", ino);
+	dprintf("ianal=%08x\n", ianal);
 
-	di = find_inode(inode->i_sb, ino, &bh);
+	di = find_ianalde(ianalde->i_sb, ianal, &bh);
 	if (IS_ERR(di))
 		return PTR_ERR(di);
 
 	mutex_lock(&info->bfs_lock);
 
-	if (ino == BFS_ROOT_INO)
+	if (ianal == BFS_ROOT_IANAL)
 		di->i_vtype = cpu_to_le32(BFS_VDIR);
 	else
 		di->i_vtype = cpu_to_le32(BFS_VREG);
 
-	di->i_ino = cpu_to_le16(ino);
-	di->i_mode = cpu_to_le32(inode->i_mode);
-	di->i_uid = cpu_to_le32(i_uid_read(inode));
-	di->i_gid = cpu_to_le32(i_gid_read(inode));
-	di->i_nlink = cpu_to_le32(inode->i_nlink);
-	di->i_atime = cpu_to_le32(inode_get_atime_sec(inode));
-	di->i_mtime = cpu_to_le32(inode_get_mtime_sec(inode));
-	di->i_ctime = cpu_to_le32(inode_get_ctime_sec(inode));
-	i_sblock = BFS_I(inode)->i_sblock;
+	di->i_ianal = cpu_to_le16(ianal);
+	di->i_mode = cpu_to_le32(ianalde->i_mode);
+	di->i_uid = cpu_to_le32(i_uid_read(ianalde));
+	di->i_gid = cpu_to_le32(i_gid_read(ianalde));
+	di->i_nlink = cpu_to_le32(ianalde->i_nlink);
+	di->i_atime = cpu_to_le32(ianalde_get_atime_sec(ianalde));
+	di->i_mtime = cpu_to_le32(ianalde_get_mtime_sec(ianalde));
+	di->i_ctime = cpu_to_le32(ianalde_get_ctime_sec(ianalde));
+	i_sblock = BFS_I(ianalde)->i_sblock;
 	di->i_sblock = cpu_to_le32(i_sblock);
-	di->i_eblock = cpu_to_le32(BFS_I(inode)->i_eblock);
-	di->i_eoffset = cpu_to_le32(i_sblock * BFS_BSIZE + inode->i_size - 1);
+	di->i_eblock = cpu_to_le32(BFS_I(ianalde)->i_eblock);
+	di->i_eoffset = cpu_to_le32(i_sblock * BFS_BSIZE + ianalde->i_size - 1);
 
 	mark_buffer_dirty(bh);
 	if (wbc->sync_mode == WB_SYNC_ALL) {
@@ -157,45 +157,45 @@ static int bfs_write_inode(struct inode *inode, struct writeback_control *wbc)
 	return err;
 }
 
-static void bfs_evict_inode(struct inode *inode)
+static void bfs_evict_ianalde(struct ianalde *ianalde)
 {
-	unsigned long ino = inode->i_ino;
-	struct bfs_inode *di;
+	unsigned long ianal = ianalde->i_ianal;
+	struct bfs_ianalde *di;
 	struct buffer_head *bh;
-	struct super_block *s = inode->i_sb;
+	struct super_block *s = ianalde->i_sb;
 	struct bfs_sb_info *info = BFS_SB(s);
-	struct bfs_inode_info *bi = BFS_I(inode);
+	struct bfs_ianalde_info *bi = BFS_I(ianalde);
 
-	dprintf("ino=%08lx\n", ino);
+	dprintf("ianal=%08lx\n", ianal);
 
-	truncate_inode_pages_final(&inode->i_data);
-	invalidate_inode_buffers(inode);
-	clear_inode(inode);
+	truncate_ianalde_pages_final(&ianalde->i_data);
+	invalidate_ianalde_buffers(ianalde);
+	clear_ianalde(ianalde);
 
-	if (inode->i_nlink)
+	if (ianalde->i_nlink)
 		return;
 
-	di = find_inode(s, inode->i_ino, &bh);
+	di = find_ianalde(s, ianalde->i_ianal, &bh);
 	if (IS_ERR(di))
 		return;
 
 	mutex_lock(&info->bfs_lock);
-	/* clear on-disk inode */
-	memset(di, 0, sizeof(struct bfs_inode));
+	/* clear on-disk ianalde */
+	memset(di, 0, sizeof(struct bfs_ianalde));
 	mark_buffer_dirty(bh);
 	brelse(bh);
 
-	if (bi->i_dsk_ino) {
+	if (bi->i_dsk_ianal) {
 		if (bi->i_sblock)
 			info->si_freeb += bi->i_eblock + 1 - bi->i_sblock;
 		info->si_freei++;
-		clear_bit(ino, info->si_imap);
-		bfs_dump_imap("evict_inode", s);
+		clear_bit(ianal, info->si_imap);
+		bfs_dump_imap("evict_ianalde", s);
 	}
 
 	/*
 	 * If this was the last file, make the previous block
-	 * "last block of the last file" even if there is no
+	 * "last block of the last file" even if there is anal
 	 * real file there, saves us 1 gap.
 	 */
 	if (info->si_lf_eblk == bi->i_eblock)
@@ -224,63 +224,63 @@ static int bfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_bsize = s->s_blocksize;
 	buf->f_blocks = info->si_blocks;
 	buf->f_bfree = buf->f_bavail = info->si_freeb;
-	buf->f_files = info->si_lasti + 1 - BFS_ROOT_INO;
+	buf->f_files = info->si_lasti + 1 - BFS_ROOT_IANAL;
 	buf->f_ffree = info->si_freei;
 	buf->f_fsid = u64_to_fsid(id);
 	buf->f_namelen = BFS_NAMELEN;
 	return 0;
 }
 
-static struct kmem_cache *bfs_inode_cachep;
+static struct kmem_cache *bfs_ianalde_cachep;
 
-static struct inode *bfs_alloc_inode(struct super_block *sb)
+static struct ianalde *bfs_alloc_ianalde(struct super_block *sb)
 {
-	struct bfs_inode_info *bi;
-	bi = alloc_inode_sb(sb, bfs_inode_cachep, GFP_KERNEL);
+	struct bfs_ianalde_info *bi;
+	bi = alloc_ianalde_sb(sb, bfs_ianalde_cachep, GFP_KERNEL);
 	if (!bi)
 		return NULL;
-	return &bi->vfs_inode;
+	return &bi->vfs_ianalde;
 }
 
-static void bfs_free_inode(struct inode *inode)
+static void bfs_free_ianalde(struct ianalde *ianalde)
 {
-	kmem_cache_free(bfs_inode_cachep, BFS_I(inode));
+	kmem_cache_free(bfs_ianalde_cachep, BFS_I(ianalde));
 }
 
 static void init_once(void *foo)
 {
-	struct bfs_inode_info *bi = foo;
+	struct bfs_ianalde_info *bi = foo;
 
-	inode_init_once(&bi->vfs_inode);
+	ianalde_init_once(&bi->vfs_ianalde);
 }
 
-static int __init init_inodecache(void)
+static int __init init_ianaldecache(void)
 {
-	bfs_inode_cachep = kmem_cache_create("bfs_inode_cache",
-					     sizeof(struct bfs_inode_info),
+	bfs_ianalde_cachep = kmem_cache_create("bfs_ianalde_cache",
+					     sizeof(struct bfs_ianalde_info),
 					     0, (SLAB_RECLAIM_ACCOUNT|
 						SLAB_MEM_SPREAD|SLAB_ACCOUNT),
 					     init_once);
-	if (bfs_inode_cachep == NULL)
-		return -ENOMEM;
+	if (bfs_ianalde_cachep == NULL)
+		return -EANALMEM;
 	return 0;
 }
 
-static void destroy_inodecache(void)
+static void destroy_ianaldecache(void)
 {
 	/*
-	 * Make sure all delayed rcu free inodes are flushed before we
+	 * Make sure all delayed rcu free ianaldes are flushed before we
 	 * destroy cache.
 	 */
 	rcu_barrier();
-	kmem_cache_destroy(bfs_inode_cachep);
+	kmem_cache_destroy(bfs_ianalde_cachep);
 }
 
 static const struct super_operations bfs_sops = {
-	.alloc_inode	= bfs_alloc_inode,
-	.free_inode	= bfs_free_inode,
-	.write_inode	= bfs_write_inode,
-	.evict_inode	= bfs_evict_inode,
+	.alloc_ianalde	= bfs_alloc_ianalde,
+	.free_ianalde	= bfs_free_ianalde,
+	.write_ianalde	= bfs_write_ianalde,
+	.evict_ianalde	= bfs_evict_ianalde,
 	.put_super	= bfs_put_super,
 	.statfs		= bfs_statfs,
 };
@@ -309,7 +309,7 @@ static int bfs_fill_super(struct super_block *s, void *data, int silent)
 {
 	struct buffer_head *bh, *sbh;
 	struct bfs_super_block *bfs_sb;
-	struct inode *inode;
+	struct ianalde *ianalde;
 	unsigned i;
 	struct bfs_sb_info *info;
 	int ret = -EINVAL;
@@ -317,7 +317,7 @@ static int bfs_fill_super(struct super_block *s, void *data, int silent)
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 	mutex_init(&info->bfs_lock);
 	s->s_fs_info = info;
 	s->s_time_min = 0;
@@ -331,7 +331,7 @@ static int bfs_fill_super(struct super_block *s, void *data, int silent)
 	bfs_sb = (struct bfs_super_block *)sbh->b_data;
 	if (le32_to_cpu(bfs_sb->s_magic) != BFS_MAGIC) {
 		if (!silent)
-			printf("No BFS filesystem on %s (magic=%08x)\n", s->s_id,  le32_to_cpu(bfs_sb->s_magic));
+			printf("Anal BFS filesystem on %s (magic=%08x)\n", s->s_id,  le32_to_cpu(bfs_sb->s_magic));
 		goto out1;
 	}
 	if (BFS_UNCLEAN(bfs_sb, s) && !silent)
@@ -345,25 +345,25 @@ static int bfs_fill_super(struct super_block *s, void *data, int silent)
 		goto out1;
 	}
 
-	info->si_lasti = (le32_to_cpu(bfs_sb->s_start) - BFS_BSIZE) / sizeof(struct bfs_inode) + BFS_ROOT_INO - 1;
+	info->si_lasti = (le32_to_cpu(bfs_sb->s_start) - BFS_BSIZE) / sizeof(struct bfs_ianalde) + BFS_ROOT_IANAL - 1;
 	if (info->si_lasti == BFS_MAX_LASTI)
-		printf("NOTE: filesystem %s was created with 512 inodes, the real maximum is 511, mounting anyway\n", s->s_id);
+		printf("ANALTE: filesystem %s was created with 512 ianaldes, the real maximum is 511, mounting anyway\n", s->s_id);
 	else if (info->si_lasti > BFS_MAX_LASTI) {
-		printf("Impossible last inode number %lu > %d on %s\n", info->si_lasti, BFS_MAX_LASTI, s->s_id);
+		printf("Impossible last ianalde number %lu > %d on %s\n", info->si_lasti, BFS_MAX_LASTI, s->s_id);
 		goto out1;
 	}
-	for (i = 0; i < BFS_ROOT_INO; i++)
+	for (i = 0; i < BFS_ROOT_IANAL; i++)
 		set_bit(i, info->si_imap);
 
 	s->s_op = &bfs_sops;
-	inode = bfs_iget(s, BFS_ROOT_INO);
-	if (IS_ERR(inode)) {
-		ret = PTR_ERR(inode);
+	ianalde = bfs_iget(s, BFS_ROOT_IANAL);
+	if (IS_ERR(ianalde)) {
+		ret = PTR_ERR(ianalde);
 		goto out1;
 	}
-	s->s_root = d_make_root(inode);
+	s->s_root = d_make_root(ianalde);
 	if (!s->s_root) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out1;
 	}
 
@@ -375,17 +375,17 @@ static int bfs_fill_super(struct super_block *s, void *data, int silent)
 	/* can we read the last block? */
 	bh = sb_bread(s, info->si_blocks - 1);
 	if (!bh) {
-		printf("Last block not available on %s: %lu\n", s->s_id, info->si_blocks - 1);
+		printf("Last block analt available on %s: %lu\n", s->s_id, info->si_blocks - 1);
 		ret = -EIO;
 		goto out2;
 	}
 	brelse(bh);
 
 	bh = NULL;
-	for (i = BFS_ROOT_INO; i <= info->si_lasti; i++) {
-		struct bfs_inode *di;
-		int block = (i - BFS_ROOT_INO) / BFS_INODES_PER_BLOCK + 1;
-		int off = (i - BFS_ROOT_INO) % BFS_INODES_PER_BLOCK;
+	for (i = BFS_ROOT_IANAL; i <= info->si_lasti; i++) {
+		struct bfs_ianalde *di;
+		int block = (i - BFS_ROOT_IANAL) / BFS_IANALDES_PER_BLOCK + 1;
+		int off = (i - BFS_ROOT_IANAL) % BFS_IANALDES_PER_BLOCK;
 		unsigned long eblock;
 
 		if (!off) {
@@ -396,9 +396,9 @@ static int bfs_fill_super(struct super_block *s, void *data, int silent)
 		if (!bh)
 			continue;
 
-		di = (struct bfs_inode *)bh->b_data + off;
+		di = (struct bfs_ianalde *)bh->b_data + off;
 
-		/* test if filesystem is not corrupted */
+		/* test if filesystem is analt corrupted */
 
 		i_eoff = le32_to_cpu(di->i_eoffset);
 		i_sblock = le32_to_cpu(di->i_sblock);
@@ -411,14 +411,14 @@ static int bfs_fill_super(struct super_block *s, void *data, int silent)
 			(i_eoff != le32_to_cpu(-1) && i_eoff > s_size) ||
 			i_sblock * BFS_BSIZE > i_eoff) {
 
-			printf("Inode 0x%08x corrupted on %s\n", i, s->s_id);
+			printf("Ianalde 0x%08x corrupted on %s\n", i, s->s_id);
 
 			brelse(bh);
 			ret = -EIO;
 			goto out2;
 		}
 
-		if (!di->i_ino) {
+		if (!di->i_ianal) {
 			info->si_freei++;
 			continue;
 		}
@@ -463,7 +463,7 @@ MODULE_ALIAS_FS("bfs");
 
 static int __init init_bfs_fs(void)
 {
-	int err = init_inodecache();
+	int err = init_ianaldecache();
 	if (err)
 		goto out1;
 	err = register_filesystem(&bfs_fs_type);
@@ -471,7 +471,7 @@ static int __init init_bfs_fs(void)
 		goto out;
 	return 0;
 out:
-	destroy_inodecache();
+	destroy_ianaldecache();
 out1:
 	return err;
 }
@@ -479,7 +479,7 @@ out1:
 static void __exit exit_bfs_fs(void)
 {
 	unregister_filesystem(&bfs_fs_type);
-	destroy_inodecache();
+	destroy_ianaldecache();
 }
 
 module_init(init_bfs_fs)

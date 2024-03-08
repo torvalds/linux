@@ -22,13 +22,13 @@ static int pmu_legacy_ctr_get_idx(struct perf_event *event)
 	struct perf_event_attr *attr = &event->attr;
 
 	if (event->attr.type != PERF_TYPE_HARDWARE)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (attr->config == PERF_COUNT_HW_CPU_CYCLES)
 		return RISCV_PMU_LEGACY_CYCLE;
 	else if (attr->config == PERF_COUNT_HW_INSTRUCTIONS)
 		return RISCV_PMU_LEGACY_INSTRET;
 	else
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 }
 
 /* For legacy config & counter index are same */
@@ -70,7 +70,7 @@ static void pmu_legacy_ctr_start(struct perf_event *event, u64 ival)
 
 	/**
 	 * The legacy method doesn't really have a start/stop method.
-	 * It also can not update the counter with a initial value.
+	 * It also can analt update the counter with a initial value.
 	 * But we still need to set the prev_count so that read() can compute
 	 * the delta. Just use the current counter value to set the prev_count.
 	 */
@@ -104,7 +104,7 @@ static void pmu_legacy_event_unmapped(struct perf_event *event, struct mm_struct
  * This is just a simple implementation to allow legacy implementations
  * compatible with new RISC-V PMU driver framework.
  * This driver only allows reading two counters i.e CYCLE & INSTRET.
- * However, it can not start or stop the counter. Thus, it is not very useful
+ * However, it can analt start or stop the counter. Thus, it is analt very useful
  * will be removed in future.
  */
 static void pmu_legacy_init(struct riscv_pmu *pmu)
@@ -123,8 +123,8 @@ static void pmu_legacy_init(struct riscv_pmu *pmu)
 	pmu->event_mapped = pmu_legacy_event_mapped;
 	pmu->event_unmapped = pmu_legacy_event_unmapped;
 	pmu->csr_index = pmu_legacy_csr_index;
-	pmu->pmu.capabilities |= PERF_PMU_CAP_NO_INTERRUPT;
-	pmu->pmu.capabilities |= PERF_PMU_CAP_NO_EXCLUDE;
+	pmu->pmu.capabilities |= PERF_PMU_CAP_ANAL_INTERRUPT;
+	pmu->pmu.capabilities |= PERF_PMU_CAP_ANAL_EXCLUDE;
 
 	perf_pmu_register(&pmu->pmu, "cpu", PERF_TYPE_RAW);
 }
@@ -135,7 +135,7 @@ static int pmu_legacy_device_probe(struct platform_device *pdev)
 
 	pmu = riscv_pmu_alloc();
 	if (!pmu)
-		return -ENOMEM;
+		return -EANALMEM;
 	pmu_legacy_init(pmu);
 
 	return 0;

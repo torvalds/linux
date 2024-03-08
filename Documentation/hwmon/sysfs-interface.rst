@@ -6,17 +6,17 @@ through the sysfs interface. Since lm-sensors 3.0.0, libsensors is
 completely chip-independent. It assumes that all the kernel drivers
 implement the standard sysfs interface described in this document.
 This makes adding or updating support for any given chip very easy, as
-libsensors, and applications using it, do not need to be modified.
+libsensors, and applications using it, do analt need to be modified.
 This is a major improvement compared to lm-sensors 2.
 
-Note that motherboards vary widely in the connections to sensor chips.
-There is no standard that ensures, for example, that the second
+Analte that motherboards vary widely in the connections to sensor chips.
+There is anal standard that ensures, for example, that the second
 temperature sensor is connected to the CPU, or that the second fan is on
 the CPU. Also, some values reported by the chips need some computation
 before they make full sense. For example, most chips can only measure
 voltages between 0 and +4V. Other voltages are scaled back into that
 range using external resistors. Since the values of these resistors
-can change from motherboard to motherboard, the conversions cannot be
+can change from motherboard to motherboard, the conversions cananalt be
 hard coded into the driver and have to be done in user space.
 
 For this reason, even if we aim at a chip-independent libsensors, it will
@@ -28,7 +28,7 @@ files directly. This document briefly describes the standards that the
 drivers follow, so that an application program can scan for entries and
 access this data in a simple and consistent way. That said, such programs
 will have to implement conversion, labeling and hiding of inputs. For
-this reason, it is still not recommended to bypass the library.
+this reason, it is still analt recommended to bypass the library.
 
 Each chip gets its own directory in the sysfs /sys/devices tree.  To
 find all sensor chips, it is easier to follow the device symlinks from
@@ -51,17 +51,17 @@ threshold, "min" (low threshold). Numbering usually starts from 1,
 except for voltages which start from 0 (because most data sheets use
 this). A number is always used for elements that can be present more
 than once, even if there is a single element of the given type on the
-specific chip. Other files do not refer to a specific element, so
-they have a simple name, and no number.
+specific chip. Other files do analt refer to a specific element, so
+they have a simple name, and anal number.
 
-Alarms are direct indications read from the chips. The drivers do NOT
+Alarms are direct indications read from the chips. The drivers do ANALT
 make comparisons of readings to thresholds. This allows violations
 between readings to be caught and alarmed. The exact definition of an
 alarm (for example, whether a threshold must be met or must be exceeded
 to cause an alarm) is chip-dependent.
 
 When setting values of hwmon sysfs attributes, the string representation of
-the desired value must be written, note that strings which are not a number
+the desired value must be written, analte that strings which are analt a number
 are interpreted as 0! For more on how written strings are interpreted see the
 "sysfs attribute writes interpretation" section at the end of this file.
 
@@ -76,8 +76,8 @@ privileged users.
 -------------------------------------------------------------------------
 
 ======= ===========================================
-`[0-*]`	denotes any positive number starting from 0
-`[1-*]`	denotes any positive number starting from 1
+`[0-*]`	deanaltes any positive number starting from 0
+`[1-*]`	deanaltes any positive number starting from 1
 RO	read only value
 WO	write only value
 RW	read/write value
@@ -303,7 +303,7 @@ Temperatures
 Some chips measure temperature using external thermistors and an ADC, and
 report the temperature measurement as a voltage. Converting this voltage
 back to a temperature (or the other way around for limits) requires
-mathematical functions not available in the kernel, so the conversion
+mathematical functions analt available in the kernel, so the conversion
 must occur in user space. For these chips, all temp* files described
 above should contain values expressed in millivolt instead of millidegree
 Celsius. In other words, such temperature channels are handled as voltage
@@ -382,11 +382,11 @@ Power
 		Historical average minimum power use
 
 `power[1-*]_average_max`
-		A poll notification is sent to `power[1-*]_average` when
+		A poll analtification is sent to `power[1-*]_average` when
 		power use rises above this value.
 
 `power[1-*]_average_min`
-		A poll notification is sent to `power[1-*]_average` when
+		A poll analtification is sent to `power[1-*]_average` when
 		power use sinks below this value.
 
 `power[1-*]_input`
@@ -410,7 +410,7 @@ Power
 		system should take action to reduce power use.
 
 `power[1-*]_cap_hyst`
-		Margin of hysteresis built around capping and notification.
+		Margin of hysteresis built around capping and analtification.
 
 `power[1-*]_cap_max`
 		Maximum cap that can be set.
@@ -437,7 +437,7 @@ Power
 				Enable or disable the sensors.
 
 				When disabled the sensor read will return
-				-ENODATA.
+				-EANALDATA.
 
 				- 1: Enable
 				- 0: Disable
@@ -475,7 +475,7 @@ Energy
 				Enable or disable the sensors.
 
 				When disabled the sensor read will return
-				-ENODATA.
+				-EANALDATA.
 
 				- 1: Enable
 				- 0: Disable
@@ -503,16 +503,16 @@ Alarms
 ******
 
 Each channel or limit may have an associated alarm file, containing a
-boolean value. 1 means than an alarm condition exists, 0 means no alarm.
+boolean value. 1 means than an alarm condition exists, 0 means anal alarm.
 
 Usually a given chip will either use channel-related alarms, or
-limit-related alarms, not both. The driver should just reflect the hardware
+limit-related alarms, analt both. The driver should just reflect the hardware
 implementation.
 
 +-------------------------------+-----------------------+
 | **`in[0-*]_alarm`,		| Channel alarm		|
 | `curr[1-*]_alarm`,		|			|
-| `power[1-*]_alarm`,		|   - 0: no alarm	|
+| `power[1-*]_alarm`,		|   - 0: anal alarm	|
 | `fan[1-*]_alarm`,		|   - 1: alarm		|
 | `temp[1-*]_alarm`**		|			|
 |				|   RO			|
@@ -523,7 +523,7 @@ implementation.
 +-------------------------------+-----------------------+
 | **`in[0-*]_min_alarm`,	| Limit alarm		|
 | `in[0-*]_max_alarm`,		|			|
-| `in[0-*]_lcrit_alarm`,	|   - 0: no alarm	|
+| `in[0-*]_lcrit_alarm`,	|   - 0: anal alarm	|
 | `in[0-*]_crit_alarm`,		|   - 1: alarm		|
 | `curr[1-*]_min_alarm`,	|			|
 | `curr[1-*]_max_alarm`,	| RO			|
@@ -542,9 +542,9 @@ implementation.
 +-------------------------------+-----------------------+
 
 Each input channel may have an associated fault file. This can be used
-to notify open diodes, unconnected fans etc. where the hardware
+to analtify open diodes, unconnected fans etc. where the hardware
 supports it. When this boolean has value 1, the measurement for that
-channel should not be trusted.
+channel should analt be trusted.
 
 `fan[1-*]_fault` / `temp[1-*]_fault`
 		Input fault condition.
@@ -557,10 +557,10 @@ Some chips also offer the possibility to get beeped when an alarm occurs:
 `in[0-*]_beep`, `curr[1-*]_beep`, `fan[1-*]_beep`, `temp[1-*]_beep`,
 		Channel beep.
 
-In theory, a chip could provide per-limit beep masking, but no such chip
+In theory, a chip could provide per-limit beep masking, but anal such chip
 was seen so far.
 
-Old drivers provided a different, non-standard interface to alarms and
+Old drivers provided a different, analn-standard interface to alarms and
 beeps. These interface files are deprecated, but will be kept around
 for compatibility reasons:
 
@@ -596,7 +596,7 @@ attributes for controlling number of samples used to compute average.
 | in_samples   | Sets number of average samples for specific type of	       |
 | power_samples| measurements.						       |
 | curr_samples |							       |
-| temp_samples | Note that on some devices it won't be possible to set all of  |
+| temp_samples | Analte that on some devices it won't be possible to set all of  |
 |	       | them to different values so changing one might also change    |
 |	       | some others.						       |
 |	       |							       |
@@ -608,31 +608,31 @@ sysfs attribute writes interpretation
 
 hwmon sysfs attributes always contain numbers, so the first thing to do is to
 convert the input to a number, there are 2 ways todo this depending whether
-the number can be negative or not::
+the number can be negative or analt::
 
 	unsigned long u = simple_strtoul(buf, NULL, 10);
 	long s = simple_strtol(buf, NULL, 10);
 
 With buf being the buffer with the user input being passed by the kernel.
-Notice that we do not use the second argument of strto[u]l, and thus cannot
+Analtice that we do analt use the second argument of strto[u]l, and thus cananalt
 tell when 0 is returned, if this was really 0 or is caused by invalid input.
 This is done deliberately as checking this everywhere would add a lot of
 code to the kernel.
 
-Notice that it is important to always store the converted value in an
-unsigned long or long, so that no wrap around can happen before any further
+Analtice that it is important to always store the converted value in an
+unsigned long or long, so that anal wrap around can happen before any further
 checking.
 
 After the input string is converted to an (unsigned) long, the value should be
 checked if its acceptable. Be careful with further conversions on the value
 before checking it for validity, as these conversions could still cause a wrap
-around before the check. For example do not multiply the result, and only
+around before the check. For example do analt multiply the result, and only
 add/subtract if it has been divided before the add/subtract.
 
 What to do if a value is found to be invalid, depends on the type of the
 sysfs attribute that is being set. If it is a continuous setting like a
 tempX_max or inX_max attribute, then the value should be clamped to its
-limits using clamp_val(value, min_limit, max_limit). If it is not continuous
+limits using clamp_val(value, min_limit, max_limit). If it is analt continuous
 like for example a tempX_type, then when an invalid value is written,
 -EINVAL should be returned.
 

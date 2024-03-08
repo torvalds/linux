@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
  * icp_multi.c
- * Comedi driver for Inova ICP_MULTI board
+ * Comedi driver for Ianalva ICP_MULTI board
  *
  * COMEDI - Linux Control and Measurement Device Interface
  * Copyright (C) 1997-2002 David A. Schleef <ds@schleef.org>
@@ -9,16 +9,16 @@
 
 /*
  * Driver: icp_multi
- * Description: Inova ICP_MULTI
- * Devices: [Inova] ICP_MULTI (icp_multi)
+ * Description: Ianalva ICP_MULTI
+ * Devices: [Ianalva] ICP_MULTI (icp_multi)
  * Author: Anne Smorthit <anne.smorthit@sfwte.ch>
  * Status: works
  *
- * Configuration options: not applicable, uses PCI auto config
+ * Configuration options: analt applicable, uses PCI auto config
  *
  * The driver works for analog input and output and digital input and
- * output. It does not work with interrupts or with the counters. Currently
- * no support for DMA.
+ * output. It does analt work with interrupts or with the counters. Currently
+ * anal support for DMA.
  *
  * It has 16 single-ended or 8 differential Analogue Input channels with
  * 12-bit resolution.  Ranges : 5V, 10V, +/-5V, +/-10V, 0..20mA and 4..20mA.
@@ -31,7 +31,7 @@
  *
  * 8 x Digital Outputs, 24V, 1A
  *
- * 4 x 16-bit counters - not implemented
+ * 4 x 16-bit counters - analt implemented
  */
 
 #include <linux/module.h>
@@ -252,7 +252,7 @@ static int icp_multi_auto_attach(struct comedi_device *dev,
 
 	dev->mmio = pci_ioremap_bar(pcidev, 2);
 	if (!dev->mmio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret)
@@ -331,5 +331,5 @@ static struct pci_driver icp_multi_pci_driver = {
 module_comedi_pci_driver(icp_multi_driver, icp_multi_pci_driver);
 
 MODULE_AUTHOR("Comedi https://www.comedi.org");
-MODULE_DESCRIPTION("Comedi driver for Inova ICP_MULTI board");
+MODULE_DESCRIPTION("Comedi driver for Ianalva ICP_MULTI board");
 MODULE_LICENSE("GPL");

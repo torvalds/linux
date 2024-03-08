@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * SPI NOR driver for NXP SPI Flash Interface (SPIFI)
+ * SPI ANALR driver for NXP SPI Flash Interface (SPIFI)
  *
  * Copyright (C) 2015 Joachim Eastwood <manabian@gmail.com>
  *
@@ -15,7 +15,7 @@
 #include <linux/module.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
-#include <linux/mtd/spi-nor.h>
+#include <linux/mtd/spi-analr.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
@@ -47,7 +47,7 @@
 #define  SPIFI_STAT_CMD				BIT(1)
 #define  SPIFI_STAT_RESET			BIT(4)
 
-#define SPI_NOR_MAX_ID_LEN	6
+#define SPI_ANALR_MAX_ID_LEN	6
 
 struct nxp_spifi {
 	struct device *dev;
@@ -55,7 +55,7 @@ struct nxp_spifi {
 	struct clk *clk_reg;
 	void __iomem *io_base;
 	void __iomem *flash_base;
-	struct spi_nor nor;
+	struct spi_analr analr;
 	bool memory_mode;
 	u32 mcmd;
 };
@@ -122,10 +122,10 @@ static int nxp_spifi_set_memory_mode_on(struct nxp_spifi *spifi)
 	return ret;
 }
 
-static int nxp_spifi_read_reg(struct spi_nor *nor, u8 opcode, u8 *buf,
+static int nxp_spifi_read_reg(struct spi_analr *analr, u8 opcode, u8 *buf,
 			      size_t len)
 {
-	struct nxp_spifi *spifi = nor->priv;
+	struct nxp_spifi *spifi = analr->priv;
 	u32 cmd;
 	int ret;
 
@@ -145,10 +145,10 @@ static int nxp_spifi_read_reg(struct spi_nor *nor, u8 opcode, u8 *buf,
 	return nxp_spifi_wait_for_cmd(spifi);
 }
 
-static int nxp_spifi_write_reg(struct spi_nor *nor, u8 opcode, const u8 *buf,
+static int nxp_spifi_write_reg(struct spi_analr *analr, u8 opcode, const u8 *buf,
 			       size_t len)
 {
-	struct nxp_spifi *spifi = nor->priv;
+	struct nxp_spifi *spifi = analr->priv;
 	u32 cmd;
 	int ret;
 
@@ -169,10 +169,10 @@ static int nxp_spifi_write_reg(struct spi_nor *nor, u8 opcode, const u8 *buf,
 	return nxp_spifi_wait_for_cmd(spifi);
 }
 
-static ssize_t nxp_spifi_read(struct spi_nor *nor, loff_t from, size_t len,
+static ssize_t nxp_spifi_read(struct spi_analr *analr, loff_t from, size_t len,
 			      u_char *buf)
 {
-	struct nxp_spifi *spifi = nor->priv;
+	struct nxp_spifi *spifi = analr->priv;
 	int ret;
 
 	ret = nxp_spifi_set_memory_mode_on(spifi);
@@ -184,10 +184,10 @@ static ssize_t nxp_spifi_read(struct spi_nor *nor, loff_t from, size_t len,
 	return len;
 }
 
-static ssize_t nxp_spifi_write(struct spi_nor *nor, loff_t to, size_t len,
+static ssize_t nxp_spifi_write(struct spi_analr *analr, loff_t to, size_t len,
 			       const u_char *buf)
 {
-	struct nxp_spifi *spifi = nor->priv;
+	struct nxp_spifi *spifi = analr->priv;
 	u32 cmd;
 	int ret;
 	size_t i;
@@ -201,8 +201,8 @@ static ssize_t nxp_spifi_write(struct spi_nor *nor, loff_t to, size_t len,
 	cmd = SPIFI_CMD_DOUT |
 	      SPIFI_CMD_DATALEN(len) |
 	      SPIFI_CMD_FIELDFORM_ALL_SERIAL |
-	      SPIFI_CMD_OPCODE(nor->program_opcode) |
-	      SPIFI_CMD_FRAMEFORM(spifi->nor.addr_nbytes + 1);
+	      SPIFI_CMD_OPCODE(analr->program_opcode) |
+	      SPIFI_CMD_FRAMEFORM(spifi->analr.addr_nbytes + 1);
 	writel(cmd, spifi->io_base + SPIFI_CMD);
 
 	for (i = 0; i < len; i++)
@@ -215,9 +215,9 @@ static ssize_t nxp_spifi_write(struct spi_nor *nor, loff_t to, size_t len,
 	return len;
 }
 
-static int nxp_spifi_erase(struct spi_nor *nor, loff_t offs)
+static int nxp_spifi_erase(struct spi_analr *analr, loff_t offs)
 {
-	struct nxp_spifi *spifi = nor->priv;
+	struct nxp_spifi *spifi = analr->priv;
 	u32 cmd;
 	int ret;
 
@@ -228,8 +228,8 @@ static int nxp_spifi_erase(struct spi_nor *nor, loff_t offs)
 	writel(offs, spifi->io_base + SPIFI_ADDR);
 
 	cmd = SPIFI_CMD_FIELDFORM_ALL_SERIAL |
-	      SPIFI_CMD_OPCODE(nor->erase_opcode) |
-	      SPIFI_CMD_FRAMEFORM(spifi->nor.addr_nbytes + 1);
+	      SPIFI_CMD_OPCODE(analr->erase_opcode) |
+	      SPIFI_CMD_FRAMEFORM(spifi->analr.addr_nbytes + 1);
 	writel(cmd, spifi->io_base + SPIFI_CMD);
 
 	return nxp_spifi_wait_for_cmd(spifi);
@@ -237,12 +237,12 @@ static int nxp_spifi_erase(struct spi_nor *nor, loff_t offs)
 
 static int nxp_spifi_setup_memory_cmd(struct nxp_spifi *spifi)
 {
-	switch (spifi->nor.read_proto) {
-	case SNOR_PROTO_1_1_1:
+	switch (spifi->analr.read_proto) {
+	case SANALR_PROTO_1_1_1:
 		spifi->mcmd = SPIFI_CMD_FIELDFORM_ALL_SERIAL;
 		break;
-	case SNOR_PROTO_1_1_2:
-	case SNOR_PROTO_1_1_4:
+	case SANALR_PROTO_1_1_2:
+	case SANALR_PROTO_1_1_4:
 		spifi->mcmd = SPIFI_CMD_FIELDFORM_QUAD_DUAL_DATA;
 		break;
 	default:
@@ -251,24 +251,24 @@ static int nxp_spifi_setup_memory_cmd(struct nxp_spifi *spifi)
 	}
 
 	/* Memory mode supports address length between 1 and 4 */
-	if (spifi->nor.addr_nbytes < 1 || spifi->nor.addr_nbytes > 4)
+	if (spifi->analr.addr_nbytes < 1 || spifi->analr.addr_nbytes > 4)
 		return -EINVAL;
 
-	spifi->mcmd |= SPIFI_CMD_OPCODE(spifi->nor.read_opcode) |
-		       SPIFI_CMD_INTLEN(spifi->nor.read_dummy / 8) |
-		       SPIFI_CMD_FRAMEFORM(spifi->nor.addr_nbytes + 1);
+	spifi->mcmd |= SPIFI_CMD_OPCODE(spifi->analr.read_opcode) |
+		       SPIFI_CMD_INTLEN(spifi->analr.read_dummy / 8) |
+		       SPIFI_CMD_FRAMEFORM(spifi->analr.addr_nbytes + 1);
 
 	return 0;
 }
 
-static void nxp_spifi_dummy_id_read(struct spi_nor *nor)
+static void nxp_spifi_dummy_id_read(struct spi_analr *analr)
 {
-	u8 id[SPI_NOR_MAX_ID_LEN];
-	nor->controller_ops->read_reg(nor, SPINOR_OP_RDID, id,
-				      SPI_NOR_MAX_ID_LEN);
+	u8 id[SPI_ANALR_MAX_ID_LEN];
+	analr->controller_ops->read_reg(analr, SPIANALR_OP_RDID, id,
+				      SPI_ANALR_MAX_ID_LEN);
 }
 
-static const struct spi_nor_controller_ops nxp_spifi_controller_ops = {
+static const struct spi_analr_controller_ops nxp_spifi_controller_ops = {
 	.read_reg  = nxp_spifi_read_reg,
 	.write_reg = nxp_spifi_write_reg,
 	.read  = nxp_spifi_read,
@@ -277,12 +277,12 @@ static const struct spi_nor_controller_ops nxp_spifi_controller_ops = {
 };
 
 static int nxp_spifi_setup_flash(struct nxp_spifi *spifi,
-				 struct device_node *np)
+				 struct device_analde *np)
 {
-	struct spi_nor_hwcaps hwcaps = {
-		.mask = SNOR_HWCAPS_READ |
-			SNOR_HWCAPS_READ_FAST |
-			SNOR_HWCAPS_PP,
+	struct spi_analr_hwcaps hwcaps = {
+		.mask = SANALR_HWCAPS_READ |
+			SANALR_HWCAPS_READ_FAST |
+			SANALR_HWCAPS_PP,
 	};
 	u32 ctrl, property;
 	u16 mode = 0;
@@ -317,10 +317,10 @@ static int nxp_spifi_setup_flash(struct nxp_spifi *spifi,
 
 	if (mode & SPI_RX_DUAL) {
 		ctrl |= SPIFI_CTRL_DUAL;
-		hwcaps.mask |= SNOR_HWCAPS_READ_1_1_2;
+		hwcaps.mask |= SANALR_HWCAPS_READ_1_1_2;
 	} else if (mode & SPI_RX_QUAD) {
 		ctrl &= ~SPIFI_CTRL_DUAL;
-		hwcaps.mask |= SNOR_HWCAPS_READ_1_1_4;
+		hwcaps.mask |= SANALR_HWCAPS_READ_1_1_4;
 	} else {
 		ctrl |= SPIFI_CTRL_DUAL;
 	}
@@ -339,23 +339,23 @@ static int nxp_spifi_setup_flash(struct nxp_spifi *spifi,
 
 	writel(ctrl, spifi->io_base + SPIFI_CTRL);
 
-	spifi->nor.dev   = spifi->dev;
-	spi_nor_set_flash_node(&spifi->nor, np);
-	spifi->nor.priv  = spifi;
-	spifi->nor.controller_ops = &nxp_spifi_controller_ops;
+	spifi->analr.dev   = spifi->dev;
+	spi_analr_set_flash_analde(&spifi->analr, np);
+	spifi->analr.priv  = spifi;
+	spifi->analr.controller_ops = &nxp_spifi_controller_ops;
 
 	/*
 	 * The first read on a hard reset isn't reliable so do a
-	 * dummy read of the id before calling spi_nor_scan().
-	 * The reason for this problem is unknown.
+	 * dummy read of the id before calling spi_analr_scan().
+	 * The reason for this problem is unkanalwn.
 	 *
 	 * The official NXP spifilib uses more or less the same
 	 * workaround that is applied here by reading the device
 	 * id multiple times.
 	 */
-	nxp_spifi_dummy_id_read(&spifi->nor);
+	nxp_spifi_dummy_id_read(&spifi->analr);
 
-	ret = spi_nor_scan(&spifi->nor, NULL, &hwcaps);
+	ret = spi_analr_scan(&spifi->analr, NULL, &hwcaps);
 	if (ret) {
 		dev_err(spifi->dev, "device scan failed\n");
 		return ret;
@@ -367,7 +367,7 @@ static int nxp_spifi_setup_flash(struct nxp_spifi *spifi,
 		return ret;
 	}
 
-	ret = mtd_device_register(&spifi->nor.mtd, NULL, 0);
+	ret = mtd_device_register(&spifi->analr.mtd, NULL, 0);
 	if (ret) {
 		dev_err(spifi->dev, "mtd device parse failed\n");
 		return ret;
@@ -378,13 +378,13 @@ static int nxp_spifi_setup_flash(struct nxp_spifi *spifi,
 
 static int nxp_spifi_probe(struct platform_device *pdev)
 {
-	struct device_node *flash_np;
+	struct device_analde *flash_np;
 	struct nxp_spifi *spifi;
 	int ret;
 
 	spifi = devm_kzalloc(&pdev->dev, sizeof(*spifi), GFP_KERNEL);
 	if (!spifi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spifi->io_base = devm_platform_ioremap_resource_byname(pdev, "spifi");
 	if (IS_ERR(spifi->io_base))
@@ -396,13 +396,13 @@ static int nxp_spifi_probe(struct platform_device *pdev)
 
 	spifi->clk_spifi = devm_clk_get_enabled(&pdev->dev, "spifi");
 	if (IS_ERR(spifi->clk_spifi)) {
-		dev_err(&pdev->dev, "spifi clock not found or unable to enable\n");
+		dev_err(&pdev->dev, "spifi clock analt found or unable to enable\n");
 		return PTR_ERR(spifi->clk_spifi);
 	}
 
 	spifi->clk_reg = devm_clk_get_enabled(&pdev->dev, "reg");
 	if (IS_ERR(spifi->clk_reg)) {
-		dev_err(&pdev->dev, "reg clock not found or unable to enable\n");
+		dev_err(&pdev->dev, "reg clock analt found or unable to enable\n");
 		return PTR_ERR(spifi->clk_reg);
 	}
 
@@ -415,14 +415,14 @@ static int nxp_spifi_probe(struct platform_device *pdev)
 	writel(0, spifi->io_base + SPIFI_MCMD);
 	nxp_spifi_reset(spifi);
 
-	flash_np = of_get_next_available_child(pdev->dev.of_node, NULL);
+	flash_np = of_get_next_available_child(pdev->dev.of_analde, NULL);
 	if (!flash_np) {
-		dev_err(&pdev->dev, "no SPI flash device to configure\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "anal SPI flash device to configure\n");
+		return -EANALDEV;
 	}
 
 	ret = nxp_spifi_setup_flash(spifi, flash_np);
-	of_node_put(flash_np);
+	of_analde_put(flash_np);
 	if (ret) {
 		dev_err(&pdev->dev, "unable to setup flash chip\n");
 		return ret;
@@ -435,7 +435,7 @@ static void nxp_spifi_remove(struct platform_device *pdev)
 {
 	struct nxp_spifi *spifi = platform_get_drvdata(pdev);
 
-	mtd_device_unregister(&spifi->nor.mtd);
+	mtd_device_unregister(&spifi->analr.mtd);
 }
 
 static const struct of_device_id nxp_spifi_match[] = {

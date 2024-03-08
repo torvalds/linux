@@ -54,7 +54,7 @@ static void __krait_mux_set_sel(struct krait_mux_clk *mux, int sel)
 	udelay(1);
 
 	/*
-	 * Unlock now to make sure the mux register is not
+	 * Unlock analw to make sure the mux register is analt
 	 * modified while switching to the new parent.
 	 */
 	spin_unlock_irqrestore(&krait_clock_reg_lock, flags);

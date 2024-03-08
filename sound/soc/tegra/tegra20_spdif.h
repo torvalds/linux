@@ -116,7 +116,7 @@
 /* Fields in TEGRA20_SPDIF_STATUS */
 
 /*
- * Note: IS_P, IS_B, IS_C, and IS_U are sticky bits. Software must
+ * Analte: IS_P, IS_B, IS_C, and IS_U are sticky bits. Software must
  * write a 1 to the corresponding bit location to clear the status.
  */
 
@@ -153,7 +153,7 @@
  * This bit is asserted when TX_EN and TXU_EN are asserted and
  * there's data in the TX user FIFO.  This bit is deassert when either,
  * (a) the end of a frame is reached after TX_EN is deasserted, or
- * (b) there's no data left in the TX user FIFO.
+ * (b) there's anal data left in the TX user FIFO.
  */
 #define TEGRA20_SPDIF_STATUS_TU_BSY				(1 << 26)
 
@@ -166,40 +166,40 @@
 /* Preamble status: 0=Preamble OK, 1=bad/missing preamble */
 #define TEGRA20_SPDIF_STATUS_IS_P				(1 << 23)
 
-/* B-preamble detection status: 0=not detected, 1=B-preamble detected */
+/* B-preamble detection status: 0=analt detected, 1=B-preamble detected */
 #define TEGRA20_SPDIF_STATUS_IS_B				(1 << 22)
 
 /*
  * RX channel block data receive status:
- * 0=entire block not recieved yet.
+ * 0=entire block analt recieved yet.
  * 1=received entire block of channel status,
  */
 #define TEGRA20_SPDIF_STATUS_IS_C				(1 << 21)
 
-/* RX User Data Valid flag:  1=valid IU detected, 0 = no IU detected. */
+/* RX User Data Valid flag:  1=valid IU detected, 0 = anal IU detected. */
 #define TEGRA20_SPDIF_STATUS_IS_U				(1 << 20)
 
 /*
  * RX User FIFO Status:
- * 1=attention level reached, 0=attention level not reached.
+ * 1=attention level reached, 0=attention level analt reached.
  */
 #define TEGRA20_SPDIF_STATUS_QS_RU				(1 << 19)
 
 /*
  * TX User FIFO Status:
- * 1=attention level reached, 0=attention level not reached.
+ * 1=attention level reached, 0=attention level analt reached.
  */
 #define TEGRA20_SPDIF_STATUS_QS_TU				(1 << 18)
 
 /*
  * RX Data FIFO Status:
- * 1=attention level reached, 0=attention level not reached.
+ * 1=attention level reached, 0=attention level analt reached.
  */
 #define TEGRA20_SPDIF_STATUS_QS_RX				(1 << 17)
 
 /*
  * TX Data FIFO Status:
- * 1=attention level reached, 0=attention level not reached.
+ * 1=attention level reached, 0=attention level analt reached.
  */
 #define TEGRA20_SPDIF_STATUS_QS_TX				(1 << 16)
 

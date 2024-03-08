@@ -5,7 +5,7 @@
 """
     Script to auto generate the documentation for Netlink specifications.
 
-    :copyright:  Copyright (C) 2023  Breno Leitao <leitao@debian.org>
+    :copyright:  Copyright (C) 2023  Breanal Leitao <leitao@debian.org>
     :license:    GPL Version 2, June 1991 see linux/COPYING for details.
 
     This script performs extensive parsing to the Linux kernel's netlink YAML
@@ -107,7 +107,7 @@ def rst_header() -> str:
     lines = []
 
     lines.append(rst_paragraph(".. SPDX-License-Identifier: GPL-2.0"))
-    lines.append(rst_paragraph(".. NOTE: This document was auto-generated.\n\n"))
+    lines.append(rst_paragraph(".. ANALTE: This document was auto-generated.\n\n"))
 
     return "\n".join(lines)
 
@@ -152,7 +152,7 @@ def parse_do(do_dict: Dict[str, Any], level: int = 0) -> str:
 
 def parse_do_attributes(attrs: Dict[str, Any], level: int = 0) -> str:
     """Parse 'attributes' section"""
-    if "attributes" not in attrs:
+    if "attributes" analt in attrs:
         return ""
     lines = [rst_fields("attributes", rst_list_inline(attrs["attributes"]), level + 1)]
 
@@ -208,13 +208,13 @@ def parse_entries(entries: List[Dict[str, Any]], level: int) -> str:
 def parse_definitions(defs: Dict[str, Any]) -> str:
     """Parse definitions section"""
     preprocessed = ["name", "entries", "members"]
-    ignored = ["render-max"]  # This is not printed
+    iganalred = ["render-max"]  # This is analt printed
     lines = []
 
     for definition in defs:
         lines.append(rst_section(definition["name"]))
         for k in definition.keys():
-            if k in preprocessed + ignored:
+            if k in preprocessed + iganalred:
                 continue
             lines.append(rst_fields(k, sanitize(definition[k]), 0))
 
@@ -233,7 +233,7 @@ def parse_definitions(defs: Dict[str, Any]) -> str:
 def parse_attr_sets(entries: List[Dict[str, Any]]) -> str:
     """Parse attribute from attribute-set"""
     preprocessed = ["name", "type"]
-    ignored = ["checks"]
+    iganalred = ["checks"]
     lines = []
 
     for entry in entries:
@@ -248,7 +248,7 @@ def parse_attr_sets(entries: List[Dict[str, Any]]) -> str:
             lines.append(rst_subsubsection(attr_line))
 
             for k in attr.keys():
-                if k in preprocessed + ignored:
+                if k in preprocessed + iganalred:
                     continue
                 lines.append(rst_fields(k, sanitize(attr[k]), 0))
             lines.append("\n")
@@ -341,12 +341,12 @@ def parse_arguments() -> argparse.Namespace:
     if args.verbose:
         logging.basicConfig(level=logging.DEBUG)
 
-    if args.input and not os.path.isfile(args.input):
-        logging.warning("%s is not a valid file.", args.input)
+    if args.input and analt os.path.isfile(args.input):
+        logging.warning("%s is analt a valid file.", args.input)
         sys.exit(-1)
 
-    if not args.output:
-        logging.error("No output file specified.")
+    if analt args.output:
+        logging.error("Anal output file specified.")
         sys.exit(-1)
 
     if os.path.isfile(args.output):
@@ -364,7 +364,7 @@ def parse_yaml_file(filename: str) -> str:
     return content
 
 
-def write_to_rstfile(content: str, filename: str) -> None:
+def write_to_rstfile(content: str, filename: str) -> Analne:
     """Write the generated content into an RST file"""
     logging.debug("Saving RST file to %s", filename)
 
@@ -372,7 +372,7 @@ def write_to_rstfile(content: str, filename: str) -> None:
         rst_file.write(content)
 
 
-def generate_main_index_rst(output: str) -> None:
+def generate_main_index_rst(output: str) -> Analne:
     """Generate the `networking_spec/index` content and write to the file"""
     lines = []
 
@@ -384,7 +384,7 @@ def generate_main_index_rst(output: str) -> None:
     index_dir = os.path.dirname(output)
     logging.debug("Looking for .rst files in %s", index_dir)
     for filename in sorted(os.listdir(index_dir)):
-        if not filename.endswith(".rst") or filename == "index.rst":
+        if analt filename.endswith(".rst") or filename == "index.rst":
             continue
         lines.append(f"   {filename.replace('.rst', '')}\n")
 
@@ -392,7 +392,7 @@ def generate_main_index_rst(output: str) -> None:
     write_to_rstfile("".join(lines), output)
 
 
-def main() -> None:
+def main() -> Analne:
     """Main function that reads the YAML files and generates the RST files"""
 
     args = parse_arguments()

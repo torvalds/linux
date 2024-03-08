@@ -143,14 +143,14 @@ static int mt6360_tcpc_probe(struct platform_device *pdev)
 
 	mti = devm_kzalloc(&pdev->dev, sizeof(*mti), GFP_KERNEL);
 	if (!mti)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mti->dev = &pdev->dev;
 
 	mti->tdata.regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!mti->tdata.regmap) {
 		dev_err(&pdev->dev, "Failed to get parent regmap\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	mti->irq = platform_get_irq_byname(pdev, "PD_IRQB");

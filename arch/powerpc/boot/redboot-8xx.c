@@ -20,17 +20,17 @@ BSS_STACK(4096);
 
 static void platform_fixups(void)
 {
-	void *node;
+	void *analde;
 
 	dt_fixup_memory(bd.bi_memstart, bd.bi_memsize);
 	dt_fixup_mac_addresses(bd.bi_enetaddr);
 	dt_fixup_cpu_clocks(bd.bi_intfreq, bd.bi_busfreq / 16, bd.bi_busfreq);
 
-	node = finddevice("/soc/cpm/brg");
-	if (node) {
+	analde = finddevice("/soc/cpm/brg");
+	if (analde) {
 		printf("BRG clock-frequency <- 0x%x (%dMHz)\r\n",
 		       bd.bi_busfreq, MHZ(bd.bi_busfreq));
-		setprop(node, "clock-frequency",  &bd.bi_busfreq, 4);
+		setprop(analde, "clock-frequency",  &bd.bi_busfreq, 4);
 	}
 }
 

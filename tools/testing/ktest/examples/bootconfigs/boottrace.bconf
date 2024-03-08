@@ -35,9 +35,9 @@ ftrace.instance {
 		tracer = "function"
 		ftrace.filters = "user_*"
 		cpumask = 1
-		options = nosym-addr
+		options = analsym-addr
 		buffer_size = 512KB
-		trace_clock = mono
+		trace_clock = moanal
 		event.signal.signal_deliver.actions=snapshot
 	}
 	bar {

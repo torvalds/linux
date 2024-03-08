@@ -10,12 +10,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -80,7 +80,7 @@ static void radeon_invalid_wreg(struct radeon_device *rdev, uint32_t reg, uint32
  * @rdev: radeon device pointer
  *
  * Sets up the register accessor callbacks for various register
- * apertures.  Not all asics have all apertures (all asics).
+ * apertures.  Analt all asics have all apertures (all asics).
  */
 static void radeon_register_accessor_init(struct radeon_device *rdev)
 {
@@ -97,7 +97,7 @@ static void radeon_register_accessor_init(struct radeon_device *rdev)
 	} else {
 		rdev->pcie_reg_mask = 0x7ff;
 	}
-	/* FIXME: not sure here */
+	/* FIXME: analt sure here */
 	if (rdev->family <= CHIP_R580) {
 		rdev->pll_rreg = &r100_pll_rreg;
 		rdev->pll_wreg = &r100_pll_wreg;
@@ -2692,7 +2692,7 @@ int radeon_asic_init(struct radeon_device *rdev)
 		rdev->has_vce = true;
 		break;
 	default:
-		/* FIXME: not supported yet */
+		/* FIXME: analt supported yet */
 		return -EINVAL;
 	}
 

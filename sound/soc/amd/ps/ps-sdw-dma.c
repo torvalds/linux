@@ -226,7 +226,7 @@ static int acp63_sdw_dma_open(struct snd_soc_component *component,
 	amd_manager = snd_soc_dai_get_drvdata(cpu_dai);
 	stream = kzalloc(sizeof(*stream), GFP_KERNEL);
 	if (!stream)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		runtime->hw = acp63_sdw_hardware_playback;
@@ -460,16 +460,16 @@ static int acp63_sdw_platform_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		dev_err(&pdev->dev, "IORESOURCE_MEM FAILED\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	sdw_data = devm_kzalloc(&pdev->dev, sizeof(*sdw_data), GFP_KERNEL);
 	if (!sdw_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sdw_data->acp_base = devm_ioremap(&pdev->dev, res->start, resource_size(res));
 	if (!sdw_data->acp_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sdw_data->acp_lock = &acp_data->acp_lock;
 	dev_set_drvdata(&pdev->dev, sdw_data);

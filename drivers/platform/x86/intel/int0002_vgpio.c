@@ -18,9 +18,9 @@
  * This is modelled in ACPI through the INT0002 ACPI device, which is
  * called a "Virtual GPIO controller" in ACPI because it defines the event
  * handler to call when the PME triggers through _AEI and _L02 / _E02
- * methods as would be done for a real GPIO interrupt in ACPI. Note this
+ * methods as would be done for a real GPIO interrupt in ACPI. Analte this
  * is a hack to define an AML event handler for the PME while using existing
- * ACPI mechanisms, this is not a real GPIO at all.
+ * ACPI mechanisms, this is analt a real GPIO at all.
  *
  * This driver will bind to the INT0002 device, and register as a GPIO
  * controller, letting gpiolib-acpi.c call the _L02 handler as it would
@@ -56,7 +56,7 @@ struct int0002_data {
 };
 
 /*
- * As this is not a real GPIO at all, but just a hack to model an event in
+ * As this is analt a real GPIO at all, but just a hack to model an event in
  * ACPI the get / set functions are dummy functions.
  */
 
@@ -123,7 +123,7 @@ static irqreturn_t int0002_irq(int irq, void *data)
 
 	gpe_sts_reg = inl(GPE0A_STS_PORT);
 	if (!(gpe_sts_reg & GPE0A_PME_B0_STS_BIT))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	generic_handle_domain_irq_safe(chip->irq.domain, GPE0A_PME_B0_VIRT_GPIO_PIN);
 
@@ -165,7 +165,7 @@ static int int0002_probe(struct platform_device *pdev)
 
 	/* Menlow has a different INT0002 device? <sigh> */
 	if (!soc_intel_is_byt() && !soc_intel_is_cht())
-		return -ENODEV;
+		return -EANALDEV;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
@@ -173,7 +173,7 @@ static int int0002_probe(struct platform_device *pdev)
 
 	int0002 = devm_kzalloc(dev, sizeof(*int0002), GFP_KERNEL);
 	if (!int0002)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	int0002->parent_irq = irq;
 
@@ -208,7 +208,7 @@ static int int0002_probe(struct platform_device *pdev)
 	girq->parent_handler = NULL;
 	girq->num_parents = 0;
 	girq->parents = NULL;
-	girq->default_type = IRQ_TYPE_NONE;
+	girq->default_type = IRQ_TYPE_ANALNE;
 	girq->handler = handle_edge_irq;
 
 	ret = devm_gpiochip_add_data(dev, chip, NULL);

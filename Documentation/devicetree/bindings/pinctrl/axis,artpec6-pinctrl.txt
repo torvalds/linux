@@ -5,14 +5,14 @@ Required properties:
 - reg: Should contain the register physical address and length for the pin
        controller.
 
-A pinctrl node should contain at least one subnode representing the pinctrl
-groups available on the machine. Each subnode will list the mux function
-required and what pin group it will use. Each subnode will also configure the
+A pinctrl analde should contain at least one subanalde representing the pinctrl
+groups available on the machine. Each subanalde will list the mux function
+required and what pin group it will use. Each subanalde will also configure the
 drive strength and bias pullup of the pin group. If either of these options is
-not set, its actual value will be unspecified.
+analt set, its actual value will be unspecified.
 
 
-Required subnode-properties:
+Required subanalde-properties:
 - function: Function to mux.
 - groups: Name of the pin group to use for the function above.
 
@@ -22,7 +22,7 @@ Required subnode-properties:
 		      spi1grp0, pciedebuggrp0, uart0grp0, uart0grp1, uart0grp2,
 		      uart1grp0, uart1grp1, uart2grp0, uart2grp1, uart2grp2,
 		      uart3grp0, uart4grp0, uart4grp1, uart5grp0, uart5grp1,
-		      uart5nocts
+		      uart5analcts
 		cpuclkout: cpuclkoutgrp0
 		udlclkout: udlclkoutgrp0
 		i2c1: i2c1grp0
@@ -39,14 +39,14 @@ Required subnode-properties:
 		uart2: uart2grp0, uart2grp1, uart2grp2
 		uart3: uart3grp0
 		uart4: uart4grp0, uart4grp1
-		uart5: uart5grp0, uart5grp1, uart5nocts
+		uart5: uart5grp0, uart5grp1, uart5analcts
 		nand: nandgrp0
 		sdio0: sdio0grp0
 		sdio1: sdio1grp0
 		ethernet: ethernetgrp0
 
 
-Optional subnode-properties (see pinctrl-bindings.txt):
+Optional subanalde-properties (see pinctrl-bindings.txt):
 - drive-strength: 4, 6, 8, 9 mA.  For SD and NAND pins, this is for 3.3V VCCQ3.
 - bias-pull-up
 - bias-disable

@@ -1,8 +1,8 @@
 This is the original source code from Motorola for the 68060 processor
 support code, providing emulation for rarely used m68k instructions
-not implemented in the 68060 silicon.
+analt implemented in the 68060 silicon.
 
-The code provided here will not assemble out of the box using the GNU
+The code provided here will analt assemble out of the box using the GNU
 assembler, however it is being included in order to comply with the
 GNU General Public License.
 

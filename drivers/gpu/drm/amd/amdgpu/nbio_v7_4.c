@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -146,7 +146,7 @@ static void nbio_v7_4_sdma_doorbell_range(struct amdgpu_device *adev, int instan
 			SOC15_REG_OFFSET(NBIO, 0, mmBIF_SDMA0_DOORBELL_RANGE);
 	} else {
 		/*
-		 * These registers address of SDMA2~7 is not consecutive
+		 * These registers address of SDMA2~7 is analt consecutive
 		 * from SDMA0~1. Need plus 4 dwords offset.
 		 *
 		 *   BIF_SDMA0_DOORBELL_RANGE:  0x3bc0
@@ -299,8 +299,8 @@ static void nbio_v7_4_ih_control(struct amdgpu_device *adev)
 	 * INTERRUPT_CNTL__IH_DUMMY_RD_OVERRIDE_MASK=1 - dummy read controlled by IH_DUMMY_RD_EN
 	 */
 	interrupt_cntl = REG_SET_FIELD(interrupt_cntl, INTERRUPT_CNTL, IH_DUMMY_RD_OVERRIDE, 0);
-	/* INTERRUPT_CNTL__IH_REQ_NONSNOOP_EN_MASK=1 if ring is in non-cacheable memory, e.g., vram */
-	interrupt_cntl = REG_SET_FIELD(interrupt_cntl, INTERRUPT_CNTL, IH_REQ_NONSNOOP_EN, 0);
+	/* INTERRUPT_CNTL__IH_REQ_ANALNSANALOP_EN_MASK=1 if ring is in analn-cacheable memory, e.g., vram */
+	interrupt_cntl = REG_SET_FIELD(interrupt_cntl, INTERRUPT_CNTL, IH_REQ_ANALNSANALOP_EN, 0);
 	WREG32_SOC15(NBIO, 0, mmINTERRUPT_CNTL, interrupt_cntl);
 }
 
@@ -361,7 +361,7 @@ static void nbio_v7_4_init_registers(struct amdgpu_device *adev)
 	}
 }
 
-static void nbio_v7_4_handle_ras_controller_intr_no_bifring(struct amdgpu_device *adev)
+static void nbio_v7_4_handle_ras_controller_intr_anal_bifring(struct amdgpu_device *adev)
 {
 	uint32_t bif_doorbell_intr_cntl;
 	struct ras_manager *obj = amdgpu_ras_find_obj(adev, adev->nbio.ras_if);
@@ -416,7 +416,7 @@ static void nbio_v7_4_handle_ras_controller_intr_no_bifring(struct amdgpu_device
 					"by NBIF error\n");
 
 		/* ras_controller_int is dedicated for nbif ras error,
-		 * not the global interrupt for sync flood
+		 * analt the global interrupt for sync flood
 		 */
 		amdgpu_ras_reset_gpu(adev);
 	}
@@ -424,7 +424,7 @@ static void nbio_v7_4_handle_ras_controller_intr_no_bifring(struct amdgpu_device
 	amdgpu_ras_error_data_fini(&err_data);
 }
 
-static void nbio_v7_4_handle_ras_err_event_athub_intr_no_bifring(struct amdgpu_device *adev)
+static void nbio_v7_4_handle_ras_err_event_athub_intr_anal_bifring(struct amdgpu_device *adev)
 {
 	uint32_t bif_doorbell_intr_cntl;
 
@@ -488,8 +488,8 @@ static int nbio_v7_4_process_ras_controller_irq(struct amdgpu_device *adev,
 						struct amdgpu_iv_entry *entry)
 {
 	/* By design, the ih cookie for ras_controller_irq should be written
-	 * to BIFring instead of general iv ring. However, due to known bif ring
-	 * hw bug, it has to be disabled. There is no chance the process function
+	 * to BIFring instead of general iv ring. However, due to kanalwn bif ring
+	 * hw bug, it has to be disabled. There is anal chance the process function
 	 * will be involked. Just left it as a dummy one.
 	 */
 	return 0;
@@ -532,8 +532,8 @@ static int nbio_v7_4_process_err_event_athub_irq(struct amdgpu_device *adev,
 						 struct amdgpu_iv_entry *entry)
 {
 	/* By design, the ih cookie for err_event_athub_irq should be written
-	 * to BIFring instead of general iv ring. However, due to known bif ring
-	 * hw bug, it has to be disabled. There is no chance the process function
+	 * to BIFring instead of general iv ring. However, due to kanalwn bif ring
+	 * hw bug, it has to be disabled. There is anal chance the process function
 	 * will be involked. Just left it as a dummy one.
 	 */
 	return 0;
@@ -592,7 +592,7 @@ static void nbio_v7_4_query_ras_error_count(struct amdgpu_device *adev,
 					void *ras_error_status)
 {
 	uint32_t global_sts, central_sts, int_eoi, parity_sts;
-	uint32_t corr, fatal, non_fatal;
+	uint32_t corr, fatal, analn_fatal;
 	struct ras_err_data *err_data = (struct ras_err_data *)ras_error_status;
 
 	if (adev->asic_type == CHIP_ALDEBARAN)
@@ -602,8 +602,8 @@ static void nbio_v7_4_query_ras_error_count(struct amdgpu_device *adev,
 
 	corr = REG_GET_FIELD(global_sts, RAS_GLOBAL_STATUS_LO, ParityErrCorr);
 	fatal = REG_GET_FIELD(global_sts, RAS_GLOBAL_STATUS_LO, ParityErrFatal);
-	non_fatal = REG_GET_FIELD(global_sts, RAS_GLOBAL_STATUS_LO,
-				ParityErrNonFatal);
+	analn_fatal = REG_GET_FIELD(global_sts, RAS_GLOBAL_STATUS_LO,
+				ParityErrAnalnFatal);
 
 	if (adev->asic_type == CHIP_ALDEBARAN)
 		parity_sts = RREG32_PCIE(smnPARITY_ERROR_STATUS_UNCORR_GRP2_ALDE);
@@ -615,7 +615,7 @@ static void nbio_v7_4_query_ras_error_count(struct amdgpu_device *adev,
 	if (fatal)
 		err_data->ue_count++;
 
-	if (corr || fatal || non_fatal) {
+	if (corr || fatal || analn_fatal) {
 		central_sts = RREG32_PCIE(smnBIFL_RAS_CENTRAL_STATUS);
 
 		/* clear error status register */
@@ -670,8 +670,8 @@ struct amdgpu_nbio_ras nbio_v7_4_ras = {
 		.hw_ops = &nbio_v7_4_ras_hw_ops,
 		.ras_late_init = amdgpu_nbio_ras_late_init,
 	},
-	.handle_ras_controller_intr_no_bifring = nbio_v7_4_handle_ras_controller_intr_no_bifring,
-	.handle_ras_err_event_athub_intr_no_bifring = nbio_v7_4_handle_ras_err_event_athub_intr_no_bifring,
+	.handle_ras_controller_intr_anal_bifring = nbio_v7_4_handle_ras_controller_intr_anal_bifring,
+	.handle_ras_err_event_athub_intr_anal_bifring = nbio_v7_4_handle_ras_err_event_athub_intr_anal_bifring,
 	.init_ras_controller_interrupt = nbio_v7_4_init_ras_controller_interrupt,
 	.init_ras_err_event_athub_interrupt = nbio_v7_4_init_ras_err_event_athub_interrupt,
 };
@@ -690,7 +690,7 @@ static void nbio_v7_4_program_ltr(struct amdgpu_device *adev)
 		WREG32_PCIE(smnRCC_BIF_STRAP2, data);
 
 	def = data = RREG32_PCIE(smnRCC_EP_DEV0_0_EP_PCIE_TX_LTR_CNTL);
-	data &= ~EP_PCIE_TX_LTR_CNTL__LTR_PRIV_MSG_DIS_IN_PM_NON_D0_MASK;
+	data &= ~EP_PCIE_TX_LTR_CNTL__LTR_PRIV_MSG_DIS_IN_PM_ANALN_D0_MASK;
 	if (def != data)
 		WREG32_PCIE(smnRCC_EP_DEV0_0_EP_PCIE_TX_LTR_CNTL, data);
 
@@ -762,7 +762,7 @@ static void nbio_v7_4_program_aspm(struct amdgpu_device *adev)
 	if (def != data)
 		WREG32_PCIE(smnPCIE_LC_CNTL6, data);
 
-	/* Don't bother about LTR if LTR is not enabled
+	/* Don't bother about LTR if LTR is analt enabled
 	 * in the path */
 	if (adev->pdev->ltr_path)
 		nbio_v7_4_program_ltr(adev);

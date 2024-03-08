@@ -133,7 +133,7 @@ static void rtw89_wow_show_wakeup_reason(struct rtw89_dev *rtwdev)
 		rtw89_debug(rtwdev, RTW89_DBG_WOW, "Rx NLO\n");
 		break;
 	default:
-		rtw89_warn(rtwdev, "Unknown wakeup reason %x\n", reason);
+		rtw89_warn(rtwdev, "Unkanalwn wakeup reason %x\n", reason);
 		ieee80211_report_wowlan_wakeup(rtwdev->wow.wow_vif, NULL,
 					       GFP_KERNEL);
 		return;
@@ -158,7 +158,7 @@ static void rtw89_wow_vif_iter(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvi
 	case RTW89_NET_TYPE_INFRA:
 		rtw_wow->wow_vif = vif;
 		break;
-	case RTW89_NET_TYPE_NO_LINK:
+	case RTW89_NET_TYPE_ANAL_LINK:
 	default:
 		break;
 	}
@@ -302,7 +302,7 @@ static int rtw89_wow_pattern_generate(struct rtw89_dev *rtwdev,
 	memcpy(rtw_pattern->mask, mask_hw, sizeof(rtw_pattern->mask));
 
 	/* To get the wake up pattern from the mask.
-	 * We do not count first 12 bits which means
+	 * We do analt count first 12 bits which means
 	 * DA[6] and SA[6] in the pattern to match HW design.
 	 */
 	count = 0;
@@ -485,7 +485,7 @@ static int rtw89_wow_check_fw_status(struct rtw89_dev *rtwdev, bool wow_enable)
 
 static int rtw89_wow_swap_fw(struct rtw89_dev *rtwdev, bool wow)
 {
-	enum rtw89_fw_type fw_type = wow ? RTW89_FW_WOWLAN : RTW89_FW_NORMAL;
+	enum rtw89_fw_type fw_type = wow ? RTW89_FW_WOWLAN : RTW89_FW_ANALRMAL;
 	struct rtw89_wow_param *rtw_wow = &rtwdev->wow;
 	struct ieee80211_vif *wow_vif = rtw_wow->wow_vif;
 	struct rtw89_vif *rtwvif = (struct rtw89_vif *)wow_vif->drv_priv;
@@ -772,7 +772,7 @@ static int rtw89_wow_disable(struct rtw89_dev *rtwdev)
 
 	ret = rtw89_wow_fw_stop(rtwdev);
 	if (ret) {
-		rtw89_err(rtwdev, "wow: failed to swap to normal fw\n");
+		rtw89_err(rtwdev, "wow: failed to swap to analrmal fw\n");
 		goto out;
 	}
 
@@ -798,13 +798,13 @@ int rtw89_wow_resume(struct rtw89_dev *rtwdev)
 	int ret;
 
 	if (!test_bit(RTW89_FLAG_WOWLAN, rtwdev->flags)) {
-		rtw89_err(rtwdev, "wow is not enabled\n");
+		rtw89_err(rtwdev, "wow is analt enabled\n");
 		ret = -EPERM;
 		goto out;
 	}
 
 	if (!rtw89_mac_get_power_state(rtwdev)) {
-		rtw89_err(rtwdev, "chip is no power when resume\n");
+		rtw89_err(rtwdev, "chip is anal power when resume\n");
 		ret = -EPERM;
 		goto out;
 	}

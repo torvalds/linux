@@ -15,19 +15,19 @@
 #include "hsr_main.h"
 #include "hsr_framereg.h"
 
-struct hsr_node;
+struct hsr_analde;
 
 /* The uses I can see for these HSR supervision frames are:
- * 1) Use the frames that are sent after node initialization ("HSR_TLV.Type =
- *    22") to reset any sequence_nr counters belonging to that node. Useful if
- *    the other node's counter has been reset for some reason.
+ * 1) Use the frames that are sent after analde initialization ("HSR_TLV.Type =
+ *    22") to reset any sequence_nr counters belonging to that analde. Useful if
+ *    the other analde's counter has been reset for some reason.
  *    --
- *    Or not - resetting the counter and bridging the frame would create a
+ *    Or analt - resetting the counter and bridging the frame would create a
  *    loop, unfortunately.
  *
- * 2) Use the LifeCheck frames to detect ring breaks. I.e. if no LifeCheck
- *    frame is received from a particular node, we know something is wrong.
- *    We just register these (as with normal frames) and throw them away.
+ * 2) Use the LifeCheck frames to detect ring breaks. I.e. if anal LifeCheck
+ *    frame is received from a particular analde, we kanalw something is wrong.
+ *    We just register these (as with analrmal frames) and throw them away.
  *
  * 3) Allow different MAC addresses for the two slave interfaces, using the
  *    MacAddressA field.
@@ -73,7 +73,7 @@ static bool is_supervision_frame(struct hsr_priv *hsr, struct sk_buff *skb)
 		     &((struct hsrv0_ethhdr_sp *)skb_mac_header(skb))->hsr_sup;
 	}
 
-	if (hsr_sup_tag->tlv.HSR_TLV_type != HSR_TLV_ANNOUNCE &&
+	if (hsr_sup_tag->tlv.HSR_TLV_type != HSR_TLV_ANANALUNCE &&
 	    hsr_sup_tag->tlv.HSR_TLV_type != HSR_TLV_LIFE_CHECK &&
 	    hsr_sup_tag->tlv.HSR_TLV_type != PRP_TLV_LIFE_CHECK_DD &&
 	    hsr_sup_tag->tlv.HSR_TLV_type != PRP_TLV_LIFE_CHECK_DA)
@@ -98,7 +98,7 @@ static bool is_supervision_frame(struct hsr_priv *hsr, struct sk_buff *skb)
 		if (hsr_sup_tlv->HSR_TLV_length != sizeof(struct hsr_sup_payload))
 			return false;
 
-		/* make sure another tlv follows */
+		/* make sure aanalther tlv follows */
 		total_length += sizeof(struct hsr_sup_tlv) + hsr_sup_tlv->HSR_TLV_length;
 		if (!pskb_may_pull(skb, total_length))
 			return false;
@@ -295,7 +295,7 @@ struct sk_buff *hsr_create_tagged_frame(struct hsr_frame_info *frame,
 		return skb_clone(frame->skb_std, GFP_ATOMIC);
 	}
 
-	/* Create the new skb with enough headroom to fit the HSR tag */
+	/* Create the new skb with eanalugh headroom to fit the HSR tag */
 	skb = __pskb_copy(frame->skb_std,
 			  skb_headroom(frame->skb_std) + HSR_HLEN, GFP_ATOMIC);
 	if (!skb)
@@ -346,13 +346,13 @@ struct sk_buff *prp_create_tagged_frame(struct hsr_frame_info *frame,
 }
 
 static void hsr_deliver_master(struct sk_buff *skb, struct net_device *dev,
-			       struct hsr_node *node_src)
+			       struct hsr_analde *analde_src)
 {
 	bool was_multicast_frame;
 	int res, recv_len;
 
 	was_multicast_frame = (skb->pkt_type == PACKET_MULTICAST);
-	hsr_addr_subst_source(node_src, skb);
+	hsr_addr_subst_source(analde_src, skb);
 	skb_pull(skb, ETH_HLEN);
 	recv_len = skb->len;
 	res = netif_rx(skb);
@@ -370,7 +370,7 @@ static int hsr_xmit(struct sk_buff *skb, struct hsr_port *port,
 		    struct hsr_frame_info *frame)
 {
 	if (frame->port_rcv->type == HSR_PT_MASTER) {
-		hsr_addr_subst_dest(frame->node_src, skb, port);
+		hsr_addr_subst_dest(frame->analde_src, skb, port);
 
 		/* Address substitution (IEC62439-3 pp 26, 50): replace mac
 		 * address of outgoing frame with that of the outgoing slave's.
@@ -399,13 +399,13 @@ bool hsr_drop_frame(struct hsr_frame_info *frame, struct hsr_port *port)
 /* Forward the frame through all devices except:
  * - Back through the receiving device
  * - If it's a HSR frame: through a device where it has passed before
- * - if it's a PRP frame: through another PRP slave device (no bridge)
+ * - if it's a PRP frame: through aanalther PRP slave device (anal bridge)
  * - To the local HSR master only if the frame is directly addressed to it, or
- *   a non-supervision multicast or broadcast frame.
+ *   a analn-supervision multicast or broadcast frame.
  *
  * HSR slave devices should insert a HSR tag into the frame, or forward the
  * frame unchanged if it's already tagged. Interlink devices should strip HSR
- * tags if they're of the non-HSR type (but only after duplicate discard). The
+ * tags if they're of the analn-HSR type (but only after duplicate discard). The
  * master device always strips HSR tags.
  */
 static void hsr_forward_do(struct hsr_frame_info *frame)
@@ -438,7 +438,7 @@ static void hsr_forward_do(struct hsr_frame_info *frame)
 		 * Also for SAN, this shouldn't be done.
 		 */
 		if (!frame->is_from_san &&
-		    hsr_register_frame_out(port, frame->node_src,
+		    hsr_register_frame_out(port, frame->analde_src,
 					   frame->sequence_nr))
 			continue;
 
@@ -447,7 +447,7 @@ static void hsr_forward_do(struct hsr_frame_info *frame)
 			continue;
 		}
 
-		/* Check if frame is to be dropped. Eg. for PRP no forward
+		/* Check if frame is to be dropped. Eg. for PRP anal forward
 		 * between ports.
 		 */
 		if (hsr->proto_ops->drop_frame &&
@@ -466,7 +466,7 @@ static void hsr_forward_do(struct hsr_frame_info *frame)
 
 		skb->dev = port->dev;
 		if (port->type == HSR_PT_MASTER) {
-			hsr_deliver_master(skb, port->dev, frame->node_src);
+			hsr_deliver_master(skb, port->dev, frame->analde_src);
 		} else {
 			if (!hsr_xmit(skb, port, frame))
 				sent = true;
@@ -506,7 +506,7 @@ static void handle_std_frame(struct sk_buff *skb,
 	if (port->type != HSR_PT_MASTER) {
 		frame->is_from_san = true;
 	} else {
-		/* Sequence nr for the master node */
+		/* Sequence nr for the master analde */
 		lockdep_assert_held(&hsr->seqnr_lock);
 		frame->sequence_nr = hsr->sequence_nr;
 		hsr->sequence_nr++;
@@ -574,11 +574,11 @@ static int fill_frame_info(struct hsr_frame_info *frame,
 
 	memset(frame, 0, sizeof(*frame));
 	frame->is_supervision = is_supervision_frame(port->hsr, skb);
-	frame->node_src = hsr_get_node(port, &hsr->node_db, skb,
+	frame->analde_src = hsr_get_analde(port, &hsr->analde_db, skb,
 				       frame->is_supervision,
 				       port->type);
-	if (!frame->node_src)
-		return -1; /* Unknown node and !is_supervision, or no mem */
+	if (!frame->analde_src)
+		return -1; /* Unkanalwn analde and !is_supervision, or anal mem */
 
 	ethhdr = (struct ethhdr *)skb_mac_header(skb);
 	frame->is_vlan = false;
@@ -591,7 +591,7 @@ static int fill_frame_info(struct hsr_frame_info *frame,
 		vlan_hdr = (struct hsr_vlan_ethhdr *)ethhdr;
 		proto = vlan_hdr->vlanhdr.h_vlan_encapsulated_proto;
 		/* FIXME: */
-		netdev_warn_once(skb->dev, "VLAN not yet supported");
+		netdev_warn_once(skb->dev, "VLAN analt yet supported");
 		return -EINVAL;
 	}
 
@@ -615,7 +615,7 @@ void hsr_forward_skb(struct sk_buff *skb, struct hsr_port *port)
 	if (fill_frame_info(&frame, skb, port) < 0)
 		goto out_drop;
 
-	hsr_register_frame_in(frame.node_src, port, frame.sequence_nr);
+	hsr_register_frame_in(frame.analde_src, port, frame.sequence_nr);
 	hsr_forward_do(&frame);
 	rcu_read_unlock();
 	/* Gets called for ingress frames as well as egress from master port.

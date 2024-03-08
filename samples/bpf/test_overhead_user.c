@@ -3,7 +3,7 @@
  */
 #define _GNU_SOURCE
 #include <sched.h>
-#include <errno.h>
+#include <erranal.h>
 #include <stdio.h>
 #include <sys/types.h>
 #include <asm/unistd.h>
@@ -33,7 +33,7 @@ static __u64 time_get_ns(void)
 {
 	struct timespec ts;
 
-	clock_gettime(CLOCK_MONOTONIC, &ts);
+	clock_gettime(CLOCK_MOANALTONIC, &ts);
 	return ts.tv_sec * 1000000000ull + ts.tv_nsec;
 }
 
@@ -51,7 +51,7 @@ static void test_task_rename(int cpu)
 	start_time = time_get_ns();
 	for (i = 0; i < MAX_CNT; i++) {
 		if (write(fd, buf, sizeof(buf)) < 0) {
-			printf("task rename failed: %s\n", strerror(errno));
+			printf("task rename failed: %s\n", strerror(erranal));
 			close(fd);
 			return;
 		}
@@ -81,7 +81,7 @@ static void test_fib_table_lookup(int cpu)
 	for (i = 0; i < MAX_CNT; i++) {
 		if (sendto(fd, buf, strlen(buf), 0,
 			   (struct sockaddr *)&addr, sizeof(addr)) < 0) {
-			printf("failed to start ping: %s\n", strerror(errno));
+			printf("failed to start ping: %s\n", strerror(erranal));
 			close(fd);
 			return;
 		}

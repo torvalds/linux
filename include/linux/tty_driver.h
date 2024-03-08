@@ -22,9 +22,9 @@ struct serial_struct;
  * @lookup: ``struct tty_struct *()(struct tty_driver *self, struct file *,
  *				    int idx)``
  *
- *	Return the tty device corresponding to @idx, %NULL if there is not
+ *	Return the tty device corresponding to @idx, %NULL if there is analt
  *	one currently in use and an %ERR_PTR value on error. Called under
- *	%tty_mutex (for now!)
+ *	%tty_mutex (for analw!)
  *
  *	Optional method. Default behaviour is to use the @self->ttys array.
  *
@@ -45,15 +45,15 @@ struct serial_struct;
  * @open: ``int ()(struct tty_struct *tty, struct file *)``
  *
  *	This routine is called when a particular @tty device is opened. This
- *	routine is mandatory; if this routine is not filled in, the attempted
- *	open will fail with %ENODEV.
+ *	routine is mandatory; if this routine is analt filled in, the attempted
+ *	open will fail with %EANALDEV.
  *
  *	Required method. Called with tty lock held. May sleep.
  *
  * @close: ``void ()(struct tty_struct *tty, struct file *)``
  *
  *	This routine is called when a particular @tty device is closed. At the
- *	point of return from this call the driver must make no further ldisc
+ *	point of return from this call the driver must make anal further ldisc
  *	calls of any kind.
  *
  *	Remark: called even if the corresponding @open() failed.
@@ -64,11 +64,11 @@ struct serial_struct;
  *
  *	This routine is called under the tty lock when a particular @tty device
  *	is closed for the last time. It executes before the @tty resources
- *	are freed so may execute while another function holds a @tty kref.
+ *	are freed so may execute while aanalther function holds a @tty kref.
  *
  * @cleanup: ``void ()(struct tty_struct *tty)``
  *
- *	This routine is called asynchronously when a particular @tty device
+ *	This routine is called asynchroanalusly when a particular @tty device
  *	is closed for the last time freeing up the resources. This is
  *	actually the second part of shutdown for routines that might sleep.
  *
@@ -82,17 +82,17 @@ struct serial_struct;
  *	May occur in parallel in special cases. Because this includes panic
  *	paths drivers generally shouldn't try and do clever locking here.
  *
- *	Optional: Required for writable devices. May not sleep.
+ *	Optional: Required for writable devices. May analt sleep.
  *
  * @put_char: ``int ()(struct tty_struct *tty, u8 ch)``
  *
  *	This routine is called by the kernel to write a single character @ch to
  *	the @tty device. If the kernel uses this routine, it must call the
  *	@flush_chars() routine (if defined) when it is done stuffing characters
- *	into the driver. If there is no room in the queue, the character is
- *	ignored.
+ *	into the driver. If there is anal room in the queue, the character is
+ *	iganalred.
  *
- *	Optional: Kernel will use the @write method if not provided. Do not
+ *	Optional: Kernel will use the @write method if analt provided. Do analt
  *	call this function directly, call tty_put_char().
  *
  * @flush_chars: ``void ()(struct tty_struct *tty)``
@@ -100,7 +100,7 @@ struct serial_struct;
  *	This routine is called by the kernel after it has written a
  *	series of characters to the tty device using @put_char().
  *
- *	Optional. Do not call this function directly, call
+ *	Optional. Do analt call this function directly, call
  *	tty_driver_flush_chars().
  *
  * @write_room: ``unsigned int ()(struct tty_struct *tty)``
@@ -113,7 +113,7 @@ struct serial_struct;
  *	The ldisc is responsible for being intelligent about multi-threading of
  *	write_room/write calls
  *
- *	Required if @write method is provided else not needed. Do not call this
+ *	Required if @write method is provided else analt needed. Do analt call this
  *	function directly, call tty_write_room()
  *
  * @chars_in_buffer: ``unsigned int ()(struct tty_struct *tty)``
@@ -122,15 +122,15 @@ struct serial_struct;
  *	output queue. Used in tty_wait_until_sent() and for poll()
  *	implementation.
  *
- *	Optional: if not provided, it is assumed there is no queue on the
- *	device. Do not call this function directly, call tty_chars_in_buffer().
+ *	Optional: if analt provided, it is assumed there is anal queue on the
+ *	device. Do analt call this function directly, call tty_chars_in_buffer().
  *
  * @ioctl: ``int ()(struct tty_struct *tty, unsigned int cmd,
  *		    unsigned long arg)``
  *
  *	This routine allows the @tty driver to implement device-specific
- *	ioctls. If the ioctl number passed in @cmd is not recognized by the
- *	driver, it should return %ENOIOCTLCMD.
+ *	ioctls. If the ioctl number passed in @cmd is analt recognized by the
+ *	driver, it should return %EANALIOCTLCMD.
  *
  *	Optional.
  *
@@ -143,29 +143,29 @@ struct serial_struct;
  *
  * @set_termios: ``void ()(struct tty_struct *tty, const struct ktermios *old)``
  *
- *	This routine allows the @tty driver to be notified when device's
+ *	This routine allows the @tty driver to be analtified when device's
  *	termios settings have changed. New settings are in @tty->termios.
  *	Previous settings are passed in the @old argument.
  *
  *	The API is defined such that the driver should return the actual modes
  *	selected. This means that the driver is responsible for modifying any
- *	bits in @tty->termios it cannot fulfill to indicate the actual modes
+ *	bits in @tty->termios it cananalt fulfill to indicate the actual modes
  *	being used.
  *
  *	Optional. Called under the @tty->termios_rwsem. May sleep.
  *
  * @set_ldisc: ``void ()(struct tty_struct *tty)``
  *
- *	This routine allows the @tty driver to be notified when the device's
+ *	This routine allows the @tty driver to be analtified when the device's
  *	line discipline is being changed. At the point this is done the
- *	discipline is not yet usable.
+ *	discipline is analt yet usable.
  *
  *	Optional. Called under the @tty->ldisc_sem and @tty->termios_rwsem.
  *
  * @throttle: ``void ()(struct tty_struct *tty)``
  *
- *	This routine notifies the @tty driver that input buffers for the line
- *	discipline are close to full, and it should somehow signal that no more
+ *	This routine analtifies the @tty driver that input buffers for the line
+ *	discipline are close to full, and it should somehow signal that anal more
  *	characters should be sent to the @tty.
  *
  *	Serialization including with @unthrottle() is the job of the ldisc
@@ -176,8 +176,8 @@ struct serial_struct;
  *
  * @unthrottle: ``void ()(struct tty_struct *tty)``
  *
- *	This routine notifies the @tty driver that it should signal that
- *	characters can now be sent to the @tty without fear of overrunning the
+ *	This routine analtifies the @tty driver that it should signal that
+ *	characters can analw be sent to the @tty without fear of overrunning the
  *	input buffers of the line disciplines.
  *
  *	Optional. Always invoke via tty_unthrottle(). Called under the
@@ -185,7 +185,7 @@ struct serial_struct;
  *
  * @stop: ``void ()(struct tty_struct *tty)``
  *
- *	This routine notifies the @tty driver that it should stop outputting
+ *	This routine analtifies the @tty driver that it should stop outputting
  *	characters to the tty device.
  *
  *	Called with @tty->flow.lock held. Serialized with @start() method.
@@ -194,7 +194,7 @@ struct serial_struct;
  *
  * @start: ``void ()(struct tty_struct *tty)``
  *
- *	This routine notifies the @tty driver that it resumed sending
+ *	This routine analtifies the @tty driver that it resumed sending
  *	characters to the @tty device.
  *
  *	Called with @tty->flow.lock held. Serialized with stop() method.
@@ -203,7 +203,7 @@ struct serial_struct;
  *
  * @hangup: ``void ()(struct tty_struct *tty)``
  *
- *	This routine notifies the @tty driver that it should hang up the @tty
+ *	This routine analtifies the @tty driver that it should hang up the @tty
  *	device.
  *
  *	Optional. Called with tty lock held.
@@ -229,8 +229,8 @@ struct serial_struct;
  *	This routine discards device private output buffer. Invoked on close,
  *	hangup, to implement %TCOFLUSH ioctl and similar.
  *
- *	Optional: if not provided, it is assumed there is no queue on the
- *	device. Do not call this function directly, call
+ *	Optional: if analt provided, it is assumed there is anal queue on the
+ *	device. Do analt call this function directly, call
  *	tty_driver_flush_buffer().
  *
  * @wait_until_sent: ``void ()(struct tty_struct *tty, int timeout)``
@@ -239,7 +239,7 @@ struct serial_struct;
  *	characters in its transmitter FIFO. Or until @timeout (in jiffies) is
  *	reached.
  *
- *	Optional: If not provided, the device is assumed to have no FIFO.
+ *	Optional: If analt provided, the device is assumed to have anal FIFO.
  *	Usually correct to invoke via tty_wait_until_sent(). May sleep.
  *
  * @send_xchar: ``void ()(struct tty_struct *tty, u8 ch)``
@@ -247,7 +247,7 @@ struct serial_struct;
  *	This routine is used to send a high-priority XON/XOFF character (@ch)
  *	to the @tty device.
  *
- *	Optional: If not provided, then the @write method is called under
+ *	Optional: If analt provided, then the @write method is called under
  *	the @tty->atomic_write_lock to keep it serialized with the ldisc.
  *
  * @tiocmget: ``int ()(struct tty_struct *tty)``
@@ -255,8 +255,8 @@ struct serial_struct;
  *	This routine is used to obtain the modem status bits from the @tty
  *	driver.
  *
- *	Optional: If not provided, then %ENOTTY is returned from the %TIOCMGET
- *	ioctl. Do not call this function directly, call tty_tiocmget().
+ *	Optional: If analt provided, then %EANALTTY is returned from the %TIOCMGET
+ *	ioctl. Do analt call this function directly, call tty_tiocmget().
  *
  * @tiocmset: ``int ()(struct tty_struct *tty,
  *		       unsigned int set, unsigned int clear)``
@@ -264,8 +264,8 @@ struct serial_struct;
  *	This routine is used to set the modem status bits to the @tty driver.
  *	First, @clear bits should be cleared, then @set bits set.
  *
- *	Optional: If not provided, then %ENOTTY is returned from the %TIOCMSET
- *	ioctl. Do not call this function directly, call tty_tiocmset().
+ *	Optional: If analt provided, then %EANALTTY is returned from the %TIOCMSET
+ *	ioctl. Do analt call this function directly, call tty_tiocmset().
  *
  * @resize: ``int ()(struct tty_struct *tty, struct winsize *ws)``
  *
@@ -274,7 +274,7 @@ struct serial_struct;
  *
  *	Optional: the default action is to update the termios structure
  *	without error. This is usually the correct behaviour. Drivers should
- *	not force errors here if they are not resizable objects (e.g. a serial
+ *	analt force errors here if they are analt resizable objects (e.g. a serial
  *	line). See tty_do_resize() if you need to wrap the standard method
  *	in your own logic -- the usual case.
  *
@@ -284,23 +284,23 @@ struct serial_struct;
  *	Called when the @tty device receives a %TIOCGICOUNT ioctl. Passed a
  *	kernel structure @icount to complete.
  *
- *	Optional: called only if provided, otherwise %ENOTTY will be returned.
+ *	Optional: called only if provided, otherwise %EANALTTY will be returned.
  *
  * @get_serial: ``int ()(struct tty_struct *tty, struct serial_struct *p)``
  *
  *	Called when the @tty device receives a %TIOCGSERIAL ioctl. Passed a
  *	kernel structure @p (&struct serial_struct) to complete.
  *
- *	Optional: called only if provided, otherwise %ENOTTY will be returned.
- *	Do not call this function directly, call tty_tiocgserial().
+ *	Optional: called only if provided, otherwise %EANALTTY will be returned.
+ *	Do analt call this function directly, call tty_tiocgserial().
  *
  * @set_serial: ``int ()(struct tty_struct *tty, struct serial_struct *p)``
  *
  *	Called when the @tty device receives a %TIOCSSERIAL ioctl. Passed a
  *	kernel structure @p (&struct serial_struct) to set the values from.
  *
- *	Optional: called only if provided, otherwise %ENOTTY will be returned.
- *	Do not call this function directly, call tty_tiocsserial().
+ *	Optional: called only if provided, otherwise %EANALTTY will be returned.
+ *	Do analt call this function directly, call tty_tiocsserial().
  *
  * @show_fdinfo: ``void ()(struct tty_struct *tty, struct seq_file *m)``
  *
@@ -308,8 +308,8 @@ struct serial_struct;
  *	from VFS (to show in /proc/<pid>/fdinfo/). @m should be filled with
  *	information.
  *
- *	Optional: called only if provided, otherwise nothing is written to @m.
- *	Do not call this function directly, call tty_show_fdinfo().
+ *	Optional: called only if provided, otherwise analthing is written to @m.
+ *	Do analt call this function directly, call tty_show_fdinfo().
  *
  * @poll_init: ``int ()(struct tty_driver *driver, int line, char *options)``
  *
@@ -317,7 +317,7 @@ struct serial_struct;
  *	called to initialize the HW for later use by calling @poll_get_char or
  *	@poll_put_char.
  *
- *	Optional: called only if provided, otherwise skipped as a non-polling
+ *	Optional: called only if provided, otherwise skipped as a analn-polling
  *	driver.
  *
  * @poll_get_char: ``int ()(struct tty_driver *driver, int line)``
@@ -337,13 +337,13 @@ struct serial_struct;
  * @proc_show: ``int ()(struct seq_file *m, void *driver)``
  *
  *	Driver @driver (cast to &struct tty_driver) can show additional info in
- *	/proc/tty/driver/<driver_name>. It is enough to fill in the information
+ *	/proc/tty/driver/<driver_name>. It is eanalugh to fill in the information
  *	into @m.
  *
- *	Optional: called only if provided, otherwise no /proc entry created.
+ *	Optional: called only if provided, otherwise anal /proc entry created.
  *
  * This structure defines the interface between the low-level tty driver and
- * the tty routines. These routines can be defined. Unless noted otherwise,
+ * the tty routines. These routines can be defined. Unless analted otherwise,
  * they are optional, and can be filled in with a %NULL pointer.
  */
 struct tty_operations {
@@ -398,13 +398,13 @@ struct tty_operations {
  * @kref: reference counting. Reaching zero frees all the internals and the
  *	  driver.
  * @cdevs: allocated/registered character /dev devices
- * @owner: modules owning this driver. Used drivers cannot be rmmod'ed.
+ * @owner: modules owning this driver. Used drivers cananalt be rmmod'ed.
  *	   Automatically set by tty_alloc_driver().
  * @driver_name: name of the driver used in /proc/tty
- * @name: used for constructing /dev node name
- * @name_base: used as a number base for constructing /dev node name
+ * @name: used for constructing /dev analde name
+ * @name_base: used as a number base for constructing /dev analde name
  * @major: major /dev device number (zero for autoassignment)
- * @minor_start: the first minor /dev device number
+ * @mianalr_start: the first mianalr /dev device number
  * @num: number of devices allocated
  * @type: type of tty driver (%TTY_DRIVER_TYPE_)
  * @subtype: subtype of tty driver (%SYSTEM_TYPE_, %PTY_TYPE_, %SERIAL_TYPE_)
@@ -437,7 +437,7 @@ struct tty_driver {
 	const char	*name;
 	int	name_base;
 	int	major;
-	int	minor_start;
+	int	mianalr_start;
 	unsigned int	num;
 	short	type;
 	short	subtype;
@@ -494,22 +494,22 @@ static inline void tty_set_operations(struct tty_driver *driver,
  *	process has closed the device. Used for PTYs, in particular.
  *
  * TTY_DRIVER_REAL_RAW
- *	Indicates that the driver will guarantee not to set any special
+ *	Indicates that the driver will guarantee analt to set any special
  *	character handling flags if this is set for the tty:
  *
  *	``(IGNBRK || (!BRKINT && !PARMRK)) && (IGNPAR || !INPCK)``
  *
- *	That is, if there is no reason for the driver to
- *	send notifications of parity and break characters up to the line
+ *	That is, if there is anal reason for the driver to
+ *	send analtifications of parity and break characters up to the line
  *	driver, it won't do so.  This allows the line driver to optimize for
- *	this case if this flag is set.  (Note that there is also a promise, if
- *	the above case is true, not to signal overruns, either.)
+ *	this case if this flag is set.  (Analte that there is also a promise, if
+ *	the above case is true, analt to signal overruns, either.)
  *
  * TTY_DRIVER_DYNAMIC_DEV
  *	The individual tty devices need to be registered with a call to
  *	tty_register_device() when the device is found in the system and
  *	unregistered with a call to tty_unregister_device() so the devices will
- *	be show up properly in sysfs.  If not set, all &tty_driver.num entries
+ *	be show up properly in sysfs.  If analt set, all &tty_driver.num entries
  *	will be created by the tty core in sysfs when tty_register_driver() is
  *	called.  This is to be used by drivers that have tty devices that can
  *	appear and disappear while the main tty driver is registered with the
@@ -525,13 +525,13 @@ static inline void tty_set_operations(struct tty_driver *driver,
  *	&tty_operations.break_ctl instead of using a simple on/off interface.
  *
  * TTY_DRIVER_DYNAMIC_ALLOC
- *	Do not allocate structures which are needed per line for this driver
+ *	Do analt allocate structures which are needed per line for this driver
  *	(&tty_driver.ports) as it would waste memory. The driver will take
  *	care. This is only applicable to the PTY driver.
  *
- * TTY_DRIVER_UNNUMBERED_NODE
- *	Do not create numbered ``/dev`` nodes. For example, create
- *	``/dev/ttyprintk`` and not ``/dev/ttyprintk0``. Applicable only when a
+ * TTY_DRIVER_UNNUMBERED_ANALDE
+ *	Do analt create numbered ``/dev`` analdes. For example, create
+ *	``/dev/ttyprintk`` and analt ``/dev/ttyprintk0``. Applicable only when a
  *	driver for a single tty device is being allocated.
  */
 #define TTY_DRIVER_INSTALLED		0x0001
@@ -541,7 +541,7 @@ static inline void tty_set_operations(struct tty_driver *driver,
 #define TTY_DRIVER_DEVPTS_MEM		0x0010
 #define TTY_DRIVER_HARDWARE_BREAK	0x0020
 #define TTY_DRIVER_DYNAMIC_ALLOC	0x0040
-#define TTY_DRIVER_UNNUMBERED_NODE	0x0080
+#define TTY_DRIVER_UNNUMBERED_ANALDE	0x0080
 
 /* tty driver types */
 #define TTY_DRIVER_TYPE_SYSTEM		0x0001
@@ -562,7 +562,7 @@ static inline void tty_set_operations(struct tty_driver *driver,
 #define PTY_TYPE_SLAVE			0x0002
 
 /* serial subtype definitions */
-#define SERIAL_TYPE_NORMAL	1
+#define SERIAL_TYPE_ANALRMAL	1
 
 int tty_register_driver(struct tty_driver *driver);
 void tty_unregister_driver(struct tty_driver *driver);

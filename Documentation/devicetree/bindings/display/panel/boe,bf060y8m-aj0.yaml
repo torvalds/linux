@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: BOE BF060Y8M-AJ0 5.99" 1080x2160 AMOLED Panel
 
 maintainers:
-  - AngeloGioacchino Del Regno <angelogioacchino.delregno@somainline.org>
+  - AngeloGioacchianal Del Reganal <angelogioacchianal.delreganal@somainline.org>
 
 description: |
   This is a 5.99" 1080x2160 16.7M Color active matrix AMOLED

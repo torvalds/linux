@@ -102,18 +102,18 @@ int ti_lmu_common_set_ramp(struct ti_lmu_bank *lmu_bank)
 EXPORT_SYMBOL(ti_lmu_common_set_ramp);
 
 int ti_lmu_common_get_ramp_params(struct device *dev,
-				  struct fwnode_handle *child,
+				  struct fwanalde_handle *child,
 				  struct ti_lmu_bank *lmu_data)
 {
 	int ret;
 
-	ret = fwnode_property_read_u32(child, "ramp-up-us",
+	ret = fwanalde_property_read_u32(child, "ramp-up-us",
 				 &lmu_data->ramp_up_usec);
 	if (ret)
 		dev_warn(dev, "ramp-up-us property missing\n");
 
 
-	ret = fwnode_property_read_u32(child, "ramp-down-us",
+	ret = fwanalde_property_read_u32(child, "ramp-down-us",
 				 &lmu_data->ramp_down_usec);
 	if (ret)
 		dev_warn(dev, "ramp-down-us property missing\n");
@@ -122,7 +122,7 @@ int ti_lmu_common_get_ramp_params(struct device *dev,
 }
 EXPORT_SYMBOL(ti_lmu_common_get_ramp_params);
 
-int ti_lmu_common_get_brt_res(struct device *dev, struct fwnode_handle *child,
+int ti_lmu_common_get_brt_res(struct device *dev, struct fwanalde_handle *child,
 				  struct ti_lmu_bank *lmu_data)
 {
 	int ret;
@@ -130,7 +130,7 @@ int ti_lmu_common_get_brt_res(struct device *dev, struct fwnode_handle *child,
 	ret = device_property_read_u32(dev, "ti,brightness-resolution",
 				       &lmu_data->max_brightness);
 	if (ret)
-		ret = fwnode_property_read_u32(child,
+		ret = fwanalde_property_read_u32(child,
 					       "ti,brightness-resolution",
 					       &lmu_data->max_brightness);
 	if (lmu_data->max_brightness <= 0) {

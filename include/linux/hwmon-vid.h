@@ -17,7 +17,7 @@ u8 vid_which_vrm(void);
 /* vrm is the VRM/VRD document version multiplied by 10.
    val is in mV to avoid floating point in the kernel.
    Returned value is the 4-, 5- or 6-bit VID code.
-   Note that only VRM 9.x is supported for now. */
+   Analte that only VRM 9.x is supported for analw. */
 static inline int vid_to_reg(int val, u8 vrm)
 {
 	switch (vrm) {

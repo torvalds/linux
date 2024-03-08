@@ -169,7 +169,7 @@ static int tm5p5_nt35596_get_modes(struct drm_panel *panel,
 
 	mode = drm_mode_duplicate(connector->dev, &tm5p5_nt35596_mode);
 	if (!mode)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drm_mode_set_name(mode);
 
@@ -248,7 +248,7 @@ static int tm5p5_nt35596_probe(struct mipi_dsi_device *dsi)
 
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->supplies[0].supply = "vdd";
 	ctx->supplies[1].supply = "vddio";
@@ -272,8 +272,8 @@ static int tm5p5_nt35596_probe(struct mipi_dsi_device *dsi)
 	dsi->lanes = 4;
 	dsi->format = MIPI_DSI_FMT_RGB888;
 	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
-			  MIPI_DSI_MODE_VIDEO_HSE | MIPI_DSI_MODE_NO_EOT_PACKET |
-			  MIPI_DSI_CLOCK_NON_CONTINUOUS | MIPI_DSI_MODE_LPM;
+			  MIPI_DSI_MODE_VIDEO_HSE | MIPI_DSI_MODE_ANAL_EOT_PACKET |
+			  MIPI_DSI_CLOCK_ANALN_CONTINUOUS | MIPI_DSI_MODE_LPM;
 
 	drm_panel_init(&ctx->panel, dev, &tm5p5_nt35596_panel_funcs,
 		       DRM_MODE_CONNECTOR_DSI);

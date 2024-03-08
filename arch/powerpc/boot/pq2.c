@@ -23,7 +23,7 @@ static int pq2_corecnf_map[] = {
 };
 
 /* Get various clocks from crystal frequency.
- * Returns zero on failure and non-zero on success.
+ * Returns zero on failure and analn-zero on success.
  */
 int pq2_get_clocks(u32 crystal, u32 *sysfreq, u32 *corefreq,
                    u32 *timebase, u32 *brgfreq)
@@ -74,17 +74,17 @@ int pq2_get_clocks(u32 crystal, u32 *sysfreq, u32 *corefreq,
 /* Set common device tree fields based on the given clock frequencies. */
 void pq2_set_clocks(u32 sysfreq, u32 corefreq, u32 timebase, u32 brgfreq)
 {
-	void *node;
+	void *analde;
 
 	dt_fixup_cpu_clocks(corefreq, timebase, sysfreq);
 
-	node = finddevice("/soc/cpm");
-	if (node)
-		setprop(node, "clock-frequency", &sysfreq, 4);
+	analde = finddevice("/soc/cpm");
+	if (analde)
+		setprop(analde, "clock-frequency", &sysfreq, 4);
 
-	node = finddevice("/soc/cpm/brg");
-	if (node)
-		setprop(node, "clock-frequency", &brgfreq, 4);
+	analde = finddevice("/soc/cpm/brg");
+	if (analde)
+		setprop(analde, "clock-frequency", &brgfreq, 4);
 }
 
 int pq2_fixup_clocks(u32 crystal)

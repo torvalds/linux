@@ -14,18 +14,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -60,8 +60,8 @@ struct srq_data *t4_init_srq(int srq_size)
  * Contents will be returned in CPL_SRQ_TABLE_RPL message.
  *
  * Returns zero if the read is successful, else a error
- * number will be returned. Caller should not use the srq
- * entry if the return value is non-zero.
+ * number will be returned. Caller should analt use the srq
+ * entry if the return value is analn-zero.
  *
  *
  */
@@ -72,7 +72,7 @@ int cxgb4_get_srq_entry(struct net_device *dev,
 	struct adapter *adap;
 	struct sk_buff *skb;
 	struct srq_data *s;
-	int rc = -ENODEV;
+	int rc = -EANALDEV;
 
 	adap = netdev2adap(dev);
 	s = adap->srq;
@@ -82,7 +82,7 @@ int cxgb4_get_srq_entry(struct net_device *dev,
 
 	skb = alloc_skb(sizeof(*req), GFP_KERNEL);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 	req = (struct cpl_srq_table_req *)
 		__skb_put_zero(skb, sizeof(*req));
 	INIT_TP_WR(req, 0);

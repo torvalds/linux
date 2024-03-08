@@ -44,7 +44,7 @@ static void genmask_input_check_test(struct kunit *test)
 	unsigned int x, y;
 	int z, w;
 
-	/* Unknown input */
+	/* Unkanalwn input */
 	KUNIT_EXPECT_EQ(test, 0, GENMASK_INPUT_CHECK(x, 0));
 	KUNIT_EXPECT_EQ(test, 0, GENMASK_INPUT_CHECK(0, x));
 	KUNIT_EXPECT_EQ(test, 0, GENMASK_INPUT_CHECK(x, y));

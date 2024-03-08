@@ -1,6 +1,6 @@
 GMT G762/G763 PWM Fan controller
 
-Required node properties:
+Required analde properties:
 
  - "compatible": must be either "gmt,g762" or "gmt,g763"
  - "reg": I2C bus address of the device
@@ -17,14 +17,14 @@ Optional properties:
 
  - "fan_gear_mode": fan gear mode. Supported values are 0, 1 and 2.
 
-If an optional property is not set in .dts file, then current value is kept
+If an optional property is analt set in .dts file, then current value is kept
 unmodified (e.g. u-boot installed value).
 
 Additional information on operational parameters for the device is available
 in Documentation/hwmon/g762.rst. A detailed datasheet for the device is available
 at http://natisbad.org/NAS/refs/GMT_EDS-762_763-080710-0.2.pdf.
 
-Example g762 node:
+Example g762 analde:
 
    clocks {
 	#address-cells = <1>;

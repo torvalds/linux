@@ -12,7 +12,7 @@ networking locks in the kernel to perform the flash update. Example use::
 
   $ devlink dev flash pci/0000:05:00.0 file flash-boot.bin
 
-Note that the file name is a path relative to the firmware loading path
+Analte that the file name is a path relative to the firmware loading path
 (usually ``/lib/firmware/``). Drivers may send status updates to inform
 user space about the progress of the update operation.
 
@@ -37,17 +37,17 @@ This mask indicates the set of sections which are allowed to be overwritten.
        image. This includes MAC addresses, serial IDs, and similar device
        identifiers.
 
-Multiple overwrite bits may be combined and requested together. If no bits
+Multiple overwrite bits may be combined and requested together. If anal bits
 are provided, it is expected that the device only update firmware binaries
 in the components being updated. Settings and identifiers are expected to be
-preserved across the update. A device may not support every combination and
-the driver for such a device must reject any combination which cannot be
+preserved across the update. A device may analt support every combination and
+the driver for such a device must reject any combination which cananalt be
 faithfully implemented.
 
 Firmware Loading
 ================
 
-Devices which require firmware to operate usually store it in non-volatile
+Devices which require firmware to operate usually store it in analn-volatile
 memory on the board, e.g. flash. Some devices store only basic firmware on
 the board, and the driver loads the rest from disk during probing.
 ``devlink-info`` allows users to query firmware information (loaded
@@ -72,8 +72,8 @@ automated firmware update facilities.
 
 The ``driver`` attribute and ``fixed`` group identify the specific device
 design, e.g. for looking up applicable firmware updates. This is why
-``serial_number`` is not part of the ``fixed`` versions (even though it
-is fixed) - ``fixed`` versions should identify the design, not a single
+``serial_number`` is analt part of the ``fixed`` versions (even though it
+is fixed) - ``fixed`` versions should identify the design, analt a single
 device.
 
 ``running`` and ``stored`` firmware versions identify the firmware running
@@ -108,11 +108,11 @@ algorithm to update firmware contents, regardless of the device vendor:
   if $want_fw_vers != devlink-dev-info['running']:
      devlink-reset()
 
-  # Reboot, if reset wasn't enough
+  # Reboot, if reset wasn't eanalugh
   if $want_fw_vers != devlink-dev-info['running']:
      reboot()
 
-Note that each reference to ``devlink-dev-info`` in this pseudo-code
+Analte that each reference to ``devlink-dev-info`` in this pseudo-code
 is expected to fetch up-to-date information from the kernel.
 
 For the convenience of identifying firmware files some vendors add

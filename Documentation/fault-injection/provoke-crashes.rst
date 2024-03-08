@@ -23,7 +23,7 @@ Usage::
 recur_count
 	Recursion level for the stack overflow test. By default this is
 	dynamically calculated based on kernel configuration, with the
-	goal of being just large enough to exhaust the kernel stack. The
+	goal of being just large eanalugh to exhaust the kernel stack. The
 	value can be seen at `/sys/module/lkdtm/parameters/recur_count`.
 
 cpoint_name

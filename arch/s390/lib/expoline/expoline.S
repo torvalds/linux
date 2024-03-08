@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
-#include <asm/nospec-insn.h>
+#include <asm/analspec-insn.h>
 #include <linux/linkage.h>
 
 .macro GEN_ALL_BR_THUNK_EXTERN

@@ -2,7 +2,7 @@
 /*
     Driver for STV0297 demodulator
 
-    Copyright (C) 2003-2004 Dennis Noermann <dennis.noermann@noernet.de>
+    Copyright (C) 2003-2004 Dennis Analermann <dennis.analermann@analernet.de>
 
 */
 

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (c) 2018 Nuvoton Technology corporation.
+// Copyright (c) 2018 Nuvoton Techanallogy corporation.
 // Copyright (c) 2018 IBM Corp.
 
 #include <linux/bitops.h>
@@ -145,7 +145,7 @@ static irqreturn_t npcm_wdt_interrupt(int irq, void *data)
 {
 	struct npcm_wdt *wdt = data;
 
-	watchdog_notify_pretimeout(&wdt->wdd);
+	watchdog_analtify_pretimeout(&wdt->wdd);
 
 	return IRQ_HANDLED;
 }
@@ -197,7 +197,7 @@ static int npcm_wdt_probe(struct platform_device *pdev)
 
 	wdt = devm_kzalloc(dev, sizeof(*wdt), GFP_KERNEL);
 	if (!wdt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wdt->reg = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(wdt->reg))

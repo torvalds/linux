@@ -31,14 +31,14 @@
 # define TV_OVERSAMPLE_4X		(0 << 18)
 /* Selects 2x oversampling for 720p and 1080i */
 # define TV_OVERSAMPLE_2X		(1 << 18)
-/* Selects no oversampling for 1080p */
-# define TV_OVERSAMPLE_NONE		(2 << 18)
+/* Selects anal oversampling for 1080p */
+# define TV_OVERSAMPLE_ANALNE		(2 << 18)
 /* Selects 8x oversampling */
 # define TV_OVERSAMPLE_8X		(3 << 18)
 # define TV_OVERSAMPLE_MASK		(3 << 18)
 /* Selects progressive mode rather than interlaced */
 # define TV_PROGRESSIVE			(1 << 17)
-/* Sets the colorburst to PAL mode.  Required for non-M PAL modes. */
+/* Sets the colorburst to PAL mode.  Required for analn-M PAL modes. */
 # define TV_PAL_BURST			(1 << 16)
 /* Field for setting delay of Y compared to C */
 # define TV_YC_SKEW_MASK		(7 << 12)
@@ -47,7 +47,7 @@
 /*
  * Enables a fix for the 915GM only.
  *
- * Not sure what it does.
+ * Analt sure what it does.
  */
 # define TV_ENC_C0_FIX			(1 << 10)
 /* Bits that must be preserved by software */
@@ -56,18 +56,18 @@
 /* Read-only state that reports all features enabled */
 # define TV_FUSE_STATE_ENABLED		(0 << 4)
 /* Read-only state that reports that Macrovision is disabled in hardware*/
-# define TV_FUSE_STATE_NO_MACROVISION	(1 << 4)
+# define TV_FUSE_STATE_ANAL_MACROVISION	(1 << 4)
 /* Read-only state that reports that TV-out is disabled in hardware. */
 # define TV_FUSE_STATE_DISABLED		(2 << 4)
-/* Normal operation */
-# define TV_TEST_MODE_NORMAL		(0 << 0)
+/* Analrmal operation */
+# define TV_TEST_MODE_ANALRMAL		(0 << 0)
 /* Encoder test pattern 1 - combo pattern */
 # define TV_TEST_MODE_PATTERN_1		(1 << 0)
 /* Encoder test pattern 2 - full screen vertical 75% color bars */
 # define TV_TEST_MODE_PATTERN_2		(2 << 0)
 /* Encoder test pattern 3 - full screen horizontal 75% color bars */
 # define TV_TEST_MODE_PATTERN_3		(3 << 0)
-/* Encoder test pattern 4 - random noise */
+/* Encoder test pattern 4 - random analise */
 # define TV_TEST_MODE_PATTERN_4		(4 << 0)
 /* Encoder test pattern 5 - linear color ramps */
 # define TV_TEST_MODE_PATTERN_5		(5 << 0)
@@ -181,7 +181,7 @@
 # define TV_AV_MASK			0x000007ff
 # define TV_AV_SHIFT			0
 
-#define TV_CLR_KNOBS		_MMIO(0x68028)
+#define TV_CLR_KANALBS		_MMIO(0x68028)
 /* 2s-complement brightness adjustment */
 # define TV_BRIGHTNESS_MASK		0xff000000
 # define TV_BRIGHTNESS_SHIFT		24
@@ -212,7 +212,7 @@
 # define TV_HTOTAL_SHIFT		0
 
 #define TV_H_CTL_2		_MMIO(0x68034)
-/* Enables the colorburst (needed for non-component color) */
+/* Enables the colorburst (needed for analn-component color) */
 # define TV_BURST_ENA			(1 << 31)
 /* Offset of the colorburst from the start of hsync, in pixels minus one. */
 # define TV_HBURST_START_SHIFT		16
@@ -392,7 +392,7 @@
 /*
  * Enables automatic scaling calculation.
  *
- * If set, the rest of the registers are ignored, and the calculated values can
+ * If set, the rest of the registers are iganalred, and the calculated values can
  * be read back from the register.
  */
 # define TV_AUTO_SCALE			(1 << 31)

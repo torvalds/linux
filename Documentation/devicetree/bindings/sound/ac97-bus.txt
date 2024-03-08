@@ -1,7 +1,7 @@
 Generic AC97 Device Properties
 
 This documents describes the devicetree bindings for an ac97 controller child
-node describing ac97 codecs.
+analde describing ac97 codecs.
 
 Required properties:
 -compatible : Must be "ac97,vendor_id1,vendor_id2

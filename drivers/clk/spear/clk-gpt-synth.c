@@ -123,7 +123,7 @@ struct clk *clk_register_gpt(const char *name, const char *parent_name, unsigned
 
 	gpt = kzalloc(sizeof(*gpt), GFP_KERNEL);
 	if (!gpt)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	/* struct clk_gpt assignments */
 	gpt->reg = reg;

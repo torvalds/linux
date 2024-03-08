@@ -18,10 +18,10 @@ Description
 
 The BPA-RS600 is a compact 600W removable power supply module.
 
-Usage Notes
+Usage Analtes
 -----------
 
-This driver does not probe for PMBus devices. You will have to instantiate
+This driver does analt probe for PMBus devices. You will have to instantiate
 devices explicitly.
 
 Sysfs attributes

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -32,7 +32,7 @@
 #define TMDS_MAX_PIXEL_CLOCK 165000
 
 enum signal_type {
-	SIGNAL_TYPE_NONE		= 0L,		/* no signal */
+	SIGNAL_TYPE_ANALNE		= 0L,		/* anal signal */
 	SIGNAL_TYPE_DVI_SINGLE_LINK	= (1 << 0),
 	SIGNAL_TYPE_DVI_DUAL_LINK	= (1 << 1),
 	SIGNAL_TYPE_HDMI_TYPE_A		= (1 << 2),
@@ -47,8 +47,8 @@ enum signal_type {
 static inline const char *signal_type_to_string(const int type)
 {
 	switch (type) {
-	case SIGNAL_TYPE_NONE:
-		return "No signal";
+	case SIGNAL_TYPE_ANALNE:
+		return "Anal signal";
 	case SIGNAL_TYPE_DVI_SINGLE_LINK:
 		return "DVI: Single Link";
 	case SIGNAL_TYPE_DVI_DUAL_LINK:
@@ -68,7 +68,7 @@ static inline const char *signal_type_to_string(const int type)
 	case SIGNAL_TYPE_VIRTUAL:
 		return "Virtual";
 	default:
-		return "Unknown";
+		return "Unkanalwn";
 	}
 }
 

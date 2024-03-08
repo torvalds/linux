@@ -20,7 +20,7 @@ struct datalink_proto {
                                 struct packet_type *, struct net_device *);
 	int     (*request)(struct datalink_proto *, struct sk_buff *,
 			   const unsigned char *);
-	struct list_head node;
+	struct list_head analde;
 };
 
 #endif

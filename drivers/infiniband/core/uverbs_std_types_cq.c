@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Mellanox Technologies inc.  All rights reserved.
+ * Copyright (c) 2017, Mellaanalx Techanallogies inc.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -73,7 +73,7 @@ static int UVERBS_HANDLER(UVERBS_METHOD_CQ_CREATE)(
 	struct ib_uobject *ev_file_uobj;
 
 	if (!ib_dev->ops.create_cq || !ib_dev->ops.destroy_cq)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = uverbs_copy_from(&attr.comp_vector, attrs,
 			       UVERBS_ATTR_CREATE_CQ_COMP_VECTOR);
@@ -89,7 +89,7 @@ static int UVERBS_HANDLER(UVERBS_METHOD_CQ_CREATE)(
 	ret = uverbs_get_flags32(&attr.flags, attrs,
 				 UVERBS_ATTR_CREATE_CQ_FLAGS,
 				 IB_UVERBS_CQ_FLAGS_TIMESTAMP_COMPLETION |
-					 IB_UVERBS_CQ_FLAGS_IGNORE_OVERRUN);
+					 IB_UVERBS_CQ_FLAGS_IGANALRE_OVERRUN);
 	if (ret)
 		return ret;
 
@@ -114,7 +114,7 @@ static int UVERBS_HANDLER(UVERBS_METHOD_CQ_CREATE)(
 
 	cq = rdma_zalloc_drv_obj(ib_dev, ib_cq);
 	if (!cq) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_event_file;
 	}
 

@@ -60,7 +60,7 @@ static int flexcop_set_voltage(struct dvb_frontend *fe,
 		v.misc_204.LNB_L_H_sig = 1;
 		break;
 	default:
-		err("unknown SEC_VOLTAGE value");
+		err("unkanalwn SEC_VOLTAGE value");
 		return -EINVAL;
 	}
 	return fc->write_ibi_reg(fc, misc_204, v);
@@ -96,7 +96,7 @@ static int flexcop_set_tone(struct dvb_frontend *fe, enum fe_sec_tone_mode tone)
 		ax = 0;
 		break;
 	default:
-		err("unknown SEC_TONE value");
+		err("unkanalwn SEC_TONE value");
 		return -EINVAL;
 	}
 
@@ -320,8 +320,8 @@ static int skystar2_rev27_attach(struct flexcop_device *fc,
 	flexcop_ibi_value r108;
 	struct i2c_adapter *i2c_tuner;
 
-	/* enable no_base_addr - no repeated start when reading */
-	fc->fc_i2c_adap[0].no_base_addr = 1;
+	/* enable anal_base_addr - anal repeated start when reading */
+	fc->fc_i2c_adap[0].anal_base_addr = 1;
 	fc->fe = dvb_attach(s5h1420_attach, &skystar2_rev2_7_s5h1420_config,
 			    i2c);
 	if (!fc->fe)
@@ -334,11 +334,11 @@ static int skystar2_rev27_attach(struct flexcop_device *fc,
 	fc->fe_sleep = fc->fe->ops.sleep;
 	fc->fe->ops.sleep = flexcop_sleep;
 
-	/* enable no_base_addr - no repeated start when reading */
-	fc->fc_i2c_adap[2].no_base_addr = 1;
+	/* enable anal_base_addr - anal repeated start when reading */
+	fc->fc_i2c_adap[2].anal_base_addr = 1;
 	if (!dvb_attach(isl6421_attach, fc->fe, &fc->fc_i2c_adap[2].i2c_adap,
 			0x08, 1, 1, false)) {
-		err("ISL6421 could NOT be attached");
+		err("ISL6421 could ANALT be attached");
 		goto fail_isl;
 	}
 	info("ISL6421 successfully attached");
@@ -348,7 +348,7 @@ static int skystar2_rev27_attach(struct flexcop_device *fc,
 	fc->write_ibi_reg(fc, tw_sm_c_108, r108);
 	if (!dvb_attach(itd1000_attach, fc->fe, i2c_tuner,
 			&skystar2_rev2_7_itd1000_config)) {
-		err("ITD1000 could NOT be attached");
+		err("ITD1000 could ANALT be attached");
 		/* Should i2c clock be restored? */
 		goto fail_isl;
 	}
@@ -357,10 +357,10 @@ static int skystar2_rev27_attach(struct flexcop_device *fc,
 	return 1;
 
 fail_isl:
-	fc->fc_i2c_adap[2].no_base_addr = 0;
+	fc->fc_i2c_adap[2].anal_base_addr = 0;
 fail:
 	/* for the next devices we need it again */
-	fc->fc_i2c_adap[0].no_base_addr = 0;
+	fc->fc_i2c_adap[0].anal_base_addr = 0;
 	return 0;
 }
 #else
@@ -396,21 +396,21 @@ static int skystar2_rev28_attach(struct flexcop_device *fc,
 
 	if (!dvb_attach(cx24113_attach, fc->fe, &skystar2_rev2_8_cx24113_config,
 			i2c_tuner)) {
-		err("CX24113 could NOT be attached");
+		err("CX24113 could ANALT be attached");
 		return 0;
 	}
 	info("CX24113 successfully attached");
 
-	fc->fc_i2c_adap[2].no_base_addr = 1;
+	fc->fc_i2c_adap[2].anal_base_addr = 1;
 	if (!dvb_attach(isl6421_attach, fc->fe, &fc->fc_i2c_adap[2].i2c_adap,
 			0x08, 0, 0, false)) {
-		err("ISL6421 could NOT be attached");
-		fc->fc_i2c_adap[2].no_base_addr = 0;
+		err("ISL6421 could ANALT be attached");
+		fc->fc_i2c_adap[2].anal_base_addr = 0;
 		return 0;
 	}
 	info("ISL6421 successfully attached");
 	/* TODO on i2c_adap[1] addr 0x11 (EEPROM) there seems to be an
-	 * IR-receiver (PIC16F818) - but the card has no input for that ??? */
+	 * IR-receiver (PIC16F818) - but the card has anal input for that ??? */
 	return 1;
 }
 #else
@@ -598,7 +598,7 @@ static struct stv0297_config alps_tdee4_stv0297_config = {
 static int cablestar2_attach(struct flexcop_device *fc,
 	struct i2c_adapter *i2c)
 {
-	fc->fc_i2c_adap[0].no_base_addr = 1;
+	fc->fc_i2c_adap[0].anal_base_addr = 1;
 	fc->fe = dvb_attach(stv0297_attach, &alps_tdee4_stv0297_config, i2c);
 	if (!fc->fe)
 		goto fail;
@@ -617,7 +617,7 @@ static int cablestar2_attach(struct flexcop_device *fc,
 
 fail:
 	/* Reset for next frontend to try */
-	fc->fc_i2c_adap[0].no_base_addr = 0;
+	fc->fc_i2c_adap[0].anal_base_addr = 0;
 	return 0;
 }
 #else
@@ -643,11 +643,11 @@ static int skystarS2_rev33_attach(struct flexcop_device *fc,
 		return 0;
 
 	fc->dev_type = FC_SKYS2_REV33;
-	fc->fc_i2c_adap[2].no_base_addr = 1;
+	fc->fc_i2c_adap[2].anal_base_addr = 1;
 	if (!dvb_attach(isl6421_attach, fc->fe, &fc->fc_i2c_adap[2].i2c_adap,
 			0x08, 0, 0, false)) {
-		err("ISL6421 could NOT be attached!");
-		fc->fc_i2c_adap[2].no_base_addr = 0;
+		err("ISL6421 could ANALT be attached!");
+		fc->fc_i2c_adap[2].anal_base_addr = 0;
 		return 0;
 	}
 	info("ISL6421 successfully attached.");
@@ -696,8 +696,8 @@ int flexcop_frontend_init(struct flexcop_device *fc)
 		}
 	}
 	fc->dev_type = FC_UNK;
-	err("no frontend driver found for this B2C2/FlexCop adapter");
-	return -ENODEV;
+	err("anal frontend driver found for this B2C2/FlexCop adapter");
+	return -EANALDEV;
 
 fe_found:
 	info("found '%s' .", fc->fe->ops.info.name);

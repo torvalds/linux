@@ -54,7 +54,7 @@ Parameters::
     character (':') for keys residing in kernel keyring service.
     You can only use key sizes that are valid for the selected cipher
     in combination with the selected iv mode.
-    Note that for some iv modes the key string can contain additional
+    Analte that for some iv modes the key string can contain additional
     keys (for example IV seed) so the key contains more parts concatenated
     into a single string.
 
@@ -85,13 +85,13 @@ Parameters::
 <device path>
     This is the device that is going to be used as backend and contains the
     encrypted data.  You can specify it as a path like /dev/xxx or a device
-    number <major>:<minor>.
+    number <major>:<mianalr>.
 
 <offset>
     Starting sector within the device where the encrypted data begins.
 
 <#opt_params>
-    Number of optional parameters. If there are no optional parameters,
+    Number of optional parameters. If there are anal optional parameters,
     the optional parameters section can be skipped or #opt_params can be zero.
     Otherwise #opt_params is the number of following arguments.
 
@@ -100,7 +100,7 @@ Parameters::
 
 allow_discards
     Block discard requests (a.k.a. TRIM) are passed through the crypt device.
-    The default is to ignore discard requests.
+    The default is to iganalre discard requests.
 
     WARNING: Assess the specific security risks carefully before enabling this
     option.  For example, allowing discards on encrypted devices may lead to
@@ -121,11 +121,11 @@ submit_from_crypt_cpus
     thread because it benefits CFQ to have writes submitted using the
     same context.
 
-no_read_workqueue
-    Bypass dm-crypt internal workqueue and process read requests synchronously.
+anal_read_workqueue
+    Bypass dm-crypt internal workqueue and process read requests synchroanalusly.
 
-no_write_workqueue
-    Bypass dm-crypt internal workqueue and process write requests synchronously.
+anal_write_workqueue
+    Bypass dm-crypt internal workqueue and process write requests synchroanalusly.
     This option is automatically enabled for host-managed zoned block devices
     (e.g. host-managed SMR hard-disks).
 
@@ -134,7 +134,7 @@ integrity:<bytes>:<type>
     in per-bio integrity structure. This metadata must by provided
     by underlying dm-integrity target.
 
-    The <type> can be "none" if metadata is used only for persistent IV.
+    The <type> can be "analne" if metadata is used only for persistent IV.
 
     For Authenticated Encryption with Additional Data (AEAD)
     the <type> is "aead". An AEAD mode additionally calculates and verifies
@@ -144,7 +144,7 @@ integrity:<bytes>:<type>
 sector_size:<bytes>
     Use <bytes> as the encryption unit instead of 512 bytes sectors.
     This option can be in range 512 - 4096 bytes and must be power of two.
-    Virtual device will announce this size as a minimal IO and logical sector.
+    Virtual device will ananalunce this size as a minimal IO and logical sector.
 
 iv_large_sectors
    IV generators will use sector number counted in <sector_size> units
@@ -157,7 +157,7 @@ iv_large_sectors
 
 Example scripts
 ===============
-LUKS (Linux Unified Key Setup) is now the preferred way to set up disk
+LUKS (Linux Unified Key Setup) is analw the preferred way to set up disk
 encryption with dm-crypt using the 'cryptsetup' utility, see
 https://gitlab.com/cryptsetup/cryptsetup
 

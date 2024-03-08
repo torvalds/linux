@@ -15,7 +15,7 @@ description:
   monitoring or control devices.
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^peci-controller(@.*)?$"
 
   cmd-timeout-ms:

@@ -4,7 +4,7 @@
 #include <internal/lib.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -56,7 +56,7 @@ int copyfile_offset(int ifd, loff_t off_in, int ofd, loff_t off_out, u64 size)
 
 	while (size) {
 		ssize_t ret = pwrite(ofd, ptr + off_in, size, off_out);
-		if (ret < 0 && errno == EINTR)
+		if (ret < 0 && erranal == EINTR)
 			continue;
 		if (ret <= 0)
 			break;

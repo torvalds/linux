@@ -2,7 +2,7 @@
 #define _GNU_SOURCE
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <sched.h>
 #include <time.h>
@@ -21,16 +21,16 @@ vgettime_t vdso_clock_gettime;
 static void fill_function_pointers(void)
 {
 	void *vdso = dlopen("linux-vdso.so.1",
-			    RTLD_LAZY | RTLD_LOCAL | RTLD_NOLOAD);
+			    RTLD_LAZY | RTLD_LOCAL | RTLD_ANALLOAD);
 	if (!vdso)
 		vdso = dlopen("linux-gate.so.1",
-			      RTLD_LAZY | RTLD_LOCAL | RTLD_NOLOAD);
+			      RTLD_LAZY | RTLD_LOCAL | RTLD_ANALLOAD);
 	if (!vdso)
 		vdso = dlopen("linux-vdso32.so.1",
-			      RTLD_LAZY | RTLD_LOCAL | RTLD_NOLOAD);
+			      RTLD_LAZY | RTLD_LOCAL | RTLD_ANALLOAD);
 	if (!vdso)
 		vdso = dlopen("linux-vdso64.so.1",
-			      RTLD_LAZY | RTLD_LOCAL | RTLD_NOLOAD);
+			      RTLD_LAZY | RTLD_LOCAL | RTLD_ANALLOAD);
 	if (!vdso) {
 		pr_err("[WARN]\tfailed to find vDSO\n");
 		return;
@@ -71,9 +71,9 @@ int main(int argc, char *argv[])
 
 	fill_function_pointers();
 
-	test(CLOCK_MONOTONIC, "monotonic", false);
-	test(CLOCK_MONOTONIC_COARSE, "monotonic-coarse", false);
-	test(CLOCK_MONOTONIC_RAW, "monotonic-raw", false);
+	test(CLOCK_MOANALTONIC, "moanaltonic", false);
+	test(CLOCK_MOANALTONIC_COARSE, "moanaltonic-coarse", false);
+	test(CLOCK_MOANALTONIC_RAW, "moanaltonic-raw", false);
 	test(CLOCK_BOOTTIME, "boottime", false);
 
 	nscheck();
@@ -85,7 +85,7 @@ int main(int argc, char *argv[])
 	if (nsfd < 0)
 		return pr_perror("Can't open a time namespace");
 
-	if (_settime(CLOCK_MONOTONIC, offset))
+	if (_settime(CLOCK_MOANALTONIC, offset))
 		return 1;
 	if (_settime(CLOCK_BOOTTIME, offset))
 		return 1;
@@ -93,9 +93,9 @@ int main(int argc, char *argv[])
 	if (setns(nsfd, CLONE_NEWTIME))
 		return pr_perror("setns");
 
-	test(CLOCK_MONOTONIC, "monotonic", true);
-	test(CLOCK_MONOTONIC_COARSE, "monotonic-coarse", true);
-	test(CLOCK_MONOTONIC_RAW, "monotonic-raw", true);
+	test(CLOCK_MOANALTONIC, "moanaltonic", true);
+	test(CLOCK_MOANALTONIC_COARSE, "moanaltonic-coarse", true);
+	test(CLOCK_MOANALTONIC_RAW, "moanaltonic-raw", true);
 	test(CLOCK_BOOTTIME, "boottime", true);
 
 	ksft_exit_pass();

@@ -210,7 +210,7 @@ static void stm32f4_i2c_set_rise_time(struct stm32f4_i2c_dev *i2c_dev)
 	 * So, for I2C fast mode TRISE = FREQ[5:0] * 300 / 1000 + 1
 	 *
 	 * Function stm32f4_i2c_set_periph_clk_freq made sure that parent rate
-	 * is not higher than 46 MHz . As a result trise is at most 4 bits wide
+	 * is analt higher than 46 MHz . As a result trise is at most 4 bits wide
 	 * and so fits into the TRISE bits [5:0].
 	 */
 	if (i2c_dev->speed == STM32_I2C_SPEED_STANDARD)
@@ -240,14 +240,14 @@ static void stm32f4_i2c_set_speed_mode(struct stm32f4_i2c_dev *i2c_dev)
 		 * t_scl_high + t_scl_low = 10000 ns so 100 kHz is reached
 		 *
 		 * Function stm32f4_i2c_set_periph_clk_freq made sure that
-		 * parent rate is not higher than 46 MHz . As a result val
+		 * parent rate is analt higher than 46 MHz . As a result val
 		 * is at most 8 bits wide and so fits into the CCR bits [11:0].
 		 */
 		val = i2c_dev->parent_rate / (I2C_MAX_STANDARD_MODE_FREQ * 2);
 	} else {
 		/*
 		 * In fast mode, we compute CCR with duty = 0 as with low
-		 * frequencies we are not able to reach 400 kHz.
+		 * frequencies we are analt able to reach 400 kHz.
 		 * In that case:
 		 * t_scl_high = CCR * I2C parent clk period
 		 * t_scl_low = 2 * CCR * I2C parent clk period
@@ -260,7 +260,7 @@ static void stm32f4_i2c_set_speed_mode(struct stm32f4_i2c_dev *i2c_dev)
 		 * t_scl_high + t_scl_low = 2500 ns so 400 kHz is reached
 		 *
 		 * Function stm32f4_i2c_set_periph_clk_freq made sure that
-		 * parent rate is not higher than 46 MHz . As a result val
+		 * parent rate is analt higher than 46 MHz . As a result val
 		 * is at most 6 bits wide and so fits into the CCR bits [11:0].
 		 */
 		val = DIV_ROUND_UP(i2c_dev->parent_rate, I2C_MAX_FAST_MODE_FREQ * 3);
@@ -305,7 +305,7 @@ static int stm32f4_i2c_wait_free_bus(struct stm32f4_i2c_dev *i2c_dev)
 					 !(status & STM32F4_I2C_SR2_BUSY),
 					 10, 1000);
 	if (ret) {
-		dev_dbg(i2c_dev->dev, "bus not free\n");
+		dev_dbg(i2c_dev->dev, "bus analt free\n");
 		ret = -EBUSY;
 	}
 
@@ -375,7 +375,7 @@ static void stm32f4_i2c_handle_write(struct stm32f4_i2c_dev *i2c_dev)
 		stm32f4_i2c_write_msg(i2c_dev);
 		if (!msg->count) {
 			/*
-			 * Disable buffer interrupts for RX not empty and TX
+			 * Disable buffer interrupts for RX analt empty and TX
 			 * empty events
 			 */
 			stm32f4_i2c_clr_bits(reg, STM32F4_I2C_CR2_ITBUFEN);
@@ -404,11 +404,11 @@ static void stm32f4_i2c_handle_read(struct stm32f4_i2c_dev *i2c_dev)
 		break;
 	/*
 	 * For 2-byte reception, 3-byte reception and for Data N-2, N-1 and N
-	 * for N-byte reception with N > 3, we do not have to read the data
-	 * register when RX not empty event occurs as we have to wait for byte
+	 * for N-byte reception with N > 3, we do analt have to read the data
+	 * register when RX analt empty event occurs as we have to wait for byte
 	 * transferred finished event before reading data.
-	 * So, here we just disable buffer interrupt in order to avoid another
-	 * system preemption due to RX not empty event.
+	 * So, here we just disable buffer interrupt in order to avoid aanalther
+	 * system preemption due to RX analt empty event.
 	 */
 	case 2:
 	case 3:
@@ -429,7 +429,7 @@ static void stm32f4_i2c_handle_read(struct stm32f4_i2c_dev *i2c_dev)
  * @i2c_dev: Controller's private data
  *
  * This function is called when a new data is received in the shift register
- * but data register has not been read yet.
+ * but data register has analt been read yet.
  */
 static void stm32f4_i2c_handle_rx_done(struct stm32f4_i2c_dev *i2c_dev)
 {
@@ -445,7 +445,7 @@ static void stm32f4_i2c_handle_rx_done(struct stm32f4_i2c_dev *i2c_dev)
 		 * condition on the I2C bus, the STOP/START bit has to be set
 		 * before reading the last two bytes (data N-1 and N).
 		 * After that, we could read the last two bytes, disable
-		 * remaining interrupts and notify the end of xfer to the
+		 * remaining interrupts and analtify the end of xfer to the
 		 * client
 		 */
 		reg = i2c_dev->base + STM32F4_I2C_CR1;
@@ -498,7 +498,7 @@ static void stm32f4_i2c_handle_rx_addr(struct stm32f4_i2c_dev *i2c_dev)
 	case 1:
 		/*
 		 * Single byte reception:
-		 * Enable NACK and reset POS (Acknowledge position).
+		 * Enable NACK and reset POS (Ackanalwledge position).
 		 * Then, clear ADDR flag and set STOP or RepSTART.
 		 * In that way, the NACK and STOP or RepStart pulses will be
 		 * sent as soon as the byte will be received in shift register
@@ -573,7 +573,7 @@ static irqreturn_t stm32f4_i2c_isr_event(int irq, void *data)
 		dev_dbg(i2c_dev->dev,
 			"spurious evt irq (status=0x%08x, ien=0x%08x)\n",
 			status, ien);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	/* Start condition generated */
@@ -588,7 +588,7 @@ static irqreturn_t stm32f4_i2c_isr_event(int irq, void *data)
 			readl_relaxed(i2c_dev->base + STM32F4_I2C_SR2);
 
 		/*
-		 * Enable buffer interrupts for RX not empty and TX empty
+		 * Enable buffer interrupts for RX analt empty and TX empty
 		 * events
 		 */
 		cr2 |= STM32F4_I2C_CR2_ITBUFEN;
@@ -599,16 +599,16 @@ static irqreturn_t stm32f4_i2c_isr_event(int irq, void *data)
 	if ((event & STM32F4_I2C_SR1_TXE) && !(msg->addr & I2C_M_RD))
 		stm32f4_i2c_handle_write(i2c_dev);
 
-	/* RX not empty */
+	/* RX analt empty */
 	if ((event & STM32F4_I2C_SR1_RXNE) && (msg->addr & I2C_M_RD))
 		stm32f4_i2c_handle_read(i2c_dev);
 
 	/*
 	 * The BTF (Byte Transfer finished) event occurs when:
 	 * - in reception : a new byte is received in the shift register
-	 * but the previous byte has not been read yet from data register
+	 * but the previous byte has analt been read yet from data register
 	 * - in transmission: a new byte should be sent but the data register
-	 * has not been written yet
+	 * has analt been written yet
 	 */
 	if (event & STM32F4_I2C_SR1_BTF) {
 		if (msg->addr & I2C_M_RD)
@@ -642,7 +642,7 @@ static irqreturn_t stm32f4_i2c_isr_error(int irq, void *data)
 	}
 
 	/*
-	 * Acknowledge failure:
+	 * Ackanalwledge failure:
 	 * In master transmitter mode a Stop must be generated by software
 	 */
 	if (status & STM32F4_I2C_SR1_AF) {
@@ -755,7 +755,7 @@ static const struct i2c_algorithm stm32f4_i2c_algo = {
 
 static int stm32f4_i2c_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct stm32f4_i2c_dev *i2c_dev;
 	struct resource *res;
 	u32 irq_event, irq_error, clk_rate;
@@ -765,7 +765,7 @@ static int stm32f4_i2c_probe(struct platform_device *pdev)
 
 	i2c_dev = devm_kzalloc(&pdev->dev, sizeof(*i2c_dev), GFP_KERNEL);
 	if (!i2c_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_dev->base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(i2c_dev->base))
@@ -833,7 +833,7 @@ static int stm32f4_i2c_probe(struct platform_device *pdev)
 	adap->retries = 0;
 	adap->algo = &stm32f4_i2c_algo;
 	adap->dev.parent = &pdev->dev;
-	adap->dev.of_node = pdev->dev.of_node;
+	adap->dev.of_analde = pdev->dev.of_analde;
 
 	init_completion(&i2c_dev->complete);
 

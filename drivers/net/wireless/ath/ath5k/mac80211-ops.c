@@ -1,10 +1,10 @@
 /*-
- * Copyright (c) 2002-2005 Sam Leffler, Errno Consulting
+ * Copyright (c) 2002-2005 Sam Leffler, Erranal Consulting
  * Copyright (c) 2004-2005 Atheros Communications, Inc.
  * Copyright (c) 2006 Devicescape Software, Inc.
  * Copyright (c) 2007 Jiri Slaby <jirislaby@gmail.com>
  * Copyright (c) 2007 Luis R. Rodriguez <mcgrof@winlab.rutgers.edu>
- * Copyright (c) 2010 Bruno Randolf <br1@einfach.org>
+ * Copyright (c) 2010 Bruanal Randolf <br1@einfach.org>
  *
  * All rights reserved.
  *
@@ -12,13 +12,13 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer,
+ *    analtice, this list of conditions and the following disclaimer,
  *    without modification.
  * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    similar to the "NO WARRANTY" disclaimer below ("Disclaimer") and any
+ *    similar to the "ANAL WARRANTY" disclaimer below ("Disclaimer") and any
  *    redistribution must be conditioned upon including a substantially
  *    similar Disclaimer requirement for further binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
+ * 3. Neither the names of the above-listed copyright holders analr the names
  *    of any contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -26,13 +26,13 @@
  * GNU General Public License ("GPL") version 2 as published by the Free
  * Software Foundation.
  *
- * NO WARRANTY
+ * ANAL WARRANTY
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF NONINFRINGEMENT, MERCHANTIBILITY
- * AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
+ * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF ANALNINFRINGEMENT, MERCHANTIBILITY
+ * AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY,
- * OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
  * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
  * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
@@ -106,7 +106,7 @@ ath5k_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 		avf->opmode = vif->type;
 		break;
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto end;
 	}
 
@@ -335,8 +335,8 @@ ath5k_prepare_multicast(struct ieee80211_hw *hw,
 		pos &= 0x3f;
 		mfilt[pos / 32] |= (1 << (pos % 32));
 		/* XXX: we might be able to just do this instead,
-		* but not sure, needs testing, if we do use this we'd
-		* need to inform below not to reset the mcast */
+		* but analt sure, needs testing, if we do use this we'd
+		* need to inform below analt to reset the mcast */
 		/* ath5k_hw_set_mcast_filterindex(ah,
 		 *      ha->addr[5]); */
 	}
@@ -358,7 +358,7 @@ ath5k_prepare_multicast(struct ieee80211_hw *hw,
  * o enable promiscuous mode according to the interface state
  * o accept beacons:
  *   - when operating in adhoc mode so the 802.11 layer creates
- *     node table entries for peers,
+ *     analde table entries for peers,
  *   - when operating in station mode for collecting rssi data when
  *     the station is otherwise quiet, or
  *   - when scanning
@@ -391,7 +391,7 @@ ath5k_configure_filter(struct ieee80211_hw *hw, unsigned int changed_flags,
 		(AR5K_RX_FILTER_UCAST | AR5K_RX_FILTER_BCAST |
 		AR5K_RX_FILTER_MCAST);
 
-	/* Note, AR5K_RX_FILTER_MCAST is already enabled */
+	/* Analte, AR5K_RX_FILTER_MCAST is already enabled */
 	if (*new_flags & FIF_ALLMULTI) {
 		mfilt[0] =  ~0;
 		mfilt[1] =  ~0;
@@ -407,7 +407,7 @@ ath5k_configure_filter(struct ieee80211_hw *hw, unsigned int changed_flags,
 		rfilt |= AR5K_RX_FILTER_BEACON;
 
 	/* FIF_CONTROL doc says we should only pass on control frames for this
-	 * station. This needs testing. I believe right now this
+	 * station. This needs testing. I believe right analw this
 	 * enables *all* control frames, which is OK.. but
 	 * we should see if we can improve on granularity */
 	if (*new_flags & FIF_CONTROL)
@@ -447,7 +447,7 @@ ath5k_configure_filter(struct ieee80211_hw *hw, unsigned int changed_flags,
 	/* Set up RX Filter */
 	if (iter_data.n_stas > 1) {
 		/* If you have multiple STA interfaces connected to
-		 * different APs, ARPs are not received (most of the time?)
+		 * different APs, ARPs are analt received (most of the time?)
 		 * Enabling PROMISC appears to fix that problem.
 		 */
 		rfilt |= AR5K_RX_FILTER_PROM;
@@ -477,18 +477,18 @@ ath5k_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	struct ath_common *common = ath5k_hw_common(ah);
 	int ret = 0;
 
-	if (ath5k_modparam_nohwcrypt)
-		return -EOPNOTSUPP;
+	if (ath5k_modparam_analhwcrypt)
+		return -EOPANALTSUPP;
 
 	if (key->flags & IEEE80211_KEY_FLAG_RX_MGMT)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (vif->type == NL80211_IFTYPE_ADHOC &&
 	    (key->cipher == WLAN_CIPHER_SUITE_TKIP ||
 	     key->cipher == WLAN_CIPHER_SUITE_CCMP) &&
 	    !(key->flags & IEEE80211_KEY_FLAG_PAIRWISE)) {
 		/* don't program group keys when using IBSS_RSN */
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	switch (key->cipher) {
@@ -499,9 +499,9 @@ ath5k_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	case WLAN_CIPHER_SUITE_CCMP:
 		if (common->crypt_caps & ATH_CRYPT_CAP_CIPHER_AESCCM)
 			break;
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	mutex_lock(&ah->lock);
@@ -654,7 +654,7 @@ ath5k_get_survey(struct ieee80211_hw *hw, int idx, struct survey_info *survey)
 	unsigned int div = common->clockrate * 1000;
 
 	if (idx != 0)
-		return -ENOENT;
+		return -EANALENT;
 
 	spin_lock_bh(&common->cc_lock);
 	ath_hw_cycle_counters_update(common);
@@ -670,8 +670,8 @@ ath5k_get_survey(struct ieee80211_hw *hw, int idx, struct survey_info *survey)
 	memcpy(survey, &ah->survey, sizeof(*survey));
 
 	survey->channel = conf->chandef.chan;
-	survey->noise = ah->ah_noise_floor;
-	survey->filled = SURVEY_INFO_NOISE_DBM |
+	survey->analise = ah->ah_analise_floor;
+	survey->filled = SURVEY_INFO_ANALISE_DBM |
 			SURVEY_INFO_IN_USE |
 			SURVEY_INFO_TIME |
 			SURVEY_INFO_TIME_BUSY |
@@ -754,7 +754,7 @@ static int ath5k_set_ringparam(struct ieee80211_hw *hw, u32 tx, u32 rx)
 	struct ath5k_hw *ah = hw->priv;
 	u16 qnum;
 
-	/* only support setting tx ring size for now */
+	/* only support setting tx ring size for analw */
 	if (rx != ATH_RXBUF)
 		return -EINVAL;
 
@@ -784,36 +784,36 @@ const struct ieee80211_ops ath5k_hw_ops = {
 	.start			= ath5k_start,
 	.stop			= ath5k_stop,
 	.add_interface		= ath5k_add_interface,
-	/* .change_interface	= not implemented */
+	/* .change_interface	= analt implemented */
 	.remove_interface	= ath5k_remove_interface,
 	.config			= ath5k_config,
 	.bss_info_changed	= ath5k_bss_info_changed,
 	.prepare_multicast	= ath5k_prepare_multicast,
 	.configure_filter	= ath5k_configure_filter,
-	/* .set_tim		= not implemented */
+	/* .set_tim		= analt implemented */
 	.set_key		= ath5k_set_key,
-	/* .update_tkip_key	= not implemented */
-	/* .hw_scan		= not implemented */
+	/* .update_tkip_key	= analt implemented */
+	/* .hw_scan		= analt implemented */
 	.sw_scan_start		= ath5k_sw_scan_start,
 	.sw_scan_complete	= ath5k_sw_scan_complete,
 	.get_stats		= ath5k_get_stats,
-	/* .set_frag_threshold	= not implemented */
-	/* .set_rts_threshold	= not implemented */
-	/* .sta_add		= not implemented */
-	/* .sta_remove		= not implemented */
-	/* .sta_notify		= not implemented */
+	/* .set_frag_threshold	= analt implemented */
+	/* .set_rts_threshold	= analt implemented */
+	/* .sta_add		= analt implemented */
+	/* .sta_remove		= analt implemented */
+	/* .sta_analtify		= analt implemented */
 	.conf_tx		= ath5k_conf_tx,
 	.get_tsf		= ath5k_get_tsf,
 	.set_tsf		= ath5k_set_tsf,
 	.reset_tsf		= ath5k_reset_tsf,
-	/* .tx_last_beacon	= not implemented */
-	/* .ampdu_action	= not needed */
+	/* .tx_last_beacon	= analt implemented */
+	/* .ampdu_action	= analt needed */
 	.get_survey		= ath5k_get_survey,
 	.set_coverage_class	= ath5k_set_coverage_class,
-	/* .rfkill_poll		= not implemented */
-	/* .flush		= not implemented */
-	/* .channel_switch	= not implemented */
-	/* .napi_poll		= not implemented */
+	/* .rfkill_poll		= analt implemented */
+	/* .flush		= analt implemented */
+	/* .channel_switch	= analt implemented */
+	/* .napi_poll		= analt implemented */
 	.set_antenna		= ath5k_set_antenna,
 	.get_antenna		= ath5k_get_antenna,
 	.set_ringparam		= ath5k_set_ringparam,

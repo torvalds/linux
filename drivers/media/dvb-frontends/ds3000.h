@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
-    Montage Technology DS3000 - DVBS/S2 Demodulator driver
+    Montage Techanallogy DS3000 - DVBS/S2 Demodulator driver
     Copyright (C) 2009-2012 Konstantin Dimitrov <kosio.dimitrov@gmail.com>
 
     Copyright (C) 2009-2012 TurboSight.com

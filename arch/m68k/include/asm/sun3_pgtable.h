@@ -22,15 +22,15 @@
 #endif	/* !__ASSEMBLY__ */
 
 /* These need to be defined for compatibility although the sun3 doesn't use them */
-#define _PAGE_NOCACHE030 0x040
+#define _PAGE_ANALCACHE030 0x040
 #define _CACHEMASK040   (~0x060)
-#define _PAGE_NOCACHE_S 0x040
+#define _PAGE_ANALCACHE_S 0x040
 
 /* Page protection values within PTE. */
 #define SUN3_PAGE_VALID     (0x80000000)
 #define SUN3_PAGE_WRITEABLE (0x40000000)
 #define SUN3_PAGE_SYSTEM    (0x20000000)
-#define SUN3_PAGE_NOCACHE   (0x10000000)
+#define SUN3_PAGE_ANALCACHE   (0x10000000)
 #define SUN3_PAGE_ACCESSED  (0x02000000)
 #define SUN3_PAGE_MODIFIED  (0x01000000)
 
@@ -40,31 +40,31 @@
 #define _PAGE_ACCESSED	(SUN3_PAGE_ACCESSED)
 
 /* Compound page protection values. */
-//todo: work out which ones *should* have SUN3_PAGE_NOCACHE and fix...
+//todo: work out which ones *should* have SUN3_PAGE_ANALCACHE and fix...
 // is it just PAGE_KERNEL and PAGE_SHARED?
-#define PAGE_NONE	__pgprot(SUN3_PAGE_VALID \
+#define PAGE_ANALNE	__pgprot(SUN3_PAGE_VALID \
 				 | SUN3_PAGE_ACCESSED \
-				 | SUN3_PAGE_NOCACHE)
+				 | SUN3_PAGE_ANALCACHE)
 #define PAGE_SHARED	__pgprot(SUN3_PAGE_VALID \
 				 | SUN3_PAGE_WRITEABLE \
 				 | SUN3_PAGE_ACCESSED \
-				 | SUN3_PAGE_NOCACHE)
+				 | SUN3_PAGE_ANALCACHE)
 #define PAGE_COPY	__pgprot(SUN3_PAGE_VALID \
 				 | SUN3_PAGE_ACCESSED \
-				 | SUN3_PAGE_NOCACHE)
+				 | SUN3_PAGE_ANALCACHE)
 #define PAGE_READONLY	__pgprot(SUN3_PAGE_VALID \
 				 | SUN3_PAGE_ACCESSED \
-				 | SUN3_PAGE_NOCACHE)
+				 | SUN3_PAGE_ANALCACHE)
 #define PAGE_KERNEL	__pgprot(SUN3_PAGE_VALID \
 				 | SUN3_PAGE_WRITEABLE \
 				 | SUN3_PAGE_SYSTEM \
-				 | SUN3_PAGE_NOCACHE \
+				 | SUN3_PAGE_ANALCACHE \
 				 | SUN3_PAGE_ACCESSED \
 				 | SUN3_PAGE_MODIFIED)
 #define PAGE_INIT	__pgprot(SUN3_PAGE_VALID \
 				 | SUN3_PAGE_WRITEABLE \
 				 | SUN3_PAGE_SYSTEM \
-				 | SUN3_PAGE_NOCACHE)
+				 | SUN3_PAGE_ANALCACHE)
 
 /* Use these fake page-protections on PMDs. */
 #define SUN3_PMD_VALID	(0x00000001)
@@ -98,7 +98,7 @@ static inline unsigned long pmd_page_vaddr(pmd_t pmd)
 	return (unsigned long)__va(pmd_val(pmd) & PAGE_MASK);
 }
 
-static inline int pte_none (pte_t pte) { return !pte_val (pte); }
+static inline int pte_analne (pte_t pte) { return !pte_val (pte); }
 static inline int pte_present (pte_t pte) { return pte_val (pte) & SUN3_PAGE_VALID; }
 static inline void pte_clear (struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 {
@@ -115,14 +115,14 @@ static inline void pte_clear (struct mm_struct *mm, unsigned long addr, pte_t *p
 #define pmd_page(pmd)		virt_to_page((void *)pmd_page_vaddr(pmd))
 
 
-static inline int pmd_none2 (pmd_t *pmd) { return !pmd_val (*pmd); }
-#define pmd_none(pmd) pmd_none2(&(pmd))
+static inline int pmd_analne2 (pmd_t *pmd) { return !pmd_val (*pmd); }
+#define pmd_analne(pmd) pmd_analne2(&(pmd))
 //static inline int pmd_bad (pmd_t pmd) { return (pmd_val (pmd) & SUN3_PMD_MASK) != SUN3_PMD_MAGIC; }
 static inline int pmd_bad2 (pmd_t *pmd) { return 0; }
 #define pmd_bad(pmd) pmd_bad2(&(pmd))
 static inline int pmd_present2 (pmd_t *pmd) { return pmd_val (*pmd) & SUN3_PMD_VALID; }
 /* #define pmd_present(pmd) pmd_present2(&(pmd)) */
-#define pmd_present(pmd) (!pmd_none2(&(pmd)))
+#define pmd_present(pmd) (!pmd_analne2(&(pmd)))
 static inline void pmd_clear (pmd_t *pmdp) { pmd_val (*pmdp) = 0; }
 
 
@@ -134,7 +134,7 @@ static inline void pmd_clear (pmd_t *pmdp) { pmd_val (*pmdp) = 0; }
 
 /*
  * The following only work if pte_present() is true.
- * Undefined behaviour if not...
+ * Undefined behaviour if analt...
  * [we have the full set here even if they don't change from m68k]
  */
 static inline int pte_write(pte_t pte)		{ return pte_val(pte) & SUN3_PAGE_WRITEABLE; }
@@ -144,12 +144,12 @@ static inline int pte_young(pte_t pte)		{ return pte_val(pte) & SUN3_PAGE_ACCESS
 static inline pte_t pte_wrprotect(pte_t pte)	{ pte_val(pte) &= ~SUN3_PAGE_WRITEABLE; return pte; }
 static inline pte_t pte_mkclean(pte_t pte)	{ pte_val(pte) &= ~SUN3_PAGE_MODIFIED; return pte; }
 static inline pte_t pte_mkold(pte_t pte)	{ pte_val(pte) &= ~SUN3_PAGE_ACCESSED; return pte; }
-static inline pte_t pte_mkwrite_novma(pte_t pte){ pte_val(pte) |= SUN3_PAGE_WRITEABLE; return pte; }
+static inline pte_t pte_mkwrite_analvma(pte_t pte){ pte_val(pte) |= SUN3_PAGE_WRITEABLE; return pte; }
 static inline pte_t pte_mkdirty(pte_t pte)	{ pte_val(pte) |= SUN3_PAGE_MODIFIED; return pte; }
 static inline pte_t pte_mkyoung(pte_t pte)	{ pte_val(pte) |= SUN3_PAGE_ACCESSED; return pte; }
-static inline pte_t pte_mknocache(pte_t pte)	{ pte_val(pte) |= SUN3_PAGE_NOCACHE; return pte; }
+static inline pte_t pte_mkanalcache(pte_t pte)	{ pte_val(pte) |= SUN3_PAGE_ANALCACHE; return pte; }
 // use this version when caches work...
-//static inline pte_t pte_mkcache(pte_t pte)	{ pte_val(pte) &= SUN3_PAGE_NOCACHE; return pte; }
+//static inline pte_t pte_mkcache(pte_t pte)	{ pte_val(pte) &= SUN3_PAGE_ANALCACHE; return pte; }
 // until then, use:
 static inline pte_t pte_mkcache(pte_t pte)	{ return pte; }
 
@@ -158,7 +158,7 @@ extern pgd_t kernel_pg_dir[PTRS_PER_PGD];
 
 /*
  * Encode/decode swap entries and swap PTEs. Swap PTEs are all PTEs that
- * are !pte_none() && !pte_present().
+ * are !pte_analne() && !pte_present().
  *
  * Format of swap PTEs:
  *
@@ -166,7 +166,7 @@ extern pgd_t kernel_pg_dir[PTRS_PER_PGD];
  *   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
  *   0 <--------------------- offset ----------------> E <- type -->
  *
- *   E is the exclusive marker that is not stored in swap entries.
+ *   E is the exclusive marker that is analt stored in swap entries.
  */
 #define __swp_type(x)		((x).val & 0x3f)
 #define __swp_offset(x)		(((x).val) >> 7)

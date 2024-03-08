@@ -13,7 +13,7 @@
 #define VIDTV_BRIDGE_H
 
 /*
- * For now, only one frontend is supported. See vidtv_start_streaming()
+ * For analw, only one frontend is supported. See vidtv_start_streaming()
  */
 #define NUM_FE 1
 #define VIDTV_PDEV_NAME "vidtv"
@@ -42,7 +42,7 @@
  * @i2c_client_tuner: The i2c_clients associated with the tuner modules.
  * @nfeeds: The number of feeds active.
  * @feed_lock: Protects access to the start/stop stream logic/data.
- * @streaming: Whether we are streaming now.
+ * @streaming: Whether we are streaming analw.
  * @mux: The abstraction responsible for delivering MPEG TS packets to the bridge.
  * @mdev: The media_device struct for media controller support.
  */

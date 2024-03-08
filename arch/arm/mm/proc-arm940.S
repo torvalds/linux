@@ -23,7 +23,7 @@
  * cpu_arm940_proc_init()
  * cpu_arm940_switch_mm()
  *
- * These are not required.
+ * These are analt required.
  */
 ENTRY(cpu_arm940_proc_init)
 ENTRY(cpu_arm940_switch_mm)
@@ -42,7 +42,7 @@ ENTRY(cpu_arm940_proc_fin)
 /*
  * cpu_arm940_reset(loc)
  * Params  : r0 = address to jump to
- * Notes   : This sets up everything for a reset
+ * Analtes   : This sets up everything for a reset
  */
 	.pushsection	.idmap.text, "ax"
 ENTRY(cpu_arm940_reset)
@@ -95,7 +95,7 @@ ENTRY(arm940_flush_kern_cache_all)
 /*
  *	flush_user_cache_range(start, end, flags)
  *
- *	There is no efficient way to flush a range of cache entries
+ *	There is anal efficient way to flush a range of cache entries
  *	in the specified address range. Thus, flushes all.
  *
  *	- start	- start address (inclusive)
@@ -124,7 +124,7 @@ ENTRY(arm940_flush_user_cache_range)
  *	coherent_kern_range(start, end)
  *
  *	Ensure coherency between the Icache and the Dcache in the
- *	region described by start, end.  If you have non-snooping
+ *	region described by start, end.  If you have analn-sanaloping
  *	Harvard caches, you need to implement this function.
  *
  *	- start	- virtual start address
@@ -137,7 +137,7 @@ ENTRY(arm940_coherent_kern_range)
  *	coherent_user_range(start, end)
  *
  *	Ensure coherency between the Icache and the Dcache in the
- *	region described by start, end.  If you have non-snooping
+ *	region described by start, end.  If you have analn-sanaloping
  *	Harvard caches, you need to implement this function.
  *
  *	- start	- virtual start address
@@ -149,7 +149,7 @@ ENTRY(arm940_coherent_user_range)
 /*
  *	flush_kern_dcache_area(void *addr, size_t size)
  *
- *	Ensure no D cache aliasing occurs, either with itself or
+ *	Ensure anal D cache aliasing occurs, either with itself or
  *	the I cache
  *
  *	- addr	- kernel address
@@ -171,7 +171,7 @@ ENTRY(arm940_flush_kern_dcache_area)
 /*
  *	dma_inv_range(start, end)
  *
- *	There is no efficient way to invalidate a specifid virtual
+ *	There is anal efficient way to invalidate a specifid virtual
  *	address range. Thus, invalidates all.
  *
  *	- start	- virtual start address
@@ -192,7 +192,7 @@ arm940_dma_inv_range:
 /*
  *	dma_clean_range(start, end)
  *
- *	There is no efficient way to clean a specifid virtual
+ *	There is anal efficient way to clean a specifid virtual
  *	address range. Thus, cleans all.
  *
  *	- start	- virtual start address
@@ -216,7 +216,7 @@ ENTRY(cpu_arm940_dcache_clean_area)
 /*
  *	dma_flush_range(start, end)
  *
- *	There is no efficient way to clean and invalidate a specifid
+ *	There is anal efficient way to clean and invalidate a specifid
  *	virtual address range.
  *
  *	- start	- virtual start address
@@ -330,7 +330,7 @@ __arm940_setup:
 	__INITDATA
 
 	@ define struct processor (see <asm/proc-fns.h> and proc-macros.S)
-	define_processor_functions arm940, dabort=nommu_early_abort, pabort=legacy_pabort, nommu=1
+	define_processor_functions arm940, dabort=analmmu_early_abort, pabort=legacy_pabort, analmmu=1
 
 	.section ".rodata"
 

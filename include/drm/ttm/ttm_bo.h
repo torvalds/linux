@@ -11,13 +11,13 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
@@ -54,14 +54,14 @@ struct ttm_tt;
 /**
  * enum ttm_bo_type
  *
- * @ttm_bo_type_device:	These are 'normal' buffers that can
+ * @ttm_bo_type_device:	These are 'analrmal' buffers that can
  * be mmapped by user space. Each of these bos occupy a slot in the
- * device address space, that can be used for normal vm operations.
+ * device address space, that can be used for analrmal vm operations.
  *
  * @ttm_bo_type_kernel: These buffers are like ttm_bo_type_device buffers,
- * but they cannot be accessed from user-space. For kernel-only use.
+ * but they cananalt be accessed from user-space. For kernel-only use.
  *
- * @ttm_bo_type_sg: Buffer made from dmabuf sg table shared with another
+ * @ttm_bo_type_sg: Buffer made from dmabuf sg table shared with aanalther
  * driver.
  */
 enum ttm_bo_type {
@@ -107,7 +107,7 @@ struct ttm_buffer_object {
 	void (*destroy) (struct ttm_buffer_object *);
 
 	/*
-	* Members not needing protection.
+	* Members analt needing protection.
 	*/
 	struct kref kref;
 
@@ -164,7 +164,7 @@ struct ttm_bo_kmap_obj {
  * struct ttm_operation_ctx
  *
  * @interruptible: Sleep interruptible if sleeping.
- * @no_wait_gpu: Return immediately if the GPU is busy.
+ * @anal_wait_gpu: Return immediately if the GPU is busy.
  * @gfp_retry_mayfail: Set the __GFP_RETRY_MAYFAIL when allocation pages.
  * @allow_res_evict: Allow eviction of reserved BOs. Can be used when multiple
  * BOs share the same reservation object.
@@ -177,7 +177,7 @@ struct ttm_bo_kmap_obj {
  */
 struct ttm_operation_ctx {
 	bool interruptible;
-	bool no_wait_gpu;
+	bool anal_wait_gpu;
 	bool gfp_retry_mayfail;
 	bool allow_res_evict;
 	bool force_alloc;
@@ -218,7 +218,7 @@ ttm_bo_get_unless_zero(struct ttm_buffer_object *bo)
  *
  * @bo: A pointer to a struct ttm_buffer_object.
  * @interruptible: Sleep interruptible if waiting.
- * @no_wait: Don't sleep while trying to reserve, rather return -EBUSY.
+ * @anal_wait: Don't sleep while trying to reserve, rather return -EBUSY.
  * @ticket: ticket used to acquire the ww_mutex.
  *
  * Locks a buffer object for validation. (Or prevents other processes from
@@ -231,17 +231,17 @@ ttm_bo_get_unless_zero(struct ttm_buffer_object *bo)
  * try again.
  * -ERESTARTSYS: A wait for the buffer to become unreserved was interrupted by
  * a signal. Release all buffer reservations and return to user-space.
- * -EBUSY: The function needed to sleep, but @no_wait was true
+ * -EBUSY: The function needed to sleep, but @anal_wait was true
  * -EALREADY: Bo already reserved using @ticket. This error code will only
  * be returned if @use_ticket is set to true.
  */
 static inline int ttm_bo_reserve(struct ttm_buffer_object *bo,
-				 bool interruptible, bool no_wait,
+				 bool interruptible, bool anal_wait,
 				 struct ww_acquire_ctx *ticket)
 {
 	int ret = 0;
 
-	if (no_wait) {
+	if (anal_wait) {
 		bool success;
 
 		if (WARN_ON(ticket))
@@ -267,8 +267,8 @@ static inline int ttm_bo_reserve(struct ttm_buffer_object *bo,
  * @sequence: Set (@bo)->sequence to this value after lock
  *
  * This is called after ttm_bo_reserve returns -EAGAIN and we backed off
- * from all our other reservations. Because there are no other reservations
- * held by us, this function cannot deadlock any more.
+ * from all our other reservations. Because there are anal other reservations
+ * held by us, this function cananalt deadlock any more.
  */
 static inline int ttm_bo_reserve_slowpath(struct ttm_buffer_object *bo,
 					  bool interruptible,
@@ -334,7 +334,7 @@ static inline void ttm_bo_unreserve(struct ttm_buffer_object *bo)
  *
  * @map: A struct ttm_bo_kmap_obj returned from ttm_bo_kmap.
  * @is_iomem: Pointer to an integer that on return indicates 1 if the
- * virtual map is io memory, 0 if normal memory.
+ * virtual map is io memory, 0 if analrmal memory.
  *
  * Returns the virtual address of a buffer object area mapped by ttm_bo_kmap.
  * If *is_iomem is 1 on return, the virtual address points to an io memory area,

@@ -87,7 +87,7 @@ the fdtable structure -
 
 6. While updating, the fdtable pointer must be looked up while
    holding files->file_lock. If ->file_lock is dropped, then
-   another thread expand the files thereby creating a new
+   aanalther thread expand the files thereby creating a new
    fdtable and making the earlier fdtable pointer stale.
 
    For example::
@@ -108,7 +108,7 @@ the fdtable structure -
 On newer kernels rcu based file lookup has been switched to rely on
 SLAB_TYPESAFE_BY_RCU instead of call_rcu(). It isn't sufficient anymore
 to just acquire a reference to the file in question under rcu using
-atomic_long_inc_not_zero() since the file might have already been
+atomic_long_inc_analt_zero() since the file might have already been
 recycled and someone else might have bumped the reference. In other
 words, callers might see reference count bumps from newer users. For
 this is reason it is necessary to verify that the pointer is the same
@@ -116,8 +116,8 @@ before and after the reference count increment. This pattern can be seen
 in get_file_rcu() and __files_get_rcu().
 
 In addition, it isn't possible to access or check fields in struct file
-without first aqcuiring a reference on it under rcu lookup. Not doing
-that was always very dodgy and it was only usable for non-pointer data
+without first aqcuiring a reference on it under rcu lookup. Analt doing
+that was always very dodgy and it was only usable for analn-pointer data
 in struct file. With SLAB_TYPESAFE_BY_RCU it is necessary that callers
 either first acquire a reference or they must hold the files_lock of the
 fdtable.

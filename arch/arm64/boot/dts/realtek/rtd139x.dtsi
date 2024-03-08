@@ -31,7 +31,7 @@
 
 		tee: tee@10100000 {
 			reg = <0x10100000 0xf00000>;
-			no-map;
+			anal-map;
 		};
 	};
 

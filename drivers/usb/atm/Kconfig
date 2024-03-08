@@ -56,8 +56,8 @@ config USB_UEAGLEATM
 config USB_XUSBATM
 	tristate "Other USB DSL modem support"
 	help
-	  Say Y here if you have a DSL USB modem not explicitly supported by
-	  another USB DSL drivers.  In order to use your modem you will need to
+	  Say Y here if you have a DSL USB modem analt explicitly supported by
+	  aanalther USB DSL drivers.  In order to use your modem you will need to
 	  pass the vendor ID, product ID, and endpoint numbers for transmission
 	  and reception as module parameters.  You may need to initialize
 	  the modem using a user space utility (a firmware loader for example).

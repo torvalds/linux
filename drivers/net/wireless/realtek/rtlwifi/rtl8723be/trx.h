@@ -408,12 +408,12 @@ struct phy_status_rpt {
 	u8 cck_agc_rpt_ofdm_cfosho_a;
 	u8 cck_rpt_b_ofdm_cfosho_b;
 	u8 rsvd_1;/* ch_corr_msb; */
-	u8 noise_power_db_msb;
+	u8 analise_power_db_msb;
 	s8 path_cfotail[2];
 	u8 pcts_mask[2];
 	s8 stream_rxevm[2];
 	u8 path_rxsnr[2];
-	u8 noise_power_db_lsb;
+	u8 analise_power_db_lsb;
 	u8 rsvd_2[3];
 	u8 stream_csi[2];
 	u8 stream_target_csi[2];
@@ -468,7 +468,7 @@ struct tx_desc_8723be {
 	u32 lastseg:1;
 	u32 firstseg:1;
 	u32 linip:1;
-	u32 noacm:1;
+	u32 analacm:1;
 	u32 gf:1;
 	u32 own:1;
 

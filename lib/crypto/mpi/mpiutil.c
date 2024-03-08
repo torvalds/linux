@@ -14,7 +14,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  */
 
@@ -63,23 +63,23 @@ static int __init mpi_init(void)
 }
 postcore_initcall(mpi_init);
 
-/* Return a constant MPI descripbed by NO which is one of the
- * MPI_C_xxx macros.  There is no need to copy this returned value; it
+/* Return a constant MPI descripbed by ANAL which is one of the
+ * MPI_C_xxx macros.  There is anal need to copy this returned value; it
  * may be used directly.
  */
-MPI mpi_const(enum gcry_mpi_constants no)
+MPI mpi_const(enum gcry_mpi_constants anal)
 {
-	if ((int)no < 0 || no > MPI_NUMBER_OF_CONSTANTS)
-		pr_err("MPI: invalid mpi_const selector %d\n", no);
-	if (!constants[no])
-		pr_err("MPI: MPI subsystem not initialized\n");
-	return constants[no];
+	if ((int)anal < 0 || anal > MPI_NUMBER_OF_CONSTANTS)
+		pr_err("MPI: invalid mpi_const selector %d\n", anal);
+	if (!constants[anal])
+		pr_err("MPI: MPI subsystem analt initialized\n");
+	return constants[anal];
 }
 EXPORT_SYMBOL_GPL(mpi_const);
 
 /****************
- * Note:  It was a bad idea to use the number of limbs to allocate
- *	  because on a alpha the limbs are large but we normally need
+ * Analte:  It was a bad idea to use the number of limbs to allocate
+ *	  because on a alpha the limbs are large but we analrmally need
  *	  integers of n bits - So we should change this to bits (or bytes).
  *
  *	  But mpi_alloc is used in a lot of places :-)
@@ -145,19 +145,19 @@ int mpi_resize(MPI a, unsigned nlimbs)
 	void *p;
 
 	if (nlimbs <= a->alloced)
-		return 0;	/* no need to do it */
+		return 0;	/* anal need to do it */
 
 	if (a->d) {
 		p = kcalloc(nlimbs, sizeof(mpi_limb_t), GFP_KERNEL);
 		if (!p)
-			return -ENOMEM;
+			return -EANALMEM;
 		memcpy(p, a->d, a->alloced * sizeof(mpi_limb_t));
 		kfree_sensitive(a->d);
 		a->d = p;
 	} else {
 		a->d = kcalloc(nlimbs, sizeof(mpi_limb_t), GFP_KERNEL);
 		if (!a->d)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 	a->alloced = nlimbs;
 	return 0;
@@ -189,7 +189,7 @@ void mpi_free(MPI a)
 EXPORT_SYMBOL_GPL(mpi_free);
 
 /****************
- * Note: This copy function should not interpret the MPI
+ * Analte: This copy function should analt interpret the MPI
  *	 but copy it transparently.
  */
 MPI mpi_copy(MPI a)
@@ -271,7 +271,7 @@ MPI mpi_set_ui(MPI w, unsigned long u)
 {
 	if (!w)
 		w = mpi_alloc(1);
-	/* FIXME: If U is 0 we have no need to resize and thus possible
+	/* FIXME: If U is 0 we have anal need to resize and thus possible
 	 * allocating the limbs.
 	 */
 	RESIZE_IF_NEEDED(w, 1);

@@ -21,7 +21,7 @@ INTERVAL_TREE_DEFINE(struct vhost_iotlb_map,
 		     START, LAST, static inline, vhost_iotlb_itree);
 
 /**
- * vhost_iotlb_map_free - remove a map node and free it
+ * vhost_iotlb_map_free - remove a map analde and free it
  * @iotlb: the IOTLB
  * @map: the map that want to be remove and freed
  */
@@ -81,7 +81,7 @@ int vhost_iotlb_add_range_ctx(struct vhost_iotlb *iotlb,
 
 	map = kmalloc(sizeof(*map), GFP_ATOMIC);
 	if (!map)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	map->start = start;
 	map->size = last - start + 1;
@@ -200,7 +200,7 @@ EXPORT_SYMBOL_GPL(vhost_iotlb_itree_first);
 
 /**
  * vhost_iotlb_itree_next - return the next overlapped range
- * @map: the starting map node
+ * @map: the starting map analde
  * @start: start of IOVA range
  * @last: last byte IOVA range
  */

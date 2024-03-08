@@ -32,7 +32,7 @@ struct appldata_ops {
 	int    active;				/* monitoring status */
 
 	/* fill in from here */
-	char name[APPLDATA_PROC_NAME_LENGTH];	/* name of /proc fs node */
+	char name[APPLDATA_PROC_NAME_LENGTH];	/* name of /proc fs analde */
 	unsigned char record_nr;		/* Record Nr. for Product ID */
 	void (*callback)(void *data);		/* callback function */
 	void *data;				/* record data */

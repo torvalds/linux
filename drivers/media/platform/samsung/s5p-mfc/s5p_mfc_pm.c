@@ -35,7 +35,7 @@ int s5p_mfc_init_pm(struct s5p_mfc_dev *dev)
 		pm->clocks[i] = devm_clk_get(pm->device, pm->clk_names[i]);
 		if (IS_ERR(pm->clocks[i])) {
 			/* additional clocks are optional */
-			if (i && PTR_ERR(pm->clocks[i]) == -ENOENT) {
+			if (i && PTR_ERR(pm->clocks[i]) == -EANALENT) {
 				pm->clocks[i] = NULL;
 				continue;
 			}

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * ATM Lan Emulation Daemon driver interface
  *
@@ -43,8 +43,8 @@ typedef enum {
 #define ATMLEC_MSG_TYPE_MAX l_should_bridge
 
 struct atmlec_config_msg {
-	unsigned int maximum_unknown_frame_count;
-	unsigned int max_unknown_frame_time;
+	unsigned int maximum_unkanalwn_frame_count;
+	unsigned int max_unkanalwn_frame_time;
 	unsigned short max_retry_count;
 	unsigned int aging_time;
 	unsigned int forward_delay_time;
@@ -69,8 +69,8 @@ struct atmlec_msg {
 						 * lecid, transaction id
 						 */
 			unsigned int targetless_le_arp;	/* LANE2 */
-			unsigned int no_source_le_narp;	/* LANE2 */
-		} normal;
+			unsigned int anal_source_le_narp;	/* LANE2 */
+		} analrmal;
 		struct atmlec_config_msg config;
 		struct {
 			__u16 lec_id;				/* requestor lec_id  */

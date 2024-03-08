@@ -66,7 +66,7 @@ controlled through 3 GPIO pins::
 	},
   };
 
-If you don't know the absolute GPIO pin numbers at registration time,
+If you don't kanalw the absolute GPIO pin numbers at registration time,
 you can instead provide a chip name (.chip_name) and relative GPIO pin
 numbers, and the i2c-mux-gpio driver will do the work for you,
 including deferred probing if the GPIO chip isn't immediately
@@ -81,5 +81,5 @@ instance has a different ID.
 
 Alternatively, if you don't need a stable device name, you can simply
 pass PLATFORM_DEVID_AUTO as the device ID, and the platform core will
-assign a dynamic ID to your device. If you do not know the absolute
+assign a dynamic ID to your device. If you do analt kanalw the absolute
 GPIO pin numbers at registration time, this is even the only option.

@@ -31,16 +31,16 @@ l1_%=:	exit;						\
 }
 
 SEC("socket")
-__description("check w reg not equal if r reg upper32 bits not 0")
+__description("check w reg analt equal if r reg upper32 bits analt 0")
 __failure __msg("R1 !read_ok")
 __naked void subreg_equality_2(void)
 {
 	asm volatile ("					\
 	call %[bpf_ktime_get_ns];			\
 	r2 = r0;					\
-	/* Upper 4-bytes of r2 may not be 0, thus insn	\
-	 * w3 = w2 should not propagate reg id,	and	\
-	 * w2 < 9 comparison should not propagate	\
+	/* Upper 4-bytes of r2 may analt be 0, thus insn	\
+	 * w3 = w2 should analt propagate reg id,	and	\
+	 * w2 < 9 comparison should analt propagate	\
 	 * the range for r3 either.			\
 	 */						\
 	w3 = w2;					\

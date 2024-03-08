@@ -75,7 +75,7 @@ static int lp873x_gpio_request(struct gpio_chip *gc, unsigned int offset)
 
 	switch (offset) {
 	case 0:
-		/* No MUX Set up Needed for GPO */
+		/* Anal MUX Set up Needed for GPO */
 		break;
 	case 1:
 		/* Setup the CLKIN_PIN_SEL MUX to GPO2 */
@@ -112,7 +112,7 @@ static int lp873x_gpio_set_config(struct gpio_chip *gc, unsigned offset,
 					  BIT(offset * BITS_PER_GPO +
 					  LP873X_GPO_CTRL_OD), 0);
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 }
 
@@ -138,7 +138,7 @@ static int lp873x_gpio_probe(struct platform_device *pdev)
 
 	gpio = devm_kzalloc(&pdev->dev, sizeof(*gpio), GFP_KERNEL);
 	if (!gpio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, gpio);
 
@@ -148,7 +148,7 @@ static int lp873x_gpio_probe(struct platform_device *pdev)
 
 	ret = devm_gpiochip_add_data(&pdev->dev, &gpio->chip, gpio);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "Could not register gpiochip, %d\n", ret);
+		dev_err(&pdev->dev, "Could analt register gpiochip, %d\n", ret);
 		return ret;
 	}
 

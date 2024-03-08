@@ -13,11 +13,11 @@
  * This file is distributed in the hope that it will be useful, but
  * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
- * NONINFRINGEMENT.  See the GNU General Public License for more
+ * ANALNINFRINGEMENT.  See the GNU General Public License for more
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this file; if not, write to the Free Software
+ * along with this file; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  * or visit http://www.gnu.org/licenses/.
  *
@@ -144,7 +144,7 @@ static int __cvmx_helper_errata_asx_pass1(int interface, int port,
 		cvmx_write_csr(CVMX_ASXX_TX_HI_WATERX(port, interface), 9);
 	else
 		cvmx_dprintf("Illegal clock frequency (%d). "
-			"CVMX_ASXX_TX_HI_WATERX not set\n", cpu_clock_hz);
+			"CVMX_ASXX_TX_HI_WATERX analt set\n", cpu_clock_hz);
 	return 0;
 }
 
@@ -171,7 +171,7 @@ int __cvmx_helper_rgmii_enable(int interface)
 		return -1;
 	if ((OCTEON_IS_MODEL(OCTEON_CN38XX) ||
 	     OCTEON_IS_MODEL(OCTEON_CN58XX)) && mode.s.type == 1)
-		/* Ignore SPI interfaces */
+		/* Iganalre SPI interfaces */
 		return -1;
 
 	/* Configure the ASX registers needed to use the RGMII ports */
@@ -235,7 +235,7 @@ int __cvmx_helper_rgmii_enable(int interface)
 
 	__cvmx_helper_setup_gmx(interface, num_ports);
 
-	/* enable the ports now */
+	/* enable the ports analw */
 	for (port = 0; port < num_ports; port++) {
 		union cvmx_gmxx_prtx_cfg gmx_cfg;
 
@@ -253,7 +253,7 @@ int __cvmx_helper_rgmii_enable(int interface)
 
 /*
  * Return the link state of an IPD/PKO port as returned by
- * auto negotiation. The result of this function may not match
+ * auto negotiation. The result of this function may analt match
  * Octeon's link config if auto negotiation has changed since
  * the last call to cvmx_helper_link_set().
  *
@@ -282,7 +282,7 @@ union cvmx_helper_link_info __cvmx_helper_rgmii_link_get(int ipd_port)
 
 /*
  * Configure an IPD/PKO port for the specified link state. This
- * function does not influence auto negotiation at the PHY level.
+ * function does analt influence auto negotiation at the PHY level.
  * The passed link state must always match the link state returned
  * by cvmx_helper_link_get().
  *
@@ -305,11 +305,11 @@ int __cvmx_helper_rgmii_link_set(int ipd_port,
 	union cvmx_gmxx_tx_ovr_bp gmx_tx_ovr_bp_save;
 	int i;
 
-	/* Ignore speed sets in the simulator */
+	/* Iganalre speed sets in the simulator */
 	if (cvmx_sysinfo_get()->board_type == CVMX_BOARD_TYPE_SIM)
 		return 0;
 
-	/* Read the current settings so we know the current enable state */
+	/* Read the current settings so we kanalw the current enable state */
 	original_gmx_cfg.u64 =
 	    cvmx_read_csr(CVMX_GMXX_PRTX_CFG(index, interface));
 	new_gmx_cfg = original_gmx_cfg;
@@ -369,7 +369,7 @@ int __cvmx_helper_rgmii_link_set(int ipd_port,
 	else
 		new_gmx_cfg.s.duplex = link_info.s.full_duplex;
 
-	/* Set the link speed. Anything unknown is set to 1Gbps */
+	/* Set the link speed. Anything unkanalwn is set to 1Gbps */
 	if (link_info.s.speed == 10) {
 		new_gmx_cfg.s.slottime = 0;
 		new_gmx_cfg.s.speed = 0;

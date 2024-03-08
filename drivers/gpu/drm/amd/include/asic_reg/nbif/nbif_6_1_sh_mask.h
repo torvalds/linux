@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included
+ * The above copyright analtice and this permission analtice shall be included
  * in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
@@ -33,7 +33,7 @@
 #define COMMAND__BUS_MASTER_EN__SHIFT                                                                         0x2
 #define COMMAND__SPECIAL_CYCLE_EN__SHIFT                                                                      0x3
 #define COMMAND__MEM_WRITE_INVALIDATE_EN__SHIFT                                                               0x4
-#define COMMAND__PAL_SNOOP_EN__SHIFT                                                                          0x5
+#define COMMAND__PAL_SANALOP_EN__SHIFT                                                                          0x5
 #define COMMAND__PARITY_ERROR_RESPONSE__SHIFT                                                                 0x6
 #define COMMAND__AD_STEPPING__SHIFT                                                                           0x7
 #define COMMAND__SERR_EN__SHIFT                                                                               0x8
@@ -52,7 +52,7 @@
 #define STATUS__SIGNALED_SYSTEM_ERROR__SHIFT                                                                  0xe
 #define STATUS__PARITY_ERROR_DETECTED__SHIFT                                                                  0xf
 //REVISION_ID
-#define REVISION_ID__MINOR_REV_ID__SHIFT                                                                      0x0
+#define REVISION_ID__MIANALR_REV_ID__SHIFT                                                                      0x0
 #define REVISION_ID__MAJOR_REV_ID__SHIFT                                                                      0x4
 //PROG_INTERFACE
 #define PROG_INTERFACE__PROG_INTERFACE__SHIFT                                                                 0x0
@@ -118,7 +118,7 @@
 #define PMI_CAP__PME_SUPPORT__SHIFT                                                                           0xb
 //PMI_STATUS_CNTL
 #define PMI_STATUS_CNTL__POWER_STATE__SHIFT                                                                   0x0
-#define PMI_STATUS_CNTL__NO_SOFT_RESET__SHIFT                                                                 0x3
+#define PMI_STATUS_CNTL__ANAL_SOFT_RESET__SHIFT                                                                 0x3
 #define PMI_STATUS_CNTL__PME_EN__SHIFT                                                                        0x8
 #define PMI_STATUS_CNTL__DATA_SELECT__SHIFT                                                                   0x9
 #define PMI_STATUS_CNTL__DATA_SCALE__SHIFT                                                                    0xd
@@ -146,7 +146,7 @@
 #define DEVICE_CAP__FLR_CAPABLE__SHIFT                                                                        0x1c
 //DEVICE_CNTL
 #define DEVICE_CNTL__CORR_ERR_EN__SHIFT                                                                       0x0
-#define DEVICE_CNTL__NON_FATAL_ERR_EN__SHIFT                                                                  0x1
+#define DEVICE_CNTL__ANALN_FATAL_ERR_EN__SHIFT                                                                  0x1
 #define DEVICE_CNTL__FATAL_ERR_EN__SHIFT                                                                      0x2
 #define DEVICE_CNTL__USR_REPORT_EN__SHIFT                                                                     0x3
 #define DEVICE_CNTL__RELAXED_ORD_EN__SHIFT                                                                    0x4
@@ -154,12 +154,12 @@
 #define DEVICE_CNTL__EXTENDED_TAG_EN__SHIFT                                                                   0x8
 #define DEVICE_CNTL__PHANTOM_FUNC_EN__SHIFT                                                                   0x9
 #define DEVICE_CNTL__AUX_POWER_PM_EN__SHIFT                                                                   0xa
-#define DEVICE_CNTL__NO_SNOOP_EN__SHIFT                                                                       0xb
+#define DEVICE_CNTL__ANAL_SANALOP_EN__SHIFT                                                                       0xb
 #define DEVICE_CNTL__MAX_READ_REQUEST_SIZE__SHIFT                                                             0xc
 #define DEVICE_CNTL__INITIATE_FLR__SHIFT                                                                      0xf
 //DEVICE_STATUS
 #define DEVICE_STATUS__CORR_ERR__SHIFT                                                                        0x0
-#define DEVICE_STATUS__NON_FATAL_ERR__SHIFT                                                                   0x1
+#define DEVICE_STATUS__ANALN_FATAL_ERR__SHIFT                                                                   0x1
 #define DEVICE_STATUS__FATAL_ERR__SHIFT                                                                       0x2
 #define DEVICE_STATUS__USR_DETECTED__SHIFT                                                                    0x3
 #define DEVICE_STATUS__AUX_PWR__SHIFT                                                                         0x4
@@ -173,7 +173,7 @@
 #define LINK_CAP__CLOCK_POWER_MANAGEMENT__SHIFT                                                               0x12
 #define LINK_CAP__SURPRISE_DOWN_ERR_REPORTING__SHIFT                                                          0x13
 #define LINK_CAP__DL_ACTIVE_REPORTING_CAPABLE__SHIFT                                                          0x14
-#define LINK_CAP__LINK_BW_NOTIFICATION_CAP__SHIFT                                                             0x15
+#define LINK_CAP__LINK_BW_ANALTIFICATION_CAP__SHIFT                                                             0x15
 #define LINK_CAP__ASPM_OPTIONALITY_COMPLIANCE__SHIFT                                                          0x16
 #define LINK_CAP__PORT_NUMBER__SHIFT                                                                          0x18
 //LINK_CNTL
@@ -184,9 +184,9 @@
 #define LINK_CNTL__COMMON_CLOCK_CFG__SHIFT                                                                    0x6
 #define LINK_CNTL__EXTENDED_SYNC__SHIFT                                                                       0x7
 #define LINK_CNTL__CLOCK_POWER_MANAGEMENT_EN__SHIFT                                                           0x8
-#define LINK_CNTL__HW_AUTONOMOUS_WIDTH_DISABLE__SHIFT                                                         0x9
+#define LINK_CNTL__HW_AUTOANALMOUS_WIDTH_DISABLE__SHIFT                                                         0x9
 #define LINK_CNTL__LINK_BW_MANAGEMENT_INT_EN__SHIFT                                                           0xa
-#define LINK_CNTL__LINK_AUTONOMOUS_BW_INT_EN__SHIFT                                                           0xb
+#define LINK_CNTL__LINK_AUTOANALMOUS_BW_INT_EN__SHIFT                                                           0xb
 //LINK_STATUS
 #define LINK_STATUS__CURRENT_LINK_SPEED__SHIFT                                                                0x0
 #define LINK_STATUS__NEGOTIATED_LINK_WIDTH__SHIFT                                                             0x4
@@ -194,7 +194,7 @@
 #define LINK_STATUS__SLOT_CLOCK_CFG__SHIFT                                                                    0xc
 #define LINK_STATUS__DL_ACTIVE__SHIFT                                                                         0xd
 #define LINK_STATUS__LINK_BW_MANAGEMENT_STATUS__SHIFT                                                         0xe
-#define LINK_STATUS__LINK_AUTONOMOUS_BW_STATUS__SHIFT                                                         0xf
+#define LINK_STATUS__LINK_AUTOANALMOUS_BW_STATUS__SHIFT                                                         0xf
 //DEVICE_CAP2
 #define DEVICE_CAP2__CPL_TIMEOUT_RANGE_SUPPORTED__SHIFT                                                       0x0
 #define DEVICE_CAP2__CPL_TIMEOUT_DIS_SUPPORTED__SHIFT                                                         0x4
@@ -203,7 +203,7 @@
 #define DEVICE_CAP2__ATOMICOP_32CMPLT_SUPPORTED__SHIFT                                                        0x7
 #define DEVICE_CAP2__ATOMICOP_64CMPLT_SUPPORTED__SHIFT                                                        0x8
 #define DEVICE_CAP2__CAS128_CMPLT_SUPPORTED__SHIFT                                                            0x9
-#define DEVICE_CAP2__NO_RO_ENABLED_P2P_PASSING__SHIFT                                                         0xa
+#define DEVICE_CAP2__ANAL_RO_ENABLED_P2P_PASSING__SHIFT                                                         0xa
 #define DEVICE_CAP2__LTR_SUPPORTED__SHIFT                                                                     0xb
 #define DEVICE_CAP2__TPH_CPLR_SUPPORTED__SHIFT                                                                0xc
 #define DEVICE_CAP2__OBFF_SUPPORTED__SHIFT                                                                    0x12
@@ -230,7 +230,7 @@
 //LINK_CNTL2
 #define LINK_CNTL2__TARGET_LINK_SPEED__SHIFT                                                                  0x0
 #define LINK_CNTL2__ENTER_COMPLIANCE__SHIFT                                                                   0x4
-#define LINK_CNTL2__HW_AUTONOMOUS_SPEED_DISABLE__SHIFT                                                        0x5
+#define LINK_CNTL2__HW_AUTOANALMOUS_SPEED_DISABLE__SHIFT                                                        0x5
 #define LINK_CNTL2__SELECTABLE_DEEMPHASIS__SHIFT                                                              0x6
 #define LINK_CNTL2__XMIT_MARGIN__SHIFT                                                                        0x7
 #define LINK_CNTL2__ENTER_MOD_COMPLIANCE__SHIFT                                                               0xa
@@ -318,7 +318,7 @@
 #define PCIE_PORT_VC_STATUS__VC_ARB_TABLE_STATUS__SHIFT                                                       0x0
 //PCIE_VC0_RESOURCE_CAP
 #define PCIE_VC0_RESOURCE_CAP__PORT_ARB_CAP__SHIFT                                                            0x0
-#define PCIE_VC0_RESOURCE_CAP__REJECT_SNOOP_TRANS__SHIFT                                                      0xf
+#define PCIE_VC0_RESOURCE_CAP__REJECT_SANALOP_TRANS__SHIFT                                                      0xf
 #define PCIE_VC0_RESOURCE_CAP__MAX_TIME_SLOTS__SHIFT                                                          0x10
 #define PCIE_VC0_RESOURCE_CAP__PORT_ARB_TABLE_OFFSET__SHIFT                                                   0x18
 //PCIE_VC0_RESOURCE_CNTL
@@ -333,7 +333,7 @@
 #define PCIE_VC0_RESOURCE_STATUS__VC_NEGOTIATION_PENDING__SHIFT                                               0x1
 //PCIE_VC1_RESOURCE_CAP
 #define PCIE_VC1_RESOURCE_CAP__PORT_ARB_CAP__SHIFT                                                            0x0
-#define PCIE_VC1_RESOURCE_CAP__REJECT_SNOOP_TRANS__SHIFT                                                      0xf
+#define PCIE_VC1_RESOURCE_CAP__REJECT_SANALOP_TRANS__SHIFT                                                      0xf
 #define PCIE_VC1_RESOURCE_CAP__MAX_TIME_SLOTS__SHIFT                                                          0x10
 #define PCIE_VC1_RESOURCE_CAP__PORT_ARB_TABLE_OFFSET__SHIFT                                                   0x18
 //PCIE_VC1_RESOURCE_CNTL
@@ -415,7 +415,7 @@
 #define PCIE_CORR_ERR_STATUS__BAD_DLLP_STATUS__SHIFT                                                          0x7
 #define PCIE_CORR_ERR_STATUS__REPLAY_NUM_ROLLOVER_STATUS__SHIFT                                               0x8
 #define PCIE_CORR_ERR_STATUS__REPLAY_TIMER_TIMEOUT_STATUS__SHIFT                                              0xc
-#define PCIE_CORR_ERR_STATUS__ADVISORY_NONFATAL_ERR_STATUS__SHIFT                                             0xd
+#define PCIE_CORR_ERR_STATUS__ADVISORY_ANALNFATAL_ERR_STATUS__SHIFT                                             0xd
 #define PCIE_CORR_ERR_STATUS__CORR_INT_ERR_STATUS__SHIFT                                                      0xe
 #define PCIE_CORR_ERR_STATUS__HDR_LOG_OVFL_STATUS__SHIFT                                                      0xf
 //PCIE_CORR_ERR_MASK
@@ -424,7 +424,7 @@
 #define PCIE_CORR_ERR_MASK__BAD_DLLP_MASK__SHIFT                                                              0x7
 #define PCIE_CORR_ERR_MASK__REPLAY_NUM_ROLLOVER_MASK__SHIFT                                                   0x8
 #define PCIE_CORR_ERR_MASK__REPLAY_TIMER_TIMEOUT_MASK__SHIFT                                                  0xc
-#define PCIE_CORR_ERR_MASK__ADVISORY_NONFATAL_ERR_MASK__SHIFT                                                 0xd
+#define PCIE_CORR_ERR_MASK__ADVISORY_ANALNFATAL_ERR_MASK__SHIFT                                                 0xd
 #define PCIE_CORR_ERR_MASK__CORR_INT_ERR_MASK__SHIFT                                                          0xe
 #define PCIE_CORR_ERR_MASK__HDR_LOG_OVFL_MASK__SHIFT                                                          0xf
 //PCIE_ADV_ERR_CAP_CNTL
@@ -446,20 +446,20 @@
 #define PCIE_HDR_LOG3__TLP_HDR__SHIFT                                                                         0x0
 //PCIE_ROOT_ERR_CMD
 #define PCIE_ROOT_ERR_CMD__CORR_ERR_REP_EN__SHIFT                                                             0x0
-#define PCIE_ROOT_ERR_CMD__NONFATAL_ERR_REP_EN__SHIFT                                                         0x1
+#define PCIE_ROOT_ERR_CMD__ANALNFATAL_ERR_REP_EN__SHIFT                                                         0x1
 #define PCIE_ROOT_ERR_CMD__FATAL_ERR_REP_EN__SHIFT                                                            0x2
 //PCIE_ROOT_ERR_STATUS
 #define PCIE_ROOT_ERR_STATUS__ERR_CORR_RCVD__SHIFT                                                            0x0
 #define PCIE_ROOT_ERR_STATUS__MULT_ERR_CORR_RCVD__SHIFT                                                       0x1
-#define PCIE_ROOT_ERR_STATUS__ERR_FATAL_NONFATAL_RCVD__SHIFT                                                  0x2
-#define PCIE_ROOT_ERR_STATUS__MULT_ERR_FATAL_NONFATAL_RCVD__SHIFT                                             0x3
+#define PCIE_ROOT_ERR_STATUS__ERR_FATAL_ANALNFATAL_RCVD__SHIFT                                                  0x2
+#define PCIE_ROOT_ERR_STATUS__MULT_ERR_FATAL_ANALNFATAL_RCVD__SHIFT                                             0x3
 #define PCIE_ROOT_ERR_STATUS__FIRST_UNCORRECTABLE_FATAL__SHIFT                                                0x4
-#define PCIE_ROOT_ERR_STATUS__NONFATAL_ERROR_MSG_RCVD__SHIFT                                                  0x5
+#define PCIE_ROOT_ERR_STATUS__ANALNFATAL_ERROR_MSG_RCVD__SHIFT                                                  0x5
 #define PCIE_ROOT_ERR_STATUS__FATAL_ERROR_MSG_RCVD__SHIFT                                                     0x6
 #define PCIE_ROOT_ERR_STATUS__ADV_ERR_INT_MSG_NUM__SHIFT                                                      0x1b
 //PCIE_ERR_SRC_ID
 #define PCIE_ERR_SRC_ID__ERR_CORR_SRC_ID__SHIFT                                                               0x0
-#define PCIE_ERR_SRC_ID__ERR_FATAL_NONFATAL_SRC_ID__SHIFT                                                     0x10
+#define PCIE_ERR_SRC_ID__ERR_FATAL_ANALNFATAL_SRC_ID__SHIFT                                                     0x10
 //PCIE_TLP_PREFIX_LOG0
 #define PCIE_TLP_PREFIX_LOG0__TLP_PREFIX__SHIFT                                                               0x0
 //PCIE_TLP_PREFIX_LOG1
@@ -728,7 +728,7 @@
 #define PCIE_TPH_REQR_ENH_CAP_LIST__CAP_VER__SHIFT                                                            0x10
 #define PCIE_TPH_REQR_ENH_CAP_LIST__NEXT_PTR__SHIFT                                                           0x14
 //PCIE_TPH_REQR_CAP
-#define PCIE_TPH_REQR_CAP__TPH_REQR_NO_ST_MODE_SUPPORTED__SHIFT                                               0x0
+#define PCIE_TPH_REQR_CAP__TPH_REQR_ANAL_ST_MODE_SUPPORTED__SHIFT                                               0x0
 #define PCIE_TPH_REQR_CAP__TPH_REQR_INT_VEC_MODE_SUPPORTED__SHIFT                                             0x1
 #define PCIE_TPH_REQR_CAP__TPH_REQR_DEV_SPC_MODE_SUPPORTED__SHIFT                                             0x2
 #define PCIE_TPH_REQR_CAP__TPH_REQR_EXTND_TPH_REQR_SUPPORED__SHIFT                                            0x8
@@ -1088,7 +1088,7 @@
 #define SLOT_CAP__SLOT_PWR_LIMIT_VALUE__SHIFT                                                                 0x7
 #define SLOT_CAP__SLOT_PWR_LIMIT_SCALE__SHIFT                                                                 0xf
 #define SLOT_CAP__ELECTROMECH_INTERLOCK_PRESENT__SHIFT                                                        0x11
-#define SLOT_CAP__NO_COMMAND_COMPLETED_SUPPORTED__SHIFT                                                       0x12
+#define SLOT_CAP__ANAL_COMMAND_COMPLETED_SUPPORTED__SHIFT                                                       0x12
 #define SLOT_CAP__PHYSICAL_SLOT_NUM__SHIFT                                                                    0x13
 //SLOT_CNTL
 #define SLOT_CNTL__ATTN_BUTTON_PRESSED_EN__SHIFT                                                              0x0
@@ -1171,7 +1171,7 @@
 
 // addressBlock: gdc_GDCDEC
 //A2S_CNTL_CL0
-#define A2S_CNTL_CL0__NSNOOP_MAP__SHIFT                                                                       0x0
+#define A2S_CNTL_CL0__NSANALOP_MAP__SHIFT                                                                       0x0
 #define A2S_CNTL_CL0__REQPASSPW_VC0_MAP__SHIFT                                                                0x2
 #define A2S_CNTL_CL0__REQPASSPW_NVC0_MAP__SHIFT                                                               0x4
 #define A2S_CNTL_CL0__REQRSPPASSPW_VC0_MAP__SHIFT                                                             0x6
@@ -1183,7 +1183,7 @@
 #define A2S_CNTL_CL0__RESP_WR_MAP__SHIFT                                                                      0x12
 #define A2S_CNTL_CL0__RESP_RD_MAP__SHIFT                                                                      0x14
 //A2S_CNTL_CL1
-#define A2S_CNTL_CL1__NSNOOP_MAP__SHIFT                                                                       0x0
+#define A2S_CNTL_CL1__NSANALOP_MAP__SHIFT                                                                       0x0
 #define A2S_CNTL_CL1__REQPASSPW_VC0_MAP__SHIFT                                                                0x2
 #define A2S_CNTL_CL1__REQPASSPW_NVC0_MAP__SHIFT                                                               0x4
 #define A2S_CNTL_CL1__REQRSPPASSPW_VC0_MAP__SHIFT                                                             0x6
@@ -1195,7 +1195,7 @@
 #define A2S_CNTL_CL1__RESP_WR_MAP__SHIFT                                                                      0x12
 #define A2S_CNTL_CL1__RESP_RD_MAP__SHIFT                                                                      0x14
 //A2S_CNTL_CL2
-#define A2S_CNTL_CL2__NSNOOP_MAP__SHIFT                                                                       0x0
+#define A2S_CNTL_CL2__NSANALOP_MAP__SHIFT                                                                       0x0
 #define A2S_CNTL_CL2__REQPASSPW_VC0_MAP__SHIFT                                                                0x2
 #define A2S_CNTL_CL2__REQPASSPW_NVC0_MAP__SHIFT                                                               0x4
 #define A2S_CNTL_CL2__REQRSPPASSPW_VC0_MAP__SHIFT                                                             0x6
@@ -1207,7 +1207,7 @@
 #define A2S_CNTL_CL2__RESP_WR_MAP__SHIFT                                                                      0x12
 #define A2S_CNTL_CL2__RESP_RD_MAP__SHIFT                                                                      0x14
 //A2S_CNTL_CL3
-#define A2S_CNTL_CL3__NSNOOP_MAP__SHIFT                                                                       0x0
+#define A2S_CNTL_CL3__NSANALOP_MAP__SHIFT                                                                       0x0
 #define A2S_CNTL_CL3__REQPASSPW_VC0_MAP__SHIFT                                                                0x2
 #define A2S_CNTL_CL3__REQPASSPW_NVC0_MAP__SHIFT                                                               0x4
 #define A2S_CNTL_CL3__REQRSPPASSPW_VC0_MAP__SHIFT                                                             0x6
@@ -1219,7 +1219,7 @@
 #define A2S_CNTL_CL3__RESP_WR_MAP__SHIFT                                                                      0x12
 #define A2S_CNTL_CL3__RESP_RD_MAP__SHIFT                                                                      0x14
 //A2S_CNTL_CL4
-#define A2S_CNTL_CL4__NSNOOP_MAP__SHIFT                                                                       0x0
+#define A2S_CNTL_CL4__NSANALOP_MAP__SHIFT                                                                       0x0
 #define A2S_CNTL_CL4__REQPASSPW_VC0_MAP__SHIFT                                                                0x2
 #define A2S_CNTL_CL4__REQPASSPW_NVC0_MAP__SHIFT                                                               0x4
 #define A2S_CNTL_CL4__REQRSPPASSPW_VC0_MAP__SHIFT                                                             0x6
@@ -2064,7 +2064,7 @@
 //DN_PCIE_CNTL
 #define DN_PCIE_CNTL__HWINIT_WR_LOCK__SHIFT                                                                   0x0
 #define DN_PCIE_CNTL__UR_ERR_REPORT_DIS_DN__SHIFT                                                             0x7
-#define DN_PCIE_CNTL__RX_IGNORE_LTR_MSG_UR__SHIFT                                                             0x1e
+#define DN_PCIE_CNTL__RX_IGANALRE_LTR_MSG_UR__SHIFT                                                             0x1e
 //DN_PCIE_CONFIG_CNTL
 #define DN_PCIE_CONFIG_CNTL__CI_EXTENDED_TAG_EN_OVERRIDE__SHIFT                                               0x19
 //DN_PCIE_RX_CNTL2
@@ -2098,16 +2098,16 @@
 #define PCIE_ERR_CNTL__AER_HDR_LOG_F0_TIMER_EXPIRED__SHIFT                                                    0xb
 #define PCIE_ERR_CNTL__SEND_ERR_MSG_IMMEDIATELY__SHIFT                                                        0x11
 //PCIE_RX_CNTL
-#define PCIE_RX_CNTL__RX_IGNORE_MAX_PAYLOAD_ERR__SHIFT                                                        0x8
-#define PCIE_RX_CNTL__RX_IGNORE_TC_ERR_DN__SHIFT                                                              0x9
+#define PCIE_RX_CNTL__RX_IGANALRE_MAX_PAYLOAD_ERR__SHIFT                                                        0x8
+#define PCIE_RX_CNTL__RX_IGANALRE_TC_ERR_DN__SHIFT                                                              0x9
 #define PCIE_RX_CNTL__RX_PCIE_CPL_TIMEOUT_DIS__SHIFT                                                          0x14
-#define PCIE_RX_CNTL__RX_IGNORE_SHORTPREFIX_ERR_DN__SHIFT                                                     0x15
+#define PCIE_RX_CNTL__RX_IGANALRE_SHORTPREFIX_ERR_DN__SHIFT                                                     0x15
 #define PCIE_RX_CNTL__RX_RCB_FLR_TIMEOUT_DIS__SHIFT                                                           0x1b
 //PCIE_LC_SPEED_CNTL
 #define PCIE_LC_SPEED_CNTL__LC_GEN2_EN_STRAP__SHIFT                                                           0x0
 #define PCIE_LC_SPEED_CNTL__LC_GEN3_EN_STRAP__SHIFT                                                           0x1
 //PCIE_LC_CNTL2
-#define PCIE_LC_CNTL2__LC_LINK_BW_NOTIFICATION_DIS__SHIFT                                                     0x1b
+#define PCIE_LC_CNTL2__LC_LINK_BW_ANALTIFICATION_DIS__SHIFT                                                     0x1b
 //PCIEP_STRAP_MISC
 #define PCIEP_STRAP_MISC__STRAP_MULTI_FUNC_EN__SHIFT                                                          0xa
 //LTR_MSG_INFO_FROM_EP
@@ -2120,23 +2120,23 @@
 //EP_PCIE_CNTL
 #define EP_PCIE_CNTL__UR_ERR_REPORT_DIS__SHIFT                                                                0x7
 #define EP_PCIE_CNTL__PCIE_MALFORM_ATOMIC_OPS__SHIFT                                                          0x8
-#define EP_PCIE_CNTL__RX_IGNORE_LTR_MSG_UR__SHIFT                                                             0x1e
+#define EP_PCIE_CNTL__RX_IGANALRE_LTR_MSG_UR__SHIFT                                                             0x1e
 //EP_PCIE_INT_CNTL
 #define EP_PCIE_INT_CNTL__CORR_ERR_INT_EN__SHIFT                                                              0x0
-#define EP_PCIE_INT_CNTL__NON_FATAL_ERR_INT_EN__SHIFT                                                         0x1
+#define EP_PCIE_INT_CNTL__ANALN_FATAL_ERR_INT_EN__SHIFT                                                         0x1
 #define EP_PCIE_INT_CNTL__FATAL_ERR_INT_EN__SHIFT                                                             0x2
 #define EP_PCIE_INT_CNTL__USR_DETECTED_INT_EN__SHIFT                                                          0x3
 #define EP_PCIE_INT_CNTL__MISC_ERR_INT_EN__SHIFT                                                              0x4
 #define EP_PCIE_INT_CNTL__POWER_STATE_CHG_INT_EN__SHIFT                                                       0x6
 //EP_PCIE_INT_STATUS
 #define EP_PCIE_INT_STATUS__CORR_ERR_INT_STATUS__SHIFT                                                        0x0
-#define EP_PCIE_INT_STATUS__NON_FATAL_ERR_INT_STATUS__SHIFT                                                   0x1
+#define EP_PCIE_INT_STATUS__ANALN_FATAL_ERR_INT_STATUS__SHIFT                                                   0x1
 #define EP_PCIE_INT_STATUS__FATAL_ERR_INT_STATUS__SHIFT                                                       0x2
 #define EP_PCIE_INT_STATUS__USR_DETECTED_INT_STATUS__SHIFT                                                    0x3
 #define EP_PCIE_INT_STATUS__MISC_ERR_INT_STATUS__SHIFT                                                        0x4
 #define EP_PCIE_INT_STATUS__POWER_STATE_CHG_INT_STATUS__SHIFT                                                 0x6
 //EP_PCIE_RX_CNTL2
-#define EP_PCIE_RX_CNTL2__RX_IGNORE_EP_INVALIDPASID_UR__SHIFT                                                 0x0
+#define EP_PCIE_RX_CNTL2__RX_IGANALRE_EP_INVALIDPASID_UR__SHIFT                                                 0x0
 //EP_PCIE_BUS_CNTL
 #define EP_PCIE_BUS_CNTL__IMMEDIATE_PMI_DIS__SHIFT                                                            0x7
 //EP_PCIE_CFG_CNTL
@@ -2154,7 +2154,7 @@
 #define EP_PCIE_OBFF_CNTL__TX_OBFF_INTR_TO_ACTIVE__SHIFT                                                      0x10
 #define EP_PCIE_OBFF_CNTL__TX_OBFF_ERR_TO_ACTIVE__SHIFT                                                       0x11
 #define EP_PCIE_OBFF_CNTL__TX_OBFF_ANY_MSG_TO_ACTIVE__SHIFT                                                   0x12
-#define EP_PCIE_OBFF_CNTL__TX_OBFF_ACCEPT_IN_NOND0__SHIFT                                                     0x13
+#define EP_PCIE_OBFF_CNTL__TX_OBFF_ACCEPT_IN_ANALND0__SHIFT                                                     0x13
 #define EP_PCIE_OBFF_CNTL__TX_OBFF_PENDING_REQ_TO_ACTIVE__SHIFT                                               0x14
 //EP_PCIE_TX_LTR_CNTL
 #define EP_PCIE_TX_LTR_CNTL__LTR_PRIV_S_SHORT_VALUE__SHIFT                                                    0x0
@@ -2163,7 +2163,7 @@
 #define EP_PCIE_TX_LTR_CNTL__LTR_PRIV_NS_SHORT_VALUE__SHIFT                                                   0x7
 #define EP_PCIE_TX_LTR_CNTL__LTR_PRIV_NS_LONG_VALUE__SHIFT                                                    0xa
 #define EP_PCIE_TX_LTR_CNTL__LTR_PRIV_NS_REQUIREMENT__SHIFT                                                   0xd
-#define EP_PCIE_TX_LTR_CNTL__LTR_PRIV_MSG_DIS_IN_PM_NON_D0__SHIFT                                             0xe
+#define EP_PCIE_TX_LTR_CNTL__LTR_PRIV_MSG_DIS_IN_PM_ANALN_D0__SHIFT                                             0xe
 #define EP_PCIE_TX_LTR_CNTL__LTR_PRIV_RST_LTR_IN_DL_DOWN__SHIFT                                               0xf
 #define EP_PCIE_TX_LTR_CNTL__TX_CHK_FC_FOR_L1__SHIFT                                                          0x10
 //EP_PCIE_STRAP_MISC
@@ -2215,7 +2215,7 @@
 #define EP_PCIE_ERR_CNTL__ERR_REPORTING_DIS__SHIFT                                                            0x0
 #define EP_PCIE_ERR_CNTL__AER_HDR_LOG_TIMEOUT__SHIFT                                                          0x8
 #define EP_PCIE_ERR_CNTL__SEND_ERR_MSG_IMMEDIATELY__SHIFT                                                     0x11
-#define EP_PCIE_ERR_CNTL__STRAP_POISONED_ADVISORY_NONFATAL__SHIFT                                             0x12
+#define EP_PCIE_ERR_CNTL__STRAP_POISONED_ADVISORY_ANALNFATAL__SHIFT                                             0x12
 #define EP_PCIE_ERR_CNTL__AER_HDR_LOG_F0_TIMER_EXPIRED__SHIFT                                                 0x18
 #define EP_PCIE_ERR_CNTL__AER_HDR_LOG_F1_TIMER_EXPIRED__SHIFT                                                 0x19
 #define EP_PCIE_ERR_CNTL__AER_HDR_LOG_F2_TIMER_EXPIRED__SHIFT                                                 0x1a
@@ -2225,13 +2225,13 @@
 #define EP_PCIE_ERR_CNTL__AER_HDR_LOG_F6_TIMER_EXPIRED__SHIFT                                                 0x1e
 #define EP_PCIE_ERR_CNTL__AER_HDR_LOG_F7_TIMER_EXPIRED__SHIFT                                                 0x1f
 //EP_PCIE_RX_CNTL
-#define EP_PCIE_RX_CNTL__RX_IGNORE_MAX_PAYLOAD_ERR__SHIFT                                                     0x8
-#define EP_PCIE_RX_CNTL__RX_IGNORE_TC_ERR__SHIFT                                                              0x9
+#define EP_PCIE_RX_CNTL__RX_IGANALRE_MAX_PAYLOAD_ERR__SHIFT                                                     0x8
+#define EP_PCIE_RX_CNTL__RX_IGANALRE_TC_ERR__SHIFT                                                              0x9
 #define EP_PCIE_RX_CNTL__RX_PCIE_CPL_TIMEOUT_DIS__SHIFT                                                       0x14
-#define EP_PCIE_RX_CNTL__RX_IGNORE_SHORTPREFIX_ERR__SHIFT                                                     0x15
-#define EP_PCIE_RX_CNTL__RX_IGNORE_MAXPREFIX_ERR__SHIFT                                                       0x16
-#define EP_PCIE_RX_CNTL__RX_IGNORE_INVALIDPASID_ERR__SHIFT                                                    0x18
-#define EP_PCIE_RX_CNTL__RX_IGNORE_NOT_PASID_UR__SHIFT                                                        0x19
+#define EP_PCIE_RX_CNTL__RX_IGANALRE_SHORTPREFIX_ERR__SHIFT                                                     0x15
+#define EP_PCIE_RX_CNTL__RX_IGANALRE_MAXPREFIX_ERR__SHIFT                                                       0x16
+#define EP_PCIE_RX_CNTL__RX_IGANALRE_INVALIDPASID_ERR__SHIFT                                                    0x18
+#define EP_PCIE_RX_CNTL__RX_IGANALRE_ANALT_PASID_UR__SHIFT                                                        0x19
 #define EP_PCIE_RX_CNTL__RX_TPH_DIS__SHIFT                                                                    0x1a
 //EP_PCIE_LC_SPEED_CNTL
 #define EP_PCIE_LC_SPEED_CNTL__LC_GEN2_EN_STRAP__SHIFT                                                        0x0
@@ -2255,8 +2255,8 @@
 #define BUS_CNTL__DEASRT_INTX_DSTATE_CHK_DIS_EP__SHIFT                                                        0x13
 #define BUS_CNTL__DEASRT_INTX_DSTATE_CHK_DIS_DN__SHIFT                                                        0x14
 #define BUS_CNTL__DEASRT_INTX_DSTATE_CHK_DIS_SWUS__SHIFT                                                      0x15
-#define BUS_CNTL__DEASRT_INTX_IN_NOND0_EN_EP__SHIFT                                                           0x16
-#define BUS_CNTL__DEASRT_INTX_IN_NOND0_EN_DN__SHIFT                                                           0x17
+#define BUS_CNTL__DEASRT_INTX_IN_ANALND0_EN_EP__SHIFT                                                           0x16
+#define BUS_CNTL__DEASRT_INTX_IN_ANALND0_EN_DN__SHIFT                                                           0x17
 #define BUS_CNTL__UR_OVRD_FOR_ECRC_EN__SHIFT                                                                  0x18
 //BIF_SCRATCH0
 #define BIF_SCRATCH0__BIF_SCRATCH0__SHIFT                                                                     0x0
@@ -2277,10 +2277,10 @@
 //INTERRUPT_CNTL
 #define INTERRUPT_CNTL__IH_DUMMY_RD_OVERRIDE__SHIFT                                                           0x0
 #define INTERRUPT_CNTL__IH_DUMMY_RD_EN__SHIFT                                                                 0x1
-#define INTERRUPT_CNTL__IH_REQ_NONSNOOP_EN__SHIFT                                                             0x3
+#define INTERRUPT_CNTL__IH_REQ_ANALNSANALOP_EN__SHIFT                                                             0x3
 #define INTERRUPT_CNTL__IH_INTR_DLY_CNTR__SHIFT                                                               0x4
 #define INTERRUPT_CNTL__GEN_IH_INT_EN__SHIFT                                                                  0x8
-#define INTERRUPT_CNTL__BIF_RB_REQ_NONSNOOP_EN__SHIFT                                                         0xf
+#define INTERRUPT_CNTL__BIF_RB_REQ_ANALNSANALOP_EN__SHIFT                                                         0xf
 //INTERRUPT_CNTL2
 #define INTERRUPT_CNTL2__IH_DUMMY_RD_ADDR__SHIFT                                                              0x0
 //CLKREQB_PAD_CNTL
@@ -2313,7 +2313,7 @@
 #define BIF_FEATURES_CONTROL_MISC__ATC_PRG_RESP_PASID_UR_EN__SHIFT                                            0xb
 #define BIF_FEATURES_CONTROL_MISC__BIF_RB_SET_OVERFLOW_EN__SHIFT                                              0xc
 #define BIF_FEATURES_CONTROL_MISC__ATOMIC_ERR_INT_DIS__SHIFT                                                  0xd
-#define BIF_FEATURES_CONTROL_MISC__BME_HDL_NONVIR_EN__SHIFT                                                   0xf
+#define BIF_FEATURES_CONTROL_MISC__BME_HDL_ANALNVIR_EN__SHIFT                                                   0xf
 #define BIF_FEATURES_CONTROL_MISC__FLR_MST_PEND_CHK_DIS__SHIFT                                                0x11
 #define BIF_FEATURES_CONTROL_MISC__FLR_SLV_PEND_CHK_DIS__SHIFT                                                0x12
 #define BIF_FEATURES_CONTROL_MISC__DOORBELL_SELFRING_GPA_APER_CHK_48BIT_ADDR__SHIFT                           0x18
@@ -2321,7 +2321,7 @@
 #define BIF_DOORBELL_CNTL__SELF_RING_DIS__SHIFT                                                               0x0
 #define BIF_DOORBELL_CNTL__TRANS_CHECK_DIS__SHIFT                                                             0x1
 #define BIF_DOORBELL_CNTL__UNTRANS_LBACK_EN__SHIFT                                                            0x2
-#define BIF_DOORBELL_CNTL__NON_CONSECUTIVE_BE_ZERO_DIS__SHIFT                                                 0x3
+#define BIF_DOORBELL_CNTL__ANALN_CONSECUTIVE_BE_ZERO_DIS__SHIFT                                                 0x3
 #define BIF_DOORBELL_CNTL__DOORBELL_MONITOR_EN__SHIFT                                                         0x4
 #define BIF_DOORBELL_CNTL__DB_MNTR_INTGEN_DIS__SHIFT                                                          0x18
 #define BIF_DOORBELL_CNTL__DB_MNTR_INTGEN_MODE_0__SHIFT                                                       0x19
@@ -2483,8 +2483,8 @@
 #define BIF_RB_WPTR_ADDR_LO__ADDR__SHIFT                                                                      0x2
 //MAILBOX_INDEX
 #define MAILBOX_INDEX__MAILBOX_INDEX__SHIFT                                                                   0x0
-//BIF_GPUIOV_RESET_NOTIFICATION
-#define BIF_GPUIOV_RESET_NOTIFICATION__RESET_NOTIFICATION__SHIFT                                              0x0
+//BIF_GPUIOV_RESET_ANALTIFICATION
+#define BIF_GPUIOV_RESET_ANALTIFICATION__RESET_ANALTIFICATION__SHIFT                                              0x0
 //BIF_UVD_GPUIOV_CFG_SIZE
 #define BIF_UVD_GPUIOV_CFG_SIZE__UVD_GPUIOV_CFG_SIZE__SHIFT                                                   0x0
 //BIF_VCE_GPUIOV_CFG_SIZE
@@ -2493,8 +2493,8 @@
 #define BIF_GFX_SDMA_GPUIOV_CFG_SIZE__GFX_SDMA_GPUIOV_CFG_SIZE__SHIFT                                         0x0
 //BIF_GMI_WRR_WEIGHT
 #define BIF_GMI_WRR_WEIGHT__GMI_REQ_REALTIME_WEIGHT__SHIFT                                                    0x0
-#define BIF_GMI_WRR_WEIGHT__GMI_REQ_NORM_P_WEIGHT__SHIFT                                                      0x8
-#define BIF_GMI_WRR_WEIGHT__GMI_REQ_NORM_NP_WEIGHT__SHIFT                                                     0x10
+#define BIF_GMI_WRR_WEIGHT__GMI_REQ_ANALRM_P_WEIGHT__SHIFT                                                      0x8
+#define BIF_GMI_WRR_WEIGHT__GMI_REQ_ANALRM_NP_WEIGHT__SHIFT                                                     0x10
 //NBIF_STRAP_WRITE_CTRL
 #define NBIF_STRAP_WRITE_CTRL__NBIF_STRAP_WRITE_ONCE_ENABLE__SHIFT                                            0x0
 //BIF_PERSTB_PAD_CNTL
@@ -2547,7 +2547,7 @@
 #define RCC_BUS_CNTL__PRIV_MAX_READ_REQUEST_SIZE__SHIFT                                                       0x1d
 //RCC_CONFIG_CNTL
 #define RCC_CONFIG_CNTL__CFG_VGA_RAM_EN__SHIFT                                                                0x0
-#define RCC_CONFIG_CNTL__GENMO_MONO_ADDRESS_B__SHIFT                                                          0x2
+#define RCC_CONFIG_CNTL__GENMO_MOANAL_ADDRESS_B__SHIFT                                                          0x2
 #define RCC_CONFIG_CNTL__GRPH_ADRSEL__SHIFT                                                                   0x3
 //RCC_CONFIG_F0_BASE
 #define RCC_CONFIG_F0_BASE__F0_BASE__SHIFT                                                                    0x0
@@ -2565,11 +2565,11 @@
 #define RCC_FEATURES_CONTROL_MISC__POST_PSN_ONLY_PKT_REPORT_UR_ALL_DIS__SHIFT                                 0x5
 #define RCC_FEATURES_CONTROL_MISC__POST_PSN_ONLY_PKT_REPORT_UR_PART_DIS__SHIFT                                0x6
 #define RCC_FEATURES_CONTROL_MISC__ATC_PRG_RESP_PASID_UR_EN__SHIFT                                            0x8
-#define RCC_FEATURES_CONTROL_MISC__RX_IGNORE_TRANSMRD_UR__SHIFT                                               0x9
-#define RCC_FEATURES_CONTROL_MISC__RX_IGNORE_TRANSMWR_UR__SHIFT                                               0xa
-#define RCC_FEATURES_CONTROL_MISC__RX_IGNORE_ATSTRANSREQ_UR__SHIFT                                            0xb
-#define RCC_FEATURES_CONTROL_MISC__RX_IGNORE_PAGEREQMSG_UR__SHIFT                                             0xc
-#define RCC_FEATURES_CONTROL_MISC__RX_IGNORE_INVCPL_UR__SHIFT                                                 0xd
+#define RCC_FEATURES_CONTROL_MISC__RX_IGANALRE_TRANSMRD_UR__SHIFT                                               0x9
+#define RCC_FEATURES_CONTROL_MISC__RX_IGANALRE_TRANSMWR_UR__SHIFT                                               0xa
+#define RCC_FEATURES_CONTROL_MISC__RX_IGANALRE_ATSTRANSREQ_UR__SHIFT                                            0xb
+#define RCC_FEATURES_CONTROL_MISC__RX_IGANALRE_PAGEREQMSG_UR__SHIFT                                             0xc
+#define RCC_FEATURES_CONTROL_MISC__RX_IGANALRE_INVCPL_UR__SHIFT                                                 0xd
 #define RCC_FEATURES_CONTROL_MISC__CLR_MSI_X_PENDING_WHEN_DISABLED_DIS__SHIFT                                 0xe
 #define RCC_FEATURES_CONTROL_MISC__CHECK_BME_ON_PENDING_PKT_GEN_DIS__SHIFT                                    0xf
 #define RCC_FEATURES_CONTROL_MISC__PSN_CHECK_ON_PAYLOAD_DIS__SHIFT                                            0x10
@@ -2683,7 +2683,7 @@
 #define RCC_DEV0_PORT_STRAP0__STRAP_CPL_ABORT_ERR_EN_DN_DEV0__SHIFT                                           0x4
 #define RCC_DEV0_PORT_STRAP0__STRAP_DEVICE_ID_DN_DEV0__SHIFT                                                  0x5
 #define RCC_DEV0_PORT_STRAP0__STRAP_INTERRUPT_PIN_DN_DEV0__SHIFT                                              0x15
-#define RCC_DEV0_PORT_STRAP0__STRAP_IGNORE_E2E_PREFIX_UR_DN_DEV0__SHIFT                                       0x18
+#define RCC_DEV0_PORT_STRAP0__STRAP_IGANALRE_E2E_PREFIX_UR_DN_DEV0__SHIFT                                       0x18
 #define RCC_DEV0_PORT_STRAP0__STRAP_MAX_PAYLOAD_SUPPORT_DN_DEV0__SHIFT                                        0x19
 #define RCC_DEV0_PORT_STRAP0__STRAP_MAX_LINK_WIDTH_SUPPORT_DEV0__SHIFT                                        0x1c
 #define RCC_DEV0_PORT_STRAP0__STRAP_EPF0_DUMMY_EN_DEV0__SHIFT                                                 0x1f
@@ -2702,7 +2702,7 @@
 #define RCC_DEV0_PORT_STRAP2__STRAP_EXTENDED_TAG_ECN_EN_DEV0__SHIFT                                           0x8
 #define RCC_DEV0_PORT_STRAP2__STRAP_EXT_VC_COUNT_DN_DEV0__SHIFT                                               0x9
 #define RCC_DEV0_PORT_STRAP2__STRAP_FIRST_RCVD_ERR_LOG_DN_DEV0__SHIFT                                         0xc
-#define RCC_DEV0_PORT_STRAP2__STRAP_POISONED_ADVISORY_NONFATAL_DN_DEV0__SHIFT                                 0xd
+#define RCC_DEV0_PORT_STRAP2__STRAP_POISONED_ADVISORY_ANALNFATAL_DN_DEV0__SHIFT                                 0xd
 #define RCC_DEV0_PORT_STRAP2__STRAP_GEN2_COMPLIANCE_DEV0__SHIFT                                               0xe
 #define RCC_DEV0_PORT_STRAP2__STRAP_GEN2_EN_DEV0__SHIFT                                                       0xf
 #define RCC_DEV0_PORT_STRAP2__STRAP_GEN3_COMPLIANCE_DEV0__SHIFT                                               0x10
@@ -2713,13 +2713,13 @@
 #define RCC_DEV0_PORT_STRAP2__STRAP_L1_ACCEPTABLE_LATENCY_DEV0__SHIFT                                         0x1a
 #define RCC_DEV0_PORT_STRAP2__STRAP_L1_EXIT_LATENCY_DEV0__SHIFT                                               0x1d
 //RCC_DEV0_PORT_STRAP3
-#define RCC_DEV0_PORT_STRAP3__STRAP_LINK_BW_NOTIFICATION_CAP_DN_EN_DEV0__SHIFT                                0x0
+#define RCC_DEV0_PORT_STRAP3__STRAP_LINK_BW_ANALTIFICATION_CAP_DN_EN_DEV0__SHIFT                                0x0
 #define RCC_DEV0_PORT_STRAP3__STRAP_LTR_EN_DEV0__SHIFT                                                        0x1
 #define RCC_DEV0_PORT_STRAP3__STRAP_LTR_EN_DN_DEV0__SHIFT                                                     0x2
 #define RCC_DEV0_PORT_STRAP3__STRAP_MAX_PAYLOAD_SUPPORT_DEV0__SHIFT                                           0x3
 #define RCC_DEV0_PORT_STRAP3__STRAP_MSI_EN_DN_DEV0__SHIFT                                                     0x6
 #define RCC_DEV0_PORT_STRAP3__STRAP_MSTCPL_TIMEOUT_EN_DEV0__SHIFT                                             0x7
-#define RCC_DEV0_PORT_STRAP3__STRAP_NO_SOFT_RESET_DN_DEV0__SHIFT                                              0x8
+#define RCC_DEV0_PORT_STRAP3__STRAP_ANAL_SOFT_RESET_DN_DEV0__SHIFT                                              0x8
 #define RCC_DEV0_PORT_STRAP3__STRAP_OBFF_SUPPORTED_DEV0__SHIFT                                                0x9
 #define RCC_DEV0_PORT_STRAP3__STRAP_PCIE_LANE_EQUALIZATION_CNTL_DOWNSTREAM_PORT_RX_PRESET_HINT_DEV0__SHIFT    0xb
 #define RCC_DEV0_PORT_STRAP3__STRAP_PCIE_LANE_EQUALIZATION_CNTL_DOWNSTREAM_PORT_TX_PRESET_DEV0__SHIFT         0xe
@@ -2759,14 +2759,14 @@
 //RCC_DEV0_PORT_STRAP7
 #define RCC_DEV0_PORT_STRAP7__STRAP_PORT_NUMBER_DEV0__SHIFT                                                   0x0
 #define RCC_DEV0_PORT_STRAP7__STRAP_MAJOR_REV_ID_DN_DEV0__SHIFT                                               0x8
-#define RCC_DEV0_PORT_STRAP7__STRAP_MINOR_REV_ID_DN_DEV0__SHIFT                                               0xc
+#define RCC_DEV0_PORT_STRAP7__STRAP_MIANALR_REV_ID_DN_DEV0__SHIFT                                               0xc
 #define RCC_DEV0_PORT_STRAP7__STRAP_RP_BUSNUM_DEV0__SHIFT                                                     0x10
 #define RCC_DEV0_PORT_STRAP7__STRAP_DN_DEVNUM_DEV0__SHIFT                                                     0x18
 #define RCC_DEV0_PORT_STRAP7__STRAP_DN_FUNCID_DEV0__SHIFT                                                     0x1d
 //RCC_DEV0_EPF0_STRAP0
 #define RCC_DEV0_EPF0_STRAP0__STRAP_DEVICE_ID_DEV0_F0__SHIFT                                                  0x0
 #define RCC_DEV0_EPF0_STRAP0__STRAP_MAJOR_REV_ID_DEV0_F0__SHIFT                                               0x10
-#define RCC_DEV0_EPF0_STRAP0__STRAP_MINOR_REV_ID_DEV0_F0__SHIFT                                               0x14
+#define RCC_DEV0_EPF0_STRAP0__STRAP_MIANALR_REV_ID_DEV0_F0__SHIFT                                               0x14
 #define RCC_DEV0_EPF0_STRAP0__STRAP_ATI_REV_ID_DEV0_F0__SHIFT                                                 0x18
 #define RCC_DEV0_EPF0_STRAP0__STRAP_FUNC_EN_DEV0_F0__SHIFT                                                    0x1c
 #define RCC_DEV0_EPF0_STRAP0__STRAP_LEGACY_DEVICE_TYPE_EN_DEV0_F0__SHIFT                                      0x1d
@@ -2783,7 +2783,7 @@
 #define RCC_DEV0_EPF0_STRAP2__STRAP_SRIOV_EN_DEV0_F0__SHIFT                                                   0x0
 #define RCC_DEV0_EPF0_STRAP2__STRAP_SRIOV_TOTAL_VFS_DEV0_F0__SHIFT                                            0x1
 #define RCC_DEV0_EPF0_STRAP2__STRAP_64BAR_DIS_DEV0_F0__SHIFT                                                  0x6
-#define RCC_DEV0_EPF0_STRAP2__STRAP_NO_SOFT_RESET_DEV0_F0__SHIFT                                              0x7
+#define RCC_DEV0_EPF0_STRAP2__STRAP_ANAL_SOFT_RESET_DEV0_F0__SHIFT                                              0x7
 #define RCC_DEV0_EPF0_STRAP2__STRAP_RESIZE_BAR_EN_DEV0_F0__SHIFT                                              0x8
 #define RCC_DEV0_EPF0_STRAP2__STRAP_MAX_PASID_WIDTH_DEV0_F0__SHIFT                                            0x9
 #define RCC_DEV0_EPF0_STRAP2__STRAP_MSI_PERVECTOR_MASK_CAP_DEV0_F0__SHIFT                                     0xe
@@ -2802,7 +2802,7 @@
 #define RCC_DEV0_EPF0_STRAP2__STRAP_PASID_GLOBAL_INVALIDATE_SUPPORTED_DEV0_F0__SHIFT                          0x1e
 #define RCC_DEV0_EPF0_STRAP2__STRAP_PASID_PRIV_MODE_SUPPORTED_DEV0_F0__SHIFT                                  0x1f
 //RCC_DEV0_EPF0_STRAP3
-#define RCC_DEV0_EPF0_STRAP3__STRAP_POISONED_ADVISORY_NONFATAL_DEV0_F0__SHIFT                                 0x0
+#define RCC_DEV0_EPF0_STRAP3__STRAP_POISONED_ADVISORY_ANALNFATAL_DEV0_F0__SHIFT                                 0x0
 #define RCC_DEV0_EPF0_STRAP3__STRAP_PWR_EN_DEV0_F0__SHIFT                                                     0x1
 #define RCC_DEV0_EPF0_STRAP3__STRAP_SUBSYS_ID_DEV0_F0__SHIFT                                                  0x2
 #define RCC_DEV0_EPF0_STRAP3__STRAP_MSI_EN_DEV0_F0__SHIFT                                                     0x12
@@ -2846,7 +2846,7 @@
 //RCC_DEV0_EPF1_STRAP0
 #define RCC_DEV0_EPF1_STRAP0__STRAP_DEVICE_ID_DEV0_F1__SHIFT                                                  0x0
 #define RCC_DEV0_EPF1_STRAP0__STRAP_MAJOR_REV_ID_DEV0_F1__SHIFT                                               0x10
-#define RCC_DEV0_EPF1_STRAP0__STRAP_MINOR_REV_ID_DEV0_F1__SHIFT                                               0x14
+#define RCC_DEV0_EPF1_STRAP0__STRAP_MIANALR_REV_ID_DEV0_F1__SHIFT                                               0x14
 #define RCC_DEV0_EPF1_STRAP0__STRAP_FUNC_EN_DEV0_F1__SHIFT                                                    0x1c
 #define RCC_DEV0_EPF1_STRAP0__STRAP_LEGACY_DEVICE_TYPE_EN_DEV0_F1__SHIFT                                      0x1d
 #define RCC_DEV0_EPF1_STRAP0__STRAP_D1_SUPPORT_DEV0_F1__SHIFT                                                 0x1e
@@ -2865,7 +2865,7 @@
 #define RCC_DEV0_EPF1_STRAP13__STRAP_CLASS_CODE_SUB_DEV0_F1__SHIFT                                            0x8
 #define RCC_DEV0_EPF1_STRAP13__STRAP_CLASS_CODE_BASE_DEV0_F1__SHIFT                                           0x10
 //RCC_DEV0_EPF1_STRAP2
-#define RCC_DEV0_EPF1_STRAP2__STRAP_NO_SOFT_RESET_DEV0_F1__SHIFT                                              0x7
+#define RCC_DEV0_EPF1_STRAP2__STRAP_ANAL_SOFT_RESET_DEV0_F1__SHIFT                                              0x7
 #define RCC_DEV0_EPF1_STRAP2__STRAP_RESIZE_BAR_EN_DEV0_F1__SHIFT                                              0x8
 #define RCC_DEV0_EPF1_STRAP2__STRAP_MSI_PERVECTOR_MASK_CAP_DEV0_F1__SHIFT                                     0xe
 #define RCC_DEV0_EPF1_STRAP2__STRAP_AER_EN_DEV0_F1__SHIFT                                                     0x10
@@ -2877,7 +2877,7 @@
 #define RCC_DEV0_EPF1_STRAP2__STRAP_VC_EN_DEV0_F1__SHIFT                                                      0x17
 #define RCC_DEV0_EPF1_STRAP2__STRAP_MSI_MULTI_CAP_DEV0_F1__SHIFT                                              0x18
 //RCC_DEV0_EPF1_STRAP3
-#define RCC_DEV0_EPF1_STRAP3__STRAP_POISONED_ADVISORY_NONFATAL_DEV0_F1__SHIFT                                 0x0
+#define RCC_DEV0_EPF1_STRAP3__STRAP_POISONED_ADVISORY_ANALNFATAL_DEV0_F1__SHIFT                                 0x0
 #define RCC_DEV0_EPF1_STRAP3__STRAP_PWR_EN_DEV0_F1__SHIFT                                                     0x1
 #define RCC_DEV0_EPF1_STRAP3__STRAP_SUBSYS_ID_DEV0_F1__SHIFT                                                  0x2
 #define RCC_DEV0_EPF1_STRAP3__STRAP_MSI_EN_DEV0_F1__SHIFT                                                     0x12
@@ -3023,7 +3023,7 @@
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP0__STRAP_CPL_ABORT_ERR_EN_DN_DEV0__SHIFT                          0x4
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP0__STRAP_DEVICE_ID_DN_DEV0__SHIFT                                 0x5
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP0__STRAP_INTERRUPT_PIN_DN_DEV0__SHIFT                             0x15
-#define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP0__STRAP_IGNORE_E2E_PREFIX_UR_DN_DEV0__SHIFT                      0x18
+#define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP0__STRAP_IGANALRE_E2E_PREFIX_UR_DN_DEV0__SHIFT                      0x18
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP0__STRAP_MAX_PAYLOAD_SUPPORT_DN_DEV0__SHIFT                       0x19
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP0__STRAP_MAX_LINK_WIDTH_SUPPORT_DEV0__SHIFT                       0x1c
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP0__STRAP_EPF0_DUMMY_EN_DEV0__SHIFT                                0x1f
@@ -3042,7 +3042,7 @@
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP2__STRAP_EXTENDED_TAG_ECN_EN_DEV0__SHIFT                          0x8
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP2__STRAP_EXT_VC_COUNT_DN_DEV0__SHIFT                              0x9
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP2__STRAP_FIRST_RCVD_ERR_LOG_DN_DEV0__SHIFT                        0xc
-#define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP2__STRAP_POISONED_ADVISORY_NONFATAL_DN_DEV0__SHIFT                0xd
+#define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP2__STRAP_POISONED_ADVISORY_ANALNFATAL_DN_DEV0__SHIFT                0xd
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP2__STRAP_GEN2_COMPLIANCE_DEV0__SHIFT                              0xe
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP2__STRAP_GEN2_EN_DEV0__SHIFT                                      0xf
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP2__STRAP_GEN3_COMPLIANCE_DEV0__SHIFT                              0x10
@@ -3053,13 +3053,13 @@
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP2__STRAP_L1_ACCEPTABLE_LATENCY_DEV0__SHIFT                        0x1a
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP2__STRAP_L1_EXIT_LATENCY_DEV0__SHIFT                              0x1d
 //RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP3
-#define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP3__STRAP_LINK_BW_NOTIFICATION_CAP_DN_EN_DEV0__SHIFT               0x0
+#define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP3__STRAP_LINK_BW_ANALTIFICATION_CAP_DN_EN_DEV0__SHIFT               0x0
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP3__STRAP_LTR_EN_DEV0__SHIFT                                       0x1
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP3__STRAP_LTR_EN_DN_DEV0__SHIFT                                    0x2
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP3__STRAP_MAX_PAYLOAD_SUPPORT_DEV0__SHIFT                          0x3
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP3__STRAP_MSI_EN_DN_DEV0__SHIFT                                    0x6
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP3__STRAP_MSTCPL_TIMEOUT_EN_DEV0__SHIFT                            0x7
-#define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP3__STRAP_NO_SOFT_RESET_DN_DEV0__SHIFT                             0x8
+#define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP3__STRAP_ANAL_SOFT_RESET_DN_DEV0__SHIFT                             0x8
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP3__STRAP_OBFF_SUPPORTED_DEV0__SHIFT                               0x9
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP3__STRAP_PCIE_LANE_EQUALIZATION_CNTL_DOWNSTREAM_PORT_RX_PRESET_HINT_DEV0__SHIFT  0xb
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP3__STRAP_PCIE_LANE_EQUALIZATION_CNTL_DOWNSTREAM_PORT_TX_PRESET_DEV0__SHIFT  0xe
@@ -3099,7 +3099,7 @@
 //RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP7
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP7__STRAP_PORT_NUMBER_DEV0__SHIFT                                  0x0
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP7__STRAP_MAJOR_REV_ID_DN_DEV0__SHIFT                              0x8
-#define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP7__STRAP_MINOR_REV_ID_DN_DEV0__SHIFT                              0xc
+#define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP7__STRAP_MIANALR_REV_ID_DN_DEV0__SHIFT                              0xc
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP7__STRAP_RP_BUSNUM_DEV0__SHIFT                                    0x10
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP7__STRAP_DN_DEVNUM_DEV0__SHIFT                                    0x18
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP7__STRAP_DN_FUNCID_DEV0__SHIFT                                    0x1d
@@ -3110,7 +3110,7 @@
 #define RCC_DEV1_PORT_STRAP0__STRAP_CPL_ABORT_ERR_EN_DN_DEV1__SHIFT                                           0x4
 #define RCC_DEV1_PORT_STRAP0__STRAP_DEVICE_ID_DN_DEV1__SHIFT                                                  0x5
 #define RCC_DEV1_PORT_STRAP0__STRAP_INTERRUPT_PIN_DN_DEV1__SHIFT                                              0x15
-#define RCC_DEV1_PORT_STRAP0__STRAP_IGNORE_E2E_PREFIX_UR_DN_DEV1__SHIFT                                       0x18
+#define RCC_DEV1_PORT_STRAP0__STRAP_IGANALRE_E2E_PREFIX_UR_DN_DEV1__SHIFT                                       0x18
 #define RCC_DEV1_PORT_STRAP0__STRAP_MAX_PAYLOAD_SUPPORT_DN_DEV1__SHIFT                                        0x19
 #define RCC_DEV1_PORT_STRAP0__STRAP_MAX_LINK_WIDTH_SUPPORT_DEV1__SHIFT                                        0x1c
 #define RCC_DEV1_PORT_STRAP0__STRAP_EPF0_DUMMY_EN_DEV1__SHIFT                                                 0x1f
@@ -3129,7 +3129,7 @@
 #define RCC_DEV1_PORT_STRAP2__STRAP_EXTENDED_TAG_ECN_EN_DEV1__SHIFT                                           0x8
 #define RCC_DEV1_PORT_STRAP2__STRAP_EXT_VC_COUNT_DN_DEV1__SHIFT                                               0x9
 #define RCC_DEV1_PORT_STRAP2__STRAP_FIRST_RCVD_ERR_LOG_DN_DEV1__SHIFT                                         0xc
-#define RCC_DEV1_PORT_STRAP2__STRAP_POISONED_ADVISORY_NONFATAL_DN_DEV1__SHIFT                                 0xd
+#define RCC_DEV1_PORT_STRAP2__STRAP_POISONED_ADVISORY_ANALNFATAL_DN_DEV1__SHIFT                                 0xd
 #define RCC_DEV1_PORT_STRAP2__STRAP_GEN2_COMPLIANCE_DEV1__SHIFT                                               0xe
 #define RCC_DEV1_PORT_STRAP2__STRAP_GEN2_EN_DEV1__SHIFT                                                       0xf
 #define RCC_DEV1_PORT_STRAP2__STRAP_GEN3_COMPLIANCE_DEV1__SHIFT                                               0x10
@@ -3140,13 +3140,13 @@
 #define RCC_DEV1_PORT_STRAP2__STRAP_L1_ACCEPTABLE_LATENCY_DEV1__SHIFT                                         0x1a
 #define RCC_DEV1_PORT_STRAP2__STRAP_L1_EXIT_LATENCY_DEV1__SHIFT                                               0x1d
 //RCC_DEV1_PORT_STRAP3
-#define RCC_DEV1_PORT_STRAP3__STRAP_LINK_BW_NOTIFICATION_CAP_DN_EN_DEV1__SHIFT                                0x0
+#define RCC_DEV1_PORT_STRAP3__STRAP_LINK_BW_ANALTIFICATION_CAP_DN_EN_DEV1__SHIFT                                0x0
 #define RCC_DEV1_PORT_STRAP3__STRAP_LTR_EN_DEV1__SHIFT                                                        0x1
 #define RCC_DEV1_PORT_STRAP3__STRAP_LTR_EN_DN_DEV1__SHIFT                                                     0x2
 #define RCC_DEV1_PORT_STRAP3__STRAP_MAX_PAYLOAD_SUPPORT_DEV1__SHIFT                                           0x3
 #define RCC_DEV1_PORT_STRAP3__STRAP_MSI_EN_DN_DEV1__SHIFT                                                     0x6
 #define RCC_DEV1_PORT_STRAP3__STRAP_MSTCPL_TIMEOUT_EN_DEV1__SHIFT                                             0x7
-#define RCC_DEV1_PORT_STRAP3__STRAP_NO_SOFT_RESET_DN_DEV1__SHIFT                                              0x8
+#define RCC_DEV1_PORT_STRAP3__STRAP_ANAL_SOFT_RESET_DN_DEV1__SHIFT                                              0x8
 #define RCC_DEV1_PORT_STRAP3__STRAP_OBFF_SUPPORTED_DEV1__SHIFT                                                0x9
 #define RCC_DEV1_PORT_STRAP3__STRAP_PCIE_LANE_EQUALIZATION_CNTL_DOWNSTREAM_PORT_RX_PRESET_HINT_DEV1__SHIFT    0xb
 #define RCC_DEV1_PORT_STRAP3__STRAP_PCIE_LANE_EQUALIZATION_CNTL_DOWNSTREAM_PORT_TX_PRESET_DEV1__SHIFT         0xe
@@ -3186,14 +3186,14 @@
 //RCC_DEV1_PORT_STRAP7
 #define RCC_DEV1_PORT_STRAP7__STRAP_PORT_NUMBER_DEV1__SHIFT                                                   0x0
 #define RCC_DEV1_PORT_STRAP7__STRAP_MAJOR_REV_ID_DN_DEV1__SHIFT                                               0x8
-#define RCC_DEV1_PORT_STRAP7__STRAP_MINOR_REV_ID_DN_DEV1__SHIFT                                               0xc
+#define RCC_DEV1_PORT_STRAP7__STRAP_MIANALR_REV_ID_DN_DEV1__SHIFT                                               0xc
 #define RCC_DEV1_PORT_STRAP7__STRAP_RP_BUSNUM_DEV1__SHIFT                                                     0x10
 #define RCC_DEV1_PORT_STRAP7__STRAP_DN_DEVNUM_DEV1__SHIFT                                                     0x18
 #define RCC_DEV1_PORT_STRAP7__STRAP_DN_FUNCID_DEV1__SHIFT                                                     0x1d
 //RCCSTRAPRCCSTRAP_RCC_DEV0_EPF0_STRAP0
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF0_STRAP0__STRAP_DEVICE_ID_DEV0_F0__SHIFT                                 0x0
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF0_STRAP0__STRAP_MAJOR_REV_ID_DEV0_F0__SHIFT                              0x10
-#define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF0_STRAP0__STRAP_MINOR_REV_ID_DEV0_F0__SHIFT                              0x14
+#define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF0_STRAP0__STRAP_MIANALR_REV_ID_DEV0_F0__SHIFT                              0x14
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF0_STRAP0__STRAP_ATI_REV_ID_DEV0_F0__SHIFT                                0x18
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF0_STRAP0__STRAP_FUNC_EN_DEV0_F0__SHIFT                                   0x1c
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF0_STRAP0__STRAP_LEGACY_DEVICE_TYPE_EN_DEV0_F0__SHIFT                     0x1d
@@ -3206,7 +3206,7 @@
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF0_STRAP2__STRAP_SRIOV_EN_DEV0_F0__SHIFT                                  0x0
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF0_STRAP2__STRAP_SRIOV_TOTAL_VFS_DEV0_F0__SHIFT                           0x1
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF0_STRAP2__STRAP_64BAR_DIS_DEV0_F0__SHIFT                                 0x6
-#define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF0_STRAP2__STRAP_NO_SOFT_RESET_DEV0_F0__SHIFT                             0x7
+#define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF0_STRAP2__STRAP_ANAL_SOFT_RESET_DEV0_F0__SHIFT                             0x7
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF0_STRAP2__STRAP_RESIZE_BAR_EN_DEV0_F0__SHIFT                             0x8
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF0_STRAP2__STRAP_MAX_PASID_WIDTH_DEV0_F0__SHIFT                           0x9
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF0_STRAP2__STRAP_MSI_PERVECTOR_MASK_CAP_DEV0_F0__SHIFT                    0xe
@@ -3225,7 +3225,7 @@
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF0_STRAP2__STRAP_PASID_GLOBAL_INVALIDATE_SUPPORTED_DEV0_F0__SHIFT         0x1e
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF0_STRAP2__STRAP_PASID_PRIV_MODE_SUPPORTED_DEV0_F0__SHIFT                 0x1f
 //RCCSTRAPRCCSTRAP_RCC_DEV0_EPF0_STRAP3
-#define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF0_STRAP3__STRAP_POISONED_ADVISORY_NONFATAL_DEV0_F0__SHIFT                0x0
+#define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF0_STRAP3__STRAP_POISONED_ADVISORY_ANALNFATAL_DEV0_F0__SHIFT                0x0
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF0_STRAP3__STRAP_PWR_EN_DEV0_F0__SHIFT                                    0x1
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF0_STRAP3__STRAP_SUBSYS_ID_DEV0_F0__SHIFT                                 0x2
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF0_STRAP3__STRAP_MSI_EN_DEV0_F0__SHIFT                                    0x12
@@ -3273,13 +3273,13 @@
 //RCCSTRAPRCCSTRAP_RCC_DEV0_EPF1_STRAP0
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF1_STRAP0__STRAP_DEVICE_ID_DEV0_F1__SHIFT                                 0x0
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF1_STRAP0__STRAP_MAJOR_REV_ID_DEV0_F1__SHIFT                              0x10
-#define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF1_STRAP0__STRAP_MINOR_REV_ID_DEV0_F1__SHIFT                              0x14
+#define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF1_STRAP0__STRAP_MIANALR_REV_ID_DEV0_F1__SHIFT                              0x14
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF1_STRAP0__STRAP_FUNC_EN_DEV0_F1__SHIFT                                   0x1c
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF1_STRAP0__STRAP_LEGACY_DEVICE_TYPE_EN_DEV0_F1__SHIFT                     0x1d
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF1_STRAP0__STRAP_D1_SUPPORT_DEV0_F1__SHIFT                                0x1e
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF1_STRAP0__STRAP_D2_SUPPORT_DEV0_F1__SHIFT                                0x1f
 //RCCSTRAPRCCSTRAP_RCC_DEV0_EPF1_STRAP2
-#define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF1_STRAP2__STRAP_NO_SOFT_RESET_DEV0_F1__SHIFT                             0x7
+#define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF1_STRAP2__STRAP_ANAL_SOFT_RESET_DEV0_F1__SHIFT                             0x7
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF1_STRAP2__STRAP_RESIZE_BAR_EN_DEV0_F1__SHIFT                             0x8
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF1_STRAP2__STRAP_MSI_PERVECTOR_MASK_CAP_DEV0_F1__SHIFT                    0xe
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF1_STRAP2__STRAP_AER_EN_DEV0_F1__SHIFT                                    0x10
@@ -3291,7 +3291,7 @@
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF1_STRAP2__STRAP_VC_EN_DEV0_F1__SHIFT                                     0x17
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF1_STRAP2__STRAP_MSI_MULTI_CAP_DEV0_F1__SHIFT                             0x18
 //RCCSTRAPRCCSTRAP_RCC_DEV0_EPF1_STRAP3
-#define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF1_STRAP3__STRAP_POISONED_ADVISORY_NONFATAL_DEV0_F1__SHIFT                0x0
+#define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF1_STRAP3__STRAP_POISONED_ADVISORY_ANALNFATAL_DEV0_F1__SHIFT                0x0
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF1_STRAP3__STRAP_PWR_EN_DEV0_F1__SHIFT                                    0x1
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF1_STRAP3__STRAP_SUBSYS_ID_DEV0_F1__SHIFT                                 0x2
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF1_STRAP3__STRAP_MSI_EN_DEV0_F1__SHIFT                                    0x12
@@ -3340,13 +3340,13 @@
 //RCC_DEV0_EPF2_STRAP0
 #define RCC_DEV0_EPF2_STRAP0__STRAP_DEVICE_ID_DEV0_F2__SHIFT                                                  0x0
 #define RCC_DEV0_EPF2_STRAP0__STRAP_MAJOR_REV_ID_DEV0_F2__SHIFT                                               0x10
-#define RCC_DEV0_EPF2_STRAP0__STRAP_MINOR_REV_ID_DEV0_F2__SHIFT                                               0x14
+#define RCC_DEV0_EPF2_STRAP0__STRAP_MIANALR_REV_ID_DEV0_F2__SHIFT                                               0x14
 #define RCC_DEV0_EPF2_STRAP0__STRAP_FUNC_EN_DEV0_F2__SHIFT                                                    0x1c
 #define RCC_DEV0_EPF2_STRAP0__STRAP_LEGACY_DEVICE_TYPE_EN_DEV0_F2__SHIFT                                      0x1d
 #define RCC_DEV0_EPF2_STRAP0__STRAP_D1_SUPPORT_DEV0_F2__SHIFT                                                 0x1e
 #define RCC_DEV0_EPF2_STRAP0__STRAP_D2_SUPPORT_DEV0_F2__SHIFT                                                 0x1f
 //RCC_DEV0_EPF2_STRAP2
-#define RCC_DEV0_EPF2_STRAP2__STRAP_NO_SOFT_RESET_DEV0_F2__SHIFT                                              0x7
+#define RCC_DEV0_EPF2_STRAP2__STRAP_ANAL_SOFT_RESET_DEV0_F2__SHIFT                                              0x7
 #define RCC_DEV0_EPF2_STRAP2__STRAP_RESIZE_BAR_EN_DEV0_F2__SHIFT                                              0x8
 #define RCC_DEV0_EPF2_STRAP2__STRAP_MSI_PERVECTOR_MASK_CAP_DEV0_F2__SHIFT                                     0xe
 #define RCC_DEV0_EPF2_STRAP2__STRAP_AER_EN_DEV0_F2__SHIFT                                                     0x10
@@ -3356,7 +3356,7 @@
 #define RCC_DEV0_EPF2_STRAP2__STRAP_VC_EN_DEV0_F2__SHIFT                                                      0x17
 #define RCC_DEV0_EPF2_STRAP2__STRAP_MSI_MULTI_CAP_DEV0_F2__SHIFT                                              0x18
 //RCC_DEV0_EPF2_STRAP3
-#define RCC_DEV0_EPF2_STRAP3__STRAP_POISONED_ADVISORY_NONFATAL_DEV0_F2__SHIFT                                 0x0
+#define RCC_DEV0_EPF2_STRAP3__STRAP_POISONED_ADVISORY_ANALNFATAL_DEV0_F2__SHIFT                                 0x0
 #define RCC_DEV0_EPF2_STRAP3__STRAP_PWR_EN_DEV0_F2__SHIFT                                                     0x1
 #define RCC_DEV0_EPF2_STRAP3__STRAP_SUBSYS_ID_DEV0_F2__SHIFT                                                  0x2
 #define RCC_DEV0_EPF2_STRAP3__STRAP_MSI_EN_DEV0_F2__SHIFT                                                     0x12
@@ -3389,13 +3389,13 @@
 //RCC_DEV0_EPF3_STRAP0
 #define RCC_DEV0_EPF3_STRAP0__STRAP_DEVICE_ID_DEV0_F3__SHIFT                                                  0x0
 #define RCC_DEV0_EPF3_STRAP0__STRAP_MAJOR_REV_ID_DEV0_F3__SHIFT                                               0x10
-#define RCC_DEV0_EPF3_STRAP0__STRAP_MINOR_REV_ID_DEV0_F3__SHIFT                                               0x14
+#define RCC_DEV0_EPF3_STRAP0__STRAP_MIANALR_REV_ID_DEV0_F3__SHIFT                                               0x14
 #define RCC_DEV0_EPF3_STRAP0__STRAP_FUNC_EN_DEV0_F3__SHIFT                                                    0x1c
 #define RCC_DEV0_EPF3_STRAP0__STRAP_LEGACY_DEVICE_TYPE_EN_DEV0_F3__SHIFT                                      0x1d
 #define RCC_DEV0_EPF3_STRAP0__STRAP_D1_SUPPORT_DEV0_F3__SHIFT                                                 0x1e
 #define RCC_DEV0_EPF3_STRAP0__STRAP_D2_SUPPORT_DEV0_F3__SHIFT                                                 0x1f
 //RCC_DEV0_EPF3_STRAP2
-#define RCC_DEV0_EPF3_STRAP2__STRAP_NO_SOFT_RESET_DEV0_F3__SHIFT                                              0x7
+#define RCC_DEV0_EPF3_STRAP2__STRAP_ANAL_SOFT_RESET_DEV0_F3__SHIFT                                              0x7
 #define RCC_DEV0_EPF3_STRAP2__STRAP_RESIZE_BAR_EN_DEV0_F3__SHIFT                                              0x8
 #define RCC_DEV0_EPF3_STRAP2__STRAP_MSI_PERVECTOR_MASK_CAP_DEV0_F3__SHIFT                                     0xe
 #define RCC_DEV0_EPF3_STRAP2__STRAP_AER_EN_DEV0_F3__SHIFT                                                     0x10
@@ -3405,7 +3405,7 @@
 #define RCC_DEV0_EPF3_STRAP2__STRAP_VC_EN_DEV0_F3__SHIFT                                                      0x17
 #define RCC_DEV0_EPF3_STRAP2__STRAP_MSI_MULTI_CAP_DEV0_F3__SHIFT                                              0x18
 //RCC_DEV0_EPF3_STRAP3
-#define RCC_DEV0_EPF3_STRAP3__STRAP_POISONED_ADVISORY_NONFATAL_DEV0_F3__SHIFT                                 0x0
+#define RCC_DEV0_EPF3_STRAP3__STRAP_POISONED_ADVISORY_ANALNFATAL_DEV0_F3__SHIFT                                 0x0
 #define RCC_DEV0_EPF3_STRAP3__STRAP_PWR_EN_DEV0_F3__SHIFT                                                     0x1
 #define RCC_DEV0_EPF3_STRAP3__STRAP_SUBSYS_ID_DEV0_F3__SHIFT                                                  0x2
 #define RCC_DEV0_EPF3_STRAP3__STRAP_MSI_EN_DEV0_F3__SHIFT                                                     0x12
@@ -3437,13 +3437,13 @@
 //RCC_DEV0_EPF4_STRAP0
 #define RCC_DEV0_EPF4_STRAP0__STRAP_DEVICE_ID_DEV0_F4__SHIFT                                                  0x0
 #define RCC_DEV0_EPF4_STRAP0__STRAP_MAJOR_REV_ID_DEV0_F4__SHIFT                                               0x10
-#define RCC_DEV0_EPF4_STRAP0__STRAP_MINOR_REV_ID_DEV0_F4__SHIFT                                               0x14
+#define RCC_DEV0_EPF4_STRAP0__STRAP_MIANALR_REV_ID_DEV0_F4__SHIFT                                               0x14
 #define RCC_DEV0_EPF4_STRAP0__STRAP_FUNC_EN_DEV0_F4__SHIFT                                                    0x1c
 #define RCC_DEV0_EPF4_STRAP0__STRAP_LEGACY_DEVICE_TYPE_EN_DEV0_F4__SHIFT                                      0x1d
 #define RCC_DEV0_EPF4_STRAP0__STRAP_D1_SUPPORT_DEV0_F4__SHIFT                                                 0x1e
 #define RCC_DEV0_EPF4_STRAP0__STRAP_D2_SUPPORT_DEV0_F4__SHIFT                                                 0x1f
 //RCC_DEV0_EPF4_STRAP2
-#define RCC_DEV0_EPF4_STRAP2__STRAP_NO_SOFT_RESET_DEV0_F4__SHIFT                                              0x7
+#define RCC_DEV0_EPF4_STRAP2__STRAP_ANAL_SOFT_RESET_DEV0_F4__SHIFT                                              0x7
 #define RCC_DEV0_EPF4_STRAP2__STRAP_RESIZE_BAR_EN_DEV0_F4__SHIFT                                              0x8
 #define RCC_DEV0_EPF4_STRAP2__STRAP_MSI_PERVECTOR_MASK_CAP_DEV0_F4__SHIFT                                     0xe
 #define RCC_DEV0_EPF4_STRAP2__STRAP_AER_EN_DEV0_F4__SHIFT                                                     0x10
@@ -3453,7 +3453,7 @@
 #define RCC_DEV0_EPF4_STRAP2__STRAP_VC_EN_DEV0_F4__SHIFT                                                      0x17
 #define RCC_DEV0_EPF4_STRAP2__STRAP_MSI_MULTI_CAP_DEV0_F4__SHIFT                                              0x18
 //RCC_DEV0_EPF4_STRAP3
-#define RCC_DEV0_EPF4_STRAP3__STRAP_POISONED_ADVISORY_NONFATAL_DEV0_F4__SHIFT                                 0x0
+#define RCC_DEV0_EPF4_STRAP3__STRAP_POISONED_ADVISORY_ANALNFATAL_DEV0_F4__SHIFT                                 0x0
 #define RCC_DEV0_EPF4_STRAP3__STRAP_PWR_EN_DEV0_F4__SHIFT                                                     0x1
 #define RCC_DEV0_EPF4_STRAP3__STRAP_SUBSYS_ID_DEV0_F4__SHIFT                                                  0x2
 #define RCC_DEV0_EPF4_STRAP3__STRAP_MSI_EN_DEV0_F4__SHIFT                                                     0x12
@@ -3489,13 +3489,13 @@
 //RCC_DEV0_EPF5_STRAP0
 #define RCC_DEV0_EPF5_STRAP0__STRAP_DEVICE_ID_DEV0_F5__SHIFT                                                  0x0
 #define RCC_DEV0_EPF5_STRAP0__STRAP_MAJOR_REV_ID_DEV0_F5__SHIFT                                               0x10
-#define RCC_DEV0_EPF5_STRAP0__STRAP_MINOR_REV_ID_DEV0_F5__SHIFT                                               0x14
+#define RCC_DEV0_EPF5_STRAP0__STRAP_MIANALR_REV_ID_DEV0_F5__SHIFT                                               0x14
 #define RCC_DEV0_EPF5_STRAP0__STRAP_FUNC_EN_DEV0_F5__SHIFT                                                    0x1c
 #define RCC_DEV0_EPF5_STRAP0__STRAP_LEGACY_DEVICE_TYPE_EN_DEV0_F5__SHIFT                                      0x1d
 #define RCC_DEV0_EPF5_STRAP0__STRAP_D1_SUPPORT_DEV0_F5__SHIFT                                                 0x1e
 #define RCC_DEV0_EPF5_STRAP0__STRAP_D2_SUPPORT_DEV0_F5__SHIFT                                                 0x1f
 //RCC_DEV0_EPF5_STRAP2
-#define RCC_DEV0_EPF5_STRAP2__STRAP_NO_SOFT_RESET_DEV0_F5__SHIFT                                              0x7
+#define RCC_DEV0_EPF5_STRAP2__STRAP_ANAL_SOFT_RESET_DEV0_F5__SHIFT                                              0x7
 #define RCC_DEV0_EPF5_STRAP2__STRAP_RESIZE_BAR_EN_DEV0_F5__SHIFT                                              0x8
 #define RCC_DEV0_EPF5_STRAP2__STRAP_MSI_PERVECTOR_MASK_CAP_DEV0_F5__SHIFT                                     0xe
 #define RCC_DEV0_EPF5_STRAP2__STRAP_AER_EN_DEV0_F5__SHIFT                                                     0x10
@@ -3505,7 +3505,7 @@
 #define RCC_DEV0_EPF5_STRAP2__STRAP_VC_EN_DEV0_F5__SHIFT                                                      0x17
 #define RCC_DEV0_EPF5_STRAP2__STRAP_MSI_MULTI_CAP_DEV0_F5__SHIFT                                              0x18
 //RCC_DEV0_EPF5_STRAP3
-#define RCC_DEV0_EPF5_STRAP3__STRAP_POISONED_ADVISORY_NONFATAL_DEV0_F5__SHIFT                                 0x0
+#define RCC_DEV0_EPF5_STRAP3__STRAP_POISONED_ADVISORY_ANALNFATAL_DEV0_F5__SHIFT                                 0x0
 #define RCC_DEV0_EPF5_STRAP3__STRAP_PWR_EN_DEV0_F5__SHIFT                                                     0x1
 #define RCC_DEV0_EPF5_STRAP3__STRAP_SUBSYS_ID_DEV0_F5__SHIFT                                                  0x2
 #define RCC_DEV0_EPF5_STRAP3__STRAP_MSI_EN_DEV0_F5__SHIFT                                                     0x12
@@ -3539,13 +3539,13 @@
 //RCC_DEV0_EPF6_STRAP0
 #define RCC_DEV0_EPF6_STRAP0__STRAP_DEVICE_ID_DEV0_F6__SHIFT                                                  0x0
 #define RCC_DEV0_EPF6_STRAP0__STRAP_MAJOR_REV_ID_DEV0_F6__SHIFT                                               0x10
-#define RCC_DEV0_EPF6_STRAP0__STRAP_MINOR_REV_ID_DEV0_F6__SHIFT                                               0x14
+#define RCC_DEV0_EPF6_STRAP0__STRAP_MIANALR_REV_ID_DEV0_F6__SHIFT                                               0x14
 #define RCC_DEV0_EPF6_STRAP0__STRAP_FUNC_EN_DEV0_F6__SHIFT                                                    0x1c
 #define RCC_DEV0_EPF6_STRAP0__STRAP_LEGACY_DEVICE_TYPE_EN_DEV0_F6__SHIFT                                      0x1d
 #define RCC_DEV0_EPF6_STRAP0__STRAP_D1_SUPPORT_DEV0_F6__SHIFT                                                 0x1e
 #define RCC_DEV0_EPF6_STRAP0__STRAP_D2_SUPPORT_DEV0_F6__SHIFT                                                 0x1f
 //RCC_DEV0_EPF6_STRAP2
-#define RCC_DEV0_EPF6_STRAP2__STRAP_NO_SOFT_RESET_DEV0_F6__SHIFT                                              0x7
+#define RCC_DEV0_EPF6_STRAP2__STRAP_ANAL_SOFT_RESET_DEV0_F6__SHIFT                                              0x7
 #define RCC_DEV0_EPF6_STRAP2__STRAP_RESIZE_BAR_EN_DEV0_F6__SHIFT                                              0x8
 #define RCC_DEV0_EPF6_STRAP2__STRAP_MSI_PERVECTOR_MASK_CAP_DEV0_F6__SHIFT                                     0xe
 #define RCC_DEV0_EPF6_STRAP2__STRAP_AER_EN_DEV0_F6__SHIFT                                                     0x10
@@ -3555,7 +3555,7 @@
 #define RCC_DEV0_EPF6_STRAP2__STRAP_VC_EN_DEV0_F6__SHIFT                                                      0x17
 #define RCC_DEV0_EPF6_STRAP2__STRAP_MSI_MULTI_CAP_DEV0_F6__SHIFT                                              0x18
 //RCC_DEV0_EPF6_STRAP3
-#define RCC_DEV0_EPF6_STRAP3__STRAP_POISONED_ADVISORY_NONFATAL_DEV0_F6__SHIFT                                 0x0
+#define RCC_DEV0_EPF6_STRAP3__STRAP_POISONED_ADVISORY_ANALNFATAL_DEV0_F6__SHIFT                                 0x0
 #define RCC_DEV0_EPF6_STRAP3__STRAP_PWR_EN_DEV0_F6__SHIFT                                                     0x1
 #define RCC_DEV0_EPF6_STRAP3__STRAP_SUBSYS_ID_DEV0_F6__SHIFT                                                  0x2
 #define RCC_DEV0_EPF6_STRAP3__STRAP_MSI_EN_DEV0_F6__SHIFT                                                     0x12
@@ -3589,13 +3589,13 @@
 //RCC_DEV0_EPF7_STRAP0
 #define RCC_DEV0_EPF7_STRAP0__STRAP_DEVICE_ID_DEV0_F7__SHIFT                                                  0x0
 #define RCC_DEV0_EPF7_STRAP0__STRAP_MAJOR_REV_ID_DEV0_F7__SHIFT                                               0x10
-#define RCC_DEV0_EPF7_STRAP0__STRAP_MINOR_REV_ID_DEV0_F7__SHIFT                                               0x14
+#define RCC_DEV0_EPF7_STRAP0__STRAP_MIANALR_REV_ID_DEV0_F7__SHIFT                                               0x14
 #define RCC_DEV0_EPF7_STRAP0__STRAP_FUNC_EN_DEV0_F7__SHIFT                                                    0x1c
 #define RCC_DEV0_EPF7_STRAP0__STRAP_LEGACY_DEVICE_TYPE_EN_DEV0_F7__SHIFT                                      0x1d
 #define RCC_DEV0_EPF7_STRAP0__STRAP_D1_SUPPORT_DEV0_F7__SHIFT                                                 0x1e
 #define RCC_DEV0_EPF7_STRAP0__STRAP_D2_SUPPORT_DEV0_F7__SHIFT                                                 0x1f
 //RCC_DEV0_EPF7_STRAP2
-#define RCC_DEV0_EPF7_STRAP2__STRAP_NO_SOFT_RESET_DEV0_F7__SHIFT                                              0x7
+#define RCC_DEV0_EPF7_STRAP2__STRAP_ANAL_SOFT_RESET_DEV0_F7__SHIFT                                              0x7
 #define RCC_DEV0_EPF7_STRAP2__STRAP_RESIZE_BAR_EN_DEV0_F7__SHIFT                                              0x8
 #define RCC_DEV0_EPF7_STRAP2__STRAP_MSI_PERVECTOR_MASK_CAP_DEV0_F7__SHIFT                                     0xe
 #define RCC_DEV0_EPF7_STRAP2__STRAP_AER_EN_DEV0_F7__SHIFT                                                     0x10
@@ -3605,7 +3605,7 @@
 #define RCC_DEV0_EPF7_STRAP2__STRAP_VC_EN_DEV0_F7__SHIFT                                                      0x17
 #define RCC_DEV0_EPF7_STRAP2__STRAP_MSI_MULTI_CAP_DEV0_F7__SHIFT                                              0x18
 //RCC_DEV0_EPF7_STRAP3
-#define RCC_DEV0_EPF7_STRAP3__STRAP_POISONED_ADVISORY_NONFATAL_DEV0_F7__SHIFT                                 0x0
+#define RCC_DEV0_EPF7_STRAP3__STRAP_POISONED_ADVISORY_ANALNFATAL_DEV0_F7__SHIFT                                 0x0
 #define RCC_DEV0_EPF7_STRAP3__STRAP_PWR_EN_DEV0_F7__SHIFT                                                     0x1
 #define RCC_DEV0_EPF7_STRAP3__STRAP_SUBSYS_ID_DEV0_F7__SHIFT                                                  0x2
 #define RCC_DEV0_EPF7_STRAP3__STRAP_MSI_EN_DEV0_F7__SHIFT                                                     0x12
@@ -3639,13 +3639,13 @@
 //RCC_DEV1_EPF0_STRAP0
 #define RCC_DEV1_EPF0_STRAP0__STRAP_DEVICE_ID_DEV1_F0__SHIFT                                                  0x0
 #define RCC_DEV1_EPF0_STRAP0__STRAP_MAJOR_REV_ID_DEV1_F0__SHIFT                                               0x10
-#define RCC_DEV1_EPF0_STRAP0__STRAP_MINOR_REV_ID_DEV1_F0__SHIFT                                               0x14
+#define RCC_DEV1_EPF0_STRAP0__STRAP_MIANALR_REV_ID_DEV1_F0__SHIFT                                               0x14
 #define RCC_DEV1_EPF0_STRAP0__STRAP_FUNC_EN_DEV1_F0__SHIFT                                                    0x1c
 #define RCC_DEV1_EPF0_STRAP0__STRAP_LEGACY_DEVICE_TYPE_EN_DEV1_F0__SHIFT                                      0x1d
 #define RCC_DEV1_EPF0_STRAP0__STRAP_D1_SUPPORT_DEV1_F0__SHIFT                                                 0x1e
 #define RCC_DEV1_EPF0_STRAP0__STRAP_D2_SUPPORT_DEV1_F0__SHIFT                                                 0x1f
 //RCC_DEV1_EPF0_STRAP2
-#define RCC_DEV1_EPF0_STRAP2__STRAP_NO_SOFT_RESET_DEV1_F0__SHIFT                                              0x7
+#define RCC_DEV1_EPF0_STRAP2__STRAP_ANAL_SOFT_RESET_DEV1_F0__SHIFT                                              0x7
 #define RCC_DEV1_EPF0_STRAP2__STRAP_RESIZE_BAR_EN_DEV1_F0__SHIFT                                              0x8
 #define RCC_DEV1_EPF0_STRAP2__STRAP_MSI_PERVECTOR_MASK_CAP_DEV1_F0__SHIFT                                     0xe
 #define RCC_DEV1_EPF0_STRAP2__STRAP_ARI_EN_DEV1_F0__SHIFT                                                     0xf
@@ -3656,7 +3656,7 @@
 #define RCC_DEV1_EPF0_STRAP2__STRAP_VC_EN_DEV1_F0__SHIFT                                                      0x17
 #define RCC_DEV1_EPF0_STRAP2__STRAP_MSI_MULTI_CAP_DEV1_F0__SHIFT                                              0x18
 //RCC_DEV1_EPF0_STRAP3
-#define RCC_DEV1_EPF0_STRAP3__STRAP_POISONED_ADVISORY_NONFATAL_DEV1_F0__SHIFT                                 0x0
+#define RCC_DEV1_EPF0_STRAP3__STRAP_POISONED_ADVISORY_ANALNFATAL_DEV1_F0__SHIFT                                 0x0
 #define RCC_DEV1_EPF0_STRAP3__STRAP_PWR_EN_DEV1_F0__SHIFT                                                     0x1
 #define RCC_DEV1_EPF0_STRAP3__STRAP_SUBSYS_ID_DEV1_F0__SHIFT                                                  0x2
 #define RCC_DEV1_EPF0_STRAP3__STRAP_MSI_EN_DEV1_F0__SHIFT                                                     0x12
@@ -3687,13 +3687,13 @@
 //RCC_DEV1_EPF1_STRAP0
 #define RCC_DEV1_EPF1_STRAP0__STRAP_DEVICE_ID_DEV1_F1__SHIFT                                                  0x0
 #define RCC_DEV1_EPF1_STRAP0__STRAP_MAJOR_REV_ID_DEV1_F1__SHIFT                                               0x10
-#define RCC_DEV1_EPF1_STRAP0__STRAP_MINOR_REV_ID_DEV1_F1__SHIFT                                               0x14
+#define RCC_DEV1_EPF1_STRAP0__STRAP_MIANALR_REV_ID_DEV1_F1__SHIFT                                               0x14
 #define RCC_DEV1_EPF1_STRAP0__STRAP_FUNC_EN_DEV1_F1__SHIFT                                                    0x1c
 #define RCC_DEV1_EPF1_STRAP0__STRAP_LEGACY_DEVICE_TYPE_EN_DEV1_F1__SHIFT                                      0x1d
 #define RCC_DEV1_EPF1_STRAP0__STRAP_D1_SUPPORT_DEV1_F1__SHIFT                                                 0x1e
 #define RCC_DEV1_EPF1_STRAP0__STRAP_D2_SUPPORT_DEV1_F1__SHIFT                                                 0x1f
 //RCC_DEV1_EPF1_STRAP2
-#define RCC_DEV1_EPF1_STRAP2__STRAP_NO_SOFT_RESET_DEV1_F1__SHIFT                                              0x7
+#define RCC_DEV1_EPF1_STRAP2__STRAP_ANAL_SOFT_RESET_DEV1_F1__SHIFT                                              0x7
 #define RCC_DEV1_EPF1_STRAP2__STRAP_RESIZE_BAR_EN_DEV1_F1__SHIFT                                              0x8
 #define RCC_DEV1_EPF1_STRAP2__STRAP_MSI_PERVECTOR_MASK_CAP_DEV1_F1__SHIFT                                     0xe
 #define RCC_DEV1_EPF1_STRAP2__STRAP_AER_EN_DEV1_F1__SHIFT                                                     0x10
@@ -3703,7 +3703,7 @@
 #define RCC_DEV1_EPF1_STRAP2__STRAP_VC_EN_DEV1_F1__SHIFT                                                      0x17
 #define RCC_DEV1_EPF1_STRAP2__STRAP_MSI_MULTI_CAP_DEV1_F1__SHIFT                                              0x18
 //RCC_DEV1_EPF1_STRAP3
-#define RCC_DEV1_EPF1_STRAP3__STRAP_POISONED_ADVISORY_NONFATAL_DEV1_F1__SHIFT                                 0x0
+#define RCC_DEV1_EPF1_STRAP3__STRAP_POISONED_ADVISORY_ANALNFATAL_DEV1_F1__SHIFT                                 0x0
 #define RCC_DEV1_EPF1_STRAP3__STRAP_PWR_EN_DEV1_F1__SHIFT                                                     0x1
 #define RCC_DEV1_EPF1_STRAP3__STRAP_SUBSYS_ID_DEV1_F1__SHIFT                                                  0x2
 #define RCC_DEV1_EPF1_STRAP3__STRAP_MSI_EN_DEV1_F1__SHIFT                                                     0x12
@@ -3739,13 +3739,13 @@
 //RCC_DEV1_EPF2_STRAP0
 #define RCC_DEV1_EPF2_STRAP0__STRAP_DEVICE_ID_DEV1_F2__SHIFT                                                  0x0
 #define RCC_DEV1_EPF2_STRAP0__STRAP_MAJOR_REV_ID_DEV1_F2__SHIFT                                               0x10
-#define RCC_DEV1_EPF2_STRAP0__STRAP_MINOR_REV_ID_DEV1_F2__SHIFT                                               0x14
+#define RCC_DEV1_EPF2_STRAP0__STRAP_MIANALR_REV_ID_DEV1_F2__SHIFT                                               0x14
 #define RCC_DEV1_EPF2_STRAP0__STRAP_FUNC_EN_DEV1_F2__SHIFT                                                    0x1c
 #define RCC_DEV1_EPF2_STRAP0__STRAP_LEGACY_DEVICE_TYPE_EN_DEV1_F2__SHIFT                                      0x1d
 #define RCC_DEV1_EPF2_STRAP0__STRAP_D1_SUPPORT_DEV1_F2__SHIFT                                                 0x1e
 #define RCC_DEV1_EPF2_STRAP0__STRAP_D2_SUPPORT_DEV1_F2__SHIFT                                                 0x1f
 //RCC_DEV1_EPF2_STRAP2
-#define RCC_DEV1_EPF2_STRAP2__STRAP_NO_SOFT_RESET_DEV1_F2__SHIFT                                              0x7
+#define RCC_DEV1_EPF2_STRAP2__STRAP_ANAL_SOFT_RESET_DEV1_F2__SHIFT                                              0x7
 #define RCC_DEV1_EPF2_STRAP2__STRAP_RESIZE_BAR_EN_DEV1_F2__SHIFT                                              0x8
 #define RCC_DEV1_EPF2_STRAP2__STRAP_MSI_PERVECTOR_MASK_CAP_DEV1_F2__SHIFT                                     0xe
 #define RCC_DEV1_EPF2_STRAP2__STRAP_AER_EN_DEV1_F2__SHIFT                                                     0x10
@@ -3755,7 +3755,7 @@
 #define RCC_DEV1_EPF2_STRAP2__STRAP_VC_EN_DEV1_F2__SHIFT                                                      0x17
 #define RCC_DEV1_EPF2_STRAP2__STRAP_MSI_MULTI_CAP_DEV1_F2__SHIFT                                              0x18
 //RCC_DEV1_EPF2_STRAP3
-#define RCC_DEV1_EPF2_STRAP3__STRAP_POISONED_ADVISORY_NONFATAL_DEV1_F2__SHIFT                                 0x0
+#define RCC_DEV1_EPF2_STRAP3__STRAP_POISONED_ADVISORY_ANALNFATAL_DEV1_F2__SHIFT                                 0x0
 #define RCC_DEV1_EPF2_STRAP3__STRAP_PWR_EN_DEV1_F2__SHIFT                                                     0x1
 #define RCC_DEV1_EPF2_STRAP3__STRAP_SUBSYS_ID_DEV1_F2__SHIFT                                                  0x2
 #define RCC_DEV1_EPF2_STRAP3__STRAP_MSI_EN_DEV1_F2__SHIFT                                                     0x12
@@ -3861,8 +3861,8 @@
 #define BIF_RST_MISC_CTRL2__ALL_RST_TRANS_IDLE__SHIFT                                                         0x1f
 //BIF_RST_MISC_CTRL3
 #define BIF_RST_MISC_CTRL3__TIMER_SCALE__SHIFT                                                                0x0
-#define BIF_RST_MISC_CTRL3__PME_TURNOFF_TIMEOUT__SHIFT                                                        0x4
-#define BIF_RST_MISC_CTRL3__PME_TURNOFF_MODE__SHIFT                                                           0x6
+#define BIF_RST_MISC_CTRL3__PME_TURANALFF_TIMEOUT__SHIFT                                                        0x4
+#define BIF_RST_MISC_CTRL3__PME_TURANALFF_MODE__SHIFT                                                           0x6
 #define BIF_RST_MISC_CTRL3__RELOAD_STRAP_DELAY_HARD__SHIFT                                                    0x7
 #define BIF_RST_MISC_CTRL3__RELOAD_STRAP_DELAY_SOFT__SHIFT                                                    0xa
 #define BIF_RST_MISC_CTRL3__RELOAD_STRAP_DELAY_SELF__SHIFT                                                    0xd
@@ -4228,7 +4228,7 @@
 #define BIFC_MISC_CTRL0__VC7_DMA_IOCFG_DIS__SHIFT                                                             0x19
 #define BIFC_MISC_CTRL0__DMA_2ND_REQ_DIS__SHIFT                                                               0x1a
 #define BIFC_MISC_CTRL0__PORT_DSTATE_BYPASS_MODE__SHIFT                                                       0x1b
-#define BIFC_MISC_CTRL0__PME_TURNOFF_MODE__SHIFT                                                              0x1c
+#define BIFC_MISC_CTRL0__PME_TURANALFF_MODE__SHIFT                                                              0x1c
 #define BIFC_MISC_CTRL0__PCIESWUS_SELECTION__SHIFT                                                            0x1f
 //BIFC_MISC_CTRL1
 #define BIFC_MISC_CTRL1__THT_HST_CPLD_POISON_REPORT__SHIFT                                                    0x0
@@ -4481,7 +4481,7 @@
 #define BIFC_GSI_CNTL__GSI_SDP_REQ_ARB_MODE__SHIFT                                                            0xa
 #define BIFC_GSI_CNTL__GSI_SMN_REQ_ARB_MODE__SHIFT                                                            0xc
 //BIFC_PCIEFUNC_CNTL
-#define BIFC_PCIEFUNC_CNTL__DMA_NON_PCIEFUNC_BUSDEVFUNC__SHIFT                                                0x0
+#define BIFC_PCIEFUNC_CNTL__DMA_ANALN_PCIEFUNC_BUSDEVFUNC__SHIFT                                                0x0
 #define BIFC_PCIEFUNC_CNTL__MP1SYSHUBDATA_DRAM_IS_PCIEFUNC__SHIFT                                             0x10
 //BIFC_SDP_CNTL_0
 #define BIFC_SDP_CNTL_0__HRP_SDP_DISCON_HYSTERESIS__SHIFT                                                     0x0
@@ -4511,7 +4511,7 @@
 //BIFC_PERF_CNT_DMA_WR
 #define BIFC_PERF_CNT_DMA_WR__PERF_CNT_DMA_WR_VALUE__SHIFT                                                    0x0
 //NBIF_REGIF_ERRSET_CTRL
-#define NBIF_REGIF_ERRSET_CTRL__DROP_NONPF_MMREGREQ_SETERR_DIS__SHIFT                                         0x0
+#define NBIF_REGIF_ERRSET_CTRL__DROP_ANALNPF_MMREGREQ_SETERR_DIS__SHIFT                                         0x0
 //SMN_MST_EP_CNTL3
 #define SMN_MST_EP_CNTL3__SMN_ZERO_BE_WR_EN_EP_DEV0_PF0__SHIFT                                                0x0
 #define SMN_MST_EP_CNTL3__SMN_ZERO_BE_WR_EN_EP_DEV0_PF1__SHIFT                                                0x1
@@ -4587,12 +4587,12 @@
 
 // addressBlock: rcc_pfc_amdgfx_RCCPFCDEC
 //RCC_PFC_LTR_CNTL
-#define RCC_PFC_LTR_CNTL__SNOOP_LATENCY_VALUE__SHIFT                                                          0x0
-#define RCC_PFC_LTR_CNTL__SNOOP_LATENCY_SCALE__SHIFT                                                          0xa
-#define RCC_PFC_LTR_CNTL__SNOOP_REQUIREMENT__SHIFT                                                            0xf
-#define RCC_PFC_LTR_CNTL__NONSNOOP_LATENCY_VALUE__SHIFT                                                       0x10
-#define RCC_PFC_LTR_CNTL__NONSNOOP_LATENCY_SCALE__SHIFT                                                       0x1a
-#define RCC_PFC_LTR_CNTL__NONSNOOP_REQUIREMENT__SHIFT                                                         0x1f
+#define RCC_PFC_LTR_CNTL__SANALOP_LATENCY_VALUE__SHIFT                                                          0x0
+#define RCC_PFC_LTR_CNTL__SANALOP_LATENCY_SCALE__SHIFT                                                          0xa
+#define RCC_PFC_LTR_CNTL__SANALOP_REQUIREMENT__SHIFT                                                            0xf
+#define RCC_PFC_LTR_CNTL__ANALNSANALOP_LATENCY_VALUE__SHIFT                                                       0x10
+#define RCC_PFC_LTR_CNTL__ANALNSANALOP_LATENCY_SCALE__SHIFT                                                       0x1a
+#define RCC_PFC_LTR_CNTL__ANALNSANALOP_REQUIREMENT__SHIFT                                                         0x1f
 //RCC_PFC_PME_RESTORE
 #define RCC_PFC_PME_RESTORE__PME_RESTORE_PME_EN__SHIFT                                                        0x0
 #define RCC_PFC_PME_RESTORE__PME_RESTORE_PME_STATUS__SHIFT                                                    0x8
@@ -4604,7 +4604,7 @@
 #define RCC_PFC_STICKY_RESTORE_0__RESTORE_MAL_TLP_STATUS__SHIFT                                               0x4
 #define RCC_PFC_STICKY_RESTORE_0__RESTORE_ECRC_ERR_STATUS__SHIFT                                              0x5
 #define RCC_PFC_STICKY_RESTORE_0__RESTORE_UNSUPP_REQ_ERR_STATUS__SHIFT                                        0x6
-#define RCC_PFC_STICKY_RESTORE_0__RESTORE_ADVISORY_NONFATAL_ERR_STATUS__SHIFT                                 0x7
+#define RCC_PFC_STICKY_RESTORE_0__RESTORE_ADVISORY_ANALNFATAL_ERR_STATUS__SHIFT                                 0x7
 //RCC_PFC_STICKY_RESTORE_1
 #define RCC_PFC_STICKY_RESTORE_1__RESTORE_TLP_HDR_0__SHIFT                                                    0x0
 //RCC_PFC_STICKY_RESTORE_2
@@ -4622,12 +4622,12 @@
 
 // addressBlock: rcc_pfc_amdgfxaz_RCCPFCDEC
 //RCCPFCAMDGFXAZ_RCC_PFC_LTR_CNTL
-#define RCCPFCAMDGFXAZ_RCC_PFC_LTR_CNTL__SNOOP_LATENCY_VALUE__SHIFT                                           0x0
-#define RCCPFCAMDGFXAZ_RCC_PFC_LTR_CNTL__SNOOP_LATENCY_SCALE__SHIFT                                           0xa
-#define RCCPFCAMDGFXAZ_RCC_PFC_LTR_CNTL__SNOOP_REQUIREMENT__SHIFT                                             0xf
-#define RCCPFCAMDGFXAZ_RCC_PFC_LTR_CNTL__NONSNOOP_LATENCY_VALUE__SHIFT                                        0x10
-#define RCCPFCAMDGFXAZ_RCC_PFC_LTR_CNTL__NONSNOOP_LATENCY_SCALE__SHIFT                                        0x1a
-#define RCCPFCAMDGFXAZ_RCC_PFC_LTR_CNTL__NONSNOOP_REQUIREMENT__SHIFT                                          0x1f
+#define RCCPFCAMDGFXAZ_RCC_PFC_LTR_CNTL__SANALOP_LATENCY_VALUE__SHIFT                                           0x0
+#define RCCPFCAMDGFXAZ_RCC_PFC_LTR_CNTL__SANALOP_LATENCY_SCALE__SHIFT                                           0xa
+#define RCCPFCAMDGFXAZ_RCC_PFC_LTR_CNTL__SANALOP_REQUIREMENT__SHIFT                                             0xf
+#define RCCPFCAMDGFXAZ_RCC_PFC_LTR_CNTL__ANALNSANALOP_LATENCY_VALUE__SHIFT                                        0x10
+#define RCCPFCAMDGFXAZ_RCC_PFC_LTR_CNTL__ANALNSANALOP_LATENCY_SCALE__SHIFT                                        0x1a
+#define RCCPFCAMDGFXAZ_RCC_PFC_LTR_CNTL__ANALNSANALOP_REQUIREMENT__SHIFT                                          0x1f
 //RCCPFCAMDGFXAZ_RCC_PFC_PME_RESTORE
 #define RCCPFCAMDGFXAZ_RCC_PFC_PME_RESTORE__PME_RESTORE_PME_EN__SHIFT                                         0x0
 #define RCCPFCAMDGFXAZ_RCC_PFC_PME_RESTORE__PME_RESTORE_PME_STATUS__SHIFT                                     0x8
@@ -4639,7 +4639,7 @@
 #define RCCPFCAMDGFXAZ_RCC_PFC_STICKY_RESTORE_0__RESTORE_MAL_TLP_STATUS__SHIFT                                0x4
 #define RCCPFCAMDGFXAZ_RCC_PFC_STICKY_RESTORE_0__RESTORE_ECRC_ERR_STATUS__SHIFT                               0x5
 #define RCCPFCAMDGFXAZ_RCC_PFC_STICKY_RESTORE_0__RESTORE_UNSUPP_REQ_ERR_STATUS__SHIFT                         0x6
-#define RCCPFCAMDGFXAZ_RCC_PFC_STICKY_RESTORE_0__RESTORE_ADVISORY_NONFATAL_ERR_STATUS__SHIFT                  0x7
+#define RCCPFCAMDGFXAZ_RCC_PFC_STICKY_RESTORE_0__RESTORE_ADVISORY_ANALNFATAL_ERR_STATUS__SHIFT                  0x7
 //RCCPFCAMDGFXAZ_RCC_PFC_STICKY_RESTORE_1
 #define RCCPFCAMDGFXAZ_RCC_PFC_STICKY_RESTORE_1__RESTORE_TLP_HDR_0__SHIFT                                     0x0
 //RCCPFCAMDGFXAZ_RCC_PFC_STICKY_RESTORE_2
@@ -5162,7 +5162,7 @@
 #define COMMAND__BUS_MASTER_EN__MASK                                                                          0x0004L
 #define COMMAND__SPECIAL_CYCLE_EN__MASK                                                                       0x0008L
 #define COMMAND__MEM_WRITE_INVALIDATE_EN__MASK                                                                0x0010L
-#define COMMAND__PAL_SNOOP_EN__MASK                                                                           0x0020L
+#define COMMAND__PAL_SANALOP_EN__MASK                                                                           0x0020L
 #define COMMAND__PARITY_ERROR_RESPONSE__MASK                                                                  0x0040L
 #define COMMAND__AD_STEPPING__MASK                                                                            0x0080L
 #define COMMAND__SERR_EN__MASK                                                                                0x0100L
@@ -5181,7 +5181,7 @@
 #define STATUS__SIGNALED_SYSTEM_ERROR__MASK                                                                   0x4000L
 #define STATUS__PARITY_ERROR_DETECTED__MASK                                                                   0x8000L
 //REVISION_ID
-#define REVISION_ID__MINOR_REV_ID__MASK                                                                       0x0FL
+#define REVISION_ID__MIANALR_REV_ID__MASK                                                                       0x0FL
 #define REVISION_ID__MAJOR_REV_ID__MASK                                                                       0xF0L
 //PROG_INTERFACE
 #define PROG_INTERFACE__PROG_INTERFACE__MASK                                                                  0xFFL
@@ -5247,7 +5247,7 @@
 #define PMI_CAP__PME_SUPPORT__MASK                                                                            0xF800L
 //PMI_STATUS_CNTL
 #define PMI_STATUS_CNTL__POWER_STATE__MASK                                                                    0x00000003L
-#define PMI_STATUS_CNTL__NO_SOFT_RESET__MASK                                                                  0x00000008L
+#define PMI_STATUS_CNTL__ANAL_SOFT_RESET__MASK                                                                  0x00000008L
 #define PMI_STATUS_CNTL__PME_EN__MASK                                                                         0x00000100L
 #define PMI_STATUS_CNTL__DATA_SELECT__MASK                                                                    0x00001E00L
 #define PMI_STATUS_CNTL__DATA_SCALE__MASK                                                                     0x00006000L
@@ -5275,7 +5275,7 @@
 #define DEVICE_CAP__FLR_CAPABLE__MASK                                                                         0x10000000L
 //DEVICE_CNTL
 #define DEVICE_CNTL__CORR_ERR_EN__MASK                                                                        0x0001L
-#define DEVICE_CNTL__NON_FATAL_ERR_EN__MASK                                                                   0x0002L
+#define DEVICE_CNTL__ANALN_FATAL_ERR_EN__MASK                                                                   0x0002L
 #define DEVICE_CNTL__FATAL_ERR_EN__MASK                                                                       0x0004L
 #define DEVICE_CNTL__USR_REPORT_EN__MASK                                                                      0x0008L
 #define DEVICE_CNTL__RELAXED_ORD_EN__MASK                                                                     0x0010L
@@ -5283,12 +5283,12 @@
 #define DEVICE_CNTL__EXTENDED_TAG_EN__MASK                                                                    0x0100L
 #define DEVICE_CNTL__PHANTOM_FUNC_EN__MASK                                                                    0x0200L
 #define DEVICE_CNTL__AUX_POWER_PM_EN__MASK                                                                    0x0400L
-#define DEVICE_CNTL__NO_SNOOP_EN__MASK                                                                        0x0800L
+#define DEVICE_CNTL__ANAL_SANALOP_EN__MASK                                                                        0x0800L
 #define DEVICE_CNTL__MAX_READ_REQUEST_SIZE__MASK                                                              0x7000L
 #define DEVICE_CNTL__INITIATE_FLR__MASK                                                                       0x8000L
 //DEVICE_STATUS
 #define DEVICE_STATUS__CORR_ERR__MASK                                                                         0x0001L
-#define DEVICE_STATUS__NON_FATAL_ERR__MASK                                                                    0x0002L
+#define DEVICE_STATUS__ANALN_FATAL_ERR__MASK                                                                    0x0002L
 #define DEVICE_STATUS__FATAL_ERR__MASK                                                                        0x0004L
 #define DEVICE_STATUS__USR_DETECTED__MASK                                                                     0x0008L
 #define DEVICE_STATUS__AUX_PWR__MASK                                                                          0x0010L
@@ -5302,7 +5302,7 @@
 #define LINK_CAP__CLOCK_POWER_MANAGEMENT__MASK                                                                0x00040000L
 #define LINK_CAP__SURPRISE_DOWN_ERR_REPORTING__MASK                                                           0x00080000L
 #define LINK_CAP__DL_ACTIVE_REPORTING_CAPABLE__MASK                                                           0x00100000L
-#define LINK_CAP__LINK_BW_NOTIFICATION_CAP__MASK                                                              0x00200000L
+#define LINK_CAP__LINK_BW_ANALTIFICATION_CAP__MASK                                                              0x00200000L
 #define LINK_CAP__ASPM_OPTIONALITY_COMPLIANCE__MASK                                                           0x00400000L
 #define LINK_CAP__PORT_NUMBER__MASK                                                                           0xFF000000L
 //LINK_CNTL
@@ -5313,9 +5313,9 @@
 #define LINK_CNTL__COMMON_CLOCK_CFG__MASK                                                                     0x0040L
 #define LINK_CNTL__EXTENDED_SYNC__MASK                                                                        0x0080L
 #define LINK_CNTL__CLOCK_POWER_MANAGEMENT_EN__MASK                                                            0x0100L
-#define LINK_CNTL__HW_AUTONOMOUS_WIDTH_DISABLE__MASK                                                          0x0200L
+#define LINK_CNTL__HW_AUTOANALMOUS_WIDTH_DISABLE__MASK                                                          0x0200L
 #define LINK_CNTL__LINK_BW_MANAGEMENT_INT_EN__MASK                                                            0x0400L
-#define LINK_CNTL__LINK_AUTONOMOUS_BW_INT_EN__MASK                                                            0x0800L
+#define LINK_CNTL__LINK_AUTOANALMOUS_BW_INT_EN__MASK                                                            0x0800L
 //LINK_STATUS
 #define LINK_STATUS__CURRENT_LINK_SPEED__MASK                                                                 0x000FL
 #define LINK_STATUS__NEGOTIATED_LINK_WIDTH__MASK                                                              0x03F0L
@@ -5323,7 +5323,7 @@
 #define LINK_STATUS__SLOT_CLOCK_CFG__MASK                                                                     0x1000L
 #define LINK_STATUS__DL_ACTIVE__MASK                                                                          0x2000L
 #define LINK_STATUS__LINK_BW_MANAGEMENT_STATUS__MASK                                                          0x4000L
-#define LINK_STATUS__LINK_AUTONOMOUS_BW_STATUS__MASK                                                          0x8000L
+#define LINK_STATUS__LINK_AUTOANALMOUS_BW_STATUS__MASK                                                          0x8000L
 //DEVICE_CAP2
 #define DEVICE_CAP2__CPL_TIMEOUT_RANGE_SUPPORTED__MASK                                                        0x0000000FL
 #define DEVICE_CAP2__CPL_TIMEOUT_DIS_SUPPORTED__MASK                                                          0x00000010L
@@ -5332,7 +5332,7 @@
 #define DEVICE_CAP2__ATOMICOP_32CMPLT_SUPPORTED__MASK                                                         0x00000080L
 #define DEVICE_CAP2__ATOMICOP_64CMPLT_SUPPORTED__MASK                                                         0x00000100L
 #define DEVICE_CAP2__CAS128_CMPLT_SUPPORTED__MASK                                                             0x00000200L
-#define DEVICE_CAP2__NO_RO_ENABLED_P2P_PASSING__MASK                                                          0x00000400L
+#define DEVICE_CAP2__ANAL_RO_ENABLED_P2P_PASSING__MASK                                                          0x00000400L
 #define DEVICE_CAP2__LTR_SUPPORTED__MASK                                                                      0x00000800L
 #define DEVICE_CAP2__TPH_CPLR_SUPPORTED__MASK                                                                 0x00003000L
 #define DEVICE_CAP2__OBFF_SUPPORTED__MASK                                                                     0x000C0000L
@@ -5359,7 +5359,7 @@
 //LINK_CNTL2
 #define LINK_CNTL2__TARGET_LINK_SPEED__MASK                                                                   0x000FL
 #define LINK_CNTL2__ENTER_COMPLIANCE__MASK                                                                    0x0010L
-#define LINK_CNTL2__HW_AUTONOMOUS_SPEED_DISABLE__MASK                                                         0x0020L
+#define LINK_CNTL2__HW_AUTOANALMOUS_SPEED_DISABLE__MASK                                                         0x0020L
 #define LINK_CNTL2__SELECTABLE_DEEMPHASIS__MASK                                                               0x0040L
 #define LINK_CNTL2__XMIT_MARGIN__MASK                                                                         0x0380L
 #define LINK_CNTL2__ENTER_MOD_COMPLIANCE__MASK                                                                0x0400L
@@ -5447,7 +5447,7 @@
 #define PCIE_PORT_VC_STATUS__VC_ARB_TABLE_STATUS__MASK                                                        0x0001L
 //PCIE_VC0_RESOURCE_CAP
 #define PCIE_VC0_RESOURCE_CAP__PORT_ARB_CAP__MASK                                                             0x000000FFL
-#define PCIE_VC0_RESOURCE_CAP__REJECT_SNOOP_TRANS__MASK                                                       0x00008000L
+#define PCIE_VC0_RESOURCE_CAP__REJECT_SANALOP_TRANS__MASK                                                       0x00008000L
 #define PCIE_VC0_RESOURCE_CAP__MAX_TIME_SLOTS__MASK                                                           0x003F0000L
 #define PCIE_VC0_RESOURCE_CAP__PORT_ARB_TABLE_OFFSET__MASK                                                    0xFF000000L
 //PCIE_VC0_RESOURCE_CNTL
@@ -5462,7 +5462,7 @@
 #define PCIE_VC0_RESOURCE_STATUS__VC_NEGOTIATION_PENDING__MASK                                                0x0002L
 //PCIE_VC1_RESOURCE_CAP
 #define PCIE_VC1_RESOURCE_CAP__PORT_ARB_CAP__MASK                                                             0x000000FFL
-#define PCIE_VC1_RESOURCE_CAP__REJECT_SNOOP_TRANS__MASK                                                       0x00008000L
+#define PCIE_VC1_RESOURCE_CAP__REJECT_SANALOP_TRANS__MASK                                                       0x00008000L
 #define PCIE_VC1_RESOURCE_CAP__MAX_TIME_SLOTS__MASK                                                           0x003F0000L
 #define PCIE_VC1_RESOURCE_CAP__PORT_ARB_TABLE_OFFSET__MASK                                                    0xFF000000L
 //PCIE_VC1_RESOURCE_CNTL
@@ -5544,7 +5544,7 @@
 #define PCIE_CORR_ERR_STATUS__BAD_DLLP_STATUS__MASK                                                           0x00000080L
 #define PCIE_CORR_ERR_STATUS__REPLAY_NUM_ROLLOVER_STATUS__MASK                                                0x00000100L
 #define PCIE_CORR_ERR_STATUS__REPLAY_TIMER_TIMEOUT_STATUS__MASK                                               0x00001000L
-#define PCIE_CORR_ERR_STATUS__ADVISORY_NONFATAL_ERR_STATUS__MASK                                              0x00002000L
+#define PCIE_CORR_ERR_STATUS__ADVISORY_ANALNFATAL_ERR_STATUS__MASK                                              0x00002000L
 #define PCIE_CORR_ERR_STATUS__CORR_INT_ERR_STATUS__MASK                                                       0x00004000L
 #define PCIE_CORR_ERR_STATUS__HDR_LOG_OVFL_STATUS__MASK                                                       0x00008000L
 //PCIE_CORR_ERR_MASK
@@ -5553,7 +5553,7 @@
 #define PCIE_CORR_ERR_MASK__BAD_DLLP_MASK__MASK                                                               0x00000080L
 #define PCIE_CORR_ERR_MASK__REPLAY_NUM_ROLLOVER_MASK__MASK                                                    0x00000100L
 #define PCIE_CORR_ERR_MASK__REPLAY_TIMER_TIMEOUT_MASK__MASK                                                   0x00001000L
-#define PCIE_CORR_ERR_MASK__ADVISORY_NONFATAL_ERR_MASK__MASK                                                  0x00002000L
+#define PCIE_CORR_ERR_MASK__ADVISORY_ANALNFATAL_ERR_MASK__MASK                                                  0x00002000L
 #define PCIE_CORR_ERR_MASK__CORR_INT_ERR_MASK__MASK                                                           0x00004000L
 #define PCIE_CORR_ERR_MASK__HDR_LOG_OVFL_MASK__MASK                                                           0x00008000L
 //PCIE_ADV_ERR_CAP_CNTL
@@ -5575,20 +5575,20 @@
 #define PCIE_HDR_LOG3__TLP_HDR__MASK                                                                          0xFFFFFFFFL
 //PCIE_ROOT_ERR_CMD
 #define PCIE_ROOT_ERR_CMD__CORR_ERR_REP_EN__MASK                                                              0x00000001L
-#define PCIE_ROOT_ERR_CMD__NONFATAL_ERR_REP_EN__MASK                                                          0x00000002L
+#define PCIE_ROOT_ERR_CMD__ANALNFATAL_ERR_REP_EN__MASK                                                          0x00000002L
 #define PCIE_ROOT_ERR_CMD__FATAL_ERR_REP_EN__MASK                                                             0x00000004L
 //PCIE_ROOT_ERR_STATUS
 #define PCIE_ROOT_ERR_STATUS__ERR_CORR_RCVD__MASK                                                             0x00000001L
 #define PCIE_ROOT_ERR_STATUS__MULT_ERR_CORR_RCVD__MASK                                                        0x00000002L
-#define PCIE_ROOT_ERR_STATUS__ERR_FATAL_NONFATAL_RCVD__MASK                                                   0x00000004L
-#define PCIE_ROOT_ERR_STATUS__MULT_ERR_FATAL_NONFATAL_RCVD__MASK                                              0x00000008L
+#define PCIE_ROOT_ERR_STATUS__ERR_FATAL_ANALNFATAL_RCVD__MASK                                                   0x00000004L
+#define PCIE_ROOT_ERR_STATUS__MULT_ERR_FATAL_ANALNFATAL_RCVD__MASK                                              0x00000008L
 #define PCIE_ROOT_ERR_STATUS__FIRST_UNCORRECTABLE_FATAL__MASK                                                 0x00000010L
-#define PCIE_ROOT_ERR_STATUS__NONFATAL_ERROR_MSG_RCVD__MASK                                                   0x00000020L
+#define PCIE_ROOT_ERR_STATUS__ANALNFATAL_ERROR_MSG_RCVD__MASK                                                   0x00000020L
 #define PCIE_ROOT_ERR_STATUS__FATAL_ERROR_MSG_RCVD__MASK                                                      0x00000040L
 #define PCIE_ROOT_ERR_STATUS__ADV_ERR_INT_MSG_NUM__MASK                                                       0xF8000000L
 //PCIE_ERR_SRC_ID
 #define PCIE_ERR_SRC_ID__ERR_CORR_SRC_ID__MASK                                                                0x0000FFFFL
-#define PCIE_ERR_SRC_ID__ERR_FATAL_NONFATAL_SRC_ID__MASK                                                      0xFFFF0000L
+#define PCIE_ERR_SRC_ID__ERR_FATAL_ANALNFATAL_SRC_ID__MASK                                                      0xFFFF0000L
 //PCIE_TLP_PREFIX_LOG0
 #define PCIE_TLP_PREFIX_LOG0__TLP_PREFIX__MASK                                                                0xFFFFFFFFL
 //PCIE_TLP_PREFIX_LOG1
@@ -5857,7 +5857,7 @@
 #define PCIE_TPH_REQR_ENH_CAP_LIST__CAP_VER__MASK                                                             0x000F0000L
 #define PCIE_TPH_REQR_ENH_CAP_LIST__NEXT_PTR__MASK                                                            0xFFF00000L
 //PCIE_TPH_REQR_CAP
-#define PCIE_TPH_REQR_CAP__TPH_REQR_NO_ST_MODE_SUPPORTED__MASK                                                0x00000001L
+#define PCIE_TPH_REQR_CAP__TPH_REQR_ANAL_ST_MODE_SUPPORTED__MASK                                                0x00000001L
 #define PCIE_TPH_REQR_CAP__TPH_REQR_INT_VEC_MODE_SUPPORTED__MASK                                              0x00000002L
 #define PCIE_TPH_REQR_CAP__TPH_REQR_DEV_SPC_MODE_SUPPORTED__MASK                                              0x00000004L
 #define PCIE_TPH_REQR_CAP__TPH_REQR_EXTND_TPH_REQR_SUPPORED__MASK                                             0x00000100L
@@ -6217,7 +6217,7 @@
 #define SLOT_CAP__SLOT_PWR_LIMIT_VALUE__MASK                                                                  0x00007F80L
 #define SLOT_CAP__SLOT_PWR_LIMIT_SCALE__MASK                                                                  0x00018000L
 #define SLOT_CAP__ELECTROMECH_INTERLOCK_PRESENT__MASK                                                         0x00020000L
-#define SLOT_CAP__NO_COMMAND_COMPLETED_SUPPORTED__MASK                                                        0x00040000L
+#define SLOT_CAP__ANAL_COMMAND_COMPLETED_SUPPORTED__MASK                                                        0x00040000L
 #define SLOT_CAP__PHYSICAL_SLOT_NUM__MASK                                                                     0xFFF80000L
 //SLOT_CNTL
 #define SLOT_CNTL__ATTN_BUTTON_PRESSED_EN__MASK                                                               0x0001L
@@ -6300,7 +6300,7 @@
 
 // addressBlock: gdc_GDCDEC
 //A2S_CNTL_CL0
-#define A2S_CNTL_CL0__NSNOOP_MAP__MASK                                                                        0x00000003L
+#define A2S_CNTL_CL0__NSANALOP_MAP__MASK                                                                        0x00000003L
 #define A2S_CNTL_CL0__REQPASSPW_VC0_MAP__MASK                                                                 0x0000000CL
 #define A2S_CNTL_CL0__REQPASSPW_NVC0_MAP__MASK                                                                0x00000030L
 #define A2S_CNTL_CL0__REQRSPPASSPW_VC0_MAP__MASK                                                              0x000000C0L
@@ -6312,7 +6312,7 @@
 #define A2S_CNTL_CL0__RESP_WR_MAP__MASK                                                                       0x000C0000L
 #define A2S_CNTL_CL0__RESP_RD_MAP__MASK                                                                       0x00300000L
 //A2S_CNTL_CL1
-#define A2S_CNTL_CL1__NSNOOP_MAP__MASK                                                                        0x00000003L
+#define A2S_CNTL_CL1__NSANALOP_MAP__MASK                                                                        0x00000003L
 #define A2S_CNTL_CL1__REQPASSPW_VC0_MAP__MASK                                                                 0x0000000CL
 #define A2S_CNTL_CL1__REQPASSPW_NVC0_MAP__MASK                                                                0x00000030L
 #define A2S_CNTL_CL1__REQRSPPASSPW_VC0_MAP__MASK                                                              0x000000C0L
@@ -6324,7 +6324,7 @@
 #define A2S_CNTL_CL1__RESP_WR_MAP__MASK                                                                       0x000C0000L
 #define A2S_CNTL_CL1__RESP_RD_MAP__MASK                                                                       0x00300000L
 //A2S_CNTL_CL2
-#define A2S_CNTL_CL2__NSNOOP_MAP__MASK                                                                        0x00000003L
+#define A2S_CNTL_CL2__NSANALOP_MAP__MASK                                                                        0x00000003L
 #define A2S_CNTL_CL2__REQPASSPW_VC0_MAP__MASK                                                                 0x0000000CL
 #define A2S_CNTL_CL2__REQPASSPW_NVC0_MAP__MASK                                                                0x00000030L
 #define A2S_CNTL_CL2__REQRSPPASSPW_VC0_MAP__MASK                                                              0x000000C0L
@@ -6336,7 +6336,7 @@
 #define A2S_CNTL_CL2__RESP_WR_MAP__MASK                                                                       0x000C0000L
 #define A2S_CNTL_CL2__RESP_RD_MAP__MASK                                                                       0x00300000L
 //A2S_CNTL_CL3
-#define A2S_CNTL_CL3__NSNOOP_MAP__MASK                                                                        0x00000003L
+#define A2S_CNTL_CL3__NSANALOP_MAP__MASK                                                                        0x00000003L
 #define A2S_CNTL_CL3__REQPASSPW_VC0_MAP__MASK                                                                 0x0000000CL
 #define A2S_CNTL_CL3__REQPASSPW_NVC0_MAP__MASK                                                                0x00000030L
 #define A2S_CNTL_CL3__REQRSPPASSPW_VC0_MAP__MASK                                                              0x000000C0L
@@ -6348,7 +6348,7 @@
 #define A2S_CNTL_CL3__RESP_WR_MAP__MASK                                                                       0x000C0000L
 #define A2S_CNTL_CL3__RESP_RD_MAP__MASK                                                                       0x00300000L
 //A2S_CNTL_CL4
-#define A2S_CNTL_CL4__NSNOOP_MAP__MASK                                                                        0x00000003L
+#define A2S_CNTL_CL4__NSANALOP_MAP__MASK                                                                        0x00000003L
 #define A2S_CNTL_CL4__REQPASSPW_VC0_MAP__MASK                                                                 0x0000000CL
 #define A2S_CNTL_CL4__REQPASSPW_NVC0_MAP__MASK                                                                0x00000030L
 #define A2S_CNTL_CL4__REQRSPPASSPW_VC0_MAP__MASK                                                              0x000000C0L
@@ -7193,7 +7193,7 @@
 //DN_PCIE_CNTL
 #define DN_PCIE_CNTL__HWINIT_WR_LOCK__MASK                                                                    0x00000001L
 #define DN_PCIE_CNTL__UR_ERR_REPORT_DIS_DN__MASK                                                              0x00000080L
-#define DN_PCIE_CNTL__RX_IGNORE_LTR_MSG_UR__MASK                                                              0x40000000L
+#define DN_PCIE_CNTL__RX_IGANALRE_LTR_MSG_UR__MASK                                                              0x40000000L
 //DN_PCIE_CONFIG_CNTL
 #define DN_PCIE_CONFIG_CNTL__CI_EXTENDED_TAG_EN_OVERRIDE__MASK                                                0x06000000L
 //DN_PCIE_RX_CNTL2
@@ -7227,16 +7227,16 @@
 #define PCIE_ERR_CNTL__AER_HDR_LOG_F0_TIMER_EXPIRED__MASK                                                     0x00000800L
 #define PCIE_ERR_CNTL__SEND_ERR_MSG_IMMEDIATELY__MASK                                                         0x00020000L
 //PCIE_RX_CNTL
-#define PCIE_RX_CNTL__RX_IGNORE_MAX_PAYLOAD_ERR__MASK                                                         0x00000100L
-#define PCIE_RX_CNTL__RX_IGNORE_TC_ERR_DN__MASK                                                               0x00000200L
+#define PCIE_RX_CNTL__RX_IGANALRE_MAX_PAYLOAD_ERR__MASK                                                         0x00000100L
+#define PCIE_RX_CNTL__RX_IGANALRE_TC_ERR_DN__MASK                                                               0x00000200L
 #define PCIE_RX_CNTL__RX_PCIE_CPL_TIMEOUT_DIS__MASK                                                           0x00100000L
-#define PCIE_RX_CNTL__RX_IGNORE_SHORTPREFIX_ERR_DN__MASK                                                      0x00200000L
+#define PCIE_RX_CNTL__RX_IGANALRE_SHORTPREFIX_ERR_DN__MASK                                                      0x00200000L
 #define PCIE_RX_CNTL__RX_RCB_FLR_TIMEOUT_DIS__MASK                                                            0x08000000L
 //PCIE_LC_SPEED_CNTL
 #define PCIE_LC_SPEED_CNTL__LC_GEN2_EN_STRAP__MASK                                                            0x00000001L
 #define PCIE_LC_SPEED_CNTL__LC_GEN3_EN_STRAP__MASK                                                            0x00000002L
 //PCIE_LC_CNTL2
-#define PCIE_LC_CNTL2__LC_LINK_BW_NOTIFICATION_DIS__MASK                                                      0x08000000L
+#define PCIE_LC_CNTL2__LC_LINK_BW_ANALTIFICATION_DIS__MASK                                                      0x08000000L
 //PCIEP_STRAP_MISC
 #define PCIEP_STRAP_MISC__STRAP_MULTI_FUNC_EN__MASK                                                           0x00000400L
 //LTR_MSG_INFO_FROM_EP
@@ -7249,23 +7249,23 @@
 //EP_PCIE_CNTL
 #define EP_PCIE_CNTL__UR_ERR_REPORT_DIS__MASK                                                                 0x00000080L
 #define EP_PCIE_CNTL__PCIE_MALFORM_ATOMIC_OPS__MASK                                                           0x00000100L
-#define EP_PCIE_CNTL__RX_IGNORE_LTR_MSG_UR__MASK                                                              0x40000000L
+#define EP_PCIE_CNTL__RX_IGANALRE_LTR_MSG_UR__MASK                                                              0x40000000L
 //EP_PCIE_INT_CNTL
 #define EP_PCIE_INT_CNTL__CORR_ERR_INT_EN__MASK                                                               0x00000001L
-#define EP_PCIE_INT_CNTL__NON_FATAL_ERR_INT_EN__MASK                                                          0x00000002L
+#define EP_PCIE_INT_CNTL__ANALN_FATAL_ERR_INT_EN__MASK                                                          0x00000002L
 #define EP_PCIE_INT_CNTL__FATAL_ERR_INT_EN__MASK                                                              0x00000004L
 #define EP_PCIE_INT_CNTL__USR_DETECTED_INT_EN__MASK                                                           0x00000008L
 #define EP_PCIE_INT_CNTL__MISC_ERR_INT_EN__MASK                                                               0x00000010L
 #define EP_PCIE_INT_CNTL__POWER_STATE_CHG_INT_EN__MASK                                                        0x00000040L
 //EP_PCIE_INT_STATUS
 #define EP_PCIE_INT_STATUS__CORR_ERR_INT_STATUS__MASK                                                         0x00000001L
-#define EP_PCIE_INT_STATUS__NON_FATAL_ERR_INT_STATUS__MASK                                                    0x00000002L
+#define EP_PCIE_INT_STATUS__ANALN_FATAL_ERR_INT_STATUS__MASK                                                    0x00000002L
 #define EP_PCIE_INT_STATUS__FATAL_ERR_INT_STATUS__MASK                                                        0x00000004L
 #define EP_PCIE_INT_STATUS__USR_DETECTED_INT_STATUS__MASK                                                     0x00000008L
 #define EP_PCIE_INT_STATUS__MISC_ERR_INT_STATUS__MASK                                                         0x00000010L
 #define EP_PCIE_INT_STATUS__POWER_STATE_CHG_INT_STATUS__MASK                                                  0x00000040L
 //EP_PCIE_RX_CNTL2
-#define EP_PCIE_RX_CNTL2__RX_IGNORE_EP_INVALIDPASID_UR__MASK                                                  0x00000001L
+#define EP_PCIE_RX_CNTL2__RX_IGANALRE_EP_INVALIDPASID_UR__MASK                                                  0x00000001L
 //EP_PCIE_BUS_CNTL
 #define EP_PCIE_BUS_CNTL__IMMEDIATE_PMI_DIS__MASK                                                             0x00000080L
 //EP_PCIE_CFG_CNTL
@@ -7283,7 +7283,7 @@
 #define EP_PCIE_OBFF_CNTL__TX_OBFF_INTR_TO_ACTIVE__MASK                                                       0x00010000L
 #define EP_PCIE_OBFF_CNTL__TX_OBFF_ERR_TO_ACTIVE__MASK                                                        0x00020000L
 #define EP_PCIE_OBFF_CNTL__TX_OBFF_ANY_MSG_TO_ACTIVE__MASK                                                    0x00040000L
-#define EP_PCIE_OBFF_CNTL__TX_OBFF_ACCEPT_IN_NOND0__MASK                                                      0x00080000L
+#define EP_PCIE_OBFF_CNTL__TX_OBFF_ACCEPT_IN_ANALND0__MASK                                                      0x00080000L
 #define EP_PCIE_OBFF_CNTL__TX_OBFF_PENDING_REQ_TO_ACTIVE__MASK                                                0x00F00000L
 //EP_PCIE_TX_LTR_CNTL
 #define EP_PCIE_TX_LTR_CNTL__LTR_PRIV_S_SHORT_VALUE__MASK                                                     0x00000007L
@@ -7292,7 +7292,7 @@
 #define EP_PCIE_TX_LTR_CNTL__LTR_PRIV_NS_SHORT_VALUE__MASK                                                    0x00000380L
 #define EP_PCIE_TX_LTR_CNTL__LTR_PRIV_NS_LONG_VALUE__MASK                                                     0x00001C00L
 #define EP_PCIE_TX_LTR_CNTL__LTR_PRIV_NS_REQUIREMENT__MASK                                                    0x00002000L
-#define EP_PCIE_TX_LTR_CNTL__LTR_PRIV_MSG_DIS_IN_PM_NON_D0__MASK                                              0x00004000L
+#define EP_PCIE_TX_LTR_CNTL__LTR_PRIV_MSG_DIS_IN_PM_ANALN_D0__MASK                                              0x00004000L
 #define EP_PCIE_TX_LTR_CNTL__LTR_PRIV_RST_LTR_IN_DL_DOWN__MASK                                                0x00008000L
 #define EP_PCIE_TX_LTR_CNTL__TX_CHK_FC_FOR_L1__MASK                                                           0x00010000L
 //EP_PCIE_STRAP_MISC
@@ -7344,7 +7344,7 @@
 #define EP_PCIE_ERR_CNTL__ERR_REPORTING_DIS__MASK                                                             0x00000001L
 #define EP_PCIE_ERR_CNTL__AER_HDR_LOG_TIMEOUT__MASK                                                           0x00000700L
 #define EP_PCIE_ERR_CNTL__SEND_ERR_MSG_IMMEDIATELY__MASK                                                      0x00020000L
-#define EP_PCIE_ERR_CNTL__STRAP_POISONED_ADVISORY_NONFATAL__MASK                                              0x00040000L
+#define EP_PCIE_ERR_CNTL__STRAP_POISONED_ADVISORY_ANALNFATAL__MASK                                              0x00040000L
 #define EP_PCIE_ERR_CNTL__AER_HDR_LOG_F0_TIMER_EXPIRED__MASK                                                  0x01000000L
 #define EP_PCIE_ERR_CNTL__AER_HDR_LOG_F1_TIMER_EXPIRED__MASK                                                  0x02000000L
 #define EP_PCIE_ERR_CNTL__AER_HDR_LOG_F2_TIMER_EXPIRED__MASK                                                  0x04000000L
@@ -7354,13 +7354,13 @@
 #define EP_PCIE_ERR_CNTL__AER_HDR_LOG_F6_TIMER_EXPIRED__MASK                                                  0x40000000L
 #define EP_PCIE_ERR_CNTL__AER_HDR_LOG_F7_TIMER_EXPIRED__MASK                                                  0x80000000L
 //EP_PCIE_RX_CNTL
-#define EP_PCIE_RX_CNTL__RX_IGNORE_MAX_PAYLOAD_ERR__MASK                                                      0x00000100L
-#define EP_PCIE_RX_CNTL__RX_IGNORE_TC_ERR__MASK                                                               0x00000200L
+#define EP_PCIE_RX_CNTL__RX_IGANALRE_MAX_PAYLOAD_ERR__MASK                                                      0x00000100L
+#define EP_PCIE_RX_CNTL__RX_IGANALRE_TC_ERR__MASK                                                               0x00000200L
 #define EP_PCIE_RX_CNTL__RX_PCIE_CPL_TIMEOUT_DIS__MASK                                                        0x00100000L
-#define EP_PCIE_RX_CNTL__RX_IGNORE_SHORTPREFIX_ERR__MASK                                                      0x00200000L
-#define EP_PCIE_RX_CNTL__RX_IGNORE_MAXPREFIX_ERR__MASK                                                        0x00400000L
-#define EP_PCIE_RX_CNTL__RX_IGNORE_INVALIDPASID_ERR__MASK                                                     0x01000000L
-#define EP_PCIE_RX_CNTL__RX_IGNORE_NOT_PASID_UR__MASK                                                         0x02000000L
+#define EP_PCIE_RX_CNTL__RX_IGANALRE_SHORTPREFIX_ERR__MASK                                                      0x00200000L
+#define EP_PCIE_RX_CNTL__RX_IGANALRE_MAXPREFIX_ERR__MASK                                                        0x00400000L
+#define EP_PCIE_RX_CNTL__RX_IGANALRE_INVALIDPASID_ERR__MASK                                                     0x01000000L
+#define EP_PCIE_RX_CNTL__RX_IGANALRE_ANALT_PASID_UR__MASK                                                         0x02000000L
 #define EP_PCIE_RX_CNTL__RX_TPH_DIS__MASK                                                                     0x04000000L
 //EP_PCIE_LC_SPEED_CNTL
 #define EP_PCIE_LC_SPEED_CNTL__LC_GEN2_EN_STRAP__MASK                                                         0x00000001L
@@ -7384,8 +7384,8 @@
 #define BUS_CNTL__DEASRT_INTX_DSTATE_CHK_DIS_EP__MASK                                                         0x00080000L
 #define BUS_CNTL__DEASRT_INTX_DSTATE_CHK_DIS_DN__MASK                                                         0x00100000L
 #define BUS_CNTL__DEASRT_INTX_DSTATE_CHK_DIS_SWUS__MASK                                                       0x00200000L
-#define BUS_CNTL__DEASRT_INTX_IN_NOND0_EN_EP__MASK                                                            0x00400000L
-#define BUS_CNTL__DEASRT_INTX_IN_NOND0_EN_DN__MASK                                                            0x00800000L
+#define BUS_CNTL__DEASRT_INTX_IN_ANALND0_EN_EP__MASK                                                            0x00400000L
+#define BUS_CNTL__DEASRT_INTX_IN_ANALND0_EN_DN__MASK                                                            0x00800000L
 #define BUS_CNTL__UR_OVRD_FOR_ECRC_EN__MASK                                                                   0x01000000L
 //BIF_SCRATCH0
 #define BIF_SCRATCH0__BIF_SCRATCH0__MASK                                                                      0xFFFFFFFFL
@@ -7406,10 +7406,10 @@
 //INTERRUPT_CNTL
 #define INTERRUPT_CNTL__IH_DUMMY_RD_OVERRIDE__MASK                                                            0x00000001L
 #define INTERRUPT_CNTL__IH_DUMMY_RD_EN__MASK                                                                  0x00000002L
-#define INTERRUPT_CNTL__IH_REQ_NONSNOOP_EN__MASK                                                              0x00000008L
+#define INTERRUPT_CNTL__IH_REQ_ANALNSANALOP_EN__MASK                                                              0x00000008L
 #define INTERRUPT_CNTL__IH_INTR_DLY_CNTR__MASK                                                                0x000000F0L
 #define INTERRUPT_CNTL__GEN_IH_INT_EN__MASK                                                                   0x00000100L
-#define INTERRUPT_CNTL__BIF_RB_REQ_NONSNOOP_EN__MASK                                                          0x00008000L
+#define INTERRUPT_CNTL__BIF_RB_REQ_ANALNSANALOP_EN__MASK                                                          0x00008000L
 //INTERRUPT_CNTL2
 #define INTERRUPT_CNTL2__IH_DUMMY_RD_ADDR__MASK                                                               0xFFFFFFFFL
 //CLKREQB_PAD_CNTL
@@ -7442,7 +7442,7 @@
 #define BIF_FEATURES_CONTROL_MISC__ATC_PRG_RESP_PASID_UR_EN__MASK                                             0x00000800L
 #define BIF_FEATURES_CONTROL_MISC__BIF_RB_SET_OVERFLOW_EN__MASK                                               0x00001000L
 #define BIF_FEATURES_CONTROL_MISC__ATOMIC_ERR_INT_DIS__MASK                                                   0x00002000L
-#define BIF_FEATURES_CONTROL_MISC__BME_HDL_NONVIR_EN__MASK                                                    0x00008000L
+#define BIF_FEATURES_CONTROL_MISC__BME_HDL_ANALNVIR_EN__MASK                                                    0x00008000L
 #define BIF_FEATURES_CONTROL_MISC__FLR_MST_PEND_CHK_DIS__MASK                                                 0x00020000L
 #define BIF_FEATURES_CONTROL_MISC__FLR_SLV_PEND_CHK_DIS__MASK                                                 0x00040000L
 #define BIF_FEATURES_CONTROL_MISC__DOORBELL_SELFRING_GPA_APER_CHK_48BIT_ADDR__MASK                            0x01000000L
@@ -7450,7 +7450,7 @@
 #define BIF_DOORBELL_CNTL__SELF_RING_DIS__MASK                                                                0x00000001L
 #define BIF_DOORBELL_CNTL__TRANS_CHECK_DIS__MASK                                                              0x00000002L
 #define BIF_DOORBELL_CNTL__UNTRANS_LBACK_EN__MASK                                                             0x00000004L
-#define BIF_DOORBELL_CNTL__NON_CONSECUTIVE_BE_ZERO_DIS__MASK                                                  0x00000008L
+#define BIF_DOORBELL_CNTL__ANALN_CONSECUTIVE_BE_ZERO_DIS__MASK                                                  0x00000008L
 #define BIF_DOORBELL_CNTL__DOORBELL_MONITOR_EN__MASK                                                          0x00000010L
 #define BIF_DOORBELL_CNTL__DB_MNTR_INTGEN_DIS__MASK                                                           0x01000000L
 #define BIF_DOORBELL_CNTL__DB_MNTR_INTGEN_MODE_0__MASK                                                        0x02000000L
@@ -7612,8 +7612,8 @@
 #define BIF_RB_WPTR_ADDR_LO__ADDR__MASK                                                                       0xFFFFFFFCL
 //MAILBOX_INDEX
 #define MAILBOX_INDEX__MAILBOX_INDEX__MASK                                                                    0x0000001FL
-//BIF_GPUIOV_RESET_NOTIFICATION
-#define BIF_GPUIOV_RESET_NOTIFICATION__RESET_NOTIFICATION__MASK                                               0xFFFFFFFFL
+//BIF_GPUIOV_RESET_ANALTIFICATION
+#define BIF_GPUIOV_RESET_ANALTIFICATION__RESET_ANALTIFICATION__MASK                                               0xFFFFFFFFL
 //BIF_UVD_GPUIOV_CFG_SIZE
 #define BIF_UVD_GPUIOV_CFG_SIZE__UVD_GPUIOV_CFG_SIZE__MASK                                                    0x0000000FL
 //BIF_VCE_GPUIOV_CFG_SIZE
@@ -7622,8 +7622,8 @@
 #define BIF_GFX_SDMA_GPUIOV_CFG_SIZE__GFX_SDMA_GPUIOV_CFG_SIZE__MASK                                          0x0000000FL
 //BIF_GMI_WRR_WEIGHT
 #define BIF_GMI_WRR_WEIGHT__GMI_REQ_REALTIME_WEIGHT__MASK                                                     0x000000FFL
-#define BIF_GMI_WRR_WEIGHT__GMI_REQ_NORM_P_WEIGHT__MASK                                                       0x0000FF00L
-#define BIF_GMI_WRR_WEIGHT__GMI_REQ_NORM_NP_WEIGHT__MASK                                                      0x00FF0000L
+#define BIF_GMI_WRR_WEIGHT__GMI_REQ_ANALRM_P_WEIGHT__MASK                                                       0x0000FF00L
+#define BIF_GMI_WRR_WEIGHT__GMI_REQ_ANALRM_NP_WEIGHT__MASK                                                      0x00FF0000L
 //NBIF_STRAP_WRITE_CTRL
 #define NBIF_STRAP_WRITE_CTRL__NBIF_STRAP_WRITE_ONCE_ENABLE__MASK                                             0x00000001L
 //BIF_PERSTB_PAD_CNTL
@@ -7676,7 +7676,7 @@
 #define RCC_BUS_CNTL__PRIV_MAX_READ_REQUEST_SIZE__MASK                                                        0xE0000000L
 //RCC_CONFIG_CNTL
 #define RCC_CONFIG_CNTL__CFG_VGA_RAM_EN__MASK                                                                 0x00000001L
-#define RCC_CONFIG_CNTL__GENMO_MONO_ADDRESS_B__MASK                                                           0x00000004L
+#define RCC_CONFIG_CNTL__GENMO_MOANAL_ADDRESS_B__MASK                                                           0x00000004L
 #define RCC_CONFIG_CNTL__GRPH_ADRSEL__MASK                                                                    0x00000018L
 //RCC_CONFIG_F0_BASE
 #define RCC_CONFIG_F0_BASE__F0_BASE__MASK                                                                     0xFFFFFFFFL
@@ -7694,11 +7694,11 @@
 #define RCC_FEATURES_CONTROL_MISC__POST_PSN_ONLY_PKT_REPORT_UR_ALL_DIS__MASK                                  0x00000020L
 #define RCC_FEATURES_CONTROL_MISC__POST_PSN_ONLY_PKT_REPORT_UR_PART_DIS__MASK                                 0x00000040L
 #define RCC_FEATURES_CONTROL_MISC__ATC_PRG_RESP_PASID_UR_EN__MASK                                             0x00000100L
-#define RCC_FEATURES_CONTROL_MISC__RX_IGNORE_TRANSMRD_UR__MASK                                                0x00000200L
-#define RCC_FEATURES_CONTROL_MISC__RX_IGNORE_TRANSMWR_UR__MASK                                                0x00000400L
-#define RCC_FEATURES_CONTROL_MISC__RX_IGNORE_ATSTRANSREQ_UR__MASK                                             0x00000800L
-#define RCC_FEATURES_CONTROL_MISC__RX_IGNORE_PAGEREQMSG_UR__MASK                                              0x00001000L
-#define RCC_FEATURES_CONTROL_MISC__RX_IGNORE_INVCPL_UR__MASK                                                  0x00002000L
+#define RCC_FEATURES_CONTROL_MISC__RX_IGANALRE_TRANSMRD_UR__MASK                                                0x00000200L
+#define RCC_FEATURES_CONTROL_MISC__RX_IGANALRE_TRANSMWR_UR__MASK                                                0x00000400L
+#define RCC_FEATURES_CONTROL_MISC__RX_IGANALRE_ATSTRANSREQ_UR__MASK                                             0x00000800L
+#define RCC_FEATURES_CONTROL_MISC__RX_IGANALRE_PAGEREQMSG_UR__MASK                                              0x00001000L
+#define RCC_FEATURES_CONTROL_MISC__RX_IGANALRE_INVCPL_UR__MASK                                                  0x00002000L
 #define RCC_FEATURES_CONTROL_MISC__CLR_MSI_X_PENDING_WHEN_DISABLED_DIS__MASK                                  0x00004000L
 #define RCC_FEATURES_CONTROL_MISC__CHECK_BME_ON_PENDING_PKT_GEN_DIS__MASK                                     0x00008000L
 #define RCC_FEATURES_CONTROL_MISC__PSN_CHECK_ON_PAYLOAD_DIS__MASK                                             0x00010000L
@@ -7812,7 +7812,7 @@
 #define RCC_DEV0_PORT_STRAP0__STRAP_CPL_ABORT_ERR_EN_DN_DEV0__MASK                                            0x00000010L
 #define RCC_DEV0_PORT_STRAP0__STRAP_DEVICE_ID_DN_DEV0__MASK                                                   0x001FFFE0L
 #define RCC_DEV0_PORT_STRAP0__STRAP_INTERRUPT_PIN_DN_DEV0__MASK                                               0x00E00000L
-#define RCC_DEV0_PORT_STRAP0__STRAP_IGNORE_E2E_PREFIX_UR_DN_DEV0__MASK                                        0x01000000L
+#define RCC_DEV0_PORT_STRAP0__STRAP_IGANALRE_E2E_PREFIX_UR_DN_DEV0__MASK                                        0x01000000L
 #define RCC_DEV0_PORT_STRAP0__STRAP_MAX_PAYLOAD_SUPPORT_DN_DEV0__MASK                                         0x0E000000L
 #define RCC_DEV0_PORT_STRAP0__STRAP_MAX_LINK_WIDTH_SUPPORT_DEV0__MASK                                         0x70000000L
 #define RCC_DEV0_PORT_STRAP0__STRAP_EPF0_DUMMY_EN_DEV0__MASK                                                  0x80000000L
@@ -7831,7 +7831,7 @@
 #define RCC_DEV0_PORT_STRAP2__STRAP_EXTENDED_TAG_ECN_EN_DEV0__MASK                                            0x00000100L
 #define RCC_DEV0_PORT_STRAP2__STRAP_EXT_VC_COUNT_DN_DEV0__MASK                                                0x00000E00L
 #define RCC_DEV0_PORT_STRAP2__STRAP_FIRST_RCVD_ERR_LOG_DN_DEV0__MASK                                          0x00001000L
-#define RCC_DEV0_PORT_STRAP2__STRAP_POISONED_ADVISORY_NONFATAL_DN_DEV0__MASK                                  0x00002000L
+#define RCC_DEV0_PORT_STRAP2__STRAP_POISONED_ADVISORY_ANALNFATAL_DN_DEV0__MASK                                  0x00002000L
 #define RCC_DEV0_PORT_STRAP2__STRAP_GEN2_COMPLIANCE_DEV0__MASK                                                0x00004000L
 #define RCC_DEV0_PORT_STRAP2__STRAP_GEN2_EN_DEV0__MASK                                                        0x00008000L
 #define RCC_DEV0_PORT_STRAP2__STRAP_GEN3_COMPLIANCE_DEV0__MASK                                                0x00010000L
@@ -7842,13 +7842,13 @@
 #define RCC_DEV0_PORT_STRAP2__STRAP_L1_ACCEPTABLE_LATENCY_DEV0__MASK                                          0x1C000000L
 #define RCC_DEV0_PORT_STRAP2__STRAP_L1_EXIT_LATENCY_DEV0__MASK                                                0xE0000000L
 //RCC_DEV0_PORT_STRAP3
-#define RCC_DEV0_PORT_STRAP3__STRAP_LINK_BW_NOTIFICATION_CAP_DN_EN_DEV0__MASK                                 0x00000001L
+#define RCC_DEV0_PORT_STRAP3__STRAP_LINK_BW_ANALTIFICATION_CAP_DN_EN_DEV0__MASK                                 0x00000001L
 #define RCC_DEV0_PORT_STRAP3__STRAP_LTR_EN_DEV0__MASK                                                         0x00000002L
 #define RCC_DEV0_PORT_STRAP3__STRAP_LTR_EN_DN_DEV0__MASK                                                      0x00000004L
 #define RCC_DEV0_PORT_STRAP3__STRAP_MAX_PAYLOAD_SUPPORT_DEV0__MASK                                            0x00000038L
 #define RCC_DEV0_PORT_STRAP3__STRAP_MSI_EN_DN_DEV0__MASK                                                      0x00000040L
 #define RCC_DEV0_PORT_STRAP3__STRAP_MSTCPL_TIMEOUT_EN_DEV0__MASK                                              0x00000080L
-#define RCC_DEV0_PORT_STRAP3__STRAP_NO_SOFT_RESET_DN_DEV0__MASK                                               0x00000100L
+#define RCC_DEV0_PORT_STRAP3__STRAP_ANAL_SOFT_RESET_DN_DEV0__MASK                                               0x00000100L
 #define RCC_DEV0_PORT_STRAP3__STRAP_OBFF_SUPPORTED_DEV0__MASK                                                 0x00000600L
 #define RCC_DEV0_PORT_STRAP3__STRAP_PCIE_LANE_EQUALIZATION_CNTL_DOWNSTREAM_PORT_RX_PRESET_HINT_DEV0__MASK     0x00003800L
 #define RCC_DEV0_PORT_STRAP3__STRAP_PCIE_LANE_EQUALIZATION_CNTL_DOWNSTREAM_PORT_TX_PRESET_DEV0__MASK          0x0003C000L
@@ -7888,14 +7888,14 @@
 //RCC_DEV0_PORT_STRAP7
 #define RCC_DEV0_PORT_STRAP7__STRAP_PORT_NUMBER_DEV0__MASK                                                    0x000000FFL
 #define RCC_DEV0_PORT_STRAP7__STRAP_MAJOR_REV_ID_DN_DEV0__MASK                                                0x00000F00L
-#define RCC_DEV0_PORT_STRAP7__STRAP_MINOR_REV_ID_DN_DEV0__MASK                                                0x0000F000L
+#define RCC_DEV0_PORT_STRAP7__STRAP_MIANALR_REV_ID_DN_DEV0__MASK                                                0x0000F000L
 #define RCC_DEV0_PORT_STRAP7__STRAP_RP_BUSNUM_DEV0__MASK                                                      0x00FF0000L
 #define RCC_DEV0_PORT_STRAP7__STRAP_DN_DEVNUM_DEV0__MASK                                                      0x1F000000L
 #define RCC_DEV0_PORT_STRAP7__STRAP_DN_FUNCID_DEV0__MASK                                                      0xE0000000L
 //RCC_DEV0_EPF0_STRAP0
 #define RCC_DEV0_EPF0_STRAP0__STRAP_DEVICE_ID_DEV0_F0__MASK                                                   0x0000FFFFL
 #define RCC_DEV0_EPF0_STRAP0__STRAP_MAJOR_REV_ID_DEV0_F0__MASK                                                0x000F0000L
-#define RCC_DEV0_EPF0_STRAP0__STRAP_MINOR_REV_ID_DEV0_F0__MASK                                                0x00F00000L
+#define RCC_DEV0_EPF0_STRAP0__STRAP_MIANALR_REV_ID_DEV0_F0__MASK                                                0x00F00000L
 #define RCC_DEV0_EPF0_STRAP0__STRAP_ATI_REV_ID_DEV0_F0__MASK                                                  0x0F000000L
 #define RCC_DEV0_EPF0_STRAP0__STRAP_FUNC_EN_DEV0_F0__MASK                                                     0x10000000L
 #define RCC_DEV0_EPF0_STRAP0__STRAP_LEGACY_DEVICE_TYPE_EN_DEV0_F0__MASK                                       0x20000000L
@@ -7912,7 +7912,7 @@
 #define RCC_DEV0_EPF0_STRAP2__STRAP_SRIOV_EN_DEV0_F0__MASK                                                    0x00000001L
 #define RCC_DEV0_EPF0_STRAP2__STRAP_SRIOV_TOTAL_VFS_DEV0_F0__MASK                                             0x0000003EL
 #define RCC_DEV0_EPF0_STRAP2__STRAP_64BAR_DIS_DEV0_F0__MASK                                                   0x00000040L
-#define RCC_DEV0_EPF0_STRAP2__STRAP_NO_SOFT_RESET_DEV0_F0__MASK                                               0x00000080L
+#define RCC_DEV0_EPF0_STRAP2__STRAP_ANAL_SOFT_RESET_DEV0_F0__MASK                                               0x00000080L
 #define RCC_DEV0_EPF0_STRAP2__STRAP_RESIZE_BAR_EN_DEV0_F0__MASK                                               0x00000100L
 #define RCC_DEV0_EPF0_STRAP2__STRAP_MAX_PASID_WIDTH_DEV0_F0__MASK                                             0x00003E00L
 #define RCC_DEV0_EPF0_STRAP2__STRAP_MSI_PERVECTOR_MASK_CAP_DEV0_F0__MASK                                      0x00004000L
@@ -7931,7 +7931,7 @@
 #define RCC_DEV0_EPF0_STRAP2__STRAP_PASID_GLOBAL_INVALIDATE_SUPPORTED_DEV0_F0__MASK                           0x40000000L
 #define RCC_DEV0_EPF0_STRAP2__STRAP_PASID_PRIV_MODE_SUPPORTED_DEV0_F0__MASK                                   0x80000000L
 //RCC_DEV0_EPF0_STRAP3
-#define RCC_DEV0_EPF0_STRAP3__STRAP_POISONED_ADVISORY_NONFATAL_DEV0_F0__MASK                                  0x00000001L
+#define RCC_DEV0_EPF0_STRAP3__STRAP_POISONED_ADVISORY_ANALNFATAL_DEV0_F0__MASK                                  0x00000001L
 #define RCC_DEV0_EPF0_STRAP3__STRAP_PWR_EN_DEV0_F0__MASK                                                      0x00000002L
 #define RCC_DEV0_EPF0_STRAP3__STRAP_SUBSYS_ID_DEV0_F0__MASK                                                   0x0003FFFCL
 #define RCC_DEV0_EPF0_STRAP3__STRAP_MSI_EN_DEV0_F0__MASK                                                      0x00040000L
@@ -7975,7 +7975,7 @@
 //RCC_DEV0_EPF1_STRAP0
 #define RCC_DEV0_EPF1_STRAP0__STRAP_DEVICE_ID_DEV0_F1__MASK                                                   0x0000FFFFL
 #define RCC_DEV0_EPF1_STRAP0__STRAP_MAJOR_REV_ID_DEV0_F1__MASK                                                0x000F0000L
-#define RCC_DEV0_EPF1_STRAP0__STRAP_MINOR_REV_ID_DEV0_F1__MASK                                                0x00F00000L
+#define RCC_DEV0_EPF1_STRAP0__STRAP_MIANALR_REV_ID_DEV0_F1__MASK                                                0x00F00000L
 #define RCC_DEV0_EPF1_STRAP0__STRAP_FUNC_EN_DEV0_F1__MASK                                                     0x10000000L
 #define RCC_DEV0_EPF1_STRAP0__STRAP_LEGACY_DEVICE_TYPE_EN_DEV0_F1__MASK                                       0x20000000L
 #define RCC_DEV0_EPF1_STRAP0__STRAP_D1_SUPPORT_DEV0_F1__MASK                                                  0x40000000L
@@ -7994,7 +7994,7 @@
 #define RCC_DEV0_EPF1_STRAP13__STRAP_CLASS_CODE_SUB_DEV0_F1__MASK                                             0x0000FF00L
 #define RCC_DEV0_EPF1_STRAP13__STRAP_CLASS_CODE_BASE_DEV0_F1__MASK                                            0x00FF0000L
 //RCC_DEV0_EPF1_STRAP2
-#define RCC_DEV0_EPF1_STRAP2__STRAP_NO_SOFT_RESET_DEV0_F1__MASK                                               0x00000080L
+#define RCC_DEV0_EPF1_STRAP2__STRAP_ANAL_SOFT_RESET_DEV0_F1__MASK                                               0x00000080L
 #define RCC_DEV0_EPF1_STRAP2__STRAP_RESIZE_BAR_EN_DEV0_F1__MASK                                               0x00000100L
 #define RCC_DEV0_EPF1_STRAP2__STRAP_MSI_PERVECTOR_MASK_CAP_DEV0_F1__MASK                                      0x00004000L
 #define RCC_DEV0_EPF1_STRAP2__STRAP_AER_EN_DEV0_F1__MASK                                                      0x00010000L
@@ -8006,7 +8006,7 @@
 #define RCC_DEV0_EPF1_STRAP2__STRAP_VC_EN_DEV0_F1__MASK                                                       0x00800000L
 #define RCC_DEV0_EPF1_STRAP2__STRAP_MSI_MULTI_CAP_DEV0_F1__MASK                                               0x07000000L
 //RCC_DEV0_EPF1_STRAP3
-#define RCC_DEV0_EPF1_STRAP3__STRAP_POISONED_ADVISORY_NONFATAL_DEV0_F1__MASK                                  0x00000001L
+#define RCC_DEV0_EPF1_STRAP3__STRAP_POISONED_ADVISORY_ANALNFATAL_DEV0_F1__MASK                                  0x00000001L
 #define RCC_DEV0_EPF1_STRAP3__STRAP_PWR_EN_DEV0_F1__MASK                                                      0x00000002L
 #define RCC_DEV0_EPF1_STRAP3__STRAP_SUBSYS_ID_DEV0_F1__MASK                                                   0x0003FFFCL
 #define RCC_DEV0_EPF1_STRAP3__STRAP_MSI_EN_DEV0_F1__MASK                                                      0x00040000L
@@ -8152,7 +8152,7 @@
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP0__STRAP_CPL_ABORT_ERR_EN_DN_DEV0__MASK                           0x00000010L
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP0__STRAP_DEVICE_ID_DN_DEV0__MASK                                  0x001FFFE0L
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP0__STRAP_INTERRUPT_PIN_DN_DEV0__MASK                              0x00E00000L
-#define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP0__STRAP_IGNORE_E2E_PREFIX_UR_DN_DEV0__MASK                       0x01000000L
+#define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP0__STRAP_IGANALRE_E2E_PREFIX_UR_DN_DEV0__MASK                       0x01000000L
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP0__STRAP_MAX_PAYLOAD_SUPPORT_DN_DEV0__MASK                        0x0E000000L
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP0__STRAP_MAX_LINK_WIDTH_SUPPORT_DEV0__MASK                        0x70000000L
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP0__STRAP_EPF0_DUMMY_EN_DEV0__MASK                                 0x80000000L
@@ -8171,7 +8171,7 @@
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP2__STRAP_EXTENDED_TAG_ECN_EN_DEV0__MASK                           0x00000100L
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP2__STRAP_EXT_VC_COUNT_DN_DEV0__MASK                               0x00000E00L
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP2__STRAP_FIRST_RCVD_ERR_LOG_DN_DEV0__MASK                         0x00001000L
-#define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP2__STRAP_POISONED_ADVISORY_NONFATAL_DN_DEV0__MASK                 0x00002000L
+#define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP2__STRAP_POISONED_ADVISORY_ANALNFATAL_DN_DEV0__MASK                 0x00002000L
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP2__STRAP_GEN2_COMPLIANCE_DEV0__MASK                               0x00004000L
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP2__STRAP_GEN2_EN_DEV0__MASK                                       0x00008000L
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP2__STRAP_GEN3_COMPLIANCE_DEV0__MASK                               0x00010000L
@@ -8182,13 +8182,13 @@
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP2__STRAP_L1_ACCEPTABLE_LATENCY_DEV0__MASK                         0x1C000000L
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP2__STRAP_L1_EXIT_LATENCY_DEV0__MASK                               0xE0000000L
 //RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP3
-#define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP3__STRAP_LINK_BW_NOTIFICATION_CAP_DN_EN_DEV0__MASK                0x00000001L
+#define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP3__STRAP_LINK_BW_ANALTIFICATION_CAP_DN_EN_DEV0__MASK                0x00000001L
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP3__STRAP_LTR_EN_DEV0__MASK                                        0x00000002L
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP3__STRAP_LTR_EN_DN_DEV0__MASK                                     0x00000004L
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP3__STRAP_MAX_PAYLOAD_SUPPORT_DEV0__MASK                           0x00000038L
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP3__STRAP_MSI_EN_DN_DEV0__MASK                                     0x00000040L
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP3__STRAP_MSTCPL_TIMEOUT_EN_DEV0__MASK                             0x00000080L
-#define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP3__STRAP_NO_SOFT_RESET_DN_DEV0__MASK                              0x00000100L
+#define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP3__STRAP_ANAL_SOFT_RESET_DN_DEV0__MASK                              0x00000100L
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP3__STRAP_OBFF_SUPPORTED_DEV0__MASK                                0x00000600L
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP3__STRAP_PCIE_LANE_EQUALIZATION_CNTL_DOWNSTREAM_PORT_RX_PRESET_HINT_DEV0__MASK  0x00003800L
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP3__STRAP_PCIE_LANE_EQUALIZATION_CNTL_DOWNSTREAM_PORT_TX_PRESET_DEV0__MASK  0x0003C000L
@@ -8228,7 +8228,7 @@
 //RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP7
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP7__STRAP_PORT_NUMBER_DEV0__MASK                                   0x000000FFL
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP7__STRAP_MAJOR_REV_ID_DN_DEV0__MASK                               0x00000F00L
-#define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP7__STRAP_MINOR_REV_ID_DN_DEV0__MASK                               0x0000F000L
+#define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP7__STRAP_MIANALR_REV_ID_DN_DEV0__MASK                               0x0000F000L
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP7__STRAP_RP_BUSNUM_DEV0__MASK                                     0x00FF0000L
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP7__STRAP_DN_DEVNUM_DEV0__MASK                                     0x1F000000L
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_PORT_STRAP7__STRAP_DN_FUNCID_DEV0__MASK                                     0xE0000000L
@@ -8239,7 +8239,7 @@
 #define RCC_DEV1_PORT_STRAP0__STRAP_CPL_ABORT_ERR_EN_DN_DEV1__MASK                                            0x00000010L
 #define RCC_DEV1_PORT_STRAP0__STRAP_DEVICE_ID_DN_DEV1__MASK                                                   0x001FFFE0L
 #define RCC_DEV1_PORT_STRAP0__STRAP_INTERRUPT_PIN_DN_DEV1__MASK                                               0x00E00000L
-#define RCC_DEV1_PORT_STRAP0__STRAP_IGNORE_E2E_PREFIX_UR_DN_DEV1__MASK                                        0x01000000L
+#define RCC_DEV1_PORT_STRAP0__STRAP_IGANALRE_E2E_PREFIX_UR_DN_DEV1__MASK                                        0x01000000L
 #define RCC_DEV1_PORT_STRAP0__STRAP_MAX_PAYLOAD_SUPPORT_DN_DEV1__MASK                                         0x0E000000L
 #define RCC_DEV1_PORT_STRAP0__STRAP_MAX_LINK_WIDTH_SUPPORT_DEV1__MASK                                         0x70000000L
 #define RCC_DEV1_PORT_STRAP0__STRAP_EPF0_DUMMY_EN_DEV1__MASK                                                  0x80000000L
@@ -8258,7 +8258,7 @@
 #define RCC_DEV1_PORT_STRAP2__STRAP_EXTENDED_TAG_ECN_EN_DEV1__MASK                                            0x00000100L
 #define RCC_DEV1_PORT_STRAP2__STRAP_EXT_VC_COUNT_DN_DEV1__MASK                                                0x00000E00L
 #define RCC_DEV1_PORT_STRAP2__STRAP_FIRST_RCVD_ERR_LOG_DN_DEV1__MASK                                          0x00001000L
-#define RCC_DEV1_PORT_STRAP2__STRAP_POISONED_ADVISORY_NONFATAL_DN_DEV1__MASK                                  0x00002000L
+#define RCC_DEV1_PORT_STRAP2__STRAP_POISONED_ADVISORY_ANALNFATAL_DN_DEV1__MASK                                  0x00002000L
 #define RCC_DEV1_PORT_STRAP2__STRAP_GEN2_COMPLIANCE_DEV1__MASK                                                0x00004000L
 #define RCC_DEV1_PORT_STRAP2__STRAP_GEN2_EN_DEV1__MASK                                                        0x00008000L
 #define RCC_DEV1_PORT_STRAP2__STRAP_GEN3_COMPLIANCE_DEV1__MASK                                                0x00010000L
@@ -8269,13 +8269,13 @@
 #define RCC_DEV1_PORT_STRAP2__STRAP_L1_ACCEPTABLE_LATENCY_DEV1__MASK                                          0x1C000000L
 #define RCC_DEV1_PORT_STRAP2__STRAP_L1_EXIT_LATENCY_DEV1__MASK                                                0xE0000000L
 //RCC_DEV1_PORT_STRAP3
-#define RCC_DEV1_PORT_STRAP3__STRAP_LINK_BW_NOTIFICATION_CAP_DN_EN_DEV1__MASK                                 0x00000001L
+#define RCC_DEV1_PORT_STRAP3__STRAP_LINK_BW_ANALTIFICATION_CAP_DN_EN_DEV1__MASK                                 0x00000001L
 #define RCC_DEV1_PORT_STRAP3__STRAP_LTR_EN_DEV1__MASK                                                         0x00000002L
 #define RCC_DEV1_PORT_STRAP3__STRAP_LTR_EN_DN_DEV1__MASK                                                      0x00000004L
 #define RCC_DEV1_PORT_STRAP3__STRAP_MAX_PAYLOAD_SUPPORT_DEV1__MASK                                            0x00000038L
 #define RCC_DEV1_PORT_STRAP3__STRAP_MSI_EN_DN_DEV1__MASK                                                      0x00000040L
 #define RCC_DEV1_PORT_STRAP3__STRAP_MSTCPL_TIMEOUT_EN_DEV1__MASK                                              0x00000080L
-#define RCC_DEV1_PORT_STRAP3__STRAP_NO_SOFT_RESET_DN_DEV1__MASK                                               0x00000100L
+#define RCC_DEV1_PORT_STRAP3__STRAP_ANAL_SOFT_RESET_DN_DEV1__MASK                                               0x00000100L
 #define RCC_DEV1_PORT_STRAP3__STRAP_OBFF_SUPPORTED_DEV1__MASK                                                 0x00000600L
 #define RCC_DEV1_PORT_STRAP3__STRAP_PCIE_LANE_EQUALIZATION_CNTL_DOWNSTREAM_PORT_RX_PRESET_HINT_DEV1__MASK     0x00003800L
 #define RCC_DEV1_PORT_STRAP3__STRAP_PCIE_LANE_EQUALIZATION_CNTL_DOWNSTREAM_PORT_TX_PRESET_DEV1__MASK          0x0003C000L
@@ -8315,14 +8315,14 @@
 //RCC_DEV1_PORT_STRAP7
 #define RCC_DEV1_PORT_STRAP7__STRAP_PORT_NUMBER_DEV1__MASK                                                    0x000000FFL
 #define RCC_DEV1_PORT_STRAP7__STRAP_MAJOR_REV_ID_DN_DEV1__MASK                                                0x00000F00L
-#define RCC_DEV1_PORT_STRAP7__STRAP_MINOR_REV_ID_DN_DEV1__MASK                                                0x0000F000L
+#define RCC_DEV1_PORT_STRAP7__STRAP_MIANALR_REV_ID_DN_DEV1__MASK                                                0x0000F000L
 #define RCC_DEV1_PORT_STRAP7__STRAP_RP_BUSNUM_DEV1__MASK                                                      0x00FF0000L
 #define RCC_DEV1_PORT_STRAP7__STRAP_DN_DEVNUM_DEV1__MASK                                                      0x1F000000L
 #define RCC_DEV1_PORT_STRAP7__STRAP_DN_FUNCID_DEV1__MASK                                                      0xE0000000L
 //RCCSTRAPRCCSTRAP_RCC_DEV0_EPF0_STRAP0
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF0_STRAP0__STRAP_DEVICE_ID_DEV0_F0__MASK                                  0x0000FFFFL
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF0_STRAP0__STRAP_MAJOR_REV_ID_DEV0_F0__MASK                               0x000F0000L
-#define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF0_STRAP0__STRAP_MINOR_REV_ID_DEV0_F0__MASK                               0x00F00000L
+#define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF0_STRAP0__STRAP_MIANALR_REV_ID_DEV0_F0__MASK                               0x00F00000L
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF0_STRAP0__STRAP_ATI_REV_ID_DEV0_F0__MASK                                 0x0F000000L
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF0_STRAP0__STRAP_FUNC_EN_DEV0_F0__MASK                                    0x10000000L
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF0_STRAP0__STRAP_LEGACY_DEVICE_TYPE_EN_DEV0_F0__MASK                      0x20000000L
@@ -8335,7 +8335,7 @@
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF0_STRAP2__STRAP_SRIOV_EN_DEV0_F0__MASK                                   0x00000001L
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF0_STRAP2__STRAP_SRIOV_TOTAL_VFS_DEV0_F0__MASK                            0x0000003EL
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF0_STRAP2__STRAP_64BAR_DIS_DEV0_F0__MASK                                  0x00000040L
-#define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF0_STRAP2__STRAP_NO_SOFT_RESET_DEV0_F0__MASK                              0x00000080L
+#define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF0_STRAP2__STRAP_ANAL_SOFT_RESET_DEV0_F0__MASK                              0x00000080L
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF0_STRAP2__STRAP_RESIZE_BAR_EN_DEV0_F0__MASK                              0x00000100L
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF0_STRAP2__STRAP_MAX_PASID_WIDTH_DEV0_F0__MASK                            0x00003E00L
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF0_STRAP2__STRAP_MSI_PERVECTOR_MASK_CAP_DEV0_F0__MASK                     0x00004000L
@@ -8354,7 +8354,7 @@
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF0_STRAP2__STRAP_PASID_GLOBAL_INVALIDATE_SUPPORTED_DEV0_F0__MASK          0x40000000L
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF0_STRAP2__STRAP_PASID_PRIV_MODE_SUPPORTED_DEV0_F0__MASK                  0x80000000L
 //RCCSTRAPRCCSTRAP_RCC_DEV0_EPF0_STRAP3
-#define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF0_STRAP3__STRAP_POISONED_ADVISORY_NONFATAL_DEV0_F0__MASK                 0x00000001L
+#define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF0_STRAP3__STRAP_POISONED_ADVISORY_ANALNFATAL_DEV0_F0__MASK                 0x00000001L
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF0_STRAP3__STRAP_PWR_EN_DEV0_F0__MASK                                     0x00000002L
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF0_STRAP3__STRAP_SUBSYS_ID_DEV0_F0__MASK                                  0x0003FFFCL
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF0_STRAP3__STRAP_MSI_EN_DEV0_F0__MASK                                     0x00040000L
@@ -8402,13 +8402,13 @@
 //RCCSTRAPRCCSTRAP_RCC_DEV0_EPF1_STRAP0
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF1_STRAP0__STRAP_DEVICE_ID_DEV0_F1__MASK                                  0x0000FFFFL
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF1_STRAP0__STRAP_MAJOR_REV_ID_DEV0_F1__MASK                               0x000F0000L
-#define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF1_STRAP0__STRAP_MINOR_REV_ID_DEV0_F1__MASK                               0x00F00000L
+#define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF1_STRAP0__STRAP_MIANALR_REV_ID_DEV0_F1__MASK                               0x00F00000L
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF1_STRAP0__STRAP_FUNC_EN_DEV0_F1__MASK                                    0x10000000L
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF1_STRAP0__STRAP_LEGACY_DEVICE_TYPE_EN_DEV0_F1__MASK                      0x20000000L
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF1_STRAP0__STRAP_D1_SUPPORT_DEV0_F1__MASK                                 0x40000000L
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF1_STRAP0__STRAP_D2_SUPPORT_DEV0_F1__MASK                                 0x80000000L
 //RCCSTRAPRCCSTRAP_RCC_DEV0_EPF1_STRAP2
-#define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF1_STRAP2__STRAP_NO_SOFT_RESET_DEV0_F1__MASK                              0x00000080L
+#define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF1_STRAP2__STRAP_ANAL_SOFT_RESET_DEV0_F1__MASK                              0x00000080L
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF1_STRAP2__STRAP_RESIZE_BAR_EN_DEV0_F1__MASK                              0x00000100L
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF1_STRAP2__STRAP_MSI_PERVECTOR_MASK_CAP_DEV0_F1__MASK                     0x00004000L
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF1_STRAP2__STRAP_AER_EN_DEV0_F1__MASK                                     0x00010000L
@@ -8420,7 +8420,7 @@
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF1_STRAP2__STRAP_VC_EN_DEV0_F1__MASK                                      0x00800000L
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF1_STRAP2__STRAP_MSI_MULTI_CAP_DEV0_F1__MASK                              0x07000000L
 //RCCSTRAPRCCSTRAP_RCC_DEV0_EPF1_STRAP3
-#define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF1_STRAP3__STRAP_POISONED_ADVISORY_NONFATAL_DEV0_F1__MASK                 0x00000001L
+#define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF1_STRAP3__STRAP_POISONED_ADVISORY_ANALNFATAL_DEV0_F1__MASK                 0x00000001L
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF1_STRAP3__STRAP_PWR_EN_DEV0_F1__MASK                                     0x00000002L
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF1_STRAP3__STRAP_SUBSYS_ID_DEV0_F1__MASK                                  0x0003FFFCL
 #define RCCSTRAPRCCSTRAP_RCC_DEV0_EPF1_STRAP3__STRAP_MSI_EN_DEV0_F1__MASK                                     0x00040000L
@@ -8469,13 +8469,13 @@
 //RCC_DEV0_EPF2_STRAP0
 #define RCC_DEV0_EPF2_STRAP0__STRAP_DEVICE_ID_DEV0_F2__MASK                                                   0x0000FFFFL
 #define RCC_DEV0_EPF2_STRAP0__STRAP_MAJOR_REV_ID_DEV0_F2__MASK                                                0x000F0000L
-#define RCC_DEV0_EPF2_STRAP0__STRAP_MINOR_REV_ID_DEV0_F2__MASK                                                0x00F00000L
+#define RCC_DEV0_EPF2_STRAP0__STRAP_MIANALR_REV_ID_DEV0_F2__MASK                                                0x00F00000L
 #define RCC_DEV0_EPF2_STRAP0__STRAP_FUNC_EN_DEV0_F2__MASK                                                     0x10000000L
 #define RCC_DEV0_EPF2_STRAP0__STRAP_LEGACY_DEVICE_TYPE_EN_DEV0_F2__MASK                                       0x20000000L
 #define RCC_DEV0_EPF2_STRAP0__STRAP_D1_SUPPORT_DEV0_F2__MASK                                                  0x40000000L
 #define RCC_DEV0_EPF2_STRAP0__STRAP_D2_SUPPORT_DEV0_F2__MASK                                                  0x80000000L
 //RCC_DEV0_EPF2_STRAP2
-#define RCC_DEV0_EPF2_STRAP2__STRAP_NO_SOFT_RESET_DEV0_F2__MASK                                               0x00000080L
+#define RCC_DEV0_EPF2_STRAP2__STRAP_ANAL_SOFT_RESET_DEV0_F2__MASK                                               0x00000080L
 #define RCC_DEV0_EPF2_STRAP2__STRAP_RESIZE_BAR_EN_DEV0_F2__MASK                                               0x00000100L
 #define RCC_DEV0_EPF2_STRAP2__STRAP_MSI_PERVECTOR_MASK_CAP_DEV0_F2__MASK                                      0x00004000L
 #define RCC_DEV0_EPF2_STRAP2__STRAP_AER_EN_DEV0_F2__MASK                                                      0x00010000L
@@ -8485,7 +8485,7 @@
 #define RCC_DEV0_EPF2_STRAP2__STRAP_VC_EN_DEV0_F2__MASK                                                       0x00800000L
 #define RCC_DEV0_EPF2_STRAP2__STRAP_MSI_MULTI_CAP_DEV0_F2__MASK                                               0x07000000L
 //RCC_DEV0_EPF2_STRAP3
-#define RCC_DEV0_EPF2_STRAP3__STRAP_POISONED_ADVISORY_NONFATAL_DEV0_F2__MASK                                  0x00000001L
+#define RCC_DEV0_EPF2_STRAP3__STRAP_POISONED_ADVISORY_ANALNFATAL_DEV0_F2__MASK                                  0x00000001L
 #define RCC_DEV0_EPF2_STRAP3__STRAP_PWR_EN_DEV0_F2__MASK                                                      0x00000002L
 #define RCC_DEV0_EPF2_STRAP3__STRAP_SUBSYS_ID_DEV0_F2__MASK                                                   0x0003FFFCL
 #define RCC_DEV0_EPF2_STRAP3__STRAP_MSI_EN_DEV0_F2__MASK                                                      0x00040000L
@@ -8518,13 +8518,13 @@
 //RCC_DEV0_EPF3_STRAP0
 #define RCC_DEV0_EPF3_STRAP0__STRAP_DEVICE_ID_DEV0_F3__MASK                                                   0x0000FFFFL
 #define RCC_DEV0_EPF3_STRAP0__STRAP_MAJOR_REV_ID_DEV0_F3__MASK                                                0x000F0000L
-#define RCC_DEV0_EPF3_STRAP0__STRAP_MINOR_REV_ID_DEV0_F3__MASK                                                0x00F00000L
+#define RCC_DEV0_EPF3_STRAP0__STRAP_MIANALR_REV_ID_DEV0_F3__MASK                                                0x00F00000L
 #define RCC_DEV0_EPF3_STRAP0__STRAP_FUNC_EN_DEV0_F3__MASK                                                     0x10000000L
 #define RCC_DEV0_EPF3_STRAP0__STRAP_LEGACY_DEVICE_TYPE_EN_DEV0_F3__MASK                                       0x20000000L
 #define RCC_DEV0_EPF3_STRAP0__STRAP_D1_SUPPORT_DEV0_F3__MASK                                                  0x40000000L
 #define RCC_DEV0_EPF3_STRAP0__STRAP_D2_SUPPORT_DEV0_F3__MASK                                                  0x80000000L
 //RCC_DEV0_EPF3_STRAP2
-#define RCC_DEV0_EPF3_STRAP2__STRAP_NO_SOFT_RESET_DEV0_F3__MASK                                               0x00000080L
+#define RCC_DEV0_EPF3_STRAP2__STRAP_ANAL_SOFT_RESET_DEV0_F3__MASK                                               0x00000080L
 #define RCC_DEV0_EPF3_STRAP2__STRAP_RESIZE_BAR_EN_DEV0_F3__MASK                                               0x00000100L
 #define RCC_DEV0_EPF3_STRAP2__STRAP_MSI_PERVECTOR_MASK_CAP_DEV0_F3__MASK                                      0x00004000L
 #define RCC_DEV0_EPF3_STRAP2__STRAP_AER_EN_DEV0_F3__MASK                                                      0x00010000L
@@ -8534,7 +8534,7 @@
 #define RCC_DEV0_EPF3_STRAP2__STRAP_VC_EN_DEV0_F3__MASK                                                       0x00800000L
 #define RCC_DEV0_EPF3_STRAP2__STRAP_MSI_MULTI_CAP_DEV0_F3__MASK                                               0x07000000L
 //RCC_DEV0_EPF3_STRAP3
-#define RCC_DEV0_EPF3_STRAP3__STRAP_POISONED_ADVISORY_NONFATAL_DEV0_F3__MASK                                  0x00000001L
+#define RCC_DEV0_EPF3_STRAP3__STRAP_POISONED_ADVISORY_ANALNFATAL_DEV0_F3__MASK                                  0x00000001L
 #define RCC_DEV0_EPF3_STRAP3__STRAP_PWR_EN_DEV0_F3__MASK                                                      0x00000002L
 #define RCC_DEV0_EPF3_STRAP3__STRAP_SUBSYS_ID_DEV0_F3__MASK                                                   0x0003FFFCL
 #define RCC_DEV0_EPF3_STRAP3__STRAP_MSI_EN_DEV0_F3__MASK                                                      0x00040000L
@@ -8566,13 +8566,13 @@
 //RCC_DEV0_EPF4_STRAP0
 #define RCC_DEV0_EPF4_STRAP0__STRAP_DEVICE_ID_DEV0_F4__MASK                                                   0x0000FFFFL
 #define RCC_DEV0_EPF4_STRAP0__STRAP_MAJOR_REV_ID_DEV0_F4__MASK                                                0x000F0000L
-#define RCC_DEV0_EPF4_STRAP0__STRAP_MINOR_REV_ID_DEV0_F4__MASK                                                0x00F00000L
+#define RCC_DEV0_EPF4_STRAP0__STRAP_MIANALR_REV_ID_DEV0_F4__MASK                                                0x00F00000L
 #define RCC_DEV0_EPF4_STRAP0__STRAP_FUNC_EN_DEV0_F4__MASK                                                     0x10000000L
 #define RCC_DEV0_EPF4_STRAP0__STRAP_LEGACY_DEVICE_TYPE_EN_DEV0_F4__MASK                                       0x20000000L
 #define RCC_DEV0_EPF4_STRAP0__STRAP_D1_SUPPORT_DEV0_F4__MASK                                                  0x40000000L
 #define RCC_DEV0_EPF4_STRAP0__STRAP_D2_SUPPORT_DEV0_F4__MASK                                                  0x80000000L
 //RCC_DEV0_EPF4_STRAP2
-#define RCC_DEV0_EPF4_STRAP2__STRAP_NO_SOFT_RESET_DEV0_F4__MASK                                               0x00000080L
+#define RCC_DEV0_EPF4_STRAP2__STRAP_ANAL_SOFT_RESET_DEV0_F4__MASK                                               0x00000080L
 #define RCC_DEV0_EPF4_STRAP2__STRAP_RESIZE_BAR_EN_DEV0_F4__MASK                                               0x00000100L
 #define RCC_DEV0_EPF4_STRAP2__STRAP_MSI_PERVECTOR_MASK_CAP_DEV0_F4__MASK                                      0x00004000L
 #define RCC_DEV0_EPF4_STRAP2__STRAP_AER_EN_DEV0_F4__MASK                                                      0x00010000L
@@ -8582,7 +8582,7 @@
 #define RCC_DEV0_EPF4_STRAP2__STRAP_VC_EN_DEV0_F4__MASK                                                       0x00800000L
 #define RCC_DEV0_EPF4_STRAP2__STRAP_MSI_MULTI_CAP_DEV0_F4__MASK                                               0x07000000L
 //RCC_DEV0_EPF4_STRAP3
-#define RCC_DEV0_EPF4_STRAP3__STRAP_POISONED_ADVISORY_NONFATAL_DEV0_F4__MASK                                  0x00000001L
+#define RCC_DEV0_EPF4_STRAP3__STRAP_POISONED_ADVISORY_ANALNFATAL_DEV0_F4__MASK                                  0x00000001L
 #define RCC_DEV0_EPF4_STRAP3__STRAP_PWR_EN_DEV0_F4__MASK                                                      0x00000002L
 #define RCC_DEV0_EPF4_STRAP3__STRAP_SUBSYS_ID_DEV0_F4__MASK                                                   0x0003FFFCL
 #define RCC_DEV0_EPF4_STRAP3__STRAP_MSI_EN_DEV0_F4__MASK                                                      0x00040000L
@@ -8618,13 +8618,13 @@
 //RCC_DEV0_EPF5_STRAP0
 #define RCC_DEV0_EPF5_STRAP0__STRAP_DEVICE_ID_DEV0_F5__MASK                                                   0x0000FFFFL
 #define RCC_DEV0_EPF5_STRAP0__STRAP_MAJOR_REV_ID_DEV0_F5__MASK                                                0x000F0000L
-#define RCC_DEV0_EPF5_STRAP0__STRAP_MINOR_REV_ID_DEV0_F5__MASK                                                0x00F00000L
+#define RCC_DEV0_EPF5_STRAP0__STRAP_MIANALR_REV_ID_DEV0_F5__MASK                                                0x00F00000L
 #define RCC_DEV0_EPF5_STRAP0__STRAP_FUNC_EN_DEV0_F5__MASK                                                     0x10000000L
 #define RCC_DEV0_EPF5_STRAP0__STRAP_LEGACY_DEVICE_TYPE_EN_DEV0_F5__MASK                                       0x20000000L
 #define RCC_DEV0_EPF5_STRAP0__STRAP_D1_SUPPORT_DEV0_F5__MASK                                                  0x40000000L
 #define RCC_DEV0_EPF5_STRAP0__STRAP_D2_SUPPORT_DEV0_F5__MASK                                                  0x80000000L
 //RCC_DEV0_EPF5_STRAP2
-#define RCC_DEV0_EPF5_STRAP2__STRAP_NO_SOFT_RESET_DEV0_F5__MASK                                               0x00000080L
+#define RCC_DEV0_EPF5_STRAP2__STRAP_ANAL_SOFT_RESET_DEV0_F5__MASK                                               0x00000080L
 #define RCC_DEV0_EPF5_STRAP2__STRAP_RESIZE_BAR_EN_DEV0_F5__MASK                                               0x00000100L
 #define RCC_DEV0_EPF5_STRAP2__STRAP_MSI_PERVECTOR_MASK_CAP_DEV0_F5__MASK                                      0x00004000L
 #define RCC_DEV0_EPF5_STRAP2__STRAP_AER_EN_DEV0_F5__MASK                                                      0x00010000L
@@ -8634,7 +8634,7 @@
 #define RCC_DEV0_EPF5_STRAP2__STRAP_VC_EN_DEV0_F5__MASK                                                       0x00800000L
 #define RCC_DEV0_EPF5_STRAP2__STRAP_MSI_MULTI_CAP_DEV0_F5__MASK                                               0x07000000L
 //RCC_DEV0_EPF5_STRAP3
-#define RCC_DEV0_EPF5_STRAP3__STRAP_POISONED_ADVISORY_NONFATAL_DEV0_F5__MASK                                  0x00000001L
+#define RCC_DEV0_EPF5_STRAP3__STRAP_POISONED_ADVISORY_ANALNFATAL_DEV0_F5__MASK                                  0x00000001L
 #define RCC_DEV0_EPF5_STRAP3__STRAP_PWR_EN_DEV0_F5__MASK                                                      0x00000002L
 #define RCC_DEV0_EPF5_STRAP3__STRAP_SUBSYS_ID_DEV0_F5__MASK                                                   0x0003FFFCL
 #define RCC_DEV0_EPF5_STRAP3__STRAP_MSI_EN_DEV0_F5__MASK                                                      0x00040000L
@@ -8668,13 +8668,13 @@
 //RCC_DEV0_EPF6_STRAP0
 #define RCC_DEV0_EPF6_STRAP0__STRAP_DEVICE_ID_DEV0_F6__MASK                                                   0x0000FFFFL
 #define RCC_DEV0_EPF6_STRAP0__STRAP_MAJOR_REV_ID_DEV0_F6__MASK                                                0x000F0000L
-#define RCC_DEV0_EPF6_STRAP0__STRAP_MINOR_REV_ID_DEV0_F6__MASK                                                0x00F00000L
+#define RCC_DEV0_EPF6_STRAP0__STRAP_MIANALR_REV_ID_DEV0_F6__MASK                                                0x00F00000L
 #define RCC_DEV0_EPF6_STRAP0__STRAP_FUNC_EN_DEV0_F6__MASK                                                     0x10000000L
 #define RCC_DEV0_EPF6_STRAP0__STRAP_LEGACY_DEVICE_TYPE_EN_DEV0_F6__MASK                                       0x20000000L
 #define RCC_DEV0_EPF6_STRAP0__STRAP_D1_SUPPORT_DEV0_F6__MASK                                                  0x40000000L
 #define RCC_DEV0_EPF6_STRAP0__STRAP_D2_SUPPORT_DEV0_F6__MASK                                                  0x80000000L
 //RCC_DEV0_EPF6_STRAP2
-#define RCC_DEV0_EPF6_STRAP2__STRAP_NO_SOFT_RESET_DEV0_F6__MASK                                               0x00000080L
+#define RCC_DEV0_EPF6_STRAP2__STRAP_ANAL_SOFT_RESET_DEV0_F6__MASK                                               0x00000080L
 #define RCC_DEV0_EPF6_STRAP2__STRAP_RESIZE_BAR_EN_DEV0_F6__MASK                                               0x00000100L
 #define RCC_DEV0_EPF6_STRAP2__STRAP_MSI_PERVECTOR_MASK_CAP_DEV0_F6__MASK                                      0x00004000L
 #define RCC_DEV0_EPF6_STRAP2__STRAP_AER_EN_DEV0_F6__MASK                                                      0x00010000L
@@ -8684,7 +8684,7 @@
 #define RCC_DEV0_EPF6_STRAP2__STRAP_VC_EN_DEV0_F6__MASK                                                       0x00800000L
 #define RCC_DEV0_EPF6_STRAP2__STRAP_MSI_MULTI_CAP_DEV0_F6__MASK                                               0x07000000L
 //RCC_DEV0_EPF6_STRAP3
-#define RCC_DEV0_EPF6_STRAP3__STRAP_POISONED_ADVISORY_NONFATAL_DEV0_F6__MASK                                  0x00000001L
+#define RCC_DEV0_EPF6_STRAP3__STRAP_POISONED_ADVISORY_ANALNFATAL_DEV0_F6__MASK                                  0x00000001L
 #define RCC_DEV0_EPF6_STRAP3__STRAP_PWR_EN_DEV0_F6__MASK                                                      0x00000002L
 #define RCC_DEV0_EPF6_STRAP3__STRAP_SUBSYS_ID_DEV0_F6__MASK                                                   0x0003FFFCL
 #define RCC_DEV0_EPF6_STRAP3__STRAP_MSI_EN_DEV0_F6__MASK                                                      0x00040000L
@@ -8718,13 +8718,13 @@
 //RCC_DEV0_EPF7_STRAP0
 #define RCC_DEV0_EPF7_STRAP0__STRAP_DEVICE_ID_DEV0_F7__MASK                                                   0x0000FFFFL
 #define RCC_DEV0_EPF7_STRAP0__STRAP_MAJOR_REV_ID_DEV0_F7__MASK                                                0x000F0000L
-#define RCC_DEV0_EPF7_STRAP0__STRAP_MINOR_REV_ID_DEV0_F7__MASK                                                0x00F00000L
+#define RCC_DEV0_EPF7_STRAP0__STRAP_MIANALR_REV_ID_DEV0_F7__MASK                                                0x00F00000L
 #define RCC_DEV0_EPF7_STRAP0__STRAP_FUNC_EN_DEV0_F7__MASK                                                     0x10000000L
 #define RCC_DEV0_EPF7_STRAP0__STRAP_LEGACY_DEVICE_TYPE_EN_DEV0_F7__MASK                                       0x20000000L
 #define RCC_DEV0_EPF7_STRAP0__STRAP_D1_SUPPORT_DEV0_F7__MASK                                                  0x40000000L
 #define RCC_DEV0_EPF7_STRAP0__STRAP_D2_SUPPORT_DEV0_F7__MASK                                                  0x80000000L
 //RCC_DEV0_EPF7_STRAP2
-#define RCC_DEV0_EPF7_STRAP2__STRAP_NO_SOFT_RESET_DEV0_F7__MASK                                               0x00000080L
+#define RCC_DEV0_EPF7_STRAP2__STRAP_ANAL_SOFT_RESET_DEV0_F7__MASK                                               0x00000080L
 #define RCC_DEV0_EPF7_STRAP2__STRAP_RESIZE_BAR_EN_DEV0_F7__MASK                                               0x00000100L
 #define RCC_DEV0_EPF7_STRAP2__STRAP_MSI_PERVECTOR_MASK_CAP_DEV0_F7__MASK                                      0x00004000L
 #define RCC_DEV0_EPF7_STRAP2__STRAP_AER_EN_DEV0_F7__MASK                                                      0x00010000L
@@ -8734,7 +8734,7 @@
 #define RCC_DEV0_EPF7_STRAP2__STRAP_VC_EN_DEV0_F7__MASK                                                       0x00800000L
 #define RCC_DEV0_EPF7_STRAP2__STRAP_MSI_MULTI_CAP_DEV0_F7__MASK                                               0x07000000L
 //RCC_DEV0_EPF7_STRAP3
-#define RCC_DEV0_EPF7_STRAP3__STRAP_POISONED_ADVISORY_NONFATAL_DEV0_F7__MASK                                  0x00000001L
+#define RCC_DEV0_EPF7_STRAP3__STRAP_POISONED_ADVISORY_ANALNFATAL_DEV0_F7__MASK                                  0x00000001L
 #define RCC_DEV0_EPF7_STRAP3__STRAP_PWR_EN_DEV0_F7__MASK                                                      0x00000002L
 #define RCC_DEV0_EPF7_STRAP3__STRAP_SUBSYS_ID_DEV0_F7__MASK                                                   0x0003FFFCL
 #define RCC_DEV0_EPF7_STRAP3__STRAP_MSI_EN_DEV0_F7__MASK                                                      0x00040000L
@@ -8768,13 +8768,13 @@
 //RCC_DEV1_EPF0_STRAP0
 #define RCC_DEV1_EPF0_STRAP0__STRAP_DEVICE_ID_DEV1_F0__MASK                                                   0x0000FFFFL
 #define RCC_DEV1_EPF0_STRAP0__STRAP_MAJOR_REV_ID_DEV1_F0__MASK                                                0x000F0000L
-#define RCC_DEV1_EPF0_STRAP0__STRAP_MINOR_REV_ID_DEV1_F0__MASK                                                0x00F00000L
+#define RCC_DEV1_EPF0_STRAP0__STRAP_MIANALR_REV_ID_DEV1_F0__MASK                                                0x00F00000L
 #define RCC_DEV1_EPF0_STRAP0__STRAP_FUNC_EN_DEV1_F0__MASK                                                     0x10000000L
 #define RCC_DEV1_EPF0_STRAP0__STRAP_LEGACY_DEVICE_TYPE_EN_DEV1_F0__MASK                                       0x20000000L
 #define RCC_DEV1_EPF0_STRAP0__STRAP_D1_SUPPORT_DEV1_F0__MASK                                                  0x40000000L
 #define RCC_DEV1_EPF0_STRAP0__STRAP_D2_SUPPORT_DEV1_F0__MASK                                                  0x80000000L
 //RCC_DEV1_EPF0_STRAP2
-#define RCC_DEV1_EPF0_STRAP2__STRAP_NO_SOFT_RESET_DEV1_F0__MASK                                               0x00000080L
+#define RCC_DEV1_EPF0_STRAP2__STRAP_ANAL_SOFT_RESET_DEV1_F0__MASK                                               0x00000080L
 #define RCC_DEV1_EPF0_STRAP2__STRAP_RESIZE_BAR_EN_DEV1_F0__MASK                                               0x00000100L
 #define RCC_DEV1_EPF0_STRAP2__STRAP_MSI_PERVECTOR_MASK_CAP_DEV1_F0__MASK                                      0x00004000L
 #define RCC_DEV1_EPF0_STRAP2__STRAP_ARI_EN_DEV1_F0__MASK                                                      0x00008000L
@@ -8785,7 +8785,7 @@
 #define RCC_DEV1_EPF0_STRAP2__STRAP_VC_EN_DEV1_F0__MASK                                                       0x00800000L
 #define RCC_DEV1_EPF0_STRAP2__STRAP_MSI_MULTI_CAP_DEV1_F0__MASK                                               0x07000000L
 //RCC_DEV1_EPF0_STRAP3
-#define RCC_DEV1_EPF0_STRAP3__STRAP_POISONED_ADVISORY_NONFATAL_DEV1_F0__MASK                                  0x00000001L
+#define RCC_DEV1_EPF0_STRAP3__STRAP_POISONED_ADVISORY_ANALNFATAL_DEV1_F0__MASK                                  0x00000001L
 #define RCC_DEV1_EPF0_STRAP3__STRAP_PWR_EN_DEV1_F0__MASK                                                      0x00000002L
 #define RCC_DEV1_EPF0_STRAP3__STRAP_SUBSYS_ID_DEV1_F0__MASK                                                   0x0003FFFCL
 #define RCC_DEV1_EPF0_STRAP3__STRAP_MSI_EN_DEV1_F0__MASK                                                      0x00040000L
@@ -8816,13 +8816,13 @@
 //RCC_DEV1_EPF1_STRAP0
 #define RCC_DEV1_EPF1_STRAP0__STRAP_DEVICE_ID_DEV1_F1__MASK                                                   0x0000FFFFL
 #define RCC_DEV1_EPF1_STRAP0__STRAP_MAJOR_REV_ID_DEV1_F1__MASK                                                0x000F0000L
-#define RCC_DEV1_EPF1_STRAP0__STRAP_MINOR_REV_ID_DEV1_F1__MASK                                                0x00F00000L
+#define RCC_DEV1_EPF1_STRAP0__STRAP_MIANALR_REV_ID_DEV1_F1__MASK                                                0x00F00000L
 #define RCC_DEV1_EPF1_STRAP0__STRAP_FUNC_EN_DEV1_F1__MASK                                                     0x10000000L
 #define RCC_DEV1_EPF1_STRAP0__STRAP_LEGACY_DEVICE_TYPE_EN_DEV1_F1__MASK                                       0x20000000L
 #define RCC_DEV1_EPF1_STRAP0__STRAP_D1_SUPPORT_DEV1_F1__MASK                                                  0x40000000L
 #define RCC_DEV1_EPF1_STRAP0__STRAP_D2_SUPPORT_DEV1_F1__MASK                                                  0x80000000L
 //RCC_DEV1_EPF1_STRAP2
-#define RCC_DEV1_EPF1_STRAP2__STRAP_NO_SOFT_RESET_DEV1_F1__MASK                                               0x00000080L
+#define RCC_DEV1_EPF1_STRAP2__STRAP_ANAL_SOFT_RESET_DEV1_F1__MASK                                               0x00000080L
 #define RCC_DEV1_EPF1_STRAP2__STRAP_RESIZE_BAR_EN_DEV1_F1__MASK                                               0x00000100L
 #define RCC_DEV1_EPF1_STRAP2__STRAP_MSI_PERVECTOR_MASK_CAP_DEV1_F1__MASK                                      0x00004000L
 #define RCC_DEV1_EPF1_STRAP2__STRAP_AER_EN_DEV1_F1__MASK                                                      0x00010000L
@@ -8832,7 +8832,7 @@
 #define RCC_DEV1_EPF1_STRAP2__STRAP_VC_EN_DEV1_F1__MASK                                                       0x00800000L
 #define RCC_DEV1_EPF1_STRAP2__STRAP_MSI_MULTI_CAP_DEV1_F1__MASK                                               0x07000000L
 //RCC_DEV1_EPF1_STRAP3
-#define RCC_DEV1_EPF1_STRAP3__STRAP_POISONED_ADVISORY_NONFATAL_DEV1_F1__MASK                                  0x00000001L
+#define RCC_DEV1_EPF1_STRAP3__STRAP_POISONED_ADVISORY_ANALNFATAL_DEV1_F1__MASK                                  0x00000001L
 #define RCC_DEV1_EPF1_STRAP3__STRAP_PWR_EN_DEV1_F1__MASK                                                      0x00000002L
 #define RCC_DEV1_EPF1_STRAP3__STRAP_SUBSYS_ID_DEV1_F1__MASK                                                   0x0003FFFCL
 #define RCC_DEV1_EPF1_STRAP3__STRAP_MSI_EN_DEV1_F1__MASK                                                      0x00040000L
@@ -8868,13 +8868,13 @@
 //RCC_DEV1_EPF2_STRAP0
 #define RCC_DEV1_EPF2_STRAP0__STRAP_DEVICE_ID_DEV1_F2__MASK                                                   0x0000FFFFL
 #define RCC_DEV1_EPF2_STRAP0__STRAP_MAJOR_REV_ID_DEV1_F2__MASK                                                0x000F0000L
-#define RCC_DEV1_EPF2_STRAP0__STRAP_MINOR_REV_ID_DEV1_F2__MASK                                                0x00F00000L
+#define RCC_DEV1_EPF2_STRAP0__STRAP_MIANALR_REV_ID_DEV1_F2__MASK                                                0x00F00000L
 #define RCC_DEV1_EPF2_STRAP0__STRAP_FUNC_EN_DEV1_F2__MASK                                                     0x10000000L
 #define RCC_DEV1_EPF2_STRAP0__STRAP_LEGACY_DEVICE_TYPE_EN_DEV1_F2__MASK                                       0x20000000L
 #define RCC_DEV1_EPF2_STRAP0__STRAP_D1_SUPPORT_DEV1_F2__MASK                                                  0x40000000L
 #define RCC_DEV1_EPF2_STRAP0__STRAP_D2_SUPPORT_DEV1_F2__MASK                                                  0x80000000L
 //RCC_DEV1_EPF2_STRAP2
-#define RCC_DEV1_EPF2_STRAP2__STRAP_NO_SOFT_RESET_DEV1_F2__MASK                                               0x00000080L
+#define RCC_DEV1_EPF2_STRAP2__STRAP_ANAL_SOFT_RESET_DEV1_F2__MASK                                               0x00000080L
 #define RCC_DEV1_EPF2_STRAP2__STRAP_RESIZE_BAR_EN_DEV1_F2__MASK                                               0x00000100L
 #define RCC_DEV1_EPF2_STRAP2__STRAP_MSI_PERVECTOR_MASK_CAP_DEV1_F2__MASK                                      0x00004000L
 #define RCC_DEV1_EPF2_STRAP2__STRAP_AER_EN_DEV1_F2__MASK                                                      0x00010000L
@@ -8884,7 +8884,7 @@
 #define RCC_DEV1_EPF2_STRAP2__STRAP_VC_EN_DEV1_F2__MASK                                                       0x00800000L
 #define RCC_DEV1_EPF2_STRAP2__STRAP_MSI_MULTI_CAP_DEV1_F2__MASK                                               0x07000000L
 //RCC_DEV1_EPF2_STRAP3
-#define RCC_DEV1_EPF2_STRAP3__STRAP_POISONED_ADVISORY_NONFATAL_DEV1_F2__MASK                                  0x00000001L
+#define RCC_DEV1_EPF2_STRAP3__STRAP_POISONED_ADVISORY_ANALNFATAL_DEV1_F2__MASK                                  0x00000001L
 #define RCC_DEV1_EPF2_STRAP3__STRAP_PWR_EN_DEV1_F2__MASK                                                      0x00000002L
 #define RCC_DEV1_EPF2_STRAP3__STRAP_SUBSYS_ID_DEV1_F2__MASK                                                   0x0003FFFCL
 #define RCC_DEV1_EPF2_STRAP3__STRAP_MSI_EN_DEV1_F2__MASK                                                      0x00040000L
@@ -8990,8 +8990,8 @@
 #define BIF_RST_MISC_CTRL2__ALL_RST_TRANS_IDLE__MASK                                                          0x80000000L
 //BIF_RST_MISC_CTRL3
 #define BIF_RST_MISC_CTRL3__TIMER_SCALE__MASK                                                                 0x0000000FL
-#define BIF_RST_MISC_CTRL3__PME_TURNOFF_TIMEOUT__MASK                                                         0x00000030L
-#define BIF_RST_MISC_CTRL3__PME_TURNOFF_MODE__MASK                                                            0x00000040L
+#define BIF_RST_MISC_CTRL3__PME_TURANALFF_TIMEOUT__MASK                                                         0x00000030L
+#define BIF_RST_MISC_CTRL3__PME_TURANALFF_MODE__MASK                                                            0x00000040L
 #define BIF_RST_MISC_CTRL3__RELOAD_STRAP_DELAY_HARD__MASK                                                     0x00000380L
 #define BIF_RST_MISC_CTRL3__RELOAD_STRAP_DELAY_SOFT__MASK                                                     0x00001C00L
 #define BIF_RST_MISC_CTRL3__RELOAD_STRAP_DELAY_SELF__MASK                                                     0x0000E000L
@@ -9357,7 +9357,7 @@
 #define BIFC_MISC_CTRL0__VC7_DMA_IOCFG_DIS__MASK                                                              0x02000000L
 #define BIFC_MISC_CTRL0__DMA_2ND_REQ_DIS__MASK                                                                0x04000000L
 #define BIFC_MISC_CTRL0__PORT_DSTATE_BYPASS_MODE__MASK                                                        0x08000000L
-#define BIFC_MISC_CTRL0__PME_TURNOFF_MODE__MASK                                                               0x10000000L
+#define BIFC_MISC_CTRL0__PME_TURANALFF_MODE__MASK                                                               0x10000000L
 #define BIFC_MISC_CTRL0__PCIESWUS_SELECTION__MASK                                                             0x80000000L
 //BIFC_MISC_CTRL1
 #define BIFC_MISC_CTRL1__THT_HST_CPLD_POISON_REPORT__MASK                                                     0x00000001L
@@ -9610,7 +9610,7 @@
 #define BIFC_GSI_CNTL__GSI_SDP_REQ_ARB_MODE__MASK                                                             0x00000C00L
 #define BIFC_GSI_CNTL__GSI_SMN_REQ_ARB_MODE__MASK                                                             0x00003000L
 //BIFC_PCIEFUNC_CNTL
-#define BIFC_PCIEFUNC_CNTL__DMA_NON_PCIEFUNC_BUSDEVFUNC__MASK                                                 0x0000FFFFL
+#define BIFC_PCIEFUNC_CNTL__DMA_ANALN_PCIEFUNC_BUSDEVFUNC__MASK                                                 0x0000FFFFL
 #define BIFC_PCIEFUNC_CNTL__MP1SYSHUBDATA_DRAM_IS_PCIEFUNC__MASK                                              0x00010000L
 //BIFC_SDP_CNTL_0
 #define BIFC_SDP_CNTL_0__HRP_SDP_DISCON_HYSTERESIS__MASK                                                      0x0000003FL
@@ -9640,7 +9640,7 @@
 //BIFC_PERF_CNT_DMA_WR
 #define BIFC_PERF_CNT_DMA_WR__PERF_CNT_DMA_WR_VALUE__MASK                                                     0xFFFFFFFFL
 //NBIF_REGIF_ERRSET_CTRL
-#define NBIF_REGIF_ERRSET_CTRL__DROP_NONPF_MMREGREQ_SETERR_DIS__MASK                                          0x00000001L
+#define NBIF_REGIF_ERRSET_CTRL__DROP_ANALNPF_MMREGREQ_SETERR_DIS__MASK                                          0x00000001L
 //SMN_MST_EP_CNTL3
 #define SMN_MST_EP_CNTL3__SMN_ZERO_BE_WR_EN_EP_DEV0_PF0__MASK                                                 0x00000001L
 #define SMN_MST_EP_CNTL3__SMN_ZERO_BE_WR_EN_EP_DEV0_PF1__MASK                                                 0x00000002L
@@ -9716,12 +9716,12 @@
 
 // addressBlock: rcc_pfc_amdgfx_RCCPFCDEC
 //RCC_PFC_LTR_CNTL
-#define RCC_PFC_LTR_CNTL__SNOOP_LATENCY_VALUE__MASK                                                           0x000003FFL
-#define RCC_PFC_LTR_CNTL__SNOOP_LATENCY_SCALE__MASK                                                           0x00001C00L
-#define RCC_PFC_LTR_CNTL__SNOOP_REQUIREMENT__MASK                                                             0x00008000L
-#define RCC_PFC_LTR_CNTL__NONSNOOP_LATENCY_VALUE__MASK                                                        0x03FF0000L
-#define RCC_PFC_LTR_CNTL__NONSNOOP_LATENCY_SCALE__MASK                                                        0x1C000000L
-#define RCC_PFC_LTR_CNTL__NONSNOOP_REQUIREMENT__MASK                                                          0x80000000L
+#define RCC_PFC_LTR_CNTL__SANALOP_LATENCY_VALUE__MASK                                                           0x000003FFL
+#define RCC_PFC_LTR_CNTL__SANALOP_LATENCY_SCALE__MASK                                                           0x00001C00L
+#define RCC_PFC_LTR_CNTL__SANALOP_REQUIREMENT__MASK                                                             0x00008000L
+#define RCC_PFC_LTR_CNTL__ANALNSANALOP_LATENCY_VALUE__MASK                                                        0x03FF0000L
+#define RCC_PFC_LTR_CNTL__ANALNSANALOP_LATENCY_SCALE__MASK                                                        0x1C000000L
+#define RCC_PFC_LTR_CNTL__ANALNSANALOP_REQUIREMENT__MASK                                                          0x80000000L
 //RCC_PFC_PME_RESTORE
 #define RCC_PFC_PME_RESTORE__PME_RESTORE_PME_EN__MASK                                                         0x00000001L
 #define RCC_PFC_PME_RESTORE__PME_RESTORE_PME_STATUS__MASK                                                     0x00000100L
@@ -9733,7 +9733,7 @@
 #define RCC_PFC_STICKY_RESTORE_0__RESTORE_MAL_TLP_STATUS__MASK                                                0x00000010L
 #define RCC_PFC_STICKY_RESTORE_0__RESTORE_ECRC_ERR_STATUS__MASK                                               0x00000020L
 #define RCC_PFC_STICKY_RESTORE_0__RESTORE_UNSUPP_REQ_ERR_STATUS__MASK                                         0x00000040L
-#define RCC_PFC_STICKY_RESTORE_0__RESTORE_ADVISORY_NONFATAL_ERR_STATUS__MASK                                  0x00000080L
+#define RCC_PFC_STICKY_RESTORE_0__RESTORE_ADVISORY_ANALNFATAL_ERR_STATUS__MASK                                  0x00000080L
 //RCC_PFC_STICKY_RESTORE_1
 #define RCC_PFC_STICKY_RESTORE_1__RESTORE_TLP_HDR_0__MASK                                                     0xFFFFFFFFL
 //RCC_PFC_STICKY_RESTORE_2
@@ -9751,12 +9751,12 @@
 
 // addressBlock: rcc_pfc_amdgfxaz_RCCPFCDEC
 //RCCPFCAMDGFXAZ_RCC_PFC_LTR_CNTL
-#define RCCPFCAMDGFXAZ_RCC_PFC_LTR_CNTL__SNOOP_LATENCY_VALUE__MASK                                            0x000003FFL
-#define RCCPFCAMDGFXAZ_RCC_PFC_LTR_CNTL__SNOOP_LATENCY_SCALE__MASK                                            0x00001C00L
-#define RCCPFCAMDGFXAZ_RCC_PFC_LTR_CNTL__SNOOP_REQUIREMENT__MASK                                              0x00008000L
-#define RCCPFCAMDGFXAZ_RCC_PFC_LTR_CNTL__NONSNOOP_LATENCY_VALUE__MASK                                         0x03FF0000L
-#define RCCPFCAMDGFXAZ_RCC_PFC_LTR_CNTL__NONSNOOP_LATENCY_SCALE__MASK                                         0x1C000000L
-#define RCCPFCAMDGFXAZ_RCC_PFC_LTR_CNTL__NONSNOOP_REQUIREMENT__MASK                                           0x80000000L
+#define RCCPFCAMDGFXAZ_RCC_PFC_LTR_CNTL__SANALOP_LATENCY_VALUE__MASK                                            0x000003FFL
+#define RCCPFCAMDGFXAZ_RCC_PFC_LTR_CNTL__SANALOP_LATENCY_SCALE__MASK                                            0x00001C00L
+#define RCCPFCAMDGFXAZ_RCC_PFC_LTR_CNTL__SANALOP_REQUIREMENT__MASK                                              0x00008000L
+#define RCCPFCAMDGFXAZ_RCC_PFC_LTR_CNTL__ANALNSANALOP_LATENCY_VALUE__MASK                                         0x03FF0000L
+#define RCCPFCAMDGFXAZ_RCC_PFC_LTR_CNTL__ANALNSANALOP_LATENCY_SCALE__MASK                                         0x1C000000L
+#define RCCPFCAMDGFXAZ_RCC_PFC_LTR_CNTL__ANALNSANALOP_REQUIREMENT__MASK                                           0x80000000L
 //RCCPFCAMDGFXAZ_RCC_PFC_PME_RESTORE
 #define RCCPFCAMDGFXAZ_RCC_PFC_PME_RESTORE__PME_RESTORE_PME_EN__MASK                                          0x00000001L
 #define RCCPFCAMDGFXAZ_RCC_PFC_PME_RESTORE__PME_RESTORE_PME_STATUS__MASK                                      0x00000100L
@@ -9768,7 +9768,7 @@
 #define RCCPFCAMDGFXAZ_RCC_PFC_STICKY_RESTORE_0__RESTORE_MAL_TLP_STATUS__MASK                                 0x00000010L
 #define RCCPFCAMDGFXAZ_RCC_PFC_STICKY_RESTORE_0__RESTORE_ECRC_ERR_STATUS__MASK                                0x00000020L
 #define RCCPFCAMDGFXAZ_RCC_PFC_STICKY_RESTORE_0__RESTORE_UNSUPP_REQ_ERR_STATUS__MASK                          0x00000040L
-#define RCCPFCAMDGFXAZ_RCC_PFC_STICKY_RESTORE_0__RESTORE_ADVISORY_NONFATAL_ERR_STATUS__MASK                   0x00000080L
+#define RCCPFCAMDGFXAZ_RCC_PFC_STICKY_RESTORE_0__RESTORE_ADVISORY_ANALNFATAL_ERR_STATUS__MASK                   0x00000080L
 //RCCPFCAMDGFXAZ_RCC_PFC_STICKY_RESTORE_1
 #define RCCPFCAMDGFXAZ_RCC_PFC_STICKY_RESTORE_1__RESTORE_TLP_HDR_0__MASK                                      0xFFFFFFFFL
 //RCCPFCAMDGFXAZ_RCC_PFC_STICKY_RESTORE_2

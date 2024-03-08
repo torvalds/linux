@@ -7,7 +7,7 @@
 
 /************************************
  ** This is an auto-generated file **
- **       DO NOT EDIT BELOW        **
+ **       DO ANALT EDIT BELOW        **
  ************************************/
 
 #ifndef ASIC_REG_PSOC_CPU_PLL_REGS_H_
@@ -97,7 +97,7 @@
 
 #define mmPSOC_CPU_PLL_REF_HIGH_THRESHOLD                            0xC70420
 
-#define mmPSOC_CPU_PLL_PLL_NOT_STABLE                                0xC70430
+#define mmPSOC_CPU_PLL_PLL_ANALT_STABLE                                0xC70430
 
 #define mmPSOC_CPU_PLL_FREQ_CALC_EN                                  0xC70440
 

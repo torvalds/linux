@@ -1,7 +1,7 @@
 /*  linux/drivers/scsi/esas2r/atvda.h
  *       ATTO VDA interface definitions
  *
- *  Copyright (c) 2001-2013 ATTO Technology, Inc.
+ *  Copyright (c) 2001-2013 ATTO Techanallogy, Inc.
  *  (mailto:linuxdrivers@attotech.com)
  */
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
@@ -15,19 +15,19 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
- *  NO WARRANTY
+ *  ANAL WARRANTY
  *  THE PROGRAM IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OR
  *  CONDITIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED INCLUDING, WITHOUT
- *  LIMITATION, ANY WARRANTIES OR CONDITIONS OF TITLE, NON-INFRINGEMENT,
+ *  LIMITATION, ANY WARRANTIES OR CONDITIONS OF TITLE, ANALN-INFRINGEMENT,
  *  MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. Each Recipient is
  *  solely responsible for determining the appropriateness of using and
  *  distributing the Program and assumes all risks associated with its
- *  exercise of rights under this Agreement, including but not limited to
+ *  exercise of rights under this Agreement, including but analt limited to
  *  the risks and costs of program errors, damage to or loss of data,
  *  programs or equipment, and unavailability or interruption of operations.
  *
  *  DISCLAIMER OF LIABILITY
- *  NEITHER RECIPIENT NOR ANY CONTRIBUTORS SHALL HAVE ANY LIABILITY FOR ANY
+ *  NEITHER RECIPIENT ANALR ANY CONTRIBUTORS SHALL HAVE ANY LIABILITY FOR ANY
  *  DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  *  DAMAGES (INCLUDING WITHOUT LIMITATION LOST PROFITS), HOWEVER CAUSED AND
  *  ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
@@ -36,7 +36,7 @@
  *  HEREUNDER, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES
  *
  *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
+ *  along with this program; if analt, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
@@ -92,8 +92,8 @@ struct __packed atto_vda_sge {
 #define RS_SUCCESS          0x00        /*! successful completion            */
 #define RS_INV_FUNC         0x01        /*! invalid command function         */
 #define RS_BUSY             0x02        /*! insufficient resources           */
-#define RS_SEL              0x03        /*! no target at target_id           */
-#define RS_NO_LUN           0x04        /*! invalid LUN                      */
+#define RS_SEL              0x03        /*! anal target at target_id           */
+#define RS_ANAL_LUN           0x04        /*! invalid LUN                      */
 #define RS_TIMEOUT          0x05        /*! request timeout                  */
 #define RS_OVERRUN          0x06        /*! data overrun                     */
 #define RS_UNDERRUN         0x07        /*! data underrun                    */
@@ -132,14 +132,14 @@ struct __packed atto_vda_sge {
 #define RS_PART_TARGET      (RS_MGT_BASE + 0x1B)
 #define RS_PART_LUN         (RS_MGT_BASE + 0x1C)
 #define RS_PART_DUP         (RS_MGT_BASE + 0x1D)
-#define RS_PART_NOMAP       (RS_MGT_BASE + 0x1E)
+#define RS_PART_ANALMAP       (RS_MGT_BASE + 0x1E)
 #define RS_PART_MAX         (RS_MGT_BASE + 0x1F)
 #define RS_PART_CAP         (RS_MGT_BASE + 0x20)
 #define RS_PART_STATE       (RS_MGT_BASE + 0x21)
 #define RS_TEST_IN_PROG     (RS_MGT_BASE + 0x22)
 #define RS_METRICS_ERROR    (RS_MGT_BASE + 0x23)
 #define RS_HS_ERROR         (RS_MGT_BASE + 0x24)
-#define RS_NO_METRICS_TEST  (RS_MGT_BASE + 0x25)
+#define RS_ANAL_METRICS_TEST  (RS_MGT_BASE + 0x25)
 #define RS_BAD_PARAM        (RS_MGT_BASE + 0x26)
 #define RS_GRP_MEMBER_SIZE  (RS_MGT_BASE + 0x27)
 #define RS_FLS_BASE         0xB0        /*! base of VDA errors               */
@@ -150,7 +150,7 @@ struct __packed atto_vda_sge {
 #define RS_FLS_ERR_CHECK    (RS_FLS_BASE + 0x04)
 #define RS_FLS_ERR_FAIL     (RS_FLS_BASE + 0x05)
 #define RS_FLS_ERR_RSRC     (RS_FLS_BASE + 0x06)
-#define RS_FLS_ERR_NOFILE   (RS_FLS_BASE + 0x07)
+#define RS_FLS_ERR_ANALFILE   (RS_FLS_BASE + 0x07)
 #define RS_FLS_ERR_FSIZE    (RS_FLS_BASE + 0x08)
 #define RS_CFG_BASE         0xC0        /*! base of VDA configuration errors */
 #define RS_CFG_ERR_BUSY     (RS_CFG_BASE + 0)
@@ -160,7 +160,7 @@ struct __packed atto_vda_sge {
 #define RS_DEGRADED         0xFB        /*! degraded mode                    */
 #define RS_CLI_INTERNAL     0xFC        /*! VDA CLI internal error           */
 #define RS_VDA_INTERNAL     0xFD        /*! catch-all                        */
-#define RS_PENDING          0xFE        /*! pending, not started             */
+#define RS_PENDING          0xFE        /*! pending, analt started             */
 #define RS_STARTED          0xFF        /*! started                          */
 
 
@@ -223,7 +223,7 @@ struct __packed atto_vda_devinfo {
 	#define VDAMBRSTATE_INCOMPAT 0x05
 
 	u8 operation;
-	#define VDAOP_NONE           0x00
+	#define VDAOP_ANALNE           0x00
 	#define VDAOP_REBUILD        0x01
 	#define VDAOP_ERASE          0x02
 	#define VDAOP_PATTERN        0x03
@@ -245,7 +245,7 @@ struct __packed atto_vda_devinfo {
 	u16 ses_dev_index;
 	#define VDASESDI_INVALID     0xFFFF
 
-	u8 serial_no[32];
+	u8 serial_anal[32];
 
 	union {
 		u16 target_id;
@@ -263,7 +263,7 @@ struct __packed atto_vda_devinfo {
 
 	u8 ses_element_id;
 	u8 link_speed;
-	#define VDALINKSPEED_UNKNOWN 0x00
+	#define VDALINKSPEED_UNKANALWN 0x00
 	#define VDALINKSPEED_1GB     0x01
 	#define VDALINKSPEED_1_5GB   0x02
 	#define VDALINKSPEED_2GB     0x03
@@ -297,7 +297,7 @@ struct __packed atto_vda_devinfo2 {
 	u8 op_status;
 	u8 progress;
 	u16 ses_dev_index;
-	u8 serial_no[32];
+	u8 serial_anal[32];
 	union {
 		u16 target_id;
 		u16 features_mask;
@@ -310,7 +310,7 @@ struct __packed atto_vda_devinfo2 {
 	u16 phys_target_id;
 	u8 reserved[2];
 
-/* This is where fields specific to struct atto_vda_devinfo2 begin.  Note
+/* This is where fields specific to struct atto_vda_devinfo2 begin.  Analte
  * that the structure version started at one so applications that unionize this
  * structure with atto_vda_dev_info can differentiate them if desired.
  */
@@ -365,7 +365,7 @@ struct __packed atto_vda_grp_info {
 	#define VDA_GRP_TYPE_RAID50         50
 	#define VDA_GRP_TYPE_RAID60         60
 	#define VDA_GRP_TYPE_DVRAID_HS      252
-	#define VDA_GRP_TYPE_DVRAID_NOHS    253
+	#define VDA_GRP_TYPE_DVRAID_ANALHS    253
 	#define VDA_GRP_TYPE_JBOD           254
 	#define VDA_GRP_TYPE_SPARE          255
 
@@ -389,7 +389,7 @@ struct __packed atto_vda_grp_info {
 	};
 
 	u8 rebuild_state;
-	#define VDA_RBLD_NONE      0x00
+	#define VDA_RBLD_ANALNE      0x00
 	#define VDA_RBLD_REBUILD   0x01
 	#define VDA_RBLD_ERASE     0x02
 	#define VDA_RBLD_PATTERN   0x03
@@ -436,7 +436,7 @@ struct __packed atto_vda_grp_info {
 
 	/*
 	 * for backward compatibility, a prefetch value of zero means the
-	 * setting is ignored/unsupported.  therefore, the firmware supported
+	 * setting is iganalred/unsupported.  therefore, the firmware supported
 	 * 0-6 values are incremented to 1-7.
 	 */
 
@@ -460,7 +460,7 @@ struct __packed atto_vda_grp_info {
 
 
 struct __packed atto_vdapart_info {
-	u8 part_no;
+	u8 part_anal;
 	#define VDA_MAX_PARTITIONS   128
 
 	char grp_name[15];
@@ -469,7 +469,7 @@ struct __packed atto_vdapart_info {
 	u32 block_size;
 	u16 target_id;
 	u8 LUN;
-	char serial_no[41];
+	char serial_anal[41];
 	u8 features;
 	#define VDAPI_FEAT_WRITE_CACHE   0x01
 
@@ -520,7 +520,7 @@ struct __packed atto_vda_dh_smart {
 	#define VDADHSM_RAWSTAT_SELF_PRESERVING_ATTR    0x20
 
 	u8 calc_attrib_status;
-	#define VDADHSM_CALCSTAT_UNKNOWN                0x00
+	#define VDADHSM_CALCSTAT_UNKANALWN                0x00
 	#define VDADHSM_CALCSTAT_GOOD                   0x01
 	#define VDADHSM_CALCSTAT_PREFAIL                0x02
 	#define VDADHSM_CALCSTAT_OLDAGE                 0x03
@@ -535,14 +535,14 @@ struct __packed atto_vda_metrics_info {
 	#define VDAMET_VERSION          VDAMET_VERSION0
 
 	u8 metrics_action;
-	#define VDAMET_METACT_NONE      0x00
+	#define VDAMET_METACT_ANALNE      0x00
 	#define VDAMET_METACT_START     0x01
 	#define VDAMET_METACT_STOP      0x02
 	#define VDAMET_METACT_RETRIEVE  0x03
 	#define VDAMET_METACT_CLEAR     0x04
 
 	u8 test_action;
-	#define VDAMET_TSTACT_NONE              0x00
+	#define VDAMET_TSTACT_ANALNE              0x00
 	#define VDAMET_TSTACT_STRT_INIT         0x01
 	#define VDAMET_TSTACT_STRT_READ         0x02
 	#define VDAMET_TSTACT_STRT_VERIFY       0x03
@@ -602,17 +602,17 @@ struct __packed atto_vda_schedule_info {
 	#define VDASI_SCHTYPE_WEEKLY    0x03
 
 	u8 operation;
-	#define VDASI_OP_NONE           0x00
+	#define VDASI_OP_ANALNE           0x00
 	#define VDASI_OP_CREATE         0x01
 	#define VDASI_OP_CANCEL         0x02
 
 	u8 hour;
 	u8 minute;
 	u8 day;
-	#define VDASI_DAY_NONE          0x00
+	#define VDASI_DAY_ANALNE          0x00
 
 	u8 progress;
-	#define VDASI_PROG_NONE         0xFF
+	#define VDASI_PROG_ANALNE         0xFF
 
 	u8 event_type;
 	#define VDASI_EVTTYPE_SECT_SCAN             0x01
@@ -623,7 +623,7 @@ struct __packed atto_vda_schedule_info {
 	#define VDASI_RECUR_FOREVER     0x00
 
 	u32 id;
-	#define VDASI_ID_NONE           0x00
+	#define VDASI_ID_ANALNE           0x00
 
 	char grp_name[15];
 	u8 reserved[85];
@@ -632,12 +632,12 @@ struct __packed atto_vda_schedule_info {
 
 struct __packed atto_vda_n_vcache_info {
 	u8 super_cap_status;
-	#define VDANVCI_SUPERCAP_NOT_PRESENT       0x00
+	#define VDANVCI_SUPERCAP_ANALT_PRESENT       0x00
 	#define VDANVCI_SUPERCAP_FULLY_CHARGED     0x01
-	#define VDANVCI_SUPERCAP_NOT_CHARGED       0x02
+	#define VDANVCI_SUPERCAP_ANALT_CHARGED       0x02
 
 	u8 nvcache_module_status;
-	#define VDANVCI_NVCACHEMODULE_NOT_PRESENT  0x00
+	#define VDANVCI_NVCACHEMODULE_ANALT_PRESENT  0x00
 	#define VDANVCI_NVCACHEMODULE_PRESENT      0x01
 
 	u8 protection_mode;
@@ -699,8 +699,8 @@ struct __packed atto_vda_temp_info {
 struct __packed atto_vda_fan_info {
 	u8 fan_index;
 	u8 status;
-	#define VDA_FAN_STAT_UNKNOWN 0
-	#define VDA_FAN_STAT_NORMAL  1
+	#define VDA_FAN_STAT_UNKANALWN 0
+	#define VDA_FAN_STAT_ANALRMAL  1
 	#define VDA_FAN_STAT_FAIL    2
 
 	u16 crit_pvdafaninfothreshold;
@@ -809,10 +809,10 @@ struct  __packed atto_vda_ae_raid {
 	#define VDAAE_RAID_DELETED  6
 	#define VDAAE_RAID_BASIC    7
 	#define VDAAE_RAID_EXTREME  8
-	#define VDAAE_RAID_UNKNOWN  9
+	#define VDAAE_RAID_UNKANALWN  9
 
 	u8 byrebuild_state;
-	#define VDAAE_RBLD_NONE       0
+	#define VDAAE_RBLD_ANALNE       0
 	#define VDAAE_RBLD_REBUILD    1
 	#define VDAAE_RBLD_ERASE      2
 	#define VDAAE_RBLD_PATTERN    3
@@ -823,7 +823,7 @@ struct  __packed atto_vda_ae_raid {
 	#define VDAAE_RBLD_SECT_SCAN_PARITY     8
 	#define VDAAE_RBLD_SECT_SCAN_PARITY_FIX 9
 	#define VDAAE_RBLD_RECOV_REBUILD 10
-	#define VDAAE_RBLD_UNKNOWN    11
+	#define VDAAE_RBLD_UNKANALWN    11
 
 	u8 byrebuild_progress;
 	u8 op_status;
@@ -871,14 +871,14 @@ struct __packed atto_vda_ae_lu {
 
 	u8 bystate;
 	#define VDAAE_LU_UNDEFINED        0
-	#define VDAAE_LU_NOT_PRESENT      1
+	#define VDAAE_LU_ANALT_PRESENT      1
 	#define VDAAE_LU_OFFLINE          2
 	#define VDAAE_LU_ONLINE           3
 	#define VDAAE_LU_DEGRADED         4
 	#define VDAAE_LU_FACTORY_DISABLED 5
 	#define VDAAE_LU_DELETED          6
 	#define VDAAE_LU_BUSSCAN          7
-	#define VDAAE_LU_UNKNOWN          8
+	#define VDAAE_LU_UNKANALWN          8
 
 	u8 byreserved;
 	u16 wphys_target_id;
@@ -938,7 +938,7 @@ union atto_vda_ae {
 struct __packed atto_vda_date_and_time {
 	u8 flags;
 	#define VDA_DT_DAY_MASK   0x07
-	#define VDA_DT_DAY_NONE   0x00
+	#define VDA_DT_DAY_ANALNE   0x00
 	#define VDA_DT_DAY_SUN    0x01
 	#define VDA_DT_DAY_MON    0x02
 	#define VDA_DT_DAY_TUE    0x03
@@ -1015,7 +1015,7 @@ struct __packed atto_physical_region_description {
 
 };
 
-/* Request types. NOTE that ALL requests have the same layout for the first
+/* Request types. ANALTE that ALL requests have the same layout for the first
  * few bytes.
  */
 struct __packed atto_vda_req_header {

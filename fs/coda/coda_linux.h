@@ -30,9 +30,9 @@
 #include "coda_fs_i.h"
 
 /* operations */
-extern const struct inode_operations coda_dir_inode_operations;
-extern const struct inode_operations coda_file_inode_operations;
-extern const struct inode_operations coda_ioctl_inode_operations;
+extern const struct ianalde_operations coda_dir_ianalde_operations;
+extern const struct ianalde_operations coda_file_ianalde_operations;
+extern const struct ianalde_operations coda_ioctl_ianalde_operations;
 
 extern const struct dentry_operations coda_dentry_operations;
 
@@ -44,11 +44,11 @@ extern const struct file_operations coda_file_operations;
 extern const struct file_operations coda_ioctl_operations;
 
 /* operations shared over more than one file */
-int coda_open(struct inode *i, struct file *f);
-int coda_release(struct inode *i, struct file *f);
-int coda_permission(struct mnt_idmap *idmap, struct inode *inode,
+int coda_open(struct ianalde *i, struct file *f);
+int coda_release(struct ianalde *i, struct file *f);
+int coda_permission(struct mnt_idmap *idmap, struct ianalde *ianalde,
 		    int mask);
-int coda_revalidate_inode(struct inode *);
+int coda_revalidate_ianalde(struct ianalde *);
 int coda_getattr(struct mnt_idmap *, const struct path *, struct kstat *,
 		 u32, unsigned int);
 int coda_setattr(struct mnt_idmap *, struct dentry *, struct iattr *);
@@ -57,34 +57,34 @@ int coda_setattr(struct mnt_idmap *, struct dentry *, struct iattr *);
 char *coda_f2s(struct CodaFid *f);
 int coda_iscontrol(const char *name, size_t length);
 
-umode_t coda_inode_type(struct coda_vattr *attr);
-void coda_vattr_to_iattr(struct inode *, struct coda_vattr *);
+umode_t coda_ianalde_type(struct coda_vattr *attr);
+void coda_vattr_to_iattr(struct ianalde *, struct coda_vattr *);
 void coda_iattr_to_vattr(struct iattr *, struct coda_vattr *);
 unsigned short coda_flags_to_cflags(unsigned short);
 
-/* inode to cnode access functions */
+/* ianalde to canalde access functions */
 
-static inline struct coda_inode_info *ITOC(struct inode *inode)
+static inline struct coda_ianalde_info *ITOC(struct ianalde *ianalde)
 {
-	return container_of(inode, struct coda_inode_info, vfs_inode);
+	return container_of(ianalde, struct coda_ianalde_info, vfs_ianalde);
 }
 
-static __inline__ struct CodaFid *coda_i2f(struct inode *inode)
+static __inline__ struct CodaFid *coda_i2f(struct ianalde *ianalde)
 {
-	return &(ITOC(inode)->c_fid);
+	return &(ITOC(ianalde)->c_fid);
 }
 
-static __inline__ char *coda_i2s(struct inode *inode)
+static __inline__ char *coda_i2s(struct ianalde *ianalde)
 {
-	return coda_f2s(&(ITOC(inode)->c_fid));
+	return coda_f2s(&(ITOC(ianalde)->c_fid));
 }
 
-/* this will not zap the inode away */
-static __inline__ void coda_flag_inode(struct inode *inode, int flag)
+/* this will analt zap the ianalde away */
+static __inline__ void coda_flag_ianalde(struct ianalde *ianalde, int flag)
 {
-	struct coda_inode_info *cii = ITOC(inode);
+	struct coda_ianalde_info *cii = ITOC(ianalde);
 
-	if (!inode)
+	if (!ianalde)
 		return;
 
 	spin_lock(&cii->c_lock);

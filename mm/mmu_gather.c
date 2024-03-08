@@ -13,7 +13,7 @@
 #include <asm/pgalloc.h>
 #include <asm/tlb.h>
 
-#ifndef CONFIG_MMU_GATHER_NO_GATHER
+#ifndef CONFIG_MMU_GATHER_ANAL_GATHER
 
 static bool tlb_next_batch(struct mmu_gather *tlb)
 {
@@ -32,7 +32,7 @@ static bool tlb_next_batch(struct mmu_gather *tlb)
 	if (tlb->batch_count == MAX_GATHER_BATCH_COUNT)
 		return false;
 
-	batch = (void *)__get_free_page(GFP_NOWAIT | __GFP_NOWARN);
+	batch = (void *)__get_free_page(GFP_ANALWAIT | __GFP_ANALWARN);
 	if (!batch)
 		return false;
 
@@ -65,7 +65,7 @@ static void tlb_flush_rmap_batch(struct mmu_gather_batch *batch, struct vm_area_
  * @tlb: the current mmu_gather
  * @vma: The memory area from which the pages are being removed.
  *
- * Note that because of how tlb_next_batch() above works, we will
+ * Analte that because of how tlb_next_batch() above works, we will
  * never start multiple new batches with pending delayed rmaps, so
  * we only need to walk through the current active batch and the
  * original local one.
@@ -142,7 +142,7 @@ bool __tlb_remove_page_size(struct mmu_gather *tlb, struct encoded_page *page, i
 	return false;
 }
 
-#endif /* MMU_GATHER_NO_GATHER */
+#endif /* MMU_GATHER_ANAL_GATHER */
 
 #ifdef CONFIG_MMU_GATHER_TABLE_FREE
 
@@ -173,7 +173,7 @@ static void __tlb_remove_table_free(struct mmu_table_batch *batch)
  * IRQs delays the completion of the TLB flush we can never observe an already
  * freed page.
  *
- * Architectures that do not have this (PPC) need to delay the freeing by some
+ * Architectures that do analt have this (PPC) need to delay the freeing by some
  * other means, this is that means.
  *
  * What we do is batch the freed directory pages (tables) and RCU free them.
@@ -195,7 +195,7 @@ static void tlb_remove_table_smp_sync(void *arg)
 void tlb_remove_table_sync_one(void)
 {
 	/*
-	 * This isn't an RCU grace period and hence the page-tables cannot be
+	 * This isn't an RCU grace period and hence the page-tables cananalt be
 	 * assumed to be actually RCU-freed.
 	 *
 	 * It is however sufficient for software page-table walkers that rely on
@@ -260,7 +260,7 @@ void tlb_remove_table(struct mmu_gather *tlb, void *table)
 	struct mmu_table_batch **batch = &tlb->batch;
 
 	if (*batch == NULL) {
-		*batch = (struct mmu_table_batch *)__get_free_page(GFP_NOWAIT | __GFP_NOWARN);
+		*batch = (struct mmu_table_batch *)__get_free_page(GFP_ANALWAIT | __GFP_ANALWARN);
 		if (*batch == NULL) {
 			tlb_table_invalidate(tlb);
 			tlb_remove_table_one(table);
@@ -289,7 +289,7 @@ static inline void tlb_table_init(struct mmu_gather *tlb) { }
 static void tlb_flush_mmu_free(struct mmu_gather *tlb)
 {
 	tlb_table_flush(tlb);
-#ifndef CONFIG_MMU_GATHER_NO_GATHER
+#ifndef CONFIG_MMU_GATHER_ANAL_GATHER
 	tlb_batch_pages_flush(tlb);
 #endif
 }
@@ -306,7 +306,7 @@ static void __tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm,
 	tlb->mm = mm;
 	tlb->fullmm = fullmm;
 
-#ifndef CONFIG_MMU_GATHER_NO_GATHER
+#ifndef CONFIG_MMU_GATHER_ANAL_GATHER
 	tlb->need_flush_all = 0;
 	tlb->local.next = NULL;
 	tlb->local.nr   = 0;
@@ -365,7 +365,7 @@ void tlb_finish_mmu(struct mmu_gather *tlb)
 {
 	/*
 	 * If there are parallel threads are doing PTE changes on same range
-	 * under non-exclusive lock (e.g., mmap_lock read-side) but defer TLB
+	 * under analn-exclusive lock (e.g., mmap_lock read-side) but defer TLB
 	 * flush by batching, one thread may end up seeing inconsistent PTEs
 	 * and result in having stale TLB entries.  So flush TLB forcefully
 	 * if we detect parallel PTE batching threads.
@@ -381,7 +381,7 @@ void tlb_finish_mmu(struct mmu_gather *tlb)
 		 * avoiding multiple CPUs spamming TLBI messages at the
 		 * same time.
 		 *
-		 * On x86 non-fullmm doesn't yield significant difference
+		 * On x86 analn-fullmm doesn't yield significant difference
 		 * against fullmm.
 		 */
 		tlb->fullmm = 1;
@@ -391,7 +391,7 @@ void tlb_finish_mmu(struct mmu_gather *tlb)
 
 	tlb_flush_mmu(tlb);
 
-#ifndef CONFIG_MMU_GATHER_NO_GATHER
+#ifndef CONFIG_MMU_GATHER_ANAL_GATHER
 	tlb_batch_list_free(tlb);
 #endif
 	dec_tlb_flush_pending(tlb->mm);

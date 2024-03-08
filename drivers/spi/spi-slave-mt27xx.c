@@ -210,12 +210,12 @@ static int mtk_spi_slave_dma_transfer(struct spi_controller *ctlr,
 		/* tx_buf is a const void* where we need a void * for
 		 * the dma mapping
 		 */
-		void *nonconst_tx = (void *)xfer->tx_buf;
+		void *analnconst_tx = (void *)xfer->tx_buf;
 
-		xfer->tx_dma = dma_map_single(dev, nonconst_tx,
+		xfer->tx_dma = dma_map_single(dev, analnconst_tx,
 					      xfer->len, DMA_TO_DEVICE);
 		if (dma_mapping_error(dev, xfer->tx_dma)) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto disable_transfer;
 		}
 	}
@@ -224,7 +224,7 @@ static int mtk_spi_slave_dma_transfer(struct spi_controller *ctlr,
 		xfer->rx_dma = dma_map_single(dev, xfer->rx_buf,
 					      xfer->len, DMA_FROM_DEVICE);
 		if (dma_mapping_error(dev, xfer->rx_dma)) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto unmap_txdma;
 		}
 	}
@@ -335,7 +335,7 @@ static irqreturn_t mtk_spi_slave_interrupt(int irq, void *dev_id)
 	writel(int_status, mdata->base + SPIS_IRQ_CLR_REG);
 
 	if (!trans)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if ((int_status & DMA_DONE_ST) &&
 	    ((int_status & DATA_DONE_ST) ||
@@ -372,7 +372,7 @@ static irqreturn_t mtk_spi_slave_interrupt(int irq, void *dev_id)
 
 	if (int_status & CMD_INVALID_ST) {
 		dev_warn(&ctlr->dev, "cmd invalid\n");
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	mdata->cur_transfer = NULL;
@@ -391,11 +391,11 @@ static int mtk_spi_slave_probe(struct platform_device *pdev)
 	ctlr = spi_alloc_slave(&pdev->dev, sizeof(*mdata));
 	if (!ctlr) {
 		dev_err(&pdev->dev, "failed to alloc spi slave\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ctlr->auto_runtime_pm = true;
-	ctlr->dev.of_node = pdev->dev.of_node;
+	ctlr->dev.of_analde = pdev->dev.of_analde;
 	ctlr->mode_bits = SPI_CPOL | SPI_CPHA;
 	ctlr->mode_bits |= SPI_LSB_FIRST;
 
@@ -404,9 +404,9 @@ static int mtk_spi_slave_probe(struct platform_device *pdev)
 	ctlr->setup = mtk_spi_slave_setup;
 	ctlr->slave_abort = mtk_slave_abort;
 
-	of_id = of_match_node(mtk_spi_slave_of_match, pdev->dev.of_node);
+	of_id = of_match_analde(mtk_spi_slave_of_match, pdev->dev.of_analde);
 	if (!of_id) {
-		dev_err(&pdev->dev, "failed to probe of_node\n");
+		dev_err(&pdev->dev, "failed to probe of_analde\n");
 		ret = -EINVAL;
 		goto err_put_ctlr;
 	}
@@ -433,7 +433,7 @@ static int mtk_spi_slave_probe(struct platform_device *pdev)
 	}
 
 	ret = devm_request_irq(&pdev->dev, irq, mtk_spi_slave_interrupt,
-			       IRQF_TRIGGER_NONE, dev_name(&pdev->dev), ctlr);
+			       IRQF_TRIGGER_ANALNE, dev_name(&pdev->dev), ctlr);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register irq (%d)\n", ret);
 		goto err_put_ctlr;

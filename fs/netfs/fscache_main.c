@@ -64,7 +64,7 @@ unsigned int fscache_hash(unsigned int salt, const void *data, size_t len)
  */
 int __init fscache_init(void)
 {
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	fscache_wq = alloc_workqueue("fscache", WQ_UNBOUND | WQ_FREEZABLE, 0);
 	if (!fscache_wq)
@@ -78,12 +78,12 @@ int __init fscache_init(void)
 					       sizeof(struct fscache_cookie),
 					       0, 0, NULL);
 	if (!fscache_cookie_jar) {
-		pr_notice("Failed to allocate a cookie jar\n");
-		ret = -ENOMEM;
+		pr_analtice("Failed to allocate a cookie jar\n");
+		ret = -EANALMEM;
 		goto error_cookie_jar;
 	}
 
-	pr_notice("FS-Cache loaded\n");
+	pr_analtice("FS-Cache loaded\n");
 	return 0;
 
 error_cookie_jar:
@@ -104,5 +104,5 @@ void __exit fscache_exit(void)
 	kmem_cache_destroy(fscache_cookie_jar);
 	fscache_proc_cleanup();
 	destroy_workqueue(fscache_wq);
-	pr_notice("FS-Cache unloaded\n");
+	pr_analtice("FS-Cache unloaded\n");
 }

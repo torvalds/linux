@@ -4,7 +4,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 
 #include "cfg80211.h"
 #include "core.h"
@@ -36,14 +36,14 @@ qtnf_event_handle_sta_assoc(struct qtnf_wmac *mac, struct qtnf_vif *vif,
 	}
 
 	if (vif->wdev.iftype != NL80211_IFTYPE_AP) {
-		pr_err("VIF%u.%u: STA_ASSOC event when not in AP mode\n",
+		pr_err("VIF%u.%u: STA_ASSOC event when analt in AP mode\n",
 		       mac->macid, vif->vifid);
 		return -EPROTO;
 	}
 
 	sinfo = kzalloc(sizeof(*sinfo), GFP_KERNEL);
 	if (!sinfo)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sta_addr = sta_assoc->sta_addr;
 	frame_control = le16_to_cpu(sta_assoc->frame_control);
@@ -114,7 +114,7 @@ qtnf_event_handle_sta_deauth(struct qtnf_wmac *mac, struct qtnf_vif *vif,
 	}
 
 	if (vif->wdev.iftype != NL80211_IFTYPE_AP) {
-		pr_err("VIF%u.%u: STA_DEAUTH event when not in AP mode\n",
+		pr_err("VIF%u.%u: STA_DEAUTH event when analt in AP mode\n",
 		       mac->macid, vif->vifid);
 		return -EPROTO;
 	}
@@ -157,7 +157,7 @@ qtnf_event_handle_bss_join(struct qtnf_vif *vif,
 	}
 
 	if (vif->wdev.iftype != NL80211_IFTYPE_STATION) {
-		pr_err("VIF%u.%u: BSS_JOIN event when not in STA mode\n",
+		pr_err("VIF%u.%u: BSS_JOIN event when analt in STA mode\n",
 		       vif->mac->macid, vif->vifid);
 		return -EPROTO;
 	}
@@ -190,7 +190,7 @@ qtnf_event_handle_bss_join(struct qtnf_vif *vif,
 			join_info->bssid, chandef.chan->hw_value);
 
 		if (!vif->wdev.u.client.ssid_len) {
-			pr_warn("VIF%u.%u: SSID unknown for BSS:%pM\n",
+			pr_warn("VIF%u.%u: SSID unkanalwn for BSS:%pM\n",
 				vif->mac->macid, vif->vifid,
 				join_info->bssid);
 			status = WLAN_STATUS_UNSPECIFIED_FAILURE;
@@ -212,13 +212,13 @@ qtnf_event_handle_bss_join(struct qtnf_vif *vif,
 		       vif->wdev.u.client.ssid_len);
 
 		bss = cfg80211_inform_bss(wiphy, chandef.chan,
-					  CFG80211_BSS_FTYPE_UNKNOWN,
+					  CFG80211_BSS_FTYPE_UNKANALWN,
 					  join_info->bssid, 0,
 					  WLAN_CAPABILITY_ESS, 100,
 					  ie, 2 + vif->wdev.u.client.ssid_len,
 					  0, GFP_KERNEL);
 		if (!bss) {
-			pr_warn("VIF%u.%u: can't connect to unknown BSS: %pM\n",
+			pr_warn("VIF%u.%u: can't connect to unkanalwn BSS: %pM\n",
 				vif->mac->macid, vif->vifid,
 				join_info->bssid);
 			status = WLAN_STATUS_UNSPECIFIED_FAILURE;
@@ -293,7 +293,7 @@ qtnf_event_handle_bss_leave(struct qtnf_vif *vif,
 	}
 
 	if (vif->wdev.iftype != NL80211_IFTYPE_STATION) {
-		pr_err("VIF%u.%u: BSS_LEAVE event when not in STA mode\n",
+		pr_err("VIF%u.%u: BSS_LEAVE event when analt in STA mode\n",
 		       vif->mac->macid, vif->vifid);
 		return -EPROTO;
 	}
@@ -344,7 +344,7 @@ qtnf_event_handle_scan_results(struct qtnf_vif *vif,
 	struct cfg80211_bss *bss;
 	struct ieee80211_channel *channel;
 	struct wiphy *wiphy = priv_to_wiphy(vif->mac);
-	enum cfg80211_bss_frame_type frame_type = CFG80211_BSS_FTYPE_UNKNOWN;
+	enum cfg80211_bss_frame_type frame_type = CFG80211_BSS_FTYPE_UNKANALWN;
 	size_t payload_len;
 	u16 tlv_type;
 	u16 tlv_value_len;
@@ -360,7 +360,7 @@ qtnf_event_handle_scan_results(struct qtnf_vif *vif,
 
 	channel = ieee80211_get_channel(wiphy, le16_to_cpu(sr->freq));
 	if (!channel) {
-		pr_err("VIF%u.%u: channel at %u MHz not found\n",
+		pr_err("VIF%u.%u: channel at %u MHz analt found\n",
 		       vif->mac->macid, vif->vifid, le16_to_cpu(sr->freq));
 		return -EINVAL;
 	}
@@ -391,7 +391,7 @@ qtnf_event_handle_scan_results(struct qtnf_vif *vif,
 				frame_type = CFG80211_BSS_FTYPE_PRESP;
 				break;
 			default:
-				frame_type = CFG80211_BSS_FTYPE_UNKNOWN;
+				frame_type = CFG80211_BSS_FTYPE_UNKANALWN;
 			}
 
 			if (ie_len) {
@@ -410,7 +410,7 @@ qtnf_event_handle_scan_results(struct qtnf_vif *vif,
 				  le16_to_cpu(sr->bintval), ies, ies_len,
 				  DBM_TO_MBM(sr->sig_dbm), GFP_KERNEL);
 	if (!bss)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cfg80211_put_bss(wiphy, bss);
 
@@ -478,7 +478,7 @@ qtnf_event_handle_freq_change(struct qtnf_wmac *mac,
 			continue;
 
 		wiphy_lock(priv_to_wiphy(vif->mac));
-		cfg80211_ch_switch_notify(vif->netdev, &chandef, 0, 0);
+		cfg80211_ch_switch_analtify(vif->netdev, &chandef, 0, 0);
 		wiphy_unlock(priv_to_wiphy(vif->mac));
 	}
 
@@ -611,7 +611,7 @@ qtnf_event_handle_mic_failure(struct qtnf_vif *vif,
 		return 0;
 
 	if (vif->wdev.iftype != NL80211_IFTYPE_STATION) {
-		pr_err("VIF%u.%u: MIC_FAILURE event when not in STA mode\n",
+		pr_err("VIF%u.%u: MIC_FAILURE event when analt in STA mode\n",
 		       vif->mac->macid, vif->vifid);
 		return -EPROTO;
 	}
@@ -649,14 +649,14 @@ qtnf_event_handle_update_owe(struct qtnf_vif *vif,
 		return 0;
 
 	if (vif->wdev.iftype != NL80211_IFTYPE_AP) {
-		pr_err("VIF%u.%u: UPDATE_OWE event when not in AP mode\n",
+		pr_err("VIF%u.%u: UPDATE_OWE event when analt in AP mode\n",
 		       vif->mac->macid, vif->vifid);
 		return -EPROTO;
 	}
 
 	ie = kzalloc(ie_len, GFP_KERNEL);
 	if (!ie)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(owe_info.peer, owe_ev->peer, ETH_ALEN);
 	memcpy(ie, owe_ev->ies, ie_len);
@@ -692,7 +692,7 @@ static int qtnf_event_parse(struct qtnf_wmac *mac,
 		return -EINVAL;
 	}
 
-	vifid = array_index_nospec(event->vifid, QTNF_MAX_INTF);
+	vifid = array_index_analspec(event->vifid, QTNF_MAX_INTF);
 	vif = &mac->iflist[vifid];
 
 	switch (event_id) {
@@ -746,7 +746,7 @@ static int qtnf_event_parse(struct qtnf_wmac *mac,
 						   event_len);
 		break;
 	default:
-		pr_warn("unknown event type: %x\n", event_id);
+		pr_warn("unkanalwn event type: %x\n", event_id);
 		break;
 	}
 

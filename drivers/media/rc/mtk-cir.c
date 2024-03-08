@@ -202,7 +202,7 @@ static inline void mtk_irq_enable(struct mtk_ir *ir, u32 mask)
 	mtk_w32(ir, val | mask, ir->data->regs[MTK_IRINT_EN_REG]);
 }
 
-static irqreturn_t mtk_ir_irq(int irqno, void *dev_id)
+static irqreturn_t mtk_ir_irq(int irqanal, void *dev_id)
 {
 	struct ir_raw_event rawir = {};
 	struct mtk_ir *ir = dev_id;
@@ -243,7 +243,7 @@ static irqreturn_t mtk_ir_irq(int irqno, void *dev_id)
 	 * is over the limit, the last incomplete IR message would
 	 * be appended trailing space and still would be sent into
 	 * ir-rc-raw to decode. That helps it is possible that it
-	 * has enough information to decode a scancode even if the
+	 * has eanalugh information to decode a scancode even if the
 	 * trailing end of the message is missing.
 	 */
 	if (!MTK_IR_END(wid, rawir.pulse)) {
@@ -293,7 +293,7 @@ MODULE_DEVICE_TABLE(of, mtk_ir_match);
 static int mtk_ir_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *dn = dev->of_node;
+	struct device_analde *dn = dev->of_analde;
 	struct mtk_ir *ir;
 	u32 val;
 	int ret = 0;
@@ -301,7 +301,7 @@ static int mtk_ir_probe(struct platform_device *pdev)
 
 	ir = devm_kzalloc(dev, sizeof(struct mtk_ir), GFP_KERNEL);
 	if (!ir)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ir->dev = dev;
 	ir->data = of_device_get_match_data(dev);
@@ -328,7 +328,7 @@ static int mtk_ir_probe(struct platform_device *pdev)
 	ir->rc = devm_rc_allocate_device(dev, RC_DRIVER_IR_RAW);
 	if (!ir->rc) {
 		dev_err(dev, "failed to allocate device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ir->rc->priv = ir;
@@ -356,7 +356,7 @@ static int mtk_ir_probe(struct platform_device *pdev)
 
 	ir->irq = platform_get_irq(pdev, 0);
 	if (ir->irq < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (clk_prepare_enable(ir->clk)) {
 		dev_err(dev, "try to enable ir_clk failed\n");

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * fscrypt user API
  *
@@ -18,8 +18,8 @@
 #define FSCRYPT_POLICY_FLAGS_PAD_32		0x03
 #define FSCRYPT_POLICY_FLAGS_PAD_MASK		0x03
 #define FSCRYPT_POLICY_FLAG_DIRECT_KEY		0x04
-#define FSCRYPT_POLICY_FLAG_IV_INO_LBLK_64	0x08
-#define FSCRYPT_POLICY_FLAG_IV_INO_LBLK_32	0x10
+#define FSCRYPT_POLICY_FLAG_IV_IANAL_LBLK_64	0x08
+#define FSCRYPT_POLICY_FLAG_IV_IANAL_LBLK_32	0x10
 
 /* Encryption algorithms */
 #define FSCRYPT_MODE_AES_256_XTS		1
@@ -33,10 +33,10 @@
 /* If adding a mode number > 10, update FSCRYPT_MODE_MAX in fscrypt_private.h */
 
 /*
- * Legacy policy version; ad-hoc KDF and no key verification.
+ * Legacy policy version; ad-hoc KDF and anal key verification.
  * For new encrypted directories, use fscrypt_policy_v2 instead.
  *
- * Careful: the .version field for this is actually 0, not 1.
+ * Careful: the .version field for this is actually 0, analt 1.
  */
 #define FSCRYPT_POLICY_V1		0
 #define FSCRYPT_KEY_DESCRIPTOR_SIZE	8
@@ -166,7 +166,7 @@ struct fscrypt_get_key_status_arg {
 #define FS_IOC_REMOVE_ENCRYPTION_KEY		_IOWR('f', 24, struct fscrypt_remove_key_arg)
 #define FS_IOC_REMOVE_ENCRYPTION_KEY_ALL_USERS	_IOWR('f', 25, struct fscrypt_remove_key_arg)
 #define FS_IOC_GET_ENCRYPTION_KEY_STATUS	_IOWR('f', 26, struct fscrypt_get_key_status_arg)
-#define FS_IOC_GET_ENCRYPTION_NONCE		_IOR('f', 27, __u8[16])
+#define FS_IOC_GET_ENCRYPTION_ANALNCE		_IOR('f', 27, __u8[16])
 
 /**********************************************************************/
 

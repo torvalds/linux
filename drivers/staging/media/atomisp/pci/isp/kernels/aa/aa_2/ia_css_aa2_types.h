@@ -28,8 +28,8 @@
  *     struct ia_css_aa_config   *aa_config
  *
  *     ISP block: AA2
- *    (ISP1: AA2 is not used.)
- *     ISP2: AA2 should be used. But, AA2 is not used currently.
+ *    (ISP1: AA2 is analt used.)
+ *     ISP2: AA2 should be used. But, AA2 is analt used currently.
  *
  *  2. Bayer Anti-Aliasing
  *     struct ia_css_aa_config   *baa_config

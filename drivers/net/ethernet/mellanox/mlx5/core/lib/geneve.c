@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2019 Mellanox Technologies. */
+/* Copyright (c) 2019 Mellaanalx Techanallogies. */
 
 #include <linux/kernel.h>
 #include "mlx5_core.h"
@@ -65,7 +65,7 @@ int mlx5_geneve_tlv_option_add(struct mlx5_geneve *geneve, struct geneve_opt *op
 	int res = 0;
 
 	if (IS_ERR_OR_NULL(geneve))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mutex_lock(&geneve->sync_lock);
 
@@ -76,15 +76,15 @@ int mlx5_geneve_tlv_option_add(struct mlx5_geneve *geneve, struct geneve_opt *op
 			geneve->refcount++;
 		} else {
 			/* TLV options obj allocated, but its params
-			 * do not match the new request.
+			 * do analt match the new request.
 			 * We support only one such object.
 			 */
 			mlx5_core_warn(geneve->mdev,
-				       "Won't create Geneve TLV opt object with class:type:len = 0x%x:0x%x:%d (another class:type already exists)\n",
+				       "Won't create Geneve TLV opt object with class:type:len = 0x%x:0x%x:%d (aanalther class:type already exists)\n",
 				       be16_to_cpu(opt->opt_class),
 				       opt->type,
 				       opt->length);
-			res = -EOPNOTSUPP;
+			res = -EOPANALTSUPP;
 			goto unlock;
 		}
 	} else {
@@ -121,7 +121,7 @@ void mlx5_geneve_tlv_option_del(struct mlx5_geneve *geneve)
 	mutex_lock(&geneve->sync_lock);
 	if (--geneve->refcount == 0) {
 		/* We've just removed the last user of Geneve option.
-		 * Now delete the object in FW.
+		 * Analw delete the object in FW.
 		 */
 		mlx5_geneve_tlv_option_destroy(geneve->mdev, geneve->obj_id);
 
@@ -138,7 +138,7 @@ struct mlx5_geneve *mlx5_geneve_create(struct mlx5_core_dev *mdev)
 		kzalloc(sizeof(*geneve), GFP_KERNEL);
 
 	if (!geneve)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	geneve->mdev = mdev;
 	mutex_init(&geneve->sync_lock);
 

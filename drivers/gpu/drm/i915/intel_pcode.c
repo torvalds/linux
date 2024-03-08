@@ -13,7 +13,7 @@ static int gen6_check_mailbox_status(u32 mbox)
 	case GEN6_PCODE_SUCCESS:
 		return 0;
 	case GEN6_PCODE_UNIMPLEMENTED_CMD:
-		return -ENODEV;
+		return -EANALDEV;
 	case GEN6_PCODE_ILLEGAL_CMD:
 		return -ENXIO;
 	case GEN6_PCODE_MIN_FREQ_TABLE_GT_RATIO_OUT_OF_RANGE:
@@ -138,19 +138,19 @@ static bool skl_pcode_try_request(struct intel_uncore *uncore, u32 mbox,
 }
 
 /**
- * skl_pcode_request - send PCODE request until acknowledgment
+ * skl_pcode_request - send PCODE request until ackanalwledgment
  * @uncore: uncore
  * @mbox: PCODE mailbox ID the request is targeted for
  * @request: request ID
- * @reply_mask: mask used to check for request acknowledgment
- * @reply: value used to check for request acknowledgment
+ * @reply_mask: mask used to check for request ackanalwledgment
+ * @reply: value used to check for request ackanalwledgment
  * @timeout_base_ms: timeout for polling with preemption enabled
  *
- * Keep resending the @request to @mbox until PCODE acknowledges it, PCODE
+ * Keep resending the @request to @mbox until PCODE ackanalwledges it, PCODE
  * reports an error or an overall timeout of @timeout_base_ms+50 ms expires.
- * The request is acknowledged once the PCODE reply dword equals @reply after
+ * The request is ackanalwledged once the PCODE reply dword equals @reply after
  * applying @reply_mask. Polling is first attempted with preemption enabled
- * for @timeout_base_ms and if this times out for another 50 ms with
+ * for @timeout_base_ms and if this times out for aanalther 50 ms with
  * preemption disabled.
  *
  * Returns 0 on success, %-ETIMEDOUT in case of a timeout, <0 in case of some
@@ -168,7 +168,7 @@ int skl_pcode_request(struct intel_uncore *uncore, u32 mbox, u32 request,
 	skl_pcode_try_request(uncore, mbox, request, reply_mask, reply, &status)
 
 	/*
-	 * Prime the PCODE by doing a request first. Normally it guarantees
+	 * Prime the PCODE by doing a request first. Analrmally it guarantees
 	 * that a subsequent request, at most @timeout_base_ms later, succeeds.
 	 * _wait_for() doesn't guarantee when its passed condition is evaluated
 	 * first, so send the first request explicitly.
@@ -234,7 +234,7 @@ int intel_pcode_init(struct intel_uncore *uncore)
 	err = pcode_init_wait(uncore, 10000);
 
 	if (err) {
-		drm_notice(&uncore->i915->drm,
+		drm_analtice(&uncore->i915->drm,
 			   "Waiting for HW initialisation...\n");
 		err = pcode_init_wait(uncore, 180000);
 	}

@@ -22,7 +22,7 @@
 #define REFS_PER_FRAME 3
 #define MAX_NUM_REF_FRAMES 8
 #define VP9_MAX_FRM_BUF_NUM 9
-#define VP9_MAX_FRM_BUF_NODE_NUM (VP9_MAX_FRM_BUF_NUM * 2)
+#define VP9_MAX_FRM_BUF_ANALDE_NUM (VP9_MAX_FRM_BUF_NUM * 2)
 #define VP9_SEG_ID_SZ 0x12000
 
 /**
@@ -110,11 +110,11 @@ struct vp9_sf_ref_fb {
  * @buf_len_sz_c : size used to store cbcr plane ufo info (AP-R, VPU-W)
 
  * @profile : profile sparsed from vpu (AP-R, VPU-W)
- * @show_frame : [BIT(0)] display this frame or not (AP-R, VPU-W)
- *	[BIT(1)] reset segment data or not (AP-R, VPU-W)
- *	[BIT(2)] trig decoder hardware or not (AP-R, VPU-W)
+ * @show_frame : [BIT(0)] display this frame or analt (AP-R, VPU-W)
+ *	[BIT(1)] reset segment data or analt (AP-R, VPU-W)
+ *	[BIT(2)] trig decoder hardware or analt (AP-R, VPU-W)
  *	[BIT(3)] ask VPU to set bits(0~4) accordingly (AP-W, VPU-R)
- *	[BIT(4)] do not reset segment data before every frame (AP-R, VPU-W)
+ *	[BIT(4)] do analt reset segment data before every frame (AP-R, VPU-W)
  * @show_existing_frame : inform this frame is show existing frame
  *	(AP-R, VPU-W)
  * @frm_to_show_idx : index to show frame (AP-R, VPU-W)
@@ -173,8 +173,8 @@ struct vdec_vp9_vsi {
  * struct vdec_vp9_inst - vp9 decode instance
  * @mv_buf : working buffer for mv
  * @seg_id_buf : working buffer for segmentation map
- * @dec_fb : vdec_fb node to link fb to different fb_xxx_list
- * @available_fb_node_list : current available vdec_fb node
+ * @dec_fb : vdec_fb analde to link fb to different fb_xxx_list
+ * @available_fb_analde_list : current available vdec_fb analde
  * @fb_use_list : current used or referenced vdec_fb
  * @fb_free_list : current available to free vdec_fb
  * @fb_disp_list : current available to display vdec_fb
@@ -182,7 +182,7 @@ struct vdec_vp9_vsi {
  * @ctx : current decode context
  * @vpu : vpu instance information
  * @vsi : shared buffer between host and VPU firmware
- * @total_frm_cnt : total frame count, it do not include sub-frames in super
+ * @total_frm_cnt : total frame count, it do analt include sub-frames in super
  *	    frame
  * @mem : instance memory information
  */
@@ -190,8 +190,8 @@ struct vdec_vp9_inst {
 	struct mtk_vcodec_mem mv_buf;
 	struct mtk_vcodec_mem seg_id_buf;
 
-	struct vdec_fb_node dec_fb[VP9_MAX_FRM_BUF_NODE_NUM];
-	struct list_head available_fb_node_list;
+	struct vdec_fb_analde dec_fb[VP9_MAX_FRM_BUF_ANALDE_NUM];
+	struct list_head available_fb_analde_list;
 	struct list_head fb_use_list;
 	struct list_head fb_free_list;
 	struct list_head fb_disp_list;
@@ -219,13 +219,13 @@ static struct vdec_fb *vp9_rm_from_fb_use_list(struct vdec_vp9_inst
 					*inst, void *addr)
 {
 	struct vdec_fb *fb = NULL;
-	struct vdec_fb_node *node;
+	struct vdec_fb_analde *analde;
 
-	list_for_each_entry(node, &inst->fb_use_list, list) {
-		fb = (struct vdec_fb *)node->fb;
+	list_for_each_entry(analde, &inst->fb_use_list, list) {
+		fb = (struct vdec_fb *)analde->fb;
 		if (fb->base_y.va == addr) {
-			list_move_tail(&node->list,
-				       &inst->available_fb_node_list);
+			list_move_tail(&analde->list,
+				       &inst->available_fb_analde_list);
 			return fb;
 		}
 	}
@@ -236,18 +236,18 @@ static struct vdec_fb *vp9_rm_from_fb_use_list(struct vdec_vp9_inst
 static void vp9_add_to_fb_free_list(struct vdec_vp9_inst *inst,
 			     struct vdec_fb *fb)
 {
-	struct vdec_fb_node *node;
+	struct vdec_fb_analde *analde;
 
 	if (fb) {
-		node = list_first_entry_or_null(&inst->available_fb_node_list,
-					struct vdec_fb_node, list);
+		analde = list_first_entry_or_null(&inst->available_fb_analde_list,
+					struct vdec_fb_analde, list);
 
-		if (node) {
-			node->fb = fb;
-			list_move_tail(&node->list, &inst->fb_free_list);
+		if (analde) {
+			analde->fb = fb;
+			list_move_tail(&analde->list, &inst->fb_free_list);
 		}
 	} else {
-		mtk_vdec_debug(inst->ctx, "No free fb node");
+		mtk_vdec_debug(inst->ctx, "Anal free fb analde");
 	}
 }
 
@@ -340,7 +340,7 @@ static int vp9_get_sf_ref_fb(struct vdec_vp9_inst *inst)
 		vsi->buf_len_sz_y;
 
 	if (mtk_vcodec_mem_alloc(inst->ctx, mem_basy_y)) {
-		mtk_vdec_err(inst->ctx, "Cannot allocate sf_ref_buf y_buf");
+		mtk_vdec_err(inst->ctx, "Cananalt allocate sf_ref_buf y_buf");
 		return -1;
 	}
 
@@ -349,7 +349,7 @@ static int vp9_get_sf_ref_fb(struct vdec_vp9_inst *inst)
 		vsi->buf_len_sz_c;
 
 	if (mtk_vcodec_mem_alloc(inst->ctx, mem_basy_c)) {
-		mtk_vdec_err(inst->ctx, "Cannot allocate sf_ref_fb c_buf");
+		mtk_vdec_err(inst->ctx, "Cananalt allocate sf_ref_fb c_buf");
 		return -1;
 	}
 	vsi->sf_ref_fb[idx].used = 0;
@@ -395,7 +395,7 @@ static bool vp9_alloc_work_buf(struct vdec_vp9_inst *inst)
 	result = mtk_vcodec_mem_alloc(inst->ctx, mem);
 	if (result) {
 		mem->size = 0;
-		mtk_vdec_err(inst->ctx, "Cannot allocate mv_buf");
+		mtk_vdec_err(inst->ctx, "Cananalt allocate mv_buf");
 		return false;
 	}
 	/* Set the va again */
@@ -412,7 +412,7 @@ static bool vp9_alloc_work_buf(struct vdec_vp9_inst *inst)
 	result = mtk_vcodec_mem_alloc(inst->ctx, mem);
 	if (result) {
 		mem->size = 0;
-		mtk_vdec_err(inst->ctx, "Cannot allocate seg_id_buf");
+		mtk_vdec_err(inst->ctx, "Cananalt allocate seg_id_buf");
 		return false;
 	}
 	/* Set the va again */
@@ -430,20 +430,20 @@ static bool vp9_alloc_work_buf(struct vdec_vp9_inst *inst)
 static bool vp9_add_to_fb_disp_list(struct vdec_vp9_inst *inst,
 			     struct vdec_fb *fb)
 {
-	struct vdec_fb_node *node;
+	struct vdec_fb_analde *analde;
 
 	if (!fb) {
 		mtk_vdec_err(inst->ctx, "fb == NULL");
 		return false;
 	}
 
-	node = list_first_entry_or_null(&inst->available_fb_node_list,
-					struct vdec_fb_node, list);
-	if (node) {
-		node->fb = fb;
-		list_move_tail(&node->list, &inst->fb_disp_list);
+	analde = list_first_entry_or_null(&inst->available_fb_analde_list,
+					struct vdec_fb_analde, list);
+	if (analde) {
+		analde->fb = fb;
+		list_move_tail(&analde->list, &inst->fb_disp_list);
 	} else {
-		mtk_vdec_err(inst->ctx, "No available fb node");
+		mtk_vdec_err(inst->ctx, "Anal available fb analde");
 		return false;
 	}
 
@@ -468,7 +468,7 @@ static void vp9_swap_frm_bufs(struct vdec_vp9_inst *inst)
 	vsi->frm_bufs[vsi->new_fb_idx].ref_cnt--;
 
 	if (frm_to_show->fb != inst->cur_fb) {
-		/* This frame is show exist frame and no decode output
+		/* This frame is show exist frame and anal decode output
 		 * copy frame data from frm_to_show to current CAPTURE
 		 * buffer
 		 */
@@ -523,7 +523,7 @@ static void vp9_swap_frm_bufs(struct vdec_vp9_inst *inst)
 		}
 	}
 
-	/* if this super frame and it is not last sub-frame, get next fb for
+	/* if this super frame and it is analt last sub-frame, get next fb for
 	 * sub-frame decode
 	 */
 	if (vsi->sf_frm_cnt > 0 && vsi->sf_frm_idx != vsi->sf_frm_cnt - 1)
@@ -611,18 +611,18 @@ static bool vp9_is_last_sub_frm(struct vdec_vp9_inst *inst)
 
 static struct vdec_fb *vp9_rm_from_fb_disp_list(struct vdec_vp9_inst *inst)
 {
-	struct vdec_fb_node *node;
+	struct vdec_fb_analde *analde;
 	struct vdec_fb *fb = NULL;
 
-	node = list_first_entry_or_null(&inst->fb_disp_list,
-					struct vdec_fb_node, list);
-	if (node) {
-		fb = (struct vdec_fb *)node->fb;
+	analde = list_first_entry_or_null(&inst->fb_disp_list,
+					struct vdec_fb_analde, list);
+	if (analde) {
+		fb = (struct vdec_fb *)analde->fb;
 		fb->status |= FB_ST_DISPLAY;
-		list_move_tail(&node->list, &inst->available_fb_node_list);
-		mtk_vdec_debug(inst->ctx, "[FB] get disp fb %p st=%d", node->fb, fb->status);
+		list_move_tail(&analde->list, &inst->available_fb_analde_list);
+		mtk_vdec_debug(inst->ctx, "[FB] get disp fb %p st=%d", analde->fb, fb->status);
 	} else
-		mtk_vdec_debug(inst->ctx, "[FB] there is no disp fb");
+		mtk_vdec_debug(inst->ctx, "[FB] there is anal disp fb");
 
 	return fb;
 }
@@ -630,20 +630,20 @@ static struct vdec_fb *vp9_rm_from_fb_disp_list(struct vdec_vp9_inst *inst)
 static bool vp9_add_to_fb_use_list(struct vdec_vp9_inst *inst,
 			    struct vdec_fb *fb)
 {
-	struct vdec_fb_node *node;
+	struct vdec_fb_analde *analde;
 
 	if (!fb) {
 		mtk_vdec_debug(inst->ctx, "fb == NULL");
 		return false;
 	}
 
-	node = list_first_entry_or_null(&inst->available_fb_node_list,
-					struct vdec_fb_node, list);
-	if (node) {
-		node->fb = fb;
-		list_move_tail(&node->list, &inst->fb_use_list);
+	analde = list_first_entry_or_null(&inst->available_fb_analde_list,
+					struct vdec_fb_analde, list);
+	if (analde) {
+		analde->fb = fb;
+		list_move_tail(&analde->list, &inst->fb_use_list);
 	} else {
-		mtk_vdec_err(inst->ctx, "No free fb node");
+		mtk_vdec_err(inst->ctx, "Anal free fb analde");
 		return false;
 	}
 	return true;
@@ -651,10 +651,10 @@ static bool vp9_add_to_fb_use_list(struct vdec_vp9_inst *inst,
 
 static void vp9_reset(struct vdec_vp9_inst *inst)
 {
-	struct vdec_fb_node *node, *tmp;
+	struct vdec_fb_analde *analde, *tmp;
 
-	list_for_each_entry_safe(node, tmp, &inst->fb_use_list, list)
-		list_move_tail(&node->list, &inst->fb_free_list);
+	list_for_each_entry_safe(analde, tmp, &inst->fb_use_list, list)
+		list_move_tail(&analde->list, &inst->fb_free_list);
 
 	vp9_free_all_sf_ref_fb(inst);
 	inst->vsi->sf_next_ref_fb_idx = vp9_get_sf_ref_fb(inst);
@@ -678,7 +678,7 @@ static void init_all_fb_lists(struct vdec_vp9_inst *inst)
 {
 	int i;
 
-	INIT_LIST_HEAD(&inst->available_fb_node_list);
+	INIT_LIST_HEAD(&inst->available_fb_analde_list);
 	INIT_LIST_HEAD(&inst->fb_use_list);
 	INIT_LIST_HEAD(&inst->fb_free_list);
 	INIT_LIST_HEAD(&inst->fb_disp_list);
@@ -687,7 +687,7 @@ static void init_all_fb_lists(struct vdec_vp9_inst *inst)
 		INIT_LIST_HEAD(&inst->dec_fb[i].list);
 		inst->dec_fb[i].fb = NULL;
 		list_add_tail(&inst->dec_fb[i].list,
-			      &inst->available_fb_node_list);
+			      &inst->available_fb_analde_list);
 	}
 }
 
@@ -716,18 +716,18 @@ static void get_disp_fb(struct vdec_vp9_inst *inst, struct vdec_fb **out_fb)
 
 static void get_free_fb(struct vdec_vp9_inst *inst, struct vdec_fb **out_fb)
 {
-	struct vdec_fb_node *node;
+	struct vdec_fb_analde *analde;
 	struct vdec_fb *fb = NULL;
 
-	node = list_first_entry_or_null(&inst->fb_free_list,
-					struct vdec_fb_node, list);
-	if (node) {
-		list_move_tail(&node->list, &inst->available_fb_node_list);
-		fb = (struct vdec_fb *)node->fb;
+	analde = list_first_entry_or_null(&inst->fb_free_list,
+					struct vdec_fb_analde, list);
+	if (analde) {
+		list_move_tail(&analde->list, &inst->available_fb_analde_list);
+		fb = (struct vdec_fb *)analde->fb;
 		fb->status |= FB_ST_FREE;
-		mtk_vdec_debug(inst->ctx, "[FB] get free fb %p st=%d", node->fb, fb->status);
+		mtk_vdec_debug(inst->ctx, "[FB] get free fb %p st=%d", analde->fb, fb->status);
 	} else {
-		mtk_vdec_debug(inst->ctx, "[FB] there is no free fb");
+		mtk_vdec_debug(inst->ctx, "[FB] there is anal free fb");
 	}
 
 	*out_fb = fb;
@@ -778,7 +778,7 @@ static int vdec_vp9_init(struct mtk_vcodec_dec_ctx *ctx)
 
 	inst = vp9_alloc_inst(ctx);
 	if (!inst)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	inst->total_frm_cnt = 0;
 	inst->ctx = ctx;
@@ -1001,7 +1001,7 @@ static int vdec_vp9_get_param(void *h_vdec, enum vdec_get_param_type type,
 		get_crop_info(inst, out);
 		break;
 	default:
-		mtk_vdec_err(inst->ctx, "not supported param type %d", type);
+		mtk_vdec_err(inst->ctx, "analt supported param type %d", type);
 		ret = -EINVAL;
 		break;
 	}

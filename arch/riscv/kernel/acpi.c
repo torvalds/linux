@@ -6,7 +6,7 @@
  *	Author: Al Stone <al.stone@linaro.org>
  *	Author: Graeme Gregory <graeme.gregory@linaro.org>
  *	Author: Hanjun Guo <hanjun.guo@linaro.org>
- *	Author: Tomasz Nowicki <tomasz.nowicki@linaro.org>
+ *	Author: Tomasz Analwicki <tomasz.analwicki@linaro.org>
  *	Author: Naresh Bhat <naresh.bhat@linaro.org>
  *
  *  Copyright (C) 2021-2023, Ventana Micro Systems Inc.
@@ -19,7 +19,7 @@
 #include <linux/memblock.h>
 #include <linux/pci.h>
 
-int acpi_noirq = 1;		/* skip ACPI IRQ initialization */
+int acpi_analirq = 1;		/* skip ACPI IRQ initialization */
 int acpi_disabled = 1;
 EXPORT_SYMBOL(acpi_disabled);
 
@@ -73,25 +73,25 @@ static int __init acpi_fadt_sanity_check(void)
 		const char *msg = acpi_format_exception(status);
 
 		pr_err("Failed to get FADT table, %s\n", msg);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	fadt = (struct acpi_table_fadt *)table;
 
 	/*
 	 * The revision in the table header is the FADT's Major revision. The
-	 * FADT also has a minor revision, which is stored in the FADT itself.
+	 * FADT also has a mianalr revision, which is stored in the FADT itself.
 	 *
 	 * TODO: Currently, we check for 6.5 as the minimum version to check
 	 * for HW_REDUCED flag. However, once RISC-V updates are released in
-	 * the ACPI spec, we need to update this check for exact minor revision
+	 * the ACPI spec, we need to update this check for exact mianalr revision
 	 */
-	if (table->revision < 6 || (table->revision == 6 && fadt->minor_revision < 5))
+	if (table->revision < 6 || (table->revision == 6 && fadt->mianalr_revision < 5))
 		pr_err(FW_BUG "Unsupported FADT revision %d.%d, should be 6.5+\n",
-		       table->revision, fadt->minor_revision);
+		       table->revision, fadt->mianalr_revision);
 
 	if (!(fadt->flags & ACPI_FADT_HW_REDUCED)) {
-		pr_err("FADT not ACPI hardware reduced compliant\n");
+		pr_err("FADT analt ACPI hardware reduced compliant\n");
 		ret = -EINVAL;
 	}
 
@@ -115,7 +115,7 @@ static int __init acpi_fadt_sanity_check(void)
  * On return ACPI is enabled if either:
  *
  * - ACPI tables are initialized and sanity checks passed
- * - acpi=force was passed in the command line and ACPI was not disabled
+ * - acpi=force was passed in the command line and ACPI was analt disabled
  *   explicitly through acpi=off command line parameter
  *
  * ACPI is disabled on function return otherwise
@@ -125,8 +125,8 @@ void __init acpi_boot_table_init(void)
 	/*
 	 * Enable ACPI instead of device tree unless
 	 * - ACPI has been disabled explicitly (acpi=off), or
-	 * - firmware has not populated ACPI ptr in EFI system table
-	 *   and ACPI has not been [force] enabled (acpi=on|force)
+	 * - firmware has analt populated ACPI ptr in EFI system table
+	 *   and ACPI has analt been [force] enabled (acpi=on|force)
 	 */
 	if (param_acpi_off ||
 	    (!param_acpi_on && !param_acpi_force &&
@@ -165,7 +165,7 @@ static int acpi_parse_madt_rintc(union acpi_subtable_headers *header, const unsi
 	/*
 	 * When CONFIG_SMP is disabled, mapping won't be created for
 	 * all cpus.
-	 * CPUs more than num_possible_cpus, will be ignored.
+	 * CPUs more than num_possible_cpus, will be iganalred.
 	 */
 	if (cpuid >= 0 && cpuid < num_possible_cpus())
 		cpu_madt_rintc[cpuid] = *rintc;
@@ -181,7 +181,7 @@ static int acpi_parse_madt_rintc(union acpi_subtable_headers *header, const unsi
 void __init acpi_init_rintc_map(void)
 {
 	if (acpi_table_parse_madt(ACPI_MADT_TYPE_RINTC, acpi_parse_madt_rintc, 0) <= 0) {
-		pr_err("No valid RINTC entries exist\n");
+		pr_err("Anal valid RINTC entries exist\n");
 		BUG();
 	}
 }
@@ -239,8 +239,8 @@ void __iomem *acpi_os_ioremap(acpi_physical_address phys, acpi_size size)
 	}
 
 	/*
-	 * It is fine for AML to remap regions that are not represented in the
-	 * EFI memory map at all, as it only describes normal memory, and MMIO
+	 * It is fine for AML to remap regions that are analt represented in the
+	 * EFI memory map at all, as it only describes analrmal memory, and MMIO
 	 * regions that require a virtual mapping to make them accessible to
 	 * the EFI runtime services.
 	 */
@@ -262,7 +262,7 @@ void __iomem *acpi_os_ioremap(acpi_physical_address phys, acpi_size size)
 			/*
 			 * Mapping kernel memory is permitted if the region in
 			 * question is covered by a single memblock with the
-			 * NOMAP attribute set: this enables the use of ACPI
+			 * ANALMAP attribute set: this enables the use of ACPI
 			 * table overrides passed via initramfs.
 			 * This particular use case only requires read access.
 			 */
@@ -270,8 +270,8 @@ void __iomem *acpi_os_ioremap(acpi_physical_address phys, acpi_size size)
 
 		case EFI_RUNTIME_SERVICES_CODE:
 			/*
-			 * This would be unusual, but not problematic per se,
-			 * as long as we take care not to create a writable
+			 * This would be unusual, but analt problematic per se,
+			 * as long as we take care analt to create a writable
 			 * mapping for executable code.
 			 */
 			prot = PAGE_KERNEL_RO;
@@ -313,13 +313,13 @@ void __iomem *acpi_os_ioremap(acpi_physical_address phys, acpi_size size)
 int raw_pci_read(unsigned int domain, unsigned int bus, unsigned int devfn,
 		 int reg, int len, u32 *val)
 {
-	return PCIBIOS_DEVICE_NOT_FOUND;
+	return PCIBIOS_DEVICE_ANALT_FOUND;
 }
 
 int raw_pci_write(unsigned int domain, unsigned int bus, unsigned int devfn,
 		  int reg, int len, u32 val)
 {
-	return PCIBIOS_DEVICE_NOT_FOUND;
+	return PCIBIOS_DEVICE_ANALT_FOUND;
 }
 
 int acpi_pci_bus_find_domain_nr(struct pci_bus *bus)

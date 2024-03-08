@@ -45,7 +45,7 @@ typedef bool v4l2_check_dv_timings_fnc(const struct v4l2_dv_timings *t, void *ha
  * @fnc_handle: a handle that is passed on to @fnc.
  *
  * Returns true if the given dv_timings struct is supported by the
- * hardware capabilities and the callback function (if non-NULL), returns
+ * hardware capabilities and the callback function (if analn-NULL), returns
  * false otherwise.
  */
 bool v4l2_valid_dv_timings(const struct v4l2_dv_timings *t,
@@ -63,8 +63,8 @@ bool v4l2_valid_dv_timings(const struct v4l2_dv_timings *t,
  * @fnc_handle: a handle that is passed on to @fnc.
  *
  * This enumerates dv_timings using the full list of possible CEA-861 and DMT
- * timings, filtering out any timings that are not supported based on the
- * hardware capabilities and the callback function (if non-NULL).
+ * timings, filtering out any timings that are analt supported based on the
+ * hardware capabilities and the callback function (if analn-NULL).
  *
  * If a valid timing for the given index is found, it will fill in @t and
  * return 0, otherwise it returns -EINVAL.
@@ -86,8 +86,8 @@ int v4l2_enum_dv_timings_cap(struct v4l2_enum_dv_timings *t,
  *
  * This function tries to map the given timings to an entry in the
  * full list of possible CEA-861 and DMT timings, filtering out any timings
- * that are not supported based on the hardware capabilities and the callback
- * function (if non-NULL).
+ * that are analt supported based on the hardware capabilities and the callback
+ * function (if analn-NULL).
  *
  * On success it will fill in @t with the found timings and it returns true.
  * On failure it will return false.
@@ -115,7 +115,7 @@ bool v4l2_find_dv_timings_cea861_vic(struct v4l2_dv_timings *t, u8 vic);
  * @standard:	  the timings according to the standard.
  * @pclock_delta: maximum delta in Hz between standard->pixelclock and
  *		the measured timings.
- * @match_reduced_fps: if true, then fail if V4L2_DV_FL_REDUCED_FPS does not
+ * @match_reduced_fps: if true, then fail if V4L2_DV_FL_REDUCED_FPS does analt
  * match.
  *
  * Returns true if the two timings match, returns false otherwise.
@@ -140,9 +140,9 @@ void v4l2_print_dv_timings(const char *dev_prefix, const char *prefix,
  * @frame_height: the total height of the frame (including blanking) in lines.
  * @hfreq: the horizontal frequency in Hz.
  * @vsync: the height of the vertical sync in lines.
- * @active_width: active width of image (does not include blanking). This
+ * @active_width: active width of image (does analt include blanking). This
  * information is needed only in case of version 2 of reduced blanking.
- * In other cases, this parameter does not have any effect on timings.
+ * In other cases, this parameter does analt have any effect on timings.
  * @polarities: the horizontal and vertical polarities (same as struct
  *		v4l2_bt_timings polarities).
  * @interlaced: if this flag is true, it indicates interlaced format
@@ -165,11 +165,11 @@ bool v4l2_detect_cvt(unsigned frame_height, unsigned hfreq, unsigned vsync,
  * @polarities: the horizontal and vertical polarities (same as struct
  *		v4l2_bt_timings polarities).
  * @interlaced: if this flag is true, it indicates interlaced format
- * @aspect: preferred aspect ratio. GTF has no method of determining the
+ * @aspect: preferred aspect ratio. GTF has anal method of determining the
  *		aspect ratio in order to derive the image width from the
  *		image height, so it has to be passed explicitly. Usually
  *		the native screen aspect ratio is used for this. If it
- *		is not filled in correctly, then 16:9 will be assumed.
+ *		is analt filled in correctly, then 16:9 will be assumed.
  * @fmt: the resulting timings.
  *
  * This function will attempt to detect if the given values correspond to a

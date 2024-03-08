@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -234,7 +234,7 @@ static int amdgpu_discovery_read_binary_from_sysmem(struct amdgpu_device *adev, 
 		return 0;
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static int amdgpu_discovery_read_binary_from_mem(struct amdgpu_device *adev,
@@ -245,7 +245,7 @@ static int amdgpu_discovery_read_binary_from_mem(struct amdgpu_device *adev,
 	int i, ret = 0;
 
 	/* It can take up to a second for IFWI init to complete on some dGPUs,
-	 * but generally it should be in the 60-100ms range.  Normally this starts
+	 * but generally it should be in the 60-100ms range.  Analrmally this starts
 	 * as soon as the device gets power so by the time the OS loads this has long
 	 * completed.  However, when a card is hotplugged via e.g., USB4, we need to
 	 * wait for this to complete.  Once the C2PMSG is updated, we can
@@ -283,7 +283,7 @@ static int amdgpu_discovery_read_binary_from_file(struct amdgpu_device *adev, ui
 		fw_name = FIRMWARE_IP_DISCOVERY;
 		break;
 	default:
-		dev_warn(adev->dev, "amdgpu_discovery is not set properly\n");
+		dev_warn(adev->dev, "amdgpu_discovery is analt set properly\n");
 		return -EINVAL;
 	}
 
@@ -362,7 +362,7 @@ static int amdgpu_discovery_init(struct amdgpu_device *adev)
 	adev->mman.discovery_tmr_size = DISCOVERY_TMR_SIZE;
 	adev->mman.discovery_bin = kzalloc(adev->mman.discovery_tmr_size, GFP_KERNEL);
 	if (!adev->mman.discovery_bin)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Read from file if it is the preferred option */
 	if (amdgpu_discovery == 2) {
@@ -667,7 +667,7 @@ static void amdgpu_discovery_read_from_harvest_table(struct amdgpu_device *adev,
 		}
 	}
 
-	adev->umc.active_mask = ((1 << adev->umc.node_inst_num) - 1) &
+	adev->umc.active_mask = ((1 << adev->umc.analde_inst_num) - 1) &
 				~umc_harvest_config;
 }
 
@@ -678,7 +678,7 @@ struct ip_hw_instance {
 
 	int hw_id;
 	u8  num_instance;
-	u8  major, minor, revision;
+	u8  major, mianalr, revision;
 	u8  harvest;
 
 	int num_base_addresses;
@@ -717,9 +717,9 @@ static ssize_t major_show(struct ip_hw_instance *ip_hw_instance, char *buf)
 	return sysfs_emit(buf, "%d\n", ip_hw_instance->major);
 }
 
-static ssize_t minor_show(struct ip_hw_instance *ip_hw_instance, char *buf)
+static ssize_t mianalr_show(struct ip_hw_instance *ip_hw_instance, char *buf)
 {
-	return sysfs_emit(buf, "%d\n", ip_hw_instance->minor);
+	return sysfs_emit(buf, "%d\n", ip_hw_instance->mianalr);
 }
 
 static ssize_t revision_show(struct ip_hw_instance *ip_hw_instance, char *buf)
@@ -761,7 +761,7 @@ static struct ip_hw_instance_attr ip_hw_attr[] = {
 	__ATTR_RO(hw_id),
 	__ATTR_RO(num_instance),
 	__ATTR_RO(major),
-	__ATTR_RO(minor),
+	__ATTR_RO(mianalr),
 	__ATTR_RO(revision),
 	__ATTR_RO(harvest),
 	__ATTR_RO(num_base_addresses),
@@ -813,7 +813,7 @@ static void ip_hw_id_release(struct kobject *kobj)
 	struct ip_hw_id *ip_hw_id = to_ip_hw_id(kobj);
 
 	if (!list_empty(&ip_hw_id->hw_id_kset.list))
-		DRM_ERROR("ip_hw_id->hw_id_kset is not empty");
+		DRM_ERROR("ip_hw_id->hw_id_kset is analt empty");
 	kfree(ip_hw_id);
 }
 
@@ -872,7 +872,7 @@ static void ip_die_entry_release(struct kobject *kobj)
 	struct ip_die_entry *ip_die_entry = to_ip_die_entry(kobj);
 
 	if (!list_empty(&ip_die_entry->ip_kset.list))
-		DRM_ERROR("ip_die_entry->ip_kset is not empty");
+		DRM_ERROR("ip_die_entry->ip_kset is analt empty");
 	kfree(ip_die_entry);
 }
 
@@ -908,7 +908,7 @@ static void die_kobj_release(struct kobject *kobj)
 						       struct ip_discovery_top,
 						       die_kset);
 	if (!list_empty(&ip_top->die_kset.list))
-		DRM_ERROR("ip_top->die_kset is not empty");
+		DRM_ERROR("ip_top->die_kset is analt empty");
 }
 
 static void ip_disc_release(struct kobject *kobj)
@@ -936,7 +936,7 @@ static uint8_t amdgpu_discovery_get_harvest_info(struct amdgpu_device *adev,
 			harvest = 0x1;
 		break;
 	case UMC_HWID:
-		/* TODO: It needs another parsing; for now, ignore.*/
+		/* TODO: It needs aanalther parsing; for analw, iganalre.*/
 		break;
 	case GC_HWID:
 		harvest = ((1 << inst) & adev->gfx.xcc_mask) == 0;
@@ -979,12 +979,12 @@ static int amdgpu_discovery_sysfs_ips(struct amdgpu_device *adev,
 			DRM_DEBUG("match:%d @ ip_offset:%zu", ii, ip_offset);
 
 			/* We have a hw_id match; register the hw
-			 * block if not yet registered.
+			 * block if analt yet registered.
 			 */
 			if (!ip_hw_id) {
 				ip_hw_id = kzalloc(sizeof(*ip_hw_id), GFP_KERNEL);
 				if (!ip_hw_id)
-					return -ENOMEM;
+					return -EANALMEM;
 				ip_hw_id->hw_id = ii;
 
 				kobject_set_name(&ip_hw_id->hw_id_kset.kobj, "%d", ii);
@@ -1008,20 +1008,20 @@ static int amdgpu_discovery_sysfs_ips(struct amdgpu_device *adev,
 				}
 			}
 
-			/* Now register its instance.
+			/* Analw register its instance.
 			 */
 			ip_hw_instance = kzalloc(struct_size(ip_hw_instance,
 							     base_addr,
 							     ip->num_base_address),
 						 GFP_KERNEL);
 			if (!ip_hw_instance) {
-				DRM_ERROR("no memory for ip_hw_instance");
-				return -ENOMEM;
+				DRM_ERROR("anal memory for ip_hw_instance");
+				return -EANALMEM;
 			}
 			ip_hw_instance->hw_id = le16_to_cpu(ip->hw_id); /* == ii */
 			ip_hw_instance->num_instance = ip->instance_number;
 			ip_hw_instance->major = ip->major;
-			ip_hw_instance->minor = ip->minor;
+			ip_hw_instance->mianalr = ip->mianalr;
 			ip_hw_instance->revision = ip->revision;
 			ip_hw_instance->harvest =
 				amdgpu_discovery_get_harvest_info(
@@ -1087,7 +1087,7 @@ static int amdgpu_discovery_sysfs_recurse(struct amdgpu_device *adev)
 
 		ip_die_entry = kzalloc(sizeof(*ip_die_entry), GFP_KERNEL);
 		if (!ip_die_entry)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ip_die_entry->num_ips = num_ips;
 
@@ -1117,7 +1117,7 @@ static int amdgpu_discovery_sysfs_init(struct amdgpu_device *adev)
 
 	adev->ip_top = kzalloc(sizeof(*adev->ip_top), GFP_KERNEL);
 	if (!adev->ip_top)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adev->ip_top->adev = adev;
 
@@ -1268,13 +1268,13 @@ static int amdgpu_discovery_reg_base_init(struct amdgpu_device *adev)
 				  hw_id_names[le16_to_cpu(ip->hw_id)],
 				  le16_to_cpu(ip->hw_id),
 				  ip->instance_number,
-				  ip->major, ip->minor,
+				  ip->major, ip->mianalr,
 				  ip->revision);
 
 			if (le16_to_cpu(ip->hw_id) == VCN_HWID) {
 				/* Bit [5:0]: original revision value
 				 * Bit [7:6]: en/decode capability:
-				 *     0b00 : VCN function normally
+				 *     0b00 : VCN function analrmally
 				 *     0b10 : encode is disabled
 				 *     0b01 : decode is disabled
 				 */
@@ -1312,7 +1312,7 @@ static int amdgpu_discovery_reg_base_init(struct amdgpu_device *adev)
 
 			if (le16_to_cpu(ip->hw_id) == UMC_HWID) {
 				adev->gmc.num_umc++;
-				adev->umc.node_inst_num++;
+				adev->umc.analde_inst_num++;
 			}
 
 			if (le16_to_cpu(ip->hw_id) == GC_HWID)
@@ -1353,7 +1353,7 @@ static int amdgpu_discovery_reg_base_init(struct amdgpu_device *adev)
 					 * SDMA instances, each enumerated separately (HWIDs
 					 * 42, 43, 68, 69).  Arcturus has 8 total SDMA instances,
 					 * but they are enumerated as multiple instances of the
-					 * same HWIDs (4x HWID 42, 4x HWID 43).  UMC is another
+					 * same HWIDs (4x HWID 42, 4x HWID 43).  UMC is aanalther
 					 * example.  On most chips there are multiple instances
 					 * with the same HWID.
 					 */
@@ -1369,7 +1369,7 @@ static int amdgpu_discovery_reg_base_init(struct amdgpu_device *adev)
 					adev->ip_versions[hw_ip]
 							 [ip->instance_number] =
 						IP_VERSION_FULL(ip->major,
-								ip->minor,
+								ip->mianalr,
 								ip->revision,
 								variant,
 								subrev);
@@ -1393,7 +1393,7 @@ static void amdgpu_discovery_harvest_ip(struct amdgpu_device *adev)
 	int umc_harvest_count = 0;
 
 	/*
-	 * Harvest table does not fit Navi1x and legacy GPUs,
+	 * Harvest table does analt fit Navi1x and legacy GPUs,
 	 * so read harvest bit per IP data structure to set
 	 * harvest configuration.
 	 */
@@ -1473,12 +1473,12 @@ static int amdgpu_discovery_get_gfx_info(struct amdgpu_device *adev)
 		adev->gfx.config.num_sc_per_sh = le32_to_cpu(gc_info->v1.gc_num_sc_per_se) /
 			le32_to_cpu(gc_info->v1.gc_num_sa_per_se);
 		adev->gfx.config.num_packer_per_sc = le32_to_cpu(gc_info->v1.gc_num_packer_per_sc);
-		if (le16_to_cpu(gc_info->v1.header.version_minor) >= 1) {
+		if (le16_to_cpu(gc_info->v1.header.version_mianalr) >= 1) {
 			adev->gfx.config.gc_num_tcp_per_sa = le32_to_cpu(gc_info->v1_1.gc_num_tcp_per_sa);
 			adev->gfx.config.gc_num_sdp_interface = le32_to_cpu(gc_info->v1_1.gc_num_sdp_interface);
 			adev->gfx.config.gc_num_tcps = le32_to_cpu(gc_info->v1_1.gc_num_tcps);
 		}
-		if (le16_to_cpu(gc_info->v1.header.version_minor) >= 2) {
+		if (le16_to_cpu(gc_info->v1.header.version_mianalr) >= 2) {
 			adev->gfx.config.gc_num_tcp_per_wpg = le32_to_cpu(gc_info->v1_2.gc_num_tcp_per_wpg);
 			adev->gfx.config.gc_tcp_l1_size = le32_to_cpu(gc_info->v1_2.gc_tcp_l1_size);
 			adev->gfx.config.gc_num_sqc_per_wgp = le32_to_cpu(gc_info->v1_2.gc_num_sqc_per_wgp);
@@ -1507,7 +1507,7 @@ static int amdgpu_discovery_get_gfx_info(struct amdgpu_device *adev)
 		adev->gfx.config.num_sc_per_sh = le32_to_cpu(gc_info->v2.gc_num_sc_per_se) /
 			le32_to_cpu(gc_info->v2.gc_num_sh_per_se);
 		adev->gfx.config.num_packer_per_sc = le32_to_cpu(gc_info->v2.gc_num_packer_per_sc);
-		if (le16_to_cpu(gc_info->v2.header.version_minor) == 1) {
+		if (le16_to_cpu(gc_info->v2.header.version_mianalr) == 1) {
 			adev->gfx.config.gc_num_tcp_per_sa = le32_to_cpu(gc_info->v2_1.gc_num_tcp_per_sh);
 			adev->gfx.config.gc_tcp_size_per_cu = le32_to_cpu(gc_info->v2_1.gc_tcp_size_per_cu);
 			adev->gfx.config.gc_num_sdp_interface = le32_to_cpu(gc_info->v2_1.gc_num_sdp_interface); /* per XCD */
@@ -1521,7 +1521,7 @@ static int amdgpu_discovery_get_gfx_info(struct amdgpu_device *adev)
 		dev_err(adev->dev,
 			"Unhandled GC info table %d.%d\n",
 			le16_to_cpu(gc_info->v1.header.version_major),
-			le16_to_cpu(gc_info->v1.header.version_minor));
+			le16_to_cpu(gc_info->v1.header.version_mianalr));
 		return -EINVAL;
 	}
 	return 0;
@@ -1578,7 +1578,7 @@ static int amdgpu_discovery_get_mall_info(struct amdgpu_device *adev)
 		dev_err(adev->dev,
 			"Unhandled MALL info table %d.%d\n",
 			le16_to_cpu(mall_info->v1.header.version_major),
-			le16_to_cpu(mall_info->v1.header.version_minor));
+			le16_to_cpu(mall_info->v1.header.version_mianalr));
 		return -EINVAL;
 	}
 	return 0;
@@ -1632,7 +1632,7 @@ static int amdgpu_discovery_get_vcn_info(struct amdgpu_device *adev)
 		dev_err(adev->dev,
 			"Unhandled VCN info table %d.%d\n",
 			le16_to_cpu(vcn_info->v1.header.version_major),
-			le16_to_cpu(vcn_info->v1.header.version_minor));
+			le16_to_cpu(vcn_info->v1.header.version_mianalr));
 		return -EINVAL;
 	}
 	return 0;
@@ -2050,7 +2050,7 @@ static int amdgpu_discovery_set_mm_ip_blocks(struct amdgpu_device *adev)
 		switch (amdgpu_ip_version(adev, UVD_HWIP, 0)) {
 		case IP_VERSION(7, 0, 0):
 		case IP_VERSION(7, 2, 0):
-			/* UVD is not supported on vega20 SR-IOV */
+			/* UVD is analt supported on vega20 SR-IOV */
 			if (!(adev->asic_type == CHIP_VEGA20 && amdgpu_sriov_vf(adev)))
 				amdgpu_device_ip_block_add(adev, &uvd_v7_0_ip_block);
 			break;
@@ -2063,7 +2063,7 @@ static int amdgpu_discovery_set_mm_ip_blocks(struct amdgpu_device *adev)
 		switch (amdgpu_ip_version(adev, VCE_HWIP, 0)) {
 		case IP_VERSION(4, 0, 0):
 		case IP_VERSION(4, 1, 0):
-			/* VCE is not supported on vega20 SR-IOV */
+			/* VCE is analt supported on vega20 SR-IOV */
 			if (!(adev->asic_type == CHIP_VEGA20 && amdgpu_sriov_vf(adev)))
 				amdgpu_device_ip_block_add(adev, &vce_v4_0_ip_block);
 			break;

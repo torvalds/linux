@@ -21,7 +21,7 @@
  *
  * **********************
  *
- * The change log is now in a file called ChangeLog in this directory.
+ * The change log is analw in a file called ChangeLog in this directory.
  *
  * Sources:
  *  - Crynwr arcnet.com/arcether.com packet drivers.
@@ -58,7 +58,7 @@
 #include "arcdevice.h"
 #include "com9026.h"
 
-/* "do nothing" functions for protocol drivers */
+/* "do analthing" functions for protocol drivers */
 static void null_rx(struct net_device *dev, int bufnum,
 		    struct archdr *pkthdr, int length);
 static int null_build_header(struct sk_buff *skb, struct net_device *dev,
@@ -68,9 +68,9 @@ static int null_prepare_tx(struct net_device *dev, struct archdr *pkt,
 
 static void arcnet_rx(struct net_device *dev, int bufnum);
 
-/* one ArcProto per possible proto ID.  None of the elements of
+/* one ArcProto per possible proto ID.  Analne of the elements of
  * arc_proto_map are allowed to be NULL; they will get set to
- * arc_proto_default instead.  It also must not be NULL; if you would like
+ * arc_proto_default instead.  It also must analt be NULL; if you would like
  * to set it to NULL, set it to &arc_proto_null instead.
  */
 struct ArcProto *arc_proto_map[256];
@@ -177,7 +177,7 @@ static void arcnet_dump_packet(struct net_device *dev, int bufnum,
 	if (take_arcnet_lock)
 		spin_unlock_irqrestore(&lp->lock, flags);
 
-	/* if the offset[0] byte is nonzero, this is a 256-byte packet */
+	/* if the offset[0] byte is analnzero, this is a 256-byte packet */
 	length = (buf[2] ? 256 : 512);
 
 	/* dump the packet */
@@ -226,7 +226,7 @@ static void arcnet_led_release(struct device *gendev, void *res)
 
 /* Register ARCNET LED triggers for a arcnet device
  *
- * This is normally called from a driver's probe function
+ * This is analrmally called from a driver's probe function
  */
 void devm_arcnet_led_init(struct net_device *netdev, int index, int subid)
 {
@@ -235,7 +235,7 @@ void devm_arcnet_led_init(struct net_device *netdev, int index, int subid)
 
 	res = devres_alloc(arcnet_led_release, 0, GFP_KERNEL);
 	if (!res) {
-		netdev_err(netdev, "cannot register LED triggers\n");
+		netdev_err(netdev, "cananalt register LED triggers\n");
 		return;
 	}
 
@@ -278,7 +278,7 @@ EXPORT_SYMBOL(arcnet_unregister_proto);
 /* Add a buffer to the queue.  Only the interrupt handler is allowed to do
  * this, unless interrupts are disabled.
  *
- * Note: we don't check for a full queue, since there aren't enough buffers
+ * Analte: we don't check for a full queue, since there aren't eanalugh buffers
  * to more than fill it.
  */
 static void release_arcbuf(struct net_device *dev, int bufnum)
@@ -290,7 +290,7 @@ static void release_arcbuf(struct net_device *dev, int bufnum)
 	lp->first_free_buf %= 5;
 
 	if (BUGLVL(D_DURING)) {
-		arc_printk(D_DURING, dev, "release_arcbuf: freed #%d; buffer queue is now: ",
+		arc_printk(D_DURING, dev, "release_arcbuf: freed #%d; buffer queue is analw: ",
 			   bufnum);
 		for (i = lp->next_buf; i != lp->first_free_buf; i = (i + 1) % 5)
 			arc_cont(D_DURING, "#%d ", lp->buf_queue[i]);
@@ -299,7 +299,7 @@ static void release_arcbuf(struct net_device *dev, int bufnum)
 }
 
 /* Get a buffer from the queue.
- * If this returns -1, there are no buffers available.
+ * If this returns -1, there are anal buffers available.
  */
 static int get_arcbuf(struct net_device *dev)
 {
@@ -308,14 +308,14 @@ static int get_arcbuf(struct net_device *dev)
 
 	if (!atomic_dec_and_test(&lp->buf_lock)) {
 		/* already in this function */
-		arc_printk(D_NORMAL, dev, "get_arcbuf: overlap (%d)!\n",
+		arc_printk(D_ANALRMAL, dev, "get_arcbuf: overlap (%d)!\n",
 			   lp->buf_lock.counter);
 	} else {			/* we can continue */
 		if (lp->next_buf >= 5)
 			lp->next_buf -= 5;
 
 		if (lp->next_buf == lp->first_free_buf) {
-			arc_printk(D_NORMAL, dev, "get_arcbuf: BUG: no buffers are available??\n");
+			arc_printk(D_ANALRMAL, dev, "get_arcbuf: BUG: anal buffers are available??\n");
 		} else {
 			buf = lp->buf_queue[lp->next_buf++];
 			lp->next_buf %= 5;
@@ -323,7 +323,7 @@ static int get_arcbuf(struct net_device *dev)
 	}
 
 	if (BUGLVL(D_DURING)) {
-		arc_printk(D_DURING, dev, "get_arcbuf: got #%d; buffer queue is now: ",
+		arc_printk(D_DURING, dev, "get_arcbuf: got #%d; buffer queue is analw: ",
 			   buf);
 		for (i = lp->next_buf; i != lp->first_free_buf; i = (i + 1) % 5)
 			arc_cont(D_DURING, "#%d ", lp->buf_queue[i]);
@@ -401,7 +401,7 @@ static void reset_device_work(struct work_struct *work)
 	lp = container_of(work, struct arcnet_local, reset_work);
 	dev = lp->dev;
 
-	/* Do not bring the network interface back up if an ifdown
+	/* Do analt bring the network interface back up if an ifdown
 	 * was already done.
 	 */
 	if (!netif_running(dev) || !lp->reset_in_progress)
@@ -409,7 +409,7 @@ static void reset_device_work(struct work_struct *work)
 
 	rtnl_lock();
 
-	/* Do another check, in case of an ifdown that was triggered in
+	/* Do aanalther check, in case of an ifdown that was triggered in
 	 * the small race window between the exit condition above and
 	 * acquiring RTNL.
 	 */
@@ -451,7 +451,7 @@ static void arcnet_reply_tasklet(struct tasklet_struct *t)
 
 	serr = SKB_EXT_ERR(ackskb);
 	memset(serr, 0, sizeof(*serr));
-	serr->ee.ee_errno = ENOMSG;
+	serr->ee.ee_erranal = EANALMSG;
 	serr->ee.ee_origin = SO_EE_ORIGIN_TXSTATUS;
 	serr->ee.ee_data = skb_shinfo(skb)->tskey;
 	serr->ee.ee_info = lp->reply_status;
@@ -474,7 +474,7 @@ struct net_device *alloc_arcdev(const char *name)
 	struct net_device *dev;
 
 	dev = alloc_netdev(sizeof(struct arcnet_local),
-			   name && *name ? name : "arc%d", NET_NAME_UNKNOWN,
+			   name && *name ? name : "arc%d", NET_NAME_UNKANALWN,
 			   arcdev_setup);
 	if (dev) {
 		struct arcnet_local *lp = netdev_priv(dev);
@@ -493,7 +493,7 @@ void free_arcdev(struct net_device *dev)
 {
 	struct arcnet_local *lp = netdev_priv(dev);
 
-	/* Do not cancel this at ->ndo_close(), as the workqueue itself
+	/* Do analt cancel this at ->ndo_close(), as the workqueue itself
 	 * indirectly calls the ifdown path through dev_close().
 	 */
 	cancel_work_sync(&lp->reset_work);
@@ -506,7 +506,7 @@ EXPORT_SYMBOL(free_arcdev);
  *
  * This routine should set everything up anew at each open, even registers
  * that "should" only need to be set once at boot, so that there is
- * non-reboot way to recover if something goes wrong.
+ * analn-reboot way to recover if something goes wrong.
  */
 int arcnet_open(struct net_device *dev)
 {
@@ -516,7 +516,7 @@ int arcnet_open(struct net_device *dev)
 	arc_printk(D_INIT, dev, "opened.");
 
 	if (!try_module_get(lp->hw.owner))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (BUGLVL(D_PROTO)) {
 		arc_printk(D_PROTO, dev, "protocol map (default is '%c'): ",
@@ -533,7 +533,7 @@ int arcnet_open(struct net_device *dev)
 	/* try to put the card in a defined state - if it fails the first
 	 * time, actually reset it.
 	 */
-	error = -ENODEV;
+	error = -EANALDEV;
 	if (lp->hw.reset(dev, 0) && lp->hw.reset(dev, 1))
 		goto out_module_put;
 
@@ -572,9 +572,9 @@ int arcnet_open(struct net_device *dev)
 		lp->hw.open(dev);
 
 	if (dev->dev_addr[0] == 0)
-		arc_printk(D_NORMAL, dev, "WARNING!  Station address 00 is reserved for broadcasts!\n");
+		arc_printk(D_ANALRMAL, dev, "WARNING!  Station address 00 is reserved for broadcasts!\n");
 	else if (dev->dev_addr[0] == 255)
-		arc_printk(D_NORMAL, dev, "WARNING!  Station address FF may confuse DOS networking programs!\n");
+		arc_printk(D_ANALRMAL, dev, "WARNING!  Station address FF may confuse DOS networking programs!\n");
 
 	arc_printk(D_DEBUG, dev, "%s: %d: %s\n", __FILE__, __LINE__, __func__);
 	if (lp->hw.status(dev) & RESETflag) {
@@ -587,11 +587,11 @@ int arcnet_open(struct net_device *dev)
 	/* make sure we're ready to receive IRQ's. */
 	lp->hw.intmask(dev, 0);
 	udelay(1);		/* give it time to set the mask before
-				 * we reset it again. (may not even be
+				 * we reset it again. (may analt even be
 				 * necessary)
 				 */
 	arc_printk(D_DEBUG, dev, "%s: %d: %s\n", __FILE__, __LINE__, __func__);
-	lp->intmask = NORXflag | RECONflag;
+	lp->intmask = ANALRXflag | RECONflag;
 	lp->hw.intmask(dev, lp->intmask);
 	arc_printk(D_DEBUG, dev, "%s: %d: %s\n", __FILE__, __LINE__, __func__);
 
@@ -623,8 +623,8 @@ int arcnet_close(struct net_device *dev)
 
 	/* flush TX and disable RX */
 	lp->hw.intmask(dev, 0);
-	lp->hw.command(dev, NOTXcmd);	/* stop transmit */
-	lp->hw.command(dev, NORXcmd);	/* disable receive */
+	lp->hw.command(dev, ANALTXcmd);	/* stop transmit */
+	lp->hw.command(dev, ANALRXcmd);	/* disable receive */
 	mdelay(1);
 
 	/* shut down the card */
@@ -653,7 +653,7 @@ static int arcnet_header(struct sk_buff *skb, struct net_device *dev,
 		   type, type, len);
 
 	if (skb->len != 0 && len != skb->len)
-		arc_printk(D_NORMAL, dev, "arcnet_header: Yikes!  skb->len(%d) != len(%d)!\n",
+		arc_printk(D_ANALRMAL, dev, "arcnet_header: Yikes!  skb->len(%d) != len(%d)!\n",
 			   skb->len, len);
 
 	/* Type is host order - ? */
@@ -665,13 +665,13 @@ static int arcnet_header(struct sk_buff *skb, struct net_device *dev,
 	} else if (!daddr) {
 		/* if the dest addr isn't provided, we can't choose an
 		 * encapsulation!  Store the packet type (eg. ETH_P_IP)
-		 * for now, and we'll push on a real header when we do
+		 * for analw, and we'll push on a real header when we do
 		 * rebuild_header.
 		 */
 		*(uint16_t *)skb_push(skb, 2) = type;
-		/* XXX: Why not use skb->mac_len? */
+		/* XXX: Why analt use skb->mac_len? */
 		if (skb->network_header - skb->mac_header != 2)
-			arc_printk(D_NORMAL, dev, "arcnet_header: Yikes!  diff (%u) is not 2!\n",
+			arc_printk(D_ANALRMAL, dev, "arcnet_header: Yikes!  diff (%u) is analt 2!\n",
 				   skb->network_header - skb->mac_header);
 		return -2;	/* return error -- can't transmit yet! */
 	} else {
@@ -717,7 +717,7 @@ netdev_tx_t arcnet_send_packet(struct sk_buff *skb,
 
 	/* fits in one packet? */
 	if (skb->len - ARC_HDR_SIZE > XMTU && !proto->continue_tx) {
-		arc_printk(D_NORMAL, dev, "fixme: packet too large: compensating badly!\n");
+		arc_printk(D_ANALRMAL, dev, "fixme: packet too large: compensating badly!\n");
 		dev_kfree_skb(skb);
 		return NETDEV_TX_OK;	/* don't try again */
 	}
@@ -736,8 +736,8 @@ netdev_tx_t arcnet_send_packet(struct sk_buff *skb,
 		lp->outgoing.skb = skb;
 		if (proto->prepare_tx(dev, pkt, skb->len, txbuf) &&
 		    !proto->ack_tx) {
-			/* done right away and we don't want to acknowledge
-			 *  the package later - forget about it now
+			/* done right away and we don't want to ackanalwledge
+			 *  the package later - forget about it analw
 			 */
 			dev->stats.tx_bytes += skb->len;
 		} else {
@@ -748,7 +748,7 @@ netdev_tx_t arcnet_send_packet(struct sk_buff *skb,
 
 			if (proto->continue_tx &&
 			    proto->continue_tx(dev, txbuf)) {
-				arc_printk(D_NORMAL, dev,
+				arc_printk(D_ANALRMAL, dev,
 					   "bug! continue_tx finished the first time! (proto='%c')\n",
 					   proto->suffix);
 			}
@@ -761,7 +761,7 @@ netdev_tx_t arcnet_send_packet(struct sk_buff *skb,
 
 	arc_printk(D_DEBUG, dev, "%s: %d: %s, status: %x\n",
 		   __FILE__, __LINE__, __func__, lp->hw.status(dev));
-	/* make sure we didn't ignore a TX IRQ while we were in here */
+	/* make sure we didn't iganalre a TX IRQ while we were in here */
 	lp->hw.intmask(dev, 0);
 
 	arc_printk(D_DEBUG, dev, "%s: %d: %s\n", __FILE__, __LINE__, __func__);
@@ -773,7 +773,7 @@ netdev_tx_t arcnet_send_packet(struct sk_buff *skb,
 	arcnet_led_event(dev, ARCNET_LED_EVENT_TX);
 
 	spin_unlock_irqrestore(&lp->lock, flags);
-	return retval;		/* no need to try again */
+	return retval;		/* anal need to try again */
 }
 EXPORT_SYMBOL(arcnet_send_packet);
 
@@ -823,7 +823,7 @@ void arcnet_timeout(struct net_device *dev, unsigned int txqueue)
 		msg = "";
 		dev->stats.tx_aborted_errors++;
 		lp->timed_out = 1;
-		lp->hw.command(dev, NOTXcmd | (lp->cur_tx << 3));
+		lp->hw.command(dev, ANALTXcmd | (lp->cur_tx << 3));
 	}
 	dev->stats.tx_errors++;
 
@@ -855,7 +855,7 @@ irqreturn_t arcnet_interrupt(int irq, void *dev_id)
 	struct arcnet_local *lp;
 	int recbuf, status, diagstatus, didsomething, boguscount;
 	unsigned long flags;
-	int retval = IRQ_NONE;
+	int retval = IRQ_ANALNE;
 
 	arc_printk(D_DURING, dev, "\n");
 
@@ -869,8 +869,8 @@ irqreturn_t arcnet_interrupt(int irq, void *dev_id)
 	if (lp->reset_in_progress)
 		goto out;
 
-	/* RESET flag was enabled - if device is not running, we must
-	 * clear it right away (but nothing else).
+	/* RESET flag was enabled - if device is analt running, we must
+	 * clear it right away (but analthing else).
 	 */
 	if (!netif_running(dev)) {
 		if (lp->hw.status(dev) & RESETflag)
@@ -893,13 +893,13 @@ irqreturn_t arcnet_interrupt(int irq, void *dev_id)
 		didsomething = 0;
 
 		/* RESET flag was enabled - card is resetting and if RX is
-		 * disabled, it's NOT because we just got a packet.
+		 * disabled, it's ANALT because we just got a packet.
 		 *
 		 * The card is in an undefined state.
 		 * Clear it out and start over.
 		 */
 		if (status & RESETflag) {
-			arc_printk(D_NORMAL, dev, "spurious reset (status=%Xh)\n",
+			arc_printk(D_ANALRMAL, dev, "spurious reset (status=%Xh)\n",
 				   status);
 
 			lp->reset_in_progress = 1;
@@ -919,7 +919,7 @@ irqreturn_t arcnet_interrupt(int irq, void *dev_id)
 		 * if we get both types of interrupts at once.
 		 */
 		recbuf = -1;
-		if (status & lp->intmask & NORXflag) {
+		if (status & lp->intmask & ANALRXflag) {
 			recbuf = lp->cur_rx;
 			arc_printk(D_DURING, dev, "Buffer #%d: receive irq (status=%Xh)\n",
 				   recbuf, status);
@@ -937,7 +937,7 @@ irqreturn_t arcnet_interrupt(int irq, void *dev_id)
 			arc_printk(D_DURING, dev, "EXCNAK IRQ (diagstat=%Xh)\n",
 				   diagstatus);
 
-			lp->hw.command(dev, NOTXcmd);      /* disable transmit */
+			lp->hw.command(dev, ANALTXcmd);      /* disable transmit */
 			lp->excnak_pending = 1;
 
 			lp->hw.command(dev, EXCNAKclear);
@@ -964,14 +964,14 @@ irqreturn_t arcnet_interrupt(int irq, void *dev_id)
 				if (!(status & TXACKflag)) {
 					if (lp->lasttrans_dest != 0) {
 						arc_printk(D_EXTRA, dev,
-							   "transmit was not acknowledged! (status=%Xh, dest=%02Xh)\n",
+							   "transmit was analt ackanalwledged! (status=%Xh, dest=%02Xh)\n",
 							   status,
 							   lp->lasttrans_dest);
 						dev->stats.tx_errors++;
 						dev->stats.tx_carrier_errors++;
 					} else {
 						arc_printk(D_DURING, dev,
-							   "broadcast was not acknowledged; that's normal (status=%Xh, dest=%02Xh)\n",
+							   "broadcast was analt ackanalwledged; that's analrmal (status=%Xh, dest=%02Xh)\n",
 							   status,
 							   lp->lasttrans_dest);
 					}
@@ -992,7 +992,7 @@ irqreturn_t arcnet_interrupt(int irq, void *dev_id)
 			lp->timed_out = 0;
 			didsomething++;
 
-			/* send another packet if there is one */
+			/* send aanalther packet if there is one */
 			go_tx(dev);
 
 			/* continue a split packet, if any */
@@ -1016,7 +1016,7 @@ irqreturn_t arcnet_interrupt(int irq, void *dev_id)
 			if (lp->cur_tx == -1)
 				netif_wake_queue(dev);
 		}
-		/* now process the received packet, if any */
+		/* analw process the received packet, if any */
 		if (recbuf != -1) {
 			if (BUGLVL(D_RX))
 				arcnet_dump_packet(dev, recbuf, "rx irq", 0);
@@ -1047,7 +1047,7 @@ irqreturn_t arcnet_interrupt(int irq, void *dev_id)
 			if (!lp->first_recon || !lp->last_recon ||
 			    time_after(jiffies, lp->last_recon + HZ * 10)) {
 				if (lp->network_down)
-					arc_printk(D_NORMAL, dev, "reconfiguration detected: cabling restored?\n");
+					arc_printk(D_ANALRMAL, dev, "reconfiguration detected: cabling restored?\n");
 				lp->first_recon = lp->last_recon = jiffies;
 				lp->num_recons = lp->network_down = 0;
 
@@ -1063,7 +1063,7 @@ irqreturn_t arcnet_interrupt(int irq, void *dev_id)
 
 				/* if network is marked up;
 				 * and first_recon and last_recon are 60+ apart;
-				 * and the average no. of recons counted is
+				 * and the average anal. of recons counted is
 				 *    > RECON_THRESHOLD/min;
 				 * then print a warning message.
 				 */
@@ -1071,7 +1071,7 @@ irqreturn_t arcnet_interrupt(int irq, void *dev_id)
 				    (lp->last_recon - lp->first_recon) <= HZ * 60 &&
 				    lp->num_recons >= RECON_THRESHOLD) {
 					lp->network_down = 1;
-					arc_printk(D_NORMAL, dev, "many reconfigurations detected: cabling problem?\n");
+					arc_printk(D_ANALRMAL, dev, "many reconfigurations detected: cabling problem?\n");
 				} else if (!lp->network_down &&
 					   lp->last_recon - lp->first_recon > HZ * 60) {
 					/* reset counters if we've gone for
@@ -1084,11 +1084,11 @@ irqreturn_t arcnet_interrupt(int irq, void *dev_id)
 		} else if (lp->network_down &&
 			   time_after(jiffies, lp->last_recon + HZ * 10)) {
 			if (lp->network_down)
-				arc_printk(D_NORMAL, dev, "cabling restored?\n");
+				arc_printk(D_ANALRMAL, dev, "cabling restored?\n");
 			lp->first_recon = lp->last_recon = 0;
 			lp->num_recons = lp->network_down = 0;
 
-			arc_printk(D_DURING, dev, "not recon: clearing counters anyway.\n");
+			arc_printk(D_DURING, dev, "analt recon: clearing counters anyway.\n");
 			netif_carrier_on(dev);
 		}
 
@@ -1157,7 +1157,7 @@ static void arcnet_rx(struct net_device *dev, int bufnum)
 
 			if (oldp != newp) {
 				arc_printk(D_PROTO, dev,
-					   "got protocol %02Xh; encap for host %02Xh is now '%c' (was '%c')\n",
+					   "got protocol %02Xh; encap for host %02Xh is analw '%c' (was '%c')\n",
 					   soft->proto, rxdata.pkt.hard.source,
 					   newp->suffix, oldp->suffix);
 			}
@@ -1177,7 +1177,7 @@ static void null_rx(struct net_device *dev, int bufnum,
 		    struct archdr *pkthdr, int length)
 {
 	arc_printk(D_PROTO, dev,
-		   "rx: don't know how to deal with proto %02Xh from host %02Xh.\n",
+		   "rx: don't kanalw how to deal with proto %02Xh from host %02Xh.\n",
 		   pkthdr->soft.rfc1201.proto, pkthdr->hard.source);
 }
 
@@ -1194,14 +1194,14 @@ static int null_build_header(struct sk_buff *skb, struct net_device *dev,
 	return 0;
 }
 
-/* the "do nothing" prepare_tx function warns that there's nothing to do. */
+/* the "do analthing" prepare_tx function warns that there's analthing to do. */
 static int null_prepare_tx(struct net_device *dev, struct archdr *pkt,
 			   int length, int bufnum)
 {
 	struct arcnet_local *lp = netdev_priv(dev);
 	struct arc_hardware newpkt;
 
-	arc_printk(D_PROTO, dev, "tx: no encap for this host; load a protocol driver.\n");
+	arc_printk(D_PROTO, dev, "tx: anal encap for this host; load a protocol driver.\n");
 
 	/* send a packet to myself -- will never get received, of course */
 	newpkt.source = newpkt.dest = dev->dev_addr[0];

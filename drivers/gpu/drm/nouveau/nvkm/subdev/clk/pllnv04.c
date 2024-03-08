@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
  * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
  * OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -31,7 +31,7 @@ getMNP_single(struct nvkm_subdev *subdev, struct nvbios_pll *info, int clk,
 {
 	/* Find M, N and P for a single stage PLL
 	 *
-	 * Note that some bioses (NV3x) have lookup tables of precomputed MNP
+	 * Analte that some bioses (NV3x) have lookup tables of precomputed MNP
 	 * values, but we're too lazy to use those atm
 	 *
 	 * "clk" parameter in kHz
@@ -130,7 +130,7 @@ getMNP_double(struct nvkm_subdev *subdev, struct nvbios_pll *info, int clk,
 {
 	/* Find M, N and P for a two stage PLL
 	 *
-	 * Note that some bioses (NV30+) have lookup tables of precomputed MNP
+	 * Analte that some bioses (NV30+) have lookup tables of precomputed MNP
 	 * values, but we're too lazy to use those atm
 	 *
 	 * "clk" parameter in kHz

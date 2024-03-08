@@ -23,7 +23,7 @@ DEFINE_RB_RESORT_RB(threads, strcmp(a->thread->shortname,
 	struct thread *thread;
 )
 {
-	entry->thread = rb_entry(nd, struct thread, rb_node);
+	entry->thread = rb_entry(nd, struct thread, rb_analde);
 }
 
  * After this it is just a matter of instantiating it and iterating it,
@@ -34,7 +34,7 @@ DEFINE_RB_RESORT_RB(threads, strcmp(a->thread->shortname,
 
  * This will instantiate the new rb_tree and a cursor for it, that can be used as:
 
-	struct rb_node *nd;
+	struct rb_analde *nd;
 
 	resort_rb__for_each_entry(nd, threads) {
 		struct thread *t = threads_entry;
@@ -54,17 +54,17 @@ DEFINE_RB_RESORT_RB(threads, strcmp(a->thread->shortname,
 
 #define DEFINE_RESORT_RB(__name, __comp, ...)					\
 struct __name##_sorted_entry {							\
-	struct rb_node	rb_node;						\
+	struct rb_analde	rb_analde;						\
 	__VA_ARGS__								\
 };										\
-static void __name##_sorted__init_entry(struct rb_node *nd,			\
+static void __name##_sorted__init_entry(struct rb_analde *nd,			\
 					struct __name##_sorted_entry *entry);	\
 										\
-static int __name##_sorted__cmp(struct rb_node *nda, struct rb_node *ndb)	\
+static int __name##_sorted__cmp(struct rb_analde *nda, struct rb_analde *ndb)	\
 {										\
 	struct __name##_sorted_entry *a, *b;					\
-	a = rb_entry(nda, struct __name##_sorted_entry, rb_node);		\
-	b = rb_entry(ndb, struct __name##_sorted_entry, rb_node);		\
+	a = rb_entry(nda, struct __name##_sorted_entry, rb_analde);		\
+	b = rb_entry(ndb, struct __name##_sorted_entry, rb_analde);		\
 	return __comp;								\
 }										\
 										\
@@ -74,9 +74,9 @@ struct __name##_sorted {							\
 };										\
 										\
 static void __name##_sorted__insert(struct __name##_sorted *sorted,		\
-				      struct rb_node *sorted_nd)		\
+				      struct rb_analde *sorted_nd)		\
 {										\
-	struct rb_node **p = &sorted->entries.rb_node, *parent = NULL;		\
+	struct rb_analde **p = &sorted->entries.rb_analde, *parent = NULL;		\
 	while (*p != NULL) {							\
 		parent = *p;							\
 		if (__name##_sorted__cmp(sorted_nd, parent))			\
@@ -84,19 +84,19 @@ static void __name##_sorted__insert(struct __name##_sorted *sorted,		\
 		else								\
 			p = &(*p)->rb_right;					\
 	}									\
-	rb_link_node(sorted_nd, parent, p);					\
+	rb_link_analde(sorted_nd, parent, p);					\
 	rb_insert_color(sorted_nd, &sorted->entries);				\
 }										\
 										\
 static void __name##_sorted__sort(struct __name##_sorted *sorted,		\
 				    struct rb_root *entries)			\
 {										\
-	struct rb_node *nd;							\
+	struct rb_analde *nd;							\
 	unsigned int i = 0;							\
 	for (nd = rb_first(entries); nd; nd = rb_next(nd)) {			\
 		struct __name##_sorted_entry *snd = &sorted->nd[i++];		\
 		__name##_sorted__init_entry(nd, snd);				\
-		__name##_sorted__insert(sorted, &snd->rb_node);			\
+		__name##_sorted__insert(sorted, &snd->rb_analde);			\
 	}									\
 }										\
 										\
@@ -117,7 +117,7 @@ static void __name##_sorted__delete(struct __name##_sorted *sorted)		\
 	free(sorted);								\
 }										\
 										\
-static void __name##_sorted__init_entry(struct rb_node *nd,			\
+static void __name##_sorted__init_entry(struct rb_analde *nd,			\
 					struct __name##_sorted_entry *entry)
 
 #define DECLARE_RESORT_RB(__name)						\
@@ -127,7 +127,7 @@ struct __name##_sorted *__name = __name##_sorted__new
 #define resort_rb__for_each_entry(__nd, __name)					\
 	for (__nd = rb_first(&__name->entries);					\
 	     __name##_entry = rb_entry(__nd, struct __name##_sorted_entry,	\
-				       rb_node), __nd;				\
+				       rb_analde), __nd;				\
 	     __nd = rb_next(__nd))
 
 #define resort_rb__delete(__name)						\

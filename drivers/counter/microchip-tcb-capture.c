@@ -35,7 +35,7 @@ static const enum counter_function mchp_tc_count_functions[] = {
 };
 
 static const enum counter_synapse_action mchp_tc_synapse_actions[] = {
-	COUNTER_SYNAPSE_ACTION_NONE,
+	COUNTER_SYNAPSE_ACTION_ANALNE,
 	COUNTER_SYNAPSE_ACTION_RISING_EDGE,
 	COUNTER_SYNAPSE_ACTION_FALLING_EDGE,
 	COUNTER_SYNAPSE_ACTION_BOTH_EDGES,
@@ -95,7 +95,7 @@ static int mchp_tc_count_function_write(struct counter_device *counter,
 	switch (function) {
 	case COUNTER_FUNCTION_INCREASE:
 		priv->qdec_mode = 0;
-		/* Set highest rate based on whether soc has gclk or not */
+		/* Set highest rate based on whether soc has gclk or analt */
 		bmr &= ~(ATMEL_TC_QDEN | ATMEL_TC_POSEN);
 		if (!priv->tc_cfg->has_gclk)
 			cmr |= ATMEL_TC_TIMER_CLOCK2;
@@ -174,9 +174,9 @@ static int mchp_tc_count_action_read(struct counter_device *counter,
 		return 0;
 	}
 
-	/* Only TIOA signal is evaluated in non-QDEC mode */
+	/* Only TIOA signal is evaluated in analn-QDEC mode */
 	if (synapse->signal->id != 0) {
-		*action = COUNTER_SYNAPSE_ACTION_NONE;
+		*action = COUNTER_SYNAPSE_ACTION_ANALNE;
 		return 0;
 	}
 
@@ -184,7 +184,7 @@ static int mchp_tc_count_action_read(struct counter_device *counter,
 
 	switch (cmr & ATMEL_TC_ETRGEDG) {
 	default:
-		*action = COUNTER_SYNAPSE_ACTION_NONE;
+		*action = COUNTER_SYNAPSE_ACTION_ANALNE;
 		break;
 	case ATMEL_TC_ETRGEDG_RISING:
 		*action = COUNTER_SYNAPSE_ACTION_RISING_EDGE;
@@ -206,15 +206,15 @@ static int mchp_tc_count_action_write(struct counter_device *counter,
 				      enum counter_synapse_action action)
 {
 	struct mchp_tc_data *const priv = counter_priv(counter);
-	u32 edge = ATMEL_TC_ETRGEDG_NONE;
+	u32 edge = ATMEL_TC_ETRGEDG_ANALNE;
 
-	/* QDEC mode is rising edge only; only TIOA handled in non-QDEC mode */
+	/* QDEC mode is rising edge only; only TIOA handled in analn-QDEC mode */
 	if (priv->qdec_mode || synapse->signal->id != 0)
 		return -EINVAL;
 
 	switch (action) {
-	case COUNTER_SYNAPSE_ACTION_NONE:
-		edge = ATMEL_TC_ETRGEDG_NONE;
+	case COUNTER_SYNAPSE_ACTION_ANALNE:
+		edge = ATMEL_TC_ETRGEDG_ANALNE;
 		break;
 	case COUNTER_SYNAPSE_ACTION_RISING_EDGE:
 		edge = ATMEL_TC_ETRGEDG_RISING;
@@ -301,7 +301,7 @@ static void mchp_tc_clk_remove(void *ptr)
 
 static int mchp_tc_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	const struct atmel_tcb_config *tcb_config;
 	const struct of_device_id *match;
 	struct counter_device *counter;
@@ -314,17 +314,17 @@ static int mchp_tc_probe(struct platform_device *pdev)
 
 	counter = devm_counter_alloc(&pdev->dev, sizeof(*priv));
 	if (!counter)
-		return -ENOMEM;
+		return -EANALMEM;
 	priv = counter_priv(counter);
 
-	match = of_match_node(atmel_tc_of_match, np->parent);
+	match = of_match_analde(atmel_tc_of_match, np->parent);
 	tcb_config = match->data;
 	if (!tcb_config) {
-		dev_err(&pdev->dev, "No matching parent node found\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "Anal matching parent analde found\n");
+		return -EANALDEV;
 	}
 
-	regmap = syscon_node_to_regmap(np->parent);
+	regmap = syscon_analde_to_regmap(np->parent);
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
@@ -339,7 +339,7 @@ static int mchp_tc_probe(struct platform_device *pdev)
 	for (i = 0; i < priv->num_channels; i++) {
 		ret = of_property_read_u32_index(np, "reg", i, &channel);
 		if (ret < 0 || channel > 2)
-			return -ENODEV;
+			return -EANALDEV;
 
 		priv->channel[i] = channel;
 

@@ -15,7 +15,7 @@
 #define ADF_PFVF_MSG_ACK_DELAY			2
 #define ADF_PFVF_MSG_ACK_MAX_RETRY		100
 
-/* How often to retry if there is no response */
+/* How often to retry if there is anal response */
 #define ADF_PFVF_MSG_RESP_RETRIES	5
 #define ADF_PFVF_MSG_RESP_TIMEOUT	(ADF_PFVF_MSG_ACK_DELAY * \
 					 ADF_PFVF_MSG_ACK_MAX_RETRY + \
@@ -215,7 +215,7 @@ static int adf_vf2pf_blkmsg_get_crc(struct adf_accel_dev *accel_dev, u8 type,
  * Request a message of type 'type' over the block message transport.
  * This function will send the required amount block message requests and
  * return the overall content back to the caller through the provided buffer.
- * The buffer should be large enough to contain the requested message type,
+ * The buffer should be large eanalugh to contain the requested message type,
  * otherwise the response will be truncated.
  *
  * Return: 0 on success, error code otherwise.
@@ -265,12 +265,12 @@ int adf_send_vf2pf_blkmsg_req(struct adf_accel_dev *accel_dev, u8 type,
 		return -EFAULT;
 	}
 
-	/* We need to pick the minimum since there is no way to request a
+	/* We need to pick the minimum since there is anal way to request a
 	 * specific version. As a consequence any scenario is possible:
 	 * - PF has a newer (longer) version which doesn't fit in the buffer
-	 * - VF expects a newer (longer) version, so we must not ask for
+	 * - VF expects a newer (longer) version, so we must analt ask for
 	 *   bytes in excess
-	 * - PF and VF share the same version, no problem
+	 * - PF and VF share the same version, anal problem
 	 */
 	msg_len = ADF_PFVF_BLKMSG_HEADER_SIZE + buffer[ADF_PFVF_BLKMSG_LEN_BYTE];
 	msg_len = min(*buffer_len, msg_len);
@@ -319,7 +319,7 @@ static bool adf_handle_pf2vf_msg(struct adf_accel_dev *accel_dev,
 		return true;
 	default:
 		dev_err(&GET_DEV(accel_dev),
-			"Unknown message from PF (type 0x%.4x, data: 0x%.4x)\n",
+			"Unkanalwn message from PF (type 0x%.4x, data: 0x%.4x)\n",
 			msg.type, msg.data);
 	}
 
@@ -331,10 +331,10 @@ bool adf_recv_and_handle_pf2vf_msg(struct adf_accel_dev *accel_dev)
 	struct pfvf_message msg;
 
 	msg = adf_recv_pf2vf_msg(accel_dev);
-	if (msg.type)  /* Invalid or no message */
+	if (msg.type)  /* Invalid or anal message */
 		return adf_handle_pf2vf_msg(accel_dev, msg);
 
-	/* No replies for PF->VF messages at present */
+	/* Anal replies for PF->VF messages at present */
 
 	return true;
 }

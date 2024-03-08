@@ -34,7 +34,7 @@ struct max98088_pdata {
        unsigned int receiver_mode:1;
 
        /* Analog/digital microphone configuration:
-        * 0 = analog microphone input (normal setting)
+        * 0 = analog microphone input (analrmal setting)
         * 1 = digital microphone input
         */
        unsigned int digmic_left_mode:1;

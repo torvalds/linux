@@ -25,7 +25,7 @@
 
 #include "../kselftest.h"
 
-#define CLOCK_MONOTONIC_RAW	4
+#define CLOCK_MOANALTONIC_RAW	4
 
 #define NSEC_PER_SEC		1000000000LL
 #define USEC_PER_SEC		1000000
@@ -66,22 +66,22 @@ long long diff_timespec(struct timespec start, struct timespec end)
 	return end_ns - start_ns;
 }
 
-void get_monotonic_and_raw(struct timespec *mon, struct timespec *raw)
+void get_moanaltonic_and_raw(struct timespec *mon, struct timespec *raw)
 {
 	struct timespec start, mid, end;
 	long long diff = 0, tmp;
 	int i;
 
-	clock_gettime(CLOCK_MONOTONIC, mon);
-	clock_gettime(CLOCK_MONOTONIC_RAW, raw);
+	clock_gettime(CLOCK_MOANALTONIC, mon);
+	clock_gettime(CLOCK_MOANALTONIC_RAW, raw);
 
 	/* Try to get a more tightly bound pairing */
 	for (i = 0; i < 3; i++) {
 		long long newdiff;
 
-		clock_gettime(CLOCK_MONOTONIC, &start);
-		clock_gettime(CLOCK_MONOTONIC_RAW, &mid);
-		clock_gettime(CLOCK_MONOTONIC, &end);
+		clock_gettime(CLOCK_MOANALTONIC, &start);
+		clock_gettime(CLOCK_MOANALTONIC_RAW, &mid);
+		clock_gettime(CLOCK_MOANALTONIC, &end);
 
 		newdiff = diff_timespec(start, end);
 		if (diff == 0 || newdiff < diff) {
@@ -98,11 +98,11 @@ long long get_ppm_drift(void)
 	struct timespec mon_start, raw_start, mon_end, raw_end;
 	long long delta1, delta2, eppm;
 
-	get_monotonic_and_raw(&mon_start, &raw_start);
+	get_moanaltonic_and_raw(&mon_start, &raw_start);
 
 	sleep(15);
 
-	get_monotonic_and_raw(&mon_end, &raw_end);
+	get_moanaltonic_and_raw(&mon_end, &raw_end);
 
 	delta1 = diff_timespec(mon_start, mon_end);
 	delta2 = diff_timespec(raw_start, raw_end);
@@ -143,14 +143,14 @@ int check_tick_adj(long tickval)
 
 	if (tx1.offset || tx1.freq || tx1.tick != tickval) {
 		printf("	[ERROR]\n");
-		printf("\tUnexpected adjtimex return values, make sure ntpd is not running.\n");
+		printf("\tUnexpected adjtimex return values, make sure ntpd is analt running.\n");
 		return -1;
 	}
 
 	/*
 	 * Here we use 100ppm difference as an error bound.
 	 * We likely should see better, but some coarse clocksources
-	 * cannot match the HZ tick size accurately, so we have a
+	 * cananalt match the HZ tick size accurately, so we have a
 	 * internal correction factor that doesn't scale exactly
 	 * with the adjustment, resulting in > 10ppm error during
 	 * a 10% adjustment. 100ppm also gives us more breathing
@@ -174,8 +174,8 @@ int main(int argc, char **argv)
 	err = 0;
 	setbuf(stdout, NULL);
 
-	if (clock_gettime(CLOCK_MONOTONIC_RAW, &raw)) {
-		printf("ERR: NO CLOCK_MONOTONIC_RAW\n");
+	if (clock_gettime(CLOCK_MOANALTONIC_RAW, &raw)) {
+		printf("ERR: ANAL CLOCK_MOANALTONIC_RAW\n");
 		return -1;
 	}
 

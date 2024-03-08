@@ -42,7 +42,7 @@ struct hash_malloc_map {
 	__type(key, int);
 	__type(value, struct map_value);
 	__uint(max_entries, 1);
-	__uint(map_flags, BPF_F_NO_PREALLOC);
+	__uint(map_flags, BPF_F_ANAL_PREALLOC);
 } hash_malloc_map SEC(".maps");
 
 struct pcpu_hash_malloc_map {
@@ -50,7 +50,7 @@ struct pcpu_hash_malloc_map {
 	__type(key, int);
 	__type(value, struct map_value);
 	__uint(max_entries, 1);
-	__uint(map_flags, BPF_F_NO_PREALLOC);
+	__uint(map_flags, BPF_F_ANAL_PREALLOC);
 } pcpu_hash_malloc_map SEC(".maps");
 
 struct lru_hash_map {
@@ -69,28 +69,28 @@ struct lru_pcpu_hash_map {
 
 struct cgrp_ls_map {
 	__uint(type, BPF_MAP_TYPE_CGRP_STORAGE);
-	__uint(map_flags, BPF_F_NO_PREALLOC);
+	__uint(map_flags, BPF_F_ANAL_PREALLOC);
 	__type(key, int);
 	__type(value, struct map_value);
 } cgrp_ls_map SEC(".maps");
 
 struct task_ls_map {
 	__uint(type, BPF_MAP_TYPE_TASK_STORAGE);
-	__uint(map_flags, BPF_F_NO_PREALLOC);
+	__uint(map_flags, BPF_F_ANAL_PREALLOC);
 	__type(key, int);
 	__type(value, struct map_value);
 } task_ls_map SEC(".maps");
 
-struct inode_ls_map {
-	__uint(type, BPF_MAP_TYPE_INODE_STORAGE);
-	__uint(map_flags, BPF_F_NO_PREALLOC);
+struct ianalde_ls_map {
+	__uint(type, BPF_MAP_TYPE_IANALDE_STORAGE);
+	__uint(map_flags, BPF_F_ANAL_PREALLOC);
 	__type(key, int);
 	__type(value, struct map_value);
-} inode_ls_map SEC(".maps");
+} ianalde_ls_map SEC(".maps");
 
 struct sk_ls_map {
 	__uint(type, BPF_MAP_TYPE_SK_STORAGE);
-	__uint(map_flags, BPF_F_NO_PREALLOC);
+	__uint(map_flags, BPF_F_ANAL_PREALLOC);
 	__type(key, int);
 	__type(value, struct map_value);
 } sk_ls_map SEC(".maps");
@@ -145,7 +145,7 @@ static void test_kptr_ref(struct map_value *v)
 		return;
 	/*
 	 * p is rcu_ptr_prog_test_ref_kfunc,
-	 * because bpf prog is non-sleepable and runs in RCU CS.
+	 * because bpf prog is analn-sleepable and runs in RCU CS.
 	 * p can be passed to kfunc that requires KF_RCU.
 	 */
 	bpf_kfunc_call_test_ref(p);
@@ -220,8 +220,8 @@ int BPF_PROG(test_cgrp_map_kptr, struct cgroup *cgrp, const char *path)
 	return 0;
 }
 
-SEC("lsm/inode_unlink")
-int BPF_PROG(test_task_map_kptr, struct inode *inode, struct dentry *victim)
+SEC("lsm/ianalde_unlink")
+int BPF_PROG(test_task_map_kptr, struct ianalde *ianalde, struct dentry *victim)
 {
 	struct task_struct *task;
 	struct map_value *v;
@@ -235,12 +235,12 @@ int BPF_PROG(test_task_map_kptr, struct inode *inode, struct dentry *victim)
 	return 0;
 }
 
-SEC("lsm/inode_unlink")
-int BPF_PROG(test_inode_map_kptr, struct inode *inode, struct dentry *victim)
+SEC("lsm/ianalde_unlink")
+int BPF_PROG(test_ianalde_map_kptr, struct ianalde *ianalde, struct dentry *victim)
 {
 	struct map_value *v;
 
-	v = bpf_inode_storage_get(&inode_ls_map, inode, NULL, BPF_LOCAL_STORAGE_GET_F_CREATE);
+	v = bpf_ianalde_storage_get(&ianalde_ls_map, ianalde, NULL, BPF_LOCAL_STORAGE_GET_F_CREATE);
 	if (v)
 		test_kptr(v);
 	return 0;

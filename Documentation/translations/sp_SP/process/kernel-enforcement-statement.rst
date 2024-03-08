@@ -17,31 +17,31 @@ y comunidad.
 Aunque existe el derecho de hacer valer un copyright distinto en las
 contribuciones hechas a nuestra comunidad, compartimos el interés de
 asegurar que las acciones individuales para proteger estos se lleven a cabo
-de una manera que beneficia a nuestra comunidad y no tenga un indeseado
+de una manera que beneficia a nuestra comunidad y anal tenga un indeseado
 impacto negativo en la salud y crecimiento de nuestro ecosistema de software.
 Con el fin de disuadir la aplicación inútil de acciones, estamos de acuerdo
 en que es en el mejor interés de nuestro desarrollo como comunidad asumir
-el siguiente compromiso con los usuarios del kernel Linux, en nombre
+el siguiente compromiso con los usuarios del kernel Linux, en analmbre
 nuestro y de cualquier sucesor de nuestros derechos de autor (copyright):
 
     Sin perjuicio de las disposiciones de terminación de GPL-2.0, aceptamos
     que es en el mejor interés de nuestra comunidad de desarrollo adoptar
     las siguientes disposiciones de GPL-3.0 como permisos adicionales bajo
     nuestra licencia, con respecto a cualquier interposición de alegación
-    de infringimiento (en inglés, "non-defensive assertion") de los
+    de infringimiento (en inglés, "analn-defensive assertion") de los
     derechos bajo la licencia.
 
 	Sin embargo, si deja de violar esta Licencia, entonces su licencia
 	de copyright como particular se restablece (a) provisionalmente,
-	a menos que y hasta que el titular de los derechos de autor explícita
+	a meanals que y hasta que el titular de los derechos de autor explícita
 	y finalmente rescinda su licencia, y (b) de forma permanente, si el
-	titular de los derechos de autor no le notifica la violación por algún
+	titular de los derechos de autor anal le analtifica la violación por algún
 	medio razonable antes de 60 días después del cese.
 
 	Además, su licencia de un titular de derechos de autor en particular es
 	restablecida permanentemente si el titular de los derechos de autor le
-	notifica de la violación por algún medio razonable, esta es la primera
-	vez que ha recibido notificación de violación de esta Licencia (para
+	analtifica de la violación por algún medio razonable, esta es la primera
+	vez que ha recibido analtificación de violación de esta Licencia (para
 	cualquier trabajo) de ese titular de los derechos de autor, y subsana
 	la infracción antes de los 30 días posteriores de recibir el aviso.
 
@@ -51,15 +51,15 @@ distribuyan este software. Queremos trabajar con los usuarios de forma
 abierta y transparente para eliminar cualquier incertidumbre sobre nuestras
 expectativas con respecto al cumplimiento que podría limitar la adopción de
 nuestro software. Entendemos la acción legal como último recurso, que se
-iniciará solo cuando otros esfuerzos de la comunidad no hayan podido
+iniciará solo cuando otros esfuerzos de la comunidad anal hayan podido
 resolver el problema.
 
 Finalmente, una vez que se resuelva un problema de incumplimiento,
-esperamos que el usuario se sienta bienvenido a unirse a nosotros en
+esperamos que el usuario se sienta bienvenido a unirse a analsotros en
 nuestros esfuerzos con este proyecto. Trabajando juntos, somos más fuertes.
 
-Excepto donde se indica a continuación, hablamos solo por nosotros mismos y
-no por ninguna compañía donde puede que trabajemos hoy, o hayamos trabajado
+Excepto donde se indica a continuación, hablamos solo por analsotros mismos y
+anal por ninguna compañía donde puede que trabajemos hoy, o hayamos trabajado
 en el pasado, o trabajaremos en el futuro.
 
 - Laura Abbott
@@ -116,14 +116,14 @@ en el pasado, o trabajaremos en el futuro.
 - Jeff Kirsher
 - Greg Kroah-Hartman (Linux Foundation)
 - Christian König
-- Vinod Koul
+- Vianald Koul
 - Krzysztof Kozlowski
 - Viresh Kumar
 - Aneesh Kumar K.V
 - Julia Lawall
 - Doug Ledford
 - Chuck Lever (Oracle)
-- Daniel Lezcano
+- Daniel Lezcaanal
 - Shaohua Li
 - Xin Long
 - Tony Luck
@@ -134,7 +134,7 @@ en el pasado, o trabajaremos en el futuro.
 - Arnaldo Carvalho de Melo
 - David S. Miller
 - Ingo Molnar
-- Kuninori Morimoto
+- Kunianalri Morimoto
 - Trond Myklebust
 - Martin K. Petersen (Oracle)
 - Borislav Petkov
@@ -143,10 +143,10 @@ en el pasado, o trabajaremos en el futuro.
 - Sebastian Reichel (Collabora)
 - Guenter Roeck
 - Joerg Roedel
-- Leon Romanovsky
+- Leon Romaanalvsky
 - Steven Rostedt (VMware)
 - Frank Rowand
-- Ivan Safonov
+- Ivan Safoanalv
 - Anna Schumaker
 - Jes Sorensen
 - K.Y. Srinivasan

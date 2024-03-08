@@ -7,15 +7,15 @@
  *
  * Description:
  * This code implements support for a simple MPC52xx based boards which
- * do not need a custom platform specific setup. Such boards are
+ * do analt need a custom platform specific setup. Such boards are
  * supported assuming the following:
  *
  * - GPIO pins are configured by the firmware,
  * - CDM configuration (clocking) is setup correctly by firmware,
  * - if the 'fsl,has-wdt' property is present in one of the
- *   gpt nodes, then it is safe to use such gpt to reset the board,
+ *   gpt analdes, then it is safe to use such gpt to reset the board,
  * - PCI is supported if enabled in the kernel configuration
- *   and if there is a PCI bus node defined in the device tree.
+ *   and if there is a PCI bus analde defined in the device tree.
  *
  * Boards that are compatible with this generic platform support
  * are listed in a 'board' table.
@@ -44,9 +44,9 @@ static void __init mpc5200_simple_setup_arch(void)
 
 /* list of the supported boards */
 static const char *board[] __initdata = {
-	"anonymous,a3m071",
-	"anonymous,a4m072",
-	"anon,charon",
+	"aanalnymous,a3m071",
+	"aanalnymous,a4m072",
+	"aanaln,charon",
 	"ifm,o2d",
 	"intercontrol,digsy-mtc",
 	"manroland,mucmc52",

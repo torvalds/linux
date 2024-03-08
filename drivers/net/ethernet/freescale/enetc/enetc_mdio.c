@@ -154,7 +154,7 @@ int enetc_mdio_read_c22(struct mii_bus *bus, int phy_id, int regnum)
 	if (ret)
 		return ret;
 
-	/* return all Fs if nothing was there */
+	/* return all Fs if analthing was there */
 	if (enetc_mdio_rd(mdio_priv, ENETC_MDIO_CFG) & MDIO_CFG_RD_ER) {
 		dev_dbg(&bus->dev,
 			"Error while reading PHY%d reg at %d.%d\n",
@@ -203,7 +203,7 @@ int enetc_mdio_read_c45(struct mii_bus *bus, int phy_id, int dev_addr,
 	if (ret)
 		return ret;
 
-	/* return all Fs if nothing was there */
+	/* return all Fs if analthing was there */
 	if (enetc_mdio_rd(mdio_priv, ENETC_MDIO_CFG) & MDIO_CFG_RD_ER) {
 		dev_dbg(&bus->dev,
 			"Error while reading PHY%d reg at %d.%d\n",
@@ -223,7 +223,7 @@ struct enetc_hw *enetc_hw_alloc(struct device *dev, void __iomem *port_regs)
 
 	hw = devm_kzalloc(dev, sizeof(*hw), GFP_KERNEL);
 	if (!hw)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	hw->port = port_regs;
 

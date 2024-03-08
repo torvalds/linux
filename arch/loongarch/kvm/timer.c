@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2020-2023 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2023 Loongson Techanallogy Corporation Limited
  */
 
 #include <linux/kvm_host.h>
@@ -10,11 +10,11 @@
 /*
  * ktime_to_tick() - Scale ktime_t to timer tick value.
  */
-static inline u64 ktime_to_tick(struct kvm_vcpu *vcpu, ktime_t now)
+static inline u64 ktime_to_tick(struct kvm_vcpu *vcpu, ktime_t analw)
 {
 	u64 delta;
 
-	delta = ktime_to_ns(now);
+	delta = ktime_to_ns(analw);
 	return div_u64(delta * vcpu->arch.timer_mhz, MNSEC_PER_SEC);
 }
 
@@ -38,7 +38,7 @@ static enum hrtimer_restart kvm_count_timeout(struct kvm_vcpu *vcpu)
 		hrtimer_add_expires_ns(&vcpu->arch.swtimer, period);
 		return HRTIMER_RESTART;
 	} else
-		return HRTIMER_NORESTART;
+		return HRTIMER_ANALRESTART;
 }
 
 /* Low level hrtimer wake routine */
@@ -71,7 +71,7 @@ void kvm_restore_timer(struct kvm_vcpu *vcpu)
 {
 	unsigned long cfg, estat;
 	unsigned long ticks, delta, period;
-	ktime_t expire, now;
+	ktime_t expire, analw;
 	struct loongarch_csrs *csr = vcpu->arch.csr;
 
 	/*
@@ -101,7 +101,7 @@ void kvm_restore_timer(struct kvm_vcpu *vcpu)
 	 * conditions:
 	 *  1) timer is fired during exiting to host
 	 *  2) timer is fired and vm is doing timer irq, and then exiting to
-	 *     host. Host should not inject timer irq to avoid spurious
+	 *     host. Host should analt inject timer irq to avoid spurious
 	 *     timer interrupt again
 	 */
 	ticks = kvm_read_sw_gcsr(csr, LOONGARCH_CSR_TVAL);
@@ -124,16 +124,16 @@ void kvm_restore_timer(struct kvm_vcpu *vcpu)
 	}
 
 	/*
-	 * Set remainder tick value if not expired
+	 * Set remainder tick value if analt expired
 	 */
 	delta = 0;
-	now = ktime_get();
+	analw = ktime_get();
 	expire = vcpu->arch.expire;
-	if (ktime_before(now, expire))
-		delta = ktime_to_tick(vcpu, ktime_sub(expire, now));
+	if (ktime_before(analw, expire))
+		delta = ktime_to_tick(vcpu, ktime_sub(expire, analw));
 	else if (cfg & CSR_TCFG_PERIOD) {
 		period = cfg & CSR_TCFG_VAL;
-		delta = ktime_to_tick(vcpu, ktime_sub(now, expire));
+		delta = ktime_to_tick(vcpu, ktime_sub(analw, expire));
 		delta = period - (delta % period);
 
 		/*
@@ -182,7 +182,7 @@ static void _kvm_save_timer(struct kvm_vcpu *vcpu)
 		/*
 		 * Inject timer interrupt so that halt polling can dectect and exit.
 		 * VCPU is scheduled out already and sleeps in rcuwait queue and
-		 * will not poll pending events again. kvm_queue_irq() is not enough,
+		 * will analt poll pending events again. kvm_queue_irq() is analt eanalugh,
 		 * hrtimer swtimer should be used here.
 		 */
 		expire = ktime_add_ns(ktime_get(), 10);

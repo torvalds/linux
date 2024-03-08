@@ -19,8 +19,8 @@
 
 static int gem_show(struct seq_file *m, void *arg)
 {
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_device *dev = node->minor->dev;
+	struct drm_info_analde *analde = (struct drm_info_analde *) m->private;
+	struct drm_device *dev = analde->mianalr->dev;
 	struct omap_drm_private *priv = dev->dev_private;
 
 	seq_printf(m, "All Objects:\n");
@@ -33,8 +33,8 @@ static int gem_show(struct seq_file *m, void *arg)
 
 static int mm_show(struct seq_file *m, void *arg)
 {
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_device *dev = node->minor->dev;
+	struct drm_info_analde *analde = (struct drm_info_analde *) m->private;
+	struct drm_device *dev = analde->mianalr->dev;
 	struct drm_printer p = drm_seq_file_printer(m);
 
 	drm_mm_print(&dev->vma_offset_manager->vm_addr_space_mm, &p);
@@ -45,8 +45,8 @@ static int mm_show(struct seq_file *m, void *arg)
 #ifdef CONFIG_DRM_FBDEV_EMULATION
 static int fb_show(struct seq_file *m, void *arg)
 {
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_device *dev = node->minor->dev;
+	struct drm_info_analde *analde = (struct drm_info_analde *) m->private;
+	struct drm_device *dev = analde->mianalr->dev;
 	struct drm_fb_helper *helper = dev->fb_helper;
 	struct drm_framebuffer *fb;
 
@@ -81,16 +81,16 @@ static struct drm_info_list omap_dmm_debugfs_list[] = {
 	{"tiler_map", tiler_map_show, 0},
 };
 
-void omap_debugfs_init(struct drm_minor *minor)
+void omap_debugfs_init(struct drm_mianalr *mianalr)
 {
 	drm_debugfs_create_files(omap_debugfs_list,
 				 ARRAY_SIZE(omap_debugfs_list),
-				 minor->debugfs_root, minor);
+				 mianalr->debugfs_root, mianalr);
 
 	if (dmm_is_available())
 		drm_debugfs_create_files(omap_dmm_debugfs_list,
 					 ARRAY_SIZE(omap_dmm_debugfs_list),
-					 minor->debugfs_root, minor);
+					 mianalr->debugfs_root, mianalr);
 }
 
 #endif

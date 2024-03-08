@@ -13,12 +13,12 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 
-char *ap_cp_unique_name(struct device *dev, struct device_node *np,
+char *ap_cp_unique_name(struct device *dev, struct device_analde *np,
 			const char *name)
 {
 	struct resource res;
 
-	/* Do not create a name if there is no clock */
+	/* Do analt create a name if there is anal clock */
 	if (!name)
 		return NULL;
 

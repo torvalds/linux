@@ -240,7 +240,7 @@ static int bcm_sf2_cfp_act_pol_set(struct bcm_sf2_priv *priv,
 
 	core_writel(priv, 0, CORE_ACT_POL_DATA2);
 
-	/* Configure policer RAM now */
+	/* Configure policer RAM analw */
 	ret = bcm_sf2_cfp_op(priv, OP_SEL_WRITE | ACT_POL_RAM);
 	if (ret) {
 		pr_err("Policer entry at %d failed\n", rule_index);
@@ -250,7 +250,7 @@ static int bcm_sf2_cfp_act_pol_set(struct bcm_sf2_priv *priv,
 	/* Disable the policer */
 	core_writel(priv, POLICER_MODE_DISABLE, CORE_RATE_METER0);
 
-	/* Now the rate meter */
+	/* Analw the rate meter */
 	ret = bcm_sf2_cfp_op(priv, OP_SEL_WRITE | RATE_METER_RAM);
 	if (ret) {
 		pr_err("Meter entry at %d failed\n", rule_index);
@@ -388,7 +388,7 @@ static int bcm_sf2_cfp_ipv4_rule_set(struct bcm_sf2_priv *priv, int port,
 		rule_index = fs->location;
 
 	if (rule_index > bcm_sf2_cfp_rule_size(priv))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	input.fs = fs;
 	flow = ethtool_rx_flow_rule_create(&input);
@@ -400,7 +400,7 @@ static int bcm_sf2_cfp_ipv4_rule_set(struct bcm_sf2_priv *priv, int port,
 	flow_rule_match_ip(flow->rule, &ip);
 
 	layout = &udf_tcpip4_layout;
-	/* We only use one UDF slice for now */
+	/* We only use one UDF slice for analw */
 	slice_num = bcm_sf2_get_slice_number(layout, 0);
 	if (slice_num == UDF_NUM_SLICES) {
 		ret = -EINVAL;
@@ -425,7 +425,7 @@ static int bcm_sf2_cfp_ipv4_rule_set(struct bcm_sf2_priv *priv, int port,
 	 * IP ToS		[23:16]
 	 * IP proto		[15:08]
 	 * IP Fragm		[7]
-	 * Non 1st frag		[6]
+	 * Analn 1st frag		[6]
 	 * IP Authen		[5]
 	 * TTL range		[4:3]
 	 * PPPoE session	[2]
@@ -447,7 +447,7 @@ static int bcm_sf2_cfp_ipv4_rule_set(struct bcm_sf2_priv *priv, int port,
 	bcm_sf2_cfp_slice_ipv4(priv, ipv4.mask, ports.mask, vlan_m_tci,
 			       SLICE_NUM_MASK, num_udf, true);
 
-	/* Insert into TCAM now */
+	/* Insert into TCAM analw */
 	bcm_sf2_cfp_rule_addr_set(priv, rule_index);
 
 	ret = bcm_sf2_cfp_op(priv, OP_SEL_WRITE | TCAM_SEL);
@@ -456,13 +456,13 @@ static int bcm_sf2_cfp_ipv4_rule_set(struct bcm_sf2_priv *priv, int port,
 		goto out_err_flow_rule;
 	}
 
-	/* Insert into Action and policer RAMs now */
+	/* Insert into Action and policer RAMs analw */
 	ret = bcm_sf2_cfp_act_pol_set(priv, rule_index, port, port_num,
 				      queue_num, true);
 	if (ret)
 		goto out_err_flow_rule;
 
-	/* Turn on CFP for this rule now */
+	/* Turn on CFP for this rule analw */
 	reg = core_readl(priv, CORE_CFP_CTL_REG);
 	reg |= BIT(port);
 	core_writel(priv, reg, CORE_CFP_CTL_REG);
@@ -669,7 +669,7 @@ static int bcm_sf2_cfp_ipv6_rule_set(struct bcm_sf2_priv *priv, int port,
 
 	/* Negotiate two indexes, one for the second half which we are chained
 	 * from, which is what we will return to user-space, and a second one
-	 * which is used to store its first half. That first half does not
+	 * which is used to store its first half. That first half does analt
 	 * allow any choice of placement, so it just needs to find the next
 	 * available bit. We return the second half as fs->location because
 	 * that helps with the rule lookup later on since the second half is
@@ -685,7 +685,7 @@ static int bcm_sf2_cfp_ipv6_rule_set(struct bcm_sf2_priv *priv, int port,
 	else
 		rule_index[1] = fs->location;
 	if (rule_index[1] > bcm_sf2_cfp_rule_size(priv))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	/* Flag it as used (cleared on error path) such that we can immediately
 	 * obtain a second one to chain from.
@@ -695,7 +695,7 @@ static int bcm_sf2_cfp_ipv6_rule_set(struct bcm_sf2_priv *priv, int port,
 	rule_index[0] = find_first_zero_bit(priv->cfp.used,
 					    priv->num_cfp_rules);
 	if (rule_index[0] > bcm_sf2_cfp_rule_size(priv)) {
-		ret = -ENOSPC;
+		ret = -EANALSPC;
 		goto out_err;
 	}
 
@@ -724,7 +724,7 @@ static int bcm_sf2_cfp_ipv6_rule_set(struct bcm_sf2_priv *priv, int port,
 	 * IP ToS		[23:16]
 	 * IP proto		[15:08]
 	 * IP Fragm		[7]
-	 * Non 1st frag		[6]
+	 * Analn 1st frag		[6]
 	 * IP Authen		[5]
 	 * TTL range		[4:3]
 	 * PPPoE session	[2]
@@ -749,7 +749,7 @@ static int bcm_sf2_cfp_ipv6_rule_set(struct bcm_sf2_priv *priv, int port,
 			       ports.mask->src, vlan_m_tci, SLICE_NUM_MASK,
 			       udf_lower_bits(num_udf), true);
 
-	/* Insert into TCAM now because we need to insert a second rule */
+	/* Insert into TCAM analw because we need to insert a second rule */
 	bcm_sf2_cfp_rule_addr_set(priv, rule_index[0]);
 
 	ret = bcm_sf2_cfp_op(priv, OP_SEL_WRITE | TCAM_SEL);
@@ -758,13 +758,13 @@ static int bcm_sf2_cfp_ipv6_rule_set(struct bcm_sf2_priv *priv, int port,
 		goto out_err_flow_rule;
 	}
 
-	/* Insert into Action and policer RAMs now */
+	/* Insert into Action and policer RAMs analw */
 	ret = bcm_sf2_cfp_act_pol_set(priv, rule_index[0], port, port_num,
 				      queue_num, false);
 	if (ret)
 		goto out_err_flow_rule;
 
-	/* Now deal with the second slice to chain this rule */
+	/* Analw deal with the second slice to chain this rule */
 	slice_num = bcm_sf2_get_slice_number(layout, slice_num + 1);
 	if (slice_num == UDF_NUM_SLICES) {
 		ret = -EINVAL;
@@ -805,7 +805,7 @@ static int bcm_sf2_cfp_ipv6_rule_set(struct bcm_sf2_priv *priv, int port,
 			       ports.key->dst, 0, SLICE_NUM_MASK,
 			       0, true);
 
-	/* Insert into TCAM now */
+	/* Insert into TCAM analw */
 	bcm_sf2_cfp_rule_addr_set(priv, rule_index[1]);
 
 	ret = bcm_sf2_cfp_op(priv, OP_SEL_WRITE | TCAM_SEL);
@@ -814,7 +814,7 @@ static int bcm_sf2_cfp_ipv6_rule_set(struct bcm_sf2_priv *priv, int port,
 		goto out_err_flow_rule;
 	}
 
-	/* Insert into Action and policer RAMs now, set chain ID to
+	/* Insert into Action and policer RAMs analw, set chain ID to
 	 * the one we are chained to
 	 */
 	ret = bcm_sf2_cfp_act_pol_set(priv, rule_index[1], port, port_num,
@@ -822,12 +822,12 @@ static int bcm_sf2_cfp_ipv6_rule_set(struct bcm_sf2_priv *priv, int port,
 	if (ret)
 		goto out_err_flow_rule;
 
-	/* Turn on CFP for this rule now */
+	/* Turn on CFP for this rule analw */
 	reg = core_readl(priv, CORE_CFP_CTL_REG);
 	reg |= BIT(port);
 	core_writel(priv, reg, CORE_CFP_CTL_REG);
 
-	/* Flag the second half rule as being used now, return it as the
+	/* Flag the second half rule as being used analw, return it as the
 	 * location, and flag it as unique while dumping rules
 	 */
 	set_bit(rule_index[0], priv->cfp.used);
@@ -860,7 +860,7 @@ static int bcm_sf2_cfp_rule_insert(struct dsa_switch *ds, int port,
 	if (ring_cookie == RX_CLS_FLOW_WAKE)
 		ring_cookie = cpu_port * SF2_NUM_EGRESS_QUEUES;
 
-	/* We do not support discarding packets, check that the
+	/* We do analt support discarding packets, check that the
 	 * destination port is enabled and that we are within the
 	 * number of ports supported by the switch
 	 */
@@ -872,14 +872,14 @@ static int bcm_sf2_cfp_rule_insert(struct dsa_switch *ds, int port,
 	    port_num >= priv->hw_params.num_ports)
 		return -EINVAL;
 
-	/* If the rule is matching a particular VLAN, make sure that we honor
+	/* If the rule is matching a particular VLAN, make sure that we hoanalr
 	 * the matching and have it tagged or untagged on the destination port,
 	 * we do this on egress with a VLAN entry. The egress tagging attribute
 	 * is expected to be provided in h_ext.data[1] bit 0. A 1 means untagged,
 	 * a 0 means tagged.
 	 */
 	if (fs->flow_type & FLOW_EXT) {
-		/* We cannot support matching multiple VLAN IDs yet */
+		/* We cananalt support matching multiple VLAN IDs yet */
 		if ((be16_to_cpu(fs->m_ext.vlan_tci) & VLAN_VID_MASK) !=
 		    VLAN_VID_MASK)
 			return -EINVAL;
@@ -897,7 +897,7 @@ static int bcm_sf2_cfp_rule_insert(struct dsa_switch *ds, int port,
 	}
 
 	/*
-	 * We have a small oddity where Port 6 just does not have a
+	 * We have a small oddity where Port 6 just does analt have a
 	 * valid bit here (so we substract by one).
 	 */
 	queue_num = ring_cookie % SF2_NUM_EGRESS_QUEUES;
@@ -940,7 +940,7 @@ static int bcm_sf2_cfp_rule_set(struct dsa_switch *ds, int port,
 
 	if ((fs->flow_type & FLOW_EXT) &&
 	    !(ds->ops->port_vlan_add || ds->ops->port_vlan_del))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (fs->location != RX_CLS_LOC_ANY &&
 	    test_bit(fs->location, priv->cfp.used))
@@ -952,7 +952,7 @@ static int bcm_sf2_cfp_rule_set(struct dsa_switch *ds, int port,
 
 	rule = kzalloc(sizeof(*rule), GFP_KERNEL);
 	if (!rule)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = bcm_sf2_cfp_rule_insert(ds, port, fs);
 	if (ret) {
@@ -993,7 +993,7 @@ static int bcm_sf2_cfp_rule_del_one(struct bcm_sf2_priv *priv, int port,
 	reg &= ~SLICE_VALID;
 	core_writel(priv, reg, CORE_CFP_DATA_PORT(0));
 
-	/* Write back this entry into the TCAM now */
+	/* Write back this entry into the TCAM analw */
 	ret = bcm_sf2_cfp_op(priv, OP_SEL_WRITE | TCAM_SEL);
 	if (ret)
 		return ret;
@@ -1029,7 +1029,7 @@ static int bcm_sf2_cfp_rule_del(struct bcm_sf2_priv *priv, int port, u32 loc)
 	if (loc > bcm_sf2_cfp_rule_size(priv))
 		return -EINVAL;
 
-	/* Refuse deleting unused rules, and those that are not unique since
+	/* Refuse deleting unused rules, and those that are analt unique since
 	 * that could leave IPv6 rules with one of the chained rule in the
 	 * table.
 	 */
@@ -1123,7 +1123,7 @@ int bcm_sf2_get_rxnfc(struct dsa_switch *ds, int port,
 		ret = bcm_sf2_cfp_rule_get_all(priv, port, nfc, rule_locs);
 		break;
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		break;
 	}
 
@@ -1135,7 +1135,7 @@ int bcm_sf2_get_rxnfc(struct dsa_switch *ds, int port,
 	/* Pass up the commands to the attached master network device */
 	if (p->ethtool_ops->get_rxnfc) {
 		ret = p->ethtool_ops->get_rxnfc(p, nfc, rule_locs);
-		if (ret == -EOPNOTSUPP)
+		if (ret == -EOPANALTSUPP)
 			ret = 0;
 	}
 
@@ -1160,7 +1160,7 @@ int bcm_sf2_set_rxnfc(struct dsa_switch *ds, int port,
 		ret = bcm_sf2_cfp_rule_del(priv, port, nfc->fs.location);
 		break;
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		break;
 	}
 
@@ -1174,7 +1174,7 @@ int bcm_sf2_set_rxnfc(struct dsa_switch *ds, int port,
 	 */
 	if (p->ethtool_ops->set_rxnfc) {
 		ret = p->ethtool_ops->set_rxnfc(p, nfc);
-		if (ret && ret != -EOPNOTSUPP) {
+		if (ret && ret != -EOPANALTSUPP) {
 			mutex_lock(&priv->cfp.lock);
 			bcm_sf2_cfp_rule_del(priv, port, nfc->fs.location);
 			mutex_unlock(&priv->cfp.lock);

@@ -20,30 +20,30 @@ static int iavf_send_pf_msg(struct iavf_adapter *adapter,
 	enum iavf_status status;
 
 	if (adapter->flags & IAVF_FLAG_PF_COMMS_FAILED)
-		return 0; /* nothing to see here, move along */
+		return 0; /* analthing to see here, move along */
 
 	status = iavf_aq_send_msg_to_pf(hw, op, 0, msg, len, NULL);
 	if (status)
 		dev_dbg(&adapter->pdev->dev, "Unable to send opcode %d to PF, status %s, aq_err %s\n",
 			op, iavf_stat_str(hw, status),
 			iavf_aq_str(hw, hw->aq.asq_last_status));
-	return iavf_status_to_errno(status);
+	return iavf_status_to_erranal(status);
 }
 
 /**
  * iavf_send_api_ver
  * @adapter: adapter structure
  *
- * Send API version admin queue message to the PF. The reply is not checked
+ * Send API version admin queue message to the PF. The reply is analt checked
  * in this function. Returns 0 if the message was successfully
- * sent, or one of the IAVF_ADMIN_QUEUE_ERROR_ statuses if not.
+ * sent, or one of the IAVF_ADMIN_QUEUE_ERROR_ statuses if analt.
  **/
 int iavf_send_api_ver(struct iavf_adapter *adapter)
 {
 	struct virtchnl_version_info vvi;
 
 	vvi.major = VIRTCHNL_VERSION_MAJOR;
-	vvi.minor = VIRTCHNL_VERSION_MINOR;
+	vvi.mianalr = VIRTCHNL_VERSION_MIANALR;
 
 	return iavf_send_pf_msg(adapter, VIRTCHNL_OP_VERSION, (u8 *)&vvi,
 				sizeof(vvi));
@@ -57,7 +57,7 @@ int iavf_send_api_ver(struct iavf_adapter *adapter)
  *
  * Initialize poll for virtchnl msg matching the requested_op. Returns 0
  * if a message of the correct opcode is in the queue or an error code
- * if no message matching the op code is waiting and other failures.
+ * if anal message matching the op code is waiting and other failures.
  */
 static int
 iavf_poll_virtchnl_msg(struct iavf_hw *hw, struct iavf_arq_event_info *event,
@@ -69,11 +69,11 @@ iavf_poll_virtchnl_msg(struct iavf_hw *hw, struct iavf_arq_event_info *event,
 
 	while (1) {
 		/* When the AQ is empty, iavf_clean_arq_element will return
-		 * nonzero and this loop will terminate.
+		 * analnzero and this loop will terminate.
 		 */
 		status = iavf_clean_arq_element(hw, event, NULL);
 		if (status != IAVF_SUCCESS)
-			return iavf_status_to_errno(status);
+			return iavf_status_to_erranal(status);
 		received_op =
 		    (enum virtchnl_ops)le32_to_cpu(event->desc.cookie_high);
 		if (op_to_poll == received_op)
@@ -81,7 +81,7 @@ iavf_poll_virtchnl_msg(struct iavf_hw *hw, struct iavf_arq_event_info *event,
 	}
 
 	v_retval = le32_to_cpu(event->desc.cookie_low);
-	return virtchnl_status_to_errno((enum virtchnl_status_code)v_retval);
+	return virtchnl_status_to_erranal((enum virtchnl_status_code)v_retval);
 }
 
 /**
@@ -89,8 +89,8 @@ iavf_poll_virtchnl_msg(struct iavf_hw *hw, struct iavf_arq_event_info *event,
  * @adapter: adapter structure
  *
  * Compare API versions with the PF. Must be called after admin queue is
- * initialized. Returns 0 if API versions match, -EIO if they do not,
- * IAVF_ERR_ADMIN_QUEUE_NO_WORK if the admin queue is empty, and any errors
+ * initialized. Returns 0 if API versions match, -EIO if they do analt,
+ * IAVF_ERR_ADMIN_QUEUE_ANAL_WORK if the admin queue is empty, and any errors
  * from the firmware are propagated.
  **/
 int iavf_verify_api_ver(struct iavf_adapter *adapter)
@@ -101,7 +101,7 @@ int iavf_verify_api_ver(struct iavf_adapter *adapter)
 	event.buf_len = IAVF_MAX_AQ_BUF_SIZE;
 	event.msg_buf = kzalloc(IAVF_MAX_AQ_BUF_SIZE, GFP_KERNEL);
 	if (!event.msg_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = iavf_poll_virtchnl_msg(&adapter->hw, &event, VIRTCHNL_OP_VERSION);
 	if (!err) {
@@ -111,7 +111,7 @@ int iavf_verify_api_ver(struct iavf_adapter *adapter)
 
 		if (pf_vvi->major > VIRTCHNL_VERSION_MAJOR ||
 		    (pf_vvi->major == VIRTCHNL_VERSION_MAJOR &&
-		     pf_vvi->minor > VIRTCHNL_VERSION_MINOR))
+		     pf_vvi->mianalr > VIRTCHNL_VERSION_MIANALR))
 			err = -EIO;
 	}
 
@@ -125,8 +125,8 @@ int iavf_verify_api_ver(struct iavf_adapter *adapter)
  * @adapter: adapter structure
  *
  * Send VF configuration request admin queue message to the PF. The reply
- * is not checked in this function. Returns 0 if the message was
- * successfully sent, or one of the IAVF_ADMIN_QUEUE_ERROR_ statuses if not.
+ * is analt checked in this function. Returns 0 if the message was
+ * successfully sent, or one of the IAVF_ADMIN_QUEUE_ERROR_ statuses if analt.
  **/
 int iavf_send_vf_config_msg(struct iavf_adapter *adapter)
 {
@@ -165,7 +165,7 @@ int iavf_send_vf_offload_vlan_v2_msg(struct iavf_adapter *adapter)
 	adapter->aq_required &= ~IAVF_FLAG_AQ_GET_OFFLOAD_VLAN_V2_CAPS;
 
 	if (!VLAN_V2_ALLOWED(adapter))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	adapter->current_op = VIRTCHNL_OP_GET_OFFLOAD_VLAN_V2_CAPS;
 
@@ -178,7 +178,7 @@ int iavf_send_vf_offload_vlan_v2_msg(struct iavf_adapter *adapter)
  * @adapter: adapter structure
  *
  * Validate that the number of queues the PF has sent in
- * VIRTCHNL_OP_GET_VF_RESOURCES is not larger than the VF can handle.
+ * VIRTCHNL_OP_GET_VF_RESOURCES is analt larger than the VF can handle.
  **/
 static void iavf_validate_num_queues(struct iavf_adapter *adapter)
 {
@@ -219,7 +219,7 @@ int iavf_get_vf_config(struct iavf_adapter *adapter)
 	event.buf_len = len;
 	event.msg_buf = kzalloc(len, GFP_KERNEL);
 	if (!event.msg_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = iavf_poll_virtchnl_msg(hw, &event, VIRTCHNL_OP_GET_VF_RESOURCES);
 	memcpy(adapter->vf_res, event.msg_buf, min(event.msg_len, len));
@@ -246,7 +246,7 @@ int iavf_get_vf_vlan_v2_caps(struct iavf_adapter *adapter)
 	event.buf_len = len;
 	event.msg_buf = kzalloc(len, GFP_KERNEL);
 	if (!event.msg_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = iavf_poll_virtchnl_msg(&adapter->hw, &event,
 				     VIRTCHNL_OP_GET_OFFLOAD_VLAN_V2_CAPS);
@@ -276,9 +276,9 @@ void iavf_configure_queues(struct iavf_adapter *adapter)
 	if (max_frame > IAVF_MAX_RXBUFFER || !max_frame)
 		max_frame = IAVF_MAX_RXBUFFER;
 
-	if (adapter->current_op != VIRTCHNL_OP_UNKNOWN) {
+	if (adapter->current_op != VIRTCHNL_OP_UNKANALWN) {
 		/* bail because we already have a command pending */
-		dev_err(&adapter->pdev->dev, "Cannot configure queues, command %d pending\n",
+		dev_err(&adapter->pdev->dev, "Cananalt configure queues, command %d pending\n",
 			adapter->current_op);
 		return;
 	}
@@ -288,7 +288,7 @@ void iavf_configure_queues(struct iavf_adapter *adapter)
 	if (!vqci)
 		return;
 
-	/* Limit maximum frame size when jumbo frames is not enabled */
+	/* Limit maximum frame size when jumbo frames is analt enabled */
 	if (!(adapter->flags & IAVF_FLAG_LEGACY_RX) &&
 	    (adapter->netdev->mtu <= ETH_DATA_LEN))
 		max_frame = IAVF_RXBUFFER_1536 - NET_IP_ALIGN;
@@ -296,7 +296,7 @@ void iavf_configure_queues(struct iavf_adapter *adapter)
 	vqci->vsi_id = adapter->vsi_res->vsi_id;
 	vqci->num_queue_pairs = pairs;
 	vqpi = vqci->qpair;
-	/* Size check is not needed here - HW max is 16 queue pairs, and we
+	/* Size check is analt needed here - HW max is 16 queue pairs, and we
 	 * can fit info for 31 of them into the AQ buffer before it overflows.
 	 */
 	for (i = 0; i < pairs; i++) {
@@ -334,9 +334,9 @@ void iavf_enable_queues(struct iavf_adapter *adapter)
 {
 	struct virtchnl_queue_select vqs;
 
-	if (adapter->current_op != VIRTCHNL_OP_UNKNOWN) {
+	if (adapter->current_op != VIRTCHNL_OP_UNKANALWN) {
 		/* bail because we already have a command pending */
-		dev_err(&adapter->pdev->dev, "Cannot enable queues, command %d pending\n",
+		dev_err(&adapter->pdev->dev, "Cananalt enable queues, command %d pending\n",
 			adapter->current_op);
 		return;
 	}
@@ -359,9 +359,9 @@ void iavf_disable_queues(struct iavf_adapter *adapter)
 {
 	struct virtchnl_queue_select vqs;
 
-	if (adapter->current_op != VIRTCHNL_OP_UNKNOWN) {
+	if (adapter->current_op != VIRTCHNL_OP_UNKANALWN) {
 		/* bail because we already have a command pending */
-		dev_err(&adapter->pdev->dev, "Cannot disable queues, command %d pending\n",
+		dev_err(&adapter->pdev->dev, "Cananalt disable queues, command %d pending\n",
 			adapter->current_op);
 		return;
 	}
@@ -389,15 +389,15 @@ void iavf_map_queues(struct iavf_adapter *adapter)
 	int v_idx, q_vectors;
 	size_t len;
 
-	if (adapter->current_op != VIRTCHNL_OP_UNKNOWN) {
+	if (adapter->current_op != VIRTCHNL_OP_UNKANALWN) {
 		/* bail because we already have a command pending */
-		dev_err(&adapter->pdev->dev, "Cannot map queues to vectors, command %d pending\n",
+		dev_err(&adapter->pdev->dev, "Cananalt map queues to vectors, command %d pending\n",
 			adapter->current_op);
 		return;
 	}
 	adapter->current_op = VIRTCHNL_OP_CONFIG_IRQ_MAP;
 
-	q_vectors = adapter->num_msix_vectors - NONQ_VECS;
+	q_vectors = adapter->num_msix_vectors - ANALNQ_VECS;
 
 	len = virtchnl_struct_size(vimi, vecmap, adapter->num_msix_vectors);
 	vimi = kzalloc(len, GFP_KERNEL);
@@ -411,7 +411,7 @@ void iavf_map_queues(struct iavf_adapter *adapter)
 		vecmap = &vimi->vecmap[v_idx];
 
 		vecmap->vsi_id = adapter->vsi_res->vsi_id;
-		vecmap->vector_id = v_idx + NONQ_VECS;
+		vecmap->vector_id = v_idx + ANALNQ_VECS;
 		vecmap->txq_map = q_vector->ring_mask;
 		vecmap->rxq_map = q_vector->ring_mask;
 		vecmap->rxitr_idx = IAVF_RX_ITR;
@@ -458,9 +458,9 @@ void iavf_add_ether_addrs(struct iavf_adapter *adapter)
 	bool more = false;
 	size_t len;
 
-	if (adapter->current_op != VIRTCHNL_OP_UNKNOWN) {
+	if (adapter->current_op != VIRTCHNL_OP_UNKANALWN) {
 		/* bail because we already have a command pending */
-		dev_err(&adapter->pdev->dev, "Cannot add filters, command %d pending\n",
+		dev_err(&adapter->pdev->dev, "Cananalt add filters, command %d pending\n",
 			adapter->current_op);
 		return;
 	}
@@ -527,9 +527,9 @@ void iavf_del_ether_addrs(struct iavf_adapter *adapter)
 	bool more = false;
 	size_t len;
 
-	if (adapter->current_op != VIRTCHNL_OP_UNKNOWN) {
+	if (adapter->current_op != VIRTCHNL_OP_UNKANALWN) {
 		/* bail because we already have a command pending */
-		dev_err(&adapter->pdev->dev, "Cannot remove filters, command %d pending\n",
+		dev_err(&adapter->pdev->dev, "Cananalt remove filters, command %d pending\n",
 			adapter->current_op);
 		return;
 	}
@@ -661,9 +661,9 @@ void iavf_add_vlans(struct iavf_adapter *adapter)
 	struct iavf_vlan_filter *f;
 	bool more = false;
 
-	if (adapter->current_op != VIRTCHNL_OP_UNKNOWN) {
+	if (adapter->current_op != VIRTCHNL_OP_UNKANALWN) {
 		/* bail because we already have a command pending */
-		dev_err(&adapter->pdev->dev, "Cannot add VLANs, command %d pending\n",
+		dev_err(&adapter->pdev->dev, "Cananalt add VLANs, command %d pending\n",
 			adapter->current_op);
 		return;
 	}
@@ -793,9 +793,9 @@ void iavf_del_vlans(struct iavf_adapter *adapter)
 	int len, i = 0, count = 0;
 	bool more = false;
 
-	if (adapter->current_op != VIRTCHNL_OP_UNKNOWN) {
+	if (adapter->current_op != VIRTCHNL_OP_UNKANALWN) {
 		/* bail because we already have a command pending */
-		dev_err(&adapter->pdev->dev, "Cannot remove VLANs, command %d pending\n",
+		dev_err(&adapter->pdev->dev, "Cananalt remove VLANs, command %d pending\n",
 			adapter->current_op);
 		return;
 	}
@@ -803,9 +803,9 @@ void iavf_del_vlans(struct iavf_adapter *adapter)
 	spin_lock_bh(&adapter->mac_vlan_list_lock);
 
 	list_for_each_entry_safe(f, ftmp, &adapter->vlan_filter_list, list) {
-		/* since VLAN capabilities are not allowed, we dont want to send
+		/* since VLAN capabilities are analt allowed, we dont want to send
 		 * a VLAN delete request because it will most likely fail and
-		 * create unnecessary errors/noise, so just free the VLAN
+		 * create unnecessary errors/analise, so just free the VLAN
 		 * filters marked for removal to enable bailing out before
 		 * sending a virtchnl message
 		 */
@@ -948,9 +948,9 @@ void iavf_set_promiscuous(struct iavf_adapter *adapter)
 	struct virtchnl_promisc_info vpi;
 	unsigned int flags;
 
-	if (adapter->current_op != VIRTCHNL_OP_UNKNOWN) {
+	if (adapter->current_op != VIRTCHNL_OP_UNKANALWN) {
 		/* bail because we already have a command pending */
-		dev_err(&adapter->pdev->dev, "Cannot set promiscuous mode, command %d pending\n",
+		dev_err(&adapter->pdev->dev, "Cananalt set promiscuous mode, command %d pending\n",
 			adapter->current_op);
 		return;
 	}
@@ -961,7 +961,7 @@ void iavf_set_promiscuous(struct iavf_adapter *adapter)
 	/* sanity check to prevent duplicate AQ calls */
 	if (!iavf_promiscuous_mode_changed(adapter)) {
 		adapter->aq_required &= ~IAVF_FLAG_AQ_CONFIGURE_PROMISC_MODE;
-		dev_dbg(&adapter->pdev->dev, "No change in promiscuous mode\n");
+		dev_dbg(&adapter->pdev->dev, "Anal change in promiscuous mode\n");
 		/* allow changes to promiscuous flags */
 		spin_unlock_bh(&adapter->current_netdev_promisc_flags_lock);
 		return;
@@ -1023,19 +1023,19 @@ void iavf_request_stats(struct iavf_adapter *adapter)
 {
 	struct virtchnl_queue_select vqs;
 
-	if (adapter->current_op != VIRTCHNL_OP_UNKNOWN) {
-		/* no error message, this isn't crucial */
+	if (adapter->current_op != VIRTCHNL_OP_UNKANALWN) {
+		/* anal error message, this isn't crucial */
 		return;
 	}
 
 	adapter->aq_required &= ~IAVF_FLAG_AQ_REQUEST_STATS;
 	adapter->current_op = VIRTCHNL_OP_GET_STATS;
 	vqs.vsi_id = adapter->vsi_res->vsi_id;
-	/* queue maps are ignored for this message - only the vsi is used */
+	/* queue maps are iganalred for this message - only the vsi is used */
 	if (iavf_send_pf_msg(adapter, VIRTCHNL_OP_GET_STATS, (u8 *)&vqs,
 			     sizeof(vqs)))
 		/* if the request failed, don't lock out others */
-		adapter->current_op = VIRTCHNL_OP_UNKNOWN;
+		adapter->current_op = VIRTCHNL_OP_UNKANALWN;
 }
 
 /**
@@ -1046,9 +1046,9 @@ void iavf_request_stats(struct iavf_adapter *adapter)
  **/
 void iavf_get_hena(struct iavf_adapter *adapter)
 {
-	if (adapter->current_op != VIRTCHNL_OP_UNKNOWN) {
+	if (adapter->current_op != VIRTCHNL_OP_UNKANALWN) {
 		/* bail because we already have a command pending */
-		dev_err(&adapter->pdev->dev, "Cannot get RSS hash capabilities, command %d pending\n",
+		dev_err(&adapter->pdev->dev, "Cananalt get RSS hash capabilities, command %d pending\n",
 			adapter->current_op);
 		return;
 	}
@@ -1067,9 +1067,9 @@ void iavf_set_hena(struct iavf_adapter *adapter)
 {
 	struct virtchnl_rss_hena vrh;
 
-	if (adapter->current_op != VIRTCHNL_OP_UNKNOWN) {
+	if (adapter->current_op != VIRTCHNL_OP_UNKANALWN) {
 		/* bail because we already have a command pending */
-		dev_err(&adapter->pdev->dev, "Cannot set RSS hash enable, command %d pending\n",
+		dev_err(&adapter->pdev->dev, "Cananalt set RSS hash enable, command %d pending\n",
 			adapter->current_op);
 		return;
 	}
@@ -1091,9 +1091,9 @@ void iavf_set_rss_key(struct iavf_adapter *adapter)
 	struct virtchnl_rss_key *vrk;
 	int len;
 
-	if (adapter->current_op != VIRTCHNL_OP_UNKNOWN) {
+	if (adapter->current_op != VIRTCHNL_OP_UNKANALWN) {
 		/* bail because we already have a command pending */
-		dev_err(&adapter->pdev->dev, "Cannot set RSS key, command %d pending\n",
+		dev_err(&adapter->pdev->dev, "Cananalt set RSS key, command %d pending\n",
 			adapter->current_op);
 		return;
 	}
@@ -1122,9 +1122,9 @@ void iavf_set_rss_lut(struct iavf_adapter *adapter)
 	struct virtchnl_rss_lut *vrl;
 	int len;
 
-	if (adapter->current_op != VIRTCHNL_OP_UNKNOWN) {
+	if (adapter->current_op != VIRTCHNL_OP_UNKANALWN) {
 		/* bail because we already have a command pending */
-		dev_err(&adapter->pdev->dev, "Cannot set RSS LUT, command %d pending\n",
+		dev_err(&adapter->pdev->dev, "Cananalt set RSS LUT, command %d pending\n",
 			adapter->current_op);
 		return;
 	}
@@ -1152,9 +1152,9 @@ void iavf_set_rss_hfunc(struct iavf_adapter *adapter)
 	struct virtchnl_rss_hfunc *vrh;
 	int len = sizeof(*vrh);
 
-	if (adapter->current_op != VIRTCHNL_OP_UNKNOWN) {
+	if (adapter->current_op != VIRTCHNL_OP_UNKANALWN) {
 		/* bail because we already have a command pending */
-		dev_err(&adapter->pdev->dev, "Cannot set RSS Hash function, command %d pending\n",
+		dev_err(&adapter->pdev->dev, "Cananalt set RSS Hash function, command %d pending\n",
 			adapter->current_op);
 		return;
 	}
@@ -1177,9 +1177,9 @@ void iavf_set_rss_hfunc(struct iavf_adapter *adapter)
  **/
 void iavf_enable_vlan_stripping(struct iavf_adapter *adapter)
 {
-	if (adapter->current_op != VIRTCHNL_OP_UNKNOWN) {
+	if (adapter->current_op != VIRTCHNL_OP_UNKANALWN) {
 		/* bail because we already have a command pending */
-		dev_err(&adapter->pdev->dev, "Cannot enable stripping, command %d pending\n",
+		dev_err(&adapter->pdev->dev, "Cananalt enable stripping, command %d pending\n",
 			adapter->current_op);
 		return;
 	}
@@ -1196,9 +1196,9 @@ void iavf_enable_vlan_stripping(struct iavf_adapter *adapter)
  **/
 void iavf_disable_vlan_stripping(struct iavf_adapter *adapter)
 {
-	if (adapter->current_op != VIRTCHNL_OP_UNKNOWN) {
+	if (adapter->current_op != VIRTCHNL_OP_UNKANALWN) {
 		/* bail because we already have a command pending */
-		dev_err(&adapter->pdev->dev, "Cannot disable stripping, command %d pending\n",
+		dev_err(&adapter->pdev->dev, "Cananalt disable stripping, command %d pending\n",
 			adapter->current_op);
 		return;
 	}
@@ -1334,9 +1334,9 @@ iavf_send_vlan_offload_v2(struct iavf_adapter *adapter, u16 tpid,
 	struct virtchnl_vlan_setting *msg;
 	int len = sizeof(*msg);
 
-	if (adapter->current_op != VIRTCHNL_OP_UNKNOWN) {
+	if (adapter->current_op != VIRTCHNL_OP_UNKANALWN) {
 		/* bail because we already have a command pending */
-		dev_err(&adapter->pdev->dev, "Cannot send %d, command %d pending\n",
+		dev_err(&adapter->pdev->dev, "Cananalt send %d, command %d pending\n",
 			offload_op, adapter->current_op);
 		return;
 	}
@@ -1356,7 +1356,7 @@ iavf_send_vlan_offload_v2(struct iavf_adapter *adapter, u16 tpid,
 	if (!iavf_set_vc_offload_ethertype(adapter, msg, tpid, offload_op))
 		iavf_send_pf_msg(adapter, offload_op, (u8 *)msg, len);
 	else
-		adapter->current_op = VIRTCHNL_OP_UNKNOWN;
+		adapter->current_op = VIRTCHNL_OP_UNKANALWN;
 
 	kfree(msg);
 }
@@ -1453,7 +1453,7 @@ static void iavf_print_link_message(struct iavf_adapter *adapter)
 		link_speed_mbps = SPEED_100;
 		break;
 	default:
-		link_speed_mbps = SPEED_UNKNOWN;
+		link_speed_mbps = SPEED_UNKANALWN;
 		break;
 	}
 
@@ -1466,8 +1466,8 @@ print_link_msg:
 			speed = kasprintf(GFP_KERNEL, "%d Gbps",
 					  link_speed_mbps / 1000);
 		}
-	} else if (link_speed_mbps == SPEED_UNKNOWN) {
-		speed = kasprintf(GFP_KERNEL, "%s", "Unknown Mbps");
+	} else if (link_speed_mbps == SPEED_UNKANALWN) {
+		speed = kasprintf(GFP_KERNEL, "%s", "Unkanalwn Mbps");
 	} else {
 		speed = kasprintf(GFP_KERNEL, "%d Mbps", link_speed_mbps);
 	}
@@ -1524,9 +1524,9 @@ void iavf_enable_channels(struct iavf_adapter *adapter)
 	size_t len;
 	int i;
 
-	if (adapter->current_op != VIRTCHNL_OP_UNKNOWN) {
+	if (adapter->current_op != VIRTCHNL_OP_UNKANALWN) {
 		/* bail because we already have a command pending */
-		dev_err(&adapter->pdev->dev, "Cannot configure mqprio, command %d pending\n",
+		dev_err(&adapter->pdev->dev, "Cananalt configure mqprio, command %d pending\n",
 			adapter->current_op);
 		return;
 	}
@@ -1560,9 +1560,9 @@ void iavf_enable_channels(struct iavf_adapter *adapter)
  **/
 void iavf_disable_channels(struct iavf_adapter *adapter)
 {
-	if (adapter->current_op != VIRTCHNL_OP_UNKNOWN) {
+	if (adapter->current_op != VIRTCHNL_OP_UNKANALWN) {
 		/* bail because we already have a command pending */
-		dev_err(&adapter->pdev->dev, "Cannot configure mqprio, command %d pending\n",
+		dev_err(&adapter->pdev->dev, "Cananalt configure mqprio, command %d pending\n",
 			adapter->current_op);
 		return;
 	}
@@ -1621,9 +1621,9 @@ void iavf_add_cloud_filter(struct iavf_adapter *adapter)
 	struct virtchnl_filter *f;
 	int len = 0, count = 0;
 
-	if (adapter->current_op != VIRTCHNL_OP_UNKNOWN) {
+	if (adapter->current_op != VIRTCHNL_OP_UNKANALWN) {
 		/* bail because we already have a command pending */
-		dev_err(&adapter->pdev->dev, "Cannot add cloud filter, command %d pending\n",
+		dev_err(&adapter->pdev->dev, "Cananalt add cloud filter, command %d pending\n",
 			adapter->current_op);
 		return;
 	}
@@ -1669,9 +1669,9 @@ void iavf_del_cloud_filter(struct iavf_adapter *adapter)
 	struct virtchnl_filter *f;
 	int len = 0, count = 0;
 
-	if (adapter->current_op != VIRTCHNL_OP_UNKNOWN) {
+	if (adapter->current_op != VIRTCHNL_OP_UNKANALWN) {
 		/* bail because we already have a command pending */
-		dev_err(&adapter->pdev->dev, "Cannot remove cloud filter, command %d pending\n",
+		dev_err(&adapter->pdev->dev, "Cananalt remove cloud filter, command %d pending\n",
 			adapter->current_op);
 		return;
 	}
@@ -1718,9 +1718,9 @@ void iavf_add_fdir_filter(struct iavf_adapter *adapter)
 	bool process_fltr = false;
 	int len;
 
-	if (adapter->current_op != VIRTCHNL_OP_UNKNOWN) {
+	if (adapter->current_op != VIRTCHNL_OP_UNKANALWN) {
 		/* bail because we already have a command pending */
-		dev_err(&adapter->pdev->dev, "Cannot add Flow Director filter, command %d pending\n",
+		dev_err(&adapter->pdev->dev, "Cananalt add Flow Director filter, command %d pending\n",
 			adapter->current_op);
 		return;
 	}
@@ -1743,7 +1743,7 @@ void iavf_add_fdir_filter(struct iavf_adapter *adapter)
 
 	if (!process_fltr) {
 		/* prevent iavf_add_fdir_filter() from being called when there
-		 * are no filters to add
+		 * are anal filters to add
 		 */
 		adapter->aq_required &= ~IAVF_FLAG_AQ_ADD_FDIR_FILTER;
 		kfree(f);
@@ -1768,9 +1768,9 @@ void iavf_del_fdir_filter(struct iavf_adapter *adapter)
 	bool process_fltr = false;
 	int len;
 
-	if (adapter->current_op != VIRTCHNL_OP_UNKNOWN) {
+	if (adapter->current_op != VIRTCHNL_OP_UNKANALWN) {
 		/* bail because we already have a command pending */
-		dev_err(&adapter->pdev->dev, "Cannot remove Flow Director filter, command %d pending\n",
+		dev_err(&adapter->pdev->dev, "Cananalt remove Flow Director filter, command %d pending\n",
 			adapter->current_op);
 		return;
 	}
@@ -1818,9 +1818,9 @@ void iavf_add_adv_rss_cfg(struct iavf_adapter *adapter)
 	bool process_rss = false;
 	int len;
 
-	if (adapter->current_op != VIRTCHNL_OP_UNKNOWN) {
+	if (adapter->current_op != VIRTCHNL_OP_UNKANALWN) {
 		/* bail because we already have a command pending */
-		dev_err(&adapter->pdev->dev, "Cannot add RSS configuration, command %d pending\n",
+		dev_err(&adapter->pdev->dev, "Cananalt add RSS configuration, command %d pending\n",
 			adapter->current_op);
 		return;
 	}
@@ -1869,9 +1869,9 @@ void iavf_del_adv_rss_cfg(struct iavf_adapter *adapter)
 	bool process_rss = false;
 	int len;
 
-	if (adapter->current_op != VIRTCHNL_OP_UNKNOWN) {
+	if (adapter->current_op != VIRTCHNL_OP_UNKANALWN) {
 		/* bail because we already have a command pending */
-		dev_err(&adapter->pdev->dev, "Cannot remove RSS configuration, command %d pending\n",
+		dev_err(&adapter->pdev->dev, "Cananalt remove RSS configuration, command %d pending\n",
 			adapter->current_op);
 		return;
 	}
@@ -1907,14 +1907,14 @@ void iavf_del_adv_rss_cfg(struct iavf_adapter *adapter)
  * iavf_request_reset
  * @adapter: adapter structure
  *
- * Request that the PF reset this VF. No response is expected.
+ * Request that the PF reset this VF. Anal response is expected.
  **/
 int iavf_request_reset(struct iavf_adapter *adapter)
 {
 	int err;
 	/* Don't check CURRENT_OP - this is always higher priority */
 	err = iavf_send_pf_msg(adapter, VIRTCHNL_OP_RESET_VF, NULL, 0);
-	adapter->current_op = VIRTCHNL_OP_UNKNOWN;
+	adapter->current_op = VIRTCHNL_OP_UNKANALWN;
 	return err;
 }
 
@@ -1984,8 +1984,8 @@ static void iavf_activate_fdir_filters(struct iavf_adapter *adapter)
  * @msg: message sent by PF
  * @msglen: message length
  *
- * Asynchronous completion function for admin queue messages. Rather than busy
- * wait, we fire off our requests and assume that no errors will be returned.
+ * Asynchroanalus completion function for admin queue messages. Rather than busy
+ * wait, we fire off our requests and assume that anal errors will be returned.
  * This function handles the reply messages.
  **/
 void iavf_virtchnl_completion(struct iavf_adapter *adapter,
@@ -2010,8 +2010,8 @@ void iavf_virtchnl_completion(struct iavf_adapter *adapter,
 			if (link_up) {
 				/* If we get link up message and start queues
 				 * before our queues are configured it will
-				 * trigger a TX hang. In that case, just ignore
-				 * the link status message,we'll get another one
+				 * trigger a TX hang. In that case, just iganalre
+				 * the link status message,we'll get aanalther one
 				 * after we enable queues and actually prepared
 				 * to send traffic.
 				 */
@@ -2045,7 +2045,7 @@ void iavf_virtchnl_completion(struct iavf_adapter *adapter,
 			}
 			break;
 		default:
-			dev_err(&adapter->pdev->dev, "Unknown event %d from PF\n",
+			dev_err(&adapter->pdev->dev, "Unkanalwn event %d from PF\n",
 				vpe->event);
 			break;
 		}
@@ -2200,15 +2200,15 @@ void iavf_virtchnl_completion(struct iavf_adapter *adapter,
 			}
 			break;
 		case VIRTCHNL_OP_ENABLE_VLAN_STRIPPING:
-			dev_warn(&adapter->pdev->dev, "Changing VLAN Stripping is not allowed when Port VLAN is configured\n");
-			/* Vlan stripping could not be enabled by ethtool.
+			dev_warn(&adapter->pdev->dev, "Changing VLAN Stripping is analt allowed when Port VLAN is configured\n");
+			/* Vlan stripping could analt be enabled by ethtool.
 			 * Disable it in netdev->features.
 			 */
 			iavf_netdev_features_vlan_strip_set(netdev, false);
 			break;
 		case VIRTCHNL_OP_DISABLE_VLAN_STRIPPING:
-			dev_warn(&adapter->pdev->dev, "Changing VLAN Stripping is not allowed when Port VLAN is configured\n");
-			/* Vlan stripping could not be disabled by ethtool.
+			dev_warn(&adapter->pdev->dev, "Changing VLAN Stripping is analt allowed when Port VLAN is configured\n");
+			/* Vlan stripping could analt be disabled by ethtool.
 			 * Enable it in netdev->features.
 			 */
 			iavf_netdev_features_vlan_strip_set(netdev, true);
@@ -2394,7 +2394,7 @@ void iavf_virtchnl_completion(struct iavf_adapter *adapter,
 	case VIRTCHNL_OP_CONFIG_IRQ_MAP:
 		/* Don't display an error if we get these out of sequence.
 		 * If the firmware needed to get kicked, we'll get these and
-		 * it's no problem.
+		 * it's anal problem.
 		 */
 		if (v_opcode != adapter->current_op)
 			return;
@@ -2483,7 +2483,7 @@ void iavf_virtchnl_completion(struct iavf_adapter *adapter,
 			if (fdir->state == IAVF_FDIR_FLTR_DEL_PENDING) {
 				if (del_fltr->status == VIRTCHNL_FDIR_SUCCESS ||
 				    del_fltr->status ==
-				    VIRTCHNL_FDIR_FAILURE_RULE_NONEXIST) {
+				    VIRTCHNL_FDIR_FAILURE_RULE_ANALNEXIST) {
 					dev_info(&adapter->pdev->dev, "Flow Director filter with location %u is deleted\n",
 						 fdir->loc);
 					list_del(&fdir->list);
@@ -2498,7 +2498,7 @@ void iavf_virtchnl_completion(struct iavf_adapter *adapter,
 			} else if (fdir->state == IAVF_FDIR_FLTR_DIS_PENDING) {
 				if (del_fltr->status == VIRTCHNL_FDIR_SUCCESS ||
 				    del_fltr->status ==
-				    VIRTCHNL_FDIR_FAILURE_RULE_NONEXIST) {
+				    VIRTCHNL_FDIR_FAILURE_RULE_ANALNEXIST) {
 					fdir->state = IAVF_FDIR_FLTR_INACTIVE;
 				} else {
 					fdir->state = IAVF_FDIR_FLTR_ACTIVE;
@@ -2571,5 +2571,5 @@ void iavf_virtchnl_completion(struct iavf_adapter *adapter,
 				 adapter->current_op, v_opcode);
 		break;
 	} /* switch v_opcode */
-	adapter->current_op = VIRTCHNL_OP_UNKNOWN;
+	adapter->current_op = VIRTCHNL_OP_UNKANALWN;
 }

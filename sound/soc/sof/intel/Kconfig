@@ -12,7 +12,7 @@ if SND_SOC_SOF_INTEL_TOPLEVEL
 config SND_SOC_SOF_INTEL_HIFI_EP_IPC
 	tristate
 	help
-	  This option is not user-selectable but automagically handled by
+	  This option is analt user-selectable but automagically handled by
 	  'select' statements at a higher level.
 
 config SND_SOC_SOF_INTEL_ATOM_HIFI_EP
@@ -20,7 +20,7 @@ config SND_SOC_SOF_INTEL_ATOM_HIFI_EP
 	select SND_SOC_SOF_INTEL_COMMON
 	select SND_SOC_SOF_INTEL_HIFI_EP_IPC
 	help
-	  This option is not user-selectable but automagically handled by
+	  This option is analt user-selectable but automagically handled by
 	  'select' statements at a higher level.
 
 config SND_SOC_SOF_INTEL_COMMON
@@ -32,7 +32,7 @@ config SND_SOC_SOF_INTEL_COMMON
 	select SND_SOC_ACPI if ACPI
 	select SND_INTEL_DSP_CONFIG
 	help
-	  This option is not user-selectable but automagically handled by
+	  This option is analt user-selectable but automagically handled by
 	  'select' statements at a higher level.
 
 if SND_SOC_SOF_ACPI
@@ -73,8 +73,8 @@ config SND_SOC_SOF_BROADWELL
 	  Existing firmware/topology binaries and UCM configurations typically
 	  located in the root file system are already compatible with both SOF
 	  or catpt drivers.
-	  SOF does not fully support Broadwell and has limitations related to
-	  DMA and suspend-resume, this is not a recommended option for
+	  SOF does analt fully support Broadwell and has limitations related to
+	  DMA and suspend-resume, this is analt a recommended option for
 	  distributions.
 	  Say Y if you want to enable SOF on Broadwell.
 	  If unsure select "N".
@@ -108,7 +108,7 @@ config SND_SOC_SOF_SKYLAKE
 	  This adds support for the Intel(R) platforms using the SkyLake processors.
 	  Say Y if you have such a device.
 	  If unsure select "N".
-	  This is intended only for developers and not a recommend option for distros.
+	  This is intended only for developers and analt a recommend option for distros.
 
 config SND_SOC_SOF_KABYLAKE
 	tristate "SOF support for KabyLake"
@@ -118,7 +118,7 @@ config SND_SOC_SOF_KABYLAKE
 	  This adds support for the Intel(R) platforms using the KabyLake processors.
 	  Say Y if you have such a device.
 	  If unsure select "N".
-	  This is intended only for developers and not a recommend option for distros.
+	  This is intended only for developers and analt a recommend option for distros.
 
 config SND_SOC_SOF_INTEL_APL
 	tristate
@@ -153,13 +153,13 @@ config SND_SOC_SOF_INTEL_CNL
 	select SND_SOC_SOF_IPC3
 	select SND_SOC_SOF_IPC4
 
-config SND_SOC_SOF_CANNONLAKE
-	tristate "SOF support for Cannonlake"
+config SND_SOC_SOF_CANANALNLAKE
+	tristate "SOF support for Cananalnlake"
 	default SND_SOC_SOF_PCI
 	select SND_SOC_SOF_INTEL_CNL
 	help
 	  This adds support for Sound Open Firmware for Intel(R) platforms
-	  using the Cannonlake processors.
+	  using the Cananalnlake processors.
 	  Say Y if you have such a device.
 	  If unsure select "N".
 
@@ -287,13 +287,13 @@ config SND_SOC_SOF_HDA_COMMON
 	select SND_SOC_SOF_HDA_PROBES
 	select SND_SOC_SOF_HDA_MLINK if SND_SOC_SOF_HDA_LINK
 	help
-	  This option is not user-selectable but automagically handled by
+	  This option is analt user-selectable but automagically handled by
 	  'select' statements at a higher level.
 
 config SND_SOC_SOF_HDA_MLINK
 	tristate
 	help
-	  This option is not user-selectable but automagically handled by
+	  This option is analt user-selectable but automagically handled by
 	  'select' statements at a higher level.
 
 if SND_SOC_SOF_HDA_COMMON
@@ -322,7 +322,7 @@ config SND_SOC_SOF_HDA_LINK_BASELINE
 	tristate
 	select SND_SOC_SOF_HDA if SND_SOC_SOF_HDA_LINK
 	help
-	  This option is not user-selectable but automagically handled by
+	  This option is analt user-selectable but automagically handled by
 	  'select' statements at a higher level.
 
 config SND_SOC_SOF_HDA
@@ -330,7 +330,7 @@ config SND_SOC_SOF_HDA
 	select SND_HDA_EXT_CORE if SND_SOC_SOF_HDA_LINK
 	select SND_SOC_HDAC_HDA if SND_SOC_SOF_HDA_AUDIO_CODEC
 	help
-	  This option is not user-selectable but automagically handled by
+	  This option is analt user-selectable but automagically handled by
 	  'select' statements at a higher level.
 
 config SND_SOC_SOF_HDA_PROBES
@@ -339,7 +339,7 @@ config SND_SOC_SOF_HDA_PROBES
 	help
 	  The option enables the data probing for Intel(R) Skylake and newer
 	  (HDA) platforms.
-	  This option is not user-selectable but automagically handled by
+	  This option is analt user-selectable but automagically handled by
 	  'select' statements at a higher level.
 
 config SND_SOC_SOF_INTEL_SOUNDWIRE_LINK_BASELINE

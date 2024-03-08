@@ -69,7 +69,7 @@ properties:
 
       - const: txco
         description: >
-          external reference clock (not a standalone crystal)
+          external reference clock (analt a standalone crystal)
 
       - const: lpo
         description: >
@@ -101,7 +101,7 @@ properties:
     type: boolean
     description:
       Set this property if autobaud mode is required. Autobaud mode is required
-      if the device's initial baud rate in normal mode is not supported by the
+      if the device's initial baud rate in analrmal mode is analt supported by the
       host or if the device requires autobaud mode startup before loading FW.
 
   interrupts:
@@ -124,7 +124,7 @@ dependencies:
   brcm,requires-autobaud-mode: [ shutdown-gpios ]
 
 if:
-  not:
+  analt:
     properties:
       compatible:
         contains:

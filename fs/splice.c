@@ -30,7 +30,7 @@
 #include <linux/export.h>
 #include <linux/syscalls.h>
 #include <linux/uio.h>
-#include <linux/fsnotify.h>
+#include <linux/fsanaltify.h>
 #include <linux/security.h>
 #include <linux/gfp.h>
 #include <linux/net.h>
@@ -40,28 +40,28 @@
 #include "internal.h"
 
 /*
- * Splice doesn't support FMODE_NOWAIT. Since pipes may set this flag to
- * indicate they support non-blocking reads or writes, we must clear it
+ * Splice doesn't support FMODE_ANALWAIT. Since pipes may set this flag to
+ * indicate they support analn-blocking reads or writes, we must clear it
  * here if set to avoid blocking other users of this pipe if splice is
  * being done on it.
  */
-static noinline void noinline pipe_clear_nowait(struct file *file)
+static analinline void analinline pipe_clear_analwait(struct file *file)
 {
 	fmode_t fmode = READ_ONCE(file->f_mode);
 
 	do {
-		if (!(fmode & FMODE_NOWAIT))
+		if (!(fmode & FMODE_ANALWAIT))
 			break;
-	} while (!try_cmpxchg(&file->f_mode, &fmode, fmode & ~FMODE_NOWAIT));
+	} while (!try_cmpxchg(&file->f_mode, &fmode, fmode & ~FMODE_ANALWAIT));
 }
 
 /*
  * Attempt to steal a page from a pipe buffer. This should perhaps go into
  * a vm helper function, it's already simplified quite a bit by the
  * addition of remove_mapping(). If success is returned, the caller may
- * attempt to reuse this page for another destination.
+ * attempt to reuse this page for aanalther destination.
  */
-static bool page_cache_pipe_buf_try_steal(struct pipe_inode_info *pipe,
+static bool page_cache_pipe_buf_try_steal(struct pipe_ianalde_info *pipe,
 		struct pipe_buffer *buf)
 {
 	struct folio *folio = page_folio(buf->page);
@@ -74,7 +74,7 @@ static bool page_cache_pipe_buf_try_steal(struct pipe_inode_info *pipe,
 		WARN_ON(!folio_test_uptodate(folio));
 
 		/*
-		 * At least for ext2 with nobh option, we need to wait on
+		 * At least for ext2 with analbh option, we need to wait on
 		 * writeback completing on this folio, since we'll remove it
 		 * from the pagecache.  Otherwise truncate wont wait on the
 		 * folio, allowing the disk blocks to be reused by someone else
@@ -105,7 +105,7 @@ out_unlock:
 	return false;
 }
 
-static void page_cache_pipe_buf_release(struct pipe_inode_info *pipe,
+static void page_cache_pipe_buf_release(struct pipe_ianalde_info *pipe,
 					struct pipe_buffer *buf)
 {
 	put_page(buf->page);
@@ -116,7 +116,7 @@ static void page_cache_pipe_buf_release(struct pipe_inode_info *pipe,
  * Check whether the contents of buf is OK to access. Since the content
  * is a page cache page, IO may be in flight.
  */
-static int page_cache_pipe_buf_confirm(struct pipe_inode_info *pipe,
+static int page_cache_pipe_buf_confirm(struct pipe_ianalde_info *pipe,
 				       struct pipe_buffer *buf)
 {
 	struct folio *folio = page_folio(buf->page);
@@ -130,7 +130,7 @@ static int page_cache_pipe_buf_confirm(struct pipe_inode_info *pipe,
 		 * splice, if this is the first page.
 		 */
 		if (!folio->mapping) {
-			err = -ENODATA;
+			err = -EANALDATA;
 			goto error;
 		}
 
@@ -159,7 +159,7 @@ const struct pipe_buf_operations page_cache_pipe_buf_ops = {
 	.get		= generic_pipe_buf_get,
 };
 
-static bool user_page_pipe_buf_try_steal(struct pipe_inode_info *pipe,
+static bool user_page_pipe_buf_try_steal(struct pipe_ianalde_info *pipe,
 		struct pipe_buffer *buf)
 {
 	if (!(buf->flags & PIPE_BUF_FLAG_GIFT))
@@ -175,7 +175,7 @@ static const struct pipe_buf_operations user_page_pipe_buf_ops = {
 	.get		= generic_pipe_buf_get,
 };
 
-static void wakeup_pipe_readers(struct pipe_inode_info *pipe)
+static void wakeup_pipe_readers(struct pipe_ianalde_info *pipe)
 {
 	smp_mb();
 	if (waitqueue_active(&pipe->rd_wait))
@@ -194,7 +194,7 @@ static void wakeup_pipe_readers(struct pipe_inode_info *pipe)
  *    function will link that data to the pipe.
  *
  */
-ssize_t splice_to_pipe(struct pipe_inode_info *pipe,
+ssize_t splice_to_pipe(struct pipe_ianalde_info *pipe,
 		       struct splice_pipe_desc *spd)
 {
 	unsigned int spd_pages = spd->nr_pages;
@@ -243,7 +243,7 @@ out:
 }
 EXPORT_SYMBOL_GPL(splice_to_pipe);
 
-ssize_t add_to_pipe(struct pipe_inode_info *pipe, struct pipe_buffer *buf)
+ssize_t add_to_pipe(struct pipe_ianalde_info *pipe, struct pipe_buffer *buf)
 {
 	unsigned int head = pipe->head;
 	unsigned int tail = pipe->tail;
@@ -269,7 +269,7 @@ EXPORT_SYMBOL(add_to_pipe);
  * Check if we need to grow the arrays holding pages and partial page
  * descriptions.
  */
-int splice_grow_spd(const struct pipe_inode_info *pipe, struct splice_pipe_desc *spd)
+int splice_grow_spd(const struct pipe_ianalde_info *pipe, struct splice_pipe_desc *spd)
 {
 	unsigned int max_usage = READ_ONCE(pipe->max_usage);
 
@@ -286,7 +286,7 @@ int splice_grow_spd(const struct pipe_inode_info *pipe, struct splice_pipe_desc 
 
 	kfree(spd->pages);
 	kfree(spd->partial);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 void splice_shrink_spd(struct splice_pipe_desc *spd)
@@ -312,14 +312,14 @@ void splice_shrink_spd(struct splice_pipe_desc *spd)
  * the pipe.
  *
  * Return: On success, the number of bytes read will be returned and *@ppos
- * will be updated if appropriate; 0 will be returned if there is no more data
- * to be read; -EAGAIN will be returned if the pipe had no space, and some
+ * will be updated if appropriate; 0 will be returned if there is anal more data
+ * to be read; -EAGAIN will be returned if the pipe had anal space, and some
  * other negative error code will be returned on error.  A short read may occur
  * if the pipe has insufficient space, we reach the end of the data or we hit a
  * hole.
  */
 ssize_t copy_splice_read(struct file *in, loff_t *ppos,
-			 struct pipe_inode_info *pipe,
+			 struct pipe_ianalde_info *pipe,
 			 size_t len, unsigned int flags)
 {
 	struct iov_iter to;
@@ -339,13 +339,13 @@ ssize_t copy_splice_read(struct file *in, loff_t *ppos,
 	bv = kzalloc(array_size(npages, sizeof(bv[0])) +
 		     array_size(npages, sizeof(struct page *)), GFP_KERNEL);
 	if (!bv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pages = (struct page **)(bv + npages);
 	npages = alloc_pages_bulk_array(GFP_USER, npages, pages);
 	if (!npages) {
 		kfree(bv);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	remain = len = min_t(size_t, len, npages * PAGE_SIZE);
@@ -408,13 +408,13 @@ const struct pipe_buf_operations default_pipe_buf_ops = {
 };
 
 /* Pipe buffer operations for a socket and similar. */
-const struct pipe_buf_operations nosteal_pipe_buf_ops = {
+const struct pipe_buf_operations analsteal_pipe_buf_ops = {
 	.release	= generic_pipe_buf_release,
 	.get		= generic_pipe_buf_get,
 };
-EXPORT_SYMBOL(nosteal_pipe_buf_ops);
+EXPORT_SYMBOL(analsteal_pipe_buf_ops);
 
-static void wakeup_pipe_writers(struct pipe_inode_info *pipe)
+static void wakeup_pipe_writers(struct pipe_ianalde_info *pipe)
 {
 	smp_mb();
 	if (waitqueue_active(&pipe->wr_wait))
@@ -431,18 +431,18 @@ static void wakeup_pipe_writers(struct pipe_inode_info *pipe)
  * Description:
  *    This function loops over the pipe and calls @actor to do the
  *    actual moving of a single struct pipe_buffer to the desired
- *    destination.  It returns when there's no more buffers left in
+ *    destination.  It returns when there's anal more buffers left in
  *    the pipe or if the requested number of bytes (@sd->total_len)
  *    have been copied.  It returns a positive number (one) if the
  *    pipe needs to be filled with more data, zero if the required
- *    number of bytes have been copied and -errno on error.
+ *    number of bytes have been copied and -erranal on error.
  *
  *    This, together with splice_from_pipe_{begin,end,next}, may be
  *    used to implement the functionality of __splice_from_pipe() when
  *    locking is required around copying the pipe buffers to the
  *    destination.
  */
-static int splice_from_pipe_feed(struct pipe_inode_info *pipe, struct splice_desc *sd,
+static int splice_from_pipe_feed(struct pipe_ianalde_info *pipe, struct splice_desc *sd,
 			  splice_actor *actor)
 {
 	unsigned int head = pipe->head;
@@ -459,7 +459,7 @@ static int splice_from_pipe_feed(struct pipe_inode_info *pipe, struct splice_des
 
 		ret = pipe_buf_confirm(pipe, buf);
 		if (unlikely(ret)) {
-			if (ret == -ENODATA)
+			if (ret == -EANALDATA)
 				ret = 0;
 			return ret;
 		}
@@ -491,8 +491,8 @@ static int splice_from_pipe_feed(struct pipe_inode_info *pipe, struct splice_des
 	return 1;
 }
 
-/* We know we have a pipe buffer, but maybe it's empty? */
-static inline bool eat_empty_buffer(struct pipe_inode_info *pipe)
+/* We kanalw we have a pipe buffer, but maybe it's empty? */
+static inline bool eat_empty_buffer(struct pipe_ianalde_info *pipe)
 {
 	unsigned int tail = pipe->tail;
 	unsigned int mask = pipe->ring_size - 1;
@@ -515,9 +515,9 @@ static inline bool eat_empty_buffer(struct pipe_inode_info *pipe)
  * Description:
  *    This function will wait for some data and return a positive
  *    value (one) if pipe buffers are available.  It will return zero
- *    or -errno if no more data needs to be spliced.
+ *    or -erranal if anal more data needs to be spliced.
  */
-static int splice_from_pipe_next(struct pipe_inode_info *pipe, struct splice_desc *sd)
+static int splice_from_pipe_next(struct pipe_ianalde_info *pipe, struct splice_desc *sd)
 {
 	/*
 	 * Check for signal early to make process killable when there are
@@ -534,7 +534,7 @@ repeat:
 		if (sd->num_spliced)
 			return 0;
 
-		if (sd->flags & SPLICE_F_NONBLOCK)
+		if (sd->flags & SPLICE_F_ANALNBLOCK)
 			return -EAGAIN;
 
 		if (signal_pending(current))
@@ -579,7 +579,7 @@ static void splice_from_pipe_begin(struct splice_desc *sd)
  *    be called after a loop containing splice_from_pipe_next() and
  *    splice_from_pipe_feed().
  */
-static void splice_from_pipe_end(struct pipe_inode_info *pipe, struct splice_desc *sd)
+static void splice_from_pipe_end(struct pipe_ianalde_info *pipe, struct splice_desc *sd)
 {
 	if (sd->need_wakeup)
 		wakeup_pipe_writers(pipe);
@@ -598,7 +598,7 @@ static void splice_from_pipe_end(struct pipe_inode_info *pipe, struct splice_des
  *    pipe_to_user.
  *
  */
-ssize_t __splice_from_pipe(struct pipe_inode_info *pipe, struct splice_desc *sd,
+ssize_t __splice_from_pipe(struct pipe_ianalde_info *pipe, struct splice_desc *sd,
 			   splice_actor *actor)
 {
 	int ret;
@@ -626,11 +626,11 @@ EXPORT_SYMBOL(__splice_from_pipe);
  * @actor:	handler that splices the data
  *
  * Description:
- *    See __splice_from_pipe. This function locks the pipe inode,
+ *    See __splice_from_pipe. This function locks the pipe ianalde,
  *    otherwise it's identical to __splice_from_pipe().
  *
  */
-ssize_t splice_from_pipe(struct pipe_inode_info *pipe, struct file *out,
+ssize_t splice_from_pipe(struct pipe_ianalde_info *pipe, struct file *out,
 			 loff_t *ppos, size_t len, unsigned int flags,
 			 splice_actor *actor)
 {
@@ -659,12 +659,12 @@ ssize_t splice_from_pipe(struct pipe_inode_info *pipe, struct file *out,
  *
  * Description:
  *    Will either move or copy pages (determined by @flags options) from
- *    the given pipe inode to the given file.
+ *    the given pipe ianalde to the given file.
  *    This one is ->write_iter-based.
  *
  */
 ssize_t
-iter_file_splice_write(struct pipe_inode_info *pipe, struct file *out,
+iter_file_splice_write(struct pipe_ianalde_info *pipe, struct file *out,
 			  loff_t *ppos, size_t len, unsigned int flags)
 {
 	struct splice_desc sd = {
@@ -682,7 +682,7 @@ iter_file_splice_write(struct pipe_inode_info *pipe, struct file *out,
 
 	array = kcalloc(nbufs, sizeof(struct bio_vec), GFP_KERNEL);
 	if (unlikely(!array))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pipe_lock(pipe);
 
@@ -704,7 +704,7 @@ iter_file_splice_write(struct pipe_inode_info *pipe, struct file *out,
 			array = kcalloc(nbufs, sizeof(struct bio_vec),
 					GFP_KERNEL);
 			if (!array) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				break;
 			}
 		}
@@ -719,14 +719,14 @@ iter_file_splice_write(struct pipe_inode_info *pipe, struct file *out,
 			struct pipe_buffer *buf = &pipe->bufs[tail & mask];
 			size_t this_len = buf->len;
 
-			/* zero-length bvecs are not supported, skip them */
+			/* zero-length bvecs are analt supported, skip them */
 			if (!this_len)
 				continue;
 			this_len = min(this_len, left);
 
 			ret = pipe_buf_confirm(pipe, buf);
 			if (unlikely(ret)) {
-				if (ret == -ENODATA)
+				if (ret == -EANALDATA)
 					ret = 0;
 				goto done;
 			}
@@ -792,11 +792,11 @@ EXPORT_SYMBOL(iter_file_splice_write);
  * @flags:	splice modifier flags
  *
  * Description:
- *    Will send @len bytes from the pipe to a network socket. No data copying
+ *    Will send @len bytes from the pipe to a network socket. Anal data copying
  *    is involved.
  *
  */
-ssize_t splice_to_socket(struct pipe_inode_info *pipe, struct file *out,
+ssize_t splice_to_socket(struct pipe_ianalde_info *pipe, struct file *out,
 			 loff_t *ppos, size_t len, unsigned int flags)
 {
 	struct socket *sock = sock_from_file(out);
@@ -829,7 +829,7 @@ ssize_t splice_to_socket(struct pipe_inode_info *pipe, struct file *out,
 				goto out;
 
 			ret = -EAGAIN;
-			if (flags & SPLICE_F_NONBLOCK)
+			if (flags & SPLICE_F_ANALNBLOCK)
 				goto out;
 
 			ret = -ERESTARTSYS;
@@ -861,7 +861,7 @@ ssize_t splice_to_socket(struct pipe_inode_info *pipe, struct file *out,
 
 			ret = pipe_buf_confirm(pipe, buf);
 			if (unlikely(ret)) {
-				if (ret == -ENODATA)
+				if (ret == -EANALDATA)
 					ret = 0;
 				break;
 			}
@@ -881,7 +881,7 @@ ssize_t splice_to_socket(struct pipe_inode_info *pipe, struct file *out,
 			msg.msg_flags |= MSG_MORE;
 		if (remain && pipe_occupancy(pipe->head, tail) > 0)
 			msg.msg_flags |= MSG_MORE;
-		if (out->f_flags & O_NONBLOCK)
+		if (out->f_flags & O_ANALNBLOCK)
 			msg.msg_flags |= MSG_DONTWAIT;
 
 		iov_iter_bvec(&msg.msg_iter, ITER_SOURCE, bvec, bc,
@@ -925,7 +925,7 @@ out:
 static int warn_unsupported(struct file *file, const char *op)
 {
 	pr_debug_ratelimited(
-		"splice %s not supported for file %pD4 (pid: %d comm: %.20s)\n",
+		"splice %s analt supported for file %pD4 (pid: %d comm: %.20s)\n",
 		op, file, current->pid, current->comm);
 	return -EINVAL;
 }
@@ -933,7 +933,7 @@ static int warn_unsupported(struct file *file, const char *op)
 /*
  * Attempt to initiate a splice from pipe to file.
  */
-static ssize_t do_splice_from(struct pipe_inode_info *pipe, struct file *out,
+static ssize_t do_splice_from(struct pipe_ianalde_info *pipe, struct file *out,
 			      loff_t *ppos, size_t len, unsigned int flags)
 {
 	if (unlikely(!out->f_op->splice_write))
@@ -954,10 +954,10 @@ static void do_splice_eof(struct splice_desc *sd)
 
 /*
  * Callers already called rw_verify_area() on the entire range.
- * No need to call it for sub ranges.
+ * Anal need to call it for sub ranges.
  */
 static ssize_t do_splice_read(struct file *in, loff_t *ppos,
-			      struct pipe_inode_info *pipe, size_t len,
+			      struct pipe_ianalde_info *pipe, size_t len,
 			      unsigned int flags)
 {
 	unsigned int p_space;
@@ -994,14 +994,14 @@ static ssize_t do_splice_read(struct file *in, loff_t *ppos,
  * @flags:	Splice modifier flags (SPLICE_F_*)
  *
  * Splice the requested amount of data from the input file to the pipe.  This
- * is synchronous as the caller must hold the pipe lock across the entire
+ * is synchroanalus as the caller must hold the pipe lock across the entire
  * operation.
  *
  * If successful, it returns the amount of data spliced, 0 if it hit the EOF or
  * a hole and a negative error code otherwise.
  */
 ssize_t vfs_splice_read(struct file *in, loff_t *ppos,
-			struct pipe_inode_info *pipe, size_t len,
+			struct pipe_ianalde_info *pipe, size_t len,
 			unsigned int flags)
 {
 	ssize_t ret;
@@ -1015,7 +1015,7 @@ ssize_t vfs_splice_read(struct file *in, loff_t *ppos,
 EXPORT_SYMBOL_GPL(vfs_splice_read);
 
 /**
- * splice_direct_to_actor - splices data directly between two non-pipes
+ * splice_direct_to_actor - splices data directly between two analn-pipes
  * @in:		file to splice from
  * @sd:		actor information on where to splice to
  * @actor:	handles the data splicing
@@ -1030,7 +1030,7 @@ EXPORT_SYMBOL_GPL(vfs_splice_read);
 ssize_t splice_direct_to_actor(struct file *in, struct splice_desc *sd,
 			       splice_direct_actor *actor)
 {
-	struct pipe_inode_info *pipe;
+	struct pipe_ianalde_info *pipe;
 	ssize_t ret, bytes;
 	size_t len;
 	int i, flags, more;
@@ -1044,14 +1044,14 @@ ssize_t splice_direct_to_actor(struct file *in, struct splice_desc *sd,
 		return -EINVAL;
 
 	/*
-	 * neither in nor out is a pipe, setup an internal pipe attached to
+	 * neither in analr out is a pipe, setup an internal pipe attached to
 	 * 'out' and transfer the wanted data from 'in' to 'out' through that
 	 */
 	pipe = current->splice_pipe;
 	if (unlikely(!pipe)) {
 		pipe = alloc_pipe_info();
 		if (!pipe)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		/*
 		 * We don't have an immediate reader, but we'll read the stuff
@@ -1071,7 +1071,7 @@ ssize_t splice_direct_to_actor(struct file *in, struct splice_desc *sd,
 
 	/* Don't block on output, we have to drain the direct pipe. */
 	flags = sd->flags;
-	sd->flags &= ~SPLICE_F_NONBLOCK;
+	sd->flags &= ~SPLICE_F_ANALNBLOCK;
 
 	/*
 	 * We signal MORE until we've read sufficient data to fulfill the
@@ -1094,15 +1094,15 @@ ssize_t splice_direct_to_actor(struct file *in, struct splice_desc *sd,
 		sd->total_len = read_len;
 
 		/*
-		 * If we now have sufficient data to fulfill the request then
-		 * we clear SPLICE_F_MORE if it was not set initially.
+		 * If we analw have sufficient data to fulfill the request then
+		 * we clear SPLICE_F_MORE if it was analt set initially.
 		 */
 		if (read_len >= len && !more)
 			sd->flags &= ~SPLICE_F_MORE;
 
 		/*
-		 * NOTE: nonblocking mode only applies to the input. We
-		 * must not do the output in nonblocking mode as then we
+		 * ANALTE: analnblocking mode only applies to the input. We
+		 * must analt do the output in analnblocking mode as then we
 		 * could get stuck data in the internal pipe:
 		 */
 		ret = actor(pipe, sd);
@@ -1128,7 +1128,7 @@ done:
 
 read_failure:
 	/*
-	 * If the user did *not* set SPLICE_F_MORE *and* we didn't hit that
+	 * If the user did *analt* set SPLICE_F_MORE *and* we didn't hit that
 	 * "use all of len" case that cleared SPLICE_F_MORE, *and* we did a
 	 * "->splice_in()" that returned EOF (ie zero) *and* we have sent at
 	 * least 1 byte *then* we will also do the ->splice_eof() call.
@@ -1154,7 +1154,7 @@ out_release:
 }
 EXPORT_SYMBOL(splice_direct_to_actor);
 
-static int direct_splice_actor(struct pipe_inode_info *pipe,
+static int direct_splice_actor(struct pipe_ianalde_info *pipe,
 			       struct splice_desc *sd)
 {
 	struct file *file = sd->u.file;
@@ -1166,7 +1166,7 @@ static int direct_splice_actor(struct pipe_inode_info *pipe,
 	return ret;
 }
 
-static int splice_file_range_actor(struct pipe_inode_info *pipe,
+static int splice_file_range_actor(struct pipe_ianalde_info *pipe,
 					struct splice_desc *sd)
 {
 	struct file *file = sd->u.file;
@@ -1261,7 +1261,7 @@ ssize_t splice_file_range(struct file *in, loff_t *ppos, struct file *out,
 }
 EXPORT_SYMBOL(splice_file_range);
 
-static int wait_for_space(struct pipe_inode_info *pipe, unsigned flags)
+static int wait_for_space(struct pipe_ianalde_info *pipe, unsigned flags)
 {
 	for (;;) {
 		if (unlikely(!pipe->readers)) {
@@ -1270,7 +1270,7 @@ static int wait_for_space(struct pipe_inode_info *pipe, unsigned flags)
 		}
 		if (!pipe_full(pipe->head, pipe->tail, pipe->max_usage))
 			return 0;
-		if (flags & SPLICE_F_NONBLOCK)
+		if (flags & SPLICE_F_ANALNBLOCK)
 			return -EAGAIN;
 		if (signal_pending(current))
 			return -ERESTARTSYS;
@@ -1278,12 +1278,12 @@ static int wait_for_space(struct pipe_inode_info *pipe, unsigned flags)
 	}
 }
 
-static int splice_pipe_to_pipe(struct pipe_inode_info *ipipe,
-			       struct pipe_inode_info *opipe,
+static int splice_pipe_to_pipe(struct pipe_ianalde_info *ipipe,
+			       struct pipe_ianalde_info *opipe,
 			       size_t len, unsigned int flags);
 
 ssize_t splice_file_to_pipe(struct file *in,
-			    struct pipe_inode_info *opipe,
+			    struct pipe_ianalde_info *opipe,
 			    loff_t *offset,
 			    size_t len, unsigned int flags)
 {
@@ -1305,8 +1305,8 @@ ssize_t splice_file_to_pipe(struct file *in,
 ssize_t do_splice(struct file *in, loff_t *off_in, struct file *out,
 		  loff_t *off_out, size_t len, unsigned int flags)
 {
-	struct pipe_inode_info *ipipe;
-	struct pipe_inode_info *opipe;
+	struct pipe_ianalde_info *ipipe;
+	struct pipe_ianalde_info *opipe;
 	loff_t offset;
 	ssize_t ret;
 
@@ -1325,8 +1325,8 @@ ssize_t do_splice(struct file *in, loff_t *off_in, struct file *out,
 		if (ipipe == opipe)
 			return -EINVAL;
 
-		if ((in->f_flags | out->f_flags) & O_NONBLOCK)
-			flags |= SPLICE_F_NONBLOCK;
+		if ((in->f_flags | out->f_flags) & O_ANALNBLOCK)
+			flags |= SPLICE_F_ANALNBLOCK;
 
 		ret = splice_pipe_to_pipe(ipipe, opipe, len, flags);
 	} else if (ipipe) {
@@ -1347,8 +1347,8 @@ ssize_t do_splice(struct file *in, loff_t *off_in, struct file *out,
 		if (unlikely(ret < 0))
 			return ret;
 
-		if (in->f_flags & O_NONBLOCK)
-			flags |= SPLICE_F_NONBLOCK;
+		if (in->f_flags & O_ANALNBLOCK)
+			flags |= SPLICE_F_ANALNBLOCK;
 
 		file_start_write(out);
 		ret = do_splice_from(ipipe, out, &offset, len, flags);
@@ -1373,8 +1373,8 @@ ssize_t do_splice(struct file *in, loff_t *off_in, struct file *out,
 		if (unlikely(ret < 0))
 			return ret;
 
-		if (out->f_flags & O_NONBLOCK)
-			flags |= SPLICE_F_NONBLOCK;
+		if (out->f_flags & O_ANALNBLOCK)
+			flags |= SPLICE_F_ANALNBLOCK;
 
 		ret = splice_file_to_pipe(in, opipe, &offset, len, flags);
 
@@ -1392,8 +1392,8 @@ ssize_t do_splice(struct file *in, loff_t *off_in, struct file *out,
 		 * do_splice_from() may've already sent modify out,
 		 * and this ensures the events get merged.
 		 */
-		fsnotify_modify(out);
-		fsnotify_access(in);
+		fsanaltify_modify(out);
+		fsanaltify_access(in);
 	}
 
 	return ret;
@@ -1403,8 +1403,8 @@ static ssize_t __do_splice(struct file *in, loff_t __user *off_in,
 			   struct file *out, loff_t __user *off_out,
 			   size_t len, unsigned int flags)
 {
-	struct pipe_inode_info *ipipe;
-	struct pipe_inode_info *opipe;
+	struct pipe_ianalde_info *ipipe;
+	struct pipe_ianalde_info *opipe;
 	loff_t offset, *__off_in = NULL, *__off_out = NULL;
 	ssize_t ret;
 
@@ -1414,12 +1414,12 @@ static ssize_t __do_splice(struct file *in, loff_t __user *off_in,
 	if (ipipe) {
 		if (off_in)
 			return -ESPIPE;
-		pipe_clear_nowait(in);
+		pipe_clear_analwait(in);
 	}
 	if (opipe) {
 		if (off_out)
 			return -ESPIPE;
-		pipe_clear_nowait(out);
+		pipe_clear_analwait(out);
 	}
 
 	if (off_out) {
@@ -1446,7 +1446,7 @@ static ssize_t __do_splice(struct file *in, loff_t __user *off_in,
 }
 
 static ssize_t iter_to_pipe(struct iov_iter *from,
-			    struct pipe_inode_info *pipe,
+			    struct pipe_ianalde_info *pipe,
 			    unsigned int flags)
 {
 	struct pipe_buffer buf = {
@@ -1492,7 +1492,7 @@ out:
 	return total ? total : ret;
 }
 
-static int pipe_to_user(struct pipe_inode_info *pipe, struct pipe_buffer *buf,
+static int pipe_to_user(struct pipe_ianalde_info *pipe, struct pipe_buffer *buf,
 			struct splice_desc *sd)
 {
 	int n = copy_page_to_iter(buf->page, buf->offset, sd->len, sd->u.data);
@@ -1506,7 +1506,7 @@ static int pipe_to_user(struct pipe_inode_info *pipe, struct pipe_buffer *buf,
 static ssize_t vmsplice_to_user(struct file *file, struct iov_iter *iter,
 				unsigned int flags)
 {
-	struct pipe_inode_info *pipe = get_pipe_info(file, true);
+	struct pipe_ianalde_info *pipe = get_pipe_info(file, true);
 	struct splice_desc sd = {
 		.total_len = iov_iter_count(iter),
 		.flags = flags,
@@ -1517,7 +1517,7 @@ static ssize_t vmsplice_to_user(struct file *file, struct iov_iter *iter,
 	if (!pipe)
 		return -EBADF;
 
-	pipe_clear_nowait(file);
+	pipe_clear_analwait(file);
 
 	if (sd.total_len) {
 		pipe_lock(pipe);
@@ -1526,7 +1526,7 @@ static ssize_t vmsplice_to_user(struct file *file, struct iov_iter *iter,
 	}
 
 	if (ret > 0)
-		fsnotify_access(file);
+		fsanaltify_access(file);
 
 	return ret;
 }
@@ -1539,7 +1539,7 @@ static ssize_t vmsplice_to_user(struct file *file, struct iov_iter *iter,
 static ssize_t vmsplice_to_pipe(struct file *file, struct iov_iter *iter,
 				unsigned int flags)
 {
-	struct pipe_inode_info *pipe;
+	struct pipe_ianalde_info *pipe;
 	ssize_t ret = 0;
 	unsigned buf_flag = 0;
 
@@ -1550,7 +1550,7 @@ static ssize_t vmsplice_to_pipe(struct file *file, struct iov_iter *iter,
 	if (!pipe)
 		return -EBADF;
 
-	pipe_clear_nowait(file);
+	pipe_clear_analwait(file);
 
 	pipe_lock(pipe);
 	ret = wait_for_space(pipe, flags);
@@ -1559,7 +1559,7 @@ static ssize_t vmsplice_to_pipe(struct file *file, struct iov_iter *iter,
 	pipe_unlock(pipe);
 	if (ret > 0) {
 		wakeup_pipe_readers(pipe);
-		fsnotify_modify(file);
+		fsanaltify_modify(file);
 	}
 	return ret;
 }
@@ -1580,8 +1580,8 @@ static int vmsplice_type(struct fd f, int *type)
 }
 
 /*
- * Note that vmsplice only really supports true splicing _from_ user memory
- * to a pipe, not the other way around. Splicing from user memory is a simple
+ * Analte that vmsplice only really supports true splicing _from_ user memory
+ * to a pipe, analt the other way around. Splicing from user memory is a simple
  * operation that can be supported without any funky alignment restrictions
  * or nasty vm tricks. We simply map in the user memory and fill them into
  * a pipe. The reverse isn't quite as easy, though. There are two possible
@@ -1589,10 +1589,10 @@ static int vmsplice_type(struct fd f, int *type)
  *
  *	- memcpy() the data internally, at which point we might as well just
  *	  do a regular read() on the buffer anyway.
- *	- Lots of nasty vm tricks, that are neither fast nor flexible (it
+ *	- Lots of nasty vm tricks, that are neither fast analr flexible (it
  *	  has restriction limitations on both ends of the pipe).
  *
- * Currently we punt and implement it as a normal copy, see pipe_to_user().
+ * Currently we punt and implement it as a analrmal copy, see pipe_to_user().
  *
  */
 SYSCALL_DEFINE4(vmsplice, int, fd, const struct iovec __user *, uiov,
@@ -1662,12 +1662,12 @@ SYSCALL_DEFINE6(splice, int, fd_in, loff_t __user *, off_in,
  * Make sure there's data to read. Wait for input if we can, otherwise
  * return an appropriate error.
  */
-static int ipipe_prep(struct pipe_inode_info *pipe, unsigned int flags)
+static int ipipe_prep(struct pipe_ianalde_info *pipe, unsigned int flags)
 {
 	int ret;
 
 	/*
-	 * Check the pipe occupancy without the inode lock first. This function
+	 * Check the pipe occupancy without the ianalde lock first. This function
 	 * is speculative anyways, so missing one is ok.
 	 */
 	if (!pipe_empty(pipe->head, pipe->tail))
@@ -1683,7 +1683,7 @@ static int ipipe_prep(struct pipe_inode_info *pipe, unsigned int flags)
 		}
 		if (!pipe->writers)
 			break;
-		if (flags & SPLICE_F_NONBLOCK) {
+		if (flags & SPLICE_F_ANALNBLOCK) {
 			ret = -EAGAIN;
 			break;
 		}
@@ -1698,12 +1698,12 @@ static int ipipe_prep(struct pipe_inode_info *pipe, unsigned int flags)
  * Make sure there's writeable room. Wait for room if we can, otherwise
  * return an appropriate error.
  */
-static int opipe_prep(struct pipe_inode_info *pipe, unsigned int flags)
+static int opipe_prep(struct pipe_ianalde_info *pipe, unsigned int flags)
 {
 	int ret;
 
 	/*
-	 * Check pipe occupancy without the inode lock first. This function
+	 * Check pipe occupancy without the ianalde lock first. This function
 	 * is speculative anyways, so missing one is ok.
 	 */
 	if (!pipe_full(pipe->head, pipe->tail, pipe->max_usage))
@@ -1718,7 +1718,7 @@ static int opipe_prep(struct pipe_inode_info *pipe, unsigned int flags)
 			ret = -EPIPE;
 			break;
 		}
-		if (flags & SPLICE_F_NONBLOCK) {
+		if (flags & SPLICE_F_ANALNBLOCK) {
 			ret = -EAGAIN;
 			break;
 		}
@@ -1736,8 +1736,8 @@ static int opipe_prep(struct pipe_inode_info *pipe, unsigned int flags)
 /*
  * Splice contents of ipipe to opipe.
  */
-static int splice_pipe_to_pipe(struct pipe_inode_info *ipipe,
-			       struct pipe_inode_info *opipe,
+static int splice_pipe_to_pipe(struct pipe_ianalde_info *ipipe,
+			       struct pipe_ianalde_info *opipe,
 			       size_t len, unsigned int flags)
 {
 	struct pipe_buffer *ibuf, *obuf;
@@ -1786,7 +1786,7 @@ retry:
 			break;
 
 		/*
-		 * Cannot make any progress, because either the input
+		 * Cananalt make any progress, because either the input
 		 * pipe is empty or the output pipe is full.
 		 */
 		if (pipe_empty(i_head, i_tail) ||
@@ -1795,13 +1795,13 @@ retry:
 			if (ret)
 				break;
 
-			if (flags & SPLICE_F_NONBLOCK) {
+			if (flags & SPLICE_F_ANALNBLOCK) {
 				ret = -EAGAIN;
 				break;
 			}
 
 			/*
-			 * We raced with another reader/writer and haven't
+			 * We raced with aanalther reader/writer and haven't
 			 * managed to process any buffers.  A zero return
 			 * value means EOF, so retry instead.
 			 */
@@ -1873,8 +1873,8 @@ retry:
 /*
  * Link contents of ipipe to opipe.
  */
-static ssize_t link_pipe(struct pipe_inode_info *ipipe,
-			 struct pipe_inode_info *opipe,
+static ssize_t link_pipe(struct pipe_ianalde_info *ipipe,
+			 struct pipe_ianalde_info *opipe,
 			 size_t len, unsigned int flags)
 {
 	struct pipe_buffer *ibuf, *obuf;
@@ -1962,13 +1962,13 @@ static ssize_t link_pipe(struct pipe_inode_info *ipipe,
  * This is a tee(1) implementation that works on pipes. It doesn't copy
  * any data, it simply references the 'in' pages on the 'out' pipe.
  * The 'flags' used are the SPLICE_F_* variants, currently the only
- * applicable one is SPLICE_F_NONBLOCK.
+ * applicable one is SPLICE_F_ANALNBLOCK.
  */
 ssize_t do_tee(struct file *in, struct file *out, size_t len,
 	       unsigned int flags)
 {
-	struct pipe_inode_info *ipipe = get_pipe_info(in, true);
-	struct pipe_inode_info *opipe = get_pipe_info(out, true);
+	struct pipe_ianalde_info *ipipe = get_pipe_info(in, true);
+	struct pipe_ianalde_info *opipe = get_pipe_info(out, true);
 	ssize_t ret = -EINVAL;
 
 	if (unlikely(!(in->f_mode & FMODE_READ) ||
@@ -1980,8 +1980,8 @@ ssize_t do_tee(struct file *in, struct file *out, size_t len,
 	 * copying the data.
 	 */
 	if (ipipe && opipe && ipipe != opipe) {
-		if ((in->f_flags | out->f_flags) & O_NONBLOCK)
-			flags |= SPLICE_F_NONBLOCK;
+		if ((in->f_flags | out->f_flags) & O_ANALNBLOCK)
+			flags |= SPLICE_F_ANALNBLOCK;
 
 		/*
 		 * Keep going, unless we encounter an error. The ipipe/opipe
@@ -1996,8 +1996,8 @@ ssize_t do_tee(struct file *in, struct file *out, size_t len,
 	}
 
 	if (ret > 0) {
-		fsnotify_access(in);
-		fsnotify_modify(out);
+		fsanaltify_access(in);
+		fsanaltify_modify(out);
 	}
 
 	return ret;

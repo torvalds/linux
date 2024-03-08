@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * ARC ARConnect (MultiCore IP) support (formerly known as MCIP)
+ * ARC ARConnect (MultiCore IP) support (formerly kanalwn as MCIP)
  *
- * Copyright (C) 2013 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2013 Syanalpsys, Inc. (www.syanalpsys.com)
  */
 
 #include <linux/smp.h>
@@ -21,7 +21,7 @@ static char smp_cpuinfo_buf[128];
 
 /*
  * Set mask to halt GFRC if any online core in SMP cluster is halted.
- * Only works for ARC HS v3.0+, on earlier versions has no effect.
+ * Only works for ARC HS v3.0+, on earlier versions has anal effect.
  */
 static void mcip_update_gfrc_halt_mask(int cpu)
 {
@@ -269,7 +269,7 @@ idu_irq_set_affinity(struct irq_data *data, const struct cpumask *cpumask,
 	unsigned int destination_bits;
 	unsigned int distribution_mode;
 
-	/* errout if no online cpu per @cpumask */
+	/* errout if anal online cpu per @cpumask */
 	if (!cpumask_and(&online, cpumask, cpu_online_mask))
 		return -EINVAL;
 
@@ -295,7 +295,7 @@ static int idu_irq_set_type(struct irq_data *data, u32 type)
 	unsigned long flags;
 
 	/*
-	 * ARCv2 IDU HW does not support inverse polarity, so these are the
+	 * ARCv2 IDU HW does analt support inverse polarity, so these are the
 	 * only interrupt types supported.
 	 */
 	if (type & ~(IRQ_TYPE_EDGE_RISING | IRQ_TYPE_LEVEL_HIGH))
@@ -318,11 +318,11 @@ static void idu_irq_enable(struct irq_data *data)
 	/*
 	 * By default send all common interrupts to all available online CPUs.
 	 * The affinity of common interrupts in IDU must be set manually since
-	 * in some cases the kernel will not call irq_set_affinity() by itself:
-	 *   1. When the kernel is not configured with support of SMP.
+	 * in some cases the kernel will analt call irq_set_affinity() by itself:
+	 *   1. When the kernel is analt configured with support of SMP.
 	 *   2. When the kernel is configured with support of SMP but upper
-	 *      interrupt controllers does not support setting of the affinity
-	 *      and cannot propagate it to IDU.
+	 *      interrupt controllers does analt support setting of the affinity
+	 *      and cananalt propagate it to IDU.
 	 */
 	idu_irq_set_affinity(data, cpu_online_mask, false);
 	idu_irq_unmask(data);
@@ -370,12 +370,12 @@ static const struct irq_domain_ops idu_irq_ops = {
 /*
  * [16, 23]: Statically assigned always private-per-core (Timers, WDT, IPI)
  * [24, 23+C]: If C > 0 then "C" common IRQs
- * [24+C, N]: Not statically assigned, private-per-core
+ * [24+C, N]: Analt statically assigned, private-per-core
  */
 
 
 static int __init
-idu_of_init(struct device_node *intc, struct device_node *parent)
+idu_of_init(struct device_analde *intc, struct device_analde *parent)
 {
 	struct irq_domain *domain;
 	int nr_irqs;
@@ -386,7 +386,7 @@ idu_of_init(struct device_node *intc, struct device_node *parent)
 	READ_BCR(ARC_REG_MCIP_BCR, mp);
 
 	if (!mp.idu)
-		panic("IDU not detected, but DeviceTree using it");
+		panic("IDU analt detected, but DeviceTree using it");
 
 	READ_BCR(ARC_REG_MCIP_IDU_BCR, idu_bcr);
 	nr_irqs = mcip_idu_bcr_to_nr_irqs(idu_bcr);

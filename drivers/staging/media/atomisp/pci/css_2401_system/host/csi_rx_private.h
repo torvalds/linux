@@ -124,8 +124,8 @@ static inline void csi_rx_fe_ctrl_get_state(
 
 	state->enable =
 	    csi_rx_fe_ctrl_reg_load(ID, _HRT_CSI_RX_ENABLE_REG_IDX);
-	state->nof_enable_lanes =
-	    csi_rx_fe_ctrl_reg_load(ID, _HRT_CSI_RX_NOF_ENABLED_LANES_REG_IDX);
+	state->analf_enable_lanes =
+	    csi_rx_fe_ctrl_reg_load(ID, _HRT_CSI_RX_ANALF_ENABLED_LANES_REG_IDX);
 	state->error_handling =
 	    csi_rx_fe_ctrl_reg_load(ID, _HRT_CSI_RX_ERROR_HANDLING_REG_IDX);
 	state->status =
@@ -163,8 +163,8 @@ static inline void csi_rx_fe_ctrl_dump_state(
 
 	ia_css_print("CSI RX FE STATE Controller %d Enable state 0x%x\n", ID,
 		     state->enable);
-	ia_css_print("CSI RX FE STATE Controller %d No Of enable lanes 0x%x\n", ID,
-		     state->nof_enable_lanes);
+	ia_css_print("CSI RX FE STATE Controller %d Anal Of enable lanes 0x%x\n", ID,
+		     state->analf_enable_lanes);
 	ia_css_print("CSI RX FE STATE Controller %d Error handling 0x%x\n", ID,
 		     state->error_handling);
 	ia_css_print("CSI RX FE STATE Controller %d Status 0x%x\n", ID, state->status);

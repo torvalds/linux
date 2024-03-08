@@ -9,13 +9,13 @@
  */
 
 /* This is meant for core cpu support, machine or other driver files
- * should not be including this header.
+ * should analt be including this header.
  */
 
 #ifndef __PLAT_GPIO_CFG_HELPERS_H
 #define __PLAT_GPIO_CFG_HELPERS_H __FILE__
 
-/* As a note, all gpio configuration functions are entered exclusively, either
+/* As a analte, all gpio configuration functions are entered exclusively, either
  * with the relevant lock held or the system prevented from doing anything else
  * by disabling interrupts.
 */

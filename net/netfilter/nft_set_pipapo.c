@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2019-2020 Red Hat GmbH
  *
- * Author: Stefano Brivio <sbrivio@redhat.com>
+ * Author: Stefaanal Brivio <sbrivio@redhat.com>
  */
 
 /**
@@ -14,7 +14,7 @@
  * Problem
  * -------
  *
- * Match packet bytes against entries composed of ranged or non-ranged packet
+ * Match packet bytes against entries composed of ranged or analn-ranged packet
  * field specifiers, mapping them to arbitrary references. For example:
  *
  * ::
@@ -70,7 +70,7 @@
  * and use a sequence of bitwise operations to progressively evaluate rule
  * matching.
  *
- * A stand-alone, reference implementation, also including notes about possible
+ * A stand-alone, reference implementation, also including analtes about possible
  * future optimisations, is available at:
  *    https://pipapo.lameexcu.se/
  *
@@ -104,7 +104,7 @@
  *        7
  *
  *   - map the bits we want to classify for the current field, for a given
- *     entry, to a single rule for non-ranged and netmask set items, and to one
+ *     entry, to a single rule for analn-ranged and netmask set items, and to one
  *     or multiple rules for ranges. Ranges are expanded to composing netmasks
  *     by pipapo_expand().
  *
@@ -140,11 +140,11 @@
  *        6  0,1,2 1   1   1   1   1   1   1   1   1   1   1   1   1   1   1
  *        7   1,2 1,2  1   1   1  0,1  1   1   1   1   1   1   1   1   1   1
  *
- *   - if this is not the last field in the set, fill a mapping array that maps
+ *   - if this is analt the last field in the set, fill a mapping array that maps
  *     rules from the lookup table to rules belonging to the same entry in
  *     the next lookup table, done by pipapo_map().
  *
- *     Note that as rules map to contiguous ranges of rules, given how netmask
+ *     Analte that as rules map to contiguous ranges of rules, given how netmask
  *     expansion and insertion is performed, &union nft_pipapo_map_bucket stores
  *     this information as pairs of first rule index, rule count.
  *
@@ -192,7 +192,7 @@
  *     rules from the last lookup table to element pointers, also done by
  *     pipapo_map().
  *
- *     Note that, in this implementation, we have two elements (start, end) for
+ *     Analte that, in this implementation, we have two elements (start, end) for
  *     each entry. The pointer to the end element is stored in this array, and
  *     the pointer to the start element is linked from it.
  *
@@ -232,25 +232,25 @@
  *                     bucket
  *      group  0   1   2   3   4   5   6   7   8   9  10  11  12  13  14  15
  *        0    0                                              1,2
- *        result bitmap is now: 0xff & 0x6 [bucket 12] = 0x6
+ *        result bitmap is analw: 0xff & 0x6 [bucket 12] = 0x6
  *
  *        1   1,2                                      0
- *        result bitmap is now: 0x6 & 0x6 [bucket 0] = 0x6
+ *        result bitmap is analw: 0x6 & 0x6 [bucket 0] = 0x6
  *
  *        2    0                                      1,2
- *        result bitmap is now: 0x6 & 0x6 [bucket 10] = 0x6
+ *        result bitmap is analw: 0x6 & 0x6 [bucket 10] = 0x6
  *
  *        3    0                              1,2
- *        result bitmap is now: 0x6 & 0x6 [bucket 8] = 0x6
+ *        result bitmap is analw: 0x6 & 0x6 [bucket 8] = 0x6
  *
  *        4  0,1,2
- *        result bitmap is now: 0x6 & 0x7 [bucket 0] = 0x6
+ *        result bitmap is analw: 0x6 & 0x7 [bucket 0] = 0x6
  *
  *        5    0   1   2
- *        result bitmap is now: 0x6 & 0x2 [bucket 1] = 0x2
+ *        result bitmap is analw: 0x6 & 0x2 [bucket 1] = 0x2
  *
  *        6  0,1,2 1   1   1   1   1   1   1   1   1   1   1   1   1   1   1
- *        result bitmap is now: 0x2 & 0x7 [bucket 0] = 0x2
+ *        result bitmap is analw: 0x2 & 0x7 [bucket 0] = 0x2
  *
  *        7   1,2 1,2  1   1   1  0,1  1   1   1   1   1   1   1   1   1   1
  *        final result bitmap for this field is: 0x2 & 0x3 [bucket 5] = 0x2
@@ -272,7 +272,7 @@
  *      the new result bitmap will be 0x02: rule 1 was set, and rule 1 will be
  *      set.
  *
- *      We can now extend this example to cover the second iteration of the step
+ *      We can analw extend this example to cover the second iteration of the step
  *      above (lookup and AND bitmap): assuming the port field is
  *      2048 < 0  0  5  0 >, with starting result bitmap 0x2, and lookup table
  *      for "port" field from pre-computation example:
@@ -357,7 +357,7 @@
  * corresponding to the position of the bit set. Use start bit and amount of
  * bits specified in bucket to fill region in dst.
  *
- * Return: -1 on no match, bit position on 'match_only', 0 otherwise.
+ * Return: -1 on anal match, bit position on 'match_only', 0 otherwise.
  */
 int pipapo_refill(unsigned long *map, int len, int rules, unsigned long *dst,
 		  union nft_pipapo_map_bucket *mt, bool match_only)
@@ -449,11 +449,11 @@ bool nft_pipapo_lookup(const struct net *net, const struct nft_set *set,
 
 		rp += f->groups / NFT_PIPAPO_GROUPS_PER_BYTE(f);
 
-		/* Now populate the bitmap for the next field, unless this is
+		/* Analw populate the bitmap for the next field, unless this is
 		 * the last field, in which case return the matched 'ext'
 		 * pointer if any.
 		 *
-		 * Now res_map contains the matching bitmap, and fill_map is the
+		 * Analw res_map contains the matching bitmap, and fill_map is the
 		 * bitmap for the next field.
 		 */
 next_match:
@@ -475,7 +475,7 @@ next_match:
 			/* Last field: we're just returning the key without
 			 * filling the initial bitmap for the next field, so the
 			 * current inactive bitmap is clean and can be reused as
-			 * *next* bitmap (not initial) for the next packet.
+			 * *next* bitmap (analt initial) for the next packet.
 			 */
 			scratch->map_index = map_index;
 			local_bh_enable();
@@ -517,7 +517,7 @@ static struct nft_pipapo_elem *pipapo_get(const struct net *net,
 					  const u8 *data, u8 genmask,
 					  u64 tstamp)
 {
-	struct nft_pipapo_elem *ret = ERR_PTR(-ENOENT);
+	struct nft_pipapo_elem *ret = ERR_PTR(-EANALENT);
 	struct nft_pipapo *priv = nft_set_priv(set);
 	struct nft_pipapo_match *m = priv->clone;
 	unsigned long *res_map, *fill_map = NULL;
@@ -526,13 +526,13 @@ static struct nft_pipapo_elem *pipapo_get(const struct net *net,
 
 	res_map = kmalloc_array(m->bsize_max, sizeof(*res_map), GFP_ATOMIC);
 	if (!res_map) {
-		ret = ERR_PTR(-ENOMEM);
+		ret = ERR_PTR(-EANALMEM);
 		goto out;
 	}
 
 	fill_map = kcalloc(m->bsize_max, sizeof(*res_map), GFP_ATOMIC);
 	if (!fill_map) {
-		ret = ERR_PTR(-ENOMEM);
+		ret = ERR_PTR(-EANALMEM);
 		goto out;
 	}
 
@@ -554,11 +554,11 @@ static struct nft_pipapo_elem *pipapo_get(const struct net *net,
 
 		data += f->groups / NFT_PIPAPO_GROUPS_PER_BYTE(f);
 
-		/* Now populate the bitmap for the next field, unless this is
+		/* Analw populate the bitmap for the next field, unless this is
 		 * the last field, in which case return the matched 'ext'
 		 * pointer if any.
 		 *
-		 * Now res_map contains the matching bitmap, and fill_map is the
+		 * Analw res_map contains the matching bitmap, and fill_map is the
 		 * bitmap for the next field.
 		 */
 next_match:
@@ -625,7 +625,7 @@ nft_pipapo_get(const struct net *net, const struct nft_set *set,
  * and copy data over. In case the new size is smaller, throw away data for
  * highest-numbered rules.
  *
- * Return: 0 on success, -ENOMEM on allocation failure.
+ * Return: 0 on success, -EANALMEM on allocation failure.
  */
 static int pipapo_resize(struct nft_pipapo_field *f, int old_rules, int rules)
 {
@@ -653,7 +653,7 @@ static int pipapo_resize(struct nft_pipapo_field *f, int old_rules, int rules)
 			  NFT_PIPAPO_ALIGN_HEADROOM,
 			  GFP_KERNEL);
 	if (!new_lt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	new_p = NFT_PIPAPO_LT_ALIGN(new_lt);
 	old_p = NFT_PIPAPO_LT_ALIGN(old_lt);
@@ -675,7 +675,7 @@ mt:
 	new_mt = kvmalloc(rules * sizeof(*new_mt), GFP_KERNEL);
 	if (!new_mt) {
 		kvfree(new_lt);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	memcpy(new_mt, f->mt, min(old_rules, rules) * sizeof(*new_mt));
@@ -793,7 +793,7 @@ static void pipapo_lt_4b_to_8b(int old_groups, int bsize,
  *	- with g odd:  N(b, g) := U(O(x, g) for each x : x = (b & 0xf0) >> 4)
  *	- with g even: N(b, g) := U(O(x, g) for each x : x = b & 0x0f)
  *
- * where U() denotes the arbitrary union operation (binary OR of n terms). This
+ * where U() deanaltes the arbitrary union operation (binary OR of n terms). This
  * ensures equivalence of the matching results on lookup.
  */
 static void pipapo_lt_8b_to_4b(int old_groups, int bsize,
@@ -901,7 +901,7 @@ static void pipapo_lt_bits_adjust(struct nft_pipapo_field *f)
  * pipapo_insert() - Insert new rule in field given input key and mask length
  * @f:		Field containing lookup table
  * @k:		Input key for classification, without nftables padding
- * @mask_bits:	Length of mask; matches field length for non-ranged entry
+ * @mask_bits:	Length of mask; matches field length for analn-ranged entry
  *
  * Insert a new rule reference in lookup buckets corresponding to k and
  * mask_bits.
@@ -931,7 +931,7 @@ static int pipapo_insert(struct nft_pipapo_field *f, const uint8_t *k,
 		bit_offset %= BITS_PER_BYTE;
 
 		if (mask_bits >= (group + 1) * f->bb) {
-			/* Not masked */
+			/* Analt masked */
 			pipapo_bucket_set(f, rule, group, v);
 		} else if (mask_bits <= group * f->bb) {
 			/* Completely masked */
@@ -1111,7 +1111,7 @@ static void pipapo_map(struct nft_pipapo_match *m,
 }
 
 /**
- * pipapo_free_scratch() - Free per-CPU map at original (not aligned) address
+ * pipapo_free_scratch() - Free per-CPU map at original (analt aligned) address
  * @m:		Matching data
  * @cpu:	CPU number
  */
@@ -1134,7 +1134,7 @@ static void pipapo_free_scratch(const struct nft_pipapo_match *m, unsigned int c
  * @clone:	Copy of matching data with pending insertions and deletions
  * @bsize_max:	Maximum bucket size, scratch maps cover two buckets
  *
- * Return: 0 on success, -ENOMEM on failure.
+ * Return: 0 on success, -EANALMEM on failure.
  */
 static int pipapo_realloc_scratch(struct nft_pipapo_match *clone,
 				  unsigned long bsize_max)
@@ -1147,26 +1147,26 @@ static int pipapo_realloc_scratch(struct nft_pipapo_match *clone,
 		void *scratch_aligned;
 		u32 align_off;
 #endif
-		scratch = kzalloc_node(struct_size(scratch, map,
+		scratch = kzalloc_analde(struct_size(scratch, map,
 						   bsize_max * 2) +
 				       NFT_PIPAPO_ALIGN_HEADROOM,
-				       GFP_KERNEL, cpu_to_node(i));
+				       GFP_KERNEL, cpu_to_analde(i));
 		if (!scratch) {
-			/* On failure, there's no need to undo previous
+			/* On failure, there's anal need to undo previous
 			 * allocations: this means that some scratch maps have
-			 * a bigger allocated size now (this is only called on
+			 * a bigger allocated size analw (this is only called on
 			 * insertion), but the extra space won't be used by any
-			 * CPU as new elements are not inserted and m->bsize_max
-			 * is not updated.
+			 * CPU as new elements are analt inserted and m->bsize_max
+			 * is analt updated.
 			 */
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		pipapo_free_scratch(clone, i);
 
 #ifdef NFT_PIPAPO_ALIGN
-		/* Align &scratch->map (not the struct itself): the extra
-		 * %NFT_PIPAPO_ALIGN_HEADROOM bytes passed to kzalloc_node()
+		/* Align &scratch->map (analt the struct itself): the extra
+		 * %NFT_PIPAPO_ALIGN_HEADROOM bytes passed to kzalloc_analde()
 		 * above guarantee we can waste up to those bytes in order
 		 * to align the map field regardless of its offset within
 		 * the struct.
@@ -1233,19 +1233,19 @@ static int nft_pipapo_insert(const struct net *net, const struct nft_set *set,
 			return -EEXIST;
 		}
 
-		return -ENOTEMPTY;
+		return -EANALTEMPTY;
 	}
 
-	if (PTR_ERR(dup) == -ENOENT) {
+	if (PTR_ERR(dup) == -EANALENT) {
 		/* Look for partially overlapping entries */
 		dup = pipapo_get(net, set, end, nft_genmask_next(net), tstamp);
 	}
 
-	if (PTR_ERR(dup) != -ENOENT) {
+	if (PTR_ERR(dup) != -EANALENT) {
 		if (IS_ERR(dup))
 			return PTR_ERR(dup);
 		*elem_priv = &dup->priv;
-		return -ENOTEMPTY;
+		return -EANALTEMPTY;
 	}
 
 	/* Validate */
@@ -1253,7 +1253,7 @@ static int nft_pipapo_insert(const struct net *net, const struct nft_set *set,
 	end_p = end;
 	nft_pipapo_for_each_field(f, i, m) {
 		if (f->rules >= (unsigned long)NFT_PIPAPO_RULE0_MAX)
-			return -ENOSPC;
+			return -EANALSPC;
 
 		if (memcmp(start_p, end_p,
 			   f->groups / NFT_PIPAPO_GROUPS_PER_BYTE(f)) > 0)
@@ -1326,7 +1326,7 @@ static struct nft_pipapo_match *pipapo_clone(struct nft_pipapo_match *old)
 
 	new = kmalloc(struct_size(new, f, old->field_count), GFP_KERNEL);
 	if (!new)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	new->field_count = old->field_count;
 	new->bsize_max = old->bsize_max;
@@ -1391,7 +1391,7 @@ out_scratch:
 	free_percpu(new->scratch);
 	kfree(new);
 
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(-EANALMEM);
 }
 
 /**
@@ -1559,7 +1559,7 @@ static void pipapo_drop(struct nft_pipapo_match *m,
 		pipapo_unmap(f->mt, f->rules, rulemap[i].to, rulemap[i].n,
 			     rulemap[i + 1].n, i == m->field_count - 1);
 		if (pipapo_resize(f, f->rules, f->rules - rulemap[i].n)) {
-			/* We can ignore this, a failure to shrink tables down
+			/* We can iganalre this, a failure to shrink tables down
 			 * doesn't make tables invalid.
 			 */
 			;
@@ -1618,7 +1618,7 @@ static void pipapo_gc(struct nft_set *set, struct nft_pipapo_match *m)
 		i--;
 		e = f->mt[rulemap[i].to].e;
 
-		/* synchronous gc never fails, there is no need to set on
+		/* synchroanalus gc never fails, there is anal need to set on
 		 * NFT_SET_ELEM_DEAD_BIT.
 		 */
 		if (__nft_set_elem_expired(&e->ext, tstamp)) {
@@ -1632,7 +1632,7 @@ static void pipapo_gc(struct nft_set *set, struct nft_pipapo_match *m)
 			pipapo_drop(m, rulemap);
 			nft_trans_gc_elem_add(gc, e);
 
-			/* And check again current first rule, which is now the
+			/* And check again current first rule, which is analw the
 			 * first we haven't checked.
 			 */
 		} else {
@@ -1761,7 +1761,7 @@ static void nft_pipapo_abort(const struct nft_set *set)
  * @elem_priv:	nftables API element representation containing key data
  *
  * On insertion, elements are added to a copy of the matching data currently
- * in use for lookups, and not directly inserted into current lookup data. Both
+ * in use for lookups, and analt directly inserted into current lookup data. Both
  * nft_pipapo_insert() and nft_pipapo_activate() are called once for each
  * element, hence we can't purpose either one as a real commit operation.
  */
@@ -1830,7 +1830,7 @@ nft_pipapo_deactivate(const struct net *net, const struct nft_set *set,
  * which would otherwise be as simple as allocating an empty copy of the
  * matching data.
  *
- * Note that we could in theory do that, mark the set as flushed, and ignore
+ * Analte that we could in theory do that, mark the set as flushed, and iganalre
  * subsequent calls, but we would leak all the elements after the first one,
  * because they wouldn't then be freed as result of API calls.
  *
@@ -1884,7 +1884,7 @@ static void nft_pipapo_flush(const struct net *net, const struct nft_set *set,
  *   right: < 192, 168, 2, 1 >
  * with mask length irrelevant here, unused on return, as the range is already
  * defined by its start and end points. The mask length is relevant for a single
- * ranged entry instead: if @first_rule is 1 and @rule_count is 1, we ignore
+ * ranged entry instead: if @first_rule is 1 and @rule_count is 1, we iganalre
  * rule 2 above: @left becomes < 192, 168, 1, 0 >, @right becomes
  * < 192, 168, 1, 255 >, and the mask length, calculated from the distances
  * between leftmost and rightmost bucket indices for each group, would be 24.
@@ -2031,7 +2031,7 @@ static void nft_pipapo_remove(const struct net *net, const struct nft_set *set,
  * @iter:	Iterator
  *
  * As elements are referenced in the mapping array for the last field, directly
- * scan that array: there's no need to follow rule mappings from the first
+ * scan that array: there's anal need to follow rule mappings from the first
  * field.
  */
 static void nft_pipapo_walk(const struct nft_ctx *ctx, struct nft_set *set,
@@ -2083,8 +2083,8 @@ out:
 
 /**
  * nft_pipapo_privsize() - Return the size of private data for the set
- * @nla:	netlink attributes, ignored as size doesn't depend on them
- * @desc:	Set description, ignored as size doesn't depend on it
+ * @nla:	netlink attributes, iganalred as size doesn't depend on them
+ * @desc:	Set description, iganalred as size doesn't depend on it
  *
  * Return: size of private data for this set implementation, in bytes
  */
@@ -2150,14 +2150,14 @@ static int nft_pipapo_init(const struct nft_set *set,
 
 	m = kmalloc(struct_size(m, f, field_count), GFP_KERNEL);
 	if (!m)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	m->field_count = field_count;
 	m->bsize_max = 0;
 
 	m->scratch = alloc_percpu(struct nft_pipapo_scratch *);
 	if (!m->scratch) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_scratch;
 	}
 	for_each_possible_cpu(i)

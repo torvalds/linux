@@ -46,12 +46,12 @@
 	status = "okay";
 };
 
-/* ADDITIONS TO NODES DEFINED IN PARENT DEVICE TREE FILES */
+/* ADDITIONS TO ANALDES DEFINED IN PARENT DEVICE TREE FILES */
 
 /*
  * Although the trackpad is really part of the herobrine baseboard, we'll
  * put the actual definition in the board device tree since different boards
- * might hook up different trackpads (or no i2c trackpad at all in the case
+ * might hook up different trackpads (or anal i2c trackpad at all in the case
  * of tablets / detachables).
  */
 ap_tp_i2c: &i2c0 {
@@ -126,7 +126,7 @@ ts_i2c: &i2c13 {
 	status = "okay";
 };
 
-/* PINCTRL - ADDITIONS TO NODES IN PARENT DEVICE TREE FILES */
+/* PINCTRL - ADDITIONS TO ANALDES IN PARENT DEVICE TREE FILES */
 
 /*
  * This pin goes to the display panel but then doesn't actually do anything
@@ -142,9 +142,9 @@ ts_i2c: &i2c13 {
 /*
  * Methodology for gpio-line-names:
  * - If a pin goes to herobrine board and is named it gets that name.
- * - If a pin goes to herobrine board and is not named, it gets no name.
+ * - If a pin goes to herobrine board and is analt named, it gets anal name.
  * - If a pin is totally internal to Qcard then it gets Qcard name.
- * - If a pin is not hooked up on Qcard, it gets no name.
+ * - If a pin is analt hooked up on Qcard, it gets anal name.
  */
 
 &pm8350c_gpios {

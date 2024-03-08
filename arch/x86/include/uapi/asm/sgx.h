@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * Copyright(c) 2016-20 Intel Corporation.
  */
@@ -169,7 +169,7 @@ typedef int (*sgx_enclave_user_handler_t)(long rdi, long rsi, long rdx,
  * @reserved			Reserved for future extensions
  *
  * If @user_handler is provided, the handler will be invoked on all return paths
- * of the normal flow.  The user handler may transfer control, e.g. via a
+ * of the analrmal flow.  The user handler may transfer control, e.g. via a
  * longjmp() call or a C++ exception, without returning to
  * __vdso_sgx_enter_enclave().
  */
@@ -193,18 +193,18 @@ struct sgx_enclave_run {
  * @function:	ENCLU function, must be EENTER or ERESUME
  * @r8:		Pass-through value for R8
  * @r9:		Pass-through value for R9
- * @run:	struct sgx_enclave_run, must be non-NULL
+ * @run:	struct sgx_enclave_run, must be analn-NULL
  *
- * NOTE: __vdso_sgx_enter_enclave() does not ensure full compliance with the
- * x86-64 ABI, e.g. doesn't handle XSAVE state.  Except for non-volatile
+ * ANALTE: __vdso_sgx_enter_enclave() does analt ensure full compliance with the
+ * x86-64 ABI, e.g. doesn't handle XSAVE state.  Except for analn-volatile
  * general purpose registers, EFLAGS.DF, and RSP alignment, preserving/setting
  * state in accordance with the x86-64 ABI is the responsibility of the enclave
- * and its runtime, i.e. __vdso_sgx_enter_enclave() cannot be called from C
+ * and its runtime, i.e. __vdso_sgx_enter_enclave() cananalt be called from C
  * code without careful consideration by both the enclave and its runtime.
  *
  * All general purpose registers except RAX, RBX and RCX are passed as-is to the
  * enclave.  RAX, RBX and RCX are consumed by EENTER and ERESUME and are loaded
- * with @function, asynchronous exit pointer, and @run.tcs respectively.
+ * with @function, asynchroanalus exit pointer, and @run.tcs respectively.
  *
  * RBP and the stack are used to anchor __vdso_sgx_enter_enclave() to the
  * pre-enclave state, e.g. to retrieve @run.exception and @run.user_handler
@@ -214,15 +214,15 @@ struct sgx_enclave_run {
  * below).
  *
  * Most exceptions reported on ENCLU, including those that occur within the
- * enclave, are fixed up and reported synchronously instead of being delivered
+ * enclave, are fixed up and reported synchroanalusly instead of being delivered
  * via a standard signal. Debug Exceptions (#DB) and Breakpoints (#BP) are
- * never fixed up and are always delivered via standard signals. On synchronously
+ * never fixed up and are always delivered via standard signals. On synchroanalusly
  * reported exceptions, -EFAULT is returned and details about the exception are
  * recorded in @run.exception, the optional sgx_enclave_exception struct.
  *
  * Return:
  * - 0:		ENCLU function was successfully executed.
- * - -EINVAL:	Invalid ENCL number (neither EENTER nor ERESUME).
+ * - -EINVAL:	Invalid ENCL number (neither EENTER analr ERESUME).
  */
 typedef int (*vdso_sgx_enter_enclave_t)(unsigned long rdi, unsigned long rsi,
 					unsigned long rdx, unsigned int function,

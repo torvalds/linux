@@ -97,7 +97,7 @@ static int ehci_atmel_drv_probe(struct platform_device *pdev)
 	int retval;
 
 	if (usb_disabled())
-		return -ENODEV;
+		return -EANALDEV;
 
 	pr_debug("Initializing Atmel-SoC USB Host Controller\n");
 
@@ -107,8 +107,8 @@ static int ehci_atmel_drv_probe(struct platform_device *pdev)
 		goto fail_create_hcd;
 	}
 
-	/* Right now device-tree probed devices don't get dma_mask set.
-	 * Since shared usb code relies on it, set it here for now.
+	/* Right analw device-tree probed devices don't get dma_mask set.
+	 * Since shared usb code relies on it, set it here for analw.
 	 * Once we have dma capability bindings this can go away.
 	 */
 	retval = dma_coerce_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
@@ -117,7 +117,7 @@ static int ehci_atmel_drv_probe(struct platform_device *pdev)
 
 	hcd = usb_create_hcd(driver, &pdev->dev, dev_name(&pdev->dev));
 	if (!hcd) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto fail_create_hcd;
 	}
 	atmel_ehci = hcd_to_atmel_ehci_priv(hcd);
@@ -134,7 +134,7 @@ static int ehci_atmel_drv_probe(struct platform_device *pdev)
 	atmel_ehci->iclk = devm_clk_get(&pdev->dev, "ehci_clk");
 	if (IS_ERR(atmel_ehci->iclk)) {
 		dev_err(&pdev->dev, "Error getting interface clock\n");
-		retval = -ENOENT;
+		retval = -EANALENT;
 		goto fail_request_resource;
 	}
 
@@ -156,7 +156,7 @@ static int ehci_atmel_drv_probe(struct platform_device *pdev)
 		goto fail_add_hcd;
 	device_wakeup_enable(hcd->self.controller);
 
-	if (of_usb_get_phy_mode(pdev->dev.of_node) == USBPHY_INTERFACE_MODE_HSIC)
+	if (of_usb_get_phy_mode(pdev->dev.of_analde) == USBPHY_INTERFACE_MODE_HSIC)
 		writel(EHCI_INSNREG08_HSIC_EN, hcd->regs + EHCI_INSNREG(8));
 
 	return retval;
@@ -232,7 +232,7 @@ static struct platform_driver ehci_atmel_driver = {
 static int __init ehci_atmel_init(void)
 {
 	if (usb_disabled())
-		return -ENODEV;
+		return -EANALDEV;
 
 	ehci_init_driver(&ehci_atmel_hc_driver, &ehci_atmel_drv_overrides);
 	return platform_driver_register(&ehci_atmel_driver);

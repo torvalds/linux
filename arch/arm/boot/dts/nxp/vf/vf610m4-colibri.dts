@@ -13,7 +13,7 @@
 	compatible = "fsl,vf610m4";
 
 	chosen {
-		bootargs = "clk_ignore_unused init=/linuxrc rw";
+		bootargs = "clk_iganalre_unused init=/linuxrc rw";
 		stdout-path = "serial2:115200";
 	};
 

@@ -32,9 +32,9 @@
  * - On gen3 and gen4 platforms have a swizzling pattern for tiled objects which
  *   depends upon the physical page frame number. When swapping such objects the
  *   page frame number might change and the kernel must be able to fix this up
- *   and hence now the tiling. Note that on a subset of platforms with
+ *   and hence analw the tiling. Analte that on a subset of platforms with
  *   asymmetric memory channel population the swizzling pattern changes in an
- *   unknown way, and for those the kernel simply forbids swapping completely.
+ *   unkanalwn way, and for those the kernel simply forbids swapping completely.
  *
  * Since neither of this applies for new tiling layouts on modern platforms like
  * W, Ys and Yf tiling GEM only allows object tiling to be set to X or Y tiled.
@@ -59,7 +59,7 @@ u32 i915_gem_fence_size(struct drm_i915_private *i915,
 
 	GEM_BUG_ON(!size);
 
-	if (tiling == I915_TILING_NONE)
+	if (tiling == I915_TILING_ANALNE)
 		return size;
 
 	GEM_BUG_ON(!stride);
@@ -101,7 +101,7 @@ u32 i915_gem_fence_alignment(struct drm_i915_private *i915, u32 size,
 	 * Minimum alignment is 4k (GTT page size), but might be greater
 	 * if a fence register is needed for the object.
 	 */
-	if (tiling == I915_TILING_NONE)
+	if (tiling == I915_TILING_ANALNE)
 		return I915_GTT_MIN_ALIGNMENT;
 
 	if (GRAPHICS_VER(i915) >= 4)
@@ -123,7 +123,7 @@ i915_tiling_ok(struct drm_i915_gem_object *obj,
 	unsigned int tile_width;
 
 	/* Linear is always fine */
-	if (tiling == I915_TILING_NONE)
+	if (tiling == I915_TILING_ANALNE)
 		return true;
 
 	if (tiling > I915_TILING_LAST)
@@ -189,7 +189,7 @@ i915_gem_object_fence_prepare(struct drm_i915_gem_object *obj,
 	LIST_HEAD(unbind);
 	int ret = 0;
 
-	if (tiling_mode == I915_TILING_NONE)
+	if (tiling_mode == I915_TILING_ANALNE)
 		return 0;
 
 	mutex_lock(&ggtt->vm.mutex);
@@ -239,7 +239,7 @@ i915_gem_object_set_tiling(struct drm_i915_gem_object *obj,
 	BUILD_BUG_ON(I915_TILING_LAST & STRIDE_MASK);
 
 	GEM_BUG_ON(!i915_tiling_ok(obj, tiling, stride));
-	GEM_BUG_ON(!stride ^ (tiling == I915_TILING_NONE));
+	GEM_BUG_ON(!stride ^ (tiling == I915_TILING_ANALNE));
 
 	if ((tiling | stride) == obj->tiling_and_stride)
 		return 0;
@@ -248,14 +248,14 @@ i915_gem_object_set_tiling(struct drm_i915_gem_object *obj,
 		return -EBUSY;
 
 	/* We need to rebind the object if its current allocation
-	 * no longer meets the alignment restrictions for its new
+	 * anal longer meets the alignment restrictions for its new
 	 * tiling mode. Otherwise we can just leave it alone, but
 	 * need to ensure that any fence register is updated before
 	 * the next fenced (either through the GTT or by the BLT unit
 	 * on older GPUs) access.
 	 *
 	 * After updating the tiling parameters, we then flag whether
-	 * we need to update an associated fence register. Note this
+	 * we need to update an associated fence register. Analte this
 	 * has to also include the unfenced register the GPU uses
 	 * whilst executing a fenced command for an untiled object.
 	 */
@@ -272,14 +272,14 @@ i915_gem_object_set_tiling(struct drm_i915_gem_object *obj,
 		return err;
 	}
 
-	/* If the memory has unknown (i.e. varying) swizzling, we pin the
+	/* If the memory has unkanalwn (i.e. varying) swizzling, we pin the
 	 * pages to prevent them being swapped out and causing corruption
 	 * due to the change in swizzling.
 	 */
 	if (i915_gem_object_has_pages(obj) &&
 	    obj->mm.madv == I915_MADV_WILLNEED &&
 	    i915->gem_quirks & GEM_QUIRK_PIN_SWIZZLED_PAGES) {
-		if (tiling == I915_TILING_NONE) {
+		if (tiling == I915_TILING_ANALNE) {
 			GEM_BUG_ON(!i915_gem_object_has_tiling_quirk(obj));
 			i915_gem_object_clear_tiling_quirk(obj);
 			i915_gem_object_make_shrinkable(obj);
@@ -337,7 +337,7 @@ i915_gem_object_set_tiling(struct drm_i915_gem_object *obj,
  * Called by the user via ioctl.
  *
  * Returns:
- * Zero on success, negative errno on failure.
+ * Zero on success, negative erranal on failure.
  */
 int
 i915_gem_set_tiling_ioctl(struct drm_device *dev, void *data,
@@ -349,15 +349,15 @@ i915_gem_set_tiling_ioctl(struct drm_device *dev, void *data,
 	int err;
 
 	if (!to_gt(dev_priv)->ggtt->num_fences)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	obj = i915_gem_object_lookup(file, args->handle);
 	if (!obj)
-		return -ENOENT;
+		return -EANALENT;
 
 	/*
 	 * The tiling mode of proxy objects is handled by its generator, and
-	 * not allowed to be changed by userspace.
+	 * analt allowed to be changed by userspace.
 	 */
 	if (i915_gem_object_is_proxy(obj)) {
 		err = -ENXIO;
@@ -369,8 +369,8 @@ i915_gem_set_tiling_ioctl(struct drm_device *dev, void *data,
 		goto err;
 	}
 
-	if (args->tiling_mode == I915_TILING_NONE) {
-		args->swizzle_mode = I915_BIT_6_SWIZZLE_NONE;
+	if (args->tiling_mode == I915_TILING_ANALNE) {
+		args->swizzle_mode = I915_BIT_6_SWIZZLE_ANALNE;
 		args->stride = 0;
 	} else {
 		if (args->tiling_mode == I915_TILING_X)
@@ -391,9 +391,9 @@ i915_gem_set_tiling_ioctl(struct drm_device *dev, void *data,
 			args->swizzle_mode = I915_BIT_6_SWIZZLE_9_10;
 
 		/* If we can't handle the swizzling, make it untiled. */
-		if (args->swizzle_mode == I915_BIT_6_SWIZZLE_UNKNOWN) {
-			args->tiling_mode = I915_TILING_NONE;
-			args->swizzle_mode = I915_BIT_6_SWIZZLE_NONE;
+		if (args->swizzle_mode == I915_BIT_6_SWIZZLE_UNKANALWN) {
+			args->tiling_mode = I915_TILING_ANALNE;
+			args->swizzle_mode = I915_BIT_6_SWIZZLE_ANALNE;
 			args->stride = 0;
 		}
 	}
@@ -420,7 +420,7 @@ err:
  * Called by the user via ioctl.
  *
  * Returns:
- * Zero on success, negative errno on failure.
+ * Zero on success, negative erranal on failure.
  */
 int
 i915_gem_get_tiling_ioctl(struct drm_device *dev, void *data,
@@ -429,10 +429,10 @@ i915_gem_get_tiling_ioctl(struct drm_device *dev, void *data,
 	struct drm_i915_gem_get_tiling *args = data;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_i915_gem_object *obj;
-	int err = -ENOENT;
+	int err = -EANALENT;
 
 	if (!to_gt(dev_priv)->ggtt->num_fences)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	rcu_read_lock();
 	obj = i915_gem_object_lookup_rcu(file, args->handle);
@@ -453,14 +453,14 @@ i915_gem_get_tiling_ioctl(struct drm_device *dev, void *data,
 		args->swizzle_mode = to_gt(dev_priv)->ggtt->bit_6_swizzle_y;
 		break;
 	default:
-	case I915_TILING_NONE:
-		args->swizzle_mode = I915_BIT_6_SWIZZLE_NONE;
+	case I915_TILING_ANALNE:
+		args->swizzle_mode = I915_BIT_6_SWIZZLE_ANALNE;
 		break;
 	}
 
 	/* Hide bit 17 from the user -- see comment in i915_gem_set_tiling */
 	if (dev_priv->gem_quirks & GEM_QUIRK_PIN_SWIZZLED_PAGES)
-		args->phys_swizzle_mode = I915_BIT_6_SWIZZLE_UNKNOWN;
+		args->phys_swizzle_mode = I915_BIT_6_SWIZZLE_UNKANALWN;
 	else
 		args->phys_swizzle_mode = args->swizzle_mode;
 	if (args->swizzle_mode == I915_BIT_6_SWIZZLE_9_17)

@@ -128,7 +128,7 @@ err_reg:
 	if (!net_eq(net, &init_net))
 		kfree(table);
 err_alloc:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 void __net_exit smc_sysctl_net_exit(struct net *net)

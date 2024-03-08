@@ -40,7 +40,7 @@ static int sme_vl(struct tdescr *td, siginfo_t *si, ucontext_t *uc)
 	resv_sz = GET_SF_RESV_SIZE(sf);
 	head = get_header(head, ZA_MAGIC, resv_sz, &offset);
 	if (!head) {
-		fprintf(stderr, "No ZA context\n");
+		fprintf(stderr, "Anal ZA context\n");
 		return 1;
 	}
 	za = (struct za_context *)head;

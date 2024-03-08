@@ -12,7 +12,7 @@
 # shellcheck source=lib/probe.sh
 . "$(dirname "$0")/lib/probe.sh"
 
-skip_if_no_perf_probe || exit 2
+skip_if_anal_perf_probe || exit 2
 
 # shellcheck source=lib/probe_vfs_getname.sh
 . "$(dirname "$0")/lib/probe_vfs_getname.sh"
@@ -20,7 +20,7 @@ skip_if_no_perf_probe || exit 2
 record_open_file() {
 	echo "Recording open file:"
 	# Check presence of libtraceevent support to run perf record
-	skip_no_probe_record_support "probe:vfs_getname*"
+	skip_anal_probe_record_support "probe:vfs_getname*"
 	[ $? -eq 2 ] && return 2
 	perf record -o ${perfdata} -e probe:vfs_getname\* touch $file
 }
@@ -31,7 +31,7 @@ perf_script_filenames() {
 	grep -E " +touch +[0-9]+ +\[[0-9]+\] +[0-9]+\.[0-9]+: +probe:vfs_getname[_0-9]*: +\([[:xdigit:]]+\) +pathname=\"${file}\""
 }
 
-add_probe_vfs_getname || skip_if_no_debuginfo
+add_probe_vfs_getname || skip_if_anal_debuginfo
 err=$?
 if [ $err -ne 0 ] ; then
 	exit $err

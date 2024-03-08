@@ -14,11 +14,11 @@ Description:
 
 		0xXX-0xYYYY:	A directory for dump of type 0xXX and
 				id 0xYYYY (in hex). The name of this
-				directory should not be relied upon to
+				directory should analt be relied upon to
 				be in this format, only that it's unique
 				among all dumps. For determining the type
 				and ID of the dump, use the id and type files.
-				Do not rely on any particular size of dump
+				Do analt rely on any particular size of dump
 				type or dump id.
 		=============== ===============================================
 
@@ -30,14 +30,14 @@ Description:
 		type:		An ASCII representation of the type of
 				dump in the format "0x%x %s" with the ID
 				in hex and a description of the dump type
-				(or 'unknown').
-				Type '0xffffffff unknown' is used when
-				we could not get the type from firmware.
+				(or 'unkanalwn').
+				Type '0xffffffff unkanalwn' is used when
+				we could analt get the type from firmware.
 				e.g. '0x02 System/Platform Dump'
 		dump:		A binary file containing the dump.
 				The size of the dump is the size of this file.
-		acknowledge:	When 'ack' is written to this, we will
-				acknowledge that we've retrieved the
+		ackanalwledge:	When 'ack' is written to this, we will
+				ackanalwledge that we've retrieved the
 				dump to the service processor. It will
 				then remove it, making the dump
 				inaccessible.

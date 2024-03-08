@@ -147,7 +147,7 @@ static int mvs_64xx_chip_reset(struct mvs_info *mvi)
 	u32 tmp;
 	int i;
 
-	/* make sure interrupts are masked immediately (paranoia) */
+	/* make sure interrupts are masked immediately (paraanalia) */
 	mw32(MVS_GBL_CTL, 0);
 	tmp = mr32(MVS_GBL_CTL);
 
@@ -166,7 +166,7 @@ static int mvs_64xx_chip_reset(struct mvs_info *mvi)
 		}
 	}
 
-	/* make sure interrupts are masked immediately (paranoia) */
+	/* make sure interrupts are masked immediately (paraanalia) */
 	mw32(MVS_GBL_CTL, 0);
 	tmp = mr32(MVS_GBL_CTL);
 
@@ -497,7 +497,7 @@ static void mvs_64xx_free_reg_set(struct mvs_info *mvi, u8 *tfs)
 	void __iomem *regs = mvi->regs;
 	u32 tmp, offs;
 
-	if (*tfs == MVS_ID_NOT_MAPPED)
+	if (*tfs == MVS_ID_ANALT_MAPPED)
 		return;
 
 	offs = 1U << ((*tfs & 0x0f) + PCS_EN_SATA_REG_SHIFT);
@@ -513,7 +513,7 @@ static void mvs_64xx_free_reg_set(struct mvs_info *mvi, u8 *tfs)
 	if (tmp)
 		mw32(MVS_INT_STAT_SRS_0, tmp);
 
-	*tfs = MVS_ID_NOT_MAPPED;
+	*tfs = MVS_ID_ANALT_MAPPED;
 	return;
 }
 
@@ -523,7 +523,7 @@ static u8 mvs_64xx_assign_reg_set(struct mvs_info *mvi, u8 *tfs)
 	u32 tmp, offs;
 	void __iomem *regs = mvi->regs;
 
-	if (*tfs != MVS_ID_NOT_MAPPED)
+	if (*tfs != MVS_ID_ANALT_MAPPED)
 		return 0;
 
 	tmp = mr32(MVS_PCS);
@@ -545,7 +545,7 @@ static u8 mvs_64xx_assign_reg_set(struct mvs_info *mvi, u8 *tfs)
 			return 0;
 		}
 	}
-	return MVS_ID_NOT_MAPPED;
+	return MVS_ID_ANALT_MAPPED;
 }
 
 static void mvs_64xx_make_prd(struct scatterlist *scatter, int nr, void *prd)

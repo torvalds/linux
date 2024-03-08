@@ -162,14 +162,14 @@ static int __init migor_init(void)
 
 	siumckb_lookup = clkdev_create(&siumckb_clk, "siumckb_clk", NULL);
 	if (!siumckb_lookup) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto eclkdevalloc;
 	}
 
 	/* Port number used on this machine: port B */
 	migor_snd_device = platform_device_alloc("soc-audio", 1);
 	if (!migor_snd_device) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto epdevalloc;
 	}
 

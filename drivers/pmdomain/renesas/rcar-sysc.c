@@ -33,7 +33,7 @@
 
 /*
  * Power Control Register Offsets inside the register block for each domain
- * Note: The "CR" registers for ARM cores exist on H1 only
+ * Analte: The "CR" registers for ARM cores exist on H1 only
  *	 Use WFI to power off, CPG/APMU to resume ARM cores on R-Car Gen2
  *	 Use PSCI on R-Car Gen3
  */
@@ -212,7 +212,7 @@ static int __init rcar_sysc_pd_setup(struct rcar_sysc_pd *pd)
 	if (pd->flags & PD_CPU) {
 		/*
 		 * This domain contains a CPU core and therefore it should
-		 * only be turned off if the CPU is not in use.
+		 * only be turned off if the CPU is analt in use.
 		 */
 		pr_debug("PM domain %s contains %s\n", name, "CPU");
 		genpd->flags |= GENPD_FLAG_ALWAYS_ON;
@@ -220,13 +220,13 @@ static int __init rcar_sysc_pd_setup(struct rcar_sysc_pd *pd)
 		/*
 		 * This domain contains an SCU and cache-controller, and
 		 * therefore it should only be turned off if the CPU cores are
-		 * not in use.
+		 * analt in use.
 		 */
 		pr_debug("PM domain %s contains %s\n", name, "SCU");
 		genpd->flags |= GENPD_FLAG_ALWAYS_ON;
-	} else if (pd->flags & PD_NO_CR) {
+	} else if (pd->flags & PD_ANAL_CR) {
 		/*
-		 * This domain cannot be turned off.
+		 * This domain cananalt be turned off.
 		 */
 		genpd->flags |= GENPD_FLAG_ALWAYS_ON;
 	}
@@ -246,9 +246,9 @@ static int __init rcar_sysc_pd_setup(struct rcar_sysc_pd *pd)
 	genpd->power_off = rcar_sysc_pd_power_off;
 	genpd->power_on = rcar_sysc_pd_power_on;
 
-	if (pd->flags & (PD_CPU | PD_NO_CR)) {
+	if (pd->flags & (PD_CPU | PD_ANAL_CR)) {
 		/* Skip CPUs (handled by SMP code) and areas without control */
-		pr_debug("%s: Not touching %s\n", __func__, genpd->name);
+		pr_debug("%s: Analt touching %s\n", __func__, genpd->name);
 		goto finalize;
 	}
 
@@ -260,7 +260,7 @@ static int __init rcar_sysc_pd_setup(struct rcar_sysc_pd *pd)
 	rcar_sysc_power(&pd->ch, true);
 
 finalize:
-	error = pm_genpd_init(genpd, &simple_qos_governor, false);
+	error = pm_genpd_init(genpd, &simple_qos_goveranalr, false);
 	if (error)
 		pr_err("Failed to init PM domain %s: %d\n", name, error);
 
@@ -350,14 +350,14 @@ static int __init rcar_sysc_pd_init(void)
 	const struct rcar_sysc_info *info;
 	const struct of_device_id *match;
 	struct rcar_pm_domains *domains;
-	struct device_node *np;
+	struct device_analde *np;
 	void __iomem *base;
 	unsigned int i;
 	int error;
 
-	np = of_find_matching_node_and_match(NULL, rcar_sysc_matches, &match);
+	np = of_find_matching_analde_and_match(NULL, rcar_sysc_matches, &match);
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	info = match->data;
 
@@ -367,13 +367,13 @@ static int __init rcar_sysc_pd_init(void)
 			goto out_put;
 	}
 
-	has_cpg_mstp = of_find_compatible_node(NULL, NULL,
+	has_cpg_mstp = of_find_compatible_analde(NULL, NULL,
 					       "renesas,cpg-mstp-clocks");
 
 	base = of_iomap(np, 0);
 	if (!base) {
-		pr_warn("%pOF: Cannot map regs\n", np);
-		error = -ENOMEM;
+		pr_warn("%pOF: Cananalt map regs\n", np);
+		error = -EANALMEM;
 		goto out_put;
 	}
 
@@ -385,7 +385,7 @@ static int __init rcar_sysc_pd_init(void)
 
 	domains = kzalloc(sizeof(*domains), GFP_KERNEL);
 	if (!domains) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto out_put;
 	}
 
@@ -406,7 +406,7 @@ static int __init rcar_sysc_pd_init(void)
 		n = strlen(area->name) + 1;
 		pd = kzalloc(sizeof(*pd) + n, GFP_KERNEL);
 		if (!pd) {
-			error = -ENOMEM;
+			error = -EANALMEM;
 			goto out_put;
 		}
 
@@ -437,10 +437,10 @@ static int __init rcar_sysc_pd_init(void)
 
 	error = of_genpd_add_provider_onecell(np, &domains->onecell_data);
 	if (!error)
-		fwnode_dev_initialized(of_fwnode_handle(np), true);
+		fwanalde_dev_initialized(of_fwanalde_handle(np), true);
 
 out_put:
-	of_node_put(np);
+	of_analde_put(np);
 	return error;
 }
 early_initcall(rcar_sysc_pd_init);
@@ -465,7 +465,7 @@ static int rcar_sysc_power_cpu(unsigned int idx, bool on)
 	unsigned int i;
 
 	if (!rcar_sysc_onecell_data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	for (i = 0; i < rcar_sysc_onecell_data->num_domains; i++) {
 		genpd = rcar_sysc_onecell_data->domains[i];
@@ -479,7 +479,7 @@ static int rcar_sysc_power_cpu(unsigned int idx, bool on)
 		return rcar_sysc_power(&pd->ch, on);
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 int rcar_sysc_power_down_cpu(unsigned int cpu)

@@ -9,7 +9,7 @@
 #include <asm/ptrace.h>
 
 /*
- * Flag indicating that the kernel was not entered in the same mode on every
+ * Flag indicating that the kernel was analt entered in the same mode on every
  * CPU.  The zImage loader stashes this value in an SPSR, so we need an
  * architecturally defined flag bit here.
  */

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  *
  * watchdog - Driver interface for the hardware watchdog timers
@@ -25,7 +25,7 @@
 #define WD_FREERUN	0x01	/* timer is running, interrupts disabled	*/
 #define WD_EXPIRED	0x02	/* timer has expired						*/
 #define WD_RUNNING	0x04	/* timer is running, interrupts enabled		*/
-#define WD_STOPPED	0x08	/* timer has not been started				*/
+#define WD_STOPPED	0x08	/* timer has analt been started				*/
 #define WD_SERVICED 0x10	/* timer interrupt was serviced				*/
 
 #endif /* ifndef _SPARC64_WATCHDOG_H */

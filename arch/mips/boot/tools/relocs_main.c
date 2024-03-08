@@ -5,7 +5,7 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
+#include <erranal.h>
 #include <endian.h>
 #include <elf.h>
 
@@ -70,10 +70,10 @@ int main(int argc, char **argv)
 
 	fp = fopen(fname, "r+");
 	if (!fp)
-		die("Cannot open %s: %s\n", fname, strerror(errno));
+		die("Cananalt open %s: %s\n", fname, strerror(erranal));
 
 	if (fread(&e_ident, 1, EI_NIDENT, fp) != EI_NIDENT)
-		die("Cannot read %s: %s", fname, strerror(errno));
+		die("Cananalt read %s: %s", fname, strerror(erranal));
 
 	rewind(fp);
 	if (e_ident[EI_CLASS] == ELFCLASS64)

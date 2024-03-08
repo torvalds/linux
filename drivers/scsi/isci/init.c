@@ -16,7 +16,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  * The full GNU General Public License is included in this distribution
  * in the file called LICENSE.GPL.
@@ -31,21 +31,21 @@
  * are met:
  *
  *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
+ *     analtice, this list of conditions and the following disclaimer.
  *   * Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in
+ *     analtice, this list of conditions and the following disclaimer in
  *     the documentation and/or other materials provided with the
  *     distribution.
- *   * Neither the name of Intel Corporation nor the names of its
+ *   * Neither the name of Intel Corporation analr the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -95,9 +95,9 @@ MODULE_DEVICE_TABLE(pci, isci_id_table);
 
 /* linux isci specific settings */
 
-unsigned char no_outbound_task_to = 2;
-module_param(no_outbound_task_to, byte, 0);
-MODULE_PARM_DESC(no_outbound_task_to, "No Outbound Task Timeout (1us incr)");
+unsigned char anal_outbound_task_to = 2;
+module_param(anal_outbound_task_to, byte, 0);
+MODULE_PARM_DESC(anal_outbound_task_to, "Anal Outbound Task Timeout (1us incr)");
 
 u16 ssp_max_occ_to = 20;
 module_param(ssp_max_occ_to, ushort, 0);
@@ -181,7 +181,7 @@ static const struct scsi_host_template isci_sht = {
 
 static struct sas_domain_function_template isci_transport_ops  = {
 
-	/* The class calls these to notify the LLDD of an event. */
+	/* The class calls these to analtify the LLDD of an event. */
 	.lldd_port_formed	= isci_port_formed,
 	.lldd_port_deformed	= isci_port_deformed,
 
@@ -241,13 +241,13 @@ static int isci_register_sas_ha(struct isci_host *isci_host)
 				SCI_MAX_PHYS, sizeof(void *),
 				GFP_KERNEL);
 	if (!sas_phys)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sas_ports = devm_kcalloc(&isci_host->pdev->dev,
 				 SCI_MAX_PORTS, sizeof(void *),
 				 GFP_KERNEL);
 	if (!sas_ports)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sas_ha->sas_ha_name = DRV_NAME;
 	sas_ha->sas_addr    = &isci_host->phys[0].sas_addr[0];
@@ -302,7 +302,7 @@ static int isci_pci_init(struct pci_dev *pdev)
 
 	iomap = pcim_iomap_table(pdev);
 	if (!iomap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pci_set_master(pdev);
 
@@ -315,7 +315,7 @@ static int isci_pci_init(struct pci_dev *pdev)
 static int num_controllers(struct pci_dev *pdev)
 {
 	/* bar size alone can tell us if we are running with a dual controller
-	 * part, no need to trust revision ids that might be under broken firmware
+	 * part, anal need to trust revision ids that might be under broken firmware
 	 * control
 	 */
 	resource_size_t scu_bar_size = pci_resource_len(pdev, SCI_SCU_BAR*2);
@@ -392,17 +392,17 @@ static void isci_user_parameters_get(struct sci_user_parameters *u)
 
 		u_phy->max_speed_generation = phy_gen;
 
-		/* we are not exporting these for now */
+		/* we are analt exporting these for analw */
 		u_phy->align_insertion_frequency = 0x7f;
 		u_phy->in_connection_align_insertion_frequency = 0xff;
-		u_phy->notify_enable_spin_up_insertion_frequency = 0x33;
+		u_phy->analtify_enable_spin_up_insertion_frequency = 0x33;
 	}
 
 	u->stp_inactivity_timeout = stp_inactive_to;
 	u->ssp_inactivity_timeout = ssp_inactive_to;
 	u->stp_max_occupancy_timeout = stp_max_occ_to;
 	u->ssp_max_occupancy_timeout = ssp_max_occ_to;
-	u->no_outbound_task_timeout = no_outbound_task_to;
+	u->anal_outbound_task_timeout = anal_outbound_task_to;
 	u->max_concurr_spinup = max_concurr_spinup;
 }
 
@@ -412,7 +412,7 @@ static enum sci_status sci_user_parameters_set(struct isci_host *ihost,
 	u16 index;
 
 	/*
-	 * Validate the user parameters.  If they are not legal, then
+	 * Validate the user parameters.  If they are analt legal, then
 	 * return a failure.
 	 */
 	for (index = 0; index < SCI_MAX_PHYS; index++) {
@@ -421,12 +421,12 @@ static enum sci_status sci_user_parameters_set(struct isci_host *ihost,
 		u = &sci_parms->phys[index];
 
 		if (!((u->max_speed_generation <= SCIC_SDS_PARM_MAX_SPEED) &&
-		      (u->max_speed_generation > SCIC_SDS_PARM_NO_SPEED)))
+		      (u->max_speed_generation > SCIC_SDS_PARM_ANAL_SPEED)))
 			return SCI_FAILURE_INVALID_PARAMETER_VALUE;
 
 		if ((u->in_connection_align_insertion_frequency < 3) ||
 		    (u->align_insertion_frequency == 0) ||
-		    (u->notify_enable_spin_up_insertion_frequency == 0))
+		    (u->analtify_enable_spin_up_insertion_frequency == 0))
 			return SCI_FAILURE_INVALID_PARAMETER_VALUE;
 	}
 
@@ -434,7 +434,7 @@ static enum sci_status sci_user_parameters_set(struct isci_host *ihost,
 	    (sci_parms->ssp_inactivity_timeout == 0) ||
 	    (sci_parms->stp_max_occupancy_timeout == 0) ||
 	    (sci_parms->ssp_max_occupancy_timeout == 0) ||
-	    (sci_parms->no_outbound_task_timeout == 0))
+	    (sci_parms->anal_outbound_task_timeout == 0))
 		return SCI_FAILURE_INVALID_PARAMETER_VALUE;
 
 	memcpy(&ihost->user_parameters, sci_parms, sizeof(*sci_parms));
@@ -455,7 +455,7 @@ static void sci_oem_defaults(struct isci_host *ihost)
 	/* Default to APC mode. */
 	oem->controller.max_concurr_spin_up = 1;
 
-	/* Default to no SSC operation. */
+	/* Default to anal SSC operation. */
 	oem->controller.do_enable_ssc = false;
 
 	/* Default to short cables on all phys. */
@@ -470,10 +470,10 @@ static void sci_oem_defaults(struct isci_host *ihost)
 		/* Default to 3G (i.e. Gen 2). */
 		user->phys[i].max_speed_generation = SCIC_SDS_PARM_GEN2_SPEED;
 
-		/* the frequencies cannot be 0 */
+		/* the frequencies cananalt be 0 */
 		user->phys[i].align_insertion_frequency = 0x7f;
 		user->phys[i].in_connection_align_insertion_frequency = 0xff;
-		user->phys[i].notify_enable_spin_up_insertion_frequency = 0x33;
+		user->phys[i].analtify_enable_spin_up_insertion_frequency = 0x33;
 
 		/* Previous Vitesse based expanders had a arbitration issue that
 		 * is worked around by having the upper 32-bits of SAS address
@@ -488,7 +488,7 @@ static void sci_oem_defaults(struct isci_host *ihost)
 	user->ssp_inactivity_timeout = 5;
 	user->stp_max_occupancy_timeout = 5;
 	user->ssp_max_occupancy_timeout = 20;
-	user->no_outbound_task_timeout = 2;
+	user->anal_outbound_task_timeout = 2;
 }
 
 static struct isci_host *isci_host_alloc(struct pci_dev *pdev, int id)
@@ -552,7 +552,7 @@ static struct isci_host *isci_host_alloc(struct pci_dev *pdev, int id)
 	for (i = 0; i < SCI_MAX_REMOTE_DEVICES; i++) {
 		struct isci_remote_device *idev = &ihost->devices[i];
 
-		INIT_LIST_HEAD(&idev->node);
+		INIT_LIST_HEAD(&idev->analde);
 	}
 
 	shost = scsi_host_alloc(&isci_sht, sizeof(void *));
@@ -618,7 +618,7 @@ static int isci_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	pci_info = devm_kzalloc(&pdev->dev, sizeof(*pci_info), GFP_KERNEL);
 	if (!pci_info)
-		return -ENOMEM;
+		return -EANALMEM;
 	pci_set_drvdata(pdev, pci_info);
 
 	if (efi_rt_services_supported(EFI_RT_SUPPORTED_GET_VARIABLE))
@@ -669,7 +669,7 @@ static int isci_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		struct isci_host *h = isci_host_alloc(pdev, i);
 
 		if (!h) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_host_alloc;
 		}
 		pci_info->hosts[i] = h;
@@ -756,7 +756,7 @@ static __init int isci_init(void)
 
 	isci_transport_template = sas_domain_attach_transport(&isci_transport_ops);
 	if (!isci_transport_template)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = pci_register_driver(&isci_pci_driver);
 	if (err)

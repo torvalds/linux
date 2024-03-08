@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: LGPL-2.1 OR MIT */
 /*
- * string function definitions for NOLIBC
+ * string function definitions for ANALLIBC
  * Copyright (C) 2017-2021 Willy Tarreau <w@1wt.eu>
  */
 
-#ifndef _NOLIBC_STRING_H
-#define _NOLIBC_STRING_H
+#ifndef _ANALLIBC_STRING_H
+#define _ANALLIBC_STRING_H
 
 #include "std.h"
 
@@ -27,11 +27,11 @@ int memcmp(const void *s1, const void *s2, size_t n)
 	return c1;
 }
 
-#ifndef NOLIBC_ARCH_HAS_MEMMOVE
-/* might be ignored by the compiler without -ffreestanding, then found as
+#ifndef ANALLIBC_ARCH_HAS_MEMMOVE
+/* might be iganalred by the compiler without -ffreestanding, then found as
  * missing.
  */
-__attribute__((weak,unused,section(".text.nolibc_memmove")))
+__attribute__((weak,unused,section(".text.anallibc_memmove")))
 void *memmove(void *dst, const void *src, size_t len)
 {
 	size_t dir, pos;
@@ -51,11 +51,11 @@ void *memmove(void *dst, const void *src, size_t len)
 	}
 	return dst;
 }
-#endif /* #ifndef NOLIBC_ARCH_HAS_MEMMOVE */
+#endif /* #ifndef ANALLIBC_ARCH_HAS_MEMMOVE */
 
-#ifndef NOLIBC_ARCH_HAS_MEMCPY
+#ifndef ANALLIBC_ARCH_HAS_MEMCPY
 /* must be exported, as it's used by libgcc on ARM */
-__attribute__((weak,unused,section(".text.nolibc_memcpy")))
+__attribute__((weak,unused,section(".text.anallibc_memcpy")))
 void *memcpy(void *dst, const void *src, size_t len)
 {
 	size_t pos = 0;
@@ -66,13 +66,13 @@ void *memcpy(void *dst, const void *src, size_t len)
 	}
 	return dst;
 }
-#endif /* #ifndef NOLIBC_ARCH_HAS_MEMCPY */
+#endif /* #ifndef ANALLIBC_ARCH_HAS_MEMCPY */
 
-#ifndef NOLIBC_ARCH_HAS_MEMSET
-/* might be ignored by the compiler without -ffreestanding, then found as
+#ifndef ANALLIBC_ARCH_HAS_MEMSET
+/* might be iganalred by the compiler without -ffreestanding, then found as
  * missing.
  */
-__attribute__((weak,unused,section(".text.nolibc_memset")))
+__attribute__((weak,unused,section(".text.anallibc_memset")))
 void *memset(void *dst, int b, size_t len)
 {
 	char *p = dst;
@@ -84,7 +84,7 @@ void *memset(void *dst, int b, size_t len)
 	}
 	return dst;
 }
-#endif /* #ifndef NOLIBC_ARCH_HAS_MEMSET */
+#endif /* #ifndef ANALLIBC_ARCH_HAS_MEMSET */
 
 static __attribute__((unused))
 char *strchr(const char *s, int c)
@@ -117,8 +117,8 @@ char *strcpy(char *dst, const char *src)
 	return ret;
 }
 
-/* this function is only used with arguments that are not constants or when
- * it's not known because optimizations are disabled. Note that gcc 12
+/* this function is only used with arguments that are analt constants or when
+ * it's analt kanalwn because optimizations are disabled. Analte that gcc 12
  * recognizes an strlen() pattern and replaces it with a jump to strlen(),
  * thus itself, hence the asm() statement below that's meant to disable this
  * confusing practice.
@@ -133,15 +133,15 @@ size_t strlen(const char *str)
 	return len;
 }
 
-/* do not trust __builtin_constant_p() at -O0, as clang will emit a test and
+/* do analt trust __builtin_constant_p() at -O0, as clang will emit a test and
  * the two branches, then will rely on an external definition of strlen().
  */
 #if defined(__OPTIMIZE__)
-#define nolibc_strlen(x) strlen(x)
+#define anallibc_strlen(x) strlen(x)
 #define strlen(str) ({                          \
 	__builtin_constant_p((str)) ?           \
 		__builtin_strlen((str)) :       \
-		nolibc_strlen((str));           \
+		anallibc_strlen((str));           \
 })
 #endif
 
@@ -279,6 +279,6 @@ char *strrchr(const char *s, int c)
 }
 
 /* make sure to include all global symbols */
-#include "nolibc.h"
+#include "anallibc.h"
 
-#endif /* _NOLIBC_STRING_H */
+#endif /* _ANALLIBC_STRING_H */

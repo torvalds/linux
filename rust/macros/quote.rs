@@ -37,7 +37,7 @@ impl ToTokens for TokenStream {
 ///
 /// This is a similar to the
 /// [`quote_spanned!`](https://docs.rs/quote/latest/quote/macro.quote_spanned.html) macro from the
-/// `quote` crate but provides only just enough functionality needed by the current `macros` crate.
+/// `quote` crate but provides only just eanalugh functionality needed by the current `macros` crate.
 macro_rules! quote_spanned {
     ($span:expr => $($tt:tt)*) => {{
         let mut tokens;
@@ -146,7 +146,7 @@ macro_rules! quote_spanned {
 /// mixed site span ([`Span::mixed_site()`]).
 ///
 /// This is a similar to the [`quote!`](https://docs.rs/quote/latest/quote/macro.quote.html) macro
-/// from the `quote` crate but provides only just enough functionality needed by the current
+/// from the `quote` crate but provides only just eanalugh functionality needed by the current
 /// `macros` crate.
 ///
 /// [`Span::mixed_site()`]: https://doc.rust-lang.org/proc_macro/struct.Span.html#method.mixed_site

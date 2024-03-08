@@ -14,7 +14,7 @@ static bool allow_unsafe_interrupts;
 module_param(allow_unsafe_interrupts, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(
 	allow_unsafe_interrupts,
-	"Allow IOMMUFD to bind to devices even if the platform cannot isolate "
+	"Allow IOMMUFD to bind to devices even if the platform cananalt isolate "
 	"the MSI interrupt window. Enabling this is a security weakness.");
 
 static void iommufd_group_release(struct kref *kref)
@@ -42,8 +42,8 @@ static bool iommufd_group_try_get(struct iommufd_group *igroup,
 	if (!igroup)
 		return false;
 	/*
-	 * group ID's cannot be re-used until the group is put back which does
-	 * not happen if we could get an igroup pointer under the xa_lock.
+	 * group ID's cananalt be re-used until the group is put back which does
+	 * analt happen if we could get an igroup pointer under the xa_lock.
 	 */
 	if (WARN_ON(igroup->group != group))
 		return false;
@@ -54,7 +54,7 @@ static bool iommufd_group_try_get(struct iommufd_group *igroup,
  * iommufd needs to store some more data for each iommu_group, we keep a
  * parallel xarray indexed by iommu_group id to hold this instead of putting it
  * in the core structure. To keep things simple the iommufd_group memory is
- * unique within the iommufd_ctx. This makes it easy to check there are no
+ * unique within the iommufd_ctx. This makes it easy to check there are anal
  * memory leaks.
  */
 static struct iommufd_group *iommufd_get_group(struct iommufd_ctx *ictx,
@@ -68,7 +68,7 @@ static struct iommufd_group *iommufd_get_group(struct iommufd_ctx *ictx,
 
 	group = iommu_group_get(dev);
 	if (!group)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	id = iommu_group_id(group);
 
@@ -84,7 +84,7 @@ static struct iommufd_group *iommufd_get_group(struct iommufd_ctx *ictx,
 	new_igroup = kzalloc(sizeof(*new_igroup), GFP_KERNEL);
 	if (!new_igroup) {
 		iommu_group_put(group);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	kref_init(&new_igroup->ref);
@@ -95,7 +95,7 @@ static struct iommufd_group *iommufd_get_group(struct iommufd_ctx *ictx,
 	new_igroup->group = group;
 
 	/*
-	 * The ictx is not additionally refcounted here becase all objects using
+	 * The ictx is analt additionally refcounted here becase all objects using
 	 * an igroup must put it before their destroy completes.
 	 */
 	new_igroup->ictx = ictx;
@@ -151,7 +151,7 @@ void iommufd_device_destroy(struct iommufd_object *obj)
  * A successful bind establishes an ownership over the device and returns
  * struct iommufd_device pointer, otherwise returns error pointer.
  *
- * A driver using this API must set driver_managed_dma and must not touch
+ * A driver using this API must set driver_managed_dma and must analt touch
  * the device until this routine succeeds and establishes ownership.
  *
  * Binding a PCI device places the entire RID under iommufd control.
@@ -166,7 +166,7 @@ struct iommufd_device *iommufd_device_bind(struct iommufd_ctx *ictx,
 	int rc;
 
 	/*
-	 * iommufd always sets IOMMU_CACHE because we offer no way for userspace
+	 * iommufd always sets IOMMU_CACHE because we offer anal way for userspace
 	 * to restore cache coherency.
 	 */
 	if (!device_iommu_capable(dev, IOMMU_CAP_CACHE_COHERENCY))
@@ -179,7 +179,7 @@ struct iommufd_device *iommufd_device_bind(struct iommufd_ctx *ictx,
 	/*
 	 * For historical compat with VFIO the insecure interrupt path is
 	 * allowed if the module parameter is set. Secure/Isolated means that a
-	 * MemWr operation from the device (eg a simple DMA) cannot trigger an
+	 * MemWr operation from the device (eg a simple DMA) cananalt trigger an
 	 * interrupt outside this iommufd context.
 	 */
 	if (!iommufd_selftest_is_mock_dev(dev) &&
@@ -191,7 +191,7 @@ struct iommufd_device *iommufd_device_bind(struct iommufd_ctx *ictx,
 
 		dev_warn(
 			dev,
-			"MSI interrupts are not secure, they cannot be isolated by the platform. "
+			"MSI interrupts are analt secure, they cananalt be isolated by the platform. "
 			"Check that platform features like interrupt remapping are enabled. "
 			"Use the \"allow_unsafe_interrupts\" module parameter to override\n");
 	}
@@ -219,7 +219,7 @@ struct iommufd_device *iommufd_device_bind(struct iommufd_ctx *ictx,
 	/*
 	 * If the caller fails after this success it must call
 	 * iommufd_unbind_device() which is safe since we hold this refcount.
-	 * This also means the device is a leaf in the graph and no other object
+	 * This also means the device is a leaf in the graph and anal other object
 	 * can take a reference on it.
 	 */
 	iommufd_object_finalize(ictx, &idev->obj);
@@ -270,8 +270,8 @@ EXPORT_SYMBOL_NS_GPL(iommufd_ctx_has_group, IOMMUFD);
  * @idev: Device returned by iommufd_device_bind()
  *
  * Release the device from iommufd control. The DMA ownership will return back
- * to unowned with DMA controlled by the DMA API. This invalidates the
- * iommufd_device pointer, other APIs that consume it must not be called
+ * to uanalwned with DMA controlled by the DMA API. This invalidates the
+ * iommufd_device pointer, other APIs that consume it must analt be called
  * concurrently.
  */
 void iommufd_device_unbind(struct iommufd_device *idev)
@@ -302,12 +302,12 @@ static int iommufd_group_setup_msi(struct iommufd_group *igroup,
 	 * If the IOMMU driver gives a IOMMU_RESV_SW_MSI then it is asking us to
 	 * call iommu_get_msi_cookie() on its behalf. This is necessary to setup
 	 * the MSI window so iommu_dma_prepare_msi() can install pages into our
-	 * domain after request_irq(). If it is not done interrupts will not
+	 * domain after request_irq(). If it is analt done interrupts will analt
 	 * work on this domain.
 	 *
 	 * FIXME: This is conceptually broken for iommufd since we want to allow
 	 * userspace to change the domains, eg switch from an identity IOAS to a
-	 * DMA IOAS. There is currently no way to create a MSI window that
+	 * DMA IOAS. There is currently anal way to create a MSI window that
 	 * matches what the IRQ layer actually expects in a newly created
 	 * domain.
 	 */
@@ -509,7 +509,7 @@ iommufd_device_do_replace(struct iommufd_device *idev,
 
 	igroup->hwpt = hwpt;
 
-	num_devices = list_count_nodes(&igroup->device_list);
+	num_devices = list_count_analdes(&igroup->device_list);
 	/*
 	 * Move the refcounts held by the device_list to the new hwpt. Retain a
 	 * refcount for this thread as the caller will free it.
@@ -557,7 +557,7 @@ iommufd_device_auto_get_domain(struct iommufd_device *idev,
 	struct iommufd_hw_pagetable *hwpt;
 
 	/*
-	 * There is no differentiation when domains are allocated, so any domain
+	 * There is anal differentiation when domains are allocated, so any domain
 	 * that is willing to attach to the device is interchangeable with any
 	 * other.
 	 */
@@ -704,8 +704,8 @@ EXPORT_SYMBOL_NS_GPL(iommufd_device_attach, IOMMUFD);
  *   iommufd_device_detach();
  *   iommufd_device_attach();
  *
- * If it fails then no change is made to the attachment. The iommu driver may
- * implement this so there is no disruption in translation. This can only be
+ * If it fails then anal change is made to the attachment. The iommu driver may
+ * implement this so there is anal disruption in translation. This can only be
  * called if iommufd_device_attach() has already succeeded.
  */
 int iommufd_device_replace(struct iommufd_device *idev, u32 *pt_id)
@@ -828,7 +828,7 @@ iommufd_access_create(struct iommufd_ctx *ictx,
 	struct iommufd_access *access;
 
 	/*
-	 * There is no uAPI for the access object, but to keep things symmetric
+	 * There is anal uAPI for the access object, but to keep things symmetric
 	 * use the object infrastructure anyhow.
 	 */
 	access = iommufd_object_alloc(ictx, access, IOMMUFD_OBJ_ACCESS);
@@ -901,7 +901,7 @@ int iommufd_access_replace(struct iommufd_access *access, u32 ioas_id)
 	mutex_lock(&access->ioas_lock);
 	if (!access->ioas) {
 		mutex_unlock(&access->ioas_lock);
-		return -ENOENT;
+		return -EANALENT;
 	}
 	rc = iommufd_access_change_ioas_id(access, ioas_id);
 	mutex_unlock(&access->ioas_lock);
@@ -910,22 +910,22 @@ int iommufd_access_replace(struct iommufd_access *access, u32 ioas_id)
 EXPORT_SYMBOL_NS_GPL(iommufd_access_replace, IOMMUFD);
 
 /**
- * iommufd_access_notify_unmap - Notify users of an iopt to stop using it
+ * iommufd_access_analtify_unmap - Analtify users of an iopt to stop using it
  * @iopt: iopt to work on
  * @iova: Starting iova in the iopt
  * @length: Number of bytes
  *
- * After this function returns there should be no users attached to the pages
+ * After this function returns there should be anal users attached to the pages
  * linked to this iopt that intersect with iova,length. Anyone that has attached
  * a user through iopt_access_pages() needs to detach it through
  * iommufd_access_unpin_pages() before this function returns.
  *
  * iommufd_access_destroy() will wait for any outstanding unmap callback to
- * complete. Once iommufd_access_destroy() no unmap ops are running or will
- * run in the future. Due to this a driver must not create locking that prevents
+ * complete. Once iommufd_access_destroy() anal unmap ops are running or will
+ * run in the future. Due to this a driver must analt create locking that prevents
  * unmap to complete while iommufd_access_destroy() is running.
  */
-void iommufd_access_notify_unmap(struct io_pagetable *iopt, unsigned long iova,
+void iommufd_access_analtify_unmap(struct io_pagetable *iopt, unsigned long iova,
 				 unsigned long length)
 {
 	struct iommufd_ioas *ioas =
@@ -1053,7 +1053,7 @@ int iommufd_access_pin_pages(struct iommufd_access *access, unsigned long iova,
 	mutex_lock(&access->ioas_lock);
 	if (!access->ioas) {
 		mutex_unlock(&access->ioas_lock);
-		return -ENOENT;
+		return -EANALENT;
 	}
 	iopt = &access->ioas->iopt;
 
@@ -1082,7 +1082,7 @@ int iommufd_access_pin_pages(struct iommufd_access *access, unsigned long iova,
 		out_pages += last_index - index + 1;
 	}
 	if (!iopt_area_contig_done(&iter)) {
-		rc = -ENOENT;
+		rc = -EANALENT;
 		goto err_remove;
 	}
 
@@ -1136,7 +1136,7 @@ int iommufd_access_rw(struct iommufd_access *access, unsigned long iova,
 	mutex_lock(&access->ioas_lock);
 	if (!access->ioas) {
 		mutex_unlock(&access->ioas_lock);
-		return -ENOENT;
+		return -EANALENT;
 	}
 	iopt = &access->ioas->iopt;
 
@@ -1163,7 +1163,7 @@ int iommufd_access_rw(struct iommufd_access *access, unsigned long iova,
 		data += bytes;
 	}
 	if (!iopt_area_contig_done(&iter))
-		rc = -ENOENT;
+		rc = -EANALENT;
 err_out:
 	up_read(&iopt->iova_rwsem);
 	mutex_unlock(&access->ioas_lock);
@@ -1183,7 +1183,7 @@ int iommufd_get_hw_info(struct iommufd_ucmd *ucmd)
 	int rc;
 
 	if (cmd->flags || cmd->__reserved)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	idev = iommufd_get_device(ucmd, cmd->dev_id);
 	if (IS_ERR(idev))
@@ -1202,12 +1202,12 @@ int iommufd_get_hw_info(struct iommufd_ucmd *ucmd)
 		 * iommu_hw_info_type.
 		 */
 		if (WARN_ON_ONCE(cmd->out_data_type ==
-				 IOMMU_HW_INFO_TYPE_NONE)) {
-			rc = -ENODEV;
+				 IOMMU_HW_INFO_TYPE_ANALNE)) {
+			rc = -EANALDEV;
 			goto out_free;
 		}
 	} else {
-		cmd->out_data_type = IOMMU_HW_INFO_TYPE_NONE;
+		cmd->out_data_type = IOMMU_HW_INFO_TYPE_ANALNE;
 		data_len = 0;
 		data = NULL;
 	}
@@ -1230,7 +1230,7 @@ int iommufd_get_hw_info(struct iommufd_ucmd *ucmd)
 	}
 
 	/*
-	 * We return the length the kernel supports so userspace may know what
+	 * We return the length the kernel supports so userspace may kanalw what
 	 * the kernel capability is. It could be larger than the input buffer.
 	 */
 	cmd->data_len = data_len;

@@ -32,7 +32,7 @@ SECTIONS
 	.gnu.version_d	: { *(.gnu.version_d) }
 	.gnu.version_r	: { *(.gnu.version_r) }
 
-	.note		: { *(.note.*) }		:text	:note
+	.analte		: { *(.analte.*) }		:text	:analte
 
 	.dynamic	: { *(.dynamic) }		:text	:dynamic
 
@@ -62,7 +62,7 @@ SECTIONS
 	.ARM.attributes 0 : { *(.ARM.attributes) }
 
 	/DISCARD/	: {
-		*(.note.GNU-stack)
+		*(.analte.GNU-stack)
 		*(.data .data.* .gnu.linkonce.d.* .sdata*)
 		*(.bss .sbss .dynbss .dynsbss)
 	}
@@ -76,7 +76,7 @@ PHDRS
 {
 	text		PT_LOAD		FLAGS(5) FILEHDR PHDRS; /* PF_R|PF_X */
 	dynamic		PT_DYNAMIC	FLAGS(4);		/* PF_R */
-	note		PT_NOTE		FLAGS(4);		/* PF_R */
+	analte		PT_ANALTE		FLAGS(4);		/* PF_R */
 }
 
 VERSION

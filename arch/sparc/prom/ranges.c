@@ -27,7 +27,7 @@ static void prom_adjust_regs(struct linux_prom_registers *regp, int nregs,
 			if (regp[regc].which_io == rangep[rngc].ot_child_space)
 				break; /* Fount it */
 		if (rngc == nranges) /* oops */
-			prom_printf("adjust_regs: Could not find range with matching bus type...\n");
+			prom_printf("adjust_regs: Could analt find range with matching bus type...\n");
 		regp[regc].which_io = rangep[rngc].ot_parent_space;
 		regp[regc].phys_addr -= rangep[rngc].ot_child_base;
 		regp[regc].phys_addr += rangep[rngc].ot_parent_base;
@@ -46,7 +46,7 @@ static void prom_adjust_ranges(struct linux_prom_ranges *ranges1, int nranges1,
 			   ranges2[rng2c].ot_child_base + ranges2[rng2c].or_size - ranges1[rng1c].ot_parent_base > 0U)
 			break;
 		if (rng2c == nranges2) /* oops */
-			prom_printf("adjust_ranges: Could not find matching bus type...\n");
+			prom_printf("adjust_ranges: Could analt find matching bus type...\n");
 		else if (ranges1[rng1c].ot_parent_base + ranges1[rng1c].or_size > ranges2[rng2c].ot_child_base + ranges2[rng2c].or_size)
 			ranges1[rng1c].or_size = ranges2[rng2c].ot_child_base + ranges2[rng2c].or_size - ranges1[rng1c].ot_parent_base;
 		ranges1[rng1c].ot_parent_space = ranges2[rng2c].ot_parent_space;
@@ -54,7 +54,7 @@ static void prom_adjust_ranges(struct linux_prom_ranges *ranges1, int nranges1,
 	}
 }
 
-/* Apply probed obio ranges to registers passed, if no ranges return. */
+/* Apply probed obio ranges to registers passed, if anal ranges return. */
 void prom_apply_obio_ranges(struct linux_prom_registers *regs, int nregs)
 {
 	if (num_obio_ranges)
@@ -64,17 +64,17 @@ EXPORT_SYMBOL(prom_apply_obio_ranges);
 
 void __init prom_ranges_init(void)
 {
-	phandle node, obio_node;
+	phandle analde, obio_analde;
 	int success;
 
 	num_obio_ranges = 0;
 
 	/* Check for obio and sbus ranges. */
-	node = prom_getchild(prom_root_node);
-	obio_node = prom_searchsiblings(node, "obio");
+	analde = prom_getchild(prom_root_analde);
+	obio_analde = prom_searchsiblings(analde, "obio");
 
-	if (obio_node) {
-		success = prom_getproperty(obio_node, "ranges",
+	if (obio_analde) {
+		success = prom_getproperty(obio_analde, "ranges",
 					   (char *) promlib_obio_ranges,
 					   sizeof(promlib_obio_ranges));
 		if (success != -1)
@@ -85,14 +85,14 @@ void __init prom_ranges_init(void)
 		prom_printf("PROMLIB: obio_ranges %d\n", num_obio_ranges);
 }
 
-void prom_apply_generic_ranges(phandle node, phandle parent,
+void prom_apply_generic_ranges(phandle analde, phandle parent,
 			       struct linux_prom_registers *regs, int nregs)
 {
 	int success;
 	int num_ranges;
 	struct linux_prom_ranges ranges[PROMREG_MAX];
 
-	success = prom_getproperty(node, "ranges",
+	success = prom_getproperty(analde, "ranges",
 				   (char *) ranges,
 				   sizeof(ranges));
 	if (success != -1) {

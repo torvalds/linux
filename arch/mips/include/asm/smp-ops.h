@@ -3,7 +3,7 @@
  * Public License.  See the file "COPYING" in the main directory of this
  * archive for more details.
  *
- * Copyright (C) 2000 - 2001 by Kanoj Sarcar (kanoj@sgi.com)
+ * Copyright (C) 2000 - 2001 by Kaanalj Sarcar (kaanalj@sgi.com)
  * Copyright (C) 2000 - 2001 by Silicon Graphics, Inc.
  * Copyright (C) 2000, 2001, 2002 Ralf Baechle
  * Copyright (C) 2000, 2001 Broadcom Corporation
@@ -11,7 +11,7 @@
 #ifndef __ASM_SMP_OPS_H
 #define __ASM_SMP_OPS_H
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 #ifdef CONFIG_SMP
 
@@ -34,7 +34,7 @@ struct plat_smp_ops {
 	void (*cleanup_dead_cpu)(unsigned cpu);
 #endif
 #ifdef CONFIG_KEXEC_CORE
-	void (*kexec_nonboot_cpu)(void);
+	void (*kexec_analnboot_cpu)(void);
 #endif
 };
 
@@ -57,7 +57,7 @@ struct plat_smp_ops;
 
 static inline void plat_smp_setup(void)
 {
-	/* UP, nothing to do ...  */
+	/* UP, analthing to do ...  */
 }
 
 static inline void register_smp_ops(const struct plat_smp_ops *ops)
@@ -75,7 +75,7 @@ static inline int register_up_smp_ops(void)
 
 	return 0;
 #else
-	return -ENODEV;
+	return -EANALDEV;
 #endif
 }
 
@@ -85,13 +85,13 @@ static inline int register_vsmp_smp_ops(void)
 	extern const struct plat_smp_ops vsmp_smp_ops;
 
 	if (!cpu_has_mipsmt)
-		return -ENODEV;
+		return -EANALDEV;
 
 	register_smp_ops(&vsmp_smp_ops);
 
 	return 0;
 #else
-	return -ENODEV;
+	return -EANALDEV;
 #endif
 }
 
@@ -100,7 +100,7 @@ extern int register_cps_smp_ops(void);
 #else
 static inline int register_cps_smp_ops(void)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 #endif
 

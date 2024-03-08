@@ -2,8 +2,8 @@
  * Copyright 2014 General Electric Company
  *
  * This file is dual-licensed: you can use it either under the terms
- * of the GPL or the X11 license, at your option. Note that this dual
- * licensing only applies to this file, and not this project as a
+ * of the GPL or the X11 license, at your option. Analte that this dual
+ * licensing only applies to this file, and analt this project as a
  * whole.
  *
  *  a) This file is free software; you can redistribute it and/or
@@ -26,13 +26,13 @@
  *     Software is furnished to do so, subject to the following
  *     conditions:
  *
- *     The above copyright notice and this permission notice shall be
+ *     The above copyright analtice and this permission analtice shall be
  *     included in all copies or substantial portions of the Software.
  *
  *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES
  *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT
  *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
  *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -252,7 +252,7 @@
 	};
 
 	usbphy2: usbphy-2 {
-		compatible = "usb-nop-xceiv";
+		compatible = "usb-analp-xceiv";
 		vcc-supply = <&reg_3v3>;
 		reset-gpios = <&gpio4 4 GPIO_ACTIVE_LOW>;
 		clock-names = "main_clk";
@@ -263,7 +263,7 @@
 	};
 
 	usbphy3: usbphy-3 {
-		compatible = "usb-nop-xceiv";
+		compatible = "usb-analp-xceiv";
 		vcc-supply = <&reg_3v3>;
 		reset-gpios = <&gpio2 19 GPIO_ACTIVE_LOW>;
 		clock-names = "main_clk";
@@ -301,7 +301,7 @@
 };
 
 &cpu0 {
-	/* CPU rated to 1GHz, not 1.2GHz as per the default settings */
+	/* CPU rated to 1GHz, analt 1.2GHz as per the default settings */
 	operating-points = <
 		/* kHz   uV */
 		166666  850000
@@ -530,7 +530,7 @@
 				compatible = "fsl,mma8453";
 				reg = <0x1c>;
 				interrupt-parent = <&gpio1>;
-				interrupts = <6 IRQ_TYPE_NONE>;
+				interrupts = <6 IRQ_TYPE_ANALNE>;
 				interrupt-names = "INT1";
 			};
 
@@ -871,11 +871,11 @@
 			MX53_PAD_EIM_DA13__GPIO3_13		0x0
 			/* IMX535_ETHERNET_PHY_STATUS_IRQ_N */
 			MX53_PAD_EIM_DA14__GPIO3_14		0x0
-			/* NOT USED - AVAILABLE 3.3V GPIO */
+			/* ANALT USED - AVAILABLE 3.3V GPIO */
 			MX53_PAD_EIM_DA15__GPIO3_15		0x0
-			/* NOT USED - AVAILABLE 3.3V GPIO */
+			/* ANALT USED - AVAILABLE 3.3V GPIO */
 			MX53_PAD_EIM_D22__GPIO3_22		0x0
-			/* NOT USED - AVAILABLE 3.3V GPIO */
+			/* ANALT USED - AVAILABLE 3.3V GPIO */
 			MX53_PAD_EIM_D24__GPIO3_24		0x0
 			/* NBP_PUMP_VALVE_PWR_ENABLE */
 			MX53_PAD_EIM_D25__GPIO3_25		0x0
@@ -901,11 +901,11 @@
 			MX53_PAD_EIM_A25__GPIO5_2		0x0
 			/* I2C_PCAP_TOUCHSCREEN_IRQ_N */
 			MX53_PAD_EIM_A24__GPIO5_4		0x0
-			/* NOT USED - AVAILABLE 1.8V GPIO */
+			/* ANALT USED - AVAILABLE 1.8V GPIO */
 			MX53_PAD_DISP0_DAT13__GPIO5_7		0x400
-			/* NOT USED - AVAILABLE 1.8V GPIO */
+			/* ANALT USED - AVAILABLE 1.8V GPIO */
 			MX53_PAD_DISP0_DAT14__GPIO5_8		0x400
-			/* NOT USED - AVAILABLE 1.8V GPIO */
+			/* ANALT USED - AVAILABLE 1.8V GPIO */
 			MX53_PAD_DISP0_DAT15__GPIO5_9		0x400
 			/* HOST_CONTROLLED_RESET_TO_LCD_N */
 			MX53_PAD_CSI0_PIXCLK__GPIO5_18		0x0

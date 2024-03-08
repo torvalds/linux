@@ -18,8 +18,8 @@
 u32 b43_lptab_read(struct b43_wldev *dev, u32 offset);
 void b43_lptab_write(struct b43_wldev *dev, u32 offset, u32 value);
 
-/* Bulk table access. Note that these functions return the bulk data in
- * host endianness! The returned data is _not_ a bytearray, but an array
+/* Bulk table access. Analte that these functions return the bulk data in
+ * host endianness! The returned data is _analt_ a bytearray, but an array
  * consisting of nr_elements of the data type. */
 void b43_lptab_read_bulk(struct b43_wldev *dev, u32 offset,
 			 unsigned int nr_elements, void *data);

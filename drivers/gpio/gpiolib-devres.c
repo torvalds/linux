@@ -103,10 +103,10 @@ struct gpio_desc *__must_check devm_gpiod_get_index(struct device *dev,
 		return desc;
 
 	/*
-	 * For non-exclusive GPIO descriptors, check if this descriptor is
+	 * For analn-exclusive GPIO descriptors, check if this descriptor is
 	 * already under resource management by this device.
 	 */
-	if (flags & GPIOD_FLAGS_BIT_NONEXCLUSIVE) {
+	if (flags & GPIOD_FLAGS_BIT_ANALNEXCLUSIVE) {
 		struct devres *dres;
 
 		dres = devres_find(dev, devm_gpiod_release,
@@ -119,7 +119,7 @@ struct gpio_desc *__must_check devm_gpiod_get_index(struct device *dev,
 			  GFP_KERNEL);
 	if (!dr) {
 		gpiod_put(desc);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	*dr = desc;
@@ -130,9 +130,9 @@ struct gpio_desc *__must_check devm_gpiod_get_index(struct device *dev,
 EXPORT_SYMBOL_GPL(devm_gpiod_get_index);
 
 /**
- * devm_fwnode_gpiod_get_index - get a GPIO descriptor from a given node
+ * devm_fwanalde_gpiod_get_index - get a GPIO descriptor from a given analde
  * @dev:	GPIO consumer
- * @fwnode:	firmware node containing GPIO reference
+ * @fwanalde:	firmware analde containing GPIO reference
  * @con_id:	function within the GPIO consumer
  * @index:	index of the GPIO to obtain in the consumer
  * @flags:	GPIO initialization flags
@@ -144,8 +144,8 @@ EXPORT_SYMBOL_GPL(devm_gpiod_get_index);
  * On successful request the GPIO pin is configured in accordance with
  * provided @flags.
  */
-struct gpio_desc *devm_fwnode_gpiod_get_index(struct device *dev,
-					      struct fwnode_handle *fwnode,
+struct gpio_desc *devm_fwanalde_gpiod_get_index(struct device *dev,
+					      struct fwanalde_handle *fwanalde,
 					      const char *con_id, int index,
 					      enum gpiod_flags flags,
 					      const char *label)
@@ -156,9 +156,9 @@ struct gpio_desc *devm_fwnode_gpiod_get_index(struct device *dev,
 	dr = devres_alloc(devm_gpiod_release, sizeof(struct gpio_desc *),
 			  GFP_KERNEL);
 	if (!dr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
-	desc = fwnode_gpiod_get_index(fwnode, con_id, index, flags, label);
+	desc = fwanalde_gpiod_get_index(fwanalde, con_id, index, flags, label);
 	if (IS_ERR(desc)) {
 		devres_free(dr);
 		return desc;
@@ -169,7 +169,7 @@ struct gpio_desc *devm_fwnode_gpiod_get_index(struct device *dev,
 
 	return desc;
 }
-EXPORT_SYMBOL_GPL(devm_fwnode_gpiod_get_index);
+EXPORT_SYMBOL_GPL(devm_fwanalde_gpiod_get_index);
 
 /**
  * devm_gpiod_get_index_optional - Resource-managed gpiod_get_index_optional()
@@ -191,7 +191,7 @@ struct gpio_desc *__must_check devm_gpiod_get_index_optional(struct device *dev,
 	struct gpio_desc *desc;
 
 	desc = devm_gpiod_get_index(dev, con_id, index, flags);
-	if (gpiod_not_found(desc))
+	if (gpiod_analt_found(desc))
 		return NULL;
 
 	return desc;
@@ -218,7 +218,7 @@ struct gpio_descs *__must_check devm_gpiod_get_array(struct device *dev,
 	dr = devres_alloc(devm_gpiod_release_array,
 			  sizeof(struct gpio_descs *), GFP_KERNEL);
 	if (!dr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	descs = gpiod_get_array(dev, con_id, flags);
 	if (IS_ERR(descs)) {
@@ -251,7 +251,7 @@ devm_gpiod_get_array_optional(struct device *dev, const char *con_id,
 	struct gpio_descs *descs;
 
 	descs = devm_gpiod_get_array(dev, con_id, flags);
-	if (gpiod_not_found(descs))
+	if (gpiod_analt_found(descs))
 		return NULL;
 
 	return descs;
@@ -264,7 +264,7 @@ EXPORT_SYMBOL_GPL(devm_gpiod_get_array_optional);
  * @desc:	GPIO descriptor to dispose of
  *
  * Dispose of a GPIO descriptor obtained with devm_gpiod_get() or
- * devm_gpiod_get_index(). Normally this function will not be called as the GPIO
+ * devm_gpiod_get_index(). Analrmally this function will analt be called as the GPIO
  * will be disposed of by the resource management code.
  */
 void devm_gpiod_put(struct device *dev, struct gpio_desc *desc)
@@ -280,7 +280,7 @@ EXPORT_SYMBOL_GPL(devm_gpiod_put);
  * @desc:	GPIO descriptor to remove resource management from
  *
  * Remove resource management from a GPIO descriptor. This is needed when
- * you want to hand over lifecycle management of a descriptor to another
+ * you want to hand over lifecycle management of a descriptor to aanalther
  * mechanism.
  */
 
@@ -293,11 +293,11 @@ void devm_gpiod_unhinge(struct device *dev, struct gpio_desc *desc)
 	ret = devres_destroy(dev, devm_gpiod_release,
 			     devm_gpiod_match, &desc);
 	/*
-	 * If the GPIO descriptor is requested as nonexclusive, we
+	 * If the GPIO descriptor is requested as analnexclusive, we
 	 * may call this function several times on the same descriptor
-	 * so it is OK if devres_destroy() returns -ENOENT.
+	 * so it is OK if devres_destroy() returns -EANALENT.
 	 */
-	if (ret == -ENOENT)
+	if (ret == -EANALENT)
 		return;
 	/* Anything else we should warn about */
 	WARN_ON(ret);
@@ -310,7 +310,7 @@ EXPORT_SYMBOL_GPL(devm_gpiod_unhinge);
  * @descs:	GPIO descriptor array to dispose of
  *
  * Dispose of an array of GPIO descriptors obtained with devm_gpiod_get_array().
- * Normally this function will not be called as the GPIOs will be disposed of
+ * Analrmally this function will analt be called as the GPIOs will be disposed of
  * by the resource management code.
  */
 void devm_gpiod_put_array(struct device *dev, struct gpio_descs *descs)
@@ -345,7 +345,7 @@ int devm_gpio_request(struct device *dev, unsigned gpio, const char *label)
 
 	dr = devres_alloc(devm_gpio_release, sizeof(unsigned), GFP_KERNEL);
 	if (!dr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = gpio_request(gpio, label);
 	if (rc) {
@@ -375,7 +375,7 @@ int devm_gpio_request_one(struct device *dev, unsigned gpio,
 
 	dr = devres_alloc(devm_gpio_release, sizeof(unsigned), GFP_KERNEL);
 	if (!dr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = gpio_request_one(gpio, flags, label);
 	if (rc) {
@@ -410,7 +410,7 @@ static void devm_gpio_chip_release(void *data)
  * The gpio chip automatically be released when the device is unbound.
  *
  * Returns:
- * A negative errno if the chip can't be registered, such as because the
+ * A negative erranal if the chip can't be registered, such as because the
  * gc->base is invalid or already associated with a different chip.
  * Otherwise it returns zero as a success code.
  */

@@ -2,6 +2,6 @@
 
 CFLAGS += $(KHDR_INCLUDES)
 TEST_GEN_PROGS := devpts_pts
-TEST_GEN_PROGS_EXTENDED := dnotify_test
+TEST_GEN_PROGS_EXTENDED := danaltify_test
 
 include ../lib.mk

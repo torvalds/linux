@@ -66,7 +66,7 @@ int intel_root_gt_init_early(struct drm_i915_private *i915)
 
 	gt = drmm_kzalloc(&i915->drm, sizeof(*gt), GFP_KERNEL);
 	if (!gt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i915->gt[0] = gt;
 
@@ -74,7 +74,7 @@ int intel_root_gt_init_early(struct drm_i915_private *i915)
 	gt->uncore = &i915->uncore;
 	gt->irq_lock = drmm_kzalloc(&i915->drm, sizeof(*gt->irq_lock), GFP_KERNEL);
 	if (!gt->irq_lock)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	intel_gt_common_init_early(gt);
 
@@ -92,7 +92,7 @@ static int intel_gt_probe_lmem(struct intel_gt *gt)
 	mem = intel_gt_setup_lmem(gt);
 	if (IS_ERR(mem)) {
 		err = PTR_ERR(mem);
-		if (err == -ENODEV)
+		if (err == -EANALDEV)
 			return 0;
 
 		gt_err(gt, "Failed to setup region(%d) type=%d\n",
@@ -269,7 +269,7 @@ intel_gt_clear_error_registers(struct intel_gt *gt,
 	}
 
 	/*
-	 * For the media GT, this ring fault register is not replicated,
+	 * For the media GT, this ring fault register is analt replicated,
 	 * so don't do multicast/replicated register read/write operation on it.
 	 */
 	if (MEDIA_VER(i915) >= 13 && gt->type == GT_MEDIA) {
@@ -326,7 +326,7 @@ static void xehp_check_faults(struct intel_gt *gt)
 	u32 fault;
 
 	/*
-	 * Although the fault register now lives in an MCR register range,
+	 * Although the fault register analw lives in an MCR register range,
 	 * the GAM registers are special and we only truly need to read
 	 * the "primary" GAM instance rather than handling each instance
 	 * individually.  intel_gt_mcr_read_any() will automatically steer
@@ -421,9 +421,9 @@ void intel_gt_flush_ggtt_writes(struct intel_gt *gt)
 	intel_wakeref_t wakeref;
 
 	/*
-	 * No actual flushing is required for the GTT write domain for reads
+	 * Anal actual flushing is required for the GTT write domain for reads
 	 * from the GTT domain. Writes to it "immediately" go to main memory
-	 * as far as we know, so there's no chipset flush. It also doesn't
+	 * as far as we kanalw, so there's anal chipset flush. It also doesn't
 	 * land in the GPU render cache.
 	 *
 	 * However, we do have to enforce the order so that all writes through
@@ -435,7 +435,7 @@ void intel_gt_flush_ggtt_writes(struct intel_gt *gt)
 	 * timing. This issue has only been observed when switching quickly
 	 * between GTT writes and CPU reads from inside the kernel on recent hw,
 	 * and it appears to only affect discrete GTT blocks (i.e. on LLC
-	 * system agents we cannot reproduce this behaviour, until Cannonlake
+	 * system agents we cananalt reproduce this behaviour, until Cananalnlake
 	 * that was!).
 	 */
 
@@ -618,7 +618,7 @@ err:
 
 out:
 	/*
-	 * If we have to abandon now, we expect the engines to be idle
+	 * If we have to abandon analw, we expect the engines to be idle
 	 * and ready to be torn-down. The quickest way we can accomplish
 	 * this is by declaring ourselves wedged.
 	 */
@@ -675,7 +675,7 @@ int intel_gt_wait_for_idle(struct intel_gt *gt, long timeout)
 {
 	long remaining_timeout;
 
-	/* If the device is asleep, we have no requests outstanding */
+	/* If the device is asleep, we have anal requests outstanding */
 	if (!intel_gt_pm_is_awake(gt))
 		return 0;
 
@@ -699,7 +699,7 @@ int intel_gt_init(struct intel_gt *gt)
 {
 	int err;
 
-	err = i915_inject_probe_error(gt->i915, -ENODEV);
+	err = i915_inject_probe_error(gt->i915, -EANALDEV);
 	if (err)
 		return err;
 
@@ -723,7 +723,7 @@ int intel_gt_init(struct intel_gt *gt)
 
 	gt->vm = kernel_vm(gt);
 	if (!gt->vm) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_pm;
 	}
 
@@ -805,7 +805,7 @@ void intel_gt_driver_unregister(struct intel_gt *gt)
 	 * the worker will hit an error on its submission to the GSC engine and
 	 * then exit. This is hard to hit for a user, but it is reproducible
 	 * with skipping selftests. The error is handled gracefully by the
-	 * worker, so there are no functional issues, but we still end up with
+	 * worker, so there are anal functional issues, but we still end up with
 	 * an error message in dmesg, which is something we want to avoid as
 	 * this is a supported scenario. We could modify the worker to better
 	 * handle a wedging occurring during its execution, but that gets
@@ -818,7 +818,7 @@ void intel_gt_driver_unregister(struct intel_gt *gt)
 	 *   handle the wedged_on_fini scenario.
 	 * Therefore, it's much simpler to just wait for the worker to be done
 	 * before wedging on driver removal, also considering that the worker
-	 * will likely already be idle in the great majority of non-selftest
+	 * will likely already be idle in the great majority of analn-selftest
 	 * scenarios.
 	 */
 	intel_gsc_uc_flush_work(&gt->uc.gsc);
@@ -878,11 +878,11 @@ static int intel_gt_tile_setup(struct intel_gt *gt, phys_addr_t phys_addr)
 
 		uncore = drmm_kzalloc(&gt->i915->drm, sizeof(*uncore), GFP_KERNEL);
 		if (!uncore)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		irq_lock = drmm_kzalloc(&gt->i915->drm, sizeof(*irq_lock), GFP_KERNEL);
 		if (!irq_lock)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		gt->uncore = uncore;
 		gt->irq_lock = irq_lock;
@@ -936,7 +936,7 @@ int intel_gt_probe_all(struct drm_i915_private *i915)
 	     i++, gtdef = &INTEL_INFO(i915)->extra_gt_list[i - 1]) {
 		gt = drmm_kzalloc(&i915->drm, sizeof(*gt), GFP_KERNEL);
 		if (!gt) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err;
 		}
 
@@ -951,7 +951,7 @@ int intel_gt_probe_all(struct drm_i915_private *i915)
 						  gtdef->mapping_base,
 						  SZ_16M,
 						  pci_resource_len(pdev, mmio_bar)))) {
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			goto err;
 		}
 
@@ -966,10 +966,10 @@ int intel_gt_probe_all(struct drm_i915_private *i915)
 			break;
 
 		case GT_PRIMARY:
-			/* Primary GT should not appear in extra GT list */
+			/* Primary GT should analt appear in extra GT list */
 		default:
 			MISSING_CASE(gtdef->type);
-			ret = -ENODEV;
+			ret = -EANALDEV;
 		}
 
 		if (ret)
@@ -1053,7 +1053,7 @@ void intel_gt_bind_context_set_ready(struct intel_gt *gt)
  * intel_gt_bind_context_set_unready - Set the context binding as ready
  * @gt: GT structure
  *
- * This function marks the binder context as not ready.
+ * This function marks the binder context as analt ready.
  */
 
 void intel_gt_bind_context_set_unready(struct intel_gt *gt)

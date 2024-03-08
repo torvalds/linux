@@ -20,16 +20,16 @@ ACPI_MODULE_NAME("nseval")
  *
  * PARAMETERS:  info            - Evaluation info block, contains these fields
  *                                and more:
- *                  prefix_node     - Prefix or Method/Object Node to execute
+ *                  prefix_analde     - Prefix or Method/Object Analde to execute
  *                  relative_path   - Name of method to execute, If NULL, the
- *                                    Node is the object to execute
+ *                                    Analde is the object to execute
  *                  parameters      - List of parameters to pass to the method,
  *                                    terminated by NULL. Params itself may be
- *                                    NULL if no parameters are being passed.
+ *                                    NULL if anal parameters are being passed.
  *                  parameter_type  - Type of Parameter list
  *                  return_object   - Where to put method's return value (if
- *                                    any). If NULL, no value is returned.
- *                  flags           - ACPI_IGNORE_RETURN_VALUE to delete return
+ *                                    any). If NULL, anal value is returned.
+ *                  flags           - ACPI_IGANALRE_RETURN_VALUE to delete return
  *
  * RETURN:      Status
  *
@@ -49,53 +49,53 @@ acpi_status acpi_ns_evaluate(struct acpi_evaluate_info *info)
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
-	if (!info->node) {
+	if (!info->analde) {
 		/*
-		 * Get the actual namespace node for the target object if we
+		 * Get the actual namespace analde for the target object if we
 		 * need to. Handles these cases:
 		 *
-		 * 1) Null node, valid pathname from root (absolute path)
-		 * 2) Node and valid pathname (path relative to Node)
-		 * 3) Node, Null pathname
+		 * 1) Null analde, valid pathname from root (absolute path)
+		 * 2) Analde and valid pathname (path relative to Analde)
+		 * 3) Analde, Null pathname
 		 */
 		status =
-		    acpi_ns_get_node(info->prefix_node, info->relative_pathname,
-				     ACPI_NS_NO_UPSEARCH, &info->node);
+		    acpi_ns_get_analde(info->prefix_analde, info->relative_pathname,
+				     ACPI_NS_ANAL_UPSEARCH, &info->analde);
 		if (ACPI_FAILURE(status)) {
 			return_ACPI_STATUS(status);
 		}
 	}
 
 	/*
-	 * For a method alias, we must grab the actual method node so that
+	 * For a method alias, we must grab the actual method analde so that
 	 * proper scoping context will be established before execution.
 	 */
-	if (acpi_ns_get_type(info->node) == ACPI_TYPE_LOCAL_METHOD_ALIAS) {
-		info->node =
-		    ACPI_CAST_PTR(struct acpi_namespace_node,
-				  info->node->object);
+	if (acpi_ns_get_type(info->analde) == ACPI_TYPE_LOCAL_METHOD_ALIAS) {
+		info->analde =
+		    ACPI_CAST_PTR(struct acpi_namespace_analde,
+				  info->analde->object);
 	}
 
 	/* Complete the info block initialization */
 
 	info->return_object = NULL;
-	info->node_flags = info->node->flags;
-	info->obj_desc = acpi_ns_get_attached_object(info->node);
+	info->analde_flags = info->analde->flags;
+	info->obj_desc = acpi_ns_get_attached_object(info->analde);
 
 	ACPI_DEBUG_PRINT((ACPI_DB_NAMES, "%s [%p] Value %p\n",
-			  info->relative_pathname, info->node,
-			  acpi_ns_get_attached_object(info->node)));
+			  info->relative_pathname, info->analde,
+			  acpi_ns_get_attached_object(info->analde)));
 
 	/* Get info if we have a predefined name (_HID, etc.) */
 
 	info->predefined =
-	    acpi_ut_match_predefined_method(info->node->name.ascii);
+	    acpi_ut_match_predefined_method(info->analde->name.ascii);
 
 	/* Get the full pathname to the object, for use in warning messages */
 
-	info->full_pathname = acpi_ns_get_normalized_pathname(info->node, TRUE);
+	info->full_pathname = acpi_ns_get_analrmalized_pathname(info->analde, TRUE);
 	if (!info->full_pathname) {
-		return_ACPI_STATUS(AE_NO_MEMORY);
+		return_ACPI_STATUS(AE_ANAL_MEMORY);
 	}
 
 	/* Optional object evaluation log */
@@ -103,7 +103,7 @@ acpi_status acpi_ns_evaluate(struct acpi_evaluate_info *info)
 	ACPI_DEBUG_PRINT_RAW((ACPI_DB_EVALUATION,
 			      "%-26s:  %s (%s)\n", "   Enter evaluation",
 			      &info->full_pathname[1],
-			      acpi_ut_get_type_name(info->node->type)));
+			      acpi_ut_get_type_name(info->analde->type)));
 
 	/* Count the number of arguments being passed in */
 
@@ -130,14 +130,14 @@ acpi_status acpi_ns_evaluate(struct acpi_evaluate_info *info)
 	 * For predefined names: Check that the declared argument count
 	 * matches the ACPI spec -- otherwise this is a BIOS error.
 	 */
-	acpi_ns_check_acpi_compliance(info->full_pathname, info->node,
+	acpi_ns_check_acpi_compliance(info->full_pathname, info->analde,
 				      info->predefined);
 
 	/*
 	 * For all names: Check that the incoming argument count for
 	 * this method/object matches the actual ASL/AML definition.
 	 */
-	acpi_ns_check_argument_count(info->full_pathname, info->node,
+	acpi_ns_check_argument_count(info->full_pathname, info->analde,
 				     info->param_count, info->predefined);
 
 	/* For predefined names: Typecheck all incoming arguments */
@@ -147,11 +147,11 @@ acpi_status acpi_ns_evaluate(struct acpi_evaluate_info *info)
 	/*
 	 * Three major evaluation cases:
 	 *
-	 * 1) Object types that cannot be evaluated by definition
+	 * 1) Object types that cananalt be evaluated by definition
 	 * 2) The object is a control method -- execute it
-	 * 3) The object is not a method -- just return it's current value
+	 * 3) The object is analt a method -- just return it's current value
 	 */
-	switch (acpi_ns_get_type(info->node)) {
+	switch (acpi_ns_get_type(info->analde)) {
 	case ACPI_TYPE_ANY:
 	case ACPI_TYPE_DEVICE:
 	case ACPI_TYPE_EVENT:
@@ -165,9 +165,9 @@ acpi_status acpi_ns_evaluate(struct acpi_evaluate_info *info)
 		 */
 		ACPI_ERROR((AE_INFO,
 			    "%s: This object type [%s] "
-			    "never contains data and cannot be evaluated",
+			    "never contains data and cananalt be evaluated",
 			    info->full_pathname,
-			    acpi_ut_get_type_name(info->node->type)));
+			    acpi_ut_get_type_name(info->analde->type)));
 
 		status = AE_TYPE;
 		goto cleanup;
@@ -177,11 +177,11 @@ acpi_status acpi_ns_evaluate(struct acpi_evaluate_info *info)
 		 * 2) Object is a control method - execute it
 		 */
 
-		/* Verify that there is a method object associated with this node */
+		/* Verify that there is a method object associated with this analde */
 
 		if (!info->obj_desc) {
 			ACPI_ERROR((AE_INFO,
-				    "%s: Method has no attached sub-object",
+				    "%s: Method has anal attached sub-object",
 				    info->full_pathname));
 			status = AE_NULL_OBJECT;
 			goto cleanup;
@@ -195,7 +195,7 @@ acpi_status acpi_ns_evaluate(struct acpi_evaluate_info *info)
 
 		/*
 		 * Any namespace deletion must acquire both the namespace and
-		 * interpreter locks to ensure that no thread is using the portion of
+		 * interpreter locks to ensure that anal thread is using the portion of
 		 * the namespace that is being deleted.
 		 *
 		 * Execute the method via the interpreter. The interpreter is locked
@@ -208,35 +208,35 @@ acpi_status acpi_ns_evaluate(struct acpi_evaluate_info *info)
 
 	default:
 		/*
-		 * 3) All other non-method objects -- get the current object value
+		 * 3) All other analn-method objects -- get the current object value
 		 */
 
 		/*
-		 * Some objects require additional resolution steps (e.g., the Node
+		 * Some objects require additional resolution steps (e.g., the Analde
 		 * may be a field that must be read, etc.) -- we can't just grab
-		 * the object out of the node.
+		 * the object out of the analde.
 		 *
-		 * Use resolve_node_to_value() to get the associated value.
+		 * Use resolve_analde_to_value() to get the associated value.
 		 *
-		 * NOTE: we can get away with passing in NULL for a walk state because
-		 * the Node is guaranteed to not be a reference to either a method
+		 * ANALTE: we can get away with passing in NULL for a walk state because
+		 * the Analde is guaranteed to analt be a reference to either a method
 		 * local or a method argument (because this interface is never called
 		 * from a running method.)
 		 *
-		 * Even though we do not directly invoke the interpreter for object
+		 * Even though we do analt directly invoke the interpreter for object
 		 * resolution, we must lock it because we could access an op_region.
 		 * The op_region access code assumes that the interpreter is locked.
 		 */
 		acpi_ex_enter_interpreter();
 
-		/* TBD: resolve_node_to_value has a strange interface, fix */
+		/* TBD: resolve_analde_to_value has a strange interface, fix */
 
 		info->return_object =
-		    ACPI_CAST_PTR(union acpi_operand_object, info->node);
+		    ACPI_CAST_PTR(union acpi_operand_object, info->analde);
 
 		status =
-		    acpi_ex_resolve_node_to_value(ACPI_CAST_INDIRECT_PTR
-						  (struct acpi_namespace_node,
+		    acpi_ex_resolve_analde_to_value(ACPI_CAST_INDIRECT_PTR
+						  (struct acpi_namespace_analde,
 						   &info->return_object), NULL);
 		acpi_ex_exit_interpreter();
 
@@ -258,16 +258,16 @@ acpi_status acpi_ns_evaluate(struct acpi_evaluate_info *info)
 	 * For predefined names, check the return value against the ACPI
 	 * specification. Some incorrect return value types are repaired.
 	 */
-	(void)acpi_ns_check_return_value(info->node, info, info->param_count,
+	(void)acpi_ns_check_return_value(info->analde, info, info->param_count,
 					 status, &info->return_object);
 
 	/* Check if there is a return value that must be dealt with */
 
 	if (status == AE_CTRL_RETURN_VALUE) {
 
-		/* If caller does not want the return value, delete it */
+		/* If caller does analt want the return value, delete it */
 
-		if (info->flags & ACPI_IGNORE_RETURN_VALUE) {
+		if (info->flags & ACPI_IGANALRE_RETURN_VALUE) {
 			acpi_ut_remove_reference(info->return_object);
 			info->return_object = NULL;
 		}

@@ -8,24 +8,24 @@
 
 char ui_helpline__current[512];
 
-static void nop_helpline__pop(void)
+static void analp_helpline__pop(void)
 {
 }
 
-static void nop_helpline__push(const char *msg __maybe_unused)
+static void analp_helpline__push(const char *msg __maybe_unused)
 {
 }
 
-static int nop_helpline__show(const char *fmt __maybe_unused,
+static int analp_helpline__show(const char *fmt __maybe_unused,
 			       va_list ap __maybe_unused)
 {
 	return 0;
 }
 
 static struct ui_helpline default_helpline_fns = {
-	.pop	= nop_helpline__pop,
-	.push	= nop_helpline__push,
-	.show	= nop_helpline__show,
+	.pop	= analp_helpline__pop,
+	.push	= analp_helpline__push,
+	.show	= analp_helpline__show,
 };
 
 struct ui_helpline *helpline_fns = &default_helpline_fns;

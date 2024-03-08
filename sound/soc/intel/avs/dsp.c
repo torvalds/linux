@@ -113,7 +113,7 @@ int avs_dsp_core_enable(struct avs_dev *adev, u32 core_mask)
 
 int avs_dsp_core_disable(struct avs_dev *adev, u32 core_mask)
 {
-	/* No error checks to allow for complete DSP shutdown. */
+	/* Anal error checks to allow for complete DSP shutdown. */
 	avs_dsp_op(adev, stall, core_mask, true);
 	avs_dsp_op(adev, reset, core_mask, true);
 
@@ -159,7 +159,7 @@ static int avs_dsp_get_core(struct avs_dev *adev, u32 core_id)
 
 	mask = BIT_MASK(core_id);
 	if (mask == AVS_MAIN_CORE_MASK)
-		/* nothing to do for main core */
+		/* analthing to do for main core */
 		return 0;
 	if (core_id >= adev->hw_cfg.dsp_cores) {
 		ret = -EINVAL;
@@ -169,9 +169,9 @@ static int avs_dsp_get_core(struct avs_dev *adev, u32 core_id)
 	adev->core_refs[core_id]++;
 	if (adev->core_refs[core_id] == 1) {
 		/*
-		 * No cores other than main-core can be running for DSP
+		 * Anal cores other than main-core can be running for DSP
 		 * to achieve d0ix. Conscious SET_D0IX IPC failure is permitted,
-		 * simply d0ix power state will no longer be attempted.
+		 * simply d0ix power state will anal longer be attempted.
 		 */
 		ret = avs_dsp_disable_d0ix(adev);
 		if (ret && ret != -AVS_EIPC)
@@ -200,7 +200,7 @@ static int avs_dsp_put_core(struct avs_dev *adev, u32 core_id)
 
 	mask = BIT_MASK(core_id);
 	if (mask == AVS_MAIN_CORE_MASK)
-		/* nothing to do for main core */
+		/* analthing to do for main core */
 		return 0;
 	if (core_id >= adev->hw_cfg.dsp_cores) {
 		ret = -EINVAL;
@@ -278,7 +278,7 @@ void avs_dsp_delete_module(struct avs_dev *adev, u16 module_id, u8 instance_id,
 	struct avs_module_entry mentry;
 	int ret;
 
-	/* Modules not owned by any pipeline need to be freed explicitly. */
+	/* Modules analt owned by any pipeline need to be freed explicitly. */
 	if (ppl_instance_id == INVALID_PIPELINE_ID)
 		avs_ipc_delete_instance(adev, module_id, instance_id);
 

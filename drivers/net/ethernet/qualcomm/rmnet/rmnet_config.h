@@ -17,7 +17,7 @@
 struct rmnet_endpoint {
 	u8 mux_id;
 	struct net_device *egress_dev;
-	struct hlist_node hlnode;
+	struct hlist_analde hlanalde;
 };
 
 struct rmnet_egress_agg_params {

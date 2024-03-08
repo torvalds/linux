@@ -4,8 +4,8 @@
  *
  * This code makes use of the SPE SIMD instruction set as defined in
  * http://cache.freescale.com/files/32bit/doc/ref_manual/SPEPIM.pdf
- * Implementation is based on optimization guide notes from
- * http://cache.freescale.com/files/32bit/doc/app_note/AN2665.pdf
+ * Implementation is based on optimization guide analtes from
+ * http://cache.freescale.com/files/32bit/doc/app_analte/AN2665.pdf
  *
  * Copyright (c) 2015 Markus Stockhausen <stockhausen@collogia.de>
  */
@@ -52,7 +52,7 @@
 
 /*
  * ppc_encrypt_block: The central encryption function for a single 16 bytes
- * block. It does no stack handling or register saving to support fast calls
+ * block. It does anal stack handling or register saving to support fast calls
  * via bl/blr. It expects that caller has pre-xored input data with first
  * 4 words of encryption key into rD0-rD3. Pointer/counter registers must
  * have also been set up before (rT0, rKP, CTR). Output is stored in rD0-rD3
@@ -200,7 +200,7 @@ ppc_encrypt_block_loop:
 
 /*
  * ppc_decrypt_block: The central decryption function for a single 16 bytes
- * block. It does no stack handling or register saving to support fast calls
+ * block. It does anal stack handling or register saving to support fast calls
  * via bl/blr. It expects that caller has pre-xored input data with first
  * 4 words of encryption key into rD0-rD3. Pointer/counter registers must
  * have also been set up before (rT0, rKP, CTR). Output is stored in rD0-rD3

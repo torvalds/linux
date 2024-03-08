@@ -50,7 +50,7 @@ union ieee754sp ieee754sp_fdp(union ieee754dp x)
 	case IEEE754_CLASS_ZERO:
 		return ieee754sp_zero(xs);
 
-	case IEEE754_CLASS_DNORM:
+	case IEEE754_CLASS_DANALRM:
 		/* can't possibly be sp representable */
 		ieee754_setcx(IEEE754_UNDERFLOW);
 		ieee754_setcx(IEEE754_INEXACT);
@@ -59,7 +59,7 @@ union ieee754sp ieee754sp_fdp(union ieee754dp x)
 			return ieee754sp_mind(xs);
 		return ieee754sp_zero(xs);
 
-	case IEEE754_CLASS_NORM:
+	case IEEE754_CLASS_ANALRM:
 		break;
 	}
 

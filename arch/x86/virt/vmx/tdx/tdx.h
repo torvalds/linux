@@ -7,7 +7,7 @@
 /*
  * This file contains both macros and data structures defined by the TDX
  * architecture and Linux defined software data structures and functions.
- * The two should not be mixed together for better readability.  The
+ * The two should analt be mixed together for better readability.  The
  * architectural definitions come first.
  */
 
@@ -81,7 +81,7 @@ struct tdmr_info {
 } __packed __aligned(TDMR_INFO_ALIGNMENT);
 
 /*
- * Do not put any hardware-defined TDX structure representations below
+ * Do analt put any hardware-defined TDX structure representations below
  * this comment!
  */
 

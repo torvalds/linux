@@ -3,7 +3,7 @@
 #define BOOT_COMPRESSED_MISC_H
 
 /*
- * Special hack: we have to be careful, because no indirections are allowed here,
+ * Special hack: we have to be careful, because anal indirections are allowed here,
  * and paravirt_ops is a kind of one. As it will only run in baremetal anyway,
  * we just keep it from happening. (This list needs to be extended when new
  * paravirt and debugging variants are added.)
@@ -14,16 +14,16 @@
 #undef CONFIG_KASAN
 #undef CONFIG_KASAN_GENERIC
 
-#define __NO_FORTIFY
+#define __ANAL_FORTIFY
 
-/* cpu_feature_enabled() cannot be used this early */
+/* cpu_feature_enabled() cananalt be used this early */
 #define USE_EARLY_PGTABLE_L5
 
 /*
  * Boot stub deals with identity mappings, physical and virtual addresses are
  * the same, so override these defines.
  *
- * <asm/page.h> will not define them if they are already defined.
+ * <asm/page.h> will analt define them if they are already defined.
  */
 #define __pa(x)  ((unsigned long)(x))
 #define __va(x)  ((void *)((unsigned long)(x)))
@@ -118,7 +118,7 @@ bool has_cpuflag(int flag);
 #ifdef CONFIG_X86_64
 extern int set_page_decrypted(unsigned long address);
 extern int set_page_encrypted(unsigned long address);
-extern int set_page_non_present(unsigned long address);
+extern int set_page_analn_present(unsigned long address);
 extern unsigned char _pgtable[];
 #endif
 
@@ -171,7 +171,7 @@ static inline acpi_physical_address get_rsdp_addr(void) { return 0; }
 #endif
 
 #if defined(CONFIG_RANDOMIZE_BASE) && defined(CONFIG_MEMORY_HOTREMOVE) && defined(CONFIG_ACPI)
-extern struct mem_vector immovable_mem[MAX_NUMNODES*2];
+extern struct mem_vector immovable_mem[MAX_NUMANALDES*2];
 int count_immovable_mem_regions(void);
 #else
 static inline int count_immovable_mem_regions(void) { return 0; }
@@ -205,7 +205,7 @@ unsigned long sev_verify_cbit(unsigned long cr3);
 enum efi_type {
 	EFI_TYPE_64,
 	EFI_TYPE_32,
-	EFI_TYPE_NONE,
+	EFI_TYPE_ANALNE,
 };
 
 #ifdef CONFIG_EFI
@@ -221,7 +221,7 @@ unsigned long efi_find_vendor_table(struct boot_params *bp,
 #else
 static inline enum efi_type efi_get_type(struct boot_params *bp)
 {
-	return EFI_TYPE_NONE;
+	return EFI_TYPE_ANALNE;
 }
 
 static inline unsigned long efi_get_system_table(struct boot_params *bp)
@@ -233,7 +233,7 @@ static inline int efi_get_conf_table(struct boot_params *bp,
 				     unsigned long *cfg_tbl_pa,
 				     unsigned int *cfg_tbl_len)
 {
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static inline unsigned long efi_find_vendor_table(struct boot_params *bp,

@@ -11,10 +11,10 @@
 #include "opl3_voice.h"
 #include <sound/asoundef.h>
 
-static void snd_opl3_note_off_unsafe(void *p, int note, int vel,
+static void snd_opl3_analte_off_unsafe(void *p, int analte, int vel,
 				     struct snd_midi_channel *chan);
 /*
- * The next table looks magical, but it certainly is not. Its values have
+ * The next table looks magical, but it certainly is analt. Its values have
  * been calculated as table[i]=8*log(i/64)/log(2) with an obvious exception
  * for i=0. This log-table converts a linear volume-scaling (0..127) to a
  * logarithmic scaling as present in the FM-synthesizer chips. so :    Volume
@@ -67,9 +67,9 @@ void snd_opl3_calc_volume(unsigned char *volbyte, int vel,
 }
 
 /*
- * Converts the note frequency to block and fnum values for the FM chip
+ * Converts the analte frequency to block and fnum values for the FM chip
  */
-static const short opl3_note_table[16] =
+static const short opl3_analte_table[16] =
 {
 	305, 323,	/* for pitch bending, -2 semitones */
 	343, 363, 385, 408, 432, 458, 485, 514, 544, 577, 611, 647,
@@ -77,10 +77,10 @@ static const short opl3_note_table[16] =
 };
 
 static void snd_opl3_calc_pitch(unsigned char *fnum, unsigned char *blocknum,
-				int note, struct snd_midi_channel *chan)
+				int analte, struct snd_midi_channel *chan)
 {
-	int block = ((note / 12) & 0x07) - 1;
-	int idx = (note % 12) + 2;
+	int block = ((analte / 12) & 0x07) - 1;
+	int idx = (analte % 12) + 2;
 	int freq;
 
 	if (chan->midi_pitchbend) {
@@ -93,11 +93,11 @@ static void snd_opl3_calc_pitch(unsigned char *fnum, unsigned char *blocknum,
 			pitchbend = 0x1FFF;
 
 		segment = pitchbend / 0x1000;
-		freq = opl3_note_table[idx+segment];
-		freq += ((opl3_note_table[idx+segment+1] - freq) *
+		freq = opl3_analte_table[idx+segment];
+		freq += ((opl3_analte_table[idx+segment+1] - freq) *
 			 (pitchbend % 0x1000)) / 0x1000;
 	} else {
-		freq = opl3_note_table[idx];
+		freq = opl3_analte_table[idx];
 	}
 
 	*fnum = (unsigned char) freq;
@@ -119,7 +119,7 @@ static void debug_alloc(struct snd_opl3 *opl3, char *s, int voice) {
 #endif
 
 /*
- * Get a FM voice (channel) to play a note on.
+ * Get a FM voice (channel) to play a analte on.
  */
 static int opl3_get_voice(struct snd_opl3 *opl3, int instr_4op,
 			  struct snd_midi_channel *chan) {
@@ -155,7 +155,7 @@ static int opl3_get_voice(struct snd_opl3 *opl3, int instr_4op,
 	for (i = 0; i < opl3->max_voices; i++) {
 		vp = &opl3->voices[i];
 
-		if (vp->state == SNDRV_OPL3_ST_NOT_AVAIL)
+		if (vp->state == SNDRV_OPL3_ST_ANALT_AVAIL)
 		  /* skip unavailable channels, allocated by
 		     drum voices or by bounded 4op voices) */
 			continue;
@@ -210,7 +210,7 @@ static int opl3_get_voice(struct snd_opl3 *opl3, int instr_4op,
 			return best[i].voice;
 		}
 	}
-	/* not found */
+	/* analt found */
 	return -1;
 }
 
@@ -230,9 +230,9 @@ void snd_opl3_timer_func(struct timer_list *t)
 	spin_lock_irqsave(&opl3->voice_lock, flags);
 	for (i = 0; i < opl3->max_voices; i++) {
 		struct snd_opl3_voice *vp = &opl3->voices[i];
-		if (vp->state > 0 && vp->note_off_check) {
-			if (vp->note_off == jiffies)
-				snd_opl3_note_off_unsafe(opl3, vp->note, 0,
+		if (vp->state > 0 && vp->analte_off_check) {
+			if (vp->analte_off == jiffies)
+				snd_opl3_analte_off_unsafe(opl3, vp->analte, 0,
 							 vp->chan);
 			else
 				again++;
@@ -270,9 +270,9 @@ static const int snd_opl3_oss_map[MAX_OPL3_VOICES] = {
 };
 
 /*
- * Start a note.
+ * Start a analte.
  */
-void snd_opl3_note_on(void *p, int note, int vel, struct snd_midi_channel *chan)
+void snd_opl3_analte_on(void *p, int analte, int vel, struct snd_midi_channel *chan)
 {
 	struct snd_opl3 *opl3;
 	int instr_4op;
@@ -292,7 +292,7 @@ void snd_opl3_note_on(void *p, int note, int vel, struct snd_midi_channel *chan)
 	unsigned char reg_val;
 	unsigned char prg, bank;
 
-	int key = note;
+	int key = analte;
 	unsigned char fnum, blocknum;
 	int i;
 
@@ -303,17 +303,17 @@ void snd_opl3_note_on(void *p, int note, int vel, struct snd_midi_channel *chan)
 	opl3 = p;
 
 #ifdef DEBUG_MIDI
-	snd_printk(KERN_DEBUG "Note on, ch %i, inst %i, note %i, vel %i\n",
-		   chan->number, chan->midi_program, note, vel);
+	snd_printk(KERN_DEBUG "Analte on, ch %i, inst %i, analte %i, vel %i\n",
+		   chan->number, chan->midi_program, analte, vel);
 #endif
 
 	/* in SYNTH mode, application takes care of voices */
-	/* in SEQ mode, drum voice numbers are notes on drum channel */
+	/* in SEQ mode, drum voice numbers are analtes on drum channel */
 	if (opl3->synth_mode == SNDRV_OPL3_MODE_SEQ) {
 		if (chan->drum_channel) {
 			/* percussion instruments are located in bank 128 */
 			bank = 128;
-			prg = note;
+			prg = analte;
 		} else {
 			bank = chan->gm_bank_select;
 			prg = chan->midi_program;
@@ -331,7 +331,7 @@ void snd_opl3_note_on(void *p, int note, int vel, struct snd_midi_channel *chan)
 	spin_lock_irqsave(&opl3->voice_lock, flags);
 
 	if (use_internal_drums) {
-		snd_opl3_drum_switch(opl3, note, vel, 1, chan);
+		snd_opl3_drum_switch(opl3, analte, vel, 1, chan);
 		spin_unlock_irqrestore(&opl3->voice_lock, flags);
 		return;
 	}
@@ -514,19 +514,19 @@ void snd_opl3_note_on(void *p, int note, int vel, struct snd_midi_channel *chan)
 	}
 
 	/*
-	 * Special treatment of percussion notes for fm:
+	 * Special treatment of percussion analtes for fm:
 	 * Requested pitch is really program, and pitch for
 	 * device is whatever was specified in the patch library.
 	 */
 	if (fm->fix_key)
-		note = fm->fix_key;
+		analte = fm->fix_key;
 	/*
 	 * use transpose if defined in patch library
 	 */
 	if (fm->trnsps)
-		note += (fm->trnsps - 64);
+		analte += (fm->trnsps - 64);
 
-	snd_opl3_calc_pitch(&fnum, &blocknum, note, chan);
+	snd_opl3_calc_pitch(&fnum, &blocknum, analte, chan);
 
 	/* Set OPL3 FNUM_LOW register of requested voice */
 	opl3_reg = reg_side | (OPL3_REG_FNUM_LOW + voice_offset);
@@ -544,21 +544,21 @@ void snd_opl3_note_on(void *p, int note, int vel, struct snd_midi_channel *chan)
 	opl3_reg = reg_side | (OPL3_REG_KEYON_BLOCK + voice_offset);
 	opl3->command(opl3, opl3_reg, blocknum);
 
-	/* kill note after fixed duration (in centiseconds) */
+	/* kill analte after fixed duration (in centiseconds) */
 	if (fm->fix_dur) {
-		opl3->voices[voice].note_off = jiffies +
+		opl3->voices[voice].analte_off = jiffies +
 			(fm->fix_dur * HZ) / 100;
 		snd_opl3_start_timer(opl3);
-		opl3->voices[voice].note_off_check = 1;
+		opl3->voices[voice].analte_off_check = 1;
 	} else
-		opl3->voices[voice].note_off_check = 0;
+		opl3->voices[voice].analte_off_check = 0;
 
 	/* get extra pgm, but avoid possible loops */
 	extra_prg = (extra_prg) ? 0 : fm->modes;
 
 	/* do the bookkeeping */
 	vp->time = opl3->use_time++;
-	vp->note = key;
+	vp->analte = key;
 	vp->chan = chan;
 
 	if (instr_4op) {
@@ -566,9 +566,9 @@ void snd_opl3_note_on(void *p, int note, int vel, struct snd_midi_channel *chan)
 
 		vp2 = &opl3->voices[voice + 3];
 		vp2->time = opl3->use_time++;
-		vp2->note = key;
+		vp2->analte = key;
 		vp2->chan = chan;
-		vp2->state = SNDRV_OPL3_ST_NOT_AVAIL;
+		vp2->state = SNDRV_OPL3_ST_ANALT_AVAIL;
 	} else {
 		if (vp->state == SNDRV_OPL3_ST_ON_4OP) {
 			/* 4op killed by 2op, release bounded voice */
@@ -580,7 +580,7 @@ void snd_opl3_note_on(void *p, int note, int vel, struct snd_midi_channel *chan)
 	}
 
 #ifdef DEBUG_ALLOC
-	debug_alloc(opl3, "note on ", voice);
+	debug_alloc(opl3, "analte on ", voice);
 #endif
 
 	/* allocate extra program if specified in patch library */
@@ -642,15 +642,15 @@ static void snd_opl3_kill_voice(struct snd_opl3 *opl3, int voice)
 	}
 	vp->state = SNDRV_OPL3_ST_OFF;
 #ifdef DEBUG_ALLOC
-	debug_alloc(opl3, "note off", voice);
+	debug_alloc(opl3, "analte off", voice);
 #endif
 
 }
 
 /*
- * Release a note in response to a midi note off.
+ * Release a analte in response to a midi analte off.
  */
-static void snd_opl3_note_off_unsafe(void *p, int note, int vel,
+static void snd_opl3_analte_off_unsafe(void *p, int analte, int vel,
 				     struct snd_midi_channel *chan)
 {
   	struct snd_opl3 *opl3;
@@ -661,20 +661,20 @@ static void snd_opl3_note_off_unsafe(void *p, int note, int vel,
 	opl3 = p;
 
 #ifdef DEBUG_MIDI
-	snd_printk(KERN_DEBUG "Note off, ch %i, inst %i, note %i\n",
-		   chan->number, chan->midi_program, note);
+	snd_printk(KERN_DEBUG "Analte off, ch %i, inst %i, analte %i\n",
+		   chan->number, chan->midi_program, analte);
 #endif
 
 	if (opl3->synth_mode == SNDRV_OPL3_MODE_SEQ) {
 		if (chan->drum_channel && use_internal_drums) {
-			snd_opl3_drum_switch(opl3, note, vel, 0, chan);
+			snd_opl3_drum_switch(opl3, analte, vel, 0, chan);
 			return;
 		}
 		/* this loop will hopefully kill all extra voices, because
-		   they are grouped by the same channel and note values */
+		   they are grouped by the same channel and analte values */
 		for (voice = 0; voice < opl3->max_voices; voice++) {
 			vp = &opl3->voices[voice];
-			if (vp->state > 0 && vp->chan == chan && vp->note == note) {
+			if (vp->state > 0 && vp->chan == chan && vp->analte == analte) {
 				snd_opl3_kill_voice(opl3, voice);
 			}
 		}
@@ -687,21 +687,21 @@ static void snd_opl3_note_off_unsafe(void *p, int note, int vel,
 	}
 }
 
-void snd_opl3_note_off(void *p, int note, int vel,
+void snd_opl3_analte_off(void *p, int analte, int vel,
 		       struct snd_midi_channel *chan)
 {
 	struct snd_opl3 *opl3 = p;
 	unsigned long flags;
 
 	spin_lock_irqsave(&opl3->voice_lock, flags);
-	snd_opl3_note_off_unsafe(p, note, vel, chan);
+	snd_opl3_analte_off_unsafe(p, analte, vel, chan);
 	spin_unlock_irqrestore(&opl3->voice_lock, flags);
 }
 
 /*
  * key pressure change
  */
-void snd_opl3_key_press(void *p, int note, int vel, struct snd_midi_channel *chan)
+void snd_opl3_key_press(void *p, int analte, int vel, struct snd_midi_channel *chan)
 {
 #ifdef DEBUG_MIDI
 	snd_printk(KERN_DEBUG "Key pressure, ch#: %i, inst#: %i\n",
@@ -710,12 +710,12 @@ void snd_opl3_key_press(void *p, int note, int vel, struct snd_midi_channel *cha
 }
 
 /*
- * terminate note
+ * terminate analte
  */
-void snd_opl3_terminate_note(void *p, int note, struct snd_midi_channel *chan)
+void snd_opl3_terminate_analte(void *p, int analte, struct snd_midi_channel *chan)
 {
 #ifdef DEBUG_MIDI
-	snd_printk(KERN_DEBUG "Terminate note, ch#: %i, inst#: %i\n",
+	snd_printk(KERN_DEBUG "Terminate analte, ch#: %i, inst#: %i\n",
 		   chan->number, chan->midi_program);
 #endif
 }
@@ -735,7 +735,7 @@ static void snd_opl3_update_pitch(struct snd_opl3 *opl3, int voice)
 
 	vp = &opl3->voices[voice];
 	if (vp->chan == NULL)
-		return; /* not allocated? */
+		return; /* analt allocated? */
 
 	if (voice < MAX_OPL2_VOICES) {
 		/* Left register block for voices 0 .. 8 */
@@ -747,7 +747,7 @@ static void snd_opl3_update_pitch(struct snd_opl3 *opl3, int voice)
 		voice_offset = voice - MAX_OPL2_VOICES;
 	}
 
-	snd_opl3_calc_pitch(&fnum, &blocknum, vp->note, vp->chan);
+	snd_opl3_calc_pitch(&fnum, &blocknum, vp->analte, vp->chan);
 
 	/* Set OPL3 FNUM_LOW register of requested voice */
 	opl3_reg = reg_side | (OPL3_REG_FNUM_LOW + voice_offset);
@@ -796,7 +796,7 @@ static void snd_opl3_pitch_ctrl(struct snd_opl3 *opl3, struct snd_midi_channel *
 
 /*
  * Deal with a controller type event.  This includes all types of
- * control events, not just the midi controllers
+ * control events, analt just the midi controllers
  */
 void snd_opl3_control(void *p, int type, struct snd_midi_channel *chan)
 {

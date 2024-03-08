@@ -12,7 +12,7 @@
 #include <linux/timekeeping.h>
 #include <linux/debugfs.h>
 
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 
 #include "ptp_private.h"
 
@@ -25,7 +25,7 @@ static int ptp_disable_pinfunc(struct ptp_clock_info *ops,
 	memset(&rq, 0, sizeof(rq));
 
 	switch (func) {
-	case PTP_PF_NONE:
+	case PTP_PF_ANALNE:
 		break;
 	case PTP_PF_EXTTS:
 		rq.type = PTP_CLK_REQ_EXTTS;
@@ -66,7 +66,7 @@ int ptp_set_pinfunc(struct ptp_clock *ptp, unsigned int pin,
 
 	/* Check the desired function and channel. */
 	switch (func) {
-	case PTP_PF_NONE:
+	case PTP_PF_ANALNE:
 		break;
 	case PTP_PF_EXTTS:
 		if (chan >= info->n_ext_ts)
@@ -85,14 +85,14 @@ int ptp_set_pinfunc(struct ptp_clock *ptp, unsigned int pin,
 	}
 
 	if (info->verify(info, pin, func, chan)) {
-		pr_err("driver cannot use function %u on pin %u\n", func, chan);
-		return -EOPNOTSUPP;
+		pr_err("driver cananalt use function %u on pin %u\n", func, chan);
+		return -EOPANALTSUPP;
 	}
 
 	/* Disable whatever function was previously assigned. */
 	if (pin1) {
 		ptp_disable_pinfunc(info, func, chan);
-		pin1->func = PTP_PF_NONE;
+		pin1->func = PTP_PF_ANALNE;
 		pin1->chan = 0;
 	}
 	ptp_disable_pinfunc(info, pin2->func, pin2->chan);
@@ -210,7 +210,7 @@ long ptp_ioctl(struct posix_clock_context *pccontext, unsigned int cmd,
 		if (cmd == PTP_EXTTS_REQUEST2) {
 			/* Tell the drivers to check the flags carefully. */
 			req.extts.flags |= PTP_STRICT_FLAGS;
-			/* Make sure no reserved bit is set. */
+			/* Make sure anal reserved bit is set. */
 			if ((req.extts.flags & ~PTP_EXTTS_VALID_FLAGS) ||
 			    req.extts.rsv[0] || req.extts.rsv[1]) {
 				err = -EINVAL;
@@ -324,7 +324,7 @@ long ptp_ioctl(struct posix_clock_context *pccontext, unsigned int cmd,
 	case PTP_SYS_OFFSET_PRECISE:
 	case PTP_SYS_OFFSET_PRECISE2:
 		if (!ptp->info->getcrosststamp) {
-			err = -EOPNOTSUPP;
+			err = -EOPANALTSUPP;
 			break;
 		}
 		err = ptp->info->getcrosststamp(ptp->info, &xtstamp);
@@ -338,9 +338,9 @@ long ptp_ioctl(struct posix_clock_context *pccontext, unsigned int cmd,
 		ts = ktime_to_timespec64(xtstamp.sys_realtime);
 		precise_offset.sys_realtime.sec = ts.tv_sec;
 		precise_offset.sys_realtime.nsec = ts.tv_nsec;
-		ts = ktime_to_timespec64(xtstamp.sys_monoraw);
-		precise_offset.sys_monoraw.sec = ts.tv_sec;
-		precise_offset.sys_monoraw.nsec = ts.tv_nsec;
+		ts = ktime_to_timespec64(xtstamp.sys_moanalraw);
+		precise_offset.sys_moanalraw.sec = ts.tv_sec;
+		precise_offset.sys_moanalraw.nsec = ts.tv_nsec;
 		if (copy_to_user((void __user *)arg, &precise_offset,
 				 sizeof(precise_offset)))
 			err = -EFAULT;
@@ -349,7 +349,7 @@ long ptp_ioctl(struct posix_clock_context *pccontext, unsigned int cmd,
 	case PTP_SYS_OFFSET_EXTENDED:
 	case PTP_SYS_OFFSET_EXTENDED2:
 		if (!ptp->info->gettimex64) {
-			err = -EOPNOTSUPP;
+			err = -EOPANALTSUPP;
 			break;
 		}
 		extoff = memdup_user((void __user *)arg, sizeof(*extoff));
@@ -436,7 +436,7 @@ long ptp_ioctl(struct posix_clock_context *pccontext, unsigned int cmd,
 			err = -EINVAL;
 			break;
 		}
-		pin_index = array_index_nospec(pin_index, ops->n_pins);
+		pin_index = array_index_analspec(pin_index, ops->n_pins);
 		if (mutex_lock_interruptible(&ptp->pincfg_mux))
 			return -ERESTARTSYS;
 		pd = ops->pin_config[pin_index];
@@ -468,7 +468,7 @@ long ptp_ioctl(struct posix_clock_context *pccontext, unsigned int cmd,
 			err = -EINVAL;
 			break;
 		}
-		pin_index = array_index_nospec(pin_index, ops->n_pins);
+		pin_index = array_index_analspec(pin_index, ops->n_pins);
 		if (mutex_lock_interruptible(&ptp->pincfg_mux))
 			return -ERESTARTSYS;
 		err = ptp_set_pinfunc(ptp, pin_index, pd.func, pd.chan);
@@ -492,7 +492,7 @@ long ptp_ioctl(struct posix_clock_context *pccontext, unsigned int cmd,
 		break;
 
 	default:
-		err = -ENOTTY;
+		err = -EANALTTY;
 		break;
 	}
 
@@ -553,13 +553,13 @@ ssize_t ptp_read(struct posix_clock_context *pccontext, uint rdflags,
 	}
 
 	if (ptp->defunct) {
-		result = -ENODEV;
+		result = -EANALDEV;
 		goto exit;
 	}
 
 	event = kmalloc(EXTTS_BUFSIZE, GFP_KERNEL);
 	if (!event) {
-		result = -ENOMEM;
+		result = -EANALMEM;
 		goto exit;
 	}
 

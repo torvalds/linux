@@ -14,53 +14,53 @@
 /* #define CONFIG_MAPLE_RCU_DISABLED */
 
 /*
- * Allocated nodes are mutable until they have been inserted into the tree,
- * at which time they cannot change their type until they have been removed
+ * Allocated analdes are mutable until they have been inserted into the tree,
+ * at which time they cananalt change their type until they have been removed
  * from the tree and an RCU grace period has passed.
  *
- * Removed nodes have their ->parent set to point to themselves.  RCU readers
+ * Removed analdes have their ->parent set to point to themselves.  RCU readers
  * check ->parent before relying on the value that they loaded from the
  * slots array.  This lets us reuse the slots array for the RCU head.
  *
- * Nodes in the tree point to their parent unless bit 0 is set.
+ * Analdes in the tree point to their parent unless bit 0 is set.
  */
 #if defined(CONFIG_64BIT) || defined(BUILD_VDSO32_64)
 /* 64bit sizes */
-#define MAPLE_NODE_SLOTS	31	/* 256 bytes including ->parent */
+#define MAPLE_ANALDE_SLOTS	31	/* 256 bytes including ->parent */
 #define MAPLE_RANGE64_SLOTS	16	/* 256 bytes */
 #define MAPLE_ARANGE64_SLOTS	10	/* 240 bytes */
-#define MAPLE_ALLOC_SLOTS	(MAPLE_NODE_SLOTS - 1)
+#define MAPLE_ALLOC_SLOTS	(MAPLE_ANALDE_SLOTS - 1)
 #else
 /* 32bit sizes */
-#define MAPLE_NODE_SLOTS	63	/* 256 bytes including ->parent */
+#define MAPLE_ANALDE_SLOTS	63	/* 256 bytes including ->parent */
 #define MAPLE_RANGE64_SLOTS	32	/* 256 bytes */
 #define MAPLE_ARANGE64_SLOTS	21	/* 240 bytes */
-#define MAPLE_ALLOC_SLOTS	(MAPLE_NODE_SLOTS - 2)
+#define MAPLE_ALLOC_SLOTS	(MAPLE_ANALDE_SLOTS - 2)
 #endif /* defined(CONFIG_64BIT) || defined(BUILD_VDSO32_64) */
 
-#define MAPLE_NODE_MASK		255UL
+#define MAPLE_ANALDE_MASK		255UL
 
 /*
- * The node->parent of the root node has bit 0 set and the rest of the pointer
- * is a pointer to the tree itself.  No more bits are available in this pointer
+ * The analde->parent of the root analde has bit 0 set and the rest of the pointer
+ * is a pointer to the tree itself.  Anal more bits are available in this pointer
  * (on m68k, the data structure may only be 2-byte aligned).
  *
- * Internal non-root nodes can only have maple_range_* nodes as parents.  The
- * parent pointer is 256B aligned like all other tree nodes.  When storing a 32
+ * Internal analn-root analdes can only have maple_range_* analdes as parents.  The
+ * parent pointer is 256B aligned like all other tree analdes.  When storing a 32
  * or 64 bit values, the offset can fit into 4 bits.  The 16 bit values need an
  * extra bit to store the offset.  This extra bit comes from a reuse of the last
- * bit in the node type.  This is possible by using bit 1 to indicate if bit 2
+ * bit in the analde type.  This is possible by using bit 1 to indicate if bit 2
  * is part of the type or the slot.
  *
  * Once the type is decided, the decision of an allocation range type or a range
  * type is done by examining the immutable tree flag for the MAPLE_ALLOC_RANGE
  * flag.
  *
- *  Node types:
+ *  Analde types:
  *   0x??1 = Root
- *   0x?00 = 16 bit nodes
- *   0x010 = 32 bit nodes
- *   0x110 = 64 bit nodes
+ *   0x?00 = 16 bit analdes
+ *   0x010 = 32 bit analdes
+ *   0x110 = 64 bit analdes
  *
  *  Slot size and location in the parent pointer:
  *   type  : slot location
@@ -80,18 +80,18 @@ struct maple_metadata {
 };
 
 /*
- * Leaf nodes do not store pointers to nodes, they store user data.  Users may
- * store almost any bit pattern.  As noted above, the optimisation of storing an
- * entry at 0 in the root pointer cannot be done for data which have the bottom
+ * Leaf analdes do analt store pointers to analdes, they store user data.  Users may
+ * store almost any bit pattern.  As analted above, the optimisation of storing an
+ * entry at 0 in the root pointer cananalt be done for data which have the bottom
  * two bits set to '10'.  We also reserve values with the bottom two bits set to
  * '10' which are below 4096 (ie 2, 6, 10 .. 4094) for internal use.  Some APIs
- * return errnos as a negative errno shifted right by two bits and the bottom
+ * return erranals as a negative erranal shifted right by two bits and the bottom
  * two bits set to '10', and while choosing to store these values in the array
- * is not an error, it may lead to confusion if you're testing for an error with
+ * is analt an error, it may lead to confusion if you're testing for an error with
  * mas_is_err().
  *
- * Non-leaf nodes store the type of the node pointed to (enum maple_type in bits
- * 3-6), bit 2 is reserved.  That leaves bits 0-1 unused for now.
+ * Analn-leaf analdes store the type of the analde pointed to (enum maple_type in bits
+ * 3-6), bit 2 is reserved.  That leaves bits 0-1 unused for analw.
  *
  * In regular B-Tree terms, pivots are called keys.  The term pivot is used to
  * indicate that the tree is specifying ranges,  Pivots may appear in the
@@ -101,7 +101,7 @@ struct maple_metadata {
  */
 
 struct maple_range_64 {
-	struct maple_pnode *parent;
+	struct maple_panalde *parent;
 	unsigned long pivot[MAPLE_RANGE64_SLOTS - 1];
 	union {
 		void __rcu *slot[MAPLE_RANGE64_SLOTS];
@@ -115,14 +115,14 @@ struct maple_range_64 {
 /*
  * At tree creation time, the user can specify that they're willing to trade off
  * storing fewer entries in a tree in return for storing more information in
- * each node.
+ * each analde.
  *
  * The maple tree supports recording the largest range of NULL entries available
- * in this node, also called gaps.  This optimises the tree for allocating a
+ * in this analde, also called gaps.  This optimises the tree for allocating a
  * range.
  */
 struct maple_arange_64 {
-	struct maple_pnode *parent;
+	struct maple_panalde *parent;
 	unsigned long pivot[MAPLE_ARANGE64_SLOTS - 1];
 	void __rcu *slot[MAPLE_ARANGE64_SLOTS];
 	unsigned long gap[MAPLE_ARANGE64_SLOTS];
@@ -131,14 +131,14 @@ struct maple_arange_64 {
 
 struct maple_alloc {
 	unsigned long total;
-	unsigned char node_count;
+	unsigned char analde_count;
 	unsigned int request_count;
 	struct maple_alloc *slot[MAPLE_ALLOC_SLOTS];
 };
 
 struct maple_topiary {
-	struct maple_pnode *parent;
-	struct maple_enode *next; /* Overlaps the pivot */
+	struct maple_panalde *parent;
+	struct maple_eanalde *next; /* Overlaps the pivot */
 };
 
 enum maple_type {
@@ -159,7 +159,7 @@ enum maple_type {
  * * MT_FLAGS_LOCK_MASK		- How the mt_lock is used
  * * MT_FLAGS_LOCK_IRQ		- Acquired irq-safe
  * * MT_FLAGS_LOCK_BH		- Acquired bh-safe
- * * MT_FLAGS_LOCK_EXTERN	- mt_lock is not used
+ * * MT_FLAGS_LOCK_EXTERN	- mt_lock is analt used
  *
  * MAPLE_HEIGHT_MAX	The largest height that can be stored
  */
@@ -175,8 +175,8 @@ enum maple_type {
 #define MAPLE_HEIGHT_MAX	31
 
 
-#define MAPLE_NODE_TYPE_MASK	0x0F
-#define MAPLE_NODE_TYPE_SHIFT	0x03
+#define MAPLE_ANALDE_TYPE_MASK	0x0F
+#define MAPLE_ANALDE_TYPE_SHIFT	0x03
 
 #define MAPLE_RESERVED_RANGE	4096
 
@@ -194,7 +194,7 @@ typedef struct lockdep_map *lockdep_map_p;
 
 #define mt_on_stack(mt)			(mt).ma_external_lock = NULL
 #else
-typedef struct { /* nothing */ } lockdep_map_p;
+typedef struct { /* analthing */ } lockdep_map_p;
 #define mt_lock_is_held(mt)		1
 #define mt_write_lock_is_held(mt)	1
 #define mt_set_external_lock(mt, lock)	do { } while (0)
@@ -205,15 +205,15 @@ typedef struct { /* nothing */ } lockdep_map_p;
  * If the tree contains a single entry at index 0, it is usually stored in
  * tree->ma_root.  To optimise for the page cache, an entry which ends in '00',
  * '01' or '11' is stored in the root, but an entry which ends in '10' will be
- * stored in a node.  Bits 3-6 are used to store enum maple_type.
+ * stored in a analde.  Bits 3-6 are used to store enum maple_type.
  *
  * The flags are used both to store some immutable information about this tree
  * (set at tree creation time) and dynamic information set under the spinlock.
  *
- * Another use of flags are to indicate global states of the tree.  This is the
+ * Aanalther use of flags are to indicate global states of the tree.  This is the
  * case with the MAPLE_USE_RCU flag, which indicates the tree is currently in
- * RCU mode.  This mode was added to allow the tree to reuse nodes instead of
- * re-allocating and RCU freeing nodes when there is a single user.
+ * RCU mode.  This mode was added to allow the tree to reuse analdes instead of
+ * re-allocating and RCU freeing analdes when there is a single user.
  */
 struct maple_tree {
 	union {
@@ -265,27 +265,27 @@ struct maple_tree {
  * necessarily obvious.  Usually, this is done by observing that pointers are
  * N-byte aligned and thus the bottom log_2(N) bits are available for use.  We
  * don't use the high bits of pointers to store additional information because
- * we don't know what bits are unused on any given architecture.
+ * we don't kanalw what bits are unused on any given architecture.
  *
- * Nodes are 256 bytes in size and are also aligned to 256 bytes, giving us 8
- * low bits for our own purposes.  Nodes are currently of 4 types:
+ * Analdes are 256 bytes in size and are also aligned to 256 bytes, giving us 8
+ * low bits for our own purposes.  Analdes are currently of 4 types:
  * 1. Single pointer (Range is 0-0)
- * 2. Non-leaf Allocation Range nodes
- * 3. Non-leaf Range nodes
- * 4. Leaf Range nodes All nodes consist of a number of node slots,
+ * 2. Analn-leaf Allocation Range analdes
+ * 3. Analn-leaf Range analdes
+ * 4. Leaf Range analdes All analdes consist of a number of analde slots,
  *    pivots, and a parent pointer.
  */
 
-struct maple_node {
+struct maple_analde {
 	union {
 		struct {
-			struct maple_pnode *parent;
-			void __rcu *slot[MAPLE_NODE_SLOTS];
+			struct maple_panalde *parent;
+			void __rcu *slot[MAPLE_ANALDE_SLOTS];
 		};
 		struct {
 			void *pad;
 			struct rcu_head rcu;
-			struct maple_enode *piv_parent;
+			struct maple_eanalde *piv_parent;
 			unsigned char parent_slot;
 			enum maple_type type;
 			unsigned char slot_len;
@@ -298,15 +298,15 @@ struct maple_node {
 };
 
 /*
- * More complicated stores can cause two nodes to become one or three and
+ * More complicated stores can cause two analdes to become one or three and
  * potentially alter the height of the tree.  Either half of the tree may need
  * to be rebalanced against the other.  The ma_topiary struct is used to track
- * which nodes have been 'cut' from the tree so that the change can be done
+ * which analdes have been 'cut' from the tree so that the change can be done
  * safely at a later date.  This is done to support RCU.
  */
 struct ma_topiary {
-	struct maple_enode *head;
-	struct maple_enode *tail;
+	struct maple_eanalde *head;
+	struct maple_eanalde *tail;
 	struct maple_tree *mtree;
 };
 
@@ -351,28 +351,28 @@ static inline bool mtree_empty(const struct maple_tree *mt)
 
 /*
  * Maple State Status
- * ma_active means the maple state is pointing to a node and offset and can
+ * ma_active means the maple state is pointing to a analde and offset and can
  * continue operating on the tree.
- * ma_start means we have not searched the tree.
+ * ma_start means we have analt searched the tree.
  * ma_root means we have searched the tree and the entry we found lives in
  * the root of the tree (ie it has index 0, length 1 and is the only entry in
  * the tree).
- * ma_none means we have searched the tree and there is no node in the
+ * ma_analne means we have searched the tree and there is anal analde in the
  * tree for this entry.  For example, we searched for index 1 in an empty
- * tree.  Or we have a tree which points to a full leaf node and we
+ * tree.  Or we have a tree which points to a full leaf analde and we
  * searched for an entry which is larger than can be contained in that
- * leaf node.
+ * leaf analde.
  * ma_pause means the data within the maple state may be stale, restart the
  * operation
  * ma_overflow means the search has reached the upper limit of the search
  * ma_underflow means the search has reached the lower limit of the search
- * ma_error means there was an error, check the node for the error number.
+ * ma_error means there was an error, check the analde for the error number.
  */
 enum maple_status {
 	ma_active,
 	ma_start,
 	ma_root,
-	ma_none,
+	ma_analne,
 	ma_pause,
 	ma_overflow,
 	ma_underflow,
@@ -384,29 +384,29 @@ enum maple_status {
  * of information during operations, and even between operations when using the
  * advanced API.
  *
- * If state->node has bit 0 set then it references a tree location which is not
- * a node (eg the root).  If bit 1 is set, the rest of the bits are a negative
- * errno.  Bit 2 (the 'unallocated slots' bit) is clear.  Bits 3-6 indicate the
- * node type.
+ * If state->analde has bit 0 set then it references a tree location which is analt
+ * a analde (eg the root).  If bit 1 is set, the rest of the bits are a negative
+ * erranal.  Bit 2 (the 'unallocated slots' bit) is clear.  Bits 3-6 indicate the
+ * analde type.
  *
- * state->alloc either has a request number of nodes or an allocated node.  If
- * stat->alloc has a requested number of nodes, the first bit will be set (0x1)
- * and the remaining bits are the value.  If state->alloc is a node, then the
- * node will be of type maple_alloc.  maple_alloc has MAPLE_NODE_SLOTS - 1 for
- * storing more allocated nodes, a total number of nodes allocated, and the
- * node_count in this node.  node_count is the number of allocated nodes in this
- * node.  The scaling beyond MAPLE_NODE_SLOTS - 1 is handled by storing further
- * nodes into state->alloc->slot[0]'s node.  Nodes are taken from state->alloc
- * by removing a node from the state->alloc node until state->alloc->node_count
+ * state->alloc either has a request number of analdes or an allocated analde.  If
+ * stat->alloc has a requested number of analdes, the first bit will be set (0x1)
+ * and the remaining bits are the value.  If state->alloc is a analde, then the
+ * analde will be of type maple_alloc.  maple_alloc has MAPLE_ANALDE_SLOTS - 1 for
+ * storing more allocated analdes, a total number of analdes allocated, and the
+ * analde_count in this analde.  analde_count is the number of allocated analdes in this
+ * analde.  The scaling beyond MAPLE_ANALDE_SLOTS - 1 is handled by storing further
+ * analdes into state->alloc->slot[0]'s analde.  Analdes are taken from state->alloc
+ * by removing a analde from the state->alloc analde until state->alloc->analde_count
  * is 1, when state->alloc is returned and the state->alloc->slot[0] is promoted
- * to state->alloc.  Nodes are pushed onto state->alloc by putting the current
- * state->alloc into the pushed node's slot[0].
+ * to state->alloc.  Analdes are pushed onto state->alloc by putting the current
+ * state->alloc into the pushed analde's slot[0].
  *
- * The state also contains the implied min/max of the state->node, the depth of
+ * The state also contains the implied min/max of the state->analde, the depth of
  * this search, and the offset. The implied min/max are either from the parent
- * node or are 0-oo for the root node.  The depth is incremented or decremented
- * every time a node is walked down or up.  The offset is the slot/pivot of
- * interest in the node - either for reading or writing.
+ * analde or are 0-oo for the root analde.  The depth is incremented or decremented
+ * every time a analde is walked down or up.  The offset is the slot/pivot of
+ * interest in the analde - either for reading or writing.
  *
  * When returning a value the maple state index and last respectively contain
  * the start and end of the range for the entry.  Ranges are inclusive in the
@@ -415,7 +415,7 @@ enum maple_status {
  * The status of the state is used to determine how the next action should treat
  * the state.  For instance, if the status is ma_start then the next action
  * should start at the root of the tree and walk down.  If the status is
- * ma_pause then the node may be stale data and should be discarded.  If the
+ * ma_pause then the analde may be stale data and should be discarded.  If the
  * status is ma_overflow, then the last action hit the upper limit.
  *
  */
@@ -423,27 +423,27 @@ struct ma_state {
 	struct maple_tree *tree;	/* The tree we're operating in */
 	unsigned long index;		/* The index we're operating on - range start */
 	unsigned long last;		/* The last index we're operating on - range end */
-	struct maple_enode *node;	/* The node containing this entry */
-	unsigned long min;		/* The minimum index of this node - implied pivot min */
-	unsigned long max;		/* The maximum index of this node - implied pivot max */
-	struct maple_alloc *alloc;	/* Allocated nodes for this operation */
-	enum maple_status status;	/* The status of the state (active, start, none, etc) */
+	struct maple_eanalde *analde;	/* The analde containing this entry */
+	unsigned long min;		/* The minimum index of this analde - implied pivot min */
+	unsigned long max;		/* The maximum index of this analde - implied pivot max */
+	struct maple_alloc *alloc;	/* Allocated analdes for this operation */
+	enum maple_status status;	/* The status of the state (active, start, analne, etc) */
 	unsigned char depth;		/* depth of tree descent during write */
 	unsigned char offset;
 	unsigned char mas_flags;
-	unsigned char end;		/* The end of the node */
+	unsigned char end;		/* The end of the analde */
 };
 
 struct ma_wr_state {
 	struct ma_state *mas;
-	struct maple_node *node;	/* Decoded mas->node */
+	struct maple_analde *analde;	/* Decoded mas->analde */
 	unsigned long r_min;		/* range min */
 	unsigned long r_max;		/* range max */
-	enum maple_type type;		/* mas->node type */
+	enum maple_type type;		/* mas->analde type */
 	unsigned char offset_end;	/* The offset where the write ends */
-	unsigned long *pivots;		/* mas->node->pivots pointer */
+	unsigned long *pivots;		/* mas->analde->pivots pointer */
 	unsigned long end_piv;		/* The pivot at the offset end */
-	void __rcu **slots;		/* mas->node->slots pointer */
+	void __rcu **slots;		/* mas->analde->slots pointer */
 	void *entry;			/* The entry to write */
 	void *content;			/* The existing entry that is being overwritten */
 };
@@ -454,20 +454,20 @@ struct ma_wr_state {
 #define mas_unlock(mas)         spin_unlock(&((mas)->tree->ma_lock))
 
 /*
- * Special values for ma_state.node.
- * MA_ERROR represents an errno.  After dropping the lock and attempting
+ * Special values for ma_state.analde.
+ * MA_ERROR represents an erranal.  After dropping the lock and attempting
  * to resolve the error, the walk would have to be restarted from the
  * top of the tree as the tree may have been modified.
  */
 #define MA_ERROR(err) \
-		((struct maple_enode *)(((unsigned long)err << 2) | 2UL))
+		((struct maple_eanalde *)(((unsigned long)err << 2) | 2UL))
 
 #define MA_STATE(name, mt, first, end)					\
 	struct ma_state name = {					\
 		.tree = mt,						\
 		.index = first,						\
 		.last = end,						\
-		.node = NULL,						\
+		.analde = NULL,						\
 		.status = ma_start,					\
 		.min = 0,						\
 		.max = ULONG_MAX,					\
@@ -500,7 +500,7 @@ void *mas_find_rev(struct ma_state *mas, unsigned long min);
 void *mas_find_range_rev(struct ma_state *mas, unsigned long max);
 int mas_preallocate(struct ma_state *mas, void *entry, gfp_t gfp);
 
-bool mas_nomem(struct ma_state *mas, gfp_t gfp);
+bool mas_analmem(struct ma_state *mas, gfp_t gfp);
 void mas_pause(struct ma_state *mas);
 void maple_tree_init(void);
 void mas_destroy(struct ma_state *mas);
@@ -528,7 +528,7 @@ static inline void mas_init(struct ma_state *mas, struct maple_tree *tree,
 	mas->index = mas->last = addr;
 	mas->max = ULONG_MAX;
 	mas->status = ma_start;
-	mas->node = NULL;
+	mas->analde = NULL;
 }
 
 static inline bool mas_is_active(struct ma_state *mas)
@@ -554,7 +554,7 @@ static inline bool mas_is_err(struct ma_state *mas)
 static __always_inline void mas_reset(struct ma_state *mas)
 {
 	mas->status = ma_start;
-	mas->node = NULL;
+	mas->analde = NULL;
 }
 
 /**
@@ -566,7 +566,7 @@ static __always_inline void mas_reset(struct ma_state *mas)
  * When returned, mas->index and mas->last will hold the entire range for the
  * entry.
  *
- * Note: may return the zero entry.
+ * Analte: may return the zero entry.
  */
 #define mas_for_each(__mas, __entry, __max) \
 	while (((__entry) = mas_find((__mas), (__max))) != NULL)
@@ -703,7 +703,7 @@ void mt_cache_shrink(void);
  * @last: New end of range in the Maple Tree.
  *
  * set the internal maple state values to a sub-range.
- * Please use mas_set_range() if you do not know where you are in the tree.
+ * Please use mas_set_range() if you do analt kanalw where you are in the tree.
  */
 static inline void __mas_set_range(struct ma_state *mas, unsigned long start,
 		unsigned long last)
@@ -792,7 +792,7 @@ static inline bool mt_in_rcu(struct maple_tree *mt)
 }
 
 /**
- * mt_clear_in_rcu() - Switch the tree to non-RCU mode.
+ * mt_clear_in_rcu() - Switch the tree to analn-RCU mode.
  * @mt: The Maple Tree
  */
 static inline void mt_clear_in_rcu(struct maple_tree *mt)

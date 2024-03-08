@@ -38,7 +38,7 @@
 #define RT5682S_ACPI_HID	"RTL5682"
 
 enum sof_ssp_codec {
-	CODEC_NONE,
+	CODEC_ANALNE,
 
 	/* headphone codec */
 	CODEC_CS42L42,

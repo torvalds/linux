@@ -10,13 +10,13 @@
 #include <drv_types.h>
 
 
-#define	PACKET_NORMAL			0
+#define	PACKET_ANALRMAL			0
 #define	PACKET_DHCP				1
 #define	PACKET_ARP				2
 #define	PACKET_EAPOL			3
 
-void rtw_btcoex_MediaStatusNotify(struct adapter *, u8 mediaStatus);
-void rtw_btcoex_HaltNotify(struct adapter *);
+void rtw_btcoex_MediaStatusAnaltify(struct adapter *, u8 mediaStatus);
+void rtw_btcoex_HaltAnaltify(struct adapter *);
 
 /*  ================================================== */
 /*  Below Functions are called by BT-Coex */

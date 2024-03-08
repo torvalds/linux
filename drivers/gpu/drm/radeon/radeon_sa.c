@@ -11,14 +11,14 @@
  * the following conditions:
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -32,10 +32,10 @@
  * We store the last allocated bo in "hole", we always try to allocate
  * after the last allocated bo. Principle is that in a linear GPU ring
  * progression was is after last is the oldest bo we allocated and thus
- * the first one that should no longer be in use by the GPU.
+ * the first one that should anal longer be in use by the GPU.
  *
- * If it's not the case we skip over the bo after last to the closest
- * done bo if such one exist. If none exist and we are not asked to
+ * If it's analt the case we skip over the bo after last to the closest
+ * done bo if such one exist. If analne exist and we are analt asked to
  * block we report failure to allocate.
  *
  * If we are asked to block we wait on all the oldest fence of all
@@ -78,7 +78,7 @@ int radeon_sa_bo_manager_start(struct radeon_device *rdev,
 	int r;
 
 	if (sa_manager->bo == NULL) {
-		dev_err(rdev->dev, "no bo for sa manager\n");
+		dev_err(rdev->dev, "anal bo for sa manager\n");
 		return -EINVAL;
 	}
 
@@ -105,7 +105,7 @@ int radeon_sa_bo_manager_suspend(struct radeon_device *rdev,
 	int r;
 
 	if (sa_manager->bo == NULL) {
-		dev_err(rdev->dev, "no bo for sa manager\n");
+		dev_err(rdev->dev, "anal bo for sa manager\n");
 		return -EINVAL;
 	}
 

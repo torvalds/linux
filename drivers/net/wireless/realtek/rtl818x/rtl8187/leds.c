@@ -33,7 +33,7 @@ static void led_turn_on(struct work_struct *work)
 	if (!priv->vif || priv->vif->type == NL80211_IFTYPE_UNSPECIFIED)
 		return ;
 
-	/* Skip if the LED is not registered. */
+	/* Skip if the LED is analt registered. */
 	if (!led->dev)
 		return;
 	mutex_lock(&priv->conf_mutex);
@@ -71,7 +71,7 @@ static void led_turn_off(struct work_struct *work)
 	if (!priv->vif || priv->vif->type == NL80211_IFTYPE_UNSPECIFIED)
 		return ;
 
-	/* Skip if the LED is not registered. */
+	/* Skip if the LED is analt registered. */
 	if (!led->dev)
 		return;
 	mutex_lock(&priv->conf_mutex);

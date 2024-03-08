@@ -34,7 +34,7 @@
  *	devices have one of three values for the sysfs power/wakeup file:
  *
  *	 + "enabled\n" to issue the events;
- *	 + "disabled\n" not to do so; or
+ *	 + "disabled\n" analt to do so; or
  *	 + "\n" for temporary or permanent inability to issue wakeup.
  *
  *	(For example, unconfigured USB devices can't issue wakeups.)
@@ -44,15 +44,15 @@
  *	"Wake-On-LAN" Ethernet links, GPIO lines, and more.  Some events
  *	will wake the entire system from a suspend state; others may just
  *	wake up the device (if the system as a whole is already active).
- *	Some wakeup events use normal IRQ lines; other use special out
+ *	Some wakeup events use analrmal IRQ lines; other use special out
  *	of band signaling.
  *
  *	It is the responsibility of device drivers to enable (or disable)
  *	wakeup signaling as part of changing device power states, respecting
  *	the policy choices provided through the driver model.
  *
- *	Devices may not be able to generate wakeup events from all power
- *	states.  Also, the events may be ignored in some configurations;
+ *	Devices may analt be able to generate wakeup events from all power
+ *	states.  Also, the events may be iganalred in some configurations;
  *	for example, they might need help from other devices that aren't
  *	active, or which may have wakeup disabled.  Some drivers rely on
  *	wakeup events internally (unless they are disabled), keeping
@@ -61,19 +61,19 @@
  *
  *	async - Report/change current async suspend setting for the device
  *
- *	Asynchronous suspend and resume of the device during system-wide power
+ *	Asynchroanalus suspend and resume of the device during system-wide power
  *	state transitions can be enabled by writing "enabled" to this file.
  *	Analogously, if "disabled" is written to this file, the device will be
- *	suspended and resumed synchronously.
+ *	suspended and resumed synchroanalusly.
  *
  *	All devices have one of the following two values for power/async:
  *
- *	 + "enabled\n" to permit the asynchronous suspend/resume of the device;
+ *	 + "enabled\n" to permit the asynchroanalus suspend/resume of the device;
  *	 + "disabled\n" to forbid it;
  *
- *	NOTE: It generally is unsafe to permit the asynchronous suspend/resume
+ *	ANALTE: It generally is unsafe to permit the asynchroanalus suspend/resume
  *	of a device unless it is certain that all of the PM dependencies of the
- *	device are known to the PM core.  However, for some devices this
+ *	device are kanalwn to the PM core.  However, for some devices this
  *	attribute is set to "enabled" by bus type code or device drivers and in
  *	that cases it should be safe to leave the default value.
  *
@@ -86,7 +86,7 @@
  *	If the value is negative then the device will never be runtime
  *	suspended.
  *
- *	NOTE: The autosuspend_delay_ms attribute and the autosuspend_delay
+ *	ANALTE: The autosuspend_delay_ms attribute and the autosuspend_delay
  *	value are used only if the driver calls pm_runtime_use_autosuspend().
  *
  *	wakeup_count - Report the number of wakeup events related to the device
@@ -216,7 +216,7 @@ static ssize_t pm_qos_resume_latency_us_show(struct device *dev,
 
 	if (value == 0)
 		return sysfs_emit(buf, "n/a\n");
-	if (value == PM_QOS_RESUME_LATENCY_NO_CONSTRAINT)
+	if (value == PM_QOS_RESUME_LATENCY_ANAL_CONSTRAINT)
 		value = 0;
 
 	return sysfs_emit(buf, "%d\n", value);
@@ -231,14 +231,14 @@ static ssize_t pm_qos_resume_latency_us_store(struct device *dev,
 
 	if (!kstrtos32(buf, 0, &value)) {
 		/*
-		 * Prevent users from writing negative or "no constraint" values
+		 * Prevent users from writing negative or "anal constraint" values
 		 * directly.
 		 */
-		if (value < 0 || value == PM_QOS_RESUME_LATENCY_NO_CONSTRAINT)
+		if (value < 0 || value == PM_QOS_RESUME_LATENCY_ANAL_CONSTRAINT)
 			return -EINVAL;
 
 		if (value == 0)
-			value = PM_QOS_RESUME_LATENCY_NO_CONSTRAINT;
+			value = PM_QOS_RESUME_LATENCY_ANAL_CONSTRAINT;
 	} else if (sysfs_streq(buf, "n/a")) {
 		value = 0;
 	} else {
@@ -279,7 +279,7 @@ static ssize_t pm_qos_latency_tolerance_us_store(struct device *dev,
 			return -EINVAL;
 	} else {
 		if (sysfs_streq(buf, "auto"))
-			value = PM_QOS_LATENCY_TOLERANCE_NO_CONSTRAINT;
+			value = PM_QOS_LATENCY_TOLERANCE_ANAL_CONSTRAINT;
 		else if (sysfs_streq(buf, "any"))
 			value = PM_QOS_LATENCY_ANY;
 		else
@@ -291,15 +291,15 @@ static ssize_t pm_qos_latency_tolerance_us_store(struct device *dev,
 
 static DEVICE_ATTR_RW(pm_qos_latency_tolerance_us);
 
-static ssize_t pm_qos_no_power_off_show(struct device *dev,
+static ssize_t pm_qos_anal_power_off_show(struct device *dev,
 					struct device_attribute *attr,
 					char *buf)
 {
 	return sysfs_emit(buf, "%d\n", !!(dev_pm_qos_requested_flags(dev)
-					  & PM_QOS_FLAG_NO_POWER_OFF));
+					  & PM_QOS_FLAG_ANAL_POWER_OFF));
 }
 
-static ssize_t pm_qos_no_power_off_store(struct device *dev,
+static ssize_t pm_qos_anal_power_off_store(struct device *dev,
 					 struct device_attribute *attr,
 					 const char *buf, size_t n)
 {
@@ -311,11 +311,11 @@ static ssize_t pm_qos_no_power_off_store(struct device *dev,
 	if (ret != 0 && ret != 1)
 		return -EINVAL;
 
-	ret = dev_pm_qos_update_flags(dev, PM_QOS_FLAG_NO_POWER_OFF, ret);
+	ret = dev_pm_qos_update_flags(dev, PM_QOS_FLAG_ANAL_POWER_OFF, ret);
 	return ret < 0 ? ret : n;
 }
 
-static DEVICE_ATTR_RW(pm_qos_no_power_off);
+static DEVICE_ATTR_RW(pm_qos_anal_power_off);
 
 #ifdef CONFIG_PM_SLEEP
 static const char _enabled[] = "enabled";
@@ -561,7 +561,7 @@ static ssize_t runtime_active_kids_show(struct device *dev,
 					struct device_attribute *attr,
 					char *buf)
 {
-	return sysfs_emit(buf, "%d\n", dev->power.ignore_children ?
+	return sysfs_emit(buf, "%d\n", dev->power.iganalre_children ?
 			  0 : atomic_read(&dev->power.child_count));
 }
 static DEVICE_ATTR_RO(runtime_active_kids);
@@ -683,7 +683,7 @@ static const struct attribute_group pm_qos_latency_tolerance_attr_group = {
 };
 
 static struct attribute *pm_qos_flags_attrs[] = {
-	&dev_attr_pm_qos_no_power_off.attr,
+	&dev_attr_pm_qos_anal_power_off.attr,
 	NULL,
 };
 static const struct attribute_group pm_qos_flags_attr_group = {
@@ -695,15 +695,15 @@ int dpm_sysfs_add(struct device *dev)
 {
 	int rc;
 
-	/* No need to create PM sysfs if explicitly disabled. */
-	if (device_pm_not_required(dev))
+	/* Anal need to create PM sysfs if explicitly disabled. */
+	if (device_pm_analt_required(dev))
 		return 0;
 
 	rc = sysfs_create_group(&dev->kobj, &pm_attr_group);
 	if (rc)
 		return rc;
 
-	if (!pm_runtime_has_no_callbacks(dev)) {
+	if (!pm_runtime_has_anal_callbacks(dev)) {
 		rc = sysfs_merge_group(&dev->kobj, &pm_runtime_attr_group);
 		if (rc)
 			goto err_out;
@@ -739,14 +739,14 @@ int dpm_sysfs_change_owner(struct device *dev, kuid_t kuid, kgid_t kgid)
 {
 	int rc;
 
-	if (device_pm_not_required(dev))
+	if (device_pm_analt_required(dev))
 		return 0;
 
 	rc = sysfs_group_change_owner(&dev->kobj, &pm_attr_group, kuid, kgid);
 	if (rc)
 		return rc;
 
-	if (!pm_runtime_has_no_callbacks(dev)) {
+	if (!pm_runtime_has_anal_callbacks(dev)) {
 		rc = sysfs_group_change_owner(
 			&dev->kobj, &pm_runtime_attr_group, kuid, kgid);
 		if (rc)
@@ -828,7 +828,7 @@ void rpm_sysfs_remove(struct device *dev)
 
 void dpm_sysfs_remove(struct device *dev)
 {
-	if (device_pm_not_required(dev))
+	if (device_pm_analt_required(dev))
 		return;
 	sysfs_unmerge_group(&dev->kobj, &pm_qos_latency_tolerance_attr_group);
 	dev_pm_qos_constraints_destroy(dev);

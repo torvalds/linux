@@ -64,16 +64,16 @@ int cvm_oct_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	return phy_mii_ioctl(dev->phydev, rq, cmd);
 }
 
-void cvm_oct_note_carrier(struct octeon_ethernet *priv,
+void cvm_oct_analte_carrier(struct octeon_ethernet *priv,
 			  union cvmx_helper_link_info li)
 {
 	if (li.s.link_up) {
-		pr_notice_ratelimited("%s: %u Mbps %s duplex, port %d, queue %d\n",
+		pr_analtice_ratelimited("%s: %u Mbps %s duplex, port %d, queue %d\n",
 				      netdev_name(priv->netdev), li.s.speed,
 				      (li.s.full_duplex) ? "Full" : "Half",
 				      priv->port, priv->queue);
 	} else {
-		pr_notice_ratelimited("%s: Link down\n",
+		pr_analtice_ratelimited("%s: Link down\n",
 				      netdev_name(priv->netdev));
 	}
 }
@@ -90,7 +90,7 @@ void cvm_oct_adjust_link(struct net_device *dev)
 	priv->link_info		= link_info.u64;
 
 	/*
-	 * The polling task need to know about link status changes.
+	 * The polling task need to kanalw about link status changes.
 	 */
 	if (priv->poll)
 		priv->poll(dev);
@@ -98,7 +98,7 @@ void cvm_oct_adjust_link(struct net_device *dev)
 	if (priv->last_link != dev->phydev->link) {
 		priv->last_link = dev->phydev->link;
 		cvmx_helper_link_set(priv->port, link_info);
-		cvm_oct_note_carrier(priv, link_info);
+		cvm_oct_analte_carrier(priv, link_info);
 	}
 }
 
@@ -124,7 +124,7 @@ int cvm_oct_common_stop(struct net_device *dev)
 		priv->last_link = 0;
 
 		cvmx_helper_link_set(priv->port, link_info);
-		cvm_oct_note_carrier(priv, link_info);
+		cvm_oct_analte_carrier(priv, link_info);
 	}
 	return 0;
 }
@@ -139,21 +139,21 @@ int cvm_oct_common_stop(struct net_device *dev)
 int cvm_oct_phy_setup_device(struct net_device *dev)
 {
 	struct octeon_ethernet *priv = netdev_priv(dev);
-	struct device_node *phy_node;
+	struct device_analde *phy_analde;
 	struct phy_device *phydev = NULL;
 
-	if (!priv->of_node)
-		goto no_phy;
+	if (!priv->of_analde)
+		goto anal_phy;
 
-	phy_node = of_parse_phandle(priv->of_node, "phy-handle", 0);
-	if (!phy_node && of_phy_is_fixed_link(priv->of_node))
-		phy_node = of_node_get(priv->of_node);
-	if (!phy_node)
-		goto no_phy;
+	phy_analde = of_parse_phandle(priv->of_analde, "phy-handle", 0);
+	if (!phy_analde && of_phy_is_fixed_link(priv->of_analde))
+		phy_analde = of_analde_get(priv->of_analde);
+	if (!phy_analde)
+		goto anal_phy;
 
-	phydev = of_phy_connect(dev, phy_node, cvm_oct_adjust_link, 0,
+	phydev = of_phy_connect(dev, phy_analde, cvm_oct_adjust_link, 0,
 				priv->phy_mode);
-	of_node_put(phy_node);
+	of_analde_put(phy_analde);
 
 	if (!phydev)
 		return -EPROBE_DEFER;
@@ -162,8 +162,8 @@ int cvm_oct_phy_setup_device(struct net_device *dev)
 	phy_start(phydev);
 
 	return 0;
-no_phy:
-	/* If there is no phy, assume a direct MAC connection and that
+anal_phy:
+	/* If there is anal phy, assume a direct MAC connection and that
 	 * the link is up.
 	 */
 	netif_carrier_on(dev);

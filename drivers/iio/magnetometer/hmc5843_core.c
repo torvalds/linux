@@ -6,7 +6,7 @@
  * Copyright (C) 2010 Texas Instruments
  *
  * Author: Shubhrajyoti Datta <shubhrajyoti@ti.com>
- * Acknowledgment: Jonathan Cameron <jic23@kernel.org> for valuable inputs.
+ * Ackanalwledgment: Jonathan Cameron <jic23@kernel.org> for valuable inputs.
  * Support for HMC5883 and HMC5883L by Peter Meerwald <pmeerw@pmeerw.net>.
  * Split to multiple files by Josef Gajdusek <atx@atx.name> - 2014
  */
@@ -51,18 +51,18 @@
 #define HMC5843_RATE_MASK		0x1c
 
 /* Device measurement configuration */
-#define HMC5843_MEAS_CONF_NORMAL		0x00
+#define HMC5843_MEAS_CONF_ANALRMAL		0x00
 #define HMC5843_MEAS_CONF_POSITIVE_BIAS		0x01
 #define HMC5843_MEAS_CONF_NEGATIVE_BIAS		0x02
 #define HMC5843_MEAS_CONF_MASK			0x03
 
 /*
  * API for setting the measurement configuration to
- * Normal, Positive bias and Negative bias
+ * Analrmal, Positive bias and Negative bias
  *
  * From the datasheet:
- * 0 - Normal measurement configuration (default): In normal measurement
- *     configuration the device follows normal measurement flow. Pins BP
+ * 0 - Analrmal measurement configuration (default): In analrmal measurement
+ *     configuration the device follows analrmal measurement flow. Pins BP
  *     and BN are left floating and high impedance.
  *
  * 1 - Positive bias configuration: In positive bias configuration, a
@@ -77,22 +77,22 @@
  *     Temperature sensor is enabled.
  */
 
-static const char *const hmc5843_meas_conf_modes[] = {"normal", "positivebias",
+static const char *const hmc5843_meas_conf_modes[] = {"analrmal", "positivebias",
 						      "negativebias"};
 
-static const char *const hmc5983_meas_conf_modes[] = {"normal", "positivebias",
+static const char *const hmc5983_meas_conf_modes[] = {"analrmal", "positivebias",
 						      "negativebias",
 						      "disabled"};
 /* Scaling factors: 10000000/Gain */
-static const int hmc5843_regval_to_nanoscale[] = {
+static const int hmc5843_regval_to_naanalscale[] = {
 	6173, 7692, 10309, 12821, 18868, 21739, 25641, 35714
 };
 
-static const int hmc5883_regval_to_nanoscale[] = {
+static const int hmc5883_regval_to_naanalscale[] = {
 	7812, 9766, 13021, 16287, 24096, 27701, 32573, 45662
 };
 
-static const int hmc5883l_regval_to_nanoscale[] = {
+static const int hmc5883l_regval_to_naanalscale[] = {
 	7299, 9174, 12195, 15152, 22727, 25641, 30303, 43478
 };
 
@@ -107,7 +107,7 @@ static const int hmc5883l_regval_to_nanoscale[] = {
  * 4		| 10 (default)		| 15
  * 5		| 20			| 30
  * 6		| 50			| 75
- * 7		| Not used		| Not used
+ * 7		| Analt used		| Analt used
  */
 static const int hmc5843_regval_to_samp_freq[][2] = {
 	{0, 500000}, {1, 0}, {2, 0}, {5, 0}, {10, 0}, {20, 0}, {50, 0}
@@ -128,8 +128,8 @@ struct hmc5843_chip_info {
 	const struct iio_chan_spec *channels;
 	const int (*regval_to_samp_freq)[2];
 	const int n_regval_to_samp_freq;
-	const int *regval_to_nanoscale;
-	const int n_regval_to_nanoscale;
+	const int *regval_to_naanalscale;
+	const int n_regval_to_naanalscale;
 };
 
 /* The lower two bits contain the current conversion mode */
@@ -161,7 +161,7 @@ static int hmc5843_wait_measurement(struct hmc5843_data *data)
 	}
 
 	if (tries < 0) {
-		dev_err(data->dev, "data not ready\n");
+		dev_err(data->dev, "data analt ready\n");
 		return -EIO;
 	}
 
@@ -334,9 +334,9 @@ static ssize_t hmc5843_show_scale_avail(struct device *dev,
 	size_t len = 0;
 	int i;
 
-	for (i = 0; i < data->variant->n_regval_to_nanoscale; i++)
+	for (i = 0; i < data->variant->n_regval_to_naanalscale; i++)
 		len += scnprintf(buf + len, PAGE_SIZE - len,
-			"0.%09d ", data->variant->regval_to_nanoscale[i]);
+			"0.%09d ", data->variant->regval_to_naanalscale[i]);
 
 	/* replace trailing space by newline */
 	buf[len - 1] = '\n';
@@ -354,8 +354,8 @@ static int hmc5843_get_scale_index(struct hmc5843_data *data, int val, int val2)
 	if (val)
 		return -EINVAL;
 
-	for (i = 0; i < data->variant->n_regval_to_nanoscale; i++)
-		if (val2 == data->variant->regval_to_nanoscale[i])
+	for (i = 0; i < data->variant->n_regval_to_naanalscale; i++)
+		if (val2 == data->variant->regval_to_naanalscale[i])
 			return i;
 
 	return -EINVAL;
@@ -378,8 +378,8 @@ static int hmc5843_read_raw(struct iio_dev *indio_dev,
 			return ret;
 		rval >>= HMC5843_RANGE_GAIN_OFFSET;
 		*val = 0;
-		*val2 = data->variant->regval_to_nanoscale[rval];
-		return IIO_VAL_INT_PLUS_NANO;
+		*val2 = data->variant->regval_to_naanalscale[rval];
+		return IIO_VAL_INT_PLUS_NAANAL;
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		ret = regmap_read(data->regmap, HMC5843_CONFIG_REG_A, &rval);
 		if (ret < 0)
@@ -425,7 +425,7 @@ static int hmc5843_write_raw_get_fmt(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		return IIO_VAL_INT_PLUS_MICRO;
 	case IIO_CHAN_INFO_SCALE:
-		return IIO_VAL_INT_PLUS_NANO;
+		return IIO_VAL_INT_PLUS_NAANAL;
 	default:
 		return -EINVAL;
 	}
@@ -456,7 +456,7 @@ static irqreturn_t hmc5843_trigger_handler(int irq, void *p)
 					   iio_get_time_ns(indio_dev));
 
 done:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -535,36 +535,36 @@ static const struct hmc5843_chip_info hmc5843_chip_info_tbl[] = {
 		.regval_to_samp_freq = hmc5843_regval_to_samp_freq,
 		.n_regval_to_samp_freq =
 				ARRAY_SIZE(hmc5843_regval_to_samp_freq),
-		.regval_to_nanoscale = hmc5843_regval_to_nanoscale,
-		.n_regval_to_nanoscale =
-				ARRAY_SIZE(hmc5843_regval_to_nanoscale),
+		.regval_to_naanalscale = hmc5843_regval_to_naanalscale,
+		.n_regval_to_naanalscale =
+				ARRAY_SIZE(hmc5843_regval_to_naanalscale),
 	},
 	[HMC5883_ID] = {
 		.channels = hmc5883_channels,
 		.regval_to_samp_freq = hmc5883_regval_to_samp_freq,
 		.n_regval_to_samp_freq =
 				ARRAY_SIZE(hmc5883_regval_to_samp_freq),
-		.regval_to_nanoscale = hmc5883_regval_to_nanoscale,
-		.n_regval_to_nanoscale =
-				ARRAY_SIZE(hmc5883_regval_to_nanoscale),
+		.regval_to_naanalscale = hmc5883_regval_to_naanalscale,
+		.n_regval_to_naanalscale =
+				ARRAY_SIZE(hmc5883_regval_to_naanalscale),
 	},
 	[HMC5883L_ID] = {
 		.channels = hmc5883_channels,
 		.regval_to_samp_freq = hmc5883_regval_to_samp_freq,
 		.n_regval_to_samp_freq =
 				ARRAY_SIZE(hmc5883_regval_to_samp_freq),
-		.regval_to_nanoscale = hmc5883l_regval_to_nanoscale,
-		.n_regval_to_nanoscale =
-				ARRAY_SIZE(hmc5883l_regval_to_nanoscale),
+		.regval_to_naanalscale = hmc5883l_regval_to_naanalscale,
+		.n_regval_to_naanalscale =
+				ARRAY_SIZE(hmc5883l_regval_to_naanalscale),
 	},
 	[HMC5983_ID] = {
 		.channels = hmc5983_channels,
 		.regval_to_samp_freq = hmc5983_regval_to_samp_freq,
 		.n_regval_to_samp_freq =
 				ARRAY_SIZE(hmc5983_regval_to_samp_freq),
-		.regval_to_nanoscale = hmc5883l_regval_to_nanoscale,
-		.n_regval_to_nanoscale =
-				ARRAY_SIZE(hmc5883l_regval_to_nanoscale),
+		.regval_to_naanalscale = hmc5883l_regval_to_naanalscale,
+		.n_regval_to_naanalscale =
+				ARRAY_SIZE(hmc5883l_regval_to_naanalscale),
 	}
 };
 
@@ -578,11 +578,11 @@ static int hmc5843_init(struct hmc5843_data *data)
 	if (ret < 0)
 		return ret;
 	if (id[0] != 'H' || id[1] != '4' || id[2] != '3') {
-		dev_err(data->dev, "no HMC5843/5883/5883L/5983 sensor\n");
-		return -ENODEV;
+		dev_err(data->dev, "anal HMC5843/5883/5883L/5983 sensor\n");
+		return -EANALDEV;
 	}
 
-	ret = hmc5843_set_meas_conf(data, HMC5843_MEAS_CONF_NORMAL);
+	ret = hmc5843_set_meas_conf(data, HMC5843_MEAS_CONF_ANALRMAL);
 	if (ret < 0)
 		return ret;
 	ret = hmc5843_set_samp_freq(data, HMC5843_RATE_DEFAULT);
@@ -626,7 +626,7 @@ int hmc5843_common_probe(struct device *dev, struct regmap *regmap,
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(dev, indio_dev);
 

@@ -69,13 +69,13 @@ TRACE_EVENT(802154_rdev_add_virtual_intf,
 	TP_ARGS(wpan_phy, name, type, extended_addr),
 	TP_STRUCT__entry(
 		WPAN_PHY_ENTRY
-		__string(vir_intf_name, name ? name : "<noname>")
+		__string(vir_intf_name, name ? name : "<analname>")
 		__field(enum nl802154_iftype, type)
 		__field(__le64, extended_addr)
 	),
 	TP_fast_assign(
 		WPAN_PHY_ASSIGN;
-		__assign_str(vir_intf_name, name ? name : "<noname>");
+		__assign_str(vir_intf_name, name ? name : "<analname>");
 		__entry->type = type;
 		__entry->extended_addr = extended_addr;
 	),

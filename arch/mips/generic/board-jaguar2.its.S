@@ -6,7 +6,7 @@
 			data = /incbin/("boot/dts/mscc/jaguar2_pcb110.dtb");
 			type = "flat_dt";
 			arch = "mips";
-			compression = "none";
+			compression = "analne";
 			hash {
 				algo = "sha1";
 			};
@@ -16,7 +16,7 @@
 			data = /incbin/("boot/dts/mscc/jaguar2_pcb111.dtb");
 			type = "flat_dt";
 			arch = "mips";
-			compression = "none";
+			compression = "analne";
 			hash {
 				algo = "sha1";
 			};

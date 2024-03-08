@@ -47,10 +47,10 @@ static int mbi_irq_gic_domain_alloc(struct irq_domain *domain,
 	int err;
 
 	/*
-	 * Using ACPI? There is no MBI support in the spec, you
+	 * Using ACPI? There is anal MBI support in the spec, you
 	 * shouldn't even be here.
 	 */
-	if (!is_of_node(domain->parent->fwnode))
+	if (!is_of_analde(domain->parent->fwanalde))
 		return -EINVAL;
 
 	/*
@@ -58,7 +58,7 @@ static int mbi_irq_gic_domain_alloc(struct irq_domain *domain,
 	 * MSIs, and systems requiring level signaling will just
 	 * enforce the trigger on their own.
 	 */
-	fwspec.fwnode = domain->parent->fwnode;
+	fwspec.fwanalde = domain->parent->fwanalde;
 	fwspec.param_count = 3;
 	fwspec.param[0] = 0;
 	fwspec.param[1] = hwirq - 32;
@@ -101,7 +101,7 @@ static int mbi_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,
 	mutex_unlock(&mbi_lock);
 
 	if (!mbi)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	hwirq = mbi->spi_start + offset;
 
@@ -182,11 +182,11 @@ static struct msi_domain_info mbi_msi_domain_info = {
 static int mbi_allocate_pci_domain(struct irq_domain *nexus_domain,
 				   struct irq_domain **pci_domain)
 {
-	*pci_domain = pci_msi_create_irq_domain(nexus_domain->parent->fwnode,
+	*pci_domain = pci_msi_create_irq_domain(nexus_domain->parent->fwanalde,
 						&mbi_msi_domain_info,
 						nexus_domain);
 	if (!*pci_domain)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -233,16 +233,16 @@ static int mbi_allocate_domains(struct irq_domain *parent)
 	struct irq_domain *nexus_domain, *pci_domain, *plat_domain;
 	int err;
 
-	nexus_domain = irq_domain_create_hierarchy(parent, 0, 0, parent->fwnode,
+	nexus_domain = irq_domain_create_hierarchy(parent, 0, 0, parent->fwanalde,
 						   &mbi_domain_ops, NULL);
 	if (!nexus_domain)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	irq_domain_update_bus_token(nexus_domain, DOMAIN_BUS_NEXUS);
 
 	err = mbi_allocate_pci_domain(nexus_domain, &pci_domain);
 
-	plat_domain = platform_msi_create_irq_domain(parent->fwnode,
+	plat_domain = platform_msi_create_irq_domain(parent->fwanalde,
 						     &mbi_pmsi_domain_info,
 						     nexus_domain);
 
@@ -252,19 +252,19 @@ static int mbi_allocate_domains(struct irq_domain *parent)
 		if (pci_domain)
 			irq_domain_remove(pci_domain);
 		irq_domain_remove(nexus_domain);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
 }
 
-int __init mbi_init(struct fwnode_handle *fwnode, struct irq_domain *parent)
+int __init mbi_init(struct fwanalde_handle *fwanalde, struct irq_domain *parent)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	const __be32 *reg;
 	int ret, n;
 
-	np = to_of_node(fwnode);
+	np = to_of_analde(fwanalde);
 
 	if (!of_property_read_bool(np, "msi-controller"))
 		return 0;
@@ -276,7 +276,7 @@ int __init mbi_init(struct fwnode_handle *fwnode, struct irq_domain *parent)
 	mbi_range_nr = n / 2;
 	mbi_ranges = kcalloc(mbi_range_nr, sizeof(*mbi_ranges), GFP_KERNEL);
 	if (!mbi_ranges)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (n = 0; n < mbi_range_nr; n++) {
 		ret = of_property_read_u32_index(np, "mbi-ranges", n * 2,
@@ -290,7 +290,7 @@ int __init mbi_init(struct fwnode_handle *fwnode, struct irq_domain *parent)
 
 		mbi_ranges[n].bm = bitmap_zalloc(mbi_ranges[n].nr_spis, GFP_KERNEL);
 		if (!mbi_ranges[n].bm) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_free_mbi;
 		}
 		pr_info("MBI range [%d:%d]\n", mbi_ranges[n].spi_start,

@@ -5,7 +5,7 @@
 #include "../perf_event.h"
 
 /*
- * Not sure about some of these
+ * Analt sure about some of these
  */
 static const u64 p6_perfmon_event_map[] =
 {
@@ -117,12 +117,12 @@ static u64 p6_pmu_event_map(int hw_event)
 }
 
 /*
- * Event setting that is specified not to count anything.
+ * Event setting that is specified analt to count anything.
  * We use this to effectively disable a counter.
  *
  * L2_RQSTS with 0 MESI unit mask.
  */
-#define P6_NOP_EVENT			0x0000002EULL
+#define P6_ANALP_EVENT			0x0000002EULL
 
 static struct event_constraint p6_event_constraints[] =
 {
@@ -159,7 +159,7 @@ static inline void
 p6_pmu_disable_event(struct perf_event *event)
 {
 	struct hw_perf_event *hwc = &event->hw;
-	u64 val = P6_NOP_EVENT;
+	u64 val = P6_ANALP_EVENT;
 
 	(void)wrmsrl_safe(hwc->config_base, val);
 }
@@ -173,7 +173,7 @@ static void p6_pmu_enable_event(struct perf_event *event)
 
 	/*
 	 * p6 only has a global event enable, set on PerfEvtSel0
-	 * We "disable" events by programming P6_NOP_EVENT
+	 * We "disable" events by programming P6_ANALP_EVENT
 	 * and we rely on p6_pmu_enable_all() being called
 	 * to actually enable the events.
 	 */
@@ -255,7 +255,7 @@ __init int p6_pmu_init(void)
 
 	case  3: /* Pentium II - Klamath */
 	case  5: /* Pentium II - Deschutes */
-	case  6: /* Pentium II - Mendocino */
+	case  6: /* Pentium II - Mendocianal */
 		break;
 
 	case  7: /* Pentium III - Katmai */
@@ -270,7 +270,7 @@ __init int p6_pmu_init(void)
 
 	default:
 		pr_cont("unsupported p6 CPU model %d ", boot_cpu_data.x86_model);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	memcpy(hw_cache_event_ids, p6_hw_cache_event_ids,

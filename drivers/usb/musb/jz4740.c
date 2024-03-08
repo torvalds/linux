@@ -7,7 +7,7 @@
 
 #include <linux/clk.h>
 #include <linux/dma-mapping.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -28,7 +28,7 @@ struct jz4740_glue {
 static irqreturn_t jz4740_musb_interrupt(int irq, void *__hci)
 {
 	unsigned long	flags;
-	irqreturn_t	retval = IRQ_NONE, retval_dma = IRQ_NONE;
+	irqreturn_t	retval = IRQ_ANALNE, retval_dma = IRQ_ANALNE;
 	struct musb	*musb = __hci;
 
 	if (IS_ENABLED(CONFIG_USB_INVENTRA_DMA) && musb->dma_controller)
@@ -56,7 +56,7 @@ static irqreturn_t jz4740_musb_interrupt(int irq, void *__hci)
 	if (retval == IRQ_HANDLED || retval_dma == IRQ_HANDLED)
 		return IRQ_HANDLED;
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static struct musb_fifo_cfg jz4740_musb_fifo_cfg[] = {
@@ -66,7 +66,7 @@ static struct musb_fifo_cfg jz4740_musb_fifo_cfg[] = {
 };
 
 static const struct musb_hdrc_config jz4740_musb_config = {
-	/* Silicon does not implement USB OTG. */
+	/* Silicon does analt implement USB OTG. */
 	.multipoint	= 0,
 	/* Max EPs scanned, driver will decide which EP can be used. */
 	.num_eps	= 4,
@@ -86,14 +86,14 @@ static int jz4740_musb_role_switch_set(struct usb_role_switch *sw,
 		return 0;
 
 	switch (role) {
-	case USB_ROLE_NONE:
-		atomic_notifier_call_chain(&phy->notifier, USB_EVENT_NONE, phy);
+	case USB_ROLE_ANALNE:
+		atomic_analtifier_call_chain(&phy->analtifier, USB_EVENT_ANALNE, phy);
 		break;
 	case USB_ROLE_DEVICE:
-		atomic_notifier_call_chain(&phy->notifier, USB_EVENT_VBUS, phy);
+		atomic_analtifier_call_chain(&phy->analtifier, USB_EVENT_VBUS, phy);
 		break;
 	case USB_ROLE_HOST:
-		atomic_notifier_call_chain(&phy->notifier, USB_EVENT_ID, phy);
+		atomic_analtifier_call_chain(&phy->analtifier, USB_EVENT_ID, phy);
 		break;
 	}
 
@@ -107,17 +107,17 @@ static int jz4740_musb_init(struct musb *musb)
 	struct usb_role_switch_desc role_sw_desc = {
 		.set = jz4740_musb_role_switch_set,
 		.driver_data = glue,
-		.fwnode = dev_fwnode(dev),
+		.fwanalde = dev_fwanalde(dev),
 	};
 	int err;
 
 	glue->musb = musb;
 
 	if (IS_ENABLED(CONFIG_GENERIC_PHY)) {
-		musb->phy = devm_of_phy_get_by_index(dev, dev->of_node, 0);
+		musb->phy = devm_of_phy_get_by_index(dev, dev->of_analde, 0);
 		if (IS_ERR(musb->phy)) {
 			err = PTR_ERR(musb->phy);
-			if (err != -ENODEV) {
+			if (err != -EANALDEV) {
 				dev_err(dev, "Unable to get PHY\n");
 				return err;
 			}
@@ -139,12 +139,12 @@ static int jz4740_musb_init(struct musb *musb)
 			goto err_phy_shutdown;
 		}
 	} else {
-		if (dev->of_node)
+		if (dev->of_analde)
 			musb->xceiv = devm_usb_get_phy_by_phandle(dev, "phys", 0);
 		else
 			musb->xceiv = devm_usb_get_phy(dev, USB_PHY_TYPE_USB2);
 		if (IS_ERR(musb->xceiv)) {
-			dev_err(dev, "No transceiver configured\n");
+			dev_err(dev, "Anal transceiver configured\n");
 			return PTR_ERR(musb->xceiv);
 		}
 	}
@@ -157,7 +157,7 @@ static int jz4740_musb_init(struct musb *musb)
 	}
 
 	/*
-	 * Silicon does not implement ConfigData register.
+	 * Silicon does analt implement ConfigData register.
 	 * Set dyn_fifo to avoid reading EP config from hardware.
 	 */
 	musb->dyn_fifo = true;
@@ -194,7 +194,7 @@ static const struct musb_platform_ops jz4740_musb_ops = {
 	.init		= jz4740_musb_init,
 	.exit		= jz4740_musb_exit,
 #ifdef CONFIG_USB_INVENTRA_DMA
-	.dma_init	= musbhs_dma_controller_create_noirq,
+	.dma_init	= musbhs_dma_controller_create_analirq,
 	.dma_exit	= musbhs_dma_controller_destroy,
 #endif
 };
@@ -243,7 +243,7 @@ static int jz4740_probe(struct platform_device *pdev)
 
 	glue = devm_kzalloc(dev, sizeof(*glue), GFP_KERNEL);
 	if (!glue)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pdata = of_device_get_match_data(dev);
 	if (!pdata) {
@@ -254,7 +254,7 @@ static int jz4740_probe(struct platform_device *pdev)
 	musb = platform_device_alloc("musb-hdrc", PLATFORM_DEVID_AUTO);
 	if (!musb) {
 		dev_err(dev, "failed to allocate musb device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	clk = devm_clk_get(dev, "udc");
@@ -273,7 +273,7 @@ static int jz4740_probe(struct platform_device *pdev)
 	musb->dev.parent		= dev;
 	musb->dev.dma_mask		= &musb->dev.coherent_dma_mask;
 	musb->dev.coherent_dma_mask	= DMA_BIT_MASK(32);
-	device_set_of_node_from_dev(&musb->dev, dev);
+	device_set_of_analde_from_dev(&musb->dev, dev);
 
 	glue->pdev			= musb;
 	glue->clk			= clk;

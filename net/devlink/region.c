@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (c) 2016 Mellanox Technologies. All rights reserved.
- * Copyright (c) 2016 Jiri Pirko <jiri@mellanox.com>
+ * Copyright (c) 2016 Mellaanalx Techanallogies. All rights reserved.
+ * Copyright (c) 2016 Jiri Pirko <jiri@mellaanalx.com>
  */
 
 #include "devl_internal.h"
@@ -75,7 +75,7 @@ static int devlink_nl_region_snapshot_id_put(struct sk_buff *msg,
 	struct nlattr *snap_attr;
 	int err;
 
-	snap_attr = nla_nest_start_noflag(msg, DEVLINK_ATTR_REGION_SNAPSHOT);
+	snap_attr = nla_nest_start_analflag(msg, DEVLINK_ATTR_REGION_SNAPSHOT);
 	if (!snap_attr)
 		return -EINVAL;
 
@@ -99,7 +99,7 @@ static int devlink_nl_region_snapshots_id_put(struct sk_buff *msg,
 	struct nlattr *snapshots_attr;
 	int err;
 
-	snapshots_attr = nla_nest_start_noflag(msg,
+	snapshots_attr = nla_nest_start_analflag(msg,
 					       DEVLINK_ATTR_REGION_SNAPSHOTS);
 	if (!snapshots_attr)
 		return -EINVAL;
@@ -169,7 +169,7 @@ nla_put_failure:
 }
 
 static struct sk_buff *
-devlink_nl_region_notify_build(struct devlink_region *region,
+devlink_nl_region_analtify_build(struct devlink_region *region,
 			       struct devlink_snapshot *snapshot,
 			       enum devlink_command cmd, u32 portid, u32 seq)
 {
@@ -180,7 +180,7 @@ devlink_nl_region_notify_build(struct devlink_region *region,
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	hdr = genlmsg_put(msg, portid, seq, &devlink_nl_family, 0, cmd);
 	if (!hdr) {
@@ -226,7 +226,7 @@ out_free_msg:
 	return ERR_PTR(err);
 }
 
-static void devlink_nl_region_notify(struct devlink_region *region,
+static void devlink_nl_region_analtify(struct devlink_region *region,
 				     struct devlink_snapshot *snapshot,
 				     enum devlink_command cmd)
 {
@@ -235,30 +235,30 @@ static void devlink_nl_region_notify(struct devlink_region *region,
 
 	WARN_ON(cmd != DEVLINK_CMD_REGION_NEW && cmd != DEVLINK_CMD_REGION_DEL);
 
-	if (!__devl_is_registered(devlink) || !devlink_nl_notify_need(devlink))
+	if (!__devl_is_registered(devlink) || !devlink_nl_analtify_need(devlink))
 		return;
 
-	msg = devlink_nl_region_notify_build(region, snapshot, cmd, 0, 0);
+	msg = devlink_nl_region_analtify_build(region, snapshot, cmd, 0, 0);
 	if (IS_ERR(msg))
 		return;
 
-	devlink_nl_notify_send(devlink, msg);
+	devlink_nl_analtify_send(devlink, msg);
 }
 
-void devlink_regions_notify_register(struct devlink *devlink)
+void devlink_regions_analtify_register(struct devlink *devlink)
 {
 	struct devlink_region *region;
 
 	list_for_each_entry(region, &devlink->region_list, list)
-		devlink_nl_region_notify(region, NULL, DEVLINK_CMD_REGION_NEW);
+		devlink_nl_region_analtify(region, NULL, DEVLINK_CMD_REGION_NEW);
 }
 
-void devlink_regions_notify_unregister(struct devlink *devlink)
+void devlink_regions_analtify_unregister(struct devlink *devlink)
 {
 	struct devlink_region *region;
 
 	list_for_each_entry_reverse(region, &devlink->region_list, list)
-		devlink_nl_region_notify(region, NULL, DEVLINK_CMD_REGION_DEL);
+		devlink_nl_region_analtify(region, NULL, DEVLINK_CMD_REGION_DEL);
 }
 
 /**
@@ -355,11 +355,11 @@ unlock:
  *	snapshot xarray.
  *
  *	This must be called while holding the devlink instance lock. Unlike
- *	devlink_snapshot_id_get, the initial reference count is zero, not one.
+ *	devlink_snapshot_id_get, the initial reference count is zero, analt one.
  *	It is expected that the id will immediately be used before
  *	releasing the devlink instance lock.
  *
- *	Returns zero on success, or an error code if the snapshot id could not
+ *	Returns zero on success, or an error code if the snapshot id could analt
  *	be inserted.
  */
 static int __devlink_snapshot_id_insert(struct devlink *devlink, u32 id)
@@ -389,7 +389,7 @@ static int __devlink_snapshot_id_insert(struct devlink *devlink, u32 id)
  *	Snapshot IDs are tracked using an xarray which stores the number of
  *	users of the snapshot id.
  *
- *	Note that the caller of this function counts as a 'user', in order to
+ *	Analte that the caller of this function counts as a 'user', in order to
  *	avoid race conditions. The caller must release its hold on the
  *	snapshot by using devlink_region_snapshot_id_put.
  */
@@ -425,14 +425,14 @@ __devlink_region_snapshot_create(struct devlink_region *region,
 
 	/* check if region can hold one more snapshot */
 	if (region->cur_snapshots == region->max_snapshots)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	if (devlink_region_snapshot_get_by_id(region, snapshot_id))
 		return -EEXIST;
 
 	snapshot = kzalloc(sizeof(*snapshot), GFP_KERNEL);
 	if (!snapshot)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = __devlink_snapshot_id_increment(devlink, snapshot_id);
 	if (err)
@@ -446,7 +446,7 @@ __devlink_region_snapshot_create(struct devlink_region *region,
 
 	region->cur_snapshots++;
 
-	devlink_nl_region_notify(region, snapshot, DEVLINK_CMD_REGION_NEW);
+	devlink_nl_region_analtify(region, snapshot, DEVLINK_CMD_REGION_NEW);
 	return 0;
 
 err_snapshot_id_increment:
@@ -461,7 +461,7 @@ static void devlink_region_snapshot_del(struct devlink_region *region,
 
 	lockdep_assert_held(&region->snapshot_lock);
 
-	devlink_nl_region_notify(region, snapshot, DEVLINK_CMD_REGION_DEL);
+	devlink_nl_region_analtify(region, snapshot, DEVLINK_CMD_REGION_DEL);
 	region->cur_snapshots--;
 	list_del(&snapshot->list);
 	region->ops->destructor(snapshot->data);
@@ -487,7 +487,7 @@ int devlink_nl_region_get_doit(struct sk_buff *skb, struct genl_info *info)
 
 		port = devlink_port_get_by_index(devlink, index);
 		if (!port)
-			return -ENODEV;
+			return -EANALDEV;
 	}
 
 	region_name = nla_data(info->attrs[DEVLINK_ATTR_REGION_NAME]);
@@ -501,7 +501,7 @@ int devlink_nl_region_get_doit(struct sk_buff *skb, struct genl_info *info)
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = devlink_nl_region_fill(msg, devlink, DEVLINK_CMD_REGION_GET,
 				     info->snd_portid, info->snd_seq, 0,
@@ -610,7 +610,7 @@ int devlink_nl_region_del_doit(struct sk_buff *skb, struct genl_info *info)
 
 		port = devlink_port_get_by_index(devlink, index);
 		if (!port)
-			return -ENODEV;
+			return -EANALDEV;
 	}
 
 	if (port)
@@ -647,7 +647,7 @@ int devlink_nl_region_new_doit(struct sk_buff *skb, struct genl_info *info)
 	int err;
 
 	if (GENL_REQ_ATTR_CHECK(info, DEVLINK_ATTR_REGION_NAME)) {
-		NL_SET_ERR_MSG(info->extack, "No region name provided");
+		NL_SET_ERR_MSG(info->extack, "Anal region name provided");
 		return -EINVAL;
 	}
 
@@ -658,7 +658,7 @@ int devlink_nl_region_new_doit(struct sk_buff *skb, struct genl_info *info)
 
 		port = devlink_port_get_by_index(devlink, index);
 		if (!port)
-			return -ENODEV;
+			return -EANALDEV;
 	}
 
 	if (port)
@@ -667,20 +667,20 @@ int devlink_nl_region_new_doit(struct sk_buff *skb, struct genl_info *info)
 		region = devlink_region_get_by_name(devlink, region_name);
 
 	if (!region) {
-		NL_SET_ERR_MSG(info->extack, "The requested region does not exist");
+		NL_SET_ERR_MSG(info->extack, "The requested region does analt exist");
 		return -EINVAL;
 	}
 
 	if (!region->ops->snapshot) {
-		NL_SET_ERR_MSG(info->extack, "The requested region does not support taking an immediate snapshot");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG(info->extack, "The requested region does analt support taking an immediate snapshot");
+		return -EOPANALTSUPP;
 	}
 
 	mutex_lock(&region->snapshot_lock);
 
 	if (region->cur_snapshots == region->max_snapshots) {
 		NL_SET_ERR_MSG(info->extack, "The region has reached the maximum number of stored snapshots");
-		err = -ENOSPC;
+		err = -EANALSPC;
 		goto unlock;
 	}
 
@@ -728,17 +728,17 @@ int devlink_nl_region_new_doit(struct sk_buff *skb, struct genl_info *info)
 			goto unlock;
 		}
 
-		msg = devlink_nl_region_notify_build(region, snapshot,
+		msg = devlink_nl_region_analtify_build(region, snapshot,
 						     DEVLINK_CMD_REGION_NEW,
 						     info->snd_portid,
 						     info->snd_seq);
 		err = PTR_ERR_OR_ZERO(msg);
 		if (err)
-			goto err_notify;
+			goto err_analtify;
 
 		err = genlmsg_reply(msg, info);
 		if (err)
-			goto err_notify;
+			goto err_analtify;
 	}
 
 	mutex_unlock(&region->snapshot_lock);
@@ -751,7 +751,7 @@ err_snapshot_capture:
 	mutex_unlock(&region->snapshot_lock);
 	return err;
 
-err_notify:
+err_analtify:
 	devlink_region_snapshot_del(region, snapshot);
 unlock:
 	mutex_unlock(&region->snapshot_lock);
@@ -765,7 +765,7 @@ static int devlink_nl_cmd_region_read_chunk_fill(struct sk_buff *msg,
 	struct nlattr *chunk_attr;
 	int err;
 
-	chunk_attr = nla_nest_start_noflag(msg, DEVLINK_ATTR_REGION_CHUNK);
+	chunk_attr = nla_nest_start_analflag(msg, DEVLINK_ATTR_REGION_CHUNK);
 	if (!chunk_attr)
 		return -EINVAL;
 
@@ -804,7 +804,7 @@ devlink_nl_region_read_fill(struct sk_buff *skb, devlink_chunk_fill_t *cb,
 	/* Allocate and re-use a single buffer */
 	data = kmalloc(DEVLINK_REGION_READ_CHUNK_SIZE, GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*new_offset = start_offset;
 
@@ -889,7 +889,7 @@ int devlink_nl_region_read_dumpit(struct sk_buff *skb,
 		return PTR_ERR(devlink);
 
 	if (!attrs[DEVLINK_ATTR_REGION_NAME]) {
-		NL_SET_ERR_MSG(cb->extack, "No region name provided");
+		NL_SET_ERR_MSG(cb->extack, "Anal region name provided");
 		err = -EINVAL;
 		goto out_unlock;
 	}
@@ -899,7 +899,7 @@ int devlink_nl_region_read_dumpit(struct sk_buff *skb,
 
 		port = devlink_port_get_by_index(devlink, index);
 		if (!port) {
-			err = -ENODEV;
+			err = -EANALDEV;
 			goto out_unlock;
 		}
 	}
@@ -913,7 +913,7 @@ int devlink_nl_region_read_dumpit(struct sk_buff *skb,
 		region = devlink_region_get_by_name(devlink, region_name);
 
 	if (!region) {
-		NL_SET_ERR_MSG_ATTR(cb->extack, region_attr, "Requested region does not exist");
+		NL_SET_ERR_MSG_ATTR(cb->extack, region_attr, "Requested region does analt exist");
 		err = -EINVAL;
 		goto out_unlock;
 	}
@@ -921,14 +921,14 @@ int devlink_nl_region_read_dumpit(struct sk_buff *skb,
 	snapshot_attr = attrs[DEVLINK_ATTR_REGION_SNAPSHOT_ID];
 	if (!snapshot_attr) {
 		if (!nla_get_flag(attrs[DEVLINK_ATTR_REGION_DIRECT])) {
-			NL_SET_ERR_MSG(cb->extack, "No snapshot id provided");
+			NL_SET_ERR_MSG(cb->extack, "Anal snapshot id provided");
 			err = -EINVAL;
 			goto out_unlock;
 		}
 
 		if (!region->ops->read) {
-			NL_SET_ERR_MSG(cb->extack, "Requested region does not support direct read");
-			err = -EOPNOTSUPP;
+			NL_SET_ERR_MSG(cb->extack, "Requested region does analt support direct read");
+			err = -EOPANALTSUPP;
 			goto out_unlock;
 		}
 
@@ -942,7 +942,7 @@ int devlink_nl_region_read_dumpit(struct sk_buff *skb,
 		u32 snapshot_id;
 
 		if (nla_get_flag(attrs[DEVLINK_ATTR_REGION_DIRECT])) {
-			NL_SET_ERR_MSG_ATTR(cb->extack, snapshot_attr, "Direct region read does not use snapshot");
+			NL_SET_ERR_MSG_ATTR(cb->extack, snapshot_attr, "Direct region read does analt use snapshot");
 			err = -EINVAL;
 			goto out_unlock;
 		}
@@ -950,7 +950,7 @@ int devlink_nl_region_read_dumpit(struct sk_buff *skb,
 		snapshot_id = nla_get_u32(snapshot_attr);
 		snapshot = devlink_region_snapshot_get_by_id(region, snapshot_id);
 		if (!snapshot) {
-			NL_SET_ERR_MSG_ATTR(cb->extack, snapshot_attr, "Requested snapshot does not exist");
+			NL_SET_ERR_MSG_ATTR(cb->extack, snapshot_attr, "Requested snapshot does analt exist");
 			err = -EINVAL;
 			goto out_unlock;
 		}
@@ -971,7 +971,7 @@ int devlink_nl_region_read_dumpit(struct sk_buff *skb,
 	if (end_offset > region->size)
 		end_offset = region->size;
 
-	/* return 0 if there is no further data to read */
+	/* return 0 if there is anal further data to read */
 	if (start_offset == end_offset) {
 		err = 0;
 		goto out_unlock;
@@ -1000,7 +1000,7 @@ int devlink_nl_region_read_dumpit(struct sk_buff *skb,
 	if (err)
 		goto nla_put_failure;
 
-	chunks_attr = nla_nest_start_noflag(skb, DEVLINK_ATTR_REGION_CHUNKS);
+	chunks_attr = nla_nest_start_analflag(skb, DEVLINK_ATTR_REGION_CHUNKS);
 	if (!chunks_attr) {
 		err = -EMSGSIZE;
 		goto nla_put_failure;
@@ -1060,7 +1060,7 @@ struct devlink_region *devl_region_create(struct devlink *devlink,
 
 	region = kzalloc(sizeof(*region), GFP_KERNEL);
 	if (!region)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	region->devlink = devlink;
 	region->max_snapshots = region_max_snapshots;
@@ -1069,7 +1069,7 @@ struct devlink_region *devl_region_create(struct devlink *devlink,
 	INIT_LIST_HEAD(&region->snapshot_list);
 	mutex_init(&region->snapshot_lock);
 	list_add_tail(&region->list, &devlink->region_list);
-	devlink_nl_region_notify(region, NULL, DEVLINK_CMD_REGION_NEW);
+	devlink_nl_region_analtify(region, NULL, DEVLINK_CMD_REGION_NEW);
 
 	return region;
 }
@@ -1133,7 +1133,7 @@ devlink_port_region_create(struct devlink_port *port,
 
 	region = kzalloc(sizeof(*region), GFP_KERNEL);
 	if (!region) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto unlock;
 	}
 
@@ -1145,7 +1145,7 @@ devlink_port_region_create(struct devlink_port *port,
 	INIT_LIST_HEAD(&region->snapshot_list);
 	mutex_init(&region->snapshot_lock);
 	list_add_tail(&region->list, &port->region_list);
-	devlink_nl_region_notify(region, NULL, DEVLINK_CMD_REGION_NEW);
+	devlink_nl_region_analtify(region, NULL, DEVLINK_CMD_REGION_NEW);
 
 	devl_unlock(devlink);
 	return region;
@@ -1177,7 +1177,7 @@ void devl_region_destroy(struct devlink_region *region)
 	list_del(&region->list);
 	mutex_destroy(&region->snapshot_lock);
 
-	devlink_nl_region_notify(region, NULL, DEVLINK_CMD_REGION_DEL);
+	devlink_nl_region_analtify(region, NULL, DEVLINK_CMD_REGION_DEL);
 	kfree(region);
 }
 EXPORT_SYMBOL_GPL(devl_region_destroy);

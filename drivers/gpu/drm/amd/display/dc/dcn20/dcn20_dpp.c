@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -57,7 +57,7 @@ void dpp20_read_state(struct dpp *dpp_base,
 			DPP_CLOCK_ENABLE, &s->is_enabled);
 	REG_GET(CM_DGAM_CONTROL,
 			CM_DGAM_LUT_MODE, &s->dgam_lut_mode);
-	// BGAM has no ROM, and definition is different, can't reuse same dump
+	// BGAM has anal ROM, and definition is different, can't reuse same dump
 	//REG_GET(CM_BLNDGAM_CONTROL,
 	//		CM_BLNDGAM_LUT_MODE, &s->rgam_lut_mode);
 	REG_GET(CM_GAMUT_REMAP_CONTROL,
@@ -167,7 +167,7 @@ static void dpp2_cnv_setup (
 		break;
 	case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616:
 	case SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616:
-		pixel_format = 26; /* ARGB16161616_UNORM */
+		pixel_format = 26; /* ARGB16161616_UANALRM */
 		break;
 	case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616F:
 		pixel_format = 24;
@@ -212,7 +212,7 @@ static void dpp2_cnv_setup (
 		break;
 	}
 
-	/* Set default color space based on format if none is given. */
+	/* Set default color space based on format if analne is given. */
 	color_space = input_color_space ? input_color_space : color_space;
 
 	if (is_2bit == 1 && alpha_2bit_lut != NULL) {
@@ -354,7 +354,7 @@ void dpp2_set_cursor_attributes(
 			CUR0_EXPANSION_MODE, 0,
 			CUR0_ROM_EN, cur_rom_en);
 
-	if (color_format == CURSOR_MODE_MONO) {
+	if (color_format == CURSOR_MODE_MOANAL) {
 		/* todo: clarify what to program these to */
 		REG_UPDATE(CURSOR0_COLOR0,
 				CUR0_COLOR0, 0x00000000);

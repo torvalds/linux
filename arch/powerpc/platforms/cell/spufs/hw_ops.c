@@ -5,7 +5,7 @@
  * Author: Mark Nutter <mnutter@us.ibm.com>
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -53,21 +53,21 @@ static __poll_t spu_hw_mbox_stat_poll(struct spu_context *ctx, __poll_t events)
 	stat = in_be32(&spu->problem->mb_stat_R);
 
 	/* if the requested event is there, return the poll
-	   mask, otherwise enable the interrupt to get notified,
+	   mask, otherwise enable the interrupt to get analtified,
 	   but first mark any pending interrupts as done so
 	   we don't get woken up unnecessarily */
 
-	if (events & (EPOLLIN | EPOLLRDNORM)) {
+	if (events & (EPOLLIN | EPOLLRDANALRM)) {
 		if (stat & 0xff0000)
-			ret |= EPOLLIN | EPOLLRDNORM;
+			ret |= EPOLLIN | EPOLLRDANALRM;
 		else {
 			spu_int_stat_clear(spu, 2, CLASS2_MAILBOX_INTR);
 			spu_int_mask_or(spu, 2, CLASS2_ENABLE_MAILBOX_INTR);
 		}
 	}
-	if (events & (EPOLLOUT | EPOLLWRNORM)) {
+	if (events & (EPOLLOUT | EPOLLWRANALRM)) {
 		if (stat & 0x00ff00)
-			ret = EPOLLOUT | EPOLLWRNORM;
+			ret = EPOLLOUT | EPOLLWRANALRM;
 		else {
 			spu_int_stat_clear(spu, 2,
 					CLASS2_MAILBOX_THRESHOLD_INTR);
@@ -123,12 +123,12 @@ static int spu_hw_wbox_write(struct spu_context *ctx, u32 data)
 
 static void spu_hw_signal1_write(struct spu_context *ctx, u32 data)
 {
-	out_be32(&ctx->spu->problem->signal_notify1, data);
+	out_be32(&ctx->spu->problem->signal_analtify1, data);
 }
 
 static void spu_hw_signal2_write(struct spu_context *ctx, u32 data)
 {
-	out_be32(&ctx->spu->problem->signal_notify2, data);
+	out_be32(&ctx->spu->problem->signal_analtify2, data);
 }
 
 static void spu_hw_signal1_type_set(struct spu_context *ctx, u64 val)

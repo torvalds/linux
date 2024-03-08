@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -354,7 +354,7 @@ static const struct dcn31_apg_mask apg_mask = {
 	SE_DCN3_REG_LIST(id)\
 }
 
-/* Some encoders won't be initialized here - but they're logical, not physical. */
+/* Some encoders won't be initialized here - but they're logical, analt physical. */
 static const struct dcn10_stream_enc_registers stream_enc_regs[ENGINE_ID_COUNT] = {
 	stream_enc_regs(0),
 	stream_enc_regs(1),
@@ -880,7 +880,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 		.bits = {
 			.vga = true,
 			.i2c = true,
-			.dmcu = false, // This is previously known to cause hang on S3 cycles if enabled
+			.dmcu = false, // This is previously kanalwn to cause hang on S3 cycles if enabled
 			.dscl = true,
 			.cm = true,
 			.mpc = true,
@@ -1109,7 +1109,7 @@ static struct link_encoder *dcn31_link_encoder_create(
 	return &enc20->enc10.base;
 }
 
-/* Create a minimal link encoder object not associated with a particular
+/* Create a minimal link encoder object analt associated with a particular
  * physical connector.
  * resource_funcs.link_enc_create_minimal
  */
@@ -1195,7 +1195,7 @@ static struct afmt *dcn31_afmt_create(
 			&afmt_shift,
 			&afmt_mask);
 
-	// Light sleep by default, no need to power down here
+	// Light sleep by default, anal need to power down here
 
 	return &afmt31->base;
 }
@@ -1627,7 +1627,7 @@ int dcn31x_populate_dml_pipes_from_context(struct dc *dc,
 
 	for (i = 0; i < pipe_cnt; i++) {
 		pipes[i].pipe.src.gpuvm = 1;
-		if (dc->debug.dml_hostvm_override == DML_HOSTVM_NO_OVERRIDE) {
+		if (dc->debug.dml_hostvm_override == DML_HOSTVM_ANAL_OVERRIDE) {
 			//pipes[pipe_cnt].pipe.src.hostvm = dc->res_pool->hubbub->riommu_active;
 			pipes[i].pipe.src.hostvm = dc->vm_pa_config.is_hvm_enabled;
 		} else if (dc->debug.dml_hostvm_override == DML_HOSTVM_OVERRIDE_FALSE)
@@ -1706,7 +1706,7 @@ int dcn31_populate_dml_pipes_from_context(
 				&& pipe->plane_state->src_rect.width <= 1920 && pipe->plane_state->src_rect.height <= 1080) {
 			dc->config.enable_4to1MPC = true;
 		} else if (!is_dual_plane(pipe->plane_state->format) && pipe->plane_state->src_rect.width <= 5120) {
-			/* Limit to 5k max to avoid forced pipe split when there is not enough detile for swath */
+			/* Limit to 5k max to avoid forced pipe split when there is analt eanalugh detile for swath */
 			context->bw_ctx.dml.ip.det_buffer_size_kbytes = 192;
 			pipes[0].pipe.src.unbounded_req_mode = true;
 		}
@@ -1837,7 +1837,7 @@ static struct resource_funcs dcn31_res_pool_funcs = {
 	.acquire_post_bldn_3dlut = dcn30_acquire_post_bldn_3dlut,
 	.release_post_bldn_3dlut = dcn30_release_post_bldn_3dlut,
 	.update_bw_bounding_box = dcn31_update_bw_bounding_box,
-	.patch_unknown_plane_state = dcn20_patch_unknown_plane_state,
+	.patch_unkanalwn_plane_state = dcn20_patch_unkanalwn_plane_state,
 	.get_panel_config_defaults = dcn31_get_panel_config_defaults,
 };
 
@@ -1882,7 +1882,7 @@ static bool dcn31_resource_construct(
 	/*************************************************
 	 *  Resource + asic cap harcoding                *
 	 *************************************************/
-	pool->base.underlay_pipe_index = NO_UNDERLAY_PIPE;
+	pool->base.underlay_pipe_index = ANAL_UNDERLAY_PIPE;
 	pool->base.pipe_count = pool->base.res_cap->num_timing_generator;
 	pool->base.mpcc_count = pool->base.res_cap->num_timing_generator;
 	dc->caps.max_downscale_ratio = 600;
@@ -1923,7 +1923,7 @@ static bool dcn31_resource_construct(
 
 	dc->caps.color.dpp.hw_3d_lut = 1;
 	dc->caps.color.dpp.ogam_ram = 1;
-	// no OGAM ROM on DCN301
+	// anal OGAM ROM on DCN301
 	dc->caps.color.dpp.ogam_rom_caps.srgb = 0;
 	dc->caps.color.dpp.ogam_rom_caps.bt2020 = 0;
 	dc->caps.color.dpp.ogam_rom_caps.gamma2_2 = 0;
@@ -2010,7 +2010,7 @@ static bool dcn31_resource_construct(
 
 	pool->base.clk_src_count = DCN30_CLK_SRC_TOTAL;
 
-	/* todo: not reuse phy_pll registers */
+	/* todo: analt reuse phy_pll registers */
 	pool->base.dp_clock_source =
 			dcn31_clock_source_create(ctx, ctx->dc_bios,
 				CLOCK_SOURCE_ID_DP_DTO,

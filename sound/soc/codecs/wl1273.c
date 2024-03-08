@@ -2,9 +2,9 @@
 /*
  * ALSA SoC WL1273 codec driver
  *
- * Author:      Matti Aaltonen, <matti.j.aaltonen@nokia.com>
+ * Author:      Matti Aaltonen, <matti.j.aaltonen@analkia.com>
  *
- * Copyright:   (C) 2010, 2011 Nokia Corporation
+ * Copyright:   (C) 2010, 2011 Analkia Corporation
  */
 
 #include <linux/mfd/wl1273-core.h>
@@ -66,7 +66,7 @@ static int snd_wl1273_fm_set_i2s_mode(struct wl1273_core *core,
 		mode |= WL1273_IS2_RATE_8K;
 		break;
 	default:
-		dev_err(dev, "Sampling rate: %d not supported\n", rate);
+		dev_err(dev, "Sampling rate: %d analt supported\n", rate);
 		r = -EINVAL;
 		goto out;
 	}
@@ -100,7 +100,7 @@ static int snd_wl1273_fm_set_i2s_mode(struct wl1273_core *core,
 		mode |= WL1273_IS2_WIDTH_128;
 		break;
 	default:
-		dev_err(dev, "Data width: %d not supported\n", width);
+		dev_err(dev, "Data width: %d analt supported\n", width);
 		r = -EINVAL;
 		goto out;
 	}
@@ -140,13 +140,13 @@ static int snd_wl1273_fm_set_channel_number(struct wl1273_core *core,
 		goto out;
 
 	if (channel_number == 1 && core->mode == WL1273_MODE_RX)
-		r = core->write(core, WL1273_MOST_MODE_SET, WL1273_RX_MONO);
+		r = core->write(core, WL1273_MOST_MODE_SET, WL1273_RX_MOANAL);
 	else if (channel_number == 1 && core->mode == WL1273_MODE_TX)
-		r = core->write(core, WL1273_MONO_SET, WL1273_TX_MONO);
+		r = core->write(core, WL1273_MOANAL_SET, WL1273_TX_MOANAL);
 	else if (channel_number == 2 && core->mode == WL1273_MODE_RX)
 		r = core->write(core, WL1273_MOST_MODE_SET, WL1273_RX_STEREO);
 	else if (channel_number == 2 && core->mode == WL1273_MODE_TX)
-		r = core->write(core, WL1273_MONO_SET, WL1273_TX_STEREO);
+		r = core->write(core, WL1273_MOANAL_SET, WL1273_TX_STEREO);
 	else
 		r = -EINVAL;
 out:
@@ -167,7 +167,7 @@ static int snd_wl1273_get_audio_route(struct snd_kcontrol *kcontrol,
 }
 
 /*
- * TODO: Implement the audio routing in the driver. Now this control
+ * TODO: Implement the audio routing in the driver. Analw this control
  * only indicates the setting that has been done elsewhere (in the user
  * space).
  */
@@ -182,7 +182,7 @@ static int snd_wl1273_set_audio_route(struct snd_kcontrol *kcontrol,
 	if (wl1273->mode == ucontrol->value.enumerated.item[0])
 		return 0;
 
-	/* Do not allow changes while stream is running */
+	/* Do analt allow changes while stream is running */
 	if (snd_soc_component_active(component))
 		return -EPERM;
 
@@ -299,13 +299,13 @@ static int wl1273_startup(struct snd_pcm_substream *substream,
 		break;
 	case WL1273_MODE_FM_RX:
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-			pr_err("Cannot play in RX mode.\n");
+			pr_err("Cananalt play in RX mode.\n");
 			return -EINVAL;
 		}
 		break;
 	case WL1273_MODE_FM_TX:
 		if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
-			pr_err("Cannot capture in TX mode.\n");
+			pr_err("Cananalt capture in TX mode.\n");
 			return -EINVAL;
 		}
 		break;
@@ -325,7 +325,7 @@ static int wl1273_hw_params(struct snd_pcm_substream *substream,
 	unsigned int rate, width, r;
 
 	if (params_width(params) != 16) {
-		dev_err(dai->dev, "%d bits/sample not supported\n",
+		dev_err(dai->dev, "%d bits/sample analt supported\n",
 			params_width(params));
 		return -EINVAL;
 	}
@@ -335,12 +335,12 @@ static int wl1273_hw_params(struct snd_pcm_substream *substream,
 
 	if (wl1273->mode == WL1273_MODE_BT) {
 		if (rate != 8000) {
-			pr_err("Rate %d not supported.\n", params_rate(params));
+			pr_err("Rate %d analt supported.\n", params_rate(params));
 			return -EINVAL;
 		}
 
 		if (params_channels(params) != 1) {
-			pr_err("Only mono supported.\n");
+			pr_err("Only moanal supported.\n");
 			return -EINVAL;
 		}
 
@@ -445,7 +445,7 @@ static int wl1273_probe(struct snd_soc_component *component)
 
 	wl1273 = kzalloc(sizeof(struct wl1273_priv), GFP_KERNEL);
 	if (!wl1273)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wl1273->mode = WL1273_MODE_BT;
 	wl1273->core = *core;
@@ -495,6 +495,6 @@ static struct platform_driver wl1273_platform_driver = {
 
 module_platform_driver(wl1273_platform_driver);
 
-MODULE_AUTHOR("Matti Aaltonen <matti.j.aaltonen@nokia.com>");
+MODULE_AUTHOR("Matti Aaltonen <matti.j.aaltonen@analkia.com>");
 MODULE_DESCRIPTION("ASoC WL1273 codec driver");
 MODULE_LICENSE("GPL");

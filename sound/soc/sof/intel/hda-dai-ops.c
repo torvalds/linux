@@ -53,7 +53,7 @@ hda_link_stream_assign(struct hdac_bus *bus, struct snd_pcm_substream *substream
 	int stream_dir = substream->stream;
 
 	if (!bus->ppcap) {
-		dev_err(bus->dev, "stream type not supported\n");
+		dev_err(bus->dev, "stream type analt supported\n");
 		return NULL;
 	}
 
@@ -71,7 +71,7 @@ hda_link_stream_assign(struct hdac_bus *bus, struct snd_pcm_substream *substream
 		/* check if link is available */
 		if (!hext_stream->link_locked) {
 			/*
-			 * choose the first available link for platforms that do not have the
+			 * choose the first available link for platforms that do analt have the
 			 * PROCEN_FMT_QUIRK set.
 			 */
 			if (!(chip->quirks & SOF_INTEL_PROCEN_FMT_QUIRK)) {
@@ -340,7 +340,7 @@ static int hda_ipc4_pre_trigger(struct snd_sof_dev *sdev, struct snd_soc_dai *cp
 		pipeline->state = SOF_IPC4_PIPE_PAUSED;
 		break;
 	default:
-		dev_err(sdev->dev, "unknown trigger command %d\n", cmd);
+		dev_err(sdev->dev, "unkanalwn trigger command %d\n", cmd);
 		ret = -EINVAL;
 	}
 out:
@@ -364,7 +364,7 @@ static int hda_trigger(struct snd_sof_dev *sdev, struct snd_soc_dai *cpu_dai,
 		snd_hdac_ext_stream_clear(hext_stream);
 		break;
 	default:
-		dev_err(sdev->dev, "unknown trigger command %d\n", cmd);
+		dev_err(sdev->dev, "unkanalwn trigger command %d\n", cmd);
 		return -EINVAL;
 	}
 
@@ -426,7 +426,7 @@ static int hda_ipc4_post_trigger(struct snd_sof_dev *sdev, struct snd_soc_dai *c
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		break;
 	default:
-		dev_err(sdev->dev, "unknown trigger command %d\n", cmd);
+		dev_err(sdev->dev, "unkanalwn trigger command %d\n", cmd);
 		ret = -EINVAL;
 		break;
 	}
@@ -582,7 +582,7 @@ static void hda_dspless_setup_hext_stream(struct snd_sof_dev *sdev,
 {
 	/*
 	 * Save the format_val which was adjusted by the maxbps of the codec.
-	 * This information is not available on the FE side since there we are
+	 * This information is analt available on the FE side since there we are
 	 * using dummy_codec.
 	 */
 	hext_stream->hstream.format_val = format_val;

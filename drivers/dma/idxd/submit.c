@@ -38,7 +38,7 @@ struct idxd_desc *idxd_alloc_desc(struct idxd_wq *wq, enum idxd_op_type optype)
 	sbq = &wq->sbq;
 	idx = sbitmap_queue_get(sbq, &cpu);
 	if (idx < 0) {
-		if (optype == IDXD_OP_NONBLOCK)
+		if (optype == IDXD_OP_ANALNBLOCK)
 			return ERR_PTR(-EAGAIN);
 	} else {
 		return __get_desc(wq, idx, cpu);
@@ -87,7 +87,7 @@ static struct idxd_desc *list_abort_desc(struct idxd_wq *wq, struct idxd_irq_ent
 
 	/*
 	 * At this point, the desc needs to be aborted is held by the completion
-	 * handler where it has taken it off the pending list but has not added to the
+	 * handler where it has taken it off the pending list but has analt added to the
 	 * work list. It will be cleaned up by the interrupt handler when it sees the
 	 * IDXD_COMP_DESC_ABORT for completion status.
 	 */
@@ -98,7 +98,7 @@ static void llist_abort_desc(struct idxd_wq *wq, struct idxd_irq_entry *ie,
 			     struct idxd_desc *desc)
 {
 	struct idxd_desc *d, *t, *found = NULL;
-	struct llist_node *head;
+	struct llist_analde *head;
 	LIST_HEAD(flist);
 
 	desc->completion->status = IDXD_COMP_DESC_ABORT;
@@ -109,7 +109,7 @@ static void llist_abort_desc(struct idxd_wq *wq, struct idxd_irq_entry *ie,
 	spin_lock(&ie->list_lock);
 	head = llist_del_all(&ie->pending_llist);
 	if (head) {
-		llist_for_each_entry_safe(d, t, head, llnode) {
+		llist_for_each_entry_safe(d, t, head, llanalde) {
 			if (d == desc) {
 				found = desc;
 				continue;
@@ -134,7 +134,7 @@ static void llist_abort_desc(struct idxd_wq *wq, struct idxd_irq_entry *ie,
 	 * completing the descriptor will return desc to allocator and
 	 * the desc can be acquired by a different process and the
 	 * desc->list can be modified.  Delete desc from list so the
-	 * list trasversing does not get corrupted by the other process.
+	 * list trasversing does analt get corrupted by the other process.
 	 */
 	list_for_each_entry_safe(d, t, &flist, list) {
 		list_del_init(&d->list);
@@ -150,7 +150,7 @@ static void llist_abort_desc(struct idxd_wq *wq, struct idxd_irq_entry *ie,
  * exported to a guest kernel, it may be shared with multiple guest kernels. This means
  * the likelihood of getting busy returned on the swq when submitting goes significantly up.
  * Having a tunable retry mechanism allows the driver to keep trying for a bit before giving
- * up. The sysfs knob can be tuned by the system administrator.
+ * up. The sysfs kanalb can be tuned by the system administrator.
  */
 int idxd_enqcmds(struct idxd_wq *wq, void __iomem *portal, const void *desc)
 {
@@ -193,7 +193,7 @@ int idxd_submit_desc(struct idxd_wq *wq, struct idxd_desc *desc)
 	if (desc_flags & IDXD_OP_FLAG_RCI) {
 		ie = &wq->ie;
 		desc->hw->int_handle = ie->int_handle;
-		llist_add(&desc->llnode, &ie->pending_llist);
+		llist_add(&desc->llanalde, &ie->pending_llist);
 	}
 
 	/*

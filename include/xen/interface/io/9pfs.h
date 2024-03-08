@@ -2,7 +2,7 @@
 /*
  * 9pfs.h -- Xen 9PFS transport
  *
- * Copyright (C) 2017 Stefano Stabellini <stefano@aporeto.com>
+ * Copyright (C) 2017 Stefaanal Stabellini <stefaanal@aporeto.com>
  */
 
 #ifndef __XEN_PUBLIC_IO_9PFS_H__

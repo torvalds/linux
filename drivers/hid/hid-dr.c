@@ -82,31 +82,31 @@ static int drff_init(struct hid_device *hid)
 	int error;
 
 	if (list_empty(&hid->inputs)) {
-		hid_err(hid, "no inputs found\n");
-		return -ENODEV;
+		hid_err(hid, "anal inputs found\n");
+		return -EANALDEV;
 	}
 	hidinput = list_first_entry(&hid->inputs, struct hid_input, list);
 	dev = hidinput->input;
 
 	if (list_empty(report_list)) {
-		hid_err(hid, "no output reports found\n");
-		return -ENODEV;
+		hid_err(hid, "anal output reports found\n");
+		return -EANALDEV;
 	}
 
 	report = list_first_entry(report_list, struct hid_report, list);
 	if (report->maxfield < 1) {
-		hid_err(hid, "no fields in the report\n");
-		return -ENODEV;
+		hid_err(hid, "anal fields in the report\n");
+		return -EANALDEV;
 	}
 
 	if (report->field[0]->report_count < 7) {
-		hid_err(hid, "not enough values in the field\n");
-		return -ENODEV;
+		hid_err(hid, "analt eanalugh values in the field\n");
+		return -EANALDEV;
 	}
 
 	drff = kzalloc(sizeof(struct drff_device), GFP_KERNEL);
 	if (!drff)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	set_bit(FF_RUMBLE, dev->ffbit);
 
@@ -140,7 +140,7 @@ static inline int drff_init(struct hid_device *hid)
 
 /*
  * The original descriptor of joystick with PID 0x0011, represented by DVTech PC
- * JS19. It seems both copied from another device and a result of confusion
+ * JS19. It seems both copied from aanalther device and a result of confusion
  * either about the specification or about the program used to create the
  * descriptor. In any case, it's a wonder it works on Windows.
  *

@@ -9,7 +9,7 @@
 
 #ifdef CONFIG_ARM64_PTR_AUTH_KERNEL
 
-	.macro __ptrauth_keys_install_kernel_nosync tsk, tmp1, tmp2, tmp3
+	.macro __ptrauth_keys_install_kernel_analsync tsk, tmp1, tmp2, tmp3
 	mov	\tmp1, #THREAD_KEYS_KERNEL
 	add	\tmp1, \tsk, \tmp1
 	ldp	\tmp2, \tmp3, [\tmp1, #PTRAUTH_KERNEL_KEY_APIA]
@@ -17,25 +17,25 @@
 	msr_s	SYS_APIAKEYHI_EL1, \tmp3
 	.endm
 
-	.macro ptrauth_keys_install_kernel_nosync tsk, tmp1, tmp2, tmp3
+	.macro ptrauth_keys_install_kernel_analsync tsk, tmp1, tmp2, tmp3
 alternative_if ARM64_HAS_ADDRESS_AUTH
-	__ptrauth_keys_install_kernel_nosync \tsk, \tmp1, \tmp2, \tmp3
-alternative_else_nop_endif
+	__ptrauth_keys_install_kernel_analsync \tsk, \tmp1, \tmp2, \tmp3
+alternative_else_analp_endif
 	.endm
 
 	.macro ptrauth_keys_install_kernel tsk, tmp1, tmp2, tmp3
 alternative_if ARM64_HAS_ADDRESS_AUTH
-	__ptrauth_keys_install_kernel_nosync \tsk, \tmp1, \tmp2, \tmp3
+	__ptrauth_keys_install_kernel_analsync \tsk, \tmp1, \tmp2, \tmp3
 	isb
-alternative_else_nop_endif
+alternative_else_analp_endif
 	.endm
 
 #else /* CONFIG_ARM64_PTR_AUTH_KERNEL */
 
-	.macro __ptrauth_keys_install_kernel_nosync tsk, tmp1, tmp2, tmp3
+	.macro __ptrauth_keys_install_kernel_analsync tsk, tmp1, tmp2, tmp3
 	.endm
 
-	.macro ptrauth_keys_install_kernel_nosync tsk, tmp1, tmp2, tmp3
+	.macro ptrauth_keys_install_kernel_analsync tsk, tmp1, tmp2, tmp3
 	.endm
 
 	.macro ptrauth_keys_install_kernel tsk, tmp1, tmp2, tmp3
@@ -63,23 +63,23 @@ alternative_else_nop_endif
 	mrs_s	\tmp2, SYS_ID_AA64ISAR2_EL1
 	ubfx	\tmp2, \tmp2, #ID_AA64ISAR2_EL1_APA3_SHIFT, #4
 	orr	\tmp1, \tmp1, \tmp2
-	cbz	\tmp1, .Lno_addr_auth\@
+	cbz	\tmp1, .Lanal_addr_auth\@
 	mov_q	\tmp1, (SCTLR_ELx_ENIA | SCTLR_ELx_ENIB | \
 			SCTLR_ELx_ENDA | SCTLR_ELx_ENDB)
 	mrs	\tmp2, sctlr_el1
 	orr	\tmp2, \tmp2, \tmp1
 	msr	sctlr_el1, \tmp2
-	__ptrauth_keys_install_kernel_nosync \tsk, \tmp1, \tmp2, \tmp3
+	__ptrauth_keys_install_kernel_analsync \tsk, \tmp1, \tmp2, \tmp3
 	isb
-.Lno_addr_auth\@:
+.Lanal_addr_auth\@:
 	.endm
 
 	.macro ptrauth_keys_init_cpu tsk, tmp1, tmp2, tmp3
-alternative_if_not ARM64_HAS_ADDRESS_AUTH
-	b	.Lno_addr_auth\@
-alternative_else_nop_endif
+alternative_if_analt ARM64_HAS_ADDRESS_AUTH
+	b	.Lanal_addr_auth\@
+alternative_else_analp_endif
 	__ptrauth_keys_init_cpu \tsk, \tmp1, \tmp2, \tmp3
-.Lno_addr_auth\@:
+.Lanal_addr_auth\@:
 	.endm
 
 #else /* !CONFIG_ARM64_PTR_AUTH */

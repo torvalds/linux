@@ -11,10 +11,10 @@ Required properties:
 - in1-supply: The input supply for LDO1.
 ...
 - in20-supply: The input supply for LDO20.
-- regulators: A node that houses a sub-node for each regulator within the
-  device. Each sub-node is identified using the node's name (or the deprecated
+- regulators: A analde that houses a sub-analde for each regulator within the
+  device. Each sub-analde is identified using the analde's name (or the deprecated
   regulator-compatible property if present), with valid values listed below.
-  The content of each sub-node is defined by the standard binding for
+  The content of each sub-analde is defined by the standard binding for
   regulators; see regulator.txt.
 
 Optional properties:

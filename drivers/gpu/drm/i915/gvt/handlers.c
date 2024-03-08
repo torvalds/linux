@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -101,7 +101,7 @@ struct intel_gvt_mmio_info *intel_gvt_find_mmio_info(struct intel_gvt *gvt,
 {
 	struct intel_gvt_mmio_info *e;
 
-	hash_for_each_possible(gvt->mmio.mmio_info_table, e, node, offset) {
+	hash_for_each_possible(gvt->mmio.mmio_info_table, e, analde, offset) {
 		if (e->offset == offset)
 			return e;
 	}
@@ -127,9 +127,9 @@ static int setup_mmio_info(struct intel_gvt *gvt, u32 offset, u32 size,
 	for (i = start; i < end; i += 4) {
 		p = intel_gvt_find_mmio_info(gvt, i);
 		if (!p) {
-			WARN(1, "assign a handler to a non-tracked mmio %x\n",
+			WARN(1, "assign a handler to a analn-tracked mmio %x\n",
 				i);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 		p->ro_mask = ro_mask;
 		gvt->mmio.mmio_attribute[i / 4] = flags;
@@ -177,7 +177,7 @@ void enter_failsafe_mode(struct intel_vgpu *vgpu, int reason)
 		pr_err("Detected your guest driver doesn't support GVT-g.\n");
 		break;
 	case GVT_FAILSAFE_INSUFFICIENT_RESOURCE:
-		pr_err("Graphics resource is not enough for the guest\n");
+		pr_err("Graphics resource is analt eanalugh for the guest\n");
 		break;
 	case GVT_FAILSAFE_GUEST_ERR:
 		pr_err("GVT Internal error  for the guest\n");
@@ -185,7 +185,7 @@ void enter_failsafe_mode(struct intel_vgpu *vgpu, int reason)
 	default:
 		break;
 	}
-	pr_err("Now vgpu %d will enter failsafe mode.\n", vgpu->id);
+	pr_err("Analw vgpu %d will enter failsafe mode.\n", vgpu->id);
 	vgpu->failsafe = true;
 }
 
@@ -199,10 +199,10 @@ static int sanitize_fence_mmio_access(struct intel_vgpu *vgpu,
 			     fence_num, max_fence);
 
 		/* When guest access oob fence regs without access
-		 * pv_info first, we treat guest not supporting GVT,
+		 * pv_info first, we treat guest analt supporting GVT,
 		 * and we will let vgpu enter failsafe mode.
 		 */
-		if (!vgpu->pv_notified)
+		if (!vgpu->pv_analtified)
 			enter_failsafe_mode(vgpu,
 					GVT_FAILSAFE_UNSUPPORTED_GUEST);
 
@@ -224,10 +224,10 @@ static int gamw_echo_dev_rw_ia_write(struct intel_vgpu *vgpu,
 			gvt_dbg_core("vgpu%d: ips disabled\n", vgpu->id);
 		else {
 			/* All engines must be enabled together for vGPU,
-			 * since we don't know which engine the ppgtt will
+			 * since we don't kanalw which engine the ppgtt will
 			 * bind to when shadowing.
 			 */
-			gvt_vgpu_err("Unsupported IPS setting %x, cannot enable 64K gtt.\n",
+			gvt_vgpu_err("Unsupported IPS setting %x, cananalt enable 64K gtt.\n",
 				     ips);
 			return -EINVAL;
 		}
@@ -295,7 +295,7 @@ static int mul_force_wake_write(struct intel_vgpu *vgpu,
 			ack_reg_offset = FORCEWAKE_ACK_MEDIA_GEN9_REG;
 			break;
 		default:
-			/*should not hit here*/
+			/*should analt hit here*/
 			gvt_vgpu_err("invalid forcewake offset 0x%x\n", offset);
 			return -EINVAL;
 		}
@@ -556,7 +556,7 @@ static u32 bxt_vgpu_get_dp_bitrate(struct intel_vgpu *vgpu, enum port port)
 		ch = DPIO_CH1;
 		break;
 	default:
-		gvt_dbg_dpy("vgpu-%d no PHY for PORT_%c\n", vgpu->id, port_name(port));
+		gvt_dbg_dpy("vgpu-%d anal PHY for PORT_%c\n", vgpu->id, port_name(port));
 		goto out;
 	}
 
@@ -714,7 +714,7 @@ static int pipeconf_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 }
 
 /* sorted in ascending order */
-static i915_reg_t force_nonpriv_white_list[] = {
+static i915_reg_t force_analnpriv_white_list[] = {
 	_MMIO(0xd80),
 	GEN9_CS_DEBUG_MODE1, //_MMIO(0x20ec)
 	GEN9_CTX_PREEMPT_REG,//_MMIO(0x2248)
@@ -751,8 +751,8 @@ static i915_reg_t force_nonpriv_white_list[] = {
 /* a simple bsearch */
 static inline bool in_whitelist(u32 reg)
 {
-	int left = 0, right = ARRAY_SIZE(force_nonpriv_white_list);
-	i915_reg_t *array = force_nonpriv_white_list;
+	int left = 0, right = ARRAY_SIZE(force_analnpriv_white_list);
+	i915_reg_t *array = force_analnpriv_white_list;
 
 	while (left < right) {
 		int mid = (left + right)/2;
@@ -767,23 +767,23 @@ static inline bool in_whitelist(u32 reg)
 	return false;
 }
 
-static int force_nonpriv_write(struct intel_vgpu *vgpu,
+static int force_analnpriv_write(struct intel_vgpu *vgpu,
 	unsigned int offset, void *p_data, unsigned int bytes)
 {
-	u32 reg_nonpriv = (*(u32 *)p_data) & REG_GENMASK(25, 2);
+	u32 reg_analnpriv = (*(u32 *)p_data) & REG_GENMASK(25, 2);
 	const struct intel_engine_cs *engine =
 		intel_gvt_render_mmio_to_engine(vgpu->gvt, offset);
 
 	if (bytes != 4 || !IS_ALIGNED(offset, bytes) || !engine) {
-		gvt_err("vgpu(%d) Invalid FORCE_NONPRIV offset %x(%dB)\n",
+		gvt_err("vgpu(%d) Invalid FORCE_ANALNPRIV offset %x(%dB)\n",
 			vgpu->id, offset, bytes);
 		return -EINVAL;
 	}
 
-	if (!in_whitelist(reg_nonpriv) &&
-	    reg_nonpriv != i915_mmio_reg_offset(RING_NOPID(engine->mmio_base))) {
-		gvt_err("vgpu(%d) Invalid FORCE_NONPRIV write %x at offset %x\n",
-			vgpu->id, reg_nonpriv, offset);
+	if (!in_whitelist(reg_analnpriv) &&
+	    reg_analnpriv != i915_mmio_reg_offset(RING_ANALPID(engine->mmio_base))) {
+		gvt_err("vgpu(%d) Invalid FORCE_ANALNPRIV write %x at offset %x\n",
+			vgpu->id, reg_analnpriv, offset);
 	} else
 		intel_vgpu_default_mmio_write(vgpu, offset, p_data, bytes);
 
@@ -1210,7 +1210,7 @@ static int dp_aux_ch_ctl_mmio_write(struct intel_vgpu *vgpu,
 			/*
 			 * Write request exceeds what we supported,
 			 * DCPD spec: When a Source Device is writing a DPCD
-			 * address not supported by the Sink Device, the Sink
+			 * address analt supported by the Sink Device, the Sink
 			 * Device shall reply with AUX NACK and “M” equal to
 			 * zero.
 			 */
@@ -1462,11 +1462,11 @@ static int pvinfo_mmio_read(struct intel_vgpu *vgpu, unsigned int offset,
 	if (invalid_read)
 		gvt_vgpu_err("invalid pvinfo read: [%x:%x] = %x\n",
 				offset, bytes, *(u32 *)p_data);
-	vgpu->pv_notified = true;
+	vgpu->pv_analtified = true;
 	return 0;
 }
 
-static int handle_g2v_notification(struct intel_vgpu *vgpu, int notification)
+static int handle_g2v_analtification(struct intel_vgpu *vgpu, int analtification)
 {
 	enum intel_gvt_gtt_type root_entry_type = GTT_TYPE_PPGTT_ROOT_L4_ENTRY;
 	struct intel_vgpu_mm *mm;
@@ -1474,7 +1474,7 @@ static int handle_g2v_notification(struct intel_vgpu *vgpu, int notification)
 
 	pdps = (u64 *)&vgpu_vreg64_t(vgpu, vgtif_reg(pdp[0]));
 
-	switch (notification) {
+	switch (analtification) {
 	case VGT_G2V_PPGTT_L3_PAGE_TABLE_CREATE:
 		root_entry_type = GTT_TYPE_PPGTT_ROOT_L3_ENTRY;
 		fallthrough;
@@ -1489,7 +1489,7 @@ static int handle_g2v_notification(struct intel_vgpu *vgpu, int notification)
 	case 1:	/* Remove this in guest driver. */
 		break;
 	default:
-		gvt_vgpu_err("Invalid PV notification %d\n", notification);
+		gvt_vgpu_err("Invalid PV analtification %d\n", analtification);
 	}
 	return 0;
 }
@@ -1520,8 +1520,8 @@ static int pvinfo_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 	case _vgtif_reg(display_ready):
 		send_display_ready_uevent(vgpu, data ? 1 : 0);
 		break;
-	case _vgtif_reg(g2v_notify):
-		handle_g2v_notification(vgpu, data);
+	case _vgtif_reg(g2v_analtify):
+		handle_g2v_analtification(vgpu, data);
 		break;
 	/* add xhot and yhot to handled list to avoid error log */
 	case _vgtif_reg(cursor_x_hot):
@@ -1605,8 +1605,8 @@ static int fpga_dbg_mmio_write(struct intel_vgpu *vgpu,
 {
 	write_vreg(vgpu, offset, p_data, bytes);
 
-	if (vgpu_vreg(vgpu, offset) & FPGA_DBG_RM_NOCLAIM)
-		vgpu_vreg(vgpu, offset) &= ~FPGA_DBG_RM_NOCLAIM;
+	if (vgpu_vreg(vgpu, offset) & FPGA_DBG_RM_ANALCLAIM)
+		vgpu_vreg(vgpu, offset) &= ~FPGA_DBG_RM_ANALCLAIM;
 	return 0;
 }
 
@@ -1725,7 +1725,7 @@ static int mailbox_write(struct intel_vgpu *vgpu, unsigned int offset,
 		     vgpu->id, value, *data0);
 	/**
 	 * PCODE_READY clear means ready for pcode read/write,
-	 * PCODE_ERROR_MASK clear means no error happened. In GVT-g we
+	 * PCODE_ERROR_MASK clear means anal error happened. In GVT-g we
 	 * always emulate as pcode read/write success and ready for access
 	 * anytime, since we don't touch real physical registers here.
 	 */
@@ -1753,7 +1753,7 @@ static int hws_pga_write(struct intel_vgpu *vgpu, unsigned int offset,
 	 * support BDW, SKL or other platforms with same HWSP registers.
 	 */
 	if (unlikely(!engine)) {
-		gvt_vgpu_err("access unknown hardware status page register:0x%x\n",
+		gvt_vgpu_err("access unkanalwn hardware status page register:0x%x\n",
 			     offset);
 		return -EINVAL;
 	}
@@ -1904,11 +1904,11 @@ static int edp_psr_imr_iir_write(struct intel_vgpu *vgpu,
 
 /*
  * FixMe:
- * If guest fills non-priv batch buffer on ApolloLake/Broxton as Mesa i965 did:
+ * If guest fills analn-priv batch buffer on ApolloLake/Broxton as Mesa i965 did:
  * 717e7539124d (i965: Use a WC map and memcpy for the batch instead of pwrite.)
  * Due to the missing flush of bb filled by VM vCPU, host GPU hangs on executing
  * these MI_BATCH_BUFFER.
- * Temporarily workaround this by setting SNOOP bit for PAT3 used by PPGTT
+ * Temporarily workaround this by setting SANALOP bit for PAT3 used by PPGTT
  * PML4 PTE: PAT(0) PCD(1) PWT(1).
  * The performance is still expected to be low, will need further improvement.
  */
@@ -1916,14 +1916,14 @@ static int bxt_ppat_low_write(struct intel_vgpu *vgpu, unsigned int offset,
 			      void *p_data, unsigned int bytes)
 {
 	u64 pat =
-		GEN8_PPAT(0, CHV_PPAT_SNOOP) |
+		GEN8_PPAT(0, CHV_PPAT_SANALOP) |
 		GEN8_PPAT(1, 0) |
 		GEN8_PPAT(2, 0) |
-		GEN8_PPAT(3, CHV_PPAT_SNOOP) |
-		GEN8_PPAT(4, CHV_PPAT_SNOOP) |
-		GEN8_PPAT(5, CHV_PPAT_SNOOP) |
-		GEN8_PPAT(6, CHV_PPAT_SNOOP) |
-		GEN8_PPAT(7, CHV_PPAT_SNOOP);
+		GEN8_PPAT(3, CHV_PPAT_SANALOP) |
+		GEN8_PPAT(4, CHV_PPAT_SANALOP) |
+		GEN8_PPAT(5, CHV_PPAT_SANALOP) |
+		GEN8_PPAT(6, CHV_PPAT_SANALOP) |
+		GEN8_PPAT(7, CHV_PPAT_SANALOP);
 
 	vgpu_vreg(vgpu, offset) = lower_32_bits(pat);
 
@@ -1984,7 +1984,7 @@ static int elsp_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 	 * vGPU reset, it's set on D0->D3 on PCI config write, and cleared after
 	 * vGPU reset if in resuming.
 	 * In S0ix exit, the device power state also transite from D3 to D0 as
-	 * S3 resume, but no vGPU reset (triggered by QEMU devic model). After
+	 * S3 resume, but anal vGPU reset (triggered by QEMU devic model). After
 	 * S0ix exit, all engines continue to work. However the d3_entered
 	 * remains set which will break next vGPU reset logic (miss the expected
 	 * PPGTT invalidation).
@@ -2037,12 +2037,12 @@ static int ring_mode_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 	}
 
 	/* when PPGTT mode enabled, we will check if guest has called
-	 * pvinfo, if not, we will treat this guest as non-gvtg-aware
+	 * pvinfo, if analt, we will treat this guest as analn-gvtg-aware
 	 * guest, and stop emulating its cfg space, mmio, gtt, etc.
 	 */
 	if ((IS_MASKED_BITS_ENABLED(data, GFX_PPGTT_ENABLE) ||
 	    IS_MASKED_BITS_ENABLED(data, GFX_RUN_LIST_ENABLE)) &&
-	    !vgpu->pv_notified) {
+	    !vgpu->pv_analtified) {
 		enter_failsafe_mode(vgpu, GVT_FAILSAFE_UNSUPPORTED_GUEST);
 		return 0;
 	}
@@ -2548,7 +2548,7 @@ static int init_bdw_mmio_info(struct intel_gvt *gvt)
 	MMIO_DFH(_MMIO(0xb10c), D_BDW, F_CMD_ACCESS, NULL, NULL);
 
 	MMIO_F(_MMIO(0x24d0), 48, F_CMD_ACCESS | F_CMD_WRITE_PATCH, 0, 0,
-		D_BDW_PLUS, NULL, force_nonpriv_write);
+		D_BDW_PLUS, NULL, force_analnpriv_write);
 
 	MMIO_DFH(_MMIO(0x83a4), D_BDW, F_CMD_ACCESS, NULL, NULL);
 
@@ -2818,11 +2818,11 @@ static struct gvt_mmio_block *find_mmio_block(struct intel_gvt *gvt,
  */
 void intel_gvt_clean_mmio_info(struct intel_gvt *gvt)
 {
-	struct hlist_node *tmp;
+	struct hlist_analde *tmp;
 	struct intel_gvt_mmio_info *e;
 	int i;
 
-	hash_for_each_safe(gvt->mmio.mmio_info_table, i, tmp, e, node)
+	hash_for_each_safe(gvt->mmio.mmio_info_table, i, tmp, e, analde)
 		kfree(e);
 
 	kfree(gvt->mmio.mmio_block);
@@ -2860,13 +2860,13 @@ static int handle_mmio(struct intel_gvt_mmio_table_iter *iter, u32 offset,
 
 		info = kzalloc(sizeof(*info), GFP_KERNEL);
 		if (!info)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		info->offset = i;
 		info->read = intel_vgpu_default_mmio_read;
 		info->write = intel_vgpu_default_mmio_write;
-		INIT_HLIST_NODE(&info->node);
-		hash_add(gvt->mmio.mmio_info_table, &info->node, info->offset);
+		INIT_HLIST_ANALDE(&info->analde);
+		hash_add(gvt->mmio.mmio_info_table, &info->analde, info->offset);
 		gvt->mmio.num_tracked_mmio++;
 	}
 	return 0;
@@ -2883,7 +2883,7 @@ static int handle_mmio_block(struct intel_gvt_mmio_table_iter *iter,
 			 (gvt->mmio.num_mmio_block + 1) * sizeof(*block),
 			 GFP_KERNEL);
 	if (!ret)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gvt->mmio.mmio_block = block = ret;
 
@@ -2927,7 +2927,7 @@ static int init_mmio_block_handlers(struct intel_gvt *gvt)
 	if (!block) {
 		WARN(1, "fail to assign handlers to mmio block %x\n",
 		     i915_mmio_reg_offset(gvt->mmio.mmio_block->offset));
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	block->read = pvinfo_mmio_read;
@@ -2955,7 +2955,7 @@ int intel_gvt_setup_mmio_info(struct intel_gvt *gvt)
 
 	gvt->mmio.mmio_attribute = vzalloc(size);
 	if (!gvt->mmio.mmio_attribute)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = init_mmio_info(gvt);
 	if (ret)
@@ -3018,7 +3018,7 @@ int intel_gvt_for_each_tracked_mmio(struct intel_gvt *gvt,
 	struct intel_gvt_mmio_info *e;
 	int i, j, ret;
 
-	hash_for_each(gvt->mmio.mmio_info_table, i, e, node) {
+	hash_for_each(gvt->mmio.mmio_info_table, i, e, analde) {
 		ret = handler(gvt, e->offset, data);
 		if (ret)
 			return ret;
@@ -3097,17 +3097,17 @@ int intel_vgpu_mask_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 }
 
 /**
- * intel_gvt_in_force_nonpriv_whitelist - if a mmio is in whitelist to be
- * force-nopriv register
+ * intel_gvt_in_force_analnpriv_whitelist - if a mmio is in whitelist to be
+ * force-analpriv register
  *
  * @gvt: a GVT device
  * @offset: register offset
  *
  * Returns:
- * True if the register is in force-nonpriv whitelist;
+ * True if the register is in force-analnpriv whitelist;
  * False if outside;
  */
-bool intel_gvt_in_force_nonpriv_whitelist(struct intel_gvt *gvt,
+bool intel_gvt_in_force_analnpriv_whitelist(struct intel_gvt *gvt,
 					  unsigned int offset)
 {
 	return in_whitelist(offset);
@@ -3149,7 +3149,7 @@ int intel_vgpu_mmio_reg_rw(struct intel_vgpu *vgpu, unsigned int offset,
 	}
 
 	/*
-	 * Normal tracked MMIOs.
+	 * Analrmal tracked MMIOs.
 	 */
 	mmio_info = intel_gvt_find_mmio_info(gvt, offset);
 	if (!mmio_info) {

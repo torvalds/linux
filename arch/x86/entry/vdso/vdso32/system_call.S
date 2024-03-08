@@ -16,7 +16,7 @@ __kernel_vsyscall:
 	CFI_STARTPROC
 	/*
 	 * Reshuffle regs so that all of any of the entry instructions
-	 * will preserve enough state.
+	 * will preserve eanalugh state.
 	 *
 	 * A really nice entry sequence would be:
 	 *  pushl %edx
@@ -26,14 +26,14 @@ __kernel_vsyscall:
 	 * Unfortunately, naughty Android versions between July and December
 	 * 2015 actually hardcode the traditional Linux SYSENTER entry
 	 * sequence.  That is severely broken for a number of reasons (ask
-	 * anyone with an AMD CPU, for example).  Nonetheless, we try to keep
+	 * anyone with an AMD CPU, for example).  Analnetheless, we try to keep
 	 * it working approximately as well as it ever worked.
 	 *
 	 * This link may elucidate some of the history:
 	 *   https://android-review.googlesource.com/#/q/Iac3295376d61ef83e713ac9b528f3b50aa780cd7
 	 * personally, I find it hard to understand what's going on there.
 	 *
-	 * Note to future user developers: DO NOT USE SYSENTER IN YOUR CODE.
+	 * Analte to future user developers: DO ANALT USE SYSENTER IN YOUR CODE.
 	 * Execute an indirect call to the address in the AT_SYSINFO auxv
 	 * entry.  That is the ONLY correct way to make a fast 32-bit system
 	 * call on Linux.  (Open-coding int $0x80 is also fine, but it's
@@ -65,7 +65,7 @@ __kernel_vsyscall:
 SYM_INNER_LABEL(int80_landing_pad, SYM_L_GLOBAL)
 
 	/*
-	 * Restore EDX and ECX in case they were clobbered.  EBP is not
+	 * Restore EDX and ECX in case they were clobbered.  EBP is analt
 	 * clobbered (the kernel restores it), but it's cleaner and
 	 * probably faster to pop it than to adjust ESP using addl.
 	 */

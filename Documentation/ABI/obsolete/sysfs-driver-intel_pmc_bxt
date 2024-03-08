@@ -1,5 +1,5 @@
 These files allow sending arbitrary IPC commands to the PMC/SCU which
-may be dangerous. These will be removed eventually and should not be
+may be dangerous. These will be removed eventually and should analt be
 used in any new applications.
 
 What:		/sys/bus/platform/devices/INT34D2:00/simplecmd
@@ -12,11 +12,11 @@ Description:	This interface allows userspace to send an arbitrary
 		Format: %d %d where first number is command and
 		second number is subcommand.
 
-What:		/sys/bus/platform/devices/INT34D2:00/northpeak
+What:		/sys/bus/platform/devices/INT34D2:00/analrthpeak
 Date:		Jun 2015
 KernelVersion:	4.1
 Contact:	Mika Westerberg <mika.westerberg@linux.intel.com>
 Description:	This interface allows userspace to enable and disable
-		Northpeak through the PMC/SCU.
+		Analrthpeak through the PMC/SCU.
 
 		Format: %u.

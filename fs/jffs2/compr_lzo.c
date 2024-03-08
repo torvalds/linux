@@ -1,7 +1,7 @@
 /*
  * JFFS2 -- Journalling Flash File System, Version 2.
  *
- * Copyright © 2007 Nokia Corporation. All rights reserved.
+ * Copyright © 2007 Analkia Corporation. All rights reserved.
  * Copyright © 2004-2010 David Woodhouse <dwmw2@infradead.org>
  *
  * Created by Richard Purdie <rpurdie@openedhand.com>
@@ -34,7 +34,7 @@ static int __init alloc_workspace(void)
 
 	if (!lzo_mem || !lzo_compress_buf) {
 		free_workspace();
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;

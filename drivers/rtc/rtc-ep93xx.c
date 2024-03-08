@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * A driver for the RTC embedded in the Cirrus Logic EP93XX processors
- * Copyright (c) 2006 Tower Technologies
+ * Copyright (c) 2006 Tower Techanallogies
  *
  * Author: Alessandro Zummo <a.zummo@towertech.it>
  */
@@ -127,7 +127,7 @@ static int ep93xx_rtc_probe(struct platform_device *pdev)
 
 	ep93xx_rtc = devm_kzalloc(&pdev->dev, sizeof(*ep93xx_rtc), GFP_KERNEL);
 	if (!ep93xx_rtc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ep93xx_rtc->mmio_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ep93xx_rtc->mmio_base))

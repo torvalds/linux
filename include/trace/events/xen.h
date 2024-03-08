@@ -21,7 +21,7 @@ DECLARE_EVENT_CLASS(xen_mc__batch,
 	    TP_fast_assign(__entry->mode = mode),
 	    TP_printk("start batch LAZY_%s",
 		      (__entry->mode == XEN_LAZY_MMU) ? "MMU" :
-		      (__entry->mode == XEN_LAZY_CPU) ? "CPU" : "NONE")
+		      (__entry->mode == XEN_LAZY_CPU) ? "CPU" : "ANALNE")
 	);
 #define DEFINE_XEN_MC_BATCH(name)			\
 	DEFINE_EVENT(xen_mc__batch, name,		\
@@ -89,7 +89,7 @@ TRACE_EVENT(xen_mc_flush_reason,
 		    ),
 	    TP_fast_assign(__entry->reason = reason),
 	    TP_printk("flush reason %s",
-		      (__entry->reason == XEN_MC_FL_NONE) ? "NONE" :
+		      (__entry->reason == XEN_MC_FL_ANALNE) ? "ANALNE" :
 		      (__entry->reason == XEN_MC_FL_BATCH) ? "BATCH" :
 		      (__entry->reason == XEN_MC_FL_ARGS) ? "ARGS" :
 		      (__entry->reason == XEN_MC_FL_CALLBACK) ? "CALLBACK" : "??")
@@ -126,7 +126,7 @@ TRACE_EVENT(xen_mc_extend_args,
 		      __entry->args,
 		      __entry->res == XEN_MC_XE_OK ? "OK" :
 		      __entry->res == XEN_MC_XE_BAD_OP ? "BAD_OP" :
-		      __entry->res == XEN_MC_XE_NO_SPACE ? "NO_SPACE" : "???")
+		      __entry->res == XEN_MC_XE_ANAL_SPACE ? "ANAL_SPACE" : "???")
 	);
 
 TRACE_DEFINE_SIZEOF(pteval_t);

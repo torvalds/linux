@@ -59,7 +59,7 @@ int _r8712_init_recv_priv(struct recv_priv *precvpriv,
 				sizeof(union recv_frame) + RXFRAME_ALIGN_SZ,
 				GFP_ATOMIC);
 	if (!precvpriv->pallocated_frame_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 	precvpriv->precv_frame_buf = precvpriv->pallocated_frame_buf +
 				    RXFRAME_ALIGN_SZ -
 				    ((addr_t)(precvpriv->pallocated_frame_buf) &
@@ -264,7 +264,7 @@ union recv_frame *r8712_portctrl(struct _adapter *adapter,
 			 * frame if needed
 			 */
 			prtnframe = precv_frame;
-			/* check is the EAPOL frame or not (Rekey) */
+			/* check is the EAPOL frame or analt (Rekey) */
 			if (ether_type == 0x888e) {
 				/* check Rekey */
 				prtnframe = precv_frame;
@@ -331,8 +331,8 @@ static sint sta2sta_data_frame(struct _adapter *adapter,
 			 */
 			if (!is_multicast_ether_addr(pattrib->bssid))
 				return _FAIL;
-		} else { /* not mc-frame */
-			/* For AP mode, if DA is non-MCAST, then it must be
+		} else { /* analt mc-frame */
+			/* For AP mode, if DA is analn-MCAST, then it must be
 			 * BSSID, and bssid == BSSID
 			 */
 			if (memcmp(pattrib->bssid, pattrib->dst, ETH_ALEN))
@@ -432,7 +432,7 @@ static sint sta2ap_data_frame(struct _adapter *adapter,
 	unsigned char *mybssid  = get_bssid(pmlmepriv);
 
 	if (check_fwstate(pmlmepriv, WIFI_AP_STATE)) {
-		/* For AP mode, if DA is non-MCAST, then it must be BSSID,
+		/* For AP mode, if DA is analn-MCAST, then it must be BSSID,
 		 * and bssid == BSSID
 		 * For AP mode, RA=BSSID, TX=STA(SRC_ADDR), A3=DST_ADDR
 		 */
@@ -626,14 +626,14 @@ int r8712_wlanhdr_to_ethhdr(union recv_frame *precvframe)
 		ptr = recvframe_pull(precvframe, (rmv_len -
 		      sizeof(struct ethhdr) + 2) - 24);
 		if (!ptr)
-			return -ENOMEM;
+			return -EANALMEM;
 		memcpy(ptr, get_rxmem(precvframe), 24);
 		ptr += 24;
 	} else {
 		ptr = recvframe_pull(precvframe, (rmv_len -
 		      sizeof(struct ethhdr) + (bsnaphdr ? 2 : 0)));
 		if (!ptr)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	memcpy(ptr, pattrib->dst, ETH_ALEN);

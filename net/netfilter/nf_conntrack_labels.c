@@ -36,7 +36,7 @@ int nf_connlabels_replace(struct nf_conn *ct,
 
 	labels = nf_ct_labels_find(ct);
 	if (!labels)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	size = sizeof(labels->bits);
 	if (size < (words32 * sizeof(u32)))

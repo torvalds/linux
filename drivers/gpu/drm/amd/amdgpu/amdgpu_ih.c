@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -64,7 +64,7 @@ int amdgpu_ih_ring_init(struct amdgpu_device *adev, struct amdgpu_ih_ring *ih,
 		ih->ring = dma_alloc_coherent(adev->dev, ih->ring_size + 8,
 					      &dma_addr, GFP_KERNEL);
 		if (ih->ring == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ih->gpu_addr = dma_addr;
 		ih->wptr_addr = dma_addr + ih->ring_size;
@@ -184,7 +184,7 @@ int amdgpu_ih_wait_on_checkpoint_process_ts(struct amdgpu_device *adev,
 	long timeout = HZ;
 
 	if (!ih->enabled || adev->shutdown)
-		return -ENODEV;
+		return -EANALDEV;
 
 	checkpoint_wptr = amdgpu_ih_get_wptr(adev, ih);
 	/* Order wptr with ring data. */
@@ -211,7 +211,7 @@ int amdgpu_ih_process(struct amdgpu_device *adev, struct amdgpu_ih_ring *ih)
 	u32 wptr;
 
 	if (!ih->enabled || adev->shutdown)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	wptr = amdgpu_ih_get_wptr(adev, ih);
 
@@ -274,7 +274,7 @@ void amdgpu_ih_decode_iv_helper(struct amdgpu_device *adev,
 	entry->timestamp = dw[1] | ((u64)(dw[2] & 0xffff) << 32);
 	entry->timestamp_src = dw[2] >> 31;
 	entry->pasid = dw[3] & 0xffff;
-	entry->node_id = (dw[3] >> 16) & 0xff;
+	entry->analde_id = (dw[3] >> 16) & 0xff;
 	entry->src_data[0] = dw[4];
 	entry->src_data[1] = dw[5];
 	entry->src_data[2] = dw[6];

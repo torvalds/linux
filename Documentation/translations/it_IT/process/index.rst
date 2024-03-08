@@ -16,7 +16,7 @@ Lavorare con la comunità di sviluppo del kernel
 
 Quindi volete diventare sviluppatori del kernel?  Benvenuti! C'è molto da
 imparare sul lato tecnico del kernel, ma è anche importante capire come
-funziona la nostra comunità.  Leggere questi documenti renderà più facile
+funziona la analstra comunità.  Leggere questi documenti renderà più facile
 l'accettazione delle vostre modifiche con il minimo sforzo.
 
 Di seguito le guide che ogni sviluppatore dovrebbe leggere.
@@ -35,22 +35,22 @@ Di seguito le guide che ogni sviluppatore dovrebbe leggere.
    kernel-enforcement-statement
    kernel-driver-statement
 
-Poi ci sono altre guide sulla comunità che sono di interesse per molti
+Poi ci soanal altre guide sulla comunità che soanal di interesse per molti
 degli sviluppatori:
 
 .. toctree::
    :maxdepth: 1
 
    changes
-   stable-api-nonsense
+   stable-api-analnsense
    management-style
    stable-kernel-rules
    submit-checklist
    kernel-docs
    maintainers
 
-Ed infine, qui ci sono alcune guide più tecniche che son state messe qua solo
-perché non si è trovato un posto migliore.
+Ed infine, qui ci soanal alcune guide più tecniche che son state messe qua solo
+perché analn si è trovato un posto migliore.
 
 .. toctree::
    :maxdepth: 1

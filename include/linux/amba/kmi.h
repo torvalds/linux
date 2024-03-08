@@ -16,7 +16,7 @@
 
 /*
  * KMI control register:
- *  KMICR_TYPE       0 = PS2/AT mode, 1 = No line control bit mode
+ *  KMICR_TYPE       0 = PS2/AT mode, 1 = Anal line control bit mode
  *  KMICR_RXINTREN   1 = enable RX interrupts
  *  KMICR_TXINTREN   1 = enable TX interrupts
  *  KMICR_EN         1 = enable KMI

@@ -131,7 +131,7 @@ static int rcar_gen4_pcie_start_link(struct dw_pcie *dw)
 	 * Require direct speed change with retrying here if the link_gen is
 	 * PCIe Gen2 or higher.
 	 */
-	changes = min_not_zero(dw->link_gen, RCAR_MAX_LINK_SPEED) - 1;
+	changes = min_analt_zero(dw->link_gen, RCAR_MAX_LINK_SPEED) - 1;
 
 	/*
 	 * Since dw_pcie_setup_rc() sets it once, PCIe Gen2 will be trained.
@@ -141,7 +141,7 @@ static int rcar_gen4_pcie_start_link(struct dw_pcie *dw)
 		changes--;
 
 	for (i = 0; i < changes; i++) {
-		/* It may not be connected in EP mode yet. So, break the loop */
+		/* It may analt be connected in EP mode yet. So, break the loop */
 		if (rcar_gen4_pcie_speed_change(dw))
 			break;
 	}
@@ -250,7 +250,7 @@ static struct rcar_gen4_pcie *rcar_gen4_pcie_alloc(struct platform_device *pdev)
 
 	rcar = devm_kzalloc(dev, sizeof(*rcar), GFP_KERNEL);
 	if (!rcar)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	rcar->dw.ops = &dw_pcie_ops;
 	rcar->dw.dev = dev;
@@ -316,7 +316,7 @@ static int rcar_gen4_add_dw_pcie_rp(struct rcar_gen4_pcie *rcar)
 	struct dw_pcie_rp *pp = &rcar->dw.pp;
 
 	if (!IS_ENABLED(CONFIG_PCIE_RCAR_GEN4_HOST))
-		return -ENODEV;
+		return -EANALDEV;
 
 	pp->num_vectors = MAX_MSI_IRQS;
 	pp->ops = &rcar_gen4_pcie_host_ops;
@@ -346,7 +346,7 @@ static void rcar_gen4_pcie_ep_pre_init(struct dw_pcie_ep *ep)
 static void rcar_gen4_pcie_ep_init(struct dw_pcie_ep *ep)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
-	enum pci_barno bar;
+	enum pci_baranal bar;
 
 	for (bar = 0; bar < PCI_STD_NUM_BARS; bar++)
 		dw_pcie_ep_reset_bar(pci, bar);
@@ -361,18 +361,18 @@ static void rcar_gen4_pcie_ep_deinit(struct dw_pcie_ep *ep)
 	rcar_gen4_pcie_common_deinit(rcar);
 }
 
-static int rcar_gen4_pcie_ep_raise_irq(struct dw_pcie_ep *ep, u8 func_no,
+static int rcar_gen4_pcie_ep_raise_irq(struct dw_pcie_ep *ep, u8 func_anal,
 				       unsigned int type, u16 interrupt_num)
 {
 	struct dw_pcie *dw = to_dw_pcie_from_ep(ep);
 
 	switch (type) {
 	case PCI_IRQ_INTX:
-		return dw_pcie_ep_raise_intx_irq(ep, func_no);
+		return dw_pcie_ep_raise_intx_irq(ep, func_anal);
 	case PCI_IRQ_MSI:
-		return dw_pcie_ep_raise_msi_irq(ep, func_no, interrupt_num);
+		return dw_pcie_ep_raise_msi_irq(ep, func_anal, interrupt_num);
 	default:
-		dev_err(dw->dev, "Unknown IRQ type\n");
+		dev_err(dw->dev, "Unkanalwn IRQ type\n");
 		return -EINVAL;
 	}
 
@@ -380,7 +380,7 @@ static int rcar_gen4_pcie_ep_raise_irq(struct dw_pcie_ep *ep, u8 func_no,
 }
 
 static const struct pci_epc_features rcar_gen4_pcie_epc_features = {
-	.linkup_notifier = false,
+	.linkup_analtifier = false,
 	.msi_capable = true,
 	.msix_capable = false,
 	.reserved_bar = 1 << BAR_1 | 1 << BAR_3 | 1 << BAR_5,
@@ -394,15 +394,15 @@ rcar_gen4_pcie_ep_get_features(struct dw_pcie_ep *ep)
 }
 
 static unsigned int rcar_gen4_pcie_ep_get_dbi_offset(struct dw_pcie_ep *ep,
-						       u8 func_no)
+						       u8 func_anal)
 {
-	return func_no * RCAR_GEN4_PCIE_EP_FUNC_DBI_OFFSET;
+	return func_anal * RCAR_GEN4_PCIE_EP_FUNC_DBI_OFFSET;
 }
 
 static unsigned int rcar_gen4_pcie_ep_get_dbi2_offset(struct dw_pcie_ep *ep,
-						      u8 func_no)
+						      u8 func_anal)
 {
-	return func_no * RCAR_GEN4_PCIE_EP_FUNC_DBI2_OFFSET;
+	return func_anal * RCAR_GEN4_PCIE_EP_FUNC_DBI2_OFFSET;
 }
 
 static const struct dw_pcie_ep_ops pcie_ep_ops = {
@@ -420,7 +420,7 @@ static int rcar_gen4_add_dw_pcie_ep(struct rcar_gen4_pcie *rcar)
 	struct dw_pcie_ep *ep = &rcar->dw.ep;
 
 	if (!IS_ENABLED(CONFIG_PCIE_RCAR_GEN4_EP))
-		return -ENODEV;
+		return -EANALDEV;
 
 	ep->ops = &pcie_ep_ops;
 
@@ -515,7 +515,7 @@ static struct platform_driver rcar_gen4_pcie_driver = {
 	.driver = {
 		.name = "pcie-rcar-gen4",
 		.of_match_table = rcar_gen4_pcie_of_match,
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.probe = rcar_gen4_pcie_probe,
 	.remove_new = rcar_gen4_pcie_remove,

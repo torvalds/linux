@@ -6,7 +6,7 @@
 
     written by Ralph Metzler <ralph@convergence.de>
 
-    adoption to the new DVB frontend API and diagnostic ioctl's
+    adoption to the new DVB frontend API and diaganalstic ioctl's
     by Holger Waechtler <holger@convergence.de>
 
 

@@ -138,7 +138,7 @@ static union acpi_object *amdgpu_atpx_call(acpi_handle handle, int function,
 	status = acpi_evaluate_object(handle, NULL, &atpx_arg, &buffer);
 
 	/* Fail only if calling the method fails and ATPX is supported */
-	if (ACPI_FAILURE(status) && status != AE_NOT_FOUND) {
+	if (ACPI_FAILURE(status) && status != AE_ANALT_FOUND) {
 		pr_err("failed to evaluate ATPX got %s\n",
 		       acpi_format_exception(status));
 		kfree(buffer.pointer);
@@ -164,8 +164,8 @@ static void amdgpu_atpx_parse_functions(struct amdgpu_atpx_functions *f, u32 mas
 	f->power_cntl = mask & ATPX_POWER_CONTROL_SUPPORTED;
 	f->disp_mux_cntl = mask & ATPX_DISPLAY_MUX_CONTROL_SUPPORTED;
 	f->i2c_mux_cntl = mask & ATPX_I2C_MUX_CONTROL_SUPPORTED;
-	f->switch_start = mask & ATPX_GRAPHICS_DEVICE_SWITCH_START_NOTIFICATION_SUPPORTED;
-	f->switch_end = mask & ATPX_GRAPHICS_DEVICE_SWITCH_END_NOTIFICATION_SUPPORTED;
+	f->switch_start = mask & ATPX_GRAPHICS_DEVICE_SWITCH_START_ANALTIFICATION_SUPPORTED;
+	f->switch_end = mask & ATPX_GRAPHICS_DEVICE_SWITCH_END_ANALTIFICATION_SUPPORTED;
 	f->disp_connectors_mapping = mask & ATPX_GET_DISPLAY_CONNECTORS_MAPPING_SUPPORTED;
 	f->disp_detection_ports = mask & ATPX_GET_DISPLAY_DETECTION_PORTS_SUPPORTED;
 }
@@ -232,7 +232,7 @@ static int amdgpu_atpx_validate(struct amdgpu_atpx *atpx)
 			atpx->functions.power_cntl = true;
 			atpx->is_hybrid = false;
 		} else {
-			pr_notice("ATPX Hybrid Graphics\n");
+			pr_analtice("ATPX Hybrid Graphics\n");
 			/*
 			 * Disable legacy PM methods only when pcie port PM is usable,
 			 * otherwise the device might fail to power off or power on.
@@ -283,7 +283,7 @@ static int amdgpu_atpx_verify_interface(struct amdgpu_atpx *atpx)
 	memcpy(&output, info->buffer.pointer, size);
 
 	/* TODO: check version? */
-	pr_notice("ATPX version %u, functions 0x%08x\n",
+	pr_analtice("ATPX version %u, functions 0x%08x\n",
 		  output.version, output.function_bits);
 
 	amdgpu_atpx_parse_functions(&atpx->functions, output.function_bits);
@@ -393,13 +393,13 @@ static int amdgpu_atpx_switch_i2c_mux(struct amdgpu_atpx *atpx, u16 mux_id)
 }
 
 /**
- * amdgpu_atpx_switch_start - notify the sbios of a GPU switch
+ * amdgpu_atpx_switch_start - analtify the sbios of a GPU switch
  *
  * @atpx: atpx info struct
  * @mux_id: mux state (0 = integrated GPU, 1 = discrete GPU)
  *
- * Execute the ATPX_FUNCTION_GRAPHICS_DEVICE_SWITCH_START_NOTIFICATION ATPX
- * function to notify the sbios that a switch between the discrete GPU and
+ * Execute the ATPX_FUNCTION_GRAPHICS_DEVICE_SWITCH_START_ANALTIFICATION ATPX
+ * function to analtify the sbios that a switch between the discrete GPU and
  * integrated GPU has begun (all asics).
  * Returns 0 on success, error on failure.
  */
@@ -415,7 +415,7 @@ static int amdgpu_atpx_switch_start(struct amdgpu_atpx *atpx, u16 mux_id)
 		params.length = input.size;
 		params.pointer = &input;
 		info = amdgpu_atpx_call(atpx->handle,
-					ATPX_FUNCTION_GRAPHICS_DEVICE_SWITCH_START_NOTIFICATION,
+					ATPX_FUNCTION_GRAPHICS_DEVICE_SWITCH_START_ANALTIFICATION,
 					&params);
 		if (!info)
 			return -EIO;
@@ -425,13 +425,13 @@ static int amdgpu_atpx_switch_start(struct amdgpu_atpx *atpx, u16 mux_id)
 }
 
 /**
- * amdgpu_atpx_switch_end - notify the sbios of a GPU switch
+ * amdgpu_atpx_switch_end - analtify the sbios of a GPU switch
  *
  * @atpx: atpx info struct
  * @mux_id: mux state (0 = integrated GPU, 1 = discrete GPU)
  *
- * Execute the ATPX_FUNCTION_GRAPHICS_DEVICE_SWITCH_END_NOTIFICATION ATPX
- * function to notify the sbios that a switch between the discrete GPU and
+ * Execute the ATPX_FUNCTION_GRAPHICS_DEVICE_SWITCH_END_ANALTIFICATION ATPX
+ * function to analtify the sbios that a switch between the discrete GPU and
  * integrated GPU has ended (all asics).
  * Returns 0 on success, error on failure.
  */
@@ -447,7 +447,7 @@ static int amdgpu_atpx_switch_end(struct amdgpu_atpx *atpx, u16 mux_id)
 		params.length = input.size;
 		params.pointer = &input;
 		info = amdgpu_atpx_call(atpx->handle,
-					ATPX_FUNCTION_GRAPHICS_DEVICE_SWITCH_END_NOTIFICATION,
+					ATPX_FUNCTION_GRAPHICS_DEVICE_SWITCH_END_ANALTIFICATION,
 					&params);
 		if (!info)
 			return -EIO;
@@ -509,7 +509,7 @@ static int amdgpu_atpx_power_state(enum vga_switcheroo_client_id id,
  * @pdev: pci device
  *
  * Look up the ATPX handles (all asics).
- * Returns true if the handles are found, false if not.
+ * Returns true if the handles are found, false if analt.
  */
 static bool amdgpu_atpx_pci_probe_handle(struct pci_dev *pdev)
 {
@@ -607,7 +607,7 @@ static void amdgpu_atpx_get_quirks(struct pci_dev *pdev)
  * amdgpu_atpx_detect - detect whether we have PX
  *
  * Check if we have a PX system (all asics).
- * Returns true if we have a PX system, false if not.
+ * Returns true if we have a PX system, false if analt.
  */
 static bool amdgpu_atpx_detect(void)
 {

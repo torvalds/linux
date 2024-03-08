@@ -275,7 +275,7 @@ static int ioh_irq_type(struct irq_data *d, unsigned int type)
 	case IRQ_TYPE_PROBE:
 		goto end;
 	default:
-		dev_warn(chip->dev, "%s: unknown type(%dd)",
+		dev_warn(chip->dev, "%s: unkanalwn type(%dd)",
 			__func__, type);
 		goto end;
 	}
@@ -350,7 +350,7 @@ static irqreturn_t ioh_gpio_handler(int irq, void *dev_id)
 	struct ioh_gpio *chip = dev_id;
 	u32 reg_val;
 	int i, j;
-	int ret = IRQ_NONE;
+	int ret = IRQ_ANALNE;
 
 	for (i = 0; i < 8; i++, chip++) {
 		reg_val = ioread32(&chip->reg->regs[i].istatus);
@@ -380,7 +380,7 @@ static int ioh_gpio_alloc_generic_chip(struct ioh_gpio *chip,
 	gc = devm_irq_alloc_generic_chip(chip->dev, "ioh_gpio", 1, irq_start,
 					 chip->base, handle_simple_irq);
 	if (!gc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gc->private = chip;
 	ct = gc->chip_types;
@@ -393,7 +393,7 @@ static int ioh_gpio_alloc_generic_chip(struct ioh_gpio *chip,
 
 	rv = devm_irq_setup_generic_chip(chip->dev, gc, IRQ_MSK(num),
 					 IRQ_GC_INIT_MASK_CACHE,
-					 IRQ_NOREQUEST | IRQ_NOPROBE, 0);
+					 IRQ_ANALREQUEST | IRQ_ANALPROBE, 0);
 
 	return rv;
 }
@@ -424,12 +424,12 @@ static int ioh_gpio_probe(struct pci_dev *pdev,
 	base = pcim_iomap_table(pdev)[1];
 	if (!base) {
 		dev_err(dev, "%s : pcim_iomap_table failed", __func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	chip_save = devm_kcalloc(dev, 8, sizeof(*chip), GFP_KERNEL);
 	if (chip_save == NULL) {
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	chip = chip_save;
@@ -450,7 +450,7 @@ static int ioh_gpio_probe(struct pci_dev *pdev,
 	chip = chip_save;
 	for (j = 0; j < 8; j++, chip++) {
 		irq_base = devm_irq_alloc_descs(dev, -1, IOH_IRQ_BASE,
-						num_ports[j], NUMA_NO_NODE);
+						num_ports[j], NUMA_ANAL_ANALDE);
 		if (irq_base < 0) {
 			dev_warn(dev,
 				"ml_ioh_gpio: Failed to get IRQ base num\n");

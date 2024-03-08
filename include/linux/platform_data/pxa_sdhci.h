@@ -29,7 +29,7 @@
  *	0: choose feedback clk
  *	1: choose feedback clk + delay value
  *	2: choose internal clk
- * @clk_delay_enable: enable clk_delay or not, used on pxa910
+ * @clk_delay_enable: enable clk_delay or analt, used on pxa910
  * @max_speed: the maximum speed supported
  * @host_caps: Standard MMC host capabilities bit field.
  * @quirks: quirks of platfrom

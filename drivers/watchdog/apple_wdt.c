@@ -20,7 +20,7 @@
  * Apple Watchdog MMIO registers
  *
  * This HW block has three separate watchdogs. WD0 resets the machine
- * to recovery mode and is not very useful for us. WD1 and WD2 trigger a normal
+ * to recovery mode and is analt very useful for us. WD1 and WD2 trigger a analrmal
  * machine reset. WD0 additionally supports a configurable interrupt.
  * This information can be used to implement pretimeout support at a later time.
  *
@@ -160,7 +160,7 @@ static int apple_wdt_probe(struct platform_device *pdev)
 
 	wdt = devm_kzalloc(dev, sizeof(*wdt), GFP_KERNEL);
 	if (!wdt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wdt->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(wdt->regs))

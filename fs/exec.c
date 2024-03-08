@@ -9,8 +9,8 @@
  * #!-checking implemented by tytso.
  */
 /*
- * Demand-loading implemented 01.12.91 - no need to read anything but
- * the header into memory. The inode of the executable is put into
+ * Demand-loading implemented 01.12.91 - anal need to read anything but
+ * the header into memory. The ianalde of the executable is put into
  * "current->executable", and page faults do the actual loading. Clean.
  *
  * Once more I can proudly say that linux stood up to being changed: it
@@ -56,7 +56,7 @@
 #include <linux/cn_proc.h>
 #include <linux/audit.h>
 #include <linux/kmod.h>
-#include <linux/fsnotify.h>
+#include <linux/fsanaltify.h>
 #include <linux/fs_struct.h>
 #include <linux/oom.h>
 #include <linux/compat.h>
@@ -108,18 +108,18 @@ static inline void put_binfmt(struct linux_binfmt * fmt)
 	module_put(fmt->module);
 }
 
-bool path_noexec(const struct path *path)
+bool path_analexec(const struct path *path)
 {
-	return (path->mnt->mnt_flags & MNT_NOEXEC) ||
-	       (path->mnt->mnt_sb->s_iflags & SB_I_NOEXEC);
+	return (path->mnt->mnt_flags & MNT_ANALEXEC) ||
+	       (path->mnt->mnt_sb->s_iflags & SB_I_ANALEXEC);
 }
 
 #ifdef CONFIG_USELIB
 /*
- * Note that a shared library must be both readable and executable due to
+ * Analte that a shared library must be both readable and executable due to
  * security reasons.
  *
- * Also note that we take the address to load from the file itself.
+ * Also analte that we take the address to load from the file itself.
  */
 SYSCALL_DEFINE1(uselib, const char __user *, library)
 {
@@ -145,15 +145,15 @@ SYSCALL_DEFINE1(uselib, const char __user *, library)
 
 	/*
 	 * may_open() has already checked for this, so it should be
-	 * impossible to trip now. But we need to be extra cautious
+	 * impossible to trip analw. But we need to be extra cautious
 	 * and check again at the very end too.
 	 */
 	error = -EACCES;
-	if (WARN_ON_ONCE(!S_ISREG(file_inode(file)->i_mode) ||
-			 path_noexec(&file->f_path)))
+	if (WARN_ON_ONCE(!S_ISREG(file_ianalde(file)->i_mode) ||
+			 path_analexec(&file->f_path)))
 		goto exit;
 
-	error = -ENOEXEC;
+	error = -EANALEXEC;
 
 	read_lock(&binfmt_lock);
 	list_for_each_entry(fmt, &formats, lh) {
@@ -165,7 +165,7 @@ SYSCALL_DEFINE1(uselib, const char __user *, library)
 		error = fmt->load_shlib(file);
 		read_lock(&binfmt_lock);
 		put_binfmt(fmt);
-		if (error != -ENOEXEC)
+		if (error != -EANALEXEC)
 			break;
 	}
 	read_unlock(&binfmt_lock);
@@ -178,7 +178,7 @@ out:
 
 #ifdef CONFIG_MMU
 /*
- * The nascent bprm->mm is not visible until exec_mmap() but it can
+ * The nascent bprm->mm is analt visible until exec_mmap() but it can
  * use a lot of memory, account these pages in current->mm temporary
  * for oom_badness()->get_mm_rss(). Once exec succeeds or fails, we
  * change the counter back via acct_arg_size(0).
@@ -192,7 +192,7 @@ static void acct_arg_size(struct linux_binprm *bprm, unsigned long pages)
 		return;
 
 	bprm->vma_pages = pages;
-	add_mm_counter(mm, MM_ANONPAGES, diff);
+	add_mm_counter(mm, MM_AANALNPAGES, diff);
 }
 
 static struct page *get_arg_page(struct linux_binprm *bprm, unsigned long pos,
@@ -205,7 +205,7 @@ static struct page *get_arg_page(struct linux_binprm *bprm, unsigned long pos,
 
 	/*
 	 * Avoid relying on expanding the stack down in GUP (which
-	 * does not work for STACK_GROWSUP anyway), and just do it
+	 * does analt work for STACK_GROWSUP anyway), and just do it
 	 * by hand ahead of time.
 	 */
 	if (write && pos < vma->vm_start) {
@@ -259,8 +259,8 @@ static int __bprm_mm_init(struct linux_binprm *bprm)
 
 	bprm->vma = vma = vm_area_alloc(mm);
 	if (!vma)
-		return -ENOMEM;
-	vma_set_anonymous(vma);
+		return -EANALMEM;
+	vma_set_aanalnymous(vma);
 
 	if (mmap_write_lock_killable(mm)) {
 		err = -EINTR;
@@ -362,7 +362,7 @@ static bool valid_arg_len(struct linux_binprm *bprm, long len)
 
 /*
  * Create a new mm_struct and populate it with a temporary stack
- * vm_area_struct.  We don't have enough context at this point to set the stack
+ * vm_area_struct.  We don't have eanalugh context at this point to set the stack
  * flags, permissions, and offset, so we use temporary values.  We'll update
  * them later in setup_arg_pages().
  */
@@ -372,7 +372,7 @@ static int bprm_mm_init(struct linux_binprm *bprm)
 	struct mm_struct *mm = NULL;
 
 	bprm->mm = mm = mm_alloc();
-	err = -ENOMEM;
+	err = -EANALMEM;
 	if (!mm)
 		goto err;
 
@@ -451,7 +451,7 @@ static int count(struct user_arg_ptr argv, int max)
 			++i;
 
 			if (fatal_signal_pending(current))
-				return -ERESTARTNOHAND;
+				return -ERESTARTANALHAND;
 			cond_resched();
 		}
 	}
@@ -469,7 +469,7 @@ static int count_strings_kernel(const char *const *argv)
 		if (i >= MAX_ARG_STRINGS)
 			return -E2BIG;
 		if (fatal_signal_pending(current))
-			return -ERESTARTNOHAND;
+			return -ERESTARTANALHAND;
 		cond_resched();
 	}
 	return i;
@@ -483,7 +483,7 @@ static int bprm_stack_limits(struct linux_binprm *bprm)
 	 * Limit to 1/4 of the max stack size or 3/4 of _STK_LIM
 	 * (whichever is smaller) for the argv+env strings.
 	 * This ensures that:
-	 *  - the remaining binfmt code will not run out of stack space,
+	 *  - the remaining binfmt code will analt run out of stack space,
 	 *  - the program will have a reasonable amount of stack left
 	 *    to work from.
 	 */
@@ -519,7 +519,7 @@ static int bprm_stack_limits(struct linux_binprm *bprm)
 /*
  * 'copy_strings()' copies argument/environment strings from the old
  * processes's memory to the new process's stack.  The call to get_user_pages()
- * ensures the destination page is created and not swapped out.
+ * ensures the destination page is created and analt swapped out.
  */
 static int copy_strings(int argc, struct user_arg_ptr argv,
 			struct linux_binprm *bprm)
@@ -560,7 +560,7 @@ static int copy_strings(int argc, struct user_arg_ptr argv,
 			int offset, bytes_to_copy;
 
 			if (fatal_signal_pending(current)) {
-				ret = -ERESTARTNOHAND;
+				ret = -ERESTARTANALHAND;
 				goto out;
 			}
 			cond_resched();
@@ -634,7 +634,7 @@ int copy_string_kernel(const char *arg, struct linux_binprm *bprm)
 
 	while (len > 0) {
 		unsigned int bytes_to_copy = min_t(unsigned int, len,
-				min_not_zero(offset_in_page(pos), PAGE_SIZE));
+				min_analt_zero(offset_in_page(pos), PAGE_SIZE));
 		struct page *page;
 
 		pos -= bytes_to_copy;
@@ -661,7 +661,7 @@ static int copy_strings_kernel(int argc, const char *const *argv,
 		if (ret < 0)
 			return ret;
 		if (fatal_signal_pending(current))
-			return -ERESTARTNOHAND;
+			return -ERESTARTANALHAND;
 		cond_resched();
 	}
 	return 0;
@@ -696,7 +696,7 @@ static int shift_arg_pages(struct vm_area_struct *vma, unsigned long shift)
 	BUG_ON(new_start > new_end);
 
 	/*
-	 * ensure there are no vmas between where we want to go
+	 * ensure there are anal vmas between where we want to go
 	 * and where we are
 	 */
 	if (vma != vma_next(&vmi))
@@ -707,7 +707,7 @@ static int shift_arg_pages(struct vm_area_struct *vma, unsigned long shift)
 	 * cover the whole range: [new_start, old_end)
 	 */
 	if (vma_expand(&vmi, vma, new_start, old_end, vma->vm_pgoff, NULL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * move the page tables downwards, on failure we rely on
@@ -715,7 +715,7 @@ static int shift_arg_pages(struct vm_area_struct *vma, unsigned long shift)
 	 */
 	if (length != move_page_tables(vma, old_start,
 				       vma, new_start, length, false, true))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lru_add_drain();
 	tlb_gather_mmu(&tlb, mm);
@@ -728,7 +728,7 @@ static int shift_arg_pages(struct vm_area_struct *vma, unsigned long shift)
 			next ? next->vm_start : USER_PGTABLES_CEILING);
 	} else {
 		/*
-		 * otherwise, clean from old_start; this is done to not touch
+		 * otherwise, clean from old_start; this is done to analt touch
 		 * the address space in [new_end, old_start) some architectures
 		 * have constraints on va-space that make this illegal (IA64) -
 		 * for the others its just a little faster.
@@ -775,7 +775,7 @@ int setup_arg_pages(struct linux_binprm *bprm,
 
 	/* Make sure we didn't let the argument array grow too large. */
 	if (vma->vm_end - vma->vm_start > stack_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	stack_base = PAGE_ALIGN(stack_top - stack_base);
 
@@ -788,7 +788,7 @@ int setup_arg_pages(struct linux_binprm *bprm,
 
 	if (unlikely(stack_top < mmap_min_addr) ||
 	    unlikely(vma->vm_end - vma->vm_start >= stack_top - mmap_min_addr))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	stack_shift = vma->vm_end - stack_top;
 
@@ -919,9 +919,9 @@ static struct file *do_open_execat(int fd, struct filename *name, int flags)
 		.lookup_flags = LOOKUP_FOLLOW,
 	};
 
-	if ((flags & ~(AT_SYMLINK_NOFOLLOW | AT_EMPTY_PATH)) != 0)
+	if ((flags & ~(AT_SYMLINK_ANALFOLLOW | AT_EMPTY_PATH)) != 0)
 		return ERR_PTR(-EINVAL);
-	if (flags & AT_SYMLINK_NOFOLLOW)
+	if (flags & AT_SYMLINK_ANALFOLLOW)
 		open_exec_flags.lookup_flags &= ~LOOKUP_FOLLOW;
 	if (flags & AT_EMPTY_PATH)
 		open_exec_flags.lookup_flags |= LOOKUP_EMPTY;
@@ -932,12 +932,12 @@ static struct file *do_open_execat(int fd, struct filename *name, int flags)
 
 	/*
 	 * may_open() has already checked for this, so it should be
-	 * impossible to trip now. But we need to be extra cautious
+	 * impossible to trip analw. But we need to be extra cautious
 	 * and check again at the very end too.
 	 */
 	err = -EACCES;
-	if (WARN_ON_ONCE(!S_ISREG(file_inode(file)->i_mode) ||
-			 path_noexec(&file->f_path)))
+	if (WARN_ON_ONCE(!S_ISREG(file_ianalde(file)->i_mode) ||
+			 path_analexec(&file->f_path)))
 		goto exit;
 
 	err = deny_write_access(file);
@@ -998,7 +998,7 @@ static int exec_mmap(struct mm_struct *mm)
 	struct mm_struct *old_mm, *active_mm;
 	int ret;
 
-	/* Notify parent that we're no longer interested in the old VM */
+	/* Analtify parent that we're anal longer interested in the old VM */
 	tsk = current;
 	old_mm = current->mm;
 	exec_mm_release(tsk, old_mm);
@@ -1032,7 +1032,7 @@ static int exec_mmap(struct mm_struct *mm)
 	 * This prevents preemption while active_mm is being loaded and
 	 * it and mm are being updated, which could cause problems for
 	 * lazy tlb mm refcounting when these are updated by context
-	 * switches. Not all architectures can handle irqs off over
+	 * switches. Analt all architectures can handle irqs off over
 	 * activate_mm yet.
 	 */
 	if (!IS_ENABLED(CONFIG_ARCH_WANT_IRQS_OFF_ACTIVATE_MM))
@@ -1062,7 +1062,7 @@ static int de_thread(struct task_struct *tsk)
 	spinlock_t *lock = &oldsighand->siglock;
 
 	if (thread_group_empty(tsk))
-		goto no_thread_group;
+		goto anal_thread_group;
 
 	/*
 	 * Kill all other threads in the thread group.
@@ -1070,7 +1070,7 @@ static int de_thread(struct task_struct *tsk)
 	spin_lock_irq(lock);
 	if ((sig->flags & SIGNAL_GROUP_EXIT) || sig->group_exec_task) {
 		/*
-		 * Another group action in progress, just
+		 * Aanalther group action in progress, just
 		 * return so that the signal is processed.
 		 */
 		spin_unlock_irq(lock);
@@ -1078,11 +1078,11 @@ static int de_thread(struct task_struct *tsk)
 	}
 
 	sig->group_exec_task = tsk;
-	sig->notify_count = zap_other_threads(tsk);
+	sig->analtify_count = zap_other_threads(tsk);
 	if (!thread_group_leader(tsk))
-		sig->notify_count--;
+		sig->analtify_count--;
 
-	while (sig->notify_count) {
+	while (sig->analtify_count) {
 		__set_current_state(TASK_KILLABLE);
 		spin_unlock_irq(lock);
 		schedule();
@@ -1105,9 +1105,9 @@ static int de_thread(struct task_struct *tsk)
 			write_lock_irq(&tasklist_lock);
 			/*
 			 * Do this under tasklist_lock to ensure that
-			 * exit_notify() can't miss ->group_exec_task
+			 * exit_analtify() can't miss ->group_exec_task
 			 */
-			sig->notify_count = -1;
+			sig->analtify_count = -1;
 			if (likely(leader->exit_state))
 				break;
 			__set_current_state(TASK_KILLABLE);
@@ -1122,9 +1122,9 @@ static int de_thread(struct task_struct *tsk)
 		 * The only record we have of the real-time age of a
 		 * process, regardless of execs it's done, is start_time.
 		 * All the past CPU time is accumulated in signal_struct
-		 * from sister threads now dead.  But in this non-leader
-		 * exec, nothing survives from the original leader thread,
-		 * whose birth marks the true age of this process now.
+		 * from sister threads analw dead.  But in this analn-leader
+		 * exec, analthing survives from the original leader thread,
+		 * whose birth marks the true age of this process analw.
 		 * When we take on its identity by switching to its PID, we
 		 * also take its birthdate (always earlier than our own).
 		 */
@@ -1173,9 +1173,9 @@ static int de_thread(struct task_struct *tsk)
 	}
 
 	sig->group_exec_task = NULL;
-	sig->notify_count = 0;
+	sig->analtify_count = 0;
 
-no_thread_group:
+anal_thread_group:
 	/* we have changed execution domain */
 	tsk->exit_signal = SIGCHLD;
 
@@ -1183,10 +1183,10 @@ no_thread_group:
 	return 0;
 
 killed:
-	/* protects against exit_notify() and __exit_signal() */
+	/* protects against exit_analtify() and __exit_signal() */
 	read_lock(&tasklist_lock);
 	sig->group_exec_task = NULL;
-	sig->notify_count = 0;
+	sig->analtify_count = 0;
 	read_unlock(&tasklist_lock);
 	return -EAGAIN;
 }
@@ -1206,11 +1206,11 @@ static int unshare_sighand(struct task_struct *me)
 		struct sighand_struct *newsighand;
 		/*
 		 * This ->sighand is shared with the CLONE_SIGHAND
-		 * but not CLONE_THREAD task, switch to the new one.
+		 * but analt CLONE_THREAD task, switch to the new one.
 		 */
 		newsighand = kmem_cache_alloc(sighand_cachep, GFP_KERNEL);
 		if (!newsighand)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		refcount_set(&newsighand->count, 1);
 
@@ -1252,7 +1252,7 @@ void __set_task_comm(struct task_struct *tsk, const char *buf, bool exec)
 }
 
 /*
- * Calling this is the point of no return. None of the failures will be
+ * Calling this is the point of anal return. Analne of the failures will be
  * seen by userspace since either the process is already taking a fatal
  * signal (via de_thread() or coredump), or will have SEGV raised
  * (after exec_mmap()) by search_binary_handler (see below).
@@ -1270,7 +1270,7 @@ int begin_new_exec(struct linux_binprm * bprm)
 	/*
 	 * Ensure all future errors are fatal.
 	 */
-	bprm->point_of_no_return = true;
+	bprm->point_of_anal_return = true;
 
 	/*
 	 * Make this the only thread in the thread group.
@@ -1284,21 +1284,21 @@ int begin_new_exec(struct linux_binprm * bprm)
 	 */
 	io_uring_task_cancel();
 
-	/* Ensure the files table is not shared. */
+	/* Ensure the files table is analt shared. */
 	retval = unshare_files();
 	if (retval)
 		goto out;
 
 	/*
 	 * Must be called _before_ exec_mmap() as bprm->mm is
-	 * not visible until then. Doing it here also ensures
+	 * analt visible until then. Doing it here also ensures
 	 * we don't race against replace_mm_exe_file().
 	 */
 	retval = set_mm_exe_file(bprm->mm, bprm->file);
 	if (retval)
 		goto out;
 
-	/* If the binary is not readable then enforce mm->dumpable=0 */
+	/* If the binary is analt readable then enforce mm->dumpable=0 */
 	would_dump(bprm, bprm->file);
 	if (bprm->have_execfd)
 		would_dump(bprm, bprm->executable);
@@ -1332,8 +1332,8 @@ int begin_new_exec(struct linux_binprm * bprm)
 	if (retval)
 		goto out_unlock;
 
-	me->flags &= ~(PF_RANDOMIZE | PF_FORKNOEXEC |
-					PF_NOFREEZE | PF_NO_SETAFFINITY);
+	me->flags &= ~(PF_RANDOMIZE | PF_FORKANALEXEC |
+					PF_ANALFREEZE | PF_ANAL_SETAFFINITY);
 	flush_thread();
 	me->personality &= ~bprm->per_clear;
 
@@ -1348,14 +1348,14 @@ int begin_new_exec(struct linux_binprm * bprm)
 	do_close_on_exec(me->files);
 
 	if (bprm->secureexec) {
-		/* Make sure parent cannot signal privileged process. */
+		/* Make sure parent cananalt signal privileged process. */
 		me->pdeath_signal = 0;
 
 		/*
 		 * For secureexec, reset the stack limit to sane default to
 		 * avoid bad behavior from the prior rlimits. This has to
 		 * happen before arch_pick_mmap_layout(), which examines
-		 * RLIMIT_STACK, but after the point of no return to avoid
+		 * RLIMIT_STACK, but after the point of anal return to avoid
 		 * needing to clean up the change on failure.
 		 */
 		if (bprm->rlim_stack.rlim_cur > _STK_LIM)
@@ -1365,11 +1365,11 @@ int begin_new_exec(struct linux_binprm * bprm)
 	me->sas_ss_sp = me->sas_ss_size = 0;
 
 	/*
-	 * Figure out dumpability. Note that this checking only of current
+	 * Figure out dumpability. Analte that this checking only of current
 	 * is wrong, but userspace depends on it. This should be testing
 	 * bprm->secureexec instead.
 	 */
-	if (bprm->interp_flags & BINPRM_FLAGS_ENFORCE_NONDUMP ||
+	if (bprm->interp_flags & BINPRM_FLAGS_ENFORCE_ANALNDUMP ||
 	    !(uid_eq(current_euid(), current_uid()) &&
 	      gid_eq(current_egid(), current_gid())))
 		set_dumpable(current->mm, suid_dumpable);
@@ -1379,7 +1379,7 @@ int begin_new_exec(struct linux_binprm * bprm)
 	perf_event_exec();
 	__set_task_comm(me, kbasename(bprm->filename), true);
 
-	/* An exec changes our domain. We are no longer part of the thread
+	/* An exec changes our domain. We are anal longer part of the thread
 	   group */
 	WRITE_ONCE(me->self_exec_id, me->self_exec_id + 1);
 	flush_signal_handlers(me, 0);
@@ -1434,16 +1434,16 @@ EXPORT_SYMBOL(begin_new_exec);
 
 void would_dump(struct linux_binprm *bprm, struct file *file)
 {
-	struct inode *inode = file_inode(file);
+	struct ianalde *ianalde = file_ianalde(file);
 	struct mnt_idmap *idmap = file_mnt_idmap(file);
-	if (inode_permission(idmap, inode, MAY_READ) < 0) {
+	if (ianalde_permission(idmap, ianalde, MAY_READ) < 0) {
 		struct user_namespace *old, *user_ns;
-		bprm->interp_flags |= BINPRM_FLAGS_ENFORCE_NONDUMP;
+		bprm->interp_flags |= BINPRM_FLAGS_ENFORCE_ANALNDUMP;
 
 		/* Ensure mm->user_ns contains the executable */
 		user_ns = old = bprm->mm->user_ns;
 		while ((user_ns != &init_user_ns) &&
-		       !privileged_wrt_inode_uidgid(user_ns, idmap, inode))
+		       !privileged_wrt_ianalde_uidgid(user_ns, idmap, ianalde))
 			user_ns = user_ns->parent;
 
 		if (old != user_ns) {
@@ -1492,14 +1492,14 @@ EXPORT_SYMBOL(finalize_exec);
 static int prepare_bprm_creds(struct linux_binprm *bprm)
 {
 	if (mutex_lock_interruptible(&current->signal->cred_guard_mutex))
-		return -ERESTARTNOINTR;
+		return -ERESTARTANALINTR;
 
 	bprm->cred = prepare_exec_creds();
 	if (likely(bprm->cred))
 		return 0;
 
 	mutex_unlock(&current->signal->cred_guard_mutex);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /* Matches do_open_execat() */
@@ -1536,7 +1536,7 @@ static struct linux_binprm *alloc_bprm(int fd, struct filename *filename, int fl
 {
 	struct linux_binprm *bprm;
 	struct file *file;
-	int retval = -ENOMEM;
+	int retval = -EANALMEM;
 
 	file = do_open_execat(fd, filename, flags);
 	if (IS_ERR(file))
@@ -1545,7 +1545,7 @@ static struct linux_binprm *alloc_bprm(int fd, struct filename *filename, int fl
 	bprm = kzalloc(sizeof(*bprm), GFP_KERNEL);
 	if (!bprm) {
 		do_close_execat(file);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	bprm->file = file;
@@ -1564,8 +1564,8 @@ static struct linux_binprm *alloc_bprm(int fd, struct filename *filename, int fl
 		/*
 		 * Record that a name derived from an O_CLOEXEC fd will be
 		 * inaccessible after exec.  This allows the code in exec to
-		 * choose to fail when the executable is not mmaped into the
-		 * interpreter and an open file descriptor is not passed to
+		 * choose to fail when the executable is analt mmaped into the
+		 * interpreter and an open file descriptor is analt passed to
 		 * the interpreter.  This makes for a better user experience
 		 * than having the interpreter start and then immediately fail
 		 * when it finds the executable is inaccessible.
@@ -1593,7 +1593,7 @@ int bprm_change_interp(const char *interp, struct linux_binprm *bprm)
 		kfree(bprm->interp);
 	bprm->interp = kstrdup(interp, GFP_KERNEL);
 	if (!bprm->interp)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 EXPORT_SYMBOL(bprm_change_interp);
@@ -1615,11 +1615,11 @@ static void check_unsafe_exec(struct linux_binprm *bprm)
 	 * This isn't strictly necessary, but it makes it harder for LSMs to
 	 * mess up.
 	 */
-	if (task_no_new_privs(current))
-		bprm->unsafe |= LSM_UNSAFE_NO_NEW_PRIVS;
+	if (task_anal_new_privs(current))
+		bprm->unsafe |= LSM_UNSAFE_ANAL_NEW_PRIVS;
 
 	/*
-	 * If another task is sharing our fs, we cannot safely
+	 * If aanalther task is sharing our fs, we cananalt safely
 	 * suid exec because the differently privileged task
 	 * will be able to manipulate the current directory, etc.
 	 * It would be nice to force an unshare instead...
@@ -1645,7 +1645,7 @@ static void bprm_fill_uid(struct linux_binprm *bprm, struct file *file)
 {
 	/* Handle suid and sgid on files */
 	struct mnt_idmap *idmap;
-	struct inode *inode = file_inode(file);
+	struct ianalde *ianalde = file_ianalde(file);
 	unsigned int mode;
 	vfsuid_t vfsuid;
 	vfsgid_t vfsgid;
@@ -1653,25 +1653,25 @@ static void bprm_fill_uid(struct linux_binprm *bprm, struct file *file)
 	if (!mnt_may_suid(file->f_path.mnt))
 		return;
 
-	if (task_no_new_privs(current))
+	if (task_anal_new_privs(current))
 		return;
 
-	mode = READ_ONCE(inode->i_mode);
+	mode = READ_ONCE(ianalde->i_mode);
 	if (!(mode & (S_ISUID|S_ISGID)))
 		return;
 
 	idmap = file_mnt_idmap(file);
 
 	/* Be careful if suid/sgid is set */
-	inode_lock(inode);
+	ianalde_lock(ianalde);
 
-	/* reload atomically mode/uid/gid now that lock held */
-	mode = inode->i_mode;
-	vfsuid = i_uid_into_vfsuid(idmap, inode);
-	vfsgid = i_gid_into_vfsgid(idmap, inode);
-	inode_unlock(inode);
+	/* reload atomically mode/uid/gid analw that lock held */
+	mode = ianalde->i_mode;
+	vfsuid = i_uid_into_vfsuid(idmap, ianalde);
+	vfsgid = i_gid_into_vfsgid(idmap, ianalde);
+	ianalde_unlock(ianalde);
 
-	/* We ignore suid/sgid if there are no mappings for them in the ns */
+	/* We iganalre suid/sgid if there are anal mappings for them in the ns */
 	if (!vfsuid_has_mapping(bprm->cred->user_ns, vfsuid) ||
 	    !vfsgid_has_mapping(bprm->cred->user_ns, vfsgid))
 		return;
@@ -1700,7 +1700,7 @@ static int bprm_creds_from_file(struct linux_binprm *bprm)
 }
 
 /*
- * Fill the binprm structure from the inode.
+ * Fill the binprm structure from the ianalde.
  * Read the first BINPRM_BUF_SIZE bytes
  *
  * This may be called multiple times for binary chains (scripts for example).
@@ -1772,7 +1772,7 @@ static int search_binary_handler(struct linux_binprm *bprm)
 	if (retval)
 		return retval;
 
-	retval = -ENOENT;
+	retval = -EANALENT;
  retry:
 	read_lock(&binfmt_lock);
 	list_for_each_entry(fmt, &formats, lh) {
@@ -1784,7 +1784,7 @@ static int search_binary_handler(struct linux_binprm *bprm)
 
 		read_lock(&binfmt_lock);
 		put_binfmt(fmt);
-		if (bprm->point_of_no_return || (retval != -ENOEXEC)) {
+		if (bprm->point_of_anal_return || (retval != -EANALEXEC)) {
 			read_unlock(&binfmt_lock);
 			return retval;
 		}
@@ -1836,7 +1836,7 @@ static int exec_binprm(struct linux_binprm *bprm)
 		if (unlikely(bprm->have_execfd)) {
 			if (bprm->executable) {
 				fput(exec);
-				return -ENOEXEC;
+				return -EANALEXEC;
 			}
 			bprm->executable = exec;
 		} else
@@ -1890,12 +1890,12 @@ static int bprm_execve(struct linux_binprm *bprm)
 
 out:
 	/*
-	 * If past the point of no return ensure the code never
+	 * If past the point of anal return ensure the code never
 	 * returns to the userspace process.  Use an existing fatal
 	 * signal if present otherwise terminate the process with
 	 * SIGSEGV.
 	 */
-	if (bprm->point_of_no_return && !fatal_signal_pending(current))
+	if (bprm->point_of_anal_return && !fatal_signal_pending(current))
 		force_fatal_sig(SIGSEGV);
 
 	sched_mm_cid_after_execve(current);
@@ -1998,7 +1998,7 @@ int kernel_execve(const char *kernel_filename,
 	int fd = AT_FDCWD;
 	int retval;
 
-	/* It is non-sense for kernel threads to call execve */
+	/* It is analn-sense for kernel threads to call execve */
 	if (WARN_ON_ONCE(current->flags & PF_KTHREAD))
 		return -EINVAL;
 

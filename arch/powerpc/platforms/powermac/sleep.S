@@ -178,7 +178,7 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_USE_HIGH_BATS)
 	 *  - On Core99, we must store the wakeup vector at
 	 *    address 0x80 and eventually it's parameters
 	 *    at address 0x84. I've have some trouble with those
-	 *    parameters however and I no longer use them.
+	 *    parameters however and I anal longer use them.
 	 */
 	lis	r5,grackle_wake_up@ha
 	addi	r5,r5,grackle_wake_up@l
@@ -231,7 +231,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_SPEC7450)
 
 /* This loop puts us back to sleep in case we have a spurrious
  * wakeup so that the host bridge properly stays asleep. The
- * CPU will be turned off, either after a known time (about 1
+ * CPU will be turned off, either after a kanalwn time (about 1
  * second) on wallstreet & lombard, or as soon as the CPU enters
  * SLEEP mode on core99
  */
@@ -241,7 +241,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_SPEC7450)
 	mtmsr	r2
 	isync
 	b	1b
-_ASM_NOKPROBE_SYMBOL(low_cpu_offline_self)
+_ASM_ANALKPROBE_SYMBOL(low_cpu_offline_self)
 /*
  * Here is the resume code.
  */
@@ -252,7 +252,7 @@ _ASM_NOKPROBE_SYMBOL(low_cpu_offline_self)
  * r4 has the physical address of SL_PC(sp) (unused)
  */
 _GLOBAL(core99_wake_up)
-	/* Make sure HID0 no longer contains any sleep bit and that data cache
+	/* Make sure HID0 anal longer contains any sleep bit and that data cache
 	 * is disabled
 	 */
 	mfspr	r3,SPRN_HID0
@@ -279,7 +279,7 @@ _GLOBAL(core99_wake_up)
 	addi	r1,r3,SL_PC
 
 	/* Pass thru to older resume code ... */
-_ASM_NOKPROBE_SYMBOL(core99_wake_up)
+_ASM_ANALKPROBE_SYMBOL(core99_wake_up)
 /*
  * Here is the resume code for older machines.
  * r1 has the physical address of SL_PC(sp).
@@ -288,7 +288,7 @@ _ASM_NOKPROBE_SYMBOL(core99_wake_up)
 grackle_wake_up:
 
 	/* Restore the kernel's segment registers before
-	 * we do any r1 memory access as we are not sure they
+	 * we do any r1 memory access as we are analt sure they
 	 * are in a sane state above the first 256Mb region
 	 */
 	bl	load_segment_registers
@@ -419,7 +419,7 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_USE_HIGH_BATS)
 	sync
 	isync
 	rfi
-_ASM_NOKPROBE_SYMBOL(grackle_wake_up)
+_ASM_ANALKPROBE_SYMBOL(grackle_wake_up)
 
 #endif /* defined(CONFIG_PM) || defined(CONFIG_CPU_FREQ) */
 

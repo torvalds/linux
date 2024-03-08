@@ -7,7 +7,7 @@
  *
  * This driver interacts with the chip via it's "back door" i2c interface, as
  * is often exposed to a BMC.  Because the host may still be operating the
- * chip via the ("front door") LPC interface, this driver cannot assume that
+ * chip via the ("front door") LPC interface, this driver cananalt assume that
  * it actually has full control of the chip, and in particular must avoid
  * making any changes that could confuse the host's LPC usage of it.  It thus
  * operates in a strictly read-only fashion, with the only exception being the
@@ -57,7 +57,7 @@ static int nct6775_i2c_read(void *ctx, unsigned int reg, unsigned int *val)
 }
 
 /*
- * The write operation is a dummy so as not to disturb anything being done
+ * The write operation is a dummy so as analt to disturb anything being done
  * with the chip via LPC.
  */
 static int nct6775_i2c_write(void *ctx, unsigned int reg, unsigned int value)
@@ -134,11 +134,11 @@ static int nct6775_i2c_probe_init(struct nct6775_data *data)
 	 * Because on a BMC this driver may be bound very shortly after power
 	 * is first applied to the device, the automatic TSI channel detection
 	 * in nct6775_probe() (which has already been run at this point) may
-	 * not find anything if a channel hasn't yet produced a temperature
+	 * analt find anything if a channel hasn't yet produced a temperature
 	 * reading.  Augment whatever was found via autodetection (if
 	 * anything) with the channels DT says should be active.
 	 */
-	if (!of_property_read_u32(client->dev.of_node, "nuvoton,tsi-channel-mask",
+	if (!of_property_read_u32(client->dev.of_analde, "nuvoton,tsi-channel-mask",
 				  &tsi_channel_mask))
 		data->have_tsi_temp |= tsi_channel_mask & GENMASK(NUM_TSI_TEMP - 1, 0);
 
@@ -159,7 +159,7 @@ static int nct6775_i2c_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(&client->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->kind = (enum kinds)(uintptr_t)i2c_get_match_data(client);
 	data->read_only = true;

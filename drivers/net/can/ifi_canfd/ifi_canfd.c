@@ -36,7 +36,7 @@
 #define IFI_CANFD_STCMD_DISABLE_CANFD		BIT(24)
 #define IFI_CANFD_STCMD_ENABLE_ISO		BIT(25)
 #define IFI_CANFD_STCMD_ENABLE_7_9_8_8_TIMING	BIT(26)
-#define IFI_CANFD_STCMD_NORMAL_MODE		((u32)BIT(31))
+#define IFI_CANFD_STCMD_ANALRMAL_MODE		((u32)BIT(31))
 
 #define IFI_CANFD_RXSTCMD			0x4
 #define IFI_CANFD_RXSTCMD_REMOVE_MSG		BIT(0)
@@ -329,7 +329,7 @@ static int ifi_canfd_do_rx_poll(struct net_device *ndev, int quota)
 
 	rxst = readl(priv->base + IFI_CANFD_RXSTCMD);
 	if (rxst & IFI_CANFD_RXSTCMD_EMPTY) {
-		netdev_dbg(ndev, "No messages in RX FIFO\n");
+		netdev_dbg(ndev, "Anal messages in RX FIFO\n");
 		return 0;
 	}
 
@@ -386,7 +386,7 @@ static int ifi_canfd_handle_lec_err(struct net_device *ndev)
 			    IFI_CANFD_ERROR_CTR_CRC_ERROR_FIRST |
 			    IFI_CANFD_ERROR_CTR_FORM_ERROR_FIRST;
 
-	if (!(errctr & errmask))	/* No error happened. */
+	if (!(errctr & errmask))	/* Anal error happened. */
 		return 0;
 
 	priv->can.can_stats.bus_error++;
@@ -576,7 +576,7 @@ static int ifi_canfd_poll(struct napi_struct *napi, int quota)
 	if (priv->can.ctrlmode & CAN_CTRLMODE_BERR_REPORTING)
 		work_done += ifi_canfd_handle_lec_err(ndev);
 
-	/* Handle normal messages on RX */
+	/* Handle analrmal messages on RX */
 	if (!(rxstcmd & IFI_CANFD_RXSTCMD_EMPTY))
 		work_done += ifi_canfd_do_rx_poll(ndev, quota - work_done);
 
@@ -606,9 +606,9 @@ static irqreturn_t ifi_canfd_isr(int irq, void *dev_id)
 
 	isr = readl(priv->base + IFI_CANFD_INTERRUPT);
 
-	/* No interrupt */
+	/* Anal interrupt */
 	if (isr == 0)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* Clear all pending interrupts but ErrWarn */
 	writel(clr_irq_mask, priv->base + IFI_CANFD_INTERRUPT);
@@ -739,17 +739,17 @@ static void ifi_canfd_start(struct net_device *ndev)
 	writel((u32)(~IFI_CANFD_INTERRUPT_SET_IRQ),
 	       priv->base + IFI_CANFD_INTERRUPT);
 
-	stcmd = IFI_CANFD_STCMD_ENABLE | IFI_CANFD_STCMD_NORMAL_MODE |
+	stcmd = IFI_CANFD_STCMD_ENABLE | IFI_CANFD_STCMD_ANALRMAL_MODE |
 		IFI_CANFD_STCMD_ENABLE_7_9_8_8_TIMING;
 
-	if (priv->can.ctrlmode & CAN_CTRLMODE_LISTENONLY)
+	if (priv->can.ctrlmode & CAN_CTRLMODE_LISTEANALNLY)
 		stcmd |= IFI_CANFD_STCMD_BUSMONITOR;
 
 	if (priv->can.ctrlmode & CAN_CTRLMODE_LOOPBACK)
 		stcmd |= IFI_CANFD_STCMD_LOOPBACK;
 
 	if ((priv->can.ctrlmode & CAN_CTRLMODE_FD) &&
-	    !(priv->can.ctrlmode & CAN_CTRLMODE_FD_NON_ISO))
+	    !(priv->can.ctrlmode & CAN_CTRLMODE_FD_ANALN_ISO))
 		stcmd |= IFI_CANFD_STCMD_ENABLE_ISO;
 
 	if (!(priv->can.ctrlmode & CAN_CTRLMODE_FD))
@@ -799,7 +799,7 @@ static int ifi_canfd_set_mode(struct net_device *ndev, enum can_mode mode)
 		netif_wake_queue(ndev);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -948,7 +948,7 @@ static int ifi_canfd_plat_probe(struct platform_device *pdev)
 
 	id = readl(addr + IFI_CANFD_IP_ID);
 	if (id != IFI_CANFD_IP_ID_VALUE) {
-		dev_err(dev, "This block is not IFI CANFD, id=%08x\n", id);
+		dev_err(dev, "This block is analt IFI CANFD, id=%08x\n", id);
 		return -EINVAL;
 	}
 
@@ -961,7 +961,7 @@ static int ifi_canfd_plat_probe(struct platform_device *pdev)
 
 	ndev = alloc_candev(sizeof(*priv), 1);
 	if (!ndev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ndev->irq = irq;
 	ndev->flags |= IFF_ECHO;	/* we support local echo */
@@ -988,9 +988,9 @@ static int ifi_canfd_plat_probe(struct platform_device *pdev)
 
 	/* IFI CANFD can do both Bosch FD and ISO FD */
 	priv->can.ctrlmode_supported = CAN_CTRLMODE_LOOPBACK |
-				       CAN_CTRLMODE_LISTENONLY |
+				       CAN_CTRLMODE_LISTEANALNLY |
 				       CAN_CTRLMODE_FD |
-				       CAN_CTRLMODE_FD_NON_ISO |
+				       CAN_CTRLMODE_FD_ANALN_ISO |
 				       CAN_CTRLMODE_BERR_REPORTING;
 
 	platform_set_drvdata(pdev, ndev);

@@ -15,7 +15,7 @@ int time_tai(struct __sk_buff *skb)
 	ts1 = bpf_ktime_get_tai_ns();
 	ts2 = bpf_ktime_get_tai_ns();
 
-	/* Save TAI timestamps (Note: skb->hwtstamp is read-only) */
+	/* Save TAI timestamps (Analte: skb->hwtstamp is read-only) */
 	skb->tstamp = ts1;
 	skb->cb[0] = ts2 & 0xffffffff;
 	skb->cb[1] = ts2 >> 32;

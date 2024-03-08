@@ -28,7 +28,7 @@
 #include <media/v4l2-dev.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-event.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/videobuf2-dma-contig.h>
 #include <media/v4l2-image-sizes.h>
 
@@ -68,7 +68,7 @@ struct frame_buffer {
 };
 
 struct isi_graph_entity {
-	struct device_node *node;
+	struct device_analde *analde;
 
 	struct v4l2_subdev *subdev;
 };
@@ -118,7 +118,7 @@ struct atmel_isi {
 
 	struct v4l2_device		v4l2_dev;
 	struct video_device		*vdev;
-	struct v4l2_async_notifier	notifier;
+	struct v4l2_async_analtifier	analtifier;
 	struct isi_graph_entity		entity;
 	struct v4l2_format		fmt;
 
@@ -130,7 +130,7 @@ struct atmel_isi {
 	struct vb2_queue		queue;
 };
 
-#define notifier_to_isi(n) container_of(n, struct atmel_isi, notifier)
+#define analtifier_to_isi(n) container_of(n, struct atmel_isi, analtifier)
 
 static void isi_writel(struct atmel_isi *isi, u32 reg, u32 val)
 {
@@ -162,13 +162,13 @@ static void configure_geometry(struct atmel_isi *isi)
 			& ISI_CFG2_IM_VSIZE_MASK;
 	isi_writel(isi, ISI_CFG2, cfg2);
 
-	/* No down sampling, preview size equal to sensor output size */
+	/* Anal down sampling, preview size equal to sensor output size */
 	psize = ((isi->fmt.fmt.pix.width - 1) << ISI_PSIZE_PREV_HSIZE_OFFSET) &
 		ISI_PSIZE_PREV_HSIZE_MASK;
 	psize |= ((isi->fmt.fmt.pix.height - 1) << ISI_PSIZE_PREV_VSIZE_OFFSET) &
 		ISI_PSIZE_PREV_VSIZE_MASK;
 	isi_writel(isi, ISI_PSIZE, psize);
-	isi_writel(isi, ISI_PDECF, ISI_PDECF_NO_SAMPLING);
+	isi_writel(isi, ISI_PDECF, ISI_PDECF_ANAL_SAMPLING);
 }
 
 static irqreturn_t atmel_isi_handle_streaming(struct atmel_isi *isi)
@@ -180,7 +180,7 @@ static irqreturn_t atmel_isi_handle_streaming(struct atmel_isi *isi)
 		list_del_init(&buf->list);
 		vbuf->vb2_buf.timestamp = ktime_get_ns();
 		vbuf->sequence = isi->sequence++;
-		vbuf->field = V4L2_FIELD_NONE;
+		vbuf->field = V4L2_FIELD_ANALNE;
 		vb2_buffer_done(&vbuf->vb2_buf, VB2_BUF_STATE_DONE);
 	}
 
@@ -212,7 +212,7 @@ static irqreturn_t isi_interrupt(int irq, void *dev_id)
 {
 	struct atmel_isi *isi = dev_id;
 	u32 status, mask, pending;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 
 	spin_lock(&isi->irqlock);
 
@@ -277,7 +277,7 @@ static int queue_setup(struct vb2_queue *vq,
 
 	size = isi->fmt.fmt.pix.sizeimage;
 
-	/* Make sure the image size is large enough. */
+	/* Make sure the image size is large eanalugh. */
 	if (*nplanes)
 		return sizes[0] < size ? -EINVAL : 0;
 
@@ -314,7 +314,7 @@ static int buffer_prepare(struct vb2_buffer *vb)
 	size = isi->fmt.fmt.pix.sizeimage;
 
 	if (vb2_plane_size(vb, 0) < size) {
-		dev_err(isi->dev, "%s data will not fit into plane (%lu < %lu)\n",
+		dev_err(isi->dev, "%s data will analt fit into plane (%lu < %lu)\n",
 				__func__, vb2_plane_size(vb, 0), size);
 		return -EINVAL;
 	}
@@ -323,13 +323,13 @@ static int buffer_prepare(struct vb2_buffer *vb)
 
 	if (!buf->p_dma_desc) {
 		if (list_empty(&isi->dma_desc_head)) {
-			dev_err(isi->dev, "Not enough dma descriptors.\n");
+			dev_err(isi->dev, "Analt eanalugh dma descriptors.\n");
 			return -EINVAL;
 		} else {
 			/* Get an available descriptor */
 			desc = list_entry(isi->dma_desc_head.next,
 						struct isi_dma_desc, list);
-			/* Delete the descriptor since now it is used */
+			/* Delete the descriptor since analw it is used */
 			list_del_init(&desc->list);
 
 			/* Initialize the dma descriptor */
@@ -350,7 +350,7 @@ static void buffer_cleanup(struct vb2_buffer *vb)
 	struct atmel_isi *isi = vb2_get_drv_priv(vb->vb2_queue);
 	struct frame_buffer *buf = container_of(vbuf, struct frame_buffer, vb);
 
-	/* This descriptor is available now and we add to head list */
+	/* This descriptor is available analw and we add to head list */
 	if (buf->p_dma_desc)
 		list_add(&buf->p_dma_desc->list, &isi->dma_desc_head);
 }
@@ -419,7 +419,7 @@ static void buffer_queue(struct vb2_buffer *vb)
 static int start_streaming(struct vb2_queue *vq, unsigned int count)
 {
 	struct atmel_isi *isi = vb2_get_drv_priv(vq);
-	struct frame_buffer *buf, *node;
+	struct frame_buffer *buf, *analde;
 	int ret;
 
 	ret = pm_runtime_resume_and_get(isi->dev);
@@ -428,7 +428,7 @@ static int start_streaming(struct vb2_queue *vq, unsigned int count)
 
 	/* Enable stream on the sub device */
 	ret = v4l2_subdev_call(isi->entity.subdev, video, s_stream, 1);
-	if (ret && ret != -ENOIOCTLCMD) {
+	if (ret && ret != -EANALIOCTLCMD) {
 		dev_err(isi->dev, "stream on failed in subdev\n");
 		goto err_start_stream;
 	}
@@ -463,7 +463,7 @@ err_start_stream:
 	spin_lock_irq(&isi->irqlock);
 	isi->active = NULL;
 	/* Release all active buffers */
-	list_for_each_entry_safe(buf, node, &isi->video_buffer_list, list) {
+	list_for_each_entry_safe(buf, analde, &isi->video_buffer_list, list) {
 		list_del_init(&buf->list);
 		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_QUEUED);
 	}
@@ -476,19 +476,19 @@ err_start_stream:
 static void stop_streaming(struct vb2_queue *vq)
 {
 	struct atmel_isi *isi = vb2_get_drv_priv(vq);
-	struct frame_buffer *buf, *node;
+	struct frame_buffer *buf, *analde;
 	int ret = 0;
 	unsigned long timeout;
 
 	/* Disable stream on the sub device */
 	ret = v4l2_subdev_call(isi->entity.subdev, video, s_stream, 0);
-	if (ret && ret != -ENOIOCTLCMD)
+	if (ret && ret != -EANALIOCTLCMD)
 		dev_err(isi->dev, "stream off failed in subdev\n");
 
 	spin_lock_irq(&isi->irqlock);
 	isi->active = NULL;
 	/* Release all active buffers */
-	list_for_each_entry_safe(buf, node, &isi->video_buffer_list, list) {
+	list_for_each_entry_safe(buf, analde, &isi->video_buffer_list, list) {
 		list_del_init(&buf->list);
 		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 	}
@@ -570,7 +570,7 @@ static void isi_try_fse(struct atmel_isi *isi, const struct isi_format *isi_fmt,
 	ret = v4l2_subdev_call(isi->entity.subdev, pad, enum_frame_size,
 			       sd_state, &fse);
 	/*
-	 * Attempt to obtain format size from subdev. If not available,
+	 * Attempt to obtain format size from subdev. If analt available,
 	 * just use the maximum ISI can receive.
 	 */
 	if (ret) {
@@ -618,7 +618,7 @@ static int isi_try_fmt(struct atmel_isi *isi, struct v4l2_format *f,
 
 	v4l2_fill_pix_format(pixfmt, &format.format);
 
-	pixfmt->field = V4L2_FIELD_NONE;
+	pixfmt->field = V4L2_FIELD_ANALNE;
 	pixfmt->bytesperline = pixfmt->width * isi_fmt->bpp;
 	pixfmt->sizeimage = pixfmt->bytesperline * pixfmt->height;
 
@@ -826,8 +826,8 @@ static int isi_camera_set_bus_param(struct atmel_isi *isi)
 static int atmel_isi_parse_dt(struct atmel_isi *isi,
 			struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
-	struct v4l2_fwnode_endpoint ep = { .bus_type = 0 };
+	struct device_analde *np = pdev->dev.of_analde;
+	struct v4l2_fwanalde_endpoint ep = { .bus_type = 0 };
 	int err;
 
 	/* Default settings for ISI */
@@ -836,14 +836,14 @@ static int atmel_isi_parse_dt(struct atmel_isi *isi,
 
 	np = of_graph_get_next_endpoint(np, NULL);
 	if (!np) {
-		dev_err(&pdev->dev, "Could not find the endpoint\n");
+		dev_err(&pdev->dev, "Could analt find the endpoint\n");
 		return -EINVAL;
 	}
 
-	err = v4l2_fwnode_endpoint_parse(of_fwnode_handle(np), &ep);
-	of_node_put(np);
+	err = v4l2_fwanalde_endpoint_parse(of_fwanalde_handle(np), &ep);
+	of_analde_put(np);
 	if (err) {
-		dev_err(&pdev->dev, "Could not parse the endpoint\n");
+		dev_err(&pdev->dev, "Could analt parse the endpoint\n");
 		return err;
 	}
 
@@ -891,7 +891,7 @@ static int isi_open(struct file *file)
 		goto fh_rel;
 
 	ret = v4l2_subdev_call(sd, core, s_power, 1);
-	if (ret < 0 && ret != -ENOIOCTLCMD)
+	if (ret < 0 && ret != -EANALIOCTLCMD)
 		goto fh_rel;
 
 	ret = isi_set_fmt(isi, &isi->fmt);
@@ -975,7 +975,7 @@ static int isi_set_default_fmt(struct atmel_isi *isi)
 		.fmt.pix = {
 			.width		= VGA_WIDTH,
 			.height		= VGA_HEIGHT,
-			.field		= V4L2_FIELD_NONE,
+			.field		= V4L2_FIELD_ANALNE,
 			.pixelformat	= isi->user_formats[0]->fourcc,
 		},
 	};
@@ -1078,7 +1078,7 @@ static int isi_formats_init(struct atmel_isi *isi)
 					 num_fmts, sizeof(struct isi_format *),
 					 GFP_KERNEL);
 	if (!isi->user_formats)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(isi->user_formats, isi_fmts,
 	       num_fmts * sizeof(struct isi_format *));
@@ -1087,15 +1087,15 @@ static int isi_formats_init(struct atmel_isi *isi)
 	return 0;
 }
 
-static int isi_graph_notify_complete(struct v4l2_async_notifier *notifier)
+static int isi_graph_analtify_complete(struct v4l2_async_analtifier *analtifier)
 {
-	struct atmel_isi *isi = notifier_to_isi(notifier);
+	struct atmel_isi *isi = analtifier_to_isi(analtifier);
 	int ret;
 
 	isi->vdev->ctrl_handler = isi->entity.subdev->ctrl_handler;
 	ret = isi_formats_init(isi);
 	if (ret) {
-		dev_err(isi->dev, "No supported mediabus format found\n");
+		dev_err(isi->dev, "Anal supported mediabus format found\n");
 		return ret;
 	}
 	ret = isi_camera_set_bus_param(isi);
@@ -1106,7 +1106,7 @@ static int isi_graph_notify_complete(struct v4l2_async_notifier *notifier)
 
 	ret = isi_set_default_fmt(isi);
 	if (ret) {
-		dev_err(isi->dev, "Could not set default format\n");
+		dev_err(isi->dev, "Could analt set default format\n");
 		return ret;
 	}
 
@@ -1117,27 +1117,27 @@ static int isi_graph_notify_complete(struct v4l2_async_notifier *notifier)
 	}
 
 	dev_dbg(isi->dev, "Device registered as %s\n",
-		video_device_node_name(isi->vdev));
+		video_device_analde_name(isi->vdev));
 	return 0;
 }
 
-static void isi_graph_notify_unbind(struct v4l2_async_notifier *notifier,
+static void isi_graph_analtify_unbind(struct v4l2_async_analtifier *analtifier,
 				     struct v4l2_subdev *sd,
 				     struct v4l2_async_connection *asd)
 {
-	struct atmel_isi *isi = notifier_to_isi(notifier);
+	struct atmel_isi *isi = analtifier_to_isi(analtifier);
 
-	dev_dbg(isi->dev, "Removing %s\n", video_device_node_name(isi->vdev));
+	dev_dbg(isi->dev, "Removing %s\n", video_device_analde_name(isi->vdev));
 
-	/* Checks internally if vdev have been init or not */
+	/* Checks internally if vdev have been init or analt */
 	video_unregister_device(isi->vdev);
 }
 
-static int isi_graph_notify_bound(struct v4l2_async_notifier *notifier,
+static int isi_graph_analtify_bound(struct v4l2_async_analtifier *analtifier,
 				   struct v4l2_subdev *subdev,
 				   struct v4l2_async_connection *asd)
 {
-	struct atmel_isi *isi = notifier_to_isi(notifier);
+	struct atmel_isi *isi = analtifier_to_isi(analtifier);
 
 	dev_dbg(isi->dev, "subdev %s bound\n", subdev->name);
 
@@ -1146,38 +1146,38 @@ static int isi_graph_notify_bound(struct v4l2_async_notifier *notifier,
 	return 0;
 }
 
-static const struct v4l2_async_notifier_operations isi_graph_notify_ops = {
-	.bound = isi_graph_notify_bound,
-	.unbind = isi_graph_notify_unbind,
-	.complete = isi_graph_notify_complete,
+static const struct v4l2_async_analtifier_operations isi_graph_analtify_ops = {
+	.bound = isi_graph_analtify_bound,
+	.unbind = isi_graph_analtify_unbind,
+	.complete = isi_graph_analtify_complete,
 };
 
 static int isi_graph_init(struct atmel_isi *isi)
 {
 	struct v4l2_async_connection *asd;
-	struct device_node *ep;
+	struct device_analde *ep;
 	int ret;
 
-	ep = of_graph_get_next_endpoint(isi->dev->of_node, NULL);
+	ep = of_graph_get_next_endpoint(isi->dev->of_analde, NULL);
 	if (!ep)
 		return -EINVAL;
 
-	v4l2_async_nf_init(&isi->notifier, &isi->v4l2_dev);
+	v4l2_async_nf_init(&isi->analtifier, &isi->v4l2_dev);
 
-	asd = v4l2_async_nf_add_fwnode_remote(&isi->notifier,
-					      of_fwnode_handle(ep),
+	asd = v4l2_async_nf_add_fwanalde_remote(&isi->analtifier,
+					      of_fwanalde_handle(ep),
 					      struct v4l2_async_connection);
-	of_node_put(ep);
+	of_analde_put(ep);
 
 	if (IS_ERR(asd))
 		return PTR_ERR(asd);
 
-	isi->notifier.ops = &isi_graph_notify_ops;
+	isi->analtifier.ops = &isi_graph_analtify_ops;
 
-	ret = v4l2_async_nf_register(&isi->notifier);
+	ret = v4l2_async_nf_register(&isi->analtifier);
 	if (ret < 0) {
-		dev_err(isi->dev, "Notifier registration failed\n");
-		v4l2_async_nf_cleanup(&isi->notifier);
+		dev_err(isi->dev, "Analtifier registration failed\n");
+		v4l2_async_nf_cleanup(&isi->analtifier);
 		return ret;
 	}
 
@@ -1194,7 +1194,7 @@ static int atmel_isi_probe(struct platform_device *pdev)
 
 	isi = devm_kzalloc(&pdev->dev, sizeof(struct atmel_isi), GFP_KERNEL);
 	if (!isi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	isi->pclk = devm_clk_get(&pdev->dev, "isi_clk");
 	if (IS_ERR(isi->pclk))
@@ -1220,11 +1220,11 @@ static int atmel_isi_probe(struct platform_device *pdev)
 
 	isi->vdev = video_device_alloc();
 	if (!isi->vdev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_vdev_alloc;
 	}
 
-	/* video node */
+	/* video analde */
 	isi->vdev->fops = &isi_fops;
 	isi->vdev->v4l2_dev = &isi->v4l2_dev;
 	isi->vdev->queue = &isi->queue;
@@ -1244,7 +1244,7 @@ static int atmel_isi_probe(struct platform_device *pdev)
 	q->buf_struct_size = sizeof(struct frame_buffer);
 	q->ops = &isi_video_qops;
 	q->mem_ops = &vb2_dma_contig_memops;
-	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 	q->min_queued_buffers = 2;
 	q->dev = &pdev->dev;
 
@@ -1259,7 +1259,7 @@ static int atmel_isi_probe(struct platform_device *pdev)
 				GFP_KERNEL);
 	if (!isi->p_fb_descriptors) {
 		dev_err(&pdev->dev, "Can't allocate descriptors!\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_dma_alloc;
 	}
 
@@ -1298,7 +1298,7 @@ static int atmel_isi_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err_req_irq;
 
-	pm_suspend_ignore_children(&pdev->dev, true);
+	pm_suspend_iganalre_children(&pdev->dev, true);
 	pm_runtime_enable(&pdev->dev);
 	platform_set_drvdata(pdev, isi);
 	return 0;
@@ -1327,8 +1327,8 @@ static void atmel_isi_remove(struct platform_device *pdev)
 			isi->p_fb_descriptors,
 			isi->fb_descriptors_phys);
 	pm_runtime_disable(&pdev->dev);
-	v4l2_async_nf_unregister(&isi->notifier);
-	v4l2_async_nf_cleanup(&isi->notifier);
+	v4l2_async_nf_unregister(&isi->analtifier);
+	v4l2_async_nf_cleanup(&isi->analtifier);
 	v4l2_device_unregister(&isi->v4l2_dev);
 }
 

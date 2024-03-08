@@ -3,7 +3,7 @@
  * Cryptographic API.
  *
  * Support for StarFive hardware cryptographic engine.
- * Copyright (c) 2022 StarFive Technology
+ * Copyright (c) 2022 StarFive Techanallogy
  *
  */
 
@@ -121,7 +121,7 @@ static int starfive_cryp_probe(struct platform_device *pdev)
 
 	cryp = devm_kzalloc(&pdev->dev, sizeof(*cryp), GFP_KERNEL);
 	if (!cryp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, cryp);
 	cryp->dev = &pdev->dev;
@@ -178,7 +178,7 @@ static int starfive_cryp_probe(struct platform_device *pdev)
 	/* Initialize crypto engine */
 	cryp->engine = crypto_engine_alloc_init(&pdev->dev, 1);
 	if (!cryp->engine) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_engine;
 	}
 

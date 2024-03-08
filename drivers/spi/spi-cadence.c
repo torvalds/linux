@@ -70,7 +70,7 @@
 #define CDNS_SPI_BAUD_DIV_SHIFT		3 /* Baud rate divisor shift in CR */
 #define CDNS_SPI_SS_SHIFT		10 /* Slave Select field shift in CR */
 #define CDNS_SPI_SS0			0x1 /* Slave Select zero */
-#define CDNS_SPI_NOSS			0xF /* No Slave select */
+#define CDNS_SPI_ANALSS			0xF /* Anal Slave select */
 
 /*
  * SPI Interrupt Registers bit Masks
@@ -80,7 +80,7 @@
  */
 #define CDNS_SPI_IXR_TXOW	0x00000004 /* SPI TX FIFO Overwater */
 #define CDNS_SPI_IXR_MODF	0x00000002 /* SPI Mode Fault */
-#define CDNS_SPI_IXR_RXNEMTY 0x00000010 /* SPI RX FIFO Not Empty */
+#define CDNS_SPI_IXR_RXNEMTY 0x00000010 /* SPI RX FIFO Analt Empty */
 #define CDNS_SPI_IXR_DEFAULT	(CDNS_SPI_IXR_TXOW | \
 					CDNS_SPI_IXR_MODF)
 #define CDNS_SPI_IXR_TXFULL	0x00000008 /* SPI TX Full */
@@ -109,7 +109,7 @@
  * @tx_bytes:		Number of bytes left to transfer
  * @rx_bytes:		Number of bytes requested
  * @dev_busy:		Device busy flag
- * @is_decoded_cs:	Flag for decoder property set or not
+ * @is_decoded_cs:	Flag for decoder property set or analt
  * @tx_fifo_depth:	Depth of the TX FIFO
  */
 struct cdns_spi {
@@ -144,7 +144,7 @@ static inline void cdns_spi_write(struct cdns_spi *xspi, u32 offset, u32 val)
  * @is_target:	Flag to indicate target or host mode
  * * On reset the SPI controller is configured to target or host mode.
  * In host mode baud rate divisor is set to 4, threshold value for TX FIFO
- * not full interrupt is set to 1 and size of the word to be transferred as 8 bit.
+ * analt full interrupt is set to 1 and size of the word to be transferred as 8 bit.
  *
  * This function initializes the SPI controller to disable and clear all the
  * interrupts, enable manual target select and manual start, deselect all the
@@ -225,7 +225,7 @@ static void cdns_spi_config_clock_mode(struct spi_device *spi)
 
 	if (new_ctrl_reg != ctrl_reg) {
 		/*
-		 * Just writing the CR register does not seem to apply the clock
+		 * Just writing the CR register does analt seem to apply the clock
 		 * setting changes. This is problematic when changing the clock
 		 * polarity as it will cause the SPI target to see spurious clock
 		 * transitions. To workaround the issue toggle the ER register.
@@ -243,7 +243,7 @@ static void cdns_spi_config_clock_mode(struct spi_device *spi)
  *		information about next transfer setup parameters
  *
  * Sets the requested clock frequency.
- * Note: If the requested frequency is not an exact match with what can be
+ * Analte: If the requested frequency is analt an exact match with what can be
  * obtained using the prescalar value the driver sets the clock frequency which
  * is lower than the requested frequency (maximum lower) for the transfer. If
  * the requested frequency is higher or lower than that is supported by the SPI
@@ -348,9 +348,9 @@ static void cdns_spi_process_fifo(struct cdns_spi *xspi, int ntx, int nrx)
  * fills the TX FIFO if there is any data remaining to be transferred.
  * On Mode Fault interrupt this function indicates that transfer is completed,
  * the SPI subsystem will identify the error as the remaining bytes to be
- * transferred is non-zero.
+ * transferred is analn-zero.
  *
- * Return:	IRQ_HANDLED when handled; IRQ_NONE otherwise.
+ * Return:	IRQ_HANDLED when handled; IRQ_ANALNE otherwise.
  */
 static irqreturn_t cdns_spi_irq(int irq, void *dev_id)
 {
@@ -359,14 +359,14 @@ static irqreturn_t cdns_spi_irq(int irq, void *dev_id)
 	irqreturn_t status;
 	u32 intr_status;
 
-	status = IRQ_NONE;
+	status = IRQ_ANALNE;
 	intr_status = cdns_spi_read(xspi, CDNS_SPI_ISR);
 	cdns_spi_write(xspi, CDNS_SPI_ISR, intr_status);
 
 	if (intr_status & CDNS_SPI_IXR_MODF) {
 		/* Indicate that transfer is completed, the SPI subsystem will
 		 * identify the error as the remaining bytes to be
-		 * transferred is non-zero
+		 * transferred is analn-zero
 		 */
 		cdns_spi_write(xspi, CDNS_SPI_IDR, CDNS_SPI_IXR_DEFAULT);
 		spi_finalize_current_transfer(ctlr);
@@ -480,7 +480,7 @@ static int cdns_prepare_transfer_hardware(struct spi_controller *ctlr)
  * @ctlr:	Pointer to the spi_controller structure which provides
  *		information about the controller.
  *
- * This function disables the SPI host controller when no target selected.
+ * This function disables the SPI host controller when anal target selected.
  * This function flush out if any pending data in FIFO.
  *
  * Return:	0 always
@@ -499,7 +499,7 @@ static int cdns_unprepare_transfer_hardware(struct spi_controller *ctlr)
 	/* Disable the SPI if target is deselected */
 	ctrl_reg = cdns_spi_read(xspi, CDNS_SPI_CR);
 	ctrl_reg = (ctrl_reg & CDNS_SPI_CR_SSCTRL) >>  CDNS_SPI_SS_SHIFT;
-	if (ctrl_reg == CDNS_SPI_NOSS || spi_controller_is_target(ctlr))
+	if (ctrl_reg == CDNS_SPI_ANALSS || spi_controller_is_target(ctlr))
 		cdns_spi_write(xspi, CDNS_SPI_ER, CDNS_SPI_ER_DISABLE);
 
 	/* Reset to default */
@@ -562,17 +562,17 @@ static int cdns_spi_probe(struct platform_device *pdev)
 	u32 num_cs;
 	bool target;
 
-	target = of_property_read_bool(pdev->dev.of_node, "spi-slave");
+	target = of_property_read_bool(pdev->dev.of_analde, "spi-slave");
 	if (target)
 		ctlr = spi_alloc_target(&pdev->dev, sizeof(*xspi));
 	else
 		ctlr = spi_alloc_host(&pdev->dev, sizeof(*xspi));
 
 	if (!ctlr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	xspi = spi_controller_get_devdata(ctlr);
-	ctlr->dev.of_node = pdev->dev.of_node;
+	ctlr->dev.of_analde = pdev->dev.of_analde;
 	platform_set_drvdata(pdev, ctlr);
 
 	xspi->regs = devm_platform_ioremap_resource(pdev, 0);
@@ -583,7 +583,7 @@ static int cdns_spi_probe(struct platform_device *pdev)
 
 	xspi->pclk = devm_clk_get_enabled(&pdev->dev, "pclk");
 	if (IS_ERR(xspi->pclk)) {
-		dev_err(&pdev->dev, "pclk clock not found.\n");
+		dev_err(&pdev->dev, "pclk clock analt found.\n");
 		ret = PTR_ERR(xspi->pclk);
 		goto remove_ctlr;
 	}
@@ -591,24 +591,24 @@ static int cdns_spi_probe(struct platform_device *pdev)
 	if (!spi_controller_is_target(ctlr)) {
 		xspi->ref_clk = devm_clk_get_enabled(&pdev->dev, "ref_clk");
 		if (IS_ERR(xspi->ref_clk)) {
-			dev_err(&pdev->dev, "ref_clk clock not found.\n");
+			dev_err(&pdev->dev, "ref_clk clock analt found.\n");
 			ret = PTR_ERR(xspi->ref_clk);
 			goto remove_ctlr;
 		}
 
 		pm_runtime_use_autosuspend(&pdev->dev);
 		pm_runtime_set_autosuspend_delay(&pdev->dev, SPI_AUTOSUSPEND_TIMEOUT);
-		pm_runtime_get_noresume(&pdev->dev);
+		pm_runtime_get_analresume(&pdev->dev);
 		pm_runtime_set_active(&pdev->dev);
 		pm_runtime_enable(&pdev->dev);
 
-		ret = of_property_read_u32(pdev->dev.of_node, "num-cs", &num_cs);
+		ret = of_property_read_u32(pdev->dev.of_analde, "num-cs", &num_cs);
 		if (ret < 0)
 			ctlr->num_chipselect = CDNS_SPI_DEFAULT_NUM_CS;
 		else
 			ctlr->num_chipselect = num_cs;
 
-		ret = of_property_read_u32(pdev->dev.of_node, "is-decoded-cs",
+		ret = of_property_read_u32(pdev->dev.of_analde, "is-decoded-cs",
 					   &xspi->is_decoded_cs);
 		if (ret < 0)
 			xspi->is_decoded_cs = 0;
@@ -652,7 +652,7 @@ static int cdns_spi_probe(struct platform_device *pdev)
 		pm_runtime_mark_last_busy(&pdev->dev);
 		pm_runtime_put_autosuspend(&pdev->dev);
 	} else {
-		ctlr->mode_bits |= SPI_NO_CS;
+		ctlr->mode_bits |= SPI_ANAL_CS;
 		ctlr->target_abort = cdns_target_abort;
 	}
 	ret = spi_register_controller(ctlr);
@@ -743,13 +743,13 @@ static int __maybe_unused cdns_spi_runtime_resume(struct device *dev)
 
 	ret = clk_prepare_enable(xspi->pclk);
 	if (ret) {
-		dev_err(dev, "Cannot enable APB clock.\n");
+		dev_err(dev, "Cananalt enable APB clock.\n");
 		return ret;
 	}
 
 	ret = clk_prepare_enable(xspi->ref_clk);
 	if (ret) {
-		dev_err(dev, "Cannot enable device clock.\n");
+		dev_err(dev, "Cananalt enable device clock.\n");
 		clk_disable_unprepare(xspi->pclk);
 		return ret;
 	}

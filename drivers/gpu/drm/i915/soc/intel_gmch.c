@@ -25,7 +25,7 @@ int intel_gmch_bridge_setup(struct drm_i915_private *i915)
 
 	i915->gmch.pdev = pci_get_domain_bus_and_slot(domain, 0, PCI_DEVFN(0, 0));
 	if (!i915->gmch.pdev) {
-		drm_err(&i915->drm, "bridge device not found\n");
+		drm_err(&i915->drm, "bridge device analt found\n");
 		return -EIO;
 	}
 
@@ -38,7 +38,7 @@ static int mchbar_reg(struct drm_i915_private *i915)
 	return GRAPHICS_VER(i915) >= 4 ? MCHBAR_I965 : MCHBAR_I915;
 }
 
-/* Allocate space for the MCH regs if needed, return nonzero on error */
+/* Allocate space for the MCH regs if needed, return analnzero on error */
 static int
 intel_alloc_mchbar_resource(struct drm_i915_private *i915)
 {
@@ -178,7 +178,7 @@ unsigned int intel_gmch_vga_set_decode(struct pci_dev *pdev, bool enable_decode)
 
 	if (enable_decode)
 		return VGA_RSRC_LEGACY_IO | VGA_RSRC_LEGACY_MEM |
-		       VGA_RSRC_NORMAL_IO | VGA_RSRC_NORMAL_MEM;
+		       VGA_RSRC_ANALRMAL_IO | VGA_RSRC_ANALRMAL_MEM;
 	else
-		return VGA_RSRC_NORMAL_IO | VGA_RSRC_NORMAL_MEM;
+		return VGA_RSRC_ANALRMAL_IO | VGA_RSRC_ANALRMAL_MEM;
 }

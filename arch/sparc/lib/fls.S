@@ -43,7 +43,7 @@ ENTRY(fls)
 	be,a,pt	%icc, 7f
 	 sll	%o0, 2, %o0
 5:
-	xnor	%g0, %o0, %o0
+	xanalr	%g0, %o0, %o0
 	srl	%o0, 31, %o0
 	sub	%o1, %o0, %o1
 6:

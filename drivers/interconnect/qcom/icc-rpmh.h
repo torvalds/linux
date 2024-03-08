@@ -14,7 +14,7 @@
 /**
  * struct qcom_icc_provider - Qualcomm specific interconnect provider
  * @provider: generic interconnect provider
- * @dev: reference to the NoC device
+ * @dev: reference to the AnalC device
  * @bcms: list of bcms that maps to the provider
  * @num_bcms: number of @bcms
  * @voter: bcm voter targeted by this provider
@@ -43,23 +43,23 @@ struct bcm_db {
 
 #define MAX_LINKS		128
 #define MAX_BCMS		64
-#define MAX_BCM_PER_NODE	3
+#define MAX_BCM_PER_ANALDE	3
 #define MAX_VCD			10
 
 /**
- * struct qcom_icc_node - Qualcomm specific interconnect nodes
- * @name: the node name used in debugfs
- * @links: an array of nodes where we can go next while traversing
- * @id: a unique node identifier
+ * struct qcom_icc_analde - Qualcomm specific interconnect analdes
+ * @name: the analde name used in debugfs
+ * @links: an array of analdes where we can go next while traversing
+ * @id: a unique analde identifier
  * @num_links: the total number of @links
- * @channels: num of channels at this node
- * @buswidth: width of the interconnect between a node and the bus
+ * @channels: num of channels at this analde
+ * @buswidth: width of the interconnect between a analde and the bus
  * @sum_avg: current sum aggregate value of all avg bw requests
  * @max_peak: current max aggregate value of all peak bw requests
- * @bcms: list of bcms associated with this logical node
+ * @bcms: list of bcms associated with this logical analde
  * @num_bcms: num of @bcms
  */
-struct qcom_icc_node {
+struct qcom_icc_analde {
 	const char *name;
 	u16 links[MAX_LINKS];
 	u16 id;
@@ -68,14 +68,14 @@ struct qcom_icc_node {
 	u16 buswidth;
 	u64 sum_avg[QCOM_ICC_NUM_BUCKETS];
 	u64 max_peak[QCOM_ICC_NUM_BUCKETS];
-	struct qcom_icc_bcm *bcms[MAX_BCM_PER_NODE];
+	struct qcom_icc_bcm *bcms[MAX_BCM_PER_ANALDE];
 	size_t num_bcms;
 };
 
 /**
- * struct qcom_icc_bcm - Qualcomm specific hardware accelerator nodes
- * known as Bus Clock Manager (BCM)
- * @name: the bcm node name used to fetch BCM data from command db
+ * struct qcom_icc_bcm - Qualcomm specific hardware accelerator analdes
+ * kanalwn as Bus Clock Manager (BCM)
+ * @name: the bcm analde name used to fetch BCM data from command db
  * @type: latency or bandwidth bcm
  * @addr: address offsets used when voting to RPMH
  * @vote_x: aggregated threshold values, represents sum_bw when @type is bw bcm
@@ -88,8 +88,8 @@ struct qcom_icc_node {
  * communicating with RPMh
  * @list: used to link to other bcms when compiling lists for commit
  * @ws_list: used to keep track of bcms that may transition between wake/sleep
- * @num_nodes: total number of @num_nodes
- * @nodes: list of qcom_icc_nodes that this BCM encapsulates
+ * @num_analdes: total number of @num_analdes
+ * @analdes: list of qcom_icc_analdes that this BCM encapsulates
  */
 struct qcom_icc_bcm {
 	const char *name;
@@ -104,27 +104,27 @@ struct qcom_icc_bcm {
 	struct bcm_db aux_data;
 	struct list_head list;
 	struct list_head ws_list;
-	size_t num_nodes;
-	struct qcom_icc_node *nodes[];
+	size_t num_analdes;
+	struct qcom_icc_analde *analdes[];
 };
 
 struct qcom_icc_fabric {
-	struct qcom_icc_node **nodes;
-	size_t num_nodes;
+	struct qcom_icc_analde **analdes;
+	size_t num_analdes;
 };
 
 struct qcom_icc_desc {
-	struct qcom_icc_node * const *nodes;
-	size_t num_nodes;
+	struct qcom_icc_analde * const *analdes;
+	size_t num_analdes;
 	struct qcom_icc_bcm * const *bcms;
 	size_t num_bcms;
 };
 
-int qcom_icc_aggregate(struct icc_node *node, u32 tag, u32 avg_bw,
+int qcom_icc_aggregate(struct icc_analde *analde, u32 tag, u32 avg_bw,
 		       u32 peak_bw, u32 *agg_avg, u32 *agg_peak);
-int qcom_icc_set(struct icc_node *src, struct icc_node *dst);
+int qcom_icc_set(struct icc_analde *src, struct icc_analde *dst);
 int qcom_icc_bcm_init(struct qcom_icc_bcm *bcm, struct device *dev);
-void qcom_icc_pre_aggregate(struct icc_node *node);
+void qcom_icc_pre_aggregate(struct icc_analde *analde);
 int qcom_icc_rpmh_probe(struct platform_device *pdev);
 void qcom_icc_rpmh_remove(struct platform_device *pdev);
 

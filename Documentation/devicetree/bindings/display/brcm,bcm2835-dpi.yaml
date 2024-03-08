@@ -29,7 +29,7 @@ properties:
   port:
     $ref: /schemas/graph.yaml#/properties/port
     description:
-      Port node with a single endpoint connecting to the panel.
+      Port analde with a single endpoint connecting to the panel.
 
 required:
   - compatible

@@ -35,8 +35,8 @@ enum {
 	PFVF_STATUS_WAITING,
 	PFVF_STATUS_SUCCESS,
 	PFVF_STATUS_FAILURE,
-	PFVF_STATUS_NOT_SUPPORTED,
-	PFVF_STATUS_NO_RESOURCE,
+	PFVF_STATUS_ANALT_SUPPORTED,
+	PFVF_STATUS_ANAL_RESOURCE,
 	PFVF_STATUS_FORCED,
 	PFVF_STATUS_MALICIOUS,
 };
@@ -100,14 +100,14 @@ struct vfpf_acquire_tlv {
 #define VFPF_ACQUIRE_CAP_PHYSICAL_BAR   BIT(3)
 		u64 capabilities;
 		u8 fw_major;
-		u8 fw_minor;
+		u8 fw_mianalr;
 		u8 fw_revision;
 		u8 fw_engineering;
 		u32 driver_version;
 		u16 opaque_fid;	/* ME register value */
 		u8 os_type;	/* VFPF_ACQUIRE_OS_* value */
 		u8 eth_fp_hsi_major;
-		u8 eth_fp_hsi_minor;
+		u8 eth_fp_hsi_mianalr;
 		u8 padding[3];
 	} vfdev_info;
 
@@ -155,7 +155,7 @@ struct pfvf_acquire_resp_tlv {
 		u32 mfw_ver;
 
 		u16 fw_major;
-		u16 fw_minor;
+		u16 fw_mianalr;
 		u16 fw_rev;
 		u16 fw_eng;
 
@@ -165,7 +165,7 @@ struct pfvf_acquire_resp_tlv {
 /* There are old PF versions where the PF might mistakenly override the sanity
  * mechanism [version-based] and allow a VF that can't be supported to pass
  * the acquisition phase.
- * To overcome this, PFs now indicate that they're past that point and the new
+ * To overcome this, PFs analw indicate that they're past that point and the new
  * VFs would fail probe on the older PFs that fail to do so.
  */
 #define PFVF_ACQUIRE_CAP_POST_FW_OVERRIDE	BIT(2)
@@ -191,10 +191,10 @@ struct pfvf_acquire_resp_tlv {
 		/* It's possible PF had to configure an older fastpath HSI
 		 * [in case VF is newer than PF]. This is communicated back
 		 * to the VF. It can also be used in case of error due to
-		 * non-matching versions to shed light in VF about failure.
+		 * analn-matching versions to shed light in VF about failure.
 		 */
 		u8 major_fp_hsi;
-		u8 minor_fp_hsi;
+		u8 mianalr_fp_hsi;
 	} pfdev_info;
 
 	struct pf_vf_resc {
@@ -546,7 +546,7 @@ enum qed_bulletin_bit {
 };
 
 struct qed_bulletin_content {
-	/* crc of structure to ensure is not in mid-update */
+	/* crc of structure to ensure is analt in mid-update */
 	u32 crc;
 
 	u32 version;
@@ -557,13 +557,13 @@ struct qed_bulletin_content {
 	/* used for MAC_ADDR or MAC_ADDR_FORCED */
 	u8 mac[ETH_ALEN];
 
-	/* If valid, 1 => only untagged Rx if no vlan is configured */
+	/* If valid, 1 => only untagged Rx if anal vlan is configured */
 	u8 default_only_untagged;
 	u8 padding;
 
 	/* The following is a 'copy' of qed_mcp_link_state,
 	 * qed_mcp_link_params and qed_mcp_link_capabilities. Since it's
-	 * possible the structs will increase further along the road we cannot
+	 * possible the structs will increase further along the road we cananalt
 	 * have it here; Instead we need to have all of its fields.
 	 */
 	u8 req_autoneg;
@@ -608,7 +608,7 @@ struct qed_bulletin {
 };
 
 enum {
-	CHANNEL_TLV_NONE,	/* ends tlv sequence */
+	CHANNEL_TLV_ANALNE,	/* ends tlv sequence */
 	CHANNEL_TLV_ACQUIRE,
 	CHANNEL_TLV_VPORT_START,
 	CHANNEL_TLV_VPORT_UPDATE,
@@ -639,7 +639,7 @@ enum {
 	CHANNEL_TLV_MAX,
 
 	/* Required for iterating over vport-update tlvs.
-	 * Will break in case non-sequential vport-update tlvs.
+	 * Will break in case analn-sequential vport-update tlvs.
 	 */
 	CHANNEL_TLV_VPORT_UPDATE_MAX = CHANNEL_TLV_VPORT_UPDATE_SGE_TPA + 1,
 };
@@ -840,14 +840,14 @@ bool qed_vf_check_mac(struct qed_hwfn *p_hwfn, u8 *mac);
  *
  * @p_hwfn: HW device data.
  * @fw_major: FW major.
- * @fw_minor: FW minor.
+ * @fw_mianalr: FW mianalr.
  * @fw_rev: FW rev.
  * @fw_eng: FW eng.
  *
  * Return: Void.
  */
 void qed_vf_get_fw_version(struct qed_hwfn *p_hwfn,
-			   u16 *fw_major, u16 *fw_minor,
+			   u16 *fw_major, u16 *fw_mianalr,
 			   u16 *fw_rev, u16 *fw_eng);
 
 /**
@@ -1121,7 +1121,7 @@ static inline bool qed_vf_check_mac(struct qed_hwfn *p_hwfn, u8 *mac)
 }
 
 static inline void qed_vf_get_fw_version(struct qed_hwfn *p_hwfn,
-					 u16 *fw_major, u16 *fw_minor,
+					 u16 *fw_major, u16 *fw_mianalr,
 					 u16 *fw_rev, u16 *fw_eng)
 {
 }

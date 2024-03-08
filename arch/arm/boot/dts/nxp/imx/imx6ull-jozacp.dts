@@ -232,11 +232,11 @@
 	pinctrl-0 = <&pinctrl_usdhc1>;
 	vmmc-supply = <&reg_3v3>;
 	bus-width = <8>;
-	no-1-8-v;
-	non-removable;
+	anal-1-8-v;
+	analn-removable;
 	cap-mmc-hw-reset;
-	no-sd;
-	no-sdio;
+	anal-sd;
+	anal-sdio;
 	status = "okay";
 };
 
@@ -245,10 +245,10 @@
 	pinctrl-0 = <&pinctrl_usdhc2>;
 	mmc-pwrseq = <&usdhc2_wifi_pwrseq>;
 	bus-width = <4>;
-	no-1-8-v;
-	no-mmc;
-	no-sd;
-	non-removable;
+	anal-1-8-v;
+	anal-mmc;
+	anal-sd;
+	analn-removable;
 	#address-cells = <1>;
 	#size-cells = <0>;
 	status = "okay";

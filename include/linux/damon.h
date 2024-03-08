@@ -48,14 +48,14 @@ struct damon_addr_range {
  * @nr_accesses is reset to zero for every &damon_attrs->aggr_interval and be
  * increased for every &damon_attrs->sample_interval if an access to the region
  * during the last sampling interval is found.  The update of this field should
- * not be done with direct access but with the helper function,
+ * analt be done with direct access but with the helper function,
  * damon_update_region_access_rate().
  *
- * @nr_accesses_bp is another representation of @nr_accesses in basis point
+ * @nr_accesses_bp is aanalther representation of @nr_accesses in basis point
  * (1 in 10,000) that updated for every &damon_attrs->sample_interval in a
  * manner similar to moving sum.  By the algorithm, this value becomes
  * @nr_accesses * 10000 for every &struct damon_attrs->aggr_interval.  This can
- * be used when the aggregation interval is too huge and therefore cannot wait
+ * be used when the aggregation interval is too huge and therefore cananalt wait
  * for it before getting the access monitoring results.
  *
  * @age is initially zero, increased for each aggregation interval, and reset
@@ -102,10 +102,10 @@ struct damon_target {
  * @DAMOS_COLD:		Call ``madvise()`` for the region with MADV_COLD.
  * @DAMOS_PAGEOUT:	Call ``madvise()`` for the region with MADV_PAGEOUT.
  * @DAMOS_HUGEPAGE:	Call ``madvise()`` for the region with MADV_HUGEPAGE.
- * @DAMOS_NOHUGEPAGE:	Call ``madvise()`` for the region with MADV_NOHUGEPAGE.
+ * @DAMOS_ANALHUGEPAGE:	Call ``madvise()`` for the region with MADV_ANALHUGEPAGE.
  * @DAMOS_LRU_PRIO:	Prioritize the region on its LRU lists.
  * @DAMOS_LRU_DEPRIO:	Deprioritize the region on its LRU lists.
- * @DAMOS_STAT:		Do nothing but count the stat.
+ * @DAMOS_STAT:		Do analthing but count the stat.
  * @NR_DAMOS_ACTIONS:	Total number of DAMOS actions
  *
  * The support of each action is up to running &struct damon_operations.
@@ -119,10 +119,10 @@ enum damos_action {
 	DAMOS_COLD,
 	DAMOS_PAGEOUT,
 	DAMOS_HUGEPAGE,
-	DAMOS_NOHUGEPAGE,
+	DAMOS_ANALHUGEPAGE,
 	DAMOS_LRU_PRIO,
 	DAMOS_LRU_DEPRIO,
-	DAMOS_STAT,		/* Do nothing but only record the stat */
+	DAMOS_STAT,		/* Do analthing but only record the stat */
 	NR_DAMOS_ACTIONS,
 };
 
@@ -141,7 +141,7 @@ enum damos_action {
  *
  * To avoid consuming too much CPU time or IO resources for applying the
  * &struct damos->action to large memory, DAMON allows users to set time and/or
- * size quotas.  The quotas can be set by writing non-zero values to &ms and
+ * size quotas.  The quotas can be set by writing analn-zero values to &ms and
  * &sz, respectively.  If the time quota is set, DAMON tries to use only up to
  * &ms milliseconds within &reset_interval for applying the action.  If the
  * size quota is set, DAMON tries to apply the action only up to &sz bytes
@@ -165,7 +165,7 @@ enum damos_action {
  * The feedback loop algorithem assumes the quota input and the feedback score
  * output are in a positive proportional relationship, and the goal of the
  * tuning is getting the feedback screo value of 10,000.  If @ms and/or @sz are
- * set together, those work as a hard limit quota.  If neither @ms nor @sz are
+ * set together, those work as a hard limit quota.  If neither @ms analr @sz are
  * set, the mechanism starts from the quota of one byte.
  */
 struct damos_quota {
@@ -204,12 +204,12 @@ struct damos_quota {
 /**
  * enum damos_wmark_metric - Represents the watermark metric.
  *
- * @DAMOS_WMARK_NONE:		Ignore the watermarks of the given scheme.
+ * @DAMOS_WMARK_ANALNE:		Iganalre the watermarks of the given scheme.
  * @DAMOS_WMARK_FREE_MEM_RATE:	Free memory rate of the system in [0,1000].
  * @NR_DAMOS_WMARK_METRICS:	Total number of DAMOS watermark metrics
  */
 enum damos_wmark_metric {
-	DAMOS_WMARK_NONE,
+	DAMOS_WMARK_ANALNE,
 	DAMOS_WMARK_FREE_MEM_RATE,
 	NR_DAMOS_WMARK_METRICS,
 };
@@ -222,7 +222,7 @@ enum damos_wmark_metric {
  * @mid:	Middle watermark.
  * @low:	Low watermark.
  *
- * If &metric is &DAMOS_WMARK_NONE, the scheme is always active.  Being active
+ * If &metric is &DAMOS_WMARK_ANALNE, the scheme is always active.  Being active
  * means DAMON does monitoring and applying the action of the scheme to
  * appropriate memory regions.  Else, DAMON checks &metric of the system for at
  * least every &interval microseconds and works as below.
@@ -260,25 +260,25 @@ struct damos_stat {
 
 /**
  * enum damos_filter_type - Type of memory for &struct damos_filter
- * @DAMOS_FILTER_TYPE_ANON:	Anonymous pages.
+ * @DAMOS_FILTER_TYPE_AANALN:	Aanalnymous pages.
  * @DAMOS_FILTER_TYPE_MEMCG:	Specific memcg's pages.
  * @DAMOS_FILTER_TYPE_ADDR:	Address range.
  * @DAMOS_FILTER_TYPE_TARGET:	Data Access Monitoring target.
  * @NR_DAMOS_FILTER_TYPES:	Number of filter types.
  *
- * The anon pages type and memcg type filters are handled by underlying
+ * The aanaln pages type and memcg type filters are handled by underlying
  * &struct damon_operations as a part of scheme action trying, and therefore
  * accounted as 'tried'.  In contrast, other types are handled by core layer
- * before trying of the action and therefore not accounted as 'tried'.
+ * before trying of the action and therefore analt accounted as 'tried'.
  *
  * The support of the filters that handled by &struct damon_operations depend
  * on the running &struct damon_operations.
- * &enum DAMON_OPS_PADDR supports both anon pages type and memcg type filters,
+ * &enum DAMON_OPS_PADDR supports both aanaln pages type and memcg type filters,
  * while &enum DAMON_OPS_VADDR and &enum DAMON_OPS_FVADDR don't support any of
  * the two types.
  */
 enum damos_filter_type {
-	DAMOS_FILTER_TYPE_ANON,
+	DAMOS_FILTER_TYPE_AANALN,
 	DAMOS_FILTER_TYPE_MEMCG,
 	DAMOS_FILTER_TYPE_ADDR,
 	DAMOS_FILTER_TYPE_TARGET,
@@ -462,7 +462,7 @@ struct damon_operations {
 };
 
 /**
- * struct damon_callback - Monitoring events notification callbacks.
+ * struct damon_callback - Monitoring events analtification callbacks.
  *
  * @before_start:	Called before starting the monitoring.
  * @after_wmarks_check:	Called after each schemes' watermarks check.
@@ -488,7 +488,7 @@ struct damon_operations {
  * protection.  For the reason, users are recommended to use these callback for
  * the accesses to the results.
  *
- * If any callback returns non-zero, monitoring stops.
+ * If any callback returns analn-zero, monitoring stops.
  */
 struct damon_callback {
 	void *private;
@@ -516,7 +516,7 @@ struct damon_callback {
  *				regions.
  *
  * For each @sample_interval, DAMON checks whether each region is accessed or
- * not during the last @sample_interval.  If such access is found, DAMON
+ * analt during the last @sample_interval.  If such access is found, DAMON
  * aggregates the information by increasing &damon_region->nr_accesses for
  * @aggr_interval time.  For each @aggr_interval, the count is reset.  DAMON
  * also checks whether the target memory regions need update (e.g., by
@@ -550,15 +550,15 @@ struct damon_attrs {
  * targets is checked via the &damon_operations.target_valid of @ops.  The
  * termination can also be explicitly requested by calling damon_stop().
  * The thread sets @kdamond to NULL when it terminates. Therefore, users can
- * know whether the monitoring is ongoing or terminated by reading @kdamond.
+ * kanalw whether the monitoring is ongoing or terminated by reading @kdamond.
  * Reads and writes to @kdamond from outside of the monitoring thread must
  * be protected by @kdamond_lock.
  *
- * Note that the monitoring thread protects only @kdamond via @kdamond_lock.
+ * Analte that the monitoring thread protects only @kdamond via @kdamond_lock.
  * Accesses to other fields must be protected by themselves.
  *
  * @ops:	Set of monitoring operations for given use cases.
- * @callback:	Set of callbacks for monitoring events notifications.
+ * @callback:	Set of callbacks for monitoring events analtifications.
  *
  * @adaptive_targets:	Head of monitoring targets (&damon_target) list.
  * @schemes:		Head of schemes (&damos) list.

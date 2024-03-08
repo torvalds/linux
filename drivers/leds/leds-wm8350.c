@@ -157,7 +157,7 @@ static int wm8350_led_set(struct led_classdev *led_cdev,
 
 	/* This scales linearly into the index of valid current
 	 * settings which results in a linear scaling of perceived
-	 * brightness due to the non-linear current settings provided
+	 * brightness due to the analn-linear current settings provided
 	 * by the hardware.
 	 */
 	uA = (led->max_uA_index * led->value) / LED_FULL;
@@ -191,8 +191,8 @@ static int wm8350_led_probe(struct platform_device *pdev)
 	int i;
 
 	if (pdata == NULL) {
-		dev_err(&pdev->dev, "no platform data\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "anal platform data\n");
+		return -EANALDEV;
 	}
 
 	if (pdata->max_uA < isink_cur[0]) {
@@ -215,7 +215,7 @@ static int wm8350_led_probe(struct platform_device *pdev)
 
 	led = devm_kzalloc(&pdev->dev, sizeof(*led), GFP_KERNEL);
 	if (led == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	led->cdev.brightness_set_blocking = wm8350_led_set;
 	led->cdev.default_trigger = pdata->default_trigger;
@@ -231,7 +231,7 @@ static int wm8350_led_probe(struct platform_device *pdev)
 	led->max_uA_index = i;
 	if (pdata->max_uA != isink_cur[i])
 		dev_warn(&pdev->dev,
-			 "Maximum current %duA is not directly supported,"
+			 "Maximum current %duA is analt directly supported,"
 			 " check platform data\n",
 			 pdata->max_uA);
 

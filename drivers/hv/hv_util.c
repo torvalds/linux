@@ -22,32 +22,32 @@
 #include "hyperv_vmbus.h"
 
 #define SD_MAJOR	3
-#define SD_MINOR	0
-#define SD_MINOR_1	1
-#define SD_MINOR_2	2
-#define SD_VERSION_3_1	(SD_MAJOR << 16 | SD_MINOR_1)
-#define SD_VERSION_3_2	(SD_MAJOR << 16 | SD_MINOR_2)
-#define SD_VERSION	(SD_MAJOR << 16 | SD_MINOR)
+#define SD_MIANALR	0
+#define SD_MIANALR_1	1
+#define SD_MIANALR_2	2
+#define SD_VERSION_3_1	(SD_MAJOR << 16 | SD_MIANALR_1)
+#define SD_VERSION_3_2	(SD_MAJOR << 16 | SD_MIANALR_2)
+#define SD_VERSION	(SD_MAJOR << 16 | SD_MIANALR)
 
 #define SD_MAJOR_1	1
-#define SD_VERSION_1	(SD_MAJOR_1 << 16 | SD_MINOR)
+#define SD_VERSION_1	(SD_MAJOR_1 << 16 | SD_MIANALR)
 
 #define TS_MAJOR	4
-#define TS_MINOR	0
-#define TS_VERSION	(TS_MAJOR << 16 | TS_MINOR)
+#define TS_MIANALR	0
+#define TS_VERSION	(TS_MAJOR << 16 | TS_MIANALR)
 
 #define TS_MAJOR_1	1
-#define TS_VERSION_1	(TS_MAJOR_1 << 16 | TS_MINOR)
+#define TS_VERSION_1	(TS_MAJOR_1 << 16 | TS_MIANALR)
 
 #define TS_MAJOR_3	3
-#define TS_VERSION_3	(TS_MAJOR_3 << 16 | TS_MINOR)
+#define TS_VERSION_3	(TS_MAJOR_3 << 16 | TS_MIANALR)
 
 #define HB_MAJOR	3
-#define HB_MINOR	0
-#define HB_VERSION	(HB_MAJOR << 16 | HB_MINOR)
+#define HB_MIANALR	0
+#define HB_VERSION	(HB_MAJOR << 16 | HB_MIANALR)
 
 #define HB_MAJOR_1	1
-#define HB_VERSION_1	(HB_MAJOR_1 << 16 | HB_MINOR)
+#define HB_VERSION_1	(HB_MAJOR_1 << 16 | HB_MIANALR)
 
 static int sd_srv_version;
 static int ts_srv_version;
@@ -195,14 +195,14 @@ static void shutdown_onchannelcallback(void *context)
 	struct icmsg_hdr *icmsghdrp;
 
 	if (vmbus_recvpacket(channel, shut_txf_buf, HV_HYP_PAGE_SIZE, &recvlen, &requestid)) {
-		pr_err_ratelimited("Shutdown request received. Could not read into shut txf buf\n");
+		pr_err_ratelimited("Shutdown request received. Could analt read into shut txf buf\n");
 		return;
 	}
 
 	if (!recvlen)
 		return;
 
-	/* Ensure recvlen is big enough to read header data */
+	/* Ensure recvlen is big eanalugh to read header data */
 	if (recvlen < ICMSG_HDR) {
 		pr_err_ratelimited("Shutdown request received. Packet length too small: %d\n",
 				   recvlen);
@@ -222,7 +222,7 @@ static void shutdown_onchannelcallback(void *context)
 				sd_srv_version & 0xFFFF);
 		}
 	} else if (icmsghdrp->icmsgtype == ICMSGTYPE_SHUTDOWN) {
-		/* Ensure recvlen is big enough to contain shutdown_msg_data struct */
+		/* Ensure recvlen is big eanalugh to contain shutdown_msg_data struct */
 		if (recvlen < ICMSG_HDR + sizeof(struct shutdown_msg_data)) {
 			pr_err_ratelimited("Invalid shutdown msg data. Packet length too small: %u\n",
 					   recvlen);
@@ -321,9 +321,9 @@ static int hv_get_adj_host_time(struct timespec64 *ts)
 	reftime = hv_read_reference_counter();
 
 	/*
-	 * We need to let the caller know that last update from host
+	 * We need to let the caller kanalw that last update from host
 	 * is older than the max allowable threshold. clock_gettime()
-	 * and PTP ioctl do not have a documented error that we could
+	 * and PTP ioctl do analt have a documented error that we could
 	 * return for this specific case. Use ESTALE to report this.
 	 */
 	timediff_adj = reftime - host_ts.ref_time;
@@ -350,7 +350,7 @@ static void hv_set_host_time(struct work_struct *work)
 }
 
 /*
- * Due to a bug on Hyper-V hosts, the sync flag may not always be sent on resume.
+ * Due to a bug on Hyper-V hosts, the sync flag may analt always be sent on resume.
  * Force a sync if the guest is behind.
  */
 static inline bool hv_implicit_sync(u64 host_time)
@@ -382,7 +382,7 @@ static inline bool hv_implicit_sync(u64 host_time)
  * considered a hard request to discipline the clock.
  *
  * ICTIMESYNCFLAG_SAMPLE bit indicates a time sample from host. This is
- * typically used as a hint to the guest. The guest is under no obligation
+ * typically used as a hint to the guest. The guest is under anal obligation
  * to discipline the clock.
  */
 static inline void adj_guesttime(u64 hosttime, u64 reftime, u8 adj_flags)
@@ -403,7 +403,7 @@ static inline void adj_guesttime(u64 hosttime, u64 reftime, u8 adj_flags)
 	/*
 	 * TimeSync v4 messages contain reference time (guest's Hyper-V
 	 * clocksource read when the time sample was generated), we can
-	 * improve the precision by adding the delta between now and the
+	 * improve the precision by adding the delta between analw and the
 	 * time of generation. For older protocols we set
 	 * reftime == cur_reftime on call.
 	 */
@@ -447,7 +447,7 @@ static void timesync_onchannelcallback(void *context)
 		if (!recvlen)
 			break;
 
-		/* Ensure recvlen is big enough to read header data */
+		/* Ensure recvlen is big eanalugh to read header data */
 		if (recvlen < ICMSG_HDR) {
 			pr_err_ratelimited("Timesync request received. Packet length too small: %d\n",
 					   recvlen);
@@ -469,7 +469,7 @@ static void timesync_onchannelcallback(void *context)
 			}
 		} else if (icmsghdrp->icmsgtype == ICMSGTYPE_TIMESYNC) {
 			if (ts_srv_version > TS_VERSION_3) {
-				/* Ensure recvlen is big enough to read ictimesync_ref_data */
+				/* Ensure recvlen is big eanalugh to read ictimesync_ref_data */
 				if (recvlen < ICMSG_HDR + sizeof(struct ictimesync_ref_data)) {
 					pr_err_ratelimited("Invalid ictimesync ref data. Length too small: %u\n",
 							   recvlen);
@@ -481,7 +481,7 @@ static void timesync_onchannelcallback(void *context)
 						refdata->vmreferencetime,
 						refdata->flags);
 			} else {
-				/* Ensure recvlen is big enough to read ictimesync_data */
+				/* Ensure recvlen is big eanalugh to read ictimesync_data */
 				if (recvlen < ICMSG_HDR + sizeof(struct ictimesync_data)) {
 					pr_err_ratelimited("Invalid ictimesync data. Length too small: %u\n",
 							   recvlen);
@@ -511,7 +511,7 @@ static void timesync_onchannelcallback(void *context)
 /*
  * Heartbeat functionality.
  * Every two seconds, Hyper-V send us a heartbeat request message.
- * we respond to this message, and Hyper-V knows we are alive.
+ * we respond to this message, and Hyper-V kanalws we are alive.
  */
 static void heartbeat_onchannelcallback(void *context)
 {
@@ -526,14 +526,14 @@ static void heartbeat_onchannelcallback(void *context)
 
 		if (vmbus_recvpacket(channel, hbeat_txf_buf, HV_HYP_PAGE_SIZE,
 				     &recvlen, &requestid)) {
-			pr_err_ratelimited("Heartbeat request received. Could not read into hbeat txf buf\n");
+			pr_err_ratelimited("Heartbeat request received. Could analt read into hbeat txf buf\n");
 			return;
 		}
 
 		if (!recvlen)
 			break;
 
-		/* Ensure recvlen is big enough to read header data */
+		/* Ensure recvlen is big eanalugh to read header data */
 		if (recvlen < ICMSG_HDR) {
 			pr_err_ratelimited("Heartbeat request received. Packet length too small: %d\n",
 					   recvlen);
@@ -556,8 +556,8 @@ static void heartbeat_onchannelcallback(void *context)
 			}
 		} else if (icmsghdrp->icmsgtype == ICMSGTYPE_HEARTBEAT) {
 			/*
-			 * Ensure recvlen is big enough to read seq_num. Reserved area is not
-			 * included in the check as the host may not fill it up entirely
+			 * Ensure recvlen is big eanalugh to read seq_num. Reserved area is analt
+			 * included in the check as the host may analt fill it up entirely
 			 */
 			if (recvlen < ICMSG_HDR + sizeof(u64)) {
 				pr_err_ratelimited("Invalid heartbeat msg data. Length too small: %u\n",
@@ -594,19 +594,19 @@ static int util_probe(struct hv_device *dev,
 
 	srv->recv_buffer = kmalloc(HV_HYP_PAGE_SIZE * 4, GFP_KERNEL);
 	if (!srv->recv_buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 	srv->channel = dev->channel;
 	if (srv->util_init) {
 		ret = srv->util_init(srv);
 		if (ret) {
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			goto error1;
 		}
 	}
 
 	/*
-	 * The set of services managed by the util driver are not performance
-	 * critical and do not need batched reading. Furthermore, some services
+	 * The set of services managed by the util driver are analt performance
+	 * critical and do analt need batched reading. Furthermore, some services
 	 * such as KVP can only handle one message from the host at a time.
 	 * Turn off batched reading for all util drivers before we open the
 	 * channel.
@@ -718,28 +718,28 @@ static  struct hv_driver util_drv = {
 	.suspend = util_suspend,
 	.resume =  util_resume,
 	.driver = {
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 };
 
 static int hv_ptp_enable(struct ptp_clock_info *info,
 			 struct ptp_clock_request *request, int on)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int hv_ptp_settime(struct ptp_clock_info *p, const struct timespec64 *ts)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int hv_ptp_adjfine(struct ptp_clock_info *ptp, long delta)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 static int hv_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int hv_ptp_gettime(struct ptp_clock_info *info, struct timespec64 *ts)
@@ -772,7 +772,7 @@ static int hv_timesync_init(struct hv_util_service *srv)
 	 */
 	hv_ptp_clock = ptp_clock_register(&ptp_hyperv_info, NULL);
 	if (IS_ERR_OR_NULL(hv_ptp_clock)) {
-		pr_err("cannot register PTP clock: %d\n",
+		pr_err("cananalt register PTP clock: %d\n",
 		       PTR_ERR_OR_ZERO(hv_ptp_clock));
 		hv_ptp_clock = NULL;
 	}

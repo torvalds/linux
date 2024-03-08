@@ -27,7 +27,7 @@ SECTIONS
 	.gnu.version_d	: { *(.gnu.version_d) }
 	.gnu.version_r	: { *(.gnu.version_r) }
 
-	.note		: { *(.note.*) }		:text	:note
+	.analte		: { *(.analte.*) }		:text	:analte
 
 	. = ALIGN(16);
 	.text		: {
@@ -80,7 +80,7 @@ SECTIONS
 	ELF_DETAILS
 
 	/DISCARD/	: {
-		*(.note.GNU-stack)
+		*(.analte.GNU-stack)
 		*(*.EMB.apuinfo)
 		*(.branch_lt)
 		*(.data .data.* .gnu.linkonce.d.* .sdata*)
@@ -91,7 +91,7 @@ SECTIONS
 }
 
 /*
- * Very old versions of ld do not recognize this name token; use the constant.
+ * Very old versions of ld do analt recognize this name token; use the constant.
  */
 #define PT_GNU_EH_FRAME	0x6474e550
 
@@ -103,7 +103,7 @@ PHDRS
 {
 	text		PT_LOAD FILEHDR PHDRS FLAGS(5);	/* PF_R|PF_X */
 	dynamic		PT_DYNAMIC FLAGS(4);		/* PF_R */
-	note		PT_NOTE FLAGS(4);		/* PF_R */
+	analte		PT_ANALTE FLAGS(4);		/* PF_R */
 	eh_frame_hdr	PT_GNU_EH_FRAME;
 }
 

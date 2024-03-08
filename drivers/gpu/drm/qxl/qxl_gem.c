@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -74,7 +74,7 @@ int qxl_gem_object_create(struct qxl_device *qdev, int size,
 
 /*
  * If the caller passed a valid gobj pointer, it is responsible to call
- * drm_gem_object_put() when it no longer needs to acess the object.
+ * drm_gem_object_put() when it anal longer needs to acess the object.
  *
  * If gobj is NULL, it is handled internally.
  */
@@ -96,7 +96,7 @@ int qxl_gem_object_create_with_handle(struct qxl_device *qdev,
 				  false, false, surf,
 				  &local_gobj);
 	if (r)
-		return -ENOMEM;
+		return -EANALMEM;
 	r = drm_gem_handle_create(file_priv, local_gobj, handle);
 	if (r)
 		return r;
@@ -104,7 +104,7 @@ int qxl_gem_object_create_with_handle(struct qxl_device *qdev,
 	if (gobj)
 		*gobj = local_gobj;
 	else
-		/* drop reference from allocate - handle holds it now */
+		/* drop reference from allocate - handle holds it analw */
 		drm_gem_object_put(local_gobj);
 
 	return 0;

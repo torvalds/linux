@@ -1,15 +1,15 @@
 /*
- * Copyright (c) 2017 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2017 Mellaanalx Techanallogies. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    analtice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the names of the copyright holders nor the names of its
+ * 3. Neither the names of the copyright holders analr the names of its
  *    contributors may be used to endorse or promote products derived from
  *    this software without specific prior written permission.
  *
@@ -18,11 +18,11 @@
  * Software Foundation.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
  * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
  * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
@@ -44,8 +44,8 @@
 #include "uverbs.h"
 
 /*
- * This determines whether a non-privileged user is allowed to specify a
- * controlled QKEY or not, when true non-privileged user is allowed to specify
+ * This determines whether a analn-privileged user is allowed to specify a
+ * controlled QKEY or analt, when true analn-privileged user is allowed to specify
  * a controlled QKEY.
  */
 static bool privileged_qkey;
@@ -67,7 +67,7 @@ static const struct nla_policy nldev_policy[RDMA_NLDEV_ATTR_MAX] = {
 	[RDMA_NLDEV_ATTR_DEV_INDEX]		= { .type = NLA_U32 },
 	[RDMA_NLDEV_ATTR_DEV_NAME]		= { .type = NLA_NUL_STRING,
 					.len = IB_DEVICE_NAME_MAX },
-	[RDMA_NLDEV_ATTR_DEV_NODE_TYPE]		= { .type = NLA_U8 },
+	[RDMA_NLDEV_ATTR_DEV_ANALDE_TYPE]		= { .type = NLA_U8 },
 	[RDMA_NLDEV_ATTR_DEV_PROTOCOL]		= { .type = NLA_NUL_STRING,
 					.len = RDMA_NLDEV_ATTR_EMPTY_STRING },
 	[RDMA_NLDEV_ATTR_DRIVER]		= { .type = NLA_NESTED },
@@ -88,7 +88,7 @@ static const struct nla_policy nldev_policy[RDMA_NLDEV_ATTR_MAX] = {
 	[RDMA_NLDEV_ATTR_NDEV_INDEX]		= { .type = NLA_U32 },
 	[RDMA_NLDEV_ATTR_NDEV_NAME]		= { .type = NLA_NUL_STRING,
 					.len = IFNAMSIZ },
-	[RDMA_NLDEV_ATTR_NODE_GUID]		= { .type = NLA_U64 },
+	[RDMA_NLDEV_ATTR_ANALDE_GUID]		= { .type = NLA_U64 },
 	[RDMA_NLDEV_ATTR_PORT_INDEX]		= { .type = NLA_U32 },
 	[RDMA_NLDEV_ATTR_PORT_PHYS_STATE]	= { .type = NLA_U8 },
 	[RDMA_NLDEV_ATTR_PORT_STATE]		= { .type = NLA_U8 },
@@ -285,15 +285,15 @@ static int fill_dev_info(struct sk_buff *msg, struct ib_device *device)
 	if (strlen(fw) && nla_put_string(msg, RDMA_NLDEV_ATTR_FW_VERSION, fw))
 		return -EMSGSIZE;
 
-	if (nla_put_u64_64bit(msg, RDMA_NLDEV_ATTR_NODE_GUID,
-			      be64_to_cpu(device->node_guid),
+	if (nla_put_u64_64bit(msg, RDMA_NLDEV_ATTR_ANALDE_GUID,
+			      be64_to_cpu(device->analde_guid),
 			      RDMA_NLDEV_ATTR_PAD))
 		return -EMSGSIZE;
 	if (nla_put_u64_64bit(msg, RDMA_NLDEV_ATTR_SYS_IMAGE_GUID,
 			      be64_to_cpu(device->attrs.sys_image_guid),
 			      RDMA_NLDEV_ATTR_PAD))
 		return -EMSGSIZE;
-	if (nla_put_u8(msg, RDMA_NLDEV_ATTR_DEV_NODE_TYPE, device->node_type))
+	if (nla_put_u8(msg, RDMA_NLDEV_ATTR_DEV_ANALDE_TYPE, device->analde_type))
 		return -EMSGSIZE;
 	if (nla_put_u8(msg, RDMA_NLDEV_ATTR_DEV_DIM, device->use_cq_dim))
 		return -EMSGSIZE;
@@ -380,7 +380,7 @@ static int fill_res_info_entry(struct sk_buff *msg,
 {
 	struct nlattr *entry_attr;
 
-	entry_attr = nla_nest_start_noflag(msg,
+	entry_attr = nla_nest_start_analflag(msg,
 					   RDMA_NLDEV_ATTR_RES_SUMMARY_ENTRY);
 	if (!entry_attr)
 		return -EMSGSIZE;
@@ -417,7 +417,7 @@ static int fill_res_info(struct sk_buff *msg, struct ib_device *device)
 	if (fill_nldev_handle(msg, device))
 		return -EMSGSIZE;
 
-	table_attr = nla_nest_start_noflag(msg, RDMA_NLDEV_ATTR_RES_SUMMARY);
+	table_attr = nla_nest_start_analflag(msg, RDMA_NLDEV_ATTR_RES_SUMMARY);
 	if (!table_attr)
 		return -EMSGSIZE;
 
@@ -456,7 +456,7 @@ static int fill_res_name_pid(struct sk_buff *msg,
 		pid = task_pid_vnr(res->task);
 		/*
 		 * Task is dead and in zombie state.
-		 * There is no need to print PID anymore.
+		 * There is anal need to print PID anymore.
 		 */
 		if (pid)
 			/*
@@ -524,7 +524,7 @@ static int fill_res_qp_entry(struct sk_buff *msg, bool has_cap_net_admin,
 	if (port && port != qp->port)
 		return -EAGAIN;
 
-	/* In create_qp() port is not set yet */
+	/* In create_qp() port is analt set yet */
 	if (qp->port && nla_put_u32(msg, RDMA_NLDEV_ATTR_PORT_INDEX, qp->port))
 		return -EMSGSIZE;
 
@@ -1067,7 +1067,7 @@ static int nldev_get_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err;
 	}
 
@@ -1179,7 +1179,7 @@ out:	cb->args[0] = idx;
 static int nldev_get_dumpit(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	/*
-	 * There is no need to take lock, because
+	 * There is anal need to take lock, because
 	 * we are relying on ib_core's locking.
 	 */
 	return ib_enum_all_devs(_nldev_get_dumpit, skb, cb);
@@ -1215,7 +1215,7 @@ static int nldev_port_get_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err;
 	}
 
@@ -1322,7 +1322,7 @@ static int nldev_res_get_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -1490,7 +1490,7 @@ static int res_get_common_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_get;
 	}
 
@@ -1547,12 +1547,12 @@ static int res_get_common_dumpit(struct sk_buff *skb,
 	err = nlmsg_parse_deprecated(cb->nlh, 0, tb, RDMA_NLDEV_ATTR_MAX - 1,
 				     nldev_policy, NULL);
 	/*
-	 * Right now, we are expecting the device index to get res information,
+	 * Right analw, we are expecting the device index to get res information,
 	 * but it is possible to extend this code to return all devices in
 	 * one shot by checking the existence of RDMA_NLDEV_ATTR_DEV_INDEX.
 	 * if it doesn't exist, we will iterate over all devices.
 	 *
-	 * But it is not needed for now.
+	 * But it is analt needed for analw.
 	 */
 	if (err || !tb[RDMA_NLDEV_ATTR_DEV_INDEX])
 		return -EINVAL;
@@ -1563,7 +1563,7 @@ static int res_get_common_dumpit(struct sk_buff *skb,
 		return -EINVAL;
 
 	/*
-	 * If no PORT_INDEX is supplied, we will return all QPs from that device
+	 * If anal PORT_INDEX is supplied, we will return all QPs from that device
 	 */
 	if (tb[RDMA_NLDEV_ATTR_PORT_INDEX]) {
 		port = nla_get_u32(tb[RDMA_NLDEV_ATTR_PORT_INDEX]);
@@ -1583,7 +1583,7 @@ static int res_get_common_dumpit(struct sk_buff *skb,
 		goto err;
 	}
 
-	table_attr = nla_nest_start_noflag(skb, fe->nldev_attr);
+	table_attr = nla_nest_start_analflag(skb, fe->nldev_attr);
 	if (!table_attr) {
 		ret = -EMSGSIZE;
 		goto err;
@@ -1606,7 +1606,7 @@ static int res_get_common_dumpit(struct sk_buff *skb,
 
 		filled = true;
 
-		entry_attr = nla_nest_start_noflag(skb, fe->entry);
+		entry_attr = nla_nest_start_analflag(skb, fe->entry);
 		if (!entry_attr) {
 			ret = -EMSGSIZE;
 			rdma_restrack_put(res);
@@ -1637,7 +1637,7 @@ msg_full:
 	cb->args[0] = idx;
 
 	/*
-	 * No more entries to fill, cancel the message and
+	 * Anal more entries to fill, cancel the message and
 	 * return 0 to mark end of dumpit.
 	 */
 	if (!filled)
@@ -1748,7 +1748,7 @@ static int nldev_newlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	ndev = dev_get_by_name(sock_net(skb->sk), ndev_name);
 	if (!ndev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	down_read(&link_ops_rwsem);
 	ops = link_ops_get(type);
@@ -1834,7 +1834,7 @@ static int nldev_get_chardev(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_put;
 	}
 	nlh = nlmsg_put(msg, NETLINK_CB(skb).portid, nlh->nlmsg_seq,
@@ -1896,7 +1896,7 @@ static int nldev_sys_get_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nlh = nlmsg_put(msg, NETLINK_CB(skb).portid, nlh->nlmsg_seq,
 			RDMA_NL_GET_TYPE(RDMA_NL_NLDEV,
@@ -1927,7 +1927,7 @@ static int nldev_sys_get_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
 	 * 4eae4efa2c29 ("hugetlb: do early cow when page pinned on src mm")
 	 * for more details. Don't backport this without them.
 	 *
-	 * Return value ignored on purpose, assume copy-on-fork is not
+	 * Return value iganalred on purpose, assume copy-on-fork is analt
 	 * supported in case of failure.
 	 */
 	nla_put_u8(msg, RDMA_NLDEV_SYS_ATTR_COPY_ON_FORK, 1);
@@ -2050,7 +2050,7 @@ static int nldev_stat_set_counter_dynamic_doit(struct nlattr *tb[],
 	target = kcalloc(BITS_TO_LONGS(stats->num_counters),
 			 sizeof(*stats->is_disabled), GFP_KERNEL);
 	if (!target)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nla_for_each_nested(entry_attr, tb[RDMA_NLDEV_ATTR_STAT_HWCOUNTERS],
 			    rem) {
@@ -2112,7 +2112,7 @@ static int nldev_stat_set_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_put_device;
 	}
 	nlh = nlmsg_put(msg, NETLINK_CB(skb).portid, nlh->nlmsg_seq,
@@ -2181,7 +2181,7 @@ static int nldev_stat_del_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 	nlh = nlmsg_put(msg, NETLINK_CB(skb).portid, nlh->nlmsg_seq,
@@ -2253,7 +2253,7 @@ static int stat_get_doit_default_counter(struct sk_buff *skb,
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -2342,7 +2342,7 @@ static int stat_get_doit_qp(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -2476,7 +2476,7 @@ static int nldev_stat_get_counter_status_doit(struct sk_buff *skb,
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 

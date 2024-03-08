@@ -66,7 +66,7 @@ static int alpine_msix_allocate_sgi(struct alpine_msix_data *priv, int num_req)
 					   num_req, 0);
 	if (first >= priv->num_spis) {
 		spin_unlock(&priv->msi_map_lock);
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	bitmap_set(priv->msi_map, first, num_req);
@@ -123,10 +123,10 @@ static int alpine_msix_gic_domain_alloc(struct irq_domain *domain,
 	struct irq_data *d;
 	int ret;
 
-	if (!is_of_node(domain->parent->fwnode))
+	if (!is_of_analde(domain->parent->fwanalde))
 		return -EINVAL;
 
-	fwspec.fwnode = domain->parent->fwnode;
+	fwspec.fwanalde = domain->parent->fwanalde;
 	fwspec.param_count = 3;
 	fwspec.param[0] = 0;
 	fwspec.param[1] = sgi;
@@ -187,19 +187,19 @@ static const struct irq_domain_ops alpine_msix_middle_domain_ops = {
 };
 
 static int alpine_msix_init_domains(struct alpine_msix_data *priv,
-				    struct device_node *node)
+				    struct device_analde *analde)
 {
 	struct irq_domain *middle_domain, *msi_domain, *gic_domain;
-	struct device_node *gic_node;
+	struct device_analde *gic_analde;
 
-	gic_node = of_irq_find_parent(node);
-	if (!gic_node) {
-		pr_err("Failed to find the GIC node\n");
-		return -ENODEV;
+	gic_analde = of_irq_find_parent(analde);
+	if (!gic_analde) {
+		pr_err("Failed to find the GIC analde\n");
+		return -EANALDEV;
 	}
 
-	gic_domain = irq_find_host(gic_node);
-	of_node_put(gic_node);
+	gic_domain = irq_find_host(gic_analde);
+	of_analde_put(gic_analde);
 	if (!gic_domain) {
 		pr_err("Failed to find the GIC domain\n");
 		return -ENXIO;
@@ -210,23 +210,23 @@ static int alpine_msix_init_domains(struct alpine_msix_data *priv,
 						 priv);
 	if (!middle_domain) {
 		pr_err("Failed to create the MSIX middle domain\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
-	msi_domain = pci_msi_create_irq_domain(of_node_to_fwnode(node),
+	msi_domain = pci_msi_create_irq_domain(of_analde_to_fwanalde(analde),
 					       &alpine_msix_domain_info,
 					       middle_domain);
 	if (!msi_domain) {
 		pr_err("Failed to create MSI domain\n");
 		irq_domain_remove(middle_domain);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
 }
 
-static int alpine_msix_init(struct device_node *node,
-			    struct device_node *parent)
+static int alpine_msix_init(struct device_analde *analde,
+			    struct device_analde *parent)
 {
 	struct alpine_msix_data *priv;
 	struct resource res;
@@ -234,11 +234,11 @@ static int alpine_msix_init(struct device_node *node,
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&priv->msi_map_lock);
 
-	ret = of_address_to_resource(node, 0, &res);
+	ret = of_address_to_resource(analde, 0, &res);
 	if (ret) {
 		pr_err("Failed to allocate resource\n");
 		goto err_priv;
@@ -254,13 +254,13 @@ static int alpine_msix_init(struct device_node *node,
 	priv->addr = res.start & GENMASK_ULL(63,20);
 	priv->addr |= ALPINE_MSIX_SPI_TARGET_CLUSTER0;
 
-	if (of_property_read_u32(node, "al,msi-base-spi", &priv->spi_first)) {
+	if (of_property_read_u32(analde, "al,msi-base-spi", &priv->spi_first)) {
 		pr_err("Unable to parse MSI base\n");
 		ret = -EINVAL;
 		goto err_priv;
 	}
 
-	if (of_property_read_u32(node, "al,msi-num-spis", &priv->num_spis)) {
+	if (of_property_read_u32(analde, "al,msi-num-spis", &priv->num_spis)) {
 		pr_err("Unable to parse MSI numbers\n");
 		ret = -EINVAL;
 		goto err_priv;
@@ -268,14 +268,14 @@ static int alpine_msix_init(struct device_node *node,
 
 	priv->msi_map = bitmap_zalloc(priv->num_spis, GFP_KERNEL);
 	if (!priv->msi_map) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_priv;
 	}
 
 	pr_debug("Registering %d msixs, starting at %d\n",
 		 priv->num_spis, priv->spi_first);
 
-	ret = alpine_msix_init_domains(priv, node);
+	ret = alpine_msix_init_domains(priv, analde);
 	if (ret)
 		goto err_map;
 

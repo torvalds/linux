@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
  *  Main header file for the ALSA sequencer
  *  Copyright (c) 1998-1999 by Frank van de Pol <fvdpol@coil.demon.nl>
@@ -22,12 +22,12 @@
 #define SNDRV_SEQ_EVENT_SYSTEM		0
 #define SNDRV_SEQ_EVENT_RESULT		1
 
-/** note messages (channel specific)
- * event data type = #snd_seq_ev_note
+/** analte messages (channel specific)
+ * event data type = #snd_seq_ev_analte
  */
-#define SNDRV_SEQ_EVENT_NOTE		5
-#define SNDRV_SEQ_EVENT_NOTEON		6
-#define SNDRV_SEQ_EVENT_NOTEOFF		7
+#define SNDRV_SEQ_EVENT_ANALTE		5
+#define SNDRV_SEQ_EVENT_ANALTEON		6
+#define SNDRV_SEQ_EVENT_ANALTEOFF		7
 #define SNDRV_SEQ_EVENT_KEYPRESS	8
 	
 /** control messages (channel specific)
@@ -38,7 +38,7 @@
 #define SNDRV_SEQ_EVENT_CHANPRESS	12
 #define SNDRV_SEQ_EVENT_PITCHBEND	13	/**< from -8192 to 8191 */
 #define SNDRV_SEQ_EVENT_CONTROL14	14	/**< 14 bit controller value */
-#define SNDRV_SEQ_EVENT_NONREGPARAM	15	/**< 14 bit NRPN address + 14 bit unsigned value */
+#define SNDRV_SEQ_EVENT_ANALNREGPARAM	15	/**< 14 bit NRPN address + 14 bit unsigned value */
 #define SNDRV_SEQ_EVENT_REGPARAM	16	/**< 14 bit RPN address + 14 bit unsigned value */
 
 /** synchronisation messages
@@ -64,7 +64,7 @@
 #define SNDRV_SEQ_EVENT_QUEUE_SKEW	38	/* skew queue tempo */
 
 /** others
- * event data type = none
+ * event data type = analne
  */
 #define SNDRV_SEQ_EVENT_TUNE_REQUEST	40	/* tune request */
 #define SNDRV_SEQ_EVENT_RESET		41	/* reset to power-on state */
@@ -124,7 +124,7 @@
 #define SNDRV_SEQ_EVENT_USR_VAR3	138
 #define SNDRV_SEQ_EVENT_USR_VAR4	139
 
-/* 150-151: kernel events with quote - DO NOT use in user clients */
+/* 150-151: kernel events with quote - DO ANALT use in user clients */
 #define SNDRV_SEQ_EVENT_KERNEL_ERROR	150
 #define SNDRV_SEQ_EVENT_KERNEL_QUOTE	151	/* obsolete */
 
@@ -133,7 +133,7 @@
 /* 192-254: hardware specific events */
 
 /* 255: special event */
-#define SNDRV_SEQ_EVENT_NONE		255
+#define SNDRV_SEQ_EVENT_ANALNE		255
 
 
 typedef unsigned char snd_seq_event_type_t;
@@ -151,12 +151,12 @@ struct snd_seq_connect {
 };
 
 
-#define SNDRV_SEQ_ADDRESS_UNKNOWN	253	/* unknown source */
+#define SNDRV_SEQ_ADDRESS_UNKANALWN	253	/* unkanalwn source */
 #define SNDRV_SEQ_ADDRESS_SUBSCRIBERS	254	/* send event to all subscribed ports */
 #define SNDRV_SEQ_ADDRESS_BROADCAST	255	/* send event to all queues/clients/ports/channels */
 #define SNDRV_SEQ_QUEUE_DIRECT		253	/* direct dispatch */
 
-	/* event mode flag - NOTE: only 8 bits available! */
+	/* event mode flag - ANALTE: only 8 bits available! */
 #define SNDRV_SEQ_TIME_STAMP_TICK	(0<<0) /* timestamp in clock ticks */
 #define SNDRV_SEQ_TIME_STAMP_REAL	(1<<0) /* timestamp in real time */
 #define SNDRV_SEQ_TIME_STAMP_MASK	(1<<0)
@@ -170,19 +170,19 @@ struct snd_seq_connect {
 #define SNDRV_SEQ_EVENT_LENGTH_VARUSR	(2<<2)	/* variable event size - user memory space */
 #define SNDRV_SEQ_EVENT_LENGTH_MASK	(3<<2)
 
-#define SNDRV_SEQ_PRIORITY_NORMAL	(0<<4)	/* normal priority */
+#define SNDRV_SEQ_PRIORITY_ANALRMAL	(0<<4)	/* analrmal priority */
 #define SNDRV_SEQ_PRIORITY_HIGH		(1<<4)	/* event should be processed before others */
 #define SNDRV_SEQ_PRIORITY_MASK		(1<<4)
 
 #define SNDRV_SEQ_EVENT_UMP		(1<<5)	/* event holds a UMP packet */
 
-	/* note event */
-struct snd_seq_ev_note {
+	/* analte event */
+struct snd_seq_ev_analte {
 	unsigned char channel;
-	unsigned char note;
+	unsigned char analte;
 	unsigned char velocity;
-	unsigned char off_velocity;	/* only for SNDRV_SEQ_EVENT_NOTE */
-	unsigned int duration;		/* only for SNDRV_SEQ_EVENT_NOTE */
+	unsigned char off_velocity;	/* only for SNDRV_SEQ_EVENT_ANALTE */
+	unsigned int duration;		/* only for SNDRV_SEQ_EVENT_ANALTE */
 };
 
 	/* controller event */
@@ -206,7 +206,7 @@ struct snd_seq_ev_raw32 {
 	/* external stored data */
 struct snd_seq_ev_ext {
 	unsigned int len;	/* length of data */
-	void *ptr;		/* pointer to data (note: maybe 64-bit) */
+	void *ptr;		/* pointer to data (analte: maybe 64-bit) */
 } __packed;
 
 struct snd_seq_result {
@@ -217,7 +217,7 @@ struct snd_seq_result {
 
 struct snd_seq_real_time {
 	unsigned int tv_sec;	/* seconds */
-	unsigned int tv_nsec;	/* nanoseconds */
+	unsigned int tv_nsec;	/* naanalseconds */
 };
 
 typedef unsigned int snd_seq_tick_time_t;	/* midi ticks */
@@ -254,7 +254,7 @@ struct snd_seq_ev_quote {
 } __packed;
 
 union snd_seq_event_data { /* event data... */
-	struct snd_seq_ev_note note;
+	struct snd_seq_ev_analte analte;
 	struct snd_seq_ev_ctrl control;
 	struct snd_seq_ev_raw8 raw8;
 	struct snd_seq_ev_raw32 raw32;
@@ -330,7 +330,7 @@ struct snd_seq_running_info {
 };
 
 
-	/* known client numbers */
+	/* kanalwn client numbers */
 #define SNDRV_SEQ_CLIENT_SYSTEM		0
 	/* internal client numbers */
 #define SNDRV_SEQ_CLIENT_DUMMY		14	/* midi through */
@@ -339,7 +339,7 @@ struct snd_seq_running_info {
 
 	/* client types */
 typedef int __bitwise snd_seq_client_type_t;
-#define	NO_CLIENT	((__force snd_seq_client_type_t) 0)
+#define	ANAL_CLIENT	((__force snd_seq_client_type_t) 0)
 #define	USER_CLIENT	((__force snd_seq_client_type_t) 1)
 #define	KERNEL_CLIENT	((__force snd_seq_client_type_t) 2)
                         
@@ -347,7 +347,7 @@ typedef int __bitwise snd_seq_client_type_t;
 #define SNDRV_SEQ_FILTER_BROADCAST	(1U<<0)	/* accept broadcast messages */
 #define SNDRV_SEQ_FILTER_MULTICAST	(1U<<1)	/* accept multicast messages */
 #define SNDRV_SEQ_FILTER_BOUNCE		(1U<<2)	/* accept bounce event in error */
-#define SNDRV_SEQ_FILTER_NO_CONVERT	(1U<<30) /* don't convert UMP events */
+#define SNDRV_SEQ_FILTER_ANAL_CONVERT	(1U<<30) /* don't convert UMP events */
 #define SNDRV_SEQ_FILTER_USE_EVENT	(1U<<31)	/* use event filter */
 
 struct snd_seq_client_info {
@@ -396,7 +396,7 @@ struct snd_seq_client_pool {
 #define SNDRV_SEQ_REMOVE_TIME_AFTER	(1<<5)	/* Restrict to time or after */
 #define SNDRV_SEQ_REMOVE_TIME_TICK	(1<<6)	/* Time is in ticks */
 #define SNDRV_SEQ_REMOVE_EVENT_TYPE	(1<<7)	/* Restrict to event type */
-#define SNDRV_SEQ_REMOVE_IGNORE_OFF 	(1<<8)	/* Do not flush off events */
+#define SNDRV_SEQ_REMOVE_IGANALRE_OFF 	(1<<8)	/* Do analt flush off events */
 #define SNDRV_SEQ_REMOVE_TAG_MATCH 	(1<<9)	/* Restrict to events with given tag */
 
 struct snd_seq_remove_events {
@@ -416,9 +416,9 @@ struct snd_seq_remove_events {
 };
 
 
-	/* known port numbers */
+	/* kanalwn port numbers */
 #define SNDRV_SEQ_PORT_SYSTEM_TIMER	0
-#define SNDRV_SEQ_PORT_SYSTEM_ANNOUNCE	1
+#define SNDRV_SEQ_PORT_SYSTEM_ANANALUNCE	1
 
 	/* port capabilities (32 bits) */
 #define SNDRV_SEQ_PORT_CAP_READ		(1<<0)	/* readable from this port */
@@ -431,7 +431,7 @@ struct snd_seq_remove_events {
 
 #define SNDRV_SEQ_PORT_CAP_SUBS_READ	(1<<5)	/* allow read subscription */
 #define SNDRV_SEQ_PORT_CAP_SUBS_WRITE	(1<<6)	/* allow write subscription */
-#define SNDRV_SEQ_PORT_CAP_NO_EXPORT	(1<<7)	/* routing not allowed */
+#define SNDRV_SEQ_PORT_CAP_ANAL_EXPORT	(1<<7)	/* routing analt allowed */
 #define SNDRV_SEQ_PORT_CAP_INACTIVE	(1<<8)	/* inactive port */
 #define SNDRV_SEQ_PORT_CAP_UMP_ENDPOINT	(1<<9)	/* MIDI 2.0 UMP Endpoint port */
 
@@ -446,7 +446,7 @@ struct snd_seq_remove_events {
 #define SNDRV_SEQ_PORT_TYPE_MIDI_UMP	(1<<7)	/* UMP */
 
 /* other standards...*/
-#define SNDRV_SEQ_PORT_TYPE_SYNTH	(1<<10)	/* Synth device (no MIDI compatible - direct wavetable) */
+#define SNDRV_SEQ_PORT_TYPE_SYNTH	(1<<10)	/* Synth device (anal MIDI compatible - direct wavetable) */
 #define SNDRV_SEQ_PORT_TYPE_DIRECT_SAMPLE (1<<11)	/* Sampling device (support sample download) */
 #define SNDRV_SEQ_PORT_TYPE_SAMPLE	(1<<12)	/* Sampling device (sample can be downloaded at any time) */
 /*...*/
@@ -462,7 +462,7 @@ struct snd_seq_remove_events {
 #define SNDRV_SEQ_PORT_FLG_TIME_REAL	(1<<2)
 
 /* port direction */
-#define SNDRV_SEQ_PORT_DIR_UNKNOWN	0
+#define SNDRV_SEQ_PORT_DIR_UNKANALWN	0
 #define SNDRV_SEQ_PORT_DIR_INPUT	1
 #define SNDRV_SEQ_PORT_DIR_OUTPUT	2
 #define SNDRV_SEQ_PORT_DIR_BIDIRECTION	3
@@ -484,7 +484,7 @@ struct snd_seq_port_info {
 	unsigned int flags;		/* misc. conditioning */
 	unsigned char time_queue;	/* queue # for timestamping */
 	unsigned char direction;	/* port usage direction (r/w/bidir) */
-	unsigned char ump_group;	/* 0 = UMP EP (no conversion), 1-16 = UMP group number */
+	unsigned char ump_group;	/* 0 = UMP EP (anal conversion), 1-16 = UMP group number */
 	char reserved[57];		/* for future use */
 };
 

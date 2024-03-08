@@ -54,7 +54,7 @@ static int snd_opl3_oss_create_port(struct snd_opl3 * opl3)
 		MAX_OPL2_VOICES : MAX_OPL3_VOICES;
 	opl3->oss_chset = snd_midi_channel_alloc_set(voices);
 	if (opl3->oss_chset == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	opl3->oss_chset->private_data = opl3;
 
 	memset(&callbacks, 0, sizeof(callbacks));

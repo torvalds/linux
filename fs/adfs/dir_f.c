@@ -105,8 +105,8 @@ adfs_dir_checkbyte(const struct adfs_dir *dir)
 
 	/*
 	 * The directory tail is in the final bh
-	 * Note that contary to the RISC OS PRMs,
-	 * the first few bytes are NOT included
+	 * Analte that contary to the RISC OS PRMs,
+	 * the first few bytes are ANALT included
 	 * in the check.  All bytes are in the
 	 * same bh.
 	 */
@@ -208,7 +208,7 @@ adfs_obj2dir(struct adfs_direntry *de, struct object_info *obj)
 }
 
 /*
- * get a directory entry.  Note that the caller is responsible
+ * get a directory entry.  Analte that the caller is responsible
  * for holding the relevant locks.
  */
 static int
@@ -222,7 +222,7 @@ __adfs_dir_get(struct adfs_dir *dir, int pos, struct object_info *obj)
 		return ret;
 
 	if (!de.dirobname[0])
-		return -ENOENT;
+		return -EANALENT;
 
 	adfs_dir2obj(dir, obj, &de);
 
@@ -233,7 +233,7 @@ static int
 adfs_f_setpos(struct adfs_dir *dir, unsigned int fpos)
 {
 	if (fpos >= ADFS_NUM_DIR_ENTRIES)
-		return -ENOENT;
+		return -EANALENT;
 
 	dir->pos = 5 + fpos * 26;
 	return 0;
@@ -260,7 +260,7 @@ static int adfs_f_iterate(struct adfs_dir *dir, struct dir_context *ctx)
 		if (__adfs_dir_get(dir, pos, &obj))
 			break;
 		if (!dir_emit(ctx, obj.name, obj.name_len,
-			      obj.indaddr, DT_UNKNOWN))
+			      obj.indaddr, DT_UNKANALWN))
 			break;
 		pos += 26;
 		ctx->pos++;
@@ -280,11 +280,11 @@ static int adfs_f_update(struct adfs_dir *dir, struct object_info *obj)
 		ret = adfs_dir_copyfrom(&de, dir, offset, sizeof(de));
 		if (ret) {
 			adfs_error(dir->sb, "error reading directory entry");
-			return -ENOENT;
+			return -EANALENT;
 		}
 		if (!de.dirobname[0]) {
 			adfs_error(dir->sb, "unable to locate entry to update");
-			return -ENOENT;
+			return -EANALENT;
 		}
 	} while (adfs_readval(de.dirinddiscadd, 3) != obj->indaddr);
 

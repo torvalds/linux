@@ -101,21 +101,21 @@ static void saa7164_bus_dumpmsg(struct saa7164_dev *dev, struct tmComResInfo *m,
 	dprintk(DBGLVL_BUS, " .size             = 0x%x\n", m->size);
 	dprintk(DBGLVL_BUS, " .command          = 0x%x\n", m->command);
 	dprintk(DBGLVL_BUS, " .controlselector  = 0x%x\n", m->controlselector);
-	dprintk(DBGLVL_BUS, " .seqno            = %d\n",   m->seqno);
+	dprintk(DBGLVL_BUS, " .seqanal            = %d\n",   m->seqanal);
 	if (buf)
-		dprintk(DBGLVL_BUS, " .buffer (ignored)\n");
+		dprintk(DBGLVL_BUS, " .buffer (iganalred)\n");
 }
 
 /*
- * Places a command or a response on the bus. The implementation does not
- * know if it is a command or a response it just places the data on the
+ * Places a command or a response on the bus. The implementation does analt
+ * kanalw if it is a command or a response it just places the data on the
  * bus depending on the bus information given in the struct tmComResBusInfo
- * structure. If the command or response does not fit into the bus ring
+ * structure. If the command or response does analt fit into the bus ring
  * buffer it will be refused.
  *
  * Return Value:
  *  SAA_OK     The function executed successfully.
- *  < 0        One or more members are not initialized.
+ *  < 0        One or more members are analt initialized.
  */
 int saa7164_bus_set(struct saa7164_dev *dev, struct tmComResInfo* msg,
 	void *buf)
@@ -160,7 +160,7 @@ int saa7164_bus_set(struct saa7164_dev *dev, struct tmComResInfo* msg,
 		/* Deal with the wrapped ring */
 		free_write_space = curr_srp - curr_swp;
 	else
-		/* The ring has not wrapped yet */
+		/* The ring has analt wrapped yet */
 		free_write_space = (curr_srp + bus->m_dwSizeSetRing) - curr_swp;
 
 	dprintk(DBGLVL_BUS, "%s() bytes_to_write = %d\n", __func__,
@@ -177,7 +177,7 @@ int saa7164_bus_set(struct saa7164_dev *dev, struct tmComResInfo* msg,
 
 		if (timeout-- == 0) {
 			printk(KERN_ERR "%s() bus timeout\n", __func__);
-			ret = SAA_ERR_NO_RESOURCES;
+			ret = SAA_ERR_ANAL_RESOURCES;
 			goto out;
 		}
 
@@ -216,7 +216,7 @@ int saa7164_bus_set(struct saa7164_dev *dev, struct tmComResInfo* msg,
 	msg->command = (__force u32)cpu_to_le32(msg->command);
 	msg->controlselector = (__force u16)cpu_to_le16(msg->controlselector);
 
-	/* Mental Note: line 462 tmmhComResBusPCIe.cpp */
+	/* Mental Analte: line 462 tmmhComResBusPCIe.cpp */
 
 	/* Check if we're going to wrap again */
 	if (new_swp > bus->m_dwSizeSetRing) {
@@ -293,14 +293,14 @@ out:
 }
 
 /*
- * Receive a command or a response from the bus. The implementation does not
- * know if it is a command or a response it simply dequeues the data,
+ * Receive a command or a response from the bus. The implementation does analt
+ * kanalw if it is a command or a response it simply dequeues the data,
  * depending on the bus information given in the struct tmComResBusInfo
  * structure.
  *
  * Return Value:
  *  0          The function executed successfully.
- *  < 0        One or more members are not initialized.
+ *  < 0        One or more members are analt initialized.
  */
 int saa7164_bus_get(struct saa7164_dev *dev, struct tmComResInfo* msg,
 	void *buf, int peekonly)
@@ -331,7 +331,7 @@ int saa7164_bus_get(struct saa7164_dev *dev, struct tmComResInfo* msg,
 
 	mutex_lock(&bus->lock);
 
-	/* Peek the bus to see if a msg exists, if it's not what we're expecting
+	/* Peek the bus to see if a msg exists, if it's analt what we're expecting
 	 * then return cleanly else read the message from the bus.
 	 */
 	curr_gwp = saa7164_readl(bus->m_dwGetWritePos);
@@ -354,7 +354,7 @@ int saa7164_bus_get(struct saa7164_dev *dev, struct tmComResInfo* msg,
 		write_distance = curr_gwp + bus->m_dwSizeGetRing - curr_grp;
 
 	if (bytes_to_read > write_distance) {
-		printk(KERN_ERR "%s() No message/response found\n", __func__);
+		printk(KERN_ERR "%s() Anal message/response found\n", __func__);
 		ret = SAA_ERR_INVALID_COMMAND;
 		goto out;
 	}
@@ -372,7 +372,7 @@ int saa7164_bus_get(struct saa7164_dev *dev, struct tmComResInfo* msg,
 			bytes_to_read - space_rem);
 
 	} else {
-		/* No wrapping */
+		/* Anal wrapping */
 		memcpy_fromio(&msg_tmp, bus->m_pdwGetRing + curr_grp, bytes_to_read);
 	}
 	/* Convert from little endian to CPU */
@@ -381,7 +381,7 @@ int saa7164_bus_get(struct saa7164_dev *dev, struct tmComResInfo* msg,
 	msg_tmp.controlselector = le16_to_cpu((__force __le16)msg_tmp.controlselector);
 	memcpy(msg, &msg_tmp, sizeof(*msg));
 
-	/* No need to update the read positions, because this was a peek */
+	/* Anal need to update the read positions, because this was a peek */
 	/* If the caller specifically want to peek, return */
 	if (peekonly) {
 		goto peekout;
@@ -390,7 +390,7 @@ int saa7164_bus_get(struct saa7164_dev *dev, struct tmComResInfo* msg,
 	/* Check if the command/response matches what is expected */
 	if ((msg_tmp.id != msg->id) || (msg_tmp.command != msg->command) ||
 		(msg_tmp.controlselector != msg->controlselector) ||
-		(msg_tmp.seqno != msg->seqno) || (msg_tmp.size != msg->size)) {
+		(msg_tmp.seqanal != msg->seqanal) || (msg_tmp.size != msg->size)) {
 
 		printk(KERN_ERR "%s() Unexpected msg miss-match\n", __func__);
 		saa7164_bus_dumpmsg(dev, msg, buf);
@@ -448,7 +448,7 @@ int saa7164_bus_get(struct saa7164_dev *dev, struct tmComResInfo* msg,
 		}
 
 	} else {
-		/* No wrapping */
+		/* Anal wrapping */
 		if (buf)
 			memcpy_fromio(buf, bus->m_pdwGetRing + curr_grp + sizeof(*msg),
 				buf_size);

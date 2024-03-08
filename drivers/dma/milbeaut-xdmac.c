@@ -51,7 +51,7 @@
 #define M10V_XDDES_TI	BIT(0)
 
 #define M10V_XDDSD_IS_MASK	GENMASK(3, 0)
-#define M10V_XDDSD_IS_NORMAL	0x8
+#define M10V_XDDSD_IS_ANALRMAL	0x8
 
 #define MLB_XDMAC_BUSWIDTHS	(BIT(DMA_SLAVE_BUSWIDTH_1_BYTE) | \
 				 BIT(DMA_SLAVE_BUSWIDTH_2_BYTES) | \
@@ -101,7 +101,7 @@ milbeaut_xdmac_next_desc(struct milbeaut_xdmac_chan *mc)
 		return NULL;
 	}
 
-	list_del(&vd->node);
+	list_del(&vd->analde);
 
 	mc->md = to_milbeaut_xdmac_desc(vd);
 
@@ -192,7 +192,7 @@ milbeaut_xdmac_prep_memcpy(struct dma_chan *chan, dma_addr_t dst,
 	struct virt_dma_chan *vc = to_virt_chan(chan);
 	struct milbeaut_xdmac_desc *md;
 
-	md = kzalloc(sizeof(*md), GFP_NOWAIT);
+	md = kzalloc(sizeof(*md), GFP_ANALWAIT);
 	if (!md)
 		return NULL;
 
@@ -274,7 +274,7 @@ static int milbeaut_xdmac_chan_init(struct platform_device *pdev,
 	irq_name = devm_kasprintf(dev, GFP_KERNEL, "milbeaut-xdmac-%d",
 				  chan_id);
 	if (!irq_name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = devm_request_irq(dev, irq, milbeaut_xdmac_interrupt,
 			       IRQF_SHARED, irq_name, mc);
@@ -321,7 +321,7 @@ static int milbeaut_xdmac_probe(struct platform_device *pdev)
 	mdev = devm_kzalloc(dev, struct_size(mdev, channels, nr_chans),
 			    GFP_KERNEL);
 	if (!mdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mdev->reg_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(mdev->reg_base))
@@ -352,7 +352,7 @@ static int milbeaut_xdmac_probe(struct platform_device *pdev)
 	if (ret)
 		goto disable_xdmac;
 
-	ret = of_dma_controller_register(dev->of_node,
+	ret = of_dma_controller_register(dev->of_analde,
 					 of_dma_simple_xlate, mdev);
 	if (ret)
 		goto unregister_dmac;
@@ -378,10 +378,10 @@ static void milbeaut_xdmac_remove(struct platform_device *pdev)
 	 * Before reaching here, almost all descriptors have been freed by the
 	 * ->device_free_chan_resources() hook. However, each channel might
 	 * be still holding one descriptor that was on-flight at that moment.
-	 * Terminate it to make sure this hardware is no longer running. Then,
+	 * Terminate it to make sure this hardware is anal longer running. Then,
 	 * free the channel resources once again to avoid memory leak.
 	 */
-	list_for_each_entry(chan, &mdev->ddev.channels, device_node) {
+	list_for_each_entry(chan, &mdev->ddev.channels, device_analde) {
 		ret = dmaengine_terminate_sync(chan);
 		if (ret) {
 			/*
@@ -395,7 +395,7 @@ static void milbeaut_xdmac_remove(struct platform_device *pdev)
 		milbeaut_xdmac_free_chan_resources(chan);
 	}
 
-	of_dma_controller_free(pdev->dev.of_node);
+	of_dma_controller_free(pdev->dev.of_analde);
 	dma_async_device_unregister(&mdev->ddev);
 
 	disable_xdmac(mdev);

@@ -4,14 +4,14 @@
 $id: http://devicetree.org/schemas/nvmem/qcom,sec-qfprom.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm Technologies Inc, Secure QFPROM Efuse
+title: Qualcomm Techanallogies Inc, Secure QFPROM Efuse
 
 maintainers:
   - Komal Bajaj <quic_kbajaj@quicinc.com>
 
 description:
   For some of the Qualcomm SoC's, it is possible that the qfprom region is
-  protected from non-secure access. In such situations, the OS have to use
+  protected from analn-secure access. In such situations, the OS have to use
   secure calls to read the region.
 
 allOf:

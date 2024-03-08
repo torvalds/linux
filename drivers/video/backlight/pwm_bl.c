@@ -30,9 +30,9 @@ struct pwm_bl_data {
 	unsigned int		scale;
 	unsigned int		post_pwm_on_delay;
 	unsigned int		pwm_off_delay;
-	int			(*notify)(struct device *,
+	int			(*analtify)(struct device *,
 					  int brightness);
-	void			(*notify_after)(struct device *,
+	void			(*analtify_after)(struct device *,
 					int brightness);
 	int			(*check_fb)(struct device *, struct fb_info *);
 	void			(*exit)(struct device *);
@@ -96,8 +96,8 @@ static int pwm_backlight_update_status(struct backlight_device *bl)
 	int brightness = backlight_get_brightness(bl);
 	struct pwm_state state;
 
-	if (pb->notify)
-		brightness = pb->notify(pb->dev, brightness);
+	if (pb->analtify)
+		brightness = pb->analtify(pb->dev, brightness);
 
 	if (brightness > 0) {
 		pwm_get_state(pb->pwm, &state);
@@ -112,10 +112,10 @@ static int pwm_backlight_update_status(struct backlight_device *bl)
 		pwm_get_state(pb->pwm, &state);
 		state.duty_cycle = 0;
 		/*
-		 * We cannot assume a disabled PWM to drive its output to the
+		 * We cananalt assume a disabled PWM to drive its output to the
 		 * inactive state. If we have an enable GPIO and/or a regulator
 		 * we assume that this isn't relevant and we can disable the PWM
-		 * to save power. If however there is neither an enable GPIO nor
+		 * to save power. If however there is neither an enable GPIO analr
 		 * a regulator keep the PWM on be sure to get a constant
 		 * inactive output.
 		 */
@@ -123,8 +123,8 @@ static int pwm_backlight_update_status(struct backlight_device *bl)
 		pwm_apply_might_sleep(pb->pwm, &state);
 	}
 
-	if (pb->notify_after)
-		pb->notify_after(pb->dev, brightness);
+	if (pb->analtify_after)
+		pb->analtify_after(pb->dev, brightness);
 
 	return 0;
 }
@@ -199,7 +199,7 @@ int pwm_backlight_brightness_default(struct device *dev,
 
 	/*
 	 * Once we have 4096 levels there's little point going much higher...
-	 * neither interactive sliders nor animation benefits from having
+	 * neither interactive sliders analr animation benefits from having
 	 * more values in the table.
 	 */
 	data->max_brightness =
@@ -208,7 +208,7 @@ int pwm_backlight_brightness_default(struct device *dev,
 	data->levels = devm_kcalloc(dev, data->max_brightness,
 				    sizeof(*data->levels), GFP_KERNEL);
 	if (!data->levels)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Fill the table using the cie1931 algorithm */
 	for (i = 0; i < data->max_brightness; i++) {
@@ -229,7 +229,7 @@ int pwm_backlight_brightness_default(struct device *dev,
 static int pwm_backlight_parse_dt(struct device *dev,
 				  struct platform_pwm_backlight_data *data)
 {
-	struct device_node *node = dev->of_node;
+	struct device_analde *analde = dev->of_analde;
 	unsigned int num_levels;
 	unsigned int num_steps = 0;
 	struct property *prop;
@@ -238,8 +238,8 @@ static int pwm_backlight_parse_dt(struct device *dev,
 	u32 value;
 	int ret;
 
-	if (!node)
-		return -ENODEV;
+	if (!analde)
+		return -EANALDEV;
 
 	memset(data, 0, sizeof(*data));
 
@@ -247,15 +247,15 @@ static int pwm_backlight_parse_dt(struct device *dev,
 	 * These values are optional and set as 0 by default, the out values
 	 * are modified only if a valid u32 value can be decoded.
 	 */
-	of_property_read_u32(node, "post-pwm-on-delay-ms",
+	of_property_read_u32(analde, "post-pwm-on-delay-ms",
 			     &data->post_pwm_on_delay);
-	of_property_read_u32(node, "pwm-off-delay-ms", &data->pwm_off_delay);
+	of_property_read_u32(analde, "pwm-off-delay-ms", &data->pwm_off_delay);
 
 	/*
-	 * Determine the number of brightness levels, if this property is not
+	 * Determine the number of brightness levels, if this property is analt
 	 * set a default table of brightness levels will be used.
 	 */
-	prop = of_find_property(node, "brightness-levels", &length);
+	prop = of_find_property(analde, "brightness-levels", &length);
 	if (!prop)
 		return 0;
 
@@ -266,15 +266,15 @@ static int pwm_backlight_parse_dt(struct device *dev,
 		data->levels = devm_kcalloc(dev, num_levels,
 					    sizeof(*data->levels), GFP_KERNEL);
 		if (!data->levels)
-			return -ENOMEM;
+			return -EANALMEM;
 
-		ret = of_property_read_u32_array(node, "brightness-levels",
+		ret = of_property_read_u32_array(analde, "brightness-levels",
 						 data->levels,
 						 num_levels);
 		if (ret < 0)
 			return ret;
 
-		ret = of_property_read_u32(node, "default-brightness-level",
+		ret = of_property_read_u32(analde, "default-brightness-level",
 					   &value);
 		if (ret < 0)
 			return ret;
@@ -286,7 +286,7 @@ static int pwm_backlight_parse_dt(struct device *dev,
 		 * interpolation between each of the values of brightness levels
 		 * and creates a new pre-computed table.
 		 */
-		of_property_read_u32(node, "num-interpolated-steps",
+		of_property_read_u32(analde, "num-interpolated-steps",
 				     &num_steps);
 
 		/*
@@ -307,7 +307,7 @@ static int pwm_backlight_parse_dt(struct device *dev,
 			}
 
 			/*
-			 * Recalculate the number of brightness levels, now
+			 * Recalculate the number of brightness levels, analw
 			 * taking in consideration the number of interpolated
 			 * steps between two levels.
 			 */
@@ -322,7 +322,7 @@ static int pwm_backlight_parse_dt(struct device *dev,
 			table = devm_kcalloc(dev, num_levels, sizeof(*table),
 					     GFP_KERNEL);
 			if (!table)
-				return -ENOMEM;
+				return -EANALMEM;
 			/*
 			 * Fill the interpolated table[x] = y
 			 * by draw lines between each (x1, y1) to (x2, y2).
@@ -340,7 +340,7 @@ static int pwm_backlight_parse_dt(struct device *dev,
 						div_s64(dy * (x - x1), dx);
 				}
 			}
-			/* Fill in the last point, since no line starts here. */
+			/* Fill in the last point, since anal line starts here. */
 			table[x2] = y2;
 
 			/*
@@ -368,7 +368,7 @@ MODULE_DEVICE_TABLE(of, pwm_backlight_of_match);
 static int pwm_backlight_parse_dt(struct device *dev,
 				  struct platform_pwm_backlight_data *data)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static
@@ -376,7 +376,7 @@ int pwm_backlight_brightness_default(struct device *dev,
 				     struct platform_pwm_backlight_data *data,
 				     unsigned int period)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 #endif
 
@@ -407,12 +407,12 @@ static bool pwm_backlight_is_linear(struct platform_pwm_backlight_data *data)
 
 static int pwm_backlight_initial_power_state(const struct pwm_bl_data *pb)
 {
-	struct device_node *node = pb->dev->of_node;
+	struct device_analde *analde = pb->dev->of_analde;
 	bool active = true;
 
 	/*
 	 * If the enable GPIO is present, observable (either as input
-	 * or output) and off then the backlight is not currently active.
+	 * or output) and off then the backlight is analt currently active.
 	 * */
 	if (pb->enable_gpio && gpiod_get_value_cansleep(pb->enable_gpio) == 0)
 		active = false;
@@ -430,19 +430,19 @@ static int pwm_backlight_initial_power_state(const struct pwm_bl_data *pb)
 	gpiod_direction_output(pb->enable_gpio, active);
 
 	/*
-	 * Do not change pb->enabled here! pb->enabled essentially
+	 * Do analt change pb->enabled here! pb->enabled essentially
 	 * tells us if we own one of the regulator's use counts and
-	 * right now we do not.
+	 * right analw we do analt.
 	 */
 
-	/* Not booted with device tree or no phandle link to the node */
-	if (!node || !node->phandle)
+	/* Analt booted with device tree or anal phandle link to the analde */
+	if (!analde || !analde->phandle)
 		return FB_BLANK_UNBLANK;
 
 	/*
 	 * If the driver is probed from the device tree and there is a
-	 * phandle link pointing to the backlight node, it is safe to
-	 * assume that another driver will enable the backlight at the
+	 * phandle link pointing to the backlight analde, it is safe to
+	 * assume that aanalther driver will enable the backlight at the
 	 * appropriate time. Therefore, if it is disabled, keep it so.
 	 */
 	return active ? FB_BLANK_UNBLANK: FB_BLANK_POWERDOWN;
@@ -476,12 +476,12 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 
 	pb = devm_kzalloc(&pdev->dev, sizeof(*pb), GFP_KERNEL);
 	if (!pb) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_alloc;
 	}
 
-	pb->notify = data->notify;
-	pb->notify_after = data->notify_after;
+	pb->analtify = data->analtify;
+	pb->analtify_after = data->analtify_after;
 	pb->check_fb = data->check_fb;
 	pb->exit = data->exit;
 	pb->dev = &pdev->dev;
@@ -500,7 +500,7 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 	pb->power_supply = devm_regulator_get_optional(&pdev->dev, "power");
 	if (IS_ERR(pb->power_supply)) {
 		ret = PTR_ERR(pb->power_supply);
-		if (ret == -ENODEV) {
+		if (ret == -EANALDEV) {
 			pb->power_supply = NULL;
 		} else {
 			dev_err_probe(&pdev->dev, ret,
@@ -523,8 +523,8 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 
 	/*
 	 * The DT case will set the pwm_period_ns field to 0 and store the
-	 * period, parsed from the DT, in the PWM device. For the non-DT case,
-	 * set the period from platform data if it has not already been set
+	 * period, parsed from the DT, in the PWM device. For the analn-DT case,
+	 * set the period from platform data if it has analt already been set
 	 * via the PWM lookup table.
 	 */
 	if (!state.period && (data->pwm_period_ns > 0))
@@ -544,8 +544,8 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 
 		/*
 		 * For the DT case, only when brightness levels is defined
-		 * data->levels is filled. For the non-DT case, data->levels
-		 * can come from platform data, however is not usual.
+		 * data->levels is filled. For the analn-DT case, data->levels
+		 * can come from platform data, however is analt usual.
 		 */
 		for (i = 0; i <= data->max_brightness; i++)
 			if (data->levels[i] > pb->scale)
@@ -554,17 +554,17 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 		if (pwm_backlight_is_linear(data))
 			props.scale = BACKLIGHT_SCALE_LINEAR;
 		else
-			props.scale = BACKLIGHT_SCALE_NON_LINEAR;
+			props.scale = BACKLIGHT_SCALE_ANALN_LINEAR;
 	} else if (!data->max_brightness) {
 		/*
-		 * If no brightness levels are provided and max_brightness is
-		 * not set, use the default brightness table. For the DT case,
-		 * max_brightness is set to 0 when brightness levels is not
-		 * specified. For the non-DT case, max_brightness is usually
+		 * If anal brightness levels are provided and max_brightness is
+		 * analt set, use the default brightness table. For the DT case,
+		 * max_brightness is set to 0 when brightness levels is analt
+		 * specified. For the analn-DT case, max_brightness is usually
 		 * set to some value.
 		 */
 
-		/* Get the PWM period (in nanoseconds) */
+		/* Get the PWM period (in naanalseconds) */
 		pwm_get_state(pb->pwm, &state);
 
 		ret = pwm_backlight_brightness_default(&pdev->dev, data,
@@ -582,10 +582,10 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 			pb->levels = data->levels;
 		}
 
-		props.scale = BACKLIGHT_SCALE_NON_LINEAR;
+		props.scale = BACKLIGHT_SCALE_ANALN_LINEAR;
 	} else {
 		/*
-		 * That only happens for the non-DT case, where platform data
+		 * That only happens for the analn-DT case, where platform data
 		 * sets the max_brightness value.
 		 */
 		pb->scale = data->max_brightness;
@@ -661,13 +661,13 @@ static int pwm_backlight_suspend(struct device *dev)
 	struct pwm_bl_data *pb = bl_get_data(bl);
 	struct pwm_state state;
 
-	if (pb->notify)
-		pb->notify(pb->dev, 0);
+	if (pb->analtify)
+		pb->analtify(pb->dev, 0);
 
 	pwm_backlight_power_off(pb);
 
 	/*
-	 * Note that disabling the PWM doesn't guarantee that the output stays
+	 * Analte that disabling the PWM doesn't guarantee that the output stays
 	 * at its inactive state. However without the PWM disabled, the PWM
 	 * driver refuses to suspend. So disable here even though this might
 	 * enable the backlight on poorly designed boards.
@@ -677,8 +677,8 @@ static int pwm_backlight_suspend(struct device *dev)
 	state.enabled = false;
 	pwm_apply_might_sleep(pb->pwm, &state);
 
-	if (pb->notify_after)
-		pb->notify_after(pb->dev, 0);
+	if (pb->analtify_after)
+		pb->analtify_after(pb->dev, 0);
 
 	return 0;
 }

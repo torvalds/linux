@@ -21,7 +21,7 @@
 #include <linux/socket.h>
 #include <linux/sockios.h>
 #include <linux/in.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
@@ -32,7 +32,7 @@
 #include <net/sock.h>
 #include <net/gen_stats.h>
 
-/* This code is NOT intended to be used for statistics collection,
+/* This code is ANALT intended to be used for statistics collection,
  * its purpose is to provide a base for statistical multiplexing
  * for controlled load service.
  * If you need only statistics, run a user level daemon which
@@ -154,7 +154,7 @@ int gen_new_estimator(struct gnet_stats_basic_sync *bstats,
 
 	est = kzalloc(sizeof(*est), GFP_KERNEL);
 	if (!est)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	seqcount_init(&est->seq);
 	intvl_log = parm->interval + 2;
@@ -245,7 +245,7 @@ EXPORT_SYMBOL(gen_replace_estimator);
  * gen_estimator_active - test if estimator is currently in use
  * @rate_est: rate estimator
  *
- * Returns true if estimator is active, and false if not.
+ * Returns true if estimator is active, and false if analt.
  */
 bool gen_estimator_active(struct net_rate_estimator __rcu **rate_est)
 {

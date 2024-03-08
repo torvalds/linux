@@ -124,7 +124,7 @@ static void drop_current_rng(void)
 }
 
 /* Returns ERR_PTR(), NULL or refcounted hwrng */
-static struct hwrng *get_current_rng_nolock(void)
+static struct hwrng *get_current_rng_anallock(void)
 {
 	if (current_rng)
 		kref_get(&current_rng->ref);
@@ -139,7 +139,7 @@ static struct hwrng *get_current_rng(void)
 	if (mutex_lock_interruptible(&rng_mutex))
 		return ERR_PTR(-ERESTARTSYS);
 
-	rng = get_current_rng_nolock();
+	rng = get_current_rng_anallock();
 
 	mutex_unlock(&rng_mutex);
 	return rng;
@@ -180,7 +180,7 @@ skip_init:
 	return 0;
 }
 
-static int rng_dev_open(struct inode *inode, struct file *filp)
+static int rng_dev_open(struct ianalde *ianalde, struct file *filp)
 {
 	/* enforce read-only access to this chrdev */
 	if ((filp->f_mode & FMODE_READ) == 0)
@@ -225,7 +225,7 @@ static ssize_t rng_dev_read(struct file *filp, char __user *buf,
 			goto out;
 		}
 		if (!rng) {
-			err = -ENODEV;
+			err = -EANALDEV;
 			goto out;
 		}
 
@@ -236,12 +236,12 @@ static ssize_t rng_dev_read(struct file *filp, char __user *buf,
 		if (!data_avail) {
 			bytes_read = rng_get_data(rng, rng_buffer,
 				rng_buffer_size(),
-				!(filp->f_flags & O_NONBLOCK));
+				!(filp->f_flags & O_ANALNBLOCK));
 			if (bytes_read < 0) {
 				err = bytes_read;
 				goto out_unlock_reading;
 			} else if (bytes_read == 0 &&
-				   (filp->f_flags & O_NONBLOCK)) {
+				   (filp->f_flags & O_ANALNBLOCK)) {
 				err = -EAGAIN;
 				goto out_unlock_reading;
 			}
@@ -295,15 +295,15 @@ static const struct file_operations rng_chrdev_ops = {
 	.owner		= THIS_MODULE,
 	.open		= rng_dev_open,
 	.read		= rng_dev_read,
-	.llseek		= noop_llseek,
+	.llseek		= analop_llseek,
 };
 
 static const struct attribute_group *rng_dev_groups[];
 
 static struct miscdevice rng_miscdev = {
-	.minor		= HWRNG_MINOR,
+	.mianalr		= HWRNG_MIANALR,
 	.name		= RNG_MODULE_NAME,
-	.nodename	= "hwrng",
+	.analdename	= "hwrng",
 	.fops		= &rng_chrdev_ops,
 	.groups		= rng_dev_groups,
 };
@@ -311,11 +311,11 @@ static struct miscdevice rng_miscdev = {
 static int enable_best_rng(void)
 {
 	struct hwrng *rng, *new_rng = NULL;
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 
 	BUG_ON(!mutex_is_locked(&rng_mutex));
 
-	/* no rng to use? */
+	/* anal rng to use? */
 	if (list_empty(&rng_list)) {
 		drop_current_rng();
 		cur_rng_set_by_user = 0;
@@ -359,7 +359,7 @@ static ssize_t rng_current_store(struct device *dev,
 			}
 		}
 	}
-	new_rng = get_current_rng_nolock();
+	new_rng = get_current_rng_anallock();
 	mutex_unlock(&rng_mutex);
 
 	if (new_rng) {
@@ -382,7 +382,7 @@ static ssize_t rng_current_show(struct device *dev,
 	if (IS_ERR(rng))
 		return PTR_ERR(rng);
 
-	ret = snprintf(buf, PAGE_SIZE, "%s\n", rng ? rng->name : "none");
+	ret = snprintf(buf, PAGE_SIZE, "%s\n", rng ? rng->name : "analne");
 	put_rng(rng);
 
 	return ret;
@@ -427,8 +427,8 @@ static ssize_t rng_quality_show(struct device *dev,
 	if (IS_ERR(rng))
 		return PTR_ERR(rng);
 
-	if (!rng) /* no need to put_rng */
-		return -ENODEV;
+	if (!rng) /* anal need to put_rng */
+		return -EANALDEV;
 
 	ret = sysfs_emit(buf, "%hu\n", rng->quality);
 	put_rng(rng);
@@ -457,7 +457,7 @@ static ssize_t rng_quality_store(struct device *dev,
 	}
 
 	if (!current_rng) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 	}
 
@@ -525,14 +525,14 @@ static int hwrng_fillfn(void *unused)
 		if (rc <= 0)
 			continue;
 
-		/* If we cannot credit at least one bit of entropy,
+		/* If we cananalt credit at least one bit of entropy,
 		 * keep track of the remainder for the next iteration
 		 */
 		entropy = rc * quality * 8 + entropy_credit;
 		if ((entropy >> 10) == 0)
 			entropy_credit = entropy;
 
-		/* Outside lock, sure, but y'know: randomness. */
+		/* Outside lock, sure, but y'kanalw: randomness. */
 		add_hwgenerator_randomness((void *)rng_fillbuf, rc,
 					   entropy >> 10, true);
 	}
@@ -551,7 +551,7 @@ int hwrng_register(struct hwrng *rng)
 
 	mutex_lock(&rng_mutex);
 
-	/* Must not register two RNGs with the same name. */
+	/* Must analt register two RNGs with the same name. */
 	err = -EEXIST;
 	list_for_each_entry(tmp, &rng_list, list) {
 		if (strcmp(tmp->name, rng->name) == 0)
@@ -567,7 +567,7 @@ int hwrng_register(struct hwrng *rng)
 	    (!cur_rng_set_by_user && rng->quality > current_rng->quality)) {
 		/*
 		 * Set new rng as current as the new rng source
-		 * provides better entropy quality and was not
+		 * provides better entropy quality and was analt
 		 * chosen by userspace.
 		 */
 		err = set_current_rng(rng);
@@ -618,7 +618,7 @@ void hwrng_unregister(struct hwrng *rng)
 		}
 	}
 
-	new_rng = get_current_rng_nolock();
+	new_rng = get_current_rng_anallock();
 	if (list_empty(&rng_list)) {
 		mutex_unlock(&rng_mutex);
 		if (hwrng_fill)
@@ -658,7 +658,7 @@ int devm_hwrng_register(struct device *dev, struct hwrng *rng)
 
 	ptr = devres_alloc(devm_hwrng_release, sizeof(*ptr), GFP_KERNEL);
 	if (!ptr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	error = hwrng_register(rng);
 	if (error) {
@@ -699,12 +699,12 @@ static int __init hwrng_modinit(void)
 	/* kmalloc makes this safe for virt_to_page() in virtio_rng.c */
 	rng_buffer = kmalloc(rng_buffer_size(), GFP_KERNEL);
 	if (!rng_buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rng_fillbuf = kmalloc(rng_buffer_size(), GFP_KERNEL);
 	if (!rng_fillbuf) {
 		kfree(rng_buffer);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = register_miscdev();

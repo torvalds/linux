@@ -57,10 +57,10 @@
 #define SAA7164_MAXBOARDS 8
 
 #define UNSET (-1U)
-#define SAA7164_BOARD_NOAUTO			UNSET
-#define SAA7164_BOARD_UNKNOWN			0
-#define SAA7164_BOARD_UNKNOWN_REV2		1
-#define SAA7164_BOARD_UNKNOWN_REV3		2
+#define SAA7164_BOARD_ANALAUTO			UNSET
+#define SAA7164_BOARD_UNKANALWN			0
+#define SAA7164_BOARD_UNKANALWN_REV2		1
+#define SAA7164_BOARD_UNKANALWN_REV3		2
 #define SAA7164_BOARD_HAUPPAUGE_HVR2250		3
 #define SAA7164_BOARD_HAUPPAUGE_HVR2200		4
 #define SAA7164_BOARD_HAUPPAUGE_HVR2200_2	5
@@ -102,7 +102,7 @@
 #define DBGLVL_THR 4096
 #define DBGLVL_CPU 8192
 
-#define SAA7164_NORMS \
+#define SAA7164_ANALRMS \
 	(V4L2_STD_NTSC_M | V4L2_STD_NTSC_M_JP)
 
 /* TV frequency range copied from tuner-core.c */
@@ -249,13 +249,13 @@ struct saa7164_i2c {
 	u32				i2c_rc;
 };
 
-struct saa7164_tvnorm {
+struct saa7164_tvanalrm {
 	char		*name;
 	v4l2_std_id	id;
 };
 
 struct saa7164_encoder_params {
-	struct saa7164_tvnorm encodernorm;
+	struct saa7164_tvanalrm encoderanalrm;
 	u32 height;
 	u32 width;
 	u32 is_50hz;
@@ -272,7 +272,7 @@ struct saa7164_encoder_params {
 };
 
 struct saa7164_vbi_params {
-	struct saa7164_tvnorm encodernorm;
+	struct saa7164_tvanalrm encoderanalrm;
 	u32 height;
 	u32 width;
 	u32 is_50hz;
@@ -293,7 +293,7 @@ struct saa7164_port;
 struct saa7164_buffer {
 	struct list_head list;
 
-	/* Note of which h/w buffer list index position we occupy */
+	/* Analte of which h/w buffer list index position we occupy */
 	int idx;
 
 	struct saa7164_port *port;
@@ -368,7 +368,7 @@ struct saa7164_port {
 	/* --- Encoder/V4L related attributes --- */
 	/* Encoder */
 	/* Defaults established in saa7164-encoder.c */
-	struct saa7164_tvnorm encodernorm;
+	struct saa7164_tvanalrm encoderanalrm;
 	struct v4l2_ctrl_handler ctrl_handler;
 	v4l2_std_id std;
 	u32 height;
@@ -508,7 +508,7 @@ int saa7164_bus_get(struct saa7164_dev *dev, struct tmComResInfo* msg,
 int saa7164_cmd_send(struct saa7164_dev *dev,
 	u8 id, enum tmComResCmd command, u16 controlselector,
 	u16 size, void *buf);
-void saa7164_cmd_signal(struct saa7164_dev *dev, u8 seqno);
+void saa7164_cmd_signal(struct saa7164_dev *dev, u8 seqanal);
 int saa7164_irq_dequeue(struct saa7164_dev *dev);
 
 /* ----------------------------------------------------------- */

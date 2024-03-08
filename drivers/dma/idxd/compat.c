@@ -10,15 +10,15 @@
 extern int device_driver_attach(struct device_driver *drv, struct device *dev);
 extern void device_driver_detach(struct device *dev);
 
-#define DRIVER_ATTR_IGNORE_LOCKDEP(_name, _mode, _show, _store)	\
+#define DRIVER_ATTR_IGANALRE_LOCKDEP(_name, _mode, _show, _store)	\
 	struct driver_attribute driver_attr_##_name =		\
-	__ATTR_IGNORE_LOCKDEP(_name, _mode, _show, _store)
+	__ATTR_IGANALRE_LOCKDEP(_name, _mode, _show, _store)
 
 static ssize_t unbind_store(struct device_driver *drv, const char *buf, size_t count)
 {
 	const struct bus_type *bus = drv->bus;
 	struct device *dev;
-	int rc = -ENODEV;
+	int rc = -EANALDEV;
 
 	dev = bus_find_device_by_name(bus, NULL, buf);
 	if (dev && dev->driver) {
@@ -28,19 +28,19 @@ static ssize_t unbind_store(struct device_driver *drv, const char *buf, size_t c
 
 	return rc;
 }
-static DRIVER_ATTR_IGNORE_LOCKDEP(unbind, 0200, NULL, unbind_store);
+static DRIVER_ATTR_IGANALRE_LOCKDEP(unbind, 0200, NULL, unbind_store);
 
 static ssize_t bind_store(struct device_driver *drv, const char *buf, size_t count)
 {
 	const struct bus_type *bus = drv->bus;
 	struct device *dev;
 	struct device_driver *alt_drv = NULL;
-	int rc = -ENODEV;
+	int rc = -EANALDEV;
 	struct idxd_dev *idxd_dev;
 
 	dev = bus_find_device_by_name(bus, NULL, buf);
 	if (!dev || dev->driver || drv != &dsa_drv.drv)
-		return -ENODEV;
+		return -EANALDEV;
 
 	idxd_dev = confdev_to_idxd_dev(dev);
 	if (is_idxd_dev(idxd_dev)) {
@@ -54,7 +54,7 @@ static ssize_t bind_store(struct device_driver *drv, const char *buf, size_t cou
 			alt_drv = driver_find("user", bus);
 	}
 	if (!alt_drv)
-		return -ENODEV;
+		return -EANALDEV;
 
 	rc = device_driver_attach(alt_drv, dev);
 	if (rc < 0)
@@ -62,7 +62,7 @@ static ssize_t bind_store(struct device_driver *drv, const char *buf, size_t cou
 
 	return count;
 }
-static DRIVER_ATTR_IGNORE_LOCKDEP(bind, 0200, NULL, bind_store);
+static DRIVER_ATTR_IGANALRE_LOCKDEP(bind, 0200, NULL, bind_store);
 
 static struct attribute *dsa_drv_compat_attrs[] = {
 	&driver_attr_bind.attr,
@@ -81,7 +81,7 @@ static const struct attribute_group *dsa_drv_compat_groups[] = {
 
 static int idxd_dsa_drv_probe(struct idxd_dev *idxd_dev)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static void idxd_dsa_drv_remove(struct idxd_dev *idxd_dev)
@@ -89,7 +89,7 @@ static void idxd_dsa_drv_remove(struct idxd_dev *idxd_dev)
 }
 
 static enum idxd_dev_type dev_types[] = {
-	IDXD_DEV_NONE,
+	IDXD_DEV_ANALNE,
 };
 
 struct idxd_device_driver dsa_drv = {

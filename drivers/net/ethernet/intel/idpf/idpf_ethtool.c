@@ -31,7 +31,7 @@ static int idpf_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd,
 
 	idpf_vport_ctrl_unlock(netdev);
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 /**
@@ -46,7 +46,7 @@ static u32 idpf_get_rxfh_key_size(struct net_device *netdev)
 	struct idpf_vport_user_config_data *user_config;
 
 	if (!idpf_is_cap_ena_all(np->adapter, IDPF_RSS_CAPS, IDPF_CAP_RSS))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	user_config = &np->adapter->vport_config[np->vport_idx]->user_config;
 
@@ -65,7 +65,7 @@ static u32 idpf_get_rxfh_indir_size(struct net_device *netdev)
 	struct idpf_vport_user_config_data *user_config;
 
 	if (!idpf_is_cap_ena_all(np->adapter, IDPF_RSS_CAPS, IDPF_CAP_RSS))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	user_config = &np->adapter->vport_config[np->vport_idx]->user_config;
 
@@ -93,7 +93,7 @@ static int idpf_get_rxfh(struct net_device *netdev,
 	adapter = np->adapter;
 
 	if (!idpf_is_cap_ena_all(adapter, IDPF_RSS_CAPS, IDPF_CAP_RSS)) {
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto unlock_mutex;
 	}
 
@@ -143,7 +143,7 @@ static int idpf_set_rxfh(struct net_device *netdev,
 	adapter = vport->adapter;
 
 	if (!idpf_is_cap_ena_all(adapter, IDPF_RSS_CAPS, IDPF_CAP_RSS)) {
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto unlock_mutex;
 	}
 
@@ -151,9 +151,9 @@ static int idpf_set_rxfh(struct net_device *netdev,
 	if (np->state != __IDPF_VPORT_UP)
 		goto unlock_mutex;
 
-	if (rxfh->hfunc != ETH_RSS_HASH_NO_CHANGE &&
+	if (rxfh->hfunc != ETH_RSS_HASH_ANAL_CHANGE &&
 	    rxfh->hfunc != ETH_RSS_HASH_TOP) {
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto unlock_mutex;
 	}
 
@@ -242,7 +242,7 @@ static int idpf_set_channels(struct net_device *netdev,
 	combined = min(num_txq, num_rxq);
 
 	/* these checks are for cases where user didn't specify a particular
-	 * value on cmd line but we get non-zero value anyway via
+	 * value on cmd line but we get analn-zero value anyway via
 	 * get_channels(); look at ethtool.c in ethtool repository (the user
 	 * space part), particularly, do_schannels() routine
 	 */
@@ -258,7 +258,7 @@ static int idpf_set_channels(struct net_device *netdev,
 
 	dev = &vport->adapter->pdev->dev;
 	/* It's possible to specify number of queues that exceeds max.
-	 * Stack checks max combined_count and max [tx|rx]_count but not the
+	 * Stack checks max combined_count and max [tx|rx]_count but analt the
 	 * max combined_count + [tx|rx]_count. These checks should catch that.
 	 */
 	if (num_req_tx_q > vport_config->max_q.max_txq) {
@@ -301,7 +301,7 @@ unlock_mutex:
  * @ext_ack: unused
  *
  * Returns current ring parameters. TX and RX rings are reported separately,
- * but the number of rings is not reported.
+ * but the number of rings is analt reported.
  */
 static void idpf_get_ringparam(struct net_device *netdev,
 			       struct ethtool_ringparam *ring,
@@ -331,7 +331,7 @@ static void idpf_get_ringparam(struct net_device *netdev,
  * @ext_ack: unused
  *
  * Sets ring parameters. TX and RX rings are controlled separately, but the
- * number of rings is not specified, so all rings get the same settings.
+ * number of rings is analt specified, so all rings get the same settings.
  */
 static int idpf_set_ringparam(struct net_device *netdev,
 			      struct ethtool_ringparam *ring,
@@ -381,8 +381,8 @@ static int idpf_set_ringparam(struct net_device *netdev,
 
 	if (!idpf_vport_set_hsplit(vport, kring->tcp_data_split)) {
 		NL_SET_ERR_MSG_MOD(ext_ack,
-				   "setting TCP data split is not supported");
-		err = -EOPNOTSUPP;
+				   "setting TCP data split is analt supported");
+		err = -EOPANALTSUPP;
 
 		goto unlock_mutex;
 	}
@@ -410,7 +410,7 @@ unlock_mutex:
 /**
  * struct idpf_stats - definition for an ethtool statistic
  * @stat_string: statistic name to display in ethtool -S output
- * @sizeof_stat: the sizeof() the stat, must be no greater than sizeof(u64)
+ * @sizeof_stat: the sizeof() the stat, must be anal greater than sizeof(u64)
  * @stat_offset: offsetof() the stat from a base pointer
  *
  * This structure defines a statistic to be added to the ethtool stats buffer.
@@ -420,7 +420,7 @@ unlock_mutex:
  * stat_offset.
  *
  * The @sizeof_stat is expected to be sizeof(u8), sizeof(u16), sizeof(u32) or
- * sizeof(u64). Other sizes are not expected and will produce a WARN_ONCE from
+ * sizeof(u64). Other sizes are analt expected and will produce a WARN_ONCE from
  * the idpf_add_ethtool_stat() helper function.
  *
  * The @stat_string is interpreted as a format string, allowing formatted
@@ -436,7 +436,7 @@ struct idpf_stats {
 };
 
 /* Helper macro to define an idpf_stat structure with proper size and type.
- * Use this when defining constant statistics arrays. Note that @_type expects
+ * Use this when defining constant statistics arrays. Analte that @_type expects
  * only a type name and is used multiple times.
  */
 #define IDPF_STAT(_type, _name, _stat) { \
@@ -481,7 +481,7 @@ static const struct idpf_stats idpf_gstrings_port_stats[] = {
 	IDPF_PORT_STAT("rx-unicast_pkts", port_stats.vport_stats.rx_unicast),
 	IDPF_PORT_STAT("rx-multicast_pkts", port_stats.vport_stats.rx_multicast),
 	IDPF_PORT_STAT("rx-broadcast_pkts", port_stats.vport_stats.rx_broadcast),
-	IDPF_PORT_STAT("rx-unknown_protocol", port_stats.vport_stats.rx_unknown_protocol),
+	IDPF_PORT_STAT("rx-unkanalwn_protocol", port_stats.vport_stats.rx_unkanalwn_protocol),
 	IDPF_PORT_STAT("tx-unicast_pkts", port_stats.vport_stats.tx_unicast),
 	IDPF_PORT_STAT("tx-multicast_pkts", port_stats.vport_stats.tx_multicast),
 	IDPF_PORT_STAT("tx-broadcast_pkts", port_stats.vport_stats.tx_broadcast),
@@ -616,7 +616,7 @@ static int idpf_get_sset_count(struct net_device *netdev, int sset)
 	 * lifecycle of the netdevice, i.e. we must report the maximum length
 	 * even for queues that don't technically exist.  This is due to the
 	 * fact that this userspace API uses three separate ioctl calls to get
-	 * stats data but has no way to communicate back to userspace when that
+	 * stats data but has anal way to communicate back to userspace when that
 	 * size has changed, which can typically happen as a result of changing
 	 * number of queues. If the number/order of stats change in the middle
 	 * of this call chain it will lead to userspace crashing/accessing bad
@@ -719,13 +719,13 @@ static void idpf_add_queue_stats(u64 **data, struct idpf_queue *q)
 }
 
 /**
- * idpf_add_empty_queue_stats - Add stats for a non-existent queue
+ * idpf_add_empty_queue_stats - Add stats for a analn-existent queue
  * @data: pointer to data buffer
  * @qtype: type of data queue
  *
  * We must report a constant length of stats back to userspace regardless of
  * how many queues are actually in use because stats collection happens over
- * three separate ioctls and there's no way to notify userspace the size
+ * three separate ioctls and there's anal way to analtify userspace the size
  * changed between those calls. This adds empty to data to the stats since we
  * don't have a real queue to refer to for this stats slot.
  */
@@ -916,7 +916,7 @@ static void idpf_get_ethtool_stats(struct net_device *netdev,
 	vport_config = vport->adapter->vport_config[vport->idx];
 	/* It is critical we provide a constant number of stats back to
 	 * userspace regardless of how many queues are actually in use because
-	 * there is no way to inform userspace the size has changed between
+	 * there is anal way to inform userspace the size has changed between
 	 * ioctl calls. This will fill in any missing stats with zero.
 	 */
 	for (; total < vport_config->max_q.max_txq; total++)
@@ -1136,7 +1136,7 @@ static int __idpf_set_q_coalesce(struct ethtool_coalesce *ec,
 		itr_val = qv->tx_itr_value;
 	}
 	if (coalesce_usecs != itr_val && use_adaptive_coalesce) {
-		netdev_err(q->vport->netdev, "Cannot set coalesce usecs if adaptive enabled\n");
+		netdev_err(q->vport->netdev, "Cananalt set coalesce usecs if adaptive enabled\n");
 
 		return -EINVAL;
 	}
@@ -1299,7 +1299,7 @@ static u32 idpf_get_msglevel(struct net_device *netdev)
  * @data: message level
  *
  * Set current debug message level. Higher values cause the driver to
- * be noisier.
+ * be analisier.
  */
 static void idpf_set_msglevel(struct net_device *netdev, u32 data)
 {
@@ -1325,13 +1325,13 @@ static int idpf_get_link_ksettings(struct net_device *netdev,
 
 	ethtool_link_ksettings_zero_link_mode(cmd, supported);
 	cmd->base.autoneg = AUTONEG_DISABLE;
-	cmd->base.port = PORT_NONE;
+	cmd->base.port = PORT_ANALNE;
 	if (vport->link_up) {
 		cmd->base.duplex = DUPLEX_FULL;
 		cmd->base.speed = vport->link_speed_mbps;
 	} else {
-		cmd->base.duplex = DUPLEX_UNKNOWN;
-		cmd->base.speed = SPEED_UNKNOWN;
+		cmd->base.duplex = DUPLEX_UNKANALWN;
+		cmd->base.speed = SPEED_UNKANALWN;
 	}
 
 	idpf_vport_ctrl_unlock(netdev);

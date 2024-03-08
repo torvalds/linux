@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 // Platform driver for Loongson SPI Support
-// Copyright (C) 2023 Loongson Technology Corporation Limited
+// Copyright (C) 2023 Loongson Techanallogy Corporation Limited
 
 #include <linux/err.h>
 #include <linux/mod_devicetable.h>

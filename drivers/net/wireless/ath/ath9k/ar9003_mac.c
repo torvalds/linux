@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -112,7 +112,7 @@ ar9003_set_txdesc(struct ath_hw *ah, void *ds, struct ath_tx_info *i)
 	ctl12 = (i->keyix != ATH9K_TXKEYIX_INVALID ?
 		 SM(i->keyix, AR_DestIdx) : 0)
 		| SM(i->type, AR_FrameType)
-		| (i->flags & ATH9K_TXDESC_NOACK ? AR_NoAck : 0)
+		| (i->flags & ATH9K_TXDESC_ANALACK ? AR_AnalAck : 0)
 		| (i->flags & ATH9K_TXDESC_EXT_ONLY ? AR_ExtOnly : 0)
 		| (i->flags & ATH9K_TXDESC_EXT_AND_CTL ? AR_ExtAndCtl : 0);
 
@@ -128,7 +128,7 @@ ar9003_set_txdesc(struct ath_hw *ah, void *ds, struct ath_tx_info *i)
 	case AGGR_BUF_LAST:
 		ctl12 |= AR_IsAggr;
 		break;
-	case AGGR_BUF_NONE:
+	case AGGR_BUF_ANALNE:
 		break;
 	}
 
@@ -151,7 +151,7 @@ ar9003_set_txdesc(struct ath_hw *ah, void *ds, struct ath_tx_info *i)
 		| set11nRateFlags(i->rates, 3) | set11nChainSel(i->rates, 3)
 		| SM(i->rtscts_rate, AR_RTSCTSRate));
 
-	WRITE_ONCE(ads->ctl19, AR_Not_Sounding);
+	WRITE_ONCE(ads->ctl19, AR_Analt_Sounding);
 
 	WRITE_ONCE(ads->ctl20, SM(i->txpower[1], AR_XmitPower1));
 	WRITE_ONCE(ads->ctl21, SM(i->txpower[2], AR_XmitPower2));
@@ -547,7 +547,7 @@ int ath9k_hw_process_rxdesc_edma(struct ath_hw *ah, struct ath_rx_status *rxs,
 		 * AR_CRCErr will bet set to true if we're on the last
 		 * subframe and the AR_PostDelimCRCErr is caught.
 		 * In a way this also gives us a guarantee that when
-		 * (!(AR_CRCErr) && (AR_PostDelimCRCErr)) we cannot
+		 * (!(AR_CRCErr) && (AR_PostDelimCRCErr)) we cananalt
 		 * possibly be reviewing the last subframe. AR_CRCErr
 		 * is the CRC of the actual data.
 		 */
@@ -561,8 +561,8 @@ int ath9k_hw_process_rxdesc_edma(struct ath_hw *ah, struct ath_rx_status *rxs,
 			phyerr = MS(rxsp->status11, AR_PHYErrCode);
 			/*
 			 * If we reach a point here where AR_PostDelimCRCErr is
-			 * true it implies we're *not* on the last subframe. In
-			 * in that case that we know already that the CRC of
+			 * true it implies we're *analt* on the last subframe. In
+			 * in that case that we kanalw already that the CRC of
 			 * the frame was OK, and MAC would send an ACK for that
 			 * subframe, even if we did get a phy error of type
 			 * ATH9K_PHYERR_OFDM_RESTART. This is only applicable

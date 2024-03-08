@@ -106,7 +106,7 @@ struct midi1_cable_mapping {
 
 /* operation mode */
 enum {
-	MIDI_OP_MODE_UNSET,	/* no altset set yet */
+	MIDI_OP_MODE_UNSET,	/* anal altset set yet */
 	MIDI_OP_MODE_MIDI1,	/* MIDI 1.0 (altset 0) is used */
 	MIDI_OP_MODE_MIDI2,	/* MIDI 2.0 (altset 1) is used */
 };
@@ -445,7 +445,7 @@ static int reply_ep_in(struct f_midi2_ep *ep, const void *buf, int len)
 
 	req = get_empty_request(usb_ep);
 	if (!req)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	req->length = len;
 	memcpy(req->buf, buf, len);
@@ -459,7 +459,7 @@ static void reply_ump_stream_ep_info(struct f_midi2_ep *ep)
 		.type = UMP_MSG_TYPE_STREAM,
 		.status = UMP_STREAM_MSG_STATUS_EP_INFO,
 		.ump_version_major = 0x01,
-		.ump_version_minor = 0x01,
+		.ump_version_mianalr = 0x01,
 		.num_function_blocks = ep->num_blks,
 		.static_function_block = !!ep->card->info.static_block,
 		.protocol = (UMP_STREAM_MSG_EP_INFO_CAP_MIDI1 |
@@ -799,7 +799,7 @@ static bool process_midi1_byte(struct f_midi2 *midi2, u8 cable, u8 b,
 			next_state = STATE_FINISHED;
 			break;
 		default:
-			/* Ignore byte */
+			/* Iganalre byte */
 			next_state = port->state;
 			port->state = STATE_INITIAL;
 		}
@@ -1139,7 +1139,7 @@ static int f_midi2_alloc_ep_reqs(struct f_midi2_usb_ep *usb_ep)
 		usb_ep->reqs[i].req = alloc_ep_req(usb_ep->usb_ep,
 						   midi2->info.req_buf_size);
 		if (!usb_ep->reqs[i].req)
-			return -ENOMEM;
+			return -EANALMEM;
 		usb_ep->reqs[i].req->context = &usb_ep->reqs[i];
 	}
 	return 0;
@@ -1172,13 +1172,13 @@ static int f_midi2_init_ep(struct f_midi2 *midi2, struct f_midi2_ep *ep,
 	usb_ep->ep = ep;
 	usb_ep->usb_ep = usb_ep_autoconfig(midi2->gadget, desc);
 	if (!usb_ep->usb_ep)
-		return -ENODEV;
+		return -EANALDEV;
 	usb_ep->complete = complete;
 
 	usb_ep->reqs = kcalloc(midi2->info.num_reqs, sizeof(*usb_ep->reqs),
 			       GFP_KERNEL);
 	if (!usb_ep->reqs)
-		return -ENOMEM;
+		return -EANALMEM;
 	for (i = 0; i < midi2->info.num_reqs; i++) {
 		usb_ep->reqs[i].index = i;
 		usb_ep->reqs[i].usb_ep = usb_ep;
@@ -1404,17 +1404,17 @@ static int f_midi2_setup(struct usb_function *fn,
 
 	if ((ctrl->bRequestType & USB_TYPE_MASK) != USB_TYPE_STANDARD ||
 	    ctrl->bRequest != USB_REQ_GET_DESCRIPTOR)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	value = le16_to_cpu(ctrl->wValue);
 	length = le16_to_cpu(ctrl->wLength);
 
 	if ((value >> 8) != USB_DT_CS_GR_TRM_BLOCK)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* handle only altset 1 */
 	if ((value & 0xff) != 1)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	assign_block_descriptors(midi2, req, length);
 	return usb_ep_queue(cdev->gadget->ep0, req, GFP_ATOMIC);
@@ -1429,7 +1429,7 @@ static void f_midi2_disable(struct usb_function *fn)
 }
 
 /*
- * ALSA UMP ops: most of them are NOPs, only trigger for write is needed
+ * ALSA UMP ops: most of them are ANALPs, only trigger for write is needed
  */
 static int f_midi2_ump_open(struct snd_ump_endpoint *ump, int dir)
 {
@@ -1546,7 +1546,7 @@ static int f_midi2_create_card(struct f_midi2 *midi2)
 		id++;
 
 		ep->ump = ump;
-		ump->no_process_stream = true;
+		ump->anal_process_stream = true;
 		ump->private_data = ep;
 		ump->ops = &f_midi2_ump_ops;
 		if (midi2->info.static_block)
@@ -1633,7 +1633,7 @@ static int append_config(struct f_midi2_usb_config *config, void *d)
 		size = config->size + 16;
 		buf = krealloc(config->list, size * sizeof(void *), GFP_KERNEL);
 		if (!buf)
-			return -ENOMEM;
+			return -EANALMEM;
 		config->list = buf;
 		config->alloc = size;
 	}
@@ -1995,7 +1995,7 @@ static int f_midi2_bind(struct usb_configuration *c, struct usb_function *f)
 		goto fail;
 	f->fs_descriptors = usb_copy_descriptors(config.list);
 	if (!f->fs_descriptors) {
-		status = -ENOMEM;
+		status = -EANALMEM;
 		goto fail;
 	}
 	f_midi2_free_usb_configs(&config);
@@ -2005,7 +2005,7 @@ static int f_midi2_bind(struct usb_configuration *c, struct usb_function *f)
 		goto fail;
 	f->hs_descriptors = usb_copy_descriptors(config.list);
 	if (!f->hs_descriptors) {
-		status = -ENOMEM;
+		status = -EANALMEM;
 		goto fail;
 	}
 	f_midi2_free_usb_configs(&config);
@@ -2015,7 +2015,7 @@ static int f_midi2_bind(struct usb_configuration *c, struct usb_function *f)
 		goto fail;
 	f->ss_descriptors = usb_copy_descriptors(config.list);
 	if (!f->ss_descriptors) {
-		status = -ENOMEM;
+		status = -EANALMEM;
 		goto fail;
 	}
 	f_midi2_free_usb_configs(&config);
@@ -2184,7 +2184,7 @@ static ssize_t f_midi2_opts_str_store(struct f_midi2_opts *opts,
 
 	c = kstrndup(page, min(len, maxlen), GFP_KERNEL);
 	if (!c) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto end;
 	}
 
@@ -2321,7 +2321,7 @@ static int f_midi2_block_opts_create(struct f_midi2_ep_opts *ep_opts,
 
 	block_opts = kzalloc(sizeof(*block_opts), GFP_KERNEL);
 	if (!block_opts) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -2483,7 +2483,7 @@ static int f_midi2_ep_opts_create(struct f_midi2_opts *opts,
 
 	ep_opts = kzalloc(sizeof(*ep_opts), GFP_KERNEL);
 	if (!ep_opts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ep_opts->opts = opts;
 	ep_opts->index = index;
@@ -2633,7 +2633,7 @@ static struct usb_function_instance *f_midi2_alloc_inst(void)
 
 	opts = kzalloc(sizeof(*opts), GFP_KERNEL);
 	if (!opts)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mutex_init(&opts->lock);
 	opts->func_inst.free_func_inst = f_midi2_free_inst;
@@ -2702,7 +2702,7 @@ static int verify_parameters(struct f_midi2_opts *opts)
 	     num_eps++)
 		;
 	if (!num_eps) {
-		pr_err("f_midi2: No EP is defined\n");
+		pr_err("f_midi2: Anal EP is defined\n");
 		return -EINVAL;
 	}
 
@@ -2736,7 +2736,7 @@ static int verify_parameters(struct f_midi2_opts *opts)
 		}
 	}
 	if (!num_blks) {
-		pr_err("f_midi2: No block is defined\n");
+		pr_err("f_midi2: Anal block is defined\n");
 		return -EINVAL;
 	}
 
@@ -2794,7 +2794,7 @@ static struct usb_function *f_midi2_alloc(struct usb_function_instance *fi)
 
 	midi2 = kzalloc(sizeof(*midi2), GFP_KERNEL);
 	if (!midi2)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	opts = container_of(fi, struct f_midi2_opts, func_inst);
 	mutex_lock(&opts->lock);
@@ -2838,7 +2838,7 @@ static struct usb_function *f_midi2_alloc(struct usb_function_instance *fi)
 				     sizeof(*midi2->string_defs), GFP_KERNEL);
 	if (!midi2->string_defs) {
 		do_f_midi2_free(midi2, opts);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	if (opts->info.iface_name && *opts->info.iface_name)

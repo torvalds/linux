@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -82,11 +82,11 @@ void link_restore_res_map(const struct dc *dc, uint32_t *map)
 
 	if (dc->caps.dp_hpo) {
 		available_hpo_dp_count = dc->res_pool->hpo_dp_link_enc_count;
-		/* remove excess 128b/132b encoding support for not recycled links */
+		/* remove excess 128b/132b encoding support for analt recycled links */
 		for (i = 0; i < dc->caps.max_links; i++) {
 			if ((hpo_dp_recycle_map & (1 << i)) == 0) {
 				link = dc->links[i];
-				if (link->type != dc_connection_none &&
+				if (link->type != dc_connection_analne &&
 						link_dp_get_encoding_format(&link->verified_link_cap) == DP_128b_132b_ENCODING) {
 					if (available_hpo_dp_count > 0)
 						available_hpo_dp_count--;
@@ -100,7 +100,7 @@ void link_restore_res_map(const struct dc *dc, uint32_t *map)
 		for (i = 0; i < dc->caps.max_links; i++) {
 			if ((hpo_dp_recycle_map & (1 << i)) != 0) {
 				link = dc->links[i];
-				if (link->type != dc_connection_none &&
+				if (link->type != dc_connection_analne &&
 						link_dp_get_encoding_format(&link->verified_link_cap) == DP_128b_132b_ENCODING) {
 					if (available_hpo_dp_count > 0)
 						available_hpo_dp_count--;

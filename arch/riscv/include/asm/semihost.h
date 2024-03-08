@@ -15,7 +15,7 @@ static inline void smh_putc(struct uart_port *port, unsigned char c)
 		     "addi    a0, zero, 3\n"
 		     ".balign 16\n"
 		     ".option push\n"
-		     ".option norvc\n"
+		     ".option analrvc\n"
 		     "slli    zero, zero, 0x1f\n"
 		     "ebreak\n"
 		     "srai    zero, zero, 0x7\n"

@@ -24,51 +24,51 @@ struct typec_switch {
 	unsigned int num_sw_devs;
 };
 
-static int switch_fwnode_match(struct device *dev, const void *fwnode)
+static int switch_fwanalde_match(struct device *dev, const void *fwanalde)
 {
 	if (!is_typec_switch_dev(dev))
 		return 0;
 
-	return device_match_fwnode(dev, fwnode);
+	return device_match_fwanalde(dev, fwanalde);
 }
 
-static void *typec_switch_match(const struct fwnode_handle *fwnode,
+static void *typec_switch_match(const struct fwanalde_handle *fwanalde,
 				const char *id, void *data)
 {
 	struct device *dev;
 
 	/*
-	 * Device graph (OF graph) does not give any means to identify the
-	 * device type or the device class of the remote port parent that @fwnode
-	 * represents, so in order to identify the type or the class of @fwnode
+	 * Device graph (OF graph) does analt give any means to identify the
+	 * device type or the device class of the remote port parent that @fwanalde
+	 * represents, so in order to identify the type or the class of @fwanalde
 	 * an additional device property is needed. With typec switches the
 	 * property is named "orientation-switch" (@id). The value of the device
-	 * property is ignored.
+	 * property is iganalred.
 	 */
-	if (id && !fwnode_property_present(fwnode, id))
+	if (id && !fwanalde_property_present(fwanalde, id))
 		return NULL;
 
 	/*
-	 * At this point we are sure that @fwnode is a typec switch in all
+	 * At this point we are sure that @fwanalde is a typec switch in all
 	 * cases. If the switch hasn't yet been registered for some reason, the
-	 * function "defers probe" for now.
+	 * function "defers probe" for analw.
 	 */
-	dev = class_find_device(&typec_mux_class, NULL, fwnode,
-				switch_fwnode_match);
+	dev = class_find_device(&typec_mux_class, NULL, fwanalde,
+				switch_fwanalde_match);
 
 	return dev ? to_typec_switch_dev(dev) : ERR_PTR(-EPROBE_DEFER);
 }
 
 /**
- * fwnode_typec_switch_get - Find USB Type-C orientation switch
- * @fwnode: The caller device node
+ * fwanalde_typec_switch_get - Find USB Type-C orientation switch
+ * @fwanalde: The caller device analde
  *
  * Finds a switch linked with @dev. Returns a reference to the switch on
- * success, NULL if no matching connection was found, or
+ * success, NULL if anal matching connection was found, or
  * ERR_PTR(-EPROBE_DEFER) when a connection was found but the switch
- * has not been enumerated yet.
+ * has analt been enumerated yet.
  */
-struct typec_switch *fwnode_typec_switch_get(struct fwnode_handle *fwnode)
+struct typec_switch *fwanalde_typec_switch_get(struct fwanalde_handle *fwanalde)
 {
 	struct typec_switch_dev *sw_devs[TYPEC_MUX_MAX_DEVS];
 	struct typec_switch *sw;
@@ -78,9 +78,9 @@ struct typec_switch *fwnode_typec_switch_get(struct fwnode_handle *fwnode)
 
 	sw = kzalloc(sizeof(*sw), GFP_KERNEL);
 	if (!sw)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
-	count = fwnode_connection_find_matches(fwnode, "orientation-switch", NULL,
+	count = fwanalde_connection_find_matches(fwanalde, "orientation-switch", NULL,
 					       typec_switch_match,
 					       (void **)sw_devs,
 					       ARRAY_SIZE(sw_devs));
@@ -115,7 +115,7 @@ put_sw_devs:
 
 	return ERR_PTR(err);
 }
-EXPORT_SYMBOL_GPL(fwnode_typec_switch_get);
+EXPORT_SYMBOL_GPL(fwanalde_typec_switch_get);
 
 /**
  * typec_switch_put - Release USB Type-C orientation switch
@@ -173,13 +173,13 @@ typec_switch_register(struct device *parent,
 
 	sw_dev = kzalloc(sizeof(*sw_dev), GFP_KERNEL);
 	if (!sw_dev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	sw_dev->set = desc->set;
 
 	device_initialize(&sw_dev->dev);
 	sw_dev->dev.parent = parent;
-	sw_dev->dev.fwnode = desc->fwnode;
+	sw_dev->dev.fwanalde = desc->fwanalde;
 	sw_dev->dev.class = &typec_mux_class;
 	sw_dev->dev.type = &typec_switch_dev_type;
 	sw_dev->dev.driver_data = desc->drvdata;
@@ -254,46 +254,46 @@ struct typec_mux {
 	unsigned int num_mux_devs;
 };
 
-static int mux_fwnode_match(struct device *dev, const void *fwnode)
+static int mux_fwanalde_match(struct device *dev, const void *fwanalde)
 {
 	if (!is_typec_mux_dev(dev))
 		return 0;
 
-	return device_match_fwnode(dev, fwnode);
+	return device_match_fwanalde(dev, fwanalde);
 }
 
-static void *typec_mux_match(const struct fwnode_handle *fwnode,
+static void *typec_mux_match(const struct fwanalde_handle *fwanalde,
 			     const char *id, void *data)
 {
 	struct device *dev;
 
 	/*
-	 * Device graph (OF graph) does not give any means to identify the
-	 * device type or the device class of the remote port parent that @fwnode
-	 * represents, so in order to identify the type or the class of @fwnode
+	 * Device graph (OF graph) does analt give any means to identify the
+	 * device type or the device class of the remote port parent that @fwanalde
+	 * represents, so in order to identify the type or the class of @fwanalde
 	 * an additional device property is needed. With typec muxes the
 	 * property is named "mode-switch" (@id). The value of the device
-	 * property is ignored.
+	 * property is iganalred.
 	 */
-	if (id && !fwnode_property_present(fwnode, id))
+	if (id && !fwanalde_property_present(fwanalde, id))
 		return NULL;
 
-	dev = class_find_device(&typec_mux_class, NULL, fwnode,
-				mux_fwnode_match);
+	dev = class_find_device(&typec_mux_class, NULL, fwanalde,
+				mux_fwanalde_match);
 
 	return dev ? to_typec_mux_dev(dev) : ERR_PTR(-EPROBE_DEFER);
 }
 
 /**
- * fwnode_typec_mux_get - Find USB Type-C Multiplexer
- * @fwnode: The caller device node
+ * fwanalde_typec_mux_get - Find USB Type-C Multiplexer
+ * @fwanalde: The caller device analde
  *
  * Finds a mux linked to the caller. This function is primarily meant for the
- * Type-C drivers. Returns a reference to the mux on success, NULL if no
+ * Type-C drivers. Returns a reference to the mux on success, NULL if anal
  * matching connection was found, or ERR_PTR(-EPROBE_DEFER) when a connection
- * was found but the mux has not been enumerated yet.
+ * was found but the mux has analt been enumerated yet.
  */
-struct typec_mux *fwnode_typec_mux_get(struct fwnode_handle *fwnode)
+struct typec_mux *fwanalde_typec_mux_get(struct fwanalde_handle *fwanalde)
 {
 	struct typec_mux_dev *mux_devs[TYPEC_MUX_MAX_DEVS];
 	struct typec_mux *mux;
@@ -303,9 +303,9 @@ struct typec_mux *fwnode_typec_mux_get(struct fwnode_handle *fwnode)
 
 	mux = kzalloc(sizeof(*mux), GFP_KERNEL);
 	if (!mux)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
-	count = fwnode_connection_find_matches(fwnode, "mode-switch",
+	count = fwanalde_connection_find_matches(fwanalde, "mode-switch",
 					       NULL, typec_mux_match,
 					       (void **)mux_devs,
 					       ARRAY_SIZE(mux_devs));
@@ -340,7 +340,7 @@ put_mux_devs:
 
 	return ERR_PTR(err);
 }
-EXPORT_SYMBOL_GPL(fwnode_typec_mux_get);
+EXPORT_SYMBOL_GPL(fwanalde_typec_mux_get);
 
 /**
  * typec_mux_put - Release handle to a Multiplexer
@@ -417,13 +417,13 @@ typec_mux_register(struct device *parent, const struct typec_mux_desc *desc)
 
 	mux_dev = kzalloc(sizeof(*mux_dev), GFP_KERNEL);
 	if (!mux_dev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mux_dev->set = desc->set;
 
 	device_initialize(&mux_dev->dev);
 	mux_dev->dev.parent = parent;
-	mux_dev->dev.fwnode = desc->fwnode;
+	mux_dev->dev.fwanalde = desc->fwanalde;
 	mux_dev->dev.class = &typec_mux_class;
 	mux_dev->dev.type = &typec_mux_dev_type;
 	mux_dev->dev.driver_data = desc->drvdata;

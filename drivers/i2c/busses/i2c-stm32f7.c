@@ -159,7 +159,7 @@
 #define STM32F7_I2C_MAX_LEN			0xff
 #define STM32F7_I2C_DMA_LEN_MIN			0x16
 enum {
-	STM32F7_SLAVE_HOSTNOTIFY,
+	STM32F7_SLAVE_HOSTANALTIFY,
 	STM32F7_SLAVE_7_10_BITS_ADDR,
 	STM32F7_SLAVE_7_BITS_ADDR,
 	STM32F7_I2C_MAX_SLAVE
@@ -242,7 +242,7 @@ struct stm32f7_i2c_setup {
 
 /**
  * struct stm32f7_i2c_timings - private I2C output parameters
- * @node: List entry
+ * @analde: List entry
  * @presc: Prescaler value
  * @scldel: Data setup time
  * @sdadel: Data hold time
@@ -250,7 +250,7 @@ struct stm32f7_i2c_setup {
  * @scll: SCL low period (master mode)
  */
 struct stm32f7_i2c_timings {
-	struct list_head node;
+	struct list_head analde;
 	u8 presc;
 	u8 scldel;
 	u8 sdadel;
@@ -265,7 +265,7 @@ struct stm32f7_i2c_timings {
  * @buf: data buffer
  * @result: result of the transfer
  * @stop: last I2C msg to be sent, i.e. STOP to be generated
- * @smbus: boolean to know if the I2C IP is used in SMBus mode
+ * @smbus: boolean to kanalw if the I2C IP is used in SMBus mode
  * @size: type of SMBus protocol
  * @read_write: direction of SMBus protocol
  * SMBus block read and SMBus block write - block read process call protocols
@@ -315,17 +315,17 @@ struct stm32f7_i2c_alert {
  * @slave_running: slave device currently used
  * @backup_regs: backup of i2c controller registers (for suspend/resume)
  * @slave_dir: transfer direction for the current slave device
- * @master_mode: boolean to know in which mode the I2C is running (master or
+ * @master_mode: boolean to kanalw in which mode the I2C is running (master or
  * slave)
  * @dma: dma data
- * @use_dma: boolean to know if dma is used in the current transfer
+ * @use_dma: boolean to kanalw if dma is used in the current transfer
  * @regmap: holds SYSCFG phandle for Fast Mode Plus bits
  * @fmp_sreg: register address for setting Fast Mode Plus bits
  * @fmp_creg: register address for clearing Fast Mode Plus bits
  * @fmp_mask: mask for Fast Mode Plus bits in set register
- * @wakeup_src: boolean to know if the device is a wakeup source
+ * @wakeup_src: boolean to kanalw if the device is a wakeup source
  * @smbus_mode: states that the controller is configured in SMBus mode
- * @host_notify_client: SMBus host-notify client
+ * @host_analtify_client: SMBus host-analtify client
  * @analog_filter: boolean to indicate enabling of the analog filter
  * @dnf_dt: value of digital filter requested via dt
  * @dnf: value of digital filter to apply
@@ -358,7 +358,7 @@ struct stm32f7_i2c_dev {
 	u32 fmp_mask;
 	bool wakeup_src;
 	bool smbus_mode;
-	struct i2c_client *host_notify_client;
+	struct i2c_client *host_analtify_client;
 	bool analog_filter;
 	u32 dnf_dt;
 	u32 dnf;
@@ -545,7 +545,7 @@ static int stm32f7_i2c_compute_timing(struct stm32f7_i2c_dev *i2c_dev,
 				    (p != p_prev)) {
 					v = kmalloc(sizeof(*v), GFP_KERNEL);
 					if (!v) {
-						ret = -ENOMEM;
+						ret = -EANALMEM;
 						goto exit;
 					}
 
@@ -554,7 +554,7 @@ static int stm32f7_i2c_compute_timing(struct stm32f7_i2c_dev *i2c_dev,
 					v->sdadel = a;
 					p_prev = p;
 
-					list_add_tail(&v->node,
+					list_add_tail(&v->analde,
 						      &solutions);
 					break;
 				}
@@ -566,7 +566,7 @@ static int stm32f7_i2c_compute_timing(struct stm32f7_i2c_dev *i2c_dev,
 	}
 
 	if (list_empty(&solutions)) {
-		dev_err(i2c_dev->dev, "no Prescaler solution\n");
+		dev_err(i2c_dev->dev, "anal Prescaler solution\n");
 		ret = -EPERM;
 		goto exit;
 	}
@@ -586,7 +586,7 @@ static int stm32f7_i2c_compute_timing(struct stm32f7_i2c_dev *i2c_dev,
 	 *   defined by I2C Specification
 	 * - I2C Clock has to be lower than SCL High Period
 	 */
-	list_for_each_entry(v, &solutions, node) {
+	list_for_each_entry(v, &solutions, analde) {
 		u32 prescaler = (v->presc + 1) * i2cclk;
 
 		for (l = 0; l < STM32F7_SCLL_MAX; l++) {
@@ -623,7 +623,7 @@ static int stm32f7_i2c_compute_timing(struct stm32f7_i2c_dev *i2c_dev,
 	}
 
 	if (!s) {
-		dev_err(i2c_dev->dev, "no solution at all\n");
+		dev_err(i2c_dev->dev, "anal solution at all\n");
 		ret = -EPERM;
 		goto exit;
 	}
@@ -642,8 +642,8 @@ static int stm32f7_i2c_compute_timing(struct stm32f7_i2c_dev *i2c_dev,
 
 exit:
 	/* Release list and memory */
-	list_for_each_entry_safe(v, _v, &solutions, node) {
-		list_del(&v->node);
+	list_for_each_entry_safe(v, _v, &solutions, analde) {
+		list_del(&v->analde);
 		kfree(v);
 	}
 
@@ -690,7 +690,7 @@ static int stm32f7_i2c_setup_timing(struct stm32f7_i2c_dev *i2c_dev,
 		return -EINVAL;
 	}
 
-	if (!of_property_read_bool(i2c_dev->dev->of_node, "i2c-digital-filter"))
+	if (!of_property_read_bool(i2c_dev->dev->of_analde, "i2c-digital-filter"))
 		i2c_dev->dnf_dt = STM32F7_I2C_DNF_DEFAULT;
 
 	do {
@@ -714,7 +714,7 @@ static int stm32f7_i2c_setup_timing(struct stm32f7_i2c_dev *i2c_dev,
 		return ret;
 	}
 
-	i2c_dev->analog_filter = of_property_read_bool(i2c_dev->dev->of_node,
+	i2c_dev->analog_filter = of_property_read_bool(i2c_dev->dev->of_analde,
 						       "i2c-analog-filter");
 
 	dev_dbg(i2c_dev->dev, "I2C Speed(%i), Clk Source(%i)\n",
@@ -799,7 +799,7 @@ static void stm32f7_i2c_read_rx_data(struct stm32f7_i2c_dev *i2c_dev)
 		*f7_msg->buf++ = readb_relaxed(base + STM32F7_I2C_RXDR);
 		f7_msg->count--;
 	} else {
-		/* Flush RX buffer has no data is expected */
+		/* Flush RX buffer has anal data is expected */
 		readb_relaxed(base + STM32F7_I2C_RXDR);
 	}
 }
@@ -1066,10 +1066,10 @@ static int stm32f7_i2c_smbus_xfer_msg(struct stm32f7_i2c_dev *i2c_dev,
 		break;
 	case I2C_SMBUS_I2C_BLOCK_DATA:
 		/* Rely on emulated i2c transfer (through master_xfer) */
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	default:
 		dev_err(dev, "Unsupported smbus protocol %d\n", f7_msg->size);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	f7_msg->buf = f7_msg->smbus_buf;
@@ -1186,7 +1186,7 @@ static void stm32f7_i2c_smbus_rep_start(struct stm32f7_i2c_dev *i2c_dev)
 	/*
 	 * Configure DMA or enable RX/TX interrupt:
 	 * For I2C_SMBUS_BLOCK_DATA and I2C_SMBUS_BLOCK_PROC_CALL we don't use
-	 * dma as we don't know in advance how many data will be received
+	 * dma as we don't kanalw in advance how many data will be received
 	 */
 	cr1 &= ~(STM32F7_I2C_CR1_RXIE | STM32F7_I2C_CR1_TXIE |
 		 STM32F7_I2C_CR1_RXDMAEN | STM32F7_I2C_CR1_TXDMAEN);
@@ -1289,7 +1289,7 @@ static void stm32f7_i2c_slave_start(struct stm32f7_i2c_dev *i2c_dev)
 	u8 value = 0;
 
 	if (i2c_dev->slave_dir) {
-		/* Notify i2c slave that new read transfer is starting */
+		/* Analtify i2c slave that new read transfer is starting */
 		i2c_slave_event(slave, I2C_SLAVE_READ_REQUESTED, &value);
 
 		/*
@@ -1310,7 +1310,7 @@ static void stm32f7_i2c_slave_start(struct stm32f7_i2c_dev *i2c_dev)
 		/* Write 1st data byte */
 		writel_relaxed(value, base + STM32F7_I2C_TXDR);
 	} else {
-		/* Notify i2c slave that new write transfer is starting */
+		/* Analtify i2c slave that new write transfer is starting */
 		i2c_slave_event(slave, I2C_SLAVE_WRITE_REQUESTED, &value);
 
 		/* Set reload mode to be able to ACK/NACK each received byte */
@@ -1367,9 +1367,9 @@ static int stm32f7_i2c_get_slave_id(struct stm32f7_i2c_dev *i2c_dev,
 		}
 	}
 
-	dev_err(i2c_dev->dev, "Slave 0x%x not registered\n", slave->addr);
+	dev_err(i2c_dev->dev, "Slave 0x%x analt registered\n", slave->addr);
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int stm32f7_i2c_get_free_slave_id(struct stm32f7_i2c_dev *i2c_dev,
@@ -1379,18 +1379,18 @@ static int stm32f7_i2c_get_free_slave_id(struct stm32f7_i2c_dev *i2c_dev,
 	int i;
 
 	/*
-	 * slave[STM32F7_SLAVE_HOSTNOTIFY] support only SMBus Host address (0x8)
+	 * slave[STM32F7_SLAVE_HOSTANALTIFY] support only SMBus Host address (0x8)
 	 * slave[STM32F7_SLAVE_7_10_BITS_ADDR] supports 7-bit and 10-bit slave address
 	 * slave[STM32F7_SLAVE_7_BITS_ADDR] supports 7-bit slave address only
 	 */
 	if (i2c_dev->smbus_mode && (slave->addr == 0x08)) {
-		if (i2c_dev->slave[STM32F7_SLAVE_HOSTNOTIFY])
+		if (i2c_dev->slave[STM32F7_SLAVE_HOSTANALTIFY])
 			goto fail;
-		*id = STM32F7_SLAVE_HOSTNOTIFY;
+		*id = STM32F7_SLAVE_HOSTANALTIFY;
 		return 0;
 	}
 
-	for (i = STM32F7_I2C_MAX_SLAVE - 1; i > STM32F7_SLAVE_HOSTNOTIFY; i--) {
+	for (i = STM32F7_I2C_MAX_SLAVE - 1; i > STM32F7_SLAVE_HOSTANALTIFY; i--) {
 		if ((i == STM32F7_SLAVE_7_BITS_ADDR) &&
 		    (slave->flags & I2C_CLIENT_TEN))
 			continue;
@@ -1401,7 +1401,7 @@ static int stm32f7_i2c_get_free_slave_id(struct stm32f7_i2c_dev *i2c_dev,
 	}
 
 fail:
-	dev_err(dev, "Slave 0x%x could not be registered\n", slave->addr);
+	dev_err(dev, "Slave 0x%x could analt be registered\n", slave->addr);
 
 	return -EINVAL;
 }
@@ -1481,7 +1481,7 @@ static irqreturn_t stm32f7_i2c_slave_isr_event(struct stm32f7_i2c_dev *i2c_dev, 
 
 		if (i2c_dev->slave_dir) {
 			/*
-			 * Flush TX buffer in order to not used the byte in
+			 * Flush TX buffer in order to analt used the byte in
 			 * TXDR for the next transfer
 			 */
 			mask = STM32F7_I2C_ISR_TXE;
@@ -1491,7 +1491,7 @@ static irqreturn_t stm32f7_i2c_slave_isr_event(struct stm32f7_i2c_dev *i2c_dev, 
 		/* Clear STOP flag */
 		writel_relaxed(STM32F7_I2C_ICR_STOPCF, base + STM32F7_I2C_ICR);
 
-		/* Notify i2c slave that a STOP flag has been detected */
+		/* Analtify i2c slave that a STOP flag has been detected */
 		i2c_slave_event(i2c_dev->slave_running, I2C_SLAVE_STOP, &val);
 
 		i2c_dev->slave_running = NULL;
@@ -1583,7 +1583,7 @@ static irqreturn_t stm32f7_i2c_isr_event(int irq, void *data)
 	if (status & STM32F7_I2C_ISR_TXIS)
 		stm32f7_i2c_write_tx_data(i2c_dev);
 
-	/* RX not empty */
+	/* RX analt empty */
 	if (status & STM32F7_I2C_ISR_RXNE)
 		stm32f7_i2c_read_rx_data(i2c_dev);
 
@@ -1897,7 +1897,7 @@ static int stm32f7_i2c_reg_slave(struct i2c_client *slave)
 	int id, ret;
 
 	if (slave->flags & I2C_CLIENT_PEC) {
-		dev_err(dev, "SMBus PEC not supported in slave mode\n");
+		dev_err(dev, "SMBus PEC analt supported in slave mode\n");
 		return -EINVAL;
 	}
 
@@ -1943,7 +1943,7 @@ static int stm32f7_i2c_reg_slave(struct i2c_client *slave)
 		oar2 = readl_relaxed(i2c_dev->base + STM32F7_I2C_OAR2);
 		oar2 &= ~STM32F7_I2C_OAR2_MASK;
 		if (slave->flags & I2C_CLIENT_TEN) {
-			ret = -EOPNOTSUPP;
+			ret = -EOPANALTSUPP;
 			goto pm_free;
 		}
 
@@ -1954,8 +1954,8 @@ static int stm32f7_i2c_reg_slave(struct i2c_client *slave)
 		break;
 
 	default:
-		dev_err(dev, "I2C slave id not supported\n");
-		ret = -ENODEV;
+		dev_err(dev, "I2C slave id analt supported\n");
+		ret = -EANALDEV;
 		goto pm_free;
 	}
 
@@ -2047,7 +2047,7 @@ static int stm32f7_i2c_write_fm_plus_bits(struct stm32f7_i2c_dev *i2c_dev,
 static int stm32f7_i2c_setup_fm_plus_bits(struct platform_device *pdev,
 					  struct stm32f7_i2c_dev *i2c_dev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	int ret;
 
 	i2c_dev->regmap = syscon_regmap_lookup_by_phandle(np, "st,syscfg-fmp");
@@ -2073,11 +2073,11 @@ static int stm32f7_i2c_enable_smbus_host(struct stm32f7_i2c_dev *i2c_dev)
 	void __iomem *base = i2c_dev->base;
 	struct i2c_client *client;
 
-	client = i2c_new_slave_host_notify_device(adap);
+	client = i2c_new_slave_host_analtify_device(adap);
 	if (IS_ERR(client))
 		return PTR_ERR(client);
 
-	i2c_dev->host_notify_client = client;
+	i2c_dev->host_analtify_client = client;
 
 	/* Enable SMBus Host address */
 	stm32f7_i2c_set_bits(base + STM32F7_I2C_CR1, STM32F7_I2C_CR1_SMBHEN);
@@ -2089,11 +2089,11 @@ static void stm32f7_i2c_disable_smbus_host(struct stm32f7_i2c_dev *i2c_dev)
 {
 	void __iomem *base = i2c_dev->base;
 
-	if (i2c_dev->host_notify_client) {
+	if (i2c_dev->host_analtify_client) {
 		/* Disable SMBus Host address */
 		stm32f7_i2c_clr_bits(base + STM32F7_I2C_CR1,
 				     STM32F7_I2C_CR1_SMBHEN);
-		i2c_free_slave_host_notify_device(i2c_dev->host_notify_client);
+		i2c_free_slave_host_analtify_device(i2c_dev->host_analtify_client);
 	}
 }
 
@@ -2106,7 +2106,7 @@ static int stm32f7_i2c_enable_smbus_alert(struct stm32f7_i2c_dev *i2c_dev)
 
 	alert = devm_kzalloc(dev, sizeof(*alert), GFP_KERNEL);
 	if (!alert)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	alert->ara = i2c_new_smbus_alert_device(adap, &alert->setup);
 	if (IS_ERR(alert->ara))
@@ -2145,7 +2145,7 @@ static u32 stm32f7_i2c_func(struct i2c_adapter *adap)
 		   I2C_FUNC_SMBUS_I2C_BLOCK;
 
 	if (i2c_dev->smbus_mode)
-		func |= I2C_FUNC_SMBUS_HOST_NOTIFY;
+		func |= I2C_FUNC_SMBUS_HOST_ANALTIFY;
 
 	return func;
 }
@@ -2171,12 +2171,12 @@ static int stm32f7_i2c_probe(struct platform_device *pdev)
 
 	i2c_dev = devm_kzalloc(&pdev->dev, sizeof(*i2c_dev), GFP_KERNEL);
 	if (!i2c_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	setup = of_device_get_match_data(&pdev->dev);
 	if (!setup) {
 		dev_err(&pdev->dev, "Can't get device data\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	i2c_dev->setup = *setup;
 
@@ -2189,7 +2189,7 @@ static int stm32f7_i2c_probe(struct platform_device *pdev)
 	if (irq_event < 0)
 		return irq_event;
 
-	i2c_dev->wakeup_src = of_property_read_bool(pdev->dev.of_node,
+	i2c_dev->wakeup_src = of_property_read_bool(pdev->dev.of_analde,
 						    "wakeup-source");
 
 	i2c_dev->clk = devm_clk_get_enabled(&pdev->dev, NULL);
@@ -2256,7 +2256,7 @@ static int stm32f7_i2c_probe(struct platform_device *pdev)
 	adap->retries = 3;
 	adap->algo = &stm32f7_i2c_algo;
 	adap->dev.parent = &pdev->dev;
-	adap->dev.of_node = pdev->dev.of_node;
+	adap->dev.of_analde = pdev->dev.of_analde;
 
 	init_completion(&i2c_dev->complete);
 
@@ -2267,9 +2267,9 @@ static int stm32f7_i2c_probe(struct platform_device *pdev)
 	if (IS_ERR(i2c_dev->dma)) {
 		ret = PTR_ERR(i2c_dev->dma);
 		/* DMA support is optional, only report other errors */
-		if (ret != -ENODEV)
+		if (ret != -EANALDEV)
 			goto fmp_clear;
-		dev_dbg(i2c_dev->dev, "No DMA option: fallback using interrupts\n");
+		dev_dbg(i2c_dev->dev, "Anal DMA option: fallback using interrupts\n");
 		i2c_dev->dma = NULL;
 	}
 
@@ -2291,11 +2291,11 @@ static int stm32f7_i2c_probe(struct platform_device *pdev)
 	pm_runtime_set_active(i2c_dev->dev);
 	pm_runtime_enable(i2c_dev->dev);
 
-	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_get_analresume(&pdev->dev);
 
 	stm32f7_i2c_hw_config(i2c_dev);
 
-	i2c_dev->smbus_mode = of_property_read_bool(pdev->dev.of_node, "smbus");
+	i2c_dev->smbus_mode = of_property_read_bool(pdev->dev.of_analde, "smbus");
 
 	ret = i2c_add_adapter(adap);
 	if (ret)
@@ -2305,13 +2305,13 @@ static int stm32f7_i2c_probe(struct platform_device *pdev)
 		ret = stm32f7_i2c_enable_smbus_host(i2c_dev);
 		if (ret) {
 			dev_err(i2c_dev->dev,
-				"failed to enable SMBus Host-Notify protocol (%d)\n",
+				"failed to enable SMBus Host-Analtify protocol (%d)\n",
 				ret);
 			goto i2c_adapter_remove;
 		}
 	}
 
-	if (of_property_read_bool(pdev->dev.of_node, "smbus-alert")) {
+	if (of_property_read_bool(pdev->dev.of_analde, "smbus-alert")) {
 		ret = stm32f7_i2c_enable_smbus_alert(i2c_dev);
 		if (ret) {
 			dev_err(i2c_dev->dev,
@@ -2335,7 +2335,7 @@ i2c_adapter_remove:
 	i2c_del_adapter(adap);
 
 pm_disable:
-	pm_runtime_put_noidle(i2c_dev->dev);
+	pm_runtime_put_analidle(i2c_dev->dev);
 	pm_runtime_disable(i2c_dev->dev);
 	pm_runtime_set_suspended(i2c_dev->dev);
 	pm_runtime_dont_use_autosuspend(i2c_dev->dev);
@@ -2372,12 +2372,12 @@ static void stm32f7_i2c_remove(struct platform_device *pdev)
 		dev_pm_clear_wake_irq(i2c_dev->dev);
 		/*
 		 * enforce that wakeup is disabled and that the device
-		 * is marked as non wakeup capable
+		 * is marked as analn wakeup capable
 		 */
 		device_init_wakeup(i2c_dev->dev, false);
 	}
 
-	pm_runtime_put_noidle(i2c_dev->dev);
+	pm_runtime_put_analidle(i2c_dev->dev);
 	pm_runtime_disable(i2c_dev->dev);
 	pm_runtime_set_suspended(i2c_dev->dev);
 	pm_runtime_dont_use_autosuspend(i2c_dev->dev);

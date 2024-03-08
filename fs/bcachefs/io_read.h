@@ -57,7 +57,7 @@ struct bch_read_bio {
 	struct bpos		read_pos;
 
 	/*
-	 * start pos of data we read (may not be pos of data we want) - for
+	 * start pos of data we read (may analt be pos of data we want) - for
 	 * promote, narrow extents paths:
 	 */
 	enum btree_id		data_btree;
@@ -98,7 +98,7 @@ enum bch_read_flags {
 	BCH_READ_RETRY_IF_STALE		= 1 << 0,
 	BCH_READ_MAY_PROMOTE		= 1 << 1,
 	BCH_READ_USER_MAPPED		= 1 << 2,
-	BCH_READ_NODECODE		= 1 << 3,
+	BCH_READ_ANALDECODE		= 1 << 3,
 	BCH_READ_LAST_FRAGMENT		= 1 << 4,
 
 	/* internal: */

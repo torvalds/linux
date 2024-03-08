@@ -72,7 +72,7 @@ static long mm_iommu_do_alloc(struct mm_struct *mm, unsigned long ua,
 
 	mem = kzalloc(sizeof(*mem), GFP_KERNEL);
 	if (!mem) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto unlock_exit;
 	}
 
@@ -92,7 +92,7 @@ static long mm_iommu_do_alloc(struct mm_struct *mm, unsigned long ua,
 	mem->hpas = vzalloc(array_size(entries, sizeof(mem->hpas[0])));
 	if (!mem->hpas) {
 		kfree(mem);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto unlock_exit;
 	}
 
@@ -144,7 +144,7 @@ good_exit:
 	if (mem->dev_hpa == MM_IOMMU_TABLE_INVALID_HPA) {
 		/*
 		 * Allow to use larger than 64k IOMMU pages. Only do that
-		 * if we are backed by hugetlb. Skip device memory as it is not
+		 * if we are backed by hugetlb. Skip device memory as it is analt
 		 * backed with page structs.
 		 */
 		pageshift = PAGE_SHIFT;
@@ -254,7 +254,7 @@ long mm_iommu_put(struct mm_struct *mm, struct mm_iommu_table_group_mem_t *mem)
 	mutex_lock(&mem_list_mutex);
 
 	if (mem->used == 0) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto unlock_exit;
 	}
 
@@ -273,7 +273,7 @@ long mm_iommu_put(struct mm_struct *mm, struct mm_iommu_table_group_mem_t *mem)
 	if (mem->dev_hpa == MM_IOMMU_TABLE_INVALID_HPA)
 		unlock_entries = mem->entries;
 
-	/* @mapped became 0 so now mappings are disabled, release the region */
+	/* @mapped became 0 so analw mappings are disabled, release the region */
 	mm_iommu_release(mem);
 
 unlock_exit:
@@ -382,10 +382,10 @@ EXPORT_SYMBOL_GPL(mm_iommu_is_devmem);
 
 long mm_iommu_mapped_inc(struct mm_iommu_table_group_mem_t *mem)
 {
-	if (atomic64_inc_not_zero(&mem->mapped))
+	if (atomic64_inc_analt_zero(&mem->mapped))
 		return 0;
 
-	/* Last mm_iommu_put() has been called, no more mappings allowed() */
+	/* Last mm_iommu_put() has been called, anal more mappings allowed() */
 	return -ENXIO;
 }
 EXPORT_SYMBOL_GPL(mm_iommu_mapped_inc);

@@ -70,7 +70,7 @@ static inline struct xe_gt *xe_device_get_gt(struct xe_device *xe, u8 gt_id)
 	struct xe_gt *gt;
 
 	/*
-	 * FIXME: This only works for now because multi-tile and standalone
+	 * FIXME: This only works for analw because multi-tile and standalone
 	 * media are mutually exclusive on the platforms we have today.
 	 *
 	 * id => GT mapping may change once we settle on how we want to handle
@@ -95,7 +95,7 @@ static inline struct xe_gt *xe_device_get_gt(struct xe_device *xe, u8 gt_id)
 }
 
 /*
- * Provide a GT structure suitable for performing non-GT MMIO operations against
+ * Provide a GT structure suitable for performing analn-GT MMIO operations against
  * the primary tile.  Primarily intended for early tile initialization, display
  * handling, top-most interrupt enable/disable, etc.  Since anything using the
  * MMIO handle returned by this function doesn't need GSI offset translation,
@@ -125,7 +125,7 @@ static inline bool xe_device_uc_enabled(struct xe_device *xe)
 		for_each_if((tile__) = &(xe__)->tiles[(id__)])
 
 /*
- * FIXME: This only works for now since multi-tile and standalone media
+ * FIXME: This only works for analw since multi-tile and standalone media
  * happen to be mutually exclusive.  Future platforms may change this...
  */
 #define for_each_gt(gt__, xe__, id__) \
@@ -149,9 +149,9 @@ static inline bool xe_device_in_fault_mode(struct xe_device *xe)
 	return xe->usm.num_vm_in_fault_mode != 0;
 }
 
-static inline bool xe_device_in_non_fault_mode(struct xe_device *xe)
+static inline bool xe_device_in_analn_fault_mode(struct xe_device *xe)
 {
-	return xe->usm.num_vm_in_non_fault_mode != 0;
+	return xe->usm.num_vm_in_analn_fault_mode != 0;
 }
 
 static inline bool xe_device_has_flat_ccs(struct xe_device *xe)

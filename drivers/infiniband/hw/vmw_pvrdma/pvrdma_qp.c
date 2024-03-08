@@ -21,21 +21,21 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+ * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE
  * COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
  * INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
  * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
@@ -172,7 +172,7 @@ static int pvrdma_set_sq_size(struct pvrdma_dev *dev, struct ib_qp_cap *req_cap,
 	qp->sq.wqe_size = roundup_pow_of_two(sizeof(struct pvrdma_sq_wqe_hdr) +
 					     sizeof(struct pvrdma_sge) *
 					     qp->sq.max_sg);
-	/* Note: one extra page for the header. */
+	/* Analte: one extra page for the header. */
 	qp->npages_send = PVRDMA_QP_NUM_HEADER_PAGES +
 			  (qp->sq.wqe_cnt * qp->sq.wqe_size + PAGE_SIZE - 1) /
 								PAGE_SIZE;
@@ -186,7 +186,7 @@ static int pvrdma_set_sq_size(struct pvrdma_dev *dev, struct ib_qp_cap *req_cap,
  * @init_attr: queue pair attributes
  * @udata: user data
  *
- * @return: the 0 on success, otherwise returns an errno.
+ * @return: the 0 on success, otherwise returns an erranal.
  */
 int pvrdma_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *init_attr,
 		     struct ib_udata *udata)
@@ -208,25 +208,25 @@ int pvrdma_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *init_attr,
 		dev_warn(&dev->pdev->dev,
 			 "invalid create queuepair flags %#x\n",
 			 init_attr->create_flags);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (init_attr->qp_type != IB_QPT_RC &&
 	    init_attr->qp_type != IB_QPT_UD &&
 	    init_attr->qp_type != IB_QPT_GSI) {
-		dev_warn(&dev->pdev->dev, "queuepair type %d not supported\n",
+		dev_warn(&dev->pdev->dev, "queuepair type %d analt supported\n",
 			 init_attr->qp_type);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (is_srq && !dev->dsr->caps.max_srq) {
 		dev_warn(&dev->pdev->dev,
-			 "SRQs not supported by device\n");
+			 "SRQs analt supported by device\n");
 		return -EINVAL;
 	}
 
 	if (!atomic_add_unless(&dev->num_qps, 1, dev->dsr->caps.max_qp))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	switch (init_attr->qp_type) {
 	case IB_QPT_GSI:
@@ -261,8 +261,8 @@ int pvrdma_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *init_attr,
 			if (dev->dsr_version >= PVRDMA_QPHANDLE_VERSION &&
 			    udata->outlen < sizeof(qp_resp)) {
 				dev_warn(&dev->pdev->dev,
-					 "create queuepair not supported\n");
-				ret = -EOPNOTSUPP;
+					 "create queuepair analt supported\n");
+				ret = -EOPANALTSUPP;
 				goto err_qp;
 			}
 
@@ -329,7 +329,7 @@ int pvrdma_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *init_attr,
 					   qp->is_kernel);
 		if (ret) {
 			dev_warn(&dev->pdev->dev,
-				 "could not allocate page directory\n");
+				 "could analt allocate page directory\n");
 			goto err_umem;
 		}
 
@@ -350,7 +350,7 @@ int pvrdma_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *init_attr,
 		goto err_qp;
 	}
 
-	/* Not supported */
+	/* Analt supported */
 	init_attr->cap.max_inline_data = 0;
 
 	memset(cmd, 0, sizeof(*cmd));
@@ -383,7 +383,7 @@ int pvrdma_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *init_attr,
 	ret = pvrdma_cmd_post(dev, &req, &rsp, PVRDMA_CMD_CREATE_QP_RESP);
 	if (ret < 0) {
 		dev_warn(&dev->pdev->dev,
-			 "could not create queuepair, error: %d\n", ret);
+			 "could analt create queuepair, error: %d\n", ret);
 		goto err_pdir;
 	}
 
@@ -463,9 +463,9 @@ static void pvrdma_free_qp(struct pvrdma_qp *qp)
 		_pvrdma_flush_cqe(qp, rcq);
 
 	/*
-	 * We're now unlocking the CQs before clearing out the qp handle this
+	 * We're analw unlocking the CQs before clearing out the qp handle this
 	 * should still be safe. We have destroyed the backend QP and flushed
-	 * the CQEs so there should be no other completions for this QP.
+	 * the CQEs so there should be anal other completions for this QP.
 	 */
 	pvrdma_unlock_cqs(scq, rcq, &scq_flags, &rcq_flags);
 
@@ -520,7 +520,7 @@ static void __pvrdma_destroy_qp(struct pvrdma_dev *dev,
  * @attr_mask: attributes mask
  * @udata: user data
  *
- * @returns 0 on success, otherwise returns an errno.
+ * @returns 0 on success, otherwise returns an erranal.
  */
 int pvrdma_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		     int attr_mask, struct ib_udata *udata)
@@ -534,7 +534,7 @@ int pvrdma_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	int ret;
 
 	if (attr_mask & ~IB_QP_ATTR_STANDARD_BITS)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Sanity checking. Should need lock here */
 	mutex_lock(&qp->mutex);
@@ -597,7 +597,7 @@ int pvrdma_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		ib_access_flags_to_pvrdma(attr->qp_access_flags);
 	cmd->attrs.pkey_index = attr->pkey_index;
 	cmd->attrs.alt_pkey_index = attr->alt_pkey_index;
-	cmd->attrs.en_sqd_async_notify = attr->en_sqd_async_notify;
+	cmd->attrs.en_sqd_async_analtify = attr->en_sqd_async_analtify;
 	cmd->attrs.sq_draining = attr->sq_draining;
 	cmd->attrs.max_rd_atomic = attr->max_rd_atomic;
 	cmd->attrs.max_dest_rd_atomic = attr->max_dest_rd_atomic;
@@ -615,10 +615,10 @@ int pvrdma_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	ret = pvrdma_cmd_post(dev, &req, &rsp, PVRDMA_CMD_MODIFY_QP_RESP);
 	if (ret < 0) {
 		dev_warn(&dev->pdev->dev,
-			 "could not modify queuepair, error: %d\n", ret);
+			 "could analt modify queuepair, error: %d\n", ret);
 	} else if (rsp.hdr.err > 0) {
 		dev_warn(&dev->pdev->dev,
-			 "cannot modify queuepair, error: %d\n", rsp.hdr.err);
+			 "cananalt modify queuepair, error: %d\n", rsp.hdr.err);
 		ret = -EINVAL;
 	}
 
@@ -666,7 +666,7 @@ static int set_reg_seg(struct pvrdma_sq_wqe_hdr *wqe_hdr,
  * @wr: work request list to post
  * @bad_wr: the first bad WR returned
  *
- * @return: 0 on success, otherwise errno returned.
+ * @return: 0 on success, otherwise erranal returned.
  */
 int pvrdma_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 		     const struct ib_send_wr **bad_wr)
@@ -697,7 +697,7 @@ int pvrdma_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 			dev_warn_ratelimited(&dev->pdev->dev,
 					     "send queue is full\n");
 			*bad_wr = wr;
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
 
@@ -868,7 +868,7 @@ out:
  * @wr: the work request list to post
  * @bad_wr: the first bad WR returned
  *
- * @return: 0 on success, otherwise errno returned.
+ * @return: 0 on success, otherwise erranal returned.
  */
 int pvrdma_post_recv(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
 		     const struct ib_recv_wr **bad_wr)
@@ -912,7 +912,7 @@ int pvrdma_post_recv(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
 
 		if (unlikely(!pvrdma_idx_ring_has_space(
 				qp->rq.ring, qp->rq.wqe_cnt, &tail))) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			*bad_wr = wr;
 			dev_warn_ratelimited(&dev->pdev->dev,
 					     "recv queue full\n");
@@ -961,7 +961,7 @@ out:
  * @attr_mask: attributes mask
  * @init_attr: initial queue pair attributes
  *
- * @returns 0 on success, otherwise returns an errno.
+ * @returns 0 on success, otherwise returns an erranal.
  */
 int pvrdma_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		    int attr_mask, struct ib_qp_init_attr *init_attr)
@@ -989,7 +989,7 @@ int pvrdma_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	ret = pvrdma_cmd_post(dev, &req, &rsp, PVRDMA_CMD_QUERY_QP_RESP);
 	if (ret < 0) {
 		dev_warn(&dev->pdev->dev,
-			 "could not query queuepair, error: %d\n", ret);
+			 "could analt query queuepair, error: %d\n", ret);
 		goto out;
 	}
 
@@ -1007,7 +1007,7 @@ int pvrdma_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		pvrdma_access_flags_to_ib(resp->attrs.qp_access_flags);
 	attr->pkey_index = resp->attrs.pkey_index;
 	attr->alt_pkey_index = resp->attrs.alt_pkey_index;
-	attr->en_sqd_async_notify = resp->attrs.en_sqd_async_notify;
+	attr->en_sqd_async_analtify = resp->attrs.en_sqd_async_analtify;
 	attr->sq_draining = resp->attrs.sq_draining;
 	attr->max_rd_atomic = resp->attrs.max_rd_atomic;
 	attr->max_dest_rd_atomic = resp->attrs.max_dest_rd_atomic;

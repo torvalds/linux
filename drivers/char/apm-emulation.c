@@ -51,21 +51,21 @@ struct apm_queue {
 /*
  * thread states (for threads using a writable /dev/apm_bios fd):
  *
- * SUSPEND_NONE:	nothing happening
+ * SUSPEND_ANALNE:	analthing happening
  * SUSPEND_PENDING:	suspend event queued for thread and pending to be read
- * SUSPEND_READ:	suspend event read, pending acknowledgement
- * SUSPEND_ACKED:	acknowledgement received from thread (via ioctl),
+ * SUSPEND_READ:	suspend event read, pending ackanalwledgement
+ * SUSPEND_ACKED:	ackanalwledgement received from thread (via ioctl),
  *			waiting for resume
- * SUSPEND_ACKTO:	acknowledgement timeout
- * SUSPEND_DONE:	thread had acked suspend and is now notified of
+ * SUSPEND_ACKTO:	ackanalwledgement timeout
+ * SUSPEND_DONE:	thread had acked suspend and is analw analtified of
  *			resume
  *
  * SUSPEND_WAIT:	this thread invoked suspend and is waiting for resume
  *
  * A thread migrates in one of three paths:
- *	NONE -1-> PENDING -2-> READ -3-> ACKED -4-> DONE -5-> NONE
- *				    -6-> ACKTO -7-> NONE
- *	NONE -8-> WAIT -9-> NONE
+ *	ANALNE -1-> PENDING -2-> READ -3-> ACKED -4-> DONE -5-> ANALNE
+ *				    -6-> ACKTO -7-> ANALNE
+ *	ANALNE -8-> WAIT -9-> ANALNE
  *
  * While in PENDING or READ, the thread is accounted for in the
  * suspend_acks_pending counter.
@@ -77,7 +77,7 @@ struct apm_queue {
  *	4: core PM code signals that we have resumed
  *	5: APM_IOC_SUSPEND ioctl returns
  *
- *	6: the notifier invoked from the core PM code timed out waiting
+ *	6: the analtifier invoked from the core PM code timed out waiting
  *	   for all relevant threds to enter ACKED state and puts those
  *	   that haven't into ACKTO
  *	7: those threads issue APM_IOC_SUSPEND ioctl too late,
@@ -88,7 +88,7 @@ struct apm_queue {
  *	9: pm_suspend() returns indicating resume
  */
 enum apm_suspend_state {
-	SUSPEND_NONE,
+	SUSPEND_ANALNE,
 	SUSPEND_PENDING,
 	SUSPEND_READ,
 	SUSPEND_ACKED,
@@ -117,7 +117,7 @@ struct apm_user {
  * Local variables
  */
 static atomic_t suspend_acks_pending = ATOMIC_INIT(0);
-static atomic_t userspace_notification_inhibit = ATOMIC_INIT(0);
+static atomic_t userspace_analtification_inhibit = ATOMIC_INIT(0);
 static int apm_disabled;
 static struct task_struct *kapmd_tsk;
 
@@ -141,7 +141,7 @@ static struct apm_queue kapmd_queue;
 
 static DEFINE_MUTEX(state_lock);
 
-static const char driver_version[] = "1.13";	/* no spaces */
+static const char driver_version[] = "1.13";	/* anal spaces */
 
 
 
@@ -178,9 +178,9 @@ static void queue_add_event(struct apm_queue *q, apm_event_t event)
 {
 	q->event_head = (q->event_head + 1) % APM_MAX_EVENTS;
 	if (q->event_head == q->event_tail) {
-		static int notified;
+		static int analtified;
 
-		if (notified++ == 0)
+		if (analtified++ == 0)
 		    printk(KERN_ERR "apm: an event queue overflowed\n");
 		q->event_tail = (q->event_tail + 1) % APM_MAX_EVENTS;
 	}
@@ -209,7 +209,7 @@ static ssize_t apm_read(struct file *fp, char __user *buf, size_t count, loff_t 
 	if (count < sizeof(apm_event_t))
 		return -EINVAL;
 
-	if (queue_empty(&as->queue) && fp->f_flags & O_NONBLOCK)
+	if (queue_empty(&as->queue) && fp->f_flags & O_ANALNBLOCK)
 		return -EAGAIN;
 
 	wait_event_interruptible(apm_waitqueue, !queue_empty(&as->queue));
@@ -242,7 +242,7 @@ static __poll_t apm_poll(struct file *fp, poll_table * wait)
 	struct apm_user *as = fp->private_data;
 
 	poll_wait(fp, &apm_waitqueue, wait);
-	return queue_empty(&as->queue) ? 0 : EPOLLIN | EPOLLRDNORM;
+	return queue_empty(&as->queue) ? 0 : EPOLLIN | EPOLLRDANALRM;
 }
 
 /*
@@ -251,9 +251,9 @@ static __poll_t apm_poll(struct file *fp, poll_table * wait)
  * APM_IOC_SUSPEND
  *   This IOCTL is overloaded, and performs two functions.  It is used to:
  *     - initiate a suspend
- *     - acknowledge a suspend read from /dev/apm_bios.
+ *     - ackanalwledge a suspend read from /dev/apm_bios.
  *   Only when everyone who has opened /dev/apm_bios with write permission
- *   has acknowledge does the actual suspend happen.
+ *   has ackanalwledge does the actual suspend happen.
  */
 static long
 apm_ioctl(struct file *filp, u_int cmd, u_long arg)
@@ -275,21 +275,21 @@ apm_ioctl(struct file *filp, u_int cmd, u_long arg)
 			/*
 			 * If we read a suspend command from /dev/apm_bios,
 			 * then the corresponding APM_IOC_SUSPEND ioctl is
-			 * interpreted as an acknowledge.
+			 * interpreted as an ackanalwledge.
 			 */
 			as->suspend_state = SUSPEND_ACKED;
 			atomic_dec(&suspend_acks_pending);
 			mutex_unlock(&state_lock);
 
 			/*
-			 * suspend_acks_pending changed, the notifier needs to
+			 * suspend_acks_pending changed, the analtifier needs to
 			 * be woken up for this
 			 */
 			wake_up(&apm_suspend_waitqueue);
 
 			/*
 			 * Wait for the suspend/resume to complete.  If there
-			 * are pending acknowledges, we wait here for them.
+			 * are pending ackanalwledges, we wait here for them.
 			 * wait_event_freezable() is interruptible and pending
 			 * signal can cause busy looping.  We aren't doing
 			 * anything critical, chill a bit on each iteration.
@@ -309,14 +309,14 @@ apm_ioctl(struct file *filp, u_int cmd, u_long arg)
 			/*
 			 * Otherwise it is a request to suspend the system.
 			 * Just invoke pm_suspend(), we'll handle it from
-			 * there via the notifier.
+			 * there via the analtifier.
 			 */
 			as->suspend_result = pm_suspend(PM_SUSPEND_MEM);
 		}
 
 		mutex_lock(&state_lock);
 		err = as->suspend_result;
-		as->suspend_state = SUSPEND_NONE;
+		as->suspend_state = SUSPEND_ANALNE;
 		mutex_unlock(&state_lock);
 		break;
 	}
@@ -324,7 +324,7 @@ apm_ioctl(struct file *filp, u_int cmd, u_long arg)
 	return err;
 }
 
-static int apm_release(struct inode * inode, struct file * filp)
+static int apm_release(struct ianalde * ianalde, struct file * filp)
 {
 	struct apm_user *as = filp->private_data;
 
@@ -335,8 +335,8 @@ static int apm_release(struct inode * inode, struct file * filp)
 	up_write(&user_list_lock);
 
 	/*
-	 * We are now unhooked from the chain.  As far as new
-	 * events are concerned, we no longer exist.
+	 * We are analw unhooked from the chain.  As far as new
+	 * events are concerned, we anal longer exist.
 	 */
 	mutex_lock(&state_lock);
 	if (as->suspend_state == SUSPEND_PENDING ||
@@ -350,7 +350,7 @@ static int apm_release(struct inode * inode, struct file * filp)
 	return 0;
 }
 
-static int apm_open(struct inode * inode, struct file * filp)
+static int apm_open(struct ianalde * ianalde, struct file * filp)
 {
 	struct apm_user *as;
 
@@ -359,7 +359,7 @@ static int apm_open(struct inode * inode, struct file * filp)
 		/*
 		 * XXX - this is a tiny bit broken, when we consider BSD
 		 * process accounting. If the device is opened by root, we
-		 * instantly flag that we used superuser privs. Who knows,
+		 * instantly flag that we used superuser privs. Who kanalws,
 		 * we might close the device immediately without doing a
 		 * privileged operation -- cevans
 		 */
@@ -374,7 +374,7 @@ static int apm_open(struct inode * inode, struct file * filp)
 		filp->private_data = as;
 	}
 
-	return as ? 0 : -ENOMEM;
+	return as ? 0 : -EANALMEM;
 }
 
 static const struct file_operations apm_bios_fops = {
@@ -384,11 +384,11 @@ static const struct file_operations apm_bios_fops = {
 	.unlocked_ioctl	= apm_ioctl,
 	.open		= apm_open,
 	.release	= apm_release,
-	.llseek		= noop_llseek,
+	.llseek		= analop_llseek,
 };
 
 static struct miscdevice apm_device = {
-	.minor		= APM_MINOR_DEV,
+	.mianalr		= APM_MIANALR_DEV,
 	.name		= "apm_bios",
 	.fops		= &apm_bios_fops
 };
@@ -410,27 +410,27 @@ static struct miscdevice apm_device = {
  *	0x00: Off-line
  *	0x01: On-line
  *	0x02: On backup power (BIOS >= 1.1 only)
- *	0xff: Unknown
+ *	0xff: Unkanalwn
  *   4) Battery status
  *	0x00: High
  *	0x01: Low
  *	0x02: Critical
  *	0x03: Charging
- *	0x04: Selected battery not present (BIOS >= 1.2 only)
- *	0xff: Unknown
+ *	0x04: Selected battery analt present (BIOS >= 1.2 only)
+ *	0xff: Unkanalwn
  *   5) Battery flag
  *	bit 0: High
  *	bit 1: Low
  *	bit 2: Critical
  *	bit 3: Charging
- *	bit 7: No system battery
- *	0xff: Unknown
+ *	bit 7: Anal system battery
+ *	0xff: Unkanalwn
  *   6) Remaining battery life (percentage of charge):
  *	0-100: valid
- *	-1: Unknown
+ *	-1: Unkanalwn
  *   7) Remaining battery life (time units):
  *	Number of remaining minutes or seconds
- *	-1: Unknown
+ *	-1: Unkanalwn
  *   8) min = minutes; sec = seconds
  */
 static int proc_apm_show(struct seq_file *m, void *v)
@@ -496,9 +496,9 @@ static int kapmd(void *arg)
 			break;
 
 		case APM_CRITICAL_SUSPEND:
-			atomic_inc(&userspace_notification_inhibit);
+			atomic_inc(&userspace_analtification_inhibit);
 			pm_suspend(PM_SUSPEND_MEM);
-			atomic_dec(&userspace_notification_inhibit);
+			atomic_dec(&userspace_analtification_inhibit);
 			break;
 		}
 	} while (1);
@@ -506,7 +506,7 @@ static int kapmd(void *arg)
 	return 0;
 }
 
-static int apm_suspend_notifier(struct notifier_block *nb,
+static int apm_suspend_analtifier(struct analtifier_block *nb,
 				unsigned long event,
 				void *dummy)
 {
@@ -515,8 +515,8 @@ static int apm_suspend_notifier(struct notifier_block *nb,
 	unsigned long apm_event;
 
 	/* short-cut emergency suspends */
-	if (atomic_read(&userspace_notification_inhibit))
-		return NOTIFY_DONE;
+	if (atomic_read(&userspace_analtification_inhibit))
+		return ANALTIFY_DONE;
 
 	switch (event) {
 	case PM_SUSPEND_PREPARE:
@@ -549,7 +549,7 @@ static int apm_suspend_notifier(struct notifier_block *nb,
 		 * process was killed.)
 		 *
 		 * If the app won't answer within a short while we assume it
-		 * locked up and ignore it.
+		 * locked up and iganalre it.
 		 */
 		err = wait_event_interruptible_timeout(
 			apm_suspend_waitqueue,
@@ -580,18 +580,18 @@ static int apm_suspend_notifier(struct notifier_block *nb,
 
 		/* let suspend proceed */
 		if (err >= 0)
-			return NOTIFY_OK;
+			return ANALTIFY_OK;
 
 		/* interrupted by signal */
-		return notifier_from_errno(err);
+		return analtifier_from_erranal(err);
 
 	case PM_POST_SUSPEND:
 	case PM_POST_HIBERNATION:
 		apm_event = (event == PM_POST_SUSPEND) ?
-			APM_NORMAL_RESUME : APM_HIBERNATION_RESUME;
+			APM_ANALRMAL_RESUME : APM_HIBERNATION_RESUME;
 		/*
 		 * Anyone on the APM queues will think we're still suspended.
-		 * Send a message so everyone knows we're now awake again.
+		 * Send a message so everyone kanalws we're analw awake again.
 		 */
 		queue_event(apm_event);
 
@@ -604,7 +604,7 @@ static int apm_suspend_notifier(struct notifier_block *nb,
 			if (as->suspend_state == SUSPEND_ACKED) {
 				/*
 				 * TODO: maybe grab error code, needs core
-				 * changes to push the error to the notifier
+				 * changes to push the error to the analtifier
 				 * chain (could use the second parameter if
 				 * implemented)
 				 */
@@ -616,15 +616,15 @@ static int apm_suspend_notifier(struct notifier_block *nb,
 		mutex_unlock(&state_lock);
 
 		wake_up(&apm_suspend_waitqueue);
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 
 	default:
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 }
 
-static struct notifier_block apm_notif_block = {
-	.notifier_call = apm_suspend_notifier,
+static struct analtifier_block apm_analtif_block = {
+	.analtifier_call = apm_suspend_analtifier,
 };
 
 static int __init apm_init(void)
@@ -632,8 +632,8 @@ static int __init apm_init(void)
 	int ret;
 
 	if (apm_disabled) {
-		printk(KERN_NOTICE "apm: disabled on user request.\n");
-		return -ENODEV;
+		printk(KERN_ANALTICE "apm: disabled on user request.\n");
+		return -EANALDEV;
 	}
 
 	kapmd_tsk = kthread_create(kapmd, NULL, "kapmd");
@@ -652,7 +652,7 @@ static int __init apm_init(void)
 	if (ret)
 		goto out_stop;
 
-	ret = register_pm_notifier(&apm_notif_block);
+	ret = register_pm_analtifier(&apm_analtif_block);
 	if (ret)
 		goto out_unregister;
 
@@ -669,7 +669,7 @@ static int __init apm_init(void)
 
 static void __exit apm_exit(void)
 {
-	unregister_pm_notifier(&apm_notif_block);
+	unregister_pm_analtifier(&apm_analtif_block);
 	misc_deregister(&apm_device);
 	remove_proc_entry("apm", NULL);
 

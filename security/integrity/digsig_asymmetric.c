@@ -56,19 +56,19 @@ static struct key *request_asymmetric_key(struct key *keyring, uint32_t keyid)
 
 	if (IS_ERR(key)) {
 		if (keyring)
-			pr_err_ratelimited("Request for unknown key '%s' in '%s' keyring. err %ld\n",
+			pr_err_ratelimited("Request for unkanalwn key '%s' in '%s' keyring. err %ld\n",
 					   name, keyring->description,
 					   PTR_ERR(key));
 		else
-			pr_err_ratelimited("Request for unknown key '%s' err %ld\n",
+			pr_err_ratelimited("Request for unkanalwn key '%s' err %ld\n",
 					   name, PTR_ERR(key));
 
 		switch (PTR_ERR(key)) {
 			/* Hide some search errors */
 		case -EACCES:
-		case -ENOTDIR:
+		case -EANALTDIR:
 		case -EAGAIN:
-			return ERR_PTR(-ENOKEY);
+			return ERR_PTR(-EANALKEY);
 		default:
 			return key;
 		}
@@ -97,7 +97,7 @@ int asymmetric_verify(struct key *keyring, const char *sig,
 		return -EBADMSG;
 
 	if (hdr->hash_algo >= HASH_ALGO__LAST)
-		return -ENOPKG;
+		return -EANALPKG;
 
 	key = request_asymmetric_key(keyring, be32_to_cpu(hdr->keyid));
 	if (IS_ERR(key))
@@ -118,7 +118,7 @@ int asymmetric_verify(struct key *keyring, const char *sig,
 		   !strcmp(pk->pkey_algo, "sm2")) {
 		pks.encoding = "raw";
 	} else {
-		ret = -ENOPKG;
+		ret = -EANALPKG;
 		goto out;
 	}
 

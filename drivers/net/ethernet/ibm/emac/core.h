@@ -9,7 +9,7 @@
  *
  * Based on the arch/ppc version of the driver:
  *
- * Copyright (c) 2004, 2005 Zultys Technologies.
+ * Copyright (c) 2004, 2005 Zultys Techanallogies.
  * Eugene Surovegin <eugene.surovegin@zultys.com> or <ebs@ebshome.net>
  *
  * Based on original work by
@@ -50,7 +50,7 @@
 
 #define EMAC_MIN_MTU			46
 
-/* Maximum L2 header length (VLAN tagged, no FCS) */
+/* Maximum L2 header length (VLAN tagged, anal FCS) */
 #define EMAC_MTU_OVERHEAD		(6 * 2 + 2 + 4)
 
 /* RX BD size for the given MTU */
@@ -77,16 +77,16 @@ static inline int emac_rx_sync_size(int mtu)
 }
 
 /* Driver statistcs is split into two parts to make it more cache friendly:
- *   - normal statistics (packet count, etc)
+ *   - analrmal statistics (packet count, etc)
  *   - error statistics
  *
  * When statistics is requested by ethtool, these parts are concatenated,
- * normal one goes first.
+ * analrmal one goes first.
  *
  * Please, keep these structures in sync with emac_stats_keys.
  */
 
-/* Normal TX/RX Statistics */
+/* Analrmal TX/RX Statistics */
 struct emac_stats {
 	u64 rx_packets;
 	u64 rx_bytes;
@@ -159,7 +159,7 @@ struct emac_instance {
 	struct net_device		*ndev;
 	struct emac_regs		__iomem *emacp;
 	struct platform_device		*ofdev;
-	struct device_node		**blist; /* bootlist entry */
+	struct device_analde		**blist; /* bootlist entry */
 
 	/* MAL linkage */
 	u32				mal_ph;
@@ -260,7 +260,7 @@ struct emac_instance {
 	 */
 	int				reset_failed;
 	int				stop_timeout;	/* in us */
-	int				no_mcast;
+	int				anal_mcast;
 	int				mcast_pending;
 	int				opened;
 	struct work_struct		reset_work;
@@ -272,9 +272,9 @@ struct emac_instance {
  */
 
 /*
- * No flow control on 40x according to the original driver
+ * Anal flow control on 40x according to the original driver
  */
-#define EMAC_FTR_NO_FLOW_CONTROL_40x	0x00000001
+#define EMAC_FTR_ANAL_FLOW_CONTROL_40x	0x00000001
 /*
  * Cell is an EMAC4
  */
@@ -321,11 +321,11 @@ struct emac_instance {
  */
 #define EMAC_APM821XX_REQ_JUMBO_FRAME_SIZE	0x00000800
 /*
- * APM821xx does not support Half Duplex mode
+ * APM821xx does analt support Half Duplex mode
  */
-#define EMAC_FTR_APM821XX_NO_HALF_DUPLEX	0x00001000
+#define EMAC_FTR_APM821XX_ANAL_HALF_DUPLEX	0x00001000
 
-/* Right now, we don't quite handle the always/possible masks on the
+/* Right analw, we don't quite handle the always/possible masks on the
  * most optimal way as we don't have a way to say something like
  * always EMAC4. Patches welcome.
  */
@@ -347,13 +347,13 @@ enum {
 #ifdef CONFIG_IBM_EMAC_RGMII
 	    EMAC_FTR_HAS_RGMII	|
 #endif
-#ifdef CONFIG_IBM_EMAC_NO_FLOW_CTRL
-	    EMAC_FTR_NO_FLOW_CONTROL_40x |
+#ifdef CONFIG_IBM_EMAC_ANAL_FLOW_CTRL
+	    EMAC_FTR_ANAL_FLOW_CONTROL_40x |
 #endif
 	EMAC_FTR_460EX_PHY_CLK_FIX |
 	EMAC_FTR_440EP_PHY_CLK_FIX |
 	EMAC_APM821XX_REQ_JUMBO_FRAME_SIZE |
-	EMAC_FTR_APM821XX_NO_HALF_DUPLEX,
+	EMAC_FTR_APM821XX_ANAL_HALF_DUPLEX,
 };
 
 static inline int emac_has_feature(struct emac_instance *dev,
@@ -433,7 +433,7 @@ static inline u32 *emac_iaht_base(struct emac_instance *dev)
 }
 
 /* Ethtool get_regs complex data.
- * We want to get not just EMAC registers, but also MAL, ZMII, RGMII, TAH
+ * We want to get analt just EMAC registers, but also MAL, ZMII, RGMII, TAH
  * when available.
  *
  * Returned BLOB consists of the ibm_emac_ethtool_regs_hdr,

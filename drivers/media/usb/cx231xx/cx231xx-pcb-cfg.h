@@ -58,7 +58,7 @@ enum USB_SPEED{
 
 #define TS_MASK         0x6
 enum TS_PORT{
-	NO_TS_PORT = 0x0,	/* 2'b00: Neither port used. PCB not a Hybrid,
+	ANAL_TS_PORT = 0x0,	/* 2'b00: Neither port used. PCB analt a Hybrid,
 				   only offers Analog TV or Video */
 	TS1_PORT = 0x4,		/* 2'b10: TS1 Input (Hybrid mode :
 				Digital or External Analog/Compressed source) */
@@ -73,8 +73,8 @@ enum TS_PORT{
 
 #define EAVP_MASK       0x8
 enum EAV_PRESENT{
-	NO_EXTERNAL_AV = 0x0,	/* 0: No External A/V inputs
-						(no need for i2s block),
+	ANAL_EXTERNAL_AV = 0x0,	/* 0: Anal External A/V inputs
+						(anal need for i2s block),
 						Analog Tuner must be present */
 	EXTERNAL_AV = 0x8	/* 1: External A/V inputs
 						present (requires i2s blk) */
@@ -85,7 +85,7 @@ enum AT_MODE{
 	DIF_TUNER = 0x30,	/* 2'b11: IF Tuner (requires use of DIF) */
 	BASEBAND_SOUND = 0x20,	/* 2'b10: Baseband Composite &
 						Sound-IF Signals present */
-	NO_TUNER = 0x10		/* 2'b0x: No Analog Tuner present */
+	ANAL_TUNER = 0x10		/* 2'b0x: Anal Analog Tuner present */
 };
 
 #define PWR_SEL_MASK    0x40
@@ -111,8 +111,8 @@ enum AVDEC_STATUS{
 #define SELFPOWER_MASK  0x86
 
 /***************************************************************************/
-#define NOT_DECIDE_YET  0xFE
-#define NOT_SUPPORTED   0xFF
+#define ANALT_DECIDE_YET  0xFE
+#define ANALT_SUPPORTED   0xFF
 
 /***************************************************************************
 				* for mod field use *

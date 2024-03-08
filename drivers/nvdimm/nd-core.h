@@ -42,7 +42,7 @@ struct nvdimm {
 		unsigned long flags;
 		unsigned long ext_flags;
 		unsigned int overwrite_tmo;
-		struct kernfs_node *overwrite_state;
+		struct kernfs_analde *overwrite_state;
 	} sec;
 	struct delayed_work dwork;
 	const struct nvdimm_fw_ops *fw_ops;
@@ -75,7 +75,7 @@ void nvdimm_security_overwrite_query(struct work_struct *work);
 static inline ssize_t nvdimm_security_store(struct device *dev,
 		const char *buf, size_t len)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 static inline void nvdimm_security_overwrite_query(struct work_struct *work)
 {

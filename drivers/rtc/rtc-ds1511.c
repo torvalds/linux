@@ -8,7 +8,7 @@
  * Real time clock driver for the Dallas 1511 chip, which also
  * contains a watchdog timer.  There is a tiny amount of code that
  * platform code could use to mess with the watchdog device a little
- * bit, but not a full watchdog driver.
+ * bit, but analt a full watchdog driver.
  */
 
 #include <linux/bcd.h>
@@ -98,13 +98,13 @@ static DEFINE_SPINLOCK(ds1511_lock);
 static __iomem char *ds1511_base;
 static u32 reg_spacing = 1;
 
-static noinline void
+static analinline void
 rtc_write(uint8_t val, uint32_t reg)
 {
 	writeb(val, ds1511_base + (reg * reg_spacing));
 }
 
-static noinline uint8_t
+static analinline uint8_t
 rtc_read(enum ds1511reg reg)
 {
 	return readb(ds1511_base + (reg * reg_spacing));
@@ -130,7 +130,7 @@ rtc_enable_update(void)
  */
 #ifdef DS1511_WDOG_RESET_SUPPORT
 /*
- * just enough code to set the watchdog timer so that it
+ * just eanalugh code to set the watchdog timer so that it
  * will reboot the system
  */
 void
@@ -275,7 +275,7 @@ static int ds1511_rtc_read_time(struct device *dev, struct rtc_time *rtc_tm)
  * write the alarm register settings
  *
  * we only have the use to interrupt every second, otherwise
- * known as the update interrupt, or the interrupt if the whole
+ * kanalwn as the update interrupt, or the interrupt if the whole
  * date/hours/mins/secs matches.  the ds1511 has many more
  * permutations, but the kernel doesn't.
  */
@@ -357,7 +357,7 @@ ds1511_interrupt(int irq, void *dev_id)
 		rtc_update_irq(pdata->rtc, 1, events);
 	}
 	spin_unlock(&pdata->lock);
-	return events ? IRQ_HANDLED : IRQ_NONE;
+	return events ? IRQ_HANDLED : IRQ_ANALNE;
 }
 
 static int ds1511_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
@@ -422,7 +422,7 @@ static int ds1511_rtc_probe(struct platform_device *pdev)
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ds1511_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ds1511_base))
@@ -475,7 +475,7 @@ static int ds1511_rtc_probe(struct platform_device *pdev)
 		if (devm_request_irq(&pdev->dev, pdata->irq, ds1511_interrupt,
 			IRQF_SHARED, pdev->name, pdev) < 0) {
 
-			dev_warn(&pdev->dev, "interrupt not available.\n");
+			dev_warn(&pdev->dev, "interrupt analt available.\n");
 			pdata->irq = 0;
 		}
 	}

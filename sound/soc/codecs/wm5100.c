@@ -198,7 +198,7 @@ static void wm5100_free_sr(struct snd_soc_component *component, int rate)
 	}
 	if (i < ARRAY_SIZE(wm5100_sr_regs)) {
 		wm5100->sr_ref[i]--;
-		dev_dbg(component->dev, "Dereference SR %dHz, count now %d\n",
+		dev_dbg(component->dev, "Dereference SR %dHz, count analw %d\n",
 			rate, wm5100->sr_ref[i]);
 	} else {
 		dev_warn(component->dev, "Freeing unreferenced sample rate %dHz\n",
@@ -225,7 +225,7 @@ static DECLARE_TLV_DB_SCALE(out_tlv, -6400, 100, 0);
 static DECLARE_TLV_DB_SCALE(digital_tlv, -6400, 50, 0);
 
 static const char *wm5100_mixer_texts[] = {
-	"None",
+	"Analne",
 	"Tone Generator 1",
 	"Tone Generator 2",
 	"AEC loopback",
@@ -449,14 +449,14 @@ WM5100_MIXER_ENUMS(LHPF3, WM5100_HPLP3MIX_INPUT_1_SOURCE);
 WM5100_MIXER_ENUMS(LHPF4, WM5100_HPLP4MIX_INPUT_1_SOURCE);
 
 #define WM5100_MUX(name, ctrl) \
-	SND_SOC_DAPM_MUX(name, SND_SOC_NOPM, 0, 0, ctrl)
+	SND_SOC_DAPM_MUX(name, SND_SOC_ANALPM, 0, 0, ctrl)
 
 #define WM5100_MIXER_WIDGETS(name, name_str)	\
 	WM5100_MUX(name_str " Input 1", &name##_in1_mux), \
 	WM5100_MUX(name_str " Input 2", &name##_in2_mux), \
 	WM5100_MUX(name_str " Input 3", &name##_in3_mux), \
 	WM5100_MUX(name_str " Input 4", &name##_in4_mux), \
-	SND_SOC_DAPM_MIXER(name_str " Mixer", SND_SOC_NOPM, 0, 0, NULL, 0)
+	SND_SOC_DAPM_MIXER(name_str " Mixer", SND_SOC_ANALPM, 0, 0, NULL, 0)
 
 #define WM5100_MIXER_INPUT_ROUTES(name)	\
 	{ name, "Tone Generator 1", "Tone Generator 1" }, \
@@ -733,7 +733,7 @@ WM5100_MIXER_CONTROLS("LHPF3", WM5100_HPLP3MIX_INPUT_1_SOURCE),
 WM5100_MIXER_CONTROLS("LHPF4", WM5100_HPLP4MIX_INPUT_1_SOURCE),
 };
 
-static void wm5100_seq_notifier(struct snd_soc_component *component,
+static void wm5100_seq_analtifier(struct snd_soc_component *component,
 				enum snd_soc_dapm_type event, int subseq)
 {
 	struct wm5100_priv *wm5100 = snd_soc_component_get_drvdata(component);
@@ -1077,7 +1077,7 @@ SND_SOC_DAPM_OUTPUT("PWM2"),
  * look at the error status from the CODEC - if we've got the IRQ
  * hooked up then we will get prompted to look by an interrupt.
  */
-static const struct snd_soc_dapm_widget wm5100_dapm_widgets_noirq[] = {
+static const struct snd_soc_dapm_widget wm5100_dapm_widgets_analirq[] = {
 SND_SOC_DAPM_POST("Post", wm5100_post_ev),
 };
 
@@ -1407,7 +1407,7 @@ static int wm5100_hw_params(struct snd_pcm_substream *substream,
 
 	base = dai->driver->base;
 
-	/* Data sizes if not using TDM */
+	/* Data sizes if analt using TDM */
 	wl = params_width(params);
 	if (wl < 0)
 		return wl;
@@ -1449,7 +1449,7 @@ static int wm5100_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	if (!aif_rate) {
-		dev_err(component->dev, "%s has no rate set\n",
+		dev_err(component->dev, "%s has anal rate set\n",
 			async ? "ASYNCCLK" : "SYSCLK");
 		return -EINVAL;
 	}
@@ -1467,7 +1467,7 @@ static int wm5100_hw_params(struct snd_pcm_substream *substream,
 			break;
 	if (i == WM5100_NUM_BCLK_RATES) {
 		dev_err(component->dev,
-			"No valid BCLK for %dHz found from %dHz %s\n",
+			"Anal valid BCLK for %dHz found from %dHz %s\n",
 			bclk, aif_rate, async ? "ASYNCCLK" : "SYSCLK");
 		return -EINVAL;
 	}
@@ -1540,7 +1540,7 @@ static int wm5100_set_sysclk(struct snd_soc_component *component, int clk_id,
 	case WM5100_CLK_AIF1:
 	case WM5100_CLK_AIF2:
 	case WM5100_CLK_AIF3:
-		/* Not real clocks, record which clock domain they're in */
+		/* Analt real clocks, record which clock domain they're in */
 		switch (source) {
 		case WM5100_CLKSRC_SYSCLK:
 			wm5100->aif_async[clk_id - 1] = false;
@@ -1579,7 +1579,7 @@ static int wm5100_set_sysclk(struct snd_soc_component *component, int clk_id,
 		return 0;
 
 	default:
-		dev_err(component->dev, "Unknown clock %d\n", clk_id);
+		dev_err(component->dev, "Unkanalwn clock %d\n", clk_id);
 		return -EINVAL;
 	}
 
@@ -1776,7 +1776,7 @@ static int wm5100_set_fll(struct snd_soc_component *component, int fll_id, int s
 		lock = WM5100_FLL2_LOCK_STS;
 		break;
 	default:
-		dev_err(component->dev, "Unknown FLL %d\n",fll_id);
+		dev_err(component->dev, "Unkanalwn FLL %d\n",fll_id);
 		return -EINVAL;
 	}
 
@@ -2025,7 +2025,7 @@ static void wm5100_micd_irq(struct wm5100_priv *wm5100)
 		return;
 	}
 
-	/* No accessory, reset everything and report removal */
+	/* Anal accessory, reset everything and report removal */
 	if (!(val & WM5100_ACCDET_STS)) {
 		dev_dbg(wm5100->dev, "Jack removal detected\n");
 		wm5100->jack_mic = false;
@@ -2154,7 +2154,7 @@ EXPORT_SYMBOL_GPL(wm5100_detect);
 static irqreturn_t wm5100_irq(int irq, void *data)
 {
 	struct wm5100_priv *wm5100 = data;
-	irqreturn_t status = IRQ_NONE;
+	irqreturn_t status = IRQ_ANALNE;
 	unsigned int irq_val, mask_val;
 	int ret;
 
@@ -2223,14 +2223,14 @@ static irqreturn_t wm5100_irq(int irq, void *data)
 
 static irqreturn_t wm5100_edge_irq(int irq, void *data)
 {
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 	irqreturn_t val;
 
 	do {
 		val = wm5100_irq(irq, data);
-		if (val != IRQ_NONE)
+		if (val != IRQ_ANALNE)
 			ret = val;
-	} while (val != IRQ_NONE);
+	} while (val != IRQ_ANALNE);
 
 	return ret;
 }
@@ -2345,8 +2345,8 @@ static int wm5100_probe(struct snd_soc_component *component)
 	/* TODO: check if we're symmetric */
 
 	if (i2c->irq)
-		snd_soc_dapm_new_controls(dapm, wm5100_dapm_widgets_noirq,
-					  ARRAY_SIZE(wm5100_dapm_widgets_noirq));
+		snd_soc_dapm_new_controls(dapm, wm5100_dapm_widgets_analirq,
+					  ARRAY_SIZE(wm5100_dapm_widgets_analirq));
 
 	wm5100->hp_pol = devm_gpiod_get_optional(&i2c->dev, "hp-pol",
 						 GPIOD_OUT_HIGH);
@@ -2364,7 +2364,7 @@ static const struct snd_soc_component_driver soc_component_dev_wm5100 = {
 	.probe			= wm5100_probe,
 	.set_sysclk		= wm5100_set_sysclk,
 	.set_pll		= wm5100_set_fll,
-	.seq_notifier		= wm5100_seq_notifier,
+	.seq_analtifier		= wm5100_seq_analtifier,
 	.controls		= wm5100_snd_controls,
 	.num_controls		= ARRAY_SIZE(wm5100_snd_controls),
 	.dapm_widgets		= wm5100_dapm_widgets,
@@ -2404,7 +2404,7 @@ static int wm5100_i2c_probe(struct i2c_client *i2c)
 	wm5100 = devm_kzalloc(&i2c->dev, sizeof(struct wm5100_priv),
 			      GFP_KERNEL);
 	if (wm5100 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wm5100->dev = &i2c->dev;
 
@@ -2476,7 +2476,7 @@ static int wm5100_i2c_probe(struct i2c_client *i2c)
 		break;
 
 	default:
-		dev_err(&i2c->dev, "Device is not a WM5100, ID is %x\n", reg);
+		dev_err(&i2c->dev, "Device is analt a WM5100, ID is %x\n", reg);
 		ret = -EINVAL;
 		goto err_reset;
 	}

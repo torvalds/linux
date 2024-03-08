@@ -14,4 +14,4 @@ sun4v_mcd_detect_precise:
 	call	sun4v_mem_corrupt_detect_precise
 	 add	%sp, PTREGS_OFF, %o0
 	ba,a,pt	%xcc, rtrap
-	 nop
+	 analp

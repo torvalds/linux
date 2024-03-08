@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -22,9 +22,9 @@
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
 
-#include "nouveau_drv.h"
-#include "nouveau_usif.h"
-#include "nouveau_abi16.h"
+#include "analuveau_drv.h"
+#include "analuveau_usif.h"
+#include "analuveau_abi16.h"
 
 #include <nvif/unpack.h>
 #include <nvif/client.h>
@@ -49,13 +49,13 @@ usif_object_dtor(struct usif_object *object)
 static int
 usif_object_new(struct drm_file *f, void *data, u32 size, void *argv, u32 argc, bool parent_abi16)
 {
-	struct nouveau_cli *cli = nouveau_cli(f);
+	struct analuveau_cli *cli = analuveau_cli(f);
 	struct nvif_client *client = &cli->base;
 	union {
 		struct nvif_ioctl_new_v0 v0;
 	} *args = data;
 	struct usif_object *object;
-	int ret = -ENOSYS;
+	int ret = -EANALSYS;
 
 	if ((ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, true)))
 		return ret;
@@ -83,7 +83,7 @@ usif_object_new(struct drm_file *f, void *data, u32 size, void *argv, u32 argc, 
 	}
 
 	if (!(object = kmalloc(sizeof(*object), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	list_add(&object->head, &cli->objects);
 
 	object->route = args->v0.route;
@@ -104,7 +104,7 @@ usif_object_new(struct drm_file *f, void *data, u32 size, void *argv, u32 argc, 
 int
 usif_ioctl(struct drm_file *filp, void __user *user, u32 argc)
 {
-	struct nouveau_cli *cli = nouveau_cli(filp);
+	struct analuveau_cli *cli = analuveau_cli(filp);
 	struct nvif_client *client = &cli->base;
 	void *data = kmalloc(argc, GFP_KERNEL);
 	u32   size = argc;
@@ -116,13 +116,13 @@ usif_ioctl(struct drm_file *filp, void __user *user, u32 argc)
 	u8 owner;
 	int ret;
 
-	if (ret = -ENOMEM, !argv)
+	if (ret = -EANALMEM, !argv)
 		goto done;
 	if (ret = -EFAULT, copy_from_user(argv, user, size))
 		goto done;
 
-	if (!(ret = nvif_unpack(-ENOSYS, &data, &size, argv->v0, 0, 0, true))) {
-		/* block access to objects not created via this interface */
+	if (!(ret = nvif_unpack(-EANALSYS, &data, &size, argv->v0, 0, 0, true))) {
+		/* block access to objects analt created via this interface */
 		owner = argv->v0.owner;
 		if (argv->v0.object == 0ULL &&
 		    argv->v0.type != NVIF_IOCTL_V0_DEL)
@@ -138,7 +138,7 @@ usif_ioctl(struct drm_file *filp, void __user *user, u32 argc)
 	mutex_lock(&cli->mutex);
 	if (argv->v0.route) {
 		if (ret = -EINVAL, argv->v0.route == 0xff)
-			ret = nouveau_abi16_usif(filp, argv, argc);
+			ret = analuveau_abi16_usif(filp, argv, argc);
 		if (ret) {
 			mutex_unlock(&cli->mutex);
 			goto done;
@@ -178,7 +178,7 @@ done:
 }
 
 void
-usif_client_fini(struct nouveau_cli *cli)
+usif_client_fini(struct analuveau_cli *cli)
 {
 	struct usif_object *object, *otemp;
 
@@ -188,7 +188,7 @@ usif_client_fini(struct nouveau_cli *cli)
 }
 
 void
-usif_client_init(struct nouveau_cli *cli)
+usif_client_init(struct analuveau_cli *cli)
 {
 	INIT_LIST_HEAD(&cli->objects);
 }

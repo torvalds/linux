@@ -1,6 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syanalpsys, Inc. (www.syanalpsys.com)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -23,7 +23,7 @@
  * done this way (instead of under CONFIG_ARC_PAGE_SIZE_8K) because adhoc
  * user code (busybox appletlib.h) expects PAGE_SHIFT to be defined w/o
  * using the correct uClibc header and in their build our autoconf.h is
- * not available
+ * analt available
  */
 #define PAGE_SHIFT 13
 #endif

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -30,7 +30,7 @@ struct drm_crtc;
 struct dm_crtc_state;
 
 enum amdgpu_dm_pipe_crc_source {
-	AMDGPU_DM_PIPE_CRC_SOURCE_NONE = 0,
+	AMDGPU_DM_PIPE_CRC_SOURCE_ANALNE = 0,
 	AMDGPU_DM_PIPE_CRC_SOURCE_CRTC,
 	AMDGPU_DM_PIPE_CRC_SOURCE_CRTC_DITHER,
 	AMDGPU_DM_PIPE_CRC_SOURCE_DPRX,
@@ -45,17 +45,17 @@ struct crc_window_param {
 	uint16_t y_start;
 	uint16_t x_end;
 	uint16_t y_end;
-	/* CRC window is activated or not*/
+	/* CRC window is activated or analt*/
 	bool activated;
-	/* Update crc window during vertical blank or not */
+	/* Update crc window during vertical blank or analt */
 	bool update_win;
 	/* skip reading/writing for few frames */
 	int skip_frame_cnt;
 };
 
 struct secure_display_context {
-	/* work to notify PSP TA*/
-	struct work_struct notify_ta_work;
+	/* work to analtify PSP TA*/
+	struct work_struct analtify_ta_work;
 
 	/* work to forward ROI to dmcu/dmub */
 	struct work_struct forward_roi_work;
@@ -69,7 +69,7 @@ struct secure_display_context {
 
 static inline bool amdgpu_dm_is_valid_crc_source(enum amdgpu_dm_pipe_crc_source source)
 {
-	return (source > AMDGPU_DM_PIPE_CRC_SOURCE_NONE) &&
+	return (source > AMDGPU_DM_PIPE_CRC_SOURCE_ANALNE) &&
 	       (source < AMDGPU_DM_PIPE_CRC_SOURCE_MAX);
 }
 

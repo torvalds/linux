@@ -39,7 +39,7 @@ MODULE_LICENSE("GPL");
 
 /*
  * Magic Number
- * Meaning is unknown - this number is required for writing to ACPI for AMW0
+ * Meaning is unkanalwn - this number is required for writing to ACPI for AMW0
  * (it's also used in acerhk when directly accessing the BIOS)
  */
 #define ACER_AMW0_WRITE	0x9610
@@ -115,34 +115,34 @@ static const struct key_entry acer_wmi_keymap[] __initconst = {
 	{KE_KEY, 0x24, {KEY_PROG4} },    /* Social networking_Key */
 	{KE_KEY, 0x27, {KEY_HELP} },
 	{KE_KEY, 0x29, {KEY_PROG3} },    /* P_Key for TM8372 */
-	{KE_IGNORE, 0x41, {KEY_MUTE} },
-	{KE_IGNORE, 0x42, {KEY_PREVIOUSSONG} },
-	{KE_IGNORE, 0x4d, {KEY_PREVIOUSSONG} },
-	{KE_IGNORE, 0x43, {KEY_NEXTSONG} },
-	{KE_IGNORE, 0x4e, {KEY_NEXTSONG} },
-	{KE_IGNORE, 0x44, {KEY_PLAYPAUSE} },
-	{KE_IGNORE, 0x4f, {KEY_PLAYPAUSE} },
-	{KE_IGNORE, 0x45, {KEY_STOP} },
-	{KE_IGNORE, 0x50, {KEY_STOP} },
-	{KE_IGNORE, 0x48, {KEY_VOLUMEUP} },
-	{KE_IGNORE, 0x49, {KEY_VOLUMEDOWN} },
-	{KE_IGNORE, 0x4a, {KEY_VOLUMEDOWN} },
+	{KE_IGANALRE, 0x41, {KEY_MUTE} },
+	{KE_IGANALRE, 0x42, {KEY_PREVIOUSSONG} },
+	{KE_IGANALRE, 0x4d, {KEY_PREVIOUSSONG} },
+	{KE_IGANALRE, 0x43, {KEY_NEXTSONG} },
+	{KE_IGANALRE, 0x4e, {KEY_NEXTSONG} },
+	{KE_IGANALRE, 0x44, {KEY_PLAYPAUSE} },
+	{KE_IGANALRE, 0x4f, {KEY_PLAYPAUSE} },
+	{KE_IGANALRE, 0x45, {KEY_STOP} },
+	{KE_IGANALRE, 0x50, {KEY_STOP} },
+	{KE_IGANALRE, 0x48, {KEY_VOLUMEUP} },
+	{KE_IGANALRE, 0x49, {KEY_VOLUMEDOWN} },
+	{KE_IGANALRE, 0x4a, {KEY_VOLUMEDOWN} },
 	/*
 	 * 0x61 is KEY_SWITCHVIDEOMODE. Usually this is a duplicate input event
-	 * with the "Video Bus" input device events. But sometimes it is not
-	 * a dup. Map it to KEY_UNKNOWN instead of using KE_IGNORE so that
-	 * udev/hwdb can override it on systems where it is not a dup.
+	 * with the "Video Bus" input device events. But sometimes it is analt
+	 * a dup. Map it to KEY_UNKANALWN instead of using KE_IGANALRE so that
+	 * udev/hwdb can override it on systems where it is analt a dup.
 	 */
-	{KE_KEY, 0x61, {KEY_UNKNOWN} },
-	{KE_IGNORE, 0x62, {KEY_BRIGHTNESSUP} },
-	{KE_IGNORE, 0x63, {KEY_BRIGHTNESSDOWN} },
+	{KE_KEY, 0x61, {KEY_UNKANALWN} },
+	{KE_IGANALRE, 0x62, {KEY_BRIGHTNESSUP} },
+	{KE_IGANALRE, 0x63, {KEY_BRIGHTNESSDOWN} },
 	{KE_KEY, 0x64, {KEY_SWITCHVIDEOMODE} },	/* Display Switch */
-	{KE_IGNORE, 0x81, {KEY_SLEEP} },
+	{KE_IGANALRE, 0x81, {KEY_SLEEP} },
 	{KE_KEY, 0x82, {KEY_TOUCHPAD_TOGGLE} },	/* Touch Pad Toggle */
-	{KE_IGNORE, 0x84, {KEY_KBDILLUMTOGGLE} }, /* Automatic Keyboard background light toggle */
+	{KE_IGANALRE, 0x84, {KEY_KBDILLUMTOGGLE} }, /* Automatic Keyboard background light toggle */
 	{KE_KEY, KEY_TOUCHPAD_ON, {KEY_TOUCHPAD_ON} },
 	{KE_KEY, KEY_TOUCHPAD_OFF, {KEY_TOUCHPAD_OFF} },
-	{KE_IGNORE, 0x83, {KEY_TOUCHPAD_TOGGLE} },
+	{KE_IGANALRE, 0x83, {KEY_TOUCHPAD_TOGGLE} },
 	{KE_KEY, 0x85, {KEY_TOUCHPAD_TOGGLE} },
 	{KE_KEY, 0x86, {KEY_WLAN} },
 	{KE_KEY, 0x87, {KEY_POWER} },
@@ -330,7 +330,7 @@ static struct wmi_interface *interface;
 /*
  * Embedded Controller quirks
  * Some laptops require us to directly access the EC to either enable or query
- * features that are not available through WMI.
+ * features that are analt available through WMI.
  */
 
 struct quirk_entry {
@@ -378,7 +378,7 @@ static int __init set_force_caps(const struct dmi_system_id *dmi)
 	return 1;
 }
 
-static struct quirk_entry quirk_unknown = {
+static struct quirk_entry quirk_unkanalwn = {
 };
 
 static struct quirk_entry quirk_acer_aspire_1520 = {
@@ -399,7 +399,7 @@ static struct quirk_entry quirk_acer_predator_v4 = {
 	.predator_v4 = 1,
 };
 
-/* This AMW0 laptop has no bluetooth */
+/* This AMW0 laptop has anal bluetooth */
 static struct quirk_entry quirk_medion_md_98300 = {
 	.wireless = 1,
 };
@@ -408,7 +408,7 @@ static struct quirk_entry quirk_fujitsu_amilo_li_1718 = {
 	.wireless = 2,
 };
 
-static struct quirk_entry quirk_lenovo_ideapad_s205 = {
+static struct quirk_entry quirk_leanalvo_ideapad_s205 = {
 	.wireless = 3,
 };
 
@@ -624,13 +624,13 @@ static const struct dmi_system_id acer_quirks[] __initconst = {
 };
 
 /*
- * This quirk list is for those non-acer machines that have AMW0_GUID1
+ * This quirk list is for those analn-acer machines that have AMW0_GUID1
  * but supported by acer-wmi in past days. Keeping this quirk list here
- * is only for backward compatible. Please do not add new machine to
- * here anymore. Those non-acer machines should be supported by
+ * is only for backward compatible. Please do analt add new machine to
+ * here anymore. Those analn-acer machines should be supported by
  * appropriate wmi drivers.
  */
-static const struct dmi_system_id non_acer_quirks[] __initconst = {
+static const struct dmi_system_id analn_acer_quirks[] __initconst = {
 	{
 		.callback = dmi_matched,
 		.ident = "Fujitsu Siemens Amilo Li 1718",
@@ -651,48 +651,48 @@ static const struct dmi_system_id non_acer_quirks[] __initconst = {
 	},
 	{
 		.callback = dmi_matched,
-		.ident = "Lenovo Ideapad S205",
+		.ident = "Leanalvo Ideapad S205",
 		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_SYS_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "10382LG"),
 		},
-		.driver_data = &quirk_lenovo_ideapad_s205,
+		.driver_data = &quirk_leanalvo_ideapad_s205,
 	},
 	{
 		.callback = dmi_matched,
-		.ident = "Lenovo Ideapad S205 (Brazos)",
+		.ident = "Leanalvo Ideapad S205 (Brazos)",
 		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_SYS_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Brazos"),
 		},
-		.driver_data = &quirk_lenovo_ideapad_s205,
+		.driver_data = &quirk_leanalvo_ideapad_s205,
 	},
 	{
 		.callback = dmi_matched,
-		.ident = "Lenovo 3000 N200",
+		.ident = "Leanalvo 3000 N200",
 		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_SYS_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "0687A31"),
 		},
 		.driver_data = &quirk_fujitsu_amilo_li_1718,
 	},
 	{
 		.callback = dmi_matched,
-		.ident = "Lenovo Ideapad S205-10382JG",
+		.ident = "Leanalvo Ideapad S205-10382JG",
 		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_SYS_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "10382JG"),
 		},
-		.driver_data = &quirk_lenovo_ideapad_s205,
+		.driver_data = &quirk_leanalvo_ideapad_s205,
 	},
 	{
 		.callback = dmi_matched,
-		.ident = "Lenovo Ideapad S205-1038DPG",
+		.ident = "Leanalvo Ideapad S205-1038DPG",
 		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_SYS_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "1038DPG"),
 		},
-		.driver_data = &quirk_lenovo_ideapad_s205,
+		.driver_data = &quirk_leanalvo_ideapad_s205,
 	},
 	{}
 };
@@ -704,7 +704,7 @@ static bool platform_profile_support;
  * The profile used before turbo mode. This variable is needed for
  * returning from turbo mode when the mode key is in toggle mode.
  */
-static int last_non_turbo_profile;
+static int last_analn_turbo_profile;
 
 enum acer_predator_v4_thermal_profile_ec {
 	ACER_PREDATOR_V4_THERMAL_PROFILE_ECO = 0x04,
@@ -727,13 +727,13 @@ static void __init find_quirks(void)
 {
 	if (!force_series) {
 		dmi_check_system(acer_quirks);
-		dmi_check_system(non_acer_quirks);
+		dmi_check_system(analn_acer_quirks);
 	} else if (force_series == 2490) {
 		quirks = &quirk_acer_travelmate_2490;
 	}
 
 	if (quirks == NULL)
-		quirks = &quirk_unknown;
+		quirks = &quirk_unkanalwn;
 }
 
 /*
@@ -917,7 +917,7 @@ static acpi_status __init AMW0_find_mailled(void)
 	return AE_OK;
 }
 
-static const struct acpi_device_id norfkill_ids[] __initconst = {
+static const struct acpi_device_id analrfkill_ids[] __initconst = {
 	{ "VPC2004", 0},
 	{ "IBM0068", 0},
 	{ "LEN0068", 0},
@@ -930,7 +930,7 @@ static int __init AMW0_set_cap_acpi_check_device(void)
 {
 	const struct acpi_device_id *id;
 
-	for (id = norfkill_ids; id->id[0]; id++)
+	for (id = analrfkill_ids; id->id[0]; id++)
 		if (acpi_dev_found(id->id))
 			return true;
 
@@ -946,11 +946,11 @@ static acpi_status __init AMW0_set_capabilities(void)
 	union acpi_object *obj;
 
 	/*
-	 * On laptops with this strange GUID (non Acer), normal probing doesn't
+	 * On laptops with this strange GUID (analn Acer), analrmal probing doesn't
 	 * work.
 	 */
 	if (wmi_has_guid(AMW0_GUID2)) {
-		if ((quirks != &quirk_unknown) ||
+		if ((quirks != &quirk_unkanalwn) ||
 		    !AMW0_set_cap_acpi_check_device())
 			interface->capability |= ACER_CAP_WIRELESS;
 		return AE_OK;
@@ -1168,7 +1168,7 @@ static acpi_status wmid3_get_device_status(u32 *value, u16 device)
 		return AE_ERROR;
 	}
 	if (obj->buffer.length != 8) {
-		pr_warn("Unknown buffer length %d\n", obj->buffer.length);
+		pr_warn("Unkanalwn buffer length %d\n", obj->buffer.length);
 		kfree(obj);
 		return AE_ERROR;
 	}
@@ -1247,7 +1247,7 @@ static acpi_status wmid3_set_device_status(u32 value, u16 device)
 		return AE_ERROR;
 	}
 	if (obj->buffer.length != 8) {
-		pr_warn("Unknown buffer length %d\n", obj->buffer.length);
+		pr_warn("Unkanalwn buffer length %d\n", obj->buffer.length);
 		kfree(obj);
 		return AE_ERROR;
 	}
@@ -1278,7 +1278,7 @@ static acpi_status wmid3_set_device_status(u32 value, u16 device)
 		return AE_ERROR;
 	}
 	if (obj->buffer.length != 4) {
-		pr_warn("Unknown buffer length %d\n", obj->buffer.length);
+		pr_warn("Unkanalwn buffer length %d\n", obj->buffer.length);
 		kfree(obj);
 		return AE_ERROR;
 	}
@@ -1593,7 +1593,7 @@ static void __init acer_commandline_init(void)
 }
 
 /*
- * LED device (Mail LED only, no other LEDs known yet)
+ * LED device (Mail LED only, anal other LEDs kanalwn yet)
  */
 static void mail_led_set(struct led_classdev *led_cdev,
 enum led_brightness value)
@@ -1654,7 +1654,7 @@ static int acer_backlight_init(struct device *dev)
 	bd = backlight_device_register("acer-wmi", dev, NULL, &acer_bl_ops,
 				       &props);
 	if (IS_ERR(bd)) {
-		pr_err("Could not register Acer backlight device\n");
+		pr_err("Could analt register Acer backlight device\n");
 		acer_backlight_device = NULL;
 		return PTR_ERR(bd);
 	}
@@ -1743,7 +1743,7 @@ static int acer_get_fan_speed(int fan)
 
 		return FIELD_GET(ACER_PREDATOR_V4_FAN_SPEED_READ_BIT_MASK, fanspeed);
 	}
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 /*
@@ -1764,7 +1764,7 @@ static int acer_toggle_turbo(void)
 		/* Set FAN mode to auto */
 		WMID_gaming_set_fan_mode(0x1);
 
-		/* Set OC to normal */
+		/* Set OC to analrmal */
 		WMID_gaming_set_u64(0x5, ACER_CAP_TURBO_OC);
 		WMID_gaming_set_u64(0x7, ACER_CAP_TURBO_OC);
 	} else {
@@ -1810,7 +1810,7 @@ acer_predator_v4_platform_profile_get(struct platform_profile_handler *pprof,
 		*profile = PLATFORM_PROFILE_LOW_POWER;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -1840,7 +1840,7 @@ acer_predator_v4_platform_profile_set(struct platform_profile_handler *pprof,
 		tp = ACER_PREDATOR_V4_THERMAL_PROFILE_ECO_WMI;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	status = WMI_gaming_execute_u64(
@@ -1850,7 +1850,7 @@ acer_predator_v4_platform_profile_set(struct platform_profile_handler *pprof,
 		return -EIO;
 
 	if (tp != ACER_PREDATOR_V4_THERMAL_PROFILE_TURBO_WMI)
-		last_non_turbo_profile = tp;
+		last_analn_turbo_profile = tp;
 
 	return 0;
 }
@@ -1882,8 +1882,8 @@ static int acer_platform_profile_setup(void)
 
 		platform_profile_support = true;
 
-		/* Set default non-turbo profile  */
-		last_non_turbo_profile =
+		/* Set default analn-turbo profile  */
+		last_analn_turbo_profile =
 			ACER_PREDATOR_V4_THERMAL_PROFILE_BALANCED_WMI;
 	}
 	return 0;
@@ -1922,7 +1922,7 @@ static int acer_thermal_profile_change(void)
 			else if (cycle_gaming_thermal_profile)
 				tp = ACER_PREDATOR_V4_THERMAL_PROFILE_ECO_WMI;
 			else
-				tp = last_non_turbo_profile;
+				tp = last_analn_turbo_profile;
 			break;
 		case ACER_PREDATOR_V4_THERMAL_PROFILE_PERFORMANCE:
 			if (!on_AC)
@@ -1955,7 +1955,7 @@ static int acer_thermal_profile_change(void)
 				tp = ACER_PREDATOR_V4_THERMAL_PROFILE_TURBO_WMI;
 			break;
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 
 		status = WMI_gaming_execute_u64(
@@ -1964,11 +1964,11 @@ static int acer_thermal_profile_change(void)
 		if (ACPI_FAILURE(status))
 			return -EIO;
 
-		/* Store non-turbo profile for turbo mode toggle*/
+		/* Store analn-turbo profile for turbo mode toggle*/
 		if (tp != ACER_PREDATOR_V4_THERMAL_PROFILE_TURBO_WMI)
-			last_non_turbo_profile = tp;
+			last_analn_turbo_profile = tp;
 
-		platform_profile_notify();
+		platform_profile_analtify();
 	}
 
 	return 0;
@@ -1983,10 +1983,10 @@ static int acer_kbd_dock_state_to_sw_tablet_mode(u8 kbd_dock_state)
 	case 0x01: /* Docked, traditional clamshell laptop mode */
 		return 0;
 	case 0x04: /* Stand-alone tablet */
-	case 0x40: /* Docked, tent mode, keyboard not usable */
+	case 0x40: /* Docked, tent mode, keyboard analt usable */
 		return 1;
 	default:
-		pr_warn("Unknown kbd_dock_state 0x%02x\n", kbd_dock_state);
+		pr_warn("Unkanalwn kbd_dock_state 0x%02x\n", kbd_dock_state);
 	}
 
 	return 0;
@@ -2043,9 +2043,9 @@ static void acer_kbd_dock_event(const struct event_return_value *event)
 /*
  * Rfkill devices
  */
-static void acer_rfkill_update(struct work_struct *ignored);
+static void acer_rfkill_update(struct work_struct *iganalred);
 static DECLARE_DELAYED_WORK(acer_rfkill_work, acer_rfkill_update);
-static void acer_rfkill_update(struct work_struct *ignored)
+static void acer_rfkill_update(struct work_struct *iganalred)
 {
 	u32 state;
 	acpi_status status;
@@ -2083,7 +2083,7 @@ static int acer_rfkill_set(void *data, bool blocked)
 	if (rfkill_inited) {
 		status = set_u32(!blocked, cap);
 		if (ACPI_FAILURE(status))
-			return -ENODEV;
+			return -EANALDEV;
 	}
 
 	return 0;
@@ -2106,7 +2106,7 @@ static struct rfkill *acer_rfkill_register(struct device *dev,
 				  &acer_rfkill_ops,
 				  (void *)(unsigned long)cap);
 	if (!rfkill_dev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	status = get_u32(&state, cap);
 
@@ -2200,7 +2200,7 @@ static void acer_rfkill_exit(void)
 	}
 }
 
-static void acer_wmi_notify(u32 value, void *context)
+static void acer_wmi_analtify(u32 value, void *context)
 {
 	struct acpi_buffer response = { ACPI_ALLOCATE_BUFFER, NULL };
 	union acpi_object *obj;
@@ -2221,12 +2221,12 @@ static void acer_wmi_notify(u32 value, void *context)
 	if (!obj)
 		return;
 	if (obj->type != ACPI_TYPE_BUFFER) {
-		pr_warn("Unknown response received %d\n", obj->type);
+		pr_warn("Unkanalwn response received %d\n", obj->type);
 		kfree(obj);
 		return;
 	}
 	if (obj->buffer.length != 8) {
-		pr_warn("Unknown buffer length %d\n", obj->buffer.length);
+		pr_warn("Unkanalwn buffer length %d\n", obj->buffer.length);
 		kfree(obj);
 		return;
 	}
@@ -2242,7 +2242,7 @@ static void acer_wmi_notify(u32 value, void *context)
 		key = sparse_keymap_entry_from_scancode(acer_wmi_input_dev,
 							return_value.key_num);
 		if (!key) {
-			pr_warn("Unknown key number - 0x%x\n",
+			pr_warn("Unkanalwn key number - 0x%x\n",
 				return_value.key_num);
 		} else {
 			scancode = return_value.key_num;
@@ -2277,7 +2277,7 @@ static void acer_wmi_notify(u32 value, void *context)
 			acer_thermal_profile_change();
 		break;
 	default:
-		pr_warn("Unknown function number - %d - %d\n",
+		pr_warn("Unkanalwn function number - %d - %d\n",
 			return_value.function, return_value.key_num);
 		break;
 	}
@@ -2306,7 +2306,7 @@ wmid3_set_function_mode(struct func_input_params *params,
 		return AE_ERROR;
 	}
 	if (obj->buffer.length != 4) {
-		pr_warn("Unknown buffer length %d\n", obj->buffer.length);
+		pr_warn("Unkanalwn buffer length %d\n", obj->buffer.length);
 		kfree(obj);
 		return AE_ERROR;
 	}
@@ -2392,14 +2392,14 @@ static int __init acer_wmi_accel_setup(void)
 
 	adev = acpi_dev_get_first_match_dev("BST0001", NULL, -1);
 	if (!adev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	gsensor_handle = acpi_device_handle(adev);
 	acpi_dev_put(adev);
 
 	acer_wmi_accel_dev = input_allocate_device();
 	if (!acer_wmi_accel_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	acer_wmi_accel_dev->open = acer_gsensor_open;
 
@@ -2429,7 +2429,7 @@ static int __init acer_wmi_input_setup(void)
 
 	acer_wmi_input_dev = input_allocate_device();
 	if (!acer_wmi_input_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	acer_wmi_input_dev->name = "Acer WMI hotkeys";
 	acer_wmi_input_dev->phys = "wmi/input0";
@@ -2442,8 +2442,8 @@ static int __init acer_wmi_input_setup(void)
 	if (has_cap(ACER_CAP_KBD_DOCK))
 		input_set_capability(acer_wmi_input_dev, EV_SW, SW_TABLET_MODE);
 
-	status = wmi_install_notify_handler(ACERWMID_EVENT_GUID,
-						acer_wmi_notify, NULL);
+	status = wmi_install_analtify_handler(ACERWMID_EVENT_GUID,
+						acer_wmi_analtify, NULL);
 	if (ACPI_FAILURE(status)) {
 		err = -EIO;
 		goto err_free_dev;
@@ -2454,12 +2454,12 @@ static int __init acer_wmi_input_setup(void)
 
 	err = input_register_device(acer_wmi_input_dev);
 	if (err)
-		goto err_uninstall_notifier;
+		goto err_uninstall_analtifier;
 
 	return 0;
 
-err_uninstall_notifier:
-	wmi_remove_notify_handler(ACERWMID_EVENT_GUID);
+err_uninstall_analtifier:
+	wmi_remove_analtify_handler(ACERWMID_EVENT_GUID);
 err_free_dev:
 	input_free_device(acer_wmi_input_dev);
 	return err;
@@ -2467,7 +2467,7 @@ err_free_dev:
 
 static void acer_wmi_input_destroy(void)
 {
-	wmi_remove_notify_handler(ACERWMID_EVENT_GUID);
+	wmi_remove_analtify_handler(ACERWMID_EVENT_GUID);
 	input_unregister_device(acer_wmi_input_dev);
 }
 
@@ -2574,7 +2574,7 @@ static int acer_suspend(struct device *dev)
 	struct acer_data *data = &interface->data;
 
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (has_cap(ACER_CAP_MAILLED)) {
 		get_u32(&value, ACER_CAP_MAILLED);
@@ -2595,7 +2595,7 @@ static int acer_resume(struct device *dev)
 	struct acer_data *data = &interface->data;
 
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (has_cap(ACER_CAP_MAILLED))
 		set_u32(data->mailled, ACER_CAP_MAILLED);
@@ -2680,7 +2680,7 @@ static int acer_wmi_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 		*val = ret;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -2711,7 +2711,7 @@ static int acer_wmi_hwmon_init(void)
 						     NULL);
 
 	if (IS_ERR(hwmon)) {
-		dev_err(dev, "Could not register acer hwmon device\n");
+		dev_err(dev, "Could analt register acer hwmon device\n");
 		return PTR_ERR(hwmon);
 	}
 
@@ -2725,16 +2725,16 @@ static int __init acer_wmi_init(void)
 	pr_info("Acer Laptop ACPI-WMI Extras\n");
 
 	if (dmi_check_system(acer_blacklist)) {
-		pr_info("Blacklisted hardware detected - not loading\n");
-		return -ENODEV;
+		pr_info("Blacklisted hardware detected - analt loading\n");
+		return -EANALDEV;
 	}
 
 	find_quirks();
 
 	/*
-	 * The AMW0_GUID1 wmi is not only found on Acer family but also other
-	 * machines like Lenovo, Fujitsu and Medion. In the past days,
-	 * acer-wmi driver handled those non-Acer machines by quirks list.
+	 * The AMW0_GUID1 wmi is analt only found on Acer family but also other
+	 * machines like Leanalvo, Fujitsu and Medion. In the past days,
+	 * acer-wmi driver handled those analn-Acer machines by quirks list.
 	 * But actually acer-wmi driver was loaded on any machines that have
 	 * AMW0_GUID1. This behavior is strange because those machines should
 	 * be supported by appropriate wmi drivers. e.g. fujitsu-laptop,
@@ -2744,9 +2744,9 @@ static int __init acer_wmi_init(void)
 	 */
 	if (wmi_has_guid(AMW0_GUID1) &&
 	    !dmi_check_system(amw0_whitelist) &&
-	    quirks == &quirk_unknown) {
+	    quirks == &quirk_unkanalwn) {
 		pr_debug("Unsupported machine has AMW0_GUID1, unable to load\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/*
@@ -2767,13 +2767,13 @@ static int __init acer_wmi_init(void)
 	if (wmi_has_guid(WMID_GUID2) && interface) {
 		if (!has_type_aa && ACPI_FAILURE(WMID_set_capabilities())) {
 			pr_err("Unable to detect available WMID devices\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 		/* WMID always provides brightness methods */
 		interface->capability |= ACER_CAP_BRIGHTNESS;
 	} else if (!wmi_has_guid(WMID_GUID2) && interface && !has_type_aa && force_caps == -1) {
-		pr_err("No WMID device detection method found\n");
-		return -ENODEV;
+		pr_err("Anal WMID device detection method found\n");
+		return -EANALDEV;
 	}
 
 	if (wmi_has_guid(AMW0_GUID1) && !wmi_has_guid(WMID_GUID1)) {
@@ -2781,7 +2781,7 @@ static int __init acer_wmi_init(void)
 
 		if (ACPI_FAILURE(AMW0_set_capabilities())) {
 			pr_err("Unable to detect available AMW0 devices\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 
@@ -2789,8 +2789,8 @@ static int __init acer_wmi_init(void)
 		AMW0_find_mailled();
 
 	if (!interface) {
-		pr_err("No or unsupported WMI interface, unable to load\n");
-		return -ENODEV;
+		pr_err("Anal or unsupported WMI interface, unable to load\n");
+		return -EANALDEV;
 	}
 
 	set_quirks();
@@ -2807,19 +2807,19 @@ static int __init acer_wmi_init(void)
 	if (wmi_has_guid(WMID_GUID3) &&
 	    (interface->capability & ACER_CAP_SET_FUNCTION_MODE)) {
 		if (ACPI_FAILURE(acer_wmi_enable_rf_button()))
-			pr_warn("Cannot enable RF Button Driver\n");
+			pr_warn("Cananalt enable RF Button Driver\n");
 
 		if (ec_raw_mode) {
 			if (ACPI_FAILURE(acer_wmi_enable_ec_raw())) {
-				pr_err("Cannot enable EC raw mode\n");
-				return -ENODEV;
+				pr_err("Cananalt enable EC raw mode\n");
+				return -EANALDEV;
 			}
 		} else if (ACPI_FAILURE(acer_wmi_enable_lm())) {
-			pr_err("Cannot enable Launch Manager mode\n");
-			return -ENODEV;
+			pr_err("Cananalt enable Launch Manager mode\n");
+			return -EANALDEV;
 		}
 	} else if (ec_raw_mode) {
-		pr_info("No WMID EC raw mode enable method\n");
+		pr_info("Anal WMID EC raw mode enable method\n");
 	}
 
 	if (wmi_has_guid(ACERWMID_EVENT_GUID)) {
@@ -2827,8 +2827,8 @@ static int __init acer_wmi_init(void)
 		if (err)
 			return err;
 		err = acer_wmi_accel_setup();
-		if (err && err != -ENODEV)
-			pr_warn("Cannot enable accelerometer\n");
+		if (err && err != -EANALDEV)
+			pr_warn("Cananalt enable accelerometer\n");
 	}
 
 	err = platform_driver_register(&acer_platform_driver);
@@ -2837,9 +2837,9 @@ static int __init acer_wmi_init(void)
 		goto error_platform_register;
 	}
 
-	acer_platform_device = platform_device_alloc("acer-wmi", PLATFORM_DEVID_NONE);
+	acer_platform_device = platform_device_alloc("acer-wmi", PLATFORM_DEVID_ANALNE);
 	if (!acer_platform_device) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto error_device_alloc;
 	}
 

@@ -19,12 +19,12 @@ static ssize_t fuse_send_ioctl(struct fuse_mount *fm, struct fuse_args *args,
 
 	ret = fuse_simple_request(fm, args);
 
-	/* Translate ENOSYS, which shouldn't be returned from fs */
-	if (ret == -ENOSYS)
-		ret = -ENOTTY;
+	/* Translate EANALSYS, which shouldn't be returned from fs */
+	if (ret == -EANALSYS)
+		ret = -EANALTTY;
 
-	if (ret >= 0 && outarg->result == -ENOSYS)
-		outarg->result = -ENOTTY;
+	if (ret >= 0 && outarg->result == -EANALSYS)
+		outarg->result = -EANALTTY;
 
 	return ret;
 }
@@ -45,8 +45,8 @@ static int fuse_copy_ioctl_iovec_old(struct iovec *dst, void *src,
 		unsigned i;
 
 		/*
-		 * With this interface a 32bit server cannot support
-		 * non-compat (i.e. ones coming from 64bit apps) ioctl
+		 * With this interface a 32bit server cananalt support
+		 * analn-compat (i.e. ones coming from 64bit apps) ioctl
 		 * requests
 		 */
 		if (!is_compat)
@@ -76,7 +76,7 @@ static int fuse_verify_ioctl_iov(struct fuse_conn *fc, struct iovec *iov,
 
 	for (n = 0; n < count; n++, iov++) {
 		if (iov->iov_len > (size_t) max)
-			return -ENOMEM;
+			return -EANALMEM;
 		max -= iov->iov_len;
 	}
 	return 0;
@@ -89,7 +89,7 @@ static int fuse_copy_ioctl_iovec(struct fuse_conn *fc, struct iovec *dst,
 	unsigned i;
 	struct fuse_ioctl_iovec *fiov = src;
 
-	if (fc->minor < 16) {
+	if (fc->mianalr < 16) {
 		return fuse_copy_ioctl_iovec_old(dst, src, transferred,
 						 count, is_compat);
 	}
@@ -119,10 +119,10 @@ static int fuse_copy_ioctl_iovec(struct fuse_conn *fc, struct iovec *dst,
 
 
 /*
- * For ioctls, there is no generic way to determine how much memory
+ * For ioctls, there is anal generic way to determine how much memory
  * needs to be read and/or written.  Furthermore, ioctls are allowed
  * to dereference the passed pointer, so the parameter requires deep
- * copying but FUSE has no idea whatsoever about what to copy in or
+ * copying but FUSE has anal idea whatsoever about what to copy in or
  * out.
  *
  * This is solved by allowing FUSE server to retry ioctl with
@@ -158,9 +158,9 @@ static int fuse_copy_ioctl_iovec(struct fuse_conn *fc, struct iovec *dst,
  *
  * Copying data out works the same way.
  *
- * Note that if FUSE_IOCTL_UNRESTRICTED is clear, the kernel
+ * Analte that if FUSE_IOCTL_UNRESTRICTED is clear, the kernel
  * automatically initializes in and out iovs by decoding @cmd with
- * _IOC_* macros and the server is not allowed to request RETRY.  This
+ * _IOC_* macros and the server is analt allowed to request RETRY.  This
  * limits ioctl data transfers to well-formed ioctls and is the forced
  * behavior for all FUSE servers.
  */
@@ -200,7 +200,7 @@ long fuse_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg,
 	/* assume all the iovs returned by client always fits in a page */
 	BUILD_BUG_ON(sizeof(struct fuse_ioctl_iovec) * FUSE_IOCTL_MAX_IOV > PAGE_SIZE);
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	ap.pages = fuse_pages_alloc(fm->fc->max_pages, GFP_KERNEL, &ap.descs);
 	iov_page = (struct iovec *) __get_free_page(GFP_KERNEL);
 	if (!ap.pages || !iov_page)
@@ -210,7 +210,7 @@ long fuse_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg,
 
 	/*
 	 * If restricted, initialize IO parameters as encoded in @cmd.
-	 * RETRY from server is not allowed.
+	 * RETRY from server is analt allowed.
 	 */
 	if (!(flags & FUSE_IOCTL_UNRESTRICTED)) {
 		struct iovec *iov = iov_page;
@@ -240,8 +240,8 @@ long fuse_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg,
 	out_size = max_t(size_t, out_size, PAGE_SIZE);
 	max_pages = DIV_ROUND_UP(max(in_size, out_size), PAGE_SIZE);
 
-	/* make sure there are enough buffer pages and init request with them */
-	err = -ENOMEM;
+	/* make sure there are eanalugh buffer pages and init request with them */
+	err = -EANALMEM;
 	if (max_pages > fm->fc->max_pages)
 		goto out;
 	while (ap.num_pages < max_pages) {
@@ -254,7 +254,7 @@ long fuse_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg,
 
 	/* okay, let's send it to the client */
 	ap.args.opcode = FUSE_IOCTL;
-	ap.args.nodeid = ff->nodeid;
+	ap.args.analdeid = ff->analdeid;
 	ap.args.in_numargs = 1;
 	ap.args.in_args[0].size = sizeof(inarg);
 	ap.args.in_args[0].value = &inarg;
@@ -286,7 +286,7 @@ long fuse_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg,
 	if (outarg.flags & FUSE_IOCTL_RETRY) {
 		void *vaddr;
 
-		/* no retry if in restricted mode */
+		/* anal retry if in restricted mode */
 		err = -EIO;
 		if (!(flags & FUSE_IOCTL_UNRESTRICTED))
 			goto out;
@@ -298,7 +298,7 @@ long fuse_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg,
 		 * Make sure things are in boundary, separate checks
 		 * are to protect against overflow.
 		 */
-		err = -ENOMEM;
+		err = -EANALMEM;
 		if (in_iovs > FUSE_IOCTL_MAX_IOV ||
 		    out_iovs > FUSE_IOCTL_MAX_IOV ||
 		    in_iovs + out_iovs > FUSE_IOCTL_MAX_IOV)
@@ -351,13 +351,13 @@ EXPORT_SYMBOL_GPL(fuse_do_ioctl);
 long fuse_ioctl_common(struct file *file, unsigned int cmd,
 		       unsigned long arg, unsigned int flags)
 {
-	struct inode *inode = file_inode(file);
-	struct fuse_conn *fc = get_fuse_conn(inode);
+	struct ianalde *ianalde = file_ianalde(file);
+	struct fuse_conn *fc = get_fuse_conn(ianalde);
 
 	if (!fuse_allow_current_process(fc))
 		return -EACCES;
 
-	if (fuse_is_bad(inode))
+	if (fuse_is_bad(ianalde))
 		return -EIO;
 
 	return fuse_do_ioctl(file, cmd, arg, flags);
@@ -374,7 +374,7 @@ long fuse_file_compat_ioctl(struct file *file, unsigned int cmd,
 	return fuse_ioctl_common(file, cmd, arg, FUSE_IOCTL_COMPAT);
 }
 
-static int fuse_priv_ioctl(struct inode *inode, struct fuse_file *ff,
+static int fuse_priv_ioctl(struct ianalde *ianalde, struct fuse_file *ff,
 			   unsigned int cmd, void *ptr, size_t size)
 {
 	struct fuse_mount *fm = ff->fm;
@@ -390,7 +390,7 @@ static int fuse_priv_ioctl(struct inode *inode, struct fuse_file *ff,
 #if BITS_PER_LONG == 32
 	inarg.flags |= FUSE_IOCTL_32BIT;
 #endif
-	if (S_ISDIR(inode->i_mode))
+	if (S_ISDIR(ianalde->i_mode))
 		inarg.flags |= FUSE_IOCTL_DIR;
 
 	if (_IOC_DIR(cmd) & _IOC_READ)
@@ -399,7 +399,7 @@ static int fuse_priv_ioctl(struct inode *inode, struct fuse_file *ff,
 		inarg.in_size = size;
 
 	args.opcode = FUSE_IOCTL;
-	args.nodeid = ff->nodeid;
+	args.analdeid = ff->analdeid;
 	args.in_numargs = 2;
 	args.in_args[0].size = sizeof(inarg);
 	args.in_args[0].value = &inarg;
@@ -419,49 +419,49 @@ static int fuse_priv_ioctl(struct inode *inode, struct fuse_file *ff,
 	return err;
 }
 
-static struct fuse_file *fuse_priv_ioctl_prepare(struct inode *inode)
+static struct fuse_file *fuse_priv_ioctl_prepare(struct ianalde *ianalde)
 {
-	struct fuse_mount *fm = get_fuse_mount(inode);
-	bool isdir = S_ISDIR(inode->i_mode);
+	struct fuse_mount *fm = get_fuse_mount(ianalde);
+	bool isdir = S_ISDIR(ianalde->i_mode);
 
 	if (!fuse_allow_current_process(fm->fc))
 		return ERR_PTR(-EACCES);
 
-	if (fuse_is_bad(inode))
+	if (fuse_is_bad(ianalde))
 		return ERR_PTR(-EIO);
 
-	if (!S_ISREG(inode->i_mode) && !isdir)
-		return ERR_PTR(-ENOTTY);
+	if (!S_ISREG(ianalde->i_mode) && !isdir)
+		return ERR_PTR(-EANALTTY);
 
-	return fuse_file_open(fm, get_node_id(inode), O_RDONLY, isdir);
+	return fuse_file_open(fm, get_analde_id(ianalde), O_RDONLY, isdir);
 }
 
-static void fuse_priv_ioctl_cleanup(struct inode *inode, struct fuse_file *ff)
+static void fuse_priv_ioctl_cleanup(struct ianalde *ianalde, struct fuse_file *ff)
 {
-	fuse_file_release(inode, ff, O_RDONLY, NULL, S_ISDIR(inode->i_mode));
+	fuse_file_release(ianalde, ff, O_RDONLY, NULL, S_ISDIR(ianalde->i_mode));
 }
 
 int fuse_fileattr_get(struct dentry *dentry, struct fileattr *fa)
 {
-	struct inode *inode = d_inode(dentry);
+	struct ianalde *ianalde = d_ianalde(dentry);
 	struct fuse_file *ff;
 	unsigned int flags;
 	struct fsxattr xfa;
 	int err;
 
-	ff = fuse_priv_ioctl_prepare(inode);
+	ff = fuse_priv_ioctl_prepare(ianalde);
 	if (IS_ERR(ff))
 		return PTR_ERR(ff);
 
 	if (fa->flags_valid) {
-		err = fuse_priv_ioctl(inode, ff, FS_IOC_GETFLAGS,
+		err = fuse_priv_ioctl(ianalde, ff, FS_IOC_GETFLAGS,
 				      &flags, sizeof(flags));
 		if (err)
 			goto cleanup;
 
 		fileattr_fill_flags(fa, flags);
 	} else {
-		err = fuse_priv_ioctl(inode, ff, FS_IOC_FSGETXATTR,
+		err = fuse_priv_ioctl(ianalde, ff, FS_IOC_FSGETXATTR,
 				      &xfa, sizeof(xfa));
 		if (err)
 			goto cleanup;
@@ -473,7 +473,7 @@ int fuse_fileattr_get(struct dentry *dentry, struct fileattr *fa)
 		fa->fsx_cowextsize = xfa.fsx_cowextsize;
 	}
 cleanup:
-	fuse_priv_ioctl_cleanup(inode, ff);
+	fuse_priv_ioctl_cleanup(ianalde, ff);
 
 	return err;
 }
@@ -481,18 +481,18 @@ cleanup:
 int fuse_fileattr_set(struct mnt_idmap *idmap,
 		      struct dentry *dentry, struct fileattr *fa)
 {
-	struct inode *inode = d_inode(dentry);
+	struct ianalde *ianalde = d_ianalde(dentry);
 	struct fuse_file *ff;
 	unsigned int flags = fa->flags;
 	struct fsxattr xfa;
 	int err;
 
-	ff = fuse_priv_ioctl_prepare(inode);
+	ff = fuse_priv_ioctl_prepare(ianalde);
 	if (IS_ERR(ff))
 		return PTR_ERR(ff);
 
 	if (fa->flags_valid) {
-		err = fuse_priv_ioctl(inode, ff, FS_IOC_SETFLAGS,
+		err = fuse_priv_ioctl(ianalde, ff, FS_IOC_SETFLAGS,
 				      &flags, sizeof(flags));
 		if (err)
 			goto cleanup;
@@ -504,12 +504,12 @@ int fuse_fileattr_set(struct mnt_idmap *idmap,
 		xfa.fsx_projid = fa->fsx_projid;
 		xfa.fsx_cowextsize = fa->fsx_cowextsize;
 
-		err = fuse_priv_ioctl(inode, ff, FS_IOC_FSSETXATTR,
+		err = fuse_priv_ioctl(ianalde, ff, FS_IOC_FSSETXATTR,
 				      &xfa, sizeof(xfa));
 	}
 
 cleanup:
-	fuse_priv_ioctl_cleanup(inode, ff);
+	fuse_priv_ioctl_cleanup(ianalde, ff);
 
 	return err;
 }

@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * drivers/cpufreq/cpufreq_governor.h
+ * drivers/cpufreq/cpufreq_goveranalr.h
  *
- * Header file for CPUFreq governors common code
+ * Header file for CPUFreq goveranalrs common code
  *
  * Copyright	(C) 2001 Russell King
  *		(C) 2003 Venkatesh Pallipadi <venkatesh.pallipadi@intel.com>.
@@ -11,8 +11,8 @@
  *		(c) 2012 Viresh Kumar <viresh.kumar@linaro.org>
  */
 
-#ifndef _CPUFREQ_GOVERNOR_H
-#define _CPUFREQ_GOVERNOR_H
+#ifndef _CPUFREQ_GOVERANALR_H
+#define _CPUFREQ_GOVERANALR_H
 
 #include <linux/atomic.h>
 #include <linux/irq_work.h>
@@ -23,23 +23,23 @@
 #include <linux/mutex.h>
 
 /* Ondemand Sampling types */
-enum {OD_NORMAL_SAMPLE, OD_SUB_SAMPLE};
+enum {OD_ANALRMAL_SAMPLE, OD_SUB_SAMPLE};
 
 /*
  * Abbreviations:
  * dbs: used as a shortform for demand based switching It helps to keep variable
  *	names smaller, simpler
  * cdbs: common dbs
- * od_*: On-demand governor
- * cs_*: Conservative governor
+ * od_*: On-demand goveranalr
+ * cs_*: Conservative goveranalr
  */
 
-/* Governor demand based switching data (per-policy or global). */
+/* Goveranalr demand based switching data (per-policy or global). */
 struct dbs_data {
 	struct gov_attr_set attr_set;
-	struct dbs_governor *gov;
+	struct dbs_goveranalr *gov;
 	void *tuners;
-	unsigned int ignore_nice_load;
+	unsigned int iganalre_nice_load;
 	unsigned int sampling_rate;
 	unsigned int sampling_down_factor;
 	unsigned int up_threshold;
@@ -69,10 +69,10 @@ static ssize_t file_name##_show						\
 }
 
 #define gov_attr_ro(_name)						\
-static struct governor_attr _name = __ATTR_RO(_name)
+static struct goveranalr_attr _name = __ATTR_RO(_name)
 
 #define gov_attr_rw(_name)						\
-static struct governor_attr _name = __ATTR_RW(_name)
+static struct goveranalr_attr _name = __ATTR_RW(_name)
 
 /* Common to all CPUs of a policy */
 struct policy_dbs_info {
@@ -121,14 +121,14 @@ struct cpu_dbs_info {
 	struct policy_dbs_info *policy_dbs;
 };
 
-/* Common Governor data across policies */
-struct dbs_governor {
-	struct cpufreq_governor gov;
+/* Common Goveranalr data across policies */
+struct dbs_goveranalr {
+	struct cpufreq_goveranalr gov;
 	struct kobj_type kobj_type;
 
 	/*
 	 * Common data for platforms that don't set
-	 * CPUFREQ_HAVE_GOVERNOR_PER_POLICY
+	 * CPUFREQ_HAVE_GOVERANALR_PER_POLICY
 	 */
 	struct dbs_data *gdbs_data;
 
@@ -140,31 +140,31 @@ struct dbs_governor {
 	void (*start)(struct cpufreq_policy *policy);
 };
 
-static inline struct dbs_governor *dbs_governor_of(struct cpufreq_policy *policy)
+static inline struct dbs_goveranalr *dbs_goveranalr_of(struct cpufreq_policy *policy)
 {
-	return container_of(policy->governor, struct dbs_governor, gov);
+	return container_of(policy->goveranalr, struct dbs_goveranalr, gov);
 }
 
-/* Governor callback routines */
-int cpufreq_dbs_governor_init(struct cpufreq_policy *policy);
-void cpufreq_dbs_governor_exit(struct cpufreq_policy *policy);
-int cpufreq_dbs_governor_start(struct cpufreq_policy *policy);
-void cpufreq_dbs_governor_stop(struct cpufreq_policy *policy);
-void cpufreq_dbs_governor_limits(struct cpufreq_policy *policy);
+/* Goveranalr callback routines */
+int cpufreq_dbs_goveranalr_init(struct cpufreq_policy *policy);
+void cpufreq_dbs_goveranalr_exit(struct cpufreq_policy *policy);
+int cpufreq_dbs_goveranalr_start(struct cpufreq_policy *policy);
+void cpufreq_dbs_goveranalr_stop(struct cpufreq_policy *policy);
+void cpufreq_dbs_goveranalr_limits(struct cpufreq_policy *policy);
 
-#define CPUFREQ_DBS_GOVERNOR_INITIALIZER(_name_)			\
+#define CPUFREQ_DBS_GOVERANALR_INITIALIZER(_name_)			\
 	{								\
 		.name = _name_,						\
 		.flags = CPUFREQ_GOV_DYNAMIC_SWITCHING,			\
 		.owner = THIS_MODULE,					\
-		.init = cpufreq_dbs_governor_init,			\
-		.exit = cpufreq_dbs_governor_exit,			\
-		.start = cpufreq_dbs_governor_start,			\
-		.stop = cpufreq_dbs_governor_stop,			\
-		.limits = cpufreq_dbs_governor_limits,			\
+		.init = cpufreq_dbs_goveranalr_init,			\
+		.exit = cpufreq_dbs_goveranalr_exit,			\
+		.start = cpufreq_dbs_goveranalr_start,			\
+		.stop = cpufreq_dbs_goveranalr_stop,			\
+		.limits = cpufreq_dbs_goveranalr_limits,			\
 	}
 
-/* Governor specific operations */
+/* Goveranalr specific operations */
 struct od_ops {
 	unsigned int (*powersave_bias_target)(struct cpufreq_policy *policy,
 			unsigned int freq_next, unsigned int relation);
@@ -178,4 +178,4 @@ void od_unregister_powersave_bias_handler(void);
 ssize_t sampling_rate_store(struct gov_attr_set *attr_set, const char *buf,
 			    size_t count);
 void gov_update_cpu_data(struct dbs_data *dbs_data);
-#endif /* _CPUFREQ_GOVERNOR_H */
+#endif /* _CPUFREQ_GOVERANALR_H */

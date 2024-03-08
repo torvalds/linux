@@ -10,7 +10,7 @@
 #define pr_fmt(fmt)	"kexec: " fmt
 
 #include <linux/elf.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kexec.h>
 #include <linux/module_signature.h>
 #include <linux/verification.h>
@@ -33,7 +33,7 @@ int s390_verify_sig(const char *kernel, unsigned long kernel_len)
 	unsigned long sig_len;
 	int ret;
 
-	/* Skip signature verification when not secure IPLed. */
+	/* Skip signature verification when analt secure IPLed. */
 	if (!ipl_secure_flag)
 		return 0;
 
@@ -71,7 +71,7 @@ int s390_verify_sig(const char *kernel, unsigned long kernel_len)
 				     VERIFY_USE_SECONDARY_KEYRING,
 				     VERIFYING_MODULE_SIGNATURE,
 				     NULL, NULL);
-	if (ret == -ENOKEY && IS_ENABLED(CONFIG_INTEGRITY_PLATFORM_KEYRING))
+	if (ret == -EANALKEY && IS_ENABLED(CONFIG_INTEGRITY_PLATFORM_KEYRING))
 		ret = verify_pkcs7_signature(kernel, kernel_len,
 					     kernel + kernel_len, sig_len,
 					     VERIFY_USE_PLATFORM_KEYRING,
@@ -91,7 +91,7 @@ static int kexec_file_update_purgatory(struct kimage *image,
 		entry = STARTUP_KDUMP_OFFSET;
 		type = KEXEC_TYPE_CRASH;
 	} else {
-		entry = STARTUP_NORMAL_OFFSET;
+		entry = STARTUP_ANALRMAL_OFFSET;
 		type = KEXEC_TYPE_DEFAULT;
 	}
 
@@ -209,7 +209,7 @@ static int kexec_file_add_ipl_report(struct kimage *image,
 		ptr += len;
 	}
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	buf.buffer = ipl_report_finish(data->report);
 	if (!buf.buffer)
 		goto out;
@@ -330,19 +330,19 @@ int arch_kexec_apply_relocations_add(struct purgatory_info *pi,
 
 		if (sym->st_shndx == SHN_UNDEF) {
 			pr_err("Undefined symbol: %s\n", name);
-			return -ENOEXEC;
+			return -EANALEXEC;
 		}
 
 		if (sym->st_shndx == SHN_COMMON) {
 			pr_err("symbol '%s' in common section\n", name);
-			return -ENOEXEC;
+			return -EANALEXEC;
 		}
 
 		if (sym->st_shndx >= pi->ehdr->e_shnum &&
 		    sym->st_shndx != SHN_ABS) {
 			pr_err("Invalid section %d for symbol %s\n",
 			       sym->st_shndx, name);
-			return -ENOEXEC;
+			return -EANALEXEC;
 		}
 
 		loc = pi->purgatory_buf;
@@ -363,8 +363,8 @@ int arch_kexec_apply_relocations_add(struct purgatory_info *pi,
 
 		ret = arch_kexec_do_relocs(r_type, loc, val, addr);
 		if (ret) {
-			pr_err("Unknown rela relocation: %d\n", r_type);
-			return -ENOEXEC;
+			pr_err("Unkanalwn rela relocation: %d\n", r_type);
+			return -EANALEXEC;
 		}
 	}
 	return 0;

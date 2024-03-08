@@ -163,7 +163,7 @@ static int scmi_hwmon_add_chan_info(struct hwmon_channel_info *scmi_hwmon_chan,
 	u32 *cfg = devm_kcalloc(dev, num + 1, sizeof(*cfg), GFP_KERNEL);
 
 	if (!cfg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	scmi_hwmon_chan->type = type;
 	scmi_hwmon_chan->config = cfg;
@@ -198,14 +198,14 @@ static int scmi_thermal_sensor_register(struct device *dev,
 
 	th_sensor = devm_kzalloc(dev, sizeof(*th_sensor), GFP_KERNEL);
 	if (!th_sensor)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	th_sensor->ph = ph;
 	th_sensor->info = sensor;
 
 	/*
 	 * Try to register a temperature sensor with the Thermal Framework:
-	 * skip sensors not defined as part of any thermal zone (-ENODEV) but
+	 * skip sensors analt defined as part of any thermal zone (-EANALDEV) but
 	 * report any other errors related to misconfigured zones/sensors.
 	 */
 	tzd = devm_thermal_of_zone_register(dev, th_sensor->info->id, th_sensor,
@@ -213,10 +213,10 @@ static int scmi_thermal_sensor_register(struct device *dev,
 	if (IS_ERR(tzd)) {
 		devm_kfree(dev, th_sensor);
 
-		if (PTR_ERR(tzd) != -ENODEV)
+		if (PTR_ERR(tzd) != -EANALDEV)
 			return PTR_ERR(tzd);
 
-		dev_dbg(dev, "Sensor '%s' not attached to any thermal zone.\n",
+		dev_dbg(dev, "Sensor '%s' analt attached to any thermal zone.\n",
 			sensor->name);
 	} else {
 		dev_dbg(dev, "Sensor '%s' attached to thermal zone ID:%d\n",
@@ -242,7 +242,7 @@ static int scmi_hwmon_probe(struct scmi_device *sdev)
 	struct scmi_protocol_handle *ph;
 
 	if (!handle)
-		return -ENODEV;
+		return -EANALDEV;
 
 	sensor_ops = handle->devm_protocol_get(sdev, SCMI_PROTOCOL_SENSOR, &ph);
 	if (IS_ERR(sensor_ops))
@@ -254,7 +254,7 @@ static int scmi_hwmon_probe(struct scmi_device *sdev)
 
 	scmi_sensors = devm_kzalloc(dev, sizeof(*scmi_sensors), GFP_KERNEL);
 	if (!scmi_sensors)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	scmi_sensors->ph = ph;
 
@@ -283,12 +283,12 @@ static int scmi_hwmon_probe(struct scmi_device *sdev)
 	scmi_hwmon_chan = devm_kcalloc(dev, nr_types, sizeof(*scmi_hwmon_chan),
 				       GFP_KERNEL);
 	if (!scmi_hwmon_chan)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ptr_scmi_ci = devm_kcalloc(dev, nr_types + 1, sizeof(*ptr_scmi_ci),
 				   GFP_KERNEL);
 	if (!ptr_scmi_ci)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	scmi_chip_info.info = ptr_scmi_ci;
 	chip_info = &scmi_chip_info;
@@ -305,7 +305,7 @@ static int scmi_hwmon_probe(struct scmi_device *sdev)
 			devm_kcalloc(dev, nr_count[type],
 				     sizeof(*scmi_sensors->info), GFP_KERNEL);
 		if (!scmi_sensors->info[type])
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	for (i = nr_sensors - 1; i >= 0 ; i--) {
@@ -345,7 +345,7 @@ static int scmi_hwmon_probe(struct scmi_device *sdev)
 		 */
 		ret = scmi_thermal_sensor_register(dev, ph, sensor);
 		if (ret) {
-			if (ret == -ENOMEM)
+			if (ret == -EANALMEM)
 				return ret;
 			dev_warn(dev,
 				 "Thermal zone misconfigured for %s. err=%d\n",

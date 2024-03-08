@@ -448,7 +448,7 @@ static const struct mtk_pin_desc mtk_pins_mt8186[] = {
 		MTK_FUNCTION(1, "SPI0_CLK_A"),
 		MTK_FUNCTION(2, "CLKM0"),
 		MTK_FUNCTION(4, "SCP_SPI0_CK"),
-		MTK_FUNCTION(5, "SPINOR_CK"),
+		MTK_FUNCTION(5, "SPIANALR_CK"),
 		MTK_FUNCTION(7, "dbg_mon_a11")
 	),
 
@@ -461,7 +461,7 @@ static const struct mtk_pin_desc mtk_pins_mt8186[] = {
 		MTK_FUNCTION(2, "CLKM1"),
 		MTK_FUNCTION(3, "PWM0"),
 		MTK_FUNCTION(4, "SCP_SPI0_CS"),
-		MTK_FUNCTION(5, "SPINOR_CS"),
+		MTK_FUNCTION(5, "SPIANALR_CS"),
 		MTK_FUNCTION(7, "dbg_mon_a12")
 	),
 
@@ -474,7 +474,7 @@ static const struct mtk_pin_desc mtk_pins_mt8186[] = {
 		MTK_FUNCTION(2, "CLKM2"),
 		MTK_FUNCTION(3, "PWM1"),
 		MTK_FUNCTION(4, "SCP_SPI0_MO"),
-		MTK_FUNCTION(5, "SPINOR_IO0"),
+		MTK_FUNCTION(5, "SPIANALR_IO0"),
 		MTK_FUNCTION(7, "dbg_mon_a13")
 	),
 
@@ -487,7 +487,7 @@ static const struct mtk_pin_desc mtk_pins_mt8186[] = {
 		MTK_FUNCTION(2, "CLKM3"),
 		MTK_FUNCTION(3, "PWM2"),
 		MTK_FUNCTION(4, "SCP_SPI0_MI"),
-		MTK_FUNCTION(5, "SPINOR_IO1"),
+		MTK_FUNCTION(5, "SPIANALR_IO1"),
 		MTK_FUNCTION(7, "dbg_mon_a14")
 	),
 
@@ -499,7 +499,7 @@ static const struct mtk_pin_desc mtk_pins_mt8186[] = {
 		MTK_FUNCTION(1, "SPI1_CLK_A"),
 		MTK_FUNCTION(2, "SCP_SPI1_CK"),
 		MTK_FUNCTION(4, "UCTS0"),
-		MTK_FUNCTION(5, "SPINOR_IO2"),
+		MTK_FUNCTION(5, "SPIANALR_IO2"),
 		MTK_FUNCTION(6, "TP_UCTS1_AO"),
 		MTK_FUNCTION(7, "dbg_mon_a15")
 	),
@@ -513,7 +513,7 @@ static const struct mtk_pin_desc mtk_pins_mt8186[] = {
 		MTK_FUNCTION(2, "SCP_SPI1_CS"),
 		MTK_FUNCTION(3, "PWM0"),
 		MTK_FUNCTION(4, "URTS0"),
-		MTK_FUNCTION(5, "SPINOR_IO3"),
+		MTK_FUNCTION(5, "SPIANALR_IO3"),
 		MTK_FUNCTION(6, "TP_URTS1_AO"),
 		MTK_FUNCTION(7, "dbg_mon_a16")
 	),
@@ -743,7 +743,7 @@ static const struct mtk_pin_desc mtk_pins_mt8186[] = {
 		MTK_FUNCTION(0, "GPIO61"),
 		MTK_FUNCTION(1, "TDM_RX_BCK"),
 		MTK_FUNCTION(2, "ANT_SEL4"),
-		MTK_FUNCTION(4, "SPINOR_CK"),
+		MTK_FUNCTION(4, "SPIANALR_CK"),
 		MTK_FUNCTION(5, "CONN_MCU_DBGI_N")
 	),
 
@@ -754,7 +754,7 @@ static const struct mtk_pin_desc mtk_pins_mt8186[] = {
 		MTK_FUNCTION(0, "GPIO62"),
 		MTK_FUNCTION(1, "TDM_RX_MCK"),
 		MTK_FUNCTION(2, "ANT_SEL5"),
-		MTK_FUNCTION(4, "SPINOR_CS"),
+		MTK_FUNCTION(4, "SPIANALR_CS"),
 		MTK_FUNCTION(5, "CONN_MCU_TDI")
 	),
 
@@ -765,7 +765,7 @@ static const struct mtk_pin_desc mtk_pins_mt8186[] = {
 		MTK_FUNCTION(0, "GPIO63"),
 		MTK_FUNCTION(1, "TDM_RX_DATA0"),
 		MTK_FUNCTION(2, "ANT_SEL6"),
-		MTK_FUNCTION(4, "SPINOR_IO0"),
+		MTK_FUNCTION(4, "SPIANALR_IO0"),
 		MTK_FUNCTION(5, "CONN_MCU_TRST_B")
 	),
 
@@ -777,7 +777,7 @@ static const struct mtk_pin_desc mtk_pins_mt8186[] = {
 		MTK_FUNCTION(1, "TDM_RX_DATA1"),
 		MTK_FUNCTION(2, "ANT_SEL7"),
 		MTK_FUNCTION(3, "PWM0"),
-		MTK_FUNCTION(4, "SPINOR_IO1"),
+		MTK_FUNCTION(4, "SPIANALR_IO1"),
 		MTK_FUNCTION(5, "CONN_MCU_TCK")
 	),
 
@@ -789,7 +789,7 @@ static const struct mtk_pin_desc mtk_pins_mt8186[] = {
 		MTK_FUNCTION(1, "TDM_RX_DATA2"),
 		MTK_FUNCTION(2, "UCTS0"),
 		MTK_FUNCTION(3, "PWM1"),
-		MTK_FUNCTION(4, "SPINOR_IO2"),
+		MTK_FUNCTION(4, "SPIANALR_IO2"),
 		MTK_FUNCTION(5, "CONN_MCU_TDO"),
 		MTK_FUNCTION(6, "TP_UCTS1_AO"),
 		MTK_FUNCTION(7, "TP_UCTS2_AO")
@@ -803,7 +803,7 @@ static const struct mtk_pin_desc mtk_pins_mt8186[] = {
 		MTK_FUNCTION(1, "TDM_RX_DATA3"),
 		MTK_FUNCTION(2, "URTS0"),
 		MTK_FUNCTION(3, "PWM2"),
-		MTK_FUNCTION(4, "SPINOR_IO3"),
+		MTK_FUNCTION(4, "SPIANALR_IO3"),
 		MTK_FUNCTION(5, "CONN_MCU_TMS"),
 		MTK_FUNCTION(6, "TP_URTS1_AO"),
 		MTK_FUNCTION(7, "TP_URTS2_AO")

@@ -13,7 +13,7 @@
  * (dev.parent) in order to reference it.
  *
  * Once the register map has been successfully initialised, any sub-devices
- * represented by child nodes in Device Tree or via the MFD cells in the
+ * represented by child analdes in Device Tree or via the MFD cells in the
  * associated C file will be subsequently registered.
  */
 

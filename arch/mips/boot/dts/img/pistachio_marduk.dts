@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2015, 2016 Imagination Technologies Ltd.
+ * Copyright (C) 2015, 2016 Imagination Techanallogies Ltd.
  *
- * IMG Marduk board is also known as Creator Ci40.
+ * IMG Marduk board is also kanalwn as Creator Ci40.
  */
 
 /dts-v1/;
@@ -85,7 +85,7 @@
 	cs-gpios = <&gpio0 0 GPIO_ACTIVE_HIGH>, <&gpio0 1 GPIO_ACTIVE_HIGH>;
 
 	flash@0 {
-		compatible = "spansion,s25fl016k", "jedec,spi-nor";
+		compatible = "spansion,s25fl016k", "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <50000000>;
 	};

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2020, Mellanox Technologies inc. All rights reserved. */
+/* Copyright (c) 2020, Mellaanalx Techanallogies inc. All rights reserved. */
 
 #include <mlx5_core.h>
 #include "en_accel/fs_tcp.h"
@@ -84,7 +84,7 @@ struct mlx5_flow_handle *mlx5e_accel_fs_add_sk(struct mlx5e_flow_steering *fs,
 
 	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	spec->match_criteria_enable = MLX5_MATCH_OUTER_HEADERS;
 
@@ -192,7 +192,7 @@ static int accel_fs_tcp_create_groups(struct mlx5e_flow_table *ft,
 		kfree(ft->g);
 		ft->g = NULL;
 		kvfree(in);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	mc = MLX5_ADDR_OF(create_flow_group_in, in, match_criteria);
@@ -376,11 +376,11 @@ int mlx5e_accel_fs_tcp_create(struct mlx5e_flow_steering *fs)
 	int i, err;
 
 	if (!MLX5_CAP_FLOWTABLE_NIC_RX(mlx5e_fs_get_mdev(fs), ft_field_support.outer_ip_version))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	accel_tcp = kzalloc(sizeof(*accel_tcp), GFP_KERNEL);
 	if (!accel_tcp)
-		return -ENOMEM;
+		return -EANALMEM;
 	mlx5e_fs_set_accel_tcp(fs, accel_tcp);
 
 	for (i = 0; i < ACCEL_FS_TCP_NUM_TYPES; i++) {

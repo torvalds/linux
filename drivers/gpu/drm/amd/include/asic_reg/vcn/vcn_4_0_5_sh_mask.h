@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -3264,9 +3264,9 @@
 //UVD_CONTEXT_ID2
 #define UVD_CONTEXT_ID2__CONTEXT_ID2__SHIFT                                                                   0x0
 #define UVD_CONTEXT_ID2__CONTEXT_ID2_MASK                                                                     0xFFFFFFFFL
-//UVD_NO_OP
-#define UVD_NO_OP__NO_OP__SHIFT                                                                               0x0
-#define UVD_NO_OP__NO_OP_MASK                                                                                 0xFFFFFFFFL
+//UVD_ANAL_OP
+#define UVD_ANAL_OP__ANAL_OP__SHIFT                                                                               0x0
+#define UVD_ANAL_OP__ANAL_OP_MASK                                                                                 0xFFFFFFFFL
 //UVD_RB_BASE_LO
 #define UVD_RB_BASE_LO__RB_BASE_LO__SHIFT                                                                     0x6
 #define UVD_RB_BASE_LO__RB_BASE_LO_MASK                                                                       0xFFFFFFC0L
@@ -3896,18 +3896,18 @@
 //UVD_VCPU_CACHE_SIZE8
 #define UVD_VCPU_CACHE_SIZE8__CACHE_SIZE8__SHIFT                                                              0x0
 #define UVD_VCPU_CACHE_SIZE8__CACHE_SIZE8_MASK                                                                0x001FFFFFL
-//UVD_VCPU_NONCACHE_OFFSET0
-#define UVD_VCPU_NONCACHE_OFFSET0__NONCACHE_OFFSET0__SHIFT                                                    0x0
-#define UVD_VCPU_NONCACHE_OFFSET0__NONCACHE_OFFSET0_MASK                                                      0x01FFFFFFL
-//UVD_VCPU_NONCACHE_SIZE0
-#define UVD_VCPU_NONCACHE_SIZE0__NONCACHE_SIZE0__SHIFT                                                        0x0
-#define UVD_VCPU_NONCACHE_SIZE0__NONCACHE_SIZE0_MASK                                                          0x001FFFFFL
-//UVD_VCPU_NONCACHE_OFFSET1
-#define UVD_VCPU_NONCACHE_OFFSET1__NONCACHE_OFFSET1__SHIFT                                                    0x0
-#define UVD_VCPU_NONCACHE_OFFSET1__NONCACHE_OFFSET1_MASK                                                      0x01FFFFFFL
-//UVD_VCPU_NONCACHE_SIZE1
-#define UVD_VCPU_NONCACHE_SIZE1__NONCACHE_SIZE1__SHIFT                                                        0x0
-#define UVD_VCPU_NONCACHE_SIZE1__NONCACHE_SIZE1_MASK                                                          0x001FFFFFL
+//UVD_VCPU_ANALNCACHE_OFFSET0
+#define UVD_VCPU_ANALNCACHE_OFFSET0__ANALNCACHE_OFFSET0__SHIFT                                                    0x0
+#define UVD_VCPU_ANALNCACHE_OFFSET0__ANALNCACHE_OFFSET0_MASK                                                      0x01FFFFFFL
+//UVD_VCPU_ANALNCACHE_SIZE0
+#define UVD_VCPU_ANALNCACHE_SIZE0__ANALNCACHE_SIZE0__SHIFT                                                        0x0
+#define UVD_VCPU_ANALNCACHE_SIZE0__ANALNCACHE_SIZE0_MASK                                                          0x001FFFFFL
+//UVD_VCPU_ANALNCACHE_OFFSET1
+#define UVD_VCPU_ANALNCACHE_OFFSET1__ANALNCACHE_OFFSET1__SHIFT                                                    0x0
+#define UVD_VCPU_ANALNCACHE_OFFSET1__ANALNCACHE_OFFSET1_MASK                                                      0x01FFFFFFL
+//UVD_VCPU_ANALNCACHE_SIZE1
+#define UVD_VCPU_ANALNCACHE_SIZE1__ANALNCACHE_SIZE1__SHIFT                                                        0x0
+#define UVD_VCPU_ANALNCACHE_SIZE1__ANALNCACHE_SIZE1_MASK                                                          0x001FFFFFL
 //UVD_VCPU_CNTL
 #define UVD_VCPU_CNTL__IRQ_ERR__SHIFT                                                                         0x0
 #define UVD_VCPU_CNTL__AXI_MAX_BRST_SIZE_IS_4__SHIFT                                                          0x4
@@ -4104,16 +4104,16 @@
 //UVD_RBC_RB_CNTL
 #define UVD_RBC_RB_CNTL__RB_BUFSZ__SHIFT                                                                      0x0
 #define UVD_RBC_RB_CNTL__RB_BLKSZ__SHIFT                                                                      0x8
-#define UVD_RBC_RB_CNTL__RB_NO_FETCH__SHIFT                                                                   0x10
+#define UVD_RBC_RB_CNTL__RB_ANAL_FETCH__SHIFT                                                                   0x10
 #define UVD_RBC_RB_CNTL__RB_WPTR_POLL_EN__SHIFT                                                               0x14
-#define UVD_RBC_RB_CNTL__RB_NO_UPDATE__SHIFT                                                                  0x18
+#define UVD_RBC_RB_CNTL__RB_ANAL_UPDATE__SHIFT                                                                  0x18
 #define UVD_RBC_RB_CNTL__RB_RPTR_WR_EN__SHIFT                                                                 0x1c
 #define UVD_RBC_RB_CNTL__BLK_RST__SHIFT                                                                       0x1d
 #define UVD_RBC_RB_CNTL__RB_BUFSZ_MASK                                                                        0x0000001FL
 #define UVD_RBC_RB_CNTL__RB_BLKSZ_MASK                                                                        0x00001F00L
-#define UVD_RBC_RB_CNTL__RB_NO_FETCH_MASK                                                                     0x00010000L
+#define UVD_RBC_RB_CNTL__RB_ANAL_FETCH_MASK                                                                     0x00010000L
 #define UVD_RBC_RB_CNTL__RB_WPTR_POLL_EN_MASK                                                                 0x00100000L
-#define UVD_RBC_RB_CNTL__RB_NO_UPDATE_MASK                                                                    0x01000000L
+#define UVD_RBC_RB_CNTL__RB_ANAL_UPDATE_MASK                                                                    0x01000000L
 #define UVD_RBC_RB_CNTL__RB_RPTR_WR_EN_MASK                                                                   0x10000000L
 #define UVD_RBC_RB_CNTL__BLK_RST_MASK                                                                         0x20000000L
 //UVD_RBC_RB_RPTR_ADDR
@@ -5067,10 +5067,10 @@
 #define UVD_JRBC_RB_WPTR__RB_WPTR__SHIFT                                                                      0x4
 #define UVD_JRBC_RB_WPTR__RB_WPTR_MASK                                                                        0x007FFFF0L
 //UVD_JRBC_RB_CNTL
-#define UVD_JRBC_RB_CNTL__RB_NO_FETCH__SHIFT                                                                  0x0
+#define UVD_JRBC_RB_CNTL__RB_ANAL_FETCH__SHIFT                                                                  0x0
 #define UVD_JRBC_RB_CNTL__RB_RPTR_WR_EN__SHIFT                                                                0x1
 #define UVD_JRBC_RB_CNTL__RB_PRE_WRITE_TIMER__SHIFT                                                           0x4
-#define UVD_JRBC_RB_CNTL__RB_NO_FETCH_MASK                                                                    0x00000001L
+#define UVD_JRBC_RB_CNTL__RB_ANAL_FETCH_MASK                                                                    0x00000001L
 #define UVD_JRBC_RB_CNTL__RB_RPTR_WR_EN_MASK                                                                  0x00000002L
 #define UVD_JRBC_RB_CNTL__RB_PRE_WRITE_TIMER_MASK                                                             0x0007FFF0L
 //UVD_JRBC_IB_SIZE
@@ -6168,26 +6168,26 @@
 #define UVD_POWER_STATUS__UVD_PG_MODE__SHIFT                                                                  0x2
 #define UVD_POWER_STATUS__UVD_CG_MODE__SHIFT                                                                  0x4
 #define UVD_POWER_STATUS__UVD_PG_EN__SHIFT                                                                    0x8
-#define UVD_POWER_STATUS__RBC_SNOOP_DIS__SHIFT                                                                0x9
-#define UVD_POWER_STATUS__SW_RB_SNOOP_DIS__SHIFT                                                              0xb
+#define UVD_POWER_STATUS__RBC_SANALOP_DIS__SHIFT                                                                0x9
+#define UVD_POWER_STATUS__SW_RB_SANALOP_DIS__SHIFT                                                              0xb
 #define UVD_POWER_STATUS__STALL_DPG_POWER_UP__SHIFT                                                           0x1f
 #define UVD_POWER_STATUS__UVD_POWER_STATUS_MASK                                                               0x00000003L
 #define UVD_POWER_STATUS__UVD_PG_MODE_MASK                                                                    0x00000004L
 #define UVD_POWER_STATUS__UVD_CG_MODE_MASK                                                                    0x00000030L
 #define UVD_POWER_STATUS__UVD_PG_EN_MASK                                                                      0x00000100L
-#define UVD_POWER_STATUS__RBC_SNOOP_DIS_MASK                                                                  0x00000200L
-#define UVD_POWER_STATUS__SW_RB_SNOOP_DIS_MASK                                                                0x00000800L
+#define UVD_POWER_STATUS__RBC_SANALOP_DIS_MASK                                                                  0x00000200L
+#define UVD_POWER_STATUS__SW_RB_SANALOP_DIS_MASK                                                                0x00000800L
 #define UVD_POWER_STATUS__STALL_DPG_POWER_UP_MASK                                                             0x80000000L
 //UVD_JPEG_POWER_STATUS
 #define UVD_JPEG_POWER_STATUS__JPEG_POWER_STATUS__SHIFT                                                       0x0
 #define UVD_JPEG_POWER_STATUS__JPEG_PG_MODE__SHIFT                                                            0x4
-#define UVD_JPEG_POWER_STATUS__JRBC_DEC_SNOOP_DIS__SHIFT                                                      0x8
-#define UVD_JPEG_POWER_STATUS__JRBC_ENC_SNOOP_DIS__SHIFT                                                      0x9
+#define UVD_JPEG_POWER_STATUS__JRBC_DEC_SANALOP_DIS__SHIFT                                                      0x8
+#define UVD_JPEG_POWER_STATUS__JRBC_ENC_SANALOP_DIS__SHIFT                                                      0x9
 #define UVD_JPEG_POWER_STATUS__STALL_JDPG_POWER_UP__SHIFT                                                     0x1f
 #define UVD_JPEG_POWER_STATUS__JPEG_POWER_STATUS_MASK                                                         0x00000001L
 #define UVD_JPEG_POWER_STATUS__JPEG_PG_MODE_MASK                                                              0x00000010L
-#define UVD_JPEG_POWER_STATUS__JRBC_DEC_SNOOP_DIS_MASK                                                        0x00000100L
-#define UVD_JPEG_POWER_STATUS__JRBC_ENC_SNOOP_DIS_MASK                                                        0x00000200L
+#define UVD_JPEG_POWER_STATUS__JRBC_DEC_SANALOP_DIS_MASK                                                        0x00000100L
+#define UVD_JPEG_POWER_STATUS__JRBC_ENC_SANALOP_DIS_MASK                                                        0x00000200L
 #define UVD_JPEG_POWER_STATUS__STALL_JDPG_POWER_UP_MASK                                                       0x80000000L
 //UVD_MC_DJPEG_RD_SPACE
 #define UVD_MC_DJPEG_RD_SPACE__DJPEG_RD_SPACE__SHIFT                                                          0x0
@@ -6523,41 +6523,41 @@
 #define UVD_SCRATCH15__SCRATCH15_DATA__SHIFT                                                                  0x0
 #define UVD_SCRATCH15__SCRATCH15_DATA_MASK                                                                    0xFFFFFFFFL
 //UVD_IPX_DLDO_CONFIG
-#define UVD_IPX_DLDO_CONFIG__ONO0_PWR_CONFIG__SHIFT                                                           0x2
-#define UVD_IPX_DLDO_CONFIG__ONO1_PWR_CONFIG__SHIFT                                                           0x4
-#define UVD_IPX_DLDO_CONFIG__ONO2_PWR_CONFIG__SHIFT                                                           0x6
-#define UVD_IPX_DLDO_CONFIG__ONO3_PWR_CONFIG__SHIFT                                                           0x8
-#define UVD_IPX_DLDO_CONFIG__ONO4_PWR_CONFIG__SHIFT                                                           0xa
-#define UVD_IPX_DLDO_CONFIG__ONO5_PWR_CONFIG__SHIFT                                                           0xc
-#define UVD_IPX_DLDO_CONFIG__ONO0_PWR_CONFIG_MASK                                                             0x0000000CL
-#define UVD_IPX_DLDO_CONFIG__ONO1_PWR_CONFIG_MASK                                                             0x00000030L
-#define UVD_IPX_DLDO_CONFIG__ONO2_PWR_CONFIG_MASK                                                             0x000000C0L
-#define UVD_IPX_DLDO_CONFIG__ONO3_PWR_CONFIG_MASK                                                             0x00000300L
-#define UVD_IPX_DLDO_CONFIG__ONO4_PWR_CONFIG_MASK                                                             0x00000C00L
-#define UVD_IPX_DLDO_CONFIG__ONO5_PWR_CONFIG_MASK                                                             0x00003000L
+#define UVD_IPX_DLDO_CONFIG__OANAL0_PWR_CONFIG__SHIFT                                                           0x2
+#define UVD_IPX_DLDO_CONFIG__OANAL1_PWR_CONFIG__SHIFT                                                           0x4
+#define UVD_IPX_DLDO_CONFIG__OANAL2_PWR_CONFIG__SHIFT                                                           0x6
+#define UVD_IPX_DLDO_CONFIG__OANAL3_PWR_CONFIG__SHIFT                                                           0x8
+#define UVD_IPX_DLDO_CONFIG__OANAL4_PWR_CONFIG__SHIFT                                                           0xa
+#define UVD_IPX_DLDO_CONFIG__OANAL5_PWR_CONFIG__SHIFT                                                           0xc
+#define UVD_IPX_DLDO_CONFIG__OANAL0_PWR_CONFIG_MASK                                                             0x0000000CL
+#define UVD_IPX_DLDO_CONFIG__OANAL1_PWR_CONFIG_MASK                                                             0x00000030L
+#define UVD_IPX_DLDO_CONFIG__OANAL2_PWR_CONFIG_MASK                                                             0x000000C0L
+#define UVD_IPX_DLDO_CONFIG__OANAL3_PWR_CONFIG_MASK                                                             0x00000300L
+#define UVD_IPX_DLDO_CONFIG__OANAL4_PWR_CONFIG_MASK                                                             0x00000C00L
+#define UVD_IPX_DLDO_CONFIG__OANAL5_PWR_CONFIG_MASK                                                             0x00003000L
 //UVD_IPX_DLDO_STATUS
-#define UVD_IPX_DLDO_STATUS__ONO0_PWR_STATUS__SHIFT                                                           0x1
-#define UVD_IPX_DLDO_STATUS__ONO1_PWR_STATUS__SHIFT                                                           0x2
-#define UVD_IPX_DLDO_STATUS__ONO2_PWR_STATUS__SHIFT                                                           0x3
-#define UVD_IPX_DLDO_STATUS__ONO3_PWR_STATUS__SHIFT                                                           0x4
-#define UVD_IPX_DLDO_STATUS__ONO4_PWR_STATUS__SHIFT                                                           0x5
-#define UVD_IPX_DLDO_STATUS__ONO5_PWR_STATUS__SHIFT                                                           0x6
-#define UVD_IPX_DLDO_STATUS__ONO0_PWR_STATUS_MASK                                                             0x00000002L
-#define UVD_IPX_DLDO_STATUS__ONO1_PWR_STATUS_MASK                                                             0x00000004L
-#define UVD_IPX_DLDO_STATUS__ONO2_PWR_STATUS_MASK                                                             0x00000008L
-#define UVD_IPX_DLDO_STATUS__ONO3_PWR_STATUS_MASK                                                             0x00000010L
-#define UVD_IPX_DLDO_STATUS__ONO4_PWR_STATUS_MASK                                                             0x00000020L
-#define UVD_IPX_DLDO_STATUS__ONO5_PWR_STATUS_MASK                                                             0x00000040L
+#define UVD_IPX_DLDO_STATUS__OANAL0_PWR_STATUS__SHIFT                                                           0x1
+#define UVD_IPX_DLDO_STATUS__OANAL1_PWR_STATUS__SHIFT                                                           0x2
+#define UVD_IPX_DLDO_STATUS__OANAL2_PWR_STATUS__SHIFT                                                           0x3
+#define UVD_IPX_DLDO_STATUS__OANAL3_PWR_STATUS__SHIFT                                                           0x4
+#define UVD_IPX_DLDO_STATUS__OANAL4_PWR_STATUS__SHIFT                                                           0x5
+#define UVD_IPX_DLDO_STATUS__OANAL5_PWR_STATUS__SHIFT                                                           0x6
+#define UVD_IPX_DLDO_STATUS__OANAL0_PWR_STATUS_MASK                                                             0x00000002L
+#define UVD_IPX_DLDO_STATUS__OANAL1_PWR_STATUS_MASK                                                             0x00000004L
+#define UVD_IPX_DLDO_STATUS__OANAL2_PWR_STATUS_MASK                                                             0x00000008L
+#define UVD_IPX_DLDO_STATUS__OANAL3_PWR_STATUS_MASK                                                             0x00000010L
+#define UVD_IPX_DLDO_STATUS__OANAL4_PWR_STATUS_MASK                                                             0x00000020L
+#define UVD_IPX_DLDO_STATUS__OANAL5_PWR_STATUS_MASK                                                             0x00000040L
 //UVD_SCRATCH32
 #define UVD_SCRATCH32__SCRATCH32_DATA__SHIFT                                                                  0x0
 #define UVD_SCRATCH32__SCRATCH32_DATA_MASK                                                                    0xFFFFFFFFL
 //UVD_VERSION
 #define UVD_VERSION__VARIANT_TYPE__SHIFT                                                                      0x0
-#define UVD_VERSION__MINOR_VERSION__SHIFT                                                                     0x8
+#define UVD_VERSION__MIANALR_VERSION__SHIFT                                                                     0x8
 #define UVD_VERSION__MAJOR_VERSION__SHIFT                                                                     0x10
 #define UVD_VERSION__INSTANCE_ID__SHIFT                                                                       0x1c
 #define UVD_VERSION__VARIANT_TYPE_MASK                                                                        0x000000FFL
-#define UVD_VERSION__MINOR_VERSION_MASK                                                                       0x0000FF00L
+#define UVD_VERSION__MIANALR_VERSION_MASK                                                                       0x0000FF00L
 #define UVD_VERSION__MAJOR_VERSION_MASK                                                                       0x0FFF0000L
 #define UVD_VERSION__INSTANCE_ID_MASK                                                                         0xF0000000L
 //VCN_UMSCH_CNTL
@@ -6855,12 +6855,12 @@
 #define VCN_UMSCH_SPARE_REGISTER7__DATA_MASK                                                                  0xFFFFFFFFL
 //VCN_UMSCH_MES_UTCL1_CNTL
 #define VCN_UMSCH_MES_UTCL1_CNTL__REDO_LATENCY__SHIFT                                                         0x0
-#define VCN_UMSCH_MES_UTCL1_CNTL__ForceSnoop__SHIFT                                                           0x14
+#define VCN_UMSCH_MES_UTCL1_CNTL__ForceSanalop__SHIFT                                                           0x14
 #define VCN_UMSCH_MES_UTCL1_CNTL__FragLimitMode__SHIFT                                                        0x15
 #define VCN_UMSCH_MES_UTCL1_CNTL__DropMode__SHIFT                                                             0x16
 #define VCN_UMSCH_MES_UTCL1_CNTL__Invalidate__SHIFT                                                           0x17
 #define VCN_UMSCH_MES_UTCL1_CNTL__REDO_LATENCY_MASK                                                           0x000FFFFFL
-#define VCN_UMSCH_MES_UTCL1_CNTL__ForceSnoop_MASK                                                             0x00100000L
+#define VCN_UMSCH_MES_UTCL1_CNTL__ForceSanalop_MASK                                                             0x00100000L
 #define VCN_UMSCH_MES_UTCL1_CNTL__FragLimitMode_MASK                                                          0x00200000L
 #define VCN_UMSCH_MES_UTCL1_CNTL__DropMode_MASK                                                               0x00400000L
 #define VCN_UMSCH_MES_UTCL1_CNTL__Invalidate_MASK                                                             0x00800000L
@@ -8218,24 +8218,24 @@
 #define UVD_LMI_VCPU_CACHE_40BIT_BAR__DATA__SHIFT                                                             0x0
 //UVD_LMI_MIF_CURR_LUMA_40BIT_BAR
 #define UVD_LMI_MIF_CURR_LUMA_40BIT_BAR__DATA__SHIFT                                                          0x0
-//UVD_LMI_VCPU_NONCACHE_40BIT_BAR0
-#define UVD_LMI_VCPU_NONCACHE_40BIT_BAR0__DATA__SHIFT                                                         0x0
-//UVD_LMI_VCPU_NONCACHE_40BIT_BAR1
-#define UVD_LMI_VCPU_NONCACHE_40BIT_BAR1__DATA__SHIFT                                                         0x0
-//UVD_LMI_VCPU_NONCACHE_40BIT_BAR2
-#define UVD_LMI_VCPU_NONCACHE_40BIT_BAR2__DATA__SHIFT                                                         0x0
-//UVD_LMI_VCPU_NONCACHE_40BIT_BAR3
-#define UVD_LMI_VCPU_NONCACHE_40BIT_BAR3__DATA__SHIFT                                                         0x0
-//UVD_LMI_VCPU_NONCACHE_40BIT_BAR4
-#define UVD_LMI_VCPU_NONCACHE_40BIT_BAR4__DATA__SHIFT                                                         0x0
-//UVD_LMI_VCPU_NONCACHE_40BIT_BAR5
-#define UVD_LMI_VCPU_NONCACHE_40BIT_BAR5__DATA__SHIFT                                                         0x0
+//UVD_LMI_VCPU_ANALNCACHE_40BIT_BAR0
+#define UVD_LMI_VCPU_ANALNCACHE_40BIT_BAR0__DATA__SHIFT                                                         0x0
+//UVD_LMI_VCPU_ANALNCACHE_40BIT_BAR1
+#define UVD_LMI_VCPU_ANALNCACHE_40BIT_BAR1__DATA__SHIFT                                                         0x0
+//UVD_LMI_VCPU_ANALNCACHE_40BIT_BAR2
+#define UVD_LMI_VCPU_ANALNCACHE_40BIT_BAR2__DATA__SHIFT                                                         0x0
+//UVD_LMI_VCPU_ANALNCACHE_40BIT_BAR3
+#define UVD_LMI_VCPU_ANALNCACHE_40BIT_BAR3__DATA__SHIFT                                                         0x0
+//UVD_LMI_VCPU_ANALNCACHE_40BIT_BAR4
+#define UVD_LMI_VCPU_ANALNCACHE_40BIT_BAR4__DATA__SHIFT                                                         0x0
+//UVD_LMI_VCPU_ANALNCACHE_40BIT_BAR5
+#define UVD_LMI_VCPU_ANALNCACHE_40BIT_BAR5__DATA__SHIFT                                                         0x0
 //UVD_LMI_MIF_CURR_CHROMA_40BIT_BAR
 #define UVD_LMI_MIF_CURR_CHROMA_40BIT_BAR__DATA__SHIFT                                                        0x0
-//UVD_LMI_VCPU_NONCACHE_40BIT_BAR6
-#define UVD_LMI_VCPU_NONCACHE_40BIT_BAR6__DATA__SHIFT                                                         0x0
-//UVD_LMI_VCPU_NONCACHE_40BIT_BAR7
-#define UVD_LMI_VCPU_NONCACHE_40BIT_BAR7__DATA__SHIFT                                                         0x0
+//UVD_LMI_VCPU_ANALNCACHE_40BIT_BAR6
+#define UVD_LMI_VCPU_ANALNCACHE_40BIT_BAR6__DATA__SHIFT                                                         0x0
+//UVD_LMI_VCPU_ANALNCACHE_40BIT_BAR7
+#define UVD_LMI_VCPU_ANALNCACHE_40BIT_BAR7__DATA__SHIFT                                                         0x0
 //UVD_LMI_MIF_SWAP_WR
 #define UVD_LMI_MIF_SWAP_WR__MIF_WR__SHIFT                                                                    0x0
 #define UVD_LMI_MIF_SWAP_WR__MIF_WR_SCLR2__SHIFT                                                              0x10
@@ -8344,7 +8344,7 @@
 //UVD_LMI_MC_LAT_MON6
 #define UVD_LMI_MC_LAT_MON6__HIST_LAT_AVG__SHIFT                                                              0x0
 //UVD_LMI_MC_LAT_MON7
-#define UVD_LMI_MC_LAT_MON7__HIST_LAT_AVG_NO__SHIFT                                                           0x0
+#define UVD_LMI_MC_LAT_MON7__HIST_LAT_AVG_ANAL__SHIFT                                                           0x0
 //UVD_LMI_MC_LAT_CFG0
 #define UVD_LMI_MC_LAT_CFG0__HIST_LAT_INIT__SHIFT                                                             0x0
 #define UVD_LMI_MC_LAT_CFG0__HIST_BIN_MASK__SHIFT                                                             0x4

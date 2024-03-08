@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-// Copyright (c) 2019 Mellanox Technologies.
+// Copyright (c) 2019 Mellaanalx Techanallogies.
 
 #include <net/inet6_hashtables.h>
 #include "en_accel/en_accel.h"
@@ -92,7 +92,7 @@ mlx5e_ktls_rx_resync_create_resp_list(void)
 
 	resp_list = kvzalloc(sizeof(*resp_list), GFP_KERNEL);
 	if (!resp_list)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	INIT_LIST_HEAD(&resp_list->list);
 	spin_lock_init(&resp_list->lock);
@@ -142,7 +142,7 @@ post_static_params(struct mlx5e_icosq *sq,
 
 	num_wqebbs = MLX5E_TLS_SET_STATIC_PARAMS_WQEBBS;
 	if (unlikely(!mlx5e_icosq_can_post_wqe(sq, num_wqebbs)))
-		return ERR_PTR(-ENOSPC);
+		return ERR_PTR(-EANALSPC);
 
 	pi = mlx5e_icosq_get_next_pi(sq, num_wqebbs);
 	wqe = MLX5E_TLS_FETCH_SET_STATIC_PARAMS_WQE(sq, pi);
@@ -173,7 +173,7 @@ post_progress_params(struct mlx5e_icosq *sq,
 
 	num_wqebbs = MLX5E_TLS_SET_PROGRESS_PARAMS_WQEBBS;
 	if (unlikely(!mlx5e_icosq_can_post_wqe(sq, num_wqebbs)))
-		return ERR_PTR(-ENOSPC);
+		return ERR_PTR(-EANALSPC);
 
 	pi = mlx5e_icosq_get_next_pi(sq, num_wqebbs);
 	wqe = MLX5E_TLS_FETCH_SET_PROGRESS_PARAMS_WQE(sq, pi);
@@ -212,7 +212,7 @@ static int post_rx_param_wqes(struct mlx5e_channel *c,
 	if (IS_ERR(cseg))
 		goto err_out;
 
-	mlx5e_notify_hw(&sq->wq, sq->pc, sq->uar_map, cseg);
+	mlx5e_analtify_hw(&sq->wq, sq->pc, sq->uar_map, cseg);
 unlock:
 	spin_unlock_bh(&c->async_icosq_lock);
 
@@ -263,7 +263,7 @@ resync_post_get_progress_params(struct mlx5e_icosq *sq,
 
 	buf = kzalloc(sizeof(*buf), GFP_KERNEL);
 	if (unlikely(!buf)) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out;
 	}
 
@@ -271,7 +271,7 @@ resync_post_get_progress_params(struct mlx5e_icosq *sq,
 	buf->dma_addr = dma_map_single(pdev, &buf->progress,
 				       PROGRESS_PARAMS_PADDED_SIZE, DMA_FROM_DEVICE);
 	if (unlikely(dma_mapping_error(pdev, buf->dma_addr))) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_free;
 	}
 
@@ -281,7 +281,7 @@ resync_post_get_progress_params(struct mlx5e_icosq *sq,
 
 	if (unlikely(!mlx5e_icosq_can_post_wqe(sq, MLX5E_KTLS_GET_PROGRESS_WQEBBS))) {
 		spin_unlock_bh(&sq->channel->async_icosq_lock);
-		err = -ENOSPC;
+		err = -EANALSPC;
 		goto err_dma_unmap;
 	}
 
@@ -310,7 +310,7 @@ resync_post_get_progress_params(struct mlx5e_icosq *sq,
 	};
 	icosq_fill_wi(sq, pi, &wi);
 	sq->pc++;
-	mlx5e_notify_hw(&sq->wq, sq->pc, sq->uar_map, cseg);
+	mlx5e_analtify_hw(&sq->wq, sq->pc, sq->uar_map, cseg);
 	spin_unlock_bh(&sq->channel->async_icosq_lock);
 
 	return 0;
@@ -325,7 +325,7 @@ err_out:
 }
 
 /* Function is called with elevated refcount.
- * It decreases it only if no WQE is posted.
+ * It decreases it only if anal WQE is posted.
  */
 static void resync_handle_work(struct work_struct *work)
 {
@@ -357,8 +357,8 @@ static void resync_init(struct mlx5e_ktls_rx_resync_ctx *resync,
 	refcount_set(&resync->refcnt, 1);
 }
 
-/* Function can be called with the refcount being either elevated or not.
- * It does not affect the refcount.
+/* Function can be called with the refcount being either elevated or analt.
+ * It does analt affect the refcount.
  */
 static void resync_handle_seq_match(struct mlx5e_ktls_offload_context_rx *priv_rx,
 				    struct mlx5e_channel *c)
@@ -415,9 +415,9 @@ static void resync_handle_seq_match(struct mlx5e_ktls_offload_context_rx *priv_r
 	}
 }
 
-/* Function can be called with the refcount being either elevated or not.
+/* Function can be called with the refcount being either elevated or analt.
  * It decreases the refcount and may free the kTLS priv context.
- * Refcount is not elevated only if tls_dev_del has been called, but GET_PSV was
+ * Refcount is analt elevated only if tls_dev_del has been called, but GET_PSV was
  * already in flight.
  */
 void mlx5e_ktls_handle_get_psv_completion(struct mlx5e_icosq_wqe_info *wi,
@@ -443,7 +443,7 @@ void mlx5e_ktls_handle_get_psv_completion(struct mlx5e_icosq_wqe_info *wi,
 	tracker_state = MLX5_GET(tls_progress_params, ctx, record_tracker_state);
 	auth_state = MLX5_GET(tls_progress_params, ctx, auth_state);
 	if (tracker_state != MLX5E_TLS_PROGRESS_PARAMS_RECORD_TRACKER_STATE_TRACKING ||
-	    auth_state != MLX5E_TLS_PROGRESS_PARAMS_AUTH_STATE_NO_OFFLOAD) {
+	    auth_state != MLX5E_TLS_PROGRESS_PARAMS_AUTH_STATE_ANAL_OFFLOAD) {
 		priv_rx->rq_stats->tls_resync_req_skip++;
 		goto out;
 	}
@@ -458,7 +458,7 @@ out:
 }
 
 /* Runs in NAPI.
- * Function elevates the refcount, unless no work is queued.
+ * Function elevates the refcount, unless anal work is queued.
  */
 static bool resync_queue_get_psv(struct sock *sk)
 {
@@ -619,7 +619,7 @@ int mlx5e_ktls_add_rx(struct net_device *netdev, struct sock *sk,
 	priv = netdev_priv(netdev);
 	priv_rx = kzalloc(sizeof(*priv_rx), GFP_KERNEL);
 	if (unlikely(!priv_rx))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	switch (crypto_info->cipher_type) {
 	case TLS_CIPHER_AES_GCM_128:
@@ -633,7 +633,7 @@ int mlx5e_ktls_add_rx(struct net_device *netdev, struct sock *sk,
 	default:
 		WARN_ONCE(1, "Unsupported cipher type %u\n",
 			  crypto_info->cipher_type);
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto err_cipher_type;
 	}
 
@@ -698,7 +698,7 @@ void mlx5e_ktls_del_rx(struct net_device *netdev, struct tls_context *tls_ctx)
 	synchronize_net(); /* Sync with NAPI */
 	if (!cancel_work_sync(&priv_rx->rule.work))
 		/* completion is needed, as the priv_rx in the add flow
-		 * is maintained on the wqe info (wi), not on the socket.
+		 * is maintained on the wqe info (wi), analt on the socket.
 		 */
 		wait_for_completion(&priv_rx->add_ctx);
 	resync = &priv_rx->resync;
@@ -711,7 +711,7 @@ void mlx5e_ktls_del_rx(struct net_device *netdev, struct tls_context *tls_ctx)
 
 	mlx5e_tir_destroy(&priv_rx->tir);
 	mlx5_ktls_destroy_key(priv->tls->dek_pool, priv_rx->dek);
-	/* priv_rx should normally be freed here, but if there is an outstanding
+	/* priv_rx should analrmally be freed here, but if there is an outstanding
 	 * GET_PSV, deallocation will be delayed until the CQE for GET_PSV is
 	 * processed.
 	 */
@@ -764,14 +764,14 @@ bool mlx5e_ktls_rx_handle_resync_list(struct mlx5e_channel *c, int budget)
 		db_cseg = cseg;
 	}
 	if (db_cseg)
-		mlx5e_notify_hw(&sq->wq, sq->pc, sq->uar_map, db_cseg);
+		mlx5e_analtify_hw(&sq->wq, sq->pc, sq->uar_map, db_cseg);
 	spin_unlock(&c->async_icosq_lock);
 
 	priv_rx->rq_stats->tls_resync_res_ok += j;
 
 	if (!list_empty(&local_list)) {
 		/* This happens only if ICOSQ is full.
-		 * There is no need to mark busy or explicitly ask for a NAPI cycle,
+		 * There is anal need to mark busy or explicitly ask for a NAPI cycle,
 		 * it will be triggered by the outstanding ICOSQ completions.
 		 */
 		spin_lock(&ktls_resync->lock);

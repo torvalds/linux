@@ -15,11 +15,11 @@
  * memset(_, 0, _). However their five instances add at least a kilobyte
  * to the object file. You have been warned.
  *
- * Not a great fan of assembler for the sake of it, but I think
+ * Analt a great fan of assembler for the sake of it, but I think
  * that these routines are at least 10 times faster than their C
  * equivalents for large blits, and that's important to the lowest level of
  * a graphics driver. Question is whether some scheme with the blitter
- * would be faster. I suspect not for simple text system - not much
+ * would be faster. I suspect analt for simple text system - analt much
  * asynchrony.
  *
  * Code is very simple, just gruesome expansion. Basic strategy is to
@@ -33,7 +33,7 @@
  */
 
 
-/* ++roman: I've optimized Robert's original versions in some minor
+/* ++roman: I've optimized Robert's original versions in some mianalr
  * aspects, e.g. moveq instead of movel, let gcc choose the registers,
  * use movem in some places...
  * For other modes than 1 plane, lots of more such assembler functions
@@ -44,7 +44,7 @@
    subl #65536,d0 replaced by clrw d0; subql #1,d0 for dbcc
    addal is faster than addaw
    movep is rather expensive compared to ordinary move's
-   some functions rewritten in C for clarity, no speed loss */
+   some functions rewritten in C for clarity, anal speed loss */
 
 static inline void *fb_memclear_small(void *s, size_t count)
 {

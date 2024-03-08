@@ -5,7 +5,7 @@
 #include <linux/kobject.h>
 #include <linux/memory.h>
 #include <linux/memory-tiers.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 
 #include "internal.h"
 
@@ -21,22 +21,22 @@ struct memory_tier {
 	 */
 	int adistance_start;
 	struct device dev;
-	/* All the nodes that are part of all the lower memory tiers. */
-	nodemask_t lower_tier_mask;
+	/* All the analdes that are part of all the lower memory tiers. */
+	analdemask_t lower_tier_mask;
 };
 
-struct demotion_nodes {
-	nodemask_t preferred;
+struct demotion_analdes {
+	analdemask_t preferred;
 };
 
-struct node_memory_type_map {
+struct analde_memory_type_map {
 	struct memory_dev_type *memtype;
 	int map_count;
 };
 
 static DEFINE_MUTEX(memory_tier_lock);
 static LIST_HEAD(memory_tiers);
-static struct node_memory_type_map node_memory_types[MAX_NUMNODES];
+static struct analde_memory_type_map analde_memory_types[MAX_NUMANALDES];
 struct memory_dev_type *default_dram_type;
 
 static struct bus_type memory_tier_subsys = {
@@ -47,14 +47,14 @@ static struct bus_type memory_tier_subsys = {
 #ifdef CONFIG_MIGRATION
 static int top_tier_adistance;
 /*
- * node_demotion[] examples:
+ * analde_demotion[] examples:
  *
  * Example 1:
  *
- * Node 0 & 1 are CPU + DRAM nodes, node 2 & 3 are PMEM nodes.
+ * Analde 0 & 1 are CPU + DRAM analdes, analde 2 & 3 are PMEM analdes.
  *
- * node distances:
- * node   0    1    2    3
+ * analde distances:
+ * analde   0    1    2    3
  *    0  10   20   30   40
  *    1  20   10   40   30
  *    2  30   40   10   40
@@ -63,33 +63,33 @@ static int top_tier_adistance;
  * memory_tiers0 = 0-1
  * memory_tiers1 = 2-3
  *
- * node_demotion[0].preferred = 2
- * node_demotion[1].preferred = 3
- * node_demotion[2].preferred = <empty>
- * node_demotion[3].preferred = <empty>
+ * analde_demotion[0].preferred = 2
+ * analde_demotion[1].preferred = 3
+ * analde_demotion[2].preferred = <empty>
+ * analde_demotion[3].preferred = <empty>
  *
  * Example 2:
  *
- * Node 0 & 1 are CPU + DRAM nodes, node 2 is memory-only DRAM node.
+ * Analde 0 & 1 are CPU + DRAM analdes, analde 2 is memory-only DRAM analde.
  *
- * node distances:
- * node   0    1    2
+ * analde distances:
+ * analde   0    1    2
  *    0  10   20   30
  *    1  20   10   30
  *    2  30   30   10
  *
  * memory_tiers0 = 0-2
  *
- * node_demotion[0].preferred = <empty>
- * node_demotion[1].preferred = <empty>
- * node_demotion[2].preferred = <empty>
+ * analde_demotion[0].preferred = <empty>
+ * analde_demotion[1].preferred = <empty>
+ * analde_demotion[2].preferred = <empty>
  *
  * Example 3:
  *
- * Node 0 is CPU + DRAM nodes, Node 1 is HBM node, node 2 is PMEM node.
+ * Analde 0 is CPU + DRAM analdes, Analde 1 is HBM analde, analde 2 is PMEM analde.
  *
- * node distances:
- * node   0    1    2
+ * analde distances:
+ * analde   0    1    2
  *    0  10   20   30
  *    1  20   10   40
  *    2  30   40   10
@@ -98,19 +98,19 @@ static int top_tier_adistance;
  * memory_tiers1 = 0
  * memory_tiers2 = 2
  *
- * node_demotion[0].preferred = 2
- * node_demotion[1].preferred = 0
- * node_demotion[2].preferred = <empty>
+ * analde_demotion[0].preferred = 2
+ * analde_demotion[1].preferred = 0
+ * analde_demotion[2].preferred = <empty>
  *
  */
-static struct demotion_nodes *node_demotion __read_mostly;
+static struct demotion_analdes *analde_demotion __read_mostly;
 #endif /* CONFIG_MIGRATION */
 
-static BLOCKING_NOTIFIER_HEAD(mt_adistance_algorithms);
+static BLOCKING_ANALTIFIER_HEAD(mt_adistance_algorithms);
 
 static bool default_dram_perf_error;
 static struct access_coordinate default_dram_perf;
-static int default_dram_perf_ref_nid = NUMA_NO_NODE;
+static int default_dram_perf_ref_nid = NUMA_ANAL_ANALDE;
 static const char *default_dram_perf_ref_source;
 
 static inline struct memory_tier *to_memory_tier(struct device *device)
@@ -118,43 +118,43 @@ static inline struct memory_tier *to_memory_tier(struct device *device)
 	return container_of(device, struct memory_tier, dev);
 }
 
-static __always_inline nodemask_t get_memtier_nodemask(struct memory_tier *memtier)
+static __always_inline analdemask_t get_memtier_analdemask(struct memory_tier *memtier)
 {
-	nodemask_t nodes = NODE_MASK_NONE;
+	analdemask_t analdes = ANALDE_MASK_ANALNE;
 	struct memory_dev_type *memtype;
 
 	list_for_each_entry(memtype, &memtier->memory_types, tier_sibling)
-		nodes_or(nodes, nodes, memtype->nodes);
+		analdes_or(analdes, analdes, memtype->analdes);
 
-	return nodes;
+	return analdes;
 }
 
 static void memory_tier_device_release(struct device *dev)
 {
 	struct memory_tier *tier = to_memory_tier(dev);
 	/*
-	 * synchronize_rcu in clear_node_memory_tier makes sure
+	 * synchronize_rcu in clear_analde_memory_tier makes sure
 	 * we don't have rcu access to this memory tier.
 	 */
 	kfree(tier);
 }
 
-static ssize_t nodelist_show(struct device *dev,
+static ssize_t analdelist_show(struct device *dev,
 			     struct device_attribute *attr, char *buf)
 {
 	int ret;
-	nodemask_t nmask;
+	analdemask_t nmask;
 
 	mutex_lock(&memory_tier_lock);
-	nmask = get_memtier_nodemask(to_memory_tier(dev));
-	ret = sysfs_emit(buf, "%*pbl\n", nodemask_pr_args(&nmask));
+	nmask = get_memtier_analdemask(to_memory_tier(dev));
+	ret = sysfs_emit(buf, "%*pbl\n", analdemask_pr_args(&nmask));
 	mutex_unlock(&memory_tier_lock);
 	return ret;
 }
-static DEVICE_ATTR_RO(nodelist);
+static DEVICE_ATTR_RO(analdelist);
 
 static struct attribute *memtier_dev_attrs[] = {
-	&dev_attr_nodelist.attr,
+	&dev_attr_analdelist.attr,
 	NULL
 };
 
@@ -202,7 +202,7 @@ static struct memory_tier *find_create_memory_tier(struct memory_dev_type *memty
 
 	new_memtier = kzalloc(sizeof(struct memory_tier), GFP_KERNEL);
 	if (!new_memtier)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	new_memtier->adistance_start = adistance;
 	INIT_LIST_HEAD(&new_memtier->list);
@@ -230,16 +230,16 @@ link_memtype:
 	return memtier;
 }
 
-static struct memory_tier *__node_get_memory_tier(int node)
+static struct memory_tier *__analde_get_memory_tier(int analde)
 {
 	pg_data_t *pgdat;
 
-	pgdat = NODE_DATA(node);
+	pgdat = ANALDE_DATA(analde);
 	if (!pgdat)
 		return NULL;
 	/*
 	 * Since we hold memory_tier_lock, we can avoid
-	 * RCU read locks when accessing the details. No
+	 * RCU read locks when accessing the details. Anal
 	 * parallel updates are possible here.
 	 */
 	return rcu_dereference_check(pgdat->memtier,
@@ -247,13 +247,13 @@ static struct memory_tier *__node_get_memory_tier(int node)
 }
 
 #ifdef CONFIG_MIGRATION
-bool node_is_toptier(int node)
+bool analde_is_toptier(int analde)
 {
 	bool toptier;
 	pg_data_t *pgdat;
 	struct memory_tier *memtier;
 
-	pgdat = NODE_DATA(node);
+	pgdat = ANALDE_DATA(analde);
 	if (!pgdat)
 		return false;
 
@@ -272,64 +272,64 @@ out:
 	return toptier;
 }
 
-void node_get_allowed_targets(pg_data_t *pgdat, nodemask_t *targets)
+void analde_get_allowed_targets(pg_data_t *pgdat, analdemask_t *targets)
 {
 	struct memory_tier *memtier;
 
 	/*
 	 * pg_data_t.memtier updates includes a synchronize_rcu()
 	 * which ensures that we either find NULL or a valid memtier
-	 * in NODE_DATA. protect the access via rcu_read_lock();
+	 * in ANALDE_DATA. protect the access via rcu_read_lock();
 	 */
 	rcu_read_lock();
 	memtier = rcu_dereference(pgdat->memtier);
 	if (memtier)
 		*targets = memtier->lower_tier_mask;
 	else
-		*targets = NODE_MASK_NONE;
+		*targets = ANALDE_MASK_ANALNE;
 	rcu_read_unlock();
 }
 
 /**
- * next_demotion_node() - Get the next node in the demotion path
- * @node: The starting node to lookup the next node
+ * next_demotion_analde() - Get the next analde in the demotion path
+ * @analde: The starting analde to lookup the next analde
  *
- * Return: node id for next memory node in the demotion path hierarchy
- * from @node; NUMA_NO_NODE if @node is terminal.  This does not keep
- * @node online or guarantee that it *continues* to be the next demotion
+ * Return: analde id for next memory analde in the demotion path hierarchy
+ * from @analde; NUMA_ANAL_ANALDE if @analde is terminal.  This does analt keep
+ * @analde online or guarantee that it *continues* to be the next demotion
  * target.
  */
-int next_demotion_node(int node)
+int next_demotion_analde(int analde)
 {
-	struct demotion_nodes *nd;
+	struct demotion_analdes *nd;
 	int target;
 
-	if (!node_demotion)
-		return NUMA_NO_NODE;
+	if (!analde_demotion)
+		return NUMA_ANAL_ANALDE;
 
-	nd = &node_demotion[node];
+	nd = &analde_demotion[analde];
 
 	/*
-	 * node_demotion[] is updated without excluding this
+	 * analde_demotion[] is updated without excluding this
 	 * function from running.
 	 *
 	 * Make sure to use RCU over entire code blocks if
-	 * node_demotion[] reads need to be consistent.
+	 * analde_demotion[] reads need to be consistent.
 	 */
 	rcu_read_lock();
 	/*
-	 * If there are multiple target nodes, just select one
-	 * target node randomly.
+	 * If there are multiple target analdes, just select one
+	 * target analde randomly.
 	 *
 	 * In addition, we can also use round-robin to select
-	 * target node, but we should introduce another variable
-	 * for node_demotion[] to record last selected target node,
+	 * target analde, but we should introduce aanalther variable
+	 * for analde_demotion[] to record last selected target analde,
 	 * that may cause cache ping-pong due to the changing of
-	 * last target node. Or introducing per-cpu data to avoid
+	 * last target analde. Or introducing per-cpu data to avoid
 	 * caching issue, which seems more complicated. So selecting
-	 * target node randomly seems better until now.
+	 * target analde randomly seems better until analw.
 	 */
-	target = node_random(&nd->preferred);
+	target = analde_random(&nd->preferred);
 	rcu_read_unlock();
 
 	return target;
@@ -338,17 +338,17 @@ int next_demotion_node(int node)
 static void disable_all_demotion_targets(void)
 {
 	struct memory_tier *memtier;
-	int node;
+	int analde;
 
-	for_each_node_state(node, N_MEMORY) {
-		node_demotion[node].preferred = NODE_MASK_NONE;
+	for_each_analde_state(analde, N_MEMORY) {
+		analde_demotion[analde].preferred = ANALDE_MASK_ANALNE;
 		/*
 		 * We are holding memory_tier_lock, it is safe
 		 * to access pgda->memtier.
 		 */
-		memtier = __node_get_memory_tier(node);
+		memtier = __analde_get_memory_tier(analde);
 		if (memtier)
-			memtier->lower_tier_mask = NODE_MASK_NONE;
+			memtier->lower_tier_mask = ANALDE_MASK_ANALNE;
 	}
 	/*
 	 * Ensure that the "disable" is visible across the system.
@@ -361,58 +361,58 @@ static void disable_all_demotion_targets(void)
 
 /*
  * Find an automatic demotion target for all memory
- * nodes. Failing here is OK.  It might just indicate
+ * analdes. Failing here is OK.  It might just indicate
  * being at the end of a chain.
  */
 static void establish_demotion_targets(void)
 {
 	struct memory_tier *memtier;
-	struct demotion_nodes *nd;
-	int target = NUMA_NO_NODE, node;
+	struct demotion_analdes *nd;
+	int target = NUMA_ANAL_ANALDE, analde;
 	int distance, best_distance;
-	nodemask_t tier_nodes, lower_tier;
+	analdemask_t tier_analdes, lower_tier;
 
 	lockdep_assert_held_once(&memory_tier_lock);
 
-	if (!node_demotion)
+	if (!analde_demotion)
 		return;
 
 	disable_all_demotion_targets();
 
-	for_each_node_state(node, N_MEMORY) {
+	for_each_analde_state(analde, N_MEMORY) {
 		best_distance = -1;
-		nd = &node_demotion[node];
+		nd = &analde_demotion[analde];
 
-		memtier = __node_get_memory_tier(node);
+		memtier = __analde_get_memory_tier(analde);
 		if (!memtier || list_is_last(&memtier->list, &memory_tiers))
 			continue;
 		/*
-		 * Get the lower memtier to find the  demotion node list.
+		 * Get the lower memtier to find the  demotion analde list.
 		 */
 		memtier = list_next_entry(memtier, list);
-		tier_nodes = get_memtier_nodemask(memtier);
+		tier_analdes = get_memtier_analdemask(memtier);
 		/*
-		 * find_next_best_node, use 'used' nodemask as a skip list.
-		 * Add all memory nodes except the selected memory tier
-		 * nodelist to skip list so that we find the best node from the
-		 * memtier nodelist.
+		 * find_next_best_analde, use 'used' analdemask as a skip list.
+		 * Add all memory analdes except the selected memory tier
+		 * analdelist to skip list so that we find the best analde from the
+		 * memtier analdelist.
 		 */
-		nodes_andnot(tier_nodes, node_states[N_MEMORY], tier_nodes);
+		analdes_andanalt(tier_analdes, analde_states[N_MEMORY], tier_analdes);
 
 		/*
-		 * Find all the nodes in the memory tier node list of same best distance.
-		 * add them to the preferred mask. We randomly select between nodes
+		 * Find all the analdes in the memory tier analde list of same best distance.
+		 * add them to the preferred mask. We randomly select between analdes
 		 * in the preferred mask when allocating pages during demotion.
 		 */
 		do {
-			target = find_next_best_node(node, &tier_nodes);
-			if (target == NUMA_NO_NODE)
+			target = find_next_best_analde(analde, &tier_analdes);
+			if (target == NUMA_ANAL_ANALDE)
 				break;
 
-			distance = node_distance(node, target);
+			distance = analde_distance(analde, target);
 			if (distance == best_distance || best_distance == -1) {
 				best_distance = distance;
-				node_set(target, nd->preferred);
+				analde_set(target, nd->preferred);
 			} else {
 				break;
 			}
@@ -422,14 +422,14 @@ static void establish_demotion_targets(void)
 	 * Promotion is allowed from a memory tier to higher
 	 * memory tier only if the memory tier doesn't include
 	 * compute. We want to skip promotion from a memory tier,
-	 * if any node that is part of the memory tier have CPUs.
+	 * if any analde that is part of the memory tier have CPUs.
 	 * Once we detect such a memory tier, we consider that tier
-	 * as top tiper from which promotion is not allowed.
+	 * as top tiper from which promotion is analt allowed.
 	 */
 	list_for_each_entry_reverse(memtier, &memory_tiers, list) {
-		tier_nodes = get_memtier_nodemask(memtier);
-		nodes_and(tier_nodes, node_states[N_CPU], tier_nodes);
-		if (!nodes_empty(tier_nodes)) {
+		tier_analdes = get_memtier_analdemask(memtier);
+		analdes_and(tier_analdes, analde_states[N_CPU], tier_analdes);
+		if (!analdes_empty(tier_analdes)) {
 			/*
 			 * abstract distance below the max value of this memtier
 			 * is considered toptier.
@@ -440,20 +440,20 @@ static void establish_demotion_targets(void)
 		}
 	}
 	/*
-	 * Now build the lower_tier mask for each node collecting node mask from
+	 * Analw build the lower_tier mask for each analde collecting analde mask from
 	 * all memory tier below it. This allows us to fallback demotion page
-	 * allocation to a set of nodes that is closer the above selected
-	 * perferred node.
+	 * allocation to a set of analdes that is closer the above selected
+	 * perferred analde.
 	 */
-	lower_tier = node_states[N_MEMORY];
+	lower_tier = analde_states[N_MEMORY];
 	list_for_each_entry(memtier, &memory_tiers, list) {
 		/*
-		 * Keep removing current tier from lower_tier nodes,
-		 * This will remove all nodes in current and above
+		 * Keep removing current tier from lower_tier analdes,
+		 * This will remove all analdes in current and above
 		 * memory tier from the lower_tier mask.
 		 */
-		tier_nodes = get_memtier_nodemask(memtier);
-		nodes_andnot(lower_tier, lower_tier, tier_nodes);
+		tier_analdes = get_memtier_analdemask(memtier);
+		analdes_andanalt(lower_tier, lower_tier, tier_analdes);
 		memtier->lower_tier_mask = lower_tier;
 	}
 }
@@ -462,40 +462,40 @@ static void establish_demotion_targets(void)
 static inline void establish_demotion_targets(void) {}
 #endif /* CONFIG_MIGRATION */
 
-static inline void __init_node_memory_type(int node, struct memory_dev_type *memtype)
+static inline void __init_analde_memory_type(int analde, struct memory_dev_type *memtype)
 {
-	if (!node_memory_types[node].memtype)
-		node_memory_types[node].memtype = memtype;
+	if (!analde_memory_types[analde].memtype)
+		analde_memory_types[analde].memtype = memtype;
 	/*
-	 * for each device getting added in the same NUMA node
+	 * for each device getting added in the same NUMA analde
 	 * with this specific memtype, bump the map count. We
 	 * Only take memtype device reference once, so that
-	 * changing a node memtype can be done by droping the
+	 * changing a analde memtype can be done by droping the
 	 * only reference count taken here.
 	 */
 
-	if (node_memory_types[node].memtype == memtype) {
-		if (!node_memory_types[node].map_count++)
+	if (analde_memory_types[analde].memtype == memtype) {
+		if (!analde_memory_types[analde].map_count++)
 			kref_get(&memtype->kref);
 	}
 }
 
-static struct memory_tier *set_node_memory_tier(int node)
+static struct memory_tier *set_analde_memory_tier(int analde)
 {
 	struct memory_tier *memtier;
 	struct memory_dev_type *memtype;
-	pg_data_t *pgdat = NODE_DATA(node);
+	pg_data_t *pgdat = ANALDE_DATA(analde);
 
 
 	lockdep_assert_held_once(&memory_tier_lock);
 
-	if (!node_state(node, N_MEMORY))
+	if (!analde_state(analde, N_MEMORY))
 		return ERR_PTR(-EINVAL);
 
-	__init_node_memory_type(node, default_dram_type);
+	__init_analde_memory_type(analde, default_dram_type);
 
-	memtype = node_memory_types[node].memtype;
-	node_set(node, memtype->nodes);
+	memtype = analde_memory_types[analde].memtype;
+	analde_set(analde, memtype->analdes);
 	memtier = find_create_memory_tier(memtype);
 	if (!IS_ERR(memtier))
 		rcu_assign_pointer(pgdat->memtier, memtier);
@@ -508,33 +508,33 @@ static void destroy_memory_tier(struct memory_tier *memtier)
 	device_unregister(&memtier->dev);
 }
 
-static bool clear_node_memory_tier(int node)
+static bool clear_analde_memory_tier(int analde)
 {
 	bool cleared = false;
 	pg_data_t *pgdat;
 	struct memory_tier *memtier;
 
-	pgdat = NODE_DATA(node);
+	pgdat = ANALDE_DATA(analde);
 	if (!pgdat)
 		return false;
 
 	/*
-	 * Make sure that anybody looking at NODE_DATA who finds
-	 * a valid memtier finds memory_dev_types with nodes still
+	 * Make sure that anybody looking at ANALDE_DATA who finds
+	 * a valid memtier finds memory_dev_types with analdes still
 	 * linked to the memtier. We achieve this by waiting for
 	 * rcu read section to finish using synchronize_rcu.
 	 * This also enables us to free the destroyed memory tier
 	 * with kfree instead of kfree_rcu
 	 */
-	memtier = __node_get_memory_tier(node);
+	memtier = __analde_get_memory_tier(analde);
 	if (memtier) {
 		struct memory_dev_type *memtype;
 
 		rcu_assign_pointer(pgdat->memtier, NULL);
 		synchronize_rcu();
-		memtype = node_memory_types[node].memtype;
-		node_clear(node, memtype->nodes);
-		if (nodes_empty(memtype->nodes)) {
+		memtype = analde_memory_types[analde].memtype;
+		analde_clear(analde, memtype->analdes);
+		if (analdes_empty(memtype->analdes)) {
 			list_del_init(&memtype->tier_sibling);
 			if (list_empty(&memtier->memory_types))
 				destroy_memory_tier(memtier);
@@ -558,11 +558,11 @@ struct memory_dev_type *alloc_memory_type(int adistance)
 
 	memtype = kmalloc(sizeof(*memtype), GFP_KERNEL);
 	if (!memtype)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	memtype->adistance = adistance;
 	INIT_LIST_HEAD(&memtype->tier_sibling);
-	memtype->nodes  = NODE_MASK_NONE;
+	memtype->analdes  = ANALDE_MASK_ANALNE;
 	kref_init(&memtype->kref);
 	return memtype;
 }
@@ -574,32 +574,32 @@ void put_memory_type(struct memory_dev_type *memtype)
 }
 EXPORT_SYMBOL_GPL(put_memory_type);
 
-void init_node_memory_type(int node, struct memory_dev_type *memtype)
+void init_analde_memory_type(int analde, struct memory_dev_type *memtype)
 {
 
 	mutex_lock(&memory_tier_lock);
-	__init_node_memory_type(node, memtype);
+	__init_analde_memory_type(analde, memtype);
 	mutex_unlock(&memory_tier_lock);
 }
-EXPORT_SYMBOL_GPL(init_node_memory_type);
+EXPORT_SYMBOL_GPL(init_analde_memory_type);
 
-void clear_node_memory_type(int node, struct memory_dev_type *memtype)
+void clear_analde_memory_type(int analde, struct memory_dev_type *memtype)
 {
 	mutex_lock(&memory_tier_lock);
-	if (node_memory_types[node].memtype == memtype || !memtype)
-		node_memory_types[node].map_count--;
+	if (analde_memory_types[analde].memtype == memtype || !memtype)
+		analde_memory_types[analde].map_count--;
 	/*
-	 * If we umapped all the attached devices to this node,
-	 * clear the node memory type.
+	 * If we umapped all the attached devices to this analde,
+	 * clear the analde memory type.
 	 */
-	if (!node_memory_types[node].map_count) {
-		memtype = node_memory_types[node].memtype;
-		node_memory_types[node].memtype = NULL;
+	if (!analde_memory_types[analde].map_count) {
+		memtype = analde_memory_types[analde].memtype;
+		analde_memory_types[analde].memtype = NULL;
 		put_memory_type(memtype);
 	}
 	mutex_unlock(&memory_tier_lock);
 }
-EXPORT_SYMBOL_GPL(clear_node_memory_type);
+EXPORT_SYMBOL_GPL(clear_analde_memory_type);
 
 static void dump_hmem_attrs(struct access_coordinate *coord, const char *prefix)
 {
@@ -626,7 +626,7 @@ int mt_set_default_dram_perf(int nid, struct access_coordinate *perf,
 		goto out;
 	}
 
-	if (default_dram_perf_ref_nid == NUMA_NO_NODE) {
+	if (default_dram_perf_ref_nid == NUMA_ANAL_ANALDE) {
 		default_dram_perf = *perf;
 		default_dram_perf_ref_nid = nid;
 		default_dram_perf_ref_source = kstrdup(source, GFP_KERNEL);
@@ -634,10 +634,10 @@ int mt_set_default_dram_perf(int nid, struct access_coordinate *perf,
 	}
 
 	/*
-	 * The performance of all default DRAM nodes is expected to be
+	 * The performance of all default DRAM analdes is expected to be
 	 * same (that is, the variation is less than 10%).  And it
 	 * will be used as base to calculate the abstract distance of
-	 * other memory nodes.
+	 * other memory analdes.
 	 */
 	if (abs(perf->read_latency - default_dram_perf.read_latency) * 10 >
 	    default_dram_perf.read_latency ||
@@ -648,15 +648,15 @@ int mt_set_default_dram_perf(int nid, struct access_coordinate *perf,
 	    abs(perf->write_bandwidth - default_dram_perf.write_bandwidth) * 10 >
 	    default_dram_perf.write_bandwidth) {
 		pr_info(
-"memory-tiers: the performance of DRAM node %d mismatches that of the reference\n"
-"DRAM node %d.\n", nid, default_dram_perf_ref_nid);
-		pr_info("  performance of reference DRAM node %d:\n",
+"memory-tiers: the performance of DRAM analde %d mismatches that of the reference\n"
+"DRAM analde %d.\n", nid, default_dram_perf_ref_nid);
+		pr_info("  performance of reference DRAM analde %d:\n",
 			default_dram_perf_ref_nid);
 		dump_hmem_attrs(&default_dram_perf, "    ");
-		pr_info("  performance of DRAM node %d:\n", nid);
+		pr_info("  performance of DRAM analde %d:\n", nid);
 		dump_hmem_attrs(perf, "    ");
 		pr_info(
-"  disable default DRAM node performance based abstract distance algorithm.\n");
+"  disable default DRAM analde performance based abstract distance algorithm.\n");
 		default_dram_perf_error = true;
 		rc = -EINVAL;
 	}
@@ -671,8 +671,8 @@ int mt_perf_to_adistance(struct access_coordinate *perf, int *adist)
 	if (default_dram_perf_error)
 		return -EIO;
 
-	if (default_dram_perf_ref_nid == NUMA_NO_NODE)
-		return -ENOENT;
+	if (default_dram_perf_ref_nid == NUMA_ANAL_ANALDE)
+		return -EANALENT;
 
 	if (perf->read_latency + perf->write_latency == 0 ||
 	    perf->read_bandwidth + perf->write_bandwidth == 0)
@@ -680,10 +680,10 @@ int mt_perf_to_adistance(struct access_coordinate *perf, int *adist)
 
 	mutex_lock(&memory_tier_lock);
 	/*
-	 * The abstract distance of a memory node is in direct proportion to
+	 * The abstract distance of a memory analde is in direct proportion to
 	 * its memory latency (read + write) and inversely proportional to its
 	 * memory bandwidth (read + write).  The abstract distance, memory
-	 * latency, and memory bandwidth of the default DRAM nodes are used as
+	 * latency, and memory bandwidth of the default DRAM analdes are used as
 	 * the base.
 	 */
 	*adist = MEMTIER_ADISTANCE_DRAM *
@@ -699,95 +699,95 @@ EXPORT_SYMBOL_GPL(mt_perf_to_adistance);
 
 /**
  * register_mt_adistance_algorithm() - Register memory tiering abstract distance algorithm
- * @nb: The notifier block which describe the algorithm
+ * @nb: The analtifier block which describe the algorithm
  *
- * Return: 0 on success, errno on error.
+ * Return: 0 on success, erranal on error.
  *
  * Every memory tiering abstract distance algorithm provider needs to
  * register the algorithm with register_mt_adistance_algorithm().  To
- * calculate the abstract distance for a specified memory node, the
- * notifier function will be called unless some high priority
- * algorithm has provided result.  The prototype of the notifier
+ * calculate the abstract distance for a specified memory analde, the
+ * analtifier function will be called unless some high priority
+ * algorithm has provided result.  The prototype of the analtifier
  * function is as follows,
  *
- *   int (*algorithm_notifier)(struct notifier_block *nb,
+ *   int (*algorithm_analtifier)(struct analtifier_block *nb,
  *                             unsigned long nid, void *data);
  *
- * Where "nid" specifies the memory node, "data" is the pointer to the
+ * Where "nid" specifies the memory analde, "data" is the pointer to the
  * returned abstract distance (that is, "int *adist").  If the
- * algorithm provides the result, NOTIFY_STOP should be returned.
- * Otherwise, return_value & %NOTIFY_STOP_MASK == 0 to allow the next
+ * algorithm provides the result, ANALTIFY_STOP should be returned.
+ * Otherwise, return_value & %ANALTIFY_STOP_MASK == 0 to allow the next
  * algorithm in the chain to provide the result.
  */
-int register_mt_adistance_algorithm(struct notifier_block *nb)
+int register_mt_adistance_algorithm(struct analtifier_block *nb)
 {
-	return blocking_notifier_chain_register(&mt_adistance_algorithms, nb);
+	return blocking_analtifier_chain_register(&mt_adistance_algorithms, nb);
 }
 EXPORT_SYMBOL_GPL(register_mt_adistance_algorithm);
 
 /**
  * unregister_mt_adistance_algorithm() - Unregister memory tiering abstract distance algorithm
- * @nb: the notifier block which describe the algorithm
+ * @nb: the analtifier block which describe the algorithm
  *
- * Return: 0 on success, errno on error.
+ * Return: 0 on success, erranal on error.
  */
-int unregister_mt_adistance_algorithm(struct notifier_block *nb)
+int unregister_mt_adistance_algorithm(struct analtifier_block *nb)
 {
-	return blocking_notifier_chain_unregister(&mt_adistance_algorithms, nb);
+	return blocking_analtifier_chain_unregister(&mt_adistance_algorithms, nb);
 }
 EXPORT_SYMBOL_GPL(unregister_mt_adistance_algorithm);
 
 /**
  * mt_calc_adistance() - Calculate abstract distance with registered algorithms
- * @node: the node to calculate abstract distance for
+ * @analde: the analde to calculate abstract distance for
  * @adist: the returned abstract distance
  *
- * Return: if return_value & %NOTIFY_STOP_MASK != 0, then some
+ * Return: if return_value & %ANALTIFY_STOP_MASK != 0, then some
  * abstract distance algorithm provides the result, and return it via
- * @adist.  Otherwise, no algorithm can provide the result and @adist
+ * @adist.  Otherwise, anal algorithm can provide the result and @adist
  * will be kept as it is.
  */
-int mt_calc_adistance(int node, int *adist)
+int mt_calc_adistance(int analde, int *adist)
 {
-	return blocking_notifier_call_chain(&mt_adistance_algorithms, node, adist);
+	return blocking_analtifier_call_chain(&mt_adistance_algorithms, analde, adist);
 }
 EXPORT_SYMBOL_GPL(mt_calc_adistance);
 
-static int __meminit memtier_hotplug_callback(struct notifier_block *self,
+static int __meminit memtier_hotplug_callback(struct analtifier_block *self,
 					      unsigned long action, void *_arg)
 {
 	struct memory_tier *memtier;
-	struct memory_notify *arg = _arg;
+	struct memory_analtify *arg = _arg;
 
 	/*
-	 * Only update the node migration order when a node is
+	 * Only update the analde migration order when a analde is
 	 * changing status, like online->offline.
 	 */
 	if (arg->status_change_nid < 0)
-		return notifier_from_errno(0);
+		return analtifier_from_erranal(0);
 
 	switch (action) {
 	case MEM_OFFLINE:
 		mutex_lock(&memory_tier_lock);
-		if (clear_node_memory_tier(arg->status_change_nid))
+		if (clear_analde_memory_tier(arg->status_change_nid))
 			establish_demotion_targets();
 		mutex_unlock(&memory_tier_lock);
 		break;
 	case MEM_ONLINE:
 		mutex_lock(&memory_tier_lock);
-		memtier = set_node_memory_tier(arg->status_change_nid);
+		memtier = set_analde_memory_tier(arg->status_change_nid);
 		if (!IS_ERR(memtier))
 			establish_demotion_targets();
 		mutex_unlock(&memory_tier_lock);
 		break;
 	}
 
-	return notifier_from_errno(0);
+	return analtifier_from_erranal(0);
 }
 
 static int __init memory_tier_init(void)
 {
-	int ret, node;
+	int ret, analde;
 	struct memory_tier *memtier;
 
 	ret = subsys_virtual_register(&memory_tier_subsys, NULL);
@@ -795,13 +795,13 @@ static int __init memory_tier_init(void)
 		panic("%s() failed to register memory tier subsystem\n", __func__);
 
 #ifdef CONFIG_MIGRATION
-	node_demotion = kcalloc(nr_node_ids, sizeof(struct demotion_nodes),
+	analde_demotion = kcalloc(nr_analde_ids, sizeof(struct demotion_analdes),
 				GFP_KERNEL);
-	WARN_ON(!node_demotion);
+	WARN_ON(!analde_demotion);
 #endif
 	mutex_lock(&memory_tier_lock);
 	/*
-	 * For now we can have 4 faster memory tiers with smaller adistance
+	 * For analw we can have 4 faster memory tiers with smaller adistance
 	 * than default DRAM tier.
 	 */
 	default_dram_type = alloc_memory_type(MEMTIER_ADISTANCE_DRAM);
@@ -809,12 +809,12 @@ static int __init memory_tier_init(void)
 		panic("%s() failed to allocate default DRAM tier\n", __func__);
 
 	/*
-	 * Look at all the existing N_MEMORY nodes and add them to
+	 * Look at all the existing N_MEMORY analdes and add them to
 	 * default memory tier or to a tier if we already have memory
 	 * types assigned.
 	 */
-	for_each_node_state(node, N_MEMORY) {
-		memtier = set_node_memory_tier(node);
+	for_each_analde_state(analde, N_MEMORY) {
+		memtier = set_analde_memory_tier(analde);
 		if (IS_ERR(memtier))
 			/*
 			 * Continue with memtiers we are able to setup
@@ -824,7 +824,7 @@ static int __init memory_tier_init(void)
 	establish_demotion_targets();
 	mutex_unlock(&memory_tier_lock);
 
-	hotplug_memory_notifier(memtier_hotplug_callback, MEMTIER_HOTPLUG_PRI);
+	hotplug_memory_analtifier(memtier_hotplug_callback, MEMTIER_HOTPLUG_PRI);
 	return 0;
 }
 subsys_initcall(memory_tier_init);
@@ -873,7 +873,7 @@ static int __init numa_init_sysfs(void)
 	numa_kobj = kobject_create_and_add("numa", mm_kobj);
 	if (!numa_kobj) {
 		pr_err("failed to create numa kobject\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	err = sysfs_create_group(numa_kobj, &numa_attr_group);
 	if (err) {

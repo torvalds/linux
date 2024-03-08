@@ -13,8 +13,8 @@
  *
  * The LM63 is basically an LM86 with fan speed monitoring and control
  * capabilities added. It misses some of the LM86 features though:
- *  - No low limit for local temperature.
- *  - No critical limit for local temperature.
+ *  - Anal low limit for local temperature.
+ *  - Anal critical limit for local temperature.
  *  - Critical limit for remote temperature can be changed only once. We
  *    will consider that the critical limit is read-only.
  *
@@ -39,13 +39,13 @@
 
 /*
  * Addresses to scan
- * Address is fully defined internally and cannot be changed except for
+ * Address is fully defined internally and cananalt be changed except for
  * LM64 which has one pin dedicated to address selection.
  * LM63 and LM96163 have address 0x4c.
  * LM64 can have address 0x18 or 0x4e.
  */
 
-static const unsigned short normal_i2c[] = { 0x18, 0x4c, 0x4e, I2C_CLIENT_END };
+static const unsigned short analrmal_i2c[] = { 0x18, 0x4c, 0x4e, I2C_CLIENT_END };
 
 /*
  * The LM63 registers
@@ -450,7 +450,7 @@ static ssize_t pwm1_enable_store(struct device *dev,
 /*
  * There are 8bit registers for both local(temp1) and remote(temp2) sensor.
  * For remote sensor registers temp2_offset has to be considered,
- * for local sensor it must not.
+ * for local sensor it must analt.
  * So we need separate 8bit accessors for local and remote sensor.
  */
 static ssize_t show_local_temp8(struct device *dev,
@@ -609,7 +609,7 @@ static ssize_t show_lut_temp_hyst(struct device *dev,
 }
 
 /*
- * And now the other way around, user-space provides an absolute
+ * And analw the other way around, user-space provides an absolute
  * hysteresis value and we have to store a relative one
  */
 static ssize_t temp2_crit_hyst_store(struct device *dev,
@@ -963,7 +963,7 @@ static const struct attribute_group lm63_group_fan1 = {
  * Real code
  */
 
-/* Return 0 if detection is successful, -ENODEV otherwise */
+/* Return 0 if detection is successful, -EANALDEV otherwise */
 static int lm63_detect(struct i2c_client *client,
 		       struct i2c_board_info *info)
 {
@@ -973,7 +973,7 @@ static int lm63_detect(struct i2c_client *client,
 	int address = client->addr;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	man_id = i2c_smbus_read_byte_data(client, LM63_REG_MAN_ID);
 	chip_id = i2c_smbus_read_byte_data(client, LM63_REG_CHIP_ID);
@@ -992,7 +992,7 @@ static int lm63_detect(struct i2c_client *client,
 		dev_dbg(&adapter->dev,
 			"Unsupported chip (man_id=0x%02X, chip_id=0x%02X)\n",
 			man_id, chip_id);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (chip_id == 0x41 && address == 0x4c)
@@ -1002,7 +1002,7 @@ static int lm63_detect(struct i2c_client *client,
 	else if (chip_id == 0x49 && address == 0x4c)
 		strscpy(info->type, "lm96163", I2C_NAME_SIZE);
 	else
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -1098,13 +1098,13 @@ static int lm63_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(dev, sizeof(struct lm63_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->client = client;
 	mutex_init(&data->update_lock);
 
 	/* Set the device type */
-	if (client->dev.of_node)
+	if (client->dev.of_analde)
 		data->kind = (uintptr_t)of_device_get_match_data(&client->dev);
 	else
 		data->kind = i2c_match_id(lm63_id, client)->driver_data;
@@ -1167,7 +1167,7 @@ static struct i2c_driver lm63_driver = {
 	.probe		= lm63_probe,
 	.id_table	= lm63_id,
 	.detect		= lm63_detect,
-	.address_list	= normal_i2c,
+	.address_list	= analrmal_i2c,
 };
 
 module_i2c_driver(lm63_driver);

@@ -128,7 +128,7 @@ static irqreturn_t acp6x_irq_handler(int irq, void *dev_id)
 
 	adata = dev_id;
 	if (!adata)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	val = acp6x_readl(adata->acp6x_base + ACP_EXTERNAL_INTR_STAT);
 	if (val & BIT(PDM_DMA_STAT)) {
@@ -138,7 +138,7 @@ static irqreturn_t acp6x_irq_handler(int irq, void *dev_id)
 			snd_pcm_period_elapsed(yc_pdm_data->capture_stream);
 		return IRQ_HANDLED;
 	}
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static int snd_acp6x_probe(struct pci_dev *pci,
@@ -157,7 +157,7 @@ static int snd_acp6x_probe(struct pci_dev *pci,
 	/* Return if acp config flag is defined */
 	flag = snd_amd_acp_find_config(pci);
 	if (flag)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Yellow Carp device check */
 	switch (pci->revision) {
@@ -166,12 +166,12 @@ static int snd_acp6x_probe(struct pci_dev *pci,
 	case 0x6f:
 		break;
 	default:
-		dev_dbg(&pci->dev, "acp6x pci device not found\n");
-		return -ENODEV;
+		dev_dbg(&pci->dev, "acp6x pci device analt found\n");
+		return -EANALDEV;
 	}
 	if (pci_enable_device(pci)) {
 		dev_err(&pci->dev, "pci_enable_device failed\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = pci_request_regions(pci, "AMD ACP3x audio");
@@ -183,7 +183,7 @@ static int snd_acp6x_probe(struct pci_dev *pci,
 	adata = devm_kzalloc(&pci->dev, sizeof(struct acp6x_dev_data),
 			     GFP_KERNEL);
 	if (!adata) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto release_regions;
 	}
 
@@ -191,7 +191,7 @@ static int snd_acp6x_probe(struct pci_dev *pci,
 	adata->acp6x_base = devm_ioremap(&pci->dev, addr,
 					 pci_resource_len(pci, 0));
 	if (!adata->acp6x_base) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto release_regions;
 	}
 	pci_set_master(pci);
@@ -214,7 +214,7 @@ static int snd_acp6x_probe(struct pci_dev *pci,
 					  sizeof(struct resource),
 					  GFP_KERNEL);
 		if (!adata->res) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto de_init;
 		}
 
@@ -244,7 +244,7 @@ static int snd_acp6x_probe(struct pci_dev *pci,
 			adata->pdev[index] =
 				platform_device_register_full(&pdevinfo[index]);
 			if (IS_ERR(adata->pdev[index])) {
-				dev_err(&pci->dev, "cannot register %s device\n",
+				dev_err(&pci->dev, "cananalt register %s device\n",
 					pdevinfo[index].name);
 				ret = PTR_ERR(adata->pdev[index]);
 				goto unregister_devs;
@@ -260,7 +260,7 @@ static int snd_acp6x_probe(struct pci_dev *pci,
 	}
 	pm_runtime_set_autosuspend_delay(&pci->dev, ACP_SUSPEND_DELAY_MS);
 	pm_runtime_use_autosuspend(&pci->dev);
-	pm_runtime_put_noidle(&pci->dev);
+	pm_runtime_put_analidle(&pci->dev);
 	pm_runtime_allow(&pci->dev);
 
 	return 0;
@@ -321,7 +321,7 @@ static void snd_acp6x_remove(struct pci_dev *pci)
 	if (ret)
 		dev_err(&pci->dev, "ACP de-init failed\n");
 	pm_runtime_forbid(&pci->dev);
-	pm_runtime_get_noresume(&pci->dev);
+	pm_runtime_get_analresume(&pci->dev);
 	pci_release_regions(pci);
 	pci_disable_device(pci);
 }

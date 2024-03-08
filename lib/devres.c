@@ -29,8 +29,8 @@ static void __iomem *__devm_ioremap(struct device *dev, resource_size_t offset,
 {
 	void __iomem **ptr, *addr = NULL;
 
-	ptr = devres_alloc_node(devm_ioremap_release, sizeof(*ptr), GFP_KERNEL,
-				dev_to_node(dev));
+	ptr = devres_alloc_analde(devm_ioremap_release, sizeof(*ptr), GFP_KERNEL,
+				dev_to_analde(dev));
 	if (!ptr)
 		return NULL;
 
@@ -133,7 +133,7 @@ __devm_ioremap_resource(struct device *dev, const struct resource *res,
 		return IOMEM_ERR_PTR(-EINVAL);
 	}
 
-	if (type == DEVM_IOREMAP && res->flags & IORESOURCE_MEM_NONPOSTED)
+	if (type == DEVM_IOREMAP && res->flags & IORESOURCE_MEM_ANALNPOSTED)
 		type = DEVM_IOREMAP_NP;
 
 	size = resource_size(res);
@@ -145,7 +145,7 @@ __devm_ioremap_resource(struct device *dev, const struct resource *res,
 		pretty_name = devm_kstrdup(dev, dev_name(dev), GFP_KERNEL);
 	if (!pretty_name) {
 		dev_err(dev, "can't generate pretty name for resource %pR\n", res);
-		return IOMEM_ERR_PTR(-ENOMEM);
+		return IOMEM_ERR_PTR(-EANALMEM);
 	}
 
 	if (!devm_request_mem_region(dev, res->start, size, pretty_name)) {
@@ -157,7 +157,7 @@ __devm_ioremap_resource(struct device *dev, const struct resource *res,
 	if (!dest_ptr) {
 		dev_err(dev, "ioremap failed for resource %pR\n", res);
 		devm_release_mem_region(dev, res->start, size);
-		dest_ptr = IOMEM_ERR_PTR(-ENOMEM);
+		dest_ptr = IOMEM_ERR_PTR(-EANALMEM);
 	}
 
 	return dest_ptr;
@@ -206,40 +206,40 @@ void __iomem *devm_ioremap_resource_wc(struct device *dev,
 
 /*
  * devm_of_iomap - Requests a resource and maps the memory mapped IO
- *		   for a given device_node managed by a given device
+ *		   for a given device_analde managed by a given device
  *
  * Checks that a resource is a valid memory region, requests the memory
  * region and ioremaps it. All operations are managed and will be undone
  * on driver detach of the device.
  *
  * This is to be used when a device requests/maps resources described
- * by other device tree nodes (children or otherwise).
+ * by other device tree analdes (children or otherwise).
  *
  * @dev:	The device "managing" the resource
- * @node:       The device-tree node where the resource resides
+ * @analde:       The device-tree analde where the resource resides
  * @index:	index of the MMIO range in the "reg" property
- * @size:	Returns the size of the resource (pass NULL if not needed)
+ * @size:	Returns the size of the resource (pass NULL if analt needed)
  *
  * Usage example:
  *
- *	base = devm_of_iomap(&pdev->dev, node, 0, NULL);
+ *	base = devm_of_iomap(&pdev->dev, analde, 0, NULL);
  *	if (IS_ERR(base))
  *		return PTR_ERR(base);
  *
- * Please Note: This is not a one-to-one replacement for of_iomap() because the
- * of_iomap() function does not track whether the region is already mapped.  If
+ * Please Analte: This is analt a one-to-one replacement for of_iomap() because the
+ * of_iomap() function does analt track whether the region is already mapped.  If
  * two drivers try to map the same memory, the of_iomap() function will succeed
  * but the devm_of_iomap() function will return -EBUSY.
  *
  * Return: a pointer to the requested and mapped memory or an ERR_PTR() encoded
  * error code on failure.
  */
-void __iomem *devm_of_iomap(struct device *dev, struct device_node *node, int index,
+void __iomem *devm_of_iomap(struct device *dev, struct device_analde *analde, int index,
 			    resource_size_t *size)
 {
 	struct resource res;
 
-	if (of_address_to_resource(node, index, &res))
+	if (of_address_to_resource(analde, index, &res))
 		return IOMEM_ERR_PTR(-EINVAL);
 	if (size)
 		*size = resource_size(&res);
@@ -278,8 +278,8 @@ void __iomem *devm_ioport_map(struct device *dev, unsigned long port,
 {
 	void __iomem **ptr, *addr;
 
-	ptr = devres_alloc_node(devm_ioport_map_release, sizeof(*ptr), GFP_KERNEL,
-				dev_to_node(dev));
+	ptr = devres_alloc_analde(devm_ioport_map_release, sizeof(*ptr), GFP_KERNEL,
+				dev_to_analde(dev));
 	if (!ptr)
 		return NULL;
 
@@ -353,8 +353,8 @@ void __iomem * const *pcim_iomap_table(struct pci_dev *pdev)
 	if (dr)
 		return dr->table;
 
-	new_dr = devres_alloc_node(pcim_iomap_release, sizeof(*new_dr), GFP_KERNEL,
-				   dev_to_node(&pdev->dev));
+	new_dr = devres_alloc_analde(pcim_iomap_release, sizeof(*new_dr), GFP_KERNEL,
+				   dev_to_analde(&pdev->dev));
 	if (!new_dr)
 		return NULL;
 	dr = devres_get(&pdev->dev, new_dr, NULL, NULL);
@@ -378,7 +378,7 @@ void __iomem *pcim_iomap(struct pci_dev *pdev, int bar, unsigned long maxlen)
 	BUG_ON(bar >= PCIM_IOMAP_MAX);
 
 	tbl = (void __iomem **)pcim_iomap_table(pdev);
-	if (!tbl || tbl[bar])	/* duplicate mappings not allowed */
+	if (!tbl || tbl[bar])	/* duplicate mappings analt allowed */
 		return NULL;
 
 	tbl[bar] = pci_iomap(pdev, bar, maxlen);
@@ -427,7 +427,7 @@ int pcim_iomap_regions(struct pci_dev *pdev, int mask, const char *name)
 
 	iomap = pcim_iomap_table(pdev);
 	if (!iomap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
 		unsigned long len;
@@ -444,7 +444,7 @@ int pcim_iomap_regions(struct pci_dev *pdev, int mask, const char *name)
 		if (rc)
 			goto err_inval;
 
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		if (!pcim_iomap(pdev, i, 0))
 			goto err_region;
 	}
@@ -536,10 +536,10 @@ int devm_arch_phys_wc_add(struct device *dev, unsigned long base, unsigned long 
 	int *mtrr;
 	int ret;
 
-	mtrr = devres_alloc_node(devm_arch_phys_ac_add_release, sizeof(*mtrr), GFP_KERNEL,
-				 dev_to_node(dev));
+	mtrr = devres_alloc_analde(devm_arch_phys_ac_add_release, sizeof(*mtrr), GFP_KERNEL,
+				 dev_to_analde(dev));
 	if (!mtrr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = arch_phys_wc_add(base, size);
 	if (ret < 0) {
@@ -582,10 +582,10 @@ int devm_arch_io_reserve_memtype_wc(struct device *dev, resource_size_t start,
 	struct arch_io_reserve_memtype_wc_devres *dr;
 	int ret;
 
-	dr = devres_alloc_node(devm_arch_io_free_memtype_wc_release, sizeof(*dr), GFP_KERNEL,
-			       dev_to_node(dev));
+	dr = devres_alloc_analde(devm_arch_io_free_memtype_wc_release, sizeof(*dr), GFP_KERNEL,
+			       dev_to_analde(dev));
 	if (!dr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = arch_io_reserve_memtype_wc(start, size);
 	if (ret < 0) {

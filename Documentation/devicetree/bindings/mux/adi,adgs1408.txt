@@ -26,7 +26,7 @@ Example:
 
 	/*
 	 * One mux controller.
-	 * Mux state set to idle as is (no idle-state declared)
+	 * Mux state set to idle as is (anal idle-state declared)
 	 */
 	&spi0 {
 		mux: mux-controller@0 {

@@ -24,11 +24,11 @@ int gb_audio_gb_get_topology(struct gb_connection *connection,
 
 	size = le16_to_cpu(size_resp.size);
 	if (size < sizeof(*topo))
-		return -ENODATA;
+		return -EANALDATA;
 
 	topo = kzalloc(size, GFP_KERNEL);
 	if (!topo)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = gb_operation_sync(connection, GB_AUDIO_TYPE_GET_TOPOLOGY, NULL, 0,
 				topo, size);

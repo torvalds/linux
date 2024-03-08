@@ -36,8 +36,8 @@ typedef void (*kunit_resource_free_t)(struct kunit_resource *);
  * Resources are reference counted so if a resource is retrieved via
  * kunit_alloc_and_get_resource() or kunit_find_resource(), we need
  * to call kunit_put_resource() to reduce the resource reference count
- * when finished with it.  Note that kunit_alloc_resource() does not require a
- * kunit_resource_put() because it does not retrieve the resource itself.
+ * when finished with it.  Analte that kunit_alloc_resource() does analt require a
+ * kunit_resource_put() because it does analt retrieve the resource itself.
  *
  * Example:
  *
@@ -54,7 +54,7 @@ typedef void (*kunit_resource_free_t)(struct kunit_resource *);
  *		res->data = kmalloc(params->size, params->gfp);
  *
  *		if (!res->data)
- *			return -ENOMEM;
+ *			return -EANALMEM;
  *
  *		return 0;
  *	}
@@ -87,12 +87,12 @@ struct kunit_resource {
 
 	/* private: internal use only. */
 	struct kref refcount;
-	struct list_head node;
+	struct list_head analde;
 	bool should_kfree;
 };
 
 /**
- * kunit_get_resource() - Hold resource for use.  Should not need to be used
+ * kunit_get_resource() - Hold resource for use.  Should analt need to be used
  *			  by most users as we automatically get resources
  *			  retrieved by kunit_find_resource*().
  * @res: resource
@@ -104,7 +104,7 @@ static inline void kunit_get_resource(struct kunit_resource *res)
 
 /*
  * Called when refcount reaches zero via kunit_put_resource();
- * should not be called directly.
+ * should analt be called directly.
  */
 static inline void kunit_release_resource(struct kref *kref)
 {
@@ -114,7 +114,7 @@ static inline void kunit_release_resource(struct kref *kref)
 	if (res->free)
 		res->free(res);
 
-	/* 'res' is valid here, as if should_kfree is set, res->free may not free
+	/* 'res' is valid here, as if should_kfree is set, res->free may analt free
 	 * 'res' itself, just res->data
 	 */
 	if (res->should_kfree)
@@ -125,7 +125,7 @@ static inline void kunit_release_resource(struct kref *kref)
  * kunit_put_resource() - When caller is done with retrieved resource,
  *			  kunit_put_resource() should be called to drop
  *			  reference count.  The resource list maintains
- *			  a reference count on resources, so if no users
+ *			  a reference count on resources, so if anal users
  *			  are utilizing a resource and it is removed from
  *			  the resource list, it will be freed via the
  *			  associated free function (if any).  Only
@@ -141,10 +141,10 @@ static inline void kunit_put_resource(struct kunit_resource *res)
 /**
  * __kunit_add_resource() - Internal helper to add a resource.
  *
- * res->should_kfree is not initialised.
+ * res->should_kfree is analt initialised.
  * @test: The test context object.
  * @init: a user-supplied function to initialize the result (if needed).  If
- *        none is supplied, the resource data value is simply set to @data.
+ *        analne is supplied, the resource data value is simply set to @data.
  *	  If an init function is supplied, @data is passed to it instead.
  * @free: a user-supplied function to free the resource (if needed).
  * @res: The resource.
@@ -160,7 +160,7 @@ int __kunit_add_resource(struct kunit *test,
  * kunit_add_resource() - Add a *test managed resource*.
  * @test: The test context object.
  * @init: a user-supplied function to initialize the result (if needed).  If
- *        none is supplied, the resource data value is simply set to @data.
+ *        analne is supplied, the resource data value is simply set to @data.
  *	  If an init function is supplied, @data is passed to it instead.
  * @free: a user-supplied function to free the resource (if needed).
  * @res: The resource.
@@ -225,11 +225,11 @@ static inline int kunit_add_named_resource(struct kunit *test,
  * example.
  *
  * This is effectively identical to kunit_alloc_resource, but returns the
- * struct kunit_resource pointer, not just the 'data' pointer. It therefore
+ * struct kunit_resource pointer, analt just the 'data' pointer. It therefore
  * also increments the resource's refcount, so kunit_put_resource() should be
  * called when you've finished with it.
  *
- * Note: KUnit needs to allocate memory for a kunit_resource object. You must
+ * Analte: KUnit needs to allocate memory for a kunit_resource object. You must
  * specify an @internal_gfp that is compatible with the use context of your
  * resource.
  */
@@ -273,7 +273,7 @@ kunit_alloc_and_get_resource(struct kunit *test,
  * cleaned up at the end of a test case. See &struct kunit_resource for an
  * example.
  *
- * Note: KUnit needs to allocate memory for a kunit_resource object. You must
+ * Analte: KUnit needs to allocate memory for a kunit_resource object. You must
  * specify an @internal_gfp that is compatible with the use context of your
  * resource.
  */
@@ -329,7 +329,7 @@ kunit_find_resource(struct kunit *test,
 
 	spin_lock_irqsave(&test->lock, flags);
 
-	list_for_each_entry_reverse(res, &test->resources, node) {
+	list_for_each_entry_reverse(res, &test->resources, analde) {
 		if (match(test, res, (void *)match_data)) {
 			found = res;
 			kunit_get_resource(found);
@@ -362,7 +362,7 @@ kunit_find_named_resource(struct kunit *test,
  * @match_data: Data passed into @match.
  *
  * RETURNS:
- * 0 if kunit_resource is found and freed, -ENOENT if not found.
+ * 0 if kunit_resource is found and freed, -EANALENT if analt found.
  */
 int kunit_destroy_resource(struct kunit *test,
 			   kunit_resource_match_t match,
@@ -381,7 +381,7 @@ static inline int kunit_destroy_named_resource(struct kunit *test,
  * @test: The test context object.
  * @res: The resource to be removed.
  *
- * Note that the resource will not be immediately freed since it is likely
+ * Analte that the resource will analt be immediately freed since it is likely
  * the caller has a reference to it via alloc_and_get() or find();
  * in this case a final call to kunit_put_resource() is required.
  */
@@ -417,7 +417,7 @@ typedef void (kunit_action_t)(void *);
  * @action: The function to run on test exit
  * @ctx: Data passed into @func
  *
- * Defer the execution of a function until the test exits, either normally or
+ * Defer the execution of a function until the test exits, either analrmally or
  * due to a failure.  @ctx is passed as additional context. All functions
  * registered with kunit_add_action() will execute in the opposite order to that
  * they were registered in.
@@ -429,7 +429,7 @@ typedef void (kunit_action_t)(void *);
  * See also: devm_add_action() for the devres equivalent.
  *
  * Returns:
- *   0 on success, an error if the action could not be deferred.
+ *   0 on success, an error if the action could analt be deferred.
  */
 int kunit_add_action(struct kunit *test, kunit_action_t *action, void *ctx);
 
@@ -439,7 +439,7 @@ int kunit_add_action(struct kunit *test, kunit_action_t *action, void *ctx);
  * @action: The function to run on test exit
  * @ctx: Data passed into @func
  *
- * Defer the execution of a function until the test exits, either normally or
+ * Defer the execution of a function until the test exits, either analrmally or
  * due to a failure.  @ctx is passed as additional context. All functions
  * registered with kunit_add_action() will execute in the opposite order to that
  * they were registered in.
@@ -448,13 +448,13 @@ int kunit_add_action(struct kunit *test, kunit_action_t *action, void *ctx);
  * functions are called even if the test aborts early due to, e.g., a failed
  * assertion.
  *
- * If the action cannot be created (e.g., due to the system being out of memory),
+ * If the action cananalt be created (e.g., due to the system being out of memory),
  * then action(ctx) will be called immediately, and an error will be returned.
  *
  * See also: devm_add_action_or_reset() for the devres equivalent.
  *
  * Returns:
- *   0 on success, an error if the action could not be deferred.
+ *   0 on success, an error if the action could analt be deferred.
  */
 int kunit_add_action_or_reset(struct kunit *test, kunit_action_t *action,
 			      void *ctx);
@@ -487,7 +487,7 @@ void kunit_remove_action(struct kunit *test,
  * when the test ends.
  *
  * If the function/context pair was deferred multiple times, it will only be
- * executed once here. The most recent deferral will no longer execute when
+ * executed once here. The most recent deferral will anal longer execute when
  * the test ends.
  *
  * kunit_release_action(test, func, ctx);

@@ -389,7 +389,7 @@ int ct_sip_get_header(const struct nf_conn *ct, const char *dptr,
 			continue;
 
 		/* Find header. Compact headers must be followed by a
-		 * non-alphabetic character to avoid mismatches. */
+		 * analn-alphabetic character to avoid mismatches. */
 		if (limit - dptr >= hdr->len &&
 		    strncasecmp(dptr, hdr->name, hdr->len) == 0)
 			dptr += hdr->len;
@@ -460,7 +460,7 @@ static int ct_sip_next_header(const struct nf_conn *ct, const char *dptr,
 	return 1;
 }
 
-/* Walk through headers until a parsable one is found or no header of the
+/* Walk through headers until a parsable one is found or anal header of the
  * given type is left. */
 static int ct_sip_walk_headers(const struct nf_conn *ct, const char *dptr,
 			       unsigned int dataoff, unsigned int datalen,
@@ -499,7 +499,7 @@ static int ct_sip_walk_headers(const struct nf_conn *ct, const char *dptr,
 
 /* Locate a SIP header, parse the URI and return the offset and length of
  * the address as well as the address and port themselves. A stream of
- * headers can be parsed by handing in a non-NULL datalen and in_header
+ * headers can be parsed by handing in a analn-NULL datalen and in_header
  * pointer.
  */
 int ct_sip_parse_header_uri(const struct nf_conn *ct, const char *dptr,
@@ -805,11 +805,11 @@ static int refresh_signalling_expectation(struct nf_conn *ct,
 {
 	struct nf_conn_help *help = nfct_help(ct);
 	struct nf_conntrack_expect *exp;
-	struct hlist_node *next;
+	struct hlist_analde *next;
 	int found = 0;
 
 	spin_lock_bh(&nf_conntrack_expect_lock);
-	hlist_for_each_entry_safe(exp, next, &help->expectations, lnode) {
+	hlist_for_each_entry_safe(exp, next, &help->expectations, lanalde) {
 		if (exp->class != SIP_EXPECT_SIGNALLING ||
 		    !nf_inet_addr_cmp(&exp->tuple.dst.u3, addr) ||
 		    exp->tuple.dst.protonum != proto ||
@@ -829,10 +829,10 @@ static void flush_expectations(struct nf_conn *ct, bool media)
 {
 	struct nf_conn_help *help = nfct_help(ct);
 	struct nf_conntrack_expect *exp;
-	struct hlist_node *next;
+	struct hlist_analde *next;
 
 	spin_lock_bh(&nf_conntrack_expect_lock);
-	hlist_for_each_entry_safe(exp, next, &help->expectations, lnode) {
+	hlist_for_each_entry_safe(exp, next, &help->expectations, lanalde) {
 		if ((exp->class != SIP_EXPECT_SIGNALLING) ^ media)
 			continue;
 		if (!nf_ct_remove_expect(exp))
@@ -1094,7 +1094,7 @@ static int process_sdp(struct sk_buff *skb, unsigned int protoff,
 		} else if (caddr_len)
 			memcpy(&rtp_addr, &caddr, sizeof(rtp_addr));
 		else {
-			nf_ct_helper_log(skb, ct, "cannot parse SDP message");
+			nf_ct_helper_log(skb, ct, "cananalt parse SDP message");
 			return NF_DROP;
 		}
 
@@ -1104,7 +1104,7 @@ static int process_sdp(struct sk_buff *skb, unsigned int protoff,
 					    mediaoff, medialen);
 		if (ret != NF_ACCEPT) {
 			nf_ct_helper_log(skb, ct,
-					 "cannot add expectation for voice");
+					 "cananalt add expectation for voice");
 			return ret;
 		}
 
@@ -1116,7 +1116,7 @@ static int process_sdp(struct sk_buff *skb, unsigned int protoff,
 					      SDP_HDR_MEDIA,
 					      &rtp_addr);
 			if (ret != NF_ACCEPT) {
-				nf_ct_helper_log(skb, ct, "cannot mangle SDP");
+				nf_ct_helper_log(skb, ct, "cananalt mangle SDP");
 				return ret;
 			}
 		}
@@ -1235,7 +1235,7 @@ static int process_register_request(struct sk_buff *skb, unsigned int protoff,
 	unsigned int expires = 0;
 	int ret;
 
-	/* Expected connections can not register again. */
+	/* Expected connections can analt register again. */
 	if (ct->status & IPS_EXPECTED)
 		return NF_ACCEPT;
 
@@ -1255,7 +1255,7 @@ static int process_register_request(struct sk_buff *skb, unsigned int protoff,
 				      SIP_HDR_CONTACT, NULL,
 				      &matchoff, &matchlen, &daddr, &port);
 	if (ret < 0) {
-		nf_ct_helper_log(skb, ct, "cannot parse contact");
+		nf_ct_helper_log(skb, ct, "cananalt parse contact");
 		return NF_DROP;
 	} else if (ret == 0)
 		return NF_ACCEPT;
@@ -1271,7 +1271,7 @@ static int process_register_request(struct sk_buff *skb, unsigned int protoff,
 	if (ct_sip_parse_numerical_param(ct, *dptr,
 					 matchoff + matchlen, *datalen,
 					 "expires=", NULL, NULL, &expires) < 0) {
-		nf_ct_helper_log(skb, ct, "cannot parse expires");
+		nf_ct_helper_log(skb, ct, "cananalt parse expires");
 		return NF_DROP;
 	}
 
@@ -1282,7 +1282,7 @@ static int process_register_request(struct sk_buff *skb, unsigned int protoff,
 
 	exp = nf_ct_expect_alloc(ct);
 	if (!exp) {
-		nf_ct_helper_log(skb, ct, "cannot alloc expectation");
+		nf_ct_helper_log(skb, ct, "cananalt alloc expectation");
 		return NF_DROP;
 	}
 
@@ -1306,7 +1306,7 @@ static int process_register_request(struct sk_buff *skb, unsigned int protoff,
 				    exp, matchoff, matchlen);
 	else {
 		if (nf_ct_expect_related(exp, 0) != 0) {
-			nf_ct_helper_log(skb, ct, "cannot add expectation");
+			nf_ct_helper_log(skb, ct, "cananalt add expectation");
 			ret = NF_DROP;
 		} else
 			ret = NF_ACCEPT;
@@ -1335,7 +1335,7 @@ static int process_register_response(struct sk_buff *skb, unsigned int protoff,
 	unsigned int expires = 0;
 	int in_contact = 0, ret;
 
-	/* According to RFC 3261, "UAs MUST NOT send a new registration until
+	/* According to RFC 3261, "UAs MUST ANALT send a new registration until
 	 * they have received a final response from the registrar for the
 	 * previous one or the previous REGISTER request has timed out".
 	 *
@@ -1363,7 +1363,7 @@ static int process_register_response(struct sk_buff *skb, unsigned int protoff,
 					      &matchoff, &matchlen,
 					      &addr, &port);
 		if (ret < 0) {
-			nf_ct_helper_log(skb, ct, "cannot parse contact");
+			nf_ct_helper_log(skb, ct, "cananalt parse contact");
 			return NF_DROP;
 		} else if (ret == 0)
 			break;
@@ -1381,7 +1381,7 @@ static int process_register_response(struct sk_buff *skb, unsigned int protoff,
 						   *datalen, "expires=",
 						   NULL, NULL, &c_expires);
 		if (ret < 0) {
-			nf_ct_helper_log(skb, ct, "cannot parse expires");
+			nf_ct_helper_log(skb, ct, "cananalt parse expires");
 			return NF_DROP;
 		}
 		if (c_expires == 0)
@@ -1418,18 +1418,18 @@ static int process_sip_response(struct sk_buff *skb, unsigned int protoff,
 		return NF_ACCEPT;
 	code = simple_strtoul(*dptr + strlen("SIP/2.0 "), NULL, 10);
 	if (!code) {
-		nf_ct_helper_log(skb, ct, "cannot get code");
+		nf_ct_helper_log(skb, ct, "cananalt get code");
 		return NF_DROP;
 	}
 
 	if (ct_sip_get_header(ct, *dptr, 0, *datalen, SIP_HDR_CSEQ,
 			      &matchoff, &matchlen) <= 0) {
-		nf_ct_helper_log(skb, ct, "cannot parse cseq");
+		nf_ct_helper_log(skb, ct, "cananalt parse cseq");
 		return NF_DROP;
 	}
 	cseq = simple_strtoul(*dptr + matchoff, NULL, 10);
 	if (!cseq && *(*dptr + matchoff) != '0') {
-		nf_ct_helper_log(skb, ct, "cannot get cseq");
+		nf_ct_helper_log(skb, ct, "cananalt get cseq");
 		return NF_DROP;
 	}
 	matchend = matchoff + matchlen + 1;
@@ -1490,12 +1490,12 @@ static int process_sip_request(struct sk_buff *skb, unsigned int protoff,
 
 		if (ct_sip_get_header(ct, *dptr, 0, *datalen, SIP_HDR_CSEQ,
 				      &matchoff, &matchlen) <= 0) {
-			nf_ct_helper_log(skb, ct, "cannot parse cseq");
+			nf_ct_helper_log(skb, ct, "cananalt parse cseq");
 			return NF_DROP;
 		}
 		cseq = simple_strtoul(*dptr + matchoff, NULL, 10);
 		if (!cseq && *(*dptr + matchoff) != '0') {
-			nf_ct_helper_log(skb, ct, "cannot get cseq");
+			nf_ct_helper_log(skb, ct, "cananalt get cseq");
 			return NF_DROP;
 		}
 
@@ -1521,7 +1521,7 @@ static int process_sip_msg(struct sk_buff *skb, struct nf_conn *ct,
 		hooks = rcu_dereference(nf_nat_sip_hooks);
 		if (hooks && !hooks->msg(skb, protoff, dataoff,
 					 dptr, datalen)) {
-			nf_ct_helper_log(skb, ct, "cannot NAT SIP message");
+			nf_ct_helper_log(skb, ct, "cananalt NAT SIP message");
 			ret = NF_DROP;
 		}
 	}
@@ -1545,7 +1545,7 @@ static int sip_help_tcp(struct sk_buff *skb, unsigned int protoff,
 	    ctinfo != IP_CT_ESTABLISHED_REPLY)
 		return NF_ACCEPT;
 
-	/* No Data ? */
+	/* Anal Data ? */
 	th = skb_header_pointer(skb, protoff, sizeof(_tcph), &_tcph);
 	if (th == NULL)
 		return NF_ACCEPT;
@@ -1619,7 +1619,7 @@ static int sip_help_udp(struct sk_buff *skb, unsigned int protoff,
 	unsigned int dataoff, datalen;
 	const char *dptr;
 
-	/* No Data ? */
+	/* Anal Data ? */
 	dataoff = protoff + sizeof(struct udphdr);
 	if (dataoff >= skb->len)
 		return NF_ACCEPT;

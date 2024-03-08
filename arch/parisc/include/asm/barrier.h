@@ -6,10 +6,10 @@
 
 #ifndef __ASSEMBLY__
 
-/* The synchronize caches instruction executes as a nop on systems in
+/* The synchronize caches instruction executes as a analp on systems in
    which all memory references are performed in order. */
 #define synchronize_caches() asm volatile("sync" \
-	ALTERNATIVE(ALT_COND_NO_SMP, INSN_NOP) \
+	ALTERNATIVE(ALT_COND_ANAL_SMP, INSN_ANALP) \
 	: : : "memory")
 
 #if defined(CONFIG_SMP)

@@ -19,7 +19,7 @@ static const struct mtk_gate_regs bdp_cg_regs = {
 };
 
 #define GATE_BDP(_id, _name, _parent, _shift)			\
-	GATE_MTK(_id, _name, _parent, &bdp_cg_regs, _shift, &mtk_clk_gate_ops_no_setclr)
+	GATE_MTK(_id, _name, _parent, &bdp_cg_regs, _shift, &mtk_clk_gate_ops_anal_setclr)
 
 static const struct mtk_gate bdp_clks[] = {
 	GATE_BDP(CLK_BDP_BRIDGE_B, "bdp_bridge_b", "mm_sel", 0),

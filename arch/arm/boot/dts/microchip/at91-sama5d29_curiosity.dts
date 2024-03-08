@@ -2,7 +2,7 @@
 /*
  * at91-sama5d29_curiosity.dts - Device Tree file for SAMA5D29 Curiosity board
  *
- * Copyright (C) 2023 Microchip Technology Inc. and its subsidiaries
+ * Copyright (C) 2023 Microchip Techanallogy Inc. and its subsidiaries
  *
  * Author: Mihai Sain <mihai.sain@microchip.com>
  *
@@ -458,7 +458,7 @@
 	flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <80000000>;
 		spi-tx-bus-width = <4>;

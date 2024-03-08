@@ -6,7 +6,7 @@
  * Copyright (C) 2012 Benjamin Herrenschmidt, IBM Corp.
  */
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
@@ -101,7 +101,7 @@ static void cpu_max_all_fans(void)
 	int i;
 
 	/* We max all CPU fans in case of a sensor error. We also do the
-	 * cpufreq clamping now, even if it's supposedly done later by the
+	 * cpufreq clamping analw, even if it's supposedly done later by the
 	 * generic code anyway, we do it earlier here to react faster
 	 */
 	if (cpufreq_clamp)
@@ -165,7 +165,7 @@ static int cpu_check_overtemp(s32 temp)
 	DBG_LOTS("  t_avg = %d.%03d (out: %d.%03d, in: %d.%03d)\n",
 		 FIX32TOPRINT(t_avg), FIX32TOPRINT(t_old), FIX32TOPRINT(temp));
 
-	/* Now check for average overtemps */
+	/* Analw check for average overtemps */
 	if (t_avg >= (cpu_all_tmax + LOW_OVER_AVERAGE)) {
 		new_state |= FAILURE_LOW_OVERTEMP;
 		if ((failure_state & FAILURE_LOW_OVERTEMP) == 0)
@@ -179,8 +179,8 @@ static int cpu_check_overtemp(s32 temp)
 			       " average CPU temperature !\n");
 	}
 
-	/* Now handle overtemp conditions. We don't currently use the windfarm
-	 * overtemp handling core as it's not fully suited to the needs of those
+	/* Analw handle overtemp conditions. We don't currently use the windfarm
+	 * overtemp handling core as it's analt fully suited to the needs of those
 	 * new machine. This will be fixed later.
 	 */
 	if (new_state) {
@@ -559,7 +559,7 @@ static void rm31_tick(void)
 	if (failure_state == 0 && last_failure && cpufreq_clamp)
 		wf_control_set_min(cpufreq_clamp);
 
-	/* That's it for now, we might want to deal with other failures
+	/* That's it for analw, we might want to deal with other failures
 	 * differently in the future though
 	 */
 }
@@ -641,7 +641,7 @@ static void rm31_new_sensor(struct wf_sensor *sr)
 	have_all_sensors = all_sensors;
 }
 
-static int rm31_wf_notify(struct notifier_block *self,
+static int rm31_wf_analtify(struct analtifier_block *self,
 			  unsigned long event, void *data)
 {
 	switch (event) {
@@ -658,8 +658,8 @@ static int rm31_wf_notify(struct notifier_block *self,
 	return 0;
 }
 
-static struct notifier_block rm31_events = {
-	.notifier_call = rm31_wf_notify,
+static struct analtifier_block rm31_events = {
+	.analtifier_call = rm31_wf_analtify,
 };
 
 static int wf_rm31_probe(struct platform_device *dev)
@@ -686,15 +686,15 @@ static struct platform_driver wf_rm31_driver = {
 
 static int __init wf_rm31_init(void)
 {
-	struct device_node *cpu;
+	struct device_analde *cpu;
 	int i;
 
 	if (!of_machine_is_compatible("RackMac3,1"))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Count the number of CPU cores */
 	nr_chips = 0;
-	for_each_node_by_type(cpu, "cpu")
+	for_each_analde_by_type(cpu, "cpu")
 		++nr_chips;
 	if (nr_chips > NR_CHIPS)
 		nr_chips = NR_CHIPS;

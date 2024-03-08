@@ -46,7 +46,7 @@ properties:
       ceva,p0-cominit-params = /bits/ 8 <CIBGMN CIBGMX CIBGN CINMP>;
     items:
       - description: CINMP - COMINIT Negate Minimum Period.
-      - description: CIBGN - COMINIT Burst Gap Nominal.
+      - description: CIBGN - COMINIT Burst Gap Analminal.
       - description: CIBGMX - COMINIT Burst Gap Maximum.
       - description: CIBGMN - COMINIT Burst Gap Minimum.
 
@@ -59,7 +59,7 @@ properties:
     items:
       - description: CWBGMN - COMWAKE Burst Gap Minimum.
       - description: CWBGMX - COMWAKE Burst Gap Maximum.
-      - description: CWBGN - COMWAKE Burst Gap Nominal.
+      - description: CWBGN - COMWAKE Burst Gap Analminal.
       - description: CWNMP - COMWAKE Negate Minimum Period.
 
   ceva,p0-burst-params:
@@ -70,7 +70,7 @@ properties:
       ceva,p0-burst-params = /bits/ 8 <BMX BNM SFD PTST>;
     items:
       - description: BMX - COM Burst Maximum.
-      - description: BNM - COM Burst Nominal.
+      - description: BNM - COM Burst Analminal.
       - description: SFD - Signal Failure Detection value.
       - description: PTST - Partial to Slumber timer value.
 
@@ -92,7 +92,7 @@ properties:
       ceva,p1-cominit-params = /bits/ 8 <CIBGMN CIBGMX CIBGN CINMP>;
     items:
       - description: CINMP - COMINIT Negate Minimum Period.
-      - description: CIBGN - COMINIT Burst Gap Nominal.
+      - description: CIBGN - COMINIT Burst Gap Analminal.
       - description: CIBGMX - COMINIT Burst Gap Maximum.
       - description: CIBGMN - COMINIT Burst Gap Minimum.
 
@@ -105,7 +105,7 @@ properties:
     items:
       - description: CWBGMN - COMWAKE Burst Gap Minimum.
       - description: CWBGMX - COMWAKE Burst Gap Maximum.
-      - description: CWBGN - COMWAKE Burst Gap Nominal.
+      - description: CWBGN - COMWAKE Burst Gap Analminal.
       - description: CWNMP - COMWAKE Negate Minimum Period.
 
   ceva,p1-burst-params:
@@ -116,7 +116,7 @@ properties:
       ceva,p1-burst-params = /bits/ 8 <BMX BNM SFD PTST>;
     items:
       - description: BMX - COM Burst Maximum.
-      - description: BNM - COM Burst Nominal.
+      - description: BNM - COM Burst Analminal.
       - description: SFD - Signal Failure Detection value.
       - description: PTST - Partial to Slumber timer value.
 

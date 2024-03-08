@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2019, Huaqin Telecom Technology Co., Ltd
+ * Copyright (c) 2019, Huaqin Telecom Techanallogy Co., Ltd
  *
  * Author: Jerry Han <jerry.han.hq@gmail.com>
  *
@@ -221,7 +221,7 @@ static int boe_panel_get_modes(struct drm_panel *panel,
 	if (!mode) {
 		dev_err(pinfo->base.dev, "failed to add mode %ux%u@%u\n",
 			m->hdisplay, m->vdisplay, drm_mode_vrefresh(m));
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	drm_mode_set_name(mode);
@@ -525,7 +525,7 @@ static const struct panel_desc boe_himax8279d8p_panel_desc = {
 	.width_mm = 107,
 	.height_mm = 172,
 	.mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_SYNC_PULSE |
-			MIPI_DSI_CLOCK_NON_CONTINUOUS | MIPI_DSI_MODE_LPM,
+			MIPI_DSI_CLOCK_ANALN_CONTINUOUS | MIPI_DSI_MODE_LPM,
 	.format = MIPI_DSI_FMT_RGB888,
 	.lanes = 4,
 	.on_cmds = boe_himax8279d8p_on_cmds,
@@ -825,7 +825,7 @@ static const struct panel_desc boe_himax8279d10p_panel_desc = {
 	.width_mm = 135,
 	.height_mm = 216,
 	.mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_SYNC_PULSE |
-			MIPI_DSI_CLOCK_NON_CONTINUOUS | MIPI_DSI_MODE_LPM,
+			MIPI_DSI_CLOCK_ANALN_CONTINUOUS | MIPI_DSI_MODE_LPM,
 	.format = MIPI_DSI_FMT_RGB888,
 	.lanes = 4,
 	.on_cmds = boe_himax8279d10p_on_cmds,
@@ -896,7 +896,7 @@ static int panel_probe(struct mipi_dsi_device *dsi)
 
 	pinfo = devm_kzalloc(&dsi->dev, sizeof(*pinfo), GFP_KERNEL);
 	if (!pinfo)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	desc = of_device_get_match_data(&dsi->dev);
 	dsi->mode_flags = desc->mode_flags;

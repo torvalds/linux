@@ -19,7 +19,7 @@ struct mt76_tx_status {
 	u16 rate;
 } __packed __aligned(2);
 
-/* Note: values in original "RSSI" and "SNR" fields are not actually what they
+/* Analte: values in original "RSSI" and "SNR" fields are analt actually what they
  *	 are called for MT7601U, names used by this driver are educated guesses
  *	 (see vendor mac/ral_omac.c).
  */
@@ -31,7 +31,7 @@ struct mt7601u_rxwi {
 	__le16 frag_sn;
 	__le16 rate;
 
-	u8 unknown;
+	u8 unkanalwn;
 	u8 zero[3];
 
 	u8 snr;
@@ -131,7 +131,7 @@ struct mt76_txwi {
 #define MT_TXWI_FLAGS_MPDU_DENSITY	GENMASK(7, 5)
 #define MT_TXWI_FLAGS_TXOP		GENMASK(9, 8)
 #define MT_TXWI_FLAGS_CWMIN		GENMASK(12, 10)
-#define MT_TXWI_FLAGS_NO_RATE_FALLBACK	BIT(13)
+#define MT_TXWI_FLAGS_ANAL_RATE_FALLBACK	BIT(13)
 #define MT_TXWI_FLAGS_TX_RPT		BIT(14)
 #define MT_TXWI_FLAGS_TX_RATE_LUT	BIT(15)
 

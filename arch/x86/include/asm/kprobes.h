@@ -55,10 +55,10 @@ struct arch_specific_insn {
 	/* copy of the original instruction */
 	kprobe_opcode_t *insn;
 	/*
-	 * boostable = 0: This instruction type is not boostable.
+	 * boostable = 0: This instruction type is analt boostable.
 	 * boostable = 1: This instruction has been boosted: we have
 	 * added a relative jump after the instruction copy in insn,
-	 * so no single-step and fixup are needed (unless there's
+	 * so anal single-step and fixup are needed (unless there's
 	 * a post_handler).
 	 */
 	unsigned boostable:1;

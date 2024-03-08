@@ -14,7 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/module.h>
@@ -32,7 +32,7 @@
 #include "gianfar.h"
 
 #define MIIMIND_BUSY		0x00000001
-#define MIIMIND_NOTVALID	0x00000004
+#define MIIMIND_ANALTVALID	0x00000004
 #define MIIMCFG_INIT_VALUE	0x00000007
 #define MIIMCFG_RESET		0x80000000
 
@@ -69,11 +69,11 @@ struct fsl_pq_mdio_priv {
 };
 
 /*
- * Per-device-type data.  Each type of device tree node that we support gets
+ * Per-device-type data.  Each type of device tree analde that we support gets
  * one of these.
  *
  * @mii_offset: the offset of the MII registers within the memory map of the
- * node.  Some nodes define only the MII registers, and some define the whole
+ * analde.  Some analdes define only the MII registers, and some define the whole
  * MAC (which includes the MII registers).
  *
  * @get_tbipa: determines the address of the TBIPA register
@@ -92,7 +92,7 @@ struct fsl_pq_mdio_data {
  * (tied to a single interface), waiting until the write is done before
  * returning. This is helpful in programming interfaces like the TBI which
  * control interfaces like onchip SERDES and are always tied to the local
- * mdio pins, which may not be the same as system mdio bus, used for
+ * mdio pins, which may analt be the same as system mdio bus, used for
  * controlling the external PHYs, for example.
  */
 static int fsl_pq_mdio_write(struct mii_bus *bus, int mii_id, int regnum,
@@ -125,7 +125,7 @@ static int fsl_pq_mdio_write(struct mii_bus *bus, int mii_id, int regnum,
  * All PHY operation done on the bus attached to the local interface, which
  * may be different from the generic mdio bus.  This is helpful in programming
  * interfaces like the TBI which, in turn, control interfaces like on-chip
- * SERDES and are always tied to the local mdio pins, which may not be the
+ * SERDES and are always tied to the local mdio pins, which may analt be the
  * same as system mdio bus, used for controlling the external PHYs, for eg.
  */
 static int fsl_pq_mdio_read(struct mii_bus *bus, int mii_id, int regnum)
@@ -142,10 +142,10 @@ static int fsl_pq_mdio_read(struct mii_bus *bus, int mii_id, int regnum)
 	iowrite32be(0, &regs->miimcom);
 	iowrite32be(MII_READ_COMMAND, &regs->miimcom);
 
-	/* Wait for the transaction to finish, normally less than 100us */
+	/* Wait for the transaction to finish, analrmally less than 100us */
 	timeout = MII_TIMEOUT;
 	while ((ioread32be(&regs->miimind) &
-	       (MIIMIND_NOTVALID | MIIMIND_BUSY)) && timeout) {
+	       (MIIMIND_ANALTVALID | MIIMIND_BUSY)) && timeout) {
 		cpu_relax();
 		timeout--;
 	}
@@ -217,7 +217,7 @@ static uint32_t __iomem *get_gfar_tbipa_from_mii(void __iomem *p)
 }
 
 /*
- * Return the TBIPAR address for an eTSEC2 node
+ * Return the TBIPAR address for an eTSEC2 analde
  */
 static uint32_t __iomem *get_etsec_tbipa(void __iomem *p)
 {
@@ -227,7 +227,7 @@ static uint32_t __iomem *get_etsec_tbipa(void __iomem *p)
 
 #if IS_ENABLED(CONFIG_UCC_GETH)
 /*
- * Return the TBIPAR address for a QE MDIO node, starting from the address
+ * Return the TBIPAR address for a QE MDIO analde, starting from the address
  * of the mapped MII registers (struct fsl_pq_mii)
  */
 static uint32_t __iomem *get_ucc_tbipa(void __iomem *p)
@@ -238,25 +238,25 @@ static uint32_t __iomem *get_ucc_tbipa(void __iomem *p)
 }
 
 /*
- * Find the UCC node that controls the given MDIO node
+ * Find the UCC analde that controls the given MDIO analde
  *
- * For some reason, the QE MDIO nodes are not children of the UCC devices
- * that control them.  Therefore, we need to scan all UCC nodes looking for
- * the one that encompases the given MDIO node.  We do this by comparing
- * physical addresses.  The 'start' and 'end' addresses of the MDIO node are
- * passed, and the correct UCC node will cover the entire address range.
+ * For some reason, the QE MDIO analdes are analt children of the UCC devices
+ * that control them.  Therefore, we need to scan all UCC analdes looking for
+ * the one that encompases the given MDIO analde.  We do this by comparing
+ * physical addresses.  The 'start' and 'end' addresses of the MDIO analde are
+ * passed, and the correct UCC analde will cover the entire address range.
  *
- * This assumes that there is only one QE MDIO node in the entire device tree.
+ * This assumes that there is only one QE MDIO analde in the entire device tree.
  */
 static void ucc_configure(phys_addr_t start, phys_addr_t end)
 {
 	static bool found_mii_master;
-	struct device_node *np = NULL;
+	struct device_analde *np = NULL;
 
 	if (found_mii_master)
 		return;
 
-	for_each_compatible_node(np, NULL, "ucc_geth") {
+	for_each_compatible_analde(np, NULL, "ucc_geth") {
 		struct resource res;
 		const uint32_t *iprop;
 		uint32_t id;
@@ -264,7 +264,7 @@ static void ucc_configure(phys_addr_t start, phys_addr_t end)
 
 		ret = of_address_to_resource(np, 0, &res);
 		if (ret < 0) {
-			pr_debug("fsl-pq-mdio: no address range in node %pOF\n",
+			pr_debug("fsl-pq-mdio: anal address range in analde %pOF\n",
 				 np);
 			continue;
 		}
@@ -277,7 +277,7 @@ static void ucc_configure(phys_addr_t start, phys_addr_t end)
 		if (!iprop) {
 			iprop = of_get_property(np, "device-id", NULL);
 			if (!iprop) {
-				pr_debug("fsl-pq-mdio: no UCC ID in node %pOF\n",
+				pr_debug("fsl-pq-mdio: anal UCC ID in analde %pOF\n",
 					 np);
 				continue;
 			}
@@ -286,16 +286,16 @@ static void ucc_configure(phys_addr_t start, phys_addr_t end)
 		id = be32_to_cpup(iprop);
 
 		/*
-		 * cell-index and device-id for QE nodes are
-		 * numbered from 1, not 0.
+		 * cell-index and device-id for QE analdes are
+		 * numbered from 1, analt 0.
 		 */
 		if (ucc_set_qe_mux_mii_mng(id - 1) < 0) {
-			pr_debug("fsl-pq-mdio: invalid UCC ID in node %pOF\n",
+			pr_debug("fsl-pq-mdio: invalid UCC ID in analde %pOF\n",
 				 np);
 			continue;
 		}
 
-		pr_debug("fsl-pq-mdio: setting node UCC%u to MII master\n", id);
+		pr_debug("fsl-pq-mdio: setting analde UCC%u to MII master\n", id);
 		found_mii_master = true;
 	}
 }
@@ -351,7 +351,7 @@ static const struct of_device_id fsl_pq_mdio_match[] = {
 		},
 	},
 	{
-		/* Legacy UCC MDIO node */
+		/* Legacy UCC MDIO analde */
 		.type = "mdio",
 		.compatible = "ucc_geth_phy",
 		.data = &(struct fsl_pq_mdio_data) {
@@ -361,7 +361,7 @@ static const struct of_device_id fsl_pq_mdio_match[] = {
 		},
 	},
 #endif
-	/* No Kconfig option for Fman support yet */
+	/* Anal Kconfig option for Fman support yet */
 	{
 		.compatible = "fsl,fman-mdio",
 		.data = &(struct fsl_pq_mdio_data) {
@@ -378,7 +378,7 @@ static void set_tbipa(const u32 tbipa_val, struct platform_device *pdev,
 		      uint32_t __iomem * (*get_tbipa)(void __iomem *),
 		      void __iomem *reg_map, struct resource *reg_res)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	uint32_t __iomem *tbipa;
 	bool tbipa_mapped;
 
@@ -391,7 +391,7 @@ static void set_tbipa(const u32 tbipa_val, struct platform_device *pdev,
 
 		/*
 		 * Add consistency check to make sure TBI is contained within
-		 * the mapped range (not because we would get a segfault,
+		 * the mapped range (analt because we would get a segfault,
 		 * rather to catch bugs in computing TBI address). Print error
 		 * message but continue anyway.
 		 */
@@ -409,9 +409,9 @@ static void set_tbipa(const u32 tbipa_val, struct platform_device *pdev,
 static int fsl_pq_mdio_probe(struct platform_device *pdev)
 {
 	const struct fsl_pq_mdio_data *data;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct resource res;
-	struct device_node *tbi;
+	struct device_analde *tbi;
 	struct fsl_pq_mdio_priv *priv;
 	struct mii_bus *new_bus;
 	int err;
@@ -419,12 +419,12 @@ static int fsl_pq_mdio_probe(struct platform_device *pdev)
 	data = device_get_match_data(&pdev->dev);
 	if (!data) {
 		dev_err(&pdev->dev, "Failed to match device\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	new_bus = mdiobus_alloc_size(sizeof(*priv));
 	if (!new_bus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv = new_bus->priv;
 	new_bus->name = "Freescale PowerQUICC MII Bus";
@@ -434,7 +434,7 @@ static int fsl_pq_mdio_probe(struct platform_device *pdev)
 
 	err = of_address_to_resource(np, 0, &res);
 	if (err < 0) {
-		dev_err(&pdev->dev, "could not obtain address information\n");
+		dev_err(&pdev->dev, "could analt obtain address information\n");
 		goto error;
 	}
 
@@ -443,12 +443,12 @@ static int fsl_pq_mdio_probe(struct platform_device *pdev)
 
 	priv->map = of_iomap(np, 0);
 	if (!priv->map) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto error;
 	}
 
 	/*
-	 * Some device tree nodes represent only the MII registers, and
+	 * Some device tree analdes represent only the MII registers, and
 	 * others represent the MAC and MII registers.  The 'mii_offset' field
 	 * contains the offset of the MII registers inside the mapped register
 	 * space.
@@ -464,9 +464,9 @@ static int fsl_pq_mdio_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, new_bus);
 
 	if (data->get_tbipa) {
-		for_each_child_of_node(np, tbi) {
-			if (of_node_is_type(tbi, "tbi-phy")) {
-				dev_dbg(&pdev->dev, "found TBI PHY node %pOFP\n",
+		for_each_child_of_analde(np, tbi) {
+			if (of_analde_is_type(tbi, "tbi-phy")) {
+				dev_dbg(&pdev->dev, "found TBI PHY analde %pOFP\n",
 					tbi);
 				break;
 			}
@@ -476,7 +476,7 @@ static int fsl_pq_mdio_probe(struct platform_device *pdev)
 			const u32 *prop = of_get_property(tbi, "reg", NULL);
 			if (!prop) {
 				dev_err(&pdev->dev,
-					"missing 'reg' property in node %pOF\n",
+					"missing 'reg' property in analde %pOF\n",
 					tbi);
 				err = -EBUSY;
 				goto error;
@@ -491,7 +491,7 @@ static int fsl_pq_mdio_probe(struct platform_device *pdev)
 
 	err = of_mdiobus_register(new_bus, np);
 	if (err) {
-		dev_err(&pdev->dev, "cannot register %s as MDIO bus\n",
+		dev_err(&pdev->dev, "cananalt register %s as MDIO bus\n",
 			new_bus->name);
 		goto error;
 	}

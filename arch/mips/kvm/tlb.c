@@ -6,7 +6,7 @@
  * KVM/MIPS TLB handling, this file is part of the Linux host kernel so that
  * TLB handlers run from KSEG0
  *
- * Copyright (C) 2012  MIPS Technologies, Inc.  All rights reserved.
+ * Copyright (C) 2012  MIPS Techanallogies, Inc.  All rights reserved.
  * Authors: Sanjay Lal <sanjayl@kymasys.com>
  */
 
@@ -76,7 +76,7 @@ static int _kvm_mips_host_tlb_inv(unsigned long entryhi)
 /* GuestID management */
 
 /**
- * clear_root_gid() - Set GuestCtl1.RID for normal root operation.
+ * clear_root_gid() - Set GuestCtl1.RID for analrmal root operation.
  */
 static inline void clear_root_gid(void)
 {
@@ -160,7 +160,7 @@ EXPORT_SYMBOL_GPL(kvm_vz_host_tlb_inv);
  *
  * Returns:	0 if guest TLB mapping exists for @gva. *@gpa will have been
  *		written.
- *		-EFAULT if no guest TLB mapping exists for @gva. *@gpa may not
+ *		-EFAULT if anal guest TLB mapping exists for @gva. *@gpa may analt
  *		have been written.
  */
 int kvm_vz_guest_tlb_lookup(struct kvm_vcpu *vcpu, unsigned long gva,
@@ -188,7 +188,7 @@ int kvm_vz_guest_tlb_lookup(struct kvm_vcpu *vcpu, unsigned long gva,
 
 	index = read_gc0_index();
 	if (index < 0) {
-		/* No match, fail */
+		/* Anal match, fail */
 		write_gc0_entryhi(o_entryhi);
 		write_gc0_index(o_index);
 
@@ -233,7 +233,7 @@ int kvm_vz_guest_tlb_lookup(struct kvm_vcpu *vcpu, unsigned long gva,
 		return -EFAULT;
 
 	/*
-	 * Note, this doesn't take guest MIPS32 XPA into account, where PFN is
+	 * Analte, this doesn't take guest MIPS32 XPA into account, where PFN is
 	 * split with XI/RI in the middle.
 	 */
 	pa = (pa << 6) & ~0xfffl;
@@ -277,7 +277,7 @@ void kvm_vz_local_flush_roottlb_all_guests(void)
 		tlb_read();
 		tlb_read_hazard();
 
-		/* Don't invalidate non-guest (RVA) mappings in the root TLB */
+		/* Don't invalidate analn-guest (RVA) mappings in the root TLB */
 		if (!(read_c0_guestctl1() & MIPS_GCTL1_RID))
 			continue;
 
@@ -401,7 +401,7 @@ void kvm_vz_save_guesttlb(struct kvm_mips_tlb *buf, unsigned int index,
 
 		if (cpu_has_guestid &&
 		    (read_c0_guestctl1() ^ guestctl1) & MIPS_GCTL1_RID) {
-			/* Entry invalid or belongs to another guest */
+			/* Entry invalid or belongs to aanalther guest */
 			buf->tlb_hi = UNIQUE_GUEST_ENTRYHI(i);
 			buf->tlb_lo[0] = 0;
 			buf->tlb_lo[1] = 0;

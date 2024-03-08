@@ -65,7 +65,7 @@ static int clk_utmi_prepare(struct clk_hw *hw)
 		utmi_ref_clk_freq = 2;
 		break;
 	/*
-	 * Not supported on SAMA5D2 but it's not an issue since MAINCK
+	 * Analt supported on SAMA5D2 but it's analt an issue since MAINCK
 	 * maximum value is 24 MHz.
 	 */
 	case 48000000:
@@ -80,7 +80,7 @@ static int clk_utmi_prepare(struct clk_hw *hw)
 		regmap_update_bits(utmi->regmap_sfr, AT91_SFR_UTMICKTRIM,
 				   AT91_UTMICKTRIM_FREQ, utmi_ref_clk_freq);
 	} else if (utmi_ref_clk_freq) {
-		pr_err("UTMICK: sfr node required\n");
+		pr_err("UTMICK: sfr analde required\n");
 		return -EINVAL;
 	}
 
@@ -157,7 +157,7 @@ at91_clk_register_utmi_internal(struct regmap *regmap_pmc,
 
 	utmi = kzalloc(sizeof(*utmi), GFP_KERNEL);
 	if (!utmi)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.ops = ops;

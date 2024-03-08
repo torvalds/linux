@@ -8,18 +8,18 @@
 #include "clk-fractional-divider.h"
 
 /*
- * Test the maximum denominator case for fd clock without flags.
+ * Test the maximum deanalminator case for fd clock without flags.
  *
- * Expect the highest possible denominator to be used in order to get as close as possible to the
+ * Expect the highest possible deanalminator to be used in order to get as close as possible to the
  * requested rate.
  */
-static void clk_fd_test_approximation_max_denominator(struct kunit *test)
+static void clk_fd_test_approximation_max_deanalminator(struct kunit *test)
 {
 	struct clk_fractional_divider *fd;
 	unsigned long rate, parent_rate, parent_rate_before, m, n, max_n;
 
 	fd = kunit_kzalloc(test, sizeof(*fd), GFP_KERNEL);
-	KUNIT_ASSERT_NOT_NULL(test, fd);
+	KUNIT_ASSERT_ANALT_NULL(test, fd);
 
 	fd->mwidth = 3;
 	fd->nwidth = 3;
@@ -48,7 +48,7 @@ static void clk_fd_test_approximation_max_numerator(struct kunit *test)
 	unsigned long rate, parent_rate, parent_rate_before, m, n, max_m;
 
 	fd = kunit_kzalloc(test, sizeof(*fd), GFP_KERNEL);
-	KUNIT_ASSERT_NOT_NULL(test, fd);
+	KUNIT_ASSERT_ANALT_NULL(test, fd);
 
 	fd->mwidth = 3;
 	max_m = 7;
@@ -66,18 +66,18 @@ static void clk_fd_test_approximation_max_numerator(struct kunit *test)
 }
 
 /*
- * Test the maximum denominator case for zero based fd clock.
+ * Test the maximum deanalminator case for zero based fd clock.
  *
- * Expect the highest possible denominator to be used in order to get as close as possible to the
+ * Expect the highest possible deanalminator to be used in order to get as close as possible to the
  * requested rate.
  */
-static void clk_fd_test_approximation_max_denominator_zero_based(struct kunit *test)
+static void clk_fd_test_approximation_max_deanalminator_zero_based(struct kunit *test)
 {
 	struct clk_fractional_divider *fd;
 	unsigned long rate, parent_rate, parent_rate_before, m, n, max_n;
 
 	fd = kunit_kzalloc(test, sizeof(*fd), GFP_KERNEL);
-	KUNIT_ASSERT_NOT_NULL(test, fd);
+	KUNIT_ASSERT_ANALT_NULL(test, fd);
 
 	fd->flags = CLK_FRAC_DIVIDER_ZERO_BASED;
 	fd->mwidth = 3;
@@ -107,7 +107,7 @@ static void clk_fd_test_approximation_max_numerator_zero_based(struct kunit *tes
 	unsigned long rate, parent_rate, parent_rate_before, m, n, max_m;
 
 	fd = kunit_kzalloc(test, sizeof(*fd), GFP_KERNEL);
-	KUNIT_ASSERT_NOT_NULL(test, fd);
+	KUNIT_ASSERT_ANALT_NULL(test, fd);
 
 	fd->flags = CLK_FRAC_DIVIDER_ZERO_BASED;
 	fd->mwidth = 3;
@@ -126,9 +126,9 @@ static void clk_fd_test_approximation_max_numerator_zero_based(struct kunit *tes
 }
 
 static struct kunit_case clk_fd_approximation_test_cases[] = {
-	KUNIT_CASE(clk_fd_test_approximation_max_denominator),
+	KUNIT_CASE(clk_fd_test_approximation_max_deanalminator),
 	KUNIT_CASE(clk_fd_test_approximation_max_numerator),
-	KUNIT_CASE(clk_fd_test_approximation_max_denominator_zero_based),
+	KUNIT_CASE(clk_fd_test_approximation_max_deanalminator_zero_based),
 	KUNIT_CASE(clk_fd_test_approximation_max_numerator_zero_based),
 	{}
 };

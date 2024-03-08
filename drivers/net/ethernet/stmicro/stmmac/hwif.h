@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: (GPL-2.0 OR MIT) */
-// Copyright (c) 2018 Synopsys, Inc. and/or its affiliates.
+// Copyright (c) 2018 Syanalpsys, Inc. and/or its affiliates.
 // stmmac HW Interface Callbacks
 
 #ifndef __STMMAC_HWIF_H__
@@ -196,7 +196,7 @@ struct stmmac_dma_ops {
 	void (*dma_tx_mode)(struct stmmac_priv *priv, void __iomem *ioaddr,
 			    int mode, u32 channel, int fifosz, u8 qmode);
 	/* To track extra statistic (if supported) */
-	void (*dma_diagnostic_fr)(struct stmmac_extra_stats *x,
+	void (*dma_diaganalstic_fr)(struct stmmac_extra_stats *x,
 				  void __iomem *ioaddr);
 	void (*enable_dma_transmission) (void __iomem *ioaddr);
 	void (*enable_dma_irq)(struct stmmac_priv *priv, void __iomem *ioaddr,
@@ -255,8 +255,8 @@ struct stmmac_dma_ops {
 	stmmac_do_void_callback(__priv, dma, dma_rx_mode, __priv, __args)
 #define stmmac_dma_tx_mode(__priv, __args...) \
 	stmmac_do_void_callback(__priv, dma, dma_tx_mode, __priv, __args)
-#define stmmac_dma_diagnostic_fr(__priv, __args...) \
-	stmmac_do_void_callback(__priv, dma, dma_diagnostic_fr, __args)
+#define stmmac_dma_diaganalstic_fr(__priv, __args...) \
+	stmmac_do_void_callback(__priv, dma, dma_diaganalstic_fr, __args)
 #define stmmac_enable_dma_transmission(__priv, __args...) \
 	stmmac_do_void_callback(__priv, dma, enable_dma_transmission, __args)
 #define stmmac_enable_dma_irq(__priv, __args...) \
@@ -412,10 +412,10 @@ struct stmmac_ops {
 	/* Source Address Insertion / Replacement */
 	void (*sarc_configure)(void __iomem *ioaddr, int val);
 	/* Filtering */
-	int (*config_l3_filter)(struct mac_device_info *hw, u32 filter_no,
+	int (*config_l3_filter)(struct mac_device_info *hw, u32 filter_anal,
 				bool en, bool ipv6, bool sa, bool inv,
 				u32 match);
-	int (*config_l4_filter)(struct mac_device_info *hw, u32 filter_no,
+	int (*config_l4_filter)(struct mac_device_info *hw, u32 filter_anal,
 				bool en, bool udp, bool sa, bool inv,
 				u32 match);
 	void (*set_arp_offload)(struct mac_device_info *hw, bool en, u32 addr);

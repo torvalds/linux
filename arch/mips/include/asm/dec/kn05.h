@@ -11,7 +11,7 @@
  *
  *	WARNING!  All this information is pure guesswork based on the
  *	ROM.  It is provided here in hope it will give someone some
- *	food for thought.  No documentation for the KN05 nor the KN04
+ *	food for thought.  Anal documentation for the KN05 analr the KN04
  *	module has been located so far.
  */
 #ifndef __ASM_MIPS_DEC_KN05_H

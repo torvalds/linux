@@ -11,7 +11,7 @@ menuconfig SOUNDWIRE
 	  by the MIPI Alliance. SoundWire is used for transporting data
 	  typically related to audio functions. SoundWire interface is
 	  optimized to integrate audio devices in mobile or mobile inspired
-	  systems. Say Y to enable this subsystem, N if you do not have such
+	  systems. Say Y to enable this subsystem, N if you do analt have such
 	  a device
 
 if SOUNDWIRE

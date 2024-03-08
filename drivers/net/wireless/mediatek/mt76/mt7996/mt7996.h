@@ -55,7 +55,7 @@
 #define MT7996_MAX_STA_TWT_AGRT		8
 #define MT7996_MAX_QUEUE		(__MT_RXQ_MAX +	__MT_MCUQ_MAX + 3)
 
-/* NOTE: used to map mt76_rates. idx may change if firmware expands table */
+/* ANALTE: used to map mt76_rates. idx may change if firmware expands table */
 #define MT7996_BASIC_RATES_TBL		31
 #define MT7996_BEACON_RATES_TBL		25
 
@@ -219,7 +219,7 @@ struct mt7996_phy {
 	u32 rxfilter;
 	u64 omac_mask;
 
-	u16 noise;
+	u16 analise;
 
 	s16 coverage_class;
 	u8 slottime;
@@ -351,7 +351,7 @@ enum mt7996_rdd_cmd {
 	RDD_START_TXQ = 20,
 	RDD_CAC_START = 50,
 	RDD_CAC_END,
-	RDD_NORMAL_START,
+	RDD_ANALRMAL_START,
 	RDD_DISABLE_DFS_CAL,
 	RDD_PULSE_DBG,
 	RDD_READ_PULSE,

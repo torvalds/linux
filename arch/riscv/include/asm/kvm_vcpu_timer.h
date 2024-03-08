@@ -12,7 +12,7 @@
 #include <linux/hrtimer.h>
 
 struct kvm_guest_timer {
-	/* Mult & Shift values to get nanoseconds from cycles */
+	/* Mult & Shift values to get naanalseconds from cycles */
 	u32 nsec_mult;
 	u32 nsec_shift;
 	/* Time delta value */
@@ -29,7 +29,7 @@ struct kvm_vcpu_timer {
 	/* Underlying hrtimer instance */
 	struct hrtimer hrt;
 
-	/* Flag to check if sstc is enabled or not */
+	/* Flag to check if sstc is enabled or analt */
 	bool sstc_enabled;
 	/* A function pointer to switch between stimecmp or hrtimer at runtime */
 	int (*timer_next_event)(struct kvm_vcpu *vcpu, u64 ncycles);

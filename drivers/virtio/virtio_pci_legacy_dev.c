@@ -7,7 +7,7 @@
 
 
 /*
- * vp_legacy_probe: probe the legacy virtio pci device, note that the
+ * vp_legacy_probe: probe the legacy virtio pci device, analte that the
  * caller is required to enable PCI device before calling this function.
  * @ldev: the legacy virtio-pci device
  *
@@ -20,10 +20,10 @@ int vp_legacy_probe(struct virtio_pci_legacy_device *ldev)
 
 	/* We only own devices >= 0x1000 and <= 0x103f: leave the rest. */
 	if (pci_dev->device < 0x1000 || pci_dev->device > 0x103f)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (pci_dev->revision != VIRTIO_PCI_ABI_VERSION)
-		return -ENODEV;
+		return -EANALDEV;
 
 	rc = dma_set_mask(&pci_dev->dev, DMA_BIT_MASK(64));
 	if (rc) {
@@ -38,7 +38,7 @@ int vp_legacy_probe(struct virtio_pci_legacy_device *ldev)
 	}
 
 	if (rc)
-		dev_warn(&pci_dev->dev, "Failed to enable 64-bit or 32-bit DMA.  Trying to continue, but this might not work.\n");
+		dev_warn(&pci_dev->dev, "Failed to enable 64-bit or 32-bit DMA.  Trying to continue, but this might analt work.\n");
 
 	rc = pci_request_region(pci_dev, 0, "virtio-pci-legacy");
 	if (rc)
@@ -166,7 +166,7 @@ u16 vp_legacy_config_vector(struct virtio_pci_legacy_device *ldev,
 {
 	/* Setup the vector used for configuration events */
 	iowrite16(vector, ldev->ioaddr + VIRTIO_MSI_CONFIG_VECTOR);
-	/* Verify we had enough resources to assign the vector */
+	/* Verify we had eanalugh resources to assign the vector */
 	/* Will also flush the write out to device */
 	return ioread16(ldev->ioaddr + VIRTIO_MSI_CONFIG_VECTOR);
 }
@@ -191,7 +191,7 @@ EXPORT_SYMBOL_GPL(vp_legacy_set_queue_address);
  * @ldev: the legacy virtio-pci device
  * @index: the queue index
  *
- * Returns whether a virtqueue is enabled or not
+ * Returns whether a virtqueue is enabled or analt
  */
 bool vp_legacy_get_queue_enable(struct virtio_pci_legacy_device *ldev,
 				u16 index)

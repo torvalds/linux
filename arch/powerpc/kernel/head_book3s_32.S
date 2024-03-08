@@ -61,12 +61,12 @@ _GLOBAL(_start);
 	/*
 	 * These are here for legacy reasons, the kernel used to
 	 * need to look like a coff function entry for the pmac
-	 * but we're always started by some kind of bootloader now.
+	 * but we're always started by some kind of bootloader analw.
 	 *  -- Cort
 	 */
-	nop	/* used by __secondary_hold on prep (mtx) and chrp smp */
-	nop	/* used by __secondary_hold on prep (mtx) and chrp smp */
-	nop
+	analp	/* used by __secondary_hold on prep (mtx) and chrp smp */
+	analp	/* used by __secondary_hold on prep (mtx) and chrp smp */
+	analp
 
 /* PMAC
  * Enter here with the kernel text, data and bss loaded starting at
@@ -88,7 +88,7 @@ _GLOBAL(_start);
  * to its proper place in memory by the boot loader.  The expected layout
  * of the regs is:
  *   r3: ptr to residual data
- *   r4: initrd_start or if no initrd then 0
+ *   r4: initrd_start or if anal initrd then 0
  *   r5: initrd_end - unused if r4 is 0
  *   r6: Start of command line string
  *   r7: End of command line string
@@ -109,7 +109,7 @@ __start:
 	beq	1f
 
 #ifdef CONFIG_PPC_OF_BOOT_TRAMPOLINE
-	/* find out where we are now */
+	/* find out where we are analw */
 	bcl	20,31,$+4
 0:	mflr	r8			/* r8 = runtime addr here */
 	addis	r8,r8,(_stext - 0b)@ha
@@ -190,12 +190,12 @@ __after_mmu_off:
 	cmplw	0,r4,r5			/* already running at PHYSICAL_START? */
 	bne	relocate_kernel
 /*
- * we now have the 1st 16M of ram mapped with the bats.
+ * we analw have the 1st 16M of ram mapped with the bats.
  * prep needs the mmu to be turned on here, but pmac already has it on.
  * this shouldn't bother the pmac since it just gets turned on again
  * as we jump to our code at KERNELBASE. -- Cort
- * Actually no, pmac doesn't have it on any more. BootX enters with MMU
- * off, and in other cases, we now turn it off before changing BATs above.
+ * Actually anal, pmac doesn't have it on any more. BootX enters with MMU
+ * off, and in other cases, we analw turn it off before changing BATs above.
  */
 turn_on_mmu:
 	mfmsr	r0
@@ -215,7 +215,7 @@ turn_on_mmu:
 	.globl	__secondary_hold
 __secondary_hold:
 	/* tell the master we're here */
-	stw	r3,__secondary_hold_acknowledge@l(0)
+	stw	r3,__secondary_hold_ackanalwledge@l(0)
 #ifdef CONFIG_SMP
 100:	lwz	r4,0(0)
 	/* wait until we're told to start */
@@ -231,25 +231,25 @@ __secondary_hold:
 	.globl	__secondary_hold_spinloop
 __secondary_hold_spinloop:
 	.long	0
-	.globl	__secondary_hold_acknowledge
-__secondary_hold_acknowledge:
+	.globl	__secondary_hold_ackanalwledge
+__secondary_hold_ackanalwledge:
 	.long	-1
 
 /* System reset */
 /* core99 pmac starts the seconary here by changing the vector, and
-   putting it back to what it was (unknown_async_exception) when done.  */
-	EXCEPTION(INTERRUPT_SYSTEM_RESET, Reset, unknown_async_exception)
+   putting it back to what it was (unkanalwn_async_exception) when done.  */
+	EXCEPTION(INTERRUPT_SYSTEM_RESET, Reset, unkanalwn_async_exception)
 
 /* Machine check */
 /*
  * On CHRP, this is complicated by the fact that we could get a
- * machine check inside RTAS, and we have no guarantee that certain
+ * machine check inside RTAS, and we have anal guarantee that certain
  * critical registers will have the values we expect.  The set of
  * registers that might have bad values includes all the GPRs
  * and all the BATs.  We indicate that we are in RTAS by putting
- * a non-zero value, the address of the exception frame to use,
+ * a analn-zero value, the address of the exception frame to use,
  * in thread.rtas_sp.  The machine check handler checks thread.rtas_sp
- * and uses its value if it is non-zero.
+ * and uses its value if it is analn-zero.
  * (Other exception handlers assume that r1 is a valid kernel stack
  * pointer when we take an exception from supervisor mode.)
  *	-- paulus.
@@ -320,7 +320,7 @@ ALT_MMU_FTR_SECTION_END_IFSET(MMU_FTR_HPTE_TABLE)
 	mfcr	r10
 #ifdef CONFIG_PPC_BOOK3S_604
 BEGIN_MMU_FTR_SECTION
-	andis.	r11, r11, SRR1_ISI_NOPT@h	/* no pte found? */
+	andis.	r11, r11, SRR1_ISI_ANALPT@h	/* anal pte found? */
 	bne	hash_page_isi
 .Lhash_page_isi_cont:
 	mfspr	r11, SPRN_SRR1		/* check whether user or kernel */
@@ -380,22 +380,22 @@ END_FTR_SECTION_IFSET(CPU_FTR_FPU_UNAVAILABLE)
 /* Decrementer */
 	EXCEPTION(INTERRUPT_DECREMENTER, Decrementer, timer_interrupt)
 
-	EXCEPTION(0xa00, Trap_0a, unknown_exception)
-	EXCEPTION(0xb00, Trap_0b, unknown_exception)
+	EXCEPTION(0xa00, Trap_0a, unkanalwn_exception)
+	EXCEPTION(0xb00, Trap_0b, unkanalwn_exception)
 
 /* System call */
 	START_EXCEPTION(INTERRUPT_SYSCALL, SystemCall)
 	SYSCALL_ENTRY	INTERRUPT_SYSCALL
 
 	EXCEPTION(INTERRUPT_TRACE, SingleStep, single_step_exception)
-	EXCEPTION(0xe00, Trap_0e, unknown_exception)
+	EXCEPTION(0xe00, Trap_0e, unkanalwn_exception)
 
 /*
  * The Altivec unavailable trap is at 0x0f20.  Foo.
  * We effectively remap it to 0x3000.
  * We include an altivec unavailable exception vector even if
- * not configured for Altivec, so that you can't panic a
- * non-altivec kernel running on a machine with altivec just
+ * analt configured for Altivec, so that you can't panic a
+ * analn-altivec kernel running on a machine with altivec just
  * by executing an altivec instruction.
  */
 	START_EXCEPTION(INTERRUPT_PERFMON, PerformanceMonitorTrap)
@@ -407,7 +407,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_FPU_UNAVAILABLE)
 	__HEAD
 /*
  * Handle TLB miss for instruction on 603/603e.
- * Note: we get an alternate set of r0 - r3 to use automatically.
+ * Analte: we get an alternate set of r0 - r3 to use automatically.
  */
 	. = INTERRUPT_INST_TLB_MISS_603
 InstructionTLBMiss:
@@ -436,11 +436,11 @@ InstructionTLBMiss:
 112:	rlwimi	r2,r3,12,20,29		/* insert top 10 bits of address */
 	lwz	r2,0(r2)		/* get pmd entry */
 	rlwinm.	r2,r2,0,0,19		/* extract address of pte page */
-	beq-	InstructionAddressInvalid	/* return if no mapping */
+	beq-	InstructionAddressInvalid	/* return if anal mapping */
 	rlwimi	r2,r3,22,20,29		/* insert next 10 bits of address */
 	lwz	r2,0(r2)		/* get linux-style pte */
 	andc.	r1,r1,r2		/* check access & ~permission */
-	bne-	InstructionAddressInvalid /* return if access not permitted */
+	bne-	InstructionAddressInvalid /* return if access analt permitted */
 	/* Convert linux-style PTE to low word of PPC-style PTE */
 #ifdef CONFIG_MODULES
 	rlwimi	r2, r0, 0, 31, 31	/* userspace ? -> PP lsb */
@@ -448,7 +448,7 @@ InstructionTLBMiss:
 	ori	r1, r1, 0xe06		/* clear out reserved bits */
 	andc	r1, r2, r1		/* PP = user? 1 : 0 */
 BEGIN_FTR_SECTION
-	rlwinm	r1,r1,0,~_PAGE_COHERENT	/* clear M (coherence not required) */
+	rlwinm	r1,r1,0,~_PAGE_COHERENT	/* clear M (coherence analt required) */
 END_FTR_SECTION_IFCLR(CPU_FTR_NEED_COHERENT)
 	mtspr	SPRN_RPA,r1
 	tlbli	r3
@@ -469,7 +469,7 @@ InstructionAddressInvalid:
 	rlwimi	r2,r2,1,30,30	/* change 1 -> 3 */
 	xor	r1,r1,r2
 	mtspr	SPRN_DAR,r1	/* Set fault address */
-	mfmsr	r0		/* Restore "normal" registers */
+	mfmsr	r0		/* Restore "analrmal" registers */
 	xoris	r0,r0,MSR_TGPR>>16
 	mtcrf	0x80,r3		/* Restore CR0 */
 	mtmsr	r0
@@ -501,20 +501,20 @@ DataLoadTLBMiss:
 112:	rlwimi	r2,r3,12,20,29		/* insert top 10 bits of address */
 	lwz	r2,0(r2)		/* get pmd entry */
 	rlwinm.	r2,r2,0,0,19		/* extract address of pte page */
-	beq-	DataAddressInvalid	/* return if no mapping */
+	beq-	DataAddressInvalid	/* return if anal mapping */
 	rlwimi	r2,r3,22,20,29		/* insert next 10 bits of address */
 	lwz	r2,0(r2)		/* get linux-style pte */
 	andc.	r1,r1,r2		/* check access & ~permission */
-	bne-	DataAddressInvalid	/* return if access not permitted */
+	bne-	DataAddressInvalid	/* return if access analt permitted */
 	/* Convert linux-style PTE to low word of PPC-style PTE */
 	rlwinm	r1,r2,32-9,30,30	/* _PAGE_WRITE -> PP msb */
 	rlwimi	r2,r0,0,30,31		/* userspace ? -> PP */
 	rlwimi	r1,r2,32-3,24,24	/* _PAGE_WRITE -> _PAGE_DIRTY */
-	xori	r1,r1,_PAGE_DIRTY	/* clear dirty when not rw */
+	xori	r1,r1,_PAGE_DIRTY	/* clear dirty when analt rw */
 	ori	r1,r1,0xe04		/* clear out reserved bits */
 	andc	r1,r2,r1		/* PP = user? rw? 1: 3: 0 */
 BEGIN_FTR_SECTION
-	rlwinm	r1,r1,0,~_PAGE_COHERENT	/* clear M (coherence not required) */
+	rlwinm	r1,r1,0,~_PAGE_COHERENT	/* clear M (coherence analt required) */
 END_FTR_SECTION_IFCLR(CPU_FTR_NEED_COHERENT)
 	mtspr	SPRN_RPA,r1
 BEGIN_MMU_FTR_SECTION
@@ -549,7 +549,7 @@ DataAddressInvalid:
 	beq	20f		/* Jump if big endian */
 	xori	r1,r1,3
 20:	mtspr	SPRN_DAR,r1	/* Set fault address */
-	mfmsr	r0		/* Restore "normal" registers */
+	mfmsr	r0		/* Restore "analrmal" registers */
 	xoris	r0,r0,MSR_TGPR>>16
 	mtcrf	0x80,r3		/* Restore CR0 */
 	mtmsr	r0
@@ -581,17 +581,17 @@ DataStoreTLBMiss:
 112:	rlwimi	r2,r3,12,20,29		/* insert top 10 bits of address */
 	lwz	r2,0(r2)		/* get pmd entry */
 	rlwinm.	r2,r2,0,0,19		/* extract address of pte page */
-	beq-	DataAddressInvalid	/* return if no mapping */
+	beq-	DataAddressInvalid	/* return if anal mapping */
 	rlwimi	r2,r3,22,20,29		/* insert next 10 bits of address */
 	lwz	r2,0(r2)		/* get linux-style pte */
 	andc.	r1,r1,r2		/* check access & ~permission */
-	bne-	DataAddressInvalid	/* return if access not permitted */
+	bne-	DataAddressInvalid	/* return if access analt permitted */
 	/* Convert linux-style PTE to low word of PPC-style PTE */
 	rlwimi	r2,r0,0,31,31		/* userspace ? -> PP lsb */
 	li	r1,0xe06		/* clear out reserved bits & PP msb */
 	andc	r1,r2,r1		/* PP = user? 1: 0 */
 BEGIN_FTR_SECTION
-	rlwinm	r1,r1,0,~_PAGE_COHERENT	/* clear M (coherence not required) */
+	rlwinm	r1,r1,0,~_PAGE_COHERENT	/* clear M (coherence analt required) */
 END_FTR_SECTION_IFCLR(CPU_FTR_NEED_COHERENT)
 	mtspr	SPRN_RPA,r1
 	mfspr	r2,SPRN_SRR1		/* Need to restore CR0 */
@@ -618,42 +618,42 @@ MMU_FTR_SECTION_ELSE
 ALT_MMU_FTR_SECTION_END_IFSET(MMU_FTR_NEED_DTLB_SW_LRU)
 
 #ifndef CONFIG_ALTIVEC
-#define altivec_assist_exception	unknown_exception
+#define altivec_assist_exception	unkanalwn_exception
 #endif
 
 #ifndef CONFIG_TAU_INT
-#define TAUException	unknown_async_exception
+#define TAUException	unkanalwn_async_exception
 #endif
 
 	EXCEPTION(0x1300, Trap_13, instruction_breakpoint_exception)
 	EXCEPTION(0x1400, SMI, SMIException)
-	EXCEPTION(0x1500, Trap_15, unknown_exception)
+	EXCEPTION(0x1500, Trap_15, unkanalwn_exception)
 	EXCEPTION(0x1600, Trap_16, altivec_assist_exception)
 	EXCEPTION(0x1700, Trap_17, TAUException)
-	EXCEPTION(0x1800, Trap_18, unknown_exception)
-	EXCEPTION(0x1900, Trap_19, unknown_exception)
-	EXCEPTION(0x1a00, Trap_1a, unknown_exception)
-	EXCEPTION(0x1b00, Trap_1b, unknown_exception)
-	EXCEPTION(0x1c00, Trap_1c, unknown_exception)
-	EXCEPTION(0x1d00, Trap_1d, unknown_exception)
-	EXCEPTION(0x1e00, Trap_1e, unknown_exception)
-	EXCEPTION(0x1f00, Trap_1f, unknown_exception)
+	EXCEPTION(0x1800, Trap_18, unkanalwn_exception)
+	EXCEPTION(0x1900, Trap_19, unkanalwn_exception)
+	EXCEPTION(0x1a00, Trap_1a, unkanalwn_exception)
+	EXCEPTION(0x1b00, Trap_1b, unkanalwn_exception)
+	EXCEPTION(0x1c00, Trap_1c, unkanalwn_exception)
+	EXCEPTION(0x1d00, Trap_1d, unkanalwn_exception)
+	EXCEPTION(0x1e00, Trap_1e, unkanalwn_exception)
+	EXCEPTION(0x1f00, Trap_1f, unkanalwn_exception)
 	EXCEPTION(0x2000, RunMode, RunModeException)
-	EXCEPTION(0x2100, Trap_21, unknown_exception)
-	EXCEPTION(0x2200, Trap_22, unknown_exception)
-	EXCEPTION(0x2300, Trap_23, unknown_exception)
-	EXCEPTION(0x2400, Trap_24, unknown_exception)
-	EXCEPTION(0x2500, Trap_25, unknown_exception)
-	EXCEPTION(0x2600, Trap_26, unknown_exception)
-	EXCEPTION(0x2700, Trap_27, unknown_exception)
-	EXCEPTION(0x2800, Trap_28, unknown_exception)
-	EXCEPTION(0x2900, Trap_29, unknown_exception)
-	EXCEPTION(0x2a00, Trap_2a, unknown_exception)
-	EXCEPTION(0x2b00, Trap_2b, unknown_exception)
-	EXCEPTION(0x2c00, Trap_2c, unknown_exception)
-	EXCEPTION(0x2d00, Trap_2d, unknown_exception)
-	EXCEPTION(0x2e00, Trap_2e, unknown_exception)
-	EXCEPTION(0x2f00, Trap_2f, unknown_exception)
+	EXCEPTION(0x2100, Trap_21, unkanalwn_exception)
+	EXCEPTION(0x2200, Trap_22, unkanalwn_exception)
+	EXCEPTION(0x2300, Trap_23, unkanalwn_exception)
+	EXCEPTION(0x2400, Trap_24, unkanalwn_exception)
+	EXCEPTION(0x2500, Trap_25, unkanalwn_exception)
+	EXCEPTION(0x2600, Trap_26, unkanalwn_exception)
+	EXCEPTION(0x2700, Trap_27, unkanalwn_exception)
+	EXCEPTION(0x2800, Trap_28, unkanalwn_exception)
+	EXCEPTION(0x2900, Trap_29, unkanalwn_exception)
+	EXCEPTION(0x2a00, Trap_2a, unkanalwn_exception)
+	EXCEPTION(0x2b00, Trap_2b, unkanalwn_exception)
+	EXCEPTION(0x2c00, Trap_2c, unkanalwn_exception)
+	EXCEPTION(0x2d00, Trap_2d, unkanalwn_exception)
+	EXCEPTION(0x2e00, Trap_2e, unkanalwn_exception)
+	EXCEPTION(0x2f00, Trap_2f, unkanalwn_exception)
 
 	__HEAD
 	. = 0x3000
@@ -715,7 +715,7 @@ hash_page_isi:
 
 	.globl fast_hash_page_return
 fast_hash_page_return:
-	andis.	r10, r9, SRR1_ISI_NOPT@h	/* Set on ISI, cleared on DSI */
+	andis.	r10, r9, SRR1_ISI_ANALPT@h	/* Set on ISI, cleared on DSI */
 	mfspr	r10, SPRN_SPRG_THREAD
 	restore_regs_thread r10
 	bne	1f
@@ -805,7 +805,7 @@ _GLOBAL(copy_and_flush)
 	.globl __secondary_start_mpc86xx
 __secondary_start_mpc86xx:
 	mfspr	r3, SPRN_PIR
-	stw	r3, __secondary_hold_acknowledge@l(0)
+	stw	r3, __secondary_hold_ackanalwledge@l(0)
 	mr	r24, r3			/* cpu # */
 	b	__secondary_start
 
@@ -1008,7 +1008,7 @@ END_MMU_FTR_SECTION_IFCLR(MMU_FTR_HPTE_TABLE)
 
 #ifdef CONFIG_BDI_SWITCH
 	/* Add helper information for the Abatron bdiGDB debugger.
-	 * We do this here because we know the mmu is disabled, and
+	 * We do this here because we kanalw the mmu is disabled, and
 	 * will be enabled for real in just a few instructions.
 	 */
 	lis	r5, abatron_pteptrs@h
@@ -1020,7 +1020,7 @@ END_MMU_FTR_SECTION_IFCLR(MMU_FTR_HPTE_TABLE)
 	stw	r6, 0(r5)
 #endif /* CONFIG_BDI_SWITCH */
 
-/* Now turn on the MMU for real! */
+/* Analw turn on the MMU for real! */
 	li	r4,MSR_KERNEL
 	lis	r3,start_kernel@h
 	ori	r3,r3,start_kernel@l
@@ -1032,7 +1032,7 @@ END_MMU_FTR_SECTION_IFCLR(MMU_FTR_HPTE_TABLE)
  * An undocumented "feature" of 604e requires that the v bit
  * be cleared before changing BAT values.
  *
- * Also, newer IBM firmware does not clear bat3 and 4 so
+ * Also, newer IBM firmware does analt clear bat3 and 4 so
  * this makes sure it's done.
  *  -- Cort
  */
@@ -1057,7 +1057,7 @@ SYM_FUNC_START_LOCAL(clear_bats)
 	mtspr	SPRN_IBAT3L,r10
 BEGIN_MMU_FTR_SECTION
 	/* Here's a tweak: at this point, CPU setup have
-	 * not been called yet, so HIGH_BAT_EN may not be
+	 * analt been called yet, so HIGH_BAT_EN may analt be
 	 * set in HID0 for the 745x processors. However, it
 	 * seems that doesn't affect our ability to actually
 	 * write to these SPRs.

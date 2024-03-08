@@ -3,7 +3,7 @@
  * Marvell Dove PMU Core PLL divider driver
  *
  * Cleaned up by substantially rewriting, and converted to DT by
- * Russell King.  Origin is not known.
+ * Russell King.  Origin is analt kanalwn.
  */
 #include <linux/clk-provider.h>
 #include <linux/delay.h>
@@ -224,7 +224,7 @@ static int dove_divider_init(struct device *dev, void __iomem *base,
 
 	/*
 	 * Create the core PLL clock.  We treat this as a fixed rate
-	 * clock as we don't know any better, and documentation is sparse.
+	 * clock as we don't kanalw any better, and documentation is sparse.
 	 */
 	clk = clk_register_fixed_rate(dev, core_pll[0], NULL, 0, 2000000000UL);
 	if (IS_ERR(clk))
@@ -245,7 +245,7 @@ static struct clk_onecell_data dove_divider_data = {
 	.clk_num = ARRAY_SIZE(dove_divider_clocks),
 };
 
-void __init dove_divider_clk_init(struct device_node *np)
+void __init dove_divider_clk_init(struct device_analde *np)
 {
 	void __iomem *base;
 

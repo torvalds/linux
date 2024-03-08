@@ -38,22 +38,22 @@
 #define HX8394_CMD_SETMIPI	  0xba
 #define HX8394_CMD_SETOTP	  0xbb
 #define HX8394_CMD_SETREGBANK	  0xbd
-#define HX8394_CMD_UNKNOWN5	  0xbf
-#define HX8394_CMD_UNKNOWN1	  0xc0
+#define HX8394_CMD_UNKANALWN5	  0xbf
+#define HX8394_CMD_UNKANALWN1	  0xc0
 #define HX8394_CMD_SETDGCLUT	  0xc1
 #define HX8394_CMD_SETID	  0xc3
 #define HX8394_CMD_SETDDB	  0xc4
-#define HX8394_CMD_UNKNOWN2	  0xc6
+#define HX8394_CMD_UNKANALWN2	  0xc6
 #define HX8394_CMD_SETCABC	  0xc9
 #define HX8394_CMD_SETCABCGAIN	  0xca
 #define HX8394_CMD_SETPANEL	  0xcc
 #define HX8394_CMD_SETOFFSET	  0xd2
 #define HX8394_CMD_SETGIP0	  0xd3
-#define HX8394_CMD_UNKNOWN3	  0xd4
+#define HX8394_CMD_UNKANALWN3	  0xd4
 #define HX8394_CMD_SETGIP1	  0xd5
 #define HX8394_CMD_SETGIP2	  0xd6
 #define HX8394_CMD_SETGPO	  0xd6
-#define HX8394_CMD_UNKNOWN4	  0xd8
+#define HX8394_CMD_UNKANALWN4	  0xd8
 #define HX8394_CMD_SETSCALING	  0xdd
 #define HX8394_CMD_SETIDLE	  0xdf
 #define HX8394_CMD_SETGAMMA	  0xe0
@@ -151,16 +151,16 @@ static int hsd060bhw4_init_sequence(struct hx8394 *ctx)
 	mipi_dsi_dcs_write_seq(dsi, HX8394_CMD_SETPANEL,
 			       0x0b);
 
-	/* Unknown command, not listed in the HX8394-F datasheet */
-	mipi_dsi_dcs_write_seq(dsi, HX8394_CMD_UNKNOWN1,
+	/* Unkanalwn command, analt listed in the HX8394-F datasheet */
+	mipi_dsi_dcs_write_seq(dsi, HX8394_CMD_UNKANALWN1,
 			       0x1f, 0x31);
 
 	/* 5.19.5 SETVCOM: Set VCOM voltage (B6h) */
 	mipi_dsi_dcs_write_seq(dsi, HX8394_CMD_SETVCOM,
 			       0x7d, 0x7d);
 
-	/* Unknown command, not listed in the HX8394-F datasheet */
-	mipi_dsi_dcs_write_seq(dsi, HX8394_CMD_UNKNOWN3,
+	/* Unkanalwn command, analt listed in the HX8394-F datasheet */
+	mipi_dsi_dcs_write_seq(dsi, HX8394_CMD_UNKANALWN3,
 			       0x02);
 
 	/* 5.19.11 Set register bank (BDh) */
@@ -175,8 +175,8 @@ static int hsd060bhw4_init_sequence(struct hx8394 *ctx)
 	mipi_dsi_dcs_write_seq(dsi, HX8394_CMD_SETREGBANK,
 			       0x00);
 
-	/* Unknown command, not listed in the HX8394-F datasheet */
-	mipi_dsi_dcs_write_seq(dsi, HX8394_CMD_UNKNOWN3,
+	/* Unkanalwn command, analt listed in the HX8394-F datasheet */
+	mipi_dsi_dcs_write_seq(dsi, HX8394_CMD_UNKANALWN3,
 			       0xed);
 
 	return 0;
@@ -267,24 +267,24 @@ static int powkiddy_x55_init_sequence(struct hx8394 *ctx)
 			       0x65, 0x6e, 0x81, 0x87, 0x8b, 0x98, 0x9d, 0x99, 0xa8, 0xba,
 			       0x5d, 0x5d, 0x62, 0x67, 0x6b, 0x72, 0x7f, 0x7f);
 
-	/* Unknown command, not listed in the HX8394-F datasheet */
-	mipi_dsi_dcs_write_seq(dsi, HX8394_CMD_UNKNOWN1,
+	/* Unkanalwn command, analt listed in the HX8394-F datasheet */
+	mipi_dsi_dcs_write_seq(dsi, HX8394_CMD_UNKANALWN1,
 			       0x1f, 0x31);
 
 	/* 5.19.17 SETPANEL (CCh) */
 	mipi_dsi_dcs_write_seq(dsi, HX8394_CMD_SETPANEL,
 			       0x0b);
 
-	/* Unknown command, not listed in the HX8394-F datasheet */
-	mipi_dsi_dcs_write_seq(dsi, HX8394_CMD_UNKNOWN3,
+	/* Unkanalwn command, analt listed in the HX8394-F datasheet */
+	mipi_dsi_dcs_write_seq(dsi, HX8394_CMD_UNKANALWN3,
 			       0x02);
 
 	/* 5.19.11 Set register bank (BDh) */
 	mipi_dsi_dcs_write_seq(dsi, HX8394_CMD_SETREGBANK,
 			       0x02);
 
-	/* Unknown command, not listed in the HX8394-F datasheet */
-	mipi_dsi_dcs_write_seq(dsi, HX8394_CMD_UNKNOWN4,
+	/* Unkanalwn command, analt listed in the HX8394-F datasheet */
+	mipi_dsi_dcs_write_seq(dsi, HX8394_CMD_UNKANALWN4,
 			       0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 			       0xff, 0xff);
 
@@ -304,12 +304,12 @@ static int powkiddy_x55_init_sequence(struct hx8394 *ctx)
 	mipi_dsi_dcs_write_seq(dsi, HX8394_CMD_SETREGBANK,
 			       0x00);
 
-	/* Unknown command, not listed in the HX8394-F datasheet */
-	mipi_dsi_dcs_write_seq(dsi, HX8394_CMD_UNKNOWN5,
+	/* Unkanalwn command, analt listed in the HX8394-F datasheet */
+	mipi_dsi_dcs_write_seq(dsi, HX8394_CMD_UNKANALWN5,
 			       0x40, 0x81, 0x50, 0x00, 0x1a, 0xfc, 0x01);
 
-	/* Unknown command, not listed in the HX8394-F datasheet */
-	mipi_dsi_dcs_write_seq(dsi, HX8394_CMD_UNKNOWN2,
+	/* Unkanalwn command, analt listed in the HX8394-F datasheet */
+	mipi_dsi_dcs_write_seq(dsi, HX8394_CMD_UNKANALWN2,
 			       0xed);
 
 	return 0;
@@ -334,7 +334,7 @@ static const struct hx8394_panel_desc powkiddy_x55_desc = {
 	.mode = &powkiddy_x55_mode,
 	.lanes = 4,
 	.mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
-		      MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_NO_EOT_PACKET,
+		      MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_ANAL_EOT_PACKET,
 	.format = MIPI_DSI_FMT_RGB888,
 	.init_sequence = powkiddy_x55_init_sequence,
 };
@@ -448,7 +448,7 @@ static int hx8394_get_modes(struct drm_panel *panel,
 		dev_err(ctx->dev, "Failed to add mode %ux%u@%u\n",
 			ctx->desc->mode->hdisplay, ctx->desc->mode->vdisplay,
 			drm_mode_vrefresh(ctx->desc->mode));
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	drm_mode_set_name(mode);
@@ -485,16 +485,16 @@ static int hx8394_probe(struct mipi_dsi_device *dsi)
 
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(ctx->reset_gpio))
 		return dev_err_probe(dev, PTR_ERR(ctx->reset_gpio),
 				     "Failed to get reset gpio\n");
 
-	ret = of_drm_get_panel_orientation(dev->of_node, &ctx->orientation);
+	ret = of_drm_get_panel_orientation(dev->of_analde, &ctx->orientation);
 	if (ret < 0) {
-		dev_err(dev, "%pOF: failed to get orientation %d\n", dev->of_node, ret);
+		dev_err(dev, "%pOF: failed to get orientation %d\n", dev->of_analde, ret);
 		return ret;
 	}
 

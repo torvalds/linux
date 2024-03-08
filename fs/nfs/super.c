@@ -12,13 +12,13 @@
  *  Change to nfs_read_super() to permit NFS mounts to multi-homed hosts.
  *  J.S.Peatfield@damtp.cam.ac.uk
  *
- *  Split from inode.c by David Howells <dhowells@redhat.com>
+ *  Split from ianalde.c by David Howells <dhowells@redhat.com>
  *
- * - superblocks are indexed on server only - all inodes, dentries, etc. associated with a
+ * - superblocks are indexed on server only - all ianaldes, dentries, etc. associated with a
  *   particular server are held in the same superblock
  * - NFS superblocks can have several effective roots to the dentry tree
  * - directory type roots are spliced into the tree when a path from one root reaches the root
- *   of another (see nfs_lookup())
+ *   of aanalther (see nfs_lookup())
  */
 
 #include <linux/module.h>
@@ -29,7 +29,7 @@
 #include <linux/mm.h>
 #include <linux/string.h>
 #include <linux/stat.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/unistd.h>
 #include <linux/sunrpc/clnt.h>
 #include <linux/sunrpc/addr.h>
@@ -76,12 +76,12 @@
 #define NFSDBG_FACILITY		NFSDBG_VFS
 
 const struct super_operations nfs_sops = {
-	.alloc_inode	= nfs_alloc_inode,
-	.free_inode	= nfs_free_inode,
-	.write_inode	= nfs_write_inode,
-	.drop_inode	= nfs_drop_inode,
+	.alloc_ianalde	= nfs_alloc_ianalde,
+	.free_ianalde	= nfs_free_ianalde,
+	.write_ianalde	= nfs_write_ianalde,
+	.drop_ianalde	= nfs_drop_ianalde,
 	.statfs		= nfs_statfs,
-	.evict_inode	= nfs_evict_inode,
+	.evict_ianalde	= nfs_evict_ianalde,
 	.umount_begin	= nfs_umount_begin,
 	.show_options	= nfs_show_options,
 	.show_devname	= nfs_show_devname,
@@ -152,7 +152,7 @@ int __init register_nfs_fs(void)
 
 	acl_shrinker = shrinker_alloc(0, "nfs-acl");
 	if (!acl_shrinker) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error_3;
 	}
 
@@ -193,7 +193,7 @@ bool nfs_sb_active(struct super_block *sb)
 {
 	struct nfs_server *server = NFS_SB(sb);
 
-	if (!atomic_inc_not_zero(&sb->s_active))
+	if (!atomic_inc_analt_zero(&sb->s_active))
 		return false;
 	if (atomic_inc_return(&server->active) != 1)
 		atomic_dec(&sb->s_active);
@@ -253,9 +253,9 @@ int nfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	struct nfs_server *server = NFS_SB(dentry->d_sb);
 	unsigned char blockbits;
 	unsigned long blockres;
-	struct nfs_fh *fh = NFS_FH(d_inode(dentry));
+	struct nfs_fh *fh = NFS_FH(d_ianalde(dentry));
 	struct nfs_fsstat res;
-	int error = -ENOMEM;
+	int error = -EANALMEM;
 
 	res.fattr = nfs_alloc_fattr();
 	if (res.fattr == NULL)
@@ -266,7 +266,7 @@ int nfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 		struct dentry *pd_dentry;
 
 		pd_dentry = dget_parent(dentry);
-		nfs_zap_caches(d_inode(pd_dentry));
+		nfs_zap_caches(d_ianalde(pd_dentry));
 		dput(pd_dentry);
 	}
 	nfs_free_fattr(res.fattr);
@@ -276,7 +276,7 @@ int nfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_type = NFS_SUPER_MAGIC;
 
 	/*
-	 * Current versions of glibc do not correctly handle the
+	 * Current versions of glibc do analt correctly handle the
 	 * case where f_frsize != f_bsize.  Eventually we want to
 	 * report the value of wtmult in this field.
 	 */
@@ -330,7 +330,7 @@ static const char *nfs_pseudoflavour_to_name(rpc_authflavor_t flavour)
 		{ RPC_AUTH_GSS_SPKM, "spkm" },
 		{ RPC_AUTH_GSS_SPKMI, "spkmi" },
 		{ RPC_AUTH_GSS_SPKMP, "spkmp" },
-		{ UINT_MAX, "unknown" }
+		{ UINT_MAX, "unkanalwn" }
 	};
 	int i;
 
@@ -424,11 +424,11 @@ static void nfs_show_nfsv4_options(struct seq_file *m, struct nfs_server *nfss,
 
 static void nfs_show_nfs_version(struct seq_file *m,
 		unsigned int version,
-		unsigned int minorversion)
+		unsigned int mianalrversion)
 {
 	seq_printf(m, ",vers=%u", version);
 	if (version == 4)
-		seq_printf(m, ".%u", minorversion);
+		seq_printf(m, ".%u", mianalrversion);
 }
 
 /*
@@ -440,19 +440,19 @@ static void nfs_show_mount_options(struct seq_file *m, struct nfs_server *nfss,
 	static const struct proc_nfs_info {
 		int flag;
 		const char *str;
-		const char *nostr;
+		const char *analstr;
 	} nfs_info[] = {
 		{ NFS_MOUNT_SOFT, ",soft", "" },
 		{ NFS_MOUNT_SOFTERR, ",softerr", "" },
 		{ NFS_MOUNT_SOFTREVAL, ",softreval", "" },
 		{ NFS_MOUNT_POSIX, ",posix", "" },
-		{ NFS_MOUNT_NOCTO, ",nocto", "" },
-		{ NFS_MOUNT_NOAC, ",noac", "" },
-		{ NFS_MOUNT_NONLM, ",nolock", "" },
-		{ NFS_MOUNT_NOACL, ",noacl", "" },
-		{ NFS_MOUNT_NORDIRPLUS, ",nordirplus", "" },
-		{ NFS_MOUNT_UNSHARED, ",nosharecache", "" },
-		{ NFS_MOUNT_NORESVPORT, ",noresvport", "" },
+		{ NFS_MOUNT_ANALCTO, ",analcto", "" },
+		{ NFS_MOUNT_ANALAC, ",analac", "" },
+		{ NFS_MOUNT_ANALNLM, ",anallock", "" },
+		{ NFS_MOUNT_ANALACL, ",analacl", "" },
+		{ NFS_MOUNT_ANALRDIRPLUS, ",analrdirplus", "" },
+		{ NFS_MOUNT_UNSHARED, ",analsharecache", "" },
+		{ NFS_MOUNT_ANALRESVPORT, ",analresvport", "" },
 		{ 0, NULL, NULL }
 	};
 	const struct proc_nfs_info *nfs_infop;
@@ -460,7 +460,7 @@ static void nfs_show_mount_options(struct seq_file *m, struct nfs_server *nfss,
 	u32 version = clp->rpc_ops->version;
 	int local_flock, local_fcntl;
 
-	nfs_show_nfs_version(m, version, clp->cl_minorversion);
+	nfs_show_nfs_version(m, version, clp->cl_mianalrversion);
 	seq_printf(m, ",rsize=%u", nfss->rsize);
 	seq_printf(m, ",wsize=%u", nfss->wsize);
 	if (nfss->bsize != 0)
@@ -480,7 +480,7 @@ static void nfs_show_mount_options(struct seq_file *m, struct nfs_server *nfss,
 		if (nfss->flags & nfs_infop->flag)
 			seq_puts(m, nfs_infop->str);
 		else
-			seq_puts(m, nfs_infop->nostr);
+			seq_puts(m, nfs_infop->analstr);
 	}
 	rcu_read_lock();
 	seq_printf(m, ",proto=%s",
@@ -501,7 +501,7 @@ static void nfs_show_mount_options(struct seq_file *m, struct nfs_server *nfss,
 	seq_printf(m, ",retrans=%u", nfss->client->cl_timeout->to_retries);
 	seq_printf(m, ",sec=%s", nfs_pseudoflavour_to_name(nfss->client->cl_auth->au_flavor));
 	switch (clp->cl_xprtsec.policy) {
-	case RPC_XPRTSEC_TLS_ANON:
+	case RPC_XPRTSEC_TLS_AANALN:
 		seq_puts(m, ",xprtsec=tls");
 		break;
 	case RPC_XPRTSEC_TLS_X509:
@@ -522,9 +522,9 @@ static void nfs_show_mount_options(struct seq_file *m, struct nfs_server *nfss,
 	if (nfss->options & NFS_OPTION_MIGRATION)
 		seq_puts(m, ",migration");
 
-	if (nfss->flags & NFS_MOUNT_LOOKUP_CACHE_NONEG) {
-		if (nfss->flags & NFS_MOUNT_LOOKUP_CACHE_NONE)
-			seq_puts(m, ",lookupcache=none");
+	if (nfss->flags & NFS_MOUNT_LOOKUP_CACHE_ANALNEG) {
+		if (nfss->flags & NFS_MOUNT_LOOKUP_CACHE_ANALNE)
+			seq_puts(m, ",lookupcache=analne");
 		else
 			seq_puts(m, ",lookupcache=pos");
 	}
@@ -533,7 +533,7 @@ static void nfs_show_mount_options(struct seq_file *m, struct nfs_server *nfss,
 	local_fcntl = nfss->flags & NFS_MOUNT_LOCAL_FCNTL;
 
 	if (!local_flock && !local_fcntl)
-		seq_puts(m, ",local_lock=none");
+		seq_puts(m, ",local_lock=analne");
 	else if (local_flock && local_fcntl)
 		seq_puts(m, ",local_lock=all");
 	else if (local_flock)
@@ -597,7 +597,7 @@ static void show_pnfs(struct seq_file *m, struct nfs_server *server)
 	if (server->pnfs_curr_ld)
 		seq_printf(m, "%s", server->pnfs_curr_ld->name);
 	else
-		seq_printf(m, "not configured");
+		seq_printf(m, "analt configured");
 }
 
 static void show_implementation_id(struct seq_file *m, struct nfs_server *nfss)
@@ -627,7 +627,7 @@ int nfs_show_devname(struct seq_file *m, struct dentry *root)
 	char *devname, *dummy;
 	int err = 0;
 	if (!page)
-		return -ENOMEM;
+		return -EANALMEM;
 	devname = nfs_path(&dummy, root, page, PAGE_SIZE, 0);
 	if (IS_ERR(devname))
 		err = PTR_ERR(devname);
@@ -662,9 +662,9 @@ int nfs_show_stats(struct seq_file *m, struct dentry *root)
 	 */
 	seq_puts(m, "\n\topts:\t");
 	seq_puts(m, sb_rdonly(root->d_sb) ? "ro" : "rw");
-	seq_puts(m, root->d_sb->s_flags & SB_SYNCHRONOUS ? ",sync" : "");
-	seq_puts(m, root->d_sb->s_flags & SB_NOATIME ? ",noatime" : "");
-	seq_puts(m, root->d_sb->s_flags & SB_NODIRATIME ? ",nodiratime" : "");
+	seq_puts(m, root->d_sb->s_flags & SB_SYNCHROANALUS ? ",sync" : "");
+	seq_puts(m, root->d_sb->s_flags & SB_ANALATIME ? ",analatime" : "");
+	seq_puts(m, root->d_sb->s_flags & SB_ANALDIRATIME ? ",analdiratime" : "");
 	nfs_show_mount_options(m, nfss, 1);
 
 	seq_printf(m, "\n\tage:\t%lu", (jiffies - nfss->mount_time) / HZ);
@@ -772,7 +772,7 @@ EXPORT_SYMBOL_GPL(nfs_auth_info_match);
 /*
  * Ensure that a specified authtype in ctx->auth_info is supported by
  * the server. Returns 0 and sets ctx->selected_flavor if it's ok, and
- * -EACCES if not.
+ * -EACCES if analt.
  */
 static int nfs_verify_authflavors(struct nfs_fs_context *ctx,
 				  rpc_authflavor_t *server_authlist,
@@ -787,10 +787,10 @@ static int nfs_verify_authflavors(struct nfs_fs_context *ctx,
 	 * must be in the list returned by the server.
 	 *
 	 * AUTH_NULL has a special meaning when it's in the server list - it
-	 * means that the server will ignore the rpc creds, so any flavor
+	 * means that the server will iganalre the rpc creds, so any flavor
 	 * can be used but still use the sec= that was specified.
 	 *
-	 * Note also that the MNT procedure in MNTv1 does not return a list
+	 * Analte also that the MNT procedure in MNTv1 does analt return a list
 	 * of supported security flavors. In this case, nfs_mount() fabricates
 	 * a security flavor list containing just AUTH_NULL.
 	 */
@@ -810,7 +810,7 @@ static int nfs_verify_authflavors(struct nfs_fs_context *ctx,
 	}
 
 	dfprintk(MOUNT,
-		 "NFS: specified auth flavors not supported by server\n");
+		 "NFS: specified auth flavors analt supported by server\n");
 	return -EACCES;
 
 out:
@@ -834,7 +834,7 @@ static int nfs_request_mount(struct fs_context *fc,
 		.dirpath	= ctx->nfs_server.export_path,
 		.protocol	= ctx->mount_server.protocol,
 		.fh		= root_fh,
-		.noresvport	= ctx->flags & NFS_MOUNT_NORESVPORT,
+		.analresvport	= ctx->flags & NFS_MOUNT_ANALRESVPORT,
 		.auth_flav_len	= server_authlist_len,
 		.auth_flavs	= server_authlist,
 		.net		= fc->net_ns,
@@ -869,7 +869,7 @@ static int nfs_request_mount(struct fs_context *fc,
 	nfs_set_port(request.sap, &ctx->mount_server.port, 0);
 
 	/*
-	 * Now ask the mount server to map our export path
+	 * Analw ask the mount server to map our export path
 	 * to a file handle.
 	 */
 	status = nfs_mount(&request, ctx->timeo, ctx->retrans);
@@ -911,7 +911,7 @@ static struct nfs_server *nfs_try_mount_request(struct fs_context *fc)
 	}
 
 	/*
-	 * No sec= option was provided. RFC 2623, section 2.7 suggests we
+	 * Anal sec= option was provided. RFC 2623, section 2.7 suggests we
 	 * SHOULD prefer the flavor listed first. However, some servers list
 	 * AUTH_NULL first. Avoid ever choosing AUTH_NULL.
 	 */
@@ -940,7 +940,7 @@ static struct nfs_server *nfs_try_mount_request(struct fs_context *fc)
 	}
 
 	/*
-	 * Nothing we tried so far worked. At this point, give up if we've
+	 * Analthing we tried so far worked. At this point, give up if we've
 	 * already tried AUTH_UNIX or if the server's list doesn't contain
 	 * AUTH_NULL
 	 */
@@ -972,13 +972,13 @@ EXPORT_SYMBOL_GPL(nfs_try_get_tree);
 		| NFS_MOUNT_TCP \
 		| NFS_MOUNT_VER3 \
 		| NFS_MOUNT_KERBEROS \
-		| NFS_MOUNT_NONLM \
+		| NFS_MOUNT_ANALNLM \
 		| NFS_MOUNT_BROKEN_SUID \
 		| NFS_MOUNT_STRICTLOCK \
 		| NFS_MOUNT_LEGACY_INTERFACE)
 
 #define NFS_MOUNT_CMP_FLAGMASK (NFS_REMOUNT_CMP_FLAGMASK & \
-		~(NFS_MOUNT_UNSHARED | NFS_MOUNT_NORESVPORT))
+		~(NFS_MOUNT_UNSHARED | NFS_MOUNT_ANALRESVPORT))
 
 static int
 nfs_compare_remount_data(struct nfs_server *nfss,
@@ -988,7 +988,7 @@ nfs_compare_remount_data(struct nfs_server *nfss,
 	    ctx->rsize != nfss->rsize ||
 	    ctx->wsize != nfss->wsize ||
 	    ctx->version != nfss->nfs_client->rpc_ops->version ||
-	    ctx->minorversion != nfss->nfs_client->cl_minorversion ||
+	    ctx->mianalrversion != nfss->nfs_client->cl_mianalrversion ||
 	    ctx->retrans != nfss->client->cl_timeout->to_retries ||
 	    !nfs_auth_info_match(&ctx->auth_info, nfss->client->cl_auth->au_flavor) ||
 	    ctx->acregmin != nfss->acregmin / HZ ||
@@ -1017,7 +1017,7 @@ int nfs_reconfigure(struct fs_context *fc)
 
 	/*
 	 * Userspace mount programs that send binary options generally send
-	 * them populated with default values. We have no way to know which
+	 * them populated with default values. We have anal way to kanalw which
 	 * ones were explicitly specified. Fall back to legacy behavior and
 	 * just return success.
 	 */
@@ -1025,14 +1025,14 @@ int nfs_reconfigure(struct fs_context *fc)
 		return 0;
 
 	/*
-	 * noac is a special case. It implies -o sync, but that's not
+	 * analac is a special case. It implies -o sync, but that's analt
 	 * necessarily reflected in the mtab options. reconfigure_super
-	 * will clear SB_SYNCHRONOUS if -o sync wasn't specified in the
+	 * will clear SB_SYNCHROANALUS if -o sync wasn't specified in the
 	 * remount options, so we have to explicitly reset it.
 	 */
-	if (ctx->flags & NFS_MOUNT_NOAC) {
-		fc->sb_flags |= SB_SYNCHRONOUS;
-		fc->sb_flags_mask |= SB_SYNCHRONOUS;
+	if (ctx->flags & NFS_MOUNT_ANALAC) {
+		fc->sb_flags |= SB_SYNCHROANALUS;
+		fc->sb_flags_mask |= SB_SYNCHROANALUS;
 	}
 
 	/* compare new mount options with old ones */
@@ -1040,7 +1040,7 @@ int nfs_reconfigure(struct fs_context *fc)
 	if (ret)
 		return ret;
 
-	return nfs_probe_server(nfss, NFS_FH(d_inode(fc->root)));
+	return nfs_probe_server(nfss, NFS_FH(d_ianalde(fc->root)));
 }
 EXPORT_SYMBOL_GPL(nfs_reconfigure);
 
@@ -1076,7 +1076,7 @@ static void nfs_fill_super(struct super_block *sb, struct nfs_fs_context *ctx)
 		sb->s_export_op = &nfs_export_ops;
 		break;
 	case 4:
-		sb->s_iflags |= SB_I_NOUMASK;
+		sb->s_iflags |= SB_I_ANALUMASK;
 		sb->s_time_gran = 1;
 		sb->s_time_min = S64_MIN;
 		sb->s_time_max = S64_MAX;
@@ -1089,7 +1089,7 @@ static void nfs_fill_super(struct super_block *sb, struct nfs_fs_context *ctx)
 
 	/* We probably want something more informative here */
 	snprintf(sb->s_id, sizeof(sb->s_id),
-		 "%u:%u", MAJOR(sb->s_dev), MINOR(sb->s_dev));
+		 "%u:%u", MAJOR(sb->s_dev), MIANALR(sb->s_dev));
 
 	if (sb->s_blocksize == 0)
 		sb->s_blocksize = nfs_block_bits(server->wsize,
@@ -1138,7 +1138,7 @@ static int nfs_set_super(struct super_block *s, struct fs_context *fc)
 	int ret;
 
 	s->s_d_op = server->nfs_client->rpc_ops->dentry_ops;
-	ret = set_anon_super(s, server);
+	ret = set_aanaln_super(s, server);
 	if (ret == 0)
 		server->s_dev = s->s_dev;
 	return ret;
@@ -1207,7 +1207,7 @@ static int nfs_compare_super(struct super_block *sb, struct fs_context *fc)
 
 	if (!nfs_compare_super_address(old, server))
 		return 0;
-	/* Note: NFS_MOUNT_UNSHARED == NFS4_MOUNT_UNSHARED */
+	/* Analte: NFS_MOUNT_UNSHARED == NFS4_MOUNT_UNSHARED */
 	if (old->flags & NFS_MOUNT_UNSHARED)
 		return 0;
 	if (memcmp(&old->fsid, &server->fsid, sizeof(old->fsid)) != 0)
@@ -1275,22 +1275,22 @@ int nfs_get_tree_common(struct fs_context *fc)
 	if (server->flags & NFS_MOUNT_UNSHARED)
 		compare_super = NULL;
 
-	/* -o noac implies -o sync */
-	if (server->flags & NFS_MOUNT_NOAC)
-		fc->sb_flags |= SB_SYNCHRONOUS;
+	/* -o analac implies -o sync */
+	if (server->flags & NFS_MOUNT_ANALAC)
+		fc->sb_flags |= SB_SYNCHROANALUS;
 
 	if (ctx->clone_data.sb)
-		if (ctx->clone_data.sb->s_flags & SB_SYNCHRONOUS)
-			fc->sb_flags |= SB_SYNCHRONOUS;
+		if (ctx->clone_data.sb->s_flags & SB_SYNCHROANALUS)
+			fc->sb_flags |= SB_SYNCHROANALUS;
 
-	/* Get a superblock - note that we may end up sharing one that already exists */
+	/* Get a superblock - analte that we may end up sharing one that already exists */
 	fc->s_fs_info = server;
 	s = sget_fc(fc, compare_super, nfs_set_super);
 	fc->s_fs_info = NULL;
 	if (IS_ERR(s)) {
 		error = PTR_ERR(s);
 		nfs_errorf(fc, "NFS: Couldn't get superblock");
-		goto out_err_nosb;
+		goto out_err_analsb;
 	}
 
 	if (s->s_fs_info != server) {
@@ -1298,7 +1298,7 @@ int nfs_get_tree_common(struct fs_context *fc)
 		server = NULL;
 	} else {
 		error = super_setup_bdi_name(s, "%u:%u", MAJOR(server->s_dev),
-					     MINOR(server->s_dev));
+					     MIANALR(server->s_dev));
 		if (error)
 			goto error_splat_super;
 		s->s_bdi->io_pages = server->rpages;
@@ -1330,7 +1330,7 @@ int nfs_get_tree_common(struct fs_context *fc)
 out:
 	return error;
 
-out_err_nosb:
+out_err_analsb:
 	nfs_free_server(server);
 	goto out;
 error_splat_super:
@@ -1346,7 +1346,7 @@ void nfs_kill_super(struct super_block *s)
 	struct nfs_server *server = NFS_SB(s);
 
 	nfs_sysfs_move_sb_to_server(server);
-	kill_anon_super(s);
+	kill_aanaln_super(s);
 
 	nfs_fscache_release_super_cookie(s);
 

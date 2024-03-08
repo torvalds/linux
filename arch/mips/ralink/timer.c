@@ -101,7 +101,7 @@ static int rt_timer_probe(struct platform_device *pdev)
 	rt = devm_kzalloc(&pdev->dev, sizeof(*rt), GFP_KERNEL);
 	if (!rt) {
 		dev_err(&pdev->dev, "failed to allocate memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	rt->irq = platform_get_irq(pdev, 0);

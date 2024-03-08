@@ -42,9 +42,9 @@ pse_reg_ethtool_set_config(struct pse_controller_dev *pcdev, unsigned long id,
 		ret = regulator_disable(priv->ps);
 		break;
 	default:
-		dev_err(pcdev->dev, "Unknown admin state %i\n",
+		dev_err(pcdev->dev, "Unkanalwn admin state %i\n",
 			config->admin_cotrol);
-		ret = -ENOTSUPP;
+		ret = -EANALTSUPP;
 	}
 
 	if (ret)
@@ -92,10 +92,10 @@ pse_reg_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	if (!pdev->dev.of_node)
-		return -ENOENT;
+	if (!pdev->dev.of_analde)
+		return -EANALENT;
 
 	priv->ps = devm_regulator_get_exclusive(dev, "pse");
 	if (IS_ERR(priv->ps))

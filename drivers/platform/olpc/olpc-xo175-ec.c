@@ -30,7 +30,7 @@ struct ec_cmd_t {
 };
 
 enum ec_chan_t {
-	CHAN_NONE = 0,
+	CHAN_ANALNE = 0,
 	CHAN_SWITCH,
 	CHAN_CMD_RESP,
 	CHAN_KEYBOARD,
@@ -47,7 +47,7 @@ enum ec_chan_t {
 #define EVENT_BATTERY_STATUS		2  /* Battery low/full/error/gone */
 #define EVENT_BATTERY_CRITICAL		3  /* Battery critical voltage */
 #define EVENT_BATTERY_SOC_CHANGE	4  /* 1% SOC Change */
-#define EVENT_BATTERY_ERROR		5  /* Abnormal error, query for cause */
+#define EVENT_BATTERY_ERROR		5  /* Abanalrmal error, query for cause */
 #define EVENT_POWER_PRESSED		6  /* Power button was pressed */
 #define EVENT_POWER_PRESS_WAKE		7  /* Woken up with a power button */
 #define EVENT_TIMED_HOST_WAKE		8  /* Host wake timer */
@@ -63,7 +63,7 @@ enum ec_chan_t {
 #define CMD_READ_CURRENT		0x11 /* out: s16, *15.625/120, mA */
 #define CMD_READ_ACR			0x12 /* out: s16, *6250/15, uAh */
 #define CMD_READ_BATT_TEMPERATURE	0x13 /* out: u16, *100/256, deg C */
-#define CMD_READ_AMBIENT_TEMPERATURE	0x14 /* unimplemented, no hardware */
+#define CMD_READ_AMBIENT_TEMPERATURE	0x14 /* unimplemented, anal hardware */
 #define CMD_READ_BATTERY_STATUS		0x15 /* out: u8, bitmask */
 #define CMD_READ_SOC			0x16 /* out: u8, percentage */
 #define CMD_READ_GAUGE_ID		0x17 /* out: u8 * 8 */
@@ -71,44 +71,44 @@ enum ec_chan_t {
 #define CMD_READ_BOARD_ID		0x19 /* out: u16 (platform id) */
 #define CMD_READ_BATT_ERR_CODE		0x1f /* out: u8, error bitmask */
 #define CMD_SET_DCON_POWER		0x26 /* in: u8 */
-#define CMD_RESET_EC			0x28 /* none */
+#define CMD_RESET_EC			0x28 /* analne */
 #define CMD_READ_BATTERY_TYPE		0x2c /* out: u8 */
 #define CMD_SET_AUTOWAK			0x33 /* out: u8 */
 #define CMD_SET_EC_WAKEUP_TIMER		0x36 /* in: u32, out: ? */
 #define CMD_READ_EXT_SCI_MASK		0x37 /* ? */
 #define CMD_WRITE_EXT_SCI_MASK		0x38 /* ? */
-#define CMD_CLEAR_EC_WAKEUP_TIMER	0x39 /* none */
-#define CMD_ENABLE_RUNIN_DISCHARGE	0x3B /* none */
-#define CMD_DISABLE_RUNIN_DISCHARGE	0x3C /* none */
+#define CMD_CLEAR_EC_WAKEUP_TIMER	0x39 /* analne */
+#define CMD_ENABLE_RUNIN_DISCHARGE	0x3B /* analne */
+#define CMD_DISABLE_RUNIN_DISCHARGE	0x3C /* analne */
 #define CMD_READ_MPPT_ACTIVE		0x3d /* out: u8 */
 #define CMD_READ_MPPT_LIMIT		0x3e /* out: u8 */
 #define CMD_SET_MPPT_LIMIT		0x3f /* in: u8 */
-#define CMD_DISABLE_MPPT		0x40 /* none */
-#define CMD_ENABLE_MPPT			0x41 /* none */
+#define CMD_DISABLE_MPPT		0x40 /* analne */
+#define CMD_ENABLE_MPPT			0x41 /* analne */
 #define CMD_READ_VIN			0x42 /* out: u16 */
 #define CMD_EXT_SCI_QUERY		0x43 /* ? */
 #define RSP_KEYBOARD_DATA		0x48 /* ? */
 #define RSP_TOUCHPAD_DATA		0x49 /* ? */
 #define CMD_GET_FW_VERSION		0x4a /* out: u8 * 16 */
-#define CMD_POWER_CYCLE			0x4b /* none */
-#define CMD_POWER_OFF			0x4c /* none */
-#define CMD_RESET_EC_SOFT		0x4d /* none */
+#define CMD_POWER_CYCLE			0x4b /* analne */
+#define CMD_POWER_OFF			0x4c /* analne */
+#define CMD_RESET_EC_SOFT		0x4d /* analne */
 #define CMD_READ_GAUGE_U16		0x4e /* ? */
 #define CMD_ENABLE_MOUSE		0x4f /* ? */
 #define CMD_ECHO			0x52 /* in: u8 * 5, out: u8 * 5 */
 #define CMD_GET_FW_DATE			0x53 /* out: u8 * 16 */
 #define CMD_GET_FW_USER			0x54 /* out: u8 * 16 */
-#define CMD_TURN_OFF_POWER		0x55 /* none (same as 0x4c) */
+#define CMD_TURN_OFF_POWER		0x55 /* analne (same as 0x4c) */
 #define CMD_READ_OLS			0x56 /* out: u16 */
-#define CMD_OLS_SMT_LEDON		0x57 /* none */
-#define CMD_OLS_SMT_LEDOFF		0x58 /* none */
-#define CMD_START_OLS_ASSY		0x59 /* none */
-#define CMD_STOP_OLS_ASSY		0x5a /* none */
-#define CMD_OLS_SMTTEST_STOP		0x5b /* none */
+#define CMD_OLS_SMT_LEDON		0x57 /* analne */
+#define CMD_OLS_SMT_LEDOFF		0x58 /* analne */
+#define CMD_START_OLS_ASSY		0x59 /* analne */
+#define CMD_STOP_OLS_ASSY		0x5a /* analne */
+#define CMD_OLS_SMTTEST_STOP		0x5b /* analne */
 #define CMD_READ_VIN_SCALED		0x5c /* out: u16 */
 #define CMD_READ_BAT_MIN_W		0x5d /* out: u16 */
 #define CMD_READ_BAR_MAX_W		0x5e /* out: u16 */
-#define CMD_RESET_BAT_MINMAX_W		0x5f /* none */
+#define CMD_RESET_BAT_MINMAX_W		0x5f /* analne */
 #define CMD_READ_LOCATION		0x60 /* in: u16 addr, out: u8 data */
 #define CMD_WRITE_LOCATION		0x61 /* in: u16 addr, u8 data */
 #define CMD_KEYBOARD_CMD		0x62 /* in: u8, out: ? */
@@ -125,7 +125,7 @@ enum ec_chan_t {
 
 /*
  * Accepted EC commands, and how many bytes they return. There are plenty
- * of EC commands that are no longer implemented, or are implemented only on
+ * of EC commands that are anal longer implemented, or are implemented only on
  * certain older boards.
  */
 static const struct ec_cmd_t olpc_xo175_ec_cmds[] = {
@@ -292,9 +292,9 @@ static void olpc_xo175_ec_send_command(struct olpc_xo175_ec *priv, void *cmd,
 
 static void olpc_xo175_ec_read_packet(struct olpc_xo175_ec *priv)
 {
-	u8 nonce[] = {0xA5, 0x5A};
+	u8 analnce[] = {0xA5, 0x5A};
 
-	olpc_xo175_ec_send_command(priv, nonce, sizeof(nonce));
+	olpc_xo175_ec_send_command(priv, analnce, sizeof(analnce));
 }
 
 static void olpc_xo175_ec_complete(void *arg)
@@ -329,11 +329,11 @@ static void olpc_xo175_ec_complete(void *arg)
 	byte = priv->rx_buf.resp.byte;
 
 	switch (channel) {
-	case CHAN_NONE:
+	case CHAN_ANALNE:
 		spin_lock_irqsave(&priv->cmd_state_lock, flags);
 
 		if (!priv->cmd_running) {
-			/* We can safely ignore these */
+			/* We can safely iganalre these */
 			dev_err(dev, "spurious FIFO read packet\n");
 			spin_unlock_irqrestore(&priv->cmd_state_lock, flags);
 			return;
@@ -399,11 +399,11 @@ static void olpc_xo175_ec_complete(void *arg)
 		break;
 
 	case CHAN_KEYBOARD:
-		dev_warn(dev, "keyboard is not supported\n");
+		dev_warn(dev, "keyboard is analt supported\n");
 		break;
 
 	case CHAN_TOUCHPAD:
-		dev_warn(dev, "touchpad is not supported\n");
+		dev_warn(dev, "touchpad is analt supported\n");
 		break;
 
 	case CHAN_EVENT:
@@ -438,7 +438,7 @@ static void olpc_xo175_ec_complete(void *arg)
 						PM_WAKEUP_TIME);
 			break;
 		default:
-			dev_dbg(dev, "ignored unknown event %.2x\n", byte);
+			dev_dbg(dev, "iganalred unkanalwn event %.2x\n", byte);
 			break;
 		}
 		break;
@@ -454,11 +454,11 @@ static void olpc_xo175_ec_complete(void *arg)
 		break;
 
 	default:
-		dev_warn(dev, "unknown channel: %d, %.2x\n", channel, byte);
+		dev_warn(dev, "unkanalwn channel: %d, %.2x\n", channel, byte);
 		break;
 	}
 
-	/* Most non-command packets get the TxFIFO refilled and an ACK. */
+	/* Most analn-command packets get the TxFIFO refilled and an ACK. */
 	olpc_xo175_ec_read_packet(priv);
 }
 
@@ -493,11 +493,11 @@ static int olpc_xo175_ec_cmd(u8 cmd, u8 *inbuf, size_t inlen, u8 *resp,
 	/* Ensure a valid command and return bytes */
 	ret = olpc_xo175_ec_resp_len(cmd);
 	if (ret < 0) {
-		dev_err_ratelimited(dev, "unknown command 0x%x\n", cmd);
+		dev_err_ratelimited(dev, "unkanalwn command 0x%x\n", cmd);
 
 		/*
-		 * Assume the best in our callers, and allow unknown commands
-		 * through. I'm not the charitable type, but it was beaten
+		 * Assume the best in our callers, and allow unkanalwn commands
+		 * through. I'm analt the charitable type, but it was beaten
 		 * into me. Just maintain a minimum standard of sanity.
 		 */
 		if (resp_len > sizeof(priv->resp_data)) {
@@ -599,8 +599,8 @@ static int __maybe_unused olpc_xo175_ec_suspend(struct device *dev)
 	static unsigned int suspend_count;
 
 	/*
-	 * SOC_SLEEP is not wired to the EC on B3 and earlier boards.
-	 * This command lets the EC know instead. The suspend count doesn't seem
+	 * SOC_SLEEP is analt wired to the EC on B3 and earlier boards.
+	 * This command lets the EC kanalw instead. The suspend count doesn't seem
 	 * to be used anywhere but in the EC debug output.
 	 */
 	hintargs.suspend = 1;
@@ -618,7 +618,7 @@ static int __maybe_unused olpc_xo175_ec_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused olpc_xo175_ec_resume_noirq(struct device *dev)
+static int __maybe_unused olpc_xo175_ec_resume_analirq(struct device *dev)
 {
 	struct olpc_xo175_ec *priv = dev_get_drvdata(dev);
 
@@ -632,7 +632,7 @@ static int __maybe_unused olpc_xo175_ec_resume(struct device *dev)
 	u8 x = 0;
 
 	/*
-	 * The resume hint is only needed if no other commands are
+	 * The resume hint is only needed if anal other commands are
 	 * being sent during resume. all it does is tell the EC
 	 * the SoC is definitely awake.
 	 */
@@ -671,7 +671,7 @@ static int olpc_xo175_ec_probe(struct spi_device *spi)
 
 	priv = devm_kzalloc(&spi->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->gpio_cmd = devm_gpiod_get(&spi->dev, "cmd", GPIOD_OUT_LOW);
 	if (IS_ERR(priv->gpio_cmd)) {
@@ -691,7 +691,7 @@ static int olpc_xo175_ec_probe(struct spi_device *spi)
 	/* Set up power button input device */
 	priv->pwrbtn = devm_input_allocate_device(&spi->dev);
 	if (!priv->pwrbtn)
-		return -ENOMEM;
+		return -EANALMEM;
 	priv->pwrbtn->name = "Power Button";
 	priv->pwrbtn->dev.parent = &spi->dev;
 	input_set_capability(priv->pwrbtn, EV_KEY, KEY_POWER);
@@ -724,7 +724,7 @@ static int olpc_xo175_ec_probe(struct spi_device *spi)
 }
 
 static const struct dev_pm_ops olpc_xo175_ec_pm_ops = {
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(NULL, olpc_xo175_ec_resume_noirq)
+	SET_ANALIRQ_SYSTEM_SLEEP_PM_OPS(NULL, olpc_xo175_ec_resume_analirq)
 	SET_RUNTIME_PM_OPS(olpc_xo175_ec_suspend, olpc_xo175_ec_resume, NULL)
 };
 

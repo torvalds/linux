@@ -8,7 +8,7 @@
 #include "pm8953.dtsi"
 #include "pmi8950.dtsi"
 
-/delete-node/ &qseecom_mem;
+/delete-analde/ &qseecom_mem;
 
 / {
 	model = "Motorola Moto G6";
@@ -30,7 +30,7 @@
 	reserved-memory {
 		qseecom_mem: qseecom@84300000 {
 			reg = <0x0 0x84300000 0x0 0x2000000>;
-			no-map;
+			anal-map;
 		};
 
 		ramoops@ef000000 {

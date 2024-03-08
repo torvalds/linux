@@ -20,13 +20,13 @@
 #include "xp.h"
 
 /*
- * XPC Version numbers consist of a major and minor number. XPC can always
+ * XPC Version numbers consist of a major and mianalr number. XPC can always
  * talk to versions with same major #, and never talk to versions with a
  * different major #.
  */
 #define _XPC_VERSION(_maj, _min)	(((_maj) << 4) | ((_min) & 0xf))
 #define XPC_VERSION_MAJOR(_v)		((_v) >> 4)
-#define XPC_VERSION_MINOR(_v)		((_v) & 0xf)
+#define XPC_VERSION_MIANALR(_v)		((_v) & 0xf)
 
 /* define frequency of the heartbeat and frequency how often it's checked */
 #define XPC_HB_DEFAULT_INTERVAL		5	/* incr HB every x secs */
@@ -43,7 +43,7 @@
  * the reserved page
  *
  *   SAL reserves one page of memory per partition for XPC. Though a full page
- *   in length (16384 bytes), its starting address is not page aligned, but it
+ *   in length (16384 bytes), its starting address is analt page aligned, but it
  *   is cacheline aligned. The reserved page consists of the following:
  *
  *   reserved page header
@@ -76,7 +76,7 @@
  *     partitions (vars), followed on the next available cacheline by those
  *     which are partition specific (vars part). These are setup by XPC.
  *
- * Note: Until 'ts_jiffies' is set non-zero, the partition XPC code has not been
+ * Analte: Until 'ts_jiffies' is set analn-zero, the partition XPC code has analt been
  *       initialized.
  */
 struct xpc_rsvd_page {
@@ -190,7 +190,7 @@ struct xpc_activate_mq_msg_chctl_closereply_uv {
 struct xpc_activate_mq_msg_chctl_openrequest_uv {
 	struct xpc_activate_mq_msghdr_uv hdr;
 	short ch_number;
-	short entry_size;	/* size of notify_mq's GRU messages */
+	short entry_size;	/* size of analtify_mq's GRU messages */
 	short local_nentries;	/* ??? Is this needed? What is? */
 };
 
@@ -199,7 +199,7 @@ struct xpc_activate_mq_msg_chctl_openreply_uv {
 	short ch_number;
 	short remote_nentries;	/* ??? Is this needed? What is? */
 	short local_nentries;	/* ??? Is this needed? What is? */
-	unsigned long notify_gru_mq_desc_gpa;
+	unsigned long analtify_gru_mq_desc_gpa;
 };
 
 struct xpc_activate_mq_msg_chctl_opencomplete_uv {
@@ -253,7 +253,7 @@ struct xpc_fifo_head_uv {
 };
 
 /*
- * The format of a uv XPC notify_mq GRU message is as follows:
+ * The format of a uv XPC analtify_mq GRU message is as follows:
  *
  * A user-defined message resides in the payload area. The max size of the
  * payload is defined by the user via xpc_connect().
@@ -262,7 +262,7 @@ struct xpc_fifo_head_uv {
  * or 2 GRU_CACHE_LINE_BYTES in length.
  */
 
-struct xpc_notify_mq_msghdr_uv {
+struct xpc_analtify_mq_msghdr_uv {
 	union {
 		unsigned int gru_msg_hdr;	/* FOR GRU INTERNAL USE ONLY */
 		struct xpc_fifo_entry_uv next;	/* FOR XPC INTERNAL USE ONLY */
@@ -273,23 +273,23 @@ struct xpc_notify_mq_msghdr_uv {
 	unsigned int msg_slot_number;	/* FOR XPC INTERNAL USE ONLY */
 };
 
-struct xpc_notify_mq_msg_uv {
-	struct xpc_notify_mq_msghdr_uv hdr;
+struct xpc_analtify_mq_msg_uv {
+	struct xpc_analtify_mq_msghdr_uv hdr;
 	unsigned long payload;
 };
 
-/* struct xpc_notify_sn2 type of notification */
+/* struct xpc_analtify_sn2 type of analtification */
 
-#define	XPC_N_CALL	0x01	/* notify function provided by user */
+#define	XPC_N_CALL	0x01	/* analtify function provided by user */
 
 /*
- * Define uv's version of the notify entry. It additionally is used to allocate
+ * Define uv's version of the analtify entry. It additionally is used to allocate
  * a msg slot on the remote partition into which is copied a sent message.
  */
 struct xpc_send_msg_slot_uv {
 	struct xpc_fifo_entry_uv next;
 	unsigned int msg_slot_number;
-	xpc_notify_func func;	/* user's notify function */
+	xpc_analtify_func func;	/* user's analtify function */
 	void *key;		/* pointer to user's key */
 };
 
@@ -297,7 +297,7 @@ struct xpc_send_msg_slot_uv {
  * Define the structure that manages all the stuff required by a channel. In
  * particular, they are used to manage the messages sent across the channel.
  *
- * This structure is private to a partition, and is NOT shared across the
+ * This structure is private to a partition, and is ANALT shared across the
  * partition boundary.
  *
  * There is an array of these structures for each remote partition. It is
@@ -306,11 +306,11 @@ struct xpc_send_msg_slot_uv {
  */
 
 struct xpc_channel_uv {
-	void *cached_notify_gru_mq_desc; /* remote partition's notify mq's */
+	void *cached_analtify_gru_mq_desc; /* remote partition's analtify mq's */
 					 /* gru mq descriptor */
 
 	struct xpc_send_msg_slot_uv *send_msg_slots;
-	void *recv_msg_slots;	/* each slot will hold a xpc_notify_mq_msg_uv */
+	void *recv_msg_slots;	/* each slot will hold a xpc_analtify_mq_msg_uv */
 				/* structure plus the user's payload */
 
 	struct xpc_fifo_head_uv msg_slot_free_list;
@@ -339,7 +339,7 @@ struct xpc_channel {
 	u8 delayed_chctl_flags;	/* chctl flags received, but delayed */
 				/* action until channel disconnected */
 
-	atomic_t n_to_notify;	/* #of msg senders to notify */
+	atomic_t n_to_analtify;	/* #of msg senders to analtify */
 
 	xpc_channel_func func;	/* user's channel function */
 	void *key;		/* pointer to user's key */
@@ -495,7 +495,7 @@ struct xpc_partition {
 	atomic_t references;	/* #of references to infrastructure */
 
 	u8 nchannels;		/* #of defined channels supported */
-	atomic_t nchannels_active;  /* #of channels that are not DISCONNECTED */
+	atomic_t nchannels_active;  /* #of channels that are analt DISCONNECTED */
 	atomic_t nchannels_engaged;  /* #of channels engaged with remote part */
 	struct xpc_channel *channels;	/* array of channel structures */
 
@@ -569,15 +569,15 @@ struct xpc_arch_operations {
 
 	int (*n_of_deliverable_payloads) (struct xpc_channel *);
 	enum xp_retval (*send_payload) (struct xpc_channel *, u32, void *,
-					   u16, u8, xpc_notify_func, void *);
+					   u16, u8, xpc_analtify_func, void *);
 	void *(*get_deliverable_payload) (struct xpc_channel *);
 	void (*received_payload) (struct xpc_channel *, void *);
-	void (*notify_senders_of_disconnect) (struct xpc_channel *);
+	void (*analtify_senders_of_disconnect) (struct xpc_channel *);
 };
 
 /* struct xpc_partition act_state values (for XPC HB) */
 
-#define	XPC_P_AS_INACTIVE	0x00	/* partition is not active */
+#define	XPC_P_AS_INACTIVE	0x00	/* partition is analt active */
 #define XPC_P_AS_ACTIVATION_REQ	0x01	/* created thread to activate */
 #define XPC_P_AS_ACTIVATING	0x02	/* activation thread started */
 #define XPC_P_AS_ACTIVE		0x03	/* xpc_partition_up() was called */
@@ -650,8 +650,8 @@ extern void xpc_initiate_connect(int);
 extern void xpc_initiate_disconnect(int);
 extern enum xp_retval xpc_allocate_msg_wait(struct xpc_channel *);
 extern enum xp_retval xpc_initiate_send(short, int, u32, void *, u16);
-extern enum xp_retval xpc_initiate_send_notify(short, int, u32, void *, u16,
-					       xpc_notify_func, void *);
+extern enum xp_retval xpc_initiate_send_analtify(short, int, u32, void *, u16,
+					       xpc_analtify_func, void *);
 extern void xpc_initiate_received(short, int, void *);
 extern void xpc_process_sent_chctl_flags(struct xpc_partition *);
 extern void xpc_connected_callout(struct xpc_channel *);

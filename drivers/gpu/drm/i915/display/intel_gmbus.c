@@ -10,13 +10,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -244,7 +244,7 @@ static u32 get_reserved(struct intel_gmbus *bus)
 
 	/* On most chips, these bits must be preserved in software. */
 	if (!IS_I830(i915) && !IS_I845G(i915))
-		reserved = intel_de_read_notrace(i915, bus->gpio_reg) &
+		reserved = intel_de_read_analtrace(i915, bus->gpio_reg) &
 			(GPIO_DATA_PULLUP_DISABLE | GPIO_CLOCK_PULLUP_DISABLE);
 
 	return reserved;
@@ -256,10 +256,10 @@ static int get_clock(void *data)
 	struct drm_i915_private *i915 = bus->i915;
 	u32 reserved = get_reserved(bus);
 
-	intel_de_write_notrace(i915, bus->gpio_reg, reserved | GPIO_CLOCK_DIR_MASK);
-	intel_de_write_notrace(i915, bus->gpio_reg, reserved);
+	intel_de_write_analtrace(i915, bus->gpio_reg, reserved | GPIO_CLOCK_DIR_MASK);
+	intel_de_write_analtrace(i915, bus->gpio_reg, reserved);
 
-	return (intel_de_read_notrace(i915, bus->gpio_reg) & GPIO_CLOCK_VAL_IN) != 0;
+	return (intel_de_read_analtrace(i915, bus->gpio_reg) & GPIO_CLOCK_VAL_IN) != 0;
 }
 
 static int get_data(void *data)
@@ -268,10 +268,10 @@ static int get_data(void *data)
 	struct drm_i915_private *i915 = bus->i915;
 	u32 reserved = get_reserved(bus);
 
-	intel_de_write_notrace(i915, bus->gpio_reg, reserved | GPIO_DATA_DIR_MASK);
-	intel_de_write_notrace(i915, bus->gpio_reg, reserved);
+	intel_de_write_analtrace(i915, bus->gpio_reg, reserved | GPIO_DATA_DIR_MASK);
+	intel_de_write_analtrace(i915, bus->gpio_reg, reserved);
 
-	return (intel_de_read_notrace(i915, bus->gpio_reg) & GPIO_DATA_VAL_IN) != 0;
+	return (intel_de_read_analtrace(i915, bus->gpio_reg) & GPIO_DATA_VAL_IN) != 0;
 }
 
 static void set_clock(void *data, int state_high)
@@ -287,7 +287,7 @@ static void set_clock(void *data, int state_high)
 		clock_bits = GPIO_CLOCK_DIR_OUT | GPIO_CLOCK_DIR_MASK |
 			     GPIO_CLOCK_VAL_MASK;
 
-	intel_de_write_notrace(i915, bus->gpio_reg, reserved | clock_bits);
+	intel_de_write_analtrace(i915, bus->gpio_reg, reserved | clock_bits);
 	intel_de_posting_read(i915, bus->gpio_reg);
 }
 
@@ -304,7 +304,7 @@ static void set_data(void *data, int state_high)
 		data_bits = GPIO_DATA_DIR_OUT | GPIO_DATA_DIR_MASK |
 			GPIO_DATA_VAL_MASK;
 
-	intel_de_write_notrace(i915, bus->gpio_reg, reserved | data_bits);
+	intel_de_write_analtrace(i915, bus->gpio_reg, reserved | data_bits);
 	intel_de_posting_read(i915, bus->gpio_reg);
 }
 
@@ -440,7 +440,7 @@ gmbus_xfer_read_chunk(struct drm_i915_private *i915,
 	if (burst_read) {
 		/*
 		 * As per HW Spec, for 512Bytes need to read extra Byte and
-		 * Ignore the extra byte read.
+		 * Iganalre the extra byte read.
 		 */
 		if (len == 512) {
 			extra_byte_added = true;
@@ -575,7 +575,7 @@ gmbus_xfer_write(struct drm_i915_private *i915, struct i2c_msg *msg,
 }
 
 /*
- * The gmbus controller can combine a 1 or 2 byte write with another read/write
+ * The gmbus controller can combine a 1 or 2 byte write with aanalther read/write
  * that immediately follows it by using an "INDEX" cycle.
  */
 static bool
@@ -660,7 +660,7 @@ retry:
 			goto clear_err;
 	}
 
-	/* Generate a STOP condition on the bus. Note that gmbus can't generata
+	/* Generate a STOP condition on the bus. Analte that gmbus can't generata
 	 * a STOP on the very first cycle. To simplify the code we
 	 * unconditionally generate the STOP condition with an additional gmbus
 	 * cycle. */
@@ -686,9 +686,9 @@ clear_err:
 	 * If we clear the NAK while bus is still active, then it will stay
 	 * active and the next transaction may fail.
 	 *
-	 * If no ACK is received during the address phase of a transaction, the
-	 * adapter must report -ENXIO. It is not clear what to return if no ACK
-	 * is received at other times. But we have to be careful to not return
+	 * If anal ACK is received during the address phase of a transaction, the
+	 * adapter must report -ENXIO. It is analt clear what to return if anal ACK
+	 * is received at other times. But we have to be careful to analt return
 	 * spurious -ENXIO because that will prevent i2c and drm edid functions
 	 * from retrying. So return -ENXIO only when gmbus properly quiescents -
 	 * timing out seems to happen when there _is_ a ddc chip present, but
@@ -736,7 +736,7 @@ timeout:
 	intel_de_write_fw(i915, GMBUS0(i915), 0);
 
 	/*
-	 * Hardware may not support GMBUS over these pins? Try GPIO bitbanging
+	 * Hardware may analt support GMBUS over these pins? Try GPIO bitbanging
 	 * instead. Use EAGAIN to have i2c core retry.
 	 */
 	ret = -EAGAIN;
@@ -894,7 +894,7 @@ int intel_gmbus_setup(struct drm_i915_private *i915)
 
 		bus = kzalloc(sizeof(*bus), GFP_KERNEL);
 		if (!bus) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err;
 		}
 
@@ -962,7 +962,7 @@ void intel_gmbus_force_bit(struct i2c_adapter *adapter, bool force_bit)
 
 	bus->force_bit += force_bit ? 1 : -1;
 	drm_dbg_kms(&i915->drm,
-		    "%sabling bit-banging on %s. force bit now %d\n",
+		    "%sabling bit-banging on %s. force bit analw %d\n",
 		    force_bit ? "en" : "dis", adapter->name,
 		    bus->force_bit);
 

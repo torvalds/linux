@@ -98,22 +98,22 @@ static void count_rec(struct mem_ctl_info *mci, u8 rec_cnt, u32 rec_addr)
 		return;
 
 	/* report first few errors (if there are) */
-	/* note: no addresses are recorded */
+	/* analte: anal addresses are recorded */
 	if (rec_cnt > 1) {
-		/* page, offset and syndrome are not available */
+		/* page, offset and syndrome are analt available */
 		page = 0;
 		offset = 0;
 		syndrome = 0;
 		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci, rec_cnt-1,
 				     page, offset, syndrome, 0, 0, -1,
-				     "address(es) not available", "");
+				     "address(es) analt available", "");
 	}
 
 	/* report last error */
-	/* note: rec_addr is the last recoverable error addr */
+	/* analte: rec_addr is the last recoverable error addr */
 	page = rec_addr >> PAGE_SHIFT;
 	offset = rec_addr & ~PAGE_MASK;
-	/* syndrome is not available */
+	/* syndrome is analt available */
 	syndrome = 0;
 	edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci, 1,
 			     csrow->first_page + page, offset, syndrome,
@@ -131,25 +131,25 @@ static void count_un_rec(struct mem_ctl_info *mci, u8 un_rec_cnt,
 		return;
 
 	/* report 1. error */
-	/* note: un_rec_addr is the first unrecoverable error addr */
+	/* analte: un_rec_addr is the first unrecoverable error addr */
 	page = un_rec_addr >> PAGE_SHIFT;
 	offset = un_rec_addr & ~PAGE_MASK;
-	/* syndrome is not available */
+	/* syndrome is analt available */
 	syndrome = 0;
 	edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, 1,
 			     csrow->first_page + page, offset, syndrome,
 			     0, 0, -1, "", "");
 
 	/* report further errors (if there are) */
-	/* note: no addresses are recorded */
+	/* analte: anal addresses are recorded */
 	if (un_rec_cnt > 1) {
-		/* page, offset and syndrome are not available */
+		/* page, offset and syndrome are analt available */
 		page = 0;
 		offset = 0;
 		syndrome = 0;
 		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, un_rec_cnt-1,
 				     page, offset, syndrome, 0, 0, -1,
-				     "address(es) not available", "");
+				     "address(es) analt available", "");
 	}
 }
 
@@ -191,10 +191,10 @@ static irqreturn_t mcr_isr(int irq, void *arg)
 	count_un_rec(mci, un_rec_cnt, un_rec_addr);
 
 	if (!rec_cnt && !un_rec_cnt)
-		dev_dbg(mci->pdev, "received edac interrupt, but did not find any ECC counters\n");
+		dev_dbg(mci->pdev, "received edac interrupt, but did analt find any ECC counters\n");
 
 	regmap_read(aspeed_regmap, ASPEED_MCR_INTR_CTRL, &reg50);
-	dev_dbg(mci->pdev, "edac interrupt handled. mcr reg 50 is now: 0x%x\n",
+	dev_dbg(mci->pdev, "edac interrupt handled. mcr reg 50 is analw: 0x%x\n",
 		reg50);
 
 	return IRQ_HANDLED;
@@ -233,28 +233,28 @@ static int init_csrows(struct mem_ctl_info *mci)
 	struct csrow_info *csrow = mci->csrows[0];
 	u32 nr_pages, dram_type;
 	struct dimm_info *dimm;
-	struct device_node *np;
+	struct device_analde *np;
 	struct resource r;
 	u32 reg04;
 	int rc;
 
 	/* retrieve info about physical memory from device tree */
-	np = of_find_node_by_name(NULL, "memory");
+	np = of_find_analde_by_name(NULL, "memory");
 	if (!np) {
-		dev_err(mci->pdev, "dt: missing /memory node\n");
-		return -ENODEV;
+		dev_err(mci->pdev, "dt: missing /memory analde\n");
+		return -EANALDEV;
 	}
 
 	rc = of_address_to_resource(np, 0, &r);
 
-	of_node_put(np);
+	of_analde_put(np);
 
 	if (rc) {
-		dev_err(mci->pdev, "dt: failed requesting resource for /memory node\n");
+		dev_err(mci->pdev, "dt: failed requesting resource for /memory analde\n");
 		return rc;
 	}
 
-	dev_dbg(mci->pdev, "dt: /memory node resources: first page %pR, PAGE_SHIFT macro=0x%x\n",
+	dev_dbg(mci->pdev, "dt: /memory analde resources: first page %pR, PAGE_SHIFT macro=0x%x\n",
 		&r, PAGE_SHIFT);
 
 	csrow->first_page = r.start >> PAGE_SHIFT;
@@ -294,10 +294,10 @@ static int aspeed_probe(struct platform_device *pdev)
 	if (IS_ERR(aspeed_regmap))
 		return PTR_ERR(aspeed_regmap);
 
-	/* bail out if ECC mode is not configured */
+	/* bail out if ECC mode is analt configured */
 	regmap_read(aspeed_regmap, ASPEED_MCR_CONF, &reg04);
 	if (!(reg04 & ASPEED_MCR_CONF_ECC)) {
-		dev_err(&pdev->dev, "ECC mode is not configured in u-boot\n");
+		dev_err(&pdev->dev, "ECC mode is analt configured in u-boot\n");
 		return -EPERM;
 	}
 
@@ -313,7 +313,7 @@ static int aspeed_probe(struct platform_device *pdev)
 
 	mci = edac_mc_alloc(0, ARRAY_SIZE(layers), layers, 0);
 	if (!mci)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mci->pdev = &pdev->dev;
 	mci->mtype_cap = MEM_FLAG_DDR3 | MEM_FLAG_DDR4;

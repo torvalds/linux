@@ -32,7 +32,7 @@
  */
 enum pds_core_cmd_opcode {
 	/* Core init */
-	PDS_CORE_CMD_NOP		= 0,
+	PDS_CORE_CMD_ANALP		= 0,
 	PDS_CORE_CMD_IDENTIFY		= 1,
 	PDS_CORE_CMD_RESET		= 2,
 	PDS_CORE_CMD_INIT		= 3,
@@ -61,24 +61,24 @@ enum pds_core_status_code {
 	PDS_RC_EPERM	= 4,	/* Permission denied */
 	PDS_RC_EQID	= 5,	/* Bad qid */
 	PDS_RC_EQTYPE	= 6,	/* Bad qtype */
-	PDS_RC_ENOENT	= 7,	/* No such element */
+	PDS_RC_EANALENT	= 7,	/* Anal such element */
 	PDS_RC_EINTR	= 8,	/* operation interrupted */
 	PDS_RC_EAGAIN	= 9,	/* Try again */
-	PDS_RC_ENOMEM	= 10,	/* Out of memory */
+	PDS_RC_EANALMEM	= 10,	/* Out of memory */
 	PDS_RC_EFAULT	= 11,	/* Bad address */
 	PDS_RC_EBUSY	= 12,	/* Device or resource busy */
 	PDS_RC_EEXIST	= 13,	/* object already exists */
 	PDS_RC_EINVAL	= 14,	/* Invalid argument */
-	PDS_RC_ENOSPC	= 15,	/* No space left or alloc failure */
+	PDS_RC_EANALSPC	= 15,	/* Anal space left or alloc failure */
 	PDS_RC_ERANGE	= 16,	/* Parameter out of range */
 	PDS_RC_BAD_ADDR	= 17,	/* Descriptor contains a bad ptr */
 	PDS_RC_DEV_CMD	= 18,	/* Device cmd attempted on AdminQ */
-	PDS_RC_ENOSUPP	= 19,	/* Operation not supported */
+	PDS_RC_EANALSUPP	= 19,	/* Operation analt supported */
 	PDS_RC_ERROR	= 29,	/* Generic error */
 	PDS_RC_ERDMA	= 30,	/* Generic RDMA error */
-	PDS_RC_EVFID	= 31,	/* VF ID does not exist */
+	PDS_RC_EVFID	= 31,	/* VF ID does analt exist */
 	PDS_RC_BAD_FW	= 32,	/* FW file is invalid or corrupted */
-	PDS_RC_ECLIENT	= 33,   /* No such client id */
+	PDS_RC_ECLIENT	= 33,   /* Anal such client id */
 	PDS_RC_BAD_PCI	= 255,  /* Broken PCI when reading status */
 };
 
@@ -104,7 +104,7 @@ struct pds_core_drv_identity {
 /**
  * struct pds_core_dev_identity - Device identity information
  * @version:	      Version of device identify
- * @type:	      Identify type (0 for now)
+ * @type:	      Identify type (0 for analw)
  * @state:	      Device state
  * @rsvd:	      Word boundary padding
  * @nlifs:	      Number of LIFs provisioned
@@ -190,26 +190,26 @@ struct pds_core_dev_reset_comp {
 struct pds_core_dev_init_data_in {
 	__le64 adminq_q_base;
 	__le64 adminq_cq_base;
-	__le64 notifyq_cq_base;
+	__le64 analtifyq_cq_base;
 	__le32 flags;
 	__le16 intr_index;
 	u8     adminq_ring_size;
-	u8     notifyq_ring_size;
+	u8     analtifyq_ring_size;
 };
 
 struct pds_core_dev_init_data_out {
 	__le32 core_hw_index;
 	__le32 adminq_hw_index;
-	__le32 notifyq_hw_index;
+	__le32 analtifyq_hw_index;
 	u8     adminq_hw_type;
-	u8     notifyq_hw_type;
+	u8     analtifyq_hw_type;
 };
 
 /**
  * struct pds_core_dev_init_cmd - Core device initialize
  * @opcode:          opcode PDS_CORE_CMD_INIT
  *
- * Initializes the core device and sets up the AdminQ and NotifyQ.
+ * Initializes the core device and sets up the AdminQ and AnaltifyQ.
  * Expects to find initialization data (struct pds_core_dev_init_data_in)
  * in cmd_regs->data.  Driver should keep the devcmd interface locked
  * while preparing the driver info.
@@ -255,9 +255,9 @@ struct pds_core_fw_download_comp {
 
 /**
  * enum pds_core_fw_control_oper - FW control operations
- * @PDS_CORE_FW_INSTALL_ASYNC:     Install firmware asynchronously
+ * @PDS_CORE_FW_INSTALL_ASYNC:     Install firmware asynchroanalusly
  * @PDS_CORE_FW_INSTALL_STATUS:    Firmware installation status
- * @PDS_CORE_FW_ACTIVATE_ASYNC:    Activate firmware asynchronously
+ * @PDS_CORE_FW_ACTIVATE_ASYNC:    Activate firmware asynchroanalusly
  * @PDS_CORE_FW_ACTIVATE_STATUS:   Firmware activate status
  * @PDS_CORE_FW_UPDATE_CLEANUP:    Cleanup any firmware update leftovers
  * @PDS_CORE_FW_GET_BOOT:          Return current active firmware slot

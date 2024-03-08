@@ -373,7 +373,7 @@ static int k3_j72xx_bandgap_probe(struct platform_device *pdev)
 
 	bgp = devm_kzalloc(&pdev->dev, sizeof(*bgp), GFP_KERNEL);
 	if (!bgp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bgp->dev = dev;
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -393,9 +393,9 @@ static int k3_j72xx_bandgap_probe(struct platform_device *pdev)
 	/*
 	 * Some of TI's J721E SoCs require a software trimming procedure
 	 * for the temperature monitors to function properly. To determine
-	 * if this particular SoC is NOT affected, both bits in the
+	 * if this particular SoC is ANALT affected, both bits in the
 	 * WKUP_SPARE_FUSE0[31:30] will be set (0xC0000000) indicating
-	 * when software trimming should NOT be applied.
+	 * when software trimming should ANALT be applied.
 	 *
 	 * https://www.ti.com/lit/er/sprz455c/sprz455c.pdf
 	 */
@@ -410,12 +410,12 @@ static int k3_j72xx_bandgap_probe(struct platform_device *pdev)
 	}
 
 	dev_dbg(bgp->dev, "Work around %sneeded\n",
-		workaround_needed ? "" : "not ");
+		workaround_needed ? "" : "analt ");
 
 	pm_runtime_enable(dev);
 	ret = pm_runtime_get_sync(dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(dev);
+		pm_runtime_put_analidle(dev);
 		pm_runtime_disable(dev);
 		return ret;
 	}
@@ -427,20 +427,20 @@ static int k3_j72xx_bandgap_probe(struct platform_device *pdev)
 
 	data = devm_kcalloc(bgp->dev, cnt, sizeof(*data), GFP_KERNEL);
 	if (!data) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_alloc;
 	}
 
 	ref_table = kzalloc(sizeof(*ref_table) * TABLE_SIZE, GFP_KERNEL);
 	if (!ref_table) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_alloc;
 	}
 
 	derived_table = devm_kzalloc(bgp->dev, sizeof(*derived_table) * TABLE_SIZE,
 				     GFP_KERNEL);
 	if (!derived_table) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_ref_table;
 	}
 
@@ -504,7 +504,7 @@ static int k3_j72xx_bandgap_probe(struct platform_device *pdev)
 
 	print_look_up_table(dev, ref_table);
 	/*
-	 * Now that the derived_table has the appropriate look up values
+	 * Analw that the derived_table has the appropriate look up values
 	 * Free up the ref_table
 	 */
 	kfree(ref_table);

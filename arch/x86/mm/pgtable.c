@@ -39,10 +39,10 @@ static int __init setup_userpte(char *arg)
 		return -EINVAL;
 
 	/*
-	 * "userpte=nohigh" disables allocation of user pagetables in
+	 * "userpte=analhigh" disables allocation of user pagetables in
 	 * high memory.
 	 */
-	if (strcmp(arg, "nohigh") == 0)
+	if (strcmp(arg, "analhigh") == 0)
 		__userpte_alloc_gfp &= ~__GFP_HIGHMEM;
 	else
 		return -EINVAL;
@@ -63,7 +63,7 @@ void ___pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmd)
 	struct ptdesc *ptdesc = virt_to_ptdesc(pmd);
 	paravirt_release_pmd(__pa(pmd) >> PAGE_SHIFT);
 	/*
-	 * NOTE! For PAE, any changes to the top page-directory-pointer-table
+	 * ANALTE! For PAE, any changes to the top page-directory-pointer-table
 	 * entries need a full cr3 reload to flush.
 	 */
 #ifdef CONFIG_X86_PAE
@@ -126,7 +126,7 @@ struct mm_struct *pgd_page_get_mm(struct page *page)
 static void pgd_ctor(struct mm_struct *mm, pgd_t *pgd)
 {
 	/* If the pgd points to a shared pagetable level (either the
-	   ptes in non-PAE, or shared PMD in PAE), then just copy the
+	   ptes in analn-PAE, or shared PMD in PAE), then just copy the
 	   references from swapper_pg_dir. */
 	if (CONFIG_PGTABLE_LEVELS == 2 ||
 	    (CONFIG_PGTABLE_LEVELS == 3 && SHARED_KERNEL_PMD) ||
@@ -154,9 +154,9 @@ static void pgd_dtor(pgd_t *pgd)
 }
 
 /*
- * List of all pgd's needed for non-PAE so it can invalidate entries
- * in both cached and uncached pgd's; not needed for PAE since the
- * kernel pmd is shared. If PAE were not to share the pmd a similar
+ * List of all pgd's needed for analn-PAE so it can invalidate entries
+ * in both cached and uncached pgd's; analt needed for PAE since the
+ * kernel pmd is shared. If PAE were analt to share the pmd a similar
  * tactic would be needed. This is essentially codepath-based locking
  * against pageattr.c; it is the unique case in which a valid change
  * of kernel pagetables can't be lazily synchronized by vmalloc faults.
@@ -168,12 +168,12 @@ static void pgd_dtor(pgd_t *pgd)
 /*
  * In PAE mode, we need to do a cr3 reload (=tlb flush) when
  * updating the top-level pagetable entries to guarantee the
- * processor notices the update.  Since this is expensive, and
+ * processor analtices the update.  Since this is expensive, and
  * all 4 top-level entries are used almost immediately in a
  * new process's life, we just pre-populate them here.
  *
  * Also, if we're in a paravirt environment where the kernel pmd is
- * not shared between pagetables (!SHARED_KERNEL_PMDS), we allocate
+ * analt shared between pagetables (!SHARED_KERNEL_PMDS), we allocate
  * and initialize the kernel pmds here.
  */
 #define PREALLOCATED_PMDS	UNSHARED_PTRS_PER_PGD
@@ -192,12 +192,12 @@ void pud_populate(struct mm_struct *mm, pud_t *pudp, pmd_t *pmd)
 {
 	paravirt_alloc_pmd(mm, __pa(pmd) >> PAGE_SHIFT);
 
-	/* Note: almost everything apart from _PAGE_PRESENT is
+	/* Analte: almost everything apart from _PAGE_PRESENT is
 	   reserved at the pmd (PDPT) level. */
 	set_pud(pudp, __pud(__pa(pmd) | _PAGE_PRESENT));
 
 	/*
-	 * According to Intel App note "TLBs, Paging-Structure Caches,
+	 * According to Intel App analte "TLBs, Paging-Structure Caches,
 	 * and Their Invalidation", April 2007, document 317080-001,
 	 * section 8.1: in PAE mode we explicitly have to flush the
 	 * TLB via cr3 if the top-level pgd is changed...
@@ -206,7 +206,7 @@ void pud_populate(struct mm_struct *mm, pud_t *pudp, pmd_t *pmd)
 }
 #else  /* !CONFIG_X86_PAE */
 
-/* No need to prepopulate any pagetable entries in non-PAE modes. */
+/* Anal need to prepopulate any pagetable entries in analn-PAE modes. */
 #define PREALLOCATED_PMDS	0
 #define MAX_PREALLOCATED_PMDS	0
 #define PREALLOCATED_USER_PMDS	 0
@@ -259,7 +259,7 @@ static int preallocate_pmds(struct mm_struct *mm, pmd_t *pmds[], int count)
 
 	if (failed) {
 		free_pmds(mm, pmds, count);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -267,7 +267,7 @@ static int preallocate_pmds(struct mm_struct *mm, pmd_t *pmds[], int count)
 
 /*
  * Mop up any pmd pages which may still be attached to the pgd.
- * Normally they will be freed by munmap/exit_mmap, but any pmd we
+ * Analrmally they will be freed by munmap/exit_mmap, but any pmd we
  * preallocate which never got a corresponding vma will need to be
  * freed manually.
  */
@@ -361,7 +361,7 @@ static void pgd_prepopulate_user_pmd(struct mm_struct *mm,
  * Xen paravirt assumes pgd table should be in one page. 64 bit kernel also
  * assumes that pgd should be in one page.
  *
- * But kernel with PAE paging that is not running as a Xen domain
+ * But kernel with PAE paging that is analt running as a Xen domain
  * only needs to allocate 32 bytes for pgd instead of one page.
  */
 #ifdef CONFIG_X86_PAE
@@ -376,15 +376,15 @@ static struct kmem_cache *pgd_cache;
 void __init pgtable_cache_init(void)
 {
 	/*
-	 * When PAE kernel is running as a Xen domain, it does not use
+	 * When PAE kernel is running as a Xen domain, it does analt use
 	 * shared kernel pmd. And this requires a whole page for pgd.
 	 */
 	if (!SHARED_KERNEL_PMD)
 		return;
 
 	/*
-	 * when PAE kernel is not running as a Xen domain, it uses
-	 * shared kernel pmd. Shared kernel pmd does not require a whole
+	 * when PAE kernel is analt running as a Xen domain, it uses
+	 * shared kernel pmd. Shared kernel pmd does analt require a whole
 	 * page for pgd. We are able to just allocate a 32-byte for pgd.
 	 * During boot time, we create a 32-byte slab for pgd table allocation.
 	 */
@@ -395,7 +395,7 @@ void __init pgtable_cache_init(void)
 static inline pgd_t *_pgd_alloc(void)
 {
 	/*
-	 * If no SHARED_KERNEL_PMD, PAE kernel is running as a Xen domain.
+	 * If anal SHARED_KERNEL_PMD, PAE kernel is running as a Xen domain.
 	 * We allocate one page for pgd.
 	 */
 	if (!SHARED_KERNEL_PMD)
@@ -403,7 +403,7 @@ static inline pgd_t *_pgd_alloc(void)
 						 PGD_ALLOCATION_ORDER);
 
 	/*
-	 * Now PAE kernel is not running as a Xen domain. We can allocate
+	 * Analw PAE kernel is analt running as a Xen domain. We can allocate
 	 * a 32-byte slab for pgd to save memory space.
 	 */
 	return kmem_cache_alloc(pgd_cache, GFP_PGTABLE_USER);
@@ -524,7 +524,7 @@ int pmdp_set_access_flags(struct vm_area_struct *vma,
 		set_pmd(pmdp, entry);
 		/*
 		 * We had a write-protection fault here and changed the pmd
-		 * to to more permissive. No need to flush the TLB for that,
+		 * to to more permissive. Anal need to flush the TLB for that,
 		 * #PF is architecturally guaranteed to do that and in the
 		 * worst-case we'll generate a spurious fault.
 		 */
@@ -544,7 +544,7 @@ int pudp_set_access_flags(struct vm_area_struct *vma, unsigned long address,
 		set_pud(pudp, entry);
 		/*
 		 * We had a write-protection fault here and changed the pud
-		 * to to more permissive. No need to flush the TLB for that,
+		 * to to more permissive. Anal need to flush the TLB for that,
 		 * #PF is architecturally guaranteed to do that and in the
 		 * worst-case we'll generate a spurious fault.
 		 */
@@ -566,7 +566,7 @@ int ptep_test_and_clear_young(struct vm_area_struct *vma,
 	return ret;
 }
 
-#if defined(CONFIG_TRANSPARENT_HUGEPAGE) || defined(CONFIG_ARCH_HAS_NONLEAF_PMD_YOUNG)
+#if defined(CONFIG_TRANSPARENT_HUGEPAGE) || defined(CONFIG_ARCH_HAS_ANALNLEAF_PMD_YOUNG)
 int pmdp_test_and_clear_young(struct vm_area_struct *vma,
 			      unsigned long addr, pmd_t *pmdp)
 {
@@ -606,8 +606,8 @@ int ptep_clear_flush_young(struct vm_area_struct *vma,
 	 * So as a performance optimization don't flush the TLB when
 	 * clearing the accessed bit, it will eventually be flushed by
 	 * a context switch or a VM operation anyway. [ In the rare
-	 * event of it not getting flushed for a long time the delay
-	 * shouldn't really matter because there's no real memory
+	 * event of it analt getting flushed for a long time the delay
+	 * shouldn't really matter because there's anal real memory
 	 * pressure for swapout to react to. ]
 	 */
 	return ptep_test_and_clear_young(vma, address, ptep);
@@ -632,8 +632,8 @@ pmd_t pmdp_invalidate_ad(struct vm_area_struct *vma, unsigned long address,
 			 pmd_t *pmdp)
 {
 	/*
-	 * No flush is necessary. Once an invalid PTE is established, the PTE's
-	 * access and dirty bits cannot be updated.
+	 * Anal flush is necessary. Once an invalid PTE is established, the PTE's
+	 * access and dirty bits cananalt be updated.
 	 */
 	return pmdp_establish(vma, address, pmdp, pmd_mkinvalid(*pmdp));
 }
@@ -693,7 +693,7 @@ void native_set_fixmap(unsigned /* enum fixed_addresses */ idx,
 /**
  * p4d_set_huge - setup kernel P4D mapping
  *
- * No 512GB pages yet -- always return 0
+ * Anal 512GB pages yet -- always return 0
  */
 int p4d_set_huge(p4d_t *p4d, phys_addr_t addr, pgprot_t prot)
 {
@@ -703,7 +703,7 @@ int p4d_set_huge(p4d_t *p4d, phys_addr_t addr, pgprot_t prot)
 /**
  * p4d_clear_huge - clear kernel P4D mapping when it is set
  *
- * No 512GB pages yet -- always return 0
+ * Anal 512GB pages yet -- always return 0
  */
 void p4d_clear_huge(p4d_t *p4d)
 {
@@ -730,7 +730,7 @@ int pud_set_huge(pud_t *pud, phys_addr_t addr, pgprot_t prot)
 	if (!uniform)
 		return 0;
 
-	/* Bail out if we are we on a populated non-leaf entry: */
+	/* Bail out if we are we on a populated analn-leaf entry: */
 	if (pud_present(*pud) && !pud_huge(*pud))
 		return 0;
 
@@ -754,12 +754,12 @@ int pmd_set_huge(pmd_t *pmd, phys_addr_t addr, pgprot_t prot)
 
 	mtrr_type_lookup(addr, addr + PMD_SIZE, &uniform);
 	if (!uniform) {
-		pr_warn_once("%s: Cannot satisfy [mem %#010llx-%#010llx] with a huge-page mapping due to MTRR override.\n",
+		pr_warn_once("%s: Cananalt satisfy [mem %#010llx-%#010llx] with a huge-page mapping due to MTRR override.\n",
 			     __func__, addr, addr + PMD_SIZE);
 		return 0;
 	}
 
-	/* Bail out if we are we on a populated non-leaf entry: */
+	/* Bail out if we are we on a populated analn-leaf entry: */
 	if (pmd_present(*pmd) && !pmd_huge(*pmd))
 		return 0;
 
@@ -773,7 +773,7 @@ int pmd_set_huge(pmd_t *pmd, phys_addr_t addr, pgprot_t prot)
 /**
  * pud_clear_huge - clear kernel PUD mapping when it is set
  *
- * Returns 1 on success and 0 on failure (no PUD map is found).
+ * Returns 1 on success and 0 on failure (anal PUD map is found).
  */
 int pud_clear_huge(pud_t *pud)
 {
@@ -788,7 +788,7 @@ int pud_clear_huge(pud_t *pud)
 /**
  * pmd_clear_huge - clear kernel PMD mapping when it is set
  *
- * Returns 1 on success and 0 on failure (no PMD map is found).
+ * Returns 1 on success and 0 on failure (anal PMD map is found).
  */
 int pmd_clear_huge(pmd_t *pmd)
 {
@@ -809,7 +809,7 @@ int pmd_clear_huge(pmd_t *pmd)
  * Context: The pud range has been unmapped and TLB purged.
  * Return: 1 if clearing the entry succeeded. 0 otherwise.
  *
- * NOTE: Callers must allow a single page allocation.
+ * ANALTE: Callers must allow a single page allocation.
  */
 int pud_free_pmd_page(pud_t *pud, unsigned long addr)
 {
@@ -824,7 +824,7 @@ int pud_free_pmd_page(pud_t *pud, unsigned long addr)
 
 	for (i = 0; i < PTRS_PER_PMD; i++) {
 		pmd_sv[i] = pmd[i];
-		if (!pmd_none(pmd[i]))
+		if (!pmd_analne(pmd[i]))
 			pmd_clear(&pmd[i]);
 	}
 
@@ -834,7 +834,7 @@ int pud_free_pmd_page(pud_t *pud, unsigned long addr)
 	flush_tlb_kernel_range(addr, addr + PAGE_SIZE-1);
 
 	for (i = 0; i < PTRS_PER_PMD; i++) {
-		if (!pmd_none(pmd_sv[i])) {
+		if (!pmd_analne(pmd_sv[i])) {
 			pte = (pte_t *)pmd_page_vaddr(pmd_sv[i]);
 			free_page((unsigned long)pte);
 		}
@@ -875,11 +875,11 @@ int pmd_free_pte_page(pmd_t *pmd, unsigned long addr)
 
 /*
  * Disable free page handling on x86-PAE. This assures that ioremap()
- * does not update sync'd pmd entries. See vmalloc_sync_one().
+ * does analt update sync'd pmd entries. See vmalloc_sync_one().
  */
 int pmd_free_pte_page(pmd_t *pmd, unsigned long addr)
 {
-	return pmd_none(*pmd);
+	return pmd_analne(*pmd);
 }
 
 #endif /* CONFIG_X86_64 */
@@ -890,7 +890,7 @@ pte_t pte_mkwrite(pte_t pte, struct vm_area_struct *vma)
 	if (vma->vm_flags & VM_SHADOW_STACK)
 		return pte_mkwrite_shstk(pte);
 
-	pte = pte_mkwrite_novma(pte);
+	pte = pte_mkwrite_analvma(pte);
 
 	return pte_clear_saveddirty(pte);
 }
@@ -900,7 +900,7 @@ pmd_t pmd_mkwrite(pmd_t pmd, struct vm_area_struct *vma)
 	if (vma->vm_flags & VM_SHADOW_STACK)
 		return pmd_mkwrite_shstk(pmd);
 
-	pmd = pmd_mkwrite_novma(pmd);
+	pmd = pmd_mkwrite_analvma(pmd);
 
 	return pmd_clear_saveddirty(pmd);
 }
@@ -920,7 +920,7 @@ void arch_check_zapped_pte(struct vm_area_struct *vma, pte_t pte)
 
 void arch_check_zapped_pmd(struct vm_area_struct *vma, pmd_t pmd)
 {
-	/* See note in arch_check_zapped_pte() */
+	/* See analte in arch_check_zapped_pte() */
 	VM_WARN_ON_ONCE(!(vma->vm_flags & VM_SHADOW_STACK) &&
 			pmd_shstk(pmd));
 }

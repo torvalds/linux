@@ -28,18 +28,18 @@ EXPORT_SYMBOL(rtc_lock);
 
 /*
  * In order to set the CMOS clock precisely, mach_set_cmos_time has to be
- * called 500 ms after the second nowtime has started, because when
- * nowtime is written into the registers of the CMOS clock, it will
+ * called 500 ms after the second analwtime has started, because when
+ * analwtime is written into the registers of the CMOS clock, it will
  * jump to the next second precisely 500 ms later. Check the Motorola
  * MC146818A or Dallas DS12887 data sheet for details.
  */
-int mach_set_cmos_time(const struct timespec64 *now)
+int mach_set_cmos_time(const struct timespec64 *analw)
 {
-	unsigned long long nowtime = now->tv_sec;
+	unsigned long long analwtime = analw->tv_sec;
 	struct rtc_time tm;
 	int retval = 0;
 
-	rtc_time64_to_tm(nowtime, &tm);
+	rtc_time64_to_tm(analwtime, &tm);
 	if (!rtc_valid_tm(&tm)) {
 		retval = mc146818_set_time(&tm);
 		if (retval)
@@ -48,13 +48,13 @@ int mach_set_cmos_time(const struct timespec64 *now)
 	} else {
 		printk(KERN_ERR
 		       "%s: Invalid RTC value: write of %llx to RTC failed\n",
-			__func__, nowtime);
+			__func__, analwtime);
 		retval = -EINVAL;
 	}
 	return retval;
 }
 
-void mach_get_cmos_time(struct timespec64 *now)
+void mach_get_cmos_time(struct timespec64 *analw)
 {
 	struct rtc_time tm;
 
@@ -63,18 +63,18 @@ void mach_get_cmos_time(struct timespec64 *now)
 	 * which tells the caller that this RTC value is unusable.
 	 */
 	if (!pm_trace_rtc_valid()) {
-		now->tv_sec = now->tv_nsec = 0;
+		analw->tv_sec = analw->tv_nsec = 0;
 		return;
 	}
 
 	if (mc146818_get_time(&tm, 1000)) {
 		pr_err("Unable to read current time from RTC\n");
-		now->tv_sec = now->tv_nsec = 0;
+		analw->tv_sec = analw->tv_nsec = 0;
 		return;
 	}
 
-	now->tv_sec = rtc_tm_to_time64(&tm);
-	now->tv_nsec = 0;
+	analw->tv_sec = rtc_tm_to_time64(&tm);
+	analw->tv_nsec = 0;
 }
 
 /* Routines for accessing the CMOS RAM/RTC. */
@@ -100,12 +100,12 @@ void rtc_cmos_write(unsigned char val, unsigned char addr)
 }
 EXPORT_SYMBOL(rtc_cmos_write);
 
-int update_persistent_clock64(struct timespec64 now)
+int update_persistent_clock64(struct timespec64 analw)
 {
-	return x86_platform.set_wallclock(&now);
+	return x86_platform.set_wallclock(&analw);
 }
 
-/* not static: needed by APM */
+/* analt static: needed by APM */
 void read_persistent_clock64(struct timespec64 *ts)
 {
 	x86_platform.get_wallclock(ts);
@@ -148,11 +148,11 @@ static __init int add_rtc_cmos(void)
 	}
 #endif
 	if (!x86_platform.legacy.rtc)
-		return -ENODEV;
+		return -EANALDEV;
 
 	platform_device_register(&rtc_device);
 	dev_info(&rtc_device.dev,
-		 "registered platform RTC device (no PNP device found)\n");
+		 "registered platform RTC device (anal PNP device found)\n");
 
 	return 0;
 }

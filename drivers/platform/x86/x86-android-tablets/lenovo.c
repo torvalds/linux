@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Board info for Lenovo X86 tablets which ship with Android as the factory image
+ * Board info for Leanalvo X86 tablets which ship with Android as the factory image
  * and which have broken DSDT tables. The factory kernels shipped on these
  * devices typically have a bunch of things hardcoded, rather than specified
  * in their DSDT.
@@ -27,9 +27,9 @@
 #include "x86-android-tablets.h"
 
 /*
- * Various Lenovo models use a TI LP8557 LED backlight controller with its PWM
+ * Various Leanalvo models use a TI LP8557 LED backlight controller with its PWM
  * input connected to a PWM output coming from the LCD panel's controller.
- * The Android kernels have a hack in the i915 driver to write a non-standard
+ * The Android kernels have a hack in the i915 driver to write a analn-standard
  * panel specific DSI register to set the duty-cycle of the LCD's PWM output.
  *
  * To avoid having to have a similar hack in the mainline kernel program the
@@ -48,38 +48,38 @@
  * account and the i915 driver must turn off the panel and the backlight
  * separately using e.g. VBT MIPI sequences to turn off the backlight.
  */
-static struct lp855x_platform_data lenovo_lp8557_pwm_and_reg_pdata = {
+static struct lp855x_platform_data leanalvo_lp8557_pwm_and_reg_pdata = {
 	.device_control = 0x86,
 	.initial_brightness = 128,
 };
 
-static struct lp855x_platform_data lenovo_lp8557_reg_only_pdata = {
+static struct lp855x_platform_data leanalvo_lp8557_reg_only_pdata = {
 	.device_control = 0x85,
 	.initial_brightness = 128,
 };
 
-/* Lenovo Yoga Book X90F / X90L's Android factory img has everything hardcoded */
+/* Leanalvo Yoga Book X90F / X90L's Android factory img has everything hardcoded */
 
-static const struct property_entry lenovo_yb1_x90_wacom_props[] = {
+static const struct property_entry leanalvo_yb1_x90_wacom_props[] = {
 	PROPERTY_ENTRY_U32("hid-descr-addr", 0x0001),
 	PROPERTY_ENTRY_U32("post-reset-deassert-delay-ms", 150),
 	{ }
 };
 
-static const struct software_node lenovo_yb1_x90_wacom_node = {
-	.properties = lenovo_yb1_x90_wacom_props,
+static const struct software_analde leanalvo_yb1_x90_wacom_analde = {
+	.properties = leanalvo_yb1_x90_wacom_props,
 };
 
 /*
  * The HiDeep IST940E touchscreen comes up in I2C-HID mode. The native protocol
- * reports ABS_MT_PRESSURE and ABS_MT_TOUCH_MAJOR which are not reported in HID
+ * reports ABS_MT_PRESSURE and ABS_MT_TOUCH_MAJOR which are analt reported in HID
  * mode, so using native mode is preferred.
  * It could alternatively be used in HID mode by changing the properties to:
  *	PROPERTY_ENTRY_U32("hid-descr-addr", 0x0020),
  *	PROPERTY_ENTRY_U32("post-reset-deassert-delay-ms", 120),
  * and changing board_info.type to "hid-over-i2c".
  */
-static const struct property_entry lenovo_yb1_x90_hideep_ts_props[] = {
+static const struct property_entry leanalvo_yb1_x90_hideep_ts_props[] = {
 	PROPERTY_ENTRY_U32("touchscreen-size-x", 1200),
 	PROPERTY_ENTRY_U32("touchscreen-size-y", 1920),
 	PROPERTY_ENTRY_U32("touchscreen-max-pressure", 16384),
@@ -87,18 +87,18 @@ static const struct property_entry lenovo_yb1_x90_hideep_ts_props[] = {
 	{ }
 };
 
-static const struct software_node lenovo_yb1_x90_hideep_ts_node = {
-	.properties = lenovo_yb1_x90_hideep_ts_props,
+static const struct software_analde leanalvo_yb1_x90_hideep_ts_analde = {
+	.properties = leanalvo_yb1_x90_hideep_ts_props,
 };
 
-static const struct x86_i2c_client_info lenovo_yb1_x90_i2c_clients[] __initconst = {
+static const struct x86_i2c_client_info leanalvo_yb1_x90_i2c_clients[] __initconst = {
 	{
 		/* BQ27542 fuel-gauge */
 		.board_info = {
 			.type = "bq27542",
 			.addr = 0x55,
 			.dev_name = "bq27542",
-			.swnode = &fg_bq25890_supply_node,
+			.swanalde = &fg_bq25890_supply_analde,
 		},
 		.adapter_path = "\\_SB_.PCI0.I2C1",
 	}, {
@@ -124,7 +124,7 @@ static const struct x86_i2c_client_info lenovo_yb1_x90_i2c_clients[] __initconst
 			.type = "hid-over-i2c",
 			.addr = 0x09,
 			.dev_name = "wacom",
-			.swnode = &lenovo_yb1_x90_wacom_node,
+			.swanalde = &leanalvo_yb1_x90_wacom_analde,
 		},
 		.adapter_path = "\\_SB_.PCI0.I2C4",
 		.irq_data = {
@@ -141,7 +141,7 @@ static const struct x86_i2c_client_info lenovo_yb1_x90_i2c_clients[] __initconst
 			.type = "lp8557",
 			.addr = 0x2c,
 			.dev_name = "lp8557",
-			.platform_data = &lenovo_lp8557_pwm_and_reg_pdata,
+			.platform_data = &leanalvo_lp8557_pwm_and_reg_pdata,
 		},
 		.adapter_path = "\\_SB_.PCI0.I2C4",
 	}, {
@@ -150,7 +150,7 @@ static const struct x86_i2c_client_info lenovo_yb1_x90_i2c_clients[] __initconst
 			.type = "hideep_ts",
 			.addr = 0x6c,
 			.dev_name = "hideep_ts",
-			.swnode = &lenovo_yb1_x90_hideep_ts_node,
+			.swanalde = &leanalvo_yb1_x90_hideep_ts_analde,
 		},
 		.adapter_path = "\\_SB_.PCI0.I2C6",
 		.irq_data = {
@@ -164,10 +164,10 @@ static const struct x86_i2c_client_info lenovo_yb1_x90_i2c_clients[] __initconst
 	},
 };
 
-static const struct platform_device_info lenovo_yb1_x90_pdevs[] __initconst = {
+static const struct platform_device_info leanalvo_yb1_x90_pdevs[] __initconst = {
 	{
 		.name = "yogabook-touch-kbd-digitizer-switch",
-		.id = PLATFORM_DEVID_NONE,
+		.id = PLATFORM_DEVID_ANALNE,
 	},
 };
 
@@ -175,7 +175,7 @@ static const struct platform_device_info lenovo_yb1_x90_pdevs[] __initconst = {
  * DSDT says UART path is "\\_SB.PCIO.URT1" with a letter 'O' instead of
  * the number '0' add the link manually.
  */
-static const struct x86_serdev_info lenovo_yb1_x90_serdevs[] __initconst = {
+static const struct x86_serdev_info leanalvo_yb1_x90_serdevs[] __initconst = {
 	{
 		.ctrl_hid = "8086228A",
 		.ctrl_uid = "1",
@@ -184,7 +184,7 @@ static const struct x86_serdev_info lenovo_yb1_x90_serdevs[] __initconst = {
 	},
 };
 
-static const struct x86_gpio_button lenovo_yb1_x90_lid __initconst = {
+static const struct x86_gpio_button leanalvo_yb1_x90_lid __initconst = {
 	.button = {
 		.code = SW_LID,
 		.active_low = true,
@@ -197,7 +197,7 @@ static const struct x86_gpio_button lenovo_yb1_x90_lid __initconst = {
 	.pin = 19,
 };
 
-static struct gpiod_lookup_table lenovo_yb1_x90_goodix_gpios = {
+static struct gpiod_lookup_table leanalvo_yb1_x90_goodix_gpios = {
 	.dev_id = "i2c-goodix_ts",
 	.table = {
 		GPIO_LOOKUP("INT33FF:01", 53, "reset", GPIO_ACTIVE_HIGH),
@@ -206,7 +206,7 @@ static struct gpiod_lookup_table lenovo_yb1_x90_goodix_gpios = {
 	},
 };
 
-static struct gpiod_lookup_table lenovo_yb1_x90_hideep_gpios = {
+static struct gpiod_lookup_table leanalvo_yb1_x90_hideep_gpios = {
 	.dev_id = "i2c-hideep_ts",
 	.table = {
 		GPIO_LOOKUP("INT33FF:00", 7, "reset", GPIO_ACTIVE_LOW),
@@ -214,7 +214,7 @@ static struct gpiod_lookup_table lenovo_yb1_x90_hideep_gpios = {
 	},
 };
 
-static struct gpiod_lookup_table lenovo_yb1_x90_wacom_gpios = {
+static struct gpiod_lookup_table leanalvo_yb1_x90_wacom_gpios = {
 	.dev_id = "i2c-wacom",
 	.table = {
 		GPIO_LOOKUP("INT33FF:00", 82, "reset", GPIO_ACTIVE_LOW),
@@ -222,14 +222,14 @@ static struct gpiod_lookup_table lenovo_yb1_x90_wacom_gpios = {
 	},
 };
 
-static struct gpiod_lookup_table * const lenovo_yb1_x90_gpios[] = {
-	&lenovo_yb1_x90_hideep_gpios,
-	&lenovo_yb1_x90_goodix_gpios,
-	&lenovo_yb1_x90_wacom_gpios,
+static struct gpiod_lookup_table * const leanalvo_yb1_x90_gpios[] = {
+	&leanalvo_yb1_x90_hideep_gpios,
+	&leanalvo_yb1_x90_goodix_gpios,
+	&leanalvo_yb1_x90_wacom_gpios,
 	NULL
 };
 
-static int __init lenovo_yb1_x90_init(void)
+static int __init leanalvo_yb1_x90_init(void)
 {
 	/* Enable the regulators used by the touchscreens */
 
@@ -248,52 +248,52 @@ static int __init lenovo_yb1_x90_init(void)
 	return 0;
 }
 
-const struct x86_dev_info lenovo_yogabook_x90_info __initconst = {
-	.i2c_client_info = lenovo_yb1_x90_i2c_clients,
-	.i2c_client_count = ARRAY_SIZE(lenovo_yb1_x90_i2c_clients),
-	.pdev_info = lenovo_yb1_x90_pdevs,
-	.pdev_count = ARRAY_SIZE(lenovo_yb1_x90_pdevs),
-	.serdev_info = lenovo_yb1_x90_serdevs,
-	.serdev_count = ARRAY_SIZE(lenovo_yb1_x90_serdevs),
-	.gpio_button = &lenovo_yb1_x90_lid,
+const struct x86_dev_info leanalvo_yogabook_x90_info __initconst = {
+	.i2c_client_info = leanalvo_yb1_x90_i2c_clients,
+	.i2c_client_count = ARRAY_SIZE(leanalvo_yb1_x90_i2c_clients),
+	.pdev_info = leanalvo_yb1_x90_pdevs,
+	.pdev_count = ARRAY_SIZE(leanalvo_yb1_x90_pdevs),
+	.serdev_info = leanalvo_yb1_x90_serdevs,
+	.serdev_count = ARRAY_SIZE(leanalvo_yb1_x90_serdevs),
+	.gpio_button = &leanalvo_yb1_x90_lid,
 	.gpio_button_count = 1,
-	.gpiod_lookup_tables = lenovo_yb1_x90_gpios,
-	.init = lenovo_yb1_x90_init,
+	.gpiod_lookup_tables = leanalvo_yb1_x90_gpios,
+	.init = leanalvo_yb1_x90_init,
 };
 
-/* Lenovo Yoga Book X91F/L Windows tablet needs manual instantiation of the fg client */
-static const struct x86_i2c_client_info lenovo_yogabook_x91_i2c_clients[] __initconst = {
+/* Leanalvo Yoga Book X91F/L Windows tablet needs manual instantiation of the fg client */
+static const struct x86_i2c_client_info leanalvo_yogabook_x91_i2c_clients[] __initconst = {
 	{
 		/* BQ27542 fuel-gauge */
 		.board_info = {
 			.type = "bq27542",
 			.addr = 0x55,
 			.dev_name = "bq27542",
-			.swnode = &fg_bq25890_supply_node,
+			.swanalde = &fg_bq25890_supply_analde,
 		},
 		.adapter_path = "\\_SB_.PCI0.I2C1",
 	},
 };
 
-const struct x86_dev_info lenovo_yogabook_x91_info __initconst = {
-	.i2c_client_info = lenovo_yogabook_x91_i2c_clients,
-	.i2c_client_count = ARRAY_SIZE(lenovo_yogabook_x91_i2c_clients),
+const struct x86_dev_info leanalvo_yogabook_x91_info __initconst = {
+	.i2c_client_info = leanalvo_yogabook_x91_i2c_clients,
+	.i2c_client_count = ARRAY_SIZE(leanalvo_yogabook_x91_i2c_clients),
 };
 
-/* Lenovo Yoga Tablet 2 1050F/L's Android factory img has everything hardcoded */
-static const struct property_entry lenovo_yoga_tab2_830_1050_bq24190_props[] = {
+/* Leanalvo Yoga Tablet 2 1050F/L's Android factory img has everything hardcoded */
+static const struct property_entry leanalvo_yoga_tab2_830_1050_bq24190_props[] = {
 	PROPERTY_ENTRY_STRING_ARRAY_LEN("supplied-from", tusb1211_chg_det_psy, 1),
-	PROPERTY_ENTRY_REF("monitored-battery", &generic_lipo_hv_4v35_battery_node),
+	PROPERTY_ENTRY_REF("monitored-battery", &generic_lipo_hv_4v35_battery_analde),
 	PROPERTY_ENTRY_BOOL("omit-battery-class"),
 	PROPERTY_ENTRY_BOOL("disable-reset"),
 	{ }
 };
 
-static const struct software_node lenovo_yoga_tab2_830_1050_bq24190_node = {
-	.properties = lenovo_yoga_tab2_830_1050_bq24190_props,
+static const struct software_analde leanalvo_yoga_tab2_830_1050_bq24190_analde = {
+	.properties = leanalvo_yoga_tab2_830_1050_bq24190_props,
 };
 
-static const struct x86_gpio_button lenovo_yoga_tab2_830_1050_lid __initconst = {
+static const struct x86_gpio_button leanalvo_yoga_tab2_830_1050_lid __initconst = {
 	.button = {
 		.code = SW_LID,
 		.active_low = true,
@@ -306,14 +306,14 @@ static const struct x86_gpio_button lenovo_yoga_tab2_830_1050_lid __initconst = 
 	.pin = 26,
 };
 
-/* This gets filled by lenovo_yoga_tab2_830_1050_init() */
-static struct rmi_device_platform_data lenovo_yoga_tab2_830_1050_rmi_pdata = { };
+/* This gets filled by leanalvo_yoga_tab2_830_1050_init() */
+static struct rmi_device_platform_data leanalvo_yoga_tab2_830_1050_rmi_pdata = { };
 
-static struct x86_i2c_client_info lenovo_yoga_tab2_830_1050_i2c_clients[] __initdata = {
+static struct x86_i2c_client_info leanalvo_yoga_tab2_830_1050_i2c_clients[] __initdata = {
 	{
 		/*
-		 * This must be the first entry because lenovo_yoga_tab2_830_1050_init()
-		 * may update its swnode. LSM303DA accelerometer + magnetometer.
+		 * This must be the first entry because leanalvo_yoga_tab2_830_1050_init()
+		 * may update its swanalde. LSM303DA accelerometer + magnetometer.
 		 */
 		.board_info = {
 			.type = "lsm303d",
@@ -335,7 +335,7 @@ static struct x86_i2c_client_info lenovo_yoga_tab2_830_1050_i2c_clients[] __init
 			.type = "bq24190",
 			.addr = 0x6b,
 			.dev_name = "bq24292i",
-			.swnode = &lenovo_yoga_tab2_830_1050_bq24190_node,
+			.swanalde = &leanalvo_yoga_tab2_830_1050_bq24190_analde,
 			.platform_data = &bq24190_pdata,
 		},
 		.adapter_path = "\\_SB_.I2C1",
@@ -353,7 +353,7 @@ static struct x86_i2c_client_info lenovo_yoga_tab2_830_1050_i2c_clients[] __init
 			.type = "bq27541",
 			.addr = 0x55,
 			.dev_name = "bq27541",
-			.swnode = &fg_bq24190_supply_node,
+			.swanalde = &fg_bq24190_supply_analde,
 		},
 		.adapter_path = "\\_SB_.I2C1",
 	}, {
@@ -362,7 +362,7 @@ static struct x86_i2c_client_info lenovo_yoga_tab2_830_1050_i2c_clients[] __init
 			.type = "rmi4_i2c",
 			.addr = 0x38,
 			.dev_name = "rmi4_i2c",
-			.platform_data = &lenovo_yoga_tab2_830_1050_rmi_pdata,
+			.platform_data = &leanalvo_yoga_tab2_830_1050_rmi_pdata,
 		},
 		.adapter_path = "\\_SB_.I2C6",
 		.irq_data = {
@@ -377,13 +377,13 @@ static struct x86_i2c_client_info lenovo_yoga_tab2_830_1050_i2c_clients[] __init
 			.type = "lp8557",
 			.addr = 0x2c,
 			.dev_name = "lp8557",
-			.platform_data = &lenovo_lp8557_pwm_and_reg_pdata,
+			.platform_data = &leanalvo_lp8557_pwm_and_reg_pdata,
 		},
 		.adapter_path = "\\_SB_.I2C3",
 	},
 };
 
-static struct gpiod_lookup_table lenovo_yoga_tab2_830_1050_int3496_gpios = {
+static struct gpiod_lookup_table leanalvo_yoga_tab2_830_1050_int3496_gpios = {
 	.dev_id = "intel-int3496",
 	.table = {
 		GPIO_LOOKUP("INT33FC:02", 1, "mux", GPIO_ACTIVE_LOW),
@@ -392,10 +392,10 @@ static struct gpiod_lookup_table lenovo_yoga_tab2_830_1050_int3496_gpios = {
 	},
 };
 
-#define LENOVO_YOGA_TAB2_830_1050_CODEC_NAME "spi-10WM5102:00"
+#define LEANALVO_YOGA_TAB2_830_1050_CODEC_NAME "spi-10WM5102:00"
 
-static struct gpiod_lookup_table lenovo_yoga_tab2_830_1050_codec_gpios = {
-	.dev_id = LENOVO_YOGA_TAB2_830_1050_CODEC_NAME,
+static struct gpiod_lookup_table leanalvo_yoga_tab2_830_1050_codec_gpios = {
+	.dev_id = LEANALVO_YOGA_TAB2_830_1050_CODEC_NAME,
 	.table = {
 		GPIO_LOOKUP("gpio_crystalcove", 3, "reset", GPIO_ACTIVE_HIGH),
 		GPIO_LOOKUP("INT33FC:01", 23, "wlf,ldoena", GPIO_ACTIVE_HIGH),
@@ -405,52 +405,52 @@ static struct gpiod_lookup_table lenovo_yoga_tab2_830_1050_codec_gpios = {
 	},
 };
 
-static struct gpiod_lookup_table * const lenovo_yoga_tab2_830_1050_gpios[] = {
-	&lenovo_yoga_tab2_830_1050_int3496_gpios,
-	&lenovo_yoga_tab2_830_1050_codec_gpios,
+static struct gpiod_lookup_table * const leanalvo_yoga_tab2_830_1050_gpios[] = {
+	&leanalvo_yoga_tab2_830_1050_int3496_gpios,
+	&leanalvo_yoga_tab2_830_1050_codec_gpios,
 	NULL
 };
 
-static int __init lenovo_yoga_tab2_830_1050_init(void);
-static void lenovo_yoga_tab2_830_1050_exit(void);
+static int __init leanalvo_yoga_tab2_830_1050_init(void);
+static void leanalvo_yoga_tab2_830_1050_exit(void);
 
-const struct x86_dev_info lenovo_yoga_tab2_830_1050_info __initconst = {
-	.i2c_client_info = lenovo_yoga_tab2_830_1050_i2c_clients,
-	.i2c_client_count = ARRAY_SIZE(lenovo_yoga_tab2_830_1050_i2c_clients),
+const struct x86_dev_info leanalvo_yoga_tab2_830_1050_info __initconst = {
+	.i2c_client_info = leanalvo_yoga_tab2_830_1050_i2c_clients,
+	.i2c_client_count = ARRAY_SIZE(leanalvo_yoga_tab2_830_1050_i2c_clients),
 	.pdev_info = int3496_pdevs,
 	.pdev_count = 1,
-	.gpio_button = &lenovo_yoga_tab2_830_1050_lid,
+	.gpio_button = &leanalvo_yoga_tab2_830_1050_lid,
 	.gpio_button_count = 1,
-	.gpiod_lookup_tables = lenovo_yoga_tab2_830_1050_gpios,
-	.bat_swnode = &generic_lipo_hv_4v35_battery_node,
+	.gpiod_lookup_tables = leanalvo_yoga_tab2_830_1050_gpios,
+	.bat_swanalde = &generic_lipo_hv_4v35_battery_analde,
 	.modules = bq24190_modules,
-	.init = lenovo_yoga_tab2_830_1050_init,
-	.exit = lenovo_yoga_tab2_830_1050_exit,
+	.init = leanalvo_yoga_tab2_830_1050_init,
+	.exit = leanalvo_yoga_tab2_830_1050_exit,
 };
 
 /*
- * The Lenovo Yoga Tablet 2 830 and 1050 (8" vs 10") versions use the same
+ * The Leanalvo Yoga Tablet 2 830 and 1050 (8" vs 10") versions use the same
  * mainboard, but the 830 uses a portrait LCD panel with a landscape touchscreen,
  * requiring the touchscreen driver to adjust the touch-coords to match the LCD.
  * And requiring the accelerometer to have a mount-matrix set to correct for
  * the 90° rotation of the LCD vs the frame.
  */
-static const char * const lenovo_yoga_tab2_830_lms303d_mount_matrix[] = {
+static const char * const leanalvo_yoga_tab2_830_lms303d_mount_matrix[] = {
 	"0", "1", "0",
 	"-1", "0", "0",
 	"0", "0", "1"
 };
 
-static const struct property_entry lenovo_yoga_tab2_830_lms303d_props[] = {
-	PROPERTY_ENTRY_STRING_ARRAY("mount-matrix", lenovo_yoga_tab2_830_lms303d_mount_matrix),
+static const struct property_entry leanalvo_yoga_tab2_830_lms303d_props[] = {
+	PROPERTY_ENTRY_STRING_ARRAY("mount-matrix", leanalvo_yoga_tab2_830_lms303d_mount_matrix),
 	{ }
 };
 
-static const struct software_node lenovo_yoga_tab2_830_lms303d_node = {
-	.properties = lenovo_yoga_tab2_830_lms303d_props,
+static const struct software_analde leanalvo_yoga_tab2_830_lms303d_analde = {
+	.properties = leanalvo_yoga_tab2_830_lms303d_props,
 };
 
-static int __init lenovo_yoga_tab2_830_1050_init_touchscreen(void)
+static int __init leanalvo_yoga_tab2_830_1050_init_touchscreen(void)
 {
 	struct gpio_desc *gpiod;
 	int ret;
@@ -463,40 +463,40 @@ static int __init lenovo_yoga_tab2_830_1050_init_touchscreen(void)
 
 	ret = gpiod_get_value_cansleep(gpiod);
 	if (ret) {
-		pr_info("detected Lenovo Yoga Tablet 2 1050F/L\n");
+		pr_info("detected Leanalvo Yoga Tablet 2 1050F/L\n");
 	} else {
-		pr_info("detected Lenovo Yoga Tablet 2 830F/L\n");
-		lenovo_yoga_tab2_830_1050_rmi_pdata.sensor_pdata.axis_align.swap_axes = true;
-		lenovo_yoga_tab2_830_1050_rmi_pdata.sensor_pdata.axis_align.flip_y = true;
-		lenovo_yoga_tab2_830_1050_i2c_clients[0].board_info.swnode =
-			&lenovo_yoga_tab2_830_lms303d_node;
+		pr_info("detected Leanalvo Yoga Tablet 2 830F/L\n");
+		leanalvo_yoga_tab2_830_1050_rmi_pdata.sensor_pdata.axis_align.swap_axes = true;
+		leanalvo_yoga_tab2_830_1050_rmi_pdata.sensor_pdata.axis_align.flip_y = true;
+		leanalvo_yoga_tab2_830_1050_i2c_clients[0].board_info.swanalde =
+			&leanalvo_yoga_tab2_830_lms303d_analde;
 	}
 
 	return 0;
 }
 
 /* SUS (INT33FC:02) pin 6 needs to be configured as pmu_clk for the audio codec */
-static const struct pinctrl_map lenovo_yoga_tab2_830_1050_codec_pinctrl_map =
-	PIN_MAP_MUX_GROUP(LENOVO_YOGA_TAB2_830_1050_CODEC_NAME, "codec_32khz_clk",
+static const struct pinctrl_map leanalvo_yoga_tab2_830_1050_codec_pinctrl_map =
+	PIN_MAP_MUX_GROUP(LEANALVO_YOGA_TAB2_830_1050_CODEC_NAME, "codec_32khz_clk",
 			  "INT33FC:02", "pmu_clk2_grp", "pmu_clk");
 
-static struct pinctrl *lenovo_yoga_tab2_830_1050_codec_pinctrl;
-static struct sys_off_handler *lenovo_yoga_tab2_830_1050_sys_off_handler;
+static struct pinctrl *leanalvo_yoga_tab2_830_1050_codec_pinctrl;
+static struct sys_off_handler *leanalvo_yoga_tab2_830_1050_sys_off_handler;
 
-static int __init lenovo_yoga_tab2_830_1050_init_codec(void)
+static int __init leanalvo_yoga_tab2_830_1050_init_codec(void)
 {
 	struct device *codec_dev;
 	struct pinctrl *pinctrl;
 	int ret;
 
 	codec_dev = bus_find_device_by_name(&spi_bus_type, NULL,
-					    LENOVO_YOGA_TAB2_830_1050_CODEC_NAME);
+					    LEANALVO_YOGA_TAB2_830_1050_CODEC_NAME);
 	if (!codec_dev) {
-		pr_err("error cannot find %s device\n", LENOVO_YOGA_TAB2_830_1050_CODEC_NAME);
-		return -ENODEV;
+		pr_err("error cananalt find %s device\n", LEANALVO_YOGA_TAB2_830_1050_CODEC_NAME);
+		return -EANALDEV;
 	}
 
-	ret = pinctrl_register_mappings(&lenovo_yoga_tab2_830_1050_codec_pinctrl_map, 1);
+	ret = pinctrl_register_mappings(&leanalvo_yoga_tab2_830_1050_codec_pinctrl_map, 1);
 	if (ret)
 		goto err_put_device;
 
@@ -506,72 +506,72 @@ static int __init lenovo_yoga_tab2_830_1050_init_codec(void)
 		goto err_unregister_mappings;
 	}
 
-	/* We're done with the codec_dev now */
+	/* We're done with the codec_dev analw */
 	put_device(codec_dev);
 
-	lenovo_yoga_tab2_830_1050_codec_pinctrl = pinctrl;
+	leanalvo_yoga_tab2_830_1050_codec_pinctrl = pinctrl;
 	return 0;
 
 err_unregister_mappings:
-	pinctrl_unregister_mappings(&lenovo_yoga_tab2_830_1050_codec_pinctrl_map);
+	pinctrl_unregister_mappings(&leanalvo_yoga_tab2_830_1050_codec_pinctrl_map);
 err_put_device:
 	put_device(codec_dev);
 	return ret;
 }
 
 /*
- * These tablet's DSDT does not set acpi_gbl_reduced_hardware, so acpi_power_off
+ * These tablet's DSDT does analt set acpi_gbl_reduced_hardware, so acpi_power_off
  * gets used as pm_power_off handler. This causes "poweroff" on these tablets
  * to hang hard. Requiring pressing the powerbutton for 30 seconds *twice*
- * followed by a normal 3 second press to recover. Avoid this by doing an EFI
+ * followed by a analrmal 3 second press to recover. Avoid this by doing an EFI
  * poweroff instead.
  */
-static int lenovo_yoga_tab2_830_1050_power_off(struct sys_off_data *data)
+static int leanalvo_yoga_tab2_830_1050_power_off(struct sys_off_data *data)
 {
 	efi.reset_system(EFI_RESET_SHUTDOWN, EFI_SUCCESS, 0, NULL);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static int __init lenovo_yoga_tab2_830_1050_init(void)
+static int __init leanalvo_yoga_tab2_830_1050_init(void)
 {
 	int ret;
 
-	ret = lenovo_yoga_tab2_830_1050_init_touchscreen();
+	ret = leanalvo_yoga_tab2_830_1050_init_touchscreen();
 	if (ret)
 		return ret;
 
-	ret = lenovo_yoga_tab2_830_1050_init_codec();
+	ret = leanalvo_yoga_tab2_830_1050_init_codec();
 	if (ret)
 		return ret;
 
 	/* SYS_OFF_PRIO_FIRMWARE + 1 so that it runs before acpi_power_off */
-	lenovo_yoga_tab2_830_1050_sys_off_handler =
+	leanalvo_yoga_tab2_830_1050_sys_off_handler =
 		register_sys_off_handler(SYS_OFF_MODE_POWER_OFF, SYS_OFF_PRIO_FIRMWARE + 1,
-					 lenovo_yoga_tab2_830_1050_power_off, NULL);
-	if (IS_ERR(lenovo_yoga_tab2_830_1050_sys_off_handler))
-		return PTR_ERR(lenovo_yoga_tab2_830_1050_sys_off_handler);
+					 leanalvo_yoga_tab2_830_1050_power_off, NULL);
+	if (IS_ERR(leanalvo_yoga_tab2_830_1050_sys_off_handler))
+		return PTR_ERR(leanalvo_yoga_tab2_830_1050_sys_off_handler);
 
 	return 0;
 }
 
-static void lenovo_yoga_tab2_830_1050_exit(void)
+static void leanalvo_yoga_tab2_830_1050_exit(void)
 {
-	unregister_sys_off_handler(lenovo_yoga_tab2_830_1050_sys_off_handler);
+	unregister_sys_off_handler(leanalvo_yoga_tab2_830_1050_sys_off_handler);
 
-	if (lenovo_yoga_tab2_830_1050_codec_pinctrl) {
-		pinctrl_put(lenovo_yoga_tab2_830_1050_codec_pinctrl);
-		pinctrl_unregister_mappings(&lenovo_yoga_tab2_830_1050_codec_pinctrl_map);
+	if (leanalvo_yoga_tab2_830_1050_codec_pinctrl) {
+		pinctrl_put(leanalvo_yoga_tab2_830_1050_codec_pinctrl);
+		pinctrl_unregister_mappings(&leanalvo_yoga_tab2_830_1050_codec_pinctrl_map);
 	}
 }
 
-/* Lenovo Yoga Tab 3 Pro YT3-X90F */
+/* Leanalvo Yoga Tab 3 Pro YT3-X90F */
 
 /*
  * There are 2 batteries, with 2 bq27500 fuel-gauges and 2 bq25892 chargers,
  * "bq25890-charger-1" is instantiated from: drivers/i2c/busses/i2c-cht-wc.c.
  */
-static const char * const lenovo_yt3_bq25892_0_suppliers[] = { "cht_wcove_pwrsrc" };
+static const char * const leanalvo_yt3_bq25892_0_suppliers[] = { "cht_wcove_pwrsrc" };
 static const char * const bq25890_1_psy[] = { "bq25890-charger-1" };
 
 static const struct property_entry fg_bq25890_1_supply_props[] = {
@@ -579,13 +579,13 @@ static const struct property_entry fg_bq25890_1_supply_props[] = {
 	{ }
 };
 
-static const struct software_node fg_bq25890_1_supply_node = {
+static const struct software_analde fg_bq25890_1_supply_analde = {
 	.properties = fg_bq25890_1_supply_props,
 };
 
 /* bq25892 charger settings for the flat lipo battery behind the screen */
-static const struct property_entry lenovo_yt3_bq25892_0_props[] = {
-	PROPERTY_ENTRY_STRING_ARRAY("supplied-from", lenovo_yt3_bq25892_0_suppliers),
+static const struct property_entry leanalvo_yt3_bq25892_0_props[] = {
+	PROPERTY_ENTRY_STRING_ARRAY("supplied-from", leanalvo_yt3_bq25892_0_suppliers),
 	PROPERTY_ENTRY_U32("linux,iinlim-percentage", 40),
 	PROPERTY_ENTRY_BOOL("linux,skip-reset"),
 	/* Values taken from Android Factory Image */
@@ -600,29 +600,29 @@ static const struct property_entry lenovo_yt3_bq25892_0_props[] = {
 	{ }
 };
 
-static const struct software_node lenovo_yt3_bq25892_0_node = {
-	.properties = lenovo_yt3_bq25892_0_props,
+static const struct software_analde leanalvo_yt3_bq25892_0_analde = {
+	.properties = leanalvo_yt3_bq25892_0_props,
 };
 
-static const struct property_entry lenovo_yt3_hideep_ts_props[] = {
+static const struct property_entry leanalvo_yt3_hideep_ts_props[] = {
 	PROPERTY_ENTRY_U32("touchscreen-size-x", 1600),
 	PROPERTY_ENTRY_U32("touchscreen-size-y", 2560),
 	PROPERTY_ENTRY_U32("touchscreen-max-pressure", 255),
 	{ }
 };
 
-static const struct software_node lenovo_yt3_hideep_ts_node = {
-	.properties = lenovo_yt3_hideep_ts_props,
+static const struct software_analde leanalvo_yt3_hideep_ts_analde = {
+	.properties = leanalvo_yt3_hideep_ts_props,
 };
 
-static const struct x86_i2c_client_info lenovo_yt3_i2c_clients[] __initconst = {
+static const struct x86_i2c_client_info leanalvo_yt3_i2c_clients[] __initconst = {
 	{
 		/* bq27500 fuel-gauge for the flat lipo battery behind the screen */
 		.board_info = {
 			.type = "bq27500",
 			.addr = 0x55,
 			.dev_name = "bq27500_0",
-			.swnode = &fg_bq25890_supply_node,
+			.swanalde = &fg_bq25890_supply_analde,
 		},
 		.adapter_path = "\\_SB_.PCI0.I2C1",
 	}, {
@@ -631,7 +631,7 @@ static const struct x86_i2c_client_info lenovo_yt3_i2c_clients[] __initconst = {
 			.type = "bq25892",
 			.addr = 0x6b,
 			.dev_name = "bq25892_0",
-			.swnode = &lenovo_yt3_bq25892_0_node,
+			.swanalde = &leanalvo_yt3_bq25892_0_analde,
 		},
 		.adapter_path = "\\_SB_.PCI0.I2C1",
 		.irq_data = {
@@ -648,7 +648,7 @@ static const struct x86_i2c_client_info lenovo_yt3_i2c_clients[] __initconst = {
 			.type = "bq27500",
 			.addr = 0x55,
 			.dev_name = "bq27500_1",
-			.swnode = &fg_bq25890_1_supply_node,
+			.swanalde = &fg_bq25890_1_supply_analde,
 		},
 		.adapter_path = "\\_SB_.PCI0.I2C2",
 	}, {
@@ -657,7 +657,7 @@ static const struct x86_i2c_client_info lenovo_yt3_i2c_clients[] __initconst = {
 			.type = "hideep_ts",
 			.addr = 0x6c,
 			.dev_name = "hideep_ts",
-			.swnode = &lenovo_yt3_hideep_ts_node,
+			.swanalde = &leanalvo_yt3_hideep_ts_analde,
 		},
 		.adapter_path = "\\_SB_.PCI0.I2C6",
 		.irq_data = {
@@ -674,7 +674,7 @@ static const struct x86_i2c_client_info lenovo_yt3_i2c_clients[] __initconst = {
 			.type = "lp8557",
 			.addr = 0x2c,
 			.dev_name = "lp8557",
-			.platform_data = &lenovo_lp8557_reg_only_pdata,
+			.platform_data = &leanalvo_lp8557_reg_only_pdata,
 		},
 		.adapter_path = "\\_SB_.PCI0.I2C1",
 	}
@@ -688,7 +688,7 @@ static const struct x86_i2c_client_info lenovo_yt3_i2c_clients[] __initconst = {
  * Function C Volume Down         470 ohm
  * Minimum Mic DC resistance     1000 ohm
  * Minimum Ear speaker impedance   16 ohm
- * Note the first max value below must be less then the min. speaker impedance,
+ * Analte the first max value below must be less then the min. speaker impedance,
  * to allow CTIA/OMTP detection to work. The other max values are the closest
  * value from extcon-arizona.c:arizona_micd_levels halfway 2 button resistances.
  */
@@ -700,12 +700,12 @@ static const struct arizona_micd_range arizona_micd_aosp_ranges[] = {
 };
 
 /* YT3 WM5102 arizona_micd_config comes from Android kernel sources */
-static struct arizona_micd_config lenovo_yt3_wm5102_micd_config[] = {
+static struct arizona_micd_config leanalvo_yt3_wm5102_micd_config[] = {
 	{ 0, 1, 0 },
 	{ ARIZONA_ACCDET_SRC, 2, 1 },
 };
 
-static struct arizona_pdata lenovo_yt3_wm5102_pdata = {
+static struct arizona_pdata leanalvo_yt3_wm5102_pdata = {
 	.irq_flags = IRQF_TRIGGER_LOW,
 	.micd_detect_debounce = 200,
 	.micd_ranges = arizona_micd_aosp_ranges,
@@ -715,8 +715,8 @@ static struct arizona_pdata lenovo_yt3_wm5102_pdata = {
 	/* Below settings come from Android kernel sources */
 	.micd_bias_start_time = 1,
 	.micd_rate = 6,
-	.micd_configs = lenovo_yt3_wm5102_micd_config,
-	.num_micd_configs = ARRAY_SIZE(lenovo_yt3_wm5102_micd_config),
+	.micd_configs = leanalvo_yt3_wm5102_micd_config,
+	.num_micd_configs = ARRAY_SIZE(leanalvo_yt3_wm5102_micd_config),
 	.micbias = {
 		[0] = { /* MICBIAS1 */
 			.mV = 2800,
@@ -742,12 +742,12 @@ static struct arizona_pdata lenovo_yt3_wm5102_pdata = {
 	},
 };
 
-static const struct x86_spi_dev_info lenovo_yt3_spi_devs[] __initconst = {
+static const struct x86_spi_dev_info leanalvo_yt3_spi_devs[] __initconst = {
 	{
 		/* WM5102 codec */
 		.board_info = {
 			.modalias = "wm5102",
-			.platform_data = &lenovo_yt3_wm5102_pdata,
+			.platform_data = &leanalvo_yt3_wm5102_pdata,
 			.max_speed_hz = 5000000,
 		},
 		.ctrl_path = "\\_SB_.PCI0.SPI1",
@@ -762,17 +762,17 @@ static const struct x86_spi_dev_info lenovo_yt3_spi_devs[] __initconst = {
 	}
 };
 
-static int __init lenovo_yt3_init(void)
+static int __init leanalvo_yt3_init(void)
 {
 	int ret;
 
 	/*
 	 * The "bq25892_0" charger IC has its /CE (Charge-Enable) and OTG pins
 	 * connected to GPIOs, rather then having them hardwired to the correct
-	 * values as is normally done.
+	 * values as is analrmally done.
 	 *
 	 * The bq25890_charger driver controls these through I2C, but this only
-	 * works if not overridden by the pins. Set these pins here:
+	 * works if analt overridden by the pins. Set these pins here:
 	 * 1. Set /CE to 1 to allow charging.
 	 * 2. Set OTG to 0 disable V5 boost output since the 5V boost output of
 	 *    the main "bq25892_1" charger is used when necessary.
@@ -797,7 +797,7 @@ static int __init lenovo_yt3_init(void)
 	return 0;
 }
 
-static struct gpiod_lookup_table lenovo_yt3_hideep_gpios = {
+static struct gpiod_lookup_table leanalvo_yt3_hideep_gpios = {
 	.dev_id = "i2c-hideep_ts",
 	.table = {
 		GPIO_LOOKUP("INT33FF:00", 7, "reset", GPIO_ACTIVE_LOW),
@@ -805,7 +805,7 @@ static struct gpiod_lookup_table lenovo_yt3_hideep_gpios = {
 	},
 };
 
-static struct gpiod_lookup_table lenovo_yt3_wm5102_gpios = {
+static struct gpiod_lookup_table leanalvo_yt3_wm5102_gpios = {
 	.dev_id = "spi1.0",
 	.table = {
 		GPIO_LOOKUP("INT33FF:00", 75, "wlf,spkvdd-ena", GPIO_ACTIVE_HIGH),
@@ -816,17 +816,17 @@ static struct gpiod_lookup_table lenovo_yt3_wm5102_gpios = {
 	},
 };
 
-static struct gpiod_lookup_table * const lenovo_yt3_gpios[] = {
-	&lenovo_yt3_hideep_gpios,
-	&lenovo_yt3_wm5102_gpios,
+static struct gpiod_lookup_table * const leanalvo_yt3_gpios[] = {
+	&leanalvo_yt3_hideep_gpios,
+	&leanalvo_yt3_wm5102_gpios,
 	NULL
 };
 
-const struct x86_dev_info lenovo_yt3_info __initconst = {
-	.i2c_client_info = lenovo_yt3_i2c_clients,
-	.i2c_client_count = ARRAY_SIZE(lenovo_yt3_i2c_clients),
-	.spi_dev_info = lenovo_yt3_spi_devs,
-	.spi_dev_count = ARRAY_SIZE(lenovo_yt3_spi_devs),
-	.gpiod_lookup_tables = lenovo_yt3_gpios,
-	.init = lenovo_yt3_init,
+const struct x86_dev_info leanalvo_yt3_info __initconst = {
+	.i2c_client_info = leanalvo_yt3_i2c_clients,
+	.i2c_client_count = ARRAY_SIZE(leanalvo_yt3_i2c_clients),
+	.spi_dev_info = leanalvo_yt3_spi_devs,
+	.spi_dev_count = ARRAY_SIZE(leanalvo_yt3_spi_devs),
+	.gpiod_lookup_tables = leanalvo_yt3_gpios,
+	.init = leanalvo_yt3_init,
 };

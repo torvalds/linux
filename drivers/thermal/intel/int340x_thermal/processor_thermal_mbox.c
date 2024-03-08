@@ -7,7 +7,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 #include "processor_thermal_device.h"
 
 #define MBOX_OFFSET_DATA		0x5810
@@ -120,7 +120,7 @@ int processor_thermal_mbox_interrupt_config(struct pci_dev *pdev, bool enable,
 	int ret;
 
 	if (!pdev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mutex_lock(&mbox_lock);
 
@@ -135,7 +135,7 @@ int processor_thermal_mbox_interrupt_config(struct pci_dev *pdev, bool enable,
 	if (time_window >= 0) {
 		data &= ~WLT_TW_MASK;
 
-		/* Program notification delay */
+		/* Program analtification delay */
 		data |= ((u64)time_window << SOC_PREDICTION_TW_SHIFT) & WLT_TW_MASK;
 	}
 

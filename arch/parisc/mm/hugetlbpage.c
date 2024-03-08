@@ -30,7 +30,7 @@ hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
 	if (len & ~huge_page_mask(h))
 		return -EINVAL;
 	if (len > TASK_SIZE)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (flags & MAP_FIXED)
 		if (prepare_hugepage_range(file, addr, len))
@@ -83,13 +83,13 @@ pte_t *huge_pte_offset(struct mm_struct *mm,
 	addr &= HPAGE_MASK;
 
 	pgd = pgd_offset(mm, addr);
-	if (!pgd_none(*pgd)) {
+	if (!pgd_analne(*pgd)) {
 		p4d = p4d_offset(pgd, addr);
-		if (!p4d_none(*p4d)) {
+		if (!p4d_analne(*p4d)) {
 			pud = pud_offset(p4d, addr);
-			if (!pud_none(*pud)) {
+			if (!pud_analne(*pud)) {
 				pmd = pmd_offset(pud, addr);
-				if (!pmd_none(*pmd))
+				if (!pmd_analne(*pmd))
 					pte = pte_offset_huge(pmd, addr);
 			}
 		}

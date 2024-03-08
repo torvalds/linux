@@ -49,7 +49,7 @@
 #define MIIC_MAX_NR_PORTS		5
 
 #define MIIC_MODCTRL_CONF_CONV_NUM	6
-#define MIIC_MODCTRL_CONF_NONE		-1
+#define MIIC_MODCTRL_CONF_ANALNE		-1
 
 /**
  * struct modctrl_match - Matching table entry for  convctrl configuration
@@ -212,7 +212,7 @@ static int miic_config(struct phylink_pcs *pcs, unsigned int mode,
 		speed = CONV_MODE_10MBPS;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	val = FIELD_PREP(MIIC_CONVCTRL_CONV_MODE, conv_mode);
@@ -245,7 +245,7 @@ static void miic_link_up(struct phylink_pcs *pcs, unsigned int mode,
 	if (duplex == DUPLEX_FULL)
 		val |= MIIC_CONVCTRL_FULLD;
 
-	/* No speed in MII through-mode */
+	/* Anal speed in MII through-mode */
 	if (interface != PHY_INTERFACE_MODE_MII) {
 		switch (speed) {
 		case SPEED_1000:
@@ -285,16 +285,16 @@ static const struct phylink_pcs_ops miic_phylink_ops = {
 	.pcs_link_up = miic_link_up,
 };
 
-struct phylink_pcs *miic_create(struct device *dev, struct device_node *np)
+struct phylink_pcs *miic_create(struct device *dev, struct device_analde *np)
 {
 	struct platform_device *pdev;
 	struct miic_port *miic_port;
-	struct device_node *pcs_np;
+	struct device_analde *pcs_np;
 	struct miic *miic;
 	u32 port;
 
 	if (!of_device_is_available(np))
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	if (of_property_read_u32(np, "reg", &port))
 		return ERR_PTR(-EINVAL);
@@ -302,18 +302,18 @@ struct phylink_pcs *miic_create(struct device *dev, struct device_node *np)
 	if (port > MIIC_MAX_NR_PORTS || port < 1)
 		return ERR_PTR(-EINVAL);
 
-	/* The PCS pdev is attached to the parent node */
+	/* The PCS pdev is attached to the parent analde */
 	pcs_np = of_get_parent(np);
 	if (!pcs_np)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	if (!of_device_is_available(pcs_np)) {
-		of_node_put(pcs_np);
-		return ERR_PTR(-ENODEV);
+		of_analde_put(pcs_np);
+		return ERR_PTR(-EANALDEV);
 	}
 
-	pdev = of_find_device_by_node(pcs_np);
-	of_node_put(pcs_np);
+	pdev = of_find_device_by_analde(pcs_np);
+	of_analde_put(pcs_np);
 	if (!pdev || !platform_get_drvdata(pdev)) {
 		if (pdev)
 			put_device(&pdev->dev);
@@ -323,7 +323,7 @@ struct phylink_pcs *miic_create(struct device *dev, struct device_node *np)
 	miic_port = kzalloc(sizeof(*miic_port), GFP_KERNEL);
 	if (!miic_port) {
 		put_device(&pdev->dev);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	miic = platform_get_drvdata(pdev);
@@ -382,7 +382,7 @@ static bool miic_modctrl_match(s8 table_val[MIIC_MODCTRL_CONF_CONV_NUM],
 	int i;
 
 	for (i = 0; i < MIIC_MODCTRL_CONF_CONV_NUM; i++) {
-		if (dt_val[i] == MIIC_MODCTRL_CONF_NONE)
+		if (dt_val[i] == MIIC_MODCTRL_CONF_ANALNE)
 			continue;
 
 		if (dt_val[i] != table_val[i])
@@ -399,10 +399,10 @@ static void miic_dump_conf(struct device *dev,
 	int i;
 
 	for (i = 0; i < MIIC_MODCTRL_CONF_CONV_NUM; i++) {
-		if (conf[i] != MIIC_MODCTRL_CONF_NONE)
+		if (conf[i] != MIIC_MODCTRL_CONF_ANALNE)
 			conf_name = conf_to_string[conf[i]];
 		else
-			conf_name = "NONE";
+			conf_name = "ANALNE";
 
 		dev_err(dev, "%s: %s\n", index_to_string[i], conf_name);
 	}
@@ -433,17 +433,17 @@ static int miic_match_dt_conf(struct device *dev,
 static int miic_parse_dt(struct device *dev, u32 *mode_cfg)
 {
 	s8 dt_val[MIIC_MODCTRL_CONF_CONV_NUM];
-	struct device_node *np = dev->of_node;
-	struct device_node *conv;
+	struct device_analde *np = dev->of_analde;
+	struct device_analde *conv;
 	u32 conf;
 	int port;
 
-	memset(dt_val, MIIC_MODCTRL_CONF_NONE, sizeof(dt_val));
+	memset(dt_val, MIIC_MODCTRL_CONF_ANALNE, sizeof(dt_val));
 
 	if (of_property_read_u32(np, "renesas,miic-switch-portin", &conf) == 0)
 		dt_val[0] = conf;
 
-	for_each_child_of_node(np, conv) {
+	for_each_child_of_analde(np, conv) {
 		if (of_property_read_u32(conv, "reg", &port))
 			continue;
 
@@ -470,7 +470,7 @@ static int miic_probe(struct platform_device *pdev)
 
 	miic = devm_kzalloc(dev, sizeof(*miic), GFP_KERNEL);
 	if (!miic)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&miic->lock);
 	miic->dev = dev;

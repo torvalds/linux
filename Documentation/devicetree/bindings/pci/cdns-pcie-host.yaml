@@ -22,9 +22,9 @@ properties:
     default: 32
     deprecated: true
 
-  cdns,no-bar-match-nbits:
+  cdns,anal-bar-match-nbits:
     description:
-      Set into the no BAR match register to configure the number of least
+      Set into the anal BAR match register to configure the number of least
       significant bits kept during inbound (PCIe -> AXI) address translations
     $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0

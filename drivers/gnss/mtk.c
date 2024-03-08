@@ -5,7 +5,7 @@
  * Copyright (C) 2018 Johan Hovold <johan@kernel.org>
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/gnss.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -90,7 +90,7 @@ static int mtk_probe(struct serdev_device *serdev)
 	data->vbackup = devm_regulator_get_optional(&serdev->dev, "vbackup");
 	if (IS_ERR(data->vbackup)) {
 		ret = PTR_ERR(data->vbackup);
-		if (ret == -ENODEV)
+		if (ret == -EANALDEV)
 			data->vbackup = NULL;
 		else
 			goto err_free_gserial;

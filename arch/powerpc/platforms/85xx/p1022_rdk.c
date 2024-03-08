@@ -42,23 +42,23 @@
  */
 static void p1022rdk_set_pixel_clock(unsigned int pixclock)
 {
-	struct device_node *guts_np = NULL;
+	struct device_analde *guts_np = NULL;
 	struct ccsr_guts __iomem *guts;
 	unsigned long freq;
 	u64 temp;
 	u32 pxclk;
 
 	/* Map the global utilities registers. */
-	guts_np = of_find_compatible_node(NULL, NULL, "fsl,p1022-guts");
+	guts_np = of_find_compatible_analde(NULL, NULL, "fsl,p1022-guts");
 	if (!guts_np) {
-		pr_err("p1022rdk: missing global utilities device node\n");
+		pr_err("p1022rdk: missing global utilities device analde\n");
 		return;
 	}
 
 	guts = of_iomap(guts_np, 0);
-	of_node_put(guts_np);
+	of_analde_put(guts_np);
 	if (!guts) {
-		pr_err("p1022rdk: could not map global utilities device\n");
+		pr_err("p1022rdk: could analt map global utilities device\n");
 		return;
 	}
 
@@ -75,7 +75,7 @@ static void p1022rdk_set_pixel_clock(unsigned int pixclock)
 	pxclk = DIV_ROUND_CLOSEST(fsl_get_sys_freq(), freq);
 	pxclk = clamp_t(u32, pxclk, 2, 255);
 
-	/* Disable the pixel clock, and set it to non-inverted and no delay */
+	/* Disable the pixel clock, and set it to analn-inverted and anal delay */
 	clrbits32(&guts->clkdvdr,
 		  CLKDVDR_PXCKEN | CLKDVDR_PXCKDLY | CLKDVDR_PXCLK_MASK);
 

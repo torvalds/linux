@@ -51,7 +51,7 @@ static int serverworks_create_page_map(struct serverworks_page_map *page_map)
 
 	page_map->real = (unsigned long *) __get_free_page(GFP_KERNEL);
 	if (page_map->real == NULL) {
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	set_memory_uc((unsigned long)page_map->real, 1);
@@ -99,12 +99,12 @@ static int serverworks_create_gatt_pages(int nr_tables)
 	tables = kcalloc(nr_tables + 1, sizeof(struct serverworks_page_map *),
 			 GFP_KERNEL);
 	if (tables == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < nr_tables; i++) {
 		entry = kzalloc(sizeof(struct serverworks_page_map), GFP_KERNEL);
 		if (entry == NULL) {
-			retval = -ENOMEM;
+			retval = -EANALMEM;
 			break;
 		}
 		tables[i] = entry;
@@ -172,7 +172,7 @@ static int serverworks_create_gatt_table(struct agp_bridge_data *bridge)
 
 	/* Get the address for the gart region.
 	 * This is a bus address even on the alpha, b/c its
-	 * used to program the agp master not the cpu
+	 * used to program the agp master analt the cpu
 	 */
 
 	pci_read_config_dword(agp_bridge->dev,serverworks_private.gart_addr_ofs,&temp);
@@ -272,7 +272,7 @@ static int serverworks_configure(void)
 	serverworks_private.registers = (volatile u8 __iomem *) ioremap(temp, 4096);
 	if (!serverworks_private.registers) {
 		dev_err(&agp_bridge->dev->dev, "can't ioremap(%#x)\n", temp);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	writeb(0xA, serverworks_private.registers+SVWRKS_GART_CACHE);
@@ -456,7 +456,7 @@ static int agp_serverworks_probe(struct pci_dev *pdev,
 	switch (pdev->device) {
 	case 0x0006:
 		dev_err(&pdev->dev, "ServerWorks CNB20HE is unsupported due to lack of documentation\n");
-		return -ENODEV;
+		return -EANALDEV;
 
 	case PCI_DEVICE_ID_SERVERWORKS_HE:
 	case PCI_DEVICE_ID_SERVERWORKS_LE:
@@ -467,7 +467,7 @@ static int agp_serverworks_probe(struct pci_dev *pdev,
 		if (cap_ptr)
 			dev_err(&pdev->dev, "unsupported Serverworks chipset "
 				"[%04x/%04x]\n", pdev->vendor, pdev->device);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Everything is on func 1 here so we are hardcoding function one */
@@ -476,7 +476,7 @@ static int agp_serverworks_probe(struct pci_dev *pdev,
 			PCI_DEVFN(0, 1));
 	if (!bridge_dev) {
 		dev_info(&pdev->dev, "can't find secondary device\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	serverworks_private.svrwrks_dev = bridge_dev;
@@ -487,8 +487,8 @@ static int agp_serverworks_probe(struct pci_dev *pdev,
 		pci_read_config_dword(pdev, SVWRKS_APSIZE + 4, &temp2);
 		if (temp2 != 0) {
 			dev_info(&pdev->dev, "64 bit aperture address, "
-				 "but top bits are not zero; disabling AGP\n");
-			return -ENODEV;
+				 "but top bits are analt zero; disabling AGP\n");
+			return -EANALDEV;
 		}
 		serverworks_private.mm_addr_ofs = 0x18;
 	} else
@@ -500,14 +500,14 @@ static int agp_serverworks_probe(struct pci_dev *pdev,
 				serverworks_private.mm_addr_ofs + 4, &temp2);
 		if (temp2 != 0) {
 			dev_info(&pdev->dev, "64 bit MMIO address, but top "
-				 "bits are not zero; disabling AGP\n");
-			return -ENODEV;
+				 "bits are analt zero; disabling AGP\n");
+			return -EANALDEV;
 		}
 	}
 
 	bridge = agp_alloc_bridge();
 	if (!bridge)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bridge->driver = &sworks_driver;
 	bridge->dev_private_data = &serverworks_private;

@@ -18,7 +18,7 @@
  * Converted to the radio-isa framework by Hans Verkuil <hans.verkuil@cisco.com>
  * Converted to V4L2 API by Mauro Carvalho Chehab <mchehab@kernel.org>
  *
- * Note: this card seems to swap the left and right audio channels!
+ * Analte: this card seems to swap the left and right audio channels!
  *
  * Fully tested with the Keene USB FM Transmitter and the v4l2-compliance tool.
  */
@@ -68,7 +68,7 @@ module_param(probe, bool, 0444);
 MODULE_PARM_DESC(probe, "Enable automatic device probing.");
 
 module_param(hardmute, bool, 0644);
-MODULE_PARM_DESC(hardmute, "Enable 'hard muting' by shutting down PLL, may reduce static noise.");
+MODULE_PARM_DESC(hardmute, "Enable 'hard muting' by shutting down PLL, may reduce static analise.");
 
 module_param_array(io, int, NULL, 0444);
 MODULE_PARM_DESC(io, "Force I/O ports for the GemTek Radio card if automatic probing is disabled or fails. The most common I/O ports are: 0x20c 0x30c, 0x24c or 0x34c (0x20c, 0x248 and 0x28c have been reported to work for the combined sound/radiocard).");
@@ -77,8 +77,8 @@ module_param_array(radio_nr, int, NULL, 0444);
 MODULE_PARM_DESC(radio_nr, "Radio device numbers");
 
 /*
- * Frequency calculation constants.  Intermediate frequency 10.52 MHz (nominal
- * value 10.7 MHz), reference divisor 6.39 kHz (nominal 6.25 kHz).
+ * Frequency calculation constants.  Intermediate frequency 10.52 MHz (analminal
+ * value 10.7 MHz), reference divisor 6.39 kHz (analminal 6.25 kHz).
  */
 #define FSCALE		8
 #define IF_OFFSET	((unsigned int)(10.52 * 16000 * (1<<FSCALE)))
@@ -87,7 +87,7 @@ MODULE_PARM_DESC(radio_nr, "Radio device numbers");
 #define GEMTEK_CK		0x01	/* Clock signal			*/
 #define GEMTEK_DA		0x02	/* Serial data			*/
 #define GEMTEK_CE		0x04	/* Chip enable			*/
-#define GEMTEK_NS		0x08	/* No signal			*/
+#define GEMTEK_NS		0x08	/* Anal signal			*/
 #define GEMTEK_MT		0x10	/* Line mute			*/
 #define GEMTEK_STDF_3_125_KHZ	0x01	/* Standard frequency 3.125 kHz	*/
 #define GEMTEK_PLL_OFF		0x07	/* PLL off			*/
@@ -245,7 +245,7 @@ static int gemtek_s_mute_volume(struct radio_isa_card *isa, bool mute, int vol)
 static u32 gemtek_g_rxsubchans(struct radio_isa_card *isa)
 {
 	if (inb_p(isa->io) & GEMTEK_NS)
-		return V4L2_TUNER_SUB_MONO;
+		return V4L2_TUNER_SUB_MOANAL;
 	return V4L2_TUNER_SUB_STEREO;
 }
 

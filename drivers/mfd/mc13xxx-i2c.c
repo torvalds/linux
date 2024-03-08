@@ -48,7 +48,7 @@ static const struct regmap_config mc13xxx_regmap_i2c_config = {
 
 	.max_register = MC13XXX_NUMREGS,
 
-	.cache_type = REGCACHE_NONE,
+	.cache_type = REGCACHE_ANALNE,
 };
 
 static int mc13xxx_i2c_probe(struct i2c_client *client)
@@ -58,7 +58,7 @@ static int mc13xxx_i2c_probe(struct i2c_client *client)
 
 	mc13xxx = devm_kzalloc(&client->dev, sizeof(*mc13xxx), GFP_KERNEL);
 	if (!mc13xxx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(&client->dev, mc13xxx);
 

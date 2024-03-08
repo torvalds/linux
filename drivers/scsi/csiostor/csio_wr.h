@@ -14,18 +14,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -76,7 +76,7 @@
 #define X_FETCHBURSTMAX_256B		2
 #define X_FETCHBURSTMAX_512B		3
 
-#define X_HOSTFCMODE_NONE		0
+#define X_HOSTFCMODE_ANALNE		0
 #define X_HOSTFCMODE_INGRESS_QUEUE	1
 #define X_HOSTFCMODE_STATUS_PAGE	2
 #define X_HOSTFCMODE_BOTH		3
@@ -87,7 +87,7 @@
 #define X_UPDATESCHEDULING_TIMER	0
 #define X_UPDATESCHEDULING_COUNTER_OPTTIMER	1
 
-#define X_UPDATEDELIVERY_NONE		0
+#define X_UPDATEDELIVERY_ANALNE		0
 #define X_UPDATEDELIVERY_INTERRUPT	1
 #define X_UPDATEDELIVERY_STATUS_PAGE	2
 #define X_UPDATEDELIVERY_BOTH		3
@@ -248,8 +248,8 @@ struct csio_ioreq {
 	struct csio_dma_buf	dma_buf;	/* Req/resp DMA buffers */
 	uint16_t		wr_status;	/* WR completion status */
 	int16_t			drv_status;	/* Driver internal status */
-	struct csio_lnode	*lnode;		/* Owner lnode */
-	struct csio_rnode	*rnode;		/* Src/destination rnode */
+	struct csio_lanalde	*lanalde;		/* Owner lanalde */
+	struct csio_ranalde	*ranalde;		/* Src/destination ranalde */
 	void (*io_cbfn) (struct csio_hw *, struct csio_ioreq *);
 						/* completion callback */
 	void			*scratch1;	/* Scratch area 1.
@@ -377,14 +377,14 @@ struct csio_fl {
 };
 
 struct csio_qstats {
-	uint32_t	n_tot_reqs;		/* Total no. of Requests */
-	uint32_t	n_tot_rsps;		/* Total no. of responses */
+	uint32_t	n_tot_reqs;		/* Total anal. of Requests */
+	uint32_t	n_tot_rsps;		/* Total anal. of responses */
 	uint32_t	n_qwrap;		/* Queue wraps */
 	uint32_t	n_eq_wr_split;		/* Number of split EQ WRs */
 	uint32_t	n_qentry;		/* Queue entry */
 	uint32_t	n_qempty;		/* Queue empty */
 	uint32_t	n_qfull;		/* Queue fulls */
-	uint32_t	n_rsp_unknown;		/* Unknown response type */
+	uint32_t	n_rsp_unkanalwn;		/* Unkanalwn response type */
 	uint32_t	n_stray_comp;		/* Stray completion intr */
 	uint32_t	n_flq_refill;		/* Number of FL refills */
 };

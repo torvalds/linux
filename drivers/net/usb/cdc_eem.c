@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * USB CDC EEM network interface driver
- * Copyright (C) 2009 Oberthur Technologies
+ * Copyright (C) 2009 Oberthur Techanallogies
  * by Omar Laazimani, Olivier Condemine
  */
 
@@ -74,7 +74,7 @@ static int eem_bind(struct usbnet *dev, struct usb_interface *intf)
 	if (status < 0)
 		return status;
 
-	/* no jumbogram (16K) support for now */
+	/* anal jumbogram (16K) support for analw */
 
 	dev->net->hard_header_len += EEM_HEAD + ETH_FCS_LEN + VLAN_HLEN;
 	dev->hard_mtu = dev->net->mtu + dev->net->hard_header_len;
@@ -97,7 +97,7 @@ static struct sk_buff *eem_tx_fixup(struct usbnet *dev, struct sk_buff *skb,
 	/* When ((len + EEM_HEAD + ETH_FCS_LEN) % dev->maxpacket) is
 	 * zero, stick two bytes of zero length EEM packet on the end.
 	 * Else the framework would add invalid single byte padding,
-	 * since it can't know whether ZLPs will be handled right by
+	 * since it can't kanalw whether ZLPs will be handled right by
 	 * all the relevant hardware and software.
 	 */
 	if (!((len + EEM_HEAD + ETH_FCS_LEN) % dev->maxpacket))
@@ -130,7 +130,7 @@ static struct sk_buff *eem_tx_fixup(struct usbnet *dev, struct sk_buff *skb,
 	skb = skb2;
 
 done:
-	/* we don't use the "no Ethernet CRC" option */
+	/* we don't use the "anal Ethernet CRC" option */
 	crc = crc32_le(~0, skb->data, skb->len);
 	crc = ~crc;
 
@@ -162,7 +162,7 @@ static int eem_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 	 *
 	 * REVISIT the framework needs updating so that when we consume
 	 * all payloads (the last or only message was a command, or a
-	 * zero length EEM packet) that is not accounted as an rx_error.
+	 * zero length EEM packet) that is analt accounted as an rx_error.
 	 */
 	do {
 		struct sk_buff	*skb2 = NULL;
@@ -182,7 +182,7 @@ static int eem_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 		skb_pull(skb, EEM_HEAD);
 
 		/*
-		 * The bmType bit helps to denote when EEM
+		 * The bmType bit helps to deanalte when EEM
 		 * packet is data or command :
 		 *	bmType = 0	: EEM data payload
 		 *	bmType = 1	: EEM (link) command
@@ -224,7 +224,7 @@ static int eem_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 				break;
 
 			/*
-			 * Host may choose to ignore hints.
+			 * Host may choose to iganalre hints.
 			 *  - suspend: peripheral ready to suspend
 			 *  - response: suggest N millisec polling
 			 *  - response complete: suggest N sec polling
@@ -280,7 +280,7 @@ static int eem_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 			 * Treat the last payload differently: framework
 			 * code expects our "fixup" to have stripped off
 			 * headers, so "skb" is a data packet (or error).
-			 * Else if it's not the last payload, keep "skb"
+			 * Else if it's analt the last payload, keep "skb"
 			 * for further processing.
 			 */
 			is_last = (len == skb->len);
@@ -293,7 +293,7 @@ static int eem_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 			}
 
 			/*
-			 * The bmCRC helps to denote when the CRC field in
+			 * The bmCRC helps to deanalte when the CRC field in
 			 * the Ethernet frame contains a calculated CRC:
 			 *	bmCRC = 1	: CRC is calculated
 			 *	bmCRC = 0	: CRC = 0xDEADBEEF

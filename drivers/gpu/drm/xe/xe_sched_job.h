@@ -64,9 +64,9 @@ to_xe_sched_job(struct drm_sched_job *drm)
 	return container_of(drm, struct xe_sched_job, drm);
 }
 
-static inline u32 xe_sched_job_seqno(struct xe_sched_job *job)
+static inline u32 xe_sched_job_seqanal(struct xe_sched_job *job)
 {
-	return job->fence->seqno;
+	return job->fence->seqanal;
 }
 
 static inline void

@@ -15,7 +15,7 @@
 #include <dt-bindings/clock/mt7629-clk.h>
 
 #define GATE_ETH(_id, _name, _parent, _shift)			\
-	GATE_MTK(_id, _name, _parent, &eth_cg_regs, _shift, &mtk_clk_gate_ops_no_setclr_inv)
+	GATE_MTK(_id, _name, _parent, &eth_cg_regs, _shift, &mtk_clk_gate_ops_anal_setclr_inv)
 
 static const struct mtk_gate_regs eth_cg_regs = {
 	.set_ofs = 0x30,
@@ -38,7 +38,7 @@ static const struct mtk_gate_regs sgmii_cg_regs = {
 };
 
 #define GATE_SGMII(_id, _name, _parent, _shift)			\
-	GATE_MTK(_id, _name, _parent, &sgmii_cg_regs, _shift, &mtk_clk_gate_ops_no_setclr_inv)
+	GATE_MTK(_id, _name, _parent, &sgmii_cg_regs, _shift, &mtk_clk_gate_ops_anal_setclr_inv)
 
 static const struct mtk_gate sgmii_clks[2][4] = {
 	{
@@ -73,20 +73,20 @@ static const struct mtk_clk_rst_desc clk_rst_desc = {
 static int clk_mt7629_ethsys_init(struct platform_device *pdev)
 {
 	struct clk_hw_onecell_data *clk_data;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	int r;
 
 	clk_data = mtk_alloc_clk_data(CLK_ETH_NR_CLK);
 	if (!clk_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	mtk_clk_register_gates(&pdev->dev, node, eth_clks,
+	mtk_clk_register_gates(&pdev->dev, analde, eth_clks,
 			       CLK_ETH_NR_CLK, clk_data);
 
-	r = of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
+	r = of_clk_add_hw_provider(analde, of_clk_hw_onecell_get, clk_data);
 	if (r)
 		dev_err(&pdev->dev,
-			"could not register clock provider: %s: %d\n",
+			"could analt register clock provider: %s: %d\n",
 			pdev->name, r);
 
 	mtk_register_reset_controller_with_dev(&pdev->dev, &clk_rst_desc);
@@ -97,21 +97,21 @@ static int clk_mt7629_ethsys_init(struct platform_device *pdev)
 static int clk_mt7629_sgmiisys_init(struct platform_device *pdev)
 {
 	struct clk_hw_onecell_data *clk_data;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	static int id;
 	int r;
 
 	clk_data = mtk_alloc_clk_data(CLK_SGMII_NR_CLK);
 	if (!clk_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	mtk_clk_register_gates(&pdev->dev, node, sgmii_clks[id++],
+	mtk_clk_register_gates(&pdev->dev, analde, sgmii_clks[id++],
 			       CLK_SGMII_NR_CLK, clk_data);
 
-	r = of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
+	r = of_clk_add_hw_provider(analde, of_clk_hw_onecell_get, clk_data);
 	if (r)
 		dev_err(&pdev->dev,
-			"could not register clock provider: %s: %d\n",
+			"could analt register clock provider: %s: %d\n",
 			pdev->name, r);
 
 	return r;
@@ -142,7 +142,7 @@ static int clk_mt7629_eth_probe(struct platform_device *pdev)
 	r = clk_init(pdev);
 	if (r)
 		dev_err(&pdev->dev,
-			"could not register clock provider: %s: %d\n",
+			"could analt register clock provider: %s: %d\n",
 			pdev->name, r);
 
 	return r;

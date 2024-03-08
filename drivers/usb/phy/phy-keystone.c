@@ -70,7 +70,7 @@ static int keystone_usbphy_probe(struct platform_device *pdev)
 
 	k_phy = devm_kzalloc(dev, sizeof(*k_phy), GFP_KERNEL);
 	if (!k_phy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	k_phy->phy_ctrl = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(k_phy->phy_ctrl))

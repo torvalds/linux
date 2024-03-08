@@ -104,7 +104,7 @@ static inline u_int pxa2xx_mcxx_setup(u_int pcmcia_cycle_ns,
 }
 
 /* This function returns the (approximate) command assertion period, in
- * nanoseconds, for a given CPU clock frequency and MCXX_ASST value:
+ * naanalseconds, for a given CPU clock frequency and MCXX_ASST value:
  */
 static inline u_int pxa2xx_pcmcia_cmd_time(u_int mem_clk_10khz,
 					   u_int pcmcia_mcxx_asst)
@@ -264,7 +264,7 @@ static int pxa2xx_drv_pcmcia_probe(struct platform_device *dev)
 
 	ops = (struct pcmcia_low_level *)dev->dev.platform_data;
 	if (!ops) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err0;
 	}
 
@@ -276,14 +276,14 @@ static int pxa2xx_drv_pcmcia_probe(struct platform_device *dev)
 
 	clk = devm_clk_get(&dev->dev, NULL);
 	if (IS_ERR(clk))
-		return -ENODEV;
+		return -EANALDEV;
 
 	pxa2xx_drv_pcmcia_ops(ops);
 
 	sinfo = devm_kzalloc(&dev->dev, SKT_DEV_INFO_SIZE(ops->nr),
 			     GFP_KERNEL);
 	if (!sinfo)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sinfo->nskt = ops->nr;
 

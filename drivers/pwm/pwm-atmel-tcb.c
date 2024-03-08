@@ -131,7 +131,7 @@ static void atmel_tcb_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm,
 	 * If duty is 0 the timer will be stopped and we have to
 	 * configure the output correctly on software trigger:
 	 *  - set output to high if PWM_POLARITY_INVERSED
-	 *  - set output to low if PWM_POLARITY_NORMAL
+	 *  - set output to low if PWM_POLARITY_ANALRMAL
 	 *
 	 * This is why we're reverting polarity in this case.
 	 */
@@ -188,7 +188,7 @@ static int atmel_tcb_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm,
 	 * If duty is 0 the timer will be stopped and we have to
 	 * configure the output correctly on software trigger:
 	 *  - set output to high if PWM_POLARITY_INVERSED
-	 *  - set output to low if PWM_POLARITY_NORMAL
+	 *  - set output to low if PWM_POLARITY_ANALRMAL
 	 *
 	 * This is why we're reverting polarity in this case.
 	 */
@@ -218,7 +218,7 @@ static int atmel_tcb_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm,
 	}
 
 	/*
-	 * If duty is 0 or equal to period there's no need to register
+	 * If duty is 0 or equal to period there's anal need to register
 	 * a specific action on RA/RB and RC compare.
 	 * The output will be configured on software trigger and keep
 	 * this config till next config call.
@@ -294,7 +294,7 @@ static int atmel_tcb_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	}
 
 	/*
-	 * If none of the divisor are small enough to represent period_ns
+	 * If analne of the divisor are small eanalugh to represent period_ns
 	 * take slow clock (32KHz).
 	 */
 	if (i == ARRAY_SIZE(atmel_tcb_divisors)) {
@@ -391,14 +391,14 @@ static int atmel_tcb_pwm_probe(struct platform_device *pdev)
 	const struct of_device_id *match;
 	struct atmel_tcb_pwm_chip *tcbpwm;
 	const struct atmel_tcb_config *config;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	char clk_name[] = "t0_clk";
 	int err;
 	int channel;
 
 	tcbpwm = devm_kzalloc(&pdev->dev, sizeof(*tcbpwm), GFP_KERNEL);
 	if (tcbpwm == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = of_property_read_u32(np, "reg", &channel);
 	if (err < 0) {
@@ -408,7 +408,7 @@ static int atmel_tcb_pwm_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	tcbpwm->regmap = syscon_node_to_regmap(np->parent);
+	tcbpwm->regmap = syscon_analde_to_regmap(np->parent);
 	if (IS_ERR(tcbpwm->regmap))
 		return PTR_ERR(tcbpwm->regmap);
 
@@ -425,7 +425,7 @@ static int atmel_tcb_pwm_probe(struct platform_device *pdev)
 		goto err_slow_clk;
 	}
 
-	match = of_match_node(atmel_tcb_of_match, np->parent);
+	match = of_match_analde(atmel_tcb_of_match, np->parent);
 	config = match->data;
 
 	if (config->has_gclk) {

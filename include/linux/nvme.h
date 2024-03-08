@@ -14,7 +14,7 @@
 /* NQN names in commands fields specified one size */
 #define NVMF_NQN_FIELD_LEN	256
 
-/* However the max length of a qualified name is another size */
+/* However the max length of a qualified name is aanalther size */
 #define NVMF_NQN_SIZE		223
 
 #define NVMF_TRSVCID_SIZE	32
@@ -28,7 +28,7 @@
 #define NVME_NSID_ALL		0xffffffff
 
 enum nvme_subsys_type {
-	/* Referral to another discovery type target subsystem */
+	/* Referral to aanalther discovery type target subsystem */
 	NVME_NQN_DISC	= 1,
 
 	/* NVME type target subsystem */
@@ -45,7 +45,7 @@ enum nvme_ctrl_type {
 };
 
 enum nvme_dctype {
-	NVME_DCTYPE_NOT_REPORTED	= 0,
+	NVME_DCTYPE_ANALT_REPORTED	= 0,
 	NVME_DCTYPE_DDC			= 1, /* Direct Discovery Controller */
 	NVME_DCTYPE_CDC			= 2, /* Central Discovery Controller */
 };
@@ -72,11 +72,11 @@ enum {
 
 /* Transport Requirements codes for Discovery Log Page entry TREQ field */
 enum {
-	NVMF_TREQ_NOT_SPECIFIED	= 0,		/* Not specified */
+	NVMF_TREQ_ANALT_SPECIFIED	= 0,		/* Analt specified */
 	NVMF_TREQ_REQUIRED	= 1,		/* Required */
-	NVMF_TREQ_NOT_REQUIRED	= 2,		/* Not Required */
+	NVMF_TREQ_ANALT_REQUIRED	= 2,		/* Analt Required */
 #define NVME_TREQ_SECURE_CHANNEL_MASK \
-	(NVMF_TREQ_REQUIRED | NVMF_TREQ_NOT_REQUIRED)
+	(NVMF_TREQ_REQUIRED | NVMF_TREQ_ANALT_REQUIRED)
 
 	NVMF_TREQ_DISABLE_SQFLOW = (1 << 2),	/* Supports SQ flow control disable */
 };
@@ -93,7 +93,7 @@ enum {
  * RDMA_QPTYPE field
  */
 enum {
-	NVMF_RDMA_PRTYPE_NOT_SPECIFIED	= 1, /* No Provider Specified */
+	NVMF_RDMA_PRTYPE_ANALT_SPECIFIED	= 1, /* Anal Provider Specified */
 	NVMF_RDMA_PRTYPE_IB		= 2, /* InfiniBand */
 	NVMF_RDMA_PRTYPE_ROCE		= 3, /* InfiniBand RoCE */
 	NVMF_RDMA_PRTYPE_ROCEV2		= 4, /* InfiniBand RoCEV2 */
@@ -109,7 +109,7 @@ enum {
 
 /* TSAS SECTYPE for TCP transport */
 enum {
-	NVMF_TCP_SECTYPE_NONE = 0, /* No Security */
+	NVMF_TCP_SECTYPE_ANALNE = 0, /* Anal Security */
 	NVMF_TCP_SECTYPE_TLS12 = 1, /* TLSv1.2, NVMe-oF 1.1 and NVMe-TCP 3.6.1.1 */
 	NVMF_TCP_SECTYPE_TLS13 = 2, /* TLSv1.3, NVMe-oF 1.1 and NVMe-TCP 3.6.1.1 */
 };
@@ -210,8 +210,8 @@ enum {
 	NVME_CC_AMS_RR		= 0 << NVME_CC_AMS_SHIFT,
 	NVME_CC_AMS_WRRU	= 1 << NVME_CC_AMS_SHIFT,
 	NVME_CC_AMS_VS		= 7 << NVME_CC_AMS_SHIFT,
-	NVME_CC_SHN_NONE	= 0 << NVME_CC_SHN_SHIFT,
-	NVME_CC_SHN_NORMAL	= 1 << NVME_CC_SHN_SHIFT,
+	NVME_CC_SHN_ANALNE	= 0 << NVME_CC_SHN_SHIFT,
+	NVME_CC_SHN_ANALRMAL	= 1 << NVME_CC_SHN_SHIFT,
 	NVME_CC_SHN_ABRUPT	= 2 << NVME_CC_SHN_SHIFT,
 	NVME_CC_SHN_MASK	= 3 << NVME_CC_SHN_SHIFT,
 	NVME_CC_IOSQES		= NVME_NVM_IOSQES << NVME_CC_IOSQES_SHIFT,
@@ -224,7 +224,7 @@ enum {
 	NVME_CSTS_CFS		= 1 << 1,
 	NVME_CSTS_NSSRO		= 1 << 4,
 	NVME_CSTS_PP		= 1 << 5,
-	NVME_CSTS_SHST_NORMAL	= 0 << 2,
+	NVME_CSTS_SHST_ANALRMAL	= 0 << 2,
 	NVME_CSTS_SHST_OCCUR	= 1 << 2,
 	NVME_CSTS_SHST_CMPLT	= 2 << 2,
 	NVME_CSTS_SHST_MASK	= 3 << 2,
@@ -265,7 +265,7 @@ struct nvme_id_power_state {
 
 enum {
 	NVME_PS_FLAGS_MAX_POWER_SCALE	= 1 << 0,
-	NVME_PS_FLAGS_NON_OP_STATE	= 1 << 1,
+	NVME_PS_FLAGS_ANALN_OP_STATE	= 1 << 1,
 };
 
 enum nvme_ctrl_attr {
@@ -378,7 +378,7 @@ enum {
 	NVME_CTRL_OACS_DBBUF_SUPP		= 1 << 8,
 	NVME_CTRL_LPA_CMD_EFFECTS_LOG		= 1 << 1,
 	NVME_CTRL_CTRATT_128_ID			= 1 << 0,
-	NVME_CTRL_CTRATT_NON_OP_PSP		= 1 << 1,
+	NVME_CTRL_CTRATT_ANALN_OP_PSP		= 1 << 1,
 	NVME_CTRL_CTRATT_NVM_SETS		= 1 << 2,
 	NVME_CTRL_CTRATT_READ_RECV_LVLS		= 1 << 3,
 	NVME_CTRL_CTRATT_ENDURANCE_GROUPS	= 1 << 4,
@@ -413,13 +413,13 @@ struct nvme_id_ns {
 	__le16			nabsn;
 	__le16			nabo;
 	__le16			nabspf;
-	__le16			noiob;
+	__le16			analiob;
 	__u8			nvmcap[16];
 	__le16			npwg;
 	__le16			npwa;
 	__le16			npdg;
 	__le16			npda;
-	__le16			nows;
+	__le16			analws;
 	__u8			rsvd74[18];
 	__le32			anagrpid;
 	__u8			rsvd96[3];
@@ -660,7 +660,7 @@ struct nvme_effects_log {
 
 enum nvme_ana_state {
 	NVME_ANA_OPTIMIZED		= 0x01,
-	NVME_ANA_NONOPTIMIZED		= 0x02,
+	NVME_ANA_ANALANALPTIMIZED		= 0x02,
 	NVME_ANA_INACCESSIBLE		= 0x03,
 	NVME_ANA_PERSISTENT_LOSS	= 0x04,
 	NVME_ANA_CHANGE			= 0x0f,
@@ -716,7 +716,7 @@ enum {
 enum {
 	NVME_AER_ERROR			= 0,
 	NVME_AER_SMART			= 1,
-	NVME_AER_NOTICE			= 2,
+	NVME_AER_ANALTICE			= 2,
 	NVME_AER_CSS			= 6,
 	NVME_AER_VS			= 7,
 };
@@ -726,10 +726,10 @@ enum {
 };
 
 enum {
-	NVME_AER_NOTICE_NS_CHANGED	= 0x00,
-	NVME_AER_NOTICE_FW_ACT_STARTING = 0x01,
-	NVME_AER_NOTICE_ANA		= 0x03,
-	NVME_AER_NOTICE_DISC_CHANGED	= 0xf0,
+	NVME_AER_ANALTICE_NS_CHANGED	= 0x00,
+	NVME_AER_ANALTICE_FW_ACT_STARTING = 0x01,
+	NVME_AER_ANALTICE_ANA		= 0x03,
+	NVME_AER_ANALTICE_DISC_CHANGED	= 0xf0,
 };
 
 enum {
@@ -992,9 +992,9 @@ enum {
 	NVME_RW_DSM_FREQ_ONCE		= 6,
 	NVME_RW_DSM_FREQ_PREFETCH	= 7,
 	NVME_RW_DSM_FREQ_TEMP		= 8,
-	NVME_RW_DSM_LATENCY_NONE	= 0 << 4,
+	NVME_RW_DSM_LATENCY_ANALNE	= 0 << 4,
 	NVME_RW_DSM_LATENCY_IDLE	= 1 << 4,
-	NVME_RW_DSM_LATENCY_NORM	= 2 << 4,
+	NVME_RW_DSM_LATENCY_ANALRM	= 2 << 4,
 	NVME_RW_DSM_LATENCY_LOW		= 3 << 4,
 	NVME_RW_DSM_SEQ_REQ		= 1 << 6,
 	NVME_RW_DSM_COMPRESSED		= 1 << 7,
@@ -1219,7 +1219,7 @@ enum {
 	NVME_FEAT_TIMESTAMP	= 0x0e,
 	NVME_FEAT_KATO		= 0x0f,
 	NVME_FEAT_HCTM		= 0x10,
-	NVME_FEAT_NOPSC		= 0x11,
+	NVME_FEAT_ANALPSC		= 0x11,
 	NVME_FEAT_RRL		= 0x12,
 	NVME_FEAT_PLM_CONFIG	= 0x13,
 	NVME_FEAT_PLM_WINDOW	= 0x14,
@@ -1251,7 +1251,7 @@ enum {
 
 /* NVMe Namespace Write Protect State */
 enum {
-	NVME_NS_NO_WRITE_PROTECT = 0,
+	NVME_NS_ANAL_WRITE_PROTECT = 0,
 	NVME_NS_WRITE_PROTECT,
 	NVME_NS_WRITE_PROTECT_POWER_CYCLE,
 	NVME_NS_WRITE_PROTECT_PERMANENT,
@@ -1433,7 +1433,7 @@ enum nvmf_capsule_command {
 		nvme_fabrics_type_name(nvme_fabrics_type_auth_receive))
 
 /*
- * If not fabrics command, fctype will be ignored.
+ * If analt fabrics command, fctype will be iganalred.
  */
 #define show_opcode_name(qid, opcode, fctype)			\
 	((opcode) == nvme_fabrics_command ?			\
@@ -1453,8 +1453,8 @@ struct nvmf_common_command {
 
 /*
  * The legal cntlid range a NVMe Target will provide.
- * Note that cntlid of value 0 is considered illegal in the fabrics world.
- * Devices based on earlier specs did not have the subsystem concept;
+ * Analte that cntlid of value 0 is considered illegal in the fabrics world.
+ * Devices based on earlier specs did analt have the subsystem concept;
  * therefore, those devices had their cntlid value set to 0 as a result.
  */
 #define NVME_CNTLID_MIN		1
@@ -1753,7 +1753,7 @@ enum {
 
 enum {
 	NVME_AUTH_DHCHAP_FAILURE_FAILED			= 0x01,
-	NVME_AUTH_DHCHAP_FAILURE_NOT_USABLE		= 0x02,
+	NVME_AUTH_DHCHAP_FAILURE_ANALT_USABLE		= 0x02,
 	NVME_AUTH_DHCHAP_FAILURE_CONCAT_MISMATCH	= 0x03,
 	NVME_AUTH_DHCHAP_FAILURE_HASH_UNUSABLE		= 0x04,
 	NVME_AUTH_DHCHAP_FAILURE_DHGROUP_UNUSABLE	= 0x05,
@@ -1879,16 +1879,16 @@ enum {
 	NVME_SC_SANITIZE_FAILED		= 0x1C,
 	NVME_SC_SANITIZE_IN_PROGRESS	= 0x1D,
 	NVME_SC_SGL_INVALID_GRANULARITY	= 0x1E,
-	NVME_SC_CMD_NOT_SUP_CMB_QUEUE	= 0x1F,
+	NVME_SC_CMD_ANALT_SUP_CMB_QUEUE	= 0x1F,
 	NVME_SC_NS_WRITE_PROTECTED	= 0x20,
 	NVME_SC_CMD_INTERRUPTED		= 0x21,
 	NVME_SC_TRANSIENT_TR_ERR	= 0x22,
-	NVME_SC_ADMIN_COMMAND_MEDIA_NOT_READY = 0x24,
+	NVME_SC_ADMIN_COMMAND_MEDIA_ANALT_READY = 0x24,
 	NVME_SC_INVALID_IO_CMD_SET	= 0x2C,
 
 	NVME_SC_LBA_RANGE		= 0x80,
 	NVME_SC_CAP_EXCEEDED		= 0x81,
-	NVME_SC_NS_NOT_READY		= 0x82,
+	NVME_SC_NS_ANALT_READY		= 0x82,
 	NVME_SC_RESERVATION_CONFLICT	= 0x83,
 	NVME_SC_FORMAT_IN_PROGRESS	= 0x84,
 
@@ -1908,9 +1908,9 @@ enum {
 	NVME_SC_INVALID_FORMAT		= 0x10a,
 	NVME_SC_FW_NEEDS_CONV_RESET	= 0x10b,
 	NVME_SC_INVALID_QUEUE		= 0x10c,
-	NVME_SC_FEATURE_NOT_SAVEABLE	= 0x10d,
-	NVME_SC_FEATURE_NOT_CHANGEABLE	= 0x10e,
-	NVME_SC_FEATURE_NOT_PER_NS	= 0x10f,
+	NVME_SC_FEATURE_ANALT_SAVEABLE	= 0x10d,
+	NVME_SC_FEATURE_ANALT_CHANGEABLE	= 0x10e,
+	NVME_SC_FEATURE_ANALT_PER_NS	= 0x10f,
 	NVME_SC_FW_NEEDS_SUBSYS_RESET	= 0x110,
 	NVME_SC_FW_NEEDS_RESET		= 0x111,
 	NVME_SC_FW_NEEDS_MAX_TIME	= 0x112,
@@ -1920,8 +1920,8 @@ enum {
 	NVME_SC_NS_ID_UNAVAILABLE	= 0x116,
 	NVME_SC_NS_ALREADY_ATTACHED	= 0x118,
 	NVME_SC_NS_IS_PRIVATE		= 0x119,
-	NVME_SC_NS_NOT_ATTACHED		= 0x11a,
-	NVME_SC_THIN_PROV_NOT_SUPP	= 0x11b,
+	NVME_SC_NS_ANALT_ATTACHED		= 0x11a,
+	NVME_SC_THIN_PROV_ANALT_SUPP	= 0x11b,
 	NVME_SC_CTRL_LIST_INVALID	= 0x11c,
 	NVME_SC_SELT_TEST_IN_PROGRESS	= 0x11d,
 	NVME_SC_BP_WRITE_PROHIBITED	= 0x11e,
@@ -1939,7 +1939,7 @@ enum {
 	NVME_SC_BAD_ATTRIBUTES		= 0x180,
 	NVME_SC_INVALID_PI		= 0x181,
 	NVME_SC_READ_ONLY		= 0x182,
-	NVME_SC_ONCS_NOT_SUPPORTED	= 0x183,
+	NVME_SC_ONCS_ANALT_SUPPORTED	= 0x183,
 
 	/*
 	 * I/O Command Set Specific - Fabrics commands:
@@ -2008,11 +2008,11 @@ struct nvme_completion {
 	__le16	status;		/* did the command fail, and if so, why? */
 };
 
-#define NVME_VS(major, minor, tertiary) \
-	(((major) << 16) | ((minor) << 8) | (tertiary))
+#define NVME_VS(major, mianalr, tertiary) \
+	(((major) << 16) | ((mianalr) << 8) | (tertiary))
 
 #define NVME_MAJOR(ver)		((ver) >> 16)
-#define NVME_MINOR(ver)		(((ver) >> 8) & 0xff)
+#define NVME_MIANALR(ver)		(((ver) >> 8) & 0xff)
 #define NVME_TERTIARY(ver)	((ver) & 0xff)
 
 #endif /* _LINUX_NVME_H */

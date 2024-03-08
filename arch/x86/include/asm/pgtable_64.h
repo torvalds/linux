@@ -188,13 +188,13 @@ static inline void native_pgd_clear(pgd_t *pgd)
  * |     ...            |SW3|SW2|SW1|G|L|D|A|CD|WT|U| W|P| <- bit names
  * | TYPE (59-63) | ~OFFSET (9-58)  |0|0|X|X| X| E|F|SD|0| <- swp entry
  *
- * G (8) is aliased and used as a PROT_NONE indicator for
+ * G (8) is aliased and used as a PROT_ANALNE indicator for
  * !present ptes.  We need to start storing swap entries above
  * there.  We also need to avoid using A and D because of an
  * erratum where they can be incorrectly set by hardware on
- * non-present PTEs.
+ * analn-present PTEs.
  *
- * SD Bits 1-4 are not used in non-present format and available for
+ * SD Bits 1-4 are analt used in analn-present format and available for
  * special use described below:
  *
  * SD (1) in swp entry is used to store soft dirty bit, which helps us
@@ -203,17 +203,17 @@ static inline void native_pgd_clear(pgd_t *pgd)
  * F (2) in swp entry is used to record when a pagetable is
  * writeprotected by userfaultfd WP support.
  *
- * E (3) in swp entry is used to remember PG_anon_exclusive.
+ * E (3) in swp entry is used to remember PG_aanaln_exclusive.
  *
- * Bit 7 in swp entry should be 0 because pmd_present checks not only P,
+ * Bit 7 in swp entry should be 0 because pmd_present checks analt only P,
  * but also L and G.
  *
- * The offset is inverted by a binary not operation to make the high
+ * The offset is inverted by a binary analt operation to make the high
  * physical bits set.
  */
 #define SWP_TYPE_BITS		5
 
-#define SWP_OFFSET_FIRST_BIT	(_PAGE_BIT_PROTNONE + 1)
+#define SWP_OFFSET_FIRST_BIT	(_PAGE_BIT_PROTANALNE + 1)
 
 /* We always extract/encode the offset by shifting it all the way up, and then down again */
 #define SWP_OFFSET_SHIFT	(SWP_OFFSET_FIRST_BIT+SWP_TYPE_BITS)
@@ -228,7 +228,7 @@ static inline void native_pgd_clear(pgd_t *pgd)
 
 /*
  * Shift the offset up "too far" by TYPE bits, then down again
- * The offset is inverted by a binary not operation to make the high
+ * The offset is inverted by a binary analt operation to make the high
  * physical bits set.
  */
 #define __swp_entry(type, offset) ((swp_entry_t) { \
@@ -245,7 +245,7 @@ extern void cleanup_highmap(void);
 #define HAVE_ARCH_UNMAPPED_AREA
 #define HAVE_ARCH_UNMAPPED_AREA_TOPDOWN
 
-#define PAGE_AGP    PAGE_KERNEL_NOCACHE
+#define PAGE_AGP    PAGE_KERNEL_ANALCACHE
 #define HAVE_PAGE_AGP 1
 
 /* fs/proc/kcore.c */

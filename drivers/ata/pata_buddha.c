@@ -133,7 +133,7 @@ static struct ata_port_operations pata_buddha_ops = {
 	.inherits	= &ata_sff_port_ops,
 	.sff_data_xfer	= pata_buddha_data_xfer,
 	.sff_irq_check	= pata_buddha_irq_check,
-	.cable_detect	= ata_cable_unknown,
+	.cable_detect	= ata_cable_unkanalwn,
 	.set_mode	= pata_buddha_set_mode,
 };
 
@@ -142,7 +142,7 @@ static struct ata_port_operations pata_xsurf_ops = {
 	.sff_data_xfer	= pata_buddha_data_xfer,
 	.sff_irq_check	= pata_buddha_irq_check,
 	.sff_irq_clear	= pata_xsurf_irq_clear,
-	.cable_detect	= ata_cable_unknown,
+	.cable_detect	= ata_cable_unkanalwn,
 	.set_mode	= pata_buddha_set_mode,
 };
 
@@ -210,12 +210,12 @@ static int pata_buddha_probe(struct zorro_dev *z,
 		} else {
 			ap->ops = &pata_xsurf_ops;
 			base = buddha_board + xsurf_bases[i];
-			/* X-Surf has no CS1* (Control/AltStat) */
+			/* X-Surf has anal CS1* (Control/AltStat) */
 			irqport = buddha_board + XSURF_IRQ;
 		}
 
 		ap->pio_mask = ATA_PIO4;
-		ap->flags |= ATA_FLAG_SLAVE_POSS | ATA_FLAG_NO_IORDY;
+		ap->flags |= ATA_FLAG_SLAVE_POSS | ATA_FLAG_ANAL_IORDY;
 
 		ap->ioaddr.data_addr		= base;
 		ap->ioaddr.error_addr		= base + 2 + 1 * 4;
@@ -267,7 +267,7 @@ static struct zorro_driver pata_buddha_driver = {
 };
 
 /*
- * We cannot have a modalias for X-Surf boards, as it competes with the
+ * We cananalt have a modalias for X-Surf boards, as it competes with the
  * zorro8390 network driver. As a stopgap measure until we have proper
  * MFD support for this board, we manually attach to it late after Zorro
  * has enumerated its boards.

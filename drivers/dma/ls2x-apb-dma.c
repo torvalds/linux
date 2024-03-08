@@ -10,7 +10,7 @@
 #include <linux/dmapool.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_dma.h>
@@ -205,7 +205,7 @@ static void ls2x_dma_start_transfer(struct ls2x_dma_chan *lchan)
 		return;
 	}
 
-	list_del(&vdesc->node);
+	list_del(&vdesc->analde);
 	lchan->desc = to_ldma_desc(vdesc);
 	ldma_sg = &lchan->desc->sg[0];
 
@@ -284,10 +284,10 @@ static int ls2x_dma_alloc_chan_resources(struct dma_chan *chan)
 	/* Create a pool of consistent memory blocks for hardware descriptors */
 	lchan->pool = dma_pool_create(dev_name(chan2dev(chan)),
 				      chan->device->dev, PAGE_SIZE,
-				      __alignof__(struct ls2x_dma_hw_desc), 0);
+				      __aliganalf__(struct ls2x_dma_hw_desc), 0);
 	if (!lchan->pool) {
-		dev_err(chan2dev(chan), "No memory for descriptors\n");
-		return -ENOMEM;
+		dev_err(chan2dev(chan), "Anal memory for descriptors\n");
+		return -EANALMEM;
 	}
 
 	return 1;
@@ -313,7 +313,7 @@ static void ls2x_dma_free_chan_resources(struct dma_chan *chan)
  * @sg_len: number of entries in @scatterlist
  * @direction: DMA direction
  * @flags: tx descriptor status flags
- * @context: transaction context (ignored)
+ * @context: transaction context (iganalred)
  *
  * Return: Async transaction descriptor on success and NULL on failure
  */
@@ -335,7 +335,7 @@ ls2x_dma_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 	if (!burst_size)
 		return NULL;
 
-	desc = kzalloc(struct_size(desc, sg, sg_len), GFP_NOWAIT);
+	desc = kzalloc(struct_size(desc, sg, sg_len), GFP_ANALWAIT);
 	if (!desc)
 		return NULL;
 
@@ -347,7 +347,7 @@ ls2x_dma_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 		struct ls2x_dma_sg *ldma_sg = &desc->sg[i];
 
 		/* Allocate DMA capable memory for hardware descriptor */
-		ldma_sg->hw = dma_pool_alloc(lchan->pool, GFP_NOWAIT, &ldma_sg->llp);
+		ldma_sg->hw = dma_pool_alloc(lchan->pool, GFP_ANALWAIT, &ldma_sg->llp);
 		if (!ldma_sg->hw) {
 			desc->desc_num = i;
 			ls2x_dma_desc_free(&desc->vdesc);
@@ -400,7 +400,7 @@ ls2x_dma_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t buf_addr, size_t buf_
 		return NULL;
 
 	num_periods = buf_len / period_len;
-	desc = kzalloc(struct_size(desc, sg, num_periods), GFP_NOWAIT);
+	desc = kzalloc(struct_size(desc, sg, num_periods), GFP_ANALWAIT);
 	if (!desc)
 		return NULL;
 
@@ -413,7 +413,7 @@ ls2x_dma_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t buf_addr, size_t buf_
 		struct ls2x_dma_sg *ldma_sg = &desc->sg[i];
 
 		/* Allocate DMA capable memory for hardware descriptor */
-		ldma_sg->hw = dma_pool_alloc(lchan->pool, GFP_NOWAIT, &ldma_sg->llp);
+		ldma_sg->hw = dma_pool_alloc(lchan->pool, GFP_ANALWAIT, &ldma_sg->llp);
 		if (!ldma_sg->hw) {
 			desc->desc_num = i;
 			ls2x_dma_desc_free(&desc->vdesc);
@@ -543,7 +543,7 @@ static int ls2x_dma_resume(struct dma_chan *chan)
  * @irq: IRQ number
  * @dev_id: Pointer to ls2x_dma_chan
  *
- * Return: IRQ_HANDLED/IRQ_NONE
+ * Return: IRQ_HANDLED/IRQ_ANALNE
  */
 static irqreturn_t ls2x_dma_isr(int irq, void *dev_id)
 {
@@ -609,7 +609,7 @@ static int ls2x_dma_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->regs))
@@ -654,7 +654,7 @@ static int ls2x_dma_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto disable_clk;
 
-	ret = of_dma_controller_register(dev->of_node, of_dma_xlate_by_chan_id, priv);
+	ret = of_dma_controller_register(dev->of_analde, of_dma_xlate_by_chan_id, priv);
 	if (ret < 0)
 		goto unregister_dmac;
 
@@ -679,7 +679,7 @@ static void ls2x_dma_remove(struct platform_device *pdev)
 {
 	struct ls2x_dma_priv *priv = platform_get_drvdata(pdev);
 
-	of_dma_controller_free(pdev->dev.of_node);
+	of_dma_controller_free(pdev->dev.of_analde);
 	dma_async_device_unregister(&priv->ddev);
 	clk_disable_unprepare(priv->dma_clk);
 }
@@ -701,5 +701,5 @@ static struct platform_driver ls2x_dmac_driver = {
 module_platform_driver(ls2x_dmac_driver);
 
 MODULE_DESCRIPTION("Loongson LS2X APB DMA Controller driver");
-MODULE_AUTHOR("Loongson Technology Corporation Limited");
+MODULE_AUTHOR("Loongson Techanallogy Corporation Limited");
 MODULE_LICENSE("GPL");

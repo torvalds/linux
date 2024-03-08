@@ -67,7 +67,7 @@
 	 BIT(DMA_SLAVE_BUSWIDTH_4_BYTES) | \
 	 BIT(DMA_SLAVE_BUSWIDTH_8_BYTES))
 
-struct uniphier_xdmac_desc_node {
+struct uniphier_xdmac_desc_analde {
 	dma_addr_t src;
 	dma_addr_t dst;
 	u32 burst_size;
@@ -77,10 +77,10 @@ struct uniphier_xdmac_desc_node {
 struct uniphier_xdmac_desc {
 	struct virt_dma_desc vd;
 
-	unsigned int nr_node;
-	unsigned int cur_node;
+	unsigned int nr_analde;
+	unsigned int cur_analde;
 	enum dma_transfer_direction dir;
-	struct uniphier_xdmac_desc_node nodes[] __counted_by(nr_node);
+	struct uniphier_xdmac_desc_analde analdes[] __counted_by(nr_analde);
 };
 
 struct uniphier_xdmac_chan {
@@ -122,7 +122,7 @@ uniphier_xdmac_next_desc(struct uniphier_xdmac_chan *xc)
 	if (!vd)
 		return NULL;
 
-	list_del(&vd->node);
+	list_del(&vd->analde);
 
 	return to_uniphier_xdmac_desc(vd);
 }
@@ -137,13 +137,13 @@ static void uniphier_xdmac_chan_start(struct uniphier_xdmac_chan *xc,
 	u32 val, its, tnum;
 	enum dma_slave_buswidth buswidth;
 
-	src_addr = xd->nodes[xd->cur_node].src;
-	dst_addr = xd->nodes[xd->cur_node].dst;
-	its      = xd->nodes[xd->cur_node].burst_size;
-	tnum     = xd->nodes[xd->cur_node].nr_burst;
+	src_addr = xd->analdes[xd->cur_analde].src;
+	dst_addr = xd->analdes[xd->cur_analde].dst;
+	its      = xd->analdes[xd->cur_analde].burst_size;
+	tnum     = xd->analdes[xd->cur_analde].nr_burst;
 
 	/*
-	 * The width of MEM side must be 4 or 8 bytes, that does not
+	 * The width of MEM side must be 4 or 8 bytes, that does analt
 	 * affect that of DEV side and transfer size.
 	 */
 	if (xd->dir == DMA_DEV_TO_MEM) {
@@ -246,8 +246,8 @@ static void uniphier_xdmac_chan_irq(struct uniphier_xdmac_chan *xc)
 				"DMA transfer error\n");
 
 	} else if ((stat & XDMAC_ID_ENDIDF) && xc->xd) {
-		xc->xd->cur_node++;
-		if (xc->xd->cur_node >= xc->xd->nr_node) {
+		xc->xd->cur_analde++;
+		if (xc->xd->cur_analde >= xc->xd->nr_analde) {
 			vchan_cookie_complete(&xc->xd->vd);
 			uniphier_xdmac_start(xc);
 		} else {
@@ -292,17 +292,17 @@ uniphier_xdmac_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dst,
 
 	nr = 1 + len / XDMAC_MAX_WORD_SIZE;
 
-	xd = kzalloc(struct_size(xd, nodes, nr), GFP_NOWAIT);
+	xd = kzalloc(struct_size(xd, analdes, nr), GFP_ANALWAIT);
 	if (!xd)
 		return NULL;
-	xd->nr_node = nr;
+	xd->nr_analde = nr;
 
 	for (i = 0; i < nr; i++) {
 		burst_size = min_t(size_t, len, XDMAC_MAX_WORD_SIZE);
-		xd->nodes[i].src = src;
-		xd->nodes[i].dst = dst;
-		xd->nodes[i].burst_size = burst_size;
-		xd->nodes[i].nr_burst = len / burst_size;
+		xd->analdes[i].src = src;
+		xd->analdes[i].dst = dst;
+		xd->analdes[i].burst_size = burst_size;
+		xd->analdes[i].nr_burst = len / burst_size;
 		tlen = rounddown(len, burst_size);
 		src += tlen;
 		dst += tlen;
@@ -310,7 +310,7 @@ uniphier_xdmac_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dst,
 	}
 
 	xd->dir = DMA_MEM_TO_MEM;
-	xd->cur_node = 0;
+	xd->cur_analde = 0;
 
 	return vchan_tx_prep(vc, &xd->vd, flags);
 }
@@ -348,36 +348,36 @@ uniphier_xdmac_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 		return NULL;
 	}
 
-	xd = kzalloc(struct_size(xd, nodes, sg_len), GFP_NOWAIT);
+	xd = kzalloc(struct_size(xd, analdes, sg_len), GFP_ANALWAIT);
 	if (!xd)
 		return NULL;
-	xd->nr_node = sg_len;
+	xd->nr_analde = sg_len;
 
 	for_each_sg(sgl, sg, sg_len, i) {
-		xd->nodes[i].src = (direction == DMA_DEV_TO_MEM)
+		xd->analdes[i].src = (direction == DMA_DEV_TO_MEM)
 			? xc->sconfig.src_addr : sg_dma_address(sg);
-		xd->nodes[i].dst = (direction == DMA_MEM_TO_DEV)
+		xd->analdes[i].dst = (direction == DMA_MEM_TO_DEV)
 			? xc->sconfig.dst_addr : sg_dma_address(sg);
-		xd->nodes[i].burst_size = maxburst * buswidth;
-		xd->nodes[i].nr_burst =
-			sg_dma_len(sg) / xd->nodes[i].burst_size;
+		xd->analdes[i].burst_size = maxburst * buswidth;
+		xd->analdes[i].nr_burst =
+			sg_dma_len(sg) / xd->analdes[i].burst_size;
 
 		/*
 		 * Currently transfer that size doesn't align the unit size
-		 * (the number of burst words * bus-width) is not allowed,
-		 * because the driver does not support the way to transfer
+		 * (the number of burst words * bus-width) is analt allowed,
+		 * because the driver does analt support the way to transfer
 		 * residue size. As a matter of fact, in order to transfer
 		 * arbitrary size, 'src_maxburst' or 'dst_maxburst' of
 		 * dma_slave_config must be 1.
 		 */
-		if (sg_dma_len(sg) % xd->nodes[i].burst_size) {
+		if (sg_dma_len(sg) % xd->analdes[i].burst_size) {
 			dev_err(xc->xdev->ddev.dev,
 				"Unaligned transfer size: %d", sg_dma_len(sg));
 			kfree(xd);
 			return NULL;
 		}
 
-		if (xd->nodes[i].nr_burst > XDMAC_MAX_WORDS) {
+		if (xd->analdes[i].nr_burst > XDMAC_MAX_WORDS) {
 			dev_err(xc->xdev->ddev.dev,
 				"Exceed maximum transfer size");
 			kfree(xd);
@@ -386,7 +386,7 @@ uniphier_xdmac_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 	}
 
 	xd->dir = direction;
-	xd->cur_node = 0;
+	xd->cur_analde = 0;
 
 	return vchan_tx_prep(vc, &xd->vd, flags);
 }
@@ -487,7 +487,7 @@ static int uniphier_xdmac_probe(struct platform_device *pdev)
 	int nr_chans;
 	int i, ret;
 
-	if (of_property_read_u32(dev->of_node, "dma-channels", &nr_chans))
+	if (of_property_read_u32(dev->of_analde, "dma-channels", &nr_chans))
 		return -EINVAL;
 	if (nr_chans > XDMAC_MAX_CHANS)
 		nr_chans = XDMAC_MAX_CHANS;
@@ -495,7 +495,7 @@ static int uniphier_xdmac_probe(struct platform_device *pdev)
 	xdev = devm_kzalloc(dev, struct_size(xdev, channels, nr_chans),
 			    GFP_KERNEL);
 	if (!xdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	xdev->nr_chans = nr_chans;
 	xdev->reg_base = devm_platform_ioremap_resource(pdev, 0);
@@ -543,7 +543,7 @@ static int uniphier_xdmac_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = of_dma_controller_register(dev->of_node,
+	ret = of_dma_controller_register(dev->of_analde,
 					 of_dma_uniphier_xlate, xdev);
 	if (ret) {
 		dev_err(dev, "Failed to register XDMA controller\n");
@@ -574,10 +574,10 @@ static void uniphier_xdmac_remove(struct platform_device *pdev)
 	 * Before reaching here, almost all descriptors have been freed by the
 	 * ->device_free_chan_resources() hook. However, each channel might
 	 * be still holding one descriptor that was on-flight at that moment.
-	 * Terminate it to make sure this hardware is no longer running. Then,
+	 * Terminate it to make sure this hardware is anal longer running. Then,
 	 * free the channel resources once again to avoid memory leak.
 	 */
-	list_for_each_entry(chan, &ddev->channels, device_node) {
+	list_for_each_entry(chan, &ddev->channels, device_analde) {
 		ret = dmaengine_terminate_sync(chan);
 		if (ret) {
 			/*
@@ -591,7 +591,7 @@ static void uniphier_xdmac_remove(struct platform_device *pdev)
 		uniphier_xdmac_free_chan_resources(chan);
 	}
 
-	of_dma_controller_free(pdev->dev.of_node);
+	of_dma_controller_free(pdev->dev.of_analde);
 	dma_async_device_unregister(ddev);
 }
 

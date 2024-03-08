@@ -25,7 +25,7 @@
  * channels as well as high and low threshold events for the
  * illuminance_clear and proxmimity channels. Triggers
  * can be enabled simultaneously with both illuminance_clear
- * events. Proximity events cannot be enabled simultaneously
+ * events. Proximity events cananalt be enabled simultaneously
  * with any triggers or illuminance events. Enabling/disabling
  * one of the proximity events automatically enables/disables
  * the other one.
@@ -87,8 +87,8 @@
 #define GP2AP020A00F_OP_ALS		0x10
 #define GP2AP020A00F_OP_PS		0x20
 #define GP2AP020A00F_OP_DEBUG		0x30
-#define GP2AP020A00F_PROX_MASK		0x08 /* PS: detection/non-detection */
-#define GP2AP020A00F_PROX_NON_DETECT	0x00
+#define GP2AP020A00F_PROX_MASK		0x08 /* PS: detection/analn-detection */
+#define GP2AP020A00F_PROX_ANALN_DETECT	0x00
 #define GP2AP020A00F_PROX_DETECT	0x08
 #define GP2AP020A00F_FLAG_P		0x04 /* PS: interrupt result  */
 #define GP2AP020A00F_FLAG_A		0x02 /* ALS: interrupt result  */
@@ -883,7 +883,7 @@ static irqreturn_t gp2ap020a00f_thresh_event_handler(int irq, void *data)
 	op_reg_val &= (~GP2AP020A00F_FLAG_A & ~GP2AP020A00F_FLAG_P
 					& ~GP2AP020A00F_PROX_DETECT);
 
-	/* Clear interrupt flags (if not in INTTYPE_PULSE mode) */
+	/* Clear interrupt flags (if analt in INTTYPE_PULSE mode) */
 	if (priv->cur_opmode != GP2AP020A00F_OPMODE_PROX_DETECT) {
 		ret = regmap_write(priv->regmap, GP2AP020A00F_OP_REG,
 								op_reg_val);
@@ -989,7 +989,7 @@ static irqreturn_t gp2ap020a00f_trigger_handler(int irq, void *data)
 	iio_push_to_buffers_with_timestamp(indio_dev, priv->buffer,
 		pf->timestamp);
 done:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -1421,7 +1421,7 @@ static int gp2ap020a00f_buffer_postenable(struct iio_dev *indio_dev)
 
 	data->buffer = kmalloc(indio_dev->scan_bytes, GFP_KERNEL);
 	if (!data->buffer)
-		err = -ENOMEM;
+		err = -EANALMEM;
 
 error_unlock:
 	mutex_unlock(&data->lock);
@@ -1477,7 +1477,7 @@ static int gp2ap020a00f_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 
@@ -1530,7 +1530,7 @@ static int gp2ap020a00f_probe(struct i2c_client *client)
 	data->trig = devm_iio_trigger_alloc(&client->dev, "%s-trigger",
 							indio_dev->name);
 	if (data->trig == NULL) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		dev_err(&indio_dev->dev, "Failed to allocate iio trigger.\n");
 		goto error_uninit_buffer;
 	}

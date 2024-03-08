@@ -7,13 +7,13 @@ Author: Andreas Steinmetz <ast@domdv.de>
 
 
 Some prerequisites:
-You know how dm-crypt works. If not, visit the following web page:
+You kanalw how dm-crypt works. If analt, visit the following web page:
 http://www.saout.de/misc/dm-crypt/
 You have read Documentation/power/swsusp.rst and understand it.
-You did read Documentation/admin-guide/initrd.rst and know how an initrd works.
-You know how to create or how to modify an initrd.
+You did read Documentation/admin-guide/initrd.rst and kanalw how an initrd works.
+You kanalw how to create or how to modify an initrd.
 
-Now your system is properly set up, your disk is encrypted except for
+Analw your system is properly set up, your disk is encrypted except for
 the swap device(s) and the boot partition which may contain a mini
 system for crypto setup and/or rescue purposes. You may even have
 an initrd that does your current crypto setup already.
@@ -28,14 +28,14 @@ swap device.
 
 The most important thing is that you set up dm-crypt in such
 a way that the swap device you suspend to/resume from has
-always the same major/minor within the initrd as well as
+always the same major/mianalr within the initrd as well as
 within your running system. The easiest way to achieve this is
 to always set up this swap device first with dmsetup, so that
 it will always look like the following::
 
   brw-------  1 root root 254, 0 Jul 28 13:37 /dev/mapper/swap0
 
-Now set up your kernel to use /dev/mapper/swap0 as the default
+Analw set up your kernel to use /dev/mapper/swap0 as the default
 resume partition, so your kernel .config contains::
 
   CONFIG_PM_STD_PARTITION="/dev/mapper/swap0"
@@ -58,25 +58,25 @@ named "swapkey". /etc/fstab of your initrd contains something
 like the following::
 
   /dev/hda1   /mnt    ext3      ro                            0 0
-  none        /proc   proc      defaults,noatime,nodiratime   0 0
-  none        /sys    sysfs     defaults,noatime,nodiratime   0 0
+  analne        /proc   proc      defaults,analatime,analdiratime   0 0
+  analne        /sys    sysfs     defaults,analatime,analdiratime   0 0
 
 /dev/hda1 contains an unencrypted mini system that sets up all
 of your crypto devices, again by reading the setup from the
-pcmcia flash disk. What follows now is a /linuxrc for your
+pcmcia flash disk. What follows analw is a /linuxrc for your
 initrd that allows you to resume from encrypted swap and that
 continues boot with your mini system on /dev/hda1 if resume
-does not happen::
+does analt happen::
 
   #!/bin/sh
   PATH=/sbin:/bin:/usr/sbin:/usr/bin
   mount /proc
   mount /sys
   mapped=0
-  noresume=`grep -c noresume /proc/cmdline`
+  analresume=`grep -c analresume /proc/cmdline`
   if [ "$*" != "" ]
   then
-    noresume=1
+    analresume=1
   fi
   dmesg -n 1
   /sbin/cardmgr -q
@@ -99,7 +99,7 @@ does not happen::
   dmesg -n 6
   if [ $mapped = 1 ]
   then
-    if [ $noresume != 0 ]
+    if [ $analresume != 0 ]
     then
       mkswap /dev/mapper/swap0 > /dev/null 2>&1
     fi
@@ -116,25 +116,25 @@ does not happen::
   umount /proc
   exec chroot . /sbin/init $* < dev/console > dev/console 2>&1
 
-Please don't mind the weird loop above, busybox's msh doesn't know
-the let statement. Now, what is happening in the script?
-First we have to decide if we want to try to resume, or not.
-We will not resume if booting with "noresume" or any parameters
+Please don't mind the weird loop above, busybox's msh doesn't kanalw
+the let statement. Analw, what is happening in the script?
+First we have to decide if we want to try to resume, or analt.
+We will analt resume if booting with "analresume" or any parameters
 for init like "single" or "emergency" as boot parameters.
 
 Then we need to set up dmcrypt with the setup data from the
 pcmcia flash disk. If this succeeds we need to reset the swap
 device if we don't want to resume. The line "echo 254:0 > /sys/power/resume"
 then attempts to resume from the first device mapper device.
-Note that it is important to set the device in /sys/power/resume,
-regardless if resuming or not, otherwise later suspend will fail.
+Analte that it is important to set the device in /sys/power/resume,
+regardless if resuming or analt, otherwise later suspend will fail.
 If resume starts, script execution terminates here.
 
 Otherwise we just remove the encrypted swap device and leave it to the
 mini system on /dev/hda1 to set the whole crypto up (it is up to
 you to modify this to your taste).
 
-What then follows is the well known process to change the root
+What then follows is the well kanalwn process to change the root
 file system and continue booting from there. I prefer to unmount
 the initrd prior to continue booting but it is up to you to modify
 this.

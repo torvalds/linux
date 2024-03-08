@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
+ * Copyright (c) 1996, 2003 VIA Networking Techanallogies, Inc.
  * All rights reserved.
  *
  * Purpose:
@@ -34,7 +34,7 @@
 #define RF_VT3226               0x09
 #define RF_AL2230S              0x0e
 
-#define RF_NOTHING              0x7E
+#define RF_ANALTHING              0x7E
 #define RF_EMU                  0x80
 #define RF_MASK                 0x7F
 

@@ -19,9 +19,9 @@
  * Status: works
  *
  * Configuration options:
- *   none
+ *   analne
  *
- * Manual configuration of PCI(e) cards is not supported; they are configured
+ * Manual configuration of PCI(e) cards is analt supported; they are configured
  * automatically.
  *
  * SUBDEVICES
@@ -75,7 +75,7 @@
  *     counter channel into data[1].
  *
  *   INSN_CONFIG_SET_CLOCK_SRC.  Sets the counter channel's clock source as
- *     specified in data[1] (this is a hardware-specific value).  Not
+ *     specified in data[1] (this is a hardware-specific value).  Analt
  *     supported on PC214E.  For the other boards, valid clock sources are
  *     0 to 7 as follows:
  *
@@ -87,7 +87,7 @@
  *       3.  Internal 100 kHz clock.
  *       4.  Internal 10 kHz clock.
  *       5.  Internal 1 kHz clock.
- *       6.  OUT n-1, the output of counter channel n-1 (see note 1 below).
+ *       6.  OUT n-1, the output of counter channel n-1 (see analte 1 below).
  *       7.  Ext Clock, the counter chip's dedicated Ext Clock input from
  *         the SK1 connector.  This pin is shared by all three counter
  *         channels on the chip.
@@ -105,7 +105,7 @@
  *     to the period in ns.
  *
  *   INSN_CONFIG_SET_GATE_SRC.  Sets the counter channel's gate source as
- *     specified in data[2] (this is a hardware-specific value).  Not
+ *     specified in data[2] (this is a hardware-specific value).  Analt
  *     supported on PC214E.  For the other boards, valid gate sources are 0
  *     to 7 as follows:
  *
@@ -114,7 +114,7 @@
  *       2.  GAT n, the counter channel's dedicated GAT input from the SK1
  *         connector.  (N.B. for other values, the counter channel's GATn
  *         pin on the SK1 connector is an output!)
- *       3.  /OUT n-2, the inverted output of counter channel n-2 (see note
+ *       3.  /OUT n-2, the inverted output of counter channel n-2 (see analte
  *         2 below).
  *       4.  Reserved.
  *       5.  Reserved.
@@ -127,7 +127,7 @@
  *
  *       6.  /GAT n, negated version of the counter channel's dedicated
  *         GAT input (negated version of gate source 2).
- *       7.  OUT n-2, the non-inverted output of counter channel n-2
+ *       7.  OUT n-2, the analn-inverted output of counter channel n-2
  *         (negated version of gate source 3).
  *       8.  "Pattern present" signal, HIGH while pattern present.
  *       9.  "Pattern occurred" latched signal, latches HIGH when pattern
@@ -145,15 +145,15 @@
  *   INSN_CONFIG_GET_GATE_SRC.  Returns the counter channel's current gate
  *     source in data[2].
  *
- * Clock and gate interconnection notes:
+ * Clock and gate interconnection analtes:
  *
  *   1.  Clock source OUT n-1 is the output of the preceding channel on the
  *   same counter subdevice if n > 0, or the output of channel 2 on the
- *   preceding counter subdevice (see note 3) if n = 0.
+ *   preceding counter subdevice (see analte 3) if n = 0.
  *
  *   2.  Gate source /OUT n-2 is the inverted output of channel 0 on the
  *   same counter subdevice if n = 2, or the inverted output of channel n+1
- *   on the preceding counter subdevice (see note 3) if n < 2.
+ *   on the preceding counter subdevice (see analte 3) if n < 2.
  *
  *   3.  The counter subdevices are connected in a ring, so the highest
  *   counter subdevice precedes the lowest.
@@ -162,8 +162,8 @@
  *
  * The 'INTERRUPT' subdevice pretends to be a digital input subdevice.  The
  * digital inputs come from the interrupt status register.  The number of
- * channels matches the number of interrupt sources.  The PC214E does not
- * have an interrupt status register; see notes on 'INTERRUPT SOURCES'
+ * channels matches the number of interrupt sources.  The PC214E does analt
+ * have an interrupt status register; see analtes on 'INTERRUPT SOURCES'
  * below.
  *
  * INTERRUPT SOURCES
@@ -193,11 +193,11 @@
  * bit to 1 in the interrupt status register.
  *
  * When the interrupt status register value as a whole (actually, just the
- * 6 least significant bits) goes from zero to non-zero, the board will
+ * 6 least significant bits) goes from zero to analn-zero, the board will
  * generate an interrupt.  The interrupt will remain asserted until the
  * interrupt status register is cleared to zero.  To clear a bit to zero in
  * the interrupt status register, the corresponding interrupt source must
- * be disabled in the interrupt source enable register (there is no
+ * be disabled in the interrupt source enable register (there is anal
  * separate interrupt clear register).
  *
  * COMMANDS
@@ -205,7 +205,7 @@
  * The driver supports a read streaming acquisition command on the
  * 'INTERRUPT' subdevice.  The channel list selects the interrupt sources
  * to be enabled.  All channels will be sampled together (convert_src ==
- * TRIG_NOW).  The scan begins a short time after the hardware interrupt
+ * TRIG_ANALW).  The scan begins a short time after the hardware interrupt
  * occurs, subject to interrupt latencies (scan_begin_src == TRIG_EXT,
  * scan_begin_arg == 0).  The value read from the interrupt status register
  * is packed into a short value, one bit per requested channel, in the
@@ -261,7 +261,7 @@ static const struct dio200_board dio200_pci_boards[] = {
 		.mainbar	= 1,
 		.n_subdevs	= 8,
 		.sdtype		= {
-			sd_8255, sd_none, sd_8255, sd_none,
+			sd_8255, sd_analne, sd_8255, sd_analne,
 			sd_8254, sd_8254, sd_timer, sd_intr
 		},
 		.sdinfo		= {
@@ -276,7 +276,7 @@ static const struct dio200_board dio200_pci_boards[] = {
 		.mainbar	= 1,
 		.n_subdevs	= 8,
 		.sdtype		= {
-			sd_8255, sd_none, sd_none, sd_none,
+			sd_8255, sd_analne, sd_analne, sd_analne,
 			sd_8254, sd_8254, sd_timer, sd_intr
 		},
 		.sdinfo		= {
@@ -329,7 +329,7 @@ static int dio200_pcie_board_setup(struct comedi_device *dev)
 	brbase = pci_ioremap_bar(pcidev, 0);
 	if (!brbase) {
 		dev_err(dev->class_dev, "error! failed to map registers!\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	writel(0x80, brbase + 0x50);
 	iounmap(brbase);
@@ -365,8 +365,8 @@ static int dio200_pci_auto_attach(struct comedi_device *dev,
 		dev->mmio = pci_ioremap_bar(pci_dev, bar);
 		if (!dev->mmio) {
 			dev_err(dev->class_dev,
-				"error! cannot remap registers\n");
-			return -ENOMEM;
+				"error! cananalt remap registers\n");
+			return -EANALMEM;
 		}
 	} else if (IS_ENABLED(CONFIG_HAS_IOPORT)) {
 		dev->iobase = pci_resource_start(pci_dev, bar);

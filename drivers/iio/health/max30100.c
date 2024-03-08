@@ -3,7 +3,7 @@
  * max30100.c - Support for MAX30100 heart rate and pulse oximeter sensor
  *
  * Copyright (C) 2015, 2018
- * Author: Matt Ranostay <matt.ranostay@konsulko.com>
+ * Author: Matt Raanalstay <matt.raanalstay@konsulko.com>
  *
  * TODO: enable pulse length controls via device tree properties
  */
@@ -277,7 +277,7 @@ static int max30100_led_init(struct max30100_data *data)
 		reg = (MAX30100_REG_LED_CONFIG_24MA <<
 			MAX30100_REG_LED_CONFIG_RED_LED_SHIFT) |
 			MAX30100_REG_LED_CONFIG_50MA;
-		dev_warn(dev, "no led-current-microamp set");
+		dev_warn(dev, "anal led-current-microamp set");
 
 		return regmap_write(data->regmap, MAX30100_REG_LED_CONFIG, reg);
 	}
@@ -425,7 +425,7 @@ static int max30100_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	indio_dev->name = MAX30100_DRV_NAME;
 	indio_dev->channels = max30100_channels;
@@ -458,7 +458,7 @@ static int max30100_probe(struct i2c_client *client)
 		return ret;
 
 	if (client->irq <= 0) {
-		dev_err(&client->dev, "no valid irq defined\n");
+		dev_err(&client->dev, "anal valid irq defined\n");
 		return -EINVAL;
 	}
 	ret = devm_request_threaded_irq(&client->dev, client->irq,
@@ -505,6 +505,6 @@ static struct i2c_driver max30100_driver = {
 };
 module_i2c_driver(max30100_driver);
 
-MODULE_AUTHOR("Matt Ranostay <matt.ranostay@konsulko.com>");
+MODULE_AUTHOR("Matt Raanalstay <matt.raanalstay@konsulko.com>");
 MODULE_DESCRIPTION("MAX30100 heart rate and pulse oximeter sensor");
 MODULE_LICENSE("GPL");

@@ -20,7 +20,7 @@
 
 #include <linux/kernel.h>
 #include <linux/sched/signal.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/log2.h>
@@ -48,26 +48,26 @@
 static struct usb_driver acm_driver;
 static struct tty_driver *acm_tty_driver;
 
-static DEFINE_IDR(acm_minors);
-static DEFINE_MUTEX(acm_minors_lock);
+static DEFINE_IDR(acm_mianalrs);
+static DEFINE_MUTEX(acm_mianalrs_lock);
 
 static void acm_tty_set_termios(struct tty_struct *tty,
 				const struct ktermios *termios_old);
 
 /*
- * acm_minors accessors
+ * acm_mianalrs accessors
  */
 
 /*
- * Look up an ACM structure by minor. If found and not disconnected, increment
+ * Look up an ACM structure by mianalr. If found and analt disconnected, increment
  * its refcount and return it with its mutex held.
  */
-static struct acm *acm_get_by_minor(unsigned int minor)
+static struct acm *acm_get_by_mianalr(unsigned int mianalr)
 {
 	struct acm *acm;
 
-	mutex_lock(&acm_minors_lock);
-	acm = idr_find(&acm_minors, minor);
+	mutex_lock(&acm_mianalrs_lock);
+	acm = idr_find(&acm_mianalrs, mianalr);
 	if (acm) {
 		mutex_lock(&acm->mutex);
 		if (acm->disconnected) {
@@ -78,30 +78,30 @@ static struct acm *acm_get_by_minor(unsigned int minor)
 			mutex_unlock(&acm->mutex);
 		}
 	}
-	mutex_unlock(&acm_minors_lock);
+	mutex_unlock(&acm_mianalrs_lock);
 	return acm;
 }
 
 /*
- * Try to find an available minor number and if found, associate it with 'acm'.
+ * Try to find an available mianalr number and if found, associate it with 'acm'.
  */
-static int acm_alloc_minor(struct acm *acm)
+static int acm_alloc_mianalr(struct acm *acm)
 {
-	int minor;
+	int mianalr;
 
-	mutex_lock(&acm_minors_lock);
-	minor = idr_alloc(&acm_minors, acm, 0, ACM_TTY_MINORS, GFP_KERNEL);
-	mutex_unlock(&acm_minors_lock);
+	mutex_lock(&acm_mianalrs_lock);
+	mianalr = idr_alloc(&acm_mianalrs, acm, 0, ACM_TTY_MIANALRS, GFP_KERNEL);
+	mutex_unlock(&acm_mianalrs_lock);
 
-	return minor;
+	return mianalr;
 }
 
-/* Release the minor number associated with 'acm'.  */
-static void acm_release_minor(struct acm *acm)
+/* Release the mianalr number associated with 'acm'.  */
+static void acm_release_mianalr(struct acm *acm)
 {
-	mutex_lock(&acm_minors_lock);
-	idr_remove(&acm_minors, acm->minor);
-	mutex_unlock(&acm_minors_lock);
+	mutex_lock(&acm_mianalrs_lock);
+	idr_remove(&acm_mianalrs, acm->mianalr);
+	mutex_unlock(&acm_mianalrs_lock);
 }
 
 /*
@@ -137,7 +137,7 @@ static int acm_ctrl_msg(struct acm *acm, int request, int value,
 static inline int acm_set_control(struct acm *acm, int control)
 {
 	if (acm->quirks & QUIRK_CONTROL_LINE_STATE)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return acm_ctrl_msg(acm, USB_CDC_REQ_SET_CONTROL_LINE_STATE,
 			control, NULL, 0);
@@ -287,21 +287,21 @@ static DEVICE_ATTR_RO(iCountryCodeRelDate);
  * Interrupt handlers for various ACM device responses
  */
 
-static void acm_process_notification(struct acm *acm, unsigned char *buf)
+static void acm_process_analtification(struct acm *acm, unsigned char *buf)
 {
 	int newctrl;
 	int difference;
 	unsigned long flags;
-	struct usb_cdc_notification *dr = (struct usb_cdc_notification *)buf;
-	unsigned char *data = buf + sizeof(struct usb_cdc_notification);
+	struct usb_cdc_analtification *dr = (struct usb_cdc_analtification *)buf;
+	unsigned char *data = buf + sizeof(struct usb_cdc_analtification);
 
-	switch (dr->bNotificationType) {
-	case USB_CDC_NOTIFY_NETWORK_CONNECTION:
+	switch (dr->bAnaltificationType) {
+	case USB_CDC_ANALTIFY_NETWORK_CONNECTION:
 		dev_dbg(&acm->control->dev,
 			"%s - network connection: %d\n", __func__, dr->wValue);
 		break;
 
-	case USB_CDC_NOTIFY_SERIAL_STATE:
+	case USB_CDC_ANALTIFY_SERIAL_STATE:
 		if (le16_to_cpu(dr->wLength) != 2) {
 			dev_dbg(&acm->control->dev,
 				"%s - malformed serial state\n", __func__);
@@ -361,9 +361,9 @@ static void acm_process_notification(struct acm *acm, unsigned char *buf)
 
 	default:
 		dev_dbg(&acm->control->dev,
-			"%s - unknown notification %d received: index %d len %d\n",
+			"%s - unkanalwn analtification %d received: index %d len %d\n",
 			__func__,
-			dr->bNotificationType, dr->wIndex, dr->wLength);
+			dr->bAnaltificationType, dr->wIndex, dr->wLength);
 	}
 }
 
@@ -371,7 +371,7 @@ static void acm_process_notification(struct acm *acm, unsigned char *buf)
 static void acm_ctrl_irq(struct urb *urb)
 {
 	struct acm *acm = urb->context;
-	struct usb_cdc_notification *dr = urb->transfer_buffer;
+	struct usb_cdc_analtification *dr = urb->transfer_buffer;
 	unsigned int current_size = urb->actual_length;
 	unsigned int expected_size, copy_size, alloc_size;
 	int retval;
@@ -382,7 +382,7 @@ static void acm_ctrl_irq(struct urb *urb)
 		/* success */
 		break;
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
 		dev_dbg(&acm->control->dev,
@@ -391,7 +391,7 @@ static void acm_ctrl_irq(struct urb *urb)
 		return;
 	default:
 		dev_dbg(&acm->control->dev,
-			"%s - nonzero urb status received: %d\n",
+			"%s - analnzero urb status received: %d\n",
 			__func__, status);
 		goto exit;
 	}
@@ -399,48 +399,48 @@ static void acm_ctrl_irq(struct urb *urb)
 	usb_mark_last_busy(acm->dev);
 
 	if (acm->nb_index)
-		dr = (struct usb_cdc_notification *)acm->notification_buffer;
+		dr = (struct usb_cdc_analtification *)acm->analtification_buffer;
 
-	/* size = notification-header + (optional) data */
-	expected_size = sizeof(struct usb_cdc_notification) +
+	/* size = analtification-header + (optional) data */
+	expected_size = sizeof(struct usb_cdc_analtification) +
 					le16_to_cpu(dr->wLength);
 
 	if (current_size < expected_size) {
-		/* notification is transmitted fragmented, reassemble */
+		/* analtification is transmitted fragmented, reassemble */
 		if (acm->nb_size < expected_size) {
 			u8 *new_buffer;
 			alloc_size = roundup_pow_of_two(expected_size);
 			/* Final freeing is done on disconnect. */
-			new_buffer = krealloc(acm->notification_buffer,
+			new_buffer = krealloc(acm->analtification_buffer,
 					      alloc_size, GFP_ATOMIC);
 			if (!new_buffer) {
 				acm->nb_index = 0;
 				goto exit;
 			}
 
-			acm->notification_buffer = new_buffer;
+			acm->analtification_buffer = new_buffer;
 			acm->nb_size = alloc_size;
-			dr = (struct usb_cdc_notification *)acm->notification_buffer;
+			dr = (struct usb_cdc_analtification *)acm->analtification_buffer;
 		}
 
 		copy_size = min(current_size,
 				expected_size - acm->nb_index);
 
-		memcpy(&acm->notification_buffer[acm->nb_index],
+		memcpy(&acm->analtification_buffer[acm->nb_index],
 		       urb->transfer_buffer, copy_size);
 		acm->nb_index += copy_size;
 		current_size = acm->nb_index;
 	}
 
 	if (current_size >= expected_size) {
-		/* notification complete */
-		acm_process_notification(acm, (unsigned char *)dr);
+		/* analtification complete */
+		acm_process_analtification(acm, (unsigned char *)dr);
 		acm->nb_index = 0;
 	}
 
 exit:
 	retval = usb_submit_urb(urb, GFP_ATOMIC);
-	if (retval && retval != -EPERM && retval != -ENODEV)
+	if (retval && retval != -EPERM && retval != -EANALDEV)
 		dev_err(&acm->control->dev,
 			"%s - usb_submit_urb failed: %d\n", __func__, retval);
 	else
@@ -457,7 +457,7 @@ static int acm_submit_read_urb(struct acm *acm, int index, gfp_t mem_flags)
 
 	res = usb_submit_urb(acm->read_urbs[index], mem_flags);
 	if (res) {
-		if (res != -EPERM && res != -ENODEV) {
+		if (res != -EPERM && res != -EANALDEV) {
 			dev_err(&acm->data->dev,
 				"urb %d failed submission with %d\n",
 				index, res);
@@ -523,7 +523,7 @@ static void acm_read_bulk_callback(struct urb *urb)
 		set_bit(EVENT_RX_STALL, &acm->flags);
 		stalled = true;
 		break;
-	case -ENOENT:
+	case -EANALENT:
 	case -ECONNRESET:
 	case -ESHUTDOWN:
 		dev_dbg(&acm->data->dev,
@@ -542,21 +542,21 @@ static void acm_read_bulk_callback(struct urb *urb)
 		break;
 	default:
 		dev_dbg(&acm->data->dev,
-			"%s - nonzero urb status received: %d\n",
+			"%s - analnzero urb status received: %d\n",
 			__func__, status);
 		break;
 	}
 
 	/*
 	 * Make sure URB processing is done before marking as free to avoid
-	 * racing with unthrottle() on another CPU. Matches the barriers
+	 * racing with unthrottle() on aanalther CPU. Matches the barriers
 	 * implied by the test_and_clear_bit() in acm_submit_read_urb().
 	 */
 	smp_mb__before_atomic();
 	set_bit(rb->index, &acm->read_urbs_free);
 	/*
 	 * Make sure URB is marked as free before checking the throttled flag
-	 * to avoid racing with unthrottle() on another CPU. Matches the
+	 * to avoid racing with unthrottle() on aanalther CPU. Matches the
 	 * smp_mb() in unthrottle().
 	 */
 	smp_mb__after_atomic();
@@ -631,9 +631,9 @@ static int acm_tty_install(struct tty_driver *driver, struct tty_struct *tty)
 	struct acm *acm;
 	int retval;
 
-	acm = acm_get_by_minor(tty->index);
+	acm = acm_get_by_mianalr(tty->index);
 	if (!acm)
-		return -ENODEV;
+		return -EANALDEV;
 
 	retval = tty_standard_install(driver, tty);
 	if (retval)
@@ -685,7 +685,7 @@ static void acm_port_dtr_rts(struct tty_port *port, bool active)
 static int acm_port_activate(struct tty_port *port, struct tty_struct *tty)
 {
 	struct acm *acm = container_of(port, struct acm, port);
-	int retval = -ENODEV;
+	int retval = -EANALDEV;
 	int i;
 
 	mutex_lock(&acm->mutex);
@@ -696,7 +696,7 @@ static int acm_port_activate(struct tty_port *port, struct tty_struct *tty)
 	if (retval)
 		goto error_get_interface;
 
-	set_bit(TTY_NO_WRITE_SPLIT, &tty->flags);
+	set_bit(TTY_ANAL_WRITE_SPLIT, &tty->flags);
 	acm->control->needs_remote_wakeup = 1;
 
 	acm->ctrlurb->dev = acm->dev;
@@ -741,8 +741,8 @@ static void acm_port_destruct(struct tty_port *port)
 {
 	struct acm *acm = container_of(port, struct acm, port);
 
-	if (acm->minor != ACM_MINOR_INVALID)
-		acm_release_minor(acm);
+	if (acm->mianalr != ACM_MIANALR_INVALID)
+		acm_release_mianalr(acm);
 	usb_put_intf(acm->control);
 	kfree(acm->country_codes);
 	kfree(acm);
@@ -755,14 +755,14 @@ static void acm_port_shutdown(struct tty_port *port)
 	struct acm_wb *wb;
 
 	/*
-	 * Need to grab write_lock to prevent race with resume, but no need to
+	 * Need to grab write_lock to prevent race with resume, but anal need to
 	 * hold it due to the tty-port initialised flag.
 	 */
 	acm_poison_urbs(acm);
 	spin_lock_irq(&acm->write_lock);
 	spin_unlock_irq(&acm->write_lock);
 
-	usb_autopm_get_interface_no_resume(acm->control);
+	usb_autopm_get_interface_anal_resume(acm->control);
 	acm->control->needs_remote_wakeup = 0;
 	usb_autopm_put_interface(acm->control);
 
@@ -825,7 +825,7 @@ static ssize_t acm_tty_write(struct tty_struct *tty, const u8 *buf,
 	if (!acm->dev) {
 		wb->use = false;
 		spin_unlock_irqrestore(&acm->write_lock, flags);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	count = (count > acm->writesize) ? acm->writesize : count;
@@ -858,7 +858,7 @@ static unsigned int acm_tty_write_room(struct tty_struct *tty)
 {
 	struct acm *acm = tty->driver_data;
 	/*
-	 * Do not let the line discipline to know that we have a reserve,
+	 * Do analt let the line discipline to kanalw that we have a reserve,
 	 * or it might get too enthusiastic.
 	 */
 	return acm_wb_is_avail(acm) ? acm->writesize : 0;
@@ -917,7 +917,7 @@ static int acm_tty_break_ctl(struct tty_struct *tty, int state)
 	int retval;
 
 	if (!(acm->ctrl_caps & USB_CDC_CAP_BRK))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	retval = acm_send_break(acm, state ? 0xffff : 0);
 	if (retval < 0)
@@ -961,10 +961,10 @@ static int get_serial_info(struct tty_struct *tty, struct serial_struct *ss)
 {
 	struct acm *acm = tty->driver_data;
 
-	ss->line = acm->minor;
+	ss->line = acm->mianalr;
 	ss->close_delay	= jiffies_to_msecs(acm->port.close_delay) / 10;
-	ss->closing_wait = acm->port.closing_wait == ASYNC_CLOSING_WAIT_NONE ?
-				ASYNC_CLOSING_WAIT_NONE :
+	ss->closing_wait = acm->port.closing_wait == ASYNC_CLOSING_WAIT_ANALNE ?
+				ASYNC_CLOSING_WAIT_ANALNE :
 				jiffies_to_msecs(acm->port.closing_wait) / 10;
 	return 0;
 }
@@ -976,8 +976,8 @@ static int set_serial_info(struct tty_struct *tty, struct serial_struct *ss)
 	int retval = 0;
 
 	close_delay = msecs_to_jiffies(ss->close_delay * 10);
-	closing_wait = ss->closing_wait == ASYNC_CLOSING_WAIT_NONE ?
-			ASYNC_CLOSING_WAIT_NONE :
+	closing_wait = ss->closing_wait == ASYNC_CLOSING_WAIT_ANALNE ?
+			ASYNC_CLOSING_WAIT_ANALNE :
 			msecs_to_jiffies(ss->closing_wait * 10);
 
 	mutex_lock(&acm->port.mutex);
@@ -1026,7 +1026,7 @@ static int wait_serial_change(struct acm *acm, unsigned long arg)
 			if (arg & TIOCM_CD)
 				break;
 			else
-				rv = -ENODEV;
+				rv = -EANALDEV;
 		} else {
 			if (signal_pending(current))
 				rv = -ERESTARTSYS;
@@ -1058,7 +1058,7 @@ static int acm_tty_ioctl(struct tty_struct *tty,
 					unsigned int cmd, unsigned long arg)
 {
 	struct acm *acm = tty->driver_data;
-	int rv = -ENOIOCTLCMD;
+	int rv = -EANALIOCTLCMD;
 
 	switch (cmd) {
 	case TIOCMIWAIT:
@@ -1160,7 +1160,7 @@ static int acm_write_buffers_alloc(struct acm *acm)
 				usb_free_coherent(acm->dev, acm->writesize,
 				    wb->buf, wb->dmah);
 			}
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 	return 0;
@@ -1181,7 +1181,7 @@ static int acm_probe(struct usb_interface *intf,
 	struct usb_device *usb_dev = interface_to_usbdev(intf);
 	struct usb_cdc_parsed_header h;
 	struct acm *acm;
-	int minor;
+	int mianalr;
 	int ctrlsize, readsize;
 	u8 *buf;
 	int call_intf_num = -1;
@@ -1191,30 +1191,30 @@ static int acm_probe(struct usb_interface *intf,
 	int i;
 	int combined_interfaces = 0;
 	struct device *tty_dev;
-	int rv = -ENOMEM;
+	int rv = -EANALMEM;
 	int res;
 
-	/* normal quirks */
+	/* analrmal quirks */
 	quirks = (unsigned long)id->driver_info;
 
-	if (quirks == IGNORE_DEVICE)
-		return -ENODEV;
+	if (quirks == IGANALRE_DEVICE)
+		return -EANALDEV;
 
 	memset(&h, 0x00, sizeof(struct usb_cdc_parsed_header));
 
 	num_rx_buf = (quirks == SINGLE_RX_URB) ? 1 : ACM_NR;
 
-	/* handle quirks deadly to normal probing*/
-	if (quirks == NO_UNION_NORMAL) {
+	/* handle quirks deadly to analrmal probing*/
+	if (quirks == ANAL_UNION_ANALRMAL) {
 		data_interface = usb_ifnum_to_if(usb_dev, 1);
 		control_interface = usb_ifnum_to_if(usb_dev, 0);
 		/* we would crash */
 		if (!data_interface || !control_interface)
-			return -ENODEV;
-		goto skip_normal_probe;
+			return -EANALDEV;
+		goto skip_analrmal_probe;
 	}
 
-	/* normal probing*/
+	/* analrmal probing*/
 	if (!buffer) {
 		dev_err(&intf->dev, "Weird descriptor references\n");
 		return -EINVAL;
@@ -1243,18 +1243,18 @@ static int acm_probe(struct usb_interface *intf,
 
 	if (!union_header) {
 		if (intf->cur_altsetting->desc.bNumEndpoints == 3) {
-			dev_dbg(&intf->dev, "No union descriptor, assuming single interface\n");
+			dev_dbg(&intf->dev, "Anal union descriptor, assuming single interface\n");
 			combined_interfaces = 1;
 			control_interface = data_interface = intf;
 			goto look_for_collapsed_interface;
 		} else if (call_intf_num > 0) {
-			dev_dbg(&intf->dev, "No union descriptor, using call management descriptor\n");
+			dev_dbg(&intf->dev, "Anal union descriptor, using call management descriptor\n");
 			data_intf_num = call_intf_num;
 			data_interface = usb_ifnum_to_if(usb_dev, data_intf_num);
 			control_interface = intf;
 		} else {
-			dev_dbg(&intf->dev, "No union descriptor, giving up\n");
-			return -ENODEV;
+			dev_dbg(&intf->dev, "Anal union descriptor, giving up\n");
+			return -EANALDEV;
 		}
 	} else {
 		int class = -1;
@@ -1275,19 +1275,19 @@ static int acm_probe(struct usb_interface *intf,
 	}
 
 	if (!control_interface || !data_interface) {
-		dev_dbg(&intf->dev, "no interfaces\n");
-		return -ENODEV;
+		dev_dbg(&intf->dev, "anal interfaces\n");
+		return -EANALDEV;
 	}
 
 	if (data_intf_num != call_intf_num)
-		dev_dbg(&intf->dev, "Separate call control interface. That is not fully supported.\n");
+		dev_dbg(&intf->dev, "Separate call control interface. That is analt fully supported.\n");
 
 	if (control_interface == data_interface) {
 		/* some broken devices designed for windows work this way */
-		dev_warn(&intf->dev,"Control and data interfaces are not separated!\n");
+		dev_warn(&intf->dev,"Control and data interfaces are analt separated!\n");
 		combined_interfaces = 1;
 		/* a popular other OS doesn't use it */
-		quirks |= NO_CAP_LINE;
+		quirks |= ANAL_CAP_LINE;
 		if (data_interface->cur_altsetting->desc.bNumEndpoints != 3) {
 			dev_err(&intf->dev, "This needs exactly 3 endpoints\n");
 			return -EINVAL;
@@ -1301,7 +1301,7 @@ look_for_collapsed_interface:
 		goto made_compressed_probe;
 	}
 
-skip_normal_probe:
+skip_analrmal_probe:
 
 	/*workaround for switched interfaces */
 	if (data_interface->cur_altsetting->desc.bInterfaceClass != USB_CLASS_CDC_DATA) {
@@ -1316,7 +1316,7 @@ skip_normal_probe:
 
 	/* Accept probe requests only for the control interface */
 	if (!combined_interfaces && intf != control_interface)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (data_interface->cur_altsetting->desc.bNumEndpoints < 2 ||
 	    control_interface->cur_altsetting->desc.bNumEndpoints == 0)
@@ -1339,7 +1339,7 @@ made_compressed_probe:
 
 	acm = kzalloc(sizeof(struct acm), GFP_KERNEL);
 	if (!acm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tty_port_init(&acm->port);
 	acm->port.ops = &acm_port_ops;
@@ -1354,17 +1354,17 @@ made_compressed_probe:
 
 	usb_get_intf(acm->control); /* undone in destruct() */
 
-	minor = acm_alloc_minor(acm);
-	if (minor < 0) {
-		acm->minor = ACM_MINOR_INVALID;
+	mianalr = acm_alloc_mianalr(acm);
+	if (mianalr < 0) {
+		acm->mianalr = ACM_MIANALR_INVALID;
 		goto err_put_port;
 	}
 
-	acm->minor = minor;
+	acm->mianalr = mianalr;
 	acm->dev = usb_dev;
 	if (h.usb_cdc_acm_descriptor)
 		acm->ctrl_caps = h.usb_cdc_acm_descriptor->bmCapabilities;
-	if (quirks & NO_CAP_LINE)
+	if (quirks & ANAL_CAP_LINE)
 		acm->ctrl_caps &= ~USB_CDC_CAP_LINE;
 	acm->ctrlsize = ctrlsize;
 	acm->readsize = readsize;
@@ -1414,7 +1414,7 @@ made_compressed_probe:
 		if (!urb)
 			goto err_free_read_urbs;
 
-		urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+		urb->transfer_flags |= URB_ANAL_TRANSFER_DMA_MAP;
 		urb->transfer_dma = rb->dma;
 		if (usb_endpoint_xfer_int(epread))
 			usb_fill_int_urb(urb, acm->dev, acm->in, rb->base,
@@ -1442,7 +1442,7 @@ made_compressed_probe:
 		else
 			usb_fill_bulk_urb(snd->urb, usb_dev, acm->out,
 				NULL, acm->writesize, acm_write_bulk, snd);
-		snd->urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+		snd->urb->transfer_flags |= URB_ANAL_TRANSFER_DMA_MAP;
 		if (quirks & SEND_ZERO_PACKET)
 			snd->urb->transfer_flags |= URB_ZERO_PACKET;
 		snd->instance = acm;
@@ -1491,9 +1491,9 @@ skip_countries:
 			 acm->ctrl_buffer, ctrlsize, acm_ctrl_irq, acm,
 			 /* works around buggy devices */
 			 epctrl->bInterval ? epctrl->bInterval : 16);
-	acm->ctrlurb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+	acm->ctrlurb->transfer_flags |= URB_ANAL_TRANSFER_DMA_MAP;
 	acm->ctrlurb->transfer_dma = acm->ctrl_dma;
-	acm->notification_buffer = NULL;
+	acm->analtification_buffer = NULL;
 	acm->nb_index = 0;
 	acm->nb_size = 0;
 
@@ -1507,7 +1507,7 @@ skip_countries:
 			goto err_remove_files;
 	}
 
-	tty_dev = tty_port_register_device(&acm->port, acm_tty_driver, minor,
+	tty_dev = tty_port_register_device(&acm->port, acm_tty_driver, mianalr,
 			&control_interface->dev);
 	if (IS_ERR(tty_dev)) {
 		rv = PTR_ERR(tty_dev);
@@ -1519,7 +1519,7 @@ skip_countries:
 		usb_clear_halt(usb_dev, acm->out);
 	}
 
-	dev_info(&intf->dev, "ttyACM%d: USB ACM device\n", minor);
+	dev_info(&intf->dev, "ttyACM%d: USB ACM device\n", mianalr);
 
 	return 0;
 
@@ -1593,7 +1593,7 @@ static void acm_disconnect(struct usb_interface *intf)
 
 	cancel_delayed_work_sync(&acm->dwork);
 
-	tty_unregister_device(acm_tty_driver, acm->minor);
+	tty_unregister_device(acm_tty_driver, acm->mianalr);
 
 	usb_free_urb(acm->ctrlurb);
 	for (i = 0; i < ACM_NW; i++)
@@ -1604,7 +1604,7 @@ static void acm_disconnect(struct usb_interface *intf)
 	usb_free_coherent(acm->dev, acm->ctrlsize, acm->ctrl_buffer, acm->ctrl_dma);
 	acm_read_buffers_free(acm);
 
-	kfree(acm->notification_buffer);
+	kfree(acm->analtification_buffer);
 
 	if (!acm->combined_interfaces)
 		usb_driver_release_interface(&acm_driver, intf == acm->control ?
@@ -1700,7 +1700,7 @@ static int acm_pre_reset(struct usb_interface *intf)
 	return 0;
 }
 
-#define NOKIA_PCSUITE_ACM_INFO(x) \
+#define ANALKIA_PCSUITE_ACM_INFO(x) \
 		USB_DEVICE_AND_INTERFACE_INFO(0x0421, x, \
 		USB_CLASS_COMM, USB_CDC_SUBCLASS_ACM, \
 		USB_CDC_ACM_PROTO_VENDOR)
@@ -1716,14 +1716,14 @@ static int acm_pre_reset(struct usb_interface *intf)
 
 static const struct usb_device_id acm_ids[] = {
 	/* quirky and broken devices */
-	{ USB_DEVICE(0x0424, 0x274e), /* Microchip Technology, Inc. (formerly SMSC) */
+	{ USB_DEVICE(0x0424, 0x274e), /* Microchip Techanallogy, Inc. (formerly SMSC) */
 	  .driver_info = DISABLE_ECHO, }, /* DISABLE ECHO in termios flag */
 	{ USB_DEVICE(0x076d, 0x0006), /* Denso Cradle CU-321 */
-	.driver_info = NO_UNION_NORMAL, },/* has no union descriptor */
-	{ USB_DEVICE(0x17ef, 0x7000), /* Lenovo USB modem */
-	.driver_info = NO_UNION_NORMAL, },/* has no union descriptor */
+	.driver_info = ANAL_UNION_ANALRMAL, },/* has anal union descriptor */
+	{ USB_DEVICE(0x17ef, 0x7000), /* Leanalvo USB modem */
+	.driver_info = ANAL_UNION_ANALRMAL, },/* has anal union descriptor */
 	{ USB_DEVICE(0x0870, 0x0001), /* Metricom GS Modem */
-	.driver_info = NO_UNION_NORMAL, /* has no union descriptor */
+	.driver_info = ANAL_UNION_ANALRMAL, /* has anal union descriptor */
 	},
 	{ USB_DEVICE(0x045b, 0x023c),	/* Renesas USB Download mode */
 	.driver_info = DISABLE_ECHO,	/* Don't echo banner */
@@ -1735,19 +1735,19 @@ static const struct usb_device_id acm_ids[] = {
 	.driver_info = DISABLE_ECHO,	/* Don't echo banner */
 	},
 	{ USB_DEVICE(0x0e8d, 0x0003), /* FIREFLY, MediaTek Inc; andrey.arapov@gmail.com */
-	.driver_info = NO_UNION_NORMAL, /* has no union descriptor */
+	.driver_info = ANAL_UNION_ANALRMAL, /* has anal union descriptor */
 	},
 	{ USB_DEVICE(0x0e8d, 0x2000), /* MediaTek Inc Preloader */
 	.driver_info = DISABLE_ECHO, /* DISABLE ECHO in termios flag */
 	},
 	{ USB_DEVICE(0x0e8d, 0x3329), /* MediaTek Inc GPS */
-	.driver_info = NO_UNION_NORMAL, /* has no union descriptor */
+	.driver_info = ANAL_UNION_ANALRMAL, /* has anal union descriptor */
 	},
 	{ USB_DEVICE(0x0482, 0x0203), /* KYOCERA AH-K3001V */
-	.driver_info = NO_UNION_NORMAL, /* has no union descriptor */
+	.driver_info = ANAL_UNION_ANALRMAL, /* has anal union descriptor */
 	},
 	{ USB_DEVICE(0x079b, 0x000f), /* BT On-Air USB MODEM */
-	.driver_info = NO_UNION_NORMAL, /* has no union descriptor */
+	.driver_info = ANAL_UNION_ANALRMAL, /* has anal union descriptor */
 	},
 	{ USB_DEVICE(0x0ace, 0x1602), /* ZyDAS 56K USB MODEM */
 	.driver_info = SINGLE_RX_URB,
@@ -1762,25 +1762,25 @@ static const struct usb_device_id acm_ids[] = {
 	.driver_info = SINGLE_RX_URB,
 	},
 	{ USB_DEVICE(0x1965, 0x0018), /* Uniden UBC125XLT */
-	.driver_info = NO_UNION_NORMAL, /* has no union descriptor */
+	.driver_info = ANAL_UNION_ANALRMAL, /* has anal union descriptor */
 	},
 	{ USB_DEVICE(0x22b8, 0x7000), /* Motorola Q Phone */
-	.driver_info = NO_UNION_NORMAL, /* has no union descriptor */
+	.driver_info = ANAL_UNION_ANALRMAL, /* has anal union descriptor */
 	},
 	{ USB_DEVICE(0x0803, 0x3095), /* Zoom Telephonics Model 3095F USB MODEM */
-	.driver_info = NO_UNION_NORMAL, /* has no union descriptor */
+	.driver_info = ANAL_UNION_ANALRMAL, /* has anal union descriptor */
 	},
 	{ USB_DEVICE(0x0572, 0x1321), /* Conexant USB MODEM CX93010 */
-	.driver_info = NO_UNION_NORMAL, /* has no union descriptor */
+	.driver_info = ANAL_UNION_ANALRMAL, /* has anal union descriptor */
 	},
 	{ USB_DEVICE(0x0572, 0x1324), /* Conexant USB MODEM RD02-D400 */
-	.driver_info = NO_UNION_NORMAL, /* has no union descriptor */
+	.driver_info = ANAL_UNION_ANALRMAL, /* has anal union descriptor */
 	},
 	{ USB_DEVICE(0x0572, 0x1328), /* Shiro / Aztech USB MODEM UM-3100 */
-	.driver_info = NO_UNION_NORMAL, /* has no union descriptor */
+	.driver_info = ANAL_UNION_ANALRMAL, /* has anal union descriptor */
 	},
 	{ USB_DEVICE(0x0572, 0x1349), /* Hiro (Conexant) USB MODEM H50228 */
-	.driver_info = NO_UNION_NORMAL, /* has no union descriptor */
+	.driver_info = ANAL_UNION_ANALRMAL, /* has anal union descriptor */
 	},
 	{ USB_DEVICE(0x20df, 0x0001), /* Simtec Electronics Entropy Key */
 	.driver_info = QUIRK_CONTROL_LINE_STATE, },
@@ -1790,184 +1790,184 @@ static const struct usb_device_id acm_ids[] = {
 	},
 	/* Motorola H24 HSPA module: */
 	{ USB_DEVICE(0x22b8, 0x2d91) }, /* modem                                */
-	{ USB_DEVICE(0x22b8, 0x2d92),   /* modem           + diagnostics        */
-	.driver_info = NO_UNION_NORMAL, /* handle only modem interface          */
+	{ USB_DEVICE(0x22b8, 0x2d92),   /* modem           + diaganalstics        */
+	.driver_info = ANAL_UNION_ANALRMAL, /* handle only modem interface          */
 	},
 	{ USB_DEVICE(0x22b8, 0x2d93),   /* modem + AT port                      */
-	.driver_info = NO_UNION_NORMAL, /* handle only modem interface          */
+	.driver_info = ANAL_UNION_ANALRMAL, /* handle only modem interface          */
 	},
-	{ USB_DEVICE(0x22b8, 0x2d95),   /* modem + AT port + diagnostics        */
-	.driver_info = NO_UNION_NORMAL, /* handle only modem interface          */
+	{ USB_DEVICE(0x22b8, 0x2d95),   /* modem + AT port + diaganalstics        */
+	.driver_info = ANAL_UNION_ANALRMAL, /* handle only modem interface          */
 	},
 	{ USB_DEVICE(0x22b8, 0x2d96),   /* modem                         + NMEA */
-	.driver_info = NO_UNION_NORMAL, /* handle only modem interface          */
+	.driver_info = ANAL_UNION_ANALRMAL, /* handle only modem interface          */
 	},
-	{ USB_DEVICE(0x22b8, 0x2d97),   /* modem           + diagnostics + NMEA */
-	.driver_info = NO_UNION_NORMAL, /* handle only modem interface          */
+	{ USB_DEVICE(0x22b8, 0x2d97),   /* modem           + diaganalstics + NMEA */
+	.driver_info = ANAL_UNION_ANALRMAL, /* handle only modem interface          */
 	},
 	{ USB_DEVICE(0x22b8, 0x2d99),   /* modem + AT port               + NMEA */
-	.driver_info = NO_UNION_NORMAL, /* handle only modem interface          */
+	.driver_info = ANAL_UNION_ANALRMAL, /* handle only modem interface          */
 	},
-	{ USB_DEVICE(0x22b8, 0x2d9a),   /* modem + AT port + diagnostics + NMEA */
-	.driver_info = NO_UNION_NORMAL, /* handle only modem interface          */
+	{ USB_DEVICE(0x22b8, 0x2d9a),   /* modem + AT port + diaganalstics + NMEA */
+	.driver_info = ANAL_UNION_ANALRMAL, /* handle only modem interface          */
 	},
 
 	{ USB_DEVICE(0x0572, 0x1329), /* Hummingbird huc56s (Conexant) */
-	.driver_info = NO_UNION_NORMAL, /* union descriptor misplaced on
+	.driver_info = ANAL_UNION_ANALRMAL, /* union descriptor misplaced on
 					   data interface instead of
 					   communications interface.
 					   Maybe we should define a new
 					   quirk for this. */
 	},
 	{ USB_DEVICE(0x0572, 0x1340), /* Conexant CX93010-2x UCMxx */
-	.driver_info = NO_UNION_NORMAL,
+	.driver_info = ANAL_UNION_ANALRMAL,
 	},
 	{ USB_DEVICE(0x05f9, 0x4002), /* PSC Scanning, Magellan 800i */
-	.driver_info = NO_UNION_NORMAL,
+	.driver_info = ANAL_UNION_ANALRMAL,
 	},
 	{ USB_DEVICE(0x1bbb, 0x0003), /* Alcatel OT-I650 */
-	.driver_info = NO_UNION_NORMAL, /* reports zero length descriptor */
+	.driver_info = ANAL_UNION_ANALRMAL, /* reports zero length descriptor */
 	},
 	{ USB_DEVICE(0x1576, 0x03b1), /* Maretron USB100 */
-	.driver_info = NO_UNION_NORMAL, /* reports zero length descriptor */
+	.driver_info = ANAL_UNION_ANALRMAL, /* reports zero length descriptor */
 	},
 	{ USB_DEVICE(0xfff0, 0x0100), /* DATECS FP-2000 */
-	.driver_info = NO_UNION_NORMAL, /* reports zero length descriptor */
+	.driver_info = ANAL_UNION_ANALRMAL, /* reports zero length descriptor */
 	},
 	{ USB_DEVICE(0x09d8, 0x0320), /* Elatec GmbH TWN3 */
-	.driver_info = NO_UNION_NORMAL, /* has misplaced union descriptor */
+	.driver_info = ANAL_UNION_ANALRMAL, /* has misplaced union descriptor */
 	},
 	{ USB_DEVICE(0x0c26, 0x0020), /* Icom ICF3400 Serie */
-	.driver_info = NO_UNION_NORMAL, /* reports zero length descriptor */
+	.driver_info = ANAL_UNION_ANALRMAL, /* reports zero length descriptor */
 	},
 	{ USB_DEVICE(0x0ca6, 0xa050), /* Castles VEGA3000 */
-	.driver_info = NO_UNION_NORMAL, /* reports zero length descriptor */
+	.driver_info = ANAL_UNION_ANALRMAL, /* reports zero length descriptor */
 	},
 
 	{ USB_DEVICE(0x2912, 0x0001), /* ATOL FPrint */
 	.driver_info = CLEAR_HALT_CONDITIONS,
 	},
 
-	/* Nokia S60 phones expose two ACM channels. The first is
+	/* Analkia S60 phones expose two ACM channels. The first is
 	 * a modem and is picked up by the standard AT-command
 	 * information below. The second is 'vendor-specific' but
 	 * is treated as a serial device at the S60 end, so we want
 	 * to expose it on Linux too. */
-	{ NOKIA_PCSUITE_ACM_INFO(0x042D), }, /* Nokia 3250 */
-	{ NOKIA_PCSUITE_ACM_INFO(0x04D8), }, /* Nokia 5500 Sport */
-	{ NOKIA_PCSUITE_ACM_INFO(0x04C9), }, /* Nokia E50 */
-	{ NOKIA_PCSUITE_ACM_INFO(0x0419), }, /* Nokia E60 */
-	{ NOKIA_PCSUITE_ACM_INFO(0x044D), }, /* Nokia E61 */
-	{ NOKIA_PCSUITE_ACM_INFO(0x0001), }, /* Nokia E61i */
-	{ NOKIA_PCSUITE_ACM_INFO(0x0475), }, /* Nokia E62 */
-	{ NOKIA_PCSUITE_ACM_INFO(0x0508), }, /* Nokia E65 */
-	{ NOKIA_PCSUITE_ACM_INFO(0x0418), }, /* Nokia E70 */
-	{ NOKIA_PCSUITE_ACM_INFO(0x0425), }, /* Nokia N71 */
-	{ NOKIA_PCSUITE_ACM_INFO(0x0486), }, /* Nokia N73 */
-	{ NOKIA_PCSUITE_ACM_INFO(0x04DF), }, /* Nokia N75 */
-	{ NOKIA_PCSUITE_ACM_INFO(0x000e), }, /* Nokia N77 */
-	{ NOKIA_PCSUITE_ACM_INFO(0x0445), }, /* Nokia N80 */
-	{ NOKIA_PCSUITE_ACM_INFO(0x042F), }, /* Nokia N91 & N91 8GB */
-	{ NOKIA_PCSUITE_ACM_INFO(0x048E), }, /* Nokia N92 */
-	{ NOKIA_PCSUITE_ACM_INFO(0x0420), }, /* Nokia N93 */
-	{ NOKIA_PCSUITE_ACM_INFO(0x04E6), }, /* Nokia N93i  */
-	{ NOKIA_PCSUITE_ACM_INFO(0x04B2), }, /* Nokia 5700 XpressMusic */
-	{ NOKIA_PCSUITE_ACM_INFO(0x0134), }, /* Nokia 6110 Navigator (China) */
-	{ NOKIA_PCSUITE_ACM_INFO(0x046E), }, /* Nokia 6110 Navigator */
-	{ NOKIA_PCSUITE_ACM_INFO(0x002f), }, /* Nokia 6120 classic &  */
-	{ NOKIA_PCSUITE_ACM_INFO(0x0088), }, /* Nokia 6121 classic */
-	{ NOKIA_PCSUITE_ACM_INFO(0x00fc), }, /* Nokia 6124 classic */
-	{ NOKIA_PCSUITE_ACM_INFO(0x0042), }, /* Nokia E51 */
-	{ NOKIA_PCSUITE_ACM_INFO(0x00b0), }, /* Nokia E66 */
-	{ NOKIA_PCSUITE_ACM_INFO(0x00ab), }, /* Nokia E71 */
-	{ NOKIA_PCSUITE_ACM_INFO(0x0481), }, /* Nokia N76 */
-	{ NOKIA_PCSUITE_ACM_INFO(0x0007), }, /* Nokia N81 & N81 8GB */
-	{ NOKIA_PCSUITE_ACM_INFO(0x0071), }, /* Nokia N82 */
-	{ NOKIA_PCSUITE_ACM_INFO(0x04F0), }, /* Nokia N95 & N95-3 NAM */
-	{ NOKIA_PCSUITE_ACM_INFO(0x0070), }, /* Nokia N95 8GB  */
-	{ NOKIA_PCSUITE_ACM_INFO(0x0099), }, /* Nokia 6210 Navigator, RM-367 */
-	{ NOKIA_PCSUITE_ACM_INFO(0x0128), }, /* Nokia 6210 Navigator, RM-419 */
-	{ NOKIA_PCSUITE_ACM_INFO(0x008f), }, /* Nokia 6220 Classic */
-	{ NOKIA_PCSUITE_ACM_INFO(0x00a0), }, /* Nokia 6650 */
-	{ NOKIA_PCSUITE_ACM_INFO(0x007b), }, /* Nokia N78 */
-	{ NOKIA_PCSUITE_ACM_INFO(0x0094), }, /* Nokia N85 */
-	{ NOKIA_PCSUITE_ACM_INFO(0x003a), }, /* Nokia N96 & N96-3  */
-	{ NOKIA_PCSUITE_ACM_INFO(0x00e9), }, /* Nokia 5320 XpressMusic */
-	{ NOKIA_PCSUITE_ACM_INFO(0x0108), }, /* Nokia 5320 XpressMusic 2G */
-	{ NOKIA_PCSUITE_ACM_INFO(0x01f5), }, /* Nokia N97, RM-505 */
-	{ NOKIA_PCSUITE_ACM_INFO(0x02e3), }, /* Nokia 5230, RM-588 */
-	{ NOKIA_PCSUITE_ACM_INFO(0x0178), }, /* Nokia E63 */
-	{ NOKIA_PCSUITE_ACM_INFO(0x010e), }, /* Nokia E75 */
-	{ NOKIA_PCSUITE_ACM_INFO(0x02d9), }, /* Nokia 6760 Slide */
-	{ NOKIA_PCSUITE_ACM_INFO(0x01d0), }, /* Nokia E52 */
-	{ NOKIA_PCSUITE_ACM_INFO(0x0223), }, /* Nokia E72 */
-	{ NOKIA_PCSUITE_ACM_INFO(0x0275), }, /* Nokia X6 */
-	{ NOKIA_PCSUITE_ACM_INFO(0x026c), }, /* Nokia N97 Mini */
-	{ NOKIA_PCSUITE_ACM_INFO(0x0154), }, /* Nokia 5800 XpressMusic */
-	{ NOKIA_PCSUITE_ACM_INFO(0x04ce), }, /* Nokia E90 */
-	{ NOKIA_PCSUITE_ACM_INFO(0x01d4), }, /* Nokia E55 */
-	{ NOKIA_PCSUITE_ACM_INFO(0x0302), }, /* Nokia N8 */
-	{ NOKIA_PCSUITE_ACM_INFO(0x0335), }, /* Nokia E7 */
-	{ NOKIA_PCSUITE_ACM_INFO(0x03cd), }, /* Nokia C7 */
-	{ SAMSUNG_PCSUITE_ACM_INFO(0x6651), }, /* Samsung GTi8510 (INNOV8) */
+	{ ANALKIA_PCSUITE_ACM_INFO(0x042D), }, /* Analkia 3250 */
+	{ ANALKIA_PCSUITE_ACM_INFO(0x04D8), }, /* Analkia 5500 Sport */
+	{ ANALKIA_PCSUITE_ACM_INFO(0x04C9), }, /* Analkia E50 */
+	{ ANALKIA_PCSUITE_ACM_INFO(0x0419), }, /* Analkia E60 */
+	{ ANALKIA_PCSUITE_ACM_INFO(0x044D), }, /* Analkia E61 */
+	{ ANALKIA_PCSUITE_ACM_INFO(0x0001), }, /* Analkia E61i */
+	{ ANALKIA_PCSUITE_ACM_INFO(0x0475), }, /* Analkia E62 */
+	{ ANALKIA_PCSUITE_ACM_INFO(0x0508), }, /* Analkia E65 */
+	{ ANALKIA_PCSUITE_ACM_INFO(0x0418), }, /* Analkia E70 */
+	{ ANALKIA_PCSUITE_ACM_INFO(0x0425), }, /* Analkia N71 */
+	{ ANALKIA_PCSUITE_ACM_INFO(0x0486), }, /* Analkia N73 */
+	{ ANALKIA_PCSUITE_ACM_INFO(0x04DF), }, /* Analkia N75 */
+	{ ANALKIA_PCSUITE_ACM_INFO(0x000e), }, /* Analkia N77 */
+	{ ANALKIA_PCSUITE_ACM_INFO(0x0445), }, /* Analkia N80 */
+	{ ANALKIA_PCSUITE_ACM_INFO(0x042F), }, /* Analkia N91 & N91 8GB */
+	{ ANALKIA_PCSUITE_ACM_INFO(0x048E), }, /* Analkia N92 */
+	{ ANALKIA_PCSUITE_ACM_INFO(0x0420), }, /* Analkia N93 */
+	{ ANALKIA_PCSUITE_ACM_INFO(0x04E6), }, /* Analkia N93i  */
+	{ ANALKIA_PCSUITE_ACM_INFO(0x04B2), }, /* Analkia 5700 XpressMusic */
+	{ ANALKIA_PCSUITE_ACM_INFO(0x0134), }, /* Analkia 6110 Navigator (China) */
+	{ ANALKIA_PCSUITE_ACM_INFO(0x046E), }, /* Analkia 6110 Navigator */
+	{ ANALKIA_PCSUITE_ACM_INFO(0x002f), }, /* Analkia 6120 classic &  */
+	{ ANALKIA_PCSUITE_ACM_INFO(0x0088), }, /* Analkia 6121 classic */
+	{ ANALKIA_PCSUITE_ACM_INFO(0x00fc), }, /* Analkia 6124 classic */
+	{ ANALKIA_PCSUITE_ACM_INFO(0x0042), }, /* Analkia E51 */
+	{ ANALKIA_PCSUITE_ACM_INFO(0x00b0), }, /* Analkia E66 */
+	{ ANALKIA_PCSUITE_ACM_INFO(0x00ab), }, /* Analkia E71 */
+	{ ANALKIA_PCSUITE_ACM_INFO(0x0481), }, /* Analkia N76 */
+	{ ANALKIA_PCSUITE_ACM_INFO(0x0007), }, /* Analkia N81 & N81 8GB */
+	{ ANALKIA_PCSUITE_ACM_INFO(0x0071), }, /* Analkia N82 */
+	{ ANALKIA_PCSUITE_ACM_INFO(0x04F0), }, /* Analkia N95 & N95-3 NAM */
+	{ ANALKIA_PCSUITE_ACM_INFO(0x0070), }, /* Analkia N95 8GB  */
+	{ ANALKIA_PCSUITE_ACM_INFO(0x0099), }, /* Analkia 6210 Navigator, RM-367 */
+	{ ANALKIA_PCSUITE_ACM_INFO(0x0128), }, /* Analkia 6210 Navigator, RM-419 */
+	{ ANALKIA_PCSUITE_ACM_INFO(0x008f), }, /* Analkia 6220 Classic */
+	{ ANALKIA_PCSUITE_ACM_INFO(0x00a0), }, /* Analkia 6650 */
+	{ ANALKIA_PCSUITE_ACM_INFO(0x007b), }, /* Analkia N78 */
+	{ ANALKIA_PCSUITE_ACM_INFO(0x0094), }, /* Analkia N85 */
+	{ ANALKIA_PCSUITE_ACM_INFO(0x003a), }, /* Analkia N96 & N96-3  */
+	{ ANALKIA_PCSUITE_ACM_INFO(0x00e9), }, /* Analkia 5320 XpressMusic */
+	{ ANALKIA_PCSUITE_ACM_INFO(0x0108), }, /* Analkia 5320 XpressMusic 2G */
+	{ ANALKIA_PCSUITE_ACM_INFO(0x01f5), }, /* Analkia N97, RM-505 */
+	{ ANALKIA_PCSUITE_ACM_INFO(0x02e3), }, /* Analkia 5230, RM-588 */
+	{ ANALKIA_PCSUITE_ACM_INFO(0x0178), }, /* Analkia E63 */
+	{ ANALKIA_PCSUITE_ACM_INFO(0x010e), }, /* Analkia E75 */
+	{ ANALKIA_PCSUITE_ACM_INFO(0x02d9), }, /* Analkia 6760 Slide */
+	{ ANALKIA_PCSUITE_ACM_INFO(0x01d0), }, /* Analkia E52 */
+	{ ANALKIA_PCSUITE_ACM_INFO(0x0223), }, /* Analkia E72 */
+	{ ANALKIA_PCSUITE_ACM_INFO(0x0275), }, /* Analkia X6 */
+	{ ANALKIA_PCSUITE_ACM_INFO(0x026c), }, /* Analkia N97 Mini */
+	{ ANALKIA_PCSUITE_ACM_INFO(0x0154), }, /* Analkia 5800 XpressMusic */
+	{ ANALKIA_PCSUITE_ACM_INFO(0x04ce), }, /* Analkia E90 */
+	{ ANALKIA_PCSUITE_ACM_INFO(0x01d4), }, /* Analkia E55 */
+	{ ANALKIA_PCSUITE_ACM_INFO(0x0302), }, /* Analkia N8 */
+	{ ANALKIA_PCSUITE_ACM_INFO(0x0335), }, /* Analkia E7 */
+	{ ANALKIA_PCSUITE_ACM_INFO(0x03cd), }, /* Analkia C7 */
+	{ SAMSUNG_PCSUITE_ACM_INFO(0x6651), }, /* Samsung GTi8510 (INANALV8) */
 
 	/* Support for Owen devices */
 	{ USB_DEVICE(0x03eb, 0x0030), }, /* Owen SI30 */
 
-	/* NOTE: non-Nokia COMM/ACM/0xff is likely MSFT RNDIS... NOT a modem! */
+	/* ANALTE: analn-Analkia COMM/ACM/0xff is likely MSFT RNDIS... ANALT a modem! */
 
 #if IS_ENABLED(CONFIG_INPUT_IMS_PCU)
 	{ USB_DEVICE(0x04d8, 0x0082),	/* Application mode */
-	.driver_info = IGNORE_DEVICE,
+	.driver_info = IGANALRE_DEVICE,
 	},
 	{ USB_DEVICE(0x04d8, 0x0083),	/* Bootloader mode */
-	.driver_info = IGNORE_DEVICE,
+	.driver_info = IGANALRE_DEVICE,
 	},
 #endif
 
 #if IS_ENABLED(CONFIG_IR_TOY)
 	{ USB_DEVICE(0x04d8, 0xfd08),
-	.driver_info = IGNORE_DEVICE,
+	.driver_info = IGANALRE_DEVICE,
 	},
 
 	{ USB_DEVICE(0x04d8, 0xf58b),
-	.driver_info = IGNORE_DEVICE,
+	.driver_info = IGANALRE_DEVICE,
 	},
 #endif
 
 #if IS_ENABLED(CONFIG_USB_SERIAL_XR)
-	{ USB_DEVICE(0x04e2, 0x1400), .driver_info = IGNORE_DEVICE },
-	{ USB_DEVICE(0x04e2, 0x1401), .driver_info = IGNORE_DEVICE },
-	{ USB_DEVICE(0x04e2, 0x1402), .driver_info = IGNORE_DEVICE },
-	{ USB_DEVICE(0x04e2, 0x1403), .driver_info = IGNORE_DEVICE },
-	{ USB_DEVICE(0x04e2, 0x1410), .driver_info = IGNORE_DEVICE },
-	{ USB_DEVICE(0x04e2, 0x1411), .driver_info = IGNORE_DEVICE },
-	{ USB_DEVICE(0x04e2, 0x1412), .driver_info = IGNORE_DEVICE },
-	{ USB_DEVICE(0x04e2, 0x1414), .driver_info = IGNORE_DEVICE },
-	{ USB_DEVICE(0x04e2, 0x1420), .driver_info = IGNORE_DEVICE },
-	{ USB_DEVICE(0x04e2, 0x1422), .driver_info = IGNORE_DEVICE },
-	{ USB_DEVICE(0x04e2, 0x1424), .driver_info = IGNORE_DEVICE },
+	{ USB_DEVICE(0x04e2, 0x1400), .driver_info = IGANALRE_DEVICE },
+	{ USB_DEVICE(0x04e2, 0x1401), .driver_info = IGANALRE_DEVICE },
+	{ USB_DEVICE(0x04e2, 0x1402), .driver_info = IGANALRE_DEVICE },
+	{ USB_DEVICE(0x04e2, 0x1403), .driver_info = IGANALRE_DEVICE },
+	{ USB_DEVICE(0x04e2, 0x1410), .driver_info = IGANALRE_DEVICE },
+	{ USB_DEVICE(0x04e2, 0x1411), .driver_info = IGANALRE_DEVICE },
+	{ USB_DEVICE(0x04e2, 0x1412), .driver_info = IGANALRE_DEVICE },
+	{ USB_DEVICE(0x04e2, 0x1414), .driver_info = IGANALRE_DEVICE },
+	{ USB_DEVICE(0x04e2, 0x1420), .driver_info = IGANALRE_DEVICE },
+	{ USB_DEVICE(0x04e2, 0x1422), .driver_info = IGANALRE_DEVICE },
+	{ USB_DEVICE(0x04e2, 0x1424), .driver_info = IGANALRE_DEVICE },
 #endif
 
 	/*Samsung phone in firmware update mode */
 	{ USB_DEVICE(0x04e8, 0x685d),
-	.driver_info = IGNORE_DEVICE,
+	.driver_info = IGANALRE_DEVICE,
 	},
 
 	/* Exclude Infineon Flash Loader utility */
 	{ USB_DEVICE(0x058b, 0x0041),
-	.driver_info = IGNORE_DEVICE,
+	.driver_info = IGANALRE_DEVICE,
 	},
 
 	/* Exclude ETAS ES58x */
 	{ USB_DEVICE(0x108c, 0x0159), /* ES581.4 */
-	.driver_info = IGNORE_DEVICE,
+	.driver_info = IGANALRE_DEVICE,
 	},
 	{ USB_DEVICE(0x108c, 0x0168), /* ES582.1 */
-	.driver_info = IGNORE_DEVICE,
+	.driver_info = IGANALRE_DEVICE,
 	},
 	{ USB_DEVICE(0x108c, 0x0169), /* ES584.1 */
-	.driver_info = IGNORE_DEVICE,
+	.driver_info = IGANALRE_DEVICE,
 	},
 
 	{ USB_DEVICE(0x1bc7, 0x0021), /* Telit 3G ACM only composition */
@@ -1979,17 +1979,17 @@ static const struct usb_device_id acm_ids[] = {
 
 	/* Exclude Goodix Fingerprint Reader */
 	{ USB_DEVICE(0x27c6, 0x5395),
-	.driver_info = IGNORE_DEVICE,
+	.driver_info = IGANALRE_DEVICE,
 	},
 
 	/* Exclude Heimann Sensor GmbH USB appset demo */
 	{ USB_DEVICE(0x32a7, 0x0000),
-	.driver_info = IGNORE_DEVICE,
+	.driver_info = IGANALRE_DEVICE,
 	},
 
 	/* control interfaces without any protocol set */
 	{ USB_INTERFACE_INFO(USB_CLASS_COMM, USB_CDC_SUBCLASS_ACM,
-		USB_CDC_PROTO_NONE) },
+		USB_CDC_PROTO_ANALNE) },
 
 	/* control interfaces with various AT-command sets */
 	{ USB_INTERFACE_INFO(USB_CLASS_COMM, USB_CDC_SUBCLASS_ACM,
@@ -2064,16 +2064,16 @@ static const struct tty_operations acm_ops = {
 static int __init acm_init(void)
 {
 	int retval;
-	acm_tty_driver = tty_alloc_driver(ACM_TTY_MINORS, TTY_DRIVER_REAL_RAW |
+	acm_tty_driver = tty_alloc_driver(ACM_TTY_MIANALRS, TTY_DRIVER_REAL_RAW |
 			TTY_DRIVER_DYNAMIC_DEV);
 	if (IS_ERR(acm_tty_driver))
 		return PTR_ERR(acm_tty_driver);
 	acm_tty_driver->driver_name = "acm",
 	acm_tty_driver->name = "ttyACM",
 	acm_tty_driver->major = ACM_TTY_MAJOR,
-	acm_tty_driver->minor_start = 0,
+	acm_tty_driver->mianalr_start = 0,
 	acm_tty_driver->type = TTY_DRIVER_TYPE_SERIAL,
-	acm_tty_driver->subtype = SERIAL_TYPE_NORMAL,
+	acm_tty_driver->subtype = SERIAL_TYPE_ANALRMAL,
 	acm_tty_driver->init_termios = tty_std_termios;
 	acm_tty_driver->init_termios.c_cflag = B9600 | CS8 | CREAD |
 								HUPCL | CLOCAL;
@@ -2102,7 +2102,7 @@ static void __exit acm_exit(void)
 	usb_deregister(&acm_driver);
 	tty_unregister_driver(acm_tty_driver);
 	tty_driver_kref_put(acm_tty_driver);
-	idr_destroy(&acm_minors);
+	idr_destroy(&acm_mianalrs);
 }
 
 module_init(acm_init);

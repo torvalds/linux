@@ -171,14 +171,14 @@ static const struct em28xx_reg_seq evga_indtube_digital[] = {
 
 /*
  * KWorld PlusTV 340U, UB435-Q and UB435-Q V2 (ATSC) GPIOs map:
- * EM_GPIO_0 - currently unknown
+ * EM_GPIO_0 - currently unkanalwn
  * EM_GPIO_1 - LED disable/enable (1 = off, 0 = on)
- * EM_GPIO_2 - currently unknown
- * EM_GPIO_3 - currently unknown
+ * EM_GPIO_2 - currently unkanalwn
+ * EM_GPIO_3 - currently unkanalwn
  * EM_GPIO_4 - TDA18271HD/C1 tuner (1 = active, 0 = in reset)
  * EM_GPIO_5 - LGDT3304 ATSC/QAM demod (1 = active, 0 = in reset)
- * EM_GPIO_6 - currently unknown
- * EM_GPIO_7 - currently unknown
+ * EM_GPIO_6 - currently unkanalwn
+ * EM_GPIO_7 - currently unkanalwn
  */
 static const struct em28xx_reg_seq kworld_a340_digital[] = {
 	{EM2820_R08_GPIO_CTRL,	0x6d,	~EM_GPIO_4,	10},
@@ -220,7 +220,7 @@ static const struct em28xx_reg_seq terratec_cinergy_USB_XS_FR_digital[] = {
 
 /*
  * PCTV HD Mini (80e) GPIOs
- * 0-5: not used
+ * 0-5: analt used
  * 6:   demod reset, active low
  * 7:   LED on, active high
  */
@@ -315,7 +315,7 @@ static const struct em28xx_reg_seq leadership_reset[] = {
 };
 
 /*
- * 2013:024f PCTV nanoStick T2 290e
+ * 2013:024f PCTV naanalStick T2 290e
  * GPIO_6 - demod reset
  * GPIO_7 - LED
  */
@@ -442,7 +442,7 @@ static const struct em28xx_reg_seq pctv_510e[] = {
 };
 
 /*
- * 2013:0251 PCTV QuatroStick nano (520e)
+ * 2013:0251 PCTV QuatroStick naanal (520e)
  * GPIO_2: decoder reset, 0=active
  * GPIO_4: decoder suspend, 0=active
  * GPIO_6: demod reset, 0=active
@@ -669,7 +669,7 @@ static struct em28xx_led hauppauge_usb_quadhd_leds[] = {
  *  Board definitions
  */
 const struct em28xx_board em28xx_boards[] = {
-	[EM2750_BOARD_UNKNOWN] = {
+	[EM2750_BOARD_UNKANALWN] = {
 		.name          = "EM2710/EM2750/EM2751 webcam grabber",
 		.xclk          = EM28XX_XCLK_FREQUENCY_20MHZ,
 		.tuner_type    = TUNER_ABSENT,
@@ -681,8 +681,8 @@ const struct em28xx_board em28xx_boards[] = {
 			.gpio     = silvercrest_reg_seq,
 		} },
 	},
-	[EM2800_BOARD_UNKNOWN] = {
-		.name         = "Unknown EM2800 video grabber",
+	[EM2800_BOARD_UNKANALWN] = {
+		.name         = "Unkanalwn EM2800 video grabber",
 		.is_em2800    = 1,
 		.tda9887_conf = TDA9887_PRESENT,
 		.decoder      = EM28XX_SAA711X,
@@ -697,8 +697,8 @@ const struct em28xx_board em28xx_boards[] = {
 			.amux     = EM28XX_AMUX_LINE_IN,
 		} },
 	},
-	[EM2820_BOARD_UNKNOWN] = {
-		.name          = "Unknown EM2750/28xx video grabber",
+	[EM2820_BOARD_UNKANALWN] = {
+		.name          = "Unkanalwn EM2750/28xx video grabber",
 		.tuner_type    = TUNER_ABSENT,
 		.is_webcam     = 1,	/* To enable sensor probe */
 	},
@@ -713,9 +713,9 @@ const struct em28xx_board em28xx_boards[] = {
 		.dvb_gpio		= zolid_digital,
 	},
 	[EM2750_BOARD_DLCW_130] = {
-		/* Beijing Huaqi Information Digital Technology Co., Ltd */
+		/* Beijing Huaqi Information Digital Techanallogy Co., Ltd */
 		.name          = "Huaqi DLCW-130",
-		.valid         = EM28XX_BOARD_NOT_VALIDATED,
+		.valid         = EM28XX_BOARD_ANALT_VALIDATED,
 		.xclk          = EM28XX_XCLK_FREQUENCY_48MHZ,
 		.tuner_type    = TUNER_ABSENT,
 		.is_webcam     = 1,
@@ -821,7 +821,7 @@ const struct em28xx_board em28xx_boards[] = {
 	},
 	[EM2820_BOARD_DLINK_USB_TV] = {
 		.name         = "D-Link DUB-T210 TV Tuner",
-		.valid        = EM28XX_BOARD_NOT_VALIDATED,
+		.valid        = EM28XX_BOARD_ANALT_VALIDATED,
 		.tuner_type   = TUNER_LG_PAL_NEW_TAPC,
 		.tda9887_conf = TDA9887_PRESENT,
 		.decoder      = EM28XX_SAA711X,
@@ -841,7 +841,7 @@ const struct em28xx_board em28xx_boards[] = {
 	},
 	[EM2820_BOARD_HERCULES_SMART_TV_USB2] = {
 		.name         = "Hercules Smart TV USB 2.0",
-		.valid        = EM28XX_BOARD_NOT_VALIDATED,
+		.valid        = EM28XX_BOARD_ANALT_VALIDATED,
 		.tuner_type   = TUNER_LG_PAL_NEW_TAPC,
 		.tda9887_conf = TDA9887_PRESENT,
 		.decoder      = EM28XX_SAA711X,
@@ -861,7 +861,7 @@ const struct em28xx_board em28xx_boards[] = {
 	},
 	[EM2820_BOARD_PINNACLE_USB_2_FM1216ME] = {
 		.name         = "Pinnacle PCTV USB 2 (Philips FM1216ME)",
-		.valid        = EM28XX_BOARD_NOT_VALIDATED,
+		.valid        = EM28XX_BOARD_ANALT_VALIDATED,
 		.tuner_type   = TUNER_PHILIPS_FM1216ME_MK3,
 		.tda9887_conf = TDA9887_PRESENT,
 		.decoder      = EM28XX_SAA711X,
@@ -881,7 +881,7 @@ const struct em28xx_board em28xx_boards[] = {
 	},
 	[EM2820_BOARD_GADMEI_UTV310] = {
 		.name         = "Gadmei UTV310",
-		.valid        = EM28XX_BOARD_NOT_VALIDATED,
+		.valid        = EM28XX_BOARD_ANALT_VALIDATED,
 		.tuner_type   = TUNER_TNF_5335MF,
 		.tda9887_conf = TDA9887_PRESENT,
 		.decoder      = EM28XX_SAA711X,
@@ -901,7 +901,7 @@ const struct em28xx_board em28xx_boards[] = {
 	},
 	[EM2820_BOARD_LEADTEK_WINFAST_USBII_DELUXE] = {
 		.name         = "Leadtek Winfast USB II Deluxe",
-		.valid        = EM28XX_BOARD_NOT_VALIDATED,
+		.valid        = EM28XX_BOARD_ANALT_VALIDATED,
 		.tuner_type   = TUNER_PHILIPS_FM1216ME_MK3,
 		.has_ir_i2c   = 1,
 		.tvaudio_addr = 0x58,
@@ -930,7 +930,7 @@ const struct em28xx_board em28xx_boards[] = {
 	},
 	[EM2820_BOARD_VIDEOLOGY_20K14XUSB] = {
 		.name         = "Videology 20K14XUSB USB2.0",
-		.valid        = EM28XX_BOARD_NOT_VALIDATED,
+		.valid        = EM28XX_BOARD_ANALT_VALIDATED,
 		.tuner_type   = TUNER_ABSENT,
 		.is_webcam    = 1,
 		.input        = { {
@@ -952,7 +952,7 @@ const struct em28xx_board em28xx_boards[] = {
 	},
 	[EM2821_BOARD_SUPERCOMP_USB_2] = {
 		.name         = "Supercomp USB 2.0 TV",
-		.valid        = EM28XX_BOARD_NOT_VALIDATED,
+		.valid        = EM28XX_BOARD_ANALT_VALIDATED,
 		.tuner_type   = TUNER_PHILIPS_FM1236_MK3,
 		.tda9887_conf = TDA9887_PRESENT |
 				TDA9887_PORT1_ACTIVE |
@@ -974,7 +974,7 @@ const struct em28xx_board em28xx_boards[] = {
 	},
 	[EM2821_BOARD_USBGEAR_VD204] = {
 		.name         = "Usbgear VD204v9",
-		.valid        = EM28XX_BOARD_NOT_VALIDATED,
+		.valid        = EM28XX_BOARD_ANALT_VALIDATED,
 		.tuner_type   = TUNER_ABSENT,	/* Capture only device */
 		.decoder      = EM28XX_SAA711X,
 		.input        = { {
@@ -988,9 +988,9 @@ const struct em28xx_board em28xx_boards[] = {
 		} },
 	},
 	[EM2860_BOARD_NETGMBH_CAM] = {
-		/* Beijing Huaqi Information Digital Technology Co., Ltd */
+		/* Beijing Huaqi Information Digital Techanallogy Co., Ltd */
 		.name         = "NetGMBH Cam",
-		.valid        = EM28XX_BOARD_NOT_VALIDATED,
+		.valid        = EM28XX_BOARD_ANALT_VALIDATED,
 		.tuner_type   = TUNER_ABSENT,
 		.is_webcam    = 1,
 		.input        = { {
@@ -1015,7 +1015,7 @@ const struct em28xx_board em28xx_boards[] = {
 	},
 	[EM2860_BOARD_GADMEI_UTV330] = {
 		.name         = "Gadmei UTV330",
-		.valid        = EM28XX_BOARD_NOT_VALIDATED,
+		.valid        = EM28XX_BOARD_ANALT_VALIDATED,
 		.tuner_type   = TUNER_TNF_5335MF,
 		.tda9887_conf = TDA9887_PRESENT,
 		.decoder      = EM28XX_SAA711X,
@@ -1056,7 +1056,7 @@ const struct em28xx_board em28xx_boards[] = {
 	},
 	[EM2860_BOARD_TERRATEC_HYBRID_XS] = {
 		.name         = "Terratec Cinergy A Hybrid XS",
-		.valid        = EM28XX_BOARD_NOT_VALIDATED,
+		.valid        = EM28XX_BOARD_ANALT_VALIDATED,
 		.tuner_type   = TUNER_XC2028,
 		.tuner_gpio   = default_tuner_gpio,
 		.decoder      = EM28XX_TVP5150,
@@ -1080,7 +1080,7 @@ const struct em28xx_board em28xx_boards[] = {
 	},
 	[EM2861_BOARD_KWORLD_PVRTV_300U] = {
 		.name	      = "KWorld PVRTV 300U",
-		.valid        = EM28XX_BOARD_NOT_VALIDATED,
+		.valid        = EM28XX_BOARD_ANALT_VALIDATED,
 		.tuner_type   = TUNER_XC2028,
 		.tuner_gpio   = default_tuner_gpio,
 		.decoder      = EM28XX_TVP5150,
@@ -1160,7 +1160,7 @@ const struct em28xx_board em28xx_boards[] = {
 
 	[EM2870_BOARD_TERRATEC_XS] = {
 		.name         = "Terratec Cinergy T XS",
-		.valid        = EM28XX_BOARD_NOT_VALIDATED,
+		.valid        = EM28XX_BOARD_ANALT_VALIDATED,
 		.tuner_type   = TUNER_XC2028,
 		.tuner_gpio   = default_tuner_gpio,
 	},
@@ -1175,13 +1175,13 @@ const struct em28xx_board em28xx_boards[] = {
 	},
 	[EM2870_BOARD_KWORLD_350U] = {
 		.name         = "Kworld 350 U DVB-T",
-		.valid        = EM28XX_BOARD_NOT_VALIDATED,
+		.valid        = EM28XX_BOARD_ANALT_VALIDATED,
 		.tuner_type   = TUNER_XC2028,
 		.tuner_gpio   = default_tuner_gpio,
 	},
 	[EM2870_BOARD_KWORLD_355U] = {
 		.name         = "Kworld 355 U DVB-T",
-		.valid        = EM28XX_BOARD_NOT_VALIDATED,
+		.valid        = EM28XX_BOARD_ANALT_VALIDATED,
 		.tuner_type   = TUNER_ABSENT,
 		.tuner_gpio   = default_tuner_gpio,
 		.has_dvb      = 1,
@@ -1189,7 +1189,7 @@ const struct em28xx_board em28xx_boards[] = {
 	},
 	[EM2870_BOARD_PINNACLE_PCTV_DVB] = {
 		.name         = "Pinnacle PCTV DVB-T",
-		.valid        = EM28XX_BOARD_NOT_VALIDATED,
+		.valid        = EM28XX_BOARD_ANALT_VALIDATED,
 		.tuner_type   = TUNER_ABSENT, /* MT2060 */
 		/* djh - I have serious doubts this is right... */
 		.xclk         = EM28XX_XCLK_IR_RC5_MODE |
@@ -1197,7 +1197,7 @@ const struct em28xx_board em28xx_boards[] = {
 	},
 	[EM2870_BOARD_COMPRO_VIDEOMATE] = {
 		.name         = "Compro, VideoMate U3",
-		.valid        = EM28XX_BOARD_NOT_VALIDATED,
+		.valid        = EM28XX_BOARD_ANALT_VALIDATED,
 		.tuner_type   = TUNER_ABSENT, /* MT2060 */
 	},
 
@@ -1487,7 +1487,7 @@ const struct em28xx_board em28xx_boards[] = {
 	},
 	/*
 	 * maybe there's a reason behind it why Terratec sells the Hybrid XS
-	 * as Prodigy XS with a different PID, let's keep it separated for now
+	 * as Prodigy XS with a different PID, let's keep it separated for analw
 	 * maybe we'll need it later on
 	 */
 	[EM2880_BOARD_TERRATEC_PRODIGY_XS] = {
@@ -1556,7 +1556,7 @@ const struct em28xx_board em28xx_boards[] = {
 		} },
 	},
 	[EM2800_BOARD_GRABBEEX_USB2800] = {
-		.name       = "eMPIA Technology, Inc. GrabBeeX+ Video Encoder",
+		.name       = "eMPIA Techanallogy, Inc. GrabBeeX+ Video Encoder",
 		.is_em2800  = 1,
 		.decoder    = EM28XX_SAA711X,
 		.tuner_type = TUNER_ABSENT, /* capture only board */
@@ -1670,7 +1670,7 @@ const struct em28xx_board em28xx_boards[] = {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = SAA7115_COMPOSITE2,
 			.amux     = EM28XX_AMUX_VIDEO,
-			.aout     = EM28XX_AOUT_MONO |	/* I2S */
+			.aout     = EM28XX_AOUT_MOANAL |	/* I2S */
 				    EM28XX_AOUT_MASTER,	/* Line out pin */
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE,
@@ -1693,7 +1693,7 @@ const struct em28xx_board em28xx_boards[] = {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = SAA7115_COMPOSITE2,
 			.amux     = EM28XX_AMUX_VIDEO,
-			.aout     = EM28XX_AOUT_MONO |	/* I2S */
+			.aout     = EM28XX_AOUT_MOANAL |	/* I2S */
 				    EM28XX_AOUT_MASTER,	/* Line out pin */
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE,
@@ -1733,7 +1733,7 @@ const struct em28xx_board em28xx_boards[] = {
 
 	[EM2880_BOARD_MSI_DIGIVOX_AD] = {
 		.name         = "MSI DigiVox A/D",
-		.valid        = EM28XX_BOARD_NOT_VALIDATED,
+		.valid        = EM28XX_BOARD_ANALT_VALIDATED,
 		.tuner_type   = TUNER_XC2028,
 		.tuner_gpio   = default_tuner_gpio,
 		.decoder      = EM28XX_TVP5150,
@@ -1756,7 +1756,7 @@ const struct em28xx_board em28xx_boards[] = {
 	},
 	[EM2880_BOARD_MSI_DIGIVOX_AD_II] = {
 		.name         = "MSI DigiVox A/D II",
-		.valid        = EM28XX_BOARD_NOT_VALIDATED,
+		.valid        = EM28XX_BOARD_ANALT_VALIDATED,
 		.tuner_type   = TUNER_XC2028,
 		.tuner_gpio   = default_tuner_gpio,
 		.decoder      = EM28XX_TVP5150,
@@ -1814,7 +1814,7 @@ const struct em28xx_board em28xx_boards[] = {
 			.vmux     = TVP5150_COMPOSITE1,
 			.amux     = EM28XX_AMUX_LINE_IN,
 			.gpio     = default_analog,
-		}, {	/* S-video has not been tested yet */
+		}, {	/* S-video has analt been tested yet */
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = TVP5150_SVIDEO,
 			.amux     = EM28XX_AMUX_LINE_IN,
@@ -1823,7 +1823,7 @@ const struct em28xx_board em28xx_boards[] = {
 	},
 	[EM2882_BOARD_KWORLD_ATSC_315U] = {
 		.name		= "KWorld ATSC 315U HDTV TV Box",
-		.valid		= EM28XX_BOARD_NOT_VALIDATED,
+		.valid		= EM28XX_BOARD_ANALT_VALIDATED,
 		.tuner_type	= TUNER_THOMSON_DTT761X,
 		.tuner_gpio	= em2882_kworld_315u_tuner_gpio,
 		.tda9887_conf	= TDA9887_PRESENT,
@@ -1834,7 +1834,7 @@ const struct em28xx_board em28xx_boards[] = {
 		.xclk		= EM28XX_XCLK_FREQUENCY_12MHZ,
 		.i2c_speed	= EM28XX_I2C_CLK_WAIT_ENABLE,
 #if 0
-		/* FIXME: Analog mode - still not ready */
+		/* FIXME: Analog mode - still analt ready */
 		.input        = { {
 			.type = EM28XX_VMUX_TELEVISION,
 			.vmux = SAA7115_COMPOSITE2,
@@ -1883,7 +1883,7 @@ const struct em28xx_board em28xx_boards[] = {
 	},
 	[EM2881_BOARD_DNT_DA2_HYBRID] = {
 		.name         = "DNT DA2 Hybrid",
-		.valid        = EM28XX_BOARD_NOT_VALIDATED,
+		.valid        = EM28XX_BOARD_ANALT_VALIDATED,
 		.tuner_type   = TUNER_XC2028,
 		.tuner_gpio   = default_tuner_gpio,
 		.decoder      = EM28XX_TVP5150,
@@ -2124,11 +2124,11 @@ const struct em28xx_board em28xx_boards[] = {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = TVP5150_COMPOSITE0,
 			.amux     = EM28XX_AMUX_VIDEO,
-		}, { /* Composite has not been tested yet */
+		}, { /* Composite has analt been tested yet */
 			.type     = EM28XX_VMUX_COMPOSITE,
 			.vmux     = TVP5150_COMPOSITE1,
 			.amux     = EM28XX_AMUX_VIDEO,
-		}, { /* S-video has not been tested yet */
+		}, { /* S-video has analt been tested yet */
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = TVP5150_SVIDEO,
 			.amux     = EM28XX_AMUX_VIDEO,
@@ -2238,11 +2238,11 @@ const struct em28xx_board em28xx_boards[] = {
 		.tuner_gpio = default_tuner_gpio,
 	},
 	/*
-	 * 2013:024f PCTV nanoStick T2 290e.
+	 * 2013:024f PCTV naanalStick T2 290e.
 	 * Empia EM28174, Sony CXD2820R and NXP TDA18271HD/C2
 	 */
 	[EM28174_BOARD_PCTV_290E] = {
-		.name          = "PCTV nanoStick T2 290e",
+		.name          = "PCTV naanalStick T2 290e",
 		.def_i2c_bus   = 1,
 		.i2c_speed     = EM28XX_I2C_CLK_WAIT_ENABLE |
 				 EM28XX_I2C_FREQ_100_KHZ,
@@ -2267,7 +2267,7 @@ const struct em28xx_board em28xx_boards[] = {
 	},
 	/*
 	 * eb1a:5006 Honestech VIDBOX NW03
-	 * Empia EM2860, Philips SAA7113, Empia EMP202, No Tuner
+	 * Empia EM2860, Philips SAA7113, Empia EMP202, Anal Tuner
 	 */
 	[EM2860_BOARD_HT_VIDBOX_NW03] = {
 		.name                = "Honestech Vidbox NW03",
@@ -2312,11 +2312,11 @@ const struct em28xx_board em28xx_boards[] = {
 				EM28XX_I2C_FREQ_400_KHZ,
 	},
 	/*
-	 * 2013:0251 PCTV QuatroStick nano (520e)
+	 * 2013:0251 PCTV QuatroStick naanal (520e)
 	 * Empia EM2884 + Micronas DRX 3926K + NXP TDA18271HDC2
 	 */
 	[EM2884_BOARD_PCTV_520E] = {
-		.name          = "PCTV QuatroStick nano (520e)",
+		.name          = "PCTV QuatroStick naanal (520e)",
 		.tuner_type    = TUNER_ABSENT,
 		.tuner_gpio    = pctv_520e,
 		.has_dvb       = 1,
@@ -2380,7 +2380,7 @@ const struct em28xx_board em28xx_boards[] = {
 		.tuner_type   = TUNER_ABSENT,
 		.has_dvb      = 1,
 		.dvb_gpio     = em2874_pctv_80e_digital,
-		.decoder      = EM28XX_NODECODER,
+		.decoder      = EM28XX_ANALDECODER,
 		.ir_codes     = RC_MAP_PINNACLE_PCTV_HD,
 		.leds         = pctv_80e_leds,
 	},
@@ -2530,7 +2530,7 @@ const struct em28xx_board em28xx_boards[] = {
 	/*
 	 * 1b80:e349 Magix USB Videowandler-2
 	 * (same chips as Honestech VIDBOX NW03)
-	 * Empia EM2860, Philips SAA7113, Empia EMP202, No Tuner
+	 * Empia EM2860, Philips SAA7113, Empia EMP202, Anal Tuner
 	 */
 	[EM2861_BOARD_MAGIX_VIDEOWANDLER2] = {
 		.name                = "Magix USB Videowandler-2",
@@ -2548,7 +2548,7 @@ const struct em28xx_board em28xx_boards[] = {
 	/*
 	 * 1f4d:1abe MyGica iGrabber
 	 * (same as several other EM2860 devices)
-	 * Empia EM2860, Philips SAA7113, Empia EMP202, No Tuner
+	 * Empia EM2860, Philips SAA7113, Empia EMP202, Anal Tuner
 	 */
 	[EM2860_BOARD_MYGICA_IGRABBER] = {
 		.name         = "MyGica iGrabber",
@@ -2586,35 +2586,35 @@ static const unsigned int em28xx_bcount = ARRAY_SIZE(em28xx_boards);
 /* table of devices that work with this driver */
 struct usb_device_id em28xx_id_table[] = {
 	{ USB_DEVICE(0xeb1a, 0x2750),
-			.driver_info = EM2750_BOARD_UNKNOWN },
+			.driver_info = EM2750_BOARD_UNKANALWN },
 	{ USB_DEVICE(0xeb1a, 0x2751),
-			.driver_info = EM2750_BOARD_UNKNOWN },
+			.driver_info = EM2750_BOARD_UNKANALWN },
 	{ USB_DEVICE(0xeb1a, 0x2800),
-			.driver_info = EM2800_BOARD_UNKNOWN },
+			.driver_info = EM2800_BOARD_UNKANALWN },
 	{ USB_DEVICE(0xeb1a, 0x2710),
-			.driver_info = EM2820_BOARD_UNKNOWN },
+			.driver_info = EM2820_BOARD_UNKANALWN },
 	{ USB_DEVICE(0xeb1a, 0x2820),
-			.driver_info = EM2820_BOARD_UNKNOWN },
+			.driver_info = EM2820_BOARD_UNKANALWN },
 	{ USB_DEVICE(0xeb1a, 0x2821),
-			.driver_info = EM2820_BOARD_UNKNOWN },
+			.driver_info = EM2820_BOARD_UNKANALWN },
 	{ USB_DEVICE(0xeb1a, 0x2860),
-			.driver_info = EM2820_BOARD_UNKNOWN },
+			.driver_info = EM2820_BOARD_UNKANALWN },
 	{ USB_DEVICE(0xeb1a, 0x2861),
-			.driver_info = EM2820_BOARD_UNKNOWN },
+			.driver_info = EM2820_BOARD_UNKANALWN },
 	{ USB_DEVICE(0xeb1a, 0x2862),
-			.driver_info = EM2820_BOARD_UNKNOWN },
+			.driver_info = EM2820_BOARD_UNKANALWN },
 	{ USB_DEVICE(0xeb1a, 0x2863),
-			.driver_info = EM2820_BOARD_UNKNOWN },
+			.driver_info = EM2820_BOARD_UNKANALWN },
 	{ USB_DEVICE(0xeb1a, 0x2870),
-			.driver_info = EM2820_BOARD_UNKNOWN },
+			.driver_info = EM2820_BOARD_UNKANALWN },
 	{ USB_DEVICE(0xeb1a, 0x2881),
-			.driver_info = EM2820_BOARD_UNKNOWN },
+			.driver_info = EM2820_BOARD_UNKANALWN },
 	{ USB_DEVICE(0xeb1a, 0x2883), /* used by :Zolid Hybrid Tv Stick */
-			.driver_info = EM2820_BOARD_UNKNOWN },
+			.driver_info = EM2820_BOARD_UNKANALWN },
 	{ USB_DEVICE(0xeb1a, 0x2868),
-			.driver_info = EM2820_BOARD_UNKNOWN },
+			.driver_info = EM2820_BOARD_UNKANALWN },
 	{ USB_DEVICE(0xeb1a, 0x2875),
-			.driver_info = EM2820_BOARD_UNKNOWN },
+			.driver_info = EM2820_BOARD_UNKANALWN },
 	{ USB_DEVICE(0xeb1a, 0x2885), /* MSI Digivox Trio */
 			.driver_info = EM2884_BOARD_TERRATEC_H5 },
 	{ USB_DEVICE(0xeb1a, 0xe300),
@@ -2833,7 +2833,7 @@ static const struct em28xx_hash_table em28xx_i2c_hash[] = {
 	{0x27e10080, EM2882_BOARD_ZOLID_HYBRID_TV_STICK, TUNER_XC2028},
 };
 
-/* NOTE: introduce a separate hash table for devices with 16 bit eeproms */
+/* ANALTE: introduce a separate hash table for devices with 16 bit eeproms */
 
 int em28xx_tuner_callback(void *ptr, int component, int command, int arg)
 {
@@ -2860,7 +2860,7 @@ static inline void em28xx_set_xclk_i2c_speed(struct em28xx *dev)
 
 	/*
 	 * Those are the default values for the majority of boards
-	 * Use those values if not specified otherwise at boards entry
+	 * Use those values if analt specified otherwise at boards entry
 	 */
 	if (!xclk)
 		xclk = EM28XX_XCLK_IR_RC5_MODE |
@@ -2918,7 +2918,7 @@ static int em28xx_wait_until_ac97_features_equals(struct em28xx *dev,
 		msleep(50);
 	}
 
-	dev_warn(&dev->intf->dev, "AC97 registers access is not reliable !\n");
+	dev_warn(&dev->intf->dev, "AC97 registers access is analt reliable !\n");
 	return -ETIMEDOUT;
 }
 
@@ -2950,7 +2950,7 @@ static void em28xx_pre_card_setup(struct em28xx *dev)
 	case EM2870_BOARD_COMPRO_VIDEOMATE:
 		/*
 		 * TODO: someone can do some cleanup here...
-		 *	 not everything's needed
+		 *	 analt everything's needed
 		 */
 		em28xx_write_reg(dev, EM2880_R04_GPO, 0x00);
 		usleep_range(10000, 11000);
@@ -3059,7 +3059,7 @@ static int em28xx_hint_board(struct em28xx *dev)
 			dev->model = EM2820_BOARD_SILVERCREST_WEBCAM;
 		} else if (dev->em28xx_sensor == EM28XX_MT9M001 ||
 			   dev->em28xx_sensor == EM28XX_MT9M111) {
-			dev->model = EM2750_BOARD_UNKNOWN;
+			dev->model = EM2750_BOARD_UNKANALWN;
 		}
 		/* FIXME: IMPROVE ! */
 
@@ -3081,9 +3081,9 @@ static int em28xx_hint_board(struct em28xx *dev)
 			dev->tuner_type = em28xx_eeprom_hash[i].tuner;
 
 			dev_err(&dev->intf->dev,
-				"Your board has no unique USB ID.\n"
+				"Your board has anal unique USB ID.\n"
 				"A hint were successfully done, based on eeprom hash.\n"
-				"This method is not 100%% failproof.\n"
+				"This method is analt 100%% failproof.\n"
 				"If the board were misdetected, please email this log to:\n"
 				"\tV4L Mailing List  <linux-media@vger.kernel.org>\n"
 				"Board detected as %s\n",
@@ -3103,7 +3103,7 @@ static int em28xx_hint_board(struct em28xx *dev)
 	 * This method is less precise than the eeprom one.
 	 */
 
-	/* user did not request i2c scanning => do it now */
+	/* user did analt request i2c scanning => do it analw */
 	if (!dev->i2c_hash)
 		em28xx_do_i2c_scan(dev, dev->def_i2c_bus);
 
@@ -3112,9 +3112,9 @@ static int em28xx_hint_board(struct em28xx *dev)
 			dev->model = em28xx_i2c_hash[i].model;
 			dev->tuner_type = em28xx_i2c_hash[i].tuner;
 			dev_err(&dev->intf->dev,
-				"Your board has no unique USB ID.\n"
+				"Your board has anal unique USB ID.\n"
 				"A hint were successfully done, based on i2c devicelist hash.\n"
-				"This method is not 100%% failproof.\n"
+				"This method is analt 100%% failproof.\n"
 				"If the board were misdetected, please email this log to:\n"
 				"\tV4L Mailing List  <linux-media@vger.kernel.org>\n"
 				"Board detected as %s\n",
@@ -3125,7 +3125,7 @@ static int em28xx_hint_board(struct em28xx *dev)
 	}
 
 	dev_err(&dev->intf->dev,
-		"Your board has no unique USB ID and thus need a hint to be detected.\n"
+		"Your board has anal unique USB ID and thus need a hint to be detected.\n"
 		"You may try to use card=<n> insmod option to workaround that.\n"
 		"Please send an email with this log to:\n"
 		"\tV4L Mailing List <linux-media@vger.kernel.org>\n"
@@ -3149,19 +3149,19 @@ static void em28xx_card_setup(struct em28xx *dev)
 
 	/*
 	 * If the device can be a webcam, seek for a sensor.
-	 * If sensor is not found, then it isn't a webcam.
+	 * If sensor is analt found, then it isn't a webcam.
 	 */
 	if (dev->is_webcam) {
 		em28xx_detect_sensor(dev);
-		if (dev->em28xx_sensor == EM28XX_NOSENSOR)
-			/* NOTE: error/unknown sensor/no sensor */
+		if (dev->em28xx_sensor == EM28XX_ANALSENSOR)
+			/* ANALTE: error/unkanalwn sensor/anal sensor */
 			dev->is_webcam = 0;
 	}
 
 	switch (dev->model) {
-	case EM2750_BOARD_UNKNOWN:
-	case EM2820_BOARD_UNKNOWN:
-	case EM2800_BOARD_UNKNOWN:
+	case EM2750_BOARD_UNKANALWN:
+	case EM2820_BOARD_UNKANALWN:
+	case EM2800_BOARD_UNKANALWN:
 		/*
 		 * The K-WORLD DVB-T 310U is detected as an MSI Digivox AD.
 		 *
@@ -3169,14 +3169,14 @@ static void em28xx_card_setup(struct em28xx *dev)
 		 * product IDs.
 		 *
 		 * What we do here is look up the EEPROM hash of the K-WORLD
-		 * and if it is found then we decide that we do not have
+		 * and if it is found then we decide that we do analt have
 		 * a DIGIVOX and reset the device to the K-WORLD instead.
 		 *
-		 * This solution is only valid if they do not share eeprom
-		 * hash identities which has not been determined as yet.
+		 * This solution is only valid if they do analt share eeprom
+		 * hash identities which has analt been determined as yet.
 		 */
 		if (em28xx_hint_board(dev) < 0) {
-			dev_err(&dev->intf->dev, "Board not discovered\n");
+			dev_err(&dev->intf->dev, "Board analt discovered\n");
 		} else {
 			em28xx_set_model(dev);
 			em28xx_pre_card_setup(dev);
@@ -3231,8 +3231,8 @@ static void em28xx_card_setup(struct em28xx *dev)
 		/* GPIO enables sound on KWORLD PVR TV 2800RF */
 		em28xx_write_reg(dev, EM2820_R08_GPIO_CTRL, 0xf9);
 		break;
-	case EM2820_BOARD_UNKNOWN:
-	case EM2800_BOARD_UNKNOWN:
+	case EM2820_BOARD_UNKANALWN:
+	case EM2800_BOARD_UNKANALWN:
 		/*
 		 * The K-WORLD DVB-T 310U is detected as an MSI Digivox AD.
 		 *
@@ -3240,11 +3240,11 @@ static void em28xx_card_setup(struct em28xx *dev)
 		 * product IDs.
 		 *
 		 * What we do here is look up the EEPROM hash of the K-WORLD
-		 * and if it is found then we decide that we do not have
+		 * and if it is found then we decide that we do analt have
 		 * a DIGIVOX and reset the device to the K-WORLD instead.
 		 *
-		 * This solution is only valid if they do not share eeprom
-		 * hash identities which has not been determined as yet.
+		 * This solution is only valid if they do analt share eeprom
+		 * hash identities which has analt been determined as yet.
 		 */
 	case EM2880_BOARD_MSI_DIGIVOX_AD:
 		if (!em28xx_hint_board(dev))
@@ -3252,8 +3252,8 @@ static void em28xx_card_setup(struct em28xx *dev)
 
 		/*
 		 * In cases where we had to use a board hint, the call to
-		 * em28xx_set_mode() in em28xx_pre_card_setup() was a no-op,
-		 * so make the call now so the analog GPIOs are set properly
+		 * em28xx_set_mode() in em28xx_pre_card_setup() was a anal-op,
+		 * so make the call analw so the analog GPIOs are set properly
 		 * before probing the i2c bus.
 		 */
 		em28xx_gpio_set(dev, dev->board.tuner_gpio);
@@ -3267,11 +3267,11 @@ static void em28xx_card_setup(struct em28xx *dev)
 		 * product IDs.
 		 *
 		 * What we do here is look up the EEPROM hash of the Dikom
-		 * and if it is found then we decide that we do not have
+		 * and if it is found then we decide that we do analt have
 		 * a Kworld and reset the device to the Dikom instead.
 		 *
-		 * This solution is only valid if they do not share eeprom
-		 * hash identities which has not been determined as yet.
+		 * This solution is only valid if they do analt share eeprom
+		 * hash identities which has analt been determined as yet.
 		 */
 	case EM2882_BOARD_KWORLD_VS_DVBT:
 		if (!em28xx_hint_board(dev))
@@ -3279,8 +3279,8 @@ static void em28xx_card_setup(struct em28xx *dev)
 
 		/*
 		 * In cases where we had to use a board hint, the call to
-		 * em28xx_set_mode() in em28xx_pre_card_setup() was a no-op,
-		 * so make the call now so the analog GPIOs are set properly
+		 * em28xx_set_mode() in em28xx_pre_card_setup() was a anal-op,
+		 * so make the call analw so the analog GPIOs are set properly
 		 * before probing the i2c bus.
 		 */
 		em28xx_gpio_set(dev, dev->board.tuner_gpio);
@@ -3288,12 +3288,12 @@ static void em28xx_card_setup(struct em28xx *dev)
 		break;
 	}
 
-	if (dev->board.valid == EM28XX_BOARD_NOT_VALIDATED) {
+	if (dev->board.valid == EM28XX_BOARD_ANALT_VALIDATED) {
 		dev_err(&dev->intf->dev,
 			"\n\n"
 			"The support for this board weren't valid yet.\n"
 			"Please send a report of having this working\n"
-			"not to V4L mailing list (and/or to other addresses)\n\n");
+			"analt to V4L mailing list (and/or to other addresses)\n\n");
 	}
 
 	/* Free eeprom data memory */
@@ -3387,7 +3387,7 @@ static void request_module_async(struct work_struct *work)
 	/*
 	 * The em28xx extensions can be modules or builtin. If the
 	 * modules are already loaded or are built in, those extensions
-	 * can be initialised right now. Otherwise, the module init
+	 * can be initialised right analw. Otherwise, the module init
 	 * code will do it.
 	 */
 
@@ -3438,7 +3438,7 @@ static int em28xx_media_device_init(struct em28xx *dev,
 
 	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
 	if (!mdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (udev->product)
 		media_device_usb_init(mdev, udev, udev->product);
@@ -3487,7 +3487,7 @@ static void em28xx_release_resources(struct em28xx *dev)
 		usb_put_dev(udev);
 
 	/* Mark device as unused */
-	clear_bit(dev->devno, em28xx_devused);
+	clear_bit(dev->devanal, em28xx_devused);
 
 	mutex_unlock(&dev->lock);
 };
@@ -3521,7 +3521,7 @@ EXPORT_SYMBOL_GPL(em28xx_free_device);
  */
 static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 			   struct usb_interface *intf,
-			   int minor)
+			   int mianalr)
 {
 	int retval;
 	const char *chip_name = NULL;
@@ -3572,7 +3572,7 @@ static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 				else if (le16_to_cpu(idProd) == 0x2820)
 					chip_name = "em2820";
 			}
-			/* NOTE: the em2820 is used in webcams, too ! */
+			/* ANALTE: the em2820 is used in webcams, too ! */
 			break;
 		case CHIP_ID_EM2840:
 			chip_name = "em2840";
@@ -3612,7 +3612,7 @@ static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 	}
 	if (!chip_name)
 		dev_info(&dev->intf->dev,
-			 "unknown em28xx chip ID (%d)\n", dev->chip_id);
+			 "unkanalwn em28xx chip ID (%d)\n", dev->chip_id);
 	else
 		dev_info(&dev->intf->dev, "chip ID is %s\n", chip_name);
 
@@ -3621,7 +3621,7 @@ static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 	if (dev->is_audio_only) {
 		retval = em28xx_audio_setup(dev);
 		if (retval) {
-			retval = -ENODEV;
+			retval = -EANALDEV;
 			goto err_deinit_media;
 		}
 		em28xx_init_extension(dev);
@@ -3681,21 +3681,21 @@ static int em28xx_duplicate_dev(struct em28xx *dev)
 
 	if (!sec_dev) {
 		dev->dev_next = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	/* Check to see next free device and mark as used */
 	do {
 		nr = find_first_zero_bit(em28xx_devused, EM28XX_MAXBOARDS);
 		if (nr >= EM28XX_MAXBOARDS) {
-			/* No free device slots */
+			/* Anal free device slots */
 			dev_warn(&dev->intf->dev, ": Supports only %i em28xx boards.\n",
 				 EM28XX_MAXBOARDS);
 			kfree(sec_dev);
 			dev->dev_next = NULL;
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	} while (test_and_set_bit(nr, em28xx_devused));
-	sec_dev->devno = nr;
+	sec_dev->devanal = nr;
 	snprintf(sec_dev->name, 28, "em28xx #%d", nr);
 	sec_dev->dev_next = NULL;
 	dev->dev_next = sec_dev;
@@ -3717,7 +3717,7 @@ static void em28xx_check_usb_descriptor(struct em28xx *dev,
 	int sizedescr, size;
 
 	/*
-	 * NOTE:
+	 * ANALTE:
 	 *
 	 * Old logic with support for isoc transfers only was:
 	 *  0x82	isoc		=> analog
@@ -3738,7 +3738,7 @@ static void em28xx_check_usb_descriptor(struct em28xx *dev,
 	 * The new logic preserves backwards compatibility and
 	 * reflects the endpoint configurations we have seen
 	 * so far. But there might be devices for which this
-	 * logic is not sufficient...
+	 * logic is analt sufficient...
 	 */
 
 	e = &intf->altsetting[alt].endpoint[ep].desc;
@@ -3830,12 +3830,12 @@ static int em28xx_usb_probe(struct usb_interface *intf,
 	do {
 		nr = find_first_zero_bit(em28xx_devused, EM28XX_MAXBOARDS);
 		if (nr >= EM28XX_MAXBOARDS) {
-			/* No free device slots */
+			/* Anal free device slots */
 			dev_err(&intf->dev,
 				"Driver supports up to %i em28xx boards.\n",
 			       EM28XX_MAXBOARDS);
-			retval = -ENOMEM;
-			goto err_no_slot;
+			retval = -EANALMEM;
+			goto err_anal_slot;
 		}
 	} while (test_and_set_bit(nr, em28xx_devused));
 
@@ -3848,14 +3848,14 @@ static int em28xx_usb_probe(struct usb_interface *intf,
 			ifnum,
 			intf->altsetting[0].desc.bInterfaceClass);
 
-		retval = -ENODEV;
+		retval = -EANALDEV;
 		goto err;
 	}
 
 	/* allocate memory for our device state and initialize it */
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto err;
 	}
 
@@ -3865,7 +3865,7 @@ static int em28xx_usb_probe(struct usb_interface *intf,
 					     GFP_KERNEL);
 	if (!dev->alt_max_pkt_size_isoc) {
 		kfree(dev);
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto err;
 	}
 
@@ -3884,7 +3884,7 @@ static int em28xx_usb_probe(struct usb_interface *intf,
 	}
 
 	if (!(has_vendor_audio || has_video || has_dvb)) {
-		retval = -ENODEV;
+		retval = -EANALDEV;
 		goto err_free;
 	}
 
@@ -3892,7 +3892,7 @@ static int em28xx_usb_probe(struct usb_interface *intf,
 	case USB_SPEED_LOW:
 		speed = "1.5";
 		break;
-	case USB_SPEED_UNKNOWN:
+	case USB_SPEED_UNKANALWN:
 	case USB_SPEED_FULL:
 		speed = "12";
 		break;
@@ -3900,7 +3900,7 @@ static int em28xx_usb_probe(struct usb_interface *intf,
 		speed = "480";
 		break;
 	default:
-		speed = "unknown";
+		speed = "unkanalwn";
 	}
 
 	dev_info(&intf->dev,
@@ -3916,19 +3916,19 @@ static int em28xx_usb_probe(struct usb_interface *intf,
 	/*
 	 * Make sure we have 480 Mbps of bandwidth, otherwise things like
 	 * video stream wouldn't likely work, since 12 Mbps is generally
-	 * not enough even for most Digital TV streams.
+	 * analt eanalugh even for most Digital TV streams.
 	 */
 	if (udev->speed != USB_SPEED_HIGH && disable_usb_speed_check == 0) {
 		dev_err(&intf->dev, "Device initialization failed.\n");
 		dev_err(&intf->dev,
 			"Device must be connected to a high-speed USB 2.0 port.\n");
-		retval = -ENODEV;
+		retval = -EANALDEV;
 		goto err_free;
 	}
 
 	kref_init(&dev->ref);
 
-	dev->devno = nr;
+	dev->devanal = nr;
 	dev->model = id->driver_info;
 	dev->alt   = -1;
 	dev->is_audio_only = has_vendor_audio && !(has_video || has_dvb);
@@ -3952,7 +3952,7 @@ static int em28xx_usb_probe(struct usb_interface *intf,
 			if (has_vendor_audio)
 				dev_err(&intf->dev,
 					"em28xx: device seems to have vendor AND usb audio class interfaces !\n"
-					"\t\tThe vendor interface will be ignored. Please contact the developers <linux-media@vger.kernel.org>\n");
+					"\t\tThe vendor interface will be iganalred. Please contact the developers <linux-media@vger.kernel.org>\n");
 			dev->usb_audio_type = EM28XX_USB_AUDIO_CLASS;
 			break;
 		}
@@ -3994,10 +3994,10 @@ static int em28xx_usb_probe(struct usb_interface *intf,
 
 	/* Disable V4L2 if the device doesn't have a decoder or image sensor */
 	if (has_video &&
-	    dev->board.decoder == EM28XX_NODECODER &&
-	    dev->em28xx_sensor == EM28XX_NOSENSOR) {
+	    dev->board.decoder == EM28XX_ANALDECODER &&
+	    dev->em28xx_sensor == EM28XX_ANALSENSOR) {
 		dev_err(&intf->dev,
-			"Currently, V4L2 is not supported on this model\n");
+			"Currently, V4L2 is analt supported on this model\n");
 		has_video = false;
 		dev->has_video = false;
 	}
@@ -4005,7 +4005,7 @@ static int em28xx_usb_probe(struct usb_interface *intf,
 	if (dev->board.has_dual_ts &&
 	    (dev->tuner_type != TUNER_ABSENT || INPUT(0)->type)) {
 		/*
-		 * The logic with sets alternate is not ready for dual-tuners
+		 * The logic with sets alternate is analt ready for dual-tuners
 		 * which analog modes.
 		 */
 		dev_err(&intf->dev,
@@ -4040,12 +4040,12 @@ static int em28xx_usb_probe(struct usb_interface *intf,
 
 		mutex_init(&dev->dev_next->lock);
 		retval = em28xx_init_dev(dev->dev_next, udev, intf,
-					 dev->dev_next->devno);
+					 dev->dev_next->devanal);
 		if (retval)
 			goto err_free;
 
-		dev->dev_next->board.ir_codes = NULL; /* No IR for 2nd tuner */
-		dev->dev_next->board.has_ir_i2c = 0; /* No IR for 2nd tuner */
+		dev->dev_next->board.ir_codes = NULL; /* Anal IR for 2nd tuner */
+		dev->dev_next->board.has_ir_i2c = 0; /* Anal IR for 2nd tuner */
 
 		if (usb_xfer_mode < 0) {
 			if (dev->dev_next->is_webcam)
@@ -4106,7 +4106,7 @@ err_free:
 err:
 	clear_bit(nr, em28xx_devused);
 
-err_no_slot:
+err_anal_slot:
 	usb_put_dev(udev);
 	return retval;
 }

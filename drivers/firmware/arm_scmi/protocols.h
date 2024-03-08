@@ -12,7 +12,7 @@
 #include <linux/bitfield.h>
 #include <linux/completion.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/hashtable.h>
 #include <linux/list.h>
@@ -24,10 +24,10 @@
 
 #include <asm/unaligned.h>
 
-#define PROTOCOL_REV_MINOR_MASK	GENMASK(15, 0)
+#define PROTOCOL_REV_MIANALR_MASK	GENMASK(15, 0)
 #define PROTOCOL_REV_MAJOR_MASK	GENMASK(31, 16)
 #define PROTOCOL_REV_MAJOR(x)	((u16)(FIELD_GET(PROTOCOL_REV_MAJOR_MASK, (x))))
-#define PROTOCOL_REV_MINOR(x)	((u16)(FIELD_GET(PROTOCOL_REV_MINOR_MASK, (x))))
+#define PROTOCOL_REV_MIANALR(x)	((u16)(FIELD_GET(PROTOCOL_REV_MIANALR_MASK, (x))))
 
 enum scmi_common_cmd {
 	PROTOCOL_VERSION = 0x0,
@@ -38,17 +38,17 @@ enum scmi_common_cmd {
 /**
  * struct scmi_msg_resp_prot_version - Response for a message
  *
- * @minor_version: Minor version of the ABI that firmware supports
+ * @mianalr_version: Mianalr version of the ABI that firmware supports
  * @major_version: Major version of the ABI that firmware supports
  *
- * In general, ABI version changes follow the rule that minor version increments
- * are backward compatible. Major revision changes in ABI may not be
+ * In general, ABI version changes follow the rule that mianalr version increments
+ * are backward compatible. Major revision changes in ABI may analt be
  * backward compatible.
  *
  * Response to a generic message with message type SCMI_MSG_VERSION
  */
 struct scmi_msg_resp_prot_version {
-	__le16 minor_version;
+	__le16 mianalr_version;
 	__le16 major_version;
 };
 
@@ -97,7 +97,7 @@ struct scmi_msg_hdr {
  * @done: command message transmit completion event
  * @async_done: pointer to delayed response message received event completion
  * @pending: True for xfers added to @pending_xfers hashtable
- * @node: An hlist_node reference used to store this xfer, alternatively, on
+ * @analde: An hlist_analde reference used to store this xfer, alternatively, on
  *	  the free list @free_xfers or in the @pending_xfers hashtable
  * @users: A refcount to track the active users for this xfer.
  *	   This is meant to protect against the possibility that, when a command
@@ -107,14 +107,14 @@ struct scmi_msg_hdr {
  *	   processing it: in such a case this refcounting will ensure that, even
  *	   though the timed-out transaction will anyway cause the command
  *	   request to be reported as failed by time-out, the underlying xfer
- *	   cannot be discarded and possibly reused until the last one user on
+ *	   cananalt be discarded and possibly reused until the last one user on
  *	   the RX path has released it.
  * @busy: An atomic flag to ensure exclusive write access to this xfer
  * @state: The current state of this transfer, with states transitions deemed
  *	   valid being:
  *	    - SCMI_XFER_SENT_OK -> SCMI_XFER_RESP_OK [ -> SCMI_XFER_DRESP_OK ]
  *	    - SCMI_XFER_SENT_OK -> SCMI_XFER_DRESP_OK
- *	      (Missing synchronous response is assumed OK and ignored)
+ *	      (Missing synchroanalus response is assumed OK and iganalred)
  * @flags: Optional flags associated to this xfer.
  * @lock: A spinlock to protect state and busy fields.
  * @priv: A pointer for transport private usage.
@@ -127,7 +127,7 @@ struct scmi_xfer {
 	struct completion done;
 	struct completion *async_done;
 	bool pending;
-	struct hlist_node node;
+	struct hlist_analde analde;
 	refcount_t users;
 #define SCMI_XFER_FREE		0
 #define SCMI_XFER_BUSY		1
@@ -281,10 +281,10 @@ struct scmi_proto_helpers_ops {
  * @do_xfer_with_response: Do the SCMI transfer waiting for a response.
  * @xfer_put: Free the xfer slot.
  *
- * Note that all this operations expect a protocol handle as first parameter;
+ * Analte that all this operations expect a protocol handle as first parameter;
  * they then internally use it to infer the underlying protocol number: this
- * way is not possible for a protocol implementation to forge messages for
- * another protocol.
+ * way is analt possible for a protocol implementation to forge messages for
+ * aanalther protocol.
  */
 struct scmi_xfer_ops {
 	int (*version_get)(const struct scmi_protocol_handle *ph, u32 *version);

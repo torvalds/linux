@@ -19,7 +19,7 @@
 #include <linux/evm.h>
 #include <linux/syscalls.h>
 #include <linux/export.h>
-#include <linux/fsnotify.h>
+#include <linux/fsanaltify.h>
 #include <linux/audit.h>
 #include <linux/vmalloc.h>
 #include <linux/posix_acl_xattr.h>
@@ -54,15 +54,15 @@ strcmp_prefix(const char *a, const char *a_prefix)
  * Find the xattr_handler with the matching prefix.
  */
 static const struct xattr_handler *
-xattr_resolve_name(struct inode *inode, const char **name)
+xattr_resolve_name(struct ianalde *ianalde, const char **name)
 {
-	const struct xattr_handler * const *handlers = inode->i_sb->s_xattr;
+	const struct xattr_handler * const *handlers = ianalde->i_sb->s_xattr;
 	const struct xattr_handler *handler;
 
-	if (!(inode->i_opflags & IOP_XATTR)) {
-		if (unlikely(is_bad_inode(inode)))
+	if (!(ianalde->i_opflags & IOP_XATTR)) {
+		if (unlikely(is_bad_ianalde(ianalde)))
 			return ERR_PTR(-EIO);
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 	}
 	for_each_xattr_handler(handlers, handler) {
 		const char *n;
@@ -78,30 +78,30 @@ xattr_resolve_name(struct inode *inode, const char **name)
 			return handler;
 		}
 	}
-	return ERR_PTR(-EOPNOTSUPP);
+	return ERR_PTR(-EOPANALTSUPP);
 }
 
 /**
- * may_write_xattr - check whether inode allows writing xattr
- * @idmap: idmap of the mount the inode was found from
- * @inode: the inode on which to set an xattr
+ * may_write_xattr - check whether ianalde allows writing xattr
+ * @idmap: idmap of the mount the ianalde was found from
+ * @ianalde: the ianalde on which to set an xattr
  *
- * Check whether the inode allows writing xattrs. Specifically, we can never
+ * Check whether the ianalde allows writing xattrs. Specifically, we can never
  * set or remove an extended attribute on a read-only filesystem  or on an
- * immutable / append-only inode.
+ * immutable / append-only ianalde.
  *
- * We also need to ensure that the inode has a mapping in the mount to
- * not risk writing back invalid i_{g,u}id values.
+ * We also need to ensure that the ianalde has a mapping in the mount to
+ * analt risk writing back invalid i_{g,u}id values.
  *
- * Return: On success zero is returned. On error a negative errno is returned.
+ * Return: On success zero is returned. On error a negative erranal is returned.
  */
-int may_write_xattr(struct mnt_idmap *idmap, struct inode *inode)
+int may_write_xattr(struct mnt_idmap *idmap, struct ianalde *ianalde)
 {
-	if (IS_IMMUTABLE(inode))
+	if (IS_IMMUTABLE(ianalde))
 		return -EPERM;
-	if (IS_APPEND(inode))
+	if (IS_APPEND(ianalde))
 		return -EPERM;
-	if (HAS_UNMAPPED_ID(idmap, inode))
+	if (HAS_UNMAPPED_ID(idmap, ianalde))
 		return -EPERM;
 	return 0;
 }
@@ -111,19 +111,19 @@ int may_write_xattr(struct mnt_idmap *idmap, struct inode *inode)
  * because different namespaces have very different rules.
  */
 static int
-xattr_permission(struct mnt_idmap *idmap, struct inode *inode,
+xattr_permission(struct mnt_idmap *idmap, struct ianalde *ianalde,
 		 const char *name, int mask)
 {
 	if (mask & MAY_WRITE) {
 		int ret;
 
-		ret = may_write_xattr(idmap, inode);
+		ret = may_write_xattr(idmap, ianalde);
 		if (ret)
 			return ret;
 	}
 
 	/*
-	 * No restriction for security.* and system.* from the VFS.  Decision
+	 * Anal restriction for security.* and system.* from the VFS.  Decision
 	 * on these is left to the underlying filesystem / security module.
 	 */
 	if (!strncmp(name, XATTR_SECURITY_PREFIX, XATTR_SECURITY_PREFIX_LEN) ||
@@ -135,7 +135,7 @@ xattr_permission(struct mnt_idmap *idmap, struct inode *inode,
 	 */
 	if (!strncmp(name, XATTR_TRUSTED_PREFIX, XATTR_TRUSTED_PREFIX_LEN)) {
 		if (!capable(CAP_SYS_ADMIN))
-			return (mask & MAY_WRITE) ? -EPERM : -ENODATA;
+			return (mask & MAY_WRITE) ? -EPERM : -EANALDATA;
 		return 0;
 	}
 
@@ -145,30 +145,30 @@ xattr_permission(struct mnt_idmap *idmap, struct inode *inode,
 	 * privileged users can write attributes.
 	 */
 	if (!strncmp(name, XATTR_USER_PREFIX, XATTR_USER_PREFIX_LEN)) {
-		if (!S_ISREG(inode->i_mode) && !S_ISDIR(inode->i_mode))
-			return (mask & MAY_WRITE) ? -EPERM : -ENODATA;
-		if (S_ISDIR(inode->i_mode) && (inode->i_mode & S_ISVTX) &&
+		if (!S_ISREG(ianalde->i_mode) && !S_ISDIR(ianalde->i_mode))
+			return (mask & MAY_WRITE) ? -EPERM : -EANALDATA;
+		if (S_ISDIR(ianalde->i_mode) && (ianalde->i_mode & S_ISVTX) &&
 		    (mask & MAY_WRITE) &&
-		    !inode_owner_or_capable(idmap, inode))
+		    !ianalde_owner_or_capable(idmap, ianalde))
 			return -EPERM;
 	}
 
-	return inode_permission(idmap, inode, mask);
+	return ianalde_permission(idmap, ianalde, mask);
 }
 
 /*
  * Look for any handler that deals with the specified namespace.
  */
 int
-xattr_supports_user_prefix(struct inode *inode)
+xattr_supports_user_prefix(struct ianalde *ianalde)
 {
-	const struct xattr_handler * const *handlers = inode->i_sb->s_xattr;
+	const struct xattr_handler * const *handlers = ianalde->i_sb->s_xattr;
 	const struct xattr_handler *handler;
 
-	if (!(inode->i_opflags & IOP_XATTR)) {
-		if (unlikely(is_bad_inode(inode)))
+	if (!(ianalde->i_opflags & IOP_XATTR)) {
+		if (unlikely(is_bad_ianalde(ianalde)))
 			return -EIO;
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	for_each_xattr_handler(handlers, handler) {
@@ -177,37 +177,37 @@ xattr_supports_user_prefix(struct inode *inode)
 			return 0;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 EXPORT_SYMBOL(xattr_supports_user_prefix);
 
 int
 __vfs_setxattr(struct mnt_idmap *idmap, struct dentry *dentry,
-	       struct inode *inode, const char *name, const void *value,
+	       struct ianalde *ianalde, const char *name, const void *value,
 	       size_t size, int flags)
 {
 	const struct xattr_handler *handler;
 
 	if (is_posix_acl_xattr(name))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
-	handler = xattr_resolve_name(inode, &name);
+	handler = xattr_resolve_name(ianalde, &name);
 	if (IS_ERR(handler))
 		return PTR_ERR(handler);
 	if (!handler->set)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (size == 0)
-		value = "";  /* empty EA, do not remove */
-	return handler->set(handler, idmap, dentry, inode, name, value,
+		value = "";  /* empty EA, do analt remove */
+	return handler->set(handler, idmap, dentry, ianalde, name, value,
 			    size, flags);
 }
 EXPORT_SYMBOL(__vfs_setxattr);
 
 /**
- *  __vfs_setxattr_noperm - perform setxattr operation without performing
+ *  __vfs_setxattr_analperm - perform setxattr operation without performing
  *  permission checks.
  *
- *  @idmap: idmap of the mount the inode was found from
+ *  @idmap: idmap of the mount the ianalde was found from
  *  @dentry: object to perform setxattr on
  *  @name: xattr name to set
  *  @value: value to set @name to
@@ -216,43 +216,43 @@ EXPORT_SYMBOL(__vfs_setxattr);
  *
  *  returns the result of the internal setxattr or setsecurity operations.
  *
- *  This function requires the caller to lock the inode's i_mutex before it
+ *  This function requires the caller to lock the ianalde's i_mutex before it
  *  is executed. It also assumes that the caller will make the appropriate
  *  permission checks.
  */
-int __vfs_setxattr_noperm(struct mnt_idmap *idmap,
+int __vfs_setxattr_analperm(struct mnt_idmap *idmap,
 			  struct dentry *dentry, const char *name,
 			  const void *value, size_t size, int flags)
 {
-	struct inode *inode = dentry->d_inode;
+	struct ianalde *ianalde = dentry->d_ianalde;
 	int error = -EAGAIN;
 	int issec = !strncmp(name, XATTR_SECURITY_PREFIX,
 				   XATTR_SECURITY_PREFIX_LEN);
 
 	if (issec)
-		inode->i_flags &= ~S_NOSEC;
-	if (inode->i_opflags & IOP_XATTR) {
-		error = __vfs_setxattr(idmap, dentry, inode, name, value,
+		ianalde->i_flags &= ~S_ANALSEC;
+	if (ianalde->i_opflags & IOP_XATTR) {
+		error = __vfs_setxattr(idmap, dentry, ianalde, name, value,
 				       size, flags);
 		if (!error) {
-			fsnotify_xattr(dentry);
-			security_inode_post_setxattr(dentry, name, value,
+			fsanaltify_xattr(dentry);
+			security_ianalde_post_setxattr(dentry, name, value,
 						     size, flags);
 		}
 	} else {
-		if (unlikely(is_bad_inode(inode)))
+		if (unlikely(is_bad_ianalde(ianalde)))
 			return -EIO;
 	}
 	if (error == -EAGAIN) {
-		error = -EOPNOTSUPP;
+		error = -EOPANALTSUPP;
 
 		if (issec) {
 			const char *suffix = name + XATTR_SECURITY_PREFIX_LEN;
 
-			error = security_inode_setsecurity(inode, suffix, value,
+			error = security_ianalde_setsecurity(ianalde, suffix, value,
 							   size, flags);
 			if (!error)
-				fsnotify_xattr(dentry);
+				fsanaltify_xattr(dentry);
 		}
 	}
 
@@ -260,40 +260,40 @@ int __vfs_setxattr_noperm(struct mnt_idmap *idmap,
 }
 
 /**
- * __vfs_setxattr_locked - set an extended attribute while holding the inode
+ * __vfs_setxattr_locked - set an extended attribute while holding the ianalde
  * lock
  *
- *  @idmap: idmap of the mount of the target inode
+ *  @idmap: idmap of the mount of the target ianalde
  *  @dentry: object to perform setxattr on
  *  @name: xattr name to set
  *  @value: value to set @name to
  *  @size: size of @value
  *  @flags: flags to pass into filesystem operations
- *  @delegated_inode: on return, will contain an inode pointer that
- *  a delegation was broken on, NULL if none.
+ *  @delegated_ianalde: on return, will contain an ianalde pointer that
+ *  a delegation was broken on, NULL if analne.
  */
 int
 __vfs_setxattr_locked(struct mnt_idmap *idmap, struct dentry *dentry,
 		      const char *name, const void *value, size_t size,
-		      int flags, struct inode **delegated_inode)
+		      int flags, struct ianalde **delegated_ianalde)
 {
-	struct inode *inode = dentry->d_inode;
+	struct ianalde *ianalde = dentry->d_ianalde;
 	int error;
 
-	error = xattr_permission(idmap, inode, name, MAY_WRITE);
+	error = xattr_permission(idmap, ianalde, name, MAY_WRITE);
 	if (error)
 		return error;
 
-	error = security_inode_setxattr(idmap, dentry, name, value, size,
+	error = security_ianalde_setxattr(idmap, dentry, name, value, size,
 					flags);
 	if (error)
 		goto out;
 
-	error = try_break_deleg(inode, delegated_inode);
+	error = try_break_deleg(ianalde, delegated_ianalde);
 	if (error)
 		goto out;
 
-	error = __vfs_setxattr_noperm(idmap, dentry, name, value,
+	error = __vfs_setxattr_analperm(idmap, dentry, name, value,
 				      size, flags);
 
 out:
@@ -305,8 +305,8 @@ int
 vfs_setxattr(struct mnt_idmap *idmap, struct dentry *dentry,
 	     const char *name, const void *value, size_t size, int flags)
 {
-	struct inode *inode = dentry->d_inode;
-	struct inode *delegated_inode = NULL;
+	struct ianalde *ianalde = dentry->d_ianalde;
+	struct ianalde *delegated_ianalde = NULL;
 	const void  *orig_value = value;
 	int error;
 
@@ -318,13 +318,13 @@ vfs_setxattr(struct mnt_idmap *idmap, struct dentry *dentry,
 	}
 
 retry_deleg:
-	inode_lock(inode);
+	ianalde_lock(ianalde);
 	error = __vfs_setxattr_locked(idmap, dentry, name, value, size,
-				      flags, &delegated_inode);
-	inode_unlock(inode);
+				      flags, &delegated_ianalde);
+	ianalde_unlock(ianalde);
 
-	if (delegated_inode) {
-		error = break_deleg_wait(&delegated_inode);
+	if (delegated_ianalde) {
+		error = break_deleg_wait(&delegated_ianalde);
 		if (!error)
 			goto retry_deleg;
 	}
@@ -336,19 +336,19 @@ retry_deleg:
 EXPORT_SYMBOL_GPL(vfs_setxattr);
 
 static ssize_t
-xattr_getsecurity(struct mnt_idmap *idmap, struct inode *inode,
+xattr_getsecurity(struct mnt_idmap *idmap, struct ianalde *ianalde,
 		  const char *name, void *value, size_t size)
 {
 	void *buffer = NULL;
 	ssize_t len;
 
 	if (!value || !size) {
-		len = security_inode_getsecurity(idmap, inode, name,
+		len = security_ianalde_getsecurity(idmap, ianalde, name,
 						 &buffer, false);
-		goto out_noalloc;
+		goto out_analalloc;
 	}
 
-	len = security_inode_getsecurity(idmap, inode, name, &buffer,
+	len = security_ianalde_getsecurity(idmap, ianalde, name, &buffer,
 					 true);
 	if (len < 0)
 		return len;
@@ -359,14 +359,14 @@ xattr_getsecurity(struct mnt_idmap *idmap, struct inode *inode,
 	memcpy(value, buffer, len);
 out:
 	kfree(buffer);
-out_noalloc:
+out_analalloc:
 	return len;
 }
 
 /*
  * vfs_getxattr_alloc - allocate memory, if necessary, before calling getxattr
  *
- * Allocate memory, if not already allocated, or re-allocate correct size,
+ * Allocate memory, if analt already allocated, or re-allocate correct size,
  * before retrieving the extended attribute.  The xattr value buffer should
  * always be freed by the caller, even on error.
  *
@@ -378,50 +378,50 @@ vfs_getxattr_alloc(struct mnt_idmap *idmap, struct dentry *dentry,
 		   gfp_t flags)
 {
 	const struct xattr_handler *handler;
-	struct inode *inode = dentry->d_inode;
+	struct ianalde *ianalde = dentry->d_ianalde;
 	char *value = *xattr_value;
 	int error;
 
-	error = xattr_permission(idmap, inode, name, MAY_READ);
+	error = xattr_permission(idmap, ianalde, name, MAY_READ);
 	if (error)
 		return error;
 
-	handler = xattr_resolve_name(inode, &name);
+	handler = xattr_resolve_name(ianalde, &name);
 	if (IS_ERR(handler))
 		return PTR_ERR(handler);
 	if (!handler->get)
-		return -EOPNOTSUPP;
-	error = handler->get(handler, dentry, inode, name, NULL, 0);
+		return -EOPANALTSUPP;
+	error = handler->get(handler, dentry, ianalde, name, NULL, 0);
 	if (error < 0)
 		return error;
 
 	if (!value || (error > xattr_size)) {
 		value = krealloc(*xattr_value, error + 1, flags);
 		if (!value)
-			return -ENOMEM;
+			return -EANALMEM;
 		memset(value, 0, error + 1);
 	}
 
-	error = handler->get(handler, dentry, inode, name, value, error);
+	error = handler->get(handler, dentry, ianalde, name, value, error);
 	*xattr_value = value;
 	return error;
 }
 
 ssize_t
-__vfs_getxattr(struct dentry *dentry, struct inode *inode, const char *name,
+__vfs_getxattr(struct dentry *dentry, struct ianalde *ianalde, const char *name,
 	       void *value, size_t size)
 {
 	const struct xattr_handler *handler;
 
 	if (is_posix_acl_xattr(name))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
-	handler = xattr_resolve_name(inode, &name);
+	handler = xattr_resolve_name(ianalde, &name);
 	if (IS_ERR(handler))
 		return PTR_ERR(handler);
 	if (!handler->get)
-		return -EOPNOTSUPP;
-	return handler->get(handler, dentry, inode, name, value, size);
+		return -EOPANALTSUPP;
+	return handler->get(handler, dentry, ianalde, name, value, size);
 }
 EXPORT_SYMBOL(__vfs_getxattr);
 
@@ -429,52 +429,52 @@ ssize_t
 vfs_getxattr(struct mnt_idmap *idmap, struct dentry *dentry,
 	     const char *name, void *value, size_t size)
 {
-	struct inode *inode = dentry->d_inode;
+	struct ianalde *ianalde = dentry->d_ianalde;
 	int error;
 
-	error = xattr_permission(idmap, inode, name, MAY_READ);
+	error = xattr_permission(idmap, ianalde, name, MAY_READ);
 	if (error)
 		return error;
 
-	error = security_inode_getxattr(dentry, name);
+	error = security_ianalde_getxattr(dentry, name);
 	if (error)
 		return error;
 
 	if (!strncmp(name, XATTR_SECURITY_PREFIX,
 				XATTR_SECURITY_PREFIX_LEN)) {
 		const char *suffix = name + XATTR_SECURITY_PREFIX_LEN;
-		int ret = xattr_getsecurity(idmap, inode, suffix, value,
+		int ret = xattr_getsecurity(idmap, ianalde, suffix, value,
 					    size);
 		/*
 		 * Only overwrite the return value if a security module
 		 * is actually active.
 		 */
-		if (ret == -EOPNOTSUPP)
-			goto nolsm;
+		if (ret == -EOPANALTSUPP)
+			goto anallsm;
 		return ret;
 	}
-nolsm:
-	return __vfs_getxattr(dentry, inode, name, value, size);
+anallsm:
+	return __vfs_getxattr(dentry, ianalde, name, value, size);
 }
 EXPORT_SYMBOL_GPL(vfs_getxattr);
 
 /**
  * vfs_listxattr - retrieve \0 separated list of xattr names
- * @dentry: the dentry from whose inode the xattr names are retrieved
+ * @dentry: the dentry from whose ianalde the xattr names are retrieved
  * @list: buffer to store xattr names into
  * @size: size of the buffer
  *
  * This function returns the names of all xattrs associated with the
- * inode of @dentry.
+ * ianalde of @dentry.
  *
- * Note, for legacy reasons the vfs_listxattr() function lists POSIX
+ * Analte, for legacy reasons the vfs_listxattr() function lists POSIX
  * ACLs as well. Since POSIX ACLs are decoupled from IOP_XATTR the
  * vfs_listxattr() function doesn't check for this flag since a
  * filesystem could implement POSIX ACLs without implementing any other
  * xattrs.
  *
  * However, since all codepaths that remove IOP_XATTR also assign of
- * inode operations that either don't implement or implement a stub
+ * ianalde operations that either don't implement or implement a stub
  * ->listxattr() operation.
  *
  * Return: On success, the size of the buffer that was used. On error a
@@ -483,17 +483,17 @@ EXPORT_SYMBOL_GPL(vfs_getxattr);
 ssize_t
 vfs_listxattr(struct dentry *dentry, char *list, size_t size)
 {
-	struct inode *inode = d_inode(dentry);
+	struct ianalde *ianalde = d_ianalde(dentry);
 	ssize_t error;
 
-	error = security_inode_listxattr(dentry);
+	error = security_ianalde_listxattr(dentry);
 	if (error)
 		return error;
 
-	if (inode->i_op->listxattr) {
-		error = inode->i_op->listxattr(dentry, list, size);
+	if (ianalde->i_op->listxattr) {
+		error = ianalde->i_op->listxattr(dentry, list, size);
 	} else {
-		error = security_inode_listsecurity(inode, list, size);
+		error = security_ianalde_listsecurity(ianalde, list, size);
 		if (size && error > size)
 			error = -ERANGE;
 	}
@@ -505,57 +505,57 @@ int
 __vfs_removexattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		  const char *name)
 {
-	struct inode *inode = d_inode(dentry);
+	struct ianalde *ianalde = d_ianalde(dentry);
 	const struct xattr_handler *handler;
 
 	if (is_posix_acl_xattr(name))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
-	handler = xattr_resolve_name(inode, &name);
+	handler = xattr_resolve_name(ianalde, &name);
 	if (IS_ERR(handler))
 		return PTR_ERR(handler);
 	if (!handler->set)
-		return -EOPNOTSUPP;
-	return handler->set(handler, idmap, dentry, inode, name, NULL, 0,
+		return -EOPANALTSUPP;
+	return handler->set(handler, idmap, dentry, ianalde, name, NULL, 0,
 			    XATTR_REPLACE);
 }
 EXPORT_SYMBOL(__vfs_removexattr);
 
 /**
- * __vfs_removexattr_locked - set an extended attribute while holding the inode
+ * __vfs_removexattr_locked - set an extended attribute while holding the ianalde
  * lock
  *
- *  @idmap: idmap of the mount of the target inode
+ *  @idmap: idmap of the mount of the target ianalde
  *  @dentry: object to perform setxattr on
  *  @name: name of xattr to remove
- *  @delegated_inode: on return, will contain an inode pointer that
- *  a delegation was broken on, NULL if none.
+ *  @delegated_ianalde: on return, will contain an ianalde pointer that
+ *  a delegation was broken on, NULL if analne.
  */
 int
 __vfs_removexattr_locked(struct mnt_idmap *idmap,
 			 struct dentry *dentry, const char *name,
-			 struct inode **delegated_inode)
+			 struct ianalde **delegated_ianalde)
 {
-	struct inode *inode = dentry->d_inode;
+	struct ianalde *ianalde = dentry->d_ianalde;
 	int error;
 
-	error = xattr_permission(idmap, inode, name, MAY_WRITE);
+	error = xattr_permission(idmap, ianalde, name, MAY_WRITE);
 	if (error)
 		return error;
 
-	error = security_inode_removexattr(idmap, dentry, name);
+	error = security_ianalde_removexattr(idmap, dentry, name);
 	if (error)
 		goto out;
 
-	error = try_break_deleg(inode, delegated_inode);
+	error = try_break_deleg(ianalde, delegated_ianalde);
 	if (error)
 		goto out;
 
 	error = __vfs_removexattr(idmap, dentry, name);
 
 	if (!error) {
-		fsnotify_xattr(dentry);
-		evm_inode_post_removexattr(dentry, name);
+		fsanaltify_xattr(dentry);
+		evm_ianalde_post_removexattr(dentry, name);
 	}
 
 out:
@@ -567,18 +567,18 @@ int
 vfs_removexattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		const char *name)
 {
-	struct inode *inode = dentry->d_inode;
-	struct inode *delegated_inode = NULL;
+	struct ianalde *ianalde = dentry->d_ianalde;
+	struct ianalde *delegated_ianalde = NULL;
 	int error;
 
 retry_deleg:
-	inode_lock(inode);
+	ianalde_lock(ianalde);
 	error = __vfs_removexattr_locked(idmap, dentry,
-					 name, &delegated_inode);
-	inode_unlock(inode);
+					 name, &delegated_ianalde);
+	ianalde_unlock(ianalde);
 
-	if (delegated_inode) {
-		error = break_deleg_wait(&delegated_inode);
+	if (delegated_ianalde) {
+		error = break_deleg_wait(&delegated_ianalde);
 		if (!error)
 			goto retry_deleg;
 	}
@@ -730,7 +730,7 @@ do_getxattr(struct mnt_idmap *idmap, struct dentry *d,
 			ctx->size = XATTR_SIZE_MAX;
 		ctx->kvalue = kvzalloc(ctx->size, GFP_KERNEL);
 		if (!ctx->kvalue)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	if (is_posix_acl_xattr(ctx->kname->name))
@@ -742,7 +742,7 @@ do_getxattr(struct mnt_idmap *idmap, struct dentry *d,
 			error = -EFAULT;
 	} else if (error == -ERANGE && ctx->size >= XATTR_SIZE_MAX) {
 		/* The file system tried to returned a value bigger
-		   than XATTR_SIZE_MAX bytes. Not possible. */
+		   than XATTR_SIZE_MAX bytes. Analt possible. */
 		error = -E2BIG;
 	}
 
@@ -835,7 +835,7 @@ listxattr(struct dentry *d, char __user *list, size_t size)
 			size = XATTR_LIST_MAX;
 		klist = kvmalloc(size, GFP_KERNEL);
 		if (!klist)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	error = vfs_listxattr(d, klist, size);
@@ -844,7 +844,7 @@ listxattr(struct dentry *d, char __user *list, size_t size)
 			error = -EFAULT;
 	} else if (error == -ERANGE && size >= XATTR_LIST_MAX) {
 		/* The file system tried to returned a list bigger
-		   than XATTR_LIST_MAX bytes. Not possible. */
+		   than XATTR_LIST_MAX bytes. Analt possible. */
 		error = -E2BIG;
 	}
 
@@ -994,7 +994,7 @@ int xattr_list_one(char **buffer, ssize_t *remaining_size, const char *name)
  * Combine the results of the list() operation from every xattr_handler in the
  * xattr_handler stack.
  *
- * Note that this will not include the entries for POSIX ACLs.
+ * Analte that this will analt include the entries for POSIX ACLs.
  */
 ssize_t
 generic_listxattr(struct dentry *dentry, char *buffer, size_t buffer_size)
@@ -1026,7 +1026,7 @@ EXPORT_SYMBOL(generic_listxattr);
  * is passed to the get operation of a handler with prefix "user." to get
  * attribute "user.foo".  The full name is still "there" in the name though.
  *
- * Note: the list xattr handler operation when called from the vfs is passed a
+ * Analte: the list xattr handler operation when called from the vfs is passed a
  * NULL name; some file systems use this operation internally, with varying
  * semantics.
  */
@@ -1044,7 +1044,7 @@ EXPORT_SYMBOL(xattr_full_name);
  * @name: the full name of the xattr
  * @size: the size of its value
  *
- * This takes no account of how much larger the two slab objects actually are:
+ * This takes anal account of how much larger the two slab objects actually are:
  * that would depend on the slab implementation, when what is required is a
  * deterministic number, which grows with name length and size and quantity.
  *
@@ -1105,38 +1105,38 @@ struct simple_xattr *simple_xattr_alloc(const void *value, size_t size)
 /**
  * rbtree_simple_xattr_cmp - compare xattr name with current rbtree xattr entry
  * @key: xattr name
- * @node: current node
+ * @analde: current analde
  *
- * Compare the xattr name with the xattr name attached to @node in the rbtree.
+ * Compare the xattr name with the xattr name attached to @analde in the rbtree.
  *
  * Return: Negative value if continuing left, positive if continuing right, 0
- * if the xattr attached to @node matches @key.
+ * if the xattr attached to @analde matches @key.
  */
-static int rbtree_simple_xattr_cmp(const void *key, const struct rb_node *node)
+static int rbtree_simple_xattr_cmp(const void *key, const struct rb_analde *analde)
 {
 	const char *xattr_name = key;
 	const struct simple_xattr *xattr;
 
-	xattr = rb_entry(node, struct simple_xattr, rb_node);
+	xattr = rb_entry(analde, struct simple_xattr, rb_analde);
 	return strcmp(xattr->name, xattr_name);
 }
 
 /**
- * rbtree_simple_xattr_node_cmp - compare two xattr rbtree nodes
- * @new_node: new node
- * @node: current node
+ * rbtree_simple_xattr_analde_cmp - compare two xattr rbtree analdes
+ * @new_analde: new analde
+ * @analde: current analde
  *
- * Compare the xattr attached to @new_node with the xattr attached to @node.
+ * Compare the xattr attached to @new_analde with the xattr attached to @analde.
  *
  * Return: Negative value if continuing left, positive if continuing right, 0
- * if the xattr attached to @new_node matches the xattr attached to @node.
+ * if the xattr attached to @new_analde matches the xattr attached to @analde.
  */
-static int rbtree_simple_xattr_node_cmp(struct rb_node *new_node,
-					const struct rb_node *node)
+static int rbtree_simple_xattr_analde_cmp(struct rb_analde *new_analde,
+					const struct rb_analde *analde)
 {
 	struct simple_xattr *xattr;
-	xattr = rb_entry(new_node, struct simple_xattr, rb_node);
-	return rbtree_simple_xattr_cmp(xattr->name, node);
+	xattr = rb_entry(new_analde, struct simple_xattr, rb_analde);
+	return rbtree_simple_xattr_cmp(xattr->name, analde);
 }
 
 /**
@@ -1158,13 +1158,13 @@ int simple_xattr_get(struct simple_xattrs *xattrs, const char *name,
 		     void *buffer, size_t size)
 {
 	struct simple_xattr *xattr = NULL;
-	struct rb_node *rbp;
-	int ret = -ENODATA;
+	struct rb_analde *rbp;
+	int ret = -EANALDATA;
 
 	read_lock(&xattrs->lock);
 	rbp = rb_find(name, &xattrs->rb_root, rbtree_simple_xattr_cmp);
 	if (rbp) {
-		xattr = rb_entry(rbp, struct simple_xattr, rb_node);
+		xattr = rb_entry(rbp, struct simple_xattr, rb_analde);
 		ret = xattr->size;
 		if (buffer) {
 			if (size < xattr->size)
@@ -1196,36 +1196,36 @@ int simple_xattr_get(struct simple_xattrs *xattrs, const char *name,
  * If @value is empty and a matching xattr object is found we delete it if
  * XATTR_REPLACE is specified in @flags or @flags is zero.
  *
- * If @value is empty and no matching xattr object for @name is found we do
- * nothing if XATTR_CREATE is specified in @flags or @flags is zero. For
+ * If @value is empty and anal matching xattr object for @name is found we do
+ * analthing if XATTR_CREATE is specified in @flags or @flags is zero. For
  * XATTR_REPLACE we fail as mentioned above.
  *
  * Return: On success, the removed or replaced xattr is returned, to be freed
- * by the caller; or NULL if none. On failure a negative error code is returned.
+ * by the caller; or NULL if analne. On failure a negative error code is returned.
  */
 struct simple_xattr *simple_xattr_set(struct simple_xattrs *xattrs,
 				      const char *name, const void *value,
 				      size_t size, int flags)
 {
 	struct simple_xattr *old_xattr = NULL, *new_xattr = NULL;
-	struct rb_node *parent = NULL, **rbp;
+	struct rb_analde *parent = NULL, **rbp;
 	int err = 0, ret;
 
 	/* value == NULL means remove */
 	if (value) {
 		new_xattr = simple_xattr_alloc(value, size);
 		if (!new_xattr)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 
 		new_xattr->name = kstrdup(name, GFP_KERNEL_ACCOUNT);
 		if (!new_xattr->name) {
 			simple_xattr_free(new_xattr);
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 		}
 	}
 
 	write_lock(&xattrs->lock);
-	rbp = &xattrs->rb_root.rb_node;
+	rbp = &xattrs->rb_root.rb_analde;
 	while (*rbp) {
 		parent = *rbp;
 		ret = rbtree_simple_xattr_cmp(name, *rbp);
@@ -1234,7 +1234,7 @@ struct simple_xattr *simple_xattr_set(struct simple_xattrs *xattrs,
 		else if (ret > 0)
 			rbp = &(*rbp)->rb_right;
 		else
-			old_xattr = rb_entry(*rbp, struct simple_xattr, rb_node);
+			old_xattr = rb_entry(*rbp, struct simple_xattr, rb_analde);
 		if (old_xattr)
 			break;
 	}
@@ -1247,28 +1247,28 @@ struct simple_xattr *simple_xattr_set(struct simple_xattrs *xattrs,
 		}
 
 		if (new_xattr)
-			rb_replace_node(&old_xattr->rb_node,
-					&new_xattr->rb_node, &xattrs->rb_root);
+			rb_replace_analde(&old_xattr->rb_analde,
+					&new_xattr->rb_analde, &xattrs->rb_root);
 		else
-			rb_erase(&old_xattr->rb_node, &xattrs->rb_root);
+			rb_erase(&old_xattr->rb_analde, &xattrs->rb_root);
 	} else {
-		/* Fail if XATTR_REPLACE is requested but no xattr is found. */
+		/* Fail if XATTR_REPLACE is requested but anal xattr is found. */
 		if (flags & XATTR_REPLACE) {
-			err = -ENODATA;
+			err = -EANALDATA;
 			goto out_unlock;
 		}
 
 		/*
-		 * If XATTR_CREATE or no flags are specified together with a
+		 * If XATTR_CREATE or anal flags are specified together with a
 		 * new value simply insert it.
 		 */
 		if (new_xattr) {
-			rb_link_node(&new_xattr->rb_node, parent, rbp);
-			rb_insert_color(&new_xattr->rb_node, &xattrs->rb_root);
+			rb_link_analde(&new_xattr->rb_analde, parent, rbp);
+			rb_insert_color(&new_xattr->rb_analde, &xattrs->rb_root);
 		}
 
 		/*
-		 * If XATTR_CREATE or no flags are specified and neither an
+		 * If XATTR_CREATE or anal flags are specified and neither an
 		 * old or new xattr exist then we don't need to do anything.
 		 */
 	}
@@ -1288,16 +1288,16 @@ static bool xattr_is_trusted(const char *name)
 
 /**
  * simple_xattr_list - list all xattr objects
- * @inode: inode from which to get the xattrs
+ * @ianalde: ianalde from which to get the xattrs
  * @xattrs: the header of the xattr object
  * @buffer: the buffer to store all xattrs into
  * @size: the size of @buffer
  *
- * List all xattrs associated with @inode. If @buffer is NULL we returned
+ * List all xattrs associated with @ianalde. If @buffer is NULL we returned
  * the required size of the buffer. If @buffer is provided we store the
- * xattrs value into it provided it is big enough.
+ * xattrs value into it provided it is big eanalugh.
  *
- * Note, the number of xattr names that can be listed with listxattr(2) is
+ * Analte, the number of xattr names that can be listed with listxattr(2) is
  * limited to XATTR_LIST_MAX aka 65536 bytes. If a larger buffer is passed
  * then vfs_listxattr() caps it to XATTR_LIST_MAX and if more xattr names
  * are found it will return -E2BIG.
@@ -1305,22 +1305,22 @@ static bool xattr_is_trusted(const char *name)
  * Return: On success the required size or the size of the copied xattrs is
  * returned. On error a negative error code is returned.
  */
-ssize_t simple_xattr_list(struct inode *inode, struct simple_xattrs *xattrs,
+ssize_t simple_xattr_list(struct ianalde *ianalde, struct simple_xattrs *xattrs,
 			  char *buffer, size_t size)
 {
-	bool trusted = ns_capable_noaudit(&init_user_ns, CAP_SYS_ADMIN);
+	bool trusted = ns_capable_analaudit(&init_user_ns, CAP_SYS_ADMIN);
 	struct simple_xattr *xattr;
-	struct rb_node *rbp;
+	struct rb_analde *rbp;
 	ssize_t remaining_size = size;
 	int err = 0;
 
-	err = posix_acl_listxattr(inode, &buffer, &remaining_size);
+	err = posix_acl_listxattr(ianalde, &buffer, &remaining_size);
 	if (err)
 		return err;
 
 	read_lock(&xattrs->lock);
 	for (rbp = rb_first(&xattrs->rb_root); rbp; rbp = rb_next(rbp)) {
-		xattr = rb_entry(rbp, struct simple_xattr, rb_node);
+		xattr = rb_entry(rbp, struct simple_xattr, rb_analde);
 
 		/* skip "trusted." attributes for unprivileged callers */
 		if (!trusted && xattr_is_trusted(xattr->name))
@@ -1336,19 +1336,19 @@ ssize_t simple_xattr_list(struct inode *inode, struct simple_xattrs *xattrs,
 }
 
 /**
- * rbtree_simple_xattr_less - compare two xattr rbtree nodes
- * @new_node: new node
- * @node: current node
+ * rbtree_simple_xattr_less - compare two xattr rbtree analdes
+ * @new_analde: new analde
+ * @analde: current analde
  *
- * Compare the xattr attached to @new_node with the xattr attached to @node.
- * Note that this function technically tolerates duplicate entries.
+ * Compare the xattr attached to @new_analde with the xattr attached to @analde.
+ * Analte that this function technically tolerates duplicate entries.
  *
  * Return: True if insertion point in the rbtree is found.
  */
-static bool rbtree_simple_xattr_less(struct rb_node *new_node,
-				     const struct rb_node *node)
+static bool rbtree_simple_xattr_less(struct rb_analde *new_analde,
+				     const struct rb_analde *analde)
 {
-	return rbtree_simple_xattr_node_cmp(new_node, node) < 0;
+	return rbtree_simple_xattr_analde_cmp(new_analde, analde) < 0;
 }
 
 /**
@@ -1356,15 +1356,15 @@ static bool rbtree_simple_xattr_less(struct rb_node *new_node,
  * @xattrs: the header of the xattr object
  * @new_xattr: the xattr object to add
  *
- * Add an xattr object to @xattrs. This assumes no replacement or removal
- * of matching xattrs is wanted. Should only be called during inode
+ * Add an xattr object to @xattrs. This assumes anal replacement or removal
+ * of matching xattrs is wanted. Should only be called during ianalde
  * initialization when a few distinct initial xattrs are supposed to be set.
  */
 void simple_xattr_add(struct simple_xattrs *xattrs,
 		      struct simple_xattr *new_xattr)
 {
 	write_lock(&xattrs->lock);
-	rb_add(&new_xattr->rb_node, &xattrs->rb_root, rbtree_simple_xattr_less);
+	rb_add(&new_xattr->rb_analde, &xattrs->rb_root, rbtree_simple_xattr_less);
 	write_unlock(&xattrs->lock);
 }
 
@@ -1385,23 +1385,23 @@ void simple_xattrs_init(struct simple_xattrs *xattrs)
  * @xattrs: xattr header whose xattrs to destroy
  * @freed_space: approximate number of bytes of memory freed from @xattrs
  *
- * Destroy all xattrs in @xattr. When this is called no one can hold a
+ * Destroy all xattrs in @xattr. When this is called anal one can hold a
  * reference to any of the xattrs anymore.
  */
 void simple_xattrs_free(struct simple_xattrs *xattrs, size_t *freed_space)
 {
-	struct rb_node *rbp;
+	struct rb_analde *rbp;
 
 	if (freed_space)
 		*freed_space = 0;
 	rbp = rb_first(&xattrs->rb_root);
 	while (rbp) {
 		struct simple_xattr *xattr;
-		struct rb_node *rbp_next;
+		struct rb_analde *rbp_next;
 
 		rbp_next = rb_next(rbp);
-		xattr = rb_entry(rbp, struct simple_xattr, rb_node);
-		rb_erase(&xattr->rb_node, &xattrs->rb_root);
+		xattr = rb_entry(rbp, struct simple_xattr, rb_analde);
+		rb_erase(&xattr->rb_analde, &xattrs->rb_root);
 		if (freed_space)
 			*freed_space += simple_xattr_space(xattr->name,
 							   xattr->size);

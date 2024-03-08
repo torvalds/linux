@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2019 Mellanox Technologies. */
+/* Copyright (c) 2019 Mellaanalx Techanallogies. */
 
 #include "dr_types.h"
 
@@ -16,7 +16,7 @@ static int dr_table_set_miss_action_nic(struct mlx5dr_domain *dmn,
 	if (!list_empty(&nic_tbl->nic_matcher_list))
 		last_nic_matcher = list_last_entry(&nic_tbl->nic_matcher_list,
 						   struct mlx5dr_matcher_rx_tx,
-						   list_node);
+						   list_analde);
 
 	if (last_nic_matcher)
 		last_htbl = last_nic_matcher->e_anchor;
@@ -46,10 +46,10 @@ static int dr_table_set_miss_action_nic(struct mlx5dr_domain *dmn,
 int mlx5dr_table_set_miss_action(struct mlx5dr_table *tbl,
 				 struct mlx5dr_action *action)
 {
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 
 	if (action && action->action_type != DR_ACTION_TYP_FT)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mlx5dr_domain_lock(tbl->dmn);
 
@@ -134,7 +134,7 @@ static int dr_table_init_nic(struct mlx5dr_domain *dmn,
 						  0);
 	if (!nic_tbl->s_anchor) {
 		mlx5dr_err(dmn, "Failed allocating htbl\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	info.type = CONNECT_MISS;
@@ -272,7 +272,7 @@ struct mlx5dr_table *mlx5dr_table_create(struct mlx5dr_domain *dmn, u32 level,
 	if (ret)
 		goto uninit_tbl;
 
-	INIT_LIST_HEAD(&tbl->dbg_node);
+	INIT_LIST_HEAD(&tbl->dbg_analde);
 	mlx5dr_dbg_tbl_add(tbl);
 	return tbl;
 

@@ -16,7 +16,7 @@
 
   Sequencer MIDI-through client
 
-  This gives a simple midi-through client.  All the normal input events
+  This gives a simple midi-through client.  All the analrmal input events
   are redirected to output port immediately.
   The routing can be done via aconnect program in alsa-utils.
 
@@ -39,7 +39,7 @@
   The model option "duplex=1" enables duplex operation to the port.
   In duplex mode, a pair of ports are created instead of single port,
   and events are tunneled between pair-ports.  For example, input to
-  port A is sent to output port of another port B and vice versa.
+  port A is sent to output port of aanalther port B and vice versa.
   In duplex mode, each port has DUPLEX capability.
 
  */
@@ -80,7 +80,7 @@ dummy_input(struct snd_seq_event *ev, int direct, void *private_data,
 	p = private_data;
 	if (ev->source.client == SNDRV_SEQ_CLIENT_SYSTEM ||
 	    ev->type == SNDRV_SEQ_EVENT_KERNEL_ERROR)
-		return 0; /* ignore system messages */
+		return 0; /* iganalre system messages */
 	tmpev = *ev;
 	if (p->duplex)
 		tmpev.source.port = p->connect;
@@ -170,7 +170,7 @@ register_client(void)
 	client = snd_seq_kernel_client_get(my_client);
 	if (!client)
 		return -EINVAL;
-	client->filter = SNDRV_SEQ_FILTER_NO_CONVERT;
+	client->filter = SNDRV_SEQ_FILTER_ANAL_CONVERT;
 	snd_seq_kernel_client_put(client);
 
 	/* create ports */
@@ -178,13 +178,13 @@ register_client(void)
 		rec1 = create_port(i, 0);
 		if (rec1 == NULL) {
 			snd_seq_delete_kernel_client(my_client);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		if (duplex) {
 			rec2 = create_port(i, 1);
 			if (rec2 == NULL) {
 				snd_seq_delete_kernel_client(my_client);
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 			rec1->connect = rec2->port;
 			rec2->connect = rec1->port;

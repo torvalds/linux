@@ -2,9 +2,9 @@
 /*
  * This file is part of wl1271
  *
- * Copyright (C) 2008-2010 Nokia Corporation
+ * Copyright (C) 2008-2010 Analkia Corporation
  *
- * Contact: Luciano Coelho <luciano.coelho@nokia.com>
+ * Contact: Luciaanal Coelho <luciaanal.coelho@analkia.com>
  */
 
 #include <linux/module.h>
@@ -34,11 +34,11 @@ void wlcore_disable_interrupts(struct wl1271 *wl)
 }
 EXPORT_SYMBOL_GPL(wlcore_disable_interrupts);
 
-void wlcore_disable_interrupts_nosync(struct wl1271 *wl)
+void wlcore_disable_interrupts_analsync(struct wl1271 *wl)
 {
-	disable_irq_nosync(wl->irq);
+	disable_irq_analsync(wl->irq);
 }
-EXPORT_SYMBOL_GPL(wlcore_disable_interrupts_nosync);
+EXPORT_SYMBOL_GPL(wlcore_disable_interrupts_analsync);
 
 void wlcore_enable_interrupts(struct wl1271 *wl)
 {

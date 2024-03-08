@@ -34,7 +34,7 @@ int bdi_register_va(struct backing_dev_info *bdi, const char *fmt,
 void bdi_set_owner(struct backing_dev_info *bdi, struct device *owner);
 void bdi_unregister(struct backing_dev_info *bdi);
 
-struct backing_dev_info *bdi_alloc(int node_id);
+struct backing_dev_info *bdi_alloc(int analde_id);
 
 void wb_start_background_writeback(struct bdi_writeback *wb);
 void wb_workfn(struct work_struct *work);
@@ -108,8 +108,8 @@ u64 bdi_get_min_bytes(struct backing_dev_info *bdi);
 u64 bdi_get_max_bytes(struct backing_dev_info *bdi);
 int bdi_set_min_ratio(struct backing_dev_info *bdi, unsigned int min_ratio);
 int bdi_set_max_ratio(struct backing_dev_info *bdi, unsigned int max_ratio);
-int bdi_set_min_ratio_no_scale(struct backing_dev_info *bdi, unsigned int min_ratio);
-int bdi_set_max_ratio_no_scale(struct backing_dev_info *bdi, unsigned int max_ratio);
+int bdi_set_min_ratio_anal_scale(struct backing_dev_info *bdi, unsigned int min_ratio);
+int bdi_set_max_ratio_anal_scale(struct backing_dev_info *bdi, unsigned int max_ratio);
 int bdi_set_min_bytes(struct backing_dev_info *bdi, u64 min_bytes);
 int bdi_set_max_bytes(struct backing_dev_info *bdi, u64 max_bytes);
 int bdi_set_strict_limit(struct backing_dev_info *bdi, unsigned int strict_limit);
@@ -126,7 +126,7 @@ int bdi_set_strict_limit(struct backing_dev_info *bdi, unsigned int strict_limit
 #define BDI_CAP_WRITEBACK_ACCT		(1 << 1)
 #define BDI_CAP_STRICTLIMIT		(1 << 2)
 
-extern struct backing_dev_info noop_backing_dev_info;
+extern struct backing_dev_info analop_backing_dev_info;
 
 int bdi_init(struct backing_dev_info *bdi);
 
@@ -142,11 +142,11 @@ static inline bool writeback_in_progress(struct bdi_writeback *wb)
 	return test_bit(WB_writeback_running, &wb->state);
 }
 
-struct backing_dev_info *inode_to_bdi(struct inode *inode);
+struct backing_dev_info *ianalde_to_bdi(struct ianalde *ianalde);
 
 static inline bool mapping_can_writeback(struct address_space *mapping)
 {
-	return inode_to_bdi(mapping->host)->capabilities & BDI_CAP_WRITEBACK;
+	return ianalde_to_bdi(mapping->host)->capabilities & BDI_CAP_WRITEBACK;
 }
 
 #ifdef CONFIG_CGROUP_WRITEBACK
@@ -160,24 +160,24 @@ void wb_memcg_offline(struct mem_cgroup *memcg);
 void wb_blkcg_offline(struct cgroup_subsys_state *css);
 
 /**
- * inode_cgwb_enabled - test whether cgroup writeback is enabled on an inode
- * @inode: inode of interest
+ * ianalde_cgwb_enabled - test whether cgroup writeback is enabled on an ianalde
+ * @ianalde: ianalde of interest
  *
  * Cgroup writeback requires support from the filesystem.  Also, both memcg and
  * iocg have to be on the default hierarchy.  Test whether all conditions are
  * met.
  *
- * Note that the test result may change dynamically on the same inode
+ * Analte that the test result may change dynamically on the same ianalde
  * depending on how memcg and iocg are configured.
  */
-static inline bool inode_cgwb_enabled(struct inode *inode)
+static inline bool ianalde_cgwb_enabled(struct ianalde *ianalde)
 {
-	struct backing_dev_info *bdi = inode_to_bdi(inode);
+	struct backing_dev_info *bdi = ianalde_to_bdi(ianalde);
 
 	return cgroup_subsys_on_dfl(memory_cgrp_subsys) &&
 		cgroup_subsys_on_dfl(io_cgrp_subsys) &&
 		(bdi->capabilities & BDI_CAP_WRITEBACK) &&
-		(inode->i_sb->s_iflags & SB_I_CGROUPWB);
+		(ianalde->i_sb->s_iflags & SB_I_CGROUPWB);
 }
 
 /**
@@ -186,7 +186,7 @@ static inline bool inode_cgwb_enabled(struct inode *inode)
  *
  * Find the wb of @bdi which matches both the memcg and blkcg of %current.
  * Must be called under rcu_read_lock() which protects the returend wb.
- * NULL if not found.
+ * NULL if analt found.
  */
 static inline struct bdi_writeback *wb_find_current(struct backing_dev_info *bdi)
 {
@@ -200,7 +200,7 @@ static inline struct bdi_writeback *wb_find_current(struct backing_dev_info *bdi
 	wb = radix_tree_lookup(&bdi->cgwb_tree, memcg_css->id);
 
 	/*
-	 * %current's blkcg equals the effective blkcg of its memcg.  No
+	 * %current's blkcg equals the effective blkcg of its memcg.  Anal
 	 * need to use the relatively expensive cgroup_get_e_css().
 	 */
 	if (likely(wb && wb->blkcg_css == task_css(current, io_cgrp_id)))
@@ -239,88 +239,88 @@ wb_get_create_current(struct backing_dev_info *bdi, gfp_t gfp)
 }
 
 /**
- * inode_to_wb - determine the wb of an inode
- * @inode: inode of interest
+ * ianalde_to_wb - determine the wb of an ianalde
+ * @ianalde: ianalde of interest
  *
- * Returns the wb @inode is currently associated with.  The caller must be
- * holding either @inode->i_lock, the i_pages lock, or the
+ * Returns the wb @ianalde is currently associated with.  The caller must be
+ * holding either @ianalde->i_lock, the i_pages lock, or the
  * associated wb's list_lock.
  */
-static inline struct bdi_writeback *inode_to_wb(const struct inode *inode)
+static inline struct bdi_writeback *ianalde_to_wb(const struct ianalde *ianalde)
 {
 #ifdef CONFIG_LOCKDEP
 	WARN_ON_ONCE(debug_locks &&
-		     (!lockdep_is_held(&inode->i_lock) &&
-		      !lockdep_is_held(&inode->i_mapping->i_pages.xa_lock) &&
-		      !lockdep_is_held(&inode->i_wb->list_lock)));
+		     (!lockdep_is_held(&ianalde->i_lock) &&
+		      !lockdep_is_held(&ianalde->i_mapping->i_pages.xa_lock) &&
+		      !lockdep_is_held(&ianalde->i_wb->list_lock)));
 #endif
-	return inode->i_wb;
+	return ianalde->i_wb;
 }
 
-static inline struct bdi_writeback *inode_to_wb_wbc(
-				struct inode *inode,
+static inline struct bdi_writeback *ianalde_to_wb_wbc(
+				struct ianalde *ianalde,
 				struct writeback_control *wbc)
 {
 	/*
-	 * If wbc does not have inode attached, it means cgroup writeback was
+	 * If wbc does analt have ianalde attached, it means cgroup writeback was
 	 * disabled when wbc started. Just use the default wb in that case.
 	 */
-	return wbc->wb ? wbc->wb : &inode_to_bdi(inode)->wb;
+	return wbc->wb ? wbc->wb : &ianalde_to_bdi(ianalde)->wb;
 }
 
 /**
- * unlocked_inode_to_wb_begin - begin unlocked inode wb access transaction
- * @inode: target inode
+ * unlocked_ianalde_to_wb_begin - begin unlocked ianalde wb access transaction
+ * @ianalde: target ianalde
  * @cookie: output param, to be passed to the end function
  *
- * The caller wants to access the wb associated with @inode but isn't
- * holding inode->i_lock, the i_pages lock or wb->list_lock.  This
- * function determines the wb associated with @inode and ensures that the
+ * The caller wants to access the wb associated with @ianalde but isn't
+ * holding ianalde->i_lock, the i_pages lock or wb->list_lock.  This
+ * function determines the wb associated with @ianalde and ensures that the
  * association doesn't change until the transaction is finished with
- * unlocked_inode_to_wb_end().
+ * unlocked_ianalde_to_wb_end().
  *
- * The caller must call unlocked_inode_to_wb_end() with *@cookie afterwards and
- * can't sleep during the transaction.  IRQs may or may not be disabled on
+ * The caller must call unlocked_ianalde_to_wb_end() with *@cookie afterwards and
+ * can't sleep during the transaction.  IRQs may or may analt be disabled on
  * return.
  */
 static inline struct bdi_writeback *
-unlocked_inode_to_wb_begin(struct inode *inode, struct wb_lock_cookie *cookie)
+unlocked_ianalde_to_wb_begin(struct ianalde *ianalde, struct wb_lock_cookie *cookie)
 {
 	rcu_read_lock();
 
 	/*
-	 * Paired with store_release in inode_switch_wbs_work_fn() and
+	 * Paired with store_release in ianalde_switch_wbs_work_fn() and
 	 * ensures that we see the new wb if we see cleared I_WB_SWITCH.
 	 */
-	cookie->locked = smp_load_acquire(&inode->i_state) & I_WB_SWITCH;
+	cookie->locked = smp_load_acquire(&ianalde->i_state) & I_WB_SWITCH;
 
 	if (unlikely(cookie->locked))
-		xa_lock_irqsave(&inode->i_mapping->i_pages, cookie->flags);
+		xa_lock_irqsave(&ianalde->i_mapping->i_pages, cookie->flags);
 
 	/*
 	 * Protected by either !I_WB_SWITCH + rcu_read_lock() or the i_pages
-	 * lock.  inode_to_wb() will bark.  Deref directly.
+	 * lock.  ianalde_to_wb() will bark.  Deref directly.
 	 */
-	return inode->i_wb;
+	return ianalde->i_wb;
 }
 
 /**
- * unlocked_inode_to_wb_end - end inode wb access transaction
- * @inode: target inode
- * @cookie: @cookie from unlocked_inode_to_wb_begin()
+ * unlocked_ianalde_to_wb_end - end ianalde wb access transaction
+ * @ianalde: target ianalde
+ * @cookie: @cookie from unlocked_ianalde_to_wb_begin()
  */
-static inline void unlocked_inode_to_wb_end(struct inode *inode,
+static inline void unlocked_ianalde_to_wb_end(struct ianalde *ianalde,
 					    struct wb_lock_cookie *cookie)
 {
 	if (unlikely(cookie->locked))
-		xa_unlock_irqrestore(&inode->i_mapping->i_pages, cookie->flags);
+		xa_unlock_irqrestore(&ianalde->i_mapping->i_pages, cookie->flags);
 
 	rcu_read_unlock();
 }
 
 #else	/* CONFIG_CGROUP_WRITEBACK */
 
-static inline bool inode_cgwb_enabled(struct inode *inode)
+static inline bool ianalde_cgwb_enabled(struct ianalde *ianalde)
 {
 	return false;
 }
@@ -336,26 +336,26 @@ wb_get_create_current(struct backing_dev_info *bdi, gfp_t gfp)
 	return &bdi->wb;
 }
 
-static inline struct bdi_writeback *inode_to_wb(struct inode *inode)
+static inline struct bdi_writeback *ianalde_to_wb(struct ianalde *ianalde)
 {
-	return &inode_to_bdi(inode)->wb;
+	return &ianalde_to_bdi(ianalde)->wb;
 }
 
-static inline struct bdi_writeback *inode_to_wb_wbc(
-				struct inode *inode,
+static inline struct bdi_writeback *ianalde_to_wb_wbc(
+				struct ianalde *ianalde,
 				struct writeback_control *wbc)
 {
-	return inode_to_wb(inode);
+	return ianalde_to_wb(ianalde);
 }
 
 
 static inline struct bdi_writeback *
-unlocked_inode_to_wb_begin(struct inode *inode, struct wb_lock_cookie *cookie)
+unlocked_ianalde_to_wb_begin(struct ianalde *ianalde, struct wb_lock_cookie *cookie)
 {
-	return inode_to_wb(inode);
+	return ianalde_to_wb(ianalde);
 }
 
-static inline void unlocked_inode_to_wb_end(struct inode *inode,
+static inline void unlocked_ianalde_to_wb_end(struct ianalde *ianalde,
 					    struct wb_lock_cookie *cookie)
 {
 }

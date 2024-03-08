@@ -17,9 +17,9 @@ menuconfig BT
 	select CRYPTO_SHA256
 	select CRYPTO_ECDH
 	help
-	  Bluetooth is low-cost, low-power, short-range wireless technology.
+	  Bluetooth is low-cost, low-power, short-range wireless techanallogy.
 	  It was designed as a replacement for cables and other short-range
-	  technologies like IrDA.  Bluetooth operates in personal area range
+	  techanallogies like IrDA.  Bluetooth operates in personal area range
 	  that typically extends up to 10 meters.  More information about
 	  Bluetooth can be found at <https://www.bluetooth.com/>.
 
@@ -29,7 +29,7 @@ menuconfig BT
 		SCO audio links
 		L2CAP (Logical Link Control and Adaptation Protocol)
 		SMP (Security Manager Protocol) on LE (Low Energy) links
-		ISO isochronous links
+		ISO isochroanalus links
 	     HCI Device drivers (Interface to the hardware)
 	     RFCOMM Module (RFCOMM Protocol)  
 	     BNEP Module (Bluetooth Network Encapsulation Protocol)

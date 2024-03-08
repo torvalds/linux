@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (c) 2016 Avago Technologies.  All rights reserved.
+ * Copyright (c) 2016 Avago Techanallogies.  All rights reserved.
  */
 
 /*
@@ -77,7 +77,7 @@ struct nvme_fc_ersp_iu {
 	__be32			xfrd_len;
 	__be32			rsvd12;
 	struct nvme_completion	cqe;
-	/* for now - no additional payload */
+	/* for analw - anal additional payload */
 };
 
 
@@ -161,8 +161,8 @@ struct fcnvme_lsdesc_rqst {
 
 /* FC-NVME LS RJT reason_code values */
 enum fcnvme_ls_rjt_reason {
-	FCNVME_RJT_RC_NONE		= 0,
-	/* no reason - not to be sent */
+	FCNVME_RJT_RC_ANALNE		= 0,
+	/* anal reason - analt to be sent */
 
 	FCNVME_RJT_RC_INVAL		= 0x01,
 	/* invalid NVMe_LS command code */
@@ -174,7 +174,7 @@ enum fcnvme_ls_rjt_reason {
 	/* unable to perform command request */
 
 	FCNVME_RJT_RC_UNSUP		= 0x0b,
-	/* command not supported */
+	/* command analt supported */
 
 	FCNVME_RJT_RC_INV_ASSOC		= 0x40,
 	/* Invalid Association ID */
@@ -194,8 +194,8 @@ enum fcnvme_ls_rjt_reason {
 
 /* FC-NVME LS RJT reason_explanation values */
 enum fcnvme_ls_rjt_explan {
-	FCNVME_RJT_EXP_NONE		= 0x00,
-	/* No additional explanation */
+	FCNVME_RJT_EXP_ANALNE		= 0x00,
+	/* Anal additional explanation */
 
 	FCNVME_RJT_EXP_OXID_RXID	= 0x17,
 	/* invalid OX_ID-RX_ID combination */
@@ -420,7 +420,7 @@ struct fcnvme_ls_disconnect_conn_acc {
  * infront of the <16hexdigits>.  Without is considered the "min" string
  * and with is considered the "max" string. The hexdigits may be upper
  * or lower case.
- * Note: FC-NVME-2 standard requires a "0x" prefix.
+ * Analte: FC-NVME-2 standard requires a "0x" prefix.
  */
 #define NVME_FC_TRADDR_NNLEN		3	/* "?n-" */
 #define NVME_FC_TRADDR_OXNNLEN		5	/* "?n-0x" */

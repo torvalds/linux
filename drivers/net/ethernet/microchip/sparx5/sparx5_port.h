@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /* Microchip Sparx5 Switch driver
  *
- * Copyright (c) 2021 Microchip Technology Inc. and its subsidiaries.
+ * Copyright (c) 2021 Microchip Techanallogy Inc. and its subsidiaries.
  */
 
 #ifndef __SPARX5_PORT_H__
@@ -15,29 +15,29 @@
 #define SPARX5_PORT_REW_TAG_CTRL_MAPPED  2
 
 /* Port DSCP rewrite mode */
-#define SPARX5_PORT_REW_DSCP_NONE 0
+#define SPARX5_PORT_REW_DSCP_ANALNE 0
 #define SPARX5_PORT_REW_DSCP_IF_ZERO 1
 #define SPARX5_PORT_REW_DSCP_SELECTED  2
 #define SPARX5_PORT_REW_DSCP_ALL 3
 
-static inline bool sparx5_port_is_2g5(int portno)
+static inline bool sparx5_port_is_2g5(int portanal)
 {
-	return portno >= 16 && portno <= 47;
+	return portanal >= 16 && portanal <= 47;
 }
 
-static inline bool sparx5_port_is_5g(int portno)
+static inline bool sparx5_port_is_5g(int portanal)
 {
-	return portno <= 11 || portno == 64;
+	return portanal <= 11 || portanal == 64;
 }
 
-static inline bool sparx5_port_is_10g(int portno)
+static inline bool sparx5_port_is_10g(int portanal)
 {
-	return (portno >= 12 && portno <= 15) || (portno >= 48 && portno <= 55);
+	return (portanal >= 12 && portanal <= 15) || (portanal >= 48 && portanal <= 55);
 }
 
-static inline bool sparx5_port_is_25g(int portno)
+static inline bool sparx5_port_is_25g(int portanal)
 {
-	return portno >= 56 && portno <= 63;
+	return portanal >= 56 && portanal <= 63;
 }
 
 static inline u32 sparx5_to_high_dev(int port)

@@ -25,7 +25,7 @@ struct userspace_consumer_data {
 
 	struct mutex lock;
 	bool enabled;
-	bool no_autoswitch;
+	bool anal_autoswitch;
 
 	int num_supplies;
 	struct regulator_bulk_data *supplies;
@@ -124,17 +124,17 @@ static int regulator_userspace_consumer_probe(struct platform_device *pdev)
 
 	pdata = dev_get_platdata(&pdev->dev);
 	if (!pdata) {
-		if (!pdev->dev.of_node)
+		if (!pdev->dev.of_analde)
 			return -EINVAL;
 
 		pdata = &tmpdata;
 		memset(pdata, 0, sizeof(*pdata));
 
-		pdata->no_autoswitch = true;
+		pdata->anal_autoswitch = true;
 		pdata->num_supplies = 1;
 		pdata->supplies = devm_kzalloc(&pdev->dev, sizeof(*pdata->supplies), GFP_KERNEL);
 		if (!pdata->supplies)
-			return -ENOMEM;
+			return -EANALMEM;
 		pdata->supplies[0].supply = "vout";
 	}
 
@@ -147,12 +147,12 @@ static int regulator_userspace_consumer_probe(struct platform_device *pdev)
 			       sizeof(struct userspace_consumer_data),
 			       GFP_KERNEL);
 	if (drvdata == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drvdata->name = pdata->name;
 	drvdata->num_supplies = pdata->num_supplies;
 	drvdata->supplies = pdata->supplies;
-	drvdata->no_autoswitch = pdata->no_autoswitch;
+	drvdata->anal_autoswitch = pdata->anal_autoswitch;
 
 	mutex_init(&drvdata->lock);
 
@@ -169,7 +169,7 @@ static int regulator_userspace_consumer_probe(struct platform_device *pdev)
 	if (ret != 0)
 		return ret;
 
-	if (pdata->init_on && !pdata->no_autoswitch) {
+	if (pdata->init_on && !pdata->anal_autoswitch) {
 		ret = regulator_bulk_enable(drvdata->num_supplies,
 					    drvdata->supplies);
 		if (ret) {
@@ -200,7 +200,7 @@ static void regulator_userspace_consumer_remove(struct platform_device *pdev)
 
 	sysfs_remove_group(&pdev->dev.kobj, &attr_group);
 
-	if (data->enabled && !data->no_autoswitch)
+	if (data->enabled && !data->anal_autoswitch)
 		regulator_bulk_disable(data->num_supplies, data->supplies);
 }
 
@@ -214,7 +214,7 @@ static struct platform_driver regulator_userspace_consumer_driver = {
 	.remove_new	= regulator_userspace_consumer_remove,
 	.driver		= {
 		.name		= "reg-userspace-consumer",
-		.probe_type	= PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type	= PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table	= regulator_userspace_consumer_of_match,
 	},
 };

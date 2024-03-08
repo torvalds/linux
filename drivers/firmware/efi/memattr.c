@@ -30,7 +30,7 @@ int __init efi_memattr_init(void)
 	if (!tbl) {
 		pr_err("Failed to map EFI Memory Attributes table @ 0x%lx\n",
 		       efi_mem_attr_table);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (tbl->version > 2) {
@@ -74,7 +74,7 @@ static bool entry_is_valid(const efi_memory_desc_t *in, efi_memory_desc_t *out)
 		 * Since arm64 may execute with page sizes of up to 64 KB, the
 		 * UEFI spec mandates that RuntimeServices memory regions must
 		 * be 64 KB aligned. We need to validate this here since we will
-		 * not be able to tighten permissions on such regions without
+		 * analt be able to tighten permissions on such regions without
 		 * affecting adjacent regions.
 		 */
 		pr_warn("Entry address region misaligned\n");
@@ -88,7 +88,7 @@ static bool entry_is_valid(const efi_memory_desc_t *in, efi_memory_desc_t *out)
 		if (!(md->attribute & EFI_MEMORY_RUNTIME))
 			continue;
 		if (md->virt_addr == 0 && md->phys_addr != 0) {
-			/* no virtual mapping has been installed by the stub */
+			/* anal virtual mapping has been installed by the stub */
 			break;
 		}
 
@@ -114,7 +114,7 @@ static bool entry_is_valid(const efi_memory_desc_t *in, efi_memory_desc_t *out)
 		return true;
 	}
 
-	pr_warn("No matching entry found in the EFI memory map\n");
+	pr_warn("Anal matching entry found in the EFI memory map\n");
 	return false;
 }
 
@@ -139,7 +139,7 @@ int __init efi_memattr_apply_permissions(struct mm_struct *mm,
 	 * We need the EFI memory map to be setup so we can use it to
 	 * lookup the virtual addresses of all entries in the  of EFI
 	 * Memory Attributes table. If it isn't available, this
-	 * function should not be called.
+	 * function should analt be called.
 	 */
 	if (WARN_ON(!efi_enabled(EFI_MEMMAP)))
 		return 0;
@@ -148,7 +148,7 @@ int __init efi_memattr_apply_permissions(struct mm_struct *mm,
 	if (!tbl) {
 		pr_err("Failed to map EFI Memory Attributes table @ 0x%lx\n",
 		       efi_mem_attr_table);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (tbl->version > 1 &&

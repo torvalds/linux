@@ -164,18 +164,18 @@ int hantro_vp8_dec_init(struct hantro_ctx *ctx)
 	aux_buf->cpu = dma_alloc_coherent(vpu->dev, aux_buf->size,
 					  &aux_buf->dma, GFP_KERNEL);
 	if (!aux_buf->cpu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * Allocate probability table buffer,
-	 * total 1208 bytes, 4K page is far enough.
+	 * total 1208 bytes, 4K page is far eanalugh.
 	 */
 	aux_buf = &ctx->vp8_dec.prob_tbl;
 	aux_buf->size = sizeof(struct vp8_prob_tbl_packed);
 	aux_buf->cpu = dma_alloc_coherent(vpu->dev, aux_buf->size,
 					  &aux_buf->dma, GFP_KERNEL);
 	if (!aux_buf->cpu) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_seg_map;
 	}
 

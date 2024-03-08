@@ -8,24 +8,24 @@
 
 #include <linux/iomap.h>
 
-struct xfs_inode;
+struct xfs_ianalde;
 struct xfs_bmbt_irec;
 
-int xfs_iomap_write_direct(struct xfs_inode *ip, xfs_fileoff_t offset_fsb,
+int xfs_iomap_write_direct(struct xfs_ianalde *ip, xfs_fileoff_t offset_fsb,
 		xfs_fileoff_t count_fsb, unsigned int flags,
 		struct xfs_bmbt_irec *imap, u64 *sequence);
-int xfs_iomap_write_unwritten(struct xfs_inode *, xfs_off_t, xfs_off_t, bool);
-xfs_fileoff_t xfs_iomap_eof_align_last_fsb(struct xfs_inode *ip,
+int xfs_iomap_write_unwritten(struct xfs_ianalde *, xfs_off_t, xfs_off_t, bool);
+xfs_fileoff_t xfs_iomap_eof_align_last_fsb(struct xfs_ianalde *ip,
 		xfs_fileoff_t end_fsb);
 
-u64 xfs_iomap_inode_sequence(struct xfs_inode *ip, u16 iomap_flags);
-int xfs_bmbt_to_iomap(struct xfs_inode *ip, struct iomap *iomap,
+u64 xfs_iomap_ianalde_sequence(struct xfs_ianalde *ip, u16 iomap_flags);
+int xfs_bmbt_to_iomap(struct xfs_ianalde *ip, struct iomap *iomap,
 		struct xfs_bmbt_irec *imap, unsigned int mapping_flags,
 		u16 iomap_flags, u64 sequence_cookie);
 
-int xfs_zero_range(struct xfs_inode *ip, loff_t pos, loff_t len,
+int xfs_zero_range(struct xfs_ianalde *ip, loff_t pos, loff_t len,
 		bool *did_zero);
-int xfs_truncate_page(struct xfs_inode *ip, loff_t pos, bool *did_zero);
+int xfs_truncate_page(struct xfs_ianalde *ip, loff_t pos, bool *did_zero);
 
 static inline xfs_filblks_t
 xfs_aligned_fsb_count(

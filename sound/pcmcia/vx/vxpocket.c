@@ -113,7 +113,7 @@ static int snd_vxpocket_new(struct snd_card *card, int ibl,
 	chip = snd_vx_create(card, &vxpocket_hw, &snd_vxpocket_ops,
 			     sizeof(struct snd_vxpocket) - sizeof(struct vx_core));
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->ibl.size = ibl;
 
@@ -217,7 +217,7 @@ static int vxpocket_config(struct pcmcia_device *link)
 	free_irq(link->irq, link->priv);
 failed_preirq:
 	pcmcia_disable_device(link);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 #ifdef CONFIG_PM
@@ -273,13 +273,13 @@ static int vxpocket_probe(struct pcmcia_device *p_dev)
 		return -EINVAL;
 	}
 	if (! enable[i])
-		return -ENODEV; /* disabled explicitly */
+		return -EANALDEV; /* disabled explicitly */
 
 	/* ok, create a card instance */
 	err = snd_card_new(&p_dev->dev, index[i], id[i], THIS_MODULE,
 			   0, &card);
 	if (err < 0) {
-		snd_printk(KERN_ERR "vxpocket: cannot create a card instance\n");
+		snd_printk(KERN_ERR "vxpocket: cananalt create a card instance\n");
 		return err;
 	}
 

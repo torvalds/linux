@@ -40,7 +40,7 @@ static void mt6323_do_pwroff(void)
 	if (ret)
 		dev_err(pwrc->dev, "failed to write BBPU: %d\n", ret);
 
-	/* Wait some time until system down, otherwise, notice with a warn */
+	/* Wait some time until system down, otherwise, analtice with a warn */
 	mdelay(1000);
 
 	WARN_ONCE(1, "Unable to power off system\n");
@@ -54,7 +54,7 @@ static int mt6323_pwrc_probe(struct platform_device *pdev)
 
 	pwrc = devm_kzalloc(&pdev->dev, sizeof(*pwrc), GFP_KERNEL);
 	if (!pwrc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)

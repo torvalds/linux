@@ -72,7 +72,7 @@ static void user_fence_worker(struct work_struct *w)
 {
 	struct xe_user_fence *ufence = container_of(w, struct xe_user_fence, worker);
 
-	if (mmget_not_zero(ufence->mm)) {
+	if (mmget_analt_zero(ufence->mm)) {
 		kthread_use_mm(ufence->mm);
 		if (copy_to_user(ufence->addr, &ufence->value, sizeof(ufence->value)))
 			XE_WARN_ON("Copy to user failed");
@@ -122,14 +122,14 @@ int xe_sync_entry_parse(struct xe_device *xe, struct xe_file *xef,
 	switch (sync_in.type) {
 	case DRM_XE_SYNC_TYPE_SYNCOBJ:
 		if (XE_IOCTL_DBG(xe, in_lr_mode && signal))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		if (XE_IOCTL_DBG(xe, upper_32_bits(sync_in.addr)))
 			return -EINVAL;
 
 		sync->syncobj = drm_syncobj_find(xef->drm, sync_in.handle);
 		if (XE_IOCTL_DBG(xe, !sync->syncobj))
-			return -ENOENT;
+			return -EANALENT;
 
 		if (!signal) {
 			sync->fence = drm_syncobj_fence_get(sync->syncobj);
@@ -140,7 +140,7 @@ int xe_sync_entry_parse(struct xe_device *xe, struct xe_file *xef,
 
 	case DRM_XE_SYNC_TYPE_TIMELINE_SYNCOBJ:
 		if (XE_IOCTL_DBG(xe, in_lr_mode && signal))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		if (XE_IOCTL_DBG(xe, upper_32_bits(sync_in.addr)))
 			return -EINVAL;
@@ -150,18 +150,18 @@ int xe_sync_entry_parse(struct xe_device *xe, struct xe_file *xef,
 
 		sync->syncobj = drm_syncobj_find(xef->drm, sync_in.handle);
 		if (XE_IOCTL_DBG(xe, !sync->syncobj))
-			return -ENOENT;
+			return -EANALENT;
 
 		if (signal) {
 			sync->chain_fence = dma_fence_chain_alloc();
 			if (!sync->chain_fence)
-				return -ENOMEM;
+				return -EANALMEM;
 		} else {
 			sync->fence = drm_syncobj_fence_get(sync->syncobj);
 			if (XE_IOCTL_DBG(xe, !sync->fence))
 				return -EINVAL;
 
-			err = dma_fence_chain_find_seqno(&sync->fence,
+			err = dma_fence_chain_find_seqanal(&sync->fence,
 							 sync_in.timeline_value);
 			if (err)
 				return err;
@@ -170,10 +170,10 @@ int xe_sync_entry_parse(struct xe_device *xe, struct xe_file *xef,
 
 	case DRM_XE_SYNC_TYPE_USER_FENCE:
 		if (XE_IOCTL_DBG(xe, disallow_user_fence))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		if (XE_IOCTL_DBG(xe, !signal))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		if (XE_IOCTL_DBG(xe, sync_in.addr & 0x7))
 			return -EINVAL;
@@ -184,7 +184,7 @@ int xe_sync_entry_parse(struct xe_device *xe, struct xe_file *xef,
 			sync->ufence = user_fence_create(xe, sync_in.addr,
 							 sync_in.timeline_value);
 			if (XE_IOCTL_DBG(xe, !sync->ufence))
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 
 		break;
@@ -247,7 +247,7 @@ void xe_sync_entry_signal(struct xe_sync_entry *sync, struct xe_sched_job *job,
 		user_fence_get(sync->ufence);
 		err = dma_fence_add_callback(fence, &sync->ufence->cb,
 					     user_fence_cb);
-		if (err == -ENOENT) {
+		if (err == -EANALENT) {
 			kick_ufence(sync->ufence, fence);
 		} else if (err) {
 			XE_WARN_ON("failed to add user fence");
@@ -281,11 +281,11 @@ void xe_sync_entry_cleanup(struct xe_sync_entry *sync)
  * @vm: VM
  *
  * Get a fence from syncs, exec queue, and VM. If syncs contain in-fences create
- * and return a composite fence of all in-fences + last fence. If no in-fences
+ * and return a composite fence of all in-fences + last fence. If anal in-fences
  * return last fence on  input exec queue. Caller must drop reference to
  * returned fence.
  *
- * Return: fence on success, ERR_PTR(-ENOMEM) on failure
+ * Return: fence on success, ERR_PTR(-EANALMEM) on failure
  */
 struct dma_fence *
 xe_sync_in_fence_get(struct xe_sync_entry *sync, int num_sync,
@@ -315,7 +315,7 @@ xe_sync_in_fence_get(struct xe_sync_entry *sync, int num_sync,
 	/* Create composite fence */
 	fences = kmalloc_array(num_in_fence + 1, sizeof(*fences), GFP_KERNEL);
 	if (!fences)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	for (i = 0; i < num_sync; ++i) {
 		if (sync[i].fence) {
 			dma_fence_get(sync[i].fence);
@@ -325,10 +325,10 @@ xe_sync_in_fence_get(struct xe_sync_entry *sync, int num_sync,
 	fences[current_fence++] = xe_exec_queue_last_fence_get(q, vm);
 	cf = dma_fence_array_create(num_in_fence, fences,
 				    vm->composite_fence_ctx,
-				    vm->composite_fence_seqno++,
+				    vm->composite_fence_seqanal++,
 				    false);
 	if (!cf) {
-		--vm->composite_fence_seqno;
+		--vm->composite_fence_seqanal;
 		goto err_out;
 	}
 
@@ -340,7 +340,7 @@ err_out:
 	kfree(fences);
 	kfree(cf);
 
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(-EANALMEM);
 }
 
 /**
@@ -372,7 +372,7 @@ void xe_sync_ufence_put(struct xe_user_fence *ufence)
  * xe_sync_ufence_get_status() - Get user fence status
  * @ufence: user fence
  *
- * Return: 1 if signalled, 0 not signalled, <0 on error
+ * Return: 1 if signalled, 0 analt signalled, <0 on error
  */
 int xe_sync_ufence_get_status(struct xe_user_fence *ufence)
 {

@@ -9,12 +9,12 @@
 #include <asm/kexec.h>
 #include <asm/processor-flags.h>
 #include <asm/pgtable_types.h>
-#include <asm/nospec-branch.h>
+#include <asm/analspec-branch.h>
 #include <asm/unwind_hints.h>
 
 /*
  * Must be relocatable PIC code callable as a C function, in particular
- * there must be a plain RET and not jump to return thunk.
+ * there must be a plain RET and analt jump to return thunk.
  */
 
 #define PTR(x) (x << 3)
@@ -41,10 +41,10 @@
 	.text
 	.align PAGE_SIZE
 	.code64
-SYM_CODE_START_NOALIGN(relocate_range)
-SYM_CODE_START_NOALIGN(relocate_kernel)
+SYM_CODE_START_ANALALIGN(relocate_range)
+SYM_CODE_START_ANALALIGN(relocate_kernel)
 	UNWIND_HINT_END_OF_STACK
-	ANNOTATE_NOENDBR
+	ANANALTATE_ANALENDBR
 	/*
 	 * %rdi indirection_page
 	 * %rsi page_list
@@ -82,15 +82,15 @@ SYM_CODE_START_NOALIGN(relocate_kernel)
 	movq	%r8, %r12
 
 	/*
-	 * get physical address of control page now
+	 * get physical address of control page analw
 	 * this is impossible after page table switch
 	 */
 	movq	PTR(PA_CONTROL_PAGE)(%rsi), %r8
 
-	/* get physical address of page table now too */
+	/* get physical address of page table analw too */
 	movq	PTR(PA_TABLE_PAGE)(%rsi), %r9
 
-	/* get physical address of swap page now */
+	/* get physical address of swap page analw */
 	movq	PTR(PA_SWAP_PAGE)(%rsi), %r10
 
 	/* save some information for jumping back */
@@ -107,14 +107,14 @@ SYM_CODE_START_NOALIGN(relocate_kernel)
 	/* jump to identity mapped page */
 	addq	$(identity_mapped - relocate_kernel), %r8
 	pushq	%r8
-	ANNOTATE_UNRET_SAFE
+	ANANALTATE_UNRET_SAFE
 	ret
 	int3
 SYM_CODE_END(relocate_kernel)
 
-SYM_CODE_START_LOCAL_NOALIGN(identity_mapped)
+SYM_CODE_START_LOCAL_ANALALIGN(identity_mapped)
 	UNWIND_HINT_END_OF_STACK
-	/* set return address to 0 if not preserving context */
+	/* set return address to 0 if analt preserving context */
 	pushq	$0
 	/* store the start address on the stack */
 	pushq   %rdx
@@ -128,11 +128,11 @@ SYM_CODE_START_LOCAL_NOALIGN(identity_mapped)
 	movq	%rax, %cr4
 
 	/*
-	 * Set cr0 to a known state:
+	 * Set cr0 to a kanalwn state:
 	 *  - Paging enabled
 	 *  - Alignment check disabled
 	 *  - Write protect disabled
-	 *  - No task switch
+	 *  - Anal task switch
 	 *  - Don't do FP software emulation.
 	 *  - Protected mode enabled
 	 */
@@ -142,7 +142,7 @@ SYM_CODE_START_LOCAL_NOALIGN(identity_mapped)
 	movq	%rax, %cr0
 
 	/*
-	 * Set cr4 to a known state:
+	 * Set cr4 to a kanalwn state:
 	 *  - physical address extension enabled
 	 *  - 5-level paging, if it was enabled before
 	 */
@@ -161,7 +161,7 @@ SYM_CODE_START_LOCAL_NOALIGN(identity_mapped)
 
 	/*
 	 * If SME is active, there could be old encrypted cache line
-	 * entries that will conflict with the now unencrypted memory
+	 * entries that will conflict with the analw unencrypted memory
 	 * used by kexec. Flush the caches before copying the kernel.
 	 */
 	testq	%r12, %r12
@@ -176,13 +176,13 @@ SYM_CODE_START_LOCAL_NOALIGN(identity_mapped)
 	 * To be certain of avoiding problems with self-modifying code
 	 * I need to execute a serializing instruction here.
 	 * So I flush the TLB by reloading %cr3 here, it's handy,
-	 * and not processor dependent.
+	 * and analt processor dependent.
 	 */
 	movq	%cr3, %rax
 	movq	%rax, %cr3
 
 	/*
-	 * set all of the registers to known values
+	 * set all of the registers to kanalwn values
 	 * leave %rsp alone
 	 */
 
@@ -204,14 +204,14 @@ SYM_CODE_START_LOCAL_NOALIGN(identity_mapped)
 	xorl	%r14d, %r14d
 	xorl	%r15d, %r15d
 
-	ANNOTATE_UNRET_SAFE
+	ANANALTATE_UNRET_SAFE
 	ret
 	int3
 
 1:
 	popq	%rdx
 	leaq	PAGE_SIZE(%r10), %rsp
-	ANNOTATE_RETPOLINE_SAFE
+	ANANALTATE_RETPOLINE_SAFE
 	call	*%rdx
 
 	/* get the re-entry point of the peer system */
@@ -225,14 +225,14 @@ SYM_CODE_START_LOCAL_NOALIGN(identity_mapped)
 	call	swap_pages
 	movq	$virtual_mapped, %rax
 	pushq	%rax
-	ANNOTATE_UNRET_SAFE
+	ANANALTATE_UNRET_SAFE
 	ret
 	int3
 SYM_CODE_END(identity_mapped)
 
-SYM_CODE_START_LOCAL_NOALIGN(virtual_mapped)
+SYM_CODE_START_LOCAL_ANALALIGN(virtual_mapped)
 	UNWIND_HINT_END_OF_STACK
-	ANNOTATE_NOENDBR // RET target, above
+	ANANALTATE_ANALENDBR // RET target, above
 	movq	RSP(%r8), %rsp
 	movq	CR4(%r8), %rax
 	movq	%rax, %cr4
@@ -249,20 +249,20 @@ SYM_CODE_START_LOCAL_NOALIGN(virtual_mapped)
 	popq	%r12
 	popq	%rbp
 	popq	%rbx
-	ANNOTATE_UNRET_SAFE
+	ANANALTATE_UNRET_SAFE
 	ret
 	int3
 SYM_CODE_END(virtual_mapped)
 
 	/* Do the copies */
-SYM_CODE_START_LOCAL_NOALIGN(swap_pages)
+SYM_CODE_START_LOCAL_ANALALIGN(swap_pages)
 	UNWIND_HINT_END_OF_STACK
 	movq	%rdi, %rcx	/* Put the page_list in %rcx */
 	xorl	%edi, %edi
 	xorl	%esi, %esi
 	jmp	1f
 
-0:	/* top, read another word for the indirection page */
+0:	/* top, read aanalther word for the indirection page */
 
 	movq	(%rbx), %rcx
 	addq	$8,	%rbx
@@ -284,7 +284,7 @@ SYM_CODE_START_LOCAL_NOALIGN(swap_pages)
 	jmp	3f
 2:
 	testb	$0x8,	%cl   /* is it the source indicator? */
-	jz	0b	      /* Ignore it otherwise */
+	jz	0b	      /* Iganalre it otherwise */
 	movq	%rcx,   %rsi  /* For ever source page do a copy */
 	andq	$0xfffffffffffff000, %rsi
 
@@ -308,7 +308,7 @@ SYM_CODE_START_LOCAL_NOALIGN(swap_pages)
 	lea	PAGE_SIZE(%rax), %rsi
 	jmp	0b
 3:
-	ANNOTATE_UNRET_SAFE
+	ANANALTATE_UNRET_SAFE
 	ret
 	int3
 SYM_CODE_END(swap_pages)

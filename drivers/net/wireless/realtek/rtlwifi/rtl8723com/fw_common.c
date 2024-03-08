@@ -49,7 +49,7 @@ void rtl8723_write_fw(struct ieee80211_hw *hw,
 	remain_size = size % FW_8192C_PAGE_SIZE;
 
 	if (page_nums > max_page) {
-		pr_err("Page numbers should not greater than %d\n",
+		pr_err("Page numbers should analt greater than %d\n",
 		       max_page);
 	}
 	for (page = 0; page < page_nums; page++) {
@@ -210,7 +210,7 @@ int rtl8723_download_fw(struct ieee80211_hw *hw,
 
 	err = rtl8723_fw_free_to_go(hw, is_8723be, max_count);
 	if (err)
-		pr_err("Firmware is not ready to run!\n");
+		pr_err("Firmware is analt ready to run!\n");
 	return 0;
 }
 EXPORT_SYMBOL_GPL(rtl8723_download_fw);

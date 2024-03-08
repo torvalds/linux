@@ -25,7 +25,7 @@ properties:
   mediatek,gce-client-reg:
     description:
       The register of display function block to be set by gce. There are 4 arguments,
-      such as gce node, subsys id, offset and register size. The subsys id that is
+      such as gce analde, subsys id, offset and register size. The subsys id that is
       mapping to the register of display function blocks is defined in the gce header
       include/dt-bindings/gce/<chip>-gce.h of each chips.
     $ref: /schemas/types.yaml#/definitions/phandle-array

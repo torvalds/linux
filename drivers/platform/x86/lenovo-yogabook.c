@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Platform driver for Lenovo Yoga Book YB1-X90F/L tablets (Android model)
- * WMI driver for Lenovo Yoga Book YB1-X91F/L tablets (Windows model)
+ * Platform driver for Leanalvo Yoga Book YB1-X90F/L tablets (Android model)
+ * WMI driver for Leanalvo Yoga Book YB1-X91F/L tablets (Windows model)
  *
  * The keyboard half of the YB1 models can function as both a capacitive
- * touch keyboard or as a Wacom digitizer, but not at the same time.
+ * touch keyboard or as a Wacom digitizer, but analt at the same time.
  *
  * This driver takes care of switching between the 2 functions.
  *
@@ -339,25 +339,25 @@ static int yogabook_wmi_probe(struct wmi_device *wdev, const void *context)
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (data == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->kbd_adev = acpi_dev_get_first_match_dev("GDIX1001", NULL, -1);
 	if (!data->kbd_adev)
-		return dev_err_probe(dev, -ENODEV, "Cannot find the touchpad device in ACPI tables\n");
+		return dev_err_probe(dev, -EANALDEV, "Cananalt find the touchpad device in ACPI tables\n");
 
 	data->dig_adev = acpi_dev_get_first_match_dev("WCOM0019", NULL, -1);
 	if (!data->dig_adev) {
-		r = dev_err_probe(dev, -ENODEV, "Cannot find the digitizer device in ACPI tables\n");
+		r = dev_err_probe(dev, -EANALDEV, "Cananalt find the digitizer device in ACPI tables\n");
 		goto error_put_devs;
 	}
 
-	data->kbd_dev = get_device(acpi_get_first_physical_node(data->kbd_adev));
+	data->kbd_dev = get_device(acpi_get_first_physical_analde(data->kbd_adev));
 	if (!data->kbd_dev || !data->kbd_dev->driver) {
 		r = -EPROBE_DEFER;
 		goto error_put_devs;
 	}
 
-	data->dig_dev = get_device(acpi_get_first_physical_node(data->dig_adev));
+	data->dig_dev = get_device(acpi_get_first_physical_analde(data->dig_adev));
 	if (!data->dig_dev || !data->dig_dev->driver) {
 		r = -EPROBE_DEFER;
 		goto error_put_devs;
@@ -391,7 +391,7 @@ static void yogabook_wmi_remove(struct wmi_device *wdev)
 	acpi_dev_put(data->kbd_adev);
 }
 
-static void yogabook_wmi_notify(struct wmi_device *wdev, union acpi_object *dummy)
+static void yogabook_wmi_analtify(struct wmi_device *wdev, union acpi_object *dummy)
 {
 	yogabook_toggle_digitizer_mode(dev_get_drvdata(&wdev->dev));
 }
@@ -409,11 +409,11 @@ static struct wmi_driver yogabook_wmi_driver = {
 		.name = "yogabook-wmi",
 		.pm = pm_sleep_ptr(&yogabook_pm_ops),
 	},
-	.no_notify_data = true,
+	.anal_analtify_data = true,
 	.id_table = yogabook_wmi_id_table,
 	.probe = yogabook_wmi_probe,
 	.remove = yogabook_wmi_remove,
-	.notify = yogabook_wmi_notify,
+	.analtify = yogabook_wmi_analtify,
 };
 
 /********** platform driver code **********/
@@ -454,7 +454,7 @@ static int yogabook_pdev_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (data == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->kbd_dev = bus_find_device_by_name(&i2c_bus_type, NULL, "i2c-goodix_ts");
 	if (!data->kbd_dev || !data->kbd_dev->driver) {
@@ -569,5 +569,5 @@ module_exit(yogabook_module_exit);
 
 MODULE_ALIAS("platform:" YB_PDEV_NAME);
 MODULE_AUTHOR("Yauhen Kharuzhy");
-MODULE_DESCRIPTION("Lenovo Yoga Book driver");
+MODULE_DESCRIPTION("Leanalvo Yoga Book driver");
 MODULE_LICENSE("GPL v2");

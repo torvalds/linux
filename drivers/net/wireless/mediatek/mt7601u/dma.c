@@ -51,7 +51,7 @@ mt7601u_rx_skb_from_seg(struct mt7601u_dev *dev, struct mt7601u_rxwi *rxwi,
 		hdr_len = 0;
 	}
 
-	/* If not doing paged RX allocated skb will always have enough space */
+	/* If analt doing paged RX allocated skb will always have eanalugh space */
 	copy = (true_len <= skb_tailroom(skb)) ? true_len : hdr_len + 8;
 	frag = true_len - copy;
 
@@ -97,7 +97,7 @@ static void mt7601u_rx_process_seg(struct mt7601u_dev *dev, u8 *data,
 	if (unlikely(rxwi->zero[0] || rxwi->zero[1] || rxwi->zero[2]))
 		dev_err_once(dev->dev, "Error: RXWI zero fields are set\n");
 	if (unlikely(FIELD_GET(MT_RXD_INFO_TYPE, fce_info)))
-		dev_err_once(dev->dev, "Error: RX path seen a non-pkt urb\n");
+		dev_err_once(dev->dev, "Error: RX path seen a analn-pkt urb\n");
 
 	trace_mt_rx(dev, rxwi, fce_info);
 
@@ -194,13 +194,13 @@ static void mt7601u_complete_rx(struct urb *urb)
 	struct mt7601u_rx_queue *q = &dev->rx_q;
 	unsigned long flags;
 
-	/* do no schedule rx tasklet if urb has been unlinked
+	/* do anal schedule rx tasklet if urb has been unlinked
 	 * or the device has been removed
 	 */
 	switch (urb->status) {
 	case -ECONNRESET:
 	case -ESHUTDOWN:
-	case -ENOENT:
+	case -EANALENT:
 	case -EPROTO:
 		return;
 	default:
@@ -246,7 +246,7 @@ static void mt7601u_complete_tx(struct urb *urb)
 	switch (urb->status) {
 	case -ECONNRESET:
 	case -ESHUTDOWN:
-	case -ENOENT:
+	case -EANALENT:
 	case -EPROTO:
 		return;
 	default:
@@ -316,7 +316,7 @@ static int mt7601u_dma_submit_tx(struct mt7601u_dev *dev,
 	spin_lock_irqsave(&dev->tx_lock, flags);
 
 	if (WARN_ON(q->entries <= q->used)) {
-		ret = -ENOSPC;
+		ret = -EANALSPC;
 		goto out;
 	}
 
@@ -325,10 +325,10 @@ static int mt7601u_dma_submit_tx(struct mt7601u_dev *dev,
 			  mt7601u_complete_tx, q);
 	ret = usb_submit_urb(e->urb, GFP_ATOMIC);
 	if (ret) {
-		/* Special-handle ENODEV from TX urb submission because it will
-		 * often be the first ENODEV we see after device is removed.
+		/* Special-handle EANALDEV from TX urb submission because it will
+		 * often be the first EANALDEV we see after device is removed.
 		 */
-		if (ret == -ENODEV)
+		if (ret == -EANALDEV)
 			set_bit(MT7601U_STATE_REMOVED, &dev->state);
 		else
 			dev_err(dev->dev, "Error: TX urb submit failed:%d\n",
@@ -452,7 +452,7 @@ static int mt7601u_alloc_rx(struct mt7601u_dev *dev)
 		dev->rx_q.e[i].p = dev_alloc_pages(MT_RX_ORDER);
 
 		if (!dev->rx_q.e[i].urb || !dev->rx_q.e[i].p)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	return 0;
@@ -492,7 +492,7 @@ static int mt7601u_alloc_tx_queue(struct mt7601u_dev *dev,
 	for (i = 0; i < N_TX_ENTRIES; i++) {
 		q->e[i].urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!q->e[i].urb)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	return 0;
@@ -505,11 +505,11 @@ static int mt7601u_alloc_tx(struct mt7601u_dev *dev)
 	dev->tx_q = devm_kcalloc(dev->dev, __MT_EP_OUT_MAX,
 				 sizeof(*dev->tx_q), GFP_KERNEL);
 	if (!dev->tx_q)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < __MT_EP_OUT_MAX; i++)
 		if (mt7601u_alloc_tx_queue(dev, &dev->tx_q[i]))
-			return -ENOMEM;
+			return -EANALMEM;
 
 	return 0;
 }

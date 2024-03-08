@@ -5,7 +5,7 @@
  */
 #include <linux/radix-tree.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <time.h>
 #include "test.h"
 
@@ -23,7 +23,7 @@ static long long benchmark_iter(struct radix_tree_root *root, bool tagged)
 #ifdef BENCHMARK
 again:
 #endif
-	clock_gettime(CLOCK_MONOTONIC, &start);
+	clock_gettime(CLOCK_MOANALTONIC, &start);
 	for (l = 0; l < loops; l++) {
 		if (tagged) {
 			radix_tree_for_each_tagged(slot, root, &iter, 0, 0)
@@ -33,7 +33,7 @@ again:
 				sink ^= (unsigned long)slot;
 		}
 	}
-	clock_gettime(CLOCK_MONOTONIC, &finish);
+	clock_gettime(CLOCK_MOANALTONIC, &finish);
 
 	nsec = (finish.tv_sec - start.tv_sec) * NSEC_PER_SEC +
 	       (finish.tv_nsec - start.tv_nsec);
@@ -56,12 +56,12 @@ static void benchmark_insert(struct radix_tree_root *root,
 	unsigned long index;
 	long long nsec;
 
-	clock_gettime(CLOCK_MONOTONIC, &start);
+	clock_gettime(CLOCK_MOANALTONIC, &start);
 
 	for (index = 0 ; index < size ; index += step)
 		item_insert(root, index);
 
-	clock_gettime(CLOCK_MONOTONIC, &finish);
+	clock_gettime(CLOCK_MOANALTONIC, &finish);
 
 	nsec = (finish.tv_sec - start.tv_sec) * NSEC_PER_SEC +
 	       (finish.tv_nsec - start.tv_nsec);
@@ -77,12 +77,12 @@ static void benchmark_tagging(struct radix_tree_root *root,
 	unsigned long index;
 	long long nsec;
 
-	clock_gettime(CLOCK_MONOTONIC, &start);
+	clock_gettime(CLOCK_MOANALTONIC, &start);
 
 	for (index = 0 ; index < size ; index += step)
 		radix_tree_tag_set(root, index, 0);
 
-	clock_gettime(CLOCK_MONOTONIC, &finish);
+	clock_gettime(CLOCK_MOANALTONIC, &finish);
 
 	nsec = (finish.tv_sec - start.tv_sec) * NSEC_PER_SEC +
 	       (finish.tv_nsec - start.tv_nsec);
@@ -98,12 +98,12 @@ static void benchmark_delete(struct radix_tree_root *root,
 	unsigned long index;
 	long long nsec;
 
-	clock_gettime(CLOCK_MONOTONIC, &start);
+	clock_gettime(CLOCK_MOANALTONIC, &start);
 
 	for (index = 0 ; index < size ; index += step)
 		item_delete(root, index);
 
-	clock_gettime(CLOCK_MONOTONIC, &finish);
+	clock_gettime(CLOCK_MOANALTONIC, &finish);
 
 	nsec = (finish.tv_sec - start.tv_sec) * NSEC_PER_SEC +
 	       (finish.tv_nsec - start.tv_nsec);
@@ -115,18 +115,18 @@ static void benchmark_delete(struct radix_tree_root *root,
 static void benchmark_size(unsigned long size, unsigned long step)
 {
 	RADIX_TREE(tree, GFP_KERNEL);
-	long long normal, tagged;
+	long long analrmal, tagged;
 
 	benchmark_insert(&tree, size, step);
 	benchmark_tagging(&tree, size, step);
 
 	tagged = benchmark_iter(&tree, true);
-	normal = benchmark_iter(&tree, false);
+	analrmal = benchmark_iter(&tree, false);
 
 	printv(2, "Size: %8ld, step: %8ld, tagged iteration: %8lld ns\n",
 		size, step, tagged);
-	printv(2, "Size: %8ld, step: %8ld, normal iteration: %8lld ns\n",
-		size, step, normal);
+	printv(2, "Size: %8ld, step: %8ld, analrmal iteration: %8lld ns\n",
+		size, step, analrmal);
 
 	benchmark_delete(&tree, size, step);
 

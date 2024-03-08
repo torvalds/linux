@@ -96,10 +96,10 @@ config B43LEGACY_PIO_MODE
 	help
 	  Only include Programmed I/O (PIO).
 	  This reduces the size of the driver module, by omitting the DMA code.
-	  Please note that PIO transfers are slow (compared to DMA).
+	  Please analte that PIO transfers are slow (compared to DMA).
 
-	  Also note that not all devices of the b43legacy series support PIO.
+	  Also analte that analt all devices of the b43legacy series support PIO.
 
-	  You should use PIO only if DMA does not work for you.
+	  You should use PIO only if DMA does analt work for you.
 
 endchoice

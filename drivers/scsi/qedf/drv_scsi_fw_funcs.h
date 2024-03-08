@@ -14,7 +14,7 @@ struct scsi_sgl_task_params {
 	u32 total_buffer_size;
 	u16 num_sges;
 
-	 /* true if SGL contains a small (< 4KB) SGE in middle(not 1st or last)
+	 /* true if SGL contains a small (< 4KB) SGE in middle(analt 1st or last)
 	  * -> relevant for tx only
 	  */
 	bool small_mid_sge;
@@ -37,7 +37,7 @@ struct scsi_dif_task_params {
 	  * dropped)
 	  */
 	bool tx_dif_conn_err_en;
-	bool ignore_app_tag;
+	bool iganalre_app_tag;
 	bool keep_ref_tag_const;
 	bool validate_guard;
 	bool validate_app_tag;
@@ -64,7 +64,7 @@ struct scsi_initiator_cmd_params {
  *
  * @param num_sges - number of sges in SGL
  * @param small_mid_sge - True is the SGL contains an SGE which is smaller than
- * 4KB and its not the 1st or last SGE in the SGL
+ * 4KB and its analt the 1st or last SGE in the SGL
  */
 bool scsi_is_slow_sgl(u16 num_sges, bool small_mid_sge);
 

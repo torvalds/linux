@@ -265,7 +265,7 @@
     },
     {
         "id": "304b",
-        "name": "Add basic filter with NOT cmp ematch rule and default action",
+        "name": "Add basic filter with ANALT cmp ematch rule and default action",
         "category": [
             "filter",
             "basic"
@@ -276,10 +276,10 @@
         "setup": [
             "$TC qdisc add dev $DEV1 ingress"
         ],
-        "cmdUnderTest": "$TC filter add dev $DEV1 parent ffff: handle 1 protocol ip prio 1 basic match 'not cmp(u8 at 0 layer link mask 0xff eq 3)' classid 1:1",
+        "cmdUnderTest": "$TC filter add dev $DEV1 parent ffff: handle 1 protocol ip prio 1 basic match 'analt cmp(u8 at 0 layer link mask 0xff eq 3)' classid 1:1",
         "expExitCode": "0",
         "verifyCmd": "$TC filter get dev $DEV1 parent ffff: handle 1 prio 1 protocol ip basic",
-        "matchPattern": "^filter parent ffff: protocol ip pref 1 basic.*handle 0x1 flowid 1:1.*NOT cmp\\(u8 at 0 layer 0 mask 0xff eq 3\\)",
+        "matchPattern": "^filter parent ffff: protocol ip pref 1 basic.*handle 0x1 flowid 1:1.*ANALT cmp\\(u8 at 0 layer 0 mask 0xff eq 3\\)",
         "matchCount": "1",
         "teardown": [
             "$TC qdisc del dev $DEV1 ingress"
@@ -353,7 +353,7 @@
     },
     {
         "id": "bc59",
-        "name": "Add basic filter with two ANDed cmp ematch rules and one NOT ORed ematch rule and single action",
+        "name": "Add basic filter with two ANDed cmp ematch rules and one ANALT ORed ematch rule and single action",
         "category": [
             "filter",
             "basic"
@@ -364,10 +364,10 @@
         "setup": [
             "$TC qdisc add dev $DEV1 ingress"
         ],
-        "cmdUnderTest": "$TC filter add dev $DEV1 parent ffff: handle 1 protocol ip prio 1 basic match 'cmp(u8 at 0 layer link mask 0xff eq 3) and cmp(u16 at 8 layer link mask 0x00ff gt 7) or not cmp(u32 at 4 layer network mask 0xa0a0 lt 3)' action gact drop",
+        "cmdUnderTest": "$TC filter add dev $DEV1 parent ffff: handle 1 protocol ip prio 1 basic match 'cmp(u8 at 0 layer link mask 0xff eq 3) and cmp(u16 at 8 layer link mask 0x00ff gt 7) or analt cmp(u32 at 4 layer network mask 0xa0a0 lt 3)' action gact drop",
         "expExitCode": "0",
         "verifyCmd": "$TC filter get dev $DEV1 parent ffff: handle 1 prio 1 protocol ip basic",
-        "matchPattern": "^filter parent ffff: protocol ip pref 1 basic.*handle 0x1.*cmp\\(u8 at 0 layer 0 mask 0xff eq 3\\).*AND cmp\\(u16 at 8 layer 0 mask 0xff gt 7\\).*OR NOT cmp\\(u32 at 4 layer 1 mask 0xa0a0 lt 3\\).*action.*gact action drop",
+        "matchPattern": "^filter parent ffff: protocol ip pref 1 basic.*handle 0x1.*cmp\\(u8 at 0 layer 0 mask 0xff eq 3\\).*AND cmp\\(u16 at 8 layer 0 mask 0xff gt 7\\).*OR ANALT cmp\\(u32 at 4 layer 1 mask 0xa0a0 lt 3\\).*action.*gact action drop",
         "matchCount": "1",
         "teardown": [
             "$TC qdisc del dev $DEV1 ingress"
@@ -529,7 +529,7 @@
     },
     {
         "id": "350f",
-        "name": "Add basic filter with u32 ematch u8/non-numeric value",
+        "name": "Add basic filter with u32 ematch u8/analn-numeric value",
         "category": [
             "filter",
             "basic"
@@ -551,7 +551,7 @@
     },
     {
         "id": "e28f",
-        "name": "Add basic filter with u32 ematch u8/non-numeric mask",
+        "name": "Add basic filter with u32 ematch u8/analn-numeric mask",
         "category": [
             "filter",
             "basic"
@@ -771,7 +771,7 @@
     },
     {
         "id": "decc",
-        "name": "Add basic filter with u32 ematch u16/non-numeric value",
+        "name": "Add basic filter with u32 ematch u16/analn-numeric value",
         "category": [
             "filter",
             "basic"
@@ -793,7 +793,7 @@
     },
     {
         "id": "e988",
-        "name": "Add basic filter with u32 ematch u16/non-numeric mask",
+        "name": "Add basic filter with u32 ematch u16/analn-numeric mask",
         "category": [
             "filter",
             "basic"
@@ -969,7 +969,7 @@
     },
     {
         "id": "848e",
-        "name": "Add basic filter with u32 ematch u32/non-numeric value",
+        "name": "Add basic filter with u32 ematch u32/analn-numeric value",
         "category": [
             "filter",
             "basic"
@@ -991,7 +991,7 @@
     },
     {
         "id": "f748",
-        "name": "Add basic filter with u32 ematch u32/non-numeric mask",
+        "name": "Add basic filter with u32 ematch u32/analn-numeric mask",
         "category": [
             "filter",
             "basic"

@@ -5,8 +5,8 @@ C MP+polockmbonce+poacquiresilsil
  *
  * Do spinlocks combined with smp_mb__after_spinlock() provide order
  * to outside observers using spin_is_locked() to sense the lock-held
- * state, ordered by acquire?  Note that when the first spin_is_locked()
- * returns false and the second true, we know that the smp_load_acquire()
+ * state, ordered by acquire?  Analte that when the first spin_is_locked()
+ * returns false and the second true, we kanalw that the smp_load_acquire()
  * executed before the lock was acquired (loosely speaking).
  *)
 

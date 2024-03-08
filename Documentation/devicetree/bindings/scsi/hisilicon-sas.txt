@@ -2,7 +2,7 @@
 
 The HiSilicon SAS controller supports SAS/SATA.
 
-Main node required properties:
+Main analde required properties:
   - compatible : value should be as follows:
 	(a) "hisilicon,hip05-sas-v1" for v1 hw in hip05 chipset
 	(b) "hisilicon,hip06-sas-v2" for v2 hw in hip06 chipset
@@ -26,9 +26,9 @@ Main node required properties:
 		Phy interrupts : Each phy has 3 interrupt sources:
 			- broadcast
 			- phyup
-			- abnormal
+			- abanalrmal
 		The phy interrupts are ordered into groups of 3 per phy
-		(broadcast, phyup, and abnormal) in increasing order.
+		(broadcast, phyup, and abanalrmal) in increasing order.
 		Completion queue interrupts : each completion queue has 1
 			interrupt source.
 			The interrupts are ordered in increasing order.
@@ -50,7 +50,7 @@ Main node required properties:
 			interrupt source. The interrupts are ordered in
 			increasing order.
 
-Optional main node properties:
+Optional main analde properties:
  - hip06-sas-v2-quirk-amt : when set, indicates that the v2 controller has the
 			    "am-max-transmissions" limitation.
  - hisilicon,signal-attenuation : array of 3 32-bit values, containing de-emphasis,

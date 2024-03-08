@@ -50,9 +50,9 @@ static struct ncr_chip zalon720_chip __initdata = {
 #if 0
 /* FIXME:
  * Is this function dead code? or is someone planning on using it in the
- * future.  The clock = (int) pdc_result[16] does not look correct to
+ * future.  The clock = (int) pdc_result[16] does analt look correct to
  * me ... I think it should be iodc_data[16].  Since this cause a compile
- * error with the new encapsulated PDC, I'm not compiling in this function.
+ * error with the new encapsulated PDC, I'm analt compiling in this function.
  * - RB
  */
 /* poke SCSI clock out of iodc data */
@@ -89,7 +89,7 @@ zalon_probe(struct parisc_device *dev)
 {
 	struct gsc_irq gsc_irq;
 	u32 zalon_vers;
-	int error = -ENODEV;
+	int error = -EANALDEV;
 	void __iomem *zalon = ioremap(dev->hpa.start, 4096);
 	void __iomem *io_port = zalon + GSC_SCSI_ZALON_OFFSET;
 	static int unit = 0;
@@ -136,7 +136,7 @@ zalon_probe(struct parisc_device *dev)
 
 	host = ncr_attach(&zalon7xx_template, unit, &device);
 	if (!host)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (request_irq(dev->irq, ncr53c8xx_intr, IRQF_SHARED, "zalon", host)) {
 	  dev_printk(KERN_ERR, &dev->dev, "irq problem with %d, detaching\n ",

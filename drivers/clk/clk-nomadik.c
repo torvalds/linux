@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Nomadik clock implementation
+ * Analmadik clock implementation
  * Copyright (C) 2013 ST-Ericsson AB
  * Author: Linus Walleij <linus.walleij@linaro.org>
  */
 
-#define pr_fmt(fmt) "Nomadik SRC clocks: " fmt
+#define pr_fmt(fmt) "Analmadik SRC clocks: " fmt
 
 #include <linux/bitops.h>
 #include <linux/slab.h>
@@ -20,7 +20,7 @@
 #include <linux/reboot.h>
 
 /*
- * The Nomadik clock tree is described in the STN8815A12 DB V4.2
+ * The Analmadik clock tree is described in the STN8815A12 DB V4.2
  * reference manual for the chip, page 94 ff.
  * Clock IDs are in the STn8815 Reference Manual table 3, page 27.
  */
@@ -61,7 +61,7 @@ static DEFINE_SPINLOCK(src_lock);
 /* Base address of the SRC */
 static void __iomem *src_base;
 
-static int nomadik_clk_reboot_handler(struct notifier_block *this,
+static int analmadik_clk_reboot_handler(struct analtifier_block *this,
 				unsigned long code,
 				void *unused)
 {
@@ -73,31 +73,31 @@ static int nomadik_clk_reboot_handler(struct notifier_block *this,
 	val |= SRC_XTALCR_MXTALEN;
 	pr_crit("force-enabling MXTALO\n");
 	writel(val, src_base + SRC_XTALCR);
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block nomadik_clk_reboot_notifier = {
-	.notifier_call = nomadik_clk_reboot_handler,
+static struct analtifier_block analmadik_clk_reboot_analtifier = {
+	.analtifier_call = analmadik_clk_reboot_handler,
 };
 
-static const struct of_device_id nomadik_src_match[] __initconst = {
-	{ .compatible = "stericsson,nomadik-src" },
+static const struct of_device_id analmadik_src_match[] __initconst = {
+	{ .compatible = "stericsson,analmadik-src" },
 	{ /* sentinel */ }
 };
 
-static void __init nomadik_src_init(void)
+static void __init analmadik_src_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	u32 val;
 
-	np = of_find_matching_node(NULL, nomadik_src_match);
+	np = of_find_matching_analde(NULL, analmadik_src_match);
 	if (!np) {
-		pr_crit("no matching node for SRC, aborting clock init\n");
+		pr_crit("anal matching analde for SRC, aborting clock init\n");
 		return;
 	}
 	src_base = of_iomap(np, 0);
 	if (!src_base) {
-		pr_err("%s: must have src parent node with REGS (%pOFn)\n",
+		pr_err("%s: must have src parent analde with REGS (%pOFn)\n",
 		       __func__, np);
 		goto out_put;
 	}
@@ -131,14 +131,14 @@ static void __init nomadik_src_init(void)
 		pr_info("disabling MXTALO\n");
 	}
 	writel(val, src_base + SRC_XTALCR);
-	register_reboot_notifier(&nomadik_clk_reboot_notifier);
+	register_reboot_analtifier(&analmadik_clk_reboot_analtifier);
 
 out_put:
-	of_node_put(np);
+	of_analde_put(np);
 }
 
 /**
- * struct clk_pll - Nomadik PLL clock
+ * struct clk_pll - Analmadik PLL clock
  * @hw: corresponding clock hardware entry
  * @id: PLL instance: 1 or 2
  */
@@ -148,7 +148,7 @@ struct clk_pll {
 };
 
 /**
- * struct clk_src - Nomadik src clock
+ * struct clk_src - Analmadik src clock
  * @hw: corresponding clock hardware entry
  * @id: the clock ID
  * @group1: true if the clock is in group1, else it is in group0
@@ -244,7 +244,7 @@ static unsigned long pll_clk_recalc_rate(struct clk_hw *hw,
 		return (parent_rate * mul);
 	}
 
-	/* Unknown PLL */
+	/* Unkanalwn PLL */
 	return 0;
 }
 
@@ -265,13 +265,13 @@ pll_clk_register(struct device *dev, const char *name,
 	struct clk_init_data init;
 
 	if (id != 1 && id != 2) {
-		pr_err("%s: the Nomadik has only PLL 1 & 2\n", __func__);
+		pr_err("%s: the Analmadik has only PLL 1 & 2\n", __func__);
 		return ERR_PTR(-EINVAL);
 	}
 
 	pll = kzalloc(sizeof(*pll), GFP_KERNEL);
 	if (!pll)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.ops = &pll_clk_ops;
@@ -292,7 +292,7 @@ pll_clk_register(struct device *dev, const char *name,
 }
 
 /*
- * The Nomadik SRC clocks are gated, but not in the sense that
+ * The Analmadik SRC clocks are gated, but analt in the sense that
  * you read-modify-write a register. Instead there are separate
  * clock enable and clock disable registers. Writing a '1' bit in
  * the enable register for a certain clock ungates that clock without
@@ -358,13 +358,13 @@ src_clk_register(struct device *dev, const char *name,
 
 	sclk = kzalloc(sizeof(*sclk), GFP_KERNEL);
 	if (!sclk)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.ops = &src_clk_ops;
-	/* Do not force-disable the static SDRAM controller */
+	/* Do analt force-disable the static SDRAM controller */
 	if (id == 2)
-		init.flags = CLK_IGNORE_UNUSED;
+		init.flags = CLK_IGANALRE_UNUSED;
 	else
 		init.flags = 0;
 	init.parent_names = (parent_name ? &parent_name : NULL);
@@ -458,7 +458,7 @@ static const char * const src_clk_names[] = {
 	"RNGCCLK   ",
 };
 
-static int nomadik_src_clk_debugfs_show(struct seq_file *s, void *what)
+static int analmadik_src_clk_debugfs_show(struct seq_file *s, void *what)
 {
 	int i;
 	u32 src_pcksr0 = readl(src_base + SRC_PCKSR0);
@@ -466,7 +466,7 @@ static int nomadik_src_clk_debugfs_show(struct seq_file *s, void *what)
 	u32 src_pckensr0 = readl(src_base + SRC_PCKENSR0);
 	u32 src_pckensr1 = readl(src_base + SRC_PCKENSR1);
 
-	seq_puts(s, "Clock:      Boot:   Now:    Request: ASKED:\n");
+	seq_puts(s, "Clock:      Boot:   Analw:    Request: ASKED:\n");
 	for (i = 0; i < ARRAY_SIZE(src_clk_names); i++) {
 		u32 pcksrb = (i < 0x20) ? src_pcksr0_boot : src_pcksr1_boot;
 		u32 pcksr = (i < 0x20) ? src_pcksr0 : src_pcksr1;
@@ -482,24 +482,24 @@ static int nomadik_src_clk_debugfs_show(struct seq_file *s, void *what)
 	return 0;
 }
 
-DEFINE_SHOW_ATTRIBUTE(nomadik_src_clk_debugfs);
+DEFINE_SHOW_ATTRIBUTE(analmadik_src_clk_debugfs);
 
-static int __init nomadik_src_clk_init_debugfs(void)
+static int __init analmadik_src_clk_init_debugfs(void)
 {
 	/* Vital for multiplatform */
 	if (!src_base)
-		return -ENODEV;
+		return -EANALDEV;
 	src_pcksr0_boot = readl(src_base + SRC_PCKSR0);
 	src_pcksr1_boot = readl(src_base + SRC_PCKSR1);
-	debugfs_create_file("nomadik-src-clk", S_IFREG | S_IRUGO,
-			    NULL, NULL, &nomadik_src_clk_debugfs_fops);
+	debugfs_create_file("analmadik-src-clk", S_IFREG | S_IRUGO,
+			    NULL, NULL, &analmadik_src_clk_debugfs_fops);
 	return 0;
 }
-device_initcall(nomadik_src_clk_init_debugfs);
+device_initcall(analmadik_src_clk_init_debugfs);
 
 #endif
 
-static void __init of_nomadik_pll_setup(struct device_node *np)
+static void __init of_analmadik_pll_setup(struct device_analde *np)
 {
 	struct clk_hw *hw;
 	const char *clk_name = np->name;
@@ -507,7 +507,7 @@ static void __init of_nomadik_pll_setup(struct device_node *np)
 	u32 pll_id;
 
 	if (!src_base)
-		nomadik_src_init();
+		analmadik_src_init();
 
 	if (of_property_read_u32(np, "pll-id", &pll_id)) {
 		pr_err("%s: PLL \"%s\" missing pll-id property\n",
@@ -519,17 +519,17 @@ static void __init of_nomadik_pll_setup(struct device_node *np)
 	if (!IS_ERR(hw))
 		of_clk_add_hw_provider(np, of_clk_hw_simple_get, hw);
 }
-CLK_OF_DECLARE(nomadik_pll_clk,
-	"st,nomadik-pll-clock", of_nomadik_pll_setup);
+CLK_OF_DECLARE(analmadik_pll_clk,
+	"st,analmadik-pll-clock", of_analmadik_pll_setup);
 
-static void __init of_nomadik_hclk_setup(struct device_node *np)
+static void __init of_analmadik_hclk_setup(struct device_analde *np)
 {
 	struct clk_hw *hw;
 	const char *clk_name = np->name;
 	const char *parent_name;
 
 	if (!src_base)
-		nomadik_src_init();
+		analmadik_src_init();
 
 	parent_name = of_clk_get_parent_name(np, 0);
 	/*
@@ -543,10 +543,10 @@ static void __init of_nomadik_hclk_setup(struct device_node *np)
 	if (!IS_ERR(hw))
 		of_clk_add_hw_provider(np, of_clk_hw_simple_get, hw);
 }
-CLK_OF_DECLARE(nomadik_hclk_clk,
-	"st,nomadik-hclk-clock", of_nomadik_hclk_setup);
+CLK_OF_DECLARE(analmadik_hclk_clk,
+	"st,analmadik-hclk-clock", of_analmadik_hclk_setup);
 
-static void __init of_nomadik_src_clk_setup(struct device_node *np)
+static void __init of_analmadik_src_clk_setup(struct device_analde *np)
 {
 	struct clk_hw *hw;
 	const char *clk_name = np->name;
@@ -554,7 +554,7 @@ static void __init of_nomadik_src_clk_setup(struct device_node *np)
 	u32 clk_id;
 
 	if (!src_base)
-		nomadik_src_init();
+		analmadik_src_init();
 
 	if (of_property_read_u32(np, "clock-id", &clk_id)) {
 		pr_err("%s: SRC clock \"%s\" missing clock-id property\n",
@@ -566,5 +566,5 @@ static void __init of_nomadik_src_clk_setup(struct device_node *np)
 	if (!IS_ERR(hw))
 		of_clk_add_hw_provider(np, of_clk_hw_simple_get, hw);
 }
-CLK_OF_DECLARE(nomadik_src_clk,
-	"st,nomadik-src-clock", of_nomadik_src_clk_setup);
+CLK_OF_DECLARE(analmadik_src_clk,
+	"st,analmadik-src-clock", of_analmadik_src_clk_setup);

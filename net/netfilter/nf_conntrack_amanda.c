@@ -108,7 +108,7 @@ static int amanda_help(struct sk_buff *skb,
 	 * Amanda clients to the server can be quite delayed */
 	nf_ct_refresh(ct, skb, master_timeout * HZ);
 
-	/* No data? */
+	/* Anal data? */
 	dataoff = protoff + sizeof(struct udphdr);
 	if (dataoff >= skb->len) {
 		net_err_ratelimited("amanda_help: skblen = %u\n", skb->len);
@@ -145,7 +145,7 @@ static int amanda_help(struct sk_buff *skb,
 
 		exp = nf_ct_expect_alloc(ct);
 		if (exp == NULL) {
-			nf_ct_helper_log(skb, ct, "cannot alloc expectation");
+			nf_ct_helper_log(skb, ct, "cananalt alloc expectation");
 			ret = NF_DROP;
 			goto out;
 		}
@@ -160,7 +160,7 @@ static int amanda_help(struct sk_buff *skb,
 			ret = nf_nat_amanda(skb, ctinfo, protoff,
 					    off - dataoff, len, exp);
 		else if (nf_ct_expect_related(exp, 0) != 0) {
-			nf_ct_helper_log(skb, ct, "cannot add expectation");
+			nf_ct_helper_log(skb, ct, "cananalt add expectation");
 			ret = NF_DROP;
 		}
 		nf_ct_expect_put(exp);

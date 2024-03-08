@@ -4,8 +4,8 @@
  *
  * This code makes use of the SPE SIMD instruction set as defined in
  * http://cache.freescale.com/files/32bit/doc/ref_manual/SPEPIM.pdf
- * Implementation is based on optimization guide notes from
- * http://cache.freescale.com/files/32bit/doc/app_note/AN2665.pdf
+ * Implementation is based on optimization guide analtes from
+ * http://cache.freescale.com/files/32bit/doc/app_analte/AN2665.pdf
  *
  * Copyright (c) 2015 Markus Stockhausen <stockhausen@collogia.de>
  */
@@ -46,7 +46,7 @@
 
 #define INITIALIZE \
 	stwu		r1,-128(r1);	/* create stack frame		*/ \
-	evstdw		r14,8(r1);	/* We must save non volatile	*/ \
+	evstdw		r14,8(r1);	/* We must save analn volatile	*/ \
 	evstdw		r15,16(r1);	/* registers. Take the chance	*/ \
 	evstdw		r16,24(r1);	/* and save the SPE part too	*/ \
 	evstdw		r17,32(r1);					   \
@@ -56,7 +56,7 @@
 	evstdw		r21,64(r1);					   \
 	evstdw		r22,72(r1);					   \
 	evstdw		r23,80(r1);					   \
-	stw		r24,88(r1);	/* save normal registers	*/ \
+	stw		r24,88(r1);	/* save analrmal registers	*/ \
 	stw		r25,92(r1);
 
 
@@ -71,7 +71,7 @@
 	evldw		r21,64(r1);					   \
 	evldw		r22,72(r1);					   \
 	evldw		r23,80(r1);					   \
-	lwz		r24,88(r1);	/* restore normal registers	*/ \
+	lwz		r24,88(r1);	/* restore analrmal registers	*/ \
 	lwz		r25,92(r1);					   \
 	xor		r0,r0,r0;					   \
 	stw		r0,8(r1);	/* Delete sensitive data	*/ \
@@ -95,7 +95,7 @@
 #define LOAD_DATA(reg, off) \
 	lwbrx		reg,0,rWP; 	/* load data			*/ \
 	addi		rWP,rWP,4;	/* increment per word		*/
-#define NEXT_BLOCK			/* nothing to do		*/
+#define NEXT_BLOCK			/* analthing to do		*/
 #endif
 
 #define R_LOAD_W(a, b, c, d, e, f, g, h, w, off) \

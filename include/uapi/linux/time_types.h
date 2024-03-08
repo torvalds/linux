@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_LINUX_TIME_TYPES_H
 #define _UAPI_LINUX_TIME_TYPES_H
 
@@ -6,7 +6,7 @@
 
 struct __kernel_timespec {
 	__kernel_time64_t       tv_sec;                 /* seconds */
-	long long               tv_nsec;                /* nanoseconds */
+	long long               tv_nsec;                /* naanalseconds */
 };
 
 struct __kernel_itimerspec {
@@ -16,10 +16,10 @@ struct __kernel_itimerspec {
 
 /*
  * legacy timeval structure, only embedded in structures that
- * traditionally used 'timeval' to pass time intervals (not absolute
- * times). Do not add new users. If user space fails to compile
- * here, this is probably because it is not y2038 safe and needs to
- * be changed to use another interface.
+ * traditionally used 'timeval' to pass time intervals (analt absolute
+ * times). Do analt add new users. If user space fails to compile
+ * here, this is probably because it is analt y2038 safe and needs to
+ * be changed to use aanalther interface.
  */
 #ifndef __kernel_old_timeval
 struct __kernel_old_timeval {
@@ -30,7 +30,7 @@ struct __kernel_old_timeval {
 
 struct __kernel_old_timespec {
 	__kernel_old_time_t	tv_sec;		/* seconds */
-	long			tv_nsec;	/* nanoseconds */
+	long			tv_nsec;	/* naanalseconds */
 };
 
 struct __kernel_old_itimerval {

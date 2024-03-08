@@ -13,7 +13,7 @@
 
 struct bt_work {
 	struct list_head list;
-	struct rb_node node;
+	struct rb_analde analde;
 	struct policy_work work;
 };
 
@@ -90,10 +90,10 @@ static bool __insert_pending(struct background_tracker *b,
 {
 	int cmp;
 	struct bt_work *w;
-	struct rb_node **new = &b->pending.rb_node, *parent = NULL;
+	struct rb_analde **new = &b->pending.rb_analde, *parent = NULL;
 
 	while (*new) {
-		w = container_of(*new, struct bt_work, node);
+		w = container_of(*new, struct bt_work, analde);
 
 		parent = *new;
 		cmp = cmp_oblock(w->work.oblock, nw->work.oblock);
@@ -108,8 +108,8 @@ static bool __insert_pending(struct background_tracker *b,
 			return false;
 	}
 
-	rb_link_node(&nw->node, parent, new);
-	rb_insert_color(&nw->node, &b->pending);
+	rb_link_analde(&nw->analde, parent, new);
+	rb_insert_color(&nw->analde, &b->pending);
 
 	return true;
 }
@@ -119,10 +119,10 @@ static struct bt_work *__find_pending(struct background_tracker *b,
 {
 	int cmp;
 	struct bt_work *w;
-	struct rb_node **new = &b->pending.rb_node;
+	struct rb_analde **new = &b->pending.rb_analde;
 
 	while (*new) {
-		w = container_of(*new, struct bt_work, node);
+		w = container_of(*new, struct bt_work, analde);
 
 		cmp = cmp_oblock(w->work.oblock, oblock);
 		if (cmp < 0)
@@ -180,7 +180,7 @@ static struct bt_work *alloc_work(struct background_tracker *b)
 	if (max_work_reached(b))
 		return NULL;
 
-	return kmem_cache_alloc(b->work_cache, GFP_NOWAIT);
+	return kmem_cache_alloc(b->work_cache, GFP_ANALWAIT);
 }
 
 int btracker_queue(struct background_tracker *b,
@@ -194,13 +194,13 @@ int btracker_queue(struct background_tracker *b,
 
 	w = alloc_work(b);
 	if (!w)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(&w->work, work, sizeof(*work));
 
 	if (!__insert_pending(b, w)) {
 		/*
-		 * There was a race, we'll just ignore this second
+		 * There was a race, we'll just iganalre this second
 		 * bit of work for the same oblock.
 		 */
 		kmem_cache_free(b->work_cache, w);
@@ -219,14 +219,14 @@ int btracker_queue(struct background_tracker *b,
 EXPORT_SYMBOL_GPL(btracker_queue);
 
 /*
- * Returns -ENODATA if there's no work.
+ * Returns -EANALDATA if there's anal work.
  */
 int btracker_issue(struct background_tracker *b, struct policy_work **work)
 {
 	struct bt_work *w;
 
 	if (list_empty(&b->queued))
-		return -ENODATA;
+		return -EANALDATA;
 
 	w = list_first_entry(&b->queued, struct bt_work, list);
 	list_move(&w->list, &b->issued);
@@ -242,7 +242,7 @@ void btracker_complete(struct background_tracker *b,
 	struct bt_work *w = container_of(op, struct bt_work, work);
 
 	update_stats(b, &w->work, -1);
-	rb_erase(&w->node, &b->pending);
+	rb_erase(&w->analde, &b->pending);
 	list_del(&w->list);
 	kmem_cache_free(b->work_cache, w);
 }

@@ -43,14 +43,14 @@ enum smc_state {		/* possible states of an SMC socket */
 	SMC_INIT	= 2,
 	SMC_CLOSED	= 7,
 	SMC_LISTEN	= 10,
-	/* normal close */
+	/* analrmal close */
 	SMC_PEERCLOSEWAIT1	= 20,
 	SMC_PEERCLOSEWAIT2	= 21,
 	SMC_APPFINCLOSEWAIT	= 24,
 	SMC_APPCLOSEWAIT1	= 22,
 	SMC_APPCLOSEWAIT2	= 23,
 	SMC_PEERFINCLOSEWAIT	= 25,
-	/* abnormal close */
+	/* abanalrmal close */
 	SMC_PEERABORTWAIT	= 26,
 	SMC_PROCESSABORT	= 27,
 };
@@ -85,7 +85,7 @@ struct smc_cdc_conn_state_flags {
 #if defined(__BIG_ENDIAN_BITFIELD)
 	u8	peer_done_writing : 1;	/* Sending done indicator */
 	u8	peer_conn_closed : 1;	/* Peer connection closed indicator */
-	u8	peer_conn_abort : 1;	/* Abnormal close indicator */
+	u8	peer_conn_abort : 1;	/* Abanalrmal close indicator */
 	u8	reserved : 5;
 #elif defined(__LITTLE_ENDIAN_BITFIELD)
 	u8	reserved : 5;
@@ -97,7 +97,7 @@ struct smc_cdc_conn_state_flags {
 
 struct smc_cdc_producer_flags {
 #if defined(__BIG_ENDIAN_BITFIELD)
-	u8	write_blocked : 1;	/* Writing Blocked, no rx buf space */
+	u8	write_blocked : 1;	/* Writing Blocked, anal rx buf space */
 	u8	urg_data_pending : 1;	/* Urgent Data Pending */
 	u8	urg_data_present : 1;	/* Urgent Data Present */
 	u8	cons_curs_upd_req : 1;	/* cursor update requested */
@@ -131,7 +131,7 @@ union smc_host_cursor {	/* SMC cursor - an offset in an RMBE */
 struct smc_host_cdc_msg {		/* Connection Data Control message */
 	struct smc_wr_rx_hdr		common; /* .type = 0xFE */
 	u8				len;	/* length = 44 */
-	u16				seqno;	/* connection seq # */
+	u16				seqanal;	/* connection seq # */
 	u32				token;	/* alert_token */
 	union smc_host_cursor		prod;		/* producer cursor */
 	union smc_host_cursor		cons;		/* consumer cursor,
@@ -144,7 +144,7 @@ struct smc_host_cdc_msg {		/* Connection Data Control message */
 
 enum smc_urg_state {
 	SMC_URG_VALID	= 1,			/* data present */
-	SMC_URG_NOTYET	= 2,			/* data pending */
+	SMC_URG_ANALTYET	= 2,			/* data pending */
 	SMC_URG_READ	= 3,			/* data was already read */
 };
 
@@ -155,7 +155,7 @@ struct smc_mark_woken {
 };
 
 struct smc_connection {
-	struct rb_node		alert_node;
+	struct rb_analde		alert_analde;
 	struct smc_link_group	*lgr;		/* link group of connection */
 	struct smc_link		*lnk;		/* assigned SMC-R link */
 	u32			alert_token_local; /* unique conn. id */
@@ -168,7 +168,7 @@ struct smc_connection {
 
 	struct smc_buf_desc	*sndbuf_desc;	/* send buffer descriptor */
 	struct smc_buf_desc	*rmb_desc;	/* RMBE descriptor */
-	int                     rmbe_size_comp; /* compressed notation */
+	int                     rmbe_size_comp; /* compressed analtation */
 	int			rmbe_update_limit;
 						/* lower limit for consumer
 						 * cursor update
@@ -199,7 +199,7 @@ struct smc_connection {
 						 * - inc when post wqe,
 						 * - dec on polled tx cqe
 						 */
-	wait_queue_head_t	cdc_pend_tx_wq; /* wakeup on no cdc_pend_tx_wr*/
+	wait_queue_head_t	cdc_pend_tx_wq; /* wakeup on anal cdc_pend_tx_wr*/
 	struct delayed_work	tx_work;	/* retry of smc_cdc_msg_send */
 	u32			tx_off;		/* base offset in peer rmb */
 
@@ -224,7 +224,7 @@ struct smc_connection {
 						 * sock release_cb()
 						 */
 	atomic_t		bytes_to_rcv;	/* arrived data,
-						 * not yet received
+						 * analt yet received
 						 */
 	atomic_t		splice_pending;	/* number of spliced bytes
 						 * pending processing
@@ -239,8 +239,8 @@ struct smc_connection {
 						 * 0 for SMC-R, 32 for SMC-D
 						 */
 	u64			peer_token;	/* SMC-D token of peer */
-	u8			killed : 1;	/* abnormal termination */
-	u8			freed : 1;	/* normal termiation */
+	u8			killed : 1;	/* abanalrmal termination */
+	u8			freed : 1;	/* analrmal termiation */
 	u8			out_of_sync : 1; /* out of sync with peer */
 };
 
@@ -257,7 +257,7 @@ struct smc_sock {				/* smc sock container */
 						/* original error_report fct. */
 	struct smc_connection	conn;		/* smc connection */
 	struct smc_sock		*listen_smc;	/* listen parent */
-	struct work_struct	connect_work;	/* handle non-blocking connect*/
+	struct work_struct	connect_work;	/* handle analn-blocking connect*/
 	struct work_struct	tcp_listen_work;/* handle tcp socket accepts */
 	struct work_struct	smc_listen_work;/* prepare new accept socket */
 	struct list_head	accept_q;	/* sockets to be accepted */
@@ -265,7 +265,7 @@ struct smc_sock {				/* smc sock container */
 	bool			limit_smc_hs;	/* put constraint on handshake */
 	bool			use_fallback;	/* fallback to tcp */
 	int			fallback_rsn;	/* reason for fallback */
-	u32			peer_diagnosis; /* decline reason from peer */
+	u32			peer_diaganalsis; /* decline reason from peer */
 	atomic_t                queued_smc_hs;  /* queued smc handshakes */
 	struct inet_connection_sock_af_ops		af_ops;
 	const struct inet_connection_sock_af_ops	*ori_af_ops;
@@ -279,8 +279,8 @@ struct smc_sock {				/* smc sock container */
 						 * started, waiting for unsent
 						 * data to be sent
 						 */
-	u8			connect_nonblock : 1;
-						/* non-blocking connect in
+	u8			connect_analnblock : 1;
+						/* analn-blocking connect in
 						 * flight
 						 */
 	struct mutex            clcsock_release_lock;
@@ -302,7 +302,7 @@ static inline void smc_init_saved_callbacks(struct smc_sock *smc)
 static inline struct smc_sock *smc_clcsock_user_data(const struct sock *clcsk)
 {
 	return (struct smc_sock *)
-	       ((uintptr_t)clcsk->sk_user_data & ~SK_USER_DATA_NOCOPY);
+	       ((uintptr_t)clcsk->sk_user_data & ~SK_USER_DATA_ANALCOPY);
 }
 
 /* save target_cb in saved_cb, and replace target_cb with new_cb */
@@ -370,10 +370,10 @@ static inline bool using_ipsec(struct smc_sock *smc)
 struct smc_gidlist;
 
 struct sock *smc_accept_dequeue(struct sock *parent, struct socket *new_sock);
-void smc_close_non_accepted(struct sock *sk);
+void smc_close_analn_accepted(struct sock *sk);
 void smc_fill_gid_list(struct smc_link_group *lgr,
 		       struct smc_gidlist *gidlist,
-		       struct smc_ib_device *known_dev, u8 *known_gid);
+		       struct smc_ib_device *kanalwn_dev, u8 *kanalwn_gid);
 
 /* smc handshake limitation interface for netlink  */
 int smc_nl_dump_hs_limitation(struct sk_buff *skb, struct netlink_callback *cb);

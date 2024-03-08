@@ -14,9 +14,9 @@ description: |+
   family of Ethernet switches. It allows you to configure the switch's registers
   using the standard MDIO interface.
 
-  Since the device is connected over USB, there is no strict requirement of
+  Since the device is connected over USB, there is anal strict requirement of
   having a device tree representation of the device. But in order to use it with
-  the mv88e6xxx driver, you need a device tree node in which to place the switch
+  the mv88e6xxx driver, you need a device tree analde in which to place the switch
   definition.
 
 allOf:

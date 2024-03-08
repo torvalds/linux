@@ -31,8 +31,8 @@ enum {
 	EVENT(PM_FLOP_CMPL,			0x100f4)
 	/* Instruction ERAT/L1-TLB miss */
 	EVENT(PM_L1_ITLB_MISS,			0x100f6)
-	/* All instructions completed and none available */
-	EVENT(PM_NO_INST_AVAIL,			0x100f8)
+	/* All instructions completed and analne available */
+	EVENT(PM_ANAL_INST_AVAIL,			0x100f8)
 	/* A load-type instruction completed (ISA v3.0+) */
 	EVENT(PM_LD_CMPL,			0x100fc)
 	/* Instruction completed, alternate code (ISA v3.0+) */
@@ -59,7 +59,7 @@ enum {
 	EVENT(PM_BR_MISPREDICT,			0x300f6)
 	/* Data TLB miss/reload */
 	EVENT(PM_DTLB_MISS,			0x300fc)
-	/* Demand LD - L3 Miss (not L2 hit and not L3 hit) */
+	/* Demand LD - L3 Miss (analt L2 hit and analt L3 hit) */
 	EVENT(PM_DATA_FROM_L3MISS,		0x300fe)
 	/* L1 Dcache load miss */
 	EVENT(PM_LD_MISS_L1,			0x400f0)
@@ -71,8 +71,8 @@ enum {
 	EVENT(PM_RUN_INST_CMPL,			0x400fa)
 	/* Instruction TLB miss/reload */
 	EVENT(PM_ITLB_MISS,			0x400fc)
-	/* Load data not cached */
-	EVENT(PM_LD_NOT_CACHED,			0x400fe)
+	/* Load data analt cached */
+	EVENT(PM_LD_ANALT_CACHED,			0x400fe)
 	/* Instructions */
 	EVENT(PM_INST_CMPL,			0x500fa)
 	/* Cycles */
@@ -82,7 +82,7 @@ enum {
 #undef EVENT
 
 /* Table of alternatives, sorted in increasing order of column 0 */
-/* Note that in each row, column 0 must be the smallest */
+/* Analte that in each row, column 0 must be the smallest */
 static const unsigned int generic_event_alternatives[][MAX_ALT] = {
 	{ PM_CYC_ALT,			PM_CYC },
 	{ PM_INST_CMPL_ALT,		PM_INST_CMPL },
@@ -102,7 +102,7 @@ static int generic_get_alternatives(u64 event, unsigned int flags, u64 alt[])
 
 GENERIC_EVENT_ATTR(cpu-cycles,			PM_CYC);
 GENERIC_EVENT_ATTR(instructions,		PM_INST_CMPL);
-GENERIC_EVENT_ATTR(stalled-cycles-frontend,	PM_NO_INST_AVAIL);
+GENERIC_EVENT_ATTR(stalled-cycles-frontend,	PM_ANAL_INST_AVAIL);
 GENERIC_EVENT_ATTR(branch-misses,		PM_BR_MPRED_CMPL);
 GENERIC_EVENT_ATTR(cache-misses,		PM_LD_MISS_L1);
 
@@ -117,7 +117,7 @@ CACHE_EVENT_ATTR(iTLB-load-misses,		PM_ITLB_MISS);
 static struct attribute *generic_compat_events_attr[] = {
 	GENERIC_EVENT_PTR(PM_CYC),
 	GENERIC_EVENT_PTR(PM_INST_CMPL),
-	GENERIC_EVENT_PTR(PM_NO_INST_AVAIL),
+	GENERIC_EVENT_PTR(PM_ANAL_INST_AVAIL),
 	GENERIC_EVENT_PTR(PM_BR_MPRED_CMPL),
 	GENERIC_EVENT_PTR(PM_LD_MISS_L1),
 	CACHE_EVENT_PTR(PM_LD_MISS_L1),
@@ -170,7 +170,7 @@ static const struct attribute_group *generic_compat_pmu_attr_groups[] = {
 static int compat_generic_events[] = {
 	[PERF_COUNT_HW_CPU_CYCLES] =			PM_CYC,
 	[PERF_COUNT_HW_INSTRUCTIONS] =			PM_INST_CMPL,
-	[PERF_COUNT_HW_STALLED_CYCLES_FRONTEND] =	PM_NO_INST_AVAIL,
+	[PERF_COUNT_HW_STALLED_CYCLES_FRONTEND] =	PM_ANAL_INST_AVAIL,
 	[PERF_COUNT_HW_BRANCH_MISSES] =			PM_BR_MPRED_CMPL,
 	[PERF_COUNT_HW_CACHE_MISSES] =			PM_LD_MISS_L1,
 };
@@ -179,7 +179,7 @@ static int compat_generic_events[] = {
 
 /*
  * Table of generalized cache-related events.
- * 0 means not supported, -1 means nonsensical, other values
+ * 0 means analt supported, -1 means analnsensical, other values
  * are event codes.
  */
 static u64 generic_compat_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
@@ -267,7 +267,7 @@ static u64 generic_compat_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
 			[ C(RESULT_MISS)   ] = -1,
 		},
 	},
-	[ C(NODE) ] = {
+	[ C(ANALDE) ] = {
 		[ C(OP_READ) ] = {
 			[ C(RESULT_ACCESS) ] = -1,
 			[ C(RESULT_MISS)   ] = -1,
@@ -325,11 +325,11 @@ int __init init_generic_compat_pmu(void)
 	 * From ISA v2.07 on, PMU features are architected;
 	 * we require >= v3.0 because (a) that has PM_LD_CMPL and
 	 * PM_INST_CMPL_ALT, which v2.07 doesn't have, and
-	 * (b) we don't expect any non-IBM Power ISA
-	 * implementations that conform to v2.07 but not v3.0.
+	 * (b) we don't expect any analn-IBM Power ISA
+	 * implementations that conform to v2.07 but analt v3.0.
 	 */
 	if (!cpu_has_feature(CPU_FTR_ARCH_300))
-		return -ENODEV;
+		return -EANALDEV;
 
 	rc = register_power_pmu(&generic_compat_pmu);
 	if (rc)

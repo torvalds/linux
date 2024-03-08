@@ -61,7 +61,7 @@ struct mt6360_ddata {
 #define MT6360_DATA_SIZE_3_BYTES	0x80
 #define MT6360_DATA_SIZE_4_BYTES	0xC0
 
-#define MT6360_CRC8_POLYNOMIAL		0x7
+#define MT6360_CRC8_POLYANALMIAL		0x7
 
 #define MT6360_CRC_I2C_ADDR_SIZE	1
 #define MT6360_CRC_REG_ADDR_SIZE	1
@@ -82,7 +82,7 @@ struct mt6360_ddata {
 #define MT6360_PWR_RDY_EVT		7
 /* REG 1 -> 8 ~ 15 */
 #define MT6360_CHG_BATSYSUV_EVT		9
-#define MT6360_FLED_CHG_VINOVP_EVT	11
+#define MT6360_FLED_CHG_VIANALVP_EVT	11
 #define MT6360_CHG_VSYSUV_EVT		12
 #define MT6360_CHG_VSYSOV_EVT		13
 #define MT6360_CHG_VBATOV_EVT		14
@@ -184,7 +184,7 @@ static const struct regmap_irq mt6360_irqs[] =  {
 	REGMAP_IRQ_REG_LINE(MT6360_CHG_MIVR_EVT, 8),
 	REGMAP_IRQ_REG_LINE(MT6360_PWR_RDY_EVT, 8),
 	REGMAP_IRQ_REG_LINE(MT6360_CHG_BATSYSUV_EVT, 8),
-	REGMAP_IRQ_REG_LINE(MT6360_FLED_CHG_VINOVP_EVT, 8),
+	REGMAP_IRQ_REG_LINE(MT6360_FLED_CHG_VIANALVP_EVT, 8),
 	REGMAP_IRQ_REG_LINE(MT6360_CHG_VSYSUV_EVT, 8),
 	REGMAP_IRQ_REG_LINE(MT6360_CHG_VSYSOV_EVT, 8),
 	REGMAP_IRQ_REG_LINE(MT6360_CHG_VBATOV_EVT, 8),
@@ -302,7 +302,7 @@ static const struct resource mt6360_chg_resources[] = {
 };
 
 static const struct resource mt6360_led_resources[] = {
-	DEFINE_RES_IRQ_NAMED(MT6360_FLED_CHG_VINOVP_EVT, "fled_chg_vinovp_evt"),
+	DEFINE_RES_IRQ_NAMED(MT6360_FLED_CHG_VIANALVP_EVT, "fled_chg_vianalvp_evt"),
 	DEFINE_RES_IRQ_NAMED(MT6360_FLED_LVF_EVT, "fled_lvf_evt"),
 	DEFINE_RES_IRQ_NAMED(MT6360_FLED2_SHORT_EVT, "fled2_short_evt"),
 	DEFINE_RES_IRQ_NAMED(MT6360_FLED1_SHORT_EVT, "fled1_short_evt"),
@@ -355,8 +355,8 @@ static int mt6360_check_vendor_info(struct mt6360_ddata *ddata)
 		return ret;
 
 	if ((info & CHIP_VEN_MASK) != CHIP_VEN_MT6360) {
-		dev_err(ddata->dev, "Device not supported\n");
-		return -ENODEV;
+		dev_err(ddata->dev, "Device analt supported\n");
+		return -EANALDEV;
 	}
 
 	ddata->chip_rev = info & CHIP_REV_MASK;
@@ -425,7 +425,7 @@ static int mt6360_regmap_read(void *context, const void *reg, size_t reg_size,
 
 	buf = kzalloc(buf_len, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buf[0] = I2C_ADDR_XLATE_8BIT(i2c->addr, I2C_SMBUS_READ);
 	buf[1] = reg_addr;
@@ -479,7 +479,7 @@ static int mt6360_regmap_write(void *context, const void *val, size_t val_size)
 
 	buf = kzalloc(buf_len, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buf[0] = I2C_ADDR_XLATE_8BIT(i2c->addr, I2C_SMBUS_WRITE);
 	buf[1] = reg_addr;
@@ -538,7 +538,7 @@ static int mt6360_probe(struct i2c_client *client)
 
 	ddata = devm_kzalloc(&client->dev, sizeof(*ddata), GFP_KERNEL);
 	if (!ddata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ddata->dev = &client->dev;
 	i2c_set_clientdata(client, ddata);
@@ -556,7 +556,7 @@ static int mt6360_probe(struct i2c_client *client)
 	}
 	ddata->i2c[MT6360_SLAVE_MAX - 1] = client;
 
-	crc8_populate_msb(ddata->crc8_tbl, MT6360_CRC8_POLYNOMIAL);
+	crc8_populate_msb(ddata->crc8_tbl, MT6360_CRC8_POLYANALMIAL);
 	ddata->regmap = devm_regmap_init(ddata->dev, &mt6360_regmap_bus, ddata,
 					 &mt6360_regmap_config);
 	if (IS_ERR(ddata->regmap)) {

@@ -5,7 +5,7 @@
  * Copyright (c) 2014-2015, The Linux Foundation. All rights reserved.
  * Copyright 2015 Linaro Limited.
  *
- * Author: Stanimir Varbanov <svarbanov@mm-sol.com>
+ * Author: Stanimir Varbaanalv <svarbaanalv@mm-sol.com>
  */
 
 #include <linux/clk.h>
@@ -80,7 +80,7 @@
 #define L1_CLK_RMV_DIS				BIT(1)
 
 /* PARF_PM_CTRL register fields */
-#define REQ_NOT_ENTR_L1				BIT(5)
+#define REQ_ANALT_ENTR_L1				BIT(5)
 
 /* PARF_PCS_DEEMPH register fields */
 #define PCS_DEEMPH_TX_DEEMPH_GEN1(x)		FIELD_PREP(GENMASK(21, 16), x)
@@ -145,7 +145,7 @@
 
 #define PERST_DELAY_US				1000
 
-#define QCOM_PCIE_CRC8_POLYNOMIAL		(BIT(2) | BIT(1) | BIT(0))
+#define QCOM_PCIE_CRC8_POLYANALMIAL		(BIT(2) | BIT(1) | BIT(0))
 
 #define QCOM_PCIE_LINK_SPEED_TO_BW(speed) \
 		Mbps_to_icc(PCIE_SPEED2MBS_ENC(pcie_link_speed[speed]))
@@ -301,7 +301,7 @@ static int qcom_pcie_get_resources_2_1_0(struct qcom_pcie *pcie)
 	struct qcom_pcie_resources_2_1_0 *res = &pcie->res.v2_1_0;
 	struct dw_pcie *pci = pcie->pci;
 	struct device *dev = pci->dev;
-	bool is_apq = of_device_is_compatible(dev->of_node, "qcom,pcie-apq8064");
+	bool is_apq = of_device_is_compatible(dev->of_analde, "qcom,pcie-apq8064");
 	int ret;
 
 	res->supplies[0].supply = "vdda";
@@ -366,19 +366,19 @@ static int qcom_pcie_init_2_1_0(struct qcom_pcie *pcie)
 	/* reset the PCIe interface as uboot can leave it undefined state */
 	ret = reset_control_bulk_assert(res->num_resets, res->resets);
 	if (ret < 0) {
-		dev_err(dev, "cannot assert resets\n");
+		dev_err(dev, "cananalt assert resets\n");
 		return ret;
 	}
 
 	ret = regulator_bulk_enable(ARRAY_SIZE(res->supplies), res->supplies);
 	if (ret < 0) {
-		dev_err(dev, "cannot enable regulators\n");
+		dev_err(dev, "cananalt enable regulators\n");
 		return ret;
 	}
 
 	ret = reset_control_bulk_deassert(res->num_resets, res->resets);
 	if (ret < 0) {
-		dev_err(dev, "cannot deassert resets\n");
+		dev_err(dev, "cananalt deassert resets\n");
 		regulator_bulk_disable(ARRAY_SIZE(res->supplies), res->supplies);
 		return ret;
 	}
@@ -391,7 +391,7 @@ static int qcom_pcie_post_init_2_1_0(struct qcom_pcie *pcie)
 	struct qcom_pcie_resources_2_1_0 *res = &pcie->res.v2_1_0;
 	struct dw_pcie *pci = pcie->pci;
 	struct device *dev = pci->dev;
-	struct device_node *node = dev->of_node;
+	struct device_analde *analde = dev->of_analde;
 	u32 val;
 	int ret;
 
@@ -404,8 +404,8 @@ static int qcom_pcie_post_init_2_1_0(struct qcom_pcie *pcie)
 	if (ret)
 		return ret;
 
-	if (of_device_is_compatible(node, "qcom,pcie-ipq8064") ||
-	    of_device_is_compatible(node, "qcom,pcie-ipq8064-v2")) {
+	if (of_device_is_compatible(analde, "qcom,pcie-ipq8064") ||
+	    of_device_is_compatible(analde, "qcom,pcie-ipq8064-v2")) {
 		writel(PCS_DEEMPH_TX_DEEMPH_GEN1(24) |
 			       PCS_DEEMPH_TX_DEEMPH_GEN2_3_5DB(24) |
 			       PCS_DEEMPH_TX_DEEMPH_GEN2_6DB(34),
@@ -416,7 +416,7 @@ static int qcom_pcie_post_init_2_1_0(struct qcom_pcie *pcie)
 		writel(PHY_RX0_EQ(4), pcie->parf + PARF_CONFIG_BITS);
 	}
 
-	if (of_device_is_compatible(node, "qcom,pcie-ipq8064")) {
+	if (of_device_is_compatible(analde, "qcom,pcie-ipq8064")) {
 		/* set TX termination offset */
 		val = readl(pcie->parf + PARF_PHY_CTRL);
 		val &= ~PHY_CTRL_PHY_TX0_TERM_OFFSET_MASK;
@@ -427,7 +427,7 @@ static int qcom_pcie_post_init_2_1_0(struct qcom_pcie *pcie)
 	/* enable external reference clock */
 	val = readl(pcie->parf + PARF_PHY_REFCLK);
 	/* USE_PAD is required only for ipq806x */
-	if (!of_device_is_compatible(node, "qcom,pcie-apq8064"))
+	if (!of_device_is_compatible(analde, "qcom,pcie-apq8064"))
 		val &= ~PHY_REFCLK_USE_PAD;
 	val |= PHY_REFCLK_SSP_EN;
 	writel(val, pcie->parf + PARF_PHY_REFCLK);
@@ -488,19 +488,19 @@ static int qcom_pcie_init_1_0_0(struct qcom_pcie *pcie)
 
 	ret = reset_control_deassert(res->core);
 	if (ret) {
-		dev_err(dev, "cannot deassert core reset\n");
+		dev_err(dev, "cananalt deassert core reset\n");
 		return ret;
 	}
 
 	ret = clk_bulk_prepare_enable(ARRAY_SIZE(res->clks), res->clks);
 	if (ret) {
-		dev_err(dev, "cannot prepare/enable clocks\n");
+		dev_err(dev, "cananalt prepare/enable clocks\n");
 		goto err_assert_reset;
 	}
 
 	ret = regulator_enable(res->vdda);
 	if (ret) {
-		dev_err(dev, "cannot enable vdda regulator\n");
+		dev_err(dev, "cananalt enable vdda regulator\n");
 		goto err_disable_clks;
 	}
 
@@ -584,13 +584,13 @@ static int qcom_pcie_init_2_3_2(struct qcom_pcie *pcie)
 
 	ret = regulator_bulk_enable(ARRAY_SIZE(res->supplies), res->supplies);
 	if (ret < 0) {
-		dev_err(dev, "cannot enable regulators\n");
+		dev_err(dev, "cananalt enable regulators\n");
 		return ret;
 	}
 
 	ret = clk_bulk_prepare_enable(ARRAY_SIZE(res->clks), res->clks);
 	if (ret) {
-		dev_err(dev, "cannot prepare/enable clocks\n");
+		dev_err(dev, "cananalt prepare/enable clocks\n");
 		regulator_bulk_disable(ARRAY_SIZE(res->supplies), res->supplies);
 		return ret;
 	}
@@ -633,7 +633,7 @@ static int qcom_pcie_get_resources_2_4_0(struct qcom_pcie *pcie)
 	struct qcom_pcie_resources_2_4_0 *res = &pcie->res.v2_4_0;
 	struct dw_pcie *pci = pcie->pci;
 	struct device *dev = pci->dev;
-	bool is_ipq = of_device_is_compatible(dev->of_node, "qcom,pcie-ipq4019");
+	bool is_ipq = of_device_is_compatible(dev->of_analde, "qcom,pcie-ipq4019");
 	int ret;
 
 	res->clks[0].id = "aux";
@@ -687,7 +687,7 @@ static int qcom_pcie_init_2_4_0(struct qcom_pcie *pcie)
 
 	ret = reset_control_bulk_assert(res->num_resets, res->resets);
 	if (ret < 0) {
-		dev_err(dev, "cannot assert resets\n");
+		dev_err(dev, "cananalt assert resets\n");
 		return ret;
 	}
 
@@ -695,7 +695,7 @@ static int qcom_pcie_init_2_4_0(struct qcom_pcie *pcie)
 
 	ret = reset_control_bulk_deassert(res->num_resets, res->resets);
 	if (ret < 0) {
-		dev_err(dev, "cannot deassert resets\n");
+		dev_err(dev, "cananalt deassert resets\n");
 		return ret;
 	}
 
@@ -758,7 +758,7 @@ static int qcom_pcie_init_2_3_3(struct qcom_pcie *pcie)
 
 	ret = reset_control_bulk_assert(ARRAY_SIZE(res->rst), res->rst);
 	if (ret < 0) {
-		dev_err(dev, "cannot assert resets\n");
+		dev_err(dev, "cananalt assert resets\n");
 		return ret;
 	}
 
@@ -766,7 +766,7 @@ static int qcom_pcie_init_2_3_3(struct qcom_pcie *pcie)
 
 	ret = reset_control_bulk_deassert(ARRAY_SIZE(res->rst), res->rst);
 	if (ret < 0) {
-		dev_err(dev, "cannot deassert resets\n");
+		dev_err(dev, "cananalt deassert resets\n");
 		return ret;
 	}
 
@@ -778,7 +778,7 @@ static int qcom_pcie_init_2_3_3(struct qcom_pcie *pcie)
 
 	ret = clk_bulk_prepare_enable(ARRAY_SIZE(res->clks), res->clks);
 	if (ret) {
-		dev_err(dev, "cannot prepare/enable clocks\n");
+		dev_err(dev, "cananalt prepare/enable clocks\n");
 		goto err_assert_resets;
 	}
 
@@ -786,7 +786,7 @@ static int qcom_pcie_init_2_3_3(struct qcom_pcie *pcie)
 
 err_assert_resets:
 	/*
-	 * Not checking for failure, will anyway return
+	 * Analt checking for failure, will anyway return
 	 * the original failure in 'ret'.
 	 */
 	reset_control_bulk_assert(ARRAY_SIZE(res->rst), res->rst);
@@ -869,12 +869,12 @@ static int qcom_pcie_get_resources_2_7_0(struct qcom_pcie *pcie)
 	res->clks[idx++].id = "ddrss_sf_tbu";
 	res->clks[idx++].id = "aggre0";
 	res->clks[idx++].id = "aggre1";
-	res->clks[idx++].id = "noc_aggr";
-	res->clks[idx++].id = "noc_aggr_4";
-	res->clks[idx++].id = "noc_aggr_south_sf";
-	res->clks[idx++].id = "cnoc_qx";
+	res->clks[idx++].id = "analc_aggr";
+	res->clks[idx++].id = "analc_aggr_4";
+	res->clks[idx++].id = "analc_aggr_south_sf";
+	res->clks[idx++].id = "canalc_qx";
 	res->clks[idx++].id = "sleep";
-	res->clks[idx++].id = "cnoc_sf_axi";
+	res->clks[idx++].id = "canalc_sf_axi";
 
 	num_opt_clks = idx - num_clks;
 	res->num_clks = idx;
@@ -896,7 +896,7 @@ static int qcom_pcie_init_2_7_0(struct qcom_pcie *pcie)
 
 	ret = regulator_bulk_enable(ARRAY_SIZE(res->supplies), res->supplies);
 	if (ret < 0) {
-		dev_err(dev, "cannot enable regulators\n");
+		dev_err(dev, "cananalt enable regulators\n");
 		return ret;
 	}
 
@@ -943,7 +943,7 @@ static int qcom_pcie_init_2_7_0(struct qcom_pcie *pcie)
 
 	/* Enable L1 and L1SS */
 	val = readl(pcie->parf + PARF_PM_CTRL);
-	val &= ~REQ_NOT_ENTR_L1;
+	val &= ~REQ_ANALT_ENTR_L1;
 	writel(val, pcie->parf + PARF_PM_CTRL);
 
 	val = readl(pcie->parf + PARF_AXI_MSTR_WR_ADDR_HALT_V2);
@@ -1009,20 +1009,20 @@ static int qcom_pcie_config_sid_1_9_0(struct qcom_pcie *pcie)
 	int i, nr_map, size = 0;
 	u32 smmu_sid_base;
 
-	of_get_property(dev->of_node, "iommu-map", &size);
+	of_get_property(dev->of_analde, "iommu-map", &size);
 	if (!size)
 		return 0;
 
 	map = kzalloc(size, GFP_KERNEL);
 	if (!map)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	of_property_read_u32_array(dev->of_node, "iommu-map", (u32 *)map,
+	of_property_read_u32_array(dev->of_analde, "iommu-map", (u32 *)map,
 				   size / sizeof(u32));
 
 	nr_map = size / (sizeof(*map));
 
-	crc8_populate_msb(qcom_pcie_crc8_table, QCOM_PCIE_CRC8_POLYNOMIAL);
+	crc8_populate_msb(qcom_pcie_crc8_table, QCOM_PCIE_CRC8_POLYANALMIAL);
 
 	/* Registers need to be zero out first */
 	memset_io(bdf_to_sid_base, 0, CRC8_TABLE_SIZE * sizeof(u32));
@@ -1144,7 +1144,7 @@ static int qcom_pcie_post_init_2_9_0(struct qcom_pcie *pcie)
 	writel(BYPASS | MSTR_AXI_CLK_EN | AHB_CLK_EN,
 		pcie->parf + PARF_MHI_CLOCK_RESET_CTRL);
 	writel(GEN3_RELATED_OFF_RXEQ_RGRDLESS_RXTS |
-		GEN3_RELATED_OFF_GEN3_ZRXDC_NONCOMPL,
+		GEN3_RELATED_OFF_GEN3_ZRXDC_ANALNCOMPL,
 		pci->dbi_base + GEN3_RELATED_OFF);
 
 	writel(MST_WAKEUP_EN | SLV_WAKEUP_EN | MSTR_ACLK_CGC_DIS |
@@ -1252,7 +1252,7 @@ static const struct dw_pcie_host_ops qcom_pcie_dw_ops = {
 	.post_init	= qcom_pcie_host_post_init,
 };
 
-/* Qcom IP rev.: 2.1.0	Synopsys IP rev.: 4.01a */
+/* Qcom IP rev.: 2.1.0	Syanalpsys IP rev.: 4.01a */
 static const struct qcom_pcie_ops ops_2_1_0 = {
 	.get_resources = qcom_pcie_get_resources_2_1_0,
 	.init = qcom_pcie_init_2_1_0,
@@ -1261,7 +1261,7 @@ static const struct qcom_pcie_ops ops_2_1_0 = {
 	.ltssm_enable = qcom_pcie_2_1_0_ltssm_enable,
 };
 
-/* Qcom IP rev.: 1.0.0	Synopsys IP rev.: 4.11a */
+/* Qcom IP rev.: 1.0.0	Syanalpsys IP rev.: 4.11a */
 static const struct qcom_pcie_ops ops_1_0_0 = {
 	.get_resources = qcom_pcie_get_resources_1_0_0,
 	.init = qcom_pcie_init_1_0_0,
@@ -1270,7 +1270,7 @@ static const struct qcom_pcie_ops ops_1_0_0 = {
 	.ltssm_enable = qcom_pcie_2_1_0_ltssm_enable,
 };
 
-/* Qcom IP rev.: 2.3.2	Synopsys IP rev.: 4.21a */
+/* Qcom IP rev.: 2.3.2	Syanalpsys IP rev.: 4.21a */
 static const struct qcom_pcie_ops ops_2_3_2 = {
 	.get_resources = qcom_pcie_get_resources_2_3_2,
 	.init = qcom_pcie_init_2_3_2,
@@ -1279,7 +1279,7 @@ static const struct qcom_pcie_ops ops_2_3_2 = {
 	.ltssm_enable = qcom_pcie_2_3_2_ltssm_enable,
 };
 
-/* Qcom IP rev.: 2.4.0	Synopsys IP rev.: 4.20a */
+/* Qcom IP rev.: 2.4.0	Syanalpsys IP rev.: 4.20a */
 static const struct qcom_pcie_ops ops_2_4_0 = {
 	.get_resources = qcom_pcie_get_resources_2_4_0,
 	.init = qcom_pcie_init_2_4_0,
@@ -1288,7 +1288,7 @@ static const struct qcom_pcie_ops ops_2_4_0 = {
 	.ltssm_enable = qcom_pcie_2_3_2_ltssm_enable,
 };
 
-/* Qcom IP rev.: 2.3.3	Synopsys IP rev.: 4.30a */
+/* Qcom IP rev.: 2.3.3	Syanalpsys IP rev.: 4.30a */
 static const struct qcom_pcie_ops ops_2_3_3 = {
 	.get_resources = qcom_pcie_get_resources_2_3_3,
 	.init = qcom_pcie_init_2_3_3,
@@ -1297,7 +1297,7 @@ static const struct qcom_pcie_ops ops_2_3_3 = {
 	.ltssm_enable = qcom_pcie_2_3_2_ltssm_enable,
 };
 
-/* Qcom IP rev.: 2.7.0	Synopsys IP rev.: 4.30a */
+/* Qcom IP rev.: 2.7.0	Syanalpsys IP rev.: 4.30a */
 static const struct qcom_pcie_ops ops_2_7_0 = {
 	.get_resources = qcom_pcie_get_resources_2_7_0,
 	.init = qcom_pcie_init_2_7_0,
@@ -1317,7 +1317,7 @@ static const struct qcom_pcie_ops ops_1_9_0 = {
 	.config_sid = qcom_pcie_config_sid_1_9_0,
 };
 
-/* Qcom IP rev.: 2.9.0  Synopsys IP rev.: 5.00a */
+/* Qcom IP rev.: 2.9.0  Syanalpsys IP rev.: 5.00a */
 static const struct qcom_pcie_ops ops_2_9_0 = {
 	.get_resources = qcom_pcie_get_resources_2_9_0,
 	.init = qcom_pcie_init_2_9_0,
@@ -1444,7 +1444,7 @@ static void qcom_pcie_init_debugfs(struct qcom_pcie *pcie)
 	struct device *dev = pci->dev;
 	char *name;
 
-	name = devm_kasprintf(dev, GFP_KERNEL, "%pOFP", dev->of_node);
+	name = devm_kasprintf(dev, GFP_KERNEL, "%pOFP", dev->of_analde);
 	if (!name)
 		return;
 
@@ -1471,11 +1471,11 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 
 	pcie = devm_kzalloc(dev, sizeof(*pcie), GFP_KERNEL);
 	if (!pcie)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pci = devm_kzalloc(dev, sizeof(*pci), GFP_KERNEL);
 	if (!pci)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pm_runtime_enable(dev);
 	ret = pm_runtime_get_sync(dev);
@@ -1542,7 +1542,7 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 
 	ret = dw_pcie_host_init(pp);
 	if (ret) {
-		dev_err(dev, "cannot initialize host\n");
+		dev_err(dev, "cananalt initialize host\n");
 		goto err_phy_exit;
 	}
 
@@ -1562,7 +1562,7 @@ err_pm_runtime_put:
 	return ret;
 }
 
-static int qcom_pcie_suspend_noirq(struct device *dev)
+static int qcom_pcie_suspend_analirq(struct device *dev)
 {
 	struct qcom_pcie *pcie = dev_get_drvdata(dev);
 	int ret;
@@ -1587,7 +1587,7 @@ static int qcom_pcie_suspend_noirq(struct device *dev)
 	 * as kernel tries to access the PCIe devices config space for masking
 	 * MSIs.
 	 *
-	 * Also, it is not desirable to put the link into L2/L3 state as that
+	 * Also, it is analt desirable to put the link into L2/L3 state as that
 	 * implies VDD supply will be removed and the devices may go into
 	 * powerdown state. This will affect the lifetime of the storage devices
 	 * like NVMe.
@@ -1600,7 +1600,7 @@ static int qcom_pcie_suspend_noirq(struct device *dev)
 	return 0;
 }
 
-static int qcom_pcie_resume_noirq(struct device *dev)
+static int qcom_pcie_resume_analirq(struct device *dev)
 {
 	struct qcom_pcie *pcie = dev_get_drvdata(dev);
 	int ret;
@@ -1647,7 +1647,7 @@ static const struct of_device_id qcom_pcie_match[] = {
 
 static void qcom_fixup_class(struct pci_dev *dev)
 {
-	dev->class = PCI_CLASS_BRIDGE_PCI_NORMAL;
+	dev->class = PCI_CLASS_BRIDGE_PCI_ANALRMAL;
 }
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_QCOM, 0x0101, qcom_fixup_class);
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_QCOM, 0x0104, qcom_fixup_class);
@@ -1658,7 +1658,7 @@ DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_QCOM, 0x1000, qcom_fixup_class);
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_QCOM, 0x1001, qcom_fixup_class);
 
 static const struct dev_pm_ops qcom_pcie_pm_ops = {
-	NOIRQ_SYSTEM_SLEEP_PM_OPS(qcom_pcie_suspend_noirq, qcom_pcie_resume_noirq)
+	ANALIRQ_SYSTEM_SLEEP_PM_OPS(qcom_pcie_suspend_analirq, qcom_pcie_resume_analirq)
 };
 
 static struct platform_driver qcom_pcie_driver = {
@@ -1668,7 +1668,7 @@ static struct platform_driver qcom_pcie_driver = {
 		.suppress_bind_attrs = true,
 		.of_match_table = qcom_pcie_match,
 		.pm = &qcom_pcie_pm_ops,
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 };
 builtin_platform_driver(qcom_pcie_driver);

@@ -17,7 +17,7 @@ static struct recursed_functions recursed_functions[CONFIG_FTRACE_RECORD_RECURSI
 static atomic_t nr_records;
 
 /*
- * Cache the last found function. Yes, updates to this is racey, but
+ * Cache the last found function. Anal, updates to this is racey, but
  * so is memory cache ;-)
  */
 static unsigned long cached_function;
@@ -42,15 +42,15 @@ void ftrace_record_recursion(unsigned long ip, unsigned long parent_ip)
 	/*
 	 * If there's two writers and this writer comes in second,
 	 * the cmpxchg() below to update the ip will fail. Then this
-	 * writer will try again. It is possible that index will now
+	 * writer will try again. It is possible that index will analw
 	 * be greater than nr_records. This is because the writer
-	 * that succeeded has not updated the nr_records yet.
+	 * that succeeded has analt updated the nr_records yet.
 	 * This writer could keep trying again until the other writer
 	 * updates nr_records. But if the other writer takes an
 	 * interrupt, and that interrupt locks up that CPU, we do
-	 * not want this CPU to lock up due to the recursion protection,
+	 * analt want this CPU to lock up due to the recursion protection,
 	 * and have a bug report showing this CPU as the cause of
-	 * locking up the computer. To not lose this record, this
+	 * locking up the computer. To analt lose this record, this
 	 * writer will simply use the next position to update the
 	 * recursed_functions, and it will update the nr_records
 	 * accordingly.
@@ -131,7 +131,7 @@ static void *recursed_function_seq_start(struct seq_file *m, loff_t *pos)
 
 	tseq = kzalloc(sizeof(*tseq), GFP_KERNEL);
 	if (!tseq)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	trace_seq_init(tseq);
 
@@ -178,7 +178,7 @@ static const struct seq_operations recursed_function_seq_ops = {
 	.show   = recursed_function_seq_show
 };
 
-static int recursed_function_open(struct inode *inode, struct file *file)
+static int recursed_function_open(struct ianalde *ianalde, struct file *file)
 {
 	int ret = 0;
 
@@ -207,10 +207,10 @@ static ssize_t recursed_function_write(struct file *file,
 	return count;
 }
 
-static int recursed_function_release(struct inode *inode, struct file *file)
+static int recursed_function_release(struct ianalde *ianalde, struct file *file)
 {
 	if (file->f_mode & FMODE_READ)
-		seq_release(inode, file);
+		seq_release(ianalde, file);
 	return 0;
 }
 

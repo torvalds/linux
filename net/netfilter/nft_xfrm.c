@@ -48,7 +48,7 @@ static int nft_xfrm_get_init(const struct nft_ctx *ctx,
 	case NFPROTO_INET:
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	priv->key = ntohl(nla_get_be32(tb[NFTA_XFRM_KEY]));
@@ -238,7 +238,7 @@ static int nft_xfrm_validate(const struct nft_ctx *ctx, const struct nft_expr *e
 	if (ctx->family != NFPROTO_IPV4 &&
 	    ctx->family != NFPROTO_IPV6 &&
 	    ctx->family != NFPROTO_INET)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (priv->dir) {
 	case XFRM_POLICY_IN:

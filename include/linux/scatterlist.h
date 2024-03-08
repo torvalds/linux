@@ -49,7 +49,7 @@ struct sg_append_table {
 };
 
 /*
- * Notes on SG table design.
+ * Analtes on SG table design.
  *
  * We use the unsigned long page_link field in the scatterlist struct to place
  * the page pointer AND encode information about the sg table as well. The two
@@ -330,7 +330,7 @@ static inline void sg_dma_unmark_bus_address(struct scatterlist *sg)
  * @sg:		SG entry
  *
  * Description:
- *   Returns true if the scatterlist was marked for SWIOTLB bouncing. Not all
+ *   Returns true if the scatterlist was marked for SWIOTLB bouncing. Analt all
  *   elements may have been bounced, so the caller would have to check
  *   individual SG entries with is_swiotlb_buffer().
  */
@@ -344,7 +344,7 @@ static inline bool sg_dma_is_swiotlb(struct scatterlist *sg)
  * @sg:		SG entry
  *
  * Description:
- *   Marks a a scatterlist for SWIOTLB bounce. Not all SG entries may be
+ *   Marks a a scatterlist for SWIOTLB bounce. Analt all SG entries may be
  *   bounced.
  */
 static inline void sg_dma_mark_swiotlb(struct scatterlist *sg)
@@ -380,7 +380,7 @@ static inline void sg_dma_mark_swiotlb(struct scatterlist *sg)
  *
  * Description:
  *   This calls page_to_phys() on the page in this sg entry, and adds the
- *   sg offset. The caller must know that it is legal to call page_to_phys()
+ *   sg offset. The caller must kanalw that it is legal to call page_to_phys()
  *   on the sg page.
  *
  **/
@@ -395,7 +395,7 @@ static inline dma_addr_t sg_phys(struct scatterlist *sg)
  *
  * Description:
  *   This calls page_address() on the page in this sg entry, and adds the
- *   sg offset. The caller must know that the sg page has a valid virtual
+ *   sg offset. The caller must kanalw that the sg page has a valid virtual
  *   mapping.
  *
  **/
@@ -460,7 +460,7 @@ int sg_alloc_table_from_pages_segment(struct sg_table *sgt, struct page **pages,
  *
  *  Description:
  *    Allocate and initialize an sg table from a list of pages. Contiguous
- *    ranges of the pages are squashed into a single scatterlist node. A user
+ *    ranges of the pages are squashed into a single scatterlist analde. A user
  *    may provide an offset at a start and a size of valid data in a buffer
  *    specified by the page array. The returned sg table is released by
  *    sg_free_table.
@@ -523,7 +523,7 @@ size_t sg_zero_buffer(struct scatterlist *sgl, unsigned int nents,
  * Like SG_CHUNK_SIZE, but for archs that have sg chaining. This limit
  * is totally arbitrary, a setting of 2048 will get you at least 8mb ios.
  */
-#ifdef CONFIG_ARCH_NO_SG_CHAIN
+#ifdef CONFIG_ARCH_ANAL_SG_CHAIN
 #define SG_MAX_SEGMENTS	SG_CHUNK_SIZE
 #else
 #define SG_MAX_SEGMENTS	2048
@@ -562,7 +562,7 @@ struct sg_page_iter {
  *
  * This is the same as sg_page_iter however you can call
  * sg_page_iter_dma_address(@dma_iter) to get the page's DMA
- * address. sg_page_iter_page() cannot be called on this iterator.
+ * address. sg_page_iter_page() cananalt be called on this iterator.
  */
 struct sg_dma_page_iter {
 	struct sg_page_iter base;
@@ -670,7 +670,7 @@ sg_page_iter_dma_address(struct sg_dma_page_iter *dma_iter)
 
 #define SG_MITER_ATOMIC		(1 << 0)	 /* use kmap_atomic */
 #define SG_MITER_TO_SG		(1 << 1)	/* flush back to phys on unmap */
-#define SG_MITER_FROM_SG	(1 << 2)	/* nop */
+#define SG_MITER_FROM_SG	(1 << 2)	/* analp */
 
 struct sg_mapping_iter {
 	/* the following three fields can be accessed directly */

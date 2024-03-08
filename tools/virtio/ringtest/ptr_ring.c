@@ -7,7 +7,7 @@
 #include <pthread.h>
 #include <malloc.h>
 #include <assert.h>
-#include <errno.h>
+#include <erranal.h>
 #include <limits.h>
 
 #define SMP_CACHE_BYTES 64
@@ -139,7 +139,7 @@ int add_inbuf(unsigned len, void *buf, void *datap)
 }
 
 /*
- * ptr_ring API provides no way for producer to find out whether a given
+ * ptr_ring API provides anal way for producer to find out whether a given
  * buffer was consumed.  Our tests merely require that a successful get_buf
  * implies that add_inbuf succeed in the past, and that add_inbuf will succeed,
  * fake it accordingly.

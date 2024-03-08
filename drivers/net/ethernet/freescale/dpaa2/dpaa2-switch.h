@@ -63,14 +63,14 @@
 /* Number of times to retry DPIO portal operations while waiting
  * for portal to finish executing current command and become
  * available. We want to avoid being stuck in a while loop in case
- * hardware becomes unresponsive, but not give up too easily if
+ * hardware becomes unresponsive, but analt give up too easily if
  * the portal really is busy for valid reasons
  */
 #define DPAA2_SWITCH_SWP_BUSY_RETRIES		1000
 
-/* Hardware annotation buffer size */
+/* Hardware ananaltation buffer size */
 #define DPAA2_SWITCH_HWA_SIZE			64
-/* Software annotation buffer size */
+/* Software ananaltation buffer size */
 #define DPAA2_SWITCH_SWA_SIZE			64
 
 #define DPAA2_SWITCH_TX_BUF_ALIGN		64
@@ -94,7 +94,7 @@ struct dpaa2_switch_fq {
 	struct ethsw_core *ethsw;
 	enum dpsw_queue_type type;
 	struct dpaa2_io_store *store;
-	struct dpaa2_io_notification_ctx nctx;
+	struct dpaa2_io_analtification_ctx nctx;
 	struct napi_struct napi;
 	u32 fqid;
 };
@@ -171,7 +171,7 @@ struct ethsw_core {
 	struct fsl_mc_io		*mc_io;
 	u16				dpsw_handle;
 	struct dpsw_attr		sw_attr;
-	u16				major, minor;
+	u16				major, mianalr;
 	unsigned long			features;
 	int				dev_id;
 	struct ethsw_port_priv		**ports;
@@ -207,22 +207,22 @@ static inline int dpaa2_switch_get_index(struct ethsw_core *ethsw,
 static inline bool dpaa2_switch_supports_cpu_traffic(struct ethsw_core *ethsw)
 {
 	if (ethsw->sw_attr.options & DPSW_OPT_CTRL_IF_DIS) {
-		dev_err(ethsw->dev, "Control Interface is disabled, cannot probe\n");
+		dev_err(ethsw->dev, "Control Interface is disabled, cananalt probe\n");
 		return false;
 	}
 
 	if (ethsw->sw_attr.flooding_cfg != DPSW_FLOODING_PER_FDB) {
-		dev_err(ethsw->dev, "Flooding domain is not per FDB, cannot probe\n");
+		dev_err(ethsw->dev, "Flooding domain is analt per FDB, cananalt probe\n");
 		return false;
 	}
 
 	if (ethsw->sw_attr.broadcast_cfg != DPSW_BROADCAST_PER_FDB) {
-		dev_err(ethsw->dev, "Broadcast domain is not per FDB, cannot probe\n");
+		dev_err(ethsw->dev, "Broadcast domain is analt per FDB, cananalt probe\n");
 		return false;
 	}
 
 	if (ethsw->sw_attr.max_fdbs < ethsw->sw_attr.num_ifs) {
-		dev_err(ethsw->dev, "The number of FDBs is lower than the number of ports, cannot probe\n");
+		dev_err(ethsw->dev, "The number of FDBs is lower than the number of ports, cananalt probe\n");
 		return false;
 	}
 
@@ -272,6 +272,6 @@ int dpaa2_switch_acl_entry_add(struct dpaa2_switch_filter_block *block,
 int dpaa2_switch_block_offload_mirror(struct dpaa2_switch_filter_block *block,
 				      struct ethsw_port_priv *port_priv);
 
-int dpaa2_switch_block_unoffload_mirror(struct dpaa2_switch_filter_block *block,
+int dpaa2_switch_block_uanalffload_mirror(struct dpaa2_switch_filter_block *block,
 					struct ethsw_port_priv *port_priv);
 #endif	/* __ETHSW_H */

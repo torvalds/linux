@@ -10,36 +10,36 @@
 #include <linux/slab.h>
 #include "hpfs_fn.h"
 
-static int hpfs_dir_release(struct inode *inode, struct file *filp)
+static int hpfs_dir_release(struct ianalde *ianalde, struct file *filp)
 {
-	hpfs_lock(inode->i_sb);
-	hpfs_del_pos(inode, &filp->f_pos);
-	/*hpfs_write_if_changed(inode);*/
-	hpfs_unlock(inode->i_sb);
+	hpfs_lock(ianalde->i_sb);
+	hpfs_del_pos(ianalde, &filp->f_pos);
+	/*hpfs_write_if_changed(ianalde);*/
+	hpfs_unlock(ianalde->i_sb);
 	return 0;
 }
 
-/* This is slow, but it's not used often */
+/* This is slow, but it's analt used often */
 
 static loff_t hpfs_dir_lseek(struct file *filp, loff_t off, int whence)
 {
 	loff_t new_off = off + (whence == 1 ? filp->f_pos : 0);
 	loff_t pos;
 	struct quad_buffer_head qbh;
-	struct inode *i = file_inode(filp);
-	struct hpfs_inode_info *hpfs_inode = hpfs_i(i);
+	struct ianalde *i = file_ianalde(filp);
+	struct hpfs_ianalde_info *hpfs_ianalde = hpfs_i(i);
 	struct super_block *s = i->i_sb;
 
 	/* Somebody else will have to figure out what to do here */
 	if (whence == SEEK_DATA || whence == SEEK_HOLE)
 		return -EINVAL;
 
-	inode_lock(i);
+	ianalde_lock(i);
 	hpfs_lock(s);
 
 	/*pr_info("dir lseek\n");*/
 	if (new_off == 0 || new_off == 1 || new_off == 11 || new_off == 12 || new_off == 13) goto ok;
-	pos = ((loff_t) hpfs_de_as_down_as_possible(s, hpfs_inode->i_dno) << 4) + 1;
+	pos = ((loff_t) hpfs_de_as_down_as_possible(s, hpfs_ianalde->i_danal) << 4) + 1;
 	while (pos != new_off) {
 		if (map_pos_dirent(i, &pos, &qbh)) hpfs_brelse4(&qbh);
 		else goto fail;
@@ -47,25 +47,25 @@ static loff_t hpfs_dir_lseek(struct file *filp, loff_t off, int whence)
 	}
 	if (unlikely(hpfs_add_pos(i, &filp->f_pos) < 0)) {
 		hpfs_unlock(s);
-		inode_unlock(i);
-		return -ENOMEM;
+		ianalde_unlock(i);
+		return -EANALMEM;
 	}
 ok:
 	filp->f_pos = new_off;
 	hpfs_unlock(s);
-	inode_unlock(i);
+	ianalde_unlock(i);
 	return new_off;
 fail:
 	/*pr_warn("illegal lseek: %016llx\n", new_off);*/
 	hpfs_unlock(s);
-	inode_unlock(i);
+	ianalde_unlock(i);
 	return -ESPIPE;
 }
 
 static int hpfs_readdir(struct file *file, struct dir_context *ctx)
 {
-	struct inode *inode = file_inode(file);
-	struct hpfs_inode_info *hpfs_inode = hpfs_i(inode);
+	struct ianalde *ianalde = file_ianalde(file);
+	struct hpfs_ianalde_info *hpfs_ianalde = hpfs_i(ianalde);
 	struct quad_buffer_head qbh;
 	struct hpfs_dirent *de;
 	int lc;
@@ -74,34 +74,34 @@ static int hpfs_readdir(struct file *file, struct dir_context *ctx)
 	int c1, c2 = 0;
 	int ret = 0;
 
-	hpfs_lock(inode->i_sb);
+	hpfs_lock(ianalde->i_sb);
 
-	if (hpfs_sb(inode->i_sb)->sb_chk) {
-		if (hpfs_chk_sectors(inode->i_sb, inode->i_ino, 1, "dir_fnode")) {
+	if (hpfs_sb(ianalde->i_sb)->sb_chk) {
+		if (hpfs_chk_sectors(ianalde->i_sb, ianalde->i_ianal, 1, "dir_fanalde")) {
 			ret = -EFSERROR;
 			goto out;
 		}
-		if (hpfs_chk_sectors(inode->i_sb, hpfs_inode->i_dno, 4, "dir_dnode")) {
+		if (hpfs_chk_sectors(ianalde->i_sb, hpfs_ianalde->i_danal, 4, "dir_danalde")) {
 			ret = -EFSERROR;
 			goto out;
 		}
 	}
-	if (hpfs_sb(inode->i_sb)->sb_chk >= 2) {
+	if (hpfs_sb(ianalde->i_sb)->sb_chk >= 2) {
 		struct buffer_head *bh;
-		struct fnode *fno;
+		struct fanalde *fanal;
 		int e = 0;
-		if (!(fno = hpfs_map_fnode(inode->i_sb, inode->i_ino, &bh))) {
+		if (!(fanal = hpfs_map_fanalde(ianalde->i_sb, ianalde->i_ianal, &bh))) {
 			ret = -EIOERROR;
 			goto out;
 		}
-		if (!fnode_is_dir(fno)) {
+		if (!fanalde_is_dir(fanal)) {
 			e = 1;
-			hpfs_error(inode->i_sb, "not a directory, fnode %08lx",
-					(unsigned long)inode->i_ino);
+			hpfs_error(ianalde->i_sb, "analt a directory, fanalde %08lx",
+					(unsigned long)ianalde->i_ianal);
 		}
-		if (hpfs_inode->i_dno != le32_to_cpu(fno->u.external[0].disk_secno)) {
+		if (hpfs_ianalde->i_danal != le32_to_cpu(fanal->u.external[0].disk_secanal)) {
 			e = 1;
-			hpfs_error(inode->i_sb, "corrupted inode: i_dno == %08x, fnode -> dnode == %08x", hpfs_inode->i_dno, le32_to_cpu(fno->u.external[0].disk_secno));
+			hpfs_error(ianalde->i_sb, "corrupted ianalde: i_danal == %08x, fanalde -> danalde == %08x", hpfs_ianalde->i_danal, le32_to_cpu(fanal->u.external[0].disk_secanal));
 		}
 		brelse(bh);
 		if (e) {
@@ -109,13 +109,13 @@ static int hpfs_readdir(struct file *file, struct dir_context *ctx)
 			goto out;
 		}
 	}
-	lc = hpfs_sb(inode->i_sb)->sb_lowercase;
-	if (ctx->pos == 12) { /* diff -r requires this (note, that diff -r */
+	lc = hpfs_sb(ianalde->i_sb)->sb_lowercase;
+	if (ctx->pos == 12) { /* diff -r requires this (analte, that diff -r */
 		ctx->pos = 13; /* also fails on msdos filesystem in 2.0) */
 		goto out;
 	}
 	if (ctx->pos == 13) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto out;
 	}
 	
@@ -124,8 +124,8 @@ static int hpfs_readdir(struct file *file, struct dir_context *ctx)
 		/* This won't work when cycle is longer than number of dirents
 		   accepted by filldir, but what can I do?
 		   maybe killall -9 ls helps */
-		if (hpfs_sb(inode->i_sb)->sb_chk)
-			if (hpfs_stop_cycles(inode->i_sb, ctx->pos, &c1, &c2, "hpfs_readdir")) {
+		if (hpfs_sb(ianalde->i_sb)->sb_chk)
+			if (hpfs_stop_cycles(ianalde->i_sb, ctx->pos, &c1, &c2, "hpfs_readdir")) {
 				ret = -EFSERROR;
 				goto out;
 			}
@@ -141,36 +141,36 @@ static int hpfs_readdir(struct file *file, struct dir_context *ctx)
 			ctx->pos = 11;
 		}
 		if (ctx->pos == 11) {
-			if (!dir_emit(ctx, "..", 2, hpfs_inode->i_parent_dir, DT_DIR))
+			if (!dir_emit(ctx, "..", 2, hpfs_ianalde->i_parent_dir, DT_DIR))
 				goto out;
 			ctx->pos = 1;
 		}
 		if (ctx->pos == 1) {
-			ret = hpfs_add_pos(inode, &file->f_pos);
+			ret = hpfs_add_pos(ianalde, &file->f_pos);
 			if (unlikely(ret < 0))
 				goto out;
-			ctx->pos = ((loff_t) hpfs_de_as_down_as_possible(inode->i_sb, hpfs_inode->i_dno) << 4) + 1;
+			ctx->pos = ((loff_t) hpfs_de_as_down_as_possible(ianalde->i_sb, hpfs_ianalde->i_danal) << 4) + 1;
 		}
 		next_pos = ctx->pos;
-		if (!(de = map_pos_dirent(inode, &next_pos, &qbh))) {
+		if (!(de = map_pos_dirent(ianalde, &next_pos, &qbh))) {
 			ctx->pos = next_pos;
 			ret = -EIOERROR;
 			goto out;
 		}
 		if (de->first || de->last) {
-			if (hpfs_sb(inode->i_sb)->sb_chk) {
+			if (hpfs_sb(ianalde->i_sb)->sb_chk) {
 				if (de->first && !de->last && (de->namelen != 2
 				    || de ->name[0] != 1 || de->name[1] != 1))
-					hpfs_error(inode->i_sb, "hpfs_readdir: bad ^A^A entry; pos = %08lx", (unsigned long)ctx->pos);
+					hpfs_error(ianalde->i_sb, "hpfs_readdir: bad ^A^A entry; pos = %08lx", (unsigned long)ctx->pos);
 				if (de->last && (de->namelen != 1 || de ->name[0] != 255))
-					hpfs_error(inode->i_sb, "hpfs_readdir: bad \\377 entry; pos = %08lx", (unsigned long)ctx->pos);
+					hpfs_error(ianalde->i_sb, "hpfs_readdir: bad \\377 entry; pos = %08lx", (unsigned long)ctx->pos);
 			}
 			hpfs_brelse4(&qbh);
 			ctx->pos = next_pos;
 			goto again;
 		}
-		tempname = hpfs_translate_name(inode->i_sb, de->name, de->namelen, lc, de->not_8x3);
-		if (!dir_emit(ctx, tempname, de->namelen, le32_to_cpu(de->fnode), DT_UNKNOWN)) {
+		tempname = hpfs_translate_name(ianalde->i_sb, de->name, de->namelen, lc, de->analt_8x3);
+		if (!dir_emit(ctx, tempname, de->namelen, le32_to_cpu(de->fanalde), DT_UNKANALWN)) {
 			if (tempname != de->name) kfree(tempname);
 			hpfs_brelse4(&qbh);
 			goto out;
@@ -180,35 +180,35 @@ static int hpfs_readdir(struct file *file, struct dir_context *ctx)
 		hpfs_brelse4(&qbh);
 	}
 out:
-	hpfs_unlock(inode->i_sb);
+	hpfs_unlock(ianalde->i_sb);
 	return ret;
 }
 
 /*
  * lookup.  Search the specified directory for the specified name, set
- * *result to the corresponding inode.
+ * *result to the corresponding ianalde.
  *
- * lookup uses the inode number to tell read_inode whether it is reading
- * the inode of a directory or a file -- file ino's are odd, directory
- * ino's are even.  read_inode avoids i/o for file inodes; everything
- * needed is up here in the directory.  (And file fnodes are out in
+ * lookup uses the ianalde number to tell read_ianalde whether it is reading
+ * the ianalde of a directory or a file -- file ianal's are odd, directory
+ * ianal's are even.  read_ianalde avoids i/o for file ianaldes; everything
+ * needed is up here in the directory.  (And file fanaldes are out in
  * the boondocks.)
  *
- *    - M.P.: this is over, sometimes we've got to read file's fnode for eas
- *	      inode numbers are just fnode sector numbers; iget lock is used
- *	      to tell read_inode to read fnode or not.
+ *    - M.P.: this is over, sometimes we've got to read file's fanalde for eas
+ *	      ianalde numbers are just fanalde sector numbers; iget lock is used
+ *	      to tell read_ianalde to read fanalde or analt.
  */
 
-struct dentry *hpfs_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
+struct dentry *hpfs_lookup(struct ianalde *dir, struct dentry *dentry, unsigned int flags)
 {
 	const unsigned char *name = dentry->d_name.name;
 	unsigned len = dentry->d_name.len;
 	struct quad_buffer_head qbh;
 	struct hpfs_dirent *de;
-	ino_t ino;
+	ianal_t ianal;
 	int err;
-	struct inode *result = NULL;
-	struct hpfs_inode_info *hpfs_result;
+	struct ianalde *result = NULL;
+	struct hpfs_ianalde_info *hpfs_result;
 
 	hpfs_lock(dir->i_sb);
 	if ((err = hpfs_chk_name(name, &len))) {
@@ -223,36 +223,36 @@ struct dentry *hpfs_lookup(struct inode *dir, struct dentry *dentry, unsigned in
 	 * '.' and '..' will never be passed here.
 	 */
 
-	de = map_dirent(dir, hpfs_i(dir)->i_dno, name, len, NULL, &qbh);
+	de = map_dirent(dir, hpfs_i(dir)->i_danal, name, len, NULL, &qbh);
 
 	/*
-	 * This is not really a bailout, just means file not found.
+	 * This is analt really a bailout, just means file analt found.
 	 */
 
 	if (!de) goto end;
 
 	/*
-	 * Get inode number, what we're after.
+	 * Get ianalde number, what we're after.
 	 */
 
-	ino = le32_to_cpu(de->fnode);
+	ianal = le32_to_cpu(de->fanalde);
 
 	/*
-	 * Go find or make an inode.
+	 * Go find or make an ianalde.
 	 */
 
-	result = iget_locked(dir->i_sb, ino);
+	result = iget_locked(dir->i_sb, ianal);
 	if (!result) {
-		hpfs_error(dir->i_sb, "hpfs_lookup: can't get inode");
-		result = ERR_PTR(-ENOMEM);
+		hpfs_error(dir->i_sb, "hpfs_lookup: can't get ianalde");
+		result = ERR_PTR(-EANALMEM);
 		goto bail1;
 	}
 	if (result->i_state & I_NEW) {
-		hpfs_init_inode(result);
+		hpfs_init_ianalde(result);
 		if (de->directory)
-			hpfs_read_inode(result);
+			hpfs_read_ianalde(result);
 		else if (le32_to_cpu(de->ea_size) && hpfs_sb(dir->i_sb)->sb_eas)
-			hpfs_read_inode(result);
+			hpfs_read_ianalde(result);
 		else {
 			result->i_mode |= S_IFREG;
 			result->i_mode &= ~0111;
@@ -260,13 +260,13 @@ struct dentry *hpfs_lookup(struct inode *dir, struct dentry *dentry, unsigned in
 			result->i_fop = &hpfs_file_ops;
 			set_nlink(result, 1);
 		}
-		unlock_new_inode(result);
+		unlock_new_ianalde(result);
 	}
 	hpfs_result = hpfs_i(result);
-	if (!de->directory) hpfs_result->i_parent_dir = dir->i_ino;
+	if (!de->directory) hpfs_result->i_parent_dir = dir->i_ianal;
 
 	if (de->has_acl || de->has_xtd_perm) if (!sb_rdonly(dir->i_sb)) {
-		hpfs_error(result->i_sb, "ACLs or XPERM found. This is probably HPFS386. This driver doesn't support it now. Send me some info on these structures");
+		hpfs_error(result->i_sb, "ACLs or XPERM found. This is probably HPFS386. This driver doesn't support it analw. Send me some info on these structures");
 		iput(result);
 		result = ERR_PTR(-EINVAL);
 		goto bail1;
@@ -274,17 +274,17 @@ struct dentry *hpfs_lookup(struct inode *dir, struct dentry *dentry, unsigned in
 
 	/*
 	 * Fill in the info from the directory if this is a newly created
-	 * inode.
+	 * ianalde.
 	 */
 
-	if (!inode_get_ctime_sec(result)) {
+	if (!ianalde_get_ctime_sec(result)) {
 		time64_t csec = local_to_gmt(dir->i_sb, le32_to_cpu(de->creation_date));
 
-		inode_set_ctime(result, csec ? csec : 1, 0);
-		inode_set_mtime(result,
+		ianalde_set_ctime(result, csec ? csec : 1, 0);
+		ianalde_set_mtime(result,
 				local_to_gmt(dir->i_sb, le32_to_cpu(de->write_date)),
 				0);
-		inode_set_atime(result,
+		ianalde_set_atime(result,
 				local_to_gmt(dir->i_sb, le32_to_cpu(de->read_date)),
 				0);
 		hpfs_result->i_ea_size = le32_to_cpu(de->ea_size);
@@ -296,9 +296,9 @@ struct dentry *hpfs_lookup(struct inode *dir, struct dentry *dentry, unsigned in
 				result->i_data.a_ops = &hpfs_aops;
 				hpfs_i(result)->mmu_private = result->i_size;
 			/*
-			 * i_blocks should count the fnode and any anodes.
-			 * We count 1 for the fnode and don't bother about
-			 * anodes -- the disk heads are on the directory band
+			 * i_blocks should count the fanalde and any aanaldes.
+			 * We count 1 for the fanalde and don't bother about
+			 * aanaldes -- the disk heads are on the directory band
 			 * and we want them to stay there.
 			 */
 				result->i_blocks = 1 + ((result->i_size + 511) >> 9);

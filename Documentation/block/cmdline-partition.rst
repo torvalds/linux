@@ -6,7 +6,7 @@ The "blkdevparts" command line option adds support for reading the
 block device partition table from the kernel command line.
 
 It is typically used for fixed block (eMMC) embedded devices.
-It has no MBR, so saves storage space. Bootloader can be easily accessed
+It has anal MBR, so saves storage space. Bootloader can be easily accessed
 by absolute address of data on the block device.
 Users can easily change the partition.
 
@@ -26,7 +26,7 @@ blkdevparts=<blkdev-def>[;<blkdev-def>]
 
       K, M, G, T, P, E.
 
-    "-" is used to denote all remaining space.
+    "-" is used to deanalte all remaining space.
 
 <offset>
     partition start address, in bytes.

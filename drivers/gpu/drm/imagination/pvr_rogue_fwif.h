@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only OR MIT */
-/* Copyright (c) 2023 Imagination Technologies Ltd. */
+/* Copyright (c) 2023 Imagination Techanallogies Ltd. */
 
 #ifndef PVR_ROGUE_FWIF_H
 #define PVR_ROGUE_FWIF_H
@@ -19,7 +19,7 @@
  * Logging type
  ****************************************************************************
  */
-#define ROGUE_FWIF_LOG_TYPE_NONE 0x00000000U
+#define ROGUE_FWIF_LOG_TYPE_ANALNE 0x00000000U
 #define ROGUE_FWIF_LOG_TYPE_TRACE 0x00000001U
 #define ROGUE_FWIF_LOG_TYPE_GROUP_MAIN 0x00000002U
 #define ROGUE_FWIF_LOG_TYPE_GROUP_MTS 0x00000004U
@@ -150,12 +150,12 @@ enum rogue_fwif_pow_state {
 #define ROGUE_FWIF_DM_STATE_NEEDS_TRACE_CLEAR BIT(4)
 /* DM was identified as locking up and causing HWR */
 #define ROGUE_FWIF_DM_STATE_GUILTY_LOCKUP BIT(5)
-/* DM was innocently affected by another lockup which caused HWR */
-#define ROGUE_FWIF_DM_STATE_INNOCENT_LOCKUP BIT(6)
+/* DM was inanalcently affected by aanalther lockup which caused HWR */
+#define ROGUE_FWIF_DM_STATE_INANALCENT_LOCKUP BIT(6)
 /* DM was identified as over-running and causing HWR */
 #define ROGUE_FWIF_DM_STATE_GUILTY_OVERRUNING BIT(7)
-/* DM was innocently affected by another DM over-running which caused HWR */
-#define ROGUE_FWIF_DM_STATE_INNOCENT_OVERRUNING BIT(8)
+/* DM was inanalcently affected by aanalther DM over-running which caused HWR */
+#define ROGUE_FWIF_DM_STATE_INANALCENT_OVERRUNING BIT(8)
 /* DM was forced into HWR as it delayed more important workloads */
 #define ROGUE_FWIF_DM_STATE_HARD_CONTEXT_SWITCH BIT(9)
 /* DM was forced into HWR due to an uncorrected GPU ECC error */
@@ -194,7 +194,7 @@ struct rogue_fwif_os_runtime_flags {
 };
 
 #define PVR_SLR_LOG_ENTRIES 10
-/* MAX_CLIENT_CCB_NAME not visible to this header */
+/* MAX_CLIENT_CCB_NAME analt visible to this header */
 #define PVR_SLR_LOG_STRLEN 30
 
 struct rogue_fwif_slr_entry {
@@ -318,7 +318,7 @@ struct rogue_fwif_osdata {
 #define ROGUE_FWT_DEBUG_INFO_MMU_ENTRY_PENDING_SET \
 	BIT(ROGUE_FWT_DEBUG_INFO_MMU_ENTRY_PENDING_SHIFT)
 
-/* Bit 2: ROGUE_CR_SLAVE_EVENT register is non-zero */
+/* Bit 2: ROGUE_CR_SLAVE_EVENT register is analn-zero */
 #define ROGUE_FWT_DEBUG_INFO_SLAVE_EVENTS_SHIFT (2U)
 #define ROGUE_FWT_DEBUG_INFO_SLAVE_EVENTS_SET \
 	BIT(ROGUE_FWT_DEBUG_INFO_SLAVE_EVENTS_SHIFT)
@@ -335,7 +335,7 @@ struct rogue_fwif_osdata {
  ******************************************************************************
  */
 enum rogue_hwrtype {
-	ROGUE_HWRTYPE_UNKNOWNFAILURE = 0,
+	ROGUE_HWRTYPE_UNKANALWNFAILURE = 0,
 	ROGUE_HWRTYPE_OVERRUN = 1,
 	ROGUE_HWRTYPE_POLLFAILURE = 2,
 	ROGUE_HWRTYPE_BIF0FAULT = 3,
@@ -444,7 +444,7 @@ struct rogue_fwif_hwrinfobuf {
 #define ROGUE_FWIF_CTXSWITCH_PROFILE_FAST_EN (1)
 #define ROGUE_FWIF_CTXSWITCH_PROFILE_MEDIUM_EN (2)
 #define ROGUE_FWIF_CTXSWITCH_PROFILE_SLOW_EN (3)
-#define ROGUE_FWIF_CTXSWITCH_PROFILE_NODELAY_EN (4)
+#define ROGUE_FWIF_CTXSWITCH_PROFILE_ANALDELAY_EN (4)
 
 #define ROGUE_FWIF_CDM_ARBITRATION_TASK_DEMAND_EN (1)
 #define ROGUE_FWIF_CDM_ARBITRATION_ROUND_ROBIN_EN (2)
@@ -484,8 +484,8 @@ struct rogue_fwif_hwrinfobuf {
 #define ROGUE_FWIF_INICFG_CTXSWITCH_PROFILE_SLOW \
 	(ROGUE_FWIF_CTXSWITCH_PROFILE_SLOW_EN    \
 	 << ROGUE_FWIF_INICFG_CTXSWITCH_PROFILE_SHIFT)
-#define ROGUE_FWIF_INICFG_CTXSWITCH_PROFILE_NODELAY \
-	(ROGUE_FWIF_CTXSWITCH_PROFILE_NODELAY_EN    \
+#define ROGUE_FWIF_INICFG_CTXSWITCH_PROFILE_ANALDELAY \
+	(ROGUE_FWIF_CTXSWITCH_PROFILE_ANALDELAY_EN    \
 	 << ROGUE_FWIF_INICFG_CTXSWITCH_PROFILE_SHIFT)
 #define ROGUE_FWIF_INICFG_CTXSWITCH_PROFILE_MASK \
 	(7 << ROGUE_FWIF_INICFG_CTXSWITCH_PROFILE_SHIFT)
@@ -507,7 +507,7 @@ struct rogue_fwif_hwrinfobuf {
 #define ROGUE_FWIF_INICFG_CDM_ARBITRATION_MASK \
 	(3 << ROGUE_FWIF_INICFG_CDM_ARBITRATION_SHIFT)
 #define ROGUE_FWIF_INICFG_ISPSCHEDMODE_SHIFT (29)
-#define ROGUE_FWIF_INICFG_ISPSCHEDMODE_NONE (0)
+#define ROGUE_FWIF_INICFG_ISPSCHEDMODE_ANALNE (0)
 #define ROGUE_FWIF_INICFG_ISPSCHEDMODE_VER1_IPP \
 	(ROGUE_FWIF_ISP_SCHEDMODE_VER1_IPP      \
 	 << ROGUE_FWIF_INICFG_ISPSCHEDMODE_SHIFT)
@@ -573,7 +573,7 @@ enum rogue_rd_power_island_conf {
 struct rogue_fw_register_list {
 	/* Register number */
 	u16 reg_num;
-	/* Indirect register number (or 0 if not used) */
+	/* Indirect register number (or 0 if analt used) */
 	u16 indirect_reg_num;
 	/* Start value for indirect register */
 	u16 indirect_start_val;
@@ -581,7 +581,7 @@ struct rogue_fw_register_list {
 	u16 indirect_end_val;
 };
 
-struct rogue_fwif_dllist_node {
+struct rogue_fwif_dllist_analde {
 	u32 p;
 	u32 n;
 };
@@ -698,9 +698,9 @@ struct rogue_fwif_fwcommoncontext {
 	/* Device Virtual Address of the signal the context is waiting on */
 	aligned_u64 wait_signal_address;
 	/* List entry for the wait-signal list */
-	struct rogue_fwif_dllist_node wait_signal_node __aligned(8);
+	struct rogue_fwif_dllist_analde wait_signal_analde __aligned(8);
 	/* List entry for the buffer stalled list */
-	struct rogue_fwif_dllist_node buf_stalled_node __aligned(8);
+	struct rogue_fwif_dllist_analde buf_stalled_analde __aligned(8);
 	/* Address of the circular buffer queue pointers */
 	aligned_u64 cbuf_queue_ctrl_addr;
 
@@ -711,9 +711,9 @@ struct rogue_fwif_fwcommoncontext {
 	bool read_offset_needs_reset;
 
 	/* List entry for the waiting list */
-	struct rogue_fwif_dllist_node waiting_node __aligned(8);
+	struct rogue_fwif_dllist_analde waiting_analde __aligned(8);
 	/* List entry for the run list */
-	struct rogue_fwif_dllist_node run_node __aligned(8);
+	struct rogue_fwif_dllist_analde run_analde __aligned(8);
 	/* UFO that last failed (or NULL) */
 	struct rogue_fwif_ufo last_failed_ufo;
 
@@ -726,7 +726,7 @@ struct rogue_fwif_fwcommoncontext {
 	/* associated process ID */
 	u32 pid;
 
-	/* True when Geom DM OOM is not allowed */
+	/* True when Geom DM OOM is analt allowed */
 	bool geom_oom_disabled __aligned(4);
 } __aligned(8);
 
@@ -1182,7 +1182,7 @@ enum rogue_fwif_kccb_cmd_type {
 	 * Informs the firmware that the host has added more data to a CDM2
 	 * Circular Buffer
 	 */
-	ROGUE_FWIF_KCCB_CMD_NOTIFY_WRITE_OFFSET_UPDATE =
+	ROGUE_FWIF_KCCB_CMD_ANALTIFY_WRITE_OFFSET_UPDATE =
 		114U | ROGUE_CMD_MAGIC_DWORD_SHIFTED,
 	/* Health check request */
 	ROGUE_FWIF_KCCB_CMD_HEALTH_CHECK = 115U | ROGUE_CMD_MAGIC_DWORD_SHIFTED,
@@ -1249,7 +1249,7 @@ struct rogue_fwif_kccb_cmd {
 	u32 kccb_flags;
 
 	/*
-	 * NOTE: Make sure that uCmdData is the last member of this struct
+	 * ANALTE: Make sure that uCmdData is the last member of this struct
 	 * This is to calculate actual command size for device mem copy.
 	 * (Refer ROGUEGetCmdMemCopySize())
 	 */
@@ -1379,8 +1379,8 @@ enum rogue_fwif_fwccb_cmd_type {
 	/* Requests freelists reconstruction */
 	ROGUE_FWIF_FWCCB_CMD_FREELISTS_RECONSTRUCTION =
 		104U | ROGUE_CMD_MAGIC_DWORD_SHIFTED,
-	/* Notifies host of a HWR event on a context */
-	ROGUE_FWIF_FWCCB_CMD_CONTEXT_RESET_NOTIFICATION =
+	/* Analtifies host of a HWR event on a context */
+	ROGUE_FWIF_FWCCB_CMD_CONTEXT_RESET_ANALTIFICATION =
 		105U | ROGUE_CMD_MAGIC_DWORD_SHIFTED,
 	/* Requests an on-demand debug dump */
 	ROGUE_FWIF_FWCCB_CMD_DEBUG_DUMP = 106U | ROGUE_CMD_MAGIC_DWORD_SHIFTED,
@@ -1393,8 +1393,8 @@ enum rogue_fwif_fwccb_cmd_type {
 	ROGUE_FWIF_FWCCB_CMD_REQUEST_GPU_RESTART =
 		109U | ROGUE_CMD_MAGIC_DWORD_SHIFTED,
 
-	/* Notifies host of a FW pagefault */
-	ROGUE_FWIF_FWCCB_CMD_CONTEXT_FW_PF_NOTIFICATION =
+	/* Analtifies host of a FW pagefault */
+	ROGUE_FWIF_FWCCB_CMD_CONTEXT_FW_PF_ANALTIFICATION =
 		112U | ROGUE_CMD_MAGIC_DWORD_SHIFTED,
 };
 
@@ -1459,9 +1459,9 @@ struct rogue_fwif_fwccb_cmd {
 		/* Data for freelists reconstruction */
 		struct rogue_fwif_fwccb_cmd_freelists_reconstruction_data
 			cmd_freelists_reconstruction;
-		/* Data for context reset notification */
+		/* Data for context reset analtification */
 		struct rogue_fwif_fwccb_cmd_context_reset_data
-			cmd_context_reset_notification;
+			cmd_context_reset_analtification;
 		/* Data for updating process stats */
 		struct rogue_fwif_fwccb_cmd_update_stats_data
 			cmd_update_stats_data;
@@ -1654,7 +1654,7 @@ struct rogue_fwif_compchecks {
 	u32 fw_processor_version;
 	/* software DDK version */
 	u32 ddk_version;
-	/* software DDK build no. */
+	/* software DDK build anal. */
 	u32 ddk_build;
 	/* build options bit-field */
 	u32 build_options;
@@ -1676,7 +1676,7 @@ struct rogue_fwif_runtime_cfg {
 	/* Compatibility and other flags */
 	u32 runtime_cfg_flags;
 	/*
-	 * If set, APM latency does not reset to system default each GPU power
+	 * If set, APM latency does analt reset to system default each GPU power
 	 * transition
 	 */
 	bool active_pm_latency_persistant __aligned(4);
@@ -1715,7 +1715,7 @@ enum rogue_fwif_tpu_dm {
 };
 
 enum rogue_fwif_gpio_val_mode {
-	/* No GPIO validation */
+	/* Anal GPIO validation */
 	ROGUE_FWIF_GPIO_VAL_OFF = 0,
 	/*
 	 * Simple test case that initiates by sending data via the GPIO and then
@@ -1737,7 +1737,7 @@ enum rogue_fwif_gpio_val_mode {
 };
 
 enum fw_perf_conf {
-	FW_PERF_CONF_NONE = 0,
+	FW_PERF_CONF_ANALNE = 0,
 	FW_PERF_CONF_ICACHE = 1,
 	FW_PERF_CONF_DCACHE = 2,
 	FW_PERF_CONF_JTLB_INSTR = 5,
@@ -1746,8 +1746,8 @@ enum fw_perf_conf {
 
 enum fw_boot_stage {
 	FW_BOOT_STAGE_TLB_INIT_FAILURE = -2,
-	FW_BOOT_STAGE_NOT_AVAILABLE = -1,
-	FW_BOOT_NOT_STARTED = 0,
+	FW_BOOT_STAGE_ANALT_AVAILABLE = -1,
+	FW_BOOT_ANALT_STARTED = 0,
 	FW_BOOT_BLDR_STARTED = 1,
 	FW_BOOT_CACHE_DONE,
 	FW_BOOT_TLB_DONE,
@@ -1768,7 +1768,7 @@ enum fw_boot_stage {
 /* Poll failed in FW for a HW operation to complete */
 #define ROGUE_FWIF_KCCB_RTN_SLOT_POLL_FAILURE BIT(2)
 /* Reset value of a kCCB return slot (set by host) */
-#define ROGUE_FWIF_KCCB_RTN_SLOT_NO_RESPONSE 0x0U
+#define ROGUE_FWIF_KCCB_RTN_SLOT_ANAL_RESPONSE 0x0U
 
 struct rogue_fwif_connection_ctl {
 	/* Fw-Os connection states */
@@ -1902,7 +1902,7 @@ struct rogue_fwif_sysinit {
 
 	/*
 	 * FW Pointer to memory containing core clock rate in Hz.
-	 * Firmware (PDVFS) updates the memory when running on non primary FW
+	 * Firmware (PDVFS) updates the memory when running on analn primary FW
 	 * thread to communicate to host driver.
 	 */
 	u32 core_clock_rate_fw_addr;
@@ -1924,7 +1924,7 @@ struct rogue_fwif_sysinit {
 
 struct rogue_fwif_time_corr {
 	aligned_u64 os_timestamp;
-	aligned_u64 os_mono_timestamp;
+	aligned_u64 os_moanal_timestamp;
 	aligned_u64 cr_timestamp;
 
 	/*
@@ -1962,7 +1962,7 @@ struct rogue_fwif_time_corr {
  * This base is refreshed on GPU power-on, DVFS transition and periodic
  * frequency calibration (executed every few seconds if the FW is doing
  * some work), so as long as the GPU is doing something and one of these
- * events is triggered then deltaCR * K will not overflow and deltaOS will be
+ * events is triggered then deltaCR * K will analt overflow and deltaOS will be
  * correct.
  */
 
@@ -2001,13 +2001,13 @@ struct rogue_fwif_time_corr {
 	 ROGUE_FWIF_GPU_UTIL_GET_STATE(state))
 
 /*
- * The timer correlation array must be big enough to ensure old entries won't be
+ * The timer correlation array must be big eanalugh to ensure old entries won't be
  * overwritten before all the HWPerf events linked to those entries are
  * processed by the MISR. The update frequency of this array depends on how fast
  * the system can change state (basically how small the APM latency is) and
  * perform DVFS transitions.
  *
- * The minimum size is 2 (not 1) to avoid race conditions between the FW reading
+ * The minimum size is 2 (analt 1) to avoid race conditions between the FW reading
  * an entry while the Host is updating it. With 2 entries in the worst case the
  * FW will read old data, which is still quite ok if the Host is updating the
  * timer correlation at that time.
@@ -2092,7 +2092,7 @@ struct rogue_fwif_freelist {
 #define HWRTDATA_NEED_BRN67182_2ND_RENDER BIT(7)
 
 enum rogue_fwif_rtdata_state {
-	ROGUE_FWIF_RTDATA_STATE_NONE = 0,
+	ROGUE_FWIF_RTDATA_STATE_ANALNE = 0,
 	ROGUE_FWIF_RTDATA_STATE_KICK_GEOM,
 	ROGUE_FWIF_RTDATA_STATE_KICK_GEOM_FIRST,
 	ROGUE_FWIF_RTDATA_STATE_GEOM_FINISHED,
@@ -2102,12 +2102,12 @@ enum rogue_fwif_rtdata_state {
 	ROGUE_FWIF_RTDATA_STATE_GEOM_OUTOFMEM,
 	ROGUE_FWIF_RTDATA_STATE_PARTIALRENDERFINISHED,
 	/*
-	 * In case of HWR, we can't set the RTDATA state to NONE, as this will
+	 * In case of HWR, we can't set the RTDATA state to ANALNE, as this will
 	 * cause any TA to become a first TA. To ensure all related TA's are
 	 * skipped, we use the HWR state
 	 */
 	ROGUE_FWIF_RTDATA_STATE_HWR,
-	ROGUE_FWIF_RTDATA_STATE_UNKNOWN = 0x7FFFFFFFU
+	ROGUE_FWIF_RTDATA_STATE_UNKANALWN = 0x7FFFFFFFU
 };
 
 struct rogue_fwif_hwrtdata_common {
@@ -2165,7 +2165,7 @@ struct rogue_fwif_hwrtdata {
 	aligned_u64 rgn_header_dev_addr;
 	aligned_u64 rtc_dev_addr;
 
-	u32 owner_geom_not_used_by_host __aligned(8);
+	u32 owner_geom_analt_used_by_host __aligned(8);
 
 	bool geom_caches_need_zeroing __aligned(4);
 
@@ -2179,7 +2179,7 @@ struct rogue_fwif_hwrtdata {
  */
 
 #define PVR_SYNC_CHECKPOINT_UNDEF 0x000
-#define PVR_SYNC_CHECKPOINT_ACTIVE 0xac1     /* Checkpoint has not signaled. */
+#define PVR_SYNC_CHECKPOINT_ACTIVE 0xac1     /* Checkpoint has analt signaled. */
 #define PVR_SYNC_CHECKPOINT_SIGNALED 0x519   /* Checkpoint has signaled. */
 #define PVR_SYNC_CHECKPOINT_ERRORED 0xeff    /* Checkpoint has been errored. */
 

@@ -3,7 +3,7 @@
  * O(1) TX queue with built-in allocator for ST-Ericsson CW1200 drivers
  *
  * Copyright (c) 2010, ST-Ericsson
- * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.no>
+ * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.anal>
  */
 
 #include <net/mac80211.h>
@@ -156,7 +156,7 @@ int cw1200_queue_stats_init(struct cw1200_queue_stats *stats,
 	stats->link_map_cache = kcalloc(map_capacity, sizeof(int),
 					GFP_KERNEL);
 	if (!stats->link_map_cache)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -183,14 +183,14 @@ int cw1200_queue_init(struct cw1200_queue *queue,
 	queue->pool = kcalloc(capacity, sizeof(struct cw1200_queue_item),
 			      GFP_KERNEL);
 	if (!queue->pool)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	queue->link_map_cache = kcalloc(stats->map_capacity, sizeof(int),
 					GFP_KERNEL);
 	if (!queue->link_map_cache) {
 		kfree(queue->pool);
 		queue->pool = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for (i = 0; i < capacity; ++i)
@@ -322,7 +322,7 @@ int cw1200_queue_put(struct cw1200_queue *queue,
 			mod_timer(&queue->gc, jiffies);
 		}
 	} else {
-		ret = -ENOENT;
+		ret = -EANALENT;
 	}
 	spin_unlock_bh(&queue->lock);
 	return ret;
@@ -334,7 +334,7 @@ int cw1200_queue_get(struct cw1200_queue *queue,
 		     struct ieee80211_tx_info **tx_info,
 		     const struct cw1200_txpriv **txpriv)
 {
-	int ret = -ENOENT;
+	int ret = -EANALENT;
 	struct cw1200_queue_item *item;
 	struct cw1200_queue_stats *stats = queue->stats;
 	bool wakeup_stats = false;
@@ -384,13 +384,13 @@ int cw1200_queue_requeue(struct cw1200_queue *queue, u32 packet_id)
 	spin_lock_bh(&queue->lock);
 	BUG_ON(queue_id != queue->queue_id);
 	if (queue_generation != queue->generation) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 	} else if (item_id >= (unsigned) queue->capacity) {
 		WARN_ON(1);
 		ret = -EINVAL;
 	} else if (item->generation != item_generation) {
 		WARN_ON(1);
-		ret = -ENOENT;
+		ret = -EANALENT;
 	} else {
 		--queue->num_pending;
 		++queue->link_map_cache[item->txpriv.link_id];
@@ -455,13 +455,13 @@ int cw1200_queue_remove(struct cw1200_queue *queue, u32 packet_id)
 	spin_lock_bh(&queue->lock);
 	BUG_ON(queue_id != queue->queue_id);
 	if (queue_generation != queue->generation) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 	} else if (item_id >= (unsigned) queue->capacity) {
 		WARN_ON(1);
 		ret = -EINVAL;
 	} else if (item->generation != item_generation) {
 		WARN_ON(1);
-		ret = -ENOENT;
+		ret = -EANALENT;
 	} else {
 		gc_txpriv = item->txpriv;
 		gc_skb = item->skb;
@@ -470,7 +470,7 @@ int cw1200_queue_remove(struct cw1200_queue *queue, u32 packet_id)
 		--queue->num_queued;
 		++queue->num_sent;
 		++item->generation;
-		/* Do not use list_move_tail here, but list_move:
+		/* Do analt use list_move_tail here, but list_move:
 		 * try to utilize cache row.
 		 */
 		list_move(&item->head, &queue->free_pool);
@@ -504,13 +504,13 @@ int cw1200_queue_get_skb(struct cw1200_queue *queue, u32 packet_id,
 	spin_lock_bh(&queue->lock);
 	BUG_ON(queue_id != queue->queue_id);
 	if (queue_generation != queue->generation) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 	} else if (item_id >= (unsigned) queue->capacity) {
 		WARN_ON(1);
 		ret = -EINVAL;
 	} else if (item->generation != item_generation) {
 		WARN_ON(1);
-		ret = -ENOENT;
+		ret = -EANALENT;
 	} else {
 		*skb = item->skb;
 		*txpriv = &item->txpriv;

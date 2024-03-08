@@ -34,26 +34,26 @@ struct cpu_topology {
 	const char **core_cpus_list;
 };
 
-struct numa_topology_node {
+struct numa_topology_analde {
 	char		*cpus;
-	u32		 node;
+	u32		 analde;
 	u64		 mem_total;
 	u64		 mem_free;
 };
 
 struct numa_topology {
 	u32				nr;
-	struct numa_topology_node	nodes[];
+	struct numa_topology_analde	analdes[];
 };
 
-struct hybrid_topology_node {
+struct hybrid_topology_analde {
 	char		*pmu_name;
 	char		*cpus;
 };
 
 struct hybrid_topology {
 	u32				nr;
-	struct hybrid_topology_node	nodes[];
+	struct hybrid_topology_analde	analdes[];
 };
 
 /*

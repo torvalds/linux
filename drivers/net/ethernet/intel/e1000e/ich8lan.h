@@ -100,7 +100,7 @@
 #define E1000_CTRL_EXT_NVMVS 0x3	/*NVM valid sector */
 #define E1000_TARC0_CB_MULTIQ_3_REQ	0x30000000
 #define E1000_TARC0_CB_MULTIQ_2_REQ	0x20000000
-#define PCIE_ICH8_SNOOP_ALL	PCIE_NO_SNOOP_ALL
+#define PCIE_ICH8_SANALOP_ALL	PCIE_ANAL_SANALOP_ALL
 
 #define E1000_ICH_RAR_ENTRIES	7
 #define E1000_PCH2_RAR_ENTRIES	5	/* RAR[0], SHRA[0-3] */
@@ -109,7 +109,7 @@
 #define PHY_PAGE_SHIFT		5
 #define PHY_REG(page, reg)	(((page) << PHY_PAGE_SHIFT) | \
 				 ((reg) & MAX_PHY_REG_ADDRESS))
-#define IGP3_KMRN_DIAG	PHY_REG(770, 19)	/* KMRN Diagnostic */
+#define IGP3_KMRN_DIAG	PHY_REG(770, 19)	/* KMRN Diaganalstic */
 #define IGP3_VR_CTRL	PHY_REG(776, 18)	/* Voltage Regulator Control */
 
 #define IGP3_KMRN_DIAG_PCS_LOCK_LOSS		0x0002
@@ -154,7 +154,7 @@
 #define HV_COLC_LOWER	PHY_REG(HV_STATS_PAGE, 26)
 #define HV_DC_UPPER	PHY_REG(HV_STATS_PAGE, 27)	/* Defer Count */
 #define HV_DC_LOWER	PHY_REG(HV_STATS_PAGE, 28)
-#define HV_TNCRS_UPPER	PHY_REG(HV_STATS_PAGE, 29)	/* Tx with no CRS */
+#define HV_TNCRS_UPPER	PHY_REG(HV_STATS_PAGE, 29)	/* Tx with anal CRS */
 #define HV_TNCRS_LOWER	PHY_REG(HV_STATS_PAGE, 30)
 
 #define E1000_FCRTV_PCH	0x05F40	/* PCH Flow Control Refresh Timer Value */
@@ -262,7 +262,7 @@
 #define E1000_EEE_RX_LPI_RCVD	0x0400	/* Tx LP idle received */
 #define E1000_EEE_TX_LPI_RCVD	0x0800	/* Rx LP idle received */
 
-/* Intel Rapid Start Technology Support */
+/* Intel Rapid Start Techanallogy Support */
 #define I217_PROXY_CTRL		BM_PHY_REG(BM_WUC_PAGE, 70)
 #define I217_PROXY_CTRL_AUTO_DISABLE	0x0080
 #define I217_SxCTRL			PHY_REG(BM_PORT_CTRL_PAGE, 28)
@@ -283,7 +283,7 @@
 #define E1000_LTRV_SCALE_SHIFT		10
 #define E1000_LTRV_SCALE_MASK		0x00001C00
 #define E1000_LTRV_REQ_SHIFT		15
-#define E1000_LTRV_NOSNOOP_SHIFT	16
+#define E1000_LTRV_ANALSANALOP_SHIFT	16
 #define E1000_LTRV_SEND			(1 << 30)
 
 /* Proprietary Latency Tolerance Reporting PCI Capability */

@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2004, 2005, 2006 Voltaire, Inc. All rights reserved.
- * Copyright (c) 2013-2014 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2013-2014 Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -13,18 +13,18 @@
  *     conditions are met:
  *
  *	- Redistributions of source code must retain the above
- *	  copyright notice, this list of conditions and the following
+ *	  copyright analtice, this list of conditions and the following
  *	  disclaimer.
  *
  *	- Redistributions in binary form must reproduce the above
- *	  copyright notice, this list of conditions and the following
+ *	  copyright analtice, this list of conditions and the following
  *	  disclaimer in the documentation and/or other materials
  *	  provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -157,9 +157,9 @@ void iser_unreg_mem_fastreg(struct iscsi_iser_task *iser_task,
 		return;
 
 	/*
-	 * The signature MR cannot be invalidated and reused without checking.
+	 * The signature MR cananalt be invalidated and reused without checking.
 	 * libiscsi calls the check_protection transport handler only if
-	 * SCSI-Response is received. And the signature MR is not checked if
+	 * SCSI-Response is received. And the signature MR is analt checked if
 	 * the task is completed for some other reason like a timeout or error
 	 * handling. That's why we must check the signature MR here before
 	 * putting it to the free pool.
@@ -196,13 +196,13 @@ static int iser_set_sig_attrs(struct scsi_cmnd *sc,
 	switch (scsi_get_prot_op(sc)) {
 	case SCSI_PROT_WRITE_INSERT:
 	case SCSI_PROT_READ_STRIP:
-		sig_attrs->mem.sig_type = IB_SIG_TYPE_NONE;
+		sig_attrs->mem.sig_type = IB_SIG_TYPE_ANALNE;
 		iser_set_dif_domain(sc, &sig_attrs->wire);
 		sig_attrs->wire.sig.dif.bg_type = IB_T10DIF_CRC;
 		break;
 	case SCSI_PROT_READ_INSERT:
 	case SCSI_PROT_WRITE_STRIP:
-		sig_attrs->wire.sig_type = IB_SIG_TYPE_NONE;
+		sig_attrs->wire.sig_type = IB_SIG_TYPE_ANALNE;
 		iser_set_dif_domain(sc, &sig_attrs->mem);
 		sig_attrs->mem.sig.dif.bg_type = sc->prot_flags & SCSI_PROT_IP_CHECKSUM ?
 						IB_T10DIF_CSUM : IB_T10DIF_CRC;
@@ -362,12 +362,12 @@ int iser_reg_mem_fastreg(struct iscsi_iser_task *task,
 	int err;
 
 	use_dma_key = mem->dma_nents == 1 && (all_imm || !iser_always_reg) &&
-		      scsi_get_prot_op(task->sc) == SCSI_PROT_NORMAL;
+		      scsi_get_prot_op(task->sc) == SCSI_PROT_ANALRMAL;
 	if (use_dma_key)
 		return iser_reg_dma(device, mem, reg);
 
 	desc = iser_reg_desc_get_fr(ib_conn);
-	if (scsi_get_prot_op(task->sc) == SCSI_PROT_NORMAL) {
+	if (scsi_get_prot_op(task->sc) == SCSI_PROT_ANALRMAL) {
 		err = iser_fast_reg_mr(task, mem, &desc->rsc, reg);
 		if (unlikely(err))
 			goto err_reg;

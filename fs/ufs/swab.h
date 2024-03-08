@@ -11,7 +11,7 @@
 #define _UFS_SWAB_H
 
 /*
- * Notes:
+ * Analtes:
  *    HERE WE ASSUME EITHER BIG OR LITTLE ENDIAN UFSes
  *    in case there are ufs implementations that have strange bytesexes,
  *    you'll need to modify code here as well as in ufs_super.c and ufs_fs.h

@@ -72,7 +72,7 @@ int devm_snd_soc_register_component(struct device *dev,
 
 	ptr = devres_alloc(devm_component_release, sizeof(*ptr), GFP_KERNEL);
 	if (!ptr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = snd_soc_register_component(dev, cmpnt_drv, dai_drv, num_dai);
 	if (ret == 0) {
@@ -106,7 +106,7 @@ int devm_snd_soc_register_card(struct device *dev, struct snd_soc_card *card)
 
 	ptr = devres_alloc(devm_card_release, sizeof(*ptr), GFP_KERNEL);
 	if (!ptr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = snd_soc_register_card(card);
 	if (ret == 0) {
@@ -144,7 +144,7 @@ int devm_snd_dmaengine_pcm_register(struct device *dev,
 
 	ptr = devres_alloc(devm_dmaengine_pcm_release, sizeof(*ptr), GFP_KERNEL);
 	if (!ptr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = snd_dmaengine_pcm_register(dev, config, flags);
 	if (ret == 0) {

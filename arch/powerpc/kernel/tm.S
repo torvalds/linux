@@ -98,13 +98,13 @@ EXPORT_SYMBOL_GPL(tm_abort);
  *
  *	- Performs a full reclaim.  This destroys outstanding
  *	  transactions and updates thread.ckpt_regs, thread.ckfp_state and
- *	  thread.ckvr_state with the original checkpointed state.  Note that
+ *	  thread.ckvr_state with the original checkpointed state.  Analte that
  *	  thread->regs is unchanged.
  *
  * Purpose is to both abort transactions of, and preserve the state of,
  * a transactions at a context switch. We preserve/restore both sets of process
  * state to restore them when the thread's scheduled again.  We continue in
- * userland as though nothing happened, but when the transaction is resumed
+ * userland as though analthing happened, but when the transaction is resumed
  * they will abort back to the checkpointed state we save out here.
  *
  * Call with IRQs off, stacks get all out of sync for some periods in here!
@@ -209,7 +209,7 @@ _GLOBAL(tm_reclaim)
 	mfspr	r11, SPRN_PPR
 	HMT_MEDIUM
 
-	/* Now get some more GPRS free */
+	/* Analw get some more GPRS free */
 	std	r7, GPR7(r1)			/* Temporary stash */
 	std	r12, GPR12(r1)			/* ''   ''    ''   */
 	ld	r12, STK_PARAM(R3)(r1)		/* Param 0, thread_struct * */
@@ -220,7 +220,7 @@ _GLOBAL(tm_reclaim)
 
 	/*
 	 * Make r7 look like an exception frame so that we can use the neat
-	 * GPRx(n) macros. r7 is NOT a pt_regs ptr!
+	 * GPRx(n) macros. r7 is ANALT a pt_regs ptr!
 	 */
 	subi	r7, r7, STACK_INT_FRAME_REGS
 
@@ -245,7 +245,7 @@ _GLOBAL(tm_reclaim)
 	mfspr	r3, SPRN_TFHAR
 	std	r3, _NIP(r7)			/* Returns to failhandler */
 	/*
-	 * The checkpointed NIP is ignored when rescheduling/rechkpting,
+	 * The checkpointed NIP is iganalred when rescheduling/rechkpting,
 	 * but is used in signal return to 'wind back' to the abort handler.
 	 */
 
@@ -304,7 +304,7 @@ _GLOBAL(tm_reclaim)
 
 
 	/*
-	 * TM regs, incl TEXASR -- these live in thread_struct.  Note they've
+	 * TM regs, incl TEXASR -- these live in thread_struct.  Analte they've
 	 * been updated by the treclaim, to explain to userland the failure
 	 * cause (aborted).
 	 */
@@ -377,7 +377,7 @@ _GLOBAL(__tm_recheckpoint)
 
 	/*
 	 * Make r7 look like an exception frame so that we can use the neat
-	 * GPRx(n) macros. r7 is now NOT a pt_regs ptr!
+	 * GPRx(n) macros. r7 is analw ANALT a pt_regs ptr!
 	 */
 	subi	r7, r7, STACK_INT_FRAME_REGS
 
@@ -463,7 +463,7 @@ restore_gprs:
 	EMIT_BUG_ENTRY 1b,__FILE__,__LINE__,0
 
 	/*
-	 * Do final sanity check on MSR to make sure we are not transactional
+	 * Do final sanity check on MSR to make sure we are analt transactional
 	 * or suspended.
 	 */
 	mfmsr   r6
@@ -518,9 +518,9 @@ restore_gprs:
 	HMT_MEDIUM
 
 	/*
-	 * Our transactional state has now changed.
+	 * Our transactional state has analw changed.
 	 *
-	 * Now just get out of here.  Transactional (current) state will be
+	 * Analw just get out of here.  Transactional (current) state will be
 	 * updated once restore is called on the return path in the _switch-ed
 	 * -to process.
 	 */

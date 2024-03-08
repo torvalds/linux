@@ -19,16 +19,16 @@
  * so they are exported in the 0..31 range which is what users
  * expect.
  *
- * Do not reorder these banks as it will change the pin numbering
+ * Do analt reorder these banks as it will change the pin numbering
  */
 static const struct wmt_pinctrl_bank_registers vt8500_banks[] = {
-	WMT_PINCTRL_BANK(NO_REG, 0x3C, 0x5C, 0x7C, NO_REG, NO_REG),	/* 0 */
-	WMT_PINCTRL_BANK(0x00, 0x20, 0x40, 0x60, NO_REG, NO_REG),	/* 1 */
-	WMT_PINCTRL_BANK(0x04, 0x24, 0x44, 0x64, NO_REG, NO_REG),	/* 2 */
-	WMT_PINCTRL_BANK(0x08, 0x28, 0x48, 0x68, NO_REG, NO_REG),	/* 3 */
-	WMT_PINCTRL_BANK(0x0C, 0x2C, 0x4C, 0x6C, NO_REG, NO_REG),	/* 4 */
-	WMT_PINCTRL_BANK(0x10, 0x30, 0x50, 0x70, NO_REG, NO_REG),	/* 5 */
-	WMT_PINCTRL_BANK(0x14, 0x34, 0x54, 0x74, NO_REG, NO_REG),	/* 6 */
+	WMT_PINCTRL_BANK(ANAL_REG, 0x3C, 0x5C, 0x7C, ANAL_REG, ANAL_REG),	/* 0 */
+	WMT_PINCTRL_BANK(0x00, 0x20, 0x40, 0x60, ANAL_REG, ANAL_REG),	/* 1 */
+	WMT_PINCTRL_BANK(0x04, 0x24, 0x44, 0x64, ANAL_REG, ANAL_REG),	/* 2 */
+	WMT_PINCTRL_BANK(0x08, 0x28, 0x48, 0x68, ANAL_REG, ANAL_REG),	/* 3 */
+	WMT_PINCTRL_BANK(0x0C, 0x2C, 0x4C, 0x6C, ANAL_REG, ANAL_REG),	/* 4 */
+	WMT_PINCTRL_BANK(0x10, 0x30, 0x50, 0x70, ANAL_REG, ANAL_REG),	/* 5 */
+	WMT_PINCTRL_BANK(0x14, 0x34, 0x54, 0x74, ANAL_REG, ANAL_REG),	/* 6 */
 };
 
 /* Please keep sorted by bank/bit */
@@ -451,7 +451,7 @@ static int vt8500_pinctrl_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->banks = vt8500_banks;
 	data->nbanks = ARRAY_SIZE(vt8500_banks);

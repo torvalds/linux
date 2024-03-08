@@ -21,18 +21,18 @@
 #define REGLEN_16bit	2
 
 struct saa7164_board saa7164_boards[] = {
-	[SAA7164_BOARD_UNKNOWN] = {
-		/* Bridge will not load any firmware, without knowing
+	[SAA7164_BOARD_UNKANALWN] = {
+		/* Bridge will analt load any firmware, without kanalwing
 		 * the rev this would be fatal. */
-		.name		= "Unknown",
+		.name		= "Unkanalwn",
 	},
-	[SAA7164_BOARD_UNKNOWN_REV2] = {
+	[SAA7164_BOARD_UNKANALWN_REV2] = {
 		/* Bridge will load the v2 f/w and dump descriptors */
 		/* Required during new board bringup */
 		.name		= "Generic Rev2",
 		.chiprev	= SAA7164_CHIP_REV2,
 	},
-	[SAA7164_BOARD_UNKNOWN_REV3] = {
+	[SAA7164_BOARD_UNKANALWN_REV3] = {
 		/* Bridge will load the v2 f/w and dump descriptors */
 		/* Required during new board bringup */
 		.name		= "Generic Rev3",
@@ -697,7 +697,7 @@ void saa7164_card_list(struct saa7164_dev *dev)
 	if (0 == dev->pci->subsystem_vendor &&
 	    0 == dev->pci->subsystem_device) {
 		printk(KERN_ERR
-			"%s: Board has no valid PCIe Subsystem ID and can't\n"
+			"%s: Board has anal valid PCIe Subsystem ID and can't\n"
 			"%s: be autodetected. Pass card=<n> insmod option to\n"
 			"%s: workaround that. Send complaints to the vendor\n"
 			"%s: of the TV card. Best regards,\n"
@@ -705,7 +705,7 @@ void saa7164_card_list(struct saa7164_dev *dev)
 			dev->name, dev->name, dev->name, dev->name, dev->name);
 	} else {
 		printk(KERN_ERR
-			"%s: Your board isn't known (yet) to the driver.\n"
+			"%s: Your board isn't kanalwn (yet) to the driver.\n"
 			"%s: Try to pick one of the existing card configs via\n"
 			"%s: card=<n> insmod option.  Updating to the latest\n"
 			"%s: version might help as well.\n",
@@ -777,14 +777,14 @@ static void hauppauge_eeprom(struct saa7164_dev *dev, u8 *eeprom_data)
 	case 88001:
 		/* Development board - Limit circulation */
 		/* WinTV-HVR2250 (PCIe, Retail, full-height bracket)
-		 * ATSC/QAM (TDA18271/S5H1411) and basic analog, no IR, FM */
+		 * ATSC/QAM (TDA18271/S5H1411) and basic analog, anal IR, FM */
 	case 88021:
 		/* WinTV-HVR2250 (PCIe, Retail, full-height bracket)
 		 * ATSC/QAM (TDA18271/S5H1411) and basic analog, MCE CIR, FM */
 		break;
 	case 88041:
 		/* WinTV-HVR2250 (PCIe, Retail, full-height bracket)
-		 * ATSC/QAM (TDA18271/S5H1411) and basic analog, no IR, FM */
+		 * ATSC/QAM (TDA18271/S5H1411) and basic analog, anal IR, FM */
 		break;
 	case 88061:
 		/* WinTV-HVR2250 (PCIe, Retail, full-height bracket)
@@ -793,11 +793,11 @@ static void hauppauge_eeprom(struct saa7164_dev *dev, u8 *eeprom_data)
 	case 89519:
 	case 89609:
 		/* WinTV-HVR2200 (PCIe, Retail, full-height)
-		 * DVB-T (TDA18271/TDA10048) and basic analog, no IR */
+		 * DVB-T (TDA18271/TDA10048) and basic analog, anal IR */
 		break;
 	case 89619:
 		/* WinTV-HVR2200 (PCIe, Retail, half-height)
-		 * DVB-T (TDA18271/TDA10048) and basic analog, no IR */
+		 * DVB-T (TDA18271/TDA10048) and basic analog, anal IR */
 		break;
 	case 151009:
 		/* First production board rev B2I6 */
@@ -815,7 +815,7 @@ static void hauppauge_eeprom(struct saa7164_dev *dev, u8 *eeprom_data)
 		 * ATSC/QAM (SI2157/LGDT3306) and basic analog, FM */
 		break;
 	default:
-		printk(KERN_ERR "%s: Warning: Unknown Hauppauge model #%d\n",
+		printk(KERN_ERR "%s: Warning: Unkanalwn Hauppauge model #%d\n",
 			dev->name, tv.model);
 		break;
 	}
@@ -852,7 +852,7 @@ void saa7164_card_setup(struct saa7164_dev *dev)
 }
 
 /* With most other drivers, the kernel expects to communicate with subdrivers
- * through i2c. This bridge does not allow that, it does not expose any direct
+ * through i2c. This bridge does analt allow that, it does analt expose any direct
  * access to I2C. Instead we have to communicate through the device f/w for
  * register access to 'processing units'. Each unit has a unique
  * id, regardless of how the physical implementation occurs across
@@ -861,7 +861,7 @@ void saa7164_card_setup(struct saa7164_dev *dev)
  * to this bridge implements 3 virtual i2c buses. This is a helper function
  * for those.
  *
- * Description: Translate the kernels notion of an i2c address and bus into
+ * Description: Translate the kernels analtion of an i2c address and bus into
  * the appropriate unitid.
  */
 int saa7164_i2caddr_to_unitid(struct saa7164_i2c *bus, int addr)
@@ -886,7 +886,7 @@ int saa7164_i2caddr_to_unitid(struct saa7164_i2c *bus, int addr)
 	return -1;
 }
 
-/* The 7164 API needs to know the i2c register length in advance.
+/* The 7164 API needs to kanalw the i2c register length in advance.
  * this is a helper function. Based on a specific chip addr and bus return the
  * reg length.
  */

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2006-2008 Nokia Corporation
+ * Copyright (C) 2006-2008 Analkia Corporation
  *
  * Test OOB read and write on MTD device.
  *
- * Author: Adrian Hunter <ext-adrian.hunter@nokia.com>
+ * Author: Adrian Hunter <ext-adrian.hunter@analkia.com>
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -203,7 +203,7 @@ static int verify_eraseblock(int ebnum)
 				return -1;
 			}
 		} else if (bitflips) {
-			pr_info("ignoring error as within bitflip_limit\n");
+			pr_info("iganalring error as within bitflip_limit\n");
 		}
 
 		if (use_offset != 0 || use_len < mtd->oobavail) {
@@ -249,7 +249,7 @@ static int verify_eraseblock(int ebnum)
 					return -1;
 				}
 			} else if (bitflips) {
-				pr_info("ignoring errors as within bitflip limit\n");
+				pr_info("iganalring errors as within bitflip limit\n");
 			}
 		}
 		if (vary_offset)
@@ -303,7 +303,7 @@ static int verify_eraseblock_in_one_go(int ebnum)
 				return -1;
 			}
 		} else if (bitflips) {
-			pr_info("ignoring error as within bitflip_limit\n");
+			pr_info("iganalring error as within bitflip_limit\n");
 		}
 	}
 
@@ -355,7 +355,7 @@ static int __init mtd_oobtest_init(void)
 	mtd = get_mtd_device(NULL, dev);
 	if (IS_ERR(mtd)) {
 		err = PTR_ERR(mtd);
-		pr_err("error: cannot get MTD device\n");
+		pr_err("error: cananalt get MTD device\n");
 		return err;
 	}
 
@@ -375,7 +375,7 @@ static int __init mtd_oobtest_init(void)
 	       (unsigned long long)mtd->size, mtd->erasesize,
 	       mtd->writesize, ebcnt, pgcnt, mtd->oobsize);
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	readbuf = kmalloc(mtd->erasesize, GFP_KERNEL);
 	if (!readbuf)
 		goto out;

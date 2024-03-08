@@ -4,7 +4,7 @@
  *
  * Author: Grant Likely <grant.likely@secretlab.ca>
  *
- * Copyright (c) 2007 Secret Lab Technologies Ltd.
+ * Copyright (c) 2007 Secret Lab Techanallogies Ltd.
  * Copyright (c) 2007 Freescale Semiconductor, Inc.
  */
 
@@ -30,14 +30,14 @@ static void platform_fixups(void)
 	dt_fixup_cpu_clocks(bd.bi_intfreq, bd.bi_busfreq / 4, bd.bi_busfreq);
 
 	/* Unfortunately, the specific model number is encoded in the
-	 * soc node name in existing dts files -- once that is fixed,
+	 * soc analde name in existing dts files -- once that is fixed,
 	 * this can do a simple path lookup.
 	 */
-	soc = find_node_by_devtype(NULL, "soc");
+	soc = find_analde_by_devtype(NULL, "soc");
 	if (!soc)
-		soc = find_node_by_compatible(NULL, "fsl,mpc5200-immr");
+		soc = find_analde_by_compatible(NULL, "fsl,mpc5200-immr");
 	if (!soc)
-		soc = find_node_by_compatible(NULL, "fsl,mpc5200b-immr");
+		soc = find_analde_by_compatible(NULL, "fsl,mpc5200b-immr");
 	if (soc) {
 		setprop(soc, "bus-frequency", &bd.bi_ipbfreq,
 			sizeof(bd.bi_ipbfreq));

@@ -4,13 +4,13 @@
 $id: http://devicetree.org/schemas/leds/leds-group-multicolor.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Multi-color LED built with monochromatic LEDs
+title: Multi-color LED built with moanalchromatic LEDs
 
 maintainers:
   - Jean-Jacques Hiblot <jjhiblot@traphandler.com>
 
 description: |
-  This driver combines several monochromatic LEDs into one multi-color
+  This driver combines several moanalchromatic LEDs into one multi-color
   LED using the multicolor LED class.
 
 properties:
@@ -19,7 +19,7 @@ properties:
 
   leds:
     description:
-      An aray of monochromatic leds
+      An aray of moanalchromatic leds
     $ref: /schemas/types.yaml#/definitions/phandle-array
 
 required:
@@ -35,7 +35,7 @@ examples:
     #include <dt-bindings/gpio/gpio.h>
     #include <dt-bindings/leds/common.h>
 
-    monochromatic-leds {
+    moanalchromatic-leds {
         compatible = "gpio-leds";
 
         led0: led-0 {

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2019 Mellanox Technologies. */
+/* Copyright (c) 2019 Mellaanalx Techanallogies. */
 
 #include <linux/types.h>
 #include <linux/crc32.h>
@@ -215,7 +215,7 @@ dr_ste_remove_head_ste(struct mlx5dr_ste_ctx *ste_ctx,
 	dr_ste_always_miss_addr(ste_ctx, tmp_data_ste, miss_addr);
 	memcpy(mlx5dr_ste_get_hw_ste(ste), tmp_data_ste, DR_STE_SIZE_REDUCED);
 
-	list_del_init(&ste->miss_list_node);
+	list_del_init(&ste->miss_list_analde);
 
 	/* Write full STE size in order to have "always_miss" */
 	mlx5dr_send_fill_and_append_ste_send_info(ste, DR_STE_SIZE,
@@ -227,7 +227,7 @@ dr_ste_remove_head_ste(struct mlx5dr_ste_ctx *ste_ctx,
 	stats_tbl->ctrl.num_of_valid_entries--;
 }
 
-/* Free ste which is the head but NOT the only one in miss_list:
+/* Free ste which is the head but ANALT the only one in miss_list:
  * |_ste_| --> |_next_ste_| -->|__| -->|__| -->/0
  */
 static void
@@ -246,7 +246,7 @@ dr_ste_replace_head_ste(struct mlx5dr_matcher_rx_tx *nic_matcher,
 	next_miss_htbl = next_ste->htbl;
 
 	/* Remove from the miss_list the next_ste before copy */
-	list_del_init(&next_ste->miss_list_node);
+	list_del_init(&next_ste->miss_list_analde);
 
 	/* Move data from next into ste */
 	dr_ste_replace(ste, next_ste);
@@ -287,7 +287,7 @@ static void dr_ste_remove_middle_ste(struct mlx5dr_ste_ctx *ste_ctx,
 	struct mlx5dr_ste *prev_ste;
 	u64 miss_addr;
 
-	prev_ste = list_prev_entry(ste, miss_list_node);
+	prev_ste = list_prev_entry(ste, miss_list_analde);
 	if (WARN_ON(!prev_ste))
 		return;
 
@@ -299,7 +299,7 @@ static void dr_ste_remove_middle_ste(struct mlx5dr_ste_ctx *ste_ctx,
 						  ste_info, send_ste_list,
 						  true /* Copy data*/);
 
-	list_del_init(&ste->miss_list_node);
+	list_del_init(&ste->miss_list_analde);
 
 	stats_tbl->ctrl.num_of_valid_entries--;
 	stats_tbl->ctrl.num_of_collisions--;
@@ -319,24 +319,24 @@ void mlx5dr_ste_free(struct mlx5dr_ste *ste,
 	LIST_HEAD(send_ste_list);
 
 	first_ste = list_first_entry(mlx5dr_ste_get_miss_list(ste),
-				     struct mlx5dr_ste, miss_list_node);
+				     struct mlx5dr_ste, miss_list_analde);
 	stats_tbl = first_ste->htbl;
 
 	/* Two options:
 	 * 1. ste is head:
 	 *	a. head ste is the only ste in the miss list
-	 *	b. head ste is not the only ste in the miss-list
-	 * 2. ste is not head
+	 *	b. head ste is analt the only ste in the miss-list
+	 * 2. ste is analt head
 	 */
 	if (first_ste == ste) { /* Ste is the head */
 		struct mlx5dr_ste *last_ste;
 
 		last_ste = list_last_entry(mlx5dr_ste_get_miss_list(ste),
-					   struct mlx5dr_ste, miss_list_node);
+					   struct mlx5dr_ste, miss_list_analde);
 		if (last_ste == first_ste)
 			next_ste = NULL;
 		else
-			next_ste = list_next_entry(ste, miss_list_node);
+			next_ste = list_next_entry(ste, miss_list_analde);
 
 		if (!next_ste) {
 			/* One and only entry in the list */
@@ -346,7 +346,7 @@ void mlx5dr_ste_free(struct mlx5dr_ste *ste,
 					       &send_ste_list,
 					       stats_tbl);
 		} else {
-			/* First but not only entry in the list */
+			/* First but analt only entry in the list */
 			dr_ste_replace_head_ste(nic_matcher, ste,
 						next_ste, &ste_info_head,
 						&send_ste_list, stats_tbl);
@@ -467,7 +467,7 @@ int mlx5dr_ste_create_next_htbl(struct mlx5dr_matcher *matcher,
 						  byte_mask);
 		if (!next_htbl) {
 			mlx5dr_dbg(dmn, "Failed allocating table\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		/* Write new table to HW */
@@ -490,7 +490,7 @@ int mlx5dr_ste_create_next_htbl(struct mlx5dr_matcher *matcher,
 
 free_table:
 	mlx5dr_ste_htbl_free(next_htbl);
-	return -ENOENT;
+	return -EANALENT;
 }
 
 struct mlx5dr_ste_htbl *mlx5dr_ste_htbl_alloc(struct mlx5dr_icm_pool *pool,
@@ -524,7 +524,7 @@ struct mlx5dr_ste_htbl *mlx5dr_ste_htbl_alloc(struct mlx5dr_icm_pool *pool,
 
 		ste->htbl = htbl;
 		ste->refcount = 0;
-		INIT_LIST_HEAD(&ste->miss_list_node);
+		INIT_LIST_HEAD(&ste->miss_list_analde);
 		INIT_LIST_HEAD(&chunk->miss_list[i]);
 	}
 
@@ -649,7 +649,7 @@ dr_ste_alloc_modify_hdr_chunk(struct mlx5dr_action *action)
 	action->rewrite->chunk = mlx5dr_icm_alloc_chunk(dmn->action_icm_pool,
 							chunk_size);
 	if (!action->rewrite->chunk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	action->rewrite->index = (mlx5dr_icm_pool_get_chunk_icm_addr(action->rewrite->chunk) -
 				  dmn->info.caps.hdr_modify_icm_addr) /
@@ -663,7 +663,7 @@ dr_ste_alloc_modify_hdr_chunk(struct mlx5dr_action *action)
 
 free_chunk:
 	mlx5dr_icm_free_chunk(action->rewrite->chunk);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void dr_ste_free_modify_hdr_chunk(struct mlx5dr_action *action)
@@ -697,13 +697,13 @@ static int dr_ste_build_pre_check_spec(struct mlx5dr_domain *dmn,
 	if (spec->ip_version) {
 		if (spec->ip_version != 0xf) {
 			mlx5dr_err(dmn,
-				   "Partial ip_version mask with src/dst IP is not supported\n");
+				   "Partial ip_version mask with src/dst IP is analt supported\n");
 			return -EINVAL;
 		}
 	} else if (spec->ethertype != 0xffff &&
 		   (DR_MASK_IS_SRC_IP_SET(spec) || DR_MASK_IS_DST_IP_SET(spec))) {
 		mlx5dr_err(dmn,
-			   "Partial/no ethertype mask with src/dst IP is not supported\n");
+			   "Partial/anal ethertype mask with src/dst IP is analt supported\n");
 		return -EINVAL;
 	}
 
@@ -721,13 +721,13 @@ int mlx5dr_ste_build_pre_check(struct mlx5dr_domain *dmn,
 	if (match_criteria & DR_MATCHER_CRITERIA_MISC) {
 		if (mask->misc.source_port && mask->misc.source_port != 0xffff) {
 			mlx5dr_err(dmn,
-				   "Partial mask source_port is not supported\n");
+				   "Partial mask source_port is analt supported\n");
 			return -EINVAL;
 		}
 		if (mask->misc.source_eswitch_owner_vhca_id &&
 		    mask->misc.source_eswitch_owner_vhca_id != 0xffff) {
 			mlx5dr_err(dmn,
-				   "Partial mask source_eswitch_owner_vhca_id is not supported\n");
+				   "Partial mask source_eswitch_owner_vhca_id is analt supported\n");
 			return -EINVAL;
 		}
 	}
@@ -776,7 +776,7 @@ int mlx5dr_ste_build_ste_arr(struct mlx5dr_matcher *matcher,
 		/* Connect the STEs */
 		if (i < (nic_matcher->num_of_builders - 1)) {
 			/* Need the next builder for these fields,
-			 * not relevant for the last ste in the chain.
+			 * analt relevant for the last ste in the chain.
 			 */
 			sb++;
 			ste_ctx->set_next_lu_type(ste_arr, sb->lu_type);

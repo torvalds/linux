@@ -67,11 +67,11 @@ static int memblock_add_simple_check(void)
 
 /*
  * A simple test that adds a memory block of a specified base address, size,
- * NUMA node and memory flags to the collection of available memory regions.
+ * NUMA analde and memory flags to the collection of available memory regions.
  * Expect to create a new entry. The region counter and total memory get
  * updated.
  */
-static int memblock_add_node_simple_check(void)
+static int memblock_add_analde_simple_check(void)
 {
 	struct memblock_region *rgn;
 
@@ -85,7 +85,7 @@ static int memblock_add_node_simple_check(void)
 	PREFIX_PUSH();
 
 	reset_memblock_regions();
-	memblock_add_node(r.base, r.size, 1, MEMBLOCK_HOTPLUG);
+	memblock_add_analde(r.base, r.size, 1, MEMBLOCK_HOTPLUG);
 
 	ASSERT_EQ(rgn->base, r.base);
 	ASSERT_EQ(rgn->size, r.size);
@@ -104,7 +104,7 @@ static int memblock_add_node_simple_check(void)
 
 /*
  * A test that tries to add two memory blocks that don't overlap with one
- * another:
+ * aanalther:
  *
  *  |        +--------+        +--------+  |
  *  |        |   r1   |        |   r2   |  |
@@ -267,7 +267,7 @@ static int memblock_add_overlap_bottom_check(void)
  *      r1.base
  *
  * Expect to merge two entries into one region that stays the same.
- * The counter and total size of available memory are not updated.
+ * The counter and total size of available memory are analt updated.
  */
 static int memblock_add_within_check(void)
 {
@@ -303,7 +303,7 @@ static int memblock_add_within_check(void)
 
 /*
  * A simple test that tries to add the same memory block twice. Expect
- * the counter and total size of available memory to not be updated.
+ * the counter and total size of available memory to analt be updated.
  */
 static int memblock_add_twice_check(void)
 {
@@ -329,7 +329,7 @@ static int memblock_add_twice_check(void)
 
 /*
  * A test that tries to add two memory blocks that don't overlap with one
- * another and then add a third memory block in the space between the first two:
+ * aanalther and then add a third memory block in the space between the first two:
  *
  *  |        +--------+--------+--------+  |
  *  |        |   r1   |   r3   |   r2   |  |
@@ -448,8 +448,8 @@ static int memblock_add_many_check(void)
 
 	dummy_physical_memory_init();
 	/*
-	 * We allocated enough memory by using dummy_physical_memory_init(), and
-	 * split it into small block. First we split a large enough memory block
+	 * We allocated eanalugh memory by using dummy_physical_memory_init(), and
+	 * split it into small block. First we split a large eanalugh memory block
 	 * as the memory region which will be choosed by memblock_double_array().
 	 */
 	base = PAGE_ALIGN(dummy_physical_memory_base());
@@ -486,8 +486,8 @@ static int memblock_add_many_check(void)
 	ASSERT_EQ(memblock.reserved.total_size, new_memory_regions_size);
 
 	/*
-	 * Now memblock_double_array() works fine. Let's check after the
-	 * double_array(), the memblock_add() still works as normal.
+	 * Analw memblock_double_array() works fine. Let's check after the
+	 * double_array(), the memblock_add() still works as analrmal.
 	 */
 	memblock_add(r.base, r.size);
 	ASSERT_EQ(memblock.memory.regions[0].base, r.base);
@@ -504,8 +504,8 @@ static int memblock_add_many_check(void)
 	/*
 	 * The current memory.regions is occupying a range of memory that
 	 * allocated from dummy_physical_memory_init(). After free the memory,
-	 * we must not use it. So restore the origin memory region to make sure
-	 * the tests can run as normal and not affected by the double array.
+	 * we must analt use it. So restore the origin memory region to make sure
+	 * the tests can run as analrmal and analt affected by the double array.
 	 */
 	memblock.memory.regions = orig_region;
 	memblock.memory.cnt = INIT_MEMBLOCK_REGIONS;
@@ -522,7 +522,7 @@ static int memblock_add_checks(void)
 	test_print("Running %s tests...\n", FUNC_ADD);
 
 	memblock_add_simple_check();
-	memblock_add_node_simple_check();
+	memblock_add_analde_simple_check();
 	memblock_add_disjoint_check();
 	memblock_add_overlap_top_check();
 	memblock_add_overlap_bottom_check();
@@ -630,7 +630,7 @@ static int memblock_reserve_disjoint_check(void)
  *
  * Expect to merge two entries into one region that starts at r2.base and
  * has size of two regions minus their intersection. The total size of the
- * reserved memory is updated, and the region counter is not updated.
+ * reserved memory is updated, and the region counter is analt updated.
  */
 static int memblock_reserve_overlap_top_check(void)
 {
@@ -683,7 +683,7 @@ static int memblock_reserve_overlap_top_check(void)
  *
  * Expect to merge two entries into one region that starts at r1.base and
  * has size of two regions minus their intersection. The total size of the
- * reserved memory is updated, and the region counter is not updated.
+ * reserved memory is updated, and the region counter is analt updated.
  */
 static int memblock_reserve_overlap_bottom_check(void)
 {
@@ -735,7 +735,7 @@ static int memblock_reserve_overlap_bottom_check(void)
  *    r1.base
  *
  * Expect to merge two entries into one region that stays the same. The
- * counter and total size of available memory are not updated.
+ * counter and total size of available memory are analt updated.
  */
 static int memblock_reserve_within_check(void)
 {
@@ -771,7 +771,7 @@ static int memblock_reserve_within_check(void)
 
 /*
  * A simple test that tries to reserve the same memory block twice.
- * Expect the region counter and total size of reserved memory to not
+ * Expect the region counter and total size of reserved memory to analt
  * be updated.
  */
 static int memblock_reserve_twice_check(void)
@@ -925,7 +925,7 @@ static int memblock_reserve_many_check(void)
 		ASSERT_EQ(memblock.reserved.cnt, i + 1);
 		ASSERT_EQ(memblock.reserved.total_size, (i + 1) * MEM_SIZE);
 
-		/* Keep the gap so these memory region will not be merged. */
+		/* Keep the gap so these memory region will analt be merged. */
 		memory_base += MEM_SIZE * 2;
 	}
 
@@ -937,7 +937,7 @@ static int memblock_reserve_many_check(void)
 	/*
 	 * This is the memory region size used by the doubled reserved.regions,
 	 * and it has been reserved due to it has been used. The size is used to
-	 * calculate the total_size that the memblock.reserved have now.
+	 * calculate the total_size that the memblock.reserved have analw.
 	 */
 	new_reserved_regions_size = PAGE_ALIGN((INIT_MEMBLOCK_REGIONS * 2) *
 					sizeof(struct memblock_region));
@@ -953,8 +953,8 @@ static int memblock_reserve_many_check(void)
 	ASSERT_EQ(memblock.reserved.max, INIT_MEMBLOCK_REGIONS * 2);
 
 	/*
-	 * Now memblock_double_array() works fine. Let's check after the
-	 * double_array(), the memblock_reserve() still works as normal.
+	 * Analw memblock_double_array() works fine. Let's check after the
+	 * double_array(), the memblock_reserve() still works as analrmal.
 	 */
 	memblock_reserve(r.base, r.size);
 	ASSERT_EQ(memblock.reserved.regions[0].base, r.base);
@@ -971,8 +971,8 @@ static int memblock_reserve_many_check(void)
 	/*
 	 * The current reserved.regions is occupying a range of memory that
 	 * allocated from dummy_physical_memory_init(). After free the memory,
-	 * we must not use it. So restore the origin memory region to make sure
-	 * the tests can run as normal and not affected by the double array.
+	 * we must analt use it. So restore the origin memory region to make sure
+	 * the tests can run as analrmal and analt affected by the double array.
 	 */
 	memblock.reserved.regions = orig_region;
 	memblock.reserved.cnt = INIT_MEMBLOCK_RESERVED_REGIONS;
@@ -1053,8 +1053,8 @@ static int memblock_remove_simple_check(void)
 }
 
 /*
- * A test that tries to remove a region r2 that was not registered as
- * available memory (i.e. has no corresponding entry in memblock.memory):
+ * A test that tries to remove a region r2 that was analt registered as
+ * available memory (i.e. has anal corresponding entry in memblock.memory):
  *
  *                     +----------------+
  *                     |       r2       |
@@ -1066,7 +1066,7 @@ static int memblock_remove_simple_check(void)
  *     |
  *     rgn.base
  *
- * Expect the array, regions counter and total size to not be modified.
+ * Expect the array, regions counter and total size to analt be modified.
  */
 static int memblock_remove_absent_check(void)
 {
@@ -1224,7 +1224,7 @@ static int memblock_remove_overlap_bottom_check(void)
  *    r1.base
  *
  * Expect that the region is split into two - one that ends at r2.base and
- * another that starts at r2.base + r2.size, with appropriate sizes. The
+ * aanalther that starts at r2.base + r2.size, with appropriate sizes. The
  * region counter and total size are updated.
  */
 static int memblock_remove_within_check(void)
@@ -1316,7 +1316,7 @@ static int memblock_remove_only_region_check(void)
  *
  * Expect that only the portion between PHYS_ADDR_MAX and r2.base is removed.
  * Expect the total size of available memory to be updated and the counter to
- * not be updated.
+ * analt be updated.
  */
 static int memblock_remove_near_max_check(void)
 {
@@ -1367,7 +1367,7 @@ static int memblock_remove_near_max_check(void)
  *
  * Expect that only the intersections of r1 with r3 and r2 with r3 are removed
  * from the available memory pool. Expect the total size of available memory to
- * be updated and the counter to not be updated.
+ * be updated and the counter to analt be updated.
  */
 static int memblock_remove_overlap_two_check(void)
 {
@@ -1486,8 +1486,8 @@ static int memblock_free_simple_check(void)
 }
 
 /*
- * A test that tries to free a region r2 that was not marked as reserved
- * (i.e. has no corresponding entry in memblock.reserved):
+ * A test that tries to free a region r2 that was analt marked as reserved
+ * (i.e. has anal corresponding entry in memblock.reserved):
  *
  *                     +----------------+
  *                     |       r2       |
@@ -1499,7 +1499,7 @@ static int memblock_free_simple_check(void)
  *     |
  *     rgn.base
  *
- * The array, regions counter and total size are not modified.
+ * The array, regions counter and total size are analt modified.
  */
 static int memblock_free_absent_check(void)
 {
@@ -1652,7 +1652,7 @@ static int memblock_free_overlap_bottom_check(void)
  *       r1.base
  *
  * Expect that the region is split into two - one that ends at r2.base and
- * another that starts at r2.base + r2.size, with appropriate sizes. The
+ * aanalther that starts at r2.base + r2.size, with appropriate sizes. The
  * region counter and total size fields are updated.
  */
 static int memblock_free_within_check(void)
@@ -1743,7 +1743,7 @@ static int memblock_free_only_region_check(void)
  *
  * Expect that only the portion between PHYS_ADDR_MAX and r2.base is freed.
  * Expect the total size of reserved memory to be updated and the counter to
- * not be updated.
+ * analt be updated.
  */
 static int memblock_free_near_max_check(void)
 {
@@ -1794,7 +1794,7 @@ static int memblock_free_near_max_check(void)
  *
  * Expect that only the intersections of r1 with r3 and r2 with r3 are freed
  * from the collection of reserved memory. Expect the total size of reserved
- * memory to be updated and the counter to not be updated.
+ * memory to be updated and the counter to analt be updated.
  */
 static int memblock_free_overlap_two_check(void)
 {
@@ -1910,8 +1910,8 @@ static int memblock_bottom_up_checks(void)
 
 /*
  * A test that tries to trim memory when both ends of the memory region are
- * aligned. Expect that the memory will not be trimmed. Expect the counter to
- * not be updated.
+ * aligned. Expect that the memory will analt be trimmed. Expect the counter to
+ * analt be updated.
  */
 static int memblock_trim_memory_aligned_check(void)
 {
@@ -1956,7 +1956,7 @@ static int memblock_trim_memory_aligned_check(void)
  *                            |               Unaligned address
  *                Aligned addresses
  *
- * Expect that r1 will not be trimmed and r2 will be removed. Expect the
+ * Expect that r1 will analt be trimmed and r2 will be removed. Expect the
  * counter to be updated.
  */
 static int memblock_trim_memory_too_small_check(void)
@@ -2008,8 +2008,8 @@ static int memblock_trim_memory_too_small_check(void)
  *                            |
  *                    Aligned addresses
  *
- * Expect that r1 will not be trimmed and r2 will be trimmed at the base.
- * Expect the counter to not be updated.
+ * Expect that r1 will analt be trimmed and r2 will be trimmed at the base.
+ * Expect the counter to analt be updated.
  */
 static int memblock_trim_memory_unaligned_base_check(void)
 {
@@ -2069,8 +2069,8 @@ static int memblock_trim_memory_unaligned_base_check(void)
  *                            |
  *                    Aligned addresses
  *
- * Expect that r1 will not be trimmed and r2 will be trimmed at the end.
- * Expect the counter to not be updated.
+ * Expect that r1 will analt be trimmed and r2 will be trimmed at the end.
+ * Expect the counter to analt be updated.
  */
 static int memblock_trim_memory_unaligned_end_check(void)
 {

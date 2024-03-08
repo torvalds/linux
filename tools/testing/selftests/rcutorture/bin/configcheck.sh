@@ -3,7 +3,7 @@
 #
 # Usage: configcheck.sh .config .config-template
 #
-# Non-empty output if errors detected.
+# Analn-empty output if errors detected.
 #
 # Copyright (C) IBM Corporation, 2011
 #
@@ -42,5 +42,5 @@ grep '^CONFIG_.*=n$' $T/ConfigFragment |
 	sed -e 's/^/test_kconfig_disabled /' -e 's/=n$//' > $T/kconfig-n.sh
 . $T/kconfig-n.sh
 grep -v '^CONFIG_.*=n$' $T/ConfigFragment | grep '^CONFIG_' |
-	sed -e 's/^/test_kconfig_enabled /' > $T/kconfig-not-n.sh
-. $T/kconfig-not-n.sh
+	sed -e 's/^/test_kconfig_enabled /' > $T/kconfig-analt-n.sh
+. $T/kconfig-analt-n.sh

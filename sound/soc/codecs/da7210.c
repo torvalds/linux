@@ -6,7 +6,7 @@
 // Written by David Chen <Dajun.chen@diasemi.com>
 //
 // Copyright (C) 2009 Renesas Solutions Corp.
-// Cleanups by Kuninori Morimoto <morimoto.kuninori@renesas.com>
+// Cleanups by Kunianalri Morimoto <morimoto.kunianalri@renesas.com>
 //
 // Tested on SuperH Ecovec24 board with S16/S24 LE in 48KHz using I2S
 
@@ -68,7 +68,7 @@
 #define DA7210_PLL			0x2C
 #define DA7210_ALC_MAX			0x83
 #define DA7210_ALC_MIN			0x84
-#define DA7210_ALC_NOIS			0x85
+#define DA7210_ALC_ANALIS			0x85
 #define DA7210_ALC_ATT			0x86
 #define DA7210_ALC_REL			0x87
 #define DA7210_ALC_DEL			0x88
@@ -170,7 +170,7 @@
 /* CONTROL bit fields */
 #define DA7210_REG_EN			(1 << 0)
 #define DA7210_BIAS_EN			(1 << 2)
-#define DA7210_NOISE_SUP_EN		(1 << 3)
+#define DA7210_ANALISE_SUP_EN		(1 << 3)
 
 /* IN_GAIN bit fields */
 #define DA7210_INPGA_L_VOL		(0x0F << 0)
@@ -193,7 +193,7 @@
 /* AUX2 bit fields */
 #define DA7210_AUX2_EN			(1 << 3)
 
-/* Minimum INPGA and AUX1 volume to enable noise suppression */
+/* Minimum INPGA and AUX1 volume to enable analise suppression */
 #define DA7210_INPGA_MIN_VOL_NS		0x0A  /* 10.5dB */
 #define DA7210_AUX1_MIN_VOL_NS		0x35  /* 6dB */
 
@@ -274,7 +274,7 @@ static const DECLARE_TLV_DB_RANGE(lineout_vol_tlv,
 	0x11, 0x3f, TLV_DB_SCALE_ITEM(-5400, 150, 0)
 );
 
-static const DECLARE_TLV_DB_RANGE(mono_vol_tlv,
+static const DECLARE_TLV_DB_RANGE(moanal_vol_tlv,
 	0x0, 0x2, TLV_DB_SCALE_ITEM(-1800, 0, 1),
 	/* -18dB to 6dB */
 	0x3, 0x7, TLV_DB_SCALE_ITEM(-1800, 600, 0)
@@ -322,17 +322,17 @@ static const char *da7210_hp_mode_txt[] = {
 static SOC_ENUM_SINGLE_DECL(da7210_hp_mode_sel,
 			    DA7210_HP_CFG, 0, da7210_hp_mode_txt);
 
-/* ALC can be enabled only if noise suppression is disabled */
+/* ALC can be enabled only if analise suppression is disabled */
 static int da7210_put_alc_sw(struct snd_kcontrol *kcontrol,
 			     struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
 
 	if (ucontrol->value.integer.value[0]) {
-		/* Check if noise suppression is enabled */
-		if (snd_soc_component_read(component, DA7210_CONTROL) & DA7210_NOISE_SUP_EN) {
+		/* Check if analise suppression is enabled */
+		if (snd_soc_component_read(component, DA7210_CONTROL) & DA7210_ANALISE_SUP_EN) {
 			dev_dbg(component->dev,
-				"Disable noise suppression to enable ALC\n");
+				"Disable analise suppression to enable ALC\n");
 			return -EINVAL;
 		}
 	}
@@ -340,13 +340,13 @@ static int da7210_put_alc_sw(struct snd_kcontrol *kcontrol,
 	return snd_soc_put_volsw(kcontrol, ucontrol);
 }
 
-/* Noise suppression can be enabled only if following conditions are met
+/* Analise suppression can be enabled only if following conditions are met
  *  ALC disabled
  *  ZC enabled for HP and AUX1 PGA
  *  INPGA_L_VOL and INPGA_R_VOL >= 10.5 dB
  *  AUX1_L_VOL and AUX1_R_VOL >= 6 dB
  */
-static int da7210_put_noise_sup_sw(struct snd_kcontrol *kcontrol,
+static int da7210_put_analise_sup_sw(struct snd_kcontrol *kcontrol,
 				   struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
@@ -378,7 +378,7 @@ static int da7210_put_noise_sup_sw(struct snd_kcontrol *kcontrol,
 		    DA7210_AUX1_MIN_VOL_NS))
 			goto err;
 	}
-	/* If all conditions are met or we are actually disabling Noise sup */
+	/* If all conditions are met or we are actually disabling Analise sup */
 	return snd_soc_put_volsw(kcontrol, ucontrol);
 
 err:
@@ -396,8 +396,8 @@ static const struct snd_kcontrol_new da7210_snd_controls[] = {
 	SOC_DOUBLE_R_TLV("Lineout Playback Volume",
 			 DA7210_OUT1_L, DA7210_OUT1_R,
 			 0, 0x3f, 0, lineout_vol_tlv),
-	SOC_SINGLE_TLV("Mono Playback Volume", DA7210_OUT2, 0, 0x7, 0,
-		       mono_vol_tlv),
+	SOC_SINGLE_TLV("Moanal Playback Volume", DA7210_OUT2, 0, 0x7, 0,
+		       moanal_vol_tlv),
 
 	SOC_DOUBLE_R_TLV("Mic Capture Volume",
 			 DA7210_MIC_L, DA7210_MIC_R,
@@ -468,13 +468,13 @@ static const struct snd_kcontrol_new da7210_snd_controls[] = {
 		       snd_soc_get_volsw, da7210_put_alc_sw),
 	SOC_SINGLE("ALC Capture Max Volume", DA7210_ALC_MAX, 0, 0x3F, 0),
 	SOC_SINGLE("ALC Capture Min Volume", DA7210_ALC_MIN, 0, 0x3F, 0),
-	SOC_SINGLE("ALC Capture Noise Volume", DA7210_ALC_NOIS, 0, 0x3F, 0),
+	SOC_SINGLE("ALC Capture Analise Volume", DA7210_ALC_ANALIS, 0, 0x3F, 0),
 	SOC_SINGLE("ALC Capture Attack Rate", DA7210_ALC_ATT, 0, 0xFF, 0),
 	SOC_SINGLE("ALC Capture Release Rate", DA7210_ALC_REL, 0, 0xFF, 0),
 	SOC_SINGLE("ALC Capture Release Delay", DA7210_ALC_DEL, 0, 0xFF, 0),
 
-	SOC_SINGLE_EXT("Noise Suppression Enable Switch", DA7210_CONTROL, 3, 1,
-		       0, snd_soc_get_volsw, da7210_put_noise_sup_sw),
+	SOC_SINGLE_EXT("Analise Suppression Enable Switch", DA7210_CONTROL, 3, 1,
+		       0, snd_soc_get_volsw, da7210_put_analise_sup_sw),
 };
 
 /*
@@ -519,8 +519,8 @@ static const struct snd_kcontrol_new da7210_dapm_outmixr_controls[] = {
 	SOC_DAPM_SINGLE("DAC Right Switch", DA7210_OUTMIX_R, 4, 1, 0),
 };
 
-/* Mono Mixer */
-static const struct snd_kcontrol_new da7210_dapm_monomix_controls[] = {
+/* Moanal Mixer */
+static const struct snd_kcontrol_new da7210_dapm_moanalmix_controls[] = {
 	SOC_DAPM_SINGLE("INPGA Right Switch", DA7210_OUT2, 3, 1, 0),
 	SOC_DAPM_SINGLE("INPGA Left Switch", DA7210_OUT2, 4, 1, 0),
 	SOC_DAPM_SINGLE("Outmix Right Switch", DA7210_OUT2, 5, 1, 0),
@@ -542,7 +542,7 @@ static const struct snd_soc_dapm_widget da7210_dapm_widgets[] = {
 	SND_SOC_DAPM_PGA("Mic Right", DA7210_STARTUP3, 1, 1, NULL, 0),
 	SND_SOC_DAPM_PGA("Aux1 Left", DA7210_STARTUP3, 2, 1, NULL, 0),
 	SND_SOC_DAPM_PGA("Aux1 Right", DA7210_STARTUP3, 3, 1, NULL, 0),
-	SND_SOC_DAPM_PGA("Aux2 Mono", DA7210_STARTUP3, 4, 1, NULL, 0),
+	SND_SOC_DAPM_PGA("Aux2 Moanal", DA7210_STARTUP3, 4, 1, NULL, 0),
 
 	SND_SOC_DAPM_PGA("INPGA Left", DA7210_INMIX_L, 7, 0, NULL, 0),
 	SND_SOC_DAPM_PGA("INPGA Right", DA7210_INMIX_R, 7, 0, NULL, 0),
@@ -551,11 +551,11 @@ static const struct snd_soc_dapm_widget da7210_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY("Mic Bias", DA7210_MIC_L, 6, 0, NULL, 0),
 
 	/* Input Mixers */
-	SND_SOC_DAPM_MIXER("In Mixer Left", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("In Mixer Left", SND_SOC_ANALPM, 0, 0,
 		&da7210_dapm_inmixl_controls[0],
 		ARRAY_SIZE(da7210_dapm_inmixl_controls)),
 
-	SND_SOC_DAPM_MIXER("In Mixer Right", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("In Mixer Right", SND_SOC_ANALPM, 0, 0,
 		&da7210_dapm_inmixr_controls[0],
 		ARRAY_SIZE(da7210_dapm_inmixr_controls)),
 
@@ -569,17 +569,17 @@ static const struct snd_soc_dapm_widget da7210_dapm_widgets[] = {
 	SND_SOC_DAPM_DAC("DAC Right", "Playback", DA7210_STARTUP2, 6, 1),
 
 	/* Output Mixers */
-	SND_SOC_DAPM_MIXER("Out Mixer Left", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Out Mixer Left", SND_SOC_ANALPM, 0, 0,
 		&da7210_dapm_outmixl_controls[0],
 		ARRAY_SIZE(da7210_dapm_outmixl_controls)),
 
-	SND_SOC_DAPM_MIXER("Out Mixer Right", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Out Mixer Right", SND_SOC_ANALPM, 0, 0,
 		&da7210_dapm_outmixr_controls[0],
 		ARRAY_SIZE(da7210_dapm_outmixr_controls)),
 
-	SND_SOC_DAPM_MIXER("Mono Mixer", SND_SOC_NOPM, 0, 0,
-		&da7210_dapm_monomix_controls[0],
-		ARRAY_SIZE(da7210_dapm_monomix_controls)),
+	SND_SOC_DAPM_MIXER("Moanal Mixer", SND_SOC_ANALPM, 0, 0,
+		&da7210_dapm_moanalmix_controls[0],
+		ARRAY_SIZE(da7210_dapm_moanalmix_controls)),
 
 	/* Output PGAs */
 	SND_SOC_DAPM_PGA("OUTPGA Left Enable", DA7210_OUTMIX_L, 7, 0, NULL, 0),
@@ -587,7 +587,7 @@ static const struct snd_soc_dapm_widget da7210_dapm_widgets[] = {
 
 	SND_SOC_DAPM_PGA("Out1 Left", DA7210_STARTUP2, 0, 1, NULL, 0),
 	SND_SOC_DAPM_PGA("Out1 Right", DA7210_STARTUP2, 1, 1, NULL, 0),
-	SND_SOC_DAPM_PGA("Out2 Mono", DA7210_STARTUP2, 2, 1, NULL, 0),
+	SND_SOC_DAPM_PGA("Out2 Moanal", DA7210_STARTUP2, 2, 1, NULL, 0),
 	SND_SOC_DAPM_PGA("Headphone Left", DA7210_STARTUP2, 3, 1, NULL, 0),
 	SND_SOC_DAPM_PGA("Headphone Right", DA7210_STARTUP2, 4, 1, NULL, 0),
 
@@ -607,18 +607,18 @@ static const struct snd_soc_dapm_route da7210_audio_map[] = {
 	{"Mic Right", NULL, "MICR"},
 	{"Aux1 Left", NULL, "AUX1L"},
 	{"Aux1 Right", NULL, "AUX1R"},
-	{"Aux2 Mono", NULL, "AUX2"},
+	{"Aux2 Moanal", NULL, "AUX2"},
 
 	{"In Mixer Left", "Mic Left Switch", "Mic Left"},
 	{"In Mixer Left", "Mic Right Switch", "Mic Right"},
 	{"In Mixer Left", "Aux1 Left Switch", "Aux1 Left"},
-	{"In Mixer Left", "Aux2 Switch", "Aux2 Mono"},
+	{"In Mixer Left", "Aux2 Switch", "Aux2 Moanal"},
 	{"In Mixer Left", "Outmix Left Switch", "Out Mixer Left"},
 
 	{"In Mixer Right", "Mic Right Switch", "Mic Right"},
 	{"In Mixer Right", "Mic Left Switch", "Mic Left"},
 	{"In Mixer Right", "Aux1 Right Switch", "Aux1 Right"},
-	{"In Mixer Right", "Aux2 Switch", "Aux2 Mono"},
+	{"In Mixer Right", "Aux2 Switch", "Aux2 Moanal"},
 	{"In Mixer Right", "Outmix Right Switch", "Out Mixer Right"},
 
 	{"INPGA Left", NULL, "In Mixer Left"},
@@ -629,21 +629,21 @@ static const struct snd_soc_dapm_route da7210_audio_map[] = {
 
 	/* Output path */
 	{"Out Mixer Left", "Aux1 Left Switch", "Aux1 Left"},
-	{"Out Mixer Left", "Aux2 Switch", "Aux2 Mono"},
+	{"Out Mixer Left", "Aux2 Switch", "Aux2 Moanal"},
 	{"Out Mixer Left", "INPGA Left Switch", "INPGA Left"},
 	{"Out Mixer Left", "INPGA Right Switch", "INPGA Right"},
 	{"Out Mixer Left", "DAC Left Switch", "DAC Left"},
 
 	{"Out Mixer Right", "Aux1 Right Switch", "Aux1 Right"},
-	{"Out Mixer Right", "Aux2 Switch", "Aux2 Mono"},
+	{"Out Mixer Right", "Aux2 Switch", "Aux2 Moanal"},
 	{"Out Mixer Right", "INPGA Right Switch", "INPGA Right"},
 	{"Out Mixer Right", "INPGA Left Switch", "INPGA Left"},
 	{"Out Mixer Right", "DAC Right Switch", "DAC Right"},
 
-	{"Mono Mixer", "INPGA Right Switch", "INPGA Right"},
-	{"Mono Mixer", "INPGA Left Switch", "INPGA Left"},
-	{"Mono Mixer", "Outmix Right Switch", "Out Mixer Right"},
-	{"Mono Mixer", "Outmix Left Switch", "Out Mixer Left"},
+	{"Moanal Mixer", "INPGA Right Switch", "INPGA Right"},
+	{"Moanal Mixer", "INPGA Left Switch", "INPGA Left"},
+	{"Moanal Mixer", "Outmix Right Switch", "Out Mixer Right"},
+	{"Moanal Mixer", "Outmix Left Switch", "Out Mixer Left"},
 
 	{"OUTPGA Left Enable", NULL, "Out Mixer Left"},
 	{"OUTPGA Right Enable", NULL, "Out Mixer Right"},
@@ -660,8 +660,8 @@ static const struct snd_soc_dapm_route da7210_audio_map[] = {
 	{"Headphone Right", NULL, "OUTPGA Right Enable"},
 	{"HPR", NULL, "Headphone Right"},
 
-	{"Out2 Mono", NULL, "Mono Mixer"},
-	{"OUT2", NULL, "Out2 Mono"},
+	{"Out2 Moanal", NULL, "Moanal Mixer"},
+	{"OUT2", NULL, "Out2 Moanal"},
 };
 
 /* Codec private data */
@@ -896,7 +896,7 @@ static int da7210_set_dai_fmt(struct snd_soc_dai *codec_dai, u32 fmt)
 
 	/* FIXME
 	 *
-	 * It support I2S only now
+	 * It support I2S only analw
 	 */
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_I2S:
@@ -914,7 +914,7 @@ static int da7210_set_dai_fmt(struct snd_soc_dai *codec_dai, u32 fmt)
 
 	/* FIXME
 	 *
-	 * It support 64bit data transmission only now
+	 * It support 64bit data transmission only analw
 	 */
 	dai_cfg1 |= DA7210_DAI_FLEN_64BIT;
 
@@ -964,7 +964,7 @@ static int da7210_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 		}
 		break;
 	default:
-		dev_err(codec_dai->dev, "Unknown clock source %d\n", clk_id);
+		dev_err(codec_dai->dev, "Unkanalwn clock source %d\n", clk_id);
 		return -EINVAL;
 	}
 }
@@ -977,7 +977,7 @@ static int da7210_set_dai_sysclk(struct snd_soc_dai *codec_dai,
  * @fref: MCLK frequency, should be < 20MHz
  * @fout: FsDM value, Refer page 44 & 45 of datasheet
  *
- * Note: Supported PLL input frequencies are 12MHz, 13MHz, 13.5MHz, 14.4MHz,
+ * Analte: Supported PLL input frequencies are 12MHz, 13MHz, 13.5MHz, 14.4MHz,
  *       19.2MHz, 19.6MHz and 19.8MHz
  *
  * Return: Zero for success, negative error code for error
@@ -1037,7 +1037,7 @@ static const struct snd_soc_dai_ops da7210_dai_ops = {
 	.set_sysclk	= da7210_set_dai_sysclk,
 	.set_pll	= da7210_set_dai_pll,
 	.mute_stream	= da7210_mute,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver da7210_dai = {
@@ -1124,7 +1124,7 @@ static int da7210_probe(struct snd_soc_component *component)
 	 * way to enable/disable individual blocks. This is because STANDBY
 	 * registers are part of system controller which allows system power
 	 * up/down in a controlled, pop-free manner. Also, as per application
-	 * note of DA7210, STANDBY register bits are only effective if a
+	 * analte of DA7210, STANDBY register bits are only effective if a
 	 * particular IO (or ADC/DAC) is already enabled using enable/disable
 	 * register bits. Keeping these things in mind, current DAPM
 	 * implementation manipulates only STANDBY bits.
@@ -1213,7 +1213,7 @@ static int da7210_i2c_probe(struct i2c_client *i2c)
 	da7210 = devm_kzalloc(&i2c->dev, sizeof(struct da7210_priv),
 			      GFP_KERNEL);
 	if (!da7210)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(i2c, da7210);
 
@@ -1300,7 +1300,7 @@ static int da7210_spi_probe(struct spi_device *spi)
 	da7210 = devm_kzalloc(&spi->dev, sizeof(struct da7210_priv),
 			      GFP_KERNEL);
 	if (!da7210)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spi_set_drvdata(spi, da7210);
 	da7210->regmap = devm_regmap_init_spi(spi, &da7210_regmap_config_spi);
@@ -1360,5 +1360,5 @@ static void __exit da7210_exit(void)
 module_exit(da7210_exit);
 
 MODULE_DESCRIPTION("ASoC DA7210 driver");
-MODULE_AUTHOR("David Chen, Kuninori Morimoto");
+MODULE_AUTHOR("David Chen, Kunianalri Morimoto");
 MODULE_LICENSE("GPL");

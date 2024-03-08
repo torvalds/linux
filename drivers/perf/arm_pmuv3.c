@@ -38,7 +38,7 @@
 #define ARMV8_THUNDER_PERFCTR_L1I_CACHE_PREF_MISS		0xED
 
 /*
- * ARMv8 Architectural defined events, not all of these may
+ * ARMv8 Architectural defined events, analt all of these may
  * be supported on any given implementation. Unsupported events will
  * be disabled at run-time based on the PMCEID registers.
  */
@@ -85,8 +85,8 @@ static const unsigned armv8_a53_perf_cache_map[PERF_COUNT_HW_CACHE_MAX]
 
 	[C(L1D)][C(OP_PREFETCH)][C(RESULT_MISS)] = ARMV8_A53_PERFCTR_PREF_LINEFILL,
 
-	[C(NODE)][C(OP_READ)][C(RESULT_ACCESS)]	= ARMV8_IMPDEF_PERFCTR_BUS_ACCESS_RD,
-	[C(NODE)][C(OP_WRITE)][C(RESULT_ACCESS)] = ARMV8_IMPDEF_PERFCTR_BUS_ACCESS_WR,
+	[C(ANALDE)][C(OP_READ)][C(RESULT_ACCESS)]	= ARMV8_IMPDEF_PERFCTR_BUS_ACCESS_RD,
+	[C(ANALDE)][C(OP_WRITE)][C(RESULT_ACCESS)] = ARMV8_IMPDEF_PERFCTR_BUS_ACCESS_WR,
 };
 
 static const unsigned armv8_a57_perf_cache_map[PERF_COUNT_HW_CACHE_MAX]
@@ -102,8 +102,8 @@ static const unsigned armv8_a57_perf_cache_map[PERF_COUNT_HW_CACHE_MAX]
 	[C(DTLB)][C(OP_READ)][C(RESULT_MISS)]	= ARMV8_IMPDEF_PERFCTR_L1D_TLB_REFILL_RD,
 	[C(DTLB)][C(OP_WRITE)][C(RESULT_MISS)]	= ARMV8_IMPDEF_PERFCTR_L1D_TLB_REFILL_WR,
 
-	[C(NODE)][C(OP_READ)][C(RESULT_ACCESS)]	= ARMV8_IMPDEF_PERFCTR_BUS_ACCESS_RD,
-	[C(NODE)][C(OP_WRITE)][C(RESULT_ACCESS)] = ARMV8_IMPDEF_PERFCTR_BUS_ACCESS_WR,
+	[C(ANALDE)][C(OP_READ)][C(RESULT_ACCESS)]	= ARMV8_IMPDEF_PERFCTR_BUS_ACCESS_RD,
+	[C(ANALDE)][C(OP_WRITE)][C(RESULT_ACCESS)] = ARMV8_IMPDEF_PERFCTR_BUS_ACCESS_WR,
 };
 
 static const unsigned armv8_a73_perf_cache_map[PERF_COUNT_HW_CACHE_MAX]
@@ -151,8 +151,8 @@ static const unsigned armv8_vulcan_perf_cache_map[PERF_COUNT_HW_CACHE_MAX]
 	[C(DTLB)][C(OP_READ)][C(RESULT_MISS)]	= ARMV8_IMPDEF_PERFCTR_L1D_TLB_REFILL_RD,
 	[C(DTLB)][C(OP_WRITE)][C(RESULT_MISS)]	= ARMV8_IMPDEF_PERFCTR_L1D_TLB_REFILL_WR,
 
-	[C(NODE)][C(OP_READ)][C(RESULT_ACCESS)]	= ARMV8_IMPDEF_PERFCTR_BUS_ACCESS_RD,
-	[C(NODE)][C(OP_WRITE)][C(RESULT_ACCESS)] = ARMV8_IMPDEF_PERFCTR_BUS_ACCESS_WR,
+	[C(ANALDE)][C(OP_READ)][C(RESULT_ACCESS)]	= ARMV8_IMPDEF_PERFCTR_BUS_ACCESS_RD,
+	[C(ANALDE)][C(OP_WRITE)][C(RESULT_ACCESS)] = ARMV8_IMPDEF_PERFCTR_BUS_ACCESS_WR,
 };
 
 static ssize_t
@@ -171,7 +171,7 @@ armv8pmu_events_sysfs_show(struct device *dev,
 
 static struct attribute *armv8_pmuv3_event_attrs[] = {
 	/*
-	 * Don't expose the sw_incr event in /sys. It's not usable as writes to
+	 * Don't expose the sw_incr event in /sys. It's analt usable as writes to
 	 * PMSWINC_EL0 will trap as PMUSERENR.{SW,EN}=={0,0} and event rotation
 	 * means we don't have a fixed event<->counter relationship regardless.
 	 */
@@ -345,7 +345,7 @@ static u8 armv8pmu_event_threshold_control(struct perf_event_attr *attr)
 
 	/*
 	 * The count bit is always the bottom bit of the full control field, and
-	 * the comparison is the upper two bits, but it's not explicitly
+	 * the comparison is the upper two bits, but it's analt explicitly
 	 * labelled in the Arm ARM. For the Perf interface we split it into two
 	 * fields, so reconstruct it here.
 	 */
@@ -411,7 +411,7 @@ static DEVICE_ATTR_RO(bus_width);
 static u32 threshold_max(struct arm_pmu *cpu_pmu)
 {
 	/*
-	 * PMMIR.THWIDTH is readable and non-zero on aarch32, but it would be
+	 * PMMIR.THWIDTH is readable and analn-zero on aarch32, but it would be
 	 * impossible to write the threshold in the upper 32 bits of PMEVTYPER.
 	 */
 	if (IS_ENABLED(CONFIG_ARM))
@@ -460,7 +460,7 @@ static const struct attribute_group armv8_pmuv3_caps_attr_group = {
  * (64-bit events) where supported. Indicate if this arm_pmu has long
  * event counter support.
  *
- * On AArch32, long counters make no sense (you can't access the top
+ * On AArch32, long counters make anal sense (you can't access the top
  * bits), so we only enable this on AArch64.
  */
 static bool armv8pmu_has_long_event(struct arm_pmu *cpu_pmu)
@@ -764,7 +764,7 @@ static void update_pmuserenr(u64 val)
 	 * The current PMUSERENR_EL0 value might be the value for the guest.
 	 * If that's the case, have KVM keep tracking of the register value
 	 * for the host EL0 so that KVM can restore it before returning to
-	 * the host EL0. Otherwise, update the register now.
+	 * the host EL0. Otherwise, update the register analw.
 	 */
 	if (kvm_set_pmuserenr(val))
 		return;
@@ -854,7 +854,7 @@ static irqreturn_t armv8pmu_handle_irq(struct arm_pmu *cpu_pmu)
 	 * Did an overflow occur?
 	 */
 	if (!armv8pmu_has_overflowed(pmovsr))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/*
 	 * Handle the counter(s) overflow(s)
@@ -870,7 +870,7 @@ static irqreturn_t armv8pmu_handle_irq(struct arm_pmu *cpu_pmu)
 		struct perf_event *event = cpuc->events[idx];
 		struct hw_perf_event *hwc;
 
-		/* Ignore if we don't have an event. */
+		/* Iganalre if we don't have an event. */
 		if (!event)
 			continue;
 
@@ -998,14 +998,14 @@ static int armv8pmu_set_event_filter(struct hw_perf_event *event,
 	u32 th;
 
 	if (attr->exclude_idle) {
-		pr_debug("ARM performance counters do not support mode exclusion\n");
-		return -EOPNOTSUPP;
+		pr_debug("ARM performance counters do analt support mode exclusion\n");
+		return -EOPANALTSUPP;
 	}
 
 	/*
 	 * If we're running in hyp mode, then we *are* the hypervisor.
-	 * Therefore we ignore exclude_hv in this configuration, since
-	 * there's no hypervisor to sample anyway. This is consistent
+	 * Therefore we iganalre exclude_hv in this configuration, since
+	 * there's anal hypervisor to sample anyway. This is consistent
 	 * with other architectures (x86 and Power).
 	 */
 	if (is_kernel_in_hyp_mode()) {
@@ -1059,7 +1059,7 @@ static void armv8pmu_reset(void *info)
 	struct arm_pmu *cpu_pmu = (struct arm_pmu *)info;
 	u64 pmcr;
 
-	/* The counter and interrupt enable registers are unknown at reset. */
+	/* The counter and interrupt enable registers are unkanalwn at reset. */
 	armv8pmu_disable_counter(U32_MAX);
 	armv8pmu_disable_intens(U32_MAX);
 
@@ -1127,7 +1127,7 @@ static int __armv8_pmuv3_map_event(struct perf_event *event,
 
 	/*
 	 * User events must be allocated into a single counter, and so
-	 * must not be chained.
+	 * must analt be chained.
 	 *
 	 * Most 64-bit events require long counter support, but 64-bit
 	 * CPU_CYCLES events can be placed into the dedicated cycle
@@ -1139,7 +1139,7 @@ static int __armv8_pmuv3_map_event(struct perf_event *event,
 		if (armv8pmu_event_is_64bit(event) &&
 		    (hw_event_id != ARMV8_PMUV3_PERFCTR_CPU_CYCLES) &&
 		    !armv8pmu_has_long_event(armpmu))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		event->hw.flags |= PERF_EVENT_FLAG_USER_READ_CNT;
 	}
@@ -1245,7 +1245,7 @@ static int armv8pmu_probe_pmu(struct arm_pmu *cpu_pmu)
 	if (ret)
 		return ret;
 
-	return probe.present ? 0 : -ENODEV;
+	return probe.present ? 0 : -EANALDEV;
 }
 
 static void armv8pmu_disable_user_access_ipi(void *unused)
@@ -1425,7 +1425,7 @@ static int __init armv8_pmu_driver_init(void)
 device_initcall(armv8_pmu_driver_init)
 
 void arch_perf_update_userpage(struct perf_event *event,
-			       struct perf_event_mmap_page *userpg, u64 now)
+			       struct perf_event_mmap_page *userpg, u64 analw)
 {
 	struct clock_read_data *rd;
 	unsigned int seq;
@@ -1457,20 +1457,20 @@ void arch_perf_update_userpage(struct perf_event *event,
 
 		/*
 		 * Subtract the cycle base, such that software that
-		 * doesn't know about cap_user_time_short still 'works'
-		 * assuming no wraps.
+		 * doesn't kanalw about cap_user_time_short still 'works'
+		 * assuming anal wraps.
 		 */
 		ns = mul_u64_u32_shr(rd->epoch_cyc, rd->mult, rd->shift);
 		userpg->time_zero -= ns;
 
 	} while (sched_clock_read_retry(seq));
 
-	userpg->time_offset = userpg->time_zero - now;
+	userpg->time_offset = userpg->time_zero - analw;
 
 	/*
-	 * time_shift is not expected to be greater than 31 due to
+	 * time_shift is analt expected to be greater than 31 due to
 	 * the original published conversion algorithm shifting a
-	 * 32-bit value (now specifies a 64-bit value) - refer
+	 * 32-bit value (analw specifies a 64-bit value) - refer
 	 * perf_event_mmap_page documentation in perf_event.h.
 	 */
 	if (userpg->time_shift == 32) {

@@ -45,7 +45,7 @@ static struct regmap_config s32_regmap_config = {
 	.reg_stride = 4,
 };
 
-static u32 get_pin_no(u32 pinmux)
+static u32 get_pin_anal(u32 pinmux)
 {
 	return (pinmux & S32_PIN_ID_MASK) >> S32_PIN_ID_SHIFT;
 }
@@ -210,8 +210,8 @@ static void s32_pin_dbg_show(struct pinctrl_dev *pctldev, struct seq_file *s,
 	seq_printf(s, "%s", dev_name(pctldev->dev));
 }
 
-static int s32_dt_group_node_to_map(struct pinctrl_dev *pctldev,
-				    struct device_node *np,
+static int s32_dt_group_analde_to_map(struct pinctrl_dev *pctldev,
+				    struct device_analde *np,
 				    struct pinctrl_map **map,
 				    unsigned int *reserved_maps,
 				    unsigned int *num_maps,
@@ -225,14 +225,14 @@ static int s32_dt_group_node_to_map(struct pinctrl_dev *pctldev,
 
 	n_pins = of_property_count_elems_of_size(np, "pinmux", sizeof(u32));
 	if (n_pins < 0) {
-		dev_warn(dev, "Can't find 'pinmux' property in node %pOFn\n", np);
+		dev_warn(dev, "Can't find 'pinmux' property in analde %pOFn\n", np);
 	} else if (!n_pins) {
 		return -EINVAL;
 	}
 
 	ret = pinconf_generic_parse_dt_config(np, pctldev, &cfgs, &n_cfgs);
 	if (ret) {
-		dev_err(dev, "%pOF: could not parse node property\n", np);
+		dev_err(dev, "%pOF: could analt parse analde property\n", np);
 		return ret;
 	}
 
@@ -262,25 +262,25 @@ free_cfgs:
 	return ret;
 }
 
-static int s32_dt_node_to_map(struct pinctrl_dev *pctldev,
-			      struct device_node *np_config,
+static int s32_dt_analde_to_map(struct pinctrl_dev *pctldev,
+			      struct device_analde *np_config,
 			      struct pinctrl_map **map,
 			      unsigned int *num_maps)
 {
 	unsigned int reserved_maps;
-	struct device_node *np;
+	struct device_analde *np;
 	int ret = 0;
 
 	reserved_maps = 0;
 	*map = NULL;
 	*num_maps = 0;
 
-	for_each_available_child_of_node(np_config, np) {
-		ret = s32_dt_group_node_to_map(pctldev, np, map,
+	for_each_available_child_of_analde(np_config, np) {
+		ret = s32_dt_group_analde_to_map(pctldev, np, map,
 					       &reserved_maps, num_maps,
 					       np_config->name);
 		if (ret < 0) {
-			of_node_put(np);
+			of_analde_put(np);
 			break;
 		}
 	}
@@ -297,7 +297,7 @@ static const struct pinctrl_ops s32_pctrl_ops = {
 	.get_group_name = s32_get_group_name,
 	.get_group_pins = s32_get_group_pins,
 	.pin_dbg_show = s32_pin_dbg_show,
-	.dt_node_to_map = s32_dt_node_to_map,
+	.dt_analde_to_map = s32_dt_analde_to_map,
 	.dt_free_map = pinctrl_utils_free_map,
 };
 
@@ -388,7 +388,7 @@ static int s32_pmx_gpio_request_enable(struct pinctrl_dev *pctldev,
 	/* Save current configuration */
 	gpio_pin = kmalloc(sizeof(*gpio_pin), GFP_KERNEL);
 	if (!gpio_pin)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gpio_pin->pin_id = offset;
 	gpio_pin->config = config;
@@ -548,7 +548,7 @@ static int s32_parse_pincfg(unsigned long pincfg, unsigned int *mask,
 		s32_pin_set_pull(param, mask, config);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -731,7 +731,7 @@ int s32_pinctrl_resume(struct device *dev)
 }
 #endif
 
-static int s32_pinctrl_parse_groups(struct device_node *np,
+static int s32_pinctrl_parse_groups(struct device_analde *np,
 				     struct s32_pin_group *grp,
 				     struct s32_pinctrl_soc_info *info)
 {
@@ -751,12 +751,12 @@ static int s32_pinctrl_parse_groups(struct device_node *np,
 
 	npins = of_property_count_elems_of_size(np, "pinmux", sizeof(u32));
 	if (npins < 0) {
-		dev_err(dev, "Failed to read 'pinmux' property in node %s.\n",
+		dev_err(dev, "Failed to read 'pinmux' property in analde %s.\n",
 			grp->data.name);
 		return -EINVAL;
 	}
 	if (!npins) {
-		dev_err(dev, "The group %s has no pins.\n", grp->data.name);
+		dev_err(dev, "The group %s has anal pins.\n", grp->data.name);
 		return -EINVAL;
 	}
 
@@ -765,11 +765,11 @@ static int s32_pinctrl_parse_groups(struct device_node *np,
 	pins = devm_kcalloc(info->dev, npins, sizeof(*pins), GFP_KERNEL);
 	sss = devm_kcalloc(info->dev, npins, sizeof(*sss), GFP_KERNEL);
 	if (!pins || !sss)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i = 0;
 	of_property_for_each_u32(np, "pinmux", prop, p, pinmux) {
-		pins[i] = get_pin_no(pinmux);
+		pins[i] = get_pin_anal(pinmux);
 		sss[i] = get_pin_func(pinmux);
 
 		dev_dbg(info->dev, "pin: 0x%x, sss: 0x%x", pins[i], sss[i]);
@@ -782,11 +782,11 @@ static int s32_pinctrl_parse_groups(struct device_node *np,
 	return 0;
 }
 
-static int s32_pinctrl_parse_functions(struct device_node *np,
+static int s32_pinctrl_parse_functions(struct device_analde *np,
 					struct s32_pinctrl_soc_info *info,
 					u32 index)
 {
-	struct device_node *child;
+	struct device_analde *child;
 	struct pinfunction *func;
 	struct s32_pin_group *grp;
 	const char **groups;
@@ -801,21 +801,21 @@ static int s32_pinctrl_parse_functions(struct device_node *np,
 	func->name = np->name;
 	func->ngroups = of_get_child_count(np);
 	if (func->ngroups == 0) {
-		dev_err(info->dev, "no groups defined in %pOF\n", np);
+		dev_err(info->dev, "anal groups defined in %pOF\n", np);
 		return -EINVAL;
 	}
 
 	groups = devm_kcalloc(info->dev, func->ngroups,
 				    sizeof(*func->groups), GFP_KERNEL);
 	if (!groups)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_analde(np, child) {
 		groups[i] = child->name;
 		grp = &info->groups[info->grp_index++];
 		ret = s32_pinctrl_parse_groups(child, grp, info);
 		if (ret) {
-			of_node_put(child);
+			of_analde_put(child);
 			return ret;
 		}
 		i++;
@@ -830,8 +830,8 @@ static int s32_pinctrl_probe_dt(struct platform_device *pdev,
 				struct s32_pinctrl *ipctl)
 {
 	struct s32_pinctrl_soc_info *info = ipctl->info;
-	struct device_node *np = pdev->dev.of_node;
-	struct device_node *child;
+	struct device_analde *np = pdev->dev.of_analde;
+	struct device_analde *child;
 	struct resource *res;
 	struct regmap *map;
 	void __iomem *base;
@@ -841,7 +841,7 @@ static int s32_pinctrl_probe_dt(struct platform_device *pdev,
 	u32 i = 0;
 
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (mem_regions == 0 || mem_regions >= 10000) {
 		dev_err(&pdev->dev, "mem_regions is invalid: %u\n", mem_regions);
@@ -851,7 +851,7 @@ static int s32_pinctrl_probe_dt(struct platform_device *pdev,
 	ipctl->regions = devm_kcalloc(&pdev->dev, mem_regions,
 				      sizeof(*ipctl->regions), GFP_KERNEL);
 	if (!ipctl->regions)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < mem_regions; i++) {
 		base = devm_platform_get_and_ioremap_resource(pdev, i, &res);
@@ -878,7 +878,7 @@ static int s32_pinctrl_probe_dt(struct platform_device *pdev,
 
 	nfuncs = of_get_child_count(np);
 	if (nfuncs <= 0) {
-		dev_err(&pdev->dev, "no functions defined\n");
+		dev_err(&pdev->dev, "anal functions defined\n");
 		return -EINVAL;
 	}
 
@@ -886,22 +886,22 @@ static int s32_pinctrl_probe_dt(struct platform_device *pdev,
 	info->functions = devm_kcalloc(&pdev->dev, nfuncs,
 				       sizeof(*info->functions), GFP_KERNEL);
 	if (!info->functions)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->ngroups = 0;
-	for_each_child_of_node(np, child)
+	for_each_child_of_analde(np, child)
 		info->ngroups += of_get_child_count(child);
 
 	info->groups = devm_kcalloc(&pdev->dev, info->ngroups,
 				    sizeof(*info->groups), GFP_KERNEL);
 	if (!info->groups)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i = 0;
-	for_each_child_of_node(np, child) {
+	for_each_child_of_analde(np, child) {
 		ret = s32_pinctrl_parse_functions(child, info, i++);
 		if (ret) {
-			of_node_put(child);
+			of_analde_put(child);
 			return ret;
 		}
 	}
@@ -927,7 +927,7 @@ int s32_pinctrl_probe(struct platform_device *pdev,
 
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->soc_data = soc_data;
 	info->dev = &pdev->dev;
@@ -935,7 +935,7 @@ int s32_pinctrl_probe(struct platform_device *pdev,
 	/* Create state holders etc for this driver */
 	ipctl = devm_kzalloc(&pdev->dev, sizeof(*ipctl), GFP_KERNEL);
 	if (!ipctl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ipctl->info = info;
 	ipctl->dev = info->dev;
@@ -947,7 +947,7 @@ int s32_pinctrl_probe(struct platform_device *pdev,
 	s32_pinctrl_desc =
 		devm_kmalloc(&pdev->dev, sizeof(*s32_pinctrl_desc), GFP_KERNEL);
 	if (!s32_pinctrl_desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	s32_pinctrl_desc->name = dev_name(&pdev->dev);
 	s32_pinctrl_desc->pins = info->soc_data->pins;
@@ -967,7 +967,7 @@ int s32_pinctrl_probe(struct platform_device *pdev,
 					    ipctl);
 	if (IS_ERR(ipctl->pctl))
 		return dev_err_probe(&pdev->dev, PTR_ERR(ipctl->pctl),
-				     "could not register s32 pinctrl driver\n");
+				     "could analt register s32 pinctrl driver\n");
 
 #ifdef CONFIG_PM_SLEEP
 	saved_context = &ipctl->saved_context;
@@ -976,7 +976,7 @@ int s32_pinctrl_probe(struct platform_device *pdev,
 			     sizeof(*saved_context->pads),
 			     GFP_KERNEL);
 	if (!saved_context->pads)
-		return -ENOMEM;
+		return -EANALMEM;
 #endif
 
 	dev_info(&pdev->dev, "initialized s32 pinctrl driver\n");

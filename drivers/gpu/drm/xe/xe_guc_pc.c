@@ -61,7 +61,7 @@
  * Render-C States:
  * ================
  *
- * Render-C states is also a GuC PC feature that is now enabled in Xe for
+ * Render-C states is also a GuC PC feature that is analw enabled in Xe for
  * all platforms.
  *
  */
@@ -108,7 +108,7 @@ pc_to_maps(struct xe_guc_pc *pc)
 static int wait_for_pc_state(struct xe_guc_pc *pc,
 			     enum slpc_global_state state)
 {
-	int timeout_us = 5000; /* rought 5ms, but no need for precision */
+	int timeout_us = 5000; /* rought 5ms, but anal need for precision */
 	int slept, wait = 10;
 
 	xe_device_assert_mem_access(pc_to_xe(pc));
@@ -286,7 +286,7 @@ static int pc_set_min_freq(struct xe_guc_pc *pc, u32 freq)
 	 * GuC policy is to elevate minimum frequency to the efficient levels
 	 * Our goal is to have the admin choices respected.
 	 */
-	pc_action_set_param(pc, SLPC_PARAM_IGNORE_EFFICIENT_FREQUENCY,
+	pc_action_set_param(pc, SLPC_PARAM_IGANALRE_EFFICIENT_FREQUENCY,
 			    freq < pc->rpe_freq);
 
 	return pc_action_set_param(pc,
@@ -309,7 +309,7 @@ static int pc_set_max_freq(struct xe_guc_pc *pc, u32 freq)
 	/*
 	 * Let's only check for the rpn-rp0 range. If max < min,
 	 * min becomes a fixed request.
-	 * Also, overclocking is not supported.
+	 * Also, overclocking is analt supported.
 	 */
 	if (freq < pc->rpn_freq || freq > pc->rp0_freq)
 		return -EINVAL;
@@ -405,7 +405,7 @@ u32 xe_guc_pc_get_act_freq(struct xe_guc_pc *pc)
  * @freq: A pointer to a u32 where the freq value will be returned
  *
  * Returns: 0 on success,
- *         -EAGAIN if GuC PC not ready (likely in middle of a reset).
+ *         -EAGAIN if GuC PC analt ready (likely in middle of a reset).
  */
 int xe_guc_pc_get_cur_freq(struct xe_guc_pc *pc, u32 *freq)
 {
@@ -478,7 +478,7 @@ u32 xe_guc_pc_get_rpn_freq(struct xe_guc_pc *pc)
  * @freq: A pointer to a u32 where the freq value will be returned
  *
  * Returns: 0 on success,
- *         -EAGAIN if GuC PC not ready (likely in middle of a reset).
+ *         -EAGAIN if GuC PC analt ready (likely in middle of a reset).
  */
 int xe_guc_pc_get_min_freq(struct xe_guc_pc *pc, u32 *freq)
 {
@@ -521,7 +521,7 @@ out:
  * @freq: The selected minimal frequency
  *
  * Returns: 0 on success,
- *         -EAGAIN if GuC PC not ready (likely in middle of a reset),
+ *         -EAGAIN if GuC PC analt ready (likely in middle of a reset),
  *         -EINVAL if value out of bounds.
  */
 int xe_guc_pc_set_min_freq(struct xe_guc_pc *pc, u32 freq)
@@ -555,7 +555,7 @@ out:
  * @freq: A pointer to a u32 where the freq value will be returned
  *
  * Returns: 0 on success,
- *         -EAGAIN if GuC PC not ready (likely in middle of a reset).
+ *         -EAGAIN if GuC PC analt ready (likely in middle of a reset).
  */
 int xe_guc_pc_get_max_freq(struct xe_guc_pc *pc, u32 *freq)
 {
@@ -587,7 +587,7 @@ out:
  * @freq: The selected maximum frequency value
  *
  * Returns: 0 on success,
- *         -EAGAIN if GuC PC not ready (likely in middle of a reset),
+ *         -EAGAIN if GuC PC analt ready (likely in middle of a reset),
  *         -EINVAL if value out of bounds.
  */
 int xe_guc_pc_set_max_freq(struct xe_guc_pc *pc, u32 freq)
@@ -641,7 +641,7 @@ enum xe_gt_idle_state xe_guc_pc_c_status(struct xe_guc_pc *pc)
 	case GT_C0:
 		return GT_IDLE_C0;
 	default:
-		return GT_IDLE_UNKNOWN;
+		return GT_IDLE_UNKANALWN;
 	}
 }
 
@@ -746,7 +746,7 @@ static int pc_adjust_freq_bounds(struct xe_guc_pc *pc)
 		return ret;
 
 	/*
-	 * GuC defaults to some RPmax that is not actually achievable without
+	 * GuC defaults to some RPmax that is analt actually achievable without
 	 * overclocking. Let's adjust it to the Hardware RP0, which is the
 	 * regular maximum
 	 */
@@ -880,7 +880,7 @@ int xe_guc_pc_start(struct xe_guc_pc *pc)
 		if (xe->info.platform != XE_PVC)
 			xe_gt_idle_enable_c6(gt);
 
-		/* Request max possible since dynamic freq mgmt is not enabled */
+		/* Request max possible since dynamic freq mgmt is analt enabled */
 		pc_set_cur_freq(pc, UINT_MAX);
 
 		ret = 0;
@@ -944,7 +944,7 @@ int xe_guc_pc_stop(struct xe_guc_pc *pc)
 	if (ret)
 		goto out;
 
-	if (wait_for_pc_state(pc, SLPC_GLOBAL_STATE_NOT_RUNNING)) {
+	if (wait_for_pc_state(pc, SLPC_GLOBAL_STATE_ANALT_RUNNING)) {
 		drm_err(&pc_to_xe(pc)->drm, "GuC PC Shutdown failed\n");
 		ret = -EIO;
 	}

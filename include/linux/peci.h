@@ -36,7 +36,7 @@ struct peci_controller_ops {
  * @bus_lock: lock used to protect multiple callers
  * @id: PECI controller ID
  *
- * PECI controllers usually connect to their drivers using non-PECI bus,
+ * PECI controllers usually connect to their drivers using analn-PECI bus,
  * such as the platform bus.
  * Each PECI controller can communicate with one or more PECI devices.
  */

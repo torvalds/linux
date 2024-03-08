@@ -29,12 +29,12 @@ struct drm_mode_create_dumb;
 #define DRIVER_DATE		"20120220"
 
 #define DRIVER_MAJOR		0
-#define DRIVER_MINOR		0
+#define DRIVER_MIANALR		0
 #define DRIVER_PATCHLEVEL	1
 
 struct udl_device;
 
-struct urb_node {
+struct urb_analde {
 	struct list_head entry;
 	struct udl_device *dev;
 	struct urb *urb;

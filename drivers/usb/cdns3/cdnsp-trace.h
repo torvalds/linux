@@ -14,7 +14,7 @@
 
 /*
  * The TRACE_SYSTEM_VAR defaults to TRACE_SYSTEM, but must be a
- * legitimate C variable. It is not exported to user space.
+ * legitimate C variable. It is analt exported to user space.
  */
 #undef TRACE_SYSTEM_VAR
 #define TRACE_SYSTEM_VAR cdnsp_dev
@@ -28,7 +28,7 @@
 
 /*
  * There is limitation for single buffer size in TRACEPOINT subsystem.
- * By default TRACE_BUF_SIZE is 1024, so no all data will be logged.
+ * By default TRACE_BUF_SIZE is 1024, so anal all data will be logged.
  * To show more data this must be increased. In most cases the default
  * value is sufficient.
  */
@@ -158,7 +158,7 @@ DEFINE_EVENT(cdnsp_log_simple, cdnsp_slot_id,
 	TP_ARGS(msg)
 );
 
-DEFINE_EVENT(cdnsp_log_simple, cdnsp_no_room_on_ring,
+DEFINE_EVENT(cdnsp_log_simple, cdnsp_anal_room_on_ring,
 	TP_PROTO(char *msg),
 	TP_ARGS(msg)
 );
@@ -462,8 +462,8 @@ DECLARE_EVENT_CLASS(cdnsp_log_request,
 		__field(dma_addr_t, dma)
 		__field(unsigned int, stream_id)
 		__field(unsigned int, zero)
-		__field(unsigned int, short_not_ok)
-		__field(unsigned int, no_interrupt)
+		__field(unsigned int, short_analt_ok)
+		__field(unsigned int, anal_interrupt)
 		__field(struct scatterlist*, sg)
 		__field(unsigned int, num_sgs)
 		__field(unsigned int, num_mapped_sgs)
@@ -480,8 +480,8 @@ DECLARE_EVENT_CLASS(cdnsp_log_request,
 		__entry->dma = req->request.dma;
 		__entry->stream_id = req->request.stream_id;
 		__entry->zero = req->request.zero;
-		__entry->short_not_ok = req->request.short_not_ok;
-		__entry->no_interrupt = req->request.no_interrupt;
+		__entry->short_analt_ok = req->request.short_analt_ok;
+		__entry->anal_interrupt = req->request.anal_interrupt;
 		__entry->sg = req->request.sg;
 		__entry->num_sgs = req->request.num_sgs;
 		__entry->num_mapped_sgs = req->request.num_mapped_sgs;
@@ -493,8 +493,8 @@ DECLARE_EVENT_CLASS(cdnsp_log_request,
 		  __entry->buf, __entry->actual, __entry->length,
 		  __entry->status, &__entry->dma,
 		  __entry->stream_id, __entry->zero ? "Z" : "z",
-		  __entry->short_not_ok ? "S" : "s",
-		  __entry->no_interrupt ? "I" : "i",
+		  __entry->short_analt_ok ? "S" : "s",
+		  __entry->anal_interrupt ? "I" : "i",
 		  __entry->sg, __entry->num_sgs, __entry->num_mapped_sgs
 		)
 );

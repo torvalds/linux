@@ -111,7 +111,7 @@ static int iomemtest(struct intel_memory_region *mem,
 	 * Quick test to check read/write access to the iomap (backing store).
 	 *
 	 * Write a byte, read it back. If the iomapping fails, we expect
-	 * a GPF preventing further execution. If the backing store does not
+	 * a GPF preventing further execution. If the backing store does analt
 	 * exist, the read back will return garbage. We check a couple of pages,
 	 * the first and last of the specified region to confirm the backing
 	 * store + iomap does cover the entire memory region; and we check
@@ -228,7 +228,7 @@ static const char *region_type_str(u16 type)
 	case INTEL_MEMORY_STOLEN_SYSTEM:
 		return "stolen-system";
 	default:
-		return "unknown";
+		return "unkanalwn";
 	}
 }
 
@@ -248,7 +248,7 @@ intel_memory_region_create(struct drm_i915_private *i915,
 
 	mem = kzalloc(sizeof(*mem), GFP_KERNEL);
 	if (!mem)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mem->i915 = i915;
 	mem->region = DEFINE_RES_MEM(start, size);
@@ -330,7 +330,7 @@ int intel_memory_regions_hw_probe(struct drm_i915_private *i915)
 	int err, i;
 
 	for (i = 0; i < ARRAY_SIZE(i915->mm.regions); i++) {
-		struct intel_memory_region *mem = ERR_PTR(-ENODEV);
+		struct intel_memory_region *mem = ERR_PTR(-EANALDEV);
 		u16 type, instance;
 
 		if (!HAS_REGION(i915, BIT(i)))

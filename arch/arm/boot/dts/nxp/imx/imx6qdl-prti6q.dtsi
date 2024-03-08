@@ -83,11 +83,11 @@
 	status = "okay";
 };
 
-&usbphynop1 {
+&usbphyanalp1 {
 	status = "disabled";
 };
 
-&usbphynop2 {
+&usbphyanalp2 {
 	status = "disabled";
 };
 
@@ -102,10 +102,10 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc3>;
 	bus-width = <8>;
-	non-removable;
-	no-1-8-v;
-	no-sd;
-	no-sdio;
+	analn-removable;
+	anal-1-8-v;
+	anal-sd;
+	anal-sdio;
 	status = "okay";
 };
 

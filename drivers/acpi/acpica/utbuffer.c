@@ -26,7 +26,7 @@ ACPI_MODULE_NAME("utbuffer")
  *                                      DB_QWORD_DISPLAY
  *              base_offset         - Beginning buffer offset (display only)
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Generic dump buffer in both hex and ascii.
  *
@@ -122,7 +122,7 @@ void acpi_ut_dump_buffer(u8 *buffer, u32 count, u32 display, u32 base_offset)
 				}
 
 				/*
-				 * Add comment characters so rest of line is ignored when
+				 * Add comment characters so rest of line is iganalred when
 				 * compiled
 				 */
 				if (j == 0) {
@@ -160,7 +160,7 @@ void acpi_ut_dump_buffer(u8 *buffer, u32 count, u32 display, u32 base_offset)
  *                                      DB_QWORD_DISPLAY
  *              component_ID        - Caller's component ID
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Generic dump buffer in both hex and ascii.
  *
@@ -195,7 +195,7 @@ acpi_ut_debug_dump_buffer(u8 *buffer, u32 count, u32 display, u32 component_id)
  *                                      DB_QWORD_DISPLAY
  *              base_offset         - Beginning buffer offset (display only)
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Generic dump buffer in both hex and ascii to a file.
  *

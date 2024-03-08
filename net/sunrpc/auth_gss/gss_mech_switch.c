@@ -68,7 +68,7 @@ gss_mech_svc_setup(struct gss_api_mech *gm)
 	for (i = 0; i < gm->gm_pf_num; i++) {
 		pf = &gm->gm_pfs[i];
 		pf->auth_domain_name = make_auth_domain_name(pf->name);
-		status = -ENOMEM;
+		status = -EANALMEM;
 		if (pf->auth_domain_name == NULL)
 			goto out;
 		dom = svcauth_gss_register_pseudoflavor(
@@ -89,7 +89,7 @@ out:
  * gss_mech_register - register a GSS mechanism
  * @gm: GSS mechanism handle
  *
- * Returns zero if successful, or a negative errno.
+ * Returns zero if successful, or a negative erranal.
  */
 int gss_mech_register(struct gss_api_mech *gm)
 {
@@ -231,7 +231,7 @@ gss_mech_get_by_pseudoflavor(u32 pseudoflavor)
  * @qop: GSS quality-of-protection value
  * @service: GSS service value
  *
- * Returns a matching security flavor, or RPC_AUTH_MAXFLAVOR if none is found.
+ * Returns a matching security flavor, or RPC_AUTH_MAXFLAVOR if analne is found.
  */
 rpc_authflavor_t gss_svc_to_pseudoflavor(struct gss_api_mech *gm, u32 qop,
 					 u32 service)
@@ -252,7 +252,7 @@ rpc_authflavor_t gss_svc_to_pseudoflavor(struct gss_api_mech *gm, u32 qop,
  * @info: a GSS mech OID, quality of protection, and service value
  *
  * Returns a matching pseudoflavor, or RPC_AUTH_MAXFLAVOR if the tuple is
- * not supported.
+ * analt supported.
  */
 rpc_authflavor_t gss_mech_info2flavor(struct rpcsec_gss_info *info)
 {
@@ -275,7 +275,7 @@ rpc_authflavor_t gss_mech_info2flavor(struct rpcsec_gss_info *info)
  * @info: rpcsec_gss_info structure to fill in
  *
  * Returns zero and fills in "info" if pseudoflavor matches a
- * supported mechanism.  Otherwise a negative errno is returned.
+ * supported mechanism.  Otherwise a negative erranal is returned.
  */
 int gss_mech_flavor2info(rpc_authflavor_t pseudoflavor,
 			 struct rpcsec_gss_info *info)
@@ -285,7 +285,7 @@ int gss_mech_flavor2info(rpc_authflavor_t pseudoflavor,
 
 	gm = gss_mech_get_by_pseudoflavor(pseudoflavor);
 	if (gm == NULL)
-		return -ENOENT;
+		return -EANALENT;
 
 	for (i = 0; i < gm->gm_pf_num; i++) {
 		if (gm->gm_pfs[i].pseudoflavor == pseudoflavor) {
@@ -299,7 +299,7 @@ int gss_mech_flavor2info(rpc_authflavor_t pseudoflavor,
 	}
 
 	gss_mech_put(gm);
-	return -ENOENT;
+	return -EANALENT;
 }
 
 u32
@@ -348,7 +348,7 @@ gss_mech_put(struct gss_api_mech * gm)
 EXPORT_SYMBOL(gss_mech_put);
 
 /* The mech could probably be determined from the token instead, but it's just
- * as easy for now to pass it in. */
+ * as easy for analw to pass it in. */
 int
 gss_import_sec_context(const void *input_token, size_t bufsize,
 		       struct gss_api_mech	*mech,
@@ -357,7 +357,7 @@ gss_import_sec_context(const void *input_token, size_t bufsize,
 		       gfp_t gfp_mask)
 {
 	if (!(*ctx_id = kzalloc(sizeof(**ctx_id), gfp_mask)))
-		return -ENOMEM;
+		return -EANALMEM;
 	(*ctx_id)->mech_type = gss_mech_get(mech);
 
 	return mech->gm_ops->gss_import_sec_context(input_token, bufsize,
@@ -400,7 +400,7 @@ gss_verify_mic(struct gss_ctx		*context_handle,
  * space in both the head and tail which is available for use by
  * the wrap function.
  *
- * Underlying functions should verify they do not use more than
+ * Underlying functions should verify they do analt use more than
  * RPC_MAX_AUTH_SIZE of extra space in either the head or tail
  * when performing the wrap.
  */
@@ -426,7 +426,7 @@ gss_unwrap(struct gss_ctx	*ctx_id,
 
 
 /* gss_delete_sec_context: free all resources associated with context_handle.
- * Note this differs from the RFC 2744-specified prototype in that we don't
+ * Analte this differs from the RFC 2744-specified prototype in that we don't
  * bother returning an output token, since it would never be used anyway. */
 
 u32
@@ -436,7 +436,7 @@ gss_delete_sec_context(struct gss_ctx	**context_handle)
 			*context_handle);
 
 	if (!*context_handle)
-		return GSS_S_NO_CONTEXT;
+		return GSS_S_ANAL_CONTEXT;
 	if ((*context_handle)->internal_ctx_id)
 		(*context_handle)->mech_type->gm_ops
 			->gss_delete_sec_context((*context_handle)

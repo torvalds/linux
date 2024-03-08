@@ -122,8 +122,8 @@ static const char stats_strings[][ETH_GSTRING_LEN] = {
 	"tx_tls_encrypted_bytes  ",
 	"tx_tls_ctx              ",
 	"tx_tls_ooo              ",
-	"tx_tls_skip_no_sync_data",
-	"tx_tls_drop_no_sync_data",
+	"tx_tls_skip_anal_sync_data",
+	"tx_tls_drop_anal_sync_data",
 	"tx_tls_drop_bypass_req  ",
 #endif
 };
@@ -178,7 +178,7 @@ static int get_sset_count(struct net_device *dev, int sset)
 	case ETH_SS_TEST:
 		return ARRAY_SIZE(cxgb4_selftest_strings);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -208,11 +208,11 @@ static void get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 		snprintf(info->fw_version, sizeof(info->fw_version),
 			 "%u.%u.%u.%u, TP %u.%u.%u.%u",
 			 FW_HDR_FW_VER_MAJOR_G(adapter->params.fw_vers),
-			 FW_HDR_FW_VER_MINOR_G(adapter->params.fw_vers),
+			 FW_HDR_FW_VER_MIANALR_G(adapter->params.fw_vers),
 			 FW_HDR_FW_VER_MICRO_G(adapter->params.fw_vers),
 			 FW_HDR_FW_VER_BUILD_G(adapter->params.fw_vers),
 			 FW_HDR_FW_VER_MAJOR_G(adapter->params.tp_vers),
-			 FW_HDR_FW_VER_MINOR_G(adapter->params.tp_vers),
+			 FW_HDR_FW_VER_MIANALR_G(adapter->params.tp_vers),
 			 FW_HDR_FW_VER_MICRO_G(adapter->params.tp_vers),
 			 FW_HDR_FW_VER_BUILD_G(adapter->params.tp_vers));
 
@@ -220,7 +220,7 @@ static void get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 		snprintf(info->erom_version, sizeof(info->erom_version),
 			 "%u.%u.%u.%u",
 			 FW_HDR_FW_VER_MAJOR_G(exprom_vers),
-			 FW_HDR_FW_VER_MINOR_G(exprom_vers),
+			 FW_HDR_FW_VER_MIANALR_G(exprom_vers),
 			 FW_HDR_FW_VER_MICRO_G(exprom_vers),
 			 FW_HDR_FW_VER_BUILD_G(exprom_vers));
 	info->n_priv_flags = ARRAY_SIZE(cxgb4_priv_flags_strings);
@@ -262,8 +262,8 @@ struct queue_port_stats {
 	u64 tx_tls_encrypted_bytes;
 	u64 tx_tls_ctx;
 	u64 tx_tls_ooo;
-	u64 tx_tls_skip_no_sync_data;
-	u64 tx_tls_drop_no_sync_data;
+	u64 tx_tls_skip_anal_sync_data;
+	u64 tx_tls_drop_anal_sync_data;
 	u64 tx_tls_drop_bypass_req;
 #endif
 };
@@ -317,10 +317,10 @@ static void collect_sge_port_stats(const struct adapter *adap,
 		atomic64_read(&ktls_stats->ktls_tx_encrypted_bytes);
 	s->tx_tls_ctx = atomic64_read(&ktls_stats->ktls_tx_ctx);
 	s->tx_tls_ooo = atomic64_read(&ktls_stats->ktls_tx_ooo);
-	s->tx_tls_skip_no_sync_data =
-		atomic64_read(&ktls_stats->ktls_tx_skip_no_sync_data);
-	s->tx_tls_drop_no_sync_data =
-		atomic64_read(&ktls_stats->ktls_tx_drop_no_sync_data);
+	s->tx_tls_skip_anal_sync_data =
+		atomic64_read(&ktls_stats->ktls_tx_skip_anal_sync_data);
+	s->tx_tls_drop_anal_sync_data =
+		atomic64_read(&ktls_stats->ktls_tx_drop_anal_sync_data);
 	s->tx_tls_drop_bypass_req =
 		atomic64_read(&ktls_stats->ktls_tx_drop_bypass_req);
 #endif
@@ -454,7 +454,7 @@ static int from_fw_port_mod_type(enum fw_port_type port_type,
 	} else if (port_type == FW_PORT_TYPE_KR4_100G ||
 		   port_type == FW_PORT_TYPE_KR_SFP28 ||
 		   port_type == FW_PORT_TYPE_KR_XLAUI) {
-		return PORT_NONE;
+		return PORT_ANALNE;
 	}
 
 	return PORT_OTHER;
@@ -616,7 +616,7 @@ static void fw_caps_to_lmm(enum fw_port_type port_type,
 		FW_CAPS_TO_LMM(FEC_RS, FEC_RS);
 		FW_CAPS_TO_LMM(FEC_BASER_RS, FEC_BASER);
 	} else {
-		SET_LMM(FEC_NONE);
+		SET_LMM(FEC_ANALNE);
 	}
 
 	FW_CAPS_TO_LMM(ANEG, Autoneg);
@@ -665,7 +665,7 @@ static int get_link_ksettings(struct net_device *dev,
 	struct port_info *pi = netdev_priv(dev);
 	struct ethtool_link_settings *base = &link_ksettings->base;
 
-	/* For the nonce, the Firmware doesn't send up Port State changes
+	/* For the analnce, the Firmware doesn't send up Port State changes
 	 * when the Virtual Interface attached to the Port is down.  So
 	 * if it's down, let's grab any changes.
 	 */
@@ -700,7 +700,7 @@ static int get_link_ksettings(struct net_device *dev,
 
 	base->speed = (netif_carrier_ok(dev)
 		       ? pi->link_cfg.speed
-		       : SPEED_UNKNOWN);
+		       : SPEED_UNKANALWN);
 	base->duplex = DUPLEX_FULL;
 
 	base->autoneg = pi->link_cfg.autoneg;
@@ -769,7 +769,7 @@ static inline unsigned int fwcap_to_eth_fec(unsigned int fw_fec)
 	if (fw_fec & FW_PORT_CAP32_FEC_BASER_RS)
 		eth_fec |= ETHTOOL_FEC_BASER;
 
-	/* if nothing is set, then FEC is off */
+	/* if analthing is set, then FEC is off */
 	if (!eth_fec)
 		eth_fec = ETHTOOL_FEC_OFF;
 
@@ -788,7 +788,7 @@ static inline unsigned int cc_to_eth_fec(unsigned int cc_fec)
 	if (cc_fec & FEC_BASER_RS)
 		eth_fec |= ETHTOOL_FEC_BASER;
 
-	/* if nothing is set, then FEC is off */
+	/* if analthing is set, then FEC is off */
 	if (!eth_fec)
 		eth_fec = ETHTOOL_FEC_OFF;
 
@@ -1216,7 +1216,7 @@ static int get_eeprom(struct net_device *dev, struct ethtool_eeprom *e,
 	u8 *buf = kvzalloc(EEPROMSIZE, GFP_KERNEL);
 
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	e->magic = EEPROM_MAGIC;
 	for (i = e->offset & ~3; !err && i < e->offset + e->len; i += 4)
@@ -1255,7 +1255,7 @@ static int set_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 		 */
 		buf = kvzalloc(aligned_len, GFP_KERNEL);
 		if (!buf)
-			return -ENOMEM;
+			return -EANALMEM;
 		err = eeprom_rd_phys(adapter, aligned_offset, (u32 *)buf);
 		if (!err && aligned_len > 4)
 			err = eeprom_rd_phys(adapter,
@@ -1308,7 +1308,7 @@ static int cxgb4_ethtool_flash_boot(struct net_device *netdev,
 
 	data = kmemdup(bdata, size, GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	offset = OFFSET_G(t4_read_reg(adap, PF_REG(0, PCIE_PF_EXPROM_OFST_A)));
 
@@ -1411,7 +1411,7 @@ static int cxgb4_ethtool_flash_region(struct net_device *netdev,
 		ret = cxgb4_ethtool_flash_bootcfg(netdev, data, size);
 		break;
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		break;
 	}
 
@@ -1489,7 +1489,7 @@ static int cxgb4_ethtool_get_flash_region(const u8 *data, u32 *size)
 	if (!cxgb4_validate_bootcfg_image(data, size))
 		return CXGB4_ETHTOOL_FLASH_BOOTCFG;
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int set_flash(struct net_device *netdev, struct ethtool_flash *ef)
@@ -1513,7 +1513,7 @@ static int set_flash(struct net_device *netdev, struct ethtool_flash *ef)
 	if (master_vld && (master != adap->pf)) {
 		dev_warn(adap->pdev_dev,
 			 "cxgb4 driver needs to be loaded as MASTER to support FW flash\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	ef->data[sizeof(ef->data) - 1] = '\0';
@@ -1566,7 +1566,7 @@ static int get_ts_info(struct net_device *dev, struct ethtool_ts_info *ts_info)
 	ts_info->tx_types = (1 << HWTSTAMP_TX_OFF) |
 			    (1 << HWTSTAMP_TX_ON);
 
-	ts_info->rx_filters = (1 << HWTSTAMP_FILTER_NONE) |
+	ts_info->rx_filters = (1 << HWTSTAMP_FILTER_ANALNE) |
 			      (1 << HWTSTAMP_FILTER_PTP_V2_L4_EVENT) |
 			      (1 << HWTSTAMP_FILTER_PTP_V1_L4_SYNC) |
 			      (1 << HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ) |
@@ -1609,13 +1609,13 @@ static int set_rss_table(struct net_device *dev,
 	unsigned int i;
 	struct port_info *pi = netdev_priv(dev);
 
-	/* We require at least one supported parameter to be changed and no
+	/* We require at least one supported parameter to be changed and anal
 	 * change in any of the unsupported parameters
 	 */
 	if (rxfh->key ||
-	    (rxfh->hfunc != ETH_RSS_HASH_NO_CHANGE &&
+	    (rxfh->hfunc != ETH_RSS_HASH_ANAL_CHANGE &&
 	     rxfh->hfunc != ETH_RSS_HASH_TOP))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (!rxfh->indir)
 		return 0;
 
@@ -1717,13 +1717,13 @@ static int cxgb4_ntuple_get_filter(struct net_device *dev,
 
 	/* Check for maximum filter range */
 	if (!adap->ethtool_filters)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (loc >= adap->ethtool_filters->nentries)
 		return -ERANGE;
 
 	if (!test_bit(loc, adap->ethtool_filters->port[pi->port_id].bmap))
-		return -ENOENT;
+		return -EANALENT;
 
 	ftid = adap->ethtool_filters->port[pi->port_id].loc_array[loc];
 
@@ -1814,7 +1814,7 @@ static int get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
 		return 0;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int cxgb4_ntuple_del_filter(struct net_device *dev,
@@ -1831,7 +1831,7 @@ static int cxgb4_ntuple_del_filter(struct net_device *dev,
 		return -EAGAIN;  /* can still change nfilters */
 
 	if (!adapter->ethtool_filters)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (cmd->fs.location >= adapter->ethtool_filters->nentries) {
 		dev_err(adapter->pdev_dev,
@@ -1843,7 +1843,7 @@ static int cxgb4_ntuple_del_filter(struct net_device *dev,
 	filter_info = &adapter->ethtool_filters->port[pi->port_id];
 
 	if (!test_bit(cmd->fs.location, filter_info->bmap))
-		return -ENOENT;
+		return -EANALENT;
 
 	filter_id = filter_info->loc_array[cmd->fs.location];
 	f = cxgb4_get_filter_entry(adapter, filter_id);
@@ -1881,7 +1881,7 @@ static int cxgb4_ntuple_set_filter(struct net_device *netdev,
 		return -EAGAIN;  /* can still change nfilters */
 
 	if (!adapter->ethtool_filters)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (cmd->fs.location >= adapter->ethtool_filters->nentries) {
 		dev_err(adapter->pdev_dev,
@@ -1929,7 +1929,7 @@ exit:
 
 static int set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd)
 {
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 
 	switch (cmd->cmd) {
 	case ETHTOOL_SRXCLSRLINS:
@@ -1976,14 +1976,14 @@ static int get_dump_data(struct net_device *dev, struct ethtool_dump *eth_dump,
 	u32 len = 0;
 	int ret = 0;
 
-	if (adapter->eth_dump.flag == CXGB4_ETH_DUMP_NONE)
-		return -ENOENT;
+	if (adapter->eth_dump.flag == CXGB4_ETH_DUMP_ANALNE)
+		return -EANALENT;
 
 	len = sizeof(struct cudbg_hdr) +
 	      sizeof(struct cudbg_entity_hdr) * CUDBG_MAX_ENTITY;
 	len += cxgb4_get_dump_length(adapter, adapter->eth_dump.flag);
 	if (eth_dump->len < len)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = cxgb4_cudbg_collect(adapter, buf, &len, adapter->eth_dump.flag);
 	if (ret)
@@ -2000,7 +2000,7 @@ static bool cxgb4_fw_mod_type_info_available(unsigned int fw_mod_type)
 	/* Read port module EEPROM as long as it is plugged-in and
 	 * safe to read.
 	 */
-	return (fw_mod_type != FW_PORT_MOD_TYPE_NONE &&
+	return (fw_mod_type != FW_PORT_MOD_TYPE_ANALNE &&
 		fw_mod_type != FW_PORT_MOD_TYPE_ERROR);
 }
 
@@ -2097,7 +2097,7 @@ static int cxgb4_get_module_eeprom(struct net_device *dev,
 		 */
 		len = eprom->len - len;
 	}
-	/* Read additional optical diagnostics from page 0xa2 if supported */
+	/* Read additional optical diaganalstics from page 0xa2 if supported */
 	return t4_i2c_rd(adapter, adapter->mbox, pi->tx_chan, I2C_DEV_ADDR_A2,
 			 offset, len, &data[eprom->len - len]);
 }
@@ -2247,13 +2247,13 @@ int cxgb4_init_ethtool_filters(struct adapter *adap)
 
 	eth_filter = kzalloc(sizeof(*eth_filter), GFP_KERNEL);
 	if (!eth_filter)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	eth_filter_info = kcalloc(adap->params.nports,
 				  sizeof(*eth_filter_info),
 				  GFP_KERNEL);
 	if (!eth_filter_info) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_eth_filter;
 	}
 
@@ -2268,13 +2268,13 @@ int cxgb4_init_ethtool_filters(struct adapter *adap)
 	for (i = 0; i < adap->params.nports; i++) {
 		eth_filter->port[i].loc_array = kvzalloc(nentries, GFP_KERNEL);
 		if (!eth_filter->port[i].loc_array) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto free_eth_finfo;
 		}
 
 		eth_filter->port[i].bmap = bitmap_zalloc(nentries, GFP_KERNEL);
 		if (!eth_filter->port[i].bmap) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto free_eth_finfo;
 		}
 	}

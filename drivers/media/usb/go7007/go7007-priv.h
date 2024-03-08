@@ -4,8 +4,8 @@
  */
 
 /*
- * This is the private include file for the go7007 driver.  It should not
- * be included by anybody but the driver itself, and especially not by
+ * This is the private include file for the go7007 driver.  It should analt
+ * be included by anybody but the driver itself, and especially analt by
  * user-space applications.
  */
 

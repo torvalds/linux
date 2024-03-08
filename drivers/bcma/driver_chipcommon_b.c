@@ -50,7 +50,7 @@ int bcma_core_chipcommon_b_init(struct bcma_drv_cc_b *ccb)
 	ccb->setup_done = 1;
 	ccb->mii = ioremap(ccb->core->addr_s[1], BCMA_CORE_SIZE);
 	if (!ccb->mii)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }

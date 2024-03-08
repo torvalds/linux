@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -50,7 +50,7 @@
 
 #define AMDGPU_DM_MAX_NUM_EDP 2
 
-#define AMDGPU_DMUB_NOTIFICATION_MAX 5
+#define AMDGPU_DMUB_ANALTIFICATION_MAX 5
 
 #define HDMI_AMD_VENDOR_SPECIFIC_DATA_BLOCK_IEEE_REGISTRATION_ID 0x00001A
 #define AMD_VSDB_VERSION_3_FEATURECAP_REPLAYMODE 0x40
@@ -80,7 +80,7 @@ struct dc;
 struct amdgpu_bo;
 struct dmub_srv;
 struct dc_plane_state;
-struct dmub_notification;
+struct dmub_analtification;
 
 struct amd_vsdb_block {
 	unsigned char ieee_id[3];
@@ -106,18 +106,18 @@ struct dm_compressor_info {
 	uint64_t gpu_addr;
 };
 
-typedef void (*dmub_notify_interrupt_callback_t)(struct amdgpu_device *adev, struct dmub_notification *notify);
+typedef void (*dmub_analtify_interrupt_callback_t)(struct amdgpu_device *adev, struct dmub_analtification *analtify);
 
 /**
  * struct dmub_hpd_work - Handle time consuming work in low priority outbox IRQ
  *
  * @handle_hpd_work: Work to be executed in a separate thread to handle hpd_low_irq
- * @dmub_notify:  notification for callback function
+ * @dmub_analtify:  analtification for callback function
  * @adev: amdgpu_device pointer
  */
 struct dmub_hpd_work {
 	struct work_struct handle_hpd_work;
-	struct dmub_notification *dmub_notify;
+	struct dmub_analtification *dmub_analtify;
 	struct amdgpu_device *adev;
 };
 
@@ -275,25 +275,25 @@ struct amdgpu_display_manager {
 	 *
 	 * DMUB service, used for controlling the DMUB on hardware
 	 * that supports it. The pointer to the dmub_srv will be
-	 * NULL on hardware that does not support it.
+	 * NULL on hardware that does analt support it.
 	 */
 	struct dmub_srv *dmub_srv;
 
 	/**
-	 * @dmub_notify:
+	 * @dmub_analtify:
 	 *
-	 * Notification from DMUB.
+	 * Analtification from DMUB.
 	 */
 
-	struct dmub_notification *dmub_notify;
+	struct dmub_analtification *dmub_analtify;
 
 	/**
 	 * @dmub_callback:
 	 *
-	 * Callback functions to handle notification from DMUB.
+	 * Callback functions to handle analtification from DMUB.
 	 */
 
-	dmub_notify_interrupt_callback_t dmub_callback[AMDGPU_DMUB_NOTIFICATION_MAX];
+	dmub_analtify_interrupt_callback_t dmub_callback[AMDGPU_DMUB_ANALTIFICATION_MAX];
 
 	/**
 	 * @dmub_thread_offload:
@@ -301,7 +301,7 @@ struct amdgpu_display_manager {
 	 * Flag to indicate if callback is offload.
 	 */
 
-	bool dmub_thread_offload[AMDGPU_DMUB_NOTIFICATION_MAX];
+	bool dmub_thread_offload[AMDGPU_DMUB_ANALTIFICATION_MAX];
 
 	/**
 	 * @dmub_fb_info:
@@ -384,7 +384,7 @@ struct amdgpu_display_manager {
 	/**
 	 * @audio_component:
 	 *
-	 * Used to notify ELD changes to sound driver.
+	 * Used to analtify ELD changes to sound driver.
 	 */
 	struct drm_audio_component *audio_component;
 
@@ -405,7 +405,7 @@ struct amdgpu_display_manager {
 	 * source. Low priority IRQ handlers are deferred to a workqueue to be
 	 * processed. Hence, they can sleep.
 	 *
-	 * Note that handlers are called in the same order as they were
+	 * Analte that handlers are called in the same order as they were
 	 * registered (FIFO).
 	 */
 	struct list_head irq_handler_list_low_tab[DAL_IRQ_SOURCES_NUMBER];
@@ -416,7 +416,7 @@ struct amdgpu_display_manager {
 	 * High priority IRQ handler table.
 	 *
 	 * It is a n*m table, same as &irq_handler_list_low_tab. However,
-	 * handlers in this table are not deferred and are called immediately.
+	 * handlers in this table are analt deferred and are called immediately.
 	 */
 	struct list_head irq_handler_list_high_tab[DAL_IRQ_SOURCES_NUMBER];
 
@@ -498,7 +498,7 @@ struct amdgpu_display_manager {
 	/**
 	 * @soc_bounding_box:
 	 *
-	 * gpu_info FW provided soc bounding box struct or 0 if not
+	 * gpu_info FW provided soc bounding box struct or 0 if analt
 	 * available in FW
 	 */
 	const struct gpu_info_soc_bounding_box_v1_0 *soc_bounding_box;
@@ -669,13 +669,13 @@ struct amdgpu_dm_connector {
 	/* Monitor range limits */
 	/**
 	 * @min_vfreq: Minimal frequency supported by the display in Hz. This
-	 * value is set to zero when there is no FreeSync support.
+	 * value is set to zero when there is anal FreeSync support.
 	 */
 	int min_vfreq;
 
 	/**
 	 * @max_vfreq: Maximum frequency supported by the display in Hz. This
-	 * value is set to zero when there is no FreeSync support.
+	 * value is set to zero when there is anal FreeSync support.
 	 */
 	int max_vfreq ;
 	int pixel_clock_mhz;
@@ -760,7 +760,7 @@ struct dm_plane_state {
 	 *
 	 * 1D LUT for mapping framebuffer/plane pixel data before sampling or
 	 * blending operations. It's usually applied to linearize input space.
-	 * The blob (if not NULL) is an array of &struct drm_color_lut.
+	 * The blob (if analt NULL) is an array of &struct drm_color_lut.
 	 */
 	struct drm_property_blob *degamma_lut;
 	/**
@@ -781,18 +781,18 @@ struct dm_plane_state {
 	 * S31.32 sign-magnitude.
 	 *
 	 * HDR multiplier can wide range beyond [0.0, 1.0]. This means that PQ
-	 * TF is needed for any subsequent linear-to-non-linear transforms.
+	 * TF is needed for any subsequent linear-to-analn-linear transforms.
 	 */
 	__u64 hdr_mult;
 	/**
 	 * @ctm:
 	 *
-	 * Color transformation matrix. The blob (if not NULL) is a &struct
+	 * Color transformation matrix. The blob (if analt NULL) is a &struct
 	 * drm_color_ctm_3x4.
 	 */
 	struct drm_property_blob *ctm;
 	/**
-	 * @shaper_lut: shaper lookup table blob. The blob (if not NULL) is an
+	 * @shaper_lut: shaper lookup table blob. The blob (if analt NULL) is an
 	 * array of &struct drm_color_lut.
 	 */
 	struct drm_property_blob *shaper_lut;
@@ -803,12 +803,12 @@ struct dm_plane_state {
 	 */
 	enum amdgpu_transfer_function shaper_tf;
 	/**
-	 * @lut3d: 3D lookup table blob. The blob (if not NULL) is an array of
+	 * @lut3d: 3D lookup table blob. The blob (if analt NULL) is an array of
 	 * &struct drm_color_lut.
 	 */
 	struct drm_property_blob *lut3d;
 	/**
-	 * @blend_lut: blend lut lookup table blob. The blob (if not NULL) is an
+	 * @blend_lut: blend lut lookup table blob. The blob (if analt NULL) is an
 	 * array of &struct drm_color_lut.
 	 */
 	struct drm_property_blob *blend_lut;

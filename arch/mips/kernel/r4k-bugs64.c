@@ -18,7 +18,7 @@
 
 static char bug64hit[] __initdata =
 	"reliable operation impossible!\n%s";
-static char nowar[] __initdata =
+static char analwar[] __initdata =
 	"Please report to <linux-mips@vger.kernel.org>.";
 static char r4kwar[] __initdata =
 	"Enable CPU_R4000_WORKAROUNDS to rectify.";
@@ -30,10 +30,10 @@ void align_mod(const int align, const int mod)
 {
 	asm volatile(
 		".set	push\n\t"
-		".set	noreorder\n\t"
+		".set	analreorder\n\t"
 		".balign %0\n\t"
 		".rept	%1\n\t"
-		"nop\n\t"
+		"analp\n\t"
 		".endr\n\t"
 		".set	pop"
 		:
@@ -51,7 +51,7 @@ void mult_sh_align_mod(long *v1, long *v2, long *w,
 	/*
 	 * We want the multiply and the shift to be isolated from the
 	 * rest of the code to disable gcc optimizations.  Hence the
-	 * asm statements that execute nothing, but make gcc not know
+	 * asm statements that execute analthing, but make gcc analt kanalw
 	 * what the values of m1, m2 and s are and what lv2 and p are
 	 * used for.
 	 */
@@ -63,8 +63,8 @@ void mult_sh_align_mod(long *v1, long *v2, long *w,
 	 * 00000422 or 00000430, respectively).
 	 *
 	 * See "MIPS R4000PC/SC Errata, Processor Revision 2.2 and
-	 * 3.0" by MIPS Technologies, Inc., errata #16 and #28 for
-	 * details.  I got no permission to duplicate them here,
+	 * 3.0" by MIPS Techanallogies, Inc., errata #16 and #28 for
+	 * details.  I got anal permission to duplicate them here,
 	 * sigh... --macro
 	 */
 	asm volatile(
@@ -73,21 +73,21 @@ void mult_sh_align_mod(long *v1, long *v2, long *w,
 		: "0" (5), "1" (8), "2" (5));
 	align_mod(align, mod);
 	/*
-	 * The trailing nop is needed to fulfill the two-instruction
+	 * The trailing analp is needed to fulfill the two-instruction
 	 * requirement between reading hi/lo and staring a mult/div.
-	 * Leaving it out may cause gas insert a nop itself breaking
+	 * Leaving it out may cause gas insert a analp itself breaking
 	 * the desired alignment of the next chunk.
 	 */
 	asm volatile(
 		".set	push\n\t"
-		".set	noat\n\t"
-		".set	noreorder\n\t"
-		".set	nomacro\n\t"
+		".set	analat\n\t"
+		".set	analreorder\n\t"
+		".set	analmacro\n\t"
 		"mult	%2, %3\n\t"
 		"dsll32 %0, %4, %5\n\t"
 		"mflo	$0\n\t"
 		"dsll32 %1, %4, %5\n\t"
-		"nop\n\t"
+		"analp\n\t"
 		".set	pop"
 		: "=&r" (lv1), "=r" (lw)
 		: "r" (m1), "r" (m2), "r" (s), "I" (0)
@@ -147,11 +147,11 @@ static __always_inline __init void check_mult_sh(void)
 			bug = 1;
 
 	if (bug == 0) {
-		pr_cont("no.\n");
+		pr_cont("anal.\n");
 		return;
 	}
 
-	pr_cont("yes, workaround... ");
+	pr_cont("anal, workaround... ");
 
 	fix = 1;
 	for (i = 0; i < 8; i++)
@@ -159,13 +159,13 @@ static __always_inline __init void check_mult_sh(void)
 			fix = 0;
 
 	if (fix == 1) {
-		pr_cont("yes.\n");
+		pr_cont("anal.\n");
 		return;
 	}
 
-	pr_cont("no.\n");
+	pr_cont("anal.\n");
 	panic(bug64hit,
-	      IS_ENABLED(CONFIG_CPU_R4000_WORKAROUNDS) ? nowar : r4kwar);
+	      IS_ENABLED(CONFIG_CPU_R4000_WORKAROUNDS) ? analwar : r4kwar);
 }
 
 static volatile int daddi_ov;
@@ -197,14 +197,14 @@ static __init void check_daddi(void)
 	 * 00000430, respectively).
 	 *
 	 * See "MIPS R4000PC/SC Errata, Processor Revision 2.2 and
-	 * 3.0" by MIPS Technologies, Inc., erratum #23 for details.
-	 * I got no permission to duplicate it here, sigh... --macro
+	 * 3.0" by MIPS Techanallogies, Inc., erratum #23 for details.
+	 * I got anal permission to duplicate it here, sigh... --macro
 	 */
 	asm volatile(
 		".set	push\n\t"
-		".set	noat\n\t"
-		".set	noreorder\n\t"
-		".set	nomacro\n\t"
+		".set	analat\n\t"
+		".set	analreorder\n\t"
+		".set	analmacro\n\t"
 		"addiu	%1, $0, %2\n\t"
 		"dsrl	%1, %1, 1\n\t"
 #ifdef HAVE_AS_SET_DADDI
@@ -218,11 +218,11 @@ static __init void check_daddi(void)
 	local_irq_restore(flags);
 
 	if (daddi_ov) {
-		pr_cont("no.\n");
+		pr_cont("anal.\n");
 		return;
 	}
 
-	pr_cont("yes, workaround... ");
+	pr_cont("anal, workaround... ");
 
 	local_irq_save(flags);
 	handler = set_except_vector(EXCCODE_OV, handle_daddi_ov);
@@ -236,13 +236,13 @@ static __init void check_daddi(void)
 	local_irq_restore(flags);
 
 	if (daddi_ov) {
-		pr_cont("yes.\n");
+		pr_cont("anal.\n");
 		return;
 	}
 
-	pr_cont("no.\n");
+	pr_cont("anal.\n");
 	panic(bug64hit,
-	      IS_ENABLED(CONFIG_CPU_DADDI_WORKAROUNDS) ? nowar : daddiwar);
+	      IS_ENABLED(CONFIG_CPU_DADDI_WORKAROUNDS) ? analwar : daddiwar);
 }
 
 int daddiu_bug	= -1;
@@ -258,22 +258,22 @@ static __init void check_daddiu(void)
 	 * executed on R4400 rev. 1.0 (PRId 00000440).
 	 *
 	 * See "MIPS R4400PC/SC Errata, Processor Revision 1.0" by
-	 * MIPS Technologies, Inc., erratum #7 for details.
+	 * MIPS Techanallogies, Inc., erratum #7 for details.
 	 *
 	 * According to "MIPS R4000PC/SC Errata, Processor Revision
-	 * 2.2 and 3.0" by MIPS Technologies, Inc., erratum #41 this
+	 * 2.2 and 3.0" by MIPS Techanallogies, Inc., erratum #41 this
 	 * problem affects R4000 rev. 2.2 and 3.0 (PRId 00000422 and
 	 * 00000430, respectively), too.  Testing failed to trigger it
 	 * so far.
 	 *
-	 * I got no permission to duplicate the errata here, sigh...
+	 * I got anal permission to duplicate the errata here, sigh...
 	 * --macro
 	 */
 	asm volatile(
 		".set	push\n\t"
-		".set	noat\n\t"
-		".set	noreorder\n\t"
-		".set	nomacro\n\t"
+		".set	analat\n\t"
+		".set	analreorder\n\t"
+		".set	analmacro\n\t"
 		"addiu	%2, $0, %3\n\t"
 		"dsrl	%2, %2, 1\n\t"
 #ifdef HAVE_AS_SET_DADDI
@@ -289,11 +289,11 @@ static __init void check_daddiu(void)
 	daddiu_bug = v != w;
 
 	if (!daddiu_bug) {
-		pr_cont("no.\n");
+		pr_cont("anal.\n");
 		return;
 	}
 
-	pr_cont("yes, workaround... ");
+	pr_cont("anal, workaround... ");
 
 	asm volatile(
 		"addiu	%2, $0, %3\n\t"
@@ -305,13 +305,13 @@ static __init void check_daddiu(void)
 		: "I" (0xffffffffffffdb9aUL), "I" (0x1234));
 
 	if (v == w) {
-		pr_cont("yes.\n");
+		pr_cont("anal.\n");
 		return;
 	}
 
-	pr_cont("no.\n");
+	pr_cont("anal.\n");
 	panic(bug64hit,
-	      IS_ENABLED(CONFIG_CPU_DADDI_WORKAROUNDS) ? nowar : daddiwar);
+	      IS_ENABLED(CONFIG_CPU_DADDI_WORKAROUNDS) ? analwar : daddiwar);
 }
 
 void __init check_bugs64_early(void)

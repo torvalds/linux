@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause) */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-analte) OR BSD-3-Clause) */
 /*
  * Intel MIC Platform Software Stack (MPSS)
  *
@@ -27,21 +27,21 @@
  * are met:
  *
  * * Redistributions of source code must retain the above copyright
- *   notice, this list of conditions and the following disclaimer.
+ *   analtice, this list of conditions and the following disclaimer.
  * * Redistributions in binary form must reproduce the above copyright
- *   notice, this list of conditions and the following disclaimer in
+ *   analtice, this list of conditions and the following disclaimer in
  *   the documentation and/or other materials provided with the
  *   distribution.
- * * Neither the name of Intel Corporation nor the names of its
+ * * Neither the name of Intel Corporation analr the names of its
  *   contributors may be used to endorse or promote products derived
  *   from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -63,18 +63,18 @@
 
 /**
  * struct scif_port_id - SCIF port information
- * @node:	node on which port resides
+ * @analde:	analde on which port resides
  * @port:	local port number
  */
 struct scif_port_id {
-	__u16 node;
+	__u16 analde;
 	__u16 port;
 };
 
 /**
  * struct scifioctl_connect - used for SCIF_CONNECT IOCTL
  * @self:	used to read back the assigned port_id
- * @peer:	destination node and port to connect to
+ * @peer:	destination analde and port to connect to
  */
 struct scifioctl_connect {
 	struct scif_port_id	self;
@@ -184,13 +184,13 @@ struct scifioctl_fence_signal {
 };
 
 /**
- * struct scifioctl_node_ids - used for SCIF_GET_NODEIDS IOCTL
- * @nodes:	pointer to an array of node_ids
- * @self:	ID of the current node
+ * struct scifioctl_analde_ids - used for SCIF_GET_ANALDEIDS IOCTL
+ * @analdes:	pointer to an array of analde_ids
+ * @self:	ID of the current analde
  * @len:	length of array
  */
-struct scifioctl_node_ids {
-	__u64	nodes;
+struct scifioctl_analde_ids {
+	__u64	analdes;
 	__u64	self;
 	__s32	len;
 };
@@ -208,7 +208,7 @@ struct scifioctl_node_ids {
 #define SCIF_WRITETO		_IOWR('s', 11, struct scifioctl_copy)
 #define SCIF_VREADFROM		_IOWR('s', 12, struct scifioctl_copy)
 #define SCIF_VWRITETO		_IOWR('s', 13, struct scifioctl_copy)
-#define SCIF_GET_NODEIDS	_IOWR('s', 14, struct scifioctl_node_ids)
+#define SCIF_GET_ANALDEIDS	_IOWR('s', 14, struct scifioctl_analde_ids)
 #define SCIF_FENCE_MARK		_IOWR('s', 15, struct scifioctl_fence_mark)
 #define SCIF_FENCE_WAIT		_IOWR('s', 16, __s32)
 #define SCIF_FENCE_SIGNAL	_IOWR('s', 17, struct scifioctl_fence_signal)

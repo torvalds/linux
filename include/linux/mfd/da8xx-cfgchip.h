@@ -2,7 +2,7 @@
 /*
  * TI DaVinci DA8xx CHIPCFGx registers for syscon consumers.
  *
- * Copyright (C) 2016 David Lechner <david@lechnology.com>
+ * Copyright (C) 2016 David Lechner <david@lechanallogy.com>
  */
 
 #ifndef __LINUX_MFD_DA8XX_CFGCHIP_H
@@ -104,7 +104,7 @@
 #define CFGCHIP2_RESET				BIT(15)
 #define CFGCHIP2_OTGMODE(n)			((n) << 13)
 #define CFGCHIP2_OTGMODE_MASK			CFGCHIP2_OTGMODE(0x3)
-#define CFGCHIP2_OTGMODE_NO_OVERRIDE		CFGCHIP2_OTGMODE(0x0)
+#define CFGCHIP2_OTGMODE_ANAL_OVERRIDE		CFGCHIP2_OTGMODE(0x0)
 #define CFGCHIP2_OTGMODE_FORCE_HOST		CFGCHIP2_OTGMODE(0x1)
 #define CFGCHIP2_OTGMODE_FORCE_DEVICE		CFGCHIP2_OTGMODE(0x2)
 #define CFGCHIP2_OTGMODE_FORCE_HOST_VBUS_LOW	CFGCHIP2_OTGMODE(0x3)

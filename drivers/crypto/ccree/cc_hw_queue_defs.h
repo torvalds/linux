@@ -29,7 +29,7 @@
 #define WORD1_DIN_CONST_VALUE	CC_HWQ_GENMASK(1, DIN_CONST_VALUE)
 #define WORD1_DIN_DMA_MODE	CC_HWQ_GENMASK(1, DIN_DMA_MODE)
 #define WORD1_DIN_SIZE		CC_HWQ_GENMASK(1, DIN_SIZE)
-#define WORD1_NOT_LAST		CC_HWQ_GENMASK(1, NOT_LAST)
+#define WORD1_ANALT_LAST		CC_HWQ_GENMASK(1, ANALT_LAST)
 #define WORD1_NS_BIT		CC_HWQ_GENMASK(1, NS_BIT)
 #define WORD1_LOCK_QUEUE	CC_HWQ_GENMASK(1, LOCK_QUEUE)
 #define WORD2_VALUE		CC_HWQ_GENMASK(2, VALUE)
@@ -68,7 +68,7 @@ struct cc_hw_desc {
 
 enum cc_axi_sec {
 	AXI_SECURE = 0,
-	AXI_NOT_SECURE = 1
+	AXI_ANALT_SECURE = 1
 };
 
 enum cc_desc_direction {
@@ -81,7 +81,7 @@ enum cc_desc_direction {
 
 enum cc_dma_mode {
 	DMA_MODE_NULL		= -1,
-	NO_DMA			= 0,
+	ANAL_DMA			= 0,
 	DMA_SRAM		= 1,
 	DMA_DLLI		= 2,
 	DMA_MLLI		= 3,
@@ -128,7 +128,7 @@ enum cc_flow_mode {
 };
 
 enum cc_setup_op {
-	SETUP_LOAD_NOP		= 0,
+	SETUP_LOAD_ANALP		= 0,
 	SETUP_LOAD_STATE0	= 1,
 	SETUP_LOAD_STATE1	= 2,
 	SETUP_LOAD_STATE2	= 3,
@@ -192,7 +192,7 @@ enum cc_hw_aes_key_size {
 };
 
 enum cc_hash_cipher_pad {
-	DO_NOT_PAD = 0,
+	DO_ANALT_PAD = 0,
 	DO_PAD = 1,
 	HASH_CIPHER_DO_PADDING_RESERVE32 = S32_MAX,
 };
@@ -228,7 +228,7 @@ static inline void set_queue_last_ind_bit(struct cc_hw_desc *pdesc)
  * set_din_type() - Set the DIN field of a HW descriptor
  *
  * @pdesc: Pointer to HW descriptor struct
- * @dma_mode: The DMA mode: NO_DMA, SRAM, DLLI, MLLI, CONSTANT
+ * @dma_mode: The DMA mode: ANAL_DMA, SRAM, DLLI, MLLI, CONSTANT
  * @addr: DIN address
  * @size: Data size in bytes
  * @axi_sec: AXI secure bit
@@ -247,14 +247,14 @@ static inline void set_din_type(struct cc_hw_desc *pdesc,
 }
 
 /**
- * set_din_no_dma() - Set the DIN field of a HW descriptor to NO DMA mode.
- * Used for NOP descriptor, register patches and other special modes.
+ * set_din_anal_dma() - Set the DIN field of a HW descriptor to ANAL DMA mode.
+ * Used for ANALP descriptor, register patches and other special modes.
  *
  * @pdesc: Pointer to HW descriptor struct
  * @addr: DIN address
  * @size: Data size in bytes
  */
-static inline void set_din_no_dma(struct cc_hw_desc *pdesc, u32 addr, u32 size)
+static inline void set_din_anal_dma(struct cc_hw_desc *pdesc, u32 addr, u32 size)
 {
 	pdesc->word[0] = addr;
 	pdesc->word[1] |= FIELD_PREP(WORD1_DIN_SIZE, size);
@@ -278,7 +278,7 @@ static inline void set_cpp_crypto_key(struct cc_hw_desc *pdesc, u8 slot)
 
 /**
  * set_din_sram() - Set the DIN field of a HW descriptor to SRAM mode.
- * Note: No need to check SRAM alignment since host requests do not use SRAM and
+ * Analte: Anal need to check SRAM alignment since host requests do analt use SRAM and
  * the adaptor will enforce alignment checks.
  *
  * @pdesc: Pointer to HW descriptor struct
@@ -308,20 +308,20 @@ static inline void set_din_const(struct cc_hw_desc *pdesc, u32 val, u32 size)
 }
 
 /**
- * set_din_not_last_indication() - Set the DIN not last input data indicator
+ * set_din_analt_last_indication() - Set the DIN analt last input data indicator
  *
  * @pdesc: Pointer to HW descriptor struct
  */
-static inline void set_din_not_last_indication(struct cc_hw_desc *pdesc)
+static inline void set_din_analt_last_indication(struct cc_hw_desc *pdesc)
 {
-	pdesc->word[1] |= FIELD_PREP(WORD1_NOT_LAST, 1);
+	pdesc->word[1] |= FIELD_PREP(WORD1_ANALT_LAST, 1);
 }
 
 /**
  * set_dout_type() - Set the DOUT field of a HW descriptor
  *
  * @pdesc: Pointer to HW descriptor struct
- * @dma_mode: The DMA mode: NO_DMA, SRAM, DLLI, MLLI, CONSTANT
+ * @dma_mode: The DMA mode: ANAL_DMA, SRAM, DLLI, MLLI, CONSTANT
  * @addr: DOUT address
  * @size: Data size in bytes
  * @axi_sec: AXI secure bit
@@ -375,15 +375,15 @@ static inline void set_dout_mlli(struct cc_hw_desc *pdesc, u32 addr, u32 size,
 }
 
 /**
- * set_dout_no_dma() - Set the DOUT field of a HW descriptor to NO DMA mode.
- * Used for NOP descriptor, register patches and other special modes.
+ * set_dout_anal_dma() - Set the DOUT field of a HW descriptor to ANAL DMA mode.
+ * Used for ANALP descriptor, register patches and other special modes.
  *
  * @pdesc: pointer to HW descriptor struct
  * @addr: DOUT address
  * @size: Data size in bytes
  * @write_enable: Enables a write operation to a register
  */
-static inline void set_dout_no_dma(struct cc_hw_desc *pdesc, u32 addr,
+static inline void set_dout_anal_dma(struct cc_hw_desc *pdesc, u32 addr,
 				   u32 size, bool write_enable)
 {
 	pdesc->word[2] = addr;
@@ -413,12 +413,12 @@ static inline void set_xor_active(struct cc_hw_desc *pdesc)
 }
 
 /**
- * set_aes_not_hash_mode() - Select the AES engine instead of HASH engine when
+ * set_aes_analt_hash_mode() - Select the AES engine instead of HASH engine when
  * setting up combined mode with AES XCBC MAC
  *
  * @pdesc: Pointer to HW descriptor struct
  */
-static inline void set_aes_not_hash_mode(struct cc_hw_desc *pdesc)
+static inline void set_aes_analt_hash_mode(struct cc_hw_desc *pdesc)
 {
 	pdesc->word[4] |= FIELD_PREP(WORD4_AES_SEL_N_HASH, 1);
 }
@@ -436,7 +436,7 @@ static inline void set_aes_xor_crypto_key(struct cc_hw_desc *pdesc)
 
 /**
  * set_dout_sram() - Set the DOUT field of a HW descriptor to SRAM mode
- * Note: No need to check SRAM alignment since host requests do not use SRAM and
+ * Analte: Anal need to check SRAM alignment since host requests do analt use SRAM and
  * the adaptor will enforce alignment checks.
  *
  * @pdesc: Pointer to HW descriptor struct
@@ -576,7 +576,7 @@ static inline void set_cmac_size0_mode(struct cc_hw_desc *pdesc)
  * set_key_size() - Set key size descriptor field.
  *
  * @pdesc: Pointer to HW descriptor struct
- * @size: Key size in bytes (NOT size code)
+ * @size: Key size in bytes (ANALT size code)
  */
 static inline void set_key_size(struct cc_hw_desc *pdesc, u32 size)
 {
@@ -587,7 +587,7 @@ static inline void set_key_size(struct cc_hw_desc *pdesc, u32 size)
  * set_key_size_aes() - Set AES key size.
  *
  * @pdesc: Pointer to HW descriptor struct
- * @size: Key size in bytes (NOT size code)
+ * @size: Key size in bytes (ANALT size code)
  */
 static inline void set_key_size_aes(struct cc_hw_desc *pdesc, u32 size)
 {
@@ -598,7 +598,7 @@ static inline void set_key_size_aes(struct cc_hw_desc *pdesc, u32 size)
  * set_key_size_des() - Set DES key size.
  *
  * @pdesc: Pointer to HW descriptor struct
- * @size: Key size in bytes (NOT size code)
+ * @size: Key size in bytes (ANALT size code)
  */
 static inline void set_key_size_des(struct cc_hw_desc *pdesc, u32 size)
 {

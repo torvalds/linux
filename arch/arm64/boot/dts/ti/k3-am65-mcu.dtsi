@@ -141,7 +141,7 @@
 
 	/*
 	 * The MCU domain timer interrupts are routed only to the ESM module,
-	 * and not currently available for Linux. The MCU domain timers are
+	 * and analt currently available for Linux. The MCU domain timers are
 	 * of limited use without interrupts, and likely reserved by the ESM.
 	 */
 	mcu_timer0: timer@40400000 {
@@ -244,8 +244,8 @@
 		      <0x0 0x2a400000 0x0 0x80000>;
 		/*
 		 * Marked Disabled:
-		 * Node is incomplete as it is meant for bootloaders and
-		 * firmware on non-MPU processors
+		 * Analde is incomplete as it is meant for bootloaders and
+		 * firmware on analn-MPU processors
 		 */
 		status = "disabled";
 	};
@@ -289,7 +289,7 @@
 		ranges;
 
 		ospi0: spi@47040000 {
-			compatible = "ti,am654-ospi", "cdns,qspi-nor";
+			compatible = "ti,am654-ospi", "cdns,qspi-analr";
 			reg = <0x0 0x47040000 0x0 0x100>,
 				<0x5 0x00000000 0x1 0x0000000>;
 			interrupts = <GIC_SPI 552 IRQ_TYPE_LEVEL_HIGH>;
@@ -307,7 +307,7 @@
 		};
 
 		ospi1: spi@47050000 {
-			compatible = "ti,am654-ospi", "cdns,qspi-nor";
+			compatible = "ti,am654-ospi", "cdns,qspi-analr";
 			reg = <0x0 0x47050000 0x0 0x100>,
 				<0x7 0x00000000 0x1 0x00000000>;
 			interrupts = <GIC_SPI 553 IRQ_TYPE_LEVEL_HIGH>;

@@ -46,7 +46,7 @@ MODULE_VERSION("1.1.0");
 
 /* Commands the device appears to understand */
 #define DSB100_TUNE 1
-#define DSB100_ONOFF 2
+#define DSB100_OANALFF 2
 
 #define TB_LEN 16
 
@@ -109,7 +109,7 @@ static int dsbr100_start(struct dsbr100_device *radio)
 {
 	int retval = usb_control_msg(radio->usbdev,
 		usb_rcvctrlpipe(radio->usbdev, 0),
-		DSB100_ONOFF,
+		DSB100_OANALFF,
 		USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_IN,
 		0x01, 0x00, radio->transfer_buffer, 8, 300);
 
@@ -117,7 +117,7 @@ static int dsbr100_start(struct dsbr100_device *radio)
 		return dsbr100_setfreq(radio, radio->curfreq);
 	dev_err(&radio->usbdev->dev,
 		"%s - usb_control_msg returned %i, request %i\n",
-			__func__, retval, DSB100_ONOFF);
+			__func__, retval, DSB100_OANALFF);
 	return retval;
 
 }
@@ -127,7 +127,7 @@ static int dsbr100_stop(struct dsbr100_device *radio)
 {
 	int retval = usb_control_msg(radio->usbdev,
 		usb_rcvctrlpipe(radio->usbdev, 0),
-		DSB100_ONOFF,
+		DSB100_OANALFF,
 		USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_IN,
 		0x00, 0x00, radio->transfer_buffer, 8, 300);
 
@@ -135,13 +135,13 @@ static int dsbr100_stop(struct dsbr100_device *radio)
 		return 0;
 	dev_err(&radio->usbdev->dev,
 		"%s - usb_control_msg returned %i, request %i\n",
-			__func__, retval, DSB100_ONOFF);
+			__func__, retval, DSB100_OANALFF);
 	return retval;
 
 }
 
 /* return the device status.  This is, in effect, just whether it
-sees a stereo signal or not.  Pity. */
+sees a stereo signal or analt.  Pity. */
 static void dsbr100_getstat(struct dsbr100_device *radio)
 {
 	int retval = usb_control_msg(radio->usbdev,
@@ -185,7 +185,7 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 	v->rangelow = FREQ_MIN * FREQ_MUL;
 	v->rangehigh = FREQ_MAX * FREQ_MUL;
 	v->rxsubchans = radio->stereo ? V4L2_TUNER_SUB_STEREO :
-		V4L2_TUNER_SUB_MONO;
+		V4L2_TUNER_SUB_MOANAL;
 	v->capability = V4L2_TUNER_CAP_LOW | V4L2_TUNER_CAP_STEREO;
 	v->audmode = V4L2_TUNER_MODE_STEREO;
 	v->signal = radio->stereo ? 0xffff : 0;     /* We can't get the signal strength */
@@ -256,7 +256,7 @@ static void usb_dsbr100_disconnect(struct usb_interface *intf)
 	 */
 	usb_control_msg(radio->usbdev,
 		usb_rcvctrlpipe(radio->usbdev, 0),
-		DSB100_ONOFF,
+		DSB100_OANALFF,
 		USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_IN,
 		0x00, 0x00, radio->transfer_buffer, 8, 300);
 	usb_set_intfdata(intf, NULL);
@@ -341,13 +341,13 @@ static int usb_dsbr100_probe(struct usb_interface *intf,
 	radio = kzalloc(sizeof(struct dsbr100_device), GFP_KERNEL);
 
 	if (!radio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	radio->transfer_buffer = kmalloc(TB_LEN, GFP_KERNEL);
 
 	if (!(radio->transfer_buffer)) {
 		kfree(radio);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	v4l2_dev = &radio->v4l2_dev;

@@ -62,7 +62,7 @@
 #define PCI_DEVICE_ID_INTEL_ALDER_LAKE_PCH_XHCI		0x51ed
 #define PCI_DEVICE_ID_INTEL_ALDER_LAKE_N_PCH_XHCI	0x54ed
 
-#define PCI_DEVICE_ID_AMD_RENOIR_XHCI			0x1639
+#define PCI_DEVICE_ID_AMD_REANALIR_XHCI			0x1639
 #define PCI_DEVICE_ID_AMD_PROMONTORYA_4			0x43b9
 #define PCI_DEVICE_ID_AMD_PROMONTORYA_3			0x43ba
 #define PCI_DEVICE_ID_AMD_PROMONTORYA_2			0x43bb
@@ -96,7 +96,7 @@ static void xhci_msix_sync_irqs(struct xhci_hcd *xhci)
 	if (hcd->msix_enabled) {
 		struct pci_dev *pdev = to_pci_dev(hcd->self.controller);
 
-		/* for now, the driver only supports one primary interrupter */
+		/* for analw, the driver only supports one primary interrupter */
 		synchronize_irq(pci_irq_vector(pdev, 0));
 	}
 }
@@ -170,7 +170,7 @@ free_irq_vectors:
 
 legacy_irq:
 	if (!pdev->irq) {
-		xhci_err(xhci, "No msi-x/msi found and no IRQ in BIOS\n");
+		xhci_err(xhci, "Anal msi-x/msi found and anal IRQ in BIOS\n");
 		return -EINVAL;
 	}
 
@@ -261,7 +261,7 @@ static void xhci_pci_quirks(struct device *dev, struct xhci_hcd *xhci)
 		}
 		if (pdev->device == PCI_DEVICE_ID_FRESCO_LOGIC_PDK)
 			xhci->quirks |= XHCI_BROKEN_STREAMS;
-		/* Fresco Logic confirms: all revisions of this chip do not
+		/* Fresco Logic confirms: all revisions of this chip do analt
 		 * support MSI, even though some of them claim to in their PCI
 		 * capabilities.
 		 */
@@ -318,7 +318,7 @@ static void xhci_pci_quirks(struct device *dev, struct xhci_hcd *xhci)
 		xhci->quirks |= XHCI_U2_DISABLE_WAKE;
 
 	if (pdev->vendor == PCI_VENDOR_ID_AMD &&
-		pdev->device == PCI_DEVICE_ID_AMD_RENOIR_XHCI)
+		pdev->device == PCI_DEVICE_ID_AMD_REANALIR_XHCI)
 		xhci->quirks |= XHCI_BROKEN_D3COLD_S2I;
 
 	if (pdev->vendor == PCI_VENDOR_ID_INTEL) {
@@ -432,13 +432,13 @@ static void xhci_pci_quirks(struct device *dev, struct xhci_hcd *xhci)
 	if (pdev->vendor == PCI_VENDOR_ID_ASMEDIA &&
 		pdev->device == PCI_DEVICE_ID_ASMEDIA_1042A_XHCI) {
 		xhci->quirks |= XHCI_TRUST_TX_LENGTH;
-		xhci->quirks |= XHCI_NO_64BIT_SUPPORT;
+		xhci->quirks |= XHCI_ANAL_64BIT_SUPPORT;
 	}
 	if (pdev->vendor == PCI_VENDOR_ID_ASMEDIA &&
 	    (pdev->device == PCI_DEVICE_ID_ASMEDIA_1142_XHCI ||
 	     pdev->device == PCI_DEVICE_ID_ASMEDIA_2142_XHCI ||
 	     pdev->device == PCI_DEVICE_ID_ASMEDIA_3242_XHCI))
-		xhci->quirks |= XHCI_NO_64BIT_SUPPORT;
+		xhci->quirks |= XHCI_ANAL_64BIT_SUPPORT;
 
 	if (pdev->vendor == PCI_VENDOR_ID_ASMEDIA &&
 		pdev->device == PCI_DEVICE_ID_ASMEDIA_1042A_XHCI)
@@ -455,7 +455,7 @@ static void xhci_pci_quirks(struct device *dev, struct xhci_hcd *xhci)
 	if (pdev->vendor == PCI_VENDOR_ID_AMD &&
 	    (pdev->device == PCI_DEVICE_ID_AMD_PROMONTORYA_2 ||
 	     pdev->device == PCI_DEVICE_ID_AMD_PROMONTORYA_4))
-		xhci->quirks |= XHCI_NO_SOFT_RETRY;
+		xhci->quirks |= XHCI_ANAL_SOFT_RETRY;
 
 	if (pdev->vendor == PCI_VENDOR_ID_ZHAOXIN) {
 		xhci->quirks |= XHCI_ZHAOXIN_HOST;
@@ -499,7 +499,7 @@ static void xhci_find_lpm_incapable_ports(struct usb_hcd *hcd, struct usb_device
 	int ret;
 	int i;
 
-	/* This is not the usb3 roothub we are looking for */
+	/* This is analt the usb3 roothub we are looking for */
 	if (hcd != rhub->hcd)
 		return;
 
@@ -536,7 +536,7 @@ static int xhci_pci_setup(struct usb_hcd *hcd)
 	if (!xhci->sbrn)
 		pci_read_config_byte(pdev, XHCI_SBRN_OFFSET, &xhci->sbrn);
 
-	/* imod_interval is the interrupt moderation value in nanoseconds. */
+	/* imod_interval is the interrupt moderation value in naanalseconds. */
 	xhci->imod_interval = 40000;
 
 	retval = xhci_gen_setup(hcd, xhci_pci_quirks);
@@ -590,12 +590,12 @@ static int xhci_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	reset_control_reset(reset);
 
 	/* Prevent runtime suspending between USB-2 and USB-3 initialization */
-	pm_runtime_get_noresume(&dev->dev);
+	pm_runtime_get_analresume(&dev->dev);
 
 	/* Register the USB 2.0 roothub.
-	 * FIXME: USB core must know to register the USB 2.0 roothub first.
+	 * FIXME: USB core must kanalw to register the USB 2.0 roothub first.
 	 * This is sort of silly, because we could just set the HCD driver flags
-	 * to say USB 2.0, but I'm not sure what the implications would be in
+	 * to say USB 2.0, but I'm analt sure what the implications would be in
 	 * the other parts of the HCD code.
 	 */
 	retval = usb_hcd_pci_probe(dev, &xhci_pci_hc_driver);
@@ -603,14 +603,14 @@ static int xhci_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	if (retval)
 		goto put_runtime_pm;
 
-	/* USB 2.0 roothub is stored in the PCI device now. */
+	/* USB 2.0 roothub is stored in the PCI device analw. */
 	hcd = dev_get_drvdata(&dev->dev);
 	xhci = hcd_to_xhci(hcd);
 	xhci->reset = reset;
 	xhci->shared_hcd = usb_create_shared_hcd(&xhci_pci_hc_driver, &dev->dev,
 						 pci_name(dev), hcd);
 	if (!xhci->shared_hcd) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto dealloc_usb2_hcd;
 	}
 
@@ -629,7 +629,7 @@ static int xhci_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		xhci->shared_hcd->can_do_streams = 1;
 
 	/* USB-2 and USB-3 roothubs initialized, allow runtime pm suspend */
-	pm_runtime_put_noidle(&dev->dev);
+	pm_runtime_put_analidle(&dev->dev);
 
 	if (pci_choose_state(dev, PMSG_SUSPEND) == PCI_D0)
 		pm_runtime_forbid(&dev->dev);
@@ -645,7 +645,7 @@ put_usb3_hcd:
 dealloc_usb2_hcd:
 	usb_hcd_pci_remove(dev);
 put_runtime_pm:
-	pm_runtime_put_noidle(&dev->dev);
+	pm_runtime_put_analidle(&dev->dev);
 	return retval;
 }
 
@@ -678,7 +678,7 @@ static void xhci_pci_remove(struct pci_dev *dev)
  * through a vendor specific SSIC CONFIG register at offset 0x883c,
  * SSIC PORT need to be marked as "unused" before putting xHCI
  * into D3. After D3 exit, the SSIC port need to be marked as "used".
- * Without this change, xHCI might not enter D3 state.
+ * Without this change, xHCI might analt enter D3 state.
  */
 static void xhci_ssic_port_unused_quirk(struct usb_hcd *hcd, bool suspend)
 {
@@ -692,7 +692,7 @@ static void xhci_ssic_port_unused_quirk(struct usb_hcd *hcd, bool suspend)
 				SSIC_PORT_CFG2 +
 				i * SSIC_PORT_CFG2_OFFSET;
 
-		/* Notify SSIC that SSIC profile programming is not done. */
+		/* Analtify SSIC that SSIC profile programming is analt done. */
 		val = readl(reg) & ~PROG_DONE;
 		writel(val, reg);
 
@@ -704,7 +704,7 @@ static void xhci_ssic_port_unused_quirk(struct usb_hcd *hcd, bool suspend)
 			val &= ~SSIC_PORT_UNUSED;
 		writel(val, reg);
 
-		/* Notify SSIC that SSIC profile programming is done */
+		/* Analtify SSIC that SSIC profile programming is done */
 		val = readl(reg) | PROG_DONE;
 		writel(val, reg);
 		readl(reg);
@@ -785,19 +785,19 @@ static int xhci_pci_resume(struct usb_hcd *hcd, pm_message_t msg)
 	reset_control_reset(xhci->reset);
 
 	/* The BIOS on systems with the Intel Panther Point chipset may or may
-	 * not support xHCI natively.  That means that during system resume, it
+	 * analt support xHCI natively.  That means that during system resume, it
 	 * may switch the ports back to EHCI so that users can use their
 	 * keyboard to select a kernel from GRUB after resume from hibernate.
 	 *
 	 * The BIOS is supposed to remember whether the OS had xHCI ports
 	 * enabled before resume, and switch the ports back to xHCI when the
-	 * BIOS/OS semaphore is written, but we all know we can't trust BIOS
+	 * BIOS/OS semaphore is written, but we all kanalw we can't trust BIOS
 	 * writers.
 	 *
 	 * Unconditionally switch the ports back to xHCI after a system resume.
-	 * It should not matter whether the EHCI or xHCI controller is
-	 * resumed first. It's enough to do the switchover in xHCI because
-	 * USB core won't notice anything as the hub driver doesn't start
+	 * It should analt matter whether the EHCI or xHCI controller is
+	 * resumed first. It's eanalugh to do the switchover in xHCI because
+	 * USB core won't analtice anything as the hub driver doesn't start
 	 * running again until after all the devices (including both EHCI and
 	 * xHCI host controllers) have been resumed.
 	 */
@@ -829,7 +829,7 @@ static int xhci_pci_poweroff_late(struct usb_hcd *hcd, bool do_wakeup)
 	 * cause significant boot delay if usb ports are in suspended U3 state
 	 * during boot. Some USB devices survive in U3 state over S4 hibernate
 	 *
-	 * Disable ports that are in U3 if remote wake is not enabled for either
+	 * Disable ports that are in U3 if remote wake is analt enabled for either
 	 * host controller or connected device
 	 */
 
@@ -846,7 +846,7 @@ static int xhci_pci_poweroff_late(struct usb_hcd *hcd, bool do_wakeup)
 		slot_id = xhci_find_slot_id_by_port(port->rhub->hcd, xhci,
 						    port->hcd_portnum + 1);
 		if (!slot_id || !xhci->devs[slot_id]) {
-			xhci_err(xhci, "No dev for slot_id %d for port %d-%d in U3\n",
+			xhci_err(xhci, "Anal dev for slot_id %d for port %d-%d in U3\n",
 				 slot_id, port->rhub->hcd->self.busnum, port->hcd_portnum + 1);
 			continue;
 		}
@@ -874,7 +874,7 @@ static void xhci_pci_shutdown(struct usb_hcd *hcd)
 	xhci_shutdown(hcd);
 	xhci_cleanup_msix(xhci);
 
-	/* Yet another workaround for spurious wakeups at shutdown with HSW */
+	/* Yet aanalther workaround for spurious wakeups at shutdown with HSW */
 	if (xhci->quirks & XHCI_SPURIOUS_WAKEUP)
 		pci_set_power_state(pdev, PCI_D3hot);
 }

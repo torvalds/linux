@@ -13,6 +13,6 @@ config DRM_GMA500
 	select X86_PLATFORM_DEVICES if ACPI
 	select ACPI_WMI if ACPI
 	help
-	  Say yes for an experimental 2D KMS framebuffer driver for the
+	  Say anal for an experimental 2D KMS framebuffer driver for the
 	  Intel GMA500 (Poulsbo), Intel GMA600 (Moorestown/Oak Trail) and
 	  Intel GMA3600/3650 (Cedar Trail).

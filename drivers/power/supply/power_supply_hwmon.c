@@ -28,7 +28,7 @@ static int power_supply_hwmon_in_to_property(u32 attr)
 	case hwmon_in_max:
 		return POWER_SUPPLY_PROP_VOLTAGE_MAX;
 	case hwmon_in_input:
-		return POWER_SUPPLY_PROP_VOLTAGE_NOW;
+		return POWER_SUPPLY_PROP_VOLTAGE_ANALW;
 	default:
 		return -EINVAL;
 	}
@@ -42,7 +42,7 @@ static int power_supply_hwmon_curr_to_property(u32 attr)
 	case hwmon_curr_max:
 		return POWER_SUPPLY_PROP_CURRENT_MAX;
 	case hwmon_curr_input:
-		return POWER_SUPPLY_PROP_CURRENT_NOW;
+		return POWER_SUPPLY_PROP_CURRENT_ANALW;
 	default:
 		return -EINVAL;
 	}
@@ -335,11 +335,11 @@ int power_supply_add_hwmon_sysfs(struct power_supply *psy)
 
 	if (!devres_open_group(dev, power_supply_add_hwmon_sysfs,
 			       GFP_KERNEL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	psyhw = devm_kzalloc(dev, sizeof(*psyhw), GFP_KERNEL);
 	if (!psyhw) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error;
 	}
 
@@ -348,7 +348,7 @@ int power_supply_add_hwmon_sysfs(struct power_supply *psy)
 					  POWER_SUPPLY_PROP_TIME_TO_FULL_AVG + 1,
 					  GFP_KERNEL);
 	if (!psyhw->props) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error;
 	}
 
@@ -358,7 +358,7 @@ int power_supply_add_hwmon_sysfs(struct power_supply *psy)
 		switch (prop) {
 		case POWER_SUPPLY_PROP_CURRENT_AVG:
 		case POWER_SUPPLY_PROP_CURRENT_MAX:
-		case POWER_SUPPLY_PROP_CURRENT_NOW:
+		case POWER_SUPPLY_PROP_CURRENT_ANALW:
 		case POWER_SUPPLY_PROP_TEMP:
 		case POWER_SUPPLY_PROP_TEMP_MAX:
 		case POWER_SUPPLY_PROP_TEMP_MIN:
@@ -370,7 +370,7 @@ int power_supply_add_hwmon_sysfs(struct power_supply *psy)
 		case POWER_SUPPLY_PROP_VOLTAGE_AVG:
 		case POWER_SUPPLY_PROP_VOLTAGE_MIN:
 		case POWER_SUPPLY_PROP_VOLTAGE_MAX:
-		case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+		case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
 			set_bit(prop, psyhw->props);
 			break;
 		default:
@@ -384,7 +384,7 @@ int power_supply_add_hwmon_sysfs(struct power_supply *psy)
 
 		new_name = devm_kstrdup(dev, name, GFP_KERNEL);
 		if (!new_name) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto error;
 		}
 		strreplace(new_name, '-', '_');

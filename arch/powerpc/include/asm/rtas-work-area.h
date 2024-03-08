@@ -11,7 +11,7 @@
 /**
  * struct rtas_work_area - RTAS work area descriptor.
  *
- * Descriptor for a "work area" in PAPR terminology that satisfies
+ * Descriptor for a "work area" in PAPR termianallogy that satisfies
  * RTAS addressing requirements.
  */
 struct rtas_work_area {
@@ -27,18 +27,18 @@ enum {
 
 /**
  * rtas_work_area_alloc() - Acquire a work area of the requested size.
- * @size_: Allocation size. Must be compile-time constant and not more
+ * @size_: Allocation size. Must be compile-time constant and analt more
  *         than %RTAS_WORK_AREA_MAX_ALLOC_SZ.
  *
  * Allocate a buffer suitable for passing to RTAS functions that have
- * a memory address parameter, often (but not always) referred to as a
+ * a memory address parameter, often (but analt always) referred to as a
  * "work area" in PAPR. Although callers are allowed to block while
  * holding a work area, the amount of memory reserved for this purpose
  * is limited, and allocations should be short-lived. A good guideline
  * is to release any allocated work area before returning from a
  * system call.
  *
- * This function does not fail. It blocks until the allocation
+ * This function does analt fail. It blocks until the allocation
  * succeeds. To prevent deadlocks, callers are discouraged from
  * allocating more than one work area simultaneously in a single task
  * context.
@@ -54,7 +54,7 @@ enum {
 })
 
 /*
- * Do not call __rtas_work_area_alloc() directly. Use
+ * Do analt call __rtas_work_area_alloc() directly. Use
  * rtas_work_area_alloc().
  */
 struct rtas_work_area *__rtas_work_area_alloc(size_t size);

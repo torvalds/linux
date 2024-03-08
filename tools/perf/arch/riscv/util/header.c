@@ -8,7 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <api/fs/fs.h>
-#include <errno.h>
+#include <erranal.h>
 #include "../../util/debug.h"
 #include "../../util/header.h"
 

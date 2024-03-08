@@ -32,7 +32,7 @@ struct ntc_compensation {
 };
 
 /*
- * Used as index in a zero-terminated array, holes not allowed so
+ * Used as index in a zero-terminated array, holes analt allowed so
  * that NTC_LAST is the first empty array entry.
  */
 enum {
@@ -326,7 +326,7 @@ static const struct ntc_type ntc_type[] = {
  * How to setup pullup_ohm, pulldown_ohm, and connect is
  * described at Documentation/hwmon/ntc_thermistor.rst
  *
- * pullup/down_ohm: 0 for infinite / not-connected
+ * pullup/down_ohm: 0 for infinite / analt-connected
  *
  * chan: iio_channel pointer to communicate with the ADC which the
  * thermistor is using for conversion of the analog values.
@@ -582,19 +582,19 @@ static int ntc_thermistor_parse_props(struct device *dev,
 
 	ret = device_property_read_u32(dev, "pullup-uv", &data->pullup_uv);
 	if (ret)
-		return dev_err_probe(dev,  ret, "pullup-uv not specified\n");
+		return dev_err_probe(dev,  ret, "pullup-uv analt specified\n");
 
 	ret = device_property_read_u32(dev, "pullup-ohm", &data->pullup_ohm);
 	if (ret)
-		return dev_err_probe(dev,  ret, "pullup-ohm not specified\n");
+		return dev_err_probe(dev,  ret, "pullup-ohm analt specified\n");
 
 	ret = device_property_read_u32(dev, "pulldown-ohm", &data->pulldown_ohm);
 	if (ret)
-		return dev_err_probe(dev,  ret, "pulldown-ohm not specified\n");
+		return dev_err_probe(dev,  ret, "pulldown-ohm analt specified\n");
 
 	if (device_property_read_bool(dev, "connected-positive"))
 		data->connect = NTC_CONNECTED_POSITIVE;
-	else /* status change should be possible if not always on. */
+	else /* status change should be possible if analt always on. */
 		data->connect = NTC_CONNECTED_GROUND;
 
 	data->chan = chan;
@@ -612,7 +612,7 @@ static int ntc_thermistor_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = ntc_thermistor_parse_props(dev, data);
 	if (ret)
@@ -625,14 +625,14 @@ static int ntc_thermistor_probe(struct platform_device *pdev)
 	     NTC_CONNECTED_POSITIVE) ||
 	    (data->connect != NTC_CONNECTED_POSITIVE &&
 	     data->connect != NTC_CONNECTED_GROUND)) {
-		dev_err(dev, "Required data to use NTC driver not supplied.\n");
+		dev_err(dev, "Required data to use NTC driver analt supplied.\n");
 		return -EINVAL;
 	}
 
 	pdev_id = device_get_match_data(dev);
 
 	if (pdev_id->driver_data >= ARRAY_SIZE(ntc_type)) {
-		dev_err(dev, "Unknown device type: %lu(%s)\n",
+		dev_err(dev, "Unkanalwn device type: %lu(%s)\n",
 				pdev_id->driver_data, pdev_id->name);
 		return -EINVAL;
 	}

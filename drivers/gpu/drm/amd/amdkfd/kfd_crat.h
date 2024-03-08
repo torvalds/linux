@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -80,7 +80,7 @@ struct crat_header {
 #define CRAT_SUBTYPE_MAX			6
 
 /*
- * Do not change the value of CRAT_SIBLINGMAP_SIZE from 32
+ * Do analt change the value of CRAT_SIBLINGMAP_SIZE from 32
  * as it breaks the ABI.
  */
 #define CRAT_SIBLINGMAP_SIZE	32
@@ -125,7 +125,7 @@ struct crat_subtype_computeunit {
  */
 #define CRAT_MEM_FLAGS_ENABLED		0x00000001
 #define CRAT_MEM_FLAGS_HOT_PLUGGABLE	0x00000002
-#define CRAT_MEM_FLAGS_NON_VOLATILE	0x00000004
+#define CRAT_MEM_FLAGS_ANALN_VOLATILE	0x00000004
 #define CRAT_MEM_FLAGS_RESERVED		0xfffffff8
 
 #define CRAT_MEMORY_RESERVED_LENGTH 8
@@ -232,10 +232,10 @@ struct crat_subtype_ccompute {
  * HSA IO Link Affinity structure and definitions
  */
 #define CRAT_IOLINK_FLAGS_ENABLED		(1 << 0)
-#define CRAT_IOLINK_FLAGS_NON_COHERENT		(1 << 1)
-#define CRAT_IOLINK_FLAGS_NO_ATOMICS_32_BIT	(1 << 2)
-#define CRAT_IOLINK_FLAGS_NO_ATOMICS_64_BIT	(1 << 3)
-#define CRAT_IOLINK_FLAGS_NO_PEER_TO_PEER_DMA	(1 << 4)
+#define CRAT_IOLINK_FLAGS_ANALN_COHERENT		(1 << 1)
+#define CRAT_IOLINK_FLAGS_ANAL_ATOMICS_32_BIT	(1 << 2)
+#define CRAT_IOLINK_FLAGS_ANAL_ATOMICS_64_BIT	(1 << 3)
+#define CRAT_IOLINK_FLAGS_ANAL_PEER_TO_PEER_DMA	(1 << 4)
 #define CRAT_IOLINK_FLAGS_BI_DIRECTIONAL	(1 << 31)
 #define CRAT_IOLINK_FLAGS_RESERVED_MASK		0x7fffffe0
 
@@ -272,7 +272,7 @@ struct crat_subtype_iolink {
 	uint32_t	proximity_domain_to;
 	uint8_t		io_interface_type;
 	uint8_t		version_major;
-	uint16_t	version_minor;
+	uint16_t	version_mianalr;
 	uint32_t	minimum_latency;
 	uint32_t	maximum_latency;
 	uint32_t	minimum_bandwidth_mbs;
@@ -297,7 +297,7 @@ struct crat_subtype_generic {
 
 #pragma pack()
 
-struct kfd_node;
+struct kfd_analde;
 
 /* Static table to describe GPU Cache information */
 struct kfd_gpu_cache_info {
@@ -305,17 +305,17 @@ struct kfd_gpu_cache_info {
 	uint32_t	cache_level;
 	uint32_t	flags;
 	/* Indicates how many Compute Units share this cache
-	 * within a SA. Value = 1 indicates the cache is not shared
+	 * within a SA. Value = 1 indicates the cache is analt shared
 	 */
 	uint32_t	num_cu_shared;
 };
-int kfd_get_gpu_cache_info(struct kfd_node *kdev, struct kfd_gpu_cache_info **pcache_info);
+int kfd_get_gpu_cache_info(struct kfd_analde *kdev, struct kfd_gpu_cache_info **pcache_info);
 
 void kfd_destroy_crat_image(void *crat_image);
 int kfd_parse_crat_table(void *crat_image, struct list_head *device_list,
 			 uint32_t proximity_domain);
 int kfd_create_crat_image_virtual(void **crat_image, size_t *size,
-				  int flags, struct kfd_node *kdev,
+				  int flags, struct kfd_analde *kdev,
 				  uint32_t proximity_domain);
 
 #endif /* KFD_CRAT_H_INCLUDED */

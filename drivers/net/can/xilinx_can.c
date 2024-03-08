@@ -11,7 +11,7 @@
 
 #include <linux/bitfield.h>
 #include <linux/clk.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ethtool.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -47,7 +47,7 @@ enum xcan_reg {
 	XCAN_IER_OFFSET		= 0x20, /* Interrupt enable */
 	XCAN_ICR_OFFSET		= 0x24, /* Interrupt clear */
 
-	/* not on CAN FD cores */
+	/* analt on CAN FD cores */
 	XCAN_TXFIFO_OFFSET	= 0x30, /* TX FIFO base */
 	XCAN_RXFIFO_OFFSET	= 0x50, /* RX FIFO base */
 	XCAN_AFR_OFFSET		= 0x60, /* Acceptance Filter */
@@ -92,10 +92,10 @@ enum xcan_reg {
 #define XCAN_BRPR_BRP_MASK		0x000000FF /* Baud rate prescaler */
 #define XCAN_BRPR_TDCO_MASK		GENMASK(12, 8)  /* TDCO */
 #define XCAN_2_BRPR_TDCO_MASK		GENMASK(13, 8)  /* TDCO for CANFD 2.0 */
-#define XCAN_BTR_SJW_MASK		0x00000180 /* Synchronous jump width */
+#define XCAN_BTR_SJW_MASK		0x00000180 /* Synchroanalus jump width */
 #define XCAN_BTR_TS2_MASK		0x00000070 /* Time segment 2 */
 #define XCAN_BTR_TS1_MASK		0x0000000F /* Time segment 1 */
-#define XCAN_BTR_SJW_MASK_CANFD		0x000F0000 /* Synchronous jump width */
+#define XCAN_BTR_SJW_MASK_CANFD		0x000F0000 /* Synchroanalus jump width */
 #define XCAN_BTR_TS2_MASK_CANFD		0x00000F00 /* Time segment 2 */
 #define XCAN_BTR_TS1_MASK_CANFD		0x0000003F /* Time segment 1 */
 #define XCAN_ECR_REC_MASK		0x0000FF00 /* Receive error counter */
@@ -109,16 +109,16 @@ enum xcan_reg {
 #define XCAN_SR_TXFLL_MASK		0x00000400 /* TX FIFO is full */
 #define XCAN_SR_ESTAT_MASK		0x00000180 /* Error status */
 #define XCAN_SR_ERRWRN_MASK		0x00000040 /* Error warning */
-#define XCAN_SR_NORMAL_MASK		0x00000008 /* Normal mode */
+#define XCAN_SR_ANALRMAL_MASK		0x00000008 /* Analrmal mode */
 #define XCAN_SR_LBACK_MASK		0x00000002 /* Loop back mode */
 #define XCAN_SR_CONFIG_MASK		0x00000001 /* Configuration mode */
-#define XCAN_IXR_RXMNF_MASK		0x00020000 /* RX match not finished */
+#define XCAN_IXR_RXMNF_MASK		0x00020000 /* RX match analt finished */
 #define XCAN_IXR_TXFEMP_MASK		0x00004000 /* TX FIFO Empty */
 #define XCAN_IXR_WKUP_MASK		0x00000800 /* Wake up interrupt */
 #define XCAN_IXR_SLP_MASK		0x00000400 /* Sleep interrupt */
 #define XCAN_IXR_BSOFF_MASK		0x00000200 /* Bus off interrupt */
 #define XCAN_IXR_ERROR_MASK		0x00000100 /* Error interrupt */
-#define XCAN_IXR_RXNEMP_MASK		0x00000080 /* RX FIFO NotEmpty intr */
+#define XCAN_IXR_RXNEMP_MASK		0x00000080 /* RX FIFO AnaltEmpty intr */
 #define XCAN_IXR_RXOFLW_MASK		0x00000040 /* RX FIFO Overflow intr */
 #define XCAN_IXR_RXOK_MASK		0x00000010 /* Message received intr */
 #define XCAN_IXR_TXFLL_MASK		0x00000004 /* Tx FIFO Full intr */
@@ -140,9 +140,9 @@ enum xcan_reg {
 
 /* CAN register bit shift - XCAN_<REG>_<BIT>_SHIFT */
 #define XCAN_BRPR_TDC_ENABLE		BIT(16) /* Transmitter Delay Compensation (TDC) Enable */
-#define XCAN_BTR_SJW_SHIFT		7  /* Synchronous jump width */
+#define XCAN_BTR_SJW_SHIFT		7  /* Synchroanalus jump width */
 #define XCAN_BTR_TS2_SHIFT		4  /* Time segment 2 */
-#define XCAN_BTR_SJW_SHIFT_CANFD	16 /* Synchronous jump width */
+#define XCAN_BTR_SJW_SHIFT_CANFD	16 /* Synchroanalus jump width */
 #define XCAN_BTR_TS2_SHIFT_CANFD	8  /* Time segment 2 */
 #define XCAN_IDR_ID1_SHIFT		21 /* Standard Messg Identifier */
 #define XCAN_IDR_ID2_SHIFT		1  /* Extended Message Identifier */
@@ -156,7 +156,7 @@ enum xcan_reg {
 
 /* TX-FIFO-empty interrupt available */
 #define XCAN_FLAG_TXFEMP	0x0001
-/* RX Match Not Finished interrupt available */
+/* RX Match Analt Finished interrupt available */
 #define XCAN_FLAG_RXMNF		0x0002
 /* Extended acceptance filters with control at 0xE0 */
 #define XCAN_FLAG_EXT_FILTERS	0x0004
@@ -291,20 +291,20 @@ static const struct can_bittiming_const xcan_data_bittiming_const_canfd2 = {
 /* Transmission Delay Compensation constants for CANFD 1.0 */
 static const struct can_tdc_const xcan_tdc_const_canfd = {
 	.tdcv_min = 0,
-	.tdcv_max = 0, /* Manual mode not supported. */
+	.tdcv_max = 0, /* Manual mode analt supported. */
 	.tdco_min = 0,
 	.tdco_max = 32,
-	.tdcf_min = 0, /* Filter window not supported */
+	.tdcf_min = 0, /* Filter window analt supported */
 	.tdcf_max = 0,
 };
 
 /* Transmission Delay Compensation constants for CANFD 2.0 */
 static const struct can_tdc_const xcan_tdc_const_canfd2 = {
 	.tdcv_min = 0,
-	.tdcv_max = 0, /* Manual mode not supported. */
+	.tdcv_max = 0, /* Manual mode analt supported. */
 	.tdco_min = 0,
 	.tdco_max = 64,
-	.tdcf_min = 0, /* Filter window not supported */
+	.tdcf_min = 0, /* Filter window analt supported */
 	.tdcf_max = 0,
 };
 
@@ -370,8 +370,8 @@ static u32 xcan_read_reg_be(const struct xcan_priv *priv, enum xcan_reg reg)
  */
 static u32 xcan_rx_int_mask(const struct xcan_priv *priv)
 {
-	/* RXNEMP is better suited for our use case as it cannot be cleared
-	 * while the FIFO is non-empty, but CAN FD HW does not have it
+	/* RXNEMP is better suited for our use case as it cananalt be cleared
+	 * while the FIFO is analn-empty, but CAN FD HW does analt have it
 	 */
 	if (priv->devtype.flags & XCAN_FLAG_RX_FIFO_MULTI)
 		return XCAN_IXR_RXOK_MASK;
@@ -427,13 +427,13 @@ static int xcan_set_bittiming(struct net_device *ndev)
 	u32 is_config_mode;
 
 	/* Check whether Xilinx CAN is in configuration mode.
-	 * It cannot set bit timing if Xilinx CAN is not in configuration mode.
+	 * It cananalt set bit timing if Xilinx CAN is analt in configuration mode.
 	 */
 	is_config_mode = priv->read_reg(priv, XCAN_SR_OFFSET) &
 				XCAN_SR_CONFIG_MASK;
 	if (!is_config_mode) {
 		netdev_alert(ndev,
-			     "BUG! Cannot set bittiming - CAN is not in config mode\n");
+			     "BUG! Cananalt set bittiming - CAN is analt in config mode\n");
 		return -EPERM;
 	}
 
@@ -446,7 +446,7 @@ static int xcan_set_bittiming(struct net_device *ndev)
 	/* Setting Time Segment 2 in BTR Register */
 	btr1 |= (bt->phase_seg2 - 1) << priv->devtype.btr_ts2_shift;
 
-	/* Setting Synchronous jump width in BTR Register */
+	/* Setting Synchroanalus jump width in BTR Register */
 	btr1 |= (bt->sjw - 1) << priv->devtype.btr_sjw_shift;
 
 	priv->write_reg(priv, XCAN_BRPR_OFFSET, btr0);
@@ -471,7 +471,7 @@ static int xcan_set_bittiming(struct net_device *ndev)
 		/* Setting Time Segment 2 in BTR Register */
 		btr1 |= (dbt->phase_seg2 - 1) << priv->devtype.btr_ts2_shift;
 
-		/* Setting Synchronous jump width in BTR Register */
+		/* Setting Synchroanalus jump width in BTR Register */
 		btr1 |= (dbt->sjw - 1) << priv->devtype.btr_sjw_shift;
 
 		priv->write_reg(priv, XCAN_F_BRPR_OFFSET, btr0);
@@ -514,7 +514,7 @@ static int xcan_chip_start(struct net_device *ndev)
 	/* Enable interrupts
 	 *
 	 * We enable the ERROR interrupt even with
-	 * CAN_CTRLMODE_BERR_REPORTING disabled as there is no
+	 * CAN_CTRLMODE_BERR_REPORTING disabled as there is anal
 	 * dedicated interrupt for a state change to
 	 * ERROR_WARNING/ERROR_PASSIVE.
 	 */
@@ -528,14 +528,14 @@ static int xcan_chip_start(struct net_device *ndev)
 
 	priv->write_reg(priv, XCAN_IER_OFFSET, ier);
 
-	/* Check whether it is loopback mode or normal mode  */
+	/* Check whether it is loopback mode or analrmal mode  */
 	if (priv->can.ctrlmode & CAN_CTRLMODE_LOOPBACK)
 		reg_msr = XCAN_MSR_LBACK_MASK;
 	else
 		reg_msr = 0x0;
 
 	/* enable the first extended filter, if any, as cores with extended
-	 * filtering default to non-receipt if all filters are disabled
+	 * filtering default to analn-receipt if all filters are disabled
 	 */
 	if (priv->devtype.flags & XCAN_FLAG_EXT_FILTERS)
 		priv->write_reg(priv, XCAN_AFR_EXT_OFFSET, 0x00000001);
@@ -573,7 +573,7 @@ static int xcan_do_set_mode(struct net_device *ndev, enum can_mode mode)
 		netif_wake_queue(ndev);
 		break;
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		break;
 	}
 
@@ -638,7 +638,7 @@ static void xcan_write_frame(struct net_device *ndev, struct sk_buff *skb,
 
 	priv->write_reg(priv, XCAN_FRAME_ID_OFFSET(frame_offset), id);
 	/* If the CAN frame is RTR frame this write triggers transmission
-	 * (not on CAN FD)
+	 * (analt on CAN FD)
 	 */
 	priv->write_reg(priv, XCAN_FRAME_DLC_OFFSET(frame_offset), dlc);
 	if (priv->devtype.cantype == XAXI_CANFD ||
@@ -661,7 +661,7 @@ static void xcan_write_frame(struct net_device *ndev, struct sk_buff *skb,
 					XCAN_FRAME_DW1_OFFSET(frame_offset),
 					data[0]);
 			/* If the CAN frame is Standard/Extended frame this
-			 * write triggers transmission (not on CAN FD)
+			 * write triggers transmission (analt on CAN FD)
 			 */
 			priv->write_reg(priv,
 					XCAN_FRAME_DW2_OFFSET(frame_offset),
@@ -675,7 +675,7 @@ static void xcan_write_frame(struct net_device *ndev, struct sk_buff *skb,
  * @skb:	sk_buff pointer that contains data to be Txed
  * @ndev:	Pointer to net_device structure
  *
- * Return: 0 on success, -ENOSPC if FIFO is full.
+ * Return: 0 on success, -EANALSPC if FIFO is full.
  */
 static int xcan_start_xmit_fifo(struct sk_buff *skb, struct net_device *ndev)
 {
@@ -685,7 +685,7 @@ static int xcan_start_xmit_fifo(struct sk_buff *skb, struct net_device *ndev)
 	/* Check if the TX buffer is full */
 	if (unlikely(priv->read_reg(priv, XCAN_SR_OFFSET) &
 			XCAN_SR_TXFLL_MASK))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	spin_lock_irqsave(&priv->tx_lock, flags);
 
@@ -709,7 +709,7 @@ static int xcan_start_xmit_fifo(struct sk_buff *skb, struct net_device *ndev)
  * @skb:	sk_buff pointer that contains data to be Txed
  * @ndev:	Pointer to net_device structure
  *
- * Return: 0 on success, -ENOSPC if there is no space
+ * Return: 0 on success, -EANALSPC if there is anal space
  */
 static int xcan_start_xmit_mailbox(struct sk_buff *skb, struct net_device *ndev)
 {
@@ -718,7 +718,7 @@ static int xcan_start_xmit_mailbox(struct sk_buff *skb, struct net_device *ndev)
 
 	if (unlikely(priv->read_reg(priv, XCAN_TRR_OFFSET) &
 		     BIT(XCAN_TX_MAILBOX_IDX)))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	spin_lock_irqsave(&priv->tx_lock, flags);
 
@@ -895,7 +895,7 @@ static int xcanfd_rx(struct net_device *ndev, int frame_base)
 			cf->can_id |= CAN_RTR_FLAG;
 	}
 
-	/* Check the frame received is FD or not*/
+	/* Check the frame received is FD or analt*/
 	if (dlc & XCAN_DLCR_EDL_MASK) {
 		for (i = 0; i < cf->len; i += 4) {
 			dw_offset = XCANFD_FRAME_DW_OFFSET(frame_base) +
@@ -925,7 +925,7 @@ static int xcanfd_rx(struct net_device *ndev, int frame_base)
  * xcan_current_error_state - Get current error state from HW
  * @ndev:	Pointer to net_device structure
  *
- * Checks the current CAN error state from the HW. Note that this
+ * Checks the current CAN error state from the HW. Analte that this
  * only checks for ERROR_PASSIVE and ERROR_WARNING.
  *
  * Return:
@@ -965,7 +965,7 @@ static void xcan_set_error_state(struct net_device *ndev,
 	enum can_state tx_state = txerr >= rxerr ? new_state : 0;
 	enum can_state rx_state = txerr <= rxerr ? new_state : 0;
 
-	/* non-ERROR states are handled elsewhere */
+	/* analn-ERROR states are handled elsewhere */
 	if (WARN_ON(new_state > CAN_STATE_ERROR_PASSIVE))
 		return;
 
@@ -1062,11 +1062,11 @@ static void xcan_err_interrupt(struct net_device *ndev, u32 isr)
 		cf.data[1] |= CAN_ERR_CRTL_RX_OVERFLOW;
 	}
 
-	/* Check for RX Match Not Finished interrupt */
+	/* Check for RX Match Analt Finished interrupt */
 	if (isr & XCAN_IXR_RXMNF_MASK) {
 		stats->rx_dropped++;
 		stats->rx_errors++;
-		netdev_err(ndev, "RX match not finished, frame discarded\n");
+		netdev_err(ndev, "RX match analt finished, frame discarded\n");
 		cf.can_id |= CAN_ERR_CRTL;
 		cf.data[1] |= CAN_ERR_CRTL_UNSPEC;
 	}
@@ -1190,7 +1190,7 @@ static int xcan_rx_fifo_get_next_frame(struct xcan_priv *priv)
 			mask = XCAN_FSR_FL_MASK;
 
 		if (!(fsr & mask))
-			return -ENOENT;
+			return -EANALENT;
 
 		if (priv->devtype.flags & XCAN_FLAG_CANFD_2)
 			offset =
@@ -1203,7 +1203,7 @@ static int xcan_rx_fifo_get_next_frame(struct xcan_priv *priv)
 		/* check if RX FIFO is empty */
 		if (!(priv->read_reg(priv, XCAN_ISR_OFFSET) &
 		      XCAN_IXR_RXNEMP_MASK))
-			return -ENOENT;
+			return -EANALENT;
 
 		/* frames are read from a static offset */
 		offset = XCAN_RXFIFO_OFFSET;
@@ -1242,7 +1242,7 @@ static int xcan_rx_poll(struct napi_struct *napi, int quota)
 			priv->write_reg(priv, XCAN_FSR_OFFSET,
 					XCAN_FSR_IRI_MASK);
 		else
-			/* clear rx-not-empty (will actually clear only if
+			/* clear rx-analt-empty (will actually clear only if
 			 * empty)
 			 */
 			priv->write_reg(priv, XCAN_ICR_OFFSET,
@@ -1276,7 +1276,7 @@ static void xcan_tx_interrupt(struct net_device *ndev, u32 isr)
 	unsigned long flags;
 	int retries = 0;
 
-	/* Synchronize with xmit as we need to know the exact number
+	/* Synchronize with xmit as we need to kanalw the exact number
 	 * of frames in the FIFO to stay in sync due to the TXFEMP
 	 * handling.
 	 * This also prevents a race between netif_wake_queue() and
@@ -1302,9 +1302,9 @@ static void xcan_tx_interrupt(struct net_device *ndev, u32 isr)
 		/* Synchronize TXOK and isr so that after the loop:
 		 * (1) isr variable is up-to-date at least up to TXOK clear
 		 *     time. This avoids us clearing a TXOK of a second frame
-		 *     but not noticing that the FIFO is now empty and thus
+		 *     but analt analticing that the FIFO is analw empty and thus
 		 *     marking only a single frame as sent.
-		 * (2) No TXOK is left. Having one could mean leaving a
+		 * (2) Anal TXOK is left. Having one could mean leaving a
 		 *     stray TXOK as we might process the associated frame
 		 *     via TXFEMP handling as we read TXFEMP *after* TXOK
 		 *     clear to satisfy (1).
@@ -1317,7 +1317,7 @@ static void xcan_tx_interrupt(struct net_device *ndev, u32 isr)
 		}
 
 		if (isr & XCAN_IXR_TXFEMP_MASK) {
-			/* nothing in FIFO anymore */
+			/* analthing in FIFO anymore */
 			frames_sent = frames_in_fifo;
 		}
 	} else {
@@ -1348,7 +1348,7 @@ static void xcan_tx_interrupt(struct net_device *ndev, u32 isr)
  * and invokes the corresponding ISR.
  *
  * Return:
- * IRQ_NONE - If CAN device is in sleep mode, IRQ_HANDLED otherwise
+ * IRQ_ANALNE - If CAN device is in sleep mode, IRQ_HANDLED otherwise
  */
 static irqreturn_t xcan_interrupt(int irq, void *dev_id)
 {
@@ -1361,7 +1361,7 @@ static irqreturn_t xcan_interrupt(int irq, void *dev_id)
 	/* Get the interrupt status from Xilinx CAN */
 	isr = priv->read_reg(priv, XCAN_ISR_OFFSET);
 	if (!isr)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* Check for the type of interrupt and Processing it */
 	if (isr & (XCAN_IXR_SLP_MASK | XCAN_IXR_WKUP_MASK)) {
@@ -1642,12 +1642,12 @@ static int __maybe_unused xcan_runtime_resume(struct device *dev)
 
 	ret = clk_prepare_enable(priv->bus_clk);
 	if (ret) {
-		dev_err(dev, "Cannot enable clock.\n");
+		dev_err(dev, "Cananalt enable clock.\n");
 		return ret;
 	}
 	ret = clk_prepare_enable(priv->can_clk);
 	if (ret) {
-		dev_err(dev, "Cannot enable clock.\n");
+		dev_err(dev, "Cananalt enable clock.\n");
 		clk_disable_unprepare(priv->bus_clk);
 		return ret;
 	}
@@ -1745,7 +1745,7 @@ static int xcan_probe(struct platform_device *pdev)
 	hw_tx_max_property = devtype->flags & XCAN_FLAG_TX_MAILBOXES ?
 			     "tx-mailbox-count" : "tx-fifo-depth";
 
-	ret = of_property_read_u32(pdev->dev.of_node, hw_tx_max_property,
+	ret = of_property_read_u32(pdev->dev.of_analde, hw_tx_max_property,
 				   &hw_tx_max);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "missing %s property\n",
@@ -1753,25 +1753,25 @@ static int xcan_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	ret = of_property_read_u32(pdev->dev.of_node, "rx-fifo-depth",
+	ret = of_property_read_u32(pdev->dev.of_analde, "rx-fifo-depth",
 				   &hw_rx_max);
 	if (ret < 0) {
 		dev_err(&pdev->dev,
-			"missing rx-fifo-depth property (mailbox mode is not supported)\n");
+			"missing rx-fifo-depth property (mailbox mode is analt supported)\n");
 		goto err;
 	}
 
 	/* With TX FIFO:
 	 *
-	 * There is no way to directly figure out how many frames have been
+	 * There is anal way to directly figure out how many frames have been
 	 * sent when the TXOK interrupt is processed. If TXFEMP
 	 * is supported, we can have 2 frames in the FIFO and use TXFEMP
 	 * to determine if 1 or 2 frames have been sent.
 	 * Theoretically we should be able to use TXFWMEMP to determine up
 	 * to 3 frames, but it seems that after putting a second frame in the
 	 * FIFO, with watermark at 2 frames, it can happen that TXFWMEMP (less
-	 * than 2 frames in FIFO) is set anyway with no TXOK (a frame was
-	 * sent), which is not a sensible state - possibly TXFWMEMP is not
+	 * than 2 frames in FIFO) is set anyway with anal TXOK (a frame was
+	 * sent), which is analt a sensible state - possibly TXFWMEMP is analt
 	 * completely synchronized with the rest of the bits?
 	 *
 	 * With TX mailboxes:
@@ -1790,7 +1790,7 @@ static int xcan_probe(struct platform_device *pdev)
 	/* Create a CAN device instance */
 	ndev = alloc_candev(sizeof(struct xcan_priv), tx_max);
 	if (!ndev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv = netdev_priv(ndev);
 	priv->dev = &pdev->dev;
@@ -1801,7 +1801,7 @@ static int xcan_probe(struct platform_device *pdev)
 					CAN_CTRLMODE_BERR_REPORTING;
 	priv->rstc = devm_reset_control_get_optional_exclusive(&pdev->dev, NULL);
 	if (IS_ERR(priv->rstc)) {
-		dev_err(&pdev->dev, "Cannot get CAN reset.\n");
+		dev_err(&pdev->dev, "Cananalt get CAN reset.\n");
 		ret = PTR_ERR(priv->rstc);
 		goto err_free;
 	}
@@ -1852,14 +1852,14 @@ static int xcan_probe(struct platform_device *pdev)
 	priv->can_clk = devm_clk_get(&pdev->dev, "can_clk");
 	if (IS_ERR(priv->can_clk)) {
 		ret = dev_err_probe(&pdev->dev, PTR_ERR(priv->can_clk),
-				    "device clock not found\n");
+				    "device clock analt found\n");
 		goto err_reset;
 	}
 
 	priv->bus_clk = devm_clk_get(&pdev->dev, devtype->bus_clk_name);
 	if (IS_ERR(priv->bus_clk)) {
 		ret = dev_err_probe(&pdev->dev, PTR_ERR(priv->bus_clk),
-				    "bus clock not found\n");
+				    "bus clock analt found\n");
 		goto err_reset;
 	}
 

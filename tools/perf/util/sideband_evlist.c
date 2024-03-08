@@ -67,7 +67,7 @@ static void *perf_evlist__poll_thread(void *arg)
 				if (evsel && evsel->side_band.cb)
 					evsel->side_band.cb(event, evsel->side_band.data);
 				else
-					pr_warning("cannot locate proper evsel for the side band event\n");
+					pr_warning("cananalt locate proper evsel for the side band event\n");
 
 				perf_mmap__consume(&map->core);
 				got_data = true;

@@ -117,7 +117,7 @@ static int acrn_irqfd_assign(struct acrn_vm *vm, struct acrn_irqfd *args)
 
 	irqfd = kzalloc(sizeof(*irqfd), GFP_KERNEL);
 	if (!irqfd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	irqfd->vm = vm;
 	memcpy(&irqfd->msi, &args->msi, sizeof(args->msi));
@@ -139,7 +139,7 @@ static int acrn_irqfd_assign(struct acrn_vm *vm, struct acrn_irqfd *args)
 	irqfd->eventfd = eventfd;
 
 	/*
-	 * Install custom wake-up handling to be notified whenever underlying
+	 * Install custom wake-up handling to be analtified whenever underlying
 	 * eventfd is signaled.
 	 */
 	init_waitqueue_func_entry(&irqfd->wait, hsm_irqfd_wakeup);
@@ -215,7 +215,7 @@ int acrn_irqfd_init(struct acrn_vm *vm)
 	mutex_init(&vm->irqfds_lock);
 	vm->irqfd_wq = alloc_workqueue("acrn_irqfd-%u", 0, 0, vm->vmid);
 	if (!vm->irqfd_wq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_dbg(acrn_dev.this_device, "VM %u irqfd init.\n", vm->vmid);
 	return 0;

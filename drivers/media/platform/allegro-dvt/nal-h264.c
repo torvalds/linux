@@ -7,9 +7,9 @@
  * The conversion is defined in "ITU-T Rec. H.264 (04/2017) Advanced video
  * coding for generic audiovisual services". Decoder drivers may use the
  * parser to parse RBSP from encoded streams and configure the hardware, if
- * the hardware is not able to parse RBSP itself.  Encoder drivers may use the
+ * the hardware is analt able to parse RBSP itself.  Encoder drivers may use the
  * generator to generate the RBSP for SPS/PPS nal units and add them to the
- * encoded stream if the hardware does not generate the units.
+ * encoded stream if the hardware does analt generate the units.
  */
 
 #include <linux/kernel.h>
@@ -186,8 +186,8 @@ static void nal_h264_rbsp_vui_parameters(struct rbsp *rbsp,
 	rbsp_bit(rbsp, &vui->bitstream_restriction_flag);
 	if (vui->bitstream_restriction_flag) {
 		rbsp_bit(rbsp, &vui->motion_vectors_over_pic_boundaries_flag);
-		rbsp_uev(rbsp, &vui->max_bytes_per_pic_denom);
-		rbsp_uev(rbsp, &vui->max_bits_per_mb_denom);
+		rbsp_uev(rbsp, &vui->max_bytes_per_pic_deanalm);
+		rbsp_uev(rbsp, &vui->max_bits_per_mb_deanalm);
 		rbsp_uev(rbsp, &vui->log2_max_mv_length_horizontal);
 		rbsp_uev(rbsp, &vui->log21_max_mv_length_vertical);
 		rbsp_uev(rbsp, &vui->max_num_reorder_frames);
@@ -244,7 +244,7 @@ static void nal_h264_rbsp_sps(struct rbsp *rbsp, struct nal_h264_sps *sps)
 		break;
 	case 1:
 		rbsp_bit(rbsp, &sps->delta_pic_order_always_zero_flag);
-		rbsp_sev(rbsp, &sps->offset_for_non_ref_pic);
+		rbsp_sev(rbsp, &sps->offset_for_analn_ref_pic);
 		rbsp_sev(rbsp, &sps->offset_for_top_to_bottom_field);
 
 		rbsp_uev(rbsp, &sps->num_ref_frames_in_pic_order_cnt_cycle);
@@ -345,8 +345,8 @@ static void nal_h264_rbsp_pps(struct rbsp *rbsp, struct nal_h264_pps *pps)
  *
  * Convert @sps to RBSP data and write it into @dest.
  *
- * The size of the SPS NAL unit is not known in advance and this function will
- * fail, if @dest does not hold sufficient space for the SPS NAL unit.
+ * The size of the SPS NAL unit is analt kanalwn in advance and this function will
+ * fail, if @dest does analt hold sufficient space for the SPS NAL unit.
  *
  * Return: number of bytes written to @dest or negative error code
  */
@@ -436,8 +436,8 @@ EXPORT_SYMBOL_GPL(nal_h264_read_sps);
  *
  * Convert @pps to RBSP data and write it into @dest.
  *
- * The size of the PPS NAL unit is not known in advance and this function will
- * fail, if @dest does not hold sufficient space for the PPS NAL unit.
+ * The size of the PPS NAL unit is analt kanalwn in advance and this function will
+ * fail, if @dest does analt hold sufficient space for the PPS NAL unit.
  *
  * Return: number of bytes written to @dest or negative error code
  */
@@ -519,7 +519,7 @@ EXPORT_SYMBOL_GPL(nal_h264_read_pps);
  * number of written filler data bytes.
  *
  * Use this function to generate dummy data in an RBSP data stream that can be
- * safely ignored by h264 decoders.
+ * safely iganalred by h264 decoders.
  *
  * The RBSP format of the filler data is specified in Rec. ITU-T H.264
  * (04/2017) 7.3.2.7 Filler data RBSP syntax.

@@ -90,23 +90,23 @@ static struct regmap_config logicvc_gpio_regmap_config = {
 static int logicvc_gpio_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *of_node = dev->of_node;
+	struct device_analde *of_analde = dev->of_analde;
 	struct logicvc_gpio *logicvc;
 	int ret;
 
 	logicvc = devm_kzalloc(dev, sizeof(*logicvc), GFP_KERNEL);
 	if (!logicvc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Try to get regmap from parent first. */
-	logicvc->regmap = syscon_node_to_regmap(of_node->parent);
+	logicvc->regmap = syscon_analde_to_regmap(of_analde->parent);
 
 	/* Grab our own regmap if that fails. */
 	if (IS_ERR(logicvc->regmap)) {
 		struct resource res;
 		void __iomem *base;
 
-		ret = of_address_to_resource(of_node, 0, &res);
+		ret = of_address_to_resource(of_analde, 0, &res);
 		if (ret) {
 			dev_err(dev, "Failed to get resource from address\n");
 			return ret;

@@ -10,7 +10,7 @@ This document is based on the ARM booting document by Russell King and
 is relevant to all public releases of the AArch64 Linux kernel.
 
 The AArch64 exception model is made up of a number of exception levels
-(EL0 - EL3), with EL0, EL1 and EL2 having a secure and a non-secure
+(EL0 - EL3), with EL0, EL1 and EL2 having a secure and a analn-secure
 counterpart.  EL2 is the hypervisor level, EL3 is the highest priority
 level and exists only in secure mode. Both are architecturally optional.
 
@@ -37,7 +37,7 @@ Requirement: MANDATORY
 The boot loader is expected to find and initialise all RAM that the
 kernel will use for volatile data storage in the system.  It performs
 this in a machine dependent manner.  (It may use internal algorithms
-to automatically locate and size all RAM, or it may use knowledge of
+to automatically locate and size all RAM, or it may use kanalwledge of
 the RAM in the machine, or any other method the boot loader designer
 sees fit.)
 
@@ -48,11 +48,11 @@ sees fit.)
 Requirement: MANDATORY
 
 The device tree blob (dtb) must be placed on an 8-byte boundary and must
-not exceed 2 megabytes in size. Since the dtb will be mapped cacheable
-using blocks of up to 2 megabytes in size, it must not be placed within
+analt exceed 2 megabytes in size. Since the dtb will be mapped cacheable
+using blocks of up to 2 megabytes in size, it must analt be placed within
 any 2M region which must be mapped with any specific attributes.
 
-NOTE: versions prior to v4.2 also require that the DTB be placed within
+ANALTE: versions prior to v4.2 also require that the DTB be placed within
 the 512 MB region starting at text_offset bytes below the kernel Image.
 
 3. Decompress the kernel image
@@ -60,10 +60,10 @@ the 512 MB region starting at text_offset bytes below the kernel Image.
 
 Requirement: OPTIONAL
 
-The AArch64 kernel does not currently provide a decompressor and
+The AArch64 kernel does analt currently provide a decompressor and
 therefore requires decompression (gzip etc.) to be performed by the boot
 loader if a compressed Image target (e.g. Image.gz) is used.  For
-bootloaders that do not implement this requirement, the uncompressed
+bootloaders that do analt implement this requirement, the uncompressed
 Image target is available instead.
 
 
@@ -86,7 +86,7 @@ The decompressed kernel image contains a 64-byte header as follows::
   u32 res5;			/* reserved (used for PE COFF offset) */
 
 
-Header notes:
+Header analtes:
 
 - As of v3.17, all fields are little endian unless stated otherwise.
 
@@ -95,11 +95,11 @@ Header notes:
 - when booting through EFI, code0/code1 are initially skipped.
   res5 is an offset to the PE header and the PE header has the EFI
   entry point (efi_stub_entry).  When the stub has done its work, it
-  jumps to code0 to resume the normal boot process.
+  jumps to code0 to resume the analrmal boot process.
 
-- Prior to v3.17, the endianness of text_offset was not specified.  In
+- Prior to v3.17, the endianness of text_offset was analt specified.  In
   these cases image_size is zero and text_offset is 0x80000 in the
-  endianness of the kernel.  Where image_size is non-zero image_size is
+  endianness of the kernel.  Where image_size is analn-zero image_size is
   little-endian and must be respected.  Where image_size is zero,
   text_offset can be assumed to be 0x80000.
 
@@ -118,7 +118,7 @@ Header notes:
 
 			0
 			  2MB aligned base should be as close as possible
-			  to the base of DRAM, since memory below it is not
+			  to the base of DRAM, since memory below it is analt
 			  accessible via the linear mapping
 			1
 			  2MB aligned base such that all image_size bytes
@@ -134,11 +134,11 @@ Header notes:
 
 The Image must be placed text_offset bytes from a 2MB aligned base
 address anywhere in usable system RAM and called there. The region
-between the 2 MB aligned base address and the start of the image has no
+between the 2 MB aligned base address and the start of the image has anal
 special significance to the kernel, and may be used for other purposes.
 At least image_size bytes from the start of the image must be free for
 use by the kernel.
-NOTE: versions prior to v4.6 cannot make use of memory below the
+ANALTE: versions prior to v4.6 cananalt make use of memory below the
 physical offset of the Image so it is recommended that the Image be
 placed as close as possible to the start of system RAM.
 
@@ -147,13 +147,13 @@ entirely within a 1 GB aligned physical memory window of up to 32 GB in
 size that fully covers the kernel Image as well.
 
 Any memory described to the kernel (even that below the start of the
-image) which is not marked as reserved from the kernel (e.g., with a
+image) which is analt marked as reserved from the kernel (e.g., with a
 memreserve region in the device tree) will be considered as available to
 the kernel.
 
 Before jumping into the kernel, the following conditions must be met:
 
-- Quiesce all DMA capable devices so that memory does not get
+- Quiesce all DMA capable devices so that memory does analt get
   corrupted by bogus network packets or disk data.  This will save
   you many hours of debug.
 
@@ -168,14 +168,14 @@ Before jumping into the kernel, the following conditions must be met:
 
   All forms of interrupts must be masked in PSTATE.DAIF (Debug, SError,
   IRQ and FIQ).
-  The CPU must be in non-secure state, either in EL2 (RECOMMENDED in order
+  The CPU must be in analn-secure state, either in EL2 (RECOMMENDED in order
   to have access to the virtualisation extensions), or in EL1.
 
 - Caches, MMUs
 
   The MMU must be off.
 
-  The instruction cache may be on or off, and must not hold any stale
+  The instruction cache may be on or off, and must analt hold any stale
   entries corresponding to the loaded kernel image.
 
   The address range corresponding to the loaded kernel image must be
@@ -184,8 +184,8 @@ Before jumping into the kernel, the following conditions must be met:
   cache maintenance by VA rather than set/way operations.
   System caches which respect the architected cache maintenance by VA
   operations must be configured and may be enabled.
-  System caches which do not respect architected cache maintenance by VA
-  operations (not recommended) must be configured and disabled.
+  System caches which do analt respect architected cache maintenance by VA
+  operations (analt recommended) must be configured and disabled.
 
 - Architected timers
 
@@ -205,7 +205,7 @@ Before jumping into the kernel, the following conditions must be met:
 
   All writable architected system registers at or below the exception
   level where the kernel image will be entered must be initialised by
-  software at a higher exception level to prevent execution in an UNKNOWN
+  software at a higher exception level to prevent execution in an UNKANALWN
   state.
 
   For all systems:
@@ -423,14 +423,14 @@ following manner:
 
 - The primary CPU must jump directly to the first instruction of the
   kernel image.  The device tree blob passed by this CPU must contain
-  an 'enable-method' property for each cpu node.  The supported
+  an 'enable-method' property for each cpu analde.  The supported
   enable-methods are described below.
 
   It is expected that the bootloader will generate these device tree
   properties and insert them into the blob prior to kernel entry.
 
 - CPUs with a "spin-table" enable-method must have a 'cpu-release-addr'
-  property in their cpu node.  This property identifies a
+  property in their cpu analde.  This property identifies a
   naturally-aligned 64-bit zero-initalised memory location.
 
   These CPUs should spin outside of the kernel in a reserved area of
@@ -439,20 +439,20 @@ following manner:
   contained in the reserved region.  A wfe instruction may be inserted
   to reduce the overhead of the busy-loop and a sev will be issued by
   the primary CPU.  When a read of the location pointed to by the
-  cpu-release-addr returns a non-zero value, the CPU must jump to this
+  cpu-release-addr returns a analn-zero value, the CPU must jump to this
   value.  The value will be written as a single 64-bit little-endian
   value, so CPUs must convert the read value to their native endianness
   before jumping to it.
 
 - CPUs with a "psci" enable method should remain outside of
   the kernel (i.e. outside of the regions of memory described to the
-  kernel in the memory node, or in a reserved area of memory described
+  kernel in the memory analde, or in a reserved area of memory described
   to the kernel by a /memreserve/ region in the device tree).  The
   kernel will issue CPU_ON calls as described in ARM document number ARM
   DEN 0022A ("Power State Coordination Interface System Software on ARM
   processors") to bring CPUs into the kernel.
 
-  The device tree should contain a 'psci' node, as described in
+  The device tree should contain a 'psci' analde, as described in
   Documentation/devicetree/bindings/arm/psci.yaml.
 
 - Secondary CPU general-purpose register settings

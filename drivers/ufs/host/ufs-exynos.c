@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * UFS Host Controller driver for Exynos specific extensions
+ * UFS Host Controller driver for Exyanals specific extensions
  *
  * Copyright (C) 2014-2015 Samsung Electronics Co., Ltd.
  * Author: Seungwon Jeon  <essuuj@gmail.com>
@@ -23,10 +23,10 @@
 #include <ufs/ufshci.h>
 #include <ufs/unipro.h>
 
-#include "ufs-exynos.h"
+#include "ufs-exyanals.h"
 
 /*
- * Exynos's Vendor specific registers for UFSHCI
+ * Exyanals's Vendor specific registers for UFSHCI
  */
 #define HCI_TXPRDT_ENTRY_SIZE	0x00
 #define PRDT_PREFECT_EN		BIT(31)
@@ -75,8 +75,8 @@
 				 UIC_NETWORK_BAD_DEVICEID_ENC |\
 				 UIC_NETWORK_LHDR_TRAP_PACKET_DROPPING)
 #define DFES_DEF_L4_ERRS	(UIC_TRANSPORT_UNSUPPORTED_HEADER_TYPE |\
-				 UIC_TRANSPORT_UNKNOWN_CPORTID |\
-				 UIC_TRANSPORT_NO_CONNECTION_RX |\
+				 UIC_TRANSPORT_UNKANALWN_CPORTID |\
+				 UIC_TRANSPORT_ANAL_CONNECTION_RX |\
 				 UIC_TRANSPORT_BAD_TC)
 
 /* FSYS UFS Shareability */
@@ -152,50 +152,50 @@ enum {
 
 #define CNTR_DIV_VAL 40
 
-static void exynos_ufs_auto_ctrl_hcc(struct exynos_ufs *ufs, bool en);
-static void exynos_ufs_ctrl_clkstop(struct exynos_ufs *ufs, bool en);
+static void exyanals_ufs_auto_ctrl_hcc(struct exyanals_ufs *ufs, bool en);
+static void exyanals_ufs_ctrl_clkstop(struct exyanals_ufs *ufs, bool en);
 
-static inline void exynos_ufs_enable_auto_ctrl_hcc(struct exynos_ufs *ufs)
+static inline void exyanals_ufs_enable_auto_ctrl_hcc(struct exyanals_ufs *ufs)
 {
-	exynos_ufs_auto_ctrl_hcc(ufs, true);
+	exyanals_ufs_auto_ctrl_hcc(ufs, true);
 }
 
-static inline void exynos_ufs_disable_auto_ctrl_hcc(struct exynos_ufs *ufs)
+static inline void exyanals_ufs_disable_auto_ctrl_hcc(struct exyanals_ufs *ufs)
 {
-	exynos_ufs_auto_ctrl_hcc(ufs, false);
+	exyanals_ufs_auto_ctrl_hcc(ufs, false);
 }
 
-static inline void exynos_ufs_disable_auto_ctrl_hcc_save(
-					struct exynos_ufs *ufs, u32 *val)
+static inline void exyanals_ufs_disable_auto_ctrl_hcc_save(
+					struct exyanals_ufs *ufs, u32 *val)
 {
 	*val = hci_readl(ufs, HCI_MISC);
-	exynos_ufs_auto_ctrl_hcc(ufs, false);
+	exyanals_ufs_auto_ctrl_hcc(ufs, false);
 }
 
-static inline void exynos_ufs_auto_ctrl_hcc_restore(
-					struct exynos_ufs *ufs, u32 *val)
+static inline void exyanals_ufs_auto_ctrl_hcc_restore(
+					struct exyanals_ufs *ufs, u32 *val)
 {
 	hci_writel(ufs, *val, HCI_MISC);
 }
 
-static inline void exynos_ufs_gate_clks(struct exynos_ufs *ufs)
+static inline void exyanals_ufs_gate_clks(struct exyanals_ufs *ufs)
 {
-	exynos_ufs_ctrl_clkstop(ufs, true);
+	exyanals_ufs_ctrl_clkstop(ufs, true);
 }
 
-static inline void exynos_ufs_ungate_clks(struct exynos_ufs *ufs)
+static inline void exyanals_ufs_ungate_clks(struct exyanals_ufs *ufs)
 {
-	exynos_ufs_ctrl_clkstop(ufs, false);
+	exyanals_ufs_ctrl_clkstop(ufs, false);
 }
 
-static int exynos7_ufs_drv_init(struct device *dev, struct exynos_ufs *ufs)
+static int exyanals7_ufs_drv_init(struct device *dev, struct exyanals_ufs *ufs)
 {
 	return 0;
 }
 
-static int exynosauto_ufs_drv_init(struct device *dev, struct exynos_ufs *ufs)
+static int exyanalsauto_ufs_drv_init(struct device *dev, struct exyanals_ufs *ufs)
 {
-	struct exynos_ufs_uic_attr *attr = ufs->drv_data->uic_attr;
+	struct exyanals_ufs_uic_attr *attr = ufs->drv_data->uic_attr;
 
 	/* IO Coherency setting */
 	if (ufs->sysreg) {
@@ -209,7 +209,7 @@ static int exynosauto_ufs_drv_init(struct device *dev, struct exynos_ufs *ufs)
 	return 0;
 }
 
-static int exynosauto_ufs_post_hce_enable(struct exynos_ufs *ufs)
+static int exyanalsauto_ufs_post_hce_enable(struct exyanals_ufs *ufs)
 {
 	struct ufs_hba *hba = ufs->hba;
 
@@ -223,7 +223,7 @@ static int exynosauto_ufs_post_hce_enable(struct exynos_ufs *ufs)
 	return 0;
 }
 
-static int exynosauto_ufs_pre_link(struct exynos_ufs *ufs)
+static int exyanalsauto_ufs_pre_link(struct exyanals_ufs *ufs)
 {
 	struct ufs_hba *hba = ufs->hba;
 	int i;
@@ -253,7 +253,7 @@ static int exynosauto_ufs_pre_link(struct exynos_ufs *ufs)
 	for_each_ufs_tx_lane(ufs, i) {
 		ufshcd_dme_set(hba, UIC_ARG_MIB_SEL(VND_TX_CLK_PRD, i),
 			       DIV_ROUND_UP(NSEC_PER_SEC, ufs->mclk_rate));
-		/* Not to affect VND_TX_LINERESET_PVALUE to VND_TX_CLK_PRD */
+		/* Analt to affect VND_TX_LINERESET_PVALUE to VND_TX_CLK_PRD */
 		ufshcd_dme_set(hba, UIC_ARG_MIB_SEL(VND_TX_CLK_PRD_EN, i),
 			       0x02);
 
@@ -277,7 +277,7 @@ static int exynosauto_ufs_pre_link(struct exynos_ufs *ufs)
 	return 0;
 }
 
-static int exynosauto_ufs_pre_pwr_change(struct exynos_ufs *ufs,
+static int exyanalsauto_ufs_pre_pwr_change(struct exyanals_ufs *ufs,
 					 struct ufs_pa_layer_attr *pwr)
 {
 	struct ufs_hba *hba = ufs->hba;
@@ -290,7 +290,7 @@ static int exynosauto_ufs_pre_pwr_change(struct exynos_ufs *ufs,
 	return 0;
 }
 
-static int exynosauto_ufs_post_pwr_change(struct exynos_ufs *ufs,
+static int exyanalsauto_ufs_post_pwr_change(struct exyanals_ufs *ufs,
 					  struct ufs_pa_layer_attr *pwr)
 {
 	struct ufs_hba *hba = ufs->hba;
@@ -304,20 +304,20 @@ static int exynosauto_ufs_post_pwr_change(struct exynos_ufs *ufs,
 	return 0;
 }
 
-static int exynos7_ufs_pre_link(struct exynos_ufs *ufs)
+static int exyanals7_ufs_pre_link(struct exyanals_ufs *ufs)
 {
 	struct ufs_hba *hba = ufs->hba;
 	u32 val = ufs->drv_data->uic_attr->pa_dbg_option_suite;
 	int i;
 
-	exynos_ufs_enable_ov_tm(hba);
+	exyanals_ufs_enable_ov_tm(hba);
 	for_each_ufs_tx_lane(ufs, i)
 		ufshcd_dme_set(hba, UIC_ARG_MIB_SEL(0x297, i), 0x17);
 	for_each_ufs_rx_lane(ufs, i) {
 		ufshcd_dme_set(hba, UIC_ARG_MIB_SEL(0x362, i), 0xff);
 		ufshcd_dme_set(hba, UIC_ARG_MIB_SEL(0x363, i), 0x00);
 	}
-	exynos_ufs_disable_ov_tm(hba);
+	exyanals_ufs_disable_ov_tm(hba);
 
 	for_each_ufs_tx_lane(ufs, i)
 		ufshcd_dme_set(hba,
@@ -334,28 +334,28 @@ static int exynos7_ufs_pre_link(struct exynos_ufs *ufs)
 	return 0;
 }
 
-static int exynos7_ufs_post_link(struct exynos_ufs *ufs)
+static int exyanals7_ufs_post_link(struct exyanals_ufs *ufs)
 {
 	struct ufs_hba *hba = ufs->hba;
 	int i;
 
-	exynos_ufs_enable_ov_tm(hba);
+	exyanals_ufs_enable_ov_tm(hba);
 	for_each_ufs_tx_lane(ufs, i) {
 		ufshcd_dme_set(hba, UIC_ARG_MIB_SEL(0x28b, i), 0x83);
 		ufshcd_dme_set(hba, UIC_ARG_MIB_SEL(0x29a, i), 0x07);
 		ufshcd_dme_set(hba, UIC_ARG_MIB_SEL(0x277, i),
-			TX_LINERESET_N(exynos_ufs_calc_time_cntr(ufs, 200000)));
+			TX_LINERESET_N(exyanals_ufs_calc_time_cntr(ufs, 200000)));
 	}
-	exynos_ufs_disable_ov_tm(hba);
+	exyanals_ufs_disable_ov_tm(hba);
 
-	exynos_ufs_enable_dbg_mode(hba);
+	exyanals_ufs_enable_dbg_mode(hba);
 	ufshcd_dme_set(hba, UIC_ARG_MIB(PA_SAVECONFIGTIME), 0xbb8);
-	exynos_ufs_disable_dbg_mode(hba);
+	exyanals_ufs_disable_dbg_mode(hba);
 
 	return 0;
 }
 
-static int exynos7_ufs_pre_pwr_change(struct exynos_ufs *ufs,
+static int exyanals7_ufs_pre_pwr_change(struct exyanals_ufs *ufs,
 						struct ufs_pa_layer_attr *pwr)
 {
 	unipro_writel(ufs, 0x22, UNIPRO_DBG_FORCE_DME_CTRL_STATE);
@@ -363,7 +363,7 @@ static int exynos7_ufs_pre_pwr_change(struct exynos_ufs *ufs,
 	return 0;
 }
 
-static int exynos7_ufs_post_pwr_change(struct exynos_ufs *ufs,
+static int exyanals7_ufs_post_pwr_change(struct exyanals_ufs *ufs,
 						struct ufs_pa_layer_attr *pwr)
 {
 	struct ufs_hba *hba = ufs->hba;
@@ -372,21 +372,21 @@ static int exynos7_ufs_post_pwr_change(struct exynos_ufs *ufs,
 	ufshcd_dme_set(hba, UIC_ARG_MIB(PA_DBG_RXPHY_CFGUPDT), 0x1);
 
 	if (lanes == 1) {
-		exynos_ufs_enable_dbg_mode(hba);
+		exyanals_ufs_enable_dbg_mode(hba);
 		ufshcd_dme_set(hba, UIC_ARG_MIB(PA_CONNECTEDTXDATALANES), 0x1);
-		exynos_ufs_disable_dbg_mode(hba);
+		exyanals_ufs_disable_dbg_mode(hba);
 	}
 
 	return 0;
 }
 
 /*
- * exynos_ufs_auto_ctrl_hcc - HCI core clock control by h/w
+ * exyanals_ufs_auto_ctrl_hcc - HCI core clock control by h/w
  * Control should be disabled in the below cases
  * - Before host controller S/W reset
  * - Access to UFS protector's register
  */
-static void exynos_ufs_auto_ctrl_hcc(struct exynos_ufs *ufs, bool en)
+static void exyanals_ufs_auto_ctrl_hcc(struct exyanals_ufs *ufs, bool en)
 {
 	u32 misc = hci_readl(ufs, HCI_MISC);
 
@@ -396,7 +396,7 @@ static void exynos_ufs_auto_ctrl_hcc(struct exynos_ufs *ufs, bool en)
 		hci_writel(ufs, misc & ~HCI_CORECLK_CTRL_EN, HCI_MISC);
 }
 
-static void exynos_ufs_ctrl_clkstop(struct exynos_ufs *ufs, bool en)
+static void exyanals_ufs_ctrl_clkstop(struct exyanals_ufs *ufs, bool en)
 {
 	u32 ctrl = hci_readl(ufs, HCI_CLKSTOP_CTRL);
 	u32 misc = hci_readl(ufs, HCI_MISC);
@@ -410,7 +410,7 @@ static void exynos_ufs_ctrl_clkstop(struct exynos_ufs *ufs, bool en)
 	}
 }
 
-static int exynos_ufs_get_clk_info(struct exynos_ufs *ufs)
+static int exyanals_ufs_get_clk_info(struct exyanals_ufs *ufs)
 {
 	struct ufs_hba *hba = ufs->hba;
 	struct list_head *head = &hba->clk_list_head;
@@ -443,7 +443,7 @@ static int exynos_ufs_get_clk_info(struct exynos_ufs *ufs)
 	f_min = ufs->pclk_avail_min;
 	f_max = ufs->pclk_avail_max;
 
-	if (ufs->opts & EXYNOS_UFS_OPT_HAS_APB_CLK_CTRL) {
+	if (ufs->opts & EXYANALS_UFS_OPT_HAS_APB_CLK_CTRL) {
 		do {
 			pclk_rate /= (div + 1);
 
@@ -454,7 +454,7 @@ static int exynos_ufs_get_clk_info(struct exynos_ufs *ufs)
 	}
 
 	if (unlikely(pclk_rate < f_min || pclk_rate > f_max)) {
-		dev_err(hba->dev, "not available pclk range %lu\n", pclk_rate);
+		dev_err(hba->dev, "analt available pclk range %lu\n", pclk_rate);
 		ret = -EINVAL;
 		goto out;
 	}
@@ -466,9 +466,9 @@ out:
 	return ret;
 }
 
-static void exynos_ufs_set_unipro_pclk_div(struct exynos_ufs *ufs)
+static void exyanals_ufs_set_unipro_pclk_div(struct exyanals_ufs *ufs)
 {
-	if (ufs->opts & EXYNOS_UFS_OPT_HAS_APB_CLK_CTRL) {
+	if (ufs->opts & EXYANALS_UFS_OPT_HAS_APB_CLK_CTRL) {
 		u32 val;
 
 		val = hci_readl(ufs, HCI_UNIPRO_APB_CLK_CTRL);
@@ -477,19 +477,19 @@ static void exynos_ufs_set_unipro_pclk_div(struct exynos_ufs *ufs)
 	}
 }
 
-static void exynos_ufs_set_pwm_clk_div(struct exynos_ufs *ufs)
+static void exyanals_ufs_set_pwm_clk_div(struct exyanals_ufs *ufs)
 {
 	struct ufs_hba *hba = ufs->hba;
-	struct exynos_ufs_uic_attr *attr = ufs->drv_data->uic_attr;
+	struct exyanals_ufs_uic_attr *attr = ufs->drv_data->uic_attr;
 
 	ufshcd_dme_set(hba,
 		UIC_ARG_MIB(CMN_PWM_CLK_CTRL), attr->cmn_pwm_clk_ctrl);
 }
 
-static void exynos_ufs_calc_pwm_clk_div(struct exynos_ufs *ufs)
+static void exyanals_ufs_calc_pwm_clk_div(struct exyanals_ufs *ufs)
 {
 	struct ufs_hba *hba = ufs->hba;
-	struct exynos_ufs_uic_attr *attr = ufs->drv_data->uic_attr;
+	struct exyanals_ufs_uic_attr *attr = ufs->drv_data->uic_attr;
 	const unsigned int div = 30, mult = 20;
 	const unsigned long pwm_min = 3 * 1000 * 1000;
 	const unsigned long pwm_max = 9 * 1000 * 1000;
@@ -511,13 +511,13 @@ static void exynos_ufs_calc_pwm_clk_div(struct exynos_ufs *ufs)
 	if (clk_idx == -1) {
 		ufshcd_dme_get(hba, UIC_ARG_MIB(CMN_PWM_CLK_CTRL), &clk_idx);
 		dev_err(hba->dev,
-			"failed to decide pwm clock divider, will not change\n");
+			"failed to decide pwm clock divider, will analt change\n");
 	}
 
 	attr->cmn_pwm_clk_ctrl = clk_idx & PWM_CLK_CTRL_MASK;
 }
 
-long exynos_ufs_calc_time_cntr(struct exynos_ufs *ufs, long period)
+long exyanals_ufs_calc_time_cntr(struct exyanals_ufs *ufs, long period)
 {
 	const int precise = 10;
 	long pclk_rate = ufs->pclk_rate;
@@ -529,47 +529,47 @@ long exynos_ufs_calc_time_cntr(struct exynos_ufs *ufs, long period)
 	return (period * precise) / ((clk_period * precise) + fraction);
 }
 
-static void exynos_ufs_specify_phy_time_attr(struct exynos_ufs *ufs)
+static void exyanals_ufs_specify_phy_time_attr(struct exyanals_ufs *ufs)
 {
-	struct exynos_ufs_uic_attr *attr = ufs->drv_data->uic_attr;
+	struct exyanals_ufs_uic_attr *attr = ufs->drv_data->uic_attr;
 	struct ufs_phy_time_cfg *t_cfg = &ufs->t_cfg;
 
 	t_cfg->tx_linereset_p =
-		exynos_ufs_calc_time_cntr(ufs, attr->tx_dif_p_nsec);
+		exyanals_ufs_calc_time_cntr(ufs, attr->tx_dif_p_nsec);
 	t_cfg->tx_linereset_n =
-		exynos_ufs_calc_time_cntr(ufs, attr->tx_dif_n_nsec);
+		exyanals_ufs_calc_time_cntr(ufs, attr->tx_dif_n_nsec);
 	t_cfg->tx_high_z_cnt =
-		exynos_ufs_calc_time_cntr(ufs, attr->tx_high_z_cnt_nsec);
+		exyanals_ufs_calc_time_cntr(ufs, attr->tx_high_z_cnt_nsec);
 	t_cfg->tx_base_n_val =
-		exynos_ufs_calc_time_cntr(ufs, attr->tx_base_unit_nsec);
+		exyanals_ufs_calc_time_cntr(ufs, attr->tx_base_unit_nsec);
 	t_cfg->tx_gran_n_val =
-		exynos_ufs_calc_time_cntr(ufs, attr->tx_gran_unit_nsec);
+		exyanals_ufs_calc_time_cntr(ufs, attr->tx_gran_unit_nsec);
 	t_cfg->tx_sleep_cnt =
-		exynos_ufs_calc_time_cntr(ufs, attr->tx_sleep_cnt);
+		exyanals_ufs_calc_time_cntr(ufs, attr->tx_sleep_cnt);
 
 	t_cfg->rx_linereset =
-		exynos_ufs_calc_time_cntr(ufs, attr->rx_dif_p_nsec);
+		exyanals_ufs_calc_time_cntr(ufs, attr->rx_dif_p_nsec);
 	t_cfg->rx_hibern8_wait =
-		exynos_ufs_calc_time_cntr(ufs, attr->rx_hibern8_wait_nsec);
+		exyanals_ufs_calc_time_cntr(ufs, attr->rx_hibern8_wait_nsec);
 	t_cfg->rx_base_n_val =
-		exynos_ufs_calc_time_cntr(ufs, attr->rx_base_unit_nsec);
+		exyanals_ufs_calc_time_cntr(ufs, attr->rx_base_unit_nsec);
 	t_cfg->rx_gran_n_val =
-		exynos_ufs_calc_time_cntr(ufs, attr->rx_gran_unit_nsec);
+		exyanals_ufs_calc_time_cntr(ufs, attr->rx_gran_unit_nsec);
 	t_cfg->rx_sleep_cnt =
-		exynos_ufs_calc_time_cntr(ufs, attr->rx_sleep_cnt);
+		exyanals_ufs_calc_time_cntr(ufs, attr->rx_sleep_cnt);
 	t_cfg->rx_stall_cnt =
-		exynos_ufs_calc_time_cntr(ufs, attr->rx_stall_cnt);
+		exyanals_ufs_calc_time_cntr(ufs, attr->rx_stall_cnt);
 }
 
-static void exynos_ufs_config_phy_time_attr(struct exynos_ufs *ufs)
+static void exyanals_ufs_config_phy_time_attr(struct exyanals_ufs *ufs)
 {
 	struct ufs_hba *hba = ufs->hba;
 	struct ufs_phy_time_cfg *t_cfg = &ufs->t_cfg;
 	int i;
 
-	exynos_ufs_set_pwm_clk_div(ufs);
+	exyanals_ufs_set_pwm_clk_div(ufs);
 
-	exynos_ufs_enable_ov_tm(hba);
+	exyanals_ufs_enable_ov_tm(hba);
 
 	for_each_ufs_rx_lane(ufs, i) {
 		ufshcd_dme_set(hba, UIC_ARG_MIB_SEL(RX_FILLER_ENABLE, i),
@@ -612,16 +612,16 @@ static void exynos_ufs_config_phy_time_attr(struct exynos_ufs *ufs)
 				ufs->drv_data->uic_attr->tx_min_activatetime);
 	}
 
-	exynos_ufs_disable_ov_tm(hba);
+	exyanals_ufs_disable_ov_tm(hba);
 }
 
-static void exynos_ufs_config_phy_cap_attr(struct exynos_ufs *ufs)
+static void exyanals_ufs_config_phy_cap_attr(struct exyanals_ufs *ufs)
 {
 	struct ufs_hba *hba = ufs->hba;
-	struct exynos_ufs_uic_attr *attr = ufs->drv_data->uic_attr;
+	struct exyanals_ufs_uic_attr *attr = ufs->drv_data->uic_attr;
 	int i;
 
-	exynos_ufs_enable_ov_tm(hba);
+	exyanals_ufs_enable_ov_tm(hba);
 
 	for_each_ufs_rx_lane(ufs, i) {
 		ufshcd_dme_set(hba,
@@ -682,10 +682,10 @@ static void exynos_ufs_config_phy_cap_attr(struct exynos_ufs *ufs)
 		}
 	}
 
-	exynos_ufs_disable_ov_tm(hba);
+	exyanals_ufs_disable_ov_tm(hba);
 }
 
-static void exynos_ufs_establish_connt(struct exynos_ufs *ufs)
+static void exyanals_ufs_establish_connt(struct exyanals_ufs *ufs)
 {
 	struct ufs_hba *hba = ufs->hba;
 	enum {
@@ -708,11 +708,11 @@ static void exynos_ufs_establish_connt(struct exynos_ufs *ufs)
 	ufshcd_dme_set(hba, UIC_ARG_MIB(T_CONNECTIONSTATE), CPORT_CONNECTED);
 }
 
-static void exynos_ufs_config_smu(struct exynos_ufs *ufs)
+static void exyanals_ufs_config_smu(struct exyanals_ufs *ufs)
 {
 	u32 reg, val;
 
-	exynos_ufs_disable_auto_ctrl_hcc_save(ufs, &val);
+	exyanals_ufs_disable_auto_ctrl_hcc_save(ufs, &val);
 
 	/* make encryption disabled by default */
 	reg = ufsp_readl(ufs, UFSPRSECURITY);
@@ -722,10 +722,10 @@ static void exynos_ufs_config_smu(struct exynos_ufs *ufs)
 	ufsp_writel(ufs, 0xff, UFSPSLUN0);
 	ufsp_writel(ufs, 0xf1, UFSPSCTRL0);
 
-	exynos_ufs_auto_ctrl_hcc_restore(ufs, &val);
+	exyanals_ufs_auto_ctrl_hcc_restore(ufs, &val);
 }
 
-static void exynos_ufs_config_sync_pattern_mask(struct exynos_ufs *ufs,
+static void exyanals_ufs_config_sync_pattern_mask(struct exyanals_ufs *ufs,
 					struct ufs_pa_layer_attr *pwr)
 {
 	struct ufs_hba *hba = ufs->hba;
@@ -747,23 +747,23 @@ static void exynos_ufs_config_sync_pattern_mask(struct exynos_ufs *ufs,
 	else
 		return;
 
-	mask = exynos_ufs_calc_time_cntr(ufs, sync_len);
+	mask = exyanals_ufs_calc_time_cntr(ufs, sync_len);
 	mask = (mask >> 8) & 0xff;
 
-	exynos_ufs_enable_ov_tm(hba);
+	exyanals_ufs_enable_ov_tm(hba);
 
 	for_each_ufs_rx_lane(ufs, i)
 		ufshcd_dme_set(hba,
 			UIC_ARG_MIB_SEL(RX_SYNC_MASK_LENGTH, i), mask);
 
-	exynos_ufs_disable_ov_tm(hba);
+	exyanals_ufs_disable_ov_tm(hba);
 }
 
-static int exynos_ufs_pre_pwr_mode(struct ufs_hba *hba,
+static int exyanals_ufs_pre_pwr_mode(struct ufs_hba *hba,
 				struct ufs_pa_layer_attr *dev_max_params,
 				struct ufs_pa_layer_attr *dev_req_params)
 {
-	struct exynos_ufs *ufs = ufshcd_get_variant(hba);
+	struct exyanals_ufs *ufs = ufshcd_get_variant(hba);
 	struct phy *generic_phy = ufs->phy;
 	struct ufs_host_params host_params;
 	int ret;
@@ -786,7 +786,7 @@ static int exynos_ufs_pre_pwr_mode(struct ufs_hba *hba,
 		ufs->drv_data->pre_pwr_change(ufs, dev_req_params);
 
 	if (ufshcd_is_hs_mode(dev_req_params)) {
-		exynos_ufs_config_sync_pattern_mask(ufs, dev_req_params);
+		exyanals_ufs_config_sync_pattern_mask(ufs, dev_req_params);
 
 		switch (dev_req_params->hs_rate) {
 		case PA_HS_MODE_A:
@@ -807,10 +807,10 @@ out:
 }
 
 #define PWR_MODE_STR_LEN	64
-static int exynos_ufs_post_pwr_mode(struct ufs_hba *hba,
+static int exyanals_ufs_post_pwr_mode(struct ufs_hba *hba,
 				struct ufs_pa_layer_attr *pwr_req)
 {
-	struct exynos_ufs *ufs = ufshcd_get_variant(hba);
+	struct exyanals_ufs *ufs = ufshcd_get_variant(hba);
 	struct phy *generic_phy = ufs->phy;
 	int gear = max_t(u32, pwr_req->gear_rx, pwr_req->gear_tx);
 	int lanes = max_t(u32, pwr_req->lane_rx, pwr_req->lane_tx);
@@ -847,10 +847,10 @@ static int exynos_ufs_post_pwr_mode(struct ufs_hba *hba,
 	return 0;
 }
 
-static void exynos_ufs_specify_nexus_t_xfer_req(struct ufs_hba *hba,
+static void exyanals_ufs_specify_nexus_t_xfer_req(struct ufs_hba *hba,
 						int tag, bool is_scsi_cmd)
 {
-	struct exynos_ufs *ufs = ufshcd_get_variant(hba);
+	struct exyanals_ufs *ufs = ufshcd_get_variant(hba);
 	u32 type;
 
 	type =  hci_readl(ufs, HCI_UTRL_NEXUS_TYPE);
@@ -861,10 +861,10 @@ static void exynos_ufs_specify_nexus_t_xfer_req(struct ufs_hba *hba,
 		hci_writel(ufs, type & ~(1 << tag), HCI_UTRL_NEXUS_TYPE);
 }
 
-static void exynos_ufs_specify_nexus_t_tm_req(struct ufs_hba *hba,
+static void exyanals_ufs_specify_nexus_t_tm_req(struct ufs_hba *hba,
 						int tag, u8 func)
 {
-	struct exynos_ufs *ufs = ufshcd_get_variant(hba);
+	struct exyanals_ufs *ufs = ufshcd_get_variant(hba);
 	u32 type;
 
 	type =  hci_readl(ufs, HCI_UTMRL_NEXUS_TYPE);
@@ -883,7 +883,7 @@ static void exynos_ufs_specify_nexus_t_tm_req(struct ufs_hba *hba,
 	}
 }
 
-static int exynos_ufs_phy_init(struct exynos_ufs *ufs)
+static int exyanals_ufs_phy_init(struct exyanals_ufs *ufs)
 {
 	struct ufs_hba *hba = ufs->hba;
 	struct phy *generic_phy = ufs->phy;
@@ -895,7 +895,7 @@ static int exynos_ufs_phy_init(struct exynos_ufs *ufs)
 		ufshcd_dme_get(hba, UIC_ARG_MIB(PA_AVAILTXDATALANES),
 			&ufs->avail_ln_tx);
 		WARN(ufs->avail_ln_rx != ufs->avail_ln_tx,
-			"available data lane is not equal(rx:%d, tx:%d)\n",
+			"available data lane is analt equal(rx:%d, tx:%d)\n",
 			ufs->avail_ln_rx, ufs->avail_ln_tx);
 	}
 
@@ -919,7 +919,7 @@ out_exit_phy:
 	return ret;
 }
 
-static void exynos_ufs_config_unipro(struct exynos_ufs *ufs)
+static void exyanals_ufs_config_unipro(struct exyanals_ufs *ufs)
 {
 	struct ufs_hba *hba = ufs->hba;
 
@@ -931,7 +931,7 @@ static void exynos_ufs_config_unipro(struct exynos_ufs *ufs)
 			ufs->drv_data->uic_attr->pa_dbg_option_suite);
 }
 
-static void exynos_ufs_config_intr(struct exynos_ufs *ufs, u32 errs, u8 index)
+static void exyanals_ufs_config_intr(struct exyanals_ufs *ufs, u32 errs, u8 index)
 {
 	switch (index) {
 	case UNIPRO_L1_5:
@@ -952,48 +952,48 @@ static void exynos_ufs_config_intr(struct exynos_ufs *ufs, u32 errs, u8 index)
 	}
 }
 
-static int exynos_ufs_setup_clocks(struct ufs_hba *hba, bool on,
-				   enum ufs_notify_change_status status)
+static int exyanals_ufs_setup_clocks(struct ufs_hba *hba, bool on,
+				   enum ufs_analtify_change_status status)
 {
-	struct exynos_ufs *ufs = ufshcd_get_variant(hba);
+	struct exyanals_ufs *ufs = ufshcd_get_variant(hba);
 
 	if (!ufs)
 		return 0;
 
 	if (on && status == PRE_CHANGE) {
-		if (ufs->opts & EXYNOS_UFS_OPT_BROKEN_AUTO_CLK_CTRL)
-			exynos_ufs_disable_auto_ctrl_hcc(ufs);
-		exynos_ufs_ungate_clks(ufs);
+		if (ufs->opts & EXYANALS_UFS_OPT_BROKEN_AUTO_CLK_CTRL)
+			exyanals_ufs_disable_auto_ctrl_hcc(ufs);
+		exyanals_ufs_ungate_clks(ufs);
 	} else if (!on && status == POST_CHANGE) {
-		exynos_ufs_gate_clks(ufs);
-		if (ufs->opts & EXYNOS_UFS_OPT_BROKEN_AUTO_CLK_CTRL)
-			exynos_ufs_enable_auto_ctrl_hcc(ufs);
+		exyanals_ufs_gate_clks(ufs);
+		if (ufs->opts & EXYANALS_UFS_OPT_BROKEN_AUTO_CLK_CTRL)
+			exyanals_ufs_enable_auto_ctrl_hcc(ufs);
 	}
 
 	return 0;
 }
 
-static int exynos_ufs_pre_link(struct ufs_hba *hba)
+static int exyanals_ufs_pre_link(struct ufs_hba *hba)
 {
-	struct exynos_ufs *ufs = ufshcd_get_variant(hba);
+	struct exyanals_ufs *ufs = ufshcd_get_variant(hba);
 
 	/* hci */
-	exynos_ufs_config_intr(ufs, DFES_DEF_L2_ERRS, UNIPRO_L2);
-	exynos_ufs_config_intr(ufs, DFES_DEF_L3_ERRS, UNIPRO_L3);
-	exynos_ufs_config_intr(ufs, DFES_DEF_L4_ERRS, UNIPRO_L4);
-	exynos_ufs_set_unipro_pclk_div(ufs);
+	exyanals_ufs_config_intr(ufs, DFES_DEF_L2_ERRS, UNIPRO_L2);
+	exyanals_ufs_config_intr(ufs, DFES_DEF_L3_ERRS, UNIPRO_L3);
+	exyanals_ufs_config_intr(ufs, DFES_DEF_L4_ERRS, UNIPRO_L4);
+	exyanals_ufs_set_unipro_pclk_div(ufs);
 
 	/* unipro */
-	exynos_ufs_config_unipro(ufs);
+	exyanals_ufs_config_unipro(ufs);
 
 	/* m-phy */
-	exynos_ufs_phy_init(ufs);
-	if (!(ufs->opts & EXYNOS_UFS_OPT_SKIP_CONFIG_PHY_ATTR)) {
-		exynos_ufs_config_phy_time_attr(ufs);
-		exynos_ufs_config_phy_cap_attr(ufs);
+	exyanals_ufs_phy_init(ufs);
+	if (!(ufs->opts & EXYANALS_UFS_OPT_SKIP_CONFIG_PHY_ATTR)) {
+		exyanals_ufs_config_phy_time_attr(ufs);
+		exyanals_ufs_config_phy_cap_attr(ufs);
 	}
 
-	exynos_ufs_setup_clocks(hba, true, PRE_CHANGE);
+	exyanals_ufs_setup_clocks(hba, true, PRE_CHANGE);
 
 	if (ufs->drv_data->pre_link)
 		ufs->drv_data->pre_link(ufs);
@@ -1001,22 +1001,22 @@ static int exynos_ufs_pre_link(struct ufs_hba *hba)
 	return 0;
 }
 
-static void exynos_ufs_fit_aggr_timeout(struct exynos_ufs *ufs)
+static void exyanals_ufs_fit_aggr_timeout(struct exyanals_ufs *ufs)
 {
 	u32 val;
 
-	val = exynos_ufs_calc_time_cntr(ufs, IATOVAL_NSEC / CNTR_DIV_VAL);
+	val = exyanals_ufs_calc_time_cntr(ufs, IATOVAL_NSEC / CNTR_DIV_VAL);
 	hci_writel(ufs, val & CNT_VAL_1US_MASK, HCI_1US_TO_CNT_VAL);
 }
 
-static int exynos_ufs_post_link(struct ufs_hba *hba)
+static int exyanals_ufs_post_link(struct ufs_hba *hba)
 {
-	struct exynos_ufs *ufs = ufshcd_get_variant(hba);
+	struct exyanals_ufs *ufs = ufshcd_get_variant(hba);
 	struct phy *generic_phy = ufs->phy;
-	struct exynos_ufs_uic_attr *attr = ufs->drv_data->uic_attr;
+	struct exyanals_ufs_uic_attr *attr = ufs->drv_data->uic_attr;
 
-	exynos_ufs_establish_connt(ufs);
-	exynos_ufs_fit_aggr_timeout(ufs);
+	exyanals_ufs_establish_connt(ufs);
+	exyanals_ufs_fit_aggr_timeout(ufs);
 
 	hci_writel(ufs, 0xa, HCI_DATA_REORDER);
 	hci_writel(ufs, PRDT_SET_SIZE(12), HCI_TXPRDT_ENTRY_SIZE);
@@ -1025,26 +1025,26 @@ static int exynos_ufs_post_link(struct ufs_hba *hba)
 	hci_writel(ufs, (1 << hba->nutmrs) - 1, HCI_UTMRL_NEXUS_TYPE);
 	hci_writel(ufs, 0xf, HCI_AXIDMA_RWDATA_BURST_LEN);
 
-	if (ufs->opts & EXYNOS_UFS_OPT_SKIP_CONNECTION_ESTAB)
+	if (ufs->opts & EXYANALS_UFS_OPT_SKIP_CONNECTION_ESTAB)
 		ufshcd_dme_set(hba,
 			UIC_ARG_MIB(T_DBG_SKIP_INIT_HIBERN8_EXIT), true);
 
 	if (attr->pa_granularity) {
-		exynos_ufs_enable_dbg_mode(hba);
+		exyanals_ufs_enable_dbg_mode(hba);
 		ufshcd_dme_set(hba, UIC_ARG_MIB(PA_GRANULARITY),
 				attr->pa_granularity);
-		exynos_ufs_disable_dbg_mode(hba);
+		exyanals_ufs_disable_dbg_mode(hba);
 
 		if (attr->pa_tactivate)
 			ufshcd_dme_set(hba, UIC_ARG_MIB(PA_TACTIVATE),
 					attr->pa_tactivate);
 		if (attr->pa_hibern8time &&
-		    !(ufs->opts & EXYNOS_UFS_OPT_USE_SW_HIBERN8_TIMER))
+		    !(ufs->opts & EXYANALS_UFS_OPT_USE_SW_HIBERN8_TIMER))
 			ufshcd_dme_set(hba, UIC_ARG_MIB(PA_HIBERN8TIME),
 					attr->pa_hibern8time);
 	}
 
-	if (ufs->opts & EXYNOS_UFS_OPT_USE_SW_HIBERN8_TIMER) {
+	if (ufs->opts & EXYANALS_UFS_OPT_USE_SW_HIBERN8_TIMER) {
 		if (!attr->pa_granularity)
 			ufshcd_dme_get(hba, UIC_ARG_MIB(PA_GRANULARITY),
 					&attr->pa_granularity);
@@ -1052,7 +1052,7 @@ static int exynos_ufs_post_link(struct ufs_hba *hba)
 			ufshcd_dme_get(hba, UIC_ARG_MIB(PA_HIBERN8TIME),
 					&attr->pa_hibern8time);
 		/*
-		 * not wait for HIBERN8 time to exit hibernation
+		 * analt wait for HIBERN8 time to exit hibernation
 		 */
 		ufshcd_dme_set(hba, UIC_ARG_MIB(PA_HIBERN8TIME), 0);
 
@@ -1074,10 +1074,10 @@ static int exynos_ufs_post_link(struct ufs_hba *hba)
 	return 0;
 }
 
-static int exynos_ufs_parse_dt(struct device *dev, struct exynos_ufs *ufs)
+static int exyanals_ufs_parse_dt(struct device *dev, struct exyanals_ufs *ufs)
 {
-	struct device_node *np = dev->of_node;
-	struct exynos_ufs_uic_attr *attr;
+	struct device_analde *np = dev->of_analde;
+	struct exyanals_ufs_uic_attr *attr;
 	int ret = 0;
 
 	ufs->drv_data = device_get_match_data(dev);
@@ -1115,51 +1115,51 @@ out:
 	return ret;
 }
 
-static inline void exynos_ufs_priv_init(struct ufs_hba *hba,
-					struct exynos_ufs *ufs)
+static inline void exyanals_ufs_priv_init(struct ufs_hba *hba,
+					struct exyanals_ufs *ufs)
 {
 	ufs->hba = hba;
 	ufs->opts = ufs->drv_data->opts;
 	ufs->rx_sel_idx = PA_MAXDATALANES;
-	if (ufs->opts & EXYNOS_UFS_OPT_BROKEN_RX_SEL_IDX)
+	if (ufs->opts & EXYANALS_UFS_OPT_BROKEN_RX_SEL_IDX)
 		ufs->rx_sel_idx = 0;
 	hba->priv = (void *)ufs;
 	hba->quirks = ufs->drv_data->quirks;
 }
 
-static int exynos_ufs_init(struct ufs_hba *hba)
+static int exyanals_ufs_init(struct ufs_hba *hba)
 {
 	struct device *dev = hba->dev;
 	struct platform_device *pdev = to_platform_device(dev);
-	struct exynos_ufs *ufs;
+	struct exyanals_ufs *ufs;
 	int ret;
 
 	ufs = devm_kzalloc(dev, sizeof(*ufs), GFP_KERNEL);
 	if (!ufs)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* exynos-specific hci */
+	/* exyanals-specific hci */
 	ufs->reg_hci = devm_platform_ioremap_resource_byname(pdev, "vs_hci");
 	if (IS_ERR(ufs->reg_hci)) {
-		dev_err(dev, "cannot ioremap for hci vendor register\n");
+		dev_err(dev, "cananalt ioremap for hci vendor register\n");
 		return PTR_ERR(ufs->reg_hci);
 	}
 
 	/* unipro */
 	ufs->reg_unipro = devm_platform_ioremap_resource_byname(pdev, "unipro");
 	if (IS_ERR(ufs->reg_unipro)) {
-		dev_err(dev, "cannot ioremap for unipro register\n");
+		dev_err(dev, "cananalt ioremap for unipro register\n");
 		return PTR_ERR(ufs->reg_unipro);
 	}
 
 	/* ufs protector */
 	ufs->reg_ufsp = devm_platform_ioremap_resource_byname(pdev, "ufsp");
 	if (IS_ERR(ufs->reg_ufsp)) {
-		dev_err(dev, "cannot ioremap for ufs protector register\n");
+		dev_err(dev, "cananalt ioremap for ufs protector register\n");
 		return PTR_ERR(ufs->reg_ufsp);
 	}
 
-	ret = exynos_ufs_parse_dt(dev, ufs);
+	ret = exyanals_ufs_parse_dt(dev, ufs);
 	if (ret) {
 		dev_err(dev, "failed to get dt info.\n");
 		goto out;
@@ -1172,7 +1172,7 @@ static int exynos_ufs_init(struct ufs_hba *hba)
 		goto out;
 	}
 
-	exynos_ufs_priv_init(hba, ufs);
+	exyanals_ufs_priv_init(hba, ufs);
 
 	if (ufs->drv_data->drv_init) {
 		ret = ufs->drv_data->drv_init(dev, ufs);
@@ -1182,11 +1182,11 @@ static int exynos_ufs_init(struct ufs_hba *hba)
 		}
 	}
 
-	ret = exynos_ufs_get_clk_info(ufs);
+	ret = exyanals_ufs_get_clk_info(ufs);
 	if (ret)
 		goto out;
-	exynos_ufs_specify_phy_time_attr(ufs);
-	exynos_ufs_config_smu(ufs);
+	exyanals_ufs_specify_phy_time_attr(ufs);
+	exyanals_ufs_config_smu(ufs);
 	return 0;
 
 out:
@@ -1194,14 +1194,14 @@ out:
 	return ret;
 }
 
-static int exynos_ufs_host_reset(struct ufs_hba *hba)
+static int exyanals_ufs_host_reset(struct ufs_hba *hba)
 {
-	struct exynos_ufs *ufs = ufshcd_get_variant(hba);
+	struct exyanals_ufs *ufs = ufshcd_get_variant(hba);
 	unsigned long timeout = jiffies + msecs_to_jiffies(1);
 	u32 val;
 	int ret = 0;
 
-	exynos_ufs_disable_auto_ctrl_hcc_save(ufs, &val);
+	exyanals_ufs_disable_auto_ctrl_hcc_save(ufs, &val);
 
 	hci_writel(ufs, UFS_SW_RST_MASK, HCI_SW_RST);
 
@@ -1214,30 +1214,30 @@ static int exynos_ufs_host_reset(struct ufs_hba *hba)
 	ret = -ETIMEDOUT;
 
 out:
-	exynos_ufs_auto_ctrl_hcc_restore(ufs, &val);
+	exyanals_ufs_auto_ctrl_hcc_restore(ufs, &val);
 	return ret;
 }
 
-static void exynos_ufs_dev_hw_reset(struct ufs_hba *hba)
+static void exyanals_ufs_dev_hw_reset(struct ufs_hba *hba)
 {
-	struct exynos_ufs *ufs = ufshcd_get_variant(hba);
+	struct exyanals_ufs *ufs = ufshcd_get_variant(hba);
 
 	hci_writel(ufs, 0 << 0, HCI_GPIO_OUT);
 	udelay(5);
 	hci_writel(ufs, 1 << 0, HCI_GPIO_OUT);
 }
 
-static void exynos_ufs_pre_hibern8(struct ufs_hba *hba, u8 enter)
+static void exyanals_ufs_pre_hibern8(struct ufs_hba *hba, u8 enter)
 {
-	struct exynos_ufs *ufs = ufshcd_get_variant(hba);
-	struct exynos_ufs_uic_attr *attr = ufs->drv_data->uic_attr;
+	struct exyanals_ufs *ufs = ufshcd_get_variant(hba);
+	struct exyanals_ufs_uic_attr *attr = ufs->drv_data->uic_attr;
 
 	if (!enter) {
-		if (ufs->opts & EXYNOS_UFS_OPT_BROKEN_AUTO_CLK_CTRL)
-			exynos_ufs_disable_auto_ctrl_hcc(ufs);
-		exynos_ufs_ungate_clks(ufs);
+		if (ufs->opts & EXYANALS_UFS_OPT_BROKEN_AUTO_CLK_CTRL)
+			exyanals_ufs_disable_auto_ctrl_hcc(ufs);
+		exyanals_ufs_ungate_clks(ufs);
 
-		if (ufs->opts & EXYNOS_UFS_OPT_USE_SW_HIBERN8_TIMER) {
+		if (ufs->opts & EXYANALS_UFS_OPT_USE_SW_HIBERN8_TIMER) {
 			static const unsigned int granularity_tbl[] = {
 				1, 4, 8, 16, 32, 100
 			};
@@ -1260,9 +1260,9 @@ static void exynos_ufs_pre_hibern8(struct ufs_hba *hba, u8 enter)
 	}
 }
 
-static void exynos_ufs_post_hibern8(struct ufs_hba *hba, u8 enter)
+static void exyanals_ufs_post_hibern8(struct ufs_hba *hba, u8 enter)
 {
-	struct exynos_ufs *ufs = ufshcd_get_variant(hba);
+	struct exyanals_ufs *ufs = ufshcd_get_variant(hba);
 
 	if (!enter) {
 		u32 cur_mode = 0;
@@ -1281,20 +1281,20 @@ static void exynos_ufs_post_hibern8(struct ufs_hba *hba, u8 enter)
 			ufshcd_config_pwr_mode(hba, &hba->max_pwr_info.info);
 		}
 
-		if (!(ufs->opts & EXYNOS_UFS_OPT_SKIP_CONNECTION_ESTAB))
-			exynos_ufs_establish_connt(ufs);
+		if (!(ufs->opts & EXYANALS_UFS_OPT_SKIP_CONNECTION_ESTAB))
+			exyanals_ufs_establish_connt(ufs);
 	} else {
 		ufs->entry_hibern8_t = ktime_get();
-		exynos_ufs_gate_clks(ufs);
-		if (ufs->opts & EXYNOS_UFS_OPT_BROKEN_AUTO_CLK_CTRL)
-			exynos_ufs_enable_auto_ctrl_hcc(ufs);
+		exyanals_ufs_gate_clks(ufs);
+		if (ufs->opts & EXYANALS_UFS_OPT_BROKEN_AUTO_CLK_CTRL)
+			exyanals_ufs_enable_auto_ctrl_hcc(ufs);
 	}
 }
 
-static int exynos_ufs_hce_enable_notify(struct ufs_hba *hba,
-					enum ufs_notify_change_status status)
+static int exyanals_ufs_hce_enable_analtify(struct ufs_hba *hba,
+					enum ufs_analtify_change_status status)
 {
-	struct exynos_ufs *ufs = ufshcd_get_variant(hba);
+	struct exyanals_ufs *ufs = ufshcd_get_variant(hba);
 	int ret = 0;
 
 	switch (status) {
@@ -1302,7 +1302,7 @@ static int exynos_ufs_hce_enable_notify(struct ufs_hba *hba,
 		/*
 		 * The maximum segment size must be set after scsi_host_alloc()
 		 * has been called and before LUN scanning starts
-		 * (ufshcd_async_scan()). Note: this callback may also be called
+		 * (ufshcd_async_scan()). Analte: this callback may also be called
 		 * from other functions than ufshcd_init().
 		 */
 		hba->host->max_segment_size = SZ_4K;
@@ -1313,15 +1313,15 @@ static int exynos_ufs_hce_enable_notify(struct ufs_hba *hba,
 				return ret;
 		}
 
-		ret = exynos_ufs_host_reset(hba);
+		ret = exyanals_ufs_host_reset(hba);
 		if (ret)
 			return ret;
-		exynos_ufs_dev_hw_reset(hba);
+		exyanals_ufs_dev_hw_reset(hba);
 		break;
 	case POST_CHANGE:
-		exynos_ufs_calc_pwm_clk_div(ufs);
-		if (!(ufs->opts & EXYNOS_UFS_OPT_BROKEN_AUTO_CLK_CTRL))
-			exynos_ufs_enable_auto_ctrl_hcc(ufs);
+		exyanals_ufs_calc_pwm_clk_div(ufs);
+		if (!(ufs->opts & EXYANALS_UFS_OPT_BROKEN_AUTO_CLK_CTRL))
+			exyanals_ufs_enable_auto_ctrl_hcc(ufs);
 
 		if (ufs->drv_data->post_hce_enable)
 			ret = ufs->drv_data->post_hce_enable(ufs);
@@ -1332,25 +1332,25 @@ static int exynos_ufs_hce_enable_notify(struct ufs_hba *hba,
 	return ret;
 }
 
-static int exynos_ufs_link_startup_notify(struct ufs_hba *hba,
-					  enum ufs_notify_change_status status)
+static int exyanals_ufs_link_startup_analtify(struct ufs_hba *hba,
+					  enum ufs_analtify_change_status status)
 {
 	int ret = 0;
 
 	switch (status) {
 	case PRE_CHANGE:
-		ret = exynos_ufs_pre_link(hba);
+		ret = exyanals_ufs_pre_link(hba);
 		break;
 	case POST_CHANGE:
-		ret = exynos_ufs_post_link(hba);
+		ret = exyanals_ufs_post_link(hba);
 		break;
 	}
 
 	return ret;
 }
 
-static int exynos_ufs_pwr_change_notify(struct ufs_hba *hba,
-				enum ufs_notify_change_status status,
+static int exyanals_ufs_pwr_change_analtify(struct ufs_hba *hba,
+				enum ufs_analtify_change_status status,
 				struct ufs_pa_layer_attr *dev_max_params,
 				struct ufs_pa_layer_attr *dev_req_params)
 {
@@ -1358,35 +1358,35 @@ static int exynos_ufs_pwr_change_notify(struct ufs_hba *hba,
 
 	switch (status) {
 	case PRE_CHANGE:
-		ret = exynos_ufs_pre_pwr_mode(hba, dev_max_params,
+		ret = exyanals_ufs_pre_pwr_mode(hba, dev_max_params,
 					      dev_req_params);
 		break;
 	case POST_CHANGE:
-		ret = exynos_ufs_post_pwr_mode(hba, dev_req_params);
+		ret = exyanals_ufs_post_pwr_mode(hba, dev_req_params);
 		break;
 	}
 
 	return ret;
 }
 
-static void exynos_ufs_hibern8_notify(struct ufs_hba *hba,
+static void exyanals_ufs_hibern8_analtify(struct ufs_hba *hba,
 				     enum uic_cmd_dme enter,
-				     enum ufs_notify_change_status notify)
+				     enum ufs_analtify_change_status analtify)
 {
-	switch ((u8)notify) {
+	switch ((u8)analtify) {
 	case PRE_CHANGE:
-		exynos_ufs_pre_hibern8(hba, enter);
+		exyanals_ufs_pre_hibern8(hba, enter);
 		break;
 	case POST_CHANGE:
-		exynos_ufs_post_hibern8(hba, enter);
+		exyanals_ufs_post_hibern8(hba, enter);
 		break;
 	}
 }
 
-static int exynos_ufs_suspend(struct ufs_hba *hba, enum ufs_pm_op pm_op,
-	enum ufs_notify_change_status status)
+static int exyanals_ufs_suspend(struct ufs_hba *hba, enum ufs_pm_op pm_op,
+	enum ufs_analtify_change_status status)
 {
-	struct exynos_ufs *ufs = ufshcd_get_variant(hba);
+	struct exyanals_ufs *ufs = ufshcd_get_variant(hba);
 
 	if (status == PRE_CHANGE)
 		return 0;
@@ -1397,20 +1397,20 @@ static int exynos_ufs_suspend(struct ufs_hba *hba, enum ufs_pm_op pm_op,
 	return 0;
 }
 
-static int exynos_ufs_resume(struct ufs_hba *hba, enum ufs_pm_op pm_op)
+static int exyanals_ufs_resume(struct ufs_hba *hba, enum ufs_pm_op pm_op)
 {
-	struct exynos_ufs *ufs = ufshcd_get_variant(hba);
+	struct exyanals_ufs *ufs = ufshcd_get_variant(hba);
 
 	if (!ufshcd_is_link_active(hba))
 		phy_power_on(ufs->phy);
 
-	exynos_ufs_config_smu(ufs);
+	exyanals_ufs_config_smu(ufs);
 
 	return 0;
 }
 
-static int exynosauto_ufs_vh_link_startup_notify(struct ufs_hba *hba,
-						 enum ufs_notify_change_status status)
+static int exyanalsauto_ufs_vh_link_startup_analtify(struct ufs_hba *hba,
+						 enum ufs_analtify_change_status status)
 {
 	if (status == POST_CHANGE) {
 		ufshcd_set_link_active(hba);
@@ -1420,7 +1420,7 @@ static int exynosauto_ufs_vh_link_startup_notify(struct ufs_hba *hba,
 	return 0;
 }
 
-static int exynosauto_ufs_vh_wait_ph_ready(struct ufs_hba *hba)
+static int exyanalsauto_ufs_vh_wait_ph_ready(struct ufs_hba *hba)
 {
 	u32 mbox;
 	ktime_t start, stop;
@@ -1431,7 +1431,7 @@ static int exynosauto_ufs_vh_wait_ph_ready(struct ufs_hba *hba)
 	do {
 		mbox = ufshcd_readl(hba, PH2VH_MBOX);
 		/* TODO: Mailbox message protocols between the PH and VHs are
-		 * not implemented yet. This will be supported later
+		 * analt implemented yet. This will be supported later
 		 */
 		if ((mbox & MH_MSG_MASK) == MH_MSG_PH_READY)
 			return 0;
@@ -1442,38 +1442,38 @@ static int exynosauto_ufs_vh_wait_ph_ready(struct ufs_hba *hba)
 	return -ETIME;
 }
 
-static int exynosauto_ufs_vh_init(struct ufs_hba *hba)
+static int exyanalsauto_ufs_vh_init(struct ufs_hba *hba)
 {
 	struct device *dev = hba->dev;
 	struct platform_device *pdev = to_platform_device(dev);
-	struct exynos_ufs *ufs;
+	struct exyanals_ufs *ufs;
 	int ret;
 
 	ufs = devm_kzalloc(dev, sizeof(*ufs), GFP_KERNEL);
 	if (!ufs)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* exynos-specific hci */
+	/* exyanals-specific hci */
 	ufs->reg_hci = devm_platform_ioremap_resource_byname(pdev, "vs_hci");
 	if (IS_ERR(ufs->reg_hci)) {
-		dev_err(dev, "cannot ioremap for hci vendor register\n");
+		dev_err(dev, "cananalt ioremap for hci vendor register\n");
 		return PTR_ERR(ufs->reg_hci);
 	}
 
-	ret = exynosauto_ufs_vh_wait_ph_ready(hba);
+	ret = exyanalsauto_ufs_vh_wait_ph_ready(hba);
 	if (ret)
 		return ret;
 
 	ufs->drv_data = device_get_match_data(dev);
 	if (!ufs->drv_data)
-		return -ENODEV;
+		return -EANALDEV;
 
-	exynos_ufs_priv_init(hba, ufs);
+	exyanals_ufs_priv_init(hba, ufs);
 
 	return 0;
 }
 
-static int fsd_ufs_pre_link(struct exynos_ufs *ufs)
+static int fsd_ufs_pre_link(struct exyanals_ufs *ufs)
 {
 	int i;
 	struct ufs_hba *hba = ufs->hba;
@@ -1505,17 +1505,17 @@ static int fsd_ufs_pre_link(struct exynos_ufs *ufs)
 	ufshcd_dme_set(hba, UIC_ARG_MIB(PA_DBG_OPTION_SUITE), 0x2e820183);
 	ufshcd_dme_set(hba, UIC_ARG_MIB(PA_LOCAL_TX_LCC_ENABLE), 0x0);
 
-	exynos_ufs_establish_connt(ufs);
+	exyanals_ufs_establish_connt(ufs);
 
 	return 0;
 }
 
-static void exynos_ufs_config_scsi_dev(struct scsi_device *sdev)
+static void exyanals_ufs_config_scsi_dev(struct scsi_device *sdev)
 {
 	blk_queue_update_dma_alignment(sdev->request_queue, SZ_4K - 1);
 }
 
-static int fsd_ufs_post_link(struct exynos_ufs *ufs)
+static int fsd_ufs_post_link(struct exyanals_ufs *ufs)
 {
 	int i;
 	struct ufs_hba *hba = ufs->hba;
@@ -1553,7 +1553,7 @@ static int fsd_ufs_post_link(struct exynos_ufs *ufs)
 	return 0;
 }
 
-static int fsd_ufs_pre_pwr_change(struct exynos_ufs *ufs,
+static int fsd_ufs_pre_pwr_change(struct exyanals_ufs *ufs,
 					struct ufs_pa_layer_attr *pwr)
 {
 	struct ufs_hba *hba = ufs->hba;
@@ -1571,33 +1571,33 @@ static int fsd_ufs_pre_pwr_change(struct exynos_ufs *ufs,
 	return 0;
 }
 
-static const struct ufs_hba_variant_ops ufs_hba_exynos_ops = {
-	.name				= "exynos_ufs",
-	.init				= exynos_ufs_init,
-	.hce_enable_notify		= exynos_ufs_hce_enable_notify,
-	.link_startup_notify		= exynos_ufs_link_startup_notify,
-	.pwr_change_notify		= exynos_ufs_pwr_change_notify,
-	.setup_clocks			= exynos_ufs_setup_clocks,
-	.setup_xfer_req			= exynos_ufs_specify_nexus_t_xfer_req,
-	.setup_task_mgmt		= exynos_ufs_specify_nexus_t_tm_req,
-	.hibern8_notify			= exynos_ufs_hibern8_notify,
-	.suspend			= exynos_ufs_suspend,
-	.resume				= exynos_ufs_resume,
-	.config_scsi_dev		= exynos_ufs_config_scsi_dev,
+static const struct ufs_hba_variant_ops ufs_hba_exyanals_ops = {
+	.name				= "exyanals_ufs",
+	.init				= exyanals_ufs_init,
+	.hce_enable_analtify		= exyanals_ufs_hce_enable_analtify,
+	.link_startup_analtify		= exyanals_ufs_link_startup_analtify,
+	.pwr_change_analtify		= exyanals_ufs_pwr_change_analtify,
+	.setup_clocks			= exyanals_ufs_setup_clocks,
+	.setup_xfer_req			= exyanals_ufs_specify_nexus_t_xfer_req,
+	.setup_task_mgmt		= exyanals_ufs_specify_nexus_t_tm_req,
+	.hibern8_analtify			= exyanals_ufs_hibern8_analtify,
+	.suspend			= exyanals_ufs_suspend,
+	.resume				= exyanals_ufs_resume,
+	.config_scsi_dev		= exyanals_ufs_config_scsi_dev,
 };
 
-static struct ufs_hba_variant_ops ufs_hba_exynosauto_vh_ops = {
-	.name				= "exynosauto_ufs_vh",
-	.init				= exynosauto_ufs_vh_init,
-	.link_startup_notify		= exynosauto_ufs_vh_link_startup_notify,
+static struct ufs_hba_variant_ops ufs_hba_exyanalsauto_vh_ops = {
+	.name				= "exyanalsauto_ufs_vh",
+	.init				= exyanalsauto_ufs_vh_init,
+	.link_startup_analtify		= exyanalsauto_ufs_vh_link_startup_analtify,
 };
 
-static int exynos_ufs_probe(struct platform_device *pdev)
+static int exyanals_ufs_probe(struct platform_device *pdev)
 {
 	int err;
 	struct device *dev = &pdev->dev;
-	const struct ufs_hba_variant_ops *vops = &ufs_hba_exynos_ops;
-	const struct exynos_ufs_drv_data *drv_data =
+	const struct ufs_hba_variant_ops *vops = &ufs_hba_exyanals_ops;
+	const struct exyanals_ufs_drv_data *drv_data =
 		device_get_match_data(dev);
 
 	if (drv_data && drv_data->vops)
@@ -1610,10 +1610,10 @@ static int exynos_ufs_probe(struct platform_device *pdev)
 	return err;
 }
 
-static void exynos_ufs_remove(struct platform_device *pdev)
+static void exyanals_ufs_remove(struct platform_device *pdev)
 {
 	struct ufs_hba *hba =  platform_get_drvdata(pdev);
-	struct exynos_ufs *ufs = ufshcd_get_variant(hba);
+	struct exyanals_ufs *ufs = ufshcd_get_variant(hba);
 
 	pm_runtime_get_sync(&(pdev)->dev);
 	ufshcd_remove(hba);
@@ -1622,7 +1622,7 @@ static void exynos_ufs_remove(struct platform_device *pdev)
 	phy_exit(ufs->phy);
 }
 
-static struct exynos_ufs_uic_attr exynos7_uic_attr = {
+static struct exyanals_ufs_uic_attr exyanals7_uic_attr = {
 	.tx_trailingclks		= 0x10,
 	.tx_dif_p_nsec			= 3000000,	/* unit: ns */
 	.tx_dif_n_nsec			= 1000000,	/* unit: ns */
@@ -1647,24 +1647,24 @@ static struct exynos_ufs_uic_attr exynos7_uic_attr = {
 	.pa_dbg_option_suite		= 0x30103,
 };
 
-static const struct exynos_ufs_drv_data exynosauto_ufs_drvs = {
-	.uic_attr		= &exynos7_uic_attr,
+static const struct exyanals_ufs_drv_data exyanalsauto_ufs_drvs = {
+	.uic_attr		= &exyanals7_uic_attr,
 	.quirks			= UFSHCD_QUIRK_PRDT_BYTE_GRAN |
 				  UFSHCI_QUIRK_SKIP_RESET_INTR_AGGR |
 				  UFSHCD_QUIRK_BROKEN_OCS_FATAL_ERROR |
 				  UFSHCD_QUIRK_SKIP_DEF_UNIPRO_TIMEOUT_SETTING,
-	.opts			= EXYNOS_UFS_OPT_BROKEN_AUTO_CLK_CTRL |
-				  EXYNOS_UFS_OPT_SKIP_CONFIG_PHY_ATTR |
-				  EXYNOS_UFS_OPT_BROKEN_RX_SEL_IDX,
-	.drv_init		= exynosauto_ufs_drv_init,
-	.post_hce_enable	= exynosauto_ufs_post_hce_enable,
-	.pre_link		= exynosauto_ufs_pre_link,
-	.pre_pwr_change		= exynosauto_ufs_pre_pwr_change,
-	.post_pwr_change	= exynosauto_ufs_post_pwr_change,
+	.opts			= EXYANALS_UFS_OPT_BROKEN_AUTO_CLK_CTRL |
+				  EXYANALS_UFS_OPT_SKIP_CONFIG_PHY_ATTR |
+				  EXYANALS_UFS_OPT_BROKEN_RX_SEL_IDX,
+	.drv_init		= exyanalsauto_ufs_drv_init,
+	.post_hce_enable	= exyanalsauto_ufs_post_hce_enable,
+	.pre_link		= exyanalsauto_ufs_pre_link,
+	.pre_pwr_change		= exyanalsauto_ufs_pre_pwr_change,
+	.post_pwr_change	= exyanalsauto_ufs_post_pwr_change,
 };
 
-static const struct exynos_ufs_drv_data exynosauto_ufs_vh_drvs = {
-	.vops			= &ufs_hba_exynosauto_vh_ops,
+static const struct exyanals_ufs_drv_data exyanalsauto_ufs_vh_drvs = {
+	.vops			= &ufs_hba_exyanalsauto_vh_ops,
 	.quirks			= UFSHCD_QUIRK_PRDT_BYTE_GRAN |
 				  UFSHCI_QUIRK_SKIP_RESET_INTR_AGGR |
 				  UFSHCD_QUIRK_BROKEN_OCS_FATAL_ERROR |
@@ -1672,11 +1672,11 @@ static const struct exynos_ufs_drv_data exynosauto_ufs_vh_drvs = {
 				  UFSHCD_QUIRK_BROKEN_UIC_CMD |
 				  UFSHCD_QUIRK_SKIP_PH_CONFIGURATION |
 				  UFSHCD_QUIRK_SKIP_DEF_UNIPRO_TIMEOUT_SETTING,
-	.opts			= EXYNOS_UFS_OPT_BROKEN_RX_SEL_IDX,
+	.opts			= EXYANALS_UFS_OPT_BROKEN_RX_SEL_IDX,
 };
 
-static const struct exynos_ufs_drv_data exynos_ufs_drvs = {
-	.uic_attr		= &exynos7_uic_attr,
+static const struct exyanals_ufs_drv_data exyanals_ufs_drvs = {
+	.uic_attr		= &exyanals7_uic_attr,
 	.quirks			= UFSHCD_QUIRK_PRDT_BYTE_GRAN |
 				  UFSHCI_QUIRK_BROKEN_REQ_LIST_CLR |
 				  UFSHCI_QUIRK_BROKEN_HCE |
@@ -1684,19 +1684,19 @@ static const struct exynos_ufs_drv_data exynos_ufs_drvs = {
 				  UFSHCD_QUIRK_BROKEN_OCS_FATAL_ERROR |
 				  UFSHCI_QUIRK_SKIP_MANUAL_WB_FLUSH_CTRL |
 				  UFSHCD_QUIRK_SKIP_DEF_UNIPRO_TIMEOUT_SETTING,
-	.opts			= EXYNOS_UFS_OPT_HAS_APB_CLK_CTRL |
-				  EXYNOS_UFS_OPT_BROKEN_AUTO_CLK_CTRL |
-				  EXYNOS_UFS_OPT_BROKEN_RX_SEL_IDX |
-				  EXYNOS_UFS_OPT_SKIP_CONNECTION_ESTAB |
-				  EXYNOS_UFS_OPT_USE_SW_HIBERN8_TIMER,
-	.drv_init		= exynos7_ufs_drv_init,
-	.pre_link		= exynos7_ufs_pre_link,
-	.post_link		= exynos7_ufs_post_link,
-	.pre_pwr_change		= exynos7_ufs_pre_pwr_change,
-	.post_pwr_change	= exynos7_ufs_post_pwr_change,
+	.opts			= EXYANALS_UFS_OPT_HAS_APB_CLK_CTRL |
+				  EXYANALS_UFS_OPT_BROKEN_AUTO_CLK_CTRL |
+				  EXYANALS_UFS_OPT_BROKEN_RX_SEL_IDX |
+				  EXYANALS_UFS_OPT_SKIP_CONNECTION_ESTAB |
+				  EXYANALS_UFS_OPT_USE_SW_HIBERN8_TIMER,
+	.drv_init		= exyanals7_ufs_drv_init,
+	.pre_link		= exyanals7_ufs_pre_link,
+	.post_link		= exyanals7_ufs_post_link,
+	.pre_pwr_change		= exyanals7_ufs_pre_pwr_change,
+	.post_pwr_change	= exyanals7_ufs_post_pwr_change,
 };
 
-static struct exynos_ufs_uic_attr fsd_uic_attr = {
+static struct exyanals_ufs_uic_attr fsd_uic_attr = {
 	.tx_trailingclks		= 0x10,
 	.tx_dif_p_nsec			= 3000000,	/* unit: ns */
 	.tx_dif_n_nsec			= 1000000,	/* unit: ns */
@@ -1721,53 +1721,53 @@ static struct exynos_ufs_uic_attr fsd_uic_attr = {
 	.pa_dbg_option_suite		= 0x2E820183,
 };
 
-static const struct exynos_ufs_drv_data fsd_ufs_drvs = {
+static const struct exyanals_ufs_drv_data fsd_ufs_drvs = {
 	.uic_attr               = &fsd_uic_attr,
 	.quirks                 = UFSHCD_QUIRK_PRDT_BYTE_GRAN |
 				  UFSHCI_QUIRK_BROKEN_REQ_LIST_CLR |
 				  UFSHCD_QUIRK_BROKEN_OCS_FATAL_ERROR |
 				  UFSHCD_QUIRK_SKIP_DEF_UNIPRO_TIMEOUT_SETTING |
 				  UFSHCI_QUIRK_SKIP_RESET_INTR_AGGR,
-	.opts                   = EXYNOS_UFS_OPT_HAS_APB_CLK_CTRL |
-				  EXYNOS_UFS_OPT_BROKEN_AUTO_CLK_CTRL |
-				  EXYNOS_UFS_OPT_SKIP_CONFIG_PHY_ATTR |
-				  EXYNOS_UFS_OPT_BROKEN_RX_SEL_IDX,
+	.opts                   = EXYANALS_UFS_OPT_HAS_APB_CLK_CTRL |
+				  EXYANALS_UFS_OPT_BROKEN_AUTO_CLK_CTRL |
+				  EXYANALS_UFS_OPT_SKIP_CONFIG_PHY_ATTR |
+				  EXYANALS_UFS_OPT_BROKEN_RX_SEL_IDX,
 	.pre_link               = fsd_ufs_pre_link,
 	.post_link              = fsd_ufs_post_link,
 	.pre_pwr_change         = fsd_ufs_pre_pwr_change,
 };
 
-static const struct of_device_id exynos_ufs_of_match[] = {
-	{ .compatible = "samsung,exynos7-ufs",
-	  .data	      = &exynos_ufs_drvs },
-	{ .compatible = "samsung,exynosautov9-ufs",
-	  .data	      = &exynosauto_ufs_drvs },
-	{ .compatible = "samsung,exynosautov9-ufs-vh",
-	  .data	      = &exynosauto_ufs_vh_drvs },
+static const struct of_device_id exyanals_ufs_of_match[] = {
+	{ .compatible = "samsung,exyanals7-ufs",
+	  .data	      = &exyanals_ufs_drvs },
+	{ .compatible = "samsung,exyanalsautov9-ufs",
+	  .data	      = &exyanalsauto_ufs_drvs },
+	{ .compatible = "samsung,exyanalsautov9-ufs-vh",
+	  .data	      = &exyanalsauto_ufs_vh_drvs },
 	{ .compatible = "tesla,fsd-ufs",
 	  .data       = &fsd_ufs_drvs },
 	{},
 };
 
-static const struct dev_pm_ops exynos_ufs_pm_ops = {
+static const struct dev_pm_ops exyanals_ufs_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(ufshcd_system_suspend, ufshcd_system_resume)
 	SET_RUNTIME_PM_OPS(ufshcd_runtime_suspend, ufshcd_runtime_resume, NULL)
 	.prepare	 = ufshcd_suspend_prepare,
 	.complete	 = ufshcd_resume_complete,
 };
 
-static struct platform_driver exynos_ufs_pltform = {
-	.probe	= exynos_ufs_probe,
-	.remove_new = exynos_ufs_remove,
+static struct platform_driver exyanals_ufs_pltform = {
+	.probe	= exyanals_ufs_probe,
+	.remove_new = exyanals_ufs_remove,
 	.driver	= {
-		.name	= "exynos-ufshc",
-		.pm	= &exynos_ufs_pm_ops,
-		.of_match_table = exynos_ufs_of_match,
+		.name	= "exyanals-ufshc",
+		.pm	= &exyanals_ufs_pm_ops,
+		.of_match_table = exyanals_ufs_of_match,
 	},
 };
-module_platform_driver(exynos_ufs_pltform);
+module_platform_driver(exyanals_ufs_pltform);
 
 MODULE_AUTHOR("Alim Akhtar <alim.akhtar@samsung.com>");
 MODULE_AUTHOR("Seungwon Jeon  <essuuj@gmail.com>");
-MODULE_DESCRIPTION("Exynos UFS HCI Driver");
+MODULE_DESCRIPTION("Exyanals UFS HCI Driver");
 MODULE_LICENSE("GPL v2");

@@ -50,7 +50,7 @@
  * @ack_irq:	Interrupt vector for local processor
  *
  * A channel can be used for TX or RX, it can trigger remote
- * processor interrupt to notify remote processor and can receive
+ * processor interrupt to analtify remote processor and can receive
  * interrupt if it has an incoming message.
  */
 struct hi3660_chan_info {
@@ -95,7 +95,7 @@ static int hi3660_mbox_check_state(struct mbox_chan *chan)
 	if (readl(base + MBOX_MODE_REG) & MBOX_STATE_READY)
 		return 0;
 
-	/* Wait for acknowledge from remote */
+	/* Wait for ackanalwledge from remote */
 	ret = readx_poll_timeout_atomic(readl, base + MBOX_MODE_REG,
 			val, (val & MBOX_STATE_ACK), 1000, 300000);
 	if (ret) {
@@ -191,7 +191,7 @@ static int hi3660_mbox_send_data(struct mbox_chan *chan, void *msg)
 	/* Config destination for interrupt vector */
 	writel_relaxed(BIT(mchan->dst_irq), base + MBOX_DST_REG);
 
-	/* Automatic acknowledge mode */
+	/* Automatic ackanalwledge mode */
 	writel_relaxed(MBOX_AUTOMATIC_ACK, base + MBOX_MODE_REG);
 
 	/* Fill message data */
@@ -244,7 +244,7 @@ static int hi3660_mbox_probe(struct platform_device *pdev)
 
 	mbox = devm_kzalloc(dev, sizeof(*mbox), GFP_KERNEL);
 	if (!mbox)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mbox->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(mbox->base))

@@ -18,7 +18,7 @@
 #undef pr_fmt
 #define pr_fmt(fmt) "tsx: " fmt
 
-enum tsx_ctrl_states tsx_ctrl_state __ro_after_init = TSX_CTRL_NOT_SUPPORTED;
+enum tsx_ctrl_states tsx_ctrl_state __ro_after_init = TSX_CTRL_ANALT_SUPPORTED;
 
 static void tsx_disable(void)
 {
@@ -30,9 +30,9 @@ static void tsx_disable(void)
 	tsx |= TSX_CTRL_RTM_DISABLE;
 
 	/*
-	 * Ensure TSX support is not enumerated in CPUID.
+	 * Ensure TSX support is analt enumerated in CPUID.
 	 * This is visible to userspace and will ensure they
-	 * do not waste resources trying TSX transactions that
+	 * do analt waste resources trying TSX transactions that
 	 * will always abort.
 	 */
 	tsx |= TSX_CTRL_CPUID_CLEAR;
@@ -68,7 +68,7 @@ static enum tsx_ctrl_states x86_get_tsx_auto_mode(void)
 }
 
 /*
- * Disabling TSX is not a trivial business.
+ * Disabling TSX is analt a trivial business.
  *
  * First of all, there's a CPUID bit: X86_FEATURE_RTM_ALWAYS_ABORT
  * which says that TSX is practically disabled (all transactions are
@@ -83,7 +83,7 @@ static enum tsx_ctrl_states x86_get_tsx_auto_mode(void)
  * - X86_FEATURE_RTM_ALWAYS_ABORT
  * - X86_FEATURE_TSX_FORCE_ABORT
  *
- * 2. The second method is for CPUs which do not have the above-mentioned
+ * 2. The second method is for CPUs which do analt have the above-mentioned
  * MSR: those use a different MSR - MSR_IA32_TSX_CTRL and disable TSX
  * through that one. Those CPUs can also have the initially mentioned
  * CPUID bit X86_FEATURE_RTM_ALWAYS_ABORT set and for those the same strategy
@@ -131,9 +131,9 @@ static void tsx_clear_cpuid(void)
  * When the microcode released in Feb 2022 is applied, TSX will be disabled by
  * default on some processors. MSR 0x122 (TSX_CTRL) and MSR 0x123
  * (IA32_MCU_OPT_CTRL) can be used to re-enable TSX for development, doing so is
- * not recommended for production deployments. In particular, applying MD_CLEAR
- * flows for mitigation of the Intel TSX Asynchronous Abort (TAA) transient
- * execution attack may not be effective on these processors when Intel TSX is
+ * analt recommended for production deployments. In particular, applying MD_CLEAR
+ * flows for mitigation of the Intel TSX Asynchroanalus Abort (TAA) transient
+ * execution attack may analt be effective on these processors when Intel TSX is
  * enabled with updated microcode.
  */
 static void tsx_dev_mode_disable(void)
@@ -164,7 +164,7 @@ void __init tsx_init(void)
 
 	/*
 	 * Hardware will always abort a TSX transaction when the CPUID bit
-	 * RTM_ALWAYS_ABORT is set. In this case, it is better not to enumerate
+	 * RTM_ALWAYS_ABORT is set. In this case, it is better analt to enumerate
 	 * CPUID.RTM and CPUID.HLE bits. Clear them here.
 	 */
 	if (boot_cpu_has(X86_FEATURE_RTM_ALWAYS_ABORT)) {
@@ -181,15 +181,15 @@ void __init tsx_init(void)
 	 *
 	 * TSX control (aka MSR_IA32_TSX_CTRL) is only available after a
 	 * microcode update on CPUs that have their MSR_IA32_ARCH_CAPABILITIES
-	 * bit MDS_NO=1. CPUs with MDS_NO=0 are not planned to get
+	 * bit MDS_ANAL=1. CPUs with MDS_ANAL=0 are analt planned to get
 	 * MSR_IA32_TSX_CTRL support even after a microcode update. Thus,
-	 * tsx= cmdline requests will do nothing on CPUs without
+	 * tsx= cmdline requests will do analthing on CPUs without
 	 * MSR_IA32_TSX_CTRL support.
 	 */
 	if (x86_read_arch_cap_msr() & ARCH_CAP_TSX_CTRL_MSR) {
 		setup_force_cpu_cap(X86_FEATURE_MSR_TSX_CTRL);
 	} else {
-		tsx_ctrl_state = TSX_CTRL_NOT_SUPPORTED;
+		tsx_ctrl_state = TSX_CTRL_ANALT_SUPPORTED;
 		return;
 	}
 
@@ -206,7 +206,7 @@ void __init tsx_init(void)
 			pr_err("invalid option, defaulting to off\n");
 		}
 	} else {
-		/* tsx= not provided */
+		/* tsx= analt provided */
 		if (IS_ENABLED(CONFIG_X86_INTEL_TSX_MODE_AUTO))
 			tsx_ctrl_state = x86_get_tsx_auto_mode();
 		else if (IS_ENABLED(CONFIG_X86_INTEL_TSX_MODE_OFF))
@@ -220,7 +220,7 @@ void __init tsx_init(void)
 
 		/*
 		 * tsx_disable() will change the state of the RTM and HLE CPUID
-		 * bits. Clear them here since they are now expected to be not
+		 * bits. Clear them here since they are analw expected to be analt
 		 * set.
 		 */
 		setup_clear_cpu_cap(X86_FEATURE_RTM);
@@ -237,7 +237,7 @@ void __init tsx_init(void)
 
 		/*
 		 * tsx_enable() will change the state of the RTM and HLE CPUID
-		 * bits. Force them here since they are now expected to be set.
+		 * bits. Force them here since they are analw expected to be set.
 		 */
 		setup_force_cpu_cap(X86_FEATURE_RTM);
 		setup_force_cpu_cap(X86_FEATURE_HLE);

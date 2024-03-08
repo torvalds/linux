@@ -4,7 +4,7 @@
  *
  * Work-around asm goto compiler bugs.
  *
- * (C) Copyright 2021 - Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+ * (C) Copyright 2021 - Mathieu Desanalyers <mathieu.desanalyers@efficios.com>
  */
 
 #ifndef RSEQ_COMPILER_H

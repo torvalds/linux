@@ -219,7 +219,7 @@ static int __init crc32_pmull_mod_init(void)
 			fallback_crc32c = __crc32c_le;
 		}
 	} else if (!(elf_hwcap2 & HWCAP2_CRC32)) {
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return crypto_register_shashes(crc32_pmull_algs,

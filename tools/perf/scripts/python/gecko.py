@@ -43,23 +43,23 @@ CategoryID = int
 Milliseconds = float
 
 # start_time is intialiazed only once for the all event traces.
-start_time = None
+start_time = Analne
 
 # https://github.com/firefox-devtools/profiler/blob/53970305b51b9b472e26d7457fee1d66cd4e2737/src/types/profile.js#L425
 # Follow Brendan Gregg's Flamegraph convention: orange for kernel and yellow for user space by default.
-CATEGORIES = None
+CATEGORIES = Analne
 
 # The product name is used by the profiler UI to show the Operating system and Processor.
 PRODUCT = os.popen('uname -op').read().strip()
 
 # store the output file
-output_file = None
+output_file = Analne
 
 # Here key = tid, value = Thread
 tid_to_thread = dict()
 
 # The HTTP server is used to serve the profile to the profiler UI.
-http_server_thread = None
+http_server_thread = Analne
 
 # The category index is used by the profiler UI to show the color of the flame graph.
 USER_CATEGORY_INDEX = 0
@@ -70,10 +70,10 @@ class Frame(NamedTuple):
 	string_id: StringID
 	relevantForJS: bool
 	innerWindowID: int
-	implementation: None
-	optimizations: None
-	line: None
-	column: None
+	implementation: Analne
+	optimizations: Analne
+	line: Analne
+	column: Analne
 	category: CategoryID
 	subcategory: int
 
@@ -127,10 +127,10 @@ class Thread:
 
 	def _intern_stack(self, frame_id: int, prefix_id: Optional[int]) -> int:
 		"""Gets a matching stack, or saves the new stack. Returns a Stack ID."""
-		key = f"{frame_id}" if prefix_id is None else f"{frame_id},{prefix_id}"
+		key = f"{frame_id}" if prefix_id is Analne else f"{frame_id},{prefix_id}"
 		# key = (prefix_id, frame_id)
 		stack_id = self.stackMap.get(key)
-		if stack_id is None:
+		if stack_id is Analne:
 			# return stack_id
 			stack_id = len(self.stackTable)
 			self.stackTable.append(Stack(prefix_id=prefix_id, frame_id=frame_id))
@@ -140,7 +140,7 @@ class Thread:
 	def _intern_string(self, string: str) -> int:
 		"""Gets a matching string, or saves the new string. Returns a String ID."""
 		string_id = self.stringMap.get(string)
-		if string_id is not None:
+		if string_id is analt Analne:
 			return string_id
 		string_id = len(self.stringTable)
 		self.stringTable.append(string)
@@ -150,7 +150,7 @@ class Thread:
 	def _intern_frame(self, frame_str: str) -> int:
 		"""Gets a matching stack frame, or saves the new frame. Returns a Frame ID."""
 		frame_id = self.frameMap.get(frame_str)
-		if frame_id is not None:
+		if frame_id is analt Analne:
 			return frame_id
 		frame_id = len(self.frameTable)
 		self.frameMap[frame_str] = frame_id
@@ -165,30 +165,30 @@ class Thread:
 			string_id=string_id,
 			relevantForJS=False,
 			innerWindowID=0,
-			implementation=None,
-			optimizations=None,
-			line=None,
-			column=None,
+			implementation=Analne,
+			optimizations=Analne,
+			line=Analne,
+			column=Analne,
 			category=symbol_name_to_category,
-			subcategory=None,
+			subcategory=Analne,
 		))
 		return frame_id
 
-	def _add_sample(self, comm: str, stack: List[str], time_ms: Milliseconds) -> None:
+	def _add_sample(self, comm: str, stack: List[str], time_ms: Milliseconds) -> Analne:
 		"""Add a timestamped stack trace sample to the thread builder.
 		Args:
 			comm: command-line (name) of the thread at this sample
 			stack: sampled stack frames. Root first, leaf last.
 			time_ms: timestamp of sample in milliseconds.
 		"""
-		# Ihreads may not set their names right after they are created.
+		# Ihreads may analt set their names right after they are created.
 		# Instead, they might do it later. In such situations, to use the latest name they have set.
 		if self.comm != comm:
 			self.comm = comm
 
 		prefix_stack_id = reduce(lambda prefix_id, frame: self._intern_stack
-						(self._intern_frame(frame), prefix_id), stack, None)
-		if prefix_stack_id is not None:
+						(self._intern_frame(frame), prefix_id), stack, Analne)
+		if prefix_stack_id is analt Analne:
 			self.samples.append(Sample(stack_id=prefix_stack_id,
 									time_ms=time_ms,
 									responsiveness=0))
@@ -253,13 +253,13 @@ class Thread:
 			},
 			"stringTable": self.stringTable,
 			"registerTime": 0,
-			"unregisterTime": None,
+			"unregisterTime": Analne,
 			"processType": "default",
 		}
 
 # Uses perf script python interface to parse each
 # event and store the data in the thread builder.
-def process_event(param_dict: Dict) -> None:
+def process_event(param_dict: Dict) -> Analne:
 	global start_time
 	global tid_to_thread
 	time_stamp = (param_dict['sample']['time'] // 1000) / 1000
@@ -268,37 +268,37 @@ def process_event(param_dict: Dict) -> None:
 	comm = param_dict['comm']
 
 	# Start time is the time of the first sample
-	if not start_time:
+	if analt start_time:
 		start_time = time_stamp
 
 	# Parse and append the callchain of the current sample into a stack.
 	stack = []
 	if param_dict['callchain']:
 		for call in param_dict['callchain']:
-			if 'sym' not in call:
+			if 'sym' analt in call:
 				continue
 			stack.append(f'{call["sym"]["name"]} (in {call["dso"]})')
 		if len(stack) != 0:
 			# Reverse the stack, as root come first and the leaf at the end.
 			stack = stack[::-1]
 
-	# During perf record if -g is not used, the callchain is not available.
+	# During perf record if -g is analt used, the callchain is analt available.
 	# In that case, the symbol and dso are available in the event parameters.
 	else:
-		func = param_dict['symbol'] if 'symbol' in param_dict else '[unknown]'
-		dso = param_dict['dso'] if 'dso' in param_dict else '[unknown]'
+		func = param_dict['symbol'] if 'symbol' in param_dict else '[unkanalwn]'
+		dso = param_dict['dso'] if 'dso' in param_dict else '[unkanalwn]'
 		stack.append(f'{func} (in {dso})')
 
 	# Add sample to the specific thread.
 	thread = tid_to_thread.get(tid)
-	if thread is None:
+	if thread is Analne:
 		thread = Thread(comm=comm, pid=pid, tid=tid)
 		tid_to_thread[tid] = thread
 	thread._add_sample(comm=comm, stack=stack, time_ms=time_stamp)
 
-def trace_begin() -> None:
+def trace_begin() -> Analne:
 	global output_file
-	if (output_file is None):
+	if (output_file is Analne):
 		print("Staring Firefox Profiler on your default browser...")
 		global http_server_thread
 		http_server_thread = threading.Thread(target=test, args=(CORSRequestHandler, HTTPServer,))
@@ -307,7 +307,7 @@ def trace_begin() -> None:
 
 # Trace_end runs at the end and will be used to aggregate
 # the data into the final json object and print it out to stdout.
-def trace_end() -> None:
+def trace_end() -> Analne:
 	global output_file
 	threads = [thread._to_json_dict() for thread in tid_to_thread.values()]
 
@@ -322,7 +322,7 @@ def trace_end() -> None:
 			"gcpoison": 0,
 			"asyncstack": 1,
 			"startTime": start_time,
-			"shutdownTime": None,
+			"shutdownTime": Analne,
 			"version": 24,
 			"presymbolicated": True,
 			"categories": CATEGORIES,
@@ -333,8 +333,8 @@ def trace_end() -> None:
 		"processes": [],
 		"pausedRanges": [],
 	}
-	# launch the profiler on local host if not specified --save-only args, otherwise print to file
-	if (output_file is None):
+	# launch the profiler on local host if analt specified --save-only args, otherwise print to file
+	if (output_file is Analne):
 		output_file = 'gecko_profile.json'
 		with open(output_file, 'w') as f:
 			json.dump(gecko_profile_with_meta, f, indent=2)
@@ -358,7 +358,7 @@ def launchFirefox(file):
 	url = 'https://profiler.firefox.com/from-url/' + safe_string
 	webbrowser.open(f'{url}')
 
-def main() -> None:
+def main() -> Analne:
 	global output_file
 	global CATEGORIES
 	parser = argparse.ArgumentParser(description="Convert perf.data to Firefox\'s Gecko Profile format which can be uploaded to profiler.firefox.com for visualization")

@@ -14,7 +14,7 @@
 #include <linux/err.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
-#include <linux/io-64-nonatomic-hi-lo.h>
+#include <linux/io-64-analnatomic-hi-lo.h>
 #include <linux/io-pgtable.h>
 #include <linux/iommu.h>
 #include <linux/iopoll.h>
@@ -144,7 +144,7 @@ static void qcom_iommu_tlb_inv_context(void *cookie)
 	qcom_iommu_tlb_sync(cookie);
 }
 
-static void qcom_iommu_tlb_inv_range_nosync(unsigned long iova, size_t size,
+static void qcom_iommu_tlb_inv_range_analsync(unsigned long iova, size_t size,
 					    size_t granule, bool leaf, void *cookie)
 {
 	struct qcom_iommu_domain *qcom_domain = cookie;
@@ -169,7 +169,7 @@ static void qcom_iommu_tlb_inv_range_nosync(unsigned long iova, size_t size,
 static void qcom_iommu_tlb_flush_walk(unsigned long iova, size_t size,
 				      size_t granule, void *cookie)
 {
-	qcom_iommu_tlb_inv_range_nosync(iova, size, granule, false, cookie);
+	qcom_iommu_tlb_inv_range_analsync(iova, size, granule, false, cookie);
 	qcom_iommu_tlb_sync(cookie);
 }
 
@@ -177,7 +177,7 @@ static void qcom_iommu_tlb_add_page(struct iommu_iotlb_gather *gather,
 				    unsigned long iova, size_t granule,
 				    void *cookie)
 {
-	qcom_iommu_tlb_inv_range_nosync(iova, granule, granule, true, cookie);
+	qcom_iommu_tlb_inv_range_analsync(iova, granule, granule, true, cookie);
 }
 
 static const struct iommu_flush_ops qcom_flush_ops = {
@@ -195,7 +195,7 @@ static irqreturn_t qcom_iommu_fault(int irq, void *dev)
 	fsr = iommu_readl(ctx, ARM_SMMU_CB_FSR);
 
 	if (!(fsr & ARM_SMMU_FSR_FAULT))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	fsynr = iommu_readl(ctx, ARM_SMMU_CB_FSYNR0);
 	iova = iommu_readq(ctx, ARM_SMMU_CB_FAR);
@@ -242,7 +242,7 @@ static int qcom_iommu_init_domain(struct iommu_domain *domain,
 	pgtbl_ops = alloc_io_pgtable_ops(ARM_32_LPAE_S1, &pgtbl_cfg, qcom_domain);
 	if (!pgtbl_ops) {
 		dev_err(qcom_iommu->dev, "failed to allocate pagetable ops\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_clear_iommu;
 	}
 
@@ -263,7 +263,7 @@ static int qcom_iommu_init_domain(struct iommu_domain *domain,
 			ctx->secure_init = true;
 		}
 
-		/* Secured QSMMU-500/QSMMU-v2 contexts cannot be programmed */
+		/* Secured QSMMU-500/QSMMU-v2 contexts cananalt be programmed */
 		if (ctx->secured_ctx) {
 			ctx->domain = domain;
 			continue;
@@ -347,9 +347,9 @@ static void qcom_iommu_domain_free(struct iommu_domain *domain)
 
 	if (qcom_domain->iommu) {
 		/*
-		 * NOTE: unmap can be called after client device is powered
+		 * ANALTE: unmap can be called after client device is powered
 		 * off, for example, with GPUs or anything involving dma-buf.
-		 * So we cannot rely on the device_link.  Make sure the IOMMU
+		 * So we cananalt rely on the device_link.  Make sure the IOMMU
 		 * is on to avoid unclocked accesses in the TLB inv path:
 		 */
 		pm_runtime_get_sync(qcom_domain->iommu->dev);
@@ -367,7 +367,7 @@ static int qcom_iommu_attach_dev(struct iommu_domain *domain, struct device *dev
 	int ret;
 
 	if (!qcom_iommu) {
-		dev_err(dev, "cannot attach to IOMMU, is it on the same bus?\n");
+		dev_err(dev, "cananalt attach to IOMMU, is it on the same bus?\n");
 		return -ENXIO;
 	}
 
@@ -436,7 +436,7 @@ static int qcom_iommu_map(struct iommu_domain *domain, unsigned long iova,
 	struct io_pgtable_ops *ops = qcom_domain->pgtbl_ops;
 
 	if (!ops)
-		return -ENODEV;
+		return -EANALDEV;
 
 	spin_lock_irqsave(&qcom_domain->pgtbl_lock, flags);
 	ret = ops->map_pages(ops, iova, paddr, pgsize, pgcount, prot, GFP_ATOMIC, mapped);
@@ -456,9 +456,9 @@ static size_t qcom_iommu_unmap(struct iommu_domain *domain, unsigned long iova,
 	if (!ops)
 		return 0;
 
-	/* NOTE: unmap can be called after client device is powered off,
+	/* ANALTE: unmap can be called after client device is powered off,
 	 * for example, with GPUs or anything involving dma-buf.  So we
-	 * cannot rely on the device_link.  Make sure the IOMMU is on to
+	 * cananalt rely on the device_link.  Make sure the IOMMU is on to
 	 * avoid unclocked accesses in the TLB inv path:
 	 */
 	pm_runtime_get_sync(qcom_domain->iommu->dev);
@@ -516,7 +516,7 @@ static bool qcom_iommu_capable(struct device *dev, enum iommu_cap cap)
 		 * requests.
 		 */
 		return true;
-	case IOMMU_CAP_NOEXEC:
+	case IOMMU_CAP_ANALEXEC:
 		return true;
 	default:
 		return false;
@@ -529,7 +529,7 @@ static struct iommu_device *qcom_iommu_probe_device(struct device *dev)
 	struct device_link *link;
 
 	if (!qcom_iommu)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	/*
 	 * Establish the link between iommu and master, so that the
@@ -540,7 +540,7 @@ static struct iommu_device *qcom_iommu_probe_device(struct device *dev)
 	if (!link) {
 		dev_err(qcom_iommu->dev, "Unable to create device link between %s and %s\n",
 			dev_name(qcom_iommu->dev), dev_name(dev));
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 	}
 
 	return &qcom_iommu->iommu;
@@ -559,7 +559,7 @@ static int qcom_iommu_of_xlate(struct device *dev, struct of_phandle_args *args)
 		return -EINVAL;
 	}
 
-	iommu_pdev = of_find_device_by_node(args->np);
+	iommu_pdev = of_find_device_by_analde(args->np);
 	if (WARN_ON(!iommu_pdev))
 		return -EINVAL;
 
@@ -577,9 +577,9 @@ static int qcom_iommu_of_xlate(struct device *dev, struct of_phandle_args *args)
 	if (!dev_iommu_priv_get(dev)) {
 		dev_iommu_priv_set(dev, qcom_iommu);
 	} else {
-		/* make sure devices iommus dt node isn't referring to
+		/* make sure devices iommus dt analde isn't referring to
 		 * multiple different iommu devices.  Multiple context
-		 * banks are ok, but multiple devices are not:
+		 * banks are ok, but multiple devices are analt:
 		 */
 		if (WARN_ON(qcom_iommu != dev_iommu_priv_get(dev))) {
 			put_device(&iommu_pdev->dev);
@@ -631,13 +631,13 @@ static int qcom_iommu_sec_ptbl_init(struct device *dev)
 
 	dev_info(dev, "iommu sec: pgtable size: %zu\n", psize);
 
-	attrs = DMA_ATTR_NO_KERNEL_MAPPING;
+	attrs = DMA_ATTR_ANAL_KERNEL_MAPPING;
 
 	cpu_addr = dma_alloc_attrs(dev, psize, &paddr, GFP_KERNEL, attrs);
 	if (!cpu_addr) {
 		dev_err(dev, "failed to allocate %zu bytes for pgtable\n",
 			psize);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = qcom_scm_iommu_secure_ptbl_init(paddr, psize, spare);
@@ -654,7 +654,7 @@ free_mem:
 	return ret;
 }
 
-static int get_asid(const struct device_node *np)
+static int get_asid(const struct device_analde *np)
 {
 	u32 reg, val;
 	int asid;
@@ -663,7 +663,7 @@ static int get_asid(const struct device_node *np)
 	 * of the context bank, and calculate the asid from that:
 	 */
 	if (of_property_read_u32_index(np, "reg", 0, &reg))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * Context banks are 0x1000 apart but, in some cases, the ASID
@@ -687,7 +687,7 @@ static int qcom_iommu_ctx_probe(struct platform_device *pdev)
 
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->dev = dev;
 	platform_set_drvdata(pdev, ctx);
@@ -700,7 +700,7 @@ static int qcom_iommu_ctx_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	if (of_device_is_compatible(dev->of_node, "qcom,msm-iommu-v2-sec"))
+	if (of_device_is_compatible(dev->of_analde, "qcom,msm-iommu-v2-sec"))
 		ctx->secured_ctx = true;
 
 	/* clear IRQs before registering fault handler, just in case the
@@ -719,7 +719,7 @@ static int qcom_iommu_ctx_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = get_asid(dev->of_node);
+	ret = get_asid(dev->of_analde);
 	if (ret < 0) {
 		dev_err(dev, "missing reg property\n");
 		return ret;
@@ -763,12 +763,12 @@ static struct platform_driver qcom_iommu_ctx_driver = {
 
 static bool qcom_iommu_has_secure_context(struct qcom_iommu_dev *qcom_iommu)
 {
-	struct device_node *child;
+	struct device_analde *child;
 
-	for_each_child_of_node(qcom_iommu->dev->of_node, child) {
+	for_each_child_of_analde(qcom_iommu->dev->of_analde, child) {
 		if (of_device_is_compatible(child, "qcom,msm-iommu-v1-sec") ||
 		    of_device_is_compatible(child, "qcom,msm-iommu-v2-sec")) {
-			of_node_put(child);
+			of_analde_put(child);
 			return true;
 		}
 	}
@@ -778,23 +778,23 @@ static bool qcom_iommu_has_secure_context(struct qcom_iommu_dev *qcom_iommu)
 
 static int qcom_iommu_device_probe(struct platform_device *pdev)
 {
-	struct device_node *child;
+	struct device_analde *child;
 	struct qcom_iommu_dev *qcom_iommu;
 	struct device *dev = &pdev->dev;
 	struct resource *res;
 	struct clk *clk;
 	int ret, max_asid = 0;
 
-	/* find the max asid (which is 1:1 to ctx bank idx), so we know how
+	/* find the max asid (which is 1:1 to ctx bank idx), so we kanalw how
 	 * many child ctx devices we have:
 	 */
-	for_each_child_of_node(dev->of_node, child)
+	for_each_child_of_analde(dev->of_analde, child)
 		max_asid = max(max_asid, get_asid(child));
 
 	qcom_iommu = devm_kzalloc(dev, struct_size(qcom_iommu, ctxs, max_asid + 1),
 				  GFP_KERNEL);
 	if (!qcom_iommu)
-		return -ENOMEM;
+		return -EANALMEM;
 	qcom_iommu->max_asid = max_asid;
 	qcom_iommu->dev = dev;
 
@@ -826,16 +826,16 @@ static int qcom_iommu_device_probe(struct platform_device *pdev)
 	}
 	qcom_iommu->clks[CLK_TBU].clk = clk;
 
-	if (of_property_read_u32(dev->of_node, "qcom,iommu-secure-id",
+	if (of_property_read_u32(dev->of_analde, "qcom,iommu-secure-id",
 				 &qcom_iommu->sec_id)) {
 		dev_err(dev, "missing qcom,iommu-secure-id property\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (qcom_iommu_has_secure_context(qcom_iommu)) {
 		ret = qcom_iommu_sec_ptbl_init(dev);
 		if (ret) {
-			dev_err(dev, "cannot init secure pg table(%d)\n", ret);
+			dev_err(dev, "cananalt init secure pg table(%d)\n", ret);
 			return ret;
 		}
 	}
@@ -844,7 +844,7 @@ static int qcom_iommu_device_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(dev);
 
-	/* register context bank devices, which are child nodes: */
+	/* register context bank devices, which are child analdes: */
 	ret = devm_of_platform_populate(dev);
 	if (ret) {
 		dev_err(dev, "Failed to populate iommu contexts\n");

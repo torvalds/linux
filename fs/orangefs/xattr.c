@@ -22,7 +22,7 @@
 
 /*
  * this function returns
- *   0 if the key corresponding to name is not meant to be printed as part
+ *   0 if the key corresponding to name is analt meant to be printed as part
  *     of a listxattr.
  *   1 if the key corresponding to name is meant to be returned as part of
  *     a listxattr.
@@ -45,7 +45,7 @@ static inline int convert_to_internal_xattr_flags(int setxattr_flags)
 		/* Attribute must exist! */
 		internal_flag = ORANGEFS_XATTR_REPLACE;
 	} else if (setxattr_flags & XATTR_CREATE) {
-		/* Attribute must not exist */
+		/* Attribute must analt exist */
 		internal_flag = ORANGEFS_XATTR_CREATE;
 	}
 	return internal_flag;
@@ -59,19 +59,19 @@ static unsigned int xattr_key(const char *key)
 	return i % 16;
 }
 
-static struct orangefs_cached_xattr *find_cached_xattr(struct inode *inode,
+static struct orangefs_cached_xattr *find_cached_xattr(struct ianalde *ianalde,
     const char *key)
 {
-	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
+	struct orangefs_ianalde_s *orangefs_ianalde = ORANGEFS_I(ianalde);
 	struct orangefs_cached_xattr *cx;
 	struct hlist_head *h;
-	struct hlist_node *tmp;
-	h = &orangefs_inode->xattr_cache[xattr_key(key)];
+	struct hlist_analde *tmp;
+	h = &orangefs_ianalde->xattr_cache[xattr_key(key)];
 	if (hlist_empty(h))
 		return NULL;
-	hlist_for_each_entry_safe(cx, tmp, h, node) {
+	hlist_for_each_entry_safe(cx, tmp, h, analde) {
 /*		if (!time_before(jiffies, cx->timeout)) {
-			hlist_del(&cx->node);
+			hlist_del(&cx->analde);
 			kfree(cx);
 			continue;
 		}*/
@@ -83,20 +83,20 @@ static struct orangefs_cached_xattr *find_cached_xattr(struct inode *inode,
 
 /*
  * Tries to get a specified key's attributes of a given
- * file into a user-specified buffer. Note that the getxattr
+ * file into a user-specified buffer. Analte that the getxattr
  * interface allows for the users to probe the size of an
  * extended attribute by passing in a value of 0 to size.
  * Thus our return value is always the size of the attribute
- * unless the key does not exist for the file and/or if
+ * unless the key does analt exist for the file and/or if
  * there were errors in fetching the attribute value.
  */
-ssize_t orangefs_inode_getxattr(struct inode *inode, const char *name,
+ssize_t orangefs_ianalde_getxattr(struct ianalde *ianalde, const char *name,
 				void *buffer, size_t size)
 {
-	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
+	struct orangefs_ianalde_s *orangefs_ianalde = ORANGEFS_I(ianalde);
 	struct orangefs_kernel_op_s *new_op = NULL;
 	struct orangefs_cached_xattr *cx;
-	ssize_t ret = -ENOMEM;
+	ssize_t ret = -EANALMEM;
 	ssize_t length = 0;
 	int fsuid;
 	int fsgid;
@@ -105,8 +105,8 @@ ssize_t orangefs_inode_getxattr(struct inode *inode, const char *name,
 		     "%s: name %s, buffer_size %zd\n",
 		     __func__, name, size);
 
-	if (S_ISLNK(inode->i_mode))
-		return -EOPNOTSUPP;
+	if (S_ISLNK(ianalde->i_mode))
+		return -EOPANALTSUPP;
 
 	if (strlen(name) >= ORANGEFS_MAX_XATTR_NAMELEN)
 		return -EINVAL;
@@ -115,19 +115,19 @@ ssize_t orangefs_inode_getxattr(struct inode *inode, const char *name,
 	fsgid = from_kgid(&init_user_ns, current_fsgid());
 
 	gossip_debug(GOSSIP_XATTR_DEBUG,
-		     "getxattr on inode %pU, name %s "
+		     "getxattr on ianalde %pU, name %s "
 		     "(uid %o, gid %o)\n",
-		     get_khandle_from_ino(inode),
+		     get_khandle_from_ianal(ianalde),
 		     name,
 		     fsuid,
 		     fsgid);
 
-	down_read(&orangefs_inode->xattr_sem);
+	down_read(&orangefs_ianalde->xattr_sem);
 
-	cx = find_cached_xattr(inode, name);
+	cx = find_cached_xattr(ianalde, name);
 	if (cx && time_before(jiffies, cx->timeout)) {
 		if (cx->length == -1) {
-			ret = -ENODATA;
+			ret = -EANALDATA;
 			goto out_unlock;
 		} else {
 			if (size == 0) {
@@ -149,25 +149,25 @@ ssize_t orangefs_inode_getxattr(struct inode *inode, const char *name,
 	if (!new_op)
 		goto out_unlock;
 
-	new_op->upcall.req.getxattr.refn = orangefs_inode->refn;
+	new_op->upcall.req.getxattr.refn = orangefs_ianalde->refn;
 	strcpy(new_op->upcall.req.getxattr.key, name);
 
 	/*
-	 * NOTE: Although keys are meant to be NULL terminated textual
+	 * ANALTE: Although keys are meant to be NULL terminated textual
 	 * strings, I am going to explicitly pass the length just in case
 	 * we change this later on...
 	 */
 	new_op->upcall.req.getxattr.key_sz = strlen(name) + 1;
 
-	ret = service_operation(new_op, "orangefs_inode_getxattr",
-				get_interruptible_flag(inode));
+	ret = service_operation(new_op, "orangefs_ianalde_getxattr",
+				get_interruptible_flag(ianalde));
 	if (ret != 0) {
-		if (ret == -ENOENT) {
-			ret = -ENODATA;
+		if (ret == -EANALENT) {
+			ret = -EANALDATA;
 			gossip_debug(GOSSIP_XATTR_DEBUG,
-				     "orangefs_inode_getxattr: inode %pU key %s"
-				     " does not exist!\n",
-				     get_khandle_from_ino(inode),
+				     "orangefs_ianalde_getxattr: ianalde %pU key %s"
+				     " does analt exist!\n",
+				     get_khandle_from_ianal(ianalde),
 				     (char *)new_op->upcall.req.getxattr.key);
 			cx = kmalloc(sizeof *cx, GFP_KERNEL);
 			if (cx) {
@@ -175,7 +175,7 @@ ssize_t orangefs_inode_getxattr(struct inode *inode, const char *name,
 				cx->length = -1;
 				cx->timeout = jiffies +
 				    orangefs_getattr_timeout_msecs*HZ/1000;
-				hash_add(orangefs_inode->xattr_cache, &cx->node,
+				hash_add(orangefs_ianalde->xattr_cache, &cx->analde,
 				    xattr_key(cx->key));
 			}
 		}
@@ -206,9 +206,9 @@ ssize_t orangefs_inode_getxattr(struct inode *inode, const char *name,
 	memcpy(buffer, new_op->downcall.resp.getxattr.val, length);
 	memset(buffer + length, 0, size - length);
 	gossip_debug(GOSSIP_XATTR_DEBUG,
-	     "orangefs_inode_getxattr: inode %pU "
+	     "orangefs_ianalde_getxattr: ianalde %pU "
 	     "key %s key_sz %d, val_len %d\n",
-	     get_khandle_from_ino(inode),
+	     get_khandle_from_ianal(ianalde),
 	     (char *)new_op->
 		upcall.req.getxattr.key,
 		     (int)new_op->
@@ -229,7 +229,7 @@ ssize_t orangefs_inode_getxattr(struct inode *inode, const char *name,
 			memcpy(cx->val, buffer, length);
 			cx->length = length;
 			cx->timeout = jiffies + HZ;
-			hash_add(orangefs_inode->xattr_cache, &cx->node,
+			hash_add(orangefs_ianalde->xattr_cache, &cx->analde,
 			    xattr_key(cx->key));
 		}
 	}
@@ -237,31 +237,31 @@ ssize_t orangefs_inode_getxattr(struct inode *inode, const char *name,
 out_release_op:
 	op_release(new_op);
 out_unlock:
-	up_read(&orangefs_inode->xattr_sem);
+	up_read(&orangefs_ianalde->xattr_sem);
 	return ret;
 }
 
-static int orangefs_inode_removexattr(struct inode *inode, const char *name,
+static int orangefs_ianalde_removexattr(struct ianalde *ianalde, const char *name,
 				      int flags)
 {
-	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
+	struct orangefs_ianalde_s *orangefs_ianalde = ORANGEFS_I(ianalde);
 	struct orangefs_kernel_op_s *new_op = NULL;
 	struct orangefs_cached_xattr *cx;
 	struct hlist_head *h;
-	struct hlist_node *tmp;
-	int ret = -ENOMEM;
+	struct hlist_analde *tmp;
+	int ret = -EANALMEM;
 
 	if (strlen(name) >= ORANGEFS_MAX_XATTR_NAMELEN)
 		return -EINVAL;
 
-	down_write(&orangefs_inode->xattr_sem);
+	down_write(&orangefs_ianalde->xattr_sem);
 	new_op = op_alloc(ORANGEFS_VFS_OP_REMOVEXATTR);
 	if (!new_op)
 		goto out_unlock;
 
-	new_op->upcall.req.removexattr.refn = orangefs_inode->refn;
+	new_op->upcall.req.removexattr.refn = orangefs_ianalde->refn;
 	/*
-	 * NOTE: Although keys are meant to be NULL terminated
+	 * ANALTE: Although keys are meant to be NULL terminated
 	 * textual strings, I am going to explicitly pass the
 	 * length just in case we change this later on...
 	 */
@@ -269,39 +269,39 @@ static int orangefs_inode_removexattr(struct inode *inode, const char *name,
 	new_op->upcall.req.removexattr.key_sz = strlen(name) + 1;
 
 	gossip_debug(GOSSIP_XATTR_DEBUG,
-		     "orangefs_inode_removexattr: key %s, key_sz %d\n",
+		     "orangefs_ianalde_removexattr: key %s, key_sz %d\n",
 		     (char *)new_op->upcall.req.removexattr.key,
 		     (int)new_op->upcall.req.removexattr.key_sz);
 
 	ret = service_operation(new_op,
-				"orangefs_inode_removexattr",
-				get_interruptible_flag(inode));
-	if (ret == -ENOENT) {
+				"orangefs_ianalde_removexattr",
+				get_interruptible_flag(ianalde));
+	if (ret == -EANALENT) {
 		/*
-		 * Request to replace a non-existent attribute is an error.
+		 * Request to replace a analn-existent attribute is an error.
 		 */
 		if (flags & XATTR_REPLACE)
-			ret = -ENODATA;
+			ret = -EANALDATA;
 		else
 			ret = 0;
 	}
 
 	gossip_debug(GOSSIP_XATTR_DEBUG,
-		     "orangefs_inode_removexattr: returning %d\n", ret);
+		     "orangefs_ianalde_removexattr: returning %d\n", ret);
 
 	op_release(new_op);
 
-	h = &orangefs_inode->xattr_cache[xattr_key(name)];
-	hlist_for_each_entry_safe(cx, tmp, h, node) {
+	h = &orangefs_ianalde->xattr_cache[xattr_key(name)];
+	hlist_for_each_entry_safe(cx, tmp, h, analde) {
 		if (!strcmp(cx->key, name)) {
-			hlist_del(&cx->node);
+			hlist_del(&cx->analde);
 			kfree(cx);
 			break;
 		}
 	}
 
 out_unlock:
-	up_write(&orangefs_inode->xattr_sem);
+	up_write(&orangefs_ianalde->xattr_sem);
 	return ret;
 }
 
@@ -311,16 +311,16 @@ out_unlock:
  * Returns a -ve number on error and 0 on success.  Key is text, but value
  * can be binary!
  */
-int orangefs_inode_setxattr(struct inode *inode, const char *name,
+int orangefs_ianalde_setxattr(struct ianalde *ianalde, const char *name,
 			    const void *value, size_t size, int flags)
 {
-	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
+	struct orangefs_ianalde_s *orangefs_ianalde = ORANGEFS_I(ianalde);
 	struct orangefs_kernel_op_s *new_op;
 	int internal_flag = 0;
 	struct orangefs_cached_xattr *cx;
 	struct hlist_head *h;
-	struct hlist_node *tmp;
-	int ret = -ENOMEM;
+	struct hlist_analde *tmp;
+	int ret = -EANALMEM;
 
 	gossip_debug(GOSSIP_XATTR_DEBUG,
 		     "%s: name %s, buffer_size %zd\n",
@@ -338,24 +338,24 @@ int orangefs_inode_setxattr(struct inode *inode, const char *name,
 		gossip_debug(GOSSIP_XATTR_DEBUG,
 			     "removing xattr (%s)\n",
 			     name);
-		return orangefs_inode_removexattr(inode, name, flags);
+		return orangefs_ianalde_removexattr(ianalde, name, flags);
 	}
 
 	gossip_debug(GOSSIP_XATTR_DEBUG,
-		     "setxattr on inode %pU, name %s\n",
-		     get_khandle_from_ino(inode),
+		     "setxattr on ianalde %pU, name %s\n",
+		     get_khandle_from_ianal(ianalde),
 		     name);
 
-	down_write(&orangefs_inode->xattr_sem);
+	down_write(&orangefs_ianalde->xattr_sem);
 	new_op = op_alloc(ORANGEFS_VFS_OP_SETXATTR);
 	if (!new_op)
 		goto out_unlock;
 
 
-	new_op->upcall.req.setxattr.refn = orangefs_inode->refn;
+	new_op->upcall.req.setxattr.refn = orangefs_ianalde->refn;
 	new_op->upcall.req.setxattr.flags = internal_flag;
 	/*
-	 * NOTE: Although keys are meant to be NULL terminated textual
+	 * ANALTE: Although keys are meant to be NULL terminated textual
 	 * strings, I am going to explicitly pass the length just in
 	 * case we change this later on...
 	 */
@@ -365,51 +365,51 @@ int orangefs_inode_setxattr(struct inode *inode, const char *name,
 	new_op->upcall.req.setxattr.keyval.val_sz = size;
 
 	gossip_debug(GOSSIP_XATTR_DEBUG,
-		     "orangefs_inode_setxattr: key %s, key_sz %d "
+		     "orangefs_ianalde_setxattr: key %s, key_sz %d "
 		     " value size %zd\n",
 		     (char *)new_op->upcall.req.setxattr.keyval.key,
 		     (int)new_op->upcall.req.setxattr.keyval.key_sz,
 		     size);
 
 	ret = service_operation(new_op,
-				"orangefs_inode_setxattr",
-				get_interruptible_flag(inode));
+				"orangefs_ianalde_setxattr",
+				get_interruptible_flag(ianalde));
 
 	gossip_debug(GOSSIP_XATTR_DEBUG,
-		     "orangefs_inode_setxattr: returning %d\n",
+		     "orangefs_ianalde_setxattr: returning %d\n",
 		     ret);
 
 	/* when request is serviced properly, free req op struct */
 	op_release(new_op);
 
-	h = &orangefs_inode->xattr_cache[xattr_key(name)];
-	hlist_for_each_entry_safe(cx, tmp, h, node) {
+	h = &orangefs_ianalde->xattr_cache[xattr_key(name)];
+	hlist_for_each_entry_safe(cx, tmp, h, analde) {
 		if (!strcmp(cx->key, name)) {
-			hlist_del(&cx->node);
+			hlist_del(&cx->analde);
 			kfree(cx);
 			break;
 		}
 	}
 
 out_unlock:
-	up_write(&orangefs_inode->xattr_sem);
+	up_write(&orangefs_ianalde->xattr_sem);
 	return ret;
 }
 
 /*
  * Tries to get a specified object's keys into a user-specified buffer of a
- * given size.  Note that like the previous instances of xattr routines, this
+ * given size.  Analte that like the previous instances of xattr routines, this
  * also allows you to pass in a NULL pointer and 0 size to probe the size for
  * subsequent memory allocations. Thus our return value is always the size of
  * all the keys unless there were errors in fetching the keys!
  */
 ssize_t orangefs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 {
-	struct inode *inode = dentry->d_inode;
-	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
+	struct ianalde *ianalde = dentry->d_ianalde;
+	struct orangefs_ianalde_s *orangefs_ianalde = ORANGEFS_I(ianalde);
 	struct orangefs_kernel_op_s *new_op;
 	__u64 token = ORANGEFS_ITERATE_START;
-	ssize_t ret = -ENOMEM;
+	ssize_t ret = -EANALMEM;
 	ssize_t total = 0;
 	int count_keys = 0;
 	int key_size;
@@ -421,7 +421,7 @@ ssize_t orangefs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 		return -EINVAL;
 	}
 
-	down_read(&orangefs_inode->xattr_sem);
+	down_read(&orangefs_ianalde->xattr_sem);
 	new_op = op_alloc(ORANGEFS_VFS_OP_LISTXATTR);
 	if (!new_op)
 		goto out_unlock;
@@ -431,18 +431,18 @@ ssize_t orangefs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 
 try_again:
 	key_size = 0;
-	new_op->upcall.req.listxattr.refn = orangefs_inode->refn;
+	new_op->upcall.req.listxattr.refn = orangefs_ianalde->refn;
 	new_op->upcall.req.listxattr.token = token;
 	new_op->upcall.req.listxattr.requested_count =
 	    (size == 0) ? 0 : ORANGEFS_MAX_XATTR_LISTLEN;
 	ret = service_operation(new_op, __func__,
-				get_interruptible_flag(inode));
+				get_interruptible_flag(ianalde));
 	if (ret != 0)
 		goto done;
 
 	if (size == 0) {
 		/*
-		 * This is a bit of a big upper limit, but I did not want to
+		 * This is a bit of a big upper limit, but I did analt want to
 		 * spend too much time getting this correct, since users end
 		 * up allocating memory rather than us...
 		 */
@@ -479,7 +479,7 @@ try_again:
 
 		/*
 		 * Since many dumb programs try to setxattr() on our reserved
-		 * xattrs this is a feeble attempt at defeating those by not
+		 * xattrs this is a feeble attempt at defeating those by analt
 		 * listing them in the output of listxattr.. sigh
 		 */
 		if (is_reserved_key(new_op->downcall.resp.listxattr.key +
@@ -503,7 +503,7 @@ try_again:
 	}
 
 	/*
-	 * Since the buffer was large enough, we might have to continue
+	 * Since the buffer was large eanalugh, we might have to continue
 	 * fetching more keys!
 	 */
 	token = new_op->downcall.resp.listxattr.token;
@@ -521,30 +521,30 @@ done:
 	if (ret == 0)
 		ret = total;
 out_unlock:
-	up_read(&orangefs_inode->xattr_sem);
+	up_read(&orangefs_ianalde->xattr_sem);
 	return ret;
 }
 
 static int orangefs_xattr_set_default(const struct xattr_handler *handler,
 				      struct mnt_idmap *idmap,
 				      struct dentry *unused,
-				      struct inode *inode,
+				      struct ianalde *ianalde,
 				      const char *name,
 				      const void *buffer,
 				      size_t size,
 				      int flags)
 {
-	return orangefs_inode_setxattr(inode, name, buffer, size, flags);
+	return orangefs_ianalde_setxattr(ianalde, name, buffer, size, flags);
 }
 
 static int orangefs_xattr_get_default(const struct xattr_handler *handler,
 				      struct dentry *unused,
-				      struct inode *inode,
+				      struct ianalde *ianalde,
 				      const char *name,
 				      void *buffer,
 				      size_t size)
 {
-	return orangefs_inode_getxattr(inode, name, buffer, size);
+	return orangefs_ianalde_getxattr(ianalde, name, buffer, size);
 
 }
 

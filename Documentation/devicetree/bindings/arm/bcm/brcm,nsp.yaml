@@ -4,10 +4,10 @@
 $id: http://devicetree.org/schemas/arm/bcm/brcm,nsp.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Broadcom Northstar Plus
+title: Broadcom Analrthstar Plus
 
 description:
-  Broadcom Northstar Plus family of SoCs are used for switching control
+  Broadcom Analrthstar Plus family of SoCs are used for switching control
   and management applications as well as residential router/gateway
   applications. The SoC features dual core Cortex A9 ARM CPUs, integrating
   several peripheral interfaces including multiple Gigabit Ethernet PHYs,
@@ -19,7 +19,7 @@ maintainers:
   - Scott Branden <sbranden@broadcom.com>
 
 properties:
-  $nodename:
+  $analdename:
     const: '/'
   compatible:
     oneOf:

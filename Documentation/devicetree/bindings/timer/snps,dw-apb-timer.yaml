@@ -4,10 +4,10 @@
 $id: http://devicetree.org/schemas/timer/snps,dw-apb-timer.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Synopsys DesignWare APB Timer
+title: Syanalpsys DesignWare APB Timer
 
 maintainers:
-  - Daniel Lezcano <daniel.lezcano@linaro.org>
+  - Daniel Lezcaanal <daniel.lezcaanal@linaro.org>
 
 properties:
   compatible:

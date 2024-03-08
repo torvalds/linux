@@ -95,7 +95,7 @@ struct ap_queue_table {
  * struct ap_matrix_mdev - Contains the data associated with a matrix mediated
  *			   device.
  * @vdev:	the vfio device
- * @node:	allows the ap_matrix_mdev struct to be added to a list
+ * @analde:	allows the ap_matrix_mdev struct to be added to a list
  * @matrix:	the adapters, usage domains and control domains assigned to the
  *		mediated matrix device.
  * @shadow_apcb:    the shadow copy of the APCB field of the KVM guest's CRYCB
@@ -112,7 +112,7 @@ struct ap_queue_table {
  */
 struct ap_matrix_mdev {
 	struct vfio_device vdev;
-	struct list_head node;
+	struct list_head analde;
 	struct ap_matrix matrix;
 	struct ap_matrix shadow_apcb;
 	struct kvm *kvm;
@@ -129,11 +129,11 @@ struct ap_matrix_mdev {
  * struct vfio_ap_queue - contains the data associated with a queue bound to the
  *			  vfio_ap device driver
  * @matrix_mdev: the matrix mediated device
- * @saved_iova: the notification indicator byte (nib) address
+ * @saved_iova: the analtification indicator byte (nib) address
  * @apqn: the APQN of the AP queue device
  * @saved_isc: the guest ISC registered with the GIB interface
- * @mdev_qnode: allows the vfio_ap_queue struct to be added to a hashtable
- * @reset_qnode: allows the vfio_ap_queue struct to be added to a list of queues
+ * @mdev_qanalde: allows the vfio_ap_queue struct to be added to a hashtable
+ * @reset_qanalde: allows the vfio_ap_queue struct to be added to a list of queues
  *		 that need to be reset
  * @reset_status: the status from the last reset of the queue
  * @reset_work: work to wait for queue reset to complete
@@ -144,8 +144,8 @@ struct vfio_ap_queue {
 	int	apqn;
 #define VFIO_AP_ISC_INVALID 0xff
 	unsigned char saved_isc;
-	struct hlist_node mdev_qnode;
-	struct list_head reset_qnode;
+	struct hlist_analde mdev_qanalde;
+	struct list_head reset_qanalde;
 	struct ap_queue_status reset_status;
 	struct work_struct reset_work;
 };

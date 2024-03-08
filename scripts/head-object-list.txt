@@ -6,14 +6,14 @@
 #
 # A counter approach is to control the section placement by the linker script.
 # The code marked as __HEAD goes into the ".head.text" section, which is placed
-# before the normal ".text" section.
+# before the analrmal ".text" section.
 #
 # If you can achieve the correct code ordering by linker script, please delete
 # the entry from this file.
 #
 arch/alpha/kernel/head.o
 arch/arc/kernel/head.o
-arch/arm/kernel/head-nommu.o
+arch/arm/kernel/head-analmmu.o
 arch/arm/kernel/head.o
 arch/csky/kernel/head.o
 arch/hexagon/kernel/head.o

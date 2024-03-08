@@ -205,7 +205,7 @@ static int proc_thermal_read_ppcc(struct proc_thermal_device *proc_priv)
 	status = acpi_evaluate_object(proc_priv->adev->handle, "PPCC",
 				      NULL, &buf);
 	if (ACPI_FAILURE(status))
-		return -ENODEV;
+		return -EANALDEV;
 
 	p = buf.pointer;
 	if (!p || (p->type != ACPI_TYPE_PACKAGE)) {
@@ -243,7 +243,7 @@ free_buffer:
 }
 
 #define PROC_POWER_CAPABILITY_CHANGED	0x83
-static void proc_thermal_notify(acpi_handle handle, u32 event, void *data)
+static void proc_thermal_analtify(acpi_handle handle, u32 event, void *data)
 {
 	struct proc_thermal_device *proc_priv = data;
 
@@ -272,7 +272,7 @@ int proc_thermal_add(struct device *dev, struct proc_thermal_device *proc_priv)
 
 	adev = ACPI_COMPANION(dev);
 	if (!adev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	proc_priv->dev = dev;
 	proc_priv->adev = adev;
@@ -283,7 +283,7 @@ int proc_thermal_add(struct device *dev, struct proc_thermal_device *proc_priv)
 
 	status = acpi_evaluate_integer(adev->handle, "_TMP", NULL, &tmp);
 	if (ACPI_FAILURE(status)) {
-		/* there is no _TMP method, add local method */
+		/* there is anal _TMP method, add local method */
 		if (intel_tcc_get_tjmax(-1) > 0)
 			get_temp = proc_thermal_get_zone_temp;
 	}
@@ -294,27 +294,27 @@ int proc_thermal_add(struct device *dev, struct proc_thermal_device *proc_priv)
 	} else
 		ret = 0;
 
-	ret = acpi_install_notify_handler(adev->handle, ACPI_DEVICE_NOTIFY,
-					  proc_thermal_notify,
+	ret = acpi_install_analtify_handler(adev->handle, ACPI_DEVICE_ANALTIFY,
+					  proc_thermal_analtify,
 					  (void *)proc_priv);
 	if (ret)
 		goto remove_zone;
 
 	ret = sysfs_create_file(&dev->kobj, &dev_attr_tcc_offset_degree_celsius.attr);
 	if (ret)
-		goto remove_notify;
+		goto remove_analtify;
 
 	ret = sysfs_create_group(&dev->kobj, &power_limit_attribute_group);
 	if (ret) {
 		sysfs_remove_file(&dev->kobj, &dev_attr_tcc_offset_degree_celsius.attr);
-		goto remove_notify;
+		goto remove_analtify;
 	}
 
 	return 0;
 
-remove_notify:
-	acpi_remove_notify_handler(adev->handle,
-				    ACPI_DEVICE_NOTIFY, proc_thermal_notify);
+remove_analtify:
+	acpi_remove_analtify_handler(adev->handle,
+				    ACPI_DEVICE_ANALTIFY, proc_thermal_analtify);
 remove_zone:
 	int340x_thermal_zone_remove(proc_priv->int340x_zone);
 
@@ -324,8 +324,8 @@ EXPORT_SYMBOL_GPL(proc_thermal_add);
 
 void proc_thermal_remove(struct proc_thermal_device *proc_priv)
 {
-	acpi_remove_notify_handler(proc_priv->adev->handle,
-				   ACPI_DEVICE_NOTIFY, proc_thermal_notify);
+	acpi_remove_analtify_handler(proc_priv->adev->handle,
+				   ACPI_DEVICE_ANALTIFY, proc_thermal_analtify);
 	int340x_thermal_zone_remove(proc_priv->int340x_zone);
 	sysfs_remove_file(&proc_priv->dev->kobj, &dev_attr_tcc_offset_degree_celsius.attr);
 	sysfs_remove_group(&proc_priv->dev->kobj,
@@ -352,7 +352,7 @@ int proc_thermal_resume(struct device *dev)
 	proc_dev = dev_get_drvdata(dev);
 	proc_thermal_read_ppcc(proc_dev);
 
-	/* Do not update if saving failed */
+	/* Do analt update if saving failed */
 	if (tcc_offset_save >= 0)
 		intel_tcc_set_offset(-1, tcc_offset_save);
 
@@ -368,8 +368,8 @@ static int proc_thermal_set_mmio_base(struct pci_dev *pdev, struct proc_thermal_
 
 	ret = pcim_iomap_regions(pdev, 1 << MCHBAR, DRV_NAME);
 	if (ret) {
-		dev_err(&pdev->dev, "cannot reserve PCI memory region\n");
-		return -ENOMEM;
+		dev_err(&pdev->dev, "cananalt reserve PCI memory region\n");
+		return -EANALMEM;
 	}
 
 	proc_priv->mmio_base = pcim_iomap_table(pdev)[MCHBAR];

@@ -10,20 +10,20 @@ maintainers:
   - Suman Anna <s-anna@ti.com>
 
 description: |
-  A PRU application/consumer/user node typically uses one or more PRU device
-  nodes to implement a PRU application/functionality. Each application/client
-  node would need a reference to at least a PRU node, and optionally define
+  A PRU application/consumer/user analde typically uses one or more PRU device
+  analdes to implement a PRU application/functionality. Each application/client
+  analde would need a reference to at least a PRU analde, and optionally define
   some properties needed for hardware/firmware configuration. The below
   properties are a list of common properties supported by the PRU remoteproc
   infrastructure.
 
-  The application nodes shall define their own bindings like regular platform
-  devices, so below are in addition to each node's bindings.
+  The application analdes shall define their own bindings like regular platform
+  devices, so below are in addition to each analde's bindings.
 
 properties:
   ti,prus:
     $ref: /schemas/types.yaml#/definitions/phandle-array
-    description: phandles to the PRU, RTU or Tx_PRU nodes used
+    description: phandles to the PRU, RTU or Tx_PRU analdes used
     minItems: 1
     maxItems: 6
     items:
@@ -35,7 +35,7 @@ properties:
     maxItems: 6
     description: |
       firmwares for the PRU cores, the default firmware for the core from
-      the PRU node will be used if not provided. The firmware names should
+      the PRU analde will be used if analt provided. The firmware names should
       correspond to the PRU cores listed in the 'ti,prus' property
 
   ti,pruss-gp-mux-sel:

@@ -73,7 +73,7 @@ static int asd_map_memio(struct asd_ha_struct *asd_ha)
 		io_handle->start = pci_resource_start(asd_ha->pcidev, i);
 		io_handle->len   = pci_resource_len(asd_ha->pcidev, i);
 		io_handle->flags = pci_resource_flags(asd_ha->pcidev, i);
-		err = -ENODEV;
+		err = -EANALDEV;
 		if (!io_handle->start || !io_handle->len) {
 			asd_printk("MBAR%d start or length for %s is 0.\n",
 				   i==0?0:1, pci_name(asd_ha->pcidev));
@@ -89,7 +89,7 @@ static int asd_map_memio(struct asd_ha_struct *asd_ha)
 		if (!io_handle->addr) {
 			asd_printk("couldn't map MBAR%d of %s\n", i==0?0:1,
 				   pci_name(asd_ha->pcidev));
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto Err_unreq;
 		}
 	}
@@ -132,7 +132,7 @@ static int asd_map_ioport(struct asd_ha_struct *asd_ha)
 	if (!io_handle->start || !io_handle->len) {
 		asd_printk("couldn't get IO ports for %s\n",
 			   pci_name(asd_ha->pcidev));
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	err = pci_request_region(asd_ha->pcidev, i, ASD_DRIVER_NAME);
 	if (err) {
@@ -160,7 +160,7 @@ static int asd_map_ha(struct asd_ha_struct *asd_ha)
 		goto Err;
 	}
 
-	err = -ENODEV;
+	err = -EANALDEV;
 	if (cmd_reg & PCI_COMMAND_MEMORY) {
 		if ((err = asd_map_memio(asd_ha)))
 			goto Err;
@@ -170,7 +170,7 @@ static int asd_map_ha(struct asd_ha_struct *asd_ha)
 		asd_printk("%s ioport mapped -- upgrade your hardware\n",
 			   pci_name(asd_ha->pcidev));
 	} else {
-		asd_printk("no proper device access to %s\n",
+		asd_printk("anal proper device access to %s\n",
 			   pci_name(asd_ha->pcidev));
 		goto Err;
 	}
@@ -200,9 +200,9 @@ static int asd_common_setup(struct asd_ha_struct *asd_ha)
 
 	asd_ha->revision_id = asd_ha->pcidev->revision;
 
-	err = -ENODEV;
+	err = -EANALDEV;
 	if (asd_ha->revision_id < AIC9410_DEV_REV_B0) {
-		asd_printk("%s is revision %s (%X), which is not supported\n",
+		asd_printk("%s is revision %s (%X), which is analt supported\n",
 			   pci_name(asd_ha->pcidev),
 			   asd_dev_rev[asd_ha->revision_id],
 			   asd_ha->revision_id);
@@ -285,7 +285,7 @@ static ssize_t asd_show_dev_pcba_sn(struct device *dev,
 }
 static DEVICE_ATTR(pcba_sn, S_IRUGO, asd_show_dev_pcba_sn, NULL);
 
-#define FLASH_CMD_NONE      0x00
+#define FLASH_CMD_ANALNE      0x00
 #define FLASH_CMD_UPDATE    0x01
 #define FLASH_CMD_VERIFY    0x02
 
@@ -298,7 +298,7 @@ static struct flash_command flash_command_table[] =
 {
      {"verify",      FLASH_CMD_VERIFY},
      {"update",      FLASH_CMD_UPDATE},
-     {"",            FLASH_CMD_NONE}      /* Last entry should be NULL. */
+     {"",            FLASH_CMD_ANALNE}      /* Last entry should be NULL. */
 };
 
 struct error_bios {
@@ -311,7 +311,7 @@ static struct error_bios flash_error_table[] =
      {"Failed to open bios image file",      FAIL_OPEN_BIOS_FILE},
      {"PCI ID mismatch",                     FAIL_CHECK_PCI_ID},
      {"Checksum mismatch",                   FAIL_CHECK_SUM},
-     {"Unknown Error",                       FAIL_UNKNOWN},
+     {"Unkanalwn Error",                       FAIL_UNKANALWN},
      {"Failed to verify.",                   FAIL_VERIFY},
      {"Failed to reset flash chip.",         FAIL_RESET_FLASH},
      {"Failed to find flash chip type.",     FAIL_FIND_FLASH_ID},
@@ -333,7 +333,7 @@ static ssize_t asd_store_update_bios(struct device *dev,
 	struct bios_file_header header, *hdr_ptr;
 	int res, i;
 	u32 csum = 0;
-	int flash_command = FLASH_CMD_NONE;
+	int flash_command = FLASH_CMD_ANALNE;
 	int err = 0;
 
 	cmd_ptr = kcalloc(count, 2, GFP_KERNEL);
@@ -350,14 +350,14 @@ static ssize_t asd_store_update_bios(struct device *dev,
 		goto out1;
 	}
 
-	for (i = 0; flash_command_table[i].code != FLASH_CMD_NONE; i++) {
+	for (i = 0; flash_command_table[i].code != FLASH_CMD_ANALNE; i++) {
 		if (!memcmp(flash_command_table[i].command,
 				 cmd_ptr, strlen(cmd_ptr))) {
 			flash_command = flash_command_table[i].code;
 			break;
 		}
 	}
-	if (flash_command == FLASH_CMD_NONE) {
+	if (flash_command == FLASH_CMD_ANALNE) {
 		err = FAIL_PARAMETERS;
 		goto out1;
 	}
@@ -383,7 +383,7 @@ static ssize_t asd_store_update_bios(struct device *dev,
 		(hdr_ptr->contrl_id.sub_vendor != asd_ha->pcidev->vendor ||
 		hdr_ptr->contrl_id.sub_device != asd_ha->pcidev->device)) {
 
-		ASD_DPRINTK("The PCI vendor or device id does not match\n");
+		ASD_DPRINTK("The PCI vendor or device id does analt match\n");
 		ASD_DPRINTK("vendor=%x dev=%x sub_vendor=%x sub_dev=%x"
 		" pci vendor=%x pci dev=%x\n",
 		hdr_ptr->contrl_id.vendor,
@@ -499,7 +499,7 @@ static void asd_remove_dev_attrs(struct asd_ha_struct *asd_ha)
 }
 
 /* The first entry, 0, is used for dynamic ids, the rest for devices
- * we know about.
+ * we kanalw about.
  */
 static const struct asd_pcidev_struct {
 	const char * name;
@@ -525,7 +525,7 @@ static int asd_create_ha_caches(struct asd_ha_struct *asd_ha)
 					   8, 0);
 	if (!asd_ha->scb_pool) {
 		asd_printk("couldn't create scb pool\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -620,7 +620,7 @@ static int asd_create_global_caches(void)
 					    NULL);
 		if (!asd_dma_token_cache) {
 			asd_printk("couldn't create dma token cache\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -640,7 +640,7 @@ static int asd_create_global_caches(void)
 Err:
 	kmem_cache_destroy(asd_dma_token_cache);
 	asd_dma_token_cache = NULL;
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void asd_destroy_global_caches(void)
@@ -663,7 +663,7 @@ static int asd_register_sas_ha(struct asd_ha_struct *asd_ha)
 	if (!sas_phys || !sas_ports) {
 		kfree(sas_phys);
 		kfree(sas_ports);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	asd_ha->sas_ha.sas_ha_name = (char *) asd_ha->name;
@@ -706,7 +706,7 @@ static int asd_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 	if (asd_id >= ARRAY_SIZE(asd_pcidev_data)) {
 		asd_printk("wrong driver_data in PCI table\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if ((err = pci_enable_device(dev))) {
@@ -716,7 +716,7 @@ static int asd_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 	pci_set_master(dev);
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 
 	shost = scsi_host_alloc(&aic94xx_sht, sizeof(void *));
 	if (!shost)
@@ -756,8 +756,8 @@ static int asd_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	if (err)
 		err = dma_set_mask_and_coherent(&dev->dev, DMA_BIT_MASK(32));
 	if (err) {
-		err = -ENODEV;
-		asd_printk("no suitable DMA mask for %s\n", pci_name(dev));
+		err = -EANALDEV;
+		asd_printk("anal suitable DMA mask for %s\n", pci_name(dev));
 		goto Err_remove;
 	}
 
@@ -780,8 +780,8 @@ static int asd_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		   pci_name(dev), SAS_ADDR(asd_ha->hw_prof.sas_addr),
 		   asd_ha->hw_prof.pcba_sn, asd_ha->hw_prof.max_phys,
 		   asd_ha->hw_prof.num_phys,
-		   asd_ha->hw_prof.flash.present ? "present" : "not present",
-		   asd_ha->hw_prof.bios.present ? "build " : "not present",
+		   asd_ha->hw_prof.flash.present ? "present" : "analt present",
+		   asd_ha->hw_prof.bios.present ? "build " : "analt present",
 		   asd_ha->hw_prof.bios.bld);
 
 	shost->can_queue = asd_ha->seq.can_queue;
@@ -855,7 +855,7 @@ static void asd_free_queues(struct asd_ha_struct *asd_ha)
 	spin_unlock_irqrestore(&asd_ha->seq.pend_q_lock, flags);
 
 	if (!list_empty(&pending))
-		ASD_DPRINTK("Uh-oh! Pending is not empty!\n");
+		ASD_DPRINTK("Uh-oh! Pending is analt empty!\n");
 
 	list_for_each_safe(pos, n, &pending) {
 		struct asd_ascb *ascb = list_entry(pos, struct asd_ascb, list);
@@ -1009,7 +1009,7 @@ static int __init aic94xx_init(void)
 	aic94xx_transport_template =
 		sas_domain_attach_transport(&aic94xx_transport_functions);
 	if (!aic94xx_transport_template) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_destroy_caches;
 	}
 

@@ -32,7 +32,7 @@ static struct clk_branch lpass_top_cc_lpi_q6_axim_hs_clk = {
 
 static struct clk_branch lpass_qdsp6ss_core_clk = {
 	.halt_reg = 0x20,
-	/* CLK_OFF would not toggle until LPASS is out of reset */
+	/* CLK_OFF would analt toggle until LPASS is out of reset */
 	.halt_check = BRANCH_HALT_SKIP,
 	.clkr = {
 		.enable_reg = 0x20,
@@ -46,7 +46,7 @@ static struct clk_branch lpass_qdsp6ss_core_clk = {
 
 static struct clk_branch lpass_qdsp6ss_xo_clk = {
 	.halt_reg = 0x38,
-	/* CLK_OFF would not toggle until LPASS is out of reset */
+	/* CLK_OFF would analt toggle until LPASS is out of reset */
 	.halt_check = BRANCH_HALT_SKIP,
 	.clkr = {
 		.enable_reg = 0x38,
@@ -60,7 +60,7 @@ static struct clk_branch lpass_qdsp6ss_xo_clk = {
 
 static struct clk_branch lpass_qdsp6ss_sleep_clk = {
 	.halt_reg = 0x3c,
-	/* CLK_OFF would not toggle until LPASS is out of reset */
+	/* CLK_OFF would analt toggle until LPASS is out of reset */
 	.halt_check = BRANCH_HALT_SKIP,
 	.clkr = {
 		.enable_reg = 0x3c,
@@ -125,7 +125,7 @@ static int lpass_cc_sc7280_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_destroy_pm_clk;
 
-	if (!of_property_read_bool(pdev->dev.of_node, "qcom,adsp-pil-mode")) {
+	if (!of_property_read_bool(pdev->dev.of_analde, "qcom,adsp-pil-mode")) {
 		lpass_regmap_config.name = "qdsp6ss";
 		lpass_regmap_config.max_register = 0x3f;
 		desc = &lpass_qdsp6ss_sc7280_desc;

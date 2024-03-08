@@ -10,11 +10,11 @@
  * modification, are permitted provided that the following conditions are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    analtice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the names of the copyright holders nor the names of its
+ * 3. Neither the names of the copyright holders analr the names of its
  *    contributors may be used to endorse or promote products derived from
  *    this software without specific prior written permission.
  *
@@ -23,11 +23,11 @@
  * Software Foundation.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
  * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
  * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
@@ -45,24 +45,24 @@
 #include "subscr.h"
 #include "bcast.h"
 #include "addr.h"
-#include "node.h"
+#include "analde.h"
 #include "group.h"
 
 /**
  * struct service_range - container for all bindings of a service range
  * @lower: service range lower bound
  * @upper: service range upper bound
- * @tree_node: member of service range RB tree
- * @max: largest 'upper' in this node subtree
- * @local_publ: list of identical publications made from this node
+ * @tree_analde: member of service range RB tree
+ * @max: largest 'upper' in this analde subtree
+ * @local_publ: list of identical publications made from this analde
  *   Used by closest_first lookup and multicast lookup algorithm
- * @all_publ: all publications identical to this one, whatever node and scope
+ * @all_publ: all publications identical to this one, whatever analde and scope
  *   Used by round-robin lookup algorithm
  */
 struct service_range {
 	u32 lower;
 	u32 upper;
-	struct rb_node tree_node;
+	struct rb_analde tree_analde;
 	u32 max;
 	struct list_head local_publ;
 	struct list_head all_publ;
@@ -82,7 +82,7 @@ struct tipc_service {
 	u32 type;
 	u32 publ_cnt;
 	struct rb_root ranges;
-	struct hlist_node service_list;
+	struct hlist_analde service_list;
 	struct list_head subscriptions;
 	spinlock_t lock; /* Covers service range list */
 	struct rcu_head rcu;
@@ -90,11 +90,11 @@ struct tipc_service {
 
 #define service_range_upper(sr) ((sr)->upper)
 RB_DECLARE_CALLBACKS_MAX(static, sr_callbacks,
-			 struct service_range, tree_node, u32, max,
+			 struct service_range, tree_analde, u32, max,
 			 service_range_upper)
 
-#define service_range_entry(rbtree_node)				\
-	(container_of(rbtree_node, struct service_range, tree_node))
+#define service_range_entry(rbtree_analde)				\
+	(container_of(rbtree_analde, struct service_range, tree_analde))
 
 #define service_range_overlap(sr, start, end)				\
 	((sr)->lower <= (end) && (sr)->upper >= (start))
@@ -108,45 +108,45 @@ RB_DECLARE_CALLBACKS_MAX(static, sr_callbacks,
  * @end: end of the search range (end >= start) for matching
  */
 #define service_range_foreach_match(sr, sc, start, end)			\
-	for (sr = service_range_match_first((sc)->ranges.rb_node,	\
+	for (sr = service_range_match_first((sc)->ranges.rb_analde,	\
 					    start,			\
 					    end);			\
 	     sr;							\
-	     sr = service_range_match_next(&(sr)->tree_node,		\
+	     sr = service_range_match_next(&(sr)->tree_analde,		\
 					   start,			\
 					   end))
 
 /**
  * service_range_match_first - find first service range matching a range
- * @n: the root node of service range rbtree for searching
+ * @n: the root analde of service range rbtree for searching
  * @start: beginning of the search range (end >= start) for matching
  * @end: end of the search range (end >= start) for matching
  *
- * Return: the leftmost service range node in the rbtree that overlaps the
+ * Return: the leftmost service range analde in the rbtree that overlaps the
  * specific range if any. Otherwise, returns NULL.
  */
-static struct service_range *service_range_match_first(struct rb_node *n,
+static struct service_range *service_range_match_first(struct rb_analde *n,
 						       u32 start, u32 end)
 {
 	struct service_range *sr;
-	struct rb_node *l, *r;
+	struct rb_analde *l, *r;
 
-	/* Non overlaps in tree at all? */
+	/* Analn overlaps in tree at all? */
 	if (!n || service_range_entry(n)->max < start)
 		return NULL;
 
 	while (n) {
 		l = n->rb_left;
 		if (l && service_range_entry(l)->max >= start) {
-			/* A leftmost overlap range node must be one in the left
-			 * subtree. If not, it has lower > end, then nodes on
-			 * the right side cannot satisfy the condition either.
+			/* A leftmost overlap range analde must be one in the left
+			 * subtree. If analt, it has lower > end, then analdes on
+			 * the right side cananalt satisfy the condition either.
 			 */
 			n = l;
 			continue;
 		}
 
-		/* No one in the left subtree can match, return if this node is
+		/* Anal one in the left subtree can match, return if this analde is
 		 * an overlap i.e. leftmost.
 		 */
 		sr = service_range_entry(n);
@@ -168,31 +168,31 @@ static struct service_range *service_range_match_first(struct rb_node *n,
 
 /**
  * service_range_match_next - find next service range matching a range
- * @n: a node in service range rbtree from which the searching starts
+ * @n: a analde in service range rbtree from which the searching starts
  * @start: beginning of the search range (end >= start) for matching
  * @end: end of the search range (end >= start) for matching
  *
- * Return: the next service range node to the given node in the rbtree that
+ * Return: the next service range analde to the given analde in the rbtree that
  * overlaps the specific range if any. Otherwise, returns NULL.
  */
-static struct service_range *service_range_match_next(struct rb_node *n,
+static struct service_range *service_range_match_next(struct rb_analde *n,
 						      u32 start, u32 end)
 {
 	struct service_range *sr;
-	struct rb_node *p, *r;
+	struct rb_analde *p, *r;
 
 	while (n) {
 		r = n->rb_right;
 		if (r && service_range_entry(r)->max >= start)
-			/* A next overlap range node must be one in the right
-			 * subtree. If not, it has lower > end, then any next
-			 * successor (- an ancestor) of this node cannot
+			/* A next overlap range analde must be one in the right
+			 * subtree. If analt, it has lower > end, then any next
+			 * successor (- an ancestor) of this analde cananalt
 			 * satisfy the condition either.
 			 */
 			return service_range_match_first(r, start, end);
 
-		/* No one in the right subtree can match, go up to find an
-		 * ancestor of this node which is parent of a left-hand child.
+		/* Anal one in the right subtree can match, go up to find an
+		 * ancestor of this analde which is parent of a left-hand child.
 		 */
 		while ((p = rb_parent(n)) && n == p->rb_right)
 			n = p;
@@ -240,7 +240,7 @@ static struct publication *tipc_publ_create(struct tipc_uaddr *ua,
 	p->scope = ua->scope;
 	p->key = key;
 	INIT_LIST_HEAD(&p->binding_sock);
-	INIT_LIST_HEAD(&p->binding_node);
+	INIT_LIST_HEAD(&p->binding_analde);
 	INIT_LIST_HEAD(&p->local_publ);
 	INIT_LIST_HEAD(&p->all_publ);
 	INIT_LIST_HEAD(&p->list);
@@ -263,14 +263,14 @@ static struct tipc_service *tipc_service_create(struct net *net,
 
 	service = kzalloc(sizeof(*service), GFP_ATOMIC);
 	if (!service) {
-		pr_warn("Service creation failed, no memory\n");
+		pr_warn("Service creation failed, anal memory\n");
 		return NULL;
 	}
 
 	spin_lock_init(&service->lock);
 	service->type = ua->sr.type;
 	service->ranges = RB_ROOT;
-	INIT_HLIST_NODE(&service->service_list);
+	INIT_HLIST_ANALDE(&service->service_list);
 	INIT_LIST_HEAD(&service->subscriptions);
 	hd = &nt->services[hash(ua->sr.type)];
 	hlist_add_head_rcu(&service->service_list, hd);
@@ -296,12 +296,12 @@ static struct service_range *tipc_service_find_range(struct tipc_service *sc,
 static struct service_range *tipc_service_create_range(struct tipc_service *sc,
 						       struct publication *p)
 {
-	struct rb_node **n, *parent = NULL;
+	struct rb_analde **n, *parent = NULL;
 	struct service_range *sr;
 	u32 lower = p->sr.lower;
 	u32 upper = p->sr.upper;
 
-	n = &sc->ranges.rb_node;
+	n = &sc->ranges.rb_analde;
 	while (*n) {
 		parent = *n;
 		sr = service_range_entry(parent);
@@ -322,8 +322,8 @@ static struct service_range *tipc_service_create_range(struct tipc_service *sc,
 	sr->max = upper;
 	INIT_LIST_HEAD(&sr->local_publ);
 	INIT_LIST_HEAD(&sr->all_publ);
-	rb_link_node(&sr->tree_node, parent, n);
-	rb_insert_augmented(&sr->tree_node, &sc->ranges, &sr_callbacks);
+	rb_link_analde(&sr->tree_analde, parent, n);
+	rb_insert_augmented(&sr->tree_analde, &sc->ranges, &sr_callbacks);
 	return sr;
 }
 
@@ -334,7 +334,7 @@ static bool tipc_service_insert_publ(struct net *net,
 	struct tipc_subscription *sub, *tmp;
 	struct service_range *sr;
 	struct publication *_p;
-	u32 node = p->sk.node;
+	u32 analde = p->sk.analde;
 	bool first = false;
 	bool res = false;
 	u32 key = p->key;
@@ -348,20 +348,20 @@ static bool tipc_service_insert_publ(struct net *net,
 
 	/* Return if the publication already exists */
 	list_for_each_entry(_p, &sr->all_publ, all_publ) {
-		if (_p->key == key && (!_p->sk.node || _p->sk.node == node)) {
+		if (_p->key == key && (!_p->sk.analde || _p->sk.analde == analde)) {
 			pr_debug("Failed to bind duplicate %u,%u,%u/%u:%u/%u\n",
 				 p->sr.type, p->sr.lower, p->sr.upper,
-				 node, p->sk.ref, key);
+				 analde, p->sk.ref, key);
 			goto exit;
 		}
 	}
 
-	if (in_own_node(net, p->sk.node))
+	if (in_own_analde(net, p->sk.analde))
 		list_add(&p->local_publ, &sr->local_publ);
 	list_add(&p->all_publ, &sr->all_publ);
 	p->id = sc->publ_cnt++;
 
-	/* Any subscriptions waiting for notification?  */
+	/* Any subscriptions waiting for analtification?  */
 	list_for_each_entry_safe(sub, tmp, &sc->subscriptions, service_list) {
 		tipc_sub_report_overlap(sub, p, TIPC_PUBLISHED, first);
 	}
@@ -385,10 +385,10 @@ static struct publication *tipc_service_remove_publ(struct service_range *r,
 						    u32 key)
 {
 	struct publication *p;
-	u32 node = sk->node;
+	u32 analde = sk->analde;
 
 	list_for_each_entry(p, &r->all_publ, all_publ) {
-		if (p->key != key || (node && node != p->sk.node))
+		if (p->key != key || (analde && analde != p->sk.analde))
 			continue;
 		list_del(&p->all_publ);
 		list_del(&p->local_publ);
@@ -433,7 +433,7 @@ static void tipc_service_subscribe(struct tipc_service *service,
 	tipc_sub_get(sub);
 	list_add(&sub->service_list, &service->subscriptions);
 
-	if (filter & TIPC_SUB_NO_STATUS)
+	if (filter & TIPC_SUB_ANAL_STATUS)
 		return;
 
 	INIT_LIST_HEAD(&publ_list);
@@ -517,7 +517,7 @@ struct publication *tipc_nametbl_remove_publ(struct net *net,
 	if (!p)
 		goto unlock;
 
-	/* Notify any waiting subscriptions */
+	/* Analtify any waiting subscriptions */
 	last = list_empty(&sr->all_publ);
 	list_for_each_entry_safe(sub, tmp, &sc->subscriptions, service_list) {
 		tipc_sub_report_overlap(sub, p, TIPC_WITHDRAWN, last);
@@ -525,11 +525,11 @@ struct publication *tipc_nametbl_remove_publ(struct net *net,
 
 	/* Remove service range item if this was its last publication */
 	if (list_empty(&sr->all_publ)) {
-		rb_erase_augmented(&sr->tree_node, &sc->ranges, &sr_callbacks);
+		rb_erase_augmented(&sr->tree_analde, &sc->ranges, &sr_callbacks);
 		kfree(sr);
 	}
 
-	/* Delete service item if no more publications and subscriptions */
+	/* Delete service item if anal more publications and subscriptions */
 	if (RB_EMPTY_ROOT(&sc->ranges) && list_empty(&sc->subscriptions)) {
 		hlist_del_init_rcu(&sc->service_list);
 		kfree_rcu(sc, rcu);
@@ -538,9 +538,9 @@ unlock:
 	spin_unlock_bh(&sc->lock);
 exit:
 	if (!p) {
-		pr_err("Failed to remove unknown binding: %u,%u,%u/%u:%u/%u\n",
+		pr_err("Failed to remove unkanalwn binding: %u,%u,%u/%u:%u/%u\n",
 		       ua->sr.type, ua->sr.lower, ua->sr.upper,
-		       sk->node, sk->ref, key);
+		       sk->analde, sk->ref, key);
 	}
 	return p;
 }
@@ -551,19 +551,19 @@ exit:
  * @ua: service address to look up
  * @sk: address to socket we want to find
  *
- * On entry, a non-zero 'sk->node' indicates the node where we want lookup to be
- * performed, which may not be this one.
+ * On entry, a analn-zero 'sk->analde' indicates the analde where we want lookup to be
+ * performed, which may analt be this one.
  *
  * On exit:
  *
- * - If lookup is deferred to another node, leave 'sk->node' unchanged and
+ * - If lookup is deferred to aanalther analde, leave 'sk->analde' unchanged and
  *   return 'true'.
- * - If lookup is successful, set the 'sk->node' and 'sk->ref' (== portid) which
+ * - If lookup is successful, set the 'sk->analde' and 'sk->ref' (== portid) which
  *   represent the bound socket and return 'true'.
  * - If lookup fails, return 'false'
  *
- * Note that for legacy users (node configured with Z.C.N address format) the
- * 'closest-first' lookup algorithm must be maintained, i.e., if sk.node is 0
+ * Analte that for legacy users (analde configured with Z.C.N address format) the
+ * 'closest-first' lookup algorithm must be maintained, i.e., if sk.analde is 0
  * we must look in the local binding list first
  */
 bool tipc_nametbl_lookup_anycast(struct net *net,
@@ -580,7 +580,7 @@ bool tipc_nametbl_lookup_anycast(struct net *net,
 	struct list_head *l;
 	bool res = false;
 
-	if (!tipc_in_scope(legacy, sk->node, self))
+	if (!tipc_in_scope(legacy, sk->analde, self))
 		return true;
 
 	rcu_read_lock();
@@ -591,13 +591,13 @@ bool tipc_nametbl_lookup_anycast(struct net *net,
 	spin_lock_bh(&sc->lock);
 	service_range_foreach_match(r, sc, inst, inst) {
 		/* Select lookup algo: local, closest-first or round-robin */
-		if (sk->node == self) {
+		if (sk->analde == self) {
 			l = &r->local_publ;
 			if (list_empty(l))
 				continue;
 			p = list_first_entry(l, struct publication, local_publ);
 			list_move_tail(&p->local_publ, &r->local_publ);
-		} else if (legacy && !sk->node && !list_empty(&r->local_publ)) {
+		} else if (legacy && !sk->analde && !list_empty(&r->local_publ)) {
 			l = &r->local_publ;
 			p = list_first_entry(l, struct publication, local_publ);
 			list_move_tail(&p->local_publ, &r->local_publ);
@@ -622,8 +622,8 @@ exit:
 
 /* tipc_nametbl_lookup_group(): lookup destinaton(s) in a communication group
  * Returns a list of one (== group anycast) or more (== group multicast)
- * destination socket/node pairs matching the given address.
- * The requester may or may not want to exclude himself from the list.
+ * destination socket/analde pairs matching the given address.
+ * The requester may or may analt want to exclude himself from the list.
  */
 bool tipc_nametbl_lookup_group(struct net *net, struct tipc_uaddr *ua,
 			       struct list_head *dsts, int *dstcnt,
@@ -644,32 +644,32 @@ bool tipc_nametbl_lookup_group(struct net *net, struct tipc_uaddr *ua,
 	spin_lock_bh(&sc->lock);
 
 	/* Todo: a full search i.e. service_range_foreach_match() instead? */
-	sr = service_range_match_first(sc->ranges.rb_node, inst, inst);
+	sr = service_range_match_first(sc->ranges.rb_analde, inst, inst);
 	if (!sr)
-		goto no_match;
+		goto anal_match;
 
 	list_for_each_entry(p, &sr->all_publ, all_publ) {
 		if (p->scope != ua->scope)
 			continue;
-		if (p->sk.ref == exclude && p->sk.node == self)
+		if (p->sk.ref == exclude && p->sk.analde == self)
 			continue;
-		tipc_dest_push(dsts, p->sk.node, p->sk.ref);
+		tipc_dest_push(dsts, p->sk.analde, p->sk.ref);
 		(*dstcnt)++;
 		if (mcast)
 			continue;
 		list_move_tail(&p->all_publ, &sr->all_publ);
 		break;
 	}
-no_match:
+anal_match:
 	spin_unlock_bh(&sc->lock);
 exit:
 	rcu_read_unlock();
 	return !list_empty(dsts);
 }
 
-/* tipc_nametbl_lookup_mcast_sockets(): look up node local destinaton sockets
+/* tipc_nametbl_lookup_mcast_sockets(): look up analde local destinaton sockets
  *                                      matching the given address
- * Used on nodes which have received a multicast/broadcast message
+ * Used on analdes which have received a multicast/broadcast message
  * Returns a list of local sockets
  */
 void tipc_nametbl_lookup_mcast_sockets(struct net *net, struct tipc_uaddr *ua,
@@ -697,13 +697,13 @@ exit:
 	rcu_read_unlock();
 }
 
-/* tipc_nametbl_lookup_mcast_nodes(): look up all destination nodes matching
- *                                    the given address. Used in sending node.
- * Used on nodes which are sending out a multicast/broadcast message
- * Returns a list of nodes, including own node if applicable
+/* tipc_nametbl_lookup_mcast_analdes(): look up all destination analdes matching
+ *                                    the given address. Used in sending analde.
+ * Used on analdes which are sending out a multicast/broadcast message
+ * Returns a list of analdes, including own analde if applicable
  */
-void tipc_nametbl_lookup_mcast_nodes(struct net *net, struct tipc_uaddr *ua,
-				     struct tipc_nlist *nodes)
+void tipc_nametbl_lookup_mcast_analdes(struct net *net, struct tipc_uaddr *ua,
+				     struct tipc_nlist *analdes)
 {
 	struct service_range *sr;
 	struct tipc_service *sc;
@@ -717,7 +717,7 @@ void tipc_nametbl_lookup_mcast_nodes(struct net *net, struct tipc_uaddr *ua,
 	spin_lock_bh(&sc->lock);
 	service_range_foreach_match(sr, sc, ua->sr.lower, ua->sr.upper) {
 		list_for_each_entry(p, &sr->all_publ, all_publ) {
-			tipc_nlist_add(nodes, p->sk.node);
+			tipc_nlist_add(analdes, p->sk.analde);
 		}
 	}
 	spin_unlock_bh(&sc->lock);
@@ -733,7 +733,7 @@ void tipc_nametbl_build_group(struct net *net, struct tipc_group *grp,
 	struct service_range *sr;
 	struct tipc_service *sc;
 	struct publication *p;
-	struct rb_node *n;
+	struct rb_analde *n;
 
 	rcu_read_lock();
 	sc = tipc_service_find(net, ua);
@@ -742,11 +742,11 @@ void tipc_nametbl_build_group(struct net *net, struct tipc_group *grp,
 
 	spin_lock_bh(&sc->lock);
 	for (n = rb_first(&sc->ranges); n; n = rb_next(n)) {
-		sr = container_of(n, struct service_range, tree_node);
+		sr = container_of(n, struct service_range, tree_analde);
 		list_for_each_entry(p, &sr->all_publ, all_publ) {
 			if (p->scope != ua->scope)
 				continue;
-			tipc_group_add_member(grp, p->sk.node, p->sk.ref,
+			tipc_group_add_member(grp, p->sk.analde, p->sk.ref,
 					      p->sr.lower);
 		}
 	}
@@ -783,7 +783,7 @@ exit:
 	spin_unlock_bh(&tn->nametbl_lock);
 
 	if (skb)
-		tipc_node_broadcast(net, skb, rc_dests);
+		tipc_analde_broadcast(net, skb, rc_dests);
 	return p;
 
 }
@@ -817,7 +817,7 @@ void tipc_nametbl_withdraw(struct net *net, struct tipc_uaddr *ua,
 	spin_unlock_bh(&tn->nametbl_lock);
 
 	if (skb)
-		tipc_node_broadcast(net, skb, rc_dests);
+		tipc_analde_broadcast(net, skb, rc_dests);
 }
 
 /**
@@ -832,7 +832,7 @@ bool tipc_nametbl_subscribe(struct tipc_subscription *sub)
 	struct tipc_uaddr ua;
 	bool res = true;
 
-	tipc_uaddr(&ua, TIPC_SERVICE_RANGE, TIPC_NODE_SCOPE, type,
+	tipc_uaddr(&ua, TIPC_SERVICE_RANGE, TIPC_ANALDE_SCOPE, type,
 		   sub->s.seq.lower, sub->s.seq.upper);
 	spin_lock_bh(&tn->nametbl_lock);
 	sc = tipc_service_find(sub->net, &ua);
@@ -861,7 +861,7 @@ void tipc_nametbl_unsubscribe(struct tipc_subscription *sub)
 	struct tipc_service *sc;
 	struct tipc_uaddr ua;
 
-	tipc_uaddr(&ua, TIPC_SERVICE_RANGE, TIPC_NODE_SCOPE,
+	tipc_uaddr(&ua, TIPC_SERVICE_RANGE, TIPC_ANALDE_SCOPE,
 		   sub->s.seq.type, sub->s.seq.lower, sub->s.seq.upper);
 	spin_lock_bh(&tn->nametbl_lock);
 	sc = tipc_service_find(sub->net, &ua);
@@ -872,7 +872,7 @@ void tipc_nametbl_unsubscribe(struct tipc_subscription *sub)
 	list_del_init(&sub->service_list);
 	tipc_sub_put(sub);
 
-	/* Delete service item if no more publications and subscriptions */
+	/* Delete service item if anal more publications and subscriptions */
 	if (RB_EMPTY_ROOT(&sc->ranges) && list_empty(&sc->subscriptions)) {
 		hlist_del_init_rcu(&sc->service_list);
 		kfree_rcu(sc, rcu);
@@ -890,12 +890,12 @@ int tipc_nametbl_init(struct net *net)
 
 	nt = kzalloc(sizeof(*nt), GFP_KERNEL);
 	if (!nt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < TIPC_NAMETBL_SIZE; i++)
 		INIT_HLIST_HEAD(&nt->services[i]);
 
-	INIT_LIST_HEAD(&nt->node_scope);
+	INIT_LIST_HEAD(&nt->analde_scope);
 	INIT_LIST_HEAD(&nt->cluster_scope);
 	rwlock_init(&nt->cluster_scope_lock);
 	tn->nametbl = nt;
@@ -914,12 +914,12 @@ static void tipc_service_delete(struct net *net, struct tipc_service *sc)
 	struct publication *p, *tmp;
 
 	spin_lock_bh(&sc->lock);
-	rbtree_postorder_for_each_entry_safe(sr, tmpr, &sc->ranges, tree_node) {
+	rbtree_postorder_for_each_entry_safe(sr, tmpr, &sc->ranges, tree_analde) {
 		list_for_each_entry_safe(p, tmp, &sr->all_publ, all_publ) {
 			tipc_service_remove_publ(sr, &p->sk, p->key);
 			kfree_rcu(p, rcu);
 		}
-		rb_erase_augmented(&sr->tree_node, &sc->ranges, &sr_callbacks);
+		rb_erase_augmented(&sr->tree_analde, &sc->ranges, &sr_callbacks);
 		kfree(sr);
 	}
 	hlist_del_init_rcu(&sc->service_list);
@@ -984,11 +984,11 @@ static int __tipc_nl_add_nametable_publ(struct tipc_nl_msg *msg,
 		if (!hdr)
 			return -EMSGSIZE;
 
-		attrs = nla_nest_start_noflag(msg->skb, TIPC_NLA_NAME_TABLE);
+		attrs = nla_nest_start_analflag(msg->skb, TIPC_NLA_NAME_TABLE);
 		if (!attrs)
 			goto msg_full;
 
-		b = nla_nest_start_noflag(msg->skb, TIPC_NLA_NAME_TABLE_PUBL);
+		b = nla_nest_start_analflag(msg->skb, TIPC_NLA_NAME_TABLE_PUBL);
 		if (!b)
 			goto attr_msg_full;
 
@@ -1000,7 +1000,7 @@ static int __tipc_nl_add_nametable_publ(struct tipc_nl_msg *msg,
 			goto publ_msg_full;
 		if (nla_put_u32(msg->skb, TIPC_NLA_PUBL_SCOPE, p->scope))
 			goto publ_msg_full;
-		if (nla_put_u32(msg->skb, TIPC_NLA_PUBL_NODE, p->sk.node))
+		if (nla_put_u32(msg->skb, TIPC_NLA_PUBL_ANALDE, p->sk.analde))
 			goto publ_msg_full;
 		if (nla_put_u32(msg->skb, TIPC_NLA_PUBL_REF, p->sk.ref))
 			goto publ_msg_full;
@@ -1030,11 +1030,11 @@ static int __tipc_nl_service_range_list(struct tipc_nl_msg *msg,
 					u32 *last_lower, u32 *last_key)
 {
 	struct service_range *sr;
-	struct rb_node *n;
+	struct rb_analde *n;
 	int err;
 
 	for (n = rb_first(&sc->ranges); n; n = rb_next(n)) {
-		sr = container_of(n, struct service_range, tree_node);
+		sr = container_of(n, struct service_range, tree_analde);
 		if (sr->lower < *last_lower)
 			continue;
 		err = __tipc_nl_add_nametable_publ(msg, sc, sr, last_key);
@@ -1067,7 +1067,7 @@ static int tipc_nl_service_list(struct net *net, struct tipc_nl_msg *msg,
 
 		if (*last_type ||
 		    (!i && *last_key && (*last_lower == *last_key))) {
-			tipc_uaddr(&ua, TIPC_SERVICE_RANGE, TIPC_NODE_SCOPE,
+			tipc_uaddr(&ua, TIPC_SERVICE_RANGE, TIPC_ANALDE_SCOPE,
 				   *last_type, *last_lower, *last_lower);
 			service = tipc_service_find(net, &ua);
 			if (!service)
@@ -1138,34 +1138,34 @@ int tipc_nl_name_table_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	return skb->len;
 }
 
-struct tipc_dest *tipc_dest_find(struct list_head *l, u32 node, u32 port)
+struct tipc_dest *tipc_dest_find(struct list_head *l, u32 analde, u32 port)
 {
 	struct tipc_dest *dst;
 
 	list_for_each_entry(dst, l, list) {
-		if (dst->node == node && dst->port == port)
+		if (dst->analde == analde && dst->port == port)
 			return dst;
 	}
 	return NULL;
 }
 
-bool tipc_dest_push(struct list_head *l, u32 node, u32 port)
+bool tipc_dest_push(struct list_head *l, u32 analde, u32 port)
 {
 	struct tipc_dest *dst;
 
-	if (tipc_dest_find(l, node, port))
+	if (tipc_dest_find(l, analde, port))
 		return false;
 
 	dst = kmalloc(sizeof(*dst), GFP_ATOMIC);
 	if (unlikely(!dst))
 		return false;
-	dst->node = node;
+	dst->analde = analde;
 	dst->port = port;
 	list_add(&dst->list, l);
 	return true;
 }
 
-bool tipc_dest_pop(struct list_head *l, u32 *node, u32 *port)
+bool tipc_dest_pop(struct list_head *l, u32 *analde, u32 *port)
 {
 	struct tipc_dest *dst;
 
@@ -1174,18 +1174,18 @@ bool tipc_dest_pop(struct list_head *l, u32 *node, u32 *port)
 	dst = list_first_entry(l, typeof(*dst), list);
 	if (port)
 		*port = dst->port;
-	if (node)
-		*node = dst->node;
+	if (analde)
+		*analde = dst->analde;
 	list_del(&dst->list);
 	kfree(dst);
 	return true;
 }
 
-bool tipc_dest_del(struct list_head *l, u32 node, u32 port)
+bool tipc_dest_del(struct list_head *l, u32 analde, u32 port)
 {
 	struct tipc_dest *dst;
 
-	dst = tipc_dest_find(l, node, port);
+	dst = tipc_dest_find(l, analde, port);
 	if (!dst)
 		return false;
 	list_del(&dst->list);

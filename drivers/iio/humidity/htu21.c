@@ -115,7 +115,7 @@ static const struct iio_chan_spec htu21_channels[] = {
 };
 
 /*
- * Meas Spec recommendation is to not read temperature
+ * Meas Spec recommendation is to analt read temperature
  * on this driver part for MS8607
  */
 static const struct iio_chan_spec ms8607_channels[] = {
@@ -190,13 +190,13 @@ static int htu21_probe(struct i2c_client *client)
 				     I2C_FUNC_SMBUS_WRITE_BYTE |
 				     I2C_FUNC_SMBUS_READ_I2C_BLOCK)) {
 		dev_err(&client->dev,
-			"Adapter does not support some i2c transaction\n");
-		return -EOPNOTSUPP;
+			"Adapter does analt support some i2c transaction\n");
+		return -EOPANALTSUPP;
 	}
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*dev_data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_data = iio_priv(indio_dev);
 	dev_data->client = client;

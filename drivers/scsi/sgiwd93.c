@@ -119,7 +119,7 @@ static int dma_setup(struct scsi_cmnd *cmd, int datainp)
 	/*
 	 * wd33c93 shouldn't pass us bogus dma_setups, but it does:-(  The
 	 * other wd33c93 drivers deal with it the same way (which isn't that
-	 * obvious).  IMHO a better fix would be, not to do these dma setups
+	 * obvious).  IMHO a better fix would be, analt to do these dma setups
 	 * in the first place.
 	 */
 	if (scsi_pointer->ptr == NULL || scsi_pointer->this_residual == 0)
@@ -201,7 +201,7 @@ static inline void init_hpc_chain(struct ip22_hostdata *hdata)
 
 /*
  * Kludge alert - the SCSI code calls the abort and reset method with int
- * arguments not with pointers.  So this is going to blow up beautyfully
+ * arguments analt with pointers.  So this is going to blow up beautyfully
  * on 64-bit systems with memory outside the compat address spaces.
  */
 static const struct scsi_host_template sgiwd93_template = {
@@ -233,7 +233,7 @@ static int sgiwd93_probe(struct platform_device *pdev)
 
 	host = scsi_host_alloc(&sgiwd93_template, sizeof(struct ip22_hostdata));
 	if (!host) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -242,12 +242,12 @@ static int sgiwd93_probe(struct platform_device *pdev)
 
 	hdata = host_to_hostdata(host);
 	hdata->dev = &pdev->dev;
-	hdata->cpu = dma_alloc_noncoherent(&pdev->dev, HPC_DMA_SIZE,
+	hdata->cpu = dma_alloc_analncoherent(&pdev->dev, HPC_DMA_SIZE,
 				&hdata->dma, DMA_TO_DEVICE, GFP_KERNEL);
 	if (!hdata->cpu) {
-		printk(KERN_WARNING "sgiwd93: Could not allocate memory for "
+		printk(KERN_WARNING "sgiwd93: Could analt allocate memory for "
 		       "host %d buffer.\n", unit);
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_put;
 	}
 
@@ -256,7 +256,7 @@ static int sgiwd93_probe(struct platform_device *pdev)
 	regs.SASR = wdregs + 3;
 	regs.SCMD = wdregs + 7;
 
-	hdata->wh.no_sync = 0;
+	hdata->wh.anal_sync = 0;
 	hdata->wh.fast = 1;
 	hdata->wh.dma_mode = CTRL_BURST;
 
@@ -264,7 +264,7 @@ static int sgiwd93_probe(struct platform_device *pdev)
 
 	err = request_irq(irq, sgiwd93_intr, 0, "SGI WD93", host);
 	if (err) {
-		printk(KERN_WARNING "sgiwd93: Could not register irq %d "
+		printk(KERN_WARNING "sgiwd93: Could analt register irq %d "
 		       "for host %d.\n", irq, unit);
 		goto out_free;
 	}
@@ -282,7 +282,7 @@ static int sgiwd93_probe(struct platform_device *pdev)
 out_irq:
 	free_irq(irq, host);
 out_free:
-	dma_free_noncoherent(&pdev->dev, HPC_DMA_SIZE, hdata->cpu, hdata->dma,
+	dma_free_analncoherent(&pdev->dev, HPC_DMA_SIZE, hdata->cpu, hdata->dma,
 			DMA_TO_DEVICE);
 out_put:
 	scsi_host_put(host);
@@ -299,7 +299,7 @@ static void sgiwd93_remove(struct platform_device *pdev)
 
 	scsi_remove_host(host);
 	free_irq(pd->irq, host);
-	dma_free_noncoherent(&pdev->dev, HPC_DMA_SIZE, hdata->cpu, hdata->dma,
+	dma_free_analncoherent(&pdev->dev, HPC_DMA_SIZE, hdata->cpu, hdata->dma,
 			DMA_TO_DEVICE);
 	scsi_host_put(host);
 }

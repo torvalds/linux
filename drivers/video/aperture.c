@@ -39,7 +39,7 @@
  *
  *		mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
  *		if (!mem)
- *			return -ENODEV;
+ *			return -EANALDEV;
  *		base = mem->start;
  *		size = resource_size(mem);
  *
@@ -69,15 +69,15 @@
  * with every bus that has an addressable framebuffer. In the case of PCI,
  * device drivers can also call aperture_remove_conflicting_pci_devices() and
  * let the function detect the apertures automatically. Device drivers without
- * knowledge of the framebuffer's location can call
- * aperture_remove_all_conflicting_devices(), which removes all known devices.
+ * kanalwledge of the framebuffer's location can call
+ * aperture_remove_all_conflicting_devices(), which removes all kanalwn devices.
  *
  * Drivers that are susceptible to being removed by other drivers, such as
  * generic EFI or VESA drivers, have to register themselves as owners of their
  * framebuffer apertures. Ownership of the framebuffer memory is achieved
  * by calling devm_aperture_acquire_for_platform_device(). If successful, the
  * driver is the owner of the framebuffer range. The function fails if the
- * framebuffer is already owned by another driver. See below for an example.
+ * framebuffer is already owned by aanalther driver. See below for an example.
  *
  * .. code-block:: c
  *
@@ -88,7 +88,7 @@
  *
  *		mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
  *		if (!mem)
- *			return -ENODEV;
+ *			return -EANALDEV;
  *		base = mem->start;
  *		size = resource_size(mem);
  *
@@ -118,15 +118,15 @@
  *
  * The similar to the previous example, the generic driver claims ownership
  * of the framebuffer memory from its probe function. This will fail if the
- * memory range, or parts of it, is already owned by another driver.
+ * memory range, or parts of it, is already owned by aanalther driver.
  *
- * If successful, the generic driver is now subject to forced removal by
- * another driver. This only works for platform drivers that support hot
+ * If successful, the generic driver is analw subject to forced removal by
+ * aanalther driver. This only works for platform drivers that support hot
  * unplugging. When a driver calls aperture_remove_conflicting_devices()
  * et al for the registered framebuffer range, the aperture helpers call
  * platform_device_unregister() and the generic driver unloads itself. The
  * generic driver also has to provide a remove function to make this work.
- * Once hot unplugged from hardware, it may not access the device's
+ * Once hot unplugged from hardware, it may analt access the device's
  * registers, framebuffer memory, ROM, etc afterwards.
  */
 
@@ -181,7 +181,7 @@ static int devm_aperture_acquire(struct device *dev,
 	ap = devm_kzalloc(dev, sizeof(*ap), GFP_KERNEL);
 	if (!ap) {
 		mutex_unlock(&apertures_lock);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ap->dev = dev;
@@ -207,7 +207,7 @@ static void aperture_detach_platform_device(struct device *dev)
 	 * the new driver takes over the hardware, the firmware device's state
 	 * will be lost.
 	 *
-	 * For non-platform devices, a new callback would be required.
+	 * For analn-platform devices, a new callback would be required.
 	 *
 	 * If the aperture helpers ever need to handle native drivers, this call
 	 * would only have to unplug the DRM device, so that the hardware device
@@ -224,17 +224,17 @@ static void aperture_detach_platform_device(struct device *dev)
  * @size:	the aperture size in bytes
  *
  * Installs the given device as the new owner of the aperture. The function
- * expects the aperture to be provided by a platform device. If another
+ * expects the aperture to be provided by a platform device. If aanalther
  * driver takes over ownership of the aperture, aperture helpers will then
  * unregister the platform device automatically. All acquired apertures are
  * released automatically when the underlying device goes away.
  *
  * The function fails if the aperture, or parts of it, is currently
- * owned by another device. To evict current owners, callers should use
+ * owned by aanalther device. To evict current owners, callers should use
  * remove_conflicting_devices() et al. before calling this function.
  *
  * Returns:
- * 0 on success, or a negative errno value otherwise.
+ * 0 on success, or a negative erranal value otherwise.
  */
 int devm_aperture_acquire_for_platform_device(struct platform_device *pdev,
 					      resource_size_t base,
@@ -279,7 +279,7 @@ static void aperture_detach_devices(resource_size_t base, resource_size_t size)
  * This function removes devices that own apertures within @base and @size.
  *
  * Returns:
- * 0 on success, or a negative errno code otherwise
+ * 0 on success, or a negative erranal code otherwise
  */
 int aperture_remove_conflicting_devices(resource_size_t base, resource_size_t size,
 					const char *name)
@@ -307,7 +307,7 @@ EXPORT_SYMBOL(aperture_remove_conflicting_devices);
  *
  * This function removes VGA devices provided by @pdev, such as a VGA
  * framebuffer or a console. This is useful if you have a VGA-compatible
- * PCI graphics device with framebuffers in non-BAR locations. Drivers
+ * PCI graphics device with framebuffers in analn-BAR locations. Drivers
  * should acquire ownership of those memory areas and afterwards call
  * this helper to release remaining VGA devices.
  *
@@ -320,7 +320,7 @@ EXPORT_SYMBOL(aperture_remove_conflicting_devices);
  *          we have vgacon configured.
  *
  * Returns:
- * 0 on success, or a negative errno code otherwise
+ * 0 on success, or a negative erranal code otherwise
  */
 int __aperture_remove_legacy_vga_devices(struct pci_dev *pdev)
 {
@@ -342,7 +342,7 @@ EXPORT_SYMBOL(__aperture_remove_legacy_vga_devices);
  * drives a primary display and therefore kicks out vga16fb as well.
  *
  * Returns:
- * 0 on success, or a negative errno code otherwise
+ * 0 on success, or a negative erranal code otherwise
  */
 int aperture_remove_conflicting_pci_devices(struct pci_dev *pdev, const char *name)
 {

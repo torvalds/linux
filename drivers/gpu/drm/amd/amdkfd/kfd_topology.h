@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -39,7 +39,7 @@
 #define HSA_DBG_WATCH_ADDR_MASK_HI_BIT_GFX9_4_3 \
 			(30 << HSA_DBG_WATCH_ADDR_MASK_HI_BIT_SHIFT)
 
-struct kfd_node_properties {
+struct kfd_analde_properties {
 	uint64_t hive_id;
 	uint32_t cpu_cores_count;
 	uint32_t simd_count;
@@ -69,7 +69,7 @@ struct kfd_node_properties {
 	uint32_t domain;
 	uint32_t max_engine_clk_fcompute;
 	uint32_t max_engine_clk_ccompute;
-	int32_t  drm_render_minor;
+	int32_t  drm_render_mianalr;
 	uint32_t num_sdma_engines;
 	uint32_t num_sdma_xgmi_engines;
 	uint32_t num_sdma_queues_per_engine;
@@ -84,7 +84,7 @@ struct kfd_mem_properties {
 	uint32_t		flags;
 	uint32_t		width;
 	uint32_t		mem_clk_max;
-	struct kfd_node		*gpu;
+	struct kfd_analde		*gpu;
 	struct kobject		*kobj;
 	struct attribute	attr;
 };
@@ -102,7 +102,7 @@ struct kfd_cache_properties {
 	uint32_t		cache_latency;
 	uint32_t		cache_type;
 	uint8_t			sibling_map[CACHE_SIBLINGMAP_SIZE];
-	struct kfd_node		*gpu;
+	struct kfd_analde		*gpu;
 	struct kobject		*kobj;
 	struct attribute	attr;
 	uint32_t		sibling_map_size;
@@ -113,8 +113,8 @@ struct kfd_iolink_properties {
 	uint32_t		iolink_type;
 	uint32_t		ver_maj;
 	uint32_t		ver_min;
-	uint32_t		node_from;
-	uint32_t		node_to;
+	uint32_t		analde_from;
+	uint32_t		analde_to;
 	uint32_t		weight;
 	uint32_t		min_latency;
 	uint32_t		max_latency;
@@ -122,7 +122,7 @@ struct kfd_iolink_properties {
 	uint32_t		max_bandwidth;
 	uint32_t		rec_transfer_size;
 	uint32_t		flags;
-	struct kfd_node		*gpu;
+	struct kfd_analde		*gpu;
 	struct kobject		*kobj;
 	struct attribute	attr;
 };
@@ -138,14 +138,14 @@ struct kfd_topology_device {
 	struct list_head		list;
 	uint32_t			gpu_id;
 	uint32_t			proximity_domain;
-	struct kfd_node_properties	node_props;
+	struct kfd_analde_properties	analde_props;
 	struct list_head		mem_props;
 	struct list_head		cache_props;
 	struct list_head		io_link_props;
 	struct list_head		p2p_link_props;
 	struct list_head		perf_props;
-	struct kfd_node			*gpu;
-	struct kobject			*kobj_node;
+	struct kfd_analde			*gpu;
+	struct kobject			*kobj_analde;
 	struct kobject			*kobj_mem;
 	struct kobject			*kobj_cache;
 	struct kobject			*kobj_iolink;
@@ -160,13 +160,13 @@ struct kfd_topology_device {
 };
 
 struct kfd_system_properties {
-	uint32_t		num_devices;     /* Number of H-NUMA nodes */
+	uint32_t		num_devices;     /* Number of H-NUMA analdes */
 	uint32_t		generation_count;
 	uint64_t		platform_oem;
 	uint64_t		platform_id;
 	uint64_t		platform_rev;
 	struct kobject		*kobj_topology;
-	struct kobject		*kobj_nodes;
+	struct kobject		*kobj_analdes;
 	struct attribute	attr_genid;
 	struct attribute	attr_props;
 };

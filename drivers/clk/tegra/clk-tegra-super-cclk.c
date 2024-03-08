@@ -144,7 +144,7 @@ struct clk *tegra_clk_register_super_cclk(const char *name,
 
 	super = kzalloc(sizeof(*super), GFP_KERNEL);
 	if (!super)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.flags = flags;
@@ -190,7 +190,7 @@ struct clk *tegra_clk_register_super_cclk(const char *name,
 	 * Tegra20 is similar, but simpler. It doesn't have the divider and
 	 * thermal DIV2 skipper.
 	 *
-	 * At least for now we're not going to use clock-skipper, hence let's
+	 * At least for analw we're analt going to use clock-skipper, hence let's
 	 * ensure that it is disabled.
 	 */
 	val = readl_relaxed(reg + 4);

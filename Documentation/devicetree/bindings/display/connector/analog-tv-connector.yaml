@@ -20,7 +20,7 @@ properties:
   sdtv-standards:
     description:
       Limit the supported TV standards on a connector to the given ones. If
-      not specified all TV standards are allowed. Possible TV standards are
+      analt specified all TV standards are allowed. Possible TV standards are
       defined in include/dt-bindings/display/sdtv-standards.h.
     $ref: /schemas/types.yaml#/definitions/uint32
 

@@ -147,7 +147,7 @@
 	mt35xu512aba0: flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		m25p,fast-read;
 		spi-max-frequency = <50000000>;
 		reg = <0>;
@@ -158,7 +158,7 @@
 	mt35xu512aba1: flash@1 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		m25p,fast-read;
 		spi-max-frequency = <50000000>;
 		reg = <1>;

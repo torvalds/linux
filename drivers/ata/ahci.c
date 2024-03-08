@@ -12,8 +12,8 @@
  * as Documentation/driver-api/libata.rst
  *
  * AHCI hardware documentation:
- * http://www.intel.com/technology/serialata/pdf/rev1_0.pdf
- * http://www.intel.com/technology/serialata/pdf/rev1_1.pdf
+ * http://www.intel.com/techanallogy/serialata/pdf/rev1_0.pdf
+ * http://www.intel.com/techanallogy/serialata/pdf/rev1_1.pdf
  */
 
 #include <linux/kernel.h>
@@ -30,7 +30,7 @@
 #include <scsi/scsi_cmnd.h>
 #include <linux/libata.h>
 #include <linux/ahci-remap.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 #include "ahci.h"
 
 #define DRV_NAME	"ahci"
@@ -51,11 +51,11 @@ enum board_ids {
 	board_ahci_43bit_dma,
 	board_ahci_ign_iferr,
 	board_ahci_low_power,
-	board_ahci_no_debounce_delay,
-	board_ahci_nomsi,
-	board_ahci_noncq,
-	board_ahci_nosntf,
-	board_ahci_yes_fbs,
+	board_ahci_anal_debounce_delay,
+	board_ahci_analmsi,
+	board_ahci_analncq,
+	board_ahci_analsntf,
+	board_ahci_anal_fbs,
 
 	/* board IDs for specific chipsets in alphabetical order */
 	board_ahci_al,
@@ -150,36 +150,36 @@ static const struct ata_port_info ahci_port_info[] = {
 		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &ahci_ops,
 	},
-	[board_ahci_no_debounce_delay] = {
+	[board_ahci_anal_debounce_delay] = {
 		.flags		= AHCI_FLAG_COMMON,
-		.link_flags	= ATA_LFLAG_NO_DEBOUNCE_DELAY,
+		.link_flags	= ATA_LFLAG_ANAL_DEBOUNCE_DELAY,
 		.pio_mask	= ATA_PIO4,
 		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &ahci_ops,
 	},
-	[board_ahci_nomsi] = {
-		AHCI_HFLAGS	(AHCI_HFLAG_NO_MSI),
-		.flags		= AHCI_FLAG_COMMON,
-		.pio_mask	= ATA_PIO4,
-		.udma_mask	= ATA_UDMA6,
-		.port_ops	= &ahci_ops,
-	},
-	[board_ahci_noncq] = {
-		AHCI_HFLAGS	(AHCI_HFLAG_NO_NCQ),
+	[board_ahci_analmsi] = {
+		AHCI_HFLAGS	(AHCI_HFLAG_ANAL_MSI),
 		.flags		= AHCI_FLAG_COMMON,
 		.pio_mask	= ATA_PIO4,
 		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &ahci_ops,
 	},
-	[board_ahci_nosntf] = {
-		AHCI_HFLAGS	(AHCI_HFLAG_NO_SNTF),
+	[board_ahci_analncq] = {
+		AHCI_HFLAGS	(AHCI_HFLAG_ANAL_NCQ),
 		.flags		= AHCI_FLAG_COMMON,
 		.pio_mask	= ATA_PIO4,
 		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &ahci_ops,
 	},
-	[board_ahci_yes_fbs] = {
-		AHCI_HFLAGS	(AHCI_HFLAG_YES_FBS),
+	[board_ahci_analsntf] = {
+		AHCI_HFLAGS	(AHCI_HFLAG_ANAL_SNTF),
+		.flags		= AHCI_FLAG_COMMON,
+		.pio_mask	= ATA_PIO4,
+		.udma_mask	= ATA_UDMA6,
+		.port_ops	= &ahci_ops,
+	},
+	[board_ahci_anal_fbs] = {
+		AHCI_HFLAGS	(AHCI_HFLAG_ANAL_FBS),
 		.flags		= AHCI_FLAG_COMMON,
 		.pio_mask	= ATA_PIO4,
 		.udma_mask	= ATA_UDMA6,
@@ -187,7 +187,7 @@ static const struct ata_port_info ahci_port_info[] = {
 	},
 	/* by chipsets */
 	[board_ahci_al] = {
-		AHCI_HFLAGS	(AHCI_HFLAG_NO_PMP | AHCI_HFLAG_NO_MSI),
+		AHCI_HFLAGS	(AHCI_HFLAG_ANAL_PMP | AHCI_HFLAG_ANAL_MSI),
 		.flags		= AHCI_FLAG_COMMON,
 		.pio_mask	= ATA_PIO4,
 		.udma_mask	= ATA_UDMA6,
@@ -200,30 +200,30 @@ static const struct ata_port_info ahci_port_info[] = {
 		.port_ops	= &ahci_avn_ops,
 	},
 	[board_ahci_mcp65] = {
-		AHCI_HFLAGS	(AHCI_HFLAG_NO_FPDMA_AA | AHCI_HFLAG_NO_PMP |
-				 AHCI_HFLAG_YES_NCQ),
-		.flags		= AHCI_FLAG_COMMON | ATA_FLAG_NO_DIPM,
+		AHCI_HFLAGS	(AHCI_HFLAG_ANAL_FPDMA_AA | AHCI_HFLAG_ANAL_PMP |
+				 AHCI_HFLAG_ANAL_NCQ),
+		.flags		= AHCI_FLAG_COMMON | ATA_FLAG_ANAL_DIPM,
 		.pio_mask	= ATA_PIO4,
 		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &ahci_ops,
 	},
 	[board_ahci_mcp77] = {
-		AHCI_HFLAGS	(AHCI_HFLAG_NO_FPDMA_AA | AHCI_HFLAG_NO_PMP),
+		AHCI_HFLAGS	(AHCI_HFLAG_ANAL_FPDMA_AA | AHCI_HFLAG_ANAL_PMP),
 		.flags		= AHCI_FLAG_COMMON,
 		.pio_mask	= ATA_PIO4,
 		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &ahci_ops,
 	},
 	[board_ahci_mcp89] = {
-		AHCI_HFLAGS	(AHCI_HFLAG_NO_FPDMA_AA),
+		AHCI_HFLAGS	(AHCI_HFLAG_ANAL_FPDMA_AA),
 		.flags		= AHCI_FLAG_COMMON,
 		.pio_mask	= ATA_PIO4,
 		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &ahci_ops,
 	},
 	[board_ahci_mv] = {
-		AHCI_HFLAGS	(AHCI_HFLAG_NO_NCQ | AHCI_HFLAG_NO_MSI |
-				 AHCI_HFLAG_MV_PATA | AHCI_HFLAG_NO_PMP),
+		AHCI_HFLAGS	(AHCI_HFLAG_ANAL_NCQ | AHCI_HFLAG_ANAL_MSI |
+				 AHCI_HFLAG_MV_PATA | AHCI_HFLAG_ANAL_PMP),
 		.flags		= ATA_FLAG_SATA | ATA_FLAG_PIO_DMA,
 		.pio_mask	= ATA_PIO4,
 		.udma_mask	= ATA_UDMA6,
@@ -231,7 +231,7 @@ static const struct ata_port_info ahci_port_info[] = {
 	},
 	[board_ahci_sb600] = {
 		AHCI_HFLAGS	(AHCI_HFLAG_IGN_SERR_INTERNAL |
-				 AHCI_HFLAG_NO_MSI | AHCI_HFLAG_SECT255 |
+				 AHCI_HFLAG_ANAL_MSI | AHCI_HFLAG_SECT255 |
 				 AHCI_HFLAG_32BIT_ONLY),
 		.flags		= AHCI_FLAG_COMMON,
 		.pio_mask	= ATA_PIO4,
@@ -246,7 +246,7 @@ static const struct ata_port_info ahci_port_info[] = {
 		.port_ops	= &ahci_pmp_retry_srst_ops,
 	},
 	[board_ahci_vt8251] = {
-		AHCI_HFLAGS	(AHCI_HFLAG_NO_NCQ | AHCI_HFLAG_NO_PMP),
+		AHCI_HFLAGS	(AHCI_HFLAG_ANAL_NCQ | AHCI_HFLAG_ANAL_PMP),
 		.flags		= AHCI_FLAG_COMMON,
 		.pio_mask	= ATA_PIO4,
 		.udma_mask	= ATA_UDMA6,
@@ -274,7 +274,7 @@ static const struct pci_device_id ahci_pci_tbl[] = {
 	{ PCI_VDEVICE(INTEL, 0x2683), board_ahci }, /* ESB2 */
 	{ PCI_VDEVICE(INTEL, 0x27c6), board_ahci }, /* ICH7-M DH */
 	{ PCI_VDEVICE(INTEL, 0x2821), board_ahci }, /* ICH8 */
-	{ PCI_VDEVICE(INTEL, 0x2822), board_ahci_nosntf }, /* ICH8/Lewisburg RAID*/
+	{ PCI_VDEVICE(INTEL, 0x2822), board_ahci_analsntf }, /* ICH8/Lewisburg RAID*/
 	{ PCI_VDEVICE(INTEL, 0x2824), board_ahci }, /* ICH8 */
 	{ PCI_VDEVICE(INTEL, 0x2829), board_ahci }, /* ICH8M */
 	{ PCI_VDEVICE(INTEL, 0x282a), board_ahci }, /* ICH8M */
@@ -356,7 +356,7 @@ static const struct pci_device_id ahci_pci_tbl[] = {
 	{ PCI_VDEVICE(INTEL, 0x9c07), board_ahci_low_power }, /* Lynx LP RAID */
 	{ PCI_VDEVICE(INTEL, 0x9c0e), board_ahci_low_power }, /* Lynx LP RAID */
 	{ PCI_VDEVICE(INTEL, 0x9c0f), board_ahci_low_power }, /* Lynx LP RAID */
-	{ PCI_VDEVICE(INTEL, 0x9dd3), board_ahci_low_power }, /* Cannon Lake PCH-LP AHCI */
+	{ PCI_VDEVICE(INTEL, 0x9dd3), board_ahci_low_power }, /* Cananaln Lake PCH-LP AHCI */
 	{ PCI_VDEVICE(INTEL, 0x1f22), board_ahci }, /* Avoton AHCI */
 	{ PCI_VDEVICE(INTEL, 0x1f23), board_ahci }, /* Avoton AHCI */
 	{ PCI_VDEVICE(INTEL, 0x1f24), board_ahci }, /* Avoton RAID */
@@ -419,7 +419,7 @@ static const struct pci_device_id ahci_pci_tbl[] = {
 	{ PCI_VDEVICE(INTEL, 0xa206), board_ahci }, /* Lewisburg RAID*/
 	{ PCI_VDEVICE(INTEL, 0xa252), board_ahci }, /* Lewisburg RAID*/
 	{ PCI_VDEVICE(INTEL, 0xa256), board_ahci }, /* Lewisburg RAID*/
-	{ PCI_VDEVICE(INTEL, 0xa356), board_ahci }, /* Cannon Lake PCH-H RAID */
+	{ PCI_VDEVICE(INTEL, 0xa356), board_ahci }, /* Cananaln Lake PCH-H RAID */
 	{ PCI_VDEVICE(INTEL, 0x06d7), board_ahci }, /* Comet Lake-H RAID */
 	{ PCI_VDEVICE(INTEL, 0xa386), board_ahci }, /* Comet Lake PCH-V RAID */
 	{ PCI_VDEVICE(INTEL, 0x0f22), board_ahci_low_power }, /* Bay Trail AHCI */
@@ -429,7 +429,7 @@ static const struct pci_device_id ahci_pci_tbl[] = {
 	{ PCI_VDEVICE(INTEL, 0x34d3), board_ahci_low_power }, /* Ice Lake LP AHCI */
 	{ PCI_VDEVICE(INTEL, 0x02d3), board_ahci_low_power }, /* Comet Lake PCH-U AHCI */
 	{ PCI_VDEVICE(INTEL, 0x02d7), board_ahci_low_power }, /* Comet Lake PCH RAID */
-	/* Elkhart Lake IDs 0x4b60 & 0x4b62 https://sata-io.org/product/8803 not tested yet */
+	/* Elkhart Lake IDs 0x4b60 & 0x4b62 https://sata-io.org/product/8803 analt tested yet */
 	{ PCI_VDEVICE(INTEL, 0x4b63), board_ahci_low_power }, /* Elkhart Lake AHCI */
 	{ PCI_VDEVICE(INTEL, 0x7ae2), board_ahci_low_power }, /* Alder Lake-P AHCI */
 
@@ -457,7 +457,7 @@ static const struct pci_device_id ahci_pci_tbl[] = {
 		board_ahci_al },
 	/* AMD */
 	{ PCI_VDEVICE(AMD, 0x7800), board_ahci }, /* AMD Hudson-2 */
-	{ PCI_VDEVICE(AMD, 0x7801), board_ahci_no_debounce_delay }, /* AMD Hudson-2 (AHCI mode) */
+	{ PCI_VDEVICE(AMD, 0x7801), board_ahci_anal_debounce_delay }, /* AMD Hudson-2 (AHCI mode) */
 	{ PCI_VDEVICE(AMD, 0x7900), board_ahci }, /* AMD CZ */
 	{ PCI_VDEVICE(AMD, 0x7901), board_ahci_low_power }, /* AMD Green Sardine */
 	/* AMD is using RAID class only for ahci controllers */
@@ -572,34 +572,34 @@ static const struct pci_device_id ahci_pci_tbl[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL_EXT, 0x9123),
 	  .class = PCI_CLASS_STORAGE_SATA_AHCI,
 	  .class_mask = 0xffffff,
-	  .driver_data = board_ahci_yes_fbs },			/* 88se9128 */
+	  .driver_data = board_ahci_anal_fbs },			/* 88se9128 */
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL_EXT, 0x9125),
-	  .driver_data = board_ahci_yes_fbs },			/* 88se9125 */
+	  .driver_data = board_ahci_anal_fbs },			/* 88se9125 */
 	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_MARVELL_EXT, 0x9178,
 			 PCI_VENDOR_ID_MARVELL_EXT, 0x9170),
-	  .driver_data = board_ahci_yes_fbs },			/* 88se9170 */
+	  .driver_data = board_ahci_anal_fbs },			/* 88se9170 */
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL_EXT, 0x917a),
-	  .driver_data = board_ahci_yes_fbs },			/* 88se9172 */
+	  .driver_data = board_ahci_anal_fbs },			/* 88se9172 */
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL_EXT, 0x9172),
-	  .driver_data = board_ahci_yes_fbs },			/* 88se9182 */
+	  .driver_data = board_ahci_anal_fbs },			/* 88se9182 */
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL_EXT, 0x9182),
-	  .driver_data = board_ahci_yes_fbs },			/* 88se9172 */
+	  .driver_data = board_ahci_anal_fbs },			/* 88se9172 */
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL_EXT, 0x9192),
-	  .driver_data = board_ahci_yes_fbs },			/* 88se9172 on some Gigabyte */
+	  .driver_data = board_ahci_anal_fbs },			/* 88se9172 on some Gigabyte */
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL_EXT, 0x91a0),
-	  .driver_data = board_ahci_yes_fbs },
+	  .driver_data = board_ahci_anal_fbs },
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL_EXT, 0x91a2), 	/* 88se91a2 */
-	  .driver_data = board_ahci_yes_fbs },
+	  .driver_data = board_ahci_anal_fbs },
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL_EXT, 0x91a3),
-	  .driver_data = board_ahci_yes_fbs },
+	  .driver_data = board_ahci_anal_fbs },
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL_EXT, 0x9230),
-	  .driver_data = board_ahci_yes_fbs },
+	  .driver_data = board_ahci_anal_fbs },
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL_EXT, 0x9235),
-	  .driver_data = board_ahci_no_debounce_delay },
+	  .driver_data = board_ahci_anal_debounce_delay },
 	{ PCI_DEVICE(PCI_VENDOR_ID_TTI, 0x0642), /* highpoint rocketraid 642L */
-	  .driver_data = board_ahci_yes_fbs },
+	  .driver_data = board_ahci_anal_fbs },
 	{ PCI_DEVICE(PCI_VENDOR_ID_TTI, 0x0645), /* highpoint rocketraid 644L */
-	  .driver_data = board_ahci_yes_fbs },
+	  .driver_data = board_ahci_anal_fbs },
 
 	/* Promise */
 	{ PCI_VDEVICE(PROMISE, 0x3f20), board_ahci },	/* PDC42819 */
@@ -623,8 +623,8 @@ static const struct pci_device_id ahci_pci_tbl[] = {
 	 * Samsung SSDs found on some macbooks.  NCQ times out if MSI is
 	 * enabled.  https://bugzilla.kernel.org/show_bug.cgi?id=60731
 	 */
-	{ PCI_VDEVICE(SAMSUNG, 0x1600), board_ahci_nomsi },
-	{ PCI_VDEVICE(SAMSUNG, 0xa800), board_ahci_nomsi },
+	{ PCI_VDEVICE(SAMSUNG, 0x1600), board_ahci_analmsi },
+	{ PCI_VDEVICE(SAMSUNG, 0xa800), board_ahci_analmsi },
 
 	/* Enmotus */
 	{ PCI_DEVICE(0x1c44, 0x8000), board_ahci },
@@ -798,16 +798,16 @@ static int ahci_p5wdh_hardreset(struct ata_link *link, unsigned int *class,
 
 	/* The pseudo configuration device on SIMG4726 attached to
 	 * ASUS P5W-DH Deluxe doesn't send signature FIS after
-	 * hardreset if no device is attached to the first downstream
+	 * hardreset if anal device is attached to the first downstream
 	 * port && the pseudo device locks up on SRST w/ PMP==0.  To
 	 * work around this, wait for !BSY only briefly.  If BSY isn't
 	 * cleared, perform CLO and proceed to IDENTIFY (achieved by
-	 * ATA_LFLAG_NO_SRST and ATA_LFLAG_ASSUME_ATA).
+	 * ATA_LFLAG_ANAL_SRST and ATA_LFLAG_ASSUME_ATA).
 	 *
 	 * Wait for two seconds.  Devices attached to downstream port
 	 * which can't process the following IDENTIFY after this will
 	 * have to be reset again.  For most cases, this should
-	 * suffice while making probing snappish enough.
+	 * suffice while making probing snappish eanalugh.
 	 */
 	if (online) {
 		rc = ata_wait_after_reset(link, jiffies + 2 * HZ,
@@ -822,10 +822,10 @@ static int ahci_p5wdh_hardreset(struct ata_link *link, unsigned int *class,
  * ahci_avn_hardreset - attempt more aggressive recovery of Avoton ports.
  *
  * It has been observed with some SSDs that the timing of events in the
- * link synchronization phase can leave the port in a state that can not
+ * link synchronization phase can leave the port in a state that can analt
  * be recovered by a SATA-hard-reset alone.  The failing signature is
  * SStatus.DET stuck at 1 ("Device presence detected but Phy
- * communication not established").  It was found that unloading and
+ * communication analt established").  It was found that unloading and
  * reloading the driver when this problem occurs allows the drive
  * connection to be recovered (DET advanced to 0x3).  The critical
  * component of reloading the driver is that the port state machines are
@@ -851,7 +851,7 @@ static int ahci_avn_hardreset(struct ata_link *link, unsigned int *class,
 	for (i = 0; i < 2; i++) {
 		u16 val;
 		u32 sstatus;
-		int port = ap->port_no;
+		int port = ap->port_anal;
 		struct ata_host *host = ap->host;
 		struct pci_dev *pdev = to_pci_dev(host->dev);
 
@@ -933,7 +933,7 @@ static int ahci_pci_device_suspend(struct device *dev)
 	struct ata_host *host = pci_get_drvdata(pdev);
 	struct ahci_host_priv *hpriv = host->private_data;
 
-	if (hpriv->flags & AHCI_HFLAG_NO_SUSPEND) {
+	if (hpriv->flags & AHCI_HFLAG_ANAL_SUSPEND) {
 		dev_err(&pdev->dev,
 			"BIOS update required for suspend/resume\n");
 		return -EIO;
@@ -985,7 +985,7 @@ static int ahci_configure_dma_masks(struct pci_dev *pdev,
 	}
 
 	/*
-	 * If the device fixup already set the dma_mask to some non-standard
+	 * If the device fixup already set the dma_mask to some analn-standard
 	 * value, don't extend it here. This happens on STA2X11, for example.
 	 *
 	 * XXX: manipulating the DMA mask from platform code is completely
@@ -1014,7 +1014,7 @@ static void ahci_pci_print_info(struct ata_host *host)
 	else if (cc == PCI_CLASS_STORAGE_RAID)
 		scc_s = "RAID";
 	else
-		scc_s = "unknown";
+		scc_s = "unkanalwn";
 
 	ahci_print_info(host, scc_s);
 }
@@ -1026,14 +1026,14 @@ static void ahci_pci_print_info(struct ata_host *host)
  * controller and emulate a single ATA device (can be RAID 0/1 or some
  * other configuration).
  *
- * When there's no device attached to the first downstream port of the
+ * When there's anal device attached to the first downstream port of the
  * 4726, "Config Disk" appears, which is a pseudo ATA device to
  * configure the 4726.  However, ATA emulation of the device is very
  * lame.  It doesn't send signature D2H Reg FIS after the initial
  * hardreset, pukes on SRST w/ PMP==0 and has bunch of other issues.
  *
  * The following function works around the problem by always using
- * hardreset on the port and not depending on receiving signature FIS
+ * hardreset on the port and analt depending on receiving signature FIS
  * afterward.  If signature FIS isn't received soon, ATA class is
  * assumed without follow-up softreset.
  */
@@ -1060,13 +1060,13 @@ static void ahci_p5wdh_workaround(struct ata_host *host)
 			 "enabling ASUS P5W DH Deluxe on-board SIMG4726 workaround\n");
 
 		ap->ops = &ahci_p5wdh_ops;
-		ap->link.flags |= ATA_LFLAG_NO_SRST | ATA_LFLAG_ASSUME_ATA;
+		ap->link.flags |= ATA_LFLAG_ANAL_SRST | ATA_LFLAG_ASSUME_ATA;
 	}
 }
 
 /*
  * Macbook7,1 firmware forcibly disables MCP89 AHCI and changes PCI ID when
- * booting in BIOS compatibility mode.  We restore the registers but not ID.
+ * booting in BIOS compatibility mode.  We restore the registers but analt ID.
  */
 static void ahci_mcp89_apple_enable(struct pci_dev *pdev)
 {
@@ -1076,7 +1076,7 @@ static void ahci_mcp89_apple_enable(struct pci_dev *pdev)
 
 	pci_read_config_dword(pdev, 0xf8, &val);
 	val |= 1 << 0x1b;
-	/* the following changes the device ID, but appears not to affect function */
+	/* the following changes the device ID, but appears analt to affect function */
 	/* val = (val & ~0xf0000000) | 0x80000000; */
 	pci_write_config_dword(pdev, 0xf8, val);
 
@@ -1111,7 +1111,7 @@ static bool ahci_sb600_enable_64bit(struct pci_dev *pdev)
 {
 	static const struct dmi_system_id sysids[] = {
 		/*
-		 * The oldest version known to be broken is 0901 and
+		 * The oldest version kanalwn to be broken is 0901 and
 		 * working is 1501 which was released on 2007-10-26.
 		 * Enable 64bit DMA on 1501 and anything newer.
 		 *
@@ -1265,7 +1265,7 @@ static bool ahci_broken_suspend(struct pci_dev *pdev)
 			.matches = {
 				DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
 				DMI_MATCH(DMI_PRODUCT_NAME,
-					  "HP Pavilion dv4 Notebook PC"),
+					  "HP Pavilion dv4 Analtebook PC"),
 			},
 			.driver_data = "20090105",	/* F.30 */
 		},
@@ -1274,7 +1274,7 @@ static bool ahci_broken_suspend(struct pci_dev *pdev)
 			.matches = {
 				DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
 				DMI_MATCH(DMI_PRODUCT_NAME,
-					  "HP Pavilion dv5 Notebook PC"),
+					  "HP Pavilion dv5 Analtebook PC"),
 			},
 			.driver_data = "20090506",	/* F.16 */
 		},
@@ -1283,7 +1283,7 @@ static bool ahci_broken_suspend(struct pci_dev *pdev)
 			.matches = {
 				DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
 				DMI_MATCH(DMI_PRODUCT_NAME,
-					  "HP Pavilion dv6 Notebook PC"),
+					  "HP Pavilion dv6 Analtebook PC"),
 			},
 			.driver_data = "20090423",	/* F.21 */
 		},
@@ -1292,15 +1292,15 @@ static bool ahci_broken_suspend(struct pci_dev *pdev)
 			.matches = {
 				DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
 				DMI_MATCH(DMI_PRODUCT_NAME,
-					  "HP HDX18 Notebook PC"),
+					  "HP HDX18 Analtebook PC"),
 			},
 			.driver_data = "20090430",	/* F.23 */
 		},
 		/*
 		 * Acer eMachines G725 has the same problem.  BIOS
-		 * V1.03 is known to be broken.  V3.04 is known to
+		 * V1.03 is kanalwn to be broken.  V3.04 is kanalwn to
 		 * work.  Between, there are V1.06, V2.06 and V3.03
-		 * that we don't have much idea about.  For now,
+		 * that we don't have much idea about.  For analw,
 		 * blacklist anything older than V3.04.
 		 *
 		 * http://bugzilla.kernel.org/show_bug.cgi?id=15104
@@ -1331,35 +1331,35 @@ static bool ahci_broken_suspend(struct pci_dev *pdev)
 static bool ahci_broken_lpm(struct pci_dev *pdev)
 {
 	static const struct dmi_system_id sysids[] = {
-		/* Various Lenovo 50 series have LPM issues with older BIOSen */
+		/* Various Leanalvo 50 series have LPM issues with older BIOSen */
 		{
 			.matches = {
-				DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+				DMI_MATCH(DMI_SYS_VENDOR, "LEANALVO"),
 				DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad X250"),
 			},
 			.driver_data = "20180406", /* 1.31 */
 		},
 		{
 			.matches = {
-				DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+				DMI_MATCH(DMI_SYS_VENDOR, "LEANALVO"),
 				DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad L450"),
 			},
 			.driver_data = "20180420", /* 1.28 */
 		},
 		{
 			.matches = {
-				DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+				DMI_MATCH(DMI_SYS_VENDOR, "LEANALVO"),
 				DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad T450s"),
 			},
 			.driver_data = "20180315", /* 1.33 */
 		},
 		{
 			.matches = {
-				DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+				DMI_MATCH(DMI_SYS_VENDOR, "LEANALVO"),
 				DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad W541"),
 			},
 			/*
-			 * Note date based on release notes, 2.35 has been
+			 * Analte date based on release analtes, 2.35 has been
 			 * reported to be good, but I've been unable to get
 			 * a hold of the reporter to get the DMI BIOS date.
 			 * TODO: fix this.
@@ -1391,19 +1391,19 @@ static bool ahci_broken_online(struct pci_dev *pdev)
 		 * SIMG5723s configured as hardware RAID.  Certain
 		 * 5723 firmware revisions shipped there keep the link
 		 * online but fail to answer properly to SRST or
-		 * IDENTIFY when no device is attached downstream
+		 * IDENTIFY when anal device is attached downstream
 		 * causing libata to retry quite a few times leading
 		 * to excessive detection delay.
 		 *
 		 * As these firmwares respond to the second reset try
-		 * with invalid device signature, considering unknown
+		 * with invalid device signature, considering unkanalwn
 		 * sig as offline works around the problem acceptably.
 		 */
 		{
 			.ident = "EP45-DQ6",
 			.matches = {
 				DMI_MATCH(DMI_BOARD_VENDOR,
-					  "Gigabyte Technology Co., Ltd."),
+					  "Gigabyte Techanallogy Co., Ltd."),
 				DMI_MATCH(DMI_BOARD_NAME, "EP45-DQ6"),
 			},
 			.driver_data = ENCODE_BUSDEVFN(0x0a, 0x00, 0),
@@ -1412,7 +1412,7 @@ static bool ahci_broken_online(struct pci_dev *pdev)
 			.ident = "EP45-DS5",
 			.matches = {
 				DMI_MATCH(DMI_BOARD_VENDOR,
-					  "Gigabyte Technology Co., Ltd."),
+					  "Gigabyte Techanallogy Co., Ltd."),
 				DMI_MATCH(DMI_BOARD_NAME, "EP45-DS5"),
 			},
 			.driver_data = ENCODE_BUSDEVFN(0x03, 0x00, 0),
@@ -1450,7 +1450,7 @@ static void ahci_gtf_filter_workaround(struct ata_host *host)
 		 * Aspire 3810T issues a bunch of SATA enable commands
 		 * via _GTF including an invalid one and one which is
 		 * rejected by the device.  Among the successful ones
-		 * is FPDMA non-zero offset enable which when enabled
+		 * is FPDMA analn-zero offset enable which when enabled
 		 * only on the drive side leads to NCQ command
 		 * failures.  Filter it out.
 		 */
@@ -1543,7 +1543,7 @@ static irqreturn_t ahci_thunderx_irq_handler(int irq, void *dev_instance)
 	mmio = hpriv->mmio;
 	irq_stat = readl(mmio + HOST_IRQ_STAT);
 	if (!irq_stat)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	do {
 		irq_masked = irq_stat & hpriv->port_map;
@@ -1599,7 +1599,7 @@ static void ahci_remap_check(struct pci_dev *pdev, int bar,
 	 * Don't rely on the msi-x capability in the remap case,
 	 * share the legacy interrupt across ahci and remapped devices.
 	 */
-	hpriv->flags |= AHCI_HFLAG_NO_MSI;
+	hpriv->flags |= AHCI_HFLAG_ANAL_MSI;
 }
 
 static int ahci_get_irq_vector(struct ata_host *host, int port)
@@ -1612,8 +1612,8 @@ static int ahci_init_msi(struct pci_dev *pdev, unsigned int n_ports,
 {
 	int nvec;
 
-	if (hpriv->flags & AHCI_HFLAG_NO_MSI)
-		return -ENODEV;
+	if (hpriv->flags & AHCI_HFLAG_ANAL_MSI)
+		return -EANALDEV;
 
 	/*
 	 * If number of MSIs is less than number of ports then Sharing Last
@@ -1641,7 +1641,7 @@ static int ahci_init_msi(struct pci_dev *pdev, unsigned int n_ports,
 	}
 
 	/*
-	 * If the host is not capable of supporting per-port vectors, fall
+	 * If the host is analt capable of supporting per-port vectors, fall
 	 * back to single MSI before finally attempting single MSI-X.
 	 */
 	nvec = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_MSI);
@@ -1656,7 +1656,7 @@ static void ahci_update_initial_lpm_policy(struct ata_port *ap,
 	int policy = CONFIG_SATA_MOBILE_LPM_POLICY;
 
 
-	/* Ignore processing for chipsets that don't use policy */
+	/* Iganalre processing for chipsets that don't use policy */
 	if (!(hpriv->flags & AHCI_HFLAG_USE_LPM_POLICY))
 		return;
 
@@ -1674,7 +1674,7 @@ static void ahci_update_initial_lpm_policy(struct ata_port *ap,
 	}
 
 update_policy:
-	if (policy >= ATA_LPM_UNKNOWN && policy <= ATA_LPM_MIN_POWER)
+	if (policy >= ATA_LPM_UNKANALWN && policy <= ATA_LPM_MIN_POWER)
 		ap->target_lpm_policy = policy;
 }
 
@@ -1684,7 +1684,7 @@ static void ahci_intel_pcs_quirk(struct pci_dev *pdev, struct ahci_host_priv *hp
 	u16 tmp16;
 
 	/*
-	 * Only apply the 6-port PCS quirk for known legacy platforms.
+	 * Only apply the 6-port PCS quirk for kanalwn legacy platforms.
 	 */
 	if (!id || id->vendor != PCI_VENDOR_ID_INTEL)
 		return;
@@ -1697,7 +1697,7 @@ static void ahci_intel_pcs_quirk(struct pci_dev *pdev, struct ahci_host_priv *hp
 	 * port_map is determined from PORTS_IMPL PCI register which is
 	 * implemented as write or write-once register.  If the register
 	 * isn't programmed, ahci automatically generates it from number
-	 * of ports, which is good enough for PCS programming. It is
+	 * of ports, which is good eanalugh for PCS programming. It is
 	 * otherwise expected that platform firmware enables the ports
 	 * before the OS boots.
 	 */
@@ -1739,21 +1739,21 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	   can drive them all so if both drivers are selected make sure
 	   AHCI stays out of the way */
 	if (pdev->vendor == PCI_VENDOR_ID_MARVELL && !marvell_enable)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Apple BIOS on MCP89 prevents us using AHCI */
 	if (is_mcp89_apple(pdev))
 		ahci_mcp89_apple_enable(pdev);
 
 	/* Promise's PDC42819 is a SAS/SATA controller that has an AHCI mode.
-	 * At the moment, we can only use the AHCI mode. Let the users know
+	 * At the moment, we can only use the AHCI mode. Let the users kanalw
 	 * that for SAS drives they're out of luck.
 	 */
 	if (pdev->vendor == PCI_VENDOR_ID_PROMISE)
 		dev_info(&pdev->dev,
 			 "PDC42819 can only drive SATA devices with this driver\n");
 
-	/* Some devices use non-standard BARs */
+	/* Some devices use analn-standard BARs */
 	if (pdev->vendor == PCI_VENDOR_ID_STMICRO && pdev->device == 0xCC06)
 		ahci_pci_bar = AHCI_PCI_BAR_STA2X11;
 	else if (pdev->vendor == 0x1c44 && pdev->device == 0x8000)
@@ -1785,7 +1785,7 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		if (map & 0x3) {
 			dev_info(&pdev->dev,
 				 "controller is in combined mode, can't enable AHCI mode\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 
@@ -1800,15 +1800,15 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	hpriv = devm_kzalloc(dev, sizeof(*hpriv), GFP_KERNEL);
 	if (!hpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 	hpriv->flags |= (unsigned long)pi.private_data;
 
 	/* MCP65 revision A1 and A2 can't do MSI */
 	if (board_id == board_ahci_mcp65 &&
 	    (pdev->revision == 0xa1 || pdev->revision == 0xa2))
-		hpriv->flags |= AHCI_HFLAG_NO_MSI;
+		hpriv->flags |= AHCI_HFLAG_ANAL_MSI;
 
-	/* SB800 does NOT need the workaround to ignore SERR_INTERNAL */
+	/* SB800 does ANALT need the workaround to iganalre SERR_INTERNAL */
 	if (board_id == board_ahci_sb700 && pdev->revision >= 0x40)
 		hpriv->flags &= ~AHCI_HFLAG_IGN_SERR_INTERNAL;
 
@@ -1827,13 +1827,13 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* must set flag prior to save config in order to take effect */
 	if (ahci_broken_devslp(pdev))
-		hpriv->flags |= AHCI_HFLAG_NO_DEVSLP;
+		hpriv->flags |= AHCI_HFLAG_ANAL_DEVSLP;
 
 #ifdef CONFIG_ARM64
 	if (pdev->vendor == PCI_VENDOR_ID_HUAWEI &&
 	    pdev->device == 0xa235 &&
 	    pdev->revision < 0x30)
-		hpriv->flags |= AHCI_HFLAG_NO_SXS;
+		hpriv->flags |= AHCI_HFLAG_ANAL_SXS;
 
 	if (pdev->vendor == 0x177d && pdev->device == 0xa01c)
 		hpriv->irq_handler = ahci_thunderx_irq_handler;
@@ -1851,7 +1851,7 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		 * capability, but it seems to be broken on some
 		 * chipsets including NVIDIAs.
 		 */
-		if (!(hpriv->flags & AHCI_HFLAG_NO_FPDMA_AA))
+		if (!(hpriv->flags & AHCI_HFLAG_ANAL_FPDMA_AA))
 			pi.flags |= ATA_FLAG_FPDMA_AA;
 
 		/*
@@ -1869,19 +1869,19 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	ahci_set_em_messages(hpriv, &pi);
 
 	if (ahci_broken_system_poweroff(pdev)) {
-		pi.flags |= ATA_FLAG_NO_POWEROFF_SPINDOWN;
+		pi.flags |= ATA_FLAG_ANAL_POWEROFF_SPINDOWN;
 		dev_info(&pdev->dev,
 			"quirky BIOS, skipping spindown on poweroff\n");
 	}
 
 	if (ahci_broken_lpm(pdev)) {
-		pi.flags |= ATA_FLAG_NO_LPM;
+		pi.flags |= ATA_FLAG_ANAL_LPM;
 		dev_warn(&pdev->dev,
 			 "BIOS update required for Link Power Management support\n");
 	}
 
 	if (ahci_broken_suspend(pdev)) {
-		hpriv->flags |= AHCI_HFLAG_NO_SUSPEND;
+		hpriv->flags |= AHCI_HFLAG_ANAL_SUSPEND;
 		dev_warn(&pdev->dev,
 			 "BIOS update required for suspend/resume\n");
 	}
@@ -1905,7 +1905,7 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	host = ata_host_alloc_pinfo(&pdev->dev, ppi, n_ports);
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 	host->private_data = hpriv;
 
 	if (ahci_init_msi(pdev, n_ports, hpriv) < 0) {
@@ -1914,19 +1914,19 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 	hpriv->irq = pci_irq_vector(pdev, 0);
 
-	if (!(hpriv->cap & HOST_CAP_SSS) || ahci_ignore_sss)
+	if (!(hpriv->cap & HOST_CAP_SSS) || ahci_iganalre_sss)
 		host->flags |= ATA_HOST_PARALLEL_SCAN;
 	else
 		dev_info(&pdev->dev, "SSS flag set, parallel bus scan disabled\n");
 
 	if (!(hpriv->cap & HOST_CAP_PART))
-		host->flags |= ATA_HOST_NO_PART;
+		host->flags |= ATA_HOST_ANAL_PART;
 
 	if (!(hpriv->cap & HOST_CAP_SSC))
-		host->flags |= ATA_HOST_NO_SSC;
+		host->flags |= ATA_HOST_ANAL_SSC;
 
 	if (!(hpriv->cap2 & HOST_CAP2_SDS))
-		host->flags |= ATA_HOST_NO_DEVSLP;
+		host->flags |= ATA_HOST_ANAL_DEVSLP;
 
 	if (pi.flags & ATA_FLAG_EM)
 		ahci_reset_em(host);
@@ -1936,7 +1936,7 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 		ata_port_pbar_desc(ap, ahci_pci_bar, -1, "abar");
 		ata_port_pbar_desc(ap, ahci_pci_bar,
-				   0x100 + ap->port_no * 0x80, "port");
+				   0x100 + ap->port_anal * 0x80, "port");
 
 		/* set enclosure management message type */
 		if (ap->flags & ATA_FLAG_EM)
@@ -1944,7 +1944,7 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 		ahci_update_initial_lpm_policy(ap, hpriv);
 
-		/* disabled/not-implemented port */
+		/* disabled/analt-implemented port */
 		if (!(hpriv->port_map & (1 << i)))
 			ap->ops = &ata_dummy_port_ops;
 	}
@@ -1973,7 +1973,7 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (rc)
 		return rc;
 
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_analidle(&pdev->dev);
 	return 0;
 }
 
@@ -1987,7 +1987,7 @@ static void ahci_remove_one(struct pci_dev *pdev)
 	sysfs_remove_file_from_group(&pdev->dev.kobj,
 				     &dev_attr_remapped_nvme.attr,
 				     NULL);
-	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_get_analresume(&pdev->dev);
 	ata_pci_remove_one(pdev);
 }
 

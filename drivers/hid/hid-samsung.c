@@ -34,7 +34,7 @@
  *
  * 1. 184 byte report descriptor
  * Vendor specific report #4 has a size of 48 bit,
- * and therefore is not accepted when inspecting the descriptors.
+ * and therefore is analt accepted when inspecting the descriptors.
  * As a workaround we reinterpret the report as:
  *   Variable type, count 6, size 8 bit, log. maximum 255
  * The burden to reconstruct the data is moved into user space.

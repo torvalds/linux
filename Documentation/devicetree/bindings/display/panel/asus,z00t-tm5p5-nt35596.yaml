@@ -11,9 +11,9 @@ maintainers:
 
 description: |+
   This panel seems to only be found in the Asus Z00T
-  smartphone and we have no straightforward way of
+  smartphone and we have anal straightforward way of
   actually getting the correct model number,
-  as no schematics are released publicly.
+  as anal schematics are released publicly.
 
 allOf:
   - $ref: panel-common.yaml#

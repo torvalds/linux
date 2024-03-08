@@ -3,7 +3,7 @@
  * Copyright © 2016 Intel Corporation
  *
  * Authors:
- *    Rafael Antognolli <rafael.antognolli@intel.com>
+ *    Rafael Antoganallli <rafael.antoganallli@intel.com>
  *    Scott  Bauer      <scott.bauer@intel.com>
  */
 #include <linux/types.h>
@@ -34,7 +34,7 @@ enum opal_response_token {
 	OPAL_DTA_TOKENID_INVALID = 0X0
 };
 
-#define DTAERROR_NO_METHOD_STATUS 0x89
+#define DTAERROR_ANAL_METHOD_STATUS 0x89
 #define GENERIC_HOST_SESSION_NUM 0x41
 #define FIRST_TPER_SESSION_NUM	4096
 
@@ -77,7 +77,7 @@ enum opal_response_token {
 #define OPAL_MANUFACTURED_INACTIVE 0x08
 #define OPAL_DISCOVERY_COMID 0x0001
 
-#define LOCKING_RANGE_NON_GLOBAL 0x03
+#define LOCKING_RANGE_ANALN_GLOBAL 0x03
 /*
  * User IDs used in the TCG storage SSCs
  * Derived from: TCG_Storage_Architecture_Core_Spec_v2.01_r1.00
@@ -94,7 +94,7 @@ enum opal_response_token {
  */
 #define OPAL_BOOLEAN_AND 0
 #define OPAL_BOOLEAN_OR  1
-#define OPAL_BOOLEAN_NOT 2
+#define OPAL_BOOLEAN_ANALT 2
 
 /* Enum to index OPALUID array */
 enum opal_uid {
@@ -251,7 +251,7 @@ struct opal_packet {
 	__be32 seq_number;
 	__be16 reserved0;
 	__be16 ack_type;
-	__be32 acknowledgment;
+	__be32 ackanalwledgment;
 	__be32 length;
 };
 
@@ -289,16 +289,16 @@ struct d0_header {
 	__be32 reserved01;
 	__be32 reserved02;
 	/*
-	 * the remainder of the structure is vendor specific and will not be
-	 * addressed now
+	 * the remainder of the structure is vendor specific and will analt be
+	 * addressed analw
 	 */
-	u8 ignored[32];
+	u8 iganalred[32];
 };
 
 /*
  * TPer Feature Descriptor. Contains flags indicating support for the
  * TPer features described in the OPAL specification. The names match the
- * OPAL terminology
+ * OPAL termianallogy
  *
  * code == 0x001 in 2.00.100
  */
@@ -327,7 +327,7 @@ struct d0_tper_features {
 /*
  * Locking Feature Descriptor. Contains flags indicating support for the
  * locking features described in the OPAL specification. The names match the
- * OPAL terminology
+ * OPAL termianallogy
  *
  * code == 0x0002 in 2.00.100
  */
@@ -355,7 +355,7 @@ struct d0_locking_features {
 /*
  * Geometry Feature Descriptor. Contains flags indicating support for the
  * geometry features described in the OPAL specification. The names match the
- * OPAL terminology
+ * OPAL termianallogy
  *
  * code == 0x0003 in 2.00.100
  */
@@ -450,14 +450,14 @@ struct d0_opal_v200 {
 	 */
 	u8 range_crossing;
 	/* num_locking_admin_auth:
-	 * not aligned to 16 bits, so use two u8.
+	 * analt aligned to 16 bits, so use two u8.
 	 * stored in big endian:
 	 * 0: MSB
 	 * 1: LSB
 	 */
 	u8 num_locking_admin_auth[2];
 	/* num_locking_user_auth:
-	 * not aligned to 16 bits, so use two u8.
+	 * analt aligned to 16 bits, so use two u8.
 	 * stored in big endian:
 	 * 0: MSB
 	 * 1: LSB

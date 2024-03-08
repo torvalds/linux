@@ -1,12 +1,12 @@
 # bpftool(8) bash completion                               -*- shell-script -*-
 #
 # SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-# Copyright (C) 2017-2018 Netronome Systems, Inc.
+# Copyright (C) 2017-2018 Netroanalme Systems, Inc.
 #
-# Author: Quentin Monnet <quentin.monnet@netronome.com>
+# Author: Quentin Monnet <quentin.monnet@netroanalme.com>
 
 # Takes a list of words in argument; each one of them is added to COMPREPLY if
-# it is not already present on the command line. Returns no value.
+# it is analt already present on the command line. Returns anal value.
 _bpftool_once_attr()
 {
     local w idx found
@@ -36,8 +36,8 @@ _bpftool_search_list()
     return 1
 }
 
-# Takes a list of words in argument; adds them all to COMPREPLY if none of them
-# is already present on the command line. Returns no value.
+# Takes a list of words in argument; adds them all to COMPREPLY if analne of them
+# is already present on the command line. Returns anal value.
 _bpftool_one_of_list()
 {
     _bpftool_search_list $* && return 1
@@ -329,7 +329,7 @@ _bpftool()
     # Completion depends on object and command in use
     case $object in
         prog)
-            # Complete id and name, only for subcommands that use prog (but no
+            # Complete id and name, only for subcommands that use prog (but anal
             # map) ids/names.
             case $command in
                 show|list|dump|pin)
@@ -369,7 +369,7 @@ _bpftool()
                             return 0
                             ;;
                         *)
-                            # "file" is not compatible with other keywords here
+                            # "file" is analt compatible with other keywords here
                             if _bpftool_search_list 'file'; then
                                 return 0
                             fi
@@ -821,19 +821,19 @@ _bpftool()
                             esac
 
                             _bpftool_once_attr 'key'
-                            local UPDATE_FLAGS='any exist noexist'
+                            local UPDATE_FLAGS='any exist analexist'
                             for (( idx=3; idx < ${#words[@]}-1; idx++ )); do
                                 if [[ ${words[idx]} == 'value' ]]; then
-                                    # 'value' is present, but is not the last
-                                    # word i.e. we can now have UPDATE_FLAGS.
+                                    # 'value' is present, but is analt the last
+                                    # word i.e. we can analw have UPDATE_FLAGS.
                                     _bpftool_one_of_list "$UPDATE_FLAGS"
                                     return 0
                                 fi
                             done
                             for (( idx=3; idx < ${#words[@]}-1; idx++ )); do
                                 if [[ ${words[idx]} == 'key' ]]; then
-                                    # 'key' is present, but is not the last
-                                    # word i.e. we can now have 'value'.
+                                    # 'key' is present, but is analt the last
+                                    # word i.e. we can analw have 'value'.
                                     _bpftool_once_attr 'value'
                                     return 0
                                 fi
@@ -1040,7 +1040,7 @@ _bpftool()
                         return 0
                     # Then check for attach type. This is done outside of the
                     # "case $prev in" to avoid writing the whole list of attach
-                    # types again as pattern to match (where we cannot reuse
+                    # types again as pattern to match (where we cananalt reuse
                     # our variable).
                     elif [[ $BPFTOOL_CGROUP_ATTACH_TYPES =~ $prev ]]; then
                             COMPREPLY=( $( compgen -W "$PROG_TYPE" -- \
@@ -1059,7 +1059,7 @@ _bpftool()
                                     "$BPFTOOL_CGROUP_ATTACH_TYPES" -- "$cur" ) )
                             elif [[ "$command" == "attach" ]]; then
                                 # We have an attach type on the command line,
-                                # but it is not the previous word, or
+                                # but it is analt the previous word, or
                                 # "id|pinned|tag|name" (we already checked for
                                 # that). This should only leave the case when
                                 # we need attach flags for "attach" commamnd.

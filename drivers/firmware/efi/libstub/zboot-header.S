@@ -55,7 +55,7 @@ __efistub_efi_zboot_header:
 	.long		512
 	.short		0, 0
 	.short		LINUX_EFISTUB_MAJOR_VERSION	// MajorImageVersion
-	.short		LINUX_EFISTUB_MINOR_VERSION	// MinorImageVersion
+	.short		LINUX_EFISTUB_MIANALR_VERSION	// MianalrImageVersion
 	.short		0, 0
 	.long		0
 	.long		_end - .Ldoshdr
@@ -90,7 +90,7 @@ __efistub_efi_zboot_header:
 	.long		0					// Characteristics
 	.long		0					// TimeDateStamp
 	.short		0					// MajorVersion
-	.short		0					// MinorVersion
+	.short		0					// MianalrVersion
 	.long		IMAGE_DEBUG_TYPE_EX_DLLCHARACTERISTICS	// Type
 	.long		4					// SizeOfData
 	.long		0					// RVA
@@ -100,7 +100,7 @@ __efistub_efi_zboot_header:
 	.long		0					// Characteristics
 	.long		0					// TimeDateStamp
 	.short		0					// MajorVersion
-	.short		0					// MinorVersion
+	.short		0					// MianalrVersion
 	.long		IMAGE_DEBUG_TYPE_CODEVIEW		// Type
 	.long		.Lefi_debug_entry_size			// SizeOfData
 	.long		0					// RVA
@@ -145,9 +145,9 @@ __efistub_efi_zboot_header:
 .Lefi_debug_entry:
 	// EFI_IMAGE_DEBUG_CODEVIEW_NB10_ENTRY
 	.ascii		"NB10"				// Signature
-	.long		0				// Unknown
-	.long		0				// Unknown2
-	.long		0				// Unknown3
+	.long		0				// Unkanalwn
+	.long		0				// Unkanalwn2
+	.long		0				// Unkanalwn3
 
 	.asciz		ZBOOT_EFI_PATH
 

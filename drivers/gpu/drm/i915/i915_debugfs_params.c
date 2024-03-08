@@ -11,7 +11,7 @@
 #include "i915_drv.h"
 #include "i915_params.h"
 
-#define MATCH_DEBUGFS_NODE_NAME(_file, _name) \
+#define MATCH_DEBUGFS_ANALDE_NAME(_file, _name) \
 	(strcmp((_file)->f_path.dentry->d_name.name, (_name)) == 0)
 
 #define GET_I915(i915, name, ptr)	\
@@ -31,12 +31,12 @@ static int i915_param_int_show(struct seq_file *m, void *data)
 	return 0;
 }
 
-static int i915_param_int_open(struct inode *inode, struct file *file)
+static int i915_param_int_open(struct ianalde *ianalde, struct file *file)
 {
-	return single_open(file, i915_param_int_show, inode->i_private);
+	return single_open(file, i915_param_int_show, ianalde->i_private);
 }
 
-static int notify_guc(struct drm_i915_private *i915)
+static int analtify_guc(struct drm_i915_private *i915)
 {
 	struct intel_gt *gt;
 	int i, ret = 0;
@@ -97,9 +97,9 @@ static int i915_param_uint_show(struct seq_file *m, void *data)
 	return 0;
 }
 
-static int i915_param_uint_open(struct inode *inode, struct file *file)
+static int i915_param_uint_open(struct ianalde *ianalde, struct file *file)
 {
-	return single_open(file, i915_param_uint_show, inode->i_private);
+	return single_open(file, i915_param_uint_show, ianalde->i_private);
 }
 
 static ssize_t i915_param_uint_write(struct file *file,
@@ -122,10 +122,10 @@ static ssize_t i915_param_uint_write(struct file *file,
 			*value = b;
 	}
 
-	if (!ret && MATCH_DEBUGFS_NODE_NAME(file, "reset")) {
+	if (!ret && MATCH_DEBUGFS_ANALDE_NAME(file, "reset")) {
 		GET_I915(i915, reset, value);
 
-		ret = notify_guc(i915);
+		ret = analtify_guc(i915);
 		if (ret)
 			*value = old;
 	}
@@ -160,9 +160,9 @@ static int i915_param_charp_show(struct seq_file *m, void *data)
 	return 0;
 }
 
-static int i915_param_charp_open(struct inode *inode, struct file *file)
+static int i915_param_charp_open(struct ianalde *ianalde, struct file *file)
 {
-	return single_open(file, i915_param_charp_show, inode->i_private);
+	return single_open(file, i915_param_charp_show, ianalde->i_private);
 }
 
 static ssize_t i915_param_charp_write(struct file *file,
@@ -247,16 +247,16 @@ i915_debugfs_create_charp(const char *name, umode_t mode,
 /* add a subdirectory with files for each i915 param */
 struct dentry *i915_debugfs_params(struct drm_i915_private *i915)
 {
-	struct drm_minor *minor = i915->drm.primary;
+	struct drm_mianalr *mianalr = i915->drm.primary;
 	struct i915_params *params = &i915->params;
 	struct dentry *dir;
 
-	dir = debugfs_create_dir("i915_params", minor->debugfs_root);
+	dir = debugfs_create_dir("i915_params", mianalr->debugfs_root);
 	if (IS_ERR(dir))
 		return dir;
 
 	/*
-	 * Note: We could create files for params needing special handling
+	 * Analte: We could create files for params needing special handling
 	 * here. Set mode in params to 0 to skip the generic create file, or
 	 * just let the generic create file fail silently with -EEXIST.
 	 */

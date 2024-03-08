@@ -49,7 +49,7 @@ static int bch2_dev_usrdata_drop_key(struct btree_trans *trans,
 	if (!bch2_bkey_has_device_c(k, dev_idx))
 		return 0;
 
-	n = bch2_bkey_make_mut(trans, iter, &k, BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE);
+	n = bch2_bkey_make_mut(trans, iter, &k, BTREE_UPDATE_INTERNAL_SNAPSHOT_ANALDE);
 	ret = PTR_ERR_OR_ZERO(n);
 	if (ret)
 		return ret;
@@ -59,17 +59,17 @@ static int bch2_dev_usrdata_drop_key(struct btree_trans *trans,
 		return ret;
 
 	/*
-	 * If the new extent no longer has any pointers, bch2_extent_normalize()
+	 * If the new extent anal longer has any pointers, bch2_extent_analrmalize()
 	 * will do the appropriate thing with it (turning it into a
 	 * KEY_TYPE_error key, or just a discard if it was a cached extent)
 	 */
-	bch2_extent_normalize(c, bkey_i_to_s(n));
+	bch2_extent_analrmalize(c, bkey_i_to_s(n));
 
 	/*
-	 * Since we're not inserting through an extent iterator
+	 * Since we're analt inserting through an extent iterator
 	 * (BTREE_ITER_ALL_SNAPSHOTS iterators aren't extent iterators),
 	 * we aren't using the extent overwrite path to delete, we're
-	 * just using the normal key deletion path:
+	 * just using the analrmal key deletion path:
 	 */
 	if (bkey_deleted(&n->k))
 		n->k.size = 0;
@@ -88,7 +88,7 @@ static int bch2_dev_usrdata_drop(struct bch_fs *c, unsigned dev_idx, int flags)
 
 		ret = for_each_btree_key_commit(trans, iter, id, POS_MIN,
 				BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS, k,
-				NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
+				NULL, NULL, BCH_TRANS_COMMIT_anal_eanalspc,
 			bch2_dev_usrdata_drop_key(trans, &iter, k, dev_idx, flags));
 		if (ret)
 			break;
@@ -118,12 +118,12 @@ static int bch2_dev_metadata_drop(struct bch_fs *c, unsigned dev_idx, int flags)
 	closure_init_stack(&cl);
 
 	for (id = 0; id < BTREE_ID_NR; id++) {
-		bch2_trans_node_iter_init(trans, &iter, id, POS_MIN, 0, 0,
+		bch2_trans_analde_iter_init(trans, &iter, id, POS_MIN, 0, 0,
 					  BTREE_ITER_PREFETCH);
 retry:
 		ret = 0;
 		while (bch2_trans_begin(trans),
-		       (b = bch2_btree_iter_peek_node(&iter)) &&
+		       (b = bch2_btree_iter_peek_analde(&iter)) &&
 		       !(ret = PTR_ERR_OR_ZERO(b))) {
 			if (!bch2_bkey_has_device_c(bkey_i_to_s_c(&b->key), dev_idx))
 				goto next;
@@ -133,21 +133,21 @@ retry:
 			ret = drop_dev_ptrs(c, bkey_i_to_s(k.k),
 					    dev_idx, flags, true);
 			if (ret) {
-				bch_err(c, "Cannot drop device without losing data");
+				bch_err(c, "Cananalt drop device without losing data");
 				break;
 			}
 
-			ret = bch2_btree_node_update_key(trans, &iter, b, k.k, 0, false);
+			ret = bch2_btree_analde_update_key(trans, &iter, b, k.k, 0, false);
 			if (bch2_err_matches(ret, BCH_ERR_transaction_restart)) {
 				ret = 0;
 				continue;
 			}
 
-			bch_err_msg(c, ret, "updating btree node key");
+			bch_err_msg(c, ret, "updating btree analde key");
 			if (ret)
 				break;
 next:
-			bch2_btree_iter_next_node(&iter);
+			bch2_btree_iter_next_analde(&iter);
 		}
 		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
 			goto retry;

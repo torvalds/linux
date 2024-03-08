@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  linux/fs/isofs/inode.c
+ *  linux/fs/isofs/ianalde.c
  *
  *  (C) 1991  Linus Torvalds - minix filesystem
  *      1992, 1993, 1994  Eric Youngdale Modified for ISO 9660 filesystem.
@@ -8,7 +8,7 @@
  *      1995  Mark Dobie - allow mounting of some weird VideoCDs and PhotoCDs.
  *	1997  Gordon Chaffee - Joliet CDs
  *	1998  Eric Lammerts - ISO 9660 Level 3
- *	2004  Paul Serice - Inode Support pushed out from 4GB to 128GB
+ *	2004  Paul Serice - Ianalde Support pushed out from 4GB to 128GB
  *	2004  Paul Serice - NFS Export Operations
  */
 
@@ -61,53 +61,53 @@ static void isofs_put_super(struct super_block *sb)
 	return;
 }
 
-static int isofs_read_inode(struct inode *, int relocated);
+static int isofs_read_ianalde(struct ianalde *, int relocated);
 static int isofs_statfs (struct dentry *, struct kstatfs *);
 static int isofs_show_options(struct seq_file *, struct dentry *);
 
-static struct kmem_cache *isofs_inode_cachep;
+static struct kmem_cache *isofs_ianalde_cachep;
 
-static struct inode *isofs_alloc_inode(struct super_block *sb)
+static struct ianalde *isofs_alloc_ianalde(struct super_block *sb)
 {
-	struct iso_inode_info *ei;
-	ei = alloc_inode_sb(sb, isofs_inode_cachep, GFP_KERNEL);
+	struct iso_ianalde_info *ei;
+	ei = alloc_ianalde_sb(sb, isofs_ianalde_cachep, GFP_KERNEL);
 	if (!ei)
 		return NULL;
-	return &ei->vfs_inode;
+	return &ei->vfs_ianalde;
 }
 
-static void isofs_free_inode(struct inode *inode)
+static void isofs_free_ianalde(struct ianalde *ianalde)
 {
-	kmem_cache_free(isofs_inode_cachep, ISOFS_I(inode));
+	kmem_cache_free(isofs_ianalde_cachep, ISOFS_I(ianalde));
 }
 
 static void init_once(void *foo)
 {
-	struct iso_inode_info *ei = foo;
+	struct iso_ianalde_info *ei = foo;
 
-	inode_init_once(&ei->vfs_inode);
+	ianalde_init_once(&ei->vfs_ianalde);
 }
 
-static int __init init_inodecache(void)
+static int __init init_ianaldecache(void)
 {
-	isofs_inode_cachep = kmem_cache_create("isofs_inode_cache",
-					sizeof(struct iso_inode_info),
+	isofs_ianalde_cachep = kmem_cache_create("isofs_ianalde_cache",
+					sizeof(struct iso_ianalde_info),
 					0, (SLAB_RECLAIM_ACCOUNT|
 					SLAB_MEM_SPREAD|SLAB_ACCOUNT),
 					init_once);
-	if (!isofs_inode_cachep)
-		return -ENOMEM;
+	if (!isofs_ianalde_cachep)
+		return -EANALMEM;
 	return 0;
 }
 
-static void destroy_inodecache(void)
+static void destroy_ianaldecache(void)
 {
 	/*
-	 * Make sure all delayed rcu free inodes are flushed before we
+	 * Make sure all delayed rcu free ianaldes are flushed before we
 	 * destroy cache.
 	 */
 	rcu_barrier();
-	kmem_cache_destroy(isofs_inode_cachep);
+	kmem_cache_destroy(isofs_ianalde_cachep);
 }
 
 static int isofs_remount(struct super_block *sb, int *flags, char *data)
@@ -119,8 +119,8 @@ static int isofs_remount(struct super_block *sb, int *flags, char *data)
 }
 
 static const struct super_operations isofs_sops = {
-	.alloc_inode	= isofs_alloc_inode,
-	.free_inode	= isofs_free_inode,
+	.alloc_ianalde	= isofs_alloc_ianalde,
+	.free_ianalde	= isofs_free_ianalde,
 	.put_super	= isofs_put_super,
 	.statfs		= isofs_statfs,
 	.remount_fs	= isofs_remount,
@@ -151,7 +151,7 @@ struct iso9660_options{
 	unsigned int cruft:1;
 	unsigned int hide:1;
 	unsigned int showassoc:1;
-	unsigned int nocompress:1;
+	unsigned int analcompress:1;
 	unsigned int overriderockperm:1;
 	unsigned int uid_set:1;
 	unsigned int gid_set:1;
@@ -205,7 +205,7 @@ static int isofs_dentry_cmp_common(
 {
 	int alen, blen;
 
-	/* A filename cannot end in '.' or we treat it like it has none */
+	/* A filename cananalt end in '.' or we treat it like it has analne */
 	alen = name->len;
 	blen = len;
 	if (ms) {
@@ -289,15 +289,15 @@ isofs_dentry_cmpi_ms(const struct dentry *dentry,
 #endif
 
 enum {
-	Opt_block, Opt_check_r, Opt_check_s, Opt_cruft, Opt_gid, Opt_ignore,
-	Opt_iocharset, Opt_map_a, Opt_map_n, Opt_map_o, Opt_mode, Opt_nojoliet,
-	Opt_norock, Opt_sb, Opt_session, Opt_uid, Opt_unhide, Opt_utf8, Opt_err,
-	Opt_nocompress, Opt_hide, Opt_showassoc, Opt_dmode, Opt_overriderockperm,
+	Opt_block, Opt_check_r, Opt_check_s, Opt_cruft, Opt_gid, Opt_iganalre,
+	Opt_iocharset, Opt_map_a, Opt_map_n, Opt_map_o, Opt_mode, Opt_analjoliet,
+	Opt_analrock, Opt_sb, Opt_session, Opt_uid, Opt_unhide, Opt_utf8, Opt_err,
+	Opt_analcompress, Opt_hide, Opt_showassoc, Opt_dmode, Opt_overriderockperm,
 };
 
 static const match_table_t tokens = {
-	{Opt_norock, "norock"},
-	{Opt_nojoliet, "nojoliet"},
+	{Opt_analrock, "analrock"},
+	{Opt_analjoliet, "analjoliet"},
 	{Opt_unhide, "unhide"},
 	{Opt_hide, "hide"},
 	{Opt_showassoc, "showassoc"},
@@ -306,7 +306,7 @@ static const match_table_t tokens = {
 	{Opt_iocharset, "iocharset=%s"},
 	{Opt_map_a, "map=acorn"},
 	{Opt_map_a, "map=a"},
-	{Opt_map_n, "map=normal"},
+	{Opt_map_n, "map=analrmal"},
 	{Opt_map_n, "map=n"},
 	{Opt_map_o, "map=off"},
 	{Opt_map_o, "map=o"},
@@ -322,15 +322,15 @@ static const match_table_t tokens = {
 	{Opt_dmode, "dmode=%u"},
 	{Opt_overriderockperm, "overriderockperm"},
 	{Opt_block, "block=%u"},
-	{Opt_ignore, "conv=binary"},
-	{Opt_ignore, "conv=b"},
-	{Opt_ignore, "conv=text"},
-	{Opt_ignore, "conv=t"},
-	{Opt_ignore, "conv=mtext"},
-	{Opt_ignore, "conv=m"},
-	{Opt_ignore, "conv=auto"},
-	{Opt_ignore, "conv=a"},
-	{Opt_nocompress, "nocompress"},
+	{Opt_iganalre, "conv=binary"},
+	{Opt_iganalre, "conv=b"},
+	{Opt_iganalre, "conv=text"},
+	{Opt_iganalre, "conv=t"},
+	{Opt_iganalre, "conv=mtext"},
+	{Opt_iganalre, "conv=m"},
+	{Opt_iganalre, "conv=auto"},
+	{Opt_iganalre, "conv=a"},
+	{Opt_analcompress, "analcompress"},
 	{Opt_err, NULL}
 };
 
@@ -347,7 +347,7 @@ static int parse_options(char *options, struct iso9660_options *popt)
 	popt->hide = 0;
 	popt->showassoc = 0;
 	popt->check = 'u';		/* unset */
-	popt->nocompress = 0;
+	popt->analcompress = 0;
 	popt->blocksize = 1024;
 	popt->fmode = popt->dmode = ISOFS_INVALID_MODE;
 	popt->uid_set = 0;
@@ -371,10 +371,10 @@ static int parse_options(char *options, struct iso9660_options *popt)
 
 		token = match_token(p, tokens, args);
 		switch (token) {
-		case Opt_norock:
+		case Opt_analrock:
 			popt->rock = 0;
 			break;
-		case Opt_nojoliet:
+		case Opt_analjoliet:
 			popt->joliet = 0;
 			break;
 		case Opt_hide:
@@ -433,7 +433,7 @@ static int parse_options(char *options, struct iso9660_options *popt)
 		case Opt_check_s:
 			popt->check = 's';
 			break;
-		case Opt_ignore:
+		case Opt_iganalre:
 			break;
 		case Opt_uid:
 			if (match_uint(&args[0], &uv))
@@ -472,8 +472,8 @@ static int parse_options(char *options, struct iso9660_options *popt)
 				return 0;
 			popt->blocksize = n;
 			break;
-		case Opt_nocompress:
-			popt->nocompress = 1;
+		case Opt_analcompress:
+			popt->analcompress = 1;
 			break;
 		default:
 			return 0;
@@ -489,11 +489,11 @@ static int isofs_show_options(struct seq_file *m, struct dentry *root)
 {
 	struct isofs_sb_info *sbi = ISOFS_SB(root->d_sb);
 
-	if (!sbi->s_rock)		seq_puts(m, ",norock");
-	else if (!sbi->s_joliet_level)	seq_puts(m, ",nojoliet");
+	if (!sbi->s_rock)		seq_puts(m, ",analrock");
+	else if (!sbi->s_joliet_level)	seq_puts(m, ",analjoliet");
 	if (sbi->s_cruft)		seq_puts(m, ",cruft");
 	if (sbi->s_hide)		seq_puts(m, ",hide");
-	if (sbi->s_nocompress)		seq_puts(m, ",nocompress");
+	if (sbi->s_analcompress)		seq_puts(m, ",analcompress");
 	if (sbi->s_overriderockperm)	seq_puts(m, ",overriderockperm");
 	if (sbi->s_showassoc)		seq_puts(m, ",showassoc");
 
@@ -529,16 +529,16 @@ static int isofs_show_options(struct seq_file *m, struct dentry *root)
 /*
  * look if the driver can tell the multi session redirection value
  *
- * don't change this if you don't know what you do, please!
+ * don't change this if you don't kanalw what you do, please!
  * Multisession is legal only with XA disks.
- * A non-XA disk with more than one volume descriptor may do it right, but
- * usually is written in a nowhere standardized "multi-partition" manner.
+ * A analn-XA disk with more than one volume descriptor may do it right, but
+ * usually is written in a analwhere standardized "multi-partition" manner.
  * Multisession uses absolute addressing (solely the first frame of the whole
  * track is #0), multi-partition uses relative addressing (each first frame of
- * each track is #0), and a track is not a session.
+ * each track is #0), and a track is analt a session.
  *
- * A broken CDwriter software or drive firmware does not set new standards,
- * at least not if conflicting with the existing ones.
+ * A broken CDwriter software or drive firmware does analt set new standards,
+ * at least analt if conflicting with the existing ones.
  *
  * emoenke@gwdg.de
  */
@@ -589,7 +589,7 @@ static unsigned int isofs_get_last_session(struct super_block *sb, s32 session)
  *
  * Used to detect broken CDs where ISO root directory is empty but Joliet root
  * directory is OK. If such CD has Rock Ridge extensions, they will be disabled
- * (and Joliet used instead) or else no files would be visible.
+ * (and Joliet used instead) or else anal files would be visible.
  */
 static bool rootdir_empty(struct super_block *sb, unsigned long block)
 {
@@ -613,7 +613,7 @@ static bool rootdir_empty(struct super_block *sb, unsigned long block)
 }
 
 /*
- * Initialize the superblock and read the root inode.
+ * Initialize the superblock and read the root ianalde.
  */
 static int isofs_fill_super(struct super_block *s, void *data, int silent)
 {
@@ -622,7 +622,7 @@ static int isofs_fill_super(struct super_block *s, void *data, int silent)
 	struct iso_primary_descriptor *pri = NULL;
 	struct iso_supplementary_descriptor *sec = NULL;
 	struct iso_directory_record *rootp;
-	struct inode *inode;
+	struct ianalde *ianalde;
 	struct iso9660_options opt;
 	struct isofs_sb_info *sbi;
 	unsigned long first_data_zone;
@@ -634,7 +634,7 @@ static int isofs_fill_super(struct super_block *s, void *data, int silent)
 
 	sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
 	if (!sbi)
-		return -ENOMEM;
+		return -EANALMEM;
 	s->s_fs_info = sbi;
 
 	if (!parse_options((char *)data, &opt))
@@ -642,7 +642,7 @@ static int isofs_fill_super(struct super_block *s, void *data, int silent)
 
 	/*
 	 * First of all, get the hardware blocksize for this device.
-	 * If we don't know what it is, or the hardware blocksize is
+	 * If we don't kanalw what it is, or the hardware blocksize is
 	 * larger than the blocksize the user specified, then use
 	 * that value.
 	 */
@@ -671,7 +671,7 @@ static int isofs_fill_super(struct super_block *s, void *data, int silent)
 
 		block = iso_blknum << (ISOFS_BLOCK_BITS - s->s_blocksize_bits);
 		if (!(bh = sb_bread(s, block)))
-			goto out_no_read;
+			goto out_anal_read;
 
 		vdp = (struct iso_volume_descriptor *)bh->b_data;
 		hdp = (struct hs_volume_descriptor *)bh->b_data;
@@ -710,7 +710,7 @@ static int isofs_fill_super(struct super_block *s, void *data, int silent)
 					}
 					goto root_found;
 				} else {
-				/* Unknown supplementary volume descriptor */
+				/* Unkanalwn supplementary volume descriptor */
 				sec = NULL;
 				}
 			}
@@ -733,11 +733,11 @@ static int isofs_fill_super(struct super_block *s, void *data, int silent)
 		bh = NULL;
 	}
 	/*
-	 * If we fall through, either no volume descriptor was found,
+	 * If we fall through, either anal volume descriptor was found,
 	 * or else we passed a primary descriptor looking for others.
 	 */
 	if (!pri)
-		goto out_unknown_format;
+		goto out_unkanalwn_format;
 	brelse(bh);
 	bh = pri_bh;
 	pri_bh = NULL;
@@ -750,7 +750,7 @@ root_found:
 	}
 
 	if (joliet_level && (!pri || !opt.rock)) {
-		/* This is the case of Joliet with the norock mount flag.
+		/* This is the case of Joliet with the analrock mount flag.
 		 * A disc with both Joliet and Rock Ridge is handled later
 		 */
 		pri = (struct iso_primary_descriptor *) sec;
@@ -770,7 +770,7 @@ root_found:
 		sbi->s_max_size = isonum_733(pri->volume_space_size);
 	}
 
-	sbi->s_ninodes = 0; /* No way to figure this out easily */
+	sbi->s_nianaldes = 0; /* Anal way to figure this out easily */
 
 	orig_zonesize = sbi->s_log_zone_size;
 	/*
@@ -805,7 +805,7 @@ root_found:
 	s->s_time_min = mktime64(1900, 1, 1, 0, 0, 0) - MAX_TZ_OFFSET;
 	s->s_time_max = mktime64(U8_MAX+1900, 12, 31, 23, 59, 59) + MAX_TZ_OFFSET;
 
-	/* Set this for reference. Its not currently used except on write
+	/* Set this for reference. Its analt currently used except on write
 	   which we don't have .. */
 
 	first_data_zone = isonum_733(rootp->extent) +
@@ -822,7 +822,7 @@ root_found:
 	/*
 	 * If the Joliet level is set, we _may_ decide to use the
 	 * secondary descriptor, but can't be sure until after we
-	 * read the root inode. But before reading the root inode
+	 * read the root ianalde. But before reading the root ianalde
 	 * we may need to change the device blocksize, and would
 	 * rather release the old buffer first. So, we cache the
 	 * first_data_zone value from the secondary descriptor.
@@ -837,7 +837,7 @@ root_found:
 
 	/*
 	 * We're all done using the volume descriptor, and may need
-	 * to change the device blocksize, so release the buffer now.
+	 * to change the device blocksize, so release the buffer analw.
 	 */
 	brelse(pri_bh);
 	brelse(bh);
@@ -847,12 +847,12 @@ root_found:
 	 * read primitives really get it wrong in a bad way if we don't
 	 * do this.
 	 *
-	 * Note - we should never be setting the blocksize to something
+	 * Analte - we should never be setting the blocksize to something
 	 * less than the hardware sector size for the device.  If we
 	 * do, we would end up having to read larger buffers and split
 	 * out portions to satisfy requests.
 	 *
-	 * Note2- the idea here is that we want to deal with the optimal
+	 * Analte2- the idea here is that we want to deal with the optimal
 	 * zonesize in the filesystem.  If we have it set to something less,
 	 * then we have horrible problems with trying to piece together
 	 * bits of adjacent blocks in order to properly read directory
@@ -886,7 +886,7 @@ root_found:
 	sbi->s_gid = opt.gid;
 	sbi->s_uid_set = opt.uid_set;
 	sbi->s_gid_set = opt.gid_set;
-	sbi->s_nocompress = opt.nocompress;
+	sbi->s_analcompress = opt.analcompress;
 	sbi->s_overriderockperm = opt.overriderockperm;
 	/*
 	 * It would be incredibly stupid to allow people to mark every file
@@ -903,13 +903,13 @@ root_found:
 		sbi->s_dmode = ISOFS_INVALID_MODE;
 
 	/*
-	 * Read the root inode, which _may_ result in changing
+	 * Read the root ianalde, which _may_ result in changing
 	 * the s_rock flag. Once we have the final s_rock value,
 	 * we then decide whether to use the Joliet descriptor.
 	 */
-	inode = isofs_iget(s, sbi->s_firstdatazone, 0);
-	if (IS_ERR(inode))
-		goto out_no_root;
+	ianalde = isofs_iget(s, sbi->s_firstdatazone, 0);
+	if (IS_ERR(ianalde))
+		goto out_anal_root;
 
 	/*
 	 * Fix for broken CDs with Rock Ridge and empty ISO root directory but
@@ -917,7 +917,7 @@ root_found:
 	 */
 	if (sbi->s_rock == 1 && joliet_level &&
 				rootdir_empty(s, sbi->s_firstdatazone)) {
-		printk(KERN_NOTICE
+		printk(KERN_ANALTICE
 			"ISOFS: primary root directory is empty. "
 			"Disabling Rock Ridge and switching to Joliet.");
 		sbi->s_rock = 0;
@@ -926,10 +926,10 @@ root_found:
 	/*
 	 * If this disk has both Rock Ridge and Joliet on it, then we
 	 * want to use Rock Ridge by default.  This can be overridden
-	 * by using the norock mount option.  There is still one other
-	 * possibility that is not taken into account: a Rock Ridge
+	 * by using the analrock mount option.  There is still one other
+	 * possibility that is analt taken into account: a Rock Ridge
 	 * CD with Unicode names.  Until someone sees such a beast, it
-	 * will not be supported.
+	 * will analt be supported.
 	 */
 	if (sbi->s_rock == 1) {
 		joliet_level = 0;
@@ -939,10 +939,10 @@ root_found:
 			sbi->s_firstdatazone = first_data_zone;
 			printk(KERN_DEBUG
 				"ISOFS: changing to secondary root\n");
-			iput(inode);
-			inode = isofs_iget(s, sbi->s_firstdatazone, 0);
-			if (IS_ERR(inode))
-				goto out_no_root;
+			iput(ianalde);
+			ianalde = isofs_iget(s, sbi->s_firstdatazone, 0);
+			if (IS_ERR(ianalde))
+				goto out_anal_root;
 		}
 	}
 
@@ -955,10 +955,10 @@ root_found:
 	}
 	sbi->s_joliet_level = joliet_level;
 
-	/* Make sure the root inode is a directory */
-	if (!S_ISDIR(inode->i_mode)) {
+	/* Make sure the root ianalde is a directory */
+	if (!S_ISDIR(ianalde->i_mode)) {
 		printk(KERN_WARNING
-			"isofs_fill_super: root inode is not a directory. "
+			"isofs_fill_super: root ianalde is analt a directory. "
 			"Corrupted media?\n");
 		goto out_iput;
 	}
@@ -974,10 +974,10 @@ root_found:
 		s->s_d_op = &isofs_dentry_ops[table - 1];
 
 	/* get the root dentry */
-	s->s_root = d_make_root(inode);
+	s->s_root = d_make_root(ianalde);
 	if (!(s->s_root)) {
-		error = -ENOMEM;
-		goto out_no_inode;
+		error = -EANALMEM;
+		goto out_anal_ianalde;
 	}
 
 	kfree(opt.iocharset);
@@ -988,18 +988,18 @@ root_found:
 	 * Display error messages and free resources.
 	 */
 out_iput:
-	iput(inode);
-	goto out_no_inode;
-out_no_root:
-	error = PTR_ERR(inode);
-	if (error != -ENOMEM)
-		printk(KERN_WARNING "%s: get root inode failed\n", __func__);
-out_no_inode:
+	iput(ianalde);
+	goto out_anal_ianalde;
+out_anal_root:
+	error = PTR_ERR(ianalde);
+	if (error != -EANALMEM)
+		printk(KERN_WARNING "%s: get root ianalde failed\n", __func__);
+out_anal_ianalde:
 #ifdef CONFIG_JOLIET
 	unload_nls(sbi->s_nls_iocharset);
 #endif
 	goto out_freesbi;
-out_no_read:
+out_anal_read:
 	printk(KERN_WARNING "%s: bread failed, dev=%s, iso_blknum=%d, block=%d\n",
 		__func__, s->s_id, iso_blknum, block);
 	goto out_freebh;
@@ -1011,7 +1011,7 @@ out_bad_size:
 	printk(KERN_WARNING "ISOFS: Logical zone size(%d) < hardware blocksize(%u)\n",
 		orig_zonesize, opt.blocksize);
 	goto out_freebh;
-out_unknown_format:
+out_unkanalwn_format:
 	if (!silent)
 		printk(KERN_WARNING "ISOFS: Unable to identify CD-ROM format.\n");
 
@@ -1036,7 +1036,7 @@ static int isofs_statfs (struct dentry *dentry, struct kstatfs *buf)
 		<< (ISOFS_SB(sb)->s_log_zone_size - sb->s_blocksize_bits));
 	buf->f_bfree = 0;
 	buf->f_bavail = 0;
-	buf->f_files = ISOFS_SB(sb)->s_ninodes;
+	buf->f_files = ISOFS_SB(sb)->s_nianaldes;
 	buf->f_ffree = 0;
 	buf->f_fsid = u64_to_fsid(id);
 	buf->f_namelen = NAME_MAX;
@@ -1045,10 +1045,10 @@ static int isofs_statfs (struct dentry *dentry, struct kstatfs *buf)
 
 /*
  * Get a set of blocks; filling in buffer_heads if already allocated
- * or getblk() if they are not.  Returns the number of blocks inserted
+ * or getblk() if they are analt.  Returns the number of blocks inserted
  * (-ve == error.)
  */
-int isofs_get_blocks(struct inode *inode, sector_t iblock,
+int isofs_get_blocks(struct ianalde *ianalde, sector_t iblock,
 		     struct buffer_head **bh, unsigned long nblocks)
 {
 	unsigned long b_off = iblock;
@@ -1056,7 +1056,7 @@ int isofs_get_blocks(struct inode *inode, sector_t iblock,
 	unsigned int firstext;
 	unsigned long nextblk, nextoff;
 	int section, rv, error;
-	struct iso_inode_info *ei = ISOFS_I(inode);
+	struct iso_ianalde_info *ei = ISOFS_I(ianalde);
 
 	error = -EIO;
 	rv = 0;
@@ -1068,7 +1068,7 @@ int isofs_get_blocks(struct inode *inode, sector_t iblock,
 
 	offset = 0;
 	firstext = ei->i_first_extent;
-	sect_size = ei->i_section_size >> ISOFS_BUFFER_BITS(inode);
+	sect_size = ei->i_section_size >> ISOFS_BUFFER_BITS(ianalde);
 	nextblk = ei->i_next_section_block;
 	nextoff = ei->i_next_section_offset;
 	section = 0;
@@ -1076,15 +1076,15 @@ int isofs_get_blocks(struct inode *inode, sector_t iblock,
 	while (nblocks) {
 		/* If we are *way* beyond the end of the file, print a message.
 		 * Access beyond the end of the file up to the next page boundary
-		 * is normal, however because of the way the page cache works.
+		 * is analrmal, however because of the way the page cache works.
 		 * In this case, we just return 0 so that we can properly fill
 		 * the page with useless information without generating any
 		 * I/O errors.
 		 */
-		if (b_off > ((inode->i_size + PAGE_SIZE - 1) >> ISOFS_BUFFER_BITS(inode))) {
+		if (b_off > ((ianalde->i_size + PAGE_SIZE - 1) >> ISOFS_BUFFER_BITS(ianalde))) {
 			printk(KERN_DEBUG "%s: block >= EOF (%lu, %llu)\n",
 				__func__, b_off,
-				(unsigned long long)inode->i_size);
+				(unsigned long long)ianalde->i_size);
 			goto abort;
 		}
 
@@ -1093,19 +1093,19 @@ int isofs_get_blocks(struct inode *inode, sector_t iblock,
 		 * end of the file will reach beyond the section size, too.
 		 */
 		while (nextblk && (b_off >= (offset + sect_size))) {
-			struct inode *ninode;
+			struct ianalde *nianalde;
 
 			offset += sect_size;
-			ninode = isofs_iget(inode->i_sb, nextblk, nextoff);
-			if (IS_ERR(ninode)) {
-				error = PTR_ERR(ninode);
+			nianalde = isofs_iget(ianalde->i_sb, nextblk, nextoff);
+			if (IS_ERR(nianalde)) {
+				error = PTR_ERR(nianalde);
 				goto abort;
 			}
-			firstext  = ISOFS_I(ninode)->i_first_extent;
-			sect_size = ISOFS_I(ninode)->i_section_size >> ISOFS_BUFFER_BITS(ninode);
-			nextblk   = ISOFS_I(ninode)->i_next_section_block;
-			nextoff   = ISOFS_I(ninode)->i_next_section_offset;
-			iput(ninode);
+			firstext  = ISOFS_I(nianalde)->i_first_extent;
+			sect_size = ISOFS_I(nianalde)->i_section_size >> ISOFS_BUFFER_BITS(nianalde);
+			nextblk   = ISOFS_I(nianalde)->i_next_section_block;
+			nextoff   = ISOFS_I(nianalde)->i_next_section_offset;
+			iput(nianalde);
 
 			if (++section > 100) {
 				printk(KERN_DEBUG "%s: More than 100 file sections ?!?"
@@ -1119,9 +1119,9 @@ int isofs_get_blocks(struct inode *inode, sector_t iblock,
 		}
 
 		if (*bh) {
-			map_bh(*bh, inode->i_sb, firstext + b_off - offset);
+			map_bh(*bh, ianalde->i_sb, firstext + b_off - offset);
 		} else {
-			*bh = sb_getblk(inode->i_sb, firstext+b_off-offset);
+			*bh = sb_getblk(ianalde->i_sb, firstext+b_off-offset);
 			if (!*bh)
 				goto abort;
 		}
@@ -1139,7 +1139,7 @@ abort:
 /*
  * Used by the standard interfaces.
  */
-static int isofs_get_block(struct inode *inode, sector_t iblock,
+static int isofs_get_block(struct ianalde *ianalde, sector_t iblock,
 		    struct buffer_head *bh_result, int create)
 {
 	int ret;
@@ -1149,29 +1149,29 @@ static int isofs_get_block(struct inode *inode, sector_t iblock,
 		return -EROFS;
 	}
 
-	ret = isofs_get_blocks(inode, iblock, &bh_result, 1);
+	ret = isofs_get_blocks(ianalde, iblock, &bh_result, 1);
 	return ret < 0 ? ret : 0;
 }
 
-static int isofs_bmap(struct inode *inode, sector_t block)
+static int isofs_bmap(struct ianalde *ianalde, sector_t block)
 {
 	struct buffer_head dummy;
 	int error;
 
 	dummy.b_state = 0;
 	dummy.b_blocknr = -1000;
-	error = isofs_get_block(inode, block, &dummy, 0);
+	error = isofs_get_block(ianalde, block, &dummy, 0);
 	if (!error)
 		return dummy.b_blocknr;
 	return 0;
 }
 
-struct buffer_head *isofs_bread(struct inode *inode, sector_t block)
+struct buffer_head *isofs_bread(struct ianalde *ianalde, sector_t block)
 {
-	sector_t blknr = isofs_bmap(inode, block);
+	sector_t blknr = isofs_bmap(ianalde, block);
 	if (!blknr)
 		return NULL;
-	return sb_bread(inode->i_sb, blknr);
+	return sb_bread(ianalde->i_sb, blknr);
 }
 
 static int isofs_read_folio(struct file *file, struct folio *folio)
@@ -1195,21 +1195,21 @@ static const struct address_space_operations isofs_aops = {
 	.bmap = _isofs_bmap
 };
 
-static int isofs_read_level3_size(struct inode *inode)
+static int isofs_read_level3_size(struct ianalde *ianalde)
 {
-	unsigned long bufsize = ISOFS_BUFFER_SIZE(inode);
-	int high_sierra = ISOFS_SB(inode->i_sb)->s_high_sierra;
+	unsigned long bufsize = ISOFS_BUFFER_SIZE(ianalde);
+	int high_sierra = ISOFS_SB(ianalde->i_sb)->s_high_sierra;
 	struct buffer_head *bh = NULL;
 	unsigned long block, offset, block_saved, offset_saved;
 	int i = 0;
 	int more_entries = 0;
 	struct iso_directory_record *tmpde = NULL;
-	struct iso_inode_info *ei = ISOFS_I(inode);
+	struct iso_ianalde_info *ei = ISOFS_I(ianalde);
 
-	inode->i_size = 0;
+	ianalde->i_size = 0;
 
 	/* The first 16 blocks are reserved as the System Area.  Thus,
-	 * no inodes can appear in block 0.  We use this to flag that
+	 * anal ianaldes can appear in block 0.  We use this to flag that
 	 * this is the last section. */
 	ei->i_next_section_block = 0;
 	ei->i_next_section_offset = 0;
@@ -1222,9 +1222,9 @@ static int isofs_read_level3_size(struct inode *inode)
 		unsigned int de_len;
 
 		if (!bh) {
-			bh = sb_bread(inode->i_sb, block);
+			bh = sb_bread(ianalde->i_sb, block);
 			if (!bh)
-				goto out_noread;
+				goto out_analread;
 		}
 		de = (struct iso_directory_record *) (bh->b_data + offset);
 		de_len = *(unsigned char *) de;
@@ -1247,7 +1247,7 @@ static int isofs_read_level3_size(struct inode *inode)
 			if (!tmpde) {
 				tmpde = kmalloc(256, GFP_KERNEL);
 				if (!tmpde)
-					goto out_nomem;
+					goto out_analmem;
 			}
 			memcpy(tmpde, de, slop);
 			offset &= bufsize - 1;
@@ -1255,15 +1255,15 @@ static int isofs_read_level3_size(struct inode *inode)
 			brelse(bh);
 			bh = NULL;
 			if (offset) {
-				bh = sb_bread(inode->i_sb, block);
+				bh = sb_bread(ianalde->i_sb, block);
 				if (!bh)
-					goto out_noread;
+					goto out_analread;
 				memcpy((void *)tmpde+slop, bh->b_data, offset);
 			}
 			de = tmpde;
 		}
 
-		inode->i_size += isonum_733(de->size);
+		ianalde->i_size += isonum_733(de->size);
 		if (i == 1) {
 			ei->i_next_section_block = block_saved;
 			ei->i_next_section_offset = offset_saved;
@@ -1280,27 +1280,27 @@ out:
 	brelse(bh);
 	return 0;
 
-out_nomem:
+out_analmem:
 	brelse(bh);
-	return -ENOMEM;
+	return -EANALMEM;
 
-out_noread:
-	printk(KERN_INFO "ISOFS: unable to read i-node block %lu\n", block);
+out_analread:
+	printk(KERN_INFO "ISOFS: unable to read i-analde block %lu\n", block);
 	kfree(tmpde);
 	return -EIO;
 
 out_toomany:
 	printk(KERN_INFO "%s: More than 100 file sections ?!?, aborting...\n"
-		"isofs_read_level3_size: inode=%lu\n",
-		__func__, inode->i_ino);
+		"isofs_read_level3_size: ianalde=%lu\n",
+		__func__, ianalde->i_ianal);
 	goto out;
 }
 
-static int isofs_read_inode(struct inode *inode, int relocated)
+static int isofs_read_ianalde(struct ianalde *ianalde, int relocated)
 {
-	struct super_block *sb = inode->i_sb;
+	struct super_block *sb = ianalde->i_sb;
 	struct isofs_sb_info *sbi = ISOFS_SB(sb);
-	unsigned long bufsize = ISOFS_BUFFER_SIZE(inode);
+	unsigned long bufsize = ISOFS_BUFFER_SIZE(ianalde);
 	unsigned long block;
 	int high_sierra = sbi->s_high_sierra;
 	struct buffer_head *bh;
@@ -1308,11 +1308,11 @@ static int isofs_read_inode(struct inode *inode, int relocated)
 	struct iso_directory_record *tmpde = NULL;
 	unsigned int de_len;
 	unsigned long offset;
-	struct iso_inode_info *ei = ISOFS_I(inode);
+	struct iso_ianalde_info *ei = ISOFS_I(ianalde);
 	int ret = -EIO;
 
 	block = ei->i_iget5_block;
-	bh = sb_bread(inode->i_sb, block);
+	bh = sb_bread(ianalde->i_sb, block);
 	if (!bh)
 		goto out_badread;
 
@@ -1328,32 +1328,32 @@ static int isofs_read_inode(struct inode *inode, int relocated)
 
 		tmpde = kmalloc(de_len, GFP_KERNEL);
 		if (!tmpde) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto fail;
 		}
 		memcpy(tmpde, bh->b_data + offset, frag1);
 		brelse(bh);
-		bh = sb_bread(inode->i_sb, ++block);
+		bh = sb_bread(ianalde->i_sb, ++block);
 		if (!bh)
 			goto out_badread;
 		memcpy((char *)tmpde+frag1, bh->b_data, de_len - frag1);
 		de = tmpde;
 	}
 
-	inode->i_ino = isofs_get_ino(ei->i_iget5_block,
+	ianalde->i_ianal = isofs_get_ianal(ei->i_iget5_block,
 					ei->i_iget5_offset,
-					ISOFS_BUFFER_BITS(inode));
+					ISOFS_BUFFER_BITS(ianalde));
 
-	/* Assume it is a normal-format file unless told otherwise */
-	ei->i_file_format = isofs_file_normal;
+	/* Assume it is a analrmal-format file unless told otherwise */
+	ei->i_file_format = isofs_file_analrmal;
 
 	if (de->flags[-high_sierra] & 2) {
 		if (sbi->s_dmode != ISOFS_INVALID_MODE)
-			inode->i_mode = S_IFDIR | sbi->s_dmode;
+			ianalde->i_mode = S_IFDIR | sbi->s_dmode;
 		else
-			inode->i_mode = S_IFDIR | S_IRUGO | S_IXUGO;
-		set_nlink(inode, 1);	/*
-					 * Set to 1.  We know there are 2, but
+			ianalde->i_mode = S_IFDIR | S_IRUGO | S_IXUGO;
+		set_nlink(ianalde, 1);	/*
+					 * Set to 1.  We kanalw there are 2, but
 					 * the find utility tries to optimize
 					 * if it is 2, and it screws up.  It is
 					 * easier to give 1 which tells find to
@@ -1361,20 +1361,20 @@ static int isofs_read_inode(struct inode *inode, int relocated)
 					 */
 	} else {
 		if (sbi->s_fmode != ISOFS_INVALID_MODE) {
-			inode->i_mode = S_IFREG | sbi->s_fmode;
+			ianalde->i_mode = S_IFREG | sbi->s_fmode;
 		} else {
 			/*
 			 * Set default permissions: r-x for all.  The disc
 			 * could be shared with DOS machines so virtually
 			 * anything could be a valid executable.
 			 */
-			inode->i_mode = S_IFREG | S_IRUGO | S_IXUGO;
+			ianalde->i_mode = S_IFREG | S_IRUGO | S_IXUGO;
 		}
-		set_nlink(inode, 1);
+		set_nlink(ianalde, 1);
 	}
-	inode->i_uid = sbi->s_uid;
-	inode->i_gid = sbi->s_gid;
-	inode->i_blocks = 0;
+	ianalde->i_uid = sbi->s_uid;
+	ianalde->i_gid = sbi->s_gid;
+	ianalde->i_blocks = 0;
 
 	ei->i_format_parm[0] = 0;
 	ei->i_format_parm[1] = 0;
@@ -1382,14 +1382,14 @@ static int isofs_read_inode(struct inode *inode, int relocated)
 
 	ei->i_section_size = isonum_733(de->size);
 	if (de->flags[-high_sierra] & 0x80) {
-		ret = isofs_read_level3_size(inode);
+		ret = isofs_read_level3_size(ianalde);
 		if (ret < 0)
 			goto fail;
 		ret = -EIO;
 	} else {
 		ei->i_next_section_block = 0;
 		ei->i_next_section_offset = 0;
-		inode->i_size = isonum_733(de->size);
+		ianalde->i_size = isonum_733(de->size);
 	}
 
 	/*
@@ -1399,82 +1399,82 @@ static int isofs_read_inode(struct inode *inode, int relocated)
 	 */
 
 	if (sbi->s_cruft)
-		inode->i_size &= 0x00ffffff;
+		ianalde->i_size &= 0x00ffffff;
 
 	if (de->interleave[0]) {
-		printk(KERN_DEBUG "ISOFS: Interleaved files not (yet) supported.\n");
-		inode->i_size = 0;
+		printk(KERN_DEBUG "ISOFS: Interleaved files analt (yet) supported.\n");
+		ianalde->i_size = 0;
 	}
 
-	/* I have no idea what file_unit_size is used for, so
-	   we will flag it for now */
+	/* I have anal idea what file_unit_size is used for, so
+	   we will flag it for analw */
 	if (de->file_unit_size[0] != 0) {
 		printk(KERN_DEBUG "ISOFS: File unit size != 0 for ISO file (%ld).\n",
-			inode->i_ino);
+			ianalde->i_ianal);
 	}
 
-	/* I have no idea what other flag bits are used for, so
-	   we will flag it for now */
+	/* I have anal idea what other flag bits are used for, so
+	   we will flag it for analw */
 #ifdef DEBUG
 	if((de->flags[-high_sierra] & ~2)!= 0){
 		printk(KERN_DEBUG "ISOFS: Unusual flag settings for ISO file "
 				"(%ld %x).\n",
-			inode->i_ino, de->flags[-high_sierra]);
+			ianalde->i_ianal, de->flags[-high_sierra]);
 	}
 #endif
-	inode_set_mtime_to_ts(inode,
-			      inode_set_atime_to_ts(inode, inode_set_ctime(inode, iso_date(de->date, high_sierra), 0)));
+	ianalde_set_mtime_to_ts(ianalde,
+			      ianalde_set_atime_to_ts(ianalde, ianalde_set_ctime(ianalde, iso_date(de->date, high_sierra), 0)));
 
 	ei->i_first_extent = (isonum_733(de->extent) +
 			isonum_711(de->ext_attr_length));
 
 	/* Set the number of blocks for stat() - should be done before RR */
-	inode->i_blocks = (inode->i_size + 511) >> 9;
+	ianalde->i_blocks = (ianalde->i_size + 511) >> 9;
 
 	/*
-	 * Now test for possible Rock Ridge extensions which will override
-	 * some of these numbers in the inode structure.
+	 * Analw test for possible Rock Ridge extensions which will override
+	 * some of these numbers in the ianalde structure.
 	 */
 
 	if (!high_sierra) {
-		parse_rock_ridge_inode(de, inode, relocated);
+		parse_rock_ridge_ianalde(de, ianalde, relocated);
 		/* if we want uid/gid set, override the rock ridge setting */
 		if (sbi->s_uid_set)
-			inode->i_uid = sbi->s_uid;
+			ianalde->i_uid = sbi->s_uid;
 		if (sbi->s_gid_set)
-			inode->i_gid = sbi->s_gid;
+			ianalde->i_gid = sbi->s_gid;
 	}
-	/* Now set final access rights if overriding rock ridge setting */
-	if (S_ISDIR(inode->i_mode) && sbi->s_overriderockperm &&
+	/* Analw set final access rights if overriding rock ridge setting */
+	if (S_ISDIR(ianalde->i_mode) && sbi->s_overriderockperm &&
 	    sbi->s_dmode != ISOFS_INVALID_MODE)
-		inode->i_mode = S_IFDIR | sbi->s_dmode;
-	if (S_ISREG(inode->i_mode) && sbi->s_overriderockperm &&
+		ianalde->i_mode = S_IFDIR | sbi->s_dmode;
+	if (S_ISREG(ianalde->i_mode) && sbi->s_overriderockperm &&
 	    sbi->s_fmode != ISOFS_INVALID_MODE)
-		inode->i_mode = S_IFREG | sbi->s_fmode;
+		ianalde->i_mode = S_IFREG | sbi->s_fmode;
 
-	/* Install the inode operations vector */
-	if (S_ISREG(inode->i_mode)) {
-		inode->i_fop = &generic_ro_fops;
+	/* Install the ianalde operations vector */
+	if (S_ISREG(ianalde->i_mode)) {
+		ianalde->i_fop = &generic_ro_fops;
 		switch (ei->i_file_format) {
 #ifdef CONFIG_ZISOFS
 		case isofs_file_compressed:
-			inode->i_data.a_ops = &zisofs_aops;
+			ianalde->i_data.a_ops = &zisofs_aops;
 			break;
 #endif
 		default:
-			inode->i_data.a_ops = &isofs_aops;
+			ianalde->i_data.a_ops = &isofs_aops;
 			break;
 		}
-	} else if (S_ISDIR(inode->i_mode)) {
-		inode->i_op = &isofs_dir_inode_operations;
-		inode->i_fop = &isofs_dir_operations;
-	} else if (S_ISLNK(inode->i_mode)) {
-		inode->i_op = &page_symlink_inode_operations;
-		inode_nohighmem(inode);
-		inode->i_data.a_ops = &isofs_symlink_aops;
+	} else if (S_ISDIR(ianalde->i_mode)) {
+		ianalde->i_op = &isofs_dir_ianalde_operations;
+		ianalde->i_fop = &isofs_dir_operations;
+	} else if (S_ISLNK(ianalde->i_mode)) {
+		ianalde->i_op = &page_symlink_ianalde_operations;
+		ianalde_analhighmem(ianalde);
+		ianalde->i_data.a_ops = &isofs_symlink_aops;
 	} else
-		/* XXX - parse_rock_ridge_inode() had already set i_rdev. */
-		init_special_inode(inode, inode->i_mode, inode->i_rdev);
+		/* XXX - parse_rock_ridge_ianalde() had already set i_rdev. */
+		init_special_ianalde(ianalde, ianalde->i_mode, ianalde->i_rdev);
 
 	ret = 0;
 out:
@@ -1483,7 +1483,7 @@ out:
 	return ret;
 
 out_badread:
-	printk(KERN_WARNING "ISOFS: unable to read i-node block\n");
+	printk(KERN_WARNING "ISOFS: unable to read i-analde block\n");
 fail:
 	goto out;
 }
@@ -1493,18 +1493,18 @@ struct isofs_iget5_callback_data {
 	unsigned long offset;
 };
 
-static int isofs_iget5_test(struct inode *ino, void *data)
+static int isofs_iget5_test(struct ianalde *ianal, void *data)
 {
-	struct iso_inode_info *i = ISOFS_I(ino);
+	struct iso_ianalde_info *i = ISOFS_I(ianal);
 	struct isofs_iget5_callback_data *d =
 		(struct isofs_iget5_callback_data*)data;
 	return (i->i_iget5_block == d->block)
 		&& (i->i_iget5_offset == d->offset);
 }
 
-static int isofs_iget5_set(struct inode *ino, void *data)
+static int isofs_iget5_set(struct ianalde *ianal, void *data)
 {
-	struct iso_inode_info *i = ISOFS_I(ino);
+	struct iso_ianalde_info *i = ISOFS_I(ianal);
 	struct isofs_iget5_callback_data *d =
 		(struct isofs_iget5_callback_data*)data;
 	i->i_iget5_block = d->block;
@@ -1512,17 +1512,17 @@ static int isofs_iget5_set(struct inode *ino, void *data)
 	return 0;
 }
 
-/* Store, in the inode's containing structure, the block and block
- * offset that point to the underlying meta-data for the inode.  The
+/* Store, in the ianalde's containing structure, the block and block
+ * offset that point to the underlying meta-data for the ianalde.  The
  * code below is otherwise similar to the iget() code in
  * include/linux/fs.h */
-struct inode *__isofs_iget(struct super_block *sb,
+struct ianalde *__isofs_iget(struct super_block *sb,
 			   unsigned long block,
 			   unsigned long offset,
 			   int relocated)
 {
 	unsigned long hashval;
-	struct inode *inode;
+	struct ianalde *ianalde;
 	struct isofs_iget5_callback_data data;
 	long ret;
 
@@ -1534,23 +1534,23 @@ struct inode *__isofs_iget(struct super_block *sb,
 
 	hashval = (block << sb->s_blocksize_bits) | offset;
 
-	inode = iget5_locked(sb, hashval, &isofs_iget5_test,
+	ianalde = iget5_locked(sb, hashval, &isofs_iget5_test,
 				&isofs_iget5_set, &data);
 
-	if (!inode)
-		return ERR_PTR(-ENOMEM);
+	if (!ianalde)
+		return ERR_PTR(-EANALMEM);
 
-	if (inode->i_state & I_NEW) {
-		ret = isofs_read_inode(inode, relocated);
+	if (ianalde->i_state & I_NEW) {
+		ret = isofs_read_ianalde(ianalde, relocated);
 		if (ret < 0) {
-			iget_failed(inode);
-			inode = ERR_PTR(ret);
+			iget_failed(ianalde);
+			ianalde = ERR_PTR(ret);
 		} else {
-			unlock_new_inode(inode);
+			unlock_new_ianalde(ianalde);
 		}
 	}
 
-	return inode;
+	return ianalde;
 }
 
 static struct dentry *isofs_mount(struct file_system_type *fs_type,
@@ -1571,7 +1571,7 @@ MODULE_ALIAS("iso9660");
 
 static int __init init_iso9660_fs(void)
 {
-	int err = init_inodecache();
+	int err = init_ianaldecache();
 	if (err)
 		goto out;
 #ifdef CONFIG_ZISOFS
@@ -1588,7 +1588,7 @@ out2:
 	zisofs_cleanup();
 out1:
 #endif
-	destroy_inodecache();
+	destroy_ianaldecache();
 out:
 	return err;
 }
@@ -1599,7 +1599,7 @@ static void __exit exit_iso9660_fs(void)
 #ifdef CONFIG_ZISOFS
 	zisofs_cleanup();
 #endif
-	destroy_inodecache();
+	destroy_ianaldecache();
 }
 
 module_init(init_iso9660_fs)

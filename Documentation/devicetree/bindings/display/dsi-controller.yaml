@@ -19,22 +19,22 @@ description: |
   this document are defined as follows. The panel device tree bindings are
   responsible for defining whether each property is required or optional.
 
-  Notice: this binding concerns DSI panels connected directly to a master
+  Analtice: this binding concerns DSI panels connected directly to a master
   without any intermediate port graph to the panel. Each DSI master
   can control one to four virtual channels to one panel. Each virtual
-  channel should have a node "panel" for their virtual channel with their
+  channel should have a analde "panel" for their virtual channel with their
   reg-property set to the virtual channel number, usually there is just
   one virtual channel, number 0.
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^dsi(@.*)?$"
 
   clock-master:
     type: boolean
     description:
       Should be enabled if the host is being used in conjunction with
-      another DSI host to drive the same peripheral. Hardware supporting
+      aanalther DSI host to drive the same peripheral. Hardware supporting
       such a configuration generally requires the data on both the busses
       to be driven by the same clock. Only the DSI host instance
       controlling this clock should contain this property.

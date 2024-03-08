@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -21,8 +21,8 @@
 
 #define AR_PHY_CCA_FILTERWINDOW_LENGTH          5
 
-/* Internal noise floor can vary by about 6db depending on the frequency */
-#define ATH9K_NF_CAL_NOISE_THRESH		6
+/* Internal analise floor can vary by about 6db depending on the frequency */
+#define ATH9K_NF_CAL_ANALISE_THRESH		6
 
 #define NUM_NF_READINGS       6
 #define ATH9K_NF_CAL_HIST_MAX 5
@@ -103,8 +103,8 @@ struct ath9k_nfcal_hist {
 #define MAX_PACAL_SKIPCOUNT 8
 struct ath9k_pacal_info{
 	int32_t prev_offset;	/* Previous value of PA offset value */
-	int8_t max_skipcount;	/* Max No. of times PACAL can be skipped */
-	int8_t skipcount;	/* No. of times the PACAL to be skipped */
+	int8_t max_skipcount;	/* Max Anal. of times PACAL can be skipped */
+	int8_t skipcount;	/* Anal. of times the PACAL to be skipped */
 };
 
 bool ath9k_hw_reset_calvalid(struct ath_hw *ah);
@@ -116,7 +116,7 @@ void ath9k_init_nfcal_hist_buffer(struct ath_hw *ah,
 void ath9k_hw_bstuck_nfcal(struct ath_hw *ah);
 void ath9k_hw_reset_calibration(struct ath_hw *ah,
 				struct ath9k_cal_list *currCal);
-s16 ath9k_hw_getchan_noise(struct ath_hw *ah, struct ath9k_channel *chan,
+s16 ath9k_hw_getchan_analise(struct ath_hw *ah, struct ath9k_channel *chan,
 			   s16 nf);
 
 

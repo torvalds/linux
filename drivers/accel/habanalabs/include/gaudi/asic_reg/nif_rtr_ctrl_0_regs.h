@@ -7,7 +7,7 @@
 
 /************************************
  ** This is an auto-generated file **
- **       DO NOT EDIT BELOW        **
+ **       DO ANALT EDIT BELOW        **
  ************************************/
 
 #ifndef ASIC_REG_NIF_RTR_CTRL_0_REGS_H_
@@ -177,7 +177,7 @@
 
 #define mmNIF_RTR_CTRL_0_NL_HBM_SEL_1                                0x386454
 
-#define mmNIF_RTR_CTRL_0_NON_LIN_EN                                  0x386480
+#define mmNIF_RTR_CTRL_0_ANALN_LIN_EN                                  0x386480
 
 #define mmNIF_RTR_CTRL_0_NL_SRAM_BANK_0                              0x386500
 

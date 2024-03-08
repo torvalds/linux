@@ -75,7 +75,7 @@
 #include <linux/time64.h>
 #include <linux/zalloc.h>
 #include <api/fs/fs.h>
-#include <errno.h>
+#include <erranal.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <sys/prctl.h>
@@ -201,8 +201,8 @@ static void evlist__check_cpu_maps(struct evlist *evlist)
 		if (warned_leader != leader) {
 			char buf[200];
 
-			pr_warning("WARNING: grouped events cpus do not match.\n"
-				"Events with CPUs not matching the leader will "
+			pr_warning("WARNING: grouped events cpus do analt match.\n"
+				"Events with CPUs analt matching the leader will "
 				"be removed from the group.\n");
 			evsel__group_desc(leader, buf, sizeof(buf));
 			pr_warning("  %s\n", buf);
@@ -301,7 +301,7 @@ static int read_single_counter(struct evsel *counter, int cpu_map_idx,
 			return 0;
 		}
 		default:
-		case PERF_TOOL_NONE:
+		case PERF_TOOL_ANALNE:
 			return evsel__read_counter(counter, cpu_map_idx, thread);
 		case PERF_TOOL_MAX:
 			/* This should never be reached */
@@ -311,7 +311,7 @@ static int read_single_counter(struct evsel *counter, int cpu_map_idx,
 
 /*
  * Read out the results of a single counter:
- * do not aggregate counts across CPUs in system-wide mode
+ * do analt aggregate counts across CPUs in system-wide mode
  */
 static int read_counter_cpu(struct evsel *counter, struct timespec *rs, int cpu_map_idx)
 {
@@ -319,7 +319,7 @@ static int read_counter_cpu(struct evsel *counter, struct timespec *rs, int cpu_
 	int thread;
 
 	if (!counter->supported)
-		return -ENOENT;
+		return -EANALENT;
 
 	for (thread = 0; thread < nthreads; thread++) {
 		struct perf_counts_values *count;
@@ -438,7 +438,7 @@ static void process_interval(void)
 {
 	struct timespec ts, rs;
 
-	clock_gettime(CLOCK_MONOTONIC, &ts);
+	clock_gettime(CLOCK_MOANALTONIC, &ts);
 	diff_timespec(&rs, &ts, &ref_time);
 
 	evlist__reset_aggr_stats(evsel_list);
@@ -496,7 +496,7 @@ static void disable_counters(void)
 	 * still be running. To get accurate group ratios, we must stop groups
 	 * from counting before reading their constituent counters.
 	 */
-	if (!target__none(&target)) {
+	if (!target__analne(&target)) {
 		evlist__for_each_entry(evsel_list, counter)
 			bpf_counter__disable(counter);
 		if (!all_counters_use_bpf)
@@ -504,17 +504,17 @@ static void disable_counters(void)
 	}
 }
 
-static volatile sig_atomic_t workload_exec_errno;
+static volatile sig_atomic_t workload_exec_erranal;
 
 /*
  * evlist__prepare_workload will send a SIGUSR1
  * if the fork fails, since we asked by setting its
  * want_signal to true.
  */
-static void workload_exec_failed_signal(int signo __maybe_unused, siginfo_t *info,
+static void workload_exec_failed_signal(int siganal __maybe_unused, siginfo_t *info,
 					void *ucontext __maybe_unused)
 {
-	workload_exec_errno = info->si_value.sival_int;
+	workload_exec_erranal = info->si_value.sival_int;
 }
 
 static bool evsel__should_store_id(struct evsel *counter)
@@ -602,21 +602,21 @@ static int dispatch_events(bool forks, int timeout, int interval, int *times)
 
 	while (!done) {
 		if (forks)
-			child_exited = waitpid(child_pid, &status, WNOHANG);
+			child_exited = waitpid(child_pid, &status, WANALHANG);
 		else
 			child_exited = !is_target_alive(&target, evsel_list->core.threads) ? 1 : 0;
 
 		if (child_exited)
 			break;
 
-		clock_gettime(CLOCK_MONOTONIC, &time_start);
+		clock_gettime(CLOCK_MOANALTONIC, &time_start);
 		if (!(evlist__poll(evsel_list, time_to_sleep) > 0)) { /* poll timeout or EINTR */
 			if (timeout || handle_interval(interval, times))
 				break;
 			time_to_sleep = sleep_time;
 		} else { /* fd revent */
 			process_evlist(evsel_list, interval);
-			clock_gettime(CLOCK_MONOTONIC, &time_stop);
+			clock_gettime(CLOCK_MOANALTONIC, &time_stop);
 			compute_tts(&time_start, &time_stop, &time_to_sleep);
 		}
 	}
@@ -637,11 +637,11 @@ static enum counter_recovery stat_handle_error(struct evsel *counter)
 	 * PPC returns ENXIO for HW counters until 2.6.37
 	 * (behavior changed with commit b0a873e).
 	 */
-	if (errno == EINVAL || errno == ENOSYS ||
-	    errno == ENOENT || errno == EOPNOTSUPP ||
-	    errno == ENXIO) {
+	if (erranal == EINVAL || erranal == EANALSYS ||
+	    erranal == EANALENT || erranal == EOPANALTSUPP ||
+	    erranal == ENXIO) {
 		if (verbose > 0)
-			ui__warning("%s event is not supported by the kernel.\n",
+			ui__warning("%s event is analt supported by the kernel.\n",
 				    evsel__name(counter));
 		counter->supported = false;
 		/*
@@ -653,7 +653,7 @@ static enum counter_recovery stat_handle_error(struct evsel *counter)
 		if ((evsel__leader(counter) != counter) ||
 		    !(counter->core.leader->nr_members > 1))
 			return COUNTER_SKIP;
-	} else if (evsel__fallback(counter, &target, errno, msg, sizeof(msg))) {
+	} else if (evsel__fallback(counter, &target, erranal, msg, sizeof(msg))) {
 		if (verbose > 0)
 			ui__warning("%s\n", msg);
 		return COUNTER_RETRY;
@@ -678,7 +678,7 @@ static enum counter_recovery stat_handle_error(struct evsel *counter)
 		return COUNTER_SKIP;
 	}
 
-	evsel__open_strerror(counter, &target, errno, msg, sizeof(msg));
+	evsel__open_strerror(counter, &target, erranal, msg, sizeof(msg));
 	ui__error("%s\n", msg);
 
 	if (child_pid != -1)
@@ -732,7 +732,7 @@ static int __run_perf_stat(int argc, const char **argv, int run_idx)
 
 		/*
 		 * bperf calls evsel__open_per_cpu() in bperf__load(), so
-		 * no need to call it again here.
+		 * anal need to call it again here.
 		 */
 		if (target.use_bpf)
 			break;
@@ -746,13 +746,13 @@ try_again:
 					     evlist_cpu_itr.cpu_map_idx) < 0) {
 
 			/*
-			 * Weak group failed. We cannot just undo this here
+			 * Weak group failed. We cananalt just undo this here
 			 * because earlier CPUs might be in group mode, and the kernel
-			 * doesn't support mixing group and non group reads. Defer
+			 * doesn't support mixing group and analn group reads. Defer
 			 * it to later.
 			 * Don't close here because we're in the wrong affinity.
 			 */
-			if ((errno == EINVAL || errno == EBADF) &&
+			if ((erranal == EINVAL || erranal == EBADF) &&
 				evsel__leader(counter) != counter &&
 				counter->weak_group) {
 				evlist__reset_weak_group(evsel_list, counter, false);
@@ -778,7 +778,7 @@ try_again:
 
 	if (second_pass) {
 		/*
-		 * Now redo all the weak group after closing them,
+		 * Analw redo all the weak group after closing them,
 		 * and also close errored counters.
 		 */
 
@@ -791,7 +791,7 @@ try_again:
 
 			perf_evsel__close_cpu(&counter->core, evlist_cpu_itr.cpu_map_idx);
 		}
-		/* Now reopen weak */
+		/* Analw reopen weak */
 		evlist__for_each_cpu(evlist_cpu_itr, evsel_list, affinity) {
 			counter = evlist_cpu_itr.evsel;
 
@@ -835,8 +835,8 @@ try_again_reset:
 
 	if (evlist__apply_filters(evsel_list, &counter)) {
 		pr_err("failed to set filter \"%s\" on event %s with %d (%s)\n",
-			counter->filter, evsel__name(counter), errno,
-			str_error_r(errno, msg, sizeof(msg)));
+			counter->filter, evsel__name(counter), erranal,
+			str_error_r(erranal, msg, sizeof(msg)));
 		return -1;
 	}
 
@@ -881,7 +881,7 @@ try_again_reset:
 	}
 
 	t0 = rdclock();
-	clock_gettime(CLOCK_MONOTONIC, &ref_time);
+	clock_gettime(CLOCK_MOANALTONIC, &ref_time);
 
 	if (forks) {
 		if (interval || timeout || evlist__ctlfd_initialized(evsel_list))
@@ -892,8 +892,8 @@ try_again_reset:
 			wait4(child_pid, &status, 0, &stat_config.ru_data);
 		}
 
-		if (workload_exec_errno) {
-			const char *emsg = str_error_r(workload_exec_errno, msg, sizeof(msg));
+		if (workload_exec_erranal) {
+			const char *emsg = str_error_r(workload_exec_erranal, msg, sizeof(msg));
 			pr_err("Workload failed: %s\n", emsg);
 			return -1;
 		}
@@ -972,7 +972,7 @@ static int run_perf_stat(int argc, const char **argv, int run_idx)
 
 static void print_counters(struct timespec *ts, int argc, const char **argv)
 {
-	/* Do not print anything if we record to the pipe. */
+	/* Do analt print anything if we record to the pipe. */
 	if (STAT_RECORD && perf_stat.data.is_pipe)
 		return;
 	if (quiet)
@@ -983,12 +983,12 @@ static void print_counters(struct timespec *ts, int argc, const char **argv)
 
 static volatile sig_atomic_t signr = -1;
 
-static void skip_signal(int signo)
+static void skip_signal(int siganal)
 {
 	if ((child_pid == -1) || stat_config.interval)
 		done = 1;
 
-	signr = signo;
+	signr = siganal;
 	/*
 	 * render child_pid harmless
 	 * won't send SIGTERM to a random
@@ -1029,9 +1029,9 @@ void perf_stat__set_big_num(int set)
 	stat_config.big_num = (set != 0);
 }
 
-void perf_stat__set_no_csv_summary(int set)
+void perf_stat__set_anal_csv_summary(int set)
 {
-	stat_config.no_csv_summary = (set != 0);
+	stat_config.anal_csv_summary = (set != 0);
 }
 
 static int stat__set_big_num(const struct option *opt __maybe_unused,
@@ -1058,13 +1058,13 @@ static int append_metric_groups(const struct option *opt __maybe_unused,
 		char *tmp;
 
 		if (asprintf(&tmp, "%s,%s", metrics, str) < 0)
-			return -ENOMEM;
+			return -EANALMEM;
 		free(metrics);
 		metrics = tmp;
 	} else {
 		metrics = strdup(str);
 		if (!metrics)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 	return 0;
 }
@@ -1082,7 +1082,7 @@ static int parse_stat_cgroups(const struct option *opt,
 			      const char *str, int unset)
 {
 	if (stat_config.cgroup_list) {
-		pr_err("--cgroup and --for-each-cgroup cannot be used together\n");
+		pr_err("--cgroup and --for-each-cgroup cananalt be used together\n");
 		return -1;
 	}
 
@@ -1103,7 +1103,7 @@ static int parse_cputype(const struct option *opt,
 
 	pmu = perf_pmus__pmu_for_pmu_filter(str);
 	if (!pmu) {
-		fprintf(stderr, "--cputype %s is not supported!\n", str);
+		fprintf(stderr, "--cputype %s is analt supported!\n", str);
 		return -1;
 	}
 	parse_events_option_args.pmu_filter = pmu->name;
@@ -1120,7 +1120,7 @@ static int parse_cache_level(const struct option *opt,
 	u32 *aggr_level = (u32 *)opt->data;
 
 	/*
-	 * If no string is specified, aggregate based on the topology of
+	 * If anal string is specified, aggregate based on the topology of
 	 * Last Level Cache (LLC). Since the LLC level can change from
 	 * architecture to architecture, set level greater than
 	 * MAX_CACHE_LVL which will be interpreted as LLC.
@@ -1168,8 +1168,8 @@ static struct option stat_options[] = {
 		     parse_events_option),
 	OPT_CALLBACK(0, "filter", &evsel_list, "filter",
 		     "event filter", parse_filter),
-	OPT_BOOLEAN('i', "no-inherit", &stat_config.no_inherit,
-		    "child tasks do not inherit counters"),
+	OPT_BOOLEAN('i', "anal-inherit", &stat_config.anal_inherit,
+		    "child tasks do analt inherit counters"),
 	OPT_STRING('p', "pid", &target.pid, "pid",
 		   "stat events on existing process id"),
 	OPT_STRING('t', "tid", &target.tid, "tid",
@@ -1185,7 +1185,7 @@ static struct option stat_options[] = {
 	OPT_BOOLEAN('a', "all-cpus", &target.system_wide,
 		    "system-wide collection from all CPUs"),
 	OPT_BOOLEAN(0, "scale", &stat_config.scale,
-		    "Use --no-scale to disable counter scaling for multiplexing"),
+		    "Use --anal-scale to disable counter scaling for multiplexing"),
 	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show counter open errors, etc)"),
 	OPT_INTEGER('r', "repeat", &stat_config.run_count,
@@ -1198,15 +1198,15 @@ static struct option stat_options[] = {
 		    "detailed run - start a lot of events"),
 	OPT_BOOLEAN('S', "sync", &sync_run,
 		    "call sync() before starting a run"),
-	OPT_CALLBACK_NOOPT('B', "big-num", NULL, NULL,
+	OPT_CALLBACK_ANALOPT('B', "big-num", NULL, NULL,
 			   "print large numbers with thousands\' separators",
 			   stat__set_big_num),
 	OPT_STRING('C', "cpu", &target.cpu_list, "cpu",
 		    "list of cpus to monitor in system-wide"),
-	OPT_SET_UINT('A', "no-aggr", &stat_config.aggr_mode,
-		    "disable aggregation across CPUs or PMUs", AGGR_NONE),
-	OPT_SET_UINT(0, "no-merge", &stat_config.aggr_mode,
-		    "disable aggregation the same as -A or -no-aggr", AGGR_NONE),
+	OPT_SET_UINT('A', "anal-aggr", &stat_config.aggr_mode,
+		    "disable aggregation across CPUs or PMUs", AGGR_ANALNE),
+	OPT_SET_UINT(0, "anal-merge", &stat_config.aggr_mode,
+		    "disable aggregation the same as -A or -anal-aggr", AGGR_ANALNE),
 	OPT_BOOLEAN(0, "hybrid-merge", &stat_config.hybrid_merge,
 		    "Merge identical named hybrid events"),
 	OPT_STRING('x', "field-separator", &stat_config.csv_sep, "separator",
@@ -1245,17 +1245,17 @@ static struct option stat_options[] = {
 		     "aggregate counts per physical processor core", AGGR_CORE),
 	OPT_SET_UINT(0, "per-thread", &stat_config.aggr_mode,
 		     "aggregate counts per thread", AGGR_THREAD),
-	OPT_SET_UINT(0, "per-node", &stat_config.aggr_mode,
-		     "aggregate counts per numa node", AGGR_NODE),
+	OPT_SET_UINT(0, "per-analde", &stat_config.aggr_mode,
+		     "aggregate counts per numa analde", AGGR_ANALDE),
 	OPT_INTEGER('D', "delay", &target.initial_delay,
 		    "ms to wait before starting measurement after program start (-1: start with events disabled)"),
-	OPT_CALLBACK_NOOPT(0, "metric-only", &stat_config.metric_only, NULL,
-			"Only print computed metrics. No raw values", enable_metric_only),
-	OPT_BOOLEAN(0, "metric-no-group", &stat_config.metric_no_group,
+	OPT_CALLBACK_ANALOPT(0, "metric-only", &stat_config.metric_only, NULL,
+			"Only print computed metrics. Anal raw values", enable_metric_only),
+	OPT_BOOLEAN(0, "metric-anal-group", &stat_config.metric_anal_group,
 		       "don't group metric events, impacts multiplexing"),
-	OPT_BOOLEAN(0, "metric-no-merge", &stat_config.metric_no_merge,
+	OPT_BOOLEAN(0, "metric-anal-merge", &stat_config.metric_anal_merge,
 		       "don't try to share events between metrics in a group"),
-	OPT_BOOLEAN(0, "metric-no-threshold", &stat_config.metric_no_threshold,
+	OPT_BOOLEAN(0, "metric-anal-threshold", &stat_config.metric_anal_threshold,
 		       "disable adding events for the metric threshold calculation"),
 	OPT_BOOLEAN(0, "topdown", &topdown_run,
 			"measure top-down statistics"),
@@ -1278,7 +1278,7 @@ static struct option stat_options[] = {
 		    "threads of same physical core"),
 	OPT_BOOLEAN(0, "summary", &stat_config.summary,
 		       "print summary for interval mode"),
-	OPT_BOOLEAN(0, "no-csv-summary", &stat_config.no_csv_summary,
+	OPT_BOOLEAN(0, "anal-csv-summary", &stat_config.anal_csv_summary,
 		       "don't print 'summary' for CSV summary output"),
 	OPT_BOOLEAN(0, "quiet", &quiet,
 			"don't print any output, messages or warnings (useful with record)"),
@@ -1313,7 +1313,7 @@ static int cpu__get_cache_id_from_map(struct perf_cpu cpu, char *map)
 	struct perf_cpu_map *cpu_map = perf_cpu_map__new(map);
 
 	/*
-	 * If the map contains no CPU, consider the current CPU to
+	 * If the map contains anal CPU, consider the current CPU to
 	 * be the first online CPU in the cache domain else use the
 	 * first online CPU of the cache domain as the ID.
 	 */
@@ -1348,7 +1348,7 @@ static int cpu__get_cache_details(struct perf_cpu cpu, struct perf_cache *cache)
 	ret = build_caches_for_cpu(cpu.cpu, caches, &caches_cnt);
 	if (ret) {
 		/*
-		 * If caches_cnt is not 0, cpu_cache_level data
+		 * If caches_cnt is analt 0, cpu_cache_level data
 		 * was allocated when building the topology.
 		 * Free the allocated data before returning.
 		 */
@@ -1362,7 +1362,7 @@ static int cpu__get_cache_details(struct perf_cpu cpu, struct perf_cache *cache)
 		return -1;
 
 	/*
-	 * Save the data for the highest level if no
+	 * Save the data for the highest level if anal
 	 * level was specified by the user.
 	 */
 	if (cache_level > MAX_CACHE_LVL) {
@@ -1430,8 +1430,8 @@ static const char *const aggr_mode__string[] = {
 	[AGGR_CACHE] = "cache",
 	[AGGR_DIE] = "die",
 	[AGGR_GLOBAL] = "global",
-	[AGGR_NODE] = "node",
-	[AGGR_NONE] = "none",
+	[AGGR_ANALDE] = "analde",
+	[AGGR_ANALNE] = "analne",
 	[AGGR_SOCKET] = "socket",
 	[AGGR_THREAD] = "thread",
 	[AGGR_UNSET] = "unset",
@@ -1461,10 +1461,10 @@ static struct aggr_cpu_id perf_stat__get_core(struct perf_stat_config *config __
 	return aggr_cpu_id__core(cpu, /*data=*/NULL);
 }
 
-static struct aggr_cpu_id perf_stat__get_node(struct perf_stat_config *config __maybe_unused,
+static struct aggr_cpu_id perf_stat__get_analde(struct perf_stat_config *config __maybe_unused,
 					      struct perf_cpu cpu)
 {
-	return aggr_cpu_id__node(cpu, /*data=*/NULL);
+	return aggr_cpu_id__analde(cpu, /*data=*/NULL);
 }
 
 static struct aggr_cpu_id perf_stat__get_global(struct perf_stat_config *config __maybe_unused,
@@ -1519,10 +1519,10 @@ static struct aggr_cpu_id perf_stat__get_core_cached(struct perf_stat_config *co
 	return perf_stat__get_aggr(config, perf_stat__get_core, cpu);
 }
 
-static struct aggr_cpu_id perf_stat__get_node_cached(struct perf_stat_config *config,
+static struct aggr_cpu_id perf_stat__get_analde_cached(struct perf_stat_config *config,
 						     struct perf_cpu cpu)
 {
-	return perf_stat__get_aggr(config, perf_stat__get_node, cpu);
+	return perf_stat__get_aggr(config, perf_stat__get_analde, cpu);
 }
 
 static struct aggr_cpu_id perf_stat__get_global_cached(struct perf_stat_config *config,
@@ -1548,9 +1548,9 @@ static aggr_cpu_id_get_t aggr_mode__get_aggr(enum aggr_mode aggr_mode)
 		return aggr_cpu_id__cache;
 	case AGGR_CORE:
 		return aggr_cpu_id__core;
-	case AGGR_NODE:
-		return aggr_cpu_id__node;
-	case AGGR_NONE:
+	case AGGR_ANALDE:
+		return aggr_cpu_id__analde;
+	case AGGR_ANALNE:
 		return aggr_cpu_id__cpu;
 	case AGGR_GLOBAL:
 		return aggr_cpu_id__global;
@@ -1573,9 +1573,9 @@ static aggr_get_id_t aggr_mode__get_id(enum aggr_mode aggr_mode)
 		return perf_stat__get_cache_id_cached;
 	case AGGR_CORE:
 		return perf_stat__get_core_cached;
-	case AGGR_NODE:
-		return perf_stat__get_node_cached;
-	case AGGR_NONE:
+	case AGGR_ANALDE:
+		return perf_stat__get_analde_cached;
+	case AGGR_ANALNE:
 		return perf_stat__get_cpu_cached;
 	case AGGR_GLOBAL:
 		return perf_stat__get_global_cached;
@@ -1593,11 +1593,11 @@ static int perf_stat_init_aggr_mode(void)
 	aggr_cpu_id_get_t get_id = aggr_mode__get_aggr(stat_config.aggr_mode);
 
 	if (get_id) {
-		bool needs_sort = stat_config.aggr_mode != AGGR_NONE;
+		bool needs_sort = stat_config.aggr_mode != AGGR_ANALNE;
 		stat_config.aggr_map = cpu_aggr_map__new(evsel_list->core.user_requested_cpus,
 							 get_id, /*data=*/NULL, needs_sort);
 		if (!stat_config.aggr_map) {
-			pr_err("cannot build %s map\n", aggr_mode__string[stat_config.aggr_mode]);
+			pr_err("cananalt build %s map\n", aggr_mode__string[stat_config.aggr_mode]);
 			return -1;
 		}
 		stat_config.aggr_get_id = aggr_mode__get_id(stat_config.aggr_mode);
@@ -1607,7 +1607,7 @@ static int perf_stat_init_aggr_mode(void)
 		nr = perf_thread_map__nr(evsel_list->core.threads);
 		stat_config.aggr_map = cpu_aggr_map__empty_new(nr);
 		if (stat_config.aggr_map == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		for (int s = 0; s < nr; s++) {
 			struct aggr_cpu_id id = aggr_cpu_id__empty();
@@ -1628,7 +1628,7 @@ static int perf_stat_init_aggr_mode(void)
 	else
 		nr = 0;
 	stat_config.cpus_aggr_map = cpu_aggr_map__empty_new(nr + 1);
-	return stat_config.cpus_aggr_map ? 0 : -ENOMEM;
+	return stat_config.cpus_aggr_map ? 0 : -EANALMEM;
 }
 
 static void cpu_aggr_map__delete(struct cpu_aggr_map *map)
@@ -1701,7 +1701,7 @@ static void perf_env__get_cache_id_for_cpu(struct perf_cpu cpu, struct perf_env 
 		int map_contains_cpu;
 
 		/*
-		 * If user has not specified a level, find the fist level with
+		 * If user has analt specified a level, find the fist level with
 		 * the cpu in the map. Since building the map is expensive, do
 		 * this only if levels match.
 		 */
@@ -1776,11 +1776,11 @@ static struct aggr_cpu_id perf_env__get_cpu_aggr_by_cpu(struct perf_cpu cpu, voi
 	return id;
 }
 
-static struct aggr_cpu_id perf_env__get_node_aggr_by_cpu(struct perf_cpu cpu, void *data)
+static struct aggr_cpu_id perf_env__get_analde_aggr_by_cpu(struct perf_cpu cpu, void *data)
 {
 	struct aggr_cpu_id id = aggr_cpu_id__empty();
 
-	id.node = perf_env__numa_node(data, cpu);
+	id.analde = perf_env__numa_analde(data, cpu);
 	return id;
 }
 
@@ -1823,10 +1823,10 @@ static struct aggr_cpu_id perf_stat__get_cpu_file(struct perf_stat_config *confi
 	return perf_env__get_cpu_aggr_by_cpu(cpu, &perf_stat.session->header.env);
 }
 
-static struct aggr_cpu_id perf_stat__get_node_file(struct perf_stat_config *config __maybe_unused,
+static struct aggr_cpu_id perf_stat__get_analde_file(struct perf_stat_config *config __maybe_unused,
 						   struct perf_cpu cpu)
 {
-	return perf_env__get_node_aggr_by_cpu(cpu, &perf_stat.session->header.env);
+	return perf_env__get_analde_aggr_by_cpu(cpu, &perf_stat.session->header.env);
 }
 
 static struct aggr_cpu_id perf_stat__get_global_file(struct perf_stat_config *config __maybe_unused,
@@ -1846,11 +1846,11 @@ static aggr_cpu_id_get_t aggr_mode__get_aggr_file(enum aggr_mode aggr_mode)
 		return perf_env__get_cache_aggr_by_cpu;
 	case AGGR_CORE:
 		return perf_env__get_core_aggr_by_cpu;
-	case AGGR_NODE:
-		return perf_env__get_node_aggr_by_cpu;
+	case AGGR_ANALDE:
+		return perf_env__get_analde_aggr_by_cpu;
 	case AGGR_GLOBAL:
 		return perf_env__get_global_aggr_by_cpu;
-	case AGGR_NONE:
+	case AGGR_ANALNE:
 		return perf_env__get_cpu_aggr_by_cpu;
 	case AGGR_THREAD:
 	case AGGR_UNSET:
@@ -1871,11 +1871,11 @@ static aggr_get_id_t aggr_mode__get_id_file(enum aggr_mode aggr_mode)
 		return perf_stat__get_cache_file;
 	case AGGR_CORE:
 		return perf_stat__get_core_file;
-	case AGGR_NODE:
-		return perf_stat__get_node_file;
+	case AGGR_ANALDE:
+		return perf_stat__get_analde_file;
 	case AGGR_GLOBAL:
 		return perf_stat__get_global_file;
-	case AGGR_NONE:
+	case AGGR_ANALNE:
 		return perf_stat__get_cpu_file;
 	case AGGR_THREAD:
 	case AGGR_UNSET:
@@ -1889,14 +1889,14 @@ static int perf_stat_init_aggr_mode_file(struct perf_stat *st)
 {
 	struct perf_env *env = &st->session->header.env;
 	aggr_cpu_id_get_t get_id = aggr_mode__get_aggr_file(stat_config.aggr_mode);
-	bool needs_sort = stat_config.aggr_mode != AGGR_NONE;
+	bool needs_sort = stat_config.aggr_mode != AGGR_ANALNE;
 
 	if (stat_config.aggr_mode == AGGR_THREAD) {
 		int nr = perf_thread_map__nr(evsel_list->core.threads);
 
 		stat_config.aggr_map = cpu_aggr_map__empty_new(nr);
 		if (stat_config.aggr_map == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		for (int s = 0; s < nr; s++) {
 			struct aggr_cpu_id id = aggr_cpu_id__empty();
@@ -1913,7 +1913,7 @@ static int perf_stat_init_aggr_mode_file(struct perf_stat *st)
 	stat_config.aggr_map = cpu_aggr_map__new(evsel_list->core.user_requested_cpus,
 						 get_id, env, needs_sort);
 	if (!stat_config.aggr_map) {
-		pr_err("cannot build %s map\n", aggr_mode__string[stat_config.aggr_mode]);
+		pr_err("cananalt build %s map\n", aggr_mode__string[stat_config.aggr_mode]);
 		return -1;
 	}
 	stat_config.aggr_get_id = aggr_mode__get_id_file(stat_config.aggr_mode);
@@ -1921,7 +1921,7 @@ static int perf_stat_init_aggr_mode_file(struct perf_stat *st)
 }
 
 /*
- * Add default attributes, if there were no attributes specified or
+ * Add default attributes, if there were anal attributes specified or
  * if -d/--detailed, -d -d or -d -d -d is used:
  */
 static int add_default_attributes(void)
@@ -2042,7 +2042,7 @@ static int add_default_attributes(void)
 	struct perf_event_attr default_null_attrs[] = {};
 	const char *pmu = parse_events_option_args.pmu_filter ?: "all";
 
-	/* Set attrs if no event is selected and !null_run: */
+	/* Set attrs if anal event is selected and !null_run: */
 	if (stat_config.null_run)
 		return 0;
 
@@ -2057,9 +2057,9 @@ static int add_default_attributes(void)
 			return -1;
 		}
 		return metricgroup__parse_groups(evsel_list, pmu, "transaction",
-						stat_config.metric_no_group,
-						stat_config.metric_no_merge,
-						stat_config.metric_no_threshold,
+						stat_config.metric_anal_group,
+						stat_config.metric_anal_merge,
+						stat_config.metric_anal_threshold,
 						stat_config.user_requested_cpu_list,
 						stat_config.system_wide,
 						&stat_config.metric_events);
@@ -2069,7 +2069,7 @@ static int add_default_attributes(void)
 		int smi;
 
 		if (sysfs__read_int(FREEZE_ON_SMI_PATH, &smi) < 0) {
-			pr_err("freeze_on_smi is not supported.\n");
+			pr_err("freeze_on_smi is analt supported.\n");
 			return -1;
 		}
 
@@ -2090,9 +2090,9 @@ static int add_default_attributes(void)
 			stat_config.metric_only = true;
 
 		return metricgroup__parse_groups(evsel_list, pmu, "smi",
-						stat_config.metric_no_group,
-						stat_config.metric_no_merge,
-						stat_config.metric_no_threshold,
+						stat_config.metric_anal_group,
+						stat_config.metric_anal_merge,
+						stat_config.metric_anal_threshold,
 						stat_config.user_requested_cpu_list,
 						stat_config.system_wide,
 						&stat_config.metric_events);
@@ -2124,9 +2124,9 @@ static int add_default_attributes(void)
 		str[8] = stat_config.topdown_level + '0';
 		if (metricgroup__parse_groups(evsel_list,
 						pmu, str,
-						/*metric_no_group=*/false,
-						/*metric_no_merge=*/false,
-						/*metric_no_threshold=*/true,
+						/*metric_anal_group=*/false,
+						/*metric_anal_merge=*/false,
+						/*metric_anal_threshold=*/true,
 						stat_config.user_requested_cpu_list,
 						stat_config.system_wide,
 						&stat_config.metric_events) < 0)
@@ -2137,7 +2137,7 @@ static int add_default_attributes(void)
 		stat_config.topdown_level = 1;
 
 	if (!evsel_list->core.nr_entries) {
-		/* No events so add defaults. */
+		/* Anal events so add defaults. */
 		if (target__has_cpu(&target))
 			default_attrs0[0].config = PERF_COUNT_SW_CPU_CLOCK;
 
@@ -2165,9 +2165,9 @@ static int add_default_attributes(void)
 				return -1;
 
 			if (metricgroup__parse_groups(metric_evlist, pmu, "Default",
-							/*metric_no_group=*/false,
-							/*metric_no_merge=*/false,
-							/*metric_no_threshold=*/true,
+							/*metric_anal_group=*/false,
+							/*metric_anal_merge=*/false,
+							/*metric_anal_threshold=*/true,
 							stat_config.user_requested_cpu_list,
 							stat_config.system_wide,
 							&stat_config.metric_events) < 0)
@@ -2234,13 +2234,13 @@ static int __cmd_record(int argc, const char **argv)
 	struct perf_data *data = &perf_stat.data;
 
 	argc = parse_options(argc, argv, stat_options, stat_record_usage,
-			     PARSE_OPT_STOP_AT_NON_OPTION);
+			     PARSE_OPT_STOP_AT_ANALN_OPTION);
 
 	if (output_name)
 		data->path = output_name;
 
 	if (stat_config.run_count != 1 || forever) {
-		pr_err("Cannot use -r option with perf stat record.\n");
+		pr_err("Cananalt use -r option with perf stat record.\n");
 		return -1;
 	}
 
@@ -2292,7 +2292,7 @@ int process_stat_config_event(struct perf_session *session,
 
 	if (perf_cpu_map__has_any_cpu_or_is_empty(st->cpus)) {
 		if (st->aggr_mode != AGGR_UNSET)
-			pr_warning("warning: processing task data, aggregation mode not set\n");
+			pr_warning("warning: processing task data, aggregation mode analt set\n");
 	} else if (st->aggr_mode != AGGR_UNSET) {
 		stat_config.aggr_mode = st->aggr_mode;
 	}
@@ -2306,7 +2306,7 @@ int process_stat_config_event(struct perf_session *session,
 		int nr_aggr = stat_config.aggr_map->nr;
 
 		if (evlist__alloc_aggr_stats(session->evlist, nr_aggr) < 0) {
-			pr_err("cannot allocate aggr counts\n");
+			pr_err("cananalt allocate aggr counts\n");
 			return -1;
 		}
 	}
@@ -2324,7 +2324,7 @@ static int set_maps(struct perf_stat *st)
 	perf_evlist__set_maps(&evsel_list->core, st->cpus, st->threads);
 
 	if (evlist__alloc_stats(&stat_config, evsel_list, /*alloc_raw=*/true))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st->maps_allocated = true;
 	return 0;
@@ -2338,13 +2338,13 @@ int process_thread_map_event(struct perf_session *session,
 	struct perf_stat *st = container_of(tool, struct perf_stat, tool);
 
 	if (st->threads) {
-		pr_warning("Extra thread map event, ignoring.\n");
+		pr_warning("Extra thread map event, iganalring.\n");
 		return 0;
 	}
 
 	st->threads = thread_map__new_event(&event->thread_map);
 	if (!st->threads)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return set_maps(st);
 }
@@ -2358,13 +2358,13 @@ int process_cpu_map_event(struct perf_session *session,
 	struct perf_cpu_map *cpus;
 
 	if (st->cpus) {
-		pr_warning("Extra cpu map event, ignoring.\n");
+		pr_warning("Extra cpu map event, iganalring.\n");
 		return 0;
 	}
 
 	cpus = cpu_map__new_data(&event->cpu_map.data);
 	if (!cpus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st->cpus = cpus;
 	return set_maps(st);
@@ -2404,10 +2404,10 @@ static int __cmd_report(int argc, const char **argv)
 			    parse_cache_level),
 	OPT_SET_UINT(0, "per-core", &perf_stat.aggr_mode,
 		     "aggregate counts per physical processor core", AGGR_CORE),
-	OPT_SET_UINT(0, "per-node", &perf_stat.aggr_mode,
-		     "aggregate counts per numa node", AGGR_NODE),
-	OPT_SET_UINT('A', "no-aggr", &perf_stat.aggr_mode,
-		     "disable CPU count aggregation", AGGR_NONE),
+	OPT_SET_UINT(0, "per-analde", &perf_stat.aggr_mode,
+		     "aggregate counts per numa analde", AGGR_ANALDE),
+	OPT_SET_UINT('A', "anal-aggr", &perf_stat.aggr_mode,
+		     "disable CPU count aggregation", AGGR_ANALNE),
 	OPT_END()
 	};
 	struct stat st;
@@ -2416,7 +2416,7 @@ static int __cmd_report(int argc, const char **argv)
 	argc = parse_options(argc, argv, options, stat_report_usage, 0);
 
 	if (!input_name || !strlen(input_name)) {
-		if (!fstat(STDIN_FILENO, &st) && S_ISFIFO(st.st_mode))
+		if (!fstat(STDIN_FILEANAL, &st) && S_ISFIFO(st.st_mode))
 			input_name = "-";
 		else
 			input_name = "perf.data";
@@ -2446,14 +2446,14 @@ static void setup_system_wide(int forks)
 {
 	/*
 	 * Make system wide (-a) the default target if
-	 * no target was specified and one of following
+	 * anal target was specified and one of following
 	 * conditions is met:
 	 *
-	 *   - there's no workload specified
+	 *   - there's anal workload specified
 	 *   - there is workload specified but all requested
 	 *     events are system wide events
 	 */
-	if (!target__none(&target))
+	if (!target__analne(&target))
 		return;
 
 	if (!forks)
@@ -2490,18 +2490,18 @@ int cmd_stat(int argc, const char **argv)
 
 	evsel_list = evlist__new();
 	if (evsel_list == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	parse_events__shrink_config_terms();
 
 	/* String-parsing callback-based options would segfault when negated */
-	set_option_flag(stat_options, 'e', "event", PARSE_OPT_NONEG);
-	set_option_flag(stat_options, 'M', "metrics", PARSE_OPT_NONEG);
-	set_option_flag(stat_options, 'G', "cgroup", PARSE_OPT_NONEG);
+	set_option_flag(stat_options, 'e', "event", PARSE_OPT_ANALNEG);
+	set_option_flag(stat_options, 'M', "metrics", PARSE_OPT_ANALNEG);
+	set_option_flag(stat_options, 'G', "cgroup", PARSE_OPT_ANALNEG);
 
 	argc = parse_options_subcommand(argc, argv, stat_options, stat_subcommands,
 					(const char **) stat_usage,
-					PARSE_OPT_STOP_AT_NON_OPTION);
+					PARSE_OPT_STOP_AT_ANALN_OPTION);
 
 	if (stat_config.csv_sep) {
 		stat_config.csv_output = true;
@@ -2527,19 +2527,19 @@ int cmd_stat(int argc, const char **argv)
 		output = NULL;
 
 	if (output_name && output_fd) {
-		fprintf(stderr, "cannot use both --output and --log-fd\n");
+		fprintf(stderr, "cananalt use both --output and --log-fd\n");
 		parse_options_usage(stat_usage, stat_options, "o", 1);
 		parse_options_usage(NULL, stat_options, "log-fd", 0);
 		goto out;
 	}
 
 	if (stat_config.metric_only && stat_config.aggr_mode == AGGR_THREAD) {
-		fprintf(stderr, "--metric-only is not supported with --per-thread\n");
+		fprintf(stderr, "--metric-only is analt supported with --per-thread\n");
 		goto out;
 	}
 
 	if (stat_config.metric_only && stat_config.run_count > 1) {
-		fprintf(stderr, "--metric-only is not supported with -r\n");
+		fprintf(stderr, "--metric-only is analt supported with -r\n");
 		goto out;
 	}
 
@@ -2574,12 +2574,12 @@ int cmd_stat(int argc, const char **argv)
 		output = fdopen(output_fd, mode);
 		if (!output) {
 			perror("Failed opening logfd");
-			return -errno;
+			return -erranal;
 		}
 	}
 
-	if (stat_config.interval_clear && !isatty(fileno(output))) {
-		fprintf(stderr, "--interval-clear does not work with output\n");
+	if (stat_config.interval_clear && !isatty(fileanal(output))) {
+		fprintf(stderr, "--interval-clear does analt work with output\n");
 		parse_options_usage(stat_usage, stat_options, "o", 1);
 		parse_options_usage(NULL, stat_options, "log-fd", 0);
 		parse_options_usage(NULL, stat_options, "interval-clear", 0);
@@ -2594,13 +2594,13 @@ int cmd_stat(int argc, const char **argv)
 	if (stat_config.csv_output) {
 		/* User explicitly passed -B? */
 		if (big_num_opt == 1) {
-			fprintf(stderr, "-B option not supported with -x\n");
+			fprintf(stderr, "-B option analt supported with -x\n");
 			parse_options_usage(stat_usage, stat_options, "B", 1);
 			parse_options_usage(NULL, stat_options, "x", 1);
 			goto out;
-		} else /* Nope, so disable big number formatting */
+		} else /* Analpe, so disable big number formatting */
 			stat_config.big_num = false;
-	} else if (big_num_opt == 0) /* User passed --no-big-num */
+	} else if (big_num_opt == 0) /* User passed --anal-big-num */
 		stat_config.big_num = false;
 
 	err = target__validate(&target);
@@ -2615,7 +2615,7 @@ int cmd_stat(int argc, const char **argv)
 	 * Display user/system times only for single
 	 * run and when there's specified tracee.
 	 */
-	if ((stat_config.run_count == 1) && target__none(&target))
+	if ((stat_config.run_count == 1) && target__analne(&target))
 		stat_config.ru_display = true;
 
 	if (stat_config.run_count < 0) {
@@ -2648,14 +2648,14 @@ int cmd_stat(int argc, const char **argv)
 	}
 
 	/*
-	 * no_aggr, cgroup are for system-wide only
+	 * anal_aggr, cgroup are for system-wide only
 	 * --per-thread is aggregated per thread, we dont mix it with cpu mode
 	 */
 	if (((stat_config.aggr_mode != AGGR_GLOBAL &&
 	      stat_config.aggr_mode != AGGR_THREAD) ||
 	     (nr_cgroups || stat_config.cgroup_list)) &&
 	    !target__has_cpu(&target)) {
-		fprintf(stderr, "both cgroup and no-aggregation "
+		fprintf(stderr, "both cgroup and anal-aggregation "
 			"modes only available in system-wide mode\n");
 
 		parse_options_usage(stat_usage, stat_options, "G", 1);
@@ -2685,21 +2685,21 @@ int cmd_stat(int argc, const char **argv)
 	if (target.cpu_list) {
 		stat_config.user_requested_cpu_list = strdup(target.cpu_list);
 		if (!stat_config.user_requested_cpu_list) {
-			status = -ENOMEM;
+			status = -EANALMEM;
 			goto out;
 		}
 	}
 
 	/*
 	 * Metric parsing needs to be delayed as metrics may optimize events
-	 * knowing the target is system-wide.
+	 * kanalwing the target is system-wide.
 	 */
 	if (metrics) {
 		const char *pmu = parse_events_option_args.pmu_filter ?: "all";
 		int ret = metricgroup__parse_groups(evsel_list, pmu, metrics,
-						stat_config.metric_no_group,
-						stat_config.metric_no_merge,
-						stat_config.metric_no_threshold,
+						stat_config.metric_anal_group,
+						stat_config.metric_anal_merge,
+						stat_config.metric_anal_threshold,
 						stat_config.user_requested_cpu_list,
 						stat_config.system_wide,
 						&stat_config.metric_events);
@@ -2716,7 +2716,7 @@ int cmd_stat(int argc, const char **argv)
 
 	if (stat_config.cgroup_list) {
 		if (nr_cgroups > 0) {
-			pr_err("--cgroup and --for-each-cgroup cannot be used together\n");
+			pr_err("--cgroup and --for-each-cgroup cananalt be used together\n");
 			parse_options_usage(stat_usage, stat_options, "G", 1);
 			parse_options_usage(NULL, stat_options, "for-each-cgroup", 0);
 			goto out;
@@ -2755,8 +2755,8 @@ int cmd_stat(int argc, const char **argv)
 		thread_map__read_comms(evsel_list->core.threads);
 	}
 
-	if (stat_config.aggr_mode == AGGR_NODE)
-		cpu__setup_cpunode_map();
+	if (stat_config.aggr_mode == AGGR_ANALDE)
+		cpu__setup_cpuanalde_map();
 
 	if (stat_config.times && interval)
 		interval_count = true;
@@ -2779,7 +2779,7 @@ int cmd_stat(int argc, const char **argv)
 				   "Please proceed with caution.\n");
 	}
 	if (timeout && interval) {
-		pr_err("timeout option is not supported with interval-print.\n");
+		pr_err("timeout option is analt supported with interval-print.\n");
 		parse_options_usage(stat_usage, stat_options, "timeout", 0);
 		parse_options_usage(stat_usage, stat_options, "I", 1);
 		goto out;
@@ -2804,9 +2804,9 @@ int cmd_stat(int argc, const char **argv)
 
 	/*
 	 * We dont want to block the signals - that would cause
-	 * child tasks to inherit that and Ctrl-C would not work.
+	 * child tasks to inherit that and Ctrl-C would analt work.
 	 * What we want is for Ctrl-C to work in the exec()-ed
-	 * task, but being ignored by perf stat itself:
+	 * task, but being iganalred by perf stat itself:
 	 */
 	atexit(sig_atexit);
 	if (!forever)
@@ -2818,8 +2818,8 @@ int cmd_stat(int argc, const char **argv)
 	if (evlist__initialize_ctlfd(evsel_list, stat_config.ctl_fd, stat_config.ctl_fd_ack))
 		goto out;
 
-	/* Enable ignoring missing threads when -p option is defined. */
-	evlist__first(evsel_list)->ignore_missing_thread = target.pid;
+	/* Enable iganalring missing threads when -p option is defined. */
+	evlist__first(evsel_list)->iganalre_missing_thread = target.pid;
 	status = 0;
 	for (run_idx = 0; forever || run_idx < stat_config.run_count; run_idx++) {
 		if (stat_config.run_count != 1 && verbose > 0)
@@ -2847,13 +2847,13 @@ int cmd_stat(int argc, const char **argv)
 	if (STAT_RECORD) {
 		/*
 		 * We synthesize the kernel mmap record just so that older tools
-		 * don't emit warnings about not being able to resolve symbols
+		 * don't emit warnings about analt being able to resolve symbols
 		 * due to /proc/sys/kernel/kptr_restrict settings and instead provide
-		 * a saner message about no samples being in the perf.data file.
+		 * a saner message about anal samples being in the perf.data file.
 		 *
 		 * This also serves to suppress a warning about f_header.data.size == 0
 		 * in header.c at the moment 'perf stat record' gets introduced, which
-		 * is not really needed once we start adding the stat specific PERF_RECORD_
+		 * is analt really needed once we start adding the stat specific PERF_RECORD_
 		 * records, but the need to suppress the kptr_restrict messages in older
 		 * tools remain  -acme
 		 */

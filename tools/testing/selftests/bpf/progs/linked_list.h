@@ -7,22 +7,22 @@
 #include "bpf_experimental.h"
 
 struct bar {
-	struct bpf_list_node node;
+	struct bpf_list_analde analde;
 	int data;
 };
 
 struct foo {
-	struct bpf_list_node node;
-	struct bpf_list_head head __contains(bar, node);
+	struct bpf_list_analde analde;
+	struct bpf_list_head head __contains(bar, analde);
 	struct bpf_spin_lock lock;
 	int data;
-	struct bpf_list_node node2;
+	struct bpf_list_analde analde2;
 };
 
 struct map_value {
 	struct bpf_spin_lock lock;
 	int data;
-	struct bpf_list_head head __contains(foo, node2);
+	struct bpf_list_head head __contains(foo, analde2);
 };
 
 struct array_map {
@@ -50,7 +50,7 @@ struct {
 #define private(name) SEC(".bss." #name) __hidden __attribute__((aligned(8)))
 
 private(A) struct bpf_spin_lock glock;
-private(A) struct bpf_list_head ghead __contains(foo, node2);
+private(A) struct bpf_list_head ghead __contains(foo, analde2);
 private(B) struct bpf_spin_lock glock2;
 
 #endif

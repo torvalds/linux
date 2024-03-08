@@ -3,7 +3,7 @@
  *  linux/arch/arm/mach-sa1100/clock.c
  */
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/err.h>
 #include <linux/clk.h>
 #include <linux/clkdev.h>
@@ -87,7 +87,7 @@ static const struct clk_init_data clk_mpll_init_data __initconst = {
 	.ops = &clk_mpll_ops,
 	.parent_names = clk_mpll_parents,
 	.num_parents = ARRAY_SIZE(clk_mpll_parents),
-	.flags = CLK_GET_RATE_NOCACHE | CLK_IS_CRITICAL,
+	.flags = CLK_GET_RATE_ANALCACHE | CLK_IS_CRITICAL,
 };
 
 int __init sa11xx_clk_init(void)
@@ -109,7 +109,7 @@ int __init sa11xx_clk_init(void)
 
 	hw = kzalloc(sizeof(*hw), GFP_KERNEL);
 	if (!hw)
-		return -ENOMEM;
+		return -EANALMEM;
 	hw->init = &clk_mpll_init_data;
 	ret = clk_hw_register(NULL, hw);
 	if (ret) {
@@ -131,7 +131,7 @@ int __init sa11xx_clk_init(void)
 
 	hw = kzalloc(sizeof(*hw), GFP_KERNEL);
 	if (!hw)
-		return -ENOMEM;
+		return -EANALMEM;
 	hw->init = &clk_gpio27_init_data;
 	ret = clk_hw_register(NULL, hw);
 	if (ret) {

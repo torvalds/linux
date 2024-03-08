@@ -2,16 +2,16 @@
 /**
  * timer-ti-32k.c - OMAP2 32k Timer Support
  *
- * Copyright (C) 2009 Nokia Corporation
+ * Copyright (C) 2009 Analkia Corporation
  *
  * Update to use new clocksource/clockevent layers
  * Author: Kevin Hilman, MontaVista Software, Inc. <source@mvista.com>
  * Copyright (C) 2007 MontaVista Software, Inc.
  *
  * Original driver:
- * Copyright (C) 2005 Nokia Corporation
- * Author: Paul Mundt <paul.mundt@nokia.com>
- *         Juha Yrjölä <juha.yrjola@nokia.com>
+ * Copyright (C) 2005 Analkia Corporation
+ * Author: Paul Mundt <paul.mundt@analkia.com>
+ *         Juha Yrjölä <juha.yrjola@analkia.com>
  * OMAP Dual-mode timer framework support by Timo Teras
  *
  * Some parts based off of TI's 24xx code:
@@ -55,7 +55,7 @@ static inline struct ti_32k *to_ti_32k(struct clocksource *cs)
 	return container_of(cs, struct ti_32k, cs);
 }
 
-static u64 notrace ti_32k_read_cycles(struct clocksource *cs)
+static u64 analtrace ti_32k_read_cycles(struct clocksource *cs)
 {
 	struct ti_32k *ti = to_ti_32k(cs);
 
@@ -72,12 +72,12 @@ static struct ti_32k ti_32k_timer = {
 	},
 };
 
-static u64 notrace omap_32k_read_sched_clock(void)
+static u64 analtrace omap_32k_read_sched_clock(void)
 {
 	return ti_32k_read_cycles(&ti_32k_timer.cs);
 }
 
-static void __init ti_32k_timer_enable_clock(struct device_node *np,
+static void __init ti_32k_timer_enable_clock(struct device_analde *np,
 					     const char *name)
 {
 	struct clk *clock;
@@ -89,20 +89,20 @@ static void __init ti_32k_timer_enable_clock(struct device_node *np,
 		if (PTR_ERR(clock) == -EINVAL && !strncmp("ick", name, 3))
 			return;
 
-		pr_warn("%s: could not get clock %s %li\n",
+		pr_warn("%s: could analt get clock %s %li\n",
 			__func__, name, PTR_ERR(clock));
 		return;
 	}
 
 	error = clk_prepare_enable(clock);
 	if (error) {
-		pr_warn("%s: could not enable %s: %i\n",
+		pr_warn("%s: could analt enable %s: %i\n",
 			__func__, name, error);
 		return;
 	}
 }
 
-static void __init ti_32k_timer_module_init(struct device_node *np,
+static void __init ti_32k_timer_module_init(struct device_analde *np,
 					    void __iomem *base)
 {
 	void __iomem *sysc = base + 4;
@@ -115,12 +115,12 @@ static void __init ti_32k_timer_module_init(struct device_node *np,
 
 	/*
 	 * Force idle module as wkup domain is active with MPU.
-	 * No need to tag the module disabled for ti-sysc probe.
+	 * Anal need to tag the module disabled for ti-sysc probe.
 	 */
 	writel_relaxed(0, sysc);
 }
 
-static int __init ti_32k_timer_init(struct device_node *np)
+static int __init ti_32k_timer_init(struct device_analde *np)
 {
 	int ret;
 
@@ -131,7 +131,7 @@ static int __init ti_32k_timer_init(struct device_node *np)
 	}
 
 	if (!of_machine_is_compatible("ti,am43"))
-		ti_32k_timer.cs.flags |= CLOCK_SOURCE_SUSPEND_NONSTOP;
+		ti_32k_timer.cs.flags |= CLOCK_SOURCE_SUSPEND_ANALNSTOP;
 
 	ti_32k_timer.counter = ti_32k_timer.base;
 	ti_32k_timer_module_init(np, ti_32k_timer.base);

@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2010 LaCie
  *
- * Author: Simon Guinot <sguinot@lacie.com>
+ * Author: Simon Guianalt <sguianalt@lacie.com>
  */
 
 #include <linux/module.h>
@@ -48,12 +48,12 @@ struct gpio_fan_data {
  * Alarm GPIO.
  */
 
-static void fan_alarm_notify(struct work_struct *ws)
+static void fan_alarm_analtify(struct work_struct *ws)
 {
 	struct gpio_fan_data *fan_data =
 		container_of(ws, struct gpio_fan_data, alarm_work);
 
-	sysfs_notify(&fan_data->hwmon_dev->kobj, NULL, "fan1_alarm");
+	sysfs_analtify(&fan_data->hwmon_dev->kobj, NULL, "fan1_alarm");
 	kobject_uevent(&fan_data->hwmon_dev->kobj, KOBJ_CHANGE);
 }
 
@@ -63,7 +63,7 @@ static irqreturn_t fan_alarm_irq_handler(int irq, void *dev_id)
 
 	schedule_work(&fan_data->alarm_work);
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static ssize_t fan1_alarm_show(struct device *dev,
@@ -84,13 +84,13 @@ static int fan_alarm_init(struct gpio_fan_data *fan_data)
 
 	/*
 	 * If the alarm GPIO don't support interrupts, just leave
-	 * without initializing the fail notification support.
+	 * without initializing the fail analtification support.
 	 */
 	alarm_irq = gpiod_to_irq(fan_data->alarm_gpio);
 	if (alarm_irq <= 0)
 		return 0;
 
-	INIT_WORK(&fan_data->alarm_work, fan_alarm_notify);
+	INIT_WORK(&fan_data->alarm_work, fan_alarm_analtify);
 	irq_set_irq_type(alarm_irq, IRQ_TYPE_EDGE_BOTH);
 	return devm_request_irq(dev, alarm_irq, fan_alarm_irq_handler,
 				IRQF_SHARED, "GPIO fan alarm", fan_data);
@@ -146,7 +146,7 @@ static int get_fan_speed_index(struct gpio_fan_data *fan_data)
 	dev_warn(fan_data->dev,
 		 "missing speed array entry for GPIO value 0x%x\n", ctrl_val);
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int rpm_to_speed_index(struct gpio_fan_data *fan_data, unsigned long rpm)
@@ -342,7 +342,7 @@ static int fan_ctrl_init(struct gpio_fan_data *fan_data)
 		 * The GPIO descriptors were retrieved with GPIOD_ASIS so here
 		 * we set the GPIO into output mode, carefully preserving the
 		 * current value by setting it to whatever it is already set
-		 * (no surprise changes in default fan speed).
+		 * (anal surprise changes in default fan speed).
 		 */
 		err = gpiod_direction_output(gpios[i],
 					gpiod_get_value_cansleep(gpios[i]));
@@ -404,13 +404,13 @@ static const struct thermal_cooling_device_ops gpio_fan_cool_ops = {
 };
 
 /*
- * Translate OpenFirmware node properties into platform_data
+ * Translate OpenFirmware analde properties into platform_data
  */
 static int gpio_fan_get_of_data(struct gpio_fan_data *fan_data)
 {
 	struct gpio_fan_speed *speed;
 	struct device *dev = fan_data->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct gpio_desc **gpios;
 	unsigned i;
 	u32 u;
@@ -428,13 +428,13 @@ static int gpio_fan_get_of_data(struct gpio_fan_data *fan_data)
 		if (fan_data->alarm_gpio)
 			return 0;
 		dev_err(dev, "DT properties empty / missing");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	gpios = devm_kcalloc(dev,
 			     fan_data->num_gpios, sizeof(struct gpio_desc *),
 			     GFP_KERNEL);
 	if (!gpios)
-		return -ENOMEM;
+		return -EANALMEM;
 	for (i = 0; i < fan_data->num_gpios; i++) {
 		gpios[i] = devm_gpiod_get_index(dev, NULL, i, GPIOD_ASIS);
 		if (IS_ERR(gpios[i]))
@@ -446,12 +446,12 @@ static int gpio_fan_get_of_data(struct gpio_fan_data *fan_data)
 	prop = of_find_property(np, "gpio-fan,speed-map", &i);
 	if (!prop) {
 		dev_err(dev, "gpio-fan,speed-map DT property missing");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	i = i / sizeof(u32);
 	if (i == 0 || i & 1) {
 		dev_err(dev, "gpio-fan,speed-map contains zero/odd number of entries");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	fan_data->num_speed = i / 2;
 
@@ -464,16 +464,16 @@ static int gpio_fan_get_of_data(struct gpio_fan_data *fan_data)
 			fan_data->num_speed, sizeof(struct gpio_fan_speed),
 			GFP_KERNEL);
 	if (!speed)
-		return -ENOMEM;
+		return -EANALMEM;
 	p = NULL;
 	for (i = 0; i < fan_data->num_speed; i++) {
 		p = of_prop_next_u32(prop, p, &u);
 		if (!p)
-			return -ENODEV;
+			return -EANALDEV;
 		speed[i].rpm = u;
 		p = of_prop_next_u32(prop, p, &u);
 		if (!p)
-			return -ENODEV;
+			return -EANALDEV;
 		speed[i].ctrl_val = u;
 	}
 	fan_data->speed = speed;
@@ -497,12 +497,12 @@ static int gpio_fan_probe(struct platform_device *pdev)
 	int err;
 	struct gpio_fan_data *fan_data;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 
 	fan_data = devm_kzalloc(dev, sizeof(struct gpio_fan_data),
 				GFP_KERNEL);
 	if (!fan_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fan_data->dev = dev;
 	err = gpio_fan_get_of_data(fan_data);
@@ -592,7 +592,7 @@ static struct platform_driver gpio_fan_driver = {
 
 module_platform_driver(gpio_fan_driver);
 
-MODULE_AUTHOR("Simon Guinot <sguinot@lacie.com>");
+MODULE_AUTHOR("Simon Guianalt <sguianalt@lacie.com>");
 MODULE_DESCRIPTION("GPIO FAN driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:gpio-fan");

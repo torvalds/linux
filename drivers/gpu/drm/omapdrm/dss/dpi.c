@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2009 Nokia Corporation
+ * Copyright (C) 2009 Analkia Corporation
  * Author: Tomi Valkeinen <tomi.valkeinen@ti.com>
  *
  * Some code and ideas taken from drivers/video/omap/ driver
@@ -12,7 +12,7 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/of.h>
@@ -258,7 +258,7 @@ static bool dpi_dss_clk_calc(struct dpi_data *dpi, unsigned long pck,
 
 	/*
 	 * DSS fck gives us very few possibilities, so finding a good pixel
-	 * clock may not be possible. We try multiple times to find the clock,
+	 * clock may analt be possible. We try multiple times to find the clock,
 	 * each time widening the pixel clock range we look for, up to
 	 * +/- ~15MHz.
 	 */
@@ -407,7 +407,7 @@ static void dpi_init_pll(struct dpi_data *dpi)
 		return;
 
 	if (dpi_verify_pll(pll)) {
-		DSSWARN("PLL not operational\n");
+		DSSWARN("PLL analt operational\n");
 		return;
 	}
 
@@ -423,7 +423,7 @@ static int dpi_bridge_attach(struct drm_bridge *bridge,
 {
 	struct dpi_data *dpi = drm_bridge_to_dpi(bridge);
 
-	if (!(flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR))
+	if (!(flags & DRM_BRIDGE_ATTACH_ANAL_CONNECTOR))
 		return -EINVAL;
 
 	dpi_init_pll(dpi);
@@ -445,7 +445,7 @@ dpi_bridge_mode_valid(struct drm_bridge *bridge,
 		return MODE_BAD_WIDTH;
 
 	if (mode->clock == 0)
-		return MODE_NOCLOCK;
+		return MODE_ANALCLOCK;
 
 	ret = dpi_clock_update(dpi, &clock);
 	if (ret < 0)
@@ -561,7 +561,7 @@ static const struct drm_bridge_funcs dpi_bridge_funcs = {
 static void dpi_bridge_init(struct dpi_data *dpi)
 {
 	dpi->bridge.funcs = &dpi_bridge_funcs;
-	dpi->bridge.of_node = dpi->pdev->dev.of_node;
+	dpi->bridge.of_analde = dpi->pdev->dev.of_analde;
 	dpi->bridge.type = DRM_MODE_CONNECTOR_DPI;
 
 	drm_bridge_add(&dpi->bridge);
@@ -612,7 +612,7 @@ static enum omap_channel dpi_get_channel(struct dpi_data *dpi)
 	}
 }
 
-static int dpi_init_output_port(struct dpi_data *dpi, struct device_node *port)
+static int dpi_init_output_port(struct dpi_data *dpi, struct device_analde *port)
 {
 	struct omap_dss_device *out = &dpi->output;
 	u32 port_num = 0;
@@ -653,7 +653,7 @@ static int dpi_init_output_port(struct dpi_data *dpi, struct device_node *port)
 	return 0;
 }
 
-static void dpi_uninit_output_port(struct device_node *port)
+static void dpi_uninit_output_port(struct device_analde *port)
 {
 	struct dpi_data *dpi = port->data;
 	struct omap_dss_device *out = &dpi->output;
@@ -698,23 +698,23 @@ static int dpi_init_regulator(struct dpi_data *dpi)
 }
 
 int dpi_init_port(struct dss_device *dss, struct platform_device *pdev,
-		  struct device_node *port, enum dss_model dss_model)
+		  struct device_analde *port, enum dss_model dss_model)
 {
 	struct dpi_data *dpi;
-	struct device_node *ep;
+	struct device_analde *ep;
 	u32 datalines;
 	int r;
 
 	dpi = devm_kzalloc(&pdev->dev, sizeof(*dpi), GFP_KERNEL);
 	if (!dpi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ep = of_get_next_child(port, NULL);
 	if (!ep)
 		return 0;
 
 	r = of_property_read_u32(ep, "data-lines", &datalines);
-	of_node_put(ep);
+	of_analde_put(ep);
 	if (r) {
 		DSSERR("failed to parse datalines\n");
 		return r;
@@ -734,7 +734,7 @@ int dpi_init_port(struct dss_device *dss, struct platform_device *pdev,
 	return dpi_init_output_port(dpi, port);
 }
 
-void dpi_uninit_port(struct device_node *port)
+void dpi_uninit_port(struct device_analde *port)
 {
 	struct dpi_data *dpi = port->data;
 

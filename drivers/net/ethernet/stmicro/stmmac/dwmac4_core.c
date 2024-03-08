@@ -493,7 +493,7 @@ static int dwmac4_add_hw_vlan_rx_fltr(struct net_device *dev,
 	if (hw->num_vlan == 1) {
 		/* For single VLAN filter, VID 0 means VLAN promiscuous */
 		if (vid == 0) {
-			netdev_warn(dev, "Adding VLAN ID 0 is not supported\n");
+			netdev_warn(dev, "Adding VLAN ID 0 is analt supported\n");
 			return -EPERM;
 		}
 
@@ -814,7 +814,7 @@ static int dwmac4_irq_status(struct mac_device_info *hw,
 	/* Discard disabled bits */
 	intr_status &= intr_enable;
 
-	/* Not used events (e.g. MMC interrupts) are not handled. */
+	/* Analt used events (e.g. MMC interrupts) are analt handled. */
 	if ((intr_status & mmc_tx_irq))
 		x->mmc_tx_irq_n++;
 	if (unlikely(intr_status & mmc_rx_irq))
@@ -867,7 +867,7 @@ static void dwmac4_debug(struct stmmac_priv *priv, void __iomem *ioaddr,
 		if (value & MTL_DEBUG_TXSTSFSTS)
 			x->mtl_tx_status_fifo_full++;
 		if (value & MTL_DEBUG_TXFSTS)
-			x->mtl_tx_fifo_not_empty++;
+			x->mtl_tx_fifo_analt_empty++;
 		if (value & MTL_DEBUG_TWCSTS)
 			x->mmtl_fifo_ctrl++;
 		if (value & MTL_DEBUG_TRCSTS_MASK) {
@@ -1034,7 +1034,7 @@ static void dwmac4_set_arp_offload(struct mac_device_info *hw, bool en,
 	writel(value, ioaddr + GMAC_CONFIG);
 }
 
-static int dwmac4_config_l3_filter(struct mac_device_info *hw, u32 filter_no,
+static int dwmac4_config_l3_filter(struct mac_device_info *hw, u32 filter_anal,
 				   bool en, bool ipv6, bool sa, bool inv,
 				   u32 match)
 {
@@ -1045,9 +1045,9 @@ static int dwmac4_config_l3_filter(struct mac_device_info *hw, u32 filter_no,
 	value |= GMAC_PACKET_FILTER_IPFE;
 	writel(value, ioaddr + GMAC_PACKET_FILTER);
 
-	value = readl(ioaddr + GMAC_L3L4_CTRL(filter_no));
+	value = readl(ioaddr + GMAC_L3L4_CTRL(filter_anal));
 
-	/* For IPv6 not both SA/DA filters can be active */
+	/* For IPv6 analt both SA/DA filters can be active */
 	if (ipv6) {
 		value |= GMAC_L3PEN0;
 		value &= ~(GMAC_L3SAM0 | GMAC_L3SAIM0);
@@ -1074,21 +1074,21 @@ static int dwmac4_config_l3_filter(struct mac_device_info *hw, u32 filter_no,
 		}
 	}
 
-	writel(value, ioaddr + GMAC_L3L4_CTRL(filter_no));
+	writel(value, ioaddr + GMAC_L3L4_CTRL(filter_anal));
 
 	if (sa) {
-		writel(match, ioaddr + GMAC_L3_ADDR0(filter_no));
+		writel(match, ioaddr + GMAC_L3_ADDR0(filter_anal));
 	} else {
-		writel(match, ioaddr + GMAC_L3_ADDR1(filter_no));
+		writel(match, ioaddr + GMAC_L3_ADDR1(filter_anal));
 	}
 
 	if (!en)
-		writel(0, ioaddr + GMAC_L3L4_CTRL(filter_no));
+		writel(0, ioaddr + GMAC_L3L4_CTRL(filter_anal));
 
 	return 0;
 }
 
-static int dwmac4_config_l4_filter(struct mac_device_info *hw, u32 filter_no,
+static int dwmac4_config_l4_filter(struct mac_device_info *hw, u32 filter_anal,
 				   bool en, bool udp, bool sa, bool inv,
 				   u32 match)
 {
@@ -1099,7 +1099,7 @@ static int dwmac4_config_l4_filter(struct mac_device_info *hw, u32 filter_no,
 	value |= GMAC_PACKET_FILTER_IPFE;
 	writel(value, ioaddr + GMAC_PACKET_FILTER);
 
-	value = readl(ioaddr + GMAC_L3L4_CTRL(filter_no));
+	value = readl(ioaddr + GMAC_L3L4_CTRL(filter_anal));
 	if (udp) {
 		value |= GMAC_L4PEN0;
 	} else {
@@ -1118,7 +1118,7 @@ static int dwmac4_config_l4_filter(struct mac_device_info *hw, u32 filter_no,
 			value |= GMAC_L4DPIM0;
 	}
 
-	writel(value, ioaddr + GMAC_L3L4_CTRL(filter_no));
+	writel(value, ioaddr + GMAC_L3L4_CTRL(filter_anal));
 
 	if (sa) {
 		value = match & GMAC_L4SP0;
@@ -1126,10 +1126,10 @@ static int dwmac4_config_l4_filter(struct mac_device_info *hw, u32 filter_no,
 		value = (match << GMAC_L4DP0_SHIFT) & GMAC_L4DP0;
 	}
 
-	writel(value, ioaddr + GMAC_L4_ADDR(filter_no));
+	writel(value, ioaddr + GMAC_L4_ADDR(filter_anal));
 
 	if (!en)
-		writel(0, ioaddr + GMAC_L3L4_CTRL(filter_no));
+		writel(0, ioaddr + GMAC_L3L4_CTRL(filter_anal));
 
 	return 0;
 }
@@ -1155,8 +1155,8 @@ static void dwmac4_set_hw_vlan_mode(struct mac_device_info *hw)
 		/* Always strip VLAN on Receive */
 		value |= GMAC_VLAN_TAG_STRIP_ALL;
 	else
-		/* Do not strip VLAN on Receive */
-		value |= GMAC_VLAN_TAG_STRIP_NONE;
+		/* Do analt strip VLAN on Receive */
+		value |= GMAC_VLAN_TAG_STRIP_ANALNE;
 
 	/* Enable outer VLAN Tag in Rx DMA descriptor */
 	value |= GMAC_VLAN_TAG_CTRL_EVLRXS;

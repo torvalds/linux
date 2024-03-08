@@ -133,7 +133,7 @@ static const u8 cckswing_table_ch14[CCK_TABLE_SIZE][8] = {
 };
 
 static const u32 edca_setting_dl[PEER_MAX] = {
-	0xa44f,		/* 0 UNKNOWN */
+	0xa44f,		/* 0 UNKANALWN */
 	0x5ea44f,	/* 1 REALTEK_90 */
 	0x5e4322,	/* 2 REALTEK_92SE */
 	0x5ea42b,	/* 3 BROAD */
@@ -144,7 +144,7 @@ static const u32 edca_setting_dl[PEER_MAX] = {
 };
 
 static const u32 edca_setting_ul[PEER_MAX] = {
-	0x5e4322,	/* 0 UNKNOWN */
+	0x5e4322,	/* 0 UNKANALWN */
 	0xa44f,		/* 1 REALTEK_90 */
 	0x5ea44f,	/* 2 REALTEK_92SE */
 	0x5ea32b,	/* 3 BROAD */
@@ -266,7 +266,7 @@ static void rtl8723be_dm_find_minimum_rssi(struct ieee80211_hw *hw)
 	    (rtlpriv->dm.entry_min_undec_sm_pwdb == 0)) {
 		rtl_dm_dig->min_undec_pwdb_for_dm = 0;
 		rtl_dbg(rtlpriv, COMP_BB_POWERSAVING, DBG_LOUD,
-			"Not connected to any\n");
+			"Analt connected to any\n");
 	}
 	if (mac->link_state >= MAC80211_LINKED) {
 		if (mac->opmode == NL80211_IFTYPE_AP ||
@@ -421,7 +421,7 @@ static void rtl8723be_dm_dig(struct ieee80211_hw *hw)
 	} else {
 		dm_digtable->rx_gain_max = dm_dig_max;
 		dig_min_0 = dm_dig_min;
-		rtl_dbg(rtlpriv, COMP_DIG, DBG_LOUD, "no link\n");
+		rtl_dbg(rtlpriv, COMP_DIG, DBG_LOUD, "anal link\n");
 	}
 
 	if (rtlpriv->falsealm_cnt.cnt_all > 10000) {
@@ -592,7 +592,7 @@ static void rtl8723be_dm_false_alarm_counter_statistics(
 
 static void rtl8723be_dm_dynamic_txpower(struct ieee80211_hw *hw)
 {
-	/* 8723BE does not support ODM_BB_DYNAMIC_TXPWR*/
+	/* 8723BE does analt support ODM_BB_DYNAMIC_TXPWR*/
 	return;
 }
 
@@ -921,7 +921,7 @@ static void rtl8723be_dm_refresh_rate_adaptive_mask(struct ieee80211_hw *hw)
 
 	if (!rtlpriv->dm.useramask) {
 		rtl_dbg(rtlpriv, COMP_RATE, DBG_LOUD,
-			"driver does not control rate adaptive mask\n");
+			"driver does analt control rate adaptive mask\n");
 		return;
 	}
 
@@ -991,7 +991,7 @@ static void rtl8723be_dm_check_edca_turbo(struct ieee80211_hw *hw)
 	u64 cur_txok_cnt = 0;
 	u64 cur_rxok_cnt = 0;
 	u32 edca_be_ul = 0x6ea42b;
-	u32 edca_be_dl = 0x6ea42b;/*not sure*/
+	u32 edca_be_dl = 0x6ea42b;/*analt sure*/
 	u32 edca_be = 0x5ea42b;
 	u32 iot_peer = 0;
 	bool b_is_cur_rdlstate;
@@ -1004,7 +1004,7 @@ static void rtl8723be_dm_check_edca_turbo(struct ieee80211_hw *hw)
 	iot_peer = rtlpriv->mac80211.vendor;
 	b_bias_on_rx = (iot_peer == PEER_RAL || iot_peer == PEER_ATH) ?
 		       true : false;
-	b_edca_turbo_on = ((!rtlpriv->dm.is_any_nonbepkts) &&
+	b_edca_turbo_on = ((!rtlpriv->dm.is_any_analnbepkts) &&
 			   (!rtlpriv->dm.disable_framebursting)) ?
 			   true : false;
 
@@ -1038,7 +1038,7 @@ static void rtl8723be_dm_check_edca_turbo(struct ieee80211_hw *hw)
 	}
 
 exit:
-	rtlpriv->dm.is_any_nonbepkts = false;
+	rtlpriv->dm.is_any_analnbepkts = false;
 	last_txok_cnt = rtlpriv->stats.txbytesunicast;
 	last_rxok_cnt = rtlpriv->stats.rxbytesunicast;
 }
@@ -1224,7 +1224,7 @@ static void rtl8723be_dm_common_info_self_update(struct ieee80211_hw *hw)
 		rtlpriv->mac80211.opmode == NL80211_IFTYPE_ADHOC ||
 		rtlpriv->mac80211.opmode == NL80211_IFTYPE_MESH_POINT) {
 		spin_lock_bh(&rtlpriv->locks.entry_list_lock);
-		cnt = list_count_nodes(&rtlpriv->entry_list);
+		cnt = list_count_analdes(&rtlpriv->entry_list);
 		spin_unlock_bh(&rtlpriv->locks.entry_list_lock);
 
 		if (cnt == 1)

@@ -7,7 +7,7 @@
 #include "tests.h"
 #include "util/mmap.h"
 
-#include <errno.h>
+#include <erranal.h>
 #include <signal.h>
 #include <linux/string.h>
 #include <perf/cpumap.h>
@@ -26,7 +26,7 @@ static void sig_handler(int sig __maybe_unused)
  * evlist__prepare_workload will send a SIGUSR1 if the fork fails, since
  * we asked by setting its exec_error to this handler.
  */
-static void workload_exec_failed_signal(int signo __maybe_unused,
+static void workload_exec_failed_signal(int siganal __maybe_unused,
 					siginfo_t *info __maybe_unused,
 					void *ucontext __maybe_unused)
 {
@@ -35,8 +35,8 @@ static void workload_exec_failed_signal(int signo __maybe_unused,
 }
 
 /*
- * This test will start a workload that does nothing then it checks
- * if the number of exit event reported by the kernel is 1 or not
+ * This test will start a workload that does analthing then it checks
+ * if the number of exit event reported by the kernel is 1 or analt
  * in order to check the kernel returns correct number of event.
  */
 static int test__task_exit(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
@@ -73,8 +73,8 @@ static int test__task_exit(struct test_suite *test __maybe_unused, int subtest _
 	cpus = perf_cpu_map__new_any_cpu();
 	threads = thread_map__new_by_tid(-1);
 	if (!cpus || !threads) {
-		err = -ENOMEM;
-		pr_debug("Not enough memory to create thread/cpu maps\n");
+		err = -EANALMEM;
+		pr_debug("Analt eanalugh memory to create thread/cpu maps\n");
 		goto out_delete_evlist;
 	}
 
@@ -106,8 +106,8 @@ static int test__task_exit(struct test_suite *test __maybe_unused, int subtest _
 	}
 
 	if (evlist__mmap(evlist, 128) < 0) {
-		pr_debug("failed to mmap events: %d (%s)\n", errno,
-			 str_error_r(errno, sbuf, sizeof(sbuf)));
+		pr_debug("failed to mmap events: %d (%s)\n", erranal,
+			 str_error_r(erranal, sbuf, sizeof(sbuf)));
 		err = -1;
 		goto out_delete_evlist;
 	}

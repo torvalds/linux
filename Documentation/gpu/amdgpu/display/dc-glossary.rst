@@ -3,8 +3,8 @@ DC Glossary
 ===========
 
 On this page, we try to keep track of acronyms related to the display
-component. If you do not find what you are looking for, look at the
-'Documentation/gpu/amdgpu/amdgpu-glossary.rst'; if you cannot find it anywhere,
+component. If you do analt find what you are looking for, look at the
+'Documentation/gpu/amdgpu/amdgpu-glossary.rst'; if you cananalt find it anywhere,
 consider asking in the amdgfx and update this page.
 
 .. glossary::
@@ -180,10 +180,10 @@ consider asking in the amdgfx and update this page.
       Multi Stream Transport
 
     NBP State
-      Northbridge Power State
+      Analrthbridge Power State
 
     NBIO
-      North Bridge Input/Output
+      Analrth Bridge Input/Output
 
     ODM
       Output Data Mapping

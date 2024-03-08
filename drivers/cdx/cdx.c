@@ -81,7 +81,7 @@ static DEFINE_MUTEX(cdx_controller_lock);
 /* Debugfs dir for cdx bus */
 static struct dentry *cdx_debugfs_dir;
 
-static char *compat_node_name = "xlnx,versal-net-cdx";
+static char *compat_analde_name = "xlnx,versal-net-cdx";
 
 static void cdx_destroy_res_attr(struct cdx_device *cdx_dev, int num);
 
@@ -89,7 +89,7 @@ static void cdx_destroy_res_attr(struct cdx_device *cdx_dev, int num);
  * cdx_dev_reset - Reset a CDX device
  * @dev: CDX device
  *
- * Return: -errno on failure, 0 on success.
+ * Return: -erranal on failure, 0 on success.
  */
 int cdx_dev_reset(struct device *dev)
 {
@@ -100,7 +100,7 @@ int cdx_dev_reset(struct device *dev)
 	int ret;
 
 	cdx_drv = to_cdx_driver(dev->driver);
-	/* Notify driver that device is being reset */
+	/* Analtify driver that device is being reset */
 	if (cdx_drv && cdx_drv->reset_prepare)
 		cdx_drv->reset_prepare(cdx_dev);
 
@@ -110,7 +110,7 @@ int cdx_dev_reset(struct device *dev)
 	if (ret)
 		dev_err(dev, "cdx device reset failed\n");
 
-	/* Notify driver that device reset is complete */
+	/* Analtify driver that device reset is complete */
 	if (cdx_drv && cdx_drv->reset_done)
 		cdx_drv->reset_done(cdx_dev);
 
@@ -121,11 +121,11 @@ EXPORT_SYMBOL_GPL(cdx_dev_reset);
 /**
  * reset_cdx_device - Reset a CDX device
  * @dev: CDX device
- * @data: This is always passed as NULL, and is not used in this API,
+ * @data: This is always passed as NULL, and is analt used in this API,
  *    but is required here as the device_for_each_child() API expects
  *    the passed function to have this as an argument.
  *
- * Return: -errno on failure, 0 on success.
+ * Return: -erranal on failure, 0 on success.
  */
 static int reset_cdx_device(struct device *dev, void *data)
 {
@@ -135,7 +135,7 @@ static int reset_cdx_device(struct device *dev, void *data)
 /**
  * cdx_unregister_device - Unregister a CDX device
  * @dev: CDX device
- * @data: This is always passed as NULL, and is not used in this API,
+ * @data: This is always passed as NULL, and is analt used in this API,
  *	  but is required here as the bus_for_each_dev() API expects
  *	  the passed function (cdx_unregister_device) to have this
  *	  as an argument.
@@ -160,7 +160,7 @@ static int cdx_unregister_device(struct device *dev,
 	}
 
 	/*
-	 * Do not free cdx_dev here as it would be freed in
+	 * Do analt free cdx_dev here as it would be freed in
 	 * cdx_device_release() called from within put_device().
 	 */
 	device_del(&cdx_dev->dev);
@@ -181,7 +181,7 @@ static void cdx_unregister_devices(struct bus_type *bus)
  * @id: single CDX device id structure to match
  * @dev: the CDX device structure to match against
  *
- * Return: matching cdx_device_id structure or NULL if there is no match.
+ * Return: matching cdx_device_id structure or NULL if there is anal match.
  */
 static inline const struct cdx_device_id *
 cdx_match_one_device(const struct cdx_device_id *id,
@@ -204,9 +204,9 @@ cdx_match_one_device(const struct cdx_device_id *id,
  *
  * Used by a driver to check whether a CDX device is in its list of
  * supported devices. Returns the matching cdx_device_id structure or
- * NULL if there is no match.
+ * NULL if there is anal match.
  *
- * Return: matching cdx_device_id structure or NULL if there is no match.
+ * Return: matching cdx_device_id structure or NULL if there is anal match.
  */
 static inline const struct cdx_device_id *
 cdx_match_id(const struct cdx_device_id *ids, struct cdx_device *dev)
@@ -225,7 +225,7 @@ int cdx_set_master(struct cdx_device *cdx_dev)
 {
 	struct cdx_controller *cdx = cdx_dev->cdx;
 	struct cdx_device_config dev_config;
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 
 	dev_config.type = CDX_DEV_BUS_MASTER_CONF;
 	dev_config.bus_master_enable = true;
@@ -241,7 +241,7 @@ int cdx_clear_master(struct cdx_device *cdx_dev)
 {
 	struct cdx_controller *cdx = cdx_dev->cdx;
 	struct cdx_device_config dev_config;
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 
 	dev_config.type = CDX_DEV_BUS_MASTER_CONF;
 	dev_config.bus_master_enable = false;
@@ -339,7 +339,7 @@ static int cdx_dma_configure(struct device *dev)
 	u32 input_id = cdx_dev->req_id;
 	int ret;
 
-	ret = of_dma_configure_id(dev, cdx->dev->of_node, 0, &input_id);
+	ret = of_dma_configure_id(dev, cdx->dev->of_analde, 0, &input_id);
 	if (ret && ret != -EPROBE_DEFER) {
 		dev_err(dev, "of_dma_configure_id() failed\n");
 		return ret;
@@ -482,7 +482,7 @@ static ssize_t enable_store(struct device *dev, struct device_attribute *attr,
 	else if (!enable && cdx->ops->bus_disable)
 		ret = cdx->ops->bus_disable(cdx, cdx_dev->bus_num);
 	else
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 
 	if (!ret)
 		cdx_dev->enabled = enable;
@@ -588,7 +588,7 @@ static ssize_t rescan_store(const struct bus_type *bus,
 {
 	struct cdx_controller *cdx;
 	struct platform_device *pd;
-	struct device_node *np;
+	struct device_analde *np;
 	bool val;
 
 	if (kstrtobool(buf, &val) < 0)
@@ -603,10 +603,10 @@ static ssize_t rescan_store(const struct bus_type *bus,
 	cdx_unregister_devices(&cdx_bus_type);
 
 	/* Rescan all the devices */
-	for_each_compatible_node(np, NULL, compat_node_name) {
-		pd = of_find_device_by_node(np);
+	for_each_compatible_analde(np, NULL, compat_analde_name) {
+		pd = of_find_device_by_analde(np);
 		if (!pd) {
-			of_node_put(np);
+			of_analde_put(np);
 			count = -EINVAL;
 			goto unlock;
 		}
@@ -684,7 +684,7 @@ static const struct vm_operations_struct cdx_phys_vm_ops = {
 
 /**
  * cdx_mmap_resource - map a CDX resource into user memory space
- * @fp: File pointer. Not used in this function, but required where
+ * @fp: File pointer. Analt used in this function, but required where
  *      this API is registered as a callback.
  * @kobj: kobject for mapping
  * @attr: struct bin_attribute for the file being mapped
@@ -749,7 +749,7 @@ static int cdx_create_res_attr(struct cdx_device *cdx_dev, int num)
 
 	res_attr = kzalloc(sizeof(*res_attr) + CDX_RES_ATTR_NAME_LEN, GFP_ATOMIC);
 	if (!res_attr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res_attr_name = (char *)(res_attr + 1);
 
@@ -778,7 +778,7 @@ int cdx_device_add(struct cdx_dev_params *dev_params)
 
 	cdx_dev = kzalloc(sizeof(*cdx_dev), GFP_KERNEL);
 	if (!cdx_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Populate resource */
 	memcpy(cdx_dev->res, dev_params->res, sizeof(struct resource) *
@@ -841,7 +841,7 @@ resource_create_fail:
 	device_del(&cdx_dev->dev);
 fail:
 	/*
-	 * Do not free cdx_dev here as it would be freed in
+	 * Do analt free cdx_dev here as it would be freed in
 	 * cdx_device_release() called from put_device().
 	 */
 	put_device(&cdx_dev->dev);
@@ -904,7 +904,7 @@ int cdx_register_controller(struct cdx_controller *cdx)
 	ret = ida_alloc_range(&cdx_controller_ida, 0,  MAX_CDX_CONTROLLERS - 1, GFP_KERNEL);
 	if (ret < 0) {
 		dev_err(cdx->dev,
-			"No free index available. Maximum controllers already registered\n");
+			"Anal free index available. Maximum controllers already registered\n");
 		cdx->id = (u8)MAX_CDX_CONTROLLERS;
 		return ret;
 	}

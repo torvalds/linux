@@ -9,7 +9,7 @@
  *
  * Copyright (C) 2004 Amaury Demol for DiBcom
  *
- * Acknowledgements
+ * Ackanalwledgements
  *
  *  Amaury Demol from DiBcom for providing specs and driver
  *  sources, on which this driver (and the dvb-dibusb) are based.
@@ -31,10 +31,10 @@ struct dib3000_config
 struct dib_fe_xfer_ops
 {
 	/* pid and transfer handling is done in the demodulator */
-	int (*pid_parse)(struct dvb_frontend *fe, int onoff);
-	int (*fifo_ctrl)(struct dvb_frontend *fe, int onoff);
-	int (*pid_ctrl)(struct dvb_frontend *fe, int index, int pid, int onoff);
-	int (*tuner_pass_ctrl)(struct dvb_frontend *fe, int onoff, u8 pll_ctrl);
+	int (*pid_parse)(struct dvb_frontend *fe, int oanalff);
+	int (*fifo_ctrl)(struct dvb_frontend *fe, int oanalff);
+	int (*pid_ctrl)(struct dvb_frontend *fe, int index, int pid, int oanalff);
+	int (*tuner_pass_ctrl)(struct dvb_frontend *fe, int oanalff, u8 pll_ctrl);
 };
 
 #if IS_REACHABLE(CONFIG_DVB_DIB3000MB)

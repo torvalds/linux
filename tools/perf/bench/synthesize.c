@@ -2,7 +2,7 @@
 /*
  * Benchmark synthesis of perf events such as at the start of a 'perf
  * record'. Synthesis is done on the current process and the 'dummy' event
- * handlers are invoked that support dump_trace but otherwise do nothing.
+ * handlers are invoked that support dump_trace but otherwise do analthing.
  *
  * Copyright 2019 Google LLC.
  */
@@ -125,7 +125,7 @@ static int run_single_threaded(void)
 	threads = thread_map__new_by_pid(getpid());
 	if (!threads) {
 		pr_err("Thread map creation failed.\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out;
 	}
 

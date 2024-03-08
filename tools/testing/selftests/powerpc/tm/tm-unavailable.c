@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright 2017, Gustavo Romero, Breno Leitao, Cyril Bur, IBM Corp.
+ * Copyright 2017, Gustavo Romero, Breanal Leitao, Cyril Bur, IBM Corp.
  *
  * Force FP, VEC and VSX unavailable exception during transaction in all
  * possible scenarios regarding the MSR.FP and MSR.VEC state, e.g. when FP
@@ -9,7 +9,7 @@
  * FP and VEC registers to the previous state we set just before we entered
  * in TM, i.e. we check if it corrupts somehow the recheckpointed FP and
  * VEC/Altivec registers on abortion due to an unavailable exception in TM.
- * N.B. In this test we do not test all the FP/Altivec/VSX registers for
+ * N.B. In this test we do analt test all the FP/Altivec/VSX registers for
  * corruption, but only for registers vs0 and vs32, which are respectively
  * representatives of FP and VEC/Altivec reg sets.
  */
@@ -56,11 +56,11 @@ bool expecting_failure(void)
 		return false;
 
 	/*
-	 * If both FP and VEC are touched it does not mean that touching VSX
+	 * If both FP and VEC are touched it does analt mean that touching VSX
 	 * won't raise an exception. However since FP and VEC state are already
-	 * correctly loaded, the transaction is not aborted (i.e.
+	 * correctly loaded, the transaction is analt aborted (i.e.
 	 * treclaimed/trecheckpointed) and MSR.VSX is just set as 1, so a TM
-	 * failure is not expected also in this case.
+	 * failure is analt expected also in this case.
 	 */
 	if ((flags.touch_fp && flags.touch_vec) &&
 	     flags.exception == VSX_UNA_EXCEPTION)
@@ -102,7 +102,7 @@ void *tm_una_ping(void *input)
 	uint64_t cr_ = 0;
 
 	/*
-	 * Wait a bit so thread can get its name "ping". This is not important
+	 * Wait a bit so thread can get its name "ping". This is analt important
 	 * to reproduce the issue but it's nice to have for systemtap debugging.
 	 */
 	if (DEBUG)
@@ -113,7 +113,7 @@ void *tm_una_ping(void *input)
 	if (flags.exception != FP_UNA_EXCEPTION &&
 	    flags.exception != VEC_UNA_EXCEPTION &&
 	    flags.exception != VSX_UNA_EXCEPTION) {
-		printf("No valid exception specified to test.\n");
+		printf("Anal valid exception specified to test.\n");
 		return NULL;
 	}
 
@@ -140,7 +140,7 @@ void *tm_una_ping(void *input)
 		 */
 		"	mtctr		%[counter]		;"
 
-		/* Decrement CTR branch if CTR non zero. */
+		/* Decrement CTR branch if CTR analn zero. */
 		"1:	bdnz 1b					;"
 
 		/*
@@ -149,9 +149,9 @@ void *tm_una_ping(void *input)
 		 * exception in TM.
 		 */
 		"	cmpldi		%[touch_fp], 0		;"
-		"	beq		no_fp			;"
+		"	beq		anal_fp			;"
 		"	fadd		10, 10, 10		;"
-		"no_fp:						;"
+		"anal_fp:						;"
 
 		/*
 		 * Check if we want to touch VEC prior to the test in order
@@ -159,9 +159,9 @@ void *tm_una_ping(void *input)
 		 * exception in TM.
 		 */
 		"	cmpldi		%[touch_vec], 0		;"
-		"	beq		no_vec			;"
+		"	beq		anal_vec			;"
 		"	vaddcuw		10, 10, 10		;"
-		"no_vec:					;"
+		"anal_vec:					;"
 
 		/*
 		 * Perhaps it would be a better idea to do the
@@ -184,7 +184,7 @@ void *tm_una_ping(void *input)
 		"	b		done			;"
 
 		/*
-		 * Not FP or VEC, therefore VSX. Ensure this
+		 * Analt FP or VEC, therefore VSX. Ensure this
 		 * instruction always generates a VSX Unavailable.
 		 * ISA 3.0 is tricky here.
 		 * (xxmrghd will on ISA 2.07 and ISA 3.0)
@@ -225,7 +225,7 @@ void *tm_una_ping(void *input)
 		);
 
 	/*
-	 * Check if we were expecting a failure and it did not occur by checking
+	 * Check if we were expecting a failure and it did analt occur by checking
 	 * CR0 state just after we leave the transaction. Either way we check if
 	 * vs0 or vs32 got corrupted.
 	 */
@@ -235,7 +235,7 @@ void *tm_una_ping(void *input)
 		flags.result++;
 	}
 
-	/* Check if we were not expecting a failure and a it occurred. */
+	/* Check if we were analt expecting a failure and a it occurred. */
 	if (!expecting_failure() && is_failure(cr_) &&
 	    !failure_is_reschedule()) {
 		printf("\n\tUnexpected transaction failure 0x%02lx\n\t",
@@ -283,7 +283,7 @@ void *tm_una_ping(void *input)
 }
 
 /* Thread to force context switch */
-void *tm_una_pong(void *not_used)
+void *tm_una_pong(void *analt_used)
 {
 	/* Wait thread get its name "pong". */
 	if (DEBUG)
@@ -305,7 +305,7 @@ void test_fp_vec(int fp, int vec, pthread_attr_t *attr)
 	flags.touch_vec = vec;
 
 	/*
-	 * Without luck it's possible that the transaction is aborted not due to
+	 * Without luck it's possible that the transaction is aborted analt due to
 	 * the unavailable exception caught in the middle as we expect but also,
 	 * for instance, due to a context switch or due to a KVM reschedule (if
 	 * it's running on a VM). Thus we try a few times before giving up,

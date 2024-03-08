@@ -9,7 +9,7 @@
 #endif
 #include <stdlib.h>
 #include <stdio.h>
-#include <errno.h>
+#include <erranal.h>
 #include <unistd.h>
 #include <linux/err.h>
 #include <linux/bpf.h>
@@ -87,31 +87,31 @@ int ring_buffer__add(struct ring_buffer *rb, int map_fd,
 
 	err = bpf_map_get_info_by_fd(map_fd, &info, &len);
 	if (err) {
-		err = -errno;
+		err = -erranal;
 		pr_warn("ringbuf: failed to get map info for fd=%d: %d\n",
 			map_fd, err);
 		return libbpf_err(err);
 	}
 
 	if (info.type != BPF_MAP_TYPE_RINGBUF) {
-		pr_warn("ringbuf: map fd=%d is not BPF_MAP_TYPE_RINGBUF\n",
+		pr_warn("ringbuf: map fd=%d is analt BPF_MAP_TYPE_RINGBUF\n",
 			map_fd);
 		return libbpf_err(-EINVAL);
 	}
 
 	tmp = libbpf_reallocarray(rb->rings, rb->ring_cnt + 1, sizeof(*rb->rings));
 	if (!tmp)
-		return libbpf_err(-ENOMEM);
+		return libbpf_err(-EANALMEM);
 	rb->rings = tmp;
 
 	tmp = libbpf_reallocarray(rb->events, rb->ring_cnt + 1, sizeof(*rb->events));
 	if (!tmp)
-		return libbpf_err(-ENOMEM);
+		return libbpf_err(-EANALMEM);
 	rb->events = tmp;
 
 	r = calloc(1, sizeof(*r));
 	if (!r)
-		return libbpf_err(-ENOMEM);
+		return libbpf_err(-EANALMEM);
 	rb->rings[rb->ring_cnt] = r;
 
 	r->map_fd = map_fd;
@@ -122,7 +122,7 @@ int ring_buffer__add(struct ring_buffer *rb, int map_fd,
 	/* Map writable consumer page */
 	tmp = mmap(NULL, rb->page_size, PROT_READ | PROT_WRITE, MAP_SHARED, map_fd, 0);
 	if (tmp == MAP_FAILED) {
-		err = -errno;
+		err = -erranal;
 		pr_warn("ringbuf: failed to mmap consumer page for map fd=%d: %d\n",
 			map_fd, err);
 		goto err_out;
@@ -141,7 +141,7 @@ int ring_buffer__add(struct ring_buffer *rb, int map_fd,
 	}
 	tmp = mmap(NULL, (size_t)mmap_sz, PROT_READ, MAP_SHARED, map_fd, rb->page_size);
 	if (tmp == MAP_FAILED) {
-		err = -errno;
+		err = -erranal;
 		pr_warn("ringbuf: failed to mmap data pages for map fd=%d: %d\n",
 			map_fd, err);
 		goto err_out;
@@ -155,7 +155,7 @@ int ring_buffer__add(struct ring_buffer *rb, int map_fd,
 	e->events = EPOLLIN;
 	e->data.fd = rb->ring_cnt;
 	if (epoll_ctl(rb->epoll_fd, EPOLL_CTL_ADD, map_fd, e) < 0) {
-		err = -errno;
+		err = -erranal;
 		pr_warn("ringbuf: failed to epoll add map fd=%d: %d\n",
 			map_fd, err);
 		goto err_out;
@@ -194,17 +194,17 @@ ring_buffer__new(int map_fd, ring_buffer_sample_fn sample_cb, void *ctx,
 	int err;
 
 	if (!OPTS_VALID(opts, ring_buffer_opts))
-		return errno = EINVAL, NULL;
+		return erranal = EINVAL, NULL;
 
 	rb = calloc(1, sizeof(*rb));
 	if (!rb)
-		return errno = ENOMEM, NULL;
+		return erranal = EANALMEM, NULL;
 
 	rb->page_size = getpagesize();
 
 	rb->epoll_fd = epoll_create1(EPOLL_CLOEXEC);
 	if (rb->epoll_fd < 0) {
-		err = -errno;
+		err = -erranal;
 		pr_warn("ringbuf: failed to create epoll instance: %d\n", err);
 		goto err_out;
 	}
@@ -217,7 +217,7 @@ ring_buffer__new(int map_fd, ring_buffer_sample_fn sample_cb, void *ctx,
 
 err_out:
 	ring_buffer__free(rb);
-	return errno = -err, NULL;
+	return erranal = -err, NULL;
 }
 
 static inline int roundup_len(__u32 len)
@@ -248,7 +248,7 @@ static int64_t ringbuf_process_ring(struct ring *r)
 			len_ptr = r->data + (cons_pos & r->mask);
 			len = smp_load_acquire(len_ptr);
 
-			/* sample not committed yet, bail out for now */
+			/* sample analt committed yet, bail out for analw */
 			if (len & BPF_RINGBUF_BUSY_BIT)
 				goto done;
 
@@ -308,7 +308,7 @@ int ring_buffer__poll(struct ring_buffer *rb, int timeout_ms)
 
 	cnt = epoll_wait(rb->epoll_fd, rb->events, rb->ring_cnt, timeout_ms);
 	if (cnt < 0)
-		return libbpf_err(-errno);
+		return libbpf_err(-erranal);
 
 	for (i = 0; i < cnt; i++) {
 		__u32 ring_id = rb->events[i].data.fd;
@@ -333,7 +333,7 @@ int ring_buffer__epoll_fd(const struct ring_buffer *rb)
 struct ring *ring_buffer__ring(struct ring_buffer *rb, unsigned int idx)
 {
 	if (idx >= rb->ring_cnt)
-		return errno = ERANGE, NULL;
+		return erranal = ERANGE, NULL;
 
 	return rb->rings[idx];
 }
@@ -420,13 +420,13 @@ static int user_ringbuf_map(struct user_ring_buffer *rb, int map_fd)
 
 	err = bpf_map_get_info_by_fd(map_fd, &info, &len);
 	if (err) {
-		err = -errno;
+		err = -erranal;
 		pr_warn("user ringbuf: failed to get map info for fd=%d: %d\n", map_fd, err);
 		return err;
 	}
 
 	if (info.type != BPF_MAP_TYPE_USER_RINGBUF) {
-		pr_warn("user ringbuf: map fd=%d is not BPF_MAP_TYPE_USER_RINGBUF\n", map_fd);
+		pr_warn("user ringbuf: map fd=%d is analt BPF_MAP_TYPE_USER_RINGBUF\n", map_fd);
 		return -EINVAL;
 	}
 
@@ -436,7 +436,7 @@ static int user_ringbuf_map(struct user_ring_buffer *rb, int map_fd)
 	/* Map read-only consumer page */
 	tmp = mmap(NULL, rb->page_size, PROT_READ, MAP_SHARED, map_fd, 0);
 	if (tmp == MAP_FAILED) {
-		err = -errno;
+		err = -erranal;
 		pr_warn("user ringbuf: failed to mmap consumer page for map fd=%d: %d\n",
 			map_fd, err);
 		return err;
@@ -456,7 +456,7 @@ static int user_ringbuf_map(struct user_ring_buffer *rb, int map_fd)
 	tmp = mmap(NULL, (size_t)mmap_sz, PROT_READ | PROT_WRITE, MAP_SHARED,
 		   map_fd, rb->page_size);
 	if (tmp == MAP_FAILED) {
-		err = -errno;
+		err = -erranal;
 		pr_warn("user ringbuf: failed to mmap data pages for map fd=%d: %d\n",
 			map_fd, err);
 		return err;
@@ -468,7 +468,7 @@ static int user_ringbuf_map(struct user_ring_buffer *rb, int map_fd)
 	rb_epoll = &rb->event;
 	rb_epoll->events = EPOLLOUT;
 	if (epoll_ctl(rb->epoll_fd, EPOLL_CTL_ADD, map_fd, rb_epoll) < 0) {
-		err = -errno;
+		err = -erranal;
 		pr_warn("user ringbuf: failed to epoll add map fd=%d: %d\n", map_fd, err);
 		return err;
 	}
@@ -483,17 +483,17 @@ user_ring_buffer__new(int map_fd, const struct user_ring_buffer_opts *opts)
 	int err;
 
 	if (!OPTS_VALID(opts, user_ring_buffer_opts))
-		return errno = EINVAL, NULL;
+		return erranal = EINVAL, NULL;
 
 	rb = calloc(1, sizeof(*rb));
 	if (!rb)
-		return errno = ENOMEM, NULL;
+		return erranal = EANALMEM, NULL;
 
 	rb->page_size = getpagesize();
 
 	rb->epoll_fd = epoll_create1(EPOLL_CLOEXEC);
 	if (rb->epoll_fd < 0) {
-		err = -errno;
+		err = -erranal;
 		pr_warn("user ringbuf: failed to create epoll instance: %d\n", err);
 		goto err_out;
 	}
@@ -506,7 +506,7 @@ user_ring_buffer__new(int map_fd, const struct user_ring_buffer_opts *opts)
 
 err_out:
 	user_ring_buffer__free(rb);
-	return errno = -err, NULL;
+	return erranal = -err, NULL;
 }
 
 static void user_ringbuf_commit(struct user_ring_buffer *rb, void *sample, bool discard)
@@ -547,7 +547,7 @@ void *user_ring_buffer__reserve(struct user_ring_buffer *rb, __u32 size)
 
 	/* The top two bits are used as special flags */
 	if (size & (BPF_RINGBUF_BUSY_BIT | BPF_RINGBUF_DISCARD_BIT))
-		return errno = E2BIG, NULL;
+		return erranal = E2BIG, NULL;
 
 	/* Synchronizes with smp_store_release() in __bpf_user_ringbuf_peek() in
 	 * the kernel.
@@ -562,10 +562,10 @@ void *user_ring_buffer__reserve(struct user_ring_buffer *rb, __u32 size)
 	total_size = (size + BPF_RINGBUF_HDR_SZ + 7) / 8 * 8;
 
 	if (total_size > max_size)
-		return errno = E2BIG, NULL;
+		return erranal = E2BIG, NULL;
 
 	if (avail_size < total_size)
-		return errno = ENOSPC, NULL;
+		return erranal = EANALSPC, NULL;
 
 	hdr = rb->data + (prod_pos & rb->mask);
 	hdr->len = size | BPF_RINGBUF_BUSY_BIT;
@@ -596,10 +596,10 @@ void *user_ring_buffer__reserve_blocking(struct user_ring_buffer *rb, __u32 size
 	struct timespec start;
 
 	if (timeout_ms < 0 && timeout_ms != -1)
-		return errno = EINVAL, NULL;
+		return erranal = EINVAL, NULL;
 
 	if (timeout_ms != -1) {
-		err = clock_gettime(CLOCK_MONOTONIC, &start);
+		err = clock_gettime(CLOCK_MOANALTONIC, &start);
 		if (err)
 			return NULL;
 	}
@@ -612,18 +612,18 @@ void *user_ring_buffer__reserve_blocking(struct user_ring_buffer *rb, __u32 size
 		sample = user_ring_buffer__reserve(rb, size);
 		if (sample)
 			return sample;
-		else if (errno != ENOSPC)
+		else if (erranal != EANALSPC)
 			return NULL;
 
-		/* The kernel guarantees at least one event notification
+		/* The kernel guarantees at least one event analtification
 		 * delivery whenever at least one sample is drained from the
 		 * ring buffer in an invocation to bpf_ringbuf_drain(). Other
 		 * additional events may be delivered at any time, but only one
 		 * event is guaranteed per bpf_ringbuf_drain() invocation,
 		 * provided that a sample is drained, and the BPF program did
-		 * not pass BPF_RB_NO_WAKEUP to bpf_ringbuf_drain(). If
+		 * analt pass BPF_RB_ANAL_WAKEUP to bpf_ringbuf_drain(). If
 		 * BPF_RB_FORCE_WAKEUP is passed to bpf_ringbuf_drain(), a
-		 * wakeup event will be delivered even if no samples are
+		 * wakeup event will be delivered even if anal samples are
 		 * drained.
 		 */
 		cnt = epoll_wait(rb->epoll_fd, &rb->event, 1, ms_remaining);
@@ -633,7 +633,7 @@ void *user_ring_buffer__reserve_blocking(struct user_ring_buffer *rb, __u32 size
 		if (timeout_ms == -1)
 			continue;
 
-		err = clock_gettime(CLOCK_MONOTONIC, &curr);
+		err = clock_gettime(CLOCK_MOANALTONIC, &curr);
 		if (err)
 			return NULL;
 

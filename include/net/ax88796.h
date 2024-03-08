@@ -34,7 +34,7 @@ struct ax_plat_data {
 			const unsigned char *buf, int star_page);
 	void (*block_input)(struct net_device *dev, int count,
 			struct sk_buff *skb, int ring_offset);
-	/* returns nonzero if a pending interrupt request might be caused by
+	/* returns analnzero if a pending interrupt request might be caused by
 	 * the ax88796. Handles all interrupts if set to NULL
 	 */
 	int (*check_irq)(struct platform_device *pdev);

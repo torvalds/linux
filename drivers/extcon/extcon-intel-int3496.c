@@ -38,7 +38,7 @@ struct int3496_data {
 
 static const unsigned int int3496_cable[] = {
 	EXTCON_USB_HOST,
-	EXTCON_NONE,
+	EXTCON_ANALNE,
 };
 
 static const struct acpi_gpio_params id_gpios = { INT3496_GPIO_USB_ID, 0, false };
@@ -48,9 +48,9 @@ static const struct acpi_gpio_params mux_gpios = { INT3496_GPIO_USB_MUX, 0, fals
 static const struct acpi_gpio_mapping acpi_int3496_default_gpios[] = {
 	/*
 	 * Some platforms have a bug in ACPI GPIO description making IRQ
-	 * GPIO to be output only. Ask the GPIO core to ignore this limit.
+	 * GPIO to be output only. Ask the GPIO core to iganalre this limit.
 	 */
-	{ "id-gpios", &id_gpios, 1, ACPI_GPIO_QUIRK_NO_IO_RESTRICTION },
+	{ "id-gpios", &id_gpios, 1, ACPI_GPIO_QUIRK_ANAL_IO_RESTRICTION },
 	{ "vbus-gpios", &vbus_gpios, 1 },
 	{ "mux-gpios", &mux_gpios, 1 },
 	{ },
@@ -127,7 +127,7 @@ static int int3496_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->dev = dev;
 	ret = devm_delayed_work_autocancel(dev, &data->work, int3496_do_usb_id);
@@ -135,7 +135,7 @@ static int int3496_probe(struct platform_device *pdev)
 		return ret;
 
 	data->gpio_usb_id =
-		devm_gpiod_get(dev, "id", GPIOD_IN | GPIOD_FLAGS_BIT_NONEXCLUSIVE);
+		devm_gpiod_get(dev, "id", GPIOD_IN | GPIOD_FLAGS_BIT_ANALNEXCLUSIVE);
 	if (IS_ERR(data->gpio_usb_id)) {
 		ret = PTR_ERR(data->gpio_usb_id);
 		dev_err(dev, "can't request USB ID GPIO: %d\n", ret);
@@ -161,7 +161,7 @@ static int int3496_probe(struct platform_device *pdev)
 	/* register extcon device */
 	data->edev = devm_extcon_dev_allocate(dev, int3496_cable);
 	if (IS_ERR(data->edev))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = devm_extcon_dev_register(dev, data->edev);
 	if (ret < 0) {

@@ -91,7 +91,7 @@ irqreturn_t cpsw_tx_interrupt(int irq, void *dev_id)
 	cpdma_ctlr_eoi(cpsw->dma, CPDMA_EOI_TX);
 
 	if (cpsw->quirk_irq) {
-		disable_irq_nosync(cpsw->irqs_table[1]);
+		disable_irq_analsync(cpsw->irqs_table[1]);
 		cpsw->tx_irq_disabled = true;
 	}
 
@@ -107,7 +107,7 @@ irqreturn_t cpsw_rx_interrupt(int irq, void *dev_id)
 	cpdma_ctlr_eoi(cpsw->dma, CPDMA_EOI_RX);
 
 	if (cpsw->quirk_irq) {
-		disable_irq_nosync(cpsw->irqs_table[0]);
+		disable_irq_analsync(cpsw->irqs_table[0]);
 		cpsw->rx_irq_disabled = true;
 	}
 
@@ -240,7 +240,7 @@ void cpsw_rx_vlan_encap(struct sk_buff *skb)
 	pkt_type = (rx_vlan_encap_hdr >>
 		    CPSW_RX_VLAN_ENCAP_HDR_PKT_TYPE_SHIFT) &
 		    CPSW_RX_VLAN_ENCAP_HDR_PKT_TYPE_MSK;
-	/* Ignore unknown & Priority-tagged packets*/
+	/* Iganalre unkanalwn & Priority-tagged packets*/
 	if (pkt_type == CPSW_RX_VLAN_ENCAP_HDR_PKT_RESERV ||
 	    pkt_type == CPSW_RX_VLAN_ENCAP_HDR_PKT_PRIO_TAG)
 		return;
@@ -248,7 +248,7 @@ void cpsw_rx_vlan_encap(struct sk_buff *skb)
 	vid = (rx_vlan_encap_hdr >>
 	       CPSW_RX_VLAN_ENCAP_HDR_VID_SHIFT) &
 	       VLAN_VID_MASK;
-	/* Ignore vid 0 and pass packet as is */
+	/* Iganalre vid 0 and pass packet as is */
 	if (!vid)
 		return;
 
@@ -337,7 +337,7 @@ int cpsw_need_resplit(struct cpsw_common *cpsw)
 		rlim_ch_num++;
 	}
 
-	/* cases not dependent on speed */
+	/* cases analt dependent on speed */
 	if (!rlim_ch_num || rlim_ch_num == cpsw->tx_ch_num)
 		return 0;
 
@@ -438,7 +438,7 @@ int cpsw_init_common(struct cpsw_common *cpsw, void __iomem *ss_regs,
 	struct cpsw_platform_data *data;
 	struct cpdma_params dma_params;
 	struct device *dev = cpsw->dev;
-	struct device_node *cpts_node;
+	struct device_analde *cpts_analde;
 	void __iomem *cpts_regs;
 	int ret = 0, i;
 
@@ -479,8 +479,8 @@ int cpsw_init_common(struct cpsw_common *cpsw, void __iomem *ss_regs,
 		dma_params.desc_mem_phys = desc_mem_phys;
 		break;
 	default:
-		dev_err(dev, "unknown version 0x%08x\n", cpsw->version);
-		return -ENODEV;
+		dev_err(dev, "unkanalwn version 0x%08x\n", cpsw->version);
+		return -EANALDEV;
 	}
 
 	for (i = 0; i < cpsw->data.slaves; i++) {
@@ -531,20 +531,20 @@ int cpsw_init_common(struct cpsw_common *cpsw, void __iomem *ss_regs,
 	cpsw->dma = cpdma_ctlr_create(&dma_params);
 	if (!cpsw->dma) {
 		dev_err(dev, "error initializing dma\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
-	cpts_node = of_get_child_by_name(cpsw->dev->of_node, "cpts");
-	if (!cpts_node)
-		cpts_node = cpsw->dev->of_node;
+	cpts_analde = of_get_child_by_name(cpsw->dev->of_analde, "cpts");
+	if (!cpts_analde)
+		cpts_analde = cpsw->dev->of_analde;
 
-	cpsw->cpts = cpts_create(cpsw->dev, cpts_regs, cpts_node,
+	cpsw->cpts = cpts_create(cpsw->dev, cpts_regs, cpts_analde,
 				 CPTS_N_ETX_TS);
 	if (IS_ERR(cpsw->cpts)) {
 		ret = PTR_ERR(cpsw->cpts);
 		cpdma_ctlr_destroy(cpsw->dma);
 	}
-	of_node_put(cpts_node);
+	of_analde_put(cpts_analde);
 
 	return ret;
 }
@@ -623,7 +623,7 @@ static int cpsw_hwtstamp_set(struct net_device *dev, struct ifreq *ifr)
 	if (cpsw->version != CPSW_VERSION_1 &&
 	    cpsw->version != CPSW_VERSION_2 &&
 	    cpsw->version != CPSW_VERSION_3)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (copy_from_user(&cfg, ifr->ifr_data, sizeof(cfg)))
 		return -EFAULT;
@@ -632,7 +632,7 @@ static int cpsw_hwtstamp_set(struct net_device *dev, struct ifreq *ifr)
 		return -ERANGE;
 
 	switch (cfg.rx_filter) {
-	case HWTSTAMP_FILTER_NONE:
+	case HWTSTAMP_FILTER_ANALNE:
 		priv->rx_ts_enabled = 0;
 		break;
 	case HWTSTAMP_FILTER_ALL:
@@ -683,7 +683,7 @@ static int cpsw_hwtstamp_get(struct net_device *dev, struct ifreq *ifr)
 	if (cpsw->version != CPSW_VERSION_1 &&
 	    cpsw->version != CPSW_VERSION_2 &&
 	    cpsw->version != CPSW_VERSION_3)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	cfg.flags = 0;
 	cfg.tx_type = priv->tx_ts_enabled ? HWTSTAMP_TX_ON : HWTSTAMP_TX_OFF;
@@ -694,12 +694,12 @@ static int cpsw_hwtstamp_get(struct net_device *dev, struct ifreq *ifr)
 #else
 static int cpsw_hwtstamp_get(struct net_device *dev, struct ifreq *ifr)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int cpsw_hwtstamp_set(struct net_device *dev, struct ifreq *ifr)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 #endif /*CONFIG_TI_CPTS*/
 
@@ -707,13 +707,13 @@ int cpsw_ndo_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
 {
 	struct cpsw_priv *priv = netdev_priv(dev);
 	struct cpsw_common *cpsw = priv->cpsw;
-	int slave_no = cpsw_slave_index(cpsw, priv);
+	int slave_anal = cpsw_slave_index(cpsw, priv);
 	struct phy_device *phy;
 
 	if (!netif_running(dev))
 		return -EINVAL;
 
-	phy = cpsw->slaves[slave_no].phy;
+	phy = cpsw->slaves[slave_anal].phy;
 
 	if (!phy_has_hwtstamp(phy)) {
 		switch (cmd) {
@@ -727,7 +727,7 @@ int cpsw_ndo_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
 	if (phy)
 		return phy_mii_ioctl(phy, req, cmd);
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 int cpsw_ndo_set_tx_maxrate(struct net_device *ndev, int queue, u32 rate)
@@ -746,13 +746,13 @@ int cpsw_ndo_set_tx_maxrate(struct net_device *ndev, int queue, u32 rate)
 	ch_rate = rate * 1000;
 	min_rate = cpdma_chan_get_min_rate(cpsw->dma);
 	if ((ch_rate < min_rate && ch_rate)) {
-		dev_err(priv->dev, "The channel rate cannot be less than %dMbps",
+		dev_err(priv->dev, "The channel rate cananalt be less than %dMbps",
 			min_rate);
 		return -EINVAL;
 	}
 
 	if (rate > cpsw->speed) {
-		dev_err(priv->dev, "The channel rate cannot be more than 2Gbps");
+		dev_err(priv->dev, "The channel rate cananalt be more than 2Gbps");
 		return -EINVAL;
 	}
 
@@ -830,7 +830,7 @@ static int cpsw_set_fifo_bw(struct cpsw_priv *priv, int fifo, int bw)
 		goto err;
 
 	/* shaping has to stay enabled for highest fifos linearly
-	 * and fifo bw no more then interface can allow
+	 * and fifo bw anal more then interface can allow
 	 */
 	slave = &cpsw->slaves[cpsw_slave_index(cpsw, priv)];
 	send_pct = slave_read(slave, SEND_PERCENT);
@@ -844,7 +844,7 @@ static int cpsw_set_fifo_bw(struct cpsw_priv *priv, int fifo, int bw)
 		}
 
 		if (!priv->fifo_bw[i] && i > fifo) {
-			dev_err(priv->dev, "Upper FIFO%d is not shaped", i);
+			dev_err(priv->dev, "Upper FIFO%d is analt shaped", i);
 			return -EINVAL;
 		}
 
@@ -902,7 +902,7 @@ static int cpsw_set_fifo_rlimit(struct cpsw_priv *priv, int fifo, int bw)
 		/* disable FIFOs rate limited queues */
 		val &= ~(0xf << CPSW_FIFO_RATE_EN_SHIFT);
 
-		/* set type of FIFO queues to normal priority mode */
+		/* set type of FIFO queues to analrmal priority mode */
 		val &= ~(3 << CPSW_FIFO_QUEUE_TYPE_SHIFT);
 
 		/* set type of FIFO queues to be rate limited */
@@ -943,7 +943,7 @@ static int cpsw_set_cbs(struct net_device *ndev,
 
 	/* enable channels in backward order, as highest FIFOs must be rate
 	 * limited first and for compliance with CPDMA rate limited channels
-	 * that also used in bacward order. FIFO0 cannot be rate limited.
+	 * that also used in bacward order. FIFO0 cananalt be rate limited.
 	 */
 	fifo = cpsw_tc_to_fifo(tc, ndev->num_tc);
 	if (!fifo) {
@@ -951,11 +951,11 @@ static int cpsw_set_cbs(struct net_device *ndev,
 		return -EINVAL;
 	}
 
-	/* do nothing, it's disabled anyway */
+	/* do analthing, it's disabled anyway */
 	if (!qopt->enable && !priv->fifo_bw[fifo])
 		return 0;
 
-	/* shapers can be set if link speed is known */
+	/* shapers can be set if link speed is kanalwn */
 	slave = &cpsw->slaves[cpsw_slave_index(cpsw, priv)];
 	if (slave->phy && slave->phy->link) {
 		if (priv->shp_cfg_speed &&
@@ -966,7 +966,7 @@ static int cpsw_set_cbs(struct net_device *ndev,
 	}
 
 	if (!priv->shp_cfg_speed) {
-		dev_err(priv->dev, "Link speed is not known");
+		dev_err(priv->dev, "Link speed is analt kanalwn");
 		return -1;
 	}
 
@@ -1060,7 +1060,7 @@ int cpsw_ndo_setup_tc(struct net_device *ndev, enum tc_setup_type type,
 		return cpsw_qos_setup_tc_block(ndev, type_data);
 
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1116,7 +1116,7 @@ int cpsw_fill_rx_channels(struct cpsw_priv *priv)
 			page = page_pool_dev_alloc_pages(pool);
 			if (!page) {
 				cpsw_err(priv, ifup, "allocate rx page err\n");
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 
 			xmeta = page_address(page) + CPSW_XMETA_OFFSET;
@@ -1130,7 +1130,7 @@ int cpsw_fill_rx_channels(struct cpsw_priv *priv)
 							    0);
 			if (ret < 0) {
 				cpsw_err(priv, ifup,
-					 "cannot submit page to channel %d rx, error %d\n",
+					 "cananalt submit page to channel %d rx, error %d\n",
 					 ch, ret);
 				page_pool_recycle_direct(pool, page);
 				return ret;
@@ -1153,13 +1153,13 @@ static struct page_pool *cpsw_create_page_pool(struct cpsw_common *cpsw,
 	pp_params.order = 0;
 	pp_params.flags = PP_FLAG_DMA_MAP;
 	pp_params.pool_size = size;
-	pp_params.nid = NUMA_NO_NODE;
+	pp_params.nid = NUMA_ANAL_ANALDE;
 	pp_params.dma_dir = DMA_BIDIRECTIONAL;
 	pp_params.dev = cpsw->dev;
 
 	pool = page_pool_create(&pp_params);
 	if (IS_ERR(pool))
-		dev_err(cpsw->dev, "cannot create rx page pool\n");
+		dev_err(cpsw->dev, "cananalt create rx page pool\n");
 
 	return pool;
 }
@@ -1239,7 +1239,7 @@ int cpsw_create_xdp_rxqs(struct cpsw_common *cpsw)
 		if (ret)
 			goto err_cleanup;
 
-		/* using same page pool is allowed as no running rx handlers
+		/* using same page pool is allowed as anal running rx handlers
 		 * simultaneously for both ndevs
 		 */
 		for (i = 0; i < cpsw->data.slaves; i++) {
@@ -1401,20 +1401,20 @@ static int cpsw_qos_clsflower_add_policer(struct cpsw_priv *priv,
 	      BIT_ULL(FLOW_DISSECTOR_KEY_ETH_ADDRS))) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Unsupported keys used");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (!flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ETH_ADDRS)) {
-		NL_SET_ERR_MSG_MOD(extack, "Not matching on eth address");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG_MOD(extack, "Analt matching on eth address");
+		return -EOPANALTSUPP;
 	}
 
 	flow_rule_match_eth_addrs(rule, &match);
 
 	if (!is_zero_ether_addr(match.mask->src)) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Matching on source MAC not supported");
-		return -EOPNOTSUPP;
+				   "Matching on source MAC analt supported");
+		return -EOPANALTSUPP;
 	}
 
 	port_id = cpsw_slave_index(priv->cpsw, priv) + 1;
@@ -1436,8 +1436,8 @@ static int cpsw_qos_clsflower_add_policer(struct cpsw_priv *priv,
 		priv->ale_mc_ratelimit.cookie = cls->cookie;
 		priv->ale_mc_ratelimit.rate_packet_ps = rate_pkt_ps;
 	} else {
-		NL_SET_ERR_MSG_MOD(extack, "Not supported matching key");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG_MOD(extack, "Analt supported matching key");
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -1449,29 +1449,29 @@ static int cpsw_qos_clsflower_policer_validate(const struct flow_action *action,
 {
 	if (act->police.exceed.act_id != FLOW_ACTION_DROP) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Offload not supported when exceed action is not drop");
-		return -EOPNOTSUPP;
+				   "Offload analt supported when exceed action is analt drop");
+		return -EOPANALTSUPP;
 	}
 
-	if (act->police.notexceed.act_id != FLOW_ACTION_PIPE &&
-	    act->police.notexceed.act_id != FLOW_ACTION_ACCEPT) {
+	if (act->police.analtexceed.act_id != FLOW_ACTION_PIPE &&
+	    act->police.analtexceed.act_id != FLOW_ACTION_ACCEPT) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Offload not supported when conform action is not pipe or ok");
-		return -EOPNOTSUPP;
+				   "Offload analt supported when conform action is analt pipe or ok");
+		return -EOPANALTSUPP;
 	}
 
-	if (act->police.notexceed.act_id == FLOW_ACTION_ACCEPT &&
+	if (act->police.analtexceed.act_id == FLOW_ACTION_ACCEPT &&
 	    !flow_action_is_last_entry(action, act)) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Offload not supported when conform action is ok, but action is not last");
-		return -EOPNOTSUPP;
+				   "Offload analt supported when conform action is ok, but action is analt last");
+		return -EOPANALTSUPP;
 	}
 
 	if (act->police.rate_bytes_ps || act->police.peakrate_bytes_ps ||
 	    act->police.avrate || act->police.overhead) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Offload not supported when bytes per second/peakrate/avrate/overhead is configured");
-		return -EOPNOTSUPP;
+				   "Offload analt supported when bytes per second/peakrate/avrate/overhead is configured");
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -1494,11 +1494,11 @@ static int cpsw_qos_configure_clsflower(struct cpsw_priv *priv, struct flow_cls_
 			return cpsw_qos_clsflower_add_policer(priv, extack, cls,
 							      act->police.rate_pkt_ps);
 		default:
-			NL_SET_ERR_MSG_MOD(extack, "Action not supported");
-			return -EOPNOTSUPP;
+			NL_SET_ERR_MSG_MOD(extack, "Action analt supported");
+			return -EOPANALTSUPP;
 		}
 	}
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int cpsw_qos_delete_clsflower(struct cpsw_priv *priv, struct flow_cls_offload *cls)
@@ -1528,7 +1528,7 @@ static int cpsw_qos_setup_tc_clsflower(struct cpsw_priv *priv, struct flow_cls_o
 	case FLOW_CLS_DESTROY:
 		return cpsw_qos_delete_clsflower(priv, cls_flower);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1538,11 +1538,11 @@ static int cpsw_qos_setup_tc_block_cb(enum tc_setup_type type, void *type_data, 
 	int ret;
 
 	if (!tc_cls_can_offload_and_chain0(priv->ndev, type_data))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = pm_runtime_get_sync(priv->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(priv->dev);
+		pm_runtime_put_analidle(priv->dev);
 		return ret;
 	}
 
@@ -1551,7 +1551,7 @@ static int cpsw_qos_setup_tc_block_cb(enum tc_setup_type type, void *type_data, 
 		ret = cpsw_qos_setup_tc_clsflower(priv, type_data);
 		break;
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 	}
 
 	pm_runtime_put(priv->dev);

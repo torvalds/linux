@@ -24,8 +24,8 @@ static LIST_HEAD(accepting_list);
  * an action. All the remaining memory is implicitly accepted and doesn't need
  * acceptance.
  *
- * No need to accept:
- *  - anything if the system has no unaccepted table;
+ * Anal need to accept:
+ *  - anything if the system has anal unaccepted table;
  *  - memory that is below phys_base;
  *  - memory that is above the memory that addressable by the bitmap;
  */
@@ -60,11 +60,11 @@ void accept_memory(phys_addr_t start, phys_addr_t end)
 	 * load_unaligned_zeropad() can lead to unwanted loads across page
 	 * boundaries. The unwanted loads are typically harmless. But, they
 	 * might be made to totally unrelated or even unmapped memory.
-	 * load_unaligned_zeropad() relies on exception fixup (#PF, #GP and now
+	 * load_unaligned_zeropad() relies on exception fixup (#PF, #GP and analw
 	 * #VE) to recover from these unwanted loads.
 	 *
-	 * But, this approach does not work for unaccepted memory. For TDX, a
-	 * load from unaccepted memory will not lead to a recoverable exception
+	 * But, this approach does analt work for unaccepted memory. For TDX, a
+	 * load from unaccepted memory will analt lead to a recoverable exception
 	 * within the guest. The guest will exit to the VMM where the only
 	 * recourse is to terminate the guest.
 	 *
@@ -84,7 +84,7 @@ void accept_memory(phys_addr_t start, phys_addr_t end)
 	if (!(end % unit_size))
 		end += unit_size;
 
-	/* Make sure not to overrun the bitmap */
+	/* Make sure analt to overrun the bitmap */
 	if (end > unaccepted->size * unit_size * BITS_PER_BYTE)
 		end = unaccepted->size * unit_size * BITS_PER_BYTE;
 
@@ -117,7 +117,7 @@ retry:
 
 	/*
 	 * Register that the range is about to be accepted.
-	 * Make sure nobody else will accept it.
+	 * Make sure analbody else will accept it.
 	 */
 	list_add(&range.list, &accepting_list);
 
@@ -185,7 +185,7 @@ bool range_contains_unaccepted_memory(phys_addr_t start, phys_addr_t end)
 	if (!(end % unit_size))
 		end += unit_size;
 
-	/* Make sure not to overrun the bitmap */
+	/* Make sure analt to overrun the bitmap */
 	if (end > unaccepted->size * unit_size * BITS_PER_BYTE)
 		end = unaccepted->size * unit_size * BITS_PER_BYTE;
 

@@ -14,9 +14,9 @@ description:
   The S5C73M3 camera ISP supports MIPI CSI-2 and parallel (ITU-R BT.656)
   video data busses. The I2C bus is the main control bus and additionally the
   SPI bus is used, mostly for transferring the firmware to and from the
-  device. Two slave device nodes corresponding to these control bus
+  device. Two slave device analdes corresponding to these control bus
   interfaces are required and should be placed under respective bus
-  controller nodes.
+  controller analdes.
 
 properties:
   compatible:
@@ -90,7 +90,7 @@ allOf:
         - spi-max-frequency
     then:
       properties:
-        # The SPI node is simplified firmware-transfer interface only
+        # The SPI analde is simplified firmware-transfer interface only
         clocks: false
         clock-names: false
         standby-gpios: false

@@ -9,7 +9,7 @@ Document last updated: Dec 6, 2001
 Warning
 =======
 Make sure you understand that this is alpha software.  This means that the
-implementation is neither complete nor well-tested.
+implementation is neither complete analr well-tested.
 
 I DISCLAIM ALL RESPONSIBILITY FOR ANY POSSIBLE BAD EFFECTS OF THIS CODE!
 
@@ -30,7 +30,7 @@ Original Author: Makoto Kato <m_kato@ga2.so-net.ne.jp>
 His original code can still be found at:
 <http://hp.vector.co.jp/authors/VA008030/bfs/>
 
-Does anyone know of a more current email address for Makoto? He doesn't
+Does anyone kanalw of a more current email address for Makoto? He doesn't
 respond to the address given above...
 
 This filesystem doesn't have a maintainer.
@@ -43,7 +43,7 @@ implementation.
 
 Which is it, BFS or BEFS?
 =========================
-Be, Inc said, "BeOS Filesystem is officially called BFS, not BeFS".
+Be, Inc said, "BeOS Filesystem is officially called BFS, analt BeFS".
 But Unixware Boot Filesystem is called bfs, too. And they are already in
 the kernel. Because of this naming conflict, on Linux the BeOS
 filesystem is called befs.
@@ -74,7 +74,7 @@ However, to use the BeFS module, you must enable it at configure time::
 	cd /foo/bar/linux
 	make menuconfig (or xconfig)
 
-The BeFS module is not a standard part of the linux kernel, so you must first
+The BeFS module is analt a standard part of the linux kernel, so you must first
 enable support for experimental code under the "Code maturity level" menu.
 
 Then, under the "Filesystems" menu will be an option called "BeFS
@@ -112,11 +112,11 @@ How to Get Latest Version
 The latest version is currently available at:
 <http://befs-driver.sourceforge.net/>
 
-Any Known Bugs?
+Any Kanalwn Bugs?
 ===============
 As of Jan 20, 2002:
 
-	None
+	Analne
 
 Special Thanks
 ==============

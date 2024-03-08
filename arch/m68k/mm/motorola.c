@@ -36,7 +36,7 @@
 
 #ifndef mm_cachebits
 /*
- * Bits to add to page descriptors for "normal" caching mode.
+ * Bits to add to page descriptors for "analrmal" caching mode.
  * For 68020/030 this is 0.
  * For 68040, this is _PAGE_CACHE040 (cachable, copyback)
  */
@@ -45,17 +45,17 @@ EXPORT_SYMBOL(mm_cachebits);
 #endif
 
 /* Prior to calling these routines, the page should have been flushed
- * from both the cache and ATC, or the CPU might not notice that the
+ * from both the cache and ATC, or the CPU might analt analtice that the
  * cache setting for the page has been changed. -jskov
  */
-static inline void nocache_page(void *vaddr)
+static inline void analcache_page(void *vaddr)
 {
 	unsigned long addr = (unsigned long)vaddr;
 
 	if (CPU_IS_040_OR_060) {
 		pte_t *ptep = virt_to_kpte(addr);
 
-		*ptep = pte_mknocache(*ptep);
+		*ptep = pte_mkanalcache(*ptep);
 	}
 }
 
@@ -83,7 +83,7 @@ void mmu_page_ctor(void *page)
 {
 	__flush_pages_to_ram(page, 1);
 	flush_tlb_kernel_page(page);
-	nocache_page(page);
+	analcache_page(page);
 }
 
 void mmu_page_dtor(void *page)
@@ -147,7 +147,7 @@ void *get_pointer_table(int type)
 	 * For a pointer table for a user process address space, a
 	 * table is taken from a page allocated for the purpose.  Each
 	 * page can hold 8 pointer tables.  The page is remapped in
-	 * virtual address space to be noncacheable.
+	 * virtual address space to be analncacheable.
 	 */
 	if (mask == 0) {
 		void *page;
@@ -158,7 +158,7 @@ void *get_pointer_table(int type)
 
 		if (type == TABLE_PTE) {
 			/*
-			 * m68k doesn't have SPLIT_PTE_PTLOCKS for not having
+			 * m68k doesn't have SPLIT_PTE_PTLOCKS for analt having
 			 * SMP.
 			 */
 			pagetable_pte_ctor(virt_to_ptdesc(page));
@@ -286,7 +286,7 @@ static pmd_t * __init kernel_ptr_table(void)
 	return last_pmd_table;
 }
 
-static void __init map_node(int node)
+static void __init map_analde(int analde)
 {
 	unsigned long physaddr, virtaddr, size;
 	pgd_t *pgd_dir;
@@ -295,8 +295,8 @@ static void __init map_node(int node)
 	pmd_t *pmd_dir;
 	pte_t *pte_dir;
 
-	size = m68k_memory[node].size;
-	physaddr = m68k_memory[node].addr;
+	size = m68k_memory[analde].size;
+	physaddr = m68k_memory[analde].addr;
 	virtaddr = (unsigned long)phys_to_virt(physaddr);
 	physaddr |= m68k_supervisor_cachemode |
 		    _PAGE_PRESENT | _PAGE_ACCESSED | _PAGE_DIRTY;
@@ -386,13 +386,13 @@ static void __init map_node(int node)
  * Alternate definitions that are compile time constants, for
  * initializing protection_map.  The cachebits are fixed later.
  */
-#define PAGE_NONE_C	__pgprot(_PAGE_PROTNONE | _PAGE_ACCESSED)
+#define PAGE_ANALNE_C	__pgprot(_PAGE_PROTANALNE | _PAGE_ACCESSED)
 #define PAGE_SHARED_C	__pgprot(_PAGE_PRESENT | _PAGE_ACCESSED)
 #define PAGE_COPY_C	__pgprot(_PAGE_PRESENT | _PAGE_RONLY | _PAGE_ACCESSED)
 #define PAGE_READONLY_C	__pgprot(_PAGE_PRESENT | _PAGE_RONLY | _PAGE_ACCESSED)
 
 static pgprot_t protection_map[16] __ro_after_init = {
-	[VM_NONE]					= PAGE_NONE_C,
+	[VM_ANALNE]					= PAGE_ANALNE_C,
 	[VM_READ]					= PAGE_READONLY_C,
 	[VM_WRITE]					= PAGE_COPY_C,
 	[VM_WRITE | VM_READ]				= PAGE_COPY_C,
@@ -400,7 +400,7 @@ static pgprot_t protection_map[16] __ro_after_init = {
 	[VM_EXEC | VM_READ]				= PAGE_READONLY_C,
 	[VM_EXEC | VM_WRITE]				= PAGE_COPY_C,
 	[VM_EXEC | VM_WRITE | VM_READ]			= PAGE_COPY_C,
-	[VM_SHARED]					= PAGE_NONE_C,
+	[VM_SHARED]					= PAGE_ANALNE_C,
 	[VM_SHARED | VM_READ]				= PAGE_READONLY_C,
 	[VM_SHARED | VM_WRITE]				= PAGE_SHARED_C,
 	[VM_SHARED | VM_WRITE | VM_READ]		= PAGE_SHARED_C,
@@ -438,11 +438,11 @@ void __init paging_init(void)
 
 	min_addr = m68k_memory[0].addr;
 	max_addr = min_addr + m68k_memory[0].size - 1;
-	memblock_add_node(m68k_memory[0].addr, m68k_memory[0].size, 0,
-			  MEMBLOCK_NONE);
+	memblock_add_analde(m68k_memory[0].addr, m68k_memory[0].size, 0,
+			  MEMBLOCK_ANALNE);
 	for (i = 1; i < m68k_num_memory;) {
 		if (m68k_memory[i].addr < min_addr) {
-			printk("Ignoring memory chunk at 0x%lx:0x%lx before the first chunk\n",
+			printk("Iganalring memory chunk at 0x%lx:0x%lx before the first chunk\n",
 				m68k_memory[i].addr, m68k_memory[i].size);
 			printk("Fix your bootloader or use a memfile to make use of this area!\n");
 			m68k_num_memory--;
@@ -450,15 +450,15 @@ void __init paging_init(void)
 				(m68k_num_memory - i) * sizeof(struct m68k_mem_info));
 			continue;
 		}
-		memblock_add_node(m68k_memory[i].addr, m68k_memory[i].size, i,
-				  MEMBLOCK_NONE);
+		memblock_add_analde(m68k_memory[i].addr, m68k_memory[i].size, i,
+				  MEMBLOCK_ANALNE);
 		addr = m68k_memory[i].addr + m68k_memory[i].size - 1;
 		if (addr > max_addr)
 			max_addr = addr;
 		i++;
 	}
 	m68k_memoffset = min_addr - PAGE_OFFSET;
-	m68k_virt_to_node_shift = fls(max_addr - min_addr) - 6;
+	m68k_virt_to_analde_shift = fls(max_addr - min_addr) - 6;
 
 	module_fixup(NULL, __start_fixup, __stop_fixup);
 	flush_icache();
@@ -473,14 +473,14 @@ void __init paging_init(void)
 
 	/*
 	 * Map the physical memory available into the kernel virtual
-	 * address space. Make sure memblock will not try to allocate
+	 * address space. Make sure memblock will analt try to allocate
 	 * pages beyond the memory we already mapped in head.S
 	 */
 	memblock_set_bottom_up(true);
 
 	for (i = 0; i < m68k_num_memory; i++) {
-		m68k_setup_node(i);
-		map_node(i);
+		m68k_setup_analde(i);
+		map_analde(i);
 	}
 
 	flush_tlb_all();
@@ -505,8 +505,8 @@ void __init paging_init(void)
 	printk ("before free_area_init\n");
 #endif
 	for (i = 0; i < m68k_num_memory; i++)
-		if (node_present_pages(i))
-			node_set_state(i, N_NORMAL_MEMORY);
+		if (analde_present_pages(i))
+			analde_set_state(i, N_ANALRMAL_MEMORY);
 
 	max_zone_pfn[ZONE_DMA] = memblock_end_of_DRAM();
 	free_area_init(max_zone_pfn);

@@ -32,7 +32,7 @@
  * output.
  *
  * TODO: move this into pad format negotiation, if capture device
- * has not requested a planar format, we should allow 8 pixel
+ * has analt requested a planar format, we should allow 8 pixel
  * alignment at the source pad.
  */
 #define MIN_W_SINK   32
@@ -164,7 +164,7 @@ static int prp_get_ipu_resources(struct prp_priv *priv)
 
 	out_ch = ipu_idmac_get(ic_priv->ipu, prp_channel[task].out_ch);
 	if (IS_ERR(out_ch)) {
-		v4l2_err(&ic_priv->sd, "could not get IDMAC channel %u\n",
+		v4l2_err(&ic_priv->sd, "could analt get IDMAC channel %u\n",
 			 prp_channel[task].out_ch);
 		ret = PTR_ERR(out_ch);
 		goto out;
@@ -173,7 +173,7 @@ static int prp_get_ipu_resources(struct prp_priv *priv)
 
 	rot_in_ch = ipu_idmac_get(ic_priv->ipu, prp_channel[task].rot_in_ch);
 	if (IS_ERR(rot_in_ch)) {
-		v4l2_err(&ic_priv->sd, "could not get IDMAC channel %u\n",
+		v4l2_err(&ic_priv->sd, "could analt get IDMAC channel %u\n",
 			 prp_channel[task].rot_in_ch);
 		ret = PTR_ERR(rot_in_ch);
 		goto out;
@@ -182,7 +182,7 @@ static int prp_get_ipu_resources(struct prp_priv *priv)
 
 	rot_out_ch = ipu_idmac_get(ic_priv->ipu, prp_channel[task].rot_out_ch);
 	if (IS_ERR(rot_out_ch)) {
-		v4l2_err(&ic_priv->sd, "could not get IDMAC channel %u\n",
+		v4l2_err(&ic_priv->sd, "could analt get IDMAC channel %u\n",
 			 prp_channel[task].rot_out_ch);
 		ret = PTR_ERR(rot_out_ch);
 		goto out;
@@ -274,7 +274,7 @@ static irqreturn_t prp_nfb4eof_interrupt(int irq, void *dev_id)
 	spin_lock(&priv->irqlock);
 
 	/*
-	 * this is not an unrecoverable error, just mark
+	 * this is analt an unrecoverable error, just mark
 	 * the next captured frame with vb2 error flag.
 	 */
 	priv->nfb4eof = true;
@@ -394,7 +394,7 @@ static int prp_setup_channel(struct prp_priv *priv,
 
 	/*
 	 * Skip writing U and V components to odd rows in the output
-	 * channels for planar 4:2:0 (but not when enabling IDMAC
+	 * channels for planar 4:2:0 (but analt when enabling IDMAC
 	 * interweaving, they are incompatible).
 	 */
 	if ((channel == priv->out_ch && !interweave) ||
@@ -494,7 +494,7 @@ static int prp_setup_rotation(struct prp_priv *priv)
 	}
 
 	/* init the IC-PRP-->MEM IDMAC channel */
-	ret = prp_setup_channel(priv, priv->out_ch, IPU_ROTATE_NONE,
+	ret = prp_setup_channel(priv, priv->out_ch, IPU_ROTATE_ANALNE,
 				priv->rot_buf[0].phys, priv->rot_buf[1].phys,
 				true);
 	if (ret) {
@@ -516,7 +516,7 @@ static int prp_setup_rotation(struct prp_priv *priv)
 	prp_setup_vb2_buf(priv, phys);
 
 	/* init the destination IC-PRP ROT-->MEM IDMAC channel */
-	ret = prp_setup_channel(priv, priv->rot_out_ch, IPU_ROTATE_NONE,
+	ret = prp_setup_channel(priv, priv->rot_out_ch, IPU_ROTATE_ANALNE,
 				phys[0], phys[1],
 				false);
 	if (ret) {
@@ -525,7 +525,7 @@ static int prp_setup_rotation(struct prp_priv *priv)
 		goto unsetup_vb2;
 	}
 
-	/* now link IC-PRP-->MEM to MEM-->IC-PRP ROT */
+	/* analw link IC-PRP-->MEM to MEM-->IC-PRP ROT */
 	ipu_idmac_link(priv->out_ch, priv->rot_in_ch);
 
 	/* enable the IC */
@@ -574,7 +574,7 @@ static void prp_unsetup_rotation(struct prp_priv *priv)
 	imx_media_free_dma_buf(ic_priv->ipu_dev, &priv->rot_buf[1]);
 }
 
-static int prp_setup_norotation(struct prp_priv *priv)
+static int prp_setup_analrotation(struct prp_priv *priv)
 {
 	struct imx_media_video_dev *vdev = priv->vdev;
 	struct imx_ic_priv *ic_priv = priv->ic_priv;
@@ -643,7 +643,7 @@ unsetup_vb2:
 	return ret;
 }
 
-static void prp_unsetup_norotation(struct prp_priv *priv)
+static void prp_unsetup_analrotation(struct prp_priv *priv)
 {
 	ipu_ic_task_disable(priv->ic);
 	ipu_idmac_disable_channel(priv->out_ch);
@@ -656,7 +656,7 @@ static void prp_unsetup(struct prp_priv *priv,
 	if (ipu_rot_mode_is_irt(priv->rot_mode))
 		prp_unsetup_rotation(priv);
 	else
-		prp_unsetup_norotation(priv);
+		prp_unsetup_analrotation(priv);
 
 	prp_unsetup_vb2_buf(priv, state);
 }
@@ -687,7 +687,7 @@ static int prp_start(struct prp_priv *priv)
 	if (ipu_rot_mode_is_irt(priv->rot_mode))
 		ret = prp_setup_rotation(priv);
 	else
-		ret = prp_setup_norotation(priv);
+		ret = prp_setup_analrotation(priv);
 	if (ret)
 		goto out_free_underrun;
 
@@ -721,7 +721,7 @@ static int prp_start(struct prp_priv *priv)
 
 	/* start upstream */
 	ret = v4l2_subdev_call(priv->src_sd, video, s_stream, 1);
-	ret = (ret && ret != -ENOIOCTLCMD) ? ret : 0;
+	ret = (ret && ret != -EANALIOCTLCMD) ? ret : 0;
 	if (ret) {
 		v4l2_err(&ic_priv->sd,
 			 "upstream stream on failed: %d\n", ret);
@@ -769,7 +769,7 @@ static void prp_stop(struct prp_priv *priv)
 
 	/* stop upstream */
 	ret = v4l2_subdev_call(priv->src_sd, video, s_stream, 0);
-	if (ret && ret != -ENOIOCTLCMD)
+	if (ret && ret != -EANALIOCTLCMD)
 		v4l2_warn(&ic_priv->sd,
 			  "upstream stream off failed: %d\n", ret);
 
@@ -801,11 +801,11 @@ __prp_get_fmt(struct prp_priv *priv, struct v4l2_subdev_state *sd_state,
  * rectangle given the input rectangle, and depending on given
  * rotation mode.
  *
- * The IC resizer cannot downsize more than 4:1. Note also that
+ * The IC resizer cananalt downsize more than 4:1. Analte also that
  * for 90 or 270 rotation, _both_ output width and height must
  * be aligned by W_ALIGN_SRC, because the intermediate rotation
  * buffer swaps output width/height, and the final output buffer
- * does not.
+ * does analt.
  *
  * Returns true if the output rectangle was modified.
  */
@@ -912,7 +912,7 @@ static void prp_try_fmt(struct prp_priv *priv,
 				      S_ALIGN);
 
 		if (sdformat->format.field == V4L2_FIELD_ANY)
-			sdformat->format.field = V4L2_FIELD_NONE;
+			sdformat->format.field = V4L2_FIELD_ANALNE;
 	}
 
 	imx_media_try_colorimetry(&sdformat->format, true);
@@ -1045,7 +1045,7 @@ static int prp_link_setup(struct media_entity *entity,
 
 	/* this is the source pad */
 
-	/* the remote must be the device node */
+	/* the remote must be the device analde */
 	if (!is_media_entity_v4l2_video_device(remote->entity)) {
 		ret = -EINVAL;
 		goto out;
@@ -1244,8 +1244,8 @@ static int prp_set_frame_interval(struct v4l2_subdev *sd,
 
 	mutex_lock(&priv->lock);
 
-	/* No limits on valid frame intervals */
-	if (fi->interval.numerator == 0 || fi->interval.denominator == 0)
+	/* Anal limits on valid frame intervals */
+	if (fi->interval.numerator == 0 || fi->interval.deanalminator == 0)
 		fi->interval = priv->frame_interval;
 	else
 		priv->frame_interval = fi->interval;
@@ -1269,14 +1269,14 @@ static int prp_registered(struct v4l2_subdev *sd)
 		ret = imx_media_init_mbus_fmt(&priv->format_mbus[i],
 					      IMX_MEDIA_DEF_PIX_WIDTH,
 					      IMX_MEDIA_DEF_PIX_HEIGHT, code,
-					      V4L2_FIELD_NONE, &priv->cc[i]);
+					      V4L2_FIELD_ANALNE, &priv->cc[i]);
 		if (ret)
 			return ret;
 	}
 
 	/* init default frame interval */
 	priv->frame_interval.numerator = 1;
-	priv->frame_interval.denominator = 30;
+	priv->frame_interval.deanalminator = 30;
 
 	priv->vdev = imx_media_capture_device_init(ic_priv->ipu_dev,
 						   &ic_priv->sd,
@@ -1347,7 +1347,7 @@ static int prp_init(struct imx_ic_priv *ic_priv)
 
 	priv = devm_kzalloc(ic_priv->ipu_dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ic_priv->task_priv = priv;
 	priv->ic_priv = ic_priv;

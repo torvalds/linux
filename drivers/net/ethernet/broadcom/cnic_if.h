@@ -152,7 +152,7 @@ struct drv_ctl_register_data {
 struct drv_ctl_info {
 	int	cmd;
 	int     drv_state;
-#define DRV_NOP		0
+#define DRV_ANALP		0
 #define DRV_ACTIVE	1
 #define DRV_INACTIVE	2
 #define DRV_UNLOADED	3
@@ -201,9 +201,9 @@ struct cnic_eth_dev {
 	u32		drv_state;
 #define CNIC_DRV_STATE_REGD		0x00000001
 #define CNIC_DRV_STATE_USING_MSIX	0x00000002
-#define CNIC_DRV_STATE_NO_ISCSI_OOO	0x00000004
-#define CNIC_DRV_STATE_NO_ISCSI		0x00000008
-#define CNIC_DRV_STATE_NO_FCOE		0x00000010
+#define CNIC_DRV_STATE_ANAL_ISCSI_OOO	0x00000004
+#define CNIC_DRV_STATE_ANAL_ISCSI		0x00000008
+#define CNIC_DRV_STATE_ANAL_FCOE		0x00000010
 #define CNIC_DRV_STATE_HANDLES_IRQ	0x00000020
 	u32		chip_id;
 	u32		max_kwqe_pending;
@@ -223,8 +223,8 @@ struct cnic_eth_dev {
 	u32		max_fcoe_exchanges;
 	u32		fcoe_wwn_port_name_hi;
 	u32		fcoe_wwn_port_name_lo;
-	u32		fcoe_wwn_node_name_hi;
-	u32		fcoe_wwn_node_name_lo;
+	u32		fcoe_wwn_analde_name_hi;
+	u32		fcoe_wwn_analde_name_lo;
 
 	u16		iscsi_l2_client_id;
 	u16		iscsi_l2_cid;
@@ -284,7 +284,7 @@ struct cnic_sock {
 	u32	seed;
 
 	unsigned long	tcp_flags;
-#define SK_TCP_NO_DELAY_ACK	0x1
+#define SK_TCP_ANAL_DELAY_ACK	0x1
 #define SK_TCP_KEEP_ALIVE	0x2
 #define SK_TCP_NAGLE		0x4
 #define SK_TCP_TIMESTAMP	0x8

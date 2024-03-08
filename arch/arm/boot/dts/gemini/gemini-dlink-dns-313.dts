@@ -90,7 +90,7 @@
 		vbus-gpios = <&gpio0 18 GPIO_ACTIVE_LOW>;
 	};
 
-	/* Global Mixed-Mode Technology G751 mounted on GPIO I2C */
+	/* Global Mixed-Mode Techanallogy G751 mounted on GPIO I2C */
 	i2c {
 		compatible = "i2c-gpio";
 		sda-gpios = <&gpio0 15 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
@@ -304,7 +304,7 @@
 				phy-handle = <&phy0>;
 			};
 			ethernet-port@1 {
-				/* Not used in this platform */
+				/* Analt used in this platform */
 			};
 		};
 

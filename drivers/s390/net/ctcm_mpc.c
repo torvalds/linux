@@ -25,7 +25,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/interrupt.h>
 #include <linux/timer.h>
@@ -79,7 +79,7 @@ static const struct xid2 init_xid = {
 	.xid2_buf_len	=	(MPC_BUFSIZE_DEFAULT - 35),
 };
 
-static const struct th_header thnorm = {
+static const struct th_header thanalrm = {
 	.th_seg		=	0x00,
 	.th_ch_flag	=	TH_IS_XID,
 	.th_blk_flag	=	TH_DATA_IS_XID,
@@ -109,9 +109,9 @@ static void ctcmpc_unpack_skb(struct channel *ch, struct sk_buff *pskb);
 /*
  * MPC Group state machine actions (static prototypes)
  */
-static void mpc_action_nop(fsm_instance *fsm, int event, void *arg);
+static void mpc_action_analp(fsm_instance *fsm, int event, void *arg);
 static void mpc_action_go_ready(fsm_instance *fsm, int event, void *arg);
-static void mpc_action_go_inop(fsm_instance *fi, int event, void *arg);
+static void mpc_action_go_ianalp(fsm_instance *fi, int event, void *arg);
 static void mpc_action_timeout(fsm_instance *fi, int event, void *arg);
 static int  mpc_validate_xid(struct mpcg_info *mpcginfo);
 static void mpc_action_yside_xid(fsm_instance *fsm, int event, void *arg);
@@ -299,7 +299,7 @@ static struct net_device *ctcmpc_get_dev(int port_num)
 
 	if (dev == NULL) {
 		CTCM_DBF_TEXT_(MPC_ERROR, CTC_DBF_ERROR,
-			"%s: Device not found by name: %s",
+			"%s: Device analt found by name: %s",
 					CTCM_FUNTAIL, device);
 		return NULL;
 	}
@@ -347,7 +347,7 @@ int ctc_mpc_alloc_channel(int port_num, void (*callback)(int, int))
 			CTCM_FUNTAIL, dev->name, fsm_getstate_str(grp->fsm));
 
 	switch (fsm_getstate(grp->fsm)) {
-	case MPCG_STATE_INOP:
+	case MPCG_STATE_IANALP:
 		/* Group is in the process of terminating */
 		grp->alloc_called = 1;
 		break;
@@ -382,7 +382,7 @@ int ctc_mpc_alloc_channel(int port_num, void (*callback)(int, int))
 		} else {
 			/* there are problems...bail out	    */
 			/* there may be a state mismatch so restart */
-			fsm_event(grp->fsm, MPCG_EVENT_INOP, dev);
+			fsm_event(grp->fsm, MPCG_EVENT_IANALP, dev);
 			grp->allocchan_callback_retries = 0;
 		}
 		break;
@@ -434,14 +434,14 @@ void ctc_mpc_establish_connectivity(int port_num,
 			}
 		} else {
 			/* there are problems...bail out	 */
-			fsm_event(grp->fsm, MPCG_EVENT_INOP, dev);
+			fsm_event(grp->fsm, MPCG_EVENT_IANALP, dev);
 			grp->estconn_callback_retries = 0;
 		}
 		break;
-	case MPCG_STATE_INOP:
+	case MPCG_STATE_IANALP:
 	case MPCG_STATE_RESET:
-		/* MPC Group is not ready to start XID - min num of */
-		/* 1 read and 1 write channel have not been acquired*/
+		/* MPC Group is analt ready to start XID - min num of */
+		/* 1 read and 1 write channel have analt been acquired*/
 
 		CTCM_DBF_TEXT_(MPC_ERROR, CTC_DBF_ERROR,
 			"%s(%s): REJECTED - inactive channels",
@@ -452,9 +452,9 @@ void ctc_mpc_establish_connectivity(int port_num,
 		}
 		break;
 	case MPCG_STATE_XID2INITW:
-		/* alloc channel was called but no XID exchange    */
+		/* alloc channel was called but anal XID exchange    */
 		/* has occurred. initiate xside XID exchange	   */
-		/* make sure yside XID0 processing has not started */
+		/* make sure yside XID0 processing has analt started */
 
 		if ((fsm_getstate(rch->fsm) > CH_XID0_PENDING) ||
 			(fsm_getstate(wch->fsm) > CH_XID0_PENDING)) {
@@ -476,7 +476,7 @@ void ctc_mpc_establish_connectivity(int port_num,
 			fsm_event(grp->fsm, MPCG_EVENT_XID0DO, rch);
 		else {
 			CTCM_DBF_TEXT_(MPC_ERROR, CTC_DBF_ERROR,
-				"%s(%s): RX-%s not ready for ACTIVE XID0",
+				"%s(%s): RX-%s analt ready for ACTIVE XID0",
 					CTCM_FUNTAIL, dev->name, rch->id);
 			if (grp->estconnfunc) {
 				grp->estconnfunc(grp->port_num, -1, 0);
@@ -490,7 +490,7 @@ void ctc_mpc_establish_connectivity(int port_num,
 			fsm_event(grp->fsm, MPCG_EVENT_XID0DO, wch);
 		else {
 			CTCM_DBF_TEXT_(MPC_ERROR, CTC_DBF_ERROR,
-				"%s(%s): WX-%s not ready for ACTIVE XID0",
+				"%s(%s): WX-%s analt ready for ACTIVE XID0",
 					CTCM_FUNTAIL, dev->name, wch->id);
 			if (grp->estconnfunc) {
 				grp->estconnfunc(grp->port_num, -1, 0);
@@ -539,7 +539,7 @@ void ctc_mpc_dealloc_ch(int port_num)
 	grp->estconnfunc = NULL;
 	grp->port_persist = 0;
 	grp->send_qllc_disc = 0;
-	fsm_event(grp->fsm, MPCG_EVENT_INOP, dev);
+	fsm_event(grp->fsm, MPCG_EVENT_IANALP, dev);
 
 	ctcm_close(dev);
 	return;
@@ -587,7 +587,7 @@ void ctc_mpc_flow_control(int port_num, int flowc)
 		if (mpcg_state == MPCG_STATE_FLOWC) {
 			fsm_newstate(grp->fsm, MPCG_STATE_READY);
 			/* ensure any data that has accumulated */
-			/* on the io_queue will now be sen t	*/
+			/* on the io_queue will analw be sen t	*/
 			tasklet_schedule(&rch->ch_tasklet);
 		}
 		/* possible race condition			*/
@@ -669,7 +669,7 @@ static void ctcmpc_send_sweep_resp(struct channel *rch)
 done:
 	grp->in_sweep = 0;
 	ctcm_clear_busy_do(dev);
-	fsm_event(grp->fsm, MPCG_EVENT_INOP, dev);
+	fsm_event(grp->fsm, MPCG_EVENT_IANALP, dev);
 
 	return;
 }
@@ -708,7 +708,7 @@ static void mpc_rcvd_sweep_req(struct mpcg_info *mpcginfo)
   * MPC Group Station FSM definitions
  */
 static const char *mpcg_event_names[] = {
-	[MPCG_EVENT_INOP]	= "INOP Condition",
+	[MPCG_EVENT_IANALP]	= "IANALP Condition",
 	[MPCG_EVENT_DISCONC]	= "Discontact Received",
 	[MPCG_EVENT_XID0DO]	= "Channel Active - Start XID",
 	[MPCG_EVENT_XID2]	= "XID2 Received",
@@ -720,7 +720,7 @@ static const char *mpcg_event_names[] = {
 
 static const char *mpcg_state_names[] = {
 	[MPCG_STATE_RESET]	= "Reset",
-	[MPCG_STATE_INOP]	= "INOP",
+	[MPCG_STATE_IANALP]	= "IANALP",
 	[MPCG_STATE_XID2INITW]	= "Passive XID- XID0 Pending Start",
 	[MPCG_STATE_XID2INITX]	= "Passive XID- XID0 Pending Complete",
 	[MPCG_STATE_XID7INITW]	= "Passive XID- XID7 Pending P1 Start",
@@ -738,37 +738,37 @@ static const char *mpcg_state_names[] = {
  * The MPC Group Station FSM
  *   22 events
  */
-static const fsm_node mpcg_fsm[] = {
-	{ MPCG_STATE_RESET,	MPCG_EVENT_INOP,	mpc_action_go_inop    },
-	{ MPCG_STATE_INOP,	MPCG_EVENT_INOP,	mpc_action_nop        },
-	{ MPCG_STATE_FLOWC,	MPCG_EVENT_INOP,	mpc_action_go_inop    },
+static const fsm_analde mpcg_fsm[] = {
+	{ MPCG_STATE_RESET,	MPCG_EVENT_IANALP,	mpc_action_go_ianalp    },
+	{ MPCG_STATE_IANALP,	MPCG_EVENT_IANALP,	mpc_action_analp        },
+	{ MPCG_STATE_FLOWC,	MPCG_EVENT_IANALP,	mpc_action_go_ianalp    },
 
 	{ MPCG_STATE_READY,	MPCG_EVENT_DISCONC,	mpc_action_discontact },
-	{ MPCG_STATE_READY,	MPCG_EVENT_INOP,	mpc_action_go_inop    },
+	{ MPCG_STATE_READY,	MPCG_EVENT_IANALP,	mpc_action_go_ianalp    },
 
 	{ MPCG_STATE_XID2INITW,	MPCG_EVENT_XID0DO,	mpc_action_doxid0     },
 	{ MPCG_STATE_XID2INITW,	MPCG_EVENT_XID2,	mpc_action_rcvd_xid0  },
-	{ MPCG_STATE_XID2INITW,	MPCG_EVENT_INOP,	mpc_action_go_inop    },
+	{ MPCG_STATE_XID2INITW,	MPCG_EVENT_IANALP,	mpc_action_go_ianalp    },
 	{ MPCG_STATE_XID2INITW,	MPCG_EVENT_TIMER,	mpc_action_timeout    },
 	{ MPCG_STATE_XID2INITW,	MPCG_EVENT_DOIO,	mpc_action_yside_xid  },
 
 	{ MPCG_STATE_XID2INITX,	MPCG_EVENT_XID0DO,	mpc_action_doxid0     },
 	{ MPCG_STATE_XID2INITX,	MPCG_EVENT_XID2,	mpc_action_rcvd_xid0  },
-	{ MPCG_STATE_XID2INITX,	MPCG_EVENT_INOP,	mpc_action_go_inop    },
+	{ MPCG_STATE_XID2INITX,	MPCG_EVENT_IANALP,	mpc_action_go_ianalp    },
 	{ MPCG_STATE_XID2INITX,	MPCG_EVENT_TIMER,	mpc_action_timeout    },
 	{ MPCG_STATE_XID2INITX,	MPCG_EVENT_DOIO,	mpc_action_yside_xid  },
 
 	{ MPCG_STATE_XID7INITW,	MPCG_EVENT_XID2DONE,	mpc_action_doxid7     },
 	{ MPCG_STATE_XID7INITW,	MPCG_EVENT_DISCONC,	mpc_action_discontact },
 	{ MPCG_STATE_XID7INITW,	MPCG_EVENT_XID2,	mpc_action_rcvd_xid7  },
-	{ MPCG_STATE_XID7INITW,	MPCG_EVENT_INOP,	mpc_action_go_inop    },
+	{ MPCG_STATE_XID7INITW,	MPCG_EVENT_IANALP,	mpc_action_go_ianalp    },
 	{ MPCG_STATE_XID7INITW,	MPCG_EVENT_TIMER,	mpc_action_timeout    },
 	{ MPCG_STATE_XID7INITW,	MPCG_EVENT_XID7DONE,	mpc_action_doxid7     },
 	{ MPCG_STATE_XID7INITW,	MPCG_EVENT_DOIO,	mpc_action_yside_xid  },
 
 	{ MPCG_STATE_XID7INITX,	MPCG_EVENT_DISCONC,	mpc_action_discontact },
 	{ MPCG_STATE_XID7INITX,	MPCG_EVENT_XID2,	mpc_action_rcvd_xid7  },
-	{ MPCG_STATE_XID7INITX,	MPCG_EVENT_INOP,	mpc_action_go_inop    },
+	{ MPCG_STATE_XID7INITX,	MPCG_EVENT_IANALP,	mpc_action_go_ianalp    },
 	{ MPCG_STATE_XID7INITX,	MPCG_EVENT_XID7DONE,	mpc_action_doxid7     },
 	{ MPCG_STATE_XID7INITX,	MPCG_EVENT_TIMER,	mpc_action_timeout    },
 	{ MPCG_STATE_XID7INITX,	MPCG_EVENT_DOIO,	mpc_action_yside_xid  },
@@ -776,21 +776,21 @@ static const fsm_node mpcg_fsm[] = {
 	{ MPCG_STATE_XID0IOWAIT, MPCG_EVENT_XID0DO,	mpc_action_doxid0     },
 	{ MPCG_STATE_XID0IOWAIT, MPCG_EVENT_DISCONC,	mpc_action_discontact },
 	{ MPCG_STATE_XID0IOWAIT, MPCG_EVENT_XID2,	mpc_action_rcvd_xid0  },
-	{ MPCG_STATE_XID0IOWAIT, MPCG_EVENT_INOP,	mpc_action_go_inop    },
+	{ MPCG_STATE_XID0IOWAIT, MPCG_EVENT_IANALP,	mpc_action_go_ianalp    },
 	{ MPCG_STATE_XID0IOWAIT, MPCG_EVENT_TIMER,	mpc_action_timeout    },
 	{ MPCG_STATE_XID0IOWAIT, MPCG_EVENT_DOIO,	mpc_action_xside_xid  },
 
 	{ MPCG_STATE_XID0IOWAIX, MPCG_EVENT_XID0DO,	mpc_action_doxid0     },
 	{ MPCG_STATE_XID0IOWAIX, MPCG_EVENT_DISCONC,	mpc_action_discontact },
 	{ MPCG_STATE_XID0IOWAIX, MPCG_EVENT_XID2,	mpc_action_rcvd_xid0  },
-	{ MPCG_STATE_XID0IOWAIX, MPCG_EVENT_INOP,	mpc_action_go_inop    },
+	{ MPCG_STATE_XID0IOWAIX, MPCG_EVENT_IANALP,	mpc_action_go_ianalp    },
 	{ MPCG_STATE_XID0IOWAIX, MPCG_EVENT_TIMER,	mpc_action_timeout    },
 	{ MPCG_STATE_XID0IOWAIX, MPCG_EVENT_DOIO,	mpc_action_xside_xid  },
 
 	{ MPCG_STATE_XID7INITI,	MPCG_EVENT_XID2DONE,	mpc_action_doxid7     },
 	{ MPCG_STATE_XID7INITI,	MPCG_EVENT_XID2,	mpc_action_rcvd_xid7  },
 	{ MPCG_STATE_XID7INITI,	MPCG_EVENT_DISCONC,	mpc_action_discontact },
-	{ MPCG_STATE_XID7INITI,	MPCG_EVENT_INOP,	mpc_action_go_inop    },
+	{ MPCG_STATE_XID7INITI,	MPCG_EVENT_IANALP,	mpc_action_go_ianalp    },
 	{ MPCG_STATE_XID7INITI,	MPCG_EVENT_TIMER,	mpc_action_timeout    },
 	{ MPCG_STATE_XID7INITI,	MPCG_EVENT_XID7DONE,	mpc_action_doxid7     },
 	{ MPCG_STATE_XID7INITI,	MPCG_EVENT_DOIO,	mpc_action_xside_xid  },
@@ -798,11 +798,11 @@ static const fsm_node mpcg_fsm[] = {
 	{ MPCG_STATE_XID7INITZ,	MPCG_EVENT_XID2,	mpc_action_rcvd_xid7  },
 	{ MPCG_STATE_XID7INITZ,	MPCG_EVENT_XID7DONE,	mpc_action_doxid7     },
 	{ MPCG_STATE_XID7INITZ,	MPCG_EVENT_DISCONC,	mpc_action_discontact },
-	{ MPCG_STATE_XID7INITZ,	MPCG_EVENT_INOP,	mpc_action_go_inop    },
+	{ MPCG_STATE_XID7INITZ,	MPCG_EVENT_IANALP,	mpc_action_go_ianalp    },
 	{ MPCG_STATE_XID7INITZ,	MPCG_EVENT_TIMER,	mpc_action_timeout    },
 	{ MPCG_STATE_XID7INITZ,	MPCG_EVENT_DOIO,	mpc_action_xside_xid  },
 
-	{ MPCG_STATE_XID7INITF,	MPCG_EVENT_INOP,	mpc_action_go_inop    },
+	{ MPCG_STATE_XID7INITF,	MPCG_EVENT_IANALP,	mpc_action_go_ianalp    },
 	{ MPCG_STATE_XID7INITF,	MPCG_EVENT_XID7DONE,	mpc_action_go_ready   },
 };
 
@@ -820,7 +820,7 @@ static void mpc_action_go_ready(fsm_instance *fsm, int event, void *arg)
 
 	if (grp == NULL) {
 		CTCM_DBF_TEXT_(MPC_ERROR, CTC_DBF_ERROR,
-			"%s(%s): No MPC group",
+			"%s(%s): Anal MPC group",
 				CTCM_FUNTAIL, dev->name);
 		return;
 	}
@@ -836,7 +836,7 @@ static void mpc_action_go_ready(fsm_instance *fsm, int event, void *arg)
 		} else if (grp->allochanfunc)
 			grp->send_qllc_disc = 1;
 
-		fsm_event(grp->fsm, MPCG_EVENT_INOP, dev);
+		fsm_event(grp->fsm, MPCG_EVENT_IANALP, dev);
 		CTCM_DBF_TEXT_(MPC_ERROR, CTC_DBF_ERROR,
 				"%s(%s): fails",
 					CTCM_FUNTAIL, dev->name);
@@ -865,12 +865,12 @@ void mpc_group_ready(unsigned long adev)
 
 	if (grp == NULL) {
 		CTCM_DBF_TEXT_(MPC_ERROR, CTC_DBF_ERROR,
-			"%s(%s): No MPC group",
+			"%s(%s): Anal MPC group",
 				CTCM_FUNTAIL, dev->name);
 		return;
 	}
 
-	CTCM_DBF_TEXT_(MPC_SETUP, CTC_DBF_NOTICE,
+	CTCM_DBF_TEXT_(MPC_SETUP, CTC_DBF_ANALTICE,
 		"%s: %s: GROUP TRANSITIONED TO READY, maxbuf = %d\n",
 			CTCM_FUNTAIL, dev->name, grp->group_max_buflen);
 
@@ -921,14 +921,14 @@ void mpc_channel_action(struct channel *ch, int direction, int action)
 
 	if (grp == NULL) {
 		CTCM_DBF_TEXT_(MPC_ERROR, CTC_DBF_ERROR,
-			"%s(%s): No MPC group",
+			"%s(%s): Anal MPC group",
 				CTCM_FUNTAIL, dev->name);
 		return;
 	}
 
 	CTCM_PR_DEBUG("enter %s: ch=0x%p id=%s\n", __func__, ch, ch->id);
 
-	CTCM_DBF_TEXT_(MPC_TRACE, CTC_DBF_NOTICE,
+	CTCM_DBF_TEXT_(MPC_TRACE, CTC_DBF_ANALTICE,
 		"%s: %i / Grp:%s total_channels=%i, active_channels: "
 		"read=%i, write=%i\n", __func__, action,
 		fsm_getstate_str(grp->fsm), grp->num_channel_paths,
@@ -950,7 +950,7 @@ void mpc_channel_action(struct channel *ch, int direction, int action)
 			CTCM_DBF_TEXT_(MPC_ERROR, CTC_DBF_ERROR,
 				"%s(%s): Couldn't alloc ch xid_skb\n",
 				CTCM_FUNTAIL, dev->name);
-			fsm_event(grp->fsm, MPCG_EVENT_INOP, dev);
+			fsm_event(grp->fsm, MPCG_EVENT_IANALP, dev);
 			return;
 		}
 		ch->xid_skb_data = ch->xid_skb->data;
@@ -983,7 +983,7 @@ void mpc_channel_action(struct channel *ch, int direction, int action)
 		    (grp->active_channels[CTCM_WRITE] > 0) &&
 			(fsm_getstate(grp->fsm) < MPCG_STATE_XID2INITW)) {
 			fsm_newstate(grp->fsm, MPCG_STATE_XID2INITW);
-			CTCM_DBF_TEXT_(MPC_SETUP, CTC_DBF_NOTICE,
+			CTCM_DBF_TEXT_(MPC_SETUP, CTC_DBF_ANALTICE,
 				"%s: %s: MPC GROUP CHANNELS ACTIVE\n",
 						__func__, dev->name);
 		}
@@ -1004,7 +1004,7 @@ void mpc_channel_action(struct channel *ch, int direction, int action)
 					(grp->active_channels[CTCM_WRITE] > 0))
 			|| ((grp->active_channels[CTCM_WRITE] == 0) &&
 					(grp->active_channels[CTCM_READ] > 0)))
-			fsm_event(grp->fsm, MPCG_EVENT_INOP, dev);
+			fsm_event(grp->fsm, MPCG_EVENT_IANALP, dev);
 	}
 done:
 	CTCM_DBF_TEXT_(MPC_TRACE, CTC_DBF_DEBUG,
@@ -1048,7 +1048,7 @@ static void ctcmpc_unpack_skb(struct channel *ch, struct sk_buff *pskb)
 		(header->th_ch_flag == 0) &&
 		(header->th_blk_flag == 0) &&
 		(header->th_seq_num == 0))
-		/* nothing for us */	goto done;
+		/* analthing for us */	goto done;
 
 	CTCM_PR_DBGDATA("%s: th_header\n", __func__);
 	CTCM_D3_DUMP((char *)header, TH_HEADER_LENGTH);
@@ -1064,8 +1064,8 @@ static void ctcmpc_unpack_skb(struct channel *ch, struct sk_buff *pskb)
 		   ((fsm_getstate(grp->fsm) == MPCG_STATE_READY) &&
 		    (header->th_seq_num != ch->th_seq_num + 1) &&
 		    (ch->th_seq_num != 0))) {
-			/* This is NOT the next segment		*
-			 * we are not the correct race winner	*
+			/* This is ANALT the next segment		*
+			 * we are analt the correct race winner	*
 			 * go away and let someone else win	*
 			 * BUT..this only applies if xid negot	*
 			 * is done				*
@@ -1122,7 +1122,7 @@ static void ctcmpc_unpack_skb(struct channel *ch, struct sk_buff *pskb)
 				/* should never happen		    */
 				/* pskb len must be hosed...bail out */
 				CTCM_DBF_TEXT_(MPC_ERROR, CTC_DBF_ERROR,
-					"%s(%s): non valid pdu_offset: %04x",
+					"%s(%s): analn valid pdu_offset: %04x",
 					/* "data may be lost", */
 					CTCM_FUNTAIL, dev->name, new_len);
 				goto done;
@@ -1134,7 +1134,7 @@ static void ctcmpc_unpack_skb(struct channel *ch, struct sk_buff *pskb)
 					"%s(%s): MEMORY allocation error",
 						CTCM_FUNTAIL, dev->name);
 				priv->stats.rx_dropped++;
-				fsm_event(grp->fsm, MPCG_EVENT_INOP, dev);
+				fsm_event(grp->fsm, MPCG_EVENT_IANALP, dev);
 				goto done;
 			}
 			skb_put_data(skb, pskb->data, new_len);
@@ -1171,7 +1171,7 @@ static void ctcmpc_unpack_skb(struct channel *ch, struct sk_buff *pskb)
 		mpcginfo->ch = ch;
 		mpcginfo->th = header;
 		mpcginfo->skb = pskb;
-		CTCM_PR_DEBUG("%s: Not PDU - may be control pkt\n",
+		CTCM_PR_DEBUG("%s: Analt PDU - may be control pkt\n",
 					__func__);
 		/*  it's a sweep?   */
 		sweep = (struct th_sweep *)pskb->data;
@@ -1192,7 +1192,7 @@ static void ctcmpc_unpack_skb(struct channel *ch, struct sk_buff *pskb)
 				"%s(%s): control pkt expected\n",
 						CTCM_FUNTAIL, dev->name);
 			priv->stats.rx_dropped++;
-			/* mpcginfo only used for non-data transfers */
+			/* mpcginfo only used for analn-data transfers */
 			if (do_debug_data)
 				ctcmpc_dump_skb(pskb, -8);
 		}
@@ -1205,7 +1205,7 @@ done:
 		dev_warn(&dev->dev,
 			"The network backlog for %s is exceeded, "
 			"package dropped\n", __func__);
-		fsm_event(grp->fsm, MPCG_EVENT_INOP, dev);
+		fsm_event(grp->fsm, MPCG_EVENT_IANALP, dev);
 	}
 
 	CTCM_PR_DEBUG("exit %s: %s: ch=0x%p id=%s\n",
@@ -1239,7 +1239,7 @@ void ctcmpc_bh(unsigned long thischan)
 			/* missing seq_num for extended     */
 			/* period of time		    */
 			grp->out_of_sequence = 0;
-			fsm_event(grp->fsm, MPCG_EVENT_INOP, dev);
+			fsm_event(grp->fsm, MPCG_EVENT_IANALP, dev);
 			break;
 		}
 		if (skb == skb_peek(&ch->io_queue))
@@ -1285,7 +1285,7 @@ struct mpc_group *ctcmpc_init_mpc_group(struct ctcm_priv *priv)
 	/*  base xid for all channels in group  */
 	grp->xid_skb_data = grp->xid_skb->data;
 	grp->xid_th = (struct th_header *)grp->xid_skb->data;
-	skb_put_data(grp->xid_skb, &thnorm, TH_HEADER_LENGTH);
+	skb_put_data(grp->xid_skb, &thanalrm, TH_HEADER_LENGTH);
 
 	grp->xid = (struct xid2 *)skb_tail_pointer(grp->xid_skb);
 	skb_put_data(grp->xid_skb, &init_xid, XID2_LENGTH);
@@ -1305,7 +1305,7 @@ struct mpc_group *ctcmpc_init_mpc_group(struct ctcm_priv *priv)
 	}
 	grp->rcvd_xid_data = grp->rcvd_xid_skb->data;
 	grp->rcvd_xid_th = (struct th_header *)grp->rcvd_xid_skb->data;
-	skb_put_data(grp->rcvd_xid_skb, &thnorm, TH_HEADER_LENGTH);
+	skb_put_data(grp->rcvd_xid_skb, &thanalrm, TH_HEADER_LENGTH);
 	grp->saved_xid2 = NULL;
 	priv->xid = grp->xid;
 	priv->mpcg = grp;
@@ -1322,9 +1322,9 @@ struct mpc_group *ctcmpc_init_mpc_group(struct ctcm_priv *priv)
  */
 
 /*
- * NOP action for statemachines
+ * ANALP action for statemachines
  */
-static void mpc_action_nop(fsm_instance *fi, int event, void *arg)
+static void mpc_action_analp(fsm_instance *fi, int event, void *arg)
 {
 }
 
@@ -1334,7 +1334,7 @@ static void mpc_action_nop(fsm_instance *fi, int event, void *arg)
  * occurs, or will intitiate all channels be stopped if a GROUP
  * level failure occurs.
  */
-static void mpc_action_go_inop(fsm_instance *fi, int event, void *arg)
+static void mpc_action_go_ianalp(fsm_instance *fi, int event, void *arg)
 {
 	struct net_device  *dev = arg;
 	struct ctcm_priv    *priv;
@@ -1352,10 +1352,10 @@ static void mpc_action_go_inop(fsm_instance *fi, int event, void *arg)
 
 	grp->channels_terminating = 1;
 	grp->saved_state = fsm_getstate(grp->fsm);
-	fsm_newstate(grp->fsm, MPCG_STATE_INOP);
+	fsm_newstate(grp->fsm, MPCG_STATE_IANALP);
 	if (grp->saved_state > MPCG_STATE_XID7INITF)
-		CTCM_DBF_TEXT_(MPC_TRACE, CTC_DBF_NOTICE,
-			"%s(%s): MPC GROUP INOPERATIVE",
+		CTCM_DBF_TEXT_(MPC_TRACE, CTC_DBF_ANALTICE,
+			"%s(%s): MPC GROUP IANALPERATIVE",
 				CTCM_FUNTAIL, dev->name);
 	if ((grp->saved_state != MPCG_STATE_RESET) ||
 		/* dealloc_channel has been called */
@@ -1366,7 +1366,7 @@ static void mpc_action_go_inop(fsm_instance *fi, int event, void *arg)
 
 	switch (grp->saved_state) {
 	case MPCG_STATE_RESET:
-	case MPCG_STATE_INOP:
+	case MPCG_STATE_IANALP:
 	case MPCG_STATE_XID2INITW:
 	case MPCG_STATE_XID0IOWAIT:
 	case MPCG_STATE_XID2INITX:
@@ -1389,22 +1389,22 @@ static void mpc_action_go_inop(fsm_instance *fi, int event, void *arg)
 	grp->outstanding_xid7 = 0;
 	grp->outstanding_xid7_p2 = 0;
 	grp->saved_xid2 = NULL;
-	grp->xidnogood = 0;
+	grp->xidanalgood = 0;
 	grp->changed_side = 0;
 
 	grp->rcvd_xid_skb->data = grp->rcvd_xid_data;
 	skb_reset_tail_pointer(grp->rcvd_xid_skb);
 	grp->rcvd_xid_skb->len = 0;
 	grp->rcvd_xid_th = (struct th_header *)grp->rcvd_xid_skb->data;
-	skb_put_data(grp->rcvd_xid_skb, &thnorm, TH_HEADER_LENGTH);
+	skb_put_data(grp->rcvd_xid_skb, &thanalrm, TH_HEADER_LENGTH);
 
 	if (grp->send_qllc_disc == 1) {
 		grp->send_qllc_disc = 0;
 		mpc_send_qllc_discontact(dev);
 	}
 
-	/* DO NOT issue DEV_EVENT_STOP directly out of this code */
-	/* This can result in INOP of VTAM PU due to halting of  */
+	/* DO ANALT issue DEV_EVENT_STOP directly out of this code */
+	/* This can result in IANALP of VTAM PU due to halting of  */
 	/* outstanding IO which causes a sense to be returned	 */
 	/* Only about 3 senses are allowed and then IOS/VTAM will*/
 	/* become unreachable without manual intervention	 */
@@ -1422,7 +1422,7 @@ static void mpc_action_go_inop(fsm_instance *fi, int event, void *arg)
 		fsm_addtimer(&priv->restart_timer, 500, DEV_EVENT_STOP, dev);
 		fsm_newstate(grp->fsm, MPCG_STATE_RESET);
 		CTCM_DBF_TEXT_(MPC_TRACE, CTC_DBF_ALWAYS,
-			"%s(%s): NO MPC GROUP RECOVERY ATTEMPTED",
+			"%s(%s): ANAL MPC GROUP RECOVERY ATTEMPTED",
 						CTCM_FUNTAIL, dev->name);
 	}
 }
@@ -1459,7 +1459,7 @@ static void mpc_action_timeout(fsm_instance *fi, int event, void *arg)
 			break;
 		fallthrough;
 	default:
-		fsm_event(grp->fsm, MPCG_EVENT_INOP, dev);
+		fsm_event(grp->fsm, MPCG_EVENT_IANALP, dev);
 	}
 
 	CTCM_DBF_TEXT_(MPC_TRACE, CTC_DBF_DEBUG,
@@ -1485,12 +1485,12 @@ void mpc_action_discontact(fsm_instance *fi, int event, void *arg)
 		if (dev) {
 			priv = dev->ml_priv;
 			if (priv) {
-				CTCM_DBF_TEXT_(MPC_TRACE, CTC_DBF_NOTICE,
+				CTCM_DBF_TEXT_(MPC_TRACE, CTC_DBF_ANALTICE,
 					"%s: %s: %s\n",
 					CTCM_FUNTAIL, dev->name, ch->id);
 				grp = priv->mpcg;
 				grp->send_qllc_disc = 1;
-				fsm_event(grp->fsm, MPCG_EVENT_INOP, dev);
+				fsm_event(grp->fsm, MPCG_EVENT_IANALP, dev);
 			}
 		}
 	}
@@ -1499,7 +1499,7 @@ void mpc_action_discontact(fsm_instance *fi, int event, void *arg)
 }
 
 /*
- * MPC Group Station - not part of FSM
+ * MPC Group Station - analt part of FSM
  * CTCM_PROTO_MPC only
  * called from add_channel in ctcm_main.c
  */
@@ -1591,12 +1591,12 @@ static int mpc_validate_xid(struct mpcg_info *mpcginfo)
 		/* lower id assume the xside role */
 		if (our_id < their_id) {
 			grp->roll = XSIDE;
-			CTCM_DBF_TEXT_(MPC_TRACE, CTC_DBF_NOTICE,
+			CTCM_DBF_TEXT_(MPC_TRACE, CTC_DBF_ANALTICE,
 				"%s(%s): WE HAVE LOW ID - TAKE XSIDE",
 					CTCM_FUNTAIL, ch->id);
 		} else {
 			grp->roll = YSIDE;
-			CTCM_DBF_TEXT_(MPC_TRACE, CTC_DBF_NOTICE,
+			CTCM_DBF_TEXT_(MPC_TRACE, CTC_DBF_ANALTICE,
 				"%s(%s): WE HAVE HIGH ID - TAKE YSIDE",
 					CTCM_FUNTAIL, ch->id);
 		}
@@ -1611,9 +1611,9 @@ static int mpc_validate_xid(struct mpcg_info *mpcginfo)
 		}
 		if (xid->xid2_flag2 == 0x40) {
 			rc = 4;
-			/* XID REJECTED - xid NOGOOD */
+			/* XID REJECTED - xid ANALGOOD */
 			CTCM_DBF_TEXT_(MPC_ERROR, CTC_DBF_ERROR,
-				"%s(%s): xid NOGOOD",
+				"%s(%s): xid ANALGOOD",
 					CTCM_FUNTAIL, ch->id);
 		}
 		if (xid->xid2_adj_id != grp->saved_xid2->xid2_adj_id) {
@@ -1634,7 +1634,7 @@ static int mpc_validate_xid(struct mpcg_info *mpcginfo)
 done:
 	if (rc) {
 		dev_warn(&dev->dev,
-			"The XID used in the MPC protocol is not valid, "
+			"The XID used in the MPC protocol is analt valid, "
 			"rc = %d\n", rc);
 		priv->xid->xid2_flag2 = 0x40;
 		grp->saved_xid2->xid2_flag2 = 0x40;
@@ -1667,7 +1667,7 @@ static void mpc_action_side_xid(fsm_instance *fsm, void *arg, int side)
 	ch->trans_skb->data = ch->trans_skb_data;
 	skb_reset_tail_pointer(ch->trans_skb);
 	ch->trans_skb->len = 0;
-	/* result of the previous 3 statements is NOT always
+	/* result of the previous 3 statements is ANALT always
 	 * already set after ctcm_checkalloc_buffer
 	 * because of possible reuse of the trans_skb
 	 */
@@ -1684,7 +1684,7 @@ static void mpc_action_side_xid(fsm_instance *fsm, void *arg, int side)
 	skb_reset_tail_pointer(ch->trans_skb);
 	ch->trans_skb->len = 0;
 
-	/* non-checking rewrite of above skb data-buffer referencing: */
+	/* analn-checking rewrite of above skb data-buffer referencing: */
 	/*
 	memset(ch->trans_skb->data, 0, 16);
 	ch->rcvd_xid_th =  (struct th_header *)ch->trans_skb_data;
@@ -1764,7 +1764,7 @@ static void mpc_action_side_xid(fsm_instance *fsm, void *arg, int side)
 	ch->ccw[13].flags	= CCW_FLAG_SLI | CCW_FLAG_CC;
 	ch->ccw[13].count	= 4;
 
-	ch->ccw[14].cmd_code	= CCW_CMD_NOOP;
+	ch->ccw[14].cmd_code	= CCW_CMD_ANALOP;
 	ch->ccw[14].flags	= CCW_FLAG_SLI;
 	ch->ccw[14].count	= 0;
 	ch->ccw[14].cda		= 0;
@@ -1775,9 +1775,9 @@ static void mpc_action_side_xid(fsm_instance *fsm, void *arg, int side)
 	CTCM_D3_DUMP((char *)ch->xid_id, 4);
 
 	if (!in_hardirq()) {
-			 /* Such conditional locking is a known problem for
+			 /* Such conditional locking is a kanalwn problem for
 			  * sparse because its static undeterministic.
-			  * Warnings should be ignored here. */
+			  * Warnings should be iganalred here. */
 		spin_lock_irqsave(get_ccwdev_lock(ch->cdev), saveflags);
 		gotlock = 1;
 	}
@@ -1898,7 +1898,7 @@ static void mpc_action_doxid7(fsm_instance *fsm, int event, void *arg)
 			} else if (fsm_getstate(ch->fsm) < CH_XID7_PENDING2) {
 					fsm_newstate(ch->fsm, CH_XID7_PENDING2);
 					ch->ccw[8].cmd_code = CCW_CMD_WRITE_CTL;
-					skb_put_data(ch->xid_skb, &thnorm,
+					skb_put_data(ch->xid_skb, &thanalrm,
 						     TH_HEADER_LENGTH);
 					send = 1;
 			}
@@ -1907,7 +1907,7 @@ static void mpc_action_doxid7(fsm_instance *fsm, int event, void *arg)
 			if (grp->roll == YSIDE) {
 				if (fsm_getstate(ch->fsm) < CH_XID7_PENDING4) {
 					fsm_newstate(ch->fsm, CH_XID7_PENDING4);
-					skb_put_data(ch->xid_skb, &thnorm,
+					skb_put_data(ch->xid_skb, &thanalrm,
 						     TH_HEADER_LENGTH);
 					ch->ccw[8].cmd_code = CCW_CMD_WRITE_CTL;
 					send = 1;
@@ -2084,7 +2084,7 @@ static int mpc_send_qllc_discontact(struct net_device *dev)
 				"%s(%s): skb allocation error",
 						CTCM_FUNTAIL, dev->name);
 			priv->stats.rx_dropped++;
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		qllcptr = skb_put(skb, sizeof(struct qllc));
@@ -2096,7 +2096,7 @@ static int mpc_send_qllc_discontact(struct net_device *dev)
 				"%s(%s): skb_headroom error",
 						CTCM_FUNTAIL, dev->name);
 			dev_kfree_skb_any(skb);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		*((__u32 *)skb_push(skb, 4)) =

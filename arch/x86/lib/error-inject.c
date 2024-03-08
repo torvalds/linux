@@ -13,7 +13,7 @@ asm(
 	".globl just_return_func\n"
 	ASM_FUNC_ALIGN
 	"just_return_func:\n"
-		ANNOTATE_NOENDBR
+		ANANALTATE_ANALENDBR
 		ASM_RET
 	".size just_return_func, .-just_return_func\n"
 );
@@ -22,4 +22,4 @@ void override_function_with_return(struct pt_regs *regs)
 {
 	regs->ip = (unsigned long)&just_return_func;
 }
-NOKPROBE_SYMBOL(override_function_with_return);
+ANALKPROBE_SYMBOL(override_function_with_return);

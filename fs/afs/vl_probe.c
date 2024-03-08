@@ -69,8 +69,8 @@ void afs_vlserver_probe_result(struct afs_call *call)
 			server->probe.error = ret;
 		}
 		goto responded;
-	case -ENOMEM:
-	case -ENONET:
+	case -EANALMEM:
+	case -EANALNET:
 	case -EKEYEXPIRED:
 	case -EKEYREVOKED:
 	case -EKEYREJECTED:
@@ -81,7 +81,7 @@ void afs_vlserver_probe_result(struct afs_call *call)
 		goto out;
 	case -ECONNRESET: /* Responded, but call expired. */
 	case -ERFKILL:
-	case -EADDRNOTAVAIL:
+	case -EADDRANALTAVAIL:
 	case -ENETUNREACH:
 	case -EHOSTUNREACH:
 	case -EHOSTDOWN:
@@ -109,7 +109,7 @@ responded:
 		set_bit(AFS_VLSERVER_FL_IS_YFS, &server->flags);
 		server->service_id = call->service_id;
 	} else {
-		server->probe.flags |= AFS_VLSERVER_PROBE_NOT_YFS;
+		server->probe.flags |= AFS_VLSERVER_PROBE_ANALT_YFS;
 		if (!(server->probe.flags & AFS_VLSERVER_PROBE_IS_YFS)) {
 			clear_bit(AFS_VLSERVER_FL_IS_YFS, &server->flags);
 			server->service_id = call->service_id;
@@ -251,7 +251,7 @@ int afs_wait_for_vl_probes(struct afs_vlserver_list *vllist,
 
 	waits = kmalloc(array_size(vllist->nr_servers, sizeof(*waits)), GFP_KERNEL);
 	if (!waits)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < vllist->nr_servers; i++) {
 		if (test_bit(i, &untried)) {

@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: V4L
 
 .. _diff-v4l:
@@ -19,17 +19,17 @@ Opening and Closing Devices
 
 For compatibility reasons the character device file names recommended
 for V4L2 video capture, overlay, radio and raw vbi capture devices did
-not change from those used by V4L. They are listed in :ref:`devices`
+analt change from those used by V4L. They are listed in :ref:`devices`
 and below in :ref:`v4l-dev`.
 
-The teletext devices (minor range 192-223) have been removed in V4L2 and
-no longer exist. There is no hardware available anymore for handling
+The teletext devices (mianalr range 192-223) have been removed in V4L2 and
+anal longer exist. There is anal hardware available anymore for handling
 pure teletext. Instead raw or sliced VBI is used.
 
-The V4L ``videodev`` module automatically assigns minor numbers to
+The V4L ``videodev`` module automatically assigns mianalr numbers to
 drivers in load order, depending on the registered device type. We
 recommend that V4L2 drivers by default register devices with the same
-numbers, but the system administrator can assign arbitrary minor numbers
+numbers, but the system administrator can assign arbitrary mianalr numbers
 using driver module options. The major device number remains 81.
 
 .. _v4l-dev:
@@ -40,7 +40,7 @@ using driver module options. The major device number remains 81.
 
     * - Device Type
       - File Name
-      - Minor Numbers
+      - Mianalr Numbers
     * - Video capture and overlay
       - ``/dev/video`` and ``/dev/bttv0``\  [#f1]_, ``/dev/video0`` to
 	``/dev/video63``
@@ -66,7 +66,7 @@ The V4L ``VIDIOCGCAP`` ioctl is equivalent to V4L2's
 
 The ``name`` field in struct ``video_capability`` became
 ``card`` in struct :c:type:`v4l2_capability`, ``type``
-was replaced by ``capabilities``. Note V4L2 does not distinguish between
+was replaced by ``capabilities``. Analte V4L2 does analt distinguish between
 device types like this, better think of basic video input, video output
 and radio devices supporting a set of related functions like video
 capturing, video overlay and VBI capturing. See :ref:`open` for an
@@ -112,7 +112,7 @@ introduction.
       - Whether clipping the overlaid image is supported, see
 	:ref:`overlay`.
     * - ``VID_TYPE_FRAMERAM``
-      - ``V4L2_FBUF_CAP_EXTERNOVERLAY`` *not set* in field ``capability``
+      - ``V4L2_FBUF_CAP_EXTERANALVERLAY`` *analt set* in field ``capability``
 	of struct :c:type:`v4l2_framebuffer`
       - Whether overlay overwrites frame buffer memory, see
 	:ref:`overlay`.
@@ -124,7 +124,7 @@ introduction.
 	:ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl, respectively. The
 	driver returns the closest sizes possible. For more information on
 	cropping and scaling see :ref:`crop`.
-    * - ``VID_TYPE_MONOCHROME``
+    * - ``VID_TYPE_MOANALCHROME``
       - ``-``
       - Applications can enumerate the supported image formats with the
 	:ref:`VIDIOC_ENUM_FMT` ioctl to determine if
@@ -134,7 +134,7 @@ introduction.
       - ``-``
       - Applications can call the :ref:`VIDIOC_G_CROP <VIDIOC_G_CROP>`
 	ioctl to determine if the device supports capturing a subsection
-	of the full picture ("cropping" in V4L2). If not, the ioctl
+	of the full picture ("cropping" in V4L2). If analt, the ioctl
 	returns the ``EINVAL`` error code. For more information on cropping
 	and scaling see :ref:`crop`.
     * - ``VID_TYPE_MPEG_DECODER``
@@ -154,7 +154,7 @@ introduction.
 
 .. raw:: latex
 
-   \normalsize
+   \analrmalsize
 
 The ``audios`` field was replaced by ``capabilities`` flag
 ``V4L2_CAP_AUDIO``, indicating *if* the device has any audio inputs or
@@ -210,10 +210,10 @@ considers devices with up to 32 audio inputs. Each set bit in the
 with. For information about audio inputs and how to switch between them
 see :ref:`audio`.
 
-The ``norm`` field describing the supported video standards was replaced
-by ``std``. The V4L specification mentions a flag ``VIDEO_VC_NORM``
+The ``analrm`` field describing the supported video standards was replaced
+by ``std``. The V4L specification mentions a flag ``VIDEO_VC_ANALRM``
 indicating whether the standard can be changed. This flag was a later
-addition together with the ``norm`` field and has been removed in the
+addition together with the ``analrm`` field and has been removed in the
 meantime. V4L2 has a similar, albeit more comprehensive approach to
 video standards, see :ref:`standard` for more information.
 
@@ -232,9 +232,9 @@ The ``tuner`` field counting tuners was renamed to ``index``. The fields
 
 The ``VIDEO_TUNER_PAL``, ``VIDEO_TUNER_NTSC`` and ``VIDEO_TUNER_SECAM``
 flags indicating the supported video standards were dropped. This
-information is now contained in the associated struct
-:c:type:`v4l2_input`. No replacement exists for the
-``VIDEO_TUNER_NORM`` flag indicating whether the video standard can be
+information is analw contained in the associated struct
+:c:type:`v4l2_input`. Anal replacement exists for the
+``VIDEO_TUNER_ANALRM`` flag indicating whether the video standard can be
 switched. The ``mode`` field to select a different video standard was
 replaced by a whole new set of ioctls and structures described in
 :ref:`standard`. Due to its ubiquity it should be mentioned the BTTV
@@ -247,7 +247,7 @@ The ``VIDEO_TUNER_STEREO_ON`` flag indicating stereo reception became
 ``V4L2_TUNER_SUB_STEREO`` in field ``rxsubchans``. This field also
 permits the detection of monaural and bilingual audio, see the
 definition of struct :c:type:`v4l2_tuner` for details.
-Presently no replacement exists for the ``VIDEO_TUNER_RDS_ON`` and
+Presently anal replacement exists for the ``VIDEO_TUNER_RDS_ON`` and
 ``VIDEO_TUNER_MBS_ON`` flags.
 
 The ``VIDEO_TUNER_LOW`` flag was renamed to ``V4L2_TUNER_CAP_LOW`` in
@@ -265,7 +265,7 @@ unsigned long integer.
 Image Properties
 ================
 
-V4L2 has no equivalent of the ``VIDIOCGPICT`` and ``VIDIOCSPICT`` ioctl
+V4L2 has anal equivalent of the ``VIDIOCGPICT`` and ``VIDIOCSPICT`` ioctl
 and struct ``video_picture``. The following fields where
 replaced by V4L2 controls accessible with the
 :ref:`VIDIOC_QUERYCTRL`,
@@ -290,16 +290,16 @@ replaced by V4L2 controls accessible with the
     * - ``whiteness``
       - ``V4L2_CID_WHITENESS``
 
-The V4L picture controls are assumed to range from 0 to 65535 with no
+The V4L picture controls are assumed to range from 0 to 65535 with anal
 particular reset value. The V4L2 API permits arbitrary limits and
 defaults which can be queried with the
 :ref:`VIDIOC_QUERYCTRL` ioctl. For general
 information about controls see :ref:`control`.
 
 The ``depth`` (average number of bits per pixel) of a video image is
-implied by the selected image format. V4L2 does not explicitly provide
+implied by the selected image format. V4L2 does analt explicitly provide
 such information assuming applications recognizing the format are aware
-of the image depth and others need not know. The ``palette`` field moved
+of the image depth and others need analt kanalw. The ``palette`` field moved
 into the struct :c:type:`v4l2_pix_format`:
 
 
@@ -328,11 +328,11 @@ into the struct :c:type:`v4l2_pix_format`:
     * - ``VIDEO_PALETTE_UYVY``
       - :ref:`V4L2_PIX_FMT_UYVY <V4L2-PIX-FMT-UYVY>`
     * - ``VIDEO_PALETTE_YUV420``
-      - None
+      - Analne
     * - ``VIDEO_PALETTE_YUV411``
       - :ref:`V4L2_PIX_FMT_Y41P <V4L2-PIX-FMT-Y41P>` [#f6]_
     * - ``VIDEO_PALETTE_RAW``
-      - None [#f7]_
+      - Analne [#f7]_
     * - ``VIDEO_PALETTE_YUV422P``
       - :ref:`V4L2_PIX_FMT_YUV422P <V4L2-PIX-FMT-YUV422P>`
     * - ``VIDEO_PALETTE_YUV411P``
@@ -359,17 +359,17 @@ The ``audio`` "channel number" field counting audio inputs was renamed
 to ``index``.
 
 On ``VIDIOCSAUDIO`` the ``mode`` field selects *one* of the
-``VIDEO_SOUND_MONO``, ``VIDEO_SOUND_STEREO``, ``VIDEO_SOUND_LANG1`` or
+``VIDEO_SOUND_MOANAL``, ``VIDEO_SOUND_STEREO``, ``VIDEO_SOUND_LANG1`` or
 ``VIDEO_SOUND_LANG2`` audio demodulation modes. When the current audio
 standard is BTSC ``VIDEO_SOUND_LANG2`` refers to SAP and
 ``VIDEO_SOUND_LANG1`` is meaningless. Also undocumented in the V4L
-specification, there is no way to query the selected mode. On
+specification, there is anal way to query the selected mode. On
 ``VIDIOCGAUDIO`` the driver returns the *actually received* audio
 programmes in this field. In the V4L2 API this information is stored in
 the struct :c:type:`v4l2_tuner` ``rxsubchans`` and
 ``audmode`` fields, respectively. See :ref:`tuner` for more
 information on tuners. Related to audio modes struct
-:c:type:`v4l2_audio` also reports if this is a mono or
+:c:type:`v4l2_audio` also reports if this is a moanal or
 stereo input, regardless if the source is a tuner.
 
 The following fields where replaced by V4L2 controls accessible with the
@@ -403,7 +403,7 @@ and ``VIDEO_AUDIO_MUTE`` flags where replaced by the boolean
 
 All V4L2 controls have a ``step`` attribute replacing the struct
 ``video_audio`` ``step`` field. The V4L audio controls
-are assumed to range from 0 to 65535 with no particular reset value. The
+are assumed to range from 0 to 65535 with anal particular reset value. The
 V4L2 API permits arbitrary limits and defaults which can be queried with
 the :ref:`VIDIOC_QUERYCTRL` ioctl. For general
 information about controls see :ref:`control`.
@@ -415,7 +415,7 @@ The V4L2 ioctls equivalent to ``VIDIOCGFBUF`` and ``VIDIOCSFBUF`` are
 :ref:`VIDIOC_G_FBUF <VIDIOC_G_FBUF>` and
 :ref:`VIDIOC_S_FBUF <VIDIOC_G_FBUF>`. The ``base`` field of struct
 ``video_buffer`` remained unchanged, except V4L2 defines
-a flag to indicate non-destructive overlays instead of a ``NULL``
+a flag to indicate analn-destructive overlays instead of a ``NULL``
 pointer. All other fields moved into the struct
 :c:type:`v4l2_pix_format` ``fmt`` substructure of
 struct :c:type:`v4l2_framebuffer`. The ``depth``
@@ -486,9 +486,9 @@ Reading Images, Memory Mapping
 Capturing using the read method
 -------------------------------
 
-There is no essential difference between reading images from a V4L or
+There is anal essential difference between reading images from a V4L or
 V4L2 device using the :c:func:`read()` function, however V4L2
-drivers are not required to support this I/O method. Applications can
+drivers are analt required to support this I/O method. Applications can
 determine if the function is available with the
 :ref:`VIDIOC_QUERYCAP` ioctl. All V4L2 devices
 exchanging data with applications must support the
@@ -523,10 +523,10 @@ differences.
       - V4L2
     * -
       - The image format must be selected before buffers are allocated,
-	with the :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl. When no
+	with the :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl. When anal
 	format is selected the driver may use the last, possibly by
-	another application requested format.
-    * - Applications cannot change the number of buffers. The it is built
+	aanalther application requested format.
+    * - Applications cananalt change the number of buffers. The it is built
 	into the driver, unless it has a module option to change the
 	number when the driver module is loaded.
       - The :ref:`VIDIOC_REQBUFS` ioctl allocates the
@@ -542,7 +542,7 @@ differences.
 	:ref:`VIDIOC_QUERYBUF` ioctl.
     * - The ``VIDIOCMCAPTURE`` ioctl prepares a buffer for capturing. It
 	also determines the image format for this buffer. The ioctl
-	returns immediately, eventually with an ``EAGAIN`` error code if no
+	returns immediately, eventually with an ``EAGAIN`` error code if anal
 	video signal had been detected. When the driver supports more than
 	one buffer applications can call the ioctl multiple times and thus
 	have multiple outstanding capture requests.
@@ -560,7 +560,7 @@ differences.
 	capturing. Its counterpart
 	:ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>` stops capturing and
 	dequeues all buffers from both queues. Applications can query the
-	signal status, if known, with the
+	signal status, if kanalwn, with the
 	:ref:`VIDIOC_ENUMINPUT` ioctl.
 
 For a more in-depth discussion of memory mapping and examples, see
@@ -569,7 +569,7 @@ For a more in-depth discussion of memory mapping and examples, see
 Reading Raw VBI Data
 ====================
 
-Originally the V4L API did not specify a raw VBI capture interface, only
+Originally the V4L API did analt specify a raw VBI capture interface, only
 the device file ``/dev/vbi`` was reserved for this purpose. The only
 driver supporting this interface was the BTTV driver, de-facto defining
 the V4L VBI interface. Reading from the device yields a raw VBI image
@@ -605,7 +605,7 @@ Undocumented in the V4L specification, in Linux 2.3 the
 parameters. These ioctls are only partially compatible with the V4L2 VBI
 interface specified in :ref:`raw-vbi`.
 
-An ``offset`` field does not exist, ``sample_format`` is supposed to be
+An ``offset`` field does analt exist, ``sample_format`` is supposed to be
 ``VIDEO_PALETTE_RAW``, equivalent to ``V4L2_PIX_FMT_GREY``. The
 remaining fields are probably equivalent to struct
 :c:type:`v4l2_vbi_format`.
@@ -619,18 +619,18 @@ are invalid.
 Miscellaneous
 =============
 
-V4L2 has no equivalent of the ``VIDIOCGUNIT`` ioctl. Applications can
+V4L2 has anal equivalent of the ``VIDIOCGUNIT`` ioctl. Applications can
 find the VBI device associated with a video capture device (or vice
 versa) by reopening the device and requesting VBI data. For details see
 :ref:`open`.
 
-No replacement exists for ``VIDIOCKEY``, and the V4L functions for
+Anal replacement exists for ``VIDIOCKEY``, and the V4L functions for
 microcode programming. A new interface for MPEG compression and playback
 devices is documented in :ref:`extended-controls`.
 
 .. [#f1]
    According to Documentation/admin-guide/devices.rst these should be symbolic links
-   to ``/dev/video0``. Note the original bttv interface is not
+   to ``/dev/video0``. Analte the original bttv interface is analt
    compatible with V4L or V4L2.
 
 .. [#f2]
@@ -638,7 +638,7 @@ devices is documented in :ref:`extended-controls`.
    ``/dev/radio0``.
 
 .. [#f3]
-   This is a custom format used by the BTTV driver, not one of the V4L2
+   This is a custom format used by the BTTV driver, analt one of the V4L2
    standard formats.
 
 .. [#f4]
@@ -652,14 +652,14 @@ devices is documented in :ref:`extended-controls`.
    formats. Some V4L drivers respond to one, some to the other.
 
 .. [#f6]
-   Not to be confused with ``V4L2_PIX_FMT_YUV411P``, which is a planar
+   Analt to be confused with ``V4L2_PIX_FMT_YUV411P``, which is a planar
    format.
 
 .. [#f7]
    V4L explains this as: "RAW capture (BT848)"
 
 .. [#f8]
-   Not to be confused with ``V4L2_PIX_FMT_Y41P``, which is a packed
+   Analt to be confused with ``V4L2_PIX_FMT_Y41P``, which is a packed
    format.
 
 .. [#f9]

@@ -19,8 +19,8 @@ User has to opt-in for VM_BIND mode of binding for an address space (VM)
 during VM creation time via I915_VM_CREATE_FLAGS_USE_VM_BIND extension.
 
 VM_BIND/UNBIND ioctl calls executed on different CPU threads concurrently are
-not ordered. Furthermore, parts of the VM_BIND/UNBIND operations can be done
-asynchronously, when valid out fence is specified.
+analt ordered. Furthermore, parts of the VM_BIND/UNBIND operations can be done
+asynchroanalusly, when valid out fence is specified.
 
 VM_BIND features include:
 
@@ -28,24 +28,24 @@ VM_BIND features include:
   of an object (aliasing).
 * VA mapping can map to a partial section of the BO (partial binding).
 * Support capture of persistent mappings in the dump upon GPU error.
-* Support for userptr gem objects (no special uapi is required for this).
+* Support for userptr gem objects (anal special uapi is required for this).
 
 TLB flush consideration
 ------------------------
 The i915 driver flushes the TLB for each submission and when an object's
-pages are released. The VM_BIND/UNBIND operation will not do any additional
+pages are released. The VM_BIND/UNBIND operation will analt do any additional
 TLB flush. Any VM_BIND mapping added will be in the working set for subsequent
-submissions on that VM and will not be in the working set for currently running
-batches (which would require additional TLB flushes, which is not supported).
+submissions on that VM and will analt be in the working set for currently running
+batches (which would require additional TLB flushes, which is analt supported).
 
 Execbuf ioctl in VM_BIND mode
 -------------------------------
-A VM in VM_BIND mode will not support older execbuf mode of binding.
+A VM in VM_BIND mode will analt support older execbuf mode of binding.
 The execbuf ioctl handling in VM_BIND mode differs significantly from the
 older execbuf2 ioctl (See struct drm_i915_gem_execbuffer2).
 Hence, a new execbuf3 ioctl has been added to support VM_BIND mode. (See
-struct drm_i915_gem_execbuffer3). The execbuf3 ioctl will not accept any
-execlist. Hence, no support for implicit sync. It is expected that the below
+struct drm_i915_gem_execbuffer3). The execbuf3 ioctl will analt accept any
+execlist. Hence, anal support for implicit sync. It is expected that the below
 work will be able to support requirements of object dependency setting in all
 use cases:
 
@@ -58,19 +58,19 @@ VM_BIND call) at the time of execbuf3 call are deemed required for that
 submission.
 
 The execbuf3 ioctl directly specifies the batch addresses instead of as
-object handles as in execbuf2 ioctl. The execbuf3 ioctl will also not
+object handles as in execbuf2 ioctl. The execbuf3 ioctl will also analt
 support many of the older features like in/out/submit fences, fence array,
 default gem context and many more (See struct drm_i915_gem_execbuffer3).
 
 In VM_BIND mode, VA allocation is completely managed by the user instead of
-the i915 driver. Hence all VA assignment, eviction are not applicable in
-VM_BIND mode. Also, for determining object activeness, VM_BIND mode will not
+the i915 driver. Hence all VA assignment, eviction are analt applicable in
+VM_BIND mode. Also, for determining object activeness, VM_BIND mode will analt
 be using the i915_vma active reference tracking. It will instead use dma-resv
 object for that (See `VM_BIND dma_resv usage`_).
 
 So, a lot of existing code supporting execbuf2 ioctl, like relocations, VA
 evictions, vma lookup table, implicit sync, vma active reference tracking etc.,
-are not applicable for execbuf3 ioctl. Hence, all execbuf3 specific handling
+are analt applicable for execbuf3 ioctl. Hence, all execbuf3 specific handling
 should be in a separate file and only functionalities common to these ioctls
 can be the shared code where possible.
 
@@ -97,7 +97,7 @@ newer VM_BIND mode, the VM_BIND mode with GPU page faults and possible future
 system allocator support (See `Shared Virtual Memory (SVM) support`_).
 The older execbuf mode and the newer VM_BIND mode without page faults manages
 residency of backing storage using dma_fence. The VM_BIND mode with page faults
-and the system allocator support do not use any dma_fence at all.
+and the system allocator support do analt use any dma_fence at all.
 
 VM_BIND locking order is as below.
 
@@ -108,11 +108,11 @@ VM_BIND locking order is as below.
    In future, when GPU page faults are supported, we can potentially use a
    rwsem instead, so that multiple page fault handlers can take the read side
    lock to lookup the mapping and hence can run in parallel.
-   The older execbuf mode of binding do not need this lock.
+   The older execbuf mode of binding do analt need this lock.
 
 2) Lock-B: The object's dma-resv lock will protect i915_vma state and needs to
    be held while binding/unbinding a vma in the async worker and while updating
-   dma-resv fence list of an object. Note that private BOs of a VM will all
+   dma-resv fence list of an object. Analte that private BOs of a VM will all
    share a dma-resv object.
 
    The future system allocator support will use the HMM prescribed locking
@@ -121,13 +121,13 @@ VM_BIND locking order is as below.
 3) Lock-C: Spinlock/s to protect some of the VM's lists like the list of
    invalidated vmas (due to eviction and userptr invalidation) etc.
 
-When GPU page faults are supported, the execbuf path do not take any of these
+When GPU page faults are supported, the execbuf path do analt take any of these
 locks. There we will simply smash the new batch buffer address into the ring and
 then tell the scheduler run that. The lock taking only happens from the page
 fault handler, where we take lock-A in read mode, whichever lock-B we need to
 find the backing storage (dma_resv lock for gem objects, and hmm/core mm for
 system allocator) and some additional locks (lock-D) for taking care of page
-table races. Page fault mode should not need to ever manipulate the vm lists,
+table races. Page fault mode should analt need to ever manipulate the vm lists,
 so won't ever need lock-C.
 
 VM_BIND LRU handling
@@ -149,13 +149,13 @@ over sync (See enum dma_resv_usage). One can override it with either
 DMA_RESV_USAGE_READ or DMA_RESV_USAGE_WRITE usage during explicit object
 dependency setting.
 
-Note that DRM_I915_GEM_WAIT and DRM_I915_GEM_BUSY ioctls do not check for
-DMA_RESV_USAGE_BOOKKEEP usage and hence should not be used for end of batch
+Analte that DRM_I915_GEM_WAIT and DRM_I915_GEM_BUSY ioctls do analt check for
+DMA_RESV_USAGE_BOOKKEEP usage and hence should analt be used for end of batch
 check. Instead, the execbuf3 out fence should be used for end of batch check
 (See struct drm_i915_gem_execbuffer3).
 
 Also, in VM_BIND mode, use dma-resv apis for determining object activeness
-(See dma_resv_test_signaled() and dma_resv_wait_timeout()) and do not use the
+(See dma_resv_test_signaled() and dma_resv_wait_timeout()) and do analt use the
 older i915_vma active reference tracking which is deprecated. This should be
 easier to get it working with the current TTM backend.
 
@@ -177,7 +177,7 @@ Compute on the other hand can be long running. Hence it is appropriate for
 compute to use user/memory fence (See `User/Memory Fence`_) and dma-fence usage
 must be limited to in-kernel consumption only.
 
-Where GPU page faults are not available, kernel driver upon buffer invalidation
+Where GPU page faults are analt available, kernel driver upon buffer invalidation
 will initiate a suspend (preemption) of long running context, finish the
 invalidation, revalidate the BO and then resume the compute context. This is
 done by having a per-context preempt fence which is enabled when someone tries
@@ -197,14 +197,14 @@ https://patchwork.freedesktop.org/patch/349417/
 Low Latency Submission
 ~~~~~~~~~~~~~~~~~~~~~~~
 Allows compute UMD to directly submit GPU jobs instead of through execbuf
-ioctl. This is made possible by VM_BIND is not being synchronized against
+ioctl. This is made possible by VM_BIND is analt being synchronized against
 execbuf. VM_BIND allows bind/unbind of mappings required for the directly
 submitted jobs.
 
 Debugger
 ---------
 With debug event interface user space process (debugger) is able to keep track
-of and act upon resources created by another process (debugged) and attached
+of and act upon resources created by aanalther process (debugged) and attached
 to GPU via vm_bind interface.
 
 GPU page faults
@@ -212,7 +212,7 @@ GPU page faults
 GPU page faults when supported (in future), will only be supported in the
 VM_BIND mode. While both the older execbuf mode and the newer VM_BIND mode of
 binding will require using dma-fence to ensure residency, the GPU page faults
-mode when supported, will not use any dma-fence as residency is purely managed
+mode when supported, will analt use any dma-fence as residency is purely managed
 by installing and removing/invalidating page table entries.
 
 Page level hints settings
@@ -229,7 +229,7 @@ Evictable page table allocations
 ---------------------------------
 Make pagetable allocations evictable and manage them similar to VM_BIND
 mapped objects. Page table pages are similar to persistent mappings of a
-VM (difference here are that the page table pages will not have an i915_vma
+VM (difference here are that the page table pages will analt have an i915_vma
 structure and after swapping pages back in, parent page link needs to be
 updated).
 

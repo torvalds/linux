@@ -24,10 +24,10 @@ MODULE_ALIAS("ip6t_dst");
 
 /*
  *  (Type & 0xC0) >> 6
- *	0	-> ignorable
+ *	0	-> iganalrable
  *	1	-> must drop the packet
  *	2	-> send ICMP PARM PROB regardless and drop packet
- *	3	-> Send ICMP if not a multicast address and drop packet
+ *	3	-> Send ICMP if analt a multicast address and drop packet
  *  (Type & 0x20) >> 5
  *	0	-> invariant
  *	1	-> can change the routing
@@ -61,7 +61,7 @@ hbh_mt6(const struct sk_buff *skb, struct xt_action_param *par)
 			    (par->match == &hbh_mt6_reg[0]) ?
 			    NEXTHDR_HOP : NEXTHDR_DEST, NULL, NULL);
 	if (err < 0) {
-		if (err != -ENOENT)
+		if (err != -EANALENT)
 			par->hotdrop = true;
 		return false;
 	}
@@ -165,12 +165,12 @@ static int hbh_mt6_check(const struct xt_mtchk_param *par)
 	const struct ip6t_opts *optsinfo = par->matchinfo;
 
 	if (optsinfo->invflags & ~IP6T_OPTS_INV_MASK) {
-		pr_debug("unknown flags %X\n", optsinfo->invflags);
+		pr_debug("unkanalwn flags %X\n", optsinfo->invflags);
 		return -EINVAL;
 	}
 
 	if (optsinfo->flags & IP6T_OPTS_NSTRICT) {
-		pr_debug("Not strict - not implemented");
+		pr_debug("Analt strict - analt implemented");
 		return -EINVAL;
 	}
 
@@ -179,7 +179,7 @@ static int hbh_mt6_check(const struct xt_mtchk_param *par)
 
 static struct xt_match hbh_mt6_reg[] __read_mostly = {
 	{
-		/* Note, hbh_mt6 relies on the order of hbh_mt6_reg */
+		/* Analte, hbh_mt6 relies on the order of hbh_mt6_reg */
 		.name		= "hbh",
 		.family		= NFPROTO_IPV6,
 		.match		= hbh_mt6,

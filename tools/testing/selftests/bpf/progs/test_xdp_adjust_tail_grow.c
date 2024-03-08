@@ -30,7 +30,7 @@ int _xdp_adjust_tail_grow(struct xdp_md *xdp)
 	} else if (data_len == 9001) {
 		offset = 4096;
 	} else {
-		return XDP_ABORTED; /* No matching test */
+		return XDP_ABORTED; /* Anal matching test */
 	}
 
 	if (bpf_xdp_adjust_tail(xdp, offset))

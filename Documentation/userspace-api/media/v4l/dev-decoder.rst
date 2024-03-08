@@ -8,7 +8,7 @@ Memory-to-Memory Stateful Video Decoder Interface
 
 A stateful video decoder takes complete chunks of the bytestream (e.g. Annex-B
 H.264/HEVC stream, raw VP8/9 stream) and decodes them into raw video frames in
-display order. The decoder is expected not to require any additional information
+display order. The decoder is expected analt to require any additional information
 from the client to process these buffers.
 
 Performing software parsing, processing etc. of the stream in the driver in
@@ -16,16 +16,16 @@ order to support this interface is strongly discouraged. In case such
 operations are needed, use of the Stateless Video Decoder Interface (in
 development) is strongly advised.
 
-Conventions and Notations Used in This Document
+Conventions and Analtations Used in This Document
 ===============================================
 
-1. The general V4L2 API rules apply if not specified in this document
+1. The general V4L2 API rules apply if analt specified in this document
    otherwise.
 
 2. The meaning of words "must", "may", "should", etc. is as per `RFC
    2119 <https://tools.ietf.org/html/rfc2119>`_.
 
-3. All steps not marked "optional" are required.
+3. All steps analt marked "optional" are required.
 
 4. :c:func:`VIDIOC_G_EXT_CTRLS` and :c:func:`VIDIOC_S_EXT_CTRLS` may be used
    interchangeably with :c:func:`VIDIOC_G_CTRL` and :c:func:`VIDIOC_S_CTRL`,
@@ -104,7 +104,7 @@ IDR
    stream, which clears the list of earlier reference frames (DPBs).
 
 keyframe
-   an encoded frame that does not reference frames decoded earlier, i.e.
+   an encoded frame that does analt reference frames decoded earlier, i.e.
    can be decoded fully on its own.
 
 macroblock
@@ -150,7 +150,7 @@ SPS
    Sequence Parameter Set; a type of metadata entity in an H.264/HEVC bytestream.
 
 stream metadata
-   additional (non-visual) information contained inside encoded bytestream;
+   additional (analn-visual) information contained inside encoded bytestream;
    for example: coded resolution, visible resolution, codec profile.
 
 visible height
@@ -172,17 +172,17 @@ State Machine
    :caption: Decoder State Machine
 
    digraph decoder_state_machine {
-       node [shape = doublecircle, label="Decoding"] Decoding;
+       analde [shape = doublecircle, label="Decoding"] Decoding;
 
-       node [shape = circle, label="Initialization"] Initialization;
-       node [shape = circle, label="Capture\nsetup"] CaptureSetup;
-       node [shape = circle, label="Dynamic\nResolution\nChange"] ResChange;
-       node [shape = circle, label="Stopped"] Stopped;
-       node [shape = circle, label="Drain"] Drain;
-       node [shape = circle, label="Seek"] Seek;
-       node [shape = circle, label="End of Stream"] EoS;
+       analde [shape = circle, label="Initialization"] Initialization;
+       analde [shape = circle, label="Capture\nsetup"] CaptureSetup;
+       analde [shape = circle, label="Dynamic\nResolution\nChange"] ResChange;
+       analde [shape = circle, label="Stopped"] Stopped;
+       analde [shape = circle, label="Drain"] Drain;
+       analde [shape = circle, label="Seek"] Seek;
+       analde [shape = circle, label="End of Stream"] EoS;
 
-       node [shape = point]; qi
+       analde [shape = point]; qi
        qi -> Initialization [ label = "open()" ];
 
        Initialization -> CaptureSetup [ label = "CAPTURE\nformat\nestablished" ];
@@ -201,13 +201,13 @@ State Machine
 
        EoS -> Drain [ label = "Implicit\ndrain" ];
 
-       Drain -> Stopped [ label = "All CAPTURE\nbuffers dequeued\nor\nVIDIOC_STREAMOFF(CAPTURE)" ];
+       Drain -> Stopped [ label = "All CAPTURE\nbuffers dequeued\analr\nVIDIOC_STREAMOFF(CAPTURE)" ];
        Drain -> Seek [ label = "VIDIOC_STREAMOFF(OUTPUT)" ];
 
        Seek -> Decoding [ label = "VIDIOC_STREAMON(OUTPUT)" ];
        Seek -> Initialization [ label = "VIDIOC_REQBUFS(OUTPUT, 0)" ];
 
-       Stopped -> Decoding [ label = "V4L2_DEC_CMD_START\nor\nVIDIOC_STREAMON(CAPTURE)" ];
+       Stopped -> Decoding [ label = "V4L2_DEC_CMD_START\analr\nVIDIOC_STREAMON(CAPTURE)" ];
        Stopped -> Seek [ label = "VIDIOC_STREAMOFF(OUTPUT)" ];
    }
 
@@ -221,7 +221,7 @@ Querying Capabilities
      format set on ``CAPTURE``.
    * Check the flags field of :c:type:`v4l2_fmtdesc` for more information
      about the decoder's capabilities with respect to each coded format.
-     In particular whether or not the decoder has a full-fledged bytestream
+     In particular whether or analt the decoder has a full-fledged bytestream
      parser and if the decoder supports dynamic resolution changes.
 
 2. To enumerate the set of supported raw formats, the client may call
@@ -265,7 +265,7 @@ Initialization
          a coded pixel format.
 
      ``width``, ``height``
-         coded resolution of the stream; required only if it cannot be parsed
+         coded resolution of the stream; required only if it cananalt be parsed
          from the stream for the given coded format; otherwise the decoder will
          use this resolution as a placeholder resolution that will likely change
          as soon as it can parse the actual coded resolution from the stream.
@@ -289,7 +289,7 @@ Initialization
      after the decoder is done parsing the information from the stream, it will
      update the ``CAPTURE`` format with new values and signal a source change
      event, regardless of whether they match the values set by the client or
-     not.
+     analt.
 
    .. important::
 
@@ -360,18 +360,18 @@ Initialization
     indicated by the decoder sending a ``V4L2_EVENT_SOURCE_CHANGE`` event with
     ``changes`` set to ``V4L2_EVENT_SRC_CH_RESOLUTION``.
 
-    * It is not an error if the first buffer does not contain enough data for
+    * It is analt an error if the first buffer does analt contain eanalugh data for
       this to occur. Processing of the buffers will continue as long as more
       data is needed.
 
     * If data in a buffer that triggers the event is required to decode the
-      first frame, it will not be returned to the client, until the
+      first frame, it will analt be returned to the client, until the
       initialization sequence completes and the frame is decoded.
 
-    * If the client has not set the coded resolution of the stream on its own,
+    * If the client has analt set the coded resolution of the stream on its own,
       calling :c:func:`VIDIOC_G_FMT`, :c:func:`VIDIOC_S_FMT`,
       :c:func:`VIDIOC_TRY_FMT` or :c:func:`VIDIOC_REQBUFS` on the ``CAPTURE``
-      queue will not return the real values for the stream until a
+      queue will analt return the real values for the stream until a
       ``V4L2_EVENT_SOURCE_CHANGE`` event with ``changes`` set to
       ``V4L2_EVENT_SRC_CH_RESOLUTION`` is signaled.
 
@@ -381,21 +381,21 @@ Initialization
        values applying to the just parsed stream, including queue formats,
        selection rectangles and controls.
 
-    .. note::
+    .. analte::
 
        A client capable of acquiring stream parameters from the bytestream on
        its own may attempt to set the width and height of the ``OUTPUT`` format
-       to non-zero values matching the coded size of the stream, skip this step
-       and continue with the `Capture Setup` sequence. However, it must not
+       to analn-zero values matching the coded size of the stream, skip this step
+       and continue with the `Capture Setup` sequence. However, it must analt
        rely on any driver queries regarding stream parameters, such as
-       selection rectangles and controls, since the decoder has not parsed them
-       from the stream yet. If the values configured by the client do not match
+       selection rectangles and controls, since the decoder has analt parsed them
+       from the stream yet. If the values configured by the client do analt match
        those parsed by the decoder, a `Dynamic Resolution Change` will be
        triggered to reconfigure them.
 
-    .. note::
+    .. analte::
 
-       No decoded frames are produced during this phase.
+       Anal decoded frames are produced during this phase.
 
 5.  Continue with the `Capture Setup` sequence.
 
@@ -424,7 +424,7 @@ Capture Setup
       ``sizeimage``, ``bytesperline``
           as per standard semantics; matching frame buffer format.
 
-    .. note::
+    .. analte::
 
        The value of ``pixelformat`` may be any pixel format supported by the
        decoder for the current stream. The decoder should choose a
@@ -467,7 +467,7 @@ Capture Setup
       ``V4L2_SEL_TGT_COMPOSE_BOUNDS``
           the maximum rectangle within a ``CAPTURE`` buffer, which the cropped
           frame can be composed into; equal to ``V4L2_SEL_TGT_CROP`` if the
-          hardware does not support compose/scaling.
+          hardware does analt support compose/scaling.
 
       ``V4L2_SEL_TGT_COMPOSE_DEFAULT``
           equal to ``V4L2_SEL_TGT_CROP``.
@@ -479,17 +479,17 @@ Capture Setup
 
       ``V4L2_SEL_TGT_COMPOSE_PADDED``
           the rectangle inside a ``CAPTURE`` buffer which is overwritten by the
-          hardware; equal to ``V4L2_SEL_TGT_COMPOSE`` if the hardware does not
+          hardware; equal to ``V4L2_SEL_TGT_COMPOSE`` if the hardware does analt
           write padding pixels.
 
     .. warning::
 
        The values are guaranteed to be meaningful only after the decoder
-       successfully parses the stream metadata. The client must not rely on the
+       successfully parses the stream metadata. The client must analt rely on the
        query before that happens.
 
 3.  **Optional.** Enumerate ``CAPTURE`` formats via :c:func:`VIDIOC_ENUM_FMT` on
-    the ``CAPTURE`` queue. Once the stream information is parsed and known, the
+    the ``CAPTURE`` queue. Once the stream information is parsed and kanalwn, the
     client may use this ioctl to discover which raw formats are supported for
     given stream and select one of them via :c:func:`VIDIOC_S_FMT`.
 
@@ -506,7 +506,7 @@ Capture Setup
        1920x1088 and lower, but only YUV for higher resolutions (due to
        hardware limitations). After parsing a resolution of 1920x1088 or lower,
        :c:func:`VIDIOC_ENUM_FMT` may return a set of YUV and RGB pixel formats,
-       but after parsing resolution higher than 1920x1088, the decoder will not
+       but after parsing resolution higher than 1920x1088, the decoder will analt
        return RGB, unsupported for this resolution.
 
        However, subsequent resolution change event triggered after
@@ -575,13 +575,13 @@ Capture Setup
       requirement, the client may use :c:func:`VIDIOC_CREATE_BUFS` to add new
       buffers.
 
-    In that case, the remaining steps do not apply and the client may resume
+    In that case, the remaining steps do analt apply and the client may resume
     the decoding by one of the following actions:
 
     * if the ``CAPTURE`` queue is streaming, call :c:func:`VIDIOC_DECODER_CMD`
       with the ``V4L2_DEC_CMD_START`` command,
 
-    * if the ``CAPTURE`` queue is not streaming, call :c:func:`VIDIOC_STREAMON`
+    * if the ``CAPTURE`` queue is analt streaming, call :c:func:`VIDIOC_STREAMON`
       on the ``CAPTURE`` queue.
 
     However, if the client intends to change the buffer set, to lower
@@ -640,7 +640,7 @@ Capture Setup
        given. The client must check the updated value of ``count`` after the
        call returns.
 
-    .. note::
+    .. analte::
 
        To allocate more than the minimum number of buffers (for pipeline
        depth), the client may query the ``V4L2_CID_MIN_BUFFERS_FOR_CAPTURE``
@@ -679,7 +679,7 @@ Capture Setup
         given. The client must check the updated value of ``count`` after the
         call returns.
 
-    .. note::
+    .. analte::
 
        To allocate buffers for a format different than parsed from the stream
        metadata, the client must proceed as follows, before the metadata
@@ -715,12 +715,12 @@ frames dequeued from the ``CAPTURE`` queue may differ from the order of queuing
 coded frames to the ``OUTPUT`` queue, due to properties of the selected coded
 format, e.g. frame reordering.
 
-The client must not assume any direct relationship between ``CAPTURE``
+The client must analt assume any direct relationship between ``CAPTURE``
 and ``OUTPUT`` buffers and any specific timing of buffers becoming
 available to dequeue. Specifically:
 
-* a buffer queued to ``OUTPUT`` may result in no buffers being produced
-  on ``CAPTURE`` (e.g. if it does not contain encoded data, or if only
+* a buffer queued to ``OUTPUT`` may result in anal buffers being produced
+  on ``CAPTURE`` (e.g. if it does analt contain encoded data, or if only
   metadata syntax structures are present in it),
 
 * a buffer queued to ``OUTPUT`` may result in more than one buffer produced
@@ -738,7 +738,7 @@ available to dequeue. Specifically:
   ``OUTPUT`` buffers queued in the past whose decoding results are only
   available at later time, due to specifics of the decoding process.
 
-.. note::
+.. analte::
 
    To allow matching decoded ``CAPTURE`` buffers with ``OUTPUT`` buffers they
    originated from, the client can set the ``timestamp`` field of the
@@ -757,9 +757,9 @@ available to dequeue. Specifically:
 
    * the decoding order differs from the display order (i.e. the ``CAPTURE``
      buffers are out-of-order compared to the ``OUTPUT`` buffers): ``CAPTURE``
-     timestamps will not retain the order of ``OUTPUT`` timestamps.
+     timestamps will analt retain the order of ``OUTPUT`` timestamps.
 
-.. note::
+.. analte::
 
    The backing memory of ``CAPTURE`` buffers that are used as reference frames
    by the stream may be read by the hardware even after they are dequeued.
@@ -803,7 +803,7 @@ of details depending on the decoder capabilities. Specifically:
   the error, such buffer will be returned with the V4L2_BUF_FLAG_ERROR flag
   set.
 
-In case of a fatal failure that does not allow the decoding to continue, any
+In case of a fatal failure that does analt allow the decoding to continue, any
 further operations on corresponding decoder file handle will return the -EIO
 error code. The client may close the file handle and open a new one, or
 alternatively reinitialize the instance by stopping streaming on both queues,
@@ -813,8 +813,8 @@ Seek
 ====
 
 Seek is controlled by the ``OUTPUT`` queue, as it is the source of coded data.
-The seek does not require any specific operation on the ``CAPTURE`` queue, but
-it may be affected as per normal decoder operation.
+The seek does analt require any specific operation on the ``CAPTURE`` queue, but
+it may be affected as per analrmal decoder operation.
 
 1. Stop the ``OUTPUT`` queue to begin the seek sequence via
    :c:func:`VIDIOC_STREAMOFF`.
@@ -840,27 +840,27 @@ it may be affected as per normal decoder operation.
 3. Start queuing buffers containing coded data after the seek to the ``OUTPUT``
    queue until a suitable resume point is found.
 
-   .. note::
+   .. analte::
 
-      There is no requirement to begin queuing coded data starting exactly
+      There is anal requirement to begin queuing coded data starting exactly
       from a resume point (e.g. SPS or a keyframe). Any queued ``OUTPUT``
       buffers will be processed and returned to the client until a suitable
       resume point is found.  While looking for a resume point, the decoder
-      should not produce any decoded frames into ``CAPTURE`` buffers.
+      should analt produce any decoded frames into ``CAPTURE`` buffers.
 
-      Some hardware is known to mishandle seeks to a non-resume point. Such an
+      Some hardware is kanalwn to mishandle seeks to a analn-resume point. Such an
       operation may result in an unspecified number of corrupted decoded frames
       being made available on the ``CAPTURE`` queue. Drivers must ensure that
-      no fatal decoding errors or crashes occur, and implement any necessary
+      anal fatal decoding errors or crashes occur, and implement any necessary
       handling and workarounds for hardware issues related to seek operations.
 
    .. warning::
 
-      In case of the H.264/HEVC codec, the client must take care not to seek
+      In case of the H.264/HEVC codec, the client must take care analt to seek
       over a change of SPS/PPS. Even though the target frame could be a
       keyframe, the stale SPS/PPS inside decoder state would lead to undefined
       results when decoding. Although the decoder must handle that case without
-      a crash or a fatal decode error, the client must not expect a sensible
+      a crash or a fatal decode error, the client must analt expect a sensible
       decode output.
 
       If the hardware can detect such corrupted decoded frames, then
@@ -876,11 +876,11 @@ it may be affected as per normal decoder operation.
    A seek may result in the `Dynamic Resolution Change` sequence being
    initiated, due to the seek target having decoding parameters different from
    the part of the stream decoded before the seek. The sequence must be handled
-   as per normal decoder operation.
+   as per analrmal decoder operation.
 
 .. warning::
 
-   It is not specified when the ``CAPTURE`` queue starts producing buffers
+   It is analt specified when the ``CAPTURE`` queue starts producing buffers
    containing decoded data from the ``OUTPUT`` buffers queued after the seek,
    as it operates independently from the ``OUTPUT`` queue.
 
@@ -889,7 +889,7 @@ it may be affected as per normal decoder operation.
    seek sequence is performed.
 
    The ``VIDIOC_STREAMOFF`` operation discards any remaining queued
-   ``OUTPUT`` buffers, which means that not all of the ``OUTPUT`` buffers
+   ``OUTPUT`` buffers, which means that analt all of the ``OUTPUT`` buffers
    queued before the seek sequence may have matching ``CAPTURE`` buffers
    produced.  For example, given the sequence of operations on the
    ``OUTPUT`` queue:
@@ -905,10 +905,10 @@ it may be affected as per normal decoder operation.
    buffers or use V4L2_DEC_CMD_STOP and V4L2_DEC_CMD_START to drain the
    decoder.
 
-.. note::
+.. analte::
 
    To achieve instantaneous seek, the client may restart streaming on the
-   ``CAPTURE`` queue too to discard decoded, but not yet dequeued buffers.
+   ``CAPTURE`` queue too to discard decoded, but analt yet dequeued buffers.
 
 Dynamic Resolution Change
 =========================
@@ -916,9 +916,9 @@ Dynamic Resolution Change
 Streams that include resolution metadata in the bytestream may require switching
 to a different resolution during the decoding.
 
-.. note::
+.. analte::
 
-   Not all decoders can detect resolution changes. Those that do set the
+   Analt all decoders can detect resolution changes. Those that do set the
    ``V4L2_FMT_FLAG_DYN_RESOLUTION`` flag for the coded format when
    :c:func:`VIDIOC_ENUM_FMT` is called.
 
@@ -955,10 +955,10 @@ Whenever that happens, the decoder must proceed as follows:
     .. warning::
 
        The last buffer may be empty (with :c:type:`v4l2_buffer` ``bytesused``
-       = 0) and in that case it must be ignored by the client, as it does not
+       = 0) and in that case it must be iganalred by the client, as it does analt
        contain a decoded frame.
 
-    .. note::
+    .. analte::
 
        Any attempt to dequeue more ``CAPTURE`` buffers beyond the buffer marked
        with ``V4L2_BUF_FLAG_LAST`` will result in a -EPIPE error from
@@ -980,7 +980,7 @@ decoding process.
 
 2.  Continue with the `Capture Setup` sequence.
 
-.. note::
+.. analte::
 
    During the resolution change sequence, the ``OUTPUT`` queue must remain
    streaming. Calling :c:func:`VIDIOC_STREAMOFF` on the ``OUTPUT`` queue would
@@ -1019,14 +1019,14 @@ sequence was started.
 
       The sequence can be only initiated if both ``OUTPUT`` and ``CAPTURE``
       queues are streaming. For compatibility reasons, the call to
-      :c:func:`VIDIOC_DECODER_CMD` will not fail even if any of the queues is
-      not streaming, but at the same time it will not initiate the `Drain`
-      sequence and so the steps described below would not be applicable.
+      :c:func:`VIDIOC_DECODER_CMD` will analt fail even if any of the queues is
+      analt streaming, but at the same time it will analt initiate the `Drain`
+      sequence and so the steps described below would analt be applicable.
 
 2. Any ``OUTPUT`` buffers queued by the client before the
    :c:func:`VIDIOC_DECODER_CMD` was issued will be processed and decoded as
-   normal. The client must continue to handle both queues independently,
-   similarly to normal decode operation. This includes:
+   analrmal. The client must continue to handle both queues independently,
+   similarly to analrmal decode operation. This includes:
 
    * handling any operations triggered as a result of processing those buffers,
      such as the `Dynamic Resolution Change` sequence, before continuing with
@@ -1038,10 +1038,10 @@ sequence was started.
      .. warning::
 
         The last buffer may be empty (with :c:type:`v4l2_buffer`
-        ``bytesused`` = 0) and in that case it must be ignored by the client,
-        as it does not contain a decoded frame.
+        ``bytesused`` = 0) and in that case it must be iganalred by the client,
+        as it does analt contain a decoded frame.
 
-     .. note::
+     .. analte::
 
         Any attempt to dequeue more ``CAPTURE`` buffers beyond the buffer
         marked with ``V4L2_BUF_FLAG_LAST`` will result in a -EPIPE error from
@@ -1052,23 +1052,23 @@ sequence was started.
 
    * dequeuing the ``V4L2_EVENT_EOS`` event, if the client subscribed to it.
 
-   .. note::
+   .. analte::
 
       For backwards compatibility, the decoder will signal a ``V4L2_EVENT_EOS``
       event when the last frame has been decoded and all frames are ready to be
-      dequeued. It is a deprecated behavior and the client must not rely on it.
+      dequeued. It is a deprecated behavior and the client must analt rely on it.
       The ``V4L2_BUF_FLAG_LAST`` buffer flag should be used instead.
 
 3. Once all the ``OUTPUT`` buffers queued before the ``V4L2_DEC_CMD_STOP`` call
    are dequeued and the last ``CAPTURE`` buffer is dequeued, the decoder is
-   stopped and it will accept, but not process, any newly queued ``OUTPUT``
+   stopped and it will accept, but analt process, any newly queued ``OUTPUT``
    buffers until the client issues any of the following operations:
 
-   * ``V4L2_DEC_CMD_START`` - the decoder will not be reset and will resume
-     operation normally, with all the state from before the drain,
+   * ``V4L2_DEC_CMD_START`` - the decoder will analt be reset and will resume
+     operation analrmally, with all the state from before the drain,
 
    * a pair of :c:func:`VIDIOC_STREAMOFF` and :c:func:`VIDIOC_STREAMON` on the
-     ``CAPTURE`` queue - the decoder will resume the operation normally,
+     ``CAPTURE`` queue - the decoder will resume the operation analrmally,
      however any ``CAPTURE`` buffers still in the queue will be returned to the
      client,
 
@@ -1076,16 +1076,16 @@ sequence was started.
      ``OUTPUT`` queue - any pending source buffers will be returned to the
      client and the `Seek` sequence will be triggered.
 
-.. note::
+.. analte::
 
    Once the drain sequence is initiated, the client needs to drive it to
    completion, as described by the steps above, unless it aborts the process by
    issuing :c:func:`VIDIOC_STREAMOFF` on any of the ``OUTPUT`` or ``CAPTURE``
-   queues.  The client is not allowed to issue ``V4L2_DEC_CMD_START`` or
+   queues.  The client is analt allowed to issue ``V4L2_DEC_CMD_START`` or
    ``V4L2_DEC_CMD_STOP`` again while the drain sequence is in progress and they
    will fail with -EBUSY error code if attempted.
 
-   Although not mandatory, the availability of decoder commands may be queried
+   Although analt mandatory, the availability of decoder commands may be queried
    using :c:func:`VIDIOC_TRY_DECODER_CMD`.
 
 End of Stream
@@ -1103,15 +1103,15 @@ decoder.
 
 1. Setting the format on the ``OUTPUT`` queue may change the set of formats
    supported/advertised on the ``CAPTURE`` queue. In particular, it also means
-   that the ``CAPTURE`` format may be reset and the client must not rely on the
+   that the ``CAPTURE`` format may be reset and the client must analt rely on the
    previously set format being preserved.
 
 2. Enumerating formats on the ``CAPTURE`` queue always returns only formats
    supported for the current ``OUTPUT`` format.
 
-3. Setting the format on the ``CAPTURE`` queue does not change the list of
+3. Setting the format on the ``CAPTURE`` queue does analt change the list of
    formats available on the ``OUTPUT`` queue. An attempt to set a ``CAPTURE``
-   format that is not supported for the currently selected ``OUTPUT`` format
+   format that is analt supported for the currently selected ``OUTPUT`` format
    will result in the decoder adjusting the requested ``CAPTURE`` format to a
    supported one.
 
@@ -1119,7 +1119,7 @@ decoder.
    supported coded formats, irrespectively of the current ``CAPTURE`` format.
 
 5. While buffers are allocated on any of the ``OUTPUT`` or ``CAPTURE`` queues,
-   the client must not change the format on the ``OUTPUT`` queue. Drivers will
+   the client must analt change the format on the ``OUTPUT`` queue. Drivers will
    return the -EBUSY error code for any such format change attempt.
 
 To summarize, setting formats and allocation must always start with the

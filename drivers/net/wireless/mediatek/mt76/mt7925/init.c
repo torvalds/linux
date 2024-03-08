@@ -8,7 +8,7 @@
 #include "mcu.h"
 
 static void
-mt7925_regd_notifier(struct wiphy *wiphy,
+mt7925_regd_analtifier(struct wiphy *wiphy,
 		     struct regulatory_request *req)
 {
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
@@ -20,7 +20,7 @@ mt7925_regd_notifier(struct wiphy *wiphy,
 	    mdev->alpha2[0] && mdev->alpha2[1])
 		return;
 
-	/* do not need to update the same country twice */
+	/* do analt need to update the same country twice */
 	if (!memcmp(req->alpha2, mdev->alpha2, 2) &&
 	    dev->country_ie_env == req->country_ie_env)
 		return;
@@ -142,7 +142,7 @@ static void mt7925_init_work(struct work_struct *work)
 		return;
 	}
 
-	/* we support chip reset now */
+	/* we support chip reset analw */
 	dev->hw_init_done = true;
 
 	mt7925_mcu_set_deep_sleep(dev, dev->pm.ds_enable);
@@ -204,7 +204,7 @@ int mt7925_register_device(struct mt792x_dev *dev)
 	if (ret)
 		return ret;
 
-	hw->wiphy->reg_notifier = mt7925_regd_notifier;
+	hw->wiphy->reg_analtifier = mt7925_regd_analtifier;
 	dev->mphy.sband_2g.sband.ht_cap.cap |=
 			IEEE80211_HT_CAP_LDPC_CODING |
 			IEEE80211_HT_CAP_MAX_AMSDU;

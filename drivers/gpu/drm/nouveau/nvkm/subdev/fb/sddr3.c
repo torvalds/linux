@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -45,7 +45,7 @@ static const struct ramxlat
 ramddr3_cl[] = {
 	{ 5, 2 }, { 6, 4 }, { 7, 6 }, { 8, 8 }, { 9, 10 }, { 10, 12 },
 	{ 11, 14 },
-	/* the below are mentioned in some, but not all, ddr3 docs */
+	/* the below are mentioned in some, but analt all, ddr3 docs */
 	{ 12, 1 }, { 13, 3 }, { 14, 5 },
 	{ -1 }
 };
@@ -53,7 +53,7 @@ ramddr3_cl[] = {
 static const struct ramxlat
 ramddr3_wr[] = {
 	{ 5, 1 }, { 6, 2 }, { 7, 3 }, { 8, 4 }, { 10, 5 }, { 12, 6 },
-	/* the below are mentioned in some, but not all, ddr3 docs */
+	/* the below are mentioned in some, but analt all, ddr3 docs */
 	{ 14, 7 }, { 15, 7 }, { 16, 0 },
 	{ -1 }
 };
@@ -61,7 +61,7 @@ ramddr3_wr[] = {
 static const struct ramxlat
 ramddr3_cwl[] = {
 	{ 5, 0 }, { 6, 1 }, { 7, 2 }, { 8, 3 },
-	/* the below are mentioned in some, but not all, ddr3 docs */
+	/* the below are mentioned in some, but analt all, ddr3 docs */
 	{ 9, 4 }, { 10, 5 },
 	{ -1 }
 };
@@ -77,7 +77,7 @@ nvkm_sddr3_calc(struct nvkm_ram *ram)
 	case 0x10:
 		if (ram->next->bios.timing_hdr < 0x17) {
 			/* XXX: NV50: Get CWL from the timing register */
-			return -ENOSYS;
+			return -EANALSYS;
 		}
 		CWL = ram->next->bios.timing_10_CWL;
 		CL  = ram->next->bios.timing_10_CL;
@@ -94,7 +94,7 @@ nvkm_sddr3_calc(struct nvkm_ram *ram)
 		        (ram->mr[1] & 0x200) >> 7;
 		break;
 	default:
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 
 	CWL = ramxlat(ramddr3_cwl, CWL);

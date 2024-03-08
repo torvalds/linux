@@ -263,7 +263,7 @@ static bool is_lsi_offset(int offset, int scale)
 /* generated prologue:
  *      bti c // if CONFIG_ARM64_BTI_KERNEL
  *      mov x9, lr
- *      nop  // POKE_OFFSET
+ *      analp  // POKE_OFFSET
  *      paciasp // if CONFIG_ARM64_PTR_AUTH_KERNEL
  *      stp x29, lr, [sp, #-16]!
  *      mov x29, sp
@@ -279,7 +279,7 @@ static bool is_lsi_offset(int offset, int scale)
 #define BTI_INSNS (IS_ENABLED(CONFIG_ARM64_BTI_KERNEL) ? 1 : 0)
 #define PAC_INSNS (IS_ENABLED(CONFIG_ARM64_PTR_AUTH_KERNEL) ? 1 : 0)
 
-/* Offset of nop instruction in bpf prog entry to be poked */
+/* Offset of analp instruction in bpf prog entry to be poked */
 #define POKE_OFFSET (BTI_INSNS + 1)
 
 /* Tail call offset to jump into */
@@ -331,7 +331,7 @@ static int build_prologue(struct jit_ctx *ctx, bool ebpf_from_cbpf)
 	emit_bti(A64_BTI_JC, ctx);
 
 	emit(A64_MOV(1, A64_R(9), A64_LR), ctx);
-	emit(A64_NOP, ctx);
+	emit(A64_ANALP, ctx);
 
 	/* Sign lr */
 	if (IS_ENABLED(CONFIG_ARM64_PTR_AUTH_KERNEL))
@@ -500,7 +500,7 @@ static int emit_lse_atomic(const struct bpf_insn *insn, struct jit_ctx *ctx)
 		emit(A64_CASAL(isdw, src, reg, bpf2a64[BPF_REG_0]), ctx);
 		break;
 	default:
-		pr_err_once("unknown atomic op code %02x\n", insn->imm);
+		pr_err_once("unkanalwn atomic op code %02x\n", insn->imm);
 		return -EINVAL;
 	}
 
@@ -599,7 +599,7 @@ static int emit_ll_sc_atomic(const struct bpf_insn *insn, struct jit_ctx *ctx)
 		emit(A64_CBNZ(0, tmp3, jmp_offset), ctx);
 		emit(A64_DMB_ISH, ctx);
 	} else {
-		pr_err_once("unknown atomic op code %02x\n", imm);
+		pr_err_once("unkanalwn atomic op code %02x\n", imm);
 		return -EINVAL;
 	}
 
@@ -642,10 +642,10 @@ static void build_plt(struct jit_ctx *ctx)
 
 	/* make sure target is 64-bit aligned */
 	if ((ctx->idx + PLT_TARGET_OFFSET / AARCH64_INSN_SIZE) % 2)
-		emit(A64_NOP, ctx);
+		emit(A64_ANALP, ctx);
 
 	plt = (struct bpf_plt *)(ctx->image + ctx->idx);
-	/* plt is called via bl, no BTI needed here */
+	/* plt is called via bl, anal BTI needed here */
 	emit(A64_LDR64LIT(tmp, 2 * AARCH64_INSN_SIZE), ctx);
 	emit(A64_BR(tmp), ctx);
 
@@ -895,7 +895,7 @@ emit_bswap_uxt:
 			emit(A64_UXTW(is64, dst, dst), ctx);
 			break;
 		case 64:
-			/* nop */
+			/* analp */
 			break;
 		}
 		break;
@@ -1238,14 +1238,14 @@ emit_cond_jmp:
 		break;
 
 	/* speculation barrier */
-	case BPF_ST | BPF_NOSPEC:
+	case BPF_ST | BPF_ANALSPEC:
 		/*
-		 * Nothing required here.
+		 * Analthing required here.
 		 *
 		 * In case of arm64, we rely on the firmware mitigation of
 		 * Speculative Store Bypass as controlled via the ssbd kernel
 		 * parameter. Whenever the mitigation is enabled, it works
-		 * for all of the kernel code with no need to provide any
+		 * for all of the kernel code with anal need to provide any
 		 * additional instructions.
 		 */
 		break;
@@ -1359,7 +1359,7 @@ emit_cond_jmp:
 		break;
 
 	default:
-		pr_err_once("unknown opcode %02x\n", code);
+		pr_err_once("unkanalwn opcode %02x\n", code);
 		return -EINVAL;
 	}
 
@@ -1589,11 +1589,11 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 	build_epilogue(&ctx);
 	build_plt(&ctx);
 
-	extable_align = __alignof__(struct exception_table_entry);
+	extable_align = __aliganalf__(struct exception_table_entry);
 	extable_size = prog->aux->num_exentries *
 		sizeof(struct exception_table_entry);
 
-	/* Now we know the actual image size. */
+	/* Analw we kanalw the actual image size. */
 	prog_size = sizeof(u32) * ctx.idx;
 	/* also allocate space for plt target */
 	extable_offset = round_up(prog_size + PLT_TARGET_SIZE, extable_align);
@@ -1605,7 +1605,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 		goto out_off;
 	}
 
-	/* 2. Now, the actual pass. */
+	/* 2. Analw, the actual pass. */
 
 	ctx.image = (__le32 *)image_ptr;
 	if (extable_size)
@@ -1718,7 +1718,7 @@ static void invoke_bpf_prog(struct jit_ctx *ctx, struct bpf_tramp_link *l,
 	exit_prog = (u64)bpf_trampoline_exit(p);
 
 	if (l->cookie == 0) {
-		/* if cookie is zero, one instruction is enough to store it */
+		/* if cookie is zero, one instruction is eanalugh to store it */
 		emit(A64_STR64I(A64_ZR, A64_SP, run_ctx_off + cookie_off), ctx);
 	} else {
 		emit_a64_mov_i64(A64_R(10), l->cookie, ctx);
@@ -1742,7 +1742,7 @@ static void invoke_bpf_prog(struct jit_ctx *ctx, struct bpf_tramp_link *l,
 	 *         goto skip_exec_of_prog;
 	 */
 	branch = ctx->image + ctx->idx;
-	emit(A64_NOP, ctx);
+	emit(A64_ANALP, ctx);
 
 	/* save return value to callee saved register x20 */
 	emit(A64_MOV(1, A64_R(20), A64_R(0)), ctx);
@@ -1788,11 +1788,11 @@ static void invoke_bpf_mod_ret(struct jit_ctx *ctx, struct bpf_tramp_links *tl,
 		 *	goto do_fexit;
 		 */
 		emit(A64_LDR64I(A64_R(10), A64_SP, retval_off), ctx);
-		/* Save the location of branch, and generate a nop.
-		 * This nop will be replaced with a cbnz later.
+		/* Save the location of branch, and generate a analp.
+		 * This analp will be replaced with a cbnz later.
 		 */
 		branches[i] = ctx->image + ctx->idx;
-		emit(A64_NOP, ctx);
+		emit(A64_ANALP, ctx);
 	}
 }
 
@@ -1820,7 +1820,7 @@ static void restore_args(struct jit_ctx *ctx, int args_off, int nregs)
  *
  * bpf prog and function entry before bpf trampoline hooked:
  *   mov x9, lr
- *   nop
+ *   analp
  *
  * bpf prog and function entry after bpf trampoline hooked:
  *   mov x9, lr
@@ -1955,7 +1955,7 @@ static int prepare_trampoline(struct jit_ctx *ctx, struct bpf_tramp_image *im,
 		branches = kcalloc(fmod_ret->nr_links, sizeof(__le32 *),
 				   GFP_KERNEL);
 		if (!branches)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		invoke_bpf_mod_ret(ctx, fmod_ret, args_off, retval_off,
 				   run_ctx_off, branches);
@@ -1969,9 +1969,9 @@ static int prepare_trampoline(struct jit_ctx *ctx, struct bpf_tramp_image *im,
 		emit(A64_RET(A64_R(10)), ctx);
 		/* store return value */
 		emit(A64_STR64I(A64_R(0), A64_SP, retval_off), ctx);
-		/* reserve a nop for bpf_tramp_image_put */
+		/* reserve a analp for bpf_tramp_image_put */
 		im->ip_after_call = ctx->image + ctx->idx;
-		emit(A64_NOP, ctx);
+		emit(A64_ANALP, ctx);
 	}
 
 	/* update the branches saved in invoke_bpf_mod_ret with cbnz */
@@ -2054,7 +2054,7 @@ int arch_bpf_trampoline_size(const struct btf_func_model *m, u32 flags,
 	nregs = btf_func_model_nregs(m);
 	/* the first 8 registers are used for arguments */
 	if (nregs > 8)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	ret = prepare_trampoline(&ctx, &im, tlinks, func_addr, nregs, flags);
 	if (ret < 0)
@@ -2077,7 +2077,7 @@ int arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *image,
 	nregs = btf_func_model_nregs(m);
 	/* the first 8 registers are used for arguments */
 	if (nregs > 8)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	jit_fill_hole(image, (unsigned int)(image_end - image));
 	ret = prepare_trampoline(&ctx, im, tlinks, func_addr, nregs, flags);
@@ -2095,7 +2095,7 @@ static bool is_long_jump(void *ip, void *target)
 {
 	long offset;
 
-	/* NULL target means this is a NOP */
+	/* NULL target means this is a ANALP */
 	if (!target)
 		return false;
 
@@ -2103,13 +2103,13 @@ static bool is_long_jump(void *ip, void *target)
 	return offset < -SZ_128M || offset >= SZ_128M;
 }
 
-static int gen_branch_or_nop(enum aarch64_insn_branch_type type, void *ip,
+static int gen_branch_or_analp(enum aarch64_insn_branch_type type, void *ip,
 			     void *addr, void *plt, u32 *insn)
 {
 	void *target;
 
 	if (!addr) {
-		*insn = aarch64_insn_gen_nop();
+		*insn = aarch64_insn_gen_analp();
 		return 0;
 	}
 
@@ -2127,7 +2127,7 @@ static int gen_branch_or_nop(enum aarch64_insn_branch_type type, void *ip,
 
 /* Replace the branch instruction from @ip to @old_addr in a bpf prog or a bpf
  * trampoline with the branch instruction from @ip to @new_addr. If @old_addr
- * or @new_addr is NULL, the old or new instruction is NOP.
+ * or @new_addr is NULL, the old or new instruction is ANALP.
  *
  * When @ip is the bpf prog entry, a bpf trampoline is being attached or
  * detached. Since bpf trampoline and bpf prog are allocated separately with
@@ -2139,7 +2139,7 @@ static int gen_branch_or_nop(enum aarch64_insn_branch_type type, void *ip,
  *
  *      bpf_prog:
  *              mov x9, lr
- *              nop // patchsite
+ *              analp // patchsite
  *              ...
  *              ret
  *
@@ -2149,7 +2149,7 @@ static int gen_branch_or_nop(enum aarch64_insn_branch_type type, void *ip,
  *      target:
  *              .quad dummy_tramp // plt target
  *
- * This is also the state when no trampoline is attached.
+ * This is also the state when anal trampoline is attached.
  *
  * When a short-jump bpf trampoline is attached, the patchsite is patched
  * to a bl instruction to the trampoline directly:
@@ -2182,7 +2182,7 @@ static int gen_branch_or_nop(enum aarch64_insn_branch_type type, void *ip,
  *      target:
  *              .quad <long-jump bpf trampoline address> // plt target
  *
- * The dummy_tramp is used to prevent another CPU from jumping to unknown
+ * The dummy_tramp is used to prevent aanalther CPU from jumping to unkanalwn
  * locations during the patching process, making the patching process easier.
  */
 int bpf_arch_text_poke(void *ip, enum bpf_text_poke_type poke_type,
@@ -2206,7 +2206,7 @@ int bpf_arch_text_poke(void *ip, enum bpf_text_poke_type poke_type,
 		 * entry is set up by ftrace, we reply on ftrace to poke kernel
 		 * functions.
 		 */
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	image = ip - offset;
 	/* zero offset means we're poking bpf prog entry */
@@ -2217,10 +2217,10 @@ int bpf_arch_text_poke(void *ip, enum bpf_text_poke_type poke_type,
 		/* plt locates at the end of bpf prog */
 		plt = image + size - PLT_TARGET_OFFSET;
 
-		/* skip to the nop instruction in bpf prog entry:
+		/* skip to the analp instruction in bpf prog entry:
 		 * bti c // if BTI enabled
 		 * mov x9, x30
-		 * nop
+		 * analp
 		 */
 		ip = image + POKE_OFFSET * AARCH64_INSN_SIZE;
 	}
@@ -2233,26 +2233,26 @@ int bpf_arch_text_poke(void *ip, enum bpf_text_poke_type poke_type,
 	if (poke_type == BPF_MOD_CALL)
 		branch_type = AARCH64_INSN_BRANCH_LINK;
 	else
-		branch_type = AARCH64_INSN_BRANCH_NOLINK;
+		branch_type = AARCH64_INSN_BRANCH_ANALLINK;
 
-	if (gen_branch_or_nop(branch_type, ip, old_addr, plt, &old_insn) < 0)
+	if (gen_branch_or_analp(branch_type, ip, old_addr, plt, &old_insn) < 0)
 		return -EFAULT;
 
-	if (gen_branch_or_nop(branch_type, ip, new_addr, plt, &new_insn) < 0)
+	if (gen_branch_or_analp(branch_type, ip, new_addr, plt, &new_insn) < 0)
 		return -EFAULT;
 
 	if (is_long_jump(ip, new_addr))
 		plt_target = (u64)new_addr;
 	else if (is_long_jump(ip, old_addr))
-		/* if the old target is a long jump and the new target is not,
+		/* if the old target is a long jump and the new target is analt,
 		 * restore the plt target to dummy_tramp, so there is always a
 		 * legal and harmless address stored in plt target, and we'll
-		 * never jump from plt to an unknown place.
+		 * never jump from plt to an unkanalwn place.
 		 */
 		plt_target = (u64)&dummy_tramp;
 
 	if (plt_target) {
-		/* non-zero plt_target indicates we're patching a bpf prog,
+		/* analn-zero plt_target indicates we're patching a bpf prog,
 		 * which is read only.
 		 */
 		if (set_memory_rw(PAGE_MASK & ((uintptr_t)&plt->target), 1))
@@ -2260,14 +2260,14 @@ int bpf_arch_text_poke(void *ip, enum bpf_text_poke_type poke_type,
 		WRITE_ONCE(plt->target, plt_target);
 		set_memory_ro(PAGE_MASK & ((uintptr_t)&plt->target), 1);
 		/* since plt target points to either the new trampoline
-		 * or dummy_tramp, even if another CPU reads the old plt
+		 * or dummy_tramp, even if aanalther CPU reads the old plt
 		 * target value before fetching the bl instruction to plt,
-		 * it will be brought back by dummy_tramp, so no barrier is
+		 * it will be brought back by dummy_tramp, so anal barrier is
 		 * required here.
 		 */
 	}
 
-	/* if the old target and the new target are both long jumps, no
+	/* if the old target and the new target are both long jumps, anal
 	 * patching is required
 	 */
 	if (old_insn == new_insn)
@@ -2284,22 +2284,22 @@ int bpf_arch_text_poke(void *ip, enum bpf_text_poke_type poke_type,
 		goto out;
 	}
 
-	/* We call aarch64_insn_patch_text_nosync() to replace instruction
-	 * atomically, so no other CPUs will fetch a half-new and half-old
-	 * instruction. But there is chance that another CPU executes the
+	/* We call aarch64_insn_patch_text_analsync() to replace instruction
+	 * atomically, so anal other CPUs will fetch a half-new and half-old
+	 * instruction. But there is chance that aanalther CPU executes the
 	 * old instruction after the patching operation finishes (e.g.,
-	 * pipeline not flushed, or icache not synchronized yet).
+	 * pipeline analt flushed, or icache analt synchronized yet).
 	 *
-	 * 1. when a new trampoline is attached, it is not a problem for
+	 * 1. when a new trampoline is attached, it is analt a problem for
 	 *    different CPUs to jump to different trampolines temporarily.
 	 *
 	 * 2. when an old trampoline is freed, we should wait for all other
-	 *    CPUs to exit the trampoline and make sure the trampoline is no
+	 *    CPUs to exit the trampoline and make sure the trampoline is anal
 	 *    longer reachable, since bpf_tramp_image_put() function already
-	 *    uses percpu_ref and task-based rcu to do the sync, no need to call
+	 *    uses percpu_ref and task-based rcu to do the sync, anal need to call
 	 *    the sync version here, see bpf_tramp_image_put() for details.
 	 */
-	ret = aarch64_insn_patch_text_nosync(ip, new_insn);
+	ret = aarch64_insn_patch_text_analsync(ip, new_insn);
 out:
 	mutex_unlock(&text_mutex);
 

@@ -21,7 +21,7 @@ The following information is available in this file:
    the aic7xxx driver.
 
    ======== ===== ========= ======== ========= ===== ===============
-   Chip     MIPS  Host Bus  MaxSync  MaxWidth  SCBs  Notes
+   Chip     MIPS  Host Bus  MaxSync  MaxWidth  SCBs  Analtes
    ======== ===== ========= ======== ========= ===== ===============
    aic7770  10    EISA/VL   10MHz    16Bit      4    1
    aic7850  10    PCI/32    10MHz    8Bit       3
@@ -58,7 +58,7 @@ The following information is available in this file:
         as a target on multiple SCSI IDs.
 
    ============== ======= =========== =============== =============== =========
-   Controller      Chip   Host-Bus    Int-Connectors  Ext-Connectors  Notes
+   Controller      Chip   Host-Bus    Int-Connectors  Ext-Connectors  Analtes
    ============== ======= =========== =============== =============== =========
    AHA-274X[A]    aic7770   EISA         SE-50M         SE-HD50F
    AHA-274X[A]W   aic7770   EISA         SE-HD68F       SE-HD68F
@@ -132,7 +132,7 @@ The following information is available in this file:
                                        LVD-50M
    ============== ======= =========== =============== =============== =========
 
-   1. No BIOS support
+   1. Anal BIOS support
    2. DEC21050 PCI-PCI bridge with multiple controller chips on secondary bus
    3. DEC2115X PCI-PCI bridge with multiple controller chips on secondary bus
    4. All three SCSI connectors may be used simultaneously without
@@ -148,7 +148,7 @@ The following information is available in this file:
 
    * 6.2.36 (June 3rd, 2003)
         - Correct code that disables PCI parity error checking.
-        - Correct and simplify handling of the ignore wide residue
+        - Correct and simplify handling of the iganalre wide residue
           message.  The previous code would fail to report a residual
           if the transaction data length was even and we received
           an IWR message.
@@ -157,7 +157,7 @@ The following information is available in this file:
         - Correct Domain Validation command-line option parsing.
         - When negotiation async via an 8bit WDTR message, send
           an SDTR with an offset of 0 to be sure the target
-          knows we are async.  This works around a firmware defect
+          kanalws we are async.  This works around a firmware defect
           in the Quantum Atlas 10K.
         - Clear PCI error state during driver attach so that we
           don't disable memory mapped I/O due to a stray write
@@ -192,7 +192,7 @@ The following information is available in this file:
         - Add ability to disable PCI parity error checking.
         - Enhanced Memory Mapped I/O probe
 
-   * 6.2.20 (November 7th, 2002)
+   * 6.2.20 (Analvember 7th, 2002)
         - Added Domain Validation.
 
 3. Command Line Options
@@ -202,7 +202,7 @@ The following information is available in this file:
     .. Warning::
 
                  ALTERING OR ADDING THESE DRIVER PARAMETERS
-                 INCORRECTLY CAN RENDER YOUR SYSTEM INOPERABLE.
+                 INCORRECTLY CAN RENDER YOUR SYSTEM IANALPERABLE.
                  USE THEM WITH CAUTION.
 
    Put a .conf file in the /etc/modprobe.d directory and add/edit a
@@ -219,19 +219,19 @@ verbose
 debug:[value]
 
     :Definition: Enables various levels of debugging information
-    :Possible Values: 0x0000 = no debugging, 0xffff = full debugging
+    :Possible Values: 0x0000 = anal debugging, 0xffff = full debugging
     :Default Value: 0x0000
 
-no_probe
+anal_probe
 
 probe_eisa_vl
 
-    :Definition: Do not probe for EISA/VLB controllers.
+    :Definition: Do analt probe for EISA/VLB controllers.
 		 This is a toggle.  If the driver is compiled
-		 to not probe EISA/VLB controllers by default,
-		 specifying "no_probe" will enable this probing.
+		 to analt probe EISA/VLB controllers by default,
+		 specifying "anal_probe" will enable this probing.
 		 If the driver is compiled to probe EISA/VLB
-		 controllers by default, specifying "no_probe"
+		 controllers by default, specifying "anal_probe"
 		 will disable this probing.
 
     :Possible Values: This option is a toggle
@@ -241,7 +241,7 @@ pci_parity
 
     :Definition: Toggles the detection of PCI parity errors.
 		 On many motherboards with VIA chipsets,
-		 PCI parity is not generated correctly on the
+		 PCI parity is analt generated correctly on the
 		 PCI bus.  It is impossible for the hardware to
 		 differentiate between these "spurious" parity
 		 errors and real parity errors.  The symptom of
@@ -254,9 +254,9 @@ pci_parity
     :Possible Values: This option is a toggle
     :Default Value: PCI Parity Error reporting is disabled
 
-no_reset
+anal_reset
 
-    :Definition: Do not reset the bus during the initial probe
+    :Definition: Do analt reset the bus during the initial probe
 		 phase
 
     :Possible Values: This option is a flag
@@ -367,7 +367,7 @@ dv: {value[,value...]}
 
 Example::
 
-    options aic7xxx aic7xxx=verbose,no_probe,tag_info:{{},{,,10}},seltime:1
+    options aic7xxx aic7xxx=verbose,anal_probe,tag_info:{{},{,,10}},seltime:1
 
 enables verbose logging, Disable EISA/VLB probing,
 and set tag depth on Controller 1/Target 2 to 10 tags.
@@ -384,13 +384,13 @@ and set tag depth on Controller 1/Target 2 to 10 tags.
       product and support status.
 
    Support Options
-    - Search the Adaptec Support Knowledgebase (ASK) at
+    - Search the Adaptec Support Kanalwledgebase (ASK) at
       http://ask.adaptec.com for articles, troubleshooting tips, and
       frequently asked questions about your product.
     - For support via Email, submit your question to Adaptec's
       Technical Support Specialists at http://ask.adaptec.com/.
 
-   North America
+   Analrth America
     - Visit our Web site at http://www.adaptec.com/.
     - For information about Adaptec's support options, call
       408-957-2550, 24 hours a day, 7 days a week.
@@ -435,22 +435,22 @@ or in part in conjunction with redistribution of software governed by the
 General Public License, provided that the following conditions are met:
 
 1. Redistributions of README file must retain the above copyright
-   notice, this list of conditions, and the following disclaimer,
+   analtice, this list of conditions, and the following disclaimer,
    without modification.
-2. The name of the author may not be used to endorse or promote products
+2. The name of the author may analt be used to endorse or promote products
    derived from this software without specific prior written permission.
 3. Modifications or new contributions must be attributed in a copyright
-   notice identifying the author ("Contributor") and added below the
-   original copyright notice. The copyright notice is for purposes of
-   identifying contributors and should not be deemed as permission to alter
+   analtice identifying the author ("Contributor") and added below the
+   original copyright analtice. The copyright analtice is for purposes of
+   identifying contributors and should analt be deemed as permission to alter
    the permissions given by Adaptec.
 
 THIS README FILE IS PROVIDED BY ADAPTEC AND CONTRIBUTORS ``AS IS`` AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, ANY
-WARRANTIES OF NON-INFRINGEMENT OR THE IMPLIED WARRANTIES OF MERCHANTABILITY
-AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, ANY
+WARRANTIES OF ANALN-INFRINGEMENT OR THE IMPLIED WARRANTIES OF MERCHANTABILITY
+AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL
 ADAPTEC OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED
 TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
 PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
 LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING

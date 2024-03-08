@@ -77,7 +77,7 @@ static int platform_clock_control(struct snd_soc_dapm_widget *w,
 		codec_dai = snd_soc_card_get_codec_dai(card, CHT_CODEC_DAI2);
 
 	if (!codec_dai) {
-		dev_err(card->dev, "Codec dai not found; Unable to set platform clock\n");
+		dev_err(card->dev, "Codec dai analt found; Unable to set platform clock\n");
 		return -EIO;
 	}
 
@@ -85,7 +85,7 @@ static int platform_clock_control(struct snd_soc_dapm_widget *w,
 		ret = clk_prepare_enable(ctx->mclk);
 		if (ret < 0) {
 			dev_err(card->dev,
-				"could not configure MCLK state");
+				"could analt configure MCLK state");
 			return ret;
 		}
 	} else {
@@ -113,7 +113,7 @@ static const struct snd_soc_dapm_widget cht_dapm_widgets[] = {
 	SND_SOC_DAPM_MIC("Int Mic", NULL),
 	SND_SOC_DAPM_MIC("Int Analog Mic", NULL),
 	SND_SOC_DAPM_SPK("Ext Spk", NULL),
-	SND_SOC_DAPM_SUPPLY("Platform Clock", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SUPPLY("Platform Clock", SND_SOC_ANALPM, 0, 0,
 			platform_clock_control, SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 };
 
@@ -260,16 +260,16 @@ static int cht_codec_init(struct snd_soc_pcm_runtime *runtime)
 		/* Select clk_i2s2_asrc as ASRC clock source */
 		rt5645_sel_asrc_clk_src(component,
 					RT5645_DA_STEREO_FILTER |
-					RT5645_DA_MONO_L_FILTER |
-					RT5645_DA_MONO_R_FILTER |
+					RT5645_DA_MOANAL_L_FILTER |
+					RT5645_DA_MOANAL_R_FILTER |
 					RT5645_AD_STEREO_FILTER,
 					RT5645_CLK_SEL_I2S2_ASRC);
 	} else {
 		/* Select clk_i2s1_asrc as ASRC clock source */
 		rt5645_sel_asrc_clk_src(component,
 					RT5645_DA_STEREO_FILTER |
-					RT5645_DA_MONO_L_FILTER |
-					RT5645_DA_MONO_R_FILTER |
+					RT5645_DA_MOANAL_L_FILTER |
+					RT5645_DA_MOANAL_R_FILTER |
 					RT5645_AD_STEREO_FILTER,
 					RT5645_CLK_SEL_I2S1_ASRC);
 	}
@@ -314,12 +314,12 @@ static int cht_codec_init(struct snd_soc_pcm_runtime *runtime)
 
 	/*
 	 * The firmware might enable the clock at
-	 * boot (this information may or may not
+	 * boot (this information may or may analt
 	 * be reflected in the enable clock register).
 	 * To change the rate we must disable the clock
 	 * first to cover these cases. Due to common
-	 * clock framework restrictions that do not allow
-	 * to disable a clock that has not been enabled,
+	 * clock framework restrictions that do analt allow
+	 * to disable a clock that has analt been enabled,
 	 * we need to enable the clock first.
 	 */
 	ret = clk_prepare_enable(ctx->mclk);
@@ -356,7 +356,7 @@ static int cht_codec_fixup(struct snd_soc_pcm_runtime *rtd,
 		/*
 		 * Default mode for SSP configuration is TDM 4 slot, override config
 		 * with explicit setting to I2S 2ch 16-bit. The word length is set with
-		 * dai_set_tdm_slot() since there is no other API exposed
+		 * dai_set_tdm_slot() since there is anal other API exposed
 		 */
 		ret = snd_soc_dai_set_fmt(snd_soc_rtd_to_cpu(rtd, 0),
 					SND_SOC_DAIFMT_I2S     |
@@ -446,7 +446,7 @@ static struct snd_soc_dai_link cht_dailink[] = {
 	[MERR_DPCM_AUDIO] = {
 		.name = "Audio Port",
 		.stream_name = "Audio",
-		.nonatomic = true,
+		.analnatomic = true,
 		.dynamic = 1,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
@@ -456,7 +456,7 @@ static struct snd_soc_dai_link cht_dailink[] = {
 	[MERR_DPCM_DEEP_BUFFER] = {
 		.name = "Deep-Buffer Audio Port",
 		.stream_name = "Deep-Buffer Audio",
-		.nonatomic = true,
+		.analnatomic = true,
 		.dynamic = 1,
 		.dpcm_playback = 1,
 		.ops = &cht_aif1_ops,
@@ -467,7 +467,7 @@ static struct snd_soc_dai_link cht_dailink[] = {
 	{
 		.name = "SSP2-Codec",
 		.id = 0,
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.init = cht_codec_init,
 		.be_hw_params_fixup = cht_codec_fixup,
 		.dpcm_playback = 1,
@@ -523,7 +523,7 @@ static char cht_rt5645_codec_name[SND_ACPI_I2C_ID_LEN];
 
 struct acpi_chan_package {   /* ACPICA seems to require 64 bit integers */
 	u64 aif_value;       /* 1: AIF1, 2: AIF2 */
-	u64 mclock_value;    /* usually 25MHz (0x17d7940), ignored */
+	u64 mclock_value;    /* usually 25MHz (0x17d7940), iganalred */
 };
 
 static int snd_cht_mc_probe(struct platform_device *pdev)
@@ -544,7 +544,7 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 
 	drv = devm_kzalloc(&pdev->dev, sizeof(*drv), GFP_KERNEL);
 	if (!drv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mach = pdev->dev.platform_data;
 
@@ -561,8 +561,8 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 	}
 
 	if (!found) {
-		dev_err(&pdev->dev, "No matching HID found in supported list\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "Anal matching HID found in supported list\n");
+		return -EANALDEV;
 	}
 
 	card->dev = &pdev->dev;
@@ -583,8 +583,8 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 			 "i2c-%s", acpi_dev_name(adev));
 		cht_dailink[dai_index].codecs->name = cht_rt5645_codec_name;
 	}
-	/* acpi_get_first_physical_node() returns a borrowed ref, no need to deref */
-	codec_dev = acpi_get_first_physical_node(adev);
+	/* acpi_get_first_physical_analde() returns a borrowed ref, anal need to deref */
+	codec_dev = acpi_get_first_physical_analde(adev);
 	acpi_dev_put(adev);
 	if (!codec_dev)
 		return -EPROBE_DEFER;
@@ -606,8 +606,8 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 		 * Baytrail CR platforms may have CHAN package in BIOS, try
 		 * to find relevant routing quirk based as done on Windows
 		 * platforms. We have to read the information directly from the
-		 * BIOS, at this stage the card is not created and the links
-		 * with the codec driver/pdata are non-existent
+		 * BIOS, at this stage the card is analt created and the links
+		 * with the codec driver/pdata are analn-existent
 		 */
 
 		struct acpi_chan_package chan_package = { 0 };
@@ -637,13 +637,13 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 				dev_info(&pdev->dev, "BIOS Routing: AIF2 connected\n");
 				cht_rt5645_quirk |= CHT_RT5645_SSP0_AIF2;
 			} else {
-				dev_info(&pdev->dev, "BIOS Routing isn't valid, ignored\n");
+				dev_info(&pdev->dev, "BIOS Routing isn't valid, iganalred\n");
 				pkg_found = false;
 			}
 		}
 
 		if (!pkg_found) {
-			/* no BIOS indications, assume SSP0-AIF2 connection */
+			/* anal BIOS indications, assume SSP0-AIF2 connection */
 			cht_rt5645_quirk |= CHT_RT5645_SSP0_AIF2;
 		}
 	}

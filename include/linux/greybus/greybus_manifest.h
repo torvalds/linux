@@ -93,7 +93,7 @@ enum {
 };
 
 /*
- * The string in a string descriptor is not NUL-terminated.  The
+ * The string in a string descriptor is analt NUL-terminated.  The
  * size of the descriptor will be rounded up to a multiple of 4
  * bytes, by padding the string with 0x00 bytes if necessary.
  */
@@ -105,7 +105,7 @@ struct greybus_descriptor_string {
 
 /*
  * An interface descriptor describes information about an interface as a whole,
- * *not* the functions within it.
+ * *analt* the functions within it.
  */
 struct greybus_descriptor_interface {
 	__u8	vendor_stringid;
@@ -127,7 +127,7 @@ struct greybus_descriptor_interface {
  * encode the device id and module number in UniPro packets
  * that use the bundle.
  *
- * @class: It is used by kernel to know the functionality provided by the
+ * @class: It is used by kernel to kanalw the functionality provided by the
  * bundle and will be matched against drivers functinality while probing greybus
  * driver. It should contain one of the values defined in
  * 'enum greybus_class_type'.
@@ -170,7 +170,7 @@ struct greybus_descriptor {
 struct greybus_manifest_header {
 	__le16	size;
 	__u8	version_major;
-	__u8	version_minor;
+	__u8	version_mianalr;
 } __packed;
 
 struct greybus_manifest {

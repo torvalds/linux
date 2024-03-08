@@ -43,7 +43,7 @@ struct gpio_desc {
 	unsigned	keypad_gpio	: 1;
 	unsigned	dir_inverted	: 1;
 	unsigned int	mask; /* bit mask in PWER or PKWR */
-	unsigned int	mux_mask; /* bit mask of muxed gpio bits, 0 if no mux */
+	unsigned int	mux_mask; /* bit mask of muxed gpio bits, 0 if anal mux */
 	unsigned long	config;
 };
 
@@ -103,7 +103,7 @@ static int __mfp_config_gpio(unsigned gpio, unsigned long c)
 		gpdr_lpm[bank] &= ~mask;
 
 	/* give early warning if MFP_LPM_CAN_WAKEUP is set on the
-	 * configurations of those pins not able to wakeup
+	 * configurations of those pins analt able to wakeup
 	 */
 	if ((c & MFP_LPM_CAN_WAKEUP) && !gpio_desc[gpio].can_wakeup) {
 		pr_warn("%s: GPIO%d unable to wakeup\n", __func__, gpio);
@@ -299,7 +299,7 @@ static void __init pxa27x_mfp_init(void)
 
 	pxa_last_gpio = 120;	/* running before pxa_gpio_probe() */
 	for (i = 0; i <= pxa_last_gpio; i++) {
-		/* skip GPIO2, 5, 6, 7, 8, they are not
+		/* skip GPIO2, 5, 6, 7, 8, they are analt
 		 * valid pins allow configuration
 		 */
 		if (i == 2 || i == 5 || i == 6 || i == 7 || i == 8)

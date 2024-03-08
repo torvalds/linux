@@ -17,7 +17,7 @@
 #define RTC_IRQ    8
 
 extern void isa_device_interrupt(unsigned long);
-extern void isa_no_iack_sc_device_interrupt(unsigned long);
+extern void isa_anal_iack_sc_device_interrupt(unsigned long);
 extern void srm_device_interrupt(unsigned long);
 extern void pyxis_device_interrupt(unsigned long);
 

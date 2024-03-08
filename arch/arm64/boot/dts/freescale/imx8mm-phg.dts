@@ -111,7 +111,7 @@
 	};
 };
 
-/* QSPI is not populated on the SoM */
+/* QSPI is analt populated on the SoM */
 &flexspi {
 	status = "disabled";
 };
@@ -207,11 +207,11 @@
 	status = "okay";
 };
 
-&usbphynop1 {
+&usbphyanalp1 {
 	power-domains = <&pgc_otg1>;
 };
 
-&usbphynop2 {
+&usbphyanalp2 {
 	power-domains = <&pgc_otg2>;
 };
 
@@ -237,8 +237,8 @@
 	bus-width = <4>;
 	cd-gpios = <&gpio2 12 GPIO_ACTIVE_LOW>;
 	disable-wp;
-	no-mmc;
-	no-sdio;
+	anal-mmc;
+	anal-sdio;
 	sd-uhs-sdr104;
 	sd-uhs-ddr50;
 	vmmc-supply = <&reg_usdhc2_vmmc>;

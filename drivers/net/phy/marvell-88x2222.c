@@ -259,7 +259,7 @@ static int mv2222_setup_forced(struct phy_device *phydev)
 
 	if (priv->line_interface == PHY_INTERFACE_MODE_10GBASER) {
 		if (phydev->speed < SPEED_10000 &&
-		    phydev->speed != SPEED_UNKNOWN) {
+		    phydev->speed != SPEED_UNKANALWN) {
 			ret = mv2222_swap_line_type(phydev);
 			if (ret < 0)
 				return ret;
@@ -280,7 +280,7 @@ static int mv2222_config_aneg(struct phy_device *phydev)
 	struct mv2222_data *priv = phydev->priv;
 	int ret, adv;
 
-	/* SFP is not present, do nothing */
+	/* SFP is analt present, do analthing */
 	if (priv->line_interface == PHY_INTERFACE_MODE_NA)
 		return 0;
 
@@ -334,7 +334,7 @@ static int mv2222_read_status_10g(struct phy_device *phydev)
 	if (val & MDIO_STAT1_LSTATUS) {
 		link = 1;
 
-		/* 10GBASE-R do not support auto-negotiation */
+		/* 10GBASE-R do analt support auto-negotiation */
 		phydev->autoneg = AUTONEG_DISABLE;
 		phydev->speed = SPEED_10000;
 		phydev->duplex = DUPLEX_FULL;
@@ -431,8 +431,8 @@ static int mv2222_read_status(struct phy_device *phydev)
 	int link;
 
 	phydev->link = 0;
-	phydev->speed = SPEED_UNKNOWN;
-	phydev->duplex = DUPLEX_UNKNOWN;
+	phydev->speed = SPEED_UNKANALWN;
+	phydev->duplex = DUPLEX_UNKANALWN;
 
 	if (!mv2222_link_is_operational(phydev))
 		return 0;
@@ -527,7 +527,7 @@ static void mv2222_sfp_remove(void *upstream)
 
 	priv->line_interface = PHY_INTERFACE_MODE_NA;
 	linkmode_zero(priv->supported);
-	phydev->port = PORT_NONE;
+	phydev->port = PORT_ANALNE;
 }
 
 static void mv2222_sfp_link_up(void *upstream)
@@ -587,7 +587,7 @@ static int mv2222_probe(struct phy_device *phydev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->line_interface = PHY_INTERFACE_MODE_NA;
 	phydev->priv = priv;

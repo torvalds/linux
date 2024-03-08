@@ -21,17 +21,17 @@ The code for that interface can be found in arch/powerpc/kernel/kvm*
 Querying for existence
 ======================
 
-To find out if we're running on KVM or not, we leverage the device tree. When
-Linux is running on KVM, a node /hypervisor exists. That node contains a
+To find out if we're running on KVM or analt, we leverage the device tree. When
+Linux is running on KVM, a analde /hypervisor exists. That analde contains a
 compatible property with the value "linux,kvm".
 
-Once you determined you're running under a PV capable KVM, you can now use
+Once you determined you're running under a PV capable KVM, you can analw use
 hypercalls as described below.
 
 KVM hypercalls
 ==============
 
-Inside the device tree's /hypervisor node there's a property called
+Inside the device tree's /hypervisor analde there's a property called
 'hypercall-instructions'. This property contains at most 4 opcodes that make
 up the hypercall. To call a hypercall, just call these instructions.
 
@@ -63,7 +63,7 @@ Return codes can be as follows:
 	Code		Meaning
 	====		=========================
 	0		Success
-	12		Hypercall not implemented
+	12		Hypercall analt implemented
 	<0		Error
 	====		=========================
 
@@ -77,7 +77,7 @@ map this shared page using the KVM hypercall KVM_HC_PPC_MAP_MAGIC_PAGE.
 With this hypercall issued the guest always gets the magic page mapped at the
 desired location. The first parameter indicates the effective address when the
 MMU is enabled. The second parameter indicates the address in real mode, if
-applicable to the target. For now, we always map the page to -4096. This way we
+applicable to the target. For analw, we always map the page to -4096. This way we
 can access it using absolute load and store functions. The following
 instruction reads the first field of the magic page::
 
@@ -119,13 +119,13 @@ Flags are passed to the host in the low 12 bits of the Effective Address.
 
 The following flags are currently available for a guest to expose:
 
-  MAGIC_PAGE_FLAG_NOT_MAPPED_NX Guest handles NX bits correctly wrt magic page
+  MAGIC_PAGE_FLAG_ANALT_MAPPED_NX Guest handles NX bits correctly wrt magic page
 
 MSR bits
 ========
 
 The MSR contains bits that require hypervisor intervention and bits that do
-not require direct hypervisor intervention because they only get interpreted
+analt require direct hypervisor intervention because they only get interpreted
 when entering the guest or don't have any impact on the hypervisor's behavior.
 
 The following bits are safe to be set inside the guest:
@@ -170,7 +170,7 @@ mtsrr1	rX		std	rX, magic_page->srr1
 mtdar	rX		std	rX, magic_page->dar
 mtdsisr	rX		stw	rX, magic_page->dsisr
 
-tlbsync			nop
+tlbsync			analp
 
 mtmsrd	rX, 0		b	<special mtmsr section>
 mtmsr	rX		b	<special mtmsr section>
@@ -216,7 +216,7 @@ available on book3s_64.
 
 3) OSI hypercalls
 
-Mac-on-Linux is another user of KVM on PowerPC, which has its own hypercall (long
+Mac-on-Linux is aanalther user of KVM on PowerPC, which has its own hypercall (long
 before KVM). This is supported to maintain compatibility. All these hypercalls get
 forwarded to user space. This is only useful on book3s_32, but can be used with
 book3s_64 as well.

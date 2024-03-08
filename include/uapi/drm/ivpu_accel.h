@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-analte */
 /*
  * Copyright (C) 2020-2023 Intel Corporation
  */
@@ -13,7 +13,7 @@ extern "C" {
 #endif
 
 #define DRM_IVPU_DRIVER_MAJOR 1
-#define DRM_IVPU_DRIVER_MINOR 0
+#define DRM_IVPU_DRIVER_MIANALR 0
 
 #define DRM_IVPU_GET_PARAM		  0x00
 #define DRM_IVPU_SET_PARAM		  0x01
@@ -66,13 +66,13 @@ extern "C" {
 
 /* Deprecated, use DRM_IVPU_JOB_PRIORITY */
 #define DRM_IVPU_CONTEXT_PRIORITY_IDLE	    0
-#define DRM_IVPU_CONTEXT_PRIORITY_NORMAL    1
+#define DRM_IVPU_CONTEXT_PRIORITY_ANALRMAL    1
 #define DRM_IVPU_CONTEXT_PRIORITY_FOCUS	    2
 #define DRM_IVPU_CONTEXT_PRIORITY_REALTIME  3
 
 #define DRM_IVPU_JOB_PRIORITY_DEFAULT  0
 #define DRM_IVPU_JOB_PRIORITY_IDLE     1
-#define DRM_IVPU_JOB_PRIORITY_NORMAL   2
+#define DRM_IVPU_JOB_PRIORITY_ANALRMAL   2
 #define DRM_IVPU_JOB_PRIORITY_FOCUS    3
 #define DRM_IVPU_JOB_PRIORITY_REALTIME 4
 
@@ -184,7 +184,7 @@ struct drm_ivpu_bo_create {
 	 *
 	 * Allocate VPU address from >4GB range.
 	 * Buffer object with vpu address >4GB can be always accessed by the
-	 * VPU DMA engine, but some HW generation may not be able to access
+	 * VPU DMA engine, but some HW generation may analt be able to access
 	 * this memory from then firmware running on the VPU management processor.
 	 * Suitable for input, output and some scratch buffers.
 	 *
@@ -194,12 +194,12 @@ struct drm_ivpu_bo_create {
 	 *
 	 * %DRM_IVPU_BO_CACHED:
 	 *
-	 * Allocated BO will be cached on host side (WB) and snooped on the VPU side.
+	 * Allocated BO will be cached on host side (WB) and sanaloped on the VPU side.
 	 * This is the default caching mode.
 	 *
 	 * %DRM_IVPU_BO_UNCACHED:
 	 *
-	 * Not supported. Use DRM_IVPU_BO_WC instead.
+	 * Analt supported. Use DRM_IVPU_BO_WC instead.
 	 *
 	 * %DRM_IVPU_BO_WC:
 	 *
@@ -231,7 +231,7 @@ struct drm_ivpu_bo_info {
 	/**
 	 * @mmap_offset:
 	 *
-	 * Returned offset to be used in mmap(). 0 in case the BO is not mappable.
+	 * Returned offset to be used in mmap(). 0 in case the BO is analt mappable.
 	 */
 	__u64 mmap_offset;
 
@@ -296,7 +296,7 @@ struct drm_ivpu_submit {
 	 * Priority to be set for related job command queue, can be one of the following:
 	 * %DRM_IVPU_JOB_PRIORITY_DEFAULT
 	 * %DRM_IVPU_JOB_PRIORITY_IDLE
-	 * %DRM_IVPU_JOB_PRIORITY_NORMAL
+	 * %DRM_IVPU_JOB_PRIORITY_ANALRMAL
 	 * %DRM_IVPU_JOB_PRIORITY_FOCUS
 	 * %DRM_IVPU_JOB_PRIORITY_REALTIME
 	 */
@@ -320,7 +320,7 @@ struct drm_ivpu_bo_wait {
 	/** @flags: Reserved for future use - must be zero */
 	__u32 flags;
 
-	/** @timeout_ns: Absolute timeout in nanoseconds (may be zero) */
+	/** @timeout_ns: Absolute timeout in naanalseconds (may be zero) */
 	__s64 timeout_ns;
 
 	/**

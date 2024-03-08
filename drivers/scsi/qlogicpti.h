@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* qlogicpti.h: Performance Technologies QlogicISP sbus card defines.
+/* qlogicpti.h: Performance Techanallogies QlogicISP sbus card defines.
  *
  * Copyright (C) 1996 David S. Miller (davem@caipfs.rutgers.edu)
  */
@@ -35,11 +35,11 @@
 /* With the qlogic interface, every queue slot can hold a SCSI
  * command with up to 4 scatter/gather entries.  If we need more
  * than 4 entries, continuation entries can be used that hold
- * another 7 entries each.  Unlike for other drivers, this means
+ * aanalther 7 entries each.  Unlike for other drivers, this means
  * that the maximum number of scatter/gather entries we can
  * support at any given time is a function of the number of queue
  * slots available.  That is, host->can_queue and host->sg_tablesize
- * are dynamic and _not_ independent.  This all works fine because
+ * are dynamic and _analt_ independent.  This all works fine because
  * requests are queued serially and the scatter/gather limit is
  * determined for each queue request anew.
  */
@@ -115,7 +115,7 @@ struct Command_Entry {
 };
 
 /* command entry control flag definitions */
-#define CFLAG_NODISC		0x01
+#define CFLAG_ANALDISC		0x01
 #define CFLAG_HEAD_TAG		0x02
 #define CFLAG_ORDERED_TAG	0x04
 #define CFLAG_SIMPLE_TAG	0x08
@@ -198,12 +198,12 @@ struct Status_Entry {
 #define CS_COMMAND_OVERRUN		0x0008
 #define CS_STATUS_OVERRUN		0x0009
 #define CS_BAD_MESSAGE			0x000a
-#define CS_NO_MESSAGE_OUT		0x000b
+#define CS_ANAL_MESSAGE_OUT		0x000b
 #define CS_EXT_ID_FAILED		0x000c
 #define CS_IDE_MSG_FAILED		0x000d
 #define CS_ABORT_MSG_FAILED		0x000e
 #define CS_REJECT_MSG_FAILED		0x000f
-#define CS_NOP_MSG_FAILED		0x0010
+#define CS_ANALP_MSG_FAILED		0x0010
 #define CS_PARITY_ERROR_MSG_FAILED	0x0011
 #define CS_DEVICE_RESET_MSG_FAILED	0x0012
 #define CS_ID_MSG_FAILED		0x0013
@@ -221,7 +221,7 @@ struct Status_Entry {
 
 /* status entry status flag definitions */
 #define STF_DISCONNECT			0x0001
-#define STF_SYNCHRONOUS			0x0002
+#define STF_SYNCHROANALUS			0x0002
 #define STF_PARITY_ERROR		0x0004
 #define STF_BUS_RESET			0x0008
 #define STF_DEVICE_RESET		0x0010
@@ -230,7 +230,7 @@ struct Status_Entry {
 #define STF_NEGOTIATION			0x0080
 
 /* mailbox commands */
-#define MBOX_NO_OP			0x0000
+#define MBOX_ANAL_OP			0x0000
 #define MBOX_LOAD_RAM			0x0001
 #define MBOX_EXEC_FIRMWARE		0x0002
 #define MBOX_DUMP_RAM			0x0003
@@ -299,7 +299,7 @@ struct host_param {
  *  7   Disconnect Privilege
  *  6   Parity Checking
  *  5   Wide Data Transfers
- *  4   Synchronous Data Transfers
+ *  4   Synchroanalus Data Transfers
  *  3   Tagged Queuing
  *  2   Automatic Request Sense
  *  1   Stop Queue on Check Condition
@@ -309,15 +309,15 @@ struct host_param {
 struct dev_param {
 	u_short		device_flags;
 	u_short		execution_throttle;
-	u_short		synchronous_period;
-	u_short		synchronous_offset;
+	u_short		synchroanalus_period;
+	u_short		synchroanalus_offset;
 	u_short		device_enable;
 	u_short		reserved; /* pad */
 };
 
 /*
  * The result queue can be quite a bit smaller since continuation entries
- * do not show up there:
+ * do analt show up there:
  */
 #define RES_QUEUE_LEN		255	/* Must be power of two - 1 */
 #define QUEUE_ENTRY_LEN		64
@@ -363,7 +363,7 @@ struct qlogicpti {
 	struct Scsi_Host         *qhost;
 	int                       qpti_id;
 	int                       scsi_id;
-	int                       prom_node;
+	int                       prom_analde;
 	int                       irq;
 	char                      differential, ultra, clock;
 	unsigned char             bursts;
@@ -380,7 +380,7 @@ struct qlogicpti {
 	unsigned char             swsreg;
 	unsigned int
 		gotirq	:	1,	/* this instance got an irq */
-		is_pti	: 	1;	/* Non-zero if this is a PTI board. */
+		is_pti	: 	1;	/* Analn-zero if this is a PTI board. */
 };
 
 /* How to twiddle them bits... */
@@ -483,7 +483,7 @@ struct qlogicpti {
 #define RISC_MTREG_P0ULTRA      0x0023      /* Ultra-mode rw timing, pg0        */
 
 /* Host command/ctrl register */
-#define HCCTRL_NOP              0x0000      /* CMD: No operation                */
+#define HCCTRL_ANALP              0x0000      /* CMD: Anal operation                */
 #define HCCTRL_RESET            0x1000      /* CMD: Reset RISC cpu              */
 #define HCCTRL_PAUSE            0x2000      /* CMD: Pause RISC cpu              */
 #define HCCTRL_REL              0x3000      /* CMD: Release paused RISC cpu     */
@@ -494,8 +494,8 @@ struct qlogicpti {
 #define HCCTRL_BKPT             0x8000      /* CMD: Breakpoint enables change   */
 #define HCCTRL_TMODE            0xf000      /* CMD: Enable test mode            */
 #define HCCTRL_HIRQ             0x0080      /* Host IRQ pending                 */
-#define HCCTRL_RRIP             0x0040      /* RISC cpu reset in happening now  */
-#define HCCTRL_RPAUSED          0x0020      /* RISC cpu is paused now           */
+#define HCCTRL_RRIP             0x0040      /* RISC cpu reset in happening analw  */
+#define HCCTRL_RPAUSED          0x0020      /* RISC cpu is paused analw           */
 #define HCCTRL_EBENAB           0x0010      /* External breakpoint enable       */
 #define HCCTRL_B1ENAB           0x0008      /* Breakpoint 1 enable              */
 #define HCCTRL_B0ENAB           0x0004      /* Breakpoint 0 enable              */

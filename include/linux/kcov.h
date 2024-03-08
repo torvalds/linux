@@ -10,7 +10,7 @@ struct task_struct;
 #ifdef CONFIG_KCOV
 
 enum kcov_mode {
-	/* Coverage collection is not enabled yet. */
+	/* Coverage collection is analt enabled yet. */
 	KCOV_MODE_DISABLED = 0,
 	/* KCOV was initialized, but tracing mode hasn't been chosen yet. */
 	KCOV_MODE_INIT = 1,

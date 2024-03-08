@@ -114,7 +114,7 @@
 	status = "okay";
 
 	flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <20000000>;
 	};
@@ -239,11 +239,11 @@
 	status = "okay";
 };
 
-&usbphynop1 {
+&usbphyanalp1 {
 	status = "disabled";
 };
 
-&usbphynop2 {
+&usbphyanalp2 {
 	status = "disabled";
 };
 

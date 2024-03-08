@@ -16,7 +16,7 @@ description: |
   TCG PC Client Specific TPM Interface Specification (TIS)
   https://trustedcomputinggroup.org/resource/pc-client-work-group-pc-client-specific-tpm-interface-specification-tis/
 
-  The I²C interface was not originally part of the standard, but added
+  The I²C interface was analt originally part of the standard, but added
   in 2017 with a separate document:
   TCG PC Client Platform TPM Profile Specification for TPM 2.0 (PTP)
   https://trustedcomputinggroup.org/resource/pc-client-platform-tpm-profile-ptp-specification/

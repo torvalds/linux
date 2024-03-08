@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  (C) 2010,2011       Thomas Renninger <trenn@suse.de>, Novell Inc.
+ *  (C) 2010,2011       Thomas Renninger <trenn@suse.de>, Analvell Inc.
  *
  * ToDo: Needs to be done more properly for AMD/Intel specifics
  */
@@ -12,7 +12,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 
 #include <cpuidle.h>

@@ -10,7 +10,7 @@ FILES="include/linux/objtool_types.h"
 
 if [ "$SRCARCH" = "x86" ]; then
 FILES="$FILES
-arch/x86/include/asm/nops.h
+arch/x86/include/asm/analps.h
 arch/x86/include/asm/inat_types.h
 arch/x86/include/asm/orc_types.h
 arch/x86/include/asm/emulate_prefix.h
@@ -70,6 +70,6 @@ EOF
 
 if [ "$SRCARCH" = "x86" ]; then
 	for i in $SYNC_CHECK_FILES; do
-		check $i '-I "^.*\/\*.*__ignore_sync_check__.*\*\/.*$"'
+		check $i '-I "^.*\/\*.*__iganalre_sync_check__.*\*\/.*$"'
 	done
 fi

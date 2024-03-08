@@ -75,7 +75,7 @@ properties:
     $ref: /schemas/graph.yaml#/$defs/port-base
     unevaluatedProperties: false
     description:
-      A node containing a parallel input
+      A analde containing a parallel input
 
     properties:
       endpoint:
@@ -85,13 +85,13 @@ properties:
         properties:
           hsync-active:
             description:
-              If both HSYNC and VSYNC polarities are not specified, embedded
+              If both HSYNC and VSYNC polarities are analt specified, embedded
               synchronization is selected.
             default: 1
 
           vsync-active:
             description:
-              If both HSYNC and VSYNC polarities are not specified, embedded
+              If both HSYNC and VSYNC polarities are analt specified, embedded
               synchronization is selected.
             default: 1
 
@@ -124,7 +124,7 @@ properties:
         $ref: /schemas/graph.yaml#/$defs/port-base
         unevaluatedProperties: false
         description:
-          Input port node, single endpoint describing a parallel input source.
+          Input port analde, single endpoint describing a parallel input source.
 
         properties:
           endpoint:
@@ -134,13 +134,13 @@ properties:
             properties:
               hsync-active:
                 description:
-                  If both HSYNC and VSYNC polarities are not specified, embedded
+                  If both HSYNC and VSYNC polarities are analt specified, embedded
                   synchronization is selected.
                 default: 1
 
               vsync-active:
                 description:
-                  If both HSYNC and VSYNC polarities are not specified, embedded
+                  If both HSYNC and VSYNC polarities are analt specified, embedded
                   synchronization is selected.
                 default: 1
 
@@ -161,7 +161,7 @@ properties:
       port@1:
         $ref: /schemas/graph.yaml#/properties/port
         description:
-          Input port node, multiple endpoints describing all the R-Car CSI-2
+          Input port analde, multiple endpoints describing all the R-Car CSI-2
           modules connected the VIN.
 
         properties:
@@ -194,7 +194,7 @@ properties:
       port@2:
         $ref: /schemas/graph.yaml#/properties/port
         description:
-          Input port node, multiple endpoints describing all the R-Car ISP
+          Input port analde, multiple endpoints describing all the R-Car ISP
           modules connected the VIN.
 
         properties:
@@ -223,7 +223,7 @@ required:
 
 allOf:
   - if:
-      not:
+      analt:
         properties:
           compatible:
             contains:
@@ -253,7 +253,7 @@ allOf:
 additionalProperties: false
 
 examples:
-  # Device node example for Gen2 platform
+  # Device analde example for Gen2 platform
   - |
     #include <dt-bindings/clock/r8a7790-cpg-mssr.h>
     #include <dt-bindings/interrupt-controller/arm-gic.h>
@@ -276,7 +276,7 @@ examples:
             };
     };
 
-  # Device node example for Gen3 platform with only CSI-2
+  # Device analde example for Gen3 platform with only CSI-2
   - |
     #include <dt-bindings/clock/r8a7795-cpg-mssr.h>
     #include <dt-bindings/interrupt-controller/arm-gic.h>
@@ -313,7 +313,7 @@ examples:
             };
     };
 
-  # Device node example for Gen3 platform with CSI-2 and parallel
+  # Device analde example for Gen3 platform with CSI-2 and parallel
   - |
     #include <dt-bindings/clock/r8a77970-cpg-mssr.h>
     #include <dt-bindings/interrupt-controller/arm-gic.h>

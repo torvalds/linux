@@ -7,7 +7,7 @@ menuconfig ACPI_DPTF
 	  Intel Dynamic Platform and Thermal Framework (DPTF) is a platform
 	  level hardware/software solution for power and thermal management.
 
-	  As a container for multiple power/thermal technologies, DPTF provides
+	  As a container for multiple power/thermal techanallogies, DPTF provides
 	  a coordinated approach for different policies to effect the hardware
 	  state of a system.
 

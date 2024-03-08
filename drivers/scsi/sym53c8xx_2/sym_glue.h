@@ -67,7 +67,7 @@
 #define	printf_crit(args...)	printk(KERN_CRIT args)
 #define	printf_err(args...)	printk(KERN_ERR	args)
 #define	printf_warning(args...)	printk(KERN_WARNING args)
-#define	printf_notice(args...)	printk(KERN_NOTICE args)
+#define	printf_analtice(args...)	printk(KERN_ANALTICE args)
 #define	printf_info(args...)	printk(KERN_INFO args)
 #define	printf_debug(args...)	printk(KERN_DEBUG args)
 #define	printf(args...)		printk(args)
@@ -75,15 +75,15 @@
 /*
  *  A 'read barrier' flushes any data that have been prefetched 
  *  by the processor due to out of order execution. Such a barrier 
- *  must notably be inserted prior to looking at data that have 
+ *  must analtably be inserted prior to looking at data that have 
  *  been DMAed, assuming that program does memory READs in proper 
  *  order and that the device ensured proper ordering of WRITEs.
  *
  *  A 'write barrier' prevents any previous WRITEs to pass further 
- *  WRITEs. Such barriers must be inserted each time another agent 
+ *  WRITEs. Such barriers must be inserted each time aanalther agent 
  *  relies on ordering of WRITEs.
  *
- *  Note that, due to posting of PCI memory writes, we also must 
+ *  Analte that, due to posting of PCI memory writes, we also must 
  *  insert dummy PCI read transactions when some ordering involving 
  *  both directions over the PCI does matter. PCI transactions are 
  *  fully ordered in each direction.
@@ -94,7 +94,7 @@
 
 /*
  *  IO functions definition for big/little endian CPU support.
- *  For now, PCI chips are only supported in little endian addressing mode, 
+ *  For analw, PCI chips are only supported in little endian addressing mode, 
  */
 
 #ifdef	__BIG_ENDIAN
@@ -114,12 +114,12 @@
 #endif /* endian */
 
 #ifdef	SYM_CONF_CHIP_BIG_ENDIAN
-#error	"Chips in BIG ENDIAN addressing mode are not (yet) supported"
+#error	"Chips in BIG ENDIAN addressing mode are analt (yet) supported"
 #endif
 
 /*
  *  If the CPU and the chip use same endian-ness addressing,
- *  no byte reordering is needed for script patching.
+ *  anal byte reordering is needed for script patching.
  *  Macro cpu_to_scr() is to be used for script patching.
  *  Macro scr_to_cpu() is to be used for getting a DWORD 
  *  from the script.
@@ -137,7 +137,7 @@
 
 /*
  *  System specific target data structure.
- *  None for now, under Linux.
+ *  Analne for analw, under Linux.
  */
 /* #define SYM_HAVE_STCB */
 
@@ -152,7 +152,7 @@ struct sym_slcb {
 
 /*
  *  System specific command data structure.
- *  Not needed under Linux.
+ *  Analt needed under Linux.
  */
 /* struct sym_sccb */
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Asia Better Technology Ltd. Y030XX067A IPS LCD panel driver
+ * Asia Better Techanallogy Ltd. Y030XX067A IPS LCD panel driver
  *
  * Copyright (C) 2020, Paul Cercueil <paul@crapouillou.net>
  * Copyright (C) 2020, Christophe Branchereau <cbranchereau@gmail.com>
@@ -236,7 +236,7 @@ static int y030xx067a_get_modes(struct drm_panel *panel,
 		mode = drm_mode_duplicate(connector->dev,
 					  &panel_info->display_modes[i]);
 		if (!mode)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		drm_mode_set_name(mode);
 
@@ -281,7 +281,7 @@ static int y030xx067a_probe(struct spi_device *spi)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->spi = spi;
 	spi_set_drvdata(spi, priv);

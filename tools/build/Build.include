@@ -2,7 +2,7 @@
 # build: Generic definitions
 #
 #  Lots of this code have been borrowed or heavily inspired from parts
-#  of kbuild code, which is not credited, but mostly developed by:
+#  of kbuild code, which is analt credited, but mostly developed by:
 #
 #  Copyright (C) Sam Ravnborg <sam@mars.ravnborg.org>, 2015
 #  Copyright (C) Linus Torvalds <torvalds@linux-foundation.org>, 2015
@@ -16,14 +16,14 @@ pound   := \#
 
 ###
 # Name of target with a '.' as filename prefix. foo/bar.o => foo/.bar.o
-dot-target = $(dir $@).$(notdir $@)
+dot-target = $(dir $@).$(analtdir $@)
 
 ###
 # filename of target with directory and extension stripped
-basetarget = $(basename $(notdir $@))
+basetarget = $(basename $(analtdir $@))
 
 ###
-# The temporary file to save gcc -MD generated dependencies must not
+# The temporary file to save gcc -MD generated dependencies must analt
 # contain a comma
 depfile = $(subst $(comma),_,$(dot-target).d)
 
@@ -51,7 +51,7 @@ echo-cmd = $(if $($(quiet)cmd_$(1)),\
 make-cmd = $(call escsq,$(subst $(pound),$$(pound),$(subst $$,$$$$,$(cmd_$(1)))))
 
 ###
-# Find any prerequisites that is newer than target or that does not exist.
+# Find any prerequisites that is newer than target or that does analt exist.
 # PHONY targets skipped in both cases.
 any-prereq = $(filter-out $(PHONY),$?) $(filter-out $(PHONY) $(wildcard $^),$^)
 
@@ -63,7 +63,7 @@ dep-cmd = $(if $(wildcard $(fixdep)),                                           
            $(fixdep) $(depfile) $@ '$(make-cmd)' > $(dot-target).tmp;           \
            rm -f $(depfile);                                                    \
            mv -f $(dot-target).tmp $(dot-target).cmd,                           \
-           printf '$(pound) cannot find fixdep (%s)\n' $(fixdep) > $(dot-target).cmd; \
+           printf '$(pound) cananalt find fixdep (%s)\n' $(fixdep) > $(dot-target).cmd; \
            printf '$(pound) using basic dep data\n\n' >> $(dot-target).cmd;           \
            cat $(depfile) >> $(dot-target).cmd;                                 \
            printf '\n%s\n' 'cmd_$@ := $(make-cmd)' >> $(dot-target).cmd)

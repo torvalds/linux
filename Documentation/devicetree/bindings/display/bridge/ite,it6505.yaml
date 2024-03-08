@@ -24,7 +24,7 @@ description: |
 
   Each IT6505 chip comes preprogrammed with an unique HDCP key,
   in compliance with the HDCP 1.3 standard so as to provide secure
-  transmission of high-definition content. Users of the IT6505 need not
+  transmission of high-definition content. Users of the IT6505 need analt
   purchase any HDCP keys or ROMs.
 
 properties:
@@ -59,7 +59,7 @@ properties:
       port@0:
         $ref: /schemas/graph.yaml#/$defs/port-base
         unevaluatedProperties: false
-        description: A port node pointing to DPI host port node
+        description: A port analde pointing to DPI host port analde
 
         properties:
           endpoint:

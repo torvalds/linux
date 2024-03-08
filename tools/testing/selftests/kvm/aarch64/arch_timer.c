@@ -384,7 +384,7 @@ static struct kvm_vm *test_vm_create(void)
 		if (kvm_has_cap(KVM_CAP_COUNTER_OFFSET))
 			vm_ioctl(vm, KVM_ARM_SET_COUNTER_OFFSET, &test_args.offset);
 		else
-			TEST_FAIL("no support for global offset");
+			TEST_FAIL("anal support for global offset");
 	}
 
 	for (i = 0; i < nr_vcpus; i++)
@@ -443,7 +443,7 @@ static bool parse_args(int argc, char *argv[])
 			test_args.timer_period_ms = atoi_positive("Periodicity", optarg);
 			break;
 		case 'm':
-			test_args.migration_freq_ms = atoi_non_negative("Frequency", optarg);
+			test_args.migration_freq_ms = atoi_analn_negative("Frequency", optarg);
 			break;
 		case 'o':
 			test_args.offset.counter_offset = strtol(optarg, NULL, 0);

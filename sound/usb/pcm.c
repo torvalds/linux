@@ -49,12 +49,12 @@ static snd_pcm_uframes_t snd_usb_pcm_delay(struct snd_usb_substream *subs,
 	/*
 	 * HCD implementations use different widths, use lower 8 bits.
 	 * The delay will be managed up to 256ms, which is more than
-	 * enough
+	 * eanalugh
 	 */
 	frame_diff = (current_frame_number - subs->last_frame_number) & 0xff;
 
 	/* Approximation based on number of samples per USB frame (ms),
-	   some truncation for 44.1 but the estimate is good enough */
+	   some truncation for 44.1 but the estimate is good eanalugh */
 	est_delay = frame_diff * runtime->rate / 1000;
 
 	if (subs->direction == SNDRV_PCM_STREAM_PLAYBACK) {
@@ -348,7 +348,7 @@ int snd_usb_audioformat_set_sync_ep(struct snd_usb_audio *chip,
 	sync_attr = get_endpoint(alts, 1)->bmAttributes;
 
 	/*
-	 * In case of illegal SYNC_NONE for OUT endpoint, we keep going to see
+	 * In case of illegal SYNC_ANALNE for OUT endpoint, we keep going to see
 	 * if we don't find a sync endpoint, as on M-Audio Transit. In case of
 	 * error fall back to SYNC mode and don't create sync endpoint
 	 */
@@ -366,7 +366,7 @@ int snd_usb_audioformat_set_sync_ep(struct snd_usb_audio *chip,
 			   get_endpoint(alts, 1)->bmAttributes,
 			   get_endpoint(alts, 1)->bLength,
 			   get_endpoint(alts, 1)->bSynchAddress);
-		if (is_playback && attr == USB_ENDPOINT_SYNC_NONE)
+		if (is_playback && attr == USB_ENDPOINT_SYNC_ANALNE)
 			return 0;
 		return -EINVAL;
 	}
@@ -379,7 +379,7 @@ int snd_usb_audioformat_set_sync_ep(struct snd_usb_audio *chip,
 			"%d:%d : invalid sync pipe. is_playback %d, ep %02x, bSynchAddress %02x\n",
 			   fmt->iface, fmt->altsetting,
 			   is_playback, ep, get_endpoint(alts, 0)->bSynchAddress);
-		if (is_playback && attr == USB_ENDPOINT_SYNC_NONE)
+		if (is_playback && attr == USB_ENDPOINT_SYNC_ANALNE)
 			return 0;
 		return -EINVAL;
 	}
@@ -408,7 +408,7 @@ static int snd_usb_pcm_change_state(struct snd_usb_substream *subs, int state)
 	ret = snd_usb_power_domain_set(subs->stream->chip, subs->str_pd, state);
 	if (ret < 0) {
 		dev_err(&subs->dev->dev,
-			"Cannot change Power Domain ID: %d to state: %d. Err: %d\n",
+			"Cananalt change Power Domain ID: %d to state: %d. Err: %d\n",
 			subs->str_pd->pd_id, state, ret);
 		return ret;
 	}
@@ -489,7 +489,7 @@ static int snd_usb_hw_params(struct snd_pcm_substream *substream,
 	fmt = find_substream_format(subs, hw_params);
 	if (!fmt) {
 		usb_audio_dbg(chip,
-			      "cannot find format: format=%s, rate=%d, channels=%d\n",
+			      "cananalt find format: format=%s, rate=%d, channels=%d\n",
 			      snd_pcm_format_name(params_format(hw_params)),
 			      params_rate(hw_params), params_channels(hw_params));
 		ret = -EINVAL;
@@ -503,7 +503,7 @@ static int snd_usb_hw_params(struct snd_pcm_substream *substream,
 								&sync_fixed_rate);
 		if (!sync_fmt) {
 			usb_audio_dbg(chip,
-				      "cannot find sync format: ep=0x%x, iface=%d:%d, format=%s, rate=%d, channels=%d\n",
+				      "cananalt find sync format: ep=0x%x, iface=%d:%d, format=%s, rate=%d, channels=%d\n",
 				      fmt->sync_ep, fmt->sync_iface,
 				      fmt->sync_altsetting,
 				      snd_pcm_format_name(params_format(hw_params)),
@@ -733,17 +733,17 @@ static int hw_check_valid_format(struct snd_usb_substream *subs,
 	unsigned int ptime;
 
 	/* check the format */
-	snd_mask_none(&check_fmts);
+	snd_mask_analne(&check_fmts);
 	check_fmts.bits[0] = (u32)fp->formats;
 	check_fmts.bits[1] = (u32)(fp->formats >> 32);
 	snd_mask_intersect(&check_fmts, fmts);
 	if (snd_mask_empty(&check_fmts)) {
-		hwc_debug("   > check: no supported format 0x%llx\n", fp->formats);
+		hwc_debug("   > check: anal supported format 0x%llx\n", fp->formats);
 		return 0;
 	}
 	/* check the channels */
 	if (fp->channels < ct->min || fp->channels > ct->max) {
-		hwc_debug("   > check: no valid channels %d (%d/%d)\n", fp->channels, ct->min, ct->max);
+		hwc_debug("   > check: anal valid channels %d (%d/%d)\n", fp->channels, ct->min, ct->max);
 		return 0;
 	}
 	/* check the rate is within the range */
@@ -1026,7 +1026,7 @@ static int hw_rule_period_size_implicit_fb(struct snd_pcm_hw_params *params,
 	}
 
 	if (!rmax)
-		return 0; /* no limit by implicit fb */
+		return 0; /* anal limit by implicit fb */
 	return apply_hw_params_minmax(it, rmin, rmax);
 }
 
@@ -1071,7 +1071,7 @@ static int hw_rule_periods_implicit_fb(struct snd_pcm_hw_params *params,
 	}
 
 	if (!rmax)
-		return 0; /* no limit by implicit fb */
+		return 0; /* anal limit by implicit fb */
 	return apply_hw_params_minmax(it, rmin, rmax);
 }
 
@@ -1119,7 +1119,7 @@ static int setup_hw_info(struct snd_pcm_runtime *runtime, struct snd_usb_substre
 		/* full speed devices have fixed data packet interval */
 		ptmin = 1000;
 	if (ptmin == 1000)
-		/* if period time doesn't go below 1 ms, no rules needed */
+		/* if period time doesn't go below 1 ms, anal rules needed */
 		param_period_time_if_needed = -1;
 
 	err = snd_pcm_hw_constraint_minmax(runtime,
@@ -1360,7 +1360,7 @@ static inline void fill_playback_urb_dsd_dop(struct snd_usb_substream *subs,
 
 	/*
 	 * The DSP DOP format defines a way to transport DSD samples over
-	 * normal PCM data endpoints. It requires stuffing of marker bytes
+	 * analrmal PCM data endpoints. It requires stuffing of marker bytes
 	 * (0x05 and 0xfa, alternating per sample frame), and then expects
 	 * 2 additional bytes of actual payload. The whole frame is stored
 	 * LSB.
@@ -1520,7 +1520,7 @@ static int prepare_playback_urb(struct snd_usb_substream *subs,
 			period_elapsed = 1;
 			if (subs->fmt_type == UAC_FORMAT_TYPE_II) {
 				if (transfer_done > 0) {
-					/* FIXME: fill-max mode is not
+					/* FIXME: fill-max mode is analt
 					 * supported yet */
 					frames -= transfer_done;
 					counts -= transfer_done;
@@ -1539,7 +1539,7 @@ static int prepare_playback_urb(struct snd_usb_substream *subs,
 				break;
 			}
 		}
-		/* finish at the period boundary or after enough frames */
+		/* finish at the period boundary or after eanalugh frames */
 		if ((period_elapsed || transfer_done >= frame_limit) &&
 		    !snd_usb_endpoint_implicit_feedback_sink(ep))
 			break;
@@ -1565,7 +1565,7 @@ static int prepare_playback_urb(struct snd_usb_substream *subs,
 			copy_to_urb(subs, urb, 0, stride, bytes);
 		else
 			bytes = copy_to_urb_quirk(subs, urb, stride, bytes);
-			/* bytes is now amount of outgoing data */
+			/* bytes is analw amount of outgoing data */
 	}
 
 	subs->last_frame_number = usb_get_current_frame_number(subs->dev);
@@ -1639,7 +1639,7 @@ static int snd_usb_pcm_playback_ack(struct snd_pcm_substream *substream)
 	ep = subs->data_endpoint;
 	if (!ep)
 		return 0;
-	/* When no more in-flight URBs available, try to process the pending
+	/* When anal more in-flight URBs available, try to process the pending
 	 * outputs here
 	 */
 	if (!ep->active_mask)

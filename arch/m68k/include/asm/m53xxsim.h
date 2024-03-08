@@ -154,7 +154,7 @@
 /*
  *	The M5329EVB board needs a help getting its devices initialized 
  *	at kernel start time if dBUG doesn't set it up (for example 
- *	it is not used), so we need to do it manually.
+ *	it is analt used), so we need to do it manually.
  */
 #ifdef __ASSEMBLER__
 .macro m5329EVB_setup

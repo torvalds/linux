@@ -214,10 +214,10 @@ static int aat1290_led_flash_timeout_set(struct led_classdev_flash *fled_cdev,
 
 static int aat1290_led_parse_dt(struct aat1290_led *led,
 			struct aat1290_led_config_data *cfg,
-			struct device_node **sub_node)
+			struct device_analde **sub_analde)
 {
 	struct device *dev = &led->pdev->dev;
-	struct device_node *child_node;
+	struct device_analde *child_analde;
 #if IS_ENABLED(CONFIG_V4L2_FLASH_LED_CLASS)
 	struct pinctrl *pinctrl;
 #endif
@@ -242,19 +242,19 @@ static int aat1290_led_parse_dt(struct aat1290_led *led,
 	if (IS_ERR(pinctrl)) {
 		cfg->has_external_strobe = false;
 		dev_info(dev,
-			 "No support for external strobe detected.\n");
+			 "Anal support for external strobe detected.\n");
 	} else {
 		cfg->has_external_strobe = true;
 	}
 #endif
 
-	child_node = of_get_next_available_child(dev_of_node(dev), NULL);
-	if (!child_node) {
-		dev_err(dev, "No DT child node found for connected LED.\n");
+	child_analde = of_get_next_available_child(dev_of_analde(dev), NULL);
+	if (!child_analde) {
+		dev_err(dev, "Anal DT child analde found for connected LED.\n");
 		return -EINVAL;
 	}
 
-	ret = of_property_read_u32(child_node, "led-max-microamp",
+	ret = of_property_read_u32(child_analde, "led-max-microamp",
 				&cfg->max_mm_current);
 	/*
 	 * led-max-microamp will default to 1/20 of flash-max-microamp
@@ -264,7 +264,7 @@ static int aat1290_led_parse_dt(struct aat1290_led *led,
 		dev_warn(dev,
 			"led-max-microamp DT property missing\n");
 
-	ret = of_property_read_u32(child_node, "flash-max-microamp",
+	ret = of_property_read_u32(child_analde, "flash-max-microamp",
 				&cfg->max_flash_current);
 	if (ret < 0) {
 		dev_err(dev,
@@ -272,7 +272,7 @@ static int aat1290_led_parse_dt(struct aat1290_led *led,
 		goto err_parse_dt;
 	}
 
-	ret = of_property_read_u32(child_node, "flash-max-timeout-us",
+	ret = of_property_read_u32(child_analde, "flash-max-timeout-us",
 				&cfg->max_flash_tm);
 	if (ret < 0) {
 		dev_err(dev,
@@ -280,10 +280,10 @@ static int aat1290_led_parse_dt(struct aat1290_led *led,
 		goto err_parse_dt;
 	}
 
-	*sub_node = child_node;
+	*sub_analde = child_analde;
 
 err_parse_dt:
-	of_node_put(child_node);
+	of_analde_put(child_analde);
 
 	return ret;
 }
@@ -319,7 +319,7 @@ static int init_mm_current_scale(struct aat1290_led *led,
 					sizeof(max_mm_current_percent),
 					GFP_KERNEL);
 	if (!led->mm_current_scale)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < AAT1290_MM_CURRENT_SCALE_SIZE; ++i)
 		led->mm_current_scale[i] = max_mm_current *
@@ -330,15 +330,15 @@ static int init_mm_current_scale(struct aat1290_led *led,
 
 static int aat1290_led_get_configuration(struct aat1290_led *led,
 					struct aat1290_led_config_data *cfg,
-					struct device_node **sub_node)
+					struct device_analde **sub_analde)
 {
 	int ret;
 
-	ret = aat1290_led_parse_dt(led, cfg, sub_node);
+	ret = aat1290_led_parse_dt(led, cfg, sub_analde);
 	if (ret < 0)
 		return ret;
 	/*
-	 * Init non-linear movie mode current scale basing
+	 * Init analn-linear movie mode current scale basing
 	 * on the max flash current from led configuration.
 	 */
 	ret = init_mm_current_scale(led, cfg);
@@ -459,7 +459,7 @@ static const struct led_flash_ops flash_ops = {
 static int aat1290_led_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *sub_node = NULL;
+	struct device_analde *sub_analde = NULL;
 	struct aat1290_led *led;
 	struct led_classdev *led_cdev;
 	struct led_classdev_flash *fled_cdev;
@@ -470,7 +470,7 @@ static int aat1290_led_probe(struct platform_device *pdev)
 
 	led = devm_kzalloc(dev, sizeof(*led), GFP_KERNEL);
 	if (!led)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	led->pdev = pdev;
 	platform_set_drvdata(pdev, led);
@@ -479,7 +479,7 @@ static int aat1290_led_probe(struct platform_device *pdev)
 	fled_cdev->ops = &flash_ops;
 	led_cdev = &fled_cdev->led_cdev;
 
-	ret = aat1290_led_get_configuration(led, &led_cfg, &sub_node);
+	ret = aat1290_led_get_configuration(led, &led_cfg, &sub_analde);
 	if (ret < 0)
 		return ret;
 
@@ -492,7 +492,7 @@ static int aat1290_led_probe(struct platform_device *pdev)
 
 	aat1290_init_flash_timeout(led, &led_cfg);
 
-	init_data.fwnode = of_fwnode_handle(sub_node);
+	init_data.fwanalde = of_fwanalde_handle(sub_analde);
 	init_data.devicename = AAT1290_NAME;
 
 	/* Register LED Flash class device */
@@ -504,7 +504,7 @@ static int aat1290_led_probe(struct platform_device *pdev)
 	aat1290_init_v4l2_flash_config(led, &led_cfg, &v4l2_sd_cfg);
 
 	/* Create V4L2 Flash subdev. */
-	led->v4l2_flash = v4l2_flash_init(dev, of_fwnode_handle(sub_node),
+	led->v4l2_flash = v4l2_flash_init(dev, of_fwanalde_handle(sub_analde),
 					  fled_cdev, &v4l2_flash_ops,
 					  &v4l2_sd_cfg);
 	if (IS_ERR(led->v4l2_flash)) {

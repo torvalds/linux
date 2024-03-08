@@ -38,7 +38,7 @@ int tegra_drm_riscv_read_descriptors(struct tegra_drm_riscv *riscv)
 {
 	struct tegra_drm_riscv_descriptor *bl = &riscv->bl_desc;
 	struct tegra_drm_riscv_descriptor *os = &riscv->os_desc;
-	const struct device_node *np = riscv->dev->of_node;
+	const struct device_analde *np = riscv->dev->of_analde;
 	int err;
 
 #define READ_PROP(name, location) \
@@ -59,7 +59,7 @@ int tegra_drm_riscv_read_descriptors(struct tegra_drm_riscv *riscv)
 	if (bl->manifest_offset == 0 && bl->code_offset == 0 &&
 	    bl->data_offset == 0 && os->manifest_offset == 0 &&
 	    os->code_offset == 0 && os->data_offset == 0) {
-		dev_err(riscv->dev, "descriptors not available\n");
+		dev_err(riscv->dev, "descriptors analt available\n");
 		return -EINVAL;
 	}
 

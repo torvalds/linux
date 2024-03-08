@@ -11,7 +11,7 @@
 #ifndef __DTS_ARM64_TESLA_FSD_PINCTRL_H__
 #define __DTS_ARM64_TESLA_FSD_PINCTRL_H__
 
-#define FSD_PIN_PULL_NONE		0
+#define FSD_PIN_PULL_ANALNE		0
 #define FSD_PIN_PULL_DOWN		1
 #define FSD_PIN_PULL_UP			3
 

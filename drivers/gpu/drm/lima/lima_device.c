@@ -190,7 +190,7 @@ static int lima_regulator_init(struct lima_device *dev)
 	if (IS_ERR(dev->regulator)) {
 		ret = PTR_ERR(dev->regulator);
 		dev->regulator = NULL;
-		if (ret == -ENODEV)
+		if (ret == -EANALDEV)
 			return 0;
 		if (ret != -EPROBE_DEFER)
 			dev_err(dev->dev, "failed to get regulator: %d\n", ret);
@@ -370,7 +370,7 @@ int lima_device_init(struct lima_device *ldev)
 
 	ldev->empty_vm = lima_vm_create(ldev);
 	if (!ldev->empty_vm) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out1;
 	}
 
@@ -379,9 +379,9 @@ int lima_device_init(struct lima_device *ldev)
 		ldev->va_end = LIMA_VA_RESERVE_START;
 		ldev->dlbu_cpu = dma_alloc_wc(
 			ldev->dev, LIMA_PAGE_SIZE,
-			&ldev->dlbu_dma, GFP_KERNEL | __GFP_NOWARN);
+			&ldev->dlbu_dma, GFP_KERNEL | __GFP_ANALWARN);
 		if (!ldev->dlbu_cpu) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_out2;
 		}
 	} else
@@ -410,7 +410,7 @@ int lima_device_init(struct lima_device *ldev)
 
 	ldev->dump.magic = LIMA_DUMP_MAGIC;
 	ldev->dump.version_major = LIMA_DUMP_MAJOR;
-	ldev->dump.version_minor = LIMA_DUMP_MINOR;
+	ldev->dump.version_mianalr = LIMA_DUMP_MIANALR;
 	INIT_LIST_HEAD(&ldev->error_task_list);
 	mutex_init(&ldev->error_task_list_lock);
 

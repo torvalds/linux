@@ -25,7 +25,7 @@
  \param	ID[in]				MMU identifier
  \param	base_index[in]		page table base index
 
- \return none, MMU[ID].page_table_base_index = base_index
+ \return analne, MMU[ID].page_table_base_index = base_index
  */
 void mmu_set_page_table_base_index(
     const mmu_ID_t		ID,
@@ -45,14 +45,14 @@ hrt_data mmu_get_page_table_base_index(
 
  \param	ID[in]				MMU identifier
 
- \return none
+ \return analne
  */
 void mmu_invalidate_cache(
     const mmu_ID_t		ID);
 
 /*! Invalidate the page table cache of all MMUs
 
- \return none
+ \return analne
  */
 void mmu_invalidate_cache_all(void);
 
@@ -62,7 +62,7 @@ void mmu_invalidate_cache_all(void);
  \param	reg[in]				register index
  \param value[in]			The data to be written
 
- \return none, MMU[ID].ctrl[reg] = value
+ \return analne, MMU[ID].ctrl[reg] = value
  */
 static inline void mmu_reg_store(
     const mmu_ID_t		ID,

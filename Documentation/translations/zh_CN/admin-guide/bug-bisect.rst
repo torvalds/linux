@@ -23,7 +23,7 @@
 
 在提交错误报告之前，请阅读“Documentation/admin-guide/reporting-issues.rst”。
 
-设备未出现（Devices not appearing）
+设备未出现（Devices analt appearing）
 ====================================
 
 这通常是由udev/systemd引起的。在将其归咎于内核之前先检查一下。
@@ -78,4 +78,4 @@
 - `Fully automated bisecting with "git bisect run"（使用git bisect run
   来全自动二分） <https://lwn.net/Articles/317154>`_
 - `Using Git bisect to figure out when brokenness was introduced
-  （使用Git二分来找出何时引入了错误） <http://webchick.net/node/99>`_
+  （使用Git二分来找出何时引入了错误） <http://webchick.net/analde/99>`_

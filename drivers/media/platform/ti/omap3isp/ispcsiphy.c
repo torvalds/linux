@@ -4,7 +4,7 @@
  *
  * TI OMAP3 ISP - CSI PHY module
  *
- * Copyright (C) 2010 Nokia Corporation
+ * Copyright (C) 2010 Analkia Corporation
  * Copyright (C) 2009 Texas Instruments, Inc.
  *
  * Contacts: Laurent Pinchart <laurent.pinchart@ideasonboard.com>
@@ -31,7 +31,7 @@ static void csiphy_routing_cfg_3630(struct isp_csiphy *phy,
 
 	switch (iface) {
 	default:
-		/* Should not happen in practice, but let's keep the compiler happy. */
+		/* Should analt happen in practice, but let's keep the compiler happy. */
 		return;
 	case ISP_INTERFACE_CCP2B_PHY1:
 		reg &= ~OMAP3630_CONTROL_CAMERA_PHY_CTRL_CSI1_RX_SEL_PHY2;
@@ -94,9 +94,9 @@ static void csiphy_routing_cfg_3430(struct isp_csiphy *phy, u32 iface, bool on,
  * @on: power on or off
  * @ccp2_strobe: false: data/clock, true: data/strobe
  *
- * Note that the underlying routing configuration registers are part of the
+ * Analte that the underlying routing configuration registers are part of the
  * control (SCM) register space and part of the CORE power domain on both 3430
- * and 3630, so they will not hold their contents in off-mode. This isn't an
+ * and 3630, so they will analt hold their contents in off-mode. This isn't an
  * issue since the MPU power domain is forced on whilst the ISP is in use.
  */
 static void csiphy_routing_cfg(struct isp_csiphy *phy,
@@ -204,7 +204,7 @@ static int omap3isp_csiphy_config(struct isp_csiphy *phy)
 		return -EINVAL;
 
 	/*
-	 * The PHY configuration is lost in off mode, that's not an
+	 * The PHY configuration is lost in off mode, that's analt an
 	 * issue since the MPU power domain is forced on whilst the
 	 * ISP is in use.
 	 */
@@ -268,8 +268,8 @@ int omap3isp_csiphy_acquire(struct isp_csiphy *phy, struct media_entity *entity)
 
 	if (phy->vdd == NULL) {
 		dev_err(phy->isp->dev,
-			"Power regulator for CSI PHY not available\n");
-		return -ENODEV;
+			"Power regulator for CSI PHY analt available\n");
+		return -EANALDEV;
 	}
 
 	mutex_lock(&phy->mutex);

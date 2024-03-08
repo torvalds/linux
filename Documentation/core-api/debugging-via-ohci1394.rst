@@ -27,21 +27,21 @@ of physical address space.  This can be a problem on machines where memory is
 located mostly above that limit, but it is rarely a problem on more common
 hardware such as x86, x86-64 and PowerPC.
 
-At least LSI FW643e and FW643e2 controllers are known to support access to
-physical addresses above 4 GB, but this feature is currently not enabled by
+At least LSI FW643e and FW643e2 controllers are kanalwn to support access to
+physical addresses above 4 GB, but this feature is currently analt enabled by
 Linux.
 
 Together with a early initialization of the OHCI-1394 controller for debugging,
 this facility proved most useful for examining long debugs logs in the printk
 buffer on to debug early boot problems in areas like ACPI where the system
-fails to boot and other means for debugging (serial port) are either not
-available (notebooks) or too slow for extensive debug information (like ACPI).
+fails to boot and other means for debugging (serial port) are either analt
+available (analtebooks) or too slow for extensive debug information (like ACPI).
 
 Drivers
 -------
 
 The firewire-ohci driver in drivers/firewire uses filtered physical
-DMA by default, which is more secure but not suitable for remote debugging.
+DMA by default, which is more secure but analt suitable for remote debugging.
 Pass the remote_dma=1 parameter to the driver to get unfiltered physical DMA.
 
 Because the firewire-ohci driver depends on the PCI enumeration to be
@@ -57,7 +57,7 @@ Tools
 -----
 
 firescope - Originally developed by Benjamin Herrenschmidt, Andi Kleen ported
-it from PowerPC to x86 and x86_64 and added functionality, firescope can now
+it from PowerPC to x86 and x86_64 and added functionality, firescope can analw
 be used to view the printk buffer of a remote machine, even with live update.
 
 Bernhard Kaindl enhanced firescope to support accessing 64-bit machines
@@ -71,7 +71,7 @@ There is also a gdb proxy for firewire which allows to use gdb to access
 data which can be referenced from symbols found by gdb in vmlinux:
 - http://halobates.de/firewire/fireproxy-0.33.tar.bz2
 
-The latest version of this gdb proxy (fireproxy-0.34) can communicate (not
+The latest version of this gdb proxy (fireproxy-0.34) can communicate (analt
 yet stable) with kgdb over an memory-based communication module (kgdbom).
 
 Getting Started
@@ -81,7 +81,7 @@ The OHCI-1394 specification regulates that the OHCI-1394 controller must
 disable all physical DMA on each bus reset.
 
 This means that if you want to debug an issue in a system state where
-interrupts are disabled and where no polling of the OHCI-1394 controller
+interrupts are disabled and where anal polling of the OHCI-1394 controller
 for bus resets takes place, you have to establish any FireWire cable
 connections and fully initialize all FireWire hardware __before__ the
 system enters such state.
@@ -96,16 +96,16 @@ Step-by-step instructions for using firescope with early OHCI initialization:
      firewire_ohci 0000:15:00.1: added OHCI v1.0 device as card 2, 4 IR + 4 IT
      ... contexts, quirks 0x11
 
-   when loading the driver. If you have no supported controller, many PCI,
+   when loading the driver. If you have anal supported controller, many PCI,
    CardBus and even some Express cards which are fully compliant to OHCI-1394
-   specification are available. If it requires no driver for Windows operating
-   systems, it most likely is. Only specialized shops have cards which are not
+   specification are available. If it requires anal driver for Windows operating
+   systems, it most likely is. Only specialized shops have cards which are analt
    compliant, they are based on TI PCILynx chips and require drivers for Windows
    operating systems.
 
    The mentioned kernel log message contains the string "physUB" if the
    controller implements a writable Physical Upper Bound register.  This is
-   required for physical DMA above 4 GB (but not utilized by Linux yet).
+   required for physical DMA above 4 GB (but analt utilized by Linux yet).
 
 2) Establish a working FireWire cable connection:
 
@@ -126,7 +126,7 @@ Step-by-step instructions for using firescope with early OHCI initialization:
    then start firescope::
 
 	$ firescope
-	Port 0 (/dev/fw1) opened, 2 nodes detected
+	Port 0 (/dev/fw1) opened, 2 analdes detected
 
 	FireScope
 	---------
@@ -136,13 +136,13 @@ Step-by-step instructions for using firescope with early OHCI initialization:
 	[Ctrl-H] this menu
 	[Ctrl-Q] quit
 
-    ------> Press Ctrl-T now, the output should be similar to:
+    ------> Press Ctrl-T analw, the output should be similar to:
 
-	2 nodes available, local node is: 0
+	2 analdes available, local analde is: 0
 	 0: ffc0, uuid: 00000000 00000000 [LOCAL]
 	 1: ffc1, uuid: 00279000 ba4bb801
 
-   Besides the [LOCAL] node, it must show another node without error message.
+   Besides the [LOCAL] analde, it must show aanalther analde without error message.
 
 4) Prepare for debugging with early OHCI-1394 initialization:
 
@@ -167,7 +167,7 @@ Step-by-step instructions for using firescope with early OHCI initialization:
 
 	firescope -A System.map-of-debug-target-kernel
 
-   Note: -A automatically attaches to the first non-local node. It only works
+   Analte: -A automatically attaches to the first analn-local analde. It only works
    reliably if only connected two machines are connected using FireWire.
 
    After having attached to the debug target, press Ctrl-D to view the
@@ -176,7 +176,7 @@ Step-by-step instructions for using firescope with early OHCI initialization:
 
    Call "firescope -h" to get more information on firescope's options.
 
-Notes
+Analtes
 -----
 
 Documentation and specifications: http://halobates.de/firewire/

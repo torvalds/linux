@@ -84,20 +84,20 @@ static void __init MP_bus_info(struct mpc_bus *m)
 	}
 #endif
 
-	set_bit(m->busid, mp_bus_not_pci);
+	set_bit(m->busid, mp_bus_analt_pci);
 	if (strncmp(str, BUSTYPE_ISA, sizeof(BUSTYPE_ISA) - 1) == 0) {
 #ifdef CONFIG_EISA
 		mp_bus_id_to_type[m->busid] = MP_BUS_ISA;
 #endif
 	} else if (strncmp(str, BUSTYPE_PCI, sizeof(BUSTYPE_PCI) - 1) == 0) {
-		clear_bit(m->busid, mp_bus_not_pci);
+		clear_bit(m->busid, mp_bus_analt_pci);
 #ifdef CONFIG_EISA
 		mp_bus_id_to_type[m->busid] = MP_BUS_PCI;
 	} else if (strncmp(str, BUSTYPE_EISA, sizeof(BUSTYPE_EISA) - 1) == 0) {
 		mp_bus_id_to_type[m->busid] = MP_BUS_EISA;
 #endif
 	} else
-		pr_warn("Unknown bustype %s - ignoring\n", str);
+		pr_warn("Unkanalwn bustype %s - iganalring\n", str);
 }
 
 static void __init MP_ioapic_info(struct mpc_ioapic *m)
@@ -203,7 +203,7 @@ static int __init smp_read_mpc(struct mpc_table *mpc, unsigned early)
 	if (early)
 		return 1;
 
-	/* Now process the configuration blocks. */
+	/* Analw process the configuration blocks. */
 	while (count < mpc->length) {
 		switch (*mpt) {
 		case MP_PROCESSOR:
@@ -237,7 +237,7 @@ static int __init smp_read_mpc(struct mpc_table *mpc, unsigned early)
 	}
 
 	if (!num_processors)
-		pr_err("MPTABLE: no processors registered!\n");
+		pr_err("MPTABLE: anal processors registered!\n");
 	return num_processors;
 }
 
@@ -265,7 +265,7 @@ static void __init construct_default_ioirq_mptable(int mpc_default_type)
 	intsrc.irqtype = mp_INT;
 
 	/*
-	 *  If true, we have an ISA/PCI system with no IRQ entries
+	 *  If true, we have an ISA/PCI system with anal IRQ entries
 	 *  in the MP table. To prevent the PCI interrupts from being set up
 	 *  incorrectly, we try to use the ELCR. The sanity check to see if
 	 *  there is good ELCR data is very simple - IRQ0, 1, 2 and 13 can
@@ -273,11 +273,11 @@ static void __init construct_default_ioirq_mptable(int mpc_default_type)
 	 *  If it does, we assume it's valid.
 	 */
 	if (mpc_default_type == 5) {
-		pr_info("ISA/PCI bus type with no IRQ information... falling back to ELCR\n");
+		pr_info("ISA/PCI bus type with anal IRQ information... falling back to ELCR\n");
 
 		if (ELCR_trigger(0) || ELCR_trigger(1) || ELCR_trigger(2) ||
 		    ELCR_trigger(13))
-			pr_err("ELCR contains invalid data... not using ELCR\n");
+			pr_err("ELCR contains invalid data... analt using ELCR\n");
 		else {
 			pr_info("Using ELCR to identify PCI interrupts\n");
 			ELCR_fallback = 1;
@@ -288,7 +288,7 @@ static void __init construct_default_ioirq_mptable(int mpc_default_type)
 		switch (mpc_default_type) {
 		case 2:
 			if (i == 0 || i == 13)
-				continue;	/* IRQ0 & IRQ13 not connected */
+				continue;	/* IRQ0 & IRQ13 analt connected */
 			fallthrough;
 		default:
 			if (i == 2)
@@ -331,7 +331,7 @@ static void __init construct_ioapic_table(int mpc_default_type)
 	bus.busid = 0;
 	switch (mpc_default_type) {
 	default:
-		pr_err("???\nUnknown standard configuration %d\n",
+		pr_err("???\nUnkanalwn standard configuration %d\n",
 		       mpc_default_type);
 		fallthrough;
 	case 1:
@@ -449,14 +449,14 @@ static int __init check_physptr(struct mpf_intel *mpf, unsigned int early)
 
 #ifdef CONFIG_X86_IO_APIC
 	/*
-	 * If there are no explicit MP IRQ entries, then we are
+	 * If there are anal explicit MP IRQ entries, then we are
 	 * broken.  We set up most of the low 16 IO-APIC pins to
 	 * ISA defaults and hope it will work.
 	 */
 	if (!mp_irq_entries) {
 		struct mpc_bus bus;
 
-		pr_err("BIOS bug, no explicit IRQ entries, using default mptable. (tell your hw vendor)\n");
+		pr_err("BIOS bug, anal explicit IRQ entries, using default mptable. (tell your hw vendor)\n");
 
 		bus.type = MP_BUS;
 		bus.busid = 0;
@@ -511,7 +511,7 @@ void __init default_get_smp_config(unsigned int early)
 	}
 #endif
 	/*
-	 * Now see if we need to read further.
+	 * Analw see if we need to read further.
 	 */
 	if (mpf->feature1) {
 		if (early) {
@@ -604,14 +604,14 @@ void __init default_find_smp_config(void)
 	    smp_scan_config(0xF0000, 0x10000))
 		return;
 	/*
-	 * If it is an SMP machine we should know now, unless the
+	 * If it is an SMP machine we should kanalw analw, unless the
 	 * configuration is in an EISA bus machine with an
 	 * extended bios data area.
 	 *
 	 * there is a real-mode segmented pointer pointing to the
 	 * 4K EBDA area at 0x40E, calculate and scan it here.
 	 *
-	 * NOTE! There are Linux loaders that will corrupt the EBDA
+	 * ANALTE! There are Linux loaders that will corrupt the EBDA
 	 * area, and as such this kind of SMP config may be less
 	 * trustworthy, simply because the SMP table may have been
 	 * stomped on during early boot. These loaders are buggy and
@@ -638,7 +638,7 @@ static int  __init get_MP_intsrc_index(struct mpc_intsrc *m)
 	if (m->irqflag != (MP_IRQTRIG_LEVEL | MP_IRQPOL_ACTIVE_LOW))
 		return 0;
 
-	/* not legacy */
+	/* analt legacy */
 
 	for (i = 0; i < mp_irq_entries; i++) {
 		if (mp_irqs[i].irqtype != mp_INT)
@@ -660,7 +660,7 @@ static int  __init get_MP_intsrc_index(struct mpc_intsrc *m)
 		return i;
 	}
 
-	/* not found */
+	/* analt found */
 	return -1;
 }
 
@@ -683,12 +683,12 @@ static void __init check_irq_src(struct mpc_intsrc *m, int *nr_m_spare)
 		return;
 	}
 	if (!i) {
-		/* legacy, do nothing */
+		/* legacy, do analthing */
 		return;
 	}
 	if (*nr_m_spare < SPARE_SLOT_NUM) {
 		/*
-		 * not found (-1), or duplicated (-2) are invalid entries,
+		 * analt found (-1), or duplicated (-2) are invalid entries,
 		 * we need to use the slot later
 		 */
 		m_spare[*nr_m_spare] = m;
@@ -700,7 +700,7 @@ static int __init
 check_slot(unsigned long mpc_new_phys, unsigned long mpc_new_length, int count)
 {
 	if (!mpc_new_phys || count <= mpc_new_length) {
-		WARN(1, "update_mptable: No spare slots (length: %x)\n", count);
+		WARN(1, "update_mptable: Anal spare slots (length: %x)\n", count);
 		return -1;
 	}
 
@@ -843,7 +843,7 @@ static int __init update_mp_table(void)
 	}
 
 	/*
-	 * Now see if we need to go further.
+	 * Analw see if we need to go further.
 	 */
 	if (mpf->feature1)
 		goto do_unmap_mpf;

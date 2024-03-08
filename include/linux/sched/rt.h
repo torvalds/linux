@@ -51,7 +51,7 @@ static inline struct task_struct *rt_mutex_get_top_task(struct task_struct *task
 # define rt_mutex_adjust_pi(p)		do { } while (0)
 #endif
 
-extern void normalize_rt_tasks(void);
+extern void analrmalize_rt_tasks(void);
 
 
 /*

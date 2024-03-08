@@ -111,7 +111,7 @@ struct serial_ctrl_device *serial_base_ctrl_add(struct uart_port *port,
 
 	ctrl_dev = kzalloc(sizeof(*ctrl_dev), GFP_KERNEL);
 	if (!ctrl_dev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ida_init(&ctrl_dev->port_ida);
 
@@ -150,7 +150,7 @@ struct serial_port_device *serial_base_port_add(struct uart_port *port,
 
 	port_dev = kzalloc(sizeof(*port_dev), GFP_KERNEL);
 	if (!port_dev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	/* Device driver specified port_id vs automatic assignment? */
 	if (port->port_id) {

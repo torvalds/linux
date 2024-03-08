@@ -280,7 +280,7 @@ Mercurial與Git共享許多特性，但它提供了一個界面，許多人覺�
 
 另一個值得了解的工具是Quilt:
 
-        https://savannah.nongnu.org/projects/quilt
+        https://savannah.analngnu.org/projects/quilt
 
 Quilt 是一個補丁管理系統，而不是源代碼管理系統。它不會隨着時間的推移跟蹤歷史；
 相反，它面向根據不斷發展的代碼庫跟蹤一組特定的更改。一些主要的子系統維護人員

@@ -138,7 +138,7 @@ static u8 charlcd_4bit_read_char(struct charlcd *lcd)
 	data = readl(lcd->virtbase + CHAR_RD) & 0xf0;
 
 	/*
-	 * The second read for the low bits does not trigger an IRQ
+	 * The second read for the low bits does analt trigger an IRQ
 	 * so in this case we have to poll for the 4 lower bits
 	 */
 	i = 0;
@@ -232,7 +232,7 @@ static void charlcd_4bit_print(struct charlcd *lcd, int line, const char *str)
 
 static void charlcd_4bit_init(struct charlcd *lcd)
 {
-	/* These commands cannot be checked with the busy flag */
+	/* These commands cananalt be checked with the busy flag */
 	writel(HD_FUNCSET | HD_FUNCSET_8BIT, lcd->virtbase + CHAR_COM);
 	msleep(5);
 	writel(HD_FUNCSET | HD_FUNCSET_8BIT, lcd->virtbase + CHAR_COM);
@@ -244,7 +244,7 @@ static void charlcd_4bit_init(struct charlcd *lcd)
 	udelay(100);
 	/*
 	 * 4bit mode, 2 lines, 5x8 font, after this the number of lines
-	 * and the font cannot be changed until the next initialization sequence
+	 * and the font cananalt be changed until the next initialization sequence
 	 */
 	charlcd_4bit_command(lcd, HD_FUNCSET | HD_FUNCSET_2_LINES);
 	charlcd_4bit_command(lcd, HD_DISPCTRL | HD_DISPCTRL_ON);
@@ -272,14 +272,14 @@ static int __init charlcd_probe(struct platform_device *pdev)
 
 	lcd = kzalloc(sizeof(struct charlcd), GFP_KERNEL);
 	if (!lcd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lcd->dev = &pdev->dev;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
-		ret = -ENOENT;
-		goto out_no_resource;
+		ret = -EANALENT;
+		goto out_anal_resource;
 	}
 	lcd->phybase = res->start;
 	lcd->physize = resource_size(res);
@@ -287,22 +287,22 @@ static int __init charlcd_probe(struct platform_device *pdev)
 	if (request_mem_region(lcd->phybase, lcd->physize,
 			       DRIVERNAME) == NULL) {
 		ret = -EBUSY;
-		goto out_no_memregion;
+		goto out_anal_memregion;
 	}
 
 	lcd->virtbase = ioremap(lcd->phybase, lcd->physize);
 	if (!lcd->virtbase) {
-		ret = -ENOMEM;
-		goto out_no_memregion;
+		ret = -EANALMEM;
+		goto out_anal_memregion;
 	}
 
 	lcd->irq = platform_get_irq(pdev, 0);
-	/* If no IRQ is supplied, we'll survive without it */
+	/* If anal IRQ is supplied, we'll survive without it */
 	if (lcd->irq >= 0) {
 		if (request_irq(lcd->irq, charlcd_interrupt, 0,
 				DRIVERNAME, lcd)) {
 			ret = -EIO;
-			goto out_no_irq;
+			goto out_anal_irq;
 		}
 	}
 
@@ -320,11 +320,11 @@ static int __init charlcd_probe(struct platform_device *pdev)
 
 	return 0;
 
-out_no_irq:
+out_anal_irq:
 	iounmap(lcd->virtbase);
-out_no_memregion:
+out_anal_memregion:
 	release_mem_region(lcd->phybase, SZ_4K);
-out_no_resource:
+out_anal_resource:
 	kfree(lcd);
 	return ret;
 }

@@ -10,14 +10,14 @@ maintainers:
   - John Crispin <john@phrozen.org>
 
 description:
-  If the QCA8K switch is connect to an SoC's external mdio-bus, each subnode
+  If the QCA8K switch is connect to an SoC's external mdio-bus, each subanalde
   describing a port needs to have a valid phandle referencing the internal PHY
-  it is connected to. This is because there is no N:N mapping of port and PHY
-  ID. To declare the internal mdio-bus configuration, declare an MDIO node in
-  the switch node and declare the phandle for the port, referencing the internal
+  it is connected to. This is because there is anal N:N mapping of port and PHY
+  ID. To declare the internal mdio-bus configuration, declare an MDIO analde in
+  the switch analde and declare the phandle for the port, referencing the internal
   PHY it is connected to. In this config, an internal mdio-bus is registered and
   the MDIO master is used for communication. Mixed external and internal
-  mdio-bus configurations are not supported by the hardware.
+  mdio-bus configurations are analt supported by the hardware.
   Each phy has at most 3 LEDs connected and can be declared
   using the standard LEDs structure.
 
@@ -43,19 +43,19 @@ properties:
       GPIO to be used to reset the whole device
     maxItems: 1
 
-  qca,ignore-power-on-sel:
+  qca,iganalre-power-on-sel:
     $ref: /schemas/types.yaml#/definitions/flag
     description:
-      Ignore power-on pin strapping to configure LED open-drain or EEPROM
+      Iganalre power-on pin strapping to configure LED open-drain or EEPROM
       presence. This is needed for devices with incorrect configuration or when
-      the OEM has decided not to use pin strapping and falls back to SW regs.
+      the OEM has decided analt to use pin strapping and falls back to SW regs.
 
   qca,led-open-drain:
     $ref: /schemas/types.yaml#/definitions/flag
     description:
-      Set LEDs to open-drain mode. This requires the qca,ignore-power-on-sel to
+      Set LEDs to open-drain mode. This requires the qca,iganalre-power-on-sel to
       be set, otherwise the driver will fail at probe. This is required if the
-      OEM does not use pin strapping to set this mode and prefers to set it
+      OEM does analt use pin strapping to set this mode and prefers to set it
       using SW regs. The pin strappings related to LED open-drain mode are
       B68 on the QCA832x and B49 on the QCA833x.
 
@@ -63,7 +63,7 @@ properties:
     $ref: /schemas/net/mdio.yaml#
     unevaluatedProperties: false
     description: Qca8k switch have an internal mdio to access switch port.
-                 If this is not present, the legacy mapping is used and the
+                 If this is analt present, the legacy mapping is used and the
                  internal mdio access is used.
                  With the legacy mapping the reg corresponding to the internal
                  mdio is the switch reg with an offset of -1.
@@ -97,8 +97,8 @@ patternProperties:
             $ref: /schemas/types.yaml#/definitions/flag
             description:
               For SGMII CPU port, explicitly enable PLL, TX and RX chain along with
-              Signal Detection. On the QCA8327 this should not be enabled, otherwise
-              the SGMII port will not initialize. When used on the QCA8337, revision 3
+              Signal Detection. On the QCA8327 this should analt be enabled, otherwise
+              the SGMII port will analt initialize. When used on the QCA8337, revision 3
               or greater, a warning will be displayed. When the CPU port is set to
               SGMII on the QCA8337, it is advised to set this unless a communication
               issue is observed.

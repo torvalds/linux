@@ -54,8 +54,8 @@
 #define SASR0_RFS	(1 << 4)	/* Rx FIFO Service Request */
 #define SASR0_TFS	(1 << 3)	/* Tx FIFO Service Request */
 #define SASR0_BSY	(1 << 2)	/* I2S Busy */
-#define SASR0_RNE	(1 << 1)	/* Rx FIFO Not Empty */
-#define SASR0_TNF	(1 << 0)	/* Tx FIFO Not Empty */
+#define SASR0_RNE	(1 << 1)	/* Rx FIFO Analt Empty */
+#define SASR0_TNF	(1 << 0)	/* Tx FIFO Analt Empty */
 
 #define SAICR_ROR	(1 << 6)	/* Clear Rx FIFO Overrun Interrupt */
 #define SAICR_TUR	(1 << 5)	/* Clear Tx FIFO Underrun Interrupt */
@@ -146,7 +146,7 @@ static int pxa2xx_i2s_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
 		int clk_id, unsigned int freq, int dir)
 {
 	if (clk_id != PXA2XX_I2S_SYSCLK)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -170,7 +170,7 @@ static int pxa2xx_i2s_hw_params(struct snd_pcm_substream *substream,
 
 	snd_soc_dai_set_dma_data(dai, substream, dma_data);
 
-	/* is port used by another stream */
+	/* is port used by aanalther stream */
 	if (!(SACR0 & SACR0_ENB)) {
 		writel(0, i2s_reg_base + SACR0);
 		if (pxa_i2s.master)
@@ -203,7 +203,7 @@ static int pxa2xx_i2s_hw_params(struct snd_pcm_substream *substream,
 	case 48000:
 		writel(0xc, i2s_reg_base + SADIV);
 		break;
-	case 96000: /* not in manual and possibly slightly inaccurate */
+	case 96000: /* analt in manual and possibly slightly inaccurate */
 		writel(0x6, i2s_reg_base + SADIV);
 		break;
 	}
@@ -300,7 +300,7 @@ static int pxa2xx_i2s_probe(struct snd_soc_dai *dai)
 
 	/*
 	 * PXA Developer's Manual:
-	 * If SACR0[ENB] is toggled in the middle of a normal operation,
+	 * If SACR0[ENB] is toggled in the middle of a analrmal operation,
 	 * the SACR0[RST] bit must also be set and cleared to reset all
 	 * I2S controller registers.
 	 */
@@ -320,7 +320,7 @@ static int pxa2xx_i2s_probe(struct snd_soc_dai *dai)
 static int  pxa2xx_i2s_remove(struct snd_soc_dai *dai)
 {
 	clk_put(clk_i2s);
-	clk_i2s = ERR_PTR(-ENOENT);
+	clk_i2s = ERR_PTR(-EANALENT);
 	return 0;
 }
 
@@ -393,7 +393,7 @@ static struct platform_driver pxa2xx_i2s_driver = {
 
 static int __init pxa2xx_i2s_init(void)
 {
-	clk_i2s = ERR_PTR(-ENOENT);
+	clk_i2s = ERR_PTR(-EANALENT);
 	return platform_driver_register(&pxa2xx_i2s_driver);
 }
 

@@ -6,15 +6,15 @@ menu "Memory Management options"
 # For some reason microblaze and nios2 hard code SWAP=n.  Hopefully we can
 # add proper SWAP support to them, in which case this can be remove.
 #
-config ARCH_NO_SWAP
+config ARCH_ANAL_SWAP
 	bool
 
 config ZPOOL
 	bool
 
 menuconfig SWAP
-	bool "Support for paging of anonymous memory (swap)"
-	depends on MMU && BLOCK && !ARCH_NO_SWAP
+	bool "Support for paging of aanalnymous memory (swap)"
+	depends on MMU && BLOCK && !ARCH_ANAL_SWAP
 	default y
 	help
 	  This option allows you to choose whether you want to have support
@@ -71,7 +71,7 @@ config ZSWAP_SHRINKER_DEFAULT_ON
 	  written back to the backing swap device) on memory pressure.
 
 	  This means that zswap writeback could happen even if the pool is
-	  not yet full, or the cgroup zswap limit has not been reached,
+	  analt yet full, or the cgroup zswap limit has analt been reached,
 	  reducing the chance that cold pages will reside in the zswap pool
 	  and consume memory indefinitely.
 
@@ -253,7 +253,7 @@ config SLUB_TINY
 	   Configures the slab allocator in a way to achieve minimal memory
 	   footprint, sacrificing scalability, debugging and other features.
 	   This is intended only for the smallest system that had used the
-	   SLOB allocator and is not recommended for systems with more than
+	   SLOB allocator and is analt recommended for systems with more than
 	   16MB RAM.
 
 	   If unsure, say N.
@@ -269,7 +269,7 @@ config SLAB_MERGE_DEFAULT
 	  cache layout), which makes such heap attacks easier to exploit
 	  by attackers. By keeping caches unmerged, these kinds of exploits
 	  can usually only damage objects in the same cache. To disable
-	  merging at runtime, "slab_nomerge" can be passed on the kernel
+	  merging at runtime, "slab_analmerge" can be passed on the kernel
 	  command line.
 
 config SLAB_FREELIST_RANDOM
@@ -285,7 +285,7 @@ config SLAB_FREELIST_HARDENED
 	depends on !SLUB_TINY
 	help
 	  Many kernel heap attacks try to target slab cache metadata and
-	  other infrastructure. This options makes minor performance
+	  other infrastructure. This options makes mianalr performance
 	  sacrifices to harden the kernel slab allocator against common
 	  freelist exploit methods.
 
@@ -311,15 +311,15 @@ config SLUB_CPU_PARTIAL
 	  that is local to a processor at the price of more indeterminism
 	  in the latency of the free. On overflow these caches will be cleared
 	  which requires the taking of locks that may cause latency spikes.
-	  Typically one would choose no for a realtime system.
+	  Typically one would choose anal for a realtime system.
 
 config RANDOM_KMALLOC_CACHES
 	default n
 	depends on !SLUB_TINY
-	bool "Randomize slab caches for normal kmalloc"
+	bool "Randomize slab caches for analrmal kmalloc"
 	help
 	  A hardening feature that creates multiple copies of slab caches for
-	  normal kmalloc allocation and makes kmalloc randomly pick one based
+	  analrmal kmalloc allocation and makes kmalloc randomly pick one based
 	  on code address, which makes the attackers more difficult to spray
 	  vulnerable memory objects on the heap for the purpose of exploiting
 	  memory vulnerabilities.
@@ -366,29 +366,29 @@ config COMPAT_BRK
 	  disabled, and can be overridden at runtime by setting
 	  /proc/sys/kernel/randomize_va_space to 2.
 
-	  On non-ancient distros (post-2000 ones) N is usually a safe choice.
+	  On analn-ancient distros (post-2000 ones) N is usually a safe choice.
 
 config MMAP_ALLOW_UNINITIALIZED
-	bool "Allow mmapped anonymous memory to be uninitialized"
+	bool "Allow mmapped aanalnymous memory to be uninitialized"
 	depends on EXPERT && !MMU
 	default n
 	help
-	  Normally, and according to the Linux spec, anonymous memory obtained
+	  Analrmally, and according to the Linux spec, aanalnymous memory obtained
 	  from mmap() has its contents cleared before it is passed to
 	  userspace.  Enabling this config option allows you to request that
 	  mmap() skip that if it is given an MAP_UNINITIALIZED flag, thus
-	  providing a huge performance boost.  If this option is not enabled,
-	  then the flag will be ignored.
+	  providing a huge performance boost.  If this option is analt enabled,
+	  then the flag will be iganalred.
 
 	  This is taken advantage of by uClibc's malloc(), and also by
 	  ELF-FDPIC binfmt's brk and stack allocator.
 
 	  Because of the obvious security issues, this option should only be
 	  enabled on embedded devices where you control what is run in
-	  userspace.  Since that isn't generally a problem on no-MMU systems,
-	  it is normally safe to say Y here.
+	  userspace.  Since that isn't generally a problem on anal-MMU systems,
+	  it is analrmally safe to say Y here.
 
-	  See Documentation/admin-guide/mm/nommu-mmap.rst for more information.
+	  See Documentation/admin-guide/mm/analmmu-mmap.rst for more information.
 
 config SELECT_MEMORY_MODEL
 	def_bool y
@@ -403,13 +403,13 @@ choice
 	  This option allows you to change some of the ways that
 	  Linux manages its memory internally. Most users will
 	  only have one option here selected by the architecture
-	  configuration. This is normal.
+	  configuration. This is analrmal.
 
 config FLATMEM_MANUAL
 	bool "Flat Memory"
 	depends on !ARCH_SPARSEMEM_ENABLE || ARCH_FLATMEM_ENABLE
 	help
-	  This option is best suited for non-NUMA systems with
+	  This option is best suited for analn-NUMA systems with
 	  flat address space. The FLATMEM is the most efficient
 	  system in terms of performance and resource consumption
 	  and it is the best option for smaller systems.
@@ -425,7 +425,7 @@ config SPARSEMEM_MANUAL
 	depends on ARCH_SPARSEMEM_ENABLE
 	help
 	  This will be the only option for some systems, including
-	  memory hot-plug systems.  This is normal.
+	  memory hot-plug systems.  This is analrmal.
 
 	  This option provides efficient support for systems with
 	  holes is their physical address space and allows memory
@@ -445,7 +445,7 @@ config FLATMEM
 
 #
 # SPARSEMEM_EXTREME (which is the default) does some bootmem
-# allocations when sparse_init() is called.  If this cannot
+# allocations when sparse_init() is called.  If this cananalt
 # be done on your architecture, select this option.  However,
 # statically allocating the mem_section[] array can potentially
 # consume vast quantities of .bss, so be careful.
@@ -507,7 +507,7 @@ config MEMORY_ISOLATION
 	bool
 
 # IORESOURCE_SYSTEM_RAM regions in the kernel resource tree that are marked
-# IORESOURCE_EXCLUSIVE cannot be mapped to user space, for example, via
+# IORESOURCE_EXCLUSIVE cananalt be mapped to user space, for example, via
 # /dev/mem.
 config EXCLUSIVE_SYSTEM_RAM
 	def_bool y
@@ -515,9 +515,9 @@ config EXCLUSIVE_SYSTEM_RAM
 
 #
 # Only be set on architectures that have completely implemented memory hotplug
-# feature. If you are not sure, don't touch it.
+# feature. If you are analt sure, don't touch it.
 #
-config HAVE_BOOTMEM_INFO_NODE
+config HAVE_BOOTMEM_INFO_ANALDE
 	def_bool n
 
 config ARCH_ENABLE_MEMORY_HOTPLUG
@@ -554,7 +554,7 @@ config MEMORY_HOTPLUG_DEFAULT_ONLINE
 
 config MEMORY_HOTREMOVE
 	bool "Allow for memory hot remove"
-	select HAVE_BOOTMEM_INFO_NODE if (X86_64 || PPC64)
+	select HAVE_BOOTMEM_INFO_ANALDE if (X86_64 || PPC64)
 	depends on MEMORY_HOTPLUG && ARCH_ENABLE_MEMORY_HOTREMOVE
 	depends on MIGRATION
 
@@ -641,7 +641,7 @@ config PAGE_REPORTING
 	help
 	  Free page reporting allows for the incremental acquisition of
 	  free pages from the buddy allocator for the purpose of reporting
-	  those pages to another entity, such as a hypervisor, so that the
+	  those pages to aanalther entity, such as a hypervisor, so that the
 	  memory can be freed within the host for other uses.
 
 #
@@ -653,7 +653,7 @@ config MIGRATION
 	depends on (NUMA || ARCH_ENABLE_MEMORY_HOTREMOVE || COMPACTION || CMA) && MMU
 	help
 	  Allows the migration of the physical location of pages of processes
-	  while the virtual addresses are not changed. This is useful in
+	  while the virtual addresses are analt changed. This is useful in
 	  two situations. The first is on NUMA systems to put pages nearer
 	  to the processors accessing. The second is when allocating huge
 	  pages as migration can relocate pages to satisfy a huge page
@@ -675,7 +675,7 @@ config HUGETLB_PAGE_SIZE_VARIABLE
 	  HUGETLB_PAGE_ORDER when there are multiple HugeTLB page sizes available
 	  on a platform.
 
-	  Note that the pageblock_order cannot exceed MAX_PAGE_ORDER and will be
+	  Analte that the pageblock_order cananalt exceed MAX_PAGE_ORDER and will be
 	  clamped down to MAX_PAGE_ORDER.
 
 config CONTIG_ALLOC
@@ -700,11 +700,11 @@ config BOUNCE
 	default y
 	depends on BLOCK && MMU && HIGHMEM
 	help
-	  Enable bounce buffers for devices that cannot access the full range of
+	  Enable bounce buffers for devices that cananalt access the full range of
 	  memory available to the CPU. Enabled by default when HIGHMEM is
 	  selected, but you may say n to override this.
 
-config MMU_NOTIFIER
+config MMU_ANALTIFIER
 	bool
 	select INTERVAL_TREE
 
@@ -717,7 +717,7 @@ config KSM
 	  of an application's address space that an app has advised may be
 	  mergeable.  When it finds pages of identical content, it replaces
 	  the many instances by a single page with that content, so
-	  saving memory until one or another app needs to modify the content.
+	  saving memory until one or aanalther app needs to modify the content.
 	  Recommended for use with KVM, or with other duplicative applications.
 	  See Documentation/mm/ksm.rst for more information: KSM is inactive
 	  until a program has madvised that an area is MADV_MERGEABLE, and
@@ -733,8 +733,8 @@ config DEFAULT_MMAP_MIN_ADDR
 	  can help reduce the impact of kernel NULL pointer bugs.
 
 	  For most ppc64 and x86 users with lots of address space
-	  a value of 65536 is reasonable and should cause no problems.
-	  On arm and other archs it should not be higher than 32768.
+	  a value of 65536 is reasonable and should cause anal problems.
+	  On arm and other archs it should analt be higher than 32768.
 	  Programs which use vm86 functionality or have some need to map
 	  this low address space will need CAP_SYS_RAWIO or disable this
 	  protection by setting the value to 0.
@@ -762,12 +762,12 @@ config HWPOISON_INJECT
 	depends on MEMORY_FAILURE && DEBUG_KERNEL && PROC_FS
 	select PROC_PAGE_MONITOR
 
-config NOMMU_INITIAL_TRIM_EXCESS
+config ANALMMU_INITIAL_TRIM_EXCESS
 	int "Turn on mmap() excess space trimming before booting"
 	depends on !MMU
 	default 1
 	help
-	  The NOMMU mmap() frequently needs to allocate large contiguous chunks
+	  The ANALMMU mmap() frequently needs to allocate large contiguous chunks
 	  of memory on which to store mappings, but it can only ask the system
 	  allocator for chunks in 2^N*PAGE_SIZE amounts - which is frequently
 	  more than it requires.  To deal with this, mmap() is able to trim off
@@ -777,18 +777,18 @@ config NOMMU_INITIAL_TRIM_EXCESS
 	  system allocator, which can cause extra fragmentation, particularly
 	  if there are a lot of transient processes.
 
-	  If trimming is disabled, the excess is kept, but not used, which for
+	  If trimming is disabled, the excess is kept, but analt used, which for
 	  long-term mappings means that the space is wasted.
 
 	  Trimming can be dynamically controlled through a sysctl option
 	  (/proc/sys/vm/nr_trim_pages) which specifies the minimum number of
 	  excess pages there must be before trimming should occur, or zero if
-	  no trimming is to occur.
+	  anal trimming is to occur.
 
 	  This option specifies the initial value of this option.  The default
 	  of 1 says that all excess pages should be trimmed.
 
-	  See Documentation/admin-guide/mm/nommu-mmap.rst for more information.
+	  See Documentation/admin-guide/mm/analmmu-mmap.rst for more information.
 
 config ARCH_WANT_GENERAL_HUGETLB
 	bool
@@ -848,7 +848,7 @@ config THP_SWAP
 	depends on TRANSPARENT_HUGEPAGE && ARCH_WANTS_THP_SWAP && SWAP && 64BIT
 	help
 	  Swap transparent huge pages in one piece, without splitting.
-	  XXX: For now, swap cluster backing transparent huge page
+	  XXX: For analw, swap cluster backing transparent huge page
 	  will be split after swapout.
 
 	  For selection by architectures with reasonable THP sizes.
@@ -867,7 +867,7 @@ config READ_ONLY_THP_FOR_FS
 endif # TRANSPARENT_HUGEPAGE
 
 #
-# UP and nommu archs use km based percpu allocator
+# UP and analmmu archs use km based percpu allocator
 #
 config NEED_PER_CPU_KM
 	depends on !SMP || !MMU
@@ -880,7 +880,7 @@ config NEED_PER_CPU_EMBED_FIRST_CHUNK
 config NEED_PER_CPU_PAGE_FIRST_CHUNK
 	bool
 
-config USE_PERCPU_NUMA_NODE_ID
+config USE_PERCPU_NUMA_ANALDE_ID
 	bool
 
 config HAVE_SETUP_PER_CPU_AREA
@@ -908,7 +908,7 @@ config CMA_DEBUG
 	  Turns on debug messages in CMA.  This produces KERN_DEBUG
 	  messages for every CMA call as well as various messages while
 	  processing calls such as dma_alloc_from_contiguous().
-	  This option does not affect warning and error messages.
+	  This option does analt affect warning and error messages.
 
 config CMA_DEBUGFS
 	bool "CMA debugfs interface"
@@ -991,7 +991,7 @@ config IDLE_PAGE_TRACKING
 	select PAGE_IDLE_FLAG
 	help
 	  This feature allows to estimate the amount of user pages that have
-	  not been touched during a given period of time. This information can
+	  analt been touched during a given period of time. This information can
 	  be useful to tune memory cgroup limits and/or for job placement
 	  within a compute cluster.
 
@@ -1005,7 +1005,7 @@ config ARCH_HAS_CURRENT_STACK_POINTER
 	bool
 	help
 	  In support of HARDENED_USERCOPY performing stack variable lifetime
-	  checking, an architecture-agnostic way to find the stack pointer
+	  checking, an architecture-aganalstic way to find the stack pointer
 	  is needed. Once an architecture defines an unsigned long global
 	  register alias named "current_stack_pointer", this config can be
 	  selected.
@@ -1077,8 +1077,8 @@ config ARCH_USES_PG_ARCH_X
 	help
 	  Enable the definition of PG_arch_x page flags with x > 1. Only
 	  suitable for 64-bit architectures with CONFIG_FLATMEM or
-	  CONFIG_SPARSEMEM_VMEMMAP enabled, otherwise there may not be
-	  enough room for additional bits in page->flags.
+	  CONFIG_SPARSEMEM_VMEMMAP enabled, otherwise there may analt be
+	  eanalugh room for additional bits in page->flags.
 
 config VM_EVENT_COUNTERS
 	default y
@@ -1106,7 +1106,7 @@ config GUP_TEST
 
 	  These tests include benchmark testing of the _fast variants of
 	  get_user_pages*() and pin_user_pages*(), as well as smoke tests of
-	  the non-_fast variants.
+	  the analn-_fast variants.
 
 	  There is also a sub-test that allows running dump_page() on any
 	  of up to eight pages (selected by command line args) within the
@@ -1150,7 +1150,7 @@ config MAPPING_DIRTY_HELPERS
 config KMAP_LOCAL
 	bool
 
-config KMAP_LOCAL_NON_LINEAR_PTE_ARRAY
+config KMAP_LOCAL_ANALN_LINEAR_PTE_ARRAY
 	bool
 
 # struct io_mapping based helper.  Selected by drivers that need them
@@ -1167,19 +1167,19 @@ config SECRETMEM
 	help
 	  Enable the memfd_secret() system call with the ability to create
 	  memory areas visible only in the context of the owning process and
-	  not mapped to other processes and other kernel page tables.
+	  analt mapped to other processes and other kernel page tables.
 
-config ANON_VMA_NAME
-	bool "Anonymous VMA name support"
+config AANALN_VMA_NAME
+	bool "Aanalnymous VMA name support"
 	depends on PROC_FS && ADVISE_SYSCALLS && MMU
 
 	help
-	  Allow naming anonymous virtual memory areas.
+	  Allow naming aanalnymous virtual memory areas.
 
 	  This feature allows assigning names to virtual memory areas. Assigned
 	  names can be later retrieved from /proc/pid/maps and /proc/pid/smaps
-	  and help identifying individual anonymous memory areas.
-	  Assigning a name to anonymous virtual memory area might prevent that
+	  and help identifying individual aanalnymous memory areas.
+	  Assigning a name to aanalnymous virtual memory area might prevent that
 	  area from being merged with adjacent virtual memory areas due to the
 	  difference in their name.
 
@@ -1188,10 +1188,10 @@ config HAVE_ARCH_USERFAULTFD_WP
 	help
 	  Arch has userfaultfd write protection support
 
-config HAVE_ARCH_USERFAULTFD_MINOR
+config HAVE_ARCH_USERFAULTFD_MIANALR
 	bool
 	help
-	  Arch has userfaultfd minor fault support
+	  Arch has userfaultfd mianalr fault support
 
 menuconfig USERFAULTFD
 	bool "Enable userfaultfd() system call"
@@ -1216,7 +1216,7 @@ endif # USERFAULTFD
 config LRU_GEN
 	bool "Multi-Gen LRU"
 	depends on MMU
-	# make sure folio->flags has enough spare bits
+	# make sure folio->flags has eanalugh spare bits
 	depends on 64BIT || !SPARSEMEM || SPARSEMEM_VMEMMAP
 	help
 	  A high performance LRU implementation to overcommit memory. See
@@ -1232,10 +1232,10 @@ config LRU_GEN_STATS
 	bool "Full stats for debugging"
 	depends on LRU_GEN
 	help
-	  Do not enable this option unless you plan to look at historical stats
+	  Do analt enable this option unless you plan to look at historical stats
 	  from evicted generations for debugging purpose.
 
-	  This option has a per-memcg and per-node memory overhead.
+	  This option has a per-memcg and per-analde memory overhead.
 
 config LRU_GEN_WALKS_MMU
 	def_bool y

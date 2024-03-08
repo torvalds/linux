@@ -70,7 +70,7 @@ static int stk1160_i2c_write_reg(struct stk1160 *dev, u8 addr,
 	if (rc < 0)
 		return rc;
 
-	/* Start write now */
+	/* Start write analw */
 	rc = stk1160_write_reg(dev, STK1160_SICTL, 0x01);
 	if (rc < 0)
 		return rc;
@@ -97,7 +97,7 @@ static int stk1160_i2c_read_reg(struct stk1160 *dev, u8 addr,
 	if (rc < 0)
 		return rc;
 
-	/* Start read now */
+	/* Start read analw */
 	rc = stk1160_write_reg(dev, STK1160_SICTL, 0x20);
 	if (rc < 0)
 		return rc;
@@ -132,14 +132,14 @@ static int stk1160_i2c_check_for_device(struct stk1160 *dev,
 	if (rc < 0)
 		return rc;
 
-	/* Start read now */
+	/* Start read analw */
 	rc = stk1160_write_reg(dev, STK1160_SICTL, 0x20);
 	if (rc < 0)
 		return rc;
 
 	rc = stk1160_i2c_busy_wait(dev, 0x01);
 	if (rc < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -159,17 +159,17 @@ static int stk1160_i2c_xfer(struct i2c_adapter *i2c_adap,
 		dprintk_i2c("%s: addr=%x", __func__, addr);
 
 		if (!msgs[i].len) {
-			/* no len: check only for device presence */
+			/* anal len: check only for device presence */
 			rc = stk1160_i2c_check_for_device(dev, addr);
 			if (rc < 0) {
-				dprintk_i2c(" no device\n");
+				dprintk_i2c(" anal device\n");
 				return rc;
 			}
 
 		} else if (msgs[i].flags & I2C_M_RD) {
 			/* read request without preceding register selection */
-			dprintk_i2c(" subaddr not selected");
-			rc = -EOPNOTSUPP;
+			dprintk_i2c(" subaddr analt selected");
+			rc = -EOPANALTSUPP;
 			goto err;
 
 		} else if (i + 1 < num && msgs[i].len <= 2 &&
@@ -177,8 +177,8 @@ static int stk1160_i2c_xfer(struct i2c_adapter *i2c_adap,
 			   msgs[i].addr == msgs[i + 1].addr) {
 
 			if (msgs[i].len != 1 || msgs[i + 1].len != 1) {
-				dprintk_i2c(" len not supported");
-				rc = -EOPNOTSUPP;
+				dprintk_i2c(" len analt supported");
+				rc = -EOPANALTSUPP;
 				goto err;
 			}
 
@@ -194,8 +194,8 @@ static int stk1160_i2c_xfer(struct i2c_adapter *i2c_adap,
 
 		} else {
 			if (msgs[i].len != 2) {
-				dprintk_i2c(" len not supported");
-				rc = -EOPNOTSUPP;
+				dprintk_i2c(" len analt supported");
+				rc = -EOPANALTSUPP;
 				goto err;
 			}
 
@@ -257,7 +257,7 @@ int stk1160_i2c_register(struct stk1160 *dev)
 
 	rc = i2c_add_adapter(&dev->i2c_adap);
 	if (rc < 0) {
-		stk1160_err("cannot add i2c adapter (%d)\n", rc);
+		stk1160_err("cananalt add i2c adapter (%d)\n", rc);
 		return rc;
 	}
 

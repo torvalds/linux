@@ -80,7 +80,7 @@ static int rxrpc_preparse_s(struct key_preparsed_payload *prep)
 
 	sec = rxrpc_security_lookup(sec_class);
 	if (!sec)
-		return -ENOPKG;
+		return -EANALPKG;
 
 	prep->payload.data[1] = (struct rxrpc_security *)sec;
 

@@ -2,7 +2,7 @@
 //
 // aw88395_lib.c  -- ACF bin parsing and check library file for aw88395
 //
-// Copyright (c) 2022-2023 AWINIC Technology CO., LTD
+// Copyright (c) 2022-2023 AWINIC Techanallogy CO., LTD
 //
 // Author: Bruce zhao <zhaolei@awinic.com>
 //
@@ -12,13 +12,13 @@
 #include "aw88395_lib.h"
 #include "aw88395_device.h"
 
-#define AW88395_CRC8_POLYNOMIAL 0x8C
+#define AW88395_CRC8_POLYANALMIAL 0x8C
 DECLARE_CRC8_TABLE(aw_crc8_table);
 
 static char *profile_name[AW88395_PROFILE_MAX] = {
 	"Music", "Voice", "Voip", "Ringtone",
 	"Ringtone_hs", "Lowpower", "Bypass",
-	"Mmi", "Fm", "Notification", "Receiver"
+	"Mmi", "Fm", "Analtification", "Receiver"
 };
 
 static int aw_parse_bin_header(struct aw_device *aw_dev, struct aw_bin *bin);
@@ -238,7 +238,7 @@ static int aw_parse_bin_header(struct aw_device *aw_dev, struct aw_bin *bin)
 						bin->multi_bin_parse_num);
 		return aw_get_multi_bin_header(aw_dev, bin);
 	default:
-		dev_dbg(aw_dev->dev, "%s There is no corresponding type\n", __func__);
+		dev_dbg(aw_dev->dev, "%s There is anal corresponding type\n", __func__);
 		return 0;
 	}
 }
@@ -367,7 +367,7 @@ static int aw_dev_prof_parse_multi_bin(struct aw_device *aw_dev, unsigned char *
 
 	aw_bin = devm_kzalloc(aw_dev->dev, data_len + sizeof(struct aw_bin), GFP_KERNEL);
 	if (!aw_bin)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	aw_bin->info.len = data_len;
 	memcpy(aw_bin->info.data, data, data_len);
@@ -417,7 +417,7 @@ static int aw_dev_prof_parse_multi_bin(struct aw_device *aw_dev, unsigned char *
 					data + aw_bin->header_info[i].valid_data_addr;
 			break;
 		default:
-			dev_dbg(aw_dev->dev, "bin_data_type not found");
+			dev_dbg(aw_dev->dev, "bin_data_type analt found");
 			break;
 		}
 	}
@@ -437,7 +437,7 @@ static int aw_dev_parse_reg_bin_with_hdr(struct aw_device *aw_dev,
 
 	aw_bin = devm_kzalloc(aw_dev->dev, data_len + sizeof(*aw_bin), GFP_KERNEL);
 	if (!aw_bin)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	aw_bin->info.len = data_len;
 	memcpy(aw_bin->info.data, data, data_len);
@@ -532,7 +532,7 @@ static int aw_dev_parse_dev_type(struct aw_device *aw_dev,
 
 	if (sec_num == 0) {
 		dev_dbg(aw_dev->dev, "get dev type num is %d, please use default", sec_num);
-		return AW88395_DEV_TYPE_NONE;
+		return AW88395_DEV_TYPE_ANALNE;
 	}
 
 	return AW88395_DEV_TYPE_OK;
@@ -590,7 +590,7 @@ static int aw_dev_cfg_get_reg_valid_prof(struct aw_device *aw_dev,
 	dev_dbg(aw_dev->dev, "get valid profile:%d", aw_dev->prof_info.count);
 
 	if (!prof_info->count) {
-		dev_err(aw_dev->dev, "no profile data");
+		dev_err(aw_dev->dev, "anal profile data");
 		return -EPERM;
 	}
 
@@ -598,7 +598,7 @@ static int aw_dev_cfg_get_reg_valid_prof(struct aw_device *aw_dev,
 					prof_info->count, sizeof(struct aw_prof_desc),
 					GFP_KERNEL);
 	if (!prof_info->prof_desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < AW88395_PROFILE_MAX; i++) {
 		if (prof_desc[i].prof_st == AW88395_PROFILE_OK) {
@@ -641,7 +641,7 @@ static int aw_dev_cfg_get_multiple_valid_prof(struct aw_device *aw_dev,
 	dev_dbg(aw_dev->dev, "get valid profile:%d", aw_dev->prof_info.count);
 
 	if (!prof_info->count) {
-		dev_err(aw_dev->dev, "no profile data");
+		dev_err(aw_dev->dev, "anal profile data");
 		return -EPERM;
 	}
 
@@ -649,7 +649,7 @@ static int aw_dev_cfg_get_multiple_valid_prof(struct aw_device *aw_dev,
 					prof_info->count, sizeof(struct aw_prof_desc),
 					GFP_KERNEL);
 	if (!prof_info->prof_desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < AW88395_PROFILE_MAX; i++) {
 		if (prof_desc[i].prof_st == AW88395_PROFILE_OK) {
@@ -683,12 +683,12 @@ static int aw_dev_load_cfg_by_hdr(struct aw_device *aw_dev,
 
 	all_prof_info = devm_kzalloc(aw_dev->dev, sizeof(struct aw_all_prof_info), GFP_KERNEL);
 	if (!all_prof_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = aw_dev_parse_dev_type(aw_dev, prof_hdr, all_prof_info);
 	if (ret < 0) {
 		goto exit;
-	} else if (ret == AW88395_DEV_TYPE_NONE) {
+	} else if (ret == AW88395_DEV_TYPE_ANALNE) {
 		dev_dbg(aw_dev->dev, "get dev type num is 0, parse default dev");
 		ret = aw_dev_parse_dev_default_type(aw_dev, prof_hdr, all_prof_info);
 		if (ret < 0)
@@ -730,7 +730,7 @@ static int aw_dev_create_prof_name_list_v1(struct aw_device *aw_dev)
 					prof_info->count * PROFILE_STR_MAX,
 					GFP_KERNEL);
 	if (!prof_info->prof_name_list)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < prof_info->count; i++) {
 		prof_desc[i].id = i;
@@ -987,7 +987,7 @@ static int aw_dev_load_cfg_by_hdr_v1(struct aw_device *aw_dev,
 					prof_info->count, sizeof(struct aw_prof_desc),
 					GFP_KERNEL);
 	if (!prof_info->prof_desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = aw_dev_parse_by_hdr_v1(aw_dev, cfg_hdr);
 	if (ret < 0) {
@@ -1051,7 +1051,7 @@ static int aw_dev_check_cfg_by_hdr(struct aw_device *aw_dev, struct aw_container
 	cfg_hdr = (struct aw_cfg_hdr *)aw_cfg->data;
 	/* check file type id is awinic acf file */
 	if (cfg_hdr->id != ACF_FILE_ID) {
-		dev_err(aw_dev->dev, "not acf type file");
+		dev_err(aw_dev->dev, "analt acf type file");
 		return -EINVAL;
 	}
 
@@ -1069,7 +1069,7 @@ static int aw_dev_check_cfg_by_hdr(struct aw_device *aw_dev, struct aw_container
 		act_data += cfg_dde[i].data_size;
 
 	if (act_data != aw_cfg->len) {
-		dev_err(aw_dev->dev, "act_data[%d] not equal to file size[%d]!",
+		dev_err(aw_dev->dev, "act_data[%d] analt equal to file size[%d]!",
 			act_data, aw_cfg->len);
 		return -EINVAL;
 	}
@@ -1110,7 +1110,7 @@ static int aw_dev_check_acf_by_hdr_v1(struct aw_device *aw_dev, struct aw_contai
 
 	/* check file type id is awinic acf file */
 	if (cfg_hdr->id != ACF_FILE_ID) {
-		dev_err(aw_dev->dev, "not acf type file");
+		dev_err(aw_dev->dev, "analt acf type file");
 		return -EINVAL;
 	}
 
@@ -1128,7 +1128,7 @@ static int aw_dev_check_acf_by_hdr_v1(struct aw_device *aw_dev, struct aw_contai
 		act_data += cfg_dde[i].data_size;
 
 	if (act_data != aw_cfg->len) {
-		dev_err(aw_dev->dev, "act_data[%d] not equal to file size[%d]!",
+		dev_err(aw_dev->dev, "act_data[%d] analt equal to file size[%d]!",
 			act_data, aw_cfg->len);
 		return -EINVAL;
 	}
@@ -1170,7 +1170,7 @@ int aw88395_dev_load_acf_check(struct aw_device *aw_dev, struct aw_container *aw
 		return -EINVAL;
 	}
 
-	crc8_populate_lsb(aw_crc8_table, AW88395_CRC8_POLYNOMIAL);
+	crc8_populate_lsb(aw_crc8_table, AW88395_CRC8_POLYANALMIAL);
 
 	cfg_hdr = (struct aw_cfg_hdr *)aw_cfg->data;
 	switch (cfg_hdr->hdr_version) {

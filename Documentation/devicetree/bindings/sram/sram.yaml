@@ -12,16 +12,16 @@ maintainers:
 description: |+
   Simple IO memory regions to be managed by the genalloc API.
 
-  Each child of the sram node specifies a region of reserved memory. Each
-  child node should use a 'reg' property to specify a specific range of
+  Each child of the sram analde specifies a region of reserved memory. Each
+  child analde should use a 'reg' property to specify a specific range of
   reserved memory.
 
-  Following the generic-names recommended practice, node names should
-  reflect the purpose of the node. Unit address (@<address>) should be
+  Following the generic-names recommended practice, analde names should
+  reflect the purpose of the analde. Unit address (@<address>) should be
   appended to the name.
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^sram(@.*)?"
 
   compatible:
@@ -29,7 +29,7 @@ properties:
       enum:
         - mmio-sram
         - amlogic,meson-gxbb-sram
-        - arm,juno-sram-ns
+        - arm,juanal-sram-ns
         - atmel,sama5d2-securam
         - nvidia,tegra186-sysram
         - nvidia,tegra194-sysram
@@ -57,9 +57,9 @@ properties:
     description:
       Should translate from local addresses within the sram to bus addresses.
 
-  no-memory-wc:
+  anal-memory-wc:
     description:
-      The flag indicating, that SRAM memory region has not to be remapped
+      The flag indicating, that SRAM memory region has analt to be remapped
       as write combining. WC is used by default.
     type: boolean
 
@@ -67,7 +67,7 @@ patternProperties:
   "^([a-z0-9]*-)?sram(-section)?@[a-f0-9]+$":
     type: object
     description:
-      Each child of the sram node specifies a region of reserved memory.
+      Each child of the sram analde specifies a region of reserved memory.
     properties:
       compatible:
         description:
@@ -86,13 +86,13 @@ patternProperties:
             - amlogic,meson8b-smp-sram
             - amlogic,meson-gxbb-scp-shmem
             - amlogic,meson-axg-scp-shmem
-            - arm,juno-scp-shmem
+            - arm,juanal-scp-shmem
             - arm,scmi-shmem
             - arm,scp-shmem
             - renesas,smp-sram
             - rockchip,rk3066-smp-sram
-            - samsung,exynos4210-sysram
-            - samsung,exynos4210-sysram-ns
+            - samsung,exyanals4210-sysram
+            - samsung,exyanals4210-sysram-ns
             - socionext,milbeaut-smp-sram
             - stericsson,u8500-esram
 
@@ -104,7 +104,7 @@ patternProperties:
       pool:
         description:
           Indicates that the particular reserved SRAM area is addressable
-          and in use by another device or devices.
+          and in use by aanalther device or devices.
         type: boolean
 
       export:
@@ -117,7 +117,7 @@ patternProperties:
         description: |
           Same as 'pool' above but with the additional constraint that code
           will be run from the region and that the memory is maintained as
-          read-only, executable during code execution. NOTE: This region must
+          read-only, executable during code execution. ANALTE: This region must
           be page aligned on start and end in order to properly allow
           manipulation of the page attributes.
         type: boolean
@@ -125,7 +125,7 @@ patternProperties:
       label:
         description:
           The name for the reserved partition, if omitted, the label is taken
-          from the node name excluding the unit address.
+          from the analde name excluding the unit address.
 
     required:
       - reg
@@ -137,7 +137,7 @@ required:
   - reg
 
 if:
-  not:
+  analt:
     properties:
       compatible:
         contains:
@@ -178,13 +178,13 @@ examples:
     };
 
   - |
-    // Samsung SMP-capable Exynos SoCs use part of the SYSRAM for the bringup
+    // Samsung SMP-capable Exyanals SoCs use part of the SYSRAM for the bringup
     // of the secondary cores. Once the core gets powered up it executes the
     // code that is residing at some specific location of the SYSRAM.
     //
-    // Therefore reserved section sub-nodes have to be added to the mmio-sram
-    // declaration. These nodes are of two types depending upon secure or
-    // non-secure execution environment.
+    // Therefore reserved section sub-analdes have to be added to the mmio-sram
+    // declaration. These analdes are of two types depending upon secure or
+    // analn-secure execution environment.
     sram@2020000 {
         compatible = "mmio-sram";
         reg = <0x02020000 0x54000>;
@@ -193,12 +193,12 @@ examples:
         ranges = <0 0x02020000 0x54000>;
 
         smp-sram@0 {
-            compatible = "samsung,exynos4210-sysram";
+            compatible = "samsung,exyanals4210-sysram";
             reg = <0x0 0x1000>;
         };
 
         smp-sram@53000 {
-            compatible = "samsung,exynos4210-sysram-ns";
+            compatible = "samsung,exyanals4210-sysram-ns";
             reg = <0x53000 0x1000>;
         };
     };
@@ -208,7 +208,7 @@ examples:
     // Once the core gets powered up it executes the code that is residing at a
     // specific location.
     //
-    // Therefore a reserved section sub-node has to be added to the mmio-sram
+    // Therefore a reserved section sub-analde has to be added to the mmio-sram
     // declaration.
     sram@d9000000 {
         compatible = "mmio-sram";
@@ -267,7 +267,7 @@ examples:
     // value is set at a specific location. If it is then the BROM will jump
     // to the software entry address, instead of executing a standard boot.
     //
-    // Also there are no "secure-only" properties. The implementation should
+    // Also there are anal "secure-only" properties. The implementation should
     // check if this SRAM is usable first.
     sram@20000 {
         // 256 KiB secure SRAM at 0x20000

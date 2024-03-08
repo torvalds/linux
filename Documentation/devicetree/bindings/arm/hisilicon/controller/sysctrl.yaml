@@ -53,15 +53,15 @@ properties:
 
   smp-offset:
     description: |
-      offset in sysctrl for notifying slave cpu booting
+      offset in sysctrl for analtifying slave cpu booting
       cpu 1, reg;
       cpu 2, reg + 0x4;
       cpu 3, reg + 0x8;
-      If reg value is not zero, cpun exit wfi and go
+      If reg value is analt zero, cpun exit wfi and go
     $ref: /schemas/types.yaml#/definitions/uint32
 
   resume-offset:
-    description: offset in sysctrl for notifying cpu0 when resume
+    description: offset in sysctrl for analtifying cpu0 when resume
     $ref: /schemas/types.yaml#/definitions/uint32
 
   reboot-offset:

@@ -22,7 +22,7 @@
  *
  * - Platform conveys its decision back to OS
  *
- * The communication between OS and platform occurs through another medium
+ * The communication between OS and platform occurs through aanalther medium
  * called (PCC) Platform Communication Channel. This is a generic mailbox like
  * mechanism which includes doorbell semantics to indicate register updates.
  * See drivers/mailbox/pcc.c for details on PCC.
@@ -50,7 +50,7 @@ struct cppc_pcc_data {
 	void __iomem *pcc_comm_addr;
 	bool pcc_channel_acquired;
 	unsigned int deadline_us;
-	unsigned int pcc_mpar, pcc_mrtt, pcc_nominal;
+	unsigned int pcc_mpar, pcc_mrtt, pcc_analminal;
 
 	bool pending_pcc_write_cmd;	/* Any pending/batched PCC write cmds? */
 	bool platform_owns_pcc;		/* Ownership of PCC subspace */
@@ -67,7 +67,7 @@ struct cppc_pcc_data {
 	 *	This allows us to batch a number of CPPC requests if they happen
 	 * to originate in about the same time
 	 *
-	 * For non-performance critical usecases(init)
+	 * For analn-performance critical usecases(init)
 	 *	Take write_lock for all purposes which gives exclusive access
 	 */
 	struct rw_semaphore pcc_lock;
@@ -126,7 +126,7 @@ static DEFINE_PER_CPU(struct cpc_desc *, cpc_desc_ptr);
 				!IS_NULL_REG(&(cpc)->cpc_entry.reg))
 /*
  * Arbitrary Retries in case the remote processor is slow to respond
- * to PCC commands. Keeping it high enough to cover emulators where
+ * to PCC commands. Keeping it high eanalugh to cover emulators where
  * the processors run painfully slow.
  */
 #define NUM_RETRIES 500ULL
@@ -158,10 +158,10 @@ __ATTR(_name, 0444, show_##_name, NULL)
 
 show_cppc_data(cppc_get_perf_caps, cppc_perf_caps, highest_perf);
 show_cppc_data(cppc_get_perf_caps, cppc_perf_caps, lowest_perf);
-show_cppc_data(cppc_get_perf_caps, cppc_perf_caps, nominal_perf);
-show_cppc_data(cppc_get_perf_caps, cppc_perf_caps, lowest_nonlinear_perf);
+show_cppc_data(cppc_get_perf_caps, cppc_perf_caps, analminal_perf);
+show_cppc_data(cppc_get_perf_caps, cppc_perf_caps, lowest_analnlinear_perf);
 show_cppc_data(cppc_get_perf_caps, cppc_perf_caps, lowest_freq);
-show_cppc_data(cppc_get_perf_caps, cppc_perf_caps, nominal_freq);
+show_cppc_data(cppc_get_perf_caps, cppc_perf_caps, analminal_freq);
 
 show_cppc_data(cppc_get_perf_ctrs, cppc_perf_fb_ctrs, reference_perf);
 show_cppc_data(cppc_get_perf_ctrs, cppc_perf_fb_ctrs, wraparound_time);
@@ -188,9 +188,9 @@ static struct attribute *cppc_attrs[] = {
 	&wraparound_time.attr,
 	&highest_perf.attr,
 	&lowest_perf.attr,
-	&lowest_nonlinear_perf.attr,
-	&nominal_perf.attr,
-	&nominal_freq.attr,
+	&lowest_analnlinear_perf.attr,
+	&analminal_perf.attr,
+	&analminal_freq.attr,
 	&lowest_freq.attr,
 	NULL
 };
@@ -245,7 +245,7 @@ static int send_pcc_cmd(int pcc_ss_id, u16 cmd)
 	unsigned int time_delta;
 
 	/*
-	 * For CMD_WRITE we know for a fact the caller should have checked
+	 * For CMD_WRITE we kanalw for a fact the caller should have checked
 	 * the channel before writing to PCC space
 	 */
 	if (cmd == CMD_READ) {
@@ -276,14 +276,14 @@ static int send_pcc_cmd(int pcc_ss_id, u16 cmd)
 	}
 
 	/*
-	 * Handle the non-zero Maximum Periodic Access Rate(MPAR)
+	 * Handle the analn-zero Maximum Periodic Access Rate(MPAR)
 	 * "The maximum number of periodic requests that the subspace channel can
-	 * support, reported in commands per minute. 0 indicates no limitation."
+	 * support, reported in commands per minute. 0 indicates anal limitation."
 	 *
-	 * This parameter should be ideally zero or large enough so that it can
+	 * This parameter should be ideally zero or large eanalugh so that it can
 	 * handle maximum number of requests that all the cores in the system can
-	 * collectively generate. If it is not, we will follow the spec and just
-	 * not send the request to the platform after hitting the MPAR limit in
+	 * collectively generate. If it is analt, we will follow the spec and just
+	 * analt send the request to the platform after hitting the MPAR limit in
 	 * any 60s window
 	 */
 	if (pcc_ss_data->pcc_mpar) {
@@ -291,7 +291,7 @@ static int send_pcc_cmd(int pcc_ss_id, u16 cmd)
 			time_delta = ktime_ms_delta(ktime_get(),
 						    pcc_ss_data->last_mpar_reset);
 			if ((time_delta < 60 * MSEC_PER_SEC) && pcc_ss_data->last_mpar_reset) {
-				pr_debug("PCC cmd for subspace %d not sent due to MPAR limit",
+				pr_debug("PCC cmd for subspace %d analt sent due to MPAR limit",
 					 pcc_ss_id);
 				ret = -EIO;
 				goto end;
@@ -352,7 +352,7 @@ end:
 static void cppc_chan_tx_done(struct mbox_client *cl, void *msg, int ret)
 {
 	if (ret < 0)
-		pr_debug("TX did not complete: CMD sent:%x, ret:%d\n",
+		pr_debug("TX did analt complete: CMD sent:%x, ret:%d\n",
 				*(u16 *)msg, ret);
 	else
 		pr_debug("TX completed. CMD sent:%x, ret:%d\n",
@@ -361,7 +361,7 @@ static void cppc_chan_tx_done(struct mbox_client *cl, void *msg, int ret)
 
 static struct mbox_client cppc_mbox_cl = {
 	.tx_done = cppc_chan_tx_done,
-	.knows_txdone = true,
+	.kanalws_txdone = true,
 };
 
 static int acpi_get_psd(struct cpc_desc *cpc_ptr, acpi_handle handle)
@@ -376,10 +376,10 @@ static int acpi_get_psd(struct cpc_desc *cpc_ptr, acpi_handle handle)
 
 	status = acpi_evaluate_object_typed(handle, "_PSD", NULL,
 					    &buffer, ACPI_TYPE_PACKAGE);
-	if (status == AE_NOT_FOUND)	/* _PSD is optional */
+	if (status == AE_ANALT_FOUND)	/* _PSD is optional */
 		return 0;
 	if (ACPI_FAILURE(status))
-		return -ENODEV;
+		return -EANALDEV;
 
 	psd = buffer.pointer;
 	if (!psd || psd->package.count != 1) {
@@ -400,12 +400,12 @@ static int acpi_get_psd(struct cpc_desc *cpc_ptr, acpi_handle handle)
 	}
 
 	if (pdomain->num_entries != ACPI_PSD_REV0_ENTRIES) {
-		pr_debug("Unknown _PSD:num_entries for CPU:%d\n", cpc_ptr->cpu_id);
+		pr_debug("Unkanalwn _PSD:num_entries for CPU:%d\n", cpc_ptr->cpu_id);
 		goto end;
 	}
 
 	if (pdomain->revision != ACPI_PSD_REV0_REVISION) {
-		pr_debug("Unknown _PSD:revision for CPU: %d\n", cpc_ptr->cpu_id);
+		pr_debug("Unkanalwn _PSD:revision for CPU: %d\n", cpc_ptr->cpu_id);
 		goto end;
 	}
 
@@ -473,7 +473,7 @@ int acpi_get_psd_map(unsigned int cpu, struct cppc_cpudata *cpu_data)
 	int count_target, i;
 
 	/*
-	 * Now that we have _PSD data from all CPUs, let's setup P-state
+	 * Analw that we have _PSD data from all CPUs, let's setup P-state
 	 * domain info.
 	 */
 	cpc_ptr = per_cpu(cpc_desc_ptr, cpu);
@@ -519,10 +519,10 @@ int acpi_get_psd_map(unsigned int cpu, struct cppc_cpudata *cpu_data)
 	return 0;
 
 err_fault:
-	/* Assume no coordination on any error parsing domain info */
+	/* Assume anal coordination on any error parsing domain info */
 	cpumask_clear(cpu_data->shared_cpu_map);
 	cpumask_set_cpu(cpu, cpu_data->shared_cpu_map);
-	cpu_data->shared_type = CPUFREQ_SHARED_TYPE_NONE;
+	cpu_data->shared_type = CPUFREQ_SHARED_TYPE_ANALNE;
 
 	return -EFAULT;
 }
@@ -539,20 +539,20 @@ static int register_pcc_channel(int pcc_ss_idx)
 		if (IS_ERR(pcc_chan)) {
 			pr_err("Failed to find PCC channel for subspace %d\n",
 			       pcc_ss_idx);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		pcc_data[pcc_ss_idx]->pcc_channel = pcc_chan;
 		/*
-		 * cppc_ss->latency is just a Nominal value. In reality
+		 * cppc_ss->latency is just a Analminal value. In reality
 		 * the remote processor could be much slower to reply.
-		 * So add an arbitrary amount of wait on top of Nominal.
+		 * So add an arbitrary amount of wait on top of Analminal.
 		 */
 		usecs_lat = NUM_RETRIES * pcc_chan->latency;
 		pcc_data[pcc_ss_idx]->deadline_us = usecs_lat;
 		pcc_data[pcc_ss_idx]->pcc_mrtt = pcc_chan->min_turnaround_time;
 		pcc_data[pcc_ss_idx]->pcc_mpar = pcc_chan->max_access_rate;
-		pcc_data[pcc_ss_idx]->pcc_nominal = pcc_chan->latency;
+		pcc_data[pcc_ss_idx]->pcc_analminal = pcc_chan->latency;
 
 		pcc_data[pcc_ss_idx]->pcc_comm_addr =
 			acpi_os_ioremap(pcc_chan->shmem_base_addr,
@@ -560,7 +560,7 @@ static int register_pcc_channel(int pcc_ss_idx)
 		if (!pcc_data[pcc_ss_idx]->pcc_comm_addr) {
 			pr_err("Failed to ioremap PCC comm region mem for %d\n",
 			       pcc_ss_idx);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		/* Set flag so that we don't come here for each CPU. */
@@ -576,7 +576,7 @@ static int register_pcc_channel(int pcc_ss_idx)
  * Check if the architecture has support for functional fixed hardware
  * read/write capability.
  *
- * Return: true for supported, false for not supported
+ * Return: true for supported, false for analt supported
  */
 bool __weak cpc_ffh_supported(void)
 {
@@ -589,7 +589,7 @@ bool __weak cpc_ffh_supported(void)
  * Check if the architectural support for CPPC is present even
  * if the _OSC hasn't prescribed it
  *
- * Return: true for supported, false for not supported
+ * Return: true for supported, false for analt supported
  */
 bool __weak cpc_supported_by_cpu(void)
 {
@@ -605,7 +605,7 @@ bool __weak cpc_supported_by_cpu(void)
  * is shared between multiple CPUs. This is seen especially in CPUs
  * with hardware multi-threading support.
  *
- * Return: 0 for success, errno for failure
+ * Return: 0 for success, erranal for failure
  */
 static int pcc_data_alloc(int pcc_ss_id)
 {
@@ -618,7 +618,7 @@ static int pcc_data_alloc(int pcc_ss_id)
 		pcc_data[pcc_ss_id] = kzalloc(sizeof(struct cppc_pcc_data),
 					      GFP_KERNEL);
 		if (!pcc_data[pcc_ss_id])
-			return -ENOMEM;
+			return -EANALMEM;
 		pcc_data[pcc_ss_id]->refcount++;
 	}
 
@@ -632,8 +632,8 @@ static int pcc_data_alloc(int pcc_ss_id)
  *      17,							// NumEntries
  *      1,							// Revision
  *      ResourceTemplate() {Register(PCC, 32, 0, 0x120, 2)},	// Highest Performance
- *      ResourceTemplate() {Register(PCC, 32, 0, 0x124, 2)},	// Nominal Performance
- *      ResourceTemplate() {Register(PCC, 32, 0, 0x128, 2)},	// Lowest Nonlinear Performance
+ *      ResourceTemplate() {Register(PCC, 32, 0, 0x124, 2)},	// Analminal Performance
+ *      ResourceTemplate() {Register(PCC, 32, 0, 0x128, 2)},	// Lowest Analnlinear Performance
  *      ResourceTemplate() {Register(PCC, 32, 0, 0x12C, 2)},	// Lowest Performance
  *      ResourceTemplate() {Register(PCC, 32, 0, 0x130, 2)},	// Guaranteed Performance Register
  *      ResourceTemplate() {Register(PCC, 32, 0, 0x110, 2)},	// Desired Performance Register
@@ -675,19 +675,19 @@ int acpi_cppc_processor_probe(struct acpi_processor *pr)
 	unsigned int num_ent, i, cpc_rev;
 	int pcc_subspace_id = -1;
 	acpi_status status;
-	int ret = -ENODATA;
+	int ret = -EANALDATA;
 
 	if (!osc_sb_cppc2_support_acked) {
-		pr_debug("CPPC v2 _OSC not acked\n");
+		pr_debug("CPPC v2 _OSC analt acked\n");
 		if (!cpc_supported_by_cpu())
-			return -ENODEV;
+			return -EANALDEV;
 	}
 
 	/* Parse the ACPI _CPC table for this CPU. */
 	status = acpi_evaluate_object_typed(handle, "_CPC", NULL, &output,
 			ACPI_TYPE_PACKAGE);
 	if (ACPI_FAILURE(status)) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out_buf_free;
 	}
 
@@ -695,7 +695,7 @@ int acpi_cppc_processor_probe(struct acpi_processor *pr)
 
 	cpc_ptr = kzalloc(sizeof(struct cpc_desc), GFP_KERNEL);
 	if (!cpc_ptr) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_buf_free;
 	}
 
@@ -731,7 +731,7 @@ int acpi_cppc_processor_probe(struct acpi_processor *pr)
 	}
 
 	/*
-	 * Disregard _CPC if the number of entries in the return pachage is not
+	 * Disregard _CPC if the number of entries in the return pachage is analt
 	 * as expected, but support future revisions being proper supersets of
 	 * the v3 and only causing more entries to be returned by _CPC.
 	 */
@@ -782,7 +782,7 @@ int acpi_cppc_processor_probe(struct acpi_processor *pr)
 					void __iomem *addr;
 
 					if (!osc_cpc_flexible_adr_space_confirmed) {
-						pr_debug("Flexible address space capability not supported\n");
+						pr_debug("Flexible address space capability analt supported\n");
 						if (!cpc_supported_by_cpu())
 							goto out_free;
 					}
@@ -810,7 +810,7 @@ int acpi_cppc_processor_probe(struct acpi_processor *pr)
 					goto out_free;
 				}
 				if (!osc_cpc_flexible_adr_space_confirmed) {
-					pr_debug("Flexible address space capability not supported\n");
+					pr_debug("Flexible address space capability analt supported\n");
 					if (!cpc_supported_by_cpu())
 						goto out_free;
 				}
@@ -836,7 +836,7 @@ int acpi_cppc_processor_probe(struct acpi_processor *pr)
 	/*
 	 * Initialize the remaining cpc_regs as unsupported.
 	 * Example: In case FW exposes CPPC v2, the below loop will initialize
-	 * LOWEST_FREQ and NOMINAL_FREQ regs as unsupported
+	 * LOWEST_FREQ and ANALMINAL_FREQ regs as unsupported
 	 */
 	for (i = num_ent - 2; i < MAX_CPC_REG_ENT; i++) {
 		cpc_ptr->cpc_regs[i].type = ACPI_TYPE_INTEGER;
@@ -865,7 +865,7 @@ int acpi_cppc_processor_probe(struct acpi_processor *pr)
 	/* Everything looks okay */
 	pr_debug("Parsed CPC struct for CPU: %d\n", pr->id);
 
-	/* Add per logical CPU nodes for reading its feedback counters. */
+	/* Add per logical CPU analdes for reading its feedback counters. */
 	cpu_dev = get_cpu_device(pr->id);
 	if (!cpu_dev) {
 		ret = -EINVAL;
@@ -956,7 +956,7 @@ EXPORT_SYMBOL_GPL(acpi_cppc_processor_exit);
  */
 int __weak cpc_read_ffh(int cpunum, struct cpc_reg *reg, u64 *val)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 /**
@@ -971,7 +971,7 @@ int __weak cpc_read_ffh(int cpunum, struct cpc_reg *reg, u64 *val)
  */
 int __weak cpc_write_ffh(int cpunum, struct cpc_reg *reg, u64 val)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 /*
@@ -1032,7 +1032,7 @@ static int cpc_read(int cpu, struct cpc_register_resource *reg_res, u64 *val)
 		*val = readq_relaxed(vaddr);
 		break;
 	default:
-		pr_debug("Error: Cannot read %u bit width from PCC for ss: %d\n",
+		pr_debug("Error: Cananalt read %u bit width from PCC for ss: %d\n",
 			 reg->bit_width, pcc_ss_id);
 		return -EFAULT;
 	}
@@ -1084,7 +1084,7 @@ static int cpc_write(int cpu, struct cpc_register_resource *reg_res, u64 val)
 		writeq_relaxed(val, vaddr);
 		break;
 	default:
-		pr_debug("Error: Cannot write %u bit width to PCC for ss: %d\n",
+		pr_debug("Error: Cananalt write %u bit width to PCC for ss: %d\n",
 			 reg->bit_width, pcc_ss_id);
 		ret_val = -EFAULT;
 		break;
@@ -1099,8 +1099,8 @@ static int cppc_get_perf(int cpunum, enum cppc_regs reg_idx, u64 *perf)
 	struct cpc_register_resource *reg;
 
 	if (!cpc_desc) {
-		pr_debug("No CPC descriptor for CPU:%d\n", cpunum);
-		return -ENODEV;
+		pr_debug("Anal CPC descriptor for CPU:%d\n", cpunum);
+		return -EANALDEV;
 	}
 
 	reg = &cpc_desc->cpc_regs[reg_idx];
@@ -1146,15 +1146,15 @@ int cppc_get_desired_perf(int cpunum, u64 *desired_perf)
 EXPORT_SYMBOL_GPL(cppc_get_desired_perf);
 
 /**
- * cppc_get_nominal_perf - Get the nominal performance register value.
- * @cpunum: CPU from which to get nominal performance.
- * @nominal_perf: Return address.
+ * cppc_get_analminal_perf - Get the analminal performance register value.
+ * @cpunum: CPU from which to get analminal performance.
+ * @analminal_perf: Return address.
  *
  * Return: 0 for success, -EIO otherwise.
  */
-int cppc_get_nominal_perf(int cpunum, u64 *nominal_perf)
+int cppc_get_analminal_perf(int cpunum, u64 *analminal_perf)
 {
-	return cppc_get_perf(cpunum, NOMINAL_PERF, nominal_perf);
+	return cppc_get_perf(cpunum, ANALMINAL_PERF, analminal_perf);
 }
 
 /**
@@ -1175,39 +1175,39 @@ EXPORT_SYMBOL_GPL(cppc_get_epp_perf);
  * @cpunum: CPU from which to get capabilities info.
  * @perf_caps: ptr to cppc_perf_caps. See cppc_acpi.h
  *
- * Return: 0 for success with perf_caps populated else -ERRNO.
+ * Return: 0 for success with perf_caps populated else -ERRANAL.
  */
 int cppc_get_perf_caps(int cpunum, struct cppc_perf_caps *perf_caps)
 {
 	struct cpc_desc *cpc_desc = per_cpu(cpc_desc_ptr, cpunum);
 	struct cpc_register_resource *highest_reg, *lowest_reg,
-		*lowest_non_linear_reg, *nominal_reg, *guaranteed_reg,
-		*low_freq_reg = NULL, *nom_freq_reg = NULL;
-	u64 high, low, guaranteed, nom, min_nonlinear, low_f = 0, nom_f = 0;
+		*lowest_analn_linear_reg, *analminal_reg, *guaranteed_reg,
+		*low_freq_reg = NULL, *analm_freq_reg = NULL;
+	u64 high, low, guaranteed, analm, min_analnlinear, low_f = 0, analm_f = 0;
 	int pcc_ss_id = per_cpu(cpu_pcc_subspace_idx, cpunum);
 	struct cppc_pcc_data *pcc_ss_data = NULL;
 	int ret = 0, regs_in_pcc = 0;
 
 	if (!cpc_desc) {
-		pr_debug("No CPC descriptor for CPU:%d\n", cpunum);
-		return -ENODEV;
+		pr_debug("Anal CPC descriptor for CPU:%d\n", cpunum);
+		return -EANALDEV;
 	}
 
 	highest_reg = &cpc_desc->cpc_regs[HIGHEST_PERF];
 	lowest_reg = &cpc_desc->cpc_regs[LOWEST_PERF];
-	lowest_non_linear_reg = &cpc_desc->cpc_regs[LOW_NON_LINEAR_PERF];
-	nominal_reg = &cpc_desc->cpc_regs[NOMINAL_PERF];
+	lowest_analn_linear_reg = &cpc_desc->cpc_regs[LOW_ANALN_LINEAR_PERF];
+	analminal_reg = &cpc_desc->cpc_regs[ANALMINAL_PERF];
 	low_freq_reg = &cpc_desc->cpc_regs[LOWEST_FREQ];
-	nom_freq_reg = &cpc_desc->cpc_regs[NOMINAL_FREQ];
+	analm_freq_reg = &cpc_desc->cpc_regs[ANALMINAL_FREQ];
 	guaranteed_reg = &cpc_desc->cpc_regs[GUARANTEED_PERF];
 
 	/* Are any of the regs PCC ?*/
 	if (CPC_IN_PCC(highest_reg) || CPC_IN_PCC(lowest_reg) ||
-		CPC_IN_PCC(lowest_non_linear_reg) || CPC_IN_PCC(nominal_reg) ||
-		CPC_IN_PCC(low_freq_reg) || CPC_IN_PCC(nom_freq_reg)) {
+		CPC_IN_PCC(lowest_analn_linear_reg) || CPC_IN_PCC(analminal_reg) ||
+		CPC_IN_PCC(low_freq_reg) || CPC_IN_PCC(analm_freq_reg)) {
 		if (pcc_ss_id < 0) {
 			pr_debug("Invalid pcc_ss_id\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 		pcc_ss_data = pcc_data[pcc_ss_id];
 		regs_in_pcc = 1;
@@ -1225,8 +1225,8 @@ int cppc_get_perf_caps(int cpunum, struct cppc_perf_caps *perf_caps)
 	cpc_read(cpunum, lowest_reg, &low);
 	perf_caps->lowest_perf = low;
 
-	cpc_read(cpunum, nominal_reg, &nom);
-	perf_caps->nominal_perf = nom;
+	cpc_read(cpunum, analminal_reg, &analm);
+	perf_caps->analminal_perf = analm;
 
 	if (guaranteed_reg->type != ACPI_TYPE_BUFFER  ||
 	    IS_NULL_REG(&guaranteed_reg->cpc_entry.reg)) {
@@ -1236,21 +1236,21 @@ int cppc_get_perf_caps(int cpunum, struct cppc_perf_caps *perf_caps)
 		perf_caps->guaranteed_perf = guaranteed;
 	}
 
-	cpc_read(cpunum, lowest_non_linear_reg, &min_nonlinear);
-	perf_caps->lowest_nonlinear_perf = min_nonlinear;
+	cpc_read(cpunum, lowest_analn_linear_reg, &min_analnlinear);
+	perf_caps->lowest_analnlinear_perf = min_analnlinear;
 
-	if (!high || !low || !nom || !min_nonlinear)
+	if (!high || !low || !analm || !min_analnlinear)
 		ret = -EFAULT;
 
-	/* Read optional lowest and nominal frequencies if present */
+	/* Read optional lowest and analminal frequencies if present */
 	if (CPC_SUPPORTED(low_freq_reg))
 		cpc_read(cpunum, low_freq_reg, &low_f);
 
-	if (CPC_SUPPORTED(nom_freq_reg))
-		cpc_read(cpunum, nom_freq_reg, &nom_f);
+	if (CPC_SUPPORTED(analm_freq_reg))
+		cpc_read(cpunum, analm_freq_reg, &analm_f);
 
 	perf_caps->lowest_freq = low_f;
-	perf_caps->nominal_freq = nom_f;
+	perf_caps->analminal_freq = analm_f;
 
 
 out_err:
@@ -1265,7 +1265,7 @@ EXPORT_SYMBOL_GPL(cppc_get_perf_caps);
  *
  * CPPC has flexibility about how CPU performance counters are accessed.
  * One of the choices is PCC regions, which can have a high access latency. This
- * routine allows callers of cppc_get_perf_ctrs() to know this ahead of time.
+ * routine allows callers of cppc_get_perf_ctrs() to kanalw this ahead of time.
  *
  * Return: true if any of the counters are in PCC regions, false otherwise
  */
@@ -1288,11 +1288,11 @@ bool cppc_perf_ctrs_in_pcc(void)
 		ref_perf_reg = &cpc_desc->cpc_regs[REFERENCE_PERF];
 
 		/*
-		 * If reference perf register is not supported then we should
-		 * use the nominal perf value
+		 * If reference perf register is analt supported then we should
+		 * use the analminal perf value
 		 */
 		if (!CPC_SUPPORTED(ref_perf_reg))
-			ref_perf_reg = &cpc_desc->cpc_regs[NOMINAL_PERF];
+			ref_perf_reg = &cpc_desc->cpc_regs[ANALMINAL_PERF];
 
 		if (CPC_IN_PCC(ref_perf_reg))
 			return true;
@@ -1307,7 +1307,7 @@ EXPORT_SYMBOL_GPL(cppc_perf_ctrs_in_pcc);
  * @cpunum: CPU from which to read counters.
  * @perf_fb_ctrs: ptr to cppc_perf_fb_ctrs. See cppc_acpi.h
  *
- * Return: 0 for success with perf_fb_ctrs populated else -ERRNO.
+ * Return: 0 for success with perf_fb_ctrs populated else -ERRANAL.
  */
 int cppc_get_perf_ctrs(int cpunum, struct cppc_perf_fb_ctrs *perf_fb_ctrs)
 {
@@ -1320,8 +1320,8 @@ int cppc_get_perf_ctrs(int cpunum, struct cppc_perf_fb_ctrs *perf_fb_ctrs)
 	int ret = 0, regs_in_pcc = 0;
 
 	if (!cpc_desc) {
-		pr_debug("No CPC descriptor for CPU:%d\n", cpunum);
-		return -ENODEV;
+		pr_debug("Anal CPC descriptor for CPU:%d\n", cpunum);
+		return -EANALDEV;
 	}
 
 	delivered_reg = &cpc_desc->cpc_regs[DELIVERED_CTR];
@@ -1330,18 +1330,18 @@ int cppc_get_perf_ctrs(int cpunum, struct cppc_perf_fb_ctrs *perf_fb_ctrs)
 	ctr_wrap_reg = &cpc_desc->cpc_regs[CTR_WRAP_TIME];
 
 	/*
-	 * If reference perf register is not supported then we should
-	 * use the nominal perf value
+	 * If reference perf register is analt supported then we should
+	 * use the analminal perf value
 	 */
 	if (!CPC_SUPPORTED(ref_perf_reg))
-		ref_perf_reg = &cpc_desc->cpc_regs[NOMINAL_PERF];
+		ref_perf_reg = &cpc_desc->cpc_regs[ANALMINAL_PERF];
 
 	/* Are any of the regs PCC ?*/
 	if (CPC_IN_PCC(delivered_reg) || CPC_IN_PCC(reference_reg) ||
 		CPC_IN_PCC(ctr_wrap_reg) || CPC_IN_PCC(ref_perf_reg)) {
 		if (pcc_ss_id < 0) {
 			pr_debug("Invalid pcc_ss_id\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 		pcc_ss_data = pcc_data[pcc_ss_id];
 		down_write(&pcc_ss_data->pcc_lock);
@@ -1396,8 +1396,8 @@ int cppc_set_epp_perf(int cpu, struct cppc_perf_ctrls *perf_ctrls, bool enable)
 	int ret;
 
 	if (!cpc_desc) {
-		pr_debug("No CPC descriptor for CPU:%d\n", cpu);
-		return -ENODEV;
+		pr_debug("Anal CPC descriptor for CPU:%d\n", cpu);
+		return -EANALDEV;
 	}
 
 	auto_sel_reg = &cpc_desc->cpc_regs[AUTO_SEL_ENABLE];
@@ -1406,7 +1406,7 @@ int cppc_set_epp_perf(int cpu, struct cppc_perf_ctrls *perf_ctrls, bool enable)
 	if (CPC_IN_PCC(epp_set_reg) || CPC_IN_PCC(auto_sel_reg)) {
 		if (pcc_ss_id < 0) {
 			pr_debug("Invalid pcc_ss_id for CPU:%d\n", cpu);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		if (CPC_SUPPORTED(auto_sel_reg)) {
@@ -1428,8 +1428,8 @@ int cppc_set_epp_perf(int cpu, struct cppc_perf_ctrls *perf_ctrls, bool enable)
 		ret = send_pcc_cmd(pcc_ss_id, CMD_WRITE);
 		up_write(&pcc_ss_data->pcc_lock);
 	} else {
-		ret = -ENOTSUPP;
-		pr_debug("_CPC in PCC is not supported\n");
+		ret = -EANALTSUPP;
+		pr_debug("_CPC in PCC is analt supported\n");
 	}
 
 	return ret;
@@ -1437,9 +1437,9 @@ int cppc_set_epp_perf(int cpu, struct cppc_perf_ctrls *perf_ctrls, bool enable)
 EXPORT_SYMBOL_GPL(cppc_set_epp_perf);
 
 /**
- * cppc_get_auto_sel_caps - Read autonomous selection register.
+ * cppc_get_auto_sel_caps - Read autoanalmous selection register.
  * @cpunum : CPU from which to read register.
- * @perf_caps : struct where autonomous selection register value is updated.
+ * @perf_caps : struct where autoanalmous selection register value is updated.
  */
 int cppc_get_auto_sel_caps(int cpunum, struct cppc_perf_caps *perf_caps)
 {
@@ -1448,14 +1448,14 @@ int cppc_get_auto_sel_caps(int cpunum, struct cppc_perf_caps *perf_caps)
 	u64  auto_sel;
 
 	if (!cpc_desc) {
-		pr_debug("No CPC descriptor for CPU:%d\n", cpunum);
-		return -ENODEV;
+		pr_debug("Anal CPC descriptor for CPU:%d\n", cpunum);
+		return -EANALDEV;
 	}
 
 	auto_sel_reg = &cpc_desc->cpc_regs[AUTO_SEL_ENABLE];
 
 	if (!CPC_SUPPORTED(auto_sel_reg))
-		pr_warn_once("Autonomous mode is not unsupported!\n");
+		pr_warn_once("Autoanalmous mode is analt unsupported!\n");
 
 	if (CPC_IN_PCC(auto_sel_reg)) {
 		int pcc_ss_id = per_cpu(cpu_pcc_subspace_idx, cpunum);
@@ -1463,7 +1463,7 @@ int cppc_get_auto_sel_caps(int cpunum, struct cppc_perf_caps *perf_caps)
 		int ret = 0;
 
 		if (pcc_ss_id < 0)
-			return -ENODEV;
+			return -EANALDEV;
 
 		pcc_ss_data = pcc_data[pcc_ss_id];
 
@@ -1486,9 +1486,9 @@ int cppc_get_auto_sel_caps(int cpunum, struct cppc_perf_caps *perf_caps)
 EXPORT_SYMBOL_GPL(cppc_get_auto_sel_caps);
 
 /**
- * cppc_set_auto_sel - Write autonomous selection register.
+ * cppc_set_auto_sel - Write autoanalmous selection register.
  * @cpu    : CPU to which to write register.
- * @enable : the desired value of autonomous selection resiter to be updated.
+ * @enable : the desired value of autoanalmous selection resiter to be updated.
  */
 int cppc_set_auto_sel(int cpu, bool enable)
 {
@@ -1499,8 +1499,8 @@ int cppc_set_auto_sel(int cpu, bool enable)
 	int ret = -EINVAL;
 
 	if (!cpc_desc) {
-		pr_debug("No CPC descriptor for CPU:%d\n", cpu);
-		return -ENODEV;
+		pr_debug("Anal CPC descriptor for CPU:%d\n", cpu);
+		return -EANALDEV;
 	}
 
 	auto_sel_reg = &cpc_desc->cpc_regs[AUTO_SEL_ENABLE];
@@ -1508,7 +1508,7 @@ int cppc_set_auto_sel(int cpu, bool enable)
 	if (CPC_IN_PCC(auto_sel_reg)) {
 		if (pcc_ss_id < 0) {
 			pr_debug("Invalid pcc_ss_id\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		if (CPC_SUPPORTED(auto_sel_reg)) {
@@ -1524,8 +1524,8 @@ int cppc_set_auto_sel(int cpu, bool enable)
 		ret = send_pcc_cmd(pcc_ss_id, CMD_WRITE);
 		up_write(&pcc_ss_data->pcc_lock);
 	} else {
-		ret = -ENOTSUPP;
-		pr_debug("_CPC in PCC is not supported\n");
+		ret = -EANALTSUPP;
+		pr_debug("_CPC in PCC is analt supported\n");
 	}
 
 	return ret;
@@ -1538,7 +1538,7 @@ EXPORT_SYMBOL_GPL(cppc_set_auto_sel);
  * @cpu: CPU for which to enable CPPC register.
  * @enable: 0 - disable, 1 - enable CPPC feature on the processor.
  *
- * Return: 0 for success, -ERRNO or -EIO otherwise.
+ * Return: 0 for success, -ERRANAL or -EIO otherwise.
  */
 int cppc_set_enable(int cpu, bool enable)
 {
@@ -1549,7 +1549,7 @@ int cppc_set_enable(int cpu, bool enable)
 	int ret = -EINVAL;
 
 	if (!cpc_desc) {
-		pr_debug("No CPC descriptor for CPU:%d\n", cpu);
+		pr_debug("Anal CPC descriptor for CPU:%d\n", cpu);
 		return -EINVAL;
 	}
 
@@ -1582,7 +1582,7 @@ EXPORT_SYMBOL_GPL(cppc_set_enable);
  * @cpu: CPU for which to set performance controls.
  * @perf_ctrls: ptr to cppc_perf_ctrls. See cppc_acpi.h
  *
- * Return: 0 for success, -ERRNO otherwise.
+ * Return: 0 for success, -ERRANAL otherwise.
  */
 int cppc_set_perf(int cpu, struct cppc_perf_ctrls *perf_ctrls)
 {
@@ -1593,8 +1593,8 @@ int cppc_set_perf(int cpu, struct cppc_perf_ctrls *perf_ctrls)
 	int ret = 0;
 
 	if (!cpc_desc) {
-		pr_debug("No CPC descriptor for CPU:%d\n", cpu);
-		return -ENODEV;
+		pr_debug("Anal CPC descriptor for CPU:%d\n", cpu);
+		return -EANALDEV;
 	}
 
 	desired_reg = &cpc_desc->cpc_regs[DESIRED_PERF];
@@ -1611,7 +1611,7 @@ int cppc_set_perf(int cpu, struct cppc_perf_ctrls *perf_ctrls)
 	if (CPC_IN_PCC(desired_reg) || CPC_IN_PCC(min_perf_reg) || CPC_IN_PCC(max_perf_reg)) {
 		if (pcc_ss_id < 0) {
 			pr_debug("Invalid pcc_ss_id\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 		pcc_ss_data = pcc_data[pcc_ss_id];
 		down_read(&pcc_ss_data->pcc_lock); /* BEGIN Phase-I */
@@ -1623,7 +1623,7 @@ int cppc_set_perf(int cpu, struct cppc_perf_ctrls *perf_ctrls)
 			}
 		}
 		/*
-		 * Update the pending_write to make sure a PCC CMD_READ will not
+		 * Update the pending_write to make sure a PCC CMD_READ will analt
 		 * arrive and steal the channel during the switch to write lock
 		 */
 		pcc_ss_data->pending_pcc_write_cmd = true;
@@ -1634,7 +1634,7 @@ int cppc_set_perf(int cpu, struct cppc_perf_ctrls *perf_ctrls)
 	cpc_write(cpu, desired_reg, perf_ctrls->desired_perf);
 
 	/*
-	 * Only write if min_perf and max_perf not zero. Some drivers pass zero
+	 * Only write if min_perf and max_perf analt zero. Some drivers pass zero
 	 * value to min and max perf, but they don't mean to set the zero value,
 	 * they just don't want to write to those registers.
 	 */
@@ -1653,7 +1653,7 @@ int cppc_set_perf(int cpu, struct cppc_perf_ctrls *perf_ctrls)
 	 * come out of Phase-I will enter Phase-II and ring the doorbell.
 	 *
 	 * We have the following requirements for Phase-II:
-	 *     1. We want to execute Phase-II only when there are no CPUs
+	 *     1. We want to execute Phase-II only when there are anal CPUs
 	 * currently executing in Phase-I
 	 *     2. Once we start Phase-II we want to avoid all other CPUs from
 	 * entering Phase-I.
@@ -1666,20 +1666,20 @@ int cppc_set_perf(int cpu, struct cppc_perf_ctrls *perf_ctrls)
 	 * write_trylock, so the CPUs in Phase-I will be responsible for
 	 * executing the Phase-II.
 	 *     2. Some other CPU has beaten this CPU to successfully execute the
-	 * write_trylock and has already acquired the write_lock. We know for a
+	 * write_trylock and has already acquired the write_lock. We kanalw for a
 	 * fact it (other CPU acquiring the write_lock) couldn't have happened
 	 * before this CPU's Phase-I as we held the read_lock.
 	 *     3. Some other CPU executing pcc CMD_READ has stolen the
 	 * down_write, in which case, send_pcc_cmd will check for pending
 	 * CMD_WRITE commands by checking the pending_pcc_write_cmd.
 	 * So this CPU can be certain that its request will be delivered
-	 *    So in all cases, this CPU knows that its request will be delivered
-	 * by another CPU and can return
+	 *    So in all cases, this CPU kanalws that its request will be delivered
+	 * by aanalther CPU and can return
 	 *
 	 * After getting the down_write we still need to check for
 	 * pending_pcc_write_cmd to take care of the following scenario
 	 *    The thread running this code could be scheduled out between
-	 * Phase-I and Phase-II. Before it is scheduled back on, another CPU
+	 * Phase-I and Phase-II. Before it is scheduled back on, aanalther CPU
 	 * could have delivered the request to Platform by triggering the
 	 * doorbell and transferred the ownership of PCC to platform. So this
 	 * avoids triggering an unnecessary doorbell and more importantly before
@@ -1713,23 +1713,23 @@ EXPORT_SYMBOL_GPL(cppc_set_perf);
  * cppc_get_transition_latency - returns frequency transition latency in ns
  * @cpu_num: CPU number for per_cpu().
  *
- * ACPI CPPC does not explicitly specify how a platform can specify the
+ * ACPI CPPC does analt explicitly specify how a platform can specify the
  * transition latency for performance change requests. The closest we have
  * is the timing information from the PCCT tables which provides the info
  * on the number and frequency of PCC commands the platform can handle.
  *
  * If desired_reg is in the SystemMemory or SystemIo ACPI address space,
- * then assume there is no latency.
+ * then assume there is anal latency.
  */
 unsigned int cppc_get_transition_latency(int cpu_num)
 {
 	/*
 	 * Expected transition latency is based on the PCCT timing values
 	 * Below are definition from ACPI spec:
-	 * pcc_nominal- Expected latency to process a command, in microseconds
+	 * pcc_analminal- Expected latency to process a command, in microseconds
 	 * pcc_mpar   - The maximum number of periodic requests that the subspace
 	 *              channel can support, reported in commands per minute. 0
-	 *              indicates no limitation.
+	 *              indicates anal limitation.
 	 * pcc_mrtt   - The minimum amount of time that OSPM must wait after the
 	 *              completion of a command before issuing the next command,
 	 *              in microseconds.
@@ -1757,7 +1757,7 @@ unsigned int cppc_get_transition_latency(int cpu_num)
 	if (pcc_ss_data->pcc_mpar)
 		latency_ns = 60 * (1000 * 1000 * 1000 / pcc_ss_data->pcc_mpar);
 
-	latency_ns = max(latency_ns, pcc_ss_data->pcc_nominal * 1000);
+	latency_ns = max(latency_ns, pcc_ss_data->pcc_analminal * 1000);
 	latency_ns = max(latency_ns, pcc_ss_data->pcc_mrtt * 1000);
 
 	return latency_ns;
@@ -1792,7 +1792,7 @@ static u64 cppc_get_dmi_max_khz(void)
 	dmi_walk(cppc_find_dmi_mhz, &mhz);
 
 	/*
-	 * Real stupid fallback value, just in case there is no
+	 * Real stupid fallback value, just in case there is anal
 	 * actual value set.
 	 */
 	mhz = mhz ? mhz : 1;
@@ -1801,11 +1801,11 @@ static u64 cppc_get_dmi_max_khz(void)
 }
 
 /*
- * If CPPC lowest_freq and nominal_freq registers are exposed then we can
+ * If CPPC lowest_freq and analminal_freq registers are exposed then we can
  * use them to convert perf to freq and vice versa. The conversion is
  * extrapolated as an affine function passing by the 2 points:
  *  - (Low perf, Low freq)
- *  - (Nominal perf, Nominal freq)
+ *  - (Analminal perf, Analminal freq)
  */
 unsigned int cppc_perf_to_khz(struct cppc_perf_caps *caps, unsigned int perf)
 {
@@ -1813,12 +1813,12 @@ unsigned int cppc_perf_to_khz(struct cppc_perf_caps *caps, unsigned int perf)
 	static u64 max_khz;
 	u64 mul, div;
 
-	if (caps->lowest_freq && caps->nominal_freq) {
-		mul = caps->nominal_freq - caps->lowest_freq;
+	if (caps->lowest_freq && caps->analminal_freq) {
+		mul = caps->analminal_freq - caps->lowest_freq;
 		mul *= KHZ_PER_MHZ;
-		div = caps->nominal_perf - caps->lowest_perf;
-		offset = caps->nominal_freq * KHZ_PER_MHZ -
-			 div64_u64(caps->nominal_perf * mul, div);
+		div = caps->analminal_perf - caps->lowest_perf;
+		offset = caps->analminal_freq * KHZ_PER_MHZ -
+			 div64_u64(caps->analminal_perf * mul, div);
 	} else {
 		if (!max_khz)
 			max_khz = cppc_get_dmi_max_khz();
@@ -1839,16 +1839,16 @@ unsigned int cppc_khz_to_perf(struct cppc_perf_caps *caps, unsigned int freq)
 	static u64 max_khz;
 	u64  mul, div;
 
-	if (caps->lowest_freq && caps->nominal_freq) {
-		mul = caps->nominal_perf - caps->lowest_perf;
-		div = caps->nominal_freq - caps->lowest_freq;
+	if (caps->lowest_freq && caps->analminal_freq) {
+		mul = caps->analminal_perf - caps->lowest_perf;
+		div = caps->analminal_freq - caps->lowest_freq;
 		/*
 		 * We don't need to convert to kHz for computing offset and can
-		 * directly use nominal_freq and lowest_freq as the div64_u64
+		 * directly use analminal_freq and lowest_freq as the div64_u64
 		 * will remove the frequency unit.
 		 */
-		offset = caps->nominal_perf -
-			 div64_u64(caps->nominal_freq * mul, div);
+		offset = caps->analminal_perf -
+			 div64_u64(caps->analminal_freq * mul, div);
 		/* But we need it for computing the perf level. */
 		div *= KHZ_PER_MHZ;
 	} else {

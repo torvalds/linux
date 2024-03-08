@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -28,7 +28,7 @@
 #include "soc15_common.h"
 
 /*
- * DO NOT use these for err/warn/info/debug messages.
+ * DO ANALT use these for err/warn/info/debug messages.
  * Use dev_err, dev_warn, dev_info and dev_dbg instead.
  * They are more MGPU friendly.
  */
@@ -50,14 +50,14 @@ static const char * const __smu_message_names[] = {
 #define smu_cmn_call_asic_func(intf, smu, args...)                             \
 	((smu)->ppt_funcs ? ((smu)->ppt_funcs->intf ?                          \
 				     (smu)->ppt_funcs->intf(smu, ##args) :     \
-				     -ENOTSUPP) :                              \
+				     -EANALTSUPP) :                              \
 			    -EINVAL)
 
 static const char *smu_get_message_name(struct smu_context *smu,
 					enum smu_message_type type)
 {
 	if (type < 0 || type >= SMU_MSG_MAX_COUNT)
-		return "unknown smu message";
+		return "unkanalwn smu message";
 
 	return __smu_message_names[type];
 }
@@ -72,16 +72,16 @@ static void smu_cmn_read_arg(struct smu_context *smu,
 
 /* Redefine the SMU error codes here.
  *
- * Note that these definitions are redundant and should be removed
+ * Analte that these definitions are redundant and should be removed
  * when the SMU has exported a unified header file containing these
  * macros, which header file we can just include and use the SMU's
  * macros. At the moment, these error codes are defined by the SMU
  * per-ASIC unfortunately, yet we're a one driver for all ASICs.
  */
-#define SMU_RESP_NONE           0
+#define SMU_RESP_ANALNE           0
 #define SMU_RESP_OK             1
 #define SMU_RESP_CMD_FAIL       0xFF
-#define SMU_RESP_CMD_UNKNOWN    0xFE
+#define SMU_RESP_CMD_UNKANALWN    0xFE
 #define SMU_RESP_CMD_BAD_PREREQ 0xFD
 #define SMU_RESP_BUSY_OTHER     0xFC
 #define SMU_RESP_DEBUG_END      0xFB
@@ -94,16 +94,16 @@ static void smu_cmn_read_arg(struct smu_context *smu,
  *    0, the SMU is busy with your command;
  *    1, execution status: success, execution result: success;
  * 0xFF, execution status: success, execution result: failure;
- * 0xFE, unknown command;
+ * 0xFE, unkanalwn command;
  * 0xFD, valid command, but bad (command) prerequisites;
  * 0xFC, the command was rejected as the SMU is busy;
  * 0xFB, "SMC_Result_DebugDataDumpEnd".
  *
- * The values here are not defined by macros, because I'd rather we
+ * The values here are analt defined by macros, because I'd rather we
  * include a single header file which defines them, which is
  * maintained by the SMU FW team, so that we're impervious to firmware
  * changes. At the moment those values are defined in various header
- * files, one for each ASIC, yet here we're a single ASIC-agnostic
+ * files, one for each ASIC, yet here we're a single ASIC-aganalstic
  * interface. Such a change can be followed-up by a subsequent patch.
  */
 static u32 __smu_cmn_poll_stat(struct smu_context *smu)
@@ -134,11 +134,11 @@ static void __smu_cmn_reg_print_error(struct smu_context *smu,
 	u32 msg_idx, prm;
 
 	switch (reg_c2pmsg_90) {
-	case SMU_RESP_NONE: {
+	case SMU_RESP_ANALNE: {
 		msg_idx = RREG32(smu->msg_reg);
 		prm     = RREG32(smu->param_reg);
 		dev_err_ratelimited(adev->dev,
-				    "SMU: I'm not done with your previous command: SMN_C2PMSG_66:0x%08X SMN_C2PMSG_82:0x%08X",
+				    "SMU: I'm analt done with your previous command: SMN_C2PMSG_66:0x%08X SMN_C2PMSG_82:0x%08X",
 				    msg_idx, prm);
 		}
 		break;
@@ -152,9 +152,9 @@ static void __smu_cmn_reg_print_error(struct smu_context *smu,
 		 * unsuccessful result.
 		 */
 		break;
-	case SMU_RESP_CMD_UNKNOWN:
+	case SMU_RESP_CMD_UNKANALWN:
 		dev_err_ratelimited(adev->dev,
-				    "SMU: unknown command: index:%d param:0x%08X message:%s",
+				    "SMU: unkanalwn command: index:%d param:0x%08X message:%s",
 				    msg_index, param, message);
 		break;
 	case SMU_RESP_CMD_BAD_PREREQ:
@@ -179,12 +179,12 @@ static void __smu_cmn_reg_print_error(struct smu_context *smu,
 	}
 }
 
-static int __smu_cmn_reg2errno(struct smu_context *smu, u32 reg_c2pmsg_90)
+static int __smu_cmn_reg2erranal(struct smu_context *smu, u32 reg_c2pmsg_90)
 {
 	int res;
 
 	switch (reg_c2pmsg_90) {
-	case SMU_RESP_NONE:
+	case SMU_RESP_ANALNE:
 		/* The SMU is busy--still executing your command.
 		 */
 		res = -ETIME;
@@ -198,10 +198,10 @@ static int __smu_cmn_reg2errno(struct smu_context *smu, u32 reg_c2pmsg_90)
 		 */
 		res = -EIO;
 		break;
-	case SMU_RESP_CMD_UNKNOWN:
-		/* Unknown command--ignored by the SMU.
+	case SMU_RESP_CMD_UNKANALWN:
+		/* Unkanalwn command--iganalred by the SMU.
 		 */
-		res = -EOPNOTSUPP;
+		res = -EOPANALTSUPP;
 		break;
 	case SMU_RESP_CMD_BAD_PREREQ:
 		/* Valid command--bad prerequisites.
@@ -215,7 +215,7 @@ static int __smu_cmn_reg2errno(struct smu_context *smu, u32 reg_c2pmsg_90)
 		res = -EBUSY;
 		break;
 	default:
-		/* Unknown or debug response from the SMU.
+		/* Unkanalwn or debug response from the SMU.
 		 */
 		res = -EREMOTEIO;
 		break;
@@ -253,12 +253,12 @@ static int __smu_cmn_send_debug_msg(struct smu_context *smu,
  * @msg_index: message index
  * @param: message parameter to send to the SMU
  *
- * Send a message to the SMU with the parameter passed. Do not wait
+ * Send a message to the SMU with the parameter passed. Do analt wait
  * for status/result of the message, thus the "without_waiting".
  *
- * Return 0 on success, -errno on error if we weren't able to _send_
- * the message for some reason. See __smu_cmn_reg2errno() for details
- * of the -errno.
+ * Return 0 on success, -erranal on error if we weren't able to _send_
+ * the message for some reason. See __smu_cmn_reg2erranal() for details
+ * of the -erranal.
  */
 int smu_cmn_send_msg_without_waiting(struct smu_context *smu,
 				     uint16_t msg_index,
@@ -268,12 +268,12 @@ int smu_cmn_send_msg_without_waiting(struct smu_context *smu,
 	u32 reg;
 	int res;
 
-	if (adev->no_hw_access)
+	if (adev->anal_hw_access)
 		return 0;
 
 	reg = __smu_cmn_poll_stat(smu);
-	res = __smu_cmn_reg2errno(smu, reg);
-	if (reg == SMU_RESP_NONE ||
+	res = __smu_cmn_reg2erranal(smu, reg);
+	if (reg == SMU_RESP_ANALNE ||
 	    res == -EREMOTEIO)
 		goto Out;
 	__smu_cmn_send_msg(smu, msg_index, param);
@@ -294,9 +294,9 @@ Out:
  *
  * Wait for status from the SMU.
  *
- * Return 0 on success, -errno on error, indicating the execution
+ * Return 0 on success, -erranal on error, indicating the execution
  * status and result of the message being waited for. See
- * __smu_cmn_reg2errno() for details of the -errno.
+ * __smu_cmn_reg2erranal() for details of the -erranal.
  */
 int smu_cmn_wait_for_response(struct smu_context *smu)
 {
@@ -304,7 +304,7 @@ int smu_cmn_wait_for_response(struct smu_context *smu)
 	int res;
 
 	reg = __smu_cmn_poll_stat(smu);
-	res = __smu_cmn_reg2errno(smu, reg);
+	res = __smu_cmn_reg2erranal(smu, reg);
 
 	if (unlikely(smu->adev->pm.smu_debug_mask & SMU_DEBUG_HALT_ON_ERROR) &&
 	    res && (res != -ETIME)) {
@@ -327,19 +327,19 @@ int smu_cmn_wait_for_response(struct smu_context *smu)
  * completion of the command, and return back a value from the SMU in
  * @read_arg pointer.
  *
- * Return 0 on success, -errno when a problem is encountered sending
+ * Return 0 on success, -erranal when a problem is encountered sending
  * message or receiving reply. If there is a PCI bus recovery or
- * the destination is a virtual GPU which does not allow this message
+ * the destination is a virtual GPU which does analt allow this message
  * type, the message is simply dropped and success is also returned.
- * See __smu_cmn_reg2errno() for details of the -errno.
+ * See __smu_cmn_reg2erranal() for details of the -erranal.
  *
  * If we weren't able to send the message to the SMU, we also print
  * the error to the standard log.
  *
- * Command completion status is printed only if the -errno is
+ * Command completion status is printed only if the -erranal is
  * -EREMOTEIO, indicating that the SMU returned back an
- * undefined/unknown/unspecified result. All other cases are
- * well-defined, not printed, but instead given back to the client to
+ * undefined/unkanalwn/unspecified result. All other cases are
+ * well-defined, analt printed, but instead given back to the client to
  * decide what further to do.
  *
  * The return value, @read_arg is read back regardless, to give back
@@ -356,7 +356,7 @@ int smu_cmn_send_smc_msg_with_param(struct smu_context *smu,
 	int res, index;
 	u32 reg;
 
-	if (adev->no_hw_access)
+	if (adev->anal_hw_access)
 		return 0;
 
 	index = smu_cmn_to_asic_specific_index(smu,
@@ -367,15 +367,15 @@ int smu_cmn_send_smc_msg_with_param(struct smu_context *smu,
 
 	mutex_lock(&smu->message_lock);
 	reg = __smu_cmn_poll_stat(smu);
-	res = __smu_cmn_reg2errno(smu, reg);
-	if (reg == SMU_RESP_NONE ||
+	res = __smu_cmn_reg2erranal(smu, reg);
+	if (reg == SMU_RESP_ANALNE ||
 	    res == -EREMOTEIO) {
 		__smu_cmn_reg_print_error(smu, reg, index, param, msg);
 		goto Out;
 	}
 	__smu_cmn_send_msg(smu, (uint16_t) index, param);
 	reg = __smu_cmn_poll_stat(smu);
-	res = __smu_cmn_reg2errno(smu, reg);
+	res = __smu_cmn_reg2erranal(smu, reg);
 	if (res != 0)
 		__smu_cmn_reg_print_error(smu, reg, index, param, msg);
 	if (read_arg)
@@ -486,7 +486,7 @@ int smu_cmn_to_asic_specific_index(struct smu_context *smu,
 
 		mapping = smu->workload_map[index];
 		if (!mapping.valid_mapping)
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 
 		return mapping.map_to;
 
@@ -531,8 +531,8 @@ int smu_cmn_feature_is_enabled(struct smu_context *smu,
 	}
 
 	/*
-	 * For Renoir and Cyan Skillfish, they are assumed to have all features
-	 * enabled. Also considering they have no feature_map available, the
+	 * For Reanalir and Cyan Skillfish, they are assumed to have all features
+	 * enabled. Also considering they have anal feature_map available, the
 	 * check here can avoid unwanted feature_map check below.
 	 */
 	if (enabled_features == ULLONG_MAX)
@@ -701,7 +701,7 @@ static const char *smu_get_feature_name(struct smu_context *smu,
 					enum smu_feature_mask feature)
 {
 	if (feature < 0 || feature >= SMU_FEATURE_COUNT)
-		return "unknown smu feature";
+		return "unkanalwn smu feature";
 	return __smu_feature_names[feature];
 }
 
@@ -733,7 +733,7 @@ size_t smu_cmn_get_pp_feature_mask(struct smu_context *smu,
 	}
 
 	size += sysfs_emit_at(buf, size, "%-2s. %-20s  %-3s : %-s\n",
-			"No", "Feature", "Bit", "State");
+			"Anal", "Feature", "Bit", "State");
 
 	for (feature_index = 0; feature_index < SMU_FEATURE_MAX; feature_index++) {
 		if (sort_feature[feature_index] < 0)
@@ -789,8 +789,8 @@ int smu_cmn_set_pp_feature_mask(struct smu_context *smu,
  *                                               @mask
  *
  * @smu:               smu_context pointer
- * @mask:              the dpm feature which should not be disabled
- *                     SMU_FEATURE_COUNT: no exception, all dpm features
+ * @mask:              the dpm feature which should analt be disabled
+ *                     SMU_FEATURE_COUNT: anal exception, all dpm features
  *                     to disable
  *
  * Returns:
@@ -1040,7 +1040,7 @@ int smu_cmn_set_mp1_state(struct smu_context *smu,
 	case PP_MP1_STATE_RESET:
 		msg = SMU_MSG_PrepareMp1ForReset;
 		break;
-	case PP_MP1_STATE_NONE:
+	case PP_MP1_STATE_ANALNE:
 	default:
 		return 0;
 	}
@@ -1058,7 +1058,7 @@ bool smu_cmn_is_audio_func_enabled(struct amdgpu_device *adev)
 	bool snd_driver_loaded;
 
 	/*
-	 * If the ASIC comes with no audio function, we always assume
+	 * If the ASIC comes with anal audio function, we always assume
 	 * it is "enabled".
 	 */
 	p = pci_get_domain_bus_and_slot(pci_domain_nr(adev->pdev->bus),

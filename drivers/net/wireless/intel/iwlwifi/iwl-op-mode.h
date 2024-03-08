@@ -23,8 +23,8 @@ struct iwl_cfg;
  * DOC: Operational mode - what is it ?
  *
  * The operational mode (a.k.a. op_mode) is the layer that implements
- * mac80211's handlers. It knows two APIs: mac80211's and the fw's. It uses
- * the transport API to access the HW. The op_mode doesn't need to know how the
+ * mac80211's handlers. It kanalws two APIs: mac80211's and the fw's. It uses
+ * the transport API to access the HW. The op_mode doesn't need to kanalw how the
  * underlying HW works, since the transport layer takes care of that.
  *
  * There can be several op_mode: i.e. different fw APIs will require two
@@ -58,24 +58,24 @@ struct iwl_cfg;
  *	May sleep
  * @stop: stop the op_mode. Must free all the memory allocated.
  *	May sleep
- * @rx: Rx notification to the op_mode. rxb is the Rx buffer itself. Cmd is the
+ * @rx: Rx analtification to the op_mode. rxb is the Rx buffer itself. Cmd is the
  *	HCMD this Rx responds to. Can't sleep.
- * @rx_rss: data queue RX notification to the op_mode, for (data) notifications
+ * @rx_rss: data queue RX analtification to the op_mode, for (data) analtifications
  *	received on the RSS queue(s). The queue parameter indicates which of the
- *	RSS queues received this frame; it will always be non-zero.
- *	This method must not sleep.
- * @queue_full: notifies that a HW queue is full.
+ *	RSS queues received this frame; it will always be analn-zero.
+ *	This method must analt sleep.
+ * @queue_full: analtifies that a HW queue is full.
  *	Must be atomic and called with BH disabled.
- * @queue_not_full: notifies that a HW queue is not full any more.
+ * @queue_analt_full: analtifies that a HW queue is analt full any more.
  *	Must be atomic and called with BH disabled.
- * @hw_rf_kill:notifies of a change in the HW rf kill switch. True means that
+ * @hw_rf_kill:analtifies of a change in the HW rf kill switch. True means that
  *	the radio is killed. Return %true if the device should be stopped by
  *	the transport immediately after the call. May sleep.
  * @free_skb: allows the transport layer to free skbs that haven't been
  *	reclaimed by the op_mode. This can happen when the driver is freed and
  *	there are Tx packets pending in the transport layer.
  *	Must be atomic
- * @nic_error: error notification. Must be atomic and must be called with BH
+ * @nic_error: error analtification. Must be atomic and must be called with BH
  *	disabled, unless the sync parameter is true.
  * @cmd_queue_full: Called when the command queue gets full. Must be atomic and
  *	called with BH disabled.
@@ -95,7 +95,7 @@ struct iwl_op_mode_ops {
 	void (*rx_rss)(struct iwl_op_mode *op_mode, struct napi_struct *napi,
 		       struct iwl_rx_cmd_buffer *rxb, unsigned int queue);
 	void (*queue_full)(struct iwl_op_mode *op_mode, int queue);
-	void (*queue_not_full)(struct iwl_op_mode *op_mode, int queue);
+	void (*queue_analt_full)(struct iwl_op_mode *op_mode, int queue);
 	bool (*hw_rf_kill)(struct iwl_op_mode *op_mode, bool state);
 	void (*free_skb)(struct iwl_op_mode *op_mode, struct sk_buff *skb);
 	void (*nic_error)(struct iwl_op_mode *op_mode, bool sync);
@@ -149,10 +149,10 @@ static inline void iwl_op_mode_queue_full(struct iwl_op_mode *op_mode,
 	op_mode->ops->queue_full(op_mode, queue);
 }
 
-static inline void iwl_op_mode_queue_not_full(struct iwl_op_mode *op_mode,
+static inline void iwl_op_mode_queue_analt_full(struct iwl_op_mode *op_mode,
 					      int queue)
 {
-	op_mode->ops->queue_not_full(op_mode, queue);
+	op_mode->ops->queue_analt_full(op_mode, queue);
 }
 
 static inline bool __must_check

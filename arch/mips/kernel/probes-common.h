@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Copyright (C) 2016 Imagination Technologies
- * Author: Marcin Nowakowski <marcin.nowakowski@mips.com>
+ * Copyright (C) 2016 Imagination Techanallogies
+ * Author: Marcin Analwakowski <marcin.analwakowski@mips.com>
  */
 
 #ifndef __PROBES_COMMON_H
@@ -54,14 +54,14 @@ static inline int __insn_has_delay_slot(const union mips_instruction insn)
 	case beql_op:
 	case bne_op:
 	case bnel_op:
-	case blez_op: /* not really i_format */
+	case blez_op: /* analt really i_format */
 	case blezl_op:
 	case bgtz_op:
 	case bgtzl_op:
 		return 1;
 
 	/*
-	 * And now the FPA/cp1 branch instructions.
+	 * And analw the FPA/cp1 branch instructions.
 	 */
 	case cop1_op:
 #ifdef CONFIG_CPU_CAVIUM_OCTEON

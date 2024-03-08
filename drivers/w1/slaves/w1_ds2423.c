@@ -72,7 +72,7 @@ static ssize_t w1_slave_show(struct device *device,
 					read_byte_count,
 					READ_BYTE_COUNT);
 				c -= snprintf(out_buf + PAGE_SIZE - c,
-					c, "crc=NO\n");
+					c, "crc=ANAL\n");
 			} else {
 				if (p == 0) {
 					crc = crc16(CRC16_INIT, wrbuf, 3);
@@ -95,10 +95,10 @@ static ssize_t w1_slave_show(struct device *device,
 							READ_BYTE_COUNT) + ii];
 					}
 					c -= snprintf(out_buf + PAGE_SIZE - c,
-						c, "crc=YES c=%d\n", result);
+						c, "crc=ANAL c=%d\n", result);
 				} else {
 					c -= snprintf(out_buf + PAGE_SIZE - c,
-						c, "crc=NO\n");
+						c, "crc=ANAL\n");
 				}
 			}
 		}

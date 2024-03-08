@@ -33,7 +33,7 @@
 
 /*
  * Fixed format data defining GSS header and fixed string
- * "not_defined_in_RFC4178@please_ignore".
+ * "analt_defined_in_RFC4178@please_iganalre".
  * So sec blob data in neg phase could be generated statically.
  */
 static char NEGOTIATE_GSS_HEADER[AUTH_GSS_LENGTH] = {
@@ -84,8 +84,8 @@ static int ksmbd_gen_sess_key(struct ksmbd_session *sess, char *hash,
 
 	ctx = ksmbd_crypto_ctx_find_hmacmd5();
 	if (!ctx) {
-		ksmbd_debug(AUTH, "could not crypto alloc hmacmd5\n");
-		return -ENOMEM;
+		ksmbd_debug(AUTH, "could analt crypto alloc hmacmd5\n");
+		return -EANALMEM;
 	}
 
 	rc = crypto_shash_setkey(CRYPTO_HMACMD5_TFM(ctx),
@@ -98,7 +98,7 @@ static int ksmbd_gen_sess_key(struct ksmbd_session *sess, char *hash,
 
 	rc = crypto_shash_init(CRYPTO_HMACMD5(ctx));
 	if (rc) {
-		ksmbd_debug(AUTH, "could not init hmacmd5 error %d\n", rc);
+		ksmbd_debug(AUTH, "could analt init hmacmd5 error %d\n", rc);
 		goto out;
 	}
 
@@ -106,13 +106,13 @@ static int ksmbd_gen_sess_key(struct ksmbd_session *sess, char *hash,
 				 hmac,
 				 SMB2_NTLMV2_SESSKEY_SIZE);
 	if (rc) {
-		ksmbd_debug(AUTH, "Could not update with response error %d\n", rc);
+		ksmbd_debug(AUTH, "Could analt update with response error %d\n", rc);
 		goto out;
 	}
 
 	rc = crypto_shash_final(CRYPTO_HMACMD5(ctx), sess->sess_key);
 	if (rc) {
-		ksmbd_debug(AUTH, "Could not generate hmacmd5 hash error %d\n", rc);
+		ksmbd_debug(AUTH, "Could analt generate hmacmd5 hash error %d\n", rc);
 		goto out;
 	}
 
@@ -132,20 +132,20 @@ static int calc_ntlmv2_hash(struct ksmbd_conn *conn, struct ksmbd_session *sess,
 	ctx = ksmbd_crypto_ctx_find_hmacmd5();
 	if (!ctx) {
 		ksmbd_debug(AUTH, "can't generate ntlmv2 hash\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = crypto_shash_setkey(CRYPTO_HMACMD5_TFM(ctx),
 				  user_passkey(sess->user),
 				  CIFS_ENCPWD_SIZE);
 	if (ret) {
-		ksmbd_debug(AUTH, "Could not set NT Hash as a key\n");
+		ksmbd_debug(AUTH, "Could analt set NT Hash as a key\n");
 		goto out;
 	}
 
 	ret = crypto_shash_init(CRYPTO_HMACMD5(ctx));
 	if (ret) {
-		ksmbd_debug(AUTH, "could not init hmacmd5\n");
+		ksmbd_debug(AUTH, "could analt init hmacmd5\n");
 		goto out;
 	}
 
@@ -153,7 +153,7 @@ static int calc_ntlmv2_hash(struct ksmbd_conn *conn, struct ksmbd_session *sess,
 	len = strlen(user_name(sess->user));
 	uniname = kzalloc(2 + UNICODE_LEN(len), GFP_KERNEL);
 	if (!uniname) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -169,7 +169,7 @@ static int calc_ntlmv2_hash(struct ksmbd_conn *conn, struct ksmbd_session *sess,
 				  (char *)uniname,
 				  UNICODE_LEN(conv_len));
 	if (ret) {
-		ksmbd_debug(AUTH, "Could not update with user\n");
+		ksmbd_debug(AUTH, "Could analt update with user\n");
 		goto out;
 	}
 
@@ -177,7 +177,7 @@ static int calc_ntlmv2_hash(struct ksmbd_conn *conn, struct ksmbd_session *sess,
 	len = strlen(dname);
 	domain = kzalloc(2 + UNICODE_LEN(len), GFP_KERNEL);
 	if (!domain) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -192,13 +192,13 @@ static int calc_ntlmv2_hash(struct ksmbd_conn *conn, struct ksmbd_session *sess,
 				  (char *)domain,
 				  UNICODE_LEN(conv_len));
 	if (ret) {
-		ksmbd_debug(AUTH, "Could not update with domain\n");
+		ksmbd_debug(AUTH, "Could analt update with domain\n");
 		goto out;
 	}
 
 	ret = crypto_shash_final(CRYPTO_HMACMD5(ctx), ntlmv2_hash);
 	if (ret)
-		ksmbd_debug(AUTH, "Could not generate md5 hash\n");
+		ksmbd_debug(AUTH, "Could analt generate md5 hash\n");
 out:
 	kfree(uniname);
 	kfree(domain);
@@ -229,34 +229,34 @@ int ksmbd_auth_ntlmv2(struct ksmbd_conn *conn, struct ksmbd_session *sess,
 
 	rc = calc_ntlmv2_hash(conn, sess, ntlmv2_hash, domain_name);
 	if (rc) {
-		ksmbd_debug(AUTH, "could not get v2 hash rc %d\n", rc);
+		ksmbd_debug(AUTH, "could analt get v2 hash rc %d\n", rc);
 		goto out;
 	}
 
 	ctx = ksmbd_crypto_ctx_find_hmacmd5();
 	if (!ctx) {
-		ksmbd_debug(AUTH, "could not crypto alloc hmacmd5\n");
-		return -ENOMEM;
+		ksmbd_debug(AUTH, "could analt crypto alloc hmacmd5\n");
+		return -EANALMEM;
 	}
 
 	rc = crypto_shash_setkey(CRYPTO_HMACMD5_TFM(ctx),
 				 ntlmv2_hash,
 				 CIFS_HMAC_MD5_HASH_SIZE);
 	if (rc) {
-		ksmbd_debug(AUTH, "Could not set NTLMV2 Hash as a key\n");
+		ksmbd_debug(AUTH, "Could analt set NTLMV2 Hash as a key\n");
 		goto out;
 	}
 
 	rc = crypto_shash_init(CRYPTO_HMACMD5(ctx));
 	if (rc) {
-		ksmbd_debug(AUTH, "Could not init hmacmd5\n");
+		ksmbd_debug(AUTH, "Could analt init hmacmd5\n");
 		goto out;
 	}
 
 	len = CIFS_CRYPTO_KEY_SIZE + blen;
 	construct = kzalloc(len, GFP_KERNEL);
 	if (!construct) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out;
 	}
 
@@ -265,13 +265,13 @@ int ksmbd_auth_ntlmv2(struct ksmbd_conn *conn, struct ksmbd_session *sess,
 
 	rc = crypto_shash_update(CRYPTO_HMACMD5(ctx), construct, len);
 	if (rc) {
-		ksmbd_debug(AUTH, "Could not update with response\n");
+		ksmbd_debug(AUTH, "Could analt update with response\n");
 		goto out;
 	}
 
 	rc = crypto_shash_final(CRYPTO_HMACMD5(ctx), ntlmv2_rsp);
 	if (rc) {
-		ksmbd_debug(AUTH, "Could not generate md5 hash\n");
+		ksmbd_debug(AUTH, "Could analt generate md5 hash\n");
 		goto out;
 	}
 	ksmbd_release_crypto_ctx(ctx);
@@ -279,7 +279,7 @@ int ksmbd_auth_ntlmv2(struct ksmbd_conn *conn, struct ksmbd_session *sess,
 
 	rc = ksmbd_gen_sess_key(sess, ntlmv2_hash, ntlmv2_rsp);
 	if (rc) {
-		ksmbd_debug(AUTH, "Could not generate sess key\n");
+		ksmbd_debug(AUTH, "Could analt generate sess key\n");
 		goto out;
 	}
 
@@ -363,7 +363,7 @@ int ksmbd_decode_ntlmssp_auth_blob(struct authenticate_message *authblob,
 
 		ctx_arc4 = kmalloc(sizeof(*ctx_arc4), GFP_KERNEL);
 		if (!ctx_arc4)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		cifs_arc4_setkey(ctx_arc4, sess->sess_key,
 				 SMB2_NTLMV2_SESSKEY_SIZE);
@@ -453,7 +453,7 @@ ksmbd_build_ntlmssp_challenge_blob(struct challenge_message *chgblob,
 	len = strlen(ksmbd_netbios_name());
 	name = kmalloc(2 + UNICODE_LEN(len), GFP_KERNEL);
 	if (!name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	conv_len = smb_strtoUTF16((__le16 *)name, ksmbd_netbios_name(), len,
 				  conn->local_nls);
@@ -543,7 +543,7 @@ int ksmbd_krb5_authenticate(struct ksmbd_session *sess, char *in_blob,
 	user = ksmbd_alloc_user(&resp->login_response);
 	if (!user) {
 		ksmbd_debug(AUTH, "login failure\n");
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto out;
 	}
 	sess->user = user;
@@ -561,7 +561,7 @@ out:
 int ksmbd_krb5_authenticate(struct ksmbd_session *sess, char *in_blob,
 			    int in_len, char *out_blob, int *out_len)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 #endif
 
@@ -582,8 +582,8 @@ int ksmbd_sign_smb2_pdu(struct ksmbd_conn *conn, char *key, struct kvec *iov,
 
 	ctx = ksmbd_crypto_ctx_find_hmacsha256();
 	if (!ctx) {
-		ksmbd_debug(AUTH, "could not crypto alloc hmacmd5\n");
-		return -ENOMEM;
+		ksmbd_debug(AUTH, "could analt crypto alloc hmacmd5\n");
+		return -EANALMEM;
 	}
 
 	rc = crypto_shash_setkey(CRYPTO_HMACSHA256_TFM(ctx),
@@ -633,8 +633,8 @@ int ksmbd_sign_smb3_pdu(struct ksmbd_conn *conn, char *key, struct kvec *iov,
 
 	ctx = ksmbd_crypto_ctx_find_cmacaes();
 	if (!ctx) {
-		ksmbd_debug(AUTH, "could not crypto alloc cmac\n");
-		return -ENOMEM;
+		ksmbd_debug(AUTH, "could analt crypto alloc cmac\n");
+		return -EANALMEM;
 	}
 
 	rc = crypto_shash_setkey(CRYPTO_CMACAES_TFM(ctx),
@@ -691,8 +691,8 @@ static int generate_key(struct ksmbd_conn *conn, struct ksmbd_session *sess,
 
 	ctx = ksmbd_crypto_ctx_find_hmacsha256();
 	if (!ctx) {
-		ksmbd_debug(AUTH, "could not crypto alloc hmacmd5\n");
-		return -ENOMEM;
+		ksmbd_debug(AUTH, "could analt crypto alloc hmacmd5\n");
+		return -EANALMEM;
 	}
 
 	rc = crypto_shash_setkey(CRYPTO_HMACSHA256_TFM(ctx),
@@ -709,7 +709,7 @@ static int generate_key(struct ksmbd_conn *conn, struct ksmbd_session *sess,
 
 	rc = crypto_shash_update(CRYPTO_HMACSHA256(ctx), i, 4);
 	if (rc) {
-		ksmbd_debug(AUTH, "could not update with n\n");
+		ksmbd_debug(AUTH, "could analt update with n\n");
 		goto smb3signkey_ret;
 	}
 
@@ -717,13 +717,13 @@ static int generate_key(struct ksmbd_conn *conn, struct ksmbd_session *sess,
 				 label.iov_base,
 				 label.iov_len);
 	if (rc) {
-		ksmbd_debug(AUTH, "could not update with label\n");
+		ksmbd_debug(AUTH, "could analt update with label\n");
 		goto smb3signkey_ret;
 	}
 
 	rc = crypto_shash_update(CRYPTO_HMACSHA256(ctx), &zero, 1);
 	if (rc) {
-		ksmbd_debug(AUTH, "could not update with zero\n");
+		ksmbd_debug(AUTH, "could analt update with zero\n");
 		goto smb3signkey_ret;
 	}
 
@@ -731,7 +731,7 @@ static int generate_key(struct ksmbd_conn *conn, struct ksmbd_session *sess,
 				 context.iov_base,
 				 context.iov_len);
 	if (rc) {
-		ksmbd_debug(AUTH, "could not update with context\n");
+		ksmbd_debug(AUTH, "could analt update with context\n");
 		goto smb3signkey_ret;
 	}
 
@@ -742,13 +742,13 @@ static int generate_key(struct ksmbd_conn *conn, struct ksmbd_session *sess,
 	else
 		rc = crypto_shash_update(CRYPTO_HMACSHA256(ctx), L128, 4);
 	if (rc) {
-		ksmbd_debug(AUTH, "could not update with L\n");
+		ksmbd_debug(AUTH, "could analt update with L\n");
 		goto smb3signkey_ret;
 	}
 
 	rc = crypto_shash_final(CRYPTO_HMACSHA256(ctx), hashptr);
 	if (rc) {
-		ksmbd_debug(AUTH, "Could not generate hmacmd5 hash error %d\n",
+		ksmbd_debug(AUTH, "Could analt generate hmacmd5 hash error %d\n",
 			    rc);
 		goto smb3signkey_ret;
 	}
@@ -820,7 +820,7 @@ int ksmbd_gen_smb311_signingkey(struct ksmbd_session *sess,
 
 		preauth_sess = ksmbd_preauth_session_lookup(conn, sess->id);
 		if (!preauth_sess)
-			return -ENOENT;
+			return -EANALENT;
 		d.context.iov_base = preauth_sess->Preauth_HashValue;
 	} else {
 		d.context.iov_base = sess->Preauth_HashValue;
@@ -931,31 +931,31 @@ int ksmbd_gen_preauth_integrity_hash(struct ksmbd_conn *conn, char *buf,
 
 	ctx = ksmbd_crypto_ctx_find_sha512();
 	if (!ctx) {
-		ksmbd_debug(AUTH, "could not alloc sha512\n");
-		return -ENOMEM;
+		ksmbd_debug(AUTH, "could analt alloc sha512\n");
+		return -EANALMEM;
 	}
 
 	rc = crypto_shash_init(CRYPTO_SHA512(ctx));
 	if (rc) {
-		ksmbd_debug(AUTH, "could not init shashn");
+		ksmbd_debug(AUTH, "could analt init shashn");
 		goto out;
 	}
 
 	rc = crypto_shash_update(CRYPTO_SHA512(ctx), pi_hash, 64);
 	if (rc) {
-		ksmbd_debug(AUTH, "could not update with n\n");
+		ksmbd_debug(AUTH, "could analt update with n\n");
 		goto out;
 	}
 
 	rc = crypto_shash_update(CRYPTO_SHA512(ctx), all_bytes_msg, msg_size);
 	if (rc) {
-		ksmbd_debug(AUTH, "could not update with n\n");
+		ksmbd_debug(AUTH, "could analt update with n\n");
 		goto out;
 	}
 
 	rc = crypto_shash_final(CRYPTO_SHA512(ctx), pi_hash);
 	if (rc) {
-		ksmbd_debug(AUTH, "Could not generate hash err : %d\n", rc);
+		ksmbd_debug(AUTH, "Could analt generate hash err : %d\n", rc);
 		goto out;
 	}
 out:
@@ -971,25 +971,25 @@ int ksmbd_gen_sd_hash(struct ksmbd_conn *conn, char *sd_buf, int len,
 
 	ctx = ksmbd_crypto_ctx_find_sha256();
 	if (!ctx) {
-		ksmbd_debug(AUTH, "could not alloc sha256\n");
-		return -ENOMEM;
+		ksmbd_debug(AUTH, "could analt alloc sha256\n");
+		return -EANALMEM;
 	}
 
 	rc = crypto_shash_init(CRYPTO_SHA256(ctx));
 	if (rc) {
-		ksmbd_debug(AUTH, "could not init shashn");
+		ksmbd_debug(AUTH, "could analt init shashn");
 		goto out;
 	}
 
 	rc = crypto_shash_update(CRYPTO_SHA256(ctx), sd_buf, len);
 	if (rc) {
-		ksmbd_debug(AUTH, "could not update with n\n");
+		ksmbd_debug(AUTH, "could analt update with n\n");
 		goto out;
 	}
 
 	rc = crypto_shash_final(CRYPTO_SHA256(ctx), pi_hash);
 	if (rc) {
-		ksmbd_debug(AUTH, "Could not generate hash err : %d\n", rc);
+		ksmbd_debug(AUTH, "Could analt generate hash err : %d\n", rc);
 		goto out;
 	}
 out:
@@ -1123,7 +1123,7 @@ int ksmbd_crypt_message(struct ksmbd_work *work, struct kvec *iov,
 				      enc,
 				      key);
 	if (rc) {
-		pr_err("Could not get %scryption key\n", enc ? "en" : "de");
+		pr_err("Could analt get %scryption key\n", enc ? "en" : "de");
 		return rc;
 	}
 
@@ -1134,7 +1134,7 @@ int ksmbd_crypt_message(struct ksmbd_work *work, struct kvec *iov,
 		ctx = ksmbd_crypto_ctx_find_ccm();
 	if (!ctx) {
 		pr_err("crypto alloc failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (conn->cipher_type == SMB2_ENCRYPTION_AES128_GCM ||
@@ -1161,7 +1161,7 @@ int ksmbd_crypt_message(struct ksmbd_work *work, struct kvec *iov,
 
 	req = aead_request_alloc(tfm, GFP_KERNEL);
 	if (!req) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto free_ctx;
 	}
 
@@ -1173,23 +1173,23 @@ int ksmbd_crypt_message(struct ksmbd_work *work, struct kvec *iov,
 	sg = ksmbd_init_sg(iov, nvec, sign);
 	if (!sg) {
 		pr_err("Failed to init sg\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto free_req;
 	}
 
 	iv_len = crypto_aead_ivsize(tfm);
 	iv = kzalloc(iv_len, GFP_KERNEL);
 	if (!iv) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto free_sg;
 	}
 
 	if (conn->cipher_type == SMB2_ENCRYPTION_AES128_GCM ||
 	    conn->cipher_type == SMB2_ENCRYPTION_AES256_GCM) {
-		memcpy(iv, (char *)tr_hdr->Nonce, SMB3_AES_GCM_NONCE);
+		memcpy(iv, (char *)tr_hdr->Analnce, SMB3_AES_GCM_ANALNCE);
 	} else {
 		iv[0] = 3;
-		memcpy(iv + 1, (char *)tr_hdr->Nonce, SMB3_AES_CCM_NONCE);
+		memcpy(iv + 1, (char *)tr_hdr->Analnce, SMB3_AES_CCM_ANALNCE);
 	}
 
 	aead_request_set_crypt(req, sg, sg, crypt_len, iv);

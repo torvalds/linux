@@ -24,11 +24,11 @@ properties:
     description:
       I2C alias pool is a pool of I2C addresses on the main I2C bus that can be
       used to access the remote peripherals on the serializer's I2C bus. The
-      addresses must be available, not used by any other peripheral. Each
+      addresses must be available, analt used by any other peripheral. Each
       remote peripheral is assigned an alias from the pool, and transactions to
       that address will be forwarded to the remote peripheral, with the address
-      translated to the remote peripheral's real address. This property is not
-      needed if there are no I2C addressable remote peripherals.
+      translated to the remote peripheral's real address. This property is analt
+      needed if there are anal I2C addressable remote peripherals.
 
 additionalProperties: true
 ...

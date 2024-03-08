@@ -40,7 +40,7 @@ enum {
 #define WM8994_FLL_SRC_INTERNAL 5
 
 enum wm8994_vmid_mode {
-	WM8994_VMID_NORMAL,
+	WM8994_VMID_ANALRMAL,
 	WM8994_VMID_FORCE,
 };
 

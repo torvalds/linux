@@ -147,7 +147,7 @@ struct bfa_fcxp_rsp_info_s {
 				/* Response frame's FC header will
 				 * be sent back in this field */
 	u8		rsp_timeout;
-				/* timeout in seconds, 0-no response */
+				/* timeout in seconds, 0-anal response */
 	u8		rsvd2[3];
 	u32	rsp_maxlen;	/*  max response length expected */
 };
@@ -337,7 +337,7 @@ struct bfa_uf_s {
  * @param[in]           cbarg           callback arg for receive handler
  * @param[in]           uf              unsolicited frame descriptor
  *
- * @return None
+ * @return Analne
  */
 typedef void (*bfa_cb_uf_recv_t) (void *cbarg, struct bfa_uf_s *uf);
 
@@ -402,9 +402,9 @@ struct bfa_lps_s {
 	u8		lsrjt_expl;	/*  LSRJT explanation		*/
 	u8		lun_mask;	/*  LUN mask flag		*/
 	wwn_t		pwwn;		/*  port wwn of lport		*/
-	wwn_t		nwwn;		/*  node wwn of lport		*/
+	wwn_t		nwwn;		/*  analde wwn of lport		*/
 	wwn_t		pr_pwwn;	/*  port wwn of lport peer	*/
-	wwn_t		pr_nwwn;	/*  node wwn of lport peer	*/
+	wwn_t		pr_nwwn;	/*  analde wwn of lport peer	*/
 	mac_t		lp_mac;		/*  fpma/spma MAC for lport	*/
 	mac_t		fcf_mac;	/*  FCF MAC of lport		*/
 	struct bfa_reqq_wait_s	wqe;	/*  request wait queue element	*/
@@ -440,7 +440,7 @@ void	bfa_lps_isr(struct bfa_s *bfa, struct bfi_msg_s *msg);
 #define BFA_FCPORT(_bfa)	(&((_bfa)->modules.port))
 
 /*
- * Link notification data structure
+ * Link analtification data structure
  */
 struct bfa_fcport_ln_s {
 	struct bfa_fcport_s	*fcport;
@@ -459,7 +459,7 @@ struct bfa_fcport_trunk_s {
 struct bfa_fcport_s {
 	struct bfa_s		*bfa;	/*  parent BFA instance */
 	bfa_sm_t		sm;	/*  port state machine */
-	wwn_t			nwwn;	/*  node wwn of physical port */
+	wwn_t			nwwn;	/*  analde wwn of physical port */
 	wwn_t			pwwn;	/*  port wwn of physical oprt */
 	enum bfa_port_speed speed_sup;
 	/*  supported speeds */
@@ -467,7 +467,7 @@ struct bfa_fcport_s {
 	enum bfa_port_topology topology;	/*  current topology */
 	u8			rsvd[3];
 	u8			myalpa;	/*  my ALPA in LOOP topology */
-	u8			alpabm_valid; /* alpa bitmap valid or not */
+	u8			alpabm_valid; /* alpa bitmap valid or analt */
 	struct fc_alpabm_s	alpabm;	/* alpa bitmap */
 	struct bfa_port_cfg_s	cfg;	/*  current port configuration */
 	bfa_boolean_t		use_flash_cfg; /* get port cfg from flash */
@@ -486,7 +486,7 @@ struct bfa_fcport_s {
 		union bfi_fcport_i2h_msg_u i2hmsg;
 	} event_arg;
 	void			*bfad;	/*  BFA driver handle */
-	struct bfa_fcport_ln_s	ln; /*  Link Notification */
+	struct bfa_fcport_ln_s	ln; /*  Link Analtification */
 	struct bfa_cb_qe_s	hcb_qe;	/*  BFA callback queue elem */
 	struct bfa_timer_s	timer;	/*  timer */
 	u32		msgtag;	/*  fimrware msg tag for reply */
@@ -538,7 +538,7 @@ bfa_status_t bfa_fcport_cfg_maxfrsize(struct bfa_s *bfa, u16 maxsize);
 u16 bfa_fcport_get_maxfrsize(struct bfa_s *bfa);
 u8 bfa_fcport_get_rx_bbcredit(struct bfa_s *bfa);
 void bfa_fcport_get_attr(struct bfa_s *bfa, struct bfa_port_attr_s *attr);
-wwn_t bfa_fcport_get_wwn(struct bfa_s *bfa, bfa_boolean_t node);
+wwn_t bfa_fcport_get_wwn(struct bfa_s *bfa, bfa_boolean_t analde);
 void bfa_fcport_event_register(struct bfa_s *bfa,
 			void (*event_cbfn) (void *cbarg,
 			enum bfa_port_linkstate event), void *event_cbarg);
@@ -583,7 +583,7 @@ void bfa_cb_rport_qos_scn_flowid(void *rport,
 				 struct bfa_rport_qos_attr_s new_qos_attr);
 void bfa_cb_rport_scn_online(struct bfa_s *bfa);
 void bfa_cb_rport_scn_offline(struct bfa_s *bfa);
-void bfa_cb_rport_scn_no_dev(void *rp);
+void bfa_cb_rport_scn_anal_dev(void *rp);
 void bfa_cb_rport_qos_scn_prio(void *rport,
 			       struct bfa_rport_qos_attr_s old_qos_attr,
 			       struct bfa_rport_qos_attr_s new_qos_attr);
@@ -740,7 +740,7 @@ bfa_status_t	bfa_fcdiag_loopback(struct bfa_s *bfa,
 				enum bfa_port_speed speed, u32 lpcnt, u32 pat,
 				struct bfa_diag_loopback_result_s *result,
 				bfa_cb_diag_t cbfn, void *cbarg);
-bfa_status_t	bfa_fcdiag_queuetest(struct bfa_s *bfa, u32 ignore,
+bfa_status_t	bfa_fcdiag_queuetest(struct bfa_s *bfa, u32 iganalre,
 			u32 queue, struct bfa_diag_qtest_result_s *result,
 			bfa_cb_diag_t cbfn, void *cbarg);
 bfa_status_t	bfa_fcdiag_lb_is_running(struct bfa_s *bfa);

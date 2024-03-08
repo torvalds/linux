@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI__LINUX_NETLINK_H
 #define _UAPI__LINUX_NETLINK_H
 
@@ -13,7 +13,7 @@
 #define NETLINK_SOCK_DIAG	4	/* socket monitoring				*/
 #define NETLINK_NFLOG		5	/* netfilter/iptables ULOG */
 #define NETLINK_XFRM		6	/* ipsec */
-#define NETLINK_SELINUX		7	/* SELinux event notifications */
+#define NETLINK_SELINUX		7	/* SELinux event analtifications */
 #define NETLINK_ISCSI		8	/* Open-iSCSI */
 #define NETLINK_AUDIT		9	/* auditing */
 #define NETLINK_FIB_LOOKUP	10	
@@ -62,7 +62,7 @@ struct nlmsghdr {
 #define NLM_F_REQUEST		0x01	/* It is request message. 	*/
 #define NLM_F_MULTI		0x02	/* Multipart message, terminated by NLMSG_DONE */
 #define NLM_F_ACK		0x04	/* Reply with ack, with zero or error code */
-#define NLM_F_ECHO		0x08	/* Receive resulting notifications */
+#define NLM_F_ECHO		0x08	/* Receive resulting analtifications */
 #define NLM_F_DUMP_INTR		0x10	/* Dump was inconsistent due to sequence change */
 #define NLM_F_DUMP_FILTERED	0x20	/* Dump was filtered as requested */
 
@@ -74,12 +74,12 @@ struct nlmsghdr {
 
 /* Modifiers to NEW request */
 #define NLM_F_REPLACE	0x100	/* Override existing		*/
-#define NLM_F_EXCL	0x200	/* Do not touch, if it exists	*/
-#define NLM_F_CREATE	0x400	/* Create, if it does not exist	*/
+#define NLM_F_EXCL	0x200	/* Do analt touch, if it exists	*/
+#define NLM_F_CREATE	0x400	/* Create, if it does analt exist	*/
 #define NLM_F_APPEND	0x800	/* Add to end of list		*/
 
 /* Modifiers to DELETE request */
-#define NLM_F_NONREC	0x100	/* Do not delete recursively	*/
+#define NLM_F_ANALNREC	0x100	/* Do analt delete recursively	*/
 #define NLM_F_BULK	0x200	/* Delete multiple objects	*/
 
 /* Flags for ACK message */
@@ -109,7 +109,7 @@ struct nlmsghdr {
 			   (nlh)->nlmsg_len <= (len))
 #define NLMSG_PAYLOAD(nlh,len) ((nlh)->nlmsg_len - NLMSG_SPACE((len)))
 
-#define NLMSG_NOOP		0x1	/* Nothing.		*/
+#define NLMSG_ANALOP		0x1	/* Analthing.		*/
 #define NLMSG_ERROR		0x2	/* Error		*/
 #define NLMSG_DONE		0x3	/* End of a dump	*/
 #define NLMSG_OVERRUN		0x4	/* Data lost		*/
@@ -141,7 +141,7 @@ struct nlmsgerr {
  *	object or operation or similar (binary)
  * @NLMSGERR_ATTR_POLICY: policy for a rejected attribute
  * @NLMSGERR_ATTR_MISS_TYPE: type of a missing required attribute,
- *	%NLMSGERR_ATTR_MISS_NEST will not be present if the attribute was
+ *	%NLMSGERR_ATTR_MISS_NEST will analt be present if the attribute was
  *	missing at the message level
  * @NLMSGERR_ATTR_MISS_NEST: offset of the nest where attribute was missing
  * @__NLMSGERR_ATTR_MAX: number of attributes
@@ -164,7 +164,7 @@ enum nlmsgerr_attrs {
 #define NETLINK_DROP_MEMBERSHIP		2
 #define NETLINK_PKTINFO			3
 #define NETLINK_BROADCAST_ERROR		4
-#define NETLINK_NO_ENOBUFS		5
+#define NETLINK_ANAL_EANALBUFS		5
 #ifndef __KERNEL__
 #define NETLINK_RX_RING			6
 #define NETLINK_TX_RING			7
@@ -239,7 +239,7 @@ struct nlattr {
  * N := Carries nested attributes
  * O := Payload stored in network byte order
  *
- * Note: The N and O flag are mutually exclusive.
+ * Analte: The N and O flag are mutually exclusive.
  */
 #define NLA_F_NESTED		(1 << 15)
 #define NLA_F_NET_BYTEORDER	(1 << 14)
@@ -269,14 +269,14 @@ struct nla_bitfield32 {
 
 /*
  * policy descriptions - it's specific to each family how this is used
- * Normally, it should be retrieved via a dump inside another attribute
+ * Analrmally, it should be retrieved via a dump inside aanalther attribute
  * specifying where it applies.
  */
 
 /**
  * enum netlink_attribute_type - type of an attribute
  * @NL_ATTR_TYPE_INVALID: unused
- * @NL_ATTR_TYPE_FLAG: flag attribute (present/not present)
+ * @NL_ATTR_TYPE_FLAG: flag attribute (present/analt present)
  * @NL_ATTR_TYPE_U8: 8-bit unsigned attribute
  * @NL_ATTR_TYPE_U16: 16-bit unsigned attribute
  * @NL_ATTR_TYPE_U32: 32-bit unsigned attribute
@@ -343,9 +343,9 @@ enum netlink_attribute_type {
  * @NL_POLICY_TYPE_ATTR_MAX_VALUE_U: maximum value for unsigned
  *	integers (U64)
  * @NL_POLICY_TYPE_ATTR_MIN_LENGTH: minimum length for binary
- *	attributes, no minimum if not given (U32)
+ *	attributes, anal minimum if analt given (U32)
  * @NL_POLICY_TYPE_ATTR_MAX_LENGTH: maximum length for binary
- *	attributes, no maximum if not given (U32)
+ *	attributes, anal maximum if analt given (U32)
  * @NL_POLICY_TYPE_ATTR_POLICY_IDX: sub policy for nested and
  *	nested array types (U32)
  * @NL_POLICY_TYPE_ATTR_POLICY_MAXTYPE: maximum sub policy

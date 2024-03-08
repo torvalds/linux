@@ -20,10 +20,10 @@
 #include "sysfs.h"
 
 /*
- * Determine ktype->sysfs_ops for the given kernfs_node.  This function
+ * Determine ktype->sysfs_ops for the given kernfs_analde.  This function
  * must be called while holding an active reference.
  */
-static const struct sysfs_ops *sysfs_file_ops(struct kernfs_node *kn)
+static const struct sysfs_ops *sysfs_file_ops(struct kernfs_analde *kn)
 {
 	struct kobject *kobj = kn->parent->priv;
 
@@ -62,7 +62,7 @@ static int sysfs_kf_seq_show(struct seq_file *sf, void *v)
 
 	/*
 	 * The code works fine with PAGE_SIZE return but it's likely to
-	 * indicate truncated result or overflow in normal use cases.
+	 * indicate truncated result or overflow in analrmal use cases.
 	 */
 	if (count >= (ssize_t)PAGE_SIZE) {
 		printk("fill_read_buffer: %pS returned bad count\n",
@@ -79,7 +79,7 @@ static ssize_t sysfs_kf_bin_read(struct kernfs_open_file *of, char *buf,
 {
 	struct bin_attribute *battr = of->kn->priv;
 	struct kobject *kobj = of->kn->parent->priv;
-	loff_t size = file_inode(of->file)->i_size;
+	loff_t size = file_ianalde(of->file)->i_size;
 
 	if (!count)
 		return 0;
@@ -106,8 +106,8 @@ static ssize_t sysfs_kf_read(struct kernfs_open_file *of, char *buf,
 	ssize_t len;
 
 	/*
-	 * If buf != of->prealloc_buf, we don't know how
-	 * large it is, so cannot safely pass it to ->show
+	 * If buf != of->prealloc_buf, we don't kanalw how
+	 * large it is, so cananalt safely pass it to ->show
 	 */
 	if (WARN_ON_ONCE(buf != of->prealloc_buf))
 		return 0;
@@ -142,7 +142,7 @@ static ssize_t sysfs_kf_bin_write(struct kernfs_open_file *of, char *buf,
 {
 	struct bin_attribute *battr = of->kn->priv;
 	struct kobject *kobj = of->kn->parent->priv;
-	loff_t size = file_inode(of->file)->i_size;
+	loff_t size = file_ianalde(of->file)->i_size;
 
 	if (size) {
 		if (size <= pos)
@@ -189,9 +189,9 @@ static int sysfs_kf_bin_open(struct kernfs_open_file *of)
 	return 0;
 }
 
-void sysfs_notify(struct kobject *kobj, const char *dir, const char *attr)
+void sysfs_analtify(struct kobject *kobj, const char *dir, const char *attr)
 {
-	struct kernfs_node *kn = kobj->sd, *tmp;
+	struct kernfs_analde *kn = kobj->sd, *tmp;
 
 	if (kn && dir)
 		kn = kernfs_find_and_get(kn, dir);
@@ -205,11 +205,11 @@ void sysfs_notify(struct kobject *kobj, const char *dir, const char *attr)
 	}
 
 	if (kn) {
-		kernfs_notify(kn);
+		kernfs_analtify(kn);
 		kernfs_put(kn);
 	}
 }
-EXPORT_SYMBOL_GPL(sysfs_notify);
+EXPORT_SYMBOL_GPL(sysfs_analtify);
 
 static const struct kernfs_ops sysfs_file_kfops_empty = {
 };
@@ -264,7 +264,7 @@ static const struct kernfs_ops sysfs_bin_kfops_mmap = {
 	.llseek		= sysfs_kf_bin_llseek,
 };
 
-int sysfs_add_file_mode_ns(struct kernfs_node *parent,
+int sysfs_add_file_mode_ns(struct kernfs_analde *parent,
 		const struct attribute *attr, umode_t mode, kuid_t uid,
 		kgid_t gid, const void *ns)
 {
@@ -272,7 +272,7 @@ int sysfs_add_file_mode_ns(struct kernfs_node *parent,
 	const struct sysfs_ops *sysfs_ops = kobj->ktype->sysfs_ops;
 	struct lock_class_key *key = NULL;
 	const struct kernfs_ops *ops = NULL;
-	struct kernfs_node *kn;
+	struct kernfs_analde *kn;
 
 	/* every kobject with an attribute needs a ktype assigned */
 	if (WARN(!sysfs_ops, KERN_ERR
@@ -300,7 +300,7 @@ int sysfs_add_file_mode_ns(struct kernfs_node *parent,
 		ops = &sysfs_file_kfops_empty;
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
-	if (!attr->ignore_lockdep)
+	if (!attr->iganalre_lockdep)
 		key = attr->key ?: (struct lock_class_key *)&attr->skey;
 #endif
 
@@ -314,14 +314,14 @@ int sysfs_add_file_mode_ns(struct kernfs_node *parent,
 	return 0;
 }
 
-int sysfs_add_bin_file_mode_ns(struct kernfs_node *parent,
+int sysfs_add_bin_file_mode_ns(struct kernfs_analde *parent,
 		const struct bin_attribute *battr, umode_t mode,
 		kuid_t uid, kgid_t gid, const void *ns)
 {
 	const struct attribute *attr = &battr->attr;
 	struct lock_class_key *key = NULL;
 	const struct kernfs_ops *ops;
-	struct kernfs_node *kn;
+	struct kernfs_analde *kn;
 
 	if (battr->mmap)
 		ops = &sysfs_bin_kfops_mmap;
@@ -335,7 +335,7 @@ int sysfs_add_bin_file_mode_ns(struct kernfs_node *parent,
 		ops = &sysfs_file_kfops_empty;
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
-	if (!attr->ignore_lockdep)
+	if (!attr->iganalre_lockdep)
 		key = attr->key ?: (struct lock_class_key *)&attr->skey;
 #endif
 
@@ -392,7 +392,7 @@ EXPORT_SYMBOL_GPL(sysfs_create_files);
 int sysfs_add_file_to_group(struct kobject *kobj,
 		const struct attribute *attr, const char *group)
 {
-	struct kernfs_node *parent;
+	struct kernfs_analde *parent;
 	kuid_t uid;
 	kgid_t gid;
 	int error;
@@ -405,7 +405,7 @@ int sysfs_add_file_to_group(struct kobject *kobj,
 	}
 
 	if (!parent)
-		return -ENOENT;
+		return -EANALENT;
 
 	kobject_get_ownership(kobj, &uid, &gid);
 	error = sysfs_add_file_mode_ns(parent, attr, attr->mode, uid, gid,
@@ -426,13 +426,13 @@ EXPORT_SYMBOL_GPL(sysfs_add_file_to_group);
 int sysfs_chmod_file(struct kobject *kobj, const struct attribute *attr,
 		     umode_t mode)
 {
-	struct kernfs_node *kn;
+	struct kernfs_analde *kn;
 	struct iattr newattrs;
 	int rc;
 
 	kn = kernfs_find_and_get(kobj->sd, attr->name);
 	if (!kn)
-		return -ENOENT;
+		return -EANALENT;
 
 	newattrs.ia_mode = (mode & S_IALLUGO) | (kn->mode & ~S_IALLUGO);
 	newattrs.ia_valid = ATTR_MODE;
@@ -454,10 +454,10 @@ EXPORT_SYMBOL_GPL(sysfs_chmod_file);
  * is called. Hence this function is useful in methods that implement self
  * deletion.
  */
-struct kernfs_node *sysfs_break_active_protection(struct kobject *kobj,
+struct kernfs_analde *sysfs_break_active_protection(struct kobject *kobj,
 						  const struct attribute *attr)
 {
-	struct kernfs_node *kn;
+	struct kernfs_analde *kn;
 
 	kobject_get(kobj);
 	kn = kernfs_find_and_get(kobj->sd, attr->name);
@@ -472,13 +472,13 @@ EXPORT_SYMBOL_GPL(sysfs_break_active_protection);
  * @kn: Pointer returned by sysfs_break_active_protection().
  *
  * Undo the effects of sysfs_break_active_protection(). Since this function
- * calls kernfs_put() on the kernfs node that corresponds to the 'attr'
+ * calls kernfs_put() on the kernfs analde that corresponds to the 'attr'
  * argument passed to sysfs_break_active_protection() that attribute may have
  * been removed between the sysfs_break_active_protection() and
- * sysfs_unbreak_active_protection() calls, it is not safe to access @kn after
+ * sysfs_unbreak_active_protection() calls, it is analt safe to access @kn after
  * this function has returned.
  */
-void sysfs_unbreak_active_protection(struct kernfs_node *kn)
+void sysfs_unbreak_active_protection(struct kernfs_analde *kn)
 {
 	struct kobject *kobj = kn->parent->priv;
 
@@ -499,7 +499,7 @@ EXPORT_SYMBOL_GPL(sysfs_unbreak_active_protection);
 void sysfs_remove_file_ns(struct kobject *kobj, const struct attribute *attr,
 			  const void *ns)
 {
-	struct kernfs_node *parent = kobj->sd;
+	struct kernfs_analde *parent = kobj->sd;
 
 	kernfs_remove_by_name_ns(parent, attr->name, ns);
 }
@@ -514,8 +514,8 @@ EXPORT_SYMBOL_GPL(sysfs_remove_file_ns);
  */
 bool sysfs_remove_file_self(struct kobject *kobj, const struct attribute *attr)
 {
-	struct kernfs_node *parent = kobj->sd;
-	struct kernfs_node *kn;
+	struct kernfs_analde *parent = kobj->sd;
+	struct kernfs_analde *kn;
 	bool ret;
 
 	kn = kernfs_find_and_get(parent, attr->name);
@@ -547,7 +547,7 @@ EXPORT_SYMBOL_GPL(sysfs_remove_files);
 void sysfs_remove_file_from_group(struct kobject *kobj,
 		const struct attribute *attr, const char *group)
 {
-	struct kernfs_node *parent;
+	struct kernfs_analde *parent;
 
 	if (group) {
 		parent = kernfs_find_and_get(kobj->sd, group);
@@ -595,7 +595,7 @@ void sysfs_remove_bin_file(struct kobject *kobj,
 }
 EXPORT_SYMBOL_GPL(sysfs_remove_bin_file);
 
-static int internal_change_owner(struct kernfs_node *kn, kuid_t kuid,
+static int internal_change_owner(struct kernfs_analde *kn, kuid_t kuid,
 				 kgid_t kgid)
 {
 	struct iattr newattrs = {
@@ -608,8 +608,8 @@ static int internal_change_owner(struct kernfs_node *kn, kuid_t kuid,
 
 /**
  *	sysfs_link_change_owner - change owner of a sysfs file.
- *	@kobj:	object of the kernfs_node the symlink is located in.
- *	@targ:	object of the kernfs_node the symlink points to.
+ *	@kobj:	object of the kernfs_analde the symlink is located in.
+ *	@targ:	object of the kernfs_analde the symlink points to.
  *	@name:	name of the link.
  *	@kuid:	new owner's kuid
  *	@kgid:	new owner's kgid
@@ -623,13 +623,13 @@ static int internal_change_owner(struct kernfs_node *kn, kuid_t kuid,
 int sysfs_link_change_owner(struct kobject *kobj, struct kobject *targ,
 			    const char *name, kuid_t kuid, kgid_t kgid)
 {
-	struct kernfs_node *kn = NULL;
+	struct kernfs_analde *kn = NULL;
 	int error;
 
 	if (!name || !kobj->state_in_sysfs || !targ->state_in_sysfs)
 		return -EINVAL;
 
-	error = -ENOENT;
+	error = -EANALENT;
 	kn = kernfs_find_and_get_ns(kobj->sd, name, targ->sd->ns);
 	if (!kn)
 		goto out;
@@ -662,7 +662,7 @@ out:
 int sysfs_file_change_owner(struct kobject *kobj, const char *name, kuid_t kuid,
 			    kgid_t kgid)
 {
-	struct kernfs_node *kn;
+	struct kernfs_analde *kn;
 	int error;
 
 	if (!name)
@@ -673,7 +673,7 @@ int sysfs_file_change_owner(struct kobject *kobj, const char *name, kuid_t kuid,
 
 	kn = kernfs_find_and_get(kobj->sd, name);
 	if (!kn)
-		return -ENOENT;
+		return -EANALENT;
 
 	error = internal_change_owner(kn, kuid, kgid);
 
@@ -690,12 +690,12 @@ EXPORT_SYMBOL_GPL(sysfs_file_change_owner);
  *	@kgid:	new owner's kgid
  *
  * Change the owner of the default directory, files, groups, and attributes of
- * @kobj to @kuid/@kgid. Note that sysfs_change_owner mirrors how the sysfs
+ * @kobj to @kuid/@kgid. Analte that sysfs_change_owner mirrors how the sysfs
  * entries for a kobject are added by driver core. In summary,
  * sysfs_change_owner() takes care of the default directory entry for @kobj,
  * the default attributes associated with the ktype of @kobj and the default
  * attributes associated with the ktype of @kobj.
- * Additional properties not added by driver core have to be changed by the
+ * Additional properties analt added by driver core have to be changed by the
  * driver or subsystem which created them. This is similar to how
  * driver/subsystem specific entries are removed.
  *

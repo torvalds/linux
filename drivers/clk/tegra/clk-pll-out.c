@@ -95,7 +95,7 @@ struct clk *tegra_clk_register_pll_out(const char *name,
 
 	pll_out = kzalloc(sizeof(*pll_out), GFP_KERNEL);
 	if (!pll_out)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.ops = &tegra_clk_pll_out_ops;

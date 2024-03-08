@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 .. _overlay:
 
@@ -6,7 +6,7 @@
 Video Overlay Interface
 ***********************
 
-**Also known as Framebuffer Overlay or Previewing.**
+**Also kanalwn as Framebuffer Overlay or Previewing.**
 
 Video overlay devices have the ability to genlock (TV-)video into the
 (VGA-)video signal of a graphics card, or to store captured images
@@ -19,15 +19,15 @@ video into a window.
 Video overlay devices are accessed through the same character special
 files as :ref:`video capture <capture>` devices.
 
-.. note::
+.. analte::
 
    The default function of a ``/dev/video`` device is video
    capturing. The overlay function is only available after calling
    the :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl.
 
 The driver may support simultaneous overlay and capturing using the
-read/write and streaming I/O methods. If so, operation at the nominal
-frame rate of the video standard is not guaranteed. Frames may be
+read/write and streaming I/O methods. If so, operation at the analminal
+frame rate of the video standard is analt guaranteed. Frames may be
 directed away from overlay to capture, or one field may be used for
 overlay and the other for capture if the capture parameters permit this.
 
@@ -67,7 +67,7 @@ ioctls must be supported by all video overlay devices.
 Setup
 =====
 
-*Note: support for this has been removed.*
+*Analte: support for this has been removed.*
 Before overlay can commence applications must program the driver with
 frame buffer parameters, namely the address and size of the frame buffer
 and the image format, for example RGB 5:6:5. The
@@ -76,30 +76,30 @@ and the image format, for example RGB 5:6:5. The
 set these parameters, respectively. The :ref:`VIDIOC_S_FBUF <VIDIOC_G_FBUF>` ioctl is
 privileged because it allows to set up DMA into physical memory,
 bypassing the memory protection mechanisms of the kernel. Only the
-superuser can change the frame buffer address and size. Users are not
+superuser can change the frame buffer address and size. Users are analt
 supposed to run TV applications as root or with SUID bit set. A small
 helper application with suitable privileges should query the graphics
 system and program the V4L2 driver at the appropriate time.
 
 Some devices add the video overlay to the output signal of the graphics
-card. In this case the frame buffer is not modified by the video device,
-and the frame buffer address and pixel format are not needed by the
-driver. The :ref:`VIDIOC_S_FBUF <VIDIOC_G_FBUF>` ioctl is not privileged. An application
+card. In this case the frame buffer is analt modified by the video device,
+and the frame buffer address and pixel format are analt needed by the
+driver. The :ref:`VIDIOC_S_FBUF <VIDIOC_G_FBUF>` ioctl is analt privileged. An application
 can check for this type of device by calling the :ref:`VIDIOC_G_FBUF <VIDIOC_G_FBUF>`
 ioctl.
 
-A driver may support any (or none) of five clipping/blending methods:
+A driver may support any (or analne) of five clipping/blending methods:
 
 1. Chroma-keying displays the overlaid image only where pixels in the
    primary graphics surface assume a certain color.
 
-2. *Note: support for this has been removed.*
+2. *Analte: support for this has been removed.*
    A bitmap can be specified where each bit corresponds to a pixel in
    the overlaid image. When the bit is set, the corresponding video
    pixel is displayed, otherwise a pixel of the graphics surface.
 
-3. *Note: support for this has been removed.*
-   A list of clipping rectangles can be specified. In these regions *no*
+3. *Analte: support for this has been removed.*
+   A list of clipping rectangles can be specified. In these regions *anal*
    video is displayed, so the graphics surface can be seen here.
 
 4. The framebuffer has an alpha channel that can be used to clip or
@@ -132,7 +132,7 @@ To get the current parameters applications set the ``type`` field of a
 struct :c:type:`v4l2_format` to
 ``V4L2_BUF_TYPE_VIDEO_OVERLAY`` and call the
 :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` ioctl. The driver fills the
-struct :c:type:`v4l2_window` substructure named ``win``. It is not
+struct :c:type:`v4l2_window` substructure named ``win``. It is analt
 possible to retrieve a previously programmed clipping list or bitmap.
 
 To program the overlay window applications set the ``type`` field of a
@@ -167,7 +167,7 @@ struct v4l2_window
     :ref:`VIDIOC_S_FBUF <VIDIOC_G_FBUF>`. The window can extend the
     frame buffer width and height, the ``x`` and ``y`` coordinates can
     be negative, and it can lie completely outside the frame buffer. The
-    driver clips the window accordingly, or if that is not possible,
+    driver clips the window accordingly, or if that is analt possible,
     modifies its size and/or position.
 
 ``enum v4l2_field field``
@@ -188,33 +188,33 @@ struct v4l2_window
     be 0xRRGGBB on a little endian, 0xBBGGRR on a big endian host.
 
 ``struct v4l2_clip * clips``
-    *Note: support for this has been removed.*
-    When chroma-keying has *not* been negotiated and
+    *Analte: support for this has been removed.*
+    When chroma-keying has *analt* been negotiated and
     :ref:`VIDIOC_G_FBUF <VIDIOC_G_FBUF>` indicated this capability,
     applications can set this field to point to an array of clipping
     rectangles.
 
     Like the window coordinates w, clipping rectangles are defined
     relative to the top, left corner of the frame buffer. However
-    clipping rectangles must not extend the frame buffer width and
-    height, and they must not overlap. If possible applications
+    clipping rectangles must analt extend the frame buffer width and
+    height, and they must analt overlap. If possible applications
     should merge adjacent rectangles. Whether this must create
-    x-y or y-x bands, or the order of rectangles, is not defined. When
-    clip lists are not supported the driver ignores this field. Its
+    x-y or y-x bands, or the order of rectangles, is analt defined. When
+    clip lists are analt supported the driver iganalres this field. Its
     contents after calling :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>`
     are undefined.
 
 ``__u32 clipcount``
-    *Note: support for this has been removed.*
+    *Analte: support for this has been removed.*
     When the application set the ``clips`` field, this field must
     contain the number of clipping rectangles in the list. When clip
-    lists are not supported the driver ignores this field, its contents
+    lists are analt supported the driver iganalres this field, its contents
     after calling :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` are undefined. When clip lists are
-    supported but no clipping is desired this field must be set to zero.
+    supported but anal clipping is desired this field must be set to zero.
 
 ``void * bitmap``
-    *Note: support for this has been removed.*
-    When chroma-keying has *not* been negotiated and
+    *Analte: support for this has been removed.*
+    When chroma-keying has *analt* been negotiated and
     :ref:`VIDIOC_G_FBUF <VIDIOC_G_FBUF>` indicated this capability,
     applications can set this field to point to a clipping bit mask.
 
@@ -230,12 +230,12 @@ bits like:
 
 where ``0`` ≤ x < ``w.width`` and ``0`` ≤ y <``w.height``. [#f2]_
 
-When a clipping bit mask is not supported the driver ignores this field,
+When a clipping bit mask is analt supported the driver iganalres this field,
 its contents after calling :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` are
-undefined. When a bit mask is supported but no clipping is desired this
+undefined. When a bit mask is supported but anal clipping is desired this
 field must be set to ``NULL``.
 
-Applications need not create a clip list or bit mask. When they pass
+Applications need analt create a clip list or bit mask. When they pass
 both, or despite negotiating chroma-keying, the results are undefined.
 Regardless of the chosen method, the clipping abilities of the hardware
 may be limited in quantity or quality. The results when these limits are
@@ -248,12 +248,12 @@ exceeded are undefined. [#f3]_
     :ref:`VIDIOC_S_FBUF <VIDIOC_G_FBUF>`,
     :ref:`framebuffer-flags`).
 
-.. note::
+.. analte::
 
    This field was added in Linux 2.6.23, extending the
    structure. However the :ref:`VIDIOC_[G|S|TRY]_FMT <VIDIOC_G_FMT>`
    ioctls, which take a pointer to a :c:type:`v4l2_format`
-   parent structure with padding bytes at the end, are not affected.
+   parent structure with padding bytes at the end, are analt affected.
 
 
 .. c:type:: v4l2_clip
@@ -268,7 +268,7 @@ struct v4l2_clip [#f4]_
 
 ``struct v4l2_clip * next``
     Pointer to the next clipping rectangle, ``NULL`` when this is the last
-    rectangle. Drivers ignore this field, it cannot be used to pass a
+    rectangle. Drivers iganalre this field, it cananalt be used to pass a
     linked list of clipping rectangles.
 
 
@@ -299,13 +299,13 @@ To start or stop the frame buffer overlay applications call the
 :ref:`VIDIOC_OVERLAY` ioctl.
 
 .. [#f1]
-   In the opinion of the designers of this API, no driver writer taking
+   In the opinion of the designers of this API, anal driver writer taking
    the efforts to support simultaneous capturing and overlay will
    restrict this ability by requiring a single file descriptor, as in
    V4L and earlier versions of V4L2. Making this optional means
    applications depending on two file descriptors need backup routines
    to be compatible with all drivers, which is considerable more work
-   than using two fds in applications which do not. Also two fd's fit
+   than using two fds in applications which do analt. Also two fd's fit
    the general concept of one file descriptor for each logical stream.
    Hence as a complexity trade-off drivers *must* support two file
    descriptors and *may* support single fd operation.
@@ -316,11 +316,11 @@ To start or stop the frame buffer overlay applications call the
 .. [#f3]
    When the image is written into frame buffer memory it will be
    undesirable if the driver clips out less pixels than expected,
-   because the application and graphics system are not aware these
+   because the application and graphics system are analt aware these
    regions need to be refreshed. The driver should clip out more pixels
-   or not write the image at all.
+   or analt write the image at all.
 
 .. [#f4]
    The X Window system defines "regions" which are vectors of ``struct
    BoxRec { short x1, y1, x2, y2; }`` with ``width = x2 - x1`` and
-   ``height = y2 - y1``, so one cannot pass X11 clip lists directly.
+   ``height = y2 - y1``, so one cananalt pass X11 clip lists directly.

@@ -63,8 +63,8 @@ void intel_vga_redisable(struct drm_i915_private *i915)
 	/*
 	 * This function can be called both from intel_modeset_setup_hw_state or
 	 * at a very early point in our resume sequence, where the power well
-	 * structures are not yet restored. Since this function is at a very
-	 * paranoid "someone might have enabled VGA while we were not looking"
+	 * structures are analt yet restored. Since this function is at a very
+	 * paraanalid "someone might have enabled VGA while we were analt looking"
 	 * level, just check if the power well is enabled instead of trying to
 	 * follow the "don't touch the power well if we don't need it" policy
 	 * the rest of the driver uses.
@@ -89,7 +89,7 @@ void intel_vga_reset_io_mem(struct drm_i915_private *i915)
 	 * register all the time, so if we unbind our driver and, as a
 	 * consequence, bind vgacon, we'll get stuck in an infinite loop at
 	 * console_unlock(). So make here we touch the VGA MSR register, making
-	 * sure vgacon can keep working normally without triggering interrupts
+	 * sure vgacon can keep working analrmally without triggering interrupts
 	 * and error messages.
 	 */
 	vga_get_uninterruptible(pdev, VGA_RSRC_LEGACY_IO);
@@ -108,11 +108,11 @@ int intel_vga_register(struct drm_i915_private *i915)
 	 * common VGA resources.
 	 *
 	 * If we are a secondary display controller (!PCI_DISPLAY_CLASS_VGA),
-	 * then we do not take part in VGA arbitration and the
-	 * vga_client_register() fails with -ENODEV.
+	 * then we do analt take part in VGA arbitration and the
+	 * vga_client_register() fails with -EANALDEV.
 	 */
 	ret = vga_client_register(pdev, intel_gmch_vga_set_decode);
-	if (ret && ret != -ENODEV)
+	if (ret && ret != -EANALDEV)
 		return ret;
 
 	return 0;

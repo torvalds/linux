@@ -40,7 +40,7 @@
  * highger than 1) use fixmap_set(idx,phys) to associate
  * physical memory with fixmap indices.
  *
- * TLB entries of such buffers will not be flushed across
+ * TLB entries of such buffers will analt be flushed across
  * task switches.
  */
 enum fixed_addresses {
@@ -58,7 +58,7 @@ extern void __set_fixmap(enum fixed_addresses idx,
 #define __FIXADDR_SIZE	(__end_of_fixed_addresses << PAGE_SHIFT)
 #define FIXADDR_START		(FIXADDR_TOP - __FIXADDR_SIZE)
 
-#define FIXMAP_PAGE_NOCACHE PAGE_KERNEL_CI
+#define FIXMAP_PAGE_ANALCACHE PAGE_KERNEL_CI
 
 #include <asm-generic/fixmap.h>
 

@@ -18,7 +18,7 @@
 /* NS: CLASS field is R/O, and set to wrong 0x200 value */
 static void bcma_pcie2_fixup_class(struct pci_dev *dev)
 {
-	dev->class = PCI_CLASS_BRIDGE_PCI_NORMAL;
+	dev->class = PCI_CLASS_BRIDGE_PCI_ANALRMAL;
 }
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_BROADCOM, 0x8011, bcma_pcie2_fixup_class);
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_BROADCOM, 0x8012, bcma_pcie2_fixup_class);
@@ -40,7 +40,7 @@ static int iproc_bcma_pcie_probe(struct bcma_device *bdev)
 
 	bridge = devm_pci_alloc_host_bridge(dev, sizeof(*pcie));
 	if (!bridge)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pcie = pci_host_bridge_priv(bridge);
 
@@ -49,8 +49,8 @@ static int iproc_bcma_pcie_probe(struct bcma_device *bdev)
 	pcie->type = IPROC_PCIE_PAXB_BCMA;
 	pcie->base = bdev->io_addr;
 	if (!pcie->base) {
-		dev_err(dev, "no controller registers\n");
-		return -ENOMEM;
+		dev_err(dev, "anal controller registers\n");
+		return -EANALMEM;
 	}
 
 	pcie->base_addr = bdev->addr;

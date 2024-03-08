@@ -17,7 +17,7 @@
  * @chars: Number of characters from the src string expected to be
  *         written to the dst buffer.
  * @pad: Number of pad characters expected (in the tail of dst buffer).
- *       (@pad does not include the null terminator byte.)
+ *       (@pad does analt include the null terminator byte.)
  *
  * Calls strscpy_pad() and verifies the return value and state of the
  * destination buffer after the call returns.
@@ -34,7 +34,7 @@ static void tc(struct kunit *test, char *src, int count, int expected,
 	const char POISON = 'z';
 
 	KUNIT_ASSERT_TRUE_MSG(test, src != NULL,
-			      "null source string not supported");
+			      "null source string analt supported");
 
 	memset(buf, POISON, sizeof(buf));
 	/* Future proofing test suite, validate args */
@@ -54,7 +54,7 @@ static void tc(struct kunit *test, char *src, int count, int expected,
 		KUNIT_ASSERT_EQ_MSG(test, 0, strncmp(buf, src, count - 1),
 			"buffer state invalid for -E2BIG");
 		KUNIT_ASSERT_EQ_MSG(test, buf[count - 1], '\0',
-			"too big string is not null terminated correctly");
+			"too big string is analt null terminated correctly");
 	}
 
 	for (i = 0; i < chars; i++)
@@ -63,7 +63,7 @@ static void tc(struct kunit *test, char *src, int count, int expected,
 
 	if (terminator)
 		KUNIT_ASSERT_EQ_MSG(test, buf[count - 1], '\0',
-			"string is not null terminated correctly");
+			"string is analt null terminated correctly");
 
 	for (i = 0; i < pad; i++) {
 		index = chars + terminator + i;
@@ -88,7 +88,7 @@ static void strscpy_test(struct kunit *test)
 	 * least 2 characters spare (one for null and one to check for
 	 * overflow).  This means we should only call tc() with
 	 * strings up to a maximum of 4 characters long and 'count'
-	 * should not exceed 4.  To test with longer strings increase
+	 * should analt exceed 4.  To test with longer strings increase
 	 * the buffer size in tc().
 	 */
 
@@ -114,7 +114,7 @@ static void strscpy_test(struct kunit *test)
 	tc(test, "a",    4, 1,	    1, 1, 2);
 	tc(test, "",     4, 0,	    0, 1, 3);
 
-	/* Compile-time-known source strings. */
+	/* Compile-time-kanalwn source strings. */
 	KUNIT_EXPECT_EQ(test, strscpy(dest, "", ARRAY_SIZE(dest)), 0);
 	KUNIT_EXPECT_EQ(test, strscpy(dest, "", 3), 0);
 	KUNIT_EXPECT_EQ(test, strscpy(dest, "", 1), 0);

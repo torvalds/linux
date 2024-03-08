@@ -24,7 +24,7 @@ properties:
     const: led-backlight
 
   leds:
-    description: A list of LED nodes
+    description: A list of LED analdes
     $ref: /schemas/types.yaml#/definitions/phandle-array
     items:
       maxItems: 1

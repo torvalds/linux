@@ -193,7 +193,7 @@ static inline int zpci_memset_io(volatile void __iomem *dst,
 	int rc;
 
 	if (src == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	memset(src, val, count);
 
 	rc = zpci_memcpy_toio(dst, src, count);

@@ -11,7 +11,7 @@
 #define BB_PATH_NUM_8852B 2
 
 enum rtw8852b_pmac_mode {
-	NONE_TEST,
+	ANALNE_TEST,
 	PKTS_TX,
 	PKTS_RX,
 	CONT_TX

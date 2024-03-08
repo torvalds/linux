@@ -14,7 +14,7 @@
 
 #include <stdint.h>
 #include <libudev.h>
-#include <errno.h>
+#include <erranal.h>
 #include "list.h"
 #include "usbip_common.h"
 #include "sysfs_utils.h"
@@ -47,7 +47,7 @@ struct usbip_exported_device {
 	struct udev_device *sudev;
 	int32_t status;
 	struct usbip_usb_device udev;
-	struct list_head node;
+	struct list_head analde;
 	struct usbip_usb_interface uinf[];
 };
 
@@ -55,7 +55,7 @@ struct usbip_exported_device {
 static inline int usbip_driver_open(struct usbip_host_driver *hdriver)
 {
 	if (!hdriver->ops.open)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	return hdriver->ops.open(hdriver);
 }
 
@@ -69,7 +69,7 @@ static inline void usbip_driver_close(struct usbip_host_driver *hdriver)
 static inline int usbip_refresh_device_list(struct usbip_host_driver *hdriver)
 {
 	if (!hdriver->ops.refresh_device_list)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	return hdriver->ops.refresh_device_list(hdriver);
 }
 

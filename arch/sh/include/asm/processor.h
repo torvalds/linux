@@ -38,8 +38,8 @@ enum cpu_type {
 	/* SH4AL-DSP types */
 	CPU_SH7343, CPU_SH7722, CPU_SH7366, CPU_SH7372,
 
-	/* Unknown subtype */
-	CPU_SH_NONE
+	/* Unkanalwn subtype */
+	CPU_SH_ANALNE
 };
 
 enum cpu_family {
@@ -49,7 +49,7 @@ enum cpu_family {
 	CPU_FAMILY_SH4,
 	CPU_FAMILY_SH4A,
 	CPU_FAMILY_SH4AL_DSP,
-	CPU_FAMILY_UNKNOWN,
+	CPU_FAMILY_UNKANALWN,
 };
 
 /*
@@ -70,7 +70,7 @@ struct tlb_info {
 
 struct sh_cpuinfo {
 	unsigned int type, family;
-	int cut_major, cut_minor;
+	int cut_major, cut_mianalr;
 	unsigned long loops_per_jiffy;
 	unsigned long asid_cache;
 
@@ -126,9 +126,9 @@ const char *get_cpu_subtype(struct sh_cpuinfo *c);
 extern const struct seq_operations cpuinfo_op;
 
 /* thread_struct flags */
-#define SH_THREAD_UAC_NOPRINT	(1 << 0)
+#define SH_THREAD_UAC_ANALPRINT	(1 << 0)
 #define SH_THREAD_UAC_SIGBUS	(1 << 1)
-#define SH_THREAD_UAC_MASK	(SH_THREAD_UAC_NOPRINT | SH_THREAD_UAC_SIGBUS)
+#define SH_THREAD_UAC_MASK	(SH_THREAD_UAC_ANALPRINT | SH_THREAD_UAC_SIGBUS)
 
 /* processor boot mode configuration */
 #define MODE_PIN0 (1 << 0)

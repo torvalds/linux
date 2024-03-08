@@ -9,7 +9,7 @@
 #define SECVAR_OPS_H
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/sysfs.h>
 
 extern const struct secvar_operations *secvar_ops;

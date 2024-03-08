@@ -34,7 +34,7 @@ bool search_kernel_soft_mask_table(unsigned long addr)
 	}
 	return false;
 }
-NOKPROBE_SYMBOL(search_kernel_soft_mask_table);
+ANALKPROBE_SYMBOL(search_kernel_soft_mask_table);
 
 /* Given an address, look for it in the kernel exception table */
 unsigned long search_kernel_restart_table(unsigned long addr)
@@ -53,4 +53,4 @@ unsigned long search_kernel_restart_table(unsigned long addr)
 	}
 	return 0;
 }
-NOKPROBE_SYMBOL(search_kernel_restart_table);
+ANALKPROBE_SYMBOL(search_kernel_restart_table);

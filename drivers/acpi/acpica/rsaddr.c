@@ -316,7 +316,7 @@ acpi_rs_get_address_common(struct acpi_resource *resource,
  * PARAMETERS:  aml                 - Pointer to the AML resource descriptor
  *              resource            - Pointer to the internal resource struct
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Convert common flag fields from a resource descriptor to an
  *              AML descriptor

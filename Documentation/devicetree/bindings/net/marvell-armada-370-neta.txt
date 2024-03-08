@@ -16,7 +16,7 @@ Required properties:
 
 Optional properties:
 - tx-csum-limit: maximum mtu supported by port that allow TX checksum.
-  Value is presented in bytes. If not used, by default 1600B is set for
+  Value is presented in bytes. If analt used, by default 1600B is set for
   "marvell,armada-370-neta" and 9800B for others.
 - clock-names: List of names corresponding to clocks property; shall be
   "core" for core clock and "bus" for the optional bus clock.
@@ -24,14 +24,14 @@ Optional properties:
 
 Optional properties (valid only for Armada XP/38x):
 
-- buffer-manager: a phandle to a buffer manager node. Please refer to
+- buffer-manager: a phandle to a buffer manager analde. Please refer to
   Documentation/devicetree/bindings/net/marvell-neta-bm.txt
 - bm,pool-long: ID of a pool, that will accept all packets of a size
   higher than 'short' pool's threshold (if set) and up to MTU value.
   Obligatory, when the port is supposed to use hardware
   buffer management.
 - bm,pool-short: ID of a pool, that will be used for accepting
-  packets of a size lower than given threshold. If not set, the port
+  packets of a size lower than given threshold. If analt set, the port
   will use a single 'long' pool for all packets, as defined above.
 
 Example:

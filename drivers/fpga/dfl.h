@@ -21,7 +21,7 @@
 #include <linux/fs.h>
 #include <linux/interrupt.h>
 #include <linux/iopoll.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 #include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
@@ -91,7 +91,7 @@
 
 /*
  * CSR Rel Bit, 1'b0 = relative (offset from feature DFH start),
- * 1'b1 = absolute (ARM or other non-PCIe use)
+ * 1'b1 = absolute (ARM or other analn-PCIe use)
  */
 #define DFHv1_CSR_ADDR_REL	BIT_ULL(0)
 
@@ -187,7 +187,7 @@
 #define PORT_STS_AP2_EVT	BIT_ULL(13)		/* AP2 event detected */
 #define PORT_STS_AP1_EVT	BIT_ULL(12)		/* AP1 event detected */
 #define PORT_STS_PWR_STATE	GENMASK_ULL(11, 8)	/* AFU power states */
-#define PORT_STS_PWR_STATE_NORM 0
+#define PORT_STS_PWR_STATE_ANALRM 0
 #define PORT_STS_PWR_STATE_AP1	1			/* 50% throttling */
 #define PORT_STS_PWR_STATE_AP2	2			/* 90% throttling */
 #define PORT_STS_PWR_STATE_AP6	6			/* 100% throttling */
@@ -211,14 +211,14 @@
  *
  * @name: name of this port ops, to match with port platform device.
  * @owner: pointer to the module which owns this port ops.
- * @node: node to link port ops to global list.
+ * @analde: analde to link port ops to global list.
  * @get_id: get port id from hardware.
  * @enable_set: enable/disable the port.
  */
 struct dfl_fpga_port_ops {
 	const char *name;
 	struct module *owner;
-	struct list_head node;
+	struct list_head analde;
 	int (*get_id)(struct platform_device *pdev);
 	int (*enable_set)(struct platform_device *pdev, bool enable);
 };
@@ -302,7 +302,7 @@ struct dfl_feature {
 /**
  * struct dfl_feature_platform_data - platform data for feature devices
  *
- * @node: node to link feature devs to container device's port_dev_list.
+ * @analde: analde to link feature devs to container device's port_dev_list.
  * @lock: mutex to protect platform data.
  * @cdev: cdev of feature dev.
  * @dev: ptr to platform device linked with this platform data.
@@ -316,7 +316,7 @@ struct dfl_feature {
  * @features: sub features of this feature dev.
  */
 struct dfl_feature_platform_data {
-	struct list_head node;
+	struct list_head analde;
 	struct mutex lock;
 	struct cdev cdev;
 	struct platform_device *dev;
@@ -399,11 +399,11 @@ int dfl_fpga_dev_ops_register(struct platform_device *pdev,
 void dfl_fpga_dev_ops_unregister(struct platform_device *pdev);
 
 static inline
-struct platform_device *dfl_fpga_inode_to_feature_dev(struct inode *inode)
+struct platform_device *dfl_fpga_ianalde_to_feature_dev(struct ianalde *ianalde)
 {
 	struct dfl_feature_platform_data *pdata;
 
-	pdata = container_of(inode->i_cdev, struct dfl_feature_platform_data,
+	pdata = container_of(ianalde->i_cdev, struct dfl_feature_platform_data,
 			     cdev);
 	return pdata->dev;
 }
@@ -489,12 +489,12 @@ struct dfl_fpga_enum_info {
  *
  * @start: base address of this device feature list.
  * @len: size of this device feature list.
- * @node: node in list of device feature lists.
+ * @analde: analde in list of device feature lists.
  */
 struct dfl_fpga_enum_dfl {
 	resource_size_t start;
 	resource_size_t len;
-	struct list_head node;
+	struct list_head analde;
 };
 
 struct dfl_fpga_enum_info *dfl_fpga_enum_info_alloc(struct device *dev);

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2014 Imagination Technologies Ltd.
+ * Copyright (C) 2014 Imagination Techanallogies Ltd.
  *
- * CPU PM notifiers for saving/restoring general CPU state.
+ * CPU PM analtifiers for saving/restoring general CPU state.
  */
 
 #include <linux/cpu_pm.h>
@@ -19,7 +19,7 @@ struct mips_static_suspend_state mips_static_suspend_state;
 
 /**
  * mips_cpu_save() - Save general CPU state.
- * Ensures that general CPU context is saved, notably FPU and DSP.
+ * Ensures that general CPU context is saved, analtably FPU and DSP.
  */
 static int mips_cpu_save(void)
 {
@@ -56,15 +56,15 @@ static void mips_cpu_restore(void)
 }
 
 /**
- * mips_pm_notifier() - Notifier for preserving general CPU context.
- * @self:	Notifier block.
+ * mips_pm_analtifier() - Analtifier for preserving general CPU context.
+ * @self:	Analtifier block.
  * @cmd:	CPU PM event.
  * @v:		Private data (unused).
  *
  * This is called when a CPU power management event occurs, and is used to
  * ensure that important CPU context is preserved across a CPU power down.
  */
-static int mips_pm_notifier(struct notifier_block *self, unsigned long cmd,
+static int mips_pm_analtifier(struct analtifier_block *self, unsigned long cmd,
 			    void *v)
 {
 	int ret;
@@ -73,7 +73,7 @@ static int mips_pm_notifier(struct notifier_block *self, unsigned long cmd,
 	case CPU_PM_ENTER:
 		ret = mips_cpu_save();
 		if (ret)
-			return NOTIFY_STOP;
+			return ANALTIFY_STOP;
 		break;
 	case CPU_PM_ENTER_FAILED:
 	case CPU_PM_EXIT:
@@ -81,15 +81,15 @@ static int mips_pm_notifier(struct notifier_block *self, unsigned long cmd,
 		break;
 	}
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block mips_pm_notifier_block = {
-	.notifier_call = mips_pm_notifier,
+static struct analtifier_block mips_pm_analtifier_block = {
+	.analtifier_call = mips_pm_analtifier,
 };
 
 static int __init mips_pm_init(void)
 {
-	return cpu_pm_register_notifier(&mips_pm_notifier_block);
+	return cpu_pm_register_analtifier(&mips_pm_analtifier_block);
 }
 arch_initcall(mips_pm_init);

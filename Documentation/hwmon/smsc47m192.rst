@@ -36,21 +36,21 @@ These chips support 3 temperature channels and 8 voltage inputs
 as well as CPU voltage VID input.
 
 They do also have fan monitoring and control capabilities, but the
-these features are accessed via ISA bus and are not supported by this
+these features are accessed via ISA bus and are analt supported by this
 driver. Use the 'smsc47m1' driver for fan monitoring and control.
 
 Voltages and temperatures are measured by an 8-bit ADC, the resolution
 of the temperatures is 1 bit per degree C.
-Voltages are scaled such that the nominal voltage corresponds to
+Voltages are scaled such that the analminal voltage corresponds to
 192 counts, i.e. 3/4 of the full range. Thus the available range for
-each voltage channel is 0V ... 255/192*(nominal voltage), the resolution
-is 1 bit per (nominal voltage)/192.
+each voltage channel is 0V ... 255/192*(analminal voltage), the resolution
+is 1 bit per (analminal voltage)/192.
 Both voltage and temperature values are scaled by 1000, the sys files
 show voltages in mV and temperatures in units of 0.001 degC.
 
 The +12V analog voltage input channel (in4_input) is multiplexed with
 bit 4 of the encoded CPU voltage. This means that you either get
-a +12V voltage measurement or a 5 bit CPU VID, but not both.
+a +12V voltage measurement or a 5 bit CPU VID, but analt both.
 The default setting is to use the pin as 12V input, and use only 4 bit VID.
 This driver assumes that the information in the configuration register
 is correct, i.e. that the BIOS has updated the configuration if
@@ -65,11 +65,11 @@ sysfs interface
 
 ===================== ==========================================================
 in0_input	      +2.5V voltage input
-in1_input	      CPU voltage input (nominal 2.25V)
+in1_input	      CPU voltage input (analminal 2.25V)
 in2_input	      +3.3V voltage input
 in3_input	      +5V voltage input
 in4_input	      +12V voltage input (may be missing if used as VID4)
-in5_input	      Vcc voltage input (nominal 3.3V)
+in5_input	      Vcc voltage input (analminal 3.3V)
 		      This is the supply voltage of the sensor chip itself.
 in6_input	      +1.5V voltage input
 in7_input	      +1.8V voltage input
@@ -92,9 +92,9 @@ temp[1-3]_max	      lower and upper alarm thresholds for temperatures
 temp[1-3]_offset      temperature offset registers
 		      The chip adds the offsets stored in these registers to
 		      the corresponding temperature readings.
-		      Note that temp1 and temp2 offsets share the same register,
-		      they cannot both be different from zero at the same time.
-		      Writing a non-zero number to one of them will reset the other
+		      Analte that temp1 and temp2 offsets share the same register,
+		      they cananalt both be different from zero at the same time.
+		      Writing a analn-zero number to one of them will reset the other
 		      offset to zero.
 
 		      All temperatures and offsets are read and written in

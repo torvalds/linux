@@ -19,7 +19,7 @@
  * @dsp: DSP IPC handle
  * @chan_idx: index of the channel where to trigger the interrupt
  *
- * Returns non-negative value for success, negative value for error
+ * Returns analn-negative value for success, negative value for error
  */
 int imx_dsp_ring_doorbell(struct imx_dsp_ipc *ipc, unsigned int idx)
 {
@@ -100,14 +100,14 @@ static int imx_dsp_setup_channels(struct imx_dsp_ipc *dsp_ipc)
 			chan_name = kasprintf(GFP_KERNEL, "rxdb%d", i - 2);
 
 		if (!chan_name)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		dsp_chan = &dsp_ipc->chans[i];
 		dsp_chan->name = chan_name;
 		cl = &dsp_chan->cl;
 		cl->dev = dev;
 		cl->tx_block = false;
-		cl->knows_txdone = true;
+		cl->kanalws_txdone = true;
 		cl->rx_callback = imx_dsp_handle_rx;
 
 		dsp_chan->ipc = dsp_ipc;
@@ -142,11 +142,11 @@ static int imx_dsp_probe(struct platform_device *pdev)
 	struct imx_dsp_ipc *dsp_ipc;
 	int ret;
 
-	device_set_of_node_from_dev(&pdev->dev, pdev->dev.parent);
+	device_set_of_analde_from_dev(&pdev->dev, pdev->dev.parent);
 
 	dsp_ipc = devm_kzalloc(dev, sizeof(*dsp_ipc), GFP_KERNEL);
 	if (!dsp_ipc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dsp_ipc->dev = dev;
 	dev_set_drvdata(dev, dsp_ipc);

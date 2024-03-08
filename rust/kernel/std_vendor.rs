@@ -27,7 +27,7 @@
 ///
 /// Invoking the macro on an expression moves and takes ownership of it
 /// before returning the evaluated expression unchanged. If the type
-/// of the expression does not implement `Copy` and you don't want
+/// of the expression does analt implement `Copy` and you don't want
 /// to give up ownership, you can instead borrow with `dbg!(&expr)`
 /// for some expression `expr`.
 ///
@@ -35,7 +35,7 @@
 /// This is useful when debugging issues that only occur in release
 /// builds or when debugging in release mode is significantly faster.
 ///
-/// Note that the macro is intended as a temporary debugging tool to be
+/// Analte that the macro is intended as a temporary debugging tool to be
 /// used during development. Therefore, avoid committing `dbg!` macro
 /// invocations into the kernel tree.
 ///
@@ -44,7 +44,7 @@
 ///
 /// # Stability
 ///
-/// The exact output printed by this macro should not be relied upon
+/// The exact output printed by this macro should analt be relied upon
 /// and is subject to future changes.
 ///
 /// # Further examples
@@ -64,8 +64,8 @@
 ///
 /// This prints to the kernel log:
 ///
-/// ```text,ignore
-/// [src/main.rs:4] n.checked_sub(4) = None
+/// ```text,iganalre
+/// [src/main.rs:4] n.checked_sub(4) = Analne
 /// ```
 ///
 /// Naive factorial implementation:
@@ -87,7 +87,7 @@
 ///
 /// This prints to the kernel log:
 ///
-/// ```text,ignore
+/// ```text,iganalre
 /// [src/main.rs:3] n <= 1 = false
 /// [src/main.rs:3] n <= 1 = false
 /// [src/main.rs:3] n <= 1 = false
@@ -101,12 +101,12 @@
 ///
 /// The `dbg!(..)` macro moves the input:
 ///
-/// ```ignore
-/// /// A wrapper around `usize` which importantly is not Copyable.
+/// ```iganalre
+/// /// A wrapper around `usize` which importantly is analt Copyable.
 /// #[derive(Debug)]
-/// struct NoCopy(usize);
+/// struct AnalCopy(usize);
 ///
-/// let a = NoCopy(42);
+/// let a = AnalCopy(42);
 /// let _ = dbg!(a); // <-- `a` is moved here.
 /// let _ = dbg!(a); // <-- `a` is moved again; error!
 /// ```
@@ -122,14 +122,14 @@
 /// assert_eq!(dbg!(1usize, 2u32), (1, 2));
 /// ```
 ///
-/// However, a single argument with a trailing comma will still not be treated
-/// as a tuple, following the convention of ignoring trailing commas in macro
+/// However, a single argument with a trailing comma will still analt be treated
+/// as a tuple, following the convention of iganalring trailing commas in macro
 /// invocations. You can use a 1-tuple directly if you need one:
 ///
 /// ```
 /// # #[allow(clippy::dbg_macro)]
 /// # {
-/// assert_eq!(1, dbg!(1u32,)); // trailing comma ignored
+/// assert_eq!(1, dbg!(1u32,)); // trailing comma iganalred
 /// assert_eq!((1,), dbg!((1u32,))); // 1-tuple
 /// # }
 /// ```
@@ -141,7 +141,7 @@
 /// [`pr_debug`]: crate::pr_debug!
 #[macro_export]
 macro_rules! dbg {
-    // NOTE: We cannot use `concat!` to make a static string as a format argument
+    // ANALTE: We cananalt use `concat!` to make a static string as a format argument
     // of `pr_info!` because `file!` could contain a `{` or
     // `$val` expression could be a block (`{ .. }`), in which case the `pr_info!`
     // will be malformed.

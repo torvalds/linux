@@ -43,9 +43,9 @@ static int mvme16x_probe(struct platform_device *dev)
 	if (!MACH_IS_MVME16x)
 		goto out;
 
-	if (mvme16x_config & MVME16x_CONFIG_NO_SCSICHIP) {
+	if (mvme16x_config & MVME16x_CONFIG_ANAL_SCSICHIP) {
 		printk(KERN_INFO "mvme16x-scsi: detection disabled, "
-				 "SCSI chip not present\n");
+				 "SCSI chip analt present\n");
 		goto out;
 	}
 
@@ -68,7 +68,7 @@ static int mvme16x_probe(struct platform_device *dev)
 	host = NCR_700_detect(&mvme16x_scsi_driver_template, hostdata,
 			      &dev->dev);
 	if (!host) {
-		printk(KERN_ERR "mvme16x-scsi: No host detected; "
+		printk(KERN_ERR "mvme16x-scsi: Anal host detected; "
 				"board configuration problem?\n");
 		goto out_free;
 	}
@@ -100,7 +100,7 @@ static int mvme16x_probe(struct platform_device *dev)
  out_free:
 	kfree(hostdata);
  out:
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static void mvme16x_device_remove(struct platform_device *dev)

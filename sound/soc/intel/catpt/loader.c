@@ -90,7 +90,7 @@ int catpt_store_streams_context(struct catpt_dev *cdev, struct dma_chan *chan)
 {
 	struct catpt_stream_runtime *stream;
 
-	list_for_each_entry(stream, &cdev->stream_list, node) {
+	list_for_each_entry(stream, &cdev->stream_list, analde) {
 		u32 off, size;
 		int ret;
 
@@ -180,7 +180,7 @@ catpt_restore_streams_context(struct catpt_dev *cdev, struct dma_chan *chan)
 {
 	struct catpt_stream_runtime *stream;
 
-	list_for_each_entry(stream, &cdev->stream_list, node) {
+	list_for_each_entry(stream, &cdev->stream_list, analde) {
 		u32 off, size;
 		int ret;
 
@@ -561,7 +561,7 @@ static int catpt_load_image(struct catpt_dev *cdev, struct dma_chan *chan,
 
 	vaddr = dma_alloc_coherent(cdev->dev, img->size, &paddr, GFP_KERNEL);
 	if (!vaddr) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto release_fw;
 	}
 

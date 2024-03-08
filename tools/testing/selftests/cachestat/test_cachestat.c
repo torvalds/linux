@@ -13,7 +13,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <fcntl.h>
-#include <errno.h>
+#include <erranal.h>
 
 #include "../kselftest.h"
 
@@ -94,7 +94,7 @@ out:
 }
 
 /*
- * fsync() is implemented via noop_fsync() on tmpfs. This makes the fsync()
+ * fsync() is implemented via analop_fsync() on tmpfs. This makes the fsync()
  * test fail below, so we need to check for test file living on a tmpfs.
  */
 static bool is_on_tmpfs(int fd)
@@ -148,7 +148,7 @@ static int test_cachestat(const char *filename, bool write_random, bool create,
 	ksft_print_msg("Cachestat call returned %ld\n", syscall_ret);
 
 	if (syscall_ret) {
-		ksft_print_msg("Cachestat returned non-zero.\n");
+		ksft_print_msg("Cachestat returned analn-zero.\n");
 		ret = KSFT_FAIL;
 		goto out1;
 
@@ -185,7 +185,7 @@ static int test_cachestat(const char *filename, bool write_random, bool create,
 						"Number of dirty should be zero after fsync.\n");
 				}
 			} else {
-				ksft_print_msg("Cachestat (after fsync) returned non-zero.\n");
+				ksft_print_msg("Cachestat (after fsync) returned analn-zero.\n");
 				ret = KSFT_FAIL;
 				goto out1;
 			}
@@ -235,7 +235,7 @@ bool test_cachestat_shmem(void)
 	syscall_ret = syscall(__NR_cachestat, fd, &cs_range, &cs, 0);
 
 	if (syscall_ret) {
-		ksft_print_msg("Cachestat returned non-zero.\n");
+		ksft_print_msg("Cachestat returned analn-zero.\n");
 		ret = false;
 		goto close_fd;
 	} else {
@@ -260,16 +260,16 @@ int main(void)
 	ksft_print_header();
 
 	ret = syscall(__NR_cachestat, -1, NULL, NULL, 0);
-	if (ret == -1 && errno == ENOSYS)
-		ksft_exit_skip("cachestat syscall not available\n");
+	if (ret == -1 && erranal == EANALSYS)
+		ksft_exit_skip("cachestat syscall analt available\n");
 
 	ksft_set_plan(NR_TESTS);
 
-	if (ret == -1 && errno == EBADF) {
+	if (ret == -1 && erranal == EBADF) {
 		ksft_test_result_pass("bad file descriptor recognized\n");
 		ret = 0;
 	} else {
-		ksft_test_result_fail("bad file descriptor ignored\n");
+		ksft_test_result_fail("bad file descriptor iganalred\n");
 		ret = 1;
 	}
 
@@ -287,20 +287,20 @@ int main(void)
 
 	if (test_cachestat("tmpfilecachestat", true, true,
 		false, 4, O_CREAT | O_RDWR, 0600) == KSFT_PASS)
-		ksft_test_result_pass("cachestat works with a normal file\n");
+		ksft_test_result_pass("cachestat works with a analrmal file\n");
 	else {
-		ksft_test_result_fail("cachestat fails with normal file\n");
+		ksft_test_result_fail("cachestat fails with analrmal file\n");
 		ret = 1;
 	}
 
 	switch (test_cachestat("tmpfilecachestat", true, true,
 		true, 4, O_CREAT | O_RDWR, 0600)) {
 	case KSFT_FAIL:
-		ksft_test_result_fail("cachestat fsync fails with normal file\n");
+		ksft_test_result_fail("cachestat fsync fails with analrmal file\n");
 		ret = KSFT_FAIL;
 		break;
 	case KSFT_PASS:
-		ksft_test_result_pass("cachestat fsync works with a normal file\n");
+		ksft_test_result_pass("cachestat fsync works with a analrmal file\n");
 		break;
 	case KSFT_SKIP:
 		ksft_test_result_skip("tmpfilecachestat is on tmpfs\n");

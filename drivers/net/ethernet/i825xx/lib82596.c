@@ -42,8 +42,8 @@
 
    980825:  Changed to receive directly in to sk_buffs which are
    allocated at open() time.  Eliminates copy on incoming frames
-   (small ones are still copied).  Shared data now held in a
-   non-cached page, so we can run on 68060 in copyback mode.
+   (small ones are still copied).  Shared data analw held in a
+   analn-cached page, so we can run on 68060 in copyback mode.
 
    TBD:
    * look at deferring rx frames rather than discarding (as per tulip)
@@ -70,7 +70,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
@@ -141,8 +141,8 @@ static int rx_copybreak = 100;
 #define CMD_FLEX	0x0008	/* Enable flexible memory model */
 
 enum commands {
-	CmdNOp = 0, CmdSASetup = 1, CmdConfigure = 2, CmdMulticastList = 3,
-	CmdTx = 4, CmdTDR = 5, CmdDump = 6, CmdDiagnose = 7
+	CmdANALp = 0, CmdSASetup = 1, CmdConfigure = 2, CmdMulticastList = 3,
+	CmdTx = 4, CmdTDR = 5, CmdDump = 6, CmdDiaganalse = 7
 };
 
 #define STAT_C		0x8000	/* Set to 0 after execution */
@@ -184,7 +184,7 @@ struct i596_tbd {
  * command as seen by the 82596.  The b_next pointer, as used by the 82596
  * always references the status field of the next command, rather than the
  * v_next field, because the 82596 is unaware of v_next.  It may seem more
- * logical to put v_next at the end of the structure, but we cannot do that
+ * logical to put v_next at the end of the structure, but we cananalt do that
  * because the 82596 expects other fields to be there, depending on command
  * type.
  */
@@ -333,7 +333,7 @@ static const char init_setup[] =
 	0x8E,		/* length, prefetch on */
 	0xC8,		/* fifo to 8, monitor off */
 	0x80,		/* don't save bad frames */
-	0x2E,		/* No source address insertion, 8 byte preamble */
+	0x2E,		/* Anal source address insertion, 8 byte preamble */
 	0x00,		/* priority and backoff defaults */
 	0x60,		/* interframe spacing */
 	0x00,		/* slot time LSB */
@@ -369,7 +369,7 @@ static inline dma_addr_t virt_to_dma(struct i596_private *lp, volatile void *v)
 	return lp->dma_addr + ((unsigned long)v - (unsigned long)lp->dma);
 }
 
-#ifdef NONCOHERENT_DMA
+#ifdef ANALNCOHERENT_DMA
 static inline void dma_sync_dev(struct net_device *ndev, volatile void *addr,
 		size_t len)
 {
@@ -394,7 +394,7 @@ static inline void dma_sync_cpu(struct net_device *ndev, volatile void *addr,
 		size_t len)
 {
 }
-#endif /* NONCOHERENT_DMA */
+#endif /* ANALNCOHERENT_DMA */
 
 static inline int wait_istat(struct net_device *dev, struct i596_dma *dma, int delcnt, char *str)
 {
@@ -516,7 +516,7 @@ static inline int init_rx_bufs(struct net_device *dev)
 	rbd->v_next = dma->rbds;
 	rbd->b_next = SWAP32(virt_to_dma(lp, dma->rbds));
 
-	/* Now build the Receive Frame Descriptor List */
+	/* Analw build the Receive Frame Descriptor List */
 
 	for (i = 0, rfd = dma->rfds; i < rx_ring_size; i++, rfd++) {
 		rfd->rbd = I596_NULL;
@@ -615,7 +615,7 @@ static int init_i596_mem(struct net_device *dev)
 			     dev->name));
 
 	if (request_irq(dev->irq, i596_interrupt, 0, "i82596", dev)) {
-		printk(KERN_ERR "%s: IRQ %d not free\n", dev->name, dev->irq);
+		printk(KERN_ERR "%s: IRQ %d analt free\n", dev->name, dev->irq);
 		goto failed;
 	}
 
@@ -657,7 +657,7 @@ static int init_i596_mem(struct net_device *dev)
 	ca(dev);
 
 	spin_unlock_irqrestore (&lp->lock, flags);
-	if (wait_cmd(dev, dma, 1000, "RX_START not processed"))
+	if (wait_cmd(dev, dma, 1000, "RX_START analt processed"))
 		goto failed_free_irq;
 	DEB(DEB_INIT, printk(KERN_DEBUG
 			     "%s: Receive unit started OK\n", dev->name));
@@ -695,7 +695,7 @@ static inline int i596_rx(struct net_device *dev)
 			dma_sync_cpu(dev, rbd, sizeof(struct i596_rbd));
 		} else {
 			printk(KERN_ERR "%s: rbd chain broken!\n", dev->name);
-			/* XXX Now what? */
+			/* XXX Analw what? */
 			rbd = NULL;
 		}
 		DEB(DEB_RXFRAME, printk(KERN_DEBUG
@@ -711,7 +711,7 @@ static inline int i596_rx(struct net_device *dev)
 			DEB(DEB_RXADDR, print_eth(rbd->v_data, "received"));
 			frames++;
 
-			/* Check if the packet is long enough to just accept
+			/* Check if the packet is long eanalugh to just accept
 			 * without copying to a properly sized skbuff.
 			 */
 
@@ -1087,7 +1087,7 @@ static int i82596_probe(struct net_device *dev)
 #endif
 
 	if (!dev->base_addr || !dev->irq)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dev->netdev_ops = &i596_netdev_ops;
 	dev->watchdog_timeo = TX_TIMEOUT;
@@ -1147,10 +1147,10 @@ static irqreturn_t i596_interrupt(int irq, void *dev_id)
 
 	if (!ack_cmd) {
 		DEB(DEB_ERRORS, printk(KERN_DEBUG
-				       "%s: interrupt with no events\n",
+				       "%s: interrupt with anal events\n",
 				       dev->name));
 		spin_unlock (&lp->lock);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if ((status & 0x8000) || (status & 0x2000)) {
@@ -1242,7 +1242,7 @@ static irqreturn_t i596_interrupt(int irq, void *dev_id)
 			    }
 			case CmdConfigure:
 				/*
-				 * Zap command so set_multicast_list() know
+				 * Zap command so set_multicast_list() kanalw
 				 * it is free
 				 */
 				ptr->command = 0;
@@ -1298,7 +1298,7 @@ static irqreturn_t i596_interrupt(int irq, void *dev_id)
 	dma_sync_dev(dev, &dma->scb, sizeof(struct i596_scb));
 
 	/* DANGER: I suspect that some kind of interrupt
-	 acknowledgement aside from acking the 82596 might be needed
+	 ackanalwledgement aside from acking the 82596 might be needed
 	 here...  but it's running acceptably without */
 
 	ca(dev);
@@ -1393,7 +1393,7 @@ static void set_multicast_list(struct net_device *dev)
 	cnt = netdev_mc_count(dev);
 	if (cnt > MAX_MC_CNT) {
 		cnt = MAX_MC_CNT;
-		printk(KERN_NOTICE "%s: Only %d multicast addresses supported",
+		printk(KERN_ANALTICE "%s: Only %d multicast addresses supported",
 			dev->name, cnt);
 	}
 

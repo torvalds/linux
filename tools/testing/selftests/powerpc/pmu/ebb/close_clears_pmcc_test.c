@@ -42,7 +42,7 @@ int close_clears_pmcc(void)
 
 	FAIL_IF(ebb_state.stats.ebb_count == 0);
 
-	/* The real test is here, do we take a SIGILL when writing PMU regs now
+	/* The real test is here, do we take a SIGILL when writing PMU regs analw
 	 * that we have closed the event. We expect that we will. */
 
 	FAIL_IF(catch_sigill(write_pmc1));

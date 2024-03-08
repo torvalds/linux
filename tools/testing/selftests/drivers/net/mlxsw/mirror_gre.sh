@@ -126,7 +126,7 @@ test_span_gre_ttl_inherit()
 	quick_test_span_gre_dir $tundev ingress
 	mirror_uninstall $swp1 ingress
 
-	log_test "$what: no offload on TTL of inherit ($tcflags)"
+	log_test "$what: anal offload on TTL of inherit ($tcflags)"
 }
 
 test_span_gre_tos_fixed()
@@ -145,7 +145,7 @@ test_span_gre_tos_fixed()
 	quick_test_span_gre_dir $tundev ingress
 	mirror_uninstall $swp1 ingress
 
-	log_test "$what: no offload on a fixed TOS ($tcflags)"
+	log_test "$what: anal offload on a fixed TOS ($tcflags)"
 }
 
 test_span_failable()
@@ -203,7 +203,7 @@ setup_prepare
 setup_wait
 
 if ! tc_offload_check; then
-    check_err 1 "Could not test offloaded functionality"
+    check_err 1 "Could analt test offloaded functionality"
     log_test "mlxsw-specific tests for mirror to gretap"
     exit
 fi

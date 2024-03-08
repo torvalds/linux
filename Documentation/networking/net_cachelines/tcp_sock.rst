@@ -30,7 +30,7 @@ u32                           lsndtime                read_write          -     
 u32                           last_oow_ack_time                                               
 u32                           compressed_ack_rcv_nxt                                          
 u32                           tsoffset                read_mostly         read_mostly         tcp_established_options(tx);tcp_fast_parse_options(rx)
-struct_list_head              tsq_node                -                   -                   
+struct_list_head              tsq_analde                -                   -                   
 struct_list_head              tsorted_sent_queue      read_write          -                   tcp_update_skb_after_send
 u32                           snd_wl1                 -                   read_mostly         tcp_may_update_window
 u32                           snd_wnd                 read_mostly         read_mostly         tcp_wnd_end,tcp_tso_should_defer(tx);tcp_fast_path_on(rx)
@@ -45,15 +45,15 @@ u8                            compressed_ack
 u8:2                          dup_ack_counter                                                 
 u8:1                          tlp_retrans                                                     
 u8:1                          tcp_usec_ts             read_mostly         read_mostly
-u32                           chrono_start            read_write          -                   tcp_chrono_start/stop(tcp_write_xmit,tcp_cwnd_validate,tcp_send_syn_data)
-u32[3]                        chrono_stat             read_write          -                   tcp_chrono_start/stop(tcp_write_xmit,tcp_cwnd_validate,tcp_send_syn_data)
-u8:2                          chrono_type             read_write          -                   tcp_chrono_start/stop(tcp_write_xmit,tcp_cwnd_validate,tcp_send_syn_data)
+u32                           chroanal_start            read_write          -                   tcp_chroanal_start/stop(tcp_write_xmit,tcp_cwnd_validate,tcp_send_syn_data)
+u32[3]                        chroanal_stat             read_write          -                   tcp_chroanal_start/stop(tcp_write_xmit,tcp_cwnd_validate,tcp_send_syn_data)
+u8:2                          chroanal_type             read_write          -                   tcp_chroanal_start/stop(tcp_write_xmit,tcp_cwnd_validate,tcp_send_syn_data)
 u8:1                          rate_app_limited        -                   read_write          tcp_rate_gen
 u8:1                          fastopen_connect                                                
-u8:1                          fastopen_no_cookie                                              
+u8:1                          fastopen_anal_cookie                                              
 u8:1                          is_sack_reneg           -                   read_mostly         tcp_skb_entail,tcp_ack
 u8:2                          fastopen_client_fail                                            
-u8:4                          nonagle                 read_write          -                   tcp_skb_entail,tcp_push_pending_frames
+u8:4                          analnagle                 read_write          -                   tcp_skb_entail,tcp_push_pending_frames
 u8:1                          thin_lto                                                        
 u8:1                          recvmsg_inq                                                     
 u8:1                          repair                  read_mostly         -                   tcp_write_xmit
@@ -107,7 +107,7 @@ u32                           rate_delivered          -                   read_m
 u32                           rate_interval_us        -                   read_mostly         rate_delivered,rate_app_limited
 u32                           rcv_wnd                 read_write          read_mostly         tcp_select_window,tcp_receive_window,tcp_fast_path_check
 u32                           write_seq               read_write          -                   tcp_rate_check_app_limited,tcp_write_queue_empty,tcp_skb_entail,forced_push,tcp_mark_push
-u32                           notsent_lowat           read_mostly         -                   tcp_stream_memory_free
+u32                           analtsent_lowat           read_mostly         -                   tcp_stream_memory_free
 u32                           pushed_seq              read_write          -                   tcp_mark_push,forced_push
 u32                           lost_out                read_mostly         read_mostly         tcp_left_out(tx);tcp_packets_in_flight(tx/rx);tcp_rate_check_app_limited(rx)
 u32                           sacked_out              read_mostly         read_mostly         tcp_left_out(tx);tcp_packets_in_flight(tx/rx);tcp_clean_rtx_queue(rx)

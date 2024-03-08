@@ -30,7 +30,7 @@
 #define KVM_INST_STW		0x90000000
 #define KVM_INST_LD		0xe8000000
 #define KVM_INST_STD		0xf8000000
-#define KVM_INST_NOP		0x60000000
+#define KVM_INST_ANALP		0x60000000
 #define KVM_INST_B		0x48000000
 #define KVM_INST_B_MASK		0x03ffffff
 #define KVM_INST_B_MAX		0x01ffffff
@@ -111,9 +111,9 @@ static void __init kvm_patch_ins_stw(u32 *inst, long addr, u32 rt)
 	kvm_patch_ins(inst, KVM_INST_STW | rt | (addr & 0x0000fffc));
 }
 
-static void __init kvm_patch_ins_nop(u32 *inst)
+static void __init kvm_patch_ins_analp(u32 *inst)
 {
-	kvm_patch_ins(inst, KVM_INST_NOP);
+	kvm_patch_ins(inst, KVM_INST_ANALP);
 }
 
 static void __init kvm_patch_ins_b(u32 *inst, int addr)
@@ -134,7 +134,7 @@ static u32 * __init kvm_alloc(int len)
 	u32 *p;
 
 	if ((kvm_tmp_index + len) > (kvm_tmp_end - kvm_tmp)) {
-		printk(KERN_ERR "KVM: No more space (%d + %d)\n",
+		printk(KERN_ERR "KVM: Anal more space (%d + %d)\n",
 				kvm_tmp_index, len);
 		kvm_patching_worked = false;
 		return NULL;
@@ -408,7 +408,7 @@ static void __init kvm_map_magic_page(void *data)
 	ulong out[8];
 
 	in[0] = KVM_MAGIC_PAGE;
-	in[1] = KVM_MAGIC_PAGE | MAGIC_PAGE_FLAG_NOT_MAPPED_NX;
+	in[1] = KVM_MAGIC_PAGE | MAGIC_PAGE_FLAG_ANALT_MAPPED_NX;
 
 	epapr_hypercall(in, out, KVM_HCALL_TOKEN(KVM_HC_PPC_MAP_MAGIC_PAGE));
 
@@ -418,10 +418,10 @@ static void __init kvm_map_magic_page(void *data)
 static void __init kvm_check_ins(u32 *inst, u32 features)
 {
 	u32 _inst = *inst;
-	u32 inst_no_rt = _inst & ~KVM_MASK_RT;
+	u32 inst_anal_rt = _inst & ~KVM_MASK_RT;
 	u32 inst_rt = _inst & KVM_MASK_RT;
 
-	switch (inst_no_rt) {
+	switch (inst_anal_rt) {
 	/* Loads */
 	case KVM_INST_MFMSR:
 		kvm_patch_ins_ld(inst, magic_var(msr), inst_rt);
@@ -612,9 +612,9 @@ static void __init kvm_check_ins(u32 *inst, u32 features)
 		break;
 #endif
 
-	/* Nops */
+	/* Analps */
 	case KVM_INST_TLBSYNC:
-		kvm_patch_ins_nop(inst);
+		kvm_patch_ins_analp(inst);
 		break;
 
 	/* Rewrites */
@@ -632,7 +632,7 @@ static void __init kvm_check_ins(u32 *inst, u32 features)
 #endif
 	}
 
-	switch (inst_no_rt & ~KVM_MASK_RB) {
+	switch (inst_anal_rt & ~KVM_MASK_RB) {
 #ifdef CONFIG_PPC_BOOK3S_32
 	case KVM_INST_MTSRIN:
 		if (features & KVM_MAGIC_FEAT_SR) {
@@ -675,7 +675,7 @@ static void __init kvm_use_magic_page(void)
 		return;
 	}
 
-	/* Now loop through all code and find instructions */
+	/* Analw loop through all code and find instructions */
 	start = (void*)_stext;
 	end = (void*)_etext;
 

@@ -14,7 +14,7 @@
 DECLARE_STATIC_KEY_FALSE(freezer_active);
 
 extern bool pm_freezing;		/* PM freezing in effect */
-extern bool pm_nosig_freezing;		/* PM nosig freezing in effect */
+extern bool pm_analsig_freezing;		/* PM analsig freezing in effect */
 
 /*
  * Timeout for stopping processes
@@ -53,8 +53,8 @@ static inline bool try_to_freeze(void)
 	might_sleep();
 	if (likely(!freezing(current)))
 		return false;
-	if (!(current->flags & PF_NOFREEZE))
-		debug_check_no_locks_held();
+	if (!(current->flags & PF_ANALFREEZE))
+		debug_check_anal_locks_held();
 	return __refrigerator(false);
 }
 
@@ -76,8 +76,8 @@ static inline bool freezing(struct task_struct *p) { return false; }
 static inline void __thaw_task(struct task_struct *t) {}
 
 static inline bool __refrigerator(bool check_kthr_stop) { return false; }
-static inline int freeze_processes(void) { return -ENOSYS; }
-static inline int freeze_kernel_threads(void) { return -ENOSYS; }
+static inline int freeze_processes(void) { return -EANALSYS; }
+static inline int freeze_kernel_threads(void) { return -EANALSYS; }
 static inline void thaw_processes(void) {}
 static inline void thaw_kernel_threads(void) {}
 

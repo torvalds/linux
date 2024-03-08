@@ -51,7 +51,7 @@ static void rtl92d_init_aspm_vars(struct ieee80211_hw *hw)
 	/*
 	 * This setting works for those device with
 	 * backdoor ASPM setting such as EPHY setting.
-	 * 0 - Not support ASPM,
+	 * 0 - Analt support ASPM,
 	 * 1 - Support ASPM,
 	 * 2 - According to chipset.
 	 */
@@ -80,7 +80,7 @@ static int rtl92d_init_sw_vars(struct ieee80211_hw *hw)
 
 	if (rtlpriv->rtlhal.macphymode != SINGLEMAC_SINGLEPHY) {
 		rtlpriv->rtlhal.disable_amsdu_8k = true;
-		/* No long RX - reduce fragmentation */
+		/* Anal long RX - reduce fragmentation */
 		rtlpci->rxbuffersize = 4096;
 	}
 
@@ -154,7 +154,7 @@ static int rtl92d_init_sw_vars(struct ieee80211_hw *hw)
 	pr_info("Loading firmware file %s\n", fw_name);
 
 	/* request fw */
-	err = request_firmware_nowait(THIS_MODULE, 1, fw_name,
+	err = request_firmware_analwait(THIS_MODULE, 1, fw_name,
 				      rtlpriv->io.dev, GFP_KERNEL, hw,
 				      rtl_fw_cb);
 	if (err) {
@@ -204,7 +204,7 @@ static struct rtl_hal_ops rtl8192de_hal_ops = {
 	.fill_tx_cmddesc = rtl92de_tx_fill_cmddesc,
 	.query_rx_desc = rtl92de_rx_query_desc,
 	.set_channel_access = rtl92de_update_channel_access_setting,
-	.radio_onoff_checking = rtl92de_gpio_radio_on_off_checking,
+	.radio_oanalff_checking = rtl92de_gpio_radio_on_off_checking,
 	.set_bw_mode = rtl92d_phy_set_bw_mode,
 	.switch_channel = rtl92d_phy_sw_chnl,
 	.dm_watchdog = rtl92d_dm_watchdog,
@@ -268,7 +268,7 @@ static const struct rtl_hal_cfg rtl92de_hal_cfg = {
 	.maps[RCAMO] = REG_CAMREAD,
 	.maps[CAMDBG] = REG_CAMDBG,
 	.maps[SECR] = REG_SECCFG,
-	.maps[SEC_CAM_NONE] = CAM_NONE,
+	.maps[SEC_CAM_ANALNE] = CAM_ANALNE,
 	.maps[SEC_CAM_WEP40] = CAM_WEP40,
 	.maps[SEC_CAM_TKIP] = CAM_TKIP,
 	.maps[SEC_CAM_AES] = CAM_AES,
@@ -349,7 +349,7 @@ module_param_named(fwlps, rtl92de_mod_params.fwctrl_lps, bool, 0444);
 module_param_named(aspm, rtl92de_mod_params.aspm_support, int, 0444);
 module_param_named(debug_mask, rtl92de_mod_params.debug_mask, ullong, 0644);
 MODULE_PARM_DESC(swenc, "Set to 1 for software crypto (default 0)\n");
-MODULE_PARM_DESC(ips, "Set to 0 to not use link power save (default 1)\n");
+MODULE_PARM_DESC(ips, "Set to 0 to analt use link power save (default 1)\n");
 MODULE_PARM_DESC(swlps, "Set to 1 to use SW control power save (default 1)\n");
 MODULE_PARM_DESC(fwlps, "Set to 1 to use FW control power save (default 0)\n");
 MODULE_PARM_DESC(aspm, "Set to 1 to enable ASPM (default 1)\n");
@@ -378,7 +378,7 @@ static int __init rtl92de_module_init(void)
 
 	ret = pci_register_driver(&rtl92de_driver);
 	if (ret)
-		WARN_ONCE(true, "rtl8192de: No device found\n");
+		WARN_ONCE(true, "rtl8192de: Anal device found\n");
 	return ret;
 }
 

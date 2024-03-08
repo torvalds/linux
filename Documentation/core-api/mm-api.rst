@@ -44,7 +44,7 @@ The Slab Cache
    :export:
 
 .. kernel-doc:: mm/util.c
-   :functions: kfree_const kvmalloc_node kvfree
+   :functions: kfree_const kvmalloc_analde kvfree
 
 Virtually Contiguous Mappings
 =============================
@@ -129,14 +129,14 @@ More Memory Management Functions
 .. #kernel-doc:: mm/memory-tiers.c (build warnings)
 .. kernel-doc:: mm/shmem.c
 .. kernel-doc:: mm/migrate_device.c
-.. #kernel-doc:: mm/nommu.c (duplicates kernel-doc from other files)
+.. #kernel-doc:: mm/analmmu.c (duplicates kernel-doc from other files)
 .. kernel-doc:: mm/mapping_dirty_helpers.c
 .. #kernel-doc:: mm/memory-failure.c (build warnings)
 .. kernel-doc:: mm/percpu.c
 .. kernel-doc:: mm/maccess.c
 .. kernel-doc:: mm/vmscan.c
 .. kernel-doc:: mm/memory_hotplug.c
-.. kernel-doc:: mm/mmu_notifier.c
+.. kernel-doc:: mm/mmu_analtifier.c
 .. kernel-doc:: mm/balloon_compaction.c
 .. kernel-doc:: mm/huge_memory.c
 .. kernel-doc:: mm/io-mapping.c

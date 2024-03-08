@@ -45,7 +45,7 @@ struct xchk_rmap {
 	/*
 	 * The furthest-reaching of the rmapbt records that we've already
 	 * processed.  This enables us to detect overlapping records for space
-	 * allocations that cannot be shared.
+	 * allocations that cananalt be shared.
 	 */
 	struct xfs_rmap_irec	overlap_rec;
 
@@ -59,7 +59,7 @@ struct xchk_rmap {
 	struct xagb_bitmap	fs_owned;
 	struct xagb_bitmap	log_owned;
 	struct xagb_bitmap	ag_owned;
-	struct xagb_bitmap	inobt_owned;
+	struct xagb_bitmap	ianalbt_owned;
 	struct xagb_bitmap	refcbt_owned;
 
 	/* Did we complete the AG space metadata bitmaps? */
@@ -72,9 +72,9 @@ xchk_rmapbt_xref_refc(
 	struct xfs_scrub	*sc,
 	struct xfs_rmap_irec	*irec)
 {
-	xfs_agblock_t		fbno;
+	xfs_agblock_t		fbanal;
 	xfs_extlen_t		flen;
-	bool			non_inode;
+	bool			analn_ianalde;
 	bool			is_bmbt;
 	bool			is_attr;
 	bool			is_unwritten;
@@ -83,17 +83,17 @@ xchk_rmapbt_xref_refc(
 	if (!sc->sa.refc_cur || xchk_skip_xref(sc->sm))
 		return;
 
-	non_inode = XFS_RMAP_NON_INODE_OWNER(irec->rm_owner);
+	analn_ianalde = XFS_RMAP_ANALN_IANALDE_OWNER(irec->rm_owner);
 	is_bmbt = irec->rm_flags & XFS_RMAP_BMBT_BLOCK;
 	is_attr = irec->rm_flags & XFS_RMAP_ATTR_FORK;
 	is_unwritten = irec->rm_flags & XFS_RMAP_UNWRITTEN;
 
 	/* If this is shared, must be a data fork extent. */
 	error = xfs_refcount_find_shared(sc->sa.refc_cur, irec->rm_startblock,
-			irec->rm_blockcount, &fbno, &flen, false);
+			irec->rm_blockcount, &fbanal, &flen, false);
 	if (!xchk_should_check_xref(sc, &error, &sc->sa.refc_cur))
 		return;
-	if (flen != 0 && (non_inode || is_attr || is_bmbt || is_unwritten))
+	if (flen != 0 && (analn_ianalde || is_attr || is_bmbt || is_unwritten))
 		xchk_btree_xref_set_corrupt(sc, sc->sa.refc_cur, 0);
 }
 
@@ -103,17 +103,17 @@ xchk_rmapbt_xref(
 	struct xfs_scrub	*sc,
 	struct xfs_rmap_irec	*irec)
 {
-	xfs_agblock_t		agbno = irec->rm_startblock;
+	xfs_agblock_t		agbanal = irec->rm_startblock;
 	xfs_extlen_t		len = irec->rm_blockcount;
 
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		return;
 
-	xchk_xref_is_used_space(sc, agbno, len);
-	if (irec->rm_owner == XFS_RMAP_OWN_INODES)
-		xchk_xref_is_inode_chunk(sc, agbno, len);
+	xchk_xref_is_used_space(sc, agbanal, len);
+	if (irec->rm_owner == XFS_RMAP_OWN_IANALDES)
+		xchk_xref_is_ianalde_chunk(sc, agbanal, len);
 	else
-		xchk_xref_is_not_inode_chunk(sc, agbno, len);
+		xchk_xref_is_analt_ianalde_chunk(sc, agbanal, len);
 	if (irec->rm_owner == XFS_RMAP_OWN_COW)
 		xchk_xref_is_cow_staging(sc, irec->rm_startblock,
 				irec->rm_blockcount);
@@ -122,10 +122,10 @@ xchk_rmapbt_xref(
 }
 
 /*
- * Check for bogus UNWRITTEN flags in the rmapbt node block keys.
+ * Check for bogus UNWRITTEN flags in the rmapbt analde block keys.
  *
  * In reverse mapping records, the file mapping extent state
- * (XFS_RMAP_OFF_UNWRITTEN) is a record attribute, not a key field.  It is not
+ * (XFS_RMAP_OFF_UNWRITTEN) is a record attribute, analt a key field.  It is analt
  * involved in lookups in any way.  In older kernels, the functions that
  * convert rmapbt records to keys forgot to filter out the extent state bit,
  * even though the key comparison functions have filtered the flag correctly.
@@ -151,7 +151,7 @@ xchk_rmapbt_check_unwritten_in_keyflags(
 		struct xfs_buf	*bp;
 		unsigned int	ptr;
 
-		/* Only check the first time we've seen this node block. */
+		/* Only check the first time we've seen this analde block. */
 		if (cur->bc_levels[level].ptr > 1)
 			continue;
 
@@ -180,7 +180,7 @@ xchk_rmapbt_is_shareable(
 {
 	if (!xfs_has_reflink(sc->mp))
 		return false;
-	if (XFS_RMAP_NON_INODE_OWNER(irec->rm_owner))
+	if (XFS_RMAP_ANALN_IANALDE_OWNER(irec->rm_owner))
 		return false;
 	if (irec->rm_flags & (XFS_RMAP_BMBT_BLOCK | XFS_RMAP_ATTR_FORK |
 			      XFS_RMAP_UNWRITTEN))
@@ -188,7 +188,7 @@ xchk_rmapbt_is_shareable(
 	return true;
 }
 
-/* Flag failures for records that overlap but cannot. */
+/* Flag failures for records that overlap but cananalt. */
 STATIC void
 xchk_rmapbt_check_overlapping(
 	struct xchk_btree		*bs,
@@ -200,7 +200,7 @@ xchk_rmapbt_check_overlapping(
 	if (bs->sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		return;
 
-	/* No previous record? */
+	/* Anal previous record? */
 	if (cr->overlap_rec.rm_blockcount == 0)
 		goto set_prev;
 
@@ -231,7 +231,7 @@ xchk_rmap_mergeable(
 {
 	const struct xfs_rmap_irec	*r1 = &cr->prev_rec;
 
-	/* Ignore if prev_rec is not yet initialized. */
+	/* Iganalre if prev_rec is analt yet initialized. */
 	if (cr->prev_rec.rm_blockcount == 0)
 		return false;
 
@@ -242,9 +242,9 @@ xchk_rmap_mergeable(
 	if ((unsigned long long)r1->rm_blockcount + r2->rm_blockcount >
 	    XFS_RMAP_LEN_MAX)
 		return false;
-	if (XFS_RMAP_NON_INODE_OWNER(r2->rm_owner))
+	if (XFS_RMAP_ANALN_IANALDE_OWNER(r2->rm_owner))
 		return true;
-	/* must be an inode owner below here */
+	/* must be an ianalde owner below here */
 	if (r1->rm_flags != r2->rm_flags)
 		return false;
 	if (r1->rm_flags & XFS_RMAP_BMBT_BLOCK)
@@ -281,14 +281,14 @@ xchk_rmapbt_mark_bitmap(
 
 	/*
 	 * Skip corrupt records.  It is essential that we detect records in the
-	 * btree that cannot overlap but do, flag those as CORRUPT, and skip
+	 * btree that cananalt overlap but do, flag those as CORRUPT, and skip
 	 * the bitmap comparison to avoid generating false XCORRUPT reports.
 	 */
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		return 0;
 
 	/*
-	 * If the AG metadata walk didn't complete, there's no point in
+	 * If the AG metadata walk didn't complete, there's anal point in
 	 * comparing against partial results.
 	 */
 	if (!cr->bitmaps_complete)
@@ -304,8 +304,8 @@ xchk_rmapbt_mark_bitmap(
 	case XFS_RMAP_OWN_AG:
 		bmp = &cr->ag_owned;
 		break;
-	case XFS_RMAP_OWN_INOBT:
-		bmp = &cr->inobt_owned;
+	case XFS_RMAP_OWN_IANALBT:
+		bmp = &cr->ianalbt_owned;
 		break;
 	case XFS_RMAP_OWN_REFC:
 		bmp = &cr->refcbt_owned;
@@ -327,7 +327,7 @@ xchk_rmapbt_mark_bitmap(
 					bs->sc->sa.rmap_cur, 0);
 	} else {
 		/*
-		 * The start of this reverse mapping does not correspond to a
+		 * The start of this reverse mapping does analt correspond to a
 		 * completely set region in the bitmap.  The region wasn't
 		 * fully set by walking the AG metadata, so this is a
 		 * cross-referencing corruption.
@@ -366,12 +366,12 @@ xchk_rmapbt_rec(
 STATIC int
 xchk_rmapbt_walk_agfl(
 	struct xfs_mount	*mp,
-	xfs_agblock_t		agbno,
+	xfs_agblock_t		agbanal,
 	void			*priv)
 {
 	struct xagb_bitmap	*bitmap = priv;
 
-	return xagb_bitmap_set(bitmap, agbno, 1);
+	return xagb_bitmap_set(bitmap, agbanal, 1);
 }
 
 /*
@@ -401,21 +401,21 @@ xchk_rmapbt_walk_ag_metadata(
 		goto out;
 
 	/* OWN_LOG: Internal log */
-	if (xfs_ag_contains_log(mp, sc->sa.pag->pag_agno)) {
+	if (xfs_ag_contains_log(mp, sc->sa.pag->pag_aganal)) {
 		error = xagb_bitmap_set(&cr->log_owned,
-				XFS_FSB_TO_AGBNO(mp, mp->m_sb.sb_logstart),
+				XFS_FSB_TO_AGBANAL(mp, mp->m_sb.sb_logstart),
 				mp->m_sb.sb_logblocks);
 		if (error)
 			goto out;
 	}
 
-	/* OWN_AG: bnobt, cntbt, rmapbt, and AGFL */
-	cur = sc->sa.bno_cur;
+	/* OWN_AG: banalbt, cntbt, rmapbt, and AGFL */
+	cur = sc->sa.banal_cur;
 	if (!cur)
 		cur = xfs_allocbt_init_cursor(sc->mp, sc->tp, sc->sa.agf_bp,
-				sc->sa.pag, XFS_BTNUM_BNO);
+				sc->sa.pag, XFS_BTNUM_BANAL);
 	error = xagb_bitmap_set_btblocks(&cr->ag_owned, cur);
-	if (cur != sc->sa.bno_cur)
+	if (cur != sc->sa.banal_cur)
 		xfs_btree_del_cursor(cur, error);
 	if (error)
 		goto out;
@@ -444,24 +444,24 @@ xchk_rmapbt_walk_ag_metadata(
 	if (error)
 		goto out;
 
-	/* OWN_INOBT: inobt, finobt */
-	cur = sc->sa.ino_cur;
+	/* OWN_IANALBT: ianalbt, fianalbt */
+	cur = sc->sa.ianal_cur;
 	if (!cur)
-		cur = xfs_inobt_init_cursor(sc->sa.pag, sc->tp, sc->sa.agi_bp,
-				XFS_BTNUM_INO);
-	error = xagb_bitmap_set_btblocks(&cr->inobt_owned, cur);
-	if (cur != sc->sa.ino_cur)
+		cur = xfs_ianalbt_init_cursor(sc->sa.pag, sc->tp, sc->sa.agi_bp,
+				XFS_BTNUM_IANAL);
+	error = xagb_bitmap_set_btblocks(&cr->ianalbt_owned, cur);
+	if (cur != sc->sa.ianal_cur)
 		xfs_btree_del_cursor(cur, error);
 	if (error)
 		goto out;
 
-	if (xfs_has_finobt(sc->mp)) {
-		cur = sc->sa.fino_cur;
+	if (xfs_has_fianalbt(sc->mp)) {
+		cur = sc->sa.fianal_cur;
 		if (!cur)
-			cur = xfs_inobt_init_cursor(sc->sa.pag, sc->tp,
-					sc->sa.agi_bp, XFS_BTNUM_FINO);
-		error = xagb_bitmap_set_btblocks(&cr->inobt_owned, cur);
-		if (cur != sc->sa.fino_cur)
+			cur = xfs_ianalbt_init_cursor(sc->sa.pag, sc->tp,
+					sc->sa.agi_bp, XFS_BTNUM_FIANAL);
+		error = xagb_bitmap_set_btblocks(&cr->ianalbt_owned, cur);
+		if (cur != sc->sa.fianal_cur)
 			xfs_btree_del_cursor(cur, error);
 		if (error)
 			goto out;
@@ -495,7 +495,7 @@ out:
 
 /*
  * Check for set regions in the bitmaps; if there are any, the rmap records do
- * not describe all the AG metadata.
+ * analt describe all the AG metadata.
  */
 STATIC void
 xchk_rmapbt_check_bitmaps(
@@ -525,7 +525,7 @@ xchk_rmapbt_check_bitmaps(
 	if (xagb_bitmap_hweight(&cr->ag_owned) != 0)
 		xchk_btree_xref_set_corrupt(sc, cur, level);
 
-	if (xagb_bitmap_hweight(&cr->inobt_owned) != 0)
+	if (xagb_bitmap_hweight(&cr->ianalbt_owned) != 0)
 		xchk_btree_xref_set_corrupt(sc, cur, level);
 
 	if (xagb_bitmap_hweight(&cr->refcbt_owned) != 0)
@@ -542,12 +542,12 @@ xchk_rmapbt(
 
 	cr = kzalloc(sizeof(struct xchk_rmap), XCHK_GFP_FLAGS);
 	if (!cr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	xagb_bitmap_init(&cr->fs_owned);
 	xagb_bitmap_init(&cr->log_owned);
 	xagb_bitmap_init(&cr->ag_owned);
-	xagb_bitmap_init(&cr->inobt_owned);
+	xagb_bitmap_init(&cr->ianalbt_owned);
 	xagb_bitmap_init(&cr->refcbt_owned);
 
 	error = xchk_rmapbt_walk_ag_metadata(sc, cr);
@@ -563,7 +563,7 @@ xchk_rmapbt(
 
 out:
 	xagb_bitmap_destroy(&cr->refcbt_owned);
-	xagb_bitmap_destroy(&cr->inobt_owned);
+	xagb_bitmap_destroy(&cr->ianalbt_owned);
 	xagb_bitmap_destroy(&cr->ag_owned);
 	xagb_bitmap_destroy(&cr->log_owned);
 	xagb_bitmap_destroy(&cr->fs_owned);
@@ -575,7 +575,7 @@ out:
 void
 xchk_xref_is_only_owned_by(
 	struct xfs_scrub		*sc,
-	xfs_agblock_t			bno,
+	xfs_agblock_t			banal,
 	xfs_extlen_t			len,
 	const struct xfs_owner_info	*oinfo)
 {
@@ -585,22 +585,22 @@ xchk_xref_is_only_owned_by(
 	if (!sc->sa.rmap_cur || xchk_skip_xref(sc->sm))
 		return;
 
-	error = xfs_rmap_count_owners(sc->sa.rmap_cur, bno, len, oinfo, &res);
+	error = xfs_rmap_count_owners(sc->sa.rmap_cur, banal, len, oinfo, &res);
 	if (!xchk_should_check_xref(sc, &error, &sc->sa.rmap_cur))
 		return;
 	if (res.matches != 1)
 		xchk_btree_xref_set_corrupt(sc, sc->sa.rmap_cur, 0);
-	if (res.bad_non_owner_matches)
+	if (res.bad_analn_owner_matches)
 		xchk_btree_xref_set_corrupt(sc, sc->sa.rmap_cur, 0);
-	if (res.non_owner_matches)
+	if (res.analn_owner_matches)
 		xchk_btree_xref_set_corrupt(sc, sc->sa.rmap_cur, 0);
 }
 
-/* xref check that the extent is not owned by a given owner */
+/* xref check that the extent is analt owned by a given owner */
 void
-xchk_xref_is_not_owned_by(
+xchk_xref_is_analt_owned_by(
 	struct xfs_scrub		*sc,
-	xfs_agblock_t			bno,
+	xfs_agblock_t			banal,
 	xfs_extlen_t			len,
 	const struct xfs_owner_info	*oinfo)
 {
@@ -610,20 +610,20 @@ xchk_xref_is_not_owned_by(
 	if (!sc->sa.rmap_cur || xchk_skip_xref(sc->sm))
 		return;
 
-	error = xfs_rmap_count_owners(sc->sa.rmap_cur, bno, len, oinfo, &res);
+	error = xfs_rmap_count_owners(sc->sa.rmap_cur, banal, len, oinfo, &res);
 	if (!xchk_should_check_xref(sc, &error, &sc->sa.rmap_cur))
 		return;
 	if (res.matches != 0)
 		xchk_btree_xref_set_corrupt(sc, sc->sa.rmap_cur, 0);
-	if (res.bad_non_owner_matches)
+	if (res.bad_analn_owner_matches)
 		xchk_btree_xref_set_corrupt(sc, sc->sa.rmap_cur, 0);
 }
 
-/* xref check that the extent has no reverse mapping at all */
+/* xref check that the extent has anal reverse mapping at all */
 void
-xchk_xref_has_no_owner(
+xchk_xref_has_anal_owner(
 	struct xfs_scrub	*sc,
-	xfs_agblock_t		bno,
+	xfs_agblock_t		banal,
 	xfs_extlen_t		len)
 {
 	enum xbtree_recpacking	outcome;
@@ -632,7 +632,7 @@ xchk_xref_has_no_owner(
 	if (!sc->sa.rmap_cur || xchk_skip_xref(sc->sm))
 		return;
 
-	error = xfs_rmap_has_records(sc->sa.rmap_cur, bno, len, &outcome);
+	error = xfs_rmap_has_records(sc->sa.rmap_cur, banal, len, &outcome);
 	if (!xchk_should_check_xref(sc, &error, &sc->sa.rmap_cur))
 		return;
 	if (outcome != XBTREE_RECPACKING_EMPTY)

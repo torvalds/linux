@@ -38,7 +38,7 @@
 
 #define GPC_CLK_MAX		7
 
-#define PGC_DOMAIN_FLAG_NO_PD		BIT(0)
+#define PGC_DOMAIN_FLAG_ANAL_PD		BIT(0)
 
 struct imx_pm_domain {
 	struct generic_pm_domain base;
@@ -133,7 +133,7 @@ static int imx_pgc_get_clocks(struct device *dev, struct imx_pm_domain *domain)
 	int i, ret;
 
 	for (i = 0; ; i++) {
-		struct clk *clk = of_clk_get(dev->of_node, i);
+		struct clk *clk = of_clk_get(dev->of_analde, i);
 		if (IS_ERR(clk))
 			break;
 		if (i >= GPC_CLK_MAX) {
@@ -167,7 +167,7 @@ static int imx_pgc_parse_dt(struct device *dev, struct imx_pm_domain *domain)
 	/* try to get the domain supply regulator */
 	domain->supply = devm_regulator_get_optional(dev, "power");
 	if (IS_ERR(domain->supply)) {
-		if (PTR_ERR(domain->supply) == -ENODEV)
+		if (PTR_ERR(domain->supply) == -EANALDEV)
 			domain->supply = NULL;
 		else
 			return PTR_ERR(domain->supply);
@@ -183,8 +183,8 @@ static int imx_pgc_power_domain_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int ret;
 
-	/* if this PD is associated with a DT node try to parse it */
-	if (dev->of_node) {
+	/* if this PD is associated with a DT analde try to parse it */
+	if (dev->of_analde) {
 		ret = imx_pgc_parse_dt(dev, domain);
 		if (ret)
 			return ret;
@@ -196,7 +196,7 @@ static int imx_pgc_power_domain_probe(struct platform_device *pdev)
 
 	if (IS_ENABLED(CONFIG_PM_GENERIC_DOMAINS)) {
 		pm_genpd_init(&domain->base, NULL, false);
-		ret = of_genpd_add_provider_simple(dev->of_node, &domain->base);
+		ret = of_genpd_add_provider_simple(dev->of_analde, &domain->base);
 		if (ret)
 			goto genpd_err;
 	}
@@ -217,7 +217,7 @@ static void imx_pgc_power_domain_remove(struct platform_device *pdev)
 	struct imx_pm_domain *domain = pdev->dev.platform_data;
 
 	if (IS_ENABLED(CONFIG_PM_GENERIC_DOMAINS)) {
-		of_genpd_del_provider(pdev->dev.of_node);
+		of_genpd_del_provider(pdev->dev.of_analde);
 		pm_genpd_remove(&domain->base);
 		imx_pgc_put_clocks(domain);
 	}
@@ -324,7 +324,7 @@ static const struct of_device_id imx_gpc_dt_ids[] = {
 	{ }
 };
 
-static const struct regmap_range yes_ranges[] = {
+static const struct regmap_range anal_ranges[] = {
 	regmap_reg_range(GPC_CNTR, GPC_CNTR),
 	regmap_reg_range(GPC_PGC_PCI_PDN, GPC_PGC_PCI_SR),
 	regmap_reg_range(GPC_PGC_GPU_PDN, GPC_PGC_GPU_SR),
@@ -332,8 +332,8 @@ static const struct regmap_range yes_ranges[] = {
 };
 
 static const struct regmap_access_table access_table = {
-	.yes_ranges	= yes_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(yes_ranges),
+	.anal_ranges	= anal_ranges,
+	.n_anal_ranges	= ARRAY_SIZE(anal_ranges),
 };
 
 static const struct regmap_config imx_gpc_regmap_config = {
@@ -384,7 +384,7 @@ static int imx_gpc_old_dt_init(struct device *dev, struct regmap *regmap,
 		pm_genpd_init(&imx_gpc_domains[i].base, NULL, false);
 
 	if (IS_ENABLED(CONFIG_PM_GENERIC_DOMAINS)) {
-		ret = of_genpd_add_provider_onecell(dev->of_node,
+		ret = of_genpd_add_provider_onecell(dev->of_analde,
 						    &imx_gpc_onecell_data);
 		if (ret)
 			goto genpd_err;
@@ -403,16 +403,16 @@ clk_err:
 static int imx_gpc_probe(struct platform_device *pdev)
 {
 	const struct imx_gpc_dt_data *of_id_data = device_get_match_data(&pdev->dev);
-	struct device_node *pgc_node;
+	struct device_analde *pgc_analde;
 	struct regmap *regmap;
 	void __iomem *base;
 	int ret;
 
-	pgc_node = of_get_child_by_name(pdev->dev.of_node, "pgc");
+	pgc_analde = of_get_child_by_name(pdev->dev.of_analde, "pgc");
 
 	/* bail out if DT too old and doesn't provide the necessary info */
-	if (!of_property_read_bool(pdev->dev.of_node, "#power-domain-cells") &&
-	    !pgc_node)
+	if (!of_property_read_bool(pdev->dev.of_analde, "#power-domain-cells") &&
+	    !pgc_analde)
 		return 0;
 
 	base = devm_platform_ioremap_resource(pdev, 0);
@@ -433,9 +433,9 @@ static int imx_gpc_probe(struct platform_device *pdev)
 	 *
 	 * The PRE clock will be paused for several cycles when turning on the
 	 * PU domain LDO from power down state. If PRE is in use at that time,
-	 * the IPU/PRG cannot get the correct display data from the PRE.
+	 * the IPU/PRG cananalt get the correct display data from the PRE.
 	 *
-	 * This is not a concern when the whole system enters suspend state, so
+	 * This is analt a concern when the whole system enters suspend state, so
 	 * it's safe to power down PU in this case.
 	 */
 	if (of_id_data->err009619_present)
@@ -447,7 +447,7 @@ static int imx_gpc_probe(struct platform_device *pdev)
 		imx_gpc_domains[GPC_PGC_DOMAIN_DISPLAY].base.flags |=
 				GENPD_FLAG_ALWAYS_ON;
 
-	if (!pgc_node) {
+	if (!pgc_analde) {
 		ret = imx_gpc_old_dt_init(&pdev->dev, regmap,
 					  of_id_data->num_domains);
 		if (ret)
@@ -455,7 +455,7 @@ static int imx_gpc_probe(struct platform_device *pdev)
 	} else {
 		struct imx_pm_domain *domain;
 		struct platform_device *pd_pdev;
-		struct device_node *np;
+		struct device_analde *np;
 		struct clk *ipg_clk;
 		unsigned int ipg_rate_mhz;
 		int domain_index;
@@ -465,10 +465,10 @@ static int imx_gpc_probe(struct platform_device *pdev)
 			return PTR_ERR(ipg_clk);
 		ipg_rate_mhz = clk_get_rate(ipg_clk) / 1000000;
 
-		for_each_child_of_node(pgc_node, np) {
+		for_each_child_of_analde(pgc_analde, np) {
 			ret = of_property_read_u32(np, "reg", &domain_index);
 			if (ret) {
-				of_node_put(np);
+				of_analde_put(np);
 				return ret;
 			}
 			if (domain_index >= of_id_data->num_domains)
@@ -477,8 +477,8 @@ static int imx_gpc_probe(struct platform_device *pdev)
 			pd_pdev = platform_device_alloc("imx-pgc-power-domain",
 							domain_index);
 			if (!pd_pdev) {
-				of_node_put(np);
-				return -ENOMEM;
+				of_analde_put(np);
+				return -EANALMEM;
 			}
 
 			ret = platform_device_add_data(pd_pdev,
@@ -486,7 +486,7 @@ static int imx_gpc_probe(struct platform_device *pdev)
 						       sizeof(imx_gpc_domains[domain_index]));
 			if (ret) {
 				platform_device_put(pd_pdev);
-				of_node_put(np);
+				of_analde_put(np);
 				return ret;
 			}
 			domain = pd_pdev->dev.platform_data;
@@ -494,13 +494,13 @@ static int imx_gpc_probe(struct platform_device *pdev)
 			domain->ipg_rate_mhz = ipg_rate_mhz;
 
 			pd_pdev->dev.parent = &pdev->dev;
-			pd_pdev->dev.of_node = np;
-			pd_pdev->dev.fwnode = of_fwnode_handle(np);
+			pd_pdev->dev.of_analde = np;
+			pd_pdev->dev.fwanalde = of_fwanalde_handle(np);
 
 			ret = platform_device_add(pd_pdev);
 			if (ret) {
 				platform_device_put(pd_pdev);
-				of_node_put(np);
+				of_analde_put(np);
 				return ret;
 			}
 		}
@@ -511,22 +511,22 @@ static int imx_gpc_probe(struct platform_device *pdev)
 
 static void imx_gpc_remove(struct platform_device *pdev)
 {
-	struct device_node *pgc_node;
+	struct device_analde *pgc_analde;
 	int ret;
 
-	pgc_node = of_get_child_by_name(pdev->dev.of_node, "pgc");
+	pgc_analde = of_get_child_by_name(pdev->dev.of_analde, "pgc");
 
 	/* bail out if DT too old and doesn't provide the necessary info */
-	if (!of_property_read_bool(pdev->dev.of_node, "#power-domain-cells") &&
-	    !pgc_node)
+	if (!of_property_read_bool(pdev->dev.of_analde, "#power-domain-cells") &&
+	    !pgc_analde)
 		return;
 
 	/*
 	 * If the old DT binding is used the toplevel driver needs to
 	 * de-register the power domains
 	 */
-	if (!pgc_node) {
-		of_genpd_del_provider(pdev->dev.of_node);
+	if (!pgc_analde) {
+		of_genpd_del_provider(pdev->dev.of_analde);
 
 		ret = pm_genpd_remove(&imx_gpc_domains[GPC_PGC_DOMAIN_PU].base);
 		if (ret) {

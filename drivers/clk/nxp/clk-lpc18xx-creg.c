@@ -161,12 +161,12 @@ static struct clk_onecell_data clk_creg_early_data = {
 	.clk_num = CREG_CLK_MAX,
 };
 
-static void __init lpc18xx_creg_clk_init(struct device_node *np)
+static void __init lpc18xx_creg_clk_init(struct device_analde *np)
 {
 	const char *clk_32khz_parent;
 	struct regmap *syscon;
 
-	syscon = syscon_node_to_regmap(np->parent);
+	syscon = syscon_analde_to_regmap(np->parent);
 	if (IS_ERR(syscon)) {
 		pr_err("%s: syscon lookup failed\n", __func__);
 		return;
@@ -192,10 +192,10 @@ static struct clk_onecell_data clk_creg_data = {
 
 static int lpc18xx_creg_clk_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct regmap *syscon;
 
-	syscon = syscon_node_to_regmap(np->parent);
+	syscon = syscon_analde_to_regmap(np->parent);
 	if (IS_ERR(syscon)) {
 		dev_err(&pdev->dev, "syscon lookup failed\n");
 		return PTR_ERR(syscon);

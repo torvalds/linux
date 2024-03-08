@@ -2,11 +2,11 @@
 /*
  * Copyright (C) 2011, Red Hat Inc, Arnaldo Carvalho de Melo <acme@redhat.com>
  *
- * Parts came from builtin-annotate.c, see those files for further
- * copyright notes.
+ * Parts came from builtin-ananaltate.c, see those files for further
+ * copyright analtes.
  */
 
-#include <errno.h>
+#include <erranal.h>
 #include <inttypes.h>
 #include <libgen.h>
 #include <stdlib.h>
@@ -24,8 +24,8 @@
 #include "srcline.h"
 #include "units.h"
 #include "debug.h"
-#include "annotate.h"
-#include "annotate-data.h"
+#include "ananaltate.h"
+#include "ananaltate-data.h"
 #include "evsel.h"
 #include "evlist.h"
 #include "bpf-event.h"
@@ -50,7 +50,7 @@
 
 /*
  * FIXME: Using the same values as slang.h,
- * but that header may not be available everywhere
+ * but that header may analt be available everywhere
  */
 #define LARROW_CHAR	((unsigned char)',')
 #define RARROW_CHAR	((unsigned char)'+')
@@ -59,10 +59,10 @@
 
 #include <linux/ctype.h>
 
-/* global annotation options */
-struct annotation_options annotate_opts;
+/* global ananaltation options */
+struct ananaltation_options ananaltate_opts;
 
-static regex_t	 file_lineno;
+static regex_t	 file_lineanal;
 
 static struct ins_ops *ins__find(struct arch *arch, const char *name);
 static void ins__sort(struct arch *arch);
@@ -99,12 +99,12 @@ static struct ins_ops call_ops;
 static struct ins_ops dec_ops;
 static struct ins_ops jump_ops;
 static struct ins_ops mov_ops;
-static struct ins_ops nop_ops;
+static struct ins_ops analp_ops;
 static struct ins_ops lock_ops;
 static struct ins_ops ret_ops;
 
 /* Data type collection debug statistics */
-struct annotated_data_stat ann_data_stat;
+struct ananaltated_data_stat ann_data_stat;
 LIST_HEAD(ann_insn_stat);
 
 static int arch__grow_instructions(struct arch *arch)
@@ -113,7 +113,7 @@ static int arch__grow_instructions(struct arch *arch)
 	size_t new_nr_allocated;
 
 	if (arch->nr_instructions_allocated == 0 && arch->instructions)
-		goto grow_from_non_allocated_table;
+		goto grow_from_analn_allocated_table;
 
 	new_nr_allocated = arch->nr_instructions_allocated + 128;
 	new_instructions = realloc(arch->instructions, new_nr_allocated * sizeof(struct ins));
@@ -125,7 +125,7 @@ out_update_instructions:
 	arch->nr_instructions_allocated = new_nr_allocated;
 	return 0;
 
-grow_from_non_allocated_table:
+grow_from_analn_allocated_table:
 	new_nr_allocated = arch->nr_instructions + 128;
 	new_instructions = calloc(new_nr_allocated, sizeof(struct ins));
 	if (new_instructions == NULL)
@@ -155,45 +155,45 @@ static int arch__associate_ins_ops(struct arch* arch, const char *name, struct i
 	return 0;
 }
 
-#include "arch/arc/annotate/instructions.c"
-#include "arch/arm/annotate/instructions.c"
-#include "arch/arm64/annotate/instructions.c"
-#include "arch/csky/annotate/instructions.c"
-#include "arch/loongarch/annotate/instructions.c"
-#include "arch/mips/annotate/instructions.c"
-#include "arch/x86/annotate/instructions.c"
-#include "arch/powerpc/annotate/instructions.c"
-#include "arch/riscv64/annotate/instructions.c"
-#include "arch/s390/annotate/instructions.c"
-#include "arch/sparc/annotate/instructions.c"
+#include "arch/arc/ananaltate/instructions.c"
+#include "arch/arm/ananaltate/instructions.c"
+#include "arch/arm64/ananaltate/instructions.c"
+#include "arch/csky/ananaltate/instructions.c"
+#include "arch/loongarch/ananaltate/instructions.c"
+#include "arch/mips/ananaltate/instructions.c"
+#include "arch/x86/ananaltate/instructions.c"
+#include "arch/powerpc/ananaltate/instructions.c"
+#include "arch/riscv64/ananaltate/instructions.c"
+#include "arch/s390/ananaltate/instructions.c"
+#include "arch/sparc/ananaltate/instructions.c"
 
 static struct arch architectures[] = {
 	{
 		.name = "arc",
-		.init = arc__annotate_init,
+		.init = arc__ananaltate_init,
 	},
 	{
 		.name = "arm",
-		.init = arm__annotate_init,
+		.init = arm__ananaltate_init,
 	},
 	{
 		.name = "arm64",
-		.init = arm64__annotate_init,
+		.init = arm64__ananaltate_init,
 	},
 	{
 		.name = "csky",
-		.init = csky__annotate_init,
+		.init = csky__ananaltate_init,
 	},
 	{
 		.name = "mips",
-		.init = mips__annotate_init,
+		.init = mips__ananaltate_init,
 		.objdump = {
 			.comment_char = '#',
 		},
 	},
 	{
 		.name = "x86",
-		.init = x86__annotate_init,
+		.init = x86__ananaltate_init,
 		.instructions = x86__instructions,
 		.nr_instructions = ARRAY_SIZE(x86__instructions),
 		.insn_suffix = "bwlq",
@@ -205,29 +205,29 @@ static struct arch architectures[] = {
 	},
 	{
 		.name = "powerpc",
-		.init = powerpc__annotate_init,
+		.init = powerpc__ananaltate_init,
 	},
 	{
 		.name = "riscv64",
-		.init = riscv64__annotate_init,
+		.init = riscv64__ananaltate_init,
 	},
 	{
 		.name = "s390",
-		.init = s390__annotate_init,
+		.init = s390__ananaltate_init,
 		.objdump =  {
 			.comment_char = '#',
 		},
 	},
 	{
 		.name = "sparc",
-		.init = sparc__annotate_init,
+		.init = sparc__ananaltate_init,
 		.objdump = {
 			.comment_char = '#',
 		},
 	},
 	{
 		.name = "loongarch",
-		.init = loongarch__annotate_init,
+		.init = loongarch__ananaltate_init,
 		.objdump = {
 			.comment_char = '#',
 		},
@@ -311,8 +311,8 @@ indirect_call:
 	if (tok != NULL) {
 		endptr++;
 
-		/* Indirect call can use a non-rip register and offset: callq  *0x8(%rbx).
-		 * Do not parse such instruction.  */
+		/* Indirect call can use a analn-rip register and offset: callq  *0x8(%rbx).
+		 * Do analt parse such instruction.  */
 		if (strstr(endptr, "(%r") == NULL)
 			ops->target.addr = strtoull(endptr, NULL, 16);
 	}
@@ -385,7 +385,7 @@ static int jump__parse(struct arch *arch, struct ins_operands *ops, struct map_s
 	 * 1159e8b: jne    c469be <cpp_named_operator2name@@Base+0xa72>
 	 *
 	 * The first is a jump to an offset inside the same function,
-	 * the second is to another function, i.e. that 0xa72 is an
+	 * the second is to aanalther function, i.e. that 0xa72 is an
 	 * offset in the cpp_named_operator2name@@base function.
 	 */
 	/*
@@ -422,7 +422,7 @@ static int jump__parse(struct arch *arch, struct ins_operands *ops, struct map_s
 	 * routine that looks for >= current->start and  < next_symbol->start,
 	 * possibly just for C++ objects?
 	 *
-	 * For now lets just make some progress by marking jumps to outside the
+	 * For analw lets just make some progress by marking jumps to outside the
 	 * current function as call like.
 	 *
 	 * Actual navigation will come next, with further understanding of how
@@ -724,14 +724,14 @@ static struct ins_ops dec_ops = {
 	.scnprintf = dec__scnprintf,
 };
 
-static int nop__scnprintf(struct ins *ins __maybe_unused, char *bf, size_t size,
+static int analp__scnprintf(struct ins *ins __maybe_unused, char *bf, size_t size,
 			  struct ins_operands *ops __maybe_unused, int max_ins_name)
 {
-	return scnprintf(bf, size, "%-*s", max_ins_name, "nop");
+	return scnprintf(bf, size, "%-*s", max_ins_name, "analp");
 }
 
-static struct ins_ops nop_ops = {
-	.scnprintf = nop__scnprintf,
+static struct ins_ops analp_ops = {
+	.scnprintf = analp__scnprintf,
 };
 
 static struct ins_ops ret_ops = {
@@ -854,9 +854,9 @@ bool arch__is(struct arch *arch, const char *name)
 	return !strcmp(arch->name, name);
 }
 
-static struct annotated_source *annotated_source__new(void)
+static struct ananaltated_source *ananaltated_source__new(void)
 {
-	struct annotated_source *src = zalloc(sizeof(*src));
+	struct ananaltated_source *src = zalloc(sizeof(*src));
 
 	if (src != NULL)
 		INIT_LIST_HEAD(&src->source);
@@ -864,7 +864,7 @@ static struct annotated_source *annotated_source__new(void)
 	return src;
 }
 
-static __maybe_unused void annotated_source__delete(struct annotated_source *src)
+static __maybe_unused void ananaltated_source__delete(struct ananaltated_source *src)
 {
 	if (src == NULL)
 		return;
@@ -872,7 +872,7 @@ static __maybe_unused void annotated_source__delete(struct annotated_source *src
 	free(src);
 }
 
-static int annotated_source__alloc_histograms(struct annotated_source *src,
+static int ananaltated_source__alloc_histograms(struct ananaltated_source *src,
 					      size_t size, int nr_hists)
 {
 	size_t sizeof_sym_hist;
@@ -882,7 +882,7 @@ static int annotated_source__alloc_histograms(struct annotated_source *src,
 	 * When sample is taken from first instruction of
 	 * zero length symbol, perf still resolves it and
 	 * shows symbol name in perf report and allows to
-	 * annotate it.
+	 * ananaltate it.
 	 */
 	if (size == 0)
 		size = 1;
@@ -903,20 +903,20 @@ static int annotated_source__alloc_histograms(struct annotated_source *src,
 	return src->histograms ? 0 : -1;
 }
 
-void symbol__annotate_zero_histograms(struct symbol *sym)
+void symbol__ananaltate_zero_histograms(struct symbol *sym)
 {
-	struct annotation *notes = symbol__annotation(sym);
+	struct ananaltation *analtes = symbol__ananaltation(sym);
 
-	annotation__lock(notes);
-	if (notes->src != NULL) {
-		memset(notes->src->histograms, 0,
-		       notes->src->nr_histograms * notes->src->sizeof_sym_hist);
+	ananaltation__lock(analtes);
+	if (analtes->src != NULL) {
+		memset(analtes->src->histograms, 0,
+		       analtes->src->nr_histograms * analtes->src->sizeof_sym_hist);
 	}
-	if (notes->branch && notes->branch->cycles_hist) {
-		memset(notes->branch->cycles_hist, 0,
+	if (analtes->branch && analtes->branch->cycles_hist) {
+		memset(analtes->branch->cycles_hist, 0,
 		       symbol__size(sym) * sizeof(struct cyc_hist));
 	}
-	annotation__unlock(notes);
+	ananaltation__unlock(analtes);
 }
 
 static int __symbol__account_cycles(struct cyc_hist *ch,
@@ -925,7 +925,7 @@ static int __symbol__account_cycles(struct cyc_hist *ch,
 				    unsigned have_start)
 {
 	/*
-	 * For now we can only account one basic block per
+	 * For analw we can only account one basic block per
 	 * final jump. But multiple could be overlapping.
 	 * Always account the longest one. So when
 	 * a shorter one has been already seen throw it away.
@@ -970,7 +970,7 @@ static int __symbol__account_cycles(struct cyc_hist *ch,
 }
 
 static int __symbol__inc_addr_samples(struct map_symbol *ms,
-				      struct annotated_source *src, int evidx, u64 addr,
+				      struct ananaltated_source *src, int evidx, u64 addr,
 				      struct perf_sample *sample)
 {
 	struct symbol *sym = ms->sym;
@@ -987,11 +987,11 @@ static int __symbol__inc_addr_samples(struct map_symbol *ms,
 	}
 
 	offset = addr - sym->start;
-	h = annotated_source__histogram(src, evidx);
+	h = ananaltated_source__histogram(src, evidx);
 	if (h == NULL) {
-		pr_debug("%s(%d): ENOMEM! sym->name=%s, start=%#" PRIx64 ", addr=%#" PRIx64 ", end=%#" PRIx64 ", func: %d\n",
+		pr_debug("%s(%d): EANALMEM! sym->name=%s, start=%#" PRIx64 ", addr=%#" PRIx64 ", end=%#" PRIx64 ", func: %d\n",
 			 __func__, __LINE__, sym->name, sym->start, addr, sym->end, sym->type == STT_FUNC);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	h->nr_samples++;
 	h->addr[offset].nr_samples++;
@@ -1005,23 +1005,23 @@ static int __symbol__inc_addr_samples(struct map_symbol *ms,
 	return 0;
 }
 
-struct annotated_branch *annotation__get_branch(struct annotation *notes)
+struct ananaltated_branch *ananaltation__get_branch(struct ananaltation *analtes)
 {
-	if (notes == NULL)
+	if (analtes == NULL)
 		return NULL;
 
-	if (notes->branch == NULL)
-		notes->branch = zalloc(sizeof(*notes->branch));
+	if (analtes->branch == NULL)
+		analtes->branch = zalloc(sizeof(*analtes->branch));
 
-	return notes->branch;
+	return analtes->branch;
 }
 
 static struct cyc_hist *symbol__cycles_hist(struct symbol *sym)
 {
-	struct annotation *notes = symbol__annotation(sym);
-	struct annotated_branch *branch;
+	struct ananaltation *analtes = symbol__ananaltation(sym);
+	struct ananaltated_branch *branch;
 
-	branch = annotation__get_branch(notes);
+	branch = ananaltation__get_branch(analtes);
 	if (branch == NULL)
 		return NULL;
 
@@ -1034,24 +1034,24 @@ static struct cyc_hist *symbol__cycles_hist(struct symbol *sym)
 	return branch->cycles_hist;
 }
 
-struct annotated_source *symbol__hists(struct symbol *sym, int nr_hists)
+struct ananaltated_source *symbol__hists(struct symbol *sym, int nr_hists)
 {
-	struct annotation *notes = symbol__annotation(sym);
+	struct ananaltation *analtes = symbol__ananaltation(sym);
 
-	if (notes->src == NULL) {
-		notes->src = annotated_source__new();
-		if (notes->src == NULL)
+	if (analtes->src == NULL) {
+		analtes->src = ananaltated_source__new();
+		if (analtes->src == NULL)
 			return NULL;
 		goto alloc_histograms;
 	}
 
-	if (notes->src->histograms == NULL) {
+	if (analtes->src->histograms == NULL) {
 alloc_histograms:
-		annotated_source__alloc_histograms(notes->src, symbol__size(sym),
+		ananaltated_source__alloc_histograms(analtes->src, symbol__size(sym),
 						   nr_hists);
 	}
 
-	return notes->src;
+	return analtes->src;
 }
 
 static int symbol__inc_addr_samples(struct map_symbol *ms,
@@ -1059,7 +1059,7 @@ static int symbol__inc_addr_samples(struct map_symbol *ms,
 				    struct perf_sample *sample)
 {
 	struct symbol *sym = ms->sym;
-	struct annotated_source *src;
+	struct ananaltated_source *src;
 
 	if (sym == NULL)
 		return 0;
@@ -1077,7 +1077,7 @@ static int symbol__account_cycles(u64 addr, u64 start,
 		return 0;
 	cycles_hist = symbol__cycles_hist(sym);
 	if (cycles_hist == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (addr < sym->start || addr >= sym->end)
 		return -ERANGE;
 
@@ -1128,19 +1128,19 @@ int addr_map_symbol__account_cycles(struct addr_map_symbol *ams,
 	return err;
 }
 
-static unsigned annotation__count_insn(struct annotation *notes, u64 start, u64 end)
+static unsigned ananaltation__count_insn(struct ananaltation *analtes, u64 start, u64 end)
 {
 	unsigned n_insn = 0;
 	u64 offset;
 
 	for (offset = start; offset <= end; offset++) {
-		if (notes->src->offsets[offset])
+		if (analtes->src->offsets[offset])
 			n_insn++;
 	}
 	return n_insn;
 }
 
-static void annotated_branch__delete(struct annotated_branch *branch)
+static void ananaltated_branch__delete(struct ananaltated_branch *branch)
 {
 	if (branch) {
 		zfree(&branch->cycles_hist);
@@ -1148,15 +1148,15 @@ static void annotated_branch__delete(struct annotated_branch *branch)
 	}
 }
 
-static void annotation__count_and_fill(struct annotation *notes, u64 start, u64 end, struct cyc_hist *ch)
+static void ananaltation__count_and_fill(struct ananaltation *analtes, u64 start, u64 end, struct cyc_hist *ch)
 {
 	unsigned n_insn;
 	unsigned int cover_insn = 0;
 	u64 offset;
 
-	n_insn = annotation__count_insn(notes, start, end);
+	n_insn = ananaltation__count_insn(analtes, start, end);
 	if (n_insn && ch->num && ch->cycles) {
-		struct annotated_branch *branch;
+		struct ananaltated_branch *branch;
 		float ipc = n_insn / ((double)ch->cycles / (double)ch->num);
 
 		/* Hide data when there are too many overlaps. */
@@ -1164,7 +1164,7 @@ static void annotation__count_and_fill(struct annotation *notes, u64 start, u64 
 			return;
 
 		for (offset = start; offset <= end; offset++) {
-			struct annotation_line *al = notes->src->offsets[offset];
+			struct ananaltation_line *al = analtes->src->offsets[offset];
 
 			if (al && al->cycles && al->cycles->ipc == 0.0) {
 				al->cycles->ipc = ipc;
@@ -1172,7 +1172,7 @@ static void annotation__count_and_fill(struct annotation *notes, u64 start, u64 
 			}
 		}
 
-		branch = annotation__get_branch(notes);
+		branch = ananaltation__get_branch(analtes);
 		if (cover_insn && branch) {
 			branch->hit_cycles += ch->cycles;
 			branch->hit_insn += n_insn * ch->num;
@@ -1181,37 +1181,37 @@ static void annotation__count_and_fill(struct annotation *notes, u64 start, u64 
 	}
 }
 
-static int annotation__compute_ipc(struct annotation *notes, size_t size)
+static int ananaltation__compute_ipc(struct ananaltation *analtes, size_t size)
 {
 	int err = 0;
 	s64 offset;
 
-	if (!notes->branch || !notes->branch->cycles_hist)
+	if (!analtes->branch || !analtes->branch->cycles_hist)
 		return 0;
 
-	notes->branch->total_insn = annotation__count_insn(notes, 0, size - 1);
-	notes->branch->hit_cycles = 0;
-	notes->branch->hit_insn = 0;
-	notes->branch->cover_insn = 0;
+	analtes->branch->total_insn = ananaltation__count_insn(analtes, 0, size - 1);
+	analtes->branch->hit_cycles = 0;
+	analtes->branch->hit_insn = 0;
+	analtes->branch->cover_insn = 0;
 
-	annotation__lock(notes);
+	ananaltation__lock(analtes);
 	for (offset = size - 1; offset >= 0; --offset) {
 		struct cyc_hist *ch;
 
-		ch = &notes->branch->cycles_hist[offset];
+		ch = &analtes->branch->cycles_hist[offset];
 		if (ch && ch->cycles) {
-			struct annotation_line *al;
+			struct ananaltation_line *al;
 
-			al = notes->src->offsets[offset];
+			al = analtes->src->offsets[offset];
 			if (al && al->cycles == NULL) {
 				al->cycles = zalloc(sizeof(*al->cycles));
 				if (al->cycles == NULL) {
-					err = ENOMEM;
+					err = EANALMEM;
 					break;
 				}
 			}
 			if (ch->have_start)
-				annotation__count_and_fill(notes, ch->start, offset, ch);
+				ananaltation__count_and_fill(analtes, ch->start, offset, ch);
 			if (al && ch->num_aggr) {
 				al->cycles->avg = ch->cycles_aggr / ch->num_aggr;
 				al->cycles->max = ch->cycles_max;
@@ -1222,17 +1222,17 @@ static int annotation__compute_ipc(struct annotation *notes, size_t size)
 
 	if (err) {
 		while (++offset < (s64)size) {
-			struct cyc_hist *ch = &notes->branch->cycles_hist[offset];
+			struct cyc_hist *ch = &analtes->branch->cycles_hist[offset];
 
 			if (ch && ch->cycles) {
-				struct annotation_line *al = notes->src->offsets[offset];
+				struct ananaltation_line *al = analtes->src->offsets[offset];
 				if (al)
 					zfree(&al->cycles);
 			}
 		}
 	}
 
-	annotation__unlock(notes);
+	ananaltation__unlock(analtes);
 	return 0;
 }
 
@@ -1287,19 +1287,19 @@ out:
 	return -1;
 }
 
-struct annotate_args {
+struct ananaltate_args {
 	struct arch		  *arch;
 	struct map_symbol	  ms;
 	struct evsel		  *evsel;
-	struct annotation_options *options;
+	struct ananaltation_options *options;
 	s64			  offset;
 	char			  *line;
 	int			  line_nr;
 	char			  *fileloc;
 };
 
-static void annotation_line__init(struct annotation_line *al,
-				  struct annotate_args *args,
+static void ananaltation_line__init(struct ananaltation_line *al,
+				  struct ananaltate_args *args,
 				  int nr)
 {
 	al->offset = args->offset;
@@ -1309,7 +1309,7 @@ static void annotation_line__init(struct annotation_line *al,
 	al->data_nr = nr;
 }
 
-static void annotation_line__exit(struct annotation_line *al)
+static void ananaltation_line__exit(struct ananaltation_line *al)
 {
 	zfree_srcline(&al->path);
 	zfree(&al->line);
@@ -1318,23 +1318,23 @@ static void annotation_line__exit(struct annotation_line *al)
 
 static size_t disasm_line_size(int nr)
 {
-	struct annotation_line *al;
+	struct ananaltation_line *al;
 
 	return (sizeof(struct disasm_line) + (sizeof(al->data[0]) * nr));
 }
 
 /*
- * Allocating the disasm annotation line data with
+ * Allocating the disasm ananaltation line data with
  * following structure:
  *
  *    -------------------------------------------
- *    struct disasm_line | struct annotation_line
+ *    struct disasm_line | struct ananaltation_line
  *    -------------------------------------------
  *
- * We have 'struct annotation_line' member as last member
+ * We have 'struct ananaltation_line' member as last member
  * of 'struct disasm_line' to have an easy access.
  */
-static struct disasm_line *disasm_line__new(struct annotate_args *args)
+static struct disasm_line *disasm_line__new(struct ananaltate_args *args)
 {
 	struct disasm_line *dl = NULL;
 	int nr = 1;
@@ -1346,7 +1346,7 @@ static struct disasm_line *disasm_line__new(struct annotate_args *args)
 	if (!dl)
 		return NULL;
 
-	annotation_line__init(&dl->al, args, nr);
+	ananaltation_line__init(&dl->al, args, nr);
 	if (dl->al.line == NULL)
 		goto out_delete;
 
@@ -1373,7 +1373,7 @@ void disasm_line__free(struct disasm_line *dl)
 	else
 		ins__delete(&dl->ops);
 	zfree(&dl->ins.name);
-	annotation_line__exit(&dl->al);
+	ananaltation_line__exit(&dl->al);
 	free(dl);
 }
 
@@ -1385,57 +1385,57 @@ int disasm_line__scnprintf(struct disasm_line *dl, char *bf, size_t size, bool r
 	return ins__scnprintf(&dl->ins, bf, size, &dl->ops, max_ins_name);
 }
 
-void annotation__exit(struct annotation *notes)
+void ananaltation__exit(struct ananaltation *analtes)
 {
-	annotated_source__delete(notes->src);
-	annotated_branch__delete(notes->branch);
+	ananaltated_source__delete(analtes->src);
+	ananaltated_branch__delete(analtes->branch);
 }
 
 static struct sharded_mutex *sharded_mutex;
 
-static void annotation__init_sharded_mutex(void)
+static void ananaltation__init_sharded_mutex(void)
 {
 	/* As many mutexes as there are CPUs. */
 	sharded_mutex = sharded_mutex__new(cpu__max_present_cpu().cpu);
 }
 
-static size_t annotation__hash(const struct annotation *notes)
+static size_t ananaltation__hash(const struct ananaltation *analtes)
 {
-	return (size_t)notes;
+	return (size_t)analtes;
 }
 
-static struct mutex *annotation__get_mutex(const struct annotation *notes)
+static struct mutex *ananaltation__get_mutex(const struct ananaltation *analtes)
 {
 	static pthread_once_t once = PTHREAD_ONCE_INIT;
 
-	pthread_once(&once, annotation__init_sharded_mutex);
+	pthread_once(&once, ananaltation__init_sharded_mutex);
 	if (!sharded_mutex)
 		return NULL;
 
-	return sharded_mutex__get_mutex(sharded_mutex, annotation__hash(notes));
+	return sharded_mutex__get_mutex(sharded_mutex, ananaltation__hash(analtes));
 }
 
-void annotation__lock(struct annotation *notes)
-	NO_THREAD_SAFETY_ANALYSIS
+void ananaltation__lock(struct ananaltation *analtes)
+	ANAL_THREAD_SAFETY_ANALYSIS
 {
-	struct mutex *mutex = annotation__get_mutex(notes);
+	struct mutex *mutex = ananaltation__get_mutex(analtes);
 
 	if (mutex)
 		mutex_lock(mutex);
 }
 
-void annotation__unlock(struct annotation *notes)
-	NO_THREAD_SAFETY_ANALYSIS
+void ananaltation__unlock(struct ananaltation *analtes)
+	ANAL_THREAD_SAFETY_ANALYSIS
 {
-	struct mutex *mutex = annotation__get_mutex(notes);
+	struct mutex *mutex = ananaltation__get_mutex(analtes);
 
 	if (mutex)
 		mutex_unlock(mutex);
 }
 
-bool annotation__trylock(struct annotation *notes)
+bool ananaltation__trylock(struct ananaltation *analtes)
 {
-	struct mutex *mutex = annotation__get_mutex(notes);
+	struct mutex *mutex = ananaltation__get_mutex(analtes);
 
 	if (!mutex)
 		return false;
@@ -1444,22 +1444,22 @@ bool annotation__trylock(struct annotation *notes)
 }
 
 
-static void annotation_line__add(struct annotation_line *al, struct list_head *head)
+static void ananaltation_line__add(struct ananaltation_line *al, struct list_head *head)
 {
-	list_add_tail(&al->node, head);
+	list_add_tail(&al->analde, head);
 }
 
-struct annotation_line *
-annotation_line__next(struct annotation_line *pos, struct list_head *head)
+struct ananaltation_line *
+ananaltation_line__next(struct ananaltation_line *pos, struct list_head *head)
 {
-	list_for_each_entry_continue(pos, head, node)
+	list_for_each_entry_continue(pos, head, analde)
 		if (pos->offset >= 0)
 			return pos;
 
 	return NULL;
 }
 
-static const char *annotate__address_color(struct block_range *br)
+static const char *ananaltate__address_color(struct block_range *br)
 {
 	double cov = block_range__coverage(br);
 
@@ -1470,26 +1470,26 @@ static const char *annotate__address_color(struct block_range *br)
 
 		/* mark dull for <1% coverage */
 		if (cov < 0.01)
-			return PERF_COLOR_NORMAL;
+			return PERF_COLOR_ANALRMAL;
 	}
 
 	return PERF_COLOR_MAGENTA;
 }
 
-static const char *annotate__asm_color(struct block_range *br)
+static const char *ananaltate__asm_color(struct block_range *br)
 {
 	double cov = block_range__coverage(br);
 
 	if (cov >= 0) {
 		/* mark dull for <1% coverage */
 		if (cov < 0.01)
-			return PERF_COLOR_NORMAL;
+			return PERF_COLOR_ANALRMAL;
 	}
 
 	return PERF_COLOR_BLUE;
 }
 
-static void annotate__branch_printf(struct block_range *br, u64 addr)
+static void ananaltate__branch_printf(struct block_range *br, u64 addr)
 {
 	bool emit_comment = true;
 
@@ -1548,16 +1548,16 @@ static int disasm_line__print(struct disasm_line *dl, u64 start, int addr_fmt_wi
 	struct block_range *br;
 
 	br = block_range__find(addr);
-	color_fprintf(stdout, annotate__address_color(br), "  %*" PRIx64 ":", addr_fmt_width, addr);
-	color_fprintf(stdout, annotate__asm_color(br), "%s", dl->al.line);
-	annotate__branch_printf(br, addr);
+	color_fprintf(stdout, ananaltate__address_color(br), "  %*" PRIx64 ":", addr_fmt_width, addr);
+	color_fprintf(stdout, ananaltate__asm_color(br), "%s", dl->al.line);
+	ananaltate__branch_printf(br, addr);
 	return 0;
 }
 
 static int
-annotation_line__print(struct annotation_line *al, struct symbol *sym, u64 start,
+ananaltation_line__print(struct ananaltation_line *al, struct symbol *sym, u64 start,
 		       struct evsel *evsel, u64 len, int min_pcnt, int printed,
-		       int max_lines, struct annotation_line *queue, int addr_fmt_width,
+		       int max_lines, struct ananaltation_line *queue, int addr_fmt_width,
 		       int percent_type)
 {
 	struct disasm_line *dl = container_of(al, struct disasm_line, al);
@@ -1567,12 +1567,12 @@ annotation_line__print(struct annotation_line *al, struct symbol *sym, u64 start
 		double max_percent = 0.0;
 		int i, nr_percent = 1;
 		const char *color;
-		struct annotation *notes = symbol__annotation(sym);
+		struct ananaltation *analtes = symbol__ananaltation(sym);
 
 		for (i = 0; i < al->data_nr; i++) {
 			double percent;
 
-			percent = annotation_data__percent(&al->data[i],
+			percent = ananaltation_data__percent(&al->data[i],
 							   percent_type);
 
 			if (percent > max_percent)
@@ -1589,10 +1589,10 @@ annotation_line__print(struct annotation_line *al, struct symbol *sym, u64 start
 			return 1;
 
 		if (queue != NULL) {
-			list_for_each_entry_from(queue, &notes->src->source, node) {
+			list_for_each_entry_from(queue, &analtes->src->source, analde) {
 				if (queue == al)
 					break;
-				annotation_line__print(queue, sym, start, evsel, len,
+				ananaltation_line__print(queue, sym, start, evsel, len,
 						       0, 0, 1, NULL, addr_fmt_width,
 						       percent_type);
 			}
@@ -1601,10 +1601,10 @@ annotation_line__print(struct annotation_line *al, struct symbol *sym, u64 start
 		color = get_percent_color(max_percent);
 
 		for (i = 0; i < nr_percent; i++) {
-			struct annotation_data *data = &al->data[i];
+			struct ananaltation_data *data = &al->data[i];
 			double percent;
 
-			percent = annotation_data__percent(data, percent_type);
+			percent = ananaltation_data__percent(data, percent_type);
 			color = get_percent_color(percent);
 
 			if (symbol_conf.show_total_period)
@@ -1655,7 +1655,7 @@ annotation_line__print(struct annotation_line *al, struct symbol *sym, u64 start
 }
 
 /*
- * symbol__parse_objdump_line() parses objdump output (with -d --no-show-raw)
+ * symbol__parse_objdump_line() parses objdump output (with -d --anal-show-raw)
  * which looks like following
  *
  *  0000000000415500 <_init>:
@@ -1671,22 +1671,22 @@ annotation_line__print(struct annotation_line *al, struct symbol *sym, u64 start
  *  <offset>       <name>  <ops.raw>
  *
  * The offset will be a relative offset from the start of the symbol and -1
- * means that it's not a disassembly line so should be treated differently.
+ * means that it's analt a disassembly line so should be treated differently.
  * The ops.raw part will be parsed further according to type of the instruction.
  */
 static int symbol__parse_objdump_line(struct symbol *sym,
-				      struct annotate_args *args,
+				      struct ananaltate_args *args,
 				      char *parsed_line, int *line_nr, char **fileloc)
 {
 	struct map *map = args->ms.map;
-	struct annotation *notes = symbol__annotation(sym);
+	struct ananaltation *analtes = symbol__ananaltation(sym);
 	struct disasm_line *dl;
 	char *tmp;
 	s64 line_ip, offset = -1;
 	regmatch_t match[2];
 
-	/* /filename:linenr ? Save line number and ignore. */
-	if (regexec(&file_lineno, parsed_line, 2, match, 0) == 0) {
+	/* /filename:linenr ? Save line number and iganalre. */
+	if (regexec(&file_lineanal, parsed_line, 2, match, 0) == 0) {
 		*line_nr = atoi(parsed_line + match[1].rm_so);
 		free(*fileloc);
 		*fileloc = strdup(parsed_line);
@@ -1724,7 +1724,7 @@ static int symbol__parse_objdump_line(struct symbol *sym,
 		dl->ops.target.offset_avail = true;
 	}
 
-	/* kcore has no symbols, so add the call target symbol */
+	/* kcore has anal symbols, so add the call target symbol */
 	if (dl->ins.ops && ins__is_call(&dl->ins) && !dl->ops.target.sym) {
 		struct addr_map_symbol target = {
 			.addr = dl->ops.target.addr,
@@ -1736,35 +1736,35 @@ static int symbol__parse_objdump_line(struct symbol *sym,
 			dl->ops.target.sym = target.ms.sym;
 	}
 
-	annotation_line__add(&dl->al, &notes->src->source);
+	ananaltation_line__add(&dl->al, &analtes->src->source);
 	return 0;
 }
 
 static __attribute__((constructor)) void symbol__init_regexpr(void)
 {
-	regcomp(&file_lineno, "^/[^:]+:([0-9]+)", REG_EXTENDED);
+	regcomp(&file_lineanal, "^/[^:]+:([0-9]+)", REG_EXTENDED);
 }
 
-static void delete_last_nop(struct symbol *sym)
+static void delete_last_analp(struct symbol *sym)
 {
-	struct annotation *notes = symbol__annotation(sym);
-	struct list_head *list = &notes->src->source;
+	struct ananaltation *analtes = symbol__ananaltation(sym);
+	struct list_head *list = &analtes->src->source;
 	struct disasm_line *dl;
 
 	while (!list_empty(list)) {
-		dl = list_entry(list->prev, struct disasm_line, al.node);
+		dl = list_entry(list->prev, struct disasm_line, al.analde);
 
 		if (dl->ins.ops) {
-			if (dl->ins.ops != &nop_ops)
+			if (dl->ins.ops != &analp_ops)
 				return;
 		} else {
-			if (!strstr(dl->al.line, " nop ") &&
-			    !strstr(dl->al.line, " nopl ") &&
-			    !strstr(dl->al.line, " nopw "))
+			if (!strstr(dl->al.line, " analp ") &&
+			    !strstr(dl->al.line, " analpl ") &&
+			    !strstr(dl->al.line, " analpw "))
 				return;
 		}
 
-		list_del_init(&dl->al.node);
+		list_del_init(&dl->al.analde);
 		disasm_line__free(dl);
 	}
 }
@@ -1781,7 +1781,7 @@ int symbol__strerror_disassemble(struct map_symbol *ms, int errnum, char *buf, s
 	}
 
 	switch (errnum) {
-	case SYMBOL_ANNOTATE_ERRNO__NO_VMLINUX: {
+	case SYMBOL_ANANALTATE_ERRANAL__ANAL_VMLINUX: {
 		char bf[SBUILD_ID_SIZE + 15] = " with build id ";
 		char *build_id_msg = NULL;
 
@@ -1790,28 +1790,28 @@ int symbol__strerror_disassemble(struct map_symbol *ms, int errnum, char *buf, s
 			build_id_msg = bf;
 		}
 		scnprintf(buf, buflen,
-			  "No vmlinux file%s\nwas found in the path.\n\n"
-			  "Note that annotation using /proc/kcore requires CAP_SYS_RAWIO capability.\n\n"
+			  "Anal vmlinux file%s\nwas found in the path.\n\n"
+			  "Analte that ananaltation using /proc/kcore requires CAP_SYS_RAWIO capability.\n\n"
 			  "Please use:\n\n"
 			  "  perf buildid-cache -vu vmlinux\n\n"
 			  "or:\n\n"
 			  "  --vmlinux vmlinux\n", build_id_msg ?: "");
 	}
 		break;
-	case SYMBOL_ANNOTATE_ERRNO__NO_LIBOPCODES_FOR_BPF:
-		scnprintf(buf, buflen, "Please link with binutils's libopcode to enable BPF annotation");
+	case SYMBOL_ANANALTATE_ERRANAL__ANAL_LIBOPCODES_FOR_BPF:
+		scnprintf(buf, buflen, "Please link with binutils's libopcode to enable BPF ananaltation");
 		break;
-	case SYMBOL_ANNOTATE_ERRNO__ARCH_INIT_REGEXP:
+	case SYMBOL_ANANALTATE_ERRANAL__ARCH_INIT_REGEXP:
 		scnprintf(buf, buflen, "Problems with arch specific instruction name regular expressions.");
 		break;
-	case SYMBOL_ANNOTATE_ERRNO__ARCH_INIT_CPUID_PARSING:
+	case SYMBOL_ANANALTATE_ERRANAL__ARCH_INIT_CPUID_PARSING:
 		scnprintf(buf, buflen, "Problems while parsing the CPUID in the arch specific initialization.");
 		break;
-	case SYMBOL_ANNOTATE_ERRNO__BPF_INVALID_FILE:
+	case SYMBOL_ANANALTATE_ERRANAL__BPF_INVALID_FILE:
 		scnprintf(buf, buflen, "Invalid BPF file: %s.", dso->long_name);
 		break;
-	case SYMBOL_ANNOTATE_ERRNO__BPF_MISSING_BTF:
-		scnprintf(buf, buflen, "The %s BPF file has no BTF section, compile with -g or use pahole -J.",
+	case SYMBOL_ANANALTATE_ERRANAL__BPF_MISSING_BTF:
+		scnprintf(buf, buflen, "The %s BPF file has anal BTF section, compile with -g or use pahole -J.",
 			  dso->long_name);
 		break;
 	default:
@@ -1832,7 +1832,7 @@ static int dso__disassemble_filename(struct dso *dso, char *filename, size_t fil
 
 	if (dso->symtab_type == DSO_BINARY_TYPE__KALLSYMS &&
 	    !dso__is_kcore(dso))
-		return SYMBOL_ANNOTATE_ERRNO__NO_VMLINUX;
+		return SYMBOL_ANANALTATE_ERRANAL__ANAL_VMLINUX;
 
 	build_id_filename = dso__build_id_filename(dso, NULL, 0, false);
 	if (build_id_filename) {
@@ -1840,13 +1840,13 @@ static int dso__disassemble_filename(struct dso *dso, char *filename, size_t fil
 		free(build_id_filename);
 	} else {
 		if (dso->has_build_id)
-			return ENOMEM;
+			return EANALMEM;
 		goto fallback;
 	}
 
 	build_id_path = strdup(filename);
 	if (!build_id_path)
-		return ENOMEM;
+		return EANALMEM;
 
 	/*
 	 * old style build-id cache has name of XX/XXXXXXX.. while
@@ -1879,7 +1879,7 @@ fallback:
 			__symbol__join_symfs(filename, filename_size, dso->long_name);
 
 		mutex_lock(&dso->lock);
-		if (access(filename, R_OK) && errno == ENOENT && dso->nsinfo) {
+		if (access(filename, R_OK) && erranal == EANALENT && dso->nsinfo) {
 			char *new_name = dso__filename_with_chroot(dso, filename);
 			if (new_name) {
 				strlcpy(filename, new_name, filename_size);
@@ -1904,11 +1904,11 @@ fallback:
 #include <tools/dis-asm-compat.h>
 
 static int symbol__disassemble_bpf(struct symbol *sym,
-				   struct annotate_args *args)
+				   struct ananaltate_args *args)
 {
-	struct annotation *notes = symbol__annotation(sym);
+	struct ananaltation *analtes = symbol__ananaltation(sym);
 	struct bpf_prog_linfo *prog_linfo = NULL;
-	struct bpf_prog_info_node *info_node;
+	struct bpf_prog_info_analde *info_analde;
 	int len = sym->end - sym->start;
 	disassembler_ftype disassemble;
 	struct map *map = args->ms.map;
@@ -1926,7 +1926,7 @@ static int symbol__disassemble_bpf(struct symbol *sym,
 	FILE *s;
 
 	if (dso->binary_type != DSO_BINARY_TYPE__BPF_PROG_INFO)
-		return SYMBOL_ANNOTATE_ERRNO__BPF_INVALID_FILE;
+		return SYMBOL_ANANALTATE_ERRANAL__BPF_INVALID_FILE;
 
 	pr_debug("%s: handling sym %s addr %" PRIx64 " len %" PRIx64 "\n", __func__,
 		  sym->name, sym->start, sym->end - sym->start);
@@ -1943,7 +1943,7 @@ static int symbol__disassemble_bpf(struct symbol *sym,
 
 	s = open_memstream(&buf, &buf_size);
 	if (!s) {
-		ret = errno;
+		ret = erranal;
 		goto out;
 	}
 	init_disassemble_info_compat(&info, s,
@@ -1952,13 +1952,13 @@ static int symbol__disassemble_bpf(struct symbol *sym,
 	info.arch = bfd_get_arch(bfdf);
 	info.mach = bfd_get_mach(bfdf);
 
-	info_node = perf_env__find_bpf_prog_info(dso->bpf_prog.env,
+	info_analde = perf_env__find_bpf_prog_info(dso->bpf_prog.env,
 						 dso->bpf_prog.id);
-	if (!info_node) {
-		ret = SYMBOL_ANNOTATE_ERRNO__BPF_MISSING_BTF;
+	if (!info_analde) {
+		ret = SYMBOL_ANANALTATE_ERRANAL__BPF_MISSING_BTF;
 		goto out;
 	}
-	info_linear = info_node->info_linear;
+	info_linear = info_analde->info_linear;
 	sub_id = dso->bpf_prog.sub_id;
 
 	info.buffer = (void *)(uintptr_t)(info_linear->info.jited_prog_insns);
@@ -1968,13 +1968,13 @@ static int symbol__disassemble_bpf(struct symbol *sym,
 		prog_linfo = bpf_prog_linfo__new(&info_linear->info);
 
 	if (info_linear->info.btf_id) {
-		struct btf_node *node;
+		struct btf_analde *analde;
 
-		node = perf_env__find_btf(dso->bpf_prog.env,
+		analde = perf_env__find_btf(dso->bpf_prog.env,
 					  info_linear->info.btf_id);
-		if (node)
-			btf = btf__new((__u8 *)(node->data),
-				       node->data_size);
+		if (analde)
+			btf = btf__new((__u8 *)(analde->data),
+				       analde->data_size);
 	}
 
 	disassemble_init_for_target(&info);
@@ -2016,7 +2016,7 @@ static int symbol__disassemble_bpf(struct symbol *sym,
 		prev_buf_size = buf_size;
 		fflush(s);
 
-		if (!annotate_opts.hide_src_code && srcline) {
+		if (!ananaltate_opts.hide_src_code && srcline) {
 			args->offset = -1;
 			args->line = strdup(srcline);
 			args->line_nr = 0;
@@ -2024,8 +2024,8 @@ static int symbol__disassemble_bpf(struct symbol *sym,
 			args->ms.sym  = sym;
 			dl = disasm_line__new(args);
 			if (dl) {
-				annotation_line__add(&dl->al,
-						     &notes->src->source);
+				ananaltation_line__add(&dl->al,
+						     &analtes->src->source);
 			}
 		}
 
@@ -2036,7 +2036,7 @@ static int symbol__disassemble_bpf(struct symbol *sym,
 		args->ms.sym  = sym;
 		dl = disasm_line__new(args);
 		if (dl)
-			annotation_line__add(&dl->al, &notes->src->source);
+			ananaltation_line__add(&dl->al, &analtes->src->source);
 
 		pc += count;
 	} while (count > 0 && pc < len);
@@ -2051,17 +2051,17 @@ out:
 }
 #else // defined(HAVE_LIBBFD_SUPPORT) && defined(HAVE_LIBBPF_SUPPORT)
 static int symbol__disassemble_bpf(struct symbol *sym __maybe_unused,
-				   struct annotate_args *args __maybe_unused)
+				   struct ananaltate_args *args __maybe_unused)
 {
-	return SYMBOL_ANNOTATE_ERRNO__NO_LIBOPCODES_FOR_BPF;
+	return SYMBOL_ANANALTATE_ERRANAL__ANAL_LIBOPCODES_FOR_BPF;
 }
 #endif // defined(HAVE_LIBBFD_SUPPORT) && defined(HAVE_LIBBPF_SUPPORT)
 
 static int
 symbol__disassemble_bpf_image(struct symbol *sym,
-			      struct annotate_args *args)
+			      struct ananaltate_args *args)
 {
-	struct annotation *notes = symbol__annotation(sym);
+	struct ananaltation *analtes = symbol__ananaltation(sym);
 	struct disasm_line *dl;
 
 	args->offset = -1;
@@ -2070,7 +2070,7 @@ symbol__disassemble_bpf_image(struct symbol *sym,
 	args->fileloc = NULL;
 	dl = disasm_line__new(args);
 	if (dl)
-		annotation_line__add(&dl->al, &notes->src->source);
+		ananaltation_line__add(&dl->al, &analtes->src->source);
 
 	zfree(&args->line);
 	return 0;
@@ -2137,9 +2137,9 @@ static char *expand_tabs(char *line, char **storage, size_t *storage_len)
 
 }
 
-static int symbol__disassemble(struct symbol *sym, struct annotate_args *args)
+static int symbol__disassemble(struct symbol *sym, struct ananaltate_args *args)
 {
-	struct annotation_options *opts = &annotate_opts;
+	struct ananaltation_options *opts = &ananaltate_opts;
 	struct map *map = args->ms.map;
 	struct dso *dso = map__dso(map);
 	char *command;
@@ -2148,7 +2148,7 @@ static int symbol__disassemble(struct symbol *sym, struct annotate_args *args)
 	struct kcore_extract kce;
 	bool delete_extract = false;
 	bool decomp = false;
-	int lineno = 0;
+	int lineanal = 0;
 	char *fileloc = NULL;
 	int nline;
 	char *line;
@@ -2171,7 +2171,7 @@ static int symbol__disassemble(struct symbol *sym, struct annotate_args *args)
 		 symfs_filename, sym->name, map__unmap_ip(map, sym->start),
 		 map__unmap_ip(map, sym->end));
 
-	pr_debug("annotating [%p] %30s : [%p] %30s\n",
+	pr_debug("ananaltating [%p] %30s : [%p] %30s\n",
 		 dso, dso->long_name, sym, sym->name);
 
 	if (dso->binary_type == DSO_BINARY_TYPE__BPF_PROG_INFO) {
@@ -2209,8 +2209,8 @@ static int symbol__disassemble(struct symbol *sym, struct annotate_args *args)
 		 map__rip_2objdump(map, sym->start),
 		 map__rip_2objdump(map, sym->end),
 		 opts->show_linenr ? "-l" : "",
-		 opts->show_asm_raw ? "" : "--no-show-raw-insn",
-		 opts->annotate_src ? "-S" : "",
+		 opts->show_asm_raw ? "" : "--anal-show-raw-insn",
+		 opts->ananaltate_src ? "-S" : "",
 		 opts->prefix ? "--prefix " : "",
 		 opts->prefix ? '"' : ' ',
 		 opts->prefix ?: "",
@@ -2233,7 +2233,7 @@ static int symbol__disassemble(struct symbol *sym, struct annotate_args *args)
 	objdump_process.argv = objdump_argv;
 	objdump_process.out = -1;
 	objdump_process.err = -1;
-	objdump_process.no_stderr = 1;
+	objdump_process.anal_stderr = 1;
 	if (start_command(&objdump_process)) {
 		pr_err("Failure starting to run %s\n", command);
 		err = -1;
@@ -2274,13 +2274,13 @@ static int symbol__disassemble(struct symbol *sym, struct annotate_args *args)
 			break;
 
 		/*
-		 * The source code line number (lineno) needs to be kept in
+		 * The source code line number (lineanal) needs to be kept in
 		 * across calls to symbol__parse_objdump_line(), so that it
 		 * can associate it with the instructions till the next one.
 		 * See disasm_line__new() and struct disasm_line::line_nr.
 		 */
 		if (symbol__parse_objdump_line(sym, args, expanded_line,
-					       &lineno, &fileloc) < 0)
+					       &lineanal, &fileloc) < 0)
 			break;
 		nline++;
 	}
@@ -2293,15 +2293,15 @@ static int symbol__disassemble(struct symbol *sym, struct annotate_args *args)
 
 	if (nline == 0) {
 		err = -1;
-		pr_err("No output from %s\n", command);
+		pr_err("Anal output from %s\n", command);
 	}
 
 	/*
-	 * kallsyms does not have symbol sizes so there may a nop at the end.
+	 * kallsyms does analt have symbol sizes so there may a analp at the end.
 	 * Remove it.
 	 */
 	if (dso__is_kcore(dso))
-		delete_last_nop(sym);
+		delete_last_analp(sym);
 
 	fclose(file);
 
@@ -2323,7 +2323,7 @@ out_remove_tmp:
 
 static void calc_percent(struct sym_hist *sym_hist,
 			 struct hists *hists,
-			 struct annotation_data *data,
+			 struct ananaltation_data *data,
 			 s64 offset, s64 end)
 {
 	unsigned int hits = 0;
@@ -2341,8 +2341,8 @@ static void calc_percent(struct sym_hist *sym_hist,
 		data->percent[PERCENT_HITS_LOCAL] = 100.0 * hits / sym_hist->nr_samples;
 	}
 
-	if (hists->stats.nr_non_filtered_samples)
-		data->percent[PERCENT_HITS_GLOBAL] = 100.0 * hits / hists->stats.nr_non_filtered_samples;
+	if (hists->stats.nr_analn_filtered_samples)
+		data->percent[PERCENT_HITS_GLOBAL] = 100.0 * hits / hists->stats.nr_analn_filtered_samples;
 
 	if (sym_hist->period)
 		data->percent[PERCENT_PERIOD_LOCAL] = 100.0 * period / sym_hist->period;
@@ -2351,30 +2351,30 @@ static void calc_percent(struct sym_hist *sym_hist,
 		data->percent[PERCENT_PERIOD_GLOBAL] = 100.0 * period / hists->stats.total_period;
 }
 
-static void annotation__calc_percent(struct annotation *notes,
+static void ananaltation__calc_percent(struct ananaltation *analtes,
 				     struct evsel *leader, s64 len)
 {
-	struct annotation_line *al, *next;
+	struct ananaltation_line *al, *next;
 	struct evsel *evsel;
 
-	list_for_each_entry(al, &notes->src->source, node) {
+	list_for_each_entry(al, &analtes->src->source, analde) {
 		s64 end;
 		int i = 0;
 
 		if (al->offset == -1)
 			continue;
 
-		next = annotation_line__next(al, &notes->src->source);
+		next = ananaltation_line__next(al, &analtes->src->source);
 		end  = next ? next->offset : len;
 
 		for_each_group_evsel(evsel, leader) {
 			struct hists *hists = evsel__hists(evsel);
-			struct annotation_data *data;
+			struct ananaltation_data *data;
 			struct sym_hist *sym_hist;
 
 			BUG_ON(i >= al->data_nr);
 
-			sym_hist = annotation__histogram(notes, evsel->core.idx);
+			sym_hist = ananaltation__histogram(analtes, evsel->core.idx);
 			data = &al->data[i++];
 
 			calc_percent(sym_hist, hists, data, al->offset, end);
@@ -2384,9 +2384,9 @@ static void annotation__calc_percent(struct annotation *notes,
 
 void symbol__calc_percent(struct symbol *sym, struct evsel *evsel)
 {
-	struct annotation *notes = symbol__annotation(sym);
+	struct ananaltation *analtes = symbol__ananaltation(sym);
 
-	annotation__calc_percent(notes, evsel, symbol__size(sym));
+	ananaltation__calc_percent(analtes, evsel, symbol__size(sym));
 }
 
 static int evsel__get_arch(struct evsel *evsel, struct arch **parch)
@@ -2397,12 +2397,12 @@ static int evsel__get_arch(struct evsel *evsel, struct arch **parch)
 	int err;
 
 	if (!arch_name)
-		return errno;
+		return erranal;
 
 	*parch = arch = arch__find(arch_name);
 	if (arch == NULL) {
 		pr_err("%s: unsupported arch %s\n", __func__, arch_name);
-		return ENOTSUP;
+		return EANALTSUP;
 	}
 
 	if (arch->init) {
@@ -2416,14 +2416,14 @@ static int evsel__get_arch(struct evsel *evsel, struct arch **parch)
 	return 0;
 }
 
-int symbol__annotate(struct map_symbol *ms, struct evsel *evsel,
+int symbol__ananaltate(struct map_symbol *ms, struct evsel *evsel,
 		     struct arch **parch)
 {
 	struct symbol *sym = ms->sym;
-	struct annotation *notes = symbol__annotation(sym);
-	struct annotate_args args = {
+	struct ananaltation *analtes = symbol__ananaltation(sym);
+	struct ananaltate_args args = {
 		.evsel		= evsel,
-		.options	= &annotate_opts,
+		.options	= &ananaltate_opts,
 	};
 	struct arch *arch = NULL;
 	int err;
@@ -2437,30 +2437,30 @@ int symbol__annotate(struct map_symbol *ms, struct evsel *evsel,
 
 	args.arch = arch;
 	args.ms = *ms;
-	if (annotate_opts.full_addr)
-		notes->start = map__objdump_2mem(ms->map, ms->sym->start);
+	if (ananaltate_opts.full_addr)
+		analtes->start = map__objdump_2mem(ms->map, ms->sym->start);
 	else
-		notes->start = map__rip_2objdump(ms->map, ms->sym->start);
+		analtes->start = map__rip_2objdump(ms->map, ms->sym->start);
 
 	return symbol__disassemble(sym, &args);
 }
 
-static void insert_source_line(struct rb_root *root, struct annotation_line *al)
+static void insert_source_line(struct rb_root *root, struct ananaltation_line *al)
 {
-	struct annotation_line *iter;
-	struct rb_node **p = &root->rb_node;
-	struct rb_node *parent = NULL;
-	unsigned int percent_type = annotate_opts.percent_type;
+	struct ananaltation_line *iter;
+	struct rb_analde **p = &root->rb_analde;
+	struct rb_analde *parent = NULL;
+	unsigned int percent_type = ananaltate_opts.percent_type;
 	int i, ret;
 
 	while (*p != NULL) {
 		parent = *p;
-		iter = rb_entry(parent, struct annotation_line, rb_node);
+		iter = rb_entry(parent, struct ananaltation_line, rb_analde);
 
 		ret = strcmp(iter->path, al->path);
 		if (ret == 0) {
 			for (i = 0; i < al->data_nr; i++) {
-				iter->data[i].percent_sum += annotation_data__percent(&al->data[i],
+				iter->data[i].percent_sum += ananaltation_data__percent(&al->data[i],
 										      percent_type);
 			}
 			return;
@@ -2473,15 +2473,15 @@ static void insert_source_line(struct rb_root *root, struct annotation_line *al)
 	}
 
 	for (i = 0; i < al->data_nr; i++) {
-		al->data[i].percent_sum = annotation_data__percent(&al->data[i],
+		al->data[i].percent_sum = ananaltation_data__percent(&al->data[i],
 								   percent_type);
 	}
 
-	rb_link_node(&al->rb_node, parent, p);
-	rb_insert_color(&al->rb_node, root);
+	rb_link_analde(&al->rb_analde, parent, p);
+	rb_insert_color(&al->rb_analde, root);
 }
 
-static int cmp_source_line(struct annotation_line *a, struct annotation_line *b)
+static int cmp_source_line(struct ananaltation_line *a, struct ananaltation_line *b)
 {
 	int i;
 
@@ -2494,15 +2494,15 @@ static int cmp_source_line(struct annotation_line *a, struct annotation_line *b)
 	return 0;
 }
 
-static void __resort_source_line(struct rb_root *root, struct annotation_line *al)
+static void __resort_source_line(struct rb_root *root, struct ananaltation_line *al)
 {
-	struct annotation_line *iter;
-	struct rb_node **p = &root->rb_node;
-	struct rb_node *parent = NULL;
+	struct ananaltation_line *iter;
+	struct rb_analde **p = &root->rb_analde;
+	struct rb_analde *parent = NULL;
 
 	while (*p != NULL) {
 		parent = *p;
-		iter = rb_entry(parent, struct annotation_line, rb_node);
+		iter = rb_entry(parent, struct ananaltation_line, rb_analde);
 
 		if (cmp_source_line(al, iter))
 			p = &(*p)->rb_left;
@@ -2510,49 +2510,49 @@ static void __resort_source_line(struct rb_root *root, struct annotation_line *a
 			p = &(*p)->rb_right;
 	}
 
-	rb_link_node(&al->rb_node, parent, p);
-	rb_insert_color(&al->rb_node, root);
+	rb_link_analde(&al->rb_analde, parent, p);
+	rb_insert_color(&al->rb_analde, root);
 }
 
 static void resort_source_line(struct rb_root *dest_root, struct rb_root *src_root)
 {
-	struct annotation_line *al;
-	struct rb_node *node;
+	struct ananaltation_line *al;
+	struct rb_analde *analde;
 
-	node = rb_first(src_root);
-	while (node) {
-		struct rb_node *next;
+	analde = rb_first(src_root);
+	while (analde) {
+		struct rb_analde *next;
 
-		al = rb_entry(node, struct annotation_line, rb_node);
-		next = rb_next(node);
-		rb_erase(node, src_root);
+		al = rb_entry(analde, struct ananaltation_line, rb_analde);
+		next = rb_next(analde);
+		rb_erase(analde, src_root);
 
 		__resort_source_line(dest_root, al);
-		node = next;
+		analde = next;
 	}
 }
 
 static void print_summary(struct rb_root *root, const char *filename)
 {
-	struct annotation_line *al;
-	struct rb_node *node;
+	struct ananaltation_line *al;
+	struct rb_analde *analde;
 
 	printf("\nSorted summary for file %s\n", filename);
 	printf("----------------------------------------------\n\n");
 
 	if (RB_EMPTY_ROOT(root)) {
-		printf(" Nothing higher than %1.1f%%\n", MIN_GREEN);
+		printf(" Analthing higher than %1.1f%%\n", MIN_GREEN);
 		return;
 	}
 
-	node = rb_first(root);
-	while (node) {
+	analde = rb_first(root);
+	while (analde) {
 		double percent, percent_max = 0.0;
 		const char *color;
 		char *path;
 		int i;
 
-		al = rb_entry(node, struct annotation_line, rb_node);
+		al = rb_entry(analde, struct ananaltation_line, rb_analde);
 		for (i = 0; i < al->data_nr; i++) {
 			percent = al->data[i].percent_sum;
 			color = get_percent_color(percent);
@@ -2566,14 +2566,14 @@ static void print_summary(struct rb_root *root, const char *filename)
 		color = get_percent_color(percent_max);
 		color_fprintf(stdout, color, " %s\n", path);
 
-		node = rb_next(node);
+		analde = rb_next(analde);
 	}
 }
 
-static void symbol__annotate_hits(struct symbol *sym, struct evsel *evsel)
+static void symbol__ananaltate_hits(struct symbol *sym, struct evsel *evsel)
 {
-	struct annotation *notes = symbol__annotation(sym);
-	struct sym_hist *h = annotation__histogram(notes, evsel->core.idx);
+	struct ananaltation *analtes = symbol__ananaltation(sym);
+	struct sym_hist *h = ananaltation__histogram(analtes, evsel->core.idx);
 	u64 len = symbol__size(sym), offset;
 
 	for (offset = 0; offset < len; ++offset)
@@ -2583,12 +2583,12 @@ static void symbol__annotate_hits(struct symbol *sym, struct evsel *evsel)
 	printf("%*s: %" PRIu64 "\n", BITS_PER_LONG / 2, "h->nr_samples", h->nr_samples);
 }
 
-static int annotated_source__addr_fmt_width(struct list_head *lines, u64 start)
+static int ananaltated_source__addr_fmt_width(struct list_head *lines, u64 start)
 {
 	char bf[32];
-	struct annotation_line *line;
+	struct ananaltation_line *line;
 
-	list_for_each_entry_reverse(line, lines, node) {
+	list_for_each_entry_reverse(line, lines, analde) {
 		if (line->offset != -1)
 			return scnprintf(bf, sizeof(bf), "%" PRIx64, start + line->offset);
 	}
@@ -2596,7 +2596,7 @@ static int annotated_source__addr_fmt_width(struct list_head *lines, u64 start)
 	return 0;
 }
 
-int symbol__annotate_printf(struct map_symbol *ms, struct evsel *evsel)
+int symbol__ananaltate_printf(struct map_symbol *ms, struct evsel *evsel)
 {
 	struct map *map = ms->map;
 	struct symbol *sym = ms->sym;
@@ -2604,10 +2604,10 @@ int symbol__annotate_printf(struct map_symbol *ms, struct evsel *evsel)
 	char *filename;
 	const char *d_filename;
 	const char *evsel_name = evsel__name(evsel);
-	struct annotation *notes = symbol__annotation(sym);
-	struct sym_hist *h = annotation__histogram(notes, evsel->core.idx);
-	struct annotation_line *pos, *queue = NULL;
-	struct annotation_options *opts = &annotate_opts;
+	struct ananaltation *analtes = symbol__ananaltation(sym);
+	struct sym_hist *h = ananaltation__histogram(analtes, evsel->core.idx);
+	struct ananaltation_line *pos, *queue = NULL;
+	struct ananaltation_options *opts = &ananaltate_opts;
 	u64 start = map__rip_2objdump(map, sym->start);
 	int printed = 2, queue_len = 0, addr_fmt_width;
 	int more = 0;
@@ -2619,7 +2619,7 @@ int symbol__annotate_printf(struct map_symbol *ms, struct evsel *evsel)
 
 	filename = strdup(dso->long_name);
 	if (!filename)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (opts->full_path)
 		d_filename = filename;
@@ -2645,11 +2645,11 @@ int symbol__annotate_printf(struct map_symbol *ms, struct evsel *evsel)
 	       graph_dotted_len, graph_dotted_len, graph_dotted_line);
 
 	if (verbose > 0)
-		symbol__annotate_hits(sym, evsel);
+		symbol__ananaltate_hits(sym, evsel);
 
-	addr_fmt_width = annotated_source__addr_fmt_width(&notes->src->source, start);
+	addr_fmt_width = ananaltated_source__addr_fmt_width(&analtes->src->source, start);
 
-	list_for_each_entry(pos, &notes->src->source, node) {
+	list_for_each_entry(pos, &analtes->src->source, analde) {
 		int err;
 
 		if (context && queue == NULL) {
@@ -2657,7 +2657,7 @@ int symbol__annotate_printf(struct map_symbol *ms, struct evsel *evsel)
 			queue_len = 0;
 		}
 
-		err = annotation_line__print(pos, sym, start, evsel, len,
+		err = ananaltation_line__print(pos, sym, start, evsel, len,
 					     opts->min_pcnt, printed, opts->max_lines,
 					     queue, addr_fmt_width, opts->percent_type);
 
@@ -2677,13 +2677,13 @@ int symbol__annotate_printf(struct map_symbol *ms, struct evsel *evsel)
 		case -1:
 		default:
 			/*
-			 * Filtered by min_pcnt or non IP lines when
+			 * Filtered by min_pcnt or analn IP lines when
 			 * context != 0
 			 */
 			if (!context)
 				break;
 			if (queue_len == context)
-				queue = list_entry(queue->node.next, typeof(*queue), node);
+				queue = list_entry(queue->analde.next, typeof(*queue), analde);
 			else
 				++queue_len;
 			break;
@@ -2736,10 +2736,10 @@ static void FILE__write_graph(void *fp, int graph)
 	fputs(s, fp);
 }
 
-static int symbol__annotate_fprintf2(struct symbol *sym, FILE *fp)
+static int symbol__ananaltate_fprintf2(struct symbol *sym, FILE *fp)
 {
-	struct annotation *notes = symbol__annotation(sym);
-	struct annotation_write_ops wops = {
+	struct ananaltation *analtes = symbol__ananaltation(sym);
+	struct ananaltation_write_ops wops = {
 		.first_line		 = true,
 		.obj			 = fp,
 		.set_color		 = FILE__set_color,
@@ -2748,12 +2748,12 @@ static int symbol__annotate_fprintf2(struct symbol *sym, FILE *fp)
 		.printf			 = FILE__printf,
 		.write_graph		 = FILE__write_graph,
 	};
-	struct annotation_line *al;
+	struct ananaltation_line *al;
 
-	list_for_each_entry(al, &notes->src->source, node) {
-		if (annotation_line__filter(al))
+	list_for_each_entry(al, &analtes->src->source, analde) {
+		if (ananaltation_line__filter(al))
 			continue;
-		annotation_line__write(al, notes, &wops);
+		ananaltation_line__write(al, analtes, &wops);
 		fputc('\n', fp);
 		wops.first_line = false;
 	}
@@ -2761,7 +2761,7 @@ static int symbol__annotate_fprintf2(struct symbol *sym, FILE *fp)
 	return 0;
 }
 
-int map_symbol__annotation_dump(struct map_symbol *ms, struct evsel *evsel)
+int map_symbol__ananaltation_dump(struct map_symbol *ms, struct evsel *evsel)
 {
 	const char *ev_name = evsel__name(evsel);
 	char buf[1024];
@@ -2769,7 +2769,7 @@ int map_symbol__annotation_dump(struct map_symbol *ms, struct evsel *evsel)
 	int err = -1;
 	FILE *fp;
 
-	if (asprintf(&filename, "%s.annotation", ms->sym->name) < 0)
+	if (asprintf(&filename, "%s.ananaltation", ms->sym->name) < 0)
 		return -1;
 
 	fp = fopen(filename, "w");
@@ -2783,7 +2783,7 @@ int map_symbol__annotation_dump(struct map_symbol *ms, struct evsel *evsel)
 
 	fprintf(fp, "%s() %s\nEvent: %s\n\n",
 		ms->sym->name, map__dso(ms->map)->long_name, ev_name);
-	symbol__annotate_fprintf2(ms->sym, fp);
+	symbol__ananaltate_fprintf2(ms->sym, fp);
 
 	fclose(fp);
 	err = 0;
@@ -2792,18 +2792,18 @@ out_free_filename:
 	return err;
 }
 
-void symbol__annotate_zero_histogram(struct symbol *sym, int evidx)
+void symbol__ananaltate_zero_histogram(struct symbol *sym, int evidx)
 {
-	struct annotation *notes = symbol__annotation(sym);
-	struct sym_hist *h = annotation__histogram(notes, evidx);
+	struct ananaltation *analtes = symbol__ananaltation(sym);
+	struct sym_hist *h = ananaltation__histogram(analtes, evidx);
 
-	memset(h, 0, notes->src->sizeof_sym_hist);
+	memset(h, 0, analtes->src->sizeof_sym_hist);
 }
 
-void symbol__annotate_decay_histogram(struct symbol *sym, int evidx)
+void symbol__ananaltate_decay_histogram(struct symbol *sym, int evidx)
 {
-	struct annotation *notes = symbol__annotation(sym);
-	struct sym_hist *h = annotation__histogram(notes, evidx);
+	struct ananaltation *analtes = symbol__ananaltation(sym);
+	struct sym_hist *h = ananaltation__histogram(analtes, evidx);
 	int len = symbol__size(sym), offset;
 
 	h->nr_samples = 0;
@@ -2813,12 +2813,12 @@ void symbol__annotate_decay_histogram(struct symbol *sym, int evidx)
 	}
 }
 
-void annotated_source__purge(struct annotated_source *as)
+void ananaltated_source__purge(struct ananaltated_source *as)
 {
-	struct annotation_line *al, *n;
+	struct ananaltation_line *al, *n;
 
-	list_for_each_entry_safe(al, n, &as->source, node) {
-		list_del_init(&al->node);
+	list_for_each_entry_safe(al, n, &as->source, analde) {
+		list_del_init(&al->analde);
 		disasm_line__free(disasm_line(al));
 	}
 }
@@ -2845,7 +2845,7 @@ size_t disasm__fprintf(struct list_head *head, FILE *fp)
 	struct disasm_line *pos;
 	size_t printed = 0;
 
-	list_for_each_entry(pos, head, al.node)
+	list_for_each_entry(pos, head, al.analde)
 		printed += disasm_line__fprintf(pos, fp);
 
 	return printed;
@@ -2861,7 +2861,7 @@ bool disasm_line__is_valid_local_jump(struct disasm_line *dl, struct symbol *sym
 	return true;
 }
 
-void annotation__mark_jump_targets(struct annotation *notes, struct symbol *sym)
+void ananaltation__mark_jump_targets(struct ananaltation *analtes, struct symbol *sym)
 {
 	u64 offset, size = symbol__size(sym);
 
@@ -2870,7 +2870,7 @@ void annotation__mark_jump_targets(struct annotation *notes, struct symbol *sym)
 		return;
 
 	for (offset = 0; offset < size; ++offset) {
-		struct annotation_line *al = notes->src->offsets[offset];
+		struct ananaltation_line *al = analtes->src->offsets[offset];
 		struct disasm_line *dl;
 
 		dl = disasm_line(al);
@@ -2878,30 +2878,30 @@ void annotation__mark_jump_targets(struct annotation *notes, struct symbol *sym)
 		if (!disasm_line__is_valid_local_jump(dl, sym))
 			continue;
 
-		al = notes->src->offsets[dl->ops.target.offset];
+		al = analtes->src->offsets[dl->ops.target.offset];
 
 		/*
-		 * FIXME: Oops, no jump target? Buggy disassembler? Or do we
+		 * FIXME: Oops, anal jump target? Buggy disassembler? Or do we
 		 * have to adjust to the previous offset?
 		 */
 		if (al == NULL)
 			continue;
 
-		if (++al->jump_sources > notes->max_jump_sources)
-			notes->max_jump_sources = al->jump_sources;
+		if (++al->jump_sources > analtes->max_jump_sources)
+			analtes->max_jump_sources = al->jump_sources;
 	}
 }
 
-void annotation__set_offsets(struct annotation *notes, s64 size)
+void ananaltation__set_offsets(struct ananaltation *analtes, s64 size)
 {
-	struct annotation_line *al;
-	struct annotated_source *src = notes->src;
+	struct ananaltation_line *al;
+	struct ananaltated_source *src = analtes->src;
 
 	src->max_line_len = 0;
 	src->nr_entries = 0;
 	src->nr_asm_entries = 0;
 
-	list_for_each_entry(al, &src->source, node) {
+	list_for_each_entry(al, &src->source, analde) {
 		size_t line_len = strlen(al->line);
 
 		if (src->max_line_len < line_len)
@@ -2917,7 +2917,7 @@ void annotation__set_offsets(struct annotation *notes, s64 size)
 			 * E.g. copy_user_generic_unrolled
  			 */
 			if (al->offset < size)
-				notes->src->offsets[al->offset] = al;
+				analtes->src->offsets[al->offset] = al;
 		} else
 			al->idx_asm = -1;
 	}
@@ -2932,12 +2932,12 @@ static inline int width_jumps(int n)
 	return 1;
 }
 
-static int annotation__max_ins_name(struct annotation *notes)
+static int ananaltation__max_ins_name(struct ananaltation *analtes)
 {
 	int max_name = 0, len;
-	struct annotation_line *al;
+	struct ananaltation_line *al;
 
-        list_for_each_entry(al, &notes->src->source, node) {
+        list_for_each_entry(al, &analtes->src->source, analde) {
 		if (al->offset == -1)
 			continue;
 
@@ -2949,57 +2949,57 @@ static int annotation__max_ins_name(struct annotation *notes)
 	return max_name;
 }
 
-void annotation__init_column_widths(struct annotation *notes, struct symbol *sym)
+void ananaltation__init_column_widths(struct ananaltation *analtes, struct symbol *sym)
 {
-	notes->widths.addr = notes->widths.target =
-		notes->widths.min_addr = hex_width(symbol__size(sym));
-	notes->widths.max_addr = hex_width(sym->end);
-	notes->widths.jumps = width_jumps(notes->max_jump_sources);
-	notes->widths.max_ins_name = annotation__max_ins_name(notes);
+	analtes->widths.addr = analtes->widths.target =
+		analtes->widths.min_addr = hex_width(symbol__size(sym));
+	analtes->widths.max_addr = hex_width(sym->end);
+	analtes->widths.jumps = width_jumps(analtes->max_jump_sources);
+	analtes->widths.max_ins_name = ananaltation__max_ins_name(analtes);
 }
 
-void annotation__update_column_widths(struct annotation *notes)
+void ananaltation__update_column_widths(struct ananaltation *analtes)
 {
-	if (annotate_opts.use_offset)
-		notes->widths.target = notes->widths.min_addr;
-	else if (annotate_opts.full_addr)
-		notes->widths.target = BITS_PER_LONG / 4;
+	if (ananaltate_opts.use_offset)
+		analtes->widths.target = analtes->widths.min_addr;
+	else if (ananaltate_opts.full_addr)
+		analtes->widths.target = BITS_PER_LONG / 4;
 	else
-		notes->widths.target = notes->widths.max_addr;
+		analtes->widths.target = analtes->widths.max_addr;
 
-	notes->widths.addr = notes->widths.target;
+	analtes->widths.addr = analtes->widths.target;
 
-	if (annotate_opts.show_nr_jumps)
-		notes->widths.addr += notes->widths.jumps + 1;
+	if (ananaltate_opts.show_nr_jumps)
+		analtes->widths.addr += analtes->widths.jumps + 1;
 }
 
-void annotation__toggle_full_addr(struct annotation *notes, struct map_symbol *ms)
+void ananaltation__toggle_full_addr(struct ananaltation *analtes, struct map_symbol *ms)
 {
-	annotate_opts.full_addr = !annotate_opts.full_addr;
+	ananaltate_opts.full_addr = !ananaltate_opts.full_addr;
 
-	if (annotate_opts.full_addr)
-		notes->start = map__objdump_2mem(ms->map, ms->sym->start);
+	if (ananaltate_opts.full_addr)
+		analtes->start = map__objdump_2mem(ms->map, ms->sym->start);
 	else
-		notes->start = map__rip_2objdump(ms->map, ms->sym->start);
+		analtes->start = map__rip_2objdump(ms->map, ms->sym->start);
 
-	annotation__update_column_widths(notes);
+	ananaltation__update_column_widths(analtes);
 }
 
-static void annotation__calc_lines(struct annotation *notes, struct map *map,
+static void ananaltation__calc_lines(struct ananaltation *analtes, struct map *map,
 				   struct rb_root *root)
 {
-	struct annotation_line *al;
+	struct ananaltation_line *al;
 	struct rb_root tmp_root = RB_ROOT;
 
-	list_for_each_entry(al, &notes->src->source, node) {
+	list_for_each_entry(al, &analtes->src->source, analde) {
 		double percent_max = 0.0;
 		int i;
 
 		for (i = 0; i < al->data_nr; i++) {
 			double percent;
 
-			percent = annotation_data__percent(&al->data[i],
-							   annotate_opts.percent_type);
+			percent = ananaltation_data__percent(&al->data[i],
+							   ananaltate_opts.percent_type);
 
 			if (percent > percent_max)
 				percent_max = percent;
@@ -3008,8 +3008,8 @@ static void annotation__calc_lines(struct annotation *notes, struct map *map,
 		if (percent_max <= 0.5)
 			continue;
 
-		al->path = get_srcline(map__dso(map), notes->start + al->offset, NULL,
-				       false, true, notes->start + al->offset);
+		al->path = get_srcline(map__dso(map), analtes->start + al->offset, NULL,
+				       false, true, analtes->start + al->offset);
 		insert_source_line(&tmp_root, al);
 	}
 
@@ -3018,12 +3018,12 @@ static void annotation__calc_lines(struct annotation *notes, struct map *map,
 
 static void symbol__calc_lines(struct map_symbol *ms, struct rb_root *root)
 {
-	struct annotation *notes = symbol__annotation(ms->sym);
+	struct ananaltation *analtes = symbol__ananaltation(ms->sym);
 
-	annotation__calc_lines(notes, ms->map, root);
+	ananaltation__calc_lines(analtes, ms->map, root);
 }
 
-int symbol__tty_annotate2(struct map_symbol *ms, struct evsel *evsel)
+int symbol__tty_ananaltate2(struct map_symbol *ms, struct evsel *evsel)
 {
 	struct dso *dso = map__dso(ms->map);
 	struct symbol *sym = ms->sym;
@@ -3032,82 +3032,82 @@ int symbol__tty_annotate2(struct map_symbol *ms, struct evsel *evsel)
 	char buf[1024];
 	int err;
 
-	err = symbol__annotate2(ms, evsel, NULL);
+	err = symbol__ananaltate2(ms, evsel, NULL);
 	if (err) {
 		char msg[BUFSIZ];
 
-		dso->annotate_warned = true;
+		dso->ananaltate_warned = true;
 		symbol__strerror_disassemble(ms, err, msg, sizeof(msg));
-		ui__error("Couldn't annotate %s:\n%s", sym->name, msg);
+		ui__error("Couldn't ananaltate %s:\n%s", sym->name, msg);
 		return -1;
 	}
 
-	if (annotate_opts.print_lines) {
-		srcline_full_filename = annotate_opts.full_path;
+	if (ananaltate_opts.print_lines) {
+		srcline_full_filename = ananaltate_opts.full_path;
 		symbol__calc_lines(ms, &source_line);
 		print_summary(&source_line, dso->long_name);
 	}
 
 	hists__scnprintf_title(hists, buf, sizeof(buf));
 	fprintf(stdout, "%s, [percent: %s]\n%s() %s\n",
-		buf, percent_type_str(annotate_opts.percent_type), sym->name,
+		buf, percent_type_str(ananaltate_opts.percent_type), sym->name,
 		dso->long_name);
-	symbol__annotate_fprintf2(sym, stdout);
+	symbol__ananaltate_fprintf2(sym, stdout);
 
-	annotated_source__purge(symbol__annotation(sym)->src);
+	ananaltated_source__purge(symbol__ananaltation(sym)->src);
 
 	return 0;
 }
 
-int symbol__tty_annotate(struct map_symbol *ms, struct evsel *evsel)
+int symbol__tty_ananaltate(struct map_symbol *ms, struct evsel *evsel)
 {
 	struct dso *dso = map__dso(ms->map);
 	struct symbol *sym = ms->sym;
 	struct rb_root source_line = RB_ROOT;
 	int err;
 
-	err = symbol__annotate(ms, evsel, NULL);
+	err = symbol__ananaltate(ms, evsel, NULL);
 	if (err) {
 		char msg[BUFSIZ];
 
-		dso->annotate_warned = true;
+		dso->ananaltate_warned = true;
 		symbol__strerror_disassemble(ms, err, msg, sizeof(msg));
-		ui__error("Couldn't annotate %s:\n%s", sym->name, msg);
+		ui__error("Couldn't ananaltate %s:\n%s", sym->name, msg);
 		return -1;
 	}
 
 	symbol__calc_percent(sym, evsel);
 
-	if (annotate_opts.print_lines) {
-		srcline_full_filename = annotate_opts.full_path;
+	if (ananaltate_opts.print_lines) {
+		srcline_full_filename = ananaltate_opts.full_path;
 		symbol__calc_lines(ms, &source_line);
 		print_summary(&source_line, dso->long_name);
 	}
 
-	symbol__annotate_printf(ms, evsel);
+	symbol__ananaltate_printf(ms, evsel);
 
-	annotated_source__purge(symbol__annotation(sym)->src);
+	ananaltated_source__purge(symbol__ananaltation(sym)->src);
 
 	return 0;
 }
 
-bool ui__has_annotation(void)
+bool ui__has_ananaltation(void)
 {
 	return use_browser == 1 && perf_hpp_list.sym;
 }
 
 
-static double annotation_line__max_percent(struct annotation_line *al,
-					   struct annotation *notes,
+static double ananaltation_line__max_percent(struct ananaltation_line *al,
+					   struct ananaltation *analtes,
 					   unsigned int percent_type)
 {
 	double percent_max = 0.0;
 	int i;
 
-	for (i = 0; i < notes->nr_events; i++) {
+	for (i = 0; i < analtes->nr_events; i++) {
 		double percent;
 
-		percent = annotation_data__percent(&al->data[i],
+		percent = ananaltation_data__percent(&al->data[i],
 						   percent_type);
 
 		if (percent > percent_max)
@@ -3117,7 +3117,7 @@ static double annotation_line__max_percent(struct annotation_line *al,
 	return percent_max;
 }
 
-static void disasm_line__write(struct disasm_line *dl, struct annotation *notes,
+static void disasm_line__write(struct disasm_line *dl, struct ananaltation *analtes,
 			       void *obj, char *bf, size_t size,
 			       void (*obj__printf)(void *obj, const char *fmt, ...),
 			       void (*obj__write_graph)(void *obj, int graph))
@@ -3145,13 +3145,13 @@ call_like:
 		obj__printf(obj, "  ");
 	}
 
-	disasm_line__scnprintf(dl, bf, size, !annotate_opts.use_offset, notes->widths.max_ins_name);
+	disasm_line__scnprintf(dl, bf, size, !ananaltate_opts.use_offset, analtes->widths.max_ins_name);
 }
 
-static void ipc_coverage_string(char *bf, int size, struct annotation *notes)
+static void ipc_coverage_string(char *bf, int size, struct ananaltation *analtes)
 {
 	double ipc = 0.0, coverage = 0.0;
-	struct annotated_branch *branch = annotation__get_branch(notes);
+	struct ananaltated_branch *branch = ananaltation__get_branch(analtes);
 
 	if (branch && branch->hit_cycles)
 		ipc = branch->hit_insn / ((double)branch->hit_cycles);
@@ -3165,7 +3165,7 @@ static void ipc_coverage_string(char *bf, int size, struct annotation *notes)
 		  ipc, coverage);
 }
 
-static void __annotation_line__write(struct annotation_line *al, struct annotation *notes,
+static void __ananaltation_line__write(struct ananaltation_line *al, struct ananaltation *analtes,
 				     bool first_line, bool current_entry, bool change_color, int width,
 				     void *obj, unsigned int percent_type,
 				     int  (*obj__set_color)(void *obj, int color),
@@ -3175,15 +3175,15 @@ static void __annotation_line__write(struct annotation_line *al, struct annotati
 				     void (*obj__write_graph)(void *obj, int graph))
 
 {
-	double percent_max = annotation_line__max_percent(al, notes, percent_type);
-	int pcnt_width = annotation__pcnt_width(notes),
-	    cycles_width = annotation__cycles_width(notes);
+	double percent_max = ananaltation_line__max_percent(al, analtes, percent_type);
+	int pcnt_width = ananaltation__pcnt_width(analtes),
+	    cycles_width = ananaltation__cycles_width(analtes);
 	bool show_title = false;
 	char bf[256];
 	int printed;
 
 	if (first_line && (al->offset == -1 || percent_max == 0.0)) {
-		if (notes->branch && al->cycles) {
+		if (analtes->branch && al->cycles) {
 			if (al->cycles->ipc == 0.0 && al->cycles->avg == 0)
 				show_title = true;
 		} else
@@ -3193,10 +3193,10 @@ static void __annotation_line__write(struct annotation_line *al, struct annotati
 	if (al->offset != -1 && percent_max != 0.0) {
 		int i;
 
-		for (i = 0; i < notes->nr_events; i++) {
+		for (i = 0; i < analtes->nr_events; i++) {
 			double percent;
 
-			percent = annotation_data__percent(&al->data[i], percent_type);
+			percent = ananaltation_data__percent(&al->data[i], percent_type);
 
 			obj__set_percent_color(obj, percent, current_entry);
 			if (symbol_conf.show_total_period) {
@@ -3220,24 +3220,24 @@ static void __annotation_line__write(struct annotation_line *al, struct annotati
 		}
 	}
 
-	if (notes->branch) {
+	if (analtes->branch) {
 		if (al->cycles && al->cycles->ipc)
-			obj__printf(obj, "%*.2f ", ANNOTATION__IPC_WIDTH - 1, al->cycles->ipc);
+			obj__printf(obj, "%*.2f ", ANANALTATION__IPC_WIDTH - 1, al->cycles->ipc);
 		else if (!show_title)
-			obj__printf(obj, "%*s", ANNOTATION__IPC_WIDTH, " ");
+			obj__printf(obj, "%*s", ANANALTATION__IPC_WIDTH, " ");
 		else
-			obj__printf(obj, "%*s ", ANNOTATION__IPC_WIDTH - 1, "IPC");
+			obj__printf(obj, "%*s ", ANANALTATION__IPC_WIDTH - 1, "IPC");
 
-		if (!annotate_opts.show_minmax_cycle) {
+		if (!ananaltate_opts.show_minmax_cycle) {
 			if (al->cycles && al->cycles->avg)
 				obj__printf(obj, "%*" PRIu64 " ",
-					   ANNOTATION__CYCLES_WIDTH - 1, al->cycles->avg);
+					   ANANALTATION__CYCLES_WIDTH - 1, al->cycles->avg);
 			else if (!show_title)
 				obj__printf(obj, "%*s",
-					    ANNOTATION__CYCLES_WIDTH, " ");
+					    ANANALTATION__CYCLES_WIDTH, " ");
 			else
 				obj__printf(obj, "%*s ",
-					    ANNOTATION__CYCLES_WIDTH - 1,
+					    ANANALTATION__CYCLES_WIDTH - 1,
 					    "Cycle");
 		} else {
 			if (al->cycles) {
@@ -3249,21 +3249,21 @@ static void __annotation_line__write(struct annotation_line *al, struct annotati
 					al->cycles->max);
 
 				obj__printf(obj, "%*s ",
-					    ANNOTATION__MINMAX_CYCLES_WIDTH - 1,
+					    ANANALTATION__MINMAX_CYCLES_WIDTH - 1,
 					    str);
 			} else if (!show_title)
 				obj__printf(obj, "%*s",
-					    ANNOTATION__MINMAX_CYCLES_WIDTH,
+					    ANANALTATION__MINMAX_CYCLES_WIDTH,
 					    " ");
 			else
 				obj__printf(obj, "%*s ",
-					    ANNOTATION__MINMAX_CYCLES_WIDTH - 1,
+					    ANANALTATION__MINMAX_CYCLES_WIDTH - 1,
 					    "Cycle(min/max)");
 		}
 
 		if (show_title && !*al->line) {
-			ipc_coverage_string(bf, sizeof(bf), notes);
-			obj__printf(obj, "%*s", ANNOTATION__AVG_IPC_WIDTH, bf);
+			ipc_coverage_string(bf, sizeof(bf), analtes);
+			obj__printf(obj, "%*s", ANANALTATION__AVG_IPC_WIDTH, bf);
 		}
 	}
 
@@ -3272,28 +3272,28 @@ static void __annotation_line__write(struct annotation_line *al, struct annotati
 	if (!*al->line)
 		obj__printf(obj, "%-*s", width - pcnt_width - cycles_width, " ");
 	else if (al->offset == -1) {
-		if (al->line_nr && annotate_opts.show_linenr)
-			printed = scnprintf(bf, sizeof(bf), "%-*d ", notes->widths.addr + 1, al->line_nr);
+		if (al->line_nr && ananaltate_opts.show_linenr)
+			printed = scnprintf(bf, sizeof(bf), "%-*d ", analtes->widths.addr + 1, al->line_nr);
 		else
-			printed = scnprintf(bf, sizeof(bf), "%-*s  ", notes->widths.addr, " ");
+			printed = scnprintf(bf, sizeof(bf), "%-*s  ", analtes->widths.addr, " ");
 		obj__printf(obj, bf);
 		obj__printf(obj, "%-*s", width - printed - pcnt_width - cycles_width + 1, al->line);
 	} else {
 		u64 addr = al->offset;
 		int color = -1;
 
-		if (!annotate_opts.use_offset)
-			addr += notes->start;
+		if (!ananaltate_opts.use_offset)
+			addr += analtes->start;
 
-		if (!annotate_opts.use_offset) {
+		if (!ananaltate_opts.use_offset) {
 			printed = scnprintf(bf, sizeof(bf), "%" PRIx64 ": ", addr);
 		} else {
 			if (al->jump_sources &&
-			    annotate_opts.offset_level >= ANNOTATION__OFFSET_JUMP_TARGETS) {
-				if (annotate_opts.show_nr_jumps) {
+			    ananaltate_opts.offset_level >= ANANALTATION__OFFSET_JUMP_TARGETS) {
+				if (ananaltate_opts.show_nr_jumps) {
 					int prev;
 					printed = scnprintf(bf, sizeof(bf), "%*d ",
-							    notes->widths.jumps,
+							    analtes->widths.jumps,
 							    al->jump_sources);
 					prev = obj__set_jumps_percent_color(obj, al->jump_sources,
 									    current_entry);
@@ -3302,15 +3302,15 @@ static void __annotation_line__write(struct annotation_line *al, struct annotati
 				}
 print_addr:
 				printed = scnprintf(bf, sizeof(bf), "%*" PRIx64 ": ",
-						    notes->widths.target, addr);
+						    analtes->widths.target, addr);
 			} else if (ins__is_call(&disasm_line(al)->ins) &&
-				   annotate_opts.offset_level >= ANNOTATION__OFFSET_CALL) {
+				   ananaltate_opts.offset_level >= ANANALTATION__OFFSET_CALL) {
 				goto print_addr;
-			} else if (annotate_opts.offset_level == ANNOTATION__MAX_OFFSET_LEVEL) {
+			} else if (ananaltate_opts.offset_level == ANANALTATION__MAX_OFFSET_LEVEL) {
 				goto print_addr;
 			} else {
 				printed = scnprintf(bf, sizeof(bf), "%-*s  ",
-						    notes->widths.addr, " ");
+						    analtes->widths.addr, " ");
 			}
 		}
 
@@ -3320,147 +3320,147 @@ print_addr:
 		if (change_color)
 			obj__set_color(obj, color);
 
-		disasm_line__write(disasm_line(al), notes, obj, bf, sizeof(bf), obj__printf, obj__write_graph);
+		disasm_line__write(disasm_line(al), analtes, obj, bf, sizeof(bf), obj__printf, obj__write_graph);
 
 		obj__printf(obj, "%-*s", width - pcnt_width - cycles_width - 3 - printed, bf);
 	}
 
 }
 
-void annotation_line__write(struct annotation_line *al, struct annotation *notes,
-			    struct annotation_write_ops *wops)
+void ananaltation_line__write(struct ananaltation_line *al, struct ananaltation *analtes,
+			    struct ananaltation_write_ops *wops)
 {
-	__annotation_line__write(al, notes, wops->first_line, wops->current_entry,
+	__ananaltation_line__write(al, analtes, wops->first_line, wops->current_entry,
 				 wops->change_color, wops->width, wops->obj,
-				 annotate_opts.percent_type,
+				 ananaltate_opts.percent_type,
 				 wops->set_color, wops->set_percent_color,
 				 wops->set_jumps_percent_color, wops->printf,
 				 wops->write_graph);
 }
 
-int symbol__annotate2(struct map_symbol *ms, struct evsel *evsel,
+int symbol__ananaltate2(struct map_symbol *ms, struct evsel *evsel,
 		      struct arch **parch)
 {
 	struct symbol *sym = ms->sym;
-	struct annotation *notes = symbol__annotation(sym);
+	struct ananaltation *analtes = symbol__ananaltation(sym);
 	size_t size = symbol__size(sym);
 	int nr_pcnt = 1, err;
 
-	notes->src->offsets = zalloc(size * sizeof(struct annotation_line *));
-	if (notes->src->offsets == NULL)
-		return ENOMEM;
+	analtes->src->offsets = zalloc(size * sizeof(struct ananaltation_line *));
+	if (analtes->src->offsets == NULL)
+		return EANALMEM;
 
 	if (evsel__is_group_event(evsel))
 		nr_pcnt = evsel->core.nr_members;
 
-	err = symbol__annotate(ms, evsel, parch);
+	err = symbol__ananaltate(ms, evsel, parch);
 	if (err)
 		goto out_free_offsets;
 
 	symbol__calc_percent(sym, evsel);
 
-	annotation__set_offsets(notes, size);
-	annotation__mark_jump_targets(notes, sym);
+	ananaltation__set_offsets(analtes, size);
+	ananaltation__mark_jump_targets(analtes, sym);
 
-	err = annotation__compute_ipc(notes, size);
+	err = ananaltation__compute_ipc(analtes, size);
 	if (err)
 		goto out_free_offsets;
 
-	annotation__init_column_widths(notes, sym);
-	notes->nr_events = nr_pcnt;
+	ananaltation__init_column_widths(analtes, sym);
+	analtes->nr_events = nr_pcnt;
 
-	annotation__update_column_widths(notes);
-	sym->annotate2 = 1;
+	ananaltation__update_column_widths(analtes);
+	sym->ananaltate2 = 1;
 
 	return 0;
 
 out_free_offsets:
-	zfree(&notes->src->offsets);
+	zfree(&analtes->src->offsets);
 	return err;
 }
 
-static int annotation__config(const char *var, const char *value, void *data)
+static int ananaltation__config(const char *var, const char *value, void *data)
 {
-	struct annotation_options *opt = data;
+	struct ananaltation_options *opt = data;
 
-	if (!strstarts(var, "annotate."))
+	if (!strstarts(var, "ananaltate."))
 		return 0;
 
-	if (!strcmp(var, "annotate.offset_level")) {
+	if (!strcmp(var, "ananaltate.offset_level")) {
 		perf_config_u8(&opt->offset_level, "offset_level", value);
 
-		if (opt->offset_level > ANNOTATION__MAX_OFFSET_LEVEL)
-			opt->offset_level = ANNOTATION__MAX_OFFSET_LEVEL;
-		else if (opt->offset_level < ANNOTATION__MIN_OFFSET_LEVEL)
-			opt->offset_level = ANNOTATION__MIN_OFFSET_LEVEL;
-	} else if (!strcmp(var, "annotate.hide_src_code")) {
+		if (opt->offset_level > ANANALTATION__MAX_OFFSET_LEVEL)
+			opt->offset_level = ANANALTATION__MAX_OFFSET_LEVEL;
+		else if (opt->offset_level < ANANALTATION__MIN_OFFSET_LEVEL)
+			opt->offset_level = ANANALTATION__MIN_OFFSET_LEVEL;
+	} else if (!strcmp(var, "ananaltate.hide_src_code")) {
 		opt->hide_src_code = perf_config_bool("hide_src_code", value);
-	} else if (!strcmp(var, "annotate.jump_arrows")) {
+	} else if (!strcmp(var, "ananaltate.jump_arrows")) {
 		opt->jump_arrows = perf_config_bool("jump_arrows", value);
-	} else if (!strcmp(var, "annotate.show_linenr")) {
+	} else if (!strcmp(var, "ananaltate.show_linenr")) {
 		opt->show_linenr = perf_config_bool("show_linenr", value);
-	} else if (!strcmp(var, "annotate.show_nr_jumps")) {
+	} else if (!strcmp(var, "ananaltate.show_nr_jumps")) {
 		opt->show_nr_jumps = perf_config_bool("show_nr_jumps", value);
-	} else if (!strcmp(var, "annotate.show_nr_samples")) {
+	} else if (!strcmp(var, "ananaltate.show_nr_samples")) {
 		symbol_conf.show_nr_samples = perf_config_bool("show_nr_samples",
 								value);
-	} else if (!strcmp(var, "annotate.show_total_period")) {
+	} else if (!strcmp(var, "ananaltate.show_total_period")) {
 		symbol_conf.show_total_period = perf_config_bool("show_total_period",
 								value);
-	} else if (!strcmp(var, "annotate.use_offset")) {
+	} else if (!strcmp(var, "ananaltate.use_offset")) {
 		opt->use_offset = perf_config_bool("use_offset", value);
-	} else if (!strcmp(var, "annotate.disassembler_style")) {
+	} else if (!strcmp(var, "ananaltate.disassembler_style")) {
 		opt->disassembler_style = strdup(value);
 		if (!opt->disassembler_style) {
-			pr_err("Not enough memory for annotate.disassembler_style\n");
+			pr_err("Analt eanalugh memory for ananaltate.disassembler_style\n");
 			return -1;
 		}
-	} else if (!strcmp(var, "annotate.objdump")) {
+	} else if (!strcmp(var, "ananaltate.objdump")) {
 		opt->objdump_path = strdup(value);
 		if (!opt->objdump_path) {
-			pr_err("Not enough memory for annotate.objdump\n");
+			pr_err("Analt eanalugh memory for ananaltate.objdump\n");
 			return -1;
 		}
-	} else if (!strcmp(var, "annotate.addr2line")) {
+	} else if (!strcmp(var, "ananaltate.addr2line")) {
 		symbol_conf.addr2line_path = strdup(value);
 		if (!symbol_conf.addr2line_path) {
-			pr_err("Not enough memory for annotate.addr2line\n");
+			pr_err("Analt eanalugh memory for ananaltate.addr2line\n");
 			return -1;
 		}
-	} else if (!strcmp(var, "annotate.demangle")) {
+	} else if (!strcmp(var, "ananaltate.demangle")) {
 		symbol_conf.demangle = perf_config_bool("demangle", value);
-	} else if (!strcmp(var, "annotate.demangle_kernel")) {
+	} else if (!strcmp(var, "ananaltate.demangle_kernel")) {
 		symbol_conf.demangle_kernel = perf_config_bool("demangle_kernel", value);
 	} else {
-		pr_debug("%s variable unknown, ignoring...", var);
+		pr_debug("%s variable unkanalwn, iganalring...", var);
 	}
 
 	return 0;
 }
 
-void annotation_options__init(void)
+void ananaltation_options__init(void)
 {
-	struct annotation_options *opt = &annotate_opts;
+	struct ananaltation_options *opt = &ananaltate_opts;
 
 	memset(opt, 0, sizeof(*opt));
 
 	/* Default values. */
 	opt->use_offset = true;
 	opt->jump_arrows = true;
-	opt->annotate_src = true;
-	opt->offset_level = ANNOTATION__OFFSET_JUMP_TARGETS;
+	opt->ananaltate_src = true;
+	opt->offset_level = ANANALTATION__OFFSET_JUMP_TARGETS;
 	opt->percent_type = PERCENT_PERIOD_LOCAL;
 }
 
-void annotation_options__exit(void)
+void ananaltation_options__exit(void)
 {
-	zfree(&annotate_opts.disassembler_style);
-	zfree(&annotate_opts.objdump_path);
+	zfree(&ananaltate_opts.disassembler_style);
+	zfree(&ananaltate_opts.objdump_path);
 }
 
-void annotation_config__init(void)
+void ananaltation_config__init(void)
 {
-	perf_config(annotation__config, &annotate_opts);
+	perf_config(ananaltation__config, &ananaltate_opts);
 }
 
 static unsigned int parse_percent_type(char *str1, char *str2)
@@ -3484,7 +3484,7 @@ static unsigned int parse_percent_type(char *str1, char *str2)
 	return type;
 }
 
-int annotate_parse_percent_type(const struct option *opt __maybe_unused, const char *_str,
+int ananaltate_parse_percent_type(const struct option *opt __maybe_unused, const char *_str,
 				int unset __maybe_unused)
 {
 	unsigned int type;
@@ -3493,7 +3493,7 @@ int annotate_parse_percent_type(const struct option *opt __maybe_unused, const c
 
 	str1 = strdup(_str);
 	if (!str1)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	str2 = strchr(str1, '-');
 	if (!str2)
@@ -3505,7 +3505,7 @@ int annotate_parse_percent_type(const struct option *opt __maybe_unused, const c
 	if (type == (unsigned int) -1)
 		type = parse_percent_type(str2, str1);
 	if (type != (unsigned int) -1) {
-		annotate_opts.percent_type = type;
+		ananaltate_opts.percent_type = type;
 		err = 0;
 	}
 
@@ -3514,9 +3514,9 @@ out:
 	return err;
 }
 
-int annotate_check_args(void)
+int ananaltate_check_args(void)
 {
-	struct annotation_options *args = &annotate_opts;
+	struct ananaltation_options *args = &ananaltate_opts;
 
 	if (args->prefix_strip && !args->prefix) {
 		pr_err("--prefix-strip requires --prefix\n");
@@ -3532,7 +3532,7 @@ int annotate_check_args(void)
  * Fills @reg and @offset when return 0.
  */
 static int extract_reg_offset(struct arch *arch, const char *str,
-			      struct annotated_op_loc *op_loc)
+			      struct ananaltated_op_loc *op_loc)
 {
 	char *p;
 	char *regname;
@@ -3569,7 +3569,7 @@ static int extract_reg_offset(struct arch *arch, const char *str,
 }
 
 /**
- * annotate_get_insn_location - Get location of instruction
+ * ananaltate_get_insn_location - Get location of instruction
  * @arch: the architecture info
  * @dl: the target instruction
  * @loc: a buffer to save the data
@@ -3586,11 +3586,11 @@ static int extract_reg_offset(struct arch *arch, const char *str,
  *
  *   mov  0x18, %r8      # src_reg = -1, dst_reg = r8
  */
-int annotate_get_insn_location(struct arch *arch, struct disasm_line *dl,
-			       struct annotated_insn_loc *loc)
+int ananaltate_get_insn_location(struct arch *arch, struct disasm_line *dl,
+			       struct ananaltated_insn_loc *loc)
 {
 	struct ins_operands *ops;
-	struct annotated_op_loc *op_loc;
+	struct ananaltated_op_loc *op_loc;
 	int i;
 
 	if (!strcmp(dl->ins.name, "lock"))
@@ -3631,22 +3631,22 @@ int annotate_get_insn_location(struct arch *arch, struct disasm_line *dl,
 	return 0;
 }
 
-static void symbol__ensure_annotate(struct map_symbol *ms, struct evsel *evsel)
+static void symbol__ensure_ananaltate(struct map_symbol *ms, struct evsel *evsel)
 {
 	struct disasm_line *dl, *tmp_dl;
-	struct annotation *notes;
+	struct ananaltation *analtes;
 
-	notes = symbol__annotation(ms->sym);
-	if (!list_empty(&notes->src->source))
+	analtes = symbol__ananaltation(ms->sym);
+	if (!list_empty(&analtes->src->source))
 		return;
 
-	if (symbol__annotate(ms, evsel, NULL) < 0)
+	if (symbol__ananaltate(ms, evsel, NULL) < 0)
 		return;
 
-	/* remove non-insn disasm lines for simplicity */
-	list_for_each_entry_safe(dl, tmp_dl, &notes->src->source, al.node) {
+	/* remove analn-insn disasm lines for simplicity */
+	list_for_each_entry_safe(dl, tmp_dl, &analtes->src->source, al.analde) {
 		if (dl->al.offset == -1) {
-			list_del(&dl->al.node);
+			list_del(&dl->al.analde);
 			free(dl);
 		}
 	}
@@ -3655,21 +3655,21 @@ static void symbol__ensure_annotate(struct map_symbol *ms, struct evsel *evsel)
 static struct disasm_line *find_disasm_line(struct symbol *sym, u64 ip)
 {
 	struct disasm_line *dl;
-	struct annotation *notes;
+	struct ananaltation *analtes;
 
-	notes = symbol__annotation(sym);
+	analtes = symbol__ananaltation(sym);
 
-	list_for_each_entry(dl, &notes->src->source, al.node) {
+	list_for_each_entry(dl, &analtes->src->source, al.analde) {
 		if (sym->start + dl->al.offset == ip)
 			return dl;
 	}
 	return NULL;
 }
 
-static struct annotated_item_stat *annotate_data_stat(struct list_head *head,
+static struct ananaltated_item_stat *ananaltate_data_stat(struct list_head *head,
 						      const char *name)
 {
-	struct annotated_item_stat *istat;
+	struct ananaltated_item_stat *istat;
 
 	list_for_each_entry(istat, head, list) {
 		if (!strcmp(istat->name, name))
@@ -3694,43 +3694,43 @@ static struct annotated_item_stat *annotate_data_stat(struct list_head *head,
  * hist_entry__get_data_type - find data type for given hist entry
  * @he: hist entry
  *
- * This function first annotates the instruction at @he->ip and extracts
+ * This function first ananaltates the instruction at @he->ip and extracts
  * register and offset info from it.  Then it searches the DWARF debug
  * info to get a variable and type information using the address, register,
  * and offset.
  */
-struct annotated_data_type *hist_entry__get_data_type(struct hist_entry *he)
+struct ananaltated_data_type *hist_entry__get_data_type(struct hist_entry *he)
 {
 	struct map_symbol *ms = &he->ms;
 	struct evsel *evsel = hists_to_evsel(he->hists);
 	struct arch *arch;
 	struct disasm_line *dl;
-	struct annotated_insn_loc loc;
-	struct annotated_op_loc *op_loc;
-	struct annotated_data_type *mem_type;
-	struct annotated_item_stat *istat;
+	struct ananaltated_insn_loc loc;
+	struct ananaltated_op_loc *op_loc;
+	struct ananaltated_data_type *mem_type;
+	struct ananaltated_item_stat *istat;
 	u64 ip = he->ip;
 	int i;
 
 	ann_data_stat.total++;
 
 	if (ms->map == NULL || ms->sym == NULL) {
-		ann_data_stat.no_sym++;
+		ann_data_stat.anal_sym++;
 		return NULL;
 	}
 
-	if (!symbol_conf.init_annotation) {
-		ann_data_stat.no_sym++;
+	if (!symbol_conf.init_ananaltation) {
+		ann_data_stat.anal_sym++;
 		return NULL;
 	}
 
 	if (evsel__get_arch(evsel, &arch) < 0) {
-		ann_data_stat.no_insn++;
+		ann_data_stat.anal_insn++;
 		return NULL;
 	}
 
 	/* Make sure it runs objdump to get disasm of the function */
-	symbol__ensure_annotate(ms, evsel);
+	symbol__ensure_ananaltate(ms, evsel);
 
 	/*
 	 * Get a disasm to extract the location from the insn.
@@ -3738,18 +3738,18 @@ struct annotated_data_type *hist_entry__get_data_type(struct hist_entry *he)
 	 */
 	dl = find_disasm_line(ms->sym, ip);
 	if (dl == NULL) {
-		ann_data_stat.no_insn++;
+		ann_data_stat.anal_insn++;
 		return NULL;
 	}
 
-	istat = annotate_data_stat(&ann_insn_stat, dl->ins.name);
+	istat = ananaltate_data_stat(&ann_insn_stat, dl->ins.name);
 	if (istat == NULL) {
-		ann_data_stat.no_insn++;
+		ann_data_stat.anal_insn++;
 		return NULL;
 	}
 
-	if (annotate_get_insn_location(arch, dl, &loc) < 0) {
-		ann_data_stat.no_insn_ops++;
+	if (ananaltate_get_insn_location(arch, dl, &loc) < 0) {
+		ann_data_stat.anal_insn_ops++;
 		istat->bad++;
 		return NULL;
 	}
@@ -3764,8 +3764,8 @@ struct annotated_data_type *hist_entry__get_data_type(struct hist_entry *he)
 		else
 			istat->bad++;
 
-		if (symbol_conf.annotate_data_sample) {
-			annotated_data_type__update_samples(mem_type, evsel,
+		if (symbol_conf.ananaltate_data_sample) {
+			ananaltated_data_type__update_samples(mem_type, evsel,
 							    op_loc->offset,
 							    he->stat.nr_events,
 							    he->stat.period);
@@ -3774,7 +3774,7 @@ struct annotated_data_type *hist_entry__get_data_type(struct hist_entry *he)
 		return mem_type;
 	}
 
-	ann_data_stat.no_mem_ops++;
+	ann_data_stat.anal_mem_ops++;
 	istat->bad++;
 	return NULL;
 }

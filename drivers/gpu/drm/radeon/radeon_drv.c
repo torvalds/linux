@@ -16,13 +16,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * VA LINUX SYSTEMS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -34,7 +34,7 @@
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
 #include <linux/vga_switcheroo.h>
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_analtifier.h>
 #include <linux/pci.h>
 
 #include <drm/drm_aperture.h>
@@ -63,7 +63,7 @@
  * - 2.4.0 - add crtc id query
  * - 2.5.0 - add get accel 2 to work around ddx breakage for evergreen
  * - 2.6.0 - add tiling config query (r6xx+), add initial HiZ support (r300->r500)
- *   2.7.0 - fixups for r600 2D tiling support. (no external ABI change), add eg dyn gpr regs
+ *   2.7.0 - fixups for r600 2D tiling support. (anal external ABI change), add eg dyn gpr regs
  *   2.8.0 - pageflip support, r500 US_FORMAT regs. r500 ARGB2101010 colorbuf, r300->r500 CMASK, clock crystal query
  *   2.9.0 - r600 tiling (s3tc,rgtc) working, SET_PREDICATION packet 3 on r600 + eg, backend query
  *   2.10.0 - fusion 2D tiling
@@ -105,16 +105,16 @@
  *   2.44.0 - SET_APPEND_CNT packet3 support
  *   2.45.0 - Allow setting shader registers using DMA/COPY packet3 on SI
  *   2.46.0 - Add PFP_SYNC_ME support on evergreen
- *   2.47.0 - Add UVD_NO_OP register support
+ *   2.47.0 - Add UVD_ANAL_OP register support
  *   2.48.0 - TA_CS_BC_BASE_ADDR allowed on SI
  *   2.49.0 - DRM_RADEON_GEM_INFO ioctl returns correct vram_size/visible values
  *   2.50.0 - Allows unaligned shader loads on CIK. (needed by OpenGL)
  */
 #define KMS_DRIVER_MAJOR	2
-#define KMS_DRIVER_MINOR	50
+#define KMS_DRIVER_MIANALR	50
 #define KMS_DRIVER_PATCHLEVEL	0
 
-int radeon_no_wb;
+int radeon_anal_wb;
 int radeon_modeset = -1;
 int radeon_dynclks = -1;
 int radeon_r4xx_atom;
@@ -146,8 +146,8 @@ int radeon_auxch = -1;
 int radeon_uvd = 1;
 int radeon_vce = 1;
 
-MODULE_PARM_DESC(no_wb, "Disable AGP writeback for scratch registers");
-module_param_named(no_wb, radeon_no_wb, int, 0444);
+MODULE_PARM_DESC(anal_wb, "Disable AGP writeback for scratch registers");
+module_param_named(anal_wb, radeon_anal_wb, int, 0444);
 
 MODULE_PARM_DESC(modeset, "Disable/Enable modesetting");
 module_param_named(modeset, radeon_modeset, int, 0400);
@@ -182,7 +182,7 @@ module_param_named(tv, radeon_tv, int, 0444);
 MODULE_PARM_DESC(audio, "Audio enable (-1 = auto, 0 = disable, 1 = enable)");
 module_param_named(audio, radeon_audio, int, 0444);
 
-MODULE_PARM_DESC(disp_priority, "Display Priority (0 = auto, 1 = normal, 2 = high)");
+MODULE_PARM_DESC(disp_priority, "Display Priority (0 = auto, 1 = analrmal, 2 = high)");
 module_param_named(disp_priority, radeon_disp_priority, int, 0444);
 
 MODULE_PARM_DESC(hw_i2c, "hw i2c engine enable (0 = disable)");
@@ -263,7 +263,7 @@ static int radeon_pci_probe(struct pci_dev *pdev,
 	int ret;
 
 	if (!ent)
-		return -ENODEV; /* Avoid NULL-ptr deref in drm_get_pci_dev */
+		return -EANALDEV; /* Avoid NULL-ptr deref in drm_get_pci_dev */
 
 	flags = ent->driver_data;
 
@@ -276,7 +276,7 @@ static int radeon_pci_probe(struct pci_dev *pdev,
 		case CHIP_HAINAN:
 			dev_info(&pdev->dev,
 				 "SI support disabled by module param\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 	if (!radeon_cik_support) {
@@ -288,7 +288,7 @@ static int radeon_pci_probe(struct pci_dev *pdev,
 		case CHIP_MULLINS:
 			dev_info(&pdev->dev,
 				 "CIK support disabled by module param\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 
@@ -405,7 +405,7 @@ static int radeon_pmops_runtime_suspend(struct device *dev)
 	radeon_suspend_kms(drm_dev, false, false, false);
 	pci_save_state(pdev);
 	pci_disable_device(pdev);
-	pci_ignore_hotplug(pdev);
+	pci_iganalre_hotplug(pdev);
 	if (radeon_is_atpx_hybrid())
 		pci_set_power_state(pdev, PCI_D3cold);
 	else if (!radeon_has_atpx_dgpu_power_cntl())
@@ -471,7 +471,7 @@ long radeon_drm_ioctl(struct file *filp,
 	struct drm_device *dev;
 	long ret;
 
-	dev = file_priv->minor->dev;
+	dev = file_priv->mianalr->dev;
 	ret = pm_runtime_get_sync(dev->dev);
 	if (ret < 0) {
 		pm_runtime_put_autosuspend(dev->dev);
@@ -585,7 +585,7 @@ static const struct drm_driver kms_driver = {
 	.desc = DRIVER_DESC,
 	.date = DRIVER_DATE,
 	.major = KMS_DRIVER_MAJOR,
-	.minor = KMS_DRIVER_MINOR,
+	.mianalr = KMS_DRIVER_MIANALR,
 	.patchlevel = KMS_DRIVER_PATCHLEVEL,
 };
 
@@ -616,7 +616,7 @@ static void __exit radeon_module_exit(void)
 {
 	pci_unregister_driver(&radeon_kms_pci_driver);
 	radeon_unregister_atpx_handler();
-	mmu_notifier_synchronize();
+	mmu_analtifier_synchronize();
 }
 
 module_init(radeon_module_init);

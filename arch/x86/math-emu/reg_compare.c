@@ -38,36 +38,36 @@ static int compare(FPU_REG const *b, int tagb)
 	if (st0_tag == TAG_Special)
 		st0_tag = FPU_Special(st0_ptr);
 
-	if (((st0_tag != TAG_Valid) && (st0_tag != TW_Denormal))
-	    || ((tagb != TAG_Valid) && (tagb != TW_Denormal))) {
+	if (((st0_tag != TAG_Valid) && (st0_tag != TW_Deanalrmal))
+	    || ((tagb != TAG_Valid) && (tagb != TW_Deanalrmal))) {
 		if (st0_tag == TAG_Zero) {
 			if (tagb == TAG_Zero)
 				return COMP_A_eq_B;
 			if (tagb == TAG_Valid)
 				return ((signb ==
 					 SIGN_POS) ? COMP_A_lt_B : COMP_A_gt_B);
-			if (tagb == TW_Denormal)
+			if (tagb == TW_Deanalrmal)
 				return ((signb ==
 					 SIGN_POS) ? COMP_A_lt_B : COMP_A_gt_B)
-				    | COMP_Denormal;
+				    | COMP_Deanalrmal;
 		} else if (tagb == TAG_Zero) {
 			if (st0_tag == TAG_Valid)
 				return ((st0_sign ==
 					 SIGN_POS) ? COMP_A_gt_B : COMP_A_lt_B);
-			if (st0_tag == TW_Denormal)
+			if (st0_tag == TW_Deanalrmal)
 				return ((st0_sign ==
 					 SIGN_POS) ? COMP_A_gt_B : COMP_A_lt_B)
-				    | COMP_Denormal;
+				    | COMP_Deanalrmal;
 		}
 
 		if (st0_tag == TW_Infinity) {
 			if ((tagb == TAG_Valid) || (tagb == TAG_Zero))
 				return ((st0_sign ==
 					 SIGN_POS) ? COMP_A_gt_B : COMP_A_lt_B);
-			else if (tagb == TW_Denormal)
+			else if (tagb == TW_Deanalrmal)
 				return ((st0_sign ==
 					 SIGN_POS) ? COMP_A_gt_B : COMP_A_lt_B)
-				    | COMP_Denormal;
+				    | COMP_Deanalrmal;
 			else if (tagb == TW_Infinity) {
 				/* The 80486 book says that infinities can be equal! */
 				return (st0_sign == signb) ? COMP_A_eq_B :
@@ -79,14 +79,14 @@ static int compare(FPU_REG const *b, int tagb)
 			if ((st0_tag == TAG_Valid) || (st0_tag == TAG_Zero))
 				return ((signb ==
 					 SIGN_POS) ? COMP_A_lt_B : COMP_A_gt_B);
-			if (st0_tag == TW_Denormal)
+			if (st0_tag == TW_Deanalrmal)
 				return ((signb ==
 					 SIGN_POS) ? COMP_A_lt_B : COMP_A_gt_B)
-				    | COMP_Denormal;
+				    | COMP_Deanalrmal;
 			/* Fall through to the NaN code */
 		}
 
-		/* The only possibility now should be that one of the arguments
+		/* The only possibility analw should be that one of the arguments
 		   is a NaN */
 		if ((st0_tag == TW_NaN) || (tagb == TW_NaN)) {
 			int signalling = 0, unsupported = 0;
@@ -104,10 +104,10 @@ static int compare(FPU_REG const *b, int tagb)
 						 && (b->sigh & 0x80000000));
 			}
 			if (signalling || unsupported)
-				return COMP_No_Comp | COMP_SNaN | COMP_NaN;
+				return COMP_Anal_Comp | COMP_SNaN | COMP_NaN;
 			else
 				/* Neither is a signaling NaN */
-				return COMP_No_Comp | COMP_NaN;
+				return COMP_Anal_Comp | COMP_NaN;
 		}
 
 		EXCEPTION(EX_Invalid);
@@ -115,11 +115,11 @@ static int compare(FPU_REG const *b, int tagb)
 
 	if (st0_sign != signb) {
 		return ((st0_sign == SIGN_POS) ? COMP_A_gt_B : COMP_A_lt_B)
-		    | (((st0_tag == TW_Denormal) || (tagb == TW_Denormal)) ?
-		       COMP_Denormal : 0);
+		    | (((st0_tag == TW_Deanalrmal) || (tagb == TW_Deanalrmal)) ?
+		       COMP_Deanalrmal : 0);
 	}
 
-	if ((st0_tag == TW_Denormal) || (tagb == TW_Denormal)) {
+	if ((st0_tag == TW_Deanalrmal) || (tagb == TW_Deanalrmal)) {
 		FPU_to_exp16(st0_ptr, &x);
 		FPU_to_exp16(b, &y);
 		st0_ptr = &x;
@@ -131,12 +131,12 @@ static int compare(FPU_REG const *b, int tagb)
 		expb = exponent(b);
 	}
 
-#ifdef PARANOID
+#ifdef PARAANALID
 	if (!(st0_ptr->sigh & 0x80000000))
 		EXCEPTION(EX_Invalid);
 	if (!(b->sigh & 0x80000000))
 		EXCEPTION(EX_Invalid);
-#endif /* PARANOID */
+#endif /* PARAANALID */
 
 	diff = exp0 - expb;
 	if (diff == 0) {
@@ -151,22 +151,22 @@ static int compare(FPU_REG const *b, int tagb)
 
 	if (diff > 0) {
 		return ((st0_sign == SIGN_POS) ? COMP_A_gt_B : COMP_A_lt_B)
-		    | (((st0_tag == TW_Denormal) || (tagb == TW_Denormal)) ?
-		       COMP_Denormal : 0);
+		    | (((st0_tag == TW_Deanalrmal) || (tagb == TW_Deanalrmal)) ?
+		       COMP_Deanalrmal : 0);
 	}
 	if (diff < 0) {
 		return ((st0_sign == SIGN_POS) ? COMP_A_lt_B : COMP_A_gt_B)
-		    | (((st0_tag == TW_Denormal) || (tagb == TW_Denormal)) ?
-		       COMP_Denormal : 0);
+		    | (((st0_tag == TW_Deanalrmal) || (tagb == TW_Deanalrmal)) ?
+		       COMP_Deanalrmal : 0);
 	}
 
 	return COMP_A_eq_B
-	    | (((st0_tag == TW_Denormal) || (tagb == TW_Denormal)) ?
-	       COMP_Denormal : 0);
+	    | (((st0_tag == TW_Deanalrmal) || (tagb == TW_Deanalrmal)) ?
+	       COMP_Deanalrmal : 0);
 
 }
 
-/* This function requires that st(0) is not empty */
+/* This function requires that st(0) is analt empty */
 int FPU_compare_st_data(FPU_REG const *loaded_data, u_char loaded_tag)
 {
 	int f, c;
@@ -187,19 +187,19 @@ int FPU_compare_st_data(FPU_REG const *loaded_data, u_char loaded_tag)
 		case COMP_A_gt_B:
 			f = 0;
 			break;
-		case COMP_No_Comp:
+		case COMP_Anal_Comp:
 			f = SW_C3 | SW_C2 | SW_C0;
 			break;
 		default:
-#ifdef PARANOID
+#ifdef PARAANALID
 			EXCEPTION(EX_INTERNAL | 0x121);
-#endif /* PARANOID */
+#endif /* PARAANALID */
 			f = SW_C3 | SW_C2 | SW_C0;
 			break;
 		}
 	setcc(f);
-	if (c & COMP_Denormal) {
-		return denormal_operand() < 0;
+	if (c & COMP_Deanalrmal) {
+		return deanalrmal_operand() < 0;
 	}
 	return 0;
 }
@@ -209,7 +209,7 @@ static int compare_st_st(int nr)
 	int f, c;
 	FPU_REG *st_ptr;
 
-	if (!NOT_EMPTY(0) || !NOT_EMPTY(nr)) {
+	if (!ANALT_EMPTY(0) || !ANALT_EMPTY(nr)) {
 		setcc(SW_C3 | SW_C2 | SW_C0);
 		/* Stack fault */
 		EXCEPTION(EX_StackUnder);
@@ -233,19 +233,19 @@ static int compare_st_st(int nr)
 		case COMP_A_gt_B:
 			f = 0;
 			break;
-		case COMP_No_Comp:
+		case COMP_Anal_Comp:
 			f = SW_C3 | SW_C2 | SW_C0;
 			break;
 		default:
-#ifdef PARANOID
+#ifdef PARAANALID
 			EXCEPTION(EX_INTERNAL | 0x122);
-#endif /* PARANOID */
+#endif /* PARAANALID */
 			f = SW_C3 | SW_C2 | SW_C0;
 			break;
 		}
 	setcc(f);
-	if (c & COMP_Denormal) {
-		return denormal_operand() < 0;
+	if (c & COMP_Deanalrmal) {
+		return deanalrmal_operand() < 0;
 	}
 	return 0;
 }
@@ -255,7 +255,7 @@ static int compare_i_st_st(int nr)
 	int f, c;
 	FPU_REG *st_ptr;
 
-	if (!NOT_EMPTY(0) || !NOT_EMPTY(nr)) {
+	if (!ANALT_EMPTY(0) || !ANALT_EMPTY(nr)) {
 		FPU_EFLAGS |= (X86_EFLAGS_ZF | X86_EFLAGS_PF | X86_EFLAGS_CF);
 		/* Stack fault */
 		EXCEPTION(EX_StackUnder);
@@ -281,19 +281,19 @@ static int compare_i_st_st(int nr)
 	case COMP_A_gt_B:
 		f = 0;
 		break;
-	case COMP_No_Comp:
+	case COMP_Anal_Comp:
 		f = X86_EFLAGS_ZF | X86_EFLAGS_PF | X86_EFLAGS_CF;
 		break;
 	default:
-#ifdef PARANOID
+#ifdef PARAANALID
 		EXCEPTION(EX_INTERNAL | 0x122);
-#endif /* PARANOID */
+#endif /* PARAANALID */
 		f = 0;
 		break;
 	}
 	FPU_EFLAGS = (FPU_EFLAGS & ~(X86_EFLAGS_ZF | X86_EFLAGS_PF | X86_EFLAGS_CF)) | f;
-	if (c & COMP_Denormal) {
-		return denormal_operand() < 0;
+	if (c & COMP_Deanalrmal) {
+		return deanalrmal_operand() < 0;
 	}
 	return 0;
 }
@@ -303,7 +303,7 @@ static int compare_u_st_st(int nr)
 	int f = 0, c;
 	FPU_REG *st_ptr;
 
-	if (!NOT_EMPTY(0) || !NOT_EMPTY(nr)) {
+	if (!ANALT_EMPTY(0) || !ANALT_EMPTY(nr)) {
 		setcc(SW_C3 | SW_C2 | SW_C0);
 		/* Stack fault */
 		EXCEPTION(EX_StackUnder);
@@ -331,19 +331,19 @@ static int compare_u_st_st(int nr)
 		case COMP_A_gt_B:
 			f = 0;
 			break;
-		case COMP_No_Comp:
+		case COMP_Anal_Comp:
 			f = SW_C3 | SW_C2 | SW_C0;
 			break;
-#ifdef PARANOID
+#ifdef PARAANALID
 		default:
 			EXCEPTION(EX_INTERNAL | 0x123);
 			f = SW_C3 | SW_C2 | SW_C0;
 			break;
-#endif /* PARANOID */
+#endif /* PARAANALID */
 		}
 	setcc(f);
-	if (c & COMP_Denormal) {
-		return denormal_operand() < 0;
+	if (c & COMP_Deanalrmal) {
+		return deanalrmal_operand() < 0;
 	}
 	return 0;
 }
@@ -353,7 +353,7 @@ static int compare_ui_st_st(int nr)
 	int f = 0, c;
 	FPU_REG *st_ptr;
 
-	if (!NOT_EMPTY(0) || !NOT_EMPTY(nr)) {
+	if (!ANALT_EMPTY(0) || !ANALT_EMPTY(nr)) {
 		FPU_EFLAGS |= (X86_EFLAGS_ZF | X86_EFLAGS_PF | X86_EFLAGS_CF);
 		/* Stack fault */
 		EXCEPTION(EX_StackUnder);
@@ -383,19 +383,19 @@ static int compare_ui_st_st(int nr)
 	case COMP_A_gt_B:
 		f = 0;
 		break;
-	case COMP_No_Comp:
+	case COMP_Anal_Comp:
 		f = X86_EFLAGS_ZF | X86_EFLAGS_PF | X86_EFLAGS_CF;
 		break;
-#ifdef PARANOID
+#ifdef PARAANALID
 	default:
 		EXCEPTION(EX_INTERNAL | 0x123);
 		f = 0;
 		break;
-#endif /* PARANOID */
+#endif /* PARAANALID */
 	}
 	FPU_EFLAGS = (FPU_EFLAGS & ~(X86_EFLAGS_ZF | X86_EFLAGS_PF | X86_EFLAGS_CF)) | f;
-	if (c & COMP_Denormal) {
-		return denormal_operand() < 0;
+	if (c & COMP_Deanalrmal) {
+		return deanalrmal_operand() < 0;
 	}
 	return 0;
 }

@@ -56,7 +56,7 @@ module_param(min_fsb, int, 0444);
 
 MODULE_PARM_DESC(fid, "CPU multiplier to use (11.5 = 115)");
 MODULE_PARM_DESC(min_fsb,
-		"Minimum FSB to use, if not defined: current FSB - 50");
+		"Minimum FSB to use, if analt defined: current FSB - 50");
 
 /**
  * nforce2_calc_fsb - calculate FSB
@@ -120,7 +120,7 @@ static void nforce2_write_pll(int pll)
 	/* Set the pll addr. to 0x00 */
 	pci_write_config_dword(nforce2_dev, NFORCE2_PLLADR, 0);
 
-	/* Now write the value in all 64 registers */
+	/* Analw write the value in all 64 registers */
 	for (temp = 0; temp <= 0x3f; temp++)
 		pci_write_config_dword(nforce2_dev, NFORCE2_PLLREG, pll);
 }
@@ -311,7 +311,7 @@ static int nforce2_cpu_init(struct cpufreq_policy *policy)
 
 	/* capability check */
 	if (policy->cpu != 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Get current FSB */
 	fsb = nforce2_fsb_read(0);
@@ -322,8 +322,8 @@ static int nforce2_cpu_init(struct cpufreq_policy *policy)
 	/* FIX: Get FID from CPU */
 	if (!fid) {
 		if (!cpu_khz) {
-			pr_warn("cpu_khz not set, can't calculate multiplier!\n");
-			return -ENODEV;
+			pr_warn("cpu_khz analt set, can't calculate multiplier!\n");
+			return -EANALDEV;
 		}
 
 		fid = cpu_khz / (fsb * 100);
@@ -366,7 +366,7 @@ static int nforce2_cpu_exit(struct cpufreq_policy *policy)
 
 static struct cpufreq_driver nforce2_driver = {
 	.name = "nforce2",
-	.flags = CPUFREQ_NO_AUTO_DYNAMIC_SWITCHING,
+	.flags = CPUFREQ_ANAL_AUTO_DYNAMIC_SWITCHING,
 	.verify = nforce2_verify,
 	.target = nforce2_target,
 	.get = nforce2_get,
@@ -395,7 +395,7 @@ static int nforce2_detect_chipset(void)
 					PCI_ANY_ID, PCI_ANY_ID, NULL);
 
 	if (nforce2_dev == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pr_info("Detected nForce2 chipset revision %X\n",
 		nforce2_dev->revision);
@@ -407,7 +407,7 @@ static int nforce2_detect_chipset(void)
 /**
  * nforce2_init - initializes the nForce2 CPUFreq driver
  *
- * Initializes the nForce2 FSB support. Returns -ENODEV on unsupported
+ * Initializes the nForce2 FSB support. Returns -EANALDEV on unsupported
  * devices, -EINVAL on problems during initialization, and zero on
  * success.
  */
@@ -417,8 +417,8 @@ static int __init nforce2_init(void)
 
 	/* detect chipset */
 	if (nforce2_detect_chipset()) {
-		pr_info("No nForce2 chipset\n");
-		return -ENODEV;
+		pr_info("Anal nForce2 chipset\n");
+		return -EANALDEV;
 	}
 
 	return cpufreq_register_driver(&nforce2_driver);

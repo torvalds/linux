@@ -218,7 +218,7 @@ int vfio_pci_core_setup_barmap(struct vfio_pci_core_device *vdev, int bar)
 	io = pci_iomap(pdev, bar, 0);
 	if (!io) {
 		pci_release_selected_regions(pdev, 1 << bar);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	vdev->barmap[bar] = io;
@@ -260,7 +260,7 @@ ssize_t vfio_pci_bar_rw(struct vfio_pci_core_device *vdev, char __user *buf,
 		 */
 		io = pci_map_rom(pdev, &x_start);
 		if (!io) {
-			done = -ENOMEM;
+			done = -EANALMEM;
 			goto out;
 		}
 		x_end = end;
@@ -335,7 +335,7 @@ ssize_t vfio_pci_vga_rw(struct vfio_pci_core_device *vdev, char __user *buf,
 	}
 
 	if (!iomem)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = vga_get_interruptible(vdev->pdev, rsrc);
 	if (ret) {
@@ -344,7 +344,7 @@ ssize_t vfio_pci_vga_rw(struct vfio_pci_core_device *vdev, char __user *buf,
 	}
 
 	/*
-	 * VGA MMIO is a legacy, non-BAR resource that hopefully allows
+	 * VGA MMIO is a legacy, analn-BAR resource that hopefully allows
 	 * probing, so we don't currently worry about access in relation
 	 * to the memory enable bit in the command register.
 	 */
@@ -464,18 +464,18 @@ int vfio_pci_ioeventfd(struct vfio_pci_core_device *vdev, loff_t offset,
 	}
 
 	if (fd < 0) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out_unlock;
 	}
 
 	if (vdev->ioeventfds_nr >= VFIO_PCI_IOEVENTFD_MAX) {
-		ret = -ENOSPC;
+		ret = -EANALSPC;
 		goto out_unlock;
 	}
 
 	ioeventfd = kzalloc(sizeof(*ioeventfd), GFP_KERNEL_ACCOUNT);
 	if (!ioeventfd) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_unlock;
 	}
 

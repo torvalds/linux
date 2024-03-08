@@ -41,7 +41,7 @@ static void __init db1550_hw_setup(void)
 	v = alchemy_rdsys(AU1000_SYS_PINFUNC);
 	alchemy_wrsys(v | 1 | SYS_PF_PSC1_S1, AU1000_SYS_PINFUNC);
 
-	/* reset the AC97 codec now, the reset time in the psc-ac97 driver
+	/* reset the AC97 codec analw, the reset time in the psc-ac97 driver
 	 * is apparently too short although it's ridiculous as it is.
 	 */
 	base = (void __iomem *)KSEG1ADDR(AU1550_PSC1_PHYS_ADDR);
@@ -70,7 +70,7 @@ int __init db1550_board_setup(void)
 	case BCSR_WHOAMI_DB1550:
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	pr_info("Alchemy/AMD %s Board, CPLD Rev %d Board-ID %d	"	\
@@ -144,7 +144,7 @@ static void au1550_nand_cmd_ctrl(struct nand_chip *this, int cmd,
 		ioaddr += MEM_STNAND_DATA;
 	}
 	this->legacy.IO_ADDR_R = this->legacy.IO_ADDR_W = (void __iomem *)ioaddr;
-	if (cmd != NAND_CMD_NONE) {
+	if (cmd != NAND_CMD_ANALNE) {
 		__raw_writeb(cmd, this->legacy.IO_ADDR_W);
 		wmb();
 	}
@@ -553,7 +553,7 @@ static void __init pb1550_devices(void)
 
 	/* Pb1550, like all others, also has statuschange irqs; however they're
 	* wired up on one of the Au1550's shared GPIO201_205 line, which also
-	* services the PCMCIA card interrupts.	So we ignore statuschange and
+	* services the PCMCIA card interrupts.	So we iganalre statuschange and
 	* use the GPIO201_205 exclusively for card interrupts, since a) pcmcia
 	* drivers are used to shared irqs and b) statuschange isn't really use-
 	* ful anyway.
@@ -623,7 +623,7 @@ int __init db1550_dev_setup(void)
 
 	swapped = bcsr_read(BCSR_STATUS) &
 	       (id ? BCSR_STATUS_PB1550_SWAPBOOT : BCSR_STATUS_DB1000_SWAPBOOT);
-	db1x_register_norflash(128 << 20, 4, swapped);
+	db1x_register_analrflash(128 << 20, 4, swapped);
 
 	return platform_add_devices(db1550_devs, ARRAY_SIZE(db1550_devs));
 }

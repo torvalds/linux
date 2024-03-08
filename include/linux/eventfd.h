@@ -23,7 +23,7 @@
  * from eventfd, in order to leave a free define-space for
  * shared O_* flags.
  */
-#define EFD_SHARED_FCNTL_FLAGS (O_CLOEXEC | O_NONBLOCK)
+#define EFD_SHARED_FCNTL_FLAGS (O_CLOEXEC | O_ANALNBLOCK)
 #define EFD_FLAGS_SET (EFD_SHARED_FCNTL_FLAGS | EFD_SEMAPHORE)
 
 struct eventfd_ctx;
@@ -54,7 +54,7 @@ static inline bool eventfd_signal_allowed(void)
 
 static inline struct eventfd_ctx *eventfd_ctx_fdget(int fd)
 {
-	return ERR_PTR(-ENOSYS);
+	return ERR_PTR(-EANALSYS);
 }
 
 static inline void eventfd_signal_mask(struct eventfd_ctx *ctx, __poll_t mask)
@@ -69,7 +69,7 @@ static inline void eventfd_ctx_put(struct eventfd_ctx *ctx)
 static inline int eventfd_ctx_remove_wait_queue(struct eventfd_ctx *ctx,
 						wait_queue_entry_t *wait, __u64 *cnt)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static inline bool eventfd_signal_allowed(void)

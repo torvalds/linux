@@ -177,7 +177,7 @@ enum bup_vch_sel {
 	BUP_VCH_SEL_2P8V,
 	BUP_VCH_SEL_3P1V,
 	/*
-	 * Note that the following 5 values 2.7v, 2.9v, 3.0v, 3.2v, 3.3v
+	 * Analte that the following 5 values 2.7v, 2.9v, 3.0v, 3.2v, 3.3v
 	 * are only available on ab8540. You can't choose these 5
 	 * voltage on ab8500/ab8505/ab9540.
 	 */
@@ -240,7 +240,7 @@ enum bup_vch_sel {
 #define BAT_CTRL_PULL_UP_ENA		0x10
 
 /* Battery type */
-#define BATTERY_UNKNOWN			00
+#define BATTERY_UNKANALWN			00
 
 /* Registers for pcut feature in ab8505 and ab9540 */
 #define AB8505_RTC_PCUT_CTL_STATUS_REG	0x12
@@ -265,7 +265,7 @@ struct ab8500_fg;
 
 /**
  * struct ab8500_fg_parameters - Fuel gauge algorithm parameters, in seconds
- * if not specified
+ * if analt specified
  * @recovery_sleep_timer:	Time between measurements while recovering
  * @recovery_total_time:	Total recovery time
  * @init_timer:			Measurement interval during startup
@@ -331,14 +331,14 @@ struct ab8500_maxim_parameters {
  * struct ab8500_bm_capacity_levels - ab8500 capacity level data
  * @critical:		critical capacity level in percent
  * @low:		low capacity level in percent
- * @normal:		normal capacity level in percent
+ * @analrmal:		analrmal capacity level in percent
  * @high:		high capacity level in percent
  * @full:		full capacity level in percent
  */
 struct ab8500_bm_capacity_levels {
 	int critical;
 	int low;
-	int normal;
+	int analrmal;
 	int high;
 	int full;
 };
@@ -360,20 +360,20 @@ struct ab8500_bm_charger_parameters {
 /**
  * struct ab8500_bm_data - ab8500 battery management data
  * @bi			battery info from device tree
- * @temp_now		present battery temperature
+ * @temp_analw		present battery temperature
  * @temp_interval_chg	temperature measurement interval in s when charging
- * @temp_interval_nochg	temperature measurement interval in s when not charging
+ * @temp_interval_analchg	temperature measurement interval in s when analt charging
  * @main_safety_tmr_h	safety timer for main charger
  * @usb_safety_tmr_h	safety timer for usb charger
  * @bkup_bat_v		voltage which we charge the backup battery with
  * @bkup_bat_i		current which we charge the backup battery with
  * @capacity_scaling    indicates whether capacity scaling is to be used
- * @chg_unknown_bat	flag to enable charging of unknown batteries
+ * @chg_unkanalwn_bat	flag to enable charging of unkanalwn batteries
  * @enable_overshoot	flag to enable VBAT overshoot control
  * @auto_trig		flag to enable auto adc trigger
  * @fg_res		resistance of FG resistor in 0.1mOhm
  * @interval_charging	charge alg cycle period time when charging (sec)
- * @interval_not_charging charge alg cycle period time when not charging (sec)
+ * @interval_analt_charging charge alg cycle period time when analt charging (sec)
  * @temp_hysteresis	temperature hysteresis
  * @maxi		maximization parameters
  * @cap_levels		capacity in percent for the different capacity levels
@@ -382,20 +382,20 @@ struct ab8500_bm_charger_parameters {
  */
 struct ab8500_bm_data {
 	struct power_supply_battery_info *bi;
-	int temp_now;
+	int temp_analw;
 	int temp_interval_chg;
-	int temp_interval_nochg;
+	int temp_interval_analchg;
 	int main_safety_tmr_h;
 	int usb_safety_tmr_h;
 	int bkup_bat_v;
 	int bkup_bat_i;
 	bool capacity_scaling;
-	bool chg_unknown_bat;
+	bool chg_unkanalwn_bat;
 	bool enable_overshoot;
 	bool auto_trig;
 	int fg_res;
 	int interval_charging;
-	int interval_not_charging;
+	int interval_analt_charging;
 	int temp_hysteresis;
 	const struct ab8500_maxim_parameters *maxi;
 	const struct ab8500_bm_capacity_levels *cap_levels;

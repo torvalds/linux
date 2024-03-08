@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2013-2015, Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -43,7 +43,7 @@
 #elif defined(__BIG_ENDIAN)
 #define MLX5_SET_HOST_ENDIANNESS	0x80
 #else
-#error Host endianness not defined
+#error Host endianness analt defined
 #endif
 
 /* helper macros */
@@ -163,7 +163,7 @@ __mlx5_mask16(typ, fld))
 		})
 
 enum mlx5_inline_modes {
-	MLX5_INLINE_MODE_NONE,
+	MLX5_INLINE_MODE_ANALNE,
 	MLX5_INLINE_MODE_L2,
 	MLX5_INLINE_MODE_IP,
 	MLX5_INLINE_MODE_TCP_UDP,
@@ -232,7 +232,7 @@ enum {
 enum {
 	MLX5_PCIE_CTRL_SMALL_FENCE	= 1 << 0,
 	MLX5_PCIE_CTRL_RELAXED_ORDERING	= 1 << 2,
-	MLX5_PCIE_CTRL_NO_SNOOP		= 1 << 3,
+	MLX5_PCIE_CTRL_ANAL_SANALOP		= 1 << 3,
 	MLX5_PCIE_CTRL_TLP_PROCE_EN	= 1 << 6,
 	MLX5_PCIE_CTRL_TPH_MASK		= 3 << 4,
 };
@@ -250,13 +250,13 @@ enum {
 enum {
 	MLX5_BFREGS_PER_UAR		= 4,
 	MLX5_MAX_UARS			= 1 << 8,
-	MLX5_NON_FP_BFREGS_PER_UAR	= 2,
+	MLX5_ANALN_FP_BFREGS_PER_UAR	= 2,
 	MLX5_FP_BFREGS_PER_UAR		= MLX5_BFREGS_PER_UAR -
-					  MLX5_NON_FP_BFREGS_PER_UAR,
+					  MLX5_ANALN_FP_BFREGS_PER_UAR,
 	MLX5_MAX_BFREGS			= MLX5_MAX_UARS *
-					  MLX5_NON_FP_BFREGS_PER_UAR,
+					  MLX5_ANALN_FP_BFREGS_PER_UAR,
 	MLX5_UARS_IN_PAGE		= PAGE_SIZE / MLX5_ADAPTER_PAGE_SIZE,
-	MLX5_NON_FP_BFREGS_IN_PAGE	= MLX5_NON_FP_BFREGS_PER_UAR * MLX5_UARS_IN_PAGE,
+	MLX5_ANALN_FP_BFREGS_IN_PAGE	= MLX5_ANALN_FP_BFREGS_PER_UAR * MLX5_UARS_IN_PAGE,
 	MLX5_MIN_DYN_BFREGS		= 512,
 	MLX5_MAX_DYN_BFREGS		= 1024,
 };
@@ -285,7 +285,7 @@ enum {
 enum {
 	MLX5_UMR_TRANSLATION_OFFSET_EN	= (1 << 4),
 
-	MLX5_UMR_CHECK_NOT_FREE		= (1 << 5),
+	MLX5_UMR_CHECK_ANALT_FREE		= (1 << 5),
 	MLX5_UMR_CHECK_FREE		= (2 << 5),
 
 	MLX5_UMR_INLINE			= (1 << 7),
@@ -305,12 +305,12 @@ enum {
 };
 
 /* mlx5 components can subscribe to any one of these events via
- * mlx5_eq_notifier_register API.
+ * mlx5_eq_analtifier_register API.
  */
 enum mlx5_event {
 	/* Special value to subscribe to any event */
-	MLX5_EVENT_TYPE_NOTIFY_ANY	   = 0x0,
-	/* HW events enum start: comp events are not subscribable */
+	MLX5_EVENT_TYPE_ANALTIFY_ANY	   = 0x0,
+	/* HW events enum start: comp events are analt subscribable */
 	MLX5_EVENT_TYPE_COMP		   = 0x0,
 	/* HW Async events enum start: subscribable events */
 	MLX5_EVENT_TYPE_PATH_MIG	   = 0x01,
@@ -415,7 +415,7 @@ enum {
 };
 
 enum {
-	MLX5_OPCODE_NOP			= 0x00,
+	MLX5_OPCODE_ANALP			= 0x00,
 	MLX5_OPCODE_SEND_INVAL		= 0x01,
 	MLX5_OPCODE_RDMA_WRITE		= 0x08,
 	MLX5_OPCODE_RDMA_WRITE_IMM	= 0x09,
@@ -475,14 +475,14 @@ struct mlx5_wqe_tls_progress_params_seg {
 enum {
 	MLX5_SET_PORT_RESET_QKEY	= 0,
 	MLX5_SET_PORT_GUID0		= 16,
-	MLX5_SET_PORT_NODE_GUID		= 17,
+	MLX5_SET_PORT_ANALDE_GUID		= 17,
 	MLX5_SET_PORT_SYS_GUID		= 18,
 	MLX5_SET_PORT_GID_TABLE		= 19,
 	MLX5_SET_PORT_PKEY_TABLE	= 20,
 };
 
 enum {
-	MLX5_BW_NO_LIMIT   = 0,
+	MLX5_BW_ANAL_LIMIT   = 0,
 	MLX5_100_MBPS_UNIT = 3,
 	MLX5_GBPS_UNIT	   = 4,
 };
@@ -719,7 +719,7 @@ struct mlx5_eqe_obj_change {
 
 enum sync_rst_state_type {
 	MLX5_SYNC_RST_STATE_RESET_REQUEST	= 0x0,
-	MLX5_SYNC_RST_STATE_RESET_NOW		= 0x1,
+	MLX5_SYNC_RST_STATE_RESET_ANALW		= 0x1,
 	MLX5_SYNC_RST_STATE_RESET_ABORT		= 0x2,
 	MLX5_SYNC_RST_STATE_RESET_UNLOAD	= 0x3,
 };
@@ -864,7 +864,7 @@ struct mlx5_mini_cqe8 {
 };
 
 enum {
-	MLX5_NO_INLINE_DATA,
+	MLX5_ANAL_INLINE_DATA,
 	MLX5_INLINE_DATA32_SEG,
 	MLX5_INLINE_DATA64_SEG,
 	MLX5_COMPRESSED,
@@ -981,28 +981,28 @@ static inline u16 mpwrq_get_cqe_stride_index(struct mlx5_cqe64 *cqe)
 }
 
 enum {
-	CQE_L4_HDR_TYPE_NONE			= 0x0,
-	CQE_L4_HDR_TYPE_TCP_NO_ACK		= 0x1,
+	CQE_L4_HDR_TYPE_ANALNE			= 0x0,
+	CQE_L4_HDR_TYPE_TCP_ANAL_ACK		= 0x1,
 	CQE_L4_HDR_TYPE_UDP			= 0x2,
-	CQE_L4_HDR_TYPE_TCP_ACK_NO_DATA		= 0x3,
+	CQE_L4_HDR_TYPE_TCP_ACK_ANAL_DATA		= 0x3,
 	CQE_L4_HDR_TYPE_TCP_ACK_AND_DATA	= 0x4,
 };
 
 enum {
 	CQE_RSS_HTYPE_IP	= GENMASK(3, 2),
 	/* cqe->rss_hash_type[3:2] - IP destination selected for hash
-	 * (00 = none,  01 = IPv4, 10 = IPv6, 11 = Reserved)
+	 * (00 = analne,  01 = IPv4, 10 = IPv6, 11 = Reserved)
 	 */
-	CQE_RSS_IP_NONE		= 0x0,
+	CQE_RSS_IP_ANALNE		= 0x0,
 	CQE_RSS_IPV4		= 0x1,
 	CQE_RSS_IPV6		= 0x2,
 	CQE_RSS_RESERVED	= 0x3,
 
 	CQE_RSS_HTYPE_L4	= GENMASK(7, 6),
 	/* cqe->rss_hash_type[7:6] - L4 destination selected for hash
-	 * (00 = none, 01 = TCP. 10 = UDP, 11 = IPSEC.SPI
+	 * (00 = analne, 01 = TCP. 10 = UDP, 11 = IPSEC.SPI
 	 */
-	CQE_RSS_L4_NONE		= 0x0,
+	CQE_RSS_L4_ANALNE		= 0x0,
 	CQE_RSS_L4_TCP		= 0x1,
 	CQE_RSS_L4_UDP		= 0x2,
 	CQE_RSS_L4_IPSEC	= 0x3,
@@ -1021,7 +1021,7 @@ enum {
 };
 
 enum {
-	CQE_TLS_OFFLOAD_NOT_DECRYPTED		= 0x0,
+	CQE_TLS_OFFLOAD_ANALT_DECRYPTED		= 0x0,
 	CQE_TLS_OFFLOAD_DECRYPTED		= 0x1,
 	CQE_TLS_OFFLOAD_RESYNC			= 0x2,
 	CQE_TLS_OFFLOAD_ERROR			= 0x3,
@@ -1074,7 +1074,7 @@ enum {
 struct mlx5_mkey_seg {
 	/* This is a two bit field occupying bits 31-30.
 	 * bit 31 is always 0,
-	 * bit 30 is zero for regular MRs and 1 (e.g free) for UMRs that do not have translation
+	 * bit 30 is zero for regular MRs and 1 (e.g free) for UMRs that do analt have translation
 	 */
 	u8		status;
 	u8		pcie_control;
@@ -1111,7 +1111,7 @@ enum {
 };
 
 enum {
-	MLX5_VPORT_CVLAN_INSERT_WHEN_NO_CVLAN  = 0x1,
+	MLX5_VPORT_CVLAN_INSERT_WHEN_ANAL_CVLAN  = 0x1,
 	MLX5_VPORT_CVLAN_INSERT_ALWAYS         = 0x3,
 };
 
@@ -1440,7 +1440,7 @@ enum {
 	MLX5_CMD_STAT_LIM_ERR			= 0x8,
 	MLX5_CMD_STAT_BAD_RES_STATE_ERR		= 0x9,
 	MLX5_CMD_STAT_IX_ERR			= 0xa,
-	MLX5_CMD_STAT_NO_RES_ERR		= 0xf,
+	MLX5_CMD_STAT_ANAL_RES_ERR		= 0xf,
 	MLX5_CMD_STAT_BAD_INP_LEN_ERR		= 0x50,
 	MLX5_CMD_STAT_BAD_OUTP_LEN_ERR		= 0x51,
 	MLX5_CMD_STAT_BAD_QP_STATE_ERR		= 0x10,

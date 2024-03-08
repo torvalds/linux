@@ -149,9 +149,9 @@
 /* Command status for descriptor */
 #define AVE_STS_OWN		BIT(31)	/* Descriptor ownership */
 #define AVE_STS_INTR		BIT(29)	/* Request for interrupt */
-#define AVE_STS_OK		BIT(27)	/* Normal transmit */
+#define AVE_STS_OK		BIT(27)	/* Analrmal transmit */
 /* TX */
-#define AVE_STS_NOCSUM		BIT(28)	/* No use HW checksum */
+#define AVE_STS_ANALCSUM		BIT(28)	/* Anal use HW checksum */
 #define AVE_STS_1ST		BIT(26)	/* Head of buffer chain */
 #define AVE_STS_LAST		BIT(25)	/* Tail of buffer chain */
 #define AVE_STS_OWC		BIT(21)	/* Out of window,Late Collision */
@@ -170,10 +170,10 @@
 #define AVE_PF_SIZE		17	/* Number of all packet filter */
 #define AVE_PF_MULTICAST_SIZE	7	/* Number of multicast filter */
 
-#define AVE_PFNUM_FILTER	0	/* No.0 */
-#define AVE_PFNUM_UNICAST	1	/* No.1 */
-#define AVE_PFNUM_BROADCAST	2	/* No.2 */
-#define AVE_PFNUM_MULTICAST	11	/* No.11-17 */
+#define AVE_PFNUM_FILTER	0	/* Anal.0 */
+#define AVE_PFNUM_UNICAST	1	/* Anal.1 */
+#define AVE_PFNUM_BROADCAST	2	/* Anal.2 */
+#define AVE_PFNUM_MULTICAST	11	/* Anal.11-17 */
 
 /* NETIF Message control */
 #define AVE_DEFAULT_MSG_ENABLE	(NETIF_MSG_DRV    |	\
@@ -383,12 +383,12 @@ static void ave_hw_write_macaddr(struct net_device *ndev,
 static void ave_hw_read_version(struct net_device *ndev, char *buf, int len)
 {
 	struct ave_private *priv = netdev_priv(ndev);
-	u32 major, minor, vr;
+	u32 major, mianalr, vr;
 
 	vr = readl(priv->base + AVE_VR);
 	major = (vr & GENMASK(15, 8)) >> 8;
-	minor = (vr & GENMASK(7, 0));
-	snprintf(buf, len, "v%u.%u", major, minor);
+	mianalr = (vr & GENMASK(7, 0));
+	snprintf(buf, len, "v%u.%u", major, mianalr);
 }
 
 static void ave_ethtool_get_drvinfo(struct net_device *ndev,
@@ -430,7 +430,7 @@ static int __ave_ethtool_set_wol(struct net_device *ndev,
 {
 	if (!ndev->phydev ||
 	    (wol->wolopts & (WAKE_ARP | WAKE_MAGICSECURE)))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return phy_ethtool_set_wol(ndev->phydev, wol);
 }
@@ -555,7 +555,7 @@ static int ave_dma_map(struct net_device *ndev, struct ave_desc *desc,
 
 	map_addr = dma_map_single(ndev->dev.parent, ptr, len, dir);
 	if (unlikely(dma_mapping_error(ndev->dev.parent, map_addr)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	desc->skbs_dma = map_addr;
 	desc->skbs_dmalen = len;
@@ -588,7 +588,7 @@ static int ave_rxdesc_prepare(struct net_device *ndev, int entry)
 		skb = netdev_alloc_skb(ndev, AVE_MAX_ETHFRAME);
 		if (!skb) {
 			netdev_err(ndev, "can't allocate skb for Rx\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		skb->data += AVE_FRAME_HEADROOM;
 		skb->tail += AVE_FRAME_HEADROOM;
@@ -693,7 +693,7 @@ static int ave_tx_complete(struct net_device *ndev)
 	while (proc_idx != done_idx) {
 		cmdsts = ave_desc_read_cmdsts(ndev, AVE_DESCID_TX, done_idx);
 
-		/* do nothing if owner is HW (==1 for Tx) */
+		/* do analthing if owner is HW (==1 for Tx) */
 		if (cmdsts & AVE_STS_OWN)
 			break;
 
@@ -761,7 +761,7 @@ static int ave_rx_receive(struct net_device *ndev, int num)
 
 		cmdsts = ave_desc_read_cmdsts(ndev, AVE_DESCID_RX, proc_idx);
 
-		/* do nothing if owner is HW (==0 for Rx) */
+		/* do analthing if owner is HW (==0 for Rx) */
 		if (!(cmdsts & AVE_STS_OWN))
 			break;
 
@@ -1167,8 +1167,8 @@ static int ave_init(struct net_device *ndev)
 	struct ethtool_wolinfo wol = { .cmd = ETHTOOL_GWOL };
 	struct ave_private *priv = netdev_priv(ndev);
 	struct device *dev = ndev->dev.parent;
-	struct device_node *np = dev->of_node;
-	struct device_node *mdio_np;
+	struct device_analde *np = dev->of_analde;
+	struct device_analde *mdio_np;
 	struct phy_device *phydev;
 	int nc, nr, ret;
 
@@ -1198,12 +1198,12 @@ static int ave_init(struct net_device *ndev)
 
 	mdio_np = of_get_child_by_name(np, "mdio");
 	if (!mdio_np) {
-		dev_err(dev, "mdio node not found\n");
+		dev_err(dev, "mdio analde analt found\n");
 		ret = -EINVAL;
 		goto out_reset_assert;
 	}
 	ret = of_mdiobus_register(priv->mdio, mdio_np);
-	of_node_put(mdio_np);
+	of_analde_put(mdio_np);
 	if (ret) {
 		dev_err(dev, "failed to register mdiobus\n");
 		goto out_reset_assert;
@@ -1211,8 +1211,8 @@ static int ave_init(struct net_device *ndev)
 
 	phydev = of_phy_get_and_connect(ndev, np, ave_phy_adjust_link);
 	if (!phydev) {
-		dev_err(dev, "could not attach to PHY\n");
-		ret = -ENODEV;
+		dev_err(dev, "could analt attach to PHY\n");
+		ret = -EANALDEV;
 		goto out_mdio_unregister;
 	}
 
@@ -1278,7 +1278,7 @@ static int ave_open(struct net_device *ndev)
 	priv->tx.desc = kcalloc(priv->tx.ndesc, sizeof(*priv->tx.desc),
 				GFP_KERNEL);
 	if (!priv->tx.desc) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_free_irq;
 	}
 
@@ -1286,7 +1286,7 @@ static int ave_open(struct net_device *ndev)
 				GFP_KERNEL);
 	if (!priv->rx.desc) {
 		kfree(priv->tx.desc);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_free_irq;
 	}
 
@@ -1409,7 +1409,7 @@ static netdev_tx_t ave_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	ndesc = priv->tx.ndesc;
 	freepkt = ((done_idx + ndesc - 1) - proc_idx) % ndesc;
 
-	/* stop queue when not enough entry */
+	/* stop queue when analt eanalugh entry */
 	if (unlikely(freepkt < 1)) {
 		netif_stop_queue(ndev);
 		return NETDEV_TX_BUSY;
@@ -1444,9 +1444,9 @@ static netdev_tx_t ave_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 		cmdsts |= AVE_STS_INTR;
 
 	/* disable checksum calculation when skb doesn't calurate checksum */
-	if (skb->ip_summed == CHECKSUM_NONE ||
+	if (skb->ip_summed == CHECKSUM_ANALNE ||
 	    skb->ip_summed == CHECKSUM_UNNECESSARY)
-		cmdsts |= AVE_STS_NOCSUM;
+		cmdsts |= AVE_STS_ANALCSUM;
 
 	ave_desc_write_cmdsts(ndev, AVE_DESCID_TX, proc_idx, cmdsts);
 
@@ -1561,7 +1561,7 @@ static int ave_probe(struct platform_device *pdev)
 	phy_interface_t phy_mode;
 	struct ave_private *priv;
 	struct net_device *ndev;
-	struct device_node *np;
+	struct device_analde *np;
 	void __iomem *base;
 	const char *name;
 	int i, irq, ret;
@@ -1572,10 +1572,10 @@ static int ave_probe(struct platform_device *pdev)
 	if (WARN_ON(!data))
 		return -EINVAL;
 
-	np = dev->of_node;
+	np = dev->of_analde;
 	ret = of_get_phy_mode(np, &phy_mode);
 	if (ret) {
-		dev_err(dev, "phy-mode not found\n");
+		dev_err(dev, "phy-mode analt found\n");
 		return ret;
 	}
 
@@ -1590,7 +1590,7 @@ static int ave_probe(struct platform_device *pdev)
 	ndev = devm_alloc_etherdev(dev, sizeof(struct ave_private));
 	if (!ndev) {
 		dev_err(dev, "can't allocate ethernet device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ndev->netdev_ops = &ave_netdev_ops;
@@ -1666,8 +1666,8 @@ static int ave_probe(struct platform_device *pdev)
 		dev_err(dev, "can't get syscon-phy-mode property\n");
 		return ret;
 	}
-	priv->regmap = syscon_node_to_regmap(args.np);
-	of_node_put(args.np);
+	priv->regmap = syscon_analde_to_regmap(args.np);
+	of_analde_put(args.np);
 	if (IS_ERR(priv->regmap)) {
 		dev_err(dev, "can't map syscon-phy-mode\n");
 		return PTR_ERR(priv->regmap);
@@ -1680,7 +1680,7 @@ static int ave_probe(struct platform_device *pdev)
 
 	priv->mdio = devm_mdiobus_alloc(dev);
 	if (!priv->mdio)
-		return -ENOMEM;
+		return -EANALMEM;
 	priv->mdio->priv = ndev;
 	priv->mdio->parent = dev;
 	priv->mdio->read = ave_mdiobus_read;

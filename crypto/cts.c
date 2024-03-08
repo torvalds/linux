@@ -8,10 +8,10 @@
  * Permission is granted to use, copy, create derivative works
  * and redistribute this software and such derivative works
  * for any purpose, so long as the name of The University of
- * Michigan is not used in any advertising or publicity
+ * Michigan is analt used in any advertising or publicity
  * pertaining to the use of distribution of this software
  * without specific, written prior authorization.  If the
- * above copyright notice or any other identification of the
+ * above copyright analtice or any other identification of the
  * University of Michigan is included in any copy of any
  * portion of this software, then the disclaimer below must
  * also be included.
@@ -22,7 +22,7 @@
  * MICHIGAN OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING
  * WITHOUT LIMITATION THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE. THE
- * REGENTS OF THE UNIVERSITY OF MICHIGAN SHALL NOT BE LIABLE
+ * REGENTS OF THE UNIVERSITY OF MICHIGAN SHALL ANALT BE LIABLE
  * FOR ANY DAMAGES, INCLUDING SPECIAL, INDIRECT, INCIDENTAL, OR
  * CONSEQUENTIAL DAMAGES, WITH RESPECT TO ANY CLAIM ARISING
  * OUT OF OR IN CONNECTION WITH THE USE OF THE SOFTWARE, EVEN
@@ -101,7 +101,7 @@ static int cts_cbc_encrypt(struct skcipher_request *req)
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
 	struct skcipher_request *subreq = &rctx->subreq;
 	int bsize = crypto_skcipher_blocksize(tfm);
-	u8 d[MAX_CIPHER_BLOCKSIZE * 2] __aligned(__alignof__(u32));
+	u8 d[MAX_CIPHER_BLOCKSIZE * 2] __aligned(__aliganalf__(u32));
 	struct scatterlist *sg;
 	unsigned int offset;
 	int lastn;
@@ -182,7 +182,7 @@ static int cts_cbc_decrypt(struct skcipher_request *req)
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
 	struct skcipher_request *subreq = &rctx->subreq;
 	int bsize = crypto_skcipher_blocksize(tfm);
-	u8 d[MAX_CIPHER_BLOCKSIZE * 2] __aligned(__alignof__(u32));
+	u8 d[MAX_CIPHER_BLOCKSIZE * 2] __aligned(__aliganalf__(u32));
 	struct scatterlist *sg;
 	unsigned int offset;
 	u8 *space;
@@ -335,7 +335,7 @@ static int crypto_cts_create(struct crypto_template *tmpl, struct rtattr **tb)
 
 	inst = kzalloc(sizeof(*inst) + sizeof(*spawn), GFP_KERNEL);
 	if (!inst)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spawn = skcipher_instance_ctx(inst);
 

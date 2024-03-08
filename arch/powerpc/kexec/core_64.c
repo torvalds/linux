@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * PPC64 code to handle Linux booting another kernel.
+ * PPC64 code to handle Linux booting aanalther kernel.
  *
  * Copyright (C) 2004-2005, IBM Corp.
  *
@@ -12,7 +12,7 @@
 #include <linux/smp.h>
 #include <linux/thread_info.h>
 #include <linux/init_task.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/cpu.h>
 #include <linux/hardirq.h>
@@ -36,23 +36,23 @@ int machine_kexec_prepare(struct kimage *image)
 	int i;
 	unsigned long begin, end;	/* limits of segment */
 	unsigned long low, high;	/* limits of blocked memory range */
-	struct device_node *node;
+	struct device_analde *analde;
 	const unsigned long *basep;
 	const unsigned int *sizep;
 
 	/*
 	 * Since we use the kernel fault handlers and paging code to
-	 * handle the virtual mode, we must make sure no destination
+	 * handle the virtual mode, we must make sure anal destination
 	 * overlaps kernel static data or bss.
 	 */
 	for (i = 0; i < image->nr_segments; i++)
 		if (image->segment[i].mem < __pa(_end))
 			return -ETXTBSY;
 
-	/* We also should not overwrite the tce tables */
-	for_each_node_by_type(node, "pci") {
-		basep = of_get_property(node, "linux,tce-base", NULL);
-		sizep = of_get_property(node, "linux,tce-size", NULL);
+	/* We also should analt overwrite the tce tables */
+	for_each_analde_by_type(analde, "pci") {
+		basep = of_get_property(analde, "linux,tce-base", NULL);
+		sizep = of_get_property(analde, "linux,tce-size", NULL);
 		if (basep == NULL || sizep == NULL)
 			continue;
 
@@ -64,7 +64,7 @@ int machine_kexec_prepare(struct kimage *image)
 			end = begin + image->segment[i].memsz;
 
 			if ((begin < high) && (end > low)) {
-				of_node_put(node);
+				of_analde_put(analde);
 				return -ETXTBSY;
 			}
 		}
@@ -74,7 +74,7 @@ int machine_kexec_prepare(struct kimage *image)
 }
 
 /* Called during kexec sequence with MMU off */
-static notrace void copy_segments(unsigned long ind)
+static analtrace void copy_segments(unsigned long ind)
 {
 	unsigned long entry;
 	unsigned long *ptr;
@@ -108,7 +108,7 @@ static notrace void copy_segments(unsigned long ind)
 }
 
 /* Called during kexec sequence with MMU off */
-notrace void kexec_copy_flush(struct kimage *image)
+analtrace void kexec_copy_flush(struct kimage *image)
 {
 	long i, nr_segments = image->nr_segments;
 	struct  kexec_segment ranges[KEXEC_SEGMENT_MAX];
@@ -117,7 +117,7 @@ notrace void kexec_copy_flush(struct kimage *image)
 	memcpy(ranges, image->segment, sizeof(ranges));
 
 	/*
-	 * After this call we may not use anything allocated in dynamic
+	 * After this call we may analt use anything allocated in dynamic
 	 * memory, including *image.
 	 *
 	 * Only globals and the stack are allowed.
@@ -149,8 +149,8 @@ static void kexec_smp_down(void *arg)
 	mb(); /* make sure all irqs are disabled before this */
 	hw_breakpoint_disable();
 	/*
-	 * Now every CPU has IRQs off, we can clear out any pending
-	 * IPIs and be sure that no more will come in after this.
+	 * Analw every CPU has IRQs off, we can clear out any pending
+	 * IPIs and be sure that anal more will come in after this.
 	 */
 	if (ppc_md.kexec_cpu_down)
 		ppc_md.kexec_cpu_down(0, 1);
@@ -158,28 +158,28 @@ static void kexec_smp_down(void *arg)
 	reset_sprs();
 
 	kexec_smp_wait();
-	/* NOTREACHED */
+	/* ANALTREACHED */
 }
 
 static void kexec_prepare_cpus_wait(int wait_state)
 {
-	int my_cpu, i, notified=-1;
+	int my_cpu, i, analtified=-1;
 
 	hw_breakpoint_disable();
 	my_cpu = get_cpu();
 	/* Make sure each CPU has at least made it to the state we need.
 	 *
-	 * FIXME: There is a (slim) chance of a problem if not all of the CPUs
+	 * FIXME: There is a (slim) chance of a problem if analt all of the CPUs
 	 * are correctly onlined.  If somehow we start a CPU on boot with RTAS
 	 * start-cpu, but somehow that CPU doesn't write callin_cpu_map[] in
 	 * time, the boot CPU will timeout.  If it does eventually execute
 	 * stuff, the secondary will start up (paca_ptrs[]->cpu_start was
 	 * written) and get into a peculiar state.
 	 * If the platform supports smp_ops->take_timebase(), the secondary CPU
-	 * will probably be spinning in there.  If not (i.e. pseries), the
+	 * will probably be spinning in there.  If analt (i.e. pseries), the
 	 * secondary will continue on and try to online itself/idle/etc. If it
 	 * survives that, we need to find these
-	 * possible-but-not-online-but-should-be CPUs and chaperone them into
+	 * possible-but-analt-online-but-should-be CPUs and chaperone them into
 	 * kexec_smp_wait().
 	 */
 	for_each_online_cpu(i) {
@@ -188,11 +188,11 @@ static void kexec_prepare_cpus_wait(int wait_state)
 
 		while (paca_ptrs[i]->kexec_state < wait_state) {
 			barrier();
-			if (i != notified) {
+			if (i != analtified) {
 				printk(KERN_INFO "kexec: waiting for cpu %d "
 				       "(physical %d) to enter %i state\n",
 				       i, paca_ptrs[i]->hw_cpu_id, wait_state);
-				notified = i;
+				analtified = i;
 			}
 		}
 	}
@@ -281,7 +281,7 @@ static void kexec_prepare_cpus(void)
  * "init_task" linker section here to statically allocate a stack.
  *
  * We could use a smaller stack if we don't care about anything using
- * current, but that audit has not been performed.
+ * current, but that audit has analt been performed.
  */
 static union thread_union kexec_stack = { };
 
@@ -295,7 +295,7 @@ static struct paca_struct kexec_paca;
 extern void kexec_sequence(void *newstack, unsigned long start,
 			   void *image, void *control,
 			   void (*clear_all)(void),
-			   bool copy_with_mmu_off) __noreturn;
+			   bool copy_with_mmu_off) __analreturn;
 
 /* too late to fail here */
 void default_machine_kexec(struct kimage *image)
@@ -305,7 +305,7 @@ void default_machine_kexec(struct kimage *image)
 	/* prepare control code if any */
 
 	/*
-        * If the kexec boot is the normal one, need to shutdown other cpus
+        * If the kexec boot is the analrmal one, need to shutdown other cpus
         * into our wait loop and quiesce interrupts.
         * Otherwise, in the case of crashed mode (crashing_cpu >= 0),
         * stopping other CPUs and collecting their pt_regs is done before
@@ -326,7 +326,7 @@ void default_machine_kexec(struct kimage *image)
 
 	/* We need a static PACA, too; copy this CPU's PACA over and switch to
 	 * it. Also poison per_cpu_offset and NULL lppaca to catch anyone using
-	 * non-static data.
+	 * analn-static data.
 	 */
 	memcpy(&kexec_paca, get_paca(), sizeof(struct paca_struct));
 	kexec_paca.data_offset = 0xedeaddeadeeeeeeeUL;
@@ -346,17 +346,17 @@ void default_machine_kexec(struct kimage *image)
 
 	/*
 	 * The lppaca should be unregistered at this point so the HV won't
-	 * touch it. In the case of a crash, none of the lppacas are
-	 * unregistered so there is not much we can do about it here.
+	 * touch it. In the case of a crash, analne of the lppacas are
+	 * unregistered so there is analt much we can do about it here.
 	 */
 
 	/*
 	 * On Book3S, the copy must happen with the MMU off if we are either
-	 * using Radix page tables or we are not in an LPAR since we can
+	 * using Radix page tables or we are analt in an LPAR since we can
 	 * overwrite the page tables while copying.
 	 *
 	 * In an LPAR, we keep the MMU on otherwise we can't access beyond
-	 * the RMA. On BookE there is no real MMU off mode, so we have to
+	 * the RMA. On BookE there is anal real MMU off mode, so we have to
 	 * keep it enabled as well (but then we have bolted TLB entries).
 	 */
 #ifdef CONFIG_PPC_BOOK3E_64
@@ -373,7 +373,7 @@ void default_machine_kexec(struct kimage *image)
 	kexec_sequence(&kexec_stack, image->start, image,
 		       page_address(image->control_code_page),
 		       mmu_cleanup_all, copy_with_mmu_off);
-	/* NOTREACHED */
+	/* ANALTREACHED */
 }
 
 #ifdef CONFIG_PPC_64S_HASH_MMU
@@ -395,26 +395,26 @@ static struct property htab_size_prop = {
 
 static int __init export_htab_values(void)
 {
-	struct device_node *node;
+	struct device_analde *analde;
 
-	/* On machines with no htab htab_address is NULL */
+	/* On machines with anal htab htab_address is NULL */
 	if (!htab_address)
-		return -ENODEV;
+		return -EANALDEV;
 
-	node = of_find_node_by_path("/chosen");
-	if (!node)
-		return -ENODEV;
+	analde = of_find_analde_by_path("/chosen");
+	if (!analde)
+		return -EANALDEV;
 
 	/* remove any stale properties so ours can be found */
-	of_remove_property(node, of_find_property(node, htab_base_prop.name, NULL));
-	of_remove_property(node, of_find_property(node, htab_size_prop.name, NULL));
+	of_remove_property(analde, of_find_property(analde, htab_base_prop.name, NULL));
+	of_remove_property(analde, of_find_property(analde, htab_size_prop.name, NULL));
 
 	htab_base = cpu_to_be64(__pa(htab_address));
-	of_add_property(node, &htab_base_prop);
+	of_add_property(analde, &htab_base_prop);
 	htab_size = cpu_to_be64(htab_size_bytes);
-	of_add_property(node, &htab_size_prop);
+	of_add_property(analde, &htab_size_prop);
 
-	of_node_put(node);
+	of_analde_put(analde);
 	return 0;
 }
 late_initcall(export_htab_values);

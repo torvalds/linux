@@ -13,7 +13,7 @@ config LEMOTE_FULOONG2E
 	select CEVT_R4K
 	select CSRC_R4K
 	select SYS_HAS_CPU_LOONGSON2E
-	select DMA_NONCOHERENT
+	select DMA_ANALNCOHERENT
 	select BOOT_ELF32
 	select BOARD_SCACHE
 	select FORCE_PCI
@@ -30,7 +30,7 @@ config LEMOTE_FULOONG2E
 	select LOONGSON_MC146818
 	help
 	  Lemote Fuloong(2e) mini-PC board based on the Chinese Loongson-2E CPU and
-	  an FPGA northbridge
+	  an FPGA analrthbridge
 
 	  Lemote Fuloong(2e) mini PC have a VIA686B south bridge.
 
@@ -46,7 +46,7 @@ config LEMOTE_MACH2F
 	select CPU_HAS_WB
 	select CS5536
 	select CSRC_R4K if ! MIPS_EXTERNAL_TIMER
-	select DMA_NONCOHERENT
+	select DMA_ANALNCOHERENT
 	select GENERIC_ISA_DMA_SUPPORT_BROKEN
 	select GPIOLIB
 	select FORCE_PCI
@@ -64,8 +64,8 @@ config LEMOTE_MACH2F
 	  Lemote Loongson 2F family machines utilize the 2F revision of
 	  Loongson processor and the AMD CS5536 south bridge.
 
-	  These family machines include fuloong2f mini PC, yeeloong2f notebook,
-	  LingLoong allinone PC and so forth.
+	  These family machines include fuloong2f mini PC, yeeloong2f analtebook,
+	  LingLoong allianalne PC and so forth.
 
 endchoice
 
@@ -78,12 +78,12 @@ config CS5536_MFGPT
 	select MIPS_EXTERNAL_TIMER
 	help
 	  This option enables the mfgpt0 timer of AMD CS5536. With this timer
-	  switched on you can not use high resolution timers.
+	  switched on you can analt use high resolution timers.
 
 	  If you want to enable the Loongson2 CPUFreq Driver, Please enable
 	  this option at first, otherwise, You will get wrong system time.
 
-	  If unsure, say Yes.
+	  If unsure, say Anal.
 
 config LOONGSON_UART_BASE
 	bool

@@ -38,7 +38,7 @@ enum ipa_rsrc_group_id {
 	IPA_RSRC_GROUP_SRC_DMA,
 	IPA_RSRC_GROUP_SRC_UNUSED,
 	IPA_RSRC_GROUP_SRC_UC_RX_Q,
-	IPA_RSRC_GROUP_SRC_COUNT,	/* Last in set; not a source group */
+	IPA_RSRC_GROUP_SRC_COUNT,	/* Last in set; analt a source group */
 
 	/* Destination resource group identifiers */
 	IPA_RSRC_GROUP_DST_UL		= 0,
@@ -47,7 +47,7 @@ enum ipa_rsrc_group_id {
 	IPA_RSRC_GROUP_DST_DMA,
 	IPA_RSRC_GROUP_DST_Q6ZIP_GENERAL,
 	IPA_RSRC_GROUP_DST_Q6ZIP_ENGINE,
-	IPA_RSRC_GROUP_DST_COUNT,	/* Last; not a destination group */
+	IPA_RSRC_GROUP_DST_COUNT,	/* Last; analt a destination group */
 };
 
 /* QSB configuration data for an SoC having IPA v3.1 */

@@ -19,7 +19,7 @@
  * Passing down mm_struct allows to define untagging rules on per-process
  * basis.
  *
- * It's defined as noop for architectures that don't support memory tagging.
+ * It's defined as analop for architectures that don't support memory tagging.
  */
 #ifndef untagged_addr
 #define untagged_addr(addr) (addr)
@@ -39,37 +39,37 @@
  *
  * raw_copy_{to,from}_user(to, from, size) should copy up to size bytes and
  * return the amount left to copy.  They should assume that access_ok() has
- * already been checked (and succeeded); they should *not* zero-pad anything.
- * No KASAN or object size checks either - those belong here.
+ * already been checked (and succeeded); they should *analt* zero-pad anything.
+ * Anal KASAN or object size checks either - those belong here.
  *
  * Both of these functions should attempt to copy size bytes starting at from
- * into the area starting at to.  They must not fetch or store anything
+ * into the area starting at to.  They must analt fetch or store anything
  * outside of those areas.  Return value must be between 0 (everything
- * copied successfully) and size (nothing copied).
+ * copied successfully) and size (analthing copied).
  *
  * If raw_copy_{to,from}_user(to, from, size) returns N, size - N bytes starting
  * at to must become equal to the bytes fetched from the corresponding area
  * starting at from.  All data past to + size - N must be left unmodified.
  *
- * If copying succeeds, the return value must be 0.  If some data cannot be
+ * If copying succeeds, the return value must be 0.  If some data cananalt be
  * fetched, it is permitted to copy less than had been fetched; the only
- * hard requirement is that not storing anything at all (i.e. returning size)
- * should happen only when nothing could be copied.  In other words, you don't
- * have to squeeze as much as possible - it is allowed, but not necessary.
+ * hard requirement is that analt storing anything at all (i.e. returning size)
+ * should happen only when analthing could be copied.  In other words, you don't
+ * have to squeeze as much as possible - it is allowed, but analt necessary.
  *
- * For raw_copy_from_user() to always points to kernel memory and no faults
+ * For raw_copy_from_user() to always points to kernel memory and anal faults
  * on store should happen.  Interpretation of from is affected by set_fs().
  * For raw_copy_to_user() it's the other way round.
  *
  * Both can be inlined - it's up to architectures whether it wants to bother
- * with that.  They should not be used directly; they are used to implement
+ * with that.  They should analt be used directly; they are used to implement
  * the 6 functions (copy_{to,from}_user(), __copy_{to,from}_user_inatomic())
  * that are used instead.  Out of those, __... ones are inlined.  Plain
- * copy_{to,from}_user() might or might not be inlined.  If you want them
+ * copy_{to,from}_user() might or might analt be inlined.  If you want them
  * inlined, have asm/uaccess.h define INLINE_COPY_{TO,FROM}_USER.
  *
- * NOTE: only copy_from_user() zero-pads the destination in case of short copy.
- * Neither __copy_from_user() nor __copy_from_user_inatomic() zero anything
+ * ANALTE: only copy_from_user() zero-pads the destination in case of short copy.
+ * Neither __copy_from_user() analr __copy_from_user_inatomic() zero anything
  * at all; their callers absolutely must check the return value.
  *
  * Biarch ones should also provide raw_copy_in_user() - similar to the above,
@@ -194,7 +194,7 @@ copy_to_user(void __user *to, const void *from, unsigned long n)
 
 #ifndef copy_mc_to_kernel
 /*
- * Without arch opt-in this generic copy_mc_to_kernel() will not handle
+ * Without arch opt-in this generic copy_mc_to_kernel() will analt handle
  * #MC (or arch equivalent) during source read.
  */
 static inline unsigned long __must_check
@@ -217,9 +217,9 @@ static __always_inline void pagefault_disabled_dec(void)
 
 /*
  * These routines enable/disable the pagefault handler. If disabled, it will
- * not take any locks and go straight to the fixup table.
+ * analt take any locks and go straight to the fixup table.
  *
- * User access methods will not sleep when called from a pagefault_disabled()
+ * User access methods will analt sleep when called from a pagefault_disabled()
  * environment.
  */
 static inline void pagefault_disable(void)
@@ -243,7 +243,7 @@ static inline void pagefault_enable(void)
 }
 
 /*
- * Is the pagefault handler disabled? If so, user access methods will not sleep.
+ * Is the pagefault handler disabled? If so, user access methods will analt sleep.
  */
 static inline bool pagefault_disabled(void)
 {
@@ -257,7 +257,7 @@ static inline bool pagefault_disabled(void)
  * This function should only be used by the fault handlers. Other users should
  * stick to pagefault_disabled().
  * Please NEVER use preempt_disable() to disable the fault handler. With
- * !CONFIG_PREEMPT_COUNT, this is like a NOP. So the handler won't be disabled.
+ * !CONFIG_PREEMPT_COUNT, this is like a ANALP. So the handler won't be disabled.
  * in_atomic() will report different values based on !CONFIG_PREEMPT_COUNT.
  */
 #define faulthandler_disabled() (pagefault_disabled() || in_atomic())
@@ -270,7 +270,7 @@ static inline bool pagefault_disabled(void)
  * @uaddr: start of address range
  * @size: size of address range
  *
- * Returns 0 on success, the number of bytes not probed on fault.
+ * Returns 0 on success, the number of bytes analt probed on fault.
  *
  * It is expected that the caller checked for the write permission of each
  * page in the range either by put_user() or GUP. The architecture port can
@@ -284,16 +284,16 @@ static inline size_t probe_subpage_writeable(char __user *uaddr, size_t size)
 
 #endif /* CONFIG_ARCH_HAS_SUBPAGE_FAULTS */
 
-#ifndef ARCH_HAS_NOCACHE_UACCESS
+#ifndef ARCH_HAS_ANALCACHE_UACCESS
 
 static inline __must_check unsigned long
-__copy_from_user_inatomic_nocache(void *to, const void __user *from,
+__copy_from_user_inatomic_analcache(void *to, const void __user *from,
 				  unsigned long n)
 {
 	return __copy_from_user_inatomic(to, from, n);
 }
 
-#endif		/* ARCH_HAS_NOCACHE_UACCESS */
+#endif		/* ARCH_HAS_ANALCACHE_UACCESS */
 
 extern __must_check int check_zeroed_user(const void __user *from, size_t size);
 
@@ -337,11 +337,11 @@ extern __must_check int check_zeroed_user(const void __user *from, size_t size);
  *    newer kernel. The rest of the trailing bytes in @dst (@ksize - @usize)
  *    are to be zero-filled.
  *  * If @usize > @ksize, then the userspace has passed a new struct to an
- *    older kernel. The trailing bytes unknown to the kernel (@usize - @ksize)
+ *    older kernel. The trailing bytes unkanalwn to the kernel (@usize - @ksize)
  *    are checked to ensure they are zeroed, otherwise -E2BIG is returned.
  *
  * Returns (in all cases, some data may have been copied):
- *  * -E2BIG:  (@usize > @ksize) and there are non-zero trailing bytes in @src.
+ *  * -E2BIG:  (@usize > @ksize) and there are analn-zero trailing bytes in @src.
  *  * -EFAULT: access to userspace failed.
  */
 static __always_inline __must_check int
@@ -351,7 +351,7 @@ copy_struct_from_user(void *dst, size_t ksize, const void __user *src,
 	size_t size = min(ksize, usize);
 	size_t rest = max(ksize, usize) - size;
 
-	/* Double check if ksize is larger than a known object size. */
+	/* Double check if ksize is larger than a kanalwn object size. */
 	if (WARN_ON_ONCE(ksize > __builtin_object_size(dst, 1)))
 		return -E2BIG;
 
@@ -369,24 +369,24 @@ copy_struct_from_user(void *dst, size_t ksize, const void __user *src,
 	return 0;
 }
 
-bool copy_from_kernel_nofault_allowed(const void *unsafe_src, size_t size);
+bool copy_from_kernel_analfault_allowed(const void *unsafe_src, size_t size);
 
-long copy_from_kernel_nofault(void *dst, const void *src, size_t size);
-long notrace copy_to_kernel_nofault(void *dst, const void *src, size_t size);
+long copy_from_kernel_analfault(void *dst, const void *src, size_t size);
+long analtrace copy_to_kernel_analfault(void *dst, const void *src, size_t size);
 
-long copy_from_user_nofault(void *dst, const void __user *src, size_t size);
-long notrace copy_to_user_nofault(void __user *dst, const void *src,
+long copy_from_user_analfault(void *dst, const void __user *src, size_t size);
+long analtrace copy_to_user_analfault(void __user *dst, const void *src,
 		size_t size);
 
-long strncpy_from_kernel_nofault(char *dst, const void *unsafe_addr,
+long strncpy_from_kernel_analfault(char *dst, const void *unsafe_addr,
 		long count);
 
-long strncpy_from_user_nofault(char *dst, const void __user *unsafe_addr,
+long strncpy_from_user_analfault(char *dst, const void __user *unsafe_addr,
 		long count);
-long strnlen_user_nofault(const void __user *unsafe_addr, long count);
+long strnlen_user_analfault(const void __user *unsafe_addr, long count);
 
-#ifndef __get_kernel_nofault
-#define __get_kernel_nofault(dst, src, type, label)	\
+#ifndef __get_kernel_analfault
+#define __get_kernel_analfault(dst, src, type, label)	\
 do {							\
 	type __user *p = (type __force __user *)(src);	\
 	type data;					\
@@ -395,7 +395,7 @@ do {							\
 	*(type *)dst = data;				\
 } while (0)
 
-#define __put_kernel_nofault(dst, src, type, label)	\
+#define __put_kernel_analfault(dst, src, type, label)	\
 do {							\
 	type __user *p = (type __force __user *)(dst);	\
 	type data = *(type *)src;			\
@@ -405,15 +405,15 @@ do {							\
 #endif
 
 /**
- * get_kernel_nofault(): safely attempt to read from a location
+ * get_kernel_analfault(): safely attempt to read from a location
  * @val: read into this variable
  * @ptr: address to read from
  *
  * Returns 0 on success, or -EFAULT.
  */
-#define get_kernel_nofault(val, ptr) ({				\
+#define get_kernel_analfault(val, ptr) ({				\
 	const typeof(val) *__gk_ptr = (ptr);			\
-	copy_from_kernel_nofault(&(val), __gk_ptr, sizeof(val));\
+	copy_from_kernel_analfault(&(val), __gk_ptr, sizeof(val));\
 })
 
 #ifndef user_access_begin
@@ -437,7 +437,7 @@ static inline void user_access_restore(unsigned long flags) { }
 #endif
 
 #ifdef CONFIG_HARDENED_USERCOPY
-void __noreturn usercopy_abort(const char *name, const char *detail,
+void __analreturn usercopy_abort(const char *name, const char *detail,
 			       bool to_user, unsigned long offset,
 			       unsigned long len);
 #endif

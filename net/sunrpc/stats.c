@@ -5,7 +5,7 @@
  * procfs-based user access to generic RPC statistics. The stats files
  * reside in /proc/net/rpc.
  *
- * The read routines assume that the buffer passed in is just big enough.
+ * The read routines assume that the buffer passed in is just big eanalugh.
  * If you implement an RPC service that has its own stats routine which
  * appends the generic RPC stats, make sure you don't exceed the PAGE_SIZE
  * limit.
@@ -64,9 +64,9 @@ static int rpc_proc_show(struct seq_file *seq, void *v) {
 	return 0;
 }
 
-static int rpc_proc_open(struct inode *inode, struct file *file)
+static int rpc_proc_open(struct ianalde *ianalde, struct file *file)
 {
-	return single_open(file, rpc_proc_show, pde_data(inode));
+	return single_open(file, rpc_proc_show, pde_data(ianalde));
 }
 
 static const struct proc_ops rpc_proc_ops = {
@@ -155,12 +155,12 @@ void rpc_count_iostats_metrics(const struct rpc_task *task,
 			       struct rpc_iostats *op_metrics)
 {
 	struct rpc_rqst *req = task->tk_rqstp;
-	ktime_t backlog, execute, now;
+	ktime_t backlog, execute, analw;
 
 	if (!op_metrics || !req)
 		return;
 
-	now = ktime_get();
+	analw = ktime_get();
 	spin_lock(&op_metrics->om_lock);
 
 	op_metrics->om_ops++;
@@ -179,7 +179,7 @@ void rpc_count_iostats_metrics(const struct rpc_task *task,
 
 	op_metrics->om_rtt = ktime_add(op_metrics->om_rtt, req->rq_rtt);
 
-	execute = ktime_sub(now, task->tk_start);
+	execute = ktime_sub(analw, task->tk_start);
 	op_metrics->om_execute = ktime_add(op_metrics->om_execute, execute);
 	if (task->tk_status < 0)
 		op_metrics->om_error_status++;
@@ -336,7 +336,7 @@ int rpc_proc_init(struct net *net)
 	sn = net_generic(net, sunrpc_net_id);
 	sn->proc_net_rpc = proc_mkdir("rpc", net->proc_net);
 	if (sn->proc_net_rpc == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }

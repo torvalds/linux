@@ -56,8 +56,8 @@ static void st_rproc_mbox_callback(struct device *dev, u32 msg)
 {
 	struct rproc *rproc = dev_get_drvdata(dev);
 
-	if (rproc_vq_interrupt(rproc, msg) == IRQ_NONE)
-		dev_dbg(dev, "no message was found in vqid %d\n", msg);
+	if (rproc_vq_interrupt(rproc, msg) == IRQ_ANALNE)
+		dev_dbg(dev, "anal message was found in vqid %d\n", msg);
 }
 
 static
@@ -98,7 +98,7 @@ static int st_rproc_mem_alloc(struct rproc *rproc,
 	if (!va) {
 		dev_err(dev, "Unable to map memory region: %pa+%zx\n",
 			&mem->dma, mem->len);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Update memory entry va */
@@ -118,7 +118,7 @@ static int st_rproc_mem_release(struct rproc *rproc,
 static int st_rproc_parse_fw(struct rproc *rproc, const struct firmware *fw)
 {
 	struct device *dev = rproc->dev.parent;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct rproc_mem_entry *mem;
 	struct reserved_mem *rmem;
 	struct of_phandle_iterator it;
@@ -126,33 +126,33 @@ static int st_rproc_parse_fw(struct rproc *rproc, const struct firmware *fw)
 
 	of_phandle_iterator_init(&it, np, "memory-region", NULL, 0);
 	while (of_phandle_iterator_next(&it) == 0) {
-		rmem = of_reserved_mem_lookup(it.node);
+		rmem = of_reserved_mem_lookup(it.analde);
 		if (!rmem) {
-			of_node_put(it.node);
+			of_analde_put(it.analde);
 			dev_err(dev, "unable to acquire memory-region\n");
 			return -EINVAL;
 		}
 
-		/*  No need to map vdev buffer */
-		if (strcmp(it.node->name, "vdev0buffer")) {
+		/*  Anal need to map vdev buffer */
+		if (strcmp(it.analde->name, "vdev0buffer")) {
 			/* Register memory region */
 			mem = rproc_mem_entry_init(dev, NULL,
 						   (dma_addr_t)rmem->base,
 						   rmem->size, rmem->base,
 						   st_rproc_mem_alloc,
 						   st_rproc_mem_release,
-						   it.node->name);
+						   it.analde->name);
 		} else {
 			/* Register reserved memory for vdev buffer allocation */
 			mem = rproc_of_resm_mem_entry_init(dev, index,
 							   rmem->size,
 							   rmem->base,
-							   it.node->name);
+							   it.analde->name);
 		}
 
 		if (!mem) {
-			of_node_put(it.node);
-			return -ENOMEM;
+			of_analde_put(it.analde);
+			return -EANALMEM;
 		}
 
 		rproc_add_carveout(rproc, mem);
@@ -284,7 +284,7 @@ static int st_rproc_parse_dt(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct rproc *rproc = platform_get_drvdata(pdev);
 	struct st_rproc *ddata = rproc->priv;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	int err;
 
 	if (ddata->config->sw_reset) {
@@ -319,14 +319,14 @@ static int st_rproc_parse_dt(struct platform_device *pdev)
 
 	ddata->boot_base = syscon_regmap_lookup_by_phandle(np, "st,syscfg");
 	if (IS_ERR(ddata->boot_base)) {
-		dev_err(dev, "Boot base not found\n");
+		dev_err(dev, "Boot base analt found\n");
 		return PTR_ERR(ddata->boot_base);
 	}
 
 	err = of_property_read_u32_index(np, "st,syscfg", 1,
 					 &ddata->boot_offset);
 	if (err) {
-		dev_err(dev, "Boot offset not found\n");
+		dev_err(dev, "Boot offset analt found\n");
 		return -EINVAL;
 	}
 
@@ -341,7 +341,7 @@ static int st_rproc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct st_rproc *ddata;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct rproc *rproc;
 	struct mbox_chan *chan;
 	int enabled;
@@ -349,13 +349,13 @@ static int st_rproc_probe(struct platform_device *pdev)
 
 	rproc = rproc_alloc(dev, np->name, &st_rproc_ops, NULL, sizeof(*ddata));
 	if (!rproc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rproc->has_iommu = false;
 	ddata = rproc->priv;
 	ddata->config = (struct st_rproc_config *)device_get_match_data(dev);
 	if (!ddata->config) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto free_rproc;
 	}
 
@@ -382,13 +382,13 @@ static int st_rproc_probe(struct platform_device *pdev)
 		ddata->mbox_client_vq0.dev		= dev;
 		ddata->mbox_client_vq0.tx_done		= NULL;
 		ddata->mbox_client_vq0.tx_block	= false;
-		ddata->mbox_client_vq0.knows_txdone	= false;
+		ddata->mbox_client_vq0.kanalws_txdone	= false;
 		ddata->mbox_client_vq0.rx_callback	= st_rproc_mbox_callback_vq0;
 
 		ddata->mbox_client_vq1.dev		= dev;
 		ddata->mbox_client_vq1.tx_done		= NULL;
 		ddata->mbox_client_vq1.tx_block	= false;
-		ddata->mbox_client_vq1.knows_txdone	= false;
+		ddata->mbox_client_vq1.kanalws_txdone	= false;
 		ddata->mbox_client_vq1.rx_callback	= st_rproc_mbox_callback_vq1;
 
 		/*

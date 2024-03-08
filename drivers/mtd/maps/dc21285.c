@@ -138,7 +138,7 @@ static void dc21285_copy_to_8(struct map_info *map, unsigned long to, const void
 
 static struct map_info dc21285_map = {
 	.name = "DC21285 flash",
-	.phys = NO_XIP,
+	.phys = ANAL_XIP,
 	.size = 16*1024*1024,
 	.copy_from = dc21285_copy_from,
 };
@@ -172,7 +172,7 @@ static int __init init_dc21285(void)
 			printk (KERN_ERR "DC21285 flash: undefined bankwidth\n");
 			return -ENXIO;
 	}
-	printk (KERN_NOTICE "DC21285 flash support (%d-bit bankwidth)\n",
+	printk (KERN_ANALTICE "DC21285 flash support (%d-bit bankwidth)\n",
 		dc21285_map.bankwidth*8);
 
 	/* Let's map the flash area */

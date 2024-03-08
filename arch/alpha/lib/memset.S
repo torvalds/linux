@@ -15,8 +15,8 @@
  * hand, so they might well be incorrect, please do tell me about it..)
  */
 #include <linux/export.h>
-	.set noat
-	.set noreorder
+	.set analat
+	.set analreorder
 .text
 	.globl memset
 	.globl __memset
@@ -48,9 +48,9 @@ __constant_c_memset:
 	ble $18,end		/* .. E1 */
 
 	bic $1,7,$1		/* E0 */
-	beq $1,within_one_quad	/* .. E1 (note EV5 zero-latency forwarding) */
+	beq $1,within_one_quad	/* .. E1 (analte EV5 zero-latency forwarding) */
 	and $16,7,$3		/* E0 */
-	beq $3,aligned		/* .. E1 (note EV5 zero-latency forwarding) */
+	beq $3,aligned		/* .. E1 (analte EV5 zero-latency forwarding) */
 
 	ldq_u $4,0($16)		/* E0 */
 	bis $16,$16,$5		/* .. E1 */
@@ -72,7 +72,7 @@ aligned:
 	sra $18,3,$3		/* E0 */
 	and $18,7,$18		/* .. E1 */
 	bis $16,$16,$5		/* E0 */
-	beq $3,no_quad		/* .. E1 */
+	beq $3,anal_quad		/* .. E1 */
 
 .align 3
 loop:
@@ -81,7 +81,7 @@ loop:
 	addq $5,8,$5		/* E0 */
 	bne $3,loop		/* .. E1 */
 
-no_quad:
+anal_quad:
 	bis $31,$31,$31		/* E0 */
 	beq $18,end		/* .. E1 */
 	ldq $7,0($5)		/* E0 */

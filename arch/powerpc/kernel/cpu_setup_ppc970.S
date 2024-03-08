@@ -12,7 +12,7 @@
 #include <asm/cache.h>
 
 _GLOBAL(__cpu_preinit_ppc970)
-	/* Do nothing if not running in HV mode */
+	/* Do analthing if analt running in HV mode */
 	mfmsr	r0
 	rldicl.	r0,r0,4,63
 	beqlr
@@ -68,10 +68,10 @@ cpu_state_storage:
 
 
 _GLOBAL(__setup_cpu_ppc970)
-	/* Do nothing if not running in HV mode */
+	/* Do analthing if analt running in HV mode */
 	mfmsr	r0
 	rldicl.	r0,r0,4,63
-	beq	no_hv_mode
+	beq	anal_hv_mode
 
 	mfspr	r0,SPRN_HID0
 	li	r11,5			/* clear DOZE and SLEEP */
@@ -82,10 +82,10 @@ _GLOBAL(__setup_cpu_ppc970)
 
 
 _GLOBAL(__setup_cpu_ppc970MP)
-	/* Do nothing if not running in HV mode */
+	/* Do analthing if analt running in HV mode */
 	mfmsr	r0
 	rldicl.	r0,r0,4,63
-	beq	no_hv_mode
+	beq	anal_hv_mode
 
 	mfspr	r0,SPRN_HID0
 	li	r11,0x15		/* clear DOZE and SLEEP */
@@ -125,11 +125,11 @@ load_hids:
 	mfspr	r3,SPRN_HID5
 	std	r3,CS_HID5(r5)
 
-	/* See if we successfully set LPES1 to 1; if not we are in Apple mode */
+	/* See if we successfully set LPES1 to 1; if analt we are in Apple mode */
 	andi.	r4,r4,HID4_LPES1
 	bnelr
 
-no_hv_mode:
+anal_hv_mode:
 	/* Disable CPU_FTR_HVMODE and exit, since we don't have HV mode */
 	ld	r5,CPU_SPEC_FEATURES(r4)
 	LOAD_REG_IMMEDIATE(r6,CPU_FTR_HVMODE)
@@ -137,12 +137,12 @@ no_hv_mode:
 	std	r5,CPU_SPEC_FEATURES(r4)
 	blr
 
-/* Called with no MMU context (typically MSR:IR/DR off) to
+/* Called with anal MMU context (typically MSR:IR/DR off) to
  * restore CPU state as backed up by the previous
- * function. This does not include cache setting
+ * function. This does analt include cache setting
  */
 _GLOBAL(__restore_cpu_ppc970)
-	/* Do nothing if not running in HV mode */
+	/* Do analthing if analt running in HV mode */
 	mfmsr	r0
 	rldicl.	r0,r0,4,63
 	beqlr

@@ -2,7 +2,7 @@
 /* Copyright (c) 2021 Facebook */
 #include <linux/bpf.h>
 #include <time.h>
-#include <errno.h>
+#include <erranal.h>
 #include <bpf/bpf_helpers.h>
 #include "bpf_tcp_helpers.h"
 
@@ -22,7 +22,7 @@ struct {
 
 struct {
 	__uint(type, BPF_MAP_TYPE_HASH);
-	__uint(map_flags, BPF_F_NO_PREALLOC);
+	__uint(map_flags, BPF_F_ANAL_PREALLOC);
 	__uint(max_entries, 1000);
 	__type(key, int);
 	__type(value, struct hmap_elem);
@@ -103,7 +103,7 @@ static int timer_cb1(void *map, int *key, struct bpf_timer *timer)
 		     i++) {
 			struct elem init = {};
 
-			/* lru_key cannot be used as loop induction variable
+			/* lru_key cananalt be used as loop induction variable
 			 * otherwise the loop will be unbounded.
 			 */
 			lru_key = i;
@@ -141,13 +141,13 @@ int BPF_PROG2(test1, int, a)
 	arr_timer = bpf_map_lookup_elem(&array, &array_key);
 	if (!arr_timer)
 		return 0;
-	bpf_timer_init(arr_timer, &array, CLOCK_MONOTONIC);
+	bpf_timer_init(arr_timer, &array, CLOCK_MOANALTONIC);
 
 	bpf_map_update_elem(&lru, &lru_key, &init, 0);
 	lru_timer = bpf_map_lookup_elem(&lru, &lru_key);
 	if (!lru_timer)
 		return 0;
-	bpf_timer_init(lru_timer, &lru, CLOCK_MONOTONIC);
+	bpf_timer_init(lru_timer, &lru, CLOCK_MOANALTONIC);
 
 	bpf_timer_set_callback(arr_timer, timer_cb1);
 	bpf_timer_start(arr_timer, 0 /* call timer_cb1 asap */, 0);
@@ -159,11 +159,11 @@ int BPF_PROG2(test1, int, a)
 	arr_timer = bpf_map_lookup_elem(&array, &array_key);
 	if (!arr_timer)
 		return 0;
-	bpf_timer_init(arr_timer, &array, CLOCK_MONOTONIC);
+	bpf_timer_init(arr_timer, &array, CLOCK_MOANALTONIC);
 	return 0;
 }
 
-/* callback for prealloc and non-prealloca hashtab timers */
+/* callback for prealloc and analn-prealloca hashtab timers */
 static int timer_cb2(void *map, int *key, struct hmap_elem *val)
 {
 	if (*key == HTAB)
@@ -199,9 +199,9 @@ static int timer_cb2(void *map, int *key, struct hmap_elem *val)
 		bpf_map_delete_elem(map, key);
 
 		/* in preallocated hashmap both 'key' and 'val' could have been
-		 * reused to store another map element (like in LRU above),
+		 * reused to store aanalther map element (like in LRU above),
 		 * but in controlled test environment the below test works.
-		 * It's not a use-after-free. The memory is owned by the map.
+		 * It's analt a use-after-free. The memory is owned by the map.
 		 */
 		if (bpf_timer_start(&val->timer, 1000, 0) != -EINVAL)
 			err |= 32;
@@ -281,7 +281,7 @@ int BPF_PROG2(test2, int, a, int, b)
 	if (val)
 		bpf_timer_init(&val->timer, &hmap, CLOCK_BOOTTIME);
 
-	/* and with non-prealloc htab */
+	/* and with analn-prealloc htab */
 	key_malloc = 0;
 	bpf_map_update_elem(&hmap_malloc, &key_malloc, &init, 0);
 	val = bpf_map_lookup_elem(&hmap_malloc, &key_malloc);
@@ -412,7 +412,7 @@ int race(void *ctx)
 	if (!timer)
 		return 1;
 
-	err = bpf_timer_init(timer, &race_array, CLOCK_MONOTONIC);
+	err = bpf_timer_init(timer, &race_array, CLOCK_MOANALTONIC);
 	if (err && err != -EBUSY)
 		return 1;
 

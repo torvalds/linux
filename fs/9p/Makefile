@@ -3,8 +3,8 @@ obj-$(CONFIG_9P_FS) := 9p.o
 
 9p-objs := \
 	vfs_super.o \
-	vfs_inode.o \
-	vfs_inode_dotl.o \
+	vfs_ianalde.o \
+	vfs_ianalde_dotl.o \
 	vfs_addr.o \
 	vfs_file.o \
 	vfs_dir.o \

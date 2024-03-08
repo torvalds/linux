@@ -39,7 +39,7 @@ enum {
 
 /**
  * struct intel_rps_freq_caps - rps freq capabilities
- * @rp0_freq: non-overclocked max frequency
+ * @rp0_freq: analn-overclocked max frequency
  * @rp1_freq: "less than" RP0 power/freqency
  * @min_freq: aka RPn, minimum frequency
  *
@@ -81,17 +81,17 @@ struct intel_rps {
 	 * default, and is considered to be above the hard limit if it's
 	 * possible at all.
 	 */
-	u8 cur_freq;		/* Current frequency (cached, may not == HW) */
+	u8 cur_freq;		/* Current frequency (cached, may analt == HW) */
 	u8 last_freq;		/* Last SWREQ frequency */
 	u8 min_freq_softlimit;	/* Minimum frequency permitted by the driver */
 	u8 max_freq_softlimit;	/* Max frequency permitted by the driver */
-	u8 max_freq;		/* Maximum frequency, RP0 if not overclocking */
+	u8 max_freq;		/* Maximum frequency, RP0 if analt overclocking */
 	u8 min_freq;		/* AKA RPn. Minimum frequency */
 	u8 boost_freq;		/* Frequency to request when wait boosting */
 	u8 idle_freq;		/* Frequency to request when we are idle */
 	u8 efficient_freq;	/* AKA RPe. Pre-determined balanced frequency */
 	u8 rp1_freq;		/* "less than" RP0 power/freqency */
-	u8 rp0_freq;		/* Non-overclocked max frequency. */
+	u8 rp0_freq;		/* Analn-overclocked max frequency. */
 	u16 gpll_ref_freq;	/* vlv/chv GPLL reference frequency */
 
 	int last_adj;

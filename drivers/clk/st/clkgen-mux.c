@@ -15,7 +15,7 @@
 #include <linux/clk-provider.h>
 #include "clkgen.h"
 
-static const char ** __init clkgen_mux_get_parents(struct device_node *np,
+static const char ** __init clkgen_mux_get_parents(struct device_analde *np,
 						       int *num_parents)
 {
 	const char **parents;
@@ -27,7 +27,7 @@ static const char ** __init clkgen_mux_get_parents(struct device_node *np,
 
 	parents = kcalloc(nparents, sizeof(const char *), GFP_KERNEL);
 	if (!parents)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	*num_parents = of_clk_parent_fill(np, parents, nparents);
 	return parents;
@@ -49,24 +49,24 @@ static struct clkgen_mux_data stih407_a9_mux_data = {
 	.lock = &clkgen_a9_lock,
 };
 
-static void __init st_of_clkgen_mux_setup(struct device_node *np,
+static void __init st_of_clkgen_mux_setup(struct device_analde *np,
 		struct clkgen_mux_data *data)
 {
 	struct clk *clk;
 	void __iomem *reg;
 	const char **parents;
 	int num_parents = 0;
-	struct device_node *parent_np;
+	struct device_analde *parent_np;
 
 	/*
-	 * First check for reg property within the node to keep backward
-	 * compatibility, then if reg doesn't exist look at the parent node
+	 * First check for reg property within the analde to keep backward
+	 * compatibility, then if reg doesn't exist look at the parent analde
 	 */
 	reg = of_iomap(np, 0);
 	if (!reg) {
 		parent_np = of_get_parent(np);
 		reg = of_iomap(parent_np, 0);
-		of_node_put(parent_np);
+		of_analde_put(parent_np);
 		if (!reg) {
 			pr_err("%s: Failed to get base address\n", __func__);
 			return;
@@ -103,7 +103,7 @@ err_parents:
 	iounmap(reg);
 }
 
-static void __init st_of_clkgen_a9_mux_setup(struct device_node *np)
+static void __init st_of_clkgen_a9_mux_setup(struct device_analde *np)
 {
 	st_of_clkgen_mux_setup(np, &stih407_a9_mux_data);
 }

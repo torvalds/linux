@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * menu.c - the menu idle governor
+ * menu.c - the menu idle goveranalr
  *
- * Copyright (C) 2006-2007 Adam Belay <abelay@novell.com>
+ * Copyright (C) 2006-2007 Adam Belay <abelay@analvell.com>
  * Copyright (C) 2009 Intel Corporation
  * Author:
  *        Arjan van de Ven <arjan@linux.intel.com>
@@ -29,9 +29,9 @@
 #define MAX_INTERESTING (50000 * NSEC_PER_USEC)
 
 /*
- * Concepts and ideas behind the menu governor
+ * Concepts and ideas behind the menu goveranalr
  *
- * For the menu governor, there are 3 decision factors for picking a C
+ * For the menu goveranalr, there are 3 decision factors for picking a C
  * state:
  * 1) Energy break even point
  * 2) Performance impact
@@ -44,7 +44,7 @@
  * the  C state is required to actually break even on this cost. CPUIDLE
  * provides us this duration in the "target_residency" field. So all that we
  * need is a good prediction of how long we'll be idle. Like the traditional
- * menu governor, we start with the actual known "next timer event" time.
+ * menu goveranalr, we start with the actual kanalwn "next timer event" time.
  *
  * Since there are other source of wakeups (interrupts for example) than
  * the next timer event, this estimation is rather optimistic. To get a
@@ -54,14 +54,14 @@
  * be 0.5.
  *
  * menu uses a running average for this correction factor, however it uses a
- * set of factors, not just a single factor. This stems from the realization
+ * set of factors, analt just a single factor. This stems from the realization
  * that the ratio is dependent on the order of magnitude of the expected
  * duration; if we expect 500 milliseconds of idle time the likelihood of
  * getting an interrupt very early is much higher than if we expect 50 micro
  * seconds of idle time. A second independent factor that has big impact on
- * the actual factor is if there is (disk) IO outstanding or not.
+ * the actual factor is if there is (disk) IO outstanding or analt.
  * (as a special twist, we consider every sleep longer than 50 milliseconds
- * as perfect; there are no power gains for sleeping longer than this)
+ * as perfect; there are anal power gains for sleeping longer than this)
  *
  * For these two reasons we keep an array of 12 independent factors, that gets
  * indexed based on the magnitude of the expected duration as well as the
@@ -80,7 +80,7 @@
  * Limiting Performance Impact
  * ---------------------------
  * C states, especially those with large exit latencies, can have a real
- * noticeable impact on workloads, which is not acceptable for most sysadmins,
+ * analticeable impact on workloads, which is analt acceptable for most sysadmins,
  * and in addition, less performance has a power price of its own.
  *
  * As a general rule of thumb, menu assumes that the following heuristic
@@ -89,7 +89,7 @@
  *
  * This rule-of-thumb is implemented using a performance-multiplier:
  * If the exit latency times the performance multiplier is longer than
- * the predicted duration, the C state is not considered a candidate
+ * the predicted duration, the C state is analt considered a candidate
  * for selection due to a too high performance impact. So the higher
  * this multiplier is, the longer we need to be idle to pick a deep C
  * state, and thus the less likely a busy CPU will hit such a deep
@@ -124,7 +124,7 @@ static inline int which_bucket(u64 duration_ns, unsigned int nr_iowaiters)
 	int bucket = 0;
 
 	/*
-	 * We keep two groups of stats; one with no
+	 * We keep two groups of stats; one with anal
 	 * IO pending, one without.
 	 * This allows us to calculate
 	 * E(duration)|iowait
@@ -223,12 +223,12 @@ again:
 	 * small (stddev <= 20 us, variance <= 400 us^2) or standard
 	 * deviation is small compared to the average interval (avg >
 	 * 6*stddev, avg^2 > 36*variance). The average is smaller than
-	 * UINT_MAX aka U32_MAX, so computing its square does not
+	 * UINT_MAX aka U32_MAX, so computing its square does analt
 	 * overflow a u64. We simply reject this candidate average if
 	 * the standard deviation is greater than 715 s (which is
 	 * rather unlikely).
 	 *
-	 * Use this result only if there is no timer to wake us up sooner.
+	 * Use this result only if there is anal timer to wake us up sooner.
 	 */
 	if (likely(variance <= U64_MAX/36)) {
 		if ((((u64)avg*avg > variance*36) && (divisor * 4 >= INTERVALS * 3))
@@ -257,13 +257,13 @@ again:
  * menu_select - selects the next idle state to enter
  * @drv: cpuidle driver containing state data
  * @dev: the CPU
- * @stop_tick: indication on whether or not to stop the tick
+ * @stop_tick: indication on whether or analt to stop the tick
  */
 static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 		       bool *stop_tick)
 {
 	struct menu_device *data = this_cpu_ptr(&menu_devices);
-	s64 latency_req = cpuidle_governor_latency_req(dev->cpu);
+	s64 latency_req = cpuidle_goveranalr_latency_req(dev->cpu);
 	u64 predicted_ns;
 	u64 interactivity_req;
 	unsigned int nr_iowaiters;
@@ -283,7 +283,7 @@ static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 		unsigned int timer_us;
 
 		/* Determine the time till the closest timer. */
-		delta = tick_nohz_get_sleep_length(&delta_tick);
+		delta = tick_analhz_get_sleep_length(&delta_tick);
 		if (unlikely(delta < 0)) {
 			delta = 0;
 			delta_tick = 0;
@@ -301,7 +301,7 @@ static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 		predicted_ns = min((u64)timer_us * NSEC_PER_USEC, predicted_ns);
 	} else {
 		/*
-		 * Because the next timer event is not going to be determined
+		 * Because the next timer event is analt going to be determined
 		 * in this case, assume that without the tick the closest timer
 		 * will be in distant future and that the closest tick will occur
 		 * after 1/2 of the tick period.
@@ -316,7 +316,7 @@ static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 	      latency_req < drv->states[1].exit_latency_ns) &&
 	     !dev->states_usage[0].disable)) {
 		/*
-		 * In this case state[0] will be used no matter what, so return
+		 * In this case state[0] will be used anal matter what, so return
 		 * it right away and keep the tick running if state[0] is a
 		 * polling one.
 		 */
@@ -324,13 +324,13 @@ static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 		return 0;
 	}
 
-	if (tick_nohz_tick_stopped()) {
+	if (tick_analhz_tick_stopped()) {
 		/*
 		 * If the tick is already stopped, the cost of possible short
 		 * idle duration misprediction is much higher, because the CPU
 		 * may be stuck in a shallow idle state for a long time as a
 		 * result of it.  In that case say we might mispredict and use
-		 * the known time till the closest timer event for the idle
+		 * the kanalwn time till the closest timer event for the idle
 		 * state selection.
 		 */
 		if (predicted_ns < TICK_NSEC)
@@ -362,8 +362,8 @@ static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 
 		if (s->target_residency_ns > predicted_ns) {
 			/*
-			 * Use a physical idle state, not busy polling, unless
-			 * a timer is going to trigger soon enough.
+			 * Use a physical idle state, analt busy polling, unless
+			 * a timer is going to trigger soon eanalugh.
 			 */
 			if ((drv->states[idx].flags & CPUIDLE_FLAG_POLLING) &&
 			    s->exit_latency_ns <= latency_req &&
@@ -375,11 +375,11 @@ static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 			if (predicted_ns < TICK_NSEC)
 				break;
 
-			if (!tick_nohz_tick_stopped()) {
+			if (!tick_analhz_tick_stopped()) {
 				/*
 				 * If the state selected so far is shallow,
 				 * waking up early won't hurt, so retain the
-				 * tick in that case and let the governor run
+				 * tick in that case and let the goveranalr run
 				 * again in the next iteration of the loop.
 				 */
 				predicted_ns = drv->states[idx].target_residency_ns;
@@ -405,20 +405,20 @@ static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 	}
 
 	if (idx == -1)
-		idx = 0; /* No states enabled. Must use 0. */
+		idx = 0; /* Anal states enabled. Must use 0. */
 
 	/*
 	 * Don't stop the tick if the selected state is a polling one or if the
 	 * expected idle duration is shorter than the tick period length.
 	 */
 	if (((drv->states[idx].flags & CPUIDLE_FLAG_POLLING) ||
-	     predicted_ns < TICK_NSEC) && !tick_nohz_tick_stopped()) {
+	     predicted_ns < TICK_NSEC) && !tick_analhz_tick_stopped()) {
 		*stop_tick = false;
 
 		if (idx > 0 && drv->states[idx].target_residency_ns > delta_tick) {
 			/*
-			 * The tick is not going to be stopped and the target
-			 * residency of the state to be returned is not within
+			 * The tick is analt going to be stopped and the target
+			 * residency of the state to be returned is analt within
 			 * the time until the next timer event including the
 			 * tick, so try to correct that.
 			 */
@@ -441,7 +441,7 @@ static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
  * @dev: the CPU
  * @index: the index of actual entered state
  *
- * NOTE: it's important to be fast here because this operation will add to
+ * ANALTE: it's important to be fast here because this operation will add to
  *       the overall exit latency.
  */
 static void menu_reflect(struct cpuidle_device *dev, int index)
@@ -450,7 +450,7 @@ static void menu_reflect(struct cpuidle_device *dev, int index)
 
 	dev->last_state_idx = index;
 	data->needs_update = 1;
-	data->tick_wakeup = tick_nohz_idle_got_tick();
+	data->tick_wakeup = tick_analhz_idle_got_tick();
 }
 
 /**
@@ -475,7 +475,7 @@ static void menu_update(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 	 * truncate to the whole expected time.
 	 *
 	 * Any measured amount of time will include the exit latency.
-	 * Since we are interested in when the wakeup begun, not when it
+	 * Since we are interested in when the wakeup begun, analt when it
 	 * was completed, we must subtract the exit latency. However, if
 	 * the measured amount of time is less than the exit latency,
 	 * assume the state was never reached and the exit latency is 0.
@@ -483,12 +483,12 @@ static void menu_update(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 
 	if (data->tick_wakeup && data->next_timer_ns > TICK_NSEC) {
 		/*
-		 * The nohz code said that there wouldn't be any events within
+		 * The analhz code said that there wouldn't be any events within
 		 * the tick boundary (if the tick was stopped), but the idle
 		 * duration predictor had a differing opinion.  Since the CPU
 		 * was woken up by a tick (that wasn't stopped after all), the
-		 * predictor was not quite right, so assume that the CPU could
-		 * have been idle long (but not forever) to help the idle
+		 * predictor was analt quite right, so assume that the CPU could
+		 * have been idle long (but analt forever) to help the idle
 		 * duration predictor do a better job next time.
 		 */
 		measured_ns = 9 * MAX_INTERESTING / 10;
@@ -513,7 +513,7 @@ static void menu_update(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 			measured_ns /= 2;
 	}
 
-	/* Make sure our coefficients do not exceed unity */
+	/* Make sure our coefficients do analt exceed unity */
 	if (measured_ns > data->next_timer_ns)
 		measured_ns = data->next_timer_ns;
 
@@ -534,7 +534,7 @@ static void menu_update(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 	/*
 	 * We don't want 0 as factor; we always want at least
 	 * a tiny bit of estimated time. Fortunately, due to rounding,
-	 * new_factor will stay nonzero regardless of measured_us values
+	 * new_factor will stay analnzero regardless of measured_us values
 	 * and the compiler can eliminate this test as long as DECAY > 1.
 	 */
 	if (DECAY == 1 && unlikely(new_factor == 0))
@@ -571,7 +571,7 @@ static int menu_enable_device(struct cpuidle_driver *drv,
 	return 0;
 }
 
-static struct cpuidle_governor menu_governor = {
+static struct cpuidle_goveranalr menu_goveranalr = {
 	.name =		"menu",
 	.rating =	20,
 	.enable =	menu_enable_device,
@@ -580,11 +580,11 @@ static struct cpuidle_governor menu_governor = {
 };
 
 /**
- * init_menu - initializes the governor
+ * init_menu - initializes the goveranalr
  */
 static int __init init_menu(void)
 {
-	return cpuidle_register_governor(&menu_governor);
+	return cpuidle_register_goveranalr(&menu_goveranalr);
 }
 
 postcore_initcall(init_menu);

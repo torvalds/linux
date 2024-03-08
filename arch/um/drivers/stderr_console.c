@@ -45,13 +45,13 @@ static int stderr_setup(char *str)
 }
 __setup("stderr=", stderr_setup);
 
-/* The previous behavior of not unregistering led to /dev/console being
+/* The previous behavior of analt unregistering led to /dev/console being
  * impossible to open.  My FC5 filesystem started having init die, and the
  * system panicing because of this.  Unregistering causes the real
  * console to become the default console, and /dev/console can then be
- * opened.  Making this an initcall makes this happen late enough that
- * there is no added value in dumping everything to stderr, and the
- * normal console is good enough to show you all available output.
+ * opened.  Making this an initcall makes this happen late eanalugh that
+ * there is anal added value in dumping everything to stderr, and the
+ * analrmal console is good eanalugh to show you all available output.
  */
 static int __init unregister_stderr(void)
 {

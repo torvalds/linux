@@ -147,29 +147,29 @@ if ($file_exceptions) {
 	while (<IN>) {
 		next if (m/^\s*$/ || m/^\s*#/);
 
-		# Parsers to ignore a symbol
+		# Parsers to iganalre a symbol
 
-		if (m/^ignore\s+ioctl\s+(\S+)/) {
+		if (m/^iganalre\s+ioctl\s+(\S+)/) {
 			delete $ioctls{$1} if (exists($ioctls{$1}));
 			next;
 		}
-		if (m/^ignore\s+define\s+(\S+)/) {
+		if (m/^iganalre\s+define\s+(\S+)/) {
 			delete $defines{$1} if (exists($defines{$1}));
 			next;
 		}
-		if (m/^ignore\s+typedef\s+(\S+)/) {
+		if (m/^iganalre\s+typedef\s+(\S+)/) {
 			delete $typedefs{$1} if (exists($typedefs{$1}));
 			next;
 		}
-		if (m/^ignore\s+enum\s+(\S+)/) {
+		if (m/^iganalre\s+enum\s+(\S+)/) {
 			delete $enums{$1} if (exists($enums{$1}));
 			next;
 		}
-		if (m/^ignore\s+struct\s+(\S+)/) {
+		if (m/^iganalre\s+struct\s+(\S+)/) {
 			delete $structs{$1} if (exists($structs{$1}));
 			next;
 		}
-		if (m/^ignore\s+symbol\s+(\S+)/) {
+		if (m/^iganalre\s+symbol\s+(\S+)/) {
 			delete $enum_symbols{$1} if (exists($enum_symbols{$1}));
 			next;
 		}
@@ -340,7 +340,7 @@ __END__
 parse_headers.pl - parse a C file, in order to identify functions, structs,
 enums and defines and create cross-references to a Sphinx book.
 
-=head1 SYNOPSIS
+=head1 SYANALPSIS
 
 B<parse_headers.pl> [<options>] <C_FILE> <OUT_FILE> [<EXCEPTIONS_FILE>]
 
@@ -369,8 +369,8 @@ Prints a more detailed help message and exits.
 Convert a C header or source file (C_FILE), into a ReStructured Text
 included via ..parsed-literal block with cross-references for the
 documentation files that describe the API. It accepts an optional
-EXCEPTIONS_FILE with describes what elements will be either ignored or
-be pointed to a non-default reference.
+EXCEPTIONS_FILE with describes what elements will be either iganalred or
+be pointed to a analn-default reference.
 
 The output is written at the (OUT_FILE).
 
@@ -379,7 +379,7 @@ enums and enum symbols and create cross-references for all of them.
 It is also capable of distinguish #define used for specifying a Linux
 ioctl.
 
-The EXCEPTIONS_FILE contain two rules to allow ignoring a symbol or
+The EXCEPTIONS_FILE contain two rules to allow iganalring a symbol or
 to replace the default references by a custom one.
 
 Please read Documentation/doc-guide/parse-headers.rst at the Kernel's
@@ -396,6 +396,6 @@ Copyright (c) 2016 by Mauro Carvalho Chehab <mchehab+samsung@kernel.org>.
 License GPLv2: GNU GPL version 2 <https://gnu.org/licenses/gpl.html>.
 
 This is free software: you are free to change and redistribute it.
-There is NO WARRANTY, to the extent permitted by law.
+There is ANAL WARRANTY, to the extent permitted by law.
 
 =cut

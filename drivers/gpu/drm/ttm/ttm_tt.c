@@ -12,13 +12,13 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
@@ -84,7 +84,7 @@ int ttm_tt_create(struct ttm_buffer_object *bo, bool zero_alloc)
 
 	bo->ttm = bdev->funcs->ttm_tt_create(bo, page_flags);
 	if (unlikely(bo->ttm == NULL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	WARN_ON(bo->ttm->page_flags & TTM_TT_FLAG_EXTERNAL_MAPPABLE &&
 		!(bo->ttm->page_flags & TTM_TT_FLAG_EXTERNAL));
@@ -99,7 +99,7 @@ static int ttm_tt_alloc_page_directory(struct ttm_tt *ttm)
 {
 	ttm->pages = kvcalloc(ttm->num_pages, sizeof(void*), GFP_KERNEL);
 	if (!ttm->pages)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -109,7 +109,7 @@ static int ttm_dma_tt_alloc_page_directory(struct ttm_tt *ttm)
 	ttm->pages = kvcalloc(ttm->num_pages, sizeof(*ttm->pages) +
 			      sizeof(*ttm->dma_address), GFP_KERNEL);
 	if (!ttm->pages)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ttm->dma_address = (void *)(ttm->pages + ttm->num_pages);
 	return 0;
@@ -120,7 +120,7 @@ static int ttm_sg_tt_alloc_page_directory(struct ttm_tt *ttm)
 	ttm->dma_address = kvcalloc(ttm->num_pages, sizeof(*ttm->dma_address),
 				    GFP_KERNEL);
 	if (!ttm->dma_address)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -152,7 +152,7 @@ int ttm_tt_init(struct ttm_tt *ttm, struct ttm_buffer_object *bo,
 
 	if (ttm_tt_alloc_page_directory(ttm)) {
 		pr_err("Failed allocating page table\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	return 0;
 }
@@ -188,7 +188,7 @@ int ttm_sg_tt_init(struct ttm_tt *ttm, struct ttm_buffer_object *bo,
 		ret = ttm_dma_tt_alloc_page_directory(ttm);
 	if (ret) {
 		pr_err("Failed allocating page table\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	return 0;
 }
@@ -218,7 +218,7 @@ int ttm_tt_swapin(struct ttm_tt *ttm)
 		}
 		to_page = ttm->pages[i];
 		if (unlikely(to_page == NULL)) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out_err;
 		}
 

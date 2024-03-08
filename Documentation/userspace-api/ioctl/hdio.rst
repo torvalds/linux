@@ -4,7 +4,7 @@ Summary of `HDIO_` ioctl calls
 
 - Edward A. Falk <efalk@google.com>
 
-November, 2004
+Analvember, 2004
 
 This document attempts to describe the ioctl(2) calls supported by
 the HD/IDE layer.  These are by-and-large implemented (as of Linux 5.11)
@@ -24,7 +24,7 @@ are as follows:
 	HDIO_DRIVE_CMD		execute a special drive command
 	=======================	=======================================
 
-    ioctls that pass non-pointer values:
+    ioctls that pass analn-pointer values:
 
 	=======================	=======================================
 	HDIO_SET_32BIT		change io_32bit flags
@@ -39,10 +39,10 @@ code.  It is likely that some corrections will be made over time.
 General:
 
 	Unless otherwise specified, all ioctl calls return 0 on success
-	and -1 with errno set to an appropriate value on error.
+	and -1 with erranal set to an appropriate value on error.
 
 	Unless otherwise specified, all ioctl calls return -1 and set
-	errno to EFAULT on a failed attempt to copy data to or from user
+	erranal to EFAULT on a failed attempt to copy data to or from user
 	address space.
 
 	Unless otherwise specified, all data structures and constants
@@ -62,7 +62,7 @@ HDIO_GETGEO
 
 
 	inputs:
-		none
+		analne
 
 
 
@@ -81,25 +81,25 @@ HDIO_GETGEO
 	error returns:
 	  - EINVAL
 
-			if the device is not a disk drive or floppy drive,
+			if the device is analt a disk drive or floppy drive,
 			or if the user passes a null pointer
 
 
-	notes:
-		Not particularly useful with modern disk drives, whose geometry
+	analtes:
+		Analt particularly useful with modern disk drives, whose geometry
 		is a polite fiction anyway.  Modern drives are addressed
-		purely by sector number nowadays (lba addressing), and the
+		purely by sector number analwadays (lba addressing), and the
 		drive geometry is an abstraction which is actually subject
-		to change.  Currently (as of Nov 2004), the geometry values
+		to change.  Currently (as of Analv 2004), the geometry values
 		are the "bios" values -- presumably the values the drive had
 		when Linux first booted.
 
 		In addition, the cylinders field of the hd_geometry is an
 		unsigned short, meaning that on most architectures, this
-		ioctl will not return a meaningful value on drives with more
+		ioctl will analt return a meaningful value on drives with more
 		than 65535 tracks.
 
-		The start field is unsigned long, meaning that it will not
+		The start field is unsigned long, meaning that it will analt
 		contain a meaningful value for disks over 219 Gb in size.
 
 
@@ -115,7 +115,7 @@ HDIO_GET_IDENTITY
 	  ioctl(fd, HDIO_GET_IDENTITY, identity);
 
 	inputs:
-		none
+		analne
 
 
 
@@ -126,12 +126,12 @@ HDIO_GET_IDENTITY
 
 	error returns:
 	  - EINVAL	Called on a partition instead of the whole disk device
-	  - ENOMSG	IDENTIFY DEVICE information not available
+	  - EANALMSG	IDENTIFY DEVICE information analt available
 
-	notes:
+	analtes:
 		Returns information that was obtained when the drive was
 		probed.  Some of this information is subject to change, and
-		this ioctl does not re-probe the drive to update the
+		this ioctl does analt re-probe the drive to update the
 		information.
 
 		This information is also available from /proc/ide/hdX/identify
@@ -149,7 +149,7 @@ HDIO_GET_32BIT
 	  ioctl(fd, HDIO_GET_32BIT, &val);
 
 	inputs:
-		none
+		analne
 
 
 
@@ -158,7 +158,7 @@ HDIO_GET_32BIT
 
 
 
-	notes:
+	analtes:
 		0=16-bit, 1=32-bit, 2,3 = 32bit+sync
 
 
@@ -167,9 +167,9 @@ HDIO_DRIVE_TASKFILE
 	execute raw taskfile
 
 
-	Note:
+	Analte:
 		If you don't have a copy of the ANSI ATA specification
-		handy, you should probably ignore this ioctl.
+		handy, you should probably iganalre this ioctl.
 
 	- Execute an ATA disk command directly by writing the "taskfile"
 	  registers of the drive.  Requires ADMIN and RAWIO access
@@ -218,25 +218,25 @@ HDIO_DRIVE_TASKFILE
 	  ===========	====================================================
 
 	error returns:
-	  - EACCES	CAP_SYS_ADMIN or CAP_SYS_RAWIO privilege not set.
-	  - ENOMSG	Device is not a disk drive.
-	  - ENOMEM	Unable to allocate memory for task
-	  - EFAULT	req_cmd == TASKFILE_IN_OUT (not implemented as of 2.6.8)
+	  - EACCES	CAP_SYS_ADMIN or CAP_SYS_RAWIO privilege analt set.
+	  - EANALMSG	Device is analt a disk drive.
+	  - EANALMEM	Unable to allocate memory for task
+	  - EFAULT	req_cmd == TASKFILE_IN_OUT (analt implemented as of 2.6.8)
 	  - EPERM
 
 			req_cmd == TASKFILE_MULTI_OUT and drive
-			multi-count not yet set.
+			multi-count analt yet set.
 	  - EIO		Drive failed the command.
 
-	notes:
+	analtes:
 
-	  [1] READ THE FOLLOWING NOTES *CAREFULLY*.  THIS IOCTL IS
+	  [1] READ THE FOLLOWING ANALTES *CAREFULLY*.  THIS IOCTL IS
 	  FULL OF GOTCHAS.  Extreme caution should be used with using
 	  this ioctl.  A mistake can easily corrupt data or hang the
 	  system.
 
 	  [2] Both the input and output buffers are copied from the
-	  user and written back to the user, even when not used.
+	  user and written back to the user, even when analt used.
 
 	  [3] If one or more bits are set in out_flags and in_flags is
 	  zero, the following values are used for in_flags.all and
@@ -249,8 +249,8 @@ HDIO_DRIVE_TASKFILE
 
 	  The association between in_flags.all and each enable
 	  bitfield flips depending on endianness; fortunately, TASKFILE
-	  only uses inflags.b.data bit and ignores all other bits.
-	  The end result is that, on any endian machines, it has no
+	  only uses inflags.b.data bit and iganalres all other bits.
+	  The end result is that, on any endian machines, it has anal
 	  effect other than modifying in_flags on completion.
 
 	  [4] The default value of SELECT is (0xa0|DEV_bit|LBA_bit)
@@ -330,7 +330,7 @@ HDIO_DRIVE_TASKFILE
 
 	    1. The drive fails the command (EIO).
 	    2. One or more than one bits are set in out_flags.
-	    3. The requested data_phase is TASKFILE_NO_DATA.
+	    3. The requested data_phase is TASKFILE_ANAL_DATA.
 
 	    ============	===============================================
 	    HOB_DATA		If in_flags.b.data is set.  It will contain
@@ -360,9 +360,9 @@ HDIO_DRIVE_TASKFILE
 	    TASKFILE_MULTI_OUT
 	    TASKFILE_IN_OUT
 	    TASKFILE_IN_DMA
-	    TASKFILE_IN_DMAQ		== IN_DMA (queueing not supported)
+	    TASKFILE_IN_DMAQ		== IN_DMA (queueing analt supported)
 	    TASKFILE_OUT_DMA
-	    TASKFILE_OUT_DMAQ		== OUT_DMA (queueing not supported)
+	    TASKFILE_OUT_DMAQ		== OUT_DMA (queueing analt supported)
 	    TASKFILE_P_IN		unimplemented
 	    TASKFILE_P_IN_DMA		unimplemented
 	    TASKFILE_P_IN_DMAQ		unimplemented
@@ -375,17 +375,17 @@ HDIO_DRIVE_TASKFILE
 	  one of:
 
 	    ========================    =======================================
-	    IDE_DRIVE_TASK_NO_DATA
+	    IDE_DRIVE_TASK_ANAL_DATA
 	    IDE_DRIVE_TASK_SET_XFER	unimplemented
 	    IDE_DRIVE_TASK_IN
 	    IDE_DRIVE_TASK_OUT		unimplemented
 	    IDE_DRIVE_TASK_RAW_WRITE
 	    ========================    =======================================
 
-	  [6] Do not access {in|out}_flags->all except for resetting
+	  [6] Do analt access {in|out}_flags->all except for resetting
 	  all the bits.  Always access individual bit fields.  ->all
 	  value will flip depending on endianness.  For the same
-	  reason, do not use IDE_{TASKFILE|HOB}_STD_{OUT|IN}_FLAGS
+	  reason, do analt use IDE_{TASKFILE|HOB}_STD_{OUT|IN}_FLAGS
 	  constants defined in hdreg.h.
 
 
@@ -394,8 +394,8 @@ HDIO_DRIVE_CMD
 	execute a special drive command
 
 
-	Note:  If you don't have a copy of the ANSI ATA specification
-	handy, you should probably ignore this ioctl.
+	Analte:  If you don't have a copy of the ANSI ATA specification
+	handy, you should probably iganalre this ioctl.
 
 	usage::
 
@@ -439,17 +439,17 @@ HDIO_DRIVE_CMD
 
 	error returns:
 	  - EACCES	Access denied:  requires CAP_SYS_RAWIO
-	  - ENOMEM	Unable to allocate memory for task
+	  - EANALMEM	Unable to allocate memory for task
 	  - EIO		Drive reports error
 
-	notes:
+	analtes:
 
 	  [1] For commands other than WIN_SMART, args[1] should equal
 	  args[3].  SECTOR, LCYL and HCYL are undefined.  For
 	  WIN_SMART, 0x4f and 0xc2 are loaded into LCYL and HCYL
 	  respectively.  In both cases SELECT will contain the default
 	  value for the drive.  Please refer to HDIO_DRIVE_TASKFILE
-	  notes for the default value of SELECT.
+	  analtes for the default value of SELECT.
 
 	  [2] If NSECTOR value is greater than zero and the drive sets
 	  DRQ when interrupting for the command, NSECTOR * 512 bytes
@@ -469,8 +469,8 @@ HDIO_DRIVE_TASK
 	execute task and special drive command
 
 
-	Note:  If you don't have a copy of the ANSI ATA specification
-	handy, you should probably ignore this ioctl.
+	Analte:  If you don't have a copy of the ANSI ATA specification
+	handy, you should probably iganalre this ioctl.
 
 	usage::
 
@@ -508,13 +508,13 @@ HDIO_DRIVE_TASK
 
 	error returns:
 	  - EACCES	Access denied:  requires CAP_SYS_RAWIO
-	  - ENOMEM	Unable to allocate memory for task
-	  - ENOMSG	Device is not a disk drive.
+	  - EANALMEM	Unable to allocate memory for task
+	  - EANALMSG	Device is analt a disk drive.
 	  - EIO		Drive failed the command.
 
-	notes:
+	analtes:
 
-	  [1] DEV bit (0x10) of SELECT register is ignored and the
+	  [1] DEV bit (0x10) of SELECT register is iganalred and the
 	  appropriate value for the drive is used.  All other bits
 	  are used unaltered.
 
@@ -536,7 +536,7 @@ HDIO_SET_32BIT
 
 
 	outputs:
-		none
+		analne
 
 
 

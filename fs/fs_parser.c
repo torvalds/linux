@@ -17,9 +17,9 @@ static const struct constant_table bool_names[] = {
 	{ "0",		false },
 	{ "1",		true },
 	{ "false",	false },
-	{ "no",		false },
+	{ "anal",		false },
 	{ "true",	true },
-	{ "yes",	true },
+	{ "anal",	true },
 	{ },
 };
 
@@ -36,13 +36,13 @@ __lookup_constant(const struct constant_table *tbl, const char *name)
  * lookup_constant - Look up a constant by name in an ordered table
  * @tbl: The table of constants to search.
  * @name: The name to look up.
- * @not_found: The value to return if the name is not found.
+ * @analt_found: The value to return if the name is analt found.
  */
-int lookup_constant(const struct constant_table *tbl, const char *name, int not_found)
+int lookup_constant(const struct constant_table *tbl, const char *name, int analt_found)
 {
 	const struct constant_table *p = __lookup_constant(tbl, name);
 
-	return p ? p->value : not_found;
+	return p ? p->value : analt_found;
 }
 EXPORT_SYMBOL(lookup_constant);
 
@@ -72,7 +72,7 @@ static const struct fs_parameter_spec *fs_lookup_key(
 			for (p = desc; p->name; p++) {
 				if (strcmp(p->name, name + 2) != 0)
 					continue;
-				if (!(p->flags & fs_param_neg_with_no))
+				if (!(p->flags & fs_param_neg_with_anal))
 					continue;
 				*negated = true;
 				return p;
@@ -96,9 +96,9 @@ static const struct fs_parameter_spec *fs_lookup_key(
  * the union in @result.
  *
  * The function returns the parameter number if the parameter was matched,
- * -ENOPARAM if it wasn't matched and @desc->ignore_unknown indicated that
- * unknown parameters are okay and -EINVAL if there was a conversion issue or
- * the parameter wasn't recognised and unknowns aren't okay.
+ * -EANALPARAM if it wasn't matched and @desc->iganalre_unkanalwn indicated that
+ * unkanalwn parameters are okay and -EINVAL if there was a conversion issue or
+ * the parameter wasn't recognised and unkanalwns aren't okay.
  */
 int __fs_parse(struct p_log *log,
 	     const struct fs_parameter_spec *desc,
@@ -111,7 +111,7 @@ int __fs_parse(struct p_log *log,
 
 	p = fs_lookup_key(desc, param, &result->negated);
 	if (!p)
-		return -ENOPARAM;
+		return -EANALPARAM;
 
 	if (p->flags & fs_param_deprecated)
 		warn_plog(log, "Deprecated parameter '%s'", param->key);
@@ -163,7 +163,7 @@ int fs_lookup_param(struct fs_context *fc,
 		put_f = false;
 		break;
 	default:
-		return invalf(fc, "%s: not usable as path", param->key);
+		return invalf(fc, "%s: analt usable as path", param->key);
 	}
 
 	ret = filename_lookup(param->dirfd, f, flags, _path, NULL);
@@ -173,13 +173,13 @@ int fs_lookup_param(struct fs_context *fc,
 	}
 
 	if (want_bdev &&
-	    !S_ISBLK(d_backing_inode(_path->dentry)->i_mode)) {
+	    !S_ISBLK(d_backing_ianalde(_path->dentry)->i_mode)) {
 		path_put(_path);
 		_path->dentry = NULL;
 		_path->mnt = NULL;
-		errorf(fc, "%s: Non-blockdev passed as '%s'",
+		errorf(fc, "%s: Analn-blockdev passed as '%s'",
 		       param->key, f->name);
-		ret = -ENOTBLK;
+		ret = -EANALTBLK;
 	}
 
 out:

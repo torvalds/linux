@@ -17,7 +17,7 @@ static inline bool invalid_user_sp(unsigned long sp)
 
 /*
  * On 32-bit we just access the address and let hash_page create a
- * HPTE if necessary, so there is no need to fall back to reading
+ * HPTE if necessary, so there is anal need to fall back to reading
  * the page tables.  Since this is called at interrupt level,
  * do_page_fault() won't treat a DSI as a page fault.
  */
@@ -29,7 +29,7 @@ static inline int __read_user_stack(const void __user *ptr, void *ret,
 	if (addr > TASK_SIZE - size || (addr & (size - 1)))
 		return -EFAULT;
 
-	return copy_from_user_nofault(ret, ptr, size);
+	return copy_from_user_analfault(ret, ptr, size);
 }
 
 #endif /* _POWERPC_PERF_CALLCHAIN_H */

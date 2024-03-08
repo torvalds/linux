@@ -12,7 +12,7 @@
  * be converted before they are used by hyp code.
  *
  * The input of this program is the relocatable ELF object containing
- * all hyp code/data, not yet linked into vmlinux. Hyp section names
+ * all hyp code/data, analt yet linked into vmlinux. Hyp section names
  * should have been prefixed with `.hyp` at this point.
  *
  * The output (printed to stdout) is an assembly file containing
@@ -20,13 +20,13 @@
  * the linker of `vmlinux` to populate the array entries with offsets
  * to positions in the kernel binary containing VAs used by hyp code.
  *
- * Note that dynamic relocations could be used for the same purpose.
+ * Analte that dynamic relocations could be used for the same purpose.
  * However, those are only generated if CONFIG_RELOCATABLE=y.
  */
 
 #include <elf.h>
 #include <endian.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -45,7 +45,7 @@
 
 /*
  * AArch64 relocation type constants.
- * Included in case these are not defined in the host toolchain.
+ * Included in case these are analt defined in the host toolchain.
  */
 #ifndef R_AARCH64_ABS64
 #define R_AARCH64_ABS64			257
@@ -169,7 +169,7 @@ static struct {
 #define fatal_perror(msg)						\
 	({								\
 		fprintf(stderr, "error: %s: " msg ": %s\n",		\
-			elf.path, strerror(errno));			\
+			elf.path, strerror(erranal));			\
 		exit(EXIT_FAILURE);					\
 		__builtin_unreachable();				\
 	})
@@ -253,20 +253,20 @@ static void init_elf(const char *path)
 	/* Open the ELF file. */
 	fd = open(path, O_RDONLY);
 	if (fd < 0)
-		fatal_perror("Could not open ELF file");
+		fatal_perror("Could analt open ELF file");
 
 	/* Get status of ELF file to obtain its size. */
 	ret = fstat(fd, &stat);
 	if (ret < 0) {
 		close(fd);
-		fatal_perror("Could not get status of ELF file");
+		fatal_perror("Could analt get status of ELF file");
 	}
 
 	/* mmap() the entire ELF file read-only at an arbitrary address. */
 	elf.begin = mmap(0, stat.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
 	if (elf.begin == MAP_FAILED) {
 		close(fd);
-		fatal_perror("Could not mmap ELF file");
+		fatal_perror("Could analt mmap ELF file");
 	}
 
 	/* mmap() was successful, close the FD. */
@@ -319,7 +319,7 @@ static void emit_section_prologue(const char *sh_orig_name)
  * Emit a 32-bit offset from the current address to the position given
  * by `rela`. This way the kernel can iterate over all kernel VAs used
  * by hyp at runtime and convert them to hyp VAs. However, that offset
- * will not be known until linking of `vmlinux`, so emit a PREL32
+ * will analt be kanalwn until linking of `vmlinux`, so emit a PREL32
  * relocation referencing a symbol that the hyp linker script put at
  * the beginning of the relocated section + the offset from `rela`.
  */
@@ -354,7 +354,7 @@ static void emit_epilogue(void)
  * Iterate over all RELA relocations in a given section and emit
  * hyp relocation data for all absolute addresses in hyp code/data.
  *
- * Static relocations that generate PC-relative-addressing are ignored.
+ * Static relocations that generate PC-relative-addressing are iganalred.
  * Failure is reported for unexpected relocation types.
  */
 static void emit_rela_section(Elf64_Shdr *sh_rela)
@@ -363,7 +363,7 @@ static void emit_rela_section(Elf64_Shdr *sh_rela)
 	const char *sh_orig_name = section_name(sh_orig);
 	Elf64_Rela *rela;
 
-	/* Skip all non-hyp sections. */
+	/* Skip all analn-hyp sections. */
 	if (!starts_with(sh_orig_name, HYP_SECTION_PREFIX))
 		return;
 

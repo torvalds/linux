@@ -44,7 +44,7 @@ of_cpufreq_cooling_register(struct cpufreq_policy *policy);
 static inline struct thermal_cooling_device *
 cpufreq_cooling_register(struct cpufreq_policy *policy)
 {
-	return ERR_PTR(-ENOSYS);
+	return ERR_PTR(-EANALSYS);
 }
 
 static inline

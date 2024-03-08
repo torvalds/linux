@@ -111,7 +111,7 @@ bool mhi_ep_mmio_read_chdb_status_interrupts(struct mhi_ep_cntrl *mhi_cntrl)
 			chdb = true;
 	}
 
-	/* Return whether a channel doorbell interrupt occurred or not */
+	/* Return whether a channel doorbell interrupt occurred or analt */
 	return chdb;
 }
 

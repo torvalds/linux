@@ -7,7 +7,7 @@
  *
  *  Written by Ilan Elias <ilane@ti.com>
  *
- *  Acknowledgements:
+ *  Ackanalwledgements:
  *  This file is based on lib.c, which was written
  *  by Maxim Krasnyansky.
  */
@@ -15,13 +15,13 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 #include <net/nfc/nci.h>
 #include <net/nfc/nci_core.h>
 
-/* NCI status codes to Unix errno mapping */
-int nci_to_errno(__u8 code)
+/* NCI status codes to Unix erranal mapping */
+int nci_to_erranal(__u8 code)
 {
 	switch (code) {
 	case NCI_STATUS_OK:
@@ -33,7 +33,7 @@ int nci_to_errno(__u8 code)
 	case NCI_STATUS_RF_FRAME_CORRUPTED:
 		return -EBADMSG;
 
-	case NCI_STATUS_NOT_INITIALIZED:
+	case NCI_STATUS_ANALT_INITIALIZED:
 		return -EHOSTDOWN;
 
 	case NCI_STATUS_SYNTAX_ERROR:
@@ -43,8 +43,8 @@ int nci_to_errno(__u8 code)
 	case NCI_STATUS_NFCEE_PROTOCOL_ERROR:
 		return -EPROTO;
 
-	case NCI_STATUS_UNKNOWN_GID:
-	case NCI_STATUS_UNKNOWN_OID:
+	case NCI_STATUS_UNKANALWN_GID:
+	case NCI_STATUS_UNKANALWN_OID:
 		return -EBADRQC;
 
 	case NCI_STATUS_MESSAGE_SIZE_EXCEEDED:
@@ -67,7 +67,7 @@ int nci_to_errno(__u8 code)
 
 	case NCI_STATUS_FAILED:
 	default:
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 }
-EXPORT_SYMBOL(nci_to_errno);
+EXPORT_SYMBOL(nci_to_erranal);

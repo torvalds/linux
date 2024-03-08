@@ -74,7 +74,7 @@ static const unsigned char usb_kbd_keycode[256] = {
  * @leds_dma:	DMA address for @led URB
  * @leds_lock:	spinlock that protects @leds, @newleds, and @led_urb_submitted
  * @led_urb_submitted: indicates whether @led is in progress, i.e. it has been
- *		submitted and its completion handler has not returned yet
+ *		submitted and its completion handler has analt returned yet
  *		without	resubmitting @led
  */
 struct usb_kbd {
@@ -106,7 +106,7 @@ static void usb_kbd_irq(struct urb *urb)
 	case 0:			/* success */
 		break;
 	case -ECONNRESET:	/* unlink */
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		return;
 	/* -EPIPE:  should clear the halt */
@@ -124,7 +124,7 @@ static void usb_kbd_irq(struct urb *urb)
 				input_report_key(kbd->dev, usb_kbd_keycode[kbd->old[i]], 0);
 			else
 				hid_info(urb->dev,
-					 "Unknown key (scancode %#x) released.\n",
+					 "Unkanalwn key (scancode %#x) released.\n",
 					 kbd->old[i]);
 		}
 
@@ -133,7 +133,7 @@ static void usb_kbd_irq(struct urb *urb)
 				input_report_key(kbd->dev, usb_kbd_keycode[kbd->new[i]], 1);
 			else
 				hid_info(urb->dev,
-					 "Unknown key (scancode %#x) pressed.\n",
+					 "Unkanalwn key (scancode %#x) pressed.\n",
 					 kbd->new[i]);
 		}
 	}
@@ -267,16 +267,16 @@ static int usb_kbd_probe(struct usb_interface *iface,
 	struct usb_kbd *kbd;
 	struct input_dev *input_dev;
 	int i, pipe, maxp;
-	int error = -ENOMEM;
+	int error = -EANALMEM;
 
 	interface = iface->cur_altsetting;
 
 	if (interface->desc.bNumEndpoints != 1)
-		return -ENODEV;
+		return -EANALDEV;
 
 	endpoint = &interface->endpoint[0].desc;
 	if (!usb_endpoint_is_int_in(endpoint))
-		return -ENODEV;
+		return -EANALDEV;
 
 	pipe = usb_rcvintpipe(dev, endpoint->bEndpointAddress);
 	maxp = usb_maxpacket(dev, pipe);
@@ -336,7 +336,7 @@ static int usb_kbd_probe(struct usb_interface *iface,
 			 kbd->new, (maxp > 8 ? 8 : maxp),
 			 usb_kbd_irq, kbd, endpoint->bInterval);
 	kbd->irq->transfer_dma = kbd->new_dma;
-	kbd->irq->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+	kbd->irq->transfer_flags |= URB_ANAL_TRANSFER_DMA_MAP;
 
 	kbd->cr->bRequestType = USB_TYPE_CLASS | USB_RECIP_INTERFACE;
 	kbd->cr->bRequest = 0x09;
@@ -348,7 +348,7 @@ static int usb_kbd_probe(struct usb_interface *iface,
 			     (void *) kbd->cr, kbd->leds, 1,
 			     usb_kbd_led, kbd);
 	kbd->led->transfer_dma = kbd->leds_dma;
-	kbd->led->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+	kbd->led->transfer_flags |= URB_ANAL_TRANSFER_DMA_MAP;
 
 	error = input_register_device(kbd->dev);
 	if (error)

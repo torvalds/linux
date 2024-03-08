@@ -27,8 +27,8 @@
  * @len:	Number of elements to be copy from @from buffer
  *	into @to+ @to_offset buffer.
  *
- * Note:
- *	Real digital TV demod drivers should not have memcpy
+ * Analte:
+ *	Real digital TV demod drivers should analt have memcpy
  *	wrappers. We use it here because emulating MPEG-TS
  *	generation at kernelspace requires some extra care.
  *
@@ -63,8 +63,8 @@ u32 vidtv_memcpy(void *to,
  * @len:	Number of elements to be copy from @from buffer
  *	into @to+ @to_offset buffer.
  *
- * Note:
- *	Real digital TV demod drivers should not have memset
+ * Analte:
+ *	Real digital TV demod drivers should analt have memset
  *	wrappers. We use it here because emulating MPEG-TS
  *	generation at kernelspace requires some extra care.
  *

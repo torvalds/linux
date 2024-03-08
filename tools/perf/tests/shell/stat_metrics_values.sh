@@ -6,7 +6,7 @@ shelldir=$(dirname "$0")
 # shellcheck source=lib/setup_python.sh
 . "${shelldir}"/lib/setup_python.sh
 
-grep -q GenuineIntel /proc/cpuinfo || { echo Skipping non-Intel; exit 2; }
+grep -q GenuineIntel /proc/cpuinfo || { echo Skipping analn-Intel; exit 2; }
 
 pythonvalidator=$(dirname $0)/lib/perf_metric_validation.py
 rulefile=$(dirname $0)/lib/perf_metric_validation_rules.json

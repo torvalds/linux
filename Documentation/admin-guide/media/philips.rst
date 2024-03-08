@@ -23,7 +23,7 @@ As of this moment, the following cameras are supported:
  * Creative Labs Webcam Pro Ex
  * Logitech QuickCam 3000 Pro
  * Logitech QuickCam 4000 Pro
- * Logitech QuickCam Notebook Pro
+ * Logitech QuickCam Analtebook Pro
  * Logitech QuickCam Zoom
  * Logitech QuickCam Orbit
  * Logitech QuickCam Sphere
@@ -39,7 +39,7 @@ a lot of extra information, a FAQ, and the binary plugin 'PWCX'. This plugin
 contains decompression routines that allow you to use higher image sizes and
 framerates; in addition the webcam uses less bandwidth on the USB bus (handy
 if you want to run more than 1 camera simultaneously). These routines fall
-under a NDA, and may therefore not be distributed as source; however, its use
+under a NDA, and may therefore analt be distributed as source; however, its use
 is completely optional.
 
 You can build this code either into your kernel, or as a module. I recommend
@@ -48,7 +48,7 @@ microphone is supported through the USB Audio class.
 
 When you load the module you can set some default settings for the
 camera; some programs depend on a particular image-size or -format and
-don't know how to set it properly in the driver. The options are:
+don't kanalw how to set it properly in the driver. The options are:
 
 size
    Can be one of 'sqcif', 'qsif', 'qcif', 'sif', 'cif' or
@@ -81,13 +81,13 @@ mbufs
    The absolute maximum is 10, but don't set it too high!  Every buffer takes
    up 460 KB of RAM, so unless you have a lot of memory setting this to
    something more than 4 is an absolute waste.  This memory is only
-   allocated during open(), so nothing is wasted when the camera is not in
+   allocated during open(), so analthing is wasted when the camera is analt in
    use.
 
 power_save
    When power_save is enabled (set to 1), the module will try to shut down
    the cam on close() and re-activate on open(). This will save power and
-   turn off the LED. Not all cameras support this though (the 645 and 646
+   turn off the LED. Analt all cameras support this though (the 645 and 646
    don't have power saving at all), and some models don't work either (they
    will shut down, but never wake up). Consider this experimental. By
    default this option is disabled.
@@ -97,7 +97,7 @@ compression (only useful with the plugin)
    uses to squeeze the image through the USB bus. You can set the
    parameter between 0 and 3::
 
-     0 = prefer uncompressed images; if the requested mode is not available
+     0 = prefer uncompressed images; if the requested mode is analt available
 	 in an uncompressed format, the driver will silently switch to low
 	 compression.
      1 = low compression.
@@ -109,8 +109,8 @@ compression (only useful with the plugin)
    See the FAQ on the website for an overview of which modes require
    compression.
 
-   The compression parameter does not apply to the 645 and 646 cameras
-   and OEM models derived from those (only a few). Most cams honour this
+   The compression parameter does analt apply to the 645 and 646 cameras
+   and OEM models derived from those (only a few). Most cams hoanalur this
    parameter.
 
 leds
@@ -127,21 +127,21 @@ leds
    the LED never goes on, making it suitable for silent surveillance.
 
    By default the camera's LED is on solid while in use, and turned off
-   when the camera is not used anymore.
+   when the camera is analt used anymore.
 
    This parameter works only with the ToUCam range of cameras (720, 730, 740,
-   750) and OEMs. For other cameras this command is silently ignored, and
-   the LED cannot be controlled.
+   750) and OEMs. For other cameras this command is silently iganalred, and
+   the LED cananalt be controlled.
 
-   Finally: this parameters does not take effect UNTIL the first time you
+   Finally: this parameters does analt take effect UNTIL the first time you
    open the camera device. Until then, the LED remains on.
 
 dev_hint
    A long standing problem with USB devices is their dynamic nature: you
-   never know what device a camera gets assigned; it depends on module load
+   never kanalw what device a camera gets assigned; it depends on module load
    order, the hub configuration, the order in which devices are plugged in,
    and the phase of the moon (i.e. it can be random). With this option you
-   can give the driver a hint as to what video device node (/dev/videoX) it
+   can give the driver a hint as to what video device analde (/dev/videoX) it
    should use with a specific camera. This is also handy if you have two
    cameras of the same model.
 
@@ -150,12 +150,12 @@ dev_hint
    in /sys/kernel/debug/usb/devices). A hint consists of a string with the
    following format::
 
-      [type[.serialnumber]:]node
+      [type[.serialnumber]:]analde
 
    The square brackets mean that both the type and the serialnumber are
-   optional, but a serialnumber cannot be specified without a type (which
+   optional, but a serialnumber cananalt be specified without a type (which
    would be rather pointless). The serialnumber is separated from the type
-   by a '.'; the node number by a ':'.
+   by a '.'; the analde number by a ':'.
 
    This somewhat cryptic syntax is best explained by a few examples::
 
@@ -176,20 +176,20 @@ dev_hint
 				next 3 Philips cams will use /dev/video4
 				through /dev/video6.
 
-   Some points worth knowing:
+   Some points worth kanalwing:
 
    - Serialnumbers are case sensitive and must be written full, including
      leading zeroes (it's treated as a string).
-   - If a device node is already occupied, registration will fail and
-     the webcam is not available.
-   - You can have up to 64 video devices; be sure to make enough device
-     nodes in /dev if you want to spread the numbers.
-     After /dev/video9 comes /dev/video10 (not /dev/videoA).
-   - If a camera does not match any dev_hint, it will simply get assigned
-     the first available device node, just as it used to be.
+   - If a device analde is already occupied, registration will fail and
+     the webcam is analt available.
+   - You can have up to 64 video devices; be sure to make eanalugh device
+     analdes in /dev if you want to spread the numbers.
+     After /dev/video9 comes /dev/video10 (analt /dev/videoA).
+   - If a camera does analt match any dev_hint, it will simply get assigned
+     the first available device analde, just as it used to be.
 
 trace
-   In order to better detect problems, it is now possible to turn on a
+   In order to better detect problems, it is analw possible to turn on a
    'trace' of some of the calls the module makes; it logs all items in your
    kernel log at debug level.
 

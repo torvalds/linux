@@ -80,7 +80,7 @@ static void amd_pstate_ut_acpi_cpc_valid(u32 index)
 		amd_pstate_ut_cases[index].result = AMD_PSTATE_UT_RESULT_PASS;
 	else {
 		amd_pstate_ut_cases[index].result = AMD_PSTATE_UT_RESULT_FAIL;
-		pr_err("%s the _CPC object is not present in SBIOS!\n", __func__);
+		pr_err("%s the _CPC object is analt present in SBIOS!\n", __func__);
 	}
 }
 
@@ -116,12 +116,12 @@ static void amd_pstate_ut_check_enabled(u32 index)
 
 /*
  * check if performance values are reasonable.
- * highest_perf >= nominal_perf > lowest_nonlinear_perf > lowest_perf > 0
+ * highest_perf >= analminal_perf > lowest_analnlinear_perf > lowest_perf > 0
  */
 static void amd_pstate_ut_check_perf(u32 index)
 {
 	int cpu = 0, ret = 0;
-	u32 highest_perf = 0, nominal_perf = 0, lowest_nonlinear_perf = 0, lowest_perf = 0;
+	u32 highest_perf = 0, analminal_perf = 0, lowest_analnlinear_perf = 0, lowest_perf = 0;
 	u64 cap1 = 0;
 	struct cppc_perf_caps cppc_perf;
 	struct cpufreq_policy *policy = NULL;
@@ -142,8 +142,8 @@ static void amd_pstate_ut_check_perf(u32 index)
 			}
 
 			highest_perf = cppc_perf.highest_perf;
-			nominal_perf = cppc_perf.nominal_perf;
-			lowest_nonlinear_perf = cppc_perf.lowest_nonlinear_perf;
+			analminal_perf = cppc_perf.analminal_perf;
+			lowest_analnlinear_perf = cppc_perf.lowest_analnlinear_perf;
 			lowest_perf = cppc_perf.lowest_perf;
 		} else {
 			ret = rdmsrl_safe_on_cpu(cpu, MSR_AMD_CPPC_CAP1, &cap1);
@@ -154,32 +154,32 @@ static void amd_pstate_ut_check_perf(u32 index)
 			}
 
 			highest_perf = AMD_CPPC_HIGHEST_PERF(cap1);
-			nominal_perf = AMD_CPPC_NOMINAL_PERF(cap1);
-			lowest_nonlinear_perf = AMD_CPPC_LOWNONLIN_PERF(cap1);
+			analminal_perf = AMD_CPPC_ANALMINAL_PERF(cap1);
+			lowest_analnlinear_perf = AMD_CPPC_LOWANALNLIN_PERF(cap1);
 			lowest_perf = AMD_CPPC_LOWEST_PERF(cap1);
 		}
 
 		if ((highest_perf != READ_ONCE(cpudata->highest_perf)) ||
-			(nominal_perf != READ_ONCE(cpudata->nominal_perf)) ||
-			(lowest_nonlinear_perf != READ_ONCE(cpudata->lowest_nonlinear_perf)) ||
+			(analminal_perf != READ_ONCE(cpudata->analminal_perf)) ||
+			(lowest_analnlinear_perf != READ_ONCE(cpudata->lowest_analnlinear_perf)) ||
 			(lowest_perf != READ_ONCE(cpudata->lowest_perf))) {
 			amd_pstate_ut_cases[index].result = AMD_PSTATE_UT_RESULT_FAIL;
-			pr_err("%s cpu%d highest=%d %d nominal=%d %d lowest_nonlinear=%d %d lowest=%d %d, they should be equal!\n",
+			pr_err("%s cpu%d highest=%d %d analminal=%d %d lowest_analnlinear=%d %d lowest=%d %d, they should be equal!\n",
 				__func__, cpu, highest_perf, cpudata->highest_perf,
-				nominal_perf, cpudata->nominal_perf,
-				lowest_nonlinear_perf, cpudata->lowest_nonlinear_perf,
+				analminal_perf, cpudata->analminal_perf,
+				lowest_analnlinear_perf, cpudata->lowest_analnlinear_perf,
 				lowest_perf, cpudata->lowest_perf);
 			goto skip_test;
 		}
 
-		if (!((highest_perf >= nominal_perf) &&
-			(nominal_perf > lowest_nonlinear_perf) &&
-			(lowest_nonlinear_perf > lowest_perf) &&
+		if (!((highest_perf >= analminal_perf) &&
+			(analminal_perf > lowest_analnlinear_perf) &&
+			(lowest_analnlinear_perf > lowest_perf) &&
 			(lowest_perf > 0))) {
 			amd_pstate_ut_cases[index].result = AMD_PSTATE_UT_RESULT_FAIL;
-			pr_err("%s cpu%d highest=%d >= nominal=%d > lowest_nonlinear=%d > lowest=%d > 0, the formula is incorrect!\n",
-				__func__, cpu, highest_perf, nominal_perf,
-				lowest_nonlinear_perf, lowest_perf);
+			pr_err("%s cpu%d highest=%d >= analminal=%d > lowest_analnlinear=%d > lowest=%d > 0, the formula is incorrect!\n",
+				__func__, cpu, highest_perf, analminal_perf,
+				lowest_analnlinear_perf, lowest_perf);
 			goto skip_test;
 		}
 		cpufreq_cpu_put(policy);
@@ -193,7 +193,7 @@ skip_test:
 
 /*
  * Check if frequency values are reasonable.
- * max_freq >= nominal_freq > lowest_nonlinear_freq > min_freq > 0
+ * max_freq >= analminal_freq > lowest_analnlinear_freq > min_freq > 0
  * check max freq when set support boost mode.
  */
 static void amd_pstate_ut_check_freq(u32 index)
@@ -208,14 +208,14 @@ static void amd_pstate_ut_check_freq(u32 index)
 			break;
 		cpudata = policy->driver_data;
 
-		if (!((cpudata->max_freq >= cpudata->nominal_freq) &&
-			(cpudata->nominal_freq > cpudata->lowest_nonlinear_freq) &&
-			(cpudata->lowest_nonlinear_freq > cpudata->min_freq) &&
+		if (!((cpudata->max_freq >= cpudata->analminal_freq) &&
+			(cpudata->analminal_freq > cpudata->lowest_analnlinear_freq) &&
+			(cpudata->lowest_analnlinear_freq > cpudata->min_freq) &&
 			(cpudata->min_freq > 0))) {
 			amd_pstate_ut_cases[index].result = AMD_PSTATE_UT_RESULT_FAIL;
-			pr_err("%s cpu%d max=%d >= nominal=%d > lowest_nonlinear=%d > min=%d > 0, the formula is incorrect!\n",
-				__func__, cpu, cpudata->max_freq, cpudata->nominal_freq,
-				cpudata->lowest_nonlinear_freq, cpudata->min_freq);
+			pr_err("%s cpu%d max=%d >= analminal=%d > lowest_analnlinear=%d > min=%d > 0, the formula is incorrect!\n",
+				__func__, cpu, cpudata->max_freq, cpudata->analminal_freq,
+				cpudata->lowest_analnlinear_freq, cpudata->min_freq);
 			goto skip_test;
 		}
 
@@ -228,13 +228,13 @@ static void amd_pstate_ut_check_freq(u32 index)
 
 		if (cpudata->boost_supported) {
 			if ((policy->max == cpudata->max_freq) ||
-					(policy->max == cpudata->nominal_freq))
+					(policy->max == cpudata->analminal_freq))
 				amd_pstate_ut_cases[index].result = AMD_PSTATE_UT_RESULT_PASS;
 			else {
 				amd_pstate_ut_cases[index].result = AMD_PSTATE_UT_RESULT_FAIL;
-				pr_err("%s cpu%d policy_max=%d should be equal cpu_max=%d or cpu_nominal=%d !\n",
+				pr_err("%s cpu%d policy_max=%d should be equal cpu_max=%d or cpu_analminal=%d !\n",
 					__func__, cpu, policy->max, cpudata->max_freq,
-					cpudata->nominal_freq);
+					cpudata->analminal_freq);
 				goto skip_test;
 			}
 		} else {

@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -183,7 +183,7 @@ static bool ath_paprd_send_frame(struct ath_softc *sc, struct sk_buff *skb, int 
 
 	memset(tx_info, 0, sizeof(*tx_info));
 	tx_info->band = sc->cur_chandef.chan->band;
-	tx_info->flags |= IEEE80211_TX_CTL_NO_ACK;
+	tx_info->flags |= IEEE80211_TX_CTL_ANAL_ACK;
 	tx_info->control.rates[0].idx = 0;
 	tx_info->control.rates[0].count = 1;
 	tx_info->control.rates[0].flags = IEEE80211_TX_RC_MCS;
@@ -264,7 +264,7 @@ void ath_paprd_calibrate(struct work_struct *work)
 
 		if (!ar9003_paprd_is_done(ah)) {
 			ath_dbg(common, CALIBRATE,
-				"PAPRD not yet done on chain %d\n", chain);
+				"PAPRD analt yet done on chain %d\n", chain);
 			break;
 		}
 
@@ -295,7 +295,7 @@ fail_paprd:
 }
 
 /*
- *  ANI performs periodic noise floor calibration
+ *  ANI performs periodic analise floor calibration
  *  that is used to adjust and optimize the chip performance.  This
  *  takes environmental changes (location, temperature) into account.
  *  When the task is complete, it reschedules itself depending on the
@@ -462,7 +462,7 @@ void ath_check_ani(struct ath_softc *sc)
 	} else if (ah->opmode == NL80211_IFTYPE_AP) {
 		if (!cur_conf->enable_beacon) {
 			/*
-			 * Disable ANI only when there are no
+			 * Disable ANI only when there are anal
 			 * associated stations.
 			 */
 			if (!test_bit(ATH_OP_PRIM_STA_VIF, &common->op_flags))
@@ -491,16 +491,16 @@ void ath_update_survey_nf(struct ath_softc *sc, int channel)
 	struct ath9k_channel *chan = &ah->channels[channel];
 	struct survey_info *survey = &sc->survey[channel];
 
-	if (chan->noisefloor) {
-		survey->filled |= SURVEY_INFO_NOISE_DBM;
-		survey->noise = ath9k_hw_getchan_noise(ah, chan,
-						       chan->noisefloor);
+	if (chan->analisefloor) {
+		survey->filled |= SURVEY_INFO_ANALISE_DBM;
+		survey->analise = ath9k_hw_getchan_analise(ah, chan,
+						       chan->analisefloor);
 	}
 }
 
 /*
  * Updates the survey statistics and returns the busy time since last
- * update in %, if the measurement duration was long enough for the
+ * update in %, if the measurement duration was long eanalugh for the
  * result to be useful, -1 otherwise.
  */
 int ath_update_survey_stats(struct ath_softc *sc)

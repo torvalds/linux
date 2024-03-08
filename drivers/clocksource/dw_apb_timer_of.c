@@ -14,7 +14,7 @@
 #include <linux/reset.h>
 #include <linux/sched_clock.h>
 
-static int __init timer_get_base_and_rate(struct device_node *np,
+static int __init timer_get_base_and_rate(struct device_analde *np,
 				    void __iomem **base, u32 *rate)
 {
 	struct clk *timer_clk;
@@ -38,13 +38,13 @@ static int __init timer_get_base_and_rate(struct device_node *np,
 	}
 
 	/*
-	 * Not all implementations use a peripheral clock, so don't panic
-	 * if it's not present
+	 * Analt all implementations use a peripheral clock, so don't panic
+	 * if it's analt present
 	 */
 	pclk = of_clk_get_by_name(np, "pclk");
 	if (!IS_ERR(pclk))
 		if (clk_prepare_enable(pclk))
-			pr_warn("pclk for %pOFn is present, but could not be activated\n",
+			pr_warn("pclk for %pOFn is present, but could analt be activated\n",
 				np);
 
 	if (!of_property_read_u32(np, "clock-freq", rate) ||
@@ -82,7 +82,7 @@ out_pclk_disable:
 	return ret;
 }
 
-static int __init add_clockevent(struct device_node *event_timer)
+static int __init add_clockevent(struct device_analde *event_timer)
 {
 	void __iomem *iobase;
 	struct dw_apb_clock_event_device *ced;
@@ -91,7 +91,7 @@ static int __init add_clockevent(struct device_node *event_timer)
 
 	irq = irq_of_parse_and_map(event_timer, 0);
 	if (irq == 0)
-		panic("No IRQ for clock event timer");
+		panic("Anal IRQ for clock event timer");
 
 	ret = timer_get_base_and_rate(event_timer, &iobase, &rate);
 	if (ret)
@@ -110,7 +110,7 @@ static int __init add_clockevent(struct device_node *event_timer)
 static void __iomem *sched_io_base;
 static u32 sched_rate;
 
-static int __init add_clocksource(struct device_node *source_timer)
+static int __init add_clocksource(struct device_analde *source_timer)
 {
 	void __iomem *iobase;
 	struct dw_apb_clocksource *cs;
@@ -129,7 +129,7 @@ static int __init add_clocksource(struct device_node *source_timer)
 	dw_apb_clocksource_register(cs);
 
 	/*
-	 * Fallback to use the clocksource as sched_clock if no separate
+	 * Fallback to use the clocksource as sched_clock if anal separate
 	 * timer is found. sched_io_base then points to the current_value
 	 * register of the clocksource timer.
 	 */
@@ -139,7 +139,7 @@ static int __init add_clocksource(struct device_node *source_timer)
 	return 0;
 }
 
-static u64 notrace read_sched_clock(void)
+static u64 analtrace read_sched_clock(void)
 {
 	return ~readl_relaxed(sched_io_base);
 }
@@ -151,13 +151,13 @@ static const struct of_device_id sptimer_ids[] __initconst = {
 
 static void __init init_sched_clock(void)
 {
-	struct device_node *sched_timer;
+	struct device_analde *sched_timer;
 
-	sched_timer = of_find_matching_node(NULL, sptimer_ids);
+	sched_timer = of_find_matching_analde(NULL, sptimer_ids);
 	if (sched_timer) {
 		timer_get_base_and_rate(sched_timer, &sched_io_base,
 					&sched_rate);
-		of_node_put(sched_timer);
+		of_analde_put(sched_timer);
 	}
 
 	sched_clock_register(read_sched_clock, 32, sched_rate);
@@ -175,7 +175,7 @@ static struct delay_timer dw_apb_delay_timer = {
 #endif
 
 static int num_called;
-static int __init dw_apb_timer_init(struct device_node *timer)
+static int __init dw_apb_timer_init(struct device_analde *timer)
 {
 	int ret = 0;
 

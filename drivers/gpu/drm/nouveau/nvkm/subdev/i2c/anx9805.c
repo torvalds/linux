@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -108,7 +108,7 @@ anx9805_bus_new(struct nvkm_i2c_pad *base, int id, u8 drive,
 	int ret;
 
 	if (!(bus = kzalloc(sizeof(*bus), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	*pbus = &bus->base;
 	bus->pad = pad;
 
@@ -120,7 +120,7 @@ anx9805_bus_new(struct nvkm_i2c_pad *base, int id, u8 drive,
 	case 0x39: bus->addr = 0x3d; break;
 	case 0x3b: bus->addr = 0x3f; break;
 	default:
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 
 	return 0;
@@ -237,7 +237,7 @@ anx9805_aux_new(struct nvkm_i2c_pad *base, int id, u8 drive,
 	int ret;
 
 	if (!(aux = kzalloc(sizeof(*aux), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	*pbus = &aux->base;
 	aux->pad = pad;
 
@@ -249,7 +249,7 @@ anx9805_aux_new(struct nvkm_i2c_pad *base, int id, u8 drive,
 	case 0x39: aux->addr = 0x38; break;
 	case 0x3b: aux->addr = 0x3c; break;
 	default:
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 
 	return 0;
@@ -268,7 +268,7 @@ anx9805_pad_new(struct nvkm_i2c_bus *bus, int id, u8 addr,
 	struct anx9805_pad *pad;
 
 	if (!(pad = kzalloc(sizeof(*pad), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	*ppad = &pad->base;
 
 	nvkm_i2c_pad_ctor(&anx9805_pad_func, bus->pad->i2c, id, &pad->base);

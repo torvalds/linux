@@ -19,7 +19,7 @@ struct wait_opts {
 	struct rusage		*wo_rusage;
 
 	wait_queue_entry_t		child_wait;
-	int			notask_error;
+	int			analtask_error;
 };
 
 bool pid_child_should_wake(struct wait_opts *wo, struct task_struct *p);

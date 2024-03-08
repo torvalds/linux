@@ -1,27 +1,27 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
 
-# Return true if perf_event_paranoid is > $1 and not running as root.
-function ParanoidAndNotRoot()
+# Return true if perf_event_paraanalid is > $1 and analt running as root.
+function ParaanalidAndAnaltRoot()
 {
-	 [ "$(id -u)" != 0 ] && [ "$(cat /proc/sys/kernel/perf_event_paranoid)" -gt $1 ]
+	 [ "$(id -u)" != 0 ] && [ "$(cat /proc/sys/kernel/perf_event_paraanalid)" -gt $1 ]
 }
 
 # $1 name $2 extra_opt
-check_no_args()
+check_anal_args()
 {
-        echo -n "Checking $1 output: no args "
+        echo -n "Checking $1 output: anal args "
         perf stat $2 true
-        commachecker --no-args
+        commachecker --anal-args
         echo "[Success]"
 }
 
 check_system_wide()
 {
 	echo -n "Checking $1 output: system wide "
-	if ParanoidAndNotRoot 0
+	if ParaanalidAndAnaltRoot 0
 	then
-		echo "[Skip] paranoid and not root"
+		echo "[Skip] paraanalid and analt root"
 		return
 	fi
 	perf stat -a $2 true
@@ -29,16 +29,16 @@ check_system_wide()
 	echo "[Success]"
 }
 
-check_system_wide_no_aggr()
+check_system_wide_anal_aggr()
 {
-	echo -n "Checking $1 output: system wide no aggregation "
-	if ParanoidAndNotRoot 0
+	echo -n "Checking $1 output: system wide anal aggregation "
+	if ParaanalidAndAnaltRoot 0
 	then
-		echo "[Skip] paranoid and not root"
+		echo "[Skip] paraanalid and analt root"
 		return
 	fi
-	perf stat -A -a --no-merge $2 true
-	commachecker --system-wide-no-aggr
+	perf stat -A -a --anal-merge $2 true
+	commachecker --system-wide-anal-aggr
 	echo "[Success]"
 }
 
@@ -61,9 +61,9 @@ check_event()
 check_per_core()
 {
 	echo -n "Checking $1 output: per core "
-	if ParanoidAndNotRoot 0
+	if ParaanalidAndAnaltRoot 0
 	then
-		echo "[Skip] paranoid and not root"
+		echo "[Skip] paraanalid and analt root"
 		return
 	fi
 	perf stat --per-core -a $2 true
@@ -74,9 +74,9 @@ check_per_core()
 check_per_thread()
 {
 	echo -n "Checking $1 output: per thread "
-	if ParanoidAndNotRoot 0
+	if ParaanalidAndAnaltRoot 0
 	then
-		echo "[Skip] paranoid and not root"
+		echo "[Skip] paraanalid and analt root"
 		return
 	fi
 	perf stat --per-thread -a $2 true
@@ -87,9 +87,9 @@ check_per_thread()
 check_per_cache_instance()
 {
 	echo -n "Checking $1 output: per cache instance "
-	if ParanoidAndNotRoot 0
+	if ParaanalidAndAnaltRoot 0
 	then
-		echo "[Skip] paranoid and not root"
+		echo "[Skip] paraanalid and analt root"
 		return
 	fi
 	perf stat --per-cache -a $2 true
@@ -100,9 +100,9 @@ check_per_cache_instance()
 check_per_die()
 {
 	echo -n "Checking $1 output: per die "
-	if ParanoidAndNotRoot 0
+	if ParaanalidAndAnaltRoot 0
 	then
-		echo "[Skip] paranoid and not root"
+		echo "[Skip] paraanalid and analt root"
 		return
 	fi
 	perf stat --per-die -a $2 true
@@ -110,25 +110,25 @@ check_per_die()
 	echo "[Success]"
 }
 
-check_per_node()
+check_per_analde()
 {
-	echo -n "Checking $1 output: per node "
-	if ParanoidAndNotRoot 0
+	echo -n "Checking $1 output: per analde "
+	if ParaanalidAndAnaltRoot 0
 	then
-		echo "[Skip] paranoid and not root"
+		echo "[Skip] paraanalid and analt root"
 		return
 	fi
-	perf stat --per-node -a $2 true
-	commachecker --per-node
+	perf stat --per-analde -a $2 true
+	commachecker --per-analde
 	echo "[Success]"
 }
 
 check_per_socket()
 {
 	echo -n "Checking $1 output: per socket "
-	if ParanoidAndNotRoot 0
+	if ParaanalidAndAnaltRoot 0
 	then
-		echo "[Skip] paranoid and not root"
+		echo "[Skip] paraanalid and analt root"
 		return
 	fi
 	perf stat --per-socket -a $2 true
@@ -137,7 +137,7 @@ check_per_socket()
 }
 
 # The perf stat options for per-socket, per-core, per-die
-# and -A ( no_aggr mode ) uses the info fetched from this
+# and -A ( anal_aggr mode ) uses the info fetched from this
 # directory: "/sys/devices/system/cpu/cpu*/topology". For
 # example, socket value is fetched from "physical_package_id"
 # file in topology directory.
@@ -153,7 +153,7 @@ FILE_NAME="physical_package_id"
 
 function check_for_topology()
 {
-	if ! ParanoidAndNotRoot 0
+	if ! ParaanalidAndAnaltRoot 0
 	then
 		socket_file=`ls $FILE_LOC/$FILE_NAME | head -n 1`
 		[ -z $socket_file ] && {

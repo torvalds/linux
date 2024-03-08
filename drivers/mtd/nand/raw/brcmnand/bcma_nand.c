@@ -49,7 +49,7 @@ static u32 brcmnand_bcma_read_reg(struct brcmnand_soc *soc, u32 offset)
 	u32 val;
 
 	/* Offset into the NAND block and deal with the flash cache separately */
-	if (offset == BRCMNAND_NON_MMIO_FC_ADDR)
+	if (offset == BRCMNAND_ANALN_MMIO_FC_ADDR)
 		offset = BCMA_CC_NAND_CACHE_DATA;
 	else
 		offset += BCMA_CC_NAND_REVISION;
@@ -68,7 +68,7 @@ static void brcmnand_bcma_write_reg(struct brcmnand_soc *soc, u32 val,
 	struct brcmnand_bcma_soc *sc = to_bcma_soc(soc);
 
 	/* Offset into the NAND block */
-	if (offset == BRCMNAND_NON_MMIO_FC_ADDR)
+	if (offset == BRCMNAND_ANALN_MMIO_FC_ADDR)
 		offset = BCMA_CC_NAND_CACHE_DATA;
 	else
 		offset += BCMA_CC_NAND_REVISION;
@@ -103,7 +103,7 @@ static int brcmnand_bcma_nand_probe(struct platform_device *pdev)
 
 	soc = devm_kzalloc(&pdev->dev, sizeof(*soc), GFP_KERNEL);
 	if (!soc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	soc->cc = container_of(nflash, struct bcma_drv_cc, nflash);
 	soc->soc.prepare_data_bus = brcmnand_bcma_prepare_data_bus;
@@ -111,7 +111,7 @@ static int brcmnand_bcma_nand_probe(struct platform_device *pdev)
 
 	if (soc->cc->core->bus->chipinfo.id == BCMA_CHIP_ID_BCM4706) {
 		dev_err(&pdev->dev, "Use bcm47xxnflash for 4706!\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return brcmnand_probe(pdev, &soc->soc);

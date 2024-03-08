@@ -20,7 +20,7 @@
 #define knav_range_offset_to_inst(kdev, range, q)	\
 	(range->queue_base_inst + (q << kdev->inst_shift))
 
-static void __knav_acc_notify(struct knav_range_info *range,
+static void __knav_acc_analtify(struct knav_range_info *range,
 				struct knav_acc_channel *acc)
 {
 	struct knav_device *kdev = range->kdev;
@@ -33,23 +33,23 @@ static void __knav_acc_notify(struct knav_range_info *range,
 		for (queue = 0; queue < range->num_queues; queue++) {
 			inst = knav_range_offset_to_inst(kdev, range,
 								queue);
-			if (inst->notify_needed) {
-				inst->notify_needed = 0;
-				dev_dbg(kdev->dev, "acc-irq: notifying %d\n",
+			if (inst->analtify_needed) {
+				inst->analtify_needed = 0;
+				dev_dbg(kdev->dev, "acc-irq: analtifying %d\n",
 					range_base + queue);
-				knav_queue_notify(inst);
+				knav_queue_analtify(inst);
 			}
 		}
 	} else {
 		queue = acc->channel - range->acc_info.start_channel;
 		inst = knav_range_offset_to_inst(kdev, range, queue);
-		dev_dbg(kdev->dev, "acc-irq: notifying %d\n",
+		dev_dbg(kdev->dev, "acc-irq: analtifying %d\n",
 			range_base + queue);
-		knav_queue_notify(inst);
+		knav_queue_analtify(inst);
 	}
 }
 
-static int knav_acc_set_notify(struct knav_range_info *range,
+static int knav_acc_set_analtify(struct knav_range_info *range,
 				struct knav_queue_inst *kq,
 				bool enabled)
 {
@@ -64,11 +64,11 @@ static int knav_acc_set_notify(struct knav_range_info *range,
 	if (!enabled || atomic_read(&kq->desc_count) <= 0)
 		return 0;
 
-	kq->notify_needed = 1;
+	kq->analtify_needed = 1;
 	atomic_inc(&kq->acc->retrigger_count);
 	mask = BIT(kq->acc->channel % 32);
 	offset = ACC_INTD_OFFSET_STATUS(kq->acc->channel);
-	dev_dbg(kdev->dev, "setup-notify: re-triggering irq for %s\n",
+	dev_dbg(kdev->dev, "setup-analtify: re-triggering irq for %s\n",
 		kq->acc->name);
 	writel_relaxed(mask, pdsp->intd + offset);
 	return 0;
@@ -83,7 +83,7 @@ static irqreturn_t knav_acc_int_handler(int irq, void *_instdata)
 	struct knav_acc_info *info;
 	struct knav_device *kdev;
 
-	u32 *list, *list_cpu, val, idx, notifies;
+	u32 *list, *list_cpu, val, idx, analtifies;
 	int range_base, channel, queue = 0;
 	dma_addr_t list_dma;
 
@@ -109,7 +109,7 @@ static irqreturn_t knav_acc_int_handler(int irq, void *_instdata)
 		channel, acc->list_index, list_cpu, &list_dma);
 	if (atomic_read(&acc->retrigger_count)) {
 		atomic_dec(&acc->retrigger_count);
-		__knav_acc_notify(range, acc);
+		__knav_acc_analtify(range, acc);
 		writel_relaxed(1, pdsp->intd + ACC_INTD_OFFSET_COUNT(channel));
 		/* ack the interrupt */
 		writel_relaxed(ACC_CHANNEL_INT_BASE + channel,
@@ -118,8 +118,8 @@ static irqreturn_t knav_acc_int_handler(int irq, void *_instdata)
 		return IRQ_HANDLED;
 	}
 
-	notifies = readl_relaxed(pdsp->intd + ACC_INTD_OFFSET_COUNT(channel));
-	WARN_ON(!notifies);
+	analtifies = readl_relaxed(pdsp->intd + ACC_INTD_OFFSET_COUNT(channel));
+	WARN_ON(!analtifies);
 	dma_sync_single_for_cpu(kdev->dev, list_dma, info->list_size,
 				DMA_FROM_DEVICE);
 
@@ -169,12 +169,12 @@ static irqreturn_t knav_acc_int_handler(int irq, void *_instdata)
 
 		idx = atomic_inc_return(&kq->desc_tail) & ACC_DESCS_MASK;
 		kq->descs[idx] = val;
-		kq->notify_needed = 1;
+		kq->analtify_needed = 1;
 		dev_dbg(kdev->dev, "acc-irq: enqueue %08x at %d, queue %d\n",
 			val, idx, queue + range_base);
 	}
 
-	__knav_acc_notify(range, acc);
+	__knav_acc_analtify(range, acc);
 	memset(list_cpu, 0, info->list_size);
 	dma_sync_single_for_device(kdev->dev, list_dma, info->list_size,
 				   DMA_TO_DEVICE);
@@ -400,7 +400,7 @@ static int knav_acc_init_queue(struct knav_range_info *range,
 	kq->descs = devm_kcalloc(range->kdev->dev,
 				 ACC_DESCS_MAX, sizeof(u32), GFP_KERNEL);
 	if (!kq->descs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	kq->acc = range->acc;
 	if ((range->flags & RANGE_MULTI_QUEUE) == 0)
@@ -451,7 +451,7 @@ static int knav_acc_free_range(struct knav_range_info *range)
 }
 
 static struct knav_range_ops knav_acc_range_ops = {
-	.set_notify	= knav_acc_set_notify,
+	.set_analtify	= knav_acc_set_analtify,
 	.init_queue	= knav_acc_init_queue,
 	.open_queue	= knav_acc_open_queue,
 	.close_queue	= knav_acc_close_queue,
@@ -463,13 +463,13 @@ static struct knav_range_ops knav_acc_range_ops = {
  * knav_init_acc_range: Initialise accumulator ranges
  *
  * @kdev:		qmss device
- * @node:		device node
+ * @analde:		device analde
  * @range:		qmms range information
  *
  * Return 0 on success or error
  */
 int knav_init_acc_range(struct knav_device *kdev,
-			struct device_node *node,
+			struct device_analde *analde,
 			struct knav_range_info *range)
 {
 	struct knav_acc_channel *acc;
@@ -484,7 +484,7 @@ int knav_init_acc_range(struct knav_device *kdev,
 	range->flags |= RANGE_HAS_ACCUMULATOR;
 	info = &range->acc_info;
 
-	ret = of_property_read_u32_array(node, "accumulator", config, 5);
+	ret = of_property_read_u32_array(analde, "accumulator", config, 5);
 	if (ret)
 		return ret;
 
@@ -508,20 +508,20 @@ int knav_init_acc_range(struct knav_device *kdev,
 
 	pdsp = knav_find_pdsp(kdev, info->pdsp_id);
 	if (!pdsp) {
-		dev_err(kdev->dev, "pdsp id %d not found for range %s\n",
+		dev_err(kdev->dev, "pdsp id %d analt found for range %s\n",
 			info->pdsp_id, range->name);
 		return -EINVAL;
 	}
 
 	if (!pdsp->started) {
-		dev_err(kdev->dev, "pdsp id %d not started for range %s\n",
+		dev_err(kdev->dev, "pdsp id %d analt started for range %s\n",
 			info->pdsp_id, range->name);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	info->pdsp = pdsp;
 	channels = range->num_queues;
-	if (of_property_read_bool(node, "multi-queue")) {
+	if (of_property_read_bool(analde, "multi-queue")) {
 		range->flags |= RANGE_MULTI_QUEUE;
 		channels = 1;
 		if (range->queue_base & (32 - 1)) {
@@ -547,7 +547,7 @@ int knav_init_acc_range(struct knav_device *kdev,
 	range->acc = devm_kcalloc(kdev->dev, channels, sizeof(*range->acc),
 				  GFP_KERNEL);
 	if (!range->acc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (channel = 0; channel < channels; channel++) {
 		acc = range->acc + channel;
@@ -556,13 +556,13 @@ int knav_init_acc_range(struct knav_device *kdev,
 		/* allocate memory for the two lists */
 		list_mem = alloc_pages_exact(mem_size, GFP_KERNEL | GFP_DMA);
 		if (!list_mem)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		list_dma = dma_map_single(kdev->dev, list_mem, mem_size,
 					  DMA_BIDIRECTIONAL);
 		if (dma_mapping_error(kdev->dev, list_dma)) {
 			free_pages_exact(list_mem, mem_size);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		memset(list_mem, 0, mem_size);

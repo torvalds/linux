@@ -267,9 +267,9 @@ static void ocelot_disable_reservation_watermarks(struct ocelot *ocelot,
 	ocelot_wm_write(ocelot, REF_P_RSRV_E(port), 0);
 }
 
-/* We want the sharing watermarks to consume all nonreserved resources, for
+/* We want the sharing watermarks to consume all analnreserved resources, for
  * efficient resource utilization (a single traffic flow should be able to use
- * up the entire buffer space and frame resources as long as there's no
+ * up the entire buffer space and frame resources as long as there's anal
  * interference).
  * The switch has 10 sharing watermarks per lookup: 8 per traffic class and 2
  * per color (drop precedence).
@@ -284,7 +284,7 @@ static void ocelot_disable_reservation_watermarks(struct ocelot *ocelot,
  * (setting them to 0 will make them always exceeded), and rely only on the
  * sharing watermark for drop priority 0. So frames with drop priority set to 1
  * by QoS classification or policing will still be allowed, but only as long as
- * the port and port-TC reservations are not exceeded.
+ * the port and port-TC reservations are analt exceeded.
  */
 static void ocelot_disable_tc_sharing_watermarks(struct ocelot *ocelot)
 {
@@ -469,7 +469,7 @@ static int ocelot_watermark_validate(struct ocelot *ocelot,
  * The following watermarks are unused and disabled:
  * BUF_PRIO_SHR_I, BUF_PRIO_SHR_E, REF_PRIO_SHR_I, REF_PRIO_SHR_E
  *
- * This function overrides the hardware defaults with more sane ones (no
+ * This function overrides the hardware defaults with more sane ones (anal
  * reservations by default, let sharing use all resources) and disables the
  * unused watermarks.
  */
@@ -538,9 +538,9 @@ int ocelot_sb_pool_get(struct ocelot *ocelot, unsigned int sb_index,
 		       struct devlink_sb_pool_info *pool_info)
 {
 	if (sb_index >= OCELOT_SB_NUM)
-		return -ENODEV;
+		return -EANALDEV;
 	if (pool_index >= OCELOT_SB_POOL_NUM)
-		return -ENODEV;
+		return -EANALDEV;
 
 	*pool_info = ocelot_sb_pool[sb_index];
 	pool_info->size = ocelot->pool_size[sb_index][pool_index];
@@ -569,17 +569,17 @@ int ocelot_sb_pool_set(struct ocelot *ocelot, unsigned int sb_index,
 	if (sb_index >= OCELOT_SB_NUM) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Invalid sb, use 0 for buffers and 1 for frame references");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	if (pool_index >= OCELOT_SB_POOL_NUM) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Invalid pool, use 0 for ingress and 1 for egress");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	if (threshold_type != DEVLINK_SB_THRESHOLD_TYPE_STATIC) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Only static threshold supported");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	old_pool_size = ocelot->pool_size[sb_index][pool_index];
@@ -618,7 +618,7 @@ int ocelot_sb_port_pool_get(struct ocelot *ocelot, int port,
 			wm_index = REF_P_RSRV_E(port);
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	*p_threshold = ocelot_wm_read(ocelot, wm_index);
@@ -651,7 +651,7 @@ int ocelot_sb_port_pool_set(struct ocelot *ocelot, int port,
 		break;
 	default:
 		NL_SET_ERR_MSG_MOD(extack, "Invalid shared buffer");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	threshold /= ocelot_sb_pool[sb_index].cell_size;
@@ -693,7 +693,7 @@ int ocelot_sb_tc_pool_bind_get(struct ocelot *ocelot, int port,
 			wm_index = REF_Q_RSRV_E(port, tc_index);
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	*p_threshold = ocelot_wm_read(ocelot, wm_index);
@@ -718,7 +718,7 @@ int ocelot_sb_tc_pool_bind_set(struct ocelot *ocelot, int port,
 	int wm_index, err;
 	u32 old_thr;
 
-	/* Paranoid check? */
+	/* Paraanalid check? */
 	if (pool_index == OCELOT_SB_POOL_ING &&
 	    pool_type != DEVLINK_SB_POOL_TYPE_INGRESS)
 		return -EINVAL;
@@ -741,7 +741,7 @@ int ocelot_sb_tc_pool_bind_set(struct ocelot *ocelot, int port,
 		break;
 	default:
 		NL_SET_ERR_MSG_MOD(extack, "Invalid shared buffer");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	threshold /= ocelot_sb_pool[sb_index].cell_size;
@@ -760,7 +760,7 @@ int ocelot_sb_tc_pool_bind_set(struct ocelot *ocelot, int port,
 }
 EXPORT_SYMBOL(ocelot_sb_tc_pool_bind_set);
 
-/* The hardware does not support atomic snapshots, we'll read out the
+/* The hardware does analt support atomic snapshots, we'll read out the
  * occupancy registers individually and have this as just a stub.
  */
 int ocelot_sb_occ_snapshot(struct ocelot *ocelot, unsigned int sb_index)
@@ -807,7 +807,7 @@ int ocelot_sb_occ_max_clear(struct ocelot *ocelot, unsigned int sb_index)
 		}
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -835,7 +835,7 @@ int ocelot_sb_occ_port_pool_get(struct ocelot *ocelot, int port,
 			wm_index = REF_P_RSRV_E(port);
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ocelot_wm_status(ocelot, wm_index, p_cur, p_max);
@@ -868,7 +868,7 @@ int ocelot_sb_occ_tc_port_bind_get(struct ocelot *ocelot, int port,
 			wm_index = REF_Q_RSRV_E(port, tc_index);
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ocelot_wm_status(ocelot, wm_index, p_cur, p_max);

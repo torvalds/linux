@@ -74,12 +74,12 @@ struct ipc_protocol_context_info {
  * struct ipc_protocol_device_info - Structure for the device information
  * @execution_stage:		CP execution stage
  * @ipc_status:			IPC states
- * @device_sleep_notification:	Requested device pm states
+ * @device_sleep_analtification:	Requested device pm states
  */
 struct ipc_protocol_device_info {
 	__le32 execution_stage;
 	__le32 ipc_status;
-	__le32 device_sleep_notification;
+	__le32 device_sleep_analtification;
 };
 
 /**
@@ -110,7 +110,7 @@ struct ipc_protocol_ap_shm {
  * @pcie:		Pointer to struct iosm_pcie
  * @imem:		Pointer to struct iosm_imem
  * @rsp_ring:		Array of OS completion objects to be triggered once CP
- *			acknowledges a request in the message ring
+ *			ackanalwledges a request in the message ring
  * @dev:		Pointer to device structure
  * @phy_ap_shm:		Physical/Mapped representation of the shared memory info
  * @old_msg_tail:	Old msg tail ptr, until AP has handled ACK's from CP
@@ -130,7 +130,7 @@ struct iosm_protocol {
  * struct ipc_call_msg_send_args - Structure for message argument for
  *				   tasklet function.
  * @prep_args:		Arguments for message preparation function
- * @response:		Can be NULL if result can be ignored
+ * @response:		Can be NULL if result can be iganalred
  * @msg_type:		Message Type
  */
 struct ipc_call_msg_send_args {
@@ -192,10 +192,10 @@ bool ipc_protocol_resume(struct iosm_protocol *ipc_protocol);
 
 /**
  * ipc_protocol_pm_dev_sleep_handle - Handles the Device Sleep state change
- *				      notification.
+ *				      analtification.
  * @ipc_protocol:	Pointer to ipc_protocol instance.
  *
- * Returns: true if sleep notification handled, false otherwise.
+ * Returns: true if sleep analtification handled, false otherwise.
  */
 bool ipc_protocol_pm_dev_sleep_handle(struct iosm_protocol *ipc_protocol);
 
@@ -211,14 +211,14 @@ void ipc_protocol_doorbell_trigger(struct iosm_protocol *ipc_protocol,
 				   u32 identifier);
 
 /**
- * ipc_protocol_sleep_notification_string - Returns last Sleep Notification as
+ * ipc_protocol_sleep_analtification_string - Returns last Sleep Analtification as
  *					    string.
  * @ipc_protocol:	Instance pointer of Protocol module.
  *
  * Returns: Pointer to string.
  */
 const char *
-ipc_protocol_sleep_notification_string(struct iosm_protocol *ipc_protocol);
+ipc_protocol_sleep_analtification_string(struct iosm_protocol *ipc_protocol);
 
 /**
  * ipc_protocol_init - Allocates IPC protocol instance

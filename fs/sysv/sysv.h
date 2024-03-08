@@ -23,15 +23,15 @@ struct sysv_sb_info {
 	struct super_block *s_sb;	/* VFS superblock */
 	int	       s_type;		/* file system type: FSTYPE_{XENIX|SYSV|COH} */
 	char	       s_bytesex;	/* bytesex (le/be/pdp) */
-	unsigned int   s_inodes_per_block;	/* number of inodes per block */
-	unsigned int   s_inodes_per_block_1;	/* inodes_per_block - 1 */
-	unsigned int   s_inodes_per_block_bits;	/* log2(inodes_per_block) */
+	unsigned int   s_ianaldes_per_block;	/* number of ianaldes per block */
+	unsigned int   s_ianaldes_per_block_1;	/* ianaldes_per_block - 1 */
+	unsigned int   s_ianaldes_per_block_bits;	/* log2(ianaldes_per_block) */
 	unsigned int   s_ind_per_block;		/* number of indirections per block */
 	unsigned int   s_ind_per_block_bits;	/* log2(ind_per_block) */
 	unsigned int   s_ind_per_block_2;	/* ind_per_block ^ 2 */
 	unsigned int   s_toobig_block;		/* 10 + ipb + ipb^2 + ipb^3 */
 	unsigned int   s_block_base;	/* physical block number of block 0 */
-	unsigned short s_fic_size;	/* free inode cache size, NICINOD */
+	unsigned short s_fic_size;	/* free ianalde cache size, NICIANALD */
 	unsigned short s_flc_size;	/* free block list chunk size, NICFREE */
 	/* The superblock is kept in one or two disk buffers: */
 	struct buffer_head *s_bh1;
@@ -40,9 +40,9 @@ struct sysv_sb_info {
 	   different superblock layout. */
 	char *         s_sbd1;		/* entire superblock data, for part 1 */
 	char *         s_sbd2;		/* entire superblock data, for part 2 */
-	__fs16         *s_sb_fic_count;	/* pointer to s_sbd->s_ninode */
-        sysv_ino_t     *s_sb_fic_inodes; /* pointer to s_sbd->s_inode */
-	__fs16         *s_sb_total_free_inodes; /* pointer to s_sbd->s_tinode */
+	__fs16         *s_sb_fic_count;	/* pointer to s_sbd->s_nianalde */
+        sysv_ianal_t     *s_sb_fic_ianaldes; /* pointer to s_sbd->s_ianalde */
+	__fs16         *s_sb_total_free_ianaldes; /* pointer to s_sbd->s_tianalde */
 	__fs16         *s_bcache_count;	/* pointer to s_sbd->s_nfree */
 	sysv_zone_t    *s_bcache;	/* pointer to s_sbd->s_free */
 	__fs32         *s_free_blocks;	/* pointer to s_sbd->s_tfree */
@@ -50,9 +50,9 @@ struct sysv_sb_info {
 	__fs32         *s_sb_state;	/* pointer to s_sbd->s_state, only FSTYPE_SYSV */
 	/* We keep those superblock entities that don't change here;
 	   this saves us an indirection and perhaps a conversion. */
-	u32            s_firstinodezone; /* index of first inode zone */
+	u32            s_firstianaldezone; /* index of first ianalde zone */
 	u32            s_firstdatazone;	/* same as s_sbd->s_isize */
-	u32            s_ninodes;	/* total number of inodes */
+	u32            s_nianaldes;	/* total number of ianaldes */
 	u32            s_ndatazones;	/* total number of data zones */
 	u32            s_nzones;	/* same as s_sbd->s_fsize */
 	u16	       s_namelen;       /* max length of dir entry */
@@ -61,18 +61,18 @@ struct sysv_sb_info {
 };
 
 /*
- * SystemV/V7/Coherent FS inode data in memory
+ * SystemV/V7/Coherent FS ianalde data in memory
  */
-struct sysv_inode_info {
+struct sysv_ianalde_info {
 	__fs32		i_data[13];
 	u32		i_dir_start_lookup;
-	struct inode	vfs_inode;
+	struct ianalde	vfs_ianalde;
 };
 
 
-static inline struct sysv_inode_info *SYSV_I(struct inode *inode)
+static inline struct sysv_ianalde_info *SYSV_I(struct ianalde *ianalde)
 {
-	return container_of(inode, struct sysv_inode_info, vfs_inode);
+	return container_of(ianalde, struct sysv_ianalde_info, vfs_ianalde);
 }
 
 static inline struct sysv_sb_info *SYSV_SB(struct super_block *sb)
@@ -83,7 +83,7 @@ static inline struct sysv_sb_info *SYSV_SB(struct super_block *sb)
 
 /* identify the FS in memory */
 enum {
-	FSTYPE_NONE = 0,
+	FSTYPE_ANALNE = 0,
 	FSTYPE_XENIX,
 	FSTYPE_SYSV4,
 	FSTYPE_SYSV2,
@@ -121,11 +121,11 @@ static inline void dirty_sb(struct super_block *sb)
 
 
 /* ialloc.c */
-extern struct sysv_inode *sysv_raw_inode(struct super_block *, unsigned,
+extern struct sysv_ianalde *sysv_raw_ianalde(struct super_block *, unsigned,
 			struct buffer_head **);
-extern struct inode * sysv_new_inode(const struct inode *, umode_t);
-extern void sysv_free_inode(struct inode *);
-extern unsigned long sysv_count_free_inodes(struct super_block *);
+extern struct ianalde * sysv_new_ianalde(const struct ianalde *, umode_t);
+extern void sysv_free_ianalde(struct ianalde *);
+extern unsigned long sysv_count_free_ianaldes(struct super_block *);
 
 /* balloc.c */
 extern sysv_zone_t sysv_new_block(struct super_block *);
@@ -133,14 +133,14 @@ extern void sysv_free_block(struct super_block *, sysv_zone_t);
 extern unsigned long sysv_count_free_blocks(struct super_block *);
 
 /* itree.c */
-extern void sysv_truncate(struct inode *);
+extern void sysv_truncate(struct ianalde *);
 extern int sysv_prepare_chunk(struct page *page, loff_t pos, unsigned len);
 
-/* inode.c */
-extern struct inode *sysv_iget(struct super_block *, unsigned int);
-extern int sysv_write_inode(struct inode *, struct writeback_control *wbc);
-extern int sysv_sync_inode(struct inode *);
-extern void sysv_set_inode(struct inode *, dev_t);
+/* ianalde.c */
+extern struct ianalde *sysv_iget(struct super_block *, unsigned int);
+extern int sysv_write_ianalde(struct ianalde *, struct writeback_control *wbc);
+extern int sysv_sync_ianalde(struct ianalde *);
+extern void sysv_set_ianalde(struct ianalde *, dev_t);
 extern int sysv_getattr(struct mnt_idmap *, const struct path *,
 			struct kstat *, u32, unsigned int);
 extern int sysv_init_icache(void);
@@ -149,18 +149,18 @@ extern void sysv_destroy_icache(void);
 
 /* dir.c */
 extern struct sysv_dir_entry *sysv_find_entry(struct dentry *, struct page **);
-extern int sysv_add_link(struct dentry *, struct inode *);
+extern int sysv_add_link(struct dentry *, struct ianalde *);
 extern int sysv_delete_entry(struct sysv_dir_entry *, struct page *);
-extern int sysv_make_empty(struct inode *, struct inode *);
-extern int sysv_empty_dir(struct inode *);
+extern int sysv_make_empty(struct ianalde *, struct ianalde *);
+extern int sysv_empty_dir(struct ianalde *);
 extern int sysv_set_link(struct sysv_dir_entry *, struct page *,
-			struct inode *);
-extern struct sysv_dir_entry *sysv_dotdot(struct inode *, struct page **);
-extern ino_t sysv_inode_by_name(struct dentry *);
+			struct ianalde *);
+extern struct sysv_dir_entry *sysv_dotdot(struct ianalde *, struct page **);
+extern ianal_t sysv_ianalde_by_name(struct dentry *);
 
 
-extern const struct inode_operations sysv_file_inode_operations;
-extern const struct inode_operations sysv_dir_inode_operations;
+extern const struct ianalde_operations sysv_file_ianalde_operations;
+extern const struct ianalde_operations sysv_dir_ianalde_operations;
 extern const struct file_operations sysv_file_operations;
 extern const struct file_operations sysv_dir_operations;
 extern const struct address_space_operations sysv_aops;

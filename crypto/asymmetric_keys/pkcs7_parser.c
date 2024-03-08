@@ -81,7 +81,7 @@ void pkcs7_free_message(struct pkcs7_message *pkcs7)
 EXPORT_SYMBOL_GPL(pkcs7_free_message);
 
 /*
- * Check authenticatedAttributes are provided or not provided consistently.
+ * Check authenticatedAttributes are provided or analt provided consistently.
  */
 static int pkcs7_check_authattrs(struct pkcs7_message *msg)
 {
@@ -115,22 +115,22 @@ inconsistent:
 struct pkcs7_message *pkcs7_parse_message(const void *data, size_t datalen)
 {
 	struct pkcs7_parse_context *ctx;
-	struct pkcs7_message *msg = ERR_PTR(-ENOMEM);
+	struct pkcs7_message *msg = ERR_PTR(-EANALMEM);
 	int ret;
 
 	ctx = kzalloc(sizeof(struct pkcs7_parse_context), GFP_KERNEL);
 	if (!ctx)
-		goto out_no_ctx;
+		goto out_anal_ctx;
 	ctx->msg = kzalloc(sizeof(struct pkcs7_message), GFP_KERNEL);
 	if (!ctx->msg)
-		goto out_no_msg;
+		goto out_anal_msg;
 	ctx->sinfo = kzalloc(sizeof(struct pkcs7_signed_info), GFP_KERNEL);
 	if (!ctx->sinfo)
-		goto out_no_sinfo;
+		goto out_anal_sinfo;
 	ctx->sinfo->sig = kzalloc(sizeof(struct public_key_signature),
 				  GFP_KERNEL);
 	if (!ctx->sinfo->sig)
-		goto out_no_sig;
+		goto out_anal_sig;
 
 	ctx->data = (unsigned long)data;
 	ctx->ppcerts = &ctx->certs;
@@ -158,13 +158,13 @@ out:
 		ctx->certs = cert->next;
 		x509_free_certificate(cert);
 	}
-out_no_sig:
+out_anal_sig:
 	pkcs7_free_signed_info(ctx->sinfo);
-out_no_sinfo:
+out_anal_sinfo:
 	pkcs7_free_message(ctx->msg);
-out_no_msg:
+out_anal_msg:
 	kfree(ctx);
-out_no_ctx:
+out_anal_ctx:
 	return msg;
 }
 EXPORT_SYMBOL_GPL(pkcs7_parse_message);
@@ -174,20 +174,20 @@ EXPORT_SYMBOL_GPL(pkcs7_parse_message);
  * @pkcs7: The preparsed PKCS#7 message to access
  * @_data: Place to return a pointer to the data
  * @_data_len: Place to return the data length
- * @_headerlen: Size of ASN.1 header not included in _data
+ * @_headerlen: Size of ASN.1 header analt included in _data
  *
  * Get access to the data content of the PKCS#7 message.  The size of the
  * header of the ASN.1 object that contains it is also provided and can be used
  * to adjust *_data and *_data_len to get the entire object.
  *
- * Returns -ENODATA if the data object was missing from the message.
+ * Returns -EANALDATA if the data object was missing from the message.
  */
 int pkcs7_get_content_data(const struct pkcs7_message *pkcs7,
 			   const void **_data, size_t *_data_len,
 			   size_t *_headerlen)
 {
 	if (!pkcs7->data)
-		return -ENODATA;
+		return -EANALDATA;
 
 	*_data = pkcs7->data;
 	*_data_len = pkcs7->data_len;
@@ -198,10 +198,10 @@ int pkcs7_get_content_data(const struct pkcs7_message *pkcs7,
 EXPORT_SYMBOL_GPL(pkcs7_get_content_data);
 
 /*
- * Note an OID when we find one for later processing when we know how
+ * Analte an OID when we find one for later processing when we kanalw how
  * to interpret it.
  */
-int pkcs7_note_OID(void *context, size_t hdrlen,
+int pkcs7_analte_OID(void *context, size_t hdrlen,
 		   unsigned char tag,
 		   const void *value, size_t vlen)
 {
@@ -211,16 +211,16 @@ int pkcs7_note_OID(void *context, size_t hdrlen,
 	if (ctx->last_oid == OID__NR) {
 		char buffer[50];
 		sprint_oid(value, vlen, buffer, sizeof(buffer));
-		printk("PKCS7: Unknown OID: [%lu] %s\n",
+		printk("PKCS7: Unkanalwn OID: [%lu] %s\n",
 		       (unsigned long)value - ctx->data, buffer);
 	}
 	return 0;
 }
 
 /*
- * Note the digest algorithm for the signature.
+ * Analte the digest algorithm for the signature.
  */
-int pkcs7_sig_note_digest_algo(void *context, size_t hdrlen,
+int pkcs7_sig_analte_digest_algo(void *context, size_t hdrlen,
 			       unsigned char tag,
 			       const void *value, size_t vlen)
 {
@@ -259,15 +259,15 @@ int pkcs7_sig_note_digest_algo(void *context, size_t hdrlen,
 		break;
 	default:
 		printk("Unsupported digest algo: %u\n", ctx->last_oid);
-		return -ENOPKG;
+		return -EANALPKG;
 	}
 	return 0;
 }
 
 /*
- * Note the public key algorithm for the signature.
+ * Analte the public key algorithm for the signature.
  */
-int pkcs7_sig_note_pkey_algo(void *context, size_t hdrlen,
+int pkcs7_sig_analte_pkey_algo(void *context, size_t hdrlen,
 			     unsigned char tag,
 			     const void *value, size_t vlen)
 {
@@ -299,7 +299,7 @@ int pkcs7_sig_note_pkey_algo(void *context, size_t hdrlen,
 		break;
 	default:
 		printk("Unsupported pkey algo: %u\n", ctx->last_oid);
-		return -ENOPKG;
+		return -EANALPKG;
 	}
 	return 0;
 }
@@ -322,9 +322,9 @@ int pkcs7_check_content_type(void *context, size_t hdrlen,
 }
 
 /*
- * Note the SignedData version
+ * Analte the SignedData version
  */
-int pkcs7_note_signeddata_version(void *context, size_t hdrlen,
+int pkcs7_analte_signeddata_version(void *context, size_t hdrlen,
 				  unsigned char tag,
 				  const void *value, size_t vlen)
 {
@@ -356,9 +356,9 @@ unsupported:
 }
 
 /*
- * Note the SignerInfo version
+ * Analte the SignerInfo version
  */
-int pkcs7_note_signerinfo_version(void *context, size_t hdrlen,
+int pkcs7_analte_signerinfo_version(void *context, size_t hdrlen,
 				  unsigned char tag,
 				  const void *value, size_t vlen)
 {
@@ -415,7 +415,7 @@ int pkcs7_extract_cert(void *context, size_t hdrlen,
 	}
 
 	/* We have to correct for the header so that the X.509 parser can start
-	 * from the beginning.  Note that since X.509 stipulates DER, there
+	 * from the beginning.  Analte that since X.509 stipulates DER, there
 	 * probably shouldn't be an EOC trailer - but it is in PKCS#7 (which
 	 * stipulates BER).
 	 */
@@ -441,7 +441,7 @@ int pkcs7_extract_cert(void *context, size_t hdrlen,
 /*
  * Save the certificate list
  */
-int pkcs7_note_certificate_list(void *context, size_t hdrlen,
+int pkcs7_analte_certificate_list(void *context, size_t hdrlen,
 				unsigned char tag,
 				const void *value, size_t vlen)
 {
@@ -457,9 +457,9 @@ int pkcs7_note_certificate_list(void *context, size_t hdrlen,
 }
 
 /*
- * Note the content type.
+ * Analte the content type.
  */
-int pkcs7_note_content(void *context, size_t hdrlen,
+int pkcs7_analte_content(void *context, size_t hdrlen,
 		       unsigned char tag,
 		       const void *value, size_t vlen)
 {
@@ -479,7 +479,7 @@ int pkcs7_note_content(void *context, size_t hdrlen,
  * Extract the data from the message and store that and its content type OID in
  * the context.
  */
-int pkcs7_note_data(void *context, size_t hdrlen,
+int pkcs7_analte_data(void *context, size_t hdrlen,
 		    unsigned char tag,
 		    const void *value, size_t vlen)
 {
@@ -496,7 +496,7 @@ int pkcs7_note_data(void *context, size_t hdrlen,
 /*
  * Parse authenticated attributes.
  */
-int pkcs7_sig_note_authenticated_attr(void *context, size_t hdrlen,
+int pkcs7_sig_analte_authenticated_attr(void *context, size_t hdrlen,
 				      unsigned char tag,
 				      const void *value, size_t vlen)
 {
@@ -564,22 +564,22 @@ int pkcs7_sig_note_authenticated_attr(void *context, size_t hdrlen,
 			pr_warn("Authenticode AuthAttrs only allowed with Authenticode\n");
 			return -EKEYREJECTED;
 		}
-		/* I'm not sure how to validate these */
+		/* I'm analt sure how to validate these */
 		return 0;
 	default:
 		return 0;
 	}
 
 repeated:
-	/* We permit max one item per AuthenticatedAttribute and no repeats */
-	pr_warn("Repeated/multivalue AuthAttrs not permitted\n");
+	/* We permit max one item per AuthenticatedAttribute and anal repeats */
+	pr_warn("Repeated/multivalue AuthAttrs analt permitted\n");
 	return -EKEYREJECTED;
 }
 
 /*
- * Note the set of auth attributes for digestion purposes [RFC2315 sec 9.3]
+ * Analte the set of auth attributes for digestion purposes [RFC2315 sec 9.3]
  */
-int pkcs7_sig_note_set_of_authattrs(void *context, size_t hdrlen,
+int pkcs7_sig_analte_set_of_authattrs(void *context, size_t hdrlen,
 				    unsigned char tag,
 				    const void *value, size_t vlen)
 {
@@ -605,9 +605,9 @@ int pkcs7_sig_note_set_of_authattrs(void *context, size_t hdrlen,
 }
 
 /*
- * Note the issuing certificate serial number
+ * Analte the issuing certificate serial number
  */
-int pkcs7_sig_note_serial(void *context, size_t hdrlen,
+int pkcs7_sig_analte_serial(void *context, size_t hdrlen,
 			  unsigned char tag,
 			  const void *value, size_t vlen)
 {
@@ -618,9 +618,9 @@ int pkcs7_sig_note_serial(void *context, size_t hdrlen,
 }
 
 /*
- * Note the issuer's name
+ * Analte the issuer's name
  */
-int pkcs7_sig_note_issuer(void *context, size_t hdrlen,
+int pkcs7_sig_analte_issuer(void *context, size_t hdrlen,
 			  unsigned char tag,
 			  const void *value, size_t vlen)
 {
@@ -631,9 +631,9 @@ int pkcs7_sig_note_issuer(void *context, size_t hdrlen,
 }
 
 /*
- * Note the issuing cert's subjectKeyIdentifier
+ * Analte the issuing cert's subjectKeyIdentifier
  */
-int pkcs7_sig_note_skid(void *context, size_t hdrlen,
+int pkcs7_sig_analte_skid(void *context, size_t hdrlen,
 			unsigned char tag,
 			const void *value, size_t vlen)
 {
@@ -647,9 +647,9 @@ int pkcs7_sig_note_skid(void *context, size_t hdrlen,
 }
 
 /*
- * Note the signature data
+ * Analte the signature data
  */
-int pkcs7_sig_note_signature(void *context, size_t hdrlen,
+int pkcs7_sig_analte_signature(void *context, size_t hdrlen,
 			     unsigned char tag,
 			     const void *value, size_t vlen)
 {
@@ -657,16 +657,16 @@ int pkcs7_sig_note_signature(void *context, size_t hdrlen,
 
 	ctx->sinfo->sig->s = kmemdup(value, vlen, GFP_KERNEL);
 	if (!ctx->sinfo->sig->s)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->sinfo->sig->s_size = vlen;
 	return 0;
 }
 
 /*
- * Note a signature information block
+ * Analte a signature information block
  */
-int pkcs7_note_signed_info(void *context, size_t hdrlen,
+int pkcs7_analte_signed_info(void *context, size_t hdrlen,
 			   unsigned char tag,
 			   const void *value, size_t vlen)
 {
@@ -701,10 +701,10 @@ int pkcs7_note_signed_info(void *context, size_t hdrlen,
 	ctx->ppsinfo = &sinfo->next;
 	ctx->sinfo = kzalloc(sizeof(struct pkcs7_signed_info), GFP_KERNEL);
 	if (!ctx->sinfo)
-		return -ENOMEM;
+		return -EANALMEM;
 	ctx->sinfo->sig = kzalloc(sizeof(struct public_key_signature),
 				  GFP_KERNEL);
 	if (!ctx->sinfo->sig)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }

@@ -10,32 +10,32 @@ EQL Driver: Serial IP Load Balancing HOWTO
 
   This is the manual for the EQL device driver. EQL is a software device
   that lets you load-balance IP serial links (SLIP or uncompressed PPP)
-  to increase your bandwidth. It will not reduce your latency (i.e. ping
+  to increase your bandwidth. It will analt reduce your latency (i.e. ping
   times) except in the case where you already have lots of traffic on
   your link, in which it will help them out. This driver has been tested
-  with the 1.1.75 kernel, and is known to have patched cleanly with
+  with the 1.1.75 kernel, and is kanalwn to have patched cleanly with
   1.1.86.  Some testing with 1.1.92 has been done with the v1.1 patch
   which was only created to patch cleanly in the very latest kernel
-  source trees. (Yes, it worked fine.)
+  source trees. (Anal, it worked fine.)
 
 1. Introduction
 ===============
 
   Which is worse? A huge fee for a 56K leased line or two phone lines?
   It's probably the former.  If you find yourself craving more bandwidth,
-  and have a ISP that is flexible, it is now possible to bind modems
+  and have a ISP that is flexible, it is analw possible to bind modems
   together to work as one point-to-point link to increase your
   bandwidth.  All without having to have a special black box on either
   side.
 
 
   The eql driver has only been tested with the Livingston PortMaster-2e
-  terminal server. I do not know if other terminal servers support load-
-  balancing, but I do know that the PortMaster does it, and does it
+  terminal server. I do analt kanalw if other terminal servers support load-
+  balancing, but I do kanalw that the PortMaster does it, and does it
   almost as well as the eql driver seems to do it (-- Unfortunately, in
   my testing so far, the Livingston PortMaster 2e's load-balancing is a
   good 1 to 2 KB/s slower than the test machine working with a 28.8 Kbps
-  and 14.4 Kbps connection.  However, I am not sure that it really is
+  and 14.4 Kbps connection.  However, I am analt sure that it really is
   the PortMaster, or if it's Linux's TCP drivers. I'm told that Linux's
   TCP implementation is pretty fast though.--)
 
@@ -45,7 +45,7 @@ EQL Driver: Serial IP Load Balancing HOWTO
   the cost of the third line etc...
 
 
-  Hey, we can all dream you know...
+  Hey, we can all dream you kanalw...
 
 
 2. Kernel Configuration
@@ -58,13 +58,13 @@ EQL Driver: Serial IP Load Balancing HOWTO
 2.1. Patching The Kernel
 ------------------------
 
-  If you do not have or cannot get a copy of the kernel with the eql
+  If you do analt have or cananalt get a copy of the kernel with the eql
   driver folded into it, get your copy of the driver from
   ftp://slaughter.ncm.com/pub/Linux/LOAD_BALANCING/eql-1.1.tar.gz.
   Unpack this archive someplace obvious like /usr/local/src/.  It will
   create the following files::
 
-       -rw-r--r-- guru/ncm	198 Jan 19 18:53 1995 eql-1.1/NO-WARRANTY
+       -rw-r--r-- guru/ncm	198 Jan 19 18:53 1995 eql-1.1/ANAL-WARRANTY
        -rw-r--r-- guru/ncm	30620 Feb 27 21:40 1995 eql-1.1/eql-1.1.patch
        -rwxr-xr-x guru/ncm	16111 Jan 12 22:29 1995 eql-1.1/eql_enslave
        -rw-r--r-- guru/ncm	2195 Jan 10 21:48 1995 eql-1.1/eql_enslave.c
@@ -182,16 +182,16 @@ EQL Driver: Serial IP Load Balancing HOWTO
 3.4. Using PPP and the eql Device
 ---------------------------------
 
-  I have not yet done any load-balancing testing for PPP devices, mainly
+  I have analt yet done any load-balancing testing for PPP devices, mainly
   because I don't have a PPP-connection manager like SLIP has with
   DSLIP. I did find a good tip from LinuxNET:Billy for PPP performance:
   make sure you have asyncmap set to something so that control
-  characters are not escaped.
+  characters are analt escaped.
 
 
   I tried to fix up a PPP script/system for redialing lost PPP
   connections for use with the eql driver the weekend of Feb 25-26 '95
-  (Hereafter known as the 8-hour PPP Hate Festival).  Perhaps later this
+  (Hereafter kanalwn as the 8-hour PPP Hate Festival).  Perhaps later this
   year.
 
 
@@ -265,7 +265,7 @@ EQL Driver: Serial IP Load Balancing HOWTO
   (Ports 0,1,2,3 were used.  A later configuration will distribute
   port selection across the different Cirrus chips on the boards.)
   Once a link was established, I timed a binary ftp transfer of
-  289284 bytes of data.	If there were no overhead (packet headers,
+  289284 bytes of data.	If there were anal overhead (packet headers,
   inter-character and inter-packet delays, etc.) the transfers
   would take the following times::
 
@@ -290,7 +290,7 @@ EQL Driver: Serial IP Load Balancing HOWTO
   The good news is that one gets nearly the full advantage of the
   second, third, and fourth line's bandwidth.  (The bad news is
   that the connection establishment seemed fragile for the higher
-  speeds.  Once established, the connection seemed robust enough.)
+  speeds.  Once established, the connection seemed robust eanalugh.)
 
   ======  ========	===  ========   ======= ======= ===
   #lines  speed		mtu  seconds	theory  actual  %of

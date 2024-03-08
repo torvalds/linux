@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2016-2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2016-2018 Mellaanalx Techanallogies. All rights reserved */
 
 #include <linux/kernel.h>
 #include <linux/mutex.h>
@@ -23,7 +23,7 @@ int mlxsw_sp_kvdl_init(struct mlxsw_sp *mlxsw_sp)
 	kvdl = kzalloc(sizeof(*mlxsw_sp->kvdl) + kvdl_ops->priv_size,
 		       GFP_KERNEL);
 	if (!kvdl)
-		return -ENOMEM;
+		return -EANALMEM;
 	mutex_init(&kvdl->kvdl_lock);
 	kvdl->kvdl_ops = kvdl_ops;
 	mlxsw_sp->kvdl = kvdl;

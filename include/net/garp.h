@@ -73,13 +73,13 @@ enum garp_event {
 #define GARP_EVENT_MAX		(__GARP_EVENT_MAX - 1)
 
 enum garp_action {
-	GARP_ACTION_NONE,
+	GARP_ACTION_ANALNE,
 	GARP_ACTION_S_JOIN_IN,
 	GARP_ACTION_S_LEAVE_EMPTY,
 };
 
 struct garp_attr {
-	struct rb_node			node;
+	struct rb_analde			analde;
 	enum garp_applicant_state	state;
 	u8				type;
 	u8				dlen;

@@ -54,7 +54,7 @@ static void dte_write_nco(void __iomem *regs, s64 ns)
 	u32 sum2, sum3;
 
 	sum2 = (u32)((ns >> DTE_NCO_SUM2_SHIFT) & DTE_NCO_SUM2_MASK);
-	/* compensate for ignoring sum1 */
+	/* compensate for iganalring sum1 */
 	if (sum2 != DTE_NCO_SUM2_MASK)
 		sum2++;
 
@@ -73,7 +73,7 @@ static s64 dte_read_nco(void __iomem *regs)
 	s64 ns;
 
 	/*
-	 * ignoring sum1 (4 bits) gives a 16ns resolution, which
+	 * iganalring sum1 (4 bits) gives a 16ns resolution, which
 	 * works due to the async register read.
 	 */
 	sum3 = readl(regs + DTE_NCO_OVERFLOW_REG) & DTE_NCO_SUM3_MASK;
@@ -210,7 +210,7 @@ static int ptp_dte_settime(struct ptp_clock_info *ptp,
 static int ptp_dte_enable(struct ptp_clock_info *ptp,
 			    struct ptp_clock_request *rq, int on)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static const struct ptp_clock_info ptp_dte_caps = {
@@ -234,7 +234,7 @@ static int ptp_dte_probe(struct platform_device *pdev)
 
 	ptp_dte = devm_kzalloc(dev, sizeof(struct ptp_dte), GFP_KERNEL);
 	if (!ptp_dte)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ptp_dte->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ptp_dte->regs))

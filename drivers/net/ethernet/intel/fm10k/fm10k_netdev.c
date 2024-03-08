@@ -39,7 +39,7 @@ int fm10k_setup_tx_resources(struct fm10k_ring *tx_ring)
 err:
 	vfree(tx_ring->tx_buffer);
 	tx_ring->tx_buffer = NULL;
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /**
@@ -47,7 +47,7 @@ err:
  * @interface: board private structure
  *
  * If this function returns with an error, then it's possible one or
- * more of the rings is populated (while the rest are not).  It is the
+ * more of the rings is populated (while the rest are analt).  It is the
  * callers duty to clean those orphaned rings.
  *
  * Return 0 on success, negative on failure
@@ -106,7 +106,7 @@ int fm10k_setup_rx_resources(struct fm10k_ring *rx_ring)
 err:
 	vfree(rx_ring->rx_buffer);
 	rx_ring->rx_buffer = NULL;
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /**
@@ -114,7 +114,7 @@ err:
  * @interface: board private structure
  *
  * If this function returns with an error, then it's possible one or
- * more of the rings is populated (while the rest are not).  It is the
+ * more of the rings is populated (while the rest are analt).  It is the
  * callers duty to clean those orphaned rings.
  *
  * Return 0 on success, negative on failure
@@ -172,7 +172,7 @@ static void fm10k_clean_tx_ring(struct fm10k_ring *tx_ring)
 	unsigned long size;
 	u16 i;
 
-	/* ring already cleared, nothing to do */
+	/* ring already cleared, analthing to do */
 	if (!tx_ring->tx_buffer)
 		return;
 
@@ -206,7 +206,7 @@ void fm10k_free_tx_resources(struct fm10k_ring *tx_ring)
 	vfree(tx_ring->tx_buffer);
 	tx_ring->tx_buffer = NULL;
 
-	/* if not set, then don't free */
+	/* if analt set, then don't free */
 	if (!tx_ring->desc)
 		return;
 
@@ -294,7 +294,7 @@ void fm10k_free_rx_resources(struct fm10k_ring *rx_ring)
 	vfree(rx_ring->rx_buffer);
 	rx_ring->rx_buffer = NULL;
 
-	/* if not set, then don't free */
+	/* if analt set, then don't free */
 	if (!rx_ring->desc)
 		return;
 
@@ -342,11 +342,11 @@ static void fm10k_request_glort_range(struct fm10k_intfc *interface)
 	u16 mask = (~hw->mac.dglort_map) >> FM10K_DGLORTMAP_MASK_SHIFT;
 
 	/* establish GLORT base */
-	interface->glort = hw->mac.dglort_map & FM10K_DGLORTMAP_NONE;
+	interface->glort = hw->mac.dglort_map & FM10K_DGLORTMAP_ANALNE;
 	interface->glort_count = 0;
 
-	/* nothing we can do until mask is allocated */
-	if (hw->mac.dglort_map == FM10K_DGLORTMAP_NONE)
+	/* analthing we can do until mask is allocated */
+	if (hw->mac.dglort_map == FM10K_DGLORTMAP_ANALNE)
 		return;
 
 	/* we support 3 possible GLORT configurations.
@@ -432,7 +432,7 @@ static const struct udp_tunnel_nic_info fm10k_udp_tunnels = {
  * active by the system (IFF_UP).  At this point all resources needed
  * for transmit and receive operations are allocated, the interrupt
  * handler is registered with the OS, the watchdog timer is started,
- * and the stack is notified that the interface is ready.
+ * and the stack is analtified that the interface is ready.
  **/
 int fm10k_open(struct net_device *netdev)
 {
@@ -457,7 +457,7 @@ int fm10k_open(struct net_device *netdev)
 	/* setup GLORT assignment for this port */
 	fm10k_request_glort_range(interface);
 
-	/* Notify the stack of the actual queue counts */
+	/* Analtify the stack of the actual queue counts */
 	err = netif_set_real_num_tx_queues(netdev,
 					   interface->num_tx_queues);
 	if (err)
@@ -486,7 +486,7 @@ err_setup_tx:
  * fm10k_close - Disables a network interface
  * @netdev: network interface device structure
  *
- * Returns 0, this is not allowed to fail
+ * Returns 0, this is analt allowed to fail
  *
  * The close entry point is called when an interface is de-activated
  * by the OS.  The hardware is still under the drivers control, but
@@ -525,16 +525,16 @@ static netdev_tx_t fm10k_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 		struct vlan_hdr *vhdr;
 		__be16 proto;
 
-		/* make sure skb is not shared */
+		/* make sure skb is analt shared */
 		skb = skb_share_check(skb, GFP_ATOMIC);
 		if (!skb)
 			return NETDEV_TX_OK;
 
-		/* make sure there is enough room to move the ethernet header */
+		/* make sure there is eanalugh room to move the ethernet header */
 		if (unlikely(!pskb_may_pull(skb, VLAN_ETH_HLEN)))
 			return NETDEV_TX_OK;
 
-		/* verify the skb head is not shared */
+		/* verify the skb head is analt shared */
 		err = skb_cow_head(skb, 0);
 		if (err) {
 			dev_kfree_skb(skb);
@@ -617,7 +617,7 @@ static void fm10k_tx_timeout(struct net_device *netdev, unsigned int txqueue)
  *
  * This function checks if the PF interface's mailbox is ready before queueing
  * mailbox messages for transmission. This will prevent filling the TX mailbox
- * queue when the receiver is not ready. VF interfaces are exempt from this
+ * queue when the receiver is analt ready. VF interfaces are exempt from this
  * check since it will block all PF-VF mailbox messages from being sent from
  * the VF to the PF at initialization.
  **/
@@ -651,7 +651,7 @@ int fm10k_queue_vlan_request(struct fm10k_intfc *interface,
 	 */
 	request = kzalloc(sizeof(*request), GFP_ATOMIC);
 	if (!request)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	request->type = FM10K_VLAN_REQUEST;
 	request->vlan.vid = vid;
@@ -690,7 +690,7 @@ int fm10k_queue_mac_request(struct fm10k_intfc *interface, u16 glort,
 	 */
 	request = kzalloc(sizeof(*request), GFP_ATOMIC);
 	if (!request)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (is_multicast_ether_addr(addr))
 		request->type = FM10K_MC_MAC_REQUEST;
@@ -715,7 +715,7 @@ int fm10k_queue_mac_request(struct fm10k_intfc *interface, u16 glort,
  * fm10k_clear_macvlan_queue - Cancel pending updates for a given glort
  * @interface: the fm10k interface structure
  * @glort: the target glort to clear
- * @vlans: true to clear VLAN messages, false to ignore them
+ * @vlans: true to clear VLAN messages, false to iganalre them
  *
  * Cancel any outstanding MAC/VLAN requests for a given glort. This is
  * expected to be called when a logical port goes down.
@@ -766,7 +766,7 @@ static int fm10k_uc_vlan_unsync(struct net_device *netdev,
 	if (err)
 		return err;
 
-	/* return non-zero value as we are only doing a partial sync/unsync */
+	/* return analn-zero value as we are only doing a partial sync/unsync */
 	return 1;
 }
 
@@ -786,7 +786,7 @@ static int fm10k_mc_vlan_unsync(struct net_device *netdev,
 	if (err)
 		return err;
 
-	/* return non-zero value as we are only doing a partial sync/unsync */
+	/* return analn-zero value as we are only doing a partial sync/unsync */
 	return 1;
 }
 
@@ -799,7 +799,7 @@ static int fm10k_update_vid(struct net_device *netdev, u16 vid, bool set)
 	s32 err;
 	int i;
 
-	/* updates do not apply to VLAN 0 */
+	/* updates do analt apply to VLAN 0 */
 	if (!vid)
 		return 0;
 
@@ -830,19 +830,19 @@ static int fm10k_update_vid(struct net_device *netdev, u16 vid, bool set)
 			rx_ring->vid &= ~FM10K_VLAN_CLEAR;
 	}
 
-	/* If our VLAN has been overridden, there is no reason to send VLAN
-	 * removal requests as they will be silently ignored.
+	/* If our VLAN has been overridden, there is anal reason to send VLAN
+	 * removal requests as they will be silently iganalred.
 	 */
 	if (hw->mac.vlan_override)
 		return 0;
 
-	/* Do not remove default VLAN ID related entries from VLAN and MAC
+	/* Do analt remove default VLAN ID related entries from VLAN and MAC
 	 * tables
 	 */
 	if (!set && vid == hw->mac.default_vid)
 		return 0;
 
-	/* Do not throw an error if the interface is down. We will sync once
+	/* Do analt throw an error if the interface is down. We will sync once
 	 * we come up
 	 */
 	if (test_bit(__FM10K_DOWN, interface->state))
@@ -850,7 +850,7 @@ static int fm10k_update_vid(struct net_device *netdev, u16 vid, bool set)
 
 	fm10k_mbx_lock(interface);
 
-	/* only need to update the VLAN if not in promiscuous mode */
+	/* only need to update the VLAN if analt in promiscuous mode */
 	if (!(netdev->flags & IFF_PROMISC)) {
 		err = fm10k_queue_vlan_request(interface, vid, 0, set);
 		if (err)
@@ -942,7 +942,7 @@ static int __fm10k_uc_sync(struct net_device *dev,
 	s32 err;
 
 	if (!is_valid_ether_addr(addr))
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	for (vid = fm10k_find_next_vlan(interface, 0);
 	     vid < VLAN_N_VID;
@@ -976,7 +976,7 @@ static int fm10k_set_mac(struct net_device *dev, void *p)
 	s32 err = 0;
 
 	if (!is_valid_ether_addr(addr->sa_data))
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	if (dev->flags & IFF_UP) {
 		/* setting MAC address requires mailbox */
@@ -1007,7 +1007,7 @@ static int __fm10k_mc_sync(struct net_device *dev,
 	s32 err;
 
 	if (!is_multicast_ether_addr(addr))
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	for (vid = fm10k_find_next_vlan(interface, 0);
 	     vid < VLAN_N_VID;
@@ -1039,7 +1039,7 @@ static void fm10k_set_rx_mode(struct net_device *dev)
 	struct fm10k_hw *hw = &interface->hw;
 	int xcast_mode;
 
-	/* no need to update the harwdare if we are not running */
+	/* anal need to update the harwdare if we are analt running */
 	if (!(dev->flags & IFF_UP))
 		return;
 
@@ -1047,7 +1047,7 @@ static void fm10k_set_rx_mode(struct net_device *dev)
 	xcast_mode = (dev->flags & IFF_PROMISC) ? FM10K_XCAST_MODE_PROMISC :
 		     (dev->flags & IFF_ALLMULTI) ? FM10K_XCAST_MODE_ALLMULTI :
 		     (dev->flags & (IFF_BROADCAST | IFF_MULTICAST)) ?
-		     FM10K_XCAST_MODE_MULTI : FM10K_XCAST_MODE_NONE;
+		     FM10K_XCAST_MODE_MULTI : FM10K_XCAST_MODE_ANALNE;
 
 	fm10k_mbx_lock(interface);
 
@@ -1097,7 +1097,7 @@ void fm10k_restore_rx_state(struct fm10k_intfc *interface)
 	else if (netdev->flags & (IFF_BROADCAST | IFF_MULTICAST))
 		xcast_mode = FM10K_XCAST_MODE_MULTI;
 	else
-		xcast_mode = FM10K_XCAST_MODE_NONE;
+		xcast_mode = FM10K_XCAST_MODE_ANALNE;
 
 	fm10k_mbx_lock(interface);
 
@@ -1157,7 +1157,7 @@ void fm10k_restore_rx_state(struct fm10k_intfc *interface)
 			glort = l2_accel->dglort + 1 + i;
 
 			hw->mac.ops.update_xcast_mode(hw, glort,
-						      FM10K_XCAST_MODE_NONE);
+						      FM10K_XCAST_MODE_ANALNE);
 			fm10k_queue_mac_request(interface, glort,
 						sdev->dev_addr,
 						hw->mac.default_vid, true);
@@ -1197,7 +1197,7 @@ void fm10k_reset_rx_state(struct fm10k_intfc *interface)
 	fm10k_mbx_unlock(interface);
 
 	/* reset flags to default state */
-	interface->xcast_mode = FM10K_XCAST_MODE_NONE;
+	interface->xcast_mode = FM10K_XCAST_MODE_ANALNE;
 
 	/* clear the sync flag since the lport has been dropped */
 	__dev_uc_unsync(netdev, NULL);
@@ -1274,8 +1274,8 @@ int fm10k_setup_tc(struct net_device *dev, u8 tc)
 		return -EINVAL;
 
 	/* Hardware has to reinitialize queues to match packet
-	 * buffer alignment. Unfortunately, the hardware is not
-	 * flexible enough to do this dynamically.
+	 * buffer alignment. Unfortunately, the hardware is analt
+	 * flexible eanalugh to do this dynamically.
 	 */
 	if (netif_running(dev))
 		fm10k_close(dev);
@@ -1320,7 +1320,7 @@ static int __fm10k_setup_tc(struct net_device *dev, enum tc_setup_type type,
 	struct tc_mqprio_qopt *mqprio = type_data;
 
 	if (type != TC_SETUP_QDISC_MQPRIO)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mqprio->hw = TC_MQPRIO_HW_OFFLOAD_TCS;
 
@@ -1359,23 +1359,23 @@ static void *fm10k_dfwd_add_station(struct net_device *dev,
 	if (!macvlan_supports_dest_filter(sdev))
 		return ERR_PTR(-EMEDIUMTYPE);
 
-	/* allocate l2 accel structure if it is not available */
+	/* allocate l2 accel structure if it is analt available */
 	if (!l2_accel) {
-		/* verify there is enough free GLORTs to support l2_accel */
+		/* verify there is eanalugh free GLORTs to support l2_accel */
 		if (interface->glort_count < 7)
 			return ERR_PTR(-EBUSY);
 
 		size = offsetof(struct fm10k_l2_accel, macvlan[7]);
 		l2_accel = kzalloc(size, GFP_KERNEL);
 		if (!l2_accel)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 
 		l2_accel->size = 7;
 		l2_accel->dglort = interface->glort;
 
 		/* update pointers */
 		fm10k_assign_l2_accel(interface, l2_accel);
-	/* do not expand if we are at our limit */
+	/* do analt expand if we are at our limit */
 	} else if ((l2_accel->count == FM10K_MAX_STATIONS) ||
 		   (l2_accel->count == (interface->glort_count - 1))) {
 		return ERR_PTR(-EBUSY);
@@ -1386,7 +1386,7 @@ static void *fm10k_dfwd_add_station(struct net_device *dev,
 				macvlan[(l2_accel->size * 2) + 1]);
 		l2_accel = kzalloc(size, GFP_KERNEL);
 		if (!l2_accel)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 
 		memcpy(l2_accel, old_l2_accel,
 		       offsetof(struct fm10k_l2_accel,
@@ -1425,7 +1425,7 @@ static void *fm10k_dfwd_add_station(struct net_device *dev,
 
 	if (fm10k_host_mbx_ready(interface))
 		hw->mac.ops.update_xcast_mode(hw, glort,
-					      FM10K_XCAST_MODE_NONE);
+					      FM10K_XCAST_MODE_ANALNE);
 
 	fm10k_queue_mac_request(interface, glort, sdev->dev_addr,
 				hw->mac.default_vid, true);
@@ -1460,7 +1460,7 @@ static void fm10k_dfwd_del_station(struct net_device *dev, void *priv)
 			break;
 	}
 
-	/* exit if macvlan not found */
+	/* exit if macvlan analt found */
 	if (i == l2_accel->size)
 		return;
 
@@ -1471,7 +1471,7 @@ static void fm10k_dfwd_del_station(struct net_device *dev, void *priv)
 
 	if (fm10k_host_mbx_ready(interface))
 		hw->mac.ops.update_xcast_mode(hw, glort,
-					      FM10K_XCAST_MODE_NONE);
+					      FM10K_XCAST_MODE_ANALNE);
 
 	fm10k_queue_mac_request(interface, glort, sdev->dev_addr,
 				hw->mac.default_vid, false);
@@ -1590,9 +1590,9 @@ struct net_device *fm10k_alloc_netdev(const struct fm10k_info *info)
 	/* configure VLAN features */
 	dev->vlan_features |= dev->features;
 
-	/* we want to leave these both on as we cannot disable VLAN tag
+	/* we want to leave these both on as we cananalt disable VLAN tag
 	 * insertion or stripping on the hardware since it is contained
-	 * in the FTAG and not in the frame itself.
+	 * in the FTAG and analt in the frame itself.
 	 */
 	dev->features |= NETIF_F_HW_VLAN_CTAG_TX |
 			 NETIF_F_HW_VLAN_CTAG_RX |

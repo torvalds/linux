@@ -5,9 +5,9 @@
  */
 
 /*
- * Copyright (C) 2002 NetChip Technology, Inc. (http://www.netchip.com)
+ * Copyright (C) 2002 NetChip Techanallogy, Inc. (http://www.netchip.com)
  * Copyright (C) 2003 David Brownell
- * Copyright (C) 2014 Ricardo Ribalda - Qtechnology/AS
+ * Copyright (C) 2014 Ricardo Ribalda - Qtechanallogy/AS
  */
 
 #include <linux/usb/net2280.h>
@@ -24,7 +24,7 @@
 static inline u32 get_idx_reg(struct net2280_regs __iomem *regs, u32 index)
 {
 	writel(index, &regs->idxaddr);
-	/* NOTE:  synchs device/cpu memory views */
+	/* ANALTE:  synchs device/cpu memory views */
 	return readl(&regs->idxdata);
 }
 
@@ -33,7 +33,7 @@ set_idx_reg(struct net2280_regs __iomem *regs, u32 index, u32 value)
 {
 	writel(index, &regs->idxaddr);
 	writel(value, &regs->idxdata);
-	/* posted, may not be visible yet */
+	/* posted, may analt be visible yet */
 }
 
 #endif	/* __KERNEL__ */
@@ -217,8 +217,8 @@ static inline void clear_halt(struct net2280_ep *ep)
 
 /* Waiting for Control Read:
  *  - A transition to this state indicates a fresh USB connection,
- *    before the first Setup Packet. The connection speed is not
- *    known. Firmware is waiting for the first Control Read.
+ *    before the first Setup Packet. The connection speed is analt
+ *    kanalwn. Firmware is waiting for the first Control Read.
  *  - Starting state: This state can be thought of as the FSM's typical
  *    starting state.
  *  - Tip: Upon the first SS Control Read the FSM never
@@ -226,20 +226,20 @@ static inline void clear_halt(struct net2280_ep *ep)
  */
 #define DEFECT7374_FSM_WAITING_FOR_CONTROL_READ BIT(DEFECT7374_FSM_FIELD)
 
-/* Non-SS Control Read:
+/* Analn-SS Control Read:
  *  - A transition to this state indicates detection of the first HS
  *    or FS Control Read.
  *  - Tip: Upon the first SS Control Read the FSM never
  *    returns to this state.
  */
-#define	DEFECT7374_FSM_NON_SS_CONTROL_READ (2 << DEFECT7374_FSM_FIELD)
+#define	DEFECT7374_FSM_ANALN_SS_CONTROL_READ (2 << DEFECT7374_FSM_FIELD)
 
 /* SS Control Read:
  *  - A transition to this state indicates detection of the
  *    first SS Control Read.
- *  - This state indicates workaround completion. Workarounds no longer
+ *  - This state indicates workaround completion. Workarounds anal longer
  *    need to be applied (as long as the chip remains powered up).
- *  - Tip: Once in this state the FSM state does not change (until
+ *  - Tip: Once in this state the FSM state does analt change (until
  *    the chip's power is lost and restored).
  *  - This can be thought of as the final state of the FSM;
  *    the FSM 'locks-up' in this state until the chip loses power.
@@ -250,7 +250,7 @@ static inline void clear_halt(struct net2280_ep *ep)
 
 static inline void net2280_led_init(struct net2280 *dev)
 {
-	/* LED3 (green) is on during USB activity. note erratum 0113. */
+	/* LED3 (green) is on during USB activity. analte erratum 0113. */
 	writel(BIT(GPIO3_LED_SELECT) |
 		BIT(GPIO3_OUTPUT_ENABLE) |
 		BIT(GPIO2_OUTPUT_ENABLE) |
@@ -343,7 +343,7 @@ static inline void set_fifo_bytecount(struct net2280_ep *ep, unsigned count)
 
 static inline void start_out_naking(struct net2280_ep *ep)
 {
-	/* NOTE:  hardware races lurk here, and PING protocol issues */
+	/* ANALTE:  hardware races lurk here, and PING protocol issues */
 	writel(BIT(SET_NAK_OUT_PACKETS), &ep->regs->ep_rsp);
 	/* synch with device */
 	readl(&ep->regs->ep_rsp);

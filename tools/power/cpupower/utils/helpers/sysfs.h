@@ -30,7 +30,7 @@ extern char *sysfs_get_idlestate_desc(unsigned int cpu,
 				unsigned int idlestate);
 extern unsigned int sysfs_get_idlestate_count(unsigned int cpu);
 
-extern char *sysfs_get_cpuidle_governor(void);
+extern char *sysfs_get_cpuidle_goveranalr(void);
 extern char *sysfs_get_cpuidle_driver(void);
 
 extern int sysfs_get_sched(const char *smt_mc);

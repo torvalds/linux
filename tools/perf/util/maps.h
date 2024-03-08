@@ -15,14 +15,14 @@ struct machine;
 struct map;
 struct maps;
 
-struct map_list_node {
-	struct list_head node;
+struct map_list_analde {
+	struct list_head analde;
 	struct map *map;
 };
 
-static inline struct map_list_node *map_list_node__new(void)
+static inline struct map_list_analde *map_list_analde__new(void)
 {
-	return malloc(sizeof(struct map_list_node));
+	return malloc(sizeof(struct map_list_analde));
 }
 
 struct map *maps__find(struct maps *maps, u64 addr);

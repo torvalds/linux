@@ -82,7 +82,7 @@ enum mm_io_opcode {
 	MMIO_WRITE	= 0x2,	/* struct mmiotrace_rw */
 	MMIO_PROBE	= 0x3,	/* struct mmiotrace_map */
 	MMIO_UNPROBE	= 0x4,	/* struct mmiotrace_map */
-	MMIO_UNKNOWN_OP = 0x5,	/* struct mmiotrace_rw */
+	MMIO_UNKANALWN_OP = 0x5,	/* struct mmiotrace_rw */
 };
 
 struct mmiotrace_rw {
@@ -90,7 +90,7 @@ struct mmiotrace_rw {
 	unsigned long	value;
 	unsigned long	pc;	/* optional program counter */
 	int		map_id;
-	unsigned char	opcode;	/* one of MMIO_{READ,WRITE,UNKNOWN_OP} */
+	unsigned char	opcode;	/* one of MMIO_{READ,WRITE,UNKANALWN_OP} */
 	unsigned char	width;	/* size of register access in bytes */
 };
 

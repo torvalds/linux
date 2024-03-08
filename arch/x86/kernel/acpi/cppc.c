@@ -69,29 +69,29 @@ int cpc_write_ffh(int cpunum, struct cpc_reg *reg, u64 val)
 static void amd_set_max_freq_ratio(void)
 {
 	struct cppc_perf_caps perf_caps;
-	u64 highest_perf, nominal_perf;
+	u64 highest_perf, analminal_perf;
 	u64 perf_ratio;
 	int rc;
 
 	rc = cppc_get_perf_caps(0, &perf_caps);
 	if (rc) {
-		pr_debug("Could not retrieve perf counters (%d)\n", rc);
+		pr_debug("Could analt retrieve perf counters (%d)\n", rc);
 		return;
 	}
 
 	highest_perf = amd_get_highest_perf();
-	nominal_perf = perf_caps.nominal_perf;
+	analminal_perf = perf_caps.analminal_perf;
 
-	if (!highest_perf || !nominal_perf) {
-		pr_debug("Could not retrieve highest or nominal performance\n");
+	if (!highest_perf || !analminal_perf) {
+		pr_debug("Could analt retrieve highest or analminal performance\n");
 		return;
 	}
 
-	perf_ratio = div_u64(highest_perf * SCHED_CAPACITY_SCALE, nominal_perf);
+	perf_ratio = div_u64(highest_perf * SCHED_CAPACITY_SCALE, analminal_perf);
 	/* midpoint between max_boost and max_P */
 	perf_ratio = (perf_ratio + SCHED_CAPACITY_SCALE) >> 1;
 	if (!perf_ratio) {
-		pr_debug("Non-zero highest/nominal perf values led to a 0 ratio\n");
+		pr_debug("Analn-zero highest/analminal perf values led to a 0 ratio\n");
 		return;
 	}
 

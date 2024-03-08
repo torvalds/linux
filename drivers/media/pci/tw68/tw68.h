@@ -4,9 +4,9 @@
  *
  *  Much of this code is derived from the cx88 and sa7134 drivers, which
  *  were in turn derived from the bt87x driver.  The original work was by
- *  Gerd Knorr; more recently the code was enhanced by Mauro Carvalho Chehab,
+ *  Gerd Kanalrr; more recently the code was enhanced by Mauro Carvalho Chehab,
  *  Hans Verkuil, Andy Walls and many others.  Their work is gratefully
- *  acknowledged.  Full credit goes to them - any problems within this code
+ *  ackanalwledged.  Full credit goes to them - any problems within this code
  *  are mine.
  *
  *  Copyright (C) 2009  William M. Brack
@@ -18,7 +18,7 @@
 
 #include <linux/pci.h>
 #include <linux/videodev2.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/delay.h>
 #include <linux/mutex.h>
 #include <linux/io.h>
@@ -34,7 +34,7 @@
 
 #define	UNSET	(-1U)
 
-#define TW68_NORMS ( \
+#define TW68_ANALRMS ( \
 	V4L2_STD_NTSC    | V4L2_STD_PAL       | V4L2_STD_SECAM    | \
 	V4L2_STD_PAL_M   | V4L2_STD_PAL_Nc    | V4L2_STD_PAL_60)
 
@@ -56,7 +56,7 @@ enum tw68_decoder_type {
 /* ----------------------------------------------------------- */
 /* static data                                                 */
 
-struct tw68_tvnorm {
+struct tw68_tvanalrm {
 	char		*name;
 	v4l2_std_id	id;
 
@@ -93,8 +93,8 @@ struct tw68_format {
 /* ----------------------------------------------------------- */
 /* card configuration					  */
 
-#define TW68_BOARD_NOAUTO		UNSET
-#define TW68_BOARD_UNKNOWN		0
+#define TW68_BOARD_ANALAUTO		UNSET
+#define TW68_BOARD_UNKANALWN		0
 #define	TW68_BOARD_GENERIC_6802		1
 
 #define	TW68_MAXBOARDS			16
@@ -157,7 +157,7 @@ struct tw68_dev {
 	struct list_head	active;
 
 	/* various v4l controls */
-	const struct tw68_tvnorm *tvnorm;	/* video */
+	const struct tw68_tvanalrm *tvanalrm;	/* video */
 
 	int			input;
 };
@@ -189,7 +189,7 @@ struct tw68_dev {
 /* ----------------------------------------------------------- */
 /* tw68-video.c                                                */
 
-void tw68_set_tvnorm_hw(struct tw68_dev *dev);
+void tw68_set_tvanalrm_hw(struct tw68_dev *dev);
 
 int tw68_video_init1(struct tw68_dev *dev);
 int tw68_video_init2(struct tw68_dev *dev, int video_nr);

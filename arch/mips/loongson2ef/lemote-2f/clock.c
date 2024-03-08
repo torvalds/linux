@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006 - 2008 Lemote Inc. & Institute of Computing Technology
+ * Copyright (C) 2006 - 2008 Lemote Inc. & Institute of Computing Techanallogy
  * Author: Yanhua, yanh@lemote.com
  *
  * This file is subject to the terms and conditions of the GNU General Public
@@ -7,7 +7,7 @@
  * for more details.
  */
 #include <linux/cpufreq.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/export.h>
 
 #include <asm/mach-loongson2ef/loongson.h>
@@ -40,7 +40,7 @@ int loongson2_cpu_set_rate(unsigned long rate_khz)
 		if (rate_khz == pos->frequency)
 			break;
 	if (rate_khz != pos->frequency)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	regval = readl(LOONGSON_CHIPCFG);
 	regval = (regval & ~0x7) | (pos->driver_data - 1);

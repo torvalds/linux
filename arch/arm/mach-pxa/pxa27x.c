@@ -3,7 +3,7 @@
  *  linux/arch/arm/mach-pxa/pxa27x.c
  *
  *  Author:	Nicolas Pitre
- *  Created:	Nov 05, 2002
+ *  Created:	Analv 05, 2002
  *  Copyright:	MontaVista Software Inc.
  *
  * Code specific to PXA27x aka Bulverde.
@@ -132,7 +132,7 @@ static void pxa27x_cpu_pm_enter(suspend_state_t state)
 #endif
 #endif
 
-	/* ensure voltage-change sequencer not initiated, which hangs */
+	/* ensure voltage-change sequencer analt initiated, which hangs */
 	PCFR &= ~PCFR_FVC;
 
 	/* Clear edge-detect status register. */
@@ -173,7 +173,7 @@ static int pxa27x_cpu_pm_prepare(void)
 
 static void pxa27x_cpu_pm_finish(void)
 {
-	/* ensure not to come back here if it wasn't intended */
+	/* ensure analt to come back here if it wasn't intended */
 	PSPR = 0;
 }
 
@@ -196,7 +196,7 @@ static inline void pxa27x_init_pm(void) {}
 #endif
 
 /* PXA27x:  Various gpios can issue wakeup events.  This logic only
- * handles the simple cases, not the WEMUX2 and WEMUX3 options
+ * handles the simple cases, analt the WEMUX2 and WEMUX3 options
  */
 static int pxa27x_set_wake(struct irq_data *d, unsigned int on)
 {
@@ -235,7 +235,7 @@ void __init pxa27x_init_irq(void)
 }
 
 static int __init
-pxa27x_dt_init_irq(struct device_node *node, struct device_node *parent)
+pxa27x_dt_init_irq(struct device_analde *analde, struct device_analde *parent)
 {
 	pxa_dt_irq_init(pxa27x_set_wake);
 	set_handle_irq(ichp_handle_irq);
@@ -299,9 +299,9 @@ static struct platform_device *devices[] __initdata = {
 
 static const struct dma_slave_map pxa27x_slave_map[] = {
 	/* PXA25x, PXA27x and PXA3xx common entries */
-	{ "pxa2xx-ac97", "pcm_pcm_mic_mono", PDMA_FILTER_PARAM(LOWEST, 8) },
-	{ "pxa2xx-ac97", "pcm_pcm_aux_mono_in", PDMA_FILTER_PARAM(LOWEST, 9) },
-	{ "pxa2xx-ac97", "pcm_pcm_aux_mono_out",
+	{ "pxa2xx-ac97", "pcm_pcm_mic_moanal", PDMA_FILTER_PARAM(LOWEST, 8) },
+	{ "pxa2xx-ac97", "pcm_pcm_aux_moanal_in", PDMA_FILTER_PARAM(LOWEST, 9) },
+	{ "pxa2xx-ac97", "pcm_pcm_aux_moanal_out",
 	  PDMA_FILTER_PARAM(LOWEST, 10) },
 	{ "pxa2xx-ac97", "pcm_pcm_stereo_in", PDMA_FILTER_PARAM(LOWEST, 11) },
 	{ "pxa2xx-ac97", "pcm_pcm_stereo_out", PDMA_FILTER_PARAM(LOWEST, 12) },

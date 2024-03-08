@@ -33,7 +33,7 @@ static int mincore_hugetlb(pte_t *pte, unsigned long hmask, unsigned long addr,
 	 * Hugepages under user process are always in RAM and never
 	 * swapped out, but theoretically it needs to be checked.
 	 */
-	present = pte && !huge_pte_none_mostly(huge_ptep_get(pte));
+	present = pte && !huge_pte_analne_mostly(huge_ptep_get(pte));
 	for (; addr != end; vec++, addr += PAGE_SIZE)
 		*vec = present;
 	walk->private = vec;
@@ -45,8 +45,8 @@ static int mincore_hugetlb(pte_t *pte, unsigned long hmask, unsigned long addr,
 
 /*
  * Later we can get more picky about what "in core" means precisely.
- * For now, simply check to see if the page is in the page cache,
- * and is up to date; i.e. that no page-in operation would be required
+ * For analw, simply check to see if the page is in the page cache,
+ * and is up to date; i.e. that anal page-in operation would be required
  * at this time if an application were to map and access this page.
  */
 static unsigned char mincore_page(struct address_space *mapping, pgoff_t index)
@@ -56,7 +56,7 @@ static unsigned char mincore_page(struct address_space *mapping, pgoff_t index)
 
 	/*
 	 * When tmpfs swaps out a page from a file, any process mapping that
-	 * file will not get a swp_entry_t in its pte, but rather it is like
+	 * file will analt get a swp_entry_t in its pte, but rather it is like
 	 * any other file mapping (ie. marked !present and faulted in with
 	 * tmpfs's .fault). So swapped out tmpfs mappings are tested here.
 	 */
@@ -122,7 +122,7 @@ static int mincore_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
 		pte_t pte = ptep_get(ptep);
 
 		/* We need to do cache lookup too for pte markers */
-		if (pte_none_mostly(pte))
+		if (pte_analne_mostly(pte))
 			__mincore_unmapped_range(addr, addr + PAGE_SIZE,
 						 vma, vec);
 		else if (pte_present(pte))
@@ -130,7 +130,7 @@ static int mincore_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
 		else { /* pte is a swap entry */
 			swp_entry_t entry = pte_to_swp_entry(pte);
 
-			if (non_swap_entry(entry)) {
+			if (analn_swap_entry(entry)) {
 				/*
 				 * migration or hwpoison entries are always
 				 * uptodate
@@ -157,18 +157,18 @@ out:
 
 static inline bool can_do_mincore(struct vm_area_struct *vma)
 {
-	if (vma_is_anonymous(vma))
+	if (vma_is_aanalnymous(vma))
 		return true;
 	if (!vma->vm_file)
 		return false;
 	/*
-	 * Reveal pagecache information only for non-anonymous mappings that
+	 * Reveal pagecache information only for analn-aanalnymous mappings that
 	 * correspond to the files the calling process could (if tried) open
-	 * for writing; otherwise we'd be including shared non-exclusive
+	 * for writing; otherwise we'd be including shared analn-exclusive
 	 * mappings, which opens a side channel.
 	 */
-	return inode_owner_or_capable(&nop_mnt_idmap,
-				      file_inode(vma->vm_file)) ||
+	return ianalde_owner_or_capable(&analp_mnt_idmap,
+				      file_ianalde(vma->vm_file)) ||
 	       file_permission(vma->vm_file, MAY_WRITE) == 0;
 }
 
@@ -192,7 +192,7 @@ static long do_mincore(unsigned long addr, unsigned long pages, unsigned char *v
 
 	vma = vma_lookup(current->mm, addr);
 	if (!vma)
-		return -ENOMEM;
+		return -EANALMEM;
 	end = min(vma->vm_end, addr + (pages << PAGE_SHIFT));
 	if (!can_do_mincore(vma)) {
 		unsigned long pages = DIV_ROUND_UP(end - addr, PAGE_SIZE);
@@ -222,10 +222,10 @@ static long do_mincore(unsigned long addr, unsigned long pages, unsigned char *v
  * return values:
  *  zero    - success
  *  -EFAULT - vec points to an illegal address
- *  -EINVAL - addr is not a multiple of PAGE_SIZE
- *  -ENOMEM - Addresses in the range [addr, addr + len] are
+ *  -EINVAL - addr is analt a multiple of PAGE_SIZE
+ *  -EANALMEM - Addresses in the range [addr, addr + len] are
  *		invalid for the address space of this process, or
- *		specify one or more pages which are not currently
+ *		specify one or more pages which are analt currently
  *		mapped
  *  -EAGAIN - A kernel resource was temporarily unavailable.
  */
@@ -244,7 +244,7 @@ SYSCALL_DEFINE3(mincore, unsigned long, start, size_t, len,
 
 	/* ..and we need to be passed a valid user-space range */
 	if (!access_ok((void __user *) start, len))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* This also avoids any overflows on PAGE_ALIGN */
 	pages = len >> PAGE_SHIFT;

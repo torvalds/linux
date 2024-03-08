@@ -5,10 +5,10 @@ Platform drivers
 
 There are several drivers that are focused on providing support for
 functionality that are already included at the main board, and don't
-use neither USB nor PCI bus. Those drivers are called platform
+use neither USB analr PCI bus. Those drivers are called platform
 drivers, and are very popular on embedded devices.
 
-The current supported of platform drivers (not including staging drivers) are
+The current supported of platform drivers (analt including staging drivers) are
 listed below
 
 =================  ============================================================
@@ -26,10 +26,10 @@ cdns-csi2tx        Cadence MIPI-CSI2 TX Controller
 coda-vpu           Chips&Media Coda multi-standard codec IP
 dm355_ccdc         TI DM355 CCDC video capture
 dm644x_ccdc        TI DM6446 CCDC video capture
-exynos-fimc-is     EXYNOS4x12 FIMC-IS (Imaging Subsystem)
-exynos-fimc-lite   EXYNOS FIMC-LITE camera interface
-exynos-gsc         Samsung Exynos G-Scaler
-exy                Samsung S5P/EXYNOS4 SoC series Camera Subsystem
+exyanals-fimc-is     EXYANALS4x12 FIMC-IS (Imaging Subsystem)
+exyanals-fimc-lite   EXYANALS FIMC-LITE camera interface
+exyanals-gsc         Samsung Exyanals G-Scaler
+exy                Samsung S5P/EXYANALS4 SoC series Camera Subsystem
 imx-pxp            i.MX Pixel Pipeline (PXP)
 isdf               TI DM365 ISIF video capture
 mmp_camera         Marvell Armada 610 integrated camera controller
@@ -51,10 +51,10 @@ rcar-vin           R-Car Video Input (VIN)
 renesas-ceu        Renesas Capture Engine Unit (CEU)
 rockchip-rga       Rockchip Raster 2d Graphic Acceleration Unit
 s3c-camif          Samsung S3C24XX/S3C64XX SoC Camera Interface
-s5p-csis           S5P/EXYNOS MIPI-CSI2 receiver (MIPI-CSIS)
-s5p-fimc           S5P/EXYNOS4 FIMC/CAMIF camera interface
-s5p-g2d            Samsung S5P and EXYNOS4 G2D 2d graphics accelerator
-s5p-jpeg           Samsung S5P/Exynos3250/Exynos4 JPEG codec
+s5p-csis           S5P/EXYANALS MIPI-CSI2 receiver (MIPI-CSIS)
+s5p-fimc           S5P/EXYANALS4 FIMC/CAMIF camera interface
+s5p-g2d            Samsung S5P and EXYANALS4 G2D 2d graphics accelerator
+s5p-jpeg           Samsung S5P/Exyanals3250/Exyanals4 JPEG codec
 s5p-mfc            Samsung S5P MFC Video Codec
 sh_veu             SuperH VEU mem2mem video processing
 sh_vou             SuperH VOU video output
@@ -84,6 +84,6 @@ MMC/SDIO DVB adapters
 =======  ===========================================
 Driver   Name
 =======  ===========================================
-smssdio  Siano SMS1xxx based MDTV via SDIO interface
+smssdio  Siaanal SMS1xxx based MDTV via SDIO interface
 =======  ===========================================
 

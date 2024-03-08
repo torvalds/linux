@@ -31,7 +31,7 @@ mov(1)          f0.1<1>UW       g1.2<0,1,0>UW                   { align1 1N };
  * BTI 0: 2D Surface to help clear L3 (Render/Data Cache)
  * BTI 1: Wait/Instrumentation Buffer
  *  Size : (SliceCount * SubSliceCount  * 16 EUs/SubSlice) rows * (16 threads/EU) cols (Format R32_UINT)
- *         Expected to be initialized to 0 by driver/another kernel
+ *         Expected to be initialized to 0 by driver/aanalther kernel
  *  Layout:
  *          RowN: Histogram for EU-N: (SliceID*SubSlicePerSliceCount + SSID)*16 + EUID [assume max 16 EUs / SS]
  *          Col-k[DW-k]: Threads Executed on ThreadID-k for EU-N
@@ -55,7 +55,7 @@ add(1)          g3<1>D          g3<0,1,0>D      g3.5<0,1,0>D    { align1 1N }; /
 shr(1)          g3.2<1>D        sr0<0,1,0>D     8D              { align1 1N };
 and(1)          g3.2<1>D        g3.2<0,1,0>D    15D             { align1 1N }; /* g3.2 = EUID */
 mul(1)          g3.4<1>D        g3<0,1,0>D      16D             { align1 1N };
-add(1)          g3.2<1>D        g3.2<0,1,0>D    g3.4<0,1,0>D    { align1 1N }; /* g3.2 now points to EU row number (Y-pixel = V address )  in instrumentation surf */
+add(1)          g3.2<1>D        g3.2<0,1,0>D    g3.4<0,1,0>D    { align1 1N }; /* g3.2 analw points to EU row number (Y-pixel = V address )  in instrumentation surf */
 
 mov(8)          g5<1>UD         0x00000000UD                    { align1 1Q };
 and(1)          g3.3<1>D        sr0<0,1,0>D     7D              { align1 1N };
@@ -108,7 +108,7 @@ add(1)          g2<1>UD         g1<0,1,0>UW     0x0010UW        { align1 1N };
 sendc(8)        null<1>UD       g2<8,8,1>F      0x120a8000
                             render MsgDesc: media block write MsgCtrl = 0x0 Surface = 0 mlen 9 rlen 0 { align1 1Q };
 
-/* Now, clear all GRF registers */
+/* Analw, clear all GRF registers */
 add.nz.f0.0(1)  a0.4<1>W        a0.4<0,1,0>W    -1W             { align1 1N };
 mov(16)         g[a0]<1>UW      f0.1<0,1,0>UW                   { align1 1H };
 add(1)          a0<1>D          a0<0,1,0>D      32D             { align1 1N };

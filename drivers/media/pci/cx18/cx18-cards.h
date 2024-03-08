@@ -65,7 +65,7 @@ struct cx18_card_pci_info {
 /* The mask is the set of bits used by the operation */
 
 struct cx18_gpio_init { /* set initial GPIO DIR and OUT values */
-	u32 direction;	/* DIR setting. Leave to 0 if no init is needed */
+	u32 direction;	/* DIR setting. Leave to 0 if anal init is needed */
 	u32 initial_value;
 };
 
@@ -78,7 +78,7 @@ struct cx18_gpio_i2c_slave_reset {
 };
 
 struct cx18_gpio_audio_input {	/* select tuner/line in input */
-	u32 mask;		/* leave to 0 if not supported */
+	u32 mask;		/* leave to 0 if analt supported */
 	u32 tuner;
 	u32 linein;
 	u32 radio;

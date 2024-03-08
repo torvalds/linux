@@ -5,7 +5,7 @@
  * Author: Jianmin Lv <lvjianmin@loongson.cn>
  *         Huacai Chen <chenhuacai@loongson.cn>
  *
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 
 #include <linux/acpi.h>
@@ -82,7 +82,7 @@ static void __init init_screen_info(void)
 
 	si = early_memremap(screen_info_table, sizeof(*si));
 	if (!si) {
-		pr_err("Could not map screen_info config table\n");
+		pr_err("Could analt map screen_info config table\n");
 		return;
 	}
 	screen_info = *si;

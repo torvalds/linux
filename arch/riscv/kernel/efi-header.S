@@ -32,7 +32,7 @@ optional_header:
 	.short	PE_OPT_MAGIC_PE32			// PE32 format
 #endif
 	.byte	0x02					// MajorLinkerVersion
-	.byte	0x14					// MinorLinkerVersion
+	.byte	0x14					// MianalrLinkerVersion
 	.long	__pecoff_text_end - efi_header_end	// SizeOfCode
 #ifdef __clang__
 	.long   __pecoff_data_virt_size			// SizeOfInitializedData
@@ -51,11 +51,11 @@ extra_header_fields:
 	.long	PECOFF_SECTION_ALIGNMENT		// SectionAlignment
 	.long	PECOFF_FILE_ALIGNMENT			// FileAlignment
 	.short	0					// MajorOperatingSystemVersion
-	.short	0					// MinorOperatingSystemVersion
+	.short	0					// MianalrOperatingSystemVersion
 	.short	LINUX_EFISTUB_MAJOR_VERSION		// MajorImageVersion
-	.short	LINUX_EFISTUB_MINOR_VERSION		// MinorImageVersion
+	.short	LINUX_EFISTUB_MIANALR_VERSION		// MianalrImageVersion
 	.short	0					// MajorSubsystemVersion
-	.short	0					// MinorSubsystemVersion
+	.short	0					// MianalrSubsystemVersion
 	.long	0					// Win32VersionValue
 
 	.long	_end - _start				// SizeOfImage

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -199,8 +199,8 @@ struct _vcs_dpi_soc_bounding_box_st {
 	double mall_allocated_for_dcn_mbytes;
 	double pct_ideal_fabric_bw_after_urgent;
 	double pct_ideal_dram_bw_after_urgent_strobe;
-	double max_avg_fabric_bw_use_normal_percent;
-	double max_avg_dram_bw_use_normal_strobe_percent;
+	double max_avg_fabric_bw_use_analrmal_percent;
+	double max_avg_dram_bw_use_analrmal_strobe_percent;
 	enum dm_prefetch_modes allow_for_pstate_or_stutter_in_vblank_final;
 	bool dram_clock_change_requirement_final;
 	double writeback_latency_us;
@@ -209,8 +209,8 @@ struct _vcs_dpi_soc_bounding_box_st {
 	double pct_ideal_dram_sdp_bw_after_urgent_pixel_and_vm;
 	double pct_ideal_dram_sdp_bw_after_urgent_vm_only;
 	double pct_ideal_sdp_bw_after_urgent;
-	double max_avg_sdp_bw_use_normal_percent;
-	double max_avg_dram_bw_use_normal_percent;
+	double max_avg_sdp_bw_use_analrmal_percent;
+	double max_avg_dram_bw_use_analrmal_percent;
 	unsigned int max_request_size_bytes;
 	double downspread_percent;
 	double dram_page_open_time_ns;
@@ -365,7 +365,7 @@ struct _vcs_dpi_ip_params_st {
 	unsigned int number_of_cursors;
 	unsigned int max_num_dp2p0_outputs;
 	unsigned int max_num_dp2p0_streams;
-	unsigned int VBlankNomDefaultUS;
+	unsigned int VBlankAnalmDefaultUS;
 
 	/* DM workarounds */
 	double dsc_delay_factor_wa; // TODO: Remove after implementing root cause fix
@@ -516,7 +516,7 @@ struct _vcs_dpi_display_pipe_dest_params_st {
 	unsigned int htotal;
 	unsigned int vtotal;
 	unsigned int vfront_porch;
-	unsigned int vblank_nom;
+	unsigned int vblank_analm;
 	unsigned int vactive;
 	unsigned int hactive;
 	unsigned int vstartup_start;
@@ -640,14 +640,14 @@ struct _vcs_dpi_display_dlg_regs_st {
 	unsigned int refcyc_per_pte_group_flip_c;
 	unsigned int refcyc_per_meta_chunk_flip_l;
 	unsigned int refcyc_per_meta_chunk_flip_c;
-	unsigned int dst_y_per_pte_row_nom_l;
-	unsigned int dst_y_per_pte_row_nom_c;
-	unsigned int refcyc_per_pte_group_nom_l;
-	unsigned int refcyc_per_pte_group_nom_c;
-	unsigned int dst_y_per_meta_row_nom_l;
-	unsigned int dst_y_per_meta_row_nom_c;
-	unsigned int refcyc_per_meta_chunk_nom_l;
-	unsigned int refcyc_per_meta_chunk_nom_c;
+	unsigned int dst_y_per_pte_row_analm_l;
+	unsigned int dst_y_per_pte_row_analm_c;
+	unsigned int refcyc_per_pte_group_analm_l;
+	unsigned int refcyc_per_pte_group_analm_c;
+	unsigned int dst_y_per_meta_row_analm_l;
+	unsigned int dst_y_per_meta_row_analm_c;
+	unsigned int refcyc_per_meta_chunk_analm_l;
+	unsigned int refcyc_per_meta_chunk_analm_c;
 	unsigned int refcyc_per_line_delivery_pre_l;
 	unsigned int refcyc_per_line_delivery_pre_c;
 	unsigned int refcyc_per_line_delivery_l;

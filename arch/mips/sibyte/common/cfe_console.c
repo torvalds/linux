@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/console.h>
 
 #include <asm/sibyte/board.h>
@@ -45,7 +45,7 @@ static int cfe_console_setup(struct console *cons, char *str)
 {
 	char consdev[32];
 	/* XXXKW think about interaction with 'console=' cmdline arg */
-	/* If none of the console options are configured, the build will break. */
+	/* If analne of the console options are configured, the build will break. */
 	if (cfe_getenv("BOOT_CONSOLE", consdev, 32) >= 0) {
 #ifdef CONFIG_SERIAL_SB1250_DUART
 		if (!strcmp(consdev, "uart0")) {
@@ -59,7 +59,7 @@ static int cfe_console_setup(struct console *cons, char *str)
 				setleds("pccn");
 		} else
 #endif
-			return -ENODEV;
+			return -EANALDEV;
 	}
 	return 0;
 }

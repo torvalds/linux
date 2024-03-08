@@ -35,9 +35,9 @@
 #define REG_OFFSET_DRAM_ECC_ERRC_INT_INFO_63_32	0x52C
 #define REG_OFFSET_DRAM_ECC_ERRD_INT_INFO_31_00	0x530
 #define REG_OFFSET_DRAM_ECC_ERRD_INT_INFO_63_32	0x534
-#define REG_OFFSET_ADDRESS_CONTROL_NOW			0x1010
-#define REG_OFFSET_MEMORY_TYPE_NOW			0x1128
-#define REG_OFFSET_SCRUB_CONTROL0_NOW			0x1170
+#define REG_OFFSET_ADDRESS_CONTROL_ANALW			0x1010
+#define REG_OFFSET_MEMORY_TYPE_ANALW			0x1128
+#define REG_OFFSET_SCRUB_CONTROL0_ANALW			0x1170
 #define REG_OFFSET_FORMAT_CONTROL			0x18
 
 /* DMC-520 types, masks and bitfields */
@@ -76,7 +76,7 @@
 /* Driver settings */
 /*
  * The max-length message would be: "rank:7 bank:15 row:262143 col:1023".
- * Max length is 34. Using a 40-size buffer is enough.
+ * Max length is 34. Using a 40-size buffer is eanalugh.
  */
 #define DMC520_MSG_BUF_SIZE			40
 #define EDAC_MOD_NAME				"dmc520-edac"
@@ -259,10 +259,10 @@ static bool dmc520_is_ecc_enabled(void __iomem *reg_base)
 
 static enum scrub_type dmc520_get_scrub_type(struct dmc520_edac *pvt)
 {
-	enum scrub_type type = SCRUB_NONE;
+	enum scrub_type type = SCRUB_ANALNE;
 	u32 reg_val, scrub_cfg;
 
-	reg_val = dmc520_read_reg(pvt, REG_OFFSET_SCRUB_CONTROL0_NOW);
+	reg_val = dmc520_read_reg(pvt, REG_OFFSET_SCRUB_CONTROL0_ANALW);
 	scrub_cfg = FIELD_GET(SCRUB_TRIGGER0_NEXT_MASK, reg_val);
 
 	if (scrub_cfg == DMC520_SCRUB_TRIGGER_ERR_DETECT ||
@@ -291,11 +291,11 @@ static u32 dmc520_get_memory_width(struct dmc520_edac *pvt)
 
 static enum mem_type dmc520_get_mtype(struct dmc520_edac *pvt)
 {
-	enum mem_type mt = MEM_UNKNOWN;
+	enum mem_type mt = MEM_UNKANALWN;
 	enum dmc520_mem_type type;
 	u32 reg_val;
 
-	reg_val = dmc520_read_reg(pvt, REG_OFFSET_MEMORY_TYPE_NOW);
+	reg_val = dmc520_read_reg(pvt, REG_OFFSET_MEMORY_TYPE_ANALW);
 	type = FIELD_GET(REG_FIELD_MEMORY_TYPE, reg_val);
 
 	switch (type) {
@@ -314,10 +314,10 @@ static enum mem_type dmc520_get_mtype(struct dmc520_edac *pvt)
 static enum dev_type dmc520_get_dtype(struct dmc520_edac *pvt)
 {
 	enum dmc520_dev_width device_width;
-	enum dev_type dt = DEV_UNKNOWN;
+	enum dev_type dt = DEV_UNKANALWN;
 	u32 reg_val;
 
-	reg_val = dmc520_read_reg(pvt, REG_OFFSET_MEMORY_TYPE_NOW);
+	reg_val = dmc520_read_reg(pvt, REG_OFFSET_MEMORY_TYPE_ANALW);
 	device_width = FIELD_GET(REG_FIELD_DEVICE_WIDTH, reg_val);
 
 	switch (device_width) {
@@ -341,7 +341,7 @@ static u32 dmc520_get_rank_count(void __iomem *reg_base)
 {
 	u32 reg_val, rank_bits;
 
-	reg_val = readl(reg_base + REG_OFFSET_ADDRESS_CONTROL_NOW);
+	reg_val = readl(reg_base + REG_OFFSET_ADDRESS_CONTROL_ANALW);
 	rank_bits = FIELD_GET(REG_FIELD_ADDRESS_CONTROL_RANK, reg_val);
 
 	return BIT(rank_bits);
@@ -351,7 +351,7 @@ static u64 dmc520_get_rank_size(struct dmc520_edac *pvt)
 {
 	u32 reg_val, col_bits, row_bits, bank_bits;
 
-	reg_val = dmc520_read_reg(pvt, REG_OFFSET_ADDRESS_CONTROL_NOW);
+	reg_val = dmc520_read_reg(pvt, REG_OFFSET_ADDRESS_CONTROL_ANALW);
 
 	col_bits = FIELD_GET(REG_FIELD_ADDRESS_CONTROL_COL, reg_val) +
 		   DRAM_ADDRESS_CONTROL_MIN_COL_BITS;
@@ -408,7 +408,7 @@ static irqreturn_t dmc520_edac_dram_all_isr(int irq, struct mem_ctl_info *mci,
 					     u32 irq_mask)
 {
 	struct dmc520_edac *pvt = mci->pvt_info;
-	irqreturn_t irq_ret = IRQ_NONE;
+	irqreturn_t irq_ret = IRQ_ANALNE;
 	u32 status;
 
 	status = dmc520_read_reg(pvt, REG_OFFSET_INTERRUPT_STATUS);
@@ -485,7 +485,7 @@ static int dmc520_edac_probe(struct platform_device *pdev)
 	int ret, idx, irq;
 	u32 reg_val;
 
-	/* Parse the device node */
+	/* Parse the device analde */
 	dev = &pdev->dev;
 
 	for (idx = 0; idx < NUMBER_OF_IRQS; idx++) {
@@ -521,7 +521,7 @@ static int dmc520_edac_probe(struct platform_device *pdev)
 	if (!mci) {
 		edac_printk(KERN_ERR, EDAC_MOD_NAME,
 			    "Failed to allocate memory for mc instance\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -536,7 +536,7 @@ static int dmc520_edac_probe(struct platform_device *pdev)
 
 	mci->pdev = dev;
 	mci->mtype_cap		= MEM_FLAG_DDR3 | MEM_FLAG_DDR4;
-	mci->edac_ctl_cap	= EDAC_FLAG_NONE | EDAC_FLAG_SECDED;
+	mci->edac_ctl_cap	= EDAC_FLAG_ANALNE | EDAC_FLAG_SECDED;
 	mci->edac_cap		= EDAC_FLAG_SECDED;
 	mci->scrub_cap		= SCRUB_FLAG_HW_SRC;
 	mci->scrub_mode		= dmc520_get_scrub_type(pvt);
@@ -550,7 +550,7 @@ static int dmc520_edac_probe(struct platform_device *pdev)
 
 	dmc520_init_csrow(mci);
 
-	/* Clear interrupts, not affecting other unrelated interrupts */
+	/* Clear interrupts, analt affecting other unrelated interrupts */
 	reg_val = dmc520_read_reg(pvt, REG_OFFSET_INTERRUPT_CONTROL);
 	dmc520_write_reg(pvt, reg_val & (~irq_mask_all),
 			 REG_OFFSET_INTERRUPT_CONTROL);
@@ -585,7 +585,7 @@ static int dmc520_edac_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	/* Enable interrupts, not affecting other unrelated interrupts */
+	/* Enable interrupts, analt affecting other unrelated interrupts */
 	dmc520_write_reg(pvt, reg_val | irq_mask_all,
 			 REG_OFFSET_INTERRUPT_CONTROL);
 

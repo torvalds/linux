@@ -3,7 +3,7 @@
  * vvvvvvvvvvvvvvvvvvvvvvv Original vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
  *  Copyright (C) 1992  Eric Youngdale
  *  Simulate a host adapter with 2 disks attached.  Do a lot of checking
- *  to make sure that we are not getting blocks mixed up, and PANIC if
+ *  to make sure that we are analt getting blocks mixed up, and PANIC if
  *  anything out of the ordinary is seen.
  * ^^^^^^^^^^^^^^^^^^^^^^^ Original ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
  *
@@ -18,7 +18,7 @@
 #include <linux/module.h>
 #include <linux/align.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/jiffies.h>
 #include <linux/slab.h>
 #include <linux/types.h>
@@ -67,8 +67,8 @@ static const char *sdebug_version_date = "20210520";
 #define MY_NAME "scsi_debug"
 
 /* Additional Sense Code (ASC) */
-#define NO_ADDITIONAL_SENSE 0x0
-#define LOGICAL_UNIT_NOT_READY 0x4
+#define ANAL_ADDITIONAL_SENSE 0x0
+#define LOGICAL_UNIT_ANALT_READY 0x4
 #define LOGICAL_UNIT_COMMUNICATION_FAILURE 0x8
 #define UNRECOVERED_READ_ERR 0x11
 #define PARAMETER_LIST_LENGTH_ERR 0x1a
@@ -132,8 +132,8 @@ static const char *sdebug_version_date = "20210520";
 #define DEF_LBPWS10 0
 #define DEF_LBPRZ 1
 #define DEF_LOWEST_ALIGNED 0
-#define DEF_NDELAY   0		/* if > 0 unit is a nanosecond */
-#define DEF_NO_LUN_0   0
+#define DEF_NDELAY   0		/* if > 0 unit is a naanalsecond */
+#define DEF_ANAL_LUN_0   0
 #define DEF_NUM_PARTS   0
 #define DEF_OPTS   0
 #define DEF_OPT_BLKS 1024
@@ -149,7 +149,7 @@ static const char *sdebug_version_date = "20210520";
 #define DEF_UNMAP_MAX_BLOCKS 0xFFFFFFFF
 #define DEF_UNMAP_MAX_DESC 256
 #define DEF_VIRTUAL_GB   0
-#define DEF_VPD_USE_HOSTNO 1
+#define DEF_VPD_USE_HOSTANAL 1
 #define DEF_WRITESAME_LENGTH 0xFFFF
 #define DEF_STRICT 0
 #define DEF_STATISTICS false
@@ -166,7 +166,7 @@ static const char *sdebug_version_date = "20210520";
 #define SDEBUG_LUN_0_VAL 0
 
 /* bit mask values for sdebug_opts */
-#define SDEBUG_OPT_NOISE		1
+#define SDEBUG_OPT_ANALISE		1
 #define SDEBUG_OPT_MEDIUM_ERR		2
 #define SDEBUG_OPT_TIMEOUT		4
 #define SDEBUG_OPT_RECOVERED_ERR	8
@@ -175,16 +175,16 @@ static const char *sdebug_version_date = "20210520";
 #define SDEBUG_OPT_DIX_ERR		64
 #define SDEBUG_OPT_MAC_TIMEOUT		128
 #define SDEBUG_OPT_SHORT_TRANSFER	0x100
-#define SDEBUG_OPT_Q_NOISE		0x200
-#define SDEBUG_OPT_ALL_TSF		0x400	/* ignore */
+#define SDEBUG_OPT_Q_ANALISE		0x200
+#define SDEBUG_OPT_ALL_TSF		0x400	/* iganalre */
 #define SDEBUG_OPT_RARE_TSF		0x800
 #define SDEBUG_OPT_N_WCE		0x1000
-#define SDEBUG_OPT_RESET_NOISE		0x2000
-#define SDEBUG_OPT_NO_CDB_NOISE		0x4000
+#define SDEBUG_OPT_RESET_ANALISE		0x2000
+#define SDEBUG_OPT_ANAL_CDB_ANALISE		0x4000
 #define SDEBUG_OPT_HOST_BUSY		0x8000
 #define SDEBUG_OPT_CMD_ABORT		0x10000
-#define SDEBUG_OPT_ALL_NOISE (SDEBUG_OPT_NOISE | SDEBUG_OPT_Q_NOISE | \
-			      SDEBUG_OPT_RESET_NOISE)
+#define SDEBUG_OPT_ALL_ANALISE (SDEBUG_OPT_ANALISE | SDEBUG_OPT_Q_ANALISE | \
+			      SDEBUG_OPT_RESET_ANALISE)
 #define SDEBUG_OPT_ALL_INJECTING (SDEBUG_OPT_RECOVERED_ERR | \
 				  SDEBUG_OPT_TRANSPORT_ERR | \
 				  SDEBUG_OPT_DIF_ERR | SDEBUG_OPT_DIX_ERR | \
@@ -215,10 +215,10 @@ static const char *sdebug_version_date = "20210520";
 
 /* SDEBUG_CANQUEUE is the maximum number of commands that can be queued
  * (for response) per submit queue at one time. Can be reduced by max_queue
- * option. Command responses are not queued when jdelay=0 and ndelay=0. The
+ * option. Command responses are analt queued when jdelay=0 and ndelay=0. The
  * per-device DEF_CMD_PER_LUN can be changed via sysfs:
  * /sys/class/scsi_device/<h:c:t:l>/device/queue_depth
- * but cannot exceed SDEBUG_CANQUEUE .
+ * but cananalt exceed SDEBUG_CANQUEUE .
  */
 #define SDEBUG_CANQUEUE_WORDS  3	/* a WORD is bits in a long */
 #define SDEBUG_CANQUEUE  (SDEBUG_CANQUEUE_WORDS * BITS_PER_LONG)
@@ -234,7 +234,7 @@ static const char *sdebug_version_date = "20210520";
 #define F_DELAY_OVERR		0x40	/* for commands like INQUIRY */
 #define F_SA_LOW		0x80	/* SA is in cdb byte 1, bits 4 to 0 */
 #define F_SA_HIGH		0x100	/* SA is in cdb bytes 8 and 9 */
-#define F_INV_OP		0x200	/* invalid opcode (not supported) */
+#define F_INV_OP		0x200	/* invalid opcode (analt supported) */
 #define F_FAKE_RW		0x400	/* bypass resp_*() when fake_rw set */
 #define F_M_ACCESS		0x800	/* media access, reacts to SSU state */
 #define F_SSU_DELAY		0x1000	/* SSU command delay (long-ish) */
@@ -250,7 +250,7 @@ static const char *sdebug_version_date = "20210520";
 
 #define SDEBUG_MAX_CMD_LEN 32
 
-#define SDEB_XA_NOT_IN_USE XA_MARK_1
+#define SDEB_XA_ANALT_IN_USE XA_MARK_1
 
 static struct kmem_cache *queued_cmd_cache;
 
@@ -268,7 +268,7 @@ enum sdebug_z_type {
 
 /* enumeration names taken from table 26, zbcr05 */
 enum sdebug_z_cond {
-	ZBC_NOT_WRITE_POINTER	= 0x0,
+	ZBC_ANALT_WRITE_POINTER	= 0x0,
 	ZC1_EMPTY		= 0x1,
 	ZC2_IMPLICIT_OPEN	= 0x2,
 	ZC3_EXPLICIT_OPEN	= 0x3,
@@ -281,7 +281,7 @@ enum sdebug_z_cond {
 struct sdeb_zone_state {	/* ZBC: per zone state */
 	enum sdebug_z_type z_type;
 	enum sdebug_z_cond z_cond;
-	bool z_non_seq_resource;
+	bool z_analn_seq_resource;
 	unsigned int z_size;
 	sector_t z_start;
 	sector_t z_wp;
@@ -385,7 +385,7 @@ struct sdeb_store_info {
 #define shost_to_sdebug_host(shost)	\
 	dev_to_sdebug_host(shost->dma_dev)
 
-enum sdeb_defer_type {SDEB_DEFER_NONE = 0, SDEB_DEFER_HRT = 1,
+enum sdeb_defer_type {SDEB_DEFER_ANALNE = 0, SDEB_DEFER_HRT = 1,
 		      SDEB_DEFER_WQ = 2, SDEB_DEFER_POLL = 3};
 
 struct sdebug_defer {
@@ -425,7 +425,7 @@ struct opcode_info_t {
 	int (*pfp)(struct scsi_cmnd *, struct sdebug_dev_info *);
 	const struct opcode_info_t *arrp;  /* num_attached elements or NULL */
 	u8 len_mask[16];	/* len_mask[0]-->cdb_len, then mask for cdb */
-				/* 1 to min(cdb_len, 15); ignore cdb[15...] */
+				/* 1 to min(cdb_len, 15); iganalre cdb[15...] */
 };
 
 /* SCSI opcodes (first byte of cdb) of interest mapped onto these indexes */
@@ -460,7 +460,7 @@ enum sdeb_opcode_index {
 	SDEB_I_SYNC_CACHE = 27,		/* 10, 16 */
 	SDEB_I_COMP_WRITE = 28,
 	SDEB_I_PRE_FETCH = 29,		/* 10, 16 */
-	SDEB_I_ZONE_OUT = 30,		/* 0x94+SA; includes no data xfer */
+	SDEB_I_ZONE_OUT = 30,		/* 0x94+SA; includes anal data xfer */
 	SDEB_I_ZONE_IN = 31,		/* 0x95+SA; all have data-in */
 	SDEB_I_LAST_ELEM_P1 = 32,	/* keep this last (previous + 1) */
 };
@@ -678,7 +678,7 @@ static const struct opcode_info_t zone_in_iarr[] = {	/* ZONE IN(16) */
  * REPORT SUPPORTED OPERATION CODES. */
 static const struct opcode_info_t opcode_info_arr[SDEB_I_LAST_ELEM_P1 + 1] = {
 /* 0 */
-	{0, 0, 0, F_INV_OP | FF_RESPOND, NULL, NULL,	/* unknown opcodes */
+	{0, 0, 0, F_INV_OP | FF_RESPOND, NULL, NULL,	/* unkanalwn opcodes */
 	    {0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0} },
 	{0, 0x12, 0, FF_RESPOND | F_D_IN, resp_inquiry, NULL, /* INQUIRY */
 	    {6,  0xe3, 0xff, 0xff, 0xff, 0xc7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0} },
@@ -735,11 +735,11 @@ static const struct opcode_info_t opcode_info_arr[SDEB_I_LAST_ELEM_P1 + 1] = {
 	    {32,  0xc7, 0, 0, 0, 0, 0x3f, 0x18, 0x0, 0x9, 0xfe, 0, 0xff, 0xff,
 	     0xff, 0xff} },
 	{ARRAY_SIZE(reserve_iarr), 0x56, 0, F_D_OUT,
-	    NULL, reserve_iarr,	/* RESERVE(10) <no response function> */
+	    NULL, reserve_iarr,	/* RESERVE(10) <anal response function> */
 	    {10,  0xff, 0xff, 0xff, 0, 0, 0, 0xff, 0xff, 0xc7, 0, 0, 0, 0, 0,
 	     0} },
 	{ARRAY_SIZE(release_iarr), 0x57, 0, F_D_OUT,
-	    NULL, release_iarr, /* RELEASE(10) <no response function> */
+	    NULL, release_iarr, /* RELEASE(10) <anal response function> */
 	    {10,  0x13, 0xff, 0xff, 0, 0, 0, 0xff, 0xff, 0xc7, 0, 0, 0, 0, 0,
 	     0} },
 /* 20 */
@@ -749,7 +749,7 @@ static const struct opcode_info_t opcode_info_arr[SDEB_I_LAST_ELEM_P1 + 1] = {
 	    {6,  0x1, 0, 0, 0, 0xc7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0} },
 	{0, 0, 0, F_INV_OP | FF_RESPOND, NULL, NULL, /* ATA_PT */
 	    {0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0} },
-	{0, 0x1d, F_D_OUT, 0, NULL, NULL,	/* SEND DIAGNOSTIC */
+	{0, 0x1d, F_D_OUT, 0, NULL, NULL,	/* SEND DIAGANALSTIC */
 	    {6,  0xf7, 0, 0xff, 0xff, 0xc7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0} },
 	{0, 0x42, 0, F_D_OUT | FF_MEDIA_IO, resp_unmap, NULL, /* UNMAP */
 	    {10,  0x1, 0, 0, 0, 0, 0x3f, 0xff, 0xff, 0xc7, 0, 0, 0, 0, 0, 0} },
@@ -805,9 +805,9 @@ static int sdebug_max_luns = DEF_MAX_LUNS;
 static int sdebug_max_queue = SDEBUG_CANQUEUE;	/* per submit queue */
 static unsigned int sdebug_medium_error_start = OPT_MEDIUM_ERR_ADDR;
 static int sdebug_medium_error_count = OPT_MEDIUM_ERR_NUM;
-static int sdebug_ndelay = DEF_NDELAY;	/* if > 0 then unit is nanoseconds */
-static int sdebug_no_lun_0 = DEF_NO_LUN_0;
-static int sdebug_no_uld;
+static int sdebug_ndelay = DEF_NDELAY;	/* if > 0 then unit is naanalseconds */
+static int sdebug_anal_lun_0 = DEF_ANAL_LUN_0;
+static int sdebug_anal_uld;
 static int sdebug_num_parts = DEF_NUM_PARTS;
 static int sdebug_num_tgts = DEF_NUM_TGTS; /* targets per host */
 static int sdebug_opt_blks = DEF_OPT_BLKS;
@@ -819,7 +819,7 @@ static int sdebug_scsi_level = DEF_SCSI_LEVEL;
 static int sdebug_sector_size = DEF_SECTOR_SIZE;
 static int sdeb_tur_ms_to_ready = DEF_TUR_MS_TO_READY;
 static int sdebug_virtual_gb = DEF_VIRTUAL_GB;
-static int sdebug_vpd_use_hostno = DEF_VPD_USE_HOSTNO;
+static int sdebug_vpd_use_hostanal = DEF_VPD_USE_HOSTANAL;
 static unsigned int sdebug_lbpu = DEF_LBPU;
 static unsigned int sdebug_lbpws = DEF_LBPWS;
 static unsigned int sdebug_lbpws10 = DEF_LBPWS10;
@@ -837,7 +837,7 @@ static bool sdebug_clustering;
 static bool sdebug_host_lock = DEF_HOST_LOCK;
 static bool sdebug_strict = DEF_STRICT;
 static bool sdebug_any_injecting_opt;
-static bool sdebug_no_rwlock;
+static bool sdebug_anal_rwlock;
 static bool sdebug_verbose;
 static bool have_dif_prot;
 static bool write_since_sync;
@@ -845,10 +845,10 @@ static bool sdebug_statistics = DEF_STATISTICS;
 static bool sdebug_wp;
 static bool sdebug_allow_restart;
 static enum {
-	BLK_ZONED_NONE	= 0,
+	BLK_ZONED_ANALNE	= 0,
 	BLK_ZONED_HA	= 1,
 	BLK_ZONED_HM	= 2,
-} sdeb_zbc_model = BLK_ZONED_NONE;
+} sdeb_zbc_model = BLK_ZONED_ANALNE;
 static char *sdeb_zbc_model_s;
 
 enum sam_lun_addr_method {SAM_LUN_AM_PERIPHERAL = 0x0,
@@ -872,7 +872,7 @@ static DEFINE_MUTEX(sdebug_host_list_mutex);
 
 static struct xarray per_store_arr;
 static struct xarray *per_store_ap = &per_store_arr;
-static int sdeb_first_idx = -1;		/* invalid index ==> none created */
+static int sdeb_first_idx = -1;		/* invalid index ==> analne created */
 static int sdeb_most_recent_idx = -1;
 static DEFINE_RWLOCK(sdeb_fake_rw_lck);	/* need a RW lock when fake_rw=1 */
 
@@ -1009,9 +1009,9 @@ static int sdebug_error_show(struct seq_file *m, void *p)
 	return 0;
 }
 
-static int sdebug_error_open(struct inode *inode, struct file *file)
+static int sdebug_error_open(struct ianalde *ianalde, struct file *file)
 {
-	return single_open(file, sdebug_error_show, inode->i_private);
+	return single_open(file, sdebug_error_show, ianalde->i_private);
 }
 
 static ssize_t sdebug_error_write(struct file *file, const char __user *ubuf,
@@ -1020,11 +1020,11 @@ static ssize_t sdebug_error_write(struct file *file, const char __user *ubuf,
 	char *buf;
 	unsigned int inject_type;
 	struct sdebug_err_inject *inject;
-	struct scsi_device *sdev = (struct scsi_device *)file->f_inode->i_private;
+	struct scsi_device *sdev = (struct scsi_device *)file->f_ianalde->i_private;
 
 	buf = kzalloc(count + 1, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (copy_from_user(buf, ubuf, count)) {
 		kfree(buf);
@@ -1042,7 +1042,7 @@ static ssize_t sdebug_error_write(struct file *file, const char __user *ubuf,
 	inject = kzalloc(sizeof(struct sdebug_err_inject), GFP_KERNEL);
 	if (!inject) {
 		kfree(buf);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	switch (inject_type) {
@@ -1104,9 +1104,9 @@ static int sdebug_target_reset_fail_show(struct seq_file *m, void *p)
 	return 0;
 }
 
-static int sdebug_target_reset_fail_open(struct inode *inode, struct file *file)
+static int sdebug_target_reset_fail_open(struct ianalde *ianalde, struct file *file)
 {
-	return single_open(file, sdebug_target_reset_fail_show, inode->i_private);
+	return single_open(file, sdebug_target_reset_fail_show, ianalde->i_private);
 }
 
 static ssize_t sdebug_target_reset_fail_write(struct file *file,
@@ -1114,7 +1114,7 @@ static ssize_t sdebug_target_reset_fail_write(struct file *file,
 {
 	int ret;
 	struct scsi_target *starget =
-		(struct scsi_target *)file->f_inode->i_private;
+		(struct scsi_target *)file->f_ianalde->i_private;
 	struct sdebug_target_info *targetip =
 		(struct sdebug_target_info *)starget->hostdata;
 
@@ -1122,7 +1122,7 @@ static ssize_t sdebug_target_reset_fail_write(struct file *file,
 		ret = kstrtobool_from_user(ubuf, count, &targetip->reset_fail);
 		return ret < 0 ? ret : count;
 	}
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static const struct file_operations sdebug_target_reset_fail_fops = {
@@ -1138,7 +1138,7 @@ static int sdebug_target_alloc(struct scsi_target *starget)
 
 	targetip = kzalloc(sizeof(struct sdebug_target_info), GFP_KERNEL);
 	if (!targetip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	targetip->debugfs_entry = debugfs_create_dir(dev_name(&starget->dev),
 				sdebug_debugfs_root);
@@ -1172,7 +1172,7 @@ static void sdebug_target_destroy(struct scsi_target *starget)
 
 /* Only do the extra work involved in logical block provisioning if one or
  * more of the lbpu, lbpws or lbpws10 parameters are given and we are doing
- * real reads and writes (i.e. not skipping them for speed).
+ * real reads and writes (i.e. analt skipping them for speed).
  */
 static inline bool scsi_debug_lbp(void)
 {
@@ -1222,7 +1222,7 @@ static void sdebug_max_tgts_luns(void)
 
 enum sdeb_cmd_data {SDEB_IN_DATA = 0, SDEB_IN_CDB = 1};
 
-/* Set in_bit to -1 to indicate no bit position of invalid field */
+/* Set in_bit to -1 to indicate anal bit position of invalid field */
 static void mk_sense_invalid_fld(struct scsi_cmnd *scp,
 				 enum sdeb_cmd_data c_d,
 				 int in_byte, int in_bit)
@@ -1301,7 +1301,7 @@ static int scsi_debug_ioctl(struct scsi_device *dev, unsigned int cmd,
 				    __func__, cmd);
 	}
 	return -EINVAL;
-	/* return -ENOTTY; // correct return but upsets fdisk */
+	/* return -EANALTTY; // correct return but upsets fdisk */
 }
 
 static void config_cdb_len(struct scsi_device *sdev)
@@ -1327,7 +1327,7 @@ static void config_cdb_len(struct scsi_device *sdev)
 		sdev->use_16_for_rw = true;
 		sdev->use_10_for_ms = true;
 		break;
-	case 32: /* No knobs to suggest this so same as 16 for now */
+	case 32: /* Anal kanalbs to suggest this so same as 16 for analw */
 		sdev->use_10_for_rw = false;
 		sdev->use_16_for_rw = true;
 		sdev->use_10_for_ms = true;
@@ -1431,7 +1431,7 @@ static int make_ua(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 			 * ASC/ASCQ REPORTED LUNS DATA HAS CHANGED on every LUN
 			 * on the target, until a REPORT LUNS command is
 			 * received.  SPC-4 behavior is to report it only once.
-			 * NOTE:  sdebug_scsi_level does not use the same
+			 * ANALTE:  sdebug_scsi_level does analt use the same
 			 * values as struct scsi_device->scsi_level.
 			 */
 			if (sdebug_scsi_level >= 6)	/* SPC-4 and above */
@@ -1445,7 +1445,7 @@ static int make_ua(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 		default:
 			pr_warn("unexpected unit attention code=%d\n", k);
 			if (sdebug_verbose)
-				cp = "unknown";
+				cp = "unkanalwn";
 			break;
 		}
 		clear_bit(k, devip->uas_bm);
@@ -1479,7 +1479,7 @@ static int fill_from_dev_buffer(struct scsi_cmnd *scp, unsigned char *arr,
 
 /* Partial build of SCSI "data-in" buffer. Returns 0 if ok else
  * (DID_ERROR << 16). Can write to offset in data-in buffer. If multiple
- * calls, not required to write in ascending offset order. Assumes resid
+ * calls, analt required to write in ascending offset order. Assumes resid
  * set to scsi_bufflen() prior to any calls.
  */
 static int p_fill_from_dev_buffer(struct scsi_cmnd *scp, const void *arr,
@@ -1550,7 +1550,7 @@ static int inquiry_vpd_83(unsigned char *arr, int port_group_id,
 	if (dev_id_num >= 0) {
 		if (sdebug_uuid_ctl) {
 			/* Locally assigned UUID */
-			arr[num++] = 0x1;  /* binary (not necessarily sas) */
+			arr[num++] = 0x1;  /* binary (analt necessarily sas) */
 			arr[num++] = 0xa;  /* PIV=0, lu, naa */
 			arr[num++] = 0x0;
 			arr[num++] = 0x12;
@@ -1560,7 +1560,7 @@ static int inquiry_vpd_83(unsigned char *arr, int port_group_id,
 			num += 16;
 		} else {
 			/* NAA-3, Logical unit identifier (binary) */
-			arr[num++] = 0x1;  /* binary (not necessarily sas) */
+			arr[num++] = 0x1;  /* binary (analt necessarily sas) */
 			arr[num++] = 0x3;  /* PIV=0, lu, naa */
 			arr[num++] = 0x0;
 			arr[num++] = 0x8;
@@ -1815,7 +1815,7 @@ static int inquiry_vpd_b1(struct sdebug_dev_info *devip, unsigned char *arr)
 {
 	memset(arr, 0, 0x3c);
 	arr[0] = 0;
-	arr[1] = 1;	/* non rotating medium (e.g. solid state) */
+	arr[1] = 1;	/* analn rotating medium (e.g. solid state) */
 	arr[2] = 0;
 	arr[3] = 5;	/* less than 1.8" */
 
@@ -1835,8 +1835,8 @@ static int inquiry_vpd_b2(unsigned char *arr)
 		arr[1] |= 1 << 5;
 	if (sdebug_lbprz && scsi_debug_lbp())
 		arr[1] |= (sdebug_lbprz & 0x7) << 2;  /* sbc4r07 and later */
-	/* anc_sup=0; dp=0 (no provisioning group descriptor) */
-	/* minimum_percentage=0; provisioning_type=0 (unknown) */
+	/* anc_sup=0; dp=0 (anal provisioning group descriptor) */
+	/* minimum_percentage=0; provisioning_type=0 (unkanalwn) */
 	/* threshold_percentage=0 */
 	return 0x4;
 }
@@ -1848,8 +1848,8 @@ static int inquiry_vpd_b6(struct sdebug_dev_info *devip, unsigned char *arr)
 	arr[0] = 0x1; /* set URSWRZ (unrestricted read in seq. wr req zone) */
 	/*
 	 * Set Optimal number of open sequential write preferred zones and
-	 * Optimal number of non-sequentially written sequential write
-	 * preferred zones fields to 'not reported' (0xffffffff). Leave other
+	 * Optimal number of analn-sequentially written sequential write
+	 * preferred zones fields to 'analt reported' (0xffffffff). Leave other
 	 * fields set to zero, apart from Max. number of open swrz_s field.
 	 */
 	put_unaligned_be32(0xffffffff, &arr[4]);
@@ -1889,8 +1889,8 @@ static int resp_inquiry(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 	have_wlun = scsi_is_wlun(scp->device->lun);
 	if (have_wlun)
 		pq_pdt = TYPE_WLUN;	/* present, wlun */
-	else if (sdebug_no_lun_0 && (devip->lun == SDEBUG_LUN_0_VAL))
-		pq_pdt = 0x7f;	/* not present, PQ=3, PDT=0x1f */
+	else if (sdebug_anal_lun_0 && (devip->lun == SDEBUG_LUN_0_VAL))
+		pq_pdt = 0x7f;	/* analt present, PQ=3, PDT=0x1f */
 	else
 		pq_pdt = (sdebug_ptype & 0x1f);
 	arr[0] = pq_pdt;
@@ -1902,15 +1902,15 @@ static int resp_inquiry(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 		int lu_id_num, port_group_id, target_dev_id;
 		u32 len;
 		char lu_id_str[6];
-		int host_no = devip->sdbg_host->shost->host_no;
+		int host_anal = devip->sdbg_host->shost->host_anal;
 		
-		port_group_id = (((host_no + 1) & 0x7f) << 8) +
+		port_group_id = (((host_anal + 1) & 0x7f) << 8) +
 		    (devip->channel & 0x7f);
-		if (sdebug_vpd_use_hostno == 0)
-			host_no = 0;
-		lu_id_num = have_wlun ? -1 : (((host_no + 1) * 2000) +
+		if (sdebug_vpd_use_hostanal == 0)
+			host_anal = 0;
+		lu_id_num = have_wlun ? -1 : (((host_anal + 1) * 2000) +
 			    (devip->target * 1000) + devip->lun);
-		target_dev_id = ((host_no + 1) * 2000) +
+		target_dev_id = ((host_anal + 1) * 2000) +
 				 (devip->target * 1000) - 3;
 		len = scnprintf(lu_id_str, 6, "%d", lu_id_num);
 		if (0 == cmd[2]) { /* supported vital product data pages */
@@ -1958,7 +1958,7 @@ static int resp_inquiry(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 			else if (have_dif_prot)
 				arr[4] = 0x5;   /* SPT: GRD_CHK:1, REF_CHK:1 */
 			else
-				arr[4] = 0x0;   /* no protection stuff */
+				arr[4] = 0x0;   /* anal protection stuff */
 			arr[5] = 0x7;   /* head of q, ordered + simple q's */
 		} else if (0x87 == cmd[2]) { /* mode page policy */
 			arr[1] = cmd[2];	/*sanity */
@@ -2003,7 +2003,7 @@ static int resp_inquiry(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 	arr[3] = 2;    /* response_data_format==2 */
 	arr[4] = SDEBUG_LONG_INQ_SZ - 5;
 	arr[5] = (int)have_dif_prot;	/* PROTECT bit */
-	if (sdebug_vpd_use_hostno == 0)
+	if (sdebug_vpd_use_hostanal == 0)
 		arr[5] |= 0x10; /* claim: implicit TPGS */
 	arr[6] = 0x10; /* claim: MultiP */
 	/* arr[6] |= 0x40; ... claim: EncServ (enclosure services) */
@@ -2014,10 +2014,10 @@ static int resp_inquiry(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 	/* Use Vendor Specific area to place driver date in ASCII hex */
 	memcpy(&arr[36], sdebug_version_date, 8);
 	/* version descriptors (2 bytes each) follow */
-	put_unaligned_be16(0xc0, arr + 58);   /* SAM-6 no version claimed */
-	put_unaligned_be16(0x5c0, arr + 60);  /* SPC-5 no version claimed */
+	put_unaligned_be16(0xc0, arr + 58);   /* SAM-6 anal version claimed */
+	put_unaligned_be16(0x5c0, arr + 60);  /* SPC-5 anal version claimed */
 	n = 62;
-	if (is_disk) {		/* SBC-4 no version claimed */
+	if (is_disk) {		/* SBC-4 anal version claimed */
 		put_unaligned_be16(0x600, arr + n);
 		n += 2;
 	} else if (sdebug_ptype == TYPE_TAPE) {	/* SSC-4 rev 3 */
@@ -2027,7 +2027,7 @@ static int resp_inquiry(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 		put_unaligned_be16(0x624, arr + n);
 		n += 2;
 	}
-	put_unaligned_be16(0x2100, arr + n);	/* SPL-4 no version claimed */
+	put_unaligned_be16(0x2100, arr + n);	/* SPL-4 anal version claimed */
 	ret = fill_from_dev_buffer(scp, arr,
 			    min_t(u32, alloc_len, SDEBUG_LONG_INQ_SZ));
 	kfree(arr);
@@ -2052,33 +2052,33 @@ static int resp_requests(struct scsi_cmnd *scp,
 	if (stopped_state > 0) {	/* some "pollable" data [spc6r02: 5.12.2] */
 		if (dsense) {
 			arr[0] = 0x72;
-			arr[1] = NOT_READY;
-			arr[2] = LOGICAL_UNIT_NOT_READY;
+			arr[1] = ANALT_READY;
+			arr[2] = LOGICAL_UNIT_ANALT_READY;
 			arr[3] = (stopped_state == 2) ? 0x1 : 0x2;
 			len = 8;
 		} else {
 			arr[0] = 0x70;
-			arr[2] = NOT_READY;		/* NO_SENSE in sense_key */
+			arr[2] = ANALT_READY;		/* ANAL_SENSE in sense_key */
 			arr[7] = 0xa;			/* 18 byte sense buffer */
-			arr[12] = LOGICAL_UNIT_NOT_READY;
+			arr[12] = LOGICAL_UNIT_ANALT_READY;
 			arr[13] = (stopped_state == 2) ? 0x1 : 0x2;
 		}
 	} else if ((iec_m_pg[2] & 0x4) && (6 == (iec_m_pg[3] & 0xf))) {
 		/* Information exceptions control mode page: TEST=1, MRIE=6 */
 		if (dsense) {
 			arr[0] = 0x72;
-			arr[1] = 0x0;		/* NO_SENSE in sense_key */
+			arr[1] = 0x0;		/* ANAL_SENSE in sense_key */
 			arr[2] = THRESHOLD_EXCEEDED;
 			arr[3] = 0xff;		/* Failure prediction(false) */
 			len = 8;
 		} else {
 			arr[0] = 0x70;
-			arr[2] = 0x0;		/* NO_SENSE in sense_key */
+			arr[2] = 0x0;		/* ANAL_SENSE in sense_key */
 			arr[7] = 0xa;   	/* 18 byte sense buffer */
 			arr[12] = THRESHOLD_EXCEEDED;
 			arr[13] = 0xff;		/* Failure prediction(false) */
 		}
-	} else {	/* nothing to report */
+	} else {	/* analthing to report */
 		if (dsense) {
 			len = 8;
 			memset(arr, 0, len);
@@ -2106,10 +2106,10 @@ static int resp_start_stop(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 	want_stop = !(cmd[4] & 1);
 	stopped_state = atomic_read(&devip->stopped);
 	if (stopped_state == 2) {
-		ktime_t now_ts = ktime_get_boottime();
+		ktime_t analw_ts = ktime_get_boottime();
 
-		if (ktime_to_ns(now_ts) > ktime_to_ns(devip->create_ts)) {
-			u64 diff_ns = ktime_to_ns(ktime_sub(now_ts, devip->create_ts));
+		if (ktime_to_ns(analw_ts) > ktime_to_ns(devip->create_ts)) {
+			u64 diff_ns = ktime_to_ns(ktime_sub(analw_ts, devip->create_ts));
 
 			if (diff_ns >= ((u64)sdeb_tur_ms_to_ready * 1000000)) {
 				/* tur_ms_to_ready timer extinguished */
@@ -2185,7 +2185,7 @@ static int resp_readcap16(struct scsi_cmnd *scp,
 	if (scsi_debug_lbp()) {
 		arr[14] |= 0x80; /* LBPME */
 		/* from sbc4r07, this LBPRZ field is 1 bit, but the LBPRZ in
-		 * the LB Provisioning VPD page is 3 bits. Note that lbprz=2
+		 * the LB Provisioning VPD page is 3 bits. Analte that lbprz=2
 		 * in the wider field maps to 0 in this field.
 		 */
 		if (sdebug_lbprz & 1)	/* precisely what the draft requires */
@@ -2217,7 +2217,7 @@ static int resp_report_tgtpgs(struct scsi_cmnd *scp,
 {
 	unsigned char *cmd = scp->cmnd;
 	unsigned char *arr;
-	int host_no = devip->sdbg_host->shost->host_no;
+	int host_anal = devip->sdbg_host->shost->host_anal;
 	int port_group_a, port_group_b, port_a, port_b;
 	u32 alen, n, rlen;
 	int ret;
@@ -2228,23 +2228,23 @@ static int resp_report_tgtpgs(struct scsi_cmnd *scp,
 		return DID_REQUEUE << 16;
 	/*
 	 * EVPD page 0x88 states we have two ports, one
-	 * real and a fake port with no device connected.
+	 * real and a fake port with anal device connected.
 	 * So we create two port groups with one port each
 	 * and set the group with port B to unavailable.
 	 */
 	port_a = 0x1; /* relative port A */
 	port_b = 0x2; /* relative port B */
-	port_group_a = (((host_no + 1) & 0x7f) << 8) +
+	port_group_a = (((host_anal + 1) & 0x7f) << 8) +
 			(devip->channel & 0x7f);
-	port_group_b = (((host_no + 1) & 0x7f) << 8) +
+	port_group_b = (((host_anal + 1) & 0x7f) << 8) +
 			(devip->channel & 0x7f) + 0x80;
 
 	/*
 	 * The asymmetric access state is cycled according to the host_id.
 	 */
 	n = 4;
-	if (sdebug_vpd_use_hostno == 0) {
-		arr[n++] = host_no % 3; /* Asymm access state */
+	if (sdebug_vpd_use_hostanal == 0) {
+		arr[n++] = host_anal % 3; /* Asymm access state */
 		arr[n++] = 0x0F; /* claim: all states are supported */
 	} else {
 		arr[n++] = 0x0; /* Active/Optimized path */
@@ -2656,11 +2656,11 @@ static int resp_mode_sense(struct scsi_cmnd *scp,
 		bd_len = 0;
 	alloc_len = msense_6 ? cmd[4] : get_unaligned_be16(cmd + 7);
 	memset(arr, 0, SDEBUG_MAX_MSENSE_SZ);
-	if (0x3 == pcontrol) {  /* Saving values not supported */
+	if (0x3 == pcontrol) {  /* Saving values analt supported */
 		mk_sense_buffer(scp, ILLEGAL_REQUEST, SAVING_PARAMS_UNSUP, 0);
 		return check_condition_result;
 	}
-	target_dev_id = ((devip->sdbg_host->shost->host_no + 1) * 2000) +
+	target_dev_id = ((devip->sdbg_host->shost->host_anal + 1) * 2000) +
 			(devip->target * 1000) - 3;
 	/* for disks+zbc set DPOFUA bit and clear write protect (WP) bit */
 	if (is_disk || is_zbc) {
@@ -3023,19 +3023,19 @@ static inline bool sdebug_dev_is_zoned(struct sdebug_dev_info *devip)
 static struct sdeb_zone_state *zbc_zone(struct sdebug_dev_info *devip,
 					unsigned long long lba)
 {
-	u32 zno = lba >> devip->zsize_shift;
+	u32 zanal = lba >> devip->zsize_shift;
 	struct sdeb_zone_state *zsp;
 
-	if (devip->zcap == devip->zsize || zno < devip->nr_conv_zones)
-		return &devip->zstate[zno];
+	if (devip->zcap == devip->zsize || zanal < devip->nr_conv_zones)
+		return &devip->zstate[zanal];
 
 	/*
 	 * If the zone capacity is less than the zone size, adjust for gap
 	 * zones.
 	 */
-	zno = 2 * zno - devip->nr_conv_zones;
-	WARN_ONCE(zno >= devip->nr_zones, "%u > %u\n", zno, devip->nr_zones);
-	zsp = &devip->zstate[zno];
+	zanal = 2 * zanal - devip->nr_conv_zones;
+	WARN_ONCE(zanal >= devip->nr_zones, "%u > %u\n", zanal, devip->nr_zones);
+	zsp = &devip->zstate[zanal];
 	if (lba >= zsp->z_start + zsp->z_size)
 		zsp++;
 	WARN_ON_ONCE(lba >= zsp->z_start + zsp->z_size);
@@ -3162,7 +3162,7 @@ static void zbc_inc_wp(struct sdebug_dev_info *devip,
 
 	while (num) {
 		if (lba != zsp->z_wp)
-			zsp->z_non_seq_resource = true;
+			zsp->z_analn_seq_resource = true;
 
 		end = lba + num;
 		if (end >= zend) {
@@ -3195,7 +3195,7 @@ static int check_zbc_access_params(struct scsi_cmnd *scp,
 	struct sdeb_zone_state *zsp_end = zbc_zone(devip, lba + num - 1);
 
 	if (!write) {
-		/* For host-managed, reads cannot cross zone types boundaries */
+		/* For host-managed, reads cananalt cross zone types boundaries */
 		if (zsp->z_type != zsp_end->z_type) {
 			mk_sense_buffer(scp, ILLEGAL_REQUEST,
 					LBA_OUT_OF_RANGE,
@@ -3205,14 +3205,14 @@ static int check_zbc_access_params(struct scsi_cmnd *scp,
 		return 0;
 	}
 
-	/* Writing into a gap zone is not allowed */
+	/* Writing into a gap zone is analt allowed */
 	if (zbc_zone_is_gap(zsp)) {
 		mk_sense_buffer(scp, ILLEGAL_REQUEST, LBA_OUT_OF_RANGE,
 				ATTEMPT_ACCESS_GAP);
 		return check_condition_result;
 	}
 
-	/* No restrictions for writes within conventional zones */
+	/* Anal restrictions for writes within conventional zones */
 	if (zbc_zone_is_conv(zsp)) {
 		if (!zbc_zone_is_conv(zsp_end)) {
 			mk_sense_buffer(scp, ILLEGAL_REQUEST,
@@ -3224,14 +3224,14 @@ static int check_zbc_access_params(struct scsi_cmnd *scp,
 	}
 
 	if (zsp->z_type == ZBC_ZTYPE_SWR) {
-		/* Writes cannot cross sequential zone boundaries */
+		/* Writes cananalt cross sequential zone boundaries */
 		if (zsp_end != zsp) {
 			mk_sense_buffer(scp, ILLEGAL_REQUEST,
 					LBA_OUT_OF_RANGE,
 					WRITE_BOUNDARY_ASCQ);
 			return check_condition_result;
 		}
-		/* Cannot write full zones */
+		/* Cananalt write full zones */
 		if (zsp->z_cond == ZC5_FULL) {
 			mk_sense_buffer(scp, ILLEGAL_REQUEST,
 					INVALID_FIELD_IN_CDB, 0);
@@ -3289,7 +3289,7 @@ static inline int check_device_access_params
 }
 
 /*
- * Note: if BUG_ON() fires it usually indicates a problem with the parser
+ * Analte: if BUG_ON() fires it usually indicates a problem with the parser
  * tables. Perhaps a missing F_FAKE_RW or FF_MEDIA_IO flag. Response functions
  * that access any of the "stores" in struct sdeb_store_info should call this
  * function with bug_if_fake_rw set to true.
@@ -3298,7 +3298,7 @@ static inline struct sdeb_store_info *devip2sip(struct sdebug_dev_info *devip,
 						bool bug_if_fake_rw)
 {
 	if (sdebug_fake_rw) {
-		BUG_ON(bug_if_fake_rw);	/* See note above */
+		BUG_ON(bug_if_fake_rw);	/* See analte above */
 		return NULL;
 	}
 	return xa_load(per_store_ap, devip->sdbg_host->si_idx);
@@ -3498,7 +3498,7 @@ static int prot_verify_read(struct scsi_cmnd *scp, sector_t start_sec,
 		/*
 		 * Because scsi_debug acts as both initiator and
 		 * target we proceed to verify the PI even if
-		 * RDPROTECT=3. This is done so the "initiator" knows
+		 * RDPROTECT=3. This is done so the "initiator" kanalws
 		 * which type of error to return. Otherwise we would
 		 * have to iterate over the PI twice.
 		 */
@@ -3521,7 +3521,7 @@ static int prot_verify_read(struct scsi_cmnd *scp, sector_t start_sec,
 static inline void
 sdeb_read_lock(struct sdeb_store_info *sip)
 {
-	if (sdebug_no_rwlock) {
+	if (sdebug_anal_rwlock) {
 		if (sip)
 			__acquire(&sip->macc_lck);
 		else
@@ -3537,7 +3537,7 @@ sdeb_read_lock(struct sdeb_store_info *sip)
 static inline void
 sdeb_read_unlock(struct sdeb_store_info *sip)
 {
-	if (sdebug_no_rwlock) {
+	if (sdebug_anal_rwlock) {
 		if (sip)
 			__release(&sip->macc_lck);
 		else
@@ -3553,7 +3553,7 @@ sdeb_read_unlock(struct sdeb_store_info *sip)
 static inline void
 sdeb_write_lock(struct sdeb_store_info *sip)
 {
-	if (sdebug_no_rwlock) {
+	if (sdebug_anal_rwlock) {
 		if (sip)
 			__acquire(&sip->macc_lck);
 		else
@@ -3569,7 +3569,7 @@ sdeb_write_lock(struct sdeb_store_info *sip)
 static inline void
 sdeb_write_unlock(struct sdeb_store_info *sip)
 {
-	if (sdebug_no_rwlock) {
+	if (sdebug_anal_rwlock) {
 		if (sip)
 			__release(&sip->macc_lck);
 		else
@@ -4013,7 +4013,7 @@ static int resp_write_dt0(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 
 /*
  * T10 has only specified WRITE SCATTERED(16) and WRITE SCATTERED(32).
- * No READ GATHERED yet (requires bidi or long cdb holding gather list).
+ * Anal READ GATHERED yet (requires bidi or long cdb holding gather list).
  */
 static int resp_write_scat(struct scsi_cmnd *scp,
 			   struct sdebug_dev_info *devip)
@@ -4058,7 +4058,7 @@ static int resp_write_scat(struct scsi_cmnd *scp,
 		}
 	}
 	if ((num_lrd == 0) || (bt_len == 0))
-		return 0;       /* T10 says these do-nothings are not errors */
+		return 0;       /* T10 says these do-analthings are analt errors */
 	if (lbdof == 0) {
 		if (sdebug_verbose)
 			sdev_printk(KERN_INFO, scp->device,
@@ -4076,7 +4076,7 @@ static int resp_write_scat(struct scsi_cmnd *scp,
 		mk_sense_buffer(scp, ILLEGAL_REQUEST, INVALID_FIELD_IN_CDB, 0);
 		return illegal_condition_result;
 	}
-	lrdp = kzalloc(lbdof_blen, GFP_ATOMIC | __GFP_NOWARN);
+	lrdp = kzalloc(lbdof_blen, GFP_ATOMIC | __GFP_ANALWARN);
 	if (lrdp == NULL)
 		return SCSI_MLQUEUE_HOST_BUSY;
 	if (sdebug_verbose)
@@ -4281,7 +4281,7 @@ static int resp_write_same_16(struct scsi_cmnd *scp,
 		} else
 			unmap = true;
 	}
-	if (cmd[1] & 0x1)  /* NDOB (no data-out buffer, assumes zeroes) */
+	if (cmd[1] & 0x1)  /* NDOB (anal data-out buffer, assumes zeroes) */
 		ndob = true;
 	lba = get_unaligned_be64(cmd + 2);
 	num = get_unaligned_be32(cmd + 10);
@@ -4292,7 +4292,7 @@ static int resp_write_same_16(struct scsi_cmnd *scp,
 	return resp_write_same(scp, lba, num, ei_lba, unmap, ndob);
 }
 
-/* Note the mode field is in the same position as the (lower) service action
+/* Analte the mode field is in the same position as the (lower) service action
  * field. For the Report supported operation codes command, SPC-4 suggests
  * each mode of this command should be reported separately; for future. */
 static int resp_write_buffer(struct scsi_cmnd *scp,
@@ -4335,7 +4335,7 @@ static int resp_write_buffer(struct scsi_cmnd *scp,
 					dp->uas_bm);
 		break;
 	default:
-		/* do nothing for this command for other mode values */
+		/* do analthing for this command for other mode values */
 		break;
 	}
 	return 0;
@@ -4357,7 +4357,7 @@ static int resp_comp_write(struct scsi_cmnd *scp,
 	lba = get_unaligned_be64(cmd + 2);
 	num = cmd[13];		/* 1 to a maximum of 255 logical blocks */
 	if (0 == num)
-		return 0;	/* degenerate case, not an error */
+		return 0;	/* degenerate case, analt an error */
 	if (sdebug_dif == T10_PI_TYPE2_PROTECTION &&
 	    (cmd[1] & 0xe0)) {
 		mk_sense_invalid_opcode(scp);
@@ -4534,7 +4534,7 @@ static int resp_sync_cache(struct scsi_cmnd *scp,
 }
 
 /*
- * Assuming the LBA+num_blocks is not out-of-range, this function will return
+ * Assuming the LBA+num_blocks is analt out-of-range, this function will return
  * CONDITION MET if the specified blocks will/have fitted in the cache, and
  * a GOOD status otherwise. Model a disk with a big cache and yield
  * CONDITION MET. Actually tries to bring range in main memory into the
@@ -4564,7 +4564,7 @@ static int resp_pre_fetch(struct scsi_cmnd *scp,
 	}
 	if (!fsp)
 		goto fini;
-	/* PRE-FETCH spec says nothing about LBP or PI so skip them */
+	/* PRE-FETCH spec says analthing about LBP or PI so skip them */
 	block = do_div(lba, sdebug_store_sectors);
 	if (block + nblks > sdebug_store_sectors)
 		rest = block + nblks - sdebug_store_sectors;
@@ -4584,8 +4584,8 @@ fini:
 
 #define RL_BUCKET_ELEMS 8
 
-/* Even though each pseudo target has a REPORT LUNS "well known logical unit"
- * (W-LUN), the normal Linux scanning logic does not associate it with a
+/* Even though each pseudo target has a REPORT LUNS "well kanalwn logical unit"
+ * (W-LUN), the analrmal Linux scanning logic does analt associate it with a
  * device (e.g. /dev/sg7). The following magic will make that association:
  *   "cd /sys/class/scsi_host/host<n> ; echo '- - 49409' > scan"
  * where <n> is a host number. If there are multiple targets in a host then
@@ -4601,7 +4601,7 @@ static int resp_report_luns(struct scsi_cmnd *scp,
 	u64 lun;
 	struct scsi_lun *lun_p;
 	u8 arr[RL_BUCKET_ELEMS * sizeof(struct scsi_lun)];
-	unsigned int lun_cnt;	/* normal LUN count (max: 256) */
+	unsigned int lun_cnt;	/* analrmal LUN count (max: 256) */
 	unsigned int wlun_cnt;	/* report luns W-LUN count */
 	unsigned int tlun_cnt;	/* total LUN count */
 	unsigned int rlen;	/* response length (in bytes) */
@@ -4642,17 +4642,17 @@ static int resp_report_luns(struct scsi_cmnd *scp,
 		return check_condition_result;
 	}
 
-	if (sdebug_no_lun_0 && (lun_cnt > 0))
+	if (sdebug_anal_lun_0 && (lun_cnt > 0))
 		--lun_cnt;
 
 	tlun_cnt = lun_cnt + wlun_cnt;
 	rlen = tlun_cnt * sz_lun;	/* excluding 8 byte header */
 	scsi_set_resid(scp, scsi_bufflen(scp));
-	pr_debug("select_report %d luns = %d wluns = %d no_lun0 %d\n",
-		 select_report, lun_cnt, wlun_cnt, sdebug_no_lun_0);
+	pr_debug("select_report %d luns = %d wluns = %d anal_lun0 %d\n",
+		 select_report, lun_cnt, wlun_cnt, sdebug_anal_lun_0);
 
 	/* loops rely on sizeof response header same as sizeof lun (both 8) */
-	lun = sdebug_no_lun_0 ? 1 : 0;
+	lun = sdebug_anal_lun_0 ? 1 : 0;
 	for (k = 0, j = 0, res = 0; true; ++k, j = 0) {
 		memset(arr, 0, sizeof(arr));
 		lun_p = (struct scsi_lun *)&arr[0];
@@ -4720,20 +4720,20 @@ static int resp_verify(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 		return check_condition_result;
 	}
 	if (vnum == 0)
-		return 0;	/* not an error */
+		return 0;	/* analt an error */
 	a_num = is_bytchk3 ? 1 : vnum;
-	/* Treat following check like one for read (i.e. no write) access */
+	/* Treat following check like one for read (i.e. anal write) access */
 	ret = check_device_access_params(scp, lba, a_num, false);
 	if (ret)
 		return ret;
 
-	arr = kcalloc(lb_size, vnum, GFP_ATOMIC | __GFP_NOWARN);
+	arr = kcalloc(lb_size, vnum, GFP_ATOMIC | __GFP_ANALWARN);
 	if (!arr) {
 		mk_sense_buffer(scp, ILLEGAL_REQUEST, INSUFF_RES_ASC,
 				INSUFF_RES_ASCQ);
 		return check_condition_result;
 	}
-	/* Not changing store, so only need read access */
+	/* Analt changing store, so only need read access */
 	sdeb_read_lock(sip);
 
 	ret = do_dout_fetch(scp, a_num, arr);
@@ -4784,7 +4784,7 @@ static int resp_report_zones(struct scsi_cmnd *scp,
 	zs_lba = get_unaligned_be64(cmd + 2);
 	alloc_len = get_unaligned_be32(cmd + 10);
 	if (alloc_len == 0)
-		return 0;	/* not an error */
+		return 0;	/* analt an error */
 	rep_opts = cmd[14] & 0x3f;
 	partial = cmd[14] & 0x80;
 
@@ -4795,7 +4795,7 @@ static int resp_report_zones(struct scsi_cmnd *scp,
 
 	rep_max_zones = (alloc_len - 64) >> ilog2(RZONES_DESC_HD);
 
-	arr = kzalloc(alloc_len, GFP_ATOMIC | __GFP_NOWARN);
+	arr = kzalloc(alloc_len, GFP_ATOMIC | __GFP_ANALWARN);
 	if (!arr) {
 		mk_sense_buffer(scp, ILLEGAL_REQUEST, INSUFF_RES_ASC,
 				INSUFF_RES_ASCQ);
@@ -4844,12 +4844,12 @@ static int resp_report_zones(struct scsi_cmnd *scp,
 		case 0x10:
 			/*
 			 * Read-only, offline, reset WP recommended are
-			 * not emulated: no zones to report;
+			 * analt emulated: anal zones to report;
 			 */
 			continue;
 		case 0x11:
-			/* non-seq-resource set */
-			if (!zsp->z_non_seq_resource)
+			/* analn-seq-resource set */
+			if (!zsp->z_analn_seq_resource)
 				continue;
 			break;
 		case 0x3e:
@@ -4858,7 +4858,7 @@ static int resp_report_zones(struct scsi_cmnd *scp,
 				continue;
 			break;
 		case 0x3f:
-			/* Not write pointer (conventional) zones */
+			/* Analt write pointer (conventional) zones */
 			if (zbc_zone_is_seq(zsp))
 				continue;
 			break;
@@ -4873,7 +4873,7 @@ static int resp_report_zones(struct scsi_cmnd *scp,
 			/* Fill zone descriptor */
 			desc[0] = zsp->z_type;
 			desc[1] = zsp->z_cond << 4;
-			if (zsp->z_non_seq_resource)
+			if (zsp->z_analn_seq_resource)
 				desc[1] |= 1 << 1;
 			put_unaligned_be64((u64)zsp->z_size, desc + 8);
 			put_unaligned_be64((u64)zsp->z_start, desc + 16);
@@ -5133,7 +5133,7 @@ static void zbc_rwp_zone(struct sdebug_dev_info *devip,
 		memset(sip->storep + zsp->z_start * sdebug_sector_size, 0,
 		       (zsp->z_wp - zsp->z_start) * sdebug_sector_size);
 
-	zsp->z_non_seq_resource = false;
+	zsp->z_analn_seq_resource = false;
 	zsp->z_wp = zsp->z_start;
 	zsp->z_cond = ZC1_EMPTY;
 }
@@ -5243,7 +5243,7 @@ static enum hrtimer_restart sdebug_q_cmd_hrt_complete(struct hrtimer *timer)
 	struct sdebug_defer *sd_dp = container_of(timer, struct sdebug_defer,
 						  hrt);
 	sdebug_q_cmd_complete(sd_dp);
-	return HRTIMER_NORESTART;
+	return HRTIMER_ANALRESTART;
 }
 
 /* When work queue schedules work, it calls this function. */
@@ -5266,7 +5266,7 @@ static int sdebug_device_create_zones(struct sdebug_dev_info *devip)
 	unsigned int i;
 
 	/*
-	 * Set the zone size: if sdeb_zbc_zone_size_mb is not set, figure out
+	 * Set the zone size: if sdeb_zbc_zone_size_mb is analt set, figure out
 	 * a zone size allowing for at least 4 zones on the device. Otherwise,
 	 * use the specified zone size checking that at least 2 zones can be
 	 * created for the device.
@@ -5282,7 +5282,7 @@ static int sdebug_device_create_zones(struct sdebug_dev_info *devip)
 		}
 	} else {
 		if (!is_power_of_2(sdeb_zbc_zone_size_mb)) {
-			pr_err("Zone size is not a power of 2\n");
+			pr_err("Zone size is analt a power of 2\n");
 			return -EINVAL;
 		}
 		devip->zsize = (sdeb_zbc_zone_size_mb * SZ_1M)
@@ -5322,7 +5322,7 @@ static int sdebug_device_create_zones(struct sdebug_dev_info *devip)
 		devip->nr_zones += devip->nr_seq_zones;
 
 	if (devip->zoned) {
-		/* zbc_max_open_zones can be 0, meaning "not reported" */
+		/* zbc_max_open_zones can be 0, meaning "analt reported" */
 		if (sdeb_zbc_max_open >= devip->nr_zones - 1)
 			devip->max_open = (devip->nr_zones - 1) / 2;
 		else
@@ -5332,7 +5332,7 @@ static int sdebug_device_create_zones(struct sdebug_dev_info *devip)
 	devip->zstate = kcalloc(devip->nr_zones,
 				sizeof(struct sdeb_zone_state), GFP_KERNEL);
 	if (!devip->zstate)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < devip->nr_zones; i++) {
 		zsp = &devip->zstate[i];
@@ -5341,7 +5341,7 @@ static int sdebug_device_create_zones(struct sdebug_dev_info *devip)
 
 		if (i < devip->nr_conv_zones) {
 			zsp->z_type = ZBC_ZTYPE_CNV;
-			zsp->z_cond = ZBC_NOT_WRITE_POINTER;
+			zsp->z_cond = ZBC_ANALT_WRITE_POINTER;
 			zsp->z_wp = (sector_t)-1;
 			zsp->z_size =
 				min_t(u64, devip->zsize, capacity - zstart);
@@ -5356,7 +5356,7 @@ static int sdebug_device_create_zones(struct sdebug_dev_info *devip)
 				min_t(u64, devip->zcap, capacity - zstart);
 		} else {
 			zsp->z_type = ZBC_ZTYPE_GAP;
-			zsp->z_cond = ZBC_NOT_WRITE_POINTER;
+			zsp->z_cond = ZBC_ANALT_WRITE_POINTER;
 			zsp->z_wp = (sector_t)-1;
 			zsp->z_size = min_t(u64, devip->zsize - devip->zcap,
 					    capacity - zstart);
@@ -5445,7 +5445,7 @@ static int scsi_debug_slave_alloc(struct scsi_device *sdp)
 {
 	if (sdebug_verbose)
 		pr_info("slave_alloc <%u %u %u %llu>\n",
-		       sdp->host->host_no, sdp->channel, sdp->id, sdp->lun);
+		       sdp->host->host_anal, sdp->channel, sdp->id, sdp->lun);
 
 	return 0;
 }
@@ -5458,17 +5458,17 @@ static int scsi_debug_slave_configure(struct scsi_device *sdp)
 
 	if (sdebug_verbose)
 		pr_info("slave_configure <%u %u %u %llu>\n",
-		       sdp->host->host_no, sdp->channel, sdp->id, sdp->lun);
+		       sdp->host->host_anal, sdp->channel, sdp->id, sdp->lun);
 	if (sdp->host->max_cmd_len != SDEBUG_MAX_CMD_LEN)
 		sdp->host->max_cmd_len = SDEBUG_MAX_CMD_LEN;
 	if (devip == NULL) {
 		devip = find_build_dev_info(sdp);
 		if (devip == NULL)
-			return 1;  /* no resources, will be marked offline */
+			return 1;  /* anal resources, will be marked offline */
 	}
 	sdp->hostdata = devip;
-	if (sdebug_no_uld)
-		sdp->no_uld_attach = 1;
+	if (sdebug_anal_uld)
+		sdp->anal_uld_attach = 1;
 	config_cdb_len(sdp);
 
 	if (sdebug_allow_restart)
@@ -5497,7 +5497,7 @@ static void scsi_debug_slave_destroy(struct scsi_device *sdp)
 
 	if (sdebug_verbose)
 		pr_info("slave_destroy <%u %u %u %llu>\n",
-		       sdp->host->host_no, sdp->channel, sdp->id, sdp->lun);
+		       sdp->host->host_anal, sdp->channel, sdp->id, sdp->lun);
 
 	if (!devip)
 		return;
@@ -5524,10 +5524,10 @@ static bool stop_qc_helper(struct sdebug_defer *sd_dp,
 		int res = hrtimer_try_to_cancel(&sd_dp->hrt);
 
 		switch (res) {
-		case 0: /* Not active, it must have already run */
+		case 0: /* Analt active, it must have already run */
 		case -1: /* -1 It's executing the CB */
 			return false;
-		case 1: /* Was active, we've now cancelled */
+		case 1: /* Was active, we've analw cancelled */
 		default:
 			return true;
 		}
@@ -5535,7 +5535,7 @@ static bool stop_qc_helper(struct sdebug_defer *sd_dp,
 		/* Cancel if pending */
 		if (cancel_work_sync(&sd_dp->ew.work))
 			return true;
-		/* Was not pending, so it must have run */
+		/* Was analt pending, so it must have run */
 		return false;
 	} else if (defer_t == SDEB_DEFER_POLL) {
 		return true;
@@ -5584,7 +5584,7 @@ static bool scsi_debug_abort_cmnd(struct scsi_cmnd *cmnd)
 
 /*
  * All we can do is set the cmnd as internally aborted and wait for it to
- * finish. We cannot call scsi_done() as normal completion path may do that.
+ * finish. We cananalt call scsi_done() as analrmal completion path may do that.
  */
 static bool sdebug_stop_cmnd(struct request *rq, void *data)
 {
@@ -5643,10 +5643,10 @@ static int scsi_debug_abort(struct scsi_cmnd *SCpnt)
 
 	++num_aborts;
 
-	if (SDEBUG_OPT_ALL_NOISE & sdebug_opts)
+	if (SDEBUG_OPT_ALL_ANALISE & sdebug_opts)
 		sdev_printk(KERN_INFO, SCpnt->device,
 			    "%s: command%s found\n", __func__,
-			    ok ? "" : " not");
+			    ok ? "" : " analt");
 
 	if (sdebug_fail_abort(SCpnt)) {
 		scmd_printk(KERN_INFO, SCpnt, "fail abort command 0x%x\n",
@@ -5714,7 +5714,7 @@ static int scsi_debug_device_reset(struct scsi_cmnd *SCpnt)
 
 	++num_dev_resets;
 
-	if (SDEBUG_OPT_ALL_NOISE & sdebug_opts)
+	if (SDEBUG_OPT_ALL_ANALISE & sdebug_opts)
 		sdev_printk(KERN_INFO, sdp, "%s\n", __func__);
 
 	scsi_debug_stop_all_queued(sdp);
@@ -5751,7 +5751,7 @@ static int scsi_debug_target_reset(struct scsi_cmnd *SCpnt)
 	int k = 0;
 
 	++num_target_resets;
-	if (SDEBUG_OPT_ALL_NOISE & sdebug_opts)
+	if (SDEBUG_OPT_ALL_ANALISE & sdebug_opts)
 		sdev_printk(KERN_INFO, sdp, "%s\n", __func__);
 
 	list_for_each_entry(devip, &sdbg_host->dev_info_list, dev_list) {
@@ -5761,7 +5761,7 @@ static int scsi_debug_target_reset(struct scsi_cmnd *SCpnt)
 		}
 	}
 
-	if (SDEBUG_OPT_RESET_NOISE & sdebug_opts)
+	if (SDEBUG_OPT_RESET_ANALISE & sdebug_opts)
 		sdev_printk(KERN_INFO, sdp,
 			    "%s: %d device(s) found in target\n", __func__, k);
 
@@ -5783,7 +5783,7 @@ static int scsi_debug_bus_reset(struct scsi_cmnd *SCpnt)
 
 	++num_bus_resets;
 
-	if (SDEBUG_OPT_ALL_NOISE & sdebug_opts)
+	if (SDEBUG_OPT_ALL_ANALISE & sdebug_opts)
 		sdev_printk(KERN_INFO, sdp, "%s\n", __func__);
 
 	list_for_each_entry(devip, &sdbg_host->dev_info_list, dev_list) {
@@ -5791,7 +5791,7 @@ static int scsi_debug_bus_reset(struct scsi_cmnd *SCpnt)
 		++k;
 	}
 
-	if (SDEBUG_OPT_RESET_NOISE & sdebug_opts)
+	if (SDEBUG_OPT_RESET_ANALISE & sdebug_opts)
 		sdev_printk(KERN_INFO, sdp,
 			    "%s: %d device(s) found in host\n", __func__, k);
 	return SUCCESS;
@@ -5804,7 +5804,7 @@ static int scsi_debug_host_reset(struct scsi_cmnd *SCpnt)
 	int k = 0;
 
 	++num_host_resets;
-	if (SDEBUG_OPT_ALL_NOISE & sdebug_opts)
+	if (SDEBUG_OPT_ALL_ANALISE & sdebug_opts)
 		sdev_printk(KERN_INFO, SCpnt->device, "%s\n", __func__);
 	mutex_lock(&sdebug_host_list_mutex);
 	list_for_each_entry(sdbg_host, &sdebug_host_list, host_list) {
@@ -5816,7 +5816,7 @@ static int scsi_debug_host_reset(struct scsi_cmnd *SCpnt)
 	}
 	mutex_unlock(&sdebug_host_list_mutex);
 	stop_all_queued();
-	if (SDEBUG_OPT_RESET_NOISE & sdebug_opts)
+	if (SDEBUG_OPT_RESET_ANALISE & sdebug_opts)
 		sdev_printk(KERN_INFO, SCpnt->device,
 			    "%s: %d device(s) found\n", __func__, k);
 	return SUCCESS;
@@ -5892,7 +5892,7 @@ static void block_unblock_all_queues(bool block)
 }
 
 /* Adjust (by rounding down) the sdebug_cmnd_count so abs(every_nth)-1
- * commands will be processed normally before triggers occur.
+ * commands will be processed analrmally before triggers occur.
  */
 static void tweak_cmnd_count(void)
 {
@@ -5945,7 +5945,7 @@ static struct sdebug_queued_cmd *sdebug_alloc_queued_cmd(struct scsi_cmnd *scmd)
 
 	sd_dp = &sqcp->sd_dp;
 
-	hrtimer_init(&sd_dp->hrt, CLOCK_MONOTONIC, HRTIMER_MODE_REL_PINNED);
+	hrtimer_init(&sd_dp->hrt, CLOCK_MOANALTONIC, HRTIMER_MODE_REL_PINNED);
 	sd_dp->hrt.function = sdebug_q_cmd_hrt_complete;
 	INIT_WORK(&sd_dp->ew.work, sdebug_q_cmd_wq_complete);
 
@@ -5976,7 +5976,7 @@ static int schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 
 	if (unlikely(devip == NULL)) {
 		if (scsi_result == 0)
-			scsi_result = DID_NO_CONNECT << 16;
+			scsi_result = DID_ANAL_CONNECT << 16;
 		goto respond_in_thread;
 	}
 	sdp = cmnd->device;
@@ -5996,7 +5996,7 @@ static int schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 			atomic_set(&sdebug_a_tsf, 0);
 			scsi_result = device_qfull_result;
 
-			if (unlikely(SDEBUG_OPT_Q_NOISE & sdebug_opts))
+			if (unlikely(SDEBUG_OPT_Q_ANALISE & sdebug_opts))
 				sdev_printk(KERN_INFO, sdp, "%s: num_in_q=%d +1, <inject> status: TASK SET FULL\n",
 					    __func__, num_in_q);
 		}
@@ -6004,7 +6004,7 @@ static int schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 
 	sqcp = sdebug_alloc_queued_cmd(cmnd);
 	if (!sqcp) {
-		pr_err("%s no alloc\n", __func__);
+		pr_err("%s anal alloc\n", __func__);
 		return SCSI_MLQUEUE_HOST_BUSY;
 	}
 	sd_dp = &sqcp->sd_dp;
@@ -6029,7 +6029,7 @@ static int schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 	}
 
 	if (unlikely(sdebug_verbose && cmnd->result))
-		sdev_printk(KERN_INFO, sdp, "%s: non-zero result=0x%x\n",
+		sdev_printk(KERN_INFO, sdp, "%s: analn-zero result=0x%x\n",
 			    __func__, cmnd->result);
 
 	if (delta_jiff > 0 || ndelay > 0) {
@@ -6079,7 +6079,7 @@ static int schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 			hrtimer_start(&sd_dp->hrt, kt, HRTIMER_MODE_REL_PINNED);
 			/*
 			 * The completion handler will try to grab sqcp->lock,
-			 * so there is no chance that the completion handler
+			 * so there is anal chance that the completion handler
 			 * will call scsi_done() until we release the lock
 			 * here (so ok to keep referencing sdsc).
 			 */
@@ -6122,9 +6122,9 @@ respond_in_thread:	/* call back to mid-layer using invocation thread */
 	return 0;
 }
 
-/* Note: The following macros create attribute files in the
+/* Analte: The following macros create attribute files in the
    /sys/module/scsi_debug/parameters directory. Unfortunately this
-   driver is unaware of a change and cannot trigger auxiliary actions
+   driver is unaware of a change and cananalt trigger auxiliary actions
    as it can when the corresponding attribute in the
    /sys/bus/pseudo/drivers/scsi_debug directory is changed.
  */
@@ -6161,9 +6161,9 @@ module_param_named(medium_error_count, sdebug_medium_error_count, int,
 module_param_named(medium_error_start, sdebug_medium_error_start, int,
 		   S_IRUGO | S_IWUSR);
 module_param_named(ndelay, sdebug_ndelay, int, S_IRUGO | S_IWUSR);
-module_param_named(no_lun_0, sdebug_no_lun_0, int, S_IRUGO | S_IWUSR);
-module_param_named(no_rwlock, sdebug_no_rwlock, bool, S_IRUGO | S_IWUSR);
-module_param_named(no_uld, sdebug_no_uld, int, S_IRUGO);
+module_param_named(anal_lun_0, sdebug_anal_lun_0, int, S_IRUGO | S_IWUSR);
+module_param_named(anal_rwlock, sdebug_anal_rwlock, bool, S_IRUGO | S_IWUSR);
+module_param_named(anal_uld, sdebug_anal_uld, int, S_IRUGO);
 module_param_named(num_parts, sdebug_num_parts, int, S_IRUGO);
 module_param_named(num_tgts, sdebug_num_tgts, int, S_IRUGO | S_IWUSR);
 module_param_named(opt_blks, sdebug_opt_blks, int, S_IRUGO);
@@ -6188,7 +6188,7 @@ module_param_named(unmap_max_blocks, sdebug_unmap_max_blocks, int, S_IRUGO);
 module_param_named(unmap_max_desc, sdebug_unmap_max_desc, int, S_IRUGO);
 module_param_named(uuid_ctl, sdebug_uuid_ctl, int, S_IRUGO);
 module_param_named(virtual_gb, sdebug_virtual_gb, int, S_IRUGO | S_IWUSR);
-module_param_named(vpd_use_hostno, sdebug_vpd_use_hostno, int,
+module_param_named(vpd_use_hostanal, sdebug_vpd_use_hostanal, int,
 		   S_IRUGO | S_IWUSR);
 module_param_named(wp, sdebug_wp, bool, S_IRUGO | S_IWUSR);
 module_param_named(write_same_length, sdebug_write_same_length, int,
@@ -6217,7 +6217,7 @@ MODULE_PARM_DESC(dsense, "use descriptor sense format(def=0 -> fixed)");
 MODULE_PARM_DESC(every_nth, "timeout every nth command(def=0)");
 MODULE_PARM_DESC(fake_rw, "fake reads/writes instead of copying (def=0)");
 MODULE_PARM_DESC(guard, "protection checksum: 0=crc, 1=ip (def=0)");
-MODULE_PARM_DESC(host_lock, "host_lock is ignored (def=0)");
+MODULE_PARM_DESC(host_lock, "host_lock is iganalred (def=0)");
 MODULE_PARM_DESC(host_max_queue,
 		 "host max # of queued cmds (0 to max(def) [max_queue fixed equal for !0])");
 MODULE_PARM_DESC(inq_product, "SCSI INQUIRY product string (def=\"scsi_debug\")");
@@ -6235,15 +6235,15 @@ MODULE_PARM_DESC(max_luns, "number of LUNs per target to simulate(def=1)");
 MODULE_PARM_DESC(max_queue, "max number of queued commands (1 to max(def))");
 MODULE_PARM_DESC(medium_error_count, "count of sectors to return follow on MEDIUM error");
 MODULE_PARM_DESC(medium_error_start, "starting sector number to return MEDIUM error");
-MODULE_PARM_DESC(ndelay, "response delay in nanoseconds (def=0 -> ignore)");
-MODULE_PARM_DESC(no_lun_0, "no LU number 0 (def=0 -> have lun 0)");
-MODULE_PARM_DESC(no_rwlock, "don't protect user data reads+writes (def=0)");
-MODULE_PARM_DESC(no_uld, "stop ULD (e.g. sd driver) attaching (def=0))");
+MODULE_PARM_DESC(ndelay, "response delay in naanalseconds (def=0 -> iganalre)");
+MODULE_PARM_DESC(anal_lun_0, "anal LU number 0 (def=0 -> have lun 0)");
+MODULE_PARM_DESC(anal_rwlock, "don't protect user data reads+writes (def=0)");
+MODULE_PARM_DESC(anal_uld, "stop ULD (e.g. sd driver) attaching (def=0))");
 MODULE_PARM_DESC(num_parts, "number of partitions(def=0)");
 MODULE_PARM_DESC(num_tgts, "number of targets per host to simulate(def=1)");
 MODULE_PARM_DESC(opt_blks, "optimal transfer length in blocks (def=1024)");
 MODULE_PARM_DESC(opt_xferlen_exp, "optimal transfer length granularity exponent (def=physblk_exp)");
-MODULE_PARM_DESC(opts, "1->noise, 2->medium_err, 4->timeout, 8->recovered_err... (def=0)");
+MODULE_PARM_DESC(opts, "1->analise, 2->medium_err, 4->timeout, 8->recovered_err... (def=0)");
 MODULE_PARM_DESC(per_host_store, "If set, next positive add_host will get new store (def=0)");
 MODULE_PARM_DESC(physblk_exp, "physical block exponent (def=0)");
 MODULE_PARM_DESC(poll_queues, "support for iouring iopoll queues (1 to max(submit_queues - 1))");
@@ -6263,12 +6263,12 @@ MODULE_PARM_DESC(unmap_max_desc, "max # of ranges that can be unmapped in one cm
 MODULE_PARM_DESC(uuid_ctl,
 		 "1->use uuid for lu name, 0->don't, 2->all use same (def=0)");
 MODULE_PARM_DESC(virtual_gb, "virtual gigabyte (GiB) size (def=0 -> use dev_size_mb)");
-MODULE_PARM_DESC(vpd_use_hostno, "0 -> dev ids ignore hostno (def=1 -> unique dev ids)");
+MODULE_PARM_DESC(vpd_use_hostanal, "0 -> dev ids iganalre hostanal (def=1 -> unique dev ids)");
 MODULE_PARM_DESC(wp, "Write Protect (def=0)");
 MODULE_PARM_DESC(write_same_length, "Maximum blocks per WRITE SAME cmd (def=0xffff)");
-MODULE_PARM_DESC(zbc, "'none' [0]; 'aware' [1]; 'managed' [2] (def=0). Can have 'host-' prefix");
+MODULE_PARM_DESC(zbc, "'analne' [0]; 'aware' [1]; 'managed' [2] (def=0). Can have 'host-' prefix");
 MODULE_PARM_DESC(zone_cap_mb, "Zone capacity in MiB (def=zone size)");
-MODULE_PARM_DESC(zone_max_open, "Maximum number of open zones; [0] for no limit (def=auto)");
+MODULE_PARM_DESC(zone_max_open, "Maximum number of open zones; [0] for anal limit (def=auto)");
 MODULE_PARM_DESC(zone_nr_conv, "Number of conventional zones (def=1)");
 MODULE_PARM_DESC(zone_size_mb, "Zone size in MiB (def=auto)");
 MODULE_PARM_DESC(allow_restart, "Set scsi_device's allow_restart flag(def=0)");
@@ -6306,7 +6306,7 @@ static int scsi_debug_write_info(struct Scsi_Host *host, char *buffer,
 	if (1 != sscanf(arr, "%d", &opts))
 		return -EINVAL;
 	sdebug_opts = opts;
-	sdebug_verbose = !!(SDEBUG_OPT_NOISE & opts);
+	sdebug_verbose = !!(SDEBUG_OPT_ANALISE & opts);
 	sdebug_any_injecting_opt = !!(SDEBUG_OPT_ALL_INJECTING & opts);
 	if (sdebug_every_nth != 0)
 		tweak_cmnd_count();
@@ -6341,7 +6341,7 @@ static bool sdebug_submit_queue_iter(struct request *rq, void *opaque)
 
 /* Output seen with 'cat /proc/scsi/scsi_debug/<host_id>'. It will be the
  * same for each scsi_debug host (if more than one). Some of the counters
- * output are not atomics so might be inaccurate in a busy system. */
+ * output are analt atomics so might be inaccurate in a busy system. */
 static int scsi_debug_show_info(struct seq_file *m, struct Scsi_Host *host)
 {
 	struct sdebug_host_info *sdhp;
@@ -6389,7 +6389,7 @@ static int scsi_debug_show_info(struct seq_file *m, struct Scsi_Host *host)
 		}
 	}
 
-	seq_printf(m, "this host_no=%d\n", host->host_no);
+	seq_printf(m, "this host_anal=%d\n", host->host_anal);
 	if (!xa_empty(per_store_ap)) {
 		bool niu;
 		int idx;
@@ -6400,8 +6400,8 @@ static int scsi_debug_show_info(struct seq_file *m, struct Scsi_Host *host)
 		j = 0;
 		list_for_each_entry(sdhp, &sdebug_host_list, host_list) {
 			idx = sdhp->si_idx;
-			seq_printf(m, "  %d: host_no=%d, si_idx=%d\n", j,
-				   sdhp->shost->host_no, idx);
+			seq_printf(m, "  %d: host_anal=%d, si_idx=%d\n", j,
+				   sdhp->shost->host_anal, idx);
 			++j;
 		}
 		seq_printf(m, "\nper_store array [most_recent_idx=%d]:\n",
@@ -6409,10 +6409,10 @@ static int scsi_debug_show_info(struct seq_file *m, struct Scsi_Host *host)
 		j = 0;
 		xa_for_each(per_store_ap, l_idx, sip) {
 			niu = xa_get_mark(per_store_ap, l_idx,
-					  SDEB_XA_NOT_IN_USE);
+					  SDEB_XA_ANALT_IN_USE);
 			idx = (int)l_idx;
 			seq_printf(m, "  %d: idx=%d%s\n", j, idx,
-				   (niu ? "  not_in_use" : ""));
+				   (niu ? "  analt_in_use" : ""));
 			++j;
 		}
 	}
@@ -6526,7 +6526,7 @@ static ssize_t opts_store(struct device_driver *ddp, const char *buf,
 	return -EINVAL;
 opts_done:
 	sdebug_opts = opts;
-	sdebug_verbose = !!(SDEBUG_OPT_NOISE & opts);
+	sdebug_verbose = !!(SDEBUG_OPT_ANALISE & opts);
 	sdebug_any_injecting_opt = !!(SDEBUG_OPT_ALL_INJECTING & opts);
 	tweak_cmnd_count();
 	return count;
@@ -6542,7 +6542,7 @@ static ssize_t ptype_store(struct device_driver *ddp, const char *buf,
 {
 	int n;
 
-	/* Cannot change from or to TYPE_ZBC with sysfs */
+	/* Cananalt change from or to TYPE_ZBC with sysfs */
 	if (sdebug_ptype == TYPE_ZBC)
 		return -EINVAL;
 
@@ -6589,7 +6589,7 @@ static ssize_t fake_rw_store(struct device_driver *ddp, const char *buf,
 		n = (n > 0);
 		sdebug_fake_rw = (sdebug_fake_rw > 0);
 		if (sdebug_fake_rw == n)
-			return count;	/* not transitioning so do nothing */
+			return count;	/* analt transitioning so do analthing */
 
 		if (want_store) {	/* 1 --> 0 transition, set up store */
 			if (sdeb_first_idx < 0) {
@@ -6599,14 +6599,14 @@ static ssize_t fake_rw_store(struct device_driver *ddp, const char *buf,
 			} else {
 				idx = sdeb_first_idx;
 				xa_clear_mark(per_store_ap, idx,
-					      SDEB_XA_NOT_IN_USE);
+					      SDEB_XA_ANALT_IN_USE);
 			}
 			/* make all hosts use same store */
 			list_for_each_entry(sdhp, &sdebug_host_list,
 					    host_list) {
 				if (sdhp->si_idx != idx) {
 					xa_set_mark(per_store_ap, sdhp->si_idx,
-						    SDEB_XA_NOT_IN_USE);
+						    SDEB_XA_ANALT_IN_USE);
 					sdhp->si_idx = idx;
 				}
 			}
@@ -6621,22 +6621,22 @@ static ssize_t fake_rw_store(struct device_driver *ddp, const char *buf,
 }
 static DRIVER_ATTR_RW(fake_rw);
 
-static ssize_t no_lun_0_show(struct device_driver *ddp, char *buf)
+static ssize_t anal_lun_0_show(struct device_driver *ddp, char *buf)
 {
-	return scnprintf(buf, PAGE_SIZE, "%d\n", sdebug_no_lun_0);
+	return scnprintf(buf, PAGE_SIZE, "%d\n", sdebug_anal_lun_0);
 }
-static ssize_t no_lun_0_store(struct device_driver *ddp, const char *buf,
+static ssize_t anal_lun_0_store(struct device_driver *ddp, const char *buf,
 			      size_t count)
 {
 	int n;
 
 	if ((count > 0) && (1 == sscanf(buf, "%d", &n)) && (n >= 0)) {
-		sdebug_no_lun_0 = n;
+		sdebug_anal_lun_0 = n;
 		return count;
 	}
 	return -EINVAL;
 }
-static DRIVER_ATTR_RW(no_lun_0);
+static DRIVER_ATTR_RW(anal_lun_0);
 
 static ssize_t num_tgts_show(struct device_driver *ddp, char *buf)
 {
@@ -6767,7 +6767,7 @@ static ssize_t max_luns_store(struct device_driver *ddp, const char *buf,
 
 	if ((count > 0) && (1 == sscanf(buf, "%d", &n)) && (n >= 0)) {
 		if (n > 256) {
-			pr_warn("max_luns can be no more than 256\n");
+			pr_warn("max_luns can be anal more than 256\n");
 			return -EINVAL;
 		}
 		changed = (sdebug_max_luns != n);
@@ -6810,7 +6810,7 @@ static ssize_t max_queue_store(struct device_driver *ddp, const char *buf,
 	    (sdebug_host_max_queue == 0)) {
 		mutex_lock(&sdebug_host_list_mutex);
 
-		/* We may only change sdebug_max_queue when we have no shosts */
+		/* We may only change sdebug_max_queue when we have anal shosts */
 		if (list_empty(&sdebug_host_list))
 			sdebug_max_queue = n;
 		else
@@ -6827,22 +6827,22 @@ static ssize_t host_max_queue_show(struct device_driver *ddp, char *buf)
 	return scnprintf(buf, PAGE_SIZE, "%d\n", sdebug_host_max_queue);
 }
 
-static ssize_t no_rwlock_show(struct device_driver *ddp, char *buf)
+static ssize_t anal_rwlock_show(struct device_driver *ddp, char *buf)
 {
-	return scnprintf(buf, PAGE_SIZE, "%d\n", sdebug_no_rwlock);
+	return scnprintf(buf, PAGE_SIZE, "%d\n", sdebug_anal_rwlock);
 }
 
-static ssize_t no_rwlock_store(struct device_driver *ddp, const char *buf, size_t count)
+static ssize_t anal_rwlock_store(struct device_driver *ddp, const char *buf, size_t count)
 {
 	bool v;
 
 	if (kstrtobool(buf, &v))
 		return -EINVAL;
 
-	sdebug_no_rwlock = v;
+	sdebug_anal_rwlock = v;
 	return count;
 }
-static DRIVER_ATTR_RW(no_rwlock);
+static DRIVER_ATTR_RW(anal_rwlock);
 
 /*
  * Since this is used for .can_queue, and we get the hc_idx tag from the bitmap
@@ -6850,11 +6850,11 @@ static DRIVER_ATTR_RW(no_rwlock);
  */
 static DRIVER_ATTR_RO(host_max_queue);
 
-static ssize_t no_uld_show(struct device_driver *ddp, char *buf)
+static ssize_t anal_uld_show(struct device_driver *ddp, char *buf)
 {
-	return scnprintf(buf, PAGE_SIZE, "%d\n", sdebug_no_uld);
+	return scnprintf(buf, PAGE_SIZE, "%d\n", sdebug_anal_uld);
 }
-static DRIVER_ATTR_RO(no_uld);
+static DRIVER_ATTR_RO(anal_uld);
 
 static ssize_t scsi_level_show(struct device_driver *ddp, char *buf)
 {
@@ -6872,9 +6872,9 @@ static ssize_t virtual_gb_store(struct device_driver *ddp, const char *buf,
 	int n;
 	bool changed;
 
-	/* Ignore capacity change for ZBC drives for now */
+	/* Iganalre capacity change for ZBC drives for analw */
 	if (sdeb_zbc_in_use)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	if ((count > 0) && (1 == sscanf(buf, "%d", &n)) && (n >= 0)) {
 		changed = (sdebug_virtual_gb != n);
@@ -6923,7 +6923,7 @@ static ssize_t add_host_store(struct device_driver *ddp, const char *buf,
 			found = false;
 			if (want_phs) {
 				xa_for_each_marked(per_store_ap, idx, sip,
-						   SDEB_XA_NOT_IN_USE) {
+						   SDEB_XA_ANALT_IN_USE) {
 					sdeb_most_recent_idx = (int)idx;
 					found = true;
 					break;
@@ -6945,22 +6945,22 @@ static ssize_t add_host_store(struct device_driver *ddp, const char *buf,
 }
 static DRIVER_ATTR_RW(add_host);
 
-static ssize_t vpd_use_hostno_show(struct device_driver *ddp, char *buf)
+static ssize_t vpd_use_hostanal_show(struct device_driver *ddp, char *buf)
 {
-	return scnprintf(buf, PAGE_SIZE, "%d\n", sdebug_vpd_use_hostno);
+	return scnprintf(buf, PAGE_SIZE, "%d\n", sdebug_vpd_use_hostanal);
 }
-static ssize_t vpd_use_hostno_store(struct device_driver *ddp, const char *buf,
+static ssize_t vpd_use_hostanal_store(struct device_driver *ddp, const char *buf,
 				    size_t count)
 {
 	int n;
 
 	if ((count > 0) && (1 == sscanf(buf, "%d", &n)) && (n >= 0)) {
-		sdebug_vpd_use_hostno = n;
+		sdebug_vpd_use_hostanal = n;
 		return count;
 	}
 	return -EINVAL;
 }
-static DRIVER_ATTR_RW(vpd_use_hostno);
+static DRIVER_ATTR_RW(vpd_use_hostanal);
 
 static ssize_t statistics_show(struct device_driver *ddp, char *buf)
 {
@@ -7081,7 +7081,7 @@ static ssize_t host_lock_show(struct device_driver *ddp, char *buf)
 {
 	return scnprintf(buf, PAGE_SIZE, "%d\n", !!sdebug_host_lock);
 }
-/* N.B. sdebug_host_lock does nothing, kept for backward compatibility */
+/* N.B. sdebug_host_lock does analthing, kept for backward compatibility */
 static ssize_t host_lock_store(struct device_driver *ddp, const char *buf,
 			       size_t count)
 {
@@ -7137,19 +7137,19 @@ static ssize_t cdb_len_store(struct device_driver *ddp, const char *buf,
 static DRIVER_ATTR_RW(cdb_len);
 
 static const char * const zbc_model_strs_a[] = {
-	[BLK_ZONED_NONE] = "none",
+	[BLK_ZONED_ANALNE] = "analne",
 	[BLK_ZONED_HA]   = "host-aware",
 	[BLK_ZONED_HM]   = "host-managed",
 };
 
 static const char * const zbc_model_strs_b[] = {
-	[BLK_ZONED_NONE] = "no",
+	[BLK_ZONED_ANALNE] = "anal",
 	[BLK_ZONED_HA]   = "aware",
 	[BLK_ZONED_HM]   = "managed",
 };
 
 static const char * const zbc_model_strs_c[] = {
-	[BLK_ZONED_NONE] = "0",
+	[BLK_ZONED_ANALNE] = "0",
 	[BLK_ZONED_HA]   = "1",
 	[BLK_ZONED_HM]   = "2",
 };
@@ -7182,7 +7182,7 @@ static ssize_t tur_ms_to_ready_show(struct device_driver *ddp, char *buf)
 }
 static DRIVER_ATTR_RO(tur_ms_to_ready);
 
-/* Note: The following array creates attribute files in the
+/* Analte: The following array creates attribute files in the
    /sys/bus/pseudo/drivers/scsi_debug directory. The advantage of these
    files (over those found in the /sys/module/scsi_debug/parameters
    directory) is that auxiliary actions can be triggered when an attribute
@@ -7196,7 +7196,7 @@ static struct attribute *sdebug_drv_attrs[] = {
 	&driver_attr_dsense.attr,
 	&driver_attr_fake_rw.attr,
 	&driver_attr_host_max_queue.attr,
-	&driver_attr_no_lun_0.attr,
+	&driver_attr_anal_lun_0.attr,
 	&driver_attr_num_tgts.attr,
 	&driver_attr_dev_size_mb.attr,
 	&driver_attr_num_parts.attr,
@@ -7204,13 +7204,13 @@ static struct attribute *sdebug_drv_attrs[] = {
 	&driver_attr_lun_format.attr,
 	&driver_attr_max_luns.attr,
 	&driver_attr_max_queue.attr,
-	&driver_attr_no_rwlock.attr,
-	&driver_attr_no_uld.attr,
+	&driver_attr_anal_rwlock.attr,
+	&driver_attr_anal_uld.attr,
 	&driver_attr_scsi_level.attr,
 	&driver_attr_virtual_gb.attr,
 	&driver_attr_add_host.attr,
 	&driver_attr_per_host_store.attr,
-	&driver_attr_vpd_use_hostno.attr,
+	&driver_attr_vpd_use_hostanal.attr,
 	&driver_attr_sector_size.attr,
 	&driver_attr_statistics.attr,
 	&driver_attr_submit_queues.attr,
@@ -7242,7 +7242,7 @@ static int __init scsi_debug_init(void)
 	int idx = -1;
 
 	if (sdebug_ndelay >= 1000 * 1000 * 1000) {
-		pr_warn("ndelay must be less than 1 second, ignored\n");
+		pr_warn("ndelay must be less than 1 second, iganalred\n");
 		sdebug_ndelay = 0;
 	} else if (sdebug_ndelay > 0)
 		sdebug_jdelay = JDELAY_OVERRIDDEN;
@@ -7300,7 +7300,7 @@ static int __init scsi_debug_init(void)
 
 	if (sdebug_max_luns > 256) {
 		if (sdebug_max_luns > 16384) {
-			pr_warn("max_luns can be no more than 16384, use default\n");
+			pr_warn("max_luns can be anal more than 16384, use default\n");
 			sdebug_max_luns = DEF_MAX_LUNS;
 		}
 		sdebug_lun_am = SAM_LUN_AM_FLAT;
@@ -7347,7 +7347,7 @@ static int __init scsi_debug_init(void)
 			return k;
 		sdeb_zbc_model = k;
 		switch (sdeb_zbc_model) {
-		case BLK_ZONED_NONE:
+		case BLK_ZONED_ANALNE:
 		case BLK_ZONED_HA:
 			sdebug_ptype = TYPE_DISK;
 			break;
@@ -7359,7 +7359,7 @@ static int __init scsi_debug_init(void)
 			return -EINVAL;
 		}
 	}
-	if (sdeb_zbc_model != BLK_ZONED_NONE) {
+	if (sdeb_zbc_model != BLK_ZONED_ANALNE) {
 		sdeb_zbc_in_use = true;
 		if (sdebug_dev_size_mb == DEF_DEV_SIZE_PRE_INIT)
 			sdebug_dev_size_mb = DEF_ZBC_DEV_SIZE_MB;
@@ -7435,7 +7435,7 @@ static int __init scsi_debug_init(void)
 
 	queued_cmd_cache = KMEM_CACHE(sdebug_queued_cmd, SLAB_HWCACHE_ALIGN);
 	if (!queued_cmd_cache) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto driver_unreg;
 	}
 
@@ -7539,7 +7539,7 @@ static void sdebug_erase_all_stores(bool apart_from_first)
 }
 
 /*
- * Returns store xarray new element index (idx) if >=0 else negated errno.
+ * Returns store xarray new element index (idx) if >=0 else negated erranal.
  * Limit the number of stores to 65536.
  */
 static int sdebug_add_store(void)
@@ -7553,14 +7553,14 @@ static int sdebug_add_store(void)
 
 	sip = kzalloc(sizeof(*sip), GFP_KERNEL);
 	if (!sip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	xa_lock_irqsave(per_store_ap, iflags);
 	res = __xa_alloc(per_store_ap, &n_idx, sip, xal, GFP_ATOMIC);
 	if (unlikely(res < 0)) {
 		xa_unlock_irqrestore(per_store_ap, iflags);
 		kfree(sip);
-		pr_warn("%s: xa_alloc() errno=%d\n", __func__, -res);
+		pr_warn("%s: xa_alloc() erranal=%d\n", __func__, -res);
 		return res;
 	}
 	sdeb_most_recent_idx = n_idx;
@@ -7568,7 +7568,7 @@ static int sdebug_add_store(void)
 		sdeb_first_idx = n_idx;
 	xa_unlock_irqrestore(per_store_ap, iflags);
 
-	res = -ENOMEM;
+	res = -EANALMEM;
 	sip->storep = vzalloc(sz);
 	if (!sip->storep) {
 		pr_err("user data oom\n");
@@ -7617,23 +7617,23 @@ static int sdebug_add_store(void)
 	return (int)n_idx;
 err:
 	sdebug_erase_store((int)n_idx, sip);
-	pr_warn("%s: failed, errno=%d\n", __func__, -res);
+	pr_warn("%s: failed, erranal=%d\n", __func__, -res);
 	return res;
 }
 
 static int sdebug_add_host_helper(int per_host_idx)
 {
 	int k, devs_per_host, idx;
-	int error = -ENOMEM;
+	int error = -EANALMEM;
 	struct sdebug_host_info *sdbg_host;
 	struct sdebug_dev_info *sdbg_devinfo, *tmp;
 
 	sdbg_host = kzalloc(sizeof(*sdbg_host), GFP_KERNEL);
 	if (!sdbg_host)
-		return -ENOMEM;
+		return -EANALMEM;
 	idx = (per_host_idx < 0) ? sdeb_first_idx : per_host_idx;
-	if (xa_get_mark(per_store_ap, idx, SDEB_XA_NOT_IN_USE))
-		xa_clear_mark(per_store_ap, idx, SDEB_XA_NOT_IN_USE);
+	if (xa_get_mark(per_store_ap, idx, SDEB_XA_ANALT_IN_USE))
+		xa_clear_mark(per_store_ap, idx, SDEB_XA_ANALT_IN_USE);
 	sdbg_host->si_idx = idx;
 
 	INIT_LIST_HEAD(&sdbg_host->dev_info_list);
@@ -7676,7 +7676,7 @@ clean:
 		put_device(&sdbg_host->dev);
 	else
 		kfree(sdbg_host);
-	pr_warn("%s: failed, errno=%d\n", __func__, -error);
+	pr_warn("%s: failed, erranal=%d\n", __func__, -error);
 	return error;
 }
 
@@ -7716,7 +7716,7 @@ static void sdebug_do_remove_host(bool the_end)
 			}
 		}
 		if (unique) {
-			xa_set_mark(per_store_ap, idx, SDEB_XA_NOT_IN_USE);
+			xa_set_mark(per_store_ap, idx, SDEB_XA_ANALT_IN_USE);
 			if (idx == sdeb_most_recent_idx)
 				--sdeb_most_recent_idx;
 		}
@@ -7737,7 +7737,7 @@ static int sdebug_change_qdepth(struct scsi_device *sdev, int qdepth)
 	struct sdebug_dev_info *devip = sdev->hostdata;
 
 	if (!devip)
-		return	-ENODEV;
+		return	-EANALDEV;
 
 	mutex_lock(&sdebug_host_list_mutex);
 	block_unblock_all_queues(true);
@@ -7755,7 +7755,7 @@ static int sdebug_change_qdepth(struct scsi_device *sdev, int qdepth)
 	block_unblock_all_queues(false);
 	mutex_unlock(&sdebug_host_list_mutex);
 
-	if (SDEBUG_OPT_Q_NOISE & sdebug_opts)
+	if (SDEBUG_OPT_Q_ANALISE & sdebug_opts)
 		sdev_printk(KERN_INFO, sdev, "%s: qdepth=%d\n", __func__, qdepth);
 
 	return sdev->queue_depth;
@@ -7767,7 +7767,7 @@ static bool fake_timeout(struct scsi_cmnd *scp)
 		if (sdebug_every_nth < -1)
 			sdebug_every_nth = -1;
 		if (SDEBUG_OPT_TIMEOUT & sdebug_opts)
-			return true; /* ignore command causing timeout */
+			return true; /* iganalre command causing timeout */
 		else if (SDEBUG_OPT_MAC_TIMEOUT & sdebug_opts &&
 			 scsi_medium_access_command(scp))
 			return true; /* time out reads and writes */
@@ -7776,34 +7776,34 @@ static bool fake_timeout(struct scsi_cmnd *scp)
 }
 
 /* Response to TUR or media access command when device stopped */
-static int resp_not_ready(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
+static int resp_analt_ready(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 {
 	int stopped_state;
 	u64 diff_ns = 0;
-	ktime_t now_ts = ktime_get_boottime();
+	ktime_t analw_ts = ktime_get_boottime();
 	struct scsi_device *sdp = scp->device;
 
 	stopped_state = atomic_read(&devip->stopped);
 	if (stopped_state == 2) {
-		if (ktime_to_ns(now_ts) > ktime_to_ns(devip->create_ts)) {
-			diff_ns = ktime_to_ns(ktime_sub(now_ts, devip->create_ts));
+		if (ktime_to_ns(analw_ts) > ktime_to_ns(devip->create_ts)) {
+			diff_ns = ktime_to_ns(ktime_sub(analw_ts, devip->create_ts));
 			if (diff_ns >= ((u64)sdeb_tur_ms_to_ready * 1000000)) {
 				/* tur_ms_to_ready timer extinguished */
 				atomic_set(&devip->stopped, 0);
 				return 0;
 			}
 		}
-		mk_sense_buffer(scp, NOT_READY, LOGICAL_UNIT_NOT_READY, 0x1);
+		mk_sense_buffer(scp, ANALT_READY, LOGICAL_UNIT_ANALT_READY, 0x1);
 		if (sdebug_verbose)
 			sdev_printk(KERN_INFO, sdp,
-				    "%s: Not ready: in process of becoming ready\n", my_name);
+				    "%s: Analt ready: in process of becoming ready\n", my_name);
 		if (scp->cmnd[0] == TEST_UNIT_READY) {
-			u64 tur_nanosecs_to_ready = (u64)sdeb_tur_ms_to_ready * 1000000;
+			u64 tur_naanalsecs_to_ready = (u64)sdeb_tur_ms_to_ready * 1000000;
 
-			if (diff_ns <= tur_nanosecs_to_ready)
-				diff_ns = tur_nanosecs_to_ready - diff_ns;
+			if (diff_ns <= tur_naanalsecs_to_ready)
+				diff_ns = tur_naanalsecs_to_ready - diff_ns;
 			else
-				diff_ns = tur_nanosecs_to_ready;
+				diff_ns = tur_naanalsecs_to_ready;
 			/* As per 20-061r2 approved for spc6 by T10 on 20200716 */
 			do_div(diff_ns, 1000000);	/* diff_ns becomes milliseconds */
 			scsi_set_sense_information(scp->sense_buffer, SCSI_SENSE_BUFFERSIZE,
@@ -7811,9 +7811,9 @@ static int resp_not_ready(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 			return check_condition_result;
 		}
 	}
-	mk_sense_buffer(scp, NOT_READY, LOGICAL_UNIT_NOT_READY, 0x2);
+	mk_sense_buffer(scp, ANALT_READY, LOGICAL_UNIT_ANALT_READY, 0x2);
 	if (sdebug_verbose)
-		sdev_printk(KERN_INFO, sdp, "%s: Not ready: initializing command required\n",
+		sdev_printk(KERN_INFO, sdp, "%s: Analt ready: initializing command required\n",
 			    my_name);
 	return check_condition_result;
 }
@@ -7853,7 +7853,7 @@ struct sdebug_blk_mq_poll_data {
 };
 
 /*
- * We don't handle aborted commands here, but it does not seem possible to have
+ * We don't handle aborted commands here, but it does analt seem possible to have
  * aborted polled commands from schedule_resp()
  */
 static bool sdebug_blk_mq_poll_iter(struct request *rq, void *opaque)
@@ -8045,19 +8045,19 @@ static int scsi_debug_queuecommand(struct Scsi_Host *shost,
 	u16 sa;
 	u8 opcode = cmd[0];
 	bool has_wlun_rl;
-	bool inject_now;
+	bool inject_analw;
 	int ret = 0;
 	struct sdebug_err_inject err;
 
 	scsi_set_resid(scp, 0);
 	if (sdebug_statistics) {
 		atomic_inc(&sdebug_cmnd_count);
-		inject_now = inject_on_this_cmd();
+		inject_analw = inject_on_this_cmd();
 	} else {
-		inject_now = false;
+		inject_analw = false;
 	}
 	if (unlikely(sdebug_verbose &&
-		     !(SDEBUG_OPT_NO_CDB_NOISE & sdebug_opts))) {
+		     !(SDEBUG_OPT_ANAL_CDB_ANALISE & sdebug_opts))) {
 		char b[120];
 		int n, len, sb;
 
@@ -8073,7 +8073,7 @@ static int scsi_debug_queuecommand(struct Scsi_Host *shost,
 		sdev_printk(KERN_INFO, sdp, "%s: tag=%#x, cmd %s\n", my_name,
 			    blk_mq_unique_tag(scsi_cmd_to_rq(scp)), b);
 	}
-	if (unlikely(inject_now && (sdebug_opts & SDEBUG_OPT_HOST_BUSY)))
+	if (unlikely(inject_analw && (sdebug_opts & SDEBUG_OPT_HOST_BUSY)))
 		return SCSI_MLQUEUE_HOST_BUSY;
 	has_wlun_rl = (sdp->lun == SCSI_W_LUN_REPORT_LUNS);
 	if (unlikely(lun_index >= sdebug_max_luns && !has_wlun_rl))
@@ -8110,7 +8110,7 @@ static int scsi_debug_queuecommand(struct Scsi_Host *shost,
 		return ret;
 	}
 
-	if (unlikely(inject_now && !atomic_read(&sdeb_inject_pending)))
+	if (unlikely(inject_analw && !atomic_read(&sdeb_inject_pending)))
 		atomic_set(&sdeb_inject_pending, 1);
 
 	na = oip->num_attached;
@@ -8126,7 +8126,7 @@ static int scsi_debug_queuecommand(struct Scsi_Host *shost,
 				if (opcode == oip->opcode && sa == oip->sa)
 					break;
 			}
-		} else {   /* since no service action only check opcode */
+		} else {   /* since anal service action only check opcode */
 			for (k = 0; k <= na; oip = r_oip->arrp + k++) {
 				if (opcode == oip->opcode)
 					break;
@@ -8149,7 +8149,7 @@ static int scsi_debug_queuecommand(struct Scsi_Host *shost,
 	}
 	if (unlikely(has_wlun_rl && !(F_RL_WLUN_OK & flags))) {
 		if (sdebug_verbose)
-			sdev_printk(KERN_INFO, sdp, "%s: Opcode 0x%x not%s\n",
+			sdev_printk(KERN_INFO, sdp, "%s: Opcode 0x%x analt%s\n",
 				    my_name, opcode, " supported for wlun");
 		mk_sense_invalid_opcode(scp);
 		goto check_cond;
@@ -8179,7 +8179,7 @@ static int scsi_debug_queuecommand(struct Scsi_Host *shost,
 	}
 	if (unlikely(((F_M_ACCESS & flags) || scp->cmnd[0] == TEST_UNIT_READY) &&
 		     atomic_read(&devip->stopped))) {
-		errsts = resp_not_ready(scp, devip);
+		errsts = resp_analt_ready(scp, devip);
 		if (errsts)
 			goto fini;
 	}
@@ -8187,7 +8187,7 @@ static int scsi_debug_queuecommand(struct Scsi_Host *shost,
 		goto fini;
 	if (unlikely(sdebug_every_nth)) {
 		if (fake_timeout(scp))
-			return 0;	/* ignore command: make trouble */
+			return 0;	/* iganalre command: make trouble */
 	}
 	if (likely(oip->pfp))
 		pfp = oip->pfp;	/* calls a resp_* function */
@@ -8206,9 +8206,9 @@ fini:
 		 * For Synchronize Cache want 1/20 of SSU's delay.
 		 */
 		int jdelay = (sdebug_jdelay < 2) ? 1 : sdebug_jdelay;
-		int denom = (flags & F_SYNC_DELAY) ? 20 : 1;
+		int deanalm = (flags & F_SYNC_DELAY) ? 20 : 1;
 
-		jdelay = mult_frac(USER_HZ * jdelay, HZ, denom * USER_HZ);
+		jdelay = mult_frac(USER_HZ * jdelay, HZ, deanalm * USER_HZ);
 		return schedule_resp(scp, devip, errsts, pfp, jdelay, 0);
 	} else
 		return schedule_resp(scp, devip, errsts, pfp, sdebug_jdelay,
@@ -8216,7 +8216,7 @@ fini:
 check_cond:
 	return schedule_resp(scp, devip, check_condition_result, NULL, 0, 0);
 err_out:
-	return schedule_resp(scp, NULL, DID_NO_CONNECT << 16, NULL, 0, 0);
+	return schedule_resp(scp, NULL, DID_ANAL_CONNECT << 16, NULL, 0, 0);
 }
 
 static int sdebug_init_cmd_priv(struct Scsi_Host *shost, struct scsi_cmnd *cmd)
@@ -8278,7 +8278,7 @@ static int sdebug_driver_probe(struct device *dev)
 	hpnt = scsi_host_alloc(&sdebug_driver_template, 0);
 	if (NULL == hpnt) {
 		pr_err("scsi_host_alloc failed\n");
-		error = -ENODEV;
+		error = -EANALDEV;
 		return error;
 	}
 	if (submit_queues > nr_cpu_ids) {
@@ -8303,8 +8303,8 @@ static int sdebug_driver_probe(struct device *dev)
 
 	/*
 	 * Poll queues don't need interrupts, but we need at least one I/O queue
-	 * left over for non-polled I/O.
-	 * If condition not met, trim poll_queues to 1 (just for simplicity).
+	 * left over for analn-polled I/O.
+	 * If condition analt met, trim poll_queues to 1 (just for simplicity).
 	 */
 	if (poll_queues >= submit_queues) {
 		if (submit_queues < 3)
@@ -8370,14 +8370,14 @@ static int sdebug_driver_probe(struct device *dev)
 	else
 		scsi_host_set_guard(hpnt, SHOST_DIX_GUARD_CRC);
 
-	sdebug_verbose = !!(SDEBUG_OPT_NOISE & sdebug_opts);
+	sdebug_verbose = !!(SDEBUG_OPT_ANALISE & sdebug_opts);
 	sdebug_any_injecting_opt = !!(SDEBUG_OPT_ALL_INJECTING & sdebug_opts);
 	if (sdebug_every_nth)	/* need stats counters for every_nth */
 		sdebug_statistics = true;
 	error = scsi_add_host(hpnt, &sdbg_host->dev);
 	if (error) {
 		pr_err("scsi_add_host failed\n");
-		error = -ENODEV;
+		error = -EANALDEV;
 		scsi_host_put(hpnt);
 	} else {
 		scsi_scan_host(hpnt);

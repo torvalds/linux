@@ -68,7 +68,7 @@
 
 #define DYNAMIC_ALL_FUNC_ENABLE		0xFFFFFFF
 
-#define _HW_STATE_NOLINK_		0x00
+#define _HW_STATE_ANALLINK_		0x00
 #define _HW_STATE_ADHOC_		0x01
 #define _HW_STATE_STATION_	0x02
 #define _HW_STATE_AP_			0x03
@@ -109,7 +109,7 @@ extern unsigned char WMM_PARA_OUI[];
 
 /*  */
 /*  Channel Plan Type. */
-/*  Note: */
+/*  Analte: */
 /* 	We just add new channel plan when the new channel plan is different from any of the following */
 /* 	channel plan. */
 /* 	If you just want to customize the actions(scan period or join actions) about one of the channel plan, */
@@ -134,10 +134,10 @@ enum {
 	RT_CHANNEL_DOMAIN_KOREA = 0x0E,
 	RT_CHANNEL_DOMAIN_TURKEY = 0x0F,
 	RT_CHANNEL_DOMAIN_JAPAN = 0x10,
-	RT_CHANNEL_DOMAIN_FCC_NO_DFS = 0x11,
-	RT_CHANNEL_DOMAIN_JAPAN_NO_DFS = 0x12,
+	RT_CHANNEL_DOMAIN_FCC_ANAL_DFS = 0x11,
+	RT_CHANNEL_DOMAIN_JAPAN_ANAL_DFS = 0x12,
 	RT_CHANNEL_DOMAIN_WORLD_WIDE_5G = 0x13,
-	RT_CHANNEL_DOMAIN_TAIWAN_NO_DFS = 0x14,
+	RT_CHANNEL_DOMAIN_TAIWAN_ANAL_DFS = 0x14,
 
 	/*  new channel plan mapping, (2GDOMAIN_5GDOMAIN) ===== */
 	RT_CHANNEL_DOMAIN_WORLD_NULL = 0x20,
@@ -212,7 +212,7 @@ struct rt_channel_plan_map {
 };
 
 enum {
-	HT_IOT_PEER_UNKNOWN			= 0,
+	HT_IOT_PEER_UNKANALWN			= 0,
 	HT_IOT_PEER_REALTEK			= 1,
 	HT_IOT_PEER_REALTEK_92SE		= 2,
 	HT_IOT_PEER_BROADCOM		= 3,
@@ -269,9 +269,9 @@ struct	ss_res {
 /* define AP_MODE				0x0C */
 /* define STATION_MODE	0x08 */
 /* define AD_HOC_MODE		0x04 */
-/* define NO_LINK_MODE	0x00 */
+/* define ANAL_LINK_MODE	0x00 */
 
-#define		WIFI_FW_NULL_STATE			_HW_STATE_NOLINK_
+#define		WIFI_FW_NULL_STATE			_HW_STATE_ANALLINK_
 #define	WIFI_FW_STATION_STATE		_HW_STATE_STATION_
 #define	WIFI_FW_AP_STATE				_HW_STATE_AP_
 #define	WIFI_FW_ADHOC_STATE			_HW_STATE_ADHOC_
@@ -696,7 +696,7 @@ u8 chk_bmc_sleepq_hdl(struct adapter *padapter, unsigned char *pbuf);
 u8 tx_beacon_hdl(struct adapter *padapter, unsigned char *pbuf);
 u8 set_ch_hdl(struct adapter *padapter, u8 *pbuf);
 u8 set_chplan_hdl(struct adapter *padapter, unsigned char *pbuf);
-u8 set_csa_hdl(struct adapter *padapter, unsigned char *pbuf);	/* Kurt: Handling DFS channel switch announcement ie. */
+u8 set_csa_hdl(struct adapter *padapter, unsigned char *pbuf);	/* Kurt: Handling DFS channel switch ananaluncement ie. */
 u8 tdls_hdl(struct adapter *padapter, unsigned char *pbuf);
 u8 run_in_thread_hdl(struct adapter *padapter, u8 *pbuf);
 

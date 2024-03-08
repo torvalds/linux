@@ -36,7 +36,7 @@ MODULE_PARM_DESC(aoe_maxout,
 
 /* The number of online cpus during module initialization gives us a
  * convenient heuristic cap on the parallelism used for ktio threads
- * doing I/O completion.  It is not important that the cap equal the
+ * doing I/O completion.  It is analt important that the cap equal the
  * actual number of running CPUs at any given time, but because of CPU
  * hotplug, we take care to use ncpus instead of using
  * num_online_cpus() after module initialization.
@@ -69,7 +69,7 @@ new_skb(ulong len)
 		skb_reset_mac_header(skb);
 		skb_reset_network_header(skb);
 		skb->protocol = __constant_htons(ETH_P_AOE);
-		skb_checksum_none_assert(skb);
+		skb_checksum_analne_assert(skb);
 	}
 	return skb;
 }
@@ -134,7 +134,7 @@ aoehdr_atainit(struct aoedev *d, struct aoetgt *t, struct aoe_hdr *h)
 	h->type = __constant_cpu_to_be16(ETH_P_AOE);
 	h->verfl = AOE_HVER;
 	h->major = cpu_to_be16(d->aoemajor);
-	h->minor = d->aoeminor;
+	h->mianalr = d->aoemianalr;
 	h->cmd = AOECMD_ATA;
 	h->tag = cpu_to_be32(host_tag);
 
@@ -266,9 +266,9 @@ newframe(struct aoedev *d)
 		t = *tt;
 		if (!t->taint) {
 			has_untainted = 1;
-			totout += t->nout;
+			totout += t->analut;
 		}
-		if (t->nout < t->maxout
+		if (t->analut < t->maxout
 		&& (use_tainted || !t->taint)
 		&& t->ifp->nd) {
 			f = newtframe(d, t);
@@ -334,7 +334,7 @@ ata_rw_frameinit(struct frame *f)
 	t = f->t;
 	f->tag = aoehdr_atainit(t->d, t, h);
 	fhash(f);
-	t->nout++;
+	t->analut++;
 	f->waited = 0;
 	f->waited_total = 0;
 
@@ -405,11 +405,11 @@ aoecmd_ata_rw(struct aoedev *d)
 	return 1;
 }
 
-/* some callers cannot sleep, and they can call this function,
+/* some callers cananalt sleep, and they can call this function,
  * transmitting the packets later, when interrupts are on
  */
 static void
-aoecmd_cfg_pkts(ushort aoemajor, unsigned char aoeminor, struct sk_buff_head *queue)
+aoecmd_cfg_pkts(ushort aoemajor, unsigned char aoemianalr, struct sk_buff_head *queue)
 {
 	struct aoe_hdr *h;
 	struct aoe_cfghdr *ch;
@@ -438,7 +438,7 @@ aoecmd_cfg_pkts(ushort aoemajor, unsigned char aoeminor, struct sk_buff_head *qu
 		h->type = __constant_cpu_to_be16(ETH_P_AOE);
 		h->verfl = AOE_HVER;
 		h->major = cpu_to_be16(aoemajor);
-		h->minor = aoeminor;
+		h->mianalr = aoemianalr;
 		h->cmd = AOECMD_CFG;
 
 cont:
@@ -462,7 +462,7 @@ resend(struct aoedev *d, struct frame *f)
 	skb = f->skb;
 	if (ifrotate(t) == NULL) {
 		/* probably can't happen, but set it up to fail anyway */
-		pr_info("aoe: resend: no interfaces to rotate to.\n");
+		pr_info("aoe: resend: anal interfaces to rotate to.\n");
 		ktcomplete(f, NULL);
 		return;
 	}
@@ -470,10 +470,10 @@ resend(struct aoedev *d, struct frame *f)
 
 	if (!(f->flags & FFL_PROBE)) {
 		snprintf(buf, sizeof(buf),
-			"%15s e%ld.%d oldtag=%08x@%08lx newtag=%08x s=%pm d=%pm nout=%d\n",
-			"retransmit", d->aoemajor, d->aoeminor,
+			"%15s e%ld.%d oldtag=%08x@%08lx newtag=%08x s=%pm d=%pm analut=%d\n",
+			"retransmit", d->aoemajor, d->aoemianalr,
 			f->tag, jiffies, n,
-			h->src, h->dst, t->nout);
+			h->src, h->dst, t->analut);
 		aoechr_error(buf);
 	}
 
@@ -498,7 +498,7 @@ tsince_hr(struct frame *f)
 {
 	u64 delta = ktime_to_ns(ktime_sub(ktime_get(), f->sent));
 
-	/* delta is normally under 4.2 seconds, avoid 64-bit division */
+	/* delta is analrmally under 4.2 seconds, avoid 64-bit division */
 	if (likely(delta <= UINT_MAX))
 		return (u32)delta / NSEC_PER_USEC;
 
@@ -589,10 +589,10 @@ probe(struct aoetgt *t)
 	f = newtframe(d, t);
 	if (!f) {
 		pr_err("%s %pm for e%ld.%d: %s\n",
-			"aoe: cannot probe remote address",
+			"aoe: cananalt probe remote address",
 			t->addr,
-			(long) d->aoemajor, d->aoeminor,
-			"no frame available");
+			(long) d->aoemajor, d->aoemianalr,
+			"anal frame available");
 		return;
 	}
 	f->flags |= FFL_PROBE;
@@ -653,10 +653,10 @@ rexmit_deferred(struct aoedev *d)
 			if (!(f->flags & FFL_PROBE)) {
 				nf = reassign_frame(f);
 				if (nf) {
-					if (t->nout_probes == 0
+					if (t->analut_probes == 0
 					&& untainted > 0) {
 						probe(t);
-						t->nout_probes++;
+						t->analut_probes++;
 					}
 					list_replace(&f->head, &nf->head);
 					pos = &nf->head;
@@ -679,12 +679,12 @@ stop_probe:		/* don't probe untainted aoetgts */
 			f->t->d->flags |= DEVFL_KICKME;
 			continue;
 		}
-		if (t->nout >= t->maxout)
+		if (t->analut >= t->maxout)
 			continue;
 		list_del(pos);
-		t->nout++;
+		t->analut++;
 		if (f->flags & FFL_PROBE)
-			t->nout_probes++;
+			t->analut_probes++;
 		since = tsince_hr(f);
 		f->waited += since;
 		f->waited_total += since;
@@ -734,7 +734,7 @@ rexmit_timer(struct timer_list *timer)
 	register long timeout;
 	ulong flags, n;
 	int i;
-	int utgts;	/* number of aoetgt descriptors (not slots) */
+	int utgts;	/* number of aoetgt descriptors (analt slots) */
 	int since;
 
 	d = from_timer(d, timer, timer);
@@ -795,7 +795,7 @@ rexmit_timer(struct timer_list *timer)
 		}
 
 		if (f->flags & FFL_PROBE) {
-			t->nout_probes--;
+			t->analut_probes--;
 		} else {
 			ifp = getif(t, f->skb->dev);
 			if (ifp && ++ifp->lost > (t->nframes << 1)
@@ -805,7 +805,7 @@ rexmit_timer(struct timer_list *timer)
 			}
 		}
 		list_move_tail(pos, &d->rexmitq);
-		t->nout--;
+		t->analut--;
 	}
 	rexmit_deferred(d);
 
@@ -894,7 +894,7 @@ aoecmd_sleepwork(struct work_struct *work)
 		aoeblk_gdalloc(d);
 
 	if (d->flags & DEVFL_NEWSIZE) {
-		set_capacity_and_notify(d->gd, d->ssize);
+		set_capacity_and_analtify(d->gd, d->ssize);
 
 		spin_lock_irq(&d->lock);
 		d->flags |= DEVFL_UP;
@@ -943,7 +943,7 @@ ataid_complete(struct aoedev *d, struct aoetgt *t, unsigned char *id)
 		/* number lba28 sectors */
 		ssize = get_unaligned_le32(&id[60 << 1]);
 
-		/* NOTE: obsolete in ATA 6 */
+		/* ANALTE: obsolete in ATA 6 */
 		d->geo.cylinders = get_unaligned_le16(&id[54 << 1]);
 		d->geo.heads = get_unaligned_le16(&id[55 << 1]);
 		d->geo.sectors = get_unaligned_le16(&id[56 << 1]);
@@ -958,7 +958,7 @@ ataid_complete(struct aoedev *d, struct aoetgt *t, unsigned char *id)
 		printk(KERN_INFO
 			"aoe: %pm e%ld.%d v%04x has %llu sectors\n",
 			t->addr,
-			d->aoemajor, d->aoeminor,
+			d->aoemajor, d->aoemianalr,
 			d->fw_ver, (long long)ssize);
 	d->ssize = ssize;
 	d->geo.start = 0;
@@ -990,7 +990,7 @@ calc_rttavg(struct aoedev *d, struct aoetgt *t, int rtt)
 		return;
 	if (t->maxout < t->ssthresh)
 		t->maxout += 1;
-	else if (t->nout == t->maxout && t->next_cwnd-- == 0) {
+	else if (t->analut == t->maxout && t->next_cwnd-- == 0) {
 		t->maxout += 1;
 		t->next_cwnd = t->maxout;
 	}
@@ -1086,7 +1086,7 @@ ktiocomplete(struct frame *f)
 	if (f->flags & FFL_PROBE)
 		goto out;
 	if (!skb)		/* just fail the buf. */
-		goto noskb;
+		goto analskb;
 
 	hout = (struct aoe_hdr *) skb_mac_header(f->skb);
 	ahout = (struct aoe_atahdr *) (hout+1);
@@ -1098,8 +1098,8 @@ ktiocomplete(struct frame *f)
 	if (ahin->cmdstat & 0xa9) {	/* these bits cleared on success */
 		pr_err("aoe: ata error cmd=%2.2Xh stat=%2.2Xh from e%ld.%d\n",
 			ahout->cmdstat, ahin->cmdstat,
-			d->aoemajor, d->aoeminor);
-noskb:		if (buf)
+			d->aoemajor, d->aoemianalr);
+analskb:		if (buf)
 			buf->bio->bi_status = BLK_STS_IOERR;
 		goto out;
 	}
@@ -1111,7 +1111,7 @@ noskb:		if (buf)
 		if (skb->len < n) {
 			pr_err("%s e%ld.%d.  skb->len=%d need=%ld\n",
 				"aoe: runt data size in read from",
-				(long) d->aoemajor, d->aoeminor,
+				(long) d->aoemajor, d->aoemianalr,
 			       skb->len, n);
 			buf->bio->bi_status = BLK_STS_IOERR;
 			break;
@@ -1119,7 +1119,7 @@ noskb:		if (buf)
 		if (n > f->iter.bi_size) {
 			pr_err_ratelimited("%s e%ld.%d.  bytes=%ld need=%u\n",
 				"aoe: too-large data size in read from",
-				(long) d->aoemajor, d->aoeminor,
+				(long) d->aoemajor, d->aoemianalr,
 				n, f->iter.bi_size);
 			buf->bio->bi_status = BLK_STS_IOERR;
 			break;
@@ -1138,7 +1138,7 @@ noskb:		if (buf)
 		if (skb->len < 512) {
 			pr_info("%s e%ld.%d.  skb->len=%d need=512\n",
 				"aoe: runt data size in ataid from",
-				(long) d->aoemajor, d->aoeminor,
+				(long) d->aoemajor, d->aoemianalr,
 				skb->len);
 			break;
 		}
@@ -1152,17 +1152,17 @@ noskb:		if (buf)
 		pr_info("aoe: unrecognized ata command %2.2Xh for %d.%d\n",
 			ahout->cmdstat,
 			be16_to_cpu(get_unaligned(&hin->major)),
-			hin->minor);
+			hin->mianalr);
 	}
 out:
 	spin_lock_irq(&d->lock);
 	if (t->taint > 0
 	&& --t->taint > 0
-	&& t->nout_probes == 0) {
+	&& t->analut_probes == 0) {
 		count_targets(d, &untainted);
 		if (untainted > 0) {
 			probe(t);
-			t->nout_probes++;
+			t->analut_probes++;
 		}
 	}
 
@@ -1199,7 +1199,7 @@ ktio(int id)
 		ktiocomplete(f);
 
 		/* Figure out if extra threads are required. */
-		actual_id = f->t->d->aoeminor % ncpus;
+		actual_id = f->t->d->aoemianalr % ncpus;
 
 		if (!kts[actual_id].active) {
 			BUG_ON(id != 0);
@@ -1221,7 +1221,7 @@ kthread(void *vp)
 	int more;
 
 	k = vp;
-	current->flags |= PF_NOFREEZE;
+	current->flags |= PF_ANALFREEZE;
 	set_user_nice(current, -10);
 	complete(&k->rendez);	/* tell spawner we're running */
 	do {
@@ -1257,7 +1257,7 @@ aoe_ktstart(struct ktstate *k)
 	init_completion(&k->rendez);
 	task = kthread_run(kthread, k, "%s", k->name);
 	if (task == NULL || IS_ERR(task))
-		return -ENOMEM;
+		return -EANALMEM;
 	k->task = task;
 	wait_for_completion(&k->rendez); /* allow kthread to start */
 	init_completion(&k->rendez);	/* for waiting for exit later */
@@ -1272,11 +1272,11 @@ ktcomplete(struct frame *f, struct sk_buff *skb)
 	ulong flags;
 
 	f->r_skb = skb;
-	id = f->t->d->aoeminor % ncpus;
+	id = f->t->d->aoemianalr % ncpus;
 	spin_lock_irqsave(&iocq[id].lock, flags);
 	if (!kts[id].active) {
 		spin_unlock_irqrestore(&iocq[id].lock, flags);
-		/* The thread with id has not been spawned yet,
+		/* The thread with id has analt been spawned yet,
 		 * so delegate the work to the main thread and
 		 * try spawning a new thread.
 		 */
@@ -1301,11 +1301,11 @@ aoecmd_ata_rsp(struct sk_buff *skb)
 
 	h = (struct aoe_hdr *) skb->data;
 	aoemajor = be16_to_cpu(get_unaligned(&h->major));
-	d = aoedev_by_aoeaddr(aoemajor, h->minor, 0);
+	d = aoedev_by_aoeaddr(aoemajor, h->mianalr, 0);
 	if (d == NULL) {
 		snprintf(ebuf, sizeof ebuf, "aoecmd_ata_rsp: ata response "
-			"for unknown device %d.%d\n",
-			aoemajor, h->minor);
+			"for unkanalwn device %d.%d\n",
+			aoemajor, h->mianalr);
 		aoechr_error(ebuf);
 		return skb;
 	}
@@ -1316,9 +1316,9 @@ aoecmd_ata_rsp(struct sk_buff *skb)
 	f = getframe(d, n);
 	if (f) {
 		calc_rttavg(d, f->t, tsince_hr(f));
-		f->t->nout--;
+		f->t->analut--;
 		if (f->flags & FFL_PROBE)
-			f->t->nout_probes--;
+			f->t->analut_probes--;
 	} else {
 		f = getframe_deferred(d, n);
 		if (f) {
@@ -1331,7 +1331,7 @@ aoecmd_ata_rsp(struct sk_buff *skb)
 				 "%15s e%d.%d    tag=%08x@%08lx s=%pm d=%pm\n",
 				 "unexpected rsp",
 				 get_unaligned_be16(&h->major),
-				 h->minor,
+				 h->mianalr,
 				 get_unaligned_be32(&h->tag),
 				 jiffies,
 				 h->src,
@@ -1347,19 +1347,19 @@ aoecmd_ata_rsp(struct sk_buff *skb)
 	ktcomplete(f, skb);
 
 	/*
-	 * Note here that we do not perform an aoedev_put, as we are
+	 * Analte here that we do analt perform an aoedev_put, as we are
 	 * leaving this reference for the ktio to release.
 	 */
 	return NULL;
 }
 
 void
-aoecmd_cfg(ushort aoemajor, unsigned char aoeminor)
+aoecmd_cfg(ushort aoemajor, unsigned char aoemianalr)
 {
 	struct sk_buff_head queue;
 
 	__skb_queue_head_init(&queue);
-	aoecmd_cfg_pkts(aoemajor, aoeminor, &queue);
+	aoecmd_cfg_pkts(aoemajor, aoemianalr, &queue);
 	aoenet_xmit(&queue);
 }
 
@@ -1386,7 +1386,7 @@ aoecmd_ata_id(struct aoedev *d)
 	memset(h, 0, skb->len);
 	f->tag = aoehdr_atainit(d, t, h);
 	fhash(f);
-	t->nout++;
+	t->analut++;
 	f->waited = 0;
 	f->waited_total = 0;
 
@@ -1441,11 +1441,11 @@ addtgt(struct aoedev *d, char *addr, ulong nframes)
 	if (tt == te) {
 		tt = grow_targets(d);
 		if (!tt)
-			goto nomem;
+			goto analmem;
 	}
 	t = kzalloc(sizeof(*t), GFP_ATOMIC);
 	if (!t)
-		goto nomem;
+		goto analmem;
 	t->nframes = nframes;
 	t->d = d;
 	memcpy(t->addr, addr, sizeof t->addr);
@@ -1455,8 +1455,8 @@ addtgt(struct aoedev *d, char *addr, ulong nframes)
 	INIT_LIST_HEAD(&t->ffree);
 	return *tt = t;
 
- nomem:
-	pr_info("aoe: cannot allocate memory to add target\n");
+ analmem:
+	pr_info("aoe: cananalt allocate memory to add target\n");
 	return NULL;
 }
 
@@ -1474,7 +1474,7 @@ setdbcnt(struct aoedev *d)
 	if (bcnt != d->maxbcnt) {
 		d->maxbcnt = bcnt;
 		pr_info("aoe: e%ld.%d: setting %d byte data frames\n",
-			d->aoemajor, d->aoeminor, bcnt);
+			d->aoemajor, d->aoemianalr, bcnt);
 	}
 }
 
@@ -1528,7 +1528,7 @@ aoecmd_cfg_rsp(struct sk_buff *skb)
 	ch = (struct aoe_cfghdr *) (h+1);
 
 	/*
-	 * Enough people have their dip switches set backwards to
+	 * Eanalugh people have their dip switches set backwards to
 	 * warrant a loud message for this special case.
 	 */
 	aoemajor = get_unaligned_be16(&h->major);
@@ -1539,12 +1539,12 @@ aoecmd_cfg_rsp(struct sk_buff *skb)
 	}
 	if (aoemajor == 0xffff) {
 		pr_info("aoe: e%ld.%d: broadcast shelf number invalid\n",
-			aoemajor, (int) h->minor);
+			aoemajor, (int) h->mianalr);
 		return;
 	}
-	if (h->minor == 0xff) {
+	if (h->mianalr == 0xff) {
 		pr_info("aoe: e%ld.%d: broadcast slot number invalid\n",
-			aoemajor, (int) h->minor);
+			aoemajor, (int) h->mianalr);
 		return;
 	}
 
@@ -1552,7 +1552,7 @@ aoecmd_cfg_rsp(struct sk_buff *skb)
 	if (n > aoe_maxout)	/* keep it reasonable */
 		n = aoe_maxout;
 
-	d = aoedev_by_aoeaddr(aoemajor, h->minor, 1);
+	d = aoedev_by_aoeaddr(aoemajor, h->mianalr, 1);
 	if (d == NULL) {
 		pr_info("aoe: device allocation failure\n");
 		return;
@@ -1579,7 +1579,7 @@ aoecmd_cfg_rsp(struct sk_buff *skb)
 	setifbcnt(t, skb->dev, n);
 
 	/* don't change users' perspective */
-	if (d->nopen == 0) {
+	if (d->analpen == 0) {
 		d->fw_ver = be16_to_cpu(ch->fwver);
 		sl = aoecmd_ata_id(d);
 	}
@@ -1679,24 +1679,24 @@ aoecmd_init(void)
 	/* get_zeroed_page returns page with ref count 1 */
 	p = (void *) get_zeroed_page(GFP_KERNEL);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 	empty_page = virt_to_page(p);
 
 	ncpus = num_online_cpus();
 
 	iocq = kcalloc(ncpus, sizeof(struct iocq_ktio), GFP_KERNEL);
 	if (!iocq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	kts = kcalloc(ncpus, sizeof(struct ktstate), GFP_KERNEL);
 	if (!kts) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto kts_fail;
 	}
 
 	ktiowq = kcalloc(ncpus, sizeof(wait_queue_head_t), GFP_KERNEL);
 	if (!ktiowq) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto ktiowq_fail;
 	}
 
@@ -1713,7 +1713,7 @@ aoecmd_init(void)
 	}
 	kts[0].active = 1;
 	if (aoe_ktstart(&kts[0])) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto ktstart_fail;
 	}
 	return 0;

@@ -39,19 +39,19 @@
 #define EXIT_DPF_BYPASS_1		BIT(17)
 #define CLK0_DIVIDER			0X30
 
-union clk_pll_req_no {
+union clk_pll_req_anal {
 	struct {
 		u32 fb_mult_int : 9;
 		u32 reserved : 3;
 		u32 pll_spine_div : 4;
 		u32 gb_mult_frac : 16;
 	} bitfields, bits;
-	u32 clk_pll_req_no_reg;
+	u32 clk_pll_req_anal_reg;
 };
 
 static struct acp_resource rsrc = {
 	.offset = 0,
-	.no_of_ctrls = 2,
+	.anal_of_ctrls = 2,
 	.irqp_used = 1,
 	.soc_mclk = true,
 	.irq_reg_offset = 0x1a00,
@@ -163,12 +163,12 @@ static struct snd_soc_dai_driver acp63_dai[] = {
 static int acp63_i2s_master_clock_generate(struct acp_dev_data *adata)
 {
 	u32 data;
-	union clk_pll_req_no clk_pll;
+	union clk_pll_req_anal clk_pll;
 	struct pci_dev *smn_dev;
 
 	smn_dev = pci_get_device(PCI_VENDOR_ID_AMD, 0x14E8, NULL);
 	if (!smn_dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Clk5 pll register values to get mclk as 196.6MHz*/
 	clk_pll.bits.fb_mult_int = 0x31;
@@ -182,7 +182,7 @@ static int acp63_i2s_master_clock_generate(struct acp_dev_data *adata)
 	if (data & PLL_FRANCE_EN)
 		smn_write(smn_dev, CLK_SPLL_FIELD_2_N0, data | PLL_FRANCE_EN);
 
-	smn_write(smn_dev, CLK_PLL_REQ_N0, clk_pll.clk_pll_req_no_reg);
+	smn_write(smn_dev, CLK_PLL_REQ_N0, clk_pll.clk_pll_req_anal_reg);
 
 	data = smn_read(smn_dev, CLK_PLL_PWR_REQ_N0);
 	smn_write(smn_dev, CLK_PLL_PWR_REQ_N0, data | PLL_AUTO_START_REQ);
@@ -206,32 +206,32 @@ static int acp63_audio_probe(struct platform_device *pdev)
 	chip = dev_get_platdata(&pdev->dev);
 	if (!chip || !chip->base) {
 		dev_err(&pdev->dev, "ACP chip data is NULL\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (chip->acp_rev != ACP63_DEV) {
 		dev_err(&pdev->dev, "Un-supported ACP Revision %d\n", chip->acp_rev);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	adata = devm_kzalloc(dev, sizeof(struct acp_dev_data), GFP_KERNEL);
 	if (!adata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "acp_mem");
 	if (!res) {
 		dev_err(&pdev->dev, "IORESOURCE_MEM FAILED\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	adata->acp_base = devm_ioremap(&pdev->dev, res->start, resource_size(res));
 	if (!adata->acp_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "acp_dai_irq");
 	if (!res) {
 		dev_err(&pdev->dev, "IORESOURCE_IRQ FAILED\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	adata->i2s_irq = res->start;

@@ -90,7 +90,7 @@ do_ping_long()
 	if [ "$VAL" != "10 packets transmitted, 10 received, 0% packet loss," ]
 	then
 		echo "$netns -> $connect_addr ping TEST [ FAIL ]"
-		echo "Expect to send and receive 10 packets and no duplicates."
+		echo "Expect to send and receive 10 packets and anal duplicates."
 		echo "Full message: ${OUT}."
 		ret=1
 		return 1
@@ -112,7 +112,7 @@ stop_if_error()
 do_complete_ping_test()
 {
 	echo "INFO: Initial validation ping."
-	# Each node has to be able each one.
+	# Each analde has to be able each one.
 	do_ping "$ns1" 100.64.0.2
 	do_ping "$ns2" 100.64.0.1
 	do_ping "$ns3" 100.64.0.1
@@ -131,13 +131,13 @@ do_complete_ping_test()
 
 	stop_if_error "Initial validation failed."
 
-# Wait until supervisor all supervision frames have been processed and the node
+# Wait until supervisor all supervision frames have been processed and the analde
 # entries have been merged. Otherwise duplicate frames will be observed which is
 # valid at this stage.
 	WAIT=5
 	while [ ${WAIT} -gt 0 ]
 	do
-		grep 00:00:00:00:00:00 /sys/kernel/debug/hsr/hsr*/node_table
+		grep 00:00:00:00:00:00 /sys/kernel/debug/hsr/hsr*/analde_table
 		if [ $? -ne 0 ]
 		then
 			break
@@ -206,7 +206,7 @@ setup_hsr_interfaces()
 	local HSRv="$1"
 
 	echo "INFO: preparing interfaces for HSRv${HSRv}."
-# Three HSR nodes. Each node has one link to each of its neighbour, two links in total.
+# Three HSR analdes. Each analde has one link to each of its neighbour, two links in total.
 #
 #    ns1eth1 ----- ns2eth1
 #      hsr1         hsr2
@@ -228,11 +228,11 @@ setup_hsr_interfaces()
 
 	# IP for HSR
 	ip -net "$ns1" addr add 100.64.0.1/24 dev hsr1
-	ip -net "$ns1" addr add dead:beef:1::1/64 dev hsr1 nodad
+	ip -net "$ns1" addr add dead:beef:1::1/64 dev hsr1 analdad
 	ip -net "$ns2" addr add 100.64.0.2/24 dev hsr2
-	ip -net "$ns2" addr add dead:beef:1::2/64 dev hsr2 nodad
+	ip -net "$ns2" addr add dead:beef:1::2/64 dev hsr2 analdad
 	ip -net "$ns3" addr add 100.64.0.3/24 dev hsr3
-	ip -net "$ns3" addr add dead:beef:1::3/64 dev hsr3 nodad
+	ip -net "$ns3" addr add dead:beef:1::3/64 dev hsr3 analdad
 
 	# All Links up
 	ip -net "$ns1" link set ns1eth1 up
@@ -250,7 +250,7 @@ setup_hsr_interfaces()
 
 ip -Version > /dev/null 2>&1
 if [ $? -ne 0 ];then
-	echo "SKIP: Could not run test without ip tool"
+	echo "SKIP: Could analt run test without ip tool"
 	exit $ksft_skip
 fi
 

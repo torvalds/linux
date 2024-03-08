@@ -10,8 +10,8 @@
 #define KE_KEY		1	/* Ordinary key/button */
 #define KE_SW		2	/* Switch (predetermined value) */
 #define KE_VSW		3	/* Switch (value supplied at runtime) */
-#define KE_IGNORE	4	/* Known entry that should be ignored */
-#define KE_LAST		KE_IGNORE
+#define KE_IGANALRE	4	/* Kanalwn entry that should be iganalred */
+#define KE_LAST		KE_IGANALRE
 
 /**
  * struct key_entry - keymap entry for use in sparse keymap
@@ -23,11 +23,11 @@
  * @sw: struct with code/value used by KE_SW and KE_VSW
  * @sw.code: SW_* code assigned to a switch
  * @sw.value: Value that should be sent in an input even when KE_SW
- *	switch is toggled. KE_VSW switches ignore this field and
+ *	switch is toggled. KE_VSW switches iganalre this field and
  *	expect driver to supply value for the event.
  *
  * This structure defines an entry in a sparse keymap used by some
- * input devices for which traditional table-based approach is not
+ * input devices for which traditional table-based approach is analt
  * suitable.
  */
 struct key_entry {
@@ -37,7 +37,7 @@ struct key_entry {
 		u16 keycode;		/* For KE_KEY */
 		struct {		/* For KE_SW, KE_VSW */
 			u8 code;
-			u8 value;	/* For KE_SW, ignored by KE_VSW */
+			u8 value;	/* For KE_SW, iganalred by KE_VSW */
 		} sw;
 	};
 };

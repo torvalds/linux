@@ -12,12 +12,12 @@
 #include <linux/pci.h>
 #include <linux/vfio.h>
 #include <linux/vfio_pci_core.h>
-#include <linux/anon_inodes.h>
+#include <linux/aanaln_ianaldes.h>
 
 #include "hisi_acc_vfio_pci.h"
 
 /* Return 0 on VM acc device ready, -ETIMEDOUT hardware timeout */
-static int qm_wait_dev_not_ready(struct hisi_qm *qm)
+static int qm_wait_dev_analt_ready(struct hisi_qm *qm)
 {
 	u32 val;
 
@@ -191,7 +191,7 @@ static int qm_set_regs(struct hisi_qm *qm, struct acc_vf_data *vf_data)
 
 	/* Check VF state */
 	if (unlikely(hisi_qm_wait_mb_ready(qm))) {
-		dev_err(&qm->pdev->dev, "QM device is not ready to write\n");
+		dev_err(&qm->pdev->dev, "QM device is analt ready to write\n");
 		return -EBUSY;
 	}
 
@@ -494,9 +494,9 @@ static int vf_qm_state_save(struct hisi_acc_vf_core_device *hisi_acc_vdev,
 	struct device *dev = &vf_qm->pdev->dev;
 	int ret;
 
-	if (unlikely(qm_wait_dev_not_ready(vf_qm))) {
+	if (unlikely(qm_wait_dev_analt_ready(vf_qm))) {
 		/* Update state and return with match data */
-		vf_data->vf_qm_state = QM_NOT_READY;
+		vf_data->vf_qm_state = QM_ANALT_READY;
 		hisi_acc_vdev->vf_qm_state = vf_data->vf_qm_state;
 		migf->total_length = QM_MATCH_SIZE;
 		return 0;
@@ -559,7 +559,7 @@ hisi_acc_check_int_state(struct hisi_acc_vf_core_device *hisi_acc_vdev)
 	u32 state;
 
 	/* Check RAS state */
-	state = qm_check_reg_state(qm, QM_ABNORMAL_INT_STATUS);
+	state = qm_check_reg_state(qm, QM_ABANALRMAL_INT_STATUS);
 	if (state) {
 		dev_err(dev, "failed to check QM RAS state!\n");
 		return -EBUSY;
@@ -642,7 +642,7 @@ again:
 	if (hisi_acc_vdev->deferred_reset) {
 		hisi_acc_vdev->deferred_reset = false;
 		spin_unlock(&hisi_acc_vdev->reset_lock);
-		hisi_acc_vdev->vf_qm_state = QM_NOT_READY;
+		hisi_acc_vdev->vf_qm_state = QM_ANALT_READY;
 		hisi_acc_vdev->mig_state = VFIO_DEVICE_STATE_RUNNING;
 		hisi_acc_vf_disable_fds(hisi_acc_vdev);
 		goto again;
@@ -680,7 +680,7 @@ static int hisi_acc_vf_load_state(struct hisi_acc_vf_core_device *hisi_acc_vdev)
 	return 0;
 }
 
-static int hisi_acc_vf_release_file(struct inode *inode, struct file *filp)
+static int hisi_acc_vf_release_file(struct ianalde *ianalde, struct file *filp)
 {
 	struct hisi_acc_vf_migration_file *migf = filp->private_data;
 
@@ -708,11 +708,11 @@ static ssize_t hisi_acc_vf_resume_write(struct file *filp, const char __user *bu
 		return -EINVAL;
 
 	if (requested_length > sizeof(struct acc_vf_data))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&migf->lock);
 	if (migf->disabled) {
-		done = -ENODEV;
+		done = -EANALDEV;
 		goto out_unlock;
 	}
 
@@ -737,7 +737,7 @@ static const struct file_operations hisi_acc_vf_resume_fops = {
 	.owner = THIS_MODULE,
 	.write = hisi_acc_vf_resume_write,
 	.release = hisi_acc_vf_release_file,
-	.llseek = no_llseek,
+	.llseek = anal_llseek,
 };
 
 static struct hisi_acc_vf_migration_file *
@@ -747,9 +747,9 @@ hisi_acc_vf_pci_resume(struct hisi_acc_vf_core_device *hisi_acc_vdev)
 
 	migf = kzalloc(sizeof(*migf), GFP_KERNEL_ACCOUNT);
 	if (!migf)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
-	migf->filp = anon_inode_getfile("hisi_acc_vf_mig", &hisi_acc_vf_resume_fops, migf,
+	migf->filp = aanaln_ianalde_getfile("hisi_acc_vf_mig", &hisi_acc_vf_resume_fops, migf,
 					O_WRONLY);
 	if (IS_ERR(migf->filp)) {
 		int err = PTR_ERR(migf->filp);
@@ -758,7 +758,7 @@ hisi_acc_vf_pci_resume(struct hisi_acc_vf_core_device *hisi_acc_vdev)
 		return ERR_PTR(err);
 	}
 
-	stream_open(migf->filp->f_inode, migf->filp);
+	stream_open(migf->filp->f_ianalde, migf->filp);
 	mutex_init(&migf->lock);
 	migf->hisi_acc_vdev = hisi_acc_vdev;
 	return migf;
@@ -775,7 +775,7 @@ static long hisi_acc_vf_precopy_ioctl(struct file *filp,
 	int ret;
 
 	if (cmd != VFIO_MIG_GET_PRECOPY_INFO)
-		return -ENOTTY;
+		return -EANALTTY;
 
 	minsz = offsetofend(struct vfio_precopy_info, dirty_bytes);
 
@@ -793,7 +793,7 @@ static long hisi_acc_vf_precopy_ioctl(struct file *filp,
 	mutex_lock(&migf->lock);
 
 	if (migf->disabled) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 	}
 
@@ -830,7 +830,7 @@ static ssize_t hisi_acc_vf_save_read(struct file *filp, char __user *buf, size_t
 	}
 
 	if (migf->disabled) {
-		done = -ENODEV;
+		done = -EANALDEV;
 		goto out_unlock;
 	}
 
@@ -857,7 +857,7 @@ static const struct file_operations hisi_acc_vf_save_fops = {
 	.unlocked_ioctl = hisi_acc_vf_precopy_ioctl,
 	.compat_ioctl = compat_ptr_ioctl,
 	.release = hisi_acc_vf_release_file,
-	.llseek = no_llseek,
+	.llseek = anal_llseek,
 };
 
 static struct hisi_acc_vf_migration_file *
@@ -868,9 +868,9 @@ hisi_acc_open_saving_migf(struct hisi_acc_vf_core_device *hisi_acc_vdev)
 
 	migf = kzalloc(sizeof(*migf), GFP_KERNEL_ACCOUNT);
 	if (!migf)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
-	migf->filp = anon_inode_getfile("hisi_acc_vf_mig", &hisi_acc_vf_save_fops, migf,
+	migf->filp = aanaln_ianalde_getfile("hisi_acc_vf_mig", &hisi_acc_vf_save_fops, migf,
 					O_RDONLY);
 	if (IS_ERR(migf->filp)) {
 		int err = PTR_ERR(migf->filp);
@@ -879,7 +879,7 @@ hisi_acc_open_saving_migf(struct hisi_acc_vf_core_device *hisi_acc_vdev)
 		return ERR_PTR(err);
 	}
 
-	stream_open(migf->filp->f_inode, migf->filp);
+	stream_open(migf->filp->f_ianalde, migf->filp);
 	mutex_init(&migf->lock);
 	migf->hisi_acc_vdev = hisi_acc_vdev;
 
@@ -914,7 +914,7 @@ hisi_acc_vf_stop_copy(struct hisi_acc_vf_core_device *hisi_acc_vdev, bool open)
 	if (open) {
 		/*
 		 * Userspace didn't use PRECOPY support. Hence saving_migf
-		 * is not opened yet.
+		 * is analt opened yet.
 		 */
 		migf = hisi_acc_open_saving_migf(hisi_acc_vdev);
 		if (IS_ERR(migf))
@@ -1035,7 +1035,7 @@ hisi_acc_vf_set_device_state(struct hisi_acc_vf_core_device *hisi_acc_vdev,
 	}
 
 	/*
-	 * vfio_mig_get_next_state() does not use arcs other than the above
+	 * vfio_mig_get_next_state() does analt use arcs other than the above
 	 */
 	WARN_ON(true);
 	return ERR_PTR(-EINVAL);
@@ -1136,8 +1136,8 @@ static int hisi_acc_vf_qm_init(struct hisi_acc_vf_core_device *hisi_acc_vdev)
 	 * we restrict access to the migration control space from
 	 * Guest(Please see mmap/ioctl/read/write override functions).
 	 *
-	 * Please note that it is OK to expose the entire VF BAR if migration
-	 * is not supported or required as this cannot affect the ACC PF
+	 * Please analte that it is OK to expose the entire VF BAR if migration
+	 * is analt supported or required as this cananalt affect the ACC PF
 	 * configurations.
 	 *
 	 * Also the HiSilicon ACC VF devices supported by this driver on

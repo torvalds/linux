@@ -431,11 +431,11 @@ void __init cfe_die(char *fmt, ...)
 	strcat(msg, "\r\n");
 
 	if (cfe_seal != CFE_EPTSEAL)
-		goto no_cfe;
+		goto anal_cfe;
 
 	prid = read_c0_prid();
 	if ((prid & PRID_COMP_MASK) != PRID_COMP_BROADCOM)
-		goto no_cfe;
+		goto anal_cfe;
 
 	rev = prid & PRID_REV_MASK;
 
@@ -462,7 +462,7 @@ void __init cfe_die(char *fmt, ...)
 
 	handle = cfe_getstdhandle(CFE_STDHANDLE_CONSOLE);
 	if (handle < 0)
-		goto no_cfe;
+		goto anal_cfe;
 
 	cfe_write(handle, msg, strlen(msg));
 
@@ -472,7 +472,7 @@ void __init cfe_die(char *fmt, ...)
 	while (1)
 		;
 
-no_cfe:
+anal_cfe:
 	/* probably won't print anywhere useful */
 	panic("%s", msg);
 

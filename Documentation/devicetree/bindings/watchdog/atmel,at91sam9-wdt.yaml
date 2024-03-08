@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-# Copyright (C) 2022 Microchip Technology, Inc. and its subsidiaries
+# Copyright (C) 2022 Microchip Techanallogy, Inc. and its subsidiaries
 %YAML 1.2
 ---
 $id: http://devicetree.org/schemas/watchdog/atmel,at91sam9-wdt.yaml#
@@ -74,10 +74,10 @@ properties:
       Should be present if you want to stop the watchdog when
       entering idle state.
       CAUTION: This property should be used with care, it actually makes the
-      watchdog not counting when the CPU is in idle state, therefore the
-      watchdog reset time depends on mean CPU usage and will not reset at all
+      watchdog analt counting when the CPU is in idle state, therefore the
+      watchdog reset time depends on mean CPU usage and will analt reset at all
       if the CPU stops working while it is in idle state, which is probably
-      not what you want.
+      analt what you want.
 
   atmel,dbg-halt:
     $ref: /schemas/types.yaml#/definitions/flag

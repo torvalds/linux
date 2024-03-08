@@ -5,7 +5,7 @@
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/regulator/consumer.h>
@@ -263,7 +263,7 @@ static int max9485_i2c_probe(struct i2c_client *client)
 
 	drvdata = devm_kzalloc(dev, sizeof(*drvdata), GFP_KERNEL);
 	if (!drvdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drvdata->xclk = devm_clk_get(dev, "xclk");
 	if (IS_ERR(drvdata->xclk))
@@ -298,7 +298,7 @@ static int max9485_i2c_probe(struct i2c_client *client)
 		int parent_index = max9485_clks[i].parent_index;
 		const char *name;
 
-		if (of_property_read_string_index(dev->of_node,
+		if (of_property_read_string_index(dev->of_analde,
 						  "clock-output-names",
 						  i, &name) == 0) {
 			drvdata->hw[i].init.name = name;

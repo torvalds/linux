@@ -20,10 +20,10 @@
 #include "hid-ids.h"
 
 #define MS_HIDINPUT		BIT(0)
-#define MS_ERGONOMY		BIT(1)
+#define MS_ERGOANALMY		BIT(1)
 #define MS_PRESENTER		BIT(2)
 #define MS_RDESC		BIT(3)
-#define MS_NOGET		BIT(4)
+#define MS_ANALGET		BIT(4)
 #define MS_DUPLICATE_USAGES	BIT(5)
 #define MS_SURFACE_DIAL		BIT(6)
 #define MS_QUIRK_FF		BIT(7)
@@ -77,7 +77,7 @@ static __u8 *ms_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 
 #define ms_map_key_clear(c)	hid_map_usage_clear(hi, usage, bit, max, \
 					EV_KEY, (c))
-static int ms_ergonomy_kb_quirk(struct hid_input *hi, struct hid_usage *usage,
+static int ms_ergoanalmy_kb_quirk(struct hid_input *hi, struct hid_usage *usage,
 		unsigned long **bit, int *max)
 {
 	struct input_dev *input = hi->input;
@@ -120,8 +120,8 @@ static int ms_ergonomy_kb_quirk(struct hid_input *hi, struct hid_usage *usage,
 		 * standard hid keyboard report, as send by interface 0
 		 * (this usage is found on interface 1).
 		 *
-		 * This byte only gets send when another key in the same report
-		 * changes state, and as such is useless, ignore it.
+		 * This byte only gets send when aanalther key in the same report
+		 * changes state, and as such is useless, iganalre it.
 		 */
 		return -1;
 	case 0xff05:
@@ -164,14 +164,14 @@ static int ms_surface_dial_quirk(struct hid_input *hi, struct hid_field *field,
 	switch (usage->hid & HID_USAGE_PAGE) {
 	case 0xff070000:
 	case HID_UP_DIGITIZER:
-		/* ignore those axis */
+		/* iganalre those axis */
 		return -1;
 	case HID_UP_GENDESK:
 		switch (usage->hid) {
 		case HID_GD_X:
 		case HID_GD_Y:
 		case HID_GD_RFKILL_BTN:
-			/* ignore those axis */
+			/* iganalre those axis */
 			return -1;
 		}
 	}
@@ -186,8 +186,8 @@ static int ms_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 	struct ms_data *ms = hid_get_drvdata(hdev);
 	unsigned long quirks = ms->quirks;
 
-	if (quirks & MS_ERGONOMY) {
-		int ret = ms_ergonomy_kb_quirk(hi, usage, bit, max);
+	if (quirks & MS_ERGOANALMY) {
+		int ret = ms_ergoanalmy_kb_quirk(hi, usage, bit, max);
 		if (ret)
 			return ret;
 	}
@@ -233,7 +233,7 @@ static int ms_event(struct hid_device *hdev, struct hid_field *field,
 	input = field->hidinput->input;
 
 	/* Handling MS keyboards special buttons */
-	if (quirks & MS_ERGONOMY && usage->hid == (HID_UP_MSVENDOR | 0xff00)) {
+	if (quirks & MS_ERGOANALMY && usage->hid == (HID_UP_MSVENDOR | 0xff00)) {
 		/* Special keypad keys */
 		input_report_key(input, KEY_KPEQUAL, value & 0x01);
 		input_report_key(input, KEY_KPLEFTPAREN, value & 0x02);
@@ -241,7 +241,7 @@ static int ms_event(struct hid_device *hdev, struct hid_field *field,
 		return 1;
 	}
 
-	if (quirks & MS_ERGONOMY && usage->hid == (HID_UP_MSVENDOR | 0xff01)) {
+	if (quirks & MS_ERGOANALMY && usage->hid == (HID_UP_MSVENDOR | 0xff01)) {
 		/* Scroll wheel */
 		int step = ((value & 0x60) >> 5) + 1;
 
@@ -256,7 +256,7 @@ static int ms_event(struct hid_device *hdev, struct hid_field *field,
 		return 1;
 	}
 
-	if (quirks & MS_ERGONOMY && usage->hid == (HID_UP_MSVENDOR | 0xff05)) {
+	if (quirks & MS_ERGOANALMY && usage->hid == (HID_UP_MSVENDOR | 0xff05)) {
 		static unsigned int last_key = 0;
 		unsigned int key = 0;
 		switch (value) {
@@ -330,8 +330,8 @@ static int ms_init_ff(struct hid_device *hdev)
 	struct ms_data *ms = hid_get_drvdata(hdev);
 
 	if (list_empty(&hdev->inputs)) {
-		hid_err(hdev, "no inputs found\n");
-		return -ENODEV;
+		hid_err(hdev, "anal inputs found\n");
+		return -EANALDEV;
 	}
 	hidinput = list_entry(hdev->inputs.next, struct hid_input, list);
 	input_dev = hidinput->input;
@@ -346,7 +346,7 @@ static int ms_init_ff(struct hid_device *hdev)
 						sizeof(struct xb1s_ff_report),
 						GFP_KERNEL);
 	if (ms->output_report_dmabuf == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input_set_capability(input_dev, EV_FF, FF_RUMBLE);
 	return input_ff_create_memless(input_dev, NULL, ms_play_effect);
@@ -370,14 +370,14 @@ static int ms_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	ms = devm_kzalloc(&hdev->dev, sizeof(*ms), GFP_KERNEL);
 	if (ms == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ms->quirks = quirks;
 
 	hid_set_drvdata(hdev, ms);
 
-	if (quirks & MS_NOGET)
-		hdev->quirks |= HID_QUIRK_NOGET;
+	if (quirks & MS_ANALGET)
+		hdev->quirks |= HID_QUIRK_ANALGET;
 
 	if (quirks & MS_SURFACE_DIAL)
 		hdev->quirks |= HID_QUIRK_INPUT_PER_APP;
@@ -397,7 +397,7 @@ static int ms_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	ret = ms_init_ff(hdev);
 	if (ret)
-		hid_err(hdev, "could not initialize ff, continuing anyway");
+		hid_err(hdev, "could analt initialize ff, continuing anyway");
 
 	return 0;
 err_free:
@@ -414,33 +414,33 @@ static const struct hid_device_id ms_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_MICROSOFT, USB_DEVICE_ID_SIDEWINDER_GV),
 		.driver_data = MS_HIDINPUT },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_MICROSOFT, USB_DEVICE_ID_MS_OFFICE_KB),
-		.driver_data = MS_ERGONOMY },
+		.driver_data = MS_ERGOANALMY },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_MICROSOFT, USB_DEVICE_ID_MS_NE4K),
-		.driver_data = MS_ERGONOMY },
+		.driver_data = MS_ERGOANALMY },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_MICROSOFT, USB_DEVICE_ID_MS_NE4K_JP),
-		.driver_data = MS_ERGONOMY },
+		.driver_data = MS_ERGOANALMY },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_MICROSOFT, USB_DEVICE_ID_MS_NE7K),
-		.driver_data = MS_ERGONOMY },
+		.driver_data = MS_ERGOANALMY },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_MICROSOFT, USB_DEVICE_ID_MS_LK6K),
-		.driver_data = MS_ERGONOMY | MS_RDESC },
+		.driver_data = MS_ERGOANALMY | MS_RDESC },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_MICROSOFT, USB_DEVICE_ID_MS_PRESENTER_8K_USB),
 		.driver_data = MS_PRESENTER },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_MICROSOFT, USB_DEVICE_ID_MS_DIGITAL_MEDIA_3K),
-		.driver_data = MS_ERGONOMY },
+		.driver_data = MS_ERGOANALMY },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_MICROSOFT, USB_DEVICE_ID_MS_DIGITAL_MEDIA_7K),
-		.driver_data = MS_ERGONOMY },
+		.driver_data = MS_ERGOANALMY },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_MICROSOFT, USB_DEVICE_ID_MS_DIGITAL_MEDIA_600),
-		.driver_data = MS_ERGONOMY },
+		.driver_data = MS_ERGOANALMY },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_MICROSOFT, USB_DEVICE_ID_MS_DIGITAL_MEDIA_3KV1),
-		.driver_data = MS_ERGONOMY },
+		.driver_data = MS_ERGOANALMY },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_MICROSOFT, USB_DEVICE_ID_WIRELESS_OPTICAL_DESKTOP_3_0),
-		.driver_data = MS_NOGET },
+		.driver_data = MS_ANALGET },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_MICROSOFT, USB_DEVICE_ID_MS_COMFORT_MOUSE_4500),
 		.driver_data = MS_DUPLICATE_USAGES },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_MICROSOFT, USB_DEVICE_ID_MS_POWER_COVER),
 		.driver_data = MS_HIDINPUT },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_MICROSOFT, USB_DEVICE_ID_MS_COMFORT_KEYBOARD),
-		.driver_data = MS_ERGONOMY},
+		.driver_data = MS_ERGOANALMY},
 
 	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_MICROSOFT, USB_DEVICE_ID_MS_PRESENTER_8K_BT),
 		.driver_data = MS_PRESENTER },

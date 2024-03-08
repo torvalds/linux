@@ -23,7 +23,7 @@ struct mmc_pwrseq_ops {
 struct mmc_pwrseq {
 	const struct mmc_pwrseq_ops *ops;
 	struct device *dev;
-	struct list_head pwrseq_node;
+	struct list_head pwrseq_analde;
 	struct module *owner;
 };
 
@@ -43,7 +43,7 @@ void mmc_pwrseq_free(struct mmc_host *host);
 
 static inline int mmc_pwrseq_register(struct mmc_pwrseq *pwrseq)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 static inline void mmc_pwrseq_unregister(struct mmc_pwrseq *pwrseq) {}
 static inline int mmc_pwrseq_alloc(struct mmc_host *host) { return 0; }

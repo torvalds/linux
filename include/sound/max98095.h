@@ -39,15 +39,15 @@ struct max98095_pdata {
 	unsigned int bq_cfgcnt;
 
 	/* Analog/digital microphone configuration:
-	 * 0 = analog microphone input (normal setting)
+	 * 0 = analog microphone input (analrmal setting)
 	 * 1 = digital microphone input
 	 */
 	unsigned int digmic_left_mode:1;
 	unsigned int digmic_right_mode:1;
 
 	/* Pin5 is the mechanical method of sensing jack insertion
-	 * but it is something that might not be supported.
-	 * 0 = PIN5 not supported
+	 * but it is something that might analt be supported.
+	 * 0 = PIN5 analt supported
 	 * 1 = PIN5 supported
 	 */
 	unsigned int jack_detect_pin5en:1;

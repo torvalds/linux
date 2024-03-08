@@ -44,7 +44,7 @@ int acp_sof_trace_init(struct snd_sof_dev *sdev, struct snd_dma_buffer *dmab,
 	adata = sdev->pdata->hw_pdata;
 	stream = acp_dsp_stream_get(sdev, ACP_LOGGER_STREAM);
 	if (!stream)
-		return -ENODEV;
+		return -EANALDEV;
 
 	stream->dmab = dmab;
 	stream->num_pages = NUM_PAGES;

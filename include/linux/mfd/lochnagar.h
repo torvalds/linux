@@ -27,7 +27,7 @@ enum lochnagar_type {
  * @dev: A pointer to the struct device for the main MFD.
  * @regmap: The devices main register map.
  * @analogue_config_lock: Lock used to protect updates in the analogue
- * configuration as these must not be changed whilst the hardware is processing
+ * configuration as these must analt be changed whilst the hardware is processing
  * the last update.
  */
 struct lochnagar {

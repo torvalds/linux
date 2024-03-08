@@ -15,7 +15,7 @@
 #ifndef __ASSEMBLY__
 
 enum aarch64_insn_hint_cr_op {
-	AARCH64_INSN_HINT_NOP	= 0x0 << 5,
+	AARCH64_INSN_HINT_ANALP	= 0x0 << 5,
 	AARCH64_INSN_HINT_YIELD	= 0x1 << 5,
 	AARCH64_INSN_HINT_WFE	= 0x2 << 5,
 	AARCH64_INSN_HINT_WFI	= 0x3 << 5,
@@ -148,7 +148,7 @@ enum aarch64_insn_condition {
 	AARCH64_INSN_COND_MI = 0x4, /* < 0 */
 	AARCH64_INSN_COND_PL = 0x5, /* >= 0 */
 	AARCH64_INSN_COND_VS = 0x6, /* overflow */
-	AARCH64_INSN_COND_VC = 0x7, /* no overflow */
+	AARCH64_INSN_COND_VC = 0x7, /* anal overflow */
 	AARCH64_INSN_COND_HI = 0x8, /* unsigned > */
 	AARCH64_INSN_COND_LS = 0x9, /* unsigned <= */
 	AARCH64_INSN_COND_GE = 0xa, /* signed >= */
@@ -159,11 +159,11 @@ enum aarch64_insn_condition {
 };
 
 enum aarch64_insn_branch_type {
-	AARCH64_INSN_BRANCH_NOLINK,
+	AARCH64_INSN_BRANCH_ANALLINK,
 	AARCH64_INSN_BRANCH_LINK,
 	AARCH64_INSN_BRANCH_RETURN,
 	AARCH64_INSN_BRANCH_COMP_ZERO,
-	AARCH64_INSN_BRANCH_COMP_NONZERO,
+	AARCH64_INSN_BRANCH_COMP_ANALNZERO,
 };
 
 enum aarch64_insn_size_type {
@@ -271,7 +271,7 @@ enum aarch64_insn_mem_atomic_op {
 };
 
 enum aarch64_insn_mem_order_type {
-	AARCH64_INSN_MEM_ORDER_NONE,
+	AARCH64_INSN_MEM_ORDER_ANALNE,
 	AARCH64_INSN_MEM_ORDER_ACQ,
 	AARCH64_INSN_MEM_ORDER_REL,
 	AARCH64_INSN_MEM_ORDER_ACQREL,
@@ -445,7 +445,7 @@ static __always_inline bool aarch64_insn_is_steppable_hint(u32 insn)
 	case AARCH64_INSN_HINT_BTIC:
 	case AARCH64_INSN_HINT_BTIJ:
 	case AARCH64_INSN_HINT_BTIJC:
-	case AARCH64_INSN_HINT_NOP:
+	case AARCH64_INSN_HINT_ANALP:
 		return true;
 	default:
 		return false;
@@ -564,9 +564,9 @@ aarch64_insn_gen_hint(enum aarch64_insn_hint_cr_op op)
 	return aarch64_insn_get_hint_value() | op;
 }
 
-static __always_inline u32 aarch64_insn_gen_nop(void)
+static __always_inline u32 aarch64_insn_gen_analp(void)
 {
-	return aarch64_insn_gen_hint(AARCH64_INSN_HINT_NOP);
+	return aarch64_insn_gen_hint(AARCH64_INSN_HINT_ANALP);
 }
 
 u32 aarch64_insn_gen_branch_reg(enum aarch64_insn_register reg,

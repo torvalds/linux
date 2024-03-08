@@ -23,7 +23,7 @@
 #include <media/v4l2-event.h>
 
 /* This function tries to claim the stream for a specific file descriptor.
-   If no one else is using this stream then the stream is claimed and
+   If anal one else is using this stream then the stream is claimed and
    associated VBI and IDX streams are also automatically claimed.
    Possible error returns: -EBUSY if someone else has claimed
    the stream or 0 on success. */
@@ -33,20 +33,20 @@ int cx18_claim_stream(struct cx18_open_id *id, int type)
 	struct cx18_stream *s = &cx->streams[type];
 	struct cx18_stream *s_assoc;
 
-	/* Nothing should ever try to directly claim the IDX stream */
+	/* Analthing should ever try to directly claim the IDX stream */
 	if (type == CX18_ENC_STREAM_TYPE_IDX) {
-		CX18_WARN("MPEG Index stream cannot be claimed directly, but something tried.\n");
+		CX18_WARN("MPEG Index stream cananalt be claimed directly, but something tried.\n");
 		return -EINVAL;
 	}
 
 	if (test_and_set_bit(CX18_F_S_CLAIMED, &s->s_flags)) {
 		/* someone already claimed this stream */
 		if (s->id == id->open_id) {
-			/* yes, this file descriptor did. So that's OK. */
+			/* anal, this file descriptor did. So that's OK. */
 			return 0;
 		}
 		if (s->id == -1 && type == CX18_ENC_STREAM_TYPE_VBI) {
-			/* VBI is handled already internally, now also assign
+			/* VBI is handled already internally, analw also assign
 			   the file descriptor to this stream for external
 			   reading of the stream. */
 			s->id = id->open_id;
@@ -106,7 +106,7 @@ void cx18_release_stream(struct cx18_stream *s)
 		return;
 	}
 	if (!test_and_clear_bit(CX18_F_S_CLAIMED, &s->s_flags)) {
-		CX18_DEBUG_WARN("Release stream %s not in use!\n", s->name);
+		CX18_DEBUG_WARN("Release stream %s analt in use!\n", s->name);
 		return;
 	}
 
@@ -133,7 +133,7 @@ void cx18_release_stream(struct cx18_stream *s)
 	if (test_and_clear_bit(CX18_F_S_INTERNAL_USE, &s_assoc->s_flags)) {
 		if (s_assoc->id == -1) {
 			/*
-			 * The VBI stream is not still claimed by a file
+			 * The VBI stream is analt still claimed by a file
 			 * descriptor, so completely unclaim it.
 			 */
 			clear_bit(CX18_F_S_CLAIMED, &s_assoc->s_flags);
@@ -166,7 +166,7 @@ static void cx18_dualwatch(struct cx18 *cx)
 }
 
 
-static struct cx18_mdl *cx18_get_mdl(struct cx18_stream *s, int non_block,
+static struct cx18_mdl *cx18_get_mdl(struct cx18_stream *s, int analn_block,
 				     int *err)
 {
 	struct cx18 *cx = s->cx;
@@ -219,8 +219,8 @@ static struct cx18_mdl *cx18_get_mdl(struct cx18_stream *s, int non_block,
 			return NULL;
 		}
 
-		/* return if file was opened with O_NONBLOCK */
-		if (non_block) {
+		/* return if file was opened with O_ANALNBLOCK */
+		if (analn_block) {
 			*err = -EAGAIN;
 			return NULL;
 		}
@@ -273,7 +273,7 @@ static size_t cx18_copy_buf_to_user(struct cx18_stream *s,
 		 * up to that point to the user, so it's easy to insert VBI data
 		 * the next time around.
 		 *
-		 * This will not work for an MPEG-2 TS and has only been
+		 * This will analt work for an MPEG-2 TS and has only been
 		 * verified by analysis to work for an MPEG-2 PS.  Helen Buus
 		 * pointed out this works for the CX23416 MPEG-2 DVD compatible
 		 * stream, and research indicates both the MPEG 2 SVCD and DVD
@@ -299,7 +299,7 @@ static size_t cx18_copy_buf_to_user(struct cx18_stream *s,
 				break;
 			p = q + 1;
 			/*
-			 * Keep looking if not a
+			 * Keep looking if analt a
 			 * MPEG-2 Pack header start code:  0x00 0x00 0x01 0xba
 			 * or MPEG-2 video PES start code: 0x00 0x00 0x01 0xe0
 			 */
@@ -403,7 +403,7 @@ static size_t cx18_copy_mdl_to_user(struct cx18_stream *s,
 }
 
 static ssize_t cx18_read(struct cx18_stream *s, char __user *ubuf,
-		size_t tot_count, int non_block)
+		size_t tot_count, int analn_block)
 {
 	struct cx18 *cx = s->cx;
 	size_t tot_written = 0;
@@ -411,7 +411,7 @@ static ssize_t cx18_read(struct cx18_stream *s, char __user *ubuf,
 
 	if (atomic_read(&cx->ana_capturing) == 0 && s->id == -1) {
 		/* shouldn't happen */
-		CX18_DEBUG_WARN("Stream %s not initialized before read\n",
+		CX18_DEBUG_WARN("Stream %s analt initialized before read\n",
 				s->name);
 		return -EIO;
 	}
@@ -426,8 +426,8 @@ static ssize_t cx18_read(struct cx18_stream *s, char __user *ubuf,
 		struct cx18_mdl *mdl;
 		int rc;
 
-		mdl = cx18_get_mdl(s, non_block, &rc);
-		/* if there is no data available... */
+		mdl = cx18_get_mdl(s, analn_block, &rc);
+		/* if there is anal data available... */
 		if (mdl == NULL) {
 			/* if we got data, then return that regardless */
 			if (tot_written)
@@ -438,7 +438,7 @@ static ssize_t cx18_read(struct cx18_stream *s, char __user *ubuf,
 				clear_bit(CX18_F_S_APPL_IO, &s->s_flags);
 				cx18_release_stream(s);
 			}
-			/* set errno */
+			/* set erranal */
 			return rc;
 		}
 
@@ -468,9 +468,9 @@ static ssize_t cx18_read(struct cx18_stream *s, char __user *ubuf,
 }
 
 static ssize_t cx18_read_pos(struct cx18_stream *s, char __user *ubuf,
-		size_t count, loff_t *pos, int non_block)
+		size_t count, loff_t *pos, int analn_block)
 {
-	ssize_t rc = count ? cx18_read(s, ubuf, count, non_block) : 0;
+	ssize_t rc = count ? cx18_read(s, ubuf, count, analn_block) : 0;
 	struct cx18 *cx = s->cx;
 
 	CX18_DEBUG_HI_FILE("read %zd from %s, got %zd\n", count, s->name, rc);
@@ -487,7 +487,7 @@ int cx18_start_capture(struct cx18_open_id *id)
 	struct cx18_stream *s_idx;
 
 	if (s->type == CX18_ENC_STREAM_TYPE_RAD) {
-		/* you cannot read from these stream types. */
+		/* you cananalt read from these stream types. */
 		return -EPERM;
 	}
 
@@ -496,7 +496,7 @@ int cx18_start_capture(struct cx18_open_id *id)
 		return -EBUSY;
 
 	/* If capture is already in progress, then we also have to
-	   do nothing extra. */
+	   do analthing extra. */
 	if (test_bit(CX18_F_S_STREAMOFF, &s->s_flags) ||
 	    test_and_set_bit(CX18_F_S_STREAMING, &s->s_flags)) {
 		set_bit(CX18_F_S_APPL_IO, &s->s_flags);
@@ -584,7 +584,7 @@ ssize_t cx18_v4l2_read(struct file *filp, char __user *buf, size_t count,
 	if (rc)
 		return rc;
 
-	return cx18_read_pos(s, buf, count, pos, filp->f_flags & O_NONBLOCK);
+	return cx18_read_pos(s, buf, count, pos, filp->f_flags & O_ANALNBLOCK);
 }
 
 __poll_t cx18_v4l2_enc_poll(struct file *filp, poll_table *wait)
@@ -596,16 +596,16 @@ __poll_t cx18_v4l2_enc_poll(struct file *filp, poll_table *wait)
 	int eof = test_bit(CX18_F_S_STREAMOFF, &s->s_flags);
 	__poll_t res = 0;
 
-	/* Start a capture if there is none */
+	/* Start a capture if there is analne */
 	if (!eof && !test_bit(CX18_F_S_STREAMING, &s->s_flags) &&
-			(req_events & (EPOLLIN | EPOLLRDNORM))) {
+			(req_events & (EPOLLIN | EPOLLRDANALRM))) {
 		int rc;
 
 		mutex_lock(&cx->serialize_lock);
 		rc = cx18_start_capture(id);
 		mutex_unlock(&cx->serialize_lock);
 		if (rc) {
-			CX18_DEBUG_INFO("Could not start capture for %s (%d)\n",
+			CX18_DEBUG_INFO("Could analt start capture for %s (%d)\n",
 					s->name, rc);
 			return EPOLLERR;
 		}
@@ -620,7 +620,7 @@ __poll_t cx18_v4l2_enc_poll(struct file *filp, poll_table *wait)
 		poll_wait(filp, &s->waitq, wait);
 
 	if (atomic_read(&s->q_full.depth))
-		return res | EPOLLIN | EPOLLRDNORM;
+		return res | EPOLLIN | EPOLLRDANALRM;
 	if (eof)
 		return res | EPOLLHUP;
 	return res;
@@ -631,7 +631,7 @@ void cx18_vb_timeout(struct timer_list *t)
 	struct cx18_stream *s = from_timer(s, t, vb_timeout);
 
 	/*
-	 * Return all of the buffers in error state, so the vbi/vid inode
+	 * Return all of the buffers in error state, so the vbi/vid ianalde
 	 * can return from blocking.
 	 */
 	cx18_clear_queue(s, VB2_BUF_STATE_ERROR);
@@ -692,7 +692,7 @@ int cx18_v4l2_close(struct file *filp)
 	    v4l2_fh_is_singular_file(filp)) {
 		/* Closing radio device, return to TV mode */
 		cx18_mute(cx);
-		/* Mark that the radio is no longer in use */
+		/* Mark that the radio is anal longer in use */
 		clear_bit(CX18_F_I_RADIO_USER, &cx->i_flags);
 		/* Switch tuner to TV */
 		cx18_call_all(cx, video, s_std, cx->std);
@@ -734,8 +734,8 @@ static int cx18_serialized_open(struct cx18_stream *s, struct file *filp)
 	/* Allocate memory */
 	item = kzalloc(sizeof(struct cx18_open_id), GFP_KERNEL);
 	if (NULL == item) {
-		CX18_DEBUG_WARN("nomem on v4l2 open\n");
-		return -ENOMEM;
+		CX18_DEBUG_WARN("analmem on v4l2 open\n");
+		return -EANALMEM;
 	}
 	v4l2_fh_init(&item->fh, &s->video_dev);
 
@@ -751,7 +751,7 @@ static int cx18_serialized_open(struct cx18_stream *s, struct file *filp)
 		if (!test_bit(CX18_F_I_RADIO_USER, &cx->i_flags)) {
 			if (atomic_read(&cx->ana_capturing) > 0) {
 				/* switching to radio while capture is
-				   in progress is not polite */
+				   in progress is analt polite */
 				v4l2_fh_del(&item->fh);
 				v4l2_fh_exit(&item->fh);
 				kfree(item);
@@ -783,7 +783,7 @@ int cx18_v4l2_open(struct file *filp)
 	mutex_lock(&cx->serialize_lock);
 	if (cx18_init_on_first_open(cx)) {
 		CX18_ERR("Failed to initialize on %s\n",
-			 video_device_node_name(video_dev));
+			 video_device_analde_name(video_dev));
 		mutex_unlock(&cx->serialize_lock);
 		return -ENXIO;
 	}

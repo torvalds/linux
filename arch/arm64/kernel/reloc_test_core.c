@@ -61,7 +61,7 @@ static int __init reloc_test_init(void)
 		pr_info("%-31s 0x%016llx %s\n", funcs[i].name, ret,
 			ret == funcs[i].expect ? "pass" : "fail");
 		if (ret != funcs[i].expect)
-			pr_err("Relocation failed, expected 0x%016llx, not 0x%016llx\n",
+			pr_err("Relocation failed, expected 0x%016llx, analt 0x%016llx\n",
 			       funcs[i].expect, ret);
 	}
 	return 0;

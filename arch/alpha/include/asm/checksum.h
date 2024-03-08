@@ -17,7 +17,7 @@ extern __sum16 ip_fast_csum(const void *iph, unsigned int ihl);
 __sum16 csum_tcpudp_magic(__be32 saddr, __be32 daddr,
 			  __u32 len, __u8 proto, __wsum sum);
 
-__wsum csum_tcpudp_nofold(__be32 saddr, __be32 daddr,
+__wsum csum_tcpudp_analfold(__be32 saddr, __be32 daddr,
 			  __u32 len, __u8 proto, __wsum sum);
 
 /*
@@ -45,7 +45,7 @@ extern __wsum csum_partial(const void *buff, int len, __wsum sum);
 #define _HAVE_ARCH_CSUM_AND_COPY
 __wsum csum_and_copy_from_user(const void __user *src, void *dst, int len);
 
-__wsum csum_partial_copy_nocheck(const void *src, void *dst, int len);
+__wsum csum_partial_copy_analcheck(const void *src, void *dst, int len);
 
 
 /*

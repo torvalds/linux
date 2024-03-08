@@ -73,7 +73,7 @@ symbol_lookup_callback(__maybe_unused void *disasm_info,
 		       uint64_t *ref_type, __maybe_unused uint64_t ref_PC,
 		       __maybe_unused const char **ref_name)
 {
-	*ref_type = LLVMDisassembler_ReferenceType_InOut_None;
+	*ref_type = LLVMDisassembler_ReferenceType_InOut_Analne;
 	return NULL;
 }
 
@@ -85,7 +85,7 @@ init_context(disasm_ctx_t *ctx, const char *arch,
 	char *triple;
 
 	if (arch)
-		triple = LLVMNormalizeTargetTriple(arch);
+		triple = LLVMAnalrmalizeTargetTriple(arch);
 	else
 		triple = LLVMGetDefaultTargetTriple();
 	if (!triple) {
@@ -261,7 +261,7 @@ static int init_context(disasm_ctx_t *ctx, const char *arch,
 		if (inf) {
 			bfdf->arch_info = inf;
 		} else {
-			p_err("No libbfd support for %s", arch);
+			p_err("Anal libbfd support for %s", arch);
 			goto err_free;
 		}
 	}
@@ -364,7 +364,7 @@ int disasm_print_insn(unsigned char *image, ssize_t len, int opcodes,
 
 		if (json_output) {
 			/* Operand array, was started in fprintf_json. Before
-			 * that, make sure we have a _null_ value if no operand
+			 * that, make sure we have a _null_ value if anal operand
 			 * other than operation code was present.
 			 */
 			if (oper_count == 1)

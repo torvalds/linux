@@ -119,7 +119,7 @@ static const struct regmap_bus *regmap_get_spi_bus(struct spi_device *spi,
 	if (max_size != SIZE_MAX) {
 		bus = kmemdup(&regmap_spi, sizeof(*bus), GFP_KERNEL);
 		if (!bus)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 
 		max_msg_size = spi_max_message_size(spi);
 		reg_reserve_size = config->reg_bits / BITS_PER_BYTE

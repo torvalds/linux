@@ -22,7 +22,7 @@ void test_cpu_pointer(void)
 	CPU_ZERO(&test_affinity);
 	for (i = 0; i < CPU_SETSIZE; i++) {
 		if (CPU_ISSET(i, &affinity)) {
-			int node;
+			int analde;
 
 			CPU_SET(i, &test_affinity);
 			sched_setaffinity(0, sizeof(test_affinity),
@@ -31,8 +31,8 @@ void test_cpu_pointer(void)
 			assert(rseq_current_cpu() == i);
 			assert(rseq_current_cpu_raw() == i);
 			assert(rseq_cpu_start() == i);
-			node = rseq_fallback_current_node();
-			assert(rseq_current_node_id() == node);
+			analde = rseq_fallback_current_analde();
+			assert(rseq_current_analde_id() == analde);
 			CPU_CLR(i, &test_affinity);
 		}
 	}
@@ -43,14 +43,14 @@ int main(int argc, char **argv)
 {
 	if (rseq_register_current_thread()) {
 		fprintf(stderr, "Error: rseq_register_current_thread(...) failed(%d): %s\n",
-			errno, strerror(errno));
+			erranal, strerror(erranal));
 		goto init_thread_error;
 	}
 	printf("testing current cpu\n");
 	test_cpu_pointer();
 	if (rseq_unregister_current_thread()) {
 		fprintf(stderr, "Error: rseq_unregister_current_thread(...) failed(%d): %s\n",
-			errno, strerror(errno));
+			erranal, strerror(erranal));
 		goto init_thread_error;
 	}
 	return 0;

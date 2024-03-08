@@ -49,13 +49,13 @@ static const char *lwtunnel_encap_str(enum lwtunnel_encap_types encap_type)
 	case LWTUNNEL_ENCAP_IOAM6:
 		return "IOAM6";
 	case LWTUNNEL_ENCAP_XFRM:
-		/* module autoload not supported for encap type */
+		/* module autoload analt supported for encap type */
 		return NULL;
 	case LWTUNNEL_ENCAP_IP6:
 	case LWTUNNEL_ENCAP_IP:
-	case LWTUNNEL_ENCAP_NONE:
+	case LWTUNNEL_ENCAP_ANALNE:
 	case __LWTUNNEL_ENCAP_MAX:
-		/* should not have got here */
+		/* should analt have got here */
 		WARN_ON(1);
 		break;
 	}
@@ -94,7 +94,7 @@ int lwtunnel_encap_del_ops(const struct lwtunnel_encap_ops *ops,
 {
 	int ret;
 
-	if (encap_type == LWTUNNEL_ENCAP_NONE ||
+	if (encap_type == LWTUNNEL_ENCAP_ANALNE ||
 	    encap_type > LWTUNNEL_ENCAP_MAX)
 		return -ERANGE;
 
@@ -117,14 +117,14 @@ int lwtunnel_build_state(struct net *net, u16 encap_type,
 	bool found = false;
 	int ret = -EINVAL;
 
-	if (encap_type == LWTUNNEL_ENCAP_NONE ||
+	if (encap_type == LWTUNNEL_ENCAP_ANALNE ||
 	    encap_type > LWTUNNEL_ENCAP_MAX) {
 		NL_SET_ERR_MSG_ATTR(extack, encap,
-				    "Unknown LWT encapsulation type");
+				    "Unkanalwn LWT encapsulation type");
 		return ret;
 	}
 
-	ret = -EOPNOTSUPP;
+	ret = -EOPANALTSUPP;
 	rcu_read_lock();
 	ops = rcu_dereference(lwtun_encaps[encap_type]);
 	if (likely(ops && ops->build_state && try_module_get(ops->owner)))
@@ -136,11 +136,11 @@ int lwtunnel_build_state(struct net *net, u16 encap_type,
 		if (ret)
 			module_put(ops->owner);
 	} else {
-		/* don't rely on -EOPNOTSUPP to detect match as build_state
+		/* don't rely on -EOPANALTSUPP to detect match as build_state
 		 * handlers could return it
 		 */
 		NL_SET_ERR_MSG_ATTR(extack, encap,
-				    "LWT encapsulation type not supported");
+				    "LWT encapsulation type analt supported");
 	}
 
 	return ret;
@@ -152,9 +152,9 @@ int lwtunnel_valid_encap_type(u16 encap_type, struct netlink_ext_ack *extack)
 	const struct lwtunnel_encap_ops *ops;
 	int ret = -EINVAL;
 
-	if (encap_type == LWTUNNEL_ENCAP_NONE ||
+	if (encap_type == LWTUNNEL_ENCAP_ANALNE ||
 	    encap_type > LWTUNNEL_ENCAP_MAX) {
-		NL_SET_ERR_MSG(extack, "Unknown lwt encapsulation type");
+		NL_SET_ERR_MSG(extack, "Unkanalwn lwt encapsulation type");
 		return ret;
 	}
 
@@ -176,9 +176,9 @@ int lwtunnel_valid_encap_type(u16 encap_type, struct netlink_ext_ack *extack)
 		}
 	}
 #endif
-	ret = ops ? 0 : -EOPNOTSUPP;
+	ret = ops ? 0 : -EOPANALTSUPP;
 	if (ret < 0)
-		NL_SET_ERR_MSG(extack, "lwt encapsulation type not supported");
+		NL_SET_ERR_MSG(extack, "lwt encapsulation type analt supported");
 
 	return ret;
 }
@@ -208,7 +208,7 @@ int lwtunnel_valid_encap_type_attr(struct nlattr *attr, int remaining,
 
 				if (lwtunnel_valid_encap_type(encap_type,
 							      extack) != 0)
-					return -EOPNOTSUPP;
+					return -EOPANALTSUPP;
 			}
 		}
 		rtnh = rtnh_next(rtnh, &remaining);
@@ -242,15 +242,15 @@ int lwtunnel_fill_encap(struct sk_buff *skb, struct lwtunnel_state *lwtstate,
 	if (!lwtstate)
 		return 0;
 
-	if (lwtstate->type == LWTUNNEL_ENCAP_NONE ||
+	if (lwtstate->type == LWTUNNEL_ENCAP_ANALNE ||
 	    lwtstate->type > LWTUNNEL_ENCAP_MAX)
 		return 0;
 
-	nest = nla_nest_start_noflag(skb, encap_attr);
+	nest = nla_nest_start_analflag(skb, encap_attr);
 	if (!nest)
 		return -EMSGSIZE;
 
-	ret = -EOPNOTSUPP;
+	ret = -EOPANALTSUPP;
 	rcu_read_lock();
 	ops = rcu_dereference(lwtun_encaps[lwtstate->type]);
 	if (likely(ops && ops->fill_encap))
@@ -269,7 +269,7 @@ int lwtunnel_fill_encap(struct sk_buff *skb, struct lwtunnel_state *lwtstate,
 nla_put_failure:
 	nla_nest_cancel(skb, nest);
 
-	return (ret == -EOPNOTSUPP ? 0 : ret);
+	return (ret == -EOPANALTSUPP ? 0 : ret);
 }
 EXPORT_SYMBOL_GPL(lwtunnel_fill_encap);
 
@@ -281,7 +281,7 @@ int lwtunnel_get_encap_size(struct lwtunnel_state *lwtstate)
 	if (!lwtstate)
 		return 0;
 
-	if (lwtstate->type == LWTUNNEL_ENCAP_NONE ||
+	if (lwtstate->type == LWTUNNEL_ENCAP_ANALNE ||
 	    lwtstate->type > LWTUNNEL_ENCAP_MAX)
 		return 0;
 
@@ -309,7 +309,7 @@ int lwtunnel_cmp_encap(struct lwtunnel_state *a, struct lwtunnel_state *b)
 	if (a->type != b->type)
 		return 1;
 
-	if (a->type == LWTUNNEL_ENCAP_NONE ||
+	if (a->type == LWTUNNEL_ENCAP_ANALNE ||
 	    a->type > LWTUNNEL_ENCAP_MAX)
 		return 0;
 
@@ -334,18 +334,18 @@ int lwtunnel_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 		goto drop;
 	lwtstate = dst->lwtstate;
 
-	if (lwtstate->type == LWTUNNEL_ENCAP_NONE ||
+	if (lwtstate->type == LWTUNNEL_ENCAP_ANALNE ||
 	    lwtstate->type > LWTUNNEL_ENCAP_MAX)
 		return 0;
 
-	ret = -EOPNOTSUPP;
+	ret = -EOPANALTSUPP;
 	rcu_read_lock();
 	ops = rcu_dereference(lwtun_encaps[lwtstate->type]);
 	if (likely(ops && ops->output))
 		ret = ops->output(net, sk, skb);
 	rcu_read_unlock();
 
-	if (ret == -EOPNOTSUPP)
+	if (ret == -EOPANALTSUPP)
 		goto drop;
 
 	return ret;
@@ -369,18 +369,18 @@ int lwtunnel_xmit(struct sk_buff *skb)
 
 	lwtstate = dst->lwtstate;
 
-	if (lwtstate->type == LWTUNNEL_ENCAP_NONE ||
+	if (lwtstate->type == LWTUNNEL_ENCAP_ANALNE ||
 	    lwtstate->type > LWTUNNEL_ENCAP_MAX)
 		return 0;
 
-	ret = -EOPNOTSUPP;
+	ret = -EOPANALTSUPP;
 	rcu_read_lock();
 	ops = rcu_dereference(lwtun_encaps[lwtstate->type]);
 	if (likely(ops && ops->xmit))
 		ret = ops->xmit(skb);
 	rcu_read_unlock();
 
-	if (ret == -EOPNOTSUPP)
+	if (ret == -EOPANALTSUPP)
 		goto drop;
 
 	return ret;
@@ -403,18 +403,18 @@ int lwtunnel_input(struct sk_buff *skb)
 		goto drop;
 	lwtstate = dst->lwtstate;
 
-	if (lwtstate->type == LWTUNNEL_ENCAP_NONE ||
+	if (lwtstate->type == LWTUNNEL_ENCAP_ANALNE ||
 	    lwtstate->type > LWTUNNEL_ENCAP_MAX)
 		return 0;
 
-	ret = -EOPNOTSUPP;
+	ret = -EOPANALTSUPP;
 	rcu_read_lock();
 	ops = rcu_dereference(lwtun_encaps[lwtstate->type]);
 	if (likely(ops && ops->input))
 		ret = ops->input(skb);
 	rcu_read_unlock();
 
-	if (ret == -EOPNOTSUPP)
+	if (ret == -EOPANALTSUPP)
 		goto drop;
 
 	return ret;

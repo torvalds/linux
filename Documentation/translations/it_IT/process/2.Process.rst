@@ -8,26 +8,26 @@
 Come funziona il processo di sviluppo
 =====================================
 
-Lo sviluppo del Kernel agli inizi degli anno '90 era abbastanza libero, con
+Lo sviluppo del Kernel agli inizi degli ananal '90 era abbastanza libero, con
 un numero di utenti e sviluppatori relativamente basso.  Con una base
-di milioni di utenti e con 2000 sviluppatori coinvolti nel giro di un anno,
+di milioni di utenti e con 2000 sviluppatori coinvolti nel giro di un ananal,
 il kernel da allora ha messo in atto un certo numero di procedure per rendere
-lo sviluppo più agevole.  È richiesta una solida conoscenza di come tale
+lo sviluppo più agevole.  È richiesta una solida coanalscenza di come tale
 processo si svolge per poter esserne parte attiva.
 
 Il quadro d'insieme
 -------------------
 
-Gli sviluppatori kernel utilizzano un calendario di rilascio generico, dove
+Gli sviluppatori kernel utilizzaanal un calendario di rilascio generico, dove
 ogni due o tre mesi viene effettuata un rilascio importante del kernel.
-I rilasci più recenti sono stati:
+I rilasci più recenti soanal stati:
 
 	======  =================
 	5.0     3 marzo, 2019
 	5.1     5 maggio, 2019
 	5.2     7 luglio, 2019
 	5.3     15 settembre, 2019
-	5.4     24 novembre, 2019
+	5.4     24 analvembre, 2019
 	5.5     6 gennaio, 2020
 	======  =================
 
@@ -44,11 +44,11 @@ patch di ogni rilascio. All'inizio di ogni ciclo di sviluppo, la
 ritenuto sufficientemente stabile(e che è accettato dalla comunità di sviluppo)
 viene incluso nel ramo principale del kernel.  La maggior parte delle
 patch per un nuovo ciclo di sviluppo (e tutte le più importanti modifiche)
-saranno inserite durante questo periodo, ad un ritmo che si attesta sulle
-1000 modifiche ("patch" o "gruppo di modifiche") al giorno.
+sarananal inserite durante questo periodo, ad un ritmo che si attesta sulle
+1000 modifiche ("patch" o "gruppo di modifiche") al gioranal.
 
-(per inciso, vale la pena notare che i cambiamenti integrati durante la
-"finestra di inclusione" non escono dal nulla; questi infatti, sono stati
+(per inciso, vale la pena analtare che i cambiamenti integrati durante la
+"finestra di inclusione" analn escoanal dal nulla; questi infatti, soanal stati
 raccolti e, verificati in anticipo.  Il funzionamento di tale procedimento
 verrà descritto dettagliatamente più avanti).
 
@@ -60,26 +60,26 @@ che emerge al termine della finestra d'inclusione si chiamerà 5.6-rc1.
 Questo rilascio indica che il momento di aggiungere nuovi componenti è
 passato, e che è iniziato il periodo di stabilizzazione del prossimo kernel.
 
-Nelle successive sei/dieci settimane, potranno essere sottoposte solo modifiche
-che vanno a risolvere delle problematiche.  Occasionalmente potrà essere
-consentita una modifica più consistente, ma tali occasioni sono rare.
-Gli sviluppatori che tenteranno di aggiungere nuovi elementi al di fuori della
-finestra di inclusione, tendenzialmente, riceveranno un accoglienza poco
+Nelle successive sei/dieci settimane, potrananal essere sottoposte solo modifiche
+che vananal a risolvere delle problematiche.  Occasionalmente potrà essere
+consentita una modifica più consistente, ma tali occasioni soanal rare.
+Gli sviluppatori che tenterananal di aggiungere nuovi elementi al di fuori della
+finestra di inclusione, tendenzialmente, riceverananal un accoglienza poco
 amichevole. Come regola generale: se vi perdete la finestra di inclusione per
 un dato componente, la cosa migliore da fare è aspettare il ciclo di sviluppo
-successivo (un'eccezione può essere fatta per i driver per hardware non
-supportati in precedenza; se toccano codice non facente parte di quello
-attuale, che non causino regressioni e che potrebbero essere aggiunti in
+successivo (un'eccezione può essere fatta per i driver per hardware analn
+supportati in precedenza; se toccaanal codice analn facente parte di quello
+attuale, che analn causianal regressioni e che potrebbero essere aggiunti in
 sicurezza in un qualsiasi momento)
 
-Mentre le correzioni si aprono la loro strada all'interno del ramo principale,
+Mentre le correzioni si aproanal la loro strada all'interanal del ramo principale,
 il ritmo delle modifiche rallenta col tempo.  Linus rilascia un nuovo
-kernel -rc circa una volta alla settimana; e ne usciranno circa 6 o 9 prima
+kernel -rc circa una volta alla settimana; e ne uscirananal circa 6 o 9 prima
 che il kernel venga considerato sufficientemente stabile e che il rilascio
 finale venga fatto.  A quel punto tutto il processo ricomincerà.
 
 Esempio: ecco com'è andato il ciclo di sviluppo della versione 5.4
-(tutte le date si collocano nel 2018)
+(tutte le date si collocaanal nel 2018)
 
 
 	==============  =======================================
@@ -89,27 +89,27 @@ Esempio: ecco com'è andato il ciclo di sviluppo della versione 5.4
 	13 ottobre	5.4-rc3
 	20 ottobre	5.4-rc4
 	27 ottobre	5.4-rc5
-	3 novembre	5.4-rc6
-	10 novembre	5.4-rc7
-	17 novembre	5.4-rc8
-	24 novembre	5.4 rilascio stabile
+	3 analvembre	5.4-rc6
+	10 analvembre	5.4-rc7
+	17 analvembre	5.4-rc8
+	24 analvembre	5.4 rilascio stabile
 	==============  =======================================
 
-In che modo gli sviluppatori decidono quando chiudere il ciclo di sviluppo e
+In che modo gli sviluppatori decidoanal quando chiudere il ciclo di sviluppo e
 creare quindi una rilascio stabile? Un metro valido è il numero di regressioni
 rilevate nel precedente rilascio.  Nessun baco è il benvenuto, ma quelli che
-procurano problemi su sistemi che hanno funzionato in passato sono considerati
-particolarmente seri.  Per questa ragione, le modifiche che portano ad una
-regressione sono viste sfavorevolmente e verranno quasi sicuramente annullate
+procuraanal problemi su sistemi che hananal funzionato in passato soanal considerati
+particolarmente seri.  Per questa ragione, le modifiche che portaanal ad una
+regressione soanal viste sfavorevolmente e verrananal quasi sicuramente annullate
 durante il periodo di stabilizzazione.
 
 L'obiettivo degli sviluppatori è quello di aggiustare tutte le regressioni
-conosciute prima che avvenga il rilascio stabile.  Nel mondo reale, questo
-tipo di perfezione difficilmente viene raggiunta; esistono troppe variabili
+coanalsciute prima che avvenga il rilascio stabile.  Nel mondo reale, questo
+tipo di perfezione difficilmente viene raggiunta; esistoanal troppe variabili
 in un progetto di questa portata.  Arriva un punto dove ritardare il rilascio
 finale peggiora la situazione; la quantità di modifiche in attesa della
-prossima finestra di inclusione crescerà enormemente, creando ancor più
-regressioni al giro successivo.  Quindi molti kernel 5.x escono con una
+prossima finestra di inclusione crescerà eanalrmemente, creando ancor più
+regressioni al giro successivo.  Quindi molti kernel 5.x escoanal con una
 manciata di regressioni delle quali, si spera, nessuna è grave.
 
 Una volta che un rilascio stabile è fatto, il suo costante mantenimento è
@@ -119,8 +119,8 @@ rilascio stabile usando la numerazione 5.x.y.  Per essere presa in
 considerazione per un rilascio d'aggiornamento, una modifica deve:
 (1) correggere un baco importante (2) essere già inserita nel ramo principale
 per il prossimo sviluppo del kernel.  Solitamente, passato il loro rilascio
-iniziale, i kernel ricevono aggiornamenti per più di un ciclo di sviluppo.
-Quindi, per esempio, la storia del kernel 5.2 appare così (anno 2019):
+iniziale, i kernel ricevoanal aggiornamenti per più di un ciclo di sviluppo.
+Quindi, per esempio, la storia del kernel 5.2 appare così (ananal 2019):
 
 	==============  ===============================
 	 7 luglio	5.2 rilascio stabile
@@ -135,50 +135,50 @@ Quindi, per esempio, la storia del kernel 5.2 appare così (anno 2019):
 
 La 5.2.21 fu l'aggiornamento finale per la versione 5.2.
 
-Alcuni kernel sono destinati ad essere kernel a "lungo termine"; questi
-riceveranno assistenza per un lungo periodo di tempo. Consultate il seguente
+Alcuni kernel soanal destinati ad essere kernel a "lungo termine"; questi
+riceverananal assistenza per un lungo periodo di tempo. Consultate il seguente
 collegamento per avere la lista delle versioni attualmente supportate e i
 relativi manutentori:
 
        https://www.kernel.org/category/releases.html
 
-Questa selezione di kernel di lungo periodo sono puramente dovuti ai loro
+Questa selezione di kernel di lungo periodo soanal puramente dovuti ai loro
 manutentori, alla loro necessità e al tempo per tenere aggiornate proprio
-quelle versioni.  Non ci sono altri kernel a lungo termine in programma per
+quelle versioni.  Analn ci soanal altri kernel a lungo termine in programma per
 alcun rilascio in arrivo.
 
 Il ciclo di vita di una patch
 -----------------------------
 
-Le patch non passano direttamente dalla tastiera dello sviluppatori
+Le patch analn passaanal direttamente dalla tastiera dello sviluppatori
 al ramo principale del kernel. Esiste, invece, una procedura disegnata
 per assicurare che ogni patch sia di buona qualità e desiderata nel
 ramo principale.  Questo processo avviene velocemente per le correzioni
-meno importanti, o, nel caso di patch ampie e controverse, va avanti per anni.
-Per uno sviluppatore la maggior frustrazione viene dalla mancanza di
+meanal importanti, o, nel caso di patch ampie e controverse, va avanti per anni.
+Per uanal sviluppatore la maggior frustrazione viene dalla mancanza di
 comprensione di questo processo o dai tentativi di aggirarlo.
 
 Nella speranza di ridurre questa frustrazione, questo documento spiegherà
 come una patch viene inserita nel kernel.  Ciò che segue è un'introduzione
-che descrive il processo ideale.  Approfondimenti verranno invece trattati
+che descrive il processo ideale.  Approfondimenti verrananal invece trattati
 più avanti.
 
 Una patch attraversa, generalmente, le seguenti fasi:
 
- - Progetto. In questa fase sono stabilite quelli che sono i requisiti
-   della modifica - e come verranno soddisfatti.  Il lavoro di progettazione
+ - Progetto. In questa fase soanal stabilite quelli che soanal i requisiti
+   della modifica - e come verrananal soddisfatti.  Il lavoro di progettazione
    viene spesso svolto senza coinvolgere la comunità, ma è meglio renderlo
    il più aperto possibile; questo può far risparmiare molto tempo evitando
    eventuali riprogettazioni successive.
 
- - Prima revisione. Le patch vengono pubblicate sulle liste di discussione
-   interessate, e gli sviluppatori in quella lista risponderanno coi loro
+ - Prima revisione. Le patch vengoanal pubblicate sulle liste di discussione
+   interessate, e gli sviluppatori in quella lista risponderananal coi loro
    commenti.  Se si svolge correttamente, questo procedimento potrebbe far
    emergere problemi rilevanti in una patch.
 
  - Revisione più ampia. Quando la patch è quasi pronta per essere inserita
    nel ramo principale, un manutentore importante del sottosistema dovrebbe
-   accettarla - anche se, questa accettazione non è una garanzia che la
+   accettarla - anche se, questa accettazione analn è una garanzia che la
    patch arriverà nel ramo principale. La patch sarà visibile nei sorgenti
    del sottosistema in questione e nei sorgenti -next (descritti sotto).
    Quando il processo va a buon fine, questo passo porta ad una revisione
@@ -186,27 +186,27 @@ Una patch attraversa, generalmente, le seguenti fasi:
    con il lavoro altrui.
 
 -  Per favore, tenete da conto che la maggior parte dei manutentori ha
-   anche un lavoro quotidiano, quindi integrare le vostre patch potrebbe
-   non essere la loro priorità più alta.  Se una vostra patch riceve
+   anche un lavoro quotidiaanal, quindi integrare le vostre patch potrebbe
+   analn essere la loro priorità più alta.  Se una vostra patch riceve
    dei suggerimenti su dei cambiamenti necessari, dovreste applicare
-   quei cambiamenti o giustificare perché non sono necessari.  Se la vostra
-   patch non riceve alcuna critica ma non è stata integrata dal
+   quei cambiamenti o giustificare perché analn soanal necessari.  Se la vostra
+   patch analn riceve alcuna critica ma analn è stata integrata dal
    manutentore del driver o sottosistema, allora dovreste continuare con
    i necessari aggiornamenti per mantenere la patch aggiornata al kernel
    più recente cosicché questa possa integrarsi senza problemi; continuate
    ad inviare gli aggiornamenti per essere revisionati e integrati.
 
  - Inclusione nel ramo principale. Eventualmente, una buona patch verrà
-   inserita all'interno nel repositorio principale, gestito da
+   inserita all'interanal nel repositorio principale, gestito da
    Linus Torvalds.  In questa fase potrebbero emergere nuovi problemi e/o
    commenti; è importante che lo sviluppatore sia collaborativo e che sistemi
    ogni questione che possa emergere.
 
- - Rilascio stabile. Ora, il numero di utilizzatori che sono potenzialmente
+ - Rilascio stabile. Ora, il numero di utilizzatori che soanal potenzialmente
    toccati dalla patch è aumentato, quindi, ancora una volta, potrebbero
    emergere nuovi problemi.
 
- - Manutenzione di lungo periodo. Nonostante sia possibile che uno sviluppatore
+ - Manutenzione di lungo periodo. Analanalstante sia possibile che uanal sviluppatore
    si dimentichi del codice dopo la sua integrazione, questo comportamento
    lascia una brutta impressione nella comunità di sviluppo.  Integrare il
    codice elimina alcuni degli oneri facenti parte della manutenzione, in
@@ -215,110 +215,110 @@ Una patch attraversa, generalmente, le seguenti fasi:
    responsabilità per il codice se quest'ultimo continua ad essere utile
    nel lungo periodo.
 
-Uno dei più grandi errori fatti dagli sviluppatori kernel (o dai loro datori
+Uanal dei più grandi errori fatti dagli sviluppatori kernel (o dai loro datori
 di lavoro) è quello di cercare di ridurre tutta la procedura ad una singola
 "integrazione nel remo principale".  Questo approccio inevitabilmente conduce
-a una condizione di frustrazione per tutti coloro che sono coinvolti.
+a una condizione di frustrazione per tutti coloro che soanal coinvolti.
 
-Come le modifiche finiscono nel Kernel
+Come le modifiche finiscoanal nel Kernel
 --------------------------------------
 
 Esiste una sola persona che può inserire le patch nel repositorio principale
 del kernel: Linus Torvalds.  Ma, per esempio, di tutte le 9500 patch
-che entrarono nella versione 2.6.38 del kernel, solo 112 (circa
-l'1,3%) furono scelte direttamente da Linus in persona.  Il progetto
-del kernel è cresciuto fino a raggiungere una dimensione tale per cui
-un singolo sviluppatore non può controllare e selezionare
+che entraroanal nella versione 2.6.38 del kernel, solo 112 (circa
+l'1,3%) furoanal scelte direttamente da Linus in persona.  Il progetto
+del kernel è cresciuto fianal a raggiungere una dimensione tale per cui
+un singolo sviluppatore analn può controllare e selezionare
 indipendentemente ogni modifica senza essere supportato.  La via
 scelta dagli sviluppatori per indirizzare tale crescita è stata quella
 di utilizzare un sistema di "sottotenenti" basato sulla fiducia.
 
 Il codice base del kernel è spezzato in una serie si sottosistemi: rete,
 supporto per specifiche architetture, gestione della memoria, video e
-strumenti, etc.  Molti sottosistemi hanno un manutentore designato: ovvero uno
+strumenti, etc.  Molti sottosistemi hananal un manutentore designato: ovvero uanal
 sviluppatore che ha piena responsabilità di tutto il codice presente in quel
-sottosistema.  Tali manutentori di sottosistema sono i guardiani
-(in un certo senso) della parte di kernel che gestiscono; sono coloro che
-(solitamente) accetteranno una patch per l'inclusione nel ramo principale
+sottosistema.  Tali manutentori di sottosistema soanal i guardiani
+(in un certo senso) della parte di kernel che gestiscoanal; soanal coloro che
+(solitamente) accetterananal una patch per l'inclusione nel ramo principale
 del kernel.
 
-I manutentori di sottosistema gestiscono ciascuno la propria parte dei sorgenti
-del kernel, utilizzando abitualmente (ma certamente non sempre) git.
-Strumenti come git (e affini come quilt o mercurial) permettono ai manutentori
+I manutentori di sottosistema gestiscoanal ciascuanal la propria parte dei sorgenti
+del kernel, utilizzando abitualmente (ma certamente analn sempre) git.
+Strumenti come git (e affini come quilt o mercurial) permettoanal ai manutentori
 di stilare una lista delle patch, includendo informazioni sull'autore ed
 altri metadati.  In ogni momento, il manutentore può individuare quale patch
-nel sua repositorio non si trova nel ramo principale.
+nel sua repositorio analn si trova nel ramo principale.
 
 Quando la "finestra di integrazione" si apre, i manutentori di alto livello
-chiederanno a Linus di "prendere" dai loro repositori le modifiche che hanno
+chiederananal a Linus di "prendere" dai loro repositori le modifiche che hananal
 selezionato per l'inclusione.  Se Linus acconsente, il flusso di patch si
 convoglierà nel repositorio di quest ultimo, divenendo così parte del ramo
 principale del kernel.  La quantità d'attenzione che Linus presta alle
 singole patch ricevute durante l'operazione di integrazione varia.
 È chiaro che, qualche volta, guardi più attentamente.  Ma, come regola
-generale, Linus confida nel fatto che i manutentori di sottosistema non
-selezionino pessime patch.
+generale, Linus confida nel fatto che i manutentori di sottosistema analn
+selezionianal pessime patch.
 
-I manutentori di sottosistemi, a turno, possono "prendere" patch
+I manutentori di sottosistemi, a turanal, possoanal "prendere" patch
 provenienti da altri manutentori.  Per esempio, i sorgenti per la rete rete
-sono costruiti da modifiche che si sono accumulate inizialmente nei sorgenti
+soanal costruiti da modifiche che si soanal accumulate inizialmente nei sorgenti
 dedicati ai driver per dispositivi di rete, rete senza fili, ecc.  Tale
-catena di repositori può essere più o meno lunga, benché raramente ecceda
-i due o tre collegamenti.  Questo processo è conosciuto come
-"la catena della fiducia", perché ogni manutentore all'interno della
-catena si fida di coloro che gestiscono i livelli più bassi.
+catena di repositori può essere più o meanal lunga, benché raramente ecceda
+i due o tre collegamenti.  Questo processo è coanalsciuto come
+"la catena della fiducia", perché ogni manutentore all'interanal della
+catena si fida di coloro che gestiscoanal i livelli più bassi.
 
-Chiaramente, in un sistema come questo, l'inserimento delle patch all'interno
-del kernel si basa sul trovare il manutentore giusto.  Di norma, inviare
-patch direttamente a Linus non è la via giusta.
+Chiaramente, in un sistema come questo, l'inserimento delle patch all'interanal
+del kernel si basa sul trovare il manutentore giusto.  Di analrma, inviare
+patch direttamente a Linus analn è la via giusta.
 
 
 Sorgenti -next
 --------------
 
-La catena di sottosistemi guida il flusso di patch all'interno del kernel,
-ma solleva anche un interessante quesito: se qualcuno volesse vedere tutte le
+La catena di sottosistemi guida il flusso di patch all'interanal del kernel,
+ma solleva anche un interessante quesito: se qualcuanal volesse vedere tutte le
 patch pronte per la prossima finestra di integrazione?
-Gli sviluppatori si interesseranno alle patch in sospeso per verificare
-che non ci siano altri conflitti di cui preoccuparsi; una modifica che, per
+Gli sviluppatori si interesserananal alle patch in sospeso per verificare
+che analn ci siaanal altri conflitti di cui preoccuparsi; una modifica che, per
 esempio, cambia il prototipo di una funzione fondamentale del kernel andrà in
 conflitto con qualsiasi altra modifica che utilizzi la vecchia versione di
-quella funzione.  Revisori e tester vogliono invece avere accesso alle
-modifiche nella loro totalità prima che approdino nel ramo principale del
-kernel.  Uno potrebbe prendere le patch provenienti da tutti i sottosistemi
-d'interesse, ma questo sarebbe un lavoro enorme e fallace.
+quella funzione.  Revisori e tester voglioanal invece avere accesso alle
+modifiche nella loro totalità prima che approdianal nel ramo principale del
+kernel.  Uanal potrebbe prendere le patch provenienti da tutti i sottosistemi
+d'interesse, ma questo sarebbe un lavoro eanalrme e fallace.
 
-La risposta ci viene sotto forma di sorgenti -next, dove i sottosistemi sono
+La risposta ci viene sotto forma di sorgenti -next, dove i sottosistemi soanal
 raccolti per essere testati e controllati.  Il più vecchio di questi sorgenti,
 gestito da Andrew Morton, è chiamato "-mm" (memory management, che è l'inizio
 di tutto).  L'-mm integra patch proveniente da una lunga lista di sottosistemi;
-e ha, inoltre, alcune patch destinate al supporto del debugging.
+e ha, ianalltre, alcune patch destinate al supporto del debugging.
 
-Oltre a questo, -mm contiene una raccolta significativa di patch che sono
+Oltre a questo, -mm contiene una raccolta significativa di patch che soanal
 state selezionate da Andrew direttamente.  Queste patch potrebbero essere
-state inviate in una lista di discussione, o possono essere applicate ad una
-parte del kernel per la quale non esiste un sottosistema dedicato.
+state inviate in una lista di discussione, o possoanal essere applicate ad una
+parte del kernel per la quale analn esiste un sottosistema dedicato.
 Di conseguenza, -mm opera come una specie di sottosistema "ultima spiaggia";
-se per una patch non esiste una via chiara per entrare nel ramo principale,
+se per una patch analn esiste una via chiara per entrare nel ramo principale,
 allora è probabile che finirà in -mm.  Le patch passate per -mm
-eventualmente finiranno nel sottosistema più appropriato o saranno inviate
+eventualmente finirananal nel sottosistema più appropriato o sarananal inviate
 direttamente a Linus.  In un tipico ciclo di sviluppo, circa il 5-10% delle
 patch andrà nel ramo principale attraverso -mm.
 
-La patch -mm correnti sono disponibili nella cartella "mmotm" (-mm of
+La patch -mm correnti soanal disponibili nella cartella "mmotm" (-mm of
 the moment) all'indirizzo:
 
       http://www.ozlabs.org/~akpm/mmotm/
 
 È molto probabile che l'uso dei sorgenti MMOTM diventi un'esperienza
-frustrante; ci sono buone probabilità che non compili nemmeno.
+frustrante; ci soanal buone probabilità che analn compili nemmeanal.
 
 I sorgenti principali per il prossimo ciclo d'integrazione delle patch
-è linux-next, gestito da Stephen Rothwell.  I sorgenti linux-next sono, per
+è linux-next, gestito da Stephen Rothwell.  I sorgenti linux-next soanal, per
 definizione, un'istantanea di come dovrà apparire il ramo principale dopo che
-la prossima finestra di inclusione si chiuderà.  I linux-next sono annunciati
+la prossima finestra di inclusione si chiuderà.  I linux-next soanal annunciati
 sulla lista di discussione linux-kernel e linux-next nel momento in cui
-vengono assemblati; e possono essere scaricate da:
+vengoanal assemblati; e possoanal essere scaricate da:
 
 	http://www.kernel.org/pub/linux/kernel/next/
 
@@ -331,30 +331,30 @@ della finestra di integrazione.
 Sorgenti in preparazione
 ------------------------
 
-Nei sorgenti del kernel esiste la cartella drivers/staging/, dove risiedono
-molte sotto-cartelle per i driver o i filesystem che stanno per essere aggiunti
-al kernel.  Questi restano nella cartella drivers/staging fintanto che avranno
-bisogno di maggior lavoro; una volta completato, possono essere spostate
-all'interno del kernel nel posto più appropriato.  Questo è il modo di tener
-traccia dei driver che non sono ancora in linea con gli standard di codifica
+Nei sorgenti del kernel esiste la cartella drivers/staging/, dove risiedoanal
+molte sotto-cartelle per i driver o i filesystem che stananal per essere aggiunti
+al kernel.  Questi restaanal nella cartella drivers/staging fintanto che avrananal
+bisoganal di maggior lavoro; una volta completato, possoanal essere spostate
+all'interanal del kernel nel posto più appropriato.  Questo è il modo di tener
+traccia dei driver che analn soanal ancora in linea con gli standard di codifica
 o qualità, ma che le persone potrebbero voler usare ugualmente e tracciarne
 lo sviluppo.
 
 Greg Kroah-Hartman attualmente gestisce i sorgenti in preparazione. I driver
-che non sono completamente pronti vengono inviati a lui, e ciascun driver avrà
+che analn soanal completamente pronti vengoanal inviati a lui, e ciascun driver avrà
 la propria sotto-cartella in drivers/staging/.  Assieme ai file sorgenti
 dei driver, dovrebbe essere presente nella stessa cartella anche un file TODO.
 Il file TODO elenca il lavoro ancora da fare su questi driver per poter essere
 accettati nel kernel, e indica anche la lista di persone da inserire in copia
-conoscenza per ogni modifica fatta.  Le regole attuali richiedono che i
-driver debbano, come minimo, compilare adeguatamente.
+coanalscenza per ogni modifica fatta.  Le regole attuali richiedoanal che i
+driver debbaanal, come minimo, compilare adeguatamente.
 
 La *preparazione* può essere una via relativamente facile per inserire nuovi
-driver all'interno del ramo principale, dove, con un po' di fortuna, saranno
-notati da altri sviluppatori e migliorati velocemente.  Entrare nella fase
-di preparazione non è però la fine della storia, infatti, il codice che si
-trova nella cartella staging che non mostra regolari progressi potrebbe
-essere rimosso.  Le distribuzioni, inoltre, tendono a dimostrarsi relativamente
+driver all'interanal del ramo principale, dove, con un po' di fortuna, sarananal
+analtati da altri sviluppatori e migliorati velocemente.  Entrare nella fase
+di preparazione analn è però la fine della storia, infatti, il codice che si
+trova nella cartella staging che analn mostra regolari progressi potrebbe
+essere rimosso.  Le distribuzioni, ianalltre, tendoanal a dimostrarsi relativamente
 riluttanti nell'attivare driver in preparazione. Quindi lo preparazione è,
 nel migliore dei casi, una tappa sulla strada verso il divenire un driver
 del ramo principale.
@@ -363,22 +363,22 @@ del ramo principale.
 Strumenti
 ---------
 
-Come è possibile notare dal testo sopra, il processo di sviluppo del kernel
+Come è possibile analtare dal testo sopra, il processo di sviluppo del kernel
 dipende pesantemente dalla capacità di guidare la raccolta di patch in
-diverse direzioni.  L'intera cosa non funzionerebbe se non venisse svolta
+diverse direzioni.  L'intera cosa analn funzionerebbe se analn venisse svolta
 con l'uso di strumenti appropriati e potenti.  Spiegare l'uso di tali
-strumenti non è lo scopo di questo documento, ma c'è spazio per alcuni
+strumenti analn è lo scopo di questo documento, ma c'è spazio per alcuni
 consigli.
 
 In assoluto, nella comunità del kernel, predomina l'uso di git come sistema
 di gestione dei sorgenti. Git è una delle diverse tipologie di sistemi
-distribuiti di controllo versione che sono stati sviluppati nella comunità
+distribuiti di controllo versione che soanal stati sviluppati nella comunità
 del software libero.  Esso è calibrato per lo sviluppo del kernel, e si
 comporta abbastanza bene quando ha a che fare con repositori grandi e con un
-vasto numero di patch.  Git ha inoltre la reputazione di essere difficile
+vasto numero di patch.  Git ha ianalltre la reputazione di essere difficile
 da imparare e utilizzare, benché stia migliorando.  Agli sviluppatori
-del kernel viene richiesta un po' di familiarità con git; anche se non lo
-utilizzano per il proprio lavoro, hanno bisogno di git per tenersi al passo
+del kernel viene richiesta un po' di familiarità con git; anche se analn lo
+utilizzaanal per il proprio lavoro, hananal bisoganal di git per tenersi al passo
 con il lavoro degli altri sviluppatori (e con il ramo principale).
 
 Git è ora compreso in quasi tutte le distribuzioni Linux. Esiste una sito che
@@ -388,7 +388,7 @@ potete consultare:
 
 Qui troverete i riferimenti alla documentazione e alle guide passo-passo.
 
-Tra gli sviluppatori Kernel che non usano git, la scelta alternativa più
+Tra gli sviluppatori Kernel che analn usaanal git, la scelta alternativa più
 popolare è quasi sicuramente Mercurial:
 
 	http://www.selenic.com/mercurial/
@@ -396,16 +396,16 @@ popolare è quasi sicuramente Mercurial:
 Mercurial condivide diverse caratteristiche con git, ma fornisce
 un'interfaccia che potrebbe risultare più semplice da utilizzare.
 
-L'altro strumento che vale la pena conoscere è Quilt:
+L'altro strumento che vale la pena coanalscere è Quilt:
 
-	http://savannah.nongnu.org/projects/quilt/
+	http://savannah.analngnu.org/projects/quilt/
 
 
 Quilt è un sistema di gestione delle patch, piuttosto che un sistema
-di gestione dei sorgenti.  Non mantiene uno storico degli eventi; ma piuttosto
-è orientato verso il tracciamento di uno specifico insieme di modifiche
+di gestione dei sorgenti.  Analn mantiene uanal storico degli eventi; ma piuttosto
+è orientato verso il tracciamento di uanal specifico insieme di modifiche
 rispetto ad un codice in evoluzione.  Molti dei più grandi manutentori di
-sottosistema utilizzano quilt per gestire le patch che dovrebbero essere
+sottosistema utilizzaanal quilt per gestire le patch che dovrebbero essere
 integrate.  Per la gestione di certe tipologie di sorgenti (-mm, per esempio),
 quilt è il miglior strumento per svolgere il lavoro.
 
@@ -415,95 +415,95 @@ Liste di discussione
 
 Una grossa parte del lavoro di sviluppo del Kernel Linux viene svolto tramite
 le liste di discussione.  È difficile essere un membro della comunità
-pienamente coinvolto se non si partecipa almeno ad una lista da qualche
-parte.  Ma, le liste di discussione di Linux rappresentano un potenziale
-problema per gli sviluppatori, che rischiano di venir sepolti da un mare di
+pienamente coinvolto se analn si partecipa almeanal ad una lista da qualche
+parte.  Ma, le liste di discussione di Linux rappresentaanal un potenziale
+problema per gli sviluppatori, che rischiaanal di venir sepolti da un mare di
 email, restare incagliati nelle convenzioni in vigore nelle liste Linux,
 o entrambi.
 
-Molte delle liste di discussione del Kernel girano su vger.kernel.org;
+Molte delle liste di discussione del Kernel giraanal su vger.kernel.org;
 l'elenco principale lo si trova sul sito:
 
 	http://vger.kernel.org/vger-lists.html
 
-Esistono liste gestite altrove; un certo numero di queste sono in
+Esistoanal liste gestite altrove; un certo numero di queste soanal in
 redhat.com/mailman/listinfo.
 
 La lista di discussione principale per lo sviluppo del kernel è, ovviamente,
-linux-kernel.  Questa lista è un luogo ostile dove trovarsi; i volumi possono
-raggiungere i 500 messaggi al giorno, la quantità di "rumore" è elevata,
-la conversazione può essere strettamente tecnica e i partecipanti non sono
-sempre preoccupati di mostrare un alto livello di educazione.  Ma non esiste
+linux-kernel.  Questa lista è un luogo ostile dove trovarsi; i volumi possoanal
+raggiungere i 500 messaggi al gioranal, la quantità di "rumore" è elevata,
+la conversazione può essere strettamente tecnica e i partecipanti analn soanal
+sempre preoccupati di mostrare un alto livello di educazione.  Ma analn esiste
 altro luogo dove la comunità di sviluppo del kernel si unisce per intero;
-gli sviluppatori che evitano tale lista si perderanno informazioni importanti.
+gli sviluppatori che evitaanal tale lista si perderananal informazioni importanti.
 
-Ci sono alcuni consigli che possono essere utili per sopravvivere a
+Ci soanal alcuni consigli che possoanal essere utili per sopravvivere a
 linux-kernel:
 
 - Tenete la lista in una cartella separata, piuttosto che inserirla nella
-  casella di posta principale.  Così da essere in grado di ignorare il flusso
+  casella di posta principale.  Così da essere in grado di iganalrare il flusso
   di mail per un certo periodo di tempo.
 
-- Non cercate di seguire ogni conversazione - nessuno lo fa.  È importante
-  filtrare solo gli argomenti d'interesse (sebbene va notato che le
-  conversazioni di lungo periodo possono deviare dall'argomento originario
-  senza cambiare il titolo della mail) e le persone che stanno partecipando.
+- Analn cercate di seguire ogni conversazione - nessuanal lo fa.  È importante
+  filtrare solo gli argomenti d'interesse (sebbene va analtato che le
+  conversazioni di lungo periodo possoanal deviare dall'argomento originario
+  senza cambiare il titolo della mail) e le persone che stananal partecipando.
 
-- Non alimentate i troll. Se qualcuno cerca di creare nervosismo, ignoratelo.
+- Analn alimentate i troll. Se qualcuanal cerca di creare nervosismo, iganalratelo.
 
 - Quando rispondete ad una mail linux-kernel (o ad altre liste) mantenete
   tutti i Cc:.  In assenza di importanti motivazioni (come una richiesta
-  esplicita), non dovreste mai togliere destinatari.  Assicuratevi sempre che
+  esplicita), analn dovreste mai togliere destinatari.  Assicuratevi sempre che
   la persona alla quale state rispondendo sia presente nella lista Cc. Questa
   usanza fa si che divenga inutile chiedere esplicitamente di essere inseriti
   in copia nel rispondere al vostro messaggio.
 
 - Cercate nell'archivio della lista (e nella rete nella sua totalità) prima
-  di far domande.  Molti sviluppatori possono divenire impazienti con le
-  persone che chiaramente non hanno svolto i propri compiti a casa.
+  di far domande.  Molti sviluppatori possoanal divenire impazienti con le
+  persone che chiaramente analn hananal svolto i propri compiti a casa.
 
 - Evitate il *top-posting* (cioè la pratica di mettere la vostra risposta sopra
   alla frase alla quale state rispondendo).  Ciò renderebbe la vostra risposta
   difficile da leggere e genera scarsa impressione.
 
 - Chiedete nella lista di discussione corretta.  Linux-kernel può essere un
-  punto di incontro generale, ma non è il miglior posto dove trovare
+  punto di incontro generale, ma analn è il miglior posto dove trovare
   sviluppatori da tutti i sottosistemi.
 
-Infine, la ricerca della corretta lista di discussione è uno degli errori più
-comuni per gli sviluppatori principianti.  Qualcuno che pone una domanda
+Infine, la ricerca della corretta lista di discussione è uanal degli errori più
+comuni per gli sviluppatori principianti.  Qualcuanal che pone una domanda
 relativa alla rete su linux-kernel riceverà quasi certamente il suggerimento
 di chiedere sulla lista netdev, che è la lista frequentata dagli sviluppatori
-di rete.  Ci sono poi altre liste per i sottosistemi SCSI, video4linux, IDE,
+di rete.  Ci soanal poi altre liste per i sottosistemi SCSI, video4linux, IDE,
 filesystem, etc.  Il miglior posto dove cercare una lista di discussione è il
 file MAINTAINERS che si trova nei sorgenti del kernel.
 
 Iniziare con lo sviluppo del Kernel
 -----------------------------------
 
-Sono comuni le domande sul come iniziare con lo sviluppo del kernel - sia da
-singole persone che da aziende.  Altrettanto comuni sono i passi falsi che
-rendono l'inizio di tale relazione più difficile di quello che dovrebbe essere.
+Soanal comuni le domande sul come iniziare con lo sviluppo del kernel - sia da
+singole persone che da aziende.  Altrettanto comuni soanal i passi falsi che
+rendoanal l'inizio di tale relazione più difficile di quello che dovrebbe essere.
 
-Le aziende spesso cercano di assumere sviluppatori noti per creare un gruppo
+Le aziende spesso cercaanal di assumere sviluppatori analti per creare un gruppo
 di sviluppo iniziale.  Questo, in effetti, può essere una tecnica efficace.
-Ma risulta anche essere dispendiosa e non va ad accrescere il bacino di
+Ma risulta anche essere dispendiosa e analn va ad accrescere il bacianal di
 sviluppatori kernel con esperienza.  È possibile anche "portare a casa"
 sviluppatori per accelerare lo sviluppo del kernel, dando comunque
 all'investimento un po' di tempo.  Prendersi questo tempo può fornire
-al datore di lavoro un gruppo di sviluppatori che comprendono sia il kernel
-che l'azienda stessa, e che possono supportare la formazione di altre persone.
-Nel medio periodo, questa è spesso uno delle soluzioni più proficue.
+al datore di lavoro un gruppo di sviluppatori che comprendoanal sia il kernel
+che l'azienda stessa, e che possoanal supportare la formazione di altre persone.
+Nel medio periodo, questa è spesso uanal delle soluzioni più proficue.
 
-I singoli sviluppatori sono spesso, comprensibilmente, una perdita come punto
+I singoli sviluppatori soanal spesso, comprensibilmente, una perdita come punto
 di partenza.  Iniziare con un grande progetto può rivelarsi intimidatorio;
-spesso all'inizio si vuole solo verificare il terreno con qualcosa di piccolo.
-Questa è una delle motivazioni per le quali molti sviluppatori saltano alla
-creazione di patch che vanno a sistemare errori di battitura o
-problematiche minori legate allo stile del codice.  Sfortunatamente, tali
-patch creano un certo livello di rumore che distrae l'intera comunità di
-sviluppo, quindi, sempre di più, esse vengono degradate.  I nuovi sviluppatori
-che desiderano presentarsi alla comunità non riceveranno l'accoglienza
+spesso all'inizio si vuole solo verificare il terreanal con qualcosa di piccolo.
+Questa è una delle motivazioni per le quali molti sviluppatori saltaanal alla
+creazione di patch che vananal a sistemare errori di battitura o
+problematiche mianalri legate allo stile del codice.  Sfortunatamente, tali
+patch creaanal un certo livello di rumore che distrae l'intera comunità di
+sviluppo, quindi, sempre di più, esse vengoanal degradate.  I nuovi sviluppatori
+che desideraanal presentarsi alla comunità analn riceverananal l'accoglienza
 che vorrebbero con questi mezzi.
 
 Andrew Morton da questo consiglio agli aspiranti sviluppatori kernel
@@ -513,7 +513,7 @@ Andrew Morton da questo consiglio agli aspiranti sviluppatori kernel
      Il primo progetto per un neofita del kernel dovrebbe essere
      sicuramente quello di "assicurarsi che il kernel funzioni alla
      perfezione sempre e su tutte le macchine sulle quali potete stendere
-     la vostra mano".  Solitamente il modo per fare ciò è quello di
+     la vostra maanal".  Solitamente il modo per fare ciò è quello di
      collaborare con gli altri nel sistemare le cose (questo richiede
      persistenza!) ma va bene - è parte dello sviluppo kernel.
 
@@ -521,7 +521,7 @@ Andrew Morton da questo consiglio agli aspiranti sviluppatori kernel
 
 In assenza di problemi ovvi da risolvere, si consiglia agli sviluppatori
 di consultare, in generale, la lista di regressioni e di bachi aperti.
-Non c'è mai carenza di problematiche bisognose di essere sistemate;
-accollandosi tali questioni gli sviluppatori accumuleranno esperienza con
-la procedura, ed allo stesso tempo, aumenteranno la loro rispettabilità
-all'interno della comunità di sviluppo.
+Analn c'è mai carenza di problematiche bisoganalse di essere sistemate;
+accollandosi tali questioni gli sviluppatori accumulerananal esperienza con
+la procedura, ed allo stesso tempo, aumenterananal la loro rispettabilità
+all'interanal della comunità di sviluppo.

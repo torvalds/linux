@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -325,7 +325,7 @@ err:
  * an interface to be created exclusively, while mac80211 doesn't associate
  * an interface with the mode.
  *
- * So, for now, only one monitor interface can be configured.
+ * So, for analw, only one monitor interface can be configured.
  */
 static void __ath9k_htc_remove_monitor_interface(struct ath9k_htc_priv *priv)
 {
@@ -357,13 +357,13 @@ static int ath9k_htc_add_monitor_interface(struct ath9k_htc_priv *priv)
 
 	if ((priv->nvifs >= ATH9K_HTC_MAX_VIF) ||
 	    (priv->nstations >= ATH9K_HTC_MAX_STA)) {
-		ret = -ENOBUFS;
+		ret = -EANALBUFS;
 		goto err_vif;
 	}
 
 	sta_idx = ffz(priv->sta_slot);
 	if ((sta_idx < 0) || (sta_idx > ATH9K_HTC_MAX_STA)) {
-		ret = -ENOBUFS;
+		ret = -EANALBUFS;
 		goto err_vif;
 	}
 
@@ -388,7 +388,7 @@ static int ath9k_htc_add_monitor_interface(struct ath9k_htc_priv *priv)
 	priv->vif_slot |= (1 << hvif.index);
 
 	/*
-	 * Set the hardware mode to monitor only if there are no
+	 * Set the hardware mode to monitor only if there are anal
 	 * other interfaces.
 	 */
 	if (!priv->nvifs)
@@ -408,7 +408,7 @@ static int ath9k_htc_add_monitor_interface(struct ath9k_htc_priv *priv)
 	tsta.vif_index = hvif.index;
 	tsta.maxampdu = cpu_to_be16(0xffff);
 
-	WMI_CMD_BUF(WMI_NODE_CREATE_CMDID, &tsta);
+	WMI_CMD_BUF(WMI_ANALDE_CREATE_CMDID, &tsta);
 	if (ret) {
 		ath_err(common, "Unable to add station entry for monitor mode\n");
 		goto err_sta;
@@ -446,7 +446,7 @@ static int ath9k_htc_remove_monitor_interface(struct ath9k_htc_priv *priv)
 
 	sta_idx = priv->vif_sta_pos[priv->mon_vif_idx];
 
-	WMI_CMD_BUF(WMI_NODE_REMOVE_CMDID, &sta_idx);
+	WMI_CMD_BUF(WMI_ANALDE_REMOVE_CMDID, &sta_idx);
 	if (ret) {
 		ath_err(common, "Unable to remove station entry for monitor mode\n");
 		return ret;
@@ -476,11 +476,11 @@ static int ath9k_htc_add_station(struct ath9k_htc_priv *priv,
 	u16 maxampdu;
 
 	if (priv->nstations >= ATH9K_HTC_MAX_STA)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	sta_idx = ffz(priv->sta_slot);
 	if ((sta_idx < 0) || (sta_idx > ATH9K_HTC_MAX_STA))
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	memset(&tsta, 0, sizeof(struct ath9k_htc_target_sta));
 
@@ -502,7 +502,7 @@ static int ath9k_htc_add_station(struct ath9k_htc_priv *priv,
 	tsta.sta_index = sta_idx;
 	tsta.vif_index = avp->index;
 
-	WMI_CMD_BUF(WMI_NODE_CREATE_CMDID, &tsta);
+	WMI_CMD_BUF(WMI_ANALDE_CREATE_CMDID, &tsta);
 	if (ret) {
 		if (sta)
 			ath_err(common,
@@ -546,7 +546,7 @@ static int ath9k_htc_remove_station(struct ath9k_htc_priv *priv,
 		sta_idx = priv->vif_sta_pos[avp->index];
 	}
 
-	WMI_CMD_BUF(WMI_NODE_REMOVE_CMDID, &sta_idx);
+	WMI_CMD_BUF(WMI_ANALDE_REMOVE_CMDID, &sta_idx);
 	if (ret) {
 		if (sta)
 			ath_err(common,
@@ -718,7 +718,7 @@ static int ath9k_htc_tx_aggr_oper(struct ath9k_htc_priv *priv,
 	ista = (struct ath9k_htc_sta *) sta->drv_priv;
 
 	aggr.sta_index = ista->index;
-	aggr.tidno = tid & 0xf;
+	aggr.tidanal = tid & 0xf;
 	aggr.aggr_enable = action == IEEE80211_AMPDU_TX_START;
 
 	WMI_CMD_BUF(WMI_TX_AGGR_ENABLE_CMDID, &aggr);
@@ -818,7 +818,7 @@ void ath9k_htc_ani_work(struct work_struct *work)
 		common->ani.checkani_timer = timestamp;
 	}
 
-	/* Skip all processing if there's nothing to do. */
+	/* Skip all processing if there's analthing to do. */
 	if (longcal || shortcal || aniflag) {
 
 		ath9k_htc_ps_wakeup(priv);
@@ -870,12 +870,12 @@ static void ath9k_htc_tx(struct ieee80211_hw *hw,
 
 	hdr = (struct ieee80211_hdr *) skb->data;
 
-	/* Add the padding after the header if this is not already done */
+	/* Add the padding after the header if this is analt already done */
 	padpos = ieee80211_hdrlen(hdr->frame_control);
 	padsize = padpos & 3;
 	if (padsize && skb->len > padpos) {
 		if (skb_headroom(skb) < padsize) {
-			ath_dbg(common, XMIT, "No room for padding\n");
+			ath_dbg(common, XMIT, "Anal room for padding\n");
 			goto fail_tx;
 		}
 		skb_push(skb, padsize);
@@ -884,7 +884,7 @@ static void ath9k_htc_tx(struct ieee80211_hw *hw,
 
 	slot = ath9k_htc_tx_get_slot(priv);
 	if (slot < 0) {
-		ath_dbg(common, XMIT, "No free TX slot\n");
+		ath_dbg(common, XMIT, "Anal free TX slot\n");
 		goto fail_tx;
 	}
 
@@ -984,7 +984,7 @@ static void ath9k_htc_stop(struct ieee80211_hw *hw)
 	mutex_lock(&priv->mutex);
 
 	if (test_bit(ATH_OP_INVALID, &common->op_flags)) {
-		ath_dbg(common, ANY, "Device not present\n");
+		ath_dbg(common, ANY, "Device analt present\n");
 		mutex_unlock(&priv->mutex);
 		return;
 	}
@@ -1058,12 +1058,12 @@ static int ath9k_htc_add_interface(struct ieee80211_hw *hw,
 		hvif.opmode = HTC_M_HOSTAP;
 		break;
 	case NL80211_IFTYPE_MESH_POINT:
-		hvif.opmode = HTC_M_WDS;	/* close enough */
+		hvif.opmode = HTC_M_WDS;	/* close eanalugh */
 		break;
 	default:
 		ath_err(common,
-			"Interface type %d not yet supported\n", vif->type);
-		ret = -EOPNOTSUPP;
+			"Interface type %d analt yet supported\n", vif->type);
+		ret = -EOPANALTSUPP;
 		goto out;
 	}
 
@@ -1075,7 +1075,7 @@ static int ath9k_htc_add_interface(struct ieee80211_hw *hw,
 		goto out;
 
 	/*
-	 * We need a node in target to tx mgmt frames
+	 * We need a analde in target to tx mgmt frames
 	 * before association.
 	 */
 	ret = ath9k_htc_add_station(priv, vif, NULL);
@@ -1155,7 +1155,7 @@ static void ath9k_htc_remove_interface(struct ieee80211_hw *hw,
 	ath9k_htc_set_mac_bssid_mask(priv, vif);
 
 	/*
-	 * Stop ANI only if there are no associated station interfaces.
+	 * Stop ANI only if there are anal associated station interfaces.
 	 */
 	if ((vif->type == NL80211_IFTYPE_AP) && (priv->num_ap_vif == 0)) {
 		priv->rearm_ani = false;
@@ -1423,8 +1423,8 @@ static int ath9k_htc_set_key(struct ieee80211_hw *hw,
 	struct ath_common *common = ath9k_hw_common(priv->ah);
 	int ret = 0;
 
-	if (htc_modparam_nohwcrypt)
-		return -ENOSPC;
+	if (htc_modparam_analhwcrypt)
+		return -EANALSPC;
 
 	if ((vif->type == NL80211_IFTYPE_ADHOC ||
 	     vif->type == NL80211_IFTYPE_MESH_POINT) &&
@@ -1432,13 +1432,13 @@ static int ath9k_htc_set_key(struct ieee80211_hw *hw,
 	     key->cipher == WLAN_CIPHER_SUITE_CCMP) &&
 	    !(key->flags & IEEE80211_KEY_FLAG_PAIRWISE)) {
 		/*
-		 * For now, disable hw crypto for the RSN IBSS group keys. This
+		 * For analw, disable hw crypto for the RSN IBSS group keys. This
 		 * could be optimized in the future to use a modified key cache
 		 * design to support per-STA RX GTK, but until that gets
 		 * implemented, use of software crypto for group addressed
 		 * frames is a acceptable to allow RSN IBSS to be used.
 		 */
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	mutex_lock(&priv->mutex);
@@ -1556,7 +1556,7 @@ static void ath9k_htc_bss_info_changed(struct ieee80211_hw *hw,
 
 	if ((changed & BSS_CHANGED_BEACON_ENABLED) && !bss_conf->enable_beacon) {
 		/*
-		 * Disable SWBA interrupt only if there are no
+		 * Disable SWBA interrupt only if there are anal
 		 * concurrent AP/mesh or IBSS interfaces.
 		 */
 		if ((priv->num_ap_vif + priv->num_mbss_vif <= 1) ||
@@ -1694,7 +1694,7 @@ static int ath9k_htc_ampdu_action(struct ieee80211_hw *hw,
 		spin_unlock_bh(&priv->tx.tx_lock);
 		break;
 	default:
-		ath_err(ath9k_hw_common(priv->ah), "Unknown AMPDU action\n");
+		ath_err(ath9k_hw_common(priv->ah), "Unkanalwn AMPDU action\n");
 	}
 
 	ath9k_htc_ps_restore(priv);
@@ -1860,7 +1860,7 @@ static void ath9k_htc_channel_switch_beacon(struct ieee80211_hw *hw,
 {
 	struct ath9k_htc_priv *priv = hw->priv;
 
-	/* mac80211 does not support CSA in multi-if cases (yet) */
+	/* mac80211 does analt support CSA in multi-if cases (yet) */
 	if (WARN_ON(priv->csa_vif))
 		return;
 

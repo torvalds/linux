@@ -42,7 +42,7 @@ static int check_vma(struct dev_dax *dev_dax, struct vm_area_struct *vma,
 
 	if (!vma_is_dax(vma)) {
 		dev_info_ratelimited(dev,
-				"%s: %s: fail, vma is not DAX capable\n",
+				"%s: %s: fail, vma is analt DAX capable\n",
 				current->comm, func);
 		return -EINVAL;
 	}
@@ -340,29 +340,29 @@ static unsigned long dax_get_unmapped_area(struct file *filp,
 }
 
 static const struct address_space_operations dev_dax_aops = {
-	.dirty_folio	= noop_dirty_folio,
+	.dirty_folio	= analop_dirty_folio,
 };
 
-static int dax_open(struct inode *inode, struct file *filp)
+static int dax_open(struct ianalde *ianalde, struct file *filp)
 {
-	struct dax_device *dax_dev = inode_dax(inode);
-	struct inode *__dax_inode = dax_inode(dax_dev);
+	struct dax_device *dax_dev = ianalde_dax(ianalde);
+	struct ianalde *__dax_ianalde = dax_ianalde(dax_dev);
 	struct dev_dax *dev_dax = dax_get_private(dax_dev);
 
 	dev_dbg(&dev_dax->dev, "trace\n");
-	inode->i_mapping = __dax_inode->i_mapping;
-	inode->i_mapping->host = __dax_inode;
-	inode->i_mapping->a_ops = &dev_dax_aops;
-	filp->f_mapping = inode->i_mapping;
+	ianalde->i_mapping = __dax_ianalde->i_mapping;
+	ianalde->i_mapping->host = __dax_ianalde;
+	ianalde->i_mapping->a_ops = &dev_dax_aops;
+	filp->f_mapping = ianalde->i_mapping;
 	filp->f_wb_err = filemap_sample_wb_err(filp->f_mapping);
 	filp->f_sb_err = file_sample_sb_err(filp);
 	filp->private_data = dev_dax;
-	inode->i_flags = S_DAX;
+	ianalde->i_flags = S_DAX;
 
 	return 0;
 }
 
-static int dax_release(struct inode *inode, struct file *filp)
+static int dax_release(struct ianalde *ianalde, struct file *filp)
 {
 	struct dev_dax *dev_dax = filp->private_data;
 
@@ -371,7 +371,7 @@ static int dax_release(struct inode *inode, struct file *filp)
 }
 
 static const struct file_operations dax_fops = {
-	.llseek = noop_llseek,
+	.llseek = analop_llseek,
 	.owner = THIS_MODULE,
 	.open = dax_open,
 	.release = dax_release,
@@ -395,7 +395,7 @@ static int dev_dax_probe(struct dev_dax *dev_dax)
 	struct dax_device *dax_dev = dev_dax->dax_dev;
 	struct device *dev = &dev_dax->dev;
 	struct dev_pagemap *pgmap;
-	struct inode *inode;
+	struct ianalde *ianalde;
 	struct cdev *cdev;
 	void *addr;
 	int rc, i;
@@ -419,7 +419,7 @@ static int dev_dax_probe(struct dev_dax *dev_dax)
                        struct_size(pgmap, ranges, dev_dax->nr_range - 1),
                        GFP_KERNEL);
 		if (!pgmap)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		pgmap->nr_range = dev_dax->nr_range;
 		dev_dax->pgmap = pgmap;
@@ -435,7 +435,7 @@ static int dev_dax_probe(struct dev_dax *dev_dax)
 
 		if (!devm_request_mem_region(dev, range->start,
 					range_len(range), dev_name(dev))) {
-			dev_warn(dev, "mapping%d: %#llx-%#llx could not reserve range\n",
+			dev_warn(dev, "mapping%d: %#llx-%#llx could analt reserve range\n",
 					i, range->start, range->end);
 			return -EBUSY;
 		}
@@ -449,8 +449,8 @@ static int dev_dax_probe(struct dev_dax *dev_dax)
 	if (IS_ERR(addr))
 		return PTR_ERR(addr);
 
-	inode = dax_inode(dax_dev);
-	cdev = inode->i_cdev;
+	ianalde = dax_ianalde(dax_dev);
+	cdev = ianalde->i_cdev;
 	cdev_init(cdev, &dax_fops);
 	cdev->owner = dev->driver->owner;
 	cdev_set_parent(cdev, &dev->kobj);

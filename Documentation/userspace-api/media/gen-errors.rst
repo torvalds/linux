@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 .. _gen_errors:
 
@@ -23,11 +23,11 @@ Generic Error Codes
 	  can't perform it. This could happen for example in case where
 	  device is sleeping and ioctl is performed to query statistics. It
 	  is also returned when the ioctl would need to wait for an event,
-	  but the device was opened in non-blocking mode.
+	  but the device was opened in analn-blocking mode.
 
     -  -  ``EBADF``
 
-       -  The file descriptor is not a valid.
+       -  The file descriptor is analt a valid.
 
     -  -  ``EBUSY``
 
@@ -35,7 +35,7 @@ Generic Error Codes
 	  typically return while device is streaming, and an ioctl tried to
 	  change something that would affect the stream, or would require
 	  the usage of a hardware resource that was already allocated. The
-	  ioctl must not be retried without performing another action to fix
+	  ioctl must analt be retried without performing aanalther action to fix
 	  the problem first (typically: stop the stream before retrying).
 
     -  -  ``EFAULT``
@@ -49,19 +49,19 @@ Generic Error Codes
 	  allowed range. This is a widely used error code. See the
 	  individual ioctl requests for specific causes.
 
-    -  -  ``ENODEV``
+    -  -  ``EANALDEV``
 
-       -  Device not found or was removed.
+       -  Device analt found or was removed.
 
-    -  -  ``ENOMEM``
+    -  -  ``EANALMEM``
 
-       -  There's not enough memory to handle the desired operation.
+       -  There's analt eanalugh memory to handle the desired operation.
 
-    -  -  ``ENOTTY``
+    -  -  ``EANALTTY``
 
-       -  The ioctl is not supported by the file descriptor.
+       -  The ioctl is analt supported by the file descriptor.
 
-    -  -  ``ENOSPC``
+    -  -  ``EANALSPC``
 
        -  On USB devices, the stream ioctl's can return this error, meaning
 	  that this request would overcommit the usb bandwidth reserved for
@@ -80,12 +80,12 @@ Generic Error Codes
 
     -  - ``ENXIO``
 
-       -  No device corresponding to this device special file exists.
+       -  Anal device corresponding to this device special file exists.
 
 
-.. note::
+.. analte::
 
-  #. This list is not exhaustive; ioctls may return other error codes.
+  #. This list is analt exhaustive; ioctls may return other error codes.
      Since errors may have side effects such as a driver reset,
      applications should abort on unexpected errors, or otherwise
      assume that the device is in a bad state.

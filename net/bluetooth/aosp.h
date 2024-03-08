@@ -23,7 +23,7 @@ static inline bool aosp_has_quality_report(struct hci_dev *hdev)
 
 static inline int aosp_set_quality_report(struct hci_dev *hdev, bool enable)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 #endif

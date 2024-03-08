@@ -3,7 +3,7 @@
 
 #include <linux/delay.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/sched/signal.h>
@@ -29,7 +29,7 @@ static inline struct kcs_bmc_serio *client_to_kcs_bmc_serio(struct kcs_bmc_clien
 static irqreturn_t kcs_bmc_serio_event(struct kcs_bmc_client *client)
 {
 	struct kcs_bmc_serio *priv;
-	u8 handled = IRQ_NONE;
+	u8 handled = IRQ_ANALNE;
 	u8 status;
 
 	priv = client_to_kcs_bmc_serio(client);
@@ -74,12 +74,12 @@ static int kcs_bmc_serio_add_device(struct kcs_bmc_device *kcs_bmc)
 
 	priv = devm_kzalloc(kcs_bmc->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Use kzalloc() as the allocation is cleaned up with kfree() via serio_unregister_port() */
 	port = kzalloc(sizeof(*port), GFP_KERNEL);
 	if (!port)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	port->id.type = SERIO_8042;
 	port->open = kcs_bmc_serio_open;
@@ -118,7 +118,7 @@ static int kcs_bmc_serio_remove_device(struct kcs_bmc_device *kcs_bmc)
 	spin_unlock_irq(&kcs_bmc_serio_instances_lock);
 
 	if (!priv)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* kfree()s priv->port via put_device() */
 	serio_unregister_port(priv->port);

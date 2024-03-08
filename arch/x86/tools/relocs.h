@@ -8,7 +8,7 @@
 #include <stdint.h>
 #include <inttypes.h>
 #include <string.h>
-#include <errno.h>
+#include <erranal.h>
 #include <unistd.h>
 #include <elf.h>
 #include <byteswap.h>
@@ -18,7 +18,7 @@
 #include <tools/le_byteshift.h>
 
 __attribute__((__format__(printf, 1, 2)))
-void die(char *fmt, ...) __attribute__((noreturn));
+void die(char *fmt, ...) __attribute__((analreturn));
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 

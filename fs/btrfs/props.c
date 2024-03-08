@@ -6,7 +6,7 @@
 #include <linux/hashtable.h>
 #include "messages.h"
 #include "props.h"
-#include "btrfs_inode.h"
+#include "btrfs_ianalde.h"
 #include "transaction.h"
 #include "ctree.h"
 #include "xattr.h"
@@ -21,13 +21,13 @@
 static DEFINE_HASHTABLE(prop_handlers_ht, BTRFS_PROP_HANDLERS_HT_BITS);
 
 struct prop_handler {
-	struct hlist_node node;
+	struct hlist_analde analde;
 	const char *xattr_name;
-	int (*validate)(const struct btrfs_inode *inode, const char *value,
+	int (*validate)(const struct btrfs_ianalde *ianalde, const char *value,
 			size_t len);
-	int (*apply)(struct inode *inode, const char *value, size_t len);
-	const char *(*extract)(struct inode *inode);
-	bool (*ignore)(const struct btrfs_inode *inode);
+	int (*apply)(struct ianalde *ianalde, const char *value, size_t len);
+	const char *(*extract)(struct ianalde *ianalde);
+	bool (*iganalre)(const struct btrfs_ianalde *ianalde);
 	int inheritable;
 };
 
@@ -56,14 +56,14 @@ find_prop_handler(const char *name,
 			return NULL;
 	}
 
-	hlist_for_each_entry(h, handlers, node)
+	hlist_for_each_entry(h, handlers, analde)
 		if (!strcmp(h->xattr_name, name))
 			return h;
 
 	return NULL;
 }
 
-int btrfs_validate_prop(const struct btrfs_inode *inode, const char *name,
+int btrfs_validate_prop(const struct btrfs_ianalde *ianalde, const char *name,
 			const char *value, size_t value_len)
 {
 	const struct prop_handler *handler;
@@ -78,32 +78,32 @@ int btrfs_validate_prop(const struct btrfs_inode *inode, const char *name,
 	if (value_len == 0)
 		return 0;
 
-	return handler->validate(inode, value, value_len);
+	return handler->validate(ianalde, value, value_len);
 }
 
 /*
- * Check if a property should be ignored (not set) for an inode.
+ * Check if a property should be iganalred (analt set) for an ianalde.
  *
- * @inode:     The target inode.
+ * @ianalde:     The target ianalde.
  * @name:      The property's name.
  *
  * The caller must be sure the given property name is valid, for example by
  * having previously called btrfs_validate_prop().
  *
- * Returns:    true if the property should be ignored for the given inode
- *             false if the property must not be ignored for the given inode
+ * Returns:    true if the property should be iganalred for the given ianalde
+ *             false if the property must analt be iganalred for the given ianalde
  */
-bool btrfs_ignore_prop(const struct btrfs_inode *inode, const char *name)
+bool btrfs_iganalre_prop(const struct btrfs_ianalde *ianalde, const char *name)
 {
 	const struct prop_handler *handler;
 
 	handler = find_prop_handler(name, NULL);
 	ASSERT(handler != NULL);
 
-	return handler->ignore(inode);
+	return handler->iganalre(ianalde);
 }
 
-int btrfs_set_prop(struct btrfs_trans_handle *trans, struct inode *inode,
+int btrfs_set_prop(struct btrfs_trans_handle *trans, struct ianalde *ianalde,
 		   const char *name, const char *value, size_t value_len,
 		   int flags)
 {
@@ -115,29 +115,29 @@ int btrfs_set_prop(struct btrfs_trans_handle *trans, struct inode *inode,
 		return -EINVAL;
 
 	if (value_len == 0) {
-		ret = btrfs_setxattr(trans, inode, handler->xattr_name,
+		ret = btrfs_setxattr(trans, ianalde, handler->xattr_name,
 				     NULL, 0, flags);
 		if (ret)
 			return ret;
 
-		ret = handler->apply(inode, NULL, 0);
+		ret = handler->apply(ianalde, NULL, 0);
 		ASSERT(ret == 0);
 
 		return ret;
 	}
 
-	ret = btrfs_setxattr(trans, inode, handler->xattr_name, value,
+	ret = btrfs_setxattr(trans, ianalde, handler->xattr_name, value,
 			     value_len, flags);
 	if (ret)
 		return ret;
-	ret = handler->apply(inode, value, value_len);
+	ret = handler->apply(ianalde, value, value_len);
 	if (ret) {
-		btrfs_setxattr(trans, inode, handler->xattr_name, NULL,
+		btrfs_setxattr(trans, ianalde, handler->xattr_name, NULL,
 			       0, flags);
 		return ret;
 	}
 
-	set_bit(BTRFS_INODE_HAS_PROPS, &BTRFS_I(inode)->runtime_flags);
+	set_bit(BTRFS_IANALDE_HAS_PROPS, &BTRFS_I(ianalde)->runtime_flags);
 
 	return 0;
 }
@@ -166,7 +166,7 @@ static int iterate_object_props(struct btrfs_root *root,
 		const struct hlist_head *handlers;
 
 		slot = path->slots[0];
-		leaf = path->nodes[0];
+		leaf = path->analdes[0];
 
 		if (slot >= btrfs_header_nritems(leaf)) {
 			ret = btrfs_next_leaf(root, path);
@@ -210,9 +210,9 @@ static int iterate_object_props(struct btrfs_root *root,
 			if (name_len >= name_buf_len) {
 				kfree(name_buf);
 				name_buf_len = name_len + 1;
-				name_buf = kmalloc(name_buf_len, GFP_NOFS);
+				name_buf = kmalloc(name_buf_len, GFP_ANALFS);
 				if (!name_buf) {
-					ret = -ENOMEM;
+					ret = -EANALMEM;
 					goto out;
 				}
 			}
@@ -226,9 +226,9 @@ static int iterate_object_props(struct btrfs_root *root,
 			if (data_len > value_buf_len) {
 				kfree(value_buf);
 				value_buf_len = data_len;
-				value_buf = kmalloc(data_len, GFP_NOFS);
+				value_buf = kmalloc(data_len, GFP_ANALFS);
 				if (!value_buf) {
-					ret = -ENOMEM;
+					ret = -EANALMEM;
 					goto out;
 				}
 			}
@@ -253,37 +253,37 @@ out:
 	return ret;
 }
 
-static void inode_prop_iterator(void *ctx,
+static void ianalde_prop_iterator(void *ctx,
 				const struct prop_handler *handler,
 				const char *value,
 				size_t len)
 {
-	struct inode *inode = ctx;
-	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct ianalde *ianalde = ctx;
+	struct btrfs_root *root = BTRFS_I(ianalde)->root;
 	int ret;
 
-	ret = handler->apply(inode, value, len);
+	ret = handler->apply(ianalde, value, len);
 	if (unlikely(ret))
 		btrfs_warn(root->fs_info,
-			   "error applying prop %s to ino %llu (root %llu): %d",
-			   handler->xattr_name, btrfs_ino(BTRFS_I(inode)),
+			   "error applying prop %s to ianal %llu (root %llu): %d",
+			   handler->xattr_name, btrfs_ianal(BTRFS_I(ianalde)),
 			   root->root_key.objectid, ret);
 	else
-		set_bit(BTRFS_INODE_HAS_PROPS, &BTRFS_I(inode)->runtime_flags);
+		set_bit(BTRFS_IANALDE_HAS_PROPS, &BTRFS_I(ianalde)->runtime_flags);
 }
 
-int btrfs_load_inode_props(struct inode *inode, struct btrfs_path *path)
+int btrfs_load_ianalde_props(struct ianalde *ianalde, struct btrfs_path *path)
 {
-	struct btrfs_root *root = BTRFS_I(inode)->root;
-	u64 ino = btrfs_ino(BTRFS_I(inode));
+	struct btrfs_root *root = BTRFS_I(ianalde)->root;
+	u64 ianal = btrfs_ianal(BTRFS_I(ianalde));
 
-	return iterate_object_props(root, path, ino, inode_prop_iterator, inode);
+	return iterate_object_props(root, path, ianal, ianalde_prop_iterator, ianalde);
 }
 
-static int prop_compression_validate(const struct btrfs_inode *inode,
+static int prop_compression_validate(const struct btrfs_ianalde *ianalde,
 				     const char *value, size_t len)
 {
-	if (!btrfs_inode_can_compress(inode))
+	if (!btrfs_ianalde_can_compress(ianalde))
 		return -EINVAL;
 
 	if (!value)
@@ -292,33 +292,33 @@ static int prop_compression_validate(const struct btrfs_inode *inode,
 	if (btrfs_compress_is_valid_type(value, len))
 		return 0;
 
-	if ((len == 2 && strncmp("no", value, 2) == 0) ||
-	    (len == 4 && strncmp("none", value, 4) == 0))
+	if ((len == 2 && strncmp("anal", value, 2) == 0) ||
+	    (len == 4 && strncmp("analne", value, 4) == 0))
 		return 0;
 
 	return -EINVAL;
 }
 
-static int prop_compression_apply(struct inode *inode, const char *value,
+static int prop_compression_apply(struct ianalde *ianalde, const char *value,
 				  size_t len)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
+	struct btrfs_fs_info *fs_info = btrfs_sb(ianalde->i_sb);
 	int type;
 
 	/* Reset to defaults */
 	if (len == 0) {
-		BTRFS_I(inode)->flags &= ~BTRFS_INODE_COMPRESS;
-		BTRFS_I(inode)->flags &= ~BTRFS_INODE_NOCOMPRESS;
-		BTRFS_I(inode)->prop_compress = BTRFS_COMPRESS_NONE;
+		BTRFS_I(ianalde)->flags &= ~BTRFS_IANALDE_COMPRESS;
+		BTRFS_I(ianalde)->flags &= ~BTRFS_IANALDE_ANALCOMPRESS;
+		BTRFS_I(ianalde)->prop_compress = BTRFS_COMPRESS_ANALNE;
 		return 0;
 	}
 
-	/* Set NOCOMPRESS flag */
-	if ((len == 2 && strncmp("no", value, 2) == 0) ||
-	    (len == 4 && strncmp("none", value, 4) == 0)) {
-		BTRFS_I(inode)->flags |= BTRFS_INODE_NOCOMPRESS;
-		BTRFS_I(inode)->flags &= ~BTRFS_INODE_COMPRESS;
-		BTRFS_I(inode)->prop_compress = BTRFS_COMPRESS_NONE;
+	/* Set ANALCOMPRESS flag */
+	if ((len == 2 && strncmp("anal", value, 2) == 0) ||
+	    (len == 4 && strncmp("analne", value, 4) == 0)) {
+		BTRFS_I(ianalde)->flags |= BTRFS_IANALDE_ANALCOMPRESS;
+		BTRFS_I(ianalde)->flags &= ~BTRFS_IANALDE_COMPRESS;
+		BTRFS_I(ianalde)->prop_compress = BTRFS_COMPRESS_ANALNE;
 
 		return 0;
 	}
@@ -335,36 +335,36 @@ static int prop_compression_apply(struct inode *inode, const char *value,
 		return -EINVAL;
 	}
 
-	BTRFS_I(inode)->flags &= ~BTRFS_INODE_NOCOMPRESS;
-	BTRFS_I(inode)->flags |= BTRFS_INODE_COMPRESS;
-	BTRFS_I(inode)->prop_compress = type;
+	BTRFS_I(ianalde)->flags &= ~BTRFS_IANALDE_ANALCOMPRESS;
+	BTRFS_I(ianalde)->flags |= BTRFS_IANALDE_COMPRESS;
+	BTRFS_I(ianalde)->prop_compress = type;
 
 	return 0;
 }
 
-static bool prop_compression_ignore(const struct btrfs_inode *inode)
+static bool prop_compression_iganalre(const struct btrfs_ianalde *ianalde)
 {
 	/*
 	 * Compression only has effect for regular files, and for directories
 	 * we set it just to propagate it to new files created inside them.
 	 * Everything else (symlinks, devices, sockets, fifos) is pointless as
-	 * it will do nothing, so don't waste metadata space on a compression
-	 * xattr for anything that is neither a file nor a directory.
+	 * it will do analthing, so don't waste metadata space on a compression
+	 * xattr for anything that is neither a file analr a directory.
 	 */
-	if (!S_ISREG(inode->vfs_inode.i_mode) &&
-	    !S_ISDIR(inode->vfs_inode.i_mode))
+	if (!S_ISREG(ianalde->vfs_ianalde.i_mode) &&
+	    !S_ISDIR(ianalde->vfs_ianalde.i_mode))
 		return true;
 
 	return false;
 }
 
-static const char *prop_compression_extract(struct inode *inode)
+static const char *prop_compression_extract(struct ianalde *ianalde)
 {
-	switch (BTRFS_I(inode)->prop_compress) {
+	switch (BTRFS_I(ianalde)->prop_compress) {
 	case BTRFS_COMPRESS_ZLIB:
 	case BTRFS_COMPRESS_LZO:
 	case BTRFS_COMPRESS_ZSTD:
-		return btrfs_compress_type2str(BTRFS_I(inode)->prop_compress);
+		return btrfs_compress_type2str(BTRFS_I(ianalde)->prop_compress);
 	default:
 		break;
 	}
@@ -378,21 +378,21 @@ static struct prop_handler prop_handlers[] = {
 		.validate = prop_compression_validate,
 		.apply = prop_compression_apply,
 		.extract = prop_compression_extract,
-		.ignore = prop_compression_ignore,
+		.iganalre = prop_compression_iganalre,
 		.inheritable = 1
 	},
 };
 
-int btrfs_inode_inherit_props(struct btrfs_trans_handle *trans,
-			      struct inode *inode, struct inode *parent)
+int btrfs_ianalde_inherit_props(struct btrfs_trans_handle *trans,
+			      struct ianalde *ianalde, struct ianalde *parent)
 {
-	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct btrfs_root *root = BTRFS_I(ianalde)->root;
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	int ret;
 	int i;
 	bool need_reserve = false;
 
-	if (!test_bit(BTRFS_INODE_HAS_PROPS,
+	if (!test_bit(BTRFS_IANALDE_HAS_PROPS,
 		      &BTRFS_I(parent)->runtime_flags))
 		return 0;
 
@@ -404,7 +404,7 @@ int btrfs_inode_inherit_props(struct btrfs_trans_handle *trans,
 		if (!h->inheritable)
 			continue;
 
-		if (h->ignore(BTRFS_I(inode)))
+		if (h->iganalre(BTRFS_I(ianalde)))
 			continue;
 
 		value = h->extract(parent);
@@ -412,10 +412,10 @@ int btrfs_inode_inherit_props(struct btrfs_trans_handle *trans,
 			continue;
 
 		/*
-		 * This is not strictly necessary as the property should be
+		 * This is analt strictly necessary as the property should be
 		 * valid, but in case it isn't, don't propagate it further.
 		 */
-		ret = h->validate(BTRFS_I(inode), value, strlen(value));
+		ret = h->validate(BTRFS_I(ianalde), value, strlen(value));
 		if (ret)
 			continue;
 
@@ -430,21 +430,21 @@ int btrfs_inode_inherit_props(struct btrfs_trans_handle *trans,
 			num_bytes = btrfs_calc_insert_metadata_size(fs_info, 1);
 			ret = btrfs_block_rsv_add(fs_info, trans->block_rsv,
 						  num_bytes,
-						  BTRFS_RESERVE_NO_FLUSH);
+						  BTRFS_RESERVE_ANAL_FLUSH);
 			if (ret)
 				return ret;
 		}
 
-		ret = btrfs_setxattr(trans, inode, h->xattr_name, value,
+		ret = btrfs_setxattr(trans, ianalde, h->xattr_name, value,
 				     strlen(value), 0);
 		if (!ret) {
-			ret = h->apply(inode, value, strlen(value));
+			ret = h->apply(ianalde, value, strlen(value));
 			if (ret)
-				btrfs_setxattr(trans, inode, h->xattr_name,
+				btrfs_setxattr(trans, ianalde, h->xattr_name,
 					       NULL, 0, 0);
 			else
-				set_bit(BTRFS_INODE_HAS_PROPS,
-					&BTRFS_I(inode)->runtime_flags);
+				set_bit(BTRFS_IANALDE_HAS_PROPS,
+					&BTRFS_I(ianalde)->runtime_flags);
 		}
 
 		if (need_reserve) {
@@ -467,7 +467,7 @@ int __init btrfs_props_init(void)
 		struct prop_handler *p = &prop_handlers[i];
 		u64 h = btrfs_name_hash(p->xattr_name, strlen(p->xattr_name));
 
-		hash_add(prop_handlers_ht, &p->node, h);
+		hash_add(prop_handlers_ht, &p->analde, h);
 	}
 	return 0;
 }

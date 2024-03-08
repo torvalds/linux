@@ -29,7 +29,7 @@
 
 /*
  * Warning:
- * In order to not introduce confusion between Atmel PIO groups and pinctrl
+ * In order to analt introduce confusion between Atmel PIO groups and pinctrl
  * framework groups, Atmel PIO groups will be called banks, line is kept to
  * designed the pin id into this bank.
  */
@@ -69,7 +69,7 @@
 #define ATMEL_PIO_LINE(pin_id)		(pin_id % ATMEL_PIO_NPINS_PER_BANK)
 #define ATMEL_PIO_BANK_OFFSET		0x40
 
-#define ATMEL_GET_PIN_NO(pinfunc)	((pinfunc) & 0xff)
+#define ATMEL_GET_PIN_ANAL(pinfunc)	((pinfunc) & 0xff)
 #define ATMEL_GET_PIN_FUNC(pinfunc)	((pinfunc >> 16) & 0xf)
 #define ATMEL_GET_PIN_IOSET(pinfunc)	((pinfunc >> 20) & 0xf)
 
@@ -123,7 +123,7 @@ struct atmel_pin {
  * @pm_wakeup_sources: bitmap of wakeup sources (lines)
  * @pm_suspend_backup: backup/restore register values on suspend/resume
  * @dev: device entry for the Atmel PIO controller.
- * @node: node of the Atmel PIO controller.
+ * @analde: analde of the Atmel PIO controller.
  * @slew_rate_support: slew rate support
  */
 struct atmel_pioctrl {
@@ -145,7 +145,7 @@ struct atmel_pioctrl {
 		u32		cfgr[ATMEL_PIO_NPINS_PER_BANK];
 	} *pm_suspend_backup;
 	struct device		*dev;
-	struct device_node	*node;
+	struct device_analde	*analde;
 	unsigned int		slew_rate_support;
 };
 
@@ -176,7 +176,7 @@ static void atmel_gpio_write(struct atmel_pioctrl *atmel_pioctrl,
 static void atmel_gpio_irq_ack(struct irq_data *d)
 {
 	/*
-	 * Nothing to do, interrupt is cleared when reading the status
+	 * Analthing to do, interrupt is cleared when reading the status
 	 * register.
 	 */
 }
@@ -213,7 +213,7 @@ static int atmel_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 		irq_set_handler_locked(d, handle_level_irq);
 		reg |= ATMEL_PIO_CFGR_EVTSEL_HIGH;
 		break;
-	case IRQ_TYPE_NONE:
+	case IRQ_TYPE_ANALNE:
 	default:
 		return -EINVAL;
 	}
@@ -292,7 +292,7 @@ static void atmel_gpio_irq_handler(struct irq_desc *desc)
 
 	if (bank < 0) {
 		dev_err(atmel_pioctrl->dev,
-			"no bank associated to irq %u\n", irq);
+			"anal bank associated to irq %u\n", irq);
 		return;
 	}
 
@@ -521,7 +521,7 @@ atmel_pctl_find_group_by_pin(struct pinctrl_dev *pctldev, unsigned int pin)
 }
 
 static int atmel_pctl_xlate_pinfunc(struct pinctrl_dev *pctldev,
-				    struct device_node *np,
+				    struct device_analde *np,
 				    u32 pinfunc, const char **grp_name,
 				    const char **func_name)
 {
@@ -529,7 +529,7 @@ static int atmel_pctl_xlate_pinfunc(struct pinctrl_dev *pctldev,
 	unsigned int pin_id, func_id;
 	struct atmel_group *grp;
 
-	pin_id = ATMEL_GET_PIN_NO(pinfunc);
+	pin_id = ATMEL_GET_PIN_ANAL(pinfunc);
 	func_id = ATMEL_GET_PIN_FUNC(pinfunc);
 
 	if (func_id >= ARRAY_SIZE(atmel_functions))
@@ -544,8 +544,8 @@ static int atmel_pctl_xlate_pinfunc(struct pinctrl_dev *pctldev,
 
 	atmel_pioctrl->pins[pin_id]->mux = func_id;
 	atmel_pioctrl->pins[pin_id]->ioset = ATMEL_GET_PIN_IOSET(pinfunc);
-	/* Want the device name not the group one. */
-	if (np->parent == atmel_pioctrl->node)
+	/* Want the device name analt the group one. */
+	if (np->parent == atmel_pioctrl->analde)
 		atmel_pioctrl->pins[pin_id]->device = np->name;
 	else
 		atmel_pioctrl->pins[pin_id]->device = np->parent->name;
@@ -553,8 +553,8 @@ static int atmel_pctl_xlate_pinfunc(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static int atmel_pctl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
-					struct device_node *np,
+static int atmel_pctl_dt_subanalde_to_map(struct pinctrl_dev *pctldev,
+					struct device_analde *np,
 					struct pinctrl_map **map,
 					unsigned int *reserved_maps,
 					unsigned int *num_maps)
@@ -572,14 +572,14 @@ static int atmel_pctl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 	ret = pinconf_generic_parse_dt_config(np, pctldev, &configs,
 					      &num_configs);
 	if (ret < 0) {
-		dev_err(pctldev->dev, "%pOF: could not parse node property\n",
+		dev_err(pctldev->dev, "%pOF: could analt parse analde property\n",
 			np);
 		return ret;
 	}
 
 	num_pins = pins->length / sizeof(u32);
 	if (!num_pins) {
-		dev_err(pctldev->dev, "no pins found in node %pOF\n", np);
+		dev_err(pctldev->dev, "anal pins found in analde %pOF\n", np);
 		ret = -EINVAL;
 		goto exit;
 	}
@@ -627,12 +627,12 @@ exit:
 	return ret;
 }
 
-static int atmel_pctl_dt_node_to_map(struct pinctrl_dev *pctldev,
-				     struct device_node *np_config,
+static int atmel_pctl_dt_analde_to_map(struct pinctrl_dev *pctldev,
+				     struct device_analde *np_config,
 				     struct pinctrl_map **map,
 				     unsigned int *num_maps)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	unsigned int reserved_maps;
 	int ret;
 
@@ -641,18 +641,18 @@ static int atmel_pctl_dt_node_to_map(struct pinctrl_dev *pctldev,
 	reserved_maps = 0;
 
 	/*
-	 * If all the pins of a device have the same configuration (or no one),
-	 * it is useless to add a subnode, so directly parse node referenced by
+	 * If all the pins of a device have the same configuration (or anal one),
+	 * it is useless to add a subanalde, so directly parse analde referenced by
 	 * phandle.
 	 */
-	ret = atmel_pctl_dt_subnode_to_map(pctldev, np_config, map,
+	ret = atmel_pctl_dt_subanalde_to_map(pctldev, np_config, map,
 					   &reserved_maps, num_maps);
 	if (ret) {
-		for_each_child_of_node(np_config, np) {
-			ret = atmel_pctl_dt_subnode_to_map(pctldev, np, map,
+		for_each_child_of_analde(np_config, np) {
+			ret = atmel_pctl_dt_subanalde_to_map(pctldev, np, map,
 						    &reserved_maps, num_maps);
 			if (ret < 0) {
-				of_node_put(np);
+				of_analde_put(np);
 				break;
 			}
 		}
@@ -660,7 +660,7 @@ static int atmel_pctl_dt_node_to_map(struct pinctrl_dev *pctldev,
 
 	if (ret < 0) {
 		pinctrl_utils_free_map(pctldev, *map, *num_maps);
-		dev_err(pctldev->dev, "can't create maps for node %pOF\n",
+		dev_err(pctldev->dev, "can't create maps for analde %pOF\n",
 			np_config);
 	}
 
@@ -671,7 +671,7 @@ static const struct pinctrl_ops atmel_pctlops = {
 	.get_groups_count	= atmel_pctl_get_groups_count,
 	.get_group_name		= atmel_pctl_get_group_name,
 	.get_group_pins		= atmel_pctl_get_group_pins,
-	.dt_node_to_map		= atmel_pctl_dt_node_to_map,
+	.dt_analde_to_map		= atmel_pctl_dt_analde_to_map,
 	.dt_free_map		= pinctrl_utils_free_map,
 };
 
@@ -774,7 +774,7 @@ static int atmel_conf_pin_config_group_get(struct pinctrl_dev *pctldev,
 		break;
 	case PIN_CONFIG_SLEW_RATE:
 		if (!atmel_pioctrl->slew_rate_support)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		if (!(res & ATMEL_PIO_SR_MASK))
 			return -EINVAL;
 		arg = 1;
@@ -785,9 +785,9 @@ static int atmel_conf_pin_config_group_get(struct pinctrl_dev *pctldev,
 		arg = (res & ATMEL_PIO_DRVSTR_MASK) >> ATMEL_PIO_DRVSTR_OFFSET;
 		break;
 	case PIN_CONFIG_PERSIST_STATE:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	*config = pinconf_to_config_packed(param, arg);
@@ -891,11 +891,11 @@ static int atmel_conf_pin_config_group_set(struct pinctrl_dev *pctldev,
 				conf |= arg << ATMEL_PIO_DRVSTR_OFFSET;
 				break;
 			default:
-				dev_warn(pctldev->dev, "drive strength not updated (incorrect value)\n");
+				dev_warn(pctldev->dev, "drive strength analt updated (incorrect value)\n");
 			}
 			break;
 		case PIN_CONFIG_PERSIST_STATE:
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		default:
 			dev_warn(pctldev->dev,
 				 "unsupported configuration parameter: %u\n",
@@ -1042,7 +1042,7 @@ static const struct dev_pm_ops atmel_pctrl_pm_ops = {
 };
 
 /*
- * The number of banks can be different from a SoC to another one.
+ * The number of banks can be different from a SoC to aanalther one.
  * We can have up to 16 banks.
  */
 static const struct atmel_pioctrl_data atmel_sama5d2_pioctrl_data = {
@@ -1070,7 +1070,7 @@ static const struct of_device_id atmel_pctrl_of_match[] = {
 
 /*
  * This lock class allows to tell lockdep that parent IRQ and children IRQ do
- * not share the same class so it does not raise false positive
+ * analt share the same class so it does analt raise false positive
  */
 static struct lock_class_key atmel_lock_key;
 static struct lock_class_key atmel_request_key;
@@ -1086,14 +1086,14 @@ static int atmel_pinctrl_probe(struct platform_device *pdev)
 
 	atmel_pioctrl = devm_kzalloc(dev, sizeof(*atmel_pioctrl), GFP_KERNEL);
 	if (!atmel_pioctrl)
-		return -ENOMEM;
+		return -EANALMEM;
 	atmel_pioctrl->dev = dev;
-	atmel_pioctrl->node = dev->of_node;
+	atmel_pioctrl->analde = dev->of_analde;
 	platform_set_drvdata(pdev, atmel_pioctrl);
 
 	atmel_pioctrl_data = device_get_match_data(dev);
 	if (!atmel_pioctrl_data)
-		return dev_err_probe(dev, -ENODEV, "Invalid device data\n");
+		return dev_err_probe(dev, -EANALDEV, "Invalid device data\n");
 
 	atmel_pioctrl->nbanks = atmel_pioctrl_data->nbanks;
 	atmel_pioctrl->npins = atmel_pioctrl->nbanks * ATMEL_PIO_NPINS_PER_BANK;
@@ -1117,12 +1117,12 @@ static int atmel_pinctrl_probe(struct platform_device *pdev)
 					   sizeof(*atmel_pioctrl->pins),
 					   GFP_KERNEL);
 	if (!atmel_pioctrl->pins)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pin_desc = devm_kcalloc(dev, atmel_pioctrl->npins, sizeof(*pin_desc),
 				GFP_KERNEL);
 	if (!pin_desc)
-		return -ENOMEM;
+		return -EANALMEM;
 	atmel_pinctrl_desc.pins = pin_desc;
 	atmel_pinctrl_desc.npins = atmel_pioctrl->npins;
 	atmel_pinctrl_desc.num_custom_params = ARRAY_SIZE(atmel_custom_bindings);
@@ -1133,14 +1133,14 @@ static int atmel_pinctrl_probe(struct platform_device *pdev)
 				   atmel_pioctrl->npins, sizeof(*group_names),
 				   GFP_KERNEL);
 	if (!group_names)
-		return -ENOMEM;
+		return -EANALMEM;
 	atmel_pioctrl->group_names = group_names;
 
 	atmel_pioctrl->groups = devm_kcalloc(&pdev->dev,
 			atmel_pioctrl->npins, sizeof(*atmel_pioctrl->groups),
 			GFP_KERNEL);
 	if (!atmel_pioctrl->groups)
-		return -ENOMEM;
+		return -EANALMEM;
 	for (i = 0 ; i < atmel_pioctrl->npins; i++) {
 		struct atmel_group *group = atmel_pioctrl->groups + i;
 		unsigned int bank = ATMEL_PIO_BANK(i);
@@ -1149,7 +1149,7 @@ static int atmel_pinctrl_probe(struct platform_device *pdev)
 		atmel_pioctrl->pins[i] = devm_kzalloc(dev,
 				sizeof(**atmel_pioctrl->pins), GFP_KERNEL);
 		if (!atmel_pioctrl->pins[i])
-			return -ENOMEM;
+			return -EANALMEM;
 
 		atmel_pioctrl->pins[i]->pin_id = i;
 		atmel_pioctrl->pins[i]->bank = bank;
@@ -1160,7 +1160,7 @@ static int atmel_pinctrl_probe(struct platform_device *pdev)
 		pin_desc[i].name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "P%c%u",
 						  bank + 'A', line);
 		if (!pin_desc[i].name)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		group->name = group_names[i] = pin_desc[i].name;
 		group->pin = pin_desc[i].number;
@@ -1180,21 +1180,21 @@ static int atmel_pinctrl_probe(struct platform_device *pdev)
 			sizeof(*atmel_pioctrl->pm_wakeup_sources),
 			GFP_KERNEL);
 	if (!atmel_pioctrl->pm_wakeup_sources)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	atmel_pioctrl->pm_suspend_backup = devm_kcalloc(dev,
 			atmel_pioctrl->nbanks,
 			sizeof(*atmel_pioctrl->pm_suspend_backup),
 			GFP_KERNEL);
 	if (!atmel_pioctrl->pm_suspend_backup)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	atmel_pioctrl->irqs = devm_kcalloc(dev,
 					   atmel_pioctrl->nbanks,
 					   sizeof(*atmel_pioctrl->irqs),
 					   GFP_KERNEL);
 	if (!atmel_pioctrl->irqs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* There is one controller but each bank has its own irq line. */
 	for (i = 0; i < atmel_pioctrl->nbanks; i++) {
@@ -1209,11 +1209,11 @@ static int atmel_pinctrl_probe(struct platform_device *pdev)
 		dev_dbg(dev, "bank %i: irq=%d\n", i, ret);
 	}
 
-	atmel_pioctrl->irq_domain = irq_domain_add_linear(dev->of_node,
+	atmel_pioctrl->irq_domain = irq_domain_add_linear(dev->of_analde,
 			atmel_pioctrl->gpio_chip->ngpio,
 			&irq_domain_simple_ops, NULL);
 	if (!atmel_pioctrl->irq_domain)
-		return dev_err_probe(dev, -ENODEV, "can't add the irq domain\n");
+		return dev_err_probe(dev, -EANALDEV, "can't add the irq domain\n");
 
 	for (i = 0; i < atmel_pioctrl->npins; i++) {
 		int irq = irq_create_mapping(atmel_pioctrl->irq_domain, i);

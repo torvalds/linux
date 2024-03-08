@@ -44,7 +44,7 @@ struct catu_etr_buf {
  *	|	 Address [63-12] | SBZ	| V|
  *	------------------------------------
  *
- * Where bit[0] V indicates if the address is valid or not.
+ * Where bit[0] V indicates if the address is valid or analt.
  * Each 4K table pages have upto 256 data page pointers, taking upto 2K
  * size. There are two Link pointers, pointing to the previous and next
  * table pages respectively at the end of the 4K page. (i.e, entry 510
@@ -69,9 +69,9 @@ struct catu_etr_buf {
  *             |------------------|  |    |                 |
  *             |    ...       |   |  |    |                 |
  *             |------------------|  |    |-----------------|
- *             |   IGNORED    | 0 |  |    | Table Page 0| 1 |
+ *             |   IGANALRED    | 0 |  |    | Table Page 0| 1 |
  *             |------------------|  |    |-----------------|
- *             |  Table Page 1| 1 |--x    | IGNORED     | 0 |
+ *             |  Table Page 1| 1 |--x    | IGANALRED     | 0 |
  *             x------------------x       x-----------------x
  * SLADDR+4K==>
  *
@@ -108,7 +108,7 @@ typedef u64 cate_t;
  * within the buffer. The buffer is wrapped around to a valid offset.
  *
  * Returns : The CPU virtual address for the beginning of the table
- * containing the data page pointer for @offset. If @daddrp is not NULL,
+ * containing the data page pointer for @offset. If @daddrp is analt NULL,
  * @daddrp points the DMA address of the beginning of the table.
  */
 static inline cate_t *catu_get_table(struct tmc_sg_table *catu_table,
@@ -204,7 +204,7 @@ catu_populate_table(struct tmc_sg_table *catu_table)
 		 * The @offset is always 1M aligned here and we have an
 		 * empty table @table_ptr to fill. Each table can address
 		 * upto 1MB data buffer. The last table may have fewer
-		 * entries if the buffer size is not aligned.
+		 * entries if the buffer size is analt aligned.
 		 */
 		table_end = (offset + SZ_1M) < buf_size ?
 			    (offset + SZ_1M) : buf_size;
@@ -257,7 +257,7 @@ catu_populate_table(struct tmc_sg_table *catu_table)
 }
 
 static struct tmc_sg_table *
-catu_init_sg_table(struct device *catu_dev, int node,
+catu_init_sg_table(struct device *catu_dev, int analde,
 		   ssize_t size, void **pages)
 {
 	int nr_tpages;
@@ -268,7 +268,7 @@ catu_init_sg_table(struct device *catu_dev, int node,
 	 * CATU_PAGES_PER_SYSPAGE tables in a system page.
 	 */
 	nr_tpages = DIV_ROUND_UP(size, SZ_1M) / CATU_PAGES_PER_SYSPAGE;
-	catu_table = tmc_alloc_sg_table(catu_dev, node, nr_tpages,
+	catu_table = tmc_alloc_sg_table(catu_dev, analde, nr_tpages,
 					size >> PAGE_SHIFT, pages);
 	if (IS_ERR(catu_table))
 		return catu_table;
@@ -327,7 +327,7 @@ static void catu_sync_etr_buf(struct etr_buf *etr_buf, u64 rrp, u64 rwp)
 }
 
 static int catu_alloc_etr_buf(struct tmc_drvdata *tmc_drvdata,
-			      struct etr_buf *etr_buf, int node, void **pages)
+			      struct etr_buf *etr_buf, int analde, void **pages)
 {
 	struct coresight_device *csdev;
 	struct tmc_sg_table *catu_table;
@@ -335,12 +335,12 @@ static int catu_alloc_etr_buf(struct tmc_drvdata *tmc_drvdata,
 
 	csdev = tmc_etr_get_catu_device(tmc_drvdata);
 	if (!csdev)
-		return -ENODEV;
+		return -EANALDEV;
 	catu_buf = kzalloc(sizeof(*catu_buf), GFP_KERNEL);
 	if (!catu_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	catu_table = catu_init_sg_table(&csdev->dev, node,
+	catu_table = catu_init_sg_table(&csdev->dev, analde,
 					etr_buf->size, pages);
 	if (IS_ERR(catu_table)) {
 		kfree(catu_buf);
@@ -514,11 +514,11 @@ static int catu_probe(struct amba_device *adev, const struct amba_id *id)
 
 	catu_desc.name = coresight_alloc_device_name(&catu_devs, dev);
 	if (!catu_desc.name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drvdata = devm_kzalloc(dev, sizeof(*drvdata), GFP_KERNEL);
 	if (!drvdata) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 

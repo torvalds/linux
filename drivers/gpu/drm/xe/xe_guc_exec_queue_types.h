@@ -27,7 +27,7 @@ struct xe_guc_exec_queue {
 	/**
 	 * @static_msgs: Static messages for this xe_exec_queue, used when
 	 * a message needs to sent through the GPU scheduler but memory
-	 * allocations are not allowed.
+	 * allocations are analt allowed.
 	 */
 #define MAX_STATIC_MSG_TYPE	3
 	struct xe_sched_msg static_msgs[MAX_STATIC_MSG_TYPE];

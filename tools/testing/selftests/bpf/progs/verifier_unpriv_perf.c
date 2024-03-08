@@ -7,7 +7,7 @@
 
 SEC("perf_event")
 __description("unpriv: spill/fill of different pointers ldx")
-__failure __msg("same insn cannot be used with different pointers")
+__failure __msg("same insn cananalt be used with different pointers")
 __naked void fill_of_different_pointers_ldx(void)
 {
 	asm volatile ("					\

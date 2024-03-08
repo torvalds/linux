@@ -30,7 +30,7 @@
 #include "cyapa.h"
 
 
-#define CYAPA_ADAPTER_FUNC_NONE   0
+#define CYAPA_ADAPTER_FUNC_ANALNE   0
 #define CYAPA_ADAPTER_FUNC_I2C    1
 #define CYAPA_ADAPTER_FUNC_SMBUS  2
 #define CYAPA_ADAPTER_FUNC_BOTH   3
@@ -87,7 +87,7 @@ static inline bool cyapa_is_operational_mode(struct cyapa *cyapa)
 	return false;
 }
 
-/* Returns 0 on success, else negative errno on failure. */
+/* Returns 0 on success, else negative erranal on failure. */
 static ssize_t cyapa_i2c_read(struct cyapa *cyapa, u8 reg, size_t len,
 					u8 *values)
 {
@@ -123,7 +123,7 @@ static ssize_t cyapa_i2c_read(struct cyapa *cyapa, u8 reg, size_t len,
  * @len: number of bytes to write
  * @values: Data to be written
  *
- * Return negative errno code on error; return zero when success.
+ * Return negative erranal code on error; return zero when success.
  */
 static int cyapa_i2c_write(struct cyapa *cyapa, u8 reg,
 					 size_t len, const void *values)
@@ -133,7 +133,7 @@ static int cyapa_i2c_write(struct cyapa *cyapa, u8 reg,
 	int ret;
 
 	if (len > sizeof(buf) - 1)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buf[0] = reg;
 	memcpy(&buf[1], values, len);
@@ -147,7 +147,7 @@ static int cyapa_i2c_write(struct cyapa *cyapa, u8 reg,
 
 static u8 cyapa_check_adapter_functionality(struct i2c_client *client)
 {
-	u8 ret = CYAPA_ADAPTER_FUNC_NONE;
+	u8 ret = CYAPA_ADAPTER_FUNC_ANALNE;
 
 	if (i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
 		ret |= CYAPA_ADAPTER_FUNC_I2C;
@@ -171,7 +171,7 @@ static int cyapa_get_state(struct cyapa *cyapa)
 	int retries = 2;
 	int error;
 
-	cyapa->state = CYAPA_STATE_NO_DEVICE;
+	cyapa->state = CYAPA_STATE_ANAL_DEVICE;
 
 	/*
 	 * Get trackpad status by reading 3 registers starting from 0.
@@ -205,14 +205,14 @@ static int cyapa_get_state(struct cyapa *cyapa)
 		cyapa->status[REG_BL_STATUS] = status[REG_BL_STATUS];
 		cyapa->status[REG_BL_ERROR] = status[REG_BL_ERROR];
 
-		if (cyapa->gen == CYAPA_GEN_UNKNOWN ||
+		if (cyapa->gen == CYAPA_GEN_UNKANALWN ||
 				cyapa->gen == CYAPA_GEN3) {
 			error = cyapa_gen3_ops.state_parse(cyapa,
 					status, BL_STATUS_SIZE);
 			if (!error)
 				goto out_detected;
 		}
-		if (cyapa->gen == CYAPA_GEN_UNKNOWN ||
+		if (cyapa->gen == CYAPA_GEN_UNKANALWN ||
 				cyapa->gen == CYAPA_GEN6 ||
 				cyapa->gen == CYAPA_GEN5) {
 			error = cyapa_pip_state_parse(cyapa,
@@ -221,7 +221,7 @@ static int cyapa_get_state(struct cyapa *cyapa)
 				goto out_detected;
 		}
 		/* For old Gen5 trackpads detecting. */
-		if ((cyapa->gen == CYAPA_GEN_UNKNOWN ||
+		if ((cyapa->gen == CYAPA_GEN_UNKANALWN ||
 				cyapa->gen == CYAPA_GEN5) &&
 			!smbus && even_addr) {
 			error = cyapa_gen5_ops.state_parse(cyapa,
@@ -268,12 +268,12 @@ error:
  * However, when running a new firmware image, the device must calibrate its
  * sensors, which can take as long as 2 seconds.
  *
- * Note: The timeout has granularity of the polling rate, which is 100 ms.
+ * Analte: The timeout has granularity of the polling rate, which is 100 ms.
  *
  * Returns:
- *   0 when the device eventually responds with a valid non-busy state.
+ *   0 when the device eventually responds with a valid analn-busy state.
  *   -ETIMEDOUT if device never responds (too many -EAGAIN)
- *   -EAGAIN    if bootload is busy, or unknown state.
+ *   -EAGAIN    if bootload is busy, or unkanalwn state.
  *   < 0        other errors
  */
 int cyapa_poll_state(struct cyapa *cyapa, unsigned int timeout)
@@ -299,13 +299,13 @@ int cyapa_poll_state(struct cyapa *cyapa, unsigned int timeout)
  * firmware supported by this driver.
  *
  * Returns:
- *   -ENODEV no device
- *   -EBUSY  no device or in bootloader
+ *   -EANALDEV anal device
+ *   -EBUSY  anal device or in bootloader
  *   -EIO    failure while reading from device
- *   -ETIMEDOUT timeout failure for bus idle or bus no response
+ *   -ETIMEDOUT timeout failure for bus idle or bus anal response
  *   -EAGAIN device is still in bootloader
  *           if ->state = CYAPA_STATE_BL_IDLE, device has invalid firmware
- *   -EINVAL device is in operational mode, but not supported by this driver
+ *   -EINVAL device is in operational mode, but analt supported by this driver
  *   0       device is supported
  */
 static int cyapa_check_is_operational(struct cyapa *cyapa)
@@ -327,7 +327,7 @@ static int cyapa_check_is_operational(struct cyapa *cyapa)
 		cyapa->ops = &cyapa_gen3_ops;
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	error = cyapa->ops->operational_check(cyapa);
@@ -341,7 +341,7 @@ static int cyapa_check_is_operational(struct cyapa *cyapa)
 
 
 /*
- * Returns 0 on device detected, negative errno on no device detected.
+ * Returns 0 on device detected, negative erranal on anal device detected.
  * And when the device is detected and operational, it will be reset to
  * full power active mode automatically.
  */
@@ -352,13 +352,13 @@ static int cyapa_detect(struct cyapa *cyapa)
 
 	error = cyapa_check_is_operational(cyapa);
 	if (error) {
-		if (error != -ETIMEDOUT && error != -ENODEV &&
+		if (error != -ETIMEDOUT && error != -EANALDEV &&
 			cyapa_is_bootloader_mode(cyapa)) {
-			dev_warn(dev, "device detected but not operational\n");
+			dev_warn(dev, "device detected but analt operational\n");
 			return 0;
 		}
 
-		dev_err(dev, "no device detected: %d\n", error);
+		dev_err(dev, "anal device detected: %d\n", error);
 		return error;
 	}
 
@@ -442,7 +442,7 @@ static int cyapa_create_input_dev(struct cyapa *cyapa)
 	input = devm_input_allocate_device(dev);
 	if (!input) {
 		dev_err(dev, "failed to allocate memory for input device.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	input->name = CYAPA_NAME;
@@ -467,7 +467,7 @@ static int cyapa_create_input_dev(struct cyapa *cyapa)
 	input_set_abs_params(input, ABS_MT_PRESSURE, 0, cyapa->max_z, 0, 0);
 	if (cyapa->gen > CYAPA_GEN3) {
 		input_set_abs_params(input, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
-		input_set_abs_params(input, ABS_MT_TOUCH_MINOR, 0, 255, 0, 0);
+		input_set_abs_params(input, ABS_MT_TOUCH_MIANALR, 0, 255, 0, 0);
 		/*
 		 * Orientation is the angle between the vertical axis and
 		 * the major axis of the contact ellipse.
@@ -484,7 +484,7 @@ static int cyapa_create_input_dev(struct cyapa *cyapa)
 	}
 	if (cyapa->gen >= CYAPA_GEN5) {
 		input_set_abs_params(input, ABS_MT_WIDTH_MAJOR, 0, 255, 0, 0);
-		input_set_abs_params(input, ABS_MT_WIDTH_MINOR, 0, 255, 0, 0);
+		input_set_abs_params(input, ABS_MT_WIDTH_MIANALR, 0, 255, 0, 0);
 		input_set_abs_params(input, ABS_DISTANCE, 0, 1, 0, 0);
 	}
 
@@ -529,8 +529,8 @@ static void cyapa_enable_irq_for_cmd(struct cyapa *cyapa)
 	if (!input || !input_device_enabled(input)) {
 		/*
 		 * When input is NULL, TP must be in deep sleep mode.
-		 * In this mode, later non-power I2C command will always failed
-		 * if not bring it out of deep sleep mode firstly,
+		 * In this mode, later analn-power I2C command will always failed
+		 * if analt bring it out of deep sleep mode firstly,
 		 * so must command TP to active mode here.
 		 */
 		if (!input || cyapa->operational)
@@ -591,8 +591,8 @@ static int cyapa_initialize(struct cyapa *cyapa)
 {
 	int error = 0;
 
-	cyapa->state = CYAPA_STATE_NO_DEVICE;
-	cyapa->gen = CYAPA_GEN_UNKNOWN;
+	cyapa->state = CYAPA_STATE_ANAL_DEVICE;
+	cyapa->gen = CYAPA_GEN_UNKANALWN;
 	mutex_init(&cyapa->state_sync_lock);
 
 	/*
@@ -653,7 +653,7 @@ static int cyapa_reinitialize(struct cyapa *cyapa)
 
 out:
 	if (!input || !input_device_enabled(input)) {
-		/* Reset to power OFF state to save power when no user open. */
+		/* Reset to power OFF state to save power when anal user open. */
 		if (cyapa->operational)
 			cyapa->ops->set_power_mode(cyapa,
 					PWR_MODE_OFF, 0, CYAPA_PM_DEACTIVE);
@@ -703,7 +703,7 @@ static irqreturn_t cyapa_irq(int irq, void *dev_id)
 			/*
 			 * Apply runtime power management to touch report event
 			 * except the events caused by the command responses.
-			 * Note:
+			 * Analte:
 			 * It will introduce about 20~40 ms additional delay
 			 * time in receiving for first valid touch report data.
 			 * The time is used to execute device runtime resume
@@ -1017,7 +1017,7 @@ static int cyapa_firmware(struct cyapa *cyapa, const char *fw_name)
 
 	error = request_firmware(&fw, fw_name, dev);
 	if (error) {
-		dev_err(dev, "Could not load firmware from %s: %d\n",
+		dev_err(dev, "Could analt load firmware from %s: %d\n",
 			fw_name, error);
 		return error;
 	}
@@ -1031,7 +1031,7 @@ static int cyapa_firmware(struct cyapa *cyapa, const char *fw_name)
 
 	/*
 	 * Resume the potentially suspended device because doing FW
-	 * update on a device not in the FULL mode has a chance to
+	 * update on a device analt in the FULL mode has a chance to
 	 * fail.
 	 */
 	pm_runtime_get_sync(dev);
@@ -1065,7 +1065,7 @@ static int cyapa_firmware(struct cyapa *cyapa, const char *fw_name)
 
 err_detect:
 	cyapa_disable_irq_for_cmd(cyapa);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 
 done:
 	release_firmware(fw);
@@ -1192,7 +1192,7 @@ static char *cyapa_state_to_string(struct cyapa *cyapa)
 	case CYAPA_STATE_OP:
 	case CYAPA_STATE_GEN5_APP:
 	case CYAPA_STATE_GEN6_APP:
-		return "operational";  /* Normal valid state. */
+		return "operational";  /* Analrmal valid state. */
 	default:
 		return "invalid mode";
 	}
@@ -1250,19 +1250,19 @@ static int cyapa_probe(struct i2c_client *client)
 	int error;
 
 	adapter_func = cyapa_check_adapter_functionality(client);
-	if (adapter_func == CYAPA_ADAPTER_FUNC_NONE) {
-		dev_err(dev, "not a supported I2C/SMBus adapter\n");
+	if (adapter_func == CYAPA_ADAPTER_FUNC_ANALNE) {
+		dev_err(dev, "analt a supported I2C/SMBus adapter\n");
 		return -EIO;
 	}
 
 	/* Make sure there is something at this address */
 	if (i2c_smbus_xfer(client->adapter, client->addr, 0,
 			I2C_SMBUS_READ, 0, I2C_SMBUS_BYTE, &dummy) < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	cyapa = devm_kzalloc(dev, sizeof(struct cyapa), GFP_KERNEL);
 	if (!cyapa)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* i2c isn't supported, use smbus */
 	if (adapter_func == CYAPA_ADAPTER_FUNC_SMBUS)

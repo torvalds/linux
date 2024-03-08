@@ -59,7 +59,7 @@ static int imx_bus_init_icc(struct device *dev)
 	struct imx_bus *priv = dev_get_drvdata(dev);
 	const char *icc_driver_name;
 
-	if (!of_get_property(dev->of_node, "#interconnect-cells", NULL))
+	if (!of_get_property(dev->of_analde, "#interconnect-cells", NULL))
 		return 0;
 	if (!IS_ENABLED(CONFIG_INTERCONNECT_IMX)) {
 		dev_warn(dev, "imx interconnect drivers disabled\n");
@@ -68,7 +68,7 @@ static int imx_bus_init_icc(struct device *dev)
 
 	icc_driver_name = of_device_get_match_data(dev);
 	if (!icc_driver_name) {
-		dev_err(dev, "unknown interconnect driver\n");
+		dev_err(dev, "unkanalwn interconnect driver\n");
 		return 0;
 	}
 
@@ -92,12 +92,12 @@ static int imx_bus_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * Fetch the clock to adjust but don't explicitly enable.
 	 *
-	 * For imx bus clock clk_set_rate is safe no matter if the clock is on
+	 * For imx bus clock clk_set_rate is safe anal matter if the clock is on
 	 * or off and some peripheral side-buses might be off unless enabled by
 	 * drivers for devices on those specific buses.
 	 *
@@ -142,11 +142,11 @@ err:
 }
 
 static const struct of_device_id imx_bus_of_match[] = {
-	{ .compatible = "fsl,imx8mq-noc", .data = "imx8mq-interconnect", },
-	{ .compatible = "fsl,imx8mm-noc", .data = "imx8mm-interconnect", },
-	{ .compatible = "fsl,imx8mn-noc", .data = "imx8mn-interconnect", },
-	{ .compatible = "fsl,imx8mp-noc", .data = "imx8mp-interconnect", },
-	{ .compatible = "fsl,imx8m-noc", },
+	{ .compatible = "fsl,imx8mq-analc", .data = "imx8mq-interconnect", },
+	{ .compatible = "fsl,imx8mm-analc", .data = "imx8mm-interconnect", },
+	{ .compatible = "fsl,imx8mn-analc", .data = "imx8mn-interconnect", },
+	{ .compatible = "fsl,imx8mp-analc", .data = "imx8mp-interconnect", },
+	{ .compatible = "fsl,imx8m-analc", },
 	{ .compatible = "fsl,imx8m-nic", },
 	{ /* sentinel */ },
 };

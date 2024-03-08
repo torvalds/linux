@@ -31,7 +31,7 @@ static const struct omap_clkctrl_reg_data omap5_mpu_clkctrl_regs[] __initconst =
 };
 
 static const struct omap_clkctrl_reg_data omap5_dsp_clkctrl_regs[] __initconst = {
-	{ OMAP5_MMU_DSP_CLKCTRL, NULL, CLKF_HW_SUP | CLKF_NO_IDLEST, "dpll_iva_h11x2_ck" },
+	{ OMAP5_MMU_DSP_CLKCTRL, NULL, CLKF_HW_SUP | CLKF_ANAL_IDLEST, "dpll_iva_h11x2_ck" },
 	{ 0 },
 };
 
@@ -162,7 +162,7 @@ static const struct omap_clkctrl_reg_data omap5_l3main2_clkctrl_regs[] __initcon
 };
 
 static const struct omap_clkctrl_reg_data omap5_ipu_clkctrl_regs[] __initconst = {
-	{ OMAP5_MMU_IPU_CLKCTRL, NULL, CLKF_HW_SUP | CLKF_NO_IDLEST, "dpll_core_h22x2_ck" },
+	{ OMAP5_MMU_IPU_CLKCTRL, NULL, CLKF_HW_SUP | CLKF_ANAL_IDLEST, "dpll_core_h22x2_ck" },
 	{ 0 },
 };
 
@@ -309,9 +309,9 @@ omap_clkctrl_reg_data omap5_l4_secure_clkctrl_regs[] __initconst = {
 	{ OMAP5_AES2_CLKCTRL, NULL, CLKF_HW_SUP, "l3_iclk_div" },
 	{ OMAP5_DES3DES_CLKCTRL, NULL, CLKF_HW_SUP, "l4_root_clk_div" },
 	{ OMAP5_FPKA_CLKCTRL, NULL, CLKF_SW_SUP, "l4_root_clk_div" },
-	{ OMAP5_RNG_CLKCTRL, NULL, CLKF_HW_SUP | CLKF_SOC_NONSEC, "l4_root_clk_div" },
+	{ OMAP5_RNG_CLKCTRL, NULL, CLKF_HW_SUP | CLKF_SOC_ANALNSEC, "l4_root_clk_div" },
 	{ OMAP5_SHA2MD5_CLKCTRL, NULL, CLKF_HW_SUP, "l3_iclk_div" },
-	{ OMAP5_DMA_CRYPTO_CLKCTRL, NULL, CLKF_HW_SUP | CLKF_SOC_NONSEC, "l3_iclk_div" },
+	{ OMAP5_DMA_CRYPTO_CLKCTRL, NULL, CLKF_HW_SUP | CLKF_SOC_ANALNSEC, "l3_iclk_div" },
 	{ 0 },
 };
 
@@ -605,7 +605,7 @@ static struct ti_dt_clk omap54xx_clks[] = {
 	DT_CLK(NULL, "usb_tll_hs_usb_ch2_clk", "l3init-clkctrl:0048:10"),
 	DT_CLK(NULL, "utmi_p1_gfclk", "l3init-clkctrl:0038:24"),
 	DT_CLK(NULL, "utmi_p2_gfclk", "l3init-clkctrl:0038:25"),
-	{ .node_name = NULL },
+	{ .analde_name = NULL },
 };
 
 int __init omap5xxx_dt_clk_init(void)
@@ -625,7 +625,7 @@ int __init omap5xxx_dt_clk_init(void)
 
 	/*
 	 * This must also be set to sys_32k_ck to match or
-	 * the ABE DPLL will not lock on a warm reboot when
+	 * the ABE DPLL will analt lock on a warm reboot when
 	 * ABE timers are used.
 	 */
 	abe_dpll_byp = clk_get_sys(NULL, "abe_dpll_bypass_clk_mux");

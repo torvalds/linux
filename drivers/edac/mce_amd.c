@@ -10,7 +10,7 @@ static struct amd_decoder_ops fam_ops;
 
 static u8 xec_mask	 = 0xf;
 
-static void (*decode_dram_ecc)(int node_id, struct mce *m);
+static void (*decode_dram_ecc)(int analde_id, struct mce *m);
 
 void amd_register_ecc_decoder(void (*f)(int, struct mce *))
 {
@@ -49,7 +49,7 @@ const char * const pp_msgs[] = { "SRC", "RES", "OBS", "GEN" };
 EXPORT_SYMBOL_GPL(pp_msgs);
 
 /* request timeout */
-static const char * const to_msgs[] = { "no timeout", "timed out" };
+static const char * const to_msgs[] = { "anal timeout", "timed out" };
 
 /* memory or i/o */
 static const char * const ii_msgs[] = { "MEM", "RESV", "IO", "GEN" };
@@ -68,7 +68,7 @@ static const char * const f15h_mc1_mce_desc[] = {
 	"PFB promotion address error",
 	"Tag error during probe/victimization",
 	"Parity error for IC probe tag valid bit",
-	"PFB non-cacheable bit parity error",
+	"PFB analn-cacheable bit parity error",
 	"PFB valid bit parity error",			/* xec = 0xd */
 	"Microcode Patch Buffer",			/* xec = 010 */
 	"uop queue",
@@ -199,8 +199,8 @@ static bool cat_mc0_mce(u16 ec, u8 xec)
 		case R4_EVICT:
 			pr_cont("Copyback parity error on a tag miss.\n");
 			break;
-		case R4_SNOOP:
-			pr_cont("Tag parity error during snoop.\n");
+		case R4_SANALOP:
+			pr_cont("Tag parity error during sanalop.\n");
 			break;
 		default:
 			ret = false;
@@ -326,8 +326,8 @@ static bool k8_mc1_mce(u16 ec, u8 xec)
 			pr_cont("Copyback Parity/Victim error.\n");
 			break;
 
-		case R4_SNOOP:
-			pr_cont("Tag Snoop error.\n");
+		case R4_SANALOP:
+			pr_cont("Tag Sanalop error.\n");
 			break;
 
 		default:
@@ -353,8 +353,8 @@ static bool cat_mc1_mce(u16 ec, u8 xec)
 
 	if (r4 == R4_IRD)
 		pr_cont("Data/tag array parity error for a tag hit.\n");
-	else if (r4 == R4_SNOOP)
-		pr_cont("Tag error during snoop/victimization.\n");
+	else if (r4 == R4_SANALOP)
+		pr_cont("Tag error during sanalop/victimization.\n");
 	else if (xec == 0x0)
 		pr_cont("Tag parity error from victim castout.\n");
 	else if (xec == 0x2)
@@ -516,7 +516,7 @@ static bool f16h_mc2_mce(u16 ec, u8 xec)
 	case 0x0d ... 0x0f:
 		pr_cont("ECC error in L2 tag (%s).\n",
 			((r4 == R4_GEN)   ? "BankReq" :
-			((r4 == R4_SNOOP) ? "Prb"     : "Fill")));
+			((r4 == R4_SANALOP) ? "Prb"     : "Fill")));
 		break;
 
 	case 0x10 ... 0x19:
@@ -584,26 +584,26 @@ static void decode_mc3_mce(struct mce *m)
 static void decode_mc4_mce(struct mce *m)
 {
 	unsigned int fam = x86_family(m->cpuid);
-	int node_id = topology_die_id(m->extcpu);
+	int analde_id = topology_die_id(m->extcpu);
 	u16 ec = EC(m->status);
 	u8 xec = XEC(m->status, 0x1f);
 	u8 offset = 0;
 
-	pr_emerg(HW_ERR "MC4 Error (node %d): ", node_id);
+	pr_emerg(HW_ERR "MC4 Error (analde %d): ", analde_id);
 
 	switch (xec) {
 	case 0x0 ... 0xe:
 
 		/* special handling for DRAM ECCs */
 		if (xec == 0x0 || xec == 0x8) {
-			/* no ECCs on F11h */
+			/* anal ECCs on F11h */
 			if (fam == 0x11)
 				goto wrong_mc4_mce;
 
 			pr_cont("%s.\n", mc4_mce_desc[xec]);
 
 			if (decode_dram_ecc)
-				decode_dram_ecc(node_id, m);
+				decode_dram_ecc(analde_id, m);
 			return;
 		}
 		break;
@@ -707,7 +707,7 @@ static const char * const smca_long_names[] = {
 	[SMCA_SMU ... SMCA_SMU_V2]	= "System Management Unit",
 	[SMCA_MP5]			= "Microprocessor 5 Unit",
 	[SMCA_MPDMA]			= "MPDMA Unit",
-	[SMCA_NBIO]			= "Northbridge IO Unit",
+	[SMCA_NBIO]			= "Analrthbridge IO Unit",
 	[SMCA_PCIE ... SMCA_PCIE_V2]	= "PCI Express Unit",
 	[SMCA_XGMI_PCS]			= "Ext Global Memory Interconnect PCS Unit",
 	[SMCA_NBIF]			= "NBIF Unit",
@@ -784,20 +784,20 @@ static const char *decode_error_status(struct mce *m)
 	}
 
 	if (m->status & MCI_STATUS_DEFERRED)
-		return "Deferred error, no action required.";
+		return "Deferred error, anal action required.";
 
-	return "Corrected error, no action required.";
+	return "Corrected error, anal action required.";
 }
 
 static int
-amd_decode_mce(struct notifier_block *nb, unsigned long val, void *data)
+amd_decode_mce(struct analtifier_block *nb, unsigned long val, void *data)
 {
 	struct mce *m = (struct mce *)data;
 	unsigned int fam = x86_family(m->cpuid);
 	int ecc;
 
 	if (m->kflags & MCE_HANDLED_CEC)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	pr_emerg(HW_ERR "%s\n", decode_error_status(m));
 
@@ -903,11 +903,11 @@ amd_decode_mce(struct notifier_block *nb, unsigned long val, void *data)
 	amd_decode_err_code(m->status & 0xffff);
 
 	m->kflags |= MCE_HANDLED_EDAC;
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block amd_mce_dec_nb = {
-	.notifier_call	= amd_decode_mce,
+static struct analtifier_block amd_mce_dec_nb = {
+	.analtifier_call	= amd_decode_mce,
 	.priority	= MCE_PRIO_EDAC,
 };
 
@@ -917,10 +917,10 @@ static int __init mce_amd_init(void)
 
 	if (c->x86_vendor != X86_VENDOR_AMD &&
 	    c->x86_vendor != X86_VENDOR_HYGON)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (cpu_feature_enabled(X86_FEATURE_HYPERVISOR))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (boot_cpu_has(X86_FEATURE_SMCA)) {
 		xec_mask = 0x3f;

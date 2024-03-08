@@ -193,7 +193,7 @@
 	.retval = 2,
 },
 {
-	"jit: torturous jumps, imm8 nop jmp and pure jump padding",
+	"jit: torturous jumps, imm8 analp jmp and pure jump padding",
 	.insns = { },
 	.fill_helper = bpf_fill_torturous_jumps,
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
@@ -201,7 +201,7 @@
 	.retval = 1,
 },
 {
-	"jit: torturous jumps, imm32 nop jmp and jmp_cond padding",
+	"jit: torturous jumps, imm32 analp jmp and jmp_cond padding",
 	.insns = { },
 	.fill_helper = bpf_fill_torturous_jumps,
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,

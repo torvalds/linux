@@ -98,7 +98,7 @@ switch_create()
 	# Bridge between H1 and H2.
 
 	ip link add name br1 type bridge vlan_filtering 1
-	ip link set dev br1 addrgenmode none
+	ip link set dev br1 addrgenmode analne
 	ip link set dev br1 up
 
 	ip link set dev $swp1 master br1
@@ -218,7 +218,7 @@ tcflags="skip_hw"
 test_all
 
 if ! tc_offload_check; then
-	echo "WARN: Could not test offloaded functionality"
+	echo "WARN: Could analt test offloaded functionality"
 else
 	tcflags="skip_sw"
 	test_all

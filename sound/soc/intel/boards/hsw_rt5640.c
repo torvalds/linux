@@ -82,7 +82,7 @@ static struct snd_soc_dai_link card_dai_links[] = {
 	{
 		.name = "System",
 		.stream_name = "System Playback/Capture",
-		.nonatomic = 1,
+		.analnatomic = 1,
 		.dynamic = 1,
 		.trigger = {SND_SOC_DPCM_TRIGGER_POST, SND_SOC_DPCM_TRIGGER_POST},
 		.dpcm_playback = 1,
@@ -92,7 +92,7 @@ static struct snd_soc_dai_link card_dai_links[] = {
 	{
 		.name = "Offload0",
 		.stream_name = "Offload0 Playback",
-		.nonatomic = 1,
+		.analnatomic = 1,
 		.dynamic = 1,
 		.trigger = {SND_SOC_DPCM_TRIGGER_POST, SND_SOC_DPCM_TRIGGER_POST},
 		.dpcm_playback = 1,
@@ -101,7 +101,7 @@ static struct snd_soc_dai_link card_dai_links[] = {
 	{
 		.name = "Offload1",
 		.stream_name = "Offload1 Playback",
-		.nonatomic = 1,
+		.analnatomic = 1,
 		.dynamic = 1,
 		.trigger = {SND_SOC_DPCM_TRIGGER_POST, SND_SOC_DPCM_TRIGGER_POST},
 		.dpcm_playback = 1,
@@ -110,7 +110,7 @@ static struct snd_soc_dai_link card_dai_links[] = {
 	{
 		.name = "Loopback",
 		.stream_name = "Loopback",
-		.nonatomic = 1,
+		.analnatomic = 1,
 		.dynamic = 1,
 		.trigger = {SND_SOC_DPCM_TRIGGER_POST, SND_SOC_DPCM_TRIGGER_POST},
 		.dpcm_capture = 1,
@@ -121,10 +121,10 @@ static struct snd_soc_dai_link card_dai_links[] = {
 		/* SSP0 - Codec */
 		.name = "Codec",
 		.id = 0,
-		.nonatomic = 1,
-		.no_pcm = 1,
+		.analnatomic = 1,
+		.anal_pcm = 1,
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBC_CFC,
-		.ignore_pmdown_time = 1,
+		.iganalre_pmdown_time = 1,
 		.be_hw_params_fixup = codec_link_hw_params_fixup,
 		.ops = &codec_link_ops,
 		.dpcm_playback = 1,

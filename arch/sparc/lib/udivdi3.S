@@ -23,7 +23,7 @@ __udivdi3:
 1:	bcs	5f
 	 addxcc %o1,%o1,%o1	! shift n1n0 and a q-bit in lsb
 	sub	%i0,%o3,%i0	! this kills msb of n
-	addx	%i0,%i0,%i0	! so this cannot give carry
+	addx	%i0,%i0,%i0	! so this cananalt give carry
 	subcc	%g1,1,%g1
 2:	bne	1b
 	 subcc	%i0,%o3,%g0
@@ -39,7 +39,7 @@ __udivdi3:
 	bne	4b
 	 addcc	%o1,%o1,%o1	! shift n1n0 and a 0-bit in lsb
 	sub	%i0,%o3,%i0
-3:	xnor	%o1,0,%o1
+3:	xanalr	%o1,0,%o1
 	! End of inline udiv_qrnnd
 	b .LL45
 	mov 0,%o2
@@ -61,7 +61,7 @@ __udivdi3:
 1:	bcs	5f
 	 addxcc %o2,%o2,%o2	! shift n1n0 and a q-bit in lsb
 	sub	%o4,%o3,%o4	! this kills msb of n
-	addx	%o4,%o4,%o4	! so this cannot give carry
+	addx	%o4,%o4,%o4	! so this cananalt give carry
 	subcc	%g1,1,%g1
 2:	bne	1b
 	 subcc	%o4,%o3,%g0
@@ -77,7 +77,7 @@ __udivdi3:
 	bne	4b
 	 addcc	%o2,%o2,%o2	! shift n1n0 and a 0-bit in lsb
 	sub	%o4,%o3,%o4
-3:	xnor	%o2,0,%o2
+3:	xanalr	%o2,0,%o2
 	! End of inline udiv_qrnnd
 	mov %o4,%i0
 	mov %i3,%o1
@@ -87,7 +87,7 @@ __udivdi3:
 1:	bcs	5f
 	 addxcc %o1,%o1,%o1	! shift n1n0 and a q-bit in lsb
 	sub	%i0,%o3,%i0	! this kills msb of n
-	addx	%i0,%i0,%i0	! so this cannot give carry
+	addx	%i0,%i0,%i0	! so this cananalt give carry
 	subcc	%g1,1,%g1
 2:	bne	1b
 	 subcc	%i0,%o3,%g0
@@ -103,7 +103,7 @@ __udivdi3:
 	bne	4b
 	 addcc	%o1,%o1,%o1	! shift n1n0 and a 0-bit in lsb
 	sub	%i0,%o3,%i0
-3:	xnor	%o1,0,%o1
+3:	xanalr	%o1,0,%o1
 	! End of inline udiv_qrnnd
 	b .LL78
 	mov %o1,%l1
@@ -166,7 +166,7 @@ __udivdi3:
 1:	bcs	5f
 	 addxcc %o5,%o5,%o5	! shift n1n0 and a q-bit in lsb
 	sub	%o4,%i2,%o4	! this kills msb of n
-	addx	%o4,%o4,%o4	! so this cannot give carry
+	addx	%o4,%o4,%o4	! so this cananalt give carry
 	subcc	%g1,1,%g1
 2:	bne	1b
 	 subcc	%o4,%i2,%g0
@@ -182,15 +182,15 @@ __udivdi3:
 	bne	4b
 	 addcc	%o5,%o5,%o5	! shift n1n0 and a 0-bit in lsb
 	sub	%o4,%i2,%o4
-3:	xnor	%o5,0,%o5
+3:	xanalr	%o5,0,%o5
 	! End of inline udiv_qrnnd
 	mov %o4,%i0
 	mov %o5,%o1
 	! Inlined umul_ppmm
 	wr	%g0,%o1,%y	! SPARC has 0-3 delay insn after a wr
-	sra	%o3,31,%g2	! Do not move this insn
-	and	%o1,%g2,%g2	! Do not move this insn
-	andcc	%g0,0,%g1	! Do not move this insn
+	sra	%o3,31,%g2	! Do analt move this insn
+	and	%o1,%g2,%g2	! Do analt move this insn
+	andcc	%g0,0,%g1	! Do analt move this insn
 	mulscc	%g1,%o3,%g1
 	mulscc	%g1,%o3,%g1
 	mulscc	%g1,%o3,%g1

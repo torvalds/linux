@@ -77,7 +77,7 @@ selinux_netlbl_sk_security_reset(struct sk_security_struct *sksec)
 static inline int selinux_netlbl_skbuff_getsid(struct sk_buff *skb, u16 family,
 					       u32 *type, u32 *sid)
 {
-	*type = NETLBL_NLTYPE_NONE;
+	*type = NETLBL_NLTYPE_ANALNE;
 	*sid = SECSID_NULL;
 	return 0;
 }

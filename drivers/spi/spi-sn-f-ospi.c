@@ -228,7 +228,7 @@ static void f_ospi_config_clk(struct f_ospi *ospi, u32 device_hz)
 
 static void f_ospi_config_dll(struct f_ospi *ospi)
 {
-	/* G8: Configure DLL, nothing */
+	/* G8: Configure DLL, analthing */
 }
 
 static u8 f_ospi_get_mode(struct f_ospi *ospi, int width, int data_size)
@@ -316,7 +316,7 @@ static void f_ospi_config_indir_protocol(struct f_ospi *ospi,
 		prot |= OSPI_PROT_TRANS_DIR_WRITE | OSPI_PROT_DATA_EN;
 		break;
 
-	case SPI_MEM_NO_DATA:
+	case SPI_MEM_ANAL_DATA:
 		prot |= OSPI_PROT_TRANS_DIR_WRITE;
 		break;
 
@@ -362,7 +362,7 @@ static int f_ospi_indir_prepare_op(struct f_ospi *ospi, struct spi_mem *mem,
 		irq_stat_en = OSPI_IRQ_WRITE_BUF_READY | OSPI_IRQ_CS_TRANS_COMP;
 		break;
 
-	case SPI_MEM_NO_DATA:
+	case SPI_MEM_ANAL_DATA:
 		irq_stat_en = OSPI_IRQ_CS_TRANS_COMP;
 		break;
 
@@ -425,7 +425,7 @@ static int f_ospi_indir_read(struct f_ospi *ospi, struct spi_mem *mem,
 		buf[i] = readl(ospi->base + OSPI_DAT) & 0xFF;
 	}
 
-	/* E5-6: Stop transfer if data size is nothing */
+	/* E5-6: Stop transfer if data size is analthing */
 	if (!(readl(ospi->base + OSPI_DAT_SIZE_INDIR) & OSPI_DAT_SIZE_EN))
 		f_ospi_indir_stop_xfer(ospi);
 
@@ -436,7 +436,7 @@ static int f_ospi_indir_read(struct f_ospi *ospi, struct spi_mem *mem,
 
 	writel(OSPI_IRQ_CS_TRANS_COMP, ospi->base + OSPI_IRQ);
 
-	/* E9: Do nothing if data size is valid */
+	/* E9: Do analthing if data size is valid */
 	if (readl(ospi->base + OSPI_DAT_SIZE_INDIR) & OSPI_DAT_SIZE_EN)
 		goto out;
 
@@ -469,7 +469,7 @@ static int f_ospi_indir_write(struct f_ospi *ospi, struct spi_mem *mem,
 	f_ospi_indir_start_xfer(ospi);
 
 	if (!(readl(ospi->base + OSPI_PROT_CTL_INDIR) & OSPI_PROT_DATA_EN))
-		goto nodata;
+		goto analdata;
 
 	/* F4-5: Wait for buffer ready and write data */
 	for (i = 0; i < op->data.nbytes; i++) {
@@ -482,11 +482,11 @@ static int f_ospi_indir_write(struct f_ospi *ospi, struct spi_mem *mem,
 		writel(buf[i], ospi->base + OSPI_DAT);
 	}
 
-	/* F6-7: Stop transfer if data size is nothing */
+	/* F6-7: Stop transfer if data size is analthing */
 	if (!(readl(ospi->base + OSPI_DAT_SIZE_INDIR) & OSPI_DAT_SIZE_EN))
 		f_ospi_indir_stop_xfer(ospi);
 
-nodata:
+analdata:
 	/* F8-9: Wait for completion and clear */
 	ret = f_ospi_indir_wait_xfer_complete(ospi);
 	if (ret)
@@ -511,13 +511,13 @@ static int f_ospi_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 
 	case SPI_MEM_DATA_OUT:
 		fallthrough;
-	case SPI_MEM_NO_DATA:
+	case SPI_MEM_ANAL_DATA:
 		err = f_ospi_indir_write(ospi, mem, op);
 		break;
 
 	default:
 		dev_warn(ospi->dev, "Unsupported direction");
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 	}
 
 	return err;
@@ -608,20 +608,20 @@ static int f_ospi_probe(struct platform_device *pdev)
 
 	ctlr = spi_alloc_host(dev, sizeof(*ospi));
 	if (!ctlr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctlr->mode_bits = SPI_TX_DUAL | SPI_TX_QUAD | SPI_TX_OCTAL
 		| SPI_RX_DUAL | SPI_RX_QUAD | SPI_RX_OCTAL
 		| SPI_MODE_0 | SPI_MODE_1 | SPI_LSB_FIRST;
 	ctlr->mem_ops = &f_ospi_mem_ops;
 	ctlr->bus_num = -1;
-	of_property_read_u32(dev->of_node, "num-cs", &num_cs);
+	of_property_read_u32(dev->of_analde, "num-cs", &num_cs);
 	if (num_cs > OSPI_NUM_CS) {
 		dev_err(dev, "num-cs too large: %d\n", num_cs);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	ctlr->num_chipselect = num_cs;
-	ctlr->dev.of_node = dev->of_node;
+	ctlr->dev.of_analde = dev->of_analde;
 
 	ospi = spi_controller_get_devdata(ctlr);
 	ospi->dev = dev;

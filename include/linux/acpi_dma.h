@@ -31,7 +31,7 @@ struct acpi_dma_spec {
 
 /**
  * struct acpi_dma - representation of the registered DMAC
- * @dma_controllers:	linked list node
+ * @dma_controllers:	linked list analde
  * @dev:		struct device of this controller
  * @acpi_dma_xlate:	callback function to find a suitable channel
  * @data:		private data used by a callback function
@@ -81,18 +81,18 @@ static inline int acpi_dma_controller_register(struct device *dev,
 		(struct acpi_dma_spec *, struct acpi_dma *),
 		void *data)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 static inline int acpi_dma_controller_free(struct device *dev)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 static inline int devm_acpi_dma_controller_register(struct device *dev,
 		struct dma_chan *(*acpi_dma_xlate)
 		(struct acpi_dma_spec *, struct acpi_dma *),
 		void *data)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 static inline void devm_acpi_dma_controller_free(struct device *dev)
 {
@@ -101,12 +101,12 @@ static inline void devm_acpi_dma_controller_free(struct device *dev)
 static inline struct dma_chan *acpi_dma_request_slave_chan_by_index(
 		struct device *dev, size_t index)
 {
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 static inline struct dma_chan *acpi_dma_request_slave_chan_by_name(
 		struct device *dev, const char *name)
 {
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 
 #define acpi_dma_simple_xlate	NULL

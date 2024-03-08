@@ -10,7 +10,7 @@
 #include <linux/module.h>
 #include <linux/serio.h>
 #include <linux/interrupt.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/list.h>
 #include <linux/io.h>
@@ -42,14 +42,14 @@
  * definitions and are only defined once.
  */
 #define XPS2_IPIXR_WDT_TOUT	0x00000001 /* Watchdog Timeout Interrupt */
-#define XPS2_IPIXR_TX_NOACK	0x00000002 /* Transmit No ACK Interrupt */
+#define XPS2_IPIXR_TX_ANALACK	0x00000002 /* Transmit Anal ACK Interrupt */
 #define XPS2_IPIXR_TX_ACK	0x00000004 /* Transmit ACK (Data) Interrupt */
 #define XPS2_IPIXR_RX_OVF	0x00000008 /* Receive Overflow Interrupt */
 #define XPS2_IPIXR_RX_ERR	0x00000010 /* Receive Error Interrupt */
 #define XPS2_IPIXR_RX_FULL	0x00000020 /* Receive Data Interrupt */
 
 /* Mask for all the Transmit Interrupts */
-#define XPS2_IPIXR_TX_ALL	(XPS2_IPIXR_TX_NOACK | XPS2_IPIXR_TX_ACK)
+#define XPS2_IPIXR_TX_ALL	(XPS2_IPIXR_TX_ANALACK | XPS2_IPIXR_TX_ACK)
 
 /* Mask for all the Receive Interrupts */
 #define XPS2_IPIXR_RX_ALL	(XPS2_IPIXR_RX_OVF | XPS2_IPIXR_RX_ERR |  \
@@ -119,13 +119,13 @@ static irqreturn_t xps2_interrupt(int irq, void *dev_id)
 	if (intr_sr & XPS2_IPIXR_RX_ERR)
 		drvdata->flags |= SERIO_PARITY;
 
-	if (intr_sr & (XPS2_IPIXR_TX_NOACK | XPS2_IPIXR_WDT_TOUT))
+	if (intr_sr & (XPS2_IPIXR_TX_ANALACK | XPS2_IPIXR_WDT_TOUT))
 		drvdata->flags |= SERIO_TIMEOUT;
 
 	if (intr_sr & XPS2_IPIXR_RX_FULL) {
 		status = xps2_recv(drvdata, &c);
 
-		/* Error, if a byte is not received */
+		/* Error, if a byte is analt received */
 		if (status) {
 			dev_err(drvdata->dev,
 				"wrong rcvd byte count (%d)\n", status);
@@ -148,8 +148,8 @@ static irqreturn_t xps2_interrupt(int irq, void *dev_id)
  * @c:		data that needs to be written to the PS/2 port
  *
  * This function checks if the PS/2 transmitter is empty and sends a byte.
- * Otherwise it returns error. Transmission fails only when nothing is connected
- * to the PS/2 port. Thats why, we do not try to resend the data in case of a
+ * Otherwise it returns error. Transmission fails only when analthing is connected
+ * to the PS/2 port. Thats why, we do analt try to resend the data in case of a
  * failure.
  */
 static int sxps2_write(struct serio *pserio, unsigned char c)
@@ -237,26 +237,26 @@ static int xps2_of_probe(struct platform_device *ofdev)
 	unsigned int irq;
 	int error;
 
-	dev_info(dev, "Device Tree Probing \'%pOFn\'\n", dev->of_node);
+	dev_info(dev, "Device Tree Probing \'%pOFn\'\n", dev->of_analde);
 
 	/* Get iospace for the device */
-	error = of_address_to_resource(dev->of_node, 0, &r_mem);
+	error = of_address_to_resource(dev->of_analde, 0, &r_mem);
 	if (error) {
 		dev_err(dev, "invalid address\n");
 		return error;
 	}
 
 	/* Get IRQ for the device */
-	irq = irq_of_parse_and_map(dev->of_node, 0);
+	irq = irq_of_parse_and_map(dev->of_analde, 0);
 	if (!irq) {
-		dev_err(dev, "no IRQ found\n");
-		return -ENODEV;
+		dev_err(dev, "anal IRQ found\n");
+		return -EANALDEV;
 	}
 
 	drvdata = kzalloc(sizeof(struct xps2data), GFP_KERNEL);
 	serio = kzalloc(sizeof(struct serio), GFP_KERNEL);
 	if (!drvdata || !serio) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto failed1;
 	}
 
@@ -338,7 +338,7 @@ static void xps2_of_remove(struct platform_device *of_dev)
 	iounmap(drvdata->base_address);
 
 	/* Get iospace of the device */
-	if (of_address_to_resource(of_dev->dev.of_node, 0, &r_mem))
+	if (of_address_to_resource(of_dev->dev.of_analde, 0, &r_mem))
 		dev_err(drvdata->dev, "invalid address\n");
 	else
 		release_mem_region(r_mem.start, resource_size(&r_mem));
